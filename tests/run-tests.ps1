@@ -208,6 +208,109 @@ if (Get-Command node -ErrorAction SilentlyContinue) {
     Write-Host '  (Node.js not installed: import plan tests skipped)' -ForegroundColor Yellow
 }
 
+# 5. tgw-cloudflare.ps1 with a fake wrangler (Windows only: runs .cmd files)
+if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
+    Write-Host 'tgw-cloudflare.ps1 (fake wrangler)'
+    $cfTool = Join-Path (Join-Path $repo 'tools') 'tgw-cloudflare.ps1'
+    $state = Join-Path $work 'cf-state'
+    $cfWork = Join-Path $work 'cf-work'
+    $cfOut = Join-Path $work 'cf-out'
+    $cfBin = Join-Path $work 'cf-bin'
+    New-Item -ItemType Directory -Path $state, $cfBin -Force | Out-Null
+    $fakeDb = [guid]::NewGuid().ToString()
+    $fakeAcct = [guid]::NewGuid().ToString('N')
+    $fakeNpx = @(
+        '@echo off',
+        'echo %* >> "%GW_FAKE_STATE%\calls.log"',
+        'echo %* | findstr /C:"whoami" >nul && goto whoami',
+        'echo %* | findstr /C:"d1 list" >nul && goto d1list',
+        'echo %* | findstr /C:"d1 create" >nul && goto d1create',
+        'echo %* | findstr /C:"migrations apply" >nul && goto ok',
+        'echo %* | findstr /C:"d1 export" >nul && goto d1export',
+        'echo %* | findstr /C:"--command" >nul && goto query',
+        'echo %* | findstr /C:"d1 execute" >nul && goto ok',
+        'echo %* | findstr /C:" deploy" >nul && goto deploy',
+        'echo unknown command 1>&2',
+        'exit /b 1',
+        ':whoami',
+        'echo You are logged in with an OAuth Token, associated with the email test@example.com.',
+        ('echo ^| Test Account ^| ' + $fakeAcct + ' ^|'),
+        'exit /b 0',
+        ':d1list',
+        'if exist "%GW_FAKE_STATE%\db.txt" goto d1listyes',
+        'echo []',
+        'exit /b 0',
+        ':d1listyes',
+        ('echo [{"uuid":"' + $fakeDb + '","name":"technology-gear-world"}]'),
+        'exit /b 0',
+        ':d1create',
+        'echo created > "%GW_FAKE_STATE%\db.txt"',
+        'echo Successfully created DB',
+        'exit /b 0',
+        ':d1export',
+        'echo -- backup > "%GW_FAKE_STATE%\export.sql"',
+        ':exportloop',
+        'if "%~1"=="" goto ok',
+        'if "%~1"=="--output" goto exportwrite',
+        'shift',
+        'goto exportloop',
+        ':exportwrite',
+        'copy /y "%GW_FAKE_STATE%\export.sql" "%~2" >nul',
+        'goto ok',
+        ':query',
+        'echo [{"results":[{"category_slug":"audio","n":1}],"success":true}]',
+        'exit /b 0',
+        ':deploy',
+        'echo Uploaded technology-gear-world',
+        'echo   https://technology-gear-world.example-test.workers.dev',
+        'exit /b 0',
+        ':ok',
+        'echo OK',
+        'exit /b 0'
+    ) -join "`r`n"
+    [System.IO.File]::WriteAllText((Join-Path $cfBin 'npx.cmd'), $fakeNpx + "`r`n", [System.Text.Encoding]::ASCII)
+    $oldPath = $env:PATH
+    $env:PATH = $cfBin + ';' + $oldPath
+    $env:GW_FAKE_STATE = $state
+    $calls = Join-Path $state 'calls.log'
+    function Run-Cf([string[]]$a) {
+        $all = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $cfTool, '-WorkDir', $cfWork, '-OutDir', $cfOut, '-SkipInstall', '-NoClipboard') + $a
+        & $exe @all | Out-Null
+        return $LASTEXITCODE
+    }
+    function Calls { if (Test-Path -LiteralPath $calls) { return [System.IO.File]::ReadAllText($calls) } else { return '' } }
+    try {
+        Check ((Run-Cf @('-Step', 'check')) -eq 0) 'cloudflare check: exit 0'
+        Check (-not ((Calls) -match 'd1 create|deploy|execute|migrations')) 'cloudflare check: only reads'
+        Check ((Run-Cf @('-Step', 'd1')) -eq 0) 'cloudflare d1 without -Apply: exit 0'
+        Check (-not ((Calls) -match 'd1 create')) 'cloudflare d1 without -Apply: creates nothing'
+        Check ((Run-Cf @('-Step', 'd1', '-Apply', '-Approve', 'yes please')) -eq 1) 'cloudflare d1 with wrong phrase: stops'
+        Check (-not ((Calls) -match 'd1 create')) 'cloudflare d1 with wrong phrase: creates nothing'
+        Check ((Run-Cf @('-Step', 'preview', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ TGW PREVIEW')) -eq 8) 'cloudflare preview before d1: refused'
+        Check ((Run-Cf @('-Step', 'd1', '-Apply', '-Approve', 'egkrino tgw d1')) -eq 0) 'cloudflare d1 with approval (Latin form): exit 0'
+        $c = Calls
+        Check ($c -match 'd1 create technology-gear-world' -and $c -match 'migrations apply technology-gear-world --remote') 'cloudflare d1: creates the database and its tables'
+        $cfg = Join-Path $cfWork 'wrangler.jsonc'
+        Check ((Test-Path -LiteralPath $cfg) -and ([System.IO.File]::ReadAllText($cfg)).Contains($fakeDb)) 'cloudflare d1: local wrangler.jsonc has the database id'
+        Check ((Run-Cf @('-Step', 'preview', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ TGW PREVIEW')) -eq 0) 'cloudflare preview with approval: exit 0'
+        Check ((Calls) -match '(?m)wrangler deploy') 'cloudflare preview: deploys'
+        Check (-not ((Calls) -match 'routes|custom_domain|technologygearworld\.com')) 'cloudflare preview: no custom domain'
+        Check ((Run-Cf @('-Step', 'import', '-Archive', $arch)) -eq 0) 'cloudflare import without -Apply: exit 0'
+        Check (-not ((Calls) -match 'd1 execute .*--file')) 'cloudflare import without -Apply: loads nothing'
+        Check ((Run-Cf @('-Step', 'import', '-Archive', $arch, '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ TGW IMPORT')) -eq 0) 'cloudflare import with approval: exit 0'
+        $c = Calls
+        $iExport = $c.IndexOf('d1 export')
+        $iExec = $c.IndexOf('--file')
+        Check ($iExport -ge 0 -and $iExec -gt $iExport) 'cloudflare import: backup before loading'
+        Check (@(Get-ChildItem -LiteralPath (Join-Path $cfWork 'backups') -Filter '*.sql' -ErrorAction SilentlyContinue).Count -eq 1) 'cloudflare import: backup file written'
+        $reports = @(Get-ChildItem -LiteralPath $cfOut -Filter 'TGW_CLOUDFLARE_*.txt' -ErrorAction SilentlyContinue)
+        Check ($reports.Count -ge 5) 'cloudflare: a report for every run'
+    } finally {
+        $env:PATH = $oldPath
+        Remove-Item Env:\GW_FAKE_STATE -ErrorAction SilentlyContinue
+    }
+}
+
 Remove-Item -LiteralPath $work -Recurse -Force -ErrorAction SilentlyContinue
 
 Write-Host ''
