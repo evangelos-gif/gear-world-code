@@ -260,7 +260,7 @@ switch ($Step) {
         $head = ([System.IO.File]::ReadAllLines((Join-Path $planDir 'report.txt')) | Where-Object { $_ -match 'would be imported' } | Select-Object -First 1)
         Say ''
         Say 'Τι θα γίνει:'
-        Say ('  - Backup της D1 του TGW στο {0}' -f (Join-Path $WorkDir 'backups'))
+        Say ('  - Σημείο επαναφοράς (Cloudflare Time Travel) της D1 του TGW, γραμμένο στο {0}' -f (Join-Path $WorkDir 'backups'))
         Say ('  - Φόρτωση προϊόντων: {0}' -f $head)
         Say ('  - {0} αρχεία SQL, το ένα μετά το άλλο. Σταματά στο πρώτο λάθος.' -f $files.Count)
         Say '  - Αλλάζει ΜΟΝΟ η D1 του TGW. Κανένα άλλο site.'
@@ -268,17 +268,30 @@ switch ($Step) {
         if (-not (Confirm-Approval $Phrases.import)) { Say 'Δεν δόθηκε έγκριση: σταμάτησα χωρίς αλλαγές.' 'Yellow'; Finish 1 }
         $bdir = Join-Path $WorkDir 'backups'
         if (-not (Test-Path -LiteralPath $bdir)) { New-Item -ItemType Directory -Path $bdir -Force | Out-Null }
-        $backup = Join-Path $bdir ('tgw-d1-before-import-' + $stamp + '.sql')
-        $b = Invoke-Wrangler $tgw ('d1 export {0} --remote --output "{1}"' -f $DbName, $backup) -NonInteractive
-        if ($b.code -ne 0 -or -not (Test-Path -LiteralPath $backup)) { Say 'Το backup απέτυχε: ΔΕΝ φόρτωσα τίποτα.' 'Red'; Say $b.text; Finish 11 }
-        Say ('Backup: {0}' -f $backup) 'Green'
+        # D1 cannot export databases with FTS5 tables, so the backup is a Time Travel restore point (bookmark).
+        $tt = Invoke-Wrangler $tgw ('d1 time-travel info {0}' -f $DbName) -NonInteractive
+        $bm = [regex]::Match($tt.text, '[0-9a-f]{8}-[0-9a-f]{8}-[0-9a-f]{8}-[0-9a-f]{32}')
+        if ($tt.code -ne 0 -or -not $bm.Success) { Say 'Δεν πήρα σημείο επαναφοράς: ΔΕΝ φόρτωσα τίποτα.' 'Red'; Say $tt.text; Finish 11 }
+        $bookmark = $bm.Value
+        $restoreCmd = 'npx wrangler d1 time-travel restore {0} --bookmark={1}' -f $DbName, $bookmark
+        $backup = Join-Path $bdir ('tgw-d1-restore-point-before-import-' + $stamp + '.txt')
+        $note = @(
+            ('TGW D1 restore point before import, {0}' -f (Get-Date -Format 'yyyy-MM-dd HH:mm')),
+            ('bookmark: {0}' -f $bookmark),
+            'To go back, run these two lines in PowerShell (only with approval):',
+            ('  cd "{0}"' -f $tgw),
+            ('  {0}' -f $restoreCmd),
+            'Valid for 7 days (Workers Free) or 30 days (Workers Paid).'
+        ) -join "`r`n"
+        [System.IO.File]::WriteAllText($backup, $note, (New-Object System.Text.UTF8Encoding($false)))
+        Say ('Σημείο επαναφοράς: {0}' -f $backup) 'Green'
         $n = 0
         foreach ($f in $files) {
             $x = Invoke-Wrangler $tgw ('d1 execute {0} --remote --file "{1}"' -f $DbName, $f.FullName) -NonInteractive
             if ($x.code -ne 0) {
                 Say ('Λάθος στο {0}. Σταμάτησα. Τα προηγούμενα αρχεία φορτώθηκαν.' -f $f.Name) 'Red'
                 Say $x.text
-                Say ('Επαναφορά: npx wrangler d1 execute {0} --remote --file "{1}"' -f $DbName, $backup)
+                Say ('Επαναφορά: {0}' -f $restoreCmd)
                 Finish 12
             }
             $n++
@@ -290,6 +303,7 @@ switch ($Step) {
         if ($rows) { foreach ($r in @($rows[0].results)) { Say ('  {0,-24} {1}' -f $r.category_slug, $r.n) } }
         Say ''
         Say 'ΕΤΟΙΜΟ: τα προϊόντα φορτώθηκαν στη D1 του TGW.' 'Green'
+        Say ('Αν χρειαστεί επαναφορά: {0}' -f $restoreCmd)
         Finish 0
     }
 }

@@ -219,6 +219,7 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
     New-Item -ItemType Directory -Path $state, $cfBin -Force | Out-Null
     $fakeDb = [guid]::NewGuid().ToString()
     $fakeAcct = [guid]::NewGuid().ToString('N')
+    $fakeBookmark = '00000085-0000024c-00004c6d-' + [guid]::NewGuid().ToString('N')
     $fakeNpx = @(
         '@echo off',
         'echo %* >> "%GW_FAKE_STATE%\calls.log"',
@@ -226,7 +227,7 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         'echo %* | findstr /C:"d1 list" >nul && goto d1list',
         'echo %* | findstr /C:"d1 create" >nul && goto d1create',
         'echo %* | findstr /C:"migrations apply" >nul && goto ok',
-        'echo %* | findstr /C:"d1 export" >nul && goto d1export',
+        'echo %* | findstr /C:"time-travel info" >nul && goto ttinfo',
         'echo %* | findstr /C:"--command" >nul && goto query',
         'echo %* | findstr /C:"d1 execute" >nul && goto ok',
         'echo %* | findstr /C:" deploy" >nul && goto deploy',
@@ -251,16 +252,9 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         'echo created > "%GW_FAKE_STATE%\db.txt"',
         'echo Successfully created DB',
         'exit /b 0',
-        ':d1export',
-        'echo -- backup > "%GW_FAKE_STATE%\export.sql"',
-        ':exportloop',
-        'if "%~1"=="" goto ok',
-        'if "%~1"=="--output" goto exportwrite',
-        'shift',
-        'goto exportloop',
-        ':exportwrite',
-        'copy /y "%GW_FAKE_STATE%\export.sql" "%~2" >nul',
-        'goto ok',
+        ':ttinfo',
+        ('echo The current bookmark is ' + $fakeBookmark),
+        'exit /b 0',
         ':query',
         'echo [{"results":[{"category_slug":"audio","n":1}],"success":true}]',
         'exit /b 0',
@@ -308,10 +302,11 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         Check (-not ((Calls) -match 'd1 execute .*--file')) 'cloudflare import without -Apply: loads nothing'
         Check ((Run-Cf @('-Step', 'import', '-Archive', $arch, '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ TGW IMPORT')) -eq 0) 'cloudflare import with approval: exit 0'
         $c = Calls
-        $iExport = $c.IndexOf('d1 export')
+        $iBackup = $c.IndexOf('time-travel info')
         $iExec = $c.IndexOf('--file')
-        Check ($iExport -ge 0 -and $iExec -gt $iExport) 'cloudflare import: backup before loading'
-        Check (@(Get-ChildItem -LiteralPath (Join-Path $cfWork 'backups') -Filter '*.sql' -ErrorAction SilentlyContinue).Count -eq 1) 'cloudflare import: backup file written'
+        Check ($iBackup -ge 0 -and $iExec -gt $iBackup) 'cloudflare import: restore point before loading'
+        $notes = @(Get-ChildItem -LiteralPath (Join-Path $cfWork 'backups') -Filter '*.txt' -ErrorAction SilentlyContinue)
+        Check ($notes.Count -eq 1 -and ([System.IO.File]::ReadAllText($notes[0].FullName)).Contains($fakeBookmark)) 'cloudflare import: restore point written with the bookmark'
         $reports = @(Get-ChildItem -LiteralPath $cfOut -Filter 'TGW_CLOUDFLARE_*.txt' -ErrorAction SilentlyContinue)
         Check ($reports.Count -ge 6) 'cloudflare: a report for every run'
     } finally {
