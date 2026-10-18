@@ -9,3 +9,4 @@ assets/og-image.png
 assets/apple-touch-icon.png
 assets/fonts/*.woff2
 assets/fonts/OFL.txt
+assets/img/*.webp

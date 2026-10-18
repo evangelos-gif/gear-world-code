@@ -1,0 +1,13 @@
+{
+  "_comment": "Awin feeds used by Technology Gear World. advertiserId and feedIds are from the file names AWIN_<advertiserId>_<feedId>.csv.gz in the Awin archive. Add a retailer here only after Awin has approved the programme.",
+  "sources": [
+    {
+      "advertiserId": 123932,
+      "feedIds": [114093],
+      "retailer": "Joybuy",
+      "currency": "GBP",
+      "condition": "new",
+      "approved": true
+    }
+  ]
+}

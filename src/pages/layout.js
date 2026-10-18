@@ -10,6 +10,19 @@ export function asset(site, path) {
   return `/assets/${path}?v=${encodeURIComponent(site.assetVersion)}`;
 }
 
+// Photo for a category tile or banner, when the site has category photos (public/assets/img/cat-<slug>.webp).
+export function categoryImage(site, slug) {
+  return site.categoryImages ? asset(site, `img/cat-${slug}.webp`) : '';
+}
+
+// Site name with the family part ("Gear World") marked, so the CSS can colour it.
+function brandName(site) {
+  const accent = site.brandAccent || '';
+  const i = accent ? site.name.lastIndexOf(accent) : -1;
+  if (i <= 0) return html`<span class="brand-name">${site.name}</span>`;
+  return html`<span class="brand-name">${site.name.slice(0, i).trim()} <span class="brand-accent">${accent}</span></span>`;
+}
+
 export function absolute(site, path) {
   return `https://${site.domain}${path}`;
 }
@@ -40,7 +53,7 @@ ${next ? html`<link rel="next" href="${absolute(site, next)}">` : ''}
 <meta property="og:url" content="${absolute(site, canonical || path)}">
 <meta property="og:image" content="${image}">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="theme-color" content="#18202b">
+<meta name="theme-color" content="${site.themeColor || '#18202b'}">
 <link rel="icon" href="${asset(site, 'favicon.svg')}" type="image/svg+xml">
 <link rel="apple-touch-icon" href="${asset(site, 'apple-touch-icon.png')}">
 <link rel="preload" href="/assets/fonts/barlow-400.woff2" as="font" type="font/woff2" crossorigin>
@@ -67,7 +80,7 @@ function header(site, currentCategory, searchValue) {
   <div class="wrap masthead-row">
     <a class="brand" href="/" aria-label="${site.name} home">
       <img src="${asset(site, 'logo.svg')}" alt="" width="40" height="40">
-      <span class="brand-name">${site.name}</span>
+      ${brandName(site)}
     </a>
     ${searchForm(site, searchValue, 'masthead-search')}
   </div>
@@ -76,6 +89,13 @@ function header(site, currentCategory, searchValue) {
       ${site.categories.map(c => html`<li><a href="${categoryPath(c.slug)}"${c.slug === currentCategory ? raw(' aria-current="page"') : ''}>${c.nav || c.name}</a></li>`)}
     </ul>
   </nav>
+  ${site.hub && site.hub.tagline ? html`<section data-gw-network class="hub-strip" aria-label="${site.hub.name}">
+    <div class="wrap hub-row">
+      <span class="hub-name">${site.hub.name}</span>
+      <span class="hub-tagline">${site.hub.tagline}</span>
+      <a class="hub-link" href="${site.hub.url}">Explore the Hub <span aria-hidden="true">&rarr;</span></a>
+    </div>
+  </section>` : ''}
 </header>`;
 }
 

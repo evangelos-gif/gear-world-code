@@ -9,7 +9,15 @@ export default {
   lang: 'en-GB',
   locale: 'en-GB',
   currency: 'GBP',
-  assetVersion: '2026-10-18-2',
+  assetVersion: '2026-10-18-4',
+
+  // Look of the Gear World family: dark page, gold headings, photo hero and photo category tiles.
+  themeColor: '#0a1222',
+  brandAccent: 'Gear World',
+  heroEyebrow: 'Independent tech price comparison',
+  // Photos: Pexels licence (free for commercial use). Sources in docs/IMAGE-CREDITS.md.
+  heroImage: { src: 'img/hero-1920.webp', small: 'img/hero-960.webp', width: 1920, height: 1280 },
+  categoryImages: true, // public/assets/img/cat-<slug>.webp, 720 x 480
 
   // Shown in <title> of the home page and in social previews.
   homeTitle: 'Technology Gear World | Compare Laptops, Phones, Audio & Smart Tech',
@@ -25,7 +33,7 @@ export default {
   turnstileSiteKey: '',
   cloudflareAnalyticsToken: '',
 
-  hub: { name: 'Gear World Hub', url: 'https://gearworldhub.com/' },
+  hub: { name: 'Gear World Hub', url: 'https://gearworldhub.com/', tagline: 'One Hub. Every Gear World.' },
   network: [
     { name: 'Construction Gear World', url: 'https://constructiongearworld.com/' },
     { name: "Men's Gear World", url: 'https://mensgearworld.com/' },

@@ -2,7 +2,7 @@
 import { html, raw } from '../lib/html.js';
 import { categoryPath } from '../lib/text.js';
 import { SORT_OPTIONS } from '../db.js';
-import { page, productGrid, breadcrumbs, breadcrumbSchema, searchForm } from './layout.js';
+import { page, productGrid, breadcrumbs, breadcrumbSchema, searchForm, categoryImage } from './layout.js';
 
 export function readListingParams(url) {
   const sp = url.searchParams;
@@ -124,9 +124,12 @@ export function categoryPage(site, cat, p, result, facets) {
   const body = html`
 <div class="wrap">
   ${breadcrumbs(crumbs)}
-  <header class="page-head">
-    <h1>${cat.name}</h1>
-    <p class="lede">${cat.intro}</p>
+  <header class="page-head${categoryImage(site, cat.slug) ? ' cat-banner' : ''}">
+    ${categoryImage(site, cat.slug) ? html`<img class="cat-banner-img" src="${categoryImage(site, cat.slug)}" alt="" width="720" height="480" fetchpriority="high" decoding="async">` : ''}
+    <div class="cat-banner-text">
+      <h1>${cat.name}</h1>
+      <p class="lede">${cat.intro}</p>
+    </div>
   </header>
   <div class="listing">
     <aside class="listing-side">${filterForm(base, p, facets)}</aside>

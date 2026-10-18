@@ -1,45 +1,70 @@
 import { html, raw } from '../lib/html.js';
 import { categoryPath, formatDate } from '../lib/text.js';
-import { page, productGrid, productCard, searchForm, icon, absolute } from './layout.js';
+import { page, productGrid, searchForm, icon, absolute, asset, categoryImage } from './layout.js';
 
 export function homePage(site, data) {
   const fmt = n => new Intl.NumberFormat(site.locale).format(n);
-  // The hero board shows the first three items; the sections below show the rest, so nothing repeats (L03).
-  const boardFromDeals = data.deals.length >= 3;
-  const board = (boardFromDeals ? data.deals : data.newest).slice(0, 3);
-  const onBoard = new Set(board.map(p => p.id));
-  const deals = data.deals.filter(p => !onBoard.has(p.id)).slice(0, 8);
-  const newest = data.newest.filter(p => !onBoard.has(p.id) && !deals.some(d => d.id === p.id)).slice(0, 8);
+  // Each product appears once on the page (L03): price drops first, then new products not already shown.
+  const deals = data.deals.slice(0, 8);
+  const newest = data.newest.filter(p => !deals.some(d => d.id === p.id)).slice(0, 8);
+  const hero = site.heroImage;
+  const retailerCount = data.retailers.length;
   const body = html`
-<section class="hero">
-  <div class="wrap hero-grid">
-    <div class="hero-copy">
-      <h1>${site.heroTitle}</h1>
-      <p class="lede">${site.heroText}</p>
-      ${searchForm(site, '', 'hero-search')}
-      <p class="hero-facts">${fmt(data.totalProducts)} products from ${fmt(data.retailers.length)} ${data.retailers.length === 1 ? 'retailer' : 'retailers'}.${data.lastUpdated ? html` Prices last updated ${formatDate(data.lastUpdated, site.locale)}.` : ''}</p>
-    </div>
-    ${board.length ? html`<div class="price-board" aria-label="${boardFromDeals ? 'Biggest price drops' : 'Just added'}">
-      ${board.map(p => productCard(site, p))}
-    </div>` : ''}
+<section class="hero${hero ? ' hero-photo' : ''}">
+  ${hero ? html`<img class="hero-img" src="${asset(site, hero.src)}" srcset="${asset(site, hero.small)} 960w, ${asset(site, hero.src)} ${hero.width}w" sizes="100vw" width="${hero.width}" height="${hero.height}" alt="" fetchpriority="high" decoding="async">` : ''}
+  <div class="wrap hero-inner">
+    ${site.heroEyebrow ? html`<p class="eyebrow">${site.heroEyebrow}</p>` : ''}
+    <h1>${site.heroTitle}</h1>
+    <p class="lede">${site.heroText}</p>
+    ${searchForm(site, '', 'hero-search')}
+    <p class="hero-actions">
+      <a class="btn btn-gold" href="#cats-h">Shop by category</a>
+      ${deals.length ? html`<a class="btn btn-outline" href="/deals/">Today's price drops</a>` : ''}
+    </p>
+    ${data.lastUpdated ? html`<p class="hero-facts">Prices last updated ${formatDate(data.lastUpdated, site.locale)}.</p>` : ''}
   </div>
+</section>
+
+<section class="stats" aria-label="${site.name} in numbers">
+  <ul class="stats-list">
+    <li><strong>${fmt(data.totalProducts)}</strong> products</li>
+    <li><strong>${fmt(retailerCount)}</strong> ${retailerCount === 1 ? 'retailer partner' : 'retailer partners'}</li>
+    <li><strong>${fmt(site.categories.length)}</strong> main categories</li>
+    <li>Independent comparison</li>
+  </ul>
 </section>
 
 <section class="wrap section" aria-labelledby="cats-h">
   <h2 id="cats-h">Shop by category</h2>
-  <ul class="drawer-grid">
-    ${site.categories.map(c => html`<li>
-      <a class="drawer" href="${categoryPath(c.slug)}">
-        ${icon(c.icon, 'drawer-icon')}
-        <span class="drawer-name">${c.name}</span>
-        <span class="drawer-count">${fmt(data.categoryCounts[c.slug] || 0)} products</span>
+  <ul class="cat-grid">
+    ${site.categories.map(c => {
+      const img = categoryImage(site, c.slug);
+      return html`<li>
+      <a class="cat-tile" href="${categoryPath(c.slug)}">
+        ${img ? html`<img src="${img}" alt="" width="720" height="480" loading="lazy" decoding="async">` : icon(c.icon, 'cat-icon')}
+        <span class="cat-text">
+          <span class="cat-name">${c.name}</span>
+          <span class="cat-count">${fmt(data.categoryCounts[c.slug] || 0)} products</span>
+        </span>
+        ${icon('chevron', 'cat-chevron')}
       </a>
-    </li>`)}
+    </li>`;
+    })}
+    ${deals.length && hero ? html`<li>
+      <a class="cat-tile cat-tile-deals" href="/deals/">
+        <img src="${asset(site, hero.small)}" alt="" width="720" height="480" loading="lazy" decoding="async">
+        <span class="cat-text">
+          <span class="cat-name">Today's price drops</span>
+          <span class="cat-count">Biggest savings first</span>
+        </span>
+        ${icon('chevron', 'cat-chevron')}
+      </a>
+    </li>` : ''}
   </ul>
 </section>
 
 ${deals.length ? html`<section class="wrap section" aria-labelledby="deals-h">
-  <div class="section-head"><h2 id="deals-h">More price drops</h2><a href="/deals/" class="more-link">See all price drops</a></div>
+  <div class="section-head"><h2 id="deals-h">Today's price drops</h2><a href="/deals/" class="more-link">See all price drops</a></div>
   ${productGrid(site, deals)}
 </section>` : ''}
 

@@ -89,7 +89,7 @@ try {
         };
         const describe = el => `${el.tagName.toLowerCase()}${el.className ? '.' + String(el.className).trim().split(/\s+/).join('.') : ''} "${(el.textContent || '').trim().slice(0, 40)}"`;
         const edge = [];
-        for (const el of document.querySelectorAll('main h1, main h2, main h3, main p, main .btn, main .drawer, main .label-card, main form, main table, main dl')) {
+        for (const el of document.querySelectorAll('main h1, main h2, main h3, main p, main .btn, main .drawer, main .cat-tile, main .label-card, main form, main table, main dl')) {
           if (!visible(el) || inScroller(el)) continue;
           const r = el.getBoundingClientRect();
           if (r.left < GUTTER - 0.5 || r.right > vw - GUTTER + 0.5) edge.push(`${describe(el)} left=${Math.round(r.left)} right=${Math.round(vw - r.right)}`);
@@ -110,6 +110,12 @@ try {
       check(consoleErrors.length === 0, `${label}: no JavaScript errors`, consoleErrors.slice(0, 3).join(' | '));
       check(failed.length === 0, `${label}: all site files load`, failed.slice(0, 3).join(' | '));
 
+      // Scroll through the page so lazy images load, then take the screenshot from the top.
+      await page.evaluate(async () => {
+        for (let y = 0; y < document.body.scrollHeight; y += 500) { window.scrollTo(0, y); await new Promise(r => setTimeout(r, 40)); }
+        window.scrollTo(0, 0);
+      });
+      await page.waitForLoadState('networkidle');
       await page.screenshot({ path: join(shotsDir, `${vp.name}-${name}.png`), fullPage: true });
       page.off('console', onConsole);
       page.off('response', onResponse);
