@@ -85,6 +85,7 @@ export function productPage(site, product, category, similar) {
           ${checked ? html`<div><dt>Price checked</dt><dd>${checked}</dd></div>` : ''}
         </dl>
         <a class="btn btn-deal btn-big" href="/out/${product.id}" rel="sponsored nofollow noopener" target="_blank">View at ${product.retailer}</a>
+        <button type="button" class="btn-compare btn-compare-big" data-compare="${product.id}" aria-pressed="false" hidden>+ Compare</button>
         <p class="shelf-note">You buy on the ${product.retailer} website, at their price. We may earn a commission. <a href="/how-we-make-money/">How this works</a></p>
       </div>
     </div>

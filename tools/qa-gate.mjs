@@ -195,6 +195,25 @@ if (site) {
   check('L22', s.status === 302 && /\/search\?q=laptop$/.test(s.headers.get('location') || ''), '/?search=<q> (hub link) opens the search page', `${s.status} ${s.headers.get('location')}`);
 }
 
+// Compare 2-4 products (lessons L23): the site says "compare", so the tool must exist and be honest.
+if (site) {
+  check('L23', /data-compare="\d+"/.test(home.body), '/: product cards have a Compare button');
+  const cat = site.categories[0] ? site.categories[0].slug : '';
+  const list = await get(`/api/products?category=${cat}&limit=3`);
+  let ps = [];
+  try { ps = JSON.parse(list.body).products || []; } catch { ps = []; }
+  if (ps.length >= 2) {
+    const c = await get(`/compare/?ids=${ps[0].id},${ps[1].id}`);
+    check('L23', c.status === 200, '/compare/: opens with 2 products', String(c.status));
+    check('L23', /<meta name="robots" content="noindex/.test(c.body), '/compare/: noindex (address changes with the products)');
+    check('L23', (c.body.match(/href="\/out\/\d+" rel="sponsored nofollow/g) || []).length >= 2, '/compare/: a retailer button for every product');
+    check('L23', c.body.includes('Our pick') || c.body.includes('we do not pick one'), '/compare/: our pick, or why there is none');
+    check('L23', c.body.includes('How we pick:'), '/compare/: the pick rule is shown');
+  }
+  const bad = await get('/compare/?ids=abc,0,-1');
+  check('L23', bad.status === 200 && bad.body.includes('Choose 2 to'), '/compare/: bad ids show the help text');
+}
+
 // Launch readiness
 if (opt('prelaunch') && site) {
   for (const k of ['contactEmail', 'operatorName']) check('L17', Boolean(site[k]), `config: ${k} is filled in`);

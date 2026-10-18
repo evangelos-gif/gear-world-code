@@ -9,7 +9,7 @@ export default {
   lang: 'en-GB',
   locale: 'en-GB',
   currency: 'GBP',
-  assetVersion: '2026-10-18-5',
+  assetVersion: '2026-10-18-6',
 
   // Look of the Gear World family: dark page, gold headings, photo hero and photo category tiles.
   themeColor: '#0a1222',

@@ -12,6 +12,7 @@ export function robotsTxt(site) {
     'Disallow: /out/',
     'Disallow: /api/',
     'Disallow: /search',
+    'Disallow: /compare/',
     '',
     `Sitemap: https://${site.domain}/sitemap.xml`,
     ''

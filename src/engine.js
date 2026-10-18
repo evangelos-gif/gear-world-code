@@ -6,6 +6,7 @@ import * as db from './db.js';
 import { homePage } from './pages/home.js';
 import { categoryPage, searchPage, dealsPage, readListingParams, hasFilters } from './pages/listing.js';
 import { productPage } from './pages/product.js';
+import { comparePage, parseCompareIds } from './pages/compare.js';
 import { infoPage, infoPaths, notFoundPage, errorPage } from './pages/info.js';
 import { sitemapIndex, sitemapStatic, sitemapProducts, robotsTxt, SITEMAP_CHUNK } from './seo.js';
 
@@ -87,6 +88,13 @@ export function createWorker(site) {
         const similar = await db.similarProducts(env.DB, product, 8);
         return htmlResponse(productPage(site, product, categories.get(product.category_slug), similar), { method });
       });
+    }
+
+    if (path === '/compare/' || path === '/compare') {
+      if (path === '/compare') return redirect(new URL('/compare/' + url.search, url.origin).toString(), 301);
+      const ids = parseCompareIds(url);
+      const products = await db.getProductsByIds(env.DB, ids);
+      return htmlResponse(comparePage(site, products, ids), { method, cache: 'short' });
     }
 
     if (path === '/search') {

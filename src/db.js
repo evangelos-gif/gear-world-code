@@ -79,6 +79,14 @@ export async function facets(db, category) {
   };
 }
 
+// Up to 4 active products, in the order asked (compare page).
+export async function getProductsByIds(db, ids) {
+  if (!ids.length) return [];
+  const r = await db.prepare(`SELECT * FROM products WHERE is_active = 1 AND id IN (${ids.map(() => '?').join(',')})`).bind(...ids).all();
+  const byId = new Map((r.results || []).map(p => [Number(p.id), p]));
+  return ids.map(id => byId.get(id)).filter(Boolean);
+}
+
 export async function getProduct(db, id) {
   return db.prepare(`SELECT * FROM products WHERE id = ? AND is_active = 1 LIMIT 1`).bind(id).first();
 }

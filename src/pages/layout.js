@@ -157,6 +157,7 @@ export function productCard(site, p, { headingLevel = 3 } = {}) {
     <p class="label-price"><span class="price">${price}</span>${was ? html` <s class="was">${was}</s>` : ''}${pct ? html` <span class="tag-save">Save ${pct}%</span>` : ''}</p>
     <p class="label-meta"><span class="retailer">${p.retailer}</span>${p.item_condition === 'refurbished' ? html`<span class="badge">Refurbished</span>` : ''}${Number(p.in_stock) === 1 ? '' : html`<span class="badge badge-out">Out of stock</span>`}</p>
     <a class="btn btn-deal" href="/out/${p.id}" rel="sponsored nofollow noopener" target="_blank">View at ${p.retailer}</a>
+    <button type="button" class="btn-compare" data-compare="${p.id}" aria-pressed="false" hidden>+ Compare</button>
   </div>
 </article>`;
 }

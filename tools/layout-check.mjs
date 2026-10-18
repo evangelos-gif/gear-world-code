@@ -40,11 +40,19 @@ try {
   check(categoryPath, 'home links to a category page');
   check(productPath, 'home links to a product page');
 
+  let comparePath = '';
+  try {
+    const d = await (await fetch(base + '/api/products?limit=3')).json();
+    const ids = (d.products || []).slice(0, 3).map(p => p.id);
+    if (ids.length >= 2) comparePath = '/compare/?ids=' + ids.join(',');
+  } catch { comparePath = ''; }
+
   const pages = [
     ['home', '/'],
     ['category', categoryPath],
     ['product', productPath],
     ['search', '/search?q=laptop'],
+    ['compare', comparePath],
     ['privacy', '/privacy/'],
     ['not-found', '/this-page-does-not-exist/']
   ].filter(([, p]) => p);
