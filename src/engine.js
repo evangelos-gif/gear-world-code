@@ -253,14 +253,33 @@ export function createWorker(site) {
 
   return {
     async fetch(request, env, ctx) {
+      const host = new URL(request.url).hostname.toLowerCase();
+      // Preview addresses (e.g. *.workers.dev) must never be indexed: only the real domain is (lessons L11).
+      const preview = isPreviewHost(host, site.domain);
+      if (preview && new URL(request.url).pathname === '/robots.txt') {
+        return textResponse('User-agent: *\nDisallow: /\n', { cache: 'none', method: request.method });
+      }
+      let response;
       try {
-        return await handle(request, env, ctx);
+        response = await handle(request, env, ctx);
       } catch (err) {
         console.error('request failed', err && err.stack ? err.stack : err);
-        return htmlResponse(errorPage(site), { status: 500, cache: 'none' });
+        response = htmlResponse(errorPage(site), { status: 500, cache: 'none' });
       }
+      if (!preview) return response;
+      const h = new Headers(response.headers);
+      h.set('X-Robots-Tag', 'noindex, nofollow');
+      return new Response(response.body, { status: response.status, statusText: response.statusText, headers: h });
     },
     scheduled
   };
 }
 
+// Hosts that are not the real site: preview and test addresses. Local development (localhost) is not a
+// preview, so the QA gate sees the same pages and headers as the real domain.
+export function isPreviewHost(host, domain) {
+  const h = String(host || '').toLowerCase();
+  if (h === domain || h === `www.${domain}`) return false;
+  if (h === 'localhost' || h === '127.0.0.1' || h === '[::1]') return false;
+  return true;
+}

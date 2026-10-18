@@ -82,6 +82,10 @@ test('category rules: cases from the real Joybuy report of 18 Oct 2026', () => {
     ['eufy Indoor&Outdoor Security Camera Kit, Indoor Cam S350 Dual Cameras 4K UHD Baby Monitor', 'Home & Garden > Business & Home Security > Security Monitors', 'smart-home-wifi'],
     ['Hisense 75"E8Q Mini LED 4K HDR Smart VIDAA OS TV with Dolby Atmos speakers', 'Electronics > Video > Televisions', 'tv-home-cinema'],
     ['TECLAST P30T Tablet 10.1-inch Dual SIM 4G', 'Electronics > Computers > Tablet Computers', 'laptops-computing'],
+    ['Cooler Master COOL Hyper 212 Pro', 'Electronics > Electronics Accessories > Computer Components', 'laptops-computing'],
+    ['Kingston Technology A400 480 GB 2.5" Serial ATA III TLC', 'Electronics > Electronics Accessories > Computer Components', 'laptops-computing'],
+    ['Apple - AirTag - 4 Pack', 'Electronics > Electronics Accessories > Computer Accessories', 'accessories-storage'],
+    ['DELL Wireless Audio Receiver - HR024', 'Electronics > Audio > Audio Accessories > Audio', 'audio'],
   ];
   for (const [name, cat, slug] of ok) assert.deepEqual(classify(name, cat), { ok: true, slug }, name);
   const no = [
@@ -104,7 +108,9 @@ test('category rules: cases from the real Joybuy report of 18 Oct 2026', () => {
     ['TENNIIX Pro Smart AI Tennis Ball Machine Dual Camera Vision', 'Sporting Goods > Indoor Games > Ping Pong', 'toy, not a gadget'],
     ['OutdoorMaster LARK SV Polarized Cycling Sunglasses Amber Silver', 'Sporting Goods > Athletics > General Purpose', 'sunglasses (not tech)'],
     ['Ordo Hydro Sonic Water Flosser, On-Demand Mode', 'Electronics > Electronics Accessories > Power', 'personal care'],
-    ['Shimano Brake Cable Set Road', 'Sporting Goods > Outdoor Recreation > Cycling > Bicycle Parts', 'not tech']
+    ['Shimano Brake Cable Set Road', 'Sporting Goods > Outdoor Recreation > Cycling > Bicycle Parts', 'not tech'],
+    ['Pooboo Magnetic Rowing Machine with LCD Monitor', 'Sporting Goods > Exercise & Fitness > Exercise Machines', 'not tech'],
+    ['Science Mad 50mm Astronomical Telescope for TV and stars', 'Cameras & Optics > Optics > Scopes > Telescopes', 'not matched (feed says tech)']
   ];
   for (const [name, cat, reason] of no) assert.deepEqual(classify(name, cat), { ok: false, reason }, name);
   assert.equal(cleanProductName('【Black Friday Early Deals】DJI Osmo Pocket 4 Travel Vlog Set'), 'DJI Osmo Pocket 4 Travel Vlog Set');

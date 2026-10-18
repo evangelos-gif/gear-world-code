@@ -25,7 +25,9 @@ export const DENY_TOP = [
 export const ONLY_TOP = {
   'Toys & Games': ['gaming'],
   'Home & Garden': ['smart-home-wifi'],
-  'Office Supplies': ['laptops-computing']
+  'Office Supplies': ['laptops-computing'],
+  // e.g. a rowing machine "with LCD monitor" must not become a computer monitor
+  'Sporting Goods': ['phones-smartwatches', 'audio', 'cameras-drones', 'accessories-storage']
 };
 
 export const DENY = [
@@ -54,7 +56,7 @@ export const RULES = [
       'phone (?:holder|mount|stand|grip|pouch|bag)s?', 'laptop (?:bag|sleeve|stand)s?', 'usb hubs?', 'docking stations?',
       '(?:watch|sport|silicone|nylon|leather|milanese|loop|solo) (?:bands?|straps?)', 'watch straps?', 'replacement bands?',
       'phone cool(?:er|ing)', 'cooling fan for (?:phone|mobile|live streaming)', 'live streaming cooler',
-      'phone lanyards?', 'lanyards?', 'apple pencil', 'stylus(?:es)?', 'i?watch (?:bands?|straps?)'
+      'phone lanyards?', 'lanyards?', 'apple pencil', 'stylus(?:es)?', 'i?watch (?:bands?|straps?)', 'airtags?', 'anti-lost', 'find my'
     ]),
     // Watch listings say "Aluminium Case with Sport Band" and "GPS": those are watches, not accessories.
     exclude: words(['ev charger', 'car battery charger', 'trickle charger', 'pencil case', 'suitcase', 'briefcase', 'smart tv', 'televisions?', 'gps', '(?:aluminium|aluminum|titanium|stainless steel) case', 'bicycle parts', '(?:brake|gear) cables?'])
@@ -90,7 +92,7 @@ export const RULES = [
       'laptops?', 'notebook (?:pc|computer)', '\\d+(?:\\.\\d)?["”]? (?:full hd |fhd |hd )?(?:\\(\\d+ x \\d+\\) )?notebook', 'ryzen', 'intel core', 'core i[3579]', 'macbook', 'chromebook', 'ultrabook', 'desktop pc', 'gaming pc', 'mini pc', 'all-in-one pc', 'imac', 'mac mini',
       'tablets?', 'ipad', 'galaxy tab', 'e-?readers?', 'kindle', 'monitors?', 'keyboards?', 'computer mouse', 'wireless mouse', 'mouse',
       'webcams?', 'graphics cards?', 'motherboards?', 'processors?', 'ddr[45] ram', 'pc cases?', 'mice',
-      'psu', 'power supply unit', 'cpu coolers?', 'liquid coolers?', 'aio', '(?:case|pc) fans?',
+      'psu', 'power supply unit', 'cpu coolers?', 'liquid coolers?', 'aio', '(?:case|pc) fans?', 'cooler master', 'serial ata', 'sata',
       'printers?', 'ink cartridges?', 'toner', 'scanners?', 'label (?:printer|maker)s?', 'laminators?', 'shredders?', '3d printers?', 'calculators?'
     ]),
     exclude: words(['baby monitor', 'heart rate monitor', 'blood pressure monitor', 'piano keyboard', 'musical keyboard', 'mouse trap', 'mouse mat', 'vitamins?', 'multivitamins?', 'tablets? \\d+ ?mg', 'dishwasher tablets?', 'notebook paper', 'spiral notebook', 'fountain pens?'])
@@ -100,7 +102,7 @@ export const RULES = [
     include: words([
       'headphones?', 'headsets?', 'earbuds?', 'earphones?', 'airpods', 'buds', 'in-ear', 'over-ear', 'open-ear', 'bone conduction',
       'bluetooth speakers?', 'wireless speakers?', 'portable speakers?', 'speakers?', 'soundbars?', 'subwoofers?', 'hi-?fi', 'turntables?',
-      'record players?', 'amplifiers?', 'dab radios?', 'microphones?', 'lavalier', 'voice recorders?', 'dictaphones?',
+      'record players?', 'amplifiers?', 'dab radios?', 'microphones?', 'lavalier', 'voice recorders?', 'dictaphones?', 'audio receivers?',
       'home theat(?:er|re)', '\\d+(?:\\.\\d+){1,2} channels?'
     ]),
     exclude: words(['ear defenders?', 'hearing protection', 'speaker cable', 'smart speaker', 'televisions?', 'smart tvs?'])
@@ -111,7 +113,7 @@ export const RULES = [
       'televisions?', 'smart tvs?', 'tv', 'oled', 'qled', 'qned', 'mini led', 'projectors?', 'projector screens?', 'streaming (?:stick|device|box)s?',
       'fire tv', 'roku', 'chromecast', 'apple tv', 'tv wall (?:mount|bracket)s?'
     ]),
-    exclude: words(['tv stand furniture', 'tv cabinet', 'tv unit', 'tv bed'])
+    exclude: words(['tv stand furniture', 'tv cabinet', 'tv unit', 'tv bed', 'telescopes?', 'microscopes?', 'binoculars?'])
   },
   {
     slug: 'cameras-drones',

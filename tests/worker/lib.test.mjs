@@ -7,6 +7,7 @@ import { ftsQuery, normalizeSort } from '../../src/db.js';
 import { readListingParams, hasFilters } from '../../src/pages/listing.js';
 import { safeEqual } from '../../src/lib/security.js';
 import site from '../../sites/tgw/site.config.js';
+import { isPreviewHost } from '../../src/engine.js';
 
 test('GTIN: valid codes pass the GS1 check digit (lessons L12)', () => {
   assert.equal(normalizeGtin('4006381333931'), '4006381333931');
@@ -87,4 +88,12 @@ test('site config: no duplicate slugs, every category has the texts it needs', (
   }
   assert.ok(formatPrice(1234.5, 'GBP', site.locale).startsWith('£'));
   assert.equal(truncate('one two three four', 9), 'one two…');
+});
+
+test('preview hosts are never indexed; the real domain and local development are', () => {
+  assert.equal(isPreviewHost('technology-gear-world.example.workers.dev', 'technologygearworld.com'), true);
+  assert.equal(isPreviewHost('technologygearworld.com', 'technologygearworld.com'), false);
+  assert.equal(isPreviewHost('www.technologygearworld.com', 'technologygearworld.com'), false);
+  assert.equal(isPreviewHost('127.0.0.1', 'technologygearworld.com'), false);
+  assert.equal(isPreviewHost('localhost', 'technologygearworld.com'), false);
 });
