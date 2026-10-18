@@ -281,12 +281,14 @@ if ($SkipD1) {
             if (-not $skip) { $tables += $row.name }
         }
         if ($tables.Count -gt 0) {
+            # One row with one column per table: D1 refuses long UNION ALL queries ("too many terms in compound SELECT").
+            $counted = @($tables | Select-Object -First 40)
             $parts = @()
-            foreach ($t in ($tables | Select-Object -First 40)) { $parts += ("SELECT '{0}' AS t, COUNT(*) AS n FROM {0}" -f $t) }
-            $c = Invoke-D1Select $siteDir $dbName ($parts -join ' UNION ALL ')
+            foreach ($t in $counted) { $parts += ('(SELECT COUNT(*) FROM "{0}") AS "{0}"' -f $t) }
+            $c = Invoke-D1Select $siteDir $dbName ('SELECT ' + ($parts -join ', '))
             $L.Add('')
             $L.Add('row counts:')
-            if ($c.ok) { foreach ($row in $c.rows) { $L.Add(('  {0,-40} {1}' -f $row.t, $row.n)) } }
+            if ($c.ok -and @($c.rows).Count -ge 1) { $one = @($c.rows)[0]; foreach ($t in $counted) { $L.Add(('  {0,-40} {1}' -f $t, $one.$t)) } }
             else {
                 $L.Add('  count query failed. Output:')
                 $raw = $c.raw
@@ -311,7 +313,8 @@ $L.Add('=== END OF SNAPSHOT ===')
 # ---------- write report ----------
 if (-not (Test-Path -LiteralPath $OutDir)) { New-Item -ItemType Directory -Path $OutDir -Force | Out-Null }
 $outFile = Join-Path $OutDir ('GW_SNAPSHOT_{0}_{1}.txt' -f $Site, (Get-Date -Format 'yyyyMMdd_HHmmss'))
-$report = $L -join "`r`n"
+# Every line is masked again here, including wrangler error output (it can print account and database IDs).
+$report = Hide-Ids ($L -join "`r`n")
 Write-TextBom $outFile $report
 
 $copied = $false

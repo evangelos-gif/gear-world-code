@@ -6,7 +6,7 @@
 
 | Αρχείο | Pexels |
 |---|---|
-| hero-1920.webp, hero-960.webp | https://www.pexels.com/photo/computer-with-two-displays-standing-on-a-desk-in-a-dimly-lit-room-18304031/ |
+| hero-1920.webp, hero-960.webp, tools/assets/hub-tgw.jpg (κάρτα στο hub) | https://www.pexels.com/photo/computer-with-two-displays-standing-on-a-desk-in-a-dimly-lit-room-18304031/ |
 | cat-laptops-computing.webp | https://www.pexels.com/photo/laptop-on-a-wooden-surface-table-8681889/ |
 | cat-phones-smartwatches.webp | https://www.pexels.com/photo/assortment-of-devices-lying-on-table-5349808/ |
 | cat-audio.webp | https://www.pexels.com/photo/modern-white-wireless-headphones-on-gray-surface-28920288/ |

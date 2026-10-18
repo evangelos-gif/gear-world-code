@@ -15,6 +15,8 @@
   -Step domain   CHANGES CLOUDFLARE (LAUNCH). Connects technologygearworld.com and www to the TGW Worker as
                  Cloudflare Custom Domains (DNS and SSL are created by Cloudflare) and publishes the site there.
                  Google may then index it. Approval phrase: ΕΓΚΡΙΝΩ TGW DOMAIN
+  -Step update   CHANGES THE LIVE SITE. Publishes this version of the code on the live TGW (same database,
+                 same domains). Approval phrase: ΕΓΚΡΙΝΩ TGW UPDATE
 
   Without -Apply, every step only shows what it WOULD do. With -Apply, it still asks you to type the approval
   phrase before it changes anything. It never touches the other Gear World sites or their databases.
@@ -23,7 +25,7 @@
   Report: <home>\gear-world-reports\TGW_CLOUDFLARE_<step>_<time>.txt (also copied to the clipboard)
 #>
 param(
-    [ValidateSet('check', 'd1', 'preview', 'import', 'domain')]
+    [ValidateSet('check', 'd1', 'preview', 'import', 'domain', 'update')]
     [string]$Step = 'check',
     [switch]$Apply,
     [string]$Approve = '',
@@ -39,7 +41,7 @@ $ErrorActionPreference = 'Stop'
 $repo = Split-Path -Parent $PSScriptRoot
 $DbName = 'technology-gear-world'
 $WorkerName = 'technology-gear-world'
-$Phrases = @{ d1 = 'ΕΓΚΡΙΝΩ TGW D1'; preview = 'ΕΓΚΡΙΝΩ TGW PREVIEW'; import = 'ΕΓΚΡΙΝΩ TGW IMPORT'; domain = 'ΕΓΚΡΙΝΩ TGW DOMAIN' }
+$Phrases = @{ d1 = 'ΕΓΚΡΙΝΩ TGW D1'; preview = 'ΕΓΚΡΙΝΩ TGW PREVIEW'; import = 'ΕΓΚΡΙΝΩ TGW IMPORT'; domain = 'ΕΓΚΡΙΝΩ TGW DOMAIN'; update = 'ΕΓΚΡΙΝΩ TGW UPDATE' }
 $Domain = 'technologygearworld.com'
 if (-not $WorkDir) { $WorkDir = Join-Path $HOME 'technology-gear-world' }
 if (-not $OutDir) { $OutDir = Join-Path $HOME 'gear-world-reports' }
@@ -337,6 +339,39 @@ switch ($Step) {
         }
         Say ''
         Say ('ΕΤΟΙΜΟ: το TGW είναι live στο https://{0}' -f $Domain) 'Green'
+        Finish 0
+    }
+
+    'update' {
+        if (-not (Test-Path -LiteralPath $configPath) -or -not $db.found) { Say 'Πρώτα χρειάζονται τα βήματα d1 και domain.' 'Red'; Finish 8 }
+        if ([System.IO.File]::ReadAllText($configPath) -notmatch '(?m)^\s*"routes"\s*:') { Say 'Το TGW δεν είναι ακόμα στο domain: πρώτα το βήμα domain.' 'Red'; Finish 8 }
+        Say ''
+        Say 'Τι θα γίνει:'
+        Say ('  - Ανεβαίνει η έκδοση κώδικα {0} στο live TGW ({1}).' -f (Split-Path -Leaf $repo), $Domain)
+        Say '  - Η D1, τα προϊόντα και τα domains ΔΕΝ αλλάζουν. Τα άλλα sites και το hub ΔΕΝ αλλάζουν.'
+        Say ('  - Επαναφορά (αν χρειαστεί): Workers & Pages > {0} > Deployments > προηγούμενη έκδοση > Rollback: https://dash.cloudflare.com/?to=/:account/workers-and-pages' -f $WorkerName)
+        if (-not $Apply) { Say ''; Say 'Δοκιμή μόνο (χωρίς -Apply): δεν άλλαξε τίποτα.' 'Green'; Finish 0 }
+        if (-not (Confirm-Approval $Phrases.update)) { Say 'Δεν δόθηκε έγκριση: σταμάτησα χωρίς αλλαγές.' 'Yellow'; Finish 1 }
+        $d = Invoke-Wrangler $tgw 'deploy' -NonInteractive
+        if ($d.code -ne 0) { Say 'Το ανέβασμα απέτυχε. Το live site έμεινε όπως ήταν. Έξοδος:' 'Red'; Say $d.text; Finish 9 }
+        Say 'Ανέβηκε.' 'Green'
+        if ($NoHttpCheck) { Finish 0 }
+        [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+        Start-Sleep -Seconds 5
+        try {
+            $r = Invoke-WebRequest -UseBasicParsing -Uri ('https://{0}/' -f $Domain) -TimeoutSec 30
+            Say ('  https://{0}/ απαντά {1}' -f $Domain, $r.StatusCode)
+            $req = [System.Net.HttpWebRequest]::Create(('https://{0}/?search=laptop' -f $Domain))
+            $req.AllowAutoRedirect = $false
+            $req.Timeout = 20000
+            $resp = $req.GetResponse()
+            Say ('  Link αναζήτησης του hub: {0} προς {1}' -f [int]$resp.StatusCode, $resp.Headers['Location'])
+            $resp.Close()
+        } catch {
+            Say 'Το site δεν απάντησε ακόμα. Άνοιξέ το σε 1-2 λεπτά.' 'Yellow'
+        }
+        Say ''
+        Say ('ΕΤΟΙΜΟ: η νέα έκδοση είναι live στο https://{0}' -f $Domain) 'Green'
         Finish 0
     }
 

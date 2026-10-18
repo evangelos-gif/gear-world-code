@@ -135,7 +135,7 @@ if ($isWin) {
         ':counts',
         'echo %* | findstr /C:"products_fts" >nul',
         'if %errorlevel%==0 goto bad',
-        'echo [{"results":[{"t":"products","n":42}],"success":true}]',
+        'echo [{"results":[{"products":42}],"success":true}]',
         'exit /b 0',
         ':bad',
         'echo shadow table queried 1>&2',
@@ -326,11 +326,89 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         Check (@(Get-ChildItem -LiteralPath $cfWork -Filter 'wrangler.jsonc.before-domain-*').Count -eq 1) 'cloudflare domain: old config saved first'
         Check (([regex]::Matches((Calls), 'wrangler deploy')).Count -eq $deploysBefore + 1) 'cloudflare domain: deploys once'
         Check ((Run-Cf @('-Step', 'domain', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ TGW DOMAIN', '-NoHttpCheck')) -eq 0 -and ([regex]::Matches([System.IO.File]::ReadAllText($cfg), '(?m)^\s*"routes"\s*:')).Count -eq 1) 'cloudflare domain twice: routes added only once'
+        $deploysBefore = ([regex]::Matches((Calls), 'wrangler deploy')).Count
+        Check ((Run-Cf @('-Step', 'update', '-Apply', '-Approve', 'wrong')) -eq 1 -and ([regex]::Matches((Calls), 'wrangler deploy')).Count -eq $deploysBefore) 'cloudflare update with wrong phrase: no deploy'
+        Check ((Run-Cf @('-Step', 'update', '-Apply', '-Approve', 'egkrino tgw update', '-NoHttpCheck')) -eq 0 -and ([regex]::Matches((Calls), 'wrangler deploy')).Count -eq $deploysBefore + 1) 'cloudflare update with approval: deploys once'
         $reports = @(Get-ChildItem -LiteralPath $cfOut -Filter 'TGW_CLOUDFLARE_*.txt' -ErrorAction SilentlyContinue)
         Check ($reports.Count -ge 6) 'cloudflare: a report for every run'
     } finally {
         $env:PATH = $oldPath
         Remove-Item Env:\GW_FAKE_STATE -ErrorAction SilentlyContinue
+    }
+}
+
+# 6. gwh-tgw-link.ps1 with a fake hub folder and a fake wrangler (Windows only: runs .cmd files)
+if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
+    Write-Host 'gwh-tgw-link.ps1 (fake hub, fake wrangler)'
+    $hubTool = Join-Path $repo 'tools\gwh-tgw-link.ps1'
+    $hub = Join-Path $work 'hub'
+    $hubState = Join-Path $work 'hub-state'
+    $hubBin = Join-Path $work 'hub-bin'
+    $hubOut = Join-Path $work 'hub-out'
+    New-Item -ItemType Directory -Path $hubState, $hubBin -Force | Out-Null
+    & node (Join-Path $repo 'tests\fixtures\make-hub-fixture.mjs') $hub
+    $hubBookmark = '00000085-0000024c-00004c6d-' + [guid]::NewGuid().ToString('N')
+    $hubFake = @(
+        '@echo off',
+        'echo %* >> "%GW_HUB_STATE%\calls.log"',
+        'echo %* | findstr /C:"time-travel info" >nul && goto tt',
+        'echo %* | findstr /C:"--command" >nul && goto sites',
+        'echo %* | findstr /C:"--file" >nul && goto ok',
+        'echo %* | findstr /C:"deployments list" >nul && goto deps',
+        'echo %* | findstr /C:" deploy" >nul && goto ok',
+        'echo unknown command 1>&2',
+        'exit /b 1',
+        ':tt',
+        ('echo The current bookmark is ' + $hubBookmark),
+        'exit /b 0',
+        ':sites',
+        'echo [{"results":[{"site_key":"GGW","domain":"gardengearworld.com","priority":60,"is_active":1}],"success":true}]',
+        'exit /b 0',
+        ':deps',
+        'echo []',
+        'exit /b 0',
+        ':ok',
+        'echo OK',
+        'exit /b 0'
+    ) -join "`r`n"
+    [System.IO.File]::WriteAllText((Join-Path $hubBin 'npx.cmd'), $hubFake + "`r`n", [System.Text.Encoding]::ASCII)
+    $oldPath = $env:PATH
+    $env:PATH = $hubBin + ';' + $oldPath
+    $env:GW_HUB_STATE = $hubState
+    $hubCalls = Join-Path $hubState 'calls.log'
+    $indexPath = Join-Path $hub 'public\index.html'
+    function Run-Hub([string[]]$a) {
+        $all = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $hubTool, '-HubDir', $hub, '-OutDir', $hubOut, '-SkipOnline', '-NoClipboard') + $a
+        & $exe @all | Out-Null
+        return $LASTEXITCODE
+    }
+    function HubCalls { if (Test-Path -LiteralPath $hubCalls) { return [System.IO.File]::ReadAllText($hubCalls) } else { return '' } }
+    try {
+        $before = [System.IO.File]::ReadAllText($indexPath)
+        Check ((Run-Hub @()) -eq 0) 'hub link check: exit 0'
+        Check ([System.IO.File]::ReadAllText($indexPath) -eq $before -and -not ((HubCalls) -match ' deploy|--file')) 'hub link check: changes nothing'
+        Check ((Run-Hub @('-Apply', '-Approve', 'yes')) -eq 1 -and [System.IO.File]::ReadAllText($indexPath) -eq $before) 'hub link wrong phrase: changes nothing'
+        Check ((Run-Hub @('-Apply', '-Approve', 'EGKRINO TGW HUB LINK')) -eq 0) 'hub link with approval: exit 0'
+        $after = [System.IO.File]::ReadAllText($indexPath)
+        Check ($after.Contains('https://technologygearworld.com/') -and (Test-Path -LiteralPath (Join-Path $hub 'public\hub-tgw.jpg'))) 'hub link: card and photo added'
+        $c = HubCalls
+        $iT = $c.IndexOf('time-travel info'); $iD = $c.IndexOf(' deploy'); $iF = $c.IndexOf('--file')
+        Check ($iT -ge 0 -and $iD -gt $iT -and $iF -gt $iD) 'hub link: restore point, then deploy, then D1 row'
+        $rb = @(Get-ChildItem -LiteralPath (Join-Path $hub 'backups') -Recurse -Filter 'ROLLBACK.txt')
+        Check ($rb.Count -eq 1 -and ([System.IO.File]::ReadAllText($rb[0].FullName)).Contains($hubBookmark) -and (Test-Path -LiteralPath (Join-Path $rb[0].DirectoryName 'index.html'))) 'hub link: backup and rollback written first'
+        $sqlFile = @(Get-ChildItem -LiteralPath (Join-Path $hub 'backups') -Recurse -Filter 'add-tgw-site.sql')
+        Check ($sqlFile.Count -eq 1 -and ([System.IO.File]::ReadAllText($sqlFile[0].FullName)).Contains('INSERT OR IGNORE INTO sites')) 'hub link: D1 row can never be added twice'
+        Check ((Run-Hub @()) -eq 0 -and [System.IO.File]::ReadAllText($indexPath) -eq $after) 'hub link second check: files stay the same'
+        $broken = Join-Path $work 'hub-broken'
+        & node (Join-Path $repo 'tests\fixtures\make-hub-fixture.mjs') $broken
+        $bi = Join-Path $broken 'public\index.html'
+        [System.IO.File]::WriteAllText($bi, ([System.IO.File]::ReadAllText($bi)).Replace('data-world="GGW"', 'data-world="XXX"'))
+        $all = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $hubTool, '-HubDir', $broken, '-OutDir', $hubOut, '-SkipOnline', '-NoClipboard', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ TGW HUB LINK')
+        & $exe @all | Out-Null
+        Check ($LASTEXITCODE -eq 6 -and -not ([System.IO.File]::ReadAllText($bi)).Contains('TGW')) 'hub link: unexpected hub files change nothing'
+    } finally {
+        $env:PATH = $oldPath
+        Remove-Item Env:\GW_HUB_STATE -ErrorAction SilentlyContinue
     }
 }
 

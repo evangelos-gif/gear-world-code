@@ -179,6 +179,22 @@ if (siteDir) {
   check('L04', extra.length === 0, 'public/ only has allowed files', extra.join(', '));
 }
 
+// Gear World Hub search (lessons L22): the hub reads /api/products and links to /?search=<q>&highlight=<id>
+if (site) {
+  const api = await get('/api/products?search=a&page=1&limit=8');
+  let first = null;
+  try { first = (JSON.parse(api.body).products || [])[0] || null; } catch { first = null; }
+  const need = ['id', 'product_name', 'brand', 'retailer', 'site_category', 'price', 'currency', 'stock_status', 'image_url'];
+  check('L22', api.status === 200 && (total === 0 || (first && need.every(k => k in first))), '/api/products: has the fields the hub search reads', first ? Object.keys(first).join(',') : String(api.status));
+  if (first) {
+    const h = await get(`/?search=x&highlight=${first.id}`);
+    const loc = h.headers.get('location') || '';
+    check('L22', h.status === 302 && new RegExp(`-${first.id}/$`).test(loc), '/?highlight=<id> (hub link) opens that product', `${h.status} ${loc}`);
+  }
+  const s = await get('/?search=laptop');
+  check('L22', s.status === 302 && /\/search\?q=laptop$/.test(s.headers.get('location') || ''), '/?search=<q> (hub link) opens the search page', `${s.status} ${s.headers.get('location')}`);
+}
+
 // Launch readiness
 if (opt('prelaunch') && site) {
   for (const k of ['contactEmail', 'operatorName']) check('L17', Boolean(site[k]), `config: ${k} is filled in`);

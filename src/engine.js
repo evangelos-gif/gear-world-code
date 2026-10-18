@@ -44,6 +44,17 @@ export function createWorker(site) {
       return redirect(url.toString(), 301);
     }
 
+    // Gear World Hub search links use the older sites' format /?search=<q>&highlight=<id> (lessons L22).
+    if (path === '/' && (url.searchParams.has('highlight') || url.searchParams.has('search'))) {
+      const id = Number.parseInt(url.searchParams.get('highlight') || '', 10);
+      if (Number.isSafeInteger(id) && id > 0) {
+        const product = await db.getProduct(env.DB, id);
+        if (product) return redirect(new URL(productPath(product), url.origin).toString(), 302);
+      }
+      const q = (url.searchParams.get('search') || '').normalize('NFKC').trim().slice(0, 80);
+      return redirect(new URL(q ? `/search?q=${encodeURIComponent(q)}` : '/', url.origin).toString(), 302);
+    }
+
     if (path === '/') {
       return cached(request, env, ctx, async () => {
         const data = await db.homeData(env.DB, site.categories.map(c => c.slug));
