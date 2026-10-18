@@ -1,8 +1,10 @@
 # TGW: προϊόντα και retailers
 
-## Κατηγορίες (πρόταση)
-Computers & Laptops · Phones & Tablets · Audio · Gaming · Printers & Office Tech · Cameras & Drones ·
-TV & Projectors · Charging & Accessories · Smart Home · Networking & Storage · Wearables
+## Κατηγορίες (8, όπως στο Currys)
+Laptops & Computing (μαζί tablets και εκτυπωτές) · Phones & Smartwatches · Headphones & Audio · Gaming ·
+Cameras & Drones · TV & Home Cinema · Smart Home & Wi-Fi · Accessories & Storage
+
+Κανόνες: `sites/tgw/category-rules.js`.
 
 ## Πηγές που έχουμε ήδη (Awin archive, scan 18/10/2026)
 | Retailer | Feed | Tech προϊόντα | Σημείωση |

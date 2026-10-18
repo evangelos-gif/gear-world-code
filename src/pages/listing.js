@@ -205,8 +205,8 @@ export function dealsPage(site, p, result) {
   ${pagination(base, {}, result)}
 </div>`;
   return page(site, {
-    title: `Tech price drops${p.page > 1 ? ` (page ${p.page})` : ''} | ${site.name}`,
-    description: `Current price drops on tech from UK retailers, compared on ${site.name}.`,
+    title: `${site.topicTitle} price drops${p.page > 1 ? ` (page ${p.page})` : ''} | ${site.name}`,
+    description: `Current price drops on ${site.topic} from UK retailers, compared on ${site.name}.`,
     path: base,
     canonical: p.page > 1 ? pageLink(base, {}, p.page) : base,
     robots: result.products.length ? 'index,follow' : 'noindex,follow',

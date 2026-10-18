@@ -13,7 +13,7 @@ import { createReadStream, existsSync, mkdirSync, readdirSync, readFileSync, wri
 import { createGunzip } from 'node:zlib';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { classify, QUALITY, RULES } from '../sites/tgw/category-rules.js';
+import { classify, QUALITY, CATEGORY_SLUGS } from '../sites/tgw/category-rules.js';
 import { normalizeGtin } from '../src/lib/gtin.js';
 import { slugify, truncate } from '../src/lib/text.js';
 
@@ -324,16 +324,16 @@ export async function planImport({ archive, sourcesFile, outDir, now = new Date(
   L.push(`valid GTIN: ${stats.gtinValid} (${pct(stats.gtinValid, stats.accepted)}) | with a was-price: ${stats.withWas}`);
   L.push('');
   L.push('== Per category ==');
-  for (const r of RULES) L.push(`  ${r.slug.padEnd(24)} ${stats.perCategory[r.slug] || 0}`);
+  for (const slug of CATEGORY_SLUGS) L.push(`  ${slug.padEnd(24)} ${stats.perCategory[slug] || 0}`);
   L.push('');
   L.push('== Rejected, by reason ==');
   for (const [k, v] of Object.entries(stats.rejected).sort((a, b) => b[1] - a[1])) L.push(`  ${k.padEnd(28)} ${v}`);
   L.push('');
   L.push(`== Samples: up to ${SAMPLES_PER_GROUP} accepted per category (name | price | feed category) ==`);
-  for (const r of RULES) {
-    const list = samples.accepted[r.slug] || [];
+  for (const slug of CATEGORY_SLUGS) {
+    const list = samples.accepted[slug] || [];
     if (!list.length) continue;
-    L.push(`-- ${r.slug}`);
+    L.push(`-- ${slug}`);
     for (const s of list) L.push(`   ${s}`);
   }
   L.push('');

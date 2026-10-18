@@ -21,7 +21,7 @@ const PAGES = {
     title: 'About us',
     description: `What ${site.name} is, where the prices come from and how the site is run.`,
     content: html`
-<p>${site.name} is an independent price comparison site for technology. It lists laptops, phones, audio, gaming, TV, cameras, smart home and accessories from UK retailers, so you can compare prices in one place and then buy from the retailer you choose.</p>
+<p>${site.name} is an independent price comparison site for ${site.topicLong}. It lists ${site.categories.map(c => c.short || c.name.toLowerCase()).join(', ')} from UK retailers, so you can compare prices in one place and then buy from the retailer you choose.</p>
 <h2>Where the prices come from</h2>
 <p>Retailers publish product feeds through the Awin affiliate network. We import those feeds, sort the products into categories and show the price, stock and condition that the retailer reports. Each product page shows the date the price was last checked. Prices can change after that, so the retailer's website always has the final price.</p>
 <h2>What we do not do</h2>

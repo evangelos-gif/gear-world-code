@@ -50,16 +50,6 @@ export function homePage(site, data) {
       </a>
     </li>`;
     })}
-    ${deals.length && hero ? html`<li>
-      <a class="cat-tile cat-tile-deals" href="/deals/">
-        <img src="${asset(site, hero.small)}" alt="" width="720" height="480" loading="lazy" decoding="async">
-        <span class="cat-text">
-          <span class="cat-name">Today's price drops</span>
-          <span class="cat-count">Biggest savings first</span>
-        </span>
-        ${icon('chevron', 'cat-chevron')}
-      </a>
-    </li>` : ''}
   </ul>
 </section>
 
@@ -85,7 +75,7 @@ ${newest.length ? html`<section class="wrap section" aria-labelledby="new-h">
 ${site.turnstileSiteKey ? html`<section class="wrap section" aria-labelledby="news-h">
   <div class="newsletter">
     <h2 id="news-h">Get the best price drops by email</h2>
-    <p>One email a week with the biggest savings on tech. No spam. Unsubscribe any time.</p>
+    <p>One email a week with the biggest savings on ${site.topic}. No spam. Unsubscribe any time.</p>
     <form data-newsletter>
       <label for="news-email">Email address</label>
       <input id="news-email" name="email" type="email" autocomplete="email" required maxlength="254">

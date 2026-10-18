@@ -10,23 +10,25 @@ import { planImport, readCsvRecords, parsePrice, cleanText } from '../../tools/t
 
 test('category rules: tech goes to the right category, junk is rejected (lessons L14)', () => {
   const cases = [
-    ['Apple iPhone 15 128GB SIM-free Black', 'phones-tablets'],
-    ['Samsung Galaxy Tab S9 Wi-Fi', 'phones-tablets'],
-    ['Spigen Tough Armor iPhone 15 Case', 'charging-accessories'],
-    ['Samsung Galaxy S24 Clear Cover', 'charging-accessories'],
-    ['Anker 20000mAh Power Bank USB-C', 'charging-accessories'],
-    ['Lenovo IdeaPad 15.6 inch Laptop 16GB RAM', 'computers-laptops'],
+    ['Apple iPhone 15 128GB SIM-free Black', 'phones-smartwatches'],
+    ['Samsung Galaxy Tab S9 Wi-Fi', 'laptops-computing'],
+    ['Spigen Tough Armor iPhone 15 Case', 'accessories-storage'],
+    ['Samsung Galaxy S24 Clear Cover', 'accessories-storage'],
+    ['Anker 20000mAh Power Bank USB-C', 'accessories-storage'],
+    ['Lenovo IdeaPad 15.6 inch Laptop 16GB RAM', 'laptops-computing'],
     ['Sony WH-1000XM5 Wireless Headphones', 'audio'],
     ['Sony PlayStation 5 Slim Console', 'gaming'],
     ['Logitech G Pro Gaming Headset', 'gaming'],
-    ['LG 55 inch OLED TV', 'tv-projectors'],
+    ['LG 55 inch OLED TV', 'tv-home-cinema'],
     ['Nextbase 622GW Dash Cam', 'cameras-drones'],
     ['DJI Mini 4 Pro Drone', 'cameras-drones'],
-    ['Ring Video Doorbell 4', 'smart-home'],
-    ['TP-Link Deco Mesh Wi-Fi 3-pack', 'networking-storage'],
-    ['Samsung 990 Pro 2TB NVMe SSD', 'networking-storage'],
-    ['HP DeskJet Wireless All-in-One Printer', 'printers-office'],
-    ['Garmin Forerunner 265 GPS Smartwatch', 'wearables']
+    ['Ring Video Doorbell 4', 'smart-home-wifi'],
+    ['TP-Link Deco Mesh Wi-Fi 3-pack', 'smart-home-wifi'],
+    ['Samsung 990 Pro 2TB NVMe SSD', 'accessories-storage'],
+    ['HP DeskJet Wireless All-in-One Printer', 'laptops-computing'],
+    ['Garmin Forerunner 265 GPS Smartwatch', 'phones-smartwatches'],
+    ['Lenovo IdeaPad 3 15.6 Laptop 8GB RAM 512GB SSD', 'laptops-computing'],
+    ['Echo Dot Smart Speaker with Alexa', 'smart-home-wifi']
   ];
   for (const [name, slug] of cases) assert.deepEqual(classify(name), { ok: true, slug }, name);
   const junk = [
@@ -92,7 +94,7 @@ test('import plan: accepts clean tech rows, rejects with reasons, writes SQL tha
 
   assert.equal(stats.rows, 10);
   assert.equal(stats.accepted, 4, JSON.stringify(stats));
-  assert.deepEqual(products.map(p => p.category_slug).sort(), ['audio', 'cameras-drones', 'computers-laptops', 'networking-storage']);
+  assert.deepEqual(products.map(p => p.category_slug).sort(), ['accessories-storage', 'audio', 'cameras-drones', 'laptops-computing']);
   assert.equal(stats.rejected['woodworking or power tool'], 1);
   assert.equal(stats.rejected['no https image'], 1);
   assert.equal(stats.rejected['out of stock'], 1);

@@ -7,14 +7,11 @@
 | Αρχείο | Pexels |
 |---|---|
 | hero-1920.webp, hero-960.webp | https://www.pexels.com/photo/computer-with-two-displays-standing-on-a-desk-in-a-dimly-lit-room-18304031/ |
-| cat-computers-laptops.webp | https://www.pexels.com/photo/laptop-on-a-wooden-surface-table-8681889/ |
-| cat-phones-tablets.webp | https://www.pexels.com/photo/iphone-on-table-1156684/ |
+| cat-laptops-computing.webp | https://www.pexels.com/photo/laptop-on-a-wooden-surface-table-8681889/ |
+| cat-phones-smartwatches.webp | https://www.pexels.com/photo/assortment-of-devices-lying-on-table-5349808/ |
 | cat-audio.webp | https://www.pexels.com/photo/modern-white-wireless-headphones-on-gray-surface-28920288/ |
 | cat-gaming.webp | https://www.pexels.com/photo/close-up-shot-of-a-game-controller-6951875/ |
-| cat-tv-projectors.webp | https://www.pexels.com/photo/modern-living-room-with-digital-devices-and-tv-29606737/ |
 | cat-cameras-drones.webp | https://www.pexels.com/photo/turned-on-white-quadcopter-in-the-sky-219701/ |
-| cat-smart-home.webp | https://www.pexels.com/photo/brown-speaker-on-the-table-4790266/ |
-| cat-wearables.webp | https://www.pexels.com/photo/person-wearing-black-smartwatch-5081922/ |
-| cat-networking-storage.webp | https://www.pexels.com/photo/smart-home-wireless-network-router-device-28348054/ |
-| cat-printers-office.webp | https://www.pexels.com/photo/modern-printer-with-paper-in-office-4792283/ |
-| cat-charging-accessories.webp | https://www.pexels.com/photo/white-power-bank-and-blue-coated-wires-4072683/ |
+| cat-tv-home-cinema.webp | https://www.pexels.com/photo/modern-living-room-with-digital-devices-and-tv-29606737/ |
+| cat-smart-home-wifi.webp | https://www.pexels.com/photo/brown-speaker-on-the-table-4790266/ |
+| cat-accessories-storage.webp | https://www.pexels.com/photo/white-power-bank-and-blue-coated-wires-4072683/ |

@@ -36,7 +36,7 @@ export function productPage(site, product, category, similar) {
     { name: truncate(product.product_name, 60), path }
   ];
   const metaDescription = truncate(
-    `${product.product_name}: ${price}${inStock ? '' : ' (out of stock)'} at ${product.retailer}. Compare tech prices on ${site.name}.`,
+    `${product.product_name}: ${price}${inStock ? '' : ' (out of stock)'} at ${product.retailer}. Compare ${site.topic} prices on ${site.name}.`,
     158
   );
   const gtin = normalizeGtin(product.gtin);

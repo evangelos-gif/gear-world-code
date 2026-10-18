@@ -20,9 +20,11 @@ export const DENY = [
   { label: 'spare part or service', re: words(['replacement part', 'spare part', 'repair kit', 'warranty extension', 'service plan', 'gift card', 'voucher']) }
 ];
 
+// Several rules can lead to the same category; the first match wins. Accessories come first so
+// "iPhone 15 case" is an accessory, and storage comes last so "laptop 512GB SSD" stays a laptop.
 export const RULES = [
   {
-    slug: 'charging-accessories',
+    slug: 'accessories-storage',
     include: words(['(?:iphone|phone|galaxy|pixel|ipad|tablet|kindle|airpods|earbuds|watch|camera|laptop|macbook|switch)\\b[\\w\\s-]{0,30}?\\b(?:case|cover|folio|sleeve|skin)s?', 'chargers?', 'charging (?:cable|station|dock|pad|stand)s?', 'power ?banks?', 'usb-?c (?:cable|hub|adapter|charger)s?', 'lightning cables?', 'hdmi cables?', 'phone cases?', 'tablet cases?', 'ipad cases?', 'screen protectors?', 'tempered glass', 'phone (?:holder|mount|stand|grip)s?', 'laptop (?:bag|sleeve|stand)s?', 'usb hubs?', 'docking stations?', 'watch straps?', 'replacement bands?']),
     exclude: words(['ev charger', 'car battery charger', 'battery charger for tools', 'trickle charger', 'pencil case', 'suitcase', 'briefcase'])
   },
@@ -32,27 +34,22 @@ export const RULES = [
     exclude: words(['board game', 'card game', 'jigsaw puzzle'])
   },
   {
-    slug: 'wearables',
-    include: words(['smartwatch(?:es)?', 'smart watch(?:es)?', 'fitness trackers?', 'activity trackers?', 'apple watch', 'galaxy watch', 'pixel watch', 'fitbit', 'garmin (?:forerunner|venu|fenix|vivoactive|instinct)', 'huawei watch', 'amazfit', 'smart rings?']),
-    exclude: words(['watch straps?', 'watch bands?', 'kids toy watch'])
+    slug: 'phones-smartwatches',
+    include: words(['smartphones?', 'mobile phones?', 'iphone', 'galaxy [asz]\\d+', 'galaxy z (?:fold|flip)', 'pixel \\d+', 'oneplus', 'xiaomi redmi', 'sim[- ]free', 'smartwatch(?:es)?', 'smart watch(?:es)?', 'fitness trackers?', 'activity trackers?', 'apple watch', 'galaxy watch', 'pixel watch', 'fitbit', 'garmin (?:forerunner|venu|fenix|vivoactive|instinct)', 'huawei watch', 'amazfit', 'smart rings?']),
+    exclude: words(['kids toy watch'])
   },
   {
-    slug: 'phones-tablets',
-    include: words(['smartphones?', 'mobile phones?', 'iphone', 'galaxy [asz]\\d+', 'galaxy z (?:fold|flip)', 'pixel \\d+', 'oneplus', 'xiaomi redmi', 'sim[- ]free', 'tablets?', 'ipad', 'galaxy tab', 'e-?readers?', 'kindle']),
-    exclude: words(['tablet stand', 'dishwasher tablets?', 'vitamin', 'tablets? \\d+ ?mg'])
-  },
-  {
-    slug: 'computers-laptops',
-    include: words(['laptops?', 'notebook pc', 'macbook', 'chromebook', 'ultrabook', 'desktop pc', 'mini pc', 'all-in-one pc', 'imac', 'mac mini', 'monitors?', 'computer monitors?', 'keyboards?', 'computer mouse', 'wireless mouse', 'webcams?', 'graphics cards?', 'motherboards?', 'processors?', '\\d+ ?gb ram', 'ram memory', 'pc cases?']),
-    exclude: words(['baby monitor', 'heart rate monitor', 'blood pressure monitor', 'piano keyboard', 'musical keyboard', 'mouse trap', 'mouse mat'])
+    slug: 'laptops-computing',
+    include: words(['laptops?', 'notebook pc', 'macbook', 'chromebook', 'ultrabook', 'desktop pc', 'mini pc', 'all-in-one pc', 'imac', 'mac mini', 'tablets?', 'ipad', 'galaxy tab', 'e-?readers?', 'kindle', 'monitors?', 'computer monitors?', 'keyboards?', 'computer mouse', 'wireless mouse', 'webcams?', 'graphics cards?', 'motherboards?', 'processors?', '\\d+ ?gb ram', 'ram memory', 'pc cases?', 'printers?', 'ink cartridges?', 'toner', 'scanners?', 'label (?:printer|maker)s?', 'laminators?', 'shredders?', '3d printers?', 'calculators?']),
+    exclude: words(['baby monitor', 'heart rate monitor', 'blood pressure monitor', 'piano keyboard', 'musical keyboard', 'mouse trap', 'mouse mat', 'dishwasher tablets?', 'vitamin', 'tablets? \\d+ ?mg'])
   },
   {
     slug: 'audio',
-    include: words(['headphones?', 'earbuds?', 'earphones?', 'airpods', 'in-ear', 'over-ear', 'bluetooth speakers?', 'wireless speakers?', 'smart speakers?', 'soundbars?', 'subwoofers?', 'hi-?fi', 'turntables?', 'record players?', 'amplifiers?', 'dab radios?', 'microphones?']),
+    include: words(['headphones?', 'earbuds?', 'earphones?', 'airpods', 'in-ear', 'over-ear', 'bluetooth speakers?', 'wireless speakers?', 'soundbars?', 'subwoofers?', 'hi-?fi', 'turntables?', 'record players?', 'amplifiers?', 'dab radios?', 'microphones?']),
     exclude: words(['ear defenders?', 'hearing protection', 'speaker cable'])
   },
   {
-    slug: 'tv-projectors',
+    slug: 'tv-home-cinema',
     include: words(['televisions?', 'smart tvs?', '\\d{2}["”]? ?(?:inch )?(?:4k|8k|uhd|oled|qled|led) tvs?', 'oled tvs?', 'qled tvs?', 'projectors?', 'projector screens?', 'streaming (?:stick|device|box)s?', 'fire tv', 'roku', 'chromecast', 'apple tv', 'tv wall (?:mount|bracket)s?']),
     exclude: words(['tv stand furniture', 'tv cabinet', 'tv unit'])
   },
@@ -62,21 +59,19 @@ export const RULES = [
     exclude: words(['security cameras?', 'cctv', 'doorbell', 'toy drone', 'drone parts?'])
   },
   {
-    slug: 'smart-home',
-    include: words(['smart (?:plug|bulb|light|lock|thermostat|switch|home|display|hub|sensor)s?', 'alexa', 'echo (?:dot|show|pop)', 'google nest', 'nest (?:hub|cam|doorbell)', 'video doorbells?', 'ring (?:doorbell|camera)', 'security cameras?', 'cctv', 'ip cameras?', 'robot vacuums?', 'robot hoovers?', 'baby monitors?', 'smart smoke alarms?']),
-    exclude: words(['fake camera', 'dummy camera'])
+    slug: 'smart-home-wifi',
+    include: words(['smart (?:plug|bulb|light|lock|thermostat|switch|home|display|hub|sensor|speaker)s?', 'alexa', 'echo (?:dot|show|pop)', 'google nest', 'nest (?:hub|cam|doorbell)', 'video doorbells?', 'ring (?:doorbell|camera)', 'security cameras?', 'cctv', 'ip cameras?', 'robot vacuums?', 'robot hoovers?', 'baby monitors?', 'smart smoke alarms?', 'wi-?fi routers?', 'wireless routers?', 'mesh wi-?fi', 'mesh systems?', 'wi-?fi extenders?', 'range extenders?', 'access points?', 'network switch(?:es)?', 'powerline', 'modems?', 'routers?']),
+    exclude: words(['fake camera', 'dummy camera', 'router bits?', 'wood router'])
   },
   {
-    slug: 'networking-storage',
-    include: words(['wi-?fi routers?', 'wireless routers?', 'mesh wi-?fi', 'mesh systems?', 'wi-?fi extenders?', 'range extenders?', 'access points?', 'network switch(?:es)?', 'powerline', 'modems?', 'ssds?', 'nvme', 'external hard drives?', 'hard drives?', 'hdd', 'nas', 'memory cards?', 'micro ?sd(?:xc|hc)? cards?', 'sd cards?', 'usb (?:stick|flash drive)s?', 'flash drives?', 'routers?']),
-    exclude: words(['router bits?', 'wood router'])
-  },
-  {
-    slug: 'printers-office',
-    include: words(['printers?', 'ink cartridges?', 'toner', 'scanners?', 'label (?:printer|maker)s?', 'laminators?', 'shredders?', '3d printers?', 'calculators?', 'photo printers?']),
-    exclude: words(['3d printer filament spool holder'])
+    slug: 'accessories-storage',
+    include: words(['ssds?', 'nvme', 'external hard drives?', 'hard drives?', 'hdd', 'nas', 'memory cards?', 'micro ?sd(?:xc|hc)? cards?', 'sd cards?', 'usb (?:stick|flash drive)s?', 'flash drives?']),
+    exclude: words(['laptops?', 'desktop pc', 'mini pc', 'console'])
   }
 ];
+
+// Category slugs in the order of the site menu (used by the import report).
+export const CATEGORY_SLUGS = [...new Set(RULES.map(r => r.slug))];
 
 // Minimum quality for any product to be imported (L14). The import tool reports each failure reason.
 export const QUALITY = {
