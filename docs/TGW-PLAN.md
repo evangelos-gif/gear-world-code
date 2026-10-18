@@ -21,9 +21,15 @@ Domain: **technologygearworld.com** (Cloudflare).
 - 🟢 QA gate (`tools/qa-gate.mjs`): ελέγχει τους κανόνες του `LESSONS.md` σε κάθε αλλαγή (675 έλεγχοι, όλοι πράσινοι με δοκιμαστικά προϊόντα).
 - 🟢 Content-Security-Policy ενεργή από την πρώτη μέρα: το TGW δεν έχει inline κώδικα, οπότε δεν χρειάζεται φάση Report-Only.
 
-## Φάση 3: Προϊόντα
-- 🟢 Κανόνες κατηγοριών TGW (λίστες «ναι» και «όχι»).
-- 🟢 Αναφορά δοκιμής (dry-run) από Joybuy UK, Back to the Office, InStock UK και όσους εγκριθούν.
+## Φάση 3: Προϊόντα (σε εξέλιξη)
+- 🟢 Κανόνες κατηγοριών: `sites/tgw/category-rules.js` (λίστα «όχι» για εργαλεία, ανταλλακτικά αυτοκινήτου, ρούχα κ.λπ. και κανόνες ανά κατηγορία).
+- 🟢 Πηγές: `sites/tgw/sources.json` (σήμερα: Joybuy UK).
+- 🟢 Σχέδιο import (dry run): `tools/tgw-import-plan.ps1` διαβάζει το feed στον υπολογιστή και γράφει αναφορά και SQL που **δεν** εκτελείται.
+- 🟢 Ρύθμιση των κανόνων με βάση την πραγματική αναφορά.
+
+## Εμφάνιση ✅ 18/10
+- Ίδιο ύφος με τα άλλα sites: φωτογραφία στο hero, φωτογραφίες στις κατηγορίες, χρυσοί τίτλοι, μπάρα Gear World Hub.
+- Φωτογραφίες Pexels (άδεια για εμπορική χρήση): `docs/IMAGE-CREDITS.md`.
 
 ## Φάση 4: Cloudflare (με έγκριση)
 - 🔴 Νέα D1 `technology-gear-world` με migrations → `ΕΓΚΡΙΝΩ TGW D1`
