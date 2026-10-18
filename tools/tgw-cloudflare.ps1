@@ -83,22 +83,36 @@ function Confirm-Approval([string]$phrase) {
 }
 
 # Runs wrangler through a temporary .cmd file, so output is plain text in Windows PowerShell 5.1.
-function Invoke-Wrangler([string]$Folder, [string]$Arguments, [switch]$NonInteractive) {
+# -Retry: on a network error ("fetch failed") try again, up to 3 times. Only for calls that are safe to repeat.
+function Invoke-Wrangler([string]$Folder, [string]$Arguments, [switch]$NonInteractive, [switch]$Retry) {
     if ($Arguments -match '[&|<>^%]') { throw 'Unsafe characters in wrangler arguments' }
     $tmp = [System.IO.Path]::GetTempPath()
-    $cmdFile = Join-Path $tmp ('gw-wrangler-' + [guid]::NewGuid().ToString('N').Substring(0, 8) + '.cmd')
     $lines = @('@echo off', ('cd /d "{0}"' -f $Folder))
     if ($NonInteractive) { $lines += 'set CI=true' }
     $lines += 'set WRANGLER_SEND_METRICS=false'
+    $lines += 'set FORCE_COLOR=0'
+    $lines += 'set NO_COLOR=1'
     $lines += ('call npx --yes wrangler {0} 2>&1' -f $Arguments)
-    [System.IO.File]::WriteAllText($cmdFile, ($lines -join "`r`n") + "`r`n", [System.Text.Encoding]::ASCII)
-    try {
-        $out = @(& $cmdFile)
-        $code = $LASTEXITCODE
-    } finally {
-        Remove-Item -LiteralPath $cmdFile -ErrorAction SilentlyContinue
+    $tries = 1
+    if ($Retry) { $tries = 3 }
+    $result = $null
+    for ($try = 1; $try -le $tries; $try++) {
+        $cmdFile = Join-Path $tmp ('gw-wrangler-' + [guid]::NewGuid().ToString('N').Substring(0, 8) + '.cmd')
+        [System.IO.File]::WriteAllText($cmdFile, ($lines -join "`r`n") + "`r`n", [System.Text.Encoding]::ASCII)
+        try {
+            $out = @(& $cmdFile)
+            $code = $LASTEXITCODE
+        } finally {
+            Remove-Item -LiteralPath $cmdFile -ErrorAction SilentlyContinue
+        }
+        $text = (($out | ForEach-Object { "$_" }) -join "`n") -replace '\x1b\[[0-9;]*m', ''
+        $result = @{ code = $code; text = $text }
+        $network = $text -match '(?i)fetch failed|connectivity issue|ECONNRESET|ETIMEDOUT|EAI_AGAIN|ENOTFOUND|socket hang up'
+        if ($code -eq 0 -or -not $network -or $try -eq $tries) { break }
+        Say ('Πρόβλημα δικτύου με το Cloudflare. Ξαναδοκιμάζω σε {0} δευτερόλεπτα ({1}/{2})...' -f (5 * $try), ($try + 1), $tries) 'Yellow'
+        Start-Sleep -Seconds (5 * $try)
     }
-    return @{ code = $code; text = (($out | ForEach-Object { "$_" }) -join "`n") }
+    return $result
 }
 
 function Get-JsonArray([string]$text) {
@@ -109,7 +123,7 @@ function Get-JsonArray([string]$text) {
 }
 
 function Find-Database([string]$folder) {
-    $r = Invoke-Wrangler $folder 'd1 list --json'
+    $r = Invoke-Wrangler $folder 'd1 list --json' -Retry
     $list = Get-JsonArray $r.text
     if ($null -eq $list) { return @{ ok = $false; text = $r.text } }
     foreach ($db in $list) {
@@ -216,7 +230,7 @@ switch ($Step) {
         $real = $example.Replace('REPLACE_WITH_DATABASE_ID', $db.id)
         [System.IO.File]::WriteAllText($configPath, $real, (New-Object System.Text.UTF8Encoding($false)))
         Copy-Item -LiteralPath $configPath -Destination $tgw -Force
-        $mg = Invoke-Wrangler $tgw ('d1 migrations apply {0} --remote' -f $DbName) -NonInteractive
+        $mg = Invoke-Wrangler $tgw ('d1 migrations apply {0} --remote' -f $DbName) -NonInteractive -Retry
         if ($mg.code -ne 0) { Say 'Οι πίνακες δεν δημιουργήθηκαν. Έξοδος:' 'Red'; Say $mg.text; Finish 7 }
         Say 'Οι πίνακες δημιουργήθηκαν.' 'Green'
         Say ''
@@ -268,8 +282,9 @@ switch ($Step) {
         if (-not (Confirm-Approval $Phrases.import)) { Say 'Δεν δόθηκε έγκριση: σταμάτησα χωρίς αλλαγές.' 'Yellow'; Finish 1 }
         $bdir = Join-Path $WorkDir 'backups'
         if (-not (Test-Path -LiteralPath $bdir)) { New-Item -ItemType Directory -Path $bdir -Force | Out-Null }
+        # Every SQL file is an UPSERT, so repeating one after a network error is safe.
         # D1 cannot export databases with FTS5 tables, so the backup is a Time Travel restore point (bookmark).
-        $tt = Invoke-Wrangler $tgw ('d1 time-travel info {0}' -f $DbName) -NonInteractive
+        $tt = Invoke-Wrangler $tgw ('d1 time-travel info {0}' -f $DbName) -NonInteractive -Retry
         $bm = [regex]::Match($tt.text, '[0-9a-f]{8}-[0-9a-f]{8}-[0-9a-f]{8}-[0-9a-f]{32}')
         if ($tt.code -ne 0 -or -not $bm.Success) { Say 'Δεν πήρα σημείο επαναφοράς: ΔΕΝ φόρτωσα τίποτα.' 'Red'; Say $tt.text; Finish 11 }
         $bookmark = $bm.Value
@@ -287,7 +302,7 @@ switch ($Step) {
         Say ('Σημείο επαναφοράς: {0}' -f $backup) 'Green'
         $n = 0
         foreach ($f in $files) {
-            $x = Invoke-Wrangler $tgw ('d1 execute {0} --remote --file "{1}"' -f $DbName, $f.FullName) -NonInteractive
+            $x = Invoke-Wrangler $tgw ('d1 execute {0} --remote --file "{1}"' -f $DbName, $f.FullName) -NonInteractive -Retry
             if ($x.code -ne 0) {
                 Say ('Λάθος στο {0}. Σταμάτησα. Τα προηγούμενα αρχεία φορτώθηκαν.' -f $f.Name) 'Red'
                 Say $x.text
@@ -298,7 +313,7 @@ switch ($Step) {
             Write-Host ('  {0} OK' -f $f.Name)
         }
         Say ('Φορτώθηκαν {0} αρχεία SQL.' -f $n) 'Green'
-        $q = Invoke-Wrangler $tgw ('d1 execute {0} --remote --json --command "SELECT category_slug, COUNT(*) AS n FROM products WHERE is_active = 1 GROUP BY category_slug ORDER BY n DESC"' -f $DbName) -NonInteractive
+        $q = Invoke-Wrangler $tgw ('d1 execute {0} --remote --json --command "SELECT category_slug, COUNT(*) AS n FROM products WHERE is_active = 1 GROUP BY category_slug ORDER BY n DESC"' -f $DbName) -NonInteractive -Retry
         $rows = Get-JsonArray $q.text
         if ($rows) { foreach ($r in @($rows[0].results)) { Say ('  {0,-24} {1}' -f $r.category_slug, $r.n) } }
         Say ''

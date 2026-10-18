@@ -242,6 +242,12 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         'echo You are not authenticated. Please run wrangler login.',
         'exit /b 1',
         ':d1list',
+        'if not defined GW_FAKE_FLAKY goto d1listreal',
+        'if exist "%GW_FAKE_STATE%\flaky.txt" goto d1listreal',
+        'echo flaky > "%GW_FAKE_STATE%\flaky.txt"',
+        'echo X [ERROR] fetch failed',
+        'exit /b 1',
+        ':d1listreal',
         'if exist "%GW_FAKE_STATE%\db.txt" goto d1listyes',
         'echo []',
         'exit /b 0',
@@ -283,6 +289,10 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         Remove-Item Env:\GW_FAKE_NOLOGIN
         $lastReport = @(Get-ChildItem -LiteralPath $cfOut -Filter 'TGW_CLOUDFLARE_CHECK_*.txt' | Sort-Object LastWriteTime | Select-Object -Last 1)
         Check ($lastReport.Count -eq 1 -and ([System.IO.File]::ReadAllText($lastReport[0].FullName)).Contains('not authenticated')) 'cloudflare: report shows the wrangler output'
+        $env:GW_FAKE_FLAKY = '1'
+        Check ((Run-Cf @('-Step', 'check')) -eq 0) 'cloudflare: one network error is retried'
+        Remove-Item Env:\GW_FAKE_FLAKY
+        Check (([regex]::Matches((Calls), 'd1 list')).Count -eq 2) 'cloudflare: the D1 list was read twice'
         Check ((Run-Cf @('-Step', 'check')) -eq 0) 'cloudflare check: exit 0'
         Check (-not ((Calls) -match 'd1 create|deploy|execute|migrations')) 'cloudflare check: only reads'
         Check ((Run-Cf @('-Step', 'd1')) -eq 0) 'cloudflare d1 without -Apply: exit 0'
