@@ -284,7 +284,7 @@ if ($SkipD1) {
             # One row with one column per table: D1 refuses long UNION ALL queries ("too many terms in compound SELECT").
             $counted = @($tables | Select-Object -First 40)
             $parts = @()
-            foreach ($t in $counted) { $parts += ('(SELECT COUNT(*) FROM "{0}") AS "{0}"' -f $t) }
+            foreach ($t in $counted) { $parts += ('(SELECT COUNT(*) FROM [{0}]) AS [{0}]' -f $t) }
             $c = Invoke-D1Select $siteDir $dbName ('SELECT ' + ($parts -join ', '))
             $L.Add('')
             $L.Add('row counts:')
