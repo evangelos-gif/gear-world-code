@@ -1,23 +1,44 @@
 // Technology Gear World: which feed products belong on this site, and in which category (lessons L14).
 //
 // How a product is classified (by the import tool):
-//   1. The text checked is: product name + merchant category + Awin category (lower case).
-//   2. If any DENY rule matches, the product is rejected (reason: the rule's label).
-//   3. Otherwise the FIRST category whose `include` matches and whose `exclude` does not match wins.
-//      Order matters: accessories come before phones, gaming before audio, and so on.
-//   4. No match: rejected as "not tech".
-// The dry-run report shows 20 samples per category and per reject reason, so these lists can be tuned
-// with real feed data before anything is imported.
+//   1. The feed's top category (the part before the first ">") is checked first:
+//      DENY_TOP rejects whole areas (food, clothing, beauty, vehicles, tools ...);
+//      ONLY_TOP lets some areas in only for one category (e.g. "Toys & Games" only for gaming).
+//   2. DENY rules are checked on the PRODUCT NAME only (not the feed category, which can be wrong:
+//      Joybuy files smartwatches under "Electronics > Computers > Smart Glasses").
+//   3. Then the FIRST rule whose `include` matches (name + feed categories) and whose `exclude` does not
+//      match wins. Several rules can lead to the same category. Order matters.
+//   4. No match: rejected as "not tech" (shown separately when the feed itself says Electronics,
+//      so missing rules are easy to spot in the report).
+// Tuned on the real Joybuy UK feed (dry-run report of 18 Oct 2026).
 
 const words = list => new RegExp(`\\b(?:${list.join('|')})\\b`, 'i');
 
+// Top-level feed categories that never belong on TGW.
+export const DENY_TOP = [
+  'Health & Beauty', 'Food, Beverages & Tobacco', 'Apparel & Accessories', 'Vehicles & Parts', 'Furniture',
+  'Animals & Pet Supplies', 'Hardware', 'Baby & Toddler', 'Luggage & Bags', 'Mature', 'Religious & Ceremonial',
+  'Arts & Entertainment', 'Business & Industrial'
+];
+
+// Top-level feed categories that may only feed ONE TGW category (anything else from them is rejected).
+export const ONLY_TOP = {
+  'Toys & Games': ['gaming'],
+  'Home & Garden': ['smart-home-wifi'],
+  'Office Supplies': ['laptops-computing']
+};
+
 export const DENY = [
-  { label: 'woodworking or power tool', re: words(['wood router', 'plunge router', 'trim router', 'palm router', 'router bits?', 'router table', 'drill bits?', 'jigsaw', 'circular saw', 'angle grinder', 'sander', 'planer', 'chisel', 'hydraulic', 'welding', 'welder', 'impact driver', 'combi drill', 'sds']) },
-  { label: 'vehicle part', re: words(['brake pads?', 'brake discs?', 'wiper blades?', 'exhaust', 'spark plugs?', 'tyres?', 'tires?', 'alloy wheels?', 'oil filter', 'air filter', 'headlight bulbs?', 'car seat covers?', 'engine', 'suspension', 'tow bar', 'roof rack', 'car parts?', 'vehicle parts?', 'motorcycle parts?']) },
-  { label: 'clothing or beauty', re: words(['t-shirt', 'hoodie', 'dress', 'jacket', 'trousers', 'leggings', 'socks', 'shoes', 'trainers', 'boots', 'lingerie', 'perfume', 'fragrance', 'lipstick', 'mascara', 'nail polish', 'wig', 'hair extensions?']) },
-  { label: 'not allowed', re: words(['vape', 'e-?cig(?:arette)?s?', 'tobacco', 'airsoft', 'knife', 'knives', 'crossbow', 'adult', 'sex', 'erotic', 'spy camera', 'hidden camera']) },
-  { label: 'novelty smart glasses', re: words(['smart glasses', 'bluetooth glasses', 'audio glasses']) },
-  { label: 'spare part or service', re: words(['replacement part', 'spare part', 'repair kit', 'warranty extension', 'service plan', 'gift card', 'voucher']) }
+  { label: 'woodworking or power tool', re: words(['wood router', 'plunge router', 'trim router', 'palm router', 'router bits?', 'router table', 'drill bits?', 'jigsaw', 'circular saw', 'angle grinder', 'sander', 'planer', 'chisel', 'welding', 'welder', 'impact driver', 'combi drill', 'drill driver', 'screwdrivers?']) },
+  { label: 'vehicle part', re: words(['brake pads?', 'brake discs?', 'wiper blades?', 'windscreen wipers?', 'spark plugs?', 'tyres?', 'tire inflator', 'alloy wheels?', 'oil filter', 'headlight bulbs?', 'car seat covers?', 'car covers?', 'tow bar', 'roof rack', 'jump starter', 'motorcycle helmet']) },
+  { label: 'clothing or beauty', re: words(['t-shirt', 'hoodie', 'dress', 'jacket', 'trousers', 'leggings', 'socks', 'shoes', 'trainers', 'lingerie', 'perfume', 'fragrance', 'lipstick', 'mascara', 'nail polish', 'wig', 'hair extensions?', 'shaver', 'epilator', 'toothbrush', 'hair dryer', 'straightener']) },
+  { label: 'not allowed', re: words(['vape', 'e-?cig(?:arette)?s?', 'airsoft', 'knife', 'knives', 'crossbow', 'erotic', 'spy camera', 'hidden camera']) },
+  { label: 'smart glasses (novelty)', re: words(['smart glasses', 'bluetooth glasses', 'audio glasses', 'sunglasses']) },
+  { label: 'home appliance (Home Gear World)', re: words(['robot vacuums?', 'robot hoovers?', 'vacuum cleaners?', 'stick vacuum', 'fridge', 'freezer', 'kettle', 'toaster', 'air fryer', 'microwave', 'dehumidifier', 'heater', 'pedestal fan', 'tower fan']) },
+  { label: 'baby product (Kids Gear World)', re: words(['baby monitors?']) },
+  { label: 'spare part or service', re: words(['replacement part', 'spare part', 'repair kit', 'warranty extension', 'service plan', 'gift card', 'voucher']) },
+  { label: 'consumable, not a gadget', re: words(['aa', 'aaa', 'batteries', 'copier paper', 'printer paper', 'label paper', 'thermal paper', 'cleaning brush']) },
+  { label: 'toy, not a gadget', re: words(['toy drones?', 'stunt (?:\\w+ )?drones?', 'kids drones?', 'jigsaw puzzles?', 'piggy bank', 'ride on car']) }
 ];
 
 // Several rules can lead to the same category; the first match wins. Accessories come first so
@@ -25,47 +46,85 @@ export const DENY = [
 export const RULES = [
   {
     slug: 'accessories-storage',
-    include: words(['(?:iphone|phone|galaxy|pixel|ipad|tablet|kindle|airpods|earbuds|watch|camera|laptop|macbook|switch)\\b[\\w\\s-]{0,30}?\\b(?:case|cover|folio|sleeve|skin)s?', 'chargers?', 'charging (?:cable|station|dock|pad|stand)s?', 'power ?banks?', 'usb-?c (?:cable|hub|adapter|charger)s?', 'lightning cables?', 'hdmi cables?', 'phone cases?', 'tablet cases?', 'ipad cases?', 'screen protectors?', 'tempered glass', 'phone (?:holder|mount|stand|grip)s?', 'laptop (?:bag|sleeve|stand)s?', 'usb hubs?', 'docking stations?', 'watch straps?', 'replacement bands?']),
-    exclude: words(['ev charger', 'car battery charger', 'battery charger for tools', 'trickle charger', 'pencil case', 'suitcase', 'briefcase'])
+    include: words([
+      '(?:iphone|phone|galaxy|pixel|ipad|tablet|kindle|airpods|earbuds|watch|camera|laptop|macbook|switch)\\b[\\w\\s/()-]{0,40}?\\b(?:case|cover|folio|sleeve|skin|protector)s?',
+      'chargers?', 'charging (?:cable|station|dock|pad|stand|holder)s?', 'wireless charg(?:er|ing)', 'fast charg(?:er|ing)', 'magsafe',
+      'power ?banks?', 'usb-?c (?:cable|hub|adapter|charger)s?', 'lightning cables?', 'hdmi cables?', 'cables?',
+      'phone cases?', 'tablet cases?', 'ipad cases?', 'screen protectors?', 'lens protectors?', 'camera protectors?', 'tempered glass',
+      'phone (?:holder|mount|stand|grip|pouch|bag)s?', 'laptop (?:bag|sleeve|stand)s?', 'usb hubs?', 'docking stations?',
+      '(?:watch|sport|silicone|nylon|leather|milanese|loop|solo) (?:bands?|straps?)', 'watch straps?', 'replacement bands?',
+      'phone cool(?:er|ing)', 'cooling fan for (?:phone|mobile|live streaming)', 'live streaming cooler'
+    ]),
+    // Watch listings say "Aluminium Case with Sport Band" and "GPS": those are watches, not accessories.
+    exclude: words(['ev charger', 'car battery charger', 'trickle charger', 'pencil case', 'suitcase', 'briefcase', 'smart tv', 'televisions?', 'gps', '(?:aluminium|aluminum|titanium|stainless steel) case'])
   },
   {
     slug: 'gaming',
-    include: words(['playstation', 'ps5', 'ps4', 'xbox', 'nintendo', 'switch oled', 'steam deck', 'gaming (?:headset|keyboard|mouse|mice|chair|desk|monitor|controller|pc|laptop)s?', 'game ?pads?', 'game controllers?', 'joysticks?', 'racing wheel', 'vr headset', 'meta quest']),
-    exclude: words(['board game', 'card game', 'jigsaw puzzle'])
+    include: words([
+      'playstation', 'ps5', 'ps4', 'xbox', 'nintendo', 'switch 2', 'switch oled', 'steam deck', 'video games?',
+      'gaming (?:headset|keyboard|mouse|mice|chair|desk|monitor|controller|pc|laptop|console)s?', 'game ?pads?', 'game controllers?',
+      'controllers?', 'joysticks?', 'racing wheel', 'vr headset', 'meta quest'
+    ]),
+    exclude: words(['board game', 'card game', 'jigsaw puzzle', 'smart tv', 'televisions?', 'google tv', 'oled tv', 'qled', '\\d{2}["”] (?:bravia|4k)'])
   },
   {
     slug: 'phones-smartwatches',
-    include: words(['smartphones?', 'mobile phones?', 'iphone', 'galaxy [asz]\\d+', 'galaxy z (?:fold|flip)', 'pixel \\d+', 'oneplus', 'xiaomi redmi', 'sim[- ]free', 'smartwatch(?:es)?', 'smart watch(?:es)?', 'fitness trackers?', 'activity trackers?', 'apple watch', 'galaxy watch', 'pixel watch', 'fitbit', 'garmin (?:forerunner|venu|fenix|vivoactive|instinct)', 'huawei watch', 'amazfit', 'smart rings?']),
+    include: words([
+      'smartphones?', 'mobile phones?', 'iphone', 'galaxy [asz]\\d+', 'galaxy z (?:fold|flip)', 'pixel \\d+', 'oneplus', 'redmi note', 'xiaomi \\d+',
+      'honor (?:magic|\\d+)', 'motorola (?:edge|g\\d+|razr)', 'oppo (?:a\\d+\\w*|find|reno)', 'nokia \\d+', 'nubia', 'sim[- ]free', 'dual sim',
+      'smartwatch(?:es)?', 'smart watch(?:es)?', 'fitness trackers?', 'activity trackers?', 'apple watch', 'galaxy watch', 'pixel watch',
+      'huawei watch', 'watch gt', 'watch fit', 'fitbit', 'garmin (?:forerunner|venu|fenix|vivoactive|instinct)', 'amazfit', 'smart rings?'
+    ]),
     exclude: words(['kids toy watch'])
   },
   {
     slug: 'laptops-computing',
-    include: words(['laptops?', 'notebook pc', 'macbook', 'chromebook', 'ultrabook', 'desktop pc', 'mini pc', 'all-in-one pc', 'imac', 'mac mini', 'tablets?', 'ipad', 'galaxy tab', 'e-?readers?', 'kindle', 'monitors?', 'computer monitors?', 'keyboards?', 'computer mouse', 'wireless mouse', 'webcams?', 'graphics cards?', 'motherboards?', 'processors?', '\\d+ ?gb ram', 'ram memory', 'pc cases?', 'printers?', 'ink cartridges?', 'toner', 'scanners?', 'label (?:printer|maker)s?', 'laminators?', 'shredders?', '3d printers?', 'calculators?']),
-    exclude: words(['baby monitor', 'heart rate monitor', 'blood pressure monitor', 'piano keyboard', 'musical keyboard', 'mouse trap', 'mouse mat', 'dishwasher tablets?', 'vitamin', 'tablets? \\d+ ?mg'])
+    include: words([
+      'laptops?', 'notebook (?:pc|computer)', '\\d+(?:\\.\\d)?["”]? (?:full hd |fhd |hd )?(?:\\(\\d+ x \\d+\\) )?notebook', 'ryzen', 'intel core', 'core i[3579]', 'macbook', 'chromebook', 'ultrabook', 'desktop pc', 'gaming pc', 'mini pc', 'all-in-one pc', 'imac', 'mac mini',
+      'tablets?', 'ipad', 'galaxy tab', 'e-?readers?', 'kindle', 'monitors?', 'keyboards?', 'computer mouse', 'wireless mouse', 'mouse',
+      'webcams?', 'graphics cards?', 'motherboards?', 'processors?', 'ddr[45] ram', 'pc cases?',
+      'printers?', 'ink cartridges?', 'toner', 'scanners?', 'label (?:printer|maker)s?', 'laminators?', 'shredders?', '3d printers?', 'calculators?'
+    ]),
+    exclude: words(['baby monitor', 'heart rate monitor', 'blood pressure monitor', 'piano keyboard', 'musical keyboard', 'mouse trap', 'mouse mat', 'vitamins?', 'multivitamins?', 'tablets? \\d+ ?mg', 'dishwasher tablets?', 'notebook paper', 'spiral notebook'])
   },
   {
     slug: 'audio',
-    include: words(['headphones?', 'earbuds?', 'earphones?', 'airpods', 'in-ear', 'over-ear', 'bluetooth speakers?', 'wireless speakers?', 'soundbars?', 'subwoofers?', 'hi-?fi', 'turntables?', 'record players?', 'amplifiers?', 'dab radios?', 'microphones?']),
-    exclude: words(['ear defenders?', 'hearing protection', 'speaker cable'])
+    include: words([
+      'headphones?', 'headsets?', 'earbuds?', 'earphones?', 'airpods', 'buds', 'in-ear', 'over-ear', 'open-ear', 'bone conduction',
+      'bluetooth speakers?', 'wireless speakers?', 'portable speakers?', 'speakers?', 'soundbars?', 'subwoofers?', 'hi-?fi', 'turntables?',
+      'record players?', 'amplifiers?', 'dab radios?', 'microphones?', 'lavalier'
+    ]),
+    exclude: words(['ear defenders?', 'hearing protection', 'speaker cable', 'smart speaker'])
   },
   {
     slug: 'tv-home-cinema',
-    include: words(['televisions?', 'smart tvs?', '\\d{2}["”]? ?(?:inch )?(?:4k|8k|uhd|oled|qled|led) tvs?', 'oled tvs?', 'qled tvs?', 'projectors?', 'projector screens?', 'streaming (?:stick|device|box)s?', 'fire tv', 'roku', 'chromecast', 'apple tv', 'tv wall (?:mount|bracket)s?']),
-    exclude: words(['tv stand furniture', 'tv cabinet', 'tv unit'])
+    include: words([
+      'televisions?', 'smart tvs?', 'tv', 'oled', 'qled', 'qned', 'mini led', 'projectors?', 'projector screens?', 'streaming (?:stick|device|box)s?',
+      'fire tv', 'roku', 'chromecast', 'apple tv', 'tv wall (?:mount|bracket)s?'
+    ]),
+    exclude: words(['tv stand furniture', 'tv cabinet', 'tv unit', 'tv bed'])
   },
   {
     slug: 'cameras-drones',
-    include: words(['digital cameras?', 'dslr', 'mirrorless', 'compact cameras?', 'instant cameras?', 'polaroid', 'instax', 'gopro', 'action cam(?:era)?s?', 'dash ?cams?', 'drones?', 'camera lens(?:es)?', 'gimbals?', 'camcorders?', 'trail cameras?']),
-    exclude: words(['security cameras?', 'cctv', 'doorbell', 'toy drone', 'drone parts?'])
+    include: words([
+      'digital cameras?', 'cameras?', 'dslr', 'mirrorless', 'polaroid', 'instax', 'gopro', 'osmo', 'insta360', 'action cam(?:era)?s?',
+      'dash ?cams?', 'drones?', 'camera lens(?:es)?', 'gimbals?', 'camcorders?', 'vlog'
+    ]),
+    exclude: words(['security cameras?', 'surveillance', 'cctv', 'doorbell', 'webcam', 'baby monitor', 'ip cameras?', 'ptz'])
   },
   {
     slug: 'smart-home-wifi',
-    include: words(['smart (?:plug|bulb|light|lock|thermostat|switch|home|display|hub|sensor|speaker)s?', 'alexa', 'echo (?:dot|show|pop)', 'google nest', 'nest (?:hub|cam|doorbell)', 'video doorbells?', 'ring (?:doorbell|camera)', 'security cameras?', 'cctv', 'ip cameras?', 'robot vacuums?', 'robot hoovers?', 'baby monitors?', 'smart smoke alarms?', 'wi-?fi routers?', 'wireless routers?', 'mesh wi-?fi', 'mesh systems?', 'wi-?fi extenders?', 'range extenders?', 'access points?', 'network switch(?:es)?', 'powerline', 'modems?', 'routers?']),
+    include: words([
+      'smart (?:plug|bulb|light|lock|thermostat|switch|home|display|hub|sensor|speaker)s?', 'smart light bulbs?', 'alexa', 'echo (?:dot|show|pop)',
+      'google nest', 'nest (?:hub|cam|doorbell)', 'video doorbells?', 'doorbells?', 'security cameras?', 'surveillance cameras?', 'outdoor cameras?',
+      'ptz cameras?', 'cctv', 'ip cameras?', 'smart smoke alarms?', 'wi-?fi ?\\d?', 'routers?', 'mesh wi-?fi', 'mesh (?:system|router|network)s?', 'range extenders?', 'access points?',
+      'network switch(?:es)?', 'powerline', 'modems?', 'orbi', 'tp-link deco', 'deco [xmse]\\d+'
+    ]),
     exclude: words(['fake camera', 'dummy camera', 'router bits?', 'wood router'])
   },
   {
     slug: 'accessories-storage',
-    include: words(['ssds?', 'nvme', 'external hard drives?', 'hard drives?', 'hdd', 'nas', 'memory cards?', 'micro ?sd(?:xc|hc)? cards?', 'sd cards?', 'usb (?:stick|flash drive)s?', 'flash drives?']),
+    include: words(['ssds?', 'nvme', 'external hard drives?', 'portable hard drives?', 'hard drives?', 'hdd', 'nas', 'memory cards?', 'micro ?sd(?:xc|hc)?', 'sd cards?', 'usb (?:stick|flash drive)s?', 'flash drives?', 'adapters?', 'plugs?']),
     exclude: words(['laptops?', 'desktop pc', 'mini pc', 'console'])
   }
 ];
@@ -81,14 +140,34 @@ export const QUALITY = {
   requireImage: true,
   requireInStock: true,
   affiliateHosts: ['www.awin1.com', 'awin1.com'],
-  maxNameLength: 200
+  maxNameLength: 400
 };
 
-export function classify(text) {
-  const t = String(text || '').toLowerCase();
-  for (const d of DENY) if (d.re.test(t)) return { ok: false, reason: d.label };
+const TECH_TOPS = ['Electronics', 'Cameras & Optics', 'Software'];
+
+export function topCategory(feedCategory) {
+  return String(feedCategory || '').split('>')[0].trim();
+}
+
+// name: product name; feedCategory: merchant category path (and Awin category) as one string.
+export function classify(name, feedCategory = '') {
+  const n = String(name || '').toLowerCase();
+  const top = topCategory(feedCategory);
+  if (DENY_TOP.includes(top)) return { ok: false, reason: `feed category: ${top}` };
+  for (const d of DENY) if (d.re.test(n)) return { ok: false, reason: d.label };
+  const text = `${n} ${String(feedCategory || '').toLowerCase()}`;
+  const only = ONLY_TOP[top];
   for (const r of RULES) {
-    if (r.include.test(t) && !(r.exclude && r.exclude.test(t))) return { ok: true, slug: r.slug };
+    if (only && !only.includes(r.slug)) continue;
+    if (r.include.test(text) && !(r.exclude && r.exclude.test(text))) return { ok: true, slug: r.slug };
   }
-  return { ok: false, reason: 'not tech' };
+  return { ok: false, reason: TECH_TOPS.includes(top) ? 'not matched (feed says tech)' : 'not tech' };
+}
+
+// Feed names often start with promotions such as "【Black Friday Early Deals】" or "[Back-to-School]".
+export function cleanProductName(name) {
+  return String(name || '')
+    .replace(/^\s*(?:【[^】]{0,40}】|\[[^\]]{0,40}\]|\([^)]*(?:deal|sale|delivery|offer)[^)]*\))\s*/gi, '')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
 }

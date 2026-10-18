@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { gzipSync } from 'node:zlib';
 import { Readable } from 'node:stream';
-import { classify } from '../../sites/tgw/category-rules.js';
+import { classify, cleanProductName } from '../../sites/tgw/category-rules.js';
 import { planImport, readCsvRecords, parsePrice, cleanText } from '../../tools/tgw-import-plan.mjs';
 
 test('category rules: tech goes to the right category, junk is rejected (lessons L14)', () => {
@@ -34,13 +34,57 @@ test('category rules: tech goes to the right category, junk is rejected (lessons
   const junk = [
     ['Makita RT0702C Trim Router 240V', 'woodworking or power tool'],
     ['Bosch Brake Pads Front Set', 'vehicle part'],
-    ['Smart Glasses Bluetooth Audio Sunglasses', 'novelty smart glasses'],
+    ['Smart Glasses Bluetooth Audio Sunglasses', 'smart glasses (novelty)'],
     ['Cotton Crew Neck T-Shirt', 'clothing or beauty'],
     ['Garden Hose 30m', 'not tech'],
     ['Vitamin C Tablets 1000mg', 'not tech'],
     ['Zip Pencil Case Blue', 'not tech']
   ];
   for (const [name, reason] of junk) assert.deepEqual(classify(name), { ok: false, reason }, name);
+});
+
+test('category rules: cases from the real Joybuy report of 18 Oct 2026', () => {
+  const ok = [
+    ['Apple Watch Series 11 GPS 46mm Silver Aluminium Case with Purple Fog Sport Band - M/L', 'Electronics > Computers > Smart Glasses', 'phones-smartwatches'],
+    ['Huawei Watch GT 7 46mm Black', 'Electronics > Computers > Smart Glasses', 'phones-smartwatches'],
+    ['Apple Watch Sport Band - Anchor Blue (40mm, M/L)', 'Sporting Goods > Exercise & Fitness > Cardio', 'accessories-storage'],
+    ['iPhone 17 Pro Max / iPhone 18 Pro Max Camera Lens Protector, High Transmittance Alloy', 'Electronics > Electronics Accessories > Computer Accessories', 'accessories-storage'],
+    ['ACEFAST E17 Desktop 3-in-1 Wireless Charging Holder - Phone/ TWS/ Watch - Black', 'Electronics > Electronics Accessories > Computer Accessories', 'accessories-storage'],
+    ['WEKOME Qisong Five-in-One Night Light Wireless Fast Charging TP-U179 Black', 'Electronics > Electronics Accessories > Power > Chargers', 'accessories-storage'],
+    ['Black Shark Live Streaming Cooler,Cooling Fan for Live Streaming, Compatible with All Phones', 'Electronics > Electronics Accessories > Computer Accessories', 'accessories-storage'],
+    ['Sony 43" BRAVIA 3 Direct LED 4K HDR Smart Google TV-K43S35BP (Playstation Remote Play)', 'Electronics > Video > Televisions', 'tv-home-cinema'],
+    ['Hisense 75"E8Q Mini LED 4K HDR Smart VIDAA OS TV-75E8QTUK(144Hz Game Mode PRO, Hi-View Engine)', 'Electronics > Video > Televisions', 'tv-home-cinema'],
+    ['VITURE Pro Mobile Dock for Switch 2, Compatible with PS, Co-op Stream & Play', 'Electronics > Electronics Accessories > Computer Accessories', 'gaming'],
+    ['Microsoft Blasphemous 2 (Xbox Series X)', 'Toys & Games > Games > Board Games', 'gaming'],
+    ['LOQ 17IRX10 i7-13650H 24GB 1TB W11H', 'Electronics > Computers > Laptops', 'laptops-computing'],
+    ['Acer Aspire Go 15 AG15-21P 15.6" Full HD (1920 x 1080) Notebook - AMD Ryzen 3 7320U, 8GB', 'Electronics > Computers > Laptops', 'laptops-computing'],
+    ['OPPO A6x 5G 4GB + 128GB - Black Purple', 'Electronics > Communications > Telephony > Mobile Phones', 'phones-smartwatches'],
+    ['Philips Smart Light Bulb LED Globe Frosted Screw E27 Full Colour', 'Home & Garden > Lighting > Light Bulbs', 'smart-home-wifi'],
+    ['eufy E340 2K Dual Cameras Smart Video Doorbell with Chime', 'Electronics > Networking > Network Security', 'smart-home-wifi'],
+    ['BOTSLAB W311 Outdoor PTZ Camera 2K 3MP Surveillance Camera', 'Cameras & Optics > Cameras > Surveillance Cameras', 'smart-home-wifi'],
+    ['GoPro HERO13 - Black', 'Cameras & Optics > Cameras > Digital Cameras', 'cameras-drones'],
+    ['Western Digital Elements Portable External Hard Drive - 1TB', 'Electronics > Electronics Accessories > Computer Components', 'accessories-storage']
+  ];
+  for (const [name, cat, slug] of ok) assert.deepEqual(classify(name, cat), { ok: true, slug }, name);
+  const no = [
+    ['Nordic Naturals Multivitamin Daily Wellness Support for Women Extra Strength Tablets', 'Health & Beauty > Health Care > Fitness & Nutrition', 'feed category: Health & Beauty'],
+    ['Philips Shaver Series 7000, Wet & Dry Mens Electric Shaver', 'Health & Beauty > Personal Care > Shaving', 'feed category: Health & Beauty'],
+    ['Energizer AA Ultimate Lithium Batteries - Pack of 10', 'Electronics > Electronics Accessories > Power > Batteries', 'consumable, not a gadget'],
+    ['Blank A4 White Copier Paper 70gsm (Pack of 2500)', 'Office Supplies > General Office Supplies > Paper', 'consumable, not a gadget'],
+    ['ECOVACS DEEBOT X8 PRO OMNI Robot Vacuum & Mop', 'Home & Garden > Kitchen & Dining > Kitchen Appliances', 'home appliance (Home Gear World)'],
+    ['IFIXPRO 42-in-1 Multi-Bit Ratcheting Screwdriver with Detachable T-Handle', 'Hardware > Tools > Screwdrivers', 'feed category: Hardware'],
+    ['Momcozy BM01 1080P HD Video Baby Monitor with Camera', 'Baby & Toddler > Baby Safety > Baby Monitors', 'feed category: Baby & Toddler'],
+    ['Sharper Image LED Stunt Glow Drone', 'Toys & Games > Toys > Remote Control Toys', 'toy, not a gadget'],
+    ['Hasbro Cluedo', 'Toys & Games > Games > Board Games', 'not tech'],
+    ['COMFEE RCD92WH2UKY(E) 88L Under Counter Fridge, Cooler Box', 'Home & Garden > Kitchen & Dining > Kitchen Appliances', 'home appliance (Home Gear World)'],
+    ['Green Air Vent Cleaning Brush, Car AC Brush with Microfiber', 'Home & Garden > Household Supplies > Household Cleaning', 'consumable, not a gadget'],
+    ['Mesh Laundry Bag', 'Home & Garden > Household Supplies > Laundry', 'not tech'],
+    ['Spiral Notebook A5 Lined', 'Office Supplies > General Office Supplies > Paper Products', 'not tech']
+  ];
+  for (const [name, cat, reason] of no) assert.deepEqual(classify(name, cat), { ok: false, reason }, name);
+  assert.equal(cleanProductName('【Black Friday Early Deals】DJI Osmo Pocket 4 Travel Vlog Set'), 'DJI Osmo Pocket 4 Travel Vlog Set');
+  assert.equal(cleanProductName('[Back-to-School] SJCAM SJ20 Action Camera'), 'SJCAM SJ20 Action Camera');
+  assert.equal(cleanProductName('Sony WH-1000XM5'), 'Sony WH-1000XM5');
 });
 
 test('CSV reader: quotes, doubled quotes, line breaks inside quotes, pipe delimiter, BOM', async () => {

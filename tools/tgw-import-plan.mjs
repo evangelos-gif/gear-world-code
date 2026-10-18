@@ -13,7 +13,7 @@ import { createReadStream, existsSync, mkdirSync, readdirSync, readFileSync, wri
 import { createGunzip } from 'node:zlib';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { classify, QUALITY, CATEGORY_SLUGS } from '../sites/tgw/category-rules.js';
+import { classify, cleanProductName, QUALITY, CATEGORY_SLUGS } from '../sites/tgw/category-rules.js';
 import { normalizeGtin } from '../src/lib/gtin.js';
 import { slugify, truncate } from '../src/lib/text.js';
 
@@ -184,14 +184,15 @@ export async function planImport({ archive, sourcesFile, outDir, now = new Date(
   const sources = JSON.parse(readFileSync(sourcesFile, 'utf8')).sources.filter(s => s.approved);
   const runStamp = now.toISOString().replace('T', ' ').slice(0, 19);
   const files = existsSync(archive) ? readdirSync(archive) : [];
-  const stats = { rows: 0, accepted: 0, rejected: {}, perCategory: {}, gtinValid: 0, withWas: 0 };
+  const stats = { rows: 0, accepted: 0, rejected: {}, perCategory: {}, gtinValid: 0, withWas: 0, feedCats: {} };
   const samples = { accepted: {}, rejected: {} };
   const feedInfo = [];
   const products = new Map();
+  const seenNames = new Set();
   const reject = (reason, rec) => {
     stats.rejected[reason] = (stats.rejected[reason] || 0) + 1;
     const list = (samples.rejected[reason] ||= []);
-    if (list.length < SAMPLES_PER_GROUP) list.push(rec);
+    if (list.length < (reason.startsWith('not matched') ? 40 : SAMPLES_PER_GROUP)) list.push(rec);
   };
 
   for (const source of sources) {
@@ -211,7 +212,7 @@ export async function planImport({ archive, sourcesFile, outDir, now = new Date(
         }
         if (rec.length === 1 && rec[0] === '') continue;
         rows++; stats.rows++;
-        const name = cleanText(pick(rec, map.name));
+        const name = cleanProductName(cleanText(pick(rec, map.name)));
         const merchantCategory = cleanText(pick(rec, map.merchantCategory));
         const awinCategory = cleanText(pick(rec, map.awinCategory));
         const brand = cleanText(pick(rec, map.brand));
@@ -220,7 +221,7 @@ export async function planImport({ archive, sourcesFile, outDir, now = new Date(
 
         if (!name) { reject('no product name', short); continue; }
         if (name.length > QUALITY.maxNameLength) { reject('name too long', short); continue; }
-        const cls = classify(`${name} ${merchantCategory} ${awinCategory}`);
+        const cls = classify(name, `${merchantCategory || awinCategory} ${merchantCategory ? awinCategory : ''}`.trim());
         if (!cls.ok) { reject(cls.reason, short); continue; }
         if (!Number.isFinite(price) || price <= 0) { reject('no price', short); continue; }
         if (price < QUALITY.minPrice || price > QUALITY.maxPrice) { reject('price out of range', short); continue; }
@@ -238,6 +239,9 @@ export async function planImport({ archive, sourcesFile, outDir, now = new Date(
         if (!merchantProductId) { reject('no product id', short); continue; }
         const stableKey = `${source.advertiserId}:${merchantProductId}`;
         if (products.has(stableKey)) { reject('duplicate product id', short); continue; }
+        const nameKey = `${source.advertiserId}|${name.toLowerCase()}|${price.toFixed(2)}`;
+        if (seenNames.has(nameKey)) { reject('duplicate (same name and price)', short); continue; }
+        seenNames.add(nameKey);
 
         const wasRaw = parsePrice(pick(rec, map.was));
         const wasPrice = Number.isFinite(wasRaw) && wasRaw > price * 1.04 && wasRaw < price * 5 ? wasRaw : null;
@@ -280,6 +284,9 @@ export async function planImport({ archive, sourcesFile, outDir, now = new Date(
         products.set(stableKey, p);
         stats.accepted++;
         stats.perCategory[cls.slug] = (stats.perCategory[cls.slug] || 0) + 1;
+        const fc = truncate(merchantCategory || awinCategory || '-', 70);
+        const fcs = (stats.feedCats[cls.slug] ||= {});
+        fcs[fc] = (fcs[fc] || 0) + 1;
         if (gtin) stats.gtinValid++;
         if (wasPrice) stats.withWas++;
         const list = (samples.accepted[cls.slug] ||= []);
@@ -324,7 +331,11 @@ export async function planImport({ archive, sourcesFile, outDir, now = new Date(
   L.push(`valid GTIN: ${stats.gtinValid} (${pct(stats.gtinValid, stats.accepted)}) | with a was-price: ${stats.withWas}`);
   L.push('');
   L.push('== Per category ==');
-  for (const slug of CATEGORY_SLUGS) L.push(`  ${slug.padEnd(24)} ${stats.perCategory[slug] || 0}`);
+  for (const slug of CATEGORY_SLUGS) {
+    L.push(`  ${slug.padEnd(24)} ${stats.perCategory[slug] || 0}`);
+    const top = Object.entries(stats.feedCats[slug] || {}).sort((a, b) => b[1] - a[1]).slice(0, 5);
+    for (const [c, n] of top) L.push(`      ${String(n).padStart(5)}  ${c}`);
+  }
   L.push('');
   L.push('== Rejected, by reason ==');
   for (const [k, v] of Object.entries(stats.rejected).sort((a, b) => b[1] - a[1])) L.push(`  ${k.padEnd(28)} ${v}`);
