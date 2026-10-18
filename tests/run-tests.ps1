@@ -126,12 +126,17 @@ if ($isWin) {
         'echo %* | findstr /C:"COUNT(" >nul',
         'if %errorlevel%==0 goto counts',
         'echo [',
-        'echo {"results":[{"type":"table","name":"products","sql":"CREATE TABLE products (id INTEGER PRIMARY KEY, name TEXT)"}],"success":true}',
+        'echo {"results":[{"type":"table","name":"products","sql":"CREATE TABLE products (id INTEGER PRIMARY KEY, name TEXT)"},{"type":"table","name":"products_fts","sql":"CREATE VIRTUAL TABLE products_fts USING fts5(name)"},{"type":"table","name":"products_fts_data","sql":"CREATE TABLE ''products_fts_data''(id INTEGER PRIMARY KEY, block BLOB)"}],"success":true}',
         'echo ]',
         'exit /b 0',
         ':counts',
+        'echo %* | findstr /C:"products_fts" >nul',
+        'if %errorlevel%==0 goto bad',
         'echo [{"results":[{"t":"products","n":42}],"success":true}]',
-        'exit /b 0'
+        'exit /b 0',
+        ':bad',
+        'echo shadow table queried 1>&2',
+        'exit /b 1'
     ) -join "`r`n"
     Write-Utf8 (Join-Path $bin 'npx.cmd') $fake
     $oldPath = $env:PATH
@@ -144,7 +149,8 @@ if ($isWin) {
     if ($rep4.Count -ge 1) {
         $r4 = [System.IO.File]::ReadAllText($rep4[0].FullName)
         Check ($r4.Contains('-- [table] products')) 'D1 schema parsed'
-        Check ($r4 -match 'products\s+42') 'D1 row count parsed'
+        Check ($r4 -match 'products\s+42') 'D1 row count parsed (FTS shadow tables skipped)'
+        Check ($r4.Contains('gw-site-snapshot v2')) 'report shows tool version'
     } else { Check $false 'D1 report written' }
 }
 

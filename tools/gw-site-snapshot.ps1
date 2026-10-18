@@ -27,7 +27,7 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
-$ScriptVersion = 'gw-site-snapshot v1'
+$ScriptVersion = 'gw-site-snapshot v2'
 $MaxTopEntries = 250
 $MaxPublicEntries = 400
 $SmallTextLimit = 16KB
@@ -266,11 +266,19 @@ if ($SkipD1) {
         if ($raw.Length -gt 4000) { $raw = $raw.Substring(0, 4000) }
         $L.Add($raw)
     } else {
+        # Virtual tables (FTS5) and their shadow tables are not counted: D1 does not allow reading shadow tables.
+        $virtual = @()
+        foreach ($row in $r.rows) {
+            if ($row.type -eq 'table' -and ([string]$row.sql) -match '^\s*CREATE\s+VIRTUAL\s+TABLE') { $virtual += [string]$row.name }
+        }
         $tables = @()
         foreach ($row in $r.rows) {
             $L.Add(('-- [{0}] {1}' -f $row.type, $row.name))
             $L.Add([string]$row.sql)
-            if ($row.type -eq 'table' -and $row.name -match '^[A-Za-z_][A-Za-z0-9_]*$') { $tables += $row.name }
+            if ($row.type -ne 'table' -or $row.name -notmatch '^[A-Za-z_][A-Za-z0-9_]*$') { continue }
+            $skip = $false
+            foreach ($v in $virtual) { if ($row.name -eq $v -or $row.name.StartsWith($v + '_')) { $skip = $true } }
+            if (-not $skip) { $tables += $row.name }
         }
         if ($tables.Count -gt 0) {
             $parts = @()
@@ -279,7 +287,12 @@ if ($SkipD1) {
             $L.Add('')
             $L.Add('row counts:')
             if ($c.ok) { foreach ($row in $c.rows) { $L.Add(('  {0,-40} {1}' -f $row.t, $row.n)) } }
-            else { $L.Add('  count query failed') }
+            else {
+                $L.Add('  count query failed. Output:')
+                $raw = $c.raw
+                if ($raw.Length -gt 1500) { $raw = $raw.Substring(0, 1500) }
+                $L.Add($raw)
+            }
         }
     }
 }
