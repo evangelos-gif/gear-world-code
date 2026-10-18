@@ -9,7 +9,7 @@ export default {
   lang: 'en-GB',
   locale: 'en-GB',
   currency: 'GBP',
-  assetVersion: '2026-10-18-1',
+  assetVersion: '2026-10-18-2',
 
   // Shown in <title> of the home page and in social previews.
   homeTitle: 'Technology Gear World | Compare Laptops, Phones, Audio & Smart Tech',

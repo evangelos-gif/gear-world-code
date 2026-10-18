@@ -107,7 +107,7 @@ p { margin: 0 0 1em; }
 @keyframes eink-draw { from { opacity: 0; filter: grayscale(1) contrast(2); } to { opacity: 1; filter: none; } }
 
 /* ---------- Sections ---------- */
-.section { padding: 28px 0; }
+.section { padding-top: 28px; padding-bottom: 28px; }
 .section-head { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
 .more-link { font-weight: 600; }
 

@@ -43,12 +43,18 @@ jobs:
           curl -sf -o /dev/null http://127.0.0.1:8787/
       - name: QA gate (docs/LESSONS.md)
         run: node tools/qa-gate.mjs http://127.0.0.1:8787 --site sites/tgw --out qa-report.txt
-      - name: Keep the QA report
+      - name: Layout check on phone and desktop (real browser)
+        run: |
+          npx playwright install --with-deps chromium
+          node tools/layout-check.mjs http://127.0.0.1:8787 --shots layout-shots --out layout-report.txt
+      - name: Keep the reports and screenshots
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: tgw-qa-report
           path: |
             qa-report.txt
+            layout-report.txt
+            layout-shots/
             dev.log
           if-no-files-found: ignore
