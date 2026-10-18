@@ -319,13 +319,13 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         Check ($notes.Count -eq 1 -and ([System.IO.File]::ReadAllText($notes[0].FullName)).Contains($fakeBookmark)) 'cloudflare import: restore point written with the bookmark'
         $deploysBefore = ([regex]::Matches((Calls), 'wrangler deploy')).Count
         Check ((Run-Cf @('-Step', 'domain')) -eq 0) 'cloudflare domain without -Apply: exit 0'
-        Check (([regex]::Matches((Calls), 'wrangler deploy')).Count -eq $deploysBefore -and -not ([System.IO.File]::ReadAllText($cfg)).Contains('"routes"')) 'cloudflare domain without -Apply: changes nothing'
+        Check (([regex]::Matches((Calls), 'wrangler deploy')).Count -eq $deploysBefore -and -not ([System.IO.File]::ReadAllText($cfg) -match '(?m)^\s*"routes"\s*:')) 'cloudflare domain without -Apply: changes nothing'
         Check ((Run-Cf @('-Step', 'domain', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ TGW DOMAIN', '-NoHttpCheck')) -eq 0) 'cloudflare domain with approval: exit 0'
         $cfgNow = [System.IO.File]::ReadAllText($cfg)
         Check ($cfgNow.Contains('"pattern": "technologygearworld.com", "custom_domain": true') -and $cfgNow.Contains('"pattern": "www.technologygearworld.com", "custom_domain": true') -and $cfgNow.Contains($fakeDb)) 'cloudflare domain: config has both custom domains and keeps the database id'
         Check (@(Get-ChildItem -LiteralPath $cfWork -Filter 'wrangler.jsonc.before-domain-*').Count -eq 1) 'cloudflare domain: old config saved first'
         Check (([regex]::Matches((Calls), 'wrangler deploy')).Count -eq $deploysBefore + 1) 'cloudflare domain: deploys once'
-        Check ((Run-Cf @('-Step', 'domain', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ TGW DOMAIN', '-NoHttpCheck')) -eq 0 -and ([regex]::Matches([System.IO.File]::ReadAllText($cfg), '"routes"')).Count -eq 1) 'cloudflare domain twice: routes added only once'
+        Check ((Run-Cf @('-Step', 'domain', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ TGW DOMAIN', '-NoHttpCheck')) -eq 0 -and ([regex]::Matches([System.IO.File]::ReadAllText($cfg), '(?m)^\s*"routes"\s*:')).Count -eq 1) 'cloudflare domain twice: routes added only once'
         $reports = @(Get-ChildItem -LiteralPath $cfOut -Filter 'TGW_CLOUDFLARE_*.txt' -ErrorAction SilentlyContinue)
         Check ($reports.Count -ge 6) 'cloudflare: a report for every run'
     } finally {
