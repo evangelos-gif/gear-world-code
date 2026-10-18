@@ -155,9 +155,21 @@ $deploy = Prepare-Deploy
 $tgw = Join-Path (Join-Path $deploy 'sites') 'tgw'
 
 # Who am I logged in as (read-only)
-$who = Invoke-Wrangler $tgw 'whoami'
+# Who am I logged in as (read-only). Retried once: a slow network or a token refresh can make the first try fail.
+$who = $null
+for ($try = 1; $try -le 3; $try++) {
+    $who = Invoke-Wrangler $tgw 'whoami'
+    if ($who.text -match '(?i)associated with the email|you are logged in') { break }
+    if ($try -lt 3) { Start-Sleep -Seconds 5 }
+}
 if ($who.text -notmatch '(?i)associated with the email|you are logged in') {
-    Say 'Το wrangler δεν είναι συνδεδεμένο στο Cloudflare. Στείλε στο Claude αυτό το μήνυμα (θα σου δώσει την εντολή σύνδεσης).' 'Red'
+    if ($who.text -match '(?i)not authenticated|wrangler login') {
+        Say 'Το wrangler δεν είναι συνδεδεμένο στο Cloudflare. Στείλε στο Claude αυτό το μήνυμα (θα σου δώσει την εντολή σύνδεσης).' 'Red'
+    } else {
+        Say 'Δεν μπόρεσα να ελέγξω τη σύνδεση με το Cloudflare (ίσως πρόβλημα δικτύου). Στείλε στο Claude αυτό το μήνυμα.' 'Red'
+    }
+    Say 'Έξοδος του wrangler whoami (τελευταίες γραμμές):'
+    foreach ($line in @($who.text -split "`n" | Select-Object -Last 20)) { Say ('  ' + $line) }
     Finish 4
 }
 # More than one Cloudflare account would make wrangler ask which one; stop and let Claude set it up.

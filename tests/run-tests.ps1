@@ -233,9 +233,13 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         'echo unknown command 1>&2',
         'exit /b 1',
         ':whoami',
+        'if defined GW_FAKE_NOLOGIN goto nologin',
         'echo You are logged in with an OAuth Token, associated with the email test@example.com.',
         ('echo ^| Test Account ^| ' + $fakeAcct + ' ^|'),
         'exit /b 0',
+        ':nologin',
+        'echo You are not authenticated. Please run wrangler login.',
+        'exit /b 1',
         ':d1list',
         'if exist "%GW_FAKE_STATE%\db.txt" goto d1listyes',
         'echo []',
@@ -280,6 +284,11 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
     }
     function Calls { if (Test-Path -LiteralPath $calls) { return [System.IO.File]::ReadAllText($calls) } else { return '' } }
     try {
+        $env:GW_FAKE_NOLOGIN = '1'
+        Check ((Run-Cf @('-Step', 'check')) -eq 4) 'cloudflare: not logged in gives exit 4'
+        Remove-Item Env:\GW_FAKE_NOLOGIN
+        $lastReport = @(Get-ChildItem -LiteralPath $cfOut -Filter 'TGW_CLOUDFLARE_CHECK_*.txt' | Sort-Object LastWriteTime | Select-Object -Last 1)
+        Check ($lastReport.Count -eq 1 -and ([System.IO.File]::ReadAllText($lastReport[0].FullName)).Contains('not authenticated')) 'cloudflare: report shows the wrangler output'
         Check ((Run-Cf @('-Step', 'check')) -eq 0) 'cloudflare check: exit 0'
         Check (-not ((Calls) -match 'd1 create|deploy|execute|migrations')) 'cloudflare check: only reads'
         Check ((Run-Cf @('-Step', 'd1')) -eq 0) 'cloudflare d1 without -Apply: exit 0'
@@ -304,7 +313,7 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         Check ($iExport -ge 0 -and $iExec -gt $iExport) 'cloudflare import: backup before loading'
         Check (@(Get-ChildItem -LiteralPath (Join-Path $cfWork 'backups') -Filter '*.sql' -ErrorAction SilentlyContinue).Count -eq 1) 'cloudflare import: backup file written'
         $reports = @(Get-ChildItem -LiteralPath $cfOut -Filter 'TGW_CLOUDFLARE_*.txt' -ErrorAction SilentlyContinue)
-        Check ($reports.Count -ge 5) 'cloudflare: a report for every run'
+        Check ($reports.Count -ge 6) 'cloudflare: a report for every run'
     } finally {
         $env:PATH = $oldPath
         Remove-Item Env:\GW_FAKE_STATE -ErrorAction SilentlyContinue
