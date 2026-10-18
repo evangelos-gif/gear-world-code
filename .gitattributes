@@ -1,0 +1,4 @@
+* text=auto
+# PowerShell and batch files are stored byte-for-byte (UTF-8 BOM + CRLF) so Windows PowerShell 5.1 reads Greek text correctly.
+*.ps1 -text
+*.cmd -text

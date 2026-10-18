@@ -1,0 +1,156 @@
+﻿# Gear World code - test runner.
+# Runs on Windows PowerShell 5.1 (GitHub Actions, windows-latest) and on PowerShell 7.
+# Exit code 0 = all checks passed.
+
+$ErrorActionPreference = 'Stop'
+$repo = Split-Path -Parent $PSScriptRoot
+$failures = New-Object System.Collections.ArrayList
+$passes = 0
+$isWin = [System.Environment]::OSVersion.Platform -eq [System.PlatformID]::Win32NT
+
+function Check([bool]$Cond, [string]$Name) {
+    if ($Cond) { $script:passes++; Write-Host ('  PASS  ' + $Name) -ForegroundColor Green }
+    else { [void]$script:failures.Add($Name); Write-Host ('  FAIL  ' + $Name) -ForegroundColor Red }
+}
+
+function Write-Utf8([string]$Path, [string]$Text) {
+    $dir = Split-Path -Parent $Path
+    if (-not (Test-Path -LiteralPath $dir)) { New-Item -ItemType Directory -Path $dir -Force | Out-Null }
+    [System.IO.File]::WriteAllText($Path, $Text, (New-Object System.Text.UTF8Encoding($false)))
+}
+
+function Get-TreeHash([string]$Dir) {
+    $sb = New-Object System.Text.StringBuilder
+    foreach ($f in (Get-ChildItem -LiteralPath $Dir -Recurse -File -Force | Sort-Object FullName)) {
+        [void]$sb.Append($f.FullName + '=' + (Get-FileHash -LiteralPath $f.FullName -Algorithm SHA256).Hash + ';')
+    }
+    return $sb.ToString()
+}
+
+Write-Host ('PowerShell ' + $PSVersionTable.PSVersion + ' on ' + [System.Environment]::OSVersion.VersionString)
+if ($env:CI -eq 'true' -and $isWin) {
+    Check ($PSVersionTable.PSVersion.Major -eq 5) 'CI runs on Windows PowerShell 5.1'
+}
+
+# 1. Every .ps1 parses without errors, and any .ps1 with non-ASCII text starts with a UTF-8 BOM
+Write-Host 'Syntax and encoding'
+$psFiles = @(Get-ChildItem -LiteralPath $repo -Recurse -File -Filter '*.ps1' | Where-Object { $_.FullName -notmatch '[\\/]\.git[\\/]' })
+foreach ($f in $psFiles) {
+    $tokens = $null; $errors = $null
+    [void][System.Management.Automation.Language.Parser]::ParseFile($f.FullName, [ref]$tokens, [ref]$errors)
+    Check ($errors.Count -eq 0) ('parses: ' + $f.Name)
+    $bytes = [System.IO.File]::ReadAllBytes($f.FullName)
+    $hasBom = $bytes.Length -ge 3 -and $bytes[0] -eq 0xEF -and $bytes[1] -eq 0xBB -and $bytes[2] -eq 0xBF
+    $nonAscii = $false
+    foreach ($b in $bytes) { if ($b -gt 127) { $nonAscii = $true; break } }
+    Check ((-not $nonAscii) -or $hasBom) ('UTF-8 BOM when non-ASCII: ' + $f.Name)
+}
+
+# 2. No secrets or Cloudflare IDs committed
+Write-Host 'Secret scan'
+$patterns = @(
+    ('gh' + 'p_[A-Za-z0-9]{30,}'),
+    ('github' + '_pat_[A-Za-z0-9_]{20,}'),
+    ('AK' + 'IA[0-9A-Z]{16}'),
+    ('sk' + '_live_[A-Za-z0-9]{10,}'),
+    ('-----BEGIN [A-Z ]*PRIVATE' + ' KEY-----'),
+    '\b[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}\b'
+)
+$textFiles = @(Get-ChildItem -LiteralPath $repo -Recurse -File | Where-Object { $_.FullName -notmatch '[\\/]\.git[\\/]' -and $_.Length -lt 2MB })
+$hits = @()
+foreach ($f in $textFiles) {
+    $t = [System.IO.File]::ReadAllText($f.FullName)
+    foreach ($p in $patterns) { if ($t -match $p) { $hits += ($f.Name + ' matches ' + $p) } }
+}
+foreach ($h in $hits) { Write-Host ('    ' + $h) -ForegroundColor Yellow }
+Check ($hits.Count -eq 0) 'no secrets, tokens or Cloudflare IDs in the repo'
+
+# 3. gw-site-snapshot.ps1 on a fake site folder
+Write-Host 'gw-site-snapshot.ps1'
+$exe = (Get-Process -Id $PID).Path
+$snap = Join-Path $repo 'tools/gw-site-snapshot.ps1'
+$work = Join-Path ([System.IO.Path]::GetTempPath()) ('gw-test-' + [guid]::NewGuid().ToString('N').Substring(0, 8))
+$root = Join-Path $work 'home'
+$site = Join-Path $root 'garden-gear-world'
+$out = Join-Path $work 'out'
+$fakeSecret = ('Ab9' * 8)
+$fakeDbId = [guid]::NewGuid().ToString()
+$fakeAccount = [guid]::NewGuid().ToString('N')
+Write-Utf8 (Join-Path $site 'worker.js') ("// test worker`nconst API_TOKEN = `"$fakeSecret`";`nexport default { fetch() { return new Response('ok') } };`n")
+Write-Utf8 (Join-Path $site 'wrangler.jsonc') ("{`n  // comment`n  `"name`": `"garden-gear-world`",`n  `"account_id`": `"$fakeAccount`",`n  `"d1_databases`": [{ `"binding`": `"DB`", `"database_name`": `"garden-gear-world`", `"database_id`": `"$fakeDbId`" }]`n}`n")
+Write-Utf8 (Join-Path $site 'package.json') '{ "name": "ggw", "private": true }'
+Write-Utf8 (Join-Path $site '.dev.vars') 'TURNSTILE_SECRET=TOPSECRETVALUE123'
+Write-Utf8 (Join-Path $site 'public/robots.txt') "User-agent: *`nAllow: /`n"
+Write-Utf8 (Join-Path $site 'public/_headers') "/*`n  X-Content-Type-Options: nosniff`n"
+Write-Utf8 (Join-Path $site 'public/big.json') ('{"x":"' + ('y' * 20000) + '"}')
+Write-Utf8 (Join-Path $site 'public/index.html') '<!doctype html><title>t</title>'
+$before = Get-TreeHash $site
+
+& $exe -NoProfile -ExecutionPolicy Bypass -File $snap -Site GGW -Root $root -OutDir $out -SkipD1 -NoClipboard
+Check ($LASTEXITCODE -eq 0) 'exit code 0'
+$reports = @(Get-ChildItem -LiteralPath $out -Filter 'GW_SNAPSHOT_GGW_*.txt' -ErrorAction SilentlyContinue)
+Check ($reports.Count -eq 1) 'one report written'
+if ($reports.Count -ge 1) {
+    $r = [System.IO.File]::ReadAllText($reports[0].FullName)
+    Check ($r.Contains('--- FILE: worker.js')) 'report has worker.js'
+    Check ($r.Contains('--- FILE: wrangler.jsonc')) 'report has wrangler.jsonc'
+    Check (-not $r.Contains($fakeSecret)) 'hard-coded secret is masked'
+    Check ($r.Contains('masked 1 suspicious line')) 'secret is reported once'
+    Check (-not $r.Contains($fakeDbId)) 'database_id is masked'
+    Check (-not $r.Contains($fakeAccount)) 'account_id is masked'
+    Check (-not $r.Contains('TOPSECRETVALUE123')) '.dev.vars is never read'
+    Check ($r.Contains('.dev.vars: present')) '.dev.vars presence is reported'
+    Check ($r.Contains('--- FILE: public/robots.txt')) 'small public text file included'
+    Check ($r.Contains('--- FILE: public/_headers')) 'file without extension included'
+    Check (-not $r.Contains('--- FILE: public/big.json')) 'big public file not included'
+    Check ($r.Contains('skipped (-SkipD1)')) 'D1 skipped when asked'
+}
+Check ((Get-TreeHash $site) -eq $before) 'site folder unchanged (read-only)'
+
+# 3b. Folder found by wrangler name when the folder has another name
+$root2 = Join-Path $work 'home2'
+New-Item -ItemType Directory -Path $root2 -Force | Out-Null
+Copy-Item -LiteralPath $site -Destination (Join-Path $root2 'ggw-renamed') -Recurse
+& $exe -NoProfile -ExecutionPolicy Bypass -File $snap -Site GGW -Root $root2 -OutDir (Join-Path $work 'out2') -SkipD1 -NoClipboard
+Check ($LASTEXITCODE -eq 0) 'finds the site folder by wrangler name'
+
+# 3c. Missing site gives exit code 2
+& $exe -NoProfile -ExecutionPolicy Bypass -File $snap -Site MGW -Root $root -OutDir (Join-Path $work 'out3') -SkipD1 -NoClipboard
+Check ($LASTEXITCODE -eq 2) 'missing site gives exit code 2'
+
+# 3d. D1 read path with a fake npx (Windows only, because it runs a .cmd file)
+if ($isWin) {
+    $bin = Join-Path $work 'bin'
+    $fake = @(
+        '@echo off',
+        'echo %* | findstr /C:"COUNT(" >nul',
+        'if %errorlevel%==0 goto counts',
+        'echo [',
+        'echo {"results":[{"type":"table","name":"products","sql":"CREATE TABLE products (id INTEGER PRIMARY KEY, name TEXT)"}],"success":true}',
+        'echo ]',
+        'exit /b 0',
+        ':counts',
+        'echo [{"results":[{"t":"products","n":42}],"success":true}]',
+        'exit /b 0'
+    ) -join "`r`n"
+    Write-Utf8 (Join-Path $bin 'npx.cmd') $fake
+    $oldPath = $env:PATH
+    $env:PATH = $bin + ';' + $oldPath
+    try {
+        & $exe -NoProfile -ExecutionPolicy Bypass -File $snap -Site GGW -Root $root -OutDir (Join-Path $work 'out4') -NoClipboard
+        Check ($LASTEXITCODE -eq 0) 'D1 run exit code 0'
+    } finally { $env:PATH = $oldPath }
+    $rep4 = @(Get-ChildItem -LiteralPath (Join-Path $work 'out4') -Filter '*.txt' -ErrorAction SilentlyContinue)
+    if ($rep4.Count -ge 1) {
+        $r4 = [System.IO.File]::ReadAllText($rep4[0].FullName)
+        Check ($r4.Contains('-- [table] products')) 'D1 schema parsed'
+        Check ($r4 -match 'products\s+42') 'D1 row count parsed'
+    } else { Check $false 'D1 report written' }
+}
+
+Remove-Item -LiteralPath $work -Recurse -Force -ErrorAction SilentlyContinue
+
+Write-Host ''
+Write-Host ('{0} passed, {1} failed' -f $passes, $failures.Count)
+if ($failures.Count -gt 0) { exit 1 }
+exit 0

@@ -1,0 +1,17 @@
+# Secrets: never commit
+.dev.vars
+.env
+.env.*
+*.pem
+*.key
+
+# Cloudflare / Node local state
+.wrangler/
+node_modules/
+
+# Product data and reports stay on the PC (Awin feeds are not for public repos)
+*.csv
+*.csv.gz
+*.sql.bak
+gear-world-reports/
+reports/

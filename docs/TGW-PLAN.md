@@ -1,0 +1,43 @@
+# Technology Gear World (TGW): πλάνο
+
+Domain: **technologygearworld.com** (Cloudflare).
+Στόχος: το καλύτερο site του δικτύου, που μετά γίνεται πρότυπο για τη διόρθωση των άλλων 6.
+
+Σήμανση: 🟢 μόνο ανάγνωση ή δουλειά μέσα στο repo · 🔴 αλλαγή σε Cloudflare/D1/deploy, γίνεται **μόνο** με τη φράση έγκρισης.
+
+## Φάση 0: Εργαλεία (σήμερα)
+- 🟢 Repo `gear-world-code` με αυτόματους ελέγχους σε Windows PowerShell 5.1.
+- 🟢 `docs/LESSONS.md`: τα λάθη του παρελθόντος γίνονται κανόνες.
+
+## Φάση 1: Ανάλυση
+- 🟢 Στιγμιότυπο του κώδικα του GGW (`tools/gw-site-snapshot.ps1`): worker.js, ρυθμίσεις, δομή D1.
+- 🟢 Έλεγχος του live GGW και των άλλων sites (headers, SEO, μέγεθος σελίδων).
+- 🟢 Αιτήσεις σε UK tech retailers στο Awin (Currys, Laptops Direct, Back Market UK, AO, Currys Partmaster).
+
+## Φάση 2: Καθαρό πρότυπο (μόνο στο repo)
+- 🟢 Ένα αρχείο ρυθμίσεων ανά site (όνομα, χρώματα, κατηγορίες, κείμενα).
+- 🟢 Worker χωρισμένος σε μικρά κομμάτια: σελίδες, API, sitemap, `/out/` clicks, headers.
+- 🟢 Ένα CSS, ένα JS, σελίδες που φτιάχνει ο server.
+- 🟢 QA gate: ελέγχει όλους τους κανόνες του `LESSONS.md`.
+
+## Φάση 3: Προϊόντα
+- 🟢 Κανόνες κατηγοριών TGW (λίστες «ναι» και «όχι»).
+- 🟢 Αναφορά δοκιμής (dry-run) από Joybuy UK, Back to the Office, InStock UK και όσους εγκριθούν.
+
+## Φάση 4: Cloudflare (με έγκριση)
+- 🔴 Νέα D1 `technology-gear-world` με migrations → `ΕΓΚΡΙΝΩ TGW D1`
+- 🔴 Νέος Worker μόνο σε δοκιμαστική διεύθυνση workers.dev → `ΕΓΚΡΙΝΩ TGW PREVIEW`
+- 🔴 Import προϊόντων στη D1 του TGW → `ΕΓΚΡΙΝΩ TGW IMPORT`
+
+## Φάση 5: Έλεγχος πριν το launch
+- 🟢 Όλο το QA gate πράσινο.
+- 🟢 Δοκιμαστικό click μέσω Awin για κάθε retailer, με επιβεβαίωση στο Awin.
+
+## Φάση 6: Launch (με έγκριση)
+- 🔴 Σύνδεση του technologygearworld.com → `ΕΓΚΡΙΝΩ TGW DOMAIN`
+- 🔴 Link από το Hub → `ΕΓΚΡΙΝΩ TGW HUB LINK`
+- 🟢 Search Console, sitemap, social.
+
+## Φάση 7: Τα άλλα 6 sites
+- 🟢 Το ίδιο QA gate τρέχει στα CGW, MGW, WGW, KGW, HGW, GGW και βγάζει λίστα διορθώσεων.
+- 🔴 Διορθώσεις ένα-ένα site, με backup και φράση έγκρισης για το καθένα.
