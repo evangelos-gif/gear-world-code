@@ -34,7 +34,7 @@ test('category rules: tech goes to the right category, junk is rejected (lessons
   const junk = [
     ['Makita RT0702C Trim Router 240V', 'woodworking or power tool'],
     ['Bosch Brake Pads Front Set', 'vehicle part'],
-    ['Smart Glasses Bluetooth Audio Sunglasses', 'smart glasses (novelty)'],
+    ['Polarised Sport Sunglasses', 'sunglasses (not tech)'],
     ['Cotton Crew Neck T-Shirt', 'clothing or beauty'],
     ['Garden Hose 30m', 'not tech'],
     ['Vitamin C Tablets 1000mg', 'not tech'],
@@ -63,7 +63,25 @@ test('category rules: cases from the real Joybuy report of 18 Oct 2026', () => {
     ['eufy E340 2K Dual Cameras Smart Video Doorbell with Chime', 'Electronics > Networking > Network Security', 'smart-home-wifi'],
     ['BOTSLAB W311 Outdoor PTZ Camera 2K 3MP Surveillance Camera', 'Cameras & Optics > Cameras > Surveillance Cameras', 'smart-home-wifi'],
     ['GoPro HERO13 - Black', 'Cameras & Optics > Cameras > Digital Cameras', 'cameras-drones'],
-    ['Western Digital Elements Portable External Hard Drive - 1TB', 'Electronics > Electronics Accessories > Computer Components', 'accessories-storage']
+    ['Western Digital Elements Portable External Hard Drive - 1TB', 'Electronics > Electronics Accessories > Computer Components', 'accessories-storage'],
+    ['D-Link 8-Port Gigabit PoE Unmanaged Desktop Switch', 'Electronics > Networking > Hubs & Switches', 'smart-home-wifi'],
+    ['tapo L920-5 Smart Multicolor LED Light Strip (5m)', 'Electronics > Computers > Smart Glasses', 'smart-home-wifi'],
+    ['QCY Active GT-Grey', 'Electronics > Computers > Smart Glasses', 'phones-smartwatches'],
+    ['XREAL 1S AR/XR Glasses, 500" Virtual Screen Smart Glasses with 52° FOV', 'Electronics > Computers > Smart Glasses', 'phones-smartwatches'],
+    ['Rexsun 64GB Digital Voice Recorder, One-Touch Recording', 'Electronics > Audio > Audio Players & Recorders', 'audio'],
+    ['Samsung HW-Q990F Black 11.1.4 channels 756 W (1 year warranty)', 'Electronics > Audio > Audio Players & Recorders > Home Theater Systems', 'audio'],
+    ['JBL PartyBox 720 High-Power Party Speaker with Light Show - Black, Batteries Not Included', 'Electronics > Audio > Audio Components > Audio', 'audio'],
+    ['DJI Osmo Action 6 Adventure Combo Action Camera, 3 Extreme Batteries', 'Cameras & Optics > Cameras > Digital Cameras', 'cameras-drones'],
+    ['Apple Pencil (2nd Generation)', 'Electronics > Electronics Accessories > Computer Accessories', 'accessories-storage'],
+    ['F1A Anti-Theft Crossbody Phone Lanyard - 1.2M - Red', 'Electronics > Electronics Accessories > Computer Accessories', 'accessories-storage'],
+    ['HOCO iWatch Band WA16 Flexible Series - Bamboo Pattern - Olive Green', 'Electronics > Electronics Accessories > Computer Accessories', 'accessories-storage'],
+    ['Cooler Master PSU MWE BRONZE 750 V3 230V A/UK', 'Electronics > Electronics Accessories > Computer Components', 'laptops-computing'],
+    ['MSI MAG Coreliquid A13 240 - AIO ARGB CPU Liquid Cooler', 'Electronics > Electronics Accessories > Computer Components', 'laptops-computing'],
+    ['RAPOO Mice-VT3PRO MAX - Black', 'Electronics > Electronics Accessories > Computer Accessories', 'laptops-computing'],
+    ['Samsung MU-PG1T0B 1 TB USB Type-C USB 3.2 Gen 2x2 Black', 'Electronics > Electronics Accessories > Computer Components', 'accessories-storage'],
+    ['eufy Indoor&Outdoor Security Camera Kit, Indoor Cam S350 Dual Cameras 4K UHD Baby Monitor', 'Home & Garden > Business & Home Security > Security Monitors', 'smart-home-wifi'],
+    ['Hisense 75"E8Q Mini LED 4K HDR Smart VIDAA OS TV with Dolby Atmos speakers', 'Electronics > Video > Televisions', 'tv-home-cinema'],
+    ['TECLAST P30T Tablet 10.1-inch Dual SIM 4G', 'Electronics > Computers > Tablet Computers', 'laptops-computing'],
   ];
   for (const [name, cat, slug] of ok) assert.deepEqual(classify(name, cat), { ok: true, slug }, name);
   const no = [
@@ -79,7 +97,14 @@ test('category rules: cases from the real Joybuy report of 18 Oct 2026', () => {
     ['COMFEE RCD92WH2UKY(E) 88L Under Counter Fridge, Cooler Box', 'Home & Garden > Kitchen & Dining > Kitchen Appliances', 'home appliance (Home Gear World)'],
     ['Green Air Vent Cleaning Brush, Car AC Brush with Microfiber', 'Home & Garden > Household Supplies > Household Cleaning', 'consumable, not a gadget'],
     ['Mesh Laundry Bag', 'Home & Garden > Household Supplies > Laundry', 'not tech'],
-    ['Spiral Notebook A5 Lined', 'Office Supplies > General Office Supplies > Paper Products', 'not tech']
+    ['Spiral Notebook A5 Lined', 'Office Supplies > General Office Supplies > Paper Products', 'not tech'],
+    ['Hoover HRE H9N2TE-80 9kg Heat Pump Tumble Dryer - Sensor Dry, Wi-Fi Connected', 'Home & Garden > Household Appliances > Laundry', 'home appliance (Home Gear World)'],
+    ['Lamy T10 Ink Cartridge - Blue - Suitable for Safari Fountain Pen', 'Office Supplies > Office Instruments > Writing', 'not tech'],
+    ['ochama TR1 Viewing Telescope, Golf Rangefinder', 'Cameras & Optics > Optics > Scopes > Telescopes', 'not matched (feed says tech)'],
+    ['TENNIIX Pro Smart AI Tennis Ball Machine Dual Camera Vision', 'Sporting Goods > Indoor Games > Ping Pong', 'toy, not a gadget'],
+    ['OutdoorMaster LARK SV Polarized Cycling Sunglasses Amber Silver', 'Sporting Goods > Athletics > General Purpose', 'sunglasses (not tech)'],
+    ['Ordo Hydro Sonic Water Flosser, On-Demand Mode', 'Electronics > Electronics Accessories > Power', 'personal care'],
+    ['Shimano Brake Cable Set Road', 'Sporting Goods > Outdoor Recreation > Cycling > Bicycle Parts', 'not tech']
   ];
   for (const [name, cat, reason] of no) assert.deepEqual(classify(name, cat), { ok: false, reason }, name);
   assert.equal(cleanProductName('【Black Friday Early Deals】DJI Osmo Pocket 4 Travel Vlog Set'), 'DJI Osmo Pocket 4 Travel Vlog Set');
