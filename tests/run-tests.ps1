@@ -157,6 +157,57 @@ if ($isWin) {
     } else { Check $false 'D1 report written' }
 }
 
+# 4. tgw-import-plan.ps1 (needs Node.js) and gw-run.ps1
+Write-Host 'tgw-import-plan.ps1 and gw-run.ps1'
+if (Get-Command node -ErrorAction SilentlyContinue) {
+    $arch = Join-Path $work 'awin'
+    New-Item -ItemType Directory -Path $arch -Force | Out-Null
+    $csv = "aw_deep_link,product_name,aw_product_id,merchant_product_id,merchant_image_url,merchant_category,search_price,currency,brand_name,in_stock,ean`n" +
+        "https://www.awin1.com/pclick.php?p=1&a=1&m=123932,Sony WH-1000XM5 Wireless Headphones,1,JB-1,https://img.example/1.jpg,Audio,279.00,GBP,Sony,1,4006381333931`n" +
+        "https://www.awin1.com/pclick.php?p=2&a=1&m=123932,Makita Trim Router 240V,2,JB-2,https://img.example/2.jpg,Tools,120,GBP,Makita,1,`n"
+    $gzPath = Join-Path $arch 'AWIN_123932_114093.csv.gz'
+    $fs = [System.IO.File]::Create($gzPath)
+    $gz = New-Object System.IO.Compression.GZipStream($fs, [System.IO.Compression.CompressionMode]::Compress)
+    $bytes = [System.Text.Encoding]::UTF8.GetBytes($csv)
+    $gz.Write($bytes, 0, $bytes.Length); $gz.Close(); $fs.Close()
+    $archHash = (Get-FileHash -LiteralPath $gzPath -Algorithm SHA256).Hash
+    $planTool = Join-Path (Join-Path $repo 'tools') 'tgw-import-plan.ps1'
+    $runTool = Join-Path (Join-Path $repo 'tools') 'gw-run.ps1'
+
+    $planOut = Join-Path $work 'plan'
+    & $exe -NoProfile -ExecutionPolicy Bypass -File $planTool -Archive $arch -OutDir $planOut -NoClipboard
+    Check ($LASTEXITCODE -eq 0) 'import plan: exit code 0'
+    $plans = @(Get-ChildItem -LiteralPath $planOut -Directory -Filter 'TGW_IMPORT_PLAN_*' -ErrorAction SilentlyContinue)
+    Check ($plans.Count -eq 1) 'import plan: report folder written'
+    if ($plans.Count -ge 1) {
+        $rep = [System.IO.File]::ReadAllText((Join-Path $plans[0].FullName 'report.txt'))
+        Check ($rep.Contains('1 of 2 rows would be imported')) 'import plan: 1 of 2 rows accepted'
+        Check ($rep.Contains('woodworking or power tool')) 'import plan: router rejected with its reason'
+        Check (Test-Path -LiteralPath (Join-Path (Join-Path $plans[0].FullName 'sql') '0001.sql')) 'import plan: SQL written, not executed'
+    }
+    Check ((Get-FileHash -LiteralPath $gzPath -Algorithm SHA256).Hash -eq $archHash) 'import plan: Awin archive unchanged'
+
+    & $exe -NoProfile -ExecutionPolicy Bypass -File $planTool -Archive (Join-Path $work 'no-such-folder') -OutDir $planOut -NoClipboard
+    Check ($LASTEXITCODE -eq 2) 'import plan: missing archive gives exit code 2'
+
+    $runOut = Join-Path $work 'plan-run'
+    & $exe -NoProfile -ExecutionPolicy Bypass -File $runTool -LocalRepo $repo -Tool tgw-import-plan -Archive $arch -OutDir $runOut -NoClipboard
+    Check ($LASTEXITCODE -eq 0) 'gw-run: runs a tool from a local copy'
+    Check (@(Get-ChildItem -LiteralPath $runOut -Directory -ErrorAction SilentlyContinue).Count -eq 1) 'gw-run: passes the arguments to the tool'
+
+    & $exe -NoProfile -ExecutionPolicy Bypass -File $runTool -LocalRepo $repo -Tool 'bad name!' -NoClipboard
+    Check ($LASTEXITCODE -eq 2) 'gw-run: rejects a bad tool name'
+
+    if ($env:CI -eq 'true' -and $env:GITHUB_SHA) {
+        $dlOut = Join-Path $work 'plan-download'
+        & $exe -NoProfile -ExecutionPolicy Bypass -File $runTool -Ref $env:GITHUB_SHA -Tool tgw-import-plan -Archive $arch -OutDir $dlOut -NoClipboard
+        Check ($LASTEXITCODE -eq 0) 'gw-run: downloads this commit from GitHub and runs the tool'
+        Check (@(Get-ChildItem -LiteralPath $dlOut -Directory -ErrorAction SilentlyContinue).Count -eq 1) 'gw-run: downloaded tool wrote its report'
+    }
+} else {
+    Write-Host '  (Node.js not installed: import plan tests skipped)' -ForegroundColor Yellow
+}
+
 Remove-Item -LiteralPath $work -Recurse -Force -ErrorAction SilentlyContinue
 
 Write-Host ''
