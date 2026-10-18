@@ -15,3 +15,7 @@ node_modules/
 *.sql.bak
 gear-world-reports/
 reports/
+
+# Real Wrangler configs hold Cloudflare IDs: only the .example files are committed
+sites/*/wrangler.jsonc
+sites/*/.dev.vars

@@ -34,7 +34,7 @@ if ($env:CI -eq 'true' -and $isWin) {
 
 # 1. Every .ps1 parses without errors, and any .ps1 with non-ASCII text starts with a UTF-8 BOM
 Write-Host 'Syntax and encoding'
-$psFiles = @(Get-ChildItem -LiteralPath $repo -Recurse -File -Filter '*.ps1' | Where-Object { $_.FullName -notmatch '[\\/]\.git[\\/]' })
+$psFiles = @(Get-ChildItem -LiteralPath $repo -Recurse -File -Filter '*.ps1' | Where-Object { $_.FullName -notmatch '[\\/](\.git|node_modules|\.wrangler)[\\/]' })
 foreach ($f in $psFiles) {
     $tokens = $null; $errors = $null
     [void][System.Management.Automation.Language.Parser]::ParseFile($f.FullName, [ref]$tokens, [ref]$errors)
@@ -56,7 +56,10 @@ $patterns = @(
     ('-----BEGIN [A-Z ]*PRIVATE' + ' KEY-----'),
     '\b[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}\b'
 )
-$textFiles = @(Get-ChildItem -LiteralPath $repo -Recurse -File | Where-Object { $_.FullName -notmatch '[\\/]\.git[\\/]' -and $_.Length -lt 2MB })
+# Files git would commit (tracked + new, not ignored). Ignored local files such as node_modules are skipped.
+$listed = @(& git -C $repo ls-files --cached --others --exclude-standard 2>$null)
+if ($LASTEXITCODE -ne 0 -or $listed.Count -eq 0) { throw 'git ls-files failed' }
+$textFiles = @($listed | ForEach-Object { Get-Item -LiteralPath (Join-Path $repo $_) -ErrorAction SilentlyContinue } | Where-Object { $_ -and $_.Length -lt 2MB })
 $hits = @()
 foreach ($f in $textFiles) {
     $t = [System.IO.File]::ReadAllText($f.FullName)

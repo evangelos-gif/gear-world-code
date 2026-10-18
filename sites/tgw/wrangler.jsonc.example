@@ -1,0 +1,29 @@
+// Technology Gear World - Wrangler config TEMPLATE.
+// The real file (wrangler.jsonc) is created on the PC by a setup tool and is never committed,
+// because it holds the Cloudflare database ID.
+{
+  "name": "technology-gear-world",
+  "main": "worker.js",
+  "compatibility_date": "2026-10-01",
+  "workers_dev": true,
+  "assets": {
+    "directory": "./public",
+    "binding": "ASSETS"
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "technology-gear-world",
+      "database_id": "REPLACE_WITH_DATABASE_ID",
+      "migrations_dir": "migrations"
+    }
+  ],
+  // Daily clean-up of old click records and rate-limit rows (privacy policy retention).
+  "triggers": { "crons": ["17 3 * * *"] },
+  "observability": { "enabled": true }
+  // Custom domain is added only at launch, with approval (ΕΓΚΡΙΝΩ TGW DOMAIN):
+  // "routes": [
+  //   { "pattern": "technologygearworld.com", "custom_domain": true },
+  //   { "pattern": "www.technologygearworld.com", "custom_domain": true }
+  // ]
+}

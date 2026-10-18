@@ -17,3 +17,38 @@ jobs:
       - name: Run tests (syntax, encoding, secret scan, tools)
         shell: powershell
         run: .\tests\run-tests.ps1
+
+  tgw-worker:
+    name: TGW Worker and QA gate
+    runs-on: ubuntu-latest
+    env:
+      WRANGLER_SEND_METRICS: 'false'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci --no-audit --no-fund
+      - name: Unit tests
+        run: npm test
+      - name: Local D1 with synthetic products
+        run: |
+          sed 's/REPLACE_WITH_DATABASE_ID/local-dev-only/' sites/tgw/wrangler.jsonc.example > sites/tgw/wrangler.jsonc
+          npx wrangler d1 migrations apply technology-gear-world --local --config sites/tgw/wrangler.jsonc
+          npx wrangler d1 execute technology-gear-world --local --config sites/tgw/wrangler.jsonc --file tests/fixtures/tgw-seed.sql
+      - name: Start the Worker locally
+        run: |
+          npx wrangler dev --config sites/tgw/wrangler.jsonc --local --port 8787 --ip 127.0.0.1 --var EDGE_CACHE:off > dev.log 2>&1 &
+          for i in $(seq 1 90); do curl -sf -o /dev/null http://127.0.0.1:8787/ && break; sleep 1; done
+          curl -sf -o /dev/null http://127.0.0.1:8787/
+      - name: QA gate (docs/LESSONS.md)
+        run: node tools/qa-gate.mjs http://127.0.0.1:8787 --site sites/tgw --out qa-report.txt
+      - name: Keep the QA report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: tgw-qa-report
+          path: |
+            qa-report.txt
+            dev.log
+          if-no-files-found: ignore

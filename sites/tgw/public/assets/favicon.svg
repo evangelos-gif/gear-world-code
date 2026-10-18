@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Technology Gear World">
+  <rect width="64" height="64" rx="12" fill="#1747D1"/>
+  <g fill="none" stroke="#F2F3EF" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="14" y="14" width="36" height="36" rx="5"/>
+    <path d="M24 7v7M32 7v7M40 7v7M24 50v7M32 50v7M40 50v7M7 24h7M7 32h7M7 40h7M50 24h7M50 32h7M50 40h7"/>
+    <circle cx="32" cy="32" r="10"/>
+    <ellipse cx="32" cy="32" rx="4.5" ry="10"/>
+    <path d="M22 32h20"/>
+  </g>
+</svg>

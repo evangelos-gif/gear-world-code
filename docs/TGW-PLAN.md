@@ -14,11 +14,12 @@ Domain: **technologygearworld.com** (Cloudflare).
 - 🟢 Έλεγχος του live GGW και των άλλων sites (headers, SEO, μέγεθος σελίδων).
 - 🟢 Αιτήσεις σε UK tech retailers στο Awin (Currys, Laptops Direct, Back Market UK, AO, Currys Partmaster).
 
-## Φάση 2: Καθαρό πρότυπο (μόνο στο repo)
-- 🟢 Ένα αρχείο ρυθμίσεων ανά site (όνομα, χρώματα, κατηγορίες, κείμενα).
-- 🟢 Worker χωρισμένος σε μικρά κομμάτια: σελίδες, API, sitemap, `/out/` clicks, headers.
-- 🟢 Ένα CSS, ένα JS, σελίδες που φτιάχνει ο server.
-- 🟢 QA gate: ελέγχει όλους τους κανόνες του `LESSONS.md`.
+## Φάση 2: Καθαρό πρότυπο (μόνο στο repo) ✅ 18/10
+- 🟢 Ένα αρχείο ρυθμίσεων ανά site: `sites/tgw/site.config.js`.
+- 🟢 Κοινή μηχανή σε μικρά κομμάτια (`src/`): σελίδες, API, sitemap, `/out/` clicks, headers.
+- 🟢 Ένα CSS, ένα JS, σελίδες που φτιάχνει ο server. Αρχική ~35 KB αντί για 457 KB.
+- 🟢 QA gate (`tools/qa-gate.mjs`): ελέγχει τους κανόνες του `LESSONS.md` σε κάθε αλλαγή (675 έλεγχοι, όλοι πράσινοι με δοκιμαστικά προϊόντα).
+- 🟢 Content-Security-Policy ενεργή από την πρώτη μέρα: το TGW δεν έχει inline κώδικα, οπότε δεν χρειάζεται φάση Report-Only.
 
 ## Φάση 3: Προϊόντα
 - 🟢 Κανόνες κατηγοριών TGW (λίστες «ναι» και «όχι»).

@@ -13,7 +13,9 @@
 ## Δομή
 | Φάκελος | Τι έχει |
 |---|---|
-| `tools/` | Εργαλεία PowerShell που τρέχουν στον υπολογιστή |
+| `src/` | Κοινή «μηχανή» για όλα τα sites (Cloudflare Worker): σελίδες, headers, sitemap, `/out/` |
+| `sites/tgw/` | Ό,τι είναι μόνο του TGW: ρυθμίσεις, migrations της D1, εικόνες, CSS, JS |
+| `tools/` | Εργαλεία για τον υπολογιστή (PowerShell) και ο έλεγχος ποιότητας `qa-gate.mjs` |
 | `tests/` | Αυτόματοι έλεγχοι (τρέχουν σε κάθε αλλαγή) |
 | `docs/LESSONS.md` | Τα λάθη του παρελθόντος και οι κανόνες που τα αποτρέπουν |
 | `docs/TGW-PLAN.md` | Το πλάνο του Technology Gear World |

@@ -1,0 +1,17 @@
+{
+  "name": "gear-world-code",
+  "private": true,
+  "type": "module",
+  "description": "Gear World sites: shared Worker engine, site configs, tools and tests",
+  "scripts": {
+    "test": "node --test tests/worker/*.test.mjs",
+    "dev:tgw": "wrangler dev --config sites/tgw/wrangler.jsonc --local",
+    "qa:local": "node tools/qa-gate.mjs http://127.0.0.1:8787"
+  },
+  "devDependencies": {
+    "wrangler": "4.148.0"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
