@@ -181,7 +181,9 @@ if (siteDir) {
 
 // Launch readiness
 if (opt('prelaunch') && site) {
-  for (const k of ['contactEmail', 'operatorName', 'turnstileSiteKey']) check('L17', Boolean(site[k]), `config: ${k} is filled in`);
+  for (const k of ['contactEmail', 'operatorName']) check('L17', Boolean(site[k]), `config: ${k} is filled in`);
+  // The newsletter form is shown only when Turnstile is set up; launching without it is allowed.
+  check('L17', !/id="news-h"/.test(home.body) || Boolean(site.turnstileSiteKey), '/: newsletter form only with Turnstile');
 }
 
 // Live-only checks: one canonical host with a single redirect (lessons L11)

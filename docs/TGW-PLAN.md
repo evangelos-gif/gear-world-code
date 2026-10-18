@@ -31,17 +31,18 @@ Domain: **technologygearworld.com** (Cloudflare).
 - Ίδιο ύφος με τα άλλα sites: φωτογραφία στο hero, φωτογραφίες στις κατηγορίες, χρυσοί τίτλοι, μπάρα Gear World Hub.
 - Φωτογραφίες Pexels (άδεια για εμπορική χρήση): `docs/IMAGE-CREDITS.md`.
 
-## Φάση 4: Cloudflare (με έγκριση)
-- 🔴 Νέα D1 `technology-gear-world` με migrations → `ΕΓΚΡΙΝΩ TGW D1`
-- 🔴 Νέος Worker μόνο σε δοκιμαστική διεύθυνση workers.dev → `ΕΓΚΡΙΝΩ TGW PREVIEW`
-- 🔴 Import προϊόντων στη D1 του TGW → `ΕΓΚΡΙΝΩ TGW IMPORT`
+## Φάση 4: Cloudflare (με έγκριση) ✅ 18/10
+- ✅ Νέα D1 `technology-gear-world` με migrations → `ΕΓΚΡΙΝΩ TGW D1`
+- ✅ Import 2.596 προϊόντων Joybuy στη D1 του TGW → `ΕΓΚΡΙΝΩ TGW IMPORT`. Το backup είναι σημείο επαναφοράς D1 Time Travel, γιατί το export δεν δουλεύει με FTS5.
+- ✅ Νέος Worker μόνο σε δοκιμαστική διεύθυνση workers.dev → `ΕΓΚΡΙΝΩ TGW PREVIEW`. QA 602/604 (οι 2 αποτυχίες είναι το robots.txt του preview, που είναι σκόπιμα κλειστό). Layout 74/74.
 
 ## Φάση 5: Έλεγχος πριν το launch
 - 🟢 Όλο το QA gate πράσινο.
 - 🟢 Δοκιμαστικό click μέσω Awin για κάθε retailer, με επιβεβαίωση στο Awin.
 
 ## Φάση 6: Launch (με έγκριση)
-- 🔴 Σύνδεση του technologygearworld.com → `ΕΓΚΡΙΝΩ TGW DOMAIN`
+- Στοιχεία: υπεύθυνος «Gear World», email contact@technologygearworld.com (Cloudflare Email Routing, όπως στα άλλα sites). Χωρίς newsletter στο launch: η φόρμα εμφανίζεται μόνο όταν ρυθμιστεί το Turnstile.
+- 🔴 Σύνδεση του technologygearworld.com και του www ως Cloudflare Custom Domains (`tgw-cloudflare -Step domain`) → `ΕΓΚΡΙΝΩ TGW DOMAIN`
 - 🔴 Link από το Hub → `ΕΓΚΡΙΝΩ TGW HUB LINK`
 - 🟢 Search Console, sitemap, social.
 

@@ -32,8 +32,8 @@ export default {
   topicLong: 'technology',
 
   // Required before launch: the QA gate fails while any of these are empty.
-  contactEmail: '',
-  operatorName: '',
+  contactEmail: 'contact@technologygearworld.com',
+  operatorName: 'Gear World',
   turnstileSiteKey: '',
   cloudflareAnalyticsToken: '',
 

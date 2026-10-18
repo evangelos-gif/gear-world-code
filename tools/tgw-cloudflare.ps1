@@ -12,6 +12,9 @@
                  Approval phrase: ΕΓΚΡΙΝΩ TGW PREVIEW
   -Step import   CHANGES THE TGW DATABASE. Backs up the TGW database first, then loads the products from the
                  Awin feed (the same plan as tgw-import-plan). Approval phrase: ΕΓΚΡΙΝΩ TGW IMPORT
+  -Step domain   CHANGES CLOUDFLARE (LAUNCH). Connects technologygearworld.com and www to the TGW Worker as
+                 Cloudflare Custom Domains (DNS and SSL are created by Cloudflare) and publishes the site there.
+                 Google may then index it. Approval phrase: ΕΓΚΡΙΝΩ TGW DOMAIN
 
   Without -Apply, every step only shows what it WOULD do. With -Apply, it still asks you to type the approval
   phrase before it changes anything. It never touches the other Gear World sites or their databases.
@@ -20,7 +23,7 @@
   Report: <home>\gear-world-reports\TGW_CLOUDFLARE_<step>_<time>.txt (also copied to the clipboard)
 #>
 param(
-    [ValidateSet('check', 'd1', 'preview', 'import')]
+    [ValidateSet('check', 'd1', 'preview', 'import', 'domain')]
     [string]$Step = 'check',
     [switch]$Apply,
     [string]$Approve = '',
@@ -28,14 +31,16 @@ param(
     [string]$WorkDir = '',
     [string]$OutDir = '',
     [switch]$SkipInstall,
-    [switch]$NoClipboard
+    [switch]$NoClipboard,
+    [switch]$NoHttpCheck
 )
 
 $ErrorActionPreference = 'Stop'
 $repo = Split-Path -Parent $PSScriptRoot
 $DbName = 'technology-gear-world'
 $WorkerName = 'technology-gear-world'
-$Phrases = @{ d1 = 'ΕΓΚΡΙΝΩ TGW D1'; preview = 'ΕΓΚΡΙΝΩ TGW PREVIEW'; import = 'ΕΓΚΡΙΝΩ TGW IMPORT' }
+$Phrases = @{ d1 = 'ΕΓΚΡΙΝΩ TGW D1'; preview = 'ΕΓΚΡΙΝΩ TGW PREVIEW'; import = 'ΕΓΚΡΙΝΩ TGW IMPORT'; domain = 'ΕΓΚΡΙΝΩ TGW DOMAIN' }
+$Domain = 'technologygearworld.com'
 if (-not $WorkDir) { $WorkDir = Join-Path $HOME 'technology-gear-world' }
 if (-not $OutDir) { $OutDir = Join-Path $HOME 'gear-world-reports' }
 if (-not $Archive) { $Archive = Join-Path (Join-Path $HOME 'Downloads') 'GW_AWIN_BULK_ARCHIVE' }
@@ -260,6 +265,78 @@ switch ($Step) {
                 Say 'Η διεύθυνση δεν απάντησε ακόμα (συνήθως χρειάζεται 1 λεπτό). Δοκίμασε να την ανοίξεις.' 'Yellow'
             }
         }
+        Finish 0
+    }
+
+    'domain' {
+        if (-not (Test-Path -LiteralPath $configPath) -or -not $db.found) { Say 'Πρώτα χρειάζονται τα βήματα d1, import και preview.' 'Red'; Finish 8 }
+        $cfgText = [System.IO.File]::ReadAllText($configPath)
+        $already = $cfgText -match '(?m)^\s*"routes"\s*:'
+        Say ''
+        Say 'Τι θα γίνει:'
+        Say ('  - Το {0} και το www.{0} συνδέονται με τον Worker "{1}" (Cloudflare Custom Domains).' -f $Domain, $WorkerName)
+        Say '  - Η Cloudflare φτιάχνει μόνη της τις εγγραφές DNS και το πιστοποιητικό SSL. Το www πάει (301) στο κανονικό domain.'
+        Say '  - Το site ανεβαίνει ξανά με αυτή την έκδοση του κώδικα. Η D1 και τα προϊόντα ΔΕΝ αλλάζουν.'
+        Say '  - Η Google μπορεί πλέον να το βρει: robots.txt ανοιχτό, με sitemap.'
+        Say '  - Τα άλλα Gear World sites και το hub ΔΕΝ αλλάζουν.'
+        Say ('  - Επαναφορά (αν χρειαστεί): Workers & Pages > {0} > Settings > Domains & Routes > αφαίρεση των 2 domains: https://dash.cloudflare.com/?to=/:account/workers-and-pages' -f $WorkerName)
+        if ($already) { Say '  (Το τοπικό wrangler.jsonc έχει ήδη τα domains: απλώς ξανανεβαίνει.)' }
+        if (-not $Apply) { Say ''; Say 'Δοκιμή μόνο (χωρίς -Apply): δεν άλλαξε τίποτα.' 'Green'; Finish 0 }
+        if (-not (Confirm-Approval $Phrases.domain)) { Say 'Δεν δόθηκε έγκριση: σταμάτησα χωρίς αλλαγές.' 'Yellow'; Finish 1 }
+        if (-not $already) {
+            $obs = [regex]::Match($cfgText, '"observability"\s*:\s*\{\s*"enabled"\s*:\s*true\s*\}')
+            if (-not $obs.Success) { Say 'Το τοπικό wrangler.jsonc δεν έχει τη μορφή που περίμενα: σταμάτησα χωρίς αλλαγές.' 'Red'; Finish 13 }
+            $routes = $obs.Value + ',' + "`r`n" + '  "routes": [' + "`r`n" +
+                ('    {{ "pattern": "{0}", "custom_domain": true }},' -f $Domain) + "`r`n" +
+                ('    {{ "pattern": "www.{0}", "custom_domain": true }}' -f $Domain) + "`r`n" + '  ]'
+            $newCfg = $cfgText.Substring(0, $obs.Index) + $routes + $cfgText.Substring($obs.Index + $obs.Length)
+            $before = $configPath + '.before-domain-' + $stamp
+            Copy-Item -LiteralPath $configPath -Destination $before -Force
+            [System.IO.File]::WriteAllText($configPath, $newCfg, (New-Object System.Text.UTF8Encoding($false)))
+            Say ('Αντίγραφο της παλιάς ρύθμισης: {0}' -f $before) 'Green'
+        }
+        Copy-Item -LiteralPath $configPath -Destination $tgw -Force
+        $d = Invoke-Wrangler $tgw 'deploy' -NonInteractive
+        if ($d.code -ne 0) {
+            Say 'Το ανέβασμα απέτυχε. Το site στο domain ΔΕΝ ενεργοποιήθηκε. Έξοδος:' 'Red'
+            Say $d.text
+            Finish 9
+        }
+        Say ('Ανέβηκε με τα domains {0} και www.{0}.' -f $Domain) 'Green'
+        if ($NoHttpCheck) { Finish 0 }
+        [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+        Say 'Ελέγχω τη ζωντανή διεύθυνση (το SSL μπορεί να θέλει έως 5 λεπτά)...'
+        $ok = $false
+        for ($i = 1; $i -le 20; $i++) {
+            try {
+                $r = Invoke-WebRequest -UseBasicParsing -Uri ('https://{0}/' -f $Domain) -TimeoutSec 20
+                $robotsTag = [string]$r.Headers['X-Robots-Tag']
+                Say ('  https://{0}/ απαντά {1}. Ορατό στη Google: {2}' -f $Domain, $r.StatusCode, $(if ($robotsTag -match 'noindex') { 'ΟΧΙ (λάθος)' } else { 'ναι' }))
+                $rb = Invoke-WebRequest -UseBasicParsing -Uri ('https://{0}/robots.txt' -f $Domain) -TimeoutSec 20
+                Say ('  robots.txt με sitemap: {0}' -f $(if ([string]$rb.Content -match '(?i)sitemap:') { 'ναι' } else { 'ΟΧΙ' }))
+                $ok = $true
+                break
+            } catch {
+                Start-Sleep -Seconds 15
+            }
+        }
+        if (-not $ok) {
+            Say ('Το https://{0} δεν απάντησε ακόμα. Συνήθως θέλει λίγα λεπτά. Άνοιξέ το σε 10 λεπτά και πες στο Claude τι βλέπεις.' -f $Domain) 'Yellow'
+            Finish 0
+        }
+        try {
+            $req = [System.Net.HttpWebRequest]::Create(('https://www.{0}/' -f $Domain))
+            $req.AllowAutoRedirect = $false
+            $req.Method = 'HEAD'
+            $req.Timeout = 20000
+            $resp = $req.GetResponse()
+            Say ('  www: {0} προς {1}' -f [int]$resp.StatusCode, $resp.Headers['Location'])
+            $resp.Close()
+        } catch {
+            Say '  www: δεν απάντησε ακόμα (συνήθως θέλει λίγα λεπτά).' 'Yellow'
+        }
+        Say ''
+        Say ('ΕΤΟΙΜΟ: το TGW είναι live στο https://{0}' -f $Domain) 'Green'
         Finish 0
     }
 
