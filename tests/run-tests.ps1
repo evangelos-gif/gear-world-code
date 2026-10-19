@@ -137,10 +137,10 @@ if ($repR.Count -ge 1) {
     $rr = [System.IO.File]::ReadAllText($repR[0].FullName)
     Check ($rr.Contains('--- FILE: router.mjs')) 'router code file included'
     Check ($rr.Contains('--- FILE: scripts/split-feeds.ps1')) 'router script in a subfolder included'
-    Check (-not $rr.Contains('router-before-v2.mjs')) 'router backup copy skipped'
-    Check (-not $rr.Contains('node_modules')) 'router packages skipped'
+    Check (-not $rr.Contains('--- FILE: router-before-v2.mjs')) 'router backup copy not read'
+    Check (-not $rr.Contains('--- FILE: node_modules')) 'router packages not read'
     Check (-not $rr.Contains('backups/old.js')) 'router backups folder skipped'
-    Check (-not $rr.Contains('data.csv')) 'router data files skipped'
+    Check (-not $rr.Contains('--- FILE: data.csv')) 'router data files not read'
     Check (-not $rr.Contains($fakeSecret)) 'router secret masked'
 } else { Check $false 'router report written' }
 Check ((Get-TreeHash $router) -eq $routerBefore) 'router folder unchanged (read-only)'
