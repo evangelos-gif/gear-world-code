@@ -19,7 +19,8 @@ export const SECURITY_HEADERS = {
   'X-Content-Type-Options': 'nosniff',
   'X-Frame-Options': 'SAMEORIGIN',
   'Referrer-Policy': 'strict-origin-when-cross-origin',
-  'Permissions-Policy': 'camera=(), microphone=(), geolocation=(), payment=(), usb=()',
+  // Microphone only for this site's own pages (voice search). Camera stays off until camera search exists.
+  'Permissions-Policy': 'camera=(), microphone=(self), geolocation=(), payment=(), usb=()',
   'Cross-Origin-Opener-Policy': 'same-origin',
   // Short HSTS first (lessons L06 / T23). Raise to one year after three clean weeks.
   'Strict-Transport-Security': 'max-age=86400',

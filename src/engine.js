@@ -7,6 +7,8 @@ import { homePage } from './pages/home.js';
 import { categoryPage, searchPage, dealsPage, readListingParams, hasFilters } from './pages/listing.js';
 import { productPage } from './pages/product.js';
 import { comparePage, parseCompareIds } from './pages/compare.js';
+import { cartPage, parseCartItems } from './pages/cart.js';
+import { exchangeRates } from './lib/fx.js';
 import { infoPage, infoPaths, notFoundPage, errorPage } from './pages/info.js';
 import { sitemapIndex, sitemapStatic, sitemapProducts, robotsTxt, SITEMAP_CHUNK } from './seo.js';
 
@@ -97,6 +99,13 @@ export function createWorker(site) {
       return htmlResponse(comparePage(site, products, ids), { method, cache: 'short' });
     }
 
+    if (site.cart && (path === '/cart/' || path === '/cart')) {
+      if (path === '/cart') return redirect(new URL('/cart/' + url.search, url.origin).toString(), 301);
+      const items = parseCartItems(url, site.cart);
+      const products = await db.getProductsByIds(env.DB, items.map(x => x.id));
+      return htmlResponse(cartPage(site, products, items), { method, cache: 'short' });
+    }
+
     if (path === '/search') {
       const q = (url.searchParams.get('q') || '').normalize('NFKC').trim().slice(0, 80);
       const p = readListingParams(url);
@@ -137,6 +146,7 @@ export function createWorker(site) {
     }
 
     if (path === '/api/stats') return jsonResponse(await db.stats(env.DB), { cache: 'short' });
+    if (path === '/api/fx') return jsonResponse(await exchangeRates(site, ctx), { cache: 'hour' });
     if (path === '/api/products') return apiProducts(env, url);
     if (path === '/api/admin/clicks') return adminClicks(request, env, url);
 

@@ -1,7 +1,7 @@
 // Compare 2-4 products side by side (lessons L23), with "Our pick" chosen by a rule that is shown on the page.
 import { html } from '../lib/html.js';
 import { productPath, formatPrice, savingPercent } from '../lib/text.js';
-import { page, breadcrumbs } from './layout.js';
+import { page, breadcrumbs, tr, priceTag } from './layout.js';
 
 export const COMPARE_MAX = 4;
 
@@ -38,10 +38,10 @@ export function comparePick(products) {
 
 function pickText(site, pick) {
   const cur = pick.best.currency || site.currency;
-  if (pick.nextPrice === null) return 'The only one of your products that is in stock.';
+  if (pick.nextPrice === null) return tr('The only one of your products that is in stock.');
   const diff = pick.nextPrice - Number(pick.best.price);
-  if (diff > 0) return `In stock and ${formatPrice(diff, cur, site.locale)} cheaper than the next in-stock product you picked.`;
-  return 'In stock, at the joint lowest price, with the bigger saving.';
+  if (diff > 0) return tr('In stock and {0} cheaper than the next in-stock product you picked.', formatPrice(diff, cur, site.locale));
+  return tr('In stock, at the joint lowest price, with the bigger saving.');
 }
 
 export function comparePage(site, products, ids) {
@@ -51,7 +51,6 @@ export function comparePage(site, products, ids) {
     return rest.length ? `/compare/?ids=${rest.join(',')}` : '/compare/';
   };
   const pick = comparePick(products);
-  const price = p => formatPrice(p.price, p.currency || site.currency, site.locale);
   const was = p => (Number(p.was_price) > Number(p.price) ? formatPrice(p.was_price, p.currency || site.currency, site.locale) : '');
   const cell = (p, content) => html`<td class="${pick && pick.id === p.id ? 'is-pick' : ''}">${content}</td>`;
   const row = (label, fn) => html`<tr><th scope="row">${label}</th>${products.map(p => cell(p, fn(p)))}</tr>`;
@@ -61,37 +60,37 @@ export function comparePage(site, products, ids) {
   <thead><tr><th scope="col"><span class="visually-hidden">Detail</span></th>${products.map(p => html`<th scope="col" class="${pick && pick.id === p.id ? 'is-pick' : ''}">
     ${pick && pick.id === p.id ? html`<span class="pick-badge">Our pick · Best value</span>` : ''}
     <a class="compare-photo" href="${productPath(p)}"><img src="${p.image_url}" alt="" width="160" height="160" loading="lazy" decoding="async" referrerpolicy="no-referrer"></a>
-    <a class="compare-name" href="${productPath(p)}">${p.product_name}</a>
+    <a class="compare-name" href="${productPath(p)}" translate="no">${p.product_name}</a>
     <a class="compare-remove" href="${without(p.id)}">Remove</a>
   </th>`)}</tr></thead>
   <tbody>
-    ${row('Price', p => html`<strong class="compare-price">${price(p)}</strong>`)}
-    ${row('Previous price', p => (was(p) ? html`<s>${was(p)}</s> <span class="tag-save">Save ${savingPercent(p.price, p.was_price)}%</span>` : '—'))}
+    ${row('Price', p => html`<strong class="compare-price">${priceTag(site, p.price, p.currency, 'compare-amount')}</strong>`)}
+    ${row('Previous price', p => (was(p) ? html`<s>${was(p)}</s> <span class="tag-save">${tr('Save {0}%', savingPercent(p.price, p.was_price))}</span>` : '—'))}
     ${row('Stock', p => (inStock(p) ? html`<span class="ok">In stock</span>` : html`<span class="warn">Out of stock</span>`))}
-    ${row('Retailer', p => p.retailer)}
-    ${row('Brand', p => p.brand || '—')}
+    ${row('Retailer', p => html`<span translate="no">${p.retailer}</span>`)}
+    ${row('Brand', p => html`<span translate="no">${p.brand || '—'}</span>`)}
     ${row('Category', p => categoryName(p.category_slug))}
     ${row('Condition', p => (p.item_condition === 'refurbished' ? 'Refurbished' : 'New'))}
     ${row('EAN / GTIN', p => p.gtin || '—')}
-    ${row('Price checked', p => (p.last_seen_at ? String(p.last_seen_at).slice(0, 10) : '—'))}
-    <tr><th scope="row"><span class="visually-hidden">Buy</span></th>${products.map(p => cell(p, html`<a class="btn btn-deal" href="/out/${p.id}" rel="sponsored nofollow noopener" target="_blank">View at ${p.retailer}</a>`))}</tr>
+    ${row('Price checked', p => (p.last_seen_at ? html`<time datetime="${String(p.last_seen_at).slice(0, 10)}">${String(p.last_seen_at).slice(0, 10)}</time>` : '—'))}
+    <tr><th scope="row"><span class="visually-hidden">Buy</span></th>${products.map(p => cell(p, html`<a class="btn btn-deal" href="/out/${p.id}" rel="sponsored nofollow noopener" target="_blank">${tr('View at {0}', p.retailer)}</a>${site.cart ? html`<button type="button" class="btn-cart" data-cart="${p.id}" aria-pressed="false" hidden>+ Cart</button>` : ''}`))}</tr>
   </tbody>
 </table>
 </div>` : '';
 
   const pickBox = pick && pick.id ? html`<div class="pick-box">
   <p class="pick-label">Our pick · Best value</p>
-  <p class="pick-name"><a href="${productPath(pick.best)}">${pick.best.product_name}</a></p>
+  <p class="pick-name" translate="no"><a href="${productPath(pick.best)}">${pick.best.product_name}</a></p>
   <p>${pickText(site, pick)}</p>
 </div>` : pick && pick.note === 'different-categories'
     ? html`<p class="pick-note">These products are from different categories, so we do not pick one. Compare products from the same category to see our pick.</p>`
-    : pick && pick.note === 'none-in-stock' ? html`<p class="pick-note">None of these products is in stock right now, so we do not pick one.</p>` : '';
+    : pick && pick.note === 'none-in-stock' ? html`<p class="pick-note">${tr('None of these products is in stock right now, so we do not pick one.')}</p>` : '';
 
   const body = html`<div class="wrap section">
   ${breadcrumbs([{ name: 'Home', path: '/' }, { name: 'Compare', path: '/compare/' }])}
   <h1>Compare products</h1>
-  <p class="compare-lead">Up to ${COMPARE_MAX} products side by side: price, stock and retailer. Always check the final price on the retailer's website.</p>
-  ${products.length < 2 ? html`<p>Choose 2 to ${COMPARE_MAX} products with the <strong>+ Compare</strong> button on any product, then open the compare bar at the bottom of the screen.</p>
+  <p class="compare-lead">${tr('Up to {0} products side by side: price, stock and retailer.', COMPARE_MAX)} Always check the final price on the retailer's website.</p>
+  ${products.length < 2 ? html`<p>${tr('Choose 2 to {0} products with the + Compare button on any product, then open the compare bar at the bottom of the screen.', COMPARE_MAX)}</p>
   <p><a class="btn btn-gold" href="/#cats-h">Browse categories</a></p>` : ''}
   ${pickBox}
   ${table}

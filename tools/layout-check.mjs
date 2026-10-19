@@ -7,7 +7,9 @@
 //   - JavaScript errors and failed requests for the site's own files
 // Saves a screenshot of every page so a person can look at them.
 //
-// Usage: node tools/layout-check.mjs <baseUrl> [--shots <dir>] [--out report.txt]
+// Usage: node tools/layout-check.mjs <baseUrl> [--shots <dir>] [--out report.txt] [--lang de-DE] [--currency RUB]
+//   --lang / --currency open every page as a visitor who chose that language and currency (lessons L24, L25):
+//   longer words and "≈" prices must still fit.
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { chromium } from 'playwright';
@@ -17,6 +19,8 @@ const base = (args.find(a => /^https?:\/\//.test(a)) || 'http://127.0.0.1:8787')
 const val = name => { const i = args.indexOf(`--${name}`); return i >= 0 ? args[i + 1] : ''; };
 const shotsDir = val('shots') || 'layout-shots';
 const outFile = val('out');
+const prefLang = val('lang');
+const prefCurrency = val('currency');
 mkdirSync(shotsDir, { recursive: true });
 
 const GUTTER = 12; // px: the design uses 16 px; 12 leaves room for borders
@@ -41,11 +45,18 @@ try {
   check(productPath, 'home links to a product page');
 
   let comparePath = '';
+  let cartPath = '';
   try {
     const d = await (await fetch(base + '/api/products?limit=3')).json();
     const ids = (d.products || []).slice(0, 3).map(p => p.id);
     if (ids.length >= 2) comparePath = '/compare/?ids=' + ids.join(',');
+    if (ids.length) cartPath = '/cart/?items=' + ids.map((id, i) => `${id}:${i + 1}`).join(',');
   } catch { comparePath = ''; }
+  // The cart page exists only on sites with a cart.
+  if (cartPath) {
+    const r = await fetch(base + cartPath).catch(() => null);
+    if (!r || r.status !== 200) cartPath = '';
+  }
 
   const pages = [
     ['home', '/'],
@@ -53,6 +64,7 @@ try {
     ['product', productPath],
     ['search', '/search?q=laptop'],
     ['compare', comparePath],
+    ['cart', cartPath],
     ['privacy', '/privacy/'],
     ['not-found', '/this-page-does-not-exist/']
   ].filter(([, p]) => p);
@@ -63,6 +75,18 @@ try {
       isMobile: vp.isMobile, hasTouch: vp.hasTouch, deviceScaleFactor: vp.deviceScaleFactor,
       reducedMotion: 'reduce'
     });
+    if (prefLang || prefCurrency) {
+      // The site script reads these from the browser's storage; the key prefix is on <html data-store>.
+      await context.addInitScript(([l, c]) => {
+        const store = () => document.documentElement.getAttribute('data-store') || 'gw';
+        document.addEventListener('readystatechange', () => {
+          try {
+            if (l) localStorage.setItem(store() + '-lang', l);
+            if (c) localStorage.setItem(store() + '-currency', c);
+          } catch (e) { /* ignore */ }
+        }, { once: true });
+      }, [prefLang, prefCurrency]);
+    }
     const page = await context.newPage();
     for (const [name, path] of pages) {
       const label = `${vp.name} ${path}`;
@@ -78,6 +102,11 @@ try {
       page.on('console', onConsole);
       page.on('response', onResponse);
       await page.goto(base + path, { waitUntil: 'networkidle' });
+      if (prefLang || prefCurrency) await page.waitForSelector('html[data-ready]', { timeout: 10000 }).catch(() => {});
+      if (prefLang) check(await page.evaluate(() => document.documentElement.lang) === prefLang, `${label}: page is in ${prefLang}`);
+      if (prefCurrency && prefCurrency !== 'GBP' && ['home', 'category', 'product', 'cart'].includes(name)) {
+        check(await page.$('.fx') !== null, `${label}: prices also shown in ${prefCurrency}`);
+      }
 
       const m = await page.evaluate(({ GUTTER, MIN_TAP }) => {
         const vw = document.documentElement.clientWidth;
@@ -108,13 +137,35 @@ try {
           const r = el.getBoundingClientRect();
           if (r.height < MIN_TAP - 4) small.push(`${describe(el)} h=${Math.round(r.height)}`);
         }
-        return { scrollsSideways, scrollWidth: document.documentElement.scrollWidth, vw, edge, small, hasMain: !!document.querySelector('main') };
+        // Text cut off inside a button or link (e.g. a long German word): the content is wider than the box.
+        // Two ways: the text is wider than the button, or the button is wider than a box that hides overflow
+        // (a product card), so part of it is cut away.
+        const clipped = [];
+        const clipBox = el => {
+          for (let p = el.parentElement; p; p = p.parentElement) {
+            const s = getComputedStyle(p);
+            if (s.overflowX === 'hidden' || s.overflowX === 'clip' || s.overflow === 'hidden') return p;
+          }
+          return null;
+        };
+        for (const el of document.querySelectorAll('.btn, button, .cart-link, .catbar a, .chip-list a')) {
+          if (!visible(el) || inScroller(el)) continue;
+          if (el.scrollWidth > el.clientWidth + 1) { clipped.push(`${describe(el)} ${el.scrollWidth}>${el.clientWidth}`); continue; }
+          const box = clipBox(el);
+          if (box) {
+            const r = el.getBoundingClientRect();
+            const b = box.getBoundingClientRect();
+            if (r.left < b.left - 1 || r.right > b.right + 1) clipped.push(`${describe(el)} sticks out of its box`);
+          }
+        }
+        return { scrollsSideways, scrollWidth: document.documentElement.scrollWidth, vw, edge, small, clipped, hasMain: !!document.querySelector('main') };
       }, { GUTTER, MIN_TAP });
 
       check(m.hasMain, `${label}: page has <main>`);
       check(!m.scrollsSideways, `${label}: no sideways scrolling`, `scrollWidth ${m.scrollWidth} > ${m.vw}`);
       check(m.edge.length === 0, `${label}: content keeps the ${GUTTER}px gutter`, m.edge.slice(0, 5).join(' | '));
       check(m.small.length === 0, `${label}: buttons and fields at least ${MIN_TAP - 4}px tall`, m.small.slice(0, 5).join(' | '));
+      check(m.clipped.length === 0, `${label}: no text cut off inside buttons`, m.clipped.slice(0, 5).join(' | '));
       check(consoleErrors.length === 0, `${label}: no JavaScript errors`, consoleErrors.slice(0, 3).join(' | '));
       check(failed.length === 0, `${label}: all site files load`, failed.slice(0, 3).join(' | '));
 

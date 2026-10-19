@@ -2,7 +2,7 @@
 import { html, raw } from '../lib/html.js';
 import { categoryPath, productPath, formatPrice, savingPercent, truncate, formatDate } from '../lib/text.js';
 import { normalizeGtin, gtinSchemaKey } from '../lib/gtin.js';
-import { page, productGrid, breadcrumbs, breadcrumbSchema, absolute } from './layout.js';
+import { page, productGrid, breadcrumbs, breadcrumbSchema, absolute, tr, priceTag } from './layout.js';
 
 function specsList(product) {
   let specs = {};
@@ -33,7 +33,7 @@ export function productPage(site, product, category, similar) {
   const crumbs = [
     { name: 'Home', path: '/' },
     ...(category ? [{ name: category.name, path: categoryPath(category.slug) }] : []),
-    { name: truncate(product.product_name, 60), path }
+    { name: truncate(product.product_name, 60), path, keep: true }
   ];
   const metaDescription = truncate(
     `${product.product_name}: ${price}${inStock ? '' : ' (out of stock)'} at ${product.retailer}. Compare ${site.topic} prices on ${site.name}.`,
@@ -73,36 +73,39 @@ export function productPage(site, product, category, similar) {
       <img src="${product.image_url}" alt="${product.product_name}" width="560" height="560" decoding="async" referrerpolicy="no-referrer">
     </div>
     <div class="product-label">
-      ${product.brand ? html`<p class="label-brand">${product.brand}</p>` : ''}
-      <h1>${product.product_name}</h1>
+      ${product.brand ? html`<p class="label-brand" translate="no">${product.brand}</p>` : ''}
+      <h1 translate="no">${product.product_name}</h1>
       <div class="shelf">
-        <p class="shelf-price"><span class="price">${price}</span>${was ? html`<s class="was">${was}</s>` : ''}</p>
-        ${pct ? html`<p class="tag-save">Save ${pct}% on the previous price</p>` : ''}
+        <p class="shelf-price">${priceTag(site, product.price, product.currency)}${was ? html`<s class="was">${was}</s>` : ''}</p>
+        ${pct ? html`<p class="tag-save">${tr('Save {0}% on the previous price', pct)}</p>` : ''}
         <dl class="shelf-facts">
-          <div><dt>Retailer</dt><dd>${product.retailer}</dd></div>
+          <div><dt>Retailer</dt><dd translate="no">${product.retailer}</dd></div>
           <div><dt>Stock</dt><dd class="${inStock ? 'ok' : 'warn'}">${inStock ? 'In stock' : 'Out of stock'}</dd></div>
           ${product.item_condition === 'refurbished' ? html`<div><dt>Condition</dt><dd>Refurbished</dd></div>` : ''}
-          ${checked ? html`<div><dt>Price checked</dt><dd>${checked}</dd></div>` : ''}
+          ${checked ? html`<div><dt>Price checked</dt><dd><time datetime="${String(product.last_seen_at).slice(0, 10)}">${checked}</time></dd></div>` : ''}
         </dl>
-        <a class="btn btn-deal btn-big" href="/out/${product.id}" rel="sponsored nofollow noopener" target="_blank">View at ${product.retailer}</a>
-        <button type="button" class="btn-compare btn-compare-big" data-compare="${product.id}" aria-pressed="false" hidden>+ Compare</button>
-        <p class="shelf-note">You buy on the ${product.retailer} website, at their price. We may earn a commission. <a href="/how-we-make-money/">How this works</a></p>
+        <a class="btn btn-deal btn-big" href="/out/${product.id}" rel="sponsored nofollow noopener" target="_blank">${tr('View at {0}', product.retailer)}</a>
+        <div class="card-actions card-actions-big">
+          <button type="button" class="btn-compare btn-compare-big" data-compare="${product.id}" aria-pressed="false" hidden>+ Compare</button>
+          ${site.cart ? html`<button type="button" class="btn-cart btn-cart-big" data-cart="${product.id}" aria-pressed="false" hidden>+ Cart</button>` : ''}
+        </div>
+        <p class="shelf-note">${tr('You buy on the {0} website, at their price.', product.retailer)} We may earn a commission. <a href="/how-we-make-money/">How this works</a></p>
       </div>
     </div>
   </article>
 
   ${description ? html`<section class="section prose" aria-labelledby="desc-h">
     <h2 id="desc-h">About this product</h2>
-    <p>${description}</p>
+    <p translate="no">${description}</p>
   </section>` : ''}
 
   ${rows.length ? html`<section class="section" aria-labelledby="spec-h">
     <h2 id="spec-h">Specifications</h2>
-    <dl class="spec-sheet">${rows.map(([k, v]) => html`<div><dt>${k}</dt><dd>${v}</dd></div>`)}</dl>
+    <dl class="spec-sheet" translate="no">${rows.map(([k, v]) => html`<div><dt>${k}</dt><dd>${v}</dd></div>`)}</dl>
   </section>` : ''}
 
   ${similar.length ? html`<section class="section" aria-labelledby="sim-h">
-    <h2 id="sim-h">Similar ${category ? category.name.toLowerCase() : 'products'}</h2>
+    <h2 id="sim-h">Similar products</h2>
     ${productGrid(site, similar)}
   </section>` : ''}
 </div>`;

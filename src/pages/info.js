@@ -2,7 +2,7 @@
 // NOTE: legal texts are a starting point and need review by a qualified adviser before launch (task T31).
 import { html } from '../lib/html.js';
 import { categoryPath } from '../lib/text.js';
-import { page, breadcrumbs, breadcrumbSchema, searchForm } from './layout.js';
+import { page, breadcrumbs, breadcrumbSchema, searchForm, tr } from './layout.js';
 
 export const PLACEHOLDER = 'To be completed before launch';
 
@@ -14,7 +14,7 @@ function contactLink(site) {
   return site.contactEmail ? html`<a href="mailto:${site.contactEmail}">${site.contactEmail}</a>` : PLACEHOLDER;
 }
 
-const UPDATED = '18 October 2026';
+const UPDATED = '19 October 2026';
 
 const PAGES = {
   '/about/': site => ({
@@ -65,6 +65,8 @@ const PAGES = {
 <li><strong>Newsletter.</strong> If you sign up, we keep your email address, the date and the consent text you agreed to. We use it only to send the newsletter (consent). You can withdraw consent at any time by emailing us, and we will delete your address.</li>
 <li><strong>Abuse protection.</strong> To stop automated abuse of forms we keep a one-way scrambled (hashed) form of your IP address for up to one hour, and the form uses Cloudflare Turnstile (legitimate interests).</li>
 <li><strong>Hosting.</strong> The site is hosted by Cloudflare, which processes technical data such as IP addresses to deliver and protect the site.</li>
+${site.voiceSearch ? html`<li><strong>Voice search.</strong> If you press the microphone button, your browser asks for permission and its own speech service turns what you say into text (for example Google in Chrome, Apple in Safari). Their privacy policies apply to that step. We receive only the text, as a normal search, and we do not record audio.</li>` : ''}
+${site.cart || (site.languages || []).length > 1 ? html`<li><strong>Choices kept on your device.</strong> Your browser remembers your language, currency, compare list${site.cart ? ` and ${site.cart.name}` : ''} in its local storage. This stays on your device and is not sent to us. You can clear it in your browser settings.</li>` : ''}
 </ul>
 <h2>Cookies and tracking</h2>
 <p>We do not use advertising or tracking cookies. See the <a href="/cookies/">cookies page</a> for details.</p>
@@ -86,6 +88,8 @@ const PAGES = {
 <p>${site.name} does not set advertising, analytics or tracking cookies, so there is no cookie banner.</p>
 <h2>Strictly necessary</h2>
 <p>Our hosting provider Cloudflare may set short-lived security cookies to protect the site from bots. If you use the newsletter form, Cloudflare Turnstile checks that you are a person. These are needed for the site to work safely and do not track you across sites.</p>
+<h2>Saved on your device</h2>
+<p>Your browser's local storage keeps your language, currency, compare list${site.cart ? ` and ${site.cart.name}` : ''}, so they are still there on your next visit. This information is not a cookie, is not sent to us and is not used for tracking. Clearing your browser data removes it.</p>
 <h2>After you leave this site</h2>
 <p>When you select a "View at" button, Awin and the retailer may set cookies on their own websites to record the referral. You can manage those in your browser settings.</p>`
   }),
@@ -127,7 +131,8 @@ export function infoPage(site, path) {
   ${breadcrumbs(crumbs)}
   <article class="prose">
     <h1>${p.title}</h1>
-    ${p.content}
+    <p class="lang-note" data-lang-note hidden>This page is available in English only.</p>
+    <div translate="no">${p.content}</div>
   </article>
 </div>`;
   return page(site, {
@@ -164,8 +169,8 @@ export function errorPage(site) {
   const body = html`
 <div class="wrap narrow">
   <article class="prose">
-    <h1>Something went wrong</h1>
-    <p>The page could not load. Please try again in a minute, or go to the <a href="/">home page</a>.</p>
+    <h1>${tr('Something went wrong')}</h1>
+    <p>${tr('The page could not load. Please try again in a minute.')} <a href="/">${tr('Go to the home page')}</a></p>
   </article>
 </div>`;
   return page(site, { title: `Error | ${site.name}`, description: 'Error', path: '/', canonical: null, robots: 'noindex,nofollow', body });

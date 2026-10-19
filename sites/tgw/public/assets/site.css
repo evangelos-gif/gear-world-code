@@ -339,3 +339,98 @@ body.has-compare-bar { padding-bottom: 76px; }
 .pick-note, .pick-rule { color: var(--text-2); font-size: .92rem; max-width: 70ch; }
 .compare-table tbody th, .compare-table thead th:first-child { position: sticky; left: 0; z-index: 1; }
 @media (max-width: 600px) { .compare-table tbody th { width: 84px; padding: 10px 8px; font-size: .85rem; } .compare-photo img { width: 96px; height: 96px; } }
+
+/* Language and currency (lessons L24, L25) */
+.prefs { background: #050912; border-bottom: 1px solid var(--line); }
+.prefs[hidden] { display: none; }
+.prefs-row { display: flex; justify-content: flex-end; align-items: center; gap: 8px; padding-top: 6px; padding-bottom: 6px; }
+.pref { position: relative; display: inline-flex; align-items: center; }
+.pref-icon { position: absolute; left: 9px; width: 16px; height: 16px; color: var(--gold); pointer-events: none; }
+.pref select { min-height: 40px; max-width: 46vw; padding: 0 28px 0 10px; font: 600 .92rem var(--font-body); color: var(--text); background: var(--panel) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23f2b84b'/%3E%3C/svg%3E") no-repeat right 10px center; border: 1px solid var(--line); border-radius: 8px; appearance: none; -webkit-appearance: none; cursor: pointer; }
+.pref-icon + .visually-hidden + select { padding-left: 30px; }
+.pref select:hover { border-color: var(--gold); }
+.fx { display: inline-block; margin-left: 6px; font-family: var(--font-body); font-weight: 600; font-size: .9rem; color: var(--ink-2); white-space: nowrap; }
+.shelf-price .fx { font-size: 1.05rem; align-self: center; }
+.lang-note { padding: 8px 12px; border-left: 3px solid var(--gold); background: var(--panel); color: var(--text-2); }
+.lang-note[hidden] { display: none; }
+
+/* Voice search button inside the search box */
+.search-mic { display: inline-flex; align-items: center; justify-content: center; width: 48px; height: 48px; padding: 0; color: var(--ink); background: var(--surface); border: 0; border-left: 1px solid var(--paper-edge); cursor: pointer; }
+.search-mic .icon { width: 22px; height: 22px; }
+.search-mic:hover { color: var(--ink-link); }
+.search-mic[aria-pressed="true"] { color: #fff; background: var(--tag); }
+.search-mic[hidden] { display: none; }
+.search { flex-wrap: wrap; position: relative; }
+.search input { flex: 1 1 0; }
+.voice-status { flex: 1 0 100%; margin: 6px 0 0; font-size: .9rem; font-weight: 600; color: var(--gold); }
+.voice-status[hidden] { display: none; }
+@media (max-width: 420px) { .search button[type="submit"] span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); } .search button[type="submit"] { padding: 0 14px; } }
+
+/* Gear Cart link in the header (lessons L26) */
+.cart-link { order: 2; display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 12px; color: #fff; font-weight: 600; text-decoration: none; border: 1px solid var(--line); border-radius: 8px; }
+.cart-link:hover { color: #fff; border-color: var(--gold); }
+.cart-link .icon { width: 22px; height: 22px; color: var(--gold); }
+.cart-count { display: inline-flex; align-items: center; justify-content: center; min-width: 22px; height: 22px; padding: 0 6px; font-size: .8rem; font-weight: 700; color: var(--ink); background: var(--gold); border-radius: 999px; }
+.cart-count[hidden] { display: none; }
+.masthead-search { order: 1; }
+@media (max-width: 799px) { .masthead-search { order: 3; flex-basis: 100%; max-width: none; } }
+@media (max-width: 480px) { .cart-word { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; } .cart-link { padding: 0 10px; } }
+
+/* Compare and cart buttons on product cards */
+.card-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.card-actions .btn-compare, .card-actions .btn-cart { margin-top: 6px; }
+.card-actions-big { gap: 10px; }
+.btn-cart { display: flex; align-items: center; justify-content: center; width: 100%; min-height: 40px; padding: 8px 10px; font: 600 .95rem/1.2 var(--font-body); color: var(--ink); background: var(--surface); border: 1px solid var(--paper-edge); border-radius: 8px; cursor: pointer; text-align: center; }
+.btn-cart:hover { border-color: var(--ink-2); }
+.btn-cart[aria-pressed="true"] { background: #e9f7ee; border-color: var(--ok); color: var(--ok); }
+.btn-cart[hidden] { display: none; }
+.btn-cart-big { min-height: 46px; margin-top: 10px; }
+.compare-table .btn-cart { margin-top: 8px; min-width: 140px; }
+.card-actions .btn-compare { font-size: .92rem; padding: 8px 6px; }
+.card-actions .btn-cart { font-size: .92rem; padding: 8px 6px; }
+
+/* Gear Cart page */
+.cart-layout { display: grid; gap: 20px; margin-top: 12px; }
+@media (min-width: 960px) { .cart-layout { grid-template-columns: minmax(0, 1fr) 320px; align-items: start; } .cart-summary { position: sticky; top: 12px; } }
+.cart-layout.is-empty { display: block; }
+.cart-list { list-style: none; padding: 0; margin: 0; display: grid; gap: 12px; }
+.cart-item { display: grid; grid-template-columns: 88px minmax(0, 1fr); gap: 12px; padding: 12px; background: var(--surface); color: var(--ink); border: 1px solid var(--paper-edge); border-radius: var(--radius); }
+.cart-photo { display: flex; align-items: flex-start; justify-content: center; }
+.cart-photo img { width: 88px; height: 88px; object-fit: contain; background: #fff; }
+.cart-info { min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+.cart-info p { margin: 0; }
+.cart-name a { color: var(--ink); font-weight: 600; text-decoration: none; }
+.cart-name a:hover { text-decoration: underline; }
+.cart-meta { font-size: .9rem; color: var(--ink-2); }
+.cart-meta .warn { color: var(--tag); font-weight: 600; }
+.cart-price .price { font-size: 1.5rem; }
+.cart-each { color: var(--ink-2); font-weight: 600; }
+.cart-controls { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.qty { display: inline-flex; align-items: center; border: 1px solid var(--paper-edge); border-radius: 8px; overflow: hidden; }
+.qty-btn { display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 44px; font-size: 1.3rem; font-weight: 700; color: var(--ink); background: var(--paper); text-decoration: none; }
+.qty-btn:hover { background: var(--paper-edge); color: var(--ink); }
+.qty-btn.is-off { color: var(--paper-edge); }
+.qty-n { min-width: 40px; text-align: center; font-weight: 700; }
+.cart-remove { color: var(--ink-link); font-weight: 600; }
+.cart-item .btn-deal { margin-top: 4px; }
+@media (min-width: 640px) { .cart-item { grid-template-columns: 120px minmax(0, 1fr); } .cart-photo img { width: 120px; height: 120px; } .cart-item .btn-deal { width: auto; align-self: flex-start; min-width: 220px; } }
+.cart-summary { padding: 16px; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); }
+.cart-summary h2 { font-size: 1.25rem; }
+.cart-total { margin: 0 0 4px; }
+.cart-total .price { color: #fff; font-size: 2rem; }
+.cart-total .fx { color: var(--text-2); }
+.cart-units { color: var(--text-2); font-weight: 600; }
+.cart-note { color: var(--text-2); font-size: .92rem; }
+.cart-clear { color: var(--link); font-weight: 600; }
+.search .search-mic { gap: 0; padding: 0; width: 48px; color: var(--ink); background: var(--surface); border-radius: 0; border-left: 1px solid var(--paper-edge); }
+.search .search-mic:hover { background: var(--paper); }
+.search .search-mic[aria-pressed="true"] { color: #fff; background: var(--tag); }
+@media (max-width: 420px) {
+  .brand { gap: 8px; }
+  .brand img { width: 36px; height: 36px; }
+  .brand-name { font-size: 1.08rem; }
+  .masthead-row { gap: 10px; }
+}
+/* Long words (German, Russian) must fit: the two card buttons stack when the card is narrow. */
+.card-actions { grid-template-columns: repeat(auto-fit, minmax(124px, 1fr)); }
+.btn-compare, .btn-cart, .btn-deal { min-width: 0; overflow-wrap: anywhere; hyphens: auto; }

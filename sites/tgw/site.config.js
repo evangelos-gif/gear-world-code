@@ -9,7 +9,38 @@ export default {
   lang: 'en-GB',
   locale: 'en-GB',
   currency: 'GBP',
-  assetVersion: '2026-10-18-6',
+  assetVersion: '2026-10-19-1',
+  // Key prefix for what a visitor's browser remembers (compare list, cart, language, currency).
+  storagePrefix: 'tgw',
+
+  // 11 languages, the same as Gear World Hub. Pages are written in English by the server; the site
+  // script swaps the text using one small file per language (public/assets/i18n/<code>.json), loaded
+  // only when a visitor picks that language (lessons L24). Product names stay as the retailer wrote them.
+  languages: [
+    { code: 'en-GB', label: 'English' },
+    { code: 'el-GR', label: 'Ελληνικά' },
+    { code: 'de-DE', label: 'Deutsch' },
+    { code: 'fr-FR', label: 'Français' },
+    { code: 'it-IT', label: 'Italiano' },
+    { code: 'es-ES', label: 'Español' },
+    { code: 'pt-PT', label: 'Português' },
+    { code: 'nl-NL', label: 'Nederlands' },
+    { code: 'sq-AL', label: 'Shqip' },
+    { code: 'ro-RO', label: 'Română' },
+    { code: 'ru-RU', label: 'Русский' }
+  ],
+
+  // 5 display currencies, the same as the other Gear World sites. Retailers charge in GBP, so the GBP
+  // price always stays on the page and the converted price is shown next to it as "≈" (lessons L25).
+  displayCurrencies: ['GBP', 'EUR', 'ALL', 'RON', 'RUB'],
+
+  // Gear Cart: a list kept in the visitor's browser. Every buy button goes through /out/<id> (lessons L26).
+  cart: { name: 'Gear Cart', maxItems: 30, maxQuantity: 99 },
+
+  // Microphone button in every search box, like the other Gear World sites. The browser turns speech into
+  // text (Chrome uses Google's service, Safari uses Apple's); the site only receives the text. Camera search
+  // is planned: when it comes, allow camera=(self) in src/lib/http.js the same way.
+  voiceSearch: true,
 
   // Look of the Gear World family: dark page, gold headings, photo hero and photo category tiles.
   themeColor: '#0a1222',

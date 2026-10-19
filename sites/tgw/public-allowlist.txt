@@ -10,3 +10,4 @@ assets/apple-touch-icon.png
 assets/fonts/*.woff2
 assets/fonts/OFL.txt
 assets/img/*.webp
+assets/i18n/*.json

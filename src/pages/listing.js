@@ -2,7 +2,7 @@
 import { html, raw } from '../lib/html.js';
 import { categoryPath } from '../lib/text.js';
 import { SORT_OPTIONS } from '../db.js';
-import { page, productGrid, breadcrumbs, breadcrumbSchema, searchForm, categoryImage } from './layout.js';
+import { page, productGrid, breadcrumbs, breadcrumbSchema, searchForm, categoryImage, tr } from './layout.js';
 
 export function readListingParams(url) {
   const sp = url.searchParams;
@@ -71,6 +71,7 @@ function pagination(basePath, params, result) {
 
 function filterForm(action, p, facets, hidden = {}) {
   const opt = (value, label, selected) => html`<option value="${value}"${selected ? raw(' selected') : ''}>${label}</option>`;
+  const optKeep = (value, label, selected) => html`<option value="${value}"${selected ? raw(' selected') : ''} translate="no">${label}</option>`;
   return html`<form class="filters" action="${action}" method="get">
   ${Object.entries(hidden).map(([k, v]) => html`<input type="hidden" name="${k}" value="${v}">`)}
   <details class="filters-box" open>
@@ -84,13 +85,13 @@ function filterForm(action, p, facets, hidden = {}) {
       ${facets && facets.brands.length ? html`<label>Brand
         <select name="brand" data-autosubmit>
           ${opt('', 'All brands', !p.brand)}
-          ${facets.brands.map(b => opt(b.name, `${b.name} (${b.n})`, p.brand === b.name))}
+          ${facets.brands.map(b => optKeep(b.name, `${b.name} (${b.n})`, p.brand === b.name))}
         </select>
       </label>` : ''}
       ${facets && facets.retailers.length > 1 ? html`<label>Retailer
         <select name="retailer" data-autosubmit>
           ${opt('', 'All retailers', !p.retailer)}
-          ${facets.retailers.map(r => opt(r.name, `${r.name} (${r.n})`, p.retailer === r.name))}
+          ${facets.retailers.map(r => optKeep(r.name, `${r.name} (${r.n})`, p.retailer === r.name))}
         </select>
       </label>` : ''}
       <fieldset class="price-range">
@@ -112,7 +113,8 @@ function filterForm(action, p, facets, hidden = {}) {
 function resultsHeader(result) {
   const fmt = n => new Intl.NumberFormat('en-GB').format(n);
   if (!result.total) return '';
-  return html`<p class="result-count">${fmt(result.total)} ${result.total === 1 ? 'product' : 'products'}${result.pages > 1 ? html`, page ${result.page} of ${result.pages}` : ''}</p>`;
+  const count = result.total === 1 ? tr('1 product') : tr('{0} products', fmt(result.total));
+  return html`<p class="result-count">${count}${result.pages > 1 ? html`, ${tr('page {0} of {1}', result.page, result.pages)}` : ''}</p>`;
 }
 
 export function categoryPage(site, cat, p, result, facets) {
@@ -137,7 +139,7 @@ export function categoryPage(site, cat, p, result, facets) {
       ${resultsHeader(result)}
       ${result.products.length
         ? productGrid(site, result.products, { headingLevel: 2 })
-        : html`<div class="empty"><h2>No products match these filters</h2><p>Remove a filter or <a href="${base}">see all ${cat.name.toLowerCase()}</a>.</p></div>`}
+        : html`<div class="empty"><h2>No products match these filters</h2><p>Remove a filter or <a href="${base}">see all products in this category</a>.</p></div>`}
       ${pagination(base, params, result)}
     </div>
   </div>
@@ -162,7 +164,7 @@ export function searchPage(site, q, p, result) {
   const body = html`
 <div class="wrap">
   <header class="page-head">
-    <h1>${q ? html`Results for “${q}”` : 'Search'}</h1>
+    <h1>${q ? html`${tr('Results for “{0}”', q)}` : 'Search'}</h1>
     ${searchForm(site, q, 'page-search')}
   </header>
   ${q ? html`<div class="listing">
@@ -171,7 +173,7 @@ export function searchPage(site, q, p, result) {
       ${resultsHeader(result)}
       ${result.products.length
         ? productGrid(site, result.products, { headingLevel: 2 })
-        : html`<div class="empty"><h2>No products found for “${q}”</h2><p>Check the spelling, try a shorter word such as a brand name, or browse a category.</p>
+        : html`<div class="empty"><h2>${tr('No products found for “{0}”', q)}</h2><p>Check the spelling, try a shorter word such as a brand name, or browse a category.</p>
           <ul class="chip-list">${site.categories.map(c => html`<li><a href="${categoryPath(c.slug)}">${c.name}</a></li>`)}</ul></div>`}
       ${pagination('/search', params, result)}
     </div>
@@ -201,7 +203,7 @@ export function dealsPage(site, p, result) {
   ${resultsHeader(result)}
   ${result.products.length
     ? productGrid(site, result.products, { headingLevel: 2 })
-    : html`<div class="empty"><h2>No price drops right now</h2><p>Prices change every day. <a href="/">Browse all categories</a>.</p></div>`}
+    : html`<div class="empty"><h2>${tr('No price drops right now')}</h2><p>${tr('Prices change every day.')} <a href="/">${tr('Browse all categories')}</a></p></div>`}
   ${pagination(base, {}, result)}
 </div>`;
   return page(site, {

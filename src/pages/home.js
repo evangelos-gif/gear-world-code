@@ -1,6 +1,6 @@
 import { html, raw } from '../lib/html.js';
 import { categoryPath, formatDate } from '../lib/text.js';
-import { page, productGrid, searchForm, icon, absolute, asset, categoryImage } from './layout.js';
+import { page, productGrid, searchForm, icon, absolute, asset, categoryImage, tr } from './layout.js';
 
 export function homePage(site, data) {
   const fmt = n => new Intl.NumberFormat(site.locale).format(n);
@@ -21,15 +21,15 @@ export function homePage(site, data) {
       <a class="btn btn-gold" href="#cats-h">Shop by category</a>
       ${deals.length ? html`<a class="btn btn-outline" href="/deals/">Today's price drops</a>` : ''}
     </p>
-    ${data.lastUpdated ? html`<p class="hero-facts">Prices last updated ${formatDate(data.lastUpdated, site.locale)}.</p>` : ''}
+    ${data.lastUpdated ? html`<p class="hero-facts">${tr('Prices last updated {0}.', { date: String(data.lastUpdated).slice(0, 10), text: formatDate(data.lastUpdated, site.locale) })}</p>` : ''}
   </div>
 </section>
 
-<section class="stats" aria-label="${site.name} in numbers">
+<section class="stats" aria-label="In numbers">
   <ul class="stats-list">
-    <li><strong>${fmt(data.totalProducts)}</strong> products</li>
-    <li><strong>${fmt(retailerCount)}</strong> ${retailerCount === 1 ? 'retailer partner' : 'retailer partners'}</li>
-    <li><strong>${fmt(site.categories.length)}</strong> main categories</li>
+    <li><strong>${fmt(data.totalProducts)}</strong> <span>products</span></li>
+    <li><strong>${fmt(retailerCount)}</strong> ${retailerCount === 1 ? tr('retailer partner') : tr('retailer partners')}</li>
+    <li><strong>${fmt(site.categories.length)}</strong> <span>main categories</span></li>
     <li>Independent comparison</li>
   </ul>
 </section>
@@ -44,7 +44,7 @@ export function homePage(site, data) {
         ${img ? html`<img src="${img}" alt="" width="720" height="480" loading="lazy" decoding="async">` : icon(c.icon, 'cat-icon')}
         <span class="cat-text">
           <span class="cat-name">${c.name}</span>
-          <span class="cat-count">${fmt(data.categoryCounts[c.slug] || 0)} products</span>
+          <span class="cat-count">${tr('{0} products', fmt(data.categoryCounts[c.slug] || 0))}</span>
         </span>
         ${icon('chevron', 'cat-chevron')}
       </a>
@@ -64,7 +64,7 @@ ${newest.length ? html`<section class="wrap section" aria-labelledby="new-h">
 </section>` : ''}
 
 <section class="wrap section how" aria-labelledby="how-h">
-  <h2 id="how-h">How ${site.name} works</h2>
+  <h2 id="how-h">${tr('How {0} works', site.name)}</h2>
   <ol class="steps">
     <li><h3>Find the product</h3><p>Search or browse by category. Every listing shows the current price and the retailer.</p></li>
     <li><h3>Compare the deal</h3><p>Filter by brand, price and stock. Price drops are marked so you can spot a real saving.</p></li>
@@ -74,14 +74,14 @@ ${newest.length ? html`<section class="wrap section" aria-labelledby="new-h">
 
 ${site.turnstileSiteKey ? html`<section class="wrap section" aria-labelledby="news-h">
   <div class="newsletter">
-    <h2 id="news-h">Get the best price drops by email</h2>
-    <p>One email a week with the biggest savings on ${site.topic}. No spam. Unsubscribe any time.</p>
+    <h2 id="news-h">${tr('Get the best price drops by email')}</h2>
+    <p>${tr('One email a week with the biggest savings on {0}. No spam. Unsubscribe any time.', site.topic)}</p>
     <form data-newsletter>
-      <label for="news-email">Email address</label>
+      <label for="news-email">${tr('Email address')}</label>
       <input id="news-email" name="email" type="email" autocomplete="email" required maxlength="254">
-      <label class="check"><input type="checkbox" name="consent" required> I agree to receive the weekly email. See the <a href="/privacy/">privacy policy</a>.</label>
+      <label class="check"><input type="checkbox" name="consent" required> ${tr('I agree to receive the weekly email.')} <a href="/privacy/">${tr('Privacy policy')}</a></label>
       <div class="cf-turnstile" data-sitekey="${site.turnstileSiteKey}"></div>
-      <button class="btn btn-quiet" type="submit">Sign up</button>
+      <button class="btn btn-quiet" type="submit">${tr('Sign up')}</button>
       <p class="form-status" role="status" aria-live="polite"></p>
     </form>
   </div>
@@ -89,7 +89,7 @@ ${site.turnstileSiteKey ? html`<section class="wrap section" aria-labelledby="ne
 
 ${data.retailers.length ? html`<section class="wrap section" aria-labelledby="ret-h">
   <h2 id="ret-h">Retailers we compare</h2>
-  <ul class="retailer-list">${data.retailers.map(r => html`<li><span>${r.name}</span><span class="count">${fmt(r.n)}</span></li>`)}</ul>
+  <ul class="retailer-list">${data.retailers.map(r => html`<li><span translate="no">${r.name}</span><span class="count">${fmt(r.n)}</span></li>`)}</ul>
 </section>` : ''}
 `;
   return page(site, {

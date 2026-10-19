@@ -47,6 +47,10 @@ jobs:
         run: |
           npx playwright install --with-deps chromium
           node tools/layout-check.mjs http://127.0.0.1:8787 --shots layout-shots --out layout-report.txt
+      - name: Layout check in a long language with a converted currency (lessons L24, L25)
+        run: node tools/layout-check.mjs http://127.0.0.1:8787 --lang de-DE --currency RUB --shots layout-shots-de --out layout-report-de.txt
+      - name: Every page translated in all 10 languages (lessons L24)
+        run: node tools/i18n-check.mjs http://127.0.0.1:8787 --site sites/tgw --out i18n-report.txt
       - name: Keep the reports and screenshots
         if: always()
         uses: actions/upload-artifact@v4
@@ -56,5 +60,8 @@ jobs:
             qa-report.txt
             layout-report.txt
             layout-shots/
+            layout-report-de.txt
+            layout-shots-de/
+            i18n-report.txt
             dev.log
           if-no-files-found: ignore

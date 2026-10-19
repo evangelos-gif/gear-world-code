@@ -214,6 +214,66 @@ if (site) {
   check('L23', bad.status === 200 && bad.body.includes('Choose 2 to'), '/compare/: bad ids show the help text');
 }
 
+// Languages (lessons L24): the same 11 as the hub, one small dictionary file per language.
+if (site && (site.languages || []).length > 1) {
+  const sel = (home.body.match(/<select data-pref="lang"[\s\S]*?<\/select>/) || [''])[0];
+  const codes = all(sel, /<option value="([^"]+)"/g).map(m => m[1]);
+  check('L24', codes.length === site.languages.length, `/: language picker lists ${site.languages.length} languages`, codes.join(','));
+  check('L24', /<html lang="en-GB"/.test(home.body), '/: pages are written in English by the server (one canonical page per address)');
+  for (const l of site.languages.filter(x => x.code !== 'en-GB')) {
+    const r = await get(`/assets/i18n/${l.code}.json?v=${encodeURIComponent(site.assetVersion)}`, { redirect: 'follow' });
+    let n = 0;
+    try { n = Object.keys(JSON.parse(r.body)).length; } catch { n = 0; }
+    check('L24', r.status === 200 && n > 0, `/assets/i18n/${l.code}.json loads`, `${r.status}, ${n} texts`);
+  }
+  check('L24', /translate="no"/.test(home.body), '/: product names, brands and retailers are marked translate="no"');
+}
+
+// Currencies (lessons L25): prices stay in the retailer's currency, with "≈" in the visitor's currency.
+if (site && (site.displayCurrencies || []).length > 1) {
+  const sel = (home.body.match(/<select data-pref="currency"[\s\S]*?<\/select>/) || [''])[0];
+  const codes = all(sel, /<option value="([^"]+)"/g).map(m => m[1]);
+  check('L25', codes.join(',') === site.displayCurrencies.join(','), `/: currency picker lists ${site.displayCurrencies.join(', ')}`, codes.join(','));
+  check('L25', /data-price="\d+\.\d{2}" data-currency="[A-Z]{3}"/.test(home.body), '/: prices carry data-price for the converted price');
+  const fx = await get('/api/fx');
+  let d = null;
+  try { d = JSON.parse(fx.body); } catch { d = null; }
+  check('L25', fx.status === 200 && d && d.base === site.currency && typeof d.rates === 'object', '/api/fx answers with the site currency as base', fx.body.slice(0, 120));
+  if (d && d.ok) {
+    const others = site.displayCurrencies.filter(c => c !== site.currency);
+    check('L25', others.every(c => Number(d.rates[c]) > 0), '/api/fx has a rate for every display currency', JSON.stringify(d.rates));
+  }
+}
+
+// Gear Cart (lessons L26): a list in the browser; every buy button goes through /out/<id>.
+if (site && site.cart) {
+  check('L26', /data-cart="\d+"/.test(home.body), '/: product cards have a + Cart button');
+  check('L26', /href="\/cart\/"[^>]*data-cart-link/.test(home.body), '/: header links to the cart');
+  const cat = site.categories[0] ? site.categories[0].slug : '';
+  const list = await get(`/api/products?category=${cat}&limit=2`);
+  let ps = [];
+  try { ps = JSON.parse(list.body).products || []; } catch { ps = []; }
+  if (ps.length) {
+    const c = await get(`/cart/?items=${ps.map((p, i) => `${p.id}:${i + 2}`).join(',')},abc,0:5`);
+    htmlChecks('/cart/?items=…', c, { indexable: false });
+    check('L26', /<meta name="robots" content="noindex/.test(c.body), '/cart/: noindex');
+    const outs = (c.body.match(/href="\/out\/\d+" rel="sponsored nofollow/g) || []).length;
+    check('L26', outs === ps.length, '/cart/: a retailer button through /out/ for every item', `${outs} buttons, ${ps.length} items`);
+    check('L26', !/awin1\.com/.test(c.body), '/cart/: no direct affiliate links (clicks must go through /out/)');
+    check('L26', c.body.includes(`data-cart-items="${ps.map((p, i) => `${p.id}:${i + 2}`).join(',')}"`), '/cart/: bad items are dropped, good ones kept with their quantity');
+  }
+  const empty = await get('/cart/');
+  check('L26', empty.status === 200 && /is empty/.test(empty.body), '/cart/: empty cart explains what to do');
+  check('L26', /Disallow: \/cart\//.test(rb.body), '/robots.txt blocks /cart/');
+}
+
+// Voice search: the microphone is allowed for this site's own pages only.
+if (site && site.voiceSearch) {
+  check('L06', /microphone=\(self\)/.test(home.headers.get('permissions-policy') || ''), 'Permissions-Policy allows the microphone for this site only', home.headers.get('permissions-policy'));
+  check('L06', /camera=\(\)/.test(home.headers.get('permissions-policy') || ''), 'Permissions-Policy keeps the camera off until camera search exists');
+  check('L22', /data-voice/.test(home.body), '/: search boxes have a microphone button');
+}
+
 // Launch readiness
 if (opt('prelaunch') && site) {
   for (const k of ['contactEmail', 'operatorName']) check('L17', Boolean(site[k]), `config: ${k} is filled in`);
