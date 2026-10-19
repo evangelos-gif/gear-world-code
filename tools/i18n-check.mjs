@@ -54,6 +54,8 @@ for (const f of ['layout', 'home', 'listing', 'product', 'compare', 'cart', 'inf
 }
 // Messages the Worker sends to the newsletter form, which the site script shows translated.
 for (const m of readFileSync(join('src', 'engine.js'), 'utf8').matchAll(/\b(?:error|message): '((?:[^'\\]|\\.)*)'/g)) scriptKeys.add(m[1]);
+// Texts that only appear with many products (page buttons): the test data has too few products to show them.
+for (const k of ['Pages', 'Next', 'Previous']) scriptKeys.add(k);
 // Every text of the site config that pages show: category names, menu names and intros, hero texts.
 for (const c of site.categories || []) for (const k of ['name', 'nav', 'intro']) if (c[k]) scriptKeys.add(c[k]);
 for (const k of ['heroEyebrow', 'heroTitle', 'heroText', 'searchPlaceholder']) if (site[k]) scriptKeys.add(site[k]);
@@ -81,7 +83,7 @@ try {
     sameCat = ((await (await fetch(`${base}/api/products?category=${c0}&limit=2`)).json()).products || []).map(p => p.id);
   } catch { sameCat = []; }
   const pages = [
-    '/', ...(site.categories || []).map(c => `/category/${c.slug}/`), categoryPath ? `${categoryPath}?min=99999` : '',
+    '/', ...(site.categories || []).map(c => `/category/${c.slug}/`), categoryPath ? `${categoryPath}?min=99999` : '', categoryPath ? `${categoryPath}?sort=price-asc&page=2` : '', '/deals/?page=2',
     productPath, '/deals/', '/search', '/search?q=laptop', '/search?q=zzzzqqq',
     ids.length >= 2 ? `/compare/?ids=${ids.slice(0, 2).join(',')}` : '', sameCat.length === 2 ? `/compare/?ids=${sameCat.join(',')}` : '', '/compare/',
     ids.length ? `/cart/?items=${ids.map((id, i) => `${id}:${i + 1}`).join(',')}` : '', '/cart/',
