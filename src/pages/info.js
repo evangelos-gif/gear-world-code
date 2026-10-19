@@ -17,24 +17,29 @@ function contactLink(site) {
 const UPDATED = '19 October 2026';
 
 const PAGES = {
+  // About, money and contact pages are translated (lessons L24): whole sentences only, no link in the middle of
+  // a sentence, so each language can order the words its own way. Legal pages (legal: true) stay in English.
   '/about/': site => ({
     title: 'About us',
     description: `What ${site.name} is, where the prices come from and how the site is run.`,
     content: html`
-<p>${site.name} is an independent price comparison site for ${site.topicLong}. It lists ${site.categories.map(c => c.short || c.name.toLowerCase()).join(', ')} from UK retailers, so you can compare prices in one place and then buy from the retailer you choose.</p>
+<p>${tr('{0} is an independent price comparison site. It lists products from UK retailers, so you can compare prices in one place and then buy from the retailer you choose.', site.name)}</p>
+<h2>What you can compare</h2>
+<ul class="chip-list">${site.categories.map(c => html`<li><a href="${categoryPath(c.slug)}">${c.name}</a></li>`)}</ul>
 <h2>Where the prices come from</h2>
 <p>Retailers publish product feeds through the Awin affiliate network. We import those feeds, sort the products into categories and show the price, stock and condition that the retailer reports. Each product page shows the date the price was last checked. Prices can change after that, so the retailer's website always has the final price.</p>
 <h2>What we do not do</h2>
 <p>We do not sell products, take payments or handle deliveries. Orders, returns and warranties are between you and the retailer.</p>
 <h2>Part of the Gear World network</h2>
-<p>${site.name} is one of the Gear World comparison sites. You can find the others on <a href="${site.hub.url}">${site.hub.name}</a>.</p>`
+<p>${tr('{0} is one of the Gear World comparison sites, alongside the other specialist sites on Gear World Hub.', site.name)}</p>
+<p><a class="btn btn-gold" href="${site.hub.url}">Explore the Hub</a></p>`
   }),
 
   '/how-we-make-money/': site => ({
     title: 'How we make money',
     description: `How ${site.name} earns money through affiliate links, and what that means for you.`,
     content: html`
-<p>${site.name} is free to use. We earn money through affiliate links.</p>
+<p>${tr('{0} is free to use. We earn money through affiliate links.', site.name)}</p>
 <h2>What an affiliate link is</h2>
 <p>When you select a "View at" button, you go to the retailer through the Awin affiliate network. If you then buy something, the retailer may pay us a commission. You pay the same price as you would if you went to the retailer directly.</p>
 <h2>How this affects what you see</h2>
@@ -47,11 +52,13 @@ const PAGES = {
     title: 'Contact',
     description: `How to contact ${site.name}.`,
     content: html`
-<p>For questions about this website, email ${contactLink(site)}.</p>
+<p>For questions about this website, send us an email:</p>
+<p class="contact-email" translate="no">${contactLink(site)}</p>
 <p>We cannot help with orders, deliveries, returns or refunds, because we do not sell products. For those, please contact the retailer you bought from.</p>`
   }),
 
   '/privacy/': site => ({
+    legal: true,
     title: 'Privacy policy',
     description: `How ${site.name} handles personal data.`,
     content: html`
@@ -81,6 +88,7 @@ ${site.cart || (site.languages || []).length > 1 ? html`<li><strong>Choices kept
   }),
 
   '/cookies/': site => ({
+    legal: true,
     title: 'Cookies',
     description: `Which cookies ${site.name} uses.`,
     content: html`
@@ -95,6 +103,7 @@ ${site.cart || (site.languages || []).length > 1 ? html`<li><strong>Choices kept
   }),
 
   '/terms/': site => ({
+    legal: true,
     title: 'Terms of use',
     description: `The terms for using ${site.name}.`,
     content: html`
@@ -131,8 +140,8 @@ export function infoPage(site, path) {
   ${breadcrumbs(crumbs)}
   <article class="prose">
     <h1>${p.title}</h1>
-    <p class="lang-note" data-lang-note hidden>This page is available in English only.</p>
-    <div translate="no">${p.content}</div>
+    ${p.legal ? html`<p class="lang-note" data-lang-note hidden>This page is available in English only.</p>
+    <div translate="no">${p.content}</div>` : p.content}
   </article>
 </div>`;
   return page(site, {

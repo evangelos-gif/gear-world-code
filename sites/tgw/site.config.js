@@ -9,7 +9,7 @@ export default {
   lang: 'en-GB',
   locale: 'en-GB',
   currency: 'GBP',
-  assetVersion: '2026-10-19-2',
+  assetVersion: '2026-10-19-3',
   // Key prefix for what a visitor's browser remembers (compare list, cart, language, currency).
   storagePrefix: 'tgw',
 

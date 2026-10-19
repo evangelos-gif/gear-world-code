@@ -87,7 +87,7 @@ try {
     productPath, '/deals/', '/search', '/search?q=laptop', '/search?q=zzzzqqq',
     ids.length >= 2 ? `/compare/?ids=${ids.slice(0, 2).join(',')}` : '', sameCat.length === 2 ? `/compare/?ids=${sameCat.join(',')}` : '', '/compare/',
     ids.length ? `/cart/?items=${ids.map((id, i) => `${id}:${i + 1}`).join(',')}` : '', '/cart/',
-    '/about/', '/privacy/', '/this-page-does-not-exist/'
+    '/about/', '/how-we-make-money/', '/contact/', '/privacy/', '/cookies/', '/terms/', '/this-page-does-not-exist/'
   ].filter(Boolean);
 
   // With an empty dictionary every English text is "missing": that is the full list of texts on the pages.
