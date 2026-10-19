@@ -41,7 +41,7 @@ test('home page counts every active product and marks empty categories "coming s
   const r = await get('/', env);
   const body = await r.text();
   assert.equal(r.status, 200);
-  assert.match(body, />60</);
+  assert.match(body, />61</);
   assert.match(body, /Coming soon/);
   assert.match(body, /30 products/);
 });
@@ -119,6 +119,24 @@ test('/out/ turns plain retailer addresses into Awin links and logs the click in
   assert.match((await get(`/out/${awin.id}`, env)).headers.get('location'), /^https:\/\/www\.awin1\.com\/pclick\.php\?p=890999&a=3057233&m=49385&clickref=ggw-\d+$/);
 });
 
+test('the same product at two retailers is one card, and its page compares both prices', async () => {
+  const env = { DB: fakeD1() };
+  const pair = env.DB.sql.prepare("SELECT id, product_name, retailer, price FROM products WHERE product_name LIKE '%Garden Hose 30m' ORDER BY price").all();
+  assert.equal(pair.length, 2);
+  const list = await (await get('/category/watering-irrigation/', env)).text();
+  assert.equal((list.match(/Garden Hose 30m</g) || []).length, 1, 'one card for both offers');
+  assert.match(list, /2 retailers/);
+  assert.ok(list.includes(`href="/out/${pair[0].id}"`), 'the card button is the cheaper offer');
+  const api = await (await get('/api/products?search=hose&limit=20', env)).json();
+  assert.equal(api.products.filter(p => p.product_name.endsWith('Garden Hose 30m')).length, 1);
+  const page = await (await get(`/product/${legacySlug(pair[1].product_name)}-${pair[1].id}/`, env)).text();
+  assert.match(page, /Prices at 2 retailers/);
+  assert.match(page, /Lowest price/);
+  for (const o of pair) assert.ok(page.includes(`href="/out/${o.id}" rel="sponsored nofollow`), `button for ${o.retailer}`);
+  const other = await (await get('/category/garden-tools/', env)).text();
+  assert.ok(!/retailers<\/a>/.test(other), 'no "retailers" link when only one retailer sells it');
+});
+
 test('a preview Worker with CLICK_LOG=off redirects but records nothing', async () => {
   const env = { DB: fakeD1(), CLICK_LOG: 'off' };
   const r = await get('/out/1', env);
@@ -142,7 +160,7 @@ test('empty categories are noindex and left out of the sitemap; full ones are li
   assert.ok(!map.includes('/category/bbq-outdoor-cooking/'));
   assert.ok(map.includes('/category/garden-tools/'));
   const products = await (await get('/sitemap-products-1.xml', env)).text();
-  assert.equal((products.match(/<loc>/g) || []).length, 60);
+  assert.equal((products.match(/<loc>/g) || []).length, 61);
 });
 
 test('a search with no results asks the Hub for English words, once, on page 1', async () => {

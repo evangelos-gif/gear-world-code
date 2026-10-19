@@ -21,7 +21,7 @@ function specsList(product) {
   return rows;
 }
 
-export function productPage(site, product, category, similar) {
+export function productPage(site, product, category, similar, offers = []) {
   const path = productPath(product);
   const price = formatPrice(product.price, product.currency || site.currency, site.locale);
   const was = Number(product.was_price) > Number(product.price) ? formatPrice(product.was_price, product.currency || site.currency, site.locale) : '';
@@ -89,10 +89,22 @@ export function productPage(site, product, category, similar) {
           <button type="button" class="btn-compare btn-compare-big" data-compare="${product.id}" aria-pressed="false" hidden>+ Compare</button>
           ${site.cart ? html`<button type="button" class="btn-cart btn-cart-big" data-cart="${product.id}" aria-pressed="false" hidden>+ Cart</button>` : ''}
         </div>
+        ${offers.length > 1 ? html`<p class="shelf-offers"><a href="#prices">${tr('Compare {0} retailers', offers.length)}</a></p>` : ''}
         <p class="shelf-note">${tr('You buy on the {0} website, at their price.', product.retailer)} We may earn a commission. <a href="/how-we-make-money/">How this works</a></p>
       </div>
     </div>
   </article>
+
+  ${offers.length > 1 ? html`<section class="section" id="prices" aria-labelledby="prices-h">
+    <h2 id="prices-h">${tr('Prices at {0} retailers', offers.length)}</h2>
+    <ul class="offer-list">${offers.map((o, i) => html`<li class="offer-row${Number(o.id) === Number(product.id) ? ' offer-current' : ''}">
+      <span class="offer-retailer" translate="no">${o.retailer}</span>
+      <span class="offer-price">${priceTag(site, o.price, o.currency)}${i === 0 && Number(o.in_stock) === 1 ? html` <span class="tag-best">${tr('Lowest price')}</span>` : ''}</span>
+      <span class="offer-stock ${Number(o.in_stock) === 1 ? 'ok' : 'warn'}">${Number(o.in_stock) === 1 ? 'In stock' : 'Out of stock'}</span>
+      <a class="btn btn-deal" href="/out/${o.id}" rel="sponsored nofollow noopener" target="_blank">${tr('View at {0}', o.retailer)}</a>
+    </li>`)}</ul>
+    <p class="offer-note">${tr('Same product code (EAN) at each retailer. Prices and stock as the retailers report them.')}</p>
+  </section>` : ''}
 
   ${description ? html`<section class="section prose" aria-labelledby="desc-h">
     <h2 id="desc-h">About this product</h2>

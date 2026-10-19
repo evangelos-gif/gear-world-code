@@ -11,6 +11,7 @@ import { cartPage, parseCartItems } from './pages/cart.js';
 import { exchangeRates } from './lib/fx.js';
 import { hubTranslation } from './lib/hub.js';
 import { infoPage, infoPaths, notFoundPage, errorPage } from './pages/info.js';
+import { useSiteAssets } from './pages/layout.js';
 import { sitemapIndex, sitemapStatic, sitemapProducts, robotsTxt, SITEMAP_CHUNK } from './seo.js';
 
 const PER_PAGE = 24;
@@ -90,8 +91,8 @@ export function createWorker(site) {
         if (!product) return notFound(path, method);
         const canonical = productPath(product);
         if (canonical !== path) return redirect(new URL(canonical, url.origin).toString(), 301);
-        const similar = await db.similarProducts(env.DB, product, 8);
-        return htmlResponse(productPage(site, product, categories.get(product.category_slug), similar), { method });
+        const [similar, offers] = await Promise.all([db.similarProducts(env.DB, product, 8), db.offersFor(env.DB, product)]);
+        return htmlResponse(productPage(site, product, categories.get(product.category_slug), similar, offers), { method });
       });
     }
 
@@ -235,6 +236,7 @@ export function createWorker(site) {
         was_price: x.was_price,
         currency: x.currency,
         stock_status: Number(x.in_stock) === 1 ? 'in_stock' : 'out_of_stock',
+        offers: Number(x.offer_count) || 1,
         image_url: x.image_url,
         product_url: origin + productPath(x),
         affiliate_url: `${origin}/out/${x.id}`
@@ -311,6 +313,7 @@ export function createWorker(site) {
         return textResponse('User-agent: *\nDisallow: /\n', { cache: 'none', method: request.method });
       }
       db.useLayout(site);
+      useSiteAssets(site);
       let response;
       try {
         response = await handle(request, env, ctx);

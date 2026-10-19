@@ -161,6 +161,15 @@ try {
         return { scrollsSideways, scrollWidth: document.documentElement.scrollWidth, vw, edge, small, clipped, hasMain: !!document.querySelector('main') };
       }, { GUTTER, MIN_TAP });
 
+      // Lessons L30: on a phone, the home page shows the search box and "Shop by category" on the first
+      // screen. 620 px leaves room for the phone's own browser bars (address bar and bottom menu).
+      if (vp.name === 'phone' && name === 'home') {
+        const fold = await page.evaluate(() => {
+          const b = sel => { const el = document.querySelector(sel); return el ? Math.round(el.getBoundingClientRect().bottom + window.scrollY) : 99999; };
+          return { search: b('.hero-search'), shop: b('.hero-actions .btn') };
+        });
+        check(fold.search <= 620 && fold.shop <= 620, `${label}: search box and "Shop by category" on the first screen`, `search ends at ${fold.search}px, button at ${fold.shop}px (max 620)`);
+      }
       check(m.hasMain, `${label}: page has <main>`);
       check(!m.scrollsSideways, `${label}: no sideways scrolling`, `scrollWidth ${m.scrollWidth} > ${m.vw}`);
       check(m.edge.length === 0, `${label}: content keeps the ${GUTTER}px gutter`, m.edge.slice(0, 5).join(' | '));

@@ -40,6 +40,11 @@ export function useLayout(site) {
 }
 
 function buildLayout(site) {
+  buildSource(site);
+  LAYOUT.group = Boolean(site && site.groupOffers);
+}
+
+function buildSource(site) {
   const cfg = site && site.database;
   if (!cfg || cfg.layout !== 'legacy') {
     LAYOUT = { legacy: false, from: 'products', catSql: 'p.category_slug = ?', catBinds: slug => [slug] };
@@ -74,6 +79,35 @@ function buildLayout(site) {
 }
 
 export function isLegacy() { return LAYOUT.legacy; }
+
+// One product sold by several retailers (same GTIN/EAN) is shown once, at its best offer: in stock first,
+// then the lowest price. offer_count tells the card how many retailers sell it (site.groupOffers).
+const GROUP_KEY = "COALESCE(NULLIF(TRIM(p.gtin), ''), 'id:' || p.id)";
+
+export function offerKey(product) {
+  const g = String((product && product.gtin) || '').trim();
+  return g || `id:${product && product.id}`;
+}
+
+function cardSql(where, order, tail = '') {
+  if (!LAYOUT.group) return `SELECT ${CARD_COLUMNS} FROM ${LAYOUT.from} p WHERE ${where} ORDER BY ${order} ${tail}`;
+  return `SELECT * FROM (SELECT ${CARD_COLUMNS}, first_seen_at, gtin,
+      ROW_NUMBER() OVER (PARTITION BY ${GROUP_KEY} ORDER BY p.in_stock DESC, p.price ASC, p.id ASC) AS rn,
+      COUNT(*) OVER (PARTITION BY ${GROUP_KEY}) AS offer_count
+    FROM ${LAYOUT.from} p WHERE ${where}) p WHERE p.rn = 1 ORDER BY ${order} ${tail}`;
+}
+
+// Every active offer of the same product (same GTIN), best first. Empty unless the site groups offers.
+export async function offersFor(db, product, limit = 12) {
+  if (!LAYOUT.group || !product || !String(product.gtin || '').trim()) return [];
+  const r = await db
+    .prepare(`SELECT id, retailer, price, currency, in_stock, last_seen_at FROM ${LAYOUT.from} p
+      WHERE p.is_active = 1 AND ${GROUP_KEY} = ? ORDER BY p.in_stock DESC, p.price ASC, p.id ASC LIMIT ?`)
+    .bind(offerKey(product), limit)
+    .all();
+  const rows = r.results || [];
+  return rows.length > 1 ? rows : [];
+}
 
 function catWhere(slug) {
   return { sql: typeof LAYOUT.catSql === 'function' ? LAYOUT.catSql(slug) : LAYOUT.catSql, binds: LAYOUT.catBinds(slug) };
@@ -139,10 +173,12 @@ export async function listProducts(db, filters, { sort = 'featured', page = 1, p
   if (!f) return { products: [], total: 0, page: 1, pages: 0 };
   const order = SORTS[normalizeSort(sort)];
   const offset = (page - 1) * perPage;
+  const countSql = LAYOUT.group
+    ? `SELECT COUNT(DISTINCT ${GROUP_KEY}) AS n FROM ${LAYOUT.from} p WHERE ${f.sql}`
+    : `SELECT COUNT(*) AS n FROM ${LAYOUT.from} p WHERE ${f.sql}`;
   const [count, rows] = await db.batch([
-    db.prepare(`SELECT COUNT(*) AS n FROM ${LAYOUT.from} p WHERE ${f.sql}`).bind(...f.binds),
-    db.prepare(`SELECT ${CARD_COLUMNS} FROM ${LAYOUT.from} p WHERE ${f.sql} ORDER BY ${order} LIMIT ? OFFSET ?`)
-      .bind(...f.binds, perPage, offset)
+    db.prepare(countSql).bind(...f.binds),
+    db.prepare(cardSql(f.sql, order, 'LIMIT ? OFFSET ?')).bind(...f.binds, perPage, offset)
   ]);
   const total = Number(count.results?.[0]?.n || 0);
   return { products: fixAll(rows.results), total, page, pages: Math.ceil(total / perPage) };
@@ -195,9 +231,8 @@ export async function similarProducts(db, product, limit = 8) {
   if (!product.category_slug) return [];
   const c = catWhere(product.category_slug);
   const r = await db
-    .prepare(`SELECT ${CARD_COLUMNS} FROM ${LAYOUT.from} p WHERE p.is_active = 1 AND ${c.sql} AND p.id <> ?
-      ORDER BY ABS(p.price - ?) ASC, p.id ASC LIMIT ?`)
-    .bind(...c.binds, product.id, product.price, limit)
+    .prepare(cardSql(`p.is_active = 1 AND ${c.sql} AND p.id <> ? AND ${GROUP_KEY} <> ?`, 'ABS(p.price - ?) ASC, p.id ASC', 'LIMIT ?'))
+    .bind(...c.binds, product.id, offerKey(product), product.price, limit)
     .all();
   return fixAll(r.results);
 }
@@ -205,11 +240,9 @@ export async function similarProducts(db, product, limit = 8) {
 export async function homeData(db, categorySlugs) {
   const [counts, deals, newest, retailers, updated] = await db.batch([
     db.prepare(`SELECT category_slug AS slug, COUNT(*) AS n FROM ${LAYOUT.from} p WHERE p.is_active = 1 GROUP BY category_slug`),
-    db.prepare(`SELECT ${CARD_COLUMNS} FROM ${LAYOUT.from} p WHERE p.is_active = 1 AND p.in_stock = 1 AND p.was_price > p.price
-      AND (p.was_price - p.price) / p.was_price BETWEEN 0.05 AND 0.9
-      ORDER BY (p.was_price - p.price) / p.was_price DESC, p.id ASC LIMIT 11`),
-    db.prepare(`SELECT ${CARD_COLUMNS} FROM ${LAYOUT.from} p WHERE p.is_active = 1 AND p.in_stock = 1
-      ORDER BY p.first_seen_at DESC, p.id DESC LIMIT 11`),
+    db.prepare(cardSql(`p.is_active = 1 AND p.in_stock = 1 AND p.was_price > p.price
+      AND (p.was_price - p.price) / p.was_price BETWEEN 0.05 AND 0.9`, '(p.was_price - p.price) / p.was_price DESC, p.id ASC', 'LIMIT 11')),
+    db.prepare(cardSql('p.is_active = 1 AND p.in_stock = 1', 'p.first_seen_at DESC, p.id DESC', 'LIMIT 11')),
     db.prepare('SELECT retailer AS name, COUNT(*) AS n FROM products WHERE is_active = 1 GROUP BY retailer ORDER BY n DESC, retailer'),
     db.prepare(`SELECT MAX(last_seen_at) AS t FROM ${LAYOUT.from} p WHERE p.is_active = 1`)
   ]);

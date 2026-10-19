@@ -138,7 +138,7 @@ export function categoryPage(site, cat, p, result, facets) {
     <div class="listing-main">
       ${resultsHeader(result)}
       ${result.products.length
-        ? productGrid(site, result.products, { headingLevel: 2 })
+        ? html`<h2 class="visually-hidden">${tr('Products')}</h2>${productGrid(site, result.products)}`
         : filtered
           ? html`<div class="empty"><h2>No products match these filters</h2><p>Remove a filter or <a href="${base}">see all products in this category</a>.</p></div>`
           : html`<div class="empty" data-empty-category><h2>${tr('Coming soon')}</h2><p>${tr('We are adding products to this category. Until then, browse the other categories.')}</p>
@@ -176,7 +176,7 @@ export function searchPage(site, q, p, result, usedQuery = '') {
       ${usedQuery ? html`<p class="search-note">${tr('Showing results for “{0}”', usedQuery)}</p>` : ''}
       ${resultsHeader(result)}
       ${result.products.length
-        ? productGrid(site, result.products, { headingLevel: 2 })
+        ? html`<h2 class="visually-hidden">${tr('Products')}</h2>${productGrid(site, result.products)}`
         : html`<div class="empty"><h2>${tr('No products found for “{0}”', q)}</h2><p>Check the spelling, try a shorter word such as a brand name, or browse a category.</p>
           <ul class="chip-list">${site.categories.map(c => html`<li><a href="${categoryPath(c.slug)}">${c.name}</a></li>`)}</ul></div>`}
       ${pagination('/search', params, result)}
@@ -206,13 +206,13 @@ export function dealsPage(site, p, result) {
   </header>
   ${resultsHeader(result)}
   ${result.products.length
-    ? productGrid(site, result.products, { headingLevel: 2 })
+    ? html`<h2 class="visually-hidden">${tr('Products')}</h2>${productGrid(site, result.products)}`
     : html`<div class="empty"><h2>${tr('No price drops right now')}</h2><p>${tr('Prices change every day.')} <a href="/">${tr('Browse all categories')}</a></p></div>`}
   ${pagination(base, {}, result)}
 </div>`;
   return page(site, {
     title: `${site.topicTitle} price drops${p.page > 1 ? ` (page ${p.page})` : ''} | ${site.name}`,
-    description: `Current price drops on ${site.topic} from UK retailers, compared on ${site.name}.`,
+    description: `Current price drops on ${site.topic} from trusted retailers, compared on ${site.name}.`,
     path: base,
     canonical: p.page > 1 ? pageLink(base, {}, p.page) : base,
     robots: result.products.length ? 'index,follow' : 'noindex,follow',

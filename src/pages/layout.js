@@ -2,8 +2,15 @@
 import { html, raw, jsonLd, toString } from '../lib/html.js';
 import { productPath, categoryPath, formatPrice, savingPercent } from '../lib/text.js';
 
+// Files under /assets/ are cached for a year, so every link to them carries ?v=<assetVersion> (lessons L31).
+// Without it, a phone kept an old icons.svg that had no cart icon, and the cart button showed empty.
+let ICONS = '/assets/icons.svg';
+export function useSiteAssets(site) {
+  ICONS = asset(site, 'icons.svg');
+}
+
 export function icon(name, cls = 'icon') {
-  return html`<svg class="${cls}" aria-hidden="true" focusable="false"><use href="/assets/icons.svg#${name}"></use></svg>`;
+  return html`<svg class="${cls}" aria-hidden="true" focusable="false"><use href="${ICONS}#${name}"></use></svg>`;
 }
 
 export function asset(site, path) {
@@ -183,7 +190,7 @@ function footer(site, year) {
     </section>
   </div>
   <div class="wrap footer-note">
-    <p>${tr('{0} compares prices from UK retailers.', site.name)} ${' '}When you buy through a link on this site we may earn a commission from the retailer, at no extra cost to you. Prices and stock can change. Always check the final price on the retailer's website.</p>
+    <p>${tr('{0} compares prices from trusted retailers.', site.name)} ${' '}When you buy through a link on this site we may earn a commission from the retailer, at no extra cost to you. Prices and stock can change. Always check the final price on the retailer's website.</p>
     <p translate="no">&copy; ${year} ${site.name}</p>
   </div>
 </footer>`;
@@ -203,7 +210,7 @@ export function productCard(site, p, { headingLevel = 3 } = {}) {
     ${p.brand ? html`<p class="label-brand" translate="no">${p.brand}</p>` : ''}
     ${raw(`<${h} class="label-name" translate="no">`)}<a href="${href}">${p.product_name}</a>${raw(`</${h}>`)}
     <p class="label-price">${priceTag(site, p.price, p.currency)}${was ? html` <s class="was">${was}</s>` : ''}${pct ? html` <span class="tag-save">${tr('Save {0}%', pct)}</span>` : ''}</p>
-    <p class="label-meta"><span class="retailer" translate="no">${p.retailer}</span>${p.item_condition === 'refurbished' ? html`<span class="badge">Refurbished</span>` : ''}${Number(p.in_stock) === 1 ? '' : html`<span class="badge badge-out">Out of stock</span>`}</p>
+    <p class="label-meta"><span class="retailer" translate="no">${p.retailer}</span>${Number(p.offer_count) > 1 ? html`<a class="offers-link" href="${href}#prices">${tr('{0} retailers', p.offer_count)}</a>` : ''}${p.item_condition === 'refurbished' ? html`<span class="badge">Refurbished</span>` : ''}${Number(p.in_stock) === 1 ? '' : html`<span class="badge badge-out">Out of stock</span>`}</p>
     <a class="btn btn-deal" href="/out/${p.id}" rel="sponsored nofollow noopener" target="_blank">${tr('View at {0}', p.retailer)}</a>
     <div class="card-actions">
       <button type="button" class="btn-compare" data-compare="${p.id}" aria-pressed="false" hidden>+ Compare</button>

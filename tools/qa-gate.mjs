@@ -86,6 +86,10 @@ function htmlChecks(path, res, { expectStatus = 200, indexable = true } = {}) {
   }
   check('L17', h.includes(`&copy; ${new Date().getUTCFullYear()}`), `${path}: footer shows the current year`);
   for (const ld of jsonLd(h)) check('L12', !ld.__invalid, `${path}: JSON-LD is valid JSON`);
+  // Lessons L31: /assets/ files are cached for a year, so every link to them carries ?v=<version>.
+  // Fonts are the exception: they must match the stylesheet's url() exactly, and a new font gets a new file name.
+  const unversioned = all(h, /(?:href|src|srcset)="(\/assets\/[^"?#\s]+)(?=[#"\s])/g).map(x => x[1]).filter(u => !u.startsWith('/assets/fonts/'));
+  if (site) check('L31', unversioned.length === 0, `${path}: every /assets/ link has ?v= (no stale files from the year-long cache)`, unversioned.slice(0, 3).join(' '));
 }
 
 // ---------- run ----------
