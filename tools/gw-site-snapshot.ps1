@@ -3,11 +3,15 @@
   Gear World - site snapshot. READ-ONLY.
 
 .DESCRIPTION
-  Collects the code of ONE Gear World site into ONE text report, so Claude can review it:
+  Collects the code of ONE Gear World site (or the shared import router, -Site ROUTER) into ONE text report,
+  so Claude can review it:
     - worker.js (full text), wrangler config (IDs masked), package.json
     - list of files in the site folder and in public/ (names and sizes only)
     - small text files from public/ (robots.txt, _headers, _redirects, manifest ...)
     - optional: D1 table structure and row counts (SELECT only, never writes)
+    - optional: the Cloudflare accounts wrangler can see and their D1 databases (whoami, d1 list: read-only)
+  -Site ROUTER reads the import router folder (gear-world-import): its code files (.js .mjs .ps1 ...) instead
+  of worker.js, without backups, node_modules or data files.
   Hard-coded secrets are masked and reported. Files named .dev.vars / .env are never read.
   It never changes site files, production, or D1.
 
@@ -18,7 +22,7 @@
 #>
 [CmdletBinding()]
 param(
-    [ValidateSet('GWH', 'CGW', 'MGW', 'WGW', 'KGW', 'HGW', 'GGW', 'TGW')]
+    [ValidateSet('GWH', 'CGW', 'MGW', 'WGW', 'KGW', 'HGW', 'GGW', 'TGW', 'ROUTER')]
     [string]$Site = 'GGW',
     [string]$Root = $HOME,
     [string]$OutDir = '',
@@ -27,7 +31,12 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
-$ScriptVersion = 'gw-site-snapshot v2'
+$ScriptVersion = 'gw-site-snapshot v3'
+$RouterCodeExt = @('.js', '.mjs', '.cjs', '.ts', '.ps1', '.psm1', '.py', '.sql', '.json', '.jsonc', '.toml', '.md')
+$RouterMaxFiles = 40
+$RouterFileLimit = 64KB
+$RouterSkipDirs = '(?i)[\\/](node_modules|\.wrangler|\.git|backups?|release-archive|archive|reports?|out|dist|tmp|temp)([\\/]|$)'
+$RouterSkipNames = '(?i)(before|\.bak|backup|-old|_old|\.orig|\.min\.)'
 $MaxTopEntries = 250
 $MaxPublicEntries = 400
 $SmallTextLimit = 16KB
@@ -37,6 +46,7 @@ $NeverRead = @('.dev.vars', '.env', '.env.local', '.env.production')
 $FolderBySite = @{
     GWH = 'gear-world-hub'; CGW = 'construction-gear-uk'; MGW = 'mens-gear-world'; WGW = 'womens-gear-world'
     KGW = 'kids-gear-world'; HGW = 'home-gear-world'; GGW = 'garden-gear-world'; TGW = 'technology-gear-world'
+    ROUTER = 'gear-world-import'
 }
 
 # ---------- helpers ----------
@@ -69,9 +79,15 @@ function Get-WranglerConfig([string]$Dir) {
     return $null
 }
 
-function Find-SiteFolder([string]$BaseRoot, [string]$FolderName) {
+function Find-SiteFolder([string]$BaseRoot, [string]$FolderName, [switch]$AnyFolder) {
     $direct = Join-Path $BaseRoot $FolderName
     if (Test-Path -LiteralPath (Join-Path $direct 'worker.js')) { return $direct }
+    if ($AnyFolder) {
+        foreach ($b in @($BaseRoot, (Join-Path $BaseRoot 'Documents'), (Join-Path $BaseRoot 'Desktop'), (Join-Path $BaseRoot 'OneDrive'))) {
+            $p = Join-Path $b $FolderName
+            if (Test-Path -LiteralPath $p -PathType Container) { return $p }
+        }
+    }
     $bases = @($BaseRoot, (Join-Path $BaseRoot 'Documents'), (Join-Path $BaseRoot 'Desktop'), (Join-Path $BaseRoot 'OneDrive'))
     foreach ($b in $bases) {
         if (-not (Test-Path -LiteralPath $b)) { continue }
@@ -155,6 +171,17 @@ function Invoke-D1Select([string]$SiteDir, [string]$DbName, [string]$Sql) {
     }
 }
 
+function Invoke-WranglerRead([string]$Dir, [string]$Arguments) {
+    # Read-only commands only. The list is fixed: nothing else can be passed through.
+    if (@('whoami', 'd1 list --json') -notcontains $Arguments) { throw 'Not a read-only wrangler command' }
+    $tmp = [System.IO.Path]::GetTempPath()
+    $cmdFile = Join-Path $tmp 'gw-wrangler-read.cmd'
+    $body = "@echo off`r`ncd /d `"$Dir`"`r`nset WRANGLER_SEND_METRICS=false`r`nset FORCE_COLOR=0`r`ncall npx --yes wrangler $Arguments 2>&1`r`n"
+    [System.IO.File]::WriteAllText($cmdFile, $body, [System.Text.Encoding]::ASCII)
+    try { $out = @(& $cmdFile) } finally { Remove-Item -LiteralPath $cmdFile -ErrorAction SilentlyContinue }
+    return (@($out | ForEach-Object { "$_" }) -join "`r`n")
+}
+
 # ---------- main ----------
 
 if (-not $OutDir) { $OutDir = Join-Path $HOME 'gear-world-reports' }
@@ -162,7 +189,8 @@ $folderName = $FolderBySite[$Site]
 Write-Host ''
 Write-Host ("Gear World snapshot - {0} - ΜΟΝΟ ΑΝΑΓΝΩΣΗ (δεν αλλάζει τίποτα)" -f $Site) -ForegroundColor Cyan
 
-$siteDir = Find-SiteFolder $Root $folderName
+$isRouter = ($Site -eq 'ROUTER')
+$siteDir = Find-SiteFolder $Root $folderName -AnyFolder:$isRouter
 if (-not $siteDir) {
     Write-Host ("Δεν βρήκα τον φάκελο του {0} ({1}) μέσα στο {2}." -f $Site, $folderName, $Root) -ForegroundColor Red
     Write-Host 'Στείλε στο Claude αυτό το μήνυμα.' -ForegroundColor Red
@@ -235,6 +263,34 @@ foreach ($p in $codeFiles) {
     $L.Add($text)
 }
 
+# 4b. Router: its code files (newest first), without backups, data files or installed packages
+if ($isRouter) {
+    $all = @(Get-ChildItem -LiteralPath $siteDir -Recurse -File -Force -ErrorAction SilentlyContinue | Where-Object {
+        $rel = $_.FullName.Substring($siteDir.Length)
+        ($rel -notmatch $RouterSkipDirs) -and ($_.Name -notmatch $RouterSkipNames) -and ($NeverRead -notcontains $_.Name) -and
+        ($RouterCodeExt -contains $_.Extension.ToLower()) -and ($_.Name -notlike 'wrangler.*') -and ($_.Name -ne 'package.json') -and
+        ($_.Name -ne 'package-lock.json')
+    } | Sort-Object LastWriteTime -Descending)
+    $L.Add('')
+    $L.Add(('--- ROUTER CODE FILES: {0} found, newest {1} up to {2} included ---' -f $all.Count, $RouterMaxFiles, (Format-Size $RouterFileLimit)))
+    foreach ($f in $all) {
+        $rel = $f.FullName.Substring($siteDir.Length).TrimStart('\', '/').Replace('\', '/')
+        $L.Add(('{0,-70} {1,10}  {2}' -f $rel, (Format-Size $f.Length), $f.LastWriteTime.ToString('yyyy-MM-dd HH:mm')))
+    }
+    $taken = 0
+    foreach ($f in $all) {
+        if ($taken -ge $RouterMaxFiles) { break }
+        if ($f.Length -gt $RouterFileLimit) { continue }
+        $rel = $f.FullName.Substring($siteDir.Length).TrimStart('\', '/').Replace('\', '/')
+        $text = Protect-Secrets (Read-Text $f.FullName) $rel $findings
+        $hash = (Get-FileHash -LiteralPath $f.FullName -Algorithm SHA256).Hash.Substring(0, 16)
+        $L.Add('')
+        $L.Add(('--- FILE: {0} ({1}, sha256 {2}) ---' -f $rel, (Format-Size $f.Length), $hash))
+        $L.Add($text)
+        $taken++
+    }
+}
+
 # 5. Small text files from public/
 foreach ($f in $pubFiles) {
     $ext = [System.IO.Path]::GetExtension($f.Name).ToLower()
@@ -297,6 +353,23 @@ if ($SkipD1) {
             }
         }
     }
+}
+
+# 6b. Cloudflare accounts and D1 databases wrangler can see (read-only: whoami, d1 list)
+$L.Add('')
+$L.Add('--- CLOUDFLARE ACCOUNTS AND D1 DATABASES (read-only) ---')
+if ($SkipD1) {
+    $L.Add('skipped (-SkipD1)')
+} else {
+    Write-Host 'Διαβάζω ποιους λογαριασμούς Cloudflare και ποιες D1 βλέπει το wrangler (μόνο ανάγνωση)...'
+    $who = Invoke-WranglerRead $siteDir 'whoami'
+    $L.Add('whoami:')
+    $L.Add($who)
+    $dl = Invoke-WranglerRead $siteDir 'd1 list --json'
+    $L.Add('')
+    $L.Add('d1 list:')
+    if ($dl.Length -gt 8000) { $dl = $dl.Substring(0, 8000) + ' ...' }
+    $L.Add($dl)
 }
 
 # 7. Findings summary

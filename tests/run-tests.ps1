@@ -121,6 +121,30 @@ Check ($LASTEXITCODE -eq 0) 'finds the site folder by wrangler name'
 & $exe -NoProfile -ExecutionPolicy Bypass -File $snap -Site MGW -Root $root -OutDir (Join-Path $work 'out3') -SkipD1 -NoClipboard
 Check ($LASTEXITCODE -eq 2) 'missing site gives exit code 2'
 
+# 3c2. Router folder (gear-world-import): code files only, no worker.js needed, backups and packages skipped
+$router = Join-Path $root 'gear-world-import'
+Write-Utf8 (Join-Path $router 'router.mjs') ("// router`nconst TOKEN_SECRET = `"$fakeSecret`";`nexport const sites = ['cgw'];`n")
+Write-Utf8 (Join-Path $router 'scripts/split-feeds.ps1') "Write-Host 'split'`n"
+Write-Utf8 (Join-Path $router 'router-before-v2.mjs') "// old copy`n"
+Write-Utf8 (Join-Path $router 'node_modules/x/index.js') "// package`n"
+Write-Utf8 (Join-Path $router 'backups/old.js') "// backup`n"
+Write-Utf8 (Join-Path $router 'data.csv') "a,b`n"
+$routerBefore = Get-TreeHash $router
+& $exe -NoProfile -ExecutionPolicy Bypass -File $snap -Site ROUTER -Root $root -OutDir (Join-Path $work 'out-router') -SkipD1 -NoClipboard
+Check ($LASTEXITCODE -eq 0) 'router snapshot exit code 0'
+$repR = @(Get-ChildItem -LiteralPath (Join-Path $work 'out-router') -Filter 'GW_SNAPSHOT_ROUTER_*.txt' -ErrorAction SilentlyContinue)
+if ($repR.Count -ge 1) {
+    $rr = [System.IO.File]::ReadAllText($repR[0].FullName)
+    Check ($rr.Contains('--- FILE: router.mjs')) 'router code file included'
+    Check ($rr.Contains('--- FILE: scripts/split-feeds.ps1')) 'router script in a subfolder included'
+    Check (-not $rr.Contains('router-before-v2.mjs')) 'router backup copy skipped'
+    Check (-not $rr.Contains('node_modules')) 'router packages skipped'
+    Check (-not $rr.Contains('backups/old.js')) 'router backups folder skipped'
+    Check (-not $rr.Contains('data.csv')) 'router data files skipped'
+    Check (-not $rr.Contains($fakeSecret)) 'router secret masked'
+} else { Check $false 'router report written' }
+Check ((Get-TreeHash $router) -eq $routerBefore) 'router folder unchanged (read-only)'
+
 # 3d. D1 read path with a fake npx (Windows only, because it runs a .cmd file)
 if ($isWin) {
     $bin = Join-Path $work 'bin'
@@ -153,7 +177,8 @@ if ($isWin) {
         $r4 = [System.IO.File]::ReadAllText($rep4[0].FullName)
         Check ($r4.Contains('-- [table] products')) 'D1 schema parsed'
         Check ($r4 -match 'products\s+42') 'D1 row count parsed (FTS shadow tables skipped)'
-        Check ($r4.Contains('gw-site-snapshot v2')) 'report shows tool version'
+        Check ($r4.Contains('gw-site-snapshot v3')) 'report shows tool version'
+        Check ($r4.Contains('--- CLOUDFLARE ACCOUNTS AND D1 DATABASES')) 'report lists Cloudflare accounts and D1 databases'
     } else { Check $false 'D1 report written' }
 }
 
