@@ -44,7 +44,7 @@ export function homePage(site, data) {
         ${img ? html`<img src="${img}" alt="" width="720" height="480" loading="lazy" decoding="async">` : icon(c.icon, 'cat-icon')}
         <span class="cat-text">
           <span class="cat-name">${c.name}</span>
-          <span class="cat-count">${tr('{0} products', fmt(data.categoryCounts[c.slug] || 0))}</span>
+          <span class="cat-count">${data.categoryCounts[c.slug] ? tr('{0} products', fmt(data.categoryCounts[c.slug])) : tr('Coming soon')}</span>
         </span>
         ${icon('chevron', 'cat-chevron')}
       </a>

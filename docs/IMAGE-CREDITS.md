@@ -15,3 +15,12 @@
 | cat-tv-home-cinema.webp | https://www.pexels.com/photo/modern-living-room-with-digital-devices-and-tv-29606737/ |
 | cat-smart-home-wifi.webp | https://www.pexels.com/photo/brown-speaker-on-the-table-4790266/ |
 | cat-accessories-storage.webp | https://www.pexels.com/photo/white-power-bank-and-blue-coated-wires-4072683/ |
+
+## Garden Gear World (GGW)
+
+| Αρχείο | Πηγή |
+|---|---|
+| sites/ggw/public/assets/img/hero-1920.webp, hero-960.webp, og-image.png (φόντο) | Pexels: https://www.pexels.com/photo/1301856/ |
+| sites/ggw/public/assets/img/cat-*.webp | Οι εικόνες κατηγοριών του ίδιου του GGW (`ggw-cat-0X-*.png` από το παλιό site), κομμένες σε 3:2 |
+| og-image.png (λογότυπο) | Το λογότυπο του GGW (`ggw-logo.png` από το παλιό site) |
+| logo.svg, favicon.svg, apple-touch-icon.png | Σχεδιασμένα για το repo (φύλλα σε πράσινο τετράγωνο) |

@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Garden Gear World">
+  <rect width="64" height="64" rx="12" fill="#1D7434"/>
+  <path d="M27 47C25 31 33 18 51 13c2 19-7 32-24 34z" fill="#8FD14F"/>
+  <path d="M25 46c-9-2-14-10-13-20 9 0 15 6 16 15" fill="#C7EF8E"/>
+  <g fill="none" stroke="#0F3D1C" stroke-width="2.4" stroke-linecap="round">
+    <path d="M28 45c4-10 11-19 19-27"/>
+    <path d="M25 44c-3-5-6-10-10-14"/>
+  </g>
+  <path d="M9 53c13-6 33-6 46 0" fill="none" stroke="#F2F3EF" stroke-width="3.2" stroke-linecap="round"/>
+</svg>

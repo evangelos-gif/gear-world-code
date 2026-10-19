@@ -139,7 +139,10 @@ export function categoryPage(site, cat, p, result, facets) {
       ${resultsHeader(result)}
       ${result.products.length
         ? productGrid(site, result.products, { headingLevel: 2 })
-        : html`<div class="empty"><h2>No products match these filters</h2><p>Remove a filter or <a href="${base}">see all products in this category</a>.</p></div>`}
+        : filtered
+          ? html`<div class="empty"><h2>No products match these filters</h2><p>Remove a filter or <a href="${base}">see all products in this category</a>.</p></div>`
+          : html`<div class="empty" data-empty-category><h2>${tr('Coming soon')}</h2><p>${tr('We are adding products to this category. Until then, browse the other categories.')}</p>
+            <ul class="chip-list">${site.categories.filter(c => c.slug !== cat.slug).map(c => html`<li><a href="${categoryPath(c.slug)}">${c.name}</a></li>`)}</ul></div>`}
       ${pagination(base, params, result)}
     </div>
   </div>
@@ -159,7 +162,7 @@ export function categoryPage(site, cat, p, result, facets) {
   });
 }
 
-export function searchPage(site, q, p, result) {
+export function searchPage(site, q, p, result, usedQuery = '') {
   const params = keepParams(p, { q });
   const body = html`
 <div class="wrap">
@@ -170,6 +173,7 @@ export function searchPage(site, q, p, result) {
   ${q ? html`<div class="listing">
     <aside class="listing-side">${filterForm('/search', p, null, { q })}</aside>
     <div class="listing-main">
+      ${usedQuery ? html`<p class="search-note">${tr('Showing results for “{0}”', usedQuery)}</p>` : ''}
       ${resultsHeader(result)}
       ${result.products.length
         ? productGrid(site, result.products, { headingLevel: 2 })

@@ -1,4 +1,4 @@
-// Technology Gear World. One small script; every page also works without it.
+// Gear World sites (shared by every site on the engine; TGW keeps the master copy). One small script; every page also works without it.
 // Parts: language (L24), currency (L25), Gear Cart (L26), compare (L23), voice search, newsletter.
 (function () {
   'use strict';

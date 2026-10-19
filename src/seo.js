@@ -29,8 +29,11 @@ export function sitemapIndex(site, totalProducts) {
     .join('\n')}\n</sitemapindex>\n`;
 }
 
-export function sitemapStatic(site) {
-  const paths = ['/', '/deals/', ...site.categories.map(c => categoryPath(c.slug)), ...infoPaths()];
+// counts: { slug: number of products }. A category with no products yet is "noindex", so it is left out
+// until it has products (Search Console reports sitemap pages that say noindex).
+export function sitemapStatic(site, counts = null) {
+  const cats = site.categories.filter(c => !counts || Number(counts[c.slug]) > 0);
+  const paths = ['/', '/deals/', ...cats.map(c => categoryPath(c.slug)), ...infoPaths()];
   return urlset(paths.map(p => ({ loc: `https://${site.domain}${p}` })));
 }
 

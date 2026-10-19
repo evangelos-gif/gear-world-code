@@ -9,6 +9,7 @@ import { readFileSync, readdirSync, statSync, writeFileSync, existsSync } from '
 import { join, relative, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { normalizeGtin } from '../src/lib/gtin.js';
+import { legacySlug } from '../src/db.js';
 
 const args = process.argv.slice(2);
 const base = (args.find(a => /^https?:\/\//.test(a)) || 'http://127.0.0.1:8787').replace(/\/$/, '');
@@ -103,13 +104,21 @@ check('L09', !/>\s*0\s*(products|PRODUCTS)/.test(home.body) || total === 0, '/: 
 // Categories
 const categoryPaths = site ? site.categories.map(c => `/category/${c.slug}/`) : all(home.body, /href="(\/category\/[^"?#]+\/)"/g).map(m => m[1]).filter((v, i, a) => a.indexOf(v) === i);
 let productPaths = [];
+const emptyCategories = new Set();
 for (const p of categoryPaths) {
   const r = await get(p);
-  htmlChecks(p, r);
+  htmlChecks(p, r, { indexable: !/data-empty-category/.test(r.body) });
   const cards = all(r.body, /href="(\/product\/[^"]+\/)"/g).map(m => m[1]);
-  check('L10', total === 0 || cards.length > 0 || r.body.includes('No products match'), `${p}: products are in the HTML`, `${cards.length} product links`);
+  if (/data-empty-category/.test(r.body)) {
+    // A category with no products yet: honest "coming soon", kept out of Google until it has products.
+    emptyCategories.add(p);
+    check('L10', cards.length === 0 && /noindex/.test(robots(r.body)), `${p}: empty category says "coming soon" and is noindex`);
+  } else {
+    check('L10', total === 0 || cards.length > 0 || r.body.includes('No products match'), `${p}: products are in the HTML`, `${cards.length} product links`);
+  }
   productPaths.push(...cards.slice(0, 1));
 }
+check('L10', emptyCategories.size < categoryPaths.length || total === 0, 'at least one category has products');
 
 // Product pages
 productPaths = [...new Set(productPaths)].slice(0, 6);
@@ -166,7 +175,10 @@ for (const m of maps) {
   check('L11', locs.every(l => l.startsWith(canonicalOrigin + '/')), `${path}: every URL uses ${canonicalOrigin}`);
 }
 check('L10', productUrls === total, 'sitemaps list every active product', `${productUrls} URLs, ${total} products`);
-for (const p of categoryPaths) check('L10', staticUrls.includes(canonicalOrigin + p), `sitemap-static lists ${p}`);
+for (const p of categoryPaths) {
+  if (emptyCategories.has(p)) check('L10', !staticUrls.includes(canonicalOrigin + p), `sitemap-static leaves out the empty category ${p} (noindex)`);
+  else check('L10', staticUrls.includes(canonicalOrigin + p), `sitemap-static lists ${p}`);
+}
 
 // public/ allowlist (lessons L04)
 if (siteDir) {
@@ -272,6 +284,38 @@ if (site && site.voiceSearch) {
   check('L06', /microphone=\(self\)/.test(home.headers.get('permissions-policy') || ''), 'Permissions-Policy allows the microphone for this site only', home.headers.get('permissions-policy'));
   check('L06', /camera=\(\)/.test(home.headers.get('permissions-policy') || ''), 'Permissions-Policy keeps the camera off until camera search exists');
   check('L22', /data-voice/.test(home.body), '/: search boxes have a microphone button');
+}
+
+// Older database kept as it is (lessons L28): product addresses must be the ones the old site used.
+if (site && site.database && site.database.layout === 'legacy') {
+  const api = await get('/api/products?limit=60');
+  let ps = [];
+  try { ps = JSON.parse(api.body).products || []; } catch { ps = []; }
+  const wrong = ps.filter(x => new URL(x.product_url).pathname !== `/product/${legacySlug(x.product_name)}-${x.id}/`);
+  check('L28', ps.length > 0 && wrong.length === 0, 'product addresses are the same as on the old site', wrong.slice(0, 3).map(x => x.product_url).join(' '));
+  const known = new Set(Object.values(site.database.categories).flat());
+  check('L28', ps.every(x => x.site_category), '/api/products keeps the old category name for the Hub');
+  const unmapped = [...new Set(ps.map(x => x.site_category).filter(c => !known.has(c)))];
+  if (unmapped.length) console.warn(`note: categories in the database without a page: ${unmapped.join(', ')}`);
+}
+
+// Retailer links earn commission (lessons L29): for every retailer with an Awin programme, /out/ goes to Awin.
+if (site && site.awin && site.awin.advertisers) {
+  for (const [retailer, mid] of Object.entries(site.awin.advertisers)) {
+    const list = await get(`/api/products?retailer=${encodeURIComponent(retailer)}&limit=3`);
+    let ps = [];
+    try { ps = JSON.parse(list.body).products || []; } catch { ps = []; }
+    for (const x of ps.filter(y => y.retailer === retailer).slice(0, 2)) {
+      const o = await get(`/out/${x.id}`, { method: 'HEAD' });
+      const loc = o.headers.get('location') || '';
+      let u = null;
+      try { u = new URL(loc); } catch { u = null; }
+      const ok = u && u.hostname === 'www.awin1.com' && /[?&]clickref=/.test(loc) &&
+        (u.searchParams.get('awinaffid') === String(site.awin.publisherId) || u.searchParams.get('a') === String(site.awin.publisherId)) &&
+        (u.searchParams.get('awinmid') === String(mid) || u.searchParams.get('m') === String(mid));
+      check('L29', ok, `/out/${x.id} (${retailer}) goes through Awin with our publisher id`, loc.slice(0, 140));
+    }
+  }
 }
 
 // Launch readiness

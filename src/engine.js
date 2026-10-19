@@ -9,6 +9,7 @@ import { productPage } from './pages/product.js';
 import { comparePage, parseCompareIds } from './pages/compare.js';
 import { cartPage, parseCartItems } from './pages/cart.js';
 import { exchangeRates } from './lib/fx.js';
+import { hubTranslation } from './lib/hub.js';
 import { infoPage, infoPaths, notFoundPage, errorPage } from './pages/info.js';
 import { sitemapIndex, sitemapStatic, sitemapProducts, robotsTxt, SITEMAP_CHUNK } from './seo.js';
 
@@ -16,6 +17,8 @@ const PER_PAGE = 24;
 
 export function createWorker(site) {
   const categories = new Map(site.categories.map(c => [c.slug, c]));
+  // Older Gear World sites keep their database exactly as it is (lessons L28).
+  db.useLayout(site);
 
   async function handle(request, env, ctx) {
     const url = new URL(request.url);
@@ -36,7 +39,7 @@ export function createWorker(site) {
 
     // POST endpoints
     if (method === 'POST') {
-      if (path === '/api/newsletter') return newsletter(request, env, url);
+      if (path === '/api/newsletter' && !db.isLegacy()) return newsletter(request, env, url);
       if (path === '/api/csp-report') return cspReport(request);
       return textResponse('Not found', { status: 404, cache: 'none' });
     }
@@ -109,10 +112,10 @@ export function createWorker(site) {
     if (path === '/search') {
       const q = (url.searchParams.get('q') || '').normalize('NFKC').trim().slice(0, 80);
       const p = readListingParams(url);
-      const result = q
-        ? await db.listProducts(env.DB, { ...p, search: q }, { sort: p.sort, page: p.page, perPage: PER_PAGE })
-        : { products: [], total: 0, page: 1, pages: 0 };
-      return htmlResponse(searchPage(site, q, p, result), { method, cache: 'short' });
+      const found = q
+        ? await searchWithTranslation(env, { ...p, search: q }, { sort: p.sort, page: p.page, perPage: PER_PAGE })
+        : { result: { products: [], total: 0, page: 1, pages: 0 }, used: '' };
+      return htmlResponse(searchPage(site, q, p, found.result, found.used), { method, cache: 'short' });
     }
 
     if (path === '/deals/') {
@@ -125,7 +128,7 @@ export function createWorker(site) {
     }
 
     if (infoPaths().includes(path)) {
-      return htmlResponse(infoPage(site, path), { method, cache: 'hour' });
+      return htmlResponse(infoPage(site, path), { method, cache: 'page' });
     }
 
     m = path.match(/^\/out\/(\d+)\/?$/);
@@ -136,7 +139,10 @@ export function createWorker(site) {
       const total = await db.sitemapCount(env.DB);
       return textResponse(sitemapIndex(site, total), { type: 'application/xml', method });
     }
-    if (path === '/sitemap-static.xml') return textResponse(sitemapStatic(site), { type: 'application/xml', method });
+    if (path === '/sitemap-static.xml') {
+      const counts = await db.categoryCounts(env.DB);
+      return textResponse(sitemapStatic(site, counts), { type: 'application/xml', method });
+    }
     m = path.match(/^\/sitemap-products-(\d+)\.xml$/);
     if (m) {
       const n = Number(m[1]);
@@ -155,6 +161,16 @@ export function createWorker(site) {
     return notFound(path, method);
   }
 
+  // A search that finds nothing on page 1 is tried once more with the Hub's English words (src/lib/hub.js).
+  async function searchWithTranslation(env, filters, opts) {
+    const result = await db.listProducts(env.DB, filters, opts);
+    if (!filters.search || result.total > 0 || opts.page > 1) return { result, used: '' };
+    const candidate = await hubTranslation(env, filters.search);
+    if (!candidate) return { result, used: '' };
+    const second = await db.listProducts(env.DB, { ...filters, search: candidate }, opts);
+    return second.total > 0 ? { result: second, used: candidate } : { result, used: '' };
+  }
+
   function cached(request, env, ctx, produce) {
     return withEdgeCache(request, ctx, produce, env);
   }
@@ -166,15 +182,12 @@ export function createWorker(site) {
   async function outbound(request, env, ctx, url, id) {
     const product = await db.getProductForRedirect(env.DB, id);
     if (!product) return redirect('/', 302);
-    let target;
-    try { target = new URL(product.affiliate_url); } catch { return redirect('/', 302); }
-    if (target.protocol !== 'https:' && target.protocol !== 'http:') return redirect('/', 302);
     // clickref lets the Awin reports show which site and product produced a click or sale (lessons L15).
     const clickRef = `${site.code.toLowerCase()}-${id}`;
-    if (/(^|\.)awin1\.com$/i.test(target.hostname) && !target.searchParams.has('clickref')) {
-      target.searchParams.set('clickref', clickRef);
-    }
-    if (request.method === 'GET' && !isBot(request)) {
+    const target = affiliateTarget(product.affiliate_url, product.retailer, site.awin, clickRef);
+    if (!target) return redirect('/', 302);
+    // CLICK_LOG = "off" on a preview Worker that shares a live database: test clicks are not recorded.
+    if (request.method === 'GET' && !isBot(request) && env.CLICK_LOG !== 'off') {
       let pagePath = '';
       try {
         const ref = new URL(request.headers.get('referer') || '');
@@ -183,8 +196,12 @@ export function createWorker(site) {
       const row = {
         product_id: product.id,
         awin_advertiser_id: product.awin_advertiser_id,
+        awin_product_id: product.awin_product_id,
         retailer: product.retailer,
+        brand: product.brand,
         category_slug: product.category_slug,
+        site_category: product.site_category,
+        product_name: String(product.product_name || '').slice(0, 300),
         page_path: pagePath,
         country_code: String((request.cf && request.cf.country) || '').slice(0, 2).toUpperCase(),
         click_ref: clickRef
@@ -201,7 +218,7 @@ export function createWorker(site) {
     const catParam = url.searchParams.get('category') || '';
     const cat = categories.get(catParam) || site.categories.find(c => c.name === catParam);
     const search = (url.searchParams.get('search') || url.searchParams.get('q') || '').slice(0, 80);
-    const result = await db.listProducts(env.DB, { ...p, category: cat ? cat.slug : '', search }, { sort: p.sort, page: p.page, perPage: limit });
+    const { result } = await searchWithTranslation(env, { ...p, category: cat ? cat.slug : '', search }, { sort: p.sort, page: p.page, perPage: limit });
     const origin = `https://${site.domain}`;
     return jsonResponse({
       ok: true,
@@ -210,8 +227,10 @@ export function createWorker(site) {
         product_name: x.product_name,
         brand: x.brand,
         retailer: x.retailer,
-        site_category: (categories.get(x.category_slug) || {}).name || x.category_slug,
+        site_category: x.site_category || (categories.get(x.category_slug) || {}).name || x.category_slug,
         category_slug: x.category_slug,
+        subcategory: x.subcategory || '',
+        merchant_category: x.merchant_category || '',
         price: x.price,
         was_price: x.was_price,
         currency: x.currency,
@@ -273,6 +292,9 @@ export function createWorker(site) {
   }
 
   async function scheduled(event, env) {
+    db.useLayout(site);
+    // Older sites' databases are not cleaned by this Worker (it has no schedule there and must not change them).
+    if (db.isLegacy()) return;
     // Retention (privacy policy): clicks 26 months, rate-limit rows after expiry.
     await env.DB.batch([
       env.DB.prepare("DELETE FROM affiliate_clicks WHERE clicked_at < datetime('now', '-26 months')"),
@@ -288,6 +310,7 @@ export function createWorker(site) {
       if (preview && new URL(request.url).pathname === '/robots.txt') {
         return textResponse('User-agent: *\nDisallow: /\n', { cache: 'none', method: request.method });
       }
+      db.useLayout(site);
       let response;
       try {
         response = await handle(request, env, ctx);
@@ -302,6 +325,29 @@ export function createWorker(site) {
     },
     scheduled
   };
+}
+
+// Where a /out/<id> click goes. An Awin link gets our clickref. A plain retailer address earns no commission,
+// so for a retailer we have an Awin programme with it becomes an Awin deep link (lessons L29):
+//   https://www.awin1.com/cread.php?awinmid=<advertiser>&awinaffid=<publisher>&clickref=<ref>&ued=<address>
+// awin = { publisherId, advertisers: { 'Retailer name': advertiserId } } from the site config.
+export function affiliateTarget(address, retailer, awin, clickRef) {
+  let target;
+  try { target = new URL(String(address || '')); } catch { return null; }
+  if (target.protocol !== 'https:' && target.protocol !== 'http:') return null;
+  if (/(^|\.)awin1\.com$/i.test(target.hostname)) {
+    if (!target.searchParams.has('clickref')) target.searchParams.set('clickref', clickRef);
+    return target;
+  }
+  const mid = awin && awin.advertisers ? Number(awin.advertisers[String(retailer || '')]) : 0;
+  const aff = awin ? Number(awin.publisherId) : 0;
+  if (!(mid > 0) || !(aff > 0)) return target;
+  const deep = new URL('https://www.awin1.com/cread.php');
+  deep.searchParams.set('awinmid', String(mid));
+  deep.searchParams.set('awinaffid', String(aff));
+  deep.searchParams.set('clickref', clickRef);
+  deep.searchParams.set('ued', target.toString());
+  return deep;
 }
 
 // Hosts that are not the real site: preview and test addresses. Local development (localhost) is not a

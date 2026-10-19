@@ -241,6 +241,7 @@ p { margin: 0 0 1em; }
 .pager .gap { align-self: center; color: var(--text-2); }
 .pager-step { border: 1px solid var(--line); }
 
+.search-note { margin: 0 0 12px; color: var(--text-2); font-style: italic; }
 .empty { padding: 24px; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); }
 .chip-list { display: flex; flex-wrap: wrap; gap: 8px; list-style: none; padding: 0; margin: 12px 0 0; }
 .chip-list a { display: inline-flex; align-items: center; min-height: 40px; padding: 6px 14px; background: var(--panel); border: 1px solid var(--line); border-radius: 999px; font-weight: 600; text-decoration: none; color: var(--text); }
