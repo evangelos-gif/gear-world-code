@@ -223,6 +223,18 @@ if (Get-Command node -ErrorAction SilentlyContinue) {
     & $exe -NoProfile -ExecutionPolicy Bypass -File $runTool -LocalRepo $repo -Tool 'bad name!' -NoClipboard
     Check ($LASTEXITCODE -eq 2) 'gw-run: rejects a bad tool name'
 
+    $sampleOut = Join-Path $work 'sample-run'
+    & $exe -NoProfile -ExecutionPolicy Bypass -File $runTool -LocalRepo $repo -Tool awin-feed-sample -Advertiser 123932 -Archive $arch -OutDir $sampleOut -NoClipboard
+    Check ($LASTEXITCODE -eq 0) 'feed sample: exit code 0 through gw-run'
+    $samples = @(Get-ChildItem -LiteralPath $sampleOut -Directory -Filter 'AWIN_FEED_SAMPLE_123932_*' -ErrorAction SilentlyContinue)
+    Check ($samples.Count -eq 1) 'feed sample: report folder written'
+    if ($samples.Count -ge 1) {
+        $srep = [System.IO.File]::ReadAllText((Join-Path $samples[0].FullName 'report.txt'))
+        Check ($srep.Contains('Products: 2')) 'feed sample: counts the products'
+        Check ($srep.Contains('Sony WH-1000XM5')) 'feed sample: shows sample products'
+    }
+    Check ((Get-FileHash -LiteralPath $gzPath -Algorithm SHA256).Hash -eq $archHash) 'feed sample: Awin archive unchanged'
+
     if ($env:CI -eq 'true' -and $env:GITHUB_SHA) {
         $dlOut = Join-Path $work 'plan-download'
         & $exe -NoProfile -ExecutionPolicy Bypass -File $runTool -Ref $env:GITHUB_SHA -Tool tgw-import-plan -Archive $arch -OutDir $dlOut -NoClipboard

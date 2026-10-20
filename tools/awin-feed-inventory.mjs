@@ -14,7 +14,8 @@ import { readCsvRecords } from './tgw-import-plan.mjs';
 
 // Retailers (Awin advertiser ids) already used by a site, from the sites' databases on 20 Oct 2026.
 export const IN_USE = {
-  123932: ['TGW', 'MGW', 'WGW'], 496: ['GGW'], 49385: ['GGW'], 122444: ['MGW', 'WGW', 'KGW', 'HGW'],
+  123932: ['TGW', 'MGW', 'WGW'], 496: ['GGW', 'CGW'], 49385: ['GGW', 'CGW'], 122444: ['MGW', 'WGW', 'KGW', 'HGW', 'CGW'],
+  48301: ['WGW'], 122822: ['CGW'], 118435: ['CGW'],
   125248: ['MGW', 'WGW'], 128533: ['MGW', 'WGW'], 78380: ['MGW', 'WGW'], 122382: ['MGW', 'WGW'],
   61197: ['MGW'], 125096: ['MGW', 'WGW'], 61655: ['MGW', 'WGW'], 123248: ['MGW', 'WGW'], 105835: ['MGW']
 };
