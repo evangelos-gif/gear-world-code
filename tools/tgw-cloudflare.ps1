@@ -353,6 +353,17 @@ switch ($Step) {
         Say ('  - Επαναφορά (αν χρειαστεί): Workers & Pages > {0} > Deployments > προηγούμενη έκδοση > Rollback: https://dash.cloudflare.com/?to=/:account/workers-and-pages' -f $WorkerName)
         if (-not $Apply) { Say ''; Say 'Δοκιμή μόνο (χωρίς -Apply): δεν άλλαξε τίποτα.' 'Green'; Finish 0 }
         if (-not (Confirm-Approval $Phrases.update)) { Say 'Δεν δόθηκε έγκριση: σταμάτησα χωρίς αλλαγές.' 'Yellow'; Finish 1 }
+        # Search in other languages needs the Workers AI binding; configs made before it was added get it here.
+        $cfgText = [System.IO.File]::ReadAllText($configPath)
+        if ($cfgText -notmatch '"ai"\s*:') {
+            $obsLine = '"observability": { "enabled": true }'
+            if ($cfgText.IndexOf($obsLine) -ge 0) {
+                $cfgText = $cfgText.Replace($obsLine, '"ai": { "binding": "AI" },' + "`r`n  " + $obsLine)
+                [System.IO.File]::WriteAllText($configPath, $cfgText, (New-Object System.Text.UTF8Encoding($false)))
+                Copy-Item -LiteralPath $configPath -Destination $tgw -Force
+                Say '  - Προστέθηκε η σύνδεση Workers AI (αναζήτηση σε άλλες γλώσσες).'
+            }
+        }
         $d = Invoke-Wrangler $tgw 'deploy' -NonInteractive
         if ($d.code -ne 0) { Say 'Το ανέβασμα απέτυχε. Το live site έμεινε όπως ήταν. Έξοδος:' 'Red'; Say $d.text; Finish 9 }
         Say 'Ανέβηκε.' 'Green'

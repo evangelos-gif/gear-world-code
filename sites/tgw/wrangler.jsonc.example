@@ -20,6 +20,8 @@
   ],
   // Daily clean-up of old click records and rate-limit rows (privacy policy retention).
   "triggers": { "crons": ["17 3 * * *"] },
+  // Search in other languages: Workers AI turns the words into English (src/lib/hub.js).
+  "ai": { "binding": "AI" },
   "observability": { "enabled": true }
   // Custom domain is added only at launch, with approval (ΕΓΚΡΙΝΩ TGW DOMAIN):
   // "routes": [

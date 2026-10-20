@@ -33,7 +33,7 @@ jobs:
         run: npm test
       - name: Local D1 with synthetic products
         run: |
-          sed 's/REPLACE_WITH_DATABASE_ID/local-dev-only/' sites/tgw/wrangler.jsonc.example > sites/tgw/wrangler.jsonc
+          sed -e 's/REPLACE_WITH_DATABASE_ID/local-dev-only/' -e '/"ai": {/d' sites/tgw/wrangler.jsonc.example > sites/tgw/wrangler.jsonc
           npx wrangler d1 migrations apply technology-gear-world --local --config sites/tgw/wrangler.jsonc
           npx wrangler d1 execute technology-gear-world --local --config sites/tgw/wrangler.jsonc --file tests/fixtures/tgw-seed.sql
       - name: Start the Worker locally
@@ -90,7 +90,7 @@ jobs:
         run: node tools/theme-site.mjs ${{ matrix.site }} --check
       - name: Local D1 in the older layout, with synthetic products
         run: |
-          sed 's/REPLACE_WITH_DATABASE_ID/local-dev-only/' sites/${{ matrix.site }}/wrangler.jsonc.example > sites/${{ matrix.site }}/wrangler.jsonc
+          sed -e 's/REPLACE_WITH_DATABASE_ID/local-dev-only/' -e '/"ai": {/d' sites/${{ matrix.site }}/wrangler.jsonc.example > sites/${{ matrix.site }}/wrangler.jsonc
           node tests/fixtures/make-${{ matrix.site }}-seed.mjs
           git diff --exit-code tests/fixtures/${{ matrix.site }}-seed.sql
           npx wrangler d1 execute ${{ matrix.db }} --local --config sites/${{ matrix.site }}/wrangler.jsonc --file tests/fixtures/ggw-legacy-schema.sql

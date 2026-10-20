@@ -22,6 +22,8 @@
   "services": [{ "binding": "GW_HUB", "service": "gear-world-hub" }],
   // Keep any setting added in the Cloudflare dashboard (secrets are always kept).
   "keep_vars": true,
+  // Search in other languages: Workers AI turns the words into English (src/lib/hub.js).
+  "ai": { "binding": "AI" },
   "observability": { "enabled": true }
   // The real config also keeps the site's custom domains (homegearworld.com and www).
 }

@@ -97,3 +97,22 @@ test('preview hosts are never indexed; the real domain and local development are
   assert.equal(isPreviewHost('127.0.0.1', 'technologygearworld.com'), false);
   assert.equal(isPreviewHost('localhost', 'technologygearworld.com'), false);
 });
+
+test('search in other languages: Workers AI words are used, odd answers are not', async () => {
+  const { hubTranslation, AI_MODEL } = await import('../../src/lib/hub.js');
+  const seen = [];
+  const env = { AI: { run: async (model, input) => { seen.push(model, input.messages[1].content); return { response: 'sofa' }; } } };
+  assert.equal(await hubTranslation(env, 'καναπές'), 'sofa');
+  assert.deepEqual(seen, [AI_MODEL, 'καναπές']);
+  assert.equal(await hubTranslation({ AI: { run: async () => ({ response: 'Here is: sofa\nbed' }) } }, 'καναπές'), '');
+  assert.equal(await hubTranslation({ AI: { run: async () => { throw new Error('quota'); } } }, 'καναπές'), '');
+  assert.equal(await hubTranslation(env, 'abc'), '', 'too short');
+  assert.equal(await hubTranslation({}, 'καναπές'), '', 'no AI, no Hub: nothing');
+});
+
+test('every site on the engine has the Workers AI binding for search in other languages', async () => {
+  const { readFileSync } = await import('node:fs');
+  for (const s of ['tgw', 'ggw', 'mgw', 'wgw', 'kgw', 'hgw']) {
+    assert.match(readFileSync(`sites/${s}/wrangler.jsonc.example`, 'utf8'), /"ai": \{ "binding": "AI" \}/, s);
+  }
+});
