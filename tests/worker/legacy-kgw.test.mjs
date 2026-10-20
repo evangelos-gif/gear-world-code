@@ -74,3 +74,14 @@ test('worldwide wording, own hero photo and logo, and the TGW front-end files re
     assert.ok(Buffer.compare(readFileSync(`sites/kgw/public/assets/${name}`), Buffer.from(content)) === 0, `${name} is out of date`);
   }
 });
+
+test('tidy step on KGW: InStock names lose the size/colour of the kept card, no product is hidden as "other site"', async () => {
+  const { plan, rowsSql } = await import('../../tools/cleanup-rules/tidy.mjs');
+  const env = { DB: fakeD1() };
+  assert.equal(env.DB.sql.prepare(rowsSql('kgw', 'gender')).all().length, 0);
+  const names = env.DB.sql.prepare(rowsSql('kgw', 'names')).all();
+  assert.ok(names.length > 0);
+  const p = plan('kgw', names, [{ id: 1, retailer: 'InStock UK', site_category: 'Clothing', product_name: "Women's Tee" }]);
+  assert.equal(p.hide.length, 0);
+  assert.ok(p.rename.some(r => / - \d-\d Years \/ Navy$/.test(r.from) && !/ \/ /.test(r.to)));
+});

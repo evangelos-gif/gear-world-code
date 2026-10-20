@@ -3,6 +3,7 @@
 //     the last " - <option> / <option>" part is removed. The product address follows the new name and the old
 //     address redirects to it (the engine finds products by id), so no link breaks.
 //  2. Products for the other site: women-only products on MGW, men-only products on WGW are hidden.
+//     KGW (kids) has no other-site products here: only step 1 runs.
 //     "Mens & Ladies", "unisex", "couple" and the like stay on both.
 // Nothing is deleted. Every change is written with its rollback (old name, is_active = 1).
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
@@ -47,6 +48,7 @@ export function rowsSql(site, part) {
   if (part === 'names') return "SELECT id, retailer, site_category, product_name FROM products WHERE is_active = 1 AND (substr(lower(retailer), 1, 7) = 'instock' OR lower(retailer) = 'finediam') AND instr(product_name, ' / ') BETWEEN 1 AND 100000";
   if (part === 'gender' && site === 'mgw') return `SELECT id, retailer, site_category, product_name FROM products WHERE is_active = 1 AND ${has(['women', 'ladies', 'lady', 'female', 'for her', 'woman'])}`;
   if (part === 'gender' && site === 'wgw') return `SELECT id, retailer, site_category, product_name FROM products WHERE is_active = 1 AND ${has(['men', 'male', 'gents', 'for him'])}`;
+  if (part === 'gender' && site === 'kgw') return 'SELECT id, retailer, site_category, product_name FROM products WHERE 0';
   throw new Error('unknown part');
 }
 
@@ -112,7 +114,7 @@ export function renderPlan(site, p) {
 // node tidy.mjs plan <site> <names-output.txt> <gender-output.txt> <outDir>
 if (import.meta.url === pathToFileURL(process.argv[1] || '').href) {
   const [cmd, site, a, b, out] = process.argv.slice(2);
-  if (!['mgw', 'wgw'].includes(site)) { console.error('site'); process.exit(2); }
+  if (!['mgw', 'wgw', 'kgw'].includes(site)) { console.error('site'); process.exit(2); }
   if (cmd === 'sql') console.log(rowsSql(site, a));
   else if (cmd === 'plan') {
     const p = plan(site, rowsFromWrangler(readFileSync(a, 'utf8')), rowsFromWrangler(readFileSync(b, 'utf8')));

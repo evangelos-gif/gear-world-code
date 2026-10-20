@@ -1040,6 +1040,7 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         'echo %* | findstr /C:"PARTITION BY reason" >nul && goto samples',
         'echo %* | findstr /C:"NOT IN" >nul && goto kept',
         'echo %* | findstr /C:"SELECT id FROM h" >nul && goto ids',
+        'echo %* | findstr /C:"SELECT id FROM x" >nul && goto ids',
         'echo %* | findstr /C:"--command" >nul && goto count',
         'echo unknown command 1>&2',
         'exit /b 1',
@@ -1086,6 +1087,15 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         Check (-not ((LcCalls) -match '--file|time-travel')) 'cleanup without -Apply: only reads'
         $lcRep = [System.IO.File]::ReadAllText((@(Get-ChildItem -LiteralPath $lcOut -Filter 'CLEANUP_INSTOCK_MGW_*.txt')[0]).FullName)
         Check ($lcRep.Contains('Restore Britain Hoodie') -and $lcRep.Contains('ΕΓΚΡΙΝΩ INSTOCK CLEANUP MGW')) 'cleanup report: samples and the approval phrase'
+        # KGW with the family rules (medicines, supplements, adult clothing, items for the mother): read-only and its own phrase.
+        & $exe -NoProfile -ExecutionPolicy Bypass -File $lcTool -Rules family -Site kgw -WorkDir $lcWork -OutDir $lcOut -NoClipboard | Out-Null
+        Check ($LASTEXITCODE -eq 0) 'cleanup family kgw without -Apply: exit 0'
+        $c = LcCalls
+        Check ($c -match 'd1 execute kids-gear-world --remote --json --command "WITH ' -and -not ($c -match '--file|time-travel')) 'cleanup family kgw: reads the KGW database only'
+        $kgRep = @(Get-ChildItem -LiteralPath $lcOut -Filter 'CLEANUP_FAMILY_KGW_*.txt')
+        Check ($kgRep.Count -eq 1 -and ([System.IO.File]::ReadAllText($kgRep[0].FullName)).Contains('ΕΓΚΡΙΝΩ FAMILY CLEANUP KGW')) 'cleanup family kgw: report with its own approval phrase'
+        & $exe -NoProfile -ExecutionPolicy Bypass -File $lcTool -Rules family -Site kgw -WorkDir $lcWork -OutDir $lcOut -NoClipboard -Apply -Approve 'ΕΓΚΡΙΝΩ INSTOCK CLEANUP KGW' | Out-Null
+        Check ($LASTEXITCODE -eq 1 -and -not ((LcCalls) -match '--file|time-travel')) 'cleanup family kgw with the instock phrase: stops, changes nothing'
         Check ((Run-Lc @('-Site', 'mgw', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ INSTOCK CLEANUP WGW')) -eq 1) 'cleanup with the other site''s phrase: stops'
         Check (-not ((LcCalls) -match '--file')) 'cleanup with wrong phrase: changes nothing'
         Check ((Run-Lc @('-Site', 'mgw', '-Apply', '-Approve', 'egkrino instock cleanup mgw')) -eq 0) 'cleanup with approval (Latin form): exit 0'

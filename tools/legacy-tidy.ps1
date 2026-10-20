@@ -1,6 +1,6 @@
 ﻿<#
 .SYNOPSIS
-  Tidy-up of products on ONE older Gear World site (MGW or WGW): cleaner names, products of the other site hidden.
+  Tidy-up of products on ONE older Gear World site (MGW, WGW or KGW): cleaner names, products of the other site hidden.
 
 .DESCRIPTION
   Rules: tools/cleanup-rules/tidy.mjs
@@ -14,7 +14,7 @@
   Report: <home>\gear-world-reports\TIDY_<SITE>_<time>.txt (also copied to the clipboard)
 #>
 param(
-    [Parameter(Mandatory = $true)][ValidateSet('mgw', 'wgw')][string]$Site,
+    [Parameter(Mandatory = $true)][ValidateSet('mgw', 'wgw', 'kgw')][string]$Site,
     [switch]$Apply,
     [string]$Approve = '',
     [string]$WorkDir = '',
@@ -27,6 +27,7 @@ $repo = Split-Path -Parent $PSScriptRoot
 $SiteInfo = @{
     mgw = @{ db = 'mens-gear-world'; domain = 'mensgearworld.com'; work = 'mens-gear-world-engine' }
     wgw = @{ db = 'womens-gear-world'; domain = 'womensgearworld.com'; work = 'womens-gear-world-engine' }
+    kgw = @{ db = 'kids-gear-world'; domain = 'kidsgearworld.com'; work = 'kids-gear-world-engine' }
 }
 $DbName = $SiteInfo[$Site].db
 $Domain = $SiteInfo[$Site].domain
