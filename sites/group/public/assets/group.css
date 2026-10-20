@@ -1,0 +1,43 @@
+/* Gear World Group: one page, same family look as the Gear World sites. */
+:root { --page: #0a1222; --deep: #060b16; --panel: #0f1b30; --line: #22344f; --text: #e8edf5; --text-2: #a9b6c8; --gold: #f2b84b; --link: #6cc8ff; --gutter: 16px; }
+*, *::before, *::after { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body { margin: 0; background: var(--page); color: var(--text); font: 400 1rem/1.6 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+a { color: var(--link); }
+a:hover { color: #fff; }
+:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
+h1, h2, h3 { line-height: 1.15; margin: 0 0 .5em; }
+h1 { font-size: clamp(1.9rem, 1.3rem + 2.4vw, 3rem); color: #fff; max-width: 20ch; }
+h2 { font-size: clamp(1.4rem, 1.2rem + .8vw, 1.9rem); color: var(--gold); }
+h3 { font-size: 1.1rem; }
+p { margin: 0 0 1em; }
+.wrap { width: 100%; max-width: 1180px; margin: 0 auto; padding: 0 var(--gutter); }
+.top { background: var(--deep); border-bottom: 1px solid var(--line); }
+.top-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding-top: 12px; padding-bottom: 12px; }
+.brand { display: flex; align-items: center; gap: 10px; color: #fff; text-decoration: none; font-weight: 700; font-size: 1.15rem; letter-spacing: .02em; }
+.top-link { display: inline-flex; align-items: center; min-height: 40px; padding: 0 16px; border: 1px solid var(--gold); border-radius: 999px; color: var(--gold); font-weight: 600; text-decoration: none; }
+.top-link:hover { background: var(--gold); color: var(--deep); }
+.hero { background: linear-gradient(135deg, #0d1e3b, #0a1222 60%); border-bottom: 1px solid var(--line); padding: 48px 0 40px; }
+.eyebrow { color: var(--gold); font-weight: 600; font-size: .8rem; letter-spacing: .18em; text-transform: uppercase; }
+.lede { color: #dbe3ee; max-width: 70ch; font-size: 1.08rem; }
+.facts { display: flex; flex-wrap: wrap; gap: 10px; list-style: none; margin: 18px 0 0; padding: 0; }
+.facts li { padding: 8px 14px; border: 1px solid var(--line); border-radius: 999px; background: var(--panel); font-weight: 600; }
+.section { padding-top: 40px; padding-bottom: 8px; }
+.cards { display: grid; gap: 14px; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); list-style: none; margin: 0; padding: 0; }
+.card { padding: 18px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; }
+.card-hub { border-color: var(--gold); }
+.card h3 a { color: #fff; text-decoration: none; }
+.card h3 a:hover { color: var(--gold); }
+.card p { color: var(--text-2); margin-bottom: .4em; }
+.card .domain { color: var(--gold); font-size: .9rem; margin: 0; }
+.two { display: grid; gap: 28px; }
+@media (min-width: 900px) { .two { grid-template-columns: 1fr 1fr; } .hero { padding: 72px 0 60px; } }
+.ticks, .crosses { list-style: none; margin: 0; padding: 0; }
+.ticks li, .crosses li { position: relative; padding: 0 0 12px 28px; }
+.ticks li::before { content: "\2713"; position: absolute; left: 0; color: #5ee08f; font-weight: 700; }
+.crosses li::before { content: "\2715"; position: absolute; left: 0; color: #ff8a98; font-weight: 700; }
+.contact { margin: 0; }
+.contact div { display: flex; flex-wrap: wrap; gap: 4px 16px; padding: 10px 0; border-bottom: 1px solid var(--line); }
+.contact dt { min-width: 170px; color: var(--text-2); }
+.contact dd { margin: 0; font-weight: 600; }
+.foot { margin-top: 48px; padding: 24px 0; background: var(--deep); border-top: 1px solid var(--line); color: var(--text-2); font-size: .9rem; }

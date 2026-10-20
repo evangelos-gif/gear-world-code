@@ -630,6 +630,57 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
     }
 }
 
+# 9. group-site.ps1 with a fake wrangler (Windows only: runs .cmd files)
+if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
+    Write-Host 'group-site.ps1 (fake wrangler)'
+    $grTool = Join-Path (Join-Path $repo 'tools') 'group-site.ps1'
+    $grState = Join-Path $work 'group-state'
+    $grWork = Join-Path $work 'group-work'
+    $grOut = Join-Path $work 'group-out'
+    $grBin = Join-Path $work 'group-bin'
+    New-Item -ItemType Directory -Path $grState, $grBin -Force | Out-Null
+    $grNpx = @(
+        '@echo off',
+        'echo %* >> "%GW_FAKE_STATE%\calls.log"',
+        'echo %* | findstr /C:"whoami" >nul && goto whoami',
+        'echo %* | findstr /C:"deployments list" >nul && goto deployments',
+        'echo %* | findstr /C:" deploy" >nul && goto deploy',
+        'echo unknown command 1>&2',
+        'exit /b 1',
+        ':whoami',
+        'echo You are logged in with an OAuth Token, associated with the email test@example.com.',
+        'exit /b 0',
+        ':deployments',
+        'echo No deployments found',
+        'exit /b 0',
+        ':deploy',
+        'echo Uploaded gear-world-group',
+        'exit /b 0'
+    ) -join "`r`n"
+    [System.IO.File]::WriteAllText((Join-Path $grBin 'npx.cmd'), $grNpx + "`r`n", [System.Text.Encoding]::ASCII)
+    $oldPath = $env:PATH
+    $env:PATH = $grBin + ';' + $oldPath
+    $env:GW_FAKE_STATE = $grState
+    $grCalls = Join-Path $grState 'calls.log'
+    function Run-Gr([string[]]$a) {
+        $all = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $grTool, '-WorkDir', $grWork, '-OutDir', $grOut, '-SkipInstall', '-NoClipboard', '-NoHttpCheck') + $a
+        & $exe @all | Out-Null
+        return $LASTEXITCODE
+    }
+    function GrDeploys { if (Test-Path -LiteralPath $grCalls) { return ([regex]::Matches([System.IO.File]::ReadAllText($grCalls), 'wrangler deploy --config')).Count } else { return 0 } }
+    try {
+        Check ((Run-Gr @('-Step', 'check')) -eq 0 -and (GrDeploys) -eq 0) 'group check: exit 0, no deploy'
+        Check ((Run-Gr @('-Step', 'launch')) -eq 0 -and (GrDeploys) -eq 0) 'group launch without -Apply: no deploy'
+        Check ((Run-Gr @('-Step', 'launch', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ GROUP UPDATE')) -eq 1 -and (GrDeploys) -eq 0) 'group launch with the wrong phrase: no deploy'
+        Check ((Run-Gr @('-Step', 'launch', '-Apply', '-Approve', 'egkrino group site')) -eq 0 -and (GrDeploys) -eq 1) 'group launch with approval: deploys once'
+        $gc = [System.IO.File]::ReadAllText((Join-Path $grWork 'wrangler.jsonc'))
+        Check ($gc.Contains('"pattern": "gearworldgroup.com", "custom_domain": true') -and $gc.Contains('"pattern": "www.gearworldgroup.com", "custom_domain": true') -and -not $gc.Contains('d1_databases')) 'group launch: both domains, no database'
+    } finally {
+        $env:PATH = $oldPath
+        Remove-Item Env:\GW_FAKE_STATE -ErrorAction SilentlyContinue
+    }
+}
+
 Remove-Item -LiteralPath $work -Recurse -Force -ErrorAction SilentlyContinue
 
 Write-Host ''

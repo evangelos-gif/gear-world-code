@@ -1,0 +1,5 @@
+# Files allowed in public/ (lessons L04).
+_headers
+assets/group.css
+assets/logo.svg
+assets/favicon.svg

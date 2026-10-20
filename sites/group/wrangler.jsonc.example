@@ -1,0 +1,10 @@
+// Gear World Group - Wrangler config TEMPLATE (no database, no secrets).
+// tools/group-site.ps1 makes the real wrangler.jsonc on the PC and adds the domains only with approval.
+{
+  "name": "gear-world-group",
+  "main": "worker.js",
+  "compatibility_date": "2026-10-01",
+  "workers_dev": true,
+  "assets": { "directory": "./public", "binding": "ASSETS" },
+  "observability": { "enabled": true }
+}
