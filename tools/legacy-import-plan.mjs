@@ -91,7 +91,7 @@ export async function planLegacyImport({ archive, retailer, outDir, now = new Da
     if (!/^https:\/\//i.test(p.image || '')) { reject(p, 'no image'); continue; }
     if (!R.shop.test(p.link || '')) { reject(p, "link is not the shop's own page"); continue; }
     if (p.currency && p.currency !== R.currency) { reject(p, `currency ${p.currency}, expected ${R.currency}`); continue; }
-    const c = rules.classify({ name: p.name, feedCategory: p.feedCategory, url: p.link });
+    const c = rules.classify({ name: p.name, feedCategory: p.feedCategory, url: p.link, brand: p.brand });
     if (c.reject) { reject(p, c.reject); continue; }
     if (!accepted[c.site]) { reject(p, `site ${c.site} is not in the plan`); continue; }
     const name = rules.displayName ? rules.displayName(p.name) : p.name;
@@ -112,6 +112,14 @@ export async function planLegacyImport({ archive, retailer, outDir, now = new Da
   for (const s of R.sites) sqlFiles[s] = writeSql(join(outDir, 'sql', s), accepted[s], R, s, now);
   const text = renderPlan({ R, files, rows, products, accepted, rejected, sqlFiles, now });
   writeFileSync(join(outDir, 'report.txt'), text);
+  // For the import tool: how many products each site should have from this retailer after the import.
+  const summary = { retailer: R.retailer, advertiserId: R.advertiserId, sites: {} };
+  for (const s of R.sites) {
+    const byCat = {};
+    for (const p of accepted[s]) byCat[p.site_category] = (byCat[p.site_category] || 0) + 1;
+    summary.sites[s] = { products: accepted[s].length, files: sqlFiles[s].length, byCategory: byCat };
+  }
+  writeFileSync(join(outDir, 'plan.json'), JSON.stringify(summary, null, 2));
   return { files, rows, products: products.length, accepted, rejected, text };
 }
 

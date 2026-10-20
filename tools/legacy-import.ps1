@@ -1,0 +1,249 @@
+﻿<#
+.SYNOPSIS
+  Imports a new retailer into ONE older Gear World site (MGW or WGW) - from the read-only import plan, with a typed approval.
+
+.DESCRIPTION
+  Without -Apply: READ-ONLY. Makes the import plan (tools/legacy-import-plan.mjs) from the Awin feed on this PC,
+  reads the site database (how many products of this retailer it already has, that the table layout is the
+  expected one) and shows what WOULD be added. Changes nothing.
+
+  With -Apply and the approval phrase (ΕΓΚΡΙΝΩ <RETAILER> <SITE>, e.g. ΕΓΚΡΙΝΩ COES MGW):
+    1. Takes a Cloudflare Time Travel restore point of the site database and writes it to a backup note.
+    2. Loads the plan's SQL files one by one (INSERT or UPDATE of this retailer's products only; nothing is deleted).
+       Stops at the first error.
+    3. Counts this retailer's products per category in the database and compares them with the plan.
+  It changes ONLY the products of this retailer in this one site's database. No code, no other site, no deploy.
+
+  Rollback (printed at the end): remove only this retailer's products, or restore the restore point.
+  Report: <home>\gear-world-reports\IMPORT_<RETAILER>_<SITE>_<time>.txt (also copied to the clipboard)
+#>
+param(
+    [Parameter(Mandatory = $true)][string]$Retailer,
+    [Parameter(Mandatory = $true)][ValidateSet('mgw', 'wgw')][string]$Site,
+    [switch]$Apply,
+    [string]$Approve = '',
+    [string]$Archive = '',
+    [string]$WorkDir = '',
+    [string]$OutDir = '',
+    [switch]$NoClipboard
+)
+
+$ErrorActionPreference = 'Stop'
+$repo = Split-Path -Parent $PSScriptRoot
+$Retailer = $Retailer.ToLower()
+$SiteInfo = @{
+    mgw = @{ db = 'mens-gear-world'; domain = 'mensgearworld.com'; work = 'mens-gear-world-engine' }
+    wgw = @{ db = 'womens-gear-world'; domain = 'womensgearworld.com'; work = 'womens-gear-world-engine' }
+}
+$DbName = $SiteInfo[$Site].db
+$Domain = $SiteInfo[$Site].domain
+if (-not $OutDir) { $OutDir = Join-Path $HOME 'gear-world-reports' }
+if (-not $WorkDir) {
+    $WorkDir = Join-Path $HOME $SiteInfo[$Site].work
+    if (-not (Test-Path -LiteralPath $WorkDir)) { $WorkDir = Join-Path $HOME 'gear-world-import' }
+}
+$stamp = Get-Date -Format 'yyyyMMdd_HHmmss'
+
+$L = New-Object System.Collections.Generic.List[string]
+function Say([string]$text, [string]$color = '') {
+    $L.Add($text)
+    if ($color) { Write-Host $text -ForegroundColor $color } else { Write-Host $text }
+}
+
+function Finish([int]$code) {
+    if (-not (Test-Path -LiteralPath $OutDir)) { New-Item -ItemType Directory -Path $OutDir -Force | Out-Null }
+    $file = Join-Path $OutDir ('IMPORT_{0}_{1}_{2}.txt' -f $Retailer.ToUpper(), $Site.ToUpper(), $stamp)
+    $n = 2
+    while (Test-Path -LiteralPath $file) { $file = Join-Path $OutDir ('IMPORT_{0}_{1}_{2}_{3}.txt' -f $Retailer.ToUpper(), $Site.ToUpper(), $stamp, $n); $n++ }
+    $text = $L -join "`r`n"
+    [System.IO.File]::WriteAllText($file, $text, (New-Object System.Text.UTF8Encoding($true)))
+    if (-not $NoClipboard) { try { Set-Clipboard -Value $text } catch { } }
+    Write-Host ''
+    Write-Host ('Η αναφορά γράφτηκε: {0}' -f $file)
+    if (-not $NoClipboard) { Write-Host 'Αντιγράφηκε στο πρόχειρο. Πήγαινε στη συζήτηση με το Claude και πάτα Ctrl+V.' -ForegroundColor Green }
+    exit $code
+}
+
+# Normalise an approval phrase: no accents, upper case, single spaces; Latin "EGKRINO" also accepted.
+function Normalize-Phrase([string]$s) {
+    $d = ([string]$s).Normalize([System.Text.NormalizationForm]::FormD)
+    $sb = New-Object System.Text.StringBuilder
+    foreach ($ch in $d.ToCharArray()) {
+        if ([System.Globalization.CharUnicodeInfo]::GetUnicodeCategory($ch) -ne [System.Globalization.UnicodeCategory]::NonSpacingMark) { [void]$sb.Append($ch) }
+    }
+    $t = ($sb.ToString().ToUpperInvariant() -replace '\s+', ' ').Trim()
+    return ($t -replace '^EGKRINO ', 'ΕΓΚΡΙΝΩ ')
+}
+
+function Confirm-Approval([string]$phrase) {
+    $typed = $Approve
+    if (-not $typed) {
+        Write-Host ''
+        Write-Host ('Για να συνεχίσω, γράψε ακριβώς: {0}' -f $phrase) -ForegroundColor Yellow
+        Write-Host '(ή πάτα Enter για να σταματήσω χωρίς αλλαγές)'
+        $typed = Read-Host 'Έγκριση'
+    }
+    return ((Normalize-Phrase $typed) -eq (Normalize-Phrase $phrase))
+}
+
+# Runs wrangler through a temporary .cmd file, so output is plain text in Windows PowerShell 5.1.
+# -Retry: on a network error try again, up to 3 times. Only for calls that are safe to repeat.
+function Invoke-Wrangler([string]$Folder, [string]$Arguments, [switch]$Retry) {
+    if ($Arguments -match '[&|<>^%]') { throw 'Unsafe characters in wrangler arguments' }
+    $tmp = [System.IO.Path]::GetTempPath()
+    $lines = @('@echo off', ('cd /d "{0}"' -f $Folder), 'set CI=true', 'set WRANGLER_SEND_METRICS=false', 'set FORCE_COLOR=0', 'set NO_COLOR=1', ('call npx --yes wrangler {0} 2>&1' -f $Arguments))
+    $tries = 1
+    if ($Retry) { $tries = 3 }
+    $result = $null
+    for ($try = 1; $try -le $tries; $try++) {
+        $cmdFile = Join-Path $tmp ('gw-wrangler-' + [guid]::NewGuid().ToString('N').Substring(0, 8) + '.cmd')
+        [System.IO.File]::WriteAllText($cmdFile, ($lines -join "`r`n") + "`r`n", [System.Text.Encoding]::ASCII)
+        try {
+            $out = @(& $cmdFile)
+            $code = $LASTEXITCODE
+        } finally {
+            Remove-Item -LiteralPath $cmdFile -ErrorAction SilentlyContinue
+        }
+        $text = (($out | ForEach-Object { "$_" }) -join "`n") -replace '\x1b\[[0-9;]*m', ''
+        $result = @{ code = $code; text = $text }
+        $network = $text -match '(?i)fetch failed|connectivity issue|ECONNRESET|ETIMEDOUT|EAI_AGAIN|ENOTFOUND|socket hang up'
+        if ($code -eq 0 -or -not $network -or $try -eq $tries) { break }
+        Say ('Πρόβλημα δικτύου με το Cloudflare. Ξαναδοκιμάζω σε {0} δευτερόλεπτα ({1}/{2})...' -f (5 * $try), ($try + 1), $tries) 'Yellow'
+        Start-Sleep -Seconds (5 * $try)
+    }
+    return $result
+}
+
+function Get-JsonArray([string]$text) {
+    $i = $text.IndexOf('[')
+    $j = $text.LastIndexOf(']')
+    if ($i -lt 0 -or $j -le $i) { return $null }
+    try { return @($text.Substring($i, $j - $i + 1) | ConvertFrom-Json) } catch { return $null }
+}
+
+# Read-only SELECT on the site database. Returns the rows, or $null on error.
+function Select-Rows([string]$sql) {
+    if ($sql -notmatch '^\s*SELECT ') { throw 'Only SELECT here' }
+    $r = Invoke-Wrangler $WorkDir ('d1 execute {0} --remote --json --command "{1}"' -f $DbName, $sql) -Retry
+    if ($r.code -ne 0) { Say $r.text; return $null }
+    $j = Get-JsonArray $r.text
+    if ($null -eq $j) { Say $r.text; return $null }
+    return @($j[0].results)
+}
+
+Write-Host ''
+$mode = 'ΔΟΚΙΜΗ - ΜΟΝΟ ΑΝΑΓΝΩΣΗ'
+if ($Apply) { $mode = 'ΕΙΣΑΓΩΓΗ (με έγκριση)' }
+Say ('Εισαγωγή {0} στο {1} ({2}) - {3}' -f $Retailer, $Site.ToUpper(), $Domain, $mode) 'Cyan'
+Say ('Ώρα: {0}' -f (Get-Date -Format 'yyyy-MM-dd HH:mm'))
+if ($Retailer -notmatch '^[a-z0-9\-]{2,40}$') { Say 'Λάθος όνομα καταστήματος.' 'Red'; Finish 2 }
+if (-not (Test-Path -LiteralPath (Join-Path (Join-Path (Join-Path $repo 'tools') 'import-rules') ($Retailer + '.mjs')))) { Say ('Δεν υπάρχουν κανόνες για: {0}' -f $Retailer) 'Red'; Finish 2 }
+if (-not (Get-Command node -ErrorAction SilentlyContinue)) { Say 'Δεν βρέθηκε το Node.js.' 'Red'; Finish 3 }
+if (-not (Test-Path -LiteralPath $WorkDir)) { New-Item -ItemType Directory -Path $WorkDir -Force | Out-Null }
+
+# 1. The Awin archive on this PC (found automatically).
+function Count-Feeds([string]$dir) {
+    try { return @(Get-ChildItem -LiteralPath $dir -File -Filter 'AWIN_*.csv*' -ErrorAction Stop).Count } catch { return 0 }
+}
+if (-not $Archive) {
+    $default = Join-Path (Join-Path $HOME 'Downloads') 'GW_AWIN_BULK_ARCHIVE'
+    if ((Count-Feeds $default) -gt 0) { $Archive = $default }
+    else {
+        $best = ''; $bestN = 0
+        foreach ($root in @('Downloads', 'Desktop', 'Documents')) {
+            $r = Join-Path $HOME $root
+            if (-not (Test-Path -LiteralPath $r)) { continue }
+            $dirs = @(Get-Item -LiteralPath $r) + @(Get-ChildItem -LiteralPath $r -Directory -ErrorAction SilentlyContinue)
+            foreach ($d in $dirs) { $n = Count-Feeds $d.FullName; if ($n -gt $bestN) { $best = $d.FullName; $bestN = $n } }
+        }
+        $Archive = $best
+    }
+}
+if (-not $Archive -or -not (Test-Path -LiteralPath $Archive)) { Say 'Δεν βρήκα τον φάκελο με τα feeds του Awin.' 'Red'; Finish 2 }
+Say ('Feeds: {0}' -f $Archive)
+
+# 2. The plan (read-only).
+$planDir = Join-Path $OutDir ('IMPORT_PLAN_{0}_{1}' -f $Retailer, $stamp)
+$k = 2
+while (Test-Path -LiteralPath $planDir) { $planDir = Join-Path $OutDir ('IMPORT_PLAN_{0}_{1}_{2}' -f $Retailer, $stamp, $k); $k++ }
+Write-Host 'Φτιάχνω το σχέδιο από το feed (1-3 λεπτά)...'
+& node (Join-Path (Join-Path $repo 'tools') 'legacy-import-plan.mjs') --archive $Archive --retailer $Retailer --out $planDir | Out-Null
+if ($LASTEXITCODE -ne 0) { Say 'Το σχέδιο απέτυχε (δεν βρέθηκε feed ή λάθος στο αρχείο).' 'Red'; Finish 10 }
+$plan = [System.IO.File]::ReadAllText((Join-Path $planDir 'plan.json'), [System.Text.Encoding]::UTF8) | ConvertFrom-Json
+$sp = $plan.sites.$Site
+if ($null -eq $sp -or [int]$sp.products -lt 1) { Say ('Το σχέδιο δεν έχει προϊόντα για το {0}.' -f $Site.ToUpper()) 'Red'; Finish 10 }
+$RetailerName = [string]$plan.retailer
+if ($RetailerName -notmatch "^[A-Za-z0-9 .\-]{2,40}$") { Say 'Μη αναμενόμενο όνομα καταστήματος στο σχέδιο.' 'Red'; Finish 10 }
+$files = @(Get-ChildItem -LiteralPath (Join-Path (Join-Path $planDir 'sql') $Site) -Filter '*.sql' | Sort-Object Name)
+Say ('Σχέδιο: {0} προϊόντα {1} για το {2}, σε {3} αρχεία SQL. Πλήρες σχέδιο: {4}' -f $sp.products, $RetailerName, $Site.ToUpper(), $files.Count, (Join-Path $planDir 'report.txt'))
+foreach ($p in $sp.byCategory.PSObject.Properties) { Say ('  {0,-26} {1}' -f $p.Name, $p.Value) }
+
+# 3. The site database now (read-only).
+$layout = Select-Rows "SELECT COUNT(*) AS n FROM sqlite_master WHERE name = 'products' AND instr(sql, 'awin_product_id TEXT NOT NULL UNIQUE') BETWEEN 1 AND 1000000"
+if ($null -eq $layout) { Say 'Δεν μπόρεσα να διαβάσω τη βάση (σύνδεση στο Cloudflare;). Δεν άλλαξε τίποτα.' 'Red'; Finish 4 }
+if ([int]$layout[0].n -ne 1) { Say 'Ο πίνακας products δεν έχει τη μορφή που περιμένω. Σταματώ χωρίς αλλαγές.' 'Red'; Finish 5 }
+$before = Select-Rows ("SELECT COUNT(*) AS n, SUM(is_active) AS active FROM products WHERE retailer = '{0}'" -f $RetailerName)
+$total = Select-Rows 'SELECT COUNT(*) AS n FROM products WHERE is_active = 1'
+if ($null -eq $before -or $null -eq $total) { Say 'Δεν μπόρεσα να διαβάσω τη βάση. Δεν άλλαξε τίποτα.' 'Red'; Finish 4 }
+$hadBefore = [int]$before[0].n
+Say ('Βάση {0}: {1} ενεργά προϊόντα συνολικά, {2} από {3} ήδη.' -f $DbName, $total[0].n, $hadBefore, $RetailerName)
+
+Say ''
+Say 'Τι θα γίνει με -Apply:'
+Say ('  - Σημείο επαναφοράς (Cloudflare Time Travel) της βάσης {0}, γραμμένο στο {1}' -f $DbName, (Join-Path $WorkDir 'backups'))
+Say ('  - Προσθήκη ή ενημέρωση {0} προϊόντων {1}. Δεν σβήνεται τίποτα, κανένα άλλο κατάστημα δεν αλλάζει.' -f $sp.products, $RetailerName)
+Say ('  - Αλλάζει ΜΟΝΟ η βάση του {0}. Κανένας κώδικας, κανένα άλλο site, κανένα deploy.' -f $Site.ToUpper())
+$phrase = 'ΕΓΚΡΙΝΩ {0} {1}' -f $Retailer.ToUpper(), $Site.ToUpper()
+if (-not $Apply) { Say ''; Say 'Δοκιμή μόνο (χωρίς -Apply): δεν άλλαξε τίποτα.' 'Green'; Say ('Η φράση έγκρισης για την εισαγωγή: {0}' -f $phrase); Finish 0 }
+if (-not (Confirm-Approval $phrase)) { Say 'Δεν δόθηκε έγκριση: σταμάτησα χωρίς αλλαγές.' 'Yellow'; Finish 1 }
+
+# 4. Backup: D1 cannot export databases with search (FTS5) tables, so the backup is a Time Travel restore point.
+$bdir = Join-Path $WorkDir 'backups'
+if (-not (Test-Path -LiteralPath $bdir)) { New-Item -ItemType Directory -Path $bdir -Force | Out-Null }
+$tt = Invoke-Wrangler $WorkDir ('d1 time-travel info {0}' -f $DbName) -Retry
+$bm = [regex]::Match($tt.text, '[0-9a-f]{8}-[0-9a-f]{8}-[0-9a-f]{8}-[0-9a-f]{32}')
+if ($tt.code -ne 0 -or -not $bm.Success) { Say 'Δεν πήρα σημείο επαναφοράς: ΔΕΝ φόρτωσα τίποτα.' 'Red'; Say $tt.text; Finish 11 }
+$restoreCmd = 'npx wrangler d1 time-travel restore {0} --bookmark={1}' -f $DbName, $bm.Value
+$removeCmd = ('npx wrangler d1 execute {0} --remote --command "DELETE FROM products WHERE retailer = ''{1}''"' -f $DbName, $RetailerName)
+$backup = Join-Path $bdir ('{0}-restore-point-before-{1}-import-{2}.txt' -f $Site, $Retailer, $stamp)
+$note = @(
+    ('{0} database restore point before the {1} import, {2}' -f $Site.ToUpper(), $RetailerName, (Get-Date -Format 'yyyy-MM-dd HH:mm')),
+    ('bookmark: {0}' -f $bm.Value),
+    ('{0} products of {1} were in the database before the import.' -f $hadBefore, $RetailerName),
+    'To go back, ONLY with approval, run in PowerShell one of:',
+    ('  cd "{0}"' -f $WorkDir),
+    ('  A) remove only the {0} products:  {1}' -f $RetailerName, $removeCmd),
+    ('  B) the whole database as it was:  {0}' -f $restoreCmd),
+    'B also undoes any other change made to the database after this moment. Valid for 7 days (Free) or 30 days (Paid).'
+) -join "`r`n"
+[System.IO.File]::WriteAllText($backup, $note, (New-Object System.Text.UTF8Encoding($false)))
+Say ('Σημείο επαναφοράς: {0}' -f $backup) 'Green'
+
+# 5. Load. Every file is INSERT ... ON CONFLICT DO UPDATE, so repeating one after a network error is safe.
+$n = 0
+foreach ($f in $files) {
+    $x = Invoke-Wrangler $WorkDir ('d1 execute {0} --remote --file "{1}"' -f $DbName, $f.FullName) -Retry
+    if ($x.code -ne 0) {
+        Say ('Λάθος στο {0}. Σταμάτησα. Τα προηγούμενα αρχεία φορτώθηκαν.' -f $f.Name) 'Red'
+        Say $x.text
+        Say ('Επαναφορά (μόνο με έγκριση): {0}' -f $removeCmd)
+        Finish 12
+    }
+    $n++
+    Write-Host ('  {0} OK' -f $f.Name)
+}
+Say ('Φορτώθηκαν {0} αρχεία SQL.' -f $n) 'Green'
+
+# 6. Check.
+$after = Select-Rows ("SELECT site_category, COUNT(*) AS n FROM products WHERE retailer = '{0}' AND is_active = 1 GROUP BY site_category ORDER BY n DESC" -f $RetailerName)
+$sum = 0
+if ($after) { foreach ($r in $after) { Say ('  {0,-26} {1}' -f $r.site_category, $r.n); $sum += [int]$r.n } }
+if ($sum -lt [int]$sp.products) {
+    Say ('ΠΡΟΣΟΧΗ: στη βάση βλέπω {0} ενεργά προϊόντα {1}, το σχέδιο είχε {2}. Στείλε την αναφορά στο Claude.' -f $sum, $RetailerName, $sp.products) 'Yellow'
+    Finish 13
+}
+Say ''
+Say ('ΕΤΟΙΜΟ: {0} προϊόντα {1} στο {2}.' -f $sum, $RetailerName, $Site.ToUpper()) 'Green'
+Say ('Δες τα: https://{0}/?search={1} (η αρχική και οι κατηγορίες ανανεώνονται μέσα σε λίγα λεπτά)' -f $Domain, $RetailerName)
+Say ('Αν χρειαστεί επαναφορά (μόνο με έγκριση): {0}' -f $removeCmd)
+Finish 0

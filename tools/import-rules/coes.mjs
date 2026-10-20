@@ -21,24 +21,25 @@ const NOT_FOR_SITES = words(['gift card', 'gift voucher', 'voucher', 'candle', '
   'reading glasses', 'laces', 'shoe polish', 'polish', 'shoe care', 'shoe cream', 'insole', 'insoles', 'shoe tree', 'shoe trees', 'water bottle',
   'ball', 'balls', 'racket', 'racquet', 'shin pad', 'shin pads', 'shin guard', 'shin guards', 'mouthguard', 'gum shield', 'hockey stick', 'stick',
   'grip', 'grips', 'tape', 'book', 'game', 'puzzle', 'playing cards', 'greeting card', 'jigsaw', 'notebook', 'pen', 'chocolate', 'coaster', 'coasters',
-  'cushion', 'blanket', 'tea towel', 'apron', 'dog', 'dog lead', 'protector', 'spray', 'cleaner', 'waterproofer', 'reproofer', 'shoe brush', 'repair kit']);
+  'cushion', 'blanket', 'rug', 'cleaning', 'cleaning gel', 'tea towel', 'apron', 'dog', 'dog lead', 'protector', 'spray', 'cleaner', 'waterproofer', 'reproofer', 'shoe brush', 'repair kit']);
 // (Not 'wax', 'collar' or 'bottle': wax jackets, button-down collar shirts and bottle green jumpers are clothing.)
-const ACCESSORY_PHRASES = words(['key ring', 'keyring', 'watch cap', 'watch strap', 'card holder', 'cardholder', 'bow tie', 'pocket square', 'hip flask', 'tie clip', 'tie bar', 'bag charm', 'wedding set', 'paisley set', 'tie set', 'tie and pocket square']);
+const ACCESSORY_PHRASES = words(['key ring', 'keyring', 'watch cap', 'watch strap', 'card holder', 'cardholder', 'bow tie', 'pocket square', 'hip flask', 'tie clip', 'tie bar', 'bag charm', 'wedding set', 'paisley set', 'tie set', 'tie and pocket square', 'party bow', 'garter', 'garters',
+  'keychain', 'key chain', 'key organiser', 'wrist warmers', 'glasses sleeve', 'glasses case', 'jewellery box', 'valet box', 'trinket box', 'trinket dish']);
 const TIE_AT_END = /(?<![a-z])(tie|ties)(\s+(in|with)\b.*)?$/i;
 const JEWELLERY_TIE = words(['tie clip', 'tie bar', 'tie pin']);
 // Words that are a fragrance or grooming product for sure ("Cologne Trousers" are trousers).
-const STRONG_FRAGRANCE = words(['eau de toilette', 'eau de parfum', 'edt', 'edp', 'aftershave', 'after shave', 'perfume', 'parfum', 'shaving', 'shaving cream', 'body wash', 'lip balm', 'hand cream', 'make up', 'makeup']);
+const STRONG_FRAGRANCE = words(['atomiser', 'eau de toilette', 'eau de parfum', 'edt', 'edp', 'aftershave', 'after shave', 'perfume', 'parfum', 'shaving', 'shaving cream', 'body wash', 'lip balm', 'hand cream', 'make up', 'makeup']);
 const JEWELLERY = words(['cufflink', 'cufflinks', 'bracelet', 'bracelets', 'necklace', 'necklaces', 'earring', 'earrings', 'ring', 'rings', 'pendant', 'bangle', 'bangles', 'brooch', 'anklet', 'charm', 'charms', 'jewellery', 'tie pin']);
 const WATCHES = words(['watch', 'watches', 'smartwatch', 'chronograph']);
-const FRAGRANCE = words(['fragrance', 'eau de toilette', 'eau de parfum', 'edt', 'edp', 'aftershave', 'after shave', 'cologne', 'perfume', 'parfum',
+const FRAGRANCE = words(['atomiser', 'fragrance', 'eau de toilette', 'eau de parfum', 'edt', 'edp', 'aftershave', 'after shave', 'cologne', 'perfume', 'parfum',
   'shaving', 'beard', 'moisturiser', 'face wash', 'body wash', 'shampoo', 'lip balm', 'hand cream', 'grooming', 'body lotion', 'make up', 'makeup', 'make-up', 'brush set']);
-const BAGS = words(['bag', 'bags', 'holdall', 'backpack', 'rucksack', 'tote', 'washbag', 'wash bag', 'purse', 'wallet', 'wallets', 'clutch', 'satchel', 'briefcase', 'duffle bag', 'weekender']);
+const BAGS = words(['bag', 'bags', 'handbag', 'handbags', 'pouch', 'duffel', 'duffle', 'gymsack', 'gym sack', 'coin holder', 'coin purse', 'holdall', 'backpack', 'rucksack', 'tote', 'washbag', 'wash bag', 'purse', 'wallet', 'wallets', 'clutch', 'satchel', 'briefcase', 'duffle bag', 'weekender']);
 const ACCESSORIES = words(['belt', 'belts', 'braces', 'gloves', 'glove', 'mittens', 'scarf', 'scarves', 'snood', 'hat', 'hats', 'beanie', 'cap', 'caps', 'flat cap',
   'sunglasses', 'umbrella', 'handkerchief', 'handkerchiefs', 'headband', 'hairband', 'hair band', 'scrunchie', 'scrunchies', 'hair clip', 'hair clips', 'claw clip',
   'ear warmers', 'earmuffs', 'shawl', 'pashmina', 'stole', 'wrap scarf', 'tie', 'ties']);
 const SOCKS_UNDERWEAR = words(['sock', 'socks', 'boxer', 'boxers', 'brief', 'briefs', 'trunk', 'trunks', 'underwear', 'bra', 'knickers', 'tights']);
 const SHOES = words(['shoe', 'shoes', 'boot', 'boots', 'trainer', 'trainers', 'sneaker', 'sneakers', 'sandal', 'sandals', 'loafer', 'loafers', 'moccasin', 'moccasins',
-  'brogue', 'brogues', 'slipper', 'slippers', 'espadrille', 'espadrilles', 'mule', 'mules', 'flip flops', 'flip flop', 'sliders', 'slides', 'astros', 'derby', 'plimsoll', 'plimsolls', 'clogs', 'wellies', 'wellington']);
+  'brogue', 'brogues', 'slipper', 'slippers', 'espadrille', 'espadrilles', 'mule', 'mules', 'flip flops', 'flip flop', 'sliders', 'slides', 'astros', 'derby', 'plimsoll', 'plimsolls', 'clogs', 'wellies', 'welly', 'wellington']);
 // Words that make a "cap"/"tie"/"belt" a garment detail, not an accessory.
 const GARMENT_DETAIL = words(['cap sleeve', 'tie front', 'tie waist', 'tie neck', 'tie dye', 'tie-dye', 'belted']);
 const CLOTHING = words(['shirt', 'shirts', 't-shirt', 't-shirts', 't shirt', 'tee', 'tees', 'polo', 'jumper', 'sweater', 'cardigan', 'hoodie', 'hoody', 'sweatshirt',
@@ -47,7 +48,8 @@ const CLOTHING = words(['shirt', 'shirts', 't-shirt', 't-shirts', 't shirt', 'te
   'fleece', 'parka', 'overshirt', 'henley', 'base layer', 'baselayer', 'thermal', 'swim', 'swimsuit', 'swimshort', 'swimshorts', 'boardshorts', 'boardshort', 'swimwear', 'swim shorts', 'bikini', 'cami', 'gown', 'trench',
   'poncho', 'kimono', 'mac', 'anorak', 'cagoule', 'overcoat', 'bomber', 'smock', 'zip', 'crew', 'crew neck', 'v neck', 'half zip', 'quarter zip', 'sweatpants',
   'track pant', 'tracksuit', 'tights', 'singlet', 'tank', 'bodywarmer', 'body warmer', 'cords', 'corduroy', 'culottes', 'dungarees', 'shacket', 'tabard', 'jersey', 'rugby',
-  'pants', 'pant', 'raincoat', 'rain jacket', 'jeggings', 'bodysuit', 'bralette', 'camisole', 'corset', 'kilt', 'sarong', 'overalls', 'cover up', 'capri', 'trackpants', 'sweatpant']);
+  'pullover', 'cardi', 'rollneck', 'roll neck', 'turtle neck', 'turtleneck', 'midlayer', 'mid layer', 'rugger', 'co-ord', 'co ord', 'nehru', 'waistcaot',
+  'sleep top', 'sleepwear', 'loungewear', 'lounge pants', 'pants', 'pant', 'raincoat', 'rain jacket', 'jeggings', 'bodysuit', 'bralette', 'camisole', 'corset', 'kilt', 'sarong', 'overalls', 'cover up', 'capri', 'trackpants', 'sweatpant']);
 
 const WOMEN = words(['women', "women's", 'womens', 'ladies', "ladies'", 'lady', 'female', 'for her', 'wmns']);
 const MEN = words(['men', "men's", 'mens', 'male', 'for him', 'gents']);
@@ -75,23 +77,28 @@ const CLOTHING_SUB = [
   [words(['t-shirt', 't-shirts', 't shirt', 'tee', 'tees']), 'T-Shirts', 'T-Shirts'],
   [words(['sweatshirt', 'sweat']), 'Sweatshirts', 'Knitwear'],
   [words(['hoodie', 'hoody']), 'Hoodies', 'Knitwear'],
-  [words(['dressing gown', 'robe', 'pyjama', 'pyjamas', 'pj']), 'Nightwear', 'Nightwear'],
+  [words(['dressing gown', 'robe', 'pyjama', 'pyjamas', 'pj', 'sleep top', 'sleepwear', 'loungewear', 'lounge pants']), 'Nightwear', 'Nightwear'],
   [words(['jacket', 'coat', 'gilet', 'blazer', 'parka', 'overcoat', 'trench', 'bomber', 'mac', 'anorak', 'cagoule', 'bodywarmer', 'body warmer', 'shacket', 'raincoat', 'rain jacket']), 'Jackets', 'Jackets & Coats'],
   [words(['jeans', 'jean']), 'Jeans', 'Jeans'],
   [words(['shorts', 'short', 'swimshorts', 'swimshort', 'boardshorts', 'boardshort', 'swim shorts']), 'Shorts', 'Shorts'],
   [words(['trousers', 'trouser', 'chino', 'chinos', 'joggers', 'jogger', 'cords', 'sweatpants', 'sweatpant', 'track pant', 'trackpants', 'leggings', 'jeggings', 'culottes', 'pants', 'pant', 'capri']), 'Trousers', 'Trousers'],
-  [words(['jumper', 'sweater', 'cardigan', 'knit', 'crew neck', 'v neck', 'half zip', 'quarter zip']), 'Knitwear', 'Knitwear'],
-  [words(['shirt', 'shirts', 'overshirt', 'polo', 'henley', 'blouse', 'top', 'cami', 'tunic', 'vest', 'tank', 'singlet']), 'Shirts', 'Tops & Blouses'],
+  [words(['jumper', 'sweater', 'cardigan', 'cardi', 'pullover', 'rollneck', 'roll neck', 'turtle neck', 'turtleneck', 'midlayer', 'mid layer', 'knit', 'crew neck', 'v neck', 'half zip', 'quarter zip']), 'Knitwear', 'Knitwear'],
+  [words(['shirt', 'shirts', 'overshirt', 'rugger', 'polo', 'henley', 'blouse', 'top', 'cami', 'tunic', 'vest', 'tank', 'singlet']), 'Shirts', 'Tops & Blouses'],
   [words(['dress', 'jumpsuit', 'playsuit', 'kaftan']), 'Dresses', 'Dresses'],
   [words(['skirt']), 'Skirts', 'Skirts'],
-  [words(['suit', 'waistcoat']), 'Suits', 'Suits']
+  [words(['suit', 'waistcoat', 'waistcaot', 'nehru']), 'Suits', 'Suits']
 ];
 
 const firstWord = (name, pairs, fallback) => { for (const [re, sub] of pairs) if (re.test(name)) return sub; return fallback; };
 
 // Decide where one product goes. Returns { site, siteCategory, subcategory } or { reject: '<reason>' }.
-export function classify({ name, feedCategory, url = '' }) {
-  const raw = String(name || '');
+export function classify({ name, feedCategory, url = '', brand = '' }) {
+  let raw = String(name || '');
+  // The brand is not a product word: "Polo Ralph Lauren Pullover" is not a polo shirt.
+  const b = String(brand || '').trim();
+  if (b.length >= 3 && raw.toLowerCase().startsWith(b.toLowerCase() + ' ')) raw = raw.slice(b.length + 1);
+  raw = raw.replace(/^polo ralph lauren\s+/i, '');
+  if (/^on cloud/i.test(raw) || /^cloud\w*\s/i.test(raw) && /^on$/i.test(b)) raw += ' trainers';
   // "Short Sleeve Shirt" is a shirt, not shorts; "Horse Shoe Tie" is a tie; "Nobody's Child" is a women's brand.
   const n = raw.replace(/\b(short|long|3\/4|half|cap)[\s-]+sleeve(s|d)?\b/gi, ' ').replace(/\bhorse\s?shoe\b/gi, 'horse').replace(/\s+/g, ' ').trim();
   const kidsText = raw.replace(/nobody'?s child/gi, '');
@@ -113,9 +120,9 @@ export function classify({ name, feedCategory, url = '' }) {
     sub = firstWord(n, [[words(['cufflink', 'cufflinks']), 'Cufflinks'], [words(['bracelet', 'bracelets', 'bangle', 'bangles']), 'Bracelets'], [words(['necklace', 'necklaces', 'pendant']), 'Necklaces'], [words(['earring', 'earrings']), 'Earrings'], [words(['ring', 'rings']), 'Rings']], 'Jewellery');
   } else if (WATCHES.test(n)) { cat = 'Watches'; sub = 'Watches'; }
   else if (FRAGRANCE.test(n) && (strongFragrance || !CLOTHING.test(n))) { cat = M ? 'Grooming & Fragrances' : 'Beauty & Fragrances'; sub = M ? 'Grooming & Fragrances' : 'Beauty & Fragrances'; }
-  else if (BAGS.test(n)) { cat = 'Bags & Accessories'; sub = firstWord(n, [[words(['wallet', 'wallets', 'purse']), 'Wallets & Purses']], 'Bags'); }
+  else if (BAGS.test(n)) { cat = 'Bags & Accessories'; sub = firstWord(n, [[words(['wallet', 'wallets', 'purse', 'coin holder', 'coin purse']), 'Wallets & Purses']], 'Bags'); }
   else if (SOCKS_UNDERWEAR.test(n)) { cat = 'Clothing'; sub = words(['sock', 'socks']).test(n) ? 'Socks' : 'Underwear'; }
-  else if (SHOES.test(n)) { cat = 'Shoes'; sub = firstWord(n, [[words(['trainer', 'trainers', 'sneaker', 'sneakers', 'plimsoll', 'plimsolls', 'running shoe', 'running shoes', 'trail running', 'tennis shoe', 'tennis shoes', 'astros']), 'Trainers'], [words(['boot', 'boots', 'wellies', 'wellington']), 'Boots'], [words(['slipper', 'slippers']), 'Slippers'], [words(['sandal', 'sandals', 'sliders', 'slides', 'flip flop', 'flip flops', 'espadrille', 'espadrilles']), 'Sandals']], 'Shoes'); }
+  else if (SHOES.test(n)) { cat = 'Shoes'; sub = firstWord(n, [[words(['trainer', 'trainers', 'sneaker', 'sneakers', 'plimsoll', 'plimsolls', 'running shoe', 'running shoes', 'trail running', 'tennis shoe', 'tennis shoes', 'astros']), 'Trainers'], [words(['boot', 'boots', 'wellies', 'welly', 'wellington']), 'Boots'], [words(['slipper', 'slippers']), 'Slippers'], [words(['sandal', 'sandals', 'sliders', 'slides', 'flip flop', 'flip flops', 'espadrille', 'espadrilles']), 'Sandals']], 'Shoes'); }
   else if (ACCESSORIES.test(n) && !detail) {
     cat = 'Bags & Accessories';
     sub = firstWord(n, [[words(['belt', 'belts', 'braces']), 'Belts'], [words(['gloves', 'glove', 'mittens']), 'Gloves'], [words(['scarf', 'scarves', 'snood']), 'Scarves'], [words(['hat', 'hats', 'beanie', 'cap', 'caps', 'flat cap', 'headband', 'ear warmers']), 'Hats'], [words(['tie', 'ties']), 'Ties']], 'Accessories');

@@ -763,6 +763,85 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
     }
 }
 
+# 8c. legacy-import.ps1 (new retailer into MGW/WGW) with a fake wrangler (Windows only: runs .cmd files)
+if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
+    Write-Host 'legacy-import.ps1 (fake wrangler)'
+    $liTool = Join-Path (Join-Path $repo 'tools') 'legacy-import.ps1'
+    $liState = Join-Path $work 'li-state'
+    $liBin = Join-Path $work 'li-bin'
+    $liWork = Join-Path $work 'li-work'
+    $liOut = Join-Path $work 'li-out'
+    New-Item -ItemType Directory -Path $liState, $liBin -Force | Out-Null
+    $liBookmark = '00000085-0000024c-00004c6d-' + [guid]::NewGuid().ToString('N')
+    $liNpx = @(
+        '@echo off',
+        'echo %* >> "%GW_FAKE_STATE%\calls.log"',
+        'echo %* | findstr /C:"time-travel info" >nul && goto ttinfo',
+        'echo %* | findstr /C:"sqlite_master" >nul && goto layout',
+        'echo %* | findstr /C:"GROUP BY" >nul && goto group',
+        'echo %* | findstr /C:"--command" >nul && goto count',
+        'echo %* | findstr /C:"--file" >nul && goto ok',
+        'echo unknown command 1>&2',
+        'exit /b 1',
+        ':ttinfo',
+        ('echo The current bookmark is ' + $liBookmark),
+        'exit /b 0',
+        ':layout',
+        'if defined GW_FAKE_BADLAYOUT goto layoutbad',
+        'echo [{"results":[{"n":1}],"success":true}]',
+        'exit /b 0',
+        ':layoutbad',
+        'echo [{"results":[{"n":0}],"success":true}]',
+        'exit /b 0',
+        ':group',
+        'echo [{"results":[{"site_category":"Clothing","n":1}],"success":true}]',
+        'exit /b 0',
+        ':count',
+        'echo [{"results":[{"n":0,"active":0}],"success":true}]',
+        'exit /b 0',
+        ':ok',
+        'echo OK',
+        'exit /b 0'
+    ) -join "`r`n"
+    [System.IO.File]::WriteAllText((Join-Path $liBin 'npx.cmd'), $liNpx + "`r`n", [System.Text.Encoding]::ASCII)
+    $oldPath = $env:PATH
+    $env:PATH = $liBin + ';' + $oldPath
+    $env:GW_FAKE_STATE = $liState
+    $liCalls = Join-Path $liState 'calls.log'
+    function Run-Li([string[]]$a) {
+        $all = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $liTool, '-Retailer', 'coes', '-Archive', $arch, '-WorkDir', $liWork, '-OutDir', $liOut, '-NoClipboard') + $a
+        & $exe @all | Out-Null
+        return $LASTEXITCODE
+    }
+    function LiCalls { if (Test-Path -LiteralPath $liCalls) { return [System.IO.File]::ReadAllText($liCalls) } else { return '' } }
+    try {
+        Check ((Run-Li @('-Site', 'mgw')) -eq 0) 'legacy import without -Apply: exit 0'
+        Check (-not ((LiCalls) -match '--file|time-travel')) 'legacy import without -Apply: only reads'
+        Check (-not ((LiCalls) -match 'INSERT|UPDATE|DELETE')) 'legacy import without -Apply: only SELECT sent'
+        Check ((Run-Li @('-Site', 'mgw', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ COES WGW')) -eq 1) 'legacy import with the other site''s phrase: stops'
+        Check (-not ((LiCalls) -match '--file')) 'legacy import with wrong phrase: loads nothing'
+        $env:GW_FAKE_BADLAYOUT = '1'
+        Check ((Run-Li @('-Site', 'mgw', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ COES MGW')) -eq 5) 'legacy import: unexpected table layout stops before anything'
+        Remove-Item Env:\GW_FAKE_BADLAYOUT
+        Check (-not ((LiCalls) -match '--file')) 'legacy import: bad layout loads nothing'
+        Check ((Run-Li @('-Site', 'mgw', '-Apply', '-Approve', 'egkrino coes mgw')) -eq 0) 'legacy import with approval (Latin form): exit 0'
+        $c = LiCalls
+        $iBackup = $c.IndexOf('time-travel info mens-gear-world')
+        $iExec = $c.IndexOf('d1 execute mens-gear-world --remote --file')
+        Check ($iBackup -ge 0 -and $iExec -gt $iBackup) 'legacy import: restore point before loading'
+        Check (-not ($c -match 'womens-gear-world')) 'legacy import: the other site is not touched'
+        $liNotes = @(Get-ChildItem -LiteralPath (Join-Path $liWork 'backups') -Filter '*.txt' -ErrorAction SilentlyContinue)
+        Check ($liNotes.Count -eq 1 -and ([System.IO.File]::ReadAllText($liNotes[0].FullName)).Contains($liBookmark)) 'legacy import: restore point written with the bookmark'
+        $liReports = @(Get-ChildItem -LiteralPath $liOut -Filter 'IMPORT_COES_MGW_*.txt' -ErrorAction SilentlyContinue)
+        Check ($liReports.Count -ge 4) 'legacy import: a report for every run'
+        $lastLi = [System.IO.File]::ReadAllText(($liReports | Sort-Object LastWriteTime | Select-Object -Last 1).FullName)
+        Check ($lastLi.Contains("DELETE FROM products WHERE retailer = 'Coes'")) 'legacy import: report shows how to remove only this retailer'
+    } finally {
+        $env:PATH = $oldPath
+        Remove-Item Env:\GW_FAKE_STATE -ErrorAction SilentlyContinue
+    }
+}
+
 # 9. group-site.ps1 with a fake wrangler (Windows only: runs .cmd files)
 if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
     Write-Host 'group-site.ps1 (fake wrangler)'
