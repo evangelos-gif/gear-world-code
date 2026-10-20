@@ -38,12 +38,13 @@ export function tidyName(name) {
 }
 
 const q = v => `'${String(v).replace(/'/g, "''")}'`;
-const isInStock = r => /^instock/i.test(String(r.retailer || ''));
+// Retailers whose names carry the option of one card (InStock, Finediam).
+const isInStock = r => /^(instock|finediam$)/i.test(String(r.retailer || ''));
 
 // The rows to look at (read-only). No % < > & | ^ or double quotes: they go on a Windows cmd line.
 export function rowsSql(site, part) {
   const has = ws => '(' + ws.map(w => `instr(lower(product_name), '${w}') BETWEEN 1 AND 100000`).join(' OR ') + ')';
-  if (part === 'names') return "SELECT id, retailer, site_category, product_name FROM products WHERE is_active = 1 AND substr(lower(retailer), 1, 7) = 'instock' AND instr(product_name, ' / ') BETWEEN 1 AND 100000";
+  if (part === 'names') return "SELECT id, retailer, site_category, product_name FROM products WHERE is_active = 1 AND (substr(lower(retailer), 1, 7) = 'instock' OR lower(retailer) = 'finediam') AND instr(product_name, ' / ') BETWEEN 1 AND 100000";
   if (part === 'gender' && site === 'mgw') return `SELECT id, retailer, site_category, product_name FROM products WHERE is_active = 1 AND ${has(['women', 'ladies', 'lady', 'female', 'for her', 'woman'])}`;
   if (part === 'gender' && site === 'wgw') return `SELECT id, retailer, site_category, product_name FROM products WHERE is_active = 1 AND ${has(['men', 'male', 'gents', 'for him'])}`;
   throw new Error('unknown part');
