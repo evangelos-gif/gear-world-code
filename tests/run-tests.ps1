@@ -763,6 +763,25 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
     }
 }
 
+# 8b2. awin-feed-source.ps1 (where the feeds come from) on a fake folder
+Write-Host 'awin-feed-source.ps1'
+$fsRoot = Join-Path $work 'fs-home'
+$fsArch = Join-Path $fsRoot 'GW_AWIN_BULK_ARCHIVE'
+$fsOut = Join-Path $work 'fs-out'
+New-Item -ItemType Directory -Path $fsArch, (Join-Path $fsRoot 'scripts') -Force | Out-Null
+Write-Utf8 (Join-Path $fsArch 'AWIN_30645_116078.csv.gz') 'x'
+$fsKey = 'a1b2c3d4e5f6a7b8c9d0a1b2c3d4e5f6'
+Write-Utf8 (Join-Path (Join-Path $fsRoot 'scripts') 'get-feeds.ps1') ("`$out = 'C:\Users\x\Downloads\GW_AWIN_BULK_ARCHIVE'`nInvoke-WebRequest -Uri 'https://productdata.awin.com/datafeed/download/apikey/$fsKey/fid/116078/format/csv' -OutFile `$out`n")
+& $exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path (Join-Path $repo 'tools') 'awin-feed-source.ps1') -Archive $fsArch -SearchRoot @($fsRoot) -OutDir $fsOut -NoClipboard | Out-Null
+Check ($LASTEXITCODE -eq 0) 'feed source: exit code 0'
+$fsRep = @(Get-ChildItem -LiteralPath $fsOut -Filter 'AWIN_FEED_SOURCE_*.txt' -ErrorAction SilentlyContinue)
+if ($fsRep.Count -ge 1) {
+    $fr = [System.IO.File]::ReadAllText($fsRep[0].FullName)
+    Check ($fr.Contains('get-feeds.ps1')) 'feed source: finds the download script'
+    Check ($fr.Contains('Αρχεία: 1')) 'feed source: counts the feed files'
+    Check (-not $fr.Contains($fsKey)) 'feed source: the download key is masked'
+} else { Check $false 'feed source: report written' }
+
 # 8c. legacy-import.ps1 (new retailer into MGW/WGW) with a fake wrangler (Windows only: runs .cmd files)
 if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
     Write-Host 'legacy-import.ps1 (fake wrangler)'

@@ -273,5 +273,10 @@ if ($sum -lt [int]$sp.products) {
 Say ''
 Say ('ΕΤΟΙΜΟ: {0} προϊόντα {1} στο {2}.' -f $sum, $RetailerName, $Site.ToUpper()) 'Green'
 Say ('Δες τα: https://{0}/?search={1} (η αρχική και οι κατηγορίες ανανεώνονται μέσα σε λίγα λεπτά)' -f $Domain, $RetailerName)
-Say ('Αν χρειαστεί επαναφορά (μόνο με έγκριση): {0}' -f $removeCmd)
+if ($hadBefore -gt 0) {
+    # A refresh: the products were there before, so going back means the restore point, not removing them.
+    Say ('Αν χρειαστεί επαναφορά (μόνο με έγκριση): {0}' -f $restoreCmd)
+} else {
+    Say ('Αν χρειαστεί επαναφορά (μόνο με έγκριση): {0}' -f $removeCmd)
+}
 Finish 0
