@@ -165,6 +165,6 @@ export default {
   foreignMarkers: [
     'KGW', 'HGW', 'TGW', 'GGW', 'WGW', 'CGW',
     'Home Gear', 'Garden Gear', 'Technology Gear', 'Tech Gear', 'Kids Gear', "Kids' Gear", 'Construction Gear',
-    "Men's Gear", 'trade or profession', 'everyday carry'
+    "Men's Gear", 'trade or profession'
   ]
 };
