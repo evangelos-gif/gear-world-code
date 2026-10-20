@@ -878,6 +878,53 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
     }
 }
 
+# 8b3. awin-feed-download.ps1 against a local fake Awin server (Windows only: the key is kept with DPAPI)
+if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
+    Write-Host 'awin-feed-download.ps1 (fake Awin server)'
+    $fdDir = Join-Path $work 'fd'
+    $fdArch = Join-Path $fdDir 'archive'
+    $fdOut = Join-Path $fdDir 'out'
+    New-Item -ItemType Directory -Path $fdArch -Force | Out-Null
+    $fdKey = 'TestKey' + ([guid]::NewGuid().ToString('N').Substring(0, 10))
+    $fdKeyFile = Join-Path $fdDir 'key.dat'
+    [System.IO.File]::WriteAllText($fdKeyFile, (ConvertFrom-SecureString (ConvertTo-SecureString $fdKey -AsPlainText -Force)), [System.Text.Encoding]::ASCII)
+    $srv = Join-Path $fdDir 'server.js'
+    Write-Utf8 $srv ("const http=require('http'),zlib=require('zlib');const key=process.argv[2];" +
+      "const list='Advertiser ID,Advertiser Name,Membership Status,Feed ID,No of products,Last Imported\n30645,Coes,active,116078,2,2026-10-20\n55555,Other,not joined,1,9,2026-10-20\n';" +
+      "const feed=zlib.gzipSync('aw_product_id,product_name,merchant_deep_link,search_price\n1,A Jacket,https://www.coes.co.uk/products/a,10\n2,B Shirt,https://www.coes.co.uk/products/b,20\n');" +
+      "http.createServer((q,s)=>{if(!q.url.includes('/apikey/'+key+'/')&&!q.url.endsWith('/apikey/'+key)){s.writeHead(403);return s.end('bad key')}" +
+      "if(q.url.startsWith('/datafeed/list/')){s.writeHead(200,{'Content-Type':'text/csv'});return s.end(list)}" +
+      "if(q.url.includes('/fid/116078/')&&q.url.includes('columns/')){s.writeHead(200,{'Content-Type':'application/x-gzip'});return s.end(feed)}" +
+      "s.writeHead(404);s.end('no')}).listen(8799,'127.0.0.1');")
+    $node = (Get-Command node).Source
+    $proc = Start-Process -FilePath $node -ArgumentList @($srv, $fdKey) -PassThru -WindowStyle Hidden
+    Start-Sleep -Seconds 2
+    function Run-Fd([string[]]$a) {
+        $all = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', (Join-Path (Join-Path $repo 'tools') 'awin-feed-download.ps1'), '-Archive', $fdArch, '-KeyFile', $fdKeyFile, '-BaseUrl', 'http://127.0.0.1:8799', '-OutDir', $fdOut, '-NoClipboard') + $a
+        & $exe @all | Out-Null
+        return $LASTEXITCODE
+    }
+    try {
+        Check ((Run-Fd @('-Advertiser', '30645,55555')) -eq 0) 'feed download without -Apply: exit 0'
+        Check (@(Get-ChildItem -LiteralPath $fdArch -File).Count -eq 0) 'feed download without -Apply: downloads nothing'
+        $fdRep = [System.IO.File]::ReadAllText((@(Get-ChildItem -LiteralPath $fdOut -Filter '*.txt')[0]).FullName)
+        Check ($fdRep.Contains('116078') -and $fdRep.Contains('ΕΓΚΡΙΝΩ FEED DOWNLOAD')) 'feed download report: the feed and the phrase'
+        Check ($fdRep.Contains('δεν είσαι ενεργό μέλος')) 'feed download: a programme not joined is skipped'
+        Check (-not $fdRep.Contains($fdKey)) 'feed download: the key is never in the report'
+        Check ((Run-Fd @('-Apply', '-Approve', 'wrong')) -eq 1) 'feed download with wrong phrase: stops'
+        Write-Utf8 (Join-Path $fdArch 'AWIN_30645_116078.csv.gz') 'old copy'
+        Check ((Run-Fd @('-Apply', '-Approve', 'egkrino feed download')) -eq 0) 'feed download with approval: exit 0'
+        $new = Join-Path $fdArch 'AWIN_30645_116078.csv.gz'
+        $b = [System.IO.File]::ReadAllBytes($new)
+        Check ($b[0] -eq 0x1f -and $b[1] -eq 0x8b) 'feed download: the new feed is in place'
+        Check (@(Get-ChildItem -LiteralPath (Join-Path $fdArch '_old') -Recurse -File -Filter 'AWIN_30645_116078.csv.gz').Count -eq 1) 'feed download: the old copy is kept in _old'
+        $all = (@(Get-ChildItem -LiteralPath $fdOut -Filter '*.txt') | ForEach-Object { [System.IO.File]::ReadAllText($_.FullName) }) -join ' '
+        Check (-not $all.Contains($fdKey)) 'feed download: the key is in no report'
+    } finally {
+        if ($proc -and -not $proc.HasExited) { Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue }
+    }
+}
+
 # 8c. legacy-import.ps1 (new retailer into MGW/WGW) with a fake wrangler (Windows only: runs .cmd files)
 if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
     Write-Host 'legacy-import.ps1 (fake wrangler)'
