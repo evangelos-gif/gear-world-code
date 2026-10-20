@@ -157,14 +157,14 @@ function renderPlan({ R, files, rows, products, accepted, rejected, sqlFiles, no
       const all = Object.values(subs).flat();
       const prices = all.map(p => p.price).sort((a, b) => a - b);
       L.push(`   price £${prices[0]} to £${prices[prices.length - 1]}, middle £${prices[Math.floor(prices.length / 2)]}`);
-      for (const p of spread(all, 20)) L.push(`   - ${p.product_name} | ${p.brand || '-'} | £${p.price} | ${p.subcategory} | ${p.variants} size(s)`);
+      for (const p of spread(all, 20)) L.push(`   - ${p.product_name} | ${p.brand || '-'} | £${p.price} | ${p.subcategory} | ${p.variants} option(s)`);
     }
     L.push('');
   }
   L.push('== LEFT OUT, by reason ==');
   for (const [why, list] of Object.entries(rejected).sort((a, b) => b[1].length - a[1].length)) {
     L.push(`-- ${fmt(list.length)}  ${why}`);
-    for (const p of spread(list, 8)) L.push(`   - ${p.name} [${p.feedCategory || '-'}]`);
+    for (const p of spread(list, /not sure|no men\/women/.test(why) ? 30 : 10)) L.push(`   - ${p.name} [${p.feedCategory || '-'}]`);
   }
   L.push('', 'Notes:',
     `- Prices are ${R.currency} (the feed has no currency column). Each product shows its lowest in-stock size price.`,

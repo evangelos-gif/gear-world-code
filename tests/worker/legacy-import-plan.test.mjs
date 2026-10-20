@@ -112,3 +112,20 @@ test('Coes rules on real names from the feed sample', () => {
   assert.ok(c('Izipizi #D Reading Glasses', 'Gifts').reject);
   assert.ok(c('Grays Skinful Pro Gloves', 'Sports').reject);
 });
+
+test('Coes rules: mistakes found in the first real plan stay fixed', () => {
+  const c = (name, feedCategory) => classify({ name, feedCategory });
+  assert.equal(c('Polo Ralph Lauren Short Sleeve Sport Shirt', 'Menswear').subcategory, 'Shirts');
+  assert.equal(c('Part Two Popsy Short Sleeve Blouse', 'Womenswear').subcategory, 'Tops & Blouses');
+  assert.equal(c('Golding Horse Shoe Tie', 'Menswear').subcategory, 'Ties');
+  assert.equal(c('Bortoni Cologne Trousers in Navy', 'Menswear').subcategory, 'Trousers');
+  assert.equal(c('Barbour Heritage Eau De Parfum For Men', 'Menswear').siteCategory, 'Grooming & Fragrances');
+  assert.equal(c('Katie Loxton Strawberry Bag Charm', 'Womenswear').siteCategory, 'Bags & Accessories');
+  assert.equal(c("Nobody's Child Layla Midi Dress", 'Womenswear').subcategory, 'Dresses');
+  assert.ok(c("Marc Darcy Edinson Check 3 Piece Children's Suit", 'Menswear').reject);
+  assert.equal(c('GANT Relaxed Pull On Pants', 'Womenswear').subcategory, 'Trousers');
+  assert.equal(c('Remus Uomo Classic Casual Raincoat', 'Menswear').subcategory, 'Jackets');
+  assert.equal(c("Brooks Men's Ghost 18 Wide Running Shoes", 'Menswear').subcategory, 'Trainers');
+  assert.equal(c('Barbour Tie Neck Blouse', 'Womenswear').siteCategory, 'Clothing');
+  assert.equal(c('Dalaco Tie Clip', 'Menswear').siteCategory, "Men's Jewellery");
+});
