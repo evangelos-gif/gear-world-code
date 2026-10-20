@@ -83,7 +83,8 @@ function htmlChecks(path, res, { expectStatus = 200, indexable = true } = {}) {
   }
   if (site) {
     const body = stripNetwork(h);
-    const found = site.foreignMarkers.filter(mk => (/^[A-Z]{3}$/.test(mk) ? new RegExp(`\\b${mk}\\b`) : new RegExp(mk.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i')).test(body));
+    // A marker must start a word: "Men's Gear" must not match inside "Women's Gear".
+    const found = site.foreignMarkers.filter(mk => (/^[A-Z]{3}$/.test(mk) ? new RegExp(`\\b${mk}\\b`) : new RegExp('(?<![A-Za-z])' + mk.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i')).test(body));
     check('L01', found.length === 0, `${path}: no names or text from other sites`, found.join(', '));
   }
   for (const link of ['/privacy/', '/terms/', '/cookies/', '/how-we-make-money/', '/contact/']) {

@@ -32,3 +32,10 @@
 | sites/mgw/public/assets/img/hero-*.webp, og-image.png | Η εικόνα hero του ίδιου του MGW (`mgw-hero-final.png` από το live site) |
 | sites/mgw/public/assets/img/cat-*.webp | Οι εικόνες κατηγοριών του MGW (`mgw-category-*.png`), κομμένες σε 3:2. Στο grooming θολώθηκε η ετικέτα του αρώματος, για να μη φαίνεται μάρκα σαν να υποστηρίζει το site |
 | logo.svg, favicon.svg, apple-touch-icon.png | Το στρογγυλό λογότυπο του MGW (`mgw-logo-social-round.png`) |
+
+## Women's Gear World (WGW)
+
+| Αρχείο | Πηγή |
+|---|---|
+| sites/wgw/public/assets/img/cat-*.webp, og-image.png (φωτογραφίες) | Οι εικόνες κατηγοριών του WGW (`wgw-category-*.png` από το live site), κομμένες σε 3:2 χωρίς τον τυπωμένο τίτλο |
+| logo.svg, favicon.svg, apple-touch-icon.png | Σχεδιασμένα για το repo. Το παλιό WGW χρησιμοποιούσε λογότυπο και hero του MGW (lessons L13), οπότε δεν υπάρχει hero φωτογραφία ακόμα |

@@ -21,13 +21,13 @@ const HALLOWEEN = 'https://www.joybuy.co.uk/campaign/active/2hGagKjWWkaR2Kxt1www
 
 export const PROMOS = [
   { ...JOYBUY, id: 'joybuy-halloween', kind: 'code', campaign: 'Halloween', code: 'halloween', off: 4, minSpend: 20,
-    url: HALLOWEEN, sites: ['TGW', 'MGW', 'HGW', 'KGW'], start: '2026-10-20', end: '2026-12-31', bar: '🎃', source: JOYBUY_EMAIL },
+    url: HALLOWEEN, sites: ['TGW', 'MGW', 'WGW', 'HGW', 'KGW'], start: '2026-10-20', end: '2026-12-31', bar: '🎃', source: JOYBUY_EMAIL },
   { ...JOYBUY, id: 'joybuy-beauty', kind: 'code', campaign: 'Halloween', code: 'beauty', off: 5, minSpend: 30,
-    url: HALLOWEEN, sites: ['TGW', 'MGW', 'HGW', 'KGW'], start: '2026-10-20', end: '2026-12-31', source: JOYBUY_EMAIL },
+    url: HALLOWEEN, sites: ['TGW', 'MGW', 'WGW', 'HGW', 'KGW'], start: '2026-10-20', end: '2026-12-31', source: JOYBUY_EMAIL },
   { ...JOYBUY, id: 'joybuy-sports', kind: 'code', campaign: 'Halloween', code: 'sports', off: 5, minSpend: 45,
-    url: HALLOWEEN, sites: ['TGW', 'MGW', 'HGW', 'KGW'], start: '2026-10-20', end: '2026-12-31', source: JOYBUY_EMAIL },
+    url: HALLOWEEN, sites: ['TGW', 'MGW', 'WGW', 'HGW', 'KGW'], start: '2026-10-20', end: '2026-12-31', source: JOYBUY_EMAIL },
   { ...JOYBUY, id: 'joybuy-tools', kind: 'code', campaign: 'Halloween', code: 'tools', off: 15, minSpend: 100,
-    url: HALLOWEEN, sites: ['TGW', 'MGW', 'HGW', 'KGW'], start: '2026-10-20', end: '2026-12-31', source: JOYBUY_EMAIL },
+    url: HALLOWEEN, sites: ['TGW', 'MGW', 'WGW', 'HGW', 'KGW'], start: '2026-10-20', end: '2026-12-31', source: JOYBUY_EMAIL },
   { ...JOYBUY, id: 'joybuy-household', kind: 'sale', campaign: 'Household & Cleaning', upTo: 60, extraOff: 5, extraMin: 20, day: 'Thursday',
     url: 'https://www.joybuy.co.uk/campaign/active/WaWN6fWUxoEaEDqiHQcjqvfmPky', sites: ['HGW'], start: '2026-10-20', end: '2026-12-31', source: JOYBUY_EMAIL },
   { ...JOYBUY, id: 'joybuy-home-pet', kind: 'sale', campaign: 'Home & Living & Pet', upTo: 50,

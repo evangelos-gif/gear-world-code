@@ -75,6 +75,7 @@ jobs:
         include:
           - { site: ggw, db: garden-gear-world }
           - { site: mgw, db: mens-gear-world }
+          - { site: wgw, db: womens-gear-world }
     env:
       WRANGLER_SEND_METRICS: 'false'
     steps:

@@ -630,6 +630,102 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
     }
 }
 
+# 8b. wgw-engine.ps1 (same tool for Women's Gear World) with a fake wrangler (Windows only: runs .cmd files)
+if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
+    Write-Host 'wgw-engine.ps1 (fake wrangler)'
+    $wTool = Join-Path (Join-Path $repo 'tools') 'wgw-engine.ps1'
+    $wState = Join-Path $work 'wgw-state'
+    $wWork = Join-Path $work 'wgw-work'
+    $wOut = Join-Path $work 'wgw-out'
+    $wBin = Join-Path $work 'wgw-bin'
+    $wOld = Join-Path $work 'wgw-old-site'
+    New-Item -ItemType Directory -Path $wState, $wBin -Force | Out-Null
+    $wDb = [guid]::NewGuid().ToString()
+    $wVer = [guid]::NewGuid().ToString()
+    $wNpx = @(
+        '@echo off',
+        'echo %* >> "%GW_FAKE_STATE%\calls.log"',
+        'echo %* | findstr /C:"whoami" >nul && goto whoami',
+        'echo %* | findstr /C:"d1 list" >nul && goto d1list',
+        'echo %* | findstr /C:"--command" >nul && goto query',
+        'echo %* | findstr /C:"deployments list" >nul && goto deployments',
+        'echo %* | findstr /C:" deploy" >nul && goto deploy',
+        'echo unknown command 1>&2',
+        'exit /b 1',
+        ':whoami',
+        'echo You are logged in with an OAuth Token, associated with the email test@example.com.',
+        'exit /b 0',
+        ':d1list',
+        ('echo [{"uuid":"' + $wDb + '","name":"womens-gear-world"},{"uuid":"x","name":"other-site"}]'),
+        'exit /b 0',
+        ':query',
+        'echo [{"results":[{"site_category":"Garden Tools","retailer":"Tooled Up","n":5,"awin":0}],"success":true}]',
+        'exit /b 0',
+        ':deployments',
+        ('echo Version(s):  (100%%) ' + $wVer),
+        'exit /b 0',
+        ':deploy',
+        'echo Uploaded womens-gear-world',
+        'echo   https://womens-gear-world-preview.example-test.workers.dev',
+        'exit /b 0'
+    ) -join "`r`n"
+    [System.IO.File]::WriteAllText((Join-Path $wBin 'npx.cmd'), $wNpx + "`r`n", [System.Text.Encoding]::ASCII)
+    $oldPath = $env:PATH
+    $env:PATH = $wBin + ';' + $oldPath
+    $env:GW_FAKE_STATE = $wState
+    $wCalls = Join-Path $wState 'calls.log'
+    function Run-W([string[]]$a) {
+        $all = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $wTool, '-WorkDir', $wWork, '-OldSiteDir', $wOld, '-OutDir', $wOut, '-SkipInstall', '-NoClipboard', '-NoHttpCheck') + $a
+        & $exe @all | Out-Null
+        return $LASTEXITCODE
+    }
+    function WCalls { if (Test-Path -LiteralPath $wCalls) { return [System.IO.File]::ReadAllText($wCalls) } else { return '' } }
+    function WDeploys { return ([regex]::Matches((WCalls), 'wrangler deploy --config')).Count }
+    try {
+        Check ((Run-W @('-Step', 'check')) -eq 0) 'wgw check: exit 0'
+        $c = WCalls
+        Check ($c -match 'd1 execute womens-gear-world --remote --json --command "SELECT ' -and $c -match 'deployments list --name womens-gear-world') 'wgw check: reads products and the live version'
+        Check ((WDeploys) -eq 0 -and -not ($c -match 'delete|rollback|INSERT|UPDATE')) 'wgw check: only reads'
+        $rep = @(Get-ChildItem -LiteralPath $wOut -Filter 'WGW_ENGINE_CHECK_*.txt' | Select-Object -Last 1)
+        Check ($rep.Count -eq 1 -and ([System.IO.File]::ReadAllText($rep[0].FullName)).Contains($wVer)) 'wgw check: report shows the live version'
+        Check ((Run-W @('-Step', 'preview')) -eq 0 -and (WDeploys) -eq 0) 'wgw preview without -Apply: no deploy'
+        Check ((Run-W @('-Step', 'preview', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ WGW SWITCH')) -eq 1 -and (WDeploys) -eq 0) 'wgw preview with the wrong phrase: no deploy'
+        Check ((Run-W @('-Step', 'preview', '-Apply', '-Approve', 'egkrino wgw preview')) -eq 0 -and (WDeploys) -eq 1) 'wgw preview with approval: deploys once'
+        $pc = Join-Path $wWork 'wrangler.preview.jsonc'
+        $pt = $(if (Test-Path -LiteralPath $pc) { [System.IO.File]::ReadAllText($pc) } else { '' })
+        Check ($pt.Contains('"name": "womens-gear-world-preview"') -and $pt.Contains($wDb) -and $pt.Contains('"CLICK_LOG": "off"') -and -not $pt.Contains('custom_domain')) 'wgw preview: separate test Worker, same database, clicks off, no domain'
+        Check ((WCalls) -match 'deploy --config "[^"]*wrangler\.preview\.jsonc"') 'wgw preview: deploys the preview config'
+        Check (@(Get-ChildItem -LiteralPath (Join-Path $wWork 'deploy') -Recurse -Filter 'promos.js' -ErrorAction SilentlyContinue).Count -ge 1) 'wgw preview: the deploy copy has promos/ (the site configs import it)'
+        Check ((Run-W @('-Step', 'switch', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ WGW SWITCH')) -eq 11 -and (WDeploys) -eq 1) 'wgw switch without the old site code: refused, no deploy'
+        Write-Utf8 (Join-Path $wOld 'worker.js') 'export default {}'
+        Write-Utf8 (Join-Path $wOld 'wrangler.jsonc') '{ "name": "womens-gear-world" }'
+        Write-Utf8 (Join-Path $wOld '.dev.vars') 'SECRET=never-copy'
+        Write-Utf8 (Join-Path (Join-Path $wOld 'public') 'index.html') '<!doctype html>'
+        Check ((Run-W @('-Step', 'switch', '-Apply', '-Approve', 'wrong')) -eq 1 -and (WDeploys) -eq 1) 'wgw switch with the wrong phrase: no deploy'
+        Check ((Run-W @('-Step', 'switch', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ WGW SWITCH')) -eq 0 -and (WDeploys) -eq 2) 'wgw switch with approval: deploys once'
+        $zips = @(Get-ChildItem -LiteralPath (Join-Path $wWork 'backups') -Filter 'old-wgw-site-*.zip' -ErrorAction SilentlyContinue)
+        Check ($zips.Count -eq 1) 'wgw switch: old site code zipped first'
+        if ($zips.Count -eq 1) {
+            Add-Type -AssemblyName System.IO.Compression.FileSystem
+            $z = [System.IO.Compression.ZipFile]::OpenRead($zips[0].FullName)
+            $names = @($z.Entries | ForEach-Object { $_.FullName -replace '\\', '/' })
+            $z.Dispose()
+            Check (($names -contains 'worker.js') -and ($names -contains 'public/index.html') -and -not ($names -contains '.dev.vars')) 'wgw switch: backup has the code and site files, never .dev.vars'
+        }
+        $notes = @(Get-ChildItem -LiteralPath (Join-Path $wWork 'backups') -Filter 'wgw-before-switch-*.txt' -ErrorAction SilentlyContinue)
+        Check ($notes.Count -eq 1 -and ([System.IO.File]::ReadAllText($notes[0].FullName)).Contains('rollback ' + $wVer)) 'wgw switch: rollback note with the old live version'
+        $lc = [System.IO.File]::ReadAllText((Join-Path $wWork 'wrangler.jsonc'))
+        Check ($lc.Contains('"name": "womens-gear-world"') -and $lc.Contains($wDb) -and $lc.Contains('"pattern": "womensgearworld.com", "custom_domain": true') -and $lc.Contains('"pattern": "www.womensgearworld.com", "custom_domain": true') -and $lc.Contains('"keep_vars": true') -and -not $lc.Contains('CLICK_LOG')) 'wgw switch: live config has the domains, the same database, keeps dashboard settings'
+        $c = WCalls
+        Check ($c.LastIndexOf('deployments list') -lt $c.LastIndexOf('deploy --config')) 'wgw switch: live version read before deploying'
+        Check ((Run-W @('-Step', 'update', '-Apply', '-Approve', 'EGKRINO WGW UPDATE')) -eq 0 -and (WDeploys) -eq 3) 'wgw update with approval: deploys once'
+        Check (@(Get-ChildItem -LiteralPath $wOut -Filter 'WGW_ENGINE_*.txt').Count -ge 8) 'wgw: a report for every run'
+    } finally {
+        $env:PATH = $oldPath
+        Remove-Item Env:\GW_FAKE_STATE -ErrorAction SilentlyContinue
+    }
+}
+
 # 9. group-site.ps1 with a fake wrangler (Windows only: runs .cmd files)
 if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
     Write-Host 'group-site.ps1 (fake wrangler)'

@@ -6,7 +6,7 @@ export default {
   domain: 'gearworldgroup.com',
   operatorName: 'Gear World',
   // Shown on the page. Must be an address that receives mail (gearworldgroup.com uses Google Workspace).
-  contactEmail: '',
+  contactEmail: 'evangelos@gearworldgroup.com',
   awinPublisherId: 3057233,
   assetVersion: '2026-10-20-group-1',
   hub: { name: 'Gear World Hub', url: 'https://gearworldhub.com/', text: 'One search across every Gear World site, in 11 languages.' },
