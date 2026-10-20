@@ -842,6 +842,94 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
     }
 }
 
+# 8d. legacy-cleanup.ps1 (hide wrong products on MGW/WGW) with a fake wrangler (Windows only: runs .cmd files)
+if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
+    Write-Host 'legacy-cleanup.ps1 (fake wrangler)'
+    $lcTool = Join-Path (Join-Path $repo 'tools') 'legacy-cleanup.ps1'
+    $lcState = Join-Path $work 'lc-state'
+    $lcBin = Join-Path $work 'lc-bin'
+    $lcWork = Join-Path $work 'lc-work'
+    $lcOut = Join-Path $work 'lc-out'
+    New-Item -ItemType Directory -Path $lcState, $lcBin -Force | Out-Null
+    $lcBookmark = '00000085-0000024c-00004c6d-' + [guid]::NewGuid().ToString('N')
+    $lcNpx = @(
+        '@echo off',
+        'echo %* >> "%GW_FAKE_STATE%\calls.log"',
+        'echo %* | findstr /C:"time-travel info" >nul && goto ttinfo',
+        'echo %* | findstr /C:"--file" >nul && goto file',
+        'echo %* | findstr /C:"GROUP BY reason" >nul && goto summary',
+        'echo %* | findstr /C:"PARTITION BY reason" >nul && goto samples',
+        'echo %* | findstr /C:"NOT IN" >nul && goto kept',
+        'echo %* | findstr /C:"SELECT id FROM h" >nul && goto ids',
+        'echo %* | findstr /C:"--command" >nul && goto count',
+        'echo unknown command 1>&2',
+        'exit /b 1',
+        ':ttinfo',
+        ('echo The current bookmark is ' + $lcBookmark),
+        'exit /b 0',
+        ':file',
+        'echo hidden > "%GW_FAKE_STATE%\hidden.txt"',
+        'echo OK',
+        'exit /b 0',
+        ':summary',
+        'if exist "%GW_FAKE_STATE%\hidden.txt" goto empty',
+        'echo [{"results":[{"reason":"political merchandise","site_category":"Clothing","n":2},{"reason":"same product, other size or colour","site_category":"Clothing","n":1}],"success":true}]',
+        'exit /b 0',
+        ':empty',
+        'echo [{"results":[],"success":true}]',
+        'exit /b 0',
+        ':samples',
+        'echo [{"results":[{"reason":"political merchandise","product_name":"Restore Britain Hoodie"}],"success":true}]',
+        'exit /b 0',
+        ':kept',
+        'echo [{"results":[{"site_category":"Clothing","n":7}],"success":true}]',
+        'exit /b 0',
+        ':ids',
+        'echo [{"results":[{"id":4},{"id":5},{"id":9}],"success":true}]',
+        'exit /b 0',
+        ':count',
+        'echo [{"results":[{"n":10}],"success":true}]',
+        'exit /b 0'
+    ) -join "`r`n"
+    [System.IO.File]::WriteAllText((Join-Path $lcBin 'npx.cmd'), $lcNpx + "`r`n", [System.Text.Encoding]::ASCII)
+    $oldPath = $env:PATH
+    $env:PATH = $lcBin + ';' + $oldPath
+    $env:GW_FAKE_STATE = $lcState
+    $lcCalls = Join-Path $lcState 'calls.log'
+    function Run-Lc([string[]]$a) {
+        $all = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $lcTool, '-Rules', 'instock', '-WorkDir', $lcWork, '-OutDir', $lcOut, '-NoClipboard') + $a
+        & $exe @all | Out-Null
+        return $LASTEXITCODE
+    }
+    function LcCalls { if (Test-Path -LiteralPath $lcCalls) { return [System.IO.File]::ReadAllText($lcCalls) } else { return '' } }
+    try {
+        Check ((Run-Lc @('-Site', 'mgw')) -eq 0) 'cleanup without -Apply: exit 0'
+        Check (-not ((LcCalls) -match '--file|time-travel')) 'cleanup without -Apply: only reads'
+        $lcRep = [System.IO.File]::ReadAllText((@(Get-ChildItem -LiteralPath $lcOut -Filter 'CLEANUP_INSTOCK_MGW_*.txt')[0]).FullName)
+        Check ($lcRep.Contains('Restore Britain Hoodie') -and $lcRep.Contains('ΕΓΚΡΙΝΩ INSTOCK CLEANUP MGW')) 'cleanup report: samples and the approval phrase'
+        Check ((Run-Lc @('-Site', 'mgw', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ INSTOCK CLEANUP WGW')) -eq 1) 'cleanup with the other site''s phrase: stops'
+        Check (-not ((LcCalls) -match '--file')) 'cleanup with wrong phrase: changes nothing'
+        Check ((Run-Lc @('-Site', 'mgw', '-Apply', '-Approve', 'egkrino instock cleanup mgw')) -eq 0) 'cleanup with approval (Latin form): exit 0'
+        $c = LcCalls
+        $iBackup = $c.IndexOf('time-travel info mens-gear-world')
+        $iExec = $c.IndexOf('d1 execute mens-gear-world --remote --file')
+        Check ($iBackup -ge 0 -and $iExec -gt $iBackup) 'cleanup: restore point before the change'
+        Check (-not ($c -match 'womens-gear-world')) 'cleanup: the other site is not touched'
+        $bk = Join-Path $lcWork 'backups'
+        $idsF = @(Get-ChildItem -LiteralPath $bk -Filter '*-ids.txt' -ErrorAction SilentlyContinue)
+        $undoF = @(Get-ChildItem -LiteralPath $bk -Filter '*-rollback.sql' -ErrorAction SilentlyContinue)
+        $hideF = @(Get-ChildItem -LiteralPath $bk -Filter '*-hide.sql' -ErrorAction SilentlyContinue)
+        Check ($idsF.Count -eq 1 -and ([System.IO.File]::ReadAllText($idsF[0].FullName)) -match '4\s+5\s+9') 'cleanup: the list of hidden products is saved'
+        Check ($hideF.Count -eq 1 -and ([System.IO.File]::ReadAllText($hideF[0].FullName)).Contains('SET is_active = 0') -and ([System.IO.File]::ReadAllText($hideF[0].FullName)).Contains('WHERE id IN (4, 5, 9)')) 'cleanup: hides by id only'
+        Check ($undoF.Count -eq 1 -and ([System.IO.File]::ReadAllText($undoF[0].FullName)).Contains('SET is_active = 1')) 'cleanup: rollback file written'
+        $rp = @(Get-ChildItem -LiteralPath $bk -Filter '*-restore-point.txt' -ErrorAction SilentlyContinue)
+        Check ($rp.Count -eq 1 -and ([System.IO.File]::ReadAllText($rp[0].FullName)).Contains($lcBookmark)) 'cleanup: restore point written with the bookmark'
+    } finally {
+        $env:PATH = $oldPath
+        Remove-Item Env:\GW_FAKE_STATE -ErrorAction SilentlyContinue
+    }
+}
+
 # 9. group-site.ps1 with a fake wrangler (Windows only: runs .cmd files)
 if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
     Write-Host 'group-site.ps1 (fake wrangler)'
