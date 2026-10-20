@@ -9,25 +9,26 @@
 // Usage: node tools/gw-feed-peek.mjs --archive <dir> --ids 83599,91665 --out <dir>
 import { createReadStream, existsSync, mkdirSync, readdirSync, statSync, writeFileSync } from 'node:fs';
 import { createGunzip } from 'node:zlib';
-import { join, resolve } from 'node:path';
+import { basename, join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { readCsvRecords, cleanText, parsePrice } from './tgw-import-plan.mjs';
 
-const VERSION = 'gw-feed-peek v1';
+const VERSION = 'gw-feed-peek v2';
 const SAMPLES = 12;
 const TOP = 15;
 
+// Awin column names first, then Google Shopping feed names (some advertisers, e.g. GS Workwear, give that format).
 const COLUMNS = {
-  name: ['product_name'],
+  name: ['product_name', 'title'],
   brand: ['brand_name', 'brand'],
-  price: ['search_price', 'store_price', 'display_price', 'price'],
+  price: ['search_price', 'store_price', 'display_price', 'sale_price', 'price'],
   currency: ['currency'],
-  inStock: ['in_stock', 'is_for_sale', 'stock_status', 'stock_quantity'],
-  image: ['merchant_image_url', 'large_image', 'aw_image_url', 'alternate_image'],
-  link: ['aw_deep_link'],
-  merchantCategory: ['merchant_category', 'merchant_product_category_path'],
-  awinCategory: ['category_name'],
-  gtin: ['ean', 'product_gtin', 'upc']
+  inStock: ['in_stock', 'is_for_sale', 'stock_status', 'stock_quantity', 'availability'],
+  image: ['merchant_image_url', 'large_image', 'aw_image_url', 'alternate_image', 'image_link'],
+  link: ['aw_deep_link', 'link'],
+  merchantCategory: ['merchant_category', 'merchant_product_category_path', 'product_type'],
+  awinCategory: ['category_name', 'google_product_category'],
+  gtin: ['ean', 'product_gtin', 'upc', 'gtin']
 };
 
 function mapHeader(header) {
@@ -48,41 +49,47 @@ function stockState(raw) {
   const s = String(raw || '').trim().toLowerCase();
   if (s === '') return 'unknown';
   if (/^\d+$/.test(s)) return Number(s) > 0 ? 'in' : 'out';
-  if (/^(yes|y|true|1|in stock|in_stock|instock|available|available to order|limited stock)$/.test(s)) return 'in';
+  if (/^(yes|y|true|1|in stock|in_stock|instock|available|available to order|limited stock|backorder|preorder)$/.test(s)) return 'in';
   if (/^(no|n|false|0|out of stock|out_of_stock|outofstock|discontinued)$/.test(s)) return 'out';
   return 'unknown';
 }
 
-export async function peekFeeds({ archive, ids, outDir, now = new Date() }) {
+export async function peekFeeds({ archive, ids, outDir, extraFiles = [], now = new Date() }) {
   const files = existsSync(archive) ? readdirSync(archive) : [];
   const L = [];
   L.push(`=== Gear World feed peek (${VERSION}) - READ-ONLY ===`);
   L.push(`Run: ${now.toISOString().replace('T', ' ').slice(0, 19)} UTC`);
   L.push(`Archive: ${archive}`);
-  L.push(`Advertiser ids: ${ids.join(', ')}`);
+  L.push(`Advertiser ids: ${ids.join(', ') || '-'}`);
+  if (extraFiles.length) L.push(`Extra files: ${extraFiles.map(f => basename(f)).join(', ')}`);
   L.push('Nothing was changed. No SQL was written. Nothing was sent to Cloudflare, D1 or Awin.');
   const summary = [];
 
-  for (const id of ids) {
-    const matches = files.filter(f => new RegExp(`^AWIN_${id}_\\d+\\.csv\\.gz$`, 'i').test(f)).sort();
+  const groups = ids.map(id => ({
+    title: `Advertiser ${id}`, id,
+    paths: files.filter(f => new RegExp(`^AWIN_${id}_\\d+\\.csv\\.gz$`, 'i').test(f)).sort().map(f => join(archive, f))
+  }));
+  for (const x of extraFiles) groups.push({ title: `File ${basename(x)}`, id: basename(x), paths: existsSync(x) ? [x] : [] });
+  for (const g of groups) {
     L.push('');
-    L.push(`################ Advertiser ${id} ################`);
-    if (!matches.length) {
-      L.push('No feed file in the archive for this advertiser.');
-      summary.push(`${id}: no feed file`);
+    L.push(`################ ${g.title} ################`);
+    if (!g.paths.length) {
+      L.push('No feed file found.');
+      summary.push(`${g.id}: no feed file`);
       continue;
     }
-    for (const f of matches) {
-      const full = join(archive, f);
+    for (const full of g.paths) {
+      const f = basename(full);
       const bytes = statSync(full).size;
       L.push('');
       L.push(`--- ${f} (${bytes} bytes) ---`);
       let header = null, map = null, rows = 0, error = '';
-      const st = { currency: {}, stock: {}, mcat: {}, acat: {}, brand: {}, noImage: 0, noLink: 0, noPrice: 0, gtin: 0 };
+      const st = { linkHost: {}, currency: {}, stock: {}, mcat: {}, acat: {}, brand: {}, noImage: 0, noLink: 0, noPrice: 0, gtin: 0 };
       let min = Infinity, max = -Infinity;
       const samples = [];
       try {
-        const stream = createReadStream(full).pipe(createGunzip());
+        const raw = createReadStream(full);
+        const stream = /\.gz$/i.test(full) ? raw.pipe(createGunzip()) : raw;
         for await (const rec of readCsvRecords(stream)) {
           if (!header) { header = rec; map = mapHeader(rec); continue; }
           if (rec.length === 1 && rec[0] === '') continue;
@@ -91,7 +98,12 @@ export async function peekFeeds({ archive, ids, outDir, now = new Date() }) {
           const price = parsePrice(pick(rec, map.price));
           const brand = cleanText(pick(rec, map.brand));
           const mcat = cleanText(pick(rec, map.merchantCategory));
-          bump(st.currency, pick(rec, map.currency).toUpperCase() || 'unknown');
+          const priceText = pick(rec, map.price);
+          const curInPrice = (priceText.match(/\b([A-Z]{3})\b/) || [])[1] || (/£/.test(priceText) ? 'GBP' : /€/.test(priceText) ? 'EUR' : '');
+          bump(st.currency, pick(rec, map.currency).toUpperCase() || curInPrice || 'unknown');
+          let host = '';
+          try { host = new URL(pick(rec, map.link)).hostname.toLowerCase(); } catch { host = ''; }
+          bump(st.linkHost, host || '(none)');
           bump(st.stock, stockState(pick(rec, map.inStock)));
           bump(st.mcat, cut(mcat || '(none)', 70));
           bump(st.acat, cut(cleanText(pick(rec, map.awinCategory)) || '(none)', 50));
@@ -114,7 +126,9 @@ export async function peekFeeds({ archive, ids, outDir, now = new Date() }) {
       L.push(`Price range: ${Number.isFinite(min) ? min.toFixed(2) : '-'} to ${Number.isFinite(max) ? max.toFixed(2) : '-'} | no price: ${st.noPrice}`);
       L.push(`Currency: ${top(st.currency, 5).map(([k, v]) => `${k} ${v}`).join(', ')}`);
       L.push(`Stock: ${top(st.stock, 5).map(([k, v]) => `${k} ${v}`).join(', ')}`);
-      L.push(`No https image: ${st.noImage} | no Awin link: ${st.noLink} | with EAN/GTIN: ${st.gtin}`);
+      L.push(`No https image: ${st.noImage} | no link: ${st.noLink} | with EAN/GTIN: ${st.gtin}`);
+      L.push(`Link hosts: ${top(st.linkHost, 5).map(([k, v]) => `${k} ${v}`).join(', ')}`);
+      L.push(`Columns found: name=${header[map.name[0]] || '-'} price=${header[map.price[0]] || '-'} link=${header[map.link[0]] || '-'} category=${header[map.merchantCategory[0]] || '-'}`);
       L.push(`Top merchant categories:`);
       for (const [k, v] of top(st.mcat, TOP)) L.push(`   ${String(v).padStart(6)}  ${k}`);
       L.push(`Top Awin categories:`);
@@ -142,8 +156,9 @@ if (process.argv[1] && pathToFileURL(resolve(process.argv[1])).href === import.m
   const archive = val('archive');
   const outDir = val('out');
   const ids = String(val('ids') || '').split(/[\s,;]+/).filter(Boolean);
-  if (!archive || !outDir || !ids.length || ids.some(i => !/^\d{1,9}$/.test(i))) {
-    console.error('usage: node tools/gw-feed-peek.mjs --archive <dir> --ids 83599,91665 --out <dir>');
+  const extraFiles = args.flatMap((a, i) => (a === '--file' && args[i + 1] ? [args[i + 1]] : []));
+  if (!archive || !outDir || (!ids.length && !extraFiles.length) || ids.some(i => !/^\d{1,9}$/.test(i))) {
+    console.error('usage: node tools/gw-feed-peek.mjs --archive <dir> --ids 83599,91665 [--file <feed.csv.gz>] --out <dir>');
     process.exit(2);
   }
   if (existsSync(join(outDir, 'report.txt'))) {
@@ -151,7 +166,7 @@ if (process.argv[1] && pathToFileURL(resolve(process.argv[1])).href === import.m
     process.exit(2);
   }
   mkdirSync(outDir, { recursive: true });
-  const { summary } = await peekFeeds({ archive, ids, outDir });
+  const { summary } = await peekFeeds({ archive, ids, outDir, extraFiles });
   for (const s of summary) console.log(s);
   console.log(`report: ${join(outDir, 'report.txt')}`);
 }

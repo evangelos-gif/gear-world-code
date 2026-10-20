@@ -187,7 +187,7 @@ if (Get-Command node -ErrorAction SilentlyContinue) {
     }
     Check ((Get-FileHash -LiteralPath $gzPath -Algorithm SHA256).Hash -eq $archHash) 'import plan: Awin archive unchanged'
     $peekOut = Join-Path $work 'peek'
-    & $exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path (Join-Path $repo 'tools') 'gw-feed-peek.ps1') -Ids '123932,48473' -Archive $arch -OutDir $peekOut -NoClipboard
+    & $exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path (Join-Path $repo 'tools') 'gw-feed-peek.ps1') -Ids '123932,48473' -Archive $arch -Downloads $arch -OutDir $peekOut -NoClipboard
     Check ($LASTEXITCODE -eq 0) 'feed peek: exit code 0'
     $peeks = @(Get-ChildItem -LiteralPath $peekOut -Directory -ErrorAction SilentlyContinue)
     if ($peeks.Count -eq 1) {

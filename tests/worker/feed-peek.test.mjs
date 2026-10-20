@@ -31,3 +31,20 @@ test('feed peek: reports products, empty feeds and missing feeds, and changes no
   assert.equal(readdirSync(out).join(','), 'report.txt');
   assert.equal(hash(), before, 'archive unchanged');
 });
+
+test('feed peek: reads a Google-format feed given as a file', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'gw-peek-g-'));
+  const out = mkdtempSync(join(tmpdir(), 'gw-peek-gout-'));
+  const csv = 'id,title,description,link,image_link,availability,price,brand,gtin,product_type,google_product_category\n' +
+    'G1,Hi-Vis Vest Yellow,Vest,https://www.awin1.com/cread.php?p=1,https://img.example/v.jpg,in_stock,4.99 GBP,Portwest,5036108123456,Workwear > Hi-Vis,Apparel\n' +
+    'G2,Safety Boot S3,Boot,https://www.awin1.com/cread.php?p=2,https://img.example/b.jpg,out_of_stock,39.00 GBP,Dickies,,Footwear > Safety Boots,Shoes\n';
+  const file = join(dir, '48473-retail-en_GB.csv.gz');
+  writeFileSync(file, gzipSync(Buffer.from(csv)));
+  const { report, summary } = await peekFeeds({ archive: dir, ids: [], extraFiles: [file], outDir: out });
+  assert.ok(report.includes('Products (rows): 2'));
+  assert.ok(report.includes('Currency: GBP 2'));
+  assert.ok(report.includes('Stock: in 1, out 1'));
+  assert.ok(report.includes('Link hosts: www.awin1.com 2'));
+  assert.ok(report.includes('Workwear > Hi-Vis'));
+  assert.deepEqual(summary, ['48473-retail-en_GB.csv.gz: 2 products, 2 categories']);
+});
