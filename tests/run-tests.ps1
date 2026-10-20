@@ -837,7 +837,7 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         Check ($c -match 'hide-gone\.sql') 'legacy import: a product no longer in the feed is hidden'
         $goneUndo = @(Get-ChildItem -LiteralPath (Join-Path $liWork 'backups') -Filter '*-gone-*-rollback.sql' -ErrorAction SilentlyContinue)
         Check ($goneUndo.Count -eq 1 -and ([System.IO.File]::ReadAllText($goneUndo[0].FullName)).Contains('SET is_active = 1') -and ([System.IO.File]::ReadAllText($goneUndo[0].FullName)).Contains('WHERE id IN (77)')) 'legacy import: rollback for the hidden products, by id'
-        $liNotes = @(Get-ChildItem -LiteralPath (Join-Path $liWork 'backups') -Filter '*.txt' -ErrorAction SilentlyContinue)
+        $liNotes = @(Get-ChildItem -LiteralPath (Join-Path $liWork 'backups') -Filter '*-restore-point-*.txt' -ErrorAction SilentlyContinue)
         Check ($liNotes.Count -eq 1 -and ([System.IO.File]::ReadAllText($liNotes[0].FullName)).Contains($liBookmark)) 'legacy import: restore point written with the bookmark'
         $liReports = @(Get-ChildItem -LiteralPath $liOut -Filter 'IMPORT_COES_MGW_*.txt' -ErrorAction SilentlyContinue)
         Check ($liReports.Count -ge 4) 'legacy import: a report for every run'
