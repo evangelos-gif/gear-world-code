@@ -3,7 +3,7 @@
   Repair of product names broken by the tidy step of 20 Oct 2026 on ONE older Gear World site (MGW, WGW or KGW).
 
 .DESCRIPTION
-  The tidy tool read the database through the Windows console code page instead of UTF-8, so "KIDS’ Helmet" was
+  The tidy tool read the database through the Windows console code page instead of UTF-8, so "KIDS<right single quote> Helmet" was
   written back as "KIDSÔÇÖ Helmet". Rules: tools/cleanup-rules/fixnames.mjs. The right name is the feed name
   (never touched) without its size/colour; a name is changed only when every readable character stays the same.
   Without -Apply: READ-ONLY. Shows every name before -> after. Changes nothing.
@@ -92,7 +92,7 @@ function Invoke-Wrangler([string]$Folder, [string]$Arguments, [switch]$Retry) {
         $cmdFile = Join-Path $tmp ('gw-wrangler-' + [guid]::NewGuid().ToString('N').Substring(0, 8) + '.cmd')
         [System.IO.File]::WriteAllText($cmdFile, ($lines -join "`r`n") + "`r`n", [System.Text.Encoding]::ASCII)
         # wrangler writes UTF-8. Windows PowerShell reads a program's output with the console code page (850, 737...),
-        # which turned 'Kids’' into 'KidsÔÇÖ' and those names were written back to the database. Read it as UTF-8.
+        # which turned Kids + right single quote into 'KidsÔÇÖ' and those names were written back to the database. Read it as UTF-8.
         $oldEnc = $null
         try { $oldEnc = [Console]::OutputEncoding; [Console]::OutputEncoding = New-Object System.Text.UTF8Encoding($false) } catch { }
         try {

@@ -93,7 +93,7 @@ function Invoke-Wrangler([string]$Folder, [string]$Arguments, [switch]$Retry) {
         $cmdFile = Join-Path $tmp ('gw-wrangler-' + [guid]::NewGuid().ToString('N').Substring(0, 8) + '.cmd')
         [System.IO.File]::WriteAllText($cmdFile, ($lines -join "`r`n") + "`r`n", [System.Text.Encoding]::ASCII)
         # wrangler writes UTF-8. Windows PowerShell reads a program's output with the console code page (850, 737...),
-        # which turned 'Kids’' into 'KidsÔÇÖ' and those names were written back to the database. Read it as UTF-8.
+        # which turned Kids + right single quote into 'KidsÔÇÖ' and those names were written back to the database. Read it as UTF-8.
         $oldEnc = $null
         try { $oldEnc = [Console]::OutputEncoding; [Console]::OutputEncoding = New-Object System.Text.UTF8Encoding($false) } catch { }
         try {

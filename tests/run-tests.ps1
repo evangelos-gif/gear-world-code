@@ -1272,8 +1272,9 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
     $env:PATH = $tdBin + ';' + $oldPath
     $env:GW_FAKE_STATE = $tdState
     $tdCalls = Join-Path $tdState 'calls.log'
-    # wrangler writes UTF-8: a name with ’ must come back as ’, not as the console code page's ÔÇÖ.
-    [System.IO.File]::WriteAllText((Join-Path $tdState 'names.json'), '[{"results":[{"id":1,"retailer":"InStock UK","site_category":"Clothing","product_name":"Organic Poplin Shirt: Mens - 3XL / Cream"},{"id":7,"retailer":"InStock UK","site_category":"Clothing","product_name":"Acme KIDS’ Helmet – Matt - XS / Grey"}],"success":true}]', (New-Object System.Text.UTF8Encoding($false)))
+    # wrangler writes UTF-8: a name with a right single quote must come back as it is, not as the console code page's ÔÇÖ.
+    $rsq = [string][char]0x2019
+    [System.IO.File]::WriteAllText((Join-Path $tdState 'names.json'), ('[{"results":[{"id":1,"retailer":"InStock UK","site_category":"Clothing","product_name":"Organic Poplin Shirt: Mens - 3XL / Cream"},{"id":7,"retailer":"InStock UK","site_category":"Clothing","product_name":"Acme KIDSRSQ Helmet – Matt - XS / Grey"}],"success":true}]').Replace('RSQ', $rsq), (New-Object System.Text.UTF8Encoding($false)))
     function Run-Td([string[]]$a) {
         $all = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $tdTool, '-WorkDir', $tdWork, '-OutDir', $tdOut, '-NoClipboard') + $a
         & $exe @all | Out-Null
@@ -1299,7 +1300,7 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         Check ($chg.Contains('SET is_active = 0') -and $chg.Contains('WHERE id IN (2)') -and $chg.Contains("product_name = 'Organic Poplin Shirt: Mens'")) 'tidy: change file by id'
         Check ($und.Contains('SET is_active = 1') -and $und.Contains("product_name = 'Organic Poplin Shirt: Mens - 3XL / Cream'")) 'tidy: rollback file has the old name'
         $chgU = [System.IO.File]::ReadAllText((Join-Path $last 'change.sql'), [System.Text.Encoding]::UTF8)
-        Check ($chgU.Contains("product_name = 'Acme KIDS’ Helmet – Matt'") -and -not $chgU.Contains([string][char]0x2500) -and -not $chgU.Contains('Ô')) 'tidy: names with ’ and – are read as UTF-8 and written back unchanged'
+        Check ($chgU.Contains("product_name = 'Acme KIDS" + $rsq + " Helmet – Matt'") -and -not $chgU.Contains([string][char]0x2500) -and -not $chgU.Contains('Ô')) 'tidy: names with curly quotes and – are read as UTF-8 and written back unchanged'
         Check (([System.IO.File]::ReadAllText((Join-Path $last 'restore-point.txt'))).Contains($tdBookmark)) 'tidy: restore point written with the bookmark'
     } finally {
         $env:PATH = $oldPath
@@ -1347,10 +1348,12 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
     [System.IO.File]::WriteAllText((Join-Path $fnBin 'npx.cmd'), $fnNpx + "`r`n", [System.Text.Encoding]::ASCII)
     # Broken names exactly as the tidy step wrote them, the untouched feed names, and one that is not safe to fix.
     $fnRows = '[{"results":[' +
-        '{"id":11,"retailer":"InStock UK","product_name":"Acme KIDSÔÇÖ Helmet","feed_product_name":"Acme KIDS’ Helmet - Matt Grey / XS"},' +
+        '{"id":11,"retailer":"InStock UK","product_name":"Acme KIDSÔÇÖ Helmet","feed_product_name":"Acme KIDSRSQ Helmet - Matt Grey / XS"},' +
         '{"id":12,"retailer":"InStock UK","product_name":"Acme Banz┬« Sunglasses","feed_product_name":"Acme Banz® Sunglasses - Green / S"},' +
         '{"id":13,"retailer":"InStock UK","product_name":"Other ÔÇô Name","feed_product_name":"Different – Name - Red / S"}' +
         '],"success":true}]'
+    $rsq = [string][char]0x2019
+    $fnRows = $fnRows.Replace('RSQ', $rsq)
     [System.IO.File]::WriteAllText((Join-Path $fnState 'rows.json'), $fnRows, (New-Object System.Text.UTF8Encoding($false)))
     $oldPath = $env:PATH
     $env:PATH = $fnBin + ';' + $oldPath
@@ -1366,7 +1369,7 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         Check ((Run-Fn @('-Site', 'kgw')) -eq 0) 'fix names without -Apply: exit 0'
         Check (-not ((FnCalls) -match '--file|time-travel')) 'fix names without -Apply: only reads'
         $fnRep = [System.IO.File]::ReadAllText((@(Get-ChildItem -LiteralPath $fnOut -Filter 'FIXNAMES_KGW_*.txt')[0]).FullName, [System.Text.Encoding]::UTF8)
-        Check ($fnRep.Contains('-> Acme KIDS’ Helmet') -and $fnRep.Contains('-> Acme Banz® Sunglasses') -and $fnRep.Contains('[13]') -and $fnRep.Contains('ΕΓΚΡΙΝΩ FIX NAMES KGW')) 'fix names report: every name before -> after, the unsafe one listed, approval phrase'
+        Check ($fnRep.Contains('-> Acme KIDS' + $rsq + ' Helmet') -and $fnRep.Contains('-> Acme Banz® Sunglasses') -and $fnRep.Contains('[13]') -and $fnRep.Contains('ΕΓΚΡΙΝΩ FIX NAMES KGW')) 'fix names report: every name before -> after, the unsafe one listed, approval phrase'
         Check ((Run-Fn @('-Site', 'kgw', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ TIDY KGW')) -eq 1 -and -not ((FnCalls) -match '--file')) 'fix names with another phrase: changes nothing'
         Check ((Run-Fn @('-Site', 'kgw', '-Apply', '-Approve', 'egkrino fix names kgw')) -eq 0) 'fix names with approval (Latin form): exit 0'
         $c = FnCalls
@@ -1375,7 +1378,7 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         $last = $runs[$runs.Count - 1].FullName
         $chg = [System.IO.File]::ReadAllText((Join-Path $last 'change.sql'), [System.Text.Encoding]::UTF8)
         $und = [System.IO.File]::ReadAllText((Join-Path $last 'rollback.sql'), [System.Text.Encoding]::UTF8)
-        Check ($chg.Contains("product_name = 'Acme KIDS’ Helmet'") -and $chg.Contains("product_name = 'Acme Banz® Sunglasses'") -and -not $chg.Contains('id = 13') -and -not $chg.Contains('is_active')) 'fix names: only the safe names, by id, nothing hidden'
+        Check ($chg.Contains("product_name = 'Acme KIDS" + $rsq + " Helmet'") -and $chg.Contains("product_name = 'Acme Banz® Sunglasses'") -and -not $chg.Contains('id = 13') -and -not $chg.Contains('is_active')) 'fix names: only the safe names, by id, nothing hidden'
         Check ($und.Contains("product_name = 'Acme KIDSÔÇÖ Helmet'")) 'fix names: rollback file has the old name'
     } finally {
         $env:PATH = $oldPath
