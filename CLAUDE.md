@@ -14,6 +14,7 @@ The owner is a beginner on Windows PowerShell 5.1, often on a phone. Replies are
 - Read-only by default. A script that changes anything needs `-Apply` plus `-Approve '<exact phrase>'`, makes a dated backup first, and prints how to roll back.
 - Every script writes a report under `$HOME\gear-world-reports\` and copies it to the clipboard.
 - Give commands as the 3-line pattern in README.md, pinned to a commit SHA (not `main`).
+- When it is safe, put as many steps as possible in ONE paste (owner's standing wish): line 3 may run several tools one after another, separated by `;`. Each change still shows its plan first and asks its own approval phrase; say in order which phrases will be asked. Never chain a step that depends on checking the result of the one before.
 - Run `tests/run-tests.ps1` locally, then wait for the `checks` workflow (windows-latest, Windows PowerShell 5.1) to pass before giving a command.
 
 ## Never commit
