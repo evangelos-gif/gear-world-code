@@ -147,6 +147,8 @@ function writeSql(dir, items, R, site, now) {
     writeFileSync(file, sql);
     out.push(file);
   }
+  // The products this run keeps on the site (a refresh hides the retailer's other products: sold out or gone).
+  writeFileSync(join(dir, 'ids.txt'), items.map(p => p.awin_product_id).join('\n') + (items.length ? '\n' : ''));
   return out;
 }
 

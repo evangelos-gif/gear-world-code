@@ -779,6 +779,7 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         'echo %* | findstr /C:"time-travel info" >nul && goto ttinfo',
         'echo %* | findstr /C:"sqlite_master" >nul && goto layout',
         'echo %* | findstr /C:"GROUP BY" >nul && goto group',
+        'echo %* | findstr /C:"awin_product_id, is_active" >nul && goto curids',
         'echo %* | findstr /C:"--command" >nul && goto count',
         'echo %* | findstr /C:"--file" >nul && goto ok',
         'echo unknown command 1>&2',
@@ -792,6 +793,9 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         'exit /b 0',
         ':layoutbad',
         'echo [{"results":[{"n":0}],"success":true}]',
+        'exit /b 0',
+        ':curids',
+        'echo [{"results":[{"id":77,"awin_product_id":"30645:old-product","is_active":1},{"id":78,"awin_product_id":"30645:beaufort","is_active":1}],"success":true}]',
         'exit /b 0',
         ':group',
         'echo [{"results":[{"site_category":"Clothing","n":1}],"success":true}]',
@@ -830,6 +834,9 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         $iExec = $c.IndexOf('d1 execute mens-gear-world --remote --file')
         Check ($iBackup -ge 0 -and $iExec -gt $iBackup) 'legacy import: restore point before loading'
         Check (-not ($c -match 'womens-gear-world')) 'legacy import: the other site is not touched'
+        Check ($c -match 'hide-gone\.sql') 'legacy import: a product no longer in the feed is hidden'
+        $goneUndo = @(Get-ChildItem -LiteralPath (Join-Path $liWork 'backups') -Filter '*-gone-*-rollback.sql' -ErrorAction SilentlyContinue)
+        Check ($goneUndo.Count -eq 1 -and ([System.IO.File]::ReadAllText($goneUndo[0].FullName)).Contains('SET is_active = 1') -and ([System.IO.File]::ReadAllText($goneUndo[0].FullName)).Contains('WHERE id IN (77)')) 'legacy import: rollback for the hidden products, by id'
         $liNotes = @(Get-ChildItem -LiteralPath (Join-Path $liWork 'backups') -Filter '*.txt' -ErrorAction SilentlyContinue)
         Check ($liNotes.Count -eq 1 -and ([System.IO.File]::ReadAllText($liNotes[0].FullName)).Contains($liBookmark)) 'legacy import: restore point written with the bookmark'
         $liReports = @(Get-ChildItem -LiteralPath $liOut -Filter 'IMPORT_COES_MGW_*.txt' -ErrorAction SilentlyContinue)

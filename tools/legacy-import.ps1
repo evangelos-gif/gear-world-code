@@ -188,10 +188,29 @@ if ($null -eq $before -or $null -eq $total) { Say 'Δεν μπόρεσα να δ
 $hadBefore = [int]$before[0].n
 Say ('Βάση {0}: {1} ενεργά προϊόντα συνολικά, {2} από {3} ήδη.' -f $DbName, $total[0].n, $hadBefore, $RetailerName)
 
+# What the database has for this retailer, compared with the plan (read-only). Products no longer in the plan
+# (sold out in every size, or gone from the shop) are hidden after loading; nothing is deleted.
+$cur = Invoke-Wrangler $WorkDir ("d1 execute {0} --remote --json --command `"SELECT id, awin_product_id, is_active FROM products WHERE retailer = '{1}'`"" -f $DbName, $RetailerName) -Retry
+if ($cur.code -ne 0 -or $cur.text.IndexOf('[') -lt 0) { Say 'Δεν μπόρεσα να διαβάσω τα προϊόντα του καταστήματος. Δεν άλλαξε τίποτα.' 'Red'; Say $cur.text; Finish 4 }
+$diffDir = Join-Path $planDir ('diff-' + $Site)
+New-Item -ItemType Directory -Path $diffDir -Force | Out-Null
+$curFile = Join-Path $diffDir 'database.json.txt'
+[System.IO.File]::WriteAllText($curFile, $cur.text, (New-Object System.Text.UTF8Encoding($false)))
+& node (Join-Path (Join-Path $repo 'tools') 'legacy-import-diff.mjs') (Join-Path (Join-Path (Join-Path $planDir 'sql') $Site) 'ids.txt') $curFile $diffDir
+if ($LASTEXITCODE -ne 0) { Say 'Η σύγκριση με τη βάση απέτυχε. Δεν άλλαξε τίποτα.' 'Red'; Finish 10 }
+$d = ([System.IO.File]::ReadAllText((Join-Path $diffDir 'diff.txt'))).Trim() -split '\s+'
+$goneN = [int]$d[3]
+$hideGone = ($d[5] -eq '1')
+Say ('Σύγκριση με τη βάση: {0} νέα, {1} ενημέρωση τιμής/στοιχείων, {2} επιστρέφουν, {3} δεν είναι πια στο feed ή εξαντλήθηκαν.' -f $d[0], $d[1], $d[2], $goneN)
+if ($goneN -gt 0 -and -not $hideGone) {
+    Say ('ΠΡΟΣΟΧΗ: λείπουν πάνω από τα μισά από τα {0} ενεργά προϊόντα. Μάλλον το feed δεν κατέβηκε ολόκληρο, οπότε ΔΕΝ θα κρυφτούν.' -f $d[4]) 'Yellow'
+}
+
 Say ''
 Say 'Τι θα γίνει με -Apply:'
 Say ('  - Σημείο επαναφοράς (Cloudflare Time Travel) της βάσης {0}, γραμμένο στο {1}' -f $DbName, (Join-Path $WorkDir 'backups'))
 Say ('  - Προσθήκη ή ενημέρωση {0} προϊόντων {1}. Δεν σβήνεται τίποτα, κανένα άλλο κατάστημα δεν αλλάζει.' -f $sp.products, $RetailerName)
+if ($goneN -gt 0 -and $hideGone) { Say ('  - Απόκρυψη {0} προϊόντων {1} που δεν είναι πια στο feed ή εξαντλήθηκαν (με αρχείο επαναφοράς).' -f $goneN, $RetailerName) }
 Say ('  - Αλλάζει ΜΟΝΟ η βάση του {0}. Κανένας κώδικας, κανένα άλλο site, κανένα deploy.' -f $Site.ToUpper())
 $phrase = 'ΕΓΚΡΙΝΩ {0} {1}' -f $Retailer.ToUpper(), $Site.ToUpper()
 if (-not $Apply) { Say ''; Say 'Δοκιμή μόνο (χωρίς -Apply): δεν άλλαξε τίποτα.' 'Green'; Say ('Η φράση έγκρισης για την εισαγωγή: {0}' -f $phrase); Finish 0 }
@@ -233,6 +252,15 @@ foreach ($f in $files) {
     Write-Host ('  {0} OK' -f $f.Name)
 }
 Say ('Φορτώθηκαν {0} αρχεία SQL.' -f $n) 'Green'
+
+if ($goneN -gt 0 -and $hideGone) {
+    $goneUndo = Join-Path $bdir ('{0}-{1}-gone-{2}-rollback.sql' -f $Site, $Retailer, $stamp)
+    Copy-Item -LiteralPath (Join-Path $diffDir 'rollback-gone.sql') -Destination $goneUndo -Force
+    Copy-Item -LiteralPath (Join-Path $diffDir 'gone-ids.txt') -Destination ($goneUndo -replace 'rollback\.sql$', 'ids.txt') -Force
+    $g = Invoke-Wrangler $WorkDir ('d1 execute {0} --remote --file "{1}"' -f $DbName, (Join-Path $diffDir 'hide-gone.sql')) -Retry
+    if ($g.code -ne 0) { Say 'Λάθος στην απόκρυψη όσων εξαντλήθηκαν. Τα νέα προϊόντα και οι τιμές φορτώθηκαν.' 'Red'; Say $g.text; Finish 12 }
+    Say ('Κρύφτηκαν {0} προϊόντα που δεν είναι πια στο feed. Επαναφορά τους: npx wrangler d1 execute {1} --remote --file "{2}"' -f $goneN, $DbName, $goneUndo) 'Green'
+}
 
 # 6. Check.
 $after = Select-Rows ("SELECT site_category, COUNT(*) AS n FROM products WHERE retailer = '{0}' AND is_active = 1 GROUP BY site_category ORDER BY n DESC" -f $RetailerName)

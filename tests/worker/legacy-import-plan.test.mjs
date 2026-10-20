@@ -84,7 +84,7 @@ test('Coes plan SQL runs on a copy of the real table, twice, without duplicates'
   db.exec(REAL_TABLE);
   db.exec(`INSERT INTO products (awin_product_id, retailer, site_category, product_name, price, affiliate_url) VALUES ('122444:1', 'InStock UK', 'Watches', 'Ravel Watch', 14.97, 'https://www.awin1.com/x')`);
   const dir = join(out, 'sql', 'mgw');
-  const files = readdirSync(dir);
+  const files = readdirSync(dir).filter(f => f.endsWith('.sql'));
   assert.equal(files.length, 1);
   const sql = readFileSync(join(dir, files[0]), 'utf8');
   assert.match(sql, /^-- PLAN ONLY\. NOT EXECUTED\./);
@@ -128,4 +128,22 @@ test('Coes rules: mistakes found in the first real plan stay fixed', () => {
   assert.equal(c("Brooks Men's Ghost 18 Wide Running Shoes", 'Menswear').subcategory, 'Trainers');
   assert.equal(c('Barbour Tie Neck Blouse', 'Womenswear').siteCategory, 'Clothing');
   assert.equal(c('Dalaco Tie Clip', 'Menswear').siteCategory, "Men's Jewellery");
+});
+
+test('refresh: new, updated, back, gone, and no hiding when most of the feed is missing', async () => {
+  const { diff } = await import('../../tools/legacy-import-diff.mjs');
+  const d = diff(['30645:a', '30645:b', '30645:c'], [
+    { id: 1, awin_product_id: '30645:a', is_active: 1 }, { id: 2, awin_product_id: '30645:x', is_active: 1 }, { id: 3, awin_product_id: '30645:b', is_active: 0 }]);
+  assert.deepEqual({ added: d.added, updated: d.updated, back: d.back, gone: d.gone, safe: d.safe }, { added: 1, updated: 1, back: 1, gone: [2], safe: true });
+  const many = Array.from({ length: 200 }, (_, i) => ({ id: i + 1, awin_product_id: `30645:p${i}`, is_active: 1 }));
+  assert.equal(diff(['30645:p1'], many).safe, false, '199 of 200 missing: the feed is broken, nothing is hidden');
+  assert.equal(diff(many.slice(0, 150).map(r => r.awin_product_id), many).safe, true, '50 of 200 sold out: normal');
+});
+
+test('the plan writes the ids each site keeps', async () => {
+  const out = mkdtempSync(join(tmpdir(), 'coes-ids-'));
+  await planLegacyImport({ archive: feed(), retailer: 'coes', outDir: out, now: new Date('2026-10-20T18:00:00Z') });
+  const ids = readFileSync(join(out, 'sql', 'mgw', 'ids.txt'), 'utf8').trim().split('\n');
+  assert.ok(ids.includes('30645:beaufort-wax-jacket'));
+  assert.equal(ids.length, 4);
 });
