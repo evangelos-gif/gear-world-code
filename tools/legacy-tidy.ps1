@@ -92,11 +92,16 @@ function Invoke-Wrangler([string]$Folder, [string]$Arguments, [switch]$Retry) {
     for ($try = 1; $try -le $tries; $try++) {
         $cmdFile = Join-Path $tmp ('gw-wrangler-' + [guid]::NewGuid().ToString('N').Substring(0, 8) + '.cmd')
         [System.IO.File]::WriteAllText($cmdFile, ($lines -join "`r`n") + "`r`n", [System.Text.Encoding]::ASCII)
+        # wrangler writes UTF-8. Windows PowerShell reads a program's output with the console code page (850, 737...),
+        # which turned 'Kids’' into 'KidsÔÇÖ' and those names were written back to the database. Read it as UTF-8.
+        $oldEnc = $null
+        try { $oldEnc = [Console]::OutputEncoding; [Console]::OutputEncoding = New-Object System.Text.UTF8Encoding($false) } catch { }
         try {
             $out = @(& $cmdFile)
             $code = $LASTEXITCODE
         } finally {
             Remove-Item -LiteralPath $cmdFile -ErrorAction SilentlyContinue
+            if ($oldEnc) { try { [Console]::OutputEncoding = $oldEnc } catch { } }
         }
         $text = (($out | ForEach-Object { "$_" }) -join "`n") -replace '\x1b\[[0-9;]*m', ''
         $result = @{ code = $code; text = $text }
