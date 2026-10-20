@@ -801,6 +801,7 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         'echo %* | findstr /C:"d1 list" >nul && goto d1list',
         'echo %* | findstr /C:"--command" >nul && goto query',
         'echo %* | findstr /C:"deployments list" >nul && goto deployments',
+        'echo %* | findstr /C:" delete " >nul && goto delete',
         'echo %* | findstr /C:" deploy" >nul && goto deploy',
         'echo unknown command 1>&2',
         'exit /b 1',
@@ -815,6 +816,9 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         'exit /b 0',
         ':deployments',
         ('echo Version(s):  (100%%) ' + $kVer),
+        'exit /b 0',
+        ':delete',
+        'echo Successfully deleted kids-gear-world-preview',
         'exit /b 0',
         ':deploy',
         'echo Uploaded kids-gear-world',
@@ -871,6 +875,12 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         $c = KCalls
         Check ($c.LastIndexOf('deployments list') -lt $c.LastIndexOf('deploy --config')) 'kgw switch: live version read before deploying'
         Check ((Run-K @('-Step', 'update', '-Apply', '-Approve', 'EGKRINO KGW UPDATE')) -eq 0 -and (KDeploys) -eq 3) 'kgw update with approval: deploys once'
+        function KDeletes { return ([regex]::Matches((KCalls), 'wrangler delete ')).Count }
+        Check ((Run-K @('-Step', 'remove-preview')) -eq 0 -and (KDeletes) -eq 0) 'kgw remove-preview without -Apply: deletes nothing'
+        Check ((Run-K @('-Step', 'remove-preview', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ KGW SWITCH')) -eq 1 -and (KDeletes) -eq 0) 'kgw remove-preview with the wrong phrase: deletes nothing'
+        Check ((Run-K @('-Step', 'remove-preview', '-Apply', '-Approve', 'egkrino kgw remove preview')) -eq 0 -and (KDeletes) -eq 1) 'kgw remove-preview with approval: one delete'
+        $c = KCalls
+        Check ($c -match 'wrangler delete kids-gear-world-preview\s' -and -not ($c -match 'delete kids-gear-world\s') -and (KDeploys) -eq 3) 'kgw remove-preview: only the test Worker, no deploy'
         Check (@(Get-ChildItem -LiteralPath $kOut -Filter 'KGW_ENGINE_*.txt').Count -ge 8) 'kgw: a report for every run'
     } finally {
         $env:PATH = $oldPath
