@@ -23,6 +23,8 @@ export async function themedFiles(siteCode) {
     const re = new RegExp(from.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/\s+/g, '\\s*'), 'gi');
     css = css.replace(re, to);
   }
+  // A few rules only one site needs (e.g. CGW: flags and "≈ £" next to euro prices), from its config.
+  if (site.extraCss) css += `\n/* ${site.code} only (site.config.js extraCss) */\n${String(site.extraCss).trim()}\n`;
   const files = {
     'site.css': css,
     'site.js': readFileSync(join(REF, 'site.js'), 'utf8'),

@@ -888,6 +888,112 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
     }
 }
 
+# 8b5. cgw-engine.ps1 (same tool for Construction Gear World) with a fake wrangler (Windows only: runs .cmd files)
+if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
+    Write-Host 'cgw-engine.ps1 (fake wrangler)'
+    $cTool = Join-Path (Join-Path $repo 'tools') 'cgw-engine.ps1'
+    $cState = Join-Path $work 'cgw-state'
+    $cWork = Join-Path $work 'cgw-work'
+    $cOut = Join-Path $work 'cgw-out'
+    $cBin = Join-Path $work 'cgw-bin'
+    $cOld = Join-Path $work 'cgw-old-site'
+    New-Item -ItemType Directory -Path $cState, $cBin -Force | Out-Null
+    $cDb = [guid]::NewGuid().ToString()
+    $cVer = [guid]::NewGuid().ToString()
+    $cNpx = @(
+        '@echo off',
+        'echo %* >> "%GW_FAKE_STATE%\calls.log"',
+        'echo %* | findstr /C:"whoami" >nul && goto whoami',
+        'echo %* | findstr /C:"d1 list" >nul && goto d1list',
+        'echo %* | findstr /C:"--command" >nul && goto query',
+        'echo %* | findstr /C:"deployments list" >nul && goto deployments',
+        'echo %* | findstr /C:" delete " >nul && goto delete',
+        'echo %* | findstr /C:" deploy" >nul && goto deploy',
+        'echo unknown command 1>&2',
+        'exit /b 1',
+        ':whoami',
+        'echo You are logged in with an OAuth Token, associated with the email test@example.com.',
+        'exit /b 0',
+        ':d1list',
+        ('echo [{"uuid":"' + $cDb + '","name":"construction-gear-customers"},{"uuid":"x","name":"other-site"}]'),
+        'exit /b 0',
+        ':query',
+        'echo [{"results":[{"site_category":"Garden Tools","retailer":"Tooled Up","n":5,"awin":0}],"success":true}]',
+        'exit /b 0',
+        ':deployments',
+        ('echo Version(s):  (100%%) ' + $cVer),
+        'exit /b 0',
+        ':delete',
+        'echo Successfully deleted construction-gear-uk-preview',
+        'exit /b 0',
+        ':deploy',
+        'echo Uploaded construction-gear-uk',
+        'echo   https://construction-gear-uk-preview.example-test.workers.dev',
+        'exit /b 0'
+    ) -join "`r`n"
+    [System.IO.File]::WriteAllText((Join-Path $cBin 'npx.cmd'), $cNpx + "`r`n", [System.Text.Encoding]::ASCII)
+    $oldPath = $env:PATH
+    $env:PATH = $cBin + ';' + $oldPath
+    $env:GW_FAKE_STATE = $cState
+    $cCalls = Join-Path $cState 'calls.log'
+    function Run-C([string[]]$a) {
+        $all = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $cTool, '-WorkDir', $cWork, '-OldSiteDir', $cOld, '-OutDir', $cOut, '-SkipInstall', '-NoClipboard', '-NoHttpCheck') + $a
+        & $exe @all | Out-Null
+        return $LASTEXITCODE
+    }
+    function CCalls { if (Test-Path -LiteralPath $cCalls) { return [System.IO.File]::ReadAllText($cCalls) } else { return '' } }
+    function CDeploys { return ([regex]::Matches((CCalls), 'wrangler deploy --config')).Count }
+    try {
+        Check ((Run-C @('-Step', 'check')) -eq 0) 'cgw check: exit 0'
+        $c = CCalls
+        Check ($c -match 'd1 execute construction-gear-customers --remote --json --command "SELECT ' -and $c -match 'deployments list --name construction-gear-uk') 'cgw check: reads products and the live version'
+        Check ((CDeploys) -eq 0 -and -not ($c -match 'delete|rollback|INSERT|UPDATE')) 'cgw check: only reads'
+        $rep = @(Get-ChildItem -LiteralPath $cOut -Filter 'CGW_ENGINE_CHECK_*.txt' | Select-Object -Last 1)
+        Check ($rep.Count -eq 1 -and ([System.IO.File]::ReadAllText($rep[0].FullName)).Contains($cVer)) 'cgw check: report shows the live version'
+        Check ((Run-C @('-Step', 'preview')) -eq 0 -and (CDeploys) -eq 0) 'cgw preview without -Apply: no deploy'
+        Check ((Run-C @('-Step', 'preview', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ CGW SWITCH')) -eq 1 -and (CDeploys) -eq 0) 'cgw preview with the wrong phrase: no deploy'
+        Check ((Run-C @('-Step', 'preview', '-Apply', '-Approve', 'egkrino cgw preview')) -eq 0 -and (CDeploys) -eq 1) 'cgw preview with approval: deploys once'
+        $pc = Join-Path $cWork 'wrangler.preview.jsonc'
+        $pt = $(if (Test-Path -LiteralPath $pc) { [System.IO.File]::ReadAllText($pc) } else { '' })
+        Check ($pt.Contains('"name": "construction-gear-uk-preview"') -and $pt.Contains($cDb) -and $pt.Contains('"CLICK_LOG": "off"') -and -not $pt.Contains('custom_domain')) 'cgw preview: separate test Worker, same database, clicks off, no domain'
+        Check ((CCalls) -match 'deploy --config "[^"]*wrangler\.preview\.jsonc"') 'cgw preview: deploys the preview config'
+        Check (@(Get-ChildItem -LiteralPath (Join-Path $cWork 'deploy') -Recurse -Filter 'promos.js' -ErrorAction SilentlyContinue).Count -ge 1) 'cgw preview: the deploy copy has promos/ (the site configs import it)'
+        Check ((Run-C @('-Step', 'switch', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ CGW SWITCH')) -eq 11 -and (CDeploys) -eq 1) 'cgw switch without the old site code: refused, no deploy'
+        Write-Utf8 (Join-Path $cOld 'worker.js') 'export default {}'
+        Write-Utf8 (Join-Path $cOld 'wrangler.jsonc') '{ "name": "construction-gear-uk" }'
+        Write-Utf8 (Join-Path $cOld '.dev.vars') 'SECRET=never-copy'
+        Write-Utf8 (Join-Path (Join-Path $cOld 'public') 'index.html') '<!doctype html>'
+        Check ((Run-C @('-Step', 'switch', '-Apply', '-Approve', 'wrong')) -eq 1 -and (CDeploys) -eq 1) 'cgw switch with the wrong phrase: no deploy'
+        Check ((Run-C @('-Step', 'switch', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ CGW SWITCH')) -eq 0 -and (CDeploys) -eq 2) 'cgw switch with approval: deploys once'
+        $zips = @(Get-ChildItem -LiteralPath (Join-Path $cWork 'backups') -Filter 'old-cgw-site-*.zip' -ErrorAction SilentlyContinue)
+        Check ($zips.Count -eq 1) 'cgw switch: old site code zipped first'
+        if ($zips.Count -eq 1) {
+            Add-Type -AssemblyName System.IO.Compression.FileSystem
+            $z = [System.IO.Compression.ZipFile]::OpenRead($zips[0].FullName)
+            $names = @($z.Entries | ForEach-Object { $_.FullName -replace '\\', '/' })
+            $z.Dispose()
+            Check (($names -contains 'worker.js') -and ($names -contains 'public/index.html') -and -not ($names -contains '.dev.vars')) 'cgw switch: backup has the code and site files, never .dev.vars'
+        }
+        $notes = @(Get-ChildItem -LiteralPath (Join-Path $cWork 'backups') -Filter 'cgw-before-switch-*.txt' -ErrorAction SilentlyContinue)
+        Check ($notes.Count -eq 1 -and ([System.IO.File]::ReadAllText($notes[0].FullName)).Contains('rollback ' + $cVer)) 'cgw switch: rollback note with the old live version'
+        $lc = [System.IO.File]::ReadAllText((Join-Path $cWork 'wrangler.jsonc'))
+        Check ($lc.Contains('"name": "construction-gear-uk"') -and $lc.Contains($cDb) -and $lc.Contains('"pattern": "constructiongearworld.com", "custom_domain": true') -and $lc.Contains('"pattern": "www.constructiongearworld.com", "custom_domain": true') -and $lc.Contains('"keep_vars": true') -and -not $lc.Contains('CLICK_LOG')) 'cgw switch: live config has the domains, the same database, keeps dashboard settings'
+        $c = CCalls
+        Check ($c.LastIndexOf('deployments list') -lt $c.LastIndexOf('deploy --config')) 'cgw switch: live version read before deploying'
+        Check ((Run-C @('-Step', 'update', '-Apply', '-Approve', 'EGKRINO CGW UPDATE')) -eq 0 -and (CDeploys) -eq 3) 'cgw update with approval: deploys once'
+        function CDeletes { return ([regex]::Matches((CCalls), 'wrangler delete ')).Count }
+        Check ((Run-C @('-Step', 'remove-preview')) -eq 0 -and (CDeletes) -eq 0) 'cgw remove-preview without -Apply: deletes nothing'
+        Check ((Run-C @('-Step', 'remove-preview', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ CGW SWITCH')) -eq 1 -and (CDeletes) -eq 0) 'cgw remove-preview with the wrong phrase: deletes nothing'
+        Check ((Run-C @('-Step', 'remove-preview', '-Apply', '-Approve', 'egkrino cgw remove preview')) -eq 0 -and (CDeletes) -eq 1) 'cgw remove-preview with approval: one delete'
+        $c = CCalls
+        Check ($c -match 'wrangler delete construction-gear-uk-preview\s' -and -not ($c -match 'delete construction-gear-uk\s') -and (CDeploys) -eq 3) 'cgw remove-preview: only the test Worker, no deploy'
+        Check (@(Get-ChildItem -LiteralPath $cOut -Filter 'CGW_ENGINE_*.txt').Count -ge 8) 'cgw: a report for every run'
+    } finally {
+        $env:PATH = $oldPath
+        Remove-Item Env:\GW_FAKE_STATE -ErrorAction SilentlyContinue
+    }
+}
+
 # 8b4. hgw-engine.ps1 (same tool for Home Gear World) with a fake wrangler (Windows only: runs .cmd files)
 if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
     Write-Host 'hgw-engine.ps1 (fake wrangler)'

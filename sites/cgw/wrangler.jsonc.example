@@ -1,0 +1,29 @@
+// Construction Gear World - Wrangler config TEMPLATE.
+// The real file (wrangler.jsonc) is made on the PC by tools/cgw-engine.ps1 and is never committed,
+// because it holds the Cloudflare database ID.
+// The database is the one the site already has: there is NO migrations folder, so no tool can change its tables.
+{
+  "name": "construction-gear-uk",
+  "main": "worker.js",
+  "compatibility_date": "2026-10-01",
+  "workers_dev": true,
+  "assets": {
+    "directory": "./public",
+    "binding": "ASSETS"
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "construction-gear-customers",
+      "database_id": "REPLACE_WITH_DATABASE_ID"
+    }
+  ],
+  // Search in other languages asks Gear World Hub (secret GW_INTERNAL_TOKEN, already set on this Worker).
+  "services": [{ "binding": "GW_HUB", "service": "gear-world-hub" }],
+  // Keep any setting added in the Cloudflare dashboard (secrets are always kept).
+  "keep_vars": true,
+  // Search in other languages: Workers AI turns the words into English (src/lib/hub.js).
+  "ai": { "binding": "AI" },
+  "observability": { "enabled": true }
+  // The real config also keeps the site's custom domains (constructiongearworld.com and www).
+}

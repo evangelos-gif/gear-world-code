@@ -85,3 +85,17 @@ test('tidy step on KGW: InStock names lose the size/colour of the kept card, no 
   assert.equal(p.hide.length, 0);
   assert.ok(p.rename.some(r => / - \d-\d Years \/ Navy$/.test(r.from) && !/ \/ /.test(r.to)));
 });
+
+test('a hidden size/colour card of InStock goes (301) to the card of the same product that stays; others stay 404', async () => {
+  const env = { DB: fakeD1() };
+  const link = (h, v) => `https://www.awin1.com/cread.php?awinmid=1&awinaffid=3057233&ued=https%3A%2F%2Finstock.net%2Fproducts%2F${h}%3Fvariant%3D${v}`;
+  const add = env.DB.sql.prepare(`INSERT INTO products (awin_product_id, retailer, site_category, product_name, price, currency, stock_status, affiliate_url, is_active)
+    VALUES (?, 'InStock UK', 'Clothing', ?, ?, 'GBP', 'in stock', ?, ?)`);
+  const kept = Number(add.run('a1', 'Acme Fleece', 10, link('acme-fleece', 1), 1).lastInsertRowid);
+  const hidden = Number(add.run('a2', 'Acme Fleece - 9-10 Years / Red', 12, link('acme-fleece', 2), 0).lastInsertRowid);
+  const alone = Number(add.run('a3', 'Acme Medicine', 5, link('acme-medicine', 3), 0).lastInsertRowid);
+  const r = await get(`/product/acme-fleece-9-10-years-red-${hidden}/`, env);
+  assert.equal(r.status, 301);
+  assert.equal(new URL(r.headers.get('location')).pathname, `/product/acme-fleece-${kept}/`);
+  assert.equal((await get(`/product/acme-medicine-${alone}/`, env)).status, 404);
+});

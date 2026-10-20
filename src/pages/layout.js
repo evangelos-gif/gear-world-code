@@ -45,12 +45,32 @@ export function tr(key, ...args) {
 const escText = v => String(v ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 const escAttr = v => escText(v).replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 
+// Exchange rates for this request (site.convertForeignPrices), set by the engine: { base, rates: { EUR: 1.15 } }.
+let RATES = null;
+export function useRates(r) {
+  RATES = r && r.ok && r.rates ? r : null;
+}
+
 // A price in the site currency, marked so the site script can add "≈ €…" in the visitor's currency (lessons L25).
+// A price in another currency (a retailer that sells in euros) stays in that currency, with "≈ £…" next to it.
 export function priceTag(site, amount, currency, cls = 'price') {
-  const cur = String(currency || site.currency).toUpperCase();
+  const base = String(site.currency || 'GBP').toUpperCase();
+  const cur = String(currency || base).toUpperCase();
   const text = formatPrice(amount, cur, site.locale);
   if (!text) return '';
-  return html`<span class="${cls}" data-price="${Number(amount).toFixed(2)}" data-currency="${cur}">${text}</span>`;
+  const tag = html`<span class="${cls}" data-price="${Number(amount).toFixed(2)}" data-currency="${cur}">${text}</span>`;
+  const rate = cur !== base && RATES && String(RATES.base).toUpperCase() === base ? Number(RATES.rates[cur]) : 0;
+  const approx = rate > 0 ? formatPrice(Number(amount) / rate, base, site.locale) : '';
+  return approx ? html`${tag} <span class="fx-base" translate="no">≈ ${approx}</span>` : tag;
+}
+
+// Small flag next to a retailer that sells from another country (site.retailerCountries: { 'Reidl': 'DE' }).
+const COUNTRY_NAMES = { DE: 'Germany', NL: 'Netherlands', FR: 'France', IT: 'Italy', ES: 'Spain', IE: 'Ireland', PL: 'Poland', US: 'United States' };
+export function retailerFlag(site, name) {
+  const cc = site.retailerCountries && site.retailerCountries[String(name || '')];
+  if (!cc || !/^[A-Z]{2}$/.test(cc)) return '';
+  const label = COUNTRY_NAMES[cc] || cc;
+  return html` <img class="flag" src="${asset(site, `flags/${cc.toLowerCase()}.svg`)}" alt="${label}" title="${label}" width="18" height="12">`;
 }
 
 const CURRENCY_LABELS = { GBP: '£ GBP', EUR: '€ EUR', USD: '$ USD', ALL: 'Lek ALL', RON: 'lei RON', RUB: '₽ RUB' };
@@ -214,7 +234,7 @@ export function productCard(site, p, { headingLevel = 3 } = {}) {
     ${p.brand ? html`<p class="label-brand" translate="no">${p.brand}</p>` : ''}
     ${raw(`<${h} class="label-name" translate="no">`)}<a href="${href}">${p.product_name}</a>${raw(`</${h}>`)}
     <p class="label-price">${priceTag(site, p.price, p.currency)}${was ? html` <s class="was">${was}</s>` : ''}${pct ? html` <span class="tag-save">${tr('Save {0}%', pct)}</span>` : ''}</p>
-    <p class="label-meta"><span class="retailer" translate="no">${p.retailer}</span>${Number(p.offer_count) > 1 ? html`<a class="offers-link" href="${href}#prices">${tr('{0} retailers', p.offer_count)}</a>` : ''}${p.item_condition === 'refurbished' ? html`<span class="badge">Refurbished</span>` : ''}${Number(p.in_stock) === 1 ? '' : html`<span class="badge badge-out">Out of stock</span>`}</p>
+    <p class="label-meta"><span class="retailer" translate="no">${p.retailer}${retailerFlag(site, p.retailer)}</span>${Number(p.offer_count) > 1 ? html`<a class="offers-link" href="${href}#prices">${tr('{0} retailers', p.offer_count)}</a>` : ''}${p.item_condition === 'refurbished' ? html`<span class="badge">Refurbished</span>` : ''}${Number(p.in_stock) === 1 ? '' : html`<span class="badge badge-out">Out of stock</span>`}</p>
     <a class="btn btn-deal" href="/out/${p.id}" rel="sponsored nofollow noopener" target="_blank">${tr('View at {0}', p.retailer)}</a>
     <div class="card-actions">
       <button type="button" class="btn-compare" data-compare="${p.id}" aria-pressed="false" hidden>+ Compare</button>

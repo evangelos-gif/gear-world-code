@@ -23,7 +23,9 @@ const PAGES = {
     title: 'About us',
     description: `What ${site.name} is, where the prices come from and how the site is run.`,
     content: html`
-<p>${tr('{0} is an independent price comparison site. It lists products from UK retailers, so you can compare prices in one place and then buy from the retailer you choose.', site.name)}</p>
+<p>${site.retailersFromEurope
+  ? tr('{0} is an independent price comparison site. It lists products from retailers in the UK and Europe, so you can compare prices in one place and then buy from the retailer you choose.', site.name)
+  : tr('{0} is an independent price comparison site. It lists products from UK retailers, so you can compare prices in one place and then buy from the retailer you choose.', site.name)}</p>
 <h2>What you can compare</h2>
 <ul class="chip-list">${site.categories.map(c => html`<li><a href="${categoryPath(c.slug)}">${c.name}</a></li>`)}</ul>
 <h2>Where the prices come from</h2>

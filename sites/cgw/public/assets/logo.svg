@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Construction Gear World">
+  <rect width="64" height="64" rx="12" fill="#1d1b17"/>
+  <path d="M14 40c0-10.5 8-19 18-19s18 8.5 18 19z" fill="#ffc21a"/>
+  <path d="M28 21.5V16h8v5.5" fill="#ffc21a"/>
+  <path d="M27 24v14M37 24v14" stroke="#1d1b17" stroke-width="2.5" stroke-linecap="round"/>
+  <rect x="9" y="40" width="46" height="6" rx="3" fill="#ffc21a"/>
+  <path d="M17 52h30" stroke="#ffc21a" stroke-width="3" stroke-linecap="round" opacity=".55"/>
+</svg>

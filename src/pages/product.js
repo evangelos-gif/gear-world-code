@@ -2,7 +2,7 @@
 import { html, raw } from '../lib/html.js';
 import { categoryPath, productPath, formatPrice, savingPercent, truncate, formatDate } from '../lib/text.js';
 import { normalizeGtin, gtinSchemaKey } from '../lib/gtin.js';
-import { page, productGrid, breadcrumbs, breadcrumbSchema, absolute, tr, priceTag } from './layout.js';
+import { page, productGrid, breadcrumbs, breadcrumbSchema, absolute, tr, priceTag, retailerFlag } from './layout.js';
 
 function specsList(product) {
   let specs = {};
@@ -79,7 +79,7 @@ export function productPage(site, product, category, similar, offers = []) {
         <p class="shelf-price">${priceTag(site, product.price, product.currency)}${was ? html`<s class="was">${was}</s>` : ''}</p>
         ${pct ? html`<p class="tag-save">${tr('Save {0}% on the previous price', pct)}</p>` : ''}
         <dl class="shelf-facts">
-          <div><dt>Retailer</dt><dd translate="no">${product.retailer}</dd></div>
+          <div><dt>Retailer</dt><dd translate="no">${product.retailer}${retailerFlag(site, product.retailer)}</dd></div>
           <div><dt>Stock</dt><dd class="${inStock ? 'ok' : 'warn'}">${inStock ? 'In stock' : 'Out of stock'}</dd></div>
           ${product.item_condition === 'refurbished' ? html`<div><dt>Condition</dt><dd>Refurbished</dd></div>` : ''}
           ${checked ? html`<div><dt>Price checked</dt><dd><time datetime="${String(product.last_seen_at).slice(0, 10)}">${checked}</time></dd></div>` : ''}
@@ -98,12 +98,12 @@ export function productPage(site, product, category, similar, offers = []) {
   ${offers.length > 1 ? html`<section class="section" id="prices" aria-labelledby="prices-h">
     <h2 id="prices-h">${tr('Prices at {0} retailers', offers.length)}</h2>
     <ul class="offer-list">${offers.map((o, i) => html`<li class="offer-row${Number(o.id) === Number(product.id) ? ' offer-current' : ''}">
-      <span class="offer-retailer" translate="no">${o.retailer}</span>
+      <span class="offer-retailer" translate="no">${o.retailer}${retailerFlag(site, o.retailer)}</span>
       <span class="offer-price">${priceTag(site, o.price, o.currency)}${i === 0 && Number(o.in_stock) === 1 ? html` <span class="tag-best">${tr('Lowest price')}</span>` : ''}</span>
       <span class="offer-stock ${Number(o.in_stock) === 1 ? 'ok' : 'warn'}">${Number(o.in_stock) === 1 ? 'In stock' : 'Out of stock'}</span>
       <a class="btn btn-deal" href="/out/${o.id}" rel="sponsored nofollow noopener" target="_blank">${tr('View at {0}', o.retailer)}</a>
     </li>`)}</ul>
-    <p class="offer-note">${tr('Same product code (EAN) at each retailer. Prices and stock as the retailers report them.')}</p>
+    <p class="offer-note">${site.database && site.database.groupTable ? tr('The same product at each retailer, matched by its product code. Prices and stock as the retailers report them.') : tr('Same product code (EAN) at each retailer. Prices and stock as the retailers report them.')}</p>
   </section>` : ''}
 
   ${description ? html`<section class="section prose" aria-labelledby="desc-h">

@@ -13,7 +13,7 @@ import { hubTranslation } from './lib/hub.js';
 import { offersIndexPage, retailerOffersPage, OFFERS_PATH } from './pages/offers.js';
 import { findPromo } from './lib/promos.js';
 import { infoPage, infoPaths, notFoundPage, errorPage } from './pages/info.js';
-import { useSiteAssets } from './pages/layout.js';
+import { useSiteAssets, useRates } from './pages/layout.js';
 import { sitemapIndex, sitemapStatic, sitemapProducts, robotsTxt, SITEMAP_CHUNK } from './seo.js';
 
 const PER_PAGE = 24;
@@ -90,7 +90,10 @@ export function createWorker(site) {
     if (m) {
       return cached(request, env, ctx, async () => {
         const product = await db.getProduct(env.DB, Number(m[2]));
-        if (!product) return notFound(path, method);
+        if (!product) {
+          const alt = await db.activeVariantOf(env.DB, Number(m[2]));
+          return alt ? redirect(new URL(productPath(alt), url.origin).toString(), 301) : notFound(path, method);
+        }
         const canonical = productPath(product);
         if (canonical !== path) return redirect(new URL(canonical, url.origin).toString(), 301);
         const [similar, offers] = await Promise.all([db.similarProducts(env.DB, product, 8), db.offersFor(env.DB, product)]);
@@ -358,6 +361,11 @@ export function createWorker(site) {
       }
       db.useLayout(site);
       useSiteAssets(site);
+      // Sites with prices in more than one currency (CGW: Reidl and Vevor NL in euros) show "≈ £…" next to them,
+      // from the same shared rates as /api/fx. No rates: the price shows in its own currency only.
+      if (site.convertForeignPrices) {
+        try { useRates(await exchangeRates(site, ctx, env.FX_FETCH || fetch)); } catch { useRates(null); }
+      }
       let response;
       try {
         response = await handle(request, env, ctx);

@@ -77,6 +77,7 @@ jobs:
           - { site: mgw, db: mens-gear-world }
           - { site: wgw, db: womens-gear-world }
           - { site: kgw, db: kids-gear-world }
+          - { site: cgw, db: construction-gear-customers }
           - { site: hgw, db: home-gear-world }
     env:
       WRANGLER_SEND_METRICS: 'false'

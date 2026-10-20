@@ -65,6 +65,11 @@ function buildSource(site) {
   const retailerExpr = names.length
     ? `CASE retailer ${names.map(([from, to]) => `WHEN ${sqlText(from)} THEN ${sqlText(to)}`).join(' ')} ELSE retailer END`
     : 'retailer';
+  // Sites whose import already matched the same product across retailers (CGW: product_group_offers)
+  // group by that match first, then by GTIN. A product is in at most one group (product_id is unique there).
+  const groupCol = cfg.groupTable === 'product_group_offers'
+    ? ',\n    (SELECT g.group_id FROM product_group_offers g WHERE g.product_id = products.id) AS group_id'
+    : '';
   const view = `(SELECT id, product_name, NULL AS product_slug, brand, ${retailerExpr} AS retailer, site_category,
     ${catExpr} AS category_slug, subcategory, merchant_category, price, NULL AS was_price,
     COALESCE(NULLIF(TRIM(currency), ''), 'GBP') AS currency,
@@ -74,7 +79,7 @@ function buildSource(site) {
     json_extract(specs_json, '$.mpn') AS mpn,
     COALESCE(json_extract(specs_json, '$.description'), json_extract(specs_json, '$.product_short_description')) AS description,
     NULL AS specs_json, is_active, awin_product_id, NULL AS awin_advertiser_id,
-    created_at AS first_seen_at, updated_at AS last_seen_at, updated_at
+    created_at AS first_seen_at, updated_at AS last_seen_at, updated_at${groupCol}
     FROM products)`;
   LAYOUT = {
     legacy: true,
@@ -82,7 +87,10 @@ function buildSource(site) {
     // Category filters use the old column, so its index is used.
     catSql: slug => `p.site_category IN (${(map[slug] || ['']).map(() => '?').join(', ')})`,
     catBinds: slug => (map[slug] || ['']),
-    map
+    map,
+    // The import already used the EAN when it built the groups, so the GTIN is not read again (faster on 70,000 rows).
+    groupKey: groupCol ? "COALESCE('g:' || p.group_id, 'id:' || p.id)" : GTIN_KEY,
+    groupById: Boolean(groupCol)
   };
 }
 
@@ -90,9 +98,12 @@ export function isLegacy() { return LAYOUT.legacy; }
 
 // One product sold by several retailers (same GTIN/EAN) is shown once, at its best offer: in stock first,
 // then the lowest price. offer_count tells the card how many retailers sell it (site.groupOffers).
-const GROUP_KEY = "COALESCE(NULLIF(TRIM(p.gtin), ''), 'id:' || p.id)";
+const GTIN_KEY = "COALESCE(NULLIF(TRIM(p.gtin), ''), 'id:' || p.id)";
+const gk = () => LAYOUT.groupKey || GTIN_KEY;
 
 export function offerKey(product) {
+  if (product && product.group_id !== null && product.group_id !== undefined && product.group_id !== '') return `g:${product.group_id}`;
+  if (LAYOUT.groupById) return `id:${product && product.id}`;
   const g = String((product && product.gtin) || '').trim();
   return g || `id:${product && product.id}`;
 }
@@ -103,17 +114,17 @@ function cardSql(where, order, tail = '') {
   return `SELECT * FROM (SELECT q.*,
       ROW_NUMBER() OVER (PARTITION BY q.gk ORDER BY q.in_stock DESC, q.price ASC, q.id ASC) AS rn,
       SUM(CASE WHEN q.rr = 1 THEN 1 ELSE 0 END) OVER (PARTITION BY q.gk) AS offer_count
-    FROM (SELECT ${CARD_COLUMNS}, first_seen_at, gtin, ${GROUP_KEY} AS gk,
-      ROW_NUMBER() OVER (PARTITION BY ${GROUP_KEY}, p.retailer ORDER BY p.in_stock DESC, p.price ASC, p.id ASC) AS rr
+    FROM (SELECT ${CARD_COLUMNS}, first_seen_at, gtin, ${gk()} AS gk,
+      ROW_NUMBER() OVER (PARTITION BY ${gk()}, p.retailer ORDER BY p.in_stock DESC, p.price ASC, p.id ASC) AS rr
       FROM ${LAYOUT.from} p WHERE ${where}) q) p WHERE p.rn = 1 ORDER BY ${order} ${tail}`;
 }
 
 // Every active offer of the same product (same GTIN), best first. Empty unless the site groups offers.
 export async function offersFor(db, product, limit = 12) {
-  if (!LAYOUT.group || !product || !String(product.gtin || '').trim()) return [];
+  if (!LAYOUT.group || !product || offerKey(product).startsWith('id:')) return [];
   const r = await db
     .prepare(`SELECT id, retailer, price, currency, in_stock, last_seen_at FROM ${LAYOUT.from} p
-      WHERE p.is_active = 1 AND ${GROUP_KEY} = ? ORDER BY p.in_stock DESC, p.price ASC, p.id ASC LIMIT ?`)
+      WHERE p.is_active = 1 AND ${gk()} = ? ORDER BY p.in_stock DESC, p.price ASC, p.id ASC LIMIT ?`)
     .bind(offerKey(product), limit)
     .all();
   // One line per retailer: its best offer.
@@ -157,7 +168,9 @@ async function collectionCounts(db) {
 
 // Rows from the legacy layout get their address slug and a sharper image here.
 // Text that was saved twice as UTF-8 ("Menâ€™s Watch â€“ 44mm"), shown as meant ("Men’s Watch – 44mm").
-const MOJIBAKE = [['â€™', '’'], ['â€˜', '‘'], ['â€œ', '“'], ['â€\u009d', '”'], ['â€“', '–'], ['â€”', '—'], ['â€¦', '…'], ['Â£', '£'], ['Â®', '®'], ['Â©', '©'], ['â„¢', '™'], ['Ã©', 'é'], ['Ã¨', 'è'], ['Ã¶', 'ö'], ['Ã¼', 'ü'], ['Ã¤', 'ä'], ['Â ', ' ']];
+const MOJIBAKE = [['â€™', '’'], ['â€˜', '‘'], ['â€œ', '“'], ['â€\u009d', '”'], ['â€“', '–'], ['â€”', '—'], ['â€¦', '…'], ['Â£', '£'], ['Â®', '®'], ['Â©', '©'], ['â„¢', '™'], ['Ã©', 'é'], ['Ã¨', 'è'], ['Ã¶', 'ö'], ['Ã¼', 'ü'], ['Ã¤', 'ä'],
+  ['Ã±', 'ñ'], ['Ã¡', 'á'], ['Ã­', 'í'], ['Ã³', 'ó'], ['Ãº', 'ú'], ['Ã§', 'ç'], ['Ã¢', 'â'], ['Ãª', 'ê'], ['Ã´', 'ô'], ['Ã®', 'î'],
+  ['Ã¸', 'ø'], ['Ã¥', 'å'], ['Ã‰', 'É'], ['ÃŸ', 'ß'], ['Ã„', 'Ä'], ['Ã–', 'Ö'], ['Ãœ', 'Ü'], ['â€¢', '•'], ['Â°', '°'], ['Â½', '½'], ['Â ', ' ']];
 export function fixMojibake(text) {
   let t = String(text ?? '');
   if (!/[âÃÂ]/.test(t)) return text;
@@ -227,7 +240,7 @@ export async function listProducts(db, filters, { sort = 'featured', page = 1, p
   const order = SORTS[normalizeSort(sort)];
   const offset = (page - 1) * perPage;
   const countSql = LAYOUT.group
-    ? `SELECT COUNT(DISTINCT ${GROUP_KEY}) AS n FROM ${LAYOUT.from} p WHERE ${f.sql}`
+    ? `SELECT COUNT(DISTINCT ${gk()}) AS n FROM ${LAYOUT.from} p WHERE ${f.sql}`
     : `SELECT COUNT(*) AS n FROM ${LAYOUT.from} p WHERE ${f.sql}`;
   const [count, rows] = await db.batch([
     db.prepare(countSql).bind(...f.binds),
@@ -266,6 +279,22 @@ export async function getProduct(db, id) {
   return fix(await db.prepare(`SELECT * FROM ${LAYOUT.from} p WHERE p.id = ? AND p.is_active = 1 LIMIT 1`).bind(id).first());
 }
 
+// A hidden card of a product that still has another card on the site (InStock sent one card per size/colour; the
+// clean-up kept one). Its old address then goes to the card that stays (301), so a link from Google keeps working.
+// Same retailer, same shop page in the Awin link (.../products%2F<page>%3Fvariant...). Older layout only.
+const SHOP_PAGE = /products%2F([a-z0-9._~-]{2,200})%3Fvariant/i;
+export async function activeVariantOf(db, id) {
+  if (!LAYOUT.legacy) return null;
+  const gone = await db.prepare('SELECT retailer, affiliate_url FROM products WHERE id = ? AND is_active = 0 LIMIT 1').bind(id).first();
+  const m = gone && SHOP_PAGE.exec(String(gone.affiliate_url || ''));
+  if (!m) return null;
+  const alt = await db
+    .prepare(`SELECT id, product_name FROM products WHERE is_active = 1 AND retailer = ? AND instr(affiliate_url, ?) > 0 ORDER BY price ASC, id ASC LIMIT 1`)
+    .bind(gone.retailer, `products%2F${m[1]}%3Fvariant`)
+    .first();
+  return alt ? fix(alt) : null;
+}
+
 export async function getProductForRedirect(db, id) {
   if (LAYOUT.legacy) {
     return db
@@ -284,7 +313,7 @@ export async function similarProducts(db, product, limit = 8) {
   if (!product.category_slug) return [];
   const c = catWhere(product.category_slug);
   const r = await db
-    .prepare(cardSql(`p.is_active = 1 AND ${c.sql} AND p.id <> ? AND ${GROUP_KEY} <> ?`, 'ABS(p.price - ?) ASC, p.id ASC', 'LIMIT ?'))
+    .prepare(cardSql(`p.is_active = 1 AND ${c.sql} AND p.id <> ? AND ${gk()} <> ?`, 'ABS(p.price - ?) ASC, p.id ASC', 'LIMIT ?'))
     .bind(...c.binds, product.id, offerKey(product), product.price, limit)
     .all();
   return fixAll(r.results);

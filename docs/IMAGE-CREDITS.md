@@ -57,3 +57,12 @@
 | og-image.png | Η εικόνα hero του HGW (`hgw-hero.png` από το live site, με το λογότυπό του) σε σκούρο μπλε φόντο 1200x630. Δεν μπαίνει ως hero στη σελίδα, γιατί είναι μικρή (755 px) και έχει τυπωμένο κείμενο |
 | apple-touch-icon.png | Το εικονίδιο του HGW (`hgw-site-icon.png` από το live site) |
 | logo.svg, favicon.svg | Σχεδιασμένα για το repo (χρυσή στέγη με παράθυρο σε σκούρο μπλε, όπως το λογότυπο του HGW) |
+
+## Construction Gear World (CGW)
+
+| Αρχείο | Πηγή |
+|---|---|
+| sites/cgw/public/assets/img/hero-*.webp | Η εικόνα hero του ίδιου του CGW (`cgw-hero-background.png` από το live site), χωρίς αλλαγές |
+| sites/cgw/public/assets/img/cat-*.webp | Κομμάτια της ίδιας εικόνας hero (μπότες, κράνος, γάντια, δράπανο, εκσκαφέας, κατσαβίδι), σε 3:2. Το παλιό site δεν είχε εικόνες κατηγοριών |
+| logo.svg, favicon.svg, apple-touch-icon.png | Σχεδιασμένα για το repo (κίτρινο κράνος σε σκούρο τετράγωνο) |
+| assets/flags/de.svg, nl.svg | Σχεδιασμένες για το repo (σημαίες Γερμανίας και Ολλανδίας, για τα καταστήματα Reidl και VEVOR) |
