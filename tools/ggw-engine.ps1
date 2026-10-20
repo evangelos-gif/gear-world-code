@@ -61,6 +61,9 @@ function Say([string]$text, [string]$color = '') {
 function Finish([int]$code) {
     if (-not (Test-Path -LiteralPath $OutDir)) { New-Item -ItemType Directory -Path $OutDir -Force | Out-Null }
     $file = Join-Path $OutDir ('GGW_ENGINE_{0}_{1}.txt' -f $Step.ToUpper(), $stamp)
+    # Two runs in the same second must not overwrite each other's report.
+    $n = 2
+    while (Test-Path -LiteralPath $file) { $file = Join-Path $OutDir ('GGW_ENGINE_{0}_{1}_{2}.txt' -f $Step.ToUpper(), $stamp, $n); $n++ }
     $text = $L -join "`r`n"
     [System.IO.File]::WriteAllText($file, $text, (New-Object System.Text.UTF8Encoding($true)))
     if (-not $NoClipboard) { try { Set-Clipboard -Value $text } catch { } }
