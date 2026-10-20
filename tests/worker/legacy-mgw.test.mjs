@@ -63,3 +63,20 @@ test('MGW front-end files are the TGW ones (recoloured)', async () => {
     assert.ok(Buffer.compare(readFileSync(`sites/mgw/public/assets/${name}`), Buffer.from(content)) === 0, `${name} is out of date`);
   }
 });
+
+test('Gifts for Him: products from the chosen categories in the price range; counted on the home page', async () => {
+  const env = { DB: fakeD1() };
+  const col = site.categories.find(c => c.slug === 'gifts-for-him').collection;
+  const api = await (await get('/api/products?category=gifts-for-him&limit=60', env)).json();
+  assert.ok(api.products.length > 0);
+  const allowed = new Set(col.from);
+  for (const p of api.products) {
+    assert.ok(allowed.has(p.category_slug), `${p.product_name} is from ${p.category_slug}`);
+    assert.ok((p.price >= col.minPrice && p.price <= col.maxPrice) || /gift/i.test(p.product_name), `${p.product_name} £${p.price}`);
+  }
+  assert.ok(!api.products.some(p => p.category_slug === 'clothing'), 'clothing is not in the gift list');
+  const home = await (await get('/', env)).text();
+  assert.match(home, /Gifts for Him/);
+  const page = await (await get('/category/gifts-for-him/', env)).text();
+  assert.match(page, /<meta name="robots" content="index,follow">/);
+});

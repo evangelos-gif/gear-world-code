@@ -42,6 +42,9 @@ export function useLayout(site) {
 function buildLayout(site) {
   buildSource(site);
   LAYOUT.group = Boolean(site && site.groupOffers);
+  // Collections: pages made from other categories (e.g. "Gifts for Him": watches, jewellery... in a price
+  // range, plus anything named "gift"). A product keeps its own category; it is also listed here.
+  LAYOUT.collections = Object.fromEntries(((site && site.categories) || []).filter(c => c.collection).map(c => [c.slug, c.collection]));
 }
 
 function buildSource(site) {
@@ -119,8 +122,37 @@ export async function offersFor(db, product, limit = 12) {
   return rows.length > 1 ? rows : [];
 }
 
-function catWhere(slug) {
+function plainCatWhere(slug) {
   return { sql: typeof LAYOUT.catSql === 'function' ? LAYOUT.catSql(slug) : LAYOUT.catSql, binds: LAYOUT.catBinds(slug) };
+}
+
+function catWhere(slug) {
+  const col = LAYOUT.collections && LAYOUT.collections[slug];
+  if (!col) return plainCatWhere(slug);
+  const parts = (col.from || []).map(plainCatWhere);
+  if (!parts.length) return { sql: '0', binds: [] };
+  const inFrom = `(${parts.map(x => x.sql).join(' OR ')})`;
+  const fromBinds = parts.flatMap(x => x.binds);
+  const min = Number(col.minPrice) || 0;
+  const max = Number(col.maxPrice) || 1e9;
+  const words = (col.words || []).map(w => `%${String(w).toLowerCase()}%`);
+  const wordSql = words.length ? ` OR (${inFrom} AND (${words.map(() => 'LOWER(p.product_name) LIKE ?').join(' OR ')}))` : '';
+  return {
+    sql: `((${inFrom} AND p.price BETWEEN ? AND ?)${wordSql})`,
+    binds: [...fromBinds, min, max, ...(words.length ? [...fromBinds, ...words] : [])]
+  };
+}
+
+// Product counts of the collection pages (their products are counted in their own categories too).
+async function collectionCounts(db) {
+  const slugs = Object.keys(LAYOUT.collections || {});
+  const out = {};
+  await Promise.all(slugs.map(async slug => {
+    const c = catWhere(slug);
+    const r = await db.prepare(`SELECT COUNT(*) AS n FROM ${LAYOUT.from} p WHERE p.is_active = 1 AND ${c.sql}`).bind(...c.binds).first();
+    out[slug] = Number((r && r.n) || 0);
+  }));
+  return out;
 }
 
 // Rows from the legacy layout get their address slug and a sharper image here.
@@ -268,8 +300,9 @@ export async function homeData(db, categorySlugs) {
     db.prepare(`SELECT MAX(last_seen_at) AS t FROM ${LAYOUT.from} p WHERE p.is_active = 1`)
   ]);
   const byCat = Object.fromEntries((counts.results || []).map(r => [r.slug, Number(r.n)]));
-  const categoryCounts = Object.fromEntries(categorySlugs.map(s => [s, byCat[s] || 0]));
   const totalProducts = Object.values(byCat).reduce((a, b) => a + b, 0);
+  Object.assign(byCat, await collectionCounts(db));
+  const categoryCounts = Object.fromEntries(categorySlugs.map(s => [s, byCat[s] || 0]));
   return {
     categoryCounts,
     totalProducts,
@@ -294,7 +327,8 @@ export async function stats(db) {
 
 export async function categoryCounts(db) {
   const r = await db.prepare(`SELECT category_slug AS slug, COUNT(*) AS n FROM ${LAYOUT.from} p WHERE p.is_active = 1 GROUP BY category_slug`).all();
-  return Object.fromEntries((r.results || []).filter(x => x.slug).map(x => [x.slug, Number(x.n)]));
+  const out = Object.fromEntries((r.results || []).filter(x => x.slug).map(x => [x.slug, Number(x.n)]));
+  return Object.assign(out, await collectionCounts(db));
 }
 
 export async function sitemapCount(db) {

@@ -11,7 +11,7 @@ export default {
   lang: 'en-GB',
   locale: 'en-GB',
   currency: 'GBP',
-  assetVersion: '2026-10-20-mgw-1',
+  assetVersion: '2026-10-20-mgw-2',
   promos: promosFor('MGW'),
   awinPublisherId: AWIN_PUBLISHER_ID,
   storagePrefix: 'mgw',
@@ -149,6 +149,13 @@ export default {
       slug: 'grooming-fragrances', name: 'Grooming & Fragrances', nav: 'Grooming', short: 'grooming and fragrances', icon: 'home',
       intro: 'Shavers, trimmers, aftershave, perfume and perfume oils.',
       description: "Compare prices on men's shavers, trimmers, aftershave and perfume from trusted retailers."
+    },
+    {
+      slug: 'gifts-for-him', name: 'Gifts for Him', nav: 'Gifts', short: 'gifts', icon: 'home',
+      intro: 'Gift ideas from £15 to £150: watches, jewellery, fragrances, everyday carry and bags, plus gift sets. Compare prices across retailers before you buy.',
+      description: "Gift ideas for him from £15 to £150: men's watches, jewellery, fragrances, everyday carry, bags and gift sets from trusted retailers.",
+      // A collection: products from these categories in this price range, plus anything named "gift".
+      collection: { from: ['watches', 'jewellery', 'grooming-fragrances', 'everyday-carry', 'bags-accessories'], minPrice: 15, maxPrice: 150, words: ['gift'] }
     }
   ],
 

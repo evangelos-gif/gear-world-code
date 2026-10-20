@@ -11,7 +11,7 @@ export default {
   lang: 'en-GB',
   locale: 'en-GB',
   currency: 'GBP',
-  assetVersion: '2026-10-20-wgw-1',
+  assetVersion: '2026-10-20-wgw-2',
   promos: promosFor('WGW'),
   awinPublisherId: AWIN_PUBLISHER_ID,
   storagePrefix: 'wgw',
@@ -151,6 +151,13 @@ export default {
       slug: 'everyday-essentials', name: 'Everyday Essentials', nav: 'Essentials', short: 'everyday essentials', icon: 'plug',
       intro: 'Torches, multi-tools and handy gear for home, travel and every day.',
       description: 'Compare prices on torches, multi-tools and everyday gear from trusted retailers.'
+    },
+    {
+      slug: 'gifts-for-her', name: 'Gifts for Her', nav: 'Gifts', short: 'gifts', icon: 'home',
+      intro: 'Gift ideas from £15 to £150: jewellery, watches, perfume and bags, plus gift sets. Compare prices across retailers before you buy.',
+      description: "Gift ideas for her from £15 to £150: women's jewellery, watches, perfume, bags and gift sets from trusted retailers.",
+      // A collection: products from these categories in this price range, plus anything named "gift".
+      collection: { from: ['jewellery', 'watches', 'beauty-fragrances', 'bags-accessories'], minPrice: 15, maxPrice: 150, words: ['gift'] }
     }
   ],
 
