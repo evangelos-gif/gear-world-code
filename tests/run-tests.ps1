@@ -186,6 +186,18 @@ if (Get-Command node -ErrorAction SilentlyContinue) {
         Check (Test-Path -LiteralPath (Join-Path (Join-Path $plans[0].FullName 'sql') '0001.sql')) 'import plan: SQL written, not executed'
     }
     Check ((Get-FileHash -LiteralPath $gzPath -Algorithm SHA256).Hash -eq $archHash) 'import plan: Awin archive unchanged'
+    $peekOut = Join-Path $work 'peek'
+    & $exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path (Join-Path $repo 'tools') 'gw-feed-peek.ps1') -Ids '123932,48473' -Archive $arch -OutDir $peekOut -NoClipboard
+    Check ($LASTEXITCODE -eq 0) 'feed peek: exit code 0'
+    $peeks = @(Get-ChildItem -LiteralPath $peekOut -Directory -ErrorAction SilentlyContinue)
+    if ($peeks.Count -eq 1) {
+        $pr = [System.IO.File]::ReadAllText((Join-Path $peeks[0].FullName 'report.txt'))
+        Check ($pr.Contains('Products (rows): 2')) 'feed peek: counts the products'
+        Check ($pr.Contains('48473: no feed file')) 'feed peek: reports a missing feed'
+    } else { Check $false 'feed peek: report folder written' }
+    Check ((Get-FileHash -LiteralPath $gzPath -Algorithm SHA256).Hash -eq $archHash) 'feed peek: Awin archive unchanged'
+    & $exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path (Join-Path $repo 'tools') 'gw-feed-peek.ps1') -Ids 'abc' -Archive $arch -OutDir $peekOut -NoClipboard
+    Check ($LASTEXITCODE -eq 2) 'feed peek: bad id gives exit code 2'
 
     & $exe -NoProfile -ExecutionPolicy Bypass -File $planTool -Archive (Join-Path $work 'no-such-folder') -OutDir $planOut -NoClipboard
     Check ($LASTEXITCODE -eq 2) 'import plan: missing archive gives exit code 2'
