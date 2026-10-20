@@ -782,6 +782,102 @@ if ($fsRep.Count -ge 1) {
     Check (-not $fr.Contains($fsKey)) 'feed source: the download key is masked'
 } else { Check $false 'feed source: report written' }
 
+# 8b3. kgw-engine.ps1 (same tool for Kids' Gear World) with a fake wrangler (Windows only: runs .cmd files)
+if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
+    Write-Host 'kgw-engine.ps1 (fake wrangler)'
+    $kTool = Join-Path (Join-Path $repo 'tools') 'kgw-engine.ps1'
+    $kState = Join-Path $work 'kgw-state'
+    $kWork = Join-Path $work 'kgw-work'
+    $kOut = Join-Path $work 'kgw-out'
+    $kBin = Join-Path $work 'kgw-bin'
+    $kOld = Join-Path $work 'kgw-old-site'
+    New-Item -ItemType Directory -Path $kState, $kBin -Force | Out-Null
+    $kDb = [guid]::NewGuid().ToString()
+    $kVer = [guid]::NewGuid().ToString()
+    $kNpx = @(
+        '@echo off',
+        'echo %* >> "%GW_FAKE_STATE%\calls.log"',
+        'echo %* | findstr /C:"whoami" >nul && goto whoami',
+        'echo %* | findstr /C:"d1 list" >nul && goto d1list',
+        'echo %* | findstr /C:"--command" >nul && goto query',
+        'echo %* | findstr /C:"deployments list" >nul && goto deployments',
+        'echo %* | findstr /C:" deploy" >nul && goto deploy',
+        'echo unknown command 1>&2',
+        'exit /b 1',
+        ':whoami',
+        'echo You are logged in with an OAuth Token, associated with the email test@example.com.',
+        'exit /b 0',
+        ':d1list',
+        ('echo [{"uuid":"' + $kDb + '","name":"kids-gear-world"},{"uuid":"x","name":"other-site"}]'),
+        'exit /b 0',
+        ':query',
+        'echo [{"results":[{"site_category":"Garden Tools","retailer":"Tooled Up","n":5,"awin":0}],"success":true}]',
+        'exit /b 0',
+        ':deployments',
+        ('echo Version(s):  (100%%) ' + $kVer),
+        'exit /b 0',
+        ':deploy',
+        'echo Uploaded kids-gear-world',
+        'echo   https://kids-gear-world-preview.example-test.workers.dev',
+        'exit /b 0'
+    ) -join "`r`n"
+    [System.IO.File]::WriteAllText((Join-Path $kBin 'npx.cmd'), $kNpx + "`r`n", [System.Text.Encoding]::ASCII)
+    $oldPath = $env:PATH
+    $env:PATH = $kBin + ';' + $oldPath
+    $env:GW_FAKE_STATE = $kState
+    $kCalls = Join-Path $kState 'calls.log'
+    function Run-K([string[]]$a) {
+        $all = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $kTool, '-WorkDir', $kWork, '-OldSiteDir', $kOld, '-OutDir', $kOut, '-SkipInstall', '-NoClipboard', '-NoHttpCheck') + $a
+        & $exe @all | Out-Null
+        return $LASTEXITCODE
+    }
+    function KCalls { if (Test-Path -LiteralPath $kCalls) { return [System.IO.File]::ReadAllText($kCalls) } else { return '' } }
+    function KDeploys { return ([regex]::Matches((KCalls), 'wrangler deploy --config')).Count }
+    try {
+        Check ((Run-K @('-Step', 'check')) -eq 0) 'kgw check: exit 0'
+        $c = KCalls
+        Check ($c -match 'd1 execute kids-gear-world --remote --json --command "SELECT ' -and $c -match 'deployments list --name kids-gear-world') 'kgw check: reads products and the live version'
+        Check ((KDeploys) -eq 0 -and -not ($c -match 'delete|rollback|INSERT|UPDATE')) 'kgw check: only reads'
+        $rep = @(Get-ChildItem -LiteralPath $kOut -Filter 'KGW_ENGINE_CHECK_*.txt' | Select-Object -Last 1)
+        Check ($rep.Count -eq 1 -and ([System.IO.File]::ReadAllText($rep[0].FullName)).Contains($kVer)) 'kgw check: report shows the live version'
+        Check ((Run-K @('-Step', 'preview')) -eq 0 -and (KDeploys) -eq 0) 'kgw preview without -Apply: no deploy'
+        Check ((Run-K @('-Step', 'preview', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ KGW SWITCH')) -eq 1 -and (KDeploys) -eq 0) 'kgw preview with the wrong phrase: no deploy'
+        Check ((Run-K @('-Step', 'preview', '-Apply', '-Approve', 'egkrino kgw preview')) -eq 0 -and (KDeploys) -eq 1) 'kgw preview with approval: deploys once'
+        $pc = Join-Path $kWork 'wrangler.preview.jsonc'
+        $pt = $(if (Test-Path -LiteralPath $pc) { [System.IO.File]::ReadAllText($pc) } else { '' })
+        Check ($pt.Contains('"name": "kids-gear-world-preview"') -and $pt.Contains($kDb) -and $pt.Contains('"CLICK_LOG": "off"') -and -not $pt.Contains('custom_domain')) 'kgw preview: separate test Worker, same database, clicks off, no domain'
+        Check ((KCalls) -match 'deploy --config "[^"]*wrangler\.preview\.jsonc"') 'kgw preview: deploys the preview config'
+        Check (@(Get-ChildItem -LiteralPath (Join-Path $kWork 'deploy') -Recurse -Filter 'promos.js' -ErrorAction SilentlyContinue).Count -ge 1) 'kgw preview: the deploy copy has promos/ (the site configs import it)'
+        Check ((Run-K @('-Step', 'switch', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ KGW SWITCH')) -eq 11 -and (KDeploys) -eq 1) 'kgw switch without the old site code: refused, no deploy'
+        Write-Utf8 (Join-Path $kOld 'worker.js') 'export default {}'
+        Write-Utf8 (Join-Path $kOld 'wrangler.jsonc') '{ "name": "kids-gear-world" }'
+        Write-Utf8 (Join-Path $kOld '.dev.vars') 'SECRET=never-copy'
+        Write-Utf8 (Join-Path (Join-Path $kOld 'public') 'index.html') '<!doctype html>'
+        Check ((Run-K @('-Step', 'switch', '-Apply', '-Approve', 'wrong')) -eq 1 -and (KDeploys) -eq 1) 'kgw switch with the wrong phrase: no deploy'
+        Check ((Run-K @('-Step', 'switch', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ KGW SWITCH')) -eq 0 -and (KDeploys) -eq 2) 'kgw switch with approval: deploys once'
+        $zips = @(Get-ChildItem -LiteralPath (Join-Path $kWork 'backups') -Filter 'old-kgw-site-*.zip' -ErrorAction SilentlyContinue)
+        Check ($zips.Count -eq 1) 'kgw switch: old site code zipped first'
+        if ($zips.Count -eq 1) {
+            Add-Type -AssemblyName System.IO.Compression.FileSystem
+            $z = [System.IO.Compression.ZipFile]::OpenRead($zips[0].FullName)
+            $names = @($z.Entries | ForEach-Object { $_.FullName -replace '\\', '/' })
+            $z.Dispose()
+            Check (($names -contains 'worker.js') -and ($names -contains 'public/index.html') -and -not ($names -contains '.dev.vars')) 'kgw switch: backup has the code and site files, never .dev.vars'
+        }
+        $notes = @(Get-ChildItem -LiteralPath (Join-Path $kWork 'backups') -Filter 'kgw-before-switch-*.txt' -ErrorAction SilentlyContinue)
+        Check ($notes.Count -eq 1 -and ([System.IO.File]::ReadAllText($notes[0].FullName)).Contains('rollback ' + $kVer)) 'kgw switch: rollback note with the old live version'
+        $lc = [System.IO.File]::ReadAllText((Join-Path $kWork 'wrangler.jsonc'))
+        Check ($lc.Contains('"name": "kids-gear-world"') -and $lc.Contains($kDb) -and $lc.Contains('"pattern": "kidsgearworld.com", "custom_domain": true') -and $lc.Contains('"pattern": "www.kidsgearworld.com", "custom_domain": true') -and $lc.Contains('"keep_vars": true') -and -not $lc.Contains('CLICK_LOG')) 'kgw switch: live config has the domains, the same database, keeps dashboard settings'
+        $c = KCalls
+        Check ($c.LastIndexOf('deployments list') -lt $c.LastIndexOf('deploy --config')) 'kgw switch: live version read before deploying'
+        Check ((Run-K @('-Step', 'update', '-Apply', '-Approve', 'EGKRINO KGW UPDATE')) -eq 0 -and (KDeploys) -eq 3) 'kgw update with approval: deploys once'
+        Check (@(Get-ChildItem -LiteralPath $kOut -Filter 'KGW_ENGINE_*.txt').Count -ge 8) 'kgw: a report for every run'
+    } finally {
+        $env:PATH = $oldPath
+        Remove-Item Env:\GW_FAKE_STATE -ErrorAction SilentlyContinue
+    }
+}
+
 # 8c. legacy-import.ps1 (new retailer into MGW/WGW) with a fake wrangler (Windows only: runs .cmd files)
 if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
     Write-Host 'legacy-import.ps1 (fake wrangler)'

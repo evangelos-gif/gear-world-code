@@ -39,3 +39,12 @@
 |---|---|
 | sites/wgw/public/assets/img/cat-*.webp, og-image.png (φωτογραφίες) | Οι εικόνες κατηγοριών του WGW (`wgw-category-*.png` από το live site), κομμένες σε 3:2 χωρίς τον τυπωμένο τίτλο |
 | logo.svg, favicon.svg, apple-touch-icon.png | Σχεδιασμένα για το repo. Το παλιό WGW χρησιμοποιούσε λογότυπο και hero του MGW (lessons L13), οπότε δεν υπάρχει hero φωτογραφία ακόμα |
+
+## Kids' Gear World (KGW)
+
+| Αρχείο | Πηγή |
+|---|---|
+| sites/kgw/public/assets/img/hero-*.webp, og-image.png (φωτογραφία) | Η εικόνα hero του ίδιου του KGW (`kgw-hero.png` από το live site). Αφαιρέθηκαν το τυπωμένο λογότυπο, ο τίτλος και το κουμπί, γιατί η σελίδα γράφει δικό της κείμενο από πάνω |
+| sites/kgw/public/assets/img/cat-*.webp | Οι εικόνες κατηγοριών του KGW (`clothing.png`, `toys_games.png` κ.λπ. από το live site), χωρίς το πλαίσιο, κομμένες σε 3:2. Στα παπούτσια σβήστηκαν τα σήματα της μάρκας, για να μη φαίνεται μάρκα σαν να υποστηρίζει το site |
+| og-image.png (λογότυπο) | Το λογότυπο του KGW (`kgw-logo.png` από το live site) |
+| logo.svg, favicon.svg, apple-touch-icon.png | Σχεδιασμένα για το repo (Κ σε μπλε-μωβ κύκλο με κίτρινο αστέρι) |
