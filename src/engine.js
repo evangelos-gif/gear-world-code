@@ -10,6 +10,8 @@ import { comparePage, parseCompareIds } from './pages/compare.js';
 import { cartPage, parseCartItems } from './pages/cart.js';
 import { exchangeRates } from './lib/fx.js';
 import { hubTranslation } from './lib/hub.js';
+import { offersIndexPage, retailerOffersPage, OFFERS_PATH } from './pages/offers.js';
+import { findPromo } from './lib/promos.js';
 import { infoPage, infoPaths, notFoundPage, errorPage } from './pages/info.js';
 import { useSiteAssets } from './pages/layout.js';
 import { sitemapIndex, sitemapStatic, sitemapProducts, robotsTxt, SITEMAP_CHUNK } from './seo.js';
@@ -46,7 +48,7 @@ export function createWorker(site) {
     }
 
     // Lower-case and trailing-slash normalisation for page paths.
-    if (/^\/(category|product)\/[^?]*[^/]$/.test(path) || (infoPaths().includes(path + '/')) || path === '/deals') {
+    if (/^\/(category|product|discount-codes)\/[^?]*[^/]$/.test(path) || path === '/discount-codes' || (infoPaths().includes(path + '/')) || path === '/deals') {
       url.pathname = path + '/';
       return redirect(url.toString(), 301);
     }
@@ -132,6 +134,15 @@ export function createWorker(site) {
       return htmlResponse(infoPage(site, path), { method, cache: 'page' });
     }
 
+    if (path === OFFERS_PATH) return htmlResponse(offersIndexPage(site), { method, cache: 'page' });
+    m = path.match(/^\/discount-codes\/([a-z0-9-]{1,40})\/$/);
+    if (m) {
+      const html = retailerOffersPage(site, m[1]);
+      return html ? htmlResponse(html, { method, cache: 'page' }) : notFound(path, method);
+    }
+    m = path.match(/^\/go\/([a-z0-9-]{1,60})\/?$/);
+    if (m) return promoOut(request, env, ctx, url, m[1]);
+
     m = path.match(/^\/out\/(\d+)\/?$/);
     if (m) return outbound(request, env, ctx, url, Number(m[1]));
 
@@ -203,6 +214,39 @@ export function createWorker(site) {
         category_slug: product.category_slug,
         site_category: product.site_category,
         product_name: String(product.product_name || '').slice(0, 300),
+        page_path: pagePath,
+        country_code: String((request.cf && request.cf.country) || '').slice(0, 2).toUpperCase(),
+        click_ref: clickRef
+      };
+      const write = db.logClick(env.DB, row).catch(err => console.error('click log failed', err));
+      if (ctx && typeof ctx.waitUntil === 'function') ctx.waitUntil(write); else await write;
+    }
+    return redirect(target.toString(), 302, { 'X-Robots-Tag': 'noindex, nofollow' });
+  }
+
+  // /go/<promo id>: a discount code or sale goes to the retailer as an Awin deep link with our clickref.
+  async function promoOut(request, env, ctx, url, id) {
+    const promo = findPromo(site, id);
+    if (!promo) return notFound(url.pathname, request.method);
+    const clickRef = `${site.code.toLowerCase()}-promo-${promo.id}`.slice(0, 50);
+    const awin = { publisherId: site.awinPublisherId, advertisers: { [promo.retailer]: promo.awinMid } };
+    const target = affiliateTarget(promo.url, promo.retailer, awin, clickRef);
+    if (!target) return redirect(OFFERS_PATH, 302);
+    if (request.method === 'GET' && !isBot(request) && env.CLICK_LOG !== 'off') {
+      let pagePath = '';
+      try {
+        const ref = new URL(request.headers.get('referer') || '');
+        if (ref.hostname === url.hostname) pagePath = ref.pathname.slice(0, 300);
+      } catch { /* no referer */ }
+      const row = {
+        product_id: 0,
+        awin_advertiser_id: promo.awinMid,
+        awin_product_id: '',
+        retailer: promo.retailer,
+        brand: '',
+        category_slug: 'discount-codes',
+        site_category: 'Discount codes',
+        product_name: `${promo.retailer} ${promo.code || promo.campaign}`.slice(0, 300),
         page_path: pagePath,
         country_code: String((request.cf && request.cf.country) || '').slice(0, 2).toUpperCase(),
         click_ref: clickRef

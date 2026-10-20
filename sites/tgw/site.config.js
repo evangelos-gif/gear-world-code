@@ -1,6 +1,8 @@
 // Technology Gear World - everything that is specific to this site lives here.
 // The shared engine in src/ must never contain a site name, domain or colour.
 
+import { promosFor, AWIN_PUBLISHER_ID } from '../../promos/promos.js';
+
 export default {
   code: 'TGW',
   name: 'Technology Gear World',
@@ -9,8 +11,12 @@ export default {
   lang: 'en-GB',
   locale: 'en-GB',
   currency: 'GBP',
-  assetVersion: '2026-10-20-2',
+  assetVersion: '2026-10-20-3',
   // Key prefix for what a visitor's browser remembers (compare list, cart, language, currency).
+  // Discount codes and sales from retailers (promos/promos.js, lessons L32), with the Awin publisher id
+  // used for their links. The id is public: it is part of every Awin link.
+  promos: promosFor('TGW'),
+  awinPublisherId: AWIN_PUBLISHER_ID,
   storagePrefix: 'tgw',
 
   // 11 languages, the same as Gear World Hub. Pages are written in English by the server; the site

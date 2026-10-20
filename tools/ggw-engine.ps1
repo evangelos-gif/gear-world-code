@@ -167,7 +167,8 @@ function Prepare-Deploy {
     $dest = Join-Path (Join-Path $WorkDir 'deploy') $ver
     if (-not (Test-Path -LiteralPath (Join-Path $dest 'package.json'))) {
         New-Item -ItemType Directory -Path $dest -Force | Out-Null
-        foreach ($item in @('src', 'sites', 'package.json', 'package-lock.json')) {
+        # promos: discount codes shared by the sites (sites/*/site.config.js imports it).
+        foreach ($item in @('src', 'sites', 'promos', 'package.json', 'package-lock.json')) {
             Copy-Item -LiteralPath (Join-Path $repo $item) -Destination $dest -Recurse -Force
         }
     }

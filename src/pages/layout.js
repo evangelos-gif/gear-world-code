@@ -1,6 +1,8 @@
 // Page shell and shared components. No inline styles or scripts (CSP), no site names (config only).
 import { html, raw, jsonLd, toString } from '../lib/html.js';
 import { productPath, categoryPath, formatPrice, savingPercent } from '../lib/text.js';
+import { promoBarHtml } from './offers.js';
+import { activePromos } from '../lib/promos.js';
 
 // Files under /assets/ are cached for a year, so every link to them carries ?v=<assetVersion> (lessons L31).
 // Without it, a phone kept an old icons.svg that had no cart icon, and the cart button showed empty.
@@ -129,6 +131,7 @@ function cartLink(site) {
 
 function header(site, currentCategory, searchValue) {
   return html`<header class="masthead">
+  ${promoBarHtml(site)}
   ${prefsBar(site)}
   <div class="wrap masthead-row">
     <a class="brand" href="/" aria-label="${site.name} home" translate="no">
@@ -173,6 +176,7 @@ function footer(site, year) {
     <section>
       <h2>About this site</h2>
       <ul>
+        ${activePromos(site).length ? html`<li><a href="/discount-codes/">Discount codes</a></li>` : ''}
         <li><a href="/about/">About us</a></li>
         <li><a href="/how-we-make-money/">How we make money</a></li>
         <li><a href="/contact/">Contact</a></li>

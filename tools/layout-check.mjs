@@ -58,6 +58,13 @@ try {
     if (!r || r.status !== 200) cartPath = '';
   }
 
+  // Discount codes (lessons L32): the retailer page when the bar links to one, else the index page.
+  const codesPath = await (async () => {
+    try {
+      const h = await (await fetch(base + '/')).text();
+      return (h.match(/<div class="promo-bar">[\s\S]*?href="(\/discount-codes\/[a-z0-9-]+\/)"/) || [])[1] || '/discount-codes/';
+    } catch { return '/discount-codes/'; }
+  })();
   const pages = [
     ['home', '/'],
     ['category', categoryPath],
@@ -66,6 +73,7 @@ try {
     ['compare', comparePath],
     ['cart', cartPath],
     ['privacy', '/privacy/'],
+    ['discount-codes', codesPath],
     ['not-found', '/this-page-does-not-exist/']
   ].filter(([, p]) => p);
 

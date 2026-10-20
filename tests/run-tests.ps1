@@ -332,6 +332,7 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         Check ((Test-Path -LiteralPath $cfg) -and ([System.IO.File]::ReadAllText($cfg)).Contains($fakeDb)) 'cloudflare d1: local wrangler.jsonc has the database id'
         Check ((Run-Cf @('-Step', 'preview', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ TGW PREVIEW')) -eq 0) 'cloudflare preview with approval: exit 0'
         Check ((Calls) -match '(?m)wrangler deploy') 'cloudflare preview: deploys'
+        Check (@(Get-ChildItem -LiteralPath (Join-Path $cfWork 'deploy') -Recurse -Filter 'promos.js' -ErrorAction SilentlyContinue).Count -ge 1) 'cloudflare preview: the deploy copy has promos/ (the site config imports it)'
         Check (-not ((Calls) -match 'routes|custom_domain|technologygearworld\.com')) 'cloudflare preview: no custom domain'
         Check ((Run-Cf @('-Step', 'import', '-Archive', $arch)) -eq 0) 'cloudflare import without -Apply: exit 0'
         Check (-not ((Calls) -match 'd1 execute .*--file')) 'cloudflare import without -Apply: loads nothing'
@@ -502,6 +503,7 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         $pt = $(if (Test-Path -LiteralPath $pc) { [System.IO.File]::ReadAllText($pc) } else { '' })
         Check ($pt.Contains('"name": "garden-gear-world-preview"') -and $pt.Contains($gDb) -and $pt.Contains('"CLICK_LOG": "off"') -and -not $pt.Contains('custom_domain')) 'ggw preview: separate test Worker, same database, clicks off, no domain'
         Check ((GCalls) -match 'deploy --config "[^"]*wrangler\.preview\.jsonc"') 'ggw preview: deploys the preview config'
+        Check (@(Get-ChildItem -LiteralPath (Join-Path $gWork 'deploy') -Recurse -Filter 'promos.js' -ErrorAction SilentlyContinue).Count -ge 1) 'ggw preview: the deploy copy has promos/ (the site configs import it)'
         Check ((Run-G @('-Step', 'switch', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ GGW SWITCH')) -eq 11 -and (GDeploys) -eq 1) 'ggw switch without the old site code: refused, no deploy'
         Write-Utf8 (Join-Path $gOld 'worker.js') 'export default {}'
         Write-Utf8 (Join-Path $gOld 'wrangler.jsonc') '{ "name": "garden-gear-world" }'

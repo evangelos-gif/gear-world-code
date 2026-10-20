@@ -47,7 +47,7 @@ for (const m of js.matchAll(/\bt[f]?\('((?:[^'\\]|\\.)*)'/g)) {
   scriptKeys.add(JSON.parse('"' + m[1].replace(/\\'/g, "'").replace(/"/g, '\\"') + '"'));
 }
 // Texts with a changing part that the server writes with tr('...') in src/pages/ (some only on rare pages).
-for (const f of ['layout', 'home', 'listing', 'product', 'compare', 'cart', 'info']) {
+for (const f of ['layout', 'home', 'listing', 'product', 'compare', 'cart', 'info', 'offers']) {
   const file = join('src', 'pages', `${f}.js`);
   if (!existsSync(file)) continue;
   for (const m of readFileSync(file, 'utf8').matchAll(/\btr\('((?:[^'\\]|\\.)*)'/g)) scriptKeys.add(m[1].replace(/\\'/g, "'"));
@@ -87,6 +87,7 @@ try {
     productPath, '/deals/', '/search', '/search?q=laptop', '/search?q=zzzzqqq',
     ids.length >= 2 ? `/compare/?ids=${ids.slice(0, 2).join(',')}` : '', sameCat.length === 2 ? `/compare/?ids=${sameCat.join(',')}` : '', '/compare/',
     ids.length ? `/cart/?items=${ids.map((id, i) => `${id}:${i + 1}`).join(',')}` : '', '/cart/',
+    '/discount-codes/', ...[...new Set((site.promos || []).map(p => `/discount-codes/${p.slug}/`))],
     '/about/', '/how-we-make-money/', '/contact/', '/privacy/', '/cookies/', '/terms/', '/this-page-does-not-exist/'
   ].filter(Boolean);
 

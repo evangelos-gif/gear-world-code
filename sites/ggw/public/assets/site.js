@@ -1,5 +1,5 @@
 // Gear World sites (shared by every site on the engine; TGW keeps the master copy). One small script; every page also works without it.
-// Parts: language (L24), currency (L25), Gear Cart (L26), compare (L23), voice search, newsletter.
+// Parts: language (L24), currency (L25), Gear Cart (L26), compare (L23), voice search, newsletter, discount codes (L32).
 (function () {
   'use strict';
 
@@ -413,6 +413,22 @@
     });
   }
 
+  // ---------- Discount codes: "Copy code" (lessons L32) ----------
+  function setupCopy() {
+    var buttons = document.querySelectorAll('[data-copy]');
+    if (!buttons.length || !navigator.clipboard) return;
+    for (var i = 0; i < buttons.length; i++) buttons[i].hidden = false;
+    document.addEventListener('click', function (ev) {
+      var b = ev.target && ev.target.closest ? ev.target.closest('[data-copy]') : null;
+      if (!b) return;
+      navigator.clipboard.writeText(b.getAttribute('data-copy')).then(function () {
+        b.textContent = t('Copied');
+        b.classList.add('is-copied');
+        setTimeout(function () { b.textContent = t('Copy code'); b.classList.remove('is-copied'); }, 2500);
+      }).catch(function () { /* the code stays visible on the page */ });
+    });
+  }
+
   // Language first, so every text the other parts write is already in the visitor's language.
   loadLanguage().then(function () {
     loadCurrency();
@@ -421,6 +437,7 @@
     setupCompare();
     setupVoice();
     setupNewsletter();
+    setupCopy();
     root.setAttribute('data-ready', lang);
   });
 })();

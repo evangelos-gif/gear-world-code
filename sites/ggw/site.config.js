@@ -1,6 +1,8 @@
 // Garden Gear World - everything that is specific to this site lives here.
 // The shared engine in src/ must never contain a site name, domain or colour.
 
+import { promosFor, AWIN_PUBLISHER_ID } from '../../promos/promos.js';
+
 export default {
   code: 'GGW',
   name: 'Garden Gear World',
@@ -9,7 +11,11 @@ export default {
   lang: 'en-GB',
   locale: 'en-GB',
   currency: 'GBP',
-  assetVersion: '2026-10-19-ggw-2',
+  assetVersion: '2026-10-20-ggw-3',
+  // Discount codes and sales from retailers (promos/promos.js, lessons L32), with the Awin publisher id
+  // used for their links. The id is public: it is part of every Awin link.
+  promos: promosFor('GGW'),
+  awinPublisherId: AWIN_PUBLISHER_ID,
   storagePrefix: 'ggw',
 
   // The site keeps the database it already has (lessons L28). The Hub import router keeps writing to it

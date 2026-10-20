@@ -27,10 +27,15 @@ function check(lesson, ok, name, detail = '') {
   results.push({ lesson, ok: Boolean(ok), name, detail });
 }
 
+// Retailer links (/out/, /go/) are checked with HEAD and a browser user agent: the Cloudflare bot rule blocks
+// bot user agents there (lessons L32), and the Worker records clicks only for GET, so a check never counts as one.
+const BROWSER_UA = 'Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0 Mobile Safari/537.36 GearWorldQA';
 async function get(path, { redirect = 'manual', method = 'GET' } = {}) {
   const url = path.startsWith('http') ? path : base + path;
-  // "bot" in the user agent: our Worker never records a click from this checker.
-  const r = await fetch(url, { method, redirect, headers: { 'User-Agent': 'GearWorldQA-bot/1.0 (+read-only check)' } });
+  const outLink = method === 'HEAD' && /^\/(out|go)\//.test(path);
+  // Otherwise "bot" in the user agent: our Worker never records a click from this checker.
+  const ua = outLink ? BROWSER_UA : 'GearWorldQA-bot/1.0 (+read-only check)';
+  const r = await fetch(url, { method, redirect, headers: { 'User-Agent': ua } });
   const body = r.status === 204 ? '' : await r.text();
   return { status: r.status, headers: r.headers, body, url };
 }
@@ -318,6 +323,34 @@ if (site && site.awin && site.awin.advertisers) {
         (u.searchParams.get('awinaffid') === String(site.awin.publisherId) || u.searchParams.get('a') === String(site.awin.publisherId)) &&
         (u.searchParams.get('awinmid') === String(mid) || u.searchParams.get('m') === String(mid));
       check('L29', ok, `/out/${x.id} (${retailer}) goes through Awin with our publisher id`, loc.slice(0, 140));
+    }
+  }
+}
+
+// Discount codes (lessons L32): only while an offer runs; every button goes through /go/ to Awin.
+if (site && (site.promos || []).length) {
+  const { activePromos } = await import(pathToFileURL(resolve('src/lib/promos.js')).href);
+  const act = activePromos(site);
+  const idx = await get('/discount-codes/');
+  htmlChecks('/discount-codes/', idx, { indexable: act.length > 0 });
+  check('L32', act.length === 0 || /class="promo-bar"/.test(home.body), '/: offer bar shown while an offer runs');
+  check('L32', act.length > 0 || !/class="promo-bar"/.test(home.body), '/: no offer bar when no offer runs');
+  for (const slug of [...new Set(act.map(p => p.slug))]) {
+    const path = `/discount-codes/${slug}/`;
+    const r = await get(path);
+    htmlChecks(path, r);
+    const codes = act.filter(p => p.slug === slug && p.kind === 'code');
+    check('L32', codes.every(c => r.body.includes(`translate="no">${c.code}</strong>`)), `${path}: every active code is on the page`);
+    check('L32', (r.body.match(/Valid until/g) || []).length >= act.filter(p => p.slug === slug).length, `${path}: every offer shows its end date`);
+    check('L32', !/awin1\.com/.test(r.body), `${path}: buttons go through /go/, never straight to Awin`);
+    check('L32', staticUrls.includes(canonicalOrigin + path), `sitemap-static lists ${path}`);
+    for (const p of act.filter(x => x.slug === slug).slice(0, 2)) {
+      const o = await get(`/go/${p.id}`, { method: 'HEAD' });
+      const loc = o.headers.get('location') || '';
+      let u = null;
+      try { u = new URL(loc); } catch { u = null; }
+      check('L32', o.status === 302 && u && u.hostname === 'www.awin1.com' && u.searchParams.get('awinaffid') === String(site.awinPublisherId) &&
+        u.searchParams.get('awinmid') === String(p.awinMid) && /promo/.test(u.searchParams.get('clickref') || ''), `/go/${p.id}: Awin deep link with our id and clickref`, `${o.status} ${loc.slice(0, 120)}`);
     }
   }
 }

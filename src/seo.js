@@ -2,6 +2,7 @@
 import { esc } from './lib/html.js';
 import { productPath, categoryPath } from './lib/text.js';
 import { infoPaths } from './pages/info.js';
+import { promoRetailers } from './lib/promos.js';
 
 export const SITEMAP_CHUNK = 10000;
 
@@ -10,6 +11,7 @@ export function robotsTxt(site) {
     'User-agent: *',
     'Allow: /',
     'Disallow: /out/',
+    'Disallow: /go/',
     'Disallow: /api/',
     'Disallow: /search',
     'Disallow: /compare/',
@@ -33,7 +35,9 @@ export function sitemapIndex(site, totalProducts) {
 // until it has products (Search Console reports sitemap pages that say noindex).
 export function sitemapStatic(site, counts = null) {
   const cats = site.categories.filter(c => !counts || Number(counts[c.slug]) > 0);
-  const paths = ['/', '/deals/', ...cats.map(c => categoryPath(c.slug)), ...infoPaths()];
+  const offers = promoRetailers(site);
+  const paths = ['/', '/deals/', ...cats.map(c => categoryPath(c.slug)), ...infoPaths(),
+    ...(offers.length ? ['/discount-codes/', ...offers.map(r => `/discount-codes/${r.slug}/`)] : [])];
   return urlset(paths.map(p => ({ loc: `https://${site.domain}${p}` })));
 }
 
