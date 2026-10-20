@@ -24,3 +24,11 @@
 | sites/ggw/public/assets/img/cat-*.webp | Οι εικόνες κατηγοριών του ίδιου του GGW (`ggw-cat-0X-*.png` από το παλιό site), κομμένες σε 3:2 |
 | og-image.png (λογότυπο) | Το λογότυπο του GGW (`ggw-logo.png` από το παλιό site) |
 | logo.svg, favicon.svg, apple-touch-icon.png | Σχεδιασμένα για το repo (φύλλα σε πράσινο τετράγωνο) |
+
+## Men's Gear World (MGW)
+
+| Αρχείο | Πηγή |
+|---|---|
+| sites/mgw/public/assets/img/hero-*.webp, og-image.png | Η εικόνα hero του ίδιου του MGW (`mgw-hero-final.png` από το live site) |
+| sites/mgw/public/assets/img/cat-*.webp | Οι εικόνες κατηγοριών του MGW (`mgw-category-*.png`), κομμένες σε 3:2. Στο grooming θολώθηκε η ετικέτα του αρώματος, για να μη φαίνεται μάρκα σαν να υποστηρίζει το site |
+| logo.svg, favicon.svg, apple-touch-icon.png | Το στρογγυλό λογότυπο του MGW (`mgw-logo-social-round.png`) |

@@ -29,6 +29,7 @@
 | `tools/tgw-cloudflare.ps1` | Βήματα Cloudflare του TGW: έλεγχος, D1, δοκιμαστική διεύθυνση, φόρτωση προϊόντων, σύνδεση domain (launch) | 🟢 `check` όχι · 🔴 τα άλλα μόνο με `-Apply` και πληκτρολογημένη φράση έγκρισης |
 | `tools/gwh-tgw-link.ps1` | Βάζει το TGW στο Gear World Hub: κάρτα στην αρχική (11 γλώσσες) και γραμμή στη λίστα sites της D1 του hub, για την αναζήτηση | 🟢 χωρίς `-Apply` μόνο ελέγχει · 🔴 με `-Apply` και `ΕΓΚΡΙΝΩ TGW HUB LINK`, με backup και σημείο επαναφοράς πρώτα |
 | `tools/ggw-engine.ps1` | Το GGW στη νέα μηχανή (ίδια με του TGW), με την ίδια βάση: `check` (μόνο ανάγνωση), `preview` (ξεχωριστή δοκιμαστική διεύθυνση), `switch` (αλλαγή του live, με zip του παλιού κώδικα πρώτα), `update` | 🟢 `check` όχι · 🔴 τα άλλα μόνο με `-Apply` και `ΕΓΚΡΙΝΩ GGW PREVIEW` / `SWITCH` / `UPDATE`. Η βάση δεν αλλάζει ποτέ |
+| `tools/mgw-engine.ps1` | Το ίδιο για το Men's Gear World: `check`, `preview`, `switch`, `update` | 🟢 `check` όχι · 🔴 τα άλλα μόνο με `-Apply` και `ΕΓΚΡΙΝΩ MGW PREVIEW` / `SWITCH` / `UPDATE`. Η βάση δεν αλλάζει ποτέ |
 | `tools/theme-site.mjs` | Αντιγράφει τα κοινά αρχεία (script, εικονίδια, γραμματοσειρές, χρώματα του stylesheet) από το TGW σε άλλο site της μηχανής | Μόνο αρχεία του repo |
 | `promos/promos.js` | Οι κωδικοί έκπτωσης και οι καμπάνιες των retailers (από τα email τους), με ημερομηνία λήξης και σε ποια sites φαίνονται | Αλλάζει τα sites μόνο μετά από ενημέρωση (deploy) με έγκριση |
 | `tools/gw-run.ps1` | Κατεβάζει μία κλειδωμένη έκδοση του repo και τρέχει ένα εργαλείο από αυτήν | 🟢 Όχι (μόνο αρχεία στο %TEMP%) |

@@ -66,9 +66,15 @@ jobs:
             dev.log
           if-no-files-found: ignore
 
-  ggw-worker:
-    name: GGW on the engine (older database layout)
+  legacy-sites:
+    name: ${{ matrix.site }} on the engine (older database layout)
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { site: ggw, db: garden-gear-world }
+          - { site: mgw, db: mens-gear-world }
     env:
       WRANGLER_SEND_METRICS: 'false'
     steps:
@@ -78,33 +84,33 @@ jobs:
           node-version: 22
       - run: npm ci --no-audit --no-fund
       - name: Front-end files are the TGW ones (tools/theme-site.mjs)
-        run: node tools/theme-site.mjs ggw --check
+        run: node tools/theme-site.mjs ${{ matrix.site }} --check
       - name: Local D1 in the older layout, with synthetic products
         run: |
-          sed 's/REPLACE_WITH_DATABASE_ID/local-dev-only/' sites/ggw/wrangler.jsonc.example > sites/ggw/wrangler.jsonc
-          node tests/fixtures/make-ggw-seed.mjs
-          git diff --exit-code tests/fixtures/ggw-seed.sql
-          npx wrangler d1 execute garden-gear-world --local --config sites/ggw/wrangler.jsonc --file tests/fixtures/ggw-legacy-schema.sql
-          npx wrangler d1 execute garden-gear-world --local --config sites/ggw/wrangler.jsonc --file tests/fixtures/ggw-seed.sql
+          sed 's/REPLACE_WITH_DATABASE_ID/local-dev-only/' sites/${{ matrix.site }}/wrangler.jsonc.example > sites/${{ matrix.site }}/wrangler.jsonc
+          node tests/fixtures/make-${{ matrix.site }}-seed.mjs
+          git diff --exit-code tests/fixtures/${{ matrix.site }}-seed.sql
+          npx wrangler d1 execute ${{ matrix.db }} --local --config sites/${{ matrix.site }}/wrangler.jsonc --file tests/fixtures/ggw-legacy-schema.sql
+          npx wrangler d1 execute ${{ matrix.db }} --local --config sites/${{ matrix.site }}/wrangler.jsonc --file tests/fixtures/${{ matrix.site }}-seed.sql
       - name: Start the Worker locally
         run: |
-          npx wrangler dev --config sites/ggw/wrangler.jsonc --local --port 8788 --ip 127.0.0.1 --var EDGE_CACHE:off > dev.log 2>&1 &
+          npx wrangler dev --config sites/${{ matrix.site }}/wrangler.jsonc --local --port 8788 --ip 127.0.0.1 --var EDGE_CACHE:off > dev.log 2>&1 &
           for i in $(seq 1 90); do curl -sf -o /dev/null http://127.0.0.1:8788/ && break; sleep 1; done
           curl -sf -o /dev/null http://127.0.0.1:8788/
       - name: QA gate (docs/LESSONS.md, incl. L28 and L29)
-        run: node tools/qa-gate.mjs http://127.0.0.1:8788 --site sites/ggw --prelaunch --out qa-report.txt
+        run: node tools/qa-gate.mjs http://127.0.0.1:8788 --site sites/${{ matrix.site }} --prelaunch --out qa-report.txt
       - name: Layout check on phone and desktop (real browser)
         run: |
           npx playwright install --with-deps chromium
           node tools/layout-check.mjs http://127.0.0.1:8788 --shots layout-shots --out layout-report.txt
           node tools/layout-check.mjs http://127.0.0.1:8788 --lang de-DE --currency RUB --shots layout-shots-de --out layout-report-de.txt
       - name: Every page translated in all 10 languages (lessons L24)
-        run: node tools/i18n-check.mjs http://127.0.0.1:8788 --site sites/ggw --out i18n-report.txt
+        run: node tools/i18n-check.mjs http://127.0.0.1:8788 --site sites/${{ matrix.site }} --out i18n-report.txt
       - name: Keep the reports and screenshots
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: ggw-qa-report
+          name: ${{ matrix.site }}-qa-report
           path: |
             qa-report.txt
             layout-report.txt

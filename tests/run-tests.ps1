@@ -534,6 +534,102 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
     }
 }
 
+# 8. mgw-engine.ps1 (same tool for Men's Gear World) with a fake wrangler (Windows only: runs .cmd files)
+if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
+    Write-Host 'mgw-engine.ps1 (fake wrangler)'
+    $mTool = Join-Path (Join-Path $repo 'tools') 'mgw-engine.ps1'
+    $mState = Join-Path $work 'mgw-state'
+    $mWork = Join-Path $work 'mgw-work'
+    $mOut = Join-Path $work 'mgw-out'
+    $mBin = Join-Path $work 'mgw-bin'
+    $mOld = Join-Path $work 'mgw-old-site'
+    New-Item -ItemType Directory -Path $mState, $mBin -Force | Out-Null
+    $mDb = [guid]::NewGuid().ToString()
+    $mVer = [guid]::NewGuid().ToString()
+    $mNpx = @(
+        '@echo off',
+        'echo %* >> "%GW_FAKE_STATE%\calls.log"',
+        'echo %* | findstr /C:"whoami" >nul && goto whoami',
+        'echo %* | findstr /C:"d1 list" >nul && goto d1list',
+        'echo %* | findstr /C:"--command" >nul && goto query',
+        'echo %* | findstr /C:"deployments list" >nul && goto deployments',
+        'echo %* | findstr /C:" deploy" >nul && goto deploy',
+        'echo unknown command 1>&2',
+        'exit /b 1',
+        ':whoami',
+        'echo You are logged in with an OAuth Token, associated with the email test@example.com.',
+        'exit /b 0',
+        ':d1list',
+        ('echo [{"uuid":"' + $mDb + '","name":"mens-gear-world"},{"uuid":"x","name":"other-site"}]'),
+        'exit /b 0',
+        ':query',
+        'echo [{"results":[{"site_category":"Garden Tools","retailer":"Tooled Up","n":5,"awin":0}],"success":true}]',
+        'exit /b 0',
+        ':deployments',
+        ('echo Version(s):  (100%%) ' + $mVer),
+        'exit /b 0',
+        ':deploy',
+        'echo Uploaded mens-gear-world',
+        'echo   https://mens-gear-world-preview.example-test.workers.dev',
+        'exit /b 0'
+    ) -join "`r`n"
+    [System.IO.File]::WriteAllText((Join-Path $mBin 'npx.cmd'), $mNpx + "`r`n", [System.Text.Encoding]::ASCII)
+    $oldPath = $env:PATH
+    $env:PATH = $mBin + ';' + $oldPath
+    $env:GW_FAKE_STATE = $mState
+    $mCalls = Join-Path $mState 'calls.log'
+    function Run-M([string[]]$a) {
+        $all = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $mTool, '-WorkDir', $mWork, '-OldSiteDir', $mOld, '-OutDir', $mOut, '-SkipInstall', '-NoClipboard', '-NoHttpCheck') + $a
+        & $exe @all | Out-Null
+        return $LASTEXITCODE
+    }
+    function MCalls { if (Test-Path -LiteralPath $mCalls) { return [System.IO.File]::ReadAllText($mCalls) } else { return '' } }
+    function MDeploys { return ([regex]::Matches((MCalls), 'wrangler deploy --config')).Count }
+    try {
+        Check ((Run-M @('-Step', 'check')) -eq 0) 'mgw check: exit 0'
+        $c = MCalls
+        Check ($c -match 'd1 execute mens-gear-world --remote --json --command "SELECT ' -and $c -match 'deployments list --name mens-gear-world') 'mgw check: reads products and the live version'
+        Check ((MDeploys) -eq 0 -and -not ($c -match 'delete|rollback|INSERT|UPDATE')) 'mgw check: only reads'
+        $rep = @(Get-ChildItem -LiteralPath $mOut -Filter 'MGW_ENGINE_CHECK_*.txt' | Select-Object -Last 1)
+        Check ($rep.Count -eq 1 -and ([System.IO.File]::ReadAllText($rep[0].FullName)).Contains($mVer)) 'mgw check: report shows the live version'
+        Check ((Run-M @('-Step', 'preview')) -eq 0 -and (MDeploys) -eq 0) 'mgw preview without -Apply: no deploy'
+        Check ((Run-M @('-Step', 'preview', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ MGW SWITCH')) -eq 1 -and (MDeploys) -eq 0) 'mgw preview with the wrong phrase: no deploy'
+        Check ((Run-M @('-Step', 'preview', '-Apply', '-Approve', 'egkrino mgw preview')) -eq 0 -and (MDeploys) -eq 1) 'mgw preview with approval: deploys once'
+        $pc = Join-Path $mWork 'wrangler.preview.jsonc'
+        $pt = $(if (Test-Path -LiteralPath $pc) { [System.IO.File]::ReadAllText($pc) } else { '' })
+        Check ($pt.Contains('"name": "mens-gear-world-preview"') -and $pt.Contains($mDb) -and $pt.Contains('"CLICK_LOG": "off"') -and -not $pt.Contains('custom_domain')) 'mgw preview: separate test Worker, same database, clicks off, no domain'
+        Check ((MCalls) -match 'deploy --config "[^"]*wrangler\.preview\.jsonc"') 'mgw preview: deploys the preview config'
+        Check (@(Get-ChildItem -LiteralPath (Join-Path $mWork 'deploy') -Recurse -Filter 'promos.js' -ErrorAction SilentlyContinue).Count -ge 1) 'mgw preview: the deploy copy has promos/ (the site configs import it)'
+        Check ((Run-M @('-Step', 'switch', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ MGW SWITCH')) -eq 11 -and (MDeploys) -eq 1) 'mgw switch without the old site code: refused, no deploy'
+        Write-Utf8 (Join-Path $mOld 'worker.js') 'export default {}'
+        Write-Utf8 (Join-Path $mOld 'wrangler.jsonc') '{ "name": "mens-gear-world" }'
+        Write-Utf8 (Join-Path $mOld '.dev.vars') 'SECRET=never-copy'
+        Write-Utf8 (Join-Path (Join-Path $mOld 'public') 'index.html') '<!doctype html>'
+        Check ((Run-M @('-Step', 'switch', '-Apply', '-Approve', 'wrong')) -eq 1 -and (MDeploys) -eq 1) 'mgw switch with the wrong phrase: no deploy'
+        Check ((Run-M @('-Step', 'switch', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ MGW SWITCH')) -eq 0 -and (MDeploys) -eq 2) 'mgw switch with approval: deploys once'
+        $zips = @(Get-ChildItem -LiteralPath (Join-Path $mWork 'backups') -Filter 'old-mgw-site-*.zip' -ErrorAction SilentlyContinue)
+        Check ($zips.Count -eq 1) 'mgw switch: old site code zipped first'
+        if ($zips.Count -eq 1) {
+            Add-Type -AssemblyName System.IO.Compression.FileSystem
+            $z = [System.IO.Compression.ZipFile]::OpenRead($zips[0].FullName)
+            $names = @($z.Entries | ForEach-Object { $_.FullName -replace '\\', '/' })
+            $z.Dispose()
+            Check (($names -contains 'worker.js') -and ($names -contains 'public/index.html') -and -not ($names -contains '.dev.vars')) 'mgw switch: backup has the code and site files, never .dev.vars'
+        }
+        $notes = @(Get-ChildItem -LiteralPath (Join-Path $mWork 'backups') -Filter 'mgw-before-switch-*.txt' -ErrorAction SilentlyContinue)
+        Check ($notes.Count -eq 1 -and ([System.IO.File]::ReadAllText($notes[0].FullName)).Contains('rollback ' + $mVer)) 'mgw switch: rollback note with the old live version'
+        $lc = [System.IO.File]::ReadAllText((Join-Path $mWork 'wrangler.jsonc'))
+        Check ($lc.Contains('"name": "mens-gear-world"') -and $lc.Contains($mDb) -and $lc.Contains('"pattern": "mensgearworld.com", "custom_domain": true') -and $lc.Contains('"pattern": "www.mensgearworld.com", "custom_domain": true') -and $lc.Contains('"keep_vars": true') -and -not $lc.Contains('CLICK_LOG')) 'mgw switch: live config has the domains, the same database, keeps dashboard settings'
+        $c = MCalls
+        Check ($c.LastIndexOf('deployments list') -lt $c.LastIndexOf('deploy --config')) 'mgw switch: live version read before deploying'
+        Check ((Run-M @('-Step', 'update', '-Apply', '-Approve', 'EGKRINO MGW UPDATE')) -eq 0 -and (MDeploys) -eq 3) 'mgw update with approval: deploys once'
+        Check (@(Get-ChildItem -LiteralPath $mOut -Filter 'MGW_ENGINE_*.txt').Count -ge 8) 'mgw: a report for every run'
+    } finally {
+        $env:PATH = $oldPath
+        Remove-Item Env:\GW_FAKE_STATE -ErrorAction SilentlyContinue
+    }
+}
+
 Remove-Item -LiteralPath $work -Recurse -Force -ErrorAction SilentlyContinue
 
 Write-Host ''

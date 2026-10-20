@@ -57,7 +57,12 @@ function buildSource(site) {
   const whens = Object.entries(map).flatMap(([slug, names]) => names.map(n => `WHEN ${sqlText(n)} THEN ${sqlText(slug)}`));
   const catExpr = whens.length ? `CASE site_category ${whens.join(' ')} ELSE NULL END` : 'NULL';
   const stock = IN_STOCK_WORDS.map(sqlText).join(', ');
-  const view = `(SELECT id, product_name, NULL AS product_slug, brand, retailer, site_category,
+  // Shown retailer names: one feed can come under two names (e.g. "X" and "X Affiliate Programme").
+  const names = Object.entries(cfg.retailerNames || {});
+  const retailerExpr = names.length
+    ? `CASE retailer ${names.map(([from, to]) => `WHEN ${sqlText(from)} THEN ${sqlText(to)}`).join(' ')} ELSE retailer END`
+    : 'retailer';
+  const view = `(SELECT id, product_name, NULL AS product_slug, brand, ${retailerExpr} AS retailer, site_category,
     ${catExpr} AS category_slug, subcategory, merchant_category, price, NULL AS was_price,
     COALESCE(NULLIF(TRIM(currency), ''), 'GBP') AS currency,
     CASE WHEN LOWER(TRIM(COALESCE(stock_status, ''))) IN (${stock}) THEN 1 ELSE 0 END AS in_stock,
@@ -89,12 +94,15 @@ export function offerKey(product) {
   return g || `id:${product && product.id}`;
 }
 
+// offer_count = how many different retailers sell it (a retailer with two rows for one product counts once).
 function cardSql(where, order, tail = '') {
   if (!LAYOUT.group) return `SELECT ${CARD_COLUMNS} FROM ${LAYOUT.from} p WHERE ${where} ORDER BY ${order} ${tail}`;
-  return `SELECT * FROM (SELECT ${CARD_COLUMNS}, first_seen_at, gtin,
-      ROW_NUMBER() OVER (PARTITION BY ${GROUP_KEY} ORDER BY p.in_stock DESC, p.price ASC, p.id ASC) AS rn,
-      COUNT(*) OVER (PARTITION BY ${GROUP_KEY}) AS offer_count
-    FROM ${LAYOUT.from} p WHERE ${where}) p WHERE p.rn = 1 ORDER BY ${order} ${tail}`;
+  return `SELECT * FROM (SELECT q.*,
+      ROW_NUMBER() OVER (PARTITION BY q.gk ORDER BY q.in_stock DESC, q.price ASC, q.id ASC) AS rn,
+      SUM(CASE WHEN q.rr = 1 THEN 1 ELSE 0 END) OVER (PARTITION BY q.gk) AS offer_count
+    FROM (SELECT ${CARD_COLUMNS}, first_seen_at, gtin, ${GROUP_KEY} AS gk,
+      ROW_NUMBER() OVER (PARTITION BY ${GROUP_KEY}, p.retailer ORDER BY p.in_stock DESC, p.price ASC, p.id ASC) AS rr
+      FROM ${LAYOUT.from} p WHERE ${where}) q) p WHERE p.rn = 1 ORDER BY ${order} ${tail}`;
 }
 
 // Every active offer of the same product (same GTIN), best first. Empty unless the site groups offers.
@@ -105,7 +113,9 @@ export async function offersFor(db, product, limit = 12) {
       WHERE p.is_active = 1 AND ${GROUP_KEY} = ? ORDER BY p.in_stock DESC, p.price ASC, p.id ASC LIMIT ?`)
     .bind(offerKey(product), limit)
     .all();
-  const rows = r.results || [];
+  // One line per retailer: its best offer.
+  const seen = new Set();
+  const rows = (r.results || []).filter(o => (seen.has(o.retailer) ? false : seen.add(o.retailer)));
   return rows.length > 1 ? rows : [];
 }
 
@@ -114,9 +124,20 @@ function catWhere(slug) {
 }
 
 // Rows from the legacy layout get their address slug and a sharper image here.
+// Text that was saved twice as UTF-8 ("Menâ€™s Watch â€“ 44mm"), shown as meant ("Men’s Watch – 44mm").
+const MOJIBAKE = [['â€™', '’'], ['â€˜', '‘'], ['â€œ', '“'], ['â€\u009d', '”'], ['â€“', '–'], ['â€”', '—'], ['â€¦', '…'], ['Â£', '£'], ['Â®', '®'], ['Â©', '©'], ['â„¢', '™'], ['Ã©', 'é'], ['Ã¨', 'è'], ['Ã¶', 'ö'], ['Ã¼', 'ü'], ['Ã¤', 'ä'], ['Â ', ' ']];
+export function fixMojibake(text) {
+  let t = String(text ?? '');
+  if (!/[âÃÂ]/.test(t)) return text;
+  for (const [bad, good] of MOJIBAKE) t = t.split(bad).join(good);
+  return t;
+}
+
 function fix(row) {
   if (!row || !LAYOUT.legacy) return row;
+  // The address keeps the old rule on the saved name, so links that already exist keep working.
   row.product_slug = legacySlug(row.product_name);
+  for (const k of ['product_name', 'brand', 'description', 'subcategory']) if (row[k]) row[k] = fixMojibake(row[k]);
   row.image_url = sharperImage(row.image_url);
   return row;
 }
@@ -243,7 +264,7 @@ export async function homeData(db, categorySlugs) {
     db.prepare(cardSql(`p.is_active = 1 AND p.in_stock = 1 AND p.was_price > p.price
       AND (p.was_price - p.price) / p.was_price BETWEEN 0.05 AND 0.9`, '(p.was_price - p.price) / p.was_price DESC, p.id ASC', 'LIMIT 11')),
     db.prepare(cardSql('p.is_active = 1 AND p.in_stock = 1', 'p.first_seen_at DESC, p.id DESC', 'LIMIT 11')),
-    db.prepare('SELECT retailer AS name, COUNT(*) AS n FROM products WHERE is_active = 1 GROUP BY retailer ORDER BY n DESC, retailer'),
+    db.prepare(`SELECT retailer AS name, COUNT(*) AS n FROM ${LAYOUT.from} p WHERE p.is_active = 1 GROUP BY retailer ORDER BY n DESC, retailer`),
     db.prepare(`SELECT MAX(last_seen_at) AS t FROM ${LAYOUT.from} p WHERE p.is_active = 1`)
   ]);
   const byCat = Object.fromEntries((counts.results || []).map(r => [r.slug, Number(r.n)]));
@@ -261,7 +282,7 @@ export async function homeData(db, categorySlugs) {
 
 export async function stats(db) {
   const r = await db.prepare(
-    'SELECT retailer, COUNT(*) AS n FROM products WHERE is_active = 1 GROUP BY retailer ORDER BY retailer COLLATE NOCASE'
+    `SELECT retailer, COUNT(*) AS n FROM ${LAYOUT.from} p WHERE p.is_active = 1 GROUP BY retailer ORDER BY retailer COLLATE NOCASE`
   ).all();
   const rows = r.results || [];
   return {
