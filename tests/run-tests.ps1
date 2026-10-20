@@ -235,6 +235,31 @@ if (Get-Command node -ErrorAction SilentlyContinue) {
     }
     Check ((Get-FileHash -LiteralPath $gzPath -Algorithm SHA256).Hash -eq $archHash) 'feed sample: Awin archive unchanged'
 
+    $coesCsv = "merchant_name,aw_product_id,brand_name,merchant_product_id,merchant_category,product_name,merchant_deep_link,merchant_image_url,search_price,stock_quantity`n" +
+        "Coes,1,Barbour,10,Menswear,Barbour Beaufort Wax Jacket,https://www.coes.co.uk/products/beaufort?variant=10,https://cdn.shopify.com/1.png,299,1`n" +
+        "Coes,2,Barbour,20,Menswear,Barbour Beaufort Wax Jacket,https://www.coes.co.uk/products/beaufort?variant=20,https://cdn.shopify.com/1.png,289,2`n" +
+        "Coes,3,Joules,30,Womenswear,Joules Ladies Dress,https://www.coes.co.uk/products/dress?variant=30,https://cdn.shopify.com/3.png,59,1`n"
+    $coesGz = Join-Path $arch 'AWIN_30645_116078.csv.gz'
+    $fs = [System.IO.File]::Create($coesGz)
+    $gz = New-Object System.IO.Compression.GZipStream($fs, [System.IO.Compression.CompressionMode]::Compress)
+    $bytes = [System.Text.Encoding]::UTF8.GetBytes($coesCsv)
+    $gz.Write($bytes, 0, $bytes.Length); $gz.Close(); $fs.Close()
+    $coesHash = (Get-FileHash -LiteralPath $coesGz -Algorithm SHA256).Hash
+    $lipOut = Join-Path $work 'legacy-plan-run'
+    & $exe -NoProfile -ExecutionPolicy Bypass -File $runTool -LocalRepo $repo -Tool legacy-import-plan -Retailer coes -Archive $arch -OutDir $lipOut -NoClipboard
+    Check ($LASTEXITCODE -eq 0) 'legacy import plan: exit code 0 through gw-run'
+    $lips = @(Get-ChildItem -LiteralPath $lipOut -Directory -Filter 'IMPORT_PLAN_coes_*' -ErrorAction SilentlyContinue)
+    Check ($lips.Count -eq 1) 'legacy import plan: report folder written'
+    if ($lips.Count -ge 1) {
+        $lrep = [System.IO.File]::ReadAllText((Join-Path $lips[0].FullName 'report.txt'))
+        Check ($lrep.Contains('3 (one row per size) -> 2 products -> 2 would be imported')) 'legacy import plan: sizes joined, both products placed'
+        Check (Test-Path -LiteralPath (Join-Path (Join-Path (Join-Path $lips[0].FullName 'sql') 'mgw') '0001.sql')) 'legacy import plan: MGW SQL written, not executed'
+        Check (Test-Path -LiteralPath (Join-Path (Join-Path (Join-Path $lips[0].FullName 'sql') 'wgw') '0001.sql')) 'legacy import plan: WGW SQL written, not executed'
+    }
+    Check ((Get-FileHash -LiteralPath $coesGz -Algorithm SHA256).Hash -eq $coesHash) 'legacy import plan: Awin archive unchanged'
+    & $exe -NoProfile -ExecutionPolicy Bypass -File $runTool -LocalRepo $repo -Tool legacy-import-plan -Retailer 'no-rules' -Archive $arch -OutDir $lipOut -NoClipboard
+    Check ($LASTEXITCODE -eq 2) 'legacy import plan: unknown retailer gives exit code 2'
+
     if ($env:CI -eq 'true' -and $env:GITHUB_SHA) {
         $dlOut = Join-Path $work 'plan-download'
         & $exe -NoProfile -ExecutionPolicy Bypass -File $runTool -Ref $env:GITHUB_SHA -Tool tgw-import-plan -Archive $arch -OutDir $dlOut -NoClipboard
