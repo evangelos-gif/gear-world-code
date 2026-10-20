@@ -88,8 +88,11 @@ foreach ($root in $SearchRoot) {
     if (-not (Test-Path -LiteralPath $root)) { continue }
     $depth = 4
     if ($root -eq $HOME) { $depth = 1 }
-    $cands = @(Get-ChildItem -LiteralPath $root -Recurse -Depth $depth -File -Include *.ps1, *.psm1, *.bat, *.cmd, *.py, *.js, *.mjs, *.sh, *.txt, *.json -ErrorAction SilentlyContinue |
-        Where-Object { $_.Length -lt 2MB -and $_.FullName -notmatch '\\node_modules\\|\\\.git\\|GW_AWIN_BULK_ARCHIVE\\|gear-world-reports\\AWIN_|\\AppData\\' })
+    $exts = @('.ps1', '.psm1', '.bat', '.cmd', '.py', '.js', '.mjs', '.sh', '.txt', '.json')
+    # Folders to skip are checked below the search folder only (the search folder itself may be anywhere).
+    $cands = @(Get-ChildItem -LiteralPath $root -Recurse -Depth $depth -File -ErrorAction SilentlyContinue |
+        Where-Object { ($exts -contains $_.Extension.ToLowerInvariant()) -and $_.Length -lt 2MB -and
+            ($_.FullName.Substring([Math]::Min($root.Length, $_.FullName.Length)) -notmatch '\\node_modules\\|\\\.git\\|GW_AWIN_BULK_ARCHIVE\\|gear-world-reports\\AWIN_|\\AppData\\|/node_modules/|/\.git/|GW_AWIN_BULK_ARCHIVE/') })
     foreach ($c in $cands) {
         if ($seen.ContainsKey($c.FullName)) { continue }
         $seen[$c.FullName] = $true
