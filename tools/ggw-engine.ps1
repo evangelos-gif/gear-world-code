@@ -227,7 +227,8 @@ function Test-Live([string]$base) {
             $req = [System.Net.HttpWebRequest]::Create(($base + '/out/' + $p[0].id))
             $req.AllowAutoRedirect = $false
             $req.Method = 'HEAD'
-            $req.UserAgent = 'GearWorldQA-bot/1.0 (+read-only check)'
+            # A browser user agent: the Cloudflare bot rule blocks "bot" on /out/ (lessons L32). HEAD is never counted as a click.
+            $req.UserAgent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0 Safari/537.36 GearWorldQA'
             $req.Timeout = 20000
             $resp = $req.GetResponse()
             $loc = [string]$resp.Headers['Location']
