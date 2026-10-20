@@ -48,3 +48,12 @@
 | sites/kgw/public/assets/img/cat-*.webp | Οι εικόνες κατηγοριών του KGW (`clothing.png`, `toys_games.png` κ.λπ. από το live site), χωρίς το πλαίσιο, κομμένες σε 3:2. Στα παπούτσια σβήστηκαν τα σήματα της μάρκας, για να μη φαίνεται μάρκα σαν να υποστηρίζει το site |
 | og-image.png (λογότυπο) | Το λογότυπο του KGW (`kgw-logo.png` από το live site) |
 | logo.svg, favicon.svg, apple-touch-icon.png | Σχεδιασμένα για το repo (Κ σε μπλε-μωβ κύκλο με κίτρινο αστέρι) |
+
+## Home Gear World (HGW)
+
+| Αρχείο | Πηγή |
+|---|---|
+| sites/hgw/public/assets/img/cat-*.webp | Οι εικόνες κατηγοριών του HGW (`hgw-cat-0X-*.png` από το live site), χωρίς τον τυπωμένο τίτλο, κομμένες σε 3:2 |
+| og-image.png | Η εικόνα hero του HGW (`hgw-hero.png` από το live site, με το λογότυπό του) σε σκούρο μπλε φόντο 1200x630. Δεν μπαίνει ως hero στη σελίδα, γιατί είναι μικρή (755 px) και έχει τυπωμένο κείμενο |
+| apple-touch-icon.png | Το εικονίδιο του HGW (`hgw-site-icon.png` από το live site) |
+| logo.svg, favicon.svg | Σχεδιασμένα για το repo (χρυσή στέγη με παράθυρο σε σκούρο μπλε, όπως το λογότυπο του HGW) |

@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Home Gear World">
+  <defs>
+    <linearGradient id="hg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#f0cf82"/>
+      <stop offset="1" stop-color="#c9952f"/>
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="14" fill="#07101d"/>
+  <path d="M10 33L32 14l22 19" fill="none" stroke="url(#hg)" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M42 18v-5h5v9.5" fill="none" stroke="url(#hg)" stroke-width="4" stroke-linejoin="round"/>
+  <rect x="27" y="27" width="10" height="10" fill="url(#hg)"/>
+  <path d="M28.5 32h7M32 28.5v7" stroke="#07101d" stroke-width="1.6"/>
+  <path d="M9 46c10-6 36-6 46 0" fill="none" stroke="url(#hg)" stroke-width="3.5" stroke-linecap="round"/>
+</svg>

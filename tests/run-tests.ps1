@@ -888,6 +888,112 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
     }
 }
 
+# 8b4. hgw-engine.ps1 (same tool for Home Gear World) with a fake wrangler (Windows only: runs .cmd files)
+if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
+    Write-Host 'hgw-engine.ps1 (fake wrangler)'
+    $hTool = Join-Path (Join-Path $repo 'tools') 'hgw-engine.ps1'
+    $hState = Join-Path $work 'hgw-state'
+    $hWork = Join-Path $work 'hgw-work'
+    $hOut = Join-Path $work 'hgw-out'
+    $hBin = Join-Path $work 'hgw-bin'
+    $hOld = Join-Path $work 'hgw-old-site'
+    New-Item -ItemType Directory -Path $hState, $hBin -Force | Out-Null
+    $hDb = [guid]::NewGuid().ToString()
+    $hVer = [guid]::NewGuid().ToString()
+    $hNpx = @(
+        '@echo off',
+        'echo %* >> "%GW_FAKE_STATE%\calls.log"',
+        'echo %* | findstr /C:"whoami" >nul && goto whoami',
+        'echo %* | findstr /C:"d1 list" >nul && goto d1list',
+        'echo %* | findstr /C:"--command" >nul && goto query',
+        'echo %* | findstr /C:"deployments list" >nul && goto deployments',
+        'echo %* | findstr /C:" delete " >nul && goto delete',
+        'echo %* | findstr /C:" deploy" >nul && goto deploy',
+        'echo unknown command 1>&2',
+        'exit /b 1',
+        ':whoami',
+        'echo You are logged in with an OAuth Token, associated with the email test@example.com.',
+        'exit /b 0',
+        ':d1list',
+        ('echo [{"uuid":"' + $hDb + '","name":"home-gear-world"},{"uuid":"x","name":"other-site"}]'),
+        'exit /b 0',
+        ':query',
+        'echo [{"results":[{"site_category":"Garden Tools","retailer":"Tooled Up","n":5,"awin":0}],"success":true}]',
+        'exit /b 0',
+        ':deployments',
+        ('echo Version(s):  (100%%) ' + $hVer),
+        'exit /b 0',
+        ':delete',
+        'echo Successfully deleted home-gear-world-preview',
+        'exit /b 0',
+        ':deploy',
+        'echo Uploaded home-gear-world',
+        'echo   https://home-gear-world-preview.example-test.workers.dev',
+        'exit /b 0'
+    ) -join "`r`n"
+    [System.IO.File]::WriteAllText((Join-Path $hBin 'npx.cmd'), $hNpx + "`r`n", [System.Text.Encoding]::ASCII)
+    $oldPath = $env:PATH
+    $env:PATH = $hBin + ';' + $oldPath
+    $env:GW_FAKE_STATE = $hState
+    $hCalls = Join-Path $hState 'calls.log'
+    function Run-H([string[]]$a) {
+        $all = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $hTool, '-WorkDir', $hWork, '-OldSiteDir', $hOld, '-OutDir', $hOut, '-SkipInstall', '-NoClipboard', '-NoHttpCheck') + $a
+        & $exe @all | Out-Null
+        return $LASTEXITCODE
+    }
+    function HCalls { if (Test-Path -LiteralPath $hCalls) { return [System.IO.File]::ReadAllText($hCalls) } else { return '' } }
+    function HDeploys { return ([regex]::Matches((HCalls), 'wrangler deploy --config')).Count }
+    try {
+        Check ((Run-H @('-Step', 'check')) -eq 0) 'hgw check: exit 0'
+        $c = HCalls
+        Check ($c -match 'd1 execute home-gear-world --remote --json --command "SELECT ' -and $c -match 'deployments list --name home-gear-world') 'hgw check: reads products and the live version'
+        Check ((HDeploys) -eq 0 -and -not ($c -match 'delete|rollback|INSERT|UPDATE')) 'hgw check: only reads'
+        $rep = @(Get-ChildItem -LiteralPath $hOut -Filter 'HGW_ENGINE_CHECK_*.txt' | Select-Object -Last 1)
+        Check ($rep.Count -eq 1 -and ([System.IO.File]::ReadAllText($rep[0].FullName)).Contains($hVer)) 'hgw check: report shows the live version'
+        Check ((Run-H @('-Step', 'preview')) -eq 0 -and (HDeploys) -eq 0) 'hgw preview without -Apply: no deploy'
+        Check ((Run-H @('-Step', 'preview', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HGW SWITCH')) -eq 1 -and (HDeploys) -eq 0) 'hgw preview with the wrong phrase: no deploy'
+        Check ((Run-H @('-Step', 'preview', '-Apply', '-Approve', 'egkrino hgw preview')) -eq 0 -and (HDeploys) -eq 1) 'hgw preview with approval: deploys once'
+        $pc = Join-Path $hWork 'wrangler.preview.jsonc'
+        $pt = $(if (Test-Path -LiteralPath $pc) { [System.IO.File]::ReadAllText($pc) } else { '' })
+        Check ($pt.Contains('"name": "home-gear-world-preview"') -and $pt.Contains($hDb) -and $pt.Contains('"CLICK_LOG": "off"') -and -not $pt.Contains('custom_domain')) 'hgw preview: separate test Worker, same database, clicks off, no domain'
+        Check ((HCalls) -match 'deploy --config "[^"]*wrangler\.preview\.jsonc"') 'hgw preview: deploys the preview config'
+        Check (@(Get-ChildItem -LiteralPath (Join-Path $hWork 'deploy') -Recurse -Filter 'promos.js' -ErrorAction SilentlyContinue).Count -ge 1) 'hgw preview: the deploy copy has promos/ (the site configs import it)'
+        Check ((Run-H @('-Step', 'switch', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HGW SWITCH')) -eq 11 -and (HDeploys) -eq 1) 'hgw switch without the old site code: refused, no deploy'
+        Write-Utf8 (Join-Path $hOld 'worker.js') 'export default {}'
+        Write-Utf8 (Join-Path $hOld 'wrangler.jsonc') '{ "name": "home-gear-world" }'
+        Write-Utf8 (Join-Path $hOld '.dev.vars') 'SECRET=never-copy'
+        Write-Utf8 (Join-Path (Join-Path $hOld 'public') 'index.html') '<!doctype html>'
+        Check ((Run-H @('-Step', 'switch', '-Apply', '-Approve', 'wrong')) -eq 1 -and (HDeploys) -eq 1) 'hgw switch with the wrong phrase: no deploy'
+        Check ((Run-H @('-Step', 'switch', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HGW SWITCH')) -eq 0 -and (HDeploys) -eq 2) 'hgw switch with approval: deploys once'
+        $zips = @(Get-ChildItem -LiteralPath (Join-Path $hWork 'backups') -Filter 'old-hgw-site-*.zip' -ErrorAction SilentlyContinue)
+        Check ($zips.Count -eq 1) 'hgw switch: old site code zipped first'
+        if ($zips.Count -eq 1) {
+            Add-Type -AssemblyName System.IO.Compression.FileSystem
+            $z = [System.IO.Compression.ZipFile]::OpenRead($zips[0].FullName)
+            $names = @($z.Entries | ForEach-Object { $_.FullName -replace '\\', '/' })
+            $z.Dispose()
+            Check (($names -contains 'worker.js') -and ($names -contains 'public/index.html') -and -not ($names -contains '.dev.vars')) 'hgw switch: backup has the code and site files, never .dev.vars'
+        }
+        $notes = @(Get-ChildItem -LiteralPath (Join-Path $hWork 'backups') -Filter 'hgw-before-switch-*.txt' -ErrorAction SilentlyContinue)
+        Check ($notes.Count -eq 1 -and ([System.IO.File]::ReadAllText($notes[0].FullName)).Contains('rollback ' + $hVer)) 'hgw switch: rollback note with the old live version'
+        $lc = [System.IO.File]::ReadAllText((Join-Path $hWork 'wrangler.jsonc'))
+        Check ($lc.Contains('"name": "home-gear-world"') -and $lc.Contains($hDb) -and $lc.Contains('"pattern": "homegearworld.com", "custom_domain": true') -and $lc.Contains('"pattern": "www.homegearworld.com", "custom_domain": true') -and $lc.Contains('"keep_vars": true') -and -not $lc.Contains('CLICK_LOG')) 'hgw switch: live config has the domains, the same database, keeps dashboard settings'
+        $c = HCalls
+        Check ($c.LastIndexOf('deployments list') -lt $c.LastIndexOf('deploy --config')) 'hgw switch: live version read before deploying'
+        Check ((Run-H @('-Step', 'update', '-Apply', '-Approve', 'EGKRINO HGW UPDATE')) -eq 0 -and (HDeploys) -eq 3) 'hgw update with approval: deploys once'
+        function HDeletes { return ([regex]::Matches((HCalls), 'wrangler delete ')).Count }
+        Check ((Run-H @('-Step', 'remove-preview')) -eq 0 -and (HDeletes) -eq 0) 'hgw remove-preview without -Apply: deletes nothing'
+        Check ((Run-H @('-Step', 'remove-preview', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HGW SWITCH')) -eq 1 -and (HDeletes) -eq 0) 'hgw remove-preview with the wrong phrase: deletes nothing'
+        Check ((Run-H @('-Step', 'remove-preview', '-Apply', '-Approve', 'egkrino hgw remove preview')) -eq 0 -and (HDeletes) -eq 1) 'hgw remove-preview with approval: one delete'
+        $c = HCalls
+        Check ($c -match 'wrangler delete home-gear-world-preview\s' -and -not ($c -match 'delete home-gear-world\s') -and (HDeploys) -eq 3) 'hgw remove-preview: only the test Worker, no deploy'
+        Check (@(Get-ChildItem -LiteralPath $hOut -Filter 'HGW_ENGINE_*.txt').Count -ge 8) 'hgw: a report for every run'
+    } finally {
+        $env:PATH = $oldPath
+        Remove-Item Env:\GW_FAKE_STATE -ErrorAction SilentlyContinue
+    }
+}
+
 # 8b3. awin-feed-download.ps1 against a local fake Awin server (Windows only: the key is kept with DPAPI)
 if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
     Write-Host 'awin-feed-download.ps1 (fake Awin server)'
