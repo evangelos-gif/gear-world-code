@@ -930,6 +930,84 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
     }
 }
 
+# 8e. legacy-tidy.ps1 (names and products of the other site, MGW/WGW) with a fake wrangler (Windows only)
+if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
+    Write-Host 'legacy-tidy.ps1 (fake wrangler)'
+    $tdTool = Join-Path (Join-Path $repo 'tools') 'legacy-tidy.ps1'
+    $tdState = Join-Path $work 'td-state'
+    $tdBin = Join-Path $work 'td-bin'
+    $tdWork = Join-Path $work 'td-work'
+    $tdOut = Join-Path $work 'td-out'
+    New-Item -ItemType Directory -Path $tdState, $tdBin -Force | Out-Null
+    $tdBookmark = '00000085-0000024c-00004c6d-' + [guid]::NewGuid().ToString('N')
+    $tdNpx = @(
+        '@echo off',
+        'echo %* >> "%GW_FAKE_STATE%\calls.log"',
+        'echo %* | findstr /C:"time-travel info" >nul && goto ttinfo',
+        'echo %* | findstr /C:"--file" >nul && goto file',
+        'echo %* | findstr /C:"substr(lower(retailer)" >nul && goto names',
+        'echo %* | findstr /C:"instr(lower(product_name)" >nul && goto gender',
+        'echo %* | findstr /C:"--command" >nul && goto count',
+        'echo unknown command 1>&2',
+        'exit /b 1',
+        ':ttinfo',
+        ('echo The current bookmark is ' + $tdBookmark),
+        'exit /b 0',
+        ':file',
+        'echo done > "%GW_FAKE_STATE%\done.txt"',
+        'echo OK',
+        'exit /b 0',
+        ':names',
+        'if exist "%GW_FAKE_STATE%\done.txt" goto empty',
+        'echo [{"results":[{"id":1,"retailer":"InStock UK","site_category":"Clothing","product_name":"Organic Poplin Shirt: Mens - 3XL / Cream"}],"success":true}]',
+        'exit /b 0',
+        ':gender',
+        'if exist "%GW_FAKE_STATE%\done.txt" goto empty',
+        'echo [{"results":[{"id":2,"retailer":"Watch Enclave","site_category":"Watches","product_name":"Hugo Boss Hera Womens Watch"},{"id":3,"retailer":"InStock UK","site_category":"Clothing","product_name":"Mens and Ladies Socks"}],"success":true}]',
+        'exit /b 0',
+        ':empty',
+        'echo [{"results":[],"success":true}]',
+        'exit /b 0',
+        ':count',
+        'echo [{"results":[{"n":10}],"success":true}]',
+        'exit /b 0'
+    ) -join "`r`n"
+    [System.IO.File]::WriteAllText((Join-Path $tdBin 'npx.cmd'), $tdNpx + "`r`n", [System.Text.Encoding]::ASCII)
+    $oldPath = $env:PATH
+    $env:PATH = $tdBin + ';' + $oldPath
+    $env:GW_FAKE_STATE = $tdState
+    $tdCalls = Join-Path $tdState 'calls.log'
+    function Run-Td([string[]]$a) {
+        $all = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $tdTool, '-WorkDir', $tdWork, '-OutDir', $tdOut, '-NoClipboard') + $a
+        & $exe @all | Out-Null
+        return $LASTEXITCODE
+    }
+    function TdCalls { if (Test-Path -LiteralPath $tdCalls) { return [System.IO.File]::ReadAllText($tdCalls) } else { return '' } }
+    try {
+        Check ((Run-Td @('-Site', 'mgw')) -eq 0) 'tidy without -Apply: exit 0'
+        Check (-not ((TdCalls) -match '--file|time-travel')) 'tidy without -Apply: only reads'
+        $tdRep = [System.IO.File]::ReadAllText((@(Get-ChildItem -LiteralPath $tdOut -Filter 'TIDY_MGW_*.txt')[0]).FullName)
+        Check ($tdRep.Contains('Hugo Boss Hera') -and $tdRep.Contains('-> Organic Poplin Shirt: Mens') -and -not $tdRep.Contains('Mens and Ladies Socks')) 'tidy report: women-only hidden, unisex kept, name sample'
+        Check ($tdRep.Contains('ΕΓΚΡΙΝΩ TIDY MGW')) 'tidy report: approval phrase'
+        Check ((Run-Td @('-Site', 'mgw', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ TIDY WGW')) -eq 1) 'tidy with the other site''s phrase: stops'
+        Check (-not ((TdCalls) -match '--file')) 'tidy with wrong phrase: changes nothing'
+        Check ((Run-Td @('-Site', 'mgw', '-Apply', '-Approve', 'egkrino tidy mgw')) -eq 0) 'tidy with approval (Latin form): exit 0'
+        $c = TdCalls
+        Check ($c.IndexOf('time-travel info mens-gear-world') -ge 0 -and $c.IndexOf('d1 execute mens-gear-world --remote --file') -gt $c.IndexOf('time-travel info mens-gear-world')) 'tidy: restore point before the change'
+        Check (-not ($c -match 'womens-gear-world')) 'tidy: the other site is not touched'
+        $runs = @(Get-ChildItem -LiteralPath (Join-Path $tdWork 'backups') -Directory -Filter 'mgw-tidy-*' | Sort-Object Name)
+        $last = $runs[$runs.Count - 1].FullName
+        $chg = [System.IO.File]::ReadAllText((Join-Path $last 'change.sql'))
+        $und = [System.IO.File]::ReadAllText((Join-Path $last 'rollback.sql'))
+        Check ($chg.Contains('SET is_active = 0') -and $chg.Contains('WHERE id IN (2)') -and $chg.Contains("product_name = 'Organic Poplin Shirt: Mens'")) 'tidy: change file by id'
+        Check ($und.Contains('SET is_active = 1') -and $und.Contains("product_name = 'Organic Poplin Shirt: Mens - 3XL / Cream'")) 'tidy: rollback file has the old name'
+        Check (([System.IO.File]::ReadAllText((Join-Path $last 'restore-point.txt'))).Contains($tdBookmark)) 'tidy: restore point written with the bookmark'
+    } finally {
+        $env:PATH = $oldPath
+        Remove-Item Env:\GW_FAKE_STATE -ErrorAction SilentlyContinue
+    }
+}
+
 # 9. group-site.ps1 with a fake wrangler (Windows only: runs .cmd files)
 if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
     Write-Host 'group-site.ps1 (fake wrangler)'
