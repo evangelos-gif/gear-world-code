@@ -22,7 +22,9 @@ test('AGW rules put real-looking products in the right category and keep look-al
     ['NitroLift Audi A6 Avant Tailgate Gas Strut', 'Vehicles & Parts > Vehicle Parts & Accessories', 'parts-maintenance'],
     ['Sealey 3/8" Drive Magnetic Spark Plug Socket 16mm', 'Automotive Tools > Vehicle Repairs & Servicing > Engine', 'garage-tools-equipment'],
     ['SGS 3 Tonne Long Reach Service Trolley Jack', 'Business & Industrial > Material Handling > Lifts', 'garage-tools-equipment'],
-    ['VEVOR Type 2 laadkabel voor elektrische EV', 'Elektrisch > EV Chargers', 'ev-charging']
+    ['VEVOR Type 2 laadkabel voor elektrische EV', 'Elektrisch > EV Chargers', 'ev-charging'],
+    ['Sealey Trim Clip Removal Pliers', 'Hand Tools > Pliers > Gripping Tools > Automotive', 'garage-tools-equipment'],
+    ['NitroLift Audi A6 Avant Tailgate Gas Strut', 'Hardware > Hardware Accessories > NitroLift', 'parts-maintenance']
   ];
   for (const [name, cat, slug] of cases) assert.equal(classify(name, cat).slug, slug, name);
   for (const [name, cat] of [
@@ -33,7 +35,17 @@ test('AGW rules put real-looking products in the right category and keep look-al
     ['Oxford Motorcycle Cover', 'Vehicles & Parts'],
     ['Reidl DIN 913 Gewindestifte M 4x4', 'Befestigung'],
     ['Bosch 18V Combi Drill', 'Power Tools > Drills'],
-    ['Handy Lawnmower Oil Change Kit', 'Garden']
+    ['Handy Lawnmower Oil Change Kit', 'Garden'],
+    // From the first real dry run (21 Oct 2026):
+    ['Bosch GAL 18V-160 18v Li-Ion Fast Battery Charger', 'Battery Chargers'],
+    ['Bosch GDM 600-15 Digital Multimeter', 'Multimeters'],
+    ['ALM RCJ7Y Spark Plug', 'Garden Tools > Spark Plugs > Garden Machinery > Parts'],
+    ['Handy 10W/30 Engine Oil in Portable Dispenser Can 5l', 'Garden Tools > Engine Oil > Garden Machinery'],
+    ['Sealey Pneumatic Tyre Platform Trolley Truck 450Kg', 'Garden Tools > Carts, Trolleys & Wheelbarrows'],
+    ['Draper 12v Car Charger for D20 20v Lithium Ion Batteries', 'Power Tool Accessories > Battery Packs'],
+    ['VEVOR Bureau organizer met lades auto', 'Opslag en organisatie > Kantoorartikelen > Bureauorganisatoren'],
+    ['NitroLift Gas Strut 200N 300mm', 'Hardware > Hardware Accessories > NitroLift'],
+    ['Snow Sled 2 seat', 'Vehicles & Parts > Vehicles > Motor Vehicles > Snowmobiles']
   ]) assert.equal(classify(name, cat).ok, false, name);
 });
 

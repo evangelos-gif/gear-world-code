@@ -21,7 +21,7 @@ const CAR_FEED = /automotive|vehicles? (?:parts|repairs|accessories)|vehicles & 
 const CAR_WORDS = words(['cars?', 'vehicles?', 'automotive', 'motoring', 'auto', 'van', 'vans', '4x4 vehicle', 'suv', 'campervan', 'motorhome', 'caravan',
   'tyres?', 'tires?', 'dash ?cams?', 'obd2?', 'obdii', 'windscreen', 'windshield', 'number plate', 'tow ?bar', 'tow ball', 'roof box', 'roof bars',
   'ev', 'carplay', 'android auto', 'sat ?nav', 'jump starter', 'jump leads', 'wiper blades?', 'engine oil', 'spark plugs?', 'brake (?:pads|discs)',
-  'trolley jack', 'axle stands?', 'gas struts?', 'tailgate', 'bonnet', 'boot', 'dashboard', 'headlights?', 'bumper', 'alloy wheels?',
+  'trolley jack', 'axle stands?', 'tailgate', 'bonnet', 'boot', 'dashboard', 'headlights?', 'bumper', 'alloy wheels?',
   // Dutch / German (VEVOR NL, Reidl)
   'autos', 'personenauto', 'laadkabel', 'fietsendrager', 'bandenpomp', 'acculader', 'startbooster', 'krik', 'fahrzeug', 'kfz', 'pkw', 'wagenheber', 'starthilfe']);
 
@@ -30,7 +30,7 @@ export const DENY = [
   { label: 'child car seat (Kids\' Gear World)', re: words(['child seat', 'booster seat', 'isofix', 'i-size', 'pushchair', 'pram', 'stroller', 'travel system', 'carrycot', 'car seats? (?!covers?|protectors?|organi[sz]ers?|cushions?|gap)']) },
   { label: 'clothes, gift or home item', re: words(['t-?shirts?', 'hoodie', 'sweatshirt', 'jackets?', '(?:rain|winter|wool|puffer|parka|trench) coats?', 'dress(?:es)?', 'socks', 'pyjamas', 'mugs?', 'posters?', 'art prints?', 'books?', '(?:greeting|birthday|christmas|gift|playing) cards?', 'costume', 'bedding', 'duvet', 'pillowcase', 'hoeslaken', 'cake', 'necklace', 'cufflinks', 'keyrings?', 'diffuser', 'candle']) },
   { label: 'motorbike or bicycle', re: words(['motorbikes?', 'motorcycles?', 'motocross', 'scooters?', 'mopeds?', 'quad bike', 'atv', 'bicycle', 'mtb', 'bike tyres?', 'inner tubes?', '700c', 'golf cart', 'club car']) },
-  { label: 'garden or farm machine', re: words(['lawn ?mowers?', 'mowers?', 'strimmers?', 'chainsaws?', 'wheelbarrows?', 'tractors?', 'farm jack', 'horse', 'feed bucket', 'sack trucks?']) },
+  { label: 'garden or farm machine', re: words(['lawn ?mowers?', 'mowers?', 'strimmers?', 'chainsaws?', 'wheelbarrows?', 'tractors?', 'farm jack', 'horse', 'feed bucket', 'sack trucks?', '[24][ -]?stroke', 'pressure sprayer', 'platform trolley', 'trolley truck']) },
   { label: 'fixings, not a car product', re: words(['din \\d+', 'iso \\d+', 'gewindestifte', 'set screws?', 'grub screws?', 'gehörschutz', 'ear plugs?', 'säbelsägeblatt', 'saw blades?']) },
   { label: 'not allowed', re: words(['radar detectors?', 'laser jammers?', 'speed camera detector', 'spy camera', 'hidden camera', 'knife', 'knives', 'vape']) }
 ];
@@ -40,7 +40,8 @@ export const DENY = [
 export const RULES = [
   {
     slug: 'parts-maintenance', // gas struts first: "Roof Box Gas Strut", "Tailgate Gas Strut"
-    include: words(['gas struts?', 'gas springs?', 'boot struts?', 'tailgate struts?', 'bonnet struts?'])
+    include: words(['gas struts?', 'gas springs?', 'boot struts?', 'tailgate struts?', 'bonnet struts?']),
+    ctx: true // a plain "Gas Strut 200N 300mm" is for furniture or machines; one for an Audi A6 tailgate is a car part
   },
   {
     slug: 'ev-charging',
@@ -49,13 +50,15 @@ export const RULES = [
   {
     slug: 'diagnostics-battery',
     include: words(['obd ?(?:ii|2)?', 'diagnostic(?:s| tool| scanner| device)?', 'code readers?', 'fault code', 'scan tool', 'battery (?:chargers?|testers?|maintainers?|conditioners?|analy[sz]ers?)', 'smart chargers?', 'trickle chargers?',
-      'jump starters?', 'jump leads', 'jump packs?', 'booster cables?', 'start(?:ing)? boosters?', 'power packs?', 'acculader', 'startbooster', 'starthilfe\\w*', 'multimeters?', 'circuit testers?', 'test lamps?', 'car batter(?:y|ies)', 'battery terminals?', 'voltage (?:protector|stabili[sz]er)', 'bordnetz']),
-    exclude: words(['power stations?', 'laptop', 'phone', 'aa', 'aaa', 'drill', 'cordless'])
+      'jump starters?', 'jump leads', 'jump packs?', 'booster cables?', 'start(?:ing)? boosters?', 'power packs?', 'acculader', 'startbooster', 'starthilfe\\w*', 'circuit testers?', 'test lamps?', 'car batter(?:y|ies)', 'battery terminals?', 'voltage (?:protector|stabili[sz]er)', 'bordnetz']),
+    ctx: true,
+    // Power tool batteries ("Bosch GAL 18V-160 Li-Ion Fast Battery Charger") are not car batteries.
+    exclude: words(['power stations?', 'laptop', 'phone', 'aa', 'aaa', 'drills?', 'cordless', 'li-?ion', 'lithium', '\\d+v li', 'impact drivers?', 'radios?', 'no batteries', 'trolleys?', 'torch(?:es)?'])
   },
   {
     slug: 'tyres-wheels',
     include: words(['tyres?', 'tires?', 'tyre inflators?', 'tire inflators?', 'inflators?', 'tyre (?:pressure|tread|gauge)\\w*', 'tpms', 'puncture', 'alloy wheels?', 'wheel (?:nuts?|bolts?|braces?|trims?|chocks?|dolly|dollies|balancers?|spacers?|locks?)', 'locking wheel nuts', 'wheel nut', 'wheel socket', 'valve (?:caps?|cores?)', 'bandenpomp', 'bead (?:blaster|breaker|seater)']),
-    exclude: words(['tyre shine', 'tire shine', 'tyre (?:dressing|gel|cleaner)', 'tire (?:dressing|gel|cleaner)'])
+    exclude: words(['tyre shine', 'tire shine', 'tyre (?:dressing|gel|cleaner)', 'tire (?:dressing|gel|cleaner)', 'trolleys?', 'trucks?', 'wheelbarrows?', 'sack'])
   },
   {
     slug: 'car-care-detailing',
@@ -67,7 +70,8 @@ export const RULES = [
     slug: 'car-electronics',
     include: words(['dash ?cams?', 'dashcam', 'carplay', 'android auto', 'sat ?navs?', 'gps navigat\\w+', 'car stereos?', 'head units?', 'car radios?', 'dab (?:adapter|radio)', 'reversing cameras?', 'rear ?view cameras?', 'backup cameras?', 'parking sensors?', 'parking (?:aid|assist)', 'car chargers?', 'usb car charger', 'phone (?:holders?|mounts?|cradles?)', 'fm transmitters?', 'car (?:speakers?|amplifiers?|subwoofers?)', 'subwoofers?', 'gps trackers?', 'car (?:led|lights?) strip', 'interior (?:led|light) strip', 'car inverters?', 'power inverters?', '12v (?:sockets?|splitters?|adapters?)']),
     ctx: true,
-    exclude: words(['bumper cutter', 'cutter', 'drill', 'hole saw'])
+    // "12v Car Charger for 20v Lithium Ion Batteries" charges power tool batteries, not a phone in the car.
+    exclude: words(['bumper cutter', 'cutter', 'drill', 'hole saw', 'power stations?', 'torch(?:es)?', 'batteries'])
   },
   {
     slug: 'safety-winter',
@@ -82,7 +86,8 @@ export const RULES = [
   {
     slug: 'interior-comfort',
     include: words(['seat covers?', 'car seat covers?', 'seat (?:cushions?|protectors?|organi[sz]ers?|gap fillers?)', 'floor mats?', 'car mats?', 'boot (?:liners?|mats?|organi[sz]ers?|tidy)', 'organi[sz]ers?', 'sun ?shades?', 'sunshades?', 'steering wheel covers?', 'car vacuums?', 'handheld vacuum', 'dustbuster', 'cool ?box(?:es)?', 'car fridges?', 'heated (?:seat|blanket)s?', 'headrest hooks?', 'cup holders?', 'back seat organi[sz]ers?', 'dog (?:guards?|seat covers?)', 'pet seat covers?']),
-    ctx: true
+    ctx: true,
+    exclude: words(['desks?', 'bureau\\w*', 'kantoor\\w*', 'office', 'component', 'cylinder head'])
   },
   {
     slug: 'parts-maintenance',
@@ -117,6 +122,10 @@ export function topCategory(feedCategory) {
   return String(feedCategory || '').split('>')[0].trim();
 }
 
+const GARDEN_FEED = /garden machinery|^\s*garden tools\b/i;
+const VEHICLE_FEED = /> motor vehicles >|snowmobiles|> vehicles > (?:motor|watercraft|aircraft)/i;
+const TOOL_WORDS = words(['pliers', 'tools?', 'tool (?:kit|set)s?', 'kits?', 'sets?', 'wrench(?:es)?', 'spanners?', 'sockets?', 'removers?', 'pullers?', 'gauges?', 'testers?', 'clamps?', 'punch(?:es)?', 'installers?', 'extractors?', 'compressors?']);
+
 // A tool shop's car section (Tooled Up, My Tool Shed: "Automotive Tools > ...").
 const toolShop = feedCategory => /^automotive tools\b/i.test(String(feedCategory || '').trim());
 
@@ -125,6 +134,9 @@ export function classify(name, feedCategory = '') {
   const n = String(name || '');
   const cat = String(feedCategory || '');
   for (const d of DENY) if (d.re.test(n)) return { ok: false, reason: d.label };
+  // Spark plugs and engine oil for lawnmowers, and whole vehicles (snowmobiles) listed under "Motor Vehicles".
+  if (GARDEN_FEED.test(cat)) return { ok: false, reason: 'garden or farm machine' };
+  if (VEHICLE_FEED.test(cat)) return { ok: false, reason: 'a vehicle, not gear' };
   const carFeed = CAR_FEED.test(cat);
   const ctx = carFeed || CAR_WORDS.test(n);
   const shop = toolShop(cat);
@@ -137,6 +149,8 @@ export function classify(name, feedCategory = '') {
   }
   // Everything else in a tool shop's car section is a garage tool (pullers, brake tools, engine tools ...).
   if (shop) return { ok: true, slug: 'garage-tools-equipment' };
+  // A tool in a car category of the shop ("Trim Clip Removal Pliers", "Piston Ring Pliers") is a garage tool too.
+  if (carFeed && TOOL_WORDS.test(n)) return { ok: true, slug: 'garage-tools-equipment' };
   return { ok: false, reason: carFeed ? 'not matched (shop says car)' : 'not car' };
 }
 

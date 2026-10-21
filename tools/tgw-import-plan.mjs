@@ -9,7 +9,7 @@
 // Nothing is sent to Cloudflare. Loading the SQL is a separate step that needs the owner's approval.
 //
 // Usage: node tools/tgw-import-plan.mjs --archive <dir> --out <dir> [--sources sites/tgw/sources.json]
-import { createReadStream, existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { createReadStream, existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { createGunzip } from 'node:zlib';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -214,7 +214,7 @@ export async function planImport({ archive, sourcesFile, outDir, now = new Date(
         if (!header) {
           header = rec; map = mapHeader(rec);
           const missing = ['name', 'price', 'link', 'merchantProductId', 'images'].filter(k => !map[k].length);
-          feedInfo.push(`${real}: ${rec.length} columns${missing.length ? ' | MISSING: ' + missing.join(', ') : ''}`);
+          feedInfo.push(`${real}: ${rec.length} columns | file date ${statSync(join(archive, real)).mtime.toISOString().slice(0, 10)}${missing.length ? ' | MISSING: ' + missing.join(', ') : ''}`);
           feedInfo.push('  columns used: ' + Object.entries(map).map(([k, v]) => `${k}=${v.map(i => header[i]).join('/') || '-'}`).join(' '));
           continue;
         }
