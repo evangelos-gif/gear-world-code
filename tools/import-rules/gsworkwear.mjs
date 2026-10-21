@@ -88,10 +88,20 @@ function isColourish(seg) {
   return tokens.length > 0 && tokens.length <= 6 && tokens.every(t => COLOUR_WORDS.has(t));
 }
 
+// "- UK 7", "- EU 42", "- Large", "- S/M", "- Yellow (14.8L)"
+function isSizeish(seg) {
+  const p = String(seg || '').replace(/[*†?]/g, '').trim().toLowerCase();
+  if (/^(uk|eu|us)\s*\d{1,2}(\.5)?(-\d{1,2}(\.5)?)?$/.test(p)) return true;
+  if (/^(x{0,3}-?small|small|medium|large|x{1,3}-?large|\d?xl|x{0,3}[sml]|s\/m|m\/l|l\/xl|xl\/xxl|one size|adjustable|regular|tall|short|long)$/.test(p)) return true;
+  const m = p.match(/^(.*?)\s*\([^()]*\)$/); // "Yellow (14.8L)"
+  return !!(m && m[1] && isColourish(m[1]));
+}
+
 // "Blaklader Service Trousers 1456 - Black/Hi-Vis Yellow - Black/Hi-Vis Yellow / 34\" / Long" -> "Blaklader Service Trousers 1456"
 // "Portwest Classic Ear Protector - Yellow" -> "Portwest Classic Ear Protector"
 export function baseName(title) {
-  const t = String(title || '').replace(/\s+/g, ' ').trim();
+  const t = String(title || '').replace(/\s+/g, ' ').trim()
+    .replace(/(\d)\s[-–]\s((?:uk|eu|us)\s*)?(?=\d)/gi, '$1-$2'); // "EU 39 - 43" is one size
   const parts = t.split(/\s[-–]\s/);
   if (parts.length < 2) return t;
   const seps = t.match(/\s[-–]\s/g); // keep the shop's own dashes in the part we keep
@@ -105,7 +115,7 @@ export function baseName(title) {
   while (parts.length > 1) {
     const seg = parts[parts.length - 1];
     const clean = seg.replace(/[*]/g, '').trim().toLowerCase();
-    if ((colour && clean === colour) || isColourish(seg)) parts.pop(); else break;
+    if ((colour && clean === colour) || isColourish(seg) || isSizeish(seg)) parts.pop(); else break;
   }
   return parts.reduce((out, p, i) => (i ? out + seps[i - 1] : '') + p, '').trim();
 }
@@ -127,16 +137,17 @@ const words = list => new RegExp('(?<![a-z0-9])(' + list.map(w => w.replace(/[.*
 
 // Plain clothing for printing logos on: not construction gear.
 const BLANK_BRANDS = /^(sf|sf minni|skinnifit|spiro|russell|russell europe|flexfit|flexfit by yupoong|yupoong|result headwear|prortx|colortone|tridri|onna|front row|asquith|asquith & fox|henbury|stanley\s*\/?\s*stella|b\s*&\s*c( collection)?|build your brand|awdis|just hoods|gildan|fruit of the loom|bella\s*\+?\s*canvas|next level|anvil|kariban|sols|sol's|native spirit|westford mill|towel city|mantis|larkwood|babybugz|finden\s*&?\s*hales|ecologie|tombo|beechfield|quadra|bagbase|kimood|shugon|nutshell|brand lab)(\s|$)/i;
+const NOT_TRADE_BRANDS = /^(nike|adidas|ogio|under armour|cuprinol|ronseal|rustins|vitax|hozelock|gardena|flopro|kent\s*&\s*stowe|home & living|link2home|karcher)(®|\s|$)/i;
 const NOT_TRADE = words(['chef', 'chefs', 'kitchen', 'catering', 'scrubs', 'tunic', 'nurse', 'nursing', 'medical', 'salon', 'beauty', 'barber', 'waiter',
   'waitress', 'bartender', 'baby', 'babies', 'toddler', 'kids', "kid's", 'children', "children's", 'junior', 'youth', 'school', 'mug', 'mugs', 'tea towel',
   'cushion', 'blanket', 'umbrella', 'teddy', 'toy', 'dress', 'skirt', 'blouse', 'bikini', 'swim', 'pyjama', 'pyjamas', 'gift card', 'garden', 'lawn',
   'plant', 'plants', 'compost', 'seed', 'seeds', 'bird', 'pond', 'golf', 'butcher', 'butchers', 'tridri', 'crop top', 'sports bra',
-  'air filter', 'frill']);
+  'air filter', 'frill', 'paramedic', 'shed', 'sheds', 'fence', 'fences', 'woodstain', 'decking', 'rose food']);
 
 const PLACES = [
   // [category, subcategory, words] - the first match wins, so the order matters
   ['Power Tools', 'Power Tools', ['drill bit', 'drill bits', 'saw blade', 'saw blades', 'sanding belt', 'sanding belts', 'sanding sheet', 'sanding sheets',
-    'sanding disc', 'sanding discs', 'abrasive', 'flap disc', 'cutting disc', 'grinding disc', 'hole saw', 'jobber drill']],
+    'sanding disc', 'sanding discs', 'abrasive', 'flap disc', 'cutting disc', 'grinding disc', 'hole saw', 'jobber drill', 'blade', 'blades', 'sanding net', 'sanding head']],
   ['Site Equipment', 'Site Equipment', ['rucksack', 'backpack', 'holdall', 'hold all', 'kitbag', 'kit bag', 'tool bag', 'duffle', 'duffel']],
   ['Workwear', 'Work Gloves', ['glove', 'gloves', 'gauntlet', 'gauntlets', 'mitt', 'mitts']],
   ['Safety Boots', 'Rigger Boots', ['rigger', 'riggers']],
@@ -158,23 +169,27 @@ const PLACES = [
     'dungarees', 'combi suit', 'winter suit', 'bib']],
   ['Workwear', 'Waterproofs', ['waterproof', 'rain jacket', 'raincoat', 'rain suit', 'rainsuit', 'rain trousers', 'rain trouser', 'over trousers', 'overtrousers',
     'overtrouser', 'pu jacket']],
-  ['Workwear', 'Work Trousers', ['trouser', 'trousers', 'jeans', 'jean', 'chino', 'chinos', 'cargo pants', 'work pants', 'pant', 'pants', 'jogger', 'joggers', 'combat']],
+  ['Workwear', 'Work Trousers', ['trouser', 'trousers', 'jeans', 'jean', 'chino', 'chinos', 'cargo pants', 'work pants', 'pant', 'pants', 'jogger', 'joggers', 'jogging bottoms', 'jog bottom', 'jog bottoms',
+    'salopettes', 'combat']],
   ['Workwear', 'Work Shorts', ['shorts']],
   // after the garments: "Trousers with kneepad pockets" are trousers, "Knee Pads" are PPE
   ['PPE', 'Knee Protection', ['knee pad', 'knee pads', 'kneepad', 'kneepads', 'knee protector', 'knee protectors']],
-  ['Workwear', 'Headwear', ['balaclava', 'snood', 'neck warmer', 'hood', 'hoods']],
+  ['Workwear', 'Headwear', ['balaclava', 'snood', 'neck warmer', 'beanie', 'beanies', 'skull hat', 'bobble hat', 'hat', 'hats', 'thermal cap']],
+  ['Workwear', 'Socks', ['sock', 'socks']],
   ['Workwear', 'Bodywarmers & Gilets', ['bodywarmer', 'body warmer', 'gilet', 'gilets']],
   ['Workwear', 'Fleeces & Softshells', ['fleece', 'fleeces', 'softshell', 'soft shell', 'microfleece']],
-  ['Workwear', 'Jackets & Coats', ['jacket', 'jackets', 'coat', 'coats', 'parka', 'bomber', 'anorak', 'cagoule', 'blouson', 'insulator']],
+  ['Workwear', 'Jackets & Coats', ['jacket', 'jackets', 'coat', 'coats', 'parka', 'bomber', 'anorak', 'cagoule', 'blouson', 'insulator', 'jerkin']],
   ['Workwear', 'Hoodies & Sweatshirts', ['track top', 'hoodie', 'hoodies', 'hoody', 'sweatshirt', 'sweatshirts', 'sweater', 'jumper', 'quarter zip', '1/4 zip', 'pullover']],
   ['Workwear', 'Shirts, Polos & T-Shirts', ['polo', 'polos', 'polo shirt', 't-shirt', 't-shirts', 't shirt', 'tee', 'tees', 'shirt', 'shirts']],
   ['Workwear', 'Base Layers', ['base layer', 'baselayer', 'thermal', 'thermals', 'long johns']],
   ['Workwear', 'Tabards & Aprons', ['tabard', 'tabards', 'apron', 'aprons', 'smock']],
   ['Workwear', 'Socks', ['sock', 'socks']],
-  ['Workwear', 'Headwear', ['beanie', 'hat', 'hats', 'cap', 'caps', 'snood', 'neck warmer', 'balaclava', 'headband']],
+  ['Workwear', 'Headwear', ['hood', 'hoods', 'cap', 'caps', 'snood', 'neck warmer', 'balaclava', 'headband']],
   ['Workwear', 'Workwear Accessories', ['belt', 'belts', 'braces', 'holster', 'holster pocket', 'tool belt', 'pouch', 'name badge', 'id holder', 'lanyards']],
   ['Power Tools', 'Power Tools', ['drill', 'drills', 'impact driver', 'grinder', 'circular saw', 'jigsaw', 'sander', 'multi tool', 'multi-tool', 'cordless']],
-  ['Hand Tools', 'Hand Tools', ['spanner', 'spanners', 'screwdriver', 'screwdrivers', 'hammer', 'pliers', 'tape measure', 'spirit level', 'chisel', 'utility knife', 'trowel', 'hand saw', 'socket set', 'allen key', 'hex key']],
+  ['Hand Tools', 'Hand Tools', ['spanner', 'spanners', 'screwdriver', 'screwdrivers', 'hammer', 'pliers', 'tape measure', 'spirit level', 'chisel', 'utility knife', 'trowel', 'hand saw', 'socket set', 'allen key', 'hex key', 'saw', 'handsaw',
+    'cutters', 'diagonal cutters', 'punch', 'nailset', 'nut driver', 'putty knife', 'knife', 'laser measure', 'distance measure', 'chalk line',
+    'padlock', 'padlocks', 'bolster', 'crowbar', 'wrecking bar', 'stanley knife']],
   ['Site Equipment', 'Site Equipment', ['ladder', 'ladders', 'step ladder', 'work light', 'worklight', 'site light', 'torch', 'head torch', 'wheelbarrow', 'tool box', 'toolbox', 'tool chest', 'storage box', 'trestle', 'bucket']]
 ].map(([cat, sub, list]) => [cat, sub, words(list)]);
 
@@ -185,7 +200,7 @@ const VEST = words(['vest', 'waistcoat']);
 export function classify({ name, brand = '' }) {
   const n = String(name || '');
   if (BLANK_BRANDS.test(String(brand || '').trim())) return { reject: 'plain clothing brand for printing logos (not construction gear)' };
-  if (NOT_TRADE.test(n)) return { reject: 'not work gear (catering, medical, kids, home, garden ...)' };
+  if (NOT_TRADE_BRANDS.test(String(brand || '').trim()) || NOT_TRADE.test(n)) return { reject: 'not work gear (catering, medical, kids, home, garden ...)' };
   const hiVis = HI_VIS.test(n);
   for (const [cat, sub, re] of PLACES) {
     if (!re.test(n)) continue;

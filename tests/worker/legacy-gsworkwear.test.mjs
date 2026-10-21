@@ -15,6 +15,10 @@ test('GS Workwear: colour and size endings are one product', () => {
   assert.equal(baseName('Portwest Anti-Static ESD Coat - Hamilton Blue / XXS'), 'Portwest Anti-Static ESD Coat');
   assert.equal(baseName('Muck Boots Derwent II Mens Tall Boots - UK 9 / Green'), 'Muck Boots Derwent II Mens Tall Boots');
   assert.equal(baseName('Mascot Accelerate Ladies Pearl Fit Stretch Shorts - Black / UK 6 (30.5"W/37.5"H)'), 'Mascot Accelerate Ladies Pearl Fit Stretch Shorts');
+  assert.equal(baseName('Portwest Extreme Cold Weather Sock - Black / EU 39 - 43'), 'Portwest Extreme Cold Weather Sock');
+  assert.equal(baseName('Amblers Safety AS965C Stone Safety Boot - UK 6'), 'Amblers Safety AS965C Stone Safety Boot');
+  assert.equal(baseName('DEWALT Framer Performance Gloves - Large'), 'DEWALT Framer Performance Gloves');
+  assert.equal(baseName('Draper Bucket - Yellow (14.8L)'), 'Draper Bucket');
   assert.equal(baseName('Delta Plus NORDLAND Waterproof Parka – Extreme Cold Protection'), 'Delta Plus NORDLAND Waterproof Parka – Extreme Cold Protection');
   assert.equal(baseName('Portwest Wet Floor Warning Sign'), 'Portwest Wet Floor Warning Sign');
   assert.equal(baseName('Blaklader 1500 Work Trousers - Craftsman'), 'Blaklader 1500 Work Trousers - Craftsman', 'a model name is not a colour');
@@ -46,6 +50,12 @@ test('GS Workwear: categories from the name, blanks and non-trade items left out
   assert.equal(at('Portwest S855 Butchers Apron'), 'OUT');
   assert.ok(classify({ name: 'Awdis Sweatshirt', brand: 'AWDis Just Hoods' }).reject);
   assert.ok(classify({ name: "Women's Tartan Frill Shorts", brand: 'SF' }).reject);
+  assert.equal(at('Blaklader Softshell Jacket with Hood 4753'), 'Workwear > Fleeces & Softshells');
+  assert.equal(at('Portwest Insulated Fleece Beanie'), 'Workwear > Headwear');
+  assert.equal(at('Beeswift Thermal Terry Sock Long Length'), 'Workwear > Socks');
+  assert.equal(at('Supertouch Hi Vis Yellow Jogging Bottoms'), 'Workwear > Hi-Vis');
+  assert.ok(classify({ name: 'Ducksback 5 Year Waterproof for Sheds & Fences', brand: 'Cuprinol' }).reject);
+  assert.ok(classify({ name: 'Hybrid Backpack', brand: 'Adidas®' }).reject);
   assert.equal(at('Portwest Chef Jacket'), 'OUT');
   assert.equal(at('Portwest Kids Hi-Vis Vest'), 'OUT');
   assert.ok(classify({ name: 'Creator T-Shirt', brand: 'Stanley/Stella' }).reject);
