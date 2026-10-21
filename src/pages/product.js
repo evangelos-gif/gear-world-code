@@ -54,7 +54,8 @@ export function productPage(site, product, category, similar) {
   const productSchema = {
     '@context': 'https://schema.org',
     '@type': 'Product',
-    name: product.product_name,
+    // Google Merchant listings: 'name' longer than 150 characters is an 'Invalid string length' issue (lessons L24).
+    name: truncate(product.product_name, 150),
     url: absolute(site, path),
     image: [product.image_url],
     description: truncate(description || metaDescription, 500),

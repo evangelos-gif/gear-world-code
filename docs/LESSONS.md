@@ -33,6 +33,7 @@
 | L11 | «Page with redirect»: www και χωρίς www ανοίγουν την ίδια σελίδα, links και canonical διαφωνούν (T34) | Ένα κανονικό host (χωρίς www). Όλα τα άλλα κάνουν 301 εκεί, σε ένα βήμα. Canonical, links και sitemap δείχνουν το ίδιο. | Έλεγχος ανακατευθύνσεων http/www/κάθετου. |
 | L12 | «Invalid GTIN» στα Merchant listings (T33) | GTIN στα structured data μόνο αν περνά τον έλεγχο μήκους και ψηφίου ελέγχου. | Έλεγχος GTIN σε όλα τα προϊόντα πριν το import. |
 | L13 | Το WGW δείχνει το λογότυπο του MGW στα social (T07) | Κάθε site έχει δικό του λογότυπο και εικόνα κοινοποίησης, από τις ρυθμίσεις. | Έλεγχος ότι τα `og:image` και το λογότυπο ανήκουν στο site. |
+| L24 | «Invalid string length in field 'name'» στα Merchant listings του TGW (Search Console, 21/10): τα ονόματα του Joybuy ξεπερνούν τους 150 χαρακτήρες. Στα παλιά sites ήρθαν επίσης emails για Product snippets και Merchant listings | Στα structured data το `name` κόβεται στους 150 χαρακτήρες (η σελίδα δείχνει ολόκληρο το όνομα). Δεν προσθέτουμε ποτέ βαθμολογίες ή κριτικές (`review`, `aggregateRating`) που δεν έχουμε: τα «Missing field» γι' αυτά είναι μη κρίσιμα και μένουν. Δεν γράφουμε `shippingDetails` ή `hasMerchantReturnPolicy` αν δεν τα ξέρουμε από το κατάστημα. | QA gate (L24): το `name` του Product είναι 1–150 χαρακτήρες. |
 
 ## Δ. Δεδομένα και προμήθειες
 

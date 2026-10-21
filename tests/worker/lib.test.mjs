@@ -97,3 +97,19 @@ test('preview hosts are never indexed; the real domain and local development are
   assert.equal(isPreviewHost('127.0.0.1', 'technologygearworld.com'), false);
   assert.equal(isPreviewHost('localhost', 'technologygearworld.com'), false);
 });
+
+test('L24: Product structured data name is at most 150 characters, the page keeps the full name', async () => {
+  const { productPage } = await import('../../src/pages/product.js');
+  const long = 'Example Brand Mini Projector 720p Native with 1080p Support Wi-Fi 6 Bluetooth 5.4 Android 14 Auto Keystone Correction 180 Degree Rotation Portable Home Cinema Outdoor Movie Projector White';
+  assert.ok(long.length > 150);
+  const product = { id: 9, product_name: long, brand: 'Example Brand', retailer: 'Sample Store', price: 41.9, currency: 'GBP', in_stock: 1,
+    item_condition: 'new', image_url: 'https://example.com/a.jpg', category_slug: site.categories[0].slug, description: 'Test product.', last_seen_at: '2026-10-21 06:00:00' };
+  const page = productPage(site, product, site.categories[0], []);
+  const out = typeof page === 'string' ? page : toString(page);
+  const blocks = [...out.matchAll(/<script type="application\/ld\+json">(.*?)<\/script>/gs)].map(m => JSON.parse(m[1]));
+  const prod = blocks.flatMap(b => (Array.isArray(b) ? b : [b])).find(b => b['@type'] === 'Product');
+  assert.ok(prod, 'Product schema present');
+  assert.ok(prod.name.length <= 150, `name is ${prod.name.length} characters`);
+  assert.ok(prod.name.endsWith('…'));
+  assert.ok(out.includes(`<h1>${long}</h1>`), 'the page shows the full name');
+});

@@ -125,6 +125,7 @@ for (const p of productPaths) {
     const gtinKeys = Object.keys(prod).filter(k => /^gtin/.test(k));
     for (const k of gtinKeys) check('L12', normalizeGtin(prod[k]) === String(prod[k]), `${p}: ${k} passes the GS1 check digit`, String(prod[k]));
     check('L12', prod.offers && Number(prod.offers.price) > 0, `${p}: offer has a price`);
+    check('L24', typeof prod.name === 'string' && prod.name.length > 0 && prod.name.length <= 150, `${p}: Product name in structured data is 1-150 characters`, String((prod.name || '').length));
   }
   // Only on sites built from this repo: older sites might record a click even for a check, so they are skipped.
   if (out && site) {
