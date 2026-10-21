@@ -52,7 +52,8 @@ export async function readProducts({ archive, rules }) {
       const get = c => { const i = h.indexOf(c); return i >= 0 ? String(rec[i] ?? '').trim() : ''; };
       const link = get('merchant_deep_link');
       const page = productPage(link);
-      const key = get('parent_product_id') || page || get('merchant_product_id') || get('aw_product_id');
+      // A shop's rules can choose the product id (e.g. the id an older import already used for the same products).
+      const key = (typeof rules.productKey === 'function' && rules.productKey(get)) || get('parent_product_id') || page || get('merchant_product_id') || get('aw_product_id');
       if (!key) continue;
       const qtyRaw = get('stock_quantity');
       const qty = qtyRaw === '' ? null : Number(qtyRaw);
@@ -103,7 +104,7 @@ export async function planLegacyImport({ archive, retailer, outDir, now = new Da
       retailer: R.retailer, site_category: c.siteCategory, subcategory: c.subcategory, brand: p.brand || null,
       product_name: name, feed_product_name: p.name, price, currency: R.currency, stock_status: 'in stock',
       merchant_category: p.feedCategory || null, image_url: p.image,
-      affiliate_url: `https://www.awin1.com/cread.php?awinmid=${R.advertiserId}&awinaffid=${AWIN_PUBLISHER_ID}&ued=${encodeURIComponent(p.page || p.link)}`,
+      affiliate_url: `https://www.awin1.com/cread.php?awinmid=${R.advertiserId}&awinaffid=${AWIN_PUBLISHER_ID}&ued=${encodeURIComponent(R.keepQuery ? (p.link || p.page) : (p.page || p.link))}`,
       ean: /^\d{8,14}$/.test(p.ean || '') ? p.ean : null, variants: p.variants
     });
   }
@@ -113,7 +114,8 @@ export async function planLegacyImport({ archive, retailer, outDir, now = new Da
   const text = renderPlan({ R, files, rows, products, accepted, rejected, sqlFiles, now });
   writeFileSync(join(outDir, 'report.txt'), text);
   // For the import tool: how many products each site should have from this retailer after the import.
-  const summary = { retailer: R.retailer, advertiserId: R.advertiserId, sites: {} };
+  // addOnly: the plan covers only part of a shop that is already on the site, so the import must not hide the rest.
+  const summary = { retailer: R.retailer, advertiserId: R.advertiserId, addOnly: Boolean(R.addOnly), sites: {} };
   for (const s of R.sites) {
     const byCat = {};
     for (const p of accepted[s]) byCat[p.site_category] = (byCat[p.site_category] || 0) + 1;
@@ -176,9 +178,13 @@ function renderPlan({ R, files, rows, products, accepted, rejected, sqlFiles, no
     L.push(`-- ${fmt(list.length)}  ${why}`);
     for (const p of spread(list, /not sure|no men\/women/.test(why) ? 30 : 10)) L.push(`   - ${p.name} [${p.feedCategory || '-'}]`);
   }
+  const all = Object.values(accepted).flat();
+  const withEan = all.filter(p => p.ean).length;
   L.push('', 'Notes:',
-    `- Prices are ${R.currency} (the feed has no currency column). Each product shows its lowest in-stock size price.`,
-    '- The feed has no EAN, so these products are not joined with the same product from other retailers.',
+    `- Prices are ${R.currency}. Each product shows its lowest in-stock size price.`,
+    withEan ? `- ${fmt(withEan)} of ${fmt(all.length)} products have an EAN, so the same product from other retailers can be shown together.`
+      : '- The feed has no EAN, so these products are not joined with the same product from other retailers.',
+    ...(R.addOnly ? [`- Add-only plan: it covers only part of ${R.retailer}. Its other products on the site stay as they are; nothing is hidden.`] : []),
     '- Nothing was changed. An import needs a backup of the site database first and your approval phrase.');
   return L.join('\n') + '\n';
 }

@@ -1227,6 +1227,30 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         Check ($liReports.Count -ge 4) 'legacy import: a report for every run'
         $lastLi = [System.IO.File]::ReadAllText(($liReports | Sort-Object LastWriteTime | Select-Object -Last 1).FullName)
         Check ($lastLi.Contains("DELETE FROM products WHERE retailer = 'Coes'")) 'legacy import: report shows how to remove only this retailer'
+
+        # Add-only plan (Joybuy beauty on WGW, where Joybuy is already on the site): hides nothing, never offers
+        # to delete the shop's products, and its quick undo hides only the products it adds.
+        $jArch = Join-Path $work 'joybuy-arch'
+        New-Item -ItemType Directory -Path $jArch -Force | Out-Null
+        $jCsv = "merchant_name,aw_product_id,brand_name,merchant_product_id,merchant_category,product_name,merchant_deep_link,merchant_image_url,search_price,currency`n" +
+            "Joybuy UK,1,Paco Rabanne,10551,Health & Beauty > Personal Care > Cosmetics > Perfume & Cologne,Paco Rabanne Olympea Women's Eau de Parfum 30ml,https://www.joybuy.co.uk/landingPage/dp/olympea/10551?siteCode=GB,https://images1.joy-sourcing.com/1.jpg,37.70,GBP`n" +
+            "Joybuy UK,2,Dior,10552,Health & Beauty > Personal Care > Cosmetics > Perfume & Cologne,Dior Sauvage Eau de Toilette 100ml,https://www.joybuy.co.uk/landingPage/dp/sauvage/10552?siteCode=GB,https://images1.joy-sourcing.com/2.jpg,89,GBP`n"
+        $jGz = Join-Path $jArch 'AWIN_123932_114093.csv.gz'
+        $fs = [System.IO.File]::Create($jGz)
+        $gz = New-Object System.IO.Compression.GZipStream($fs, [System.IO.Compression.CompressionMode]::Compress)
+        $bytes = [System.Text.Encoding]::UTF8.GetBytes($jCsv)
+        $gz.Write($bytes, 0, $bytes.Length); $gz.Close(); $fs.Close()
+        if (Test-Path -LiteralPath $liCalls) { Remove-Item -LiteralPath $liCalls -Force }
+        $jAll = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $liTool, '-Retailer', 'joybuy', '-Site', 'wgw', '-Archive', $jArch, '-WorkDir', $liWork, '-OutDir', $liOut, '-NoClipboard', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ JOYBUY WGW')
+        & $exe @jAll | Out-Null
+        Check ($LASTEXITCODE -eq 0) 'legacy import add-only (Joybuy WGW): exit 0'
+        $jc = LiCalls
+        Check ($jc -match 'd1 execute womens-gear-world --remote --file') 'legacy import add-only: loads into WGW'
+        Check (-not ($jc -match 'hide-gone\.sql')) 'legacy import add-only: hides nothing'
+        $jUndo = @(Get-ChildItem -LiteralPath (Join-Path $liWork 'backups') -Filter 'wgw-joybuy-added-*-rollback.sql' -ErrorAction SilentlyContinue)
+        Check ($jUndo.Count -eq 1 -and ([System.IO.File]::ReadAllText($jUndo[0].FullName)).Contains("awin_product_id IN ('123932:10551')")) 'legacy import add-only: undo hides only the new products'
+        $jRep = @(Get-ChildItem -LiteralPath $liOut -Filter 'IMPORT_JOYBUY_WGW_*.txt' -ErrorAction SilentlyContinue)
+        Check ($jRep.Count -eq 1 -and -not ([System.IO.File]::ReadAllText($jRep[0].FullName)).Contains('DELETE FROM products')) 'legacy import add-only: never offers to delete the shop''s products'
     } finally {
         $env:PATH = $oldPath
         Remove-Item Env:\GW_FAKE_STATE -ErrorAction SilentlyContinue

@@ -13,6 +13,8 @@
        Stops at the first error.
     3. Counts this retailer's products per category in the database and compares them with the plan.
   It changes ONLY the products of this retailer in this one site's database. No code, no other site, no deploy.
+  An add-only plan (e.g. Joybuy beauty for WGW, where Joybuy is already on the site) adds and updates only the
+  products in the plan and hides nothing; its quick undo hides only the products it added.
 
   Rollback (printed at the end): remove only this retailer's products, or restore the restore point.
   Report: <home>\gear-world-reports\IMPORT_<RETAILER>_<SITE>_<time>.txt (also copied to the clipboard)
@@ -174,6 +176,9 @@ $sp = $plan.sites.$Site
 if ($null -eq $sp -or [int]$sp.products -lt 1) { Say ('Το σχέδιο δεν έχει προϊόντα για το {0}.' -f $Site.ToUpper()) 'Red'; Finish 10 }
 $RetailerName = [string]$plan.retailer
 if ($RetailerName -notmatch "^[A-Za-z0-9 .\-]{2,40}$") { Say 'Μη αναμενόμενο όνομα καταστήματος στο σχέδιο.' 'Red'; Finish 10 }
+# An add-only plan covers only part of a shop that is already on the site (e.g. Joybuy beauty): it never hides the rest.
+$AddOnly = $false
+if (($plan.PSObject.Properties.Name -contains 'addOnly') -and $plan.addOnly) { $AddOnly = $true }
 $files = @(Get-ChildItem -LiteralPath (Join-Path (Join-Path $planDir 'sql') $Site) -Filter '*.sql' | Sort-Object Name)
 Say ('Σχέδιο: {0} προϊόντα {1} για το {2}, σε {3} αρχεία SQL. Πλήρες σχέδιο: {4}' -f $sp.products, $RetailerName, $Site.ToUpper(), $files.Count, (Join-Path $planDir 'report.txt'))
 foreach ($p in $sp.byCategory.PSObject.Properties) { Say ('  {0,-26} {1}' -f $p.Name, $p.Value) }
@@ -201,9 +206,15 @@ if ($LASTEXITCODE -ne 0) { Say 'Η σύγκριση με τη βάση απέτ�
 $d = ([System.IO.File]::ReadAllText((Join-Path $diffDir 'diff.txt'))).Trim() -split '\s+'
 $goneN = [int]$d[3]
 $hideGone = ($d[5] -eq '1')
-Say ('Σύγκριση με τη βάση: {0} νέα, {1} ενημέρωση τιμής/στοιχείων, {2} επιστρέφουν, {3} δεν είναι πια στο feed ή εξαντλήθηκαν.' -f $d[0], $d[1], $d[2], $goneN)
-if ($goneN -gt 0 -and -not $hideGone) {
-    Say ('ΠΡΟΣΟΧΗ: λείπουν πάνω από τα μισά από τα {0} ενεργά προϊόντα. Μάλλον το feed δεν κατέβηκε ολόκληρο, οπότε ΔΕΝ θα κρυφτούν.' -f $d[4]) 'Yellow'
+if ($AddOnly) {
+    $hideGone = $false
+    Say ('Σύγκριση με τη βάση: {0} νέα, {1} ενημέρωση τιμής/στοιχείων, {2} επιστρέφουν.' -f $d[0], $d[1], $d[2])
+    Say ('Το σχέδιο καλύπτει μόνο ένα μέρος του {0}: τα άλλα {1} ενεργά προϊόντα του στο site μένουν όπως είναι (δεν κρύβεται τίποτα).' -f $RetailerName, $goneN)
+} else {
+    Say ('Σύγκριση με τη βάση: {0} νέα, {1} ενημέρωση τιμής/στοιχείων, {2} επιστρέφουν, {3} δεν είναι πια στο feed ή εξαντλήθηκαν.' -f $d[0], $d[1], $d[2], $goneN)
+    if ($goneN -gt 0 -and -not $hideGone) {
+        Say ('ΠΡΟΣΟΧΗ: λείπουν πάνω από τα μισά από τα {0} ενεργά προϊόντα. Μάλλον το feed δεν κατέβηκε ολόκληρο, οπότε ΔΕΝ θα κρυφτούν.' -f $d[4]) 'Yellow'
+    }
 }
 
 Say ''
@@ -211,6 +222,7 @@ Say 'Τι θα γίνει με -Apply:'
 Say ('  - Σημείο επαναφοράς (Cloudflare Time Travel) της βάσης {0}, γραμμένο στο {1}' -f $DbName, (Join-Path $WorkDir 'backups'))
 Say ('  - Προσθήκη ή ενημέρωση {0} προϊόντων {1}. Δεν σβήνεται τίποτα, κανένα άλλο κατάστημα δεν αλλάζει.' -f $sp.products, $RetailerName)
 if ($goneN -gt 0 -and $hideGone) { Say ('  - Απόκρυψη {0} προϊόντων {1} που δεν είναι πια στο feed ή εξαντλήθηκαν (με αρχείο επαναφοράς).' -f $goneN, $RetailerName) }
+if ($AddOnly) { Say ('  - Τα άλλα προϊόντα {0} στο site δεν αλλάζουν και δεν κρύβεται κανένα.' -f $RetailerName) }
 Say ('  - Αλλάζει ΜΟΝΟ η βάση του {0}. Κανένας κώδικας, κανένα άλλο site, κανένα deploy.' -f $Site.ToUpper())
 $phrase = 'ΕΓΚΡΙΝΩ {0} {1}' -f $Retailer.ToUpper(), $Site.ToUpper()
 if (-not $Apply) { Say ''; Say 'Δοκιμή μόνο (χωρίς -Apply): δεν άλλαξε τίποτα.' 'Green'; Say ('Η φράση έγκρισης για την εισαγωγή: {0}' -f $phrase); Finish 0 }
@@ -224,6 +236,22 @@ $bm = [regex]::Match($tt.text, '[0-9a-f]{8}-[0-9a-f]{8}-[0-9a-f]{8}-[0-9a-f]{32}
 if ($tt.code -ne 0 -or -not $bm.Success) { Say 'Δεν πήρα σημείο επαναφοράς: ΔΕΝ φόρτωσα τίποτα.' 'Red'; Say $tt.text; Finish 11 }
 $restoreCmd = 'npx wrangler d1 time-travel restore {0} --bookmark={1}' -f $DbName, $bm.Value
 $removeCmd = ('npx wrangler d1 execute {0} --remote --command "DELETE FROM products WHERE retailer = ''{1}''"' -f $DbName, $RetailerName)
+# When the shop was already on the site (or the plan is add-only), removing all its products would also remove the old ones:
+# the quick undo then hides only the products this import ADDS (by their awin_product_id).
+$undoNew = ''
+$addedUndoSrc = Join-Path $diffDir 'rollback-added.sql'
+if ([int]$d[0] -gt 0 -and (Test-Path -LiteralPath $addedUndoSrc)) {
+    $addedUndo = Join-Path $bdir ('{0}-{1}-added-{2}-rollback.sql' -f $Site, $Retailer, $stamp)
+    Copy-Item -LiteralPath $addedUndoSrc -Destination $addedUndo -Force
+    $undoNew = 'npx wrangler d1 execute {0} --remote --file "{1}"' -f $DbName, $addedUndo
+}
+$quickUndo = $removeCmd
+$quickUndoText = 'remove only the {0} products' -f $RetailerName
+if ($hadBefore -gt 0 -or $AddOnly) {
+    $quickUndo = $undoNew
+    $quickUndoText = 'hide only the {0} products this import adds' -f $RetailerName
+    if (-not $quickUndo) { $quickUndo = $restoreCmd; $quickUndoText = 'the whole database as it was' }
+}
 $backup = Join-Path $bdir ('{0}-restore-point-before-{1}-import-{2}.txt' -f $Site, $Retailer, $stamp)
 $note = @(
     ('{0} database restore point before the {1} import, {2}' -f $Site.ToUpper(), $RetailerName, (Get-Date -Format 'yyyy-MM-dd HH:mm')),
@@ -231,7 +259,7 @@ $note = @(
     ('{0} products of {1} were in the database before the import.' -f $hadBefore, $RetailerName),
     'To go back, ONLY with approval, run in PowerShell one of:',
     ('  cd "{0}"' -f $WorkDir),
-    ('  A) remove only the {0} products:  {1}' -f $RetailerName, $removeCmd),
+    ('  A) {0}:  {1}' -f $quickUndoText, $quickUndo),
     ('  B) the whole database as it was:  {0}' -f $restoreCmd),
     'B also undoes any other change made to the database after this moment. Valid for 7 days (Free) or 30 days (Paid).'
 ) -join "`r`n"
@@ -245,7 +273,7 @@ foreach ($f in $files) {
     if ($x.code -ne 0) {
         Say ('Λάθος στο {0}. Σταμάτησα. Τα προηγούμενα αρχεία φορτώθηκαν.' -f $f.Name) 'Red'
         Say $x.text
-        Say ('Επαναφορά (μόνο με έγκριση): {0}' -f $removeCmd)
+        Say ('Επαναφορά (μόνο με έγκριση): {0}' -f $quickUndo)
         Finish 12
     }
     $n++
@@ -273,9 +301,10 @@ if ($sum -lt [int]$sp.products) {
 Say ''
 Say ('ΕΤΟΙΜΟ: {0} προϊόντα {1} στο {2}.' -f $sum, $RetailerName, $Site.ToUpper()) 'Green'
 Say ('Δες τα: https://{0}/?search={1} (η αρχική και οι κατηγορίες ανανεώνονται μέσα σε λίγα λεπτά)' -f $Domain, $RetailerName)
-if ($hadBefore -gt 0) {
-    # A refresh: the products were there before, so going back means the restore point, not removing them.
-    Say ('Αν χρειαστεί επαναφορά (μόνο με έγκριση): {0}' -f $restoreCmd)
+if ($hadBefore -gt 0 -or $AddOnly) {
+    # A refresh: the products were there before, so going back means hiding only the new ones, or the restore point.
+    if ($undoNew) { Say ('Αν χρειαστεί επαναφορά (μόνο με έγκριση), κρύβει μόνο τα νέα προϊόντα: {0}' -f $undoNew) }
+    Say ('Επαναφορά όλης της βάσης όπως ήταν (μόνο με έγκριση): {0}' -f $restoreCmd)
 } else {
     Say ('Αν χρειαστεί επαναφορά (μόνο με έγκριση): {0}' -f $removeCmd)
 }

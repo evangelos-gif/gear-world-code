@@ -23,11 +23,22 @@ export function diff(planIds, rows) {
     if (plan.has(key)) { if (active) updated++; else back++; }
     else if (active) gone.push(Number(r.id));
   }
-  const added = [...plan].filter(k => !seen.has(k)).length;
+  const addedIds = [...plan].filter(k => !seen.has(k));
+  const added = addedIds.length;
   const activeNow = rows.filter(r => Number(r.is_active) === 1).length;
   // A feed that suddenly misses most products is more likely a broken download than a closed shop.
   const safe = !(activeNow >= 100 && gone.length > activeNow * 0.5);
-  return { added, updated, back, gone, activeNow, safe };
+  return { added, addedIds, updated, back, gone, activeNow, safe };
+}
+
+// Undo for products an import ADDS (they have no database id yet): hide them again by their awin_product_id.
+export function hideByAwinIdSql(ids) {
+  const out = [];
+  for (let i = 0; i < ids.length; i += 200) {
+    const list = ids.slice(i, i + 200).map(id => `'${String(id).replace(/'/g, "''")}'`).join(', ');
+    out.push(`UPDATE products SET is_active = 0, updated_at = datetime('now') WHERE awin_product_id IN (${list});`);
+  }
+  return out.length ? out.join('\n') + '\n' : '';
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1] || '').href) {
@@ -38,5 +49,6 @@ if (import.meta.url === pathToFileURL(process.argv[1] || '').href) {
   writeFileSync(join(out, 'gone-ids.txt'), d.gone.join('\n') + (d.gone.length ? '\n' : ''));
   writeFileSync(join(out, 'hide-gone.sql'), d.gone.length ? updateSql(d.gone, false) : '');
   writeFileSync(join(out, 'rollback-gone.sql'), d.gone.length ? updateSql(d.gone, true) : '');
+  writeFileSync(join(out, 'rollback-added.sql'), hideByAwinIdSql(d.addedIds));
   writeFileSync(join(out, 'diff.txt'), `${d.added} ${d.updated} ${d.back} ${d.gone.length} ${d.activeNow} ${d.safe ? 1 : 0}\n`);
 }
