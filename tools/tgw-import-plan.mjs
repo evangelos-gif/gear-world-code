@@ -13,7 +13,7 @@ import { createReadStream, existsSync, mkdirSync, readdirSync, readFileSync, wri
 import { createGunzip } from 'node:zlib';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { classify, cleanProductName, QUALITY, CATEGORY_SLUGS } from '../sites/tgw/category-rules.js';
+import * as TGW_RULES from '../sites/tgw/category-rules.js';
 import { normalizeGtin } from '../src/lib/gtin.js';
 import { slugify, truncate } from '../src/lib/text.js';
 
@@ -180,7 +180,11 @@ const sq = v => (v === null || v === undefined || v === '' ? 'NULL' : typeof v =
 
 // ---------- Main ----------
 
-export async function planImport({ archive, sourcesFile, outDir, now = new Date() }) {
+// rules: a site's category-rules.js (default TGW). Other sites with their own database reuse this tool with
+// their own rules and label (e.g. tools/agw-import-plan.mjs). QUALITY.currencies (list) or QUALITY.currency.
+export async function planImport({ archive, sourcesFile, outDir, now = new Date(), rules = TGW_RULES, label = 'TGW' }) {
+  const { classify, cleanProductName, QUALITY, CATEGORY_SLUGS } = rules;
+  const currencies = QUALITY.currencies || [QUALITY.currency];
   const sources = JSON.parse(readFileSync(sourcesFile, 'utf8')).sources.filter(s => s.approved);
   const runStamp = now.toISOString().replace('T', ' ').slice(0, 19);
   const files = existsSync(archive) ? readdirSync(archive) : [];
@@ -196,7 +200,11 @@ export async function planImport({ archive, sourcesFile, outDir, now = new Date(
   };
 
   for (const source of sources) {
-    for (const feedId of source.feedIds) {
+    // No feedIds in sources.json: every file of that retailer in the archive (AWIN_<advertiserId>_*.csv.gz).
+    const feedIds = source.feedIds && source.feedIds.length ? source.feedIds
+      : files.map(f => (f.match(new RegExp(`^AWIN_${source.advertiserId}_(\\d+)\\.csv\\.gz$`, 'i')) || [])[1]).filter(Boolean);
+    if (!feedIds.length) feedInfo.push(`AWIN_${source.advertiserId}_*.csv.gz: NOT FOUND in archive`);
+    for (const feedId of feedIds) {
       const fname = `AWIN_${source.advertiserId}_${feedId}.csv.gz`;
       const real = files.find(f => f.toLowerCase() === fname.toLowerCase());
       if (!real) { feedInfo.push(`${fname}: NOT FOUND in archive`); continue; }
@@ -226,7 +234,7 @@ export async function planImport({ archive, sourcesFile, outDir, now = new Date(
         if (!Number.isFinite(price) || price <= 0) { reject('no price', short); continue; }
         if (price < QUALITY.minPrice || price > QUALITY.maxPrice) { reject('price out of range', short); continue; }
         const currency = detectCurrency(rec, map, source);
-        if (currency !== QUALITY.currency) { reject(`currency ${currency || 'unknown'}`, short); continue; }
+        if (!currencies.includes(currency)) { reject(`currency ${currency || 'unknown'}`, short); continue; }
         const stock = inStockValue(pick(rec, map.inStock));
         if (QUALITY.requireInStock && stock === false) { reject('out of stock', short); continue; }
         const image = firstHttpsImage(rec, map);
@@ -306,12 +314,12 @@ export async function planImport({ archive, sourcesFile, outDir, now = new Date(
     const part = all.slice(i, i + SQL_ROWS_PER_FILE);
     const lines = part.map(p => `INSERT INTO products (${cols.join(', ')}) VALUES (${cols.map(c => sq(p[c])).join(', ')}) ON CONFLICT(stable_key) DO UPDATE SET ${updateCols.map(c => `${c} = excluded.${c}`).join(', ')}, updated_at = datetime('now');`);
     const name = `${String(sqlFiles.length + 1).padStart(4, '0')}.sql`;
-    writeFileSync(join(outDir, 'sql', name), `-- TGW import plan ${runStamp}. NOT executed. Loading needs the owner's approval.\n${lines.join('\n')}\n`);
+    writeFileSync(join(outDir, 'sql', name), `-- ${label} import plan ${runStamp}. NOT executed. Loading needs the owner's approval.\n${lines.join('\n')}\n`);
     sqlFiles.push(name);
   }
   const advIds = [...new Set(sources.map(s => s.advertiserId))];
   const finish = [
-    `-- TGW import plan ${runStamp}. NOT executed. Run only after all numbered files succeeded.`,
+    `-- ${label} import plan ${runStamp}. NOT executed. Run only after all numbered files succeeded.`,
     `UPDATE products SET is_active = 0, updated_at = datetime('now') WHERE awin_advertiser_id IN (${advIds.join(', ')}) AND is_active = 1 AND last_seen_at < ${sq(runStamp)};`,
     `INSERT INTO import_runs (source, inserted, updated, deactivated, notes) VALUES (${sq('awin:' + advIds.join(','))}, ${all.length}, 0, 0, ${sq('planned ' + runStamp)});`
   ];
@@ -320,9 +328,9 @@ export async function planImport({ archive, sourcesFile, outDir, now = new Date(
   // ---------- Report ----------
   const L = [];
   const pct = (a, b) => (b ? `${Math.round((a / b) * 100)}%` : '-');
-  L.push(`TGW IMPORT PLAN (dry run, nothing imported) ${runStamp} UTC`);
+  L.push(`${label} IMPORT PLAN (dry run, nothing imported) ${runStamp} UTC`);
   L.push(`Archive: ${archive}`);
-  L.push(`Sources: ${sources.map(s => `${s.retailer} (${s.advertiserId}: ${s.feedIds.join(',')})`).join('; ')}`);
+  L.push(`Sources: ${sources.map(s => `${s.retailer} (${s.advertiserId}: ${(s.feedIds || []).join(',') || 'all files'})`).join('; ')}`);
   L.push('');
   L.push('== Feeds ==');
   L.push(...feedInfo);

@@ -66,6 +66,55 @@ jobs:
             dev.log
           if-no-files-found: ignore
 
+  agw-worker:
+    name: AGW (Car Gear World) Worker and QA gate
+    runs-on: ubuntu-24.04
+    env:
+      WRANGLER_SEND_METRICS: 'false'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci --no-audit --no-fund
+      - name: Front-end files are the TGW ones (tools/theme-site.mjs)
+        run: node tools/theme-site.mjs agw --check
+      - name: Local D1 with synthetic products
+        run: |
+          sed -e 's/REPLACE_WITH_DATABASE_ID/local-dev-only/' -e '/"ai": {/d' sites/agw/wrangler.jsonc.example > sites/agw/wrangler.jsonc
+          node tests/fixtures/make-agw-seed.mjs
+          git diff --exit-code tests/fixtures/agw-seed.sql
+          npx wrangler d1 migrations apply car-gear-world --local --config sites/agw/wrangler.jsonc
+          npx wrangler d1 execute car-gear-world --local --config sites/agw/wrangler.jsonc --file tests/fixtures/agw-seed.sql
+      - name: Start the Worker locally
+        run: |
+          npx wrangler dev --config sites/agw/wrangler.jsonc --local --port 8789 --ip 127.0.0.1 --var EDGE_CACHE:off > dev.log 2>&1 &
+          for i in $(seq 1 90); do curl -sf -o /dev/null http://127.0.0.1:8789/ && break; sleep 1; done
+          curl -sf -o /dev/null http://127.0.0.1:8789/
+      - name: QA gate (docs/LESSONS.md, incl. L22 for the hub)
+        run: node tools/qa-gate.mjs http://127.0.0.1:8789 --site sites/agw --out qa-report.txt
+      - name: Layout check on phone and desktop (real browser)
+        run: |
+          npx playwright install --with-deps chromium
+          node tools/layout-check.mjs http://127.0.0.1:8789 --shots layout-shots --out layout-report.txt
+          node tools/layout-check.mjs http://127.0.0.1:8789 --lang de-DE --currency RUB --shots layout-shots-de --out layout-report-de.txt
+      - name: Every page translated in all 10 languages (lessons L24)
+        run: node tools/i18n-check.mjs http://127.0.0.1:8789 --site sites/agw --out i18n-report.txt
+      - name: Keep the reports and screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: agw-qa-report
+          path: |
+            qa-report.txt
+            layout-report.txt
+            layout-shots/
+            layout-report-de.txt
+            layout-shots-de/
+            i18n-report.txt
+            dev.log
+          if-no-files-found: ignore
+
   legacy-sites:
     name: ${{ matrix.site }} on the engine (older database layout)
     runs-on: ubuntu-24.04
