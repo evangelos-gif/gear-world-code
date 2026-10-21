@@ -29,7 +29,10 @@ function answerText(out) {
 }
 
 function clean(candidate, term) {
-  const c = String(candidate || '').replace(/<think>[\s\S]*?<\/think>/gi, '').trim().replace(/^["'`]+|["'`.]+$/g, '').trim();
+  let c = String(candidate || '').replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
+  // Models often give a list ("saw, hand saw, saw blade") or an article ("The saw"): keep the first words only.
+  c = c.split(/[,;\n|]|\s+or\s+/i)[0].trim().replace(/^["'`]+|["'`.!]+$/g, '').trim();
+  c = c.replace(/^(the|a|an)\s+/i, '');
   if (c.length < 2 || c.length > 80 || !CANDIDATE.test(c)) return '';
   if (c.toLowerCase() === term.toLowerCase()) return '';
   return c;

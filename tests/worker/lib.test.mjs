@@ -123,6 +123,8 @@ test('search in other languages: Workers AI words are used, odd answers are not'
   const latin = [];
   for await (const c of translationsFor(env3, 'Gartenschlauch')) latin.push(c);
   assert.equal(latin.length, 2, 'Latin letters: no translation model (the language is unknown)');
+  assert.equal(await hubTranslation({ AI: { run: async () => ({ response: 'saw, hand saw, saw blade' }) } }, 'πριόνι'), 'saw', 'a list: the first words');
+  assert.equal(await hubTranslation({ AI: { run: async () => ({ translated_text: 'The saw.' }) } }, 'πριόνι'), 'saw', 'no article');
   const thinking = { AI: { run: async () => ({ response: '<think>user wants a drill</think>drill' }) } };
   assert.equal(await hubTranslation(thinking, 'τρυπάνι'), 'drill');
 });
