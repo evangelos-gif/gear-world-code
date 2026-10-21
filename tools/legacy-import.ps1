@@ -1,6 +1,6 @@
 ﻿<#
 .SYNOPSIS
-  Imports a new retailer into ONE older Gear World site (MGW, WGW, KGW, HGW or GGW) - from the read-only import plan, with a typed approval.
+  Imports a new retailer into ONE older Gear World site (CGW, MGW, WGW, KGW, HGW or GGW) - from the read-only import plan, with a typed approval.
 
 .DESCRIPTION
   Without -Apply: READ-ONLY. Makes the import plan (tools/legacy-import-plan.mjs) from the Awin feed on this PC,
@@ -21,7 +21,7 @@
 #>
 param(
     [Parameter(Mandatory = $true)][string]$Retailer,
-    [Parameter(Mandatory = $true)][ValidateSet('mgw', 'wgw', 'kgw', 'hgw', 'ggw')][string]$Site,
+    [Parameter(Mandatory = $true)][ValidateSet('cgw', 'mgw', 'wgw', 'kgw', 'hgw', 'ggw')][string]$Site,
     [switch]$Apply,
     [string]$Approve = '',
     [string]$Archive = '',
@@ -34,6 +34,7 @@ $ErrorActionPreference = 'Stop'
 $repo = Split-Path -Parent $PSScriptRoot
 $Retailer = $Retailer.ToLower()
 $SiteInfo = @{
+    cgw = @{ db = 'construction-gear-customers'; domain = 'constructiongearworld.com'; work = 'construction-gear-world-engine'; key = 'awin' }
     mgw = @{ db = 'mens-gear-world'; domain = 'mensgearworld.com'; work = 'mens-gear-world-engine'; key = 'awin' }
     wgw = @{ db = 'womens-gear-world'; domain = 'womensgearworld.com'; work = 'womens-gear-world-engine'; key = 'awin' }
     kgw = @{ db = 'kids-gear-world'; domain = 'kidsgearworld.com'; work = 'kids-gear-world-engine'; key = 'stable' }
@@ -187,7 +188,7 @@ Say ('Σχέδιο: {0} προϊόντα {1} για το {2}, σε {3} αρχε�
 foreach ($p in $sp.byCategory.PSObject.Properties) { Say ('  {0,-26} {1}' -f $p.Name, $p.Value) }
 
 # 3. The site database now (read-only).
-# The unique key the plan's SQL uses must exist: awin_product_id UNIQUE (MGW, WGW), or the (retailer, merchant id)
+# The unique key the plan's SQL uses must exist: awin_product_id UNIQUE (CGW, MGW, WGW), or the (retailer, merchant id)
 # index for every retailer (KGW, HGW, GGW). (No > or < here: the wrangler call refuses them.)
 if ($SiteInfo[$Site].key -eq 'stable') {
     $layout = Select-Rows "SELECT COUNT(*) AS n FROM sqlite_master WHERE name = 'ux_products_refresh_stable_key' AND instr(sql, 'products(retailer, merchant_product_id)') BETWEEN 1 AND 1000000 AND instr(sql, 'retailer IN') = 0"
