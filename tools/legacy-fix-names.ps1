@@ -13,7 +13,7 @@
   Report: <home>\gear-world-reports\FIXNAMES_<SITE>_<time>.txt (also copied to the clipboard)
 #>
 param(
-    [Parameter(Mandatory = $true)][ValidateSet('mgw', 'wgw', 'kgw')][string]$Site,
+    [Parameter(Mandatory = $true)][ValidateSet('mgw', 'wgw', 'kgw', 'cgw')][string]$Site,
     [switch]$Apply,
     [string]$Approve = '',
     [string]$WorkDir = '',
@@ -27,6 +27,7 @@ $SiteInfo = @{
     mgw = @{ db = 'mens-gear-world'; domain = 'mensgearworld.com'; work = 'mens-gear-world-engine' }
     wgw = @{ db = 'womens-gear-world'; domain = 'womensgearworld.com'; work = 'womens-gear-world-engine' }
     kgw = @{ db = 'kids-gear-world'; domain = 'kidsgearworld.com'; work = 'kids-gear-world-engine' }
+    cgw = @{ db = 'construction-gear-customers'; domain = 'constructiongearworld.com'; work = 'construction-gear-world-engine' }
 }
 $DbName = $SiteInfo[$Site].db
 $Domain = $SiteInfo[$Site].domain

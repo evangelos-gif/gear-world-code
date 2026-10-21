@@ -106,3 +106,9 @@ test('German retailer names saved twice as UTF-8 show as meant', async () => {
   assert.equal(fixMojibake('AuÃŸensechskant'), 'Außensechskant');
   assert.equal(fixMojibake('PH2 x 125\u00c2\u00a0mm'), 'PH2 x 125 mm');
 });
+
+test('tidy step on CGW only cleans InStock names (no "other site" products)', async () => {
+  const { rowsSql } = await import('../../tools/cleanup-rules/tidy.mjs');
+  assert.match(rowsSql('cgw', 'gender'), /WHERE 0$/);
+  assert.match(rowsSql('cgw', 'names'), /instock/);
+});
