@@ -620,6 +620,73 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
     }
 }
 
+# 6b. gwh-agw-link.ps1 (Car Gear World as the 8th hub card) on a fake hub that already has TGW
+if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
+    Write-Host 'gwh-agw-link.ps1 (fake hub with TGW, fake wrangler)'
+    $aHubTool = Join-Path $repo 'tools\gwh-agw-link.ps1'
+    $aHub = Join-Path $work 'ahub'
+    $aState = Join-Path $work 'ahub-state'
+    $aBin = Join-Path $work 'ahub-bin'
+    $aOut = Join-Path $work 'ahub-out'
+    New-Item -ItemType Directory -Path $aState, $aBin -Force | Out-Null
+    & node (Join-Path $repo 'tests\fixtures\make-hub-fixture.mjs') $aHub
+    & node (Join-Path $repo 'tools\gwh-tgw-link.mjs') --hub $aHub --write | Out-Null
+    $aBookmark = '00000085-0000024c-00004c6d-' + [guid]::NewGuid().ToString('N')
+    $aFake = @(
+        '@echo off',
+        'echo %* >> "%GW_AHUB_STATE%\calls.log"',
+        'echo %* | findstr /C:"time-travel info" >nul && goto tt',
+        'echo %* | findstr /C:"--command" >nul && goto sites',
+        'echo %* | findstr /C:"--file" >nul && goto ok',
+        'echo %* | findstr /C:"deployments list" >nul && goto deps',
+        'echo %* | findstr /C:" deploy" >nul && goto ok',
+        'echo unknown command 1>&2',
+        'exit /b 1',
+        ':tt',
+        ('echo The current bookmark is ' + $aBookmark),
+        'exit /b 0',
+        ':sites',
+        'echo [{"results":[{"site_key":"TGW","domain":"technologygearworld.com","priority":70,"is_active":1}],"success":true}]',
+        'exit /b 0',
+        ':deps',
+        'echo []',
+        'exit /b 0',
+        ':ok',
+        'echo OK',
+        'exit /b 0'
+    ) -join "`r`n"
+    [System.IO.File]::WriteAllText((Join-Path $aBin 'npx.cmd'), $aFake + "`r`n", [System.Text.Encoding]::ASCII)
+    $oldPath = $env:PATH
+    $env:PATH = $aBin + ';' + $oldPath
+    $env:GW_AHUB_STATE = $aState
+    $aCalls = Join-Path $aState 'calls.log'
+    $aIndex = Join-Path $aHub 'public\index.html'
+    function Run-AHub([string[]]$a) {
+        $all = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $aHubTool, '-HubDir', $aHub, '-OutDir', $aOut, '-SkipOnline', '-NoClipboard') + $a
+        & $exe @all | Out-Null
+        return $LASTEXITCODE
+    }
+    function AHubCalls { if (Test-Path -LiteralPath $aCalls) { return [System.IO.File]::ReadAllText($aCalls) } else { return '' } }
+    try {
+        $before = [System.IO.File]::ReadAllText($aIndex)
+        Check ($before.Contains('data-world="TGW"')) 'agw hub link: fake hub has the TGW card'
+        Check ((Run-AHub @()) -eq 0 -and [System.IO.File]::ReadAllText($aIndex) -eq $before -and -not ((AHubCalls) -match ' deploy|--file')) 'agw hub link check: changes nothing'
+        Check ((Run-AHub @('-Apply', '-Approve', 'ΕΓΚΡΙΝΩ TGW HUB LINK')) -eq 1 -and [System.IO.File]::ReadAllText($aIndex) -eq $before) 'agw hub link: the TGW phrase is not accepted'
+        Check ((Run-AHub @('-Apply', '-Approve', 'EGKRINO AGW HUB LINK')) -eq 0) 'agw hub link with approval: exit 0'
+        $after = [System.IO.File]::ReadAllText($aIndex)
+        Check ($after.Contains('https://cargearworld.com/') -and (Test-Path -LiteralPath (Join-Path $aHub 'public\hub-agw.jpg'))) 'agw hub link: card and photo added'
+        $c = AHubCalls
+        $iT = $c.IndexOf('time-travel info'); $iD = $c.IndexOf(' deploy'); $iF = $c.IndexOf('--file')
+        Check ($iT -ge 0 -and $iD -gt $iT -and $iF -gt $iD) 'agw hub link: restore point, then deploy, then D1 row'
+        $sqlFile = @(Get-ChildItem -LiteralPath (Join-Path $aHub 'backups') -Recurse -Filter 'add-agw-site.sql')
+        Check ($sqlFile.Count -eq 1 -and ([System.IO.File]::ReadAllText($sqlFile[0].FullName)).Contains("'AGW', 'Car Gear World', 'cargearworld.com'")) 'agw hub link: D1 row for AGW'
+        Check ((Run-AHub @()) -eq 0 -and [System.IO.File]::ReadAllText($aIndex) -eq $after) 'agw hub link second check: files stay the same'
+    } finally {
+        $env:PATH = $oldPath
+        Remove-Item Env:\GW_AHUB_STATE -ErrorAction SilentlyContinue
+    }
+}
+
 # 7. ggw-engine.ps1 with a fake wrangler (Windows only: runs .cmd files)
 if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
     Write-Host 'ggw-engine.ps1 (fake wrangler)'
