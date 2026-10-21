@@ -105,7 +105,9 @@ export async function planLegacyImport({ archive, retailer, outDir, now = new Da
       product_name: name, feed_product_name: p.name, price, currency: R.currency, stock_status: 'in stock',
       merchant_category: p.feedCategory || null, image_url: p.image,
       affiliate_url: `https://www.awin1.com/cread.php?awinmid=${R.advertiserId}&awinaffid=${AWIN_PUBLISHER_ID}&ued=${encodeURIComponent(R.keepQuery ? (p.link || p.page) : (p.page || p.link))}`,
-      ean: /^\d{8,14}$/.test(p.ean || '') ? p.ean : null, variants: p.variants
+      ean: /^\d{8,14}$/.test(p.ean || '') ? p.ean : null, variants: p.variants,
+      // Placed only because of the feed category (no clear word in the name): listed in the report for checking.
+      doubt: Boolean(c.doubt)
     });
   }
   mkdirSync(outDir, { recursive: true });
@@ -169,7 +171,15 @@ function renderPlan({ R, files, rows, products, accepted, rejected, sqlFiles, no
       const all = Object.values(subs).flat();
       const prices = all.map(p => p.price).sort((a, b) => a - b);
       L.push(`   price £${prices[0]} to £${prices[prices.length - 1]}, middle £${prices[Math.floor(prices.length / 2)]}`);
-      for (const p of spread(all, 20)) L.push(`   - ${p.product_name} | ${p.brand || '-'} | £${p.price} | ${p.subcategory} | ${p.variants} option(s)`);
+      const subList = Object.entries(subs).sort((a, b) => b[1].length - a[1].length);
+      // One category with several subcategories (e.g. Joybuy beauty): samples from every subcategory, not 20 from the largest.
+      const picks = subList.length > 1 ? subList.flatMap(([, l]) => spread(l, Math.max(3, Math.min(8, Math.ceil(48 / subList.length))))) : spread(all, 20);
+      for (const p of picks) L.push(`   - ${p.product_name} | ${p.brand || '-'} | £${p.price} | ${p.subcategory} | ${p.variants} option(s)`);
+    }
+    const doubtful = list.filter(p => p.doubt);
+    if (doubtful.length) {
+      L.push(`-- CHECK: ${fmt(doubtful.length)} placed only because of the feed category (no clear word in the name):`);
+      for (const p of spread(doubtful, 40)) L.push(`   - ${p.product_name} | £${p.price} | ${p.merchant_category || '-'}`);
     }
     L.push('');
   }

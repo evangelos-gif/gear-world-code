@@ -44,36 +44,62 @@ const MEN = words(['men', "men's", 'mens', 'man', 'male', 'for him', 'pour homme
 // Well-known men's perfume lines that often have no "men" in the name.
 const MEN_LINES = words(['sauvage', 'bleu de chanel', 'aventus', 'acqua di gio', 'acqua di giò', 'eros', 'invictus', '1 million', 'one million', 'le male', 'boss bottled',
   'terre d\'hermes', 'terre d’hermès', 'stronger with you', 'spicebomb', 'the one for men', 'dylan blue', 'phantom', 'wanted', 'fahrenheit', 'allure homme', 'ultra male',
-  'polo blue', 'polo red', 'y eau de parfum', 'l\'homme', 'pour lui', 'bad boy', 'luna rossa', 'aqva', 'cool water man']);
+  'polo blue', 'polo red', 'y eau de parfum', 'l\'homme', 'pour lui', 'bad boy', 'luna rossa', 'aqva', 'cool water man', 'toy boy']);
 const WOMEN = words(['women', "women's", 'womens', 'woman', 'ladies', 'lady', 'female', 'for her', 'pour femme', 'femme', 'girl']);
 const UNISEX = words(['unisex']);
 const KIDS = words(['baby', 'babies', 'infant', 'infants', 'toddler', 'toddlers', 'kids', 'kid', "kid's", 'children', "children's", 'child', 'childs', 'junior', 'newborn', 'nappy']);
 const NOT_BEAUTY = words(['toothpaste', 'toothbrush', 'toothbrushes', 'mouthwash', 'floss', 'dental', 'denture', 'dentures', 'condom', 'condoms', 'lubricant', 'pregnancy',
   'ovulation', 'tampon', 'tampons', 'sanitary', 'incontinence', 'supplement', 'supplements', 'multivitamin', 'multivitamins', 'gummies', 'medicine', 'plaster', 'plasters',
   'bandage', 'bandages', 'thermometer', 'hearing aid', 'contact lens', 'contact lenses', 'pet', 'pets', 'dog', 'dogs', 'puppy', 'toy', 'toys', 'doll', 'dolls', 'lice', 'nits',
-  'tattoo machine', 'gift card', 'voucher']);
+  'tattoo machine', 'gift card', 'voucher', 'otoscope', 'ear wax', 'ear cleaner', 'ear camera']);
 // Names in Chinese, Japanese or Korean script: the site is in English.
 const CJK = /[぀-ヿ㐀-鿿가-힯]/;
 
-const SUBS = [
-  [c => /Perfume & Cologne/i.test(c), n => FRAGRANCE_NAME.test(n), 'Fragrance'],
-  [c => /Cosmetic Sets|Gift Sets/i.test(c), n => words(['gift set', 'gift sets', 'beauty set', 'advent calendar']).test(n), 'Gift sets'],
-  [c => /Nail Care|Nail Polish/i.test(c), n => words(['nail polish', 'nail varnish', 'gel polish', 'nail lacquer', 'nail art']).test(n), 'Nails'],
-  [c => /Cosmetic Tools|Makeup Tools|Make-Up Tools/i.test(c), n => words(['makeup brush', 'make-up brush', 'brush set', 'beauty blender', 'makeup sponge', 'eyelash curler', 'tweezers', 'makeup mirror']).test(n), 'Beauty tools'],
-  [c => /Make-?Up/i.test(c), n => words(['lipstick', 'lip gloss', 'lip liner', 'mascara', 'foundation', 'concealer', 'eyeliner', 'eyeshadow', 'eye shadow', 'blusher', 'bronzer', 'highlighter', 'primer', 'setting spray', 'brow', 'eyebrow']).test(n), 'Make-up'],
-  [c => /Hair Styling Tools/i.test(c), n => words(['hair dryer', 'hairdryer', 'straightener', 'straighteners', 'curler', 'curling wand', 'curling tong', 'hair styler', 'airwrap', 'hot brush']).test(n), 'Hair tools'],
-  [c => /Hair ?care/i.test(c), n => words(['shampoo', 'conditioner', 'hair mask', 'hair oil', 'hair serum', 'dry shampoo']).test(n), 'Hair care'],
-  [c => /Skin Care/i.test(c), n => words(['serum', 'moisturiser', 'moisturizer', 'cleanser', 'face cream', 'night cream', 'eye cream', 'face mask', 'toner', 'sunscreen', 'spf', 'retinol']).test(n), 'Skincare'],
-  [c => /Bath & Body|Deodorant/i.test(c), n => words(['body lotion', 'body butter', 'body wash', 'shower gel', 'bath oil', 'body oil', 'body scrub', 'hand cream', 'deodorant']).test(n), 'Bath & body']
+// Subcategory from the NAME first (Joybuy files many creams and serums under "Make-Up"), then from the feed category.
+// Order matters: "tinted moisturiser" is make-up, "hair mask" is hair care, "brush set" is a beauty tool.
+const NAME_SUBS = [
+  [FRAGRANCE_NAME, 'Fragrance'],
+  [words(['gift set', 'gift sets', 'beauty set', 'advent calendar', 'gift box']), 'Gift sets'],
+  [words(['hair dryer', 'hairdryer', 'straightener', 'straighteners', 'curler', 'curlers', 'curling wand', 'curling tong', 'curling tongs', 'hair styler',
+    'multi-styler', 'airwrap', 'hot brush', 'hot air brush', 'crimper', 'waver']), 'Hair tools'],
+  [words(['shampoo', 'conditioner', 'hair mask', 'hair oil', 'hair serum', 'dry shampoo', 'hair spray', 'hairspray', 'mousse', 'hair colour', 'hair color',
+    'hair dye', 'root touch', 'heat protect', 'heat protection', 'leave-in', 'leave in', 'scalp', 'hair gel', 'hair wax', 'curl cream', 'peroxide']), 'Hair care'],
+  [words(['nail polish', 'nail varnish', 'gel polish', 'nail lacquer', 'nail art', 'nail file', 'top coat', 'base coat', 'cuticle', 'press-on nails',
+    'false nails', 'nail', 'nails']), 'Nails'],
+  [words(['epilator', 'epilators', 'ipl', 'razor', 'razors', 'dermaplaning', 'dermaplaner', 'hair removal', 'wax strips', 'bikini trimmer', 'lady shaver']), 'Hair removal'],
+  [words(['makeup brush', 'make-up brush', 'makeup brushes', 'brush set', 'beauty blender', 'makeup sponge', 'eyelash curler', 'tweezers', 'makeup mirror',
+    'vanity mirror', 'makeup bag', 'cosmetic bag']), 'Beauty tools'],
+  [words(['lipstick', 'lip gloss', 'lip liner', 'lip stain', 'lip tint', 'lip oil', 'mascara', 'foundation', 'concealer', 'eyeliner', 'eyeshadow', 'eye shadow',
+    'palette', 'blusher', 'blush', 'bronzer', 'highlighter', 'primer', 'setting spray', 'setting powder', 'pressed powder', 'loose powder', 'brow', 'eyebrow',
+    'false lashes', 'eyelashes', 'lashes', 'bb cream', 'cc cream', 'tinted moisturiser', 'tinted moisturizer', 'contour', 'kohl', 'kajal', 'glitter']), 'Make-up'],
+  [words(['serum', 'moisturiser', 'moisturizer', 'moisturising', 'moisturizing', 'cleanser', 'cleansing', 'face cream', 'night cream', 'day cream', 'eye cream',
+    'face mask', 'sheet mask', 'mask', 'toner', 'essence', 'sunscreen', 'spf', 'retinol', 'hyaluronic', 'niacinamide', 'micellar', 'exfoliating', 'exfoliator',
+    'exfoliant', 'peel', 'facial', 'face oil', 'dry oil', 'skin care', 'skincare', 'anti-ageing', 'anti-aging', 'wrinkle', 'acne', 'lip balm', 'face wash']), 'Skincare'],
+  [words(['body lotion', 'body butter', 'body wash', 'shower gel', 'shower cream', 'bath', 'bath oil', 'body oil', 'body scrub', 'hand cream', 'hand wash', 'soap',
+    'deodorant', 'anti-perspirant', 'antiperspirant', 'bubble bath', 'body cream']), 'Bath & body']
 ];
+const CATEGORY_SUBS = [
+  [/Perfume & Cologne/i, 'Fragrance'], [/Cosmetic Sets|Gift Sets/i, 'Gift sets'], [/Nail Care|Nail Polish/i, 'Nails'],
+  [/Cosmetic Tools|Makeup Tools|Make-Up Tools/i, 'Beauty tools'], [/Hair Styling Tools/i, 'Hair tools'], [/Hair ?care/i, 'Hair care'],
+  [/Skin Care/i, 'Skincare'], [/Bath & Body|Deodorant/i, 'Bath & body'], [/Shaving & Grooming|Hair Removal/i, 'Hair removal'], [/Make-?Up/i, 'Make-up']
+];
+// Words that make a name clearly beauty. A product placed only because of its feed category is listed for checking (L14).
+const BEAUTY_WORDS = words(['beauty', 'cosmetic', 'cosmetics', 'makeup', 'make-up', 'skin', 'face', 'body', 'hair', 'lip', 'lips', 'eye', 'eyes', 'lash', 'cream',
+  'oil', 'balm', 'gel', 'wash', 'lotion', 'scent', 'fragrance', 'spray', 'powder', 'wax', 'comb', 'brush', 'sponge', 'mirror', 'wig', 'wigs', 'extensions', 'perfume']);
 
 function subcategoryOf(name, feedCategory) {
-  for (const [byCat, byName, sub] of SUBS) if (byCat(feedCategory)) return sub;
-  for (const [, byName, sub] of SUBS) if (byName(name)) return sub;
+  for (const [re, sub] of NAME_SUBS) if (re.test(name)) return sub;
+  for (const [re, sub] of CATEGORY_SUBS) if (re.test(feedCategory)) return sub;
   return 'Beauty';
 }
 
-// Decide where one product goes. Returns { site, siteCategory, subcategory } or { reject: '<reason>' }.
+// Women's hair removal often has no "women" in the name.
+const WOMEN_GROOMING = words(['venus', 'silk-épil', 'silk-epil', 'silk epil', 'epilator', 'epilators', 'ipl', 'dermaplaning', 'dermaplaner', 'lady shaver',
+  'ladyshave', 'bikini', 'satinelle', 'lumea']);
+// Deodorant brands and lines for men.
+const MEN_DEODORANT = words(['lynx', 'right guard', 'old spice', 'brut', 'axe', 'mitchum men']);
+
+// Decide where one product goes. Returns { site, siteCategory, subcategory, doubt? } or { reject: '<reason>' }.
 export function classify({ name, feedCategory = '' }) {
   const n = String(name || '');
   const c = String(feedCategory || '');
@@ -81,14 +107,20 @@ export function classify({ name, feedCategory = '' }) {
   const fragranceName = FRAGRANCE_NAME.test(n) && !HOME_SCENT.test(n);
   const beautyCategory = BEAUTY_CATEGORY.test(c) || DEODORANT_CATEGORY.test(c) || SHAVING_CATEGORY.test(c);
   if (!beautyCategory && !fragranceName) return { reject: 'not beauty or fragrance (this plan is for Beauty & Fragrances only)' };
-  if (HOME_SCENT.test(n)) return { reject: 'home scent (candles, diffusers), not beauty' };
-  if (KIDS.test(n)) return { reject: "baby or children's product" };
-  if (NOT_BEAUTY.test(n)) return { reject: 'health, dental or other personal care, not beauty' };
+  // A hair dryer "with diffuser" is not a home scent.
+  if (HOME_SCENT.test(n) && !/\bhair\b/i.test(n) && !/Hair ?care/i.test(c)) return { reject: 'home scent (candles, diffusers), not beauty' };
+  // Perfume names: "Cherry Baby" and "Moschino Toy 2" are perfumes for women, not baby products or toys.
+  const kidsText = fragranceName ? n.replace(/\bbaby\b/gi, ' ') : n;
+  if (KIDS.test(kidsText)) return { reject: "baby or children's product" };
+  const healthText = fragranceName ? n.replace(/\btoy\b/gi, ' ') : n;
+  if (NOT_BEAUTY.test(healthText)) return { reject: 'health, dental or other personal care, not beauty' };
   const women = WOMEN.test(n), unisex = UNISEX.test(n);
   const men = MEN.test(n) || MEN_LINES.test(n) || /Men's|Mens\b/i.test(c);
   if (men && !women && !unisex) return { reject: "men's product (for Men's Gear World later)" };
-  if (SHAVING_CATEGORY.test(c) && !women) return { reject: "shaving and grooming without 'women' in the name (Men's Gear World later)" };
-  if (DEODORANT_CATEGORY.test(c) && !women && !unisex) return { reject: "deodorant without 'women' in the name" };
+  if (SHAVING_CATEGORY.test(c) && !women && !WOMEN_GROOMING.test(n)) return { reject: "shaving and grooming without 'women' in the name (Men's Gear World later)" };
+  if (DEODORANT_CATEGORY.test(c) && MEN_DEODORANT.test(n) && !women) return { reject: "men's deodorant (Men's Gear World later)" };
   if (/Hair ?care > (Hair Clippers|Shaving)/i.test(c)) return { reject: "clippers and shaving (Men's Gear World later)" };
-  return { site: 'wgw', siteCategory: 'Beauty & Fragrances', subcategory: subcategoryOf(n, c) };
+  const subcategory = subcategoryOf(n, c);
+  const clear = NAME_SUBS.some(([re]) => re.test(n)) || BEAUTY_WORDS.test(n);
+  return { site: 'wgw', siteCategory: 'Beauty & Fragrances', subcategory, ...(clear ? {} : { doubt: true }) };
 }

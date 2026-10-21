@@ -28,7 +28,18 @@ test('Joybuy rules: women\'s and unisex beauty go to WGW Beauty & Fragrances, wi
     ['Real Techniques Everyday Essentials Makeup Brush Set', 'Health & Beauty > Personal Care > Cosmetics > Cosmetic Tools > Makeup Tools > Makeup Brushes', 'Beauty tools'],
     ['Dyson Airwrap Multi-Styler Complete Long', 'Health & Beauty > Personal Care > Hair Care > Hair Styling Tools > Curling Irons', 'Hair tools'],
     ['Olaplex No.4 Bond Maintenance Shampoo 250ml', 'Health & Beauty > Personal Care > Hair Care > Shampoo & Conditioner', 'Hair care'],
-    ['ghd Gold Professional Hair Straightener', 'Health & Beauty > Personal Care > Haircare > Hair Styling Tools > Hair Straighteners', 'Hair tools']
+    ['ghd Gold Professional Hair Straightener', 'Health & Beauty > Personal Care > Haircare > Hair Styling Tools > Hair Straighteners', 'Hair tools'],
+    // Mistakes in the first real plan (21 Oct 2026, 20:31) that stay fixed:
+    ["L'Oréal Paris Laser Renew Triple Action Night Cream 50ml", 'Health & Beauty > Personal Care > Cosmetics > Make-Up', 'Skincare'],
+    ['Nuxe Huile Prodigieuse Multi-Purpose Dry Oil 50ml', 'Health & Beauty > Personal Care > Cosmetics > Make-Up', 'Skincare'],
+    ["L'Oréal Paris Elvive Hydra Hyaluronic Hair Mask with Hyaluronic Acid for Dry Hair 300ml", 'Health & Beauty > Personal Care > Cosmetics > Skin Care', 'Hair care'],
+    ['Gillette Venus Deluxe Smooth Swirl Razor - 1 Blade', 'Health & Beauty > Personal Care > Shaving & Grooming > Razors & Razor Blades', 'Hair removal'],
+    ['BRAUN Silk-épil 9 Hair Removal Device, Easy Hair Removal, Long-Lasting Smooth Skin', 'Health & Beauty > Personal Care > Shaving & Grooming > Hair Removal > Laser & IPL Hair Removal Devices', 'Hair removal'],
+    ['PHILIPS Series 8000 Wet & Dry Cordless Epilator, Rechargeable', 'Health & Beauty > Personal Care > Shaving & Grooming > Hair Removal', 'Hair removal'],
+    ['Dove Anti-Perspirant Deodorant Spray Classic 200ml', 'Health & Beauty > Personal Care > Deodorant & Anti-Perspirant > Deodorant', 'Bath & body'],
+    ['Moschino Toy 2 Eau de Parfum Spray 100ml', PERFUME, 'Fragrance'],
+    ['Sabrina Carpenter Cherry Baby Eau de Parfum 30ml', PERFUME, 'Fragrance'],
+    ['Dreame Glory Combo High Speed Hair Dryer, Includes Nozzle and Diffuser', 'Health & Beauty > Personal Care > Hair Care > Hair Styling Tools > Hair Dryers', 'Hair tools']
   ];
   for (const [name, cat, sub] of yes) {
     const r = classify({ name, feedCategory: cat });
@@ -46,8 +57,14 @@ test('Joybuy rules: women\'s and unisex beauty go to WGW Beauty & Fragrances, wi
     ['Spider-Man 蜘蛛侠金属胸针', 'Apparel & Accessories > Shoe Accessories', /English/],
     ['Oral-B Pro 3 Electric Toothbrush', 'Health & Beauty > Personal Care > Oral Care', /not beauty/],
     ['Colgate Max White Toothpaste 75ml', 'Health & Beauty > Personal Care > Cosmetics > Skin Care', /dental/],
-    ['Philips OneBlade 360 Face Shaver', 'Health & Beauty > Personal Care > Shaving & Grooming > Electric Razors', /men's|shaving/]
+    ['Philips OneBlade 360 Face Shaver', 'Health & Beauty > Personal Care > Shaving & Grooming > Electric Razors', /men's|shaving/],
+    ['Moschino Toy Boy Eau de Parfum 50ml', PERFUME, /men's/],
+    ['Lynx Aerosol Body Spray Sunset Fresh XXL 250ml', 'Health & Beauty > Personal Care > Deodorant & Anti-Perspirant > Deodorant', /men's/],
+    ['Gillette Labs With Exfoliating Bar Razor, 1 Handle - 7 Blades', 'Health & Beauty > Personal Care > Shaving & Grooming > Razors & Razor Blades', /shaving|men's/],
+    ['Bebird Ear Wax Remover Otoscope, 1920P HD Flexible Ear Camera', 'Health & Beauty > Personal Care > Cosmetics > Cosmetic Tools > Skin Care Tools', /not beauty/]
   ];
+  assert.equal(c('Mijia Smart Device 2', 'Health & Beauty > Personal Care > Cosmetics').doubt, true, 'placed only by the feed category: listed for checking');
+  assert.equal(c('Max Factor Colour Elixir Lipstick English Rose 090 4g', 'Health & Beauty > Personal Care > Cosmetics > Make-Up').doubt, undefined);
   for (const [name, cat, why] of no) {
     const r = c(name, cat);
     assert.ok(r.reject, `${name} must be left out`);
@@ -142,4 +159,23 @@ test('Joybuy plan on a copy of the WGW table: updates the product already there,
   assert.equal(get('123932:99999').is_active, 1);
   assert.equal(hideByAwinIdSql([]), '');
   assert.match(hideByAwinIdSql(["123932:o'brien"]), /'123932:o''brien'/, 'quotes are escaped');
+});
+
+test('plan report: samples from every subcategory, and a CHECK list for products placed only by the feed category', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'joybuy-check-'));
+  const csv = HEAD
+    + row(1, "Paco Rabanne Olympea Absolu Women's Eau de Parfum 30ml", PERFUME, 37.7)
+    + row(2, 'MAC Macximal Silky Matte Lipstick Lady Danger', 'Health & Beauty > Personal Care > Cosmetics > Make-Up', 20)
+    + row(3, 'Mijia Smart Device 2', 'Health & Beauty > Personal Care > Cosmetics', 30);
+  writeFileSync(join(dir, 'AWIN_123932_114093.csv.gz'), gzipSync(csv));
+  const out = mkdtempSync(join(tmpdir(), 'joybuy-check-out-'));
+  const r = await planLegacyImport({ archive: dir, retailer: 'joybuy', outDir: out, now: new Date('2026-10-21T21:00:00Z') });
+  assert.equal(r.accepted.wgw.length, 3);
+  const text = readFileSync(join(out, 'report.txt'), 'utf8');
+  assert.match(text, /Paco Rabanne.*\| Fragrance \|/);
+  assert.match(text, /MAC Macximal.*\| Make-up \|/);
+  assert.match(text, /-- CHECK: 1 placed only because of the feed category/);
+  assert.match(text, /   - Mijia Smart Device 2 \| £30 \| Health & Beauty > Personal Care > Cosmetics/);
+  const sql = readFileSync(join(out, 'sql', 'wgw', '0001.sql'), 'utf8');
+  assert.doesNotMatch(sql, /doubt/, 'the check flag is not written to the database');
 });
