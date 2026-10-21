@@ -77,4 +77,6 @@ test('an empty search tries the next translation until one finds products', asyn
   const api = await (await get(`/api/products?search=${encodeURIComponent('φριτέζα αέρος')}&limit=5`, env)).json();
   assert.ok(api.products.length > 0 && api.products.every(p => /Air Fryer/i.test(p.product_name)));
   assert.equal(calls.length, 2, 'the first answer found nothing, the second did, no third call');
+  assert.equal(api.search_used, 'air fryer');
+  assert.deepEqual(api.search_tried, ['chainsaw', 'air fryer']);
 });
