@@ -39,7 +39,13 @@ test('Joybuy rules: women\'s and unisex beauty go to WGW Beauty & Fragrances, wi
     ['Dove Anti-Perspirant Deodorant Spray Classic 200ml', 'Health & Beauty > Personal Care > Deodorant & Anti-Perspirant > Deodorant', 'Bath & body'],
     ['Moschino Toy 2 Eau de Parfum Spray 100ml', PERFUME, 'Fragrance'],
     ['Sabrina Carpenter Cherry Baby Eau de Parfum 30ml', PERFUME, 'Fragrance'],
-    ['Dreame Glory Combo High Speed Hair Dryer, Includes Nozzle and Diffuser', 'Health & Beauty > Personal Care > Hair Care > Hair Styling Tools > Hair Dryers', 'Hair tools']
+    ['Dreame Glory Combo High Speed Hair Dryer, Includes Nozzle and Diffuser', 'Health & Beauty > Personal Care > Hair Care > Hair Styling Tools > Hair Dryers', 'Hair tools'],
+    // From the second real plan (20:48):
+    ["L'Oréal Excellence Créme 6 Natural Light Brown: 100% Grey Coverage, Hyaluronic Acid for 10x Nourished Hair", 'Health & Beauty > Personal Care > Hair Care > Hair Color', 'Hair care'],
+    ['Medicube One Day Exosome Shot Pore Ampoule 2000 30ml', 'Health & Beauty > Personal Care > Cosmetics > Makeup > Eye Makeup > Eye Shadow', 'Skincare'],
+    ['Molton Brown Delicious Rhubarb & Rose Hand Lotion 300ml', 'Health & Beauty > Personal Care > Cosmetics > Nail Care', 'Bath & body'],
+    ['VO5 Gum Texturising 75ml', 'Health & Beauty > Personal Care > Hair Care > Hair Styling Tools > Hair Curlers', 'Hair care'],
+    ['QUIYUM Green Tea Skincare Set (11pcs): Includes Cleanser 80g, Toner 100ml, with Nail Stickers', 'Health & Beauty > Personal Care > Cosmetics > Nail Care', 'Gift sets']
   ];
   for (const [name, cat, sub] of yes) {
     const r = classify({ name, feedCategory: cat });
@@ -59,6 +65,9 @@ test('Joybuy rules: women\'s and unisex beauty go to WGW Beauty & Fragrances, wi
     ['Colgate Max White Toothpaste 75ml', 'Health & Beauty > Personal Care > Cosmetics > Skin Care', /dental/],
     ['Philips OneBlade 360 Face Shaver', 'Health & Beauty > Personal Care > Shaving & Grooming > Electric Razors', /men's|shaving/],
     ['Moschino Toy Boy Eau de Parfum 50ml', PERFUME, /men's/],
+    ['Montblanc Legend Red Eau de Parfum 50ml', PERFUME, /men's/],
+    ['lattafa Asad EDP Spray 100ml', PERFUME, /men's/],
+    ['Philips 11-in-1 Trimmer 5000, 13 Length Settings, Wet & Dry, Self-Sharpening Metal Blades, Intimate Comb, MG5941/15', 'Health & Beauty > Personal Care > Cosmetics > Cosmetic Tools', /trimmers/],
     ['Lynx Aerosol Body Spray Sunset Fresh XXL 250ml', 'Health & Beauty > Personal Care > Deodorant & Anti-Perspirant > Deodorant', /men's/],
     ['Gillette Labs With Exfoliating Bar Razor, 1 Handle - 7 Blades', 'Health & Beauty > Personal Care > Shaving & Grooming > Razors & Razor Blades', /shaving|men's/],
     ['Bebird Ear Wax Remover Otoscope, 1920P HD Flexible Ear Camera', 'Health & Beauty > Personal Care > Cosmetics > Cosmetic Tools > Skin Care Tools', /not beauty/]

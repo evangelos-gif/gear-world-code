@@ -44,7 +44,9 @@ const MEN = words(['men', "men's", 'mens', 'man', 'male', 'for him', 'pour homme
 // Well-known men's perfume lines that often have no "men" in the name.
 const MEN_LINES = words(['sauvage', 'bleu de chanel', 'aventus', 'acqua di gio', 'acqua di giò', 'eros', 'invictus', '1 million', 'one million', 'le male', 'boss bottled',
   'terre d\'hermes', 'terre d’hermès', 'stronger with you', 'spicebomb', 'the one for men', 'dylan blue', 'phantom', 'wanted', 'fahrenheit', 'allure homme', 'ultra male',
-  'polo blue', 'polo red', 'y eau de parfum', 'l\'homme', 'pour lui', 'bad boy', 'luna rossa', 'aqva', 'cool water man', 'toy boy']);
+  'polo blue', 'polo red', 'y eau de parfum', 'l\'homme', 'pour lui', 'bad boy', 'luna rossa', 'aqva', 'cool water man', 'toy boy',
+  'uomo', 'montblanc legend', 'legend spirit', 'montblanc explorer', 'burberry hero', 'myslf', 'only the brave', 'boss the scent', 'le beau', 'kouros', 'aramis',
+  'egoiste', 'azzaro chrome', 'davidoff', 'cool water', 'club de nuit intense', 'lattafa asad', 'asad', 'aqua di gio', 'k by dolce', 'ombre nomade man']);
 const WOMEN = words(['women', "women's", 'womens', 'woman', 'ladies', 'lady', 'female', 'for her', 'pour femme', 'femme', 'girl']);
 const UNISEX = words(['unisex']);
 const KIDS = words(['baby', 'babies', 'infant', 'infants', 'toddler', 'toddlers', 'kids', 'kid', "kid's", 'children', "children's", 'child', 'childs', 'junior', 'newborn', 'nappy']);
@@ -59,11 +61,12 @@ const CJK = /[぀-ヿ㐀-鿿가-힯]/;
 // Order matters: "tinted moisturiser" is make-up, "hair mask" is hair care, "brush set" is a beauty tool.
 const NAME_SUBS = [
   [FRAGRANCE_NAME, 'Fragrance'],
-  [words(['gift set', 'gift sets', 'beauty set', 'advent calendar', 'gift box']), 'Gift sets'],
+  [words(['gift set', 'gift sets', 'beauty set', 'advent calendar', 'gift box', 'skincare set', 'skin care set', 'starter kit', 'discovery set']), 'Gift sets'],
   [words(['hair dryer', 'hairdryer', 'straightener', 'straighteners', 'curler', 'curlers', 'curling wand', 'curling tong', 'curling tongs', 'hair styler',
     'multi-styler', 'airwrap', 'hot brush', 'hot air brush', 'crimper', 'waver']), 'Hair tools'],
   [words(['shampoo', 'conditioner', 'hair mask', 'hair oil', 'hair serum', 'dry shampoo', 'hair spray', 'hairspray', 'mousse', 'hair colour', 'hair color',
-    'hair dye', 'root touch', 'heat protect', 'heat protection', 'leave-in', 'leave in', 'scalp', 'hair gel', 'hair wax', 'curl cream', 'peroxide']), 'Hair care'],
+    'hair dye', 'root touch', 'heat protect', 'heat protection', 'leave-in', 'leave in', 'scalp', 'hair gel', 'hair wax', 'curl cream', 'peroxide',
+    'grey coverage', 'permanent colour', 'semi permanent', 'texturising', 'texturizing', 'styling clay', 'texture clay', 'hair towel']), 'Hair care'],
   [words(['nail polish', 'nail varnish', 'gel polish', 'nail lacquer', 'nail art', 'nail file', 'top coat', 'base coat', 'cuticle', 'press-on nails',
     'false nails', 'nail', 'nails']), 'Nails'],
   [words(['epilator', 'epilators', 'ipl', 'razor', 'razors', 'dermaplaning', 'dermaplaner', 'hair removal', 'wax strips', 'bikini trimmer', 'lady shaver']), 'Hair removal'],
@@ -74,8 +77,9 @@ const NAME_SUBS = [
     'false lashes', 'eyelashes', 'lashes', 'bb cream', 'cc cream', 'tinted moisturiser', 'tinted moisturizer', 'contour', 'kohl', 'kajal', 'glitter']), 'Make-up'],
   [words(['serum', 'moisturiser', 'moisturizer', 'moisturising', 'moisturizing', 'cleanser', 'cleansing', 'face cream', 'night cream', 'day cream', 'eye cream',
     'face mask', 'sheet mask', 'mask', 'toner', 'essence', 'sunscreen', 'spf', 'retinol', 'hyaluronic', 'niacinamide', 'micellar', 'exfoliating', 'exfoliator',
-    'exfoliant', 'peel', 'facial', 'face oil', 'dry oil', 'skin care', 'skincare', 'anti-ageing', 'anti-aging', 'wrinkle', 'acne', 'lip balm', 'face wash']), 'Skincare'],
-  [words(['body lotion', 'body butter', 'body wash', 'shower gel', 'shower cream', 'bath', 'bath oil', 'body oil', 'body scrub', 'hand cream', 'hand wash', 'soap',
+    'exfoliant', 'peel', 'facial', 'face oil', 'dry oil', 'skin care', 'skincare', 'anti-ageing', 'anti-aging', 'wrinkle', 'acne', 'lip balm', 'face wash',
+    'ampoule', 'pad', 'pads', 'liquid care', 'hydrator', 'blemish', 'pore', 'pores']), 'Skincare'],
+  [words(['body lotion', 'body butter', 'body wash', 'shower gel', 'shower cream', 'bath', 'bath oil', 'body oil', 'body scrub', 'hand cream', 'hand wash', 'hand lotion', 'soap',
     'deodorant', 'anti-perspirant', 'antiperspirant', 'bubble bath', 'body cream']), 'Bath & body']
 ];
 const CATEGORY_SUBS = [
@@ -96,6 +100,7 @@ function subcategoryOf(name, feedCategory) {
 // Women's hair removal often has no "women" in the name.
 const WOMEN_GROOMING = words(['venus', 'silk-épil', 'silk-epil', 'silk epil', 'epilator', 'epilators', 'ipl', 'dermaplaning', 'dermaplaner', 'lady shaver',
   'ladyshave', 'bikini', 'satinelle', 'lumea']);
+const MEN_TOOLS = words(['trimmer', 'trimmers', 'multigroom', 'multi-groom', 'clipper', 'clippers', 'shaver', 'shavers', 'beard']);
 // Deodorant brands and lines for men.
 const MEN_DEODORANT = words(['lynx', 'right guard', 'old spice', 'brut', 'axe', 'mitchum men']);
 
@@ -120,6 +125,8 @@ export function classify({ name, feedCategory = '' }) {
   if (SHAVING_CATEGORY.test(c) && !women && !WOMEN_GROOMING.test(n)) return { reject: "shaving and grooming without 'women' in the name (Men's Gear World later)" };
   if (DEODORANT_CATEGORY.test(c) && MEN_DEODORANT.test(n) && !women) return { reject: "men's deodorant (Men's Gear World later)" };
   if (/Hair ?care > (Hair Clippers|Shaving)/i.test(c)) return { reject: "clippers and shaving (Men's Gear World later)" };
+  // "Philips 11-in-1 Trimmer 5000 ... MG5941" is a men's multigroom, even under a cosmetics category.
+  if (MEN_TOOLS.test(n) && !women && !WOMEN_GROOMING.test(n)) return { reject: "trimmers and clippers (Men's Gear World later)" };
   const subcategory = subcategoryOf(n, c);
   const clear = NAME_SUBS.some(([re]) => re.test(n)) || BEAUTY_WORDS.test(n);
   return { site: 'wgw', siteCategory: 'Beauty & Fragrances', subcategory, ...(clear ? {} : { doubt: true }) };
