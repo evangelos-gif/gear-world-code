@@ -8,13 +8,13 @@
 
 :root {
   /* dark page */
-  --page: #15171b;
-  --deep: #0c0d10;
-  --panel: #1e2127;
-  --panel-2: #262a31;
-  --line: #383d46;
+  --page: #3a4049;
+  --deep: #2f343c;
+  --panel: #474e58;
+  --panel-2: #525a65;
+  --line: #636c79;
   --text: #eceef1;
-  --text-2: #b5bbc4;
+  --text-2: #d3d7dd;
   --gold: #ff5a4e;
   --gold-2: #ff8a7f;
   --link: #ff9a90;
@@ -87,7 +87,7 @@ p { margin: 0 0 1em; }
 .catbar a[aria-current="page"] { color: #fff; border-bottom-color: var(--gold); }
 
 /* Gear World Hub strip: the same message on every site of the network */
-.hub-strip { background: linear-gradient(90deg, #1c1f24, #3a1a17 50%, #1c1f24); border-top: 1px solid var(--line); }
+.hub-strip { background: linear-gradient(90deg, #2f343c, #4a2f2d 50%, #2f343c); border-top: 1px solid var(--line); }
 .hub-row { display: flex; align-items: center; justify-content: center; gap: 8px 18px; flex-wrap: wrap; padding-top: 9px; padding-bottom: 9px; text-align: center; }
 .hub-name { color: var(--gold); font-weight: 600; font-size: .78rem; letter-spacing: .18em; text-transform: uppercase; }
 .hub-tagline { color: #fff; font-weight: 600; }
@@ -99,7 +99,7 @@ p { margin: 0 0 1em; }
 .hero-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 60% 50%; }
 .hero-photo::after {
   content: ""; position: absolute; inset: 0;
-  background: linear-gradient(180deg, rgba(12, 13, 16, .35) 0%, rgba(12, 13, 16, .72) 45%, rgba(12, 13, 16, .9) 80%, rgba(21, 23, 27, 1) 100%);
+  background: linear-gradient(180deg, rgba(47, 52, 60, .35) 0%, rgba(47, 52, 60, .72) 45%, rgba(47, 52, 60, .9) 80%, rgba(58, 64, 73, 1) 100%);
 }
 .hero-inner { position: relative; z-index: 1; padding-top: 48px; padding-bottom: 40px; }
 .eyebrow { margin: 0 0 12px; color: var(--gold); font-weight: 600; font-size: .82rem; letter-spacing: .2em; text-transform: uppercase; }
@@ -110,7 +110,7 @@ p { margin: 0 0 1em; }
 .hero-actions { display: flex; flex-wrap: wrap; gap: 12px; margin: 0 0 12px; }
 .hero-facts { color: #c9cdd4; font-size: .92rem; margin: 0; }
 @media (min-width: 900px) {
-  .hero-photo::after { background: linear-gradient(90deg, rgba(12, 13, 16, .94) 0%, rgba(12, 13, 16, .78) 42%, rgba(12, 13, 16, .2) 75%, rgba(12, 13, 16, .1) 100%); }
+  .hero-photo::after { background: linear-gradient(90deg, rgba(47, 52, 60, .94) 0%, rgba(47, 52, 60, .78) 42%, rgba(47, 52, 60, .2) 75%, rgba(47, 52, 60, .1) 100%); }
   .hero-inner { padding-top: 88px; padding-bottom: 84px; }
 }
 
@@ -226,7 +226,7 @@ p { margin: 0 0 1em; }
 .page-head .lede { margin-bottom: 0; }
 .cat-banner { position: relative; overflow: hidden; margin-top: 12px; padding: 0; min-height: 180px; display: flex; align-items: flex-end; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel); }
 .cat-banner-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
-.cat-banner::after { content: ""; position: absolute; inset: 0; background: linear-gradient(90deg, rgba(12, 13, 16, .92) 0%, rgba(12, 13, 16, .72) 55%, rgba(12, 13, 16, .25) 100%); }
+.cat-banner::after { content: ""; position: absolute; inset: 0; background: linear-gradient(90deg, rgba(47, 52, 60, .92) 0%, rgba(47, 52, 60, .72) 55%, rgba(47, 52, 60, .25) 100%); }
 .cat-banner-text { position: relative; z-index: 1; padding: 22px 18px; }
 .cat-banner .lede { color: #e2e4e8; max-width: 60ch; }
 @media (min-width: 900px) { .cat-banner { min-height: 220px; } .cat-banner-text { padding: 30px 28px; } }
@@ -356,7 +356,7 @@ body.has-compare-bar { padding-bottom: 76px; }
 @media (max-width: 600px) { .compare-table tbody th { width: 84px; padding: 10px 8px; font-size: .85rem; } .compare-photo img { width: 96px; height: 96px; } }
 
 /* Language and currency (lessons L24, L25) */
-.prefs { background: #070809; border-bottom: 1px solid var(--line); }
+.prefs { background: #262a31; border-bottom: 1px solid var(--line); }
 .prefs[hidden] { display: none; }
 .prefs-row { display: flex; justify-content: flex-end; align-items: center; gap: 8px; padding-top: 6px; padding-bottom: 6px; }
 .pref { position: relative; display: inline-flex; align-items: center; }
@@ -495,6 +495,8 @@ body.has-compare-bar { padding-bottom: 76px; }
 .flag { display: inline-block; width: 18px; height: 12px; margin-left: 6px; vertical-align: -1px; border-radius: 2px; box-shadow: 0 0 0 1px rgba(0, 0, 0, .15); }
 .fx-base { display: inline-block; margin-left: 6px; font-family: var(--font-body); font-weight: 600; font-size: .85rem; color: var(--ink-2); white-space: nowrap; }
 .shelf-price .fx-base { font-size: 1.05rem; align-self: center; }
+/* The small line above the hero title in white: red is hard to read on the photo. */
+.hero .eyebrow { color: #fff; }
 /* 10 categories: two full rows of 5 on wide screens, 2 per row on tablets (no half-empty last row). */
 @media (min-width: 720px) and (max-width: 979px) { .cat-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (min-width: 980px) { .cat-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); } }

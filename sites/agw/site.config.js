@@ -12,7 +12,7 @@ export default {
   lang: 'en-GB',
   locale: 'en-GB',
   currency: 'GBP',
-  assetVersion: '2026-10-21-agw-2',
+  assetVersion: '2026-10-21-agw-3',
   promos: promosFor('AGW'),
   awinPublisherId: AWIN_PUBLISHER_ID,
   storagePrefix: 'agw',
@@ -45,16 +45,16 @@ export default {
   cart: { name: 'Gear Cart', maxItems: 30, maxQuantity: 99 },
   voiceSearch: true,
 
-  // Gear World family look in asphalt graphite and signal red (approved by the owner, option A, 21 Oct 2026).
-  themeColor: '#15171b',
+  // Gear World family look in light steel grey and racing red (owner's choice 21 Oct 2026: lighter than the first graphite, option 2).
+  themeColor: '#3a4049',
   cssColorMap: {
-    '#0a1222': '#15171b',
-    '#060b16': '#0c0d10',
-    '#0f1b30': '#1e2127',
-    '#14243f': '#262a31',
-    '#22344f': '#383d46',
+    '#0a1222': '#3a4049',
+    '#060b16': '#2f343c',
+    '#0f1b30': '#474e58',
+    '#14243f': '#525a65',
+    '#22344f': '#636c79',
     '#e8edf5': '#eceef1',
-    '#a9b6c8': '#b5bbc4',
+    '#a9b6c8': '#d3d7dd',
     '#6cc8ff': '#ff9a90',
     '#f2b84b': '#ff5a4e',
     '#ffd27a': '#ff8a7f',
@@ -63,9 +63,9 @@ export default {
     '#111a28': '#16181c',
     '#4b5666': '#535862',
     '#1747d1': '#b8291f',
-    '#0d1e3b': '#1c1f24',
-    '#10284d': '#3a1a17',
-    '#050912': '#070809',
+    '#0d1e3b': '#2f343c',
+    '#10284d': '#4a2f2d',
+    '#050912': '#262a31',
     '#dbe3ee': '#e2e4e8',
     '#c9d3e0': '#cfd3da',
     '#c3cdda': '#c9cdd4',
@@ -73,13 +73,15 @@ export default {
     '#fff6e0': '#ffecea',
     '#fff8e8': '#fff3f1',
     '%23f2b84b': '%23ff5a4e',
-    'rgba(6, 11, 22,': 'rgba(12, 13, 16,',
-    'rgba(10, 18, 34,': 'rgba(21, 23, 27,'
+    'rgba(6, 11, 22,': 'rgba(47, 52, 60,',
+    'rgba(10, 18, 34,': 'rgba(58, 64, 73,'
   },
   extraCss: `
 .flag { display: inline-block; width: 18px; height: 12px; margin-left: 6px; vertical-align: -1px; border-radius: 2px; box-shadow: 0 0 0 1px rgba(0, 0, 0, .15); }
 .fx-base { display: inline-block; margin-left: 6px; font-family: var(--font-body); font-weight: 600; font-size: .85rem; color: var(--ink-2); white-space: nowrap; }
 .shelf-price .fx-base { font-size: 1.05rem; align-self: center; }
+/* The small line above the hero title in white: red is hard to read on the photo. */
+.hero .eyebrow { color: #fff; }
 /* 10 categories: two full rows of 5 on wide screens, 2 per row on tablets (no half-empty last row). */
 @media (min-width: 720px) and (max-width: 979px) { .cat-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (min-width: 980px) { .cat-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); } }`,
