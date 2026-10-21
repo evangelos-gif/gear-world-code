@@ -6,7 +6,7 @@
 // Usage: node tools/legacy-import-plan.mjs --archive <dir> --retailer coes --out <dir>
 import { createReadStream, existsSync, mkdirSync, readdirSync, writeFileSync } from 'node:fs';
 import { createGunzip } from 'node:zlib';
-import { join, resolve, dirname } from 'node:path';
+import { basename, join, resolve, dirname } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { readCsvRecords, cleanText, parsePrice } from './tgw-import-plan.mjs';
 
@@ -41,19 +41,28 @@ function productPage(url) {
 }
 
 // Read the feed and join the rows of one product (one row per size) into one product.
+// A shop's rules may say where its feed is (rules.feedFiles: full paths, e.g. a Google-format feed saved in Downloads)
+// and how its columns map to the Awin names used below (rules.field). Without them: AWIN_<id>_<feed>.csv(.gz) in the archive.
+export function feedPaths({ archive, rules }) {
+  if (typeof rules.feedFiles === 'function') return rules.feedFiles(archive).filter(f => existsSync(f)).sort();
+  return readdirSync(archive).filter(f => new RegExp(`^AWIN_${rules.RULES.advertiserId}_\\d+\\.csv(\\.gz)?$`, 'i').test(f)).sort().map(f => join(archive, f));
+}
+
 export async function readProducts({ archive, rules }) {
-  const files = readdirSync(archive).filter(f => new RegExp(`^AWIN_${rules.RULES.advertiserId}_\\d+\\.csv(\\.gz)?$`, 'i').test(f)).sort();
+  const paths = feedPaths({ archive, rules });
+  const files = paths.map(f => basename(f));
   const groups = new Map();
   let rows = 0;
-  for (const f of files) {
-    const raw = createReadStream(join(archive, f));
+  for (const f of paths) {
+    const raw = createReadStream(f);
     const stream = /\.gz$/i.test(f) ? raw.pipe(createGunzip()) : raw;
     let h = null;
     for await (const rec of readCsvRecords(stream)) {
       if (!h) { h = rec.map(x => String(x).trim().toLowerCase().replace(/^﻿/, '')); continue; }
       if (rec.length < 3) continue;
       rows++;
-      const get = c => { const i = h.indexOf(c); return i >= 0 ? String(rec[i] ?? '').trim() : ''; };
+      const column = c => { const i = h.indexOf(c); return i >= 0 ? String(rec[i] ?? '').trim() : ''; };
+      const get = typeof rules.field === 'function' ? (c => String(rules.field(c, column) ?? '').trim()) : column;
       const link = get('merchant_deep_link');
       const page = productPage(link);
       // A shop's rules can choose the product id (e.g. the id an older import already used for the same products).
