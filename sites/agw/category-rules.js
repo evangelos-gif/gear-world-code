@@ -14,6 +14,8 @@
 //      rules are easy to spot in the dry-run report).
 // Based on the car feed scan of 21 Oct 2026 (Tooled Up, My Tool Shed, SGS Engineering, Joybuy UK, VEVOR NL).
 
+import { fixMojibake } from '../../src/db.js';
+
 const words = list => new RegExp(`(?:^|[^a-z0-9])(?:${list.join('|')})(?![a-z0-9])`, 'i');
 
 // Shop categories that make a product a car product (top part before ">" or anywhere in the path).
@@ -28,8 +30,8 @@ const CAR_WORDS = words(['cars?', 'vehicles?', 'automotive', 'motoring', 'auto',
 export const DENY = [
   { label: 'toy or model', re: words(['toys?', 'monster jam', 'hot wheels', 'die-?cast', 'scale model', 'model cars?', 'rc', 'remote control', 'lego', 'ride-?on', 'playmat', 'puzzle', 'jigsaw', 'kids', "children'?s", 'baby', 'toddler', 'infant']) },
   { label: 'child car seat (Kids\' Gear World)', re: words(['child seat', 'booster seat', 'isofix', 'i-size', 'pushchair', 'pram', 'stroller', 'travel system', 'carrycot', 'car seats? (?!covers?|protectors?|organi[sz]ers?|cushions?|gap)']) },
-  { label: 'clothes, gift or home item', re: words(['t-?shirts?', 'hoodie', 'sweatshirt', 'jackets?', '(?:rain|winter|wool|puffer|parka|trench) coats?', 'dress(?:es)?', 'socks', 'pyjamas', 'mugs?', 'posters?', 'art prints?', 'books?', '(?:greeting|birthday|christmas|gift|playing) cards?', 'costume', 'bedding', 'duvet', 'pillowcase', 'hoeslaken', 'cake', 'necklace', 'cufflinks', 'keyrings?', 'diffuser', 'candle']) },
-  { label: 'motorbike or bicycle', re: words(['motorbikes?', 'motorcycles?', 'motocross', 'scooters?', 'mopeds?', 'quad bike', 'atv', 'bicycle', 'mtb', 'bike tyres?', 'inner tubes?', '700c', 'golf cart', 'club car']) },
+  { label: 'clothes, gift or home item', re: words(['t-?shirts?', 'hoodie', 'sweatshirt', 'jackets?', '(?:rain|winter|wool|puffer|parka|trench) coats?', 'dress(?:es)?', 'socks', 'pyjamas', 'mugs?', 'posters?', 'art prints?', 'books?', '(?:greeting|birthday|christmas|gift|playing) cards?', 'costume', 'bedding', 'duvet', 'pillowcase', 'hoeslaken', 'cake', 'necklace', 'cufflinks', 'keyrings?', 'diffuser', 'candle', 'cosmetic\\w*', 'cosmetica\\w*', 'make-?up', 'camping mattress', 'sleeping pads?', '(?:electric|heated) blankets?', 'double size', 'pet (?:car )?(?:safety )?belts?', 'dog (?:car )?(?:safety )?belts?']) },
+  { label: 'motorbike or bicycle', re: words(['(?:folding|electric|mountain|road|kids|e-) ?bikes?', 'motorbikes?', 'motorcycles?', 'motocross', 'scooters?', 'mopeds?', 'quad bike', 'atv', 'bicycle', 'mtb', 'bike tyres?', 'inner tubes?', '700c', 'golf cart', 'club car']) },
   { label: 'garden or farm machine', re: words(['lawn ?mowers?', 'mowers?', 'strimmers?', 'chainsaws?', 'wheelbarrows?', 'tractors?', 'farm jack', 'horse', 'feed bucket', 'sack trucks?', '[24][ -]?stroke', 'pressure sprayer', 'platform trolley', 'trolley truck']) },
   { label: 'fixings, not a car product', re: words(['din \\d+', 'iso \\d+', 'gewindestifte', 'set screws?', 'grub screws?', 'gehörschutz', 'ear plugs?', 'säbelsägeblatt', 'saw blades?']) },
   { label: 'not allowed', re: words(['radar detectors?', 'laser jammers?', 'speed camera detector', 'spy camera', 'hidden camera', 'knife', 'knives', 'vape']) }
@@ -86,9 +88,9 @@ export const RULES = [
   },
   {
     slug: 'interior-comfort',
-    include: words(['seat covers?', 'car seat covers?', 'seat (?:cushions?|protectors?|organi[sz]ers?|gap fillers?)', 'floor mats?', 'car mats?', 'boot (?:liners?|mats?|organi[sz]ers?|tidy)', 'organi[sz]ers?', 'sun ?shades?', 'sunshades?', 'steering wheel covers?', 'car vacuums?', 'handheld vacuum', 'dustbuster', 'cool ?box(?:es)?', 'car fridges?', 'heated (?:seat|blanket)s?', 'headrest hooks?', 'cup holders?', 'back seat organi[sz]ers?', 'dog (?:guards?|seat covers?)', 'pet seat covers?']),
+    include: words(['seat covers?', 'car seat covers?', 'seat (?:cushions?|protectors?|organi[sz]ers?|gap fillers?)', 'floor mats?', 'car mats?', 'boot (?:liners?|mats?|organi[sz]ers?|tidy)', 'organi[sz]ers?', 'sun ?shades?', 'sunshades?', 'steering wheel covers?', 'car vacuums?', 'handheld vacuum', 'dustbuster', 'cool ?box(?:es)?', 'car fridges?', 'heated seat (?:covers?|cushions?|pads?)', '12v (?:heated )?blankets?', 'headrest hooks?', 'cup holders?', 'back seat organi[sz]ers?', 'dog (?:guards?|seat covers?)', 'pet seat covers?']),
     ctx: true,
-    exclude: words(['desks?', 'bureau\\w*', 'kantoor\\w*', 'office', 'component', 'cylinder head'])
+    exclude: words(['tool (?:rolls?|bags?)', 'bit (?:organi[sz]ers?|dispensers?)', 'boorbit\\w*', 'drill bits?', 'desks?', 'bureau\\w*', 'kantoor\\w*', 'office', 'component', 'cylinder head'])
   },
   {
     slug: 'parts-maintenance',
@@ -159,7 +161,7 @@ export function classify(name, feedCategory = '', paths = '') {
 
 // Feed names often start with promotions such as "【next day delivery】" or "[Autumn Special]".
 export function cleanProductName(name) {
-  return String(name || '')
+  return fixMojibake(String(name || ''))
     .replace(/^\s*(?:【[^】]{0,40}】|\[[^\]]{0,40}\]|\([^)]*(?:deal|sale|delivery|offer)[^)]*\))\s*/gi, '')
     .replace(/\s{2,}/g, ' ')
     .trim();

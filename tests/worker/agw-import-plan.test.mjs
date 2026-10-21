@@ -51,7 +51,13 @@ test('AGW rules put real-looking products in the right category and keep look-al
     ['Draper 12v Car Charger for D20 20v Lithium Ion Batteries', 'Power Tool Accessories > Battery Packs'],
     ['VEVOR Bureau organizer met lades auto', 'Opslag en organisatie > Kantoorartikelen > Bureauorganisatoren'],
     ['NitroLift Gas Strut 200N 300mm', 'Hardware > Hardware Accessories > NitroLift'],
-    ['Snow Sled 2 seat', 'Vehicles & Parts > Vehicles > Motor Vehicles > Snowmobiles']
+    ['Snow Sled 2 seat', 'Vehicles & Parts > Vehicles > Motor Vehicles > Snowmobiles'],
+    // From the first import (21 Oct 2026), seen on the preview:
+    ['Oxerbog Dog Car Safety Belt, Retractable Pet Car Safety Belt', 'Vehicles & Parts > Vehicle Parts & Accessories'],
+    ['DAHON Folding Bike Hit D6 Black 20"*1.75" Tire', 'Vehicles & Parts > Vehicle Parts & Accessories'],
+    ['Mobi Garden Egg Crate Foam Sleeping Pad, Folding Camping Mattress', 'Vehicles & Parts > Vehicle Parts & Accessories'],
+    ['VEVOR cosmeticakoffer met warmte-isolerende laag, make-uptas', 'Automobiel > Opslag'],
+    ['MENDALE Electric Heated Blanket 140x160cm, Double Size', 'Vehicles & Parts > Vehicle Parts & Accessories']
   ]) assert.equal(classify(name, cat).ok, false, name);
 });
 
