@@ -3,7 +3,7 @@
 // The same tool as TGW (tools/tgw-import-plan.mjs) with the AGW rules (sites/agw/category-rules.js) and sources
 // (sites/agw/sources.json). Writes report.txt and the SQL that WOULD load the products (not executed).
 //
-// Usage: node tools/agw-import-plan.mjs --archive <dir> --out <dir> [--sources sites/agw/sources.json]
+// Usage: node tools/agw-import-plan.mjs --archive <dir> --out <dir> [--sources sites/agw/sources.json] [--only 48473,496]
 import { existsSync, mkdirSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -31,7 +31,8 @@ if (process.argv[1] && pathToFileURL(resolve(process.argv[1])).href === import.m
     process.exit(2);
   }
   mkdirSync(outDir, { recursive: true });
-  const { stats, sqlFiles } = await planAgwImport({ archive, sourcesFile, outDir });
+  const only = val('only') ? val('only').split(',').map(x => x.trim()).filter(Boolean) : null;
+  const { stats, sqlFiles } = await planAgwImport({ archive, sourcesFile, outDir, only });
   console.log(`rows ${stats.rows} | would import ${stats.accepted} | SQL files ${sqlFiles.length} (not executed)`);
   console.log(`report: ${join(outDir, 'report.txt')}`);
 }

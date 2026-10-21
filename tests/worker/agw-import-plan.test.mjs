@@ -1,7 +1,7 @@
 // Car Gear World import plan (dry run): AGW rules on fake feeds, euro prices kept, toys and child seats out.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, writeFileSync, readFileSync, readdirSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, readdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { gzipSync } from 'node:zlib';
@@ -89,4 +89,53 @@ test('plan: reads every file of a retailer, keeps euro prices, writes SQL that i
   const sql = readFileSync(join(out, 'sql', readdirSync(join(out, 'sql')).find(f => f === '0001.sql')), 'utf8');
   assert.match(sql, /-- AGW import plan .* NOT executed/);
   assert.match(sql, /'VEVOR', 'car-electronics'.*'EUR'/);
+});
+
+test('plan: a Google Shopping feed in Downloads (GS Workwear) joins sizes, builds the Awin link, --only keeps the rest out', async () => {
+  const root = mkdtempSync(join(tmpdir(), 'agw-gsw-'));
+  const dir = join(root, 'GW_AWIN_BULK_ARCHIVE');
+  mkdirSync(dir);
+  const out = join(root, 'out');
+  const head = 'id,title,link,image_link,availability,price,sale_price,brand,gtin,product_type\n';
+  writeFileSync(join(root, '48473-retail-en_GB.csv.gz'), gzipSync(head
+    + '1,Sealey 2 Tonne Trolley Jack,https://www.gsworkwear.co.uk/p/1,https://i/1.jpg,in_stock,89.99 GBP,79.99 GBP,Sealey,5051747000001,\n'
+    + '2,Draper Car Battery Charger 12V - Black / One Size,https://www.gsworkwear.co.uk/p/2,https://i/2.jpg,in_stock,39.99 GBP,,Draper,5010559000002,\n'
+    + '3,Draper Car Battery Charger 12V - Red / One Size,https://www.gsworkwear.co.uk/p/3,https://i/3.jpg,in_stock,37.99 GBP,,Draper,5010559000003,\n'
+    + '4,Portwest Hi-Vis Vest - Yellow / L,https://www.gsworkwear.co.uk/p/4,https://i/4.jpg,in_stock,2.99 GBP,,Portwest,,\n'));
+  writeFileSync(join(dir, 'AWIN_496_1.csv.gz'), gzipSync('aw_deep_link,product_name,merchant_product_id,merchant_image_url,merchant_category,search_price,in_stock\n'
+    + 'https://www.awin1.com/pclick.php?p=1,Sealey Axle Stands,TU-1,https://img/1.jpg,Automotive Tools,29.99,1\n'));
+  const sources = join(root, 'sources.json');
+  writeFileSync(sources, JSON.stringify({ sources: [
+    { advertiserId: 496, retailer: 'Tooled Up', currency: 'GBP', approved: true },
+    { advertiserId: 48473, file: '^48473-.+\\.csv(\\.gz)?$', format: 'google', retailer: 'GS Workwear', currency: 'GBP', approved: true }
+  ] }));
+  const { stats, report, products } = await planAgwImport({ archive: dir, sourcesFile: sources, outDir: out, only: ['48473'], now: new Date('2026-10-21T20:00:00Z') });
+  assert.equal(stats.rows, 4);
+  assert.equal(stats.accepted, 2);
+  assert.equal(stats.sizesJoined, 1);
+  assert.deepEqual(stats.perRetailer, { 'GS Workwear': 2 });
+  const charger = products.find(p => /Charger/.test(p.product_name));
+  assert.equal(charger.product_name, 'Draper Car Battery Charger 12V');
+  assert.equal(charger.price, 37.99);
+  const jack = products.find(p => /Jack/.test(p.product_name));
+  assert.equal(jack.price, 79.99);
+  assert.equal(jack.affiliate_url, 'https://www.awin1.com/cread.php?awinmid=48473&awinaffid=3057233&ued=https%3A%2F%2Fwww.gsworkwear.co.uk%2Fp%2F1');
+  assert.match(report, /GS Workwear \(48473: file .*\) \(only these\)/);
+  assert.match(report, /Google Shopping format/);
+  assert.doesNotMatch(report, /Tooled Up \(/);
+  assert.match(readFileSync(join(out, 'sql', '9999-finish.sql'), 'utf8'), /awin_advertiser_id IN \(48473\)/);
+});
+
+test('rules: car-only tools without the word car, head torches and power tool chargers', () => {
+  const at = n => { const c = classify(n, ''); return c.ok ? c.slug : 'OUT'; };
+  assert.equal(at('Draper Hydraulic Spring Compressor'), 'garage-tools-equipment');
+  assert.equal(at('Draper 3/8" Square Drive 12mm Thread Spark Plug Socket (18mm Socket)'), 'garage-tools-equipment');
+  assert.equal(at('Draper Brake Pipe Flaring Tool Kit'), 'garage-tools-equipment');
+  assert.equal(at('Lighthouse Elite Rechargeable LED Sensor Headlight 300 lumens'), 'OUT');
+  assert.equal(at('Portwest Replacement Beanie Hat Headlight'), 'OUT');
+  assert.equal(at('Einhell Power X-Change Car Charger'), 'OUT');
+  assert.equal(classify('AdBlue® Diesel Exhaust Treatment Additive 10Kg', 'Vehicles & Parts > Vehicle Parts & Accessories').slug, 'parts-maintenance');
+  assert.equal(at('Draper Expert Motorcycle Spindle Key'), 'OUT');
+  assert.equal(at('Portwest Classic Ear Protector'), 'OUT');
+  assert.equal(at('Draper Socket Set (10 Piece)'), 'OUT', 'a plain socket set is not only for cars');
 });

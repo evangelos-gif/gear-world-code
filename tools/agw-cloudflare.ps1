@@ -12,6 +12,7 @@
                  Approval phrase: ΕΓΚΡΙΝΩ AGW PREVIEW
   -Step import   CHANGES THE AGW DATABASE. Backs up the AGW database first, then loads the products from the
                  Awin feed (the same plan as agw-import-plan). Approval phrase: ΕΓΚΡΙΝΩ AGW IMPORT
+                 With -Only 48473: only that retailer is loaded (and only its missing products are hidden).
   -Step domain   CHANGES CLOUDFLARE (LAUNCH). Connects cargearworld.com and www to the AGW Worker as
                  Cloudflare Custom Domains (DNS and SSL are created by Cloudflare) and publishes the site there.
                  Google may then index it. Approval phrase: ΕΓΚΡΙΝΩ AGW DOMAIN
@@ -30,6 +31,7 @@ param(
     [switch]$Apply,
     [string]$Approve = '',
     [string]$Archive = '',
+    [string]$Only = '',
     [string]$WorkDir = '',
     [string]$OutDir = '',
     [switch]$SkipInstall,
@@ -393,7 +395,10 @@ switch ($Step) {
         $planDir = Join-Path $OutDir ('AGW_IMPORT_PLAN_' + $stamp)
         $k = 2
         while (Test-Path -LiteralPath $planDir) { $planDir = Join-Path $OutDir ('AGW_IMPORT_PLAN_{0}_{1}' -f $stamp, $k); $k++ }
-        & node (Join-Path (Join-Path $repo 'tools') 'agw-import-plan.mjs') --archive $Archive --out $planDir | Out-Null
+        if ($Only -and $Only -notmatch '^[0-9]+(,[0-9]+)*$') { Say 'Λάθος -Only (μόνο αριθμοί Awin, χωρισμένοι με κόμμα).' 'Red'; Finish 2 }
+        $planArgs = @((Join-Path (Join-Path $repo 'tools') 'agw-import-plan.mjs'), '--archive', $Archive, '--out', $planDir)
+        if ($Only) { $planArgs += @('--only', $Only); Say ('Μόνο τα καταστήματα Awin: {0}' -f $Only) }
+        & node @planArgs | Out-Null
         if ($LASTEXITCODE -ne 0) { Say 'Το σχέδιο import απέτυχε.' 'Red'; Finish 10 }
         $sqlDir = Join-Path $planDir 'sql'
         $files = @(Get-ChildItem -LiteralPath $sqlDir -Filter '*.sql' | Sort-Object Name)
