@@ -20,7 +20,7 @@ jobs:
 
   tgw-worker:
     name: TGW Worker and QA gate
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     env:
       WRANGLER_SEND_METRICS: 'false'
     steps:
@@ -68,7 +68,7 @@ jobs:
 
   legacy-sites:
     name: ${{ matrix.site }} on the engine (older database layout)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
