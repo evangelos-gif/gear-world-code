@@ -111,16 +111,20 @@ const MEN_TOOLS = words(['trimmer', 'trimmers', 'multigroom', 'multi-groom', 'cl
 const MEN_DEODORANT = words(['lynx', 'right guard', 'old spice', 'brut', 'axe', 'mitchum men']);
 
 // Men's grooming on MGW: subcategory from the name.
+// Order matters: a "grooming kit" with a clipper or shaver is a device, not a gift set; "Gillette Mach 3" is a razor.
 const MEN_SUBS = [
   [FRAGRANCE_NAME, 'Fragrance'],
   [words(['cologne', 'aftershave', 'after shave']), 'Fragrance'],
-  [words(['gift set', 'gift sets', 'grooming kit', 'grooming set']), 'Gift sets'],
-  [words(['deodorant', 'anti-perspirant', 'antiperspirant', 'body spray']), 'Deodorant'],
   [words(['trimmer', 'trimmers', 'clipper', 'clippers', 'multigroom', 'multi-groom']), 'Trimmers & clippers'],
-  [words(['razor', 'razors', 'blades', 'shaving', 'shave', 'shaver', 'shavers']), 'Shaving'],
+  [words(['razor', 'razors', 'blade', 'blades', 'shaving', 'shave', 'shaver', 'shavers', 'mach3', 'mach 3', 'fusion5', 'fusion', 'proglide', 'oneblade']), 'Shaving'],
+  [words(['gift set', 'gift sets', 'grooming kit', 'grooming set']), 'Gift sets'],
+  [words(['deodorant', 'anti-perspirant', 'antiperspirant', 'body spray', 'bodyspray']), 'Deodorant'],
   [words(['beard']), 'Beard care'],
+  [/gillette/i, 'Shaving'],
+  [words(['shower gel', 'body wash', '3 in 1', '3-in-1']), 'Grooming'],
   [words(['shampoo', 'conditioner', 'hair wax', 'hair clay', 'pomade', 'hair gel', 'styling']), 'Hair care'],
-  [words(['moisturiser', 'moisturizer', 'face wash', 'cream', 'serum', 'cleanser', 'scrub', 'eye', 'spf', 'balm', 'skin']), 'Skincare']
+  [words(['moisturiser', 'moisturizer', 'face wash', 'cream', 'serum', 'cleanser', 'scrub', 'eye', 'spf', 'balm', 'skin', 'fluid', 'sunscreen']), 'Skincare'],
+  [/\bspf\s?\d/i, 'Skincare']
 ];
 function menSubcategory(n) {
   for (const [re, sub] of MEN_SUBS) if (re.test(n)) return sub;
@@ -163,7 +167,11 @@ const SMART_HOME = words(['smart plug', 'smart plugs', 'smart bulb', 'smart bulb
   'blink outdoor', 'blink mini', 'switchbot', 'meross', 'govee', 'tapo', 'kasa']);
 const NOT_SMART_HOME = words(['smart tv', 'smart tvs', 'smartphone', 'smartphones', 'smart watch', 'smartwatch', 'case', 'cases', 'cover', 'covers', 'screen protector',
   'toy', 'toys', 'baby monitor', 'baby monitors', 'bracket', 'brackets', 'mount', 'mounts', 'hanger', 'accessory', 'accessories', 'replacement', 'strap', 'straps',
-  'dash cam', 'car', 'kids']);
+  'dash cam', 'car', 'kids', 'vacuum', 'phone', 'iphone', 'ipad', 'cooler', 'gaming']);
+// A feed category alone is not enough (Joybuy files rugs, blankets and toilet rolls under cleaning): the name needs one of these too.
+const CLEAN_HINT = words(['clean', 'cleaner', 'cleaners', 'cleaning', 'vacuum', 'vac', 'hoover', 'mop', 'mops', 'steam', 'steamer', 'laundry', 'washing', 'wash',
+  'detergent', 'bleach', 'disinfectant', 'degreaser', 'descaler', 'limescale', 'sponge', 'sponges', 'scrubber', 'scourer', 'scourers', 'duster', 'cloth', 'cloths',
+  'wipes', 'bin', 'bins', 'trash can', 'iron', 'ironing', 'airer', 'tumble dryer', 'washing machine', 'washer dryer', 'polish', 'stain remover', 'lint', 'fabric']);
 const CLEANING_CATEGORY = /Household Appliances > (Vacuums|Floor & Steam Cleaners|Floor & Carpet|Laundry Appliances|Carpet)|Household Supplies > (Household Cleaning Supplies|Laundry Supplies)/i;
 const CLEANING = words(['vacuum cleaner', 'vacuum cleaners', 'robot vacuum', 'robot vacuums', 'robot mop', 'cordless vacuum', 'stick vacuum', 'handheld vacuum',
   'upright vacuum', 'wet and dry vacuum', 'wet & dry vacuum', 'steam mop', 'steam cleaner', 'carpet cleaner', 'carpet washer', 'spot cleaner', 'window vac',
@@ -172,19 +180,32 @@ const CLEANING = words(['vacuum cleaner', 'vacuum cleaners', 'robot vacuum', 'ro
   'clothes steamer', 'washing powder', 'washing pods', 'washing capsules', 'laundry detergent', 'laundry liquid', 'fabric conditioner', 'fabric softener', 'washing up liquid',
   'dishwasher tablets', 'pedal bin', 'kitchen bin', 'recycling bin', 'sensor bin']);
 const NOT_CLEANING = words(['flask', 'flasks', 'vacuum sealer', 'vacuum seal', 'vacuum storage', 'vacuum bags', 'vacuum insulated', 'insulated', 'cup', 'mug', 'tumbler',
-  'bottle', 'car', 'pool', 'pressure washer', 'leaf', 'gutter', 'hair', 'toy', 'toys', 'kids', 'jewellery', 'bracelet', 'test kit', 'pet hair remover glove']);
+  'bottle', 'car', 'pool', 'pressure washer', 'leaf', 'gutter', 'toy', 'toys', 'kids', 'jewellery', 'bracelet', 'test kit', 'pet hair remover glove',
+  'hair dryer', 'hairdryer', 'hair straightener', 'hair clipper', 'hair removal', 'hair brush', 'hairbrush', 'skin', 'face', 'facial', 'makeup', 'make-up',
+  'toilet tissue', 'toilet roll', 'kitchen roll', 'tissues', 'blanket', 'hoodie', 'runner', 'rug', 'rugs', 'duvet', 'pillow', 'towel', 'towels']);
+
+// Order matters: a "Hoover" washing machine and a garment steamer are laundry; "washing up liquid" is kitchen cleaning.
+function cleaningSub(n) {
+  if (/robot/i.test(n) && /vacuum|\bmops?\b|hoover|deebot|roomba|roborock/i.test(n)) return 'Robot vacuums';
+  if (/washing machine|washer dryer|tumble dryer|heat pump dryer|\bdryer\b/i.test(n)) return 'Laundry & ironing';
+  if (/garment steamer|clothes steamer|handheld steamer|\bsteamer\b|\birons?\b|ironing/i.test(n)) return 'Laundry & ironing';
+  if (/washing[ -]up|dish/i.test(n)) return 'Cleaning';
+  if (/vacuum|\bvac\b|hoover/i.test(n)) return 'Vacuum cleaners';
+  if (/steam|carpet|\bmops?\b|floor/i.test(n)) return 'Floor cleaning';
+  if (/airer|laundry|washing|fabric|detergent|\blint\b/i.test(n)) return 'Laundry & ironing';
+  if (/\bbins?\b|trash can/i.test(n)) return 'Bins';
+  return 'Cleaning';
+}
 
 function homePlace(n, c) {
   if (/^(Food, Beverages|Toys & Games|Baby & Toddler|Apparel|Clothing & Accessories|Health & Beauty)/i.test(c)) return null;
   if (SMART_HOME.test(n) && !NOT_SMART_HOME.test(n)) {
-    const sub = /camera|cctv|doorbell|eufycam|arlo|blink|ring /i.test(n) ? 'Security cameras & doorbells'
+    const sub = /camera|cctv|doorbell|eufycam|arlo|blink|\bring (doorbell|camera|alarm)/i.test(n) ? 'Security cameras & doorbells'
       : /bulb|light|lighting|lightstrip|hue/i.test(n) ? 'Smart lighting' : /plug|switch|socket/i.test(n) ? 'Smart plugs & switches' : 'Smart home';
     return { site: 'hgw', siteCategory: 'Smart Home', subcategory: sub };
   }
-  if ((CLEANING_CATEGORY.test(c) || CLEANING.test(n)) && !NOT_CLEANING.test(n)) {
-    const sub = /robot/i.test(n) ? 'Robot vacuums' : /vacuum|vac\b|hoover/i.test(n) ? 'Vacuum cleaners' : /steam|carpet|mop/i.test(n) ? 'Floor cleaning'
-      : /iron|steamer|airer|laundry|washing|fabric|detergent/i.test(n) ? 'Laundry & ironing' : /bin\b/i.test(n) ? 'Bins' : 'Cleaning';
-    return { site: 'hgw', siteCategory: 'Cleaning & Laundry', subcategory: sub };
+  if ((CLEANING.test(n) || (CLEANING_CATEGORY.test(c) && CLEAN_HINT.test(n))) && !NOT_CLEANING.test(n)) {
+    return { site: 'hgw', siteCategory: 'Cleaning & Laundry', subcategory: cleaningSub(n) };
   }
   return null;
 }
@@ -197,19 +218,25 @@ const KIDS_TECH = words(['kids tablet', "kids' tablet", 'kids camera', 'kids sma
   'digital camera', 'smartwatch', 'smart watch', 'headphones', 'walkie talkie', 'walkie talkies', 'walkie-talkie', 'walkie-talkies', 'karaoke', 'microphone', 'vtech',
   'leapfrog', 'kidizoom', 'toniebox', 'tonies', 'yoto', 'kids edition', 'tablet']);
 const NOT_KIDS_TECH = words(['baby monitor', 'baby monitors', 'monitor', 'case', 'cases', 'cover', 'covers', 'screen protector', 'strap', 'straps', 'replacement',
-  'lcd screen', 'rattle', 'soother', 'comforter', 'nursery', 'colouring', 'coloring', 'painting', 'drawing', 'adult', 'adults']);
+  'lcd screen', 'rattle', 'soother', 'comforter', 'nursery', 'colouring', 'coloring', 'painting', 'drawing', 'adult', 'adults', 'baby camera', 'teether']);
+// A VTech or LeapFrog product counts only when the name says what tech it is (not a slide, teether or stand).
+const TECH_WORDS = words(['tablet', 'laptop', 'computer', 'watch', 'smartwatch', 'smart watch', 'camera', 'walkie', 'headphones', 'earbuds', 'microphone', 'speaker', 'learning', 'interactive',
+  'electronic', 'game', 'games', 'console', 'phone', 'remote', 'radio', 'torch', 'projector', 'karaoke', 'globe', 'reader', 'pen', 'kidizoom', 'leapstart', 'leappad',
+  'toniebox', 'tonies', 'yoto', 'player', 'robot', 'coding']);
 const SCHOOL = words(['school bag', 'school bags', 'schoolbag', 'school backpack', 'book bag', 'lunch bag', 'lunch bags', 'lunch box', 'lunch boxes', 'lunchbox',
   'pencil case', 'pencil cases', 'pe bag']);
 const BACKPACK = words(['backpack', 'backpacks', 'rucksack', 'rucksacks', 'satchel', 'gym bag', 'trolley bag']);
 const NOT_SCHOOL = words(['drink', 'drinks', 'juice', 'pouches', 'snack', 'snacks', 'yoghurt', 'crisps', 'festool', 'makita', 'dewalt', 'milwaukee', 'tool', 'tools',
-  'adult', 'adults', 'women', 'men', 'laptop', 'changing bag', 'nappy', 'baby carrier', 'thermos', 'food jar']);
+  'adult', 'adults', 'women', 'men', 'laptop', 'changing bag', 'nappy', 'baby carrier', 'thermos', 'food jar', 'business', 'hanger', 'hangers', 'blind bag',
+  'keyring', 'keychain']);
 
 function kidsPlace(n, c) {
   if (/^(Food, Beverages|Health & Beauty)/i.test(c)) return null;
   const kidsBrand = /\b(vtech|leapfrog|kidizoom|toniebox|tonies|yoto)\b/i.test(n);
-  if (KIDS_TECH.test(n) && (KID_CONTEXT.test(n) || kidsBrand) && !NOT_KIDS_TECH.test(n)) {
-    const sub = /walkie/i.test(n) ? 'Walkie-talkies' : /camera/i.test(n) ? 'Kids cameras' : /watch/i.test(n) ? 'Kids smartwatches'
-      : /headphone|earbud/i.test(n) ? 'Kids headphones' : /tablet/i.test(n) ? 'Kids tablets' : 'Learning tech';
+  if (KIDS_TECH.test(n) && (KID_CONTEXT.test(n) || kidsBrand) && TECH_WORDS.test(n) && !NOT_KIDS_TECH.test(n)) {
+    // "Kids' Tablet ... 5 MP rear camera" is a tablet.
+    const sub = /walkie/i.test(n) ? 'Walkie-talkies' : /tablet/i.test(n) ? 'Kids tablets' : /camera/i.test(n) ? 'Kids cameras' : /watch/i.test(n) ? 'Kids smartwatches'
+      : /headphone|earbud/i.test(n) ? 'Kids headphones' : 'Learning tech';
     return { site: 'kgw', siteCategory: 'Kids Tech', subcategory: sub };
   }
   if ((SCHOOL.test(n) || (BACKPACK.test(n) && KID_CONTEXT.test(n))) && !NOT_SCHOOL.test(n) && (KID_CONTEXT.test(n) || /school|pencil/i.test(n))) {

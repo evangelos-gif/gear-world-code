@@ -227,6 +227,40 @@ test('Joybuy rules: garden, smart home, cleaning, kids tech and school bags go t
   ]) assert.ok(c(name, cat).reject, `${name} must be left out`);
 });
 
+// Wrong products seen in the first all-sites plan (21 Oct 2026), and the subcategories that were wrong.
+test('Joybuy rules: fixes from the all-sites plan (indoor furniture, kitchen ovens, bird food, blankets, toys, devices)', () => {
+  const c = (name, feedCategory = 'Home & Garden') => classify({ name, feedCategory });
+  const H = 'Home & Garden > Household Supplies > Household Cleaning Supplies';
+  for (const [name, cat] of [
+    ['Nutmeg Skin Refreshing Cleansing Wipes for Normal Skin 25 Wipes', H], ['MENDALE Oversized Hoodie Blanket, Extra Thick', H],
+    ['Likewise Runner Knightsbridge Pawprints Brown 50x150cm', H], ['Andrex Family Soft Toilet Tissue, 2-Ply, 12 Rolls', H],
+    ['Black Shark Magnetic Phone Cooler 6 Pro – Smart Display, Magnetic Ring Plate', 'Electronics'],
+    ['VTech Toot-Toot Drivers Enchanted Castle Slide', 'Toys & Games'], ['LeapFrog LF1911 Smart Full HD Baby Camera', 'Baby'],
+    ['Minecraft Backpack Hangers Blind Bag Assortment', 'Toys'], ['H.XUN Multifunctional Backpack 23L, Business Bag, Student School Bag', 'Luggage'],
+    ['Joyic 160 cm Chaise Lounge Chair, Boneless Couch, for Living Room'], ['JOYFURNOS Storage Ottoman, Foldable Velvet Storage Bench, Hallway, Bedroom'],
+    ['JOYFURNOS 5-Tier Shelving Unit, Steel Shelving Unit for Storage, for Garage, Shed'], ['TAPEBEAR Butyl Tape Waterproof Sealing Tape, Awning'],
+    ['OIMIS Air Fryer Oven with 21 Presets, Rotisserie'], ['Tower Elite Pizza Oven - 18L, 2000W, Grey & Chrome'], ['Disposable Paper Plates 15cm, Barbecues and Picnics'],
+    ['Huacan Cocktail Smoker Wooden Barrel Set'], ['Silverline Holesaw Hex Arbor'], ['Peckish Complete Seed Mix Feeder'], ['Honor Red Bean Paste with Lotus Seeds and Lily 300g'],
+    ['JU7CER Wildflower Diamond Painting Kit'], ['Addis Everyday Kitchen Food Waste Compost Caddy Bin, 4.5L'], ['LED Downlights 5W Recessed Ceiling Lights IP44 Round Spotlights'],
+    ['Black Lanterns Decorative Indoor: Hurricane Lantern Candle Holder Front Porch Garden Wall Decorations']
+  ]) assert.ok(c(name, cat).reject, `${name} must be left out`);
+  const sub = (name, cat) => c(name, cat).subcategory;
+  assert.equal(sub('Hoover H-Wash 300 Pro Integrated Washing Machine', 'Home & Garden > Household Appliances > Laundry Appliances'), 'Laundry & ironing');
+  assert.equal(sub('Philips STE1040/20 1000 Series Garment Steamer, 1800w', 'Home & Garden > Household Appliances > Floor & Steam Cleaners'), 'Laundry & ironing');
+  assert.equal(sub('Fairy Max Power Washing Up Liquid, Original, 660ml', H), 'Cleaning');
+  assert.equal(c('Tineco Pure ONE Station 5 Cordless Stick Vacuum, iLoop Smart Sensor').siteCategory, 'Cleaning & Laundry');
+  assert.equal(sub("TABWEE K8 Kids' Tablet, 7-inch, 2 MP front camera + 5 MP rear camera", 'Electronics'), 'Kids tablets');
+  const S = 'Health & Beauty > Personal Care > Shaving & Grooming';
+  assert.equal(sub('Gillette Mach 3 2 Count', S), 'Shaving');
+  assert.equal(sub('RAF Hair Clipper Professional Cordless Hair Trimmer Men Grooming Kit', S), 'Trimmers & clippers');
+  assert.equal(sub('Lynx Aerosol Bodyspray Africa 250ml', 'Health & Beauty > Personal Care > Deodorant & Anti-Perspirant'), 'Deodorant');
+  assert.equal(sub("L'Oréal Men Expert Hydra Energetic Daily SPF50+ Invisible Fluid 50ml", 'Health & Beauty > Personal Care > Cosmetics > Skin Care'), 'Skincare');
+  assert.equal(sub('Vonhaus Hudson Grey Sun Lounger Chair With Cushion'), 'Loungers');
+  assert.equal(sub('Costway 4 Pieces Outdoor Furniture Set with Cushions and Tempered Glass Table'), 'Garden furniture');
+  assert.equal(sub('Charcoal BBQ Grill, 57cm Kettle Barbecue with Thermometer & Adjustable Air Vent'), 'BBQs');
+  assert.equal(c('Large Vertical Firewood Rack, Log Storage Holder for Fireplace, Patio, Indoor, Outdoor').siteCategory, 'Garden Buildings, Fencing & Storage');
+});
+
 test('Coes kids and My Tool Shed garden rules', async () => {
   const kids = (await import('../../tools/import-rules/coes-kids.mjs')).classify;
   const k = (name, brand = '') => kids({ name, brand });
@@ -240,6 +274,7 @@ test('Coes kids and My Tool Shed garden rules', async () => {
   assert.equal(g('Sealey Infrared Quartz Patio Heater 240v', 'Fans & Heaters > Electric Heaters > Patio Heaters').siteCategory, 'Garden Furniture & Outdoor Living');
   assert.equal(g('Town and Country Pyramid Log Store L', 'Garden Tools > Storage & Covers > Log Storage').siteCategory, 'Garden Buildings, Fencing & Storage');
   assert.equal(g('Sealey Extra Slim 20w LED Floodlight', 'Garden Lighting').siteCategory, 'Outdoor Lighting & Garden Electrical');
+  assert.equal(g('Ronseal Hardwood Garden Furniture Restorer', 'Garden Tools > Gazebos & Furniture').subcategory, 'Furniture care');
   for (const [n, cat] of [['Faithfull Fencing Pins', 'Hand Tools > Fencing Pins'], ['Draper Compost Tumbler', 'Composters'], ['Makita DUB184 Blower', 'Garden Tools > Outdoor Power Tools']]) assert.ok(g(n, cat).reject, n);
 });
 
