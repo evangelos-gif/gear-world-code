@@ -1,10 +1,11 @@
 {
-  "_comment": "Awin feeds used by Car Gear World. advertiserId is the Awin advertiser id (file names AWIN_<advertiserId>_<feedId>.csv.gz in the Awin archive). feedIds: only the retailer's current full feed (the archive also keeps older per-category feeds of Tooled Up). Without feedIds, every file of that retailer is read. Add a retailer only after Awin has approved the programme. retailer is the name shown on the site; VEVOR has the NL flag (site.config.js retailerCountries).",
+  "_comment": "Awin feeds used by Car Gear World. advertiserId is the Awin advertiser id (file names AWIN_<advertiserId>_<feedId>.csv.gz in the Awin archive). feedIds: only the retailer's current full feed (the archive also keeps older per-category feeds of Tooled Up). Without feedIds, every file of that retailer is read. Add a retailer only after Awin has approved the programme. retailer is the name shown on the site; VEVOR has the NL flag (site.config.js retailerCountries). GS Workwear sends a Google Shopping file saved in Downloads as 48473-*.csv.gz (format google, file = name pattern).",
   "sources": [
     { "advertiserId": 496, "feedIds": [89987], "retailer": "Tooled Up", "currency": "GBP", "condition": "new", "approved": true },
     { "advertiserId": 49385, "feedIds": [118472], "retailer": "My Tool Shed", "currency": "GBP", "condition": "new", "approved": true },
     { "advertiserId": 28807, "feedIds": [95330, 94852], "retailer": "SGS Engineering", "currency": "GBP", "condition": "new", "approved": true },
     { "advertiserId": 123932, "feedIds": [114093], "retailer": "Joybuy", "currency": "GBP", "condition": "new", "approved": true },
-    { "advertiserId": 118435, "feedIds": [109014], "retailer": "VEVOR", "currency": "EUR", "condition": "new", "approved": true }
+    { "advertiserId": 118435, "feedIds": [109014], "retailer": "VEVOR", "currency": "EUR", "condition": "new", "approved": true },
+    { "advertiserId": 48473, "file": "^48473-.+\\.csv(\\.gz)?$", "format": "google", "retailer": "GS Workwear", "currency": "GBP", "condition": "new", "approved": true }
   ]
 }

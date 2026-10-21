@@ -8,11 +8,14 @@
   It also writes the SQL that WOULD load them, but it does NOT run it and does NOT contact Cloudflare or D1.
   Needs Node.js (already used for the other Gear World tools).
 
+  -Only 48473: plan only these retailers (Awin advertiser ids, comma separated), e.g. a new retailer on its own.
+
   Output: <home>\gear-world-reports\AGW_IMPORT_PLAN_<time>\report.txt (also copied to the clipboard)
           <home>\gear-world-reports\AGW_IMPORT_PLAN_<time>\sql\*.sql (not executed)
 #>
 param(
     [string]$Archive = '',
+    [string]$Only = '',
     [string]$OutDir = '',
     [switch]$NoClipboard
 )
@@ -47,7 +50,8 @@ $run = Join-Path $OutDir ('AGW_IMPORT_PLAN_' + (Get-Date -Format 'yyyyMMdd_HHmms
 $mjs = Join-Path (Join-Path $repo 'tools') 'agw-import-plan.mjs'
 Write-Host ('Archive: {0}' -f $Archive)
 Write-Host 'Διαβάζω τα feeds... (τα μεγάλα feeds των εργαλείων παίρνουν μερικά λεπτά, άφησέ το να τελειώσει)'
-& node $mjs --archive $Archive --out $run
+if ($Only -and $Only -notmatch '^[0-9]+(,[0-9]+)*$') { Write-Host 'Λάθος -Only (μόνο αριθμοί Awin, χωρισμένοι με κόμμα).' -ForegroundColor Red; exit 2 }
+if ($Only) { & node $mjs --archive $Archive --out $run --only $Only } else { & node $mjs --archive $Archive --out $run }
 $code = $LASTEXITCODE
 if ($code -ne 0) {
     Write-Host 'Το εργαλείο σταμάτησε με σφάλμα. Στείλε στο Claude ό,τι γράφει η οθόνη.' -ForegroundColor Red
