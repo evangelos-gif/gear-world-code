@@ -104,4 +104,5 @@ test('German retailer names saved twice as UTF-8 show as meant', async () => {
   const { fixMojibake } = await import('../../src/db.js');
   assert.equal(fixMojibake('Bahco Flacher Ring-MaulschlÃ¼ssel 350Â mm'), 'Bahco Flacher Ring-Maulschlüssel 350 mm');
   assert.equal(fixMojibake('AuÃŸensechskant'), 'Außensechskant');
+  assert.equal(fixMojibake('PH2 x 125\u00c2\u00a0mm'), 'PH2 x 125 mm');
 });
