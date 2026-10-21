@@ -235,6 +235,14 @@ if (Get-Command node -ErrorAction SilentlyContinue) {
     }
     Check ((Get-FileHash -LiteralPath $gzPath -Algorithm SHA256).Hash -eq $archHash) 'feed sample: Awin archive unchanged'
 
+    $carOut = Join-Path $work 'car-scan-run'
+    & $exe -NoProfile -ExecutionPolicy Bypass -File $runTool -LocalRepo $repo -Tool car-feed-scan -Archive $arch -OutDir $carOut -KeyFile (Join-Path $work 'no-key.dat') -NoClipboard | Out-Null
+    Check ($LASTEXITCODE -eq 0) 'car feed scan: exit code 0 through gw-run, without a saved key'
+    $cars = @(Get-ChildItem -LiteralPath $carOut -Directory -Filter 'CAR_FEED_SCAN_*' -ErrorAction SilentlyContinue)
+    Check ($cars.Count -eq 1) 'car feed scan: report folder written'
+    if ($cars.Count -ge 1) { Check ([System.IO.File]::ReadAllText((Join-Path $cars[0].FullName 'report.txt')).Contains('Retailers in the archive: 1')) 'car feed scan: reads the archive' }
+    Check ((Get-FileHash -LiteralPath $gzPath -Algorithm SHA256).Hash -eq $archHash) 'car feed scan: Awin archive unchanged'
+
     $coesCsv = "merchant_name,aw_product_id,brand_name,merchant_product_id,merchant_category,product_name,merchant_deep_link,merchant_image_url,search_price,stock_quantity`n" +
         "Coes,1,Barbour,10,Menswear,Barbour Beaufort Wax Jacket,https://www.coes.co.uk/products/beaufort?variant=10,https://cdn.shopify.com/1.png,299,1`n" +
         "Coes,2,Barbour,20,Menswear,Barbour Beaufort Wax Jacket,https://www.coes.co.uk/products/beaufort?variant=20,https://cdn.shopify.com/1.png,289,2`n" +
