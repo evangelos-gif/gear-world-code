@@ -126,8 +126,11 @@ if ($AllJoined) {
     if ($Apply -and -not $OnlyMissing) { Say 'Με -AllJoined η λήψη γίνεται μόνο μαζί με -OnlyMissing (για να μην κατέβουν όλα τα μεγάλα feeds μαζί).' 'Red'; Finish 2 }
 }
 # Rows in a small local copy (an almost empty feed is treated as missing).
+# A copy that is not a valid gzip feed counts as 0 rows. Node never writes to stderr here: in Windows PowerShell 5.1
+# with ErrorActionPreference Stop, any stderr line of a program stops the script.
 function Local-Rows([string]$path) {
-    $oc = @(& node -e "const z=require('zlib'),fs=require('fs');let n=0;for(const l of z.gunzipSync(fs.readFileSync(process.argv[1])).toString('utf8').split('\n'))if(l.trim())n++;console.log(Math.max(0,n-1))" $path 2>$null)
+    $oc = @()
+    try { $oc = @(& node -e "const z=require('zlib'),fs=require('fs');try{let n=0;for(const l of z.gunzipSync(fs.readFileSync(process.argv[1])).toString('utf8').split('\n'))if(l.trim())n++;console.log(Math.max(0,n-1))}catch(e){console.log(0)}" $path) } catch { $oc = @('0') }
     $n = -1
     [void][int]::TryParse(([string]($oc -join '')).Trim(), [ref]$n)
     return $n
