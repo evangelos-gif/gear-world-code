@@ -14,6 +14,10 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 const AWIN_PUBLISHER_ID = 3057233;
 const ROWS_PER_INSERT = 80;   // keeps every statement well under the D1 limit of 100 KB
 const ROWS_PER_FILE = 1000;
+// KGW, HGW and GGW keep products with no UNIQUE on awin_product_id: there the unique key is (retailer, merchant_product_id)
+// for a non-empty merchant id (index ux_products_refresh_stable_key, checked on the live databases 21 Oct 2026).
+// MGW and WGW have awin_product_id UNIQUE. The SQL must name the key the table really has.
+export const STABLE_KEY_SITES = new Set(['kgw', 'hgw', 'ggw']);
 
 export async function loadRules(key) {
   if (!/^[a-z0-9-]{2,40}$/.test(String(key || ''))) throw new Error('bad retailer key');
@@ -100,7 +104,11 @@ export async function planLegacyImport({ archive, retailer, outDir, now = new Da
     if (hit) { reject(p, `name has text that belongs to another site ("${hit}")`); continue; }
     accepted[c.site].push({
       awin_product_id: `${R.advertiserId}:${p.key.replace(/^https?:\/\/[^/]+\/products\//i, '')}`,
-      merchant_product_id: p.key.startsWith('http') ? p.firstVariant : p.key,
+      // On KGW/HGW/GGW the merchant id is the unique key, so it must be the same on every run: the product key
+      // (e.g. the Shopify handle), not the first size of the feed.
+      merchant_product_id: STABLE_KEY_SITES.has(c.site)
+        ? (p.key.startsWith('http') ? (p.key.replace(/^https?:\/\/[^/]+\/products\//i, '').replace(/^https?:.*/i, '') || p.firstVariant) : p.key)
+        : (p.key.startsWith('http') ? p.firstVariant : p.key),
       retailer: R.retailer, site_category: c.siteCategory, subcategory: c.subcategory, brand: p.brand || null,
       product_name: name, feed_product_name: p.name, price, currency: R.currency, stock_status: 'in stock',
       merchant_category: p.feedCategory || null, image_url: p.image,
@@ -130,12 +138,17 @@ export async function planLegacyImport({ archive, retailer, outDir, now = new Da
 const q = v => (v === null || v === undefined) ? 'NULL' : (typeof v === 'number' ? String(v) : `'${String(v).replace(/'/g, "''")}'`);
 const COLS = ['awin_product_id', 'merchant_product_id', 'retailer', 'site_category', 'subcategory', 'brand', 'product_name', 'feed_product_name',
   'price', 'currency', 'stock_status', 'merchant_category', 'image_url', 'affiliate_url', 'ean', 'is_active', 'created_at', 'updated_at'];
-const UPDATE = COLS.filter(c => !['awin_product_id', 'retailer', 'created_at'].includes(c)).map(c => `${c}=excluded.${c}`).join(', ');
 
-export function insertSql(items, stamp) {
+// opts.site: which unique key the table has (STABLE_KEY_SITES). opts.keepCategory: a product already on the site keeps
+// its category and subcategory (only new products get the category of these rules).
+export function insertSql(items, stamp, opts = {}) {
   const values = items.map(p => '(' + [p.awin_product_id, p.merchant_product_id, p.retailer, p.site_category, p.subcategory, p.brand, p.product_name,
     p.feed_product_name, p.price, p.currency, p.stock_status, p.merchant_category, p.image_url, p.affiliate_url, p.ean, 1, stamp, stamp].map(q).join(', ') + ')');
-  return `INSERT INTO products (${COLS.join(', ')}) VALUES\n${values.join(',\n')}\nON CONFLICT(awin_product_id) DO UPDATE SET ${UPDATE};\n`;
+  const stable = STABLE_KEY_SITES.has(String(opts.site || ''));
+  const skip = ['awin_product_id', 'retailer', 'created_at'].concat(stable ? ['merchant_product_id'] : [], opts.keepCategory ? ['site_category', 'subcategory'] : []);
+  const update = COLS.filter(c => !skip.includes(c)).map(c => `${c}=excluded.${c}`).join(', ');
+  const target = stable ? "(retailer, merchant_product_id) WHERE merchant_product_id IS NOT NULL AND TRIM(merchant_product_id) <> ''" : '(awin_product_id)';
+  return `INSERT INTO products (${COLS.join(', ')}) VALUES\n${values.join(',\n')}\nON CONFLICT${target} DO UPDATE SET ${update};\n`;
 }
 
 function writeSql(dir, items, R, site, now) {
@@ -146,7 +159,7 @@ function writeSql(dir, items, R, site, now) {
     const part = items.slice(i, i + ROWS_PER_FILE);
     let sql = `-- PLAN ONLY. NOT EXECUTED. ${R.retailer} (Awin ${R.advertiserId}) -> ${site.toUpperCase()}, part ${n}, ${part.length} products, ${stamp} UTC.\n` +
       '-- Adds new products and updates the same products on a later run (same awin_product_id). Deletes nothing.\n';
-    for (let j = 0; j < part.length; j += ROWS_PER_INSERT) sql += insertSql(part.slice(j, j + ROWS_PER_INSERT), stamp);
+    for (let j = 0; j < part.length; j += ROWS_PER_INSERT) sql += insertSql(part.slice(j, j + ROWS_PER_INSERT), stamp, { site, keepCategory: R.keepCategory });
     const file = join(dir, String(n).padStart(4, '0') + '.sql');
     writeFileSync(file, sql);
     out.push(file);

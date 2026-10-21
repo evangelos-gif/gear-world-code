@@ -51,25 +51,31 @@ test('Joybuy rules: women\'s and unisex beauty go to WGW Beauty & Fragrances, wi
     const r = classify({ name, feedCategory: cat });
     assert.deepEqual(r, { site: 'wgw', siteCategory: 'Beauty & Fragrances', subcategory: sub }, name);
   }
+  // Men's products go to Men's Gear World "Grooming & Fragrances".
+  const mgw = [
+    ['Sure Men Anti-Perspirant Aerosol Active Dry 200ml', 'Health & Beauty > Personal Care > Deodorant & Anti-Perspirant', 'Deodorant'],
+    ["Wilkinson Sword Hydro 5 Sense Energizer Men's Razor with 4 Blade Refills", 'Health & Beauty > Personal Care > Shaving & Grooming > Razors', 'Shaving'],
+    ['Dior Sauvage Eau de Toilette 100ml', PERFUME, 'Fragrance'],
+    ['Jean Paul Gaultier Le Male Le Parfum EDP Spray Intense 125ml', PERFUME, 'Fragrance'],
+    ['Philips OneBlade 360 Face Shaver', 'Health & Beauty > Personal Care > Shaving & Grooming > Electric Razors', 'Shaving'],
+    ['Moschino Toy Boy Eau de Parfum 50ml', PERFUME, 'Fragrance'],
+    ['Montblanc Legend Red Eau de Parfum 50ml', PERFUME, 'Fragrance'],
+    ['lattafa Asad EDP Spray 100ml', PERFUME, 'Fragrance'],
+    ['Philips 11-in-1 Trimmer 5000, 13 Length Settings, Wet & Dry, Self-Sharpening Metal Blades, Intimate Comb, MG5941/15', 'Health & Beauty > Personal Care > Cosmetics > Cosmetic Tools', 'Trimmers & clippers'],
+    ['Lynx Aerosol Body Spray Sunset Fresh XXL 250ml', 'Health & Beauty > Personal Care > Deodorant & Anti-Perspirant > Deodorant', 'Deodorant'],
+    ['Gillette Labs With Exfoliating Bar Razor, 1 Handle - 7 Blades', 'Health & Beauty > Personal Care > Shaving & Grooming > Razors & Razor Blades', 'Shaving'],
+    ['Wahl Lithium Elite Cordless Beard Trimmer Kit', 'Health & Beauty > Personal Care > Shaving & Grooming > Hair Removal', 'Trimmers & clippers'],
+    ["Urtekram Men's Face Cream: 75ml Hydrating Moisturizer", 'Health & Beauty > Personal Care > Cosmetics > Skin Care', 'Skincare']
+  ];
+  for (const [name, cat, sub] of mgw) assert.deepEqual(c(name, cat), { site: 'mgw', siteCategory: 'Grooming & Fragrances', subcategory: sub }, name);
   const no = [
-    ['Sure Men Anti-Perspirant Aerosol Active Dry 200ml', 'Health & Beauty > Personal Care > Deodorant & Anti-Perspirant', /men's/],
-    ["Wilkinson Sword Hydro 5 Sense Energizer Men's Razor with 4 Blade Refills", 'Health & Beauty > Personal Care > Shaving & Grooming > Razors', /men's/],
-    ['Dior Sauvage Eau de Toilette 100ml', PERFUME, /men's/],
-    ['Jean Paul Gaultier Le Male Le Parfum EDP Spray Intense 125ml', PERFUME, /men's/],
     ['Childs Farm Baby Bubble Bath Cherry 250ml', 'Health & Beauty > Personal Care > Cosmetics > Bath & Body > Bath Additives', /children/],
-    ['Yankee Candle Large Jar Vanilla Cupcake', 'Home & Garden > Decor > Candles & Home Fragrances > Candles', /not beauty/],
-    ['Lavender Reed Diffuser with Eau de Parfum scent 100ml', FRAGRANCE_OILS, /home scent|not beauty/],
-    ['TGI Fridays Barbecue Boneless Wings 400g', 'Food, Beverages & Tobacco > Food Items > Frozen Desserts', /not beauty/],
+    ['Yankee Candle Large Jar Vanilla Cupcake', 'Home & Garden > Decor > Candles & Home Fragrances > Candles', /not in these plans/],
+    ['Lavender Reed Diffuser with Eau de Parfum scent 100ml', FRAGRANCE_OILS, /home scent|not in these plans/],
+    ['TGI Fridays Barbecue Boneless Wings 400g', 'Food, Beverages & Tobacco > Food Items > Frozen Desserts', /not in these plans/],
     ['Spider-Man 蜘蛛侠金属胸针', 'Apparel & Accessories > Shoe Accessories', /English/],
-    ['Oral-B Pro 3 Electric Toothbrush', 'Health & Beauty > Personal Care > Oral Care', /not beauty/],
+    ['Oral-B Pro 3 Electric Toothbrush', 'Health & Beauty > Personal Care > Oral Care', /not in these plans/],
     ['Colgate Max White Toothpaste 75ml', 'Health & Beauty > Personal Care > Cosmetics > Skin Care', /dental/],
-    ['Philips OneBlade 360 Face Shaver', 'Health & Beauty > Personal Care > Shaving & Grooming > Electric Razors', /men's|shaving/],
-    ['Moschino Toy Boy Eau de Parfum 50ml', PERFUME, /men's/],
-    ['Montblanc Legend Red Eau de Parfum 50ml', PERFUME, /men's/],
-    ['lattafa Asad EDP Spray 100ml', PERFUME, /men's/],
-    ['Philips 11-in-1 Trimmer 5000, 13 Length Settings, Wet & Dry, Self-Sharpening Metal Blades, Intimate Comb, MG5941/15', 'Health & Beauty > Personal Care > Cosmetics > Cosmetic Tools', /trimmers/],
-    ['Lynx Aerosol Body Spray Sunset Fresh XXL 250ml', 'Health & Beauty > Personal Care > Deodorant & Anti-Perspirant > Deodorant', /men's/],
-    ['Gillette Labs With Exfoliating Bar Razor, 1 Handle - 7 Blades', 'Health & Beauty > Personal Care > Shaving & Grooming > Razors & Razor Blades', /shaving|men's/],
     ['Bebird Ear Wax Remover Otoscope, 1920P HD Flexible Ear Camera', 'Health & Beauty > Personal Care > Cosmetics > Cosmetic Tools > Skin Care Tools', /not beauty/]
   ];
   assert.equal(c('Mijia Smart Device 2', 'Health & Beauty > Personal Care > Cosmetics').doubt, true, 'placed only by the feed category: listed for checking');
@@ -126,8 +132,8 @@ test('Joybuy plan: same id as the products already on WGW, link keeps the shop q
   assert.equal(plan.addOnly, true);
   assert.equal(plan.sites.wgw.products, 2);
   const reasons = Object.keys(r.rejected).join(' | ');
-  assert.match(reasons, /men's/);
-  assert.match(reasons, /not beauty/);
+  assert.deepEqual(r.accepted.mgw.map(p => p.product_name), ['Dior Sauvage Eau de Toilette 100ml'], "men's perfume goes to MGW");
+  assert.match(reasons, /not in these plans/);
   assert.match(reasons, /no price/);
   const text = readFileSync(join(out, 'report.txt'), 'utf8');
   assert.match(text, /Add-only plan/);
@@ -151,7 +157,7 @@ test('Joybuy plan on a copy of the WGW table: updates the product already there,
   const get = id => db.prepare('SELECT * FROM products WHERE awin_product_id = ?').get(id);
   assert.equal(db.prepare("SELECT COUNT(*) n FROM products WHERE retailer = 'Joybuy UK'").get().n, 3, 'one new product, no duplicate of the old one');
   assert.equal(get('123932:10551').price, 37.7, 'the product already on the site is updated');
-  assert.equal(get('123932:10551').subcategory, 'Fragrance');
+  assert.equal(get('123932:10551').subcategory, 'Beauty & Fragrances', 'keepCategory: a product already there keeps its category and subcategory');
   assert.equal(get('123932:99999').is_active, 1, 'other Joybuy products stay as they are');
   assert.equal(get('123932:99999').site_category, 'Clothing');
   assert.equal(get('30645:jacket').is_active, 1);
@@ -187,4 +193,94 @@ test('plan report: samples from every subcategory, and a CHECK list for products
   assert.match(text, /   - Mijia Smart Device 2 \| £30 \| Health & Beauty > Personal Care > Cosmetics/);
   const sql = readFileSync(join(out, 'sql', 'wgw', '0001.sql'), 'utf8');
   assert.doesNotMatch(sql, /doubt/, 'the check flag is not written to the database');
+});
+
+
+test('Joybuy rules: garden, smart home, cleaning, kids tech and school bags go to GGW, HGW and KGW', () => {
+  const c = (name, feedCategory) => classify({ name, feedCategory });
+  const cases = [
+    ['Vonhaus Barrel Charcoal Barbecue', 'Home & Garden > Kitchen & Dining > Kitchen Appliances', 'ggw', 'BBQ & Outdoor Cooking'],
+    ['Vonhaus Verona 2 Pack Zero Gravity Chair - Grey', 'Furniture > Outdoor Furniture Accessories', 'ggw', 'Garden Furniture & Outdoor Living'],
+    ['AOXUN 1800L high plastic shed with base, large garden storage box', 'Home & Garden > Lawn & Garden > Outdoor Living > Outdoor Structures > Sheds', 'ggw', 'Garden Buildings, Fencing & Storage'],
+    ['VIVREAL G40 Decorative String Lights 20M Outdoor', 'Home & Garden > Lighting', 'ggw', 'Outdoor Lighting & Garden Electrical'],
+    ['JOOAN 2K Outdoor Security Camera LAN 2.4G WiFi 360 PTZ Cam', 'Home & Garden > Business & Home Security > Security Monitors', 'hgw', 'Smart Home'],
+    ['eufy E340 2K Dual Cameras Smart Video Doorbell with Chime', 'Electronics > Networking > Network Security', 'hgw', 'Smart Home'],
+    ['WIZ Smart Plug White: Wi-Fi Connected Smart Home Device', 'Home & Garden > Lighting', 'hgw', 'Smart Home'],
+    ['eufy G50 Hybrid Robot Vacuum and Mop - 4000Pa Suction', 'Home & Garden > Household Appliances > Vacuums', 'hgw', 'Cleaning & Laundry'],
+    ['Marvel 3D Spider-man Walkie Talkies', 'Toys & Games > Toys > Educational Toys', 'kgw', 'Kids Tech'],
+    ["TABWEE K8 Kids' Tablet, 7-inch, 2GB RAM", 'Electronics > Computers > Tablet Computers', 'kgw', 'Kids Tech'],
+    ['Paw Patrol Kids Backpack School Bag', 'Luggage & Bags > Backpacks', 'kgw', 'School & Backpacks']
+  ];
+  for (const [name, cat, site, siteCategory] of cases) {
+    const r = c(name, cat);
+    assert.equal(r.site, site, name);
+    assert.equal(r.siteCategory, siteCategory, name);
+  }
+  for (const [name, cat] of [
+    ['Thermos Vacuum Insulated Flask 1L', 'Home & Garden > Kitchen & Dining'],
+    ['VTech Baby Monitor VM5467 Pan & Tilt', 'Baby & Toddler > Baby Safety'],
+    ['Festool Fan BOX-LCH FT1-L Lunch Box', 'Tool Boxes'],
+    ['Sony WH-1000XM5 Wireless Headphones', 'Electronics > Audio'],
+    ['HuaSeed - Lotus Seed 100g', 'Food, Beverages & Tobacco > Food Items'],
+    ['Ramadan Lantern Decorations for Home Set of 2', 'Home & Garden > Lighting'],
+    ['SAFE. by PanzerGlass Privacy Screen Protector iPhone 17 Air', 'Electronics > Electronics Accessories']
+  ]) assert.ok(c(name, cat).reject, `${name} must be left out`);
+});
+
+test('Coes kids and My Tool Shed garden rules', async () => {
+  const kids = (await import('../../tools/import-rules/coes-kids.mjs')).classify;
+  const k = (name, brand = '') => kids({ name, brand });
+  assert.deepEqual(k('Adidas Copa Pure 3 League Turf Junior Boots', 'Adidas'), { site: 'kgw', siteCategory: 'Shoes', subcategory: 'Football boots' });
+  assert.equal(k('Barbour Boys Liddesdale Quilted Jacket', 'Barbour').siteCategory, 'Clothing');
+  assert.equal(k('Joules Junior Wellies Pink', 'Joules').subcategory, 'Boots');
+  for (const n of ['Barbour Beaufort Wax Jacket', "Nobody's Child Layla Midi Dress", 'Failsworth Carloway Harris Tweed Baker Boy Cap']) assert.ok(k(n).reject, n);
+  const mts = (await import('../../tools/import-rules/mytoolshed-garden.mjs')).classify;
+  const g = (name, feedCategory) => mts({ name, feedCategory });
+  assert.equal(g('Draper OC1 Polyethylene Barbecue Cover', 'Garden Tools > BBQs').siteCategory, 'BBQ & Outdoor Cooking');
+  assert.equal(g('Sealey Infrared Quartz Patio Heater 240v', 'Fans & Heaters > Electric Heaters > Patio Heaters').siteCategory, 'Garden Furniture & Outdoor Living');
+  assert.equal(g('Town and Country Pyramid Log Store L', 'Garden Tools > Storage & Covers > Log Storage').siteCategory, 'Garden Buildings, Fencing & Storage');
+  assert.equal(g('Sealey Extra Slim 20w LED Floodlight', 'Garden Lighting').siteCategory, 'Outdoor Lighting & Garden Electrical');
+  for (const [n, cat] of [['Faithfull Fencing Pins', 'Hand Tools > Fencing Pins'], ['Draper Compost Tumbler', 'Composters'], ['Makita DUB184 Blower', 'Garden Tools > Outdoor Power Tools']]) assert.ok(g(n, cat).reject, n);
+});
+
+// KGW, HGW and GGW: no UNIQUE on awin_product_id, the unique key is (retailer, merchant id) (live databases, 21 Oct 2026).
+const STABLE_TABLE = `CREATE TABLE products (
+  id INTEGER PRIMARY KEY AUTOINCREMENT, awin_product_id TEXT NOT NULL, merchant_product_id TEXT, retailer TEXT NOT NULL,
+  site_category TEXT NOT NULL, subcategory TEXT, brand TEXT, product_name TEXT NOT NULL, feed_product_name TEXT, price REAL NOT NULL,
+  currency TEXT DEFAULT 'GBP', stock_status TEXT, merchant_category TEXT, image_url TEXT, affiliate_url TEXT NOT NULL, ean TEXT,
+  is_active INTEGER NOT NULL DEFAULT 1, created_at TEXT DEFAULT CURRENT_TIMESTAMP, updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+  specs_json TEXT, product_slug TEXT);
+CREATE UNIQUE INDEX ux_products_refresh_stable_key ON products(retailer, merchant_product_id)
+  WHERE merchant_product_id IS NOT NULL AND TRIM(merchant_product_id) <> '';`;
+
+test('stable-key sites (GGW/HGW/KGW): the SQL updates by retailer + merchant id and keeps the category of products already there', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'joybuy-stable-'));
+  const csv = HEAD
+    + row(1, 'eufy G50 Hybrid Robot Vacuum and Mop', 'Home & Garden > Household Appliances > Vacuums', 199)
+    + row(2, 'WIZ Smart Plug White Wi-Fi', 'Home & Garden > Lighting', 12)
+    + row(3, 'Vonhaus Barrel Charcoal Barbecue', 'Home & Garden > Kitchen & Dining > Kitchen Appliances', 69.99);
+  writeFileSync(join(dir, 'AWIN_123932_114093.csv.gz'), gzipSync(csv));
+  const out = mkdtempSync(join(tmpdir(), 'joybuy-stable-out-'));
+  const r = await planLegacyImport({ archive: dir, retailer: 'joybuy', outDir: out, now: new Date('2026-10-21T22:00:00Z') });
+  assert.equal(r.accepted.hgw.length, 2);
+  assert.equal(r.accepted.ggw.length, 1);
+  const db = new DatabaseSync(':memory:');
+  db.exec(STABLE_TABLE);
+  // The robot vacuum is already on HGW, under Home Appliances (written by the router).
+  db.prepare('INSERT INTO products (awin_product_id, merchant_product_id, retailer, site_category, subcategory, product_name, price, affiliate_url) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
+    .run('123932:10551', '10551', 'Joybuy UK', 'Home Appliances', 'Home Appliances', 'Old name', 250, 'https://www.awin1.com/old');
+  const sqlDir = join(out, 'sql', 'hgw');
+  const sql = readFileSync(join(sqlDir, readdirSync(sqlDir).filter(f => f.endsWith('.sql'))[0]), 'utf8');
+  assert.match(sql, /ON CONFLICT\(retailer, merchant_product_id\) WHERE merchant_product_id IS NOT NULL/);
+  assert.doesNotMatch(sql, /site_category=excluded/, 'keepCategory: the category of a product already there is not changed');
+  db.exec(sql);
+  db.exec(sql);
+  const rows = db.prepare("SELECT * FROM products WHERE retailer = 'Joybuy UK' ORDER BY merchant_product_id").all();
+  assert.equal(rows.length, 2, 'no duplicate after two runs');
+  assert.equal(rows[0].site_category, 'Home Appliances', 'existing product keeps its category');
+  assert.equal(rows[0].price, 199, 'existing product gets the new price');
+  assert.equal(rows[1].site_category, 'Smart Home', 'new product gets the plan category');
+  assert.equal(rows[1].merchant_product_id, '10552');
+  const ggwSql = readFileSync(join(out, 'sql', 'ggw', readdirSync(join(out, 'sql', 'ggw')).filter(f => f.endsWith('.sql'))[0]), 'utf8');
+  assert.match(ggwSql, /ON CONFLICT\(retailer, merchant_product_id\)/, 'GGW uses the same key as HGW');
 });

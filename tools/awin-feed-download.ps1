@@ -10,6 +10,9 @@
   (gzip, product columns, number of products), moves the old copy to <folder>\_old\<time>\ and only then puts the
   new one in its place. A feed that comes back with less than half the products of the old copy is NOT used.
   Nothing on the sites changes: importing is a separate step (tools/legacy-import.ps1) with its own approval.
+  -AllJoined: every programme you have joined that has a feed (instead of -Advertiser), with the copy on this PC.
+  -OnlyMissing: only feeds with no copy here, or an almost empty copy (under 20 products). -AllJoined with -Apply
+  needs -OnlyMissing, so a click never downloads every big feed at once.
 
   The Awin feed key is asked once and kept encrypted for your Windows user (DPAPI) in
   <home>\gear-world-secrets\awin-feed-key.dat. It is never written to a report, the clipboard or the repo.
@@ -17,6 +20,8 @@
 #>
 param(
     [string[]]$Advertiser = @('30645'),
+    [switch]$AllJoined,
+    [switch]$OnlyMissing,
     [switch]$Apply,
     [string]$Approve = '',
     [string]$Archive = '',
@@ -115,6 +120,19 @@ if ($list.Count -lt 1) { Say 'Η λίστα των feeds ήρθε άδεια.' '
 function Col($row, [string]$re) { foreach ($p in $row.PSObject.Properties) { if ($p.Name -match $re) { return [string]$p.Value } }; return '' }
 $joined = @($list | Where-Object { (Col $_ '(?i)membership') -match '(?i)^\s*(active|joined)\s*$' })
 Say ('Λίστα Awin: {0} feeds, {1} από προγράμματα όπου είσαι μέλος.' -f $list.Count, $joined.Count)
+if ($AllJoined) {
+    $ids = @($joined | ForEach-Object { Col $_ '(?i)^advertiser.?id$' } | Where-Object { $_ -match '^\d{2,9}$' } | Sort-Object -Unique)
+    Say ('Όλα τα προγράμματα όπου είσαι μέλος και έχουν feed: {0}' -f $ids.Count)
+    if ($Apply -and -not $OnlyMissing) { Say 'Με -AllJoined η λήψη γίνεται μόνο μαζί με -OnlyMissing (για να μην κατέβουν όλα τα μεγάλα feeds μαζί).' 'Red'; Finish 2 }
+}
+# Rows in a small local copy (an almost empty feed is treated as missing).
+function Local-Rows([string]$path) {
+    $oc = @(& node -e "const z=require('zlib'),fs=require('fs');let n=0;for(const l of z.gunzipSync(fs.readFileSync(process.argv[1])).toString('utf8').split('\n'))if(l.trim())n++;console.log(Math.max(0,n-1))" $path 2>$null)
+    $n = -1
+    [void][int]::TryParse(([string]($oc -join '')).Trim(), [ref]$n)
+    return $n
+}
+$missingList = New-Object System.Collections.Generic.List[string]
 
 $todo = New-Object System.Collections.Generic.List[object]
 foreach ($id in $ids) {
@@ -129,13 +147,30 @@ foreach ($id in $ids) {
         $last = Col $r '(?i)last.?imported'
         $local = Join-Path $Archive ('AWIN_{0}_{1}.csv.gz' -f $id, $fid)
         $localTxt = 'δεν υπάρχει'
-        if (Test-Path -LiteralPath $local) { $localTxt = (Get-Item -LiteralPath $local).LastWriteTime.ToString('yyyy-MM-dd HH:mm') }
+        $missing = $true
+        if (Test-Path -LiteralPath $local) {
+            $li = Get-Item -LiteralPath $local
+            $localTxt = $li.LastWriteTime.ToString('yyyy-MM-dd HH:mm')
+            $missing = $false
+            if ($li.Length -lt 262144) {
+                $lr = Local-Rows $local
+                if ($lr -ge 0 -and $lr -lt 20) { $missing = $true; $localTxt = ('{0}, σχεδόν άδειο ({1} προϊόντα)' -f $localTxt, $lr) }
+            }
+        }
+        $region = Col $r '(?i)region'
+        if ($missing -and $mem -match '(?i)^\s*(active|joined)\s*$') { $missingList.Add(('{0} {1} (feed {2}, {3}, προϊόντα {4})' -f $id, $name, $fid, $region, $cnt)) }
         Say ('{0} {1}, feed {2}: μέλος: {3} | προϊόντα στο Awin: {4} | ανανέωση Awin: {5} | αντίγραφο εδώ: {6}' -f $id, $name, $fid, $mem, $cnt, $last, $localTxt)
+        if ($OnlyMissing -and -not $missing) { Say '  υπάρχει εδώ: δεν ξανακατεβαίνει (-OnlyMissing).'; continue }
         if ($fid -match '^\d+$' -and $mem -match '(?i)^\s*(active|joined)\s*$') { $todo.Add(@{ id = $id; fid = $fid; name = $name; local = $local; count = $cnt }) }
         elseif ($fid -match '^\d+$') { Say '  δεν κατεβαίνει: δεν είσαι ενεργό μέλος αυτού του προγράμματος.' 'Yellow' }
     }
 }
 Say ''
+if ($missingList.Count -gt 0) {
+    Say ('Λείπουν από αυτόν τον υπολογιστή (ή είναι σχεδόν άδεια): {0} feeds' -f $missingList.Count) 'Yellow'
+    foreach ($m in $missingList) { Say ('  - ' + $m) }
+    Say ''
+}
 if ($todo.Count -eq 0) { Say 'Δεν υπάρχει feed για λήψη.' 'Yellow'; Finish 0 }
 Say ('Με -Apply: λήψη {0} feeds στο {1}. Το παλιό αντίγραφο πάει πρώτα στο _old\{2}. Τα sites δεν αλλάζουν.' -f $todo.Count, $Archive, $stamp)
 if (-not $Apply) { Say 'Μόνο ανάγνωση (χωρίς -Apply): δεν κατέβηκε τίποτα.' 'Green'; Say ('Η φράση έγκρισης: {0}' -f $Phrase); Finish 0 }

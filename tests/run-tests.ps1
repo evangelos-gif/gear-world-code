@@ -1142,6 +1142,11 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         Check (@(Get-ChildItem -LiteralPath (Join-Path $fdArch '_old') -Recurse -File -Filter 'AWIN_30645_116078.csv.gz').Count -eq 1) 'feed download: the old copy is kept in _old'
         $all = (@(Get-ChildItem -LiteralPath $fdOut -Filter '*.txt') | ForEach-Object { [System.IO.File]::ReadAllText($_.FullName) }) -join ' '
         Check (-not $all.Contains($fdKey)) 'feed download: the key is in no report'
+        Check ((Run-Fd @('-AllJoined')) -eq 0) 'feed download -AllJoined: exit 0'
+        $fdLast = [System.IO.File]::ReadAllText((@(Get-ChildItem -LiteralPath $fdOut -Filter '*.txt' | Sort-Object LastWriteTime) | Select-Object -Last 1).FullName)
+        Check ($fdLast.Contains('Όλα τα προγράμματα όπου είσαι μέλος και έχουν feed: 1') -and -not $fdLast.Contains('55555')) 'feed download -AllJoined: only joined programmes'
+        Check ($fdLast.Contains('σχεδόν άδειο')) 'feed download -AllJoined: an almost empty copy is listed as missing'
+        Check ((Run-Fd @('-AllJoined', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ FEED DOWNLOAD')) -eq 2) 'feed download -AllJoined -Apply without -OnlyMissing: refused'
     } finally {
         if ($proc -and -not $proc.HasExited) { Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue }
     }
@@ -1251,6 +1256,23 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         Check ($jUndo.Count -eq 1 -and ([System.IO.File]::ReadAllText($jUndo[0].FullName)).Contains("awin_product_id IN ('123932:10551')")) 'legacy import add-only: undo hides only the new products'
         $jRep = @(Get-ChildItem -LiteralPath $liOut -Filter 'IMPORT_JOYBUY_WGW_*.txt' -ErrorAction SilentlyContinue)
         Check ($jRep.Count -eq 1 -and -not ([System.IO.File]::ReadAllText($jRep[0].FullName)).Contains('DELETE FROM products')) 'legacy import add-only: never offers to delete the shop''s products'
+
+        # legacy-import-batch.ps1: several pairs, read-only, one report with every summary and plan.
+        $bOut = Join-Path $work 'batch-out'
+        $bAll = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', (Join-Path $repo 'tools\legacy-import-batch.ps1'), '-Pairs', 'joybuy:wgw,joybuy:mgw', '-Archive', $jArch, '-WorkDir', $liWork, '-OutDir', $bOut, '-NoClipboard')
+        if (Test-Path -LiteralPath $liCalls) { Remove-Item -LiteralPath $liCalls -Force }
+        & $exe @bAll | Out-Null
+        Check ($LASTEXITCODE -eq 0) 'import batch (read-only): exit 0'
+        $bRep = @(Get-ChildItem -LiteralPath $bOut -File -Filter 'IMPORT_BATCH_*.txt')
+        Check ($bRep.Count -eq 1) 'import batch: one combined report'
+        if ($bRep.Count -ge 1) {
+            $bt = [System.IO.File]::ReadAllText($bRep[0].FullName)
+            Check ($bt.Contains('joybuy -> WGW: exit 0') -and $bt.Contains('joybuy -> MGW: exit 0') -and $bt.Contains('##### PLAN joybuy')) 'import batch: both pairs and the plan in the report'
+        }
+        Check (-not ((LiCalls) -match '--file|time-travel')) 'import batch without -Apply: only reads'
+        $bBad = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', (Join-Path $repo 'tools\legacy-import-batch.ps1'), '-Pairs', 'joybuy:xyz', '-OutDir', $bOut, '-NoClipboard')
+        & $exe @bBad | Out-Null
+        Check ($LASTEXITCODE -eq 2) 'import batch: a wrong site is refused'
     } finally {
         $env:PATH = $oldPath
         Remove-Item Env:\GW_FAKE_STATE -ErrorAction SilentlyContinue
