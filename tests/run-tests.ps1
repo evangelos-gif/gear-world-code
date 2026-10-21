@@ -190,6 +190,23 @@ if (Get-Command node -ErrorAction SilentlyContinue) {
     & $exe -NoProfile -ExecutionPolicy Bypass -File $planTool -Archive (Join-Path $work 'no-such-folder') -OutDir $planOut -NoClipboard
     Check ($LASTEXITCODE -eq 2) 'import plan: missing archive gives exit code 2'
 
+    # gw-feed-gaps.ps1: read-only scan of every feed in the archive for the thin categories
+    $gapsTool = Join-Path (Join-Path $repo 'tools') 'gw-feed-gaps.ps1'
+    $gapsOut = Join-Path $work 'gaps'
+    & $exe -NoProfile -ExecutionPolicy Bypass -File $gapsTool -Archive $arch -OutDir $gapsOut -NoClipboard
+    Check ($LASTEXITCODE -eq 0) 'feed gaps: exit code 0'
+    $gapsReports = @(Get-ChildItem -LiteralPath $gapsOut -Filter 'GW_FEED_GAPS_*.txt' -ErrorAction SilentlyContinue)
+    Check ($gapsReports.Count -eq 1) 'feed gaps: one report written'
+    if ($gapsReports.Count -ge 1) {
+        $gr = [System.IO.File]::ReadAllText($gapsReports[0].FullName)
+        Check ($gr.Contains('Feed files: 1') -and $gr.Contains('Nothing was imported')) 'feed gaps: report lists the feed and says nothing was imported'
+    }
+    Check ((Get-FileHash -LiteralPath $gzPath -Algorithm SHA256).Hash -eq $archHash) 'feed gaps: Awin archive unchanged'
+    & $exe -NoProfile -ExecutionPolicy Bypass -File $gapsTool -Archive (Join-Path $work 'no-such-folder') -OutDir $gapsOut -NoClipboard
+    Check ($LASTEXITCODE -eq 2) 'feed gaps: missing archive gives exit code 2'
+    & $exe -NoProfile -ExecutionPolicy Bypass -File $runTool -LocalRepo $repo -Tool gw-feed-gaps -Archive $arch -OutDir (Join-Path $work 'gaps-run') -NoClipboard
+    Check ($LASTEXITCODE -eq 0 -and @(Get-ChildItem -LiteralPath (Join-Path $work 'gaps-run') -Filter '*.txt' -ErrorAction SilentlyContinue).Count -eq 1) 'feed gaps: runs through gw-run'
+
     $runOut = Join-Path $work 'plan-run'
     & $exe -NoProfile -ExecutionPolicy Bypass -File $runTool -LocalRepo $repo -Tool tgw-import-plan -Archive $arch -OutDir $runOut -NoClipboard
     Check ($LASTEXITCODE -eq 0) 'gw-run: runs a tool from a local copy'
