@@ -229,7 +229,9 @@ export async function planImport({ archive, sourcesFile, outDir, now = new Date(
 
         if (!name) { reject('no product name', short); continue; }
         if (name.length > QUALITY.maxNameLength) { reject('name too long', short); continue; }
-        const cls = classify(name, `${merchantCategory || awinCategory} ${merchantCategory ? awinCategory : ''}`.trim());
+        // Third argument: every merchant category column (leaf and full path). TGW's rules ignore it.
+        const categoryPaths = map.merchantCategory.map(i => cleanText(rec[i])).filter(Boolean).join(' | ');
+        const cls = classify(name, `${merchantCategory || awinCategory} ${merchantCategory ? awinCategory : ''}`.trim(), categoryPaths);
         if (!cls.ok) { reject(cls.reason, short); continue; }
         if (!Number.isFinite(price) || price <= 0) { reject('no price', short); continue; }
         if (price < QUALITY.minPrice || price > QUALITY.maxPrice) { reject('price out of range', short); continue; }

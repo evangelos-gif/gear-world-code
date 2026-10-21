@@ -24,9 +24,15 @@ test('AGW rules put real-looking products in the right category and keep look-al
     ['SGS 3 Tonne Long Reach Service Trolley Jack', 'Business & Industrial > Material Handling > Lifts', 'garage-tools-equipment'],
     ['VEVOR Type 2 laadkabel voor elektrische EV', 'Elektrisch > EV Chargers', 'ev-charging'],
     ['Sealey Trim Clip Removal Pliers', 'Hand Tools > Pliers > Gripping Tools > Automotive', 'garage-tools-equipment'],
-    ['NitroLift Audi A6 Avant Tailgate Gas Strut', 'Hardware > Hardware Accessories > NitroLift', 'parts-maintenance']
+    ['NitroLift Audi A6 Avant Tailgate Gas Strut', 'Hardware > Hardware Accessories > NitroLift', 'parts-maintenance'],
+    ['NitroLift Vauxhall Astra G 1998-2004 Tailgate / Boot Gas Support', 'Vehicles & Parts > Vehicle Parts & Accessories', 'parts-maintenance'],
+    ['Sealey TA201 Digital Automotive Analyser 13 Function', 'Automotive Analysers', 'diagnostics-battery'],
+    ['HG Car Windscreen De-Icer Spray 500ml', 'Vehicles & Parts > Vehicles > Motor Vehicles > Cars', 'safety-winter'],
+    ['SGS Magnetic Parts Tray', 'Vehicles & Parts/Vehicle Parts & Accessories', 'garage-tools-equipment']
   ];
   for (const [name, cat, slug] of cases) assert.equal(classify(name, cat).slug, slug, name);
+  // The full category path (third argument) decides when the leaf alone does not say garden.
+  assert.equal(classify('ALM RCJ7Y Spark Plug', 'Spark Plugs', 'Spark Plugs | Garden Tools > Spark Plugs > Garden Machinery').ok, false);
   for (const [name, cat] of [
     ['Monster Jam Rev N Roar El Toro Loco', 'Vehicles & Parts'],
     ['Maxi-Cosi Pearl 360 ISOFIX Car Seat', 'Baby & Toddler'],

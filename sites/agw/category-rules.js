@@ -20,7 +20,7 @@ const words = list => new RegExp(`(?:^|[^a-z0-9])(?:${list.join('|')})(?![a-z0-9
 const CAR_FEED = /automotive|vehicles? (?:parts|repairs|accessories)|vehicles & parts|car (?:parts|accessories|care|electronics|audio|cleaning)|motoring|automobiel|autozubeh|kfz|gas strut applications > (?:cars|vans|caravans|motorhomes)/i;
 const CAR_WORDS = words(['cars?', 'vehicles?', 'automotive', 'motoring', 'auto', 'van', 'vans', '4x4 vehicle', 'suv', 'campervan', 'motorhome', 'caravan',
   'tyres?', 'tires?', 'dash ?cams?', 'obd2?', 'obdii', 'windscreen', 'windshield', 'number plate', 'tow ?bar', 'tow ball', 'roof box', 'roof bars',
-  'ev', 'carplay', 'android auto', 'sat ?nav', 'jump starter', 'jump leads', 'wiper blades?', 'engine oil', 'spark plugs?', 'brake (?:pads|discs)',
+  'ev', 'carplay', 'android auto', 'sat ?nav', 'jump starter', 'jump leads', 'wiper blades?', 'brake (?:pads|discs)',
   'trolley jack', 'axle stands?', 'tailgate', 'bonnet', 'boot', 'dashboard', 'headlights?', 'bumper', 'alloy wheels?',
   // Dutch / German (VEVOR NL, Reidl)
   'autos', 'personenauto', 'laadkabel', 'fietsendrager', 'bandenpomp', 'acculader', 'startbooster', 'krik', 'fahrzeug', 'kfz', 'pkw', 'wagenheber', 'starthilfe']);
@@ -40,7 +40,8 @@ export const DENY = [
 export const RULES = [
   {
     slug: 'parts-maintenance', // gas struts first: "Roof Box Gas Strut", "Tailgate Gas Strut"
-    include: words(['gas struts?', 'gas springs?', 'boot struts?', 'tailgate struts?', 'bonnet struts?']),
+    include: words(['gas struts?', 'gas springs?', 'gas supports?', 'gas rams?', 'lifting rams?', '(?:boot|tailgate|bonnet|door|drop head|roof bed|spare wheel|floor|wheel mount) struts?', 'struts?']),
+    exclude: words(['compressors?', 'tools?', 'kits?', 'removers?', 'installers?', 'wrench(?:es)?', 'sockets?']),
     ctx: true // a plain "Gas Strut 200N 300mm" is for furniture or machines; one for an Audi A6 tailgate is a car part
   },
   {
@@ -50,10 +51,10 @@ export const RULES = [
   {
     slug: 'diagnostics-battery',
     include: words(['obd ?(?:ii|2)?', 'diagnostic(?:s| tool| scanner| device)?', 'code readers?', 'fault code', 'scan tool', 'battery (?:chargers?|testers?|maintainers?|conditioners?|analy[sz]ers?)', 'smart chargers?', 'trickle chargers?',
-      'jump starters?', 'jump leads', 'jump packs?', 'booster cables?', 'start(?:ing)? boosters?', 'power packs?', 'acculader', 'startbooster', 'starthilfe\\w*', 'circuit testers?', 'test lamps?', 'car batter(?:y|ies)', 'battery terminals?', 'voltage (?:protector|stabili[sz]er)', 'bordnetz']),
+      'jump starters?', 'jump leads', 'jump packs?', 'booster cables?', 'start(?:ing)? boosters?', 'power packs?', 'acculader', 'startbooster', 'starthilfe\\w*', 'circuit testers?', 'test lamps?', 'automotive analy[sz]ers?', 'automotive thermometers?', 'infrared thermometers?', 'car batter(?:y|ies)', 'battery terminals?', 'voltage (?:protector|stabili[sz]er)', 'bordnetz']),
     ctx: true,
     // Power tool batteries ("Bosch GAL 18V-160 Li-Ion Fast Battery Charger") are not car batteries.
-    exclude: words(['power stations?', 'laptop', 'phone', 'aa', 'aaa', 'drills?', 'cordless', 'li-?ion', 'lithium', '\\d+v li', 'impact drivers?', 'radios?', 'no batteries', 'trolleys?', 'torch(?:es)?'])
+    exclude: words(['laptop', 'phone', 'aa', 'aaa', 'drills?', 'cordless', 'li-?ion', 'lithium', '\\d+v li', 'impact drivers?', 'radios?', 'no batteries', 'trolleys?', 'torch(?:es)?'])
   },
   {
     slug: 'tyres-wheels',
@@ -95,11 +96,11 @@ export const RULES = [
       'spark plugs?', 'glow plugs?', 'coolant', 'antifreeze', 'screen ?wash', 'timing belts?', 'shock absorbers?', 'suspension (?:springs?|arms?|kits?)', 'exhaust (?:pipes?|clamps?|silencers?|tips?)', 'alternators?', 'starter motors?', 'clutch(?:es| kits?)?', 'fuses?', 'gaskets?', 'radiators?', 'mirror (?:glass|covers?)', 'wing mirrors?', 'fuel additives?', 'oil additives?', 'ball joints?', 'track rod ends?', 'cv boots?', 'dust covers?']),
     ctx: true,
     notInToolShop: true,
-    exclude: words(['tools?', 'kits? for', 'sockets?', 'wrench(?:es)?', 'spanners?', 'pullers?', 'gauges?', 'testers?', 'removers?', 'installers?', 'clamps? tool', 'pliers', 'extractors?', 'cleaning brush', 'bleeders?', 'wind ?back', 'spreaders?', 'keys?', 'compressors?', 'lawnmower', 'garden'])
+    exclude: words(['tools?', 'kits? for', 'sockets?', 'wrench(?:es)?', 'spanners?', 'pullers?', 'gauges?', 'testers?', 'removers?', 'installers?', 'clamps? tool', 'pliers', 'extractors?', 'cleaning brush', 'bleeders?', 'wind ?back', 'spreaders?', 'keys?', 'compressors?', 'lawnmower', 'garden', 'funnels?', 'splitters?', 'test caps?', 'adaptors?', 'couplers?', 'hooks?', 'checkers?'])
   },
   {
     slug: 'garage-tools-equipment',
-    include: words(['trolley jacks?', 'car jacks?', 'bottle jacks?', 'scissor jacks?', 'axle stands?', 'creepers?', 'car ramps?', 'ramps?', 'engine (?:hoists?|cranes?|stands?|supports?)', 'transmission jacks?', 'wheel dolly', 'socket sets?', 'torque wrench(?:es)?', 'impact wrench(?:es)?', 'breaker bars?', 'oil (?:drainers?|drain pans?|extractors?|filter wrench(?:es)?)', 'grease guns?', 'workshop', 'garage', 'mechanics?', 'inspection lamps?', 'work lights?', 'tool (?:chests?|trolleys?|boxes?|kits?)', 'compressors?', 'spark plug sockets?', 'brake (?:tools?|bleeders?|piston)', 'pullers?', 'wagenheber', 'krik']),
+    include: words(['trolley jacks?', 'car jacks?', 'bottle jacks?', 'scissor jacks?', 'axle stands?', 'creepers?', 'car ramps?', 'ramps?', 'engine (?:hoists?|cranes?|stands?|supports?)', 'transmission jacks?', 'wheel dolly', 'socket sets?', 'torque wrench(?:es)?', 'impact wrench(?:es)?', 'breaker bars?', 'oil (?:drainers?|drain pans?|extractors?|filter wrench(?:es)?)', 'grease guns?', 'workshop', 'garage', 'mechanics?', 'inspection lamps?', 'work lights?', 'tool (?:chests?|trolleys?|boxes?|kits?)', 'compressors?', 'spark plug sockets?', 'brake (?:tools?|bleeders?|piston)', 'pullers?', 'wagenheber', 'krik', 'funnels?', 'parts washers?', 'magnetic (?:trays?|holders?|hooks?)', 'gearbox support', 'splitters?', 'coolant pressure test\\w*', 'radiator (?:coupler|adaptor)\\w*', 'fuse (?:checker|puller|tester)s?']),
     ctx: true
   }
 ];
@@ -122,21 +123,23 @@ export function topCategory(feedCategory) {
   return String(feedCategory || '').split('>')[0].trim();
 }
 
-const GARDEN_FEED = /garden machinery|^\s*garden tools\b/i;
+const GARDEN_FEED = /garden machinery|(?:^|\|)\s*garden tools\b/i;
 const VEHICLE_FEED = /> motor vehicles >|snowmobiles|> vehicles > (?:motor|watercraft|aircraft)/i;
-const TOOL_WORDS = words(['pliers', 'tools?', 'tool (?:kit|set)s?', 'kits?', 'sets?', 'wrench(?:es)?', 'spanners?', 'sockets?', 'removers?', 'pullers?', 'gauges?', 'testers?', 'clamps?', 'punch(?:es)?', 'installers?', 'extractors?', 'compressors?']);
+const VEHICLE_FEED_OK = words(['de-?icers?', 'ice scrapers?', 'screenwash', 'covers?']);
+const TOOL_WORDS = words(['trays?', 'washers?', 'stands?', 'holders?', 'dispensers?', 'pliers', 'tools?', 'tool (?:kit|set)s?', 'kits?', 'sets?', 'wrench(?:es)?', 'spanners?', 'sockets?', 'removers?', 'pullers?', 'gauges?', 'testers?', 'clamps?', 'punch(?:es)?', 'installers?', 'extractors?', 'compressors?']);
 
 // A tool shop's car section (Tooled Up, My Tool Shed: "Automotive Tools > ...").
-const toolShop = feedCategory => /^automotive tools\b/i.test(String(feedCategory || '').trim());
+const toolShop = cat => /(?:^|\|)\s*automotive tools\b/i.test(String(cat || ''));
 
 // name: product name; feedCategory: merchant category path (and Awin category) as one string.
-export function classify(name, feedCategory = '') {
+// paths: every merchant category column of the row (leaf and full path), from the import tool.
+export function classify(name, feedCategory = '', paths = '') {
   const n = String(name || '');
-  const cat = String(feedCategory || '');
+  const cat = `${String(feedCategory || '')} | ${String(paths || '')}`;
   for (const d of DENY) if (d.re.test(n)) return { ok: false, reason: d.label };
   // Spark plugs and engine oil for lawnmowers, and whole vehicles (snowmobiles) listed under "Motor Vehicles".
   if (GARDEN_FEED.test(cat)) return { ok: false, reason: 'garden or farm machine' };
-  if (VEHICLE_FEED.test(cat)) return { ok: false, reason: 'a vehicle, not gear' };
+  if (VEHICLE_FEED.test(cat) && !VEHICLE_FEED_OK.test(n)) return { ok: false, reason: 'a vehicle, not gear' };
   const carFeed = CAR_FEED.test(cat);
   const ctx = carFeed || CAR_WORDS.test(n);
   const shop = toolShop(cat);
