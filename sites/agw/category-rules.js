@@ -27,7 +27,11 @@ const CAR_WORDS = words(['cars?', 'vehicles?', 'automotive', 'motoring', 'auto',
   // Dutch / German (VEVOR NL, Reidl)
   'autos', 'personenauto', 'laadkabel', 'fietsendrager', 'bandenpomp', 'acculader', 'startbooster', 'krik', 'fahrzeug', 'kfz', 'pkw', 'wagenheber', 'starthilfe']);
 
+// Head torches are sold as "LED Headlight 300 lumens": a light for the head, not a car headlight.
+const HEAD_TORCH = /(?=.*(?:^|[^a-z])headlights?(?![a-z]))(?=.*(?:^|[^a-z])(?:lumens?|beanie|hat|helmet|sensor|head ?torch|rechargeable|waterproof headlight)(?![a-z]))/i;
+
 export const DENY = [
+  { label: 'head torch, not a car light', re: HEAD_TORCH },
   { label: 'toy or model', re: words(['toys?', 'monster jam', 'hot wheels', 'die-?cast', 'scale model', 'model cars?', 'rc', 'remote control', 'lego', 'ride-?on', 'playmat', 'puzzle', 'jigsaw', 'kids', "children'?s", 'baby', 'toddler', 'infant']) },
   { label: 'child car seat (Kids\' Gear World)', re: words(['child seat', 'booster seat', 'isofix', 'i-size', 'pushchair', 'pram', 'stroller', 'travel system', 'carrycot', 'car seats? (?!covers?|protectors?|organi[sz]ers?|cushions?|gap)']) },
   { label: 'clothes, gift or home item', re: words(['t-?shirts?', 'hoodie', 'sweatshirt', 'jackets?', '(?:rain|winter|wool|puffer|parka|trench) coats?', 'dress(?:es)?', 'socks', 'pyjamas', 'mugs?', 'posters?', 'art prints?', 'books?', '(?:greeting|birthday|christmas|gift|playing) cards?', 'costume', 'bedding', 'duvet', 'pillowcase', 'hoeslaken', 'cake', 'necklace', 'cufflinks', 'keyrings?', 'diffuser', 'candle', 'cosmetic\\w*', 'cosmetica\\w*', 'make-?up', 'camping mattress', 'sleeping pads?', '(?:electric|heated) blankets?', 'double size', 'pet (?:car )?(?:safety )?belts?', 'dog (?:car )?(?:safety )?belts?']) },
@@ -74,7 +78,7 @@ export const RULES = [
     include: words(['dash ?cams?', 'dashcam', 'carplay', 'android auto', 'sat ?navs?', 'gps navigat\\w+', 'car stereos?', 'head units?', 'car radios?', 'dab (?:adapter|radio)', 'reversing cameras?', 'rear ?view cameras?', 'backup cameras?', 'parking sensors?', 'parking (?:aid|assist)', 'car chargers?', 'usb car charger', 'phone (?:holders?|mounts?|cradles?)', 'fm transmitters?', 'car (?:speakers?|amplifiers?|subwoofers?)', 'subwoofers?', 'gps trackers?', 'car (?:led|lights?) strip', 'interior (?:led|light) strip', 'car inverters?', 'power inverters?', '12v (?:sockets?|splitters?|adapters?)']),
     ctx: true,
     // "12v Car Charger for 20v Lithium Ion Batteries" charges power tool batteries, not a phone in the car.
-    exclude: words(['bumper cutter', 'cutter', 'drill', 'hole saw', 'power stations?', 'torch(?:es)?', 'batteries'])
+    exclude: words(['bumper cutter', 'cutter', 'drill', 'hole saw', 'power stations?', 'torch(?:es)?', 'batteries', 'power x-?change'])
   },
   {
     slug: 'safety-winter',
@@ -95,7 +99,7 @@ export const RULES = [
   {
     slug: 'parts-maintenance',
     include: words(['wiper blades?', 'windscreen wipers?', 'wipers?', 'bulbs?', 'h(?:1|3|4|7|11)', 'headlights?', 'tail ?lights?', 'oil filters?', 'air filters?', 'cabin filters?', 'pollen filters?', 'fuel filters?', 'engine oils?', 'motor oils?', '[05]w-?\\d{2}', 'brake (?:pads?|discs?|fluid|shoes?|calipers?)',
-      'spark plugs?', 'glow plugs?', 'coolant', 'antifreeze', 'screen ?wash', 'timing belts?', 'shock absorbers?', 'suspension (?:springs?|arms?|kits?)', 'exhaust (?:pipes?|clamps?|silencers?|tips?)', 'alternators?', 'starter motors?', 'clutch(?:es| kits?)?', 'fuses?', 'gaskets?', 'radiators?', 'mirror (?:glass|covers?)', 'wing mirrors?', 'fuel additives?', 'oil additives?', 'ball joints?', 'track rod ends?', 'cv boots?', 'dust covers?']),
+      'spark plugs?', 'glow plugs?', 'coolant', 'antifreeze', 'screen ?wash', 'timing belts?', 'shock absorbers?', 'suspension (?:springs?|arms?|kits?)', 'exhaust (?:pipes?|clamps?|silencers?|tips?)', 'alternators?', 'starter motors?', 'clutch(?:es| kits?)?', 'fuses?', 'gaskets?', 'radiators?', 'mirror (?:glass|covers?)', 'wing mirrors?', 'fuel additives?', 'oil additives?', 'ball joints?', 'track rod ends?', 'cv boots?', 'dust covers?', 'adblue', 'diesel exhaust fluid']),
     ctx: true,
     notInToolShop: true,
     exclude: words(['tools?', 'kits? for', 'sockets?', 'wrench(?:es)?', 'spanners?', 'pullers?', 'gauges?', 'testers?', 'removers?', 'installers?', 'clamps? tool', 'pliers', 'extractors?', 'cleaning brush', 'bleeders?', 'wind ?back', 'spreaders?', 'keys?', 'compressors?', 'lawnmower', 'garden', 'funnels?', 'splitters?', 'test caps?', 'adaptors?', 'couplers?', 'hooks?', 'checkers?'])
@@ -130,6 +134,13 @@ const VEHICLE_FEED = /> motor vehicles >|snowmobiles|> vehicles > (?:motor|water
 const VEHICLE_FEED_OK = words(['de-?icers?', 'ice scrapers?', 'screenwash', 'covers?']);
 const TOOL_WORDS = words(['trays?', 'washers?', 'stands?', 'holders?', 'dispensers?', 'pliers', 'tools?', 'tool (?:kit|set)s?', 'kits?', 'sets?', 'wrench(?:es)?', 'spanners?', 'sockets?', 'removers?', 'pullers?', 'gauges?', 'testers?', 'clamps?', 'punch(?:es)?', 'installers?', 'extractors?', 'compressors?']);
 
+// Tools that are only ever for cars, even without the word "car" (shops without car categories, e.g. GS Workwear):
+// "Hydraulic Spring Compressor", "Spark Plug Socket", "Flywheel Puller", "Brake Pipe Flaring Tool".
+const CAR_ONLY_TOOL = words(['coil spring compressors?', 'spring compressors?', 'spark plugs?', 'glow plugs?', 'flywheel', 'clutch', 'camshaft', 'crankshaft',
+  'cylinder head', 'timing (?:tools?|kits?|belts?|chains?)', 'brake (?:pipes?|calipers?|pistons?|bleed\\w*|discs?|pads?|shoes?|fluid)', 'oil filter',
+  'wheel (?:nuts?|bearings?|studs?)', 'hub (?:pullers?|grips?)', 'ball joints?', 'track rods?', 'tie rods?', 'cv joints?', 'gearbox', 'exhaust',
+  'injectors?', 'fuel (?:pumps?|lines?)', 'steering (?:wheel|rack|lock)', 'suspension', 'shock absorbers?', 'battery terminals?', 'alternators?']);
+
 // A tool shop's car section (Tooled Up, My Tool Shed: "Automotive Tools > ...").
 const toolShop = cat => /(?:^|\|)\s*automotive tools\b/i.test(String(cat || ''));
 
@@ -154,6 +165,8 @@ export function classify(name, feedCategory = '', paths = '') {
   }
   // Everything else in a tool shop's car section is a garage tool (pullers, brake tools, engine tools ...).
   if (shop) return { ok: true, slug: 'garage-tools-equipment' };
+  // A tool that is only ever for cars ("Hydraulic Spring Compressor", "Spark Plug Socket") is a garage tool.
+  if (CAR_ONLY_TOOL.test(n) && TOOL_WORDS.test(n)) return { ok: true, slug: 'garage-tools-equipment' };
   // A tool in a car category of the shop ("Trim Clip Removal Pliers", "Piston Ring Pliers") is a garage tool too.
   if (carFeed && TOOL_WORDS.test(n)) return { ok: true, slug: 'garage-tools-equipment' };
   return { ok: false, reason: carFeed ? 'not matched (shop says car)' : 'not car' };

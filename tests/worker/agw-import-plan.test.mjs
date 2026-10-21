@@ -125,3 +125,17 @@ test('plan: a Google Shopping feed in Downloads (GS Workwear) joins sizes, build
   assert.doesNotMatch(report, /Tooled Up \(/);
   assert.match(readFileSync(join(out, 'sql', '9999-finish.sql'), 'utf8'), /awin_advertiser_id IN \(48473\)/);
 });
+
+test('rules: car-only tools without the word car, head torches and power tool chargers', () => {
+  const at = n => { const c = classify(n, ''); return c.ok ? c.slug : 'OUT'; };
+  assert.equal(at('Draper Hydraulic Spring Compressor'), 'garage-tools-equipment');
+  assert.equal(at('Draper 3/8" Square Drive 12mm Thread Spark Plug Socket (18mm Socket)'), 'garage-tools-equipment');
+  assert.equal(at('Draper Brake Pipe Flaring Tool Kit'), 'garage-tools-equipment');
+  assert.equal(at('Lighthouse Elite Rechargeable LED Sensor Headlight 300 lumens'), 'OUT');
+  assert.equal(at('Portwest Replacement Beanie Hat Headlight'), 'OUT');
+  assert.equal(at('Einhell Power X-Change Car Charger'), 'OUT');
+  assert.equal(classify('AdBlue® Diesel Exhaust Treatment Additive 10Kg', 'Vehicles & Parts > Vehicle Parts & Accessories').slug, 'parts-maintenance');
+  assert.equal(at('Draper Expert Motorcycle Spindle Key'), 'OUT');
+  assert.equal(at('Portwest Classic Ear Protector'), 'OUT');
+  assert.equal(at('Draper Socket Set (10 Piece)'), 'OUT', 'a plain socket set is not only for cars');
+});
