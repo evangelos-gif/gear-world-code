@@ -99,7 +99,7 @@ test('preview hosts are never indexed; the real domain and local development are
 });
 
 test('search in other languages: Workers AI words are used, odd answers are not', async () => {
-  const { hubTranslation, translationsFor, AI_MODEL, AI_MODEL_2, MT_MODEL } = await import('../../src/lib/hub.js');
+  const { hubTranslation, translationsFor, AI_MODEL, AI_MODEL_2 } = await import('../../src/lib/hub.js');
   const seen = [];
   const env = { AI: { run: async (model, input) => { seen.push(model); return { response: 'sofa' }; } } };
   assert.equal(await hubTranslation(env, 'καναπές'), 'sofa');
@@ -108,21 +108,20 @@ test('search in other languages: Workers AI words are used, odd answers are not'
   assert.equal(await hubTranslation({ AI: { run: async () => { throw new Error('quota'); } } }, 'καναπές'), '');
   assert.equal(await hubTranslation(env, 'abc'), '', 'too short');
   assert.equal(await hubTranslation({}, 'καναπές'), '', 'no AI, no Hub: nothing');
-  // Next tries only when asked for (the engine stops at the first that finds products); Greek gets the translation model too.
+  // Next tries only when asked for (the engine stops at the first that finds products).
   const calls = [];
   const env3 = { AI: { run: async (model, input) => {
-    calls.push(model);
-    if (model === AI_MODEL) return { choices: [{ message: { content: 'hand saw' } }] };
-    if (model === AI_MODEL_2) return { response: 'Saw.' };
-    return { translated_text: 'saw blade' };
+    calls.push([model, input.chat_template_kwargs ? input.chat_template_kwargs.enable_thinking : 'n/a']);
+    if (model === AI_MODEL) return { choices: [{ message: { content: 'electric drill' } }] };
+    return { response: 'Drill.' };
   } } };
   const all = [];
-  for await (const c of translationsFor(env3, 'πριόνι')) all.push(c);
-  assert.deepEqual(all, ['hand saw', 'Saw', 'saw blade']);
-  assert.deepEqual(calls, [AI_MODEL, AI_MODEL_2, MT_MODEL]);
-  const latin = [];
-  for await (const c of translationsFor(env3, 'Gartenschlauch')) latin.push(c);
-  assert.equal(latin.length, 2, 'Latin letters: no translation model (the language is unknown)');
+  for await (const c of translationsFor(env3, 'τρυπάνι')) all.push(c);
+  assert.deepEqual(all, ['electric drill', 'drill'], 'the last word is tried too; the same word is not tried twice');
+  assert.deepEqual(calls, [[AI_MODEL, false], [AI_MODEL_2, 'n/a']], 'Gemma without thinking, Llama as it is');
+  // Gemma used up its answer on thinking (no content): Llama is asked.
+  const empty = { AI: { run: async (model) => (model === AI_MODEL ? { choices: [{ message: { content: null } }] } : { response: 'saw' }) } };
+  assert.equal(await hubTranslation(empty, 'πριόνι'), 'saw');
   assert.equal(await hubTranslation({ AI: { run: async () => ({ response: 'saw, hand saw, saw blade' }) } }, 'πριόνι'), 'saw', 'a list: the first words');
   assert.equal(await hubTranslation({ AI: { run: async () => ({ translated_text: 'The saw.' }) } }, 'πριόνι'), 'saw', 'no article');
   const thinking = { AI: { run: async () => ({ response: '<think>user wants a drill</think>drill' }) } };
