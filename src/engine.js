@@ -9,7 +9,7 @@ import { productPage } from './pages/product.js';
 import { comparePage, parseCompareIds } from './pages/compare.js';
 import { cartPage, parseCartItems } from './pages/cart.js';
 import { exchangeRates } from './lib/fx.js';
-import { hubTranslation } from './lib/hub.js';
+import { translationsFor } from './lib/hub.js';
 import { offersIndexPage, retailerOffersPage, OFFERS_PATH } from './pages/offers.js';
 import { findPromo } from './lib/promos.js';
 import { infoPage, infoPaths, notFoundPage, errorPage } from './pages/info.js';
@@ -180,10 +180,11 @@ export function createWorker(site) {
   async function searchWithTranslation(env, filters, opts) {
     const result = await db.listProducts(env.DB, filters, opts);
     if (!filters.search || result.total > 0 || opts.page > 1) return { result, used: '' };
-    const candidate = await hubTranslation(env, filters.search);
-    if (!candidate) return { result, used: '' };
-    const second = await db.listProducts(env.DB, { ...filters, search: candidate }, opts);
-    return second.total > 0 ? { result: second, used: candidate } : { result, used: '' };
+    for await (const candidate of translationsFor(env, filters.search)) {
+      const second = await db.listProducts(env.DB, { ...filters, search: candidate }, opts);
+      if (second.total > 0) return { result: second, used: candidate };
+    }
+    return { result, used: '' };
   }
 
   function cached(request, env, ctx, produce) {

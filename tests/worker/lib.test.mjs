@@ -99,15 +99,32 @@ test('preview hosts are never indexed; the real domain and local development are
 });
 
 test('search in other languages: Workers AI words are used, odd answers are not', async () => {
-  const { hubTranslation, AI_MODEL } = await import('../../src/lib/hub.js');
+  const { hubTranslation, translationsFor, AI_MODEL, AI_MODEL_2, MT_MODEL } = await import('../../src/lib/hub.js');
   const seen = [];
-  const env = { AI: { run: async (model, input) => { seen.push(model, input.messages[1].content); return { response: 'sofa' }; } } };
+  const env = { AI: { run: async (model, input) => { seen.push(model); return { response: 'sofa' }; } } };
   assert.equal(await hubTranslation(env, 'καναπές'), 'sofa');
-  assert.deepEqual(seen, [AI_MODEL, 'καναπές']);
+  assert.deepEqual(seen, [AI_MODEL]);
   assert.equal(await hubTranslation({ AI: { run: async () => ({ response: 'Here is: sofa\nbed' }) } }, 'καναπές'), '');
   assert.equal(await hubTranslation({ AI: { run: async () => { throw new Error('quota'); } } }, 'καναπές'), '');
   assert.equal(await hubTranslation(env, 'abc'), '', 'too short');
   assert.equal(await hubTranslation({}, 'καναπές'), '', 'no AI, no Hub: nothing');
+  // Next tries only when asked for (the engine stops at the first that finds products); Greek gets the translation model too.
+  const calls = [];
+  const env3 = { AI: { run: async (model, input) => {
+    calls.push(model);
+    if (model === AI_MODEL) return { choices: [{ message: { content: 'hand saw' } }] };
+    if (model === AI_MODEL_2) return { response: 'Saw.' };
+    return { translated_text: 'saw blade' };
+  } } };
+  const all = [];
+  for await (const c of translationsFor(env3, 'πριόνι')) all.push(c);
+  assert.deepEqual(all, ['hand saw', 'Saw', 'saw blade']);
+  assert.deepEqual(calls, [AI_MODEL, AI_MODEL_2, MT_MODEL]);
+  const latin = [];
+  for await (const c of translationsFor(env3, 'Gartenschlauch')) latin.push(c);
+  assert.equal(latin.length, 2, 'Latin letters: no translation model (the language is unknown)');
+  const thinking = { AI: { run: async () => ({ response: '<think>user wants a drill</think>drill' }) } };
+  assert.equal(await hubTranslation(thinking, 'τρυπάνι'), 'drill');
 });
 
 test('every site on the engine has the Workers AI binding for search in other languages', async () => {

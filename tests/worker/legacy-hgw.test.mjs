@@ -69,3 +69,12 @@ test('worldwide wording, own category photos and logo, and the TGW front-end fil
   }
 });
 
+
+test('an empty search tries the next translation until one finds products', async () => {
+  const { AI_MODEL } = await import('../../src/lib/hub.js');
+  const calls = [];
+  const env = { DB: fakeD1(), AI: { run: async (model) => { calls.push(model); return { response: model === AI_MODEL ? 'chainsaw' : 'air fryer' }; } } };
+  const api = await (await get(`/api/products?search=${encodeURIComponent('φριτέζα αέρος')}&limit=5`, env)).json();
+  assert.ok(api.products.length > 0 && api.products.every(p => /Air Fryer/i.test(p.product_name)));
+  assert.equal(calls.length, 2, 'the first answer found nothing, the second did, no third call');
+});
