@@ -100,6 +100,24 @@ test('first real dry run (22 Oct 2026): what was wrong now goes to the right pla
   ]) assert.equal(classify(name, cat).ok, false, name);
 });
 
+test('second dry run (22 Oct 2026): personal care with a "travel lock", instrument cases, jewellery boxes out; camping tables in', () => {
+  for (const [name, cat] of [
+    ['Ordo Hydro Sonic Water Flosser, On-Demand Mode, 3 Pressure Settings, Travel Lock, Large Tank', 'Electronics > Electronics Accessories > Power'],
+    ['Laifen P3 Men\'s Electric Shaver IPX7 Waterproof Washable, Travel Lock', 'Health & Beauty > Personal Care > Shaving & Grooming'],
+    ['BarberBoss QR-2021 Groin & Body Trimmer for Men with Travel Lock', 'Health & Beauty > Personal Care > Cosmetics'],
+    ['VEVOR Viool- en cellokoffer hard 4/4 met wielen', 'Muziekinstrumenten > Opslag van muziekinstrument > Viool- en cellokisten'],
+    ['JOYFURNOS 4-Tier Jewellery Box, Lockable Jewellery Organiser with Handle, 3 Drawers, for Travel', 'Home & Garden > Household Supplies > Storage & Organization'],
+    ['SUCOJIA 304 Stainless Steel 50-Pack Kebab Skewers Barbecue', 'Sporting Goods > Outdoor Recreation > Camping & Hiking > Camping Tools']
+  ]) assert.equal(classify(name, cat).ok, false, name);
+  for (const [name, cat, slug] of [
+    ['Ochama PP Cream White Luggage 3-Piece Set, TPE Silent Casters, TSA Lock', 'Apparel & Accessories > Shoe Accessories > Shoelaces', 'luggage-suitcases'],
+    ['VEVOR Campingkeukentafel, aluminium, opvouwbaar, draagbaar, kookstation voor buiten met BBQ', 'Sport en buitenshuis > Campinguitrusting > Kampeermeubilair', 'camping-outdoor'],
+    ['VEVOR Opvouwbare tafel Buffettafel Draagbare Multifunctionele tafel 60 x 40 cm', 'Sport en buitenshuis > Campinguitrusting > Kampeermeubilair', 'camping-outdoor'],
+    ['JOYFURNOS Pair of Portable Outdoor Chairs, Heavy Duty Folding Chairs with Built-in Cup Holder for Fishing', 'Sporting Goods > Outdoor Recreation > Camping & Hiking > Camp Furniture', 'camping-outdoor'],
+    ['Compact Travel Hair Dryer 1200W Foldable', 'Home & Garden > Bathroom', 'travel-accessories']
+  ]) assert.equal(classify(name, cat).slug, slug, name);
+});
+
 test('every site category has rules, and the menu order matches the site', () => {
   assert.deepEqual(CATEGORY_SLUGS, site.categories.map(c => c.slug));
 });

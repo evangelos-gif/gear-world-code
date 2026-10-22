@@ -34,7 +34,8 @@ export const DENY = [
   { label: 'toy, book or gift', re: words(['toys?', 'lego', 'puzzles?', 'jigsaws?', 'books?', 'guide ?books?', 'maps?', 'atlas', 'posters?', 'art prints?', 'mugs?', '(?:greeting|birthday|gift|playing|trading) cards?', 'card game', 'tcg', 'booster box', 'gift cards?', 'vouchers?', 'costumes?', 'fancy dress', 'diecast', 'scale models?', 'stickers?', 'decals?', 'watercolou?rs?', 'felt-?tip', 'pens?', 'pencils?']) },
   { label: 'a service, not a product', re: words(['insurance', 'hotel (?:stay|break|room)s?', 'flight tickets?', 'parking', 'lounge pass', 'esim', 'data plan', 'excursions?', 'tour packages?']) },
   { label: 'clothes or swimwear, not travel gear', re: words(['t-?shirts?', 'shirts?', 'hoodies?', 'sweatshirts?', 'jackets?', 'jas', 'blouson', 'coats?', 'fleece', 'dress(?:es)?', 'jeans', 'trousers', 'pants', 'leggings', 'tights', 'pyjamas', 'lingerie', 'bras?', 'knickers', '(?<!(?:flight|compression) )socks', 'underwear', 'swimsuits?', 'swimwear', 'bikinis?', 'swim(?:ming)? (?:shorts|trunks)', 'board ?shorts', 'cover-?ups?']) },
-  { label: 'gun, instrument or tool case', re: words(['pistool\\w*', 'guns?', 'gun cases?', 'rifle\\w*', 'wapen\\w*', 'kluis\\w*', 'safes?', 'gitaar\\w*', 'guitar\\w*', 'violin\\w*', 'instrument\\w*', 'tool ?(?:case|box|kit)e?s?', 'werkzeug\\w*', 'gereedschap\\w*', 'driverset', 'lager\\w*']) },
+  { label: 'gun, instrument or tool case', re: words(['pistool\\w*', 'guns?', 'gun cases?', 'rifle\\w*', 'wapen\\w*', 'kluis\\w*', 'safes?', 'gitaar\\w*', 'guitar\\w*', 'violin\\w*', 'viool\\w*', 'cello\\w*', 'contrabas\\w*', 'saxofoon\\w*', 'trompet\\w*', 'instrument\\w*', 'tool ?(?:case|box|kit)e?s?', 'werkzeug\\w*', 'gereedschap\\w*', 'driverset', 'lager\\w*']) },
+  { label: 'personal care device', re: words(['shavers?', 'razors?', 'trimmers?', 'groomers?', 'flossers?', 'epilators?', 'straighteners?', 'nail (?:drills?|files?)']) },
   { label: 'not allowed', re: words(['knife', 'knives', 'machete', 'pepper spray', 'stun gun', 'taser', 'vape', 'e-?cig\\w*', 'spy camera', 'hidden camera']) }
 ];
 
@@ -42,7 +43,7 @@ export const DENY = [
 export const RULES = [
   {
     slug: 'luggage-suitcases',
-    include: words(['suitcases?', 'luggage sets?', 'cabin (?:case|bag|luggage|suitcase|trolley|holdall|backpack)s?', 'carry[- ]on (?:case|bag|luggage|suitcase|trolley|backpack)s?', 'check(?:ed)?[- ]in (?:case|bag|luggage|suitcase)s?', 'checked luggage', 'hand luggage', 'trolley (?:case|bag)s?', 'spinner (?:case|suitcase|luggage)s?', 'wheeled (?:bag|duffel|duffle|holdall|suitcase)s?', 'rolling (?:duffel|duffle|bag|suitcase)s?', 'underseat (?:bag|case|holdall|backpack)s?', 'under seat (?:bag|case|holdall|backpack)s?', 'luggage(?=[^.]*(?:hard (?:pc )?shell|airline approved|spinner wheels))', 'reiskoffers?', 'handbagage(?:koffers?)?', 'valises?', 'maletas?', 'trolley koffers?']),
+    include: words(['suitcases?', 'luggage sets?', 'luggage \\d+[- ]?piece sets?', '\\d+[- ]?piece (?:luggage|suitcase) sets?', 'cabin (?:case|bag|luggage|suitcase|trolley|holdall|backpack)s?', 'carry[- ]on (?:case|bag|luggage|suitcase|trolley|backpack)s?', 'check(?:ed)?[- ]in (?:case|bag|luggage|suitcase)s?', 'checked luggage', 'hand luggage', 'trolley (?:case|bag)s?', 'spinner (?:case|suitcase|luggage)s?', 'wheeled (?:bag|duffel|duffle|holdall|suitcase)s?', 'rolling (?:duffel|duffle|bag|suitcase)s?', 'underseat (?:bag|case|holdall|backpack)s?', 'under seat (?:bag|case|holdall|backpack)s?', 'luggage(?=[^.]*(?:hard (?:pc )?shell|airline approved|spinner wheels))', 'reiskoffers?', 'handbagage(?:koffers?)?', 'valises?', 'maletas?', 'trolley koffers?']),
     // Accessories FOR a suitcase are not a suitcase ("Suitcase Cover", "Luggage Strap").
     exclude: words(['(?:suitcase|luggage) (?:covers?|straps?|tags?|scales?|organi[sz]ers?|belts?|trackers?)', 'packing cubes?', 'fidget', 'salad', 'mop', 'shopping trolley', 'sack trolley', 'wax', 'cosmetic (?:case|bag)s? only'])
   },
@@ -54,7 +55,7 @@ export const RULES = [
   },
   {
     slug: 'documents-security',
-    include: words(['passport (?:holders?|covers?|wallets?|cases?)', 'travel wallets?', 'document (?:holders?|wallets?|organi[sz]ers?)', 'rfid (?:wallets?|card holders?|sleeves?|blocking cards?|pouch(?:es)?)', 'money belts?', 'neck wallets?', 'hidden (?:wallet|pouch)', 'tsa (?:locks?|padlocks?)', 'luggage locks?', 'combination (?:locks?|padlocks?)', 'travel (?:locks?|padlocks?)', 'cable locks?', 'luggage trackers?', 'item trackers?', 'bluetooth trackers?', 'smart tags?', 'airtags?']),
+    include: words(['passport (?:holders?|covers?|wallets?|cases?)', 'travel wallets?', 'document (?:holders?|wallets?|organi[sz]ers?)', 'rfid (?:wallets?|card holders?|sleeves?|blocking cards?|pouch(?:es)?)', 'money belts?', 'neck wallets?', 'hidden (?:wallet|pouch)', 'tsa (?:locks?|padlocks?)', 'luggage locks?', 'combination (?:locks?|padlocks?)', 'cable locks?', 'luggage trackers?', 'item trackers?', 'bluetooth trackers?', 'smart tags?', 'airtags?']),
     ctx: true,
     exclude: words(['suitcases?', 'luggage sets?', 'backpacks?', 'rucksacks?', 'crossbody', '(?:shoulder|messenger|travel|duffel|duffle|sling) bags?'])
   },
@@ -79,14 +80,15 @@ export const RULES = [
   },
   {
     slug: 'camping-outdoor',
-    include: words(['tents?', 'koepeltent(?:en)?', 'campingtent(?:en)?', 'tunneltent(?:en)?', 'daktent(?:en)?', 'sleeping bags?', 'slaapzak(?:ken)?', 'sleeping (?:mats?|pads?)', 'camping (?:mats?|chairs?|tables?|stoves?|beds?|lanterns?|kitchens?|cookware|gas|wagons?|pegs?|blankets?)', 'campingstoel(?:en)?', 'roll mats?', 'self-?inflating (?:mats?|pads?|beds?)', 'air ?beds?', 'luchtbed(?:den)?', 'camping stoves?', 'gas stoves?', 'cook ?sets?', 'mess tins?', 'head ?torch(?:es)?', 'lanterns?', 'flashlights?', 'hammocks?', '(?:trekking|walking|hiking) poles?', 'hydration (?:packs?|bladders?|reservoirs?)', 'water filters?', 'bivvy', 'bivy', 'tarps?', 'cool ?box(?:es)?', 'compressor cooler', 'portable fridges?', 'portable power stations?', 'power stations?', 'hiking boots?', 'walking boots?', 'compass(?:es)?', 'survival (?:kits?|blankets?)', 'mosquito nets?', 'tent pegs?']),
+    include: words(['tents?', 'koepeltent(?:en)?', 'campingtent(?:en)?', 'tunneltent(?:en)?', 'daktent(?:en)?', 'sleeping bags?', 'slaapzak(?:ken)?', 'sleeping (?:mats?|pads?)', 'camping (?:mats?|chairs?|tables?|stoves?|beds?|lanterns?|kitchens?|cookware|gas|wagons?|pegs?|blankets?)', 'campingstoel(?:en)?', 'folding (?:chairs?|tables?)', 'outdoor (?:chairs?|tables?)', 'picnic tables?', 'campingkeukentafel\\w*', 'opvouwbare (?:tafel|stoel)\\w*', 'kampeer\\w*', 'roll mats?', 'self-?inflating (?:mats?|pads?|beds?)', 'air ?beds?', 'luchtbed(?:den)?', 'camping stoves?', 'gas stoves?', 'cook ?sets?', 'mess tins?', 'head ?torch(?:es)?', 'lanterns?', 'flashlights?', 'hammocks?', '(?:trekking|walking|hiking) poles?', 'hydration (?:packs?|bladders?|reservoirs?)', 'water filters?', 'bivvy', 'bivy', 'tarps?', 'cool ?box(?:es)?', 'compressor cooler', 'portable fridges?', 'portable power stations?', 'power stations?', 'hiking boots?', 'walking boots?', 'compass(?:es)?', 'survival (?:kits?|blankets?)', 'mosquito nets?', 'tent pegs?']),
     ctx: true,
     exclude: words(['spuitcabine', 'spray booth', 'paint booth', 'garage tent', 'carport', 'party tent', 'feesttent', 'kitchen stove', 'range cooker', 'wood burning stove', 'log burner', 'pruning', 'saws?', 'cycling', 'ski', 'snowboard'])
   },
   {
     slug: 'travel-accessories',
     include: words(['packing cubes?', 'compression (?:bags?|cubes?|sacks?)', 'luggage (?:tags?|straps?|scales?|covers?|organi[sz]ers?)', 'suitcase (?:covers?|straps?)', 'toiletry bags?', 'wash ?bags?', 'dopp kits?', 'travel bottles?', 'travel bottle (?:pouch|set)', 'liquids? bags?', 'travel (?:organi[sz]ers?|towels?|umbrellas?|kettles?|irons?|hair ?dryers?|mugs?|bottles?|clotheslines?|laundry bags?|shoe bags?|pill (?:boxes|cases)|jewellery (?:case|box|roll)s?|storage bags?)', 'pill box(?:es)?', 'shoe bags?', 'laundry bags?', 'microfib(?:re|er) towels?', 'quick[- ]dry towels?', 'disposable (?:bath )?towels?']),
-    ctx: true
+    ctx: true,
+    exclude: words(['\\d+-tier', 'drawers?', 'jewellery box(?:es)?'])
   }
 ];
 
@@ -109,7 +111,7 @@ export function topCategory(feedCategory) {
 }
 
 // Things in a camping section that are not camping gear (Joybuy "Camping Tools" also holds kebab skewers).
-const CAMPING_SECTION_NO = words(['skewers?', 'kebab', 'bbq', 'barbecue', 'grill', 'knife', 'knives', 'axes?', 'hatchets?', 'saws?', 'fishing', 'golf', 'cycling', 'ski', 'snowboard', 'skateboard', 'helmets?', 'shoes', 'boots(?<!hiking boots|walking boots)']);
+const CAMPING_SECTION_NO = words(['skewers?', 'kebab', 'grill (?:baskets?|pans?|tools?|gloves)', 'bbq (?:tools?|skewers?|gloves|tool set)', 'knife', 'knives', 'axes?', 'hatchets?', 'saws?', 'fishing', 'golf', 'cycling', 'ski', 'snowboard', 'skateboard', 'helmets?', 'shoes', 'boots(?<!hiking boots|walking boots)']);
 
 // name: product name; feedCategory: merchant category path (and Awin category) as one string.
 // paths: every merchant category column of the row (leaf and full path), from the import tool.
