@@ -242,6 +242,13 @@ if (Get-Command node -ErrorAction SilentlyContinue) {
     Check ($cars.Count -eq 1) 'car feed scan: report folder written'
     if ($cars.Count -ge 1) { Check ([System.IO.File]::ReadAllText((Join-Path $cars[0].FullName 'report.txt')).Contains('Retailers in the archive: 1')) 'car feed scan: reads the archive' }
     Check ((Get-FileHash -LiteralPath $gzPath -Algorithm SHA256).Hash -eq $archHash) 'car feed scan: Awin archive unchanged'
+    $travelOut = Join-Path $work 'travel-scan-run'
+    & $exe -NoProfile -ExecutionPolicy Bypass -File $runTool -LocalRepo $repo -Tool travel-feed-scan -Archive $arch -OutDir $travelOut -KeyFile (Join-Path $work 'no-key.dat') -NoClipboard | Out-Null
+    Check ($LASTEXITCODE -eq 0) 'travel feed scan: exit code 0 through gw-run, without a saved key'
+    $travels = @(Get-ChildItem -LiteralPath $travelOut -Directory -Filter 'TRAVEL_FEED_SCAN_*' -ErrorAction SilentlyContinue)
+    Check ($travels.Count -eq 1) 'travel feed scan: report folder written'
+    if ($travels.Count -ge 1) { Check ([System.IO.File]::ReadAllText((Join-Path $travels[0].FullName 'report.txt')).Contains('Retailers in the archive: 1')) 'travel feed scan: reads the archive' }
+    Check ((Get-FileHash -LiteralPath $gzPath -Algorithm SHA256).Hash -eq $archHash) 'travel feed scan: Awin archive unchanged'
     $agwOut = Join-Path $work 'agw-plan-run'
     & $exe -NoProfile -ExecutionPolicy Bypass -File $runTool -LocalRepo $repo -Tool agw-import-plan -Archive $arch -OutDir $agwOut -NoClipboard | Out-Null
     Check ($LASTEXITCODE -eq 0) 'agw import plan: exit code 0 through gw-run'
