@@ -197,6 +197,16 @@ if ($exists) {
 New-Item -ItemType Directory -Path $Target -Force | Out-Null
 $count = Copy-App $source $Target
 Say ('Αντιγράφηκαν {0} αρχεία στο {1}' -f $count, $Target) 'Green'
+if ($exists) {
+    # Keep the link to the Expo project (extra.eas.projectId, written by 'eas init' on this PC, not kept in the public repo).
+    $oldJson = Join-Path $backup 'app.json'
+    $newJson = Join-Path $Target 'app.json'
+    if ((Test-Path -LiteralPath $oldJson) -and (Get-Command node -ErrorAction SilentlyContinue)) {
+        $js = "const fs=require('fs');const [o,n]=process.argv.slice(1);const a=JSON.parse(fs.readFileSync(o,'utf8'));const b=JSON.parse(fs.readFileSync(n,'utf8'));const id=a.expo&&a.expo.extra&&a.expo.extra.eas&&a.expo.extra.eas.projectId;if(!id){console.log('none');process.exit(0)}b.expo.extra=b.expo.extra||{};b.expo.extra.eas=Object.assign({},b.expo.extra.eas,{projectId:id});fs.writeFileSync(n,JSON.stringify(b,null,2)+'\n');console.log('kept')"
+        $r = & node -e $js $oldJson $newJson
+        if ("$r" -eq 'kept') { Say 'Η σύνδεση με το έργο Expo κρατήθηκε (projectId).' 'Green' }
+    }
+}
 
 # 5. Packages
 if (-not $SkipInstall) {
