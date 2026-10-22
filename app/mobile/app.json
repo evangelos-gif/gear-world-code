@@ -1,0 +1,51 @@
+{
+  "expo": {
+    "name": "Gear World",
+    "slug": "gear-world",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/brand/icon.png",
+    "scheme": "gearworld",
+    "userInterfaceStyle": "dark",
+    "backgroundColor": "#08111F",
+    "ios": {
+      "bundleIdentifier": "com.gearworldhub.app",
+      "buildNumber": "1",
+      "supportsTablet": false,
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    },
+    "android": {
+      "package": "com.gearworldhub.app",
+      "versionCode": 1,
+      "adaptiveIcon": {
+        "backgroundColor": "#030A1F",
+        "foregroundImage": "./assets/brand/adaptive-foreground.png",
+        "backgroundImage": "./assets/brand/adaptive-background.png",
+        "monochromeImage": "./assets/brand/adaptive-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "output": "single",
+      "favicon": "./assets/brand/favicon.png"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#030A1F",
+          "image": "./assets/brand/splash-icon.png",
+          "imageWidth": 220
+        }
+      ],
+      "expo-localization"
+    ],
+    "experiments": {
+      "typedRoutes": true,
+      "reactCompiler": true
+    }
+  }
+}

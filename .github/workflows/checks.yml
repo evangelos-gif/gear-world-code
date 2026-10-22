@@ -58,3 +58,28 @@ jobs:
             layout-shots/
             dev.log
           if-no-files-found: ignore
+
+  gear-world-app:
+    name: Gear World app (Expo)
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: app/mobile
+    env:
+      EXPO_NO_TELEMETRY: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci --no-audit --no-fund
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Unit tests (languages, Hub and site API parsing)
+        run: npm test
+      - name: Expo doctor
+        run: npx --yes expo-doctor
+      - name: Android and iOS bundles build
+        run: |
+          npx expo export --platform android --output-dir ../../app-dist-android
+          npx expo export --platform ios --output-dir ../../app-dist-ios

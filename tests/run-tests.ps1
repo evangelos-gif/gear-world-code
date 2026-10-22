@@ -515,6 +515,23 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
     }
 }
 
+# 9. gw-app-dev.ps1: copies the app to a new folder (read-only without -Apply and the phrase). Install and start are skipped here.
+Write-Host 'gw-app-dev.ps1'
+$adTool = Join-Path $repo 'tools\gw-app-dev.ps1'
+$adTarget = Join-Path (Join-Path $work 'gear-world-app') 'mobile'
+$adOut = Join-Path $work 'ad-out'
+function Run-Ad([string[]]$a) {
+    $all = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $adTool, '-Target', $adTarget, '-OutDir', $adOut, '-SkipNodeCheck', '-SkipInstall', '-NoStart', '-NoClipboard') + $a
+    & $exe @all | Out-Null
+    return $LASTEXITCODE
+}
+Check ((Run-Ad @()) -eq 0 -and -not (Test-Path -LiteralPath $adTarget)) 'app dev check: nothing written'
+Check ((Run-Ad @('-Apply', '-Approve', 'yes')) -eq 1 -and -not (Test-Path -LiteralPath $adTarget)) 'app dev wrong phrase: nothing written'
+Check ((Run-Ad @('-Apply', '-Approve', 'EGKRINO GEAR WORLD APP SETUP')) -eq 0) 'app dev with approval: exit 0'
+Check ((Test-Path -LiteralPath (Join-Path $adTarget 'package.json')) -and (Test-Path -LiteralPath (Join-Path $adTarget 'package-lock.json')) -and (Test-Path -LiteralPath (Join-Path $adTarget 'src\app\index.tsx')) -and -not (Test-Path -LiteralPath (Join-Path $adTarget 'node_modules'))) 'app dev: app code copied, without node_modules'
+Check ((Run-Ad @('-Apply', '-Approve', 'ΕΓΚΡΙΝΩ GEAR WORLD APP SETUP')) -eq 0 -and @(Get-ChildItem -LiteralPath (Join-Path (Join-Path $work 'gear-world-app') 'backups') -Directory -Filter 'mobile-*' -ErrorAction SilentlyContinue).Count -eq 1) 'app dev: existing folder moved to backup first'
+Check ((Run-Ad @('-StartOnly')) -eq 2) 'app dev start-only: refuses when packages are not installed'
+
 Remove-Item -LiteralPath $work -Recurse -Force -ErrorAction SilentlyContinue
 
 Write-Host ''
