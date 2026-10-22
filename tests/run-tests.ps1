@@ -429,6 +429,31 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
     }
 }
 
+# 7. gw-app-brand.ps1: copies the app brand pack to a new folder (read-only without -Apply and the phrase)
+Write-Host 'gw-app-brand.ps1'
+$brandTool = Join-Path (Join-Path $repo 'tools') 'gw-app-brand.ps1'
+$brandTarget = Join-Path (Join-Path $work 'gear-world-app') 'brand'
+$brandOut = Join-Path $work 'brand-out'
+$brandSrc = Join-Path (Join-Path $repo 'app') 'brand'
+$srcCount = @(Get-ChildItem -LiteralPath $brandSrc -Recurse -File).Count
+Check ($srcCount -ge 40) 'brand pack: at least 40 files in app/brand'
+foreach ($rel in @('ios/AppIcon-1024.png', 'android/play-store-icon-512.png', 'android/play-feature-graphic-1024x500.png', 'expo/icon.png', 'expo/adaptive-icon.png', 'splash/splash-1284x2778.png', 'svg/icon-1024.svg')) {
+    Check (Test-Path -LiteralPath (Join-Path $brandSrc $rel)) ('brand pack has ' + $rel)
+}
+& $exe -NoProfile -ExecutionPolicy Bypass -File $brandTool -Target $brandTarget -OutDir $brandOut -NoClipboard -NoOpen
+Check ($LASTEXITCODE -eq 0 -and -not (Test-Path -LiteralPath $brandTarget)) 'brand: check only, nothing written'
+& $exe -NoProfile -ExecutionPolicy Bypass -File $brandTool -Target $brandTarget -OutDir $brandOut -NoClipboard -NoOpen -Apply -Approve 'ΕΓΚΡΙΝΩ ΚΑΤΙ ΑΛΛΟ'
+Check ($LASTEXITCODE -eq 4 -and -not (Test-Path -LiteralPath $brandTarget)) 'brand: wrong phrase changes nothing'
+& $exe -NoProfile -ExecutionPolicy Bypass -File $brandTool -Target $brandTarget -OutDir $brandOut -NoClipboard -NoOpen -Apply -Approve 'ΕΓΚΡΙΝΩ GEAR WORLD APP LOGO'
+Check ($LASTEXITCODE -eq 0 -and @(Get-ChildItem -LiteralPath $brandTarget -Recurse -File).Count -eq $srcCount) 'brand: pack copied with the phrase'
+$sampleSrc = (Get-FileHash -LiteralPath (Join-Path $brandSrc 'ios/AppIcon-1024.png') -Algorithm SHA256).Hash
+$sampleDst = (Get-FileHash -LiteralPath (Join-Path $brandTarget 'ios/AppIcon-1024.png') -Algorithm SHA256).Hash
+Check ($sampleSrc -eq $sampleDst) 'brand: copied files are identical'
+& $exe -NoProfile -ExecutionPolicy Bypass -File $brandTool -Target $brandTarget -OutDir $brandOut -NoClipboard -NoOpen -Apply -Approve 'ΕΓΚΡΙΝΩ GEAR WORLD APP LOGO'
+$brandBackups = @(Get-ChildItem -LiteralPath (Join-Path (Join-Path $work 'gear-world-app') 'backups') -Directory -ErrorAction SilentlyContinue)
+Check ($LASTEXITCODE -eq 0 -and $brandBackups.Count -eq 1) 'brand: existing folder moved to backup first'
+Check (@(Get-ChildItem -LiteralPath $brandOut -Filter 'GW_APP_BRAND_*.txt').Count -ge 1) 'brand: report written'
+
 Remove-Item -LiteralPath $work -Recurse -Force -ErrorAction SilentlyContinue
 
 Write-Host ''
