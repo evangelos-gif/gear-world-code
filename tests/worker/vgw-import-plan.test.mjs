@@ -51,6 +51,55 @@ test('VGW rules keep look-alikes out: baby travel gear, travel-size cosmetics, p
   ]) assert.equal(classify(name, cat).ok, false, name);
 });
 
+test('first real dry run (22 Oct 2026): what was wrong now goes to the right place or stays out', () => {
+  const SHOE = 'Apparel & Accessories > Shoe Accessories > Shoelaces'; // where Joybuy files its suitcases
+  const ok = [
+    ['Kono 28 Inch Expandable ABS+PC Hard Shell Large Suitcase with TSA Lock and Silent Spinner Wheels', SHOE, 'luggage-suitcases'],
+    ['Kono 20 Inch Zipperless Aluminium Frame PC Hard Shell Cabin Suitcase with TSA Lock, Cup Holder', SHOE, 'luggage-suitcases'],
+    ['Kono 40x20x25cm Ryanair Under Seat Holdall, 20L Lightweight Cabin Hand Luggage for Travel', SHOE, 'luggage-suitcases'],
+    ['NINETYGO Danube Luggage, 100% Hard PC Shell, Airline Approved, Ideal for 5-7 Day Trips', SHOE, 'luggage-suitcases'],
+    ['Kono Foldable Rolling Duffel Bag with Wheels and Telescopic Handle, 55L Carry On Trolley', SHOE, 'luggage-suitcases'],
+    ['KONO Women\'s Lightweight Multi-Pocket Crossbody Bag with RFID Protection for Travel', 'Apparel & Accessories > Clothing > Underwear & Socks', 'travel-bags-backpacks'],
+    ['PELLIOT Outdoor Hiking Lightweight Rucksack Backpack Travel Backpack Black', 'Sporting Goods > Outdoor Recreation > Cycling', 'travel-bags-backpacks'],
+    ['Kono 6-Piece Packing Cubes Set, Travel Luggage Organiser Bags with Mesh Top', 'Home & Garden > Household Supplies > Storage', 'travel-accessories'],
+    ['JORDAN&JUDY 4-Fold Travel Toiletry Bag, 1pc, Green-Pink Stripe', 'Home & Garden > Household Supplies > Storage', 'travel-accessories'],
+    ['Mobi Garden, Press-to-Inflate U-Shaped Neck Pillow, Soft Comfortable Travel Pillow', 'Sporting Goods > Outdoor Recreation > Camping & Hiking > Camp Furniture', 'comfort-sleep'],
+    ['toocki Universal Travel Adapter 45W PD Fast Charger Adapter - International Power', 'Electronics > Electronics Accessories > Cables', 'travel-tech'],
+    ['SJCAM C400 Pocket Action Camera 4K Video for Travel and Vlogging', 'Cameras & Optics > Cameras > Digital Cameras', 'travel-tech'],
+    ['VEVOR Koepeltent 4 personen camping waterdicht', 'Sport en buitenshuis > Campinguitrusting > Tenten > Campingtenten', 'camping-outdoor'],
+    ['Milestone Camping Tent Pegs Heavy Duty Ripple Angled 10pcs', 'Sporting Goods > Outdoor Recreation > Camping & Hiking > Tent Accessories', 'camping-outdoor'],
+    ['DJI Power 1000 Portable Power Station, 1024Wh LiFePO4 Battery', 'Sporting Goods > Outdoor Recreation > Camping & Hiking > Camping Tools', 'camping-outdoor'],
+    ['PELLIOT Waterproof Bag Unisex Dry Bag Storage Water Sports for Beach and Hiking', 'Sporting Goods > Outdoor Recreation > Boating & Water Sports', 'beach-holiday'],
+    ['TOP-EX Women\'s Wide Brim Bucket Sun Hat Summer Packable Sunhat for Beach', 'Apparel & Accessories > Clothing Accessories > Hats', 'beach-holiday']
+  ];
+  for (const [name, cat, slug] of ok) assert.equal(classify(name, cat).slug, slug, name);
+  for (const [name, cat] of [
+    ['Korean Pokémon Trading Card Game (TCG) Ninja Spinner Booster Box', 'Toys & Games > Games > Card Games'],
+    ['Faber-Castell Connector Felt-Tip Pen Suitcase', 'Office Supplies > Office Instruments'],
+    ['PELLIOT Hard shell jacket Black M Unisex Camping Travel Waterproof Durable', 'Apparel & Accessories > Clothing > Outerwear'],
+    ['Turtle Wax Original Car Wax Super Hard Shell Finish Spray 500ml', 'Vehicles & Parts > Vehicle Parts & Accessories'],
+    ['VEVOR Pistoolkluis met vingerafdruk, draagbare koffer', 'Hulpmiddelen > Veiligheid en beveiliging > Kluizen > Pistoolkluizen'],
+    ['VEVOR Gitaar harde koffer voor elektrische gitaar', 'Muziekinstrumenten > Opslag van muziekinstrument > Gitaar harde kast'],
+    ['VEVOR Lager- en afdichtingsdriverset in koffer', 'Automobiel > Mechanics Tools > Lager- en afdichtingsdriverset'],
+    ['VEVOR Opblaasbare Spuitcabine Tent 8x4.5x3m', 'Verf > Verfbenodigdheden > Opblaasbare spuitcabine'],
+    ['MISSADOLA Beach Swim Vacation Two-Piece Swimsuit Blue S', 'Sporting Goods > Outdoor Recreation > Boating & Water Sports'],
+    ['Always Discreet Incontinence Pants Women L 7 Pants', 'Home & Garden > Linens & Bedding > Towels > Beach Towels'],
+    ['Always Ultra Sanitary Towels with Wings Size 3 Long Plus 9 Pads', 'Home & Garden > Linens & Bedding > Towels > Beach Towels'],
+    ['Harry Potter Officially Licensed Stickers Pack Waterproof PVC Vinyl Decals for Luggage', 'Toys & Games > Toys > Art & Drawing Toys'],
+    ['SK-II PITERA Beauty Travel Kit - 9 Items (Essence, Lotion, Cleanser, Cream, Mask)', 'Health & Beauty > Personal Care > Cosmetics'],
+    ['Artiste Watercolour Travel Kit - 12 Colours with Water Brush', 'Office Supplies > Office Instruments'],
+    ['Summer Cooler Bag Insulated Lunch Backpack for Women Men 15.6-Inch Laptop and Travel Bag', 'Home & Garden > Kitchen & Dining > Food & Beverage Carriers'],
+    ['UTRAI 7000A Jump Starter Powerbank, 12V Car Jump Starter with Air Pump for Travel', 'Vehicles & Parts > Vehicle Parts & Accessories'],
+    ['JOYFURNOS Ink Black Long Foldable Storage Ottoman, Foot Rest for Travel', 'Furniture > Ottomans'],
+    ['FLORA GUARD ZDJ-1 7.7 INCH Folding Hand Saw, Camping/Pruning Saw', 'Home & Garden > Lawn & Garden > Gardening'],
+    ['SUCOJIA 304 Stainless Steel 50-Pack Kebab Skewers Barbecue', 'Sporting Goods > Outdoor Recreation > Camping & Hiking > Camping Tools'],
+    ['ECOODA Carbon Sea Bass Rod, Freshwater Fishing Rod', 'Sporting Goods > Outdoor Recreation > Fishing'],
+    ['VEVOR Verwarmde Fleecejas voor Dames, 7,4V 16000mAh Oplaadbare powerbank', 'Werkkleding > Verwarmde kleding en uitrusting'],
+    ['Oral-B iO6 Electric Toothbrush, Travel Case, 5 Modes, App Guidance, AI Tracker', 'Health & Beauty > Personal Care > Oral Care'],
+    ['Turtle Beach Stealth 500 Wireless Gaming Headset for Xbox & PC - Arctic Camo', 'Electronics > Audio > Headphones']
+  ]) assert.equal(classify(name, cat).ok, false, name);
+});
+
 test('every site category has rules, and the menu order matches the site', () => {
   assert.deepEqual(CATEGORY_SLUGS, site.categories.map(c => c.slug));
 });
