@@ -93,7 +93,7 @@
 
 | Αρχείο | Pexels |
 |---|---|
-| hero-1920.webp, hero-960.webp, og-image.png (φόντο) | https://www.pexels.com/photo/unrecognizable-woman-with-suitcase-walking-near-airport-terminal-3885529/ |
+| hero-1920.webp, hero-960.webp, og-image.png (φόντο), tools/assets/hub-vgw.jpg (κάρτα στο hub) | https://www.pexels.com/photo/unrecognizable-woman-with-suitcase-walking-near-airport-terminal-3885529/ |
 | cat-luggage-suitcases.webp | https://www.pexels.com/photo/photo-of-a-packed-suitcase-8212231/ |
 | cat-travel-bags-backpacks.webp | https://www.pexels.com/photo/backpack-with-neck-pillow-and-travel-bag-lying-on-ground-25210705/ |
 | cat-travel-accessories.webp | https://www.pexels.com/photo/a-person-putting-folded-clothes-on-pouch-9186174/ |

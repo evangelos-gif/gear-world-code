@@ -56,6 +56,7 @@
 | `tools/vgw-import-plan.ps1` | Travel Gear World: δείχνει ποια προϊόντα των feeds θα έμπαιναν στο VGW και σε ποια κατηγορία (σχέδιο δοκιμής, γράφει SQL χωρίς να το τρέχει) | 🟢 Όχι |
 | `tools/vgw-cloudflare.ps1` | Βήματα Cloudflare του Travel Gear World: έλεγχος, D1, δοκιμαστική διεύθυνση, φόρτωση προϊόντων, σύνδεση travelgearworld.com, ενημέρωση | 🟢 `check` όχι · 🔴 τα άλλα μόνο με `-Apply` και φράση `ΕΓΚΡΙΝΩ VGW ...` |
 | `tools/gwh-agw-link.ps1` | Βάζει το Car Gear World στο Gear World Hub ως 8ο site (κάρτα στην αρχική σε 11 γλώσσες και γραμμή στη λίστα sites της D1 του hub), μετά το TGW | 🟢 χωρίς `-Apply` μόνο ελέγχει · 🔴 με `-Apply` και `ΕΓΚΡΙΝΩ AGW HUB LINK`, με backup και σημείο επαναφοράς πρώτα |
+| `tools/gwh-vgw-link.ps1` | Βάζει το Travel Gear World στο Gear World Hub ως 9ο site (κάρτα στην αρχική σε 11 γλώσσες και γραμμή στη λίστα sites της D1 του hub), μετά το AGW | 🟢 χωρίς `-Apply` μόνο ελέγχει · 🔴 με `-Apply` και `ΕΓΚΡΙΝΩ VGW HUB LINK`, με backup και σημείο επαναφοράς πρώτα |
 | `tools/gw-run.ps1` | Κατεβάζει μία κλειδωμένη έκδοση του repo και τρέχει ένα εργαλείο από αυτήν | 🟢 Όχι (μόνο αρχεία στο %TEMP%) |
 | `tools/qa-gate.mjs`, `tools/layout-check.mjs` | Έλεγχοι ποιότητας ενός site (τρέχουν και αυτόματα σε κάθε αλλαγή). Το layout check ελέγχει και σε άλλη γλώσσα και νόμισμα (`--lang de-DE --currency RUB`) | 🟢 Όχι |
 | `tools/i18n-check.mjs` | Ανοίγει κάθε σελίδα σε κάθε μία από τις 10 γλώσσες και βρίσκει κείμενα χωρίς μετάφραση | 🟢 Όχι |
