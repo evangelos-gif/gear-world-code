@@ -15,6 +15,12 @@
     }
   },
   "submit": {
-    "production": {}
+    "production": {
+      "ios": {
+        "appName": "Gear World",
+        "language": "en-GB",
+        "sku": "gear-world-app"
+      }
+    }
   }
 }

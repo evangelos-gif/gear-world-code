@@ -542,11 +542,14 @@ if ($isWin) {
     $adState = Join-Path $work 'ad-state'
     New-Item -ItemType Directory -Path $adBin, $adState, (Join-Path $adTarget 'node_modules') -Force | Out-Null
     $fakeBuildId = [guid]::NewGuid().ToString()
+    $fakeIosId = [guid]::NewGuid().ToString()
     $fakeEas = @(
         '@echo off',
         'echo %* >> "%GW_FAKE_STATE%\calls.log"',
         'echo %* | findstr /C:"whoami" >nul && goto whoami',
         'echo %* | findstr /C:"build --platform android --profile preview" >nul && goto build',
+        'echo %* | findstr /C:"build --platform ios --profile production --auto-submit" >nul && goto ios',
+        'echo %* | findstr /C:"build:list --platform ios" >nul && goto ioslist',
         'echo unknown command 1>&2',
         'exit /b 1',
         ':whoami',
@@ -556,6 +559,13 @@ if ($isWin) {
         ':build',
         'if not "%EAS_NO_VCS%"=="1" exit /b 7',
         ('echo [{"id":"' + $fakeBuildId + '","platform":"ANDROID","status":"NEW"}]'),
+        'exit /b 0',
+        ':ios',
+        'if not "%EAS_NO_VCS%"=="1" exit /b 7',
+        'echo Build queued',
+        'exit /b 0',
+        ':ioslist',
+        ('echo [{"id":"' + $fakeIosId + '","platform":"IOS","status":"IN_QUEUE"}]'),
         'exit /b 0'
     ) -join "`r`n"
     [System.IO.File]::WriteAllText((Join-Path $adBin 'npx.cmd'), $fakeEas + "`r`n", [System.Text.Encoding]::ASCII)
@@ -575,6 +585,12 @@ if ($isWin) {
         Check ((Run-Ad @('-BuildApk', '-BuildApprove', 'EGKRINO GEAR WORLD APP BUILD')) -eq 0) 'app build with approval: exit 0'
         Check ((AdCalls) -match 'eas-cli@latest build --platform android --profile preview --non-interactive --no-wait --json') 'app build: preview APK only, no store submit'
         Check (-not ((AdCalls) -match 'submit|production')) 'app build: never submits to a store'
+        Check ((Run-Ad @('-BuildIos', '-IosApprove', 'wrong')) -eq 1 -and -not ((AdCalls) -match 'platform ios')) 'iPhone build wrong phrase: nothing sent'
+        Check ((Run-Ad @('-BuildIos', '-IosApprove', 'ΕΓΚΡΙΝΩ GEAR WORLD IOS TESTFLIGHT')) -eq 0) 'iPhone build with approval: exit 0'
+        Check ((AdCalls) -match 'build --platform ios --profile production --auto-submit --no-wait') 'iPhone build: production build that goes to TestFlight'
+        Check (-not ((AdCalls) -match 'platform ios[^\r\n]*--non-interactive --no-wait')) 'iPhone build: interactive, so the Apple sign-in happens in the window'
+        $iosRep = @(Get-ChildItem -LiteralPath $adOut -Filter 'GW_APP_DEV_*.txt' | Sort-Object LastWriteTime | Select-Object -Last 1)
+        Check ($iosRep.Count -eq 1 -and ([System.IO.File]::ReadAllText($iosRep[0].FullName)).Contains('builds/' + $fakeIosId) -and ([System.IO.File]::ReadAllText($iosRep[0].FullName)).Contains('TestFlight')) 'iPhone build: report has the build link and the TestFlight steps'
         $adRep = @(Get-ChildItem -LiteralPath $adOut -Filter 'GW_APP_DEV_*.txt' | Sort-Object LastWriteTime | Select-Object -Last 1)
         Check ($adRep.Count -eq 1 -and ([System.IO.File]::ReadAllText($adRep[0].FullName)).Contains('https://expo.dev/accounts/gear-world/projects/gear-world/builds/' + $fakeBuildId)) 'app build: report has the link to the build'
     } finally {

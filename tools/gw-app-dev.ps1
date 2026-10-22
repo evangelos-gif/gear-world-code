@@ -18,6 +18,9 @@
   -BuildApk with the phrase ΕΓΚΡΙΝΩ GEAR WORLD APP BUILD (-BuildApprove) starts a test APK build in the Expo cloud
     (EAS Build, profile "preview", account in app.json) and reports the link to install it on the phone.
     Nothing is sent to Google Play or the App Store. Works together with -Apply (fresh copy first) or on its own.
+  -BuildIos with the phrase ΕΓΚΡΙΝΩ GEAR WORLD IOS TESTFLIGHT (-IosApprove) builds the iPhone app in the Expo cloud
+    (profile "production") and uploads it to TestFlight, Apple's private testing area (not the public App Store).
+    It asks in this window for the Apple account sign-in and the 2FA code; they are never written to the report.
   The phone connects through an ngrok tunnel (works on any network). -Lan uses the local Wi-Fi instead.
 
   Report: <home>\gear-world-reports\GW_APP_DEV_<time>.txt (also copied to the clipboard)
@@ -29,6 +32,8 @@ param(
     [switch]$StartOnly,
     [switch]$BuildApk,
     [string]$BuildApprove = '',
+    [switch]$BuildIos,
+    [string]$IosApprove = '',
     [switch]$Lan,
     [string]$Target = '',
     [string]$OutDir = '',
@@ -43,6 +48,7 @@ $repo = Split-Path -Parent $PSScriptRoot
 $Phrase = 'ΕΓΚΡΙΝΩ GEAR WORLD APP SETUP'
 $NodePhrase = 'ΕΓΚΡΙΝΩ NODE LTS'
 $BuildPhrase = 'ΕΓΚΡΙΝΩ GEAR WORLD APP BUILD'
+$IosPhrase = 'ΕΓΚΡΙΝΩ GEAR WORLD IOS TESTFLIGHT'
 $source = Join-Path (Join-Path $repo 'app') 'mobile'
 if (-not $Target) { $Target = Join-Path (Join-Path $HOME 'gear-world-app') 'mobile' }
 if (-not $OutDir) { $OutDir = Join-Path $HOME 'gear-world-reports' }
@@ -147,15 +153,28 @@ function Read-AppJson([string]$dir) {
     try { return ([System.IO.File]::ReadAllText($f) | ConvertFrom-Json).expo } catch { return $null }
 }
 
-# Test APK in the Expo cloud (EAS Build, profile "preview"). Approval is checked by the caller.
-function Build-Apk([string]$dir) {
-    Say ''
-    Say 'Νέο APK για δοκιμή (EAS Build, προφίλ preview).' 'Cyan'
+# The Expo project of the app folder: owner and slug from app.json; stops if the link to Expo (projectId) is missing.
+function Get-EasProject([string]$dir) {
     $app = Read-AppJson $dir
     $projectId = ''
     if ($app -and $app.extra -and $app.extra.eas) { $projectId = [string]$app.extra.eas.projectId }
     if (-not $projectId) { Say 'Λείπει η σύνδεση με το έργο Expo (projectId στο app.json). Στείλε αυτή την αναφορά στο Claude.' 'Red'; Finish 2 }
-    $owner = [string]$app.owner; $slug = [string]$app.slug
+    return @{ owner = [string]$app.owner; slug = [string]$app.slug }
+}
+
+function First-BuildId([string]$text) {
+    $id = ''
+    try { foreach ($b in ($text | ConvertFrom-Json)) { if ($b.id) { $id = [string]$b.id; break } } } catch { $id = '' }
+    if (-not $id) { $m = [regex]::Match($text, '"id"\s*:\s*"([0-9a-fA-F-]{36})"'); if ($m.Success) { $id = $m.Groups[1].Value } }
+    return $id
+}
+
+# Test APK in the Expo cloud (EAS Build, profile "preview"). Approval is checked by the caller.
+function Build-Apk([string]$dir) {
+    Say ''
+    Say 'Νέο APK για δοκιμή (EAS Build, προφίλ preview).' 'Cyan'
+    $proj = Get-EasProject $dir
+    $owner = $proj.owner; $slug = $proj.slug
     Say ('  Λογαριασμός Expo: {0}, έργο: {1}. Το build γίνεται στο cloud του Expo (περίπου 10-20 λεπτά).' -f $owner, $slug)
     Say '  ΔΕΝ στέλνεται τίποτα στο Google Play ή στο App Store. Το Hub και τα sites δεν αλλάζουν.'
     Push-Location -LiteralPath $dir
@@ -188,13 +207,11 @@ function Build-Apk([string]$dir) {
         if ($text) { Say $text }
         Finish 9
     }
-    $id = ''
-    try { foreach ($b in ($text | ConvertFrom-Json)) { if ($b.id) { $id = [string]$b.id; break } } } catch { $id = '' }
-    if (-not $id) { $m = [regex]::Match($text, '"id"\s*:\s*"([0-9a-fA-F-]{36})"'); if ($m.Success) { $id = $m.Groups[1].Value } }
+    $id = First-BuildId $text
     if (-not $id) {
         Say 'Το build στάλθηκε, αλλά δεν διάβασα τον αριθμό του. Δες τη λίστα builds:' 'Yellow'
         Say ('  https://expo.dev/accounts/{0}/projects/{1}/builds' -f $owner, $slug)
-        Finish 0
+        return
     }
     $link = 'https://expo.dev/accounts/{0}/projects/{1}/builds/{2}' -f $owner, $slug, $id
     Say ''
@@ -204,7 +221,77 @@ function Build-Apk([string]$dir) {
     Say '  Το νέο APK εγκαθίσταται πάνω από το παλιό (μένουν οι ρυθμίσεις σου).'
 }
 
-Say ('GEAR WORLD APP DEV - {0} - {1}' -f $(if ($Apply -or $InstallNode -or $BuildApk) { 'APPLY (με έγκριση)' } elseif ($StartOnly) { 'ΕΚΚΙΝΗΣΗ' } else { 'ΜΟΝΟ ΕΛΕΓΧΟΣ' }), (Get-Date -Format 'yyyy-MM-dd HH:mm'))
+# iPhone app: EAS Build (profile "production") in the Expo cloud, then EAS Submit uploads it to TestFlight
+# (App Store Connect, private testing). Interactive on purpose: Apple sign-in and 2FA are typed in this window
+# and are never captured. Approval is checked by the caller.
+function Build-Ios([string]$dir) {
+    Say ''
+    Say 'iPhone: build και ανέβασμα στο TestFlight.' 'Cyan'
+    $proj = Get-EasProject $dir
+    $owner = $proj.owner; $slug = $proj.slug
+    Say ('  Λογαριασμός Expo: {0}, έργο: {1}. Το build γίνεται στο cloud του Expo (περίπου 15-30 λεπτά) και μετά ανεβαίνει μόνο του στο TestFlight.' -f $owner, $slug)
+    Say '  Το TestFlight είναι η ιδιωτική περιοχή δοκιμών της Apple: η εφαρμογή ΔΕΝ γίνεται δημόσια στο App Store.'
+    Say '  Τι θα σε ρωτήσει (απαντάς σε αυτό το παράθυρο):'
+    Say '    "Do you want to log in to your Apple account?"  ->  Y'
+    Say '    "Apple ID"  ->  το email του Apple Account σου'
+    Say '    "Password"  ->  ο κωδικός του (δεν φαίνεται όσο γράφεις, είναι κανονικό)'
+    Say '    κωδικός 6 ψηφίων  ->  αυτός που εμφανίζεται στη συσκευή ή στο SMS σου'
+    Say '    "Generate a new Apple Distribution Certificate / Provisioning Profile / App Store Connect API Key?"  ->  Y'
+    Say '    σε ό,τι άλλο ρωτήσει  ->  Enter (η προτεινόμενη απάντηση)'
+    Say '  Ο κωδικός πηγαίνει μόνο στην Apple: δεν γράφεται στην αναφορά και δεν τον βλέπει το Claude.'
+    Push-Location -LiteralPath $dir
+    $notLoggedIn = $false
+    try {
+        $env:EAS_NO_VCS = '1'
+        $env:EAS_PROJECT_ROOT = $dir
+        $env:EXPO_NO_TELEMETRY = '1'
+        $who = & npx.cmd --yes eas-cli@latest whoami
+        if ($LASTEXITCODE -ne 0) {
+            $notLoggedIn = $true
+        } else {
+            Say ('  Συνδεδεμένος στο Expo ως: {0}' -f (($who | Out-String).Trim() -split "`r?`n")[0])
+            Write-Host ''
+            & npx.cmd --yes eas-cli@latest build --platform ios --profile production --auto-submit --no-wait
+            $code = $LASTEXITCODE
+            if ($code -eq 0) {
+                $out = & npx.cmd --yes eas-cli@latest build:list --platform ios --limit 1 --json --non-interactive
+            }
+        }
+    } finally {
+        Pop-Location
+        Remove-Item Env:\EAS_NO_VCS, Env:\EAS_PROJECT_ROOT -ErrorAction SilentlyContinue
+    }
+    if ($notLoggedIn) {
+        Say 'Δεν είσαι συνδεδεμένος στο Expo σε αυτόν τον υπολογιστή. Στείλε αυτή την αναφορά στο Claude για την εντολή σύνδεσης.' 'Red'
+        Finish 4
+    }
+    if ($code -ne 0) {
+        Say ('Το iPhone build δεν ξεκίνησε (κωδικός {0}). Στείλε την αναφορά και μια φωτογραφία της οθόνης στο Claude.' -f $code) 'Red'
+        Finish 9
+    }
+    $id = First-BuildId (($out | Out-String).Trim())
+    Say ''
+    Say 'Το iPhone build ξεκίνησε και θα ανέβει μόνο του στο TestFlight.' 'Green'
+    if ($id) { Say ('  Link του build: https://expo.dev/accounts/{0}/projects/{1}/builds/{2}' -f $owner, $slug, $id) }
+    else { Say ('  Λίστα builds: https://expo.dev/accounts/{0}/projects/{1}/builds' -f $owner, $slug) }
+    Say '  Σε 30-60 λεπτά θα το δεις στο App Store Connect: https://appstoreconnect.apple.com/apps  ->  Gear World  ->  TestFlight.'
+    Say '  Η Apple στέλνει και email όταν ολοκληρωθεί η επεξεργασία.'
+}
+
+# Approvals for the cloud builds, each with its own phrase. Checked before anything changes.
+function Confirm-Builds {
+    if ($BuildApk) {
+        if (-not (Confirm-Approval $BuildPhrase $BuildApprove)) { return $false }
+        Say ('Έγκριση: {0}' -f $BuildPhrase) 'Green'
+    }
+    if ($BuildIos) {
+        if (-not (Confirm-Approval $IosPhrase $IosApprove)) { return $false }
+        Say ('Έγκριση: {0}' -f $IosPhrase) 'Green'
+    }
+    return $true
+}
+
+Say ('GEAR WORLD APP DEV - {0} - {1}' -f $(if ($Apply -or $InstallNode -or $BuildApk -or $BuildIos) { 'APPLY (με έγκριση)' } elseif ($StartOnly) { 'ΕΚΚΙΝΗΣΗ' } else { 'ΜΟΝΟ ΕΛΕΓΧΟΣ' }), (Get-Date -Format 'yyyy-MM-dd HH:mm'))
 Say ('Code version: {0}' -f (Split-Path -Leaf $repo))
 
 # 1. Node.js
@@ -236,12 +323,12 @@ if ($StartOnly) {
     exit 0
 }
 
-if ($BuildApk -and -not $Apply) {
+if (($BuildApk -or $BuildIos) -and -not $Apply) {
     if (-not (Test-Path -LiteralPath (Join-Path $Target 'node_modules'))) { Say 'Η εφαρμογή δεν έχει στηθεί ακόμα σε αυτόν τον υπολογιστή. Τρέξε πρώτα την εντολή με -Apply.' 'Red'; Finish 2 }
     if (-not $node.ok) { Say 'Πρώτα χρειάζεται νεότερο Node.js.' 'Red'; Finish 3 }
-    if (-not (Confirm-Approval $BuildPhrase $BuildApprove)) { Say 'Δεν δόθηκε έγκριση για το build: σταμάτησα χωρίς αλλαγές.' 'Yellow'; Finish 1 }
-    Say ('Έγκριση: {0}' -f $BuildPhrase) 'Green'
-    Build-Apk $Target
+    if (-not (Confirm-Builds)) { Say 'Δεν δόθηκε έγκριση για το build: σταμάτησα χωρίς αλλαγές.' 'Yellow'; Finish 1 }
+    if ($BuildApk) { Build-Apk $Target }
+    if ($BuildIos) { Build-Ios $Target }
     Finish 0
 }
 
@@ -263,11 +350,8 @@ if (-not $Apply) { Say ''; Say 'Μόνο έλεγχος (χωρίς -Apply): δ�
 # 3. Approval
 if (-not (Confirm-Approval $Phrase $Approve)) { Say 'Δεν δόθηκε έγκριση: σταμάτησα χωρίς αλλαγές.' 'Yellow'; Finish 1 }
 Say ('Έγκριση: {0}' -f $Phrase) 'Green'
-if ($BuildApk) {
-    # Both approvals are checked before anything changes, so a wrong build phrase never leaves a half-done step.
-    if (-not (Confirm-Approval $BuildPhrase $BuildApprove)) { Say 'Δεν δόθηκε έγκριση για το build: σταμάτησα χωρίς αλλαγές.' 'Yellow'; Finish 1 }
-    Say ('Έγκριση: {0}' -f $BuildPhrase) 'Green'
-}
+# Build approvals are checked before anything changes, so a wrong build phrase never leaves a half-done step.
+if (-not (Confirm-Builds)) { Say 'Δεν δόθηκε έγκριση για το build: σταμάτησα χωρίς αλλαγές.' 'Yellow'; Finish 1 }
 
 # 4. Backup (moved, never deleted) and copy
 if ($exists) {
@@ -311,8 +395,10 @@ if ($exists) {
     Say ('  Remove-Item -LiteralPath "{0}" -Recurse -Force' -f $Target)
 }
 
-# 6. Test APK (only with -BuildApk and its own phrase), then start
-if ($BuildApk) { Build-Apk $Target; Finish 0 }
+# 6. Cloud builds (only with -BuildApk / -BuildIos and their own phrases), then start
+if ($BuildApk) { Build-Apk $Target }
+if ($BuildIos) { Build-Ios $Target }
+if ($BuildApk -or $BuildIos) { Finish 0 }
 if ($NoStart) { Finish 0 }
 Start-Expo $Target
 exit 0

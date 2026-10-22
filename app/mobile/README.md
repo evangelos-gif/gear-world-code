@@ -15,6 +15,6 @@
 Αποφάσεις v1: χωρίς Rewards και λογαριασμούς, χωρίς analytics, 11 γλώσσες, `com.gearworldhub.app`.
 Φωνητική αναζήτηση: κουμπί μικροφώνου μέσα στο κουτί αναζήτησης (expo-speech-recognition, στη γλώσσα της εφαρμογής, μέσω της υπηρεσίας ομιλίας του κινητού· η εφαρμογή δεν κρατά ηχογραφήσεις). Δουλεύει μόνο στο APK/build, όχι στο Expo Go (εκεί το κουμπί κρύβεται). Αναζήτηση με κάμερα: σε επόμενη έκδοση.
 
-Στον υπολογιστή: `tools/gw-app-dev.ps1` (αντιγράφει, εγκαθιστά, ξεκινά με QR για το Expo Go). Με `-BuildApk` και τη φράση `ΕΓΚΡΙΝΩ GEAR WORLD APP BUILD` ξεκινά δοκιμαστικό APK στο EAS (προφίλ preview, χωρίς αποστολή σε store).
+Στον υπολογιστή: `tools/gw-app-dev.ps1` (αντιγράφει, εγκαθιστά, ξεκινά με QR για το Expo Go). Με `-BuildApk` και τη φράση `ΕΓΚΡΙΝΩ GEAR WORLD APP BUILD` ξεκινά δοκιμαστικό APK στο EAS (προφίλ preview, χωρίς αποστολή σε store). Με `-BuildIos` και τη φράση `ΕΓΚΡΙΝΩ GEAR WORLD IOS TESTFLIGHT` φτιάχνει το iPhone build (προφίλ production) και το ανεβάζει στο TestFlight (ιδιωτικές δοκιμές, όχι δημόσιο App Store)· η σύνδεση Apple και ο κωδικός 2FA γράφονται μόνο στο παράθυρο.
 
 Έλεγχοι: `npm run typecheck`, `npm test`, `npx expo export --platform android|ios` (τρέχουν και στο CI).
