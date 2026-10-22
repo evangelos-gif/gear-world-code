@@ -454,6 +454,67 @@ $brandBackups = @(Get-ChildItem -LiteralPath (Join-Path (Join-Path $work 'gear-w
 Check ($LASTEXITCODE -eq 0 -and $brandBackups.Count -eq 1) 'brand: existing folder moved to backup first'
 Check (@(Get-ChildItem -LiteralPath $brandOut -Filter 'GW_APP_BRAND_*.txt').Count -ge 1) 'brand: report written'
 
+# 8. gwh-legal-pages.ps1 with a fake hub folder and a fake wrangler (Windows only: runs .cmd files)
+if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
+    Write-Host 'gwh-legal-pages.ps1 (fake hub, fake wrangler)'
+    $lpTool = Join-Path $repo 'tools\gwh-legal-pages.ps1'
+    $lpHub = Join-Path $work 'lp-hub'
+    $lpState = Join-Path $work 'lp-state'
+    $lpBin = Join-Path $work 'lp-bin'
+    $lpOut = Join-Path $work 'lp-out'
+    New-Item -ItemType Directory -Path $lpState, $lpBin -Force | Out-Null
+    & node (Join-Path $repo 'tests\fixtures\make-hub-fixture.mjs') $lpHub
+    Add-Content -LiteralPath (Join-Path $lpHub 'wrangler.toml') -Value "`n[assets]`ndirectory = `"public`"`nbinding = `"ASSETS`"`n"
+    $lpIndex = Join-Path $lpHub 'public\index.html'
+    $footer = "  <footer>`r`n    <div class=`"container footer-inner`">`r`n      <span>&copy; <span id=`"year`"></span> Gear World. All rights reserved.</span>`r`n    </div>`r`n  </footer>`r`n</body>"
+    [System.IO.File]::WriteAllText($lpIndex, ([System.IO.File]::ReadAllText($lpIndex)).Replace('</body>', $footer))
+    $lpFake = @(
+        '@echo off',
+        'echo %* >> "%GW_LP_STATE%\calls.log"',
+        'echo %* | findstr /C:"deployments list" >nul && goto deps',
+        'echo %* | findstr /C:" deploy" >nul && goto ok',
+        'echo unknown command 1>&2',
+        'exit /b 1',
+        ':deps',
+        'echo []',
+        'exit /b 0',
+        ':ok',
+        'echo OK',
+        'exit /b 0'
+    ) -join "`r`n"
+    [System.IO.File]::WriteAllText((Join-Path $lpBin 'npx.cmd'), $lpFake + "`r`n", [System.Text.Encoding]::ASCII)
+    $oldPath = $env:PATH
+    $env:PATH = $lpBin + ';' + $oldPath
+    $env:GW_LP_STATE = $lpState
+    $lpCalls = Join-Path $lpState 'calls.log'
+    function Run-Lp([string]$dir, [string[]]$a) {
+        $all = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $lpTool, '-HubDir', $dir, '-OutDir', $lpOut, '-SkipOnline', '-NoClipboard') + $a
+        & $exe @all | Out-Null
+        return $LASTEXITCODE
+    }
+    function LpCalls { if (Test-Path -LiteralPath $lpCalls) { return [System.IO.File]::ReadAllText($lpCalls) } else { return '' } }
+    try {
+        $before = [System.IO.File]::ReadAllText($lpIndex)
+        Check ((Run-Lp $lpHub @()) -eq 0) 'legal pages check: exit 0'
+        Check ([System.IO.File]::ReadAllText($lpIndex) -eq $before -and -not (Test-Path -LiteralPath (Join-Path $lpHub 'public\privacy')) -and -not ((LpCalls) -match ' deploy')) 'legal pages check: changes nothing'
+        Check ((Run-Lp $lpHub @('-Apply', '-Approve', 'yes')) -eq 1 -and [System.IO.File]::ReadAllText($lpIndex) -eq $before) 'legal pages wrong phrase: changes nothing'
+        Check ((Run-Lp $lpHub @('-Apply', '-Approve', 'EGKRINO HUB LEGAL PAGES')) -eq 0) 'legal pages with approval: exit 0'
+        $after = [System.IO.File]::ReadAllText($lpIndex)
+        Check ($after.Contains('GWH-LEGAL-LINKS') -and (Test-Path -LiteralPath (Join-Path $lpHub 'public\privacy\index.html')) -and (Test-Path -LiteralPath (Join-Path $lpHub 'public\legal\legal.css'))) 'legal pages: pages and footer links written'
+        Check ((LpCalls) -match ' deploy') 'legal pages: hub deployed'
+        $rb = @(Get-ChildItem -LiteralPath (Join-Path $lpHub 'backups') -Recurse -Filter 'ROLLBACK.txt')
+        Check ($rb.Count -eq 1 -and ([System.IO.File]::ReadAllText((Join-Path $rb[0].DirectoryName 'index.html'))) -eq $before) 'legal pages: backup of index.html and rollback written'
+        Check ((Run-Lp $lpHub @()) -eq 0 -and [System.IO.File]::ReadAllText($lpIndex) -eq $after) 'legal pages second check: nothing more to do'
+        $lpBroken = Join-Path $work 'lp-broken'
+        & node (Join-Path $repo 'tests\fixtures\make-hub-fixture.mjs') $lpBroken
+        Add-Content -LiteralPath (Join-Path $lpBroken 'wrangler.toml') -Value "`n[assets]`ndirectory = `"public`"`n"
+        Check ((Run-Lp $lpBroken @('-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB LEGAL PAGES')) -eq 6 -and -not (Test-Path -LiteralPath (Join-Path $lpBroken 'public\privacy'))) 'legal pages: unexpected footer changes nothing'
+    } finally {
+        $env:PATH = $oldPath
+        Remove-Item Env:\GW_LP_STATE -ErrorAction SilentlyContinue
+    }
+}
+
 Remove-Item -LiteralPath $work -Recurse -Force -ErrorAction SilentlyContinue
 
 Write-Host ''
