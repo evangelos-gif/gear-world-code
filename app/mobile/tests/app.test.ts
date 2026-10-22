@@ -96,3 +96,40 @@ test('safety helpers', () => {
   assert.equal(formatPrice(75.99, 'GBP', 'en-GB'), '£75.99');
   assert.equal(formatPrice(null, 'GBP', 'en-GB'), '');
 });
+
+test('voice: what was heard becomes a clean search, errors become a clear message', async () => {
+  const { cleanTranscript, transcriptOf, voiceErrorMessage, voiceOptions } = await import('../src/lib/voice.ts');
+  assert.equal(cleanTranscript('  cordless   drill. '), 'cordless drill');
+  assert.equal(cleanTranscript('δράπανο μπαταρίας…'), 'δράπανο μπαταρίας');
+  assert.equal(cleanTranscript(null), '');
+  assert.equal(cleanTranscript('x'.repeat(200)).length, 80);
+  assert.deepEqual(transcriptOf({ isFinal: true, results: [{ transcript: 'Running shoes.' }] }), { text: 'Running shoes', isFinal: true });
+  assert.deepEqual(transcriptOf({ results: 'bad' }), { text: '', isFinal: false });
+  assert.deepEqual(transcriptOf(null), { text: '', isFinal: false });
+  assert.equal(voiceErrorMessage('aborted'), null);
+  assert.equal(voiceErrorMessage('not-allowed'), 'voiceDenied');
+  assert.equal(voiceErrorMessage('no-speech'), 'voiceNoSpeech');
+  assert.equal(voiceErrorMessage('language-not-supported'), 'voiceLanguage');
+  assert.equal(voiceErrorMessage('network'), 'voiceFailed');
+  assert.equal(voiceErrorMessage(undefined), 'voiceFailed');
+  const o = voiceOptions('el-GR');
+  assert.equal(o.lang, 'el-GR');
+  assert.equal(o.continuous, false);
+  assert.equal(o.interimResults, true);
+  for (const k of ['voiceDenied', 'voiceBlocked', 'voiceNoSpeech', 'voiceLanguage', 'voiceUnavailable', 'voiceFailed']) {
+    assert.ok(APP_KEYS.includes(k as never), `${k} is an app text`);
+  }
+  for (const l of LOCALES) assert.ok(!/keyboard|πληκτρολόγιο|Tastatur|clavier|tastiera|teclado|toetsenbord|tastierë|tastatură|клавиатур/i.test(APP_STRINGS[l.code].voiceTip), `${l.code}.voiceTip points to the app's own microphone`);
+});
+
+test('voice: the app asks for the microphone with a clear reason, and nothing else', () => {
+  const app = JSON.parse(readFileSync(new URL('../app.json', import.meta.url), 'utf8')).expo;
+  const plugin = app.plugins.find((p: unknown) => Array.isArray(p) && p[0] === 'expo-speech-recognition');
+  assert.ok(plugin, 'speech plugin configured');
+  assert.match(plugin[1].microphonePermission, /microphone button/);
+  assert.match(plugin[1].speechRecognitionPermission, /does not keep any recordings/);
+  assert.equal(app.android.permissions, undefined, 'no extra Android permissions listed by hand');
+  assert.deepEqual([...app.android.blockedPermissions].sort(), [
+    'android.permission.READ_EXTERNAL_STORAGE', 'android.permission.SYSTEM_ALERT_WINDOW', 'android.permission.WRITE_EXTERNAL_STORAGE'
+  ], 'storage and overlay permissions are removed: the app does not need them');
+});

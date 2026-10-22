@@ -5,7 +5,9 @@ export const APP_KEYS = [
   'back', 'retry', 'loadError', 'partial', 'allFilter', 'viewAt', 'moreOnSite', 'inStock', 'outOfStock',
   'priceNote', 'retailer', 'brand', 'category', 'visitSite', 'searchIn', 'allProducts', 'loadMore',
   'sortFeatured', 'sortPriceAsc', 'sortPriceDesc', 'sortNewest', 'noProducts', 'voiceTip', 'productMissing',
-  'opensBrowser', 'worldProducts', 'categories'
+  'opensBrowser', 'worldProducts', 'categories',
+  'voiceStart', 'voiceStop', 'voiceListening', 'voiceDenied', 'voiceBlocked',
+  'voiceOpenSettings', 'voiceNoSpeech', 'voiceLanguage', 'voiceUnavailable', 'voiceFailed'
 ] as const;
 
 export type AppKey = (typeof APP_KEYS)[number];
@@ -22,9 +24,19 @@ export const APP_STRINGS: Record<string, Record<AppKey, string>> = {
     retailer: 'Retailer', brand: 'Brand', category: 'Category', visitSite: 'Visit {site}', searchIn: 'Search in {world}',
     allProducts: 'All products', loadMore: 'Load more', sortFeatured: 'Featured', sortPriceAsc: 'Lowest price',
     sortPriceDesc: 'Highest price', sortNewest: 'Newest', noProducts: 'No products found.',
-    voiceTip: 'Tip: tap the microphone on your keyboard to search by voice.',
+    voiceTip: 'Tip: tap the microphone to search by voice.',
     productMissing: 'This product is not available here any more. Search again to see the latest offers.',
-    opensBrowser: 'Opens in your browser', worldProducts: '{count} products', categories: 'Categories'
+    opensBrowser: 'Opens in your browser', worldProducts: '{count} products', categories: 'Categories',
+    voiceStart: 'Search by voice',
+    voiceStop: 'Stop listening',
+    voiceListening: 'Listening… speak now.',
+    voiceDenied: 'To search by voice, allow Gear World to use the microphone.',
+    voiceBlocked: "Microphone access is turned off for Gear World. You can turn it on in your phone's settings.",
+    voiceOpenSettings: 'Open settings',
+    voiceNoSpeech: "We didn't hear anything. Tap the microphone and try again.",
+    voiceLanguage: 'Voice search is not available in this language on your phone. You can type your search instead.',
+    voiceUnavailable: 'Voice search is not available on this phone. You can type your search instead.',
+    voiceFailed: 'Voice search did not work. Check your internet connection and try again.'
   },
   'el-GR': {
     settings: 'Ρυθμίσεις', legal: 'Νομικά', privacy: 'Πολιτική απορρήτου', terms: 'Όροι χρήσης',
@@ -37,9 +49,19 @@ export const APP_STRINGS: Record<string, Record<AppKey, string>> = {
     retailer: 'Κατάστημα', brand: 'Μάρκα', category: 'Κατηγορία', visitSite: 'Επισκεφθείτε το {site}', searchIn: 'Αναζήτηση στο {world}',
     allProducts: 'Όλα τα προϊόντα', loadMore: 'Περισσότερα', sortFeatured: 'Προτεινόμενα', sortPriceAsc: 'Χαμηλότερη τιμή',
     sortPriceDesc: 'Υψηλότερη τιμή', sortNewest: 'Νεότερα', noProducts: 'Δεν βρέθηκαν προϊόντα.',
-    voiceTip: 'Συμβουλή: πατήστε το μικρόφωνο στο πληκτρολόγιο για φωνητική αναζήτηση.',
+    voiceTip: 'Συμβουλή: πατήστε το μικρόφωνο για φωνητική αναζήτηση.',
     productMissing: 'Αυτό το προϊόν δεν είναι πια διαθέσιμο εδώ. Κάντε νέα αναζήτηση για τις τελευταίες προσφορές.',
-    opensBrowser: 'Ανοίγει στον browser σας', worldProducts: '{count} προϊόντα', categories: 'Κατηγορίες'
+    opensBrowser: 'Ανοίγει στον browser σας', worldProducts: '{count} προϊόντα', categories: 'Κατηγορίες',
+    voiceStart: 'Φωνητική αναζήτηση',
+    voiceStop: 'Διακοπή ακρόασης',
+    voiceListening: 'Ακούω… μιλήστε τώρα.',
+    voiceDenied: 'Για φωνητική αναζήτηση, επιτρέψτε στο Gear World να χρησιμοποιεί το μικρόφωνο.',
+    voiceBlocked: 'Η πρόσβαση στο μικρόφωνο είναι κλειστή για το Gear World. Μπορείτε να την ανοίξετε από τις ρυθμίσεις του κινητού σας.',
+    voiceOpenSettings: 'Άνοιγμα ρυθμίσεων',
+    voiceNoSpeech: 'Δεν ακούσαμε κάτι. Πατήστε το μικρόφωνο και δοκιμάστε ξανά.',
+    voiceLanguage: 'Η φωνητική αναζήτηση δεν είναι διαθέσιμη σε αυτή τη γλώσσα στο κινητό σας. Μπορείτε να πληκτρολογήσετε την αναζήτηση.',
+    voiceUnavailable: 'Η φωνητική αναζήτηση δεν είναι διαθέσιμη σε αυτό το κινητό. Μπορείτε να πληκτρολογήσετε την αναζήτηση.',
+    voiceFailed: 'Η φωνητική αναζήτηση δεν λειτούργησε. Ελέγξτε τη σύνδεσή σας στο internet και δοκιμάστε ξανά.'
   },
   'de-DE': {
     settings: 'Einstellungen', legal: 'Rechtliches', privacy: 'Datenschutzerklärung', terms: 'Nutzungsbedingungen',
@@ -52,9 +74,19 @@ export const APP_STRINGS: Record<string, Record<AppKey, string>> = {
     retailer: 'Händler', brand: 'Marke', category: 'Kategorie', visitSite: '{site} besuchen', searchIn: 'In {world} suchen',
     allProducts: 'Alle Produkte', loadMore: 'Mehr laden', sortFeatured: 'Empfohlen', sortPriceAsc: 'Niedrigster Preis',
     sortPriceDesc: 'Höchster Preis', sortNewest: 'Neueste', noProducts: 'Keine Produkte gefunden.',
-    voiceTip: 'Tipp: Tippen Sie auf das Mikrofon Ihrer Tastatur, um per Sprache zu suchen.',
+    voiceTip: 'Tipp: Tippen Sie auf das Mikrofon, um per Sprache zu suchen.',
     productMissing: 'Dieses Produkt ist hier nicht mehr verfügbar. Suchen Sie erneut, um die aktuellen Angebote zu sehen.',
-    opensBrowser: 'Öffnet sich in Ihrem Browser', worldProducts: '{count} Produkte', categories: 'Kategorien'
+    opensBrowser: 'Öffnet sich in Ihrem Browser', worldProducts: '{count} Produkte', categories: 'Kategorien',
+    voiceStart: 'Per Sprache suchen',
+    voiceStop: 'Zuhören beenden',
+    voiceListening: 'Ich höre zu … sprechen Sie jetzt.',
+    voiceDenied: 'Erlauben Sie Gear World den Zugriff auf das Mikrofon, um per Sprache zu suchen.',
+    voiceBlocked: 'Der Mikrofonzugriff ist für Gear World ausgeschaltet. Sie können ihn in den Einstellungen Ihres Telefons einschalten.',
+    voiceOpenSettings: 'Einstellungen öffnen',
+    voiceNoSpeech: 'Wir haben nichts gehört. Tippen Sie auf das Mikrofon und versuchen Sie es erneut.',
+    voiceLanguage: 'Die Sprachsuche ist in dieser Sprache auf Ihrem Telefon nicht verfügbar. Sie können Ihre Suche stattdessen eintippen.',
+    voiceUnavailable: 'Die Sprachsuche ist auf diesem Telefon nicht verfügbar. Sie können Ihre Suche stattdessen eintippen.',
+    voiceFailed: 'Die Sprachsuche hat nicht funktioniert. Prüfen Sie Ihre Internetverbindung und versuchen Sie es erneut.'
   },
   'fr-FR': {
     settings: 'Paramètres', legal: 'Mentions légales', privacy: 'Politique de confidentialité', terms: "Conditions d'utilisation",
@@ -67,9 +99,19 @@ export const APP_STRINGS: Record<string, Record<AppKey, string>> = {
     retailer: 'Marchand', brand: 'Marque', category: 'Catégorie', visitSite: 'Visiter {site}', searchIn: 'Rechercher dans {world}',
     allProducts: 'Tous les produits', loadMore: 'Voir plus', sortFeatured: 'Recommandés', sortPriceAsc: 'Prix le plus bas',
     sortPriceDesc: 'Prix le plus élevé', sortNewest: 'Nouveautés', noProducts: 'Aucun produit trouvé.',
-    voiceTip: 'Astuce : touchez le micro de votre clavier pour rechercher à la voix.',
+    voiceTip: 'Astuce : touchez le micro pour rechercher à la voix.',
     productMissing: "Ce produit n'est plus disponible ici. Lancez une nouvelle recherche pour voir les dernières offres.",
-    opensBrowser: "S'ouvre dans votre navigateur", worldProducts: '{count} produits', categories: 'Catégories'
+    opensBrowser: "S'ouvre dans votre navigateur", worldProducts: '{count} produits', categories: 'Catégories',
+    voiceStart: 'Rechercher à la voix',
+    voiceStop: "Arrêter l'écoute",
+    voiceListening: 'Écoute en cours… parlez maintenant.',
+    voiceDenied: 'Pour rechercher à la voix, autorisez Gear World à utiliser le micro.',
+    voiceBlocked: "L'accès au micro est désactivé pour Gear World. Vous pouvez l'activer dans les réglages de votre téléphone.",
+    voiceOpenSettings: 'Ouvrir les réglages',
+    voiceNoSpeech: "Nous n'avons rien entendu. Touchez le micro et réessayez.",
+    voiceLanguage: "La recherche vocale n'est pas disponible dans cette langue sur votre téléphone. Vous pouvez saisir votre recherche.",
+    voiceUnavailable: "La recherche vocale n'est pas disponible sur ce téléphone. Vous pouvez saisir votre recherche.",
+    voiceFailed: "La recherche vocale n'a pas fonctionné. Vérifiez votre connexion internet et réessayez."
   },
   'it-IT': {
     settings: 'Impostazioni', legal: 'Note legali', privacy: 'Informativa sulla privacy', terms: 'Termini di utilizzo',
@@ -82,9 +124,19 @@ export const APP_STRINGS: Record<string, Record<AppKey, string>> = {
     retailer: 'Negozio', brand: 'Marca', category: 'Categoria', visitSite: 'Visita {site}', searchIn: 'Cerca in {world}',
     allProducts: 'Tutti i prodotti', loadMore: 'Carica altri', sortFeatured: 'In evidenza', sortPriceAsc: 'Prezzo più basso',
     sortPriceDesc: 'Prezzo più alto', sortNewest: 'Novità', noProducts: 'Nessun prodotto trovato.',
-    voiceTip: 'Suggerimento: tocca il microfono della tastiera per cercare con la voce.',
+    voiceTip: 'Suggerimento: tocca il microfono per cercare con la voce.',
     productMissing: 'Questo prodotto non è più disponibile qui. Cerca di nuovo per vedere le ultime offerte.',
-    opensBrowser: 'Si apre nel browser', worldProducts: '{count} prodotti', categories: 'Categorie'
+    opensBrowser: 'Si apre nel browser', worldProducts: '{count} prodotti', categories: 'Categorie',
+    voiceStart: 'Cerca con la voce',
+    voiceStop: "Interrompi l'ascolto",
+    voiceListening: 'In ascolto… parla ora.',
+    voiceDenied: 'Per cercare con la voce, consenti a Gear World di usare il microfono.',
+    voiceBlocked: "L'accesso al microfono è disattivato per Gear World. Puoi attivarlo nelle impostazioni del telefono.",
+    voiceOpenSettings: 'Apri impostazioni',
+    voiceNoSpeech: 'Non abbiamo sentito nulla. Tocca il microfono e riprova.',
+    voiceLanguage: 'La ricerca vocale non è disponibile in questa lingua sul tuo telefono. Puoi scrivere la tua ricerca.',
+    voiceUnavailable: 'La ricerca vocale non è disponibile su questo telefono. Puoi scrivere la tua ricerca.',
+    voiceFailed: 'La ricerca vocale non ha funzionato. Controlla la connessione a internet e riprova.'
   },
   'es-ES': {
     settings: 'Ajustes', legal: 'Información legal', privacy: 'Política de privacidad', terms: 'Condiciones de uso',
@@ -97,9 +149,19 @@ export const APP_STRINGS: Record<string, Record<AppKey, string>> = {
     retailer: 'Tienda', brand: 'Marca', category: 'Categoría', visitSite: 'Visitar {site}', searchIn: 'Buscar en {world}',
     allProducts: 'Todos los productos', loadMore: 'Cargar más', sortFeatured: 'Destacados', sortPriceAsc: 'Precio más bajo',
     sortPriceDesc: 'Precio más alto', sortNewest: 'Novedades', noProducts: 'No se encontraron productos.',
-    voiceTip: 'Consejo: toca el micrófono del teclado para buscar por voz.',
+    voiceTip: 'Consejo: toca el micrófono para buscar por voz.',
     productMissing: 'Este producto ya no está disponible aquí. Busca de nuevo para ver las últimas ofertas.',
-    opensBrowser: 'Se abre en tu navegador', worldProducts: '{count} productos', categories: 'Categorías'
+    opensBrowser: 'Se abre en tu navegador', worldProducts: '{count} productos', categories: 'Categorías',
+    voiceStart: 'Buscar por voz',
+    voiceStop: 'Dejar de escuchar',
+    voiceListening: 'Escuchando… habla ahora.',
+    voiceDenied: 'Para buscar por voz, permite que Gear World use el micrófono.',
+    voiceBlocked: 'El acceso al micrófono está desactivado para Gear World. Puedes activarlo en los ajustes del teléfono.',
+    voiceOpenSettings: 'Abrir ajustes',
+    voiceNoSpeech: 'No hemos oído nada. Toca el micrófono y vuelve a intentarlo.',
+    voiceLanguage: 'La búsqueda por voz no está disponible en este idioma en tu teléfono. Puedes escribir tu búsqueda.',
+    voiceUnavailable: 'La búsqueda por voz no está disponible en este teléfono. Puedes escribir tu búsqueda.',
+    voiceFailed: 'La búsqueda por voz no ha funcionado. Comprueba tu conexión a internet y vuelve a intentarlo.'
   },
   'pt-PT': {
     settings: 'Definições', legal: 'Informação legal', privacy: 'Política de privacidade', terms: 'Termos de utilização',
@@ -112,9 +174,19 @@ export const APP_STRINGS: Record<string, Record<AppKey, string>> = {
     retailer: 'Loja', brand: 'Marca', category: 'Categoria', visitSite: 'Visitar {site}', searchIn: 'Pesquisar em {world}',
     allProducts: 'Todos os produtos', loadMore: 'Carregar mais', sortFeatured: 'Destaques', sortPriceAsc: 'Preço mais baixo',
     sortPriceDesc: 'Preço mais alto', sortNewest: 'Novidades', noProducts: 'Nenhum produto encontrado.',
-    voiceTip: 'Dica: toque no microfone do teclado para pesquisar por voz.',
+    voiceTip: 'Dica: toque no microfone para pesquisar por voz.',
     productMissing: 'Este produto já não está disponível aqui. Pesquise novamente para ver as ofertas mais recentes.',
-    opensBrowser: 'Abre no seu navegador', worldProducts: '{count} produtos', categories: 'Categorias'
+    opensBrowser: 'Abre no seu navegador', worldProducts: '{count} produtos', categories: 'Categorias',
+    voiceStart: 'Pesquisar por voz',
+    voiceStop: 'Parar de ouvir',
+    voiceListening: 'A ouvir… fale agora.',
+    voiceDenied: 'Para pesquisar por voz, permita que o Gear World utilize o microfone.',
+    voiceBlocked: 'O acesso ao microfone está desativado para o Gear World. Pode ativá-lo nas definições do telemóvel.',
+    voiceOpenSettings: 'Abrir definições',
+    voiceNoSpeech: 'Não ouvimos nada. Toque no microfone e tente novamente.',
+    voiceLanguage: 'A pesquisa por voz não está disponível neste idioma no seu telemóvel. Pode escrever a sua pesquisa.',
+    voiceUnavailable: 'A pesquisa por voz não está disponível neste telemóvel. Pode escrever a sua pesquisa.',
+    voiceFailed: 'A pesquisa por voz não funcionou. Verifique a sua ligação à internet e tente novamente.'
   },
   'nl-NL': {
     settings: 'Instellingen', legal: 'Juridisch', privacy: 'Privacybeleid', terms: 'Gebruiksvoorwaarden',
@@ -127,9 +199,19 @@ export const APP_STRINGS: Record<string, Record<AppKey, string>> = {
     retailer: 'Winkel', brand: 'Merk', category: 'Categorie', visitSite: '{site} bezoeken', searchIn: 'Zoeken in {world}',
     allProducts: 'Alle producten', loadMore: 'Meer laden', sortFeatured: 'Uitgelicht', sortPriceAsc: 'Laagste prijs',
     sortPriceDesc: 'Hoogste prijs', sortNewest: 'Nieuwste', noProducts: 'Geen producten gevonden.',
-    voiceTip: 'Tip: tik op de microfoon van uw toetsenbord om met uw stem te zoeken.',
+    voiceTip: 'Tip: tik op de microfoon om met uw stem te zoeken.',
     productMissing: 'Dit product is hier niet meer beschikbaar. Zoek opnieuw voor de nieuwste aanbiedingen.',
-    opensBrowser: 'Opent in uw browser', worldProducts: '{count} producten', categories: 'Categorieën'
+    opensBrowser: 'Opent in uw browser', worldProducts: '{count} producten', categories: 'Categorieën',
+    voiceStart: 'Zoeken met uw stem',
+    voiceStop: 'Stoppen met luisteren',
+    voiceListening: 'Aan het luisteren… spreek nu.',
+    voiceDenied: 'Geef Gear World toegang tot de microfoon om met uw stem te zoeken.',
+    voiceBlocked: 'Microfoontoegang staat uit voor Gear World. U kunt dit aanzetten in de instellingen van uw telefoon.',
+    voiceOpenSettings: 'Instellingen openen',
+    voiceNoSpeech: 'We hebben niets gehoord. Tik op de microfoon en probeer het opnieuw.',
+    voiceLanguage: 'Zoeken met uw stem is in deze taal niet beschikbaar op uw telefoon. U kunt uw zoekopdracht ook typen.',
+    voiceUnavailable: 'Zoeken met uw stem is niet beschikbaar op deze telefoon. U kunt uw zoekopdracht ook typen.',
+    voiceFailed: 'Zoeken met uw stem werkte niet. Controleer uw internetverbinding en probeer het opnieuw.'
   },
   'sq-AL': {
     settings: 'Cilësimet', legal: 'Ligjore', privacy: 'Politika e privatësisë', terms: 'Kushtet e përdorimit',
@@ -142,9 +224,19 @@ export const APP_STRINGS: Record<string, Record<AppKey, string>> = {
     retailer: 'Dyqani', brand: 'Marka', category: 'Kategoria', visitSite: 'Vizito {site}', searchIn: 'Kërko në {world}',
     allProducts: 'Të gjitha produktet', loadMore: 'Ngarko më shumë', sortFeatured: 'Të rekomanduara', sortPriceAsc: 'Çmimi më i ulët',
     sortPriceDesc: 'Çmimi më i lartë', sortNewest: 'Më të rejat', noProducts: 'Nuk u gjetën produkte.',
-    voiceTip: 'Këshillë: prekni mikrofonin e tastierës për të kërkuar me zë.',
+    voiceTip: 'Këshillë: prekni mikrofonin për të kërkuar me zë.',
     productMissing: 'Ky produkt nuk është më i disponueshëm këtu. Kërkoni përsëri për ofertat më të fundit.',
-    opensBrowser: 'Hapet në shfletuesin tuaj', worldProducts: '{count} produkte', categories: 'Kategoritë'
+    opensBrowser: 'Hapet në shfletuesin tuaj', worldProducts: '{count} produkte', categories: 'Kategoritë',
+    voiceStart: 'Kërko me zë',
+    voiceStop: 'Ndalo dëgjimin',
+    voiceListening: 'Po dëgjoj… flisni tani.',
+    voiceDenied: 'Për të kërkuar me zë, lejoni Gear World të përdorë mikrofonin.',
+    voiceBlocked: 'Qasja në mikrofon është e çaktivizuar për Gear World. Mund ta aktivizoni te cilësimet e telefonit.',
+    voiceOpenSettings: 'Hap cilësimet',
+    voiceNoSpeech: 'Nuk dëgjuam asgjë. Prekni mikrofonin dhe provoni përsëri.',
+    voiceLanguage: 'Kërkimi me zë nuk është i disponueshëm në këtë gjuhë në telefonin tuaj. Mund ta shkruani kërkimin.',
+    voiceUnavailable: 'Kërkimi me zë nuk është i disponueshëm në këtë telefon. Mund ta shkruani kërkimin.',
+    voiceFailed: 'Kërkimi me zë nuk funksionoi. Kontrolloni lidhjen me internetin dhe provoni përsëri.'
   },
   'ro-RO': {
     settings: 'Setări', legal: 'Informații legale', privacy: 'Politica de confidențialitate', terms: 'Termeni de utilizare',
@@ -157,9 +249,19 @@ export const APP_STRINGS: Record<string, Record<AppKey, string>> = {
     retailer: 'Magazin', brand: 'Marcă', category: 'Categorie', visitSite: 'Vizitați {site}', searchIn: 'Căutați în {world}',
     allProducts: 'Toate produsele', loadMore: 'Încarcă mai multe', sortFeatured: 'Recomandate', sortPriceAsc: 'Cel mai mic preț',
     sortPriceDesc: 'Cel mai mare preț', sortNewest: 'Cele mai noi', noProducts: 'Nu s-au găsit produse.',
-    voiceTip: 'Sfat: atingeți microfonul de pe tastatură pentru a căuta vocal.',
+    voiceTip: 'Sfat: atingeți microfonul pentru a căuta vocal.',
     productMissing: 'Acest produs nu mai este disponibil aici. Căutați din nou pentru cele mai noi oferte.',
-    opensBrowser: 'Se deschide în browser', worldProducts: '{count} produse', categories: 'Categorii'
+    opensBrowser: 'Se deschide în browser', worldProducts: '{count} produse', categories: 'Categorii',
+    voiceStart: 'Căutare vocală',
+    voiceStop: 'Oprește ascultarea',
+    voiceListening: 'Ascult… vorbiți acum.',
+    voiceDenied: 'Pentru căutarea vocală, permiteți aplicației Gear World să folosească microfonul.',
+    voiceBlocked: 'Accesul la microfon este dezactivat pentru Gear World. Îl puteți activa din setările telefonului.',
+    voiceOpenSettings: 'Deschide setările',
+    voiceNoSpeech: 'Nu am auzit nimic. Atingeți microfonul și încercați din nou.',
+    voiceLanguage: 'Căutarea vocală nu este disponibilă în această limbă pe telefonul dvs. Puteți scrie căutarea.',
+    voiceUnavailable: 'Căutarea vocală nu este disponibilă pe acest telefon. Puteți scrie căutarea.',
+    voiceFailed: 'Căutarea vocală nu a funcționat. Verificați conexiunea la internet și încercați din nou.'
   },
   'ru-RU': {
     settings: 'Настройки', legal: 'Правовая информация', privacy: 'Политика конфиденциальности', terms: 'Условия использования',
@@ -172,8 +274,18 @@ export const APP_STRINGS: Record<string, Record<AppKey, string>> = {
     retailer: 'Магазин', brand: 'Бренд', category: 'Категория', visitSite: 'Открыть {site}', searchIn: 'Поиск в {world}',
     allProducts: 'Все товары', loadMore: 'Показать ещё', sortFeatured: 'Рекомендуемые', sortPriceAsc: 'Сначала дешевле',
     sortPriceDesc: 'Сначала дороже', sortNewest: 'Новинки', noProducts: 'Товары не найдены.',
-    voiceTip: 'Совет: нажмите на микрофон на клавиатуре, чтобы искать голосом.',
+    voiceTip: 'Совет: нажмите на микрофон, чтобы искать голосом.',
     productMissing: 'Этот товар здесь больше недоступен. Повторите поиск, чтобы увидеть актуальные предложения.',
-    opensBrowser: 'Откроется в браузере', worldProducts: 'Товаров: {count}', categories: 'Категории'
+    opensBrowser: 'Откроется в браузере', worldProducts: 'Товаров: {count}', categories: 'Категории',
+    voiceStart: 'Голосовой поиск',
+    voiceStop: 'Остановить прослушивание',
+    voiceListening: 'Слушаю… говорите.',
+    voiceDenied: 'Чтобы искать голосом, разрешите Gear World доступ к микрофону.',
+    voiceBlocked: 'Доступ к микрофону для Gear World выключен. Его можно включить в настройках телефона.',
+    voiceOpenSettings: 'Открыть настройки',
+    voiceNoSpeech: 'Мы ничего не услышали. Нажмите на микрофон и попробуйте ещё раз.',
+    voiceLanguage: 'Голосовой поиск на этом языке недоступен на вашем телефоне. Вы можете ввести запрос вручную.',
+    voiceUnavailable: 'Голосовой поиск недоступен на этом телефоне. Вы можете ввести запрос вручную.',
+    voiceFailed: 'Голосовой поиск не сработал. Проверьте подключение к интернету и попробуйте ещё раз.'
   }
 };

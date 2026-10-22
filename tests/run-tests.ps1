@@ -534,6 +534,54 @@ $adJson = Join-Path $adTarget 'app.json'
 Check ((Run-Ad @('-Apply', '-Approve', 'ΕΓΚΡΙΝΩ GEAR WORLD APP SETUP')) -eq 0 -and @(Get-ChildItem -LiteralPath (Join-Path (Join-Path $work 'gear-world-app') 'backups') -Directory -Filter 'mobile-*' -ErrorAction SilentlyContinue).Count -eq 1) 'app dev: existing folder moved to backup first'
 Check (([System.IO.File]::ReadAllText($adJson) | ConvertFrom-Json).expo.extra.eas.projectId -eq 'test-project-id-123') 'app dev: Expo project link kept after a new copy'
 Check ((Run-Ad @('-StartOnly')) -eq 2) 'app dev start-only: refuses when packages are not installed'
+Check ((Run-Ad @('-BuildApk', '-BuildApprove', 'ΕΓΚΡΙΝΩ GEAR WORLD APP BUILD')) -eq 2) 'app dev build: refuses when packages are not installed'
+
+# 9b. Test APK build with a fake npx (Windows only: runs a .cmd file). Nothing is sent anywhere.
+if ($isWin) {
+    $adBin = Join-Path $work 'ad-bin'
+    $adState = Join-Path $work 'ad-state'
+    New-Item -ItemType Directory -Path $adBin, $adState, (Join-Path $adTarget 'node_modules') -Force | Out-Null
+    $fakeBuildId = [guid]::NewGuid().ToString()
+    $fakeEas = @(
+        '@echo off',
+        'echo %* >> "%GW_FAKE_STATE%\calls.log"',
+        'echo %* | findstr /C:"whoami" >nul && goto whoami',
+        'echo %* | findstr /C:"build --platform android --profile preview" >nul && goto build',
+        'echo unknown command 1>&2',
+        'exit /b 1',
+        ':whoami',
+        'if defined GW_FAKE_NOLOGIN exit /b 1',
+        'echo gearworld',
+        'exit /b 0',
+        ':build',
+        'if not "%EAS_NO_VCS%"=="1" exit /b 7',
+        ('echo [{"id":"' + $fakeBuildId + '","platform":"ANDROID","status":"NEW"}]'),
+        'exit /b 0'
+    ) -join "`r`n"
+    [System.IO.File]::WriteAllText((Join-Path $adBin 'npx.cmd'), $fakeEas + "`r`n", [System.Text.Encoding]::ASCII)
+    $adOldPath = $env:PATH
+    $env:PATH = $adBin + ';' + $adOldPath
+    $env:GW_FAKE_STATE = $adState
+    $adCalls = Join-Path $adState 'calls.log'
+    function AdCalls { if (Test-Path -LiteralPath $adCalls) { return [System.IO.File]::ReadAllText($adCalls) } else { return '' } }
+    try {
+        Check ((Run-Ad @('-BuildApk', '-BuildApprove', 'yes')) -eq 1 -and -not ((AdCalls) -match 'build')) 'app build wrong phrase: nothing sent'
+        $before = @(Get-ChildItem -LiteralPath (Join-Path (Join-Path $work 'gear-world-app') 'backups') -Directory -Filter 'mobile-*').Count
+        Check ((Run-Ad @('-Apply', '-Approve', 'ΕΓΚΡΙΝΩ GEAR WORLD APP SETUP', '-BuildApk', '-BuildApprove', 'wrong')) -eq 1) 'app setup + build with a wrong build phrase: stops'
+        Check (@(Get-ChildItem -LiteralPath (Join-Path (Join-Path $work 'gear-world-app') 'backups') -Directory -Filter 'mobile-*').Count -eq $before -and -not ((AdCalls) -match 'build')) 'app setup + build with a wrong build phrase: nothing changed, nothing sent'
+        $env:GW_FAKE_NOLOGIN = '1'
+        Check ((Run-Ad @('-BuildApk', '-BuildApprove', 'ΕΓΚΡΙΝΩ GEAR WORLD APP BUILD')) -eq 4 -and -not ((AdCalls) -match 'profile')) 'app build: not logged in to Expo gives exit 4, no build'
+        Remove-Item Env:\GW_FAKE_NOLOGIN
+        Check ((Run-Ad @('-BuildApk', '-BuildApprove', 'EGKRINO GEAR WORLD APP BUILD')) -eq 0) 'app build with approval: exit 0'
+        Check ((AdCalls) -match 'eas-cli@latest build --platform android --profile preview --non-interactive --no-wait --json') 'app build: preview APK only, no store submit'
+        Check (-not ((AdCalls) -match 'submit|production')) 'app build: never submits to a store'
+        $adRep = @(Get-ChildItem -LiteralPath $adOut -Filter 'GW_APP_DEV_*.txt' | Sort-Object LastWriteTime | Select-Object -Last 1)
+        Check ($adRep.Count -eq 1 -and ([System.IO.File]::ReadAllText($adRep[0].FullName)).Contains('https://expo.dev/accounts/gear-world/projects/gear-world/builds/' + $fakeBuildId)) 'app build: report has the link to the build'
+    } finally {
+        $env:PATH = $adOldPath
+        Remove-Item Env:\GW_FAKE_STATE, Env:\GW_FAKE_NOLOGIN -ErrorAction SilentlyContinue
+    }
+}
 
 Remove-Item -LiteralPath $work -Recurse -Force -ErrorAction SilentlyContinue
 

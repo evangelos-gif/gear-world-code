@@ -10,7 +10,7 @@ Search tools, fashion, home, garden, tech, car and travel gear in one app.
 Gear World brings the whole Gear World shopping network to your phone. Find tools, workwear, fashion, kids' essentials, home, garden, technology, car and travel gear from retailers, all from one search.
 
 ONE SEARCH, EVERY WORLD
-Type what you need, or use the microphone on your keyboard, and Gear World searches every specialist Gear World site at once. Filter the results by world and open the product you want.
+Type what you need, or tap the microphone and say it, and Gear World searches every specialist Gear World site at once. Filter the results by world and open the product you want.
 
 CHOOSE A WORLD
 Browse each Gear World on its own: Tools & Workwear, Men, Women, Kids & Teens, Home, Garden, Technology, Car and Travel. New worlds appear in the app automatically as they launch.
