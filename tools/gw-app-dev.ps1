@@ -15,6 +15,7 @@
 
   -InstallNode with the phrase ΕΓΚΡΙΝΩ NODE LTS installs the current Node.js LTS with winget (only if Node.js is too old).
   -StartOnly starts the app server again from the existing folder (nothing is copied or installed).
+  The phone connects through an ngrok tunnel (works on any network). -Lan uses the local Wi-Fi instead.
 
   Report: <home>\gear-world-reports\GW_APP_DEV_<time>.txt (also copied to the clipboard)
 #>
@@ -23,7 +24,7 @@ param(
     [string]$Approve = '',
     [switch]$InstallNode,
     [switch]$StartOnly,
-    [switch]$Tunnel,
+    [switch]$Lan,
     [string]$Target = '',
     [string]$OutDir = '',
     [switch]$SkipNodeCheck,
@@ -123,14 +124,14 @@ function Start-Expo([string]$dir) {
     Say 'Ξεκινάω την εφαρμογή (Expo). Σε λίγο εμφανίζεται ένα QR code.' 'Cyan'
     Say '  Android: άνοιξε το Expo Go και πάτα «Scan QR code».'
     Say '  iPhone: άνοιξε την Κάμερα και σκάναρε το QR code.'
-    Say '  Κινητό και υπολογιστής πρέπει να είναι στο ίδιο Wi-Fi. Αν τα Windows ρωτήσουν για το Node.js, πάτα «Allow».'
+    Say '  Η σύνδεση περνά από tunnel (ngrok), οπότε δουλεύει με οποιοδήποτε Wi-Fi ή δεδομένα κινητού.'
     Say '  Για να σταματήσει: Ctrl+C σε αυτό το παράθυρο.'
     Save-Report
     try { [Console]::OutputEncoding = [System.Text.Encoding]::UTF8 } catch { }
     Push-Location -LiteralPath $dir
     try {
         $env:EXPO_NO_TELEMETRY = '1'
-        if ($Tunnel) { & npx.cmd expo start --tunnel } else { & npx.cmd expo start --lan }
+        if ($Lan) { & npx.cmd expo start --lan } else { & npx.cmd expo start --tunnel ngrok }
     } finally { Pop-Location }
 }
 
