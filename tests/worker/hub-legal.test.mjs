@@ -50,6 +50,8 @@ test('pages: 5 pages + css + js, each page complete and only about the hub (L01,
   }
   const privacy = files['privacy/index.html'];
   for (const s of ['Google Analytics', 'Cloudflare', 'Newsletter', 'Voice search', 'ico.org.uk', 'Awin']) assert.ok(privacy.includes(s), s);
+  // the app section: microphone use is explained, and the app keeps no recordings
+  for (const s of ['The Gear World app', 'microphone button', 'does not record or keep audio', 'no accounts, no ads and no analytics']) assert.ok(privacy.includes(s), s);
   assert.ok(files['cookies/index.html'].includes('gwh_analytics_consent') && files['cookies/index.html'].includes('id="gwhAnalyticsReset"'));
   assert.ok(files['legal/legal.js'].includes('"gwh_analytics_consent"'));
   assert.doesNotThrow(() => new Function(files['legal/legal.js']));

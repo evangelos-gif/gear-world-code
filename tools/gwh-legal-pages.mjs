@@ -8,6 +8,8 @@ import { dirname, join } from 'node:path';
 
 export const HUB = { name: 'Gear World Hub', domain: 'gearworldhub.com', operator: 'Gear World', email: 'contact@gearworldhub.com' };
 export const UPDATED = '22 October 2026';
+// The privacy policy changed on its own when the Gear World app section was added.
+export const PRIVACY_UPDATED = '23 October 2026';
 const ASSET_V = '20261022';
 
 export const PAGES = [
@@ -21,13 +23,14 @@ export const PAGES = [
 const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 const mail = `<a href="mailto:${HUB.email}">${HUB.email}</a>`;
 const updated = `<p class="lg-updated">Last updated: ${UPDATED}</p>`;
+const privacyUpdated = `<p class="lg-updated">Last updated: ${PRIVACY_UPDATED}</p>`;
 
 const CONTENT = {
   privacy: {
     title: 'Privacy policy',
-    description: 'How Gear World Hub handles personal data.',
-    body: `${updated}
-<p>This policy explains what personal data ${HUB.name} (${HUB.domain}) uses, why, and your rights under UK data protection law (UK GDPR and the Data Protection Act 2018) and, where it applies to you, the EU GDPR.</p>
+    description: 'How Gear World Hub and the Gear World app handle personal data.',
+    body: `${privacyUpdated}
+<p>This policy explains what personal data ${HUB.name} (${HUB.domain}) and the Gear World app for Android and iPhone use, why, and your rights under UK data protection law (UK GDPR and the Data Protection Act 2018) and, where it applies to you, the EU GDPR.</p>
 <h2>Who is responsible</h2>
 <p>The data controller is ${HUB.operator}. Contact: ${mail}.</p>
 <h2>What we use and why</h2>
@@ -37,6 +40,15 @@ const CONTENT = {
 <li><strong>Newsletter.</strong> If you sign up, we keep your email address, your language, the date and the version of the consent text you agreed to. We use them only to send Gear World updates (consent). You can withdraw your consent at any time by emailing us, and we will delete your address.</li>
 <li><strong>Analytics, only if you allow it.</strong> If you select "Allow analytics", we use Google Analytics 4 to count visits and see which parts of the Hub are used (consent). Google Signals and ad personalisation are switched off, and Google Analytics does not store IP addresses. If you select "Reject", Google Analytics is not loaded at all. You can change your choice at any time on the <a href="/cookies/">cookies page</a>.</li>
 <li><strong>Hosting, security and visit counts.</strong> The Hub is hosted by Cloudflare, which processes technical data such as IP addresses to deliver the site and protect it from attacks. Cloudflare Web Analytics also counts page visits and measures loading speed without cookies and without following you across other websites (legitimate interests).</li>
+</ul>
+<h2>The Gear World app</h2>
+<p>The Gear World app shows the same Gear World sites and products as the Hub. It has no accounts, no ads and no analytics.</p>
+<ul>
+<li><strong>Search.</strong> Searches in the app work like searches on the Hub (see above). The app does not store your searches.</li>
+<li><strong>Voice search.</strong> If you tap the microphone button, the app asks for permission to use the microphone (and, on iPhone, speech recognition). Your phone's own speech service, Google on Android or Apple on iPhone, turns your speech into text under Google's or Apple's privacy terms. The app uses only the text, as your search. The app does not record or keep audio. You can turn microphone access off at any time in your phone's settings.</li>
+<li><strong>Newsletter.</strong> Signing up in the app works exactly like signing up on the Hub (see above).</li>
+<li><strong>Stored on your phone.</strong> The app keeps your chosen language and a copy of the list of Gear World sites on your phone, so it starts quickly. This stays on your phone and is deleted when you uninstall the app.</li>
+<li><strong>Retailer links.</strong> When you tap "View at", the retailer's website opens in your phone's browser through the Gear World site and the Awin affiliate network (see "When you leave the Hub" below).</li>
 </ul>
 <h2>Cookies</h2>
 <p>See the <a href="/cookies/">cookies page</a> for the full list and to change your analytics choice.</p>
@@ -51,11 +63,11 @@ const CONTENT = {
 <li>Searches: not stored by us.</li>
 </ul>
 <h2>Children</h2>
-<p>The Hub is a shopping directory for adults. It is not aimed at children under 16, and we do not knowingly collect their data.</p>
+<p>The Hub and the app are a shopping directory for adults. They are not aimed at children under 16, and we do not knowingly collect their data.</p>
 <h2>Your rights</h2>
 <p>You can ask for access to, correction or deletion of your data, ask us to restrict or stop using it, object to its use, and ask for a copy. Email ${mail}. You can also complain to the Information Commissioner's Office at <a href="https://ico.org.uk/">ico.org.uk</a>, or to the data protection authority in your country.</p>
 <h2>Changes to this policy</h2>
-<p>When we change how we use personal data, for example when the Gear World app is released, we will update this page and the date at the top.</p>`
+<p>When we change how we use personal data, we will update this page and the date at the top.</p>`
   },
 
   cookies: {
