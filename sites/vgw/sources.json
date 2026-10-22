@@ -1,0 +1,7 @@
+{
+  "_comment": "Awin feeds used by Travel Gear World. advertiserId is the Awin advertiser id (file names AWIN_<advertiserId>_<feedId>.csv.gz in the Awin archive). Without feedIds, every file of that retailer is read. Add a retailer only after Awin has approved the programme. First version (22 Oct 2026): the two approved retailers already on Car Gear World that also sell luggage, travel accessories and camping gear. More retailers are added after the travel feed scan (tools/travel-feed-scan.ps1). retailer is the name shown on the site; VEVOR has the NL flag (site.config.js retailerCountries).",
+  "sources": [
+    { "advertiserId": 123932, "feedIds": [114093], "retailer": "Joybuy", "currency": "GBP", "condition": "new", "approved": true },
+    { "advertiserId": 118435, "feedIds": [109014], "retailer": "VEVOR", "currency": "EUR", "condition": "new", "approved": true }
+  ]
+}

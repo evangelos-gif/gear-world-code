@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Travel Gear World">
+  <rect width="64" height="64" rx="12" fill="#08263a"/>
+  <path d="M25 19v-5.5a2.5 2.5 0 0 1 2.5-2.5h9a2.5 2.5 0 0 1 2.5 2.5V19" fill="none" stroke="#ff9f2e" stroke-width="4" stroke-linecap="round"/>
+  <rect x="13" y="19" width="38" height="31" rx="6" fill="none" stroke="#ff9f2e" stroke-width="5"/>
+  <path d="M24 24v21M40 24v21" stroke="#eef6fb" stroke-width="3.2" stroke-linecap="round"/>
+  <circle cx="20" cy="55" r="3" fill="#eef6fb"/>
+  <circle cx="44" cy="55" r="3" fill="#eef6fb"/>
+</svg>

@@ -256,6 +256,13 @@ if (Get-Command node -ErrorAction SilentlyContinue) {
     Check ($agwPlans.Count -eq 1) 'agw import plan: report folder written'
     if ($agwPlans.Count -ge 1) { Check ([System.IO.File]::ReadAllText((Join-Path $agwPlans[0].FullName 'report.txt')).Contains('AGW IMPORT PLAN')) 'agw import plan: AGW report' }
     Check ((Get-FileHash -LiteralPath $gzPath -Algorithm SHA256).Hash -eq $archHash) 'agw import plan: Awin archive unchanged'
+    $vgwOut = Join-Path $work 'vgw-plan-run'
+    & $exe -NoProfile -ExecutionPolicy Bypass -File $runTool -LocalRepo $repo -Tool vgw-import-plan -Archive $arch -OutDir $vgwOut -NoClipboard | Out-Null
+    Check ($LASTEXITCODE -eq 0) 'vgw import plan: exit code 0 through gw-run'
+    $vgwPlans = @(Get-ChildItem -LiteralPath $vgwOut -Directory -Filter 'VGW_IMPORT_PLAN_*' -ErrorAction SilentlyContinue)
+    Check ($vgwPlans.Count -eq 1) 'vgw import plan: report folder written'
+    if ($vgwPlans.Count -ge 1) { Check ([System.IO.File]::ReadAllText((Join-Path $vgwPlans[0].FullName 'report.txt')).Contains('VGW IMPORT PLAN')) 'vgw import plan: VGW report' }
+    Check ((Get-FileHash -LiteralPath $gzPath -Algorithm SHA256).Hash -eq $archHash) 'vgw import plan: Awin archive unchanged'
 
     $coesCsv = "merchant_name,aw_product_id,brand_name,merchant_product_id,merchant_category,product_name,merchant_deep_link,merchant_image_url,search_price,stock_quantity`n" +
         "Coes,1,Barbour,10,Menswear,Barbour Beaufort Wax Jacket,https://www.coes.co.uk/products/beaufort?variant=10,https://cdn.shopify.com/1.png,299,1`n" +
@@ -546,6 +553,136 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         Check ((Run-Cf @('-Step', 'update', '-Apply', '-Approve', 'egkrino agw update', '-NoHttpCheck')) -eq 0 -and ([regex]::Matches((Calls), 'wrangler deploy')).Count -eq $deploysBefore + 1) 'agw cloudflare update with approval: deploys once'
         $reports = @(Get-ChildItem -LiteralPath $cfOut -Filter 'AGW_CLOUDFLARE_*.txt' -ErrorAction SilentlyContinue)
         Check ($reports.Count -ge 6) 'agw cloudflare: a report for every run'
+    } finally {
+        $env:PATH = $oldPath
+        Remove-Item Env:\GW_FAKE_STATE -ErrorAction SilentlyContinue
+    }
+}
+
+# 5c. vgw-cloudflare.ps1 (Travel Gear World, same steps as the car site) with a fake wrangler (Windows only: runs .cmd files)
+if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
+    Write-Host 'vgw-cloudflare.ps1 (fake wrangler)'
+    $cfTool = Join-Path (Join-Path $repo 'tools') 'vgw-cloudflare.ps1'
+    $state = Join-Path $work 'vcf-state'
+    $cfWork = Join-Path $work 'vcf-work'
+    $cfOut = Join-Path $work 'vcf-out'
+    $cfBin = Join-Path $work 'vcf-bin'
+    New-Item -ItemType Directory -Path $state, $cfBin -Force | Out-Null
+    $fakeDb = [guid]::NewGuid().ToString()
+    $fakeAcct = [guid]::NewGuid().ToString('N')
+    $fakeBookmark = '00000085-0000024c-00004c6d-' + [guid]::NewGuid().ToString('N')
+    $fakeNpx = @(
+        '@echo off',
+        'echo %* >> "%GW_FAKE_STATE%\calls.log"',
+        'echo %* | findstr /C:"whoami" >nul && goto whoami',
+        'echo %* | findstr /C:"d1 list" >nul && goto d1list',
+        'echo %* | findstr /C:"d1 create" >nul && goto d1create',
+        'echo %* | findstr /C:"migrations apply" >nul && goto ok',
+        'echo %* | findstr /C:"time-travel info" >nul && goto ttinfo',
+        'echo %* | findstr /C:"--command" >nul && goto query',
+        'echo %* | findstr /C:"d1 execute" >nul && goto ok',
+        'echo %* | findstr /C:" deploy" >nul && goto deploy',
+        'echo unknown command 1>&2',
+        'exit /b 1',
+        ':whoami',
+        'if defined GW_FAKE_NOLOGIN goto nologin',
+        'echo You are logged in with an OAuth Token, associated with the email test@example.com.',
+        ('echo ^| Test Account ^| ' + $fakeAcct + ' ^|'),
+        'exit /b 0',
+        ':nologin',
+        'echo You are not authenticated. Please run wrangler login.',
+        'exit /b 1',
+        ':d1list',
+        'if not defined GW_FAKE_FLAKY goto d1listreal',
+        'if exist "%GW_FAKE_STATE%\flaky.txt" goto d1listreal',
+        'echo flaky > "%GW_FAKE_STATE%\flaky.txt"',
+        'echo X [ERROR] fetch failed',
+        'exit /b 1',
+        ':d1listreal',
+        'if exist "%GW_FAKE_STATE%\db.txt" goto d1listyes',
+        'echo []',
+        'exit /b 0',
+        ':d1listyes',
+        ('echo [{"uuid":"' + $fakeDb + '","name":"travel-gear-world"}]'),
+        'exit /b 0',
+        ':d1create',
+        'echo created > "%GW_FAKE_STATE%\db.txt"',
+        'echo Successfully created DB',
+        'exit /b 0',
+        ':ttinfo',
+        ('echo The current bookmark is ' + $fakeBookmark),
+        'exit /b 0',
+        ':query',
+        'echo [{"results":[{"category_slug":"audio","n":1}],"success":true}]',
+        'exit /b 0',
+        ':deploy',
+        'echo Uploaded travel-gear-world',
+        'echo   https://travel-gear-world.example-test.workers.dev',
+        'exit /b 0',
+        ':ok',
+        'echo OK',
+        'exit /b 0'
+    ) -join "`r`n"
+    [System.IO.File]::WriteAllText((Join-Path $cfBin 'npx.cmd'), $fakeNpx + "`r`n", [System.Text.Encoding]::ASCII)
+    $oldPath = $env:PATH
+    $env:PATH = $cfBin + ';' + $oldPath
+    $env:GW_FAKE_STATE = $state
+    $calls = Join-Path $state 'calls.log'
+    function Run-Cf([string[]]$a) {
+        $all = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $cfTool, '-WorkDir', $cfWork, '-OutDir', $cfOut, '-SkipInstall', '-NoClipboard') + $a
+        & $exe @all | Out-Null
+        return $LASTEXITCODE
+    }
+    function Calls { if (Test-Path -LiteralPath $calls) { return [System.IO.File]::ReadAllText($calls) } else { return '' } }
+    try {
+        $env:GW_FAKE_NOLOGIN = '1'
+        Check ((Run-Cf @('-Step', 'check')) -eq 4) 'vgw cloudflare: not logged in gives exit 4'
+        Remove-Item Env:\GW_FAKE_NOLOGIN
+        $lastReport = @(Get-ChildItem -LiteralPath $cfOut -Filter 'VGW_CLOUDFLARE_CHECK_*.txt' | Sort-Object LastWriteTime | Select-Object -Last 1)
+        Check ($lastReport.Count -eq 1 -and ([System.IO.File]::ReadAllText($lastReport[0].FullName)).Contains('not authenticated')) 'vgw cloudflare: report shows the wrangler output'
+        $env:GW_FAKE_FLAKY = '1'
+        Check ((Run-Cf @('-Step', 'check')) -eq 0) 'vgw cloudflare: one network error is retried'
+        Remove-Item Env:\GW_FAKE_FLAKY
+        Check (([regex]::Matches((Calls), 'd1 list')).Count -eq 2) 'vgw cloudflare: the D1 list was read twice'
+        Check ((Run-Cf @('-Step', 'check')) -eq 0) 'vgw cloudflare check: exit 0'
+        Check (-not ((Calls) -match 'd1 create|deploy|execute|migrations')) 'vgw cloudflare check: only reads'
+        Check ((Run-Cf @('-Step', 'd1')) -eq 0) 'vgw cloudflare d1 without -Apply: exit 0'
+        Check (-not ((Calls) -match 'd1 create')) 'vgw cloudflare d1 without -Apply: creates nothing'
+        Check ((Run-Cf @('-Step', 'd1', '-Apply', '-Approve', 'yes please')) -eq 1) 'vgw cloudflare d1 with wrong phrase: stops'
+        Check (-not ((Calls) -match 'd1 create')) 'vgw cloudflare d1 with wrong phrase: creates nothing'
+        Check ((Run-Cf @('-Step', 'preview', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ VGW PREVIEW')) -eq 8) 'vgw cloudflare preview before d1: refused'
+        Check ((Run-Cf @('-Step', 'd1', '-Apply', '-Approve', 'egkrino vgw d1')) -eq 0) 'vgw cloudflare d1 with approval (Latin form): exit 0'
+        $c = Calls
+        Check ($c -match 'd1 create travel-gear-world' -and $c -match 'migrations apply travel-gear-world --remote') 'vgw cloudflare d1: creates the database and its tables'
+        $cfg = Join-Path $cfWork 'wrangler.jsonc'
+        Check ((Test-Path -LiteralPath $cfg) -and ([System.IO.File]::ReadAllText($cfg)).Contains($fakeDb)) 'vgw cloudflare d1: local wrangler.jsonc has the database id'
+        Check ((Run-Cf @('-Step', 'preview', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ VGW PREVIEW')) -eq 0) 'vgw cloudflare preview with approval: exit 0'
+        Check ((Calls) -match '(?m)wrangler deploy') 'vgw cloudflare preview: deploys'
+        Check (@(Get-ChildItem -LiteralPath (Join-Path $cfWork 'deploy') -Recurse -Filter 'promos.js' -ErrorAction SilentlyContinue).Count -ge 1) 'vgw cloudflare preview: the deploy copy has promos/ (the site config imports it)'
+        Check (-not ((Calls) -match 'routes|custom_domain|travelgearworld\.com')) 'vgw cloudflare preview: no custom domain'
+        Check ((Run-Cf @('-Step', 'import', '-Archive', $arch)) -eq 0) 'vgw cloudflare import without -Apply: exit 0'
+        Check (-not ((Calls) -match 'd1 execute .*--file')) 'vgw cloudflare import without -Apply: loads nothing'
+        Check ((Run-Cf @('-Step', 'import', '-Archive', $arch, '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ VGW IMPORT')) -eq 0) 'vgw cloudflare import with approval: exit 0'
+        $c = Calls
+        $iBackup = $c.IndexOf('time-travel info')
+        $iExec = $c.IndexOf('--file')
+        Check ($iBackup -ge 0 -and $iExec -gt $iBackup) 'vgw cloudflare import: restore point before loading'
+        $notes = @(Get-ChildItem -LiteralPath (Join-Path $cfWork 'backups') -Filter '*.txt' -ErrorAction SilentlyContinue)
+        Check ($notes.Count -eq 1 -and ([System.IO.File]::ReadAllText($notes[0].FullName)).Contains($fakeBookmark)) 'vgw cloudflare import: restore point written with the bookmark'
+        $deploysBefore = ([regex]::Matches((Calls), 'wrangler deploy')).Count
+        Check ((Run-Cf @('-Step', 'domain')) -eq 0) 'vgw cloudflare domain without -Apply: exit 0'
+        Check (([regex]::Matches((Calls), 'wrangler deploy')).Count -eq $deploysBefore -and -not ([System.IO.File]::ReadAllText($cfg) -match '(?m)^\s*"routes"\s*:')) 'vgw cloudflare domain without -Apply: changes nothing'
+        Check ((Run-Cf @('-Step', 'domain', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ VGW DOMAIN', '-NoHttpCheck')) -eq 0) 'vgw cloudflare domain with approval: exit 0'
+        $cfgNow = [System.IO.File]::ReadAllText($cfg)
+        Check ($cfgNow.Contains('"pattern": "travelgearworld.com", "custom_domain": true') -and $cfgNow.Contains('"pattern": "www.travelgearworld.com", "custom_domain": true') -and $cfgNow.Contains($fakeDb)) 'vgw cloudflare domain: config has both custom domains and keeps the database id'
+        Check (@(Get-ChildItem -LiteralPath $cfWork -Filter 'wrangler.jsonc.before-domain-*').Count -eq 1) 'vgw cloudflare domain: old config saved first'
+        Check (([regex]::Matches((Calls), 'wrangler deploy')).Count -eq $deploysBefore + 1) 'vgw cloudflare domain: deploys once'
+        Check ((Run-Cf @('-Step', 'domain', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ VGW DOMAIN', '-NoHttpCheck')) -eq 0 -and ([regex]::Matches([System.IO.File]::ReadAllText($cfg), '(?m)^\s*"routes"\s*:')).Count -eq 1) 'vgw cloudflare domain twice: routes added only once'
+        $deploysBefore = ([regex]::Matches((Calls), 'wrangler deploy')).Count
+        Check ((Run-Cf @('-Step', 'update', '-Apply', '-Approve', 'wrong')) -eq 1 -and ([regex]::Matches((Calls), 'wrangler deploy')).Count -eq $deploysBefore) 'vgw cloudflare update with wrong phrase: no deploy'
+        Check ((Run-Cf @('-Step', 'update', '-Apply', '-Approve', 'egkrino vgw update', '-NoHttpCheck')) -eq 0 -and ([regex]::Matches((Calls), 'wrangler deploy')).Count -eq $deploysBefore + 1) 'vgw cloudflare update with approval: deploys once'
+        $reports = @(Get-ChildItem -LiteralPath $cfOut -Filter 'VGW_CLOUDFLARE_*.txt' -ErrorAction SilentlyContinue)
+        Check ($reports.Count -ge 6) 'vgw cloudflare: a report for every run'
     } finally {
         $env:PATH = $oldPath
         Remove-Item Env:\GW_FAKE_STATE -ErrorAction SilentlyContinue

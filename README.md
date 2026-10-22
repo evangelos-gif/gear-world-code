@@ -16,6 +16,7 @@
 | `src/` | Κοινή «μηχανή» για όλα τα sites (Cloudflare Worker): σελίδες, headers, sitemap, `/out/` |
 | `sites/tgw/` | Ό,τι είναι μόνο του TGW: ρυθμίσεις, migrations της D1, εικόνες, CSS, JS |
 | `sites/agw/` | Car Gear World (κωδικός AGW, cargearworld.com): νέο site με δική του D1, όπως το TGW |
+| `sites/vgw/` | Travel Gear World (κωδικός VGW, travelgearworld.com): νέο site με δική του D1, όπως το AGW, σε μπλε και πορτοκαλί (ασφαλή για δυσχρωματοψία) |
 | `tools/` | Εργαλεία για τον υπολογιστή (PowerShell) και ο έλεγχος ποιότητας `qa-gate.mjs` |
 | `tests/` | Αυτόματοι έλεγχοι (τρέχουν σε κάθε αλλαγή) |
 | `docs/LESSONS.md` | Τα λάθη του παρελθόντος και οι κανόνες που τα αποτρέπουν |
@@ -52,6 +53,8 @@
 | `tools/travel-feed-scan.ps1` | Για το νέο Travel Gear World (VGW): πόσα προϊόντα ταξιδιού (βαλίτσες, σακίδια, αξεσουάρ, camping, παραλία) έχει κάθε κατάστημα στα feeds του υπολογιστή, ανά κατηγορία, και (αν υπάρχει το κλειδί) ποια προγράμματα ταξιδιωτικού εξοπλισμού του Awin έχεις ή μπορείς να κάνεις αίτηση | 🟢 Όχι |
 | `tools/agw-import-plan.ps1` | Car Gear World: δείχνει ποια προϊόντα των feeds θα έμπαιναν στο AGW και σε ποια κατηγορία (σχέδιο δοκιμής, γράφει SQL χωρίς να το τρέχει) | 🟢 Όχι |
 | `tools/agw-cloudflare.ps1` | Βήματα Cloudflare του Car Gear World: έλεγχος, D1, δοκιμαστική διεύθυνση, φόρτωση προϊόντων, σύνδεση cargearworld.com, ενημέρωση | 🟢 `check` όχι · 🔴 τα άλλα μόνο με `-Apply` και φράση `ΕΓΚΡΙΝΩ AGW ...` |
+| `tools/vgw-import-plan.ps1` | Travel Gear World: δείχνει ποια προϊόντα των feeds θα έμπαιναν στο VGW και σε ποια κατηγορία (σχέδιο δοκιμής, γράφει SQL χωρίς να το τρέχει) | 🟢 Όχι |
+| `tools/vgw-cloudflare.ps1` | Βήματα Cloudflare του Travel Gear World: έλεγχος, D1, δοκιμαστική διεύθυνση, φόρτωση προϊόντων, σύνδεση travelgearworld.com, ενημέρωση | 🟢 `check` όχι · 🔴 τα άλλα μόνο με `-Apply` και φράση `ΕΓΚΡΙΝΩ VGW ...` |
 | `tools/gwh-agw-link.ps1` | Βάζει το Car Gear World στο Gear World Hub ως 8ο site (κάρτα στην αρχική σε 11 γλώσσες και γραμμή στη λίστα sites της D1 του hub), μετά το TGW | 🟢 χωρίς `-Apply` μόνο ελέγχει · 🔴 με `-Apply` και `ΕΓΚΡΙΝΩ AGW HUB LINK`, με backup και σημείο επαναφοράς πρώτα |
 | `tools/gw-run.ps1` | Κατεβάζει μία κλειδωμένη έκδοση του repo και τρέχει ένα εργαλείο από αυτήν | 🟢 Όχι (μόνο αρχεία στο %TEMP%) |
 | `tools/qa-gate.mjs`, `tools/layout-check.mjs` | Έλεγχοι ποιότητας ενός site (τρέχουν και αυτόματα σε κάθε αλλαγή). Το layout check ελέγχει και σε άλλη γλώσσα και νόμισμα (`--lang de-DE --currency RUB`) | 🟢 Όχι |

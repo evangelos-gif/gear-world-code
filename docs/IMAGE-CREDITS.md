@@ -86,3 +86,19 @@
 | cat-safety-winter.webp | https://www.pexels.com/photo/close-up-of-a-car-covered-in-snow-15473384/ |
 | logo.svg, favicon.svg, apple-touch-icon.png | Σχεδιασμένα για το repo (κόκκινο λάστιχο με ζάντα σε γραφίτη τετράγωνο) |
 | assets/flags/nl.svg | Η σημαία Ολλανδίας του CGW (για το VEVOR) |
+
+## Travel Gear World (VGW)
+
+Φωτογραφίες από το **Pexels** ([άδεια Pexels](https://www.pexels.com/license/)), κομμένες και μικρυμένες σε WebP. Σβήστηκε το σήμα μάρκας από τη βαλίτσα της κεντρικής φωτογραφίας και θόλωσαν τα μικρά γράμματα στον φακό της φωτογραφίας παραλίας, για να μη φαίνεται μάρκα σαν να υποστηρίζει το site. Το λογότυπο, το favicon και το apple-touch-icon σχεδιάστηκαν για το repo (βαλίτσα σε πορτοκαλί πάνω σε σκούρο μπλε).
+
+| Αρχείο | Pexels |
+|---|---|
+| hero-1920.webp, hero-960.webp, og-image.png (φόντο) | https://www.pexels.com/photo/unrecognizable-woman-with-suitcase-walking-near-airport-terminal-3885529/ |
+| cat-luggage-suitcases.webp | https://www.pexels.com/photo/photo-of-a-packed-suitcase-8212231/ |
+| cat-travel-bags-backpacks.webp | https://www.pexels.com/photo/backpack-with-neck-pillow-and-travel-bag-lying-on-ground-25210705/ |
+| cat-travel-accessories.webp | https://www.pexels.com/photo/a-person-putting-folded-clothes-on-pouch-9186174/ |
+| cat-comfort-sleep.webp | https://www.pexels.com/photo/a-gray-garterized-eye-cap-on-a-white-textile-6603476/ |
+| cat-documents-security.webp | https://www.pexels.com/photo/close-up-shot-of-a-passport-and-tickets-on-top-of-a-laptop-7310015/ |
+| cat-travel-tech.webp | https://www.pexels.com/photo/smartphone-charging-with-portable-power-bank-37475677/ |
+| cat-camping-outdoor.webp | https://www.pexels.com/photo/two-lighted-dome-tent-during-nighttime-2526025/ |
+| cat-beach-holiday.webp | https://www.pexels.com/photo/brown-woven-bag-on-beach-sand-8093198/ |
