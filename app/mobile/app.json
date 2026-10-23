@@ -12,7 +12,8 @@
       "bundleIdentifier": "com.gearworldhub.app",
       "supportsTablet": false,
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSPhotoLibraryUsageDescription": "Gear World does not use your photos. Apple asks every app that includes image tools to explain photo access; the app never asks for or reads your photo library."
       }
     },
     "android": {

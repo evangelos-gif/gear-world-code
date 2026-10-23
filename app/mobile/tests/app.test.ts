@@ -129,6 +129,8 @@ test('voice: the app asks for the microphone with a clear reason, and nothing el
   assert.match(plugin[1].microphonePermission, /microphone button/);
   assert.match(plugin[1].speechRecognitionPermission, /does not keep any recordings/);
   assert.equal(app.android.permissions, undefined, 'no extra Android permissions listed by hand');
+  // Apple rejects a build when a library references the photo library without a purpose string (ITMS-90683).
+  assert.match(app.ios.infoPlist.NSPhotoLibraryUsageDescription, /does not use your photos/);
   assert.deepEqual([...app.android.blockedPermissions].sort(), [
     'android.permission.READ_EXTERNAL_STORAGE', 'android.permission.SYSTEM_ALERT_WINDOW', 'android.permission.WRITE_EXTERNAL_STORAGE'
   ], 'storage and overlay permissions are removed: the app does not need them');
