@@ -289,6 +289,32 @@ if (Get-Command node -ErrorAction SilentlyContinue) {
     & $exe -NoProfile -ExecutionPolicy Bypass -File $runTool -LocalRepo $repo -Tool legacy-import-plan -Retailer 'no-rules' -Archive $arch -OutDir $lipOut -NoClipboard
     Check ($LASTEXITCODE -eq 2) 'legacy import plan: unknown retailer gives exit code 2'
 
+    $nsArch = Join-Path $work 'ns-archive'
+    New-Item -ItemType Directory -Path $nsArch -Force | Out-Null
+    $nsCsv = "merchant_name,product_name,search_price,currency,in_stock,merchant_category`n" +
+        "Game Shop,EA Sports FC 25 (PS5),39.99,GBP,1,Video Games`n" +
+        "Bag World,Samsonite Spinner 55cm Cabin Suitcase,159,GBP,1,Luggage`n" +
+        "Tool Shop,Makita Drill,99,GBP,1,Tools`n"
+    $nsGz = Join-Path $nsArch 'AWIN_100_1.csv.gz'
+    $fs = [System.IO.File]::Create($nsGz)
+    $gz = New-Object System.IO.Compression.GZipStream($fs, [System.IO.Compression.CompressionMode]::Compress)
+    $bytes = [System.Text.Encoding]::UTF8.GetBytes($nsCsv)
+    $gz.Write($bytes, 0, $bytes.Length); $gz.Close(); $fs.Close()
+    $nsHash = (Get-FileHash -LiteralPath $nsGz -Algorithm SHA256).Hash
+    $nsOut = Join-Path $work 'ns-run'
+    & $exe -NoProfile -ExecutionPolicy Bypass -File $runTool -LocalRepo $repo -Tool gw-new-site-scan -Archive $nsArch -OutDir $nsOut -KeyFile (Join-Path $work 'no-key.dat') -NoClipboard
+    Check ($LASTEXITCODE -eq 0) 'new site scan: exit code 0 through gw-run'
+    $nsRuns = @(Get-ChildItem -LiteralPath $nsOut -Directory -Filter 'GW_NEW_SITE_SCAN_*' -ErrorAction SilentlyContinue)
+    Check ($nsRuns.Count -eq 1) 'new site scan: report folder written'
+    if ($nsRuns.Count -ge 1) {
+        $nsRep = [System.IO.File]::ReadAllText((Join-Path $nsRuns[0].FullName 'report.txt'), [System.Text.Encoding]::UTF8)
+        Check ($nsRep.Contains('SIDE BY SIDE') -and $nsRep.Contains('Samsonite Spinner') -and $nsRep.Contains('EA Sports FC 25')) 'new site scan: travel and gaming products counted'
+        Check (-not $nsRep.Contains('Makita')) 'new site scan: other products left out'
+        Check ($nsRep.Contains('NOT checked')) 'new site scan: without a saved key, membership is not checked'
+    }
+    Check ((Get-FileHash -LiteralPath $nsGz -Algorithm SHA256).Hash -eq $nsHash) 'new site scan: Awin archive unchanged'
+    Check (-not (Test-Path -LiteralPath (Join-Path $work 'no-key.dat'))) 'new site scan: never asks for or saves a key'
+
     if ($env:CI -eq 'true' -and $env:GITHUB_SHA) {
         $dlOut = Join-Path $work 'plan-download'
         & $exe -NoProfile -ExecutionPolicy Bypass -File $runTool -Ref $env:GITHUB_SHA -Tool tgw-import-plan -Archive $arch -OutDir $dlOut -NoClipboard
@@ -1557,6 +1583,15 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         Check ($fdRep.Contains('116078') -and $fdRep.Contains('ΕΓΚΡΙΝΩ FEED DOWNLOAD')) 'feed download report: the feed and the phrase'
         Check ($fdRep.Contains('δεν είσαι ενεργό μέλος')) 'feed download: a programme not joined is skipped'
         Check (-not $fdRep.Contains($fdKey)) 'feed download: the key is never in the report'
+        $nsArch2 = Join-Path $fdDir 'ns-archive'
+        New-Item -ItemType Directory -Path $nsArch2 -Force | Out-Null
+        Write-Utf8 (Join-Path $nsArch2 'AWIN_30645_116078.csv') "merchant_name,product_name,search_price,currency,in_stock`nCoes,Antler Holdall,89,GBP,1`n"
+        $nsOut2 = Join-Path $fdDir 'ns-out'
+        & $exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path (Join-Path $repo 'tools') 'gw-new-site-scan.ps1') -Archive $nsArch2 -OutDir $nsOut2 -KeyFile $fdKeyFile -BaseUrl 'http://127.0.0.1:8799' -NoClipboard | Out-Null
+        Check ($LASTEXITCODE -eq 0) 'new site scan with the Awin list: exit 0'
+        $nsAll = (@(Get-ChildItem -LiteralPath $nsOut2 -Recurse -File) | ForEach-Object { [System.IO.File]::ReadAllText($_.FullName) }) -join ' '
+        Check ($nsAll -match 'Coes\s+1\s+median 89 GBP.*MEMBER') 'new site scan: marks the retailers where you are a member'
+        Check (-not $nsAll.Contains($fdKey)) 'new site scan: the key is in no report or list'
         Check ((Run-Fd @('-Apply', '-Approve', 'wrong')) -eq 1) 'feed download with wrong phrase: stops'
         Write-Utf8 (Join-Path $fdArch 'AWIN_30645_116078.csv.gz') 'old copy'
         Check ((Run-Fd @('-Apply', '-Approve', 'egkrino feed download')) -eq 0) 'feed download with approval: exit 0'
