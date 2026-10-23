@@ -8,6 +8,9 @@
   Enter without a phrase skips that pair and the next pair still asks. Each import takes its own restore point first.
   The pairs do not depend on each other (different sites, or different shops on one site).
 
+  -Tgw: also Technology Gear World, after the pairs. Without -Apply its read-only plan (tgw-import-plan.ps1); with
+  -Apply its import (tgw-cloudflare.ps1 -Step import), which asks its own phrase ΕΓΚΡΙΝΩ TGW IMPORT.
+
   Report: <home>\gear-world-reports\IMPORT_BATCH_<time>.txt (also copied to the clipboard), with every pair's
   summary and the full plan of every shop.
 #>
@@ -17,6 +20,7 @@ param(
     [string]$Archive = '',
     [string]$WorkDir = '',
     [string]$OutDir = '',
+    [switch]$Tgw,
     [switch]$NoClipboard
 )
 
@@ -59,6 +63,20 @@ foreach ($pair in $list) {
     $results += ('{0} -> {1}: exit {2}' -f $parts[0], $parts[1].ToUpper(), $LASTEXITCODE)
 }
 
+# Technology Gear World has its own tools (another database layout): its plan, or its import with its own phrase.
+if ($Tgw) {
+    Write-Host ''
+    Write-Host '===== Technology Gear World (TGW) =====' -ForegroundColor Cyan
+    if ($Apply) {
+        $a = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', (Join-Path (Join-Path $repo 'tools') 'tgw-cloudflare.ps1'), '-Step', 'import', '-Apply', '-OutDir', $OutDir, '-NoClipboard')
+    } else {
+        $a = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', (Join-Path (Join-Path $repo 'tools') 'tgw-import-plan.ps1'), '-OutDir', $OutDir, '-NoClipboard')
+    }
+    if ($Archive) { $a += @('-Archive', $Archive) }
+    & $exe @a
+    $results += ('TGW: exit {0}' -f $LASTEXITCODE)
+}
+
 # One report: the summary of every pair, then the full plan of every shop (latest of this run).
 $sb = New-Object System.Text.StringBuilder
 [void]$sb.AppendLine(('IMPORT BATCH {0} - {1}' -f (Get-Date -Format 'yyyy-MM-dd HH:mm'), $mode))
@@ -82,6 +100,22 @@ foreach ($shop in ($latest.Keys | Sort-Object)) {
     [void]$sb.AppendLine('')
     [void]$sb.AppendLine('##### PLAN ' + $shop)
     [void]$sb.AppendLine([System.IO.File]::ReadAllText($rep, [System.Text.Encoding]::UTF8))
+}
+if ($Tgw) {
+    foreach ($f in @(Get-ChildItem -LiteralPath $OutDir -File -Filter 'TGW_CLOUDFLARE_IMPORT_*.txt' | Where-Object { $_.LastWriteTime -ge $start } | Sort-Object LastWriteTime)) {
+        [void]$sb.AppendLine('')
+        [void]$sb.AppendLine('##### ' + $f.Name)
+        [void]$sb.AppendLine([System.IO.File]::ReadAllText($f.FullName, [System.Text.Encoding]::UTF8))
+    }
+    $tgwPlans = @(Get-ChildItem -LiteralPath $OutDir -Directory -Filter 'TGW_IMPORT_PLAN_*' | Where-Object { $_.LastWriteTime -ge $start } | Sort-Object LastWriteTime)
+    if ($tgwPlans.Count -gt 0) {
+        $rep = Join-Path $tgwPlans[$tgwPlans.Count - 1].FullName 'report.txt'
+        if (Test-Path -LiteralPath $rep) {
+            [void]$sb.AppendLine('')
+            [void]$sb.AppendLine('##### PLAN TGW')
+            [void]$sb.AppendLine([System.IO.File]::ReadAllText($rep, [System.Text.Encoding]::UTF8))
+        }
+    }
 }
 $text = $sb.ToString()
 $file = Join-Path $OutDir ('IMPORT_BATCH_{0}.txt' -f $stamp)

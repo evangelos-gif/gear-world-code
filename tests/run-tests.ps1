@@ -1279,6 +1279,17 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
             Check ($bt.Contains('joybuy -> WGW: exit 0') -and $bt.Contains('joybuy -> MGW: exit 0') -and $bt.Contains('##### PLAN joybuy')) 'import batch: both pairs and the plan in the report'
         }
         Check (-not ((LiCalls) -match '--file|time-travel')) 'import batch without -Apply: only reads'
+        # -Tgw: the read-only TGW plan after the pairs, in the same report.
+        $tOut = Join-Path $work 'batch-tgw-out'
+        $bTgw = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', (Join-Path $repo 'tools\legacy-import-batch.ps1'), '-Pairs', 'joybuy:wgw', '-Tgw', '-Archive', $jArch, '-WorkDir', $liWork, '-OutDir', $tOut, '-NoClipboard')
+        & $exe @bTgw | Out-Null
+        Check ($LASTEXITCODE -eq 0) 'import batch with -Tgw (read-only): exit 0'
+        $tRep = @(Get-ChildItem -LiteralPath $tOut -File -Filter 'IMPORT_BATCH_*.txt')
+        if ($tRep.Count -ge 1) {
+            $tt = [System.IO.File]::ReadAllText($tRep[0].FullName)
+            Check ($tt.Contains('TGW: exit 0') -and $tt.Contains('##### PLAN TGW') -and $tt.Contains('TGW IMPORT PLAN (dry run, nothing imported)')) 'import batch with -Tgw: the TGW plan is in the report'
+        } else { Check $false 'import batch with -Tgw: one combined report' }
+        Check (-not ((LiCalls) -match '--file|time-travel')) 'import batch with -Tgw without -Apply: only reads'
         $bBad = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', (Join-Path $repo 'tools\legacy-import-batch.ps1'), '-Pairs', 'joybuy:xyz', '-OutDir', $bOut, '-NoClipboard')
         & $exe @bBad | Out-Null
         Check ($LASTEXITCODE -eq 2) 'import batch: a wrong site is refused'
