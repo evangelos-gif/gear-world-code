@@ -7,6 +7,7 @@
   smartwatch straps, films and spare parts out of Watches, political party merchandise.
   -Rules family (KGW, a site for parents): medicines, food supplements, adult clothing and items for the mother.
   -Rules noimage (any site): products shown without a picture (empty, not https, or Awin's noimage placeholder).
+  -Rules viaduct-sizes (MGW, WGW): the old Viaduct Clothing cards, one per size, once the new one-per-product cards are there.
 
   Without -Apply: READ-ONLY. Counts what WOULD be hidden, per reason and category, with samples. Changes nothing.
   With -Apply and the approval phrase (ΕΓΚΡΙΝΩ <RULES> CLEANUP <SITE>, e.g. ΕΓΚΡΙΝΩ INSTOCK CLEANUP MGW):

@@ -56,7 +56,7 @@ export const MEN_LINES = words(['sauvage', 'bleu de chanel', 'aventus', 'acqua d
 export const WOMEN = words(['women', "women's", 'womens', 'woman', 'ladies', 'lady', 'female', 'for her', 'pour femme', 'femme', 'girl']);
 export const UNISEX = words(['unisex']);
 export const KIDS = words(['baby', 'babies', 'infant', 'infants', 'toddler', 'toddlers', 'kids', 'kid', "kid's", 'children', "children's", 'child', 'childs', 'junior', 'newborn', 'nappy']);
-const NOT_BEAUTY = words(['toothpaste', 'toothbrush', 'toothbrushes', 'mouthwash', 'floss', 'dental', 'denture', 'dentures', 'condom', 'condoms', 'lubricant', 'pregnancy',
+export const NOT_BEAUTY = words(['toothpaste', 'toothbrush', 'toothbrushes', 'mouthwash', 'floss', 'dental', 'denture', 'dentures', 'condom', 'condoms', 'lubricant', 'pregnancy',
   'ovulation', 'tampon', 'tampons', 'sanitary', 'incontinence', 'supplement', 'supplements', 'multivitamin', 'multivitamins', 'gummies', 'medicine', 'plaster', 'plasters',
   'bandage', 'bandages', 'thermometer', 'hearing aid', 'contact lens', 'contact lenses', 'pet', 'pets', 'dog', 'dogs', 'puppy', 'toy', 'toys', 'doll', 'dolls', 'lice', 'nits',
   'tattoo machine', 'gift card', 'voucher', 'otoscope', 'ear wax', 'ear cleaner', 'ear camera']);
@@ -65,7 +65,7 @@ export const CJK = /[぀-ヿ㐀-鿿가-힯]/;
 
 // Subcategory from the NAME first (Joybuy files many creams and serums under "Make-Up"), then from the feed category.
 // Order matters: "tinted moisturiser" is make-up, "hair mask" is hair care, "brush set" is a beauty tool.
-const NAME_SUBS = [
+export const NAME_SUBS = [
   [FRAGRANCE_NAME, 'Fragrance'],
   [words(['gift set', 'gift sets', 'beauty set', 'advent calendar', 'gift box', 'skincare set', 'skin care set', 'starter kit', 'discovery set']), 'Gift sets'],
   [words(['hair dryer', 'hairdryer', 'straightener', 'straighteners', 'curler', 'curlers', 'curling wand', 'curling tong', 'curling tongs', 'hair styler',
@@ -94,19 +94,19 @@ const CATEGORY_SUBS = [
   [/Skin Care/i, 'Skincare'], [/Bath & Body|Deodorant/i, 'Bath & body'], [/Shaving & Grooming|Hair Removal/i, 'Hair removal'], [/Make-?Up/i, 'Make-up']
 ];
 // Words that make a name clearly beauty. A product placed only because of its feed category is listed for checking (L14).
-const BEAUTY_WORDS = words(['beauty', 'cosmetic', 'cosmetics', 'makeup', 'make-up', 'skin', 'face', 'body', 'hair', 'lip', 'lips', 'eye', 'eyes', 'lash', 'cream',
+export const BEAUTY_WORDS = words(['beauty', 'cosmetic', 'cosmetics', 'makeup', 'make-up', 'skin', 'face', 'body', 'hair', 'lip', 'lips', 'eye', 'eyes', 'lash', 'cream',
   'oil', 'balm', 'gel', 'wash', 'lotion', 'scent', 'fragrance', 'spray', 'powder', 'wax', 'comb', 'brush', 'sponge', 'mirror', 'wig', 'wigs', 'extensions', 'perfume']);
 
-function subcategoryOf(name, feedCategory) {
+export function subcategoryOf(name, feedCategory) {
   for (const [re, sub] of NAME_SUBS) if (re.test(name)) return sub;
   for (const [re, sub] of CATEGORY_SUBS) if (re.test(feedCategory)) return sub;
   return 'Beauty';
 }
 
 // Women's hair removal often has no "women" in the name.
-const WOMEN_GROOMING = words(['venus', 'silk-épil', 'silk-epil', 'silk epil', 'epilator', 'epilators', 'ipl', 'dermaplaning', 'dermaplaner', 'lady shaver',
+export const WOMEN_GROOMING = words(['venus', 'silk-épil', 'silk-epil', 'silk epil', 'epilator', 'epilators', 'ipl', 'dermaplaning', 'dermaplaner', 'lady shaver',
   'ladyshave', 'bikini', 'satinelle', 'lumea']);
-const MEN_TOOLS = words(['trimmer', 'trimmers', 'multigroom', 'multi-groom', 'clipper', 'clippers', 'shaver', 'shavers', 'beard']);
+export const MEN_TOOLS = words(['trimmer', 'trimmers', 'multigroom', 'multi-groom', 'clipper', 'clippers', 'shaver', 'shavers', 'beard']);
 // Deodorant brands and lines for men.
 const MEN_DEODORANT = words(['lynx', 'right guard', 'old spice', 'brut', 'axe', 'mitchum men']);
 
@@ -158,14 +158,14 @@ function beautyPlace(n, c) {
 }
 
 // ---------- Home Gear World: Smart Home, Cleaning & Laundry ----------
-const SMART_HOME = words(['smart plug', 'smart plugs', 'smart bulb', 'smart bulbs', 'smart light', 'smart lights', 'smart lighting', 'smart thermostat',
+export const SMART_HOME = words(['smart plug', 'smart plugs', 'smart bulb', 'smart bulbs', 'smart light', 'smart lights', 'smart lighting', 'smart thermostat',
   'smart speaker', 'smart display', 'smart lock', 'smart locks', 'smart hub', 'smart sensor', 'smart switch', 'smart radiator valve', 'smart blinds', 'smart curtain',
   'smart doorbell', 'smart alarm', 'smart smoke alarm', 'smart home', 'video doorbell', 'video doorbells', 'doorbell camera', 'security camera', 'security cameras',
   'indoor camera', 'outdoor camera', 'home camera', 'wifi camera', 'wi-fi camera', 'wireless camera', 'cctv', 'amazon alexa', 'with alexa', 'works with alexa',
   'echo dot', 'echo show', 'echo pop', 'google nest', 'google home', 'nest hub', 'nest cam', 'ring doorbell', 'ring camera', 'ring alarm', 'hive thermostat',
   'tado', 'philips hue', 'hue bulb', 'lightstrip', 'lightstrips', 'wifi plug', 'wi-fi plug', 'wifi bulb', 'wi-fi bulb', 'eufycam', 'eufy security', 'arlo',
   'blink outdoor', 'blink mini', 'switchbot', 'meross', 'govee', 'tapo', 'kasa']);
-const NOT_SMART_HOME = words(['smart tv', 'smart tvs', 'smartphone', 'smartphones', 'smart watch', 'smartwatch', 'case', 'cases', 'cover', 'covers', 'screen protector',
+export const NOT_SMART_HOME = words(['smart tv', 'smart tvs', 'smartphone', 'smartphones', 'smart watch', 'smartwatch', 'case', 'cases', 'cover', 'covers', 'screen protector',
   'toy', 'toys', 'baby monitor', 'baby monitors', 'bracket', 'brackets', 'mount', 'mounts', 'hanger', 'accessory', 'accessories', 'replacement', 'strap', 'straps',
   'dash cam', 'car', 'kids', 'vacuum', 'phone', 'iphone', 'ipad', 'cooler', 'gaming']);
 // A feed category alone is not enough (Joybuy files rugs, blankets and toilet rolls under cleaning): the name needs one of these too.

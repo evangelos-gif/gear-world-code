@@ -249,10 +249,14 @@ export function checkShopify(products, R, catalog) {
     const newPicture = Boolean(pic) && pic !== p.image;
     p.image = pic; // '' when the shop shows no picture either: the product is left out ("no image")
     const page = `${origin}/products/${encodeURIComponent(String(lp.handle))}`;
-    const link = variant && variant === shown ? `${page}?variant=${variant.id}` : page;
+    // R.pageLink: one card covers every size (clothing), so the link opens the page, not one size.
+    const link = !R.pageLink && variant && variant === shown ? `${page}?variant=${variant.id}` : page;
     const newLink = link !== p.link;
     p.page = page;
     p.link = link;
+    // The shop's own product type and tags ("Trainers", "Men's", "Womens") help the rules place the product.
+    p.shopType = String(lp.product_type || '').trim();
+    p.shopTags = (Array.isArray(lp.tags) ? lp.tags : String(lp.tags || '').split(',')).map(t => String(t).trim()).filter(Boolean);
     p.shopHandle = handle;
     p.shopVariant = variant ? String(variant.id) : '';
     found.push({ p, newPicture, newLink });
@@ -295,13 +299,16 @@ export async function planLegacyImport({ archive, retailer, outDir, now = new Da
     if (!p.prices.length) { reject(p, 'no price'); continue; }
     const price = Math.min(...p.prices);
     if (price > R.maxPrice) { reject(p, `price above £${R.maxPrice} (looks wrong)`); continue; }
+    if (R.minPrice && price < R.minPrice) { reject(p, `price under £${R.minPrice} (too small to list)`); continue; }
     if (!/^https:\/\//i.test(p.image || '')) { reject(p, 'no image'); continue; }
     if (!R.shop.test(p.link || '')) { reject(p, `link is not the shop's own page (${hostOf(p.link) || 'no link'})`); continue; }
     if (p.currency && p.currency !== R.currency) { reject(p, `currency ${p.currency}, expected ${R.currency}`); continue; }
-    const c = rules.classify({ name: p.name, feedCategory: p.feedCategory, awinCategory: p.awinCategory, url: p.link, brand: p.brand });
+    const c = rules.classify({ name: p.name, feedCategory: p.feedCategory, awinCategory: p.awinCategory, url: p.link, brand: p.brand,
+      shopType: p.shopType || '', shopTags: p.shopTags || [] });
     if (c.reject) { reject(p, c.reject); continue; }
     if (!accepted[c.site]) { reject(p, `site ${c.site} is not in the plan`); continue; }
-    const name = rules.displayName ? rules.displayName(p.name) : p.name;
+    // The rules may give a better card name (e.g. a shaker called only "Pink" in the feed).
+    const name = c.name || (rules.displayName ? rules.displayName(p.name) : p.name);
     const hit = markerHit(name, markers[c.site]);
     if (hit) { reject(p, `name has text that belongs to another site ("${hit}")`); continue; }
     accepted[c.site].push({
