@@ -83,9 +83,16 @@ test('Lights4fun: outdoor lights to GGW lighting; seasonal decorations, indoor l
   ];
   for (const [name, sub] of yes) assert.deepEqual(c(name), { site: 'ggw', siteCategory: LIGHTING, subcategory: sub }, name);
   assert.deepEqual(c('Warm White Bulb String Lights', 'Garden & Leisure'), { site: 'ggw', siteCategory: LIGHTING, subcategory: 'String & festoon lights' });
+  // The connectable outdoor systems (owner's choice, 23 Oct 2026), but not their seasonal names.
+  for (const name of ['Pro Connect 55m 550 White Connectable String Lights White Cable', 'Plus Connect 175m 875 White Connectable C9 Fairy Lights Black Cable',
+    'Core Connect 50m 500 White Connectable Fairy Lights Green Cable', 'Pro Connect 28m 1400 Warm White Sparkling Connectable Icicle Lights White Cable']) {
+    assert.deepEqual(c(name), { site: 'ggw', siteCategory: LIGHTING, subcategory: 'String & festoon lights' }, name);
+  }
+  assert.ok(c('Pro Connect 10m Connectable Christmas Tree Lights').reject);
   const no = ['Leyburn Dual LED Rattan Set of 4 Light Up Reindeer Family', 'Pre Lit Winter Log Cabin Wooden House Scene', '4 Mercury Glass Mini LED Pumpkin Decorations',
     '1.2m Colour Changing Swinsty Acrylic Stag Smart Light Up Reindeer', 'Autumn Winter 02 - Orange & Cinnamon Room Fragrance Spray for Wreaths & Garlands',
-    'Pro Connect to Type C Converter Cable White', 'Smart Plug', 'Copper Wire Fairy Lights', '25cm Merlin Mouse LED 3D Acrylic Christmas Figure'];
+    'Pro Connect to Type C Converter Cable White', 'Smart Plug', 'Copper Wire Fairy Lights', '25cm Merlin Mouse LED 3D Acrylic Christmas Figure',
+    'Large Globe E27 1W LED Amber Filament Bulb'];
   for (const name of no) assert.ok(c(name).reject, name);
 });
 

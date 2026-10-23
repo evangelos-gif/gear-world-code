@@ -37,6 +37,9 @@ const INDOOR = words(['indoor', 'bedroom', 'nursery', 'kids', 'table lamp', 'des
   'usb', 'type c', 'type-c', 'smart plug', 'plug-in', 'plug in']);
 const LIGHT = words(['light', 'lights', 'lighting', 'lantern', 'lanterns', 'festoon', 'lamp', 'lamps', 'bulb', 'bulbs', 'spotlight', 'spotlights', 'floodlight',
   'floodlights', 'uplighter', 'uplighters', 'downlighter', 'torch', 'torches', 'fairy lights', 'string lights']);
+// The shop's connectable systems (Pro Connect, Core Connect, Plus Connect, Ultimate Connect) are made for outside use
+// (IP44/IP65 plugs and cables). The owner chose on 23 Oct 2026 to show them on GGW; names with a seasonal word stay out.
+const CONNECTABLE = words(['pro connect', 'core connect', 'plus connect', 'ultimate connect', 'connectable']);
 const OUTSIDE = words(['outdoor', 'outdoors', 'outside', 'garden', 'patio', 'solar', 'festoon', 'parasol', 'path', 'pathway', 'stake', 'stakes', 'spike', 'spikes',
   'fence', 'decking', 'deck', 'balcony', 'pergola', 'gazebo', 'umbrella', 'ip44', 'ip65', 'ip66', 'ip67', 'waterproof', 'weatherproof', 'tree lights', 'hedge', 'driveway']);
 // Parts for an outdoor lighting system (poles, extension cables, timers) count when the name says festoon or outdoor.
@@ -47,7 +50,7 @@ const SUBS = [
   ['Lighting accessories', words(['pole', 'poles', 'cable', 'cables', 'extension', 'connector', 'connectors', 'splitter', 'timer', 'transformer', 'clip', 'clips', 'hook', 'hooks', 'remote control'])],
   ['Solar lights', words(['solar'])],
   ['Floodlights & security lights', words(['floodlight', 'floodlights', 'flood light', 'security light', 'security lights', 'pir'])],
-  ['String & festoon lights', words(['festoon', 'string lights', 'string light', 'fairy lights', 'connectable', 'connect', 'parasol lights', 'tree lights', 'net lights', 'icicle'])],
+  ['String & festoon lights', words(['festoon', 'string lights', 'string light', 'fairy lights', 'connectable', 'connect', 'parasol lights', 'tree lights', 'net lights', 'icicle', 'icicle lights'])],
   ['Lanterns', words(['lantern', 'lanterns'])],
   ['Path & spike lights', words(['path', 'pathway', 'stake', 'stakes', 'spike', 'spikes', 'bollard', 'post light'])],
   ['Wall lights', words(['wall light', 'wall lights', 'wall lantern', 'up and down', 'uplighter'])]
@@ -58,7 +61,7 @@ export function classify({ name, awinCategory = '' }) {
   const n = String(name || '');
   if (SEASONAL.test(n)) return { reject: 'Christmas, Halloween or other seasonal decoration (not for the garden site)' };
   if (INDOOR.test(n)) return { reject: 'indoor light or not a light (fragrance, plug, candle)' };
-  const outside = OUTSIDE.test(n) || /garden/i.test(String(awinCategory || ''));
+  const outside = OUTSIDE.test(n) || CONNECTABLE.test(n) || /garden/i.test(String(awinCategory || ''));
   if (!outside) return { reject: 'light without an outdoor word in the name' };
   if (!LIGHT.test(n) && !ACCESSORY.test(n)) return { reject: 'outdoor product but not a light or a lighting part' };
   // "Festoon Lights ... Black Cable" is a light; "Set of 5 Festoon Poles" is a part.
