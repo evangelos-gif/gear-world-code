@@ -18,12 +18,13 @@ export const RULES = {
 const NOT_FOR_SITES = /\b(gummies|creatine|electrolyte|ashwagandha|supplement|powder|protein powder|lifting straps?|chalk|gift card|voucher)\b/i;
 
 // The feed names some products only by colour ("Pink", "Terracotta & Sand Twist"): the card says what it is.
+// A name that already says "Beyond" ("Black Beyond Stainless Steel Protein Shaker") gets no second "Beyond Shakers".
 function cardName(name, kind) {
   const n = String(name || '').replace(/\s+/g, ' ').trim();
   const said = kind === 'towel' ? /\btowels?\b/i : kind === 'bottle' ? /\bbottles?\b/i : /\bshakers?\b/i;
   const what = kind === 'towel' ? 'Gym Towel' : kind === 'bottle' ? 'Bottle' : 'Protein Shaker';
   const full = said.test(n) ? n : `${n} ${what}`;
-  return /beyond shakers/i.test(full) ? full : `Beyond Shakers ${full}`;
+  return /\bbeyond\b/i.test(full) ? full : `Beyond Shakers ${full}`;
 }
 
 export function classify({ name, shopType = '' }) {

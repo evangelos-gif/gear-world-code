@@ -30,14 +30,18 @@ export const ONLY_TOP = {
   'Sporting Goods': ['phones-smartwatches', 'audio', 'cameras-drones', 'accessories-storage']
 };
 
+// `except`: names that look like the word list but are tech (Back to the Office dry run, 23 Oct 2026): "ARCTIC Freezer 36
+// ... Tower CPU Cooler" is a PC part, not a freezer; "ASUS Fragrance MD101 mouse" is a mouse.
 export const DENY = [
   { label: 'woodworking or power tool', re: words(['wood router', 'plunge router', 'trim router', 'palm router', 'router bits?', 'router table', 'drill bits?', 'jigsaw', 'circular saw', 'angle grinder', 'sander', 'planer', 'chisel', 'welding', 'welder', 'impact driver', 'combi drill', 'drill driver', 'screwdrivers?']) },
   { label: 'vehicle part', re: words(['brake pads?', 'brake discs?', 'wiper blades?', 'windscreen wipers?', 'spark plugs?', 'tyres?', 'tire inflator', 'alloy wheels?', 'oil filter', 'headlight bulbs?', 'car seat covers?', 'car covers?', 'tow bar', 'roof rack', 'jump starter', 'motorcycle helmet']) },
-  { label: 'clothing or beauty', re: words(['t-shirt', 'hoodie', 'dress', 'jacket', 'trousers', 'leggings', 'socks', 'shoes', 'trainers', 'lingerie', 'perfume', 'fragrance', 'lipstick', 'mascara', 'nail polish', 'wig', 'hair extensions?']) },
+  { label: 'clothing or beauty', re: words(['t-shirt', 'hoodie', 'dress', 'jacket', 'trousers', 'leggings', 'socks', 'shoes', 'trainers', 'lingerie', 'perfume', 'fragrance', 'lipstick', 'mascara', 'nail polish', 'wig', 'hair extensions?']),
+    except: words(['mouse', 'mice', 'keyboards?']) },
   { label: 'personal care', re: words(['shavers?', 'epilators?', 'toothbrush(?:es)?', 'water flossers?', 'hair dryers?', 'straighteners?', 'massagers?']) },
   { label: 'not allowed', re: words(['vape', 'e-?cig(?:arette)?s?', 'airsoft', 'knife', 'knives', 'crossbow', 'erotic', 'spy camera', 'hidden camera']) },
   { label: 'sunglasses (not tech)', re: words(['sunglasses', 'cycling glasses']) },
-  { label: 'home appliance (Home Gear World)', re: words(['robot vacuums?', 'robot hoovers?', 'vacuum cleaners?', 'stick vacuum', 'fridge', 'freezer', 'kettle', 'toaster', 'air fryer', 'microwave', 'dehumidifier', 'heater', 'pedestal fan', 'tower fan', 'tumble dryers?', 'washing machines?', 'washer dryers?', 'dishwashers?', 'ovens?', 'hobs?', 'cooker hoods?', 'air conditioners?', 'ice makers?']) },
+  { label: 'home appliance (Home Gear World)', re: words(['robot vacuums?', 'robot hoovers?', 'vacuum cleaners?', 'stick vacuum', 'fridge', 'freezer', 'kettle', 'toaster', 'air fryer', 'microwave', 'dehumidifier', 'heater', 'pedestal fan', 'tower fan', 'tumble dryers?', 'washing machines?', 'washer dryers?', 'dishwashers?', 'ovens?', 'hobs?', 'cooker hoods?', 'air conditioners?', 'ice makers?']),
+    except: words(['cpu']) },
   { label: 'spare part or service', re: words(['replacement part', 'spare part', 'repair kit', 'warranty extension', 'service plan', 'gift card', 'voucher']) },
   { label: 'consumable, not a gadget', re: words(['a{2,4} batteries', '(?:alkaline|lithium|rechargeable) batteries', 'batteries - (?:pack|value pack)', 'copier paper', 'printer paper', 'label paper', 'thermal paper', 'cleaning brush']) },
   { label: 'toy, not a gadget', re: words(['toy drones?', 'stunt (?:\\w+ )?drones?', 'kids drones?', 'jigsaw puzzles?', 'piggy bank', 'ride on car', 'ball machine']) }
@@ -63,8 +67,9 @@ export const RULES = [
   },
   {
     slug: 'gaming',
+    // "switch 2" is the Nintendo Switch 2, not a "Smart Light Switch 2-Gang".
     include: words([
-      'playstation', 'ps5', 'ps4', 'xbox', 'nintendo', 'switch 2', 'switch oled', 'steam deck', 'video games?',
+      'playstation', 'ps5', 'ps4', 'xbox', 'nintendo', 'switch 2(?!-)', 'switch oled', 'steam deck', 'video games?',
       'gaming (?:headset|keyboard|mouse|mice|chair|desk|monitor|controller|pc|laptop|console)s?', 'game ?pads?', 'game controllers?',
       'controllers?', 'joysticks?', 'racing wheel', 'vr headset', 'meta quest'
     ]),
@@ -92,7 +97,10 @@ export const RULES = [
       'laptops?', 'notebook (?:pc|computer)', '\\d+(?:\\.\\d)?["”]? (?:full hd |fhd |hd )?(?:\\(\\d+ x \\d+\\) )?notebook', 'ryzen', 'intel core', 'core i[3579]', 'macbook', 'chromebook', 'ultrabook', 'desktop pc', 'gaming pc', 'mini pc', 'all-in-one pc', 'imac', 'mac mini',
       'tablets?', 'ipad', 'galaxy tab', 'e-?readers?', 'kindle', 'monitors?', 'keyboards?', 'computer mouse', 'wireless mouse', 'mouse',
       'webcams?', 'graphics cards?', 'motherboards?', 'processors?', 'ddr[45] ram', 'pc cases?', 'mice',
-      'psu', 'power supply unit', 'cpu coolers?', 'liquid coolers?', 'aio', '(?:case|pc) fans?', 'cooler master', 'serial ata', 'sata',
+      'psu', 'power supply unit', 'cpu (?:water |air |liquid )?coolers?', 'liquid coolers?', 'aio', '(?:case|pc) fans?', 'cooler master', 'serial ata', 'sata',
+      // PC parts named without those words (Back to the Office, 23 Oct 2026): "ARCTIC P12 - Pressure-optimised 120 mm Fan",
+      // "ARCTIC MX-4 ... Thermal Paste", "ASUS DRW-24D5MT optical disc drive", "Kingston ... ValueRAM memory module ... DDR4".
+      '\\d{2,3} ?mm (?:pwm |case |pc |computer )?fans?', 'thermal paste', 'optical (?:disc )?drives?', 'memory modules?', 'ddr[345]',
       'printers?', 'ink cartridges?', 'toner', 'scanners?', 'label (?:printer|maker)s?', 'laminators?', 'shredders?', '3d printers?', 'calculators?'
     ]),
     exclude: words(['baby monitor', 'heart rate monitor', 'blood pressure monitor', 'piano keyboard', 'musical keyboard', 'mouse trap', 'mouse mat', 'vitamins?', 'multivitamins?', 'tablets? \\d+ ?mg', 'dishwasher tablets?', 'notebook paper', 'spiral notebook', 'fountain pens?'])
@@ -121,9 +129,10 @@ export const RULES = [
       'digital cameras?', 'cameras?', 'dslr', 'mirrorless', 'polaroid', 'instax', 'gopro', 'osmo', 'insta360', 'action cam(?:era)?s?',
       'dash ?cams?', 'drones?', 'camera lens(?:es)?', 'gimbals?', 'camcorders?', 'vlog'
     ]),
-    // "TP-Link Tapo Pan/Tilt Home Security WiFi Camera" (Back to the Office, 23 Oct 2026) is a smart-home camera.
+    // "TP-Link Tapo Pan/Tilt Home Security WiFi Camera" and "Tapo Smart Wire-Free Security Battery Camera" (Back to the Office,
+    // 23 Oct 2026) are smart-home cameras.
     exclude: words(['security cameras?', 'surveillance', 'cctv', 'doorbell', 'webcam', 'baby monitor', 'ip cameras?', 'ptz', 'telescopes?', 'binoculars?', 'rangefinders?', 'scopes?',
-      'home security', 'wi-?fi cameras?', 'pan/tilt', 'indoor cameras?', 'outdoor cameras?'])
+      'home security', 'wi-?fi cameras?', 'pan/tilt', 'indoor cameras?', 'outdoor cameras?', 'security (?:[\\w-]+ ){1,3}cameras?', 'tapo'])
   },
   {
     slug: 'smart-home-wifi',
@@ -131,13 +140,17 @@ export const RULES = [
       'smart (?:plug|bulb|light|lock|thermostat|switch|home|display|hub|sensor|speaker)s?', 'smart light bulbs?', 'alexa', 'echo (?:dot|show|pop)',
       'google nest', 'nest (?:hub|cam|doorbell)', 'video doorbells?', 'doorbells?', 'security cameras?', 'surveillance cameras?', 'outdoor cameras?',
       'ptz cameras?', 'cctv', 'ip cameras?', 'smart smoke alarms?', 'wi-?fi ?\\d?', 'routers?', 'mesh wi-?fi', 'mesh (?:system|router|network)s?', 'range extenders?', 'access points?',
-      'network switch(?:es)?', 'desktop switch', 'unmanaged switch', '\\d+-port', 'gigabit', 'poe\\+?', 'ethernet', 'powerline', 'modems?', 'orbi', 'tp-link deco', 'deco [xmse]\\d+'
+      'network switch(?:es)?', 'desktop switch', 'unmanaged switch', '\\d+-port', 'gigabit', 'poe\\+?', 'ethernet', 'powerline', 'modems?', 'orbi', 'tp-link deco', 'deco [xmse]\\d+',
+      // Back to the Office, 23 Oct 2026: "Tapo Smart Wire-Free Security Battery Camera", "TP-Link RE200 network extender Network repeater",
+      // "TP-Link Archer T4E Internal WLAN".
+      'security (?:[\\w-]+ ){1,3}cameras?', 'tapo', 'repeaters?', 'network extenders?', 'wi-?fi extenders?', 'wlan'
     ]),
     exclude: words(['fake camera', 'dummy camera', 'router bits?', 'wood router'])
   },
   {
     slug: 'accessories-storage',
-    include: words(['ssds?', 'nvme', 'external hard drives?', 'portable hard drives?', 'hard drives?', 'hdd', 'nas', 'memory cards?', 'micro ?sd(?:xc|hc)?', 'sd cards?', 'usb (?:stick|flash drive)s?', 'flash drives?', 'portable ssd', '\\d+ ?tb usb', 'adapters?', 'plugs?']),
+    // "Kingston ... Canvas Select 512GB micSDXC" (Back to the Office) writes microSD without "ro".
+    include: words(['ssds?', 'nvme', 'external hard drives?', 'portable hard drives?', 'hard drives?', 'hdd', 'nas', 'memory cards?', 'micro ?sd(?:xc|hc)?', 'micsd(?:xc|hc)?', 'sd(?:xc|hc)', 'sd cards?', 'usb (?:stick|flash drive)s?', 'flash drives?', 'portable ssd', '\\d+ ?tb usb', 'adapters?', 'plugs?']),
     exclude: words(['laptops?', 'desktop pc', 'mini pc', 'console', 'bicycle parts'])
   }
 ];
@@ -167,7 +180,7 @@ export function classify(name, feedCategory = '') {
   const n = String(name || '').toLowerCase();
   const top = topCategory(feedCategory);
   if (DENY_TOP.includes(top)) return { ok: false, reason: `feed category: ${top}` };
-  for (const d of DENY) if (d.re.test(n)) return { ok: false, reason: d.label };
+  for (const d of DENY) if (d.re.test(n) && !(d.except && d.except.test(n))) return { ok: false, reason: d.label };
   const text = `${n} ${String(feedCategory || '').toLowerCase()}`;
   const only = ONLY_TOP[top];
   for (const r of RULES) {

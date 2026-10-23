@@ -7,6 +7,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { gzipSync } from 'node:zlib';
 import { planImport, sourceFilter, archiveList } from '../../tools/tgw-import-plan.mjs';
+import { classify } from '../../sites/tgw/category-rules.js';
 
 const SOURCES = JSON.parse(readFileSync(new URL('../../sites/tgw/sources.json', import.meta.url), 'utf8')).sources;
 const BTTO = SOURCES.find(s => s.advertiserId === 61655);
@@ -33,6 +34,31 @@ test('Back to the Office is a TGW source with a consumer brand list and a "busin
   ];
   for (const [n, b, why] of out) assert.equal(f(n, b), why, n);
   assert.deepEqual(archiveList('C:\\A ; C:\\B;'), ['C:\\A', 'C:\\B']);
+});
+
+// Mistakes found in the first TGW dry run with Back to the Office (23 Oct 2026, the owner's report).
+test('Back to the Office dry-run fixes: business conference kit out, PC parts in, smart-home cameras and switches in the right place', () => {
+  const f = sourceFilter(BTTO);
+  const business = 'business IT, parts or services (Back to the Office)';
+  for (const [n, b] of [['TP-Link Omada Cloud Controller (OC200)', 'TP-Link'], ['Logitech Rally Camera', 'Logitech'],
+    ['Poly Studio E60 Smart Camera 4K MPTZ with 12x Optical Zoom', 'HP'], ['Logitech TV Mount for Video Bars', 'Logitech']]) assert.equal(f(n, b), business, n);
+  const where = n => { const c = classify(n, 'Computers'); return c.ok ? c.slug : `REJECT ${c.reason}`; };
+  assert.equal(where('TP-Link Tapo Smart Light Switch 2-Gang 1-Way'), 'smart-home-wifi', 'not the Nintendo Switch 2');
+  assert.equal(where('Nintendo Switch 2 Console'), 'gaming');
+  assert.equal(where('TP-Link Tapo Smart Wire-Free Security Battery Camera'), 'smart-home-wifi');
+  assert.equal(where('DJI Osmo Pocket 3 Handheld Camera'), 'cameras-drones');
+  assert.equal(where('ARCTIC Liquid Freezer III 280 A-RGB - Multi Compatible All-in-One CPU Water Cooler with A-RGB'), 'laptops-computing', 'a CPU cooler, not a freezer');
+  assert.equal(where('ARCTIC Freezer 36 Multi Compatible Tower CPU Cooler'), 'laptops-computing');
+  assert.equal(where('Kensington WarmView™ Heater'), 'REJECT home appliance (Home Gear World)');
+  assert.equal(where('ASUS Fragrance MD101 mouse Home Ambidextrous RF Wireless + Bluetooth Optical 2400 DPI'), 'laptops-computing', 'a mouse, not a perfume');
+  assert.equal(where('ARCTIC P12 - Pressure-optimised 120 mm Fan'), 'laptops-computing');
+  assert.equal(where('ARCTIC MX-4 (4 g) Edition 2019 – High Performance Thermal Paste'), 'laptops-computing');
+  assert.equal(where('ASUS DRW-24D5MT optical disc drive Internal DVD Super Multi DL Black'), 'laptops-computing');
+  assert.equal(where('Kingston Technology ValueRAM memory module 8 GB 1 x 8 GB DDR4 3200 MT/s'), 'laptops-computing');
+  assert.equal(where('Kingston Technology Canvas Select 512GB micSDXC Plus 100R A1 C10 Card + ADP'), 'accessories-storage');
+  assert.equal(where('TP-Link RE200 network extender Network repeater White 10, 100 Mbit/s'), 'smart-home-wifi');
+  assert.equal(where('TP-Link Archer T4E Internal WLAN 867 Mbit/s'), 'smart-home-wifi');
+  assert.equal(where('USB Desk Fan 150mm'), 'REJECT not tech');
 });
 
 const header = ['aw_deep_link', 'product_name', 'aw_product_id', 'merchant_product_id', 'merchant_image_url', 'merchant_category', 'search_price', 'brand_name', 'stock_status', 'ean'];

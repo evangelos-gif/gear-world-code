@@ -32,9 +32,10 @@ const MEN = /\b(men|mens|men's|man|male)\b/i;
 const UNISEX = /\bunisex\b/i;
 
 // men, women, both or kids. The shop's tags win; the name decides when there are no tags.
+// A "Baby Tee" is a short women's T-shirt, not baby clothing ("adidas Originals Women's 3-Stripes Baby Tee", dry run 23 Oct 2026).
 export function audience(name, tags = []) {
   const n = displayName(name);
-  if (KIDS.test(n)) return 'kids';
+  if (KIDS.test(n.replace(/\bbaby (tees?|t-shirts?|tops?)\b/gi, 'tee'))) return 'kids';
   const t = tags.map(x => x.toLowerCase());
   const tagMen = t.includes("men's") || t.includes('mens');
   const tagWomen = t.includes("women's") || t.includes('womens');
@@ -61,7 +62,8 @@ export function placeOf(name, shopType = '') {
   const text = `${t} ${n}`;
   const sub =
     /\bsocks?\b/i.test(text) ? 'Socks'
-    : /tracksuit/i.test(text) ? 'Tracksuits'
+    // "Tracksuit Bottoms" and "Tracksuit Joggers" are trousers; a "Tracksuit" is the full set.
+    : /tracksuit/i.test(text) && !/\b(bottoms|joggers?|pants|trousers)\b/i.test(text) ? 'Tracksuits'
     : /\b(bras?|crop top)\b/i.test(text) ? 'Sports Bras & Tops'
     : /\b(dress(es)?|skirts?)\b/i.test(text) ? 'Dresses & Skirts'
     : /\b(leggings|tights)\b/i.test(text) ? 'Leggings'
@@ -69,7 +71,7 @@ export function placeOf(name, shopType = '') {
     : /\b(hoodies?|hoody|velour hoodie)\b/i.test(text) ? 'Hoodies'
     : /\b(sweatshirts?|crew ?neck sweat|knitwear|jumper|sweater)\b/i.test(text) ? 'Sweatshirts'
     : /\b(track ?tops?|jackets?|coats?|windbreaker|windrunner|gilet|puffer|parka|anorak|fleece jacket|coach jacket|rain jacket|sherpa)\b/i.test(text) ? 'Jackets'
-    : /\b(track ?pants|joggers?|sweatpants|trousers|pants|chinos?|cargo)\b/i.test(text) ? 'Trousers'
+    : /\b(track ?pants|joggers?|sweatpants|trousers|pants|chinos?|cargo|bottoms)\b/i.test(text) ? 'Trousers'
     : /\b(t[- ]?shirts?|tees?|long sleeved tee|tank tops?|vests?|singlet)\b/i.test(text) ? 'T-Shirts'
     : /\b(polo|polo shirts|shirts?|jersey|football shirts?|kit)\b/i.test(text) ? 'Shirts'
     : /\btops?\b/i.test(text) ? 'T-Shirts'
