@@ -50,6 +50,33 @@ export function stockFlag(raw) {
   return null;
 }
 
+// The product picture (lessons L38). Awin fills aw_image_url with a placeholder ("images2.productserve.com/noimage.gif")
+// when the shop sends none, and with a 200x200 resize proxy ("images2.productserve.com/?w=200&...&url=ssl:cdn.shopify.com/...")
+// otherwise. The plan takes the first real picture of the shop's own columns, unwraps the proxy to the full-size image and
+// never takes the placeholder: a product without a picture is left out ("no image").
+const IMAGE_COLUMNS = ['merchant_image_url', 'large_image', 'alternate_image', 'alternate_image_two', 'alternate_image_three', 'alternate_image_four',
+  'merchant_thumb_url', 'aw_image_url', 'aw_thumb_url', 'image_link'];
+export function realImage(raw) {
+  let u = String(raw || '').trim();
+  if (!u) return '';
+  let parsed;
+  try { parsed = new URL(u); } catch { return ''; }
+  if (/(^|\.)productserve\.com$/i.test(parsed.hostname)) {
+    if (/noimage/i.test(parsed.pathname)) return '';
+    const inner = parsed.searchParams.get('url') || '';
+    if (!inner) return '';
+    u = inner.replace(/^ssl:/i, 'https://').replace(/^http:/i, 'https:');
+    if (!/^https:\/\//i.test(u)) u = 'https://' + u.replace(/^\/+/, '');
+    try { parsed = new URL(u); } catch { return ''; }
+  }
+  if (parsed.protocol !== 'https:' || /noimage|no-image|placeholder/i.test(parsed.pathname)) return '';
+  return parsed.toString();
+}
+export function pickImage(get) {
+  for (const c of IMAGE_COLUMNS) { const u = realImage(get(c)); if (u) return u; }
+  return '';
+}
+
 // Read the feed and join the rows of one product (one row per size) into one product.
 // A shop's rules may say where its feed is (rules.feedFiles: full paths, e.g. a Google-format feed saved in Downloads)
 // and how its columns map to the Awin names used below (rules.field). Without them: AWIN_<id>_<feed>.csv(.gz) in the archive.
@@ -87,7 +114,7 @@ export async function readProducts({ archive, rules }) {
       if (!g) {
         g = { key, name: cleanText(get('product_name')), brand: cleanText(get('brand_name')), feedCategory: cleanText(get('merchant_category')),
           awinCategory: cleanText(get('category_name')),
-          link, page, image: get('merchant_image_url') || get('large_image') || get('aw_image_url'), firstVariant: get('merchant_product_id'),
+          link, page, image: pickImage(get), firstVariant: get('merchant_product_id'),
           variants: 0, inStockVariants: 0, unknownStock: 0, prices: [], currency: get('currency').toUpperCase(), ean: get('ean') || get('product_gtin') };
         groups.set(key, g);
       }

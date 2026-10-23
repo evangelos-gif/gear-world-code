@@ -250,3 +250,49 @@ test('a product whose link is on another address is left out, and the report say
   assert.equal(r.accepted.ggw.length, 0);
   assert.deepEqual(Object.keys(r.rejected), ["link is not the shop's own page (old-shop.example)"]);
 });
+
+// Pictures (L38): 114 Gardenista and 7 Mint Outdoor products went live with Awin's "noimage" placeholder on 23 Oct 2026.
+import { realImage, pickImage } from '../../tools/legacy-import-plan.mjs';
+import * as noimage from '../../tools/cleanup-rules/noimage.mjs';
+
+test('realImage: never the Awin placeholder; the Awin resize proxy becomes the full-size shop picture', () => {
+  assert.equal(realImage('https://images2.productserve.com/noimage.gif'), '');
+  assert.equal(realImage('https://images2.productserve.com/?w=200&h=200&bg=white&trim=5&t=letterbox&url=ssl%3Acdn.shopify.com%2Fs%2Ffiles%2F1%2F0513%2F2563%2F2661%2Fproducts%2Fsquarediningset.png%3Fv%3D1676290331&feedId=80241&k=c3c6'),
+    'https://cdn.shopify.com/s/files/1/0513/2563/2661/products/squarediningset.png?v=1676290331');
+  assert.equal(realImage('https://cdn.shopify.com/s/files/1/a.jpg'), 'https://cdn.shopify.com/s/files/1/a.jpg');
+  assert.equal(realImage('http://cdn.shopify.com/a.jpg'), '');
+  assert.equal(realImage(''), '');
+  const row = { merchant_image_url: '', large_image: '', alternate_image: 'https://cdn.shopify.com/b.jpg', aw_image_url: 'https://images2.productserve.com/noimage.gif' };
+  assert.equal(pickImage(c => row[c] || ''), 'https://cdn.shopify.com/b.jpg');
+  assert.equal(pickImage(c => (c === 'aw_image_url' ? 'https://images2.productserve.com/noimage.gif' : '')), '');
+});
+
+test('a product whose only picture is the Awin placeholder is left out of the plan ("no image")', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'mint-noimg-'));
+  const noPic = row(7, 'Lark Rattan Garden Chair', 499, 1).replace('https://cdn.shopify.com/7.jpg', '').replace(',,,,https://mint-outdoor.com', ',,,,https://mint-outdoor.com');
+  const csv = HEAD.replace('aw_image_url', 'aw_image_url') + noPic.replace(/,Garden,1,,/, ',Garden,1,https://images2.productserve.com/noimage.gif,');
+  writeFileSync(join(dir, 'AWIN_114094_100804.csv.gz'), gzipSync(csv));
+  const r = await planLegacyImport({ archive: dir, retailer: 'mintoutdoor', outDir: mkdtempSync(join(tmpdir(), 'mint-noimg-out-')), now: new Date('2026-10-23T21:00:00Z') });
+  assert.equal(r.accepted.ggw.length, 0);
+  assert.deepEqual(Object.keys(r.rejected), ['no image']);
+});
+
+test('noimage clean-up hides only active products without a real picture, and the rollback shows them again', () => {
+  const db = new DatabaseSync(':memory:');
+  db.exec(STABLE_TABLE);
+  const add = db.prepare('INSERT INTO products (awin_product_id, merchant_product_id, retailer, site_category, product_name, price, affiliate_url, image_url, is_active) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)');
+  add.run('1', '1', 'Gardenista', 'Garden Furniture & Outdoor Living', 'Cushion A', 9, 'https://www.awin1.com/a', 'https://images2.productserve.com/noimage.gif', 1);
+  add.run('2', '2', 'Gardenista', 'Garden Furniture & Outdoor Living', 'Cushion B', 9, 'https://www.awin1.com/b', 'https://cdn.shopify.com/b.jpg', 1);
+  add.run('3', '3', 'Mint Outdoor', 'Garden Furniture & Outdoor Living', 'Chair C', 99, 'https://www.awin1.com/c', '', 1);
+  add.run('4', '4', 'Mint Outdoor', 'Garden Furniture & Outdoor Living', 'Chair D', 99, 'https://www.awin1.com/d', 'http://x.example/d.jpg', 1);
+  add.run('5', '5', 'Mint Outdoor', 'Garden Furniture & Outdoor Living', 'Chair E (already hidden)', 99, 'https://www.awin1.com/e', '', 0);
+  for (const f of ['summarySql', 'samplesSql', 'idsSql', 'keptSql']) assert.doesNotMatch(noimage[f](), /[%<>&|^]/, f);
+  const ids = db.prepare(noimage.idsSql()).all().map(r => r.id);
+  assert.deepEqual(ids, [1, 3, 4]);
+  const reasons = db.prepare(noimage.summarySql()).all().map(r => r.reason).sort();
+  assert.deepEqual(reasons, ['Awin placeholder picture (noimage)', 'no picture', 'picture not on https']);
+  db.exec(noimage.updateSql(ids, false));
+  assert.equal(db.prepare('SELECT COUNT(*) AS n FROM products WHERE is_active = 1').get().n, 1);
+  db.exec(noimage.updateSql(ids, true));
+  assert.equal(db.prepare('SELECT COUNT(*) AS n FROM products WHERE is_active = 1').get().n, 4);
+});
