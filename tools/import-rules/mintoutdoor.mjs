@@ -18,7 +18,9 @@ export const RULES = {
   maxPrice: 8000,
   keepQuery: true,
   // "Set of 2 Folding Padded Garden Armchair Cushions 88 x 44cm" came twice in the first dry run: one card.
-  joinSameName: true
+  joinSameName: true,
+  // The feed has no picture for some products: take it from the shop's own Shopify product page (L38).
+  shopifyImages: true
 };
 
 export function productKey(get) {

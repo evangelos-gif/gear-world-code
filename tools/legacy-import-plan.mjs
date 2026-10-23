@@ -145,7 +145,41 @@ export function joinSameName(products) {
   return out;
 }
 
-export async function planLegacyImport({ archive, retailer, outDir, now = new Date() }) {
+// rules.RULES.shopifyImages (lessons L38): for a product whose feed has no picture, the plan reads the shop's own public
+// Shopify product data (https://<shop>/products/<handle>.js, the same page the "View at" button opens) and takes the
+// picture of that option (the feed's merchant_product_id is the Shopify variant id), else the product's main picture.
+// Read-only: one GET per product page, at most 400 per plan, one at a time with a short pause. No answer: no picture.
+export async function fillShopifyImages(products, R, { fetchImpl = globalThis.fetch, pauseMs = 250, max = 400 } = {}) {
+  const pages = new Map();
+  let asked = 0, filled = 0;
+  for (const p of products) {
+    if (p.image || !p.page || !R.shop.test(p.page)) continue;
+    const m = /^(https:\/\/[^/]+)\/products\/([a-z0-9][a-z0-9-]{0,200})$/i.exec(p.page);
+    if (!m) continue;
+    const url = `${m[1]}/products/${m[2].toLowerCase()}.js`;
+    if (!pages.has(url)) {
+      if (asked >= max || typeof fetchImpl !== 'function') { pages.set(url, null); continue; }
+      asked++;
+      if (asked > 1 && pauseMs) await new Promise(r => setTimeout(r, pauseMs));
+      let data = null;
+      try {
+        const res = await fetchImpl(url, { headers: { accept: 'application/json', 'user-agent': 'GearWorldImportPlan/1.0' }, signal: AbortSignal.timeout(15000) });
+        if (res && res.ok) data = await res.json();
+      } catch { data = null; }
+      pages.set(url, data);
+    }
+    const d = pages.get(url);
+    if (!d) continue;
+    const variant = (d.variants || []).find(v => String(v.id) === String(p.firstVariant));
+    const pick = v => (v && typeof v === 'object' ? v.src : v) || '';
+    const abs = u => (String(u || '').startsWith('//') ? 'https:' + u : String(u || ''));
+    const img = realImage(abs(pick(variant && variant.featured_image))) || realImage(abs(pick(d.featured_image))) || realImage(abs(pick((d.images || [])[0])));
+    if (img) { p.image = img; filled++; }
+  }
+  return { asked, filled };
+}
+
+export async function planLegacyImport({ archive, retailer, outDir, now = new Date(), fetchImpl }) {
   const rules = await loadRules(retailer);
   const R = rules.RULES;
   const read = await readProducts({ archive, rules });
@@ -153,6 +187,7 @@ export async function planLegacyImport({ archive, retailer, outDir, now = new Da
   // rules.RULES.joinSameName: options of one product page with the SAME name (e.g. two sizes of "Director Chair Covers")
   // become one card with the lowest in-stock price. Options with different names (colours, sets) stay separate cards.
   const products = R.joinSameName ? joinSameName(read.products) : read.products;
+  const shopImages = R.shopifyImages ? await fillShopifyImages(products, R, fetchImpl ? { fetchImpl, pauseMs: 0 } : {}) : null;
   const markers = {};
   for (const s of R.sites) markers[s] = await foreignMarkersFor(s);
   const accepted = Object.fromEntries(R.sites.map(s => [s, []]));
@@ -192,7 +227,7 @@ export async function planLegacyImport({ archive, retailer, outDir, now = new Da
   mkdirSync(outDir, { recursive: true });
   const sqlFiles = {};
   for (const s of R.sites) sqlFiles[s] = writeSql(join(outDir, 'sql', s), accepted[s], R, s, now);
-  const text = renderPlan({ R, files, rows, products, accepted, rejected, sqlFiles, now });
+  const text = renderPlan({ R, files, rows, products, accepted, rejected, sqlFiles, now, shopImages });
   writeFileSync(join(outDir, 'report.txt'), text);
   // For the import tool: how many products each site should have from this retailer after the import.
   // addOnly: the plan covers only part of a shop that is already on the site, so the import must not hide the rest.
@@ -240,12 +275,13 @@ function writeSql(dir, items, R, site, now) {
   return out;
 }
 
-function renderPlan({ R, files, rows, products, accepted, rejected, sqlFiles, now }) {
+function renderPlan({ R, files, rows, products, accepted, rejected, sqlFiles, now, shopImages }) {
   const fmt = n => new Intl.NumberFormat('en-GB').format(n);
   const total = Object.values(accepted).reduce((a, l) => a + l.length, 0);
   const L = [`IMPORT PLAN (read-only, nothing executed) ${R.retailer} - Awin ${R.advertiserId} - ${now.toISOString().slice(0, 16).replace('T', ' ')} UTC`,
     `Feed files: ${files.join(', ') || 'none found'}`,
-    `Feed rows: ${fmt(rows)} (one row per size) -> ${fmt(products.length)} products -> ${fmt(total)} would be imported, ${fmt(products.length - total)} left out`, ''];
+    `Feed rows: ${fmt(rows)} (one row per size) -> ${fmt(products.length)} products -> ${fmt(total)} would be imported, ${fmt(products.length - total)} left out`,
+    ...(shopImages ? [`Pictures from the shop's product pages (the feed has none): ${fmt(shopImages.filled)} products (${fmt(shopImages.asked)} pages read)`] : []), ''];
   for (const [site, list] of Object.entries(accepted)) {
     L.push(`== ${site.toUpperCase()}: ${fmt(list.length)} products (SQL files: ${sqlFiles[site].length}, not executed) ==`);
     const byCat = {};

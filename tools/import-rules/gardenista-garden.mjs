@@ -23,7 +23,9 @@ export const RULES = {
   maxPrice: 3000,
   keepQuery: true,
   // Two options of one page with the same name ("Replacement Director Chair Covers" twice) are one card.
-  joinSameName: true
+  joinSameName: true,
+  // The feed has no picture for some products: take it from the shop's own Shopify product page (L38).
+  shopifyImages: true
 };
 
 export function productKey(get) {

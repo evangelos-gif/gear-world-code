@@ -252,7 +252,7 @@ test('a product whose link is on another address is left out, and the report say
 });
 
 // Pictures (L38): 114 Gardenista and 7 Mint Outdoor products went live with Awin's "noimage" placeholder on 23 Oct 2026.
-import { realImage, pickImage } from '../../tools/legacy-import-plan.mjs';
+import { realImage, pickImage, fillShopifyImages } from '../../tools/legacy-import-plan.mjs';
 import * as noimage from '../../tools/cleanup-rules/noimage.mjs';
 
 test('realImage: never the Awin placeholder; the Awin resize proxy becomes the full-size shop picture', () => {
@@ -272,9 +272,38 @@ test('a product whose only picture is the Awin placeholder is left out of the pl
   const noPic = row(7, 'Lark Rattan Garden Chair', 499, 1).replace('https://cdn.shopify.com/7.jpg', '').replace(',,,,https://mint-outdoor.com', ',,,,https://mint-outdoor.com');
   const csv = HEAD.replace('aw_image_url', 'aw_image_url') + noPic.replace(/,Garden,1,,/, ',Garden,1,https://images2.productserve.com/noimage.gif,');
   writeFileSync(join(dir, 'AWIN_114094_100804.csv.gz'), gzipSync(csv));
-  const r = await planLegacyImport({ archive: dir, retailer: 'mintoutdoor', outDir: mkdtempSync(join(tmpdir(), 'mint-noimg-out-')), now: new Date('2026-10-23T21:00:00Z') });
+  // The shop's product page has no picture either (404): the product stays out.
+  const notFound = async () => ({ ok: false, status: 404, json: async () => ({}) });
+  const r = await planLegacyImport({ archive: dir, retailer: 'mintoutdoor', outDir: mkdtempSync(join(tmpdir(), 'mint-noimg-out-')), now: new Date('2026-10-23T21:00:00Z'), fetchImpl: notFound });
   assert.equal(r.accepted.ggw.length, 0);
   assert.deepEqual(Object.keys(r.rejected), ['no image']);
+  // The shop's Shopify page has the picture of that option (variant id = the feed's merchant_product_id): it is used.
+  const asked = [];
+  const shopify = async url => { asked.push(url); return { ok: true, json: async () => ({ featured_image: '//cdn.shopify.com/s/files/main.jpg',
+    variants: [{ id: 70, featured_image: { src: 'https://cdn.shopify.com/s/files/option-70.jpg' } }, { id: 71, featured_image: null }] }) }; };
+  const out = mkdtempSync(join(tmpdir(), 'mint-shopimg-out-'));
+  const r2 = await planLegacyImport({ archive: dir, retailer: 'mintoutdoor', outDir: out, now: new Date('2026-10-23T21:00:00Z'), fetchImpl: shopify });
+  assert.deepEqual(asked, ['https://mint-outdoor.com/products/p7.js']);
+  assert.equal(r2.accepted.ggw.length, 1);
+  assert.equal(r2.accepted.ggw[0].image_url, 'https://cdn.shopify.com/s/files/option-70.jpg');
+  assert.match(readFileSync(join(out, 'report.txt'), 'utf8'), /Pictures from the shop's product pages \(the feed has none\): 1 products \(1 pages read\)/);
+});
+
+test('fillShopifyImages: the main picture when the option has none, one read per page, nothing for other addresses', async () => {
+  const asked = [];
+  const fetchImpl = async url => { asked.push(url); return { ok: true, json: async () => ({ featured_image: '//cdn.shopify.com/main.jpg', variants: [{ id: 2, featured_image: null }] }) }; };
+  const R = { shop: /^https:\/\/gardenistauk\.com\//i };
+  const ps = [
+    { image: '', page: 'https://gardenistauk.com/products/abc', firstVariant: '2' },
+    { image: '', page: 'https://gardenistauk.com/products/abc', firstVariant: '3' },
+    { image: 'https://cdn.shopify.com/has.jpg', page: 'https://gardenistauk.com/products/def', firstVariant: '4' },
+    { image: '', page: 'https://other.example/products/abc', firstVariant: '5' }
+  ];
+  const r = await fillShopifyImages(ps, R, { fetchImpl, pauseMs: 0 });
+  assert.deepEqual(asked, ['https://gardenistauk.com/products/abc.js']);
+  assert.deepEqual(r, { asked: 1, filled: 2 });
+  assert.equal(ps[0].image, 'https://cdn.shopify.com/main.jpg');
+  assert.equal(ps[3].image, '');
 });
 
 test('noimage clean-up hides only active products without a real picture, and the rollback shows them again', () => {
