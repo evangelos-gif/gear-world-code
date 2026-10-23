@@ -17,7 +17,8 @@ export const RULES = {
   advertiserId: 37292,
   retailer: 'Gardenista',
   currency: 'GBP',
-  shop: /^https:\/\/([a-z0-9-]+\.)?gardenistauk\.com\//i,
+  // gardenistauk.com, and gardenista-store.myshopify.com (the same Shopify shop; 248 products of the second dry run).
+  shop: /^https:\/\/(([a-z0-9-]+\.)?gardenistauk\.com|gardenista-store\.myshopify\.com)\//i,
   sites: ['ggw'],
   maxPrice: 3000,
   keepQuery: true,

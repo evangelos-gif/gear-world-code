@@ -30,7 +30,8 @@ export function productKey(get) {
 
 const words = list => new RegExp('(?<![a-z0-9])(' + list.map(w => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|') + ')(?![a-z0-9])', 'i');
 // Perfume words the Joybuy list does not have (Arabic perfumery).
-export const SCENT = words(['attar', 'ittar', 'oud', 'perfume oil', 'concentrated perfume oil', 'roll on perfume', 'perfumed deodorant', 'perfume deodorant',
+export const ROLL_ON = words(['roll-on oil', 'roll on oil', 'roll-on perfume', 'roll on perfume', 'perfume oil', 'concentrated oil', 'concentrated perfume oil']);
+export const SCENT = words(['attar', 'ittar', 'oud', 'perfume oil', 'concentrated perfume oil', 'roll on perfume', 'roll-on oil', 'roll on oil', 'perfumed deodorant', 'perfume deodorant',
   'body spray', 'body mist', 'hair mist', 'deodorant', 'eau de parfum', 'eau de toilette', 'extrait de parfum', 'cologne']);
 export const NOT_WORN = words(['burner', 'oil burner', 'car perfume', 'car freshener', 'air freshener', 'room spray', 'reed diffuser', 'diffuser', 'candle', 'candles',
   'wallet', 'wallets', 'backpack', 'bag', 'passport', 'card holder', 'atomiser', 'atomizer', 'empty bottle', 'refillable bottle', 'travel bottle', 'sample vial box']);
@@ -41,7 +42,8 @@ export const BODY = words(['deodorant', 'body spray', 'body lotion', 'shower gel
 
 export function isWornScent(n, feedCategory = '') {
   if (NOT_WORN.test(n) || HOME_SCENT.test(n)) return false;
-  if (INCENSE.test(n) && !FRAGRANCE_NAME.test(n)) return false;
+  // "Bakhoor 6ml Roll-on Oil Al Rehab" is a perfume oil named Bakhoor.
+  if (INCENSE.test(n) && !FRAGRANCE_NAME.test(n) && !ROLL_ON.test(n)) return false;
   // The shop's "Gift Set" category holds perfume sets ("Bint Hooran 3 Piece Gift Set by Ard Al Zaafaran").
   return FRAGRANCE_NAME.test(n) || SCENT.test(n) || /^(perfume|fragrance|deodorant|gift set)/i.test(String(feedCategory || '').trim());
 }

@@ -44,7 +44,12 @@ test('Mint Outdoor: every furniture set goes to GGW with a subcategory, storage 
     ['Lima 5 Seater Grey Polyrattan Garden Sofa Set Bundle with Armchair, Coffee Table & Protective Cover', FURNITURE, 'Lounge & corner sets'],
     ['Linden Custom-Fitted Furniture Cover – Tailored Protection for Sofas & Outdoor Furniture', FURNITURE, 'Furniture covers'],
     ['2KW LED Touchscreen Rotating Upright Infrared Heater UP-20 Outdoor IP65', FURNITURE, 'Fire pits & heaters'],
-    ['Kiki Beige Metal Garden 2 Seater Bistro Set', FURNITURE, 'Bistro sets']
+    ['Kiki Beige Metal Garden 2 Seater Bistro Set', FURNITURE, 'Bistro sets'],
+    // From the second dry run (23 Oct 2026, 20:31):
+    ['Set of 2 Folding Padded Garden Armchair Cushions 88 x 44cm', FURNITURE, 'Cushions & rugs'],
+    ['Padded Sun Lounger Cushion 178 x 60cm', FURNITURE, 'Cushions & rugs'],
+    ['Headrest Padded Garden Chair or Sun Lounger Cushion 30 x 15cm', FURNITURE, 'Cushions & rugs'],
+    ['Palma Rattan Cushion Storage Box – 149 x 76 x 70 cm', BUILDINGS, 'Garden storage']
   ];
   for (const [name, cat, sub] of yes) assert.deepEqual(c(name), { site: 'ggw', siteCategory: cat, subcategory: sub }, name);
   for (const name of ['Mint Outdoor Gift Card', 'White Glove Assembly Service', 'Two-Person Delivery Charge', 'Collection Fee', 'Sonny Kids Outdoor Play Sofa']) assert.ok(c(name).reject, name);
@@ -63,12 +68,16 @@ test('Gardenista: outdoor cushions, pads and covers go to GGW; indoor products s
     ['Waterproof 1-2-3 Seater Outdoor Sofa Covers With Buckle Straps Black', 'Furniture covers'],
     ['Water Resistant 3 Seater Swing Canopy Cover Outdoor Replacement Hammock Covers with Velcro', 'Furniture covers'],
     ['Heavy Duty Waterproof Rectangular Garden Table Cover with Buckle Loops', 'Furniture covers'],
-    ['Water Resistant Gazebo Side Panel Plain Curtains Replacement Outdoor Pergola Privacy Panels', 'Parasols, gazebos & shade']
+    ['Water Resistant Gazebo Side Panel Plain Curtains Replacement Outdoor Pergola Privacy Panels', 'Parasols, gazebos & shade'],
+    ['Waterproof Garden Round Table Cover 210D Oxford Fabric Heavy Duty', 'Furniture covers'],
+    ['Waterproof Outdoor Square Table Cover Heavy Duty 210D Oxford Fabric', 'Furniture covers']
   ];
   for (const [name, sub] of yes) assert.deepEqual(c(name), { site: 'ggw', siteCategory: FURNITURE, subcategory: sub }, name);
   assert.deepEqual(c('Garden BBQ Cover Waterproof'), { site: 'ggw', siteCategory: 'BBQ & Outdoor Cooking', subcategory: 'BBQ accessories' });
   for (const name of ['Lantern Cushion Cover', 'Velvet Recliner Armchair for Living Room', 'Bedroom Cushion Set Grey', 'test product 3', 'Gardenista Digital Gift Card']) assert.ok(c(name, 'Furniture').reject, name);
   assert.equal(gardenista.RULES.joinSameName, true);
+  for (const link of ['https://gardenistauk.com/products/x?variant=1', 'https://gardenista-store.myshopify.com/products/x?variant=1']) assert.ok(gardenista.RULES.shop.test(link), link);
+  assert.ok(!gardenista.RULES.shop.test('https://gardenista.example/products/x'));
 });
 
 test('Lights4fun: outdoor lights to GGW lighting; seasonal decorations, indoor lights and other products out', () => {
@@ -89,6 +98,9 @@ test('Lights4fun: outdoor lights to GGW lighting; seasonal decorations, indoor l
     assert.deepEqual(c(name), { site: 'ggw', siteCategory: LIGHTING, subcategory: 'String & festoon lights' }, name);
   }
   assert.ok(c('Pro Connect 10m Connectable Christmas Tree Lights').reject);
+  for (const name of ['Pro Connect Black 10 Port T Bar', 'Plus Connect 5 Port Ring', 'Plus Connect UK Plug with Driver', 'Essential Connect 31v Transformer Plug with Timer']) {
+    assert.deepEqual(c(name), { site: 'ggw', siteCategory: LIGHTING, subcategory: 'Lighting accessories' }, name);
+  }
   const no = ['Leyburn Dual LED Rattan Set of 4 Light Up Reindeer Family', 'Pre Lit Winter Log Cabin Wooden House Scene', '4 Mercury Glass Mini LED Pumpkin Decorations',
     '1.2m Colour Changing Swinsty Acrylic Stag Smart Light Up Reindeer', 'Autumn Winter 02 - Orange & Cinnamon Room Fragrance Spray for Wreaths & Garlands',
     'Pro Connect to Type C Converter Cable White', 'Smart Plug', 'Copper Wire Fairy Lights', '25cm Merlin Mouse LED 3D Acrylic Christmas Figure',
@@ -143,7 +155,8 @@ test('Opulensi: women, unisex and no-gender perfumes to WGW; men and unisex to M
     assert.deepEqual(m(name), { site: 'mgw', siteCategory: 'Grooming & Fragrances', subcategory: 'Fragrance' }, name);
   }
   assert.deepEqual(m('Nebras Lattafa Pride 250ml perfumed deodorant By Lattafa Unisex'), { site: 'mgw', siteCategory: 'Grooming & Fragrances', subcategory: 'Deodorant' });
-  for (const name of ['Oudh Nabeel Bakhoor (Arabian Incense) 60g by Nabeel Perfumes', 'Oud 24 Hours 300ml premium Air Freshener By Ard Al Zaafaran']) assert.ok(w(name).reject, name);
+  for (const name of ['Oudh Nabeel Bakhoor (Arabian Incense) 60g by Nabeel Perfumes', 'Oud 24 Hours 300ml premium Air Freshener By Ard Al Zaafaran', 'Oudh Nabeel Black Bakhoor Incense 60g Nabeel']) assert.ok(w(name).reject, name);
+  assert.deepEqual(w('Bakhoor 6ml Roll-on Oil Al Rehab'), { site: 'wgw', siteCategory: 'Beauty & Fragrances', subcategory: 'Fragrance' });
   assert.equal(opulensi.RULES.addOnly && opulensiMen.RULES.addOnly && opulensi.RULES.keepCategory && opulensiMen.RULES.keepCategory, true);
 });
 

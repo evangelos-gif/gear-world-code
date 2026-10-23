@@ -16,7 +16,9 @@ export const RULES = {
   shop: /^https:\/\/([a-z0-9-]+\.)?mint-outdoor\.com\//i,
   sites: ['ggw'],
   maxPrice: 8000,
-  keepQuery: true
+  keepQuery: true,
+  // "Set of 2 Folding Padded Garden Armchair Cushions 88 x 44cm" came twice in the first dry run: one card.
+  joinSameName: true
 };
 
 export function productKey(get) {

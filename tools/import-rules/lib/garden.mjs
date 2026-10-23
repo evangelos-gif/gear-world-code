@@ -116,7 +116,8 @@ export const FURNITURE_PIECE = words(['set', 'sets', 'sofa', 'sofas', 'chair', '
 //   3. otherwise the furniture words decide (dining, lounge/corner, bistro, loungers, chairs, tables...), then covers and cushions.
 const SOFT_END = /^(cushions?|pads?|pillows?|rugs?|toppers?)$/i;
 const COVER_END = /^covers?$/i;
-const SOFT_PHRASE = words(['replacement cushion', 'replacement cushions', 'seat pad', 'seat pads', 'bench pad', 'bench pads', 'scatter cushion', 'scatter cushions',
+const SOFT_PHRASE = words(['replacement cushion', 'replacement cushions', 'armchair cushion', 'armchair cushions', 'lounger cushion', 'lounger cushions',
+  'headrest cushion', 'chair pad', 'chair pads', 'lounger pad', 'lounger pads', 'seat pad', 'seat pads', 'bench pad', 'bench pads', 'scatter cushion', 'scatter cushions',
   'cushion cover', 'cushion covers', 'chair cushion', 'chair cushions', 'bench cushion', 'bench cushions', 'cushion set', 'cushion pads', 'pallet cushion', 'pallet cushions',
   'back cushion', 'back cushions', 'seat cushion', 'seat cushions', 'outdoor rug', 'outdoor rugs', 'garden rug', 'garden rugs']);
 const PIECE_SUBS = [
@@ -131,14 +132,20 @@ const PIECE_SUBS = [
   ['Tables', words(['table', 'tables'])]
 ];
 const COVER_ANY = words(['cover', 'covers']);
+// "Waterproof Garden Round Table Cover 210D Oxford Fabric" is a cover, not a table.
+const COVER_PHRASE = words(['table cover', 'table covers', 'bench cover', 'bench covers', 'chair cover', 'chair covers', 'sofa cover', 'sofa covers', 'furniture cover',
+  'furniture covers', 'set cover', 'set covers', 'lounger cover', 'lounger covers', 'parasol cover', 'parasol covers', 'hammock cover', 'hammock covers', 'canopy cover',
+  'canopy covers', 'seat cover', 'seat covers', 'line cover', 'cube cover', 'heater cover', 'fire pit cover']);
+// "Padded Sun Lounger Cushion 178 x 60cm": sizes at the end do not hide the last word.
+const TRAILING_SIZE = /(\s+(\d+(\.\d+)?\s*(x|×)\s*)*\d+(\.\d+)?\s*(cm|mm|m|in|inch|"|')?)+$/i;
 const SOFT_ANY = words(['cushion', 'cushions', 'pad', 'pads', 'pillow', 'pillows', 'rug', 'rugs', 'throw']);
 export function furnitureSub(name) {
   const full = String(name || '');
   const head = full.split(/\s+(?:with|w\/|for|incl\.?|including|plus)\s+|\s*[|–—(]\s*|,/i)[0].trim() || full;
-  const last = (head.split(/\s+/).pop() || '').split('/')[0];
+  const last = (head.replace(TRAILING_SIZE, '').split(/\s+/).pop() || '').split('/')[0];
   // "Scatter Cushion Covers" are cushions; "Garden Bench Cover" is a cover.
   if (SOFT_PHRASE.test(head)) return 'Cushions & rugs';
-  if (COVER_END.test(last)) return 'Furniture covers';
+  if (COVER_END.test(last) || COVER_PHRASE.test(head)) return 'Furniture covers';
   if (SOFT_END.test(last)) return 'Cushions & rugs';
   for (const [sub, re] of PIECE_SUBS) if (re.test(head)) return sub;
   if (COVER_ANY.test(head)) return 'Furniture covers';
