@@ -19,8 +19,10 @@ export const RULES = {
   keepQuery: true,
   // "Set of 2 Folding Padded Garden Armchair Cushions 88 x 44cm" came twice in the first dry run: one card.
   joinSameName: true,
-  // The feed has no picture for some products: take it from the shop's own Shopify product page (L38).
-  shopifyImages: true
+  // Checked on the shop's live Shopify site (L39): pages gone or sold out there are left out, the picture and the
+  // link are the shop's current ones, an older feed's copy of the same option is left out.
+  shopifyCheck: true,
+  shopOrigin: 'https://mint-outdoor.com'
 };
 
 export function productKey(get) {

@@ -175,7 +175,7 @@ $k = 2
 while (Test-Path -LiteralPath $planDir) { $planDir = Join-Path $OutDir ('IMPORT_PLAN_{0}_{1}_{2}' -f $Retailer, $stamp, $k); $k++ }
 Write-Host 'Φτιάχνω το σχέδιο από το feed (1-3 λεπτά)...'
 & node (Join-Path (Join-Path $repo 'tools') 'legacy-import-plan.mjs') --archive $Archive --retailer $Retailer --out $planDir | Out-Null
-if ($LASTEXITCODE -ne 0) { Say 'Το σχέδιο απέτυχε (δεν βρέθηκε feed ή λάθος στο αρχείο).' 'Red'; Finish 10 }
+if ($LASTEXITCODE -ne 0) { Say 'Το σχέδιο απέτυχε: δεν βρέθηκε feed, λάθος στο αρχείο, ή δεν διαβάστηκε το site του καταστήματος (δες το μήνυμα πιο πάνω). Δεν άλλαξε τίποτα.' 'Red'; Finish 10 }
 $plan = [System.IO.File]::ReadAllText((Join-Path $planDir 'plan.json'), [System.Text.Encoding]::UTF8) | ConvertFrom-Json
 $sp = $plan.sites.$Site
 if ($null -eq $sp -or [int]$sp.products -lt 1) { Say ('Το σχέδιο δεν έχει προϊόντα για το {0}.' -f $Site.ToUpper()) 'Red'; Finish 10 }

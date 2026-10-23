@@ -184,6 +184,92 @@ export async function fillShopifyImages(products, R, { fetchImpl = globalThis.fe
   return { asked, filled };
 }
 
+// Shopify shops (rules.RULES.shopifyCheck + shopOrigin, lessons L39). An Awin feed can be months behind the shop: on
+// 23 Oct 2026, 56 Gardenista cards on GGW came from an old feed (gardenista-store.myshopify.com links, the product id
+// as ?variant=, deleted pictures) and some pages were gone (404), so the cards had broken pictures and links that did not
+// open the product. The plan reads the shop's live catalogue (read-only, /products.json, 250 products a page) and:
+//  - leaves out a product whose page is not on the shop any more, or whose every option is sold out there;
+//  - takes the shop's current picture of that option (a feed picture can be a deleted file);
+//  - links to the shop's own address (shopOrigin) with the real ?variant= id of that option;
+//  - leaves out a second card for the same page and option (an older feed's copy).
+// If the catalogue cannot be read, the plan stops (nothing changes) instead of importing unchecked products.
+export async function readShopifyCatalog(origin, { fetchImpl = globalThis.fetch, pauseMs = 300, maxPages = 40 } = {}) {
+  const base = String(origin || '').replace(/\/+$/, '');
+  if (!/^https:\/\/[a-z0-9.-]+$/i.test(base)) throw new Error(`shopOrigin is not a shop address: ${origin}`);
+  if (typeof fetchImpl !== 'function') throw new Error(`Cannot read ${base}: this Node.js has no fetch. Nothing was changed.`);
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
+  const byHandle = new Map();
+  for (let page = 1; page <= maxPages; page++) {
+    if (page > 1 && pauseMs) await sleep(pauseMs);
+    const url = `${base}/products.json?limit=250&page=${page}`;
+    let data = null;
+    for (let attempt = 1; attempt <= 3 && !data; attempt++) {
+      if (attempt > 1 && pauseMs) await sleep(pauseMs * 5);
+      try {
+        const res = await fetchImpl(url, { headers: { accept: 'application/json', 'user-agent': 'GearWorldImportPlan/1.0' }, signal: AbortSignal.timeout(20000) });
+        if (res && res.ok) { const d = await res.json(); if (d && Array.isArray(d.products)) data = d; }
+      } catch { data = null; }
+    }
+    if (!data) throw new Error(`Could not read the shop's live catalogue (${url}). Nothing was changed; try again later.`);
+    for (const p of data.products) if (p && p.handle) byHandle.set(String(p.handle).toLowerCase(), p);
+    if (data.products.length < 250) break;
+    if (page === maxPages) throw new Error(`The shop's live catalogue (${base}) has more than ${maxPages * 250} products: too big for this check. Nothing was changed.`);
+  }
+  if (!byHandle.size) throw new Error(`The shop's live catalogue (${base}) is empty. Nothing was changed.`);
+  return byHandle;
+}
+
+export function checkShopify(products, R, catalog) {
+  const origin = String(R.shopOrigin || '').replace(/\/+$/, '');
+  const st = { origin, live: catalog.size, checked: 0, gone: 0, soldOut: 0, duplicates: 0, pictures: 0, links: 0 };
+  const same = (a, b) => String(a ?? '').trim() !== '' && String(a ?? '').trim().toLowerCase() === String(b ?? '').trim().toLowerCase();
+  const abs = u => (String(u || '').startsWith('//') ? 'https:' + u : String(u || ''));
+  const src = v => (v && typeof v === 'object' ? v.src : v) || '';
+  const found = [];
+  for (const p of products) {
+    if (!p.page || !R.shop.test(p.page)) continue;
+    const m = /^https:\/\/[^/]+\/products\/([^/?#]+)\/?$/i.exec(p.page);
+    if (!m) continue;
+    st.checked++;
+    let handle;
+    try { handle = decodeURIComponent(m[1]).toLowerCase(); } catch { handle = m[1].toLowerCase(); }
+    const lp = catalog.get(handle);
+    if (!lp) { p.shopCheck = 'gone'; st.gone++; continue; }
+    const vs = Array.isArray(lp.variants) ? lp.variants.filter(Boolean) : [];
+    if (!vs.some(v => v.available === true)) { p.shopCheck = 'soldOut'; st.soldOut++; continue; }
+    // The option of this card: the ?variant= id of the feed's link, else the SKU, else the variant id.
+    const linkVariant = (/[?&]variant=(\d+)/.exec(String(p.link || '')) || [])[1] || '';
+    const variant = (linkVariant && vs.find(v => same(v.id, linkVariant))) || vs.find(v => same(v.sku, p.firstVariant)) || vs.find(v => same(v.id, p.firstVariant)) || null;
+    // That option sold out on the shop (others not): the link opens the page without ?variant=, so the shop shows an
+    // option that can be bought, and the card shows that option's picture.
+    const shown = variant && variant.available === true ? variant : (variant ? vs.find(v => v.available === true) : null);
+    const imgs = Array.isArray(lp.images) ? lp.images.filter(Boolean) : [];
+    const ofVariant = shown ? imgs.find(i => Array.isArray(i.variant_ids) && i.variant_ids.some(id => same(id, shown.id))) : null;
+    const pic = realImage(abs(src(shown && shown.featured_image))) || realImage(abs(src(ofVariant))) || realImage(abs(src(imgs[0])));
+    const newPicture = Boolean(pic) && pic !== p.image;
+    p.image = pic; // '' when the shop shows no picture either: the product is left out ("no image")
+    const page = `${origin}/products/${encodeURIComponent(String(lp.handle))}`;
+    const link = variant && variant === shown ? `${page}?variant=${variant.id}` : page;
+    const newLink = link !== p.link;
+    p.page = page;
+    p.link = link;
+    p.shopHandle = handle;
+    p.shopVariant = variant ? String(variant.id) : '';
+    found.push({ p, newPicture, newLink });
+  }
+  // An older feed's copy: no real option of its own while another card has one, or the same page and option twice.
+  const hasOption = new Set(found.filter(f => f.p.shopVariant).map(f => f.p.shopHandle));
+  const seen = new Set();
+  for (const { p, newPicture, newLink } of found) {
+    const k = `${p.shopHandle}|${p.shopVariant}`;
+    if ((!p.shopVariant && hasOption.has(p.shopHandle)) || seen.has(k)) { p.shopCheck = 'duplicate'; st.duplicates++; continue; }
+    seen.add(k);
+    if (newPicture) st.pictures++;
+    if (newLink) st.links++;
+  }
+  return st;
+}
+
 export async function planLegacyImport({ archive, retailer, outDir, now = new Date(), fetchImpl }) {
   const rules = await loadRules(retailer);
   const R = rules.RULES;
@@ -192,7 +278,9 @@ export async function planLegacyImport({ archive, retailer, outDir, now = new Da
   // rules.RULES.joinSameName: options of one product page with the SAME name (e.g. two sizes of "Director Chair Covers")
   // become one card with the lowest in-stock price. Options with different names (colours, sets) stay separate cards.
   const products = R.joinSameName ? joinSameName(read.products) : read.products;
-  const shopImages = R.shopifyImages ? await fillShopifyImages(products, R, fetchImpl ? { fetchImpl, pauseMs: 0 } : {}) : null;
+  let shopImages = null, shopCheck = null;
+  if (R.shopifyCheck) shopCheck = checkShopify(products, R, await readShopifyCatalog(R.shopOrigin, fetchImpl ? { fetchImpl, pauseMs: 0 } : {}));
+  else if (R.shopifyImages) shopImages = await fillShopifyImages(products, R, fetchImpl ? { fetchImpl, pauseMs: 0 } : {});
   const markers = {};
   for (const s of R.sites) markers[s] = await foreignMarkersFor(s);
   const accepted = Object.fromEntries(R.sites.map(s => [s, []]));
@@ -200,6 +288,9 @@ export async function planLegacyImport({ archive, retailer, outDir, now = new Da
   const reject = (p, why) => { (rejected[why] ||= []).push(p); };
   for (const p of products) {
     if (!p.name) { reject(p, 'no product name'); continue; }
+    if (p.shopCheck === 'gone') { reject(p, "not on the shop's site any more (page not found)"); continue; }
+    if (p.shopCheck === 'soldOut') { reject(p, "sold out on the shop's site"); continue; }
+    if (p.shopCheck === 'duplicate') { reject(p, 'the same shop product twice in the feeds (older copy)'); continue; }
     if (!p.inStockVariants && !p.unknownStock) { reject(p, 'out of stock in every size'); continue; }
     if (!p.prices.length) { reject(p, 'no price'); continue; }
     const price = Math.min(...p.prices);
@@ -232,7 +323,7 @@ export async function planLegacyImport({ archive, retailer, outDir, now = new Da
   mkdirSync(outDir, { recursive: true });
   const sqlFiles = {};
   for (const s of R.sites) sqlFiles[s] = writeSql(join(outDir, 'sql', s), accepted[s], R, s, now);
-  const text = renderPlan({ R, files, rows, products, accepted, rejected, sqlFiles, now, shopImages });
+  const text = renderPlan({ R, files, rows, products, accepted, rejected, sqlFiles, now, shopImages, shopCheck });
   writeFileSync(join(outDir, 'report.txt'), text);
   // For the import tool: how many products each site should have from this retailer after the import.
   // addOnly: the plan covers only part of a shop that is already on the site, so the import must not hide the rest.
@@ -280,13 +371,16 @@ function writeSql(dir, items, R, site, now) {
   return out;
 }
 
-function renderPlan({ R, files, rows, products, accepted, rejected, sqlFiles, now, shopImages }) {
+function renderPlan({ R, files, rows, products, accepted, rejected, sqlFiles, now, shopImages, shopCheck }) {
   const fmt = n => new Intl.NumberFormat('en-GB').format(n);
   const total = Object.values(accepted).reduce((a, l) => a + l.length, 0);
   const L = [`IMPORT PLAN (read-only, nothing executed) ${R.retailer} - Awin ${R.advertiserId} - ${now.toISOString().slice(0, 16).replace('T', ' ')} UTC`,
     `Feed files: ${files.join(', ') || 'none found'}`,
     `Feed rows: ${fmt(rows)} (one row per size) -> ${fmt(products.length)} products -> ${fmt(total)} would be imported, ${fmt(products.length - total)} left out`,
-    ...(shopImages ? [`Pictures from the shop's product pages (the feed has none): ${fmt(shopImages.filled)} products (${fmt(shopImages.asked)} pages read)`] : []), ''];
+    ...(shopImages ? [`Pictures from the shop's product pages (the feed has none): ${fmt(shopImages.filled)} products (${fmt(shopImages.asked)} pages read)`] : []),
+    ...(shopCheck ? [`Checked on the shop's live site (${shopCheck.origin}, ${fmt(shopCheck.live)} products there): ${fmt(shopCheck.checked)} feed products checked, `
+      + `${fmt(shopCheck.gone)} gone from the site, ${fmt(shopCheck.soldOut)} sold out there, ${fmt(shopCheck.duplicates)} older copies; `
+      + `${fmt(shopCheck.pictures)} pictures and ${fmt(shopCheck.links)} links set to the shop's current ones`] : []), ''];
   for (const [site, list] of Object.entries(accepted)) {
     L.push(`== ${site.toUpperCase()}: ${fmt(list.length)} products (SQL files: ${sqlFiles[site].length}, not executed) ==`);
     const byCat = {};
