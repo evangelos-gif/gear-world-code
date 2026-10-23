@@ -32,15 +32,22 @@ const words = list => new RegExp('(?<![a-z0-9])(' + list.map(w => w.replace(/[.*
 // Perfume words the Joybuy list does not have (Arabic perfumery).
 export const SCENT = words(['attar', 'ittar', 'oud', 'perfume oil', 'concentrated perfume oil', 'roll on perfume', 'perfumed deodorant', 'perfume deodorant',
   'body spray', 'body mist', 'hair mist', 'deodorant', 'eau de parfum', 'eau de toilette', 'extrait de parfum', 'cologne']);
-export const NOT_WORN = words(['bakhoor', 'bakhour', 'bukhoor', 'incense', 'oud chips', 'burner', 'oil burner', 'car perfume', 'car freshener', 'air freshener',
-  'room spray', 'reed diffuser', 'diffuser', 'candle', 'candles', 'wallet', 'wallets', 'backpack', 'bag', 'passport', 'card holder', 'atomiser', 'atomizer',
-  'empty bottle', 'refillable bottle', 'travel bottle', 'sample vial box']);
+export const NOT_WORN = words(['burner', 'oil burner', 'car perfume', 'car freshener', 'air freshener', 'room spray', 'reed diffuser', 'diffuser', 'candle', 'candles',
+  'wallet', 'wallets', 'backpack', 'bag', 'passport', 'card holder', 'atomiser', 'atomizer', 'empty bottle', 'refillable bottle', 'travel bottle', 'sample vial box']);
+// Incense ("Oudh Nabeel Bakhoor (Arabian Incense) 60g") is not worn, but "Al Rehab Bakhour 35ml EDP Perfume Spray" is a perfume.
+export const INCENSE = words(['bakhoor', 'bakhour', 'bukhoor', 'incense', 'oud chips', 'oudh chips', 'mamoul']);
 export const GIFT = words(['gift set', 'gift sets', 'gift box', 'giftset', 'discovery set', 'sample set', 'bundle', 'set of']);
 export const BODY = words(['deodorant', 'body spray', 'body lotion', 'shower gel', 'body wash', 'hand cream']);
 
 export function isWornScent(n, feedCategory = '') {
   if (NOT_WORN.test(n) || HOME_SCENT.test(n)) return false;
-  return FRAGRANCE_NAME.test(n) || SCENT.test(n) || /^(perfume|fragrance|deodorant)/i.test(String(feedCategory || '').trim());
+  if (INCENSE.test(n) && !FRAGRANCE_NAME.test(n)) return false;
+  // The shop's "Gift Set" category holds perfume sets ("Bint Hooran 3 Piece Gift Set by Ard Al Zaafaran").
+  return FRAGRANCE_NAME.test(n) || SCENT.test(n) || /^(perfume|fragrance|deodorant|gift set)/i.test(String(feedCategory || '').trim());
+}
+// "Oud 24 Hours 100ml EDP with Deodorant" is a perfume (with a deodorant); "Yara perfume deodorant 200ml" is a deodorant.
+export function headOf(n) {
+  return String(n || '').split(/\s+(?:with|\+|&)\s+/i)[0];
 }
 // men | women | unisex | none
 export function genderOf(n) {
@@ -57,6 +64,6 @@ export function classify({ name, feedCategory = '' }) {
   if (CJK.test(n)) return { reject: 'name not in English' };
   if (!isWornScent(n, feedCategory)) return { reject: 'not a perfume or body scent (wallets, bags, incense and others are not in this plan)' };
   if (genderOf(n) === 'men') return { reject: "men's fragrance (Men's Gear World, opulensi-men)" };
-  const subcategory = GIFT.test(n) ? 'Gift sets' : BODY.test(n) ? 'Bath & body' : 'Fragrance';
+  const subcategory = GIFT.test(n) ? 'Gift sets' : BODY.test(headOf(n)) ? 'Bath & body' : 'Fragrance';
   return { site: 'wgw', siteCategory: 'Beauty & Fragrances', subcategory };
 }

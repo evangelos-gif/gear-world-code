@@ -105,24 +105,43 @@ export const OUTDOOR_HINT = words(['outdoor', 'outdoors', 'outside', 'garden', '
 // Words of a garden furniture piece or set, for shops whose whole feed is garden furniture.
 export const FURNITURE_PIECE = words(['set', 'sets', 'sofa', 'sofas', 'chair', 'chairs', 'table', 'tables', 'bench', 'benches', 'stool', 'stools', 'daybed', 'day bed',
   'lounger', 'loungers', 'seater', 'corner', 'dining', 'lounge', 'bistro', 'cube', 'footstool', 'ottoman', 'egg chair', 'swing', 'hammock', 'parasol', 'gazebo',
-  'fire pit', 'firepit', 'cushion', 'cushions', 'cover', 'covers', 'rug', 'rugs', 'seat pad', 'seat pads', 'bench pad', 'pad', 'pads']);
-// Subcategory of Garden Furniture & Outdoor Living from the name. Order matters: a "seat pad" or "cushion cover" is a
-// cushion, a "bench cover" is a cover, a "dining set with parasol" is a dining set ("with ... cushions" is ignored).
-const FURNITURE_SUBS = [
-  ['Cushions & rugs', words(['cushion', 'cushions', 'seat pad', 'seat pads', 'bench pad', 'bench pads', 'swing seat pad', 'pad', 'pads', 'pillow', 'pillows', 'rug', 'rugs', 'throw'])],
-  ['Furniture covers', words(['cover', 'covers'])],
+  'fire pit', 'firepit', 'heater', 'heaters', 'chaise', 'armchair', 'cushion', 'cushions', 'cover', 'covers', 'rug', 'rugs', 'seat pad', 'seat pads', 'bench pad', 'pad', 'pads']);
+// Subcategory of Garden Furniture & Outdoor Living from the name. Furniture shops write names like
+// "Marbella 5-Seater Garden Lounge Set with Ottoman Chaise | Grey Cushions" (a lounge set), "Marbella Garden Lounge Set
+// Replacement Cushions/Covers" (cushions), "Linden Custom-Fitted Furniture Cover – Tailored Protection for Sofas" (a cover)
+// and "Lima 5 Seater ... Sofa Set Bundle with Armchair, Coffee Table & Protective Cover" (a sofa set). So:
+//   1. the head of the name (before "with", "for", "|", "–", "(" or a comma) says what the product is;
+//   2. a head that says "replacement cushions", "seat pad", "scatter cushions" or "cushion cover" is a cushion; one that
+//      ENDS with cover(s) is a cover, and one that ends with cushion(s)/pad(s)/rug(s) a cushion;
+//   3. otherwise the furniture words decide (dining, lounge/corner, bistro, loungers, chairs, tables...), then covers and cushions.
+const SOFT_END = /^(cushions?|pads?|pillows?|rugs?|toppers?)$/i;
+const COVER_END = /^covers?$/i;
+const SOFT_PHRASE = words(['replacement cushion', 'replacement cushions', 'seat pad', 'seat pads', 'bench pad', 'bench pads', 'scatter cushion', 'scatter cushions',
+  'cushion cover', 'cushion covers', 'chair cushion', 'chair cushions', 'bench cushion', 'bench cushions', 'cushion set', 'cushion pads', 'pallet cushion', 'pallet cushions',
+  'back cushion', 'back cushions', 'seat cushion', 'seat cushions', 'outdoor rug', 'outdoor rugs', 'garden rug', 'garden rugs']);
+const PIECE_SUBS = [
   ['Fire pits & heaters', words(['fire pit', 'fire pits', 'firepit', 'chiminea', 'chimenea', 'heater', 'heaters'])],
   ['Parasols, gazebos & shade', words(['parasol', 'parasols', 'gazebo', 'gazebos', 'umbrella', 'pergola', 'awning', 'sun shade', 'sunshade', 'sail shade'])],
   ['Hammocks & swing seats', words(['hammock', 'hammocks', 'swing', 'egg chair', 'hanging chair'])],
   ['Loungers', words(['lounger', 'loungers', 'sunlounger', 'daybed', 'day bed', 'deck chair', 'deckchair', 'zero gravity', 'recliner', 'reclining'])],
   ['Dining sets', words(['dining'])],
-  ['Lounge & corner sets', words(['corner', 'sofa', 'sofas', 'lounge', 'modular', 'l-shape', 'l shape', 'u-shape', 'u shape', 'coffee set', 'cube set'])],
+  ['Lounge & corner sets', words(['corner', 'sofa', 'sofas', 'lounge', 'modular', 'chaise', 'l-shape', 'l shape', 'u-shape', 'u shape', 'coffee set', 'cube set'])],
   ['Bistro sets', words(['bistro'])],
-  ['Chairs & benches', words(['chair', 'chairs', 'bench', 'benches', 'stool', 'stools', 'footstool', 'ottoman'])],
+  ['Chairs & benches', words(['chair', 'chairs', 'armchair', 'armchairs', 'bench', 'benches', 'stool', 'stools', 'footstool', 'ottoman'])],
   ['Tables', words(['table', 'tables'])]
 ];
+const COVER_ANY = words(['cover', 'covers']);
+const SOFT_ANY = words(['cushion', 'cushions', 'pad', 'pads', 'pillow', 'pillows', 'rug', 'rugs', 'throw']);
 export function furnitureSub(name) {
-  const n = String(name || '').replace(/\b(with|and|includes?|including|inc\.?) (\w+ ){0,3}cushions?\b/gi, ' ');
-  for (const [sub, re] of FURNITURE_SUBS) if (re.test(n)) return sub;
+  const full = String(name || '');
+  const head = full.split(/\s+(?:with|w\/|for|incl\.?|including|plus)\s+|\s*[|–—(]\s*|,/i)[0].trim() || full;
+  const last = (head.split(/\s+/).pop() || '').split('/')[0];
+  // "Scatter Cushion Covers" are cushions; "Garden Bench Cover" is a cover.
+  if (SOFT_PHRASE.test(head)) return 'Cushions & rugs';
+  if (COVER_END.test(last)) return 'Furniture covers';
+  if (SOFT_END.test(last)) return 'Cushions & rugs';
+  for (const [sub, re] of PIECE_SUBS) if (re.test(head)) return sub;
+  if (COVER_ANY.test(head)) return 'Furniture covers';
+  if (SOFT_ANY.test(head)) return 'Cushions & rugs';
   return 'Garden furniture';
 }

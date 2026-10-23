@@ -6,7 +6,9 @@
 // in_stock) and 114613 (1,004 rows, "Furniture" / "Home Accessories"). No currency column (programme in GBP).
 // Names like "2 Seater Garden Bench Cover", "3 - Seater Swing Seat Pad 180cm",
 // "Water-Resistant Decorative Scatter Cushion Covers Outdoor Printed Cushion Cover - 5pc Set Elephant".
-// The product id is the feed's merchant_product_id (the Shopify variant), the same id the router used on HGW.
+// The product id is the feed's merchant_product_id (the Shopify variant), the same id the router used on HGW; options of one
+// page with the same name are joined into one card (joinSameName). The first dry run (23 Oct 2026) left out 1,237 products
+// because their link is not on gardenistauk.com: the report now shows which address they have.
 // Lessons L14: a "yes" list and a "no" list, a read-only plan with samples first, an import only with approval.
 import { gardenPlace, GARDEN_CATEGORIES, NOT_GARDEN, OUTDOOR_HINT, furnitureSub } from './lib/garden.mjs';
 
@@ -18,7 +20,9 @@ export const RULES = {
   shop: /^https:\/\/([a-z0-9-]+\.)?gardenistauk\.com\//i,
   sites: ['ggw'],
   maxPrice: 3000,
-  keepQuery: true
+  keepQuery: true,
+  // Two options of one page with the same name ("Replacement Director Chair Covers" twice) are one card.
+  joinSameName: true
 };
 
 export function productKey(get) {
@@ -36,6 +40,7 @@ const INDOOR = words(['indoor', 'bedroom', 'living room', 'sofa bed', 'recliner 
 // Decide where one product goes. Returns { site, siteCategory, subcategory } or { reject: '<reason>' }.
 export function classify({ name, feedCategory = '' }) {
   const n = String(name || '');
+  if (/\btest product\b|\bgift card\b|\bvoucher\b/i.test(n)) return { reject: 'test product or gift card' };
   if (NOT_GARDEN.test(n.replace(/\bcushion cover for sofa\b/gi, ' ')) && !OUTDOOR_HINT.test(n)) return { reject: 'not a garden product (indoor, kitchen, toy or other)' };
   if (INDOOR.test(n) && !OUTDOOR_HINT.test(n)) return { reject: 'indoor product (stays on Home Gear World)' };
   // Cushions and covers first: "Outdoor Keter Eden Bench Cushions ... Garden Storage Bench" is a cushion, not a storage bench.

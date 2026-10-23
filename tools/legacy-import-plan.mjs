@@ -100,10 +100,32 @@ export async function readProducts({ archive, rules }) {
   return { files, rows, products: [...groups.values()] };
 }
 
+const hostOf = url => { try { return new URL(url).hostname.toLowerCase(); } catch { return ''; } };
+
+export function joinSameName(products) {
+  const byName = new Map();
+  const out = [];
+  for (const p of products) {
+    const k = `${p.page || ''}|${String(p.name || '').toLowerCase()}`;
+    const first = p.page && p.name ? byName.get(k) : null;
+    if (!first) { if (p.page && p.name) byName.set(k, p); out.push(p); continue; }
+    first.variants += p.variants;
+    first.inStockVariants += p.inStockVariants;
+    first.unknownStock += p.unknownStock;
+    first.prices.push(...p.prices);
+    if (!first.ean && p.ean) first.ean = p.ean;
+  }
+  return out;
+}
+
 export async function planLegacyImport({ archive, retailer, outDir, now = new Date() }) {
   const rules = await loadRules(retailer);
   const R = rules.RULES;
-  const { files, rows, products } = await readProducts({ archive, rules });
+  const read = await readProducts({ archive, rules });
+  const { files, rows } = read;
+  // rules.RULES.joinSameName: options of one product page with the SAME name (e.g. two sizes of "Director Chair Covers")
+  // become one card with the lowest in-stock price. Options with different names (colours, sets) stay separate cards.
+  const products = R.joinSameName ? joinSameName(read.products) : read.products;
   const markers = {};
   for (const s of R.sites) markers[s] = await foreignMarkersFor(s);
   const accepted = Object.fromEntries(R.sites.map(s => [s, []]));
@@ -116,7 +138,7 @@ export async function planLegacyImport({ archive, retailer, outDir, now = new Da
     const price = Math.min(...p.prices);
     if (price > R.maxPrice) { reject(p, `price above £${R.maxPrice} (looks wrong)`); continue; }
     if (!/^https:\/\//i.test(p.image || '')) { reject(p, 'no image'); continue; }
-    if (!R.shop.test(p.link || '')) { reject(p, "link is not the shop's own page"); continue; }
+    if (!R.shop.test(p.link || '')) { reject(p, `link is not the shop's own page (${hostOf(p.link) || 'no link'})`); continue; }
     if (p.currency && p.currency !== R.currency) { reject(p, `currency ${p.currency}, expected ${R.currency}`); continue; }
     const c = rules.classify({ name: p.name, feedCategory: p.feedCategory, awinCategory: p.awinCategory, url: p.link, brand: p.brand });
     if (c.reject) { reject(p, c.reject); continue; }

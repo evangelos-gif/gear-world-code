@@ -5,8 +5,8 @@
 // a product already on MGW is updated, never added twice, and keeps its category; nothing else is hidden.
 // Perfumes that name no gender go to WGW only (the same rule as Joybuy), unless the line is a known men's line.
 // Lessons L14: a "yes" list and a "no" list, a read-only plan with samples first, an import only with approval.
-import { CJK, menSubcategory } from './joybuy.mjs';
-import { isWornScent, genderOf, GIFT } from './opulensi.mjs';
+import { CJK } from './joybuy.mjs';
+import { isWornScent, genderOf, headOf, GIFT, BODY } from './opulensi.mjs';
 
 export const RULES = {
   key: 'opulensi-men',
@@ -33,6 +33,7 @@ export function classify({ name, feedCategory = '' }) {
   const g = genderOf(n);
   if (g === 'women') return { reject: "women's fragrance (Women's Gear World, opulensi)" };
   if (g === 'none') return { reject: 'no gender in the name (Women\'s Gear World only, opulensi)' };
-  const subcategory = GIFT.test(n) ? 'Gift sets' : menSubcategory(n);
+  // Everything here is a scent: "Al Rehab Clever Man 6ml Roll-On Oil" and "Ajmal Sacrifice For Him II Eau De Perfum" are fragrances.
+  const subcategory = GIFT.test(n) ? 'Gift sets' : BODY.test(headOf(n)) ? 'Deodorant' : 'Fragrance';
   return { site: 'mgw', siteCategory: 'Grooming & Fragrances', subcategory };
 }

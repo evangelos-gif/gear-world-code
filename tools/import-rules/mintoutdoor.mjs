@@ -23,10 +23,17 @@ export function productKey(get) {
   return String(get('merchant_product_id') || '').trim();
 }
 
+const SERVICE = /\b(assembly service|delivery charge|collection fee|gift card|warranty|white glove)\b/i;
+// "Chesterton Waterproof Rattan Cushion Box" is storage; "... Lounge Set and Cushion Box Bundle" is a lounge set.
+const STORAGE_BOX = /\b(cushion|storage|deck)\s+(storage\s+)?box(es)?\b/i;
+const SET_WORDS = /\b(set|sets|sofa|seater|dining|lounge|corner|chaise|bundle)\b/i;
+
 // Decide where one product goes. Returns { site, siteCategory, subcategory } or { reject: '<reason>' }.
 export function classify({ name }) {
   const n = String(name || '');
+  if (SERVICE.test(n)) return { reject: 'service or fee, not a product' };
   if (NOT_GARDEN.test(n)) return { reject: 'not a garden product (toy, kitchen, indoor or other)' };
+  if (STORAGE_BOX.test(n) && !SET_WORDS.test(n)) return { site: 'ggw', siteCategory: GARDEN_CATEGORIES.buildings, subcategory: 'Garden storage' };
   const place = gardenPlace(n, '');
   if (place && place.siteCategory !== GARDEN_CATEGORIES.furniture && place.siteCategory !== GARDEN_CATEGORIES.plants) return { site: 'ggw', ...place };
   if (place || FURNITURE_PIECE.test(n)) return { site: 'ggw', siteCategory: GARDEN_CATEGORIES.furniture, subcategory: furnitureSub(n) };

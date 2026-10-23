@@ -8,7 +8,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { gzipSync } from 'node:zlib';
 import { DatabaseSync } from 'node:sqlite';
-import { planLegacyImport, stockFlag } from '../../tools/legacy-import-plan.mjs';
+import { planLegacyImport, stockFlag, joinSameName } from '../../tools/legacy-import-plan.mjs';
 import * as mint from '../../tools/import-rules/mintoutdoor.mjs';
 import * as gardenista from '../../tools/import-rules/gardenista-garden.mjs';
 import * as lights from '../../tools/import-rules/lights4fun-garden.mjs';
@@ -34,10 +34,20 @@ test('Mint Outdoor: every furniture set goes to GGW with a subcategory, storage 
     ['Wren 5 Seater Aluminium Corner Sofa Set With Concrete Table', FURNITURE, 'Lounge & corner sets'],
     ['Marbella Grey 5 Seater Corner Garden Lounge Set with cushions', FURNITURE, 'Lounge & corner sets'],
     ['Round Furniture Cover 200cm', FURNITURE, 'Furniture covers'],
-    ['Rattan Garden Storage Box 290L', BUILDINGS, 'Garden storage']
+    ['Rattan Garden Storage Box 290L', BUILDINGS, 'Garden storage'],
+    // From the first dry run (23 Oct 2026, 20:06):
+    ['Marbella 5-Seater Garden Lounge Set with Ottoman Chaise | Grey Cushions', FURNITURE, 'Lounge & corner sets'],
+    ['Marbella Garden Lounge Set Replacement Cushions/Covers', FURNITURE, 'Cushions & rugs'],
+    ['Chesterton Waterproof Rattan Cushion Box L.113 W.76 x H.70cm', BUILDINGS, 'Garden storage'],
+    ['Chesterton Grey 5 Seater Corner Rattan Garden Sofa Lounge Set and Cushion Box Bundle', FURNITURE, 'Lounge & corner sets'],
+    ['Stockholm Chaise Custom-Fitted Outdoor Furniture Cover – Weather & UV Protection', FURNITURE, 'Furniture covers'],
+    ['Lima 5 Seater Grey Polyrattan Garden Sofa Set Bundle with Armchair, Coffee Table & Protective Cover', FURNITURE, 'Lounge & corner sets'],
+    ['Linden Custom-Fitted Furniture Cover – Tailored Protection for Sofas & Outdoor Furniture', FURNITURE, 'Furniture covers'],
+    ['2KW LED Touchscreen Rotating Upright Infrared Heater UP-20 Outdoor IP65', FURNITURE, 'Fire pits & heaters'],
+    ['Kiki Beige Metal Garden 2 Seater Bistro Set', FURNITURE, 'Bistro sets']
   ];
   for (const [name, cat, sub] of yes) assert.deepEqual(c(name), { site: 'ggw', siteCategory: cat, subcategory: sub }, name);
-  assert.ok(c('Mint Outdoor Gift Card').reject);
+  for (const name of ['Mint Outdoor Gift Card', 'White Glove Assembly Service', 'Two-Person Delivery Charge', 'Collection Fee', 'Sonny Kids Outdoor Play Sofa']) assert.ok(c(name).reject, name);
 });
 
 test('Gardenista: outdoor cushions, pads and covers go to GGW; indoor products stay on HGW', () => {
@@ -48,11 +58,17 @@ test('Gardenista: outdoor cushions, pads and covers go to GGW; indoor products s
     ['3-Seater Outdoor Keter Eden Bench Cushions  Water Resistant Garden Storage Bench', 'Cushions & rugs'],
     ['Printed Outdoor Scatter Cushions Garden Decorative Pillow Water Resistant', 'Cushions & rugs'],
     ['Water-Resistant Decorative Scatter Cushion Covers Outdoor Printed Cushion Cover - 5pc Set Elephant', 'Cushions & rugs'],
-    ['Bright Colorful Mini Outdoor Scatter Cushion Set for Garden Furniture Water-Resistant - Bright 12 Pieces Set', 'Cushions & rugs']
+    ['Bright Colorful Mini Outdoor Scatter Cushion Set for Garden Furniture Water-Resistant - Bright 12 Pieces Set', 'Cushions & rugs'],
+    ['Tufted Printed Seat Pad | Slip Free Garden Chair Cushions | Water Resistant Garden Furniture | Dining Seat Pads with Secure Ties| Cushion', 'Cushions & rugs'],
+    ['Waterproof 1-2-3 Seater Outdoor Sofa Covers With Buckle Straps Black', 'Furniture covers'],
+    ['Water Resistant 3 Seater Swing Canopy Cover Outdoor Replacement Hammock Covers with Velcro', 'Furniture covers'],
+    ['Heavy Duty Waterproof Rectangular Garden Table Cover with Buckle Loops', 'Furniture covers'],
+    ['Water Resistant Gazebo Side Panel Plain Curtains Replacement Outdoor Pergola Privacy Panels', 'Parasols, gazebos & shade']
   ];
   for (const [name, sub] of yes) assert.deepEqual(c(name), { site: 'ggw', siteCategory: FURNITURE, subcategory: sub }, name);
   assert.deepEqual(c('Garden BBQ Cover Waterproof'), { site: 'ggw', siteCategory: 'BBQ & Outdoor Cooking', subcategory: 'BBQ accessories' });
-  for (const name of ['Lantern Cushion Cover', 'Velvet Recliner Armchair for Living Room', 'Bedroom Cushion Set Grey']) assert.ok(c(name, 'Furniture').reject, name);
+  for (const name of ['Lantern Cushion Cover', 'Velvet Recliner Armchair for Living Room', 'Bedroom Cushion Set Grey', 'test product 3', 'Gardenista Digital Gift Card']) assert.ok(c(name, 'Furniture').reject, name);
+  assert.equal(gardenista.RULES.joinSameName, true);
 });
 
 test('Lights4fun: outdoor lights to GGW lighting; seasonal decorations, indoor lights and other products out', () => {
@@ -83,7 +99,10 @@ test('tado°: thermostats, AC control, sensors and parts go to HGW Smart Home; s
     ['tado° | USB-C Cable for Smart Radiator Thermostat X', 'smart radiator thermostat', 'Smart Home Accessories']
   ];
   for (const [name, cat, sub] of yes) assert.deepEqual(c(name, cat), { site: 'hgw', siteCategory: 'Smart Home', subcategory: sub }, name);
+  assert.deepEqual(c('tado° | Wireless Receiver X UK', 'wireless receiver'), { site: 'hgw', siteCategory: 'Smart Home', subcategory: 'Smart Thermostat' });
+  assert.deepEqual(c('tado° | Extension Kit', ''), { site: 'hgw', siteCategory: 'Smart Home', subcategory: 'Smart Thermostat' });
   assert.ok(c('tado° | Auto-Assist subscription 12 months').reject);
+  assert.ok(c('tado° | Wireless Smart Thermostat X (2nd gen) - Starter Kit incl. Programmer with Hot Water Control and OpenTherm-With Installation', 'combi').reject);
   assert.equal(tado.displayName('tado° | Add-on Smart Radiator Thermostat'), 'tado° Add-on Smart Radiator Thermostat');
 });
 
@@ -108,6 +127,16 @@ test('Opulensi: women, unisex and no-gender perfumes to WGW; men and unisex to M
     assert.ok(w(name).reject, name);
     assert.ok(m(name).reject, name);
   }
+  // From the first dry run: a perfume called "Bakhour" is a perfume, incense is not; the shop's "Gift Set" category holds perfume sets;
+  // a perfume "with Deodorant" is a fragrance; men's roll-on oils and "Eau De Perfum" are fragrances.
+  assert.deepEqual(w('Al Rehab Bakhour 35ml EDP Perfume Spray'), { site: 'wgw', siteCategory: 'Beauty & Fragrances', subcategory: 'Fragrance' });
+  assert.deepEqual(opulensi.classify({ name: 'Bint Hooran 3 Piece Gift Set by Ard Al Zaafaran', feedCategory: 'Gift Set' }), { site: 'wgw', siteCategory: 'Beauty & Fragrances', subcategory: 'Gift sets' });
+  assert.deepEqual(w('Shams Emarat Khususi Perfume EDP 100ml with Body Deodorant by Ard Al Zaafaran'), { site: 'wgw', siteCategory: 'Beauty & Fragrances', subcategory: 'Fragrance' });
+  for (const name of ['Al Rehab Clever Man 6ml Roll-On Oil', 'Rasasi Hawas Ice for Men 100ml', 'Ajmal Sacrifice For Him II Eau De Perfum 50ML - by Ajmal']) {
+    assert.deepEqual(m(name), { site: 'mgw', siteCategory: 'Grooming & Fragrances', subcategory: 'Fragrance' }, name);
+  }
+  assert.deepEqual(m('Nebras Lattafa Pride 250ml perfumed deodorant By Lattafa Unisex'), { site: 'mgw', siteCategory: 'Grooming & Fragrances', subcategory: 'Deodorant' });
+  for (const name of ['Oudh Nabeel Bakhoor (Arabian Incense) 60g by Nabeel Perfumes', 'Oud 24 Hours 300ml premium Air Freshener By Ard Al Zaafaran']) assert.ok(w(name).reject, name);
   assert.equal(opulensi.RULES.addOnly && opulensiMen.RULES.addOnly && opulensi.RULES.keepCategory && opulensiMen.RULES.keepCategory, true);
 });
 
@@ -177,4 +206,27 @@ test('Opulensi plan is add-only and keeps the category of a product the router a
   assert.equal(rows[0].price, 25.99, 'price updated from the feed');
   assert.equal(rows[1].subcategory, 'Fragrance');
   assert.equal(JSON.parse(readFileSync(join(out, 'plan.json'), 'utf8')).addOnly, true);
+});
+
+test('joinSameName: options of one page with the same name become one card with the lowest price; other names stay', () => {
+  const p = (key, page, name, prices, inStock = 1) => ({ key, page, name, prices, variants: 1, inStockVariants: inStock, unknownStock: 0, ean: '' });
+  const out = joinSameName([
+    p('1', 'https://gardenistauk.com/products/director', 'Replacement Director Chair Covers', [14.99]),
+    p('2', 'https://gardenistauk.com/products/director', 'Replacement Director Chair Covers', [12.99]),
+    p('3', 'https://gardenistauk.com/products/elephant', 'Cushion Cover - Elephant A', [7.99]),
+    p('4', 'https://gardenistauk.com/products/elephant', 'Cushion Cover - 5pc Set Elephant', [29.99])
+  ]);
+  assert.equal(out.length, 3);
+  assert.equal(out[0].key, '1');
+  assert.equal(Math.min(...out[0].prices), 12.99);
+  assert.equal(out[0].variants, 2);
+});
+
+test('a product whose link is on another address is left out, and the report says which address', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'mint-host-'));
+  const other = row(9, 'Lark Rattan Garden Chair', 499, 1).replace('https://mint-outdoor.com/products/p9?variant=90', 'https://old-shop.example/p9');
+  writeFileSync(join(dir, 'AWIN_114094_100804.csv.gz'), gzipSync(HEAD + other));
+  const r = await planLegacyImport({ archive: dir, retailer: 'mintoutdoor', outDir: mkdtempSync(join(tmpdir(), 'mint-host-out-')), now: new Date('2026-10-23T20:00:00Z') });
+  assert.equal(r.accepted.ggw.length, 0);
+  assert.deepEqual(Object.keys(r.rejected), ["link is not the shop's own page (old-shop.example)"]);
 });

@@ -31,7 +31,7 @@ const SUBS = [
   ['Smart Home Accessories', words(['cable', 'adapter', 'adaptor', 'batteries', 'battery', 'mount', 'bracket', 'stand', 'cover', 'plate', 'spacer', 'adapters'])],
   ['Smart AC Control', words(['ac control', 'air conditioning', 'air conditioner', 'cooling', 'ac'])],
   ['Smart Sensor', words(['sensor', 'sensors'])],
-  ['Smart Thermostat', words(['thermostat', 'thermostats', 'radiator', 'trv', 'valve', 'heating', 'starter kit', 'heat pump', 'boiler', 'bridge'])]
+  ['Smart Thermostat', words(['thermostat', 'thermostats', 'radiator', 'trv', 'valve', 'heating', 'starter kit', 'heat pump', 'boiler', 'bridge', 'receiver', 'extension kit', 'hot water'])]
 ];
 
 // Decide where one product goes. Returns { site, siteCategory, subcategory } or { reject: '<reason>' }.

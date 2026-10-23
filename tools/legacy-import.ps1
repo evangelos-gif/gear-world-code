@@ -93,7 +93,8 @@ function Confirm-Approval([string]$phrase) {
 }
 
 # Runs wrangler through a temporary .cmd file, so output is plain text in Windows PowerShell 5.1.
-# -Retry: on a network error try again, up to 3 times. Only for calls that are safe to repeat.
+# -Retry: on a network error, or a passing Cloudflare 'account not authorized' (7403, seen on 23 Oct 2026 between two
+# successful calls), try again, up to 3 times. Only for calls that are safe to repeat.
 function Invoke-Wrangler([string]$Folder, [string]$Arguments, [switch]$Retry) {
     if ($Arguments -match '[&|<>^%]') { throw 'Unsafe characters in wrangler arguments' }
     $tmp = [System.IO.Path]::GetTempPath()
@@ -112,7 +113,7 @@ function Invoke-Wrangler([string]$Folder, [string]$Arguments, [switch]$Retry) {
         }
         $text = (($out | ForEach-Object { "$_" }) -join "`n") -replace '\x1b\[[0-9;]*m', ''
         $result = @{ code = $code; text = $text }
-        $network = $text -match '(?i)fetch failed|connectivity issue|ECONNRESET|ETIMEDOUT|EAI_AGAIN|ENOTFOUND|socket hang up'
+        $network = $text -match '(?i)fetch failed|connectivity issue|ECONNRESET|ETIMEDOUT|EAI_AGAIN|ENOTFOUND|socket hang up|code: 7403'
         if ($code -eq 0 -or -not $network -or $try -eq $tries) { break }
         Say ('Πρόβλημα δικτύου με το Cloudflare. Ξαναδοκιμάζω σε {0} δευτερόλεπτα ({1}/{2})...' -f (5 * $try), ($try + 1), $tries) 'Yellow'
         Start-Sleep -Seconds (5 * $try)
