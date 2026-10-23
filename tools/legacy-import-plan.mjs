@@ -40,6 +40,16 @@ function productPage(url) {
   try { const u = new URL(url); return `${u.origin}${u.pathname}`; } catch { return ''; }
 }
 
+// The in_stock column of an Awin feed: true (in stock), false (sold out) or null (not given or not readable).
+export function stockFlag(raw) {
+  const s = String(raw ?? '').trim().toLowerCase();
+  if (s === '') return null;
+  if (/^\d+$/.test(s)) return Number(s) > 0;
+  if (/^(yes|y|true|in stock|in_stock|instock|available|limited stock|limited_stock)$/.test(s)) return true;
+  if (/^(no|n|false|out of stock|out_of_stock|outofstock|sold out|discontinued)$/.test(s)) return false;
+  return null;
+}
+
 // Read the feed and join the rows of one product (one row per size) into one product.
 // A shop's rules may say where its feed is (rules.feedFiles: full paths, e.g. a Google-format feed saved in Downloads)
 // and how its columns map to the Awin names used below (rules.field). Without them: AWIN_<id>_<feed>.csv(.gz) in the archive.
@@ -69,11 +79,14 @@ export async function readProducts({ archive, rules }) {
       const key = (typeof rules.productKey === 'function' && rules.productKey(get)) || get('parent_product_id') || page || get('merchant_product_id') || get('aw_product_id');
       if (!key) continue;
       const qtyRaw = get('stock_quantity');
-      const qty = qtyRaw === '' ? null : Number(qtyRaw);
+      let qty = qtyRaw === '' ? null : Number(qtyRaw);
+      // Many Awin feeds give the stock only as in_stock (1/0) and leave stock_quantity empty (lessons L37).
+      if (qty === null || !Number.isFinite(qty)) { const flag = stockFlag(get('in_stock')); if (flag !== null) qty = flag ? 1 : 0; }
       const price = parsePrice(get('search_price') || get('store_price'));
       let g = groups.get(key);
       if (!g) {
         g = { key, name: cleanText(get('product_name')), brand: cleanText(get('brand_name')), feedCategory: cleanText(get('merchant_category')),
+          awinCategory: cleanText(get('category_name')),
           link, page, image: get('merchant_image_url') || get('large_image') || get('aw_image_url'), firstVariant: get('merchant_product_id'),
           variants: 0, inStockVariants: 0, unknownStock: 0, prices: [], currency: get('currency').toUpperCase(), ean: get('ean') || get('product_gtin') };
         groups.set(key, g);
@@ -105,7 +118,7 @@ export async function planLegacyImport({ archive, retailer, outDir, now = new Da
     if (!/^https:\/\//i.test(p.image || '')) { reject(p, 'no image'); continue; }
     if (!R.shop.test(p.link || '')) { reject(p, "link is not the shop's own page"); continue; }
     if (p.currency && p.currency !== R.currency) { reject(p, `currency ${p.currency}, expected ${R.currency}`); continue; }
-    const c = rules.classify({ name: p.name, feedCategory: p.feedCategory, url: p.link, brand: p.brand });
+    const c = rules.classify({ name: p.name, feedCategory: p.feedCategory, awinCategory: p.awinCategory, url: p.link, brand: p.brand });
     if (c.reject) { reject(p, c.reject); continue; }
     if (!accepted[c.site]) { reject(p, `site ${c.site} is not in the plan`); continue; }
     const name = rules.displayName ? rules.displayName(p.name) : p.name;

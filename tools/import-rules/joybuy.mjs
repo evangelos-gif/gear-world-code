@@ -41,27 +41,27 @@ const words = list => new RegExp('(?<![a-z0-9])(' + list.map(w => w.replace(/[.*
 const BEAUTY_CATEGORY = /^Health & Beauty > Personal Care > (Cosmetics|Hair ?care)\b/i;
 const DEODORANT_CATEGORY = /^Health & Beauty > Personal Care > Deodorant/i;
 const SHAVING_CATEGORY = /^Health & Beauty > Personal Care > Shaving & Grooming/i;
-const FRAGRANCE_NAME = words(['eau de parfum', 'eau de toilette', 'eau de cologne', 'edp', 'edt', 'parfum', 'perfume', 'perfumes', 'extrait', 'body mist', 'fragrance mist', 'hair mist']);
+export const FRAGRANCE_NAME = words(['eau de parfum', 'eau de toilette', 'eau de cologne', 'edp', 'edt', 'parfum', 'perfume', 'perfumes', 'extrait', 'body mist', 'fragrance mist', 'hair mist']);
 // Perfume words that are not something you wear.
-const HOME_SCENT = words(['candle', 'candles', 'diffuser', 'diffusers', 'reed', 'reeds', 'room spray', 'home fragrance', 'wax melt', 'wax melts', 'air freshener',
+export const HOME_SCENT = words(['candle', 'candles', 'diffuser', 'diffusers', 'reed', 'reeds', 'room spray', 'home fragrance', 'wax melt', 'wax melts', 'air freshener',
   'car freshener', 'incense', 'oil burner', 'laundry', 'detergent', 'fabric softener', 'washing']);
-const MEN = words(['men', "men's", 'mens', 'man', 'male', 'for him', 'pour homme', 'homme', 'gents', 'gentleman', 'gentlemen', 'aftershave', 'after shave',
+export const MEN = words(['men', "men's", 'mens', 'man', 'male', 'for him', 'pour homme', 'homme', 'gents', 'gentleman', 'gentlemen', 'aftershave', 'after shave',
   'beard', 'shaving', 'shave', 'boyfriend']);
 // Well-known men's perfume lines that often have no "men" in the name.
-const MEN_LINES = words(['sauvage', 'bleu de chanel', 'aventus', 'acqua di gio', 'acqua di giò', 'eros', 'invictus', '1 million', 'one million', 'le male', 'boss bottled',
+export const MEN_LINES = words(['sauvage', 'bleu de chanel', 'aventus', 'acqua di gio', 'acqua di giò', 'eros', 'invictus', '1 million', 'one million', 'le male', 'boss bottled',
   'terre d\'hermes', 'terre d’hermès', 'stronger with you', 'spicebomb', 'the one for men', 'dylan blue', 'phantom', 'wanted', 'fahrenheit', 'allure homme', 'ultra male',
   'polo blue', 'polo red', 'y eau de parfum', 'l\'homme', 'pour lui', 'bad boy', 'luna rossa', 'aqva', 'cool water man', 'toy boy',
   'uomo', 'montblanc legend', 'legend spirit', 'montblanc explorer', 'burberry hero', 'myslf', 'only the brave', 'boss the scent', 'le beau', 'kouros', 'aramis',
   'egoiste', 'azzaro chrome', 'davidoff', 'cool water', 'club de nuit intense', 'lattafa asad', 'asad', 'aqua di gio', 'k by dolce', 'ombre nomade man']);
-const WOMEN = words(['women', "women's", 'womens', 'woman', 'ladies', 'lady', 'female', 'for her', 'pour femme', 'femme', 'girl']);
-const UNISEX = words(['unisex']);
-const KIDS = words(['baby', 'babies', 'infant', 'infants', 'toddler', 'toddlers', 'kids', 'kid', "kid's", 'children', "children's", 'child', 'childs', 'junior', 'newborn', 'nappy']);
+export const WOMEN = words(['women', "women's", 'womens', 'woman', 'ladies', 'lady', 'female', 'for her', 'pour femme', 'femme', 'girl']);
+export const UNISEX = words(['unisex']);
+export const KIDS = words(['baby', 'babies', 'infant', 'infants', 'toddler', 'toddlers', 'kids', 'kid', "kid's", 'children', "children's", 'child', 'childs', 'junior', 'newborn', 'nappy']);
 const NOT_BEAUTY = words(['toothpaste', 'toothbrush', 'toothbrushes', 'mouthwash', 'floss', 'dental', 'denture', 'dentures', 'condom', 'condoms', 'lubricant', 'pregnancy',
   'ovulation', 'tampon', 'tampons', 'sanitary', 'incontinence', 'supplement', 'supplements', 'multivitamin', 'multivitamins', 'gummies', 'medicine', 'plaster', 'plasters',
   'bandage', 'bandages', 'thermometer', 'hearing aid', 'contact lens', 'contact lenses', 'pet', 'pets', 'dog', 'dogs', 'puppy', 'toy', 'toys', 'doll', 'dolls', 'lice', 'nits',
   'tattoo machine', 'gift card', 'voucher', 'otoscope', 'ear wax', 'ear cleaner', 'ear camera']);
 // Names in Chinese, Japanese or Korean script: the site is in English.
-const CJK = /[぀-ヿ㐀-鿿가-힯]/;
+export const CJK = /[぀-ヿ㐀-鿿가-힯]/;
 
 // Subcategory from the NAME first (Joybuy files many creams and serums under "Make-Up"), then from the feed category.
 // Order matters: "tinted moisturiser" is make-up, "hair mask" is hair care, "brush set" is a beauty tool.
@@ -126,7 +126,7 @@ const MEN_SUBS = [
   [words(['moisturiser', 'moisturizer', 'face wash', 'cream', 'serum', 'cleanser', 'scrub', 'eye', 'spf', 'balm', 'skin', 'fluid', 'sunscreen']), 'Skincare'],
   [/\bspf\s?\d/i, 'Skincare']
 ];
-function menSubcategory(n) {
+export function menSubcategory(n) {
   for (const [re, sub] of MEN_SUBS) if (re.test(n)) return sub;
   return 'Grooming';
 }
