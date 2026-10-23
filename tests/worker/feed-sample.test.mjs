@@ -5,7 +5,7 @@ import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { gzipSync } from 'node:zlib';
-import { sampleFeed, renderSample } from '../../tools/awin-feed-sample.mjs';
+import { sampleFeed, renderSample, sampleMany } from '../../tools/awin-feed-sample.mjs';
 
 test('reads only the asked retailer, counts categories and values, keeps samples', async () => {
   const dir = mkdtempSync(join(tmpdir(), 'sample-'));
@@ -26,4 +26,26 @@ test('reads only the asked retailer, counts categories and values, keeps samples
   assert.match(text, /2 {2}Menswear > Jackets/);
   assert.match(text, /brand_name: Barbour/);
   assert.doesNotMatch(text, /Makita/);
+});
+
+test('one product per category path, brand counts, and several retailers in one report', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'sample-many-'));
+  const head = 'aw_product_id,product_name,brand_name,search_price,currency,in_stock,merchant_category\n';
+  writeFileSync(join(dir, 'AWIN_69306_89999.csv.gz'), gzipSync(head
+    + '1,"Proraso Beard Balm 100 ml",Proraso,9.79,GBP,1,Personal Care\n'
+    + '2,"Nivea Men Deodorant 150 ml",Nivea,3.89,GBP,1,Fragrances\n'
+    + '3,"Proraso Shaving Cream",Proraso,5.99,GBP,1,Personal Care\n'));
+  writeFileSync(join(dir, 'AWIN_116097_102169.csv.gz'), gzipSync(head + '1,"Scrub Mummy Twin Pack",Scrub Daddy,4.99,GBP,1,Cleaning products\n'));
+  const s = await sampleFeed({ archive: dir, advertiserId: '69306' });
+  assert.equal(s.examples['Personal Care'], 'Proraso Beard Balm 100 ml');
+  assert.equal(s.brands.Proraso, 2);
+  const text = renderSample(s, '69306');
+  assert.match(text, /2 {2}Personal Care {2}e\.g\. Proraso Beard Balm 100 ml/);
+  assert.match(text, /== BRANDS \(2, biggest first, up to 60\) ==\n {2}Proraso \(2\) \| Nivea \(1\)/);
+  const both = await sampleMany({ archive: dir, advertiserIds: ['69306', '116097'] });
+  assert.match(both, /^##### ADVERTISER 69306\n/);
+  assert.match(both, /##### ADVERTISER 116097\nAWIN FEED SAMPLE \(read-only\) advertiser 116097/);
+  assert.match(both, /Cleaning products {2}e\.g\. Scrub Mummy Twin Pack/);
+  // One retailer: the same report as before (no section header).
+  assert.doesNotMatch(await sampleMany({ archive: dir, advertiserIds: ['69306'] }), /#####/);
 });

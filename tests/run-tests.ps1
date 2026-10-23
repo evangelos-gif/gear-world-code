@@ -234,6 +234,15 @@ if (Get-Command node -ErrorAction SilentlyContinue) {
         Check ($srep.Contains('Sony WH-1000XM5')) 'feed sample: shows sample products'
     }
     Check ((Get-FileHash -LiteralPath $gzPath -Algorithm SHA256).Hash -eq $archHash) 'feed sample: Awin archive unchanged'
+    $multiOut = Join-Path $work 'sample-multi'
+    & $exe -NoProfile -ExecutionPolicy Bypass -File $runTool -LocalRepo $repo -Tool awin-feed-sample -Advertiser '123932,30645' -Archive $arch -OutDir $multiOut -NoClipboard
+    Check ($LASTEXITCODE -eq 0) 'feed sample: several retailers in one run'
+    $multi = @(Get-ChildItem -LiteralPath $multiOut -Directory -Filter 'AWIN_FEED_SAMPLE_123932-30645_*' -ErrorAction SilentlyContinue)
+    Check ($multi.Count -eq 1) 'feed sample: one report folder for several retailers'
+    if ($multi.Count -ge 1) {
+        $mrep = [System.IO.File]::ReadAllText((Join-Path $multi[0].FullName 'report.txt'))
+        Check ($mrep.Contains('##### ADVERTISER 123932') -and $mrep.Contains('##### ADVERTISER 30645')) 'feed sample: one section per retailer'
+    }
 
     $coesCsv = "merchant_name,aw_product_id,brand_name,merchant_product_id,merchant_category,product_name,merchant_deep_link,merchant_image_url,search_price,stock_quantity`n" +
         "Coes,1,Barbour,10,Menswear,Barbour Beaufort Wax Jacket,https://www.coes.co.uk/products/beaufort?variant=10,https://cdn.shopify.com/1.png,299,1`n" +

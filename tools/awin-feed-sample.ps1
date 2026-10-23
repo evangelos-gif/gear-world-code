@@ -1,11 +1,12 @@
 ﻿<#
 .SYNOPSIS
-  Awin feed sample for ONE retailer. READ-ONLY.
+  Awin feed sample for one or more retailers. READ-ONLY.
 .DESCRIPTION
-  Reads the Awin feed of one retailer (-Advertiser <Awin advertiser id>) from the archive folder on this PC and
-  shows its columns, every category path with its count, currencies, stock values and sample products.
+  Reads the Awin feed of one retailer (-Advertiser <Awin advertiser id>), or of several in one report
+  (-Advertiser '69306,116097'), from the archive folder on this PC and shows the columns, every category path with
+  its count and one product of it, the brands, currencies, stock values and sample products.
   Used to write the import rules for a new retailer. It changes nothing.
-  Output: <home>\gear-world-reports\AWIN_FEED_SAMPLE_<id>_<time>\report.txt (copied to the clipboard)
+  Output: <home>\gear-world-reports\AWIN_FEED_SAMPLE_<id>[-<id>...]_<time>\report.txt (copied to the clipboard)
 #>
 param(
     [Parameter(Mandatory = $true)][string]$Advertiser,
@@ -18,7 +19,7 @@ $repo = Split-Path -Parent $PSScriptRoot
 if (-not $OutDir) { $OutDir = Join-Path $HOME 'gear-world-reports' }
 Write-Host ''
 Write-Host ('Awin feed sample, advertiser {0} - ΜΟΝΟ ΑΝΑΓΝΩΣΗ (δεν αλλάζει τίποτα)' -f $Advertiser) -ForegroundColor Cyan
-if ($Advertiser -notmatch '^\d{2,9}$') { Write-Host 'Λάθος αριθμός καταστήματος.' -ForegroundColor Red; exit 2 }
+if ($Advertiser -notmatch '^\d{2,9}(,\d{2,9}){0,11}$') { Write-Host 'Λάθος αριθμός καταστήματος.' -ForegroundColor Red; exit 2 }
 $node = Get-Command node -ErrorAction SilentlyContinue
 if (-not $node) { Write-Host 'Δεν βρέθηκε το Node.js. Στείλε στο Claude αυτό το μήνυμα.' -ForegroundColor Red; exit 3 }
 
@@ -46,9 +47,9 @@ if (-not $Archive) {
     }
 }
 if (-not (Test-Path -LiteralPath $Archive)) { Write-Host ('Δεν βρήκα τον φάκελο: {0}' -f $Archive) -ForegroundColor Red; exit 2 }
-$run = Join-Path $OutDir ('AWIN_FEED_SAMPLE_' + $Advertiser + '_' + (Get-Date -Format 'yyyyMMdd_HHmmss'))
+$run = Join-Path $OutDir ('AWIN_FEED_SAMPLE_' + $Advertiser.Replace(',', '-') + '_' + (Get-Date -Format 'yyyyMMdd_HHmmss'))
 Write-Host ('Φάκελος: {0} ({1} αρχεία)' -f $Archive, (Count-Feeds $Archive))
-Write-Host 'Διαβάζω το feed του καταστήματος (1-3 λεπτά)...'
+Write-Host 'Διαβάζω τα feeds (1-5 λεπτά, τα μεγάλα καταστήματα αργούν)...'
 & node (Join-Path (Join-Path $repo 'tools') 'awin-feed-sample.mjs') --archive $Archive --advertiser $Advertiser --out $run
 if ($LASTEXITCODE -ne 0) { Write-Host 'Το εργαλείο σταμάτησε με σφάλμα. Στείλε στο Claude ό,τι γράφει η οθόνη.' -ForegroundColor Red; exit $LASTEXITCODE }
 $reportPath = Join-Path $run 'report.txt'
