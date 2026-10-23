@@ -8,8 +8,8 @@
 //   sql/9999-finish.sql         marks products missing from the feed as inactive + logs the run (not executed)
 // Nothing is sent to Cloudflare. Loading the SQL is a separate step that needs the owner's approval.
 //
-// Usage: node tools/tgw-import-plan.mjs --archive <dir> --out <dir> [--sources sites/tgw/sources.json]
-import { createReadStream, existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+// Usage: node tools/tgw-import-plan.mjs --archive <dir>[;<dir>] --out <dir> [--sources sites/tgw/sources.json]
+import { createReadStream, existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { createGunzip } from 'node:zlib';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -180,10 +180,46 @@ const sq = v => (v === null || v === undefined || v === '' ? 'NULL' : typeof v =
 
 // ---------- Main ----------
 
+// Several archive folders can be given ("A;B"): the feeds of 23 Oct 2026 are in a new folder, the Joybuy feed in the old
+// one. For each feed file the newest copy is used.
+export function archiveList(archive) {
+  return (Array.isArray(archive) ? archive : String(archive || '').split(';')).map(a => String(a).trim()).filter(Boolean);
+}
+
+function findFeed(archives, fname) {
+  let best = null;
+  for (const dir of archives) {
+    if (!existsSync(dir)) continue;
+    for (const f of readdirSync(dir)) {
+      if (f.toLowerCase() !== fname.toLowerCase()) continue;
+      const full = join(dir, f);
+      const mtime = statSync(full).mtimeMs;
+      if (!best || mtime > best.mtime) best = { full, name: f, dir, mtime };
+    }
+  }
+  return best;
+}
+
+// Per-source filters in sources.json (lessons L14): "brands" (only these brands, e.g. consumer brands from a shop that
+// also sells business IT) and "denyNames" (words that mark a business product: server, toner, warranty ...).
+const normBrand = b => String(b || '').toLowerCase().replace(/[^a-z0-9]+/g, '');
+export function sourceFilter(source) {
+  const brands = Array.isArray(source.brands) && source.brands.length ? new Set(source.brands.map(normBrand)) : null;
+  const deny = Array.isArray(source.denyNames) && source.denyNames.length ? new RegExp(source.denyNames.join('|'), 'i') : null;
+  return (name, brand) => {
+    if (brands && !brands.has(normBrand(brand))) return `brand not on the consumer list (${source.retailer})`;
+    if (deny && deny.test(name)) return `business IT, parts or services (${source.retailer})`;
+    return '';
+  };
+}
+
 export async function planImport({ archive, sourcesFile, outDir, now = new Date() }) {
   const sources = JSON.parse(readFileSync(sourcesFile, 'utf8')).sources.filter(s => s.approved);
   const runStamp = now.toISOString().replace('T', ' ').slice(0, 19);
-  const files = existsSync(archive) ? readdirSync(archive) : [];
+  const archives = archiveList(archive);
+  // Only a retailer whose feed was found and read gets its missing products hidden by 9999-finish.sql.
+  const readAdvertisers = new Set();
+  const notRead = [];
   const stats = { rows: 0, accepted: 0, rejected: {}, perCategory: {}, gtinValid: 0, withWas: 0, feedCats: {} };
   const samples = { accepted: {}, rejected: {} };
   const feedInfo = [];
@@ -196,12 +232,16 @@ export async function planImport({ archive, sourcesFile, outDir, now = new Date(
   };
 
   for (const source of sources) {
+    const filter = sourceFilter(source);
+    let sourceRows = 0, missing = 0;
     for (const feedId of source.feedIds) {
       const fname = `AWIN_${source.advertiserId}_${feedId}.csv.gz`;
-      const real = files.find(f => f.toLowerCase() === fname.toLowerCase());
-      if (!real) { feedInfo.push(`${fname}: NOT FOUND in archive`); continue; }
+      const found = findFeed(archives, fname);
+      if (!found) { feedInfo.push(`${fname}: NOT FOUND in the archive folder(s)`); missing++; continue; }
+      const real = found.name;
+      if (archives.length > 1) feedInfo.push(`${fname}: from ${found.dir}`);
       let header = null, map = null, rows = 0;
-      const stream = createReadStream(join(archive, real)).pipe(createGunzip());
+      const stream = createReadStream(found.full).pipe(createGunzip());
       for await (const rec of readCsvRecords(stream)) {
         if (!header) {
           header = rec; map = mapHeader(rec);
@@ -221,6 +261,8 @@ export async function planImport({ archive, sourcesFile, outDir, now = new Date(
 
         if (!name) { reject('no product name', short); continue; }
         if (name.length > QUALITY.maxNameLength) { reject('name too long', short); continue; }
+        const filtered = filter(name, brand);
+        if (filtered) { reject(filtered, short); continue; }
         const cls = classify(name, `${merchantCategory || awinCategory} ${merchantCategory ? awinCategory : ''}`.trim());
         if (!cls.ok) { reject(cls.reason, short); continue; }
         if (!Number.isFinite(price) || price <= 0) { reject('no price', short); continue; }
@@ -293,7 +335,10 @@ export async function planImport({ archive, sourcesFile, outDir, now = new Date(
         if (list.length < SAMPLES_PER_GROUP) list.push(short);
       }
       feedInfo.push(`  rows read: ${rows}`);
+      sourceRows += rows;
     }
+    if (sourceRows > 0 && missing === 0) readAdvertisers.add(source.advertiserId);
+    else notRead.push(source.retailer);
   }
 
   // ---------- SQL (written, never executed here) ----------
@@ -309,11 +354,12 @@ export async function planImport({ archive, sourcesFile, outDir, now = new Date(
     writeFileSync(join(outDir, 'sql', name), `-- TGW import plan ${runStamp}. NOT executed. Loading needs the owner's approval.\n${lines.join('\n')}\n`);
     sqlFiles.push(name);
   }
-  const advIds = [...new Set(sources.map(s => s.advertiserId))];
+  const advIds = [...readAdvertisers];
   const finish = [
     `-- TGW import plan ${runStamp}. NOT executed. Run only after all numbered files succeeded.`,
-    `UPDATE products SET is_active = 0, updated_at = datetime('now') WHERE awin_advertiser_id IN (${advIds.join(', ')}) AND is_active = 1 AND last_seen_at < ${sq(runStamp)};`,
-    `INSERT INTO import_runs (source, inserted, updated, deactivated, notes) VALUES (${sq('awin:' + advIds.join(','))}, ${all.length}, 0, 0, ${sq('planned ' + runStamp)});`
+    // A retailer whose feed was not found keeps its products as they are (never hidden because a file is missing).
+    ...(advIds.length ? [`UPDATE products SET is_active = 0, updated_at = datetime('now') WHERE awin_advertiser_id IN (${advIds.join(', ')}) AND is_active = 1 AND last_seen_at < ${sq(runStamp)};`] : []),
+    `INSERT INTO import_runs (source, inserted, updated, deactivated, notes) VALUES (${sq('awin:' + (advIds.join(',') || 'none'))}, ${all.length}, 0, 0, ${sq('planned ' + runStamp)});`
   ];
   writeFileSync(join(outDir, 'sql', '9999-finish.sql'), finish.join('\n') + '\n');
 
@@ -321,11 +367,12 @@ export async function planImport({ archive, sourcesFile, outDir, now = new Date(
   const L = [];
   const pct = (a, b) => (b ? `${Math.round((a / b) * 100)}%` : '-');
   L.push(`TGW IMPORT PLAN (dry run, nothing imported) ${runStamp} UTC`);
-  L.push(`Archive: ${archive}`);
+  L.push(`Archive: ${archives.join(' ; ')}`);
   L.push(`Sources: ${sources.map(s => `${s.retailer} (${s.advertiserId}: ${s.feedIds.join(',')})`).join('; ')}`);
   L.push('');
   L.push('== Feeds ==');
   L.push(...feedInfo);
+  for (const r of notRead) L.push(`${r}: its feed was not found (or is empty), so its products on the site are left exactly as they are.`);
   L.push('');
   L.push(`== Result: ${stats.accepted} of ${stats.rows} rows would be imported (${pct(stats.accepted, stats.rows)}) ==`);
   L.push(`valid GTIN: ${stats.gtinValid} (${pct(stats.gtinValid, stats.accepted)}) | with a was-price: ${stats.withWas}`);

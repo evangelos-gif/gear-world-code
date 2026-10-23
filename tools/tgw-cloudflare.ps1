@@ -389,7 +389,9 @@ switch ($Step) {
 
     'import' {
         if (-not (Test-Path -LiteralPath $configPath) -or -not $db.found) { Say 'Πρώτα χρειάζεται το βήμα d1.' 'Red'; Finish 8 }
-        if (-not (Test-Path -LiteralPath $Archive)) { Say ('Δεν βρήκα το Awin archive: {0}' -f $Archive) 'Red'; Finish 2 }
+        # Several archive folders can be given, separated by ; (the newest copy of each feed is used).
+        $missingArchive = @(($Archive -split ';') | ForEach-Object { $_.Trim() } | Where-Object { $_ -and -not (Test-Path -LiteralPath $_) })
+        if ($missingArchive.Count -gt 0) { Say ('Δεν βρήκα το Awin archive: {0}' -f ($missingArchive -join ', ')) 'Red'; Finish 2 }
         $planDir = Join-Path $OutDir ('TGW_IMPORT_PLAN_' + $stamp)
         $k = 2
         while (Test-Path -LiteralPath $planDir) { $planDir = Join-Path $OutDir ('TGW_IMPORT_PLAN_{0}_{1}' -f $stamp, $k); $k++ }

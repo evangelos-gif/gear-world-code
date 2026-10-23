@@ -37,8 +37,10 @@ if ($major -lt 18) {
     Write-Host ('Το Node.js είναι παλιό ({0}). Χρειάζεται 18 ή νεότερο. Στείλε στο Claude αυτό το μήνυμα.' -f $version) -ForegroundColor Red
     exit 3
 }
-if (-not (Test-Path -LiteralPath $Archive)) {
-    Write-Host ('Δεν βρήκα τον φάκελο του Awin archive: {0}' -f $Archive) -ForegroundColor Red
+# Several archive folders can be given, separated by ; (the newest copy of each feed is used).
+$missingArchive = @(($Archive -split ';') | ForEach-Object { $_.Trim() } | Where-Object { $_ -and -not (Test-Path -LiteralPath $_) })
+if ($missingArchive.Count -gt 0) {
+    Write-Host ('Δεν βρήκα τον φάκελο του Awin archive: {0}' -f ($missingArchive -join ', ')) -ForegroundColor Red
     Write-Host 'Στείλε στο Claude αυτό το μήνυμα.' -ForegroundColor Red
     exit 2
 }
