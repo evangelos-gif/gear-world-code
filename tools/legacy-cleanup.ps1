@@ -6,6 +6,7 @@
   Rules: tools/cleanup-rules/<rules>.mjs (-Rules instock): one card per product instead of one per size and colour,
   smartwatch straps, films and spare parts out of Watches, political party merchandise.
   -Rules family (KGW, a site for parents): medicines, food supplements, adult clothing and items for the mother.
+  -Rules trade (CGW): puzzles, toys, supplements, baby and phone items from the general shops (InStock, Joybuy).
 
   Without -Apply: READ-ONLY. Counts what WOULD be hidden, per reason and category, with samples. Changes nothing.
   With -Apply and the approval phrase (ΕΓΚΡΙΝΩ <RULES> CLEANUP <SITE>, e.g. ΕΓΚΡΙΝΩ INSTOCK CLEANUP MGW):
@@ -17,7 +18,7 @@
 #>
 param(
     [Parameter(Mandatory = $true)][string]$Rules,
-    [Parameter(Mandatory = $true)][ValidateSet('mgw', 'wgw', 'kgw', 'hgw')][string]$Site,
+    [Parameter(Mandatory = $true)][ValidateSet('mgw', 'wgw', 'kgw', 'hgw', 'cgw')][string]$Site,
     [switch]$Apply,
     [string]$Approve = '',
     [string]$WorkDir = '',
@@ -33,6 +34,7 @@ $SiteInfo = @{
     wgw = @{ db = 'womens-gear-world'; domain = 'womensgearworld.com'; work = 'womens-gear-world-engine' }
     kgw = @{ db = 'kids-gear-world'; domain = 'kidsgearworld.com'; work = 'kids-gear-world-engine' }
     hgw = @{ db = 'home-gear-world'; domain = 'homegearworld.com'; work = 'home-gear-world-engine' }
+    cgw = @{ db = 'construction-gear-customers'; domain = 'constructiongearworld.com'; work = 'construction-gear-world-engine' }
 }
 $DbName = $SiteInfo[$Site].db
 $Domain = $SiteInfo[$Site].domain

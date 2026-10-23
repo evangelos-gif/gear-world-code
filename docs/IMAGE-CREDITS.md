@@ -66,3 +66,39 @@
 | sites/cgw/public/assets/img/cat-*.webp | Κομμάτια της ίδιας εικόνας hero (μπότες, κράνος, γάντια, δράπανο, εκσκαφέας, κατσαβίδι), σε 3:2. Το παλιό site δεν είχε εικόνες κατηγοριών |
 | logo.svg, favicon.svg, apple-touch-icon.png | Σχεδιασμένα για το repo (κίτρινο κράνος σε σκούρο τετράγωνο) |
 | assets/flags/de.svg, nl.svg | Σχεδιασμένες για το repo (σημαίες Γερμανίας και Ολλανδίας, για τα καταστήματα Reidl και VEVOR) |
+
+## Car Gear World (AGW)
+
+Φωτογραφίες από το **Pexels** ([άδεια Pexels](https://www.pexels.com/license/)), κομμένες και μικρυμένες σε WebP. Σβήστηκαν ή κόπηκαν ό,τι σήματα και ονόματα μάρκας φαίνονταν (όνομα μοντέλου στην πόρτα, πινακίδες με λογότυπο, κεντρικά καπάκια ζαντών, γράμματα στο καπάκι κινητήρα), για να μη φαίνεται μάρκα σαν να υποστηρίζει το site.
+
+| Αρχείο | Pexels |
+|---|---|
+| hero-1920.webp, hero-960.webp, og-image.png (φόντο) | https://www.pexels.com/photo/car-on-lift-at-auto-the-repair-shop-8985667/ |
+| cat-garage-tools-equipment.webp | https://www.pexels.com/photo/crop-mechanic-choosing-metal-tools-for-repair-in-garage-3855223/ |
+| cat-diagnostics-battery.webp | https://www.pexels.com/photo/man-holding-clips-in-front-of-a-car-engine-5572265/ |
+| cat-parts-maintenance.webp | https://www.pexels.com/photo/person-checking-the-oil-of-an-engine-6870297/ |
+| cat-tyres-wheels.webp | https://www.pexels.com/photo/close-up-photo-of-vehicle-wheel-and-tire-364305/ |
+| cat-car-care-detailing.webp | https://www.pexels.com/photo/a-close-up-shot-of-a-person-brushing-a-car-6873020/ |
+| cat-car-electronics.webp | https://www.pexels.com/photo/car-navigation-screen-15828799/ |
+| cat-interior-comfort.webp | https://www.pexels.com/photo/a-white-leather-seat-of-the-car-8096361/ |
+| cat-roof-towing-exterior.webp | https://www.pexels.com/photo/a-bike-on-the-roof-rack-of-an-automobile-4828998/ |
+| cat-ev-charging.webp | https://www.pexels.com/photo/electric-car-charging-station-9800000/ |
+| cat-safety-winter.webp | https://www.pexels.com/photo/close-up-of-a-car-covered-in-snow-15473384/ |
+| logo.svg, favicon.svg, apple-touch-icon.png | Σχεδιασμένα για το repo (κόκκινο λάστιχο με ζάντα σε γραφίτη τετράγωνο) |
+| assets/flags/nl.svg | Η σημαία Ολλανδίας του CGW (για το VEVOR) |
+
+## Travel Gear World (VGW)
+
+Φωτογραφίες από το **Pexels** ([άδεια Pexels](https://www.pexels.com/license/)), κομμένες και μικρυμένες σε WebP. Σβήστηκε το σήμα μάρκας από τη βαλίτσα της κεντρικής φωτογραφίας και θόλωσαν τα μικρά γράμματα στον φακό της φωτογραφίας παραλίας, για να μη φαίνεται μάρκα σαν να υποστηρίζει το site. Το λογότυπο, το favicon και το apple-touch-icon σχεδιάστηκαν για το repo (βαλίτσα σε πορτοκαλί πάνω σε σκούρο μπλε).
+
+| Αρχείο | Pexels |
+|---|---|
+| hero-1920.webp, hero-960.webp, og-image.png (φόντο), tools/assets/hub-vgw.jpg (κάρτα στο hub) | https://www.pexels.com/photo/unrecognizable-woman-with-suitcase-walking-near-airport-terminal-3885529/ |
+| cat-luggage-suitcases.webp | https://www.pexels.com/photo/photo-of-a-packed-suitcase-8212231/ |
+| cat-travel-bags-backpacks.webp | https://www.pexels.com/photo/backpack-with-neck-pillow-and-travel-bag-lying-on-ground-25210705/ |
+| cat-travel-accessories.webp | https://www.pexels.com/photo/a-person-putting-folded-clothes-on-pouch-9186174/ |
+| cat-comfort-sleep.webp | https://www.pexels.com/photo/a-gray-garterized-eye-cap-on-a-white-textile-6603476/ |
+| cat-documents-security.webp | https://www.pexels.com/photo/close-up-shot-of-a-passport-and-tickets-on-top-of-a-laptop-7310015/ |
+| cat-travel-tech.webp | https://www.pexels.com/photo/smartphone-charging-with-portable-power-bank-37475677/ |
+| cat-camping-outdoor.webp | https://www.pexels.com/photo/two-lighted-dome-tent-during-nighttime-2526025/ |
+| cat-beach-holiday.webp | https://www.pexels.com/photo/brown-woven-bag-on-beach-sand-8093198/ |

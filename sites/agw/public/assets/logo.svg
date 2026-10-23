@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Car Gear World">
+  <rect width="64" height="64" rx="12" fill="#1f2228"/>
+  <circle cx="32" cy="32" r="20" fill="none" stroke="#ff5a4e" stroke-width="7"/>
+  <circle cx="32" cy="32" r="20" fill="none" stroke="#1f2228" stroke-width="1.6" stroke-dasharray="3 4.2"/>
+  <circle cx="32" cy="32" r="6" fill="#f2f3f5"/>
+  <path d="M32 26V15M26.3 30.1 15.8 26.7M28.5 36.9l-6.5 8.9M35.5 36.9l6.5 8.9M37.7 30.1l10.5-3.4" stroke="#f2f3f5" stroke-width="3.2" stroke-linecap="round"/>
+</svg>

@@ -9,17 +9,97 @@
 // Nothing is sent to Cloudflare. Loading the SQL is a separate step that needs the owner's approval.
 //
 // Usage: node tools/tgw-import-plan.mjs --archive <dir> --out <dir> [--sources sites/tgw/sources.json]
-import { createReadStream, existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { createReadStream, existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { createGunzip } from 'node:zlib';
+import { PassThrough } from 'node:stream';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { classify, cleanProductName, QUALITY, CATEGORY_SLUGS } from '../sites/tgw/category-rules.js';
+import * as TGW_RULES from '../sites/tgw/category-rules.js';
 import { normalizeGtin } from '../src/lib/gtin.js';
 import { slugify, truncate } from '../src/lib/text.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const SQL_ROWS_PER_FILE = 400;
 const SAMPLES_PER_GROUP = 15;
+const AWIN_PUBLISHER_ID = 3057233;
+
+// ---------- Google Shopping format feeds ----------
+// A few retailers (GS Workwear, Awin 48473) send a Google Shopping file instead of the usual Awin CSV, saved in
+// Downloads as "<advertiserId>-<name>.csv.gz" (sources.json: "format": "google", "file": "<regex>"). Each row is
+// one size or colour ("Name - Colour / Size"), the link is the shop's own page and the Awin link is built here.
+// These rows are turned into Awin-named columns, so the rest of the plan reads them like any other feed.
+const GOOGLE_COLUMNS = ['product_name', 'aw_deep_link', 'merchant_image_url', 'search_price', 'rrp_price', 'currency', 'in_stock',
+  'ean', 'merchant_product_id', 'merchant_category', 'brand_name', 'description', 'mpn', 'colour', 'size'];
+
+// "Draper Torque Wrench - Black / UK 9" -> "Draper Torque Wrench": the size ending always has " / " in it.
+export function googleBaseName(title) {
+  const parts = String(title || '').replace(/\s+/g, ' ').trim()
+    .replace(/(\d)\s[-–]\s((?:uk|eu|us)\s*)?(?=\d)/gi, '$1-$2').split(/\s[-–]\s/);
+  let colour = '';
+  if (parts.length > 1 && /\s\/\s/.test(parts[parts.length - 1].replace(/\([^()]*\)/g, '')) && parts[parts.length - 1].length <= 90) {
+    colour = parts.pop().split(/\s\/\s/)[0].replace(/[*†?]/g, '').trim().toLowerCase();
+  }
+  while (parts.length > 1) {
+    const last = parts[parts.length - 1].replace(/[*†?]/g, '').trim().toLowerCase();
+    if ((colour && last === colour) || /^(uk|eu|us)\s*\d{1,2}(\.5)?(-\d{1,2}(\.5)?)?$/.test(last) || /^(x{0,3}-?small|small|medium|large|x{1,3}-?large|\d?xl|x{0,3}[sml]|one size)$/.test(last)) parts.pop();
+    else break;
+  }
+  return parts.join(' - ');
+}
+
+export function googleAdapter(header, advertiserId) {
+  const h = header.map(x => String(x).trim().toLowerCase().replace(/^\uFEFF/, ''));
+  const col = (rec, ...names) => { for (const n of names) { const i = h.indexOf(n); if (i >= 0 && String(rec[i] ?? '').trim()) return String(rec[i]).trim(); } return ''; };
+  return {
+    header: GOOGLE_COLUMNS,
+    row(rec) {
+      const page = col(rec, 'link', 'mobile_link');
+      let host = '';
+      try { host = new URL(page).hostname.toLowerCase(); } catch { /* invalid */ }
+      const shopPage = page && /^https:/i.test(page) && host !== 'www.awin1.com' && host !== 'awin1.com';
+      const sale = col(rec, 'sale_price');
+      const full = col(rec, 'price');
+      const priceText = sale || full;
+      const avail = col(rec, 'availability').toLowerCase().replace(/[\s-]+/g, '_');
+      const name = googleBaseName(col(rec, 'title'));
+      const brand = col(rec, 'brand');
+      return [
+        name,
+        shopPage ? `https://www.awin1.com/cread.php?awinmid=${advertiserId}&awinaffid=${AWIN_PUBLISHER_ID}&ued=${encodeURIComponent(page)}` : '',
+        col(rec, 'image_link'),
+        priceText,
+        sale ? full : '',
+        (priceText.match(/\b([A-Z]{3})\b/) || [])[1] || '',
+        avail === 'in_stock' || avail === 'limited_stock' ? '1' : (avail === 'out_of_stock' || avail === 'discontinued' ? '0' : ''),
+        col(rec, 'gtin'),
+        // the same id on every run and for every size of the product
+        slugify(`${brand} ${name}`).slice(0, 120),
+        col(rec, 'product_type', 'google_product_category'),
+        brand,
+        col(rec, 'description'),
+        col(rec, 'mpn'),
+        '',
+        ''
+      ];
+    }
+  };
+}
+
+// The files of one source: AWIN_<id>_<feed>.csv.gz in the archive, or (with "file") a name pattern looked up
+// in the archive and in the folder above it (Downloads).
+function sourceFiles(source, archive, files) {
+  if (source.file) {
+    const re = new RegExp(source.file, 'i');
+    const out = [];
+    for (const dir of [archive, dirname(archive)]) {
+      let names = [];
+      try { names = readdirSync(dir); } catch { continue; }
+      for (const n of names) if (re.test(n)) out.push({ label: n, path: join(dir, n) });
+    }
+    return out.length ? out : null;
+  }
+  return undefined;
+}
 
 // ---------- CSV ----------
 
@@ -180,8 +260,14 @@ const sq = v => (v === null || v === undefined || v === '' ? 'NULL' : typeof v =
 
 // ---------- Main ----------
 
-export async function planImport({ archive, sourcesFile, outDir, now = new Date() }) {
-  const sources = JSON.parse(readFileSync(sourcesFile, 'utf8')).sources.filter(s => s.approved);
+// rules: a site's category-rules.js (default TGW). Other sites with their own database reuse this tool with
+// their own rules and label (e.g. tools/agw-import-plan.mjs). QUALITY.currencies (list) or QUALITY.currency.
+// only: a list of Awin advertiser ids, to plan just those retailers (their SQL then touches only them).
+export async function planImport({ archive, sourcesFile, outDir, now = new Date(), rules = TGW_RULES, label = 'TGW', only = null }) {
+  const { classify, cleanProductName, QUALITY, CATEGORY_SLUGS } = rules;
+  const currencies = QUALITY.currencies || [QUALITY.currency];
+  const onlyIds = only && only.length ? new Set(only.map(Number)) : null;
+  const sources = JSON.parse(readFileSync(sourcesFile, 'utf8')).sources.filter(s => s.approved && (!onlyIds || onlyIds.has(Number(s.advertiserId))));
   const runStamp = now.toISOString().replace('T', ' ').slice(0, 19);
   const files = existsSync(archive) ? readdirSync(archive) : [];
   const stats = { rows: 0, accepted: 0, rejected: {}, perCategory: {}, gtinValid: 0, withWas: 0, feedCats: {} };
@@ -196,21 +282,36 @@ export async function planImport({ archive, sourcesFile, outDir, now = new Date(
   };
 
   for (const source of sources) {
-    for (const feedId of source.feedIds) {
-      const fname = `AWIN_${source.advertiserId}_${feedId}.csv.gz`;
-      const real = files.find(f => f.toLowerCase() === fname.toLowerCase());
-      if (!real) { feedInfo.push(`${fname}: NOT FOUND in archive`); continue; }
-      let header = null, map = null, rows = 0;
-      const stream = createReadStream(join(archive, real)).pipe(createGunzip());
-      for await (const rec of readCsvRecords(stream)) {
+    const extra = sourceFiles(source, archive, files);
+    if (extra === null) { feedInfo.push(`${source.retailer}: no file matching ${source.file} in the archive or the folder above it`); continue; }
+    // No feedIds in sources.json: every file of that retailer in the archive (AWIN_<advertiserId>_*.csv.gz).
+    const feedIds = extra ? extra.map(e => e.path) : source.feedIds && source.feedIds.length ? source.feedIds
+      : files.map(f => (f.match(new RegExp(`^AWIN_${source.advertiserId}_(\\d+)\\.csv\\.gz$`, 'i')) || [])[1]).filter(Boolean);
+    if (!feedIds.length) feedInfo.push(`AWIN_${source.advertiserId}_*.csv.gz: NOT FOUND in archive`);
+    const google = source.format === 'google';
+    for (const feedId of feedIds) {
+      let real, fullPath;
+      if (extra) { fullPath = String(feedId); real = fullPath.split(/[\\/]/).pop(); }
+      else {
+        const fname = `AWIN_${source.advertiserId}_${feedId}.csv.gz`;
+        real = files.find(f => f.toLowerCase() === fname.toLowerCase());
+        if (!real) { feedInfo.push(`${fname}: NOT FOUND in archive`); continue; }
+        fullPath = join(archive, real);
+      }
+      let header = null, map = null, rows = 0, adapter = null;
+      const stream = createReadStream(fullPath).pipe(/\.gz$/i.test(real) ? createGunzip() : new PassThrough());
+      for await (const raw of readCsvRecords(stream)) {
+        let rec = raw;
+        if (!header && google) { adapter = googleAdapter(raw, source.advertiserId); rec = adapter.header; }
+        else if (adapter) rec = adapter.row(raw);
         if (!header) {
           header = rec; map = mapHeader(rec);
           const missing = ['name', 'price', 'link', 'merchantProductId', 'images'].filter(k => !map[k].length);
-          feedInfo.push(`${real}: ${rec.length} columns${missing.length ? ' | MISSING: ' + missing.join(', ') : ''}`);
+          feedInfo.push(`${real}: ${google ? raw.length + ' columns (Google Shopping format)' : rec.length + ' columns'} | file date ${statSync(fullPath).mtime.toISOString().slice(0, 10)}${missing.length ? ' | MISSING: ' + missing.join(', ') : ''}`);
           feedInfo.push('  columns used: ' + Object.entries(map).map(([k, v]) => `${k}=${v.map(i => header[i]).join('/') || '-'}`).join(' '));
           continue;
         }
-        if (rec.length === 1 && rec[0] === '') continue;
+        if (raw.length === 1 && raw[0] === '') continue;
         rows++; stats.rows++;
         const name = cleanProductName(cleanText(pick(rec, map.name)));
         const merchantCategory = cleanText(pick(rec, map.merchantCategory));
@@ -221,12 +322,14 @@ export async function planImport({ archive, sourcesFile, outDir, now = new Date(
 
         if (!name) { reject('no product name', short); continue; }
         if (name.length > QUALITY.maxNameLength) { reject('name too long', short); continue; }
-        const cls = classify(name, `${merchantCategory || awinCategory} ${merchantCategory ? awinCategory : ''}`.trim());
+        // Third argument: every merchant category column (leaf and full path). TGW's rules ignore it.
+        const categoryPaths = map.merchantCategory.map(i => cleanText(rec[i])).filter(Boolean).join(' | ');
+        const cls = classify(name, `${merchantCategory || awinCategory} ${merchantCategory ? awinCategory : ''}`.trim(), categoryPaths);
         if (!cls.ok) { reject(cls.reason, short); continue; }
         if (!Number.isFinite(price) || price <= 0) { reject('no price', short); continue; }
         if (price < QUALITY.minPrice || price > QUALITY.maxPrice) { reject('price out of range', short); continue; }
         const currency = detectCurrency(rec, map, source);
-        if (currency !== QUALITY.currency) { reject(`currency ${currency || 'unknown'}`, short); continue; }
+        if (!currencies.includes(currency)) { reject(`currency ${currency || 'unknown'}`, short); continue; }
         const stock = inStockValue(pick(rec, map.inStock));
         if (QUALITY.requireInStock && stock === false) { reject('out of stock', short); continue; }
         const image = firstHttpsImage(rec, map);
@@ -238,7 +341,11 @@ export async function planImport({ archive, sourcesFile, outDir, now = new Date(
         const merchantProductId = pick(rec, map.merchantProductId);
         if (!merchantProductId) { reject('no product id', short); continue; }
         const stableKey = `${source.advertiserId}:${merchantProductId}`;
-        if (products.has(stableKey)) { reject('duplicate product id', short); continue; }
+        if (products.has(stableKey)) {
+          // Google format: the other sizes and colours of a product already taken (the cheapest stays)
+          if (google) { const had = products.get(stableKey); if (price < had.price) had.price = price; stats.sizesJoined = (stats.sizesJoined || 0) + 1; continue; }
+          reject('duplicate product id', short); continue;
+        }
         const nameKey = `${source.advertiserId}|${name.toLowerCase()}|${price.toFixed(2)}`;
         if (seenNames.has(nameKey)) { reject('duplicate (same name and price)', short); continue; }
         seenNames.add(nameKey);
@@ -283,6 +390,8 @@ export async function planImport({ archive, sourcesFile, outDir, now = new Date(
         };
         products.set(stableKey, p);
         stats.accepted++;
+        stats.perRetailer = stats.perRetailer || {};
+        stats.perRetailer[source.retailer] = (stats.perRetailer[source.retailer] || 0) + 1;
         stats.perCategory[cls.slug] = (stats.perCategory[cls.slug] || 0) + 1;
         const fc = truncate(merchantCategory || awinCategory || '-', 70);
         const fcs = (stats.feedCats[cls.slug] ||= {});
@@ -306,12 +415,12 @@ export async function planImport({ archive, sourcesFile, outDir, now = new Date(
     const part = all.slice(i, i + SQL_ROWS_PER_FILE);
     const lines = part.map(p => `INSERT INTO products (${cols.join(', ')}) VALUES (${cols.map(c => sq(p[c])).join(', ')}) ON CONFLICT(stable_key) DO UPDATE SET ${updateCols.map(c => `${c} = excluded.${c}`).join(', ')}, updated_at = datetime('now');`);
     const name = `${String(sqlFiles.length + 1).padStart(4, '0')}.sql`;
-    writeFileSync(join(outDir, 'sql', name), `-- TGW import plan ${runStamp}. NOT executed. Loading needs the owner's approval.\n${lines.join('\n')}\n`);
+    writeFileSync(join(outDir, 'sql', name), `-- ${label} import plan ${runStamp}. NOT executed. Loading needs the owner's approval.\n${lines.join('\n')}\n`);
     sqlFiles.push(name);
   }
   const advIds = [...new Set(sources.map(s => s.advertiserId))];
   const finish = [
-    `-- TGW import plan ${runStamp}. NOT executed. Run only after all numbered files succeeded.`,
+    `-- ${label} import plan ${runStamp}. NOT executed. Run only after all numbered files succeeded.`,
     `UPDATE products SET is_active = 0, updated_at = datetime('now') WHERE awin_advertiser_id IN (${advIds.join(', ')}) AND is_active = 1 AND last_seen_at < ${sq(runStamp)};`,
     `INSERT INTO import_runs (source, inserted, updated, deactivated, notes) VALUES (${sq('awin:' + advIds.join(','))}, ${all.length}, 0, 0, ${sq('planned ' + runStamp)});`
   ];
@@ -320,14 +429,16 @@ export async function planImport({ archive, sourcesFile, outDir, now = new Date(
   // ---------- Report ----------
   const L = [];
   const pct = (a, b) => (b ? `${Math.round((a / b) * 100)}%` : '-');
-  L.push(`TGW IMPORT PLAN (dry run, nothing imported) ${runStamp} UTC`);
+  L.push(`${label} IMPORT PLAN (dry run, nothing imported) ${runStamp} UTC`);
   L.push(`Archive: ${archive}`);
-  L.push(`Sources: ${sources.map(s => `${s.retailer} (${s.advertiserId}: ${s.feedIds.join(',')})`).join('; ')}`);
+  L.push(`Sources: ${sources.map(s => `${s.retailer} (${s.advertiserId}: ${s.file ? 'file ' + s.file : (s.feedIds || []).join(',') || 'all files'})`).join('; ')}${onlyIds ? ' (only these)' : ''}`);
   L.push('');
   L.push('== Feeds ==');
   L.push(...feedInfo);
   L.push('');
   L.push(`== Result: ${stats.accepted} of ${stats.rows} rows would be imported (${pct(stats.accepted, stats.rows)}) ==`);
+  if (stats.sizesJoined) L.push(`sizes and colours joined into one product (Google format feeds): ${stats.sizesJoined} rows`);
+  L.push('per retailer: ' + Object.entries(stats.perRetailer || {}).map(([r, n]) => `${r} ${n}`).join(', '));
   L.push(`valid GTIN: ${stats.gtinValid} (${pct(stats.gtinValid, stats.accepted)}) | with a was-price: ${stats.withWas}`);
   L.push('');
   L.push('== Per category ==');

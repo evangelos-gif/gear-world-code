@@ -179,12 +179,14 @@ export function createWorker(site) {
   // A search that finds nothing on page 1 is tried once more with the Hub's English words (src/lib/hub.js).
   async function searchWithTranslation(env, filters, opts) {
     const result = await db.listProducts(env.DB, filters, opts);
-    if (!filters.search || result.total > 0 || opts.page > 1) return { result, used: '' };
+    if (!filters.search || result.total > 0 || opts.page > 1) return { result, used: '', tried: [] };
+    const tried = [];
     for await (const candidate of translationsFor(env, filters.search)) {
+      tried.push(candidate);
       const second = await db.listProducts(env.DB, { ...filters, search: candidate }, opts);
-      if (second.total > 0) return { result: second, used: candidate };
+      if (second.total > 0) return { result: second, used: candidate, tried };
     }
-    return { result, used: '' };
+    return { result, used: '', tried };
   }
 
   function cached(request, env, ctx, produce) {
@@ -267,10 +269,12 @@ export function createWorker(site) {
     const catParam = url.searchParams.get('category') || '';
     const cat = categories.get(catParam) || site.categories.find(c => c.name === catParam);
     const search = (url.searchParams.get('search') || url.searchParams.get('q') || '').slice(0, 80);
-    const { result } = await searchWithTranslation(env, { ...p, category: cat ? cat.slug : '', search }, { sort: p.sort, page: p.page, perPage: limit });
+    const { result, used, tried } = await searchWithTranslation(env, { ...p, category: cat ? cat.slug : '', search }, { sort: p.sort, page: p.page, perPage: limit });
     const origin = `https://${site.domain}`;
     return jsonResponse({
       ok: true,
+      // Search in other languages: the English words used, and every translation tried (helps to see why a word finds nothing).
+      ...(tried.length ? { search_used: used, search_tried: tried } : {}),
       products: result.products.map(x => ({
         id: x.id,
         product_name: x.product_name,

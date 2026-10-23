@@ -14,7 +14,7 @@
   Report: <home>\gear-world-reports\TIDY_<SITE>_<time>.txt (also copied to the clipboard)
 #>
 param(
-    [Parameter(Mandatory = $true)][ValidateSet('mgw', 'wgw', 'kgw', 'hgw')][string]$Site,
+    [Parameter(Mandatory = $true)][ValidateSet('mgw', 'wgw', 'kgw', 'hgw', 'cgw')][string]$Site,
     [switch]$Apply,
     [string]$Approve = '',
     [string]$WorkDir = '',
@@ -29,6 +29,7 @@ $SiteInfo = @{
     wgw = @{ db = 'womens-gear-world'; domain = 'womensgearworld.com'; work = 'womens-gear-world-engine' }
     kgw = @{ db = 'kids-gear-world'; domain = 'kidsgearworld.com'; work = 'kids-gear-world-engine' }
     hgw = @{ db = 'home-gear-world'; domain = 'homegearworld.com'; work = 'home-gear-world-engine' }
+    cgw = @{ db = 'construction-gear-customers'; domain = 'constructiongearworld.com'; work = 'construction-gear-world-engine' }
 }
 $DbName = $SiteInfo[$Site].db
 $Domain = $SiteInfo[$Site].domain
