@@ -306,6 +306,28 @@ test('fillShopifyImages: the main picture when the option has none, one read per
   assert.equal(ps[3].image, '');
 });
 
+test('fillShopifyImages: the option is found by the link\'s ?variant= id, else by SKU (Gardenista), else by variant id', async () => {
+  // Real shape of gardenistauk.com/products/outdoor-garden-bench-pad.js (23 Oct 2026): the feed's merchant_product_id is the SKU.
+  const data = { featured_image: '//cdn.shopify.com/s/files/1/0513/2563/2661/products/Terrace_Bench_Cushion.jpg?v=1772515876', variants: [
+    { id: 43996984344893, sku: 'LGP3 Harvest Green', featured_image: { src: '//cdn.shopify.com/s/files/1/0513/2563/2661/products/Terrace_Bench_Cushion.jpg?v=1772515876' } },
+    { id: 43996984377661, sku: 'LGP3 Harvest Grey', featured_image: { src: '//cdn.shopify.com/s/files/1/0513/2563/2661/products/LGP3-Harvest-Grey-_2.jpg?v=1720783369' } },
+    { id: 43996984410429, sku: 'LGP3 Harvest Navy', featured_image: { src: '//cdn.shopify.com/s/files/1/0513/2563/2661/products/Water_Resistant_Seat_Pad.jpg?v=1722418246' } }
+  ] };
+  const fetchImpl = async () => ({ ok: true, json: async () => data });
+  const R = { shop: /^https:\/\/gardenistauk\.com\//i };
+  const page = 'https://gardenistauk.com/products/outdoor-garden-bench-pad';
+  const ps = [
+    { image: '', page, link: page + '?_pos=1&_sid=ff874a632&_ss=r&variant=43996984410429', firstVariant: 'LGP3 Harvest Green' },
+    { image: '', page, link: page + '?_pos=1&_ss=r', firstVariant: 'lgp3 harvest grey' },
+    { image: '', page, link: page, firstVariant: '43996984344893' }
+  ];
+  const r = await fillShopifyImages(ps, R, { fetchImpl, pauseMs: 0 });
+  assert.deepEqual(r, { asked: 1, filled: 3 });
+  assert.equal(ps[0].image, 'https://cdn.shopify.com/s/files/1/0513/2563/2661/products/Water_Resistant_Seat_Pad.jpg?v=1722418246');
+  assert.equal(ps[1].image, 'https://cdn.shopify.com/s/files/1/0513/2563/2661/products/LGP3-Harvest-Grey-_2.jpg?v=1720783369');
+  assert.equal(ps[2].image, 'https://cdn.shopify.com/s/files/1/0513/2563/2661/products/Terrace_Bench_Cushion.jpg?v=1772515876');
+});
+
 test('noimage clean-up hides only active products without a real picture, and the rollback shows them again', () => {
   const db = new DatabaseSync(':memory:');
   db.exec(STABLE_TABLE);

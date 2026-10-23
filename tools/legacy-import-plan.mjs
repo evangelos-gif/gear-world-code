@@ -170,7 +170,12 @@ export async function fillShopifyImages(products, R, { fetchImpl = globalThis.fe
     }
     const d = pages.get(url);
     if (!d) continue;
-    const variant = (d.variants || []).find(v => String(v.id) === String(p.firstVariant));
+    // The option of this card: the ?variant= id of the feed's link, else the SKU (Gardenista's merchant_product_id, e.g.
+    // "LGP3 Harvest Green"), else the variant id (Mint Outdoor's merchant_product_id).
+    const linkVariant = (/[?&]variant=(\d+)/.exec(String(p.link || '')) || [])[1] || '';
+    const same = (a, b) => String(a ?? '').trim() !== '' && String(a ?? '').trim().toLowerCase() === String(b ?? '').trim().toLowerCase();
+    const vs = d.variants || [];
+    const variant = (linkVariant && vs.find(v => same(v.id, linkVariant))) || vs.find(v => same(v.sku, p.firstVariant)) || vs.find(v => same(v.id, p.firstVariant));
     const pick = v => (v && typeof v === 'object' ? v.src : v) || '';
     const abs = u => (String(u || '').startsWith('//') ? 'https:' + u : String(u || ''));
     const img = realImage(abs(pick(variant && variant.featured_image))) || realImage(abs(pick(d.featured_image))) || realImage(abs(pick((d.images || [])[0])));
