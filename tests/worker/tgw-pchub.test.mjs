@@ -76,6 +76,32 @@ test('PCHUB.UK products land on the right TGW page (name and feed folder)', () =
   assert.equal(where('TP-Link Archer C50 wireless router Fast Ethernet Dual-band', `${D}>Networking>Networking>Network Service Equipment>wireless routers`), 'smart-home-wifi');
 });
 
+// The first TGW dry run with PCHUB.UK (24 Oct 2026, the owner's report): what was still let in or on the wrong page.
+test('PCHUB.UK dry-run fixes: business projectors, hotel TVs, photo paper, call-centre headsets and OEM power supplies out', () => {
+  const f = sourceFilter(PCHUB);
+  const business = 'business IT, parts or services (PCHUB.UK)';
+  assert.equal(f('Epson Premium Glossy Photo Paper Roll. 24" x 30.5 m. 170g/m2', 'Epson', `${D}>Audio Visual>Cameras & Camcorders>Photo & Video Accessories`), business);
+  assert.equal(f('Canon MP-101 Matte Photo Paper A3 - 40 Sheets', 'Canon', `${D}>Audio Visual>Cameras & Camcorders>Photo & Video Accessories`), business);
+  assert.equal(f('Epson EB-PU1007B', 'Epson', `${D}>Audio Visual>Projectors>Data Projectors`), 'feed folder not for TGW (PCHUB.UK)');
+  assert.equal(f('LG 32LN661H hospitality TV 81.3 cm (32") HD Smart TV Black 10 W', 'LG', `${D}>Audio Visual>AV & Accessories>Televisions & Accessories>Televisions`), business);
+  assert.equal(f('Jabra BIZ 2300 Duo. USB. MS', 'Jabra', `${D}>Headsets`), business);
+  assert.equal(f('Jabra GN2100 Telecoil MS', 'Jabra', `${D}>Headsets`), business);
+  assert.equal(f('DELL WU136 power supply unit 235 W', 'Dell', `${D}>Power Conditioning>Batteries & Accessories>Power Supply Units`), business);
+  assert.equal(f('Corsair RM850x power supply unit 850 W', 'Corsair', `${D}>Power Conditioning>Batteries & Accessories>Power Supply Units`), '');
+  assert.equal(f('Samsung Odyssey G8 QD-OLED Monitor', 'Samsung', `${D}>Monitor & TV's>Monitors`), '', 'QD-OLED is a monitor panel, not a QD headset');
+  assert.equal(f('Logitech G PRO X Gaming Headset', 'Logitech', `${D}>Headsets`), '');
+  const where = (n, p = 'Computers') => { const c = classify(n, p); return c.ok ? c.slug : `REJECT ${c.reason}`; };
+  assert.equal(where('Belkin F7U017bt Passive holder Mobile phone/Smartphone Black, Silver'), 'accessories-storage');
+  assert.equal(where('Kensington Car Mount for Smartphones'), 'accessories-storage');
+  assert.equal(where('Belkin Boost Charge Smartphone Black Cigar lighter Auto'), 'accessories-storage');
+  assert.equal(where('InvisibleShield Glass Elite Apple iPhone 17e/16e/14/13/13 Pro'), 'accessories-storage');
+  assert.equal(where('DJI OM 5 Smartphone camera stabilizer Grey', `${D}>Audio Visual>Cameras & Camcorders>Photo & Video Accessories`), 'cameras-drones');
+  assert.equal(where('Apple iPhone 15 6.1" 5G Smartphone (MTP93ZD/A) - 256GB, Blue'), 'phones-smartwatches');
+  assert.equal(where('ARCTIC Alpine 23 CO - Compact AMD CPU-Cooler for continuous operation'), 'laptops-computing');
+  assert.equal(where('ARCTIC MX-4 Highest Performance Thermal Compound'), 'laptops-computing');
+  assert.equal(where('Kingston Technology DataTraveler 64GB USB-C 3.2 Gen 1'), 'accessories-storage');
+});
+
 const header = ['aw_deep_link', 'product_name', 'aw_product_id', 'merchant_product_id', 'merchant_image_url', 'aw_image_url', 'merchant_category', 'search_price', 'rrp_price', 'brand_name', 'stock_quantity', 'ean', 'mpn'];
 const line = v => v.map(x => (/[",\n]/.test(x) ? `"${String(x).replace(/"/g, '""')}"` : x)).join(',');
 const feed = rows => gzipSync(Buffer.from([line(header), ...rows.map(line)].join('\n') + '\n'));

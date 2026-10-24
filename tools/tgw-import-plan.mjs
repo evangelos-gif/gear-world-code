@@ -262,7 +262,7 @@ export async function planImport({ archive, sourcesFile, outDir, now = new Date(
     const filter = sourceFilter(source);
     let sourceRows = 0, missing = 0;
     // Per shop: rows, products and samples, so a new shop can be checked on its own (PCHUB.UK next to Back to the Office).
-    const rs = (stats.perRetailer[source.retailer] ||= { rows: 0, accepted: 0, perCategory: {} });
+    const rs = (stats.perRetailer[source.retailer] ||= { rows: 0, accepted: 0, perCategory: {}, feedCats: {} });
     const rsamples = (samples.byRetailer[source.retailer] ||= {});
     for (const feedId of source.feedIds) {
       const fname = `AWIN_${source.advertiserId}_${feedId}.csv.gz`;
@@ -374,6 +374,9 @@ export async function planImport({ archive, sourcesFile, outDir, now = new Date(
         const fc = truncate(merchantCategory || awinCategory || '-', 70);
         const fcs = (stats.feedCats[cls.slug] ||= {});
         fcs[fc] = (fcs[fc] || 0) + 1;
+        const rfc = (rs.feedCats[cls.slug] ||= {});
+        const fcLong = truncate(merchantCategory || awinCategory || '-', 110);
+        rfc[fcLong] = (rfc[fcLong] || 0) + 1;
         if (gtin) stats.gtinValid++;
         if (wasPrice) stats.withWas++;
         const list = (samples.accepted[cls.slug] ||= []);
@@ -428,6 +431,17 @@ export async function planImport({ archive, sourcesFile, outDir, now = new Date(
     L.push(`  ${r}: ${v.accepted} of ${v.rows} rows (${pct(v.accepted, v.rows)})`);
     const cats = CATEGORY_SLUGS.filter(sl => v.perCategory[sl]).map(sl => `${sl} ${v.perCategory[sl]}`).join(' | ');
     if (cats) L.push('      ' + cats);
+  }
+  L.push('');
+  L.push('== Per shop: the biggest feed folders of each category ==');
+  for (const [r, v] of Object.entries(stats.perRetailer)) {
+    if (!v.accepted) continue;
+    for (const slug of CATEGORY_SLUGS) {
+      const top = Object.entries(v.feedCats[slug] || {}).sort((a, b) => b[1] - a[1]).slice(0, 8);
+      if (!top.length) continue;
+      L.push(`  ${r} | ${slug}`);
+      for (const [c, n] of top) L.push(`      ${String(n).padStart(5)}  ${c}`);
+    }
   }
   L.push('');
   L.push('== Per category ==');

@@ -64,7 +64,12 @@ export const RULES = [
       'phone lanyards?', 'lanyards?', 'apple pencil', 'stylus(?:es)?', 'i?watch (?:bands?|straps?)', 'airtags?', 'anti-lost', 'find my',
       // PCHUB.UK (24 Oct 2026): "Apple MQEH3ZM/A Smart Wearable Accessories Band" in "smartwatch accessories" is a band, not a
       // watch; "DELL EURO Simple E-Port II Docking" in "Docks & Port Replicators" is a dock (a games console dock stays gaming).
-      'smartwatch accessories', 'smart wearable accessories', 'docking', 'port replicators?'
+      'smartwatch accessories', 'smart wearable accessories', 'docking', 'port replicators?',
+      // TGW dry run with PCHUB.UK (24 Oct 2026): "Belkin F7U017bt Passive holder Mobile phone/Smartphone", "Kensington Car Mount
+      // for Smartphones", "Belkin Boost Charge Smartphone Black Cigar lighter Auto", "InvisibleShield Glass Elite Apple iPhone 17e"
+      // are phone accessories, not phones.
+      'passive holders?', '(?:car|phone|smartphone|mobile) (?:mounts?|holders?)', 'mounts? for (?:smart)?phones?', 'cigar lighter', 'car chargers?',
+      'invisibleshield', 'glass elite', 'screen ?guards?'
     ]),
     // Watch listings say "Aluminium Case with Sport Band" and "GPS": those are watches, not accessories.
     exclude: words(['ev charger', 'car battery charger', 'trickle charger', 'pencil case', 'suitcase', 'briefcase', 'smart tv', 'televisions?', 'gps', '(?:aluminium|aluminum|titanium|stainless steel) case', 'bicycle parts', '(?:brake|gear) cables?',
@@ -94,7 +99,8 @@ export const RULES = [
       // Joybuy files smartwatches under "Smart Glasses"; real smart glasses (AR/XR, display) are wearables too
       'smart glasses', 'ai glasses', 'ar glasses', 'xr glasses', 'ar/xr glasses'
     ]),
-    exclude: words(['kids toy watch', 'tablets?'])
+    // "DJI OM 5 Smartphone camera stabilizer" is a gimbal (cameras), not a phone.
+    exclude: words(['kids toy watch', 'tablets?', 'stabili[sz]ers?', 'gimbals?'])
   },
   {
     slug: 'laptops-computing',
@@ -102,10 +108,10 @@ export const RULES = [
       'laptops?', 'notebook (?:pc|computer)', '\\d+(?:\\.\\d)?["”]? (?:full hd |fhd |hd )?(?:\\(\\d+ x \\d+\\) )?notebook', 'ryzen', 'intel core', 'core i[3579]', 'macbook', 'chromebook', 'ultrabook', 'desktop pc', 'gaming pc', 'mini pc', 'all-in-one pc', 'imac', 'mac mini',
       'tablets?', 'ipad', 'galaxy tab', 'e-?readers?', 'kindle', 'monitors?', 'keyboards?', 'computer mouse', 'wireless mouse', 'mouse',
       'webcams?', 'graphics cards?', 'motherboards?', 'processors?', 'ddr[45] ram', 'pc cases?', 'mice',
-      'psu', 'power supply unit', 'cpu (?:water |air |liquid )?coolers?', 'liquid coolers?', 'aio', '(?:case|pc) fans?', 'cooler master', 'serial ata', 'sata',
+      'psu', 'power supply unit', 'cpu[- ](?:water |air |liquid )?coolers?', 'liquid coolers?', 'aio', '(?:case|pc) fans?', 'cooler master', 'serial ata', 'sata',
       // PC parts named without those words (Back to the Office, 23 Oct 2026): "ARCTIC P12 - Pressure-optimised 120 mm Fan",
       // "ARCTIC MX-4 ... Thermal Paste", "ASUS DRW-24D5MT optical disc drive", "Kingston ... ValueRAM memory module ... DDR4".
-      '\\d{2,3} ?mm (?:[\\w-]+ ){0,3}fans?', 'thermal paste', 'optical (?:disc )?drives?', 'memory modules?', 'ddr[345]',
+      '\\d{2,3} ?mm (?:[\\w-]+ ){0,3}fans?', 'thermal paste', 'thermal compound', 'optical (?:disc )?drives?', 'memory modules?', 'ddr[345]',
       // Second dry run: "NVIDIA GeForce GT 730", "ASUS TUF Gaming B550-PLUS AMD B550 Socket AM4 ATX", "Logitech Wireless Combo MK270".
       'geforce', 'radeon', 'socket am[345]', 'lga ?1[1-9]\\d\\d', 'wireless combo', 'keyboard and mouse',
       // PC cases named by their size (PCHUB.UK): "Fractal Design Core 1100 Mini Tower Black", "Corsair 4000D Airflow Midi Tower".
@@ -135,7 +141,7 @@ export const RULES = [
   {
     slug: 'cameras-drones',
     include: words([
-      'digital cameras?', 'cameras?', 'dslr', 'mirrorless', 'polaroid', 'instax', 'gopro', 'osmo', 'insta360', 'action cam(?:era)?s?',
+      'digital cameras?', 'cameras?', 'stabili[sz]ers?', 'dslr', 'mirrorless', 'polaroid', 'instax', 'gopro', 'osmo', 'insta360', 'action cam(?:era)?s?',
       'dash ?cams?', 'drones?', 'camera lens(?:es)?', 'gimbals?', 'camcorders?', 'vlog'
     ]),
     // "TP-Link Tapo Pan/Tilt Home Security WiFi Camera" and "Tapo Smart Wire-Free Security Battery Camera" (Back to the Office,
@@ -159,7 +165,7 @@ export const RULES = [
   {
     slug: 'accessories-storage',
     // "Kingston ... Canvas Select 512GB micSDXC" (Back to the Office) writes microSD without "ro".
-    include: words(['ssds?', 'nvme', 'external hard drives?', 'portable hard drives?', 'hard drives?', 'hdd', 'nas', 'memory cards?', 'micro ?sd(?:xc|hc)?', 'micsd(?:xc|hc)?', 'sd(?:xc|hc)', 'sd cards?', 'usb-bt\\d+', 'bluetooth (?:adapter|dongle)s?', 'usb (?:stick|flash drive)s?', 'flash drives?', 'portable ssd', '\\d+ ?tb usb', 'adapters?', 'plugs?']),
+    include: words(['ssds?', 'nvme', 'external hard drives?', 'portable hard drives?', 'hard drives?', 'hdd', 'nas', 'memory cards?', 'micro ?sd(?:xc|hc)?', 'micsd(?:xc|hc)?', 'sd(?:xc|hc)', 'sd cards?', 'usb-bt\\d+', 'bluetooth (?:adapter|dongle)s?', 'usb (?:stick|flash drive)s?', 'flash drives?', 'datatraveler', 'portable ssd', '\\d+ ?tb usb', 'adapters?', 'plugs?']),
     exclude: words(['laptops?', 'desktop pc', 'mini pc', 'console', 'bicycle parts'])
   }
 ];

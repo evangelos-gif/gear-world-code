@@ -203,7 +203,7 @@
       "currency": "GBP",
       "condition": "new",
       "approved": true,
-      "_comment": "PCHUB.UK (228,274 rows on 23 Oct 2026, a trade catalogue: 99,975 rows in 'PC Components>Other', spare parts, toner, POS, cables). Only products in the consumer folders of 'allowPaths' (folder names of merchant_category), never those of 'denyPaths', of the consumer brands (same list as Back to the Office) and without the business words. Every name is cut at 70 characters ('nameCutAt': the cut last word is taken off) and rrp_price is always price x 1.44 ('ignoreWasPrice': no fake discount). Lessons L45.",
+      "_comment": "PCHUB.UK (228,274 rows on 23 Oct 2026, a trade catalogue: 99,975 rows in 'PC Components>Other', spare parts, toner, POS, cables). Only products in the consumer folders of 'allowPaths' (folder names of merchant_category), never those of 'denyPaths', of the consumer brands (same list as Back to the Office) and without the business words. Every name is cut at 70 characters ('nameCutAt': the cut last word is taken off) and rrp_price is always price x 1.44 ('ignoreWasPrice': no fake discount). Data projectors (Epson EB, installation laser projectors), hotel TVs, photo paper, call-centre headsets and the makers' own replacement power supplies are out (dry run of 24 Oct 2026). Lessons L45.",
       "nameCutAt": 69,
       "ignoreWasPrice": true,
       "allowPaths": [
@@ -258,8 +258,6 @@
         "Powerline",
         "Range Extenders",
         "CCTV's",
-        "Data Projectors",
-        "Projectors",
         "PC's & Workstations",
         "All in One PC's",
         "Mini PC's",
@@ -274,7 +272,10 @@
         "Consoles",
         "Gaming Accessories",
         "Game Controllers",
-        "E-book Readers"
+        "E-book Readers",
+        "Film Projectors",
+        "Home Cinema Projectors",
+        "Portable Projectors"
       ],
       "denyPaths": [
         "Spare Parts",
@@ -303,7 +304,8 @@
         "Uninterruptible Power Supplies (UPSs)",
         "Power Distribution Units (PDUs)",
         "Industrial & Lab Equipment",
-        "Mounting Kits"
+        "Mounting Kits",
+        "Data Projectors"
       ],
       "brands": [
         "8BitDo",
@@ -476,7 +478,9 @@
         "\\b(ups|uninterruptible|pdu|power distribution|surge protector rack|battery backup)\\b",
         "\\b(privacy filter|privacy screen|security lock slot|cable lock|thin client|zero client|taa)\\b",
         "\\b(network card|nic|hba|raid controller|controller card|expansion card|interface card|riser)\\b",
-        "\\b(legacy|expired|replacement|ear (?:pads?|cushions?)|lff|hot-?plug|hot-?swap|mounts?|brackets?|managed)\\b"
+        "\\b(legacy|expired|replacement|ear (?:pads?|cushions?)|lff|hot-?plug|hot-?swap|mounts?|brackets?|managed)\\b",
+        "\\b(photo paper|paper rolls?|canvas rolls?|matte paper|glossy paper|luster paper|\\d+ ?sheets|\\d+ ?g/m2|\\d+ ?gsm|hospitality|signage|commercial display|biz \\d{3,4}|gn ?\\d{3,4}|telecoil|quick disconnect)\\b",
+        "^(?:dell|hp|hpe|lenovo|fujitsu)\\b.*\\bpower supply"
       ]
     }
   ]
