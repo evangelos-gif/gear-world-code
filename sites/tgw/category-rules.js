@@ -90,7 +90,10 @@ export const RULES = [
       'chargers?', 'charging (?:cable|station|dock|pad|stand|holder)s?', 'wireless charg(?:er|ing)', 'fast charg(?:er|ing)', 'magsafe',
       'power ?banks?', 'usb-?c (?:cable|hub|adapter|charger)s?', 'lightning cables?', 'hdmi cables?', 'cables?',
       'phone cases?', 'tablet cases?', 'ipad cases?', 'screen protectors?', 'lens protectors?', 'camera protectors?', 'tempered glass',
-      'phone (?:holder|mount|stand|grip|pouch|bag)s?', 'laptop (?:bag|sleeve|stand)s?', 'usb hubs?', 'docking stations?',
+      'phone (?:holder|mount|stand|grip|pouch|bag)s?', 'laptop (?:bag|sleeve|stand|riser)s?', 'usb hubs?', 'docking stations?',
+      // After the second import (24 Oct 2026, lessons L51): "Targus Privacy Screen 22\"W (16:10)", "Fellowes PrivaScreen 35.6 cm (14\")
+      // Laptop Frameless display privacy filter" and "Fellowes Office Suites Laptop Riser" are accessories.
+      'privacy (?:screens?|filters?)', 'privascreen',
       '(?:watch|sport|silicone|nylon|leather|milanese|loop|solo) (?:bands?|straps?)', 'watch straps?', 'replacement bands?',
       'phone cool(?:er|ing)', 'cooling fan for (?:phone|mobile|live streaming)', 'live streaming cooler',
       'phone lanyards?', 'lanyards?', 'apple pencil', 'stylus(?:es)?', 'i?watch (?:bands?|straps?)', 'airtags?', 'anti-lost', 'find my',

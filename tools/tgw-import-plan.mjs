@@ -291,6 +291,15 @@ export function sourceFilter(source) {
   return filter;
 }
 
+// Internal hard disks: the capacity in TB from the name, or 0 for anything else (SSDs, external disks, a NAS with disks).
+const HDD_PRICE_PER_TB = 60, HDD_MIN_PRICE_CAP = 150;
+export function hddCapacityTb(name) {
+  const n = String(name || '').toLowerCase();
+  if (!/\binternal hard (?:disk )?drive\b|\bhdd\b/.test(n) || /\b(?:external|portable|nas|ssd|solid state)\b/.test(n)) return 0;
+  const m = n.match(/\b(\d{1,2}(?:\.\d+)?) ?tb\b/);
+  return m ? Number(m[1]) : 0;
+}
+
 // A product from a catch-all folder is placed by its name alone, so the name must say something: "Nintendo C/VOL (K1) EE"
 // (fourth dry run, 24 Oct 2026) has no word of 4 or more letters after the brand.
 export function vagueName(name, brand = '') {
@@ -458,6 +467,11 @@ export async function planImport({ archive, sourcesFile, outDir, now = new Date(
         if (!cls.ok) { reject(cls.reason, cls.reason.startsWith('not for UK') ? `${short}  [${notUkHint(name)}]` : short); continue; }
         if (!Number.isFinite(price) || price <= 0) { reject('no price', short); continue; }
         if (price < QUALITY.minPrice || price > QUALITY.maxPrice) { reject('price out of range', short); continue; }
+        // After the second import (24 Oct 2026, lessons L51): Back to the Office priced "Western Digital WD80EFPX internal hard drive
+        // 8 TB" at 838.99 (usually about 200) and a 22 TB disk at 5,761.99. Such a price is an error: visitors would think the site
+        // overcharges. A hard disk dearer than 60 per TB (and than 150) is left out.
+        const hddTb = hddCapacityTb(name);
+        if (hddTb && price > Math.max(HDD_MIN_PRICE_CAP, HDD_PRICE_PER_TB * hddTb)) { reject('price far above the usual for this hard disk', short); continue; }
         const currency = detectCurrency(rec, map, source);
         if (currency !== QUALITY.currency) { reject(`currency ${currency || 'unknown'}`, short); continue; }
         const stock = inStockValue(pick(rec, map.inStock));
