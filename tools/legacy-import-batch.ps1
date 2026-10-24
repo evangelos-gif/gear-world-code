@@ -15,6 +15,8 @@
 
   -Tgw: also Technology Gear World, after the pairs and clean-ups. Without -Apply its read-only plan (tgw-import-plan.ps1);
   with -Apply its import (tgw-cloudflare.ps1 -Step import), which asks its own phrase ΕΓΚΡΙΝΩ TGW IMPORT.
+  -PaidPlan: the Cloudflare account is on Workers Paid. Without it a TGW import that would write more than 90,000 rows
+  in D1 (about 11,000 products) stops before changing anything: Workers Free allows 100,000 a day (lessons L49).
 
   Report: <home>\gear-world-reports\IMPORT_BATCH_<time>.txt (also copied to the clipboard), with every pair's
   summary and the full plan of every shop.
@@ -27,6 +29,7 @@ param(
     [string]$OutDir = '',
     [switch]$Tgw,
     [string]$Cleanups = '',
+    [switch]$PaidPlan,
     [switch]$NoClipboard
 )
 
@@ -104,6 +107,8 @@ if ($Tgw) {
         $a = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', (Join-Path (Join-Path $repo 'tools') 'tgw-import-plan.ps1'), '-OutDir', $OutDir, '-NoClipboard')
     }
     if ($Archive) { $a += @('-Archive', $Archive) }
+    # Cloudflare Workers Paid: an import of more than 90,000 rows written is allowed (lessons L49).
+    if ($Apply -and $PaidPlan) { $a += '-PaidPlan' }
     & $exe @a
     $results += ('TGW: exit {0}' -f $LASTEXITCODE)
 }

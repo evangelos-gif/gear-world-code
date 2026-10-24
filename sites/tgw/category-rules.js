@@ -47,7 +47,8 @@ export const DENY = [
   { label: 'consumable, not a gadget', re: words(['a{2,4} batteries', '(?:alkaline|lithium|rechargeable) batteries', 'batteries - (?:pack|value pack)', 'copier paper', 'printer paper', 'label paper', 'thermal paper', 'cleaning brush']) },
   { label: 'toy, not a gadget', re: words(['toy drones?', 'stunt (?:\\w+ )?drones?', 'kids drones?', 'jigsaw puzzles?', 'piggy bank', 'ride on car', 'ball machine']) },
   // Fourth dry run (24 Oct 2026): "HP 125 Wired Mouse (Bulk120)" is 120 mice for a business, at 484.23.
-  { label: 'trade pack (bulk quantity)', re: words(['bulk ?\\d{2,}']) },
+  // "Urban Armor Gear ... Metropolis SE, BULK 33 cm (13\") Cover" (fifth dry run) is one cover: a size is not a quantity.
+  { label: 'trade pack (bulk quantity)', re: words(['bulk ?\\d{2,}(?! ?(?:cm|mm|in\\b|inch|"))']) },
   { label: 'not for UK buyers (plug or keyboard layout)', re: notForUk() }
 ];
 
@@ -60,13 +61,14 @@ function notForUk() {
   const other = 'spanish|italian|portuguese|nordic|pan nordic|danish|swedish|norwegian|finnish|dutch|turkish|greek|russian|arabic|hebrew|czech|polish|hungarian|swiss|belgian|german|french|slovenian|croatian|romanian|bulgarian|ukrainian|lithuanian|latvian|estonian|slovak|icelandic';
   return new RegExp([
     // a plug for another country, unless a UK plug comes with it ("Lenovo ... AC Adapter with UK Plug", "UK/EU plugs")
-    '^(?!.*\\buk\\b)(?:.*\\b(?:eu|euro|us|usa|sa|au|aus|swiss|ch|dk|jp|kr|br|cn|za|il) ?plugs?\\b|.*\\bschuko\\b|(?=.*\\b(?:eu|euro)\\b)(?=.*\\b(?:chargers?|adapters?|power|plugs?|cords?|psu|supply|docks?|docking)\\b))',
+    '^(?!.*\\buk\\b)(?:.*\\b(?:eu|euro|us|usa|sa|au|aus|swiss|ch|dk|jp|kr|br|cn|za|il) ?plugs?\\b|.*\\bwith (?:eu|euro|us|usa|sa|au|aus|swiss|ch|dk|jp|kr|br|cn|za|il)\\b|.*\\bschuko\\b|(?=.*\\b(?:eu|euro)\\b)(?=.*\\b(?:chargers?|adapters?|power|plugs?|cords?|psu|supply|docks?|docking)\\b))',
     // a keyboard with another country's layout: the live site had "Apple Magic Keyboard QWERTZ German", "... for iPad Air
     // 13-inch (M3) - French - Black", "CHERRY KC 6000 Slim keyboard Universal USB US English", "DELL Pro Keyboard - KB700 - US
     // International (QWERTY)" next to the UK ones. A plain "English" layout (international) stays.
     `^(?!.*\\buk\\b)(?=.*\\bkeyboards?\\b)(?=.*(?:\\b(?:qwertz|azerty|${other})\\b|\\bqwerty (?:us|international)\\b|\\bus (?:english|international|layout)\\b|\\(us\\)|\\b(?:es|de|fr|it|pt|nl|be|dk|se|no|fi|cz|pl|hu|gr|ru|tr|us) (?:keyboard|layout)\\b|\\bkeyboards?\\b.{0,40}\\bus\\s*$))`,
-    // Apple's country code (UK: B/A) on a product with a keyboard or a plug; an iPhone or a cable adapter is the same everywhere
-    '^(?=.*\\b(?:keyboards?|macbook|imac|mac mini|mac studio|chargers?|power)\\b)(?=.*\\b[a-z0-9]{4,6}(?:po|d|f|y|t|dk|s|h|ll|lb|ks|kn|sm|ch|rs|tu|ab|ze|zm)/a\\b)',
+    // Apple's country code (UK: B/A; fifth dry run: "MXCK3MG/A" is Hungarian) on a keyboard, a Mac or a power adapter; an iPhone,
+    // a MagSafe charger or a cable adapter is the same everywhere
+    '^(?=.*\\b(?:keyboards?|macbook|imac|mac mini|mac studio|power adapters?)\\b)(?=.*\\b[a-z0-9]{5}(?:[ac-z]|[a-z]{2})/a\\b)',
     // HP and Lenovo computers and printers set up for another country (UK: HP "#ABU", Lenovo "...UK"); a mouse is the same everywhere
     '^(?=.*\\b(?:laptops?|notebooks?|chromebooks?|elitebook|probook|zbook|pavilion|envy|spectre|omen|victus|dragonfly|thinkpad|thinkbook|ideapad|yoga|legion|loq|desktops?|all-in-one|keyboards?|printers?|chargers?|power)\\b)(?:.*#(?:aba|abb|abd|abe|abf|abh|abz|ab9|uug|uuz|b19)\\b|.*\\b(?:20|21|82|83)[a-z0-9]{6}(?:ge|fr|sp|ix|mx|pb|mh|us|ck|pg|mz|iv|sa)\\b)'
   ].join('|'));
@@ -120,7 +122,10 @@ export const RULES = [
       'controllers?', 'joysticks?', 'racing wheel', 'vr headset', 'meta quest',
       // Gaming monitors named without "monitor" (fourth dry run): "LG UltraGear 39GX950B evo GX9 39" OLED 5K2K 165Hz", "ASUS 26.5
       // OLED MON ROG SWIFT PG27UCDM" were on the TV page because of "OLED".
-      'ultragear', 'rog swift', 'odyssey (?:g\\d+|oled|neo|ark)'
+      'ultragear', 'rog swift', 'odyssey (?:g\\d+|oled|neo|ark)',
+      // Fifth dry run: "Acer Predator X27U F5 27 QD-OLED Quad HD 500 Hz" was on the TV page. 170 Hz and faster is a gaming screen
+      // (TVs stop at 144-165 Hz); a speaker's "50-2000Hz" is not a screen.
+      '(?=.*\\b(?:qd-oled|oled|ips|va|qhd|uhd|fhd|wqhd|quad hd|full hd|curved|monitors?)\\b).*\\b(?:1[7-9]\\d|[2-9]\\d\\d|[1-9]\\d{3}) ?hz'
     ]),
     // A network "gateway/controller ... Mbit/s" (PCHUB.UK "Networking>Routers & Accessories>Controllers") is not a game controller,
     // nor is "Antec ARGB & PWM FAN CONTROLLER fan speed controller".
@@ -144,7 +149,8 @@ export const RULES = [
     // "DJI OM 5 Smartphone camera stabilizer" is a gimbal (cameras), not a phone. Fourth dry run: "Fujifilm Instax Mini Link 3
     // Wireless Smartphone Photo Printer", "Hama FlexPro tripod Smartphone/Action camera" and "OnePlus Nord Buds 2 ... Wireless
     // Earphones" are not phones either.
-    exclude: words(['kids toy watch', 'tablets?', 'stabili[sz]ers?', 'gimbals?', 'printers?', 'tripods?', 'earbuds?', 'earphones?', 'headphones?', 'headsets?', 'buds\\d*'])
+    exclude: words(['kids toy watch', 'tablets?', 'stabili[sz]ers?', 'gimbals?', 'printers?', 'tripods?', 'earbuds?', 'earphones?', 'headphones?', 'headsets?', 'buds\\d*',
+      '(?:oneplus|xiaomi|redmi|oppo|honor|realme|nothing) pad', 'tab [a-z]{0,2}\\d+', 'matepad'])
   },
   {
     slug: 'laptops-computing',
@@ -161,13 +167,19 @@ export const RULES = [
       // PC cases named by their size (PCHUB.UK): "Fractal Design Core 1100 Mini Tower Black", "Corsair 4000D Airflow Midi Tower".
       '(?:mini|midi|mid|full|micro|super)[- ]?tower', 'computer cases?',
       'printers?', 'ink cartridges?', 'ink (?:bottles?|tanks?|refills?)', 'toner', 'scanners?', 'label (?:printer|maker)s?', 'laminators?', 'shredders?', '3d printers?', 'calculators?',
-      'fan (?:speed )?controllers?'
+      'fan (?:speed )?controllers?',
+      // Fifth dry run: "Lenovo Tab K9 ... Wi-Fi 5" was on the Wi-Fi page and "MSI Prestige N16 Flip AI+ ... 32GB RAM 1TB SSD" with the
+      // storage: tablets named "Tab"/"Pad" and computers named by their memory and disk are computing.
+      'tab [a-z]{0,2}\\d+', 'matepad', '(?:oneplus|xiaomi|redmi|oppo|honor|realme|nothing) pad', 'fire (?:hd|max) \\d+',
+      '\\d+ ?gb (?:ram|memory)\\b[^|]{0,30}?\\b\\d+ ?(?:gb|tb) (?:ssd|hdd|emmc|storage)'
     ]),
     // "Neomounts by Newstar Select tv wall mount" is in PCHUB's "Monitor & TV's" folder: a TV mount, not a monitor. Fourth dry run:
     // "Canon EOS R50 Camera inc RF-S 18-45mm Lens. CP1500 Printer" is a camera kit, an Instax printer goes with the Instax
     // cameras, and "DELL Laptop 7.4v 4500mAh" is a laptop battery.
     exclude: words(['tv (?:wall )?(?:mount|bracket)s?', 'television (?:mount|bracket)s?', 'flat (?:screen|panel) (?:wall )?(?:mount|bracket)s?', 'baby monitor', 'heart rate monitor', 'blood pressure monitor', 'piano keyboard', 'musical keyboard', 'mouse trap', 'mouse mat', 'vitamins?', 'multivitamins?', 'tablets? \\d+ ?mg', 'dishwasher tablets?', 'notebook paper', 'spiral notebook', 'fountain pens?',
-      'instax', 'eos', 'mirrorless', '\\d+(?:\\.\\d+)? ?v \\d{3,5} ?mah', 'laptop batter(?:y|ies)'])
+      'instax', 'eos', 'mirrorless', '\\d+(?:\\.\\d+)? ?v \\d{3,5} ?mah', 'laptop batter(?:y|ies)',
+      // a NAS ("Ugreen DH4300 Plus 8GB RAM 4 Bays SATA Desktop NAS", "Synology DS725neo+ 2 bay ... with Ryzen") goes with the storage
+      'nas', '\\d+[- ]?bays?'])
   },
   {
     slug: 'audio',
@@ -219,7 +231,7 @@ export const RULES = [
   {
     slug: 'accessories-storage',
     // "Kingston ... Canvas Select 512GB micSDXC" (Back to the Office) writes microSD without "ro".
-    include: words(['ssds?', 'nvme', 'external hard drives?', 'portable hard drives?', 'hard drives?', 'hdd', 'nas', 'memory cards?', 'micro ?sd(?:xc|hc)?', 'micsd(?:xc|hc)?', 'sd(?:xc|hc)', 'sd cards?', 'usb-bt\\d+', 'bluetooth (?:adapter|dongle)s?', 'usb (?:stick|flash drive)s?', 'flash drives?', 'datatraveler', 'portable ssd', '\\d+ ?tb usb', 'adapters?', 'plugs?']),
+    include: words(['ssds?', 'nvme', 'external hard drives?', 'portable hard drives?', 'hard drives?', 'hdd', 'nas', '\\d+[- ]?bays?', 'diskstation', 'memory cards?', 'micro ?sd(?:xc|hc)?', 'micsd(?:xc|hc)?', 'sd(?:xc|hc)', 'sd cards?', 'usb-bt\\d+', 'bluetooth (?:adapter|dongle)s?', 'usb (?:stick|flash drive)s?', 'flash drives?', 'datatraveler', 'portable ssd', '\\d+ ?tb usb', 'adapters?', 'plugs?']),
     exclude: words(['laptops?', 'desktop pc', 'mini pc', 'console', 'bicycle parts'])
   }
 ];
@@ -245,6 +257,22 @@ export function topCategory(feedCategory) {
 }
 
 // name: product name; feedCategory: merchant category path (and Awin category) as one string.
+// For the dry-run report: the words that made a product "not for UK buyers" (the report cuts long names, so the end of
+// "... Windows 11 Home - US Keyboard" would not show).
+const UK_HINTS = [
+  /\b(?:eu|euro|us|usa|sa|au|aus|swiss|ch|dk|jp|kr|br|cn|za|il) ?plugs?\b/i, /\bwith (?:eu|euro|us|usa|sa|au|aus|swiss|ch|dk|jp|kr|br|cn|za|il)\b/i,
+  /\bschuko\b/i, /\b(?:qwertz|azerty)\b/i, /\bqwerty \w+(?: \w+)?/i, /\bus (?:english|international|layout)\b|\(us\)/i,
+  /\b(?:spanish|italian|portuguese|nordic|danish|swedish|norwegian|finnish|dutch|turkish|greek|russian|arabic|hebrew|czech|polish|hungarian|swiss|belgian|german|french|slovenian|croatian|romanian|bulgarian|ukrainian|lithuanian|latvian|estonian|slovak|icelandic)\b/i,
+  /\b[a-z0-9]{5}(?:[ac-z]|[a-z]{2})\/a\b/i, /#\w{3}\b/, /\b(?:20|21|82|83)[a-z0-9]{8}\b/i, /\b(?:eu|euro)\b/i, /\b\w+ (?:keyboard|layout)\b/i
+];
+export function notUkHint(name) {
+  for (const re of UK_HINTS) {
+    const m = String(name || '').match(re);
+    if (m) return m[0];
+  }
+  return '';
+}
+
 export function classify(name, feedCategory = '') {
   // "Intel® Core™ i5" is "intel core i5" for the rules (Back to the Office files every laptop under "Computers").
   const n = String(name || '').toLowerCase().replace(/[®™©]/g, '');

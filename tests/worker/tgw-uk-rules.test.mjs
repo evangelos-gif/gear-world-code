@@ -8,7 +8,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { gzipSync } from 'node:zlib';
 import { planImport, sourceFilter, vagueName } from '../../tools/tgw-import-plan.mjs';
-import { classify } from '../../sites/tgw/category-rules.js';
+import { classify, notUkHint } from '../../sites/tgw/category-rules.js';
 
 const SOURCES = JSON.parse(readFileSync(new URL('../../sites/tgw/sources.json', import.meta.url), 'utf8')).sources;
 const PCHUB = SOURCES.find(s => s.advertiserId === 126641);
@@ -134,4 +134,63 @@ test('graded and refurbished products are marked refurbished, whatever the feed\
   const { products } = await planImport({ archive: arc, sourcesFile, outDir: out, now: new Date('2026-10-24T15:00:00Z') });
   const cond = Object.fromEntries(products.map(p => [p.merchant_product_id, p.item_condition]));
   assert.deepEqual(cond, { 'B-1': 'refurbished', 'B-2': 'refurbished', 'B-3': 'refurbished', 'B-4': 'new', 'B-5': 'new' });
+});
+
+// Fifth dry run (24 Oct 2026, lessons L49).
+test('fifth dry run: plugs "with SA", any Apple country code but B/A, adapters without a cable, radio links and data-centre kit out', () => {
+  const fp = sourceFilter(PCHUB), fb = sourceFilter(BTTO);
+  const O = `${D}>PC Components>Other`, PS = `${D}>Personal Stock`;
+  const P = 'business IT, parts or services (PCHUB.UK)';
+  assert.equal(where('DELL 90W Barrel (7.4 x 5mm) AC Adapter for Latitude E Series with SA (CM889-SA)', ''), NOT_UK);
+  assert.equal(where('DELL 65W Barrel (7.4 x 5mm) AC Adapter for Latitude E Series with UK (HS65NS1-00)', ''), 'accessories-storage');
+  assert.equal(where('Apple Magic Keyboard with Touch ID for Mac models with silicon (MXCK3MG/A)', `${D}>Peripherals>Keyboards`), NOT_UK, 'Hungarian');
+  assert.equal(where('Apple MacBook Air 13-inch M4 chip 16GB 256GB (MW123D/A)'), NOT_UK);
+  assert.equal(where('Apple MacBook Air 13-inch M4 chip 16GB 256GB (MW123B/A)'), 'laptops-computing');
+  assert.equal(where('Apple MagSafe Charger (1 m) (MX6X3ZM/A)'), 'accessories-storage', 'no plug: sold in the UK with this code');
+  for (const [n, b, p] of [['Lenovo 45N0554 135W Slim Tip AC Adapter - no cable', 'Lenovo', O], ['HP *Non Cancellable/Non Returnable (NCNR)* SSD HARDWARE KIT', 'HP', O],
+    ['TP-Link CPE710 network antenna Directional antenna PoE/LAN 23 dBi', 'TP-Link', PS], ['Ubiquiti UISP WAVE-AP-MICRO bridge/repeater 5000 Mbit/s White', 'Ubiquiti', PS],
+    ['Ubiquiti RP-5AC-Gen2 White Power over Ethernet (PoE)', 'Ubiquiti', `${D}>Networking>WLAN Access Points`], ['Ubiquiti E7 Campus 11500 Mbit/s White Power over Ethernet (PoE)', 'Ubiquiti', PS],
+    ['Zyxel USG FLEX 50 HP. 5 Gigabit with 1 YR Gold Security Pack', 'Zyxel', O], ['Toshiba 6B000000748/T-305PK Toner black for Toshiba E-Studio 305 CS', 'Toshiba', O],
+    ['Seagate Exos M internal hard drive 30 TB 7200 RPM 512 MB 3.5" (ST30000NM004K)', 'Seagate', PS]]) {
+    assert.equal(fp(n, b, p), P, n);
+  }
+  assert.equal(fb('TP-Link CPE510 wireless access point 300 Mbit/s', 'TP-Link'), 'business IT, parts or services (Back to the Office)');
+  assert.equal(fp('DELL AC Adapter 19.5V 4.62A 90W includes power cable', 'Dell', O), '');
+  assert.equal(fp('HP 250GB/320GB ENCRYPTED HDD M525', 'HP', O), 'spare part from a catch-all folder (PCHUB.UK)');
+  assert.equal(where('Urban Armor Gear Microsoft Surface Pro 9/10/11 Metropolis SE, BULK 33 cm (13") Cover Black'), 'accessories-storage', 'a size, not a quantity');
+  assert.equal(where('HP Wired Desktop 320K Keyboard (Bulk12)'), 'REJECT trade pack (bulk quantity)');
+});
+
+test('fifth dry run: NAS, tablets, computers named by memory and disk, and fast gaming screens on the right page', () => {
+  assert.equal(where('Ugreen DH4300 Plus 8GB RAM 4 Bays SATA Desktop NAS', ''), 'accessories-storage');
+  assert.equal(where('Synology DS725neo+ 2 bay Plus series 32TB (2x 16TB HAT33) with Ryzen R1600', ''), 'accessories-storage');
+  assert.equal(where('Synology RT6600ax Router WiFi6'), 'smart-home-wifi');
+  assert.equal(where('Lenovo Tab K9 Mediatek 64 GB 22.1 cm (8.7") 4 GB Wi-Fi 5 (802.11ac) Android 14 Grey'), 'laptops-computing', 'a tablet, not Wi-Fi kit');
+  assert.equal(where('OnePlus Pad 2 12.1" 256GB Nimbus Grey'), 'laptops-computing', 'a tablet, not a phone');
+  assert.equal(where('MSI Prestige N16 Flip AI+ C1XMT-044UKY 32GB RAM 1TB SSD NVIDIA RTX (9S7-262111-044)', ''), 'laptops-computing', 'a laptop, not a disk');
+  assert.equal(where('Acer Predator X27U F5 27 QD-OLED Quad HD 500 Hz 0.03ms Quan', ''), 'gaming', 'a gaming monitor, not a TV');
+  assert.equal(where('LG OLED evo C5 65 inch 4K Smart TV 144Hz'), 'tv-home-cinema');
+  assert.equal(where('Samsung 65" S95F OLED 4K HDR Smart TV 165Hz'), 'tv-home-cinema');
+  assert.equal(where('Edifier R1280DB Bookshelf Speakers 55Hz-2000Hz'), 'audio', 'a speaker\'s frequencies are not a screen');
+});
+
+test('the dry-run report says what made a product "not for UK buyers"', () => {
+  assert.equal(notUkHint('ASUS Vivobook S15 15.6" Laptop (90NB14Q2-M002R0) - Snapdragon X1, 16GB RAM, 1TB SSD, Windows 11 Home - US Keyboard'), 'US Keyboard');
+  assert.equal(notUkHint('Apple Magic Keyboard with Touch ID (MXCK3MG/A)'), 'MXCK3MG/A');
+  assert.equal(notUkHint('CHERRY KC 1000 keyboard Universal USB AZERTY Belgian Black'), 'AZERTY');
+  assert.equal(notUkHint('Sandberg USB-C AC Charger PD20W EU'), 'EU');
+  assert.equal(notUkHint('HP ProBook 450 G10 Laptop (85B04EA#ABD)'), '#ABD');
+});
+
+test('a laptop power brick without its mains cord is out; a phone charger "without cable" is a complete product', () => {
+  const fb = sourceFilter(BTTO);
+  const B = 'business IT, parts or services (Back to the Office)';
+  assert.equal(fb('Origin Storage Lenovo 0B47036 power adapter/inverter Indoor 45 W Black with no cable', 'Lenovo'), B);
+  assert.equal(fb('Lenovo 45N0554 135W Slim Tip AC Adapter - no cable', 'Lenovo'), B);
+  assert.equal(fb('Samsung 15W PD Power Adapter (USB-C) (without Cable) Smartphone White Indoor', 'Samsung'), '');
+  assert.equal(fb('Samsung 60W Super Fast Charger 3.0 (without cable)', 'Samsung'), '');
+  assert.equal(fb('Western Digital Ultrastar DC SN655 3.84 TB U.3 PCI Express 4.0 NVMe TLC 3D NAND', 'Western Digital'), B, 'a data-centre SSD');
+  assert.equal(fb('HP EliteStudio 8 All-in-One G1i 23.8 inch Desktop AI PC Intel Core Ultra 5', 'HP'), '', 'not a Toshiba e-STUDIO copier');
+  assert.equal(fb('Apple Beats Studio Pro Headset Wired & Wireless Head-band Calls/Music USB Type-C Bluetooth Black', 'Apple'), '');
+  assert.equal(fb('Panasonic PCPE-INFG2B1 strap Tablet Black', 'Panasonic'), '', 'not an outdoor CPE');
 });

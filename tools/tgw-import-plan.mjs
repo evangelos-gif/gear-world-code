@@ -13,7 +13,7 @@ import { createReadStream, existsSync, mkdirSync, readdirSync, readFileSync, sta
 import { createGunzip } from 'node:zlib';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { classify, cleanProductName, QUALITY, CATEGORY_SLUGS } from '../sites/tgw/category-rules.js';
+import { classify, cleanProductName, notUkHint, QUALITY, CATEGORY_SLUGS } from '../sites/tgw/category-rules.js';
 import { normalizeGtin } from '../src/lib/gtin.js';
 import { slugify, truncate } from '../src/lib/text.js';
 
@@ -430,7 +430,7 @@ export async function planImport({ archive, sourcesFile, outDir, now = new Date(
         const loose = looseOnly(source, merchantCategory);
         const cls = loose ? classify(name, '')
           : classify(name, `${merchantCategory || awinCategory} ${merchantCategory ? awinCategory : ''}`.trim());
-        if (!cls.ok) { reject(cls.reason, short); continue; }
+        if (!cls.ok) { reject(cls.reason, cls.reason.startsWith('not for UK') ? `${short}  [${notUkHint(name)}]` : short); continue; }
         if (!Number.isFinite(price) || price <= 0) { reject('no price', short); continue; }
         if (price < QUALITY.minPrice || price > QUALITY.maxPrice) { reject('price out of range', short); continue; }
         const currency = detectCurrency(rec, map, source);

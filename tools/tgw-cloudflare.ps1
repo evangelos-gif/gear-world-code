@@ -12,6 +12,8 @@
                  Approval phrase: ΕΓΚΡΙΝΩ TGW PREVIEW
   -Step import   CHANGES THE TGW DATABASE. Backs up the TGW database first, then loads the products from the
                  Awin feed (the same plan as tgw-import-plan). Approval phrase: ΕΓΚΡΙΝΩ TGW IMPORT
+                 It writes about 8 rows in D1 per product: above 90,000 it needs -PaidPlan (Cloudflare Workers Paid),
+                 because Workers Free allows 100,000 a day for the whole account (lessons L49).
   -Step domain   CHANGES CLOUDFLARE (LAUNCH). Connects technologygearworld.com and www to the TGW Worker as
                  Cloudflare Custom Domains (DNS and SSL are created by Cloudflare) and publishes the site there.
                  Google may then index it. Approval phrase: ΕΓΚΡΙΝΩ TGW DOMAIN
@@ -34,7 +36,8 @@ param(
     [string]$OutDir = '',
     [switch]$SkipInstall,
     [switch]$NoClipboard,
-    [switch]$NoHttpCheck
+    [switch]$NoHttpCheck,
+    [switch]$PaidPlan
 )
 
 $ErrorActionPreference = 'Stop'
@@ -402,13 +405,25 @@ switch ($Step) {
         $sqlDir = Join-Path $planDir 'sql'
         $files = @(Get-ChildItem -LiteralPath $sqlDir -Filter '*.sql' | Sort-Object Name)
         $head = ([System.IO.File]::ReadAllLines((Join-Path $planDir 'report.txt')) | Where-Object { $_ -match 'would be imported' } | Select-Object -First 1)
+        # Rows written in D1, measured on the TGW schema (lessons L49): about 8 per product (the table, 4 indexes, the unique key
+        # and the search index). Cloudflare Workers Free allows 100,000 a day for the whole account; past it D1 stops until midnight UTC.
+        $rowCount = 0
+        foreach ($f in $files) { $rowCount += @([System.IO.File]::ReadAllLines($f.FullName) | Where-Object { $_.StartsWith('INSERT INTO products') }).Count }
+        $writes = $rowCount * 8
         Say ''
         Say 'Τι θα γίνει:'
         Say ('  - Σημείο επαναφοράς (Cloudflare Time Travel) της D1 του TGW, γραμμένο στο {0}' -f (Join-Path $WorkDir 'backups'))
         Say ('  - Φόρτωση προϊόντων: {0}' -f $head)
+        Say ('  - Εγγραφές στη βάση: περίπου {0} (δωρεάν πλάνο Cloudflare: όριο 100.000 την ημέρα για όλο τον λογαριασμό)' -f $writes)
         Say ('  - {0} αρχεία SQL, το ένα μετά το άλλο. Σταματά στο πρώτο λάθος.' -f $files.Count)
         Say '  - Αλλάζει ΜΟΝΟ η D1 του TGW. Κανένα άλλο site.'
         if (-not $Apply) { Say ''; Say 'Δοκιμή μόνο (χωρίς -Apply): δεν άλλαξε τίποτα.' 'Green'; Finish 0 }
+        if ($writes -gt 90000 -and -not $PaidPlan) {
+            Say ''
+            Say ('ΣΤΑΜΑΤΗΣΑ χωρίς αλλαγές: περίπου {0} εγγραφές, πάνω από το ημερήσιο όριο του δωρεάν πλάνου του Cloudflare (100.000).' -f $writes) 'Red'
+            Say 'Με Workers Paid το όριο είναι 50 εκατομμύρια τον μήνα: τότε η εντολή παίρνει και -PaidPlan.' 'Yellow'
+            Finish 13
+        }
         if (-not (Confirm-Approval $Phrases.import)) { Say 'Δεν δόθηκε έγκριση: σταμάτησα χωρίς αλλαγές.' 'Yellow'; Finish 1 }
         $bdir = Join-Path $WorkDir 'backups'
         if (-not (Test-Path -LiteralPath $bdir)) { New-Item -ItemType Directory -Path $bdir -Force | Out-Null }

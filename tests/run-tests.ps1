@@ -389,6 +389,24 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         Check ($iBackup -ge 0 -and $iExec -gt $iBackup) 'cloudflare import: restore point before loading'
         $notes = @(Get-ChildItem -LiteralPath (Join-Path $cfWork 'backups') -Filter '*.txt' -ErrorAction SilentlyContinue)
         Check ($notes.Count -eq 1 -and ([System.IO.File]::ReadAllText($notes[0].FullName)).Contains($fakeBookmark)) 'cloudflare import: restore point written with the bookmark'
+        # A big import needs -PaidPlan (lessons L49): about 8 D1 rows written per product; Workers Free allows 100,000 a day.
+        $bigArch = Join-Path $work 'awin-big'
+        New-Item -ItemType Directory -Path $bigArch -Force | Out-Null
+        $sbBig = New-Object System.Text.StringBuilder
+        [void]$sbBig.Append("aw_deep_link,product_name,aw_product_id,merchant_product_id,merchant_image_url,merchant_category,search_price,currency,brand_name,in_stock`n")
+        for ($i = 1; $i -le 11400; $i++) {
+            [void]$sbBig.Append(('https://www.awin1.com/pclick.php?p={0}&a=1&m=123932,Sony WH-1000XM{0} Wireless Headphones,{0},JB-{0},https://img.example/{0}.jpg,Audio,{1}.99,GBP,Sony,1' -f $i, (20 + ($i % 50))) + "`n")
+        }
+        $bigGz = Join-Path $bigArch 'AWIN_123932_114093.csv.gz'
+        $fs = [System.IO.File]::Create($bigGz)
+        $gz = New-Object System.IO.Compression.GZipStream($fs, [System.IO.Compression.CompressionMode]::Compress)
+        $bytes = [System.Text.Encoding]::UTF8.GetBytes($sbBig.ToString())
+        $gz.Write($bytes, 0, $bytes.Length); $gz.Close(); $fs.Close()
+        $execBefore = ([regex]::Matches((Calls), '--file')).Count
+        Check ((Run-Cf @('-Step', 'import', '-Archive', $bigArch, '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ TGW IMPORT')) -eq 13) 'cloudflare import of 91,200 rows written without -PaidPlan: stops (exit 13)'
+        Check (([regex]::Matches((Calls), '--file')).Count -eq $execBefore) 'cloudflare import stopped by the free-plan limit: loads nothing'
+        Check ((Run-Cf @('-Step', 'import', '-Archive', $bigArch, '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ TGW IMPORT', '-PaidPlan')) -eq 0) 'cloudflare import with -PaidPlan: exit 0'
+        Check (([regex]::Matches((Calls), '--file')).Count -gt $execBefore) 'cloudflare import with -PaidPlan: loads the files'
         $deploysBefore = ([regex]::Matches((Calls), 'wrangler deploy')).Count
         Check ((Run-Cf @('-Step', 'domain')) -eq 0) 'cloudflare domain without -Apply: exit 0'
         Check (([regex]::Matches((Calls), 'wrangler deploy')).Count -eq $deploysBefore -and -not ([System.IO.File]::ReadAllText($cfg) -match '(?m)^\s*"routes"\s*:')) 'cloudflare domain without -Apply: changes nothing'
