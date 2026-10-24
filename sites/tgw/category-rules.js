@@ -172,7 +172,7 @@ export const RULES = [
       'laptops?', 'notebook (?:pc|computer)', '\\d+(?:\\.\\d)?["”]? (?:full hd |fhd |hd )?(?:\\(\\d+ x \\d+\\) )?notebook', 'ryzen', 'intel core', 'core i[3579]', 'macbook', 'chromebook', 'ultrabook', 'desktop pc', 'gaming pc', 'mini pc', 'all-in-one pc', 'imac', 'mac mini',
       'tablets?', 'ipad', 'galaxy tab', 'e-?readers?', 'kindle', 'monitors?', 'keyboards?', 'computer mouse', 'wireless mouse', 'mouse',
       'webcams?', 'graphics cards?', 'motherboards?', 'processors?', 'ddr[45] ram', 'pc cases?', 'mice',
-      'psu', 'power supply unit', 'cpu[- ](?:water |air |liquid )?coolers?', 'liquid coolers?', 'aio', '(?:case|pc) fans?', 'cooler master', 'serial ata', 'sata',
+      'psu', 'power supply unit', 'cpu[- ](?:water |air |liquid )?coolers?', 'liquid coolers?', 'aio', '(?:case|pc) fans?', 'cooler master',
       // PC parts named without those words (Back to the Office, 23 Oct 2026): "ARCTIC P12 - Pressure-optimised 120 mm Fan",
       // "ARCTIC MX-4 ... Thermal Paste", "ASUS DRW-24D5MT optical disc drive", "Kingston ... ValueRAM memory module ... DDR4".
       '\\d{2,3} ?mm (?:[\\w-]+ ){0,3}fans?', 'thermal paste', 'thermal compound', 'optical (?:disc )?drives?', 'memory modules?', 'ddr[345]',
@@ -246,12 +246,16 @@ export const RULES = [
       'security (?:[\\w-]+ ){1,3}cameras?', 'tapo', 'repeaters?', 'network extenders?', 'wi-?fi extenders?', 'wlan',
       '(?:dome|bullet|turret) cameras?', 'h\\.26[45]\\+?', 'uvc-\\w+'
     ]),
-    exclude: words(['fake camera', 'dummy camera', 'router bits?', 'wood router'])
+    // A NAS whose name says "Ethernet LAN" ("QNAP TS-251A NAS Tower Ethernet LAN", "Synology DiskStation DS224+ NAS/storage server
+    // Desktop Ethernet LAN") goes with the storage (sixth check, lessons L50).
+    exclude: words(['fake camera', 'dummy camera', 'router bits?', 'wood router', 'nas', 'diskstation'])
   },
   {
     slug: 'accessories-storage',
-    // "Kingston ... Canvas Select 512GB micSDXC" (Back to the Office) writes microSD without "ro".
-    include: words(['ssds?', 'nvme', 'external hard drives?', 'portable hard drives?', 'hard drives?', 'hdd', 'nas', '\\d+[- ]?bays?', 'diskstation', 'memory cards?', 'micro ?sd(?:xc|hc)?', 'micsd(?:xc|hc)?', 'sd(?:xc|hc)', 'sd cards?', 'usb-bt\\d+', 'bluetooth (?:adapter|dongle)s?', 'usb (?:stick|flash drive)s?', 'flash drives?', 'datatraveler', 'portable ssd', '\\d+ ?tb usb', 'adapters?', 'plugs?']),
+    // "Kingston ... Canvas Select 512GB micSDXC" (Back to the Office) writes microSD without "ro". Sixth check (live site, 24 Oct
+    // 2026): drives named by their interface ("Kingston Technology A400 240 GB 2.5\" Serial ATA III TLC", "Western Digital Red WD
+    // SA500 SATA SSD ...", "Toshiba 1TB 3.5\" 7.2k SATA ... internal hard drive") were on the computing page: they are storage.
+    include: words(['ssds?', 'nvme', 'serial ata', 'sata', 'external hard drives?', 'portable hard drives?', 'hard drives?', 'hdd', 'nas', '\\d+[- ]?bays?', 'diskstation', 'memory cards?', 'micro ?sd(?:xc|hc)?', 'micsd(?:xc|hc)?', 'sd(?:xc|hc)', 'sd cards?', 'usb-bt\\d+', 'bluetooth (?:adapter|dongle)s?', 'usb (?:stick|flash drive)s?', 'flash drives?', 'datatraveler', 'portable ssd', '\\d+ ?tb usb', 'adapters?', 'plugs?']),
     exclude: words(['laptops?', 'desktop pc', 'mini pc', 'console', 'bicycle parts'])
   }
 ];

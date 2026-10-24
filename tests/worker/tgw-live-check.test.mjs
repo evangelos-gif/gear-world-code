@@ -3,8 +3,11 @@
 // Every name below is a real name from the live site.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
-import { sourceFilter } from '../../tools/tgw-import-plan.mjs';
+import { mkdtempSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { gzipSync } from 'node:zlib';
+import { planImport, sourceFilter } from '../../tools/tgw-import-plan.mjs';
 import { classify, cleanProductName, notUkHint } from '../../sites/tgw/category-rules.js';
 
 const SOURCES = JSON.parse(readFileSync(new URL('../../sites/tgw/sources.json', import.meta.url), 'utf8')).sources;
@@ -67,6 +70,25 @@ test('consumer products with similar words stay', () => {
   }
   // "L2/L3" is a label, not a size: an 8-port home switch says it too (PCHUB.UK leaves out every "Managed" switch, as before).
   assert.equal(fb('NETGEAR GS308E Managed L2/L3 Gigabit Ethernet (10/100/1000) Black', 'NETGEAR'), '');
+});
+
+test('"Serial ATA" drives are consumer storage; serial ports and data-centre disks stay out', () => {
+  const fp = sourceFilter(PCHUB), fb = sourceFilter(BTTO);
+  const drives = ['Kingston Technology A400 240 GB 2.5" Serial ATA III TLC', 'Samsung 870 EVO 2.5" 1 TB Serial ATA III V-NAND MLC',
+    'Seagate IronWolf Pro 3.5" 12 TB Serial ATA III', 'Crucial BX500 1 TB 2.5" Serial ATA III 3D NAND',
+    'Western Digital Red WD ™ SA500 SATA SSD 2.5"/7 mm POWERED (WDS200T2R0A-68CKB0)', 'Toshiba 1TB 3.5" 7.2k SATA Gb/s 32MB internal hard drive 7200 (DT01ACA100)',
+    'Transcend SATA III 6Gb/s SSD220Q 500GB'];
+  for (const n of drives) {
+    assert.equal(fb(n, brandOf(n)), '', n);
+    assert.equal(fp(n, brandOf(n), 'Default Category>Storage>Internal Hard Drives'), '', n);
+    assert.equal(where(n), 'accessories-storage', n);
+  }
+  for (const n of ['StarTech.com USB to Serial Adapter RS232', 'Western Digital Gold 3.5" 8 TB Serial ATA III', 'Toshiba 3.5" 16 TB Serial ATA (MG08ACA16TE)',
+    'Intel D3-S4510 2.5" 960 GB Serial ATA III TLC 3D NAND', 'Seagate Nytro 1351 2.5" 3.84 TB Serial ATA III 3D TLC']) {
+    for (const s of [BTTO, PCHUB]) assert.ok(new RegExp(s.denyNames.join('|'), 'i').test(n), `${s.retailer}: ${n}`);
+  }
+  assert.equal(where('Sandberg USB 3.0 to SATA Link'), 'accessories-storage');
+  assert.equal(where('Lenovo IdeaPad Slim 5 16" Laptop Intel Core Ultra 5 16GB RAM 1TB SATA SSD'), 'laptops-computing', 'a laptop with a SATA disk');
 });
 
 test('HP computers and keyboards with any country code but #ABU are out; printers, monitors, mice and memory stay', () => {
@@ -136,4 +158,58 @@ test('product names: the brand once, never "None"', () => {
   assert.equal(cleanProductName('HP HPE 4TB 6G SATA 3.5in NHP MDL HDD - Bulk'), 'HP HPE 4TB 6G SATA 3.5in NHP MDL HDD - Bulk', 'HPE is another word');
   assert.equal(cleanProductName('Nothing Phone (3a) 256GB'), 'Nothing Phone (3a) 256GB');
   assert.equal(cleanProductName('Sony WH-1000XM5'), 'Sony WH-1000XM5');
+});
+
+test('business words that stopped consumer products are narrowed, the business products stay out', () => {
+  for (const s of [BTTO, PCHUB]) {
+    const f = sourceFilter(s);
+    const path = s === PCHUB ? PS : '';
+    const out = `business IT, parts or services (${s.retailer})`;
+    for (const [n, b] of [['Razer Blade 16 (2025) Gaming Laptop - NVIDIA GeForce RTX 5090, AMD Ryzen AI 9 365, 32GB RAM, 4TB SSD', 'Razer'],
+      ['LaCie Rugged Mini external hard drive 2 TB Orange', 'LaCie'], ['LaCie STFR1000800 Rugged SSD 1 TB', 'LaCie'],
+      ['Corsair Vengeance 32 GB 2 x 16 GB DDR5 6000 MHz Non-ECC', 'Corsair'],
+      ['Synology DiskStation DS224+ NAS/storage server Desktop Ethernet LAN Black J4125', 'Synology'],
+      ['Brother PT-P710BT label printer Thermal transfer 180 x 180 DPI Wired & Wireless TZe', 'Brother']]) {
+      assert.equal(f(n, b, path), '', `${s.retailer}: ${n}`);
+    }
+    for (const [n, b, w] of [['Dell PowerEdge M640 blade server', 'Dell', 'blade'], ['Panasonic Toughbook 40 rugged laptop', 'Panasonic', 'rugged'],
+      ['Kingston Technology Server Premier 32 GB DDR5 ECC Registered', 'Kingston', 'server'], ['Brother DK-11201 labels', 'Brother', 'labels'],
+      ['Brother TZe-231 label-making tape Black on white', 'Brother', 'label'], ['StarTech.com USB to Serial Adapter RS232', 'Kingston', 'serial'],
+      ['Synology RackStation RS822+ NAS/storage server Rack (1U)', 'Synology', 'rack']]) {
+      assert.equal(f(n, b, path), out, `${s.retailer}: ${n}`);
+      assert.equal(f.denyWord(n), w, `${s.retailer}: ${n}`);
+    }
+    assert.equal(f.denyWord('Kingston Technology A400 240 GB 2.5" Serial ATA III TLC'), '');
+  }
+  assert.equal(where('Razer Blade 16 (2025) Gaming Laptop - NVIDIA GeForce RTX 5090, AMD Ryzen AI 9 365, 32GB RAM, 4TB SSD'), 'gaming');
+  assert.equal(where('LaCie Rugged Mini external hard drive 2 TB Orange'), 'accessories-storage');
+  assert.equal(where('Synology DiskStation DS224+ NAS/storage server Desktop Ethernet LAN Black J4125'), 'accessories-storage', 'a NAS, not Wi-Fi kit');
+  assert.equal(where('QNAP TS-251A NAS Tower Ethernet LAN Green. White N3060', 'Default Category>Storage>NAS & Storage Servers'), 'accessories-storage');
+  assert.equal(where('Brother PT-P710BT label printer Thermal transfer 180 x 180 DPI Wired & Wireless TZe'), 'laptops-computing');
+});
+
+test('the report counts which business word left products out, with in-stock examples', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'tgw-l50-'));
+  const arc = join(dir, 'arc');
+  mkdirSync(arc);
+  const header = ['aw_deep_link', 'product_name', 'aw_product_id', 'merchant_product_id', 'merchant_image_url', 'merchant_category', 'search_price', 'brand_name', 'stock_quantity'];
+  const line = v => v.map(x => (/[",\n]/.test(x) ? `"${String(x).replace(/"/g, '""')}"` : x)).join(',');
+  const link = id => `https://www.awin1.com/pclick.php?p=${id}&a=1&m=61655`;
+  const rows = [
+    [link(1), 'StarTech.com USB to Serial Adapter RS232', '1', 'B-1', 'https://img.example/1.jpg', 'Computers', '19.99', 'Kingston', '3'],
+    [link(2), 'Kingston Technology DataTraveler Serial Port Cable', '2', 'B-2', 'https://img.example/2.jpg', 'Computers', '9.99', 'Kingston', '0'],
+    [link(3), 'Kingston Technology A400 240 GB 2.5" Serial ATA III TLC', '3', 'B-3', 'https://img.example/3.jpg', 'Computers', '24.99', 'Kingston', '5'],
+    [link(4), 'Dell PowerEdge M640 blade server', '4', 'B-4', 'https://img.example/4.jpg', 'Computers', '2999.99', 'Dell', '1']
+  ];
+  writeFileSync(join(arc, 'AWIN_61655_102827.csv.gz'), gzipSync(Buffer.from([line(header), ...rows.map(line)].join('\n') + '\n')));
+  const sourcesFile = join(dir, 'sources.json');
+  writeFileSync(sourcesFile, JSON.stringify({ sources: [{ ...BTTO }] }));
+  const out = join(dir, 'out');
+  mkdirSync(out);
+  const { products } = await planImport({ archive: arc, sourcesFile, outDir: out, now: new Date('2026-10-24T16:00:00Z') });
+  assert.deepEqual(products.map(p => p.merchant_product_id), ['B-3'], 'the Serial ATA disk is in');
+  const report = readFileSync(join(out, 'report.txt'), 'utf8');
+  assert.match(report, /== Business words: the word that left products out/);
+  assert.match(report, /\n {8}2 \| {5}1 \| serial {2}-> {2}StarTech\.com USB to Serial Adapter RS232\r?\n/);
+  assert.match(report, /\n {8}1 \| {5}1 \| blade {2}-> {2}Dell PowerEdge M640 blade server\r?\n/, 'the first business word in the name');
 });
