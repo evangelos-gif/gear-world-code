@@ -245,7 +245,7 @@ jobs:
           mkdir -p gwh-pc-like && cp -r sites/gwh/. gwh-pc-like/
           printf '{\n  "name": "gear-world-hub",\n  "version": "1.0.0",\n  "main": "index.js",\n  "type": "commonjs"\n}\n' > gwh-pc-like/package.json
           sed -e 's/REPLACE_WITH_DATABASE_ID/local-dev-only/' sites/gwh/wrangler.toml.example > gwh-pc-like/wrangler.toml
-          npx wrangler deploy --dry-run --outdir gwh-dist-pc --config gwh-pc-like/wrangler.toml
+          npx wrangler deploy --dry-run --outdir "$PWD/gwh-dist-pc" --config gwh-pc-like/wrangler.toml
           grep -q "photo_search_usage" gwh-dist-pc/worker.js
       - name: Camera button in 11 languages, phone (390 px) and desktop, grouped results (lessons L21, L24, L27, L35)
         run: |
