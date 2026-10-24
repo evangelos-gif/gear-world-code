@@ -224,6 +224,103 @@ test('Plusshop/Bazta second dry-run fixes: watch kits, baby pages KGW already ha
   assert.equal(ps('Colgate Max White One Toothpaste - 75ml', 'Dental care', 'Men > Women > Personal care > Dental care'), 'REJECT health or dental product');
 });
 
+// Sorting of 24 Oct 2026: products the import left in the general group (subcategory = category name) or on the wrong
+// page, with real names and feed folders from the WGW and KGW databases. They get a page the site already has.
+test('Plusshop/Bazta sorting: WGW beauty products leave the general group for the page they belong on', () => {
+  const W = 'Women > Personal care';
+  const wgw = sub => `wgw | Beauty & Fragrances | ${sub}`;
+  assert.equal(ps('Dolce & Gabbana Light Blue Intense 50ML', 'Personal care', W), wgw('Fragrance'));
+  assert.equal(ps('Arden Beauty - Eau De Parfume 100ml', 'Personal care', W), wgw('Fragrance'));
+  assert.equal(ps('Elizabeth Arden Green Tea Nectarine Blossoms', 'Personal care', W), wgw('Fragrance'));
+  assert.equal(ps('Elizabeth Arden Green Tea Deodorant - 150ml', 'Fragrances', W), wgw('Bath & body'));
+  assert.equal(ps('Palmolive Milk & Honey Shower 250ml', 'Personal care', W), wgw('Bath & body'));
+  assert.equal(ps('Palmolive Aroma Essence Love In Bloom Shower Gel - 250 ml', 'Bodyshampoo & shower gel', W), wgw('Bath & body'));
+  assert.equal(ps('Nivea Cashmere & Cottonseed Body Shampoo - 250ml', 'Cream & lotion', W), wgw('Bath & body'));
+  assert.equal(ps('GOSH Hand & Nail Cream - 30ML', 'Personal care', W), wgw('Bath & body'));
+  assert.equal(ps('Heathcote & Ivory Cloud Nine Hand & Nail Care Bag – 3 Pcs', 'Personal care', W), wgw('Gift sets'));
+  assert.equal(ps('Afnan 9PM Rebel Eau De Parfum, Shower Gel & Deodorant Spray Gift Set', 'Eau de parfum', W), wgw('Fragrance'));
+  assert.equal(ps('Dove Body Love Gradual Tanning Mousse - 150ml', 'Face & skin care', W), wgw('Skincare'));
+  assert.equal(ps('b.tan Just Act Natural Bronzing Water Mousse - 200ml', 'Face & skin care', W), wgw('Skincare'));
+  assert.equal(ps('Bondi Sands Self Tanning Glove', 'Personal care', W), wgw('Beauty tools'));
+  assert.equal(ps('Velvotan Original Tanning Mitt - Assorted', 'Face & skin care', W), wgw('Beauty tools'));
+  assert.equal(ps('Pantene Pro-V Miracles Hydration Sorbet Mask – 160 ml', 'Personal care', W), wgw('Hair care'));
+  assert.equal(ps('Olaplex No.0 Intensive Bond Building Hair Treatment - 155 ml', 'Personal care', W), wgw('Hair care'));
+  assert.equal(ps('Australian Bodycare Hair Loss Serum - 100 ml', 'Hair treatments, oil & serum', W), wgw('Hair care'));
+  assert.equal(ps('Veet Silky Fresh Hair Removal Cream Normal Skin 100 ml', 'Shaving & hair removal', W), wgw('Hair removal'));
+  assert.equal(ps('Zazie Hairpins - 250 pcs', 'Personal care', W), wgw('Hair care'));
+  assert.equal(ps('Better Comb', 'Personal care', W), wgw('Hair tools'));
+  assert.equal(ps('So Eco Cutting Kam', 'Hair brushes', W), wgw('Hair tools'));
+  assert.equal(ps('M2 Beauté Eyelash comb', 'Lashes & brows', W), wgw('Make-up'));
+  assert.equal(ps('London Pride Pro Eyebrow Brush', 'Makeup accessories', W), wgw('Beauty tools'));
+  assert.equal(ps('Real Techniques Brush Crush Blush', 'Makeup accessories', W), wgw('Beauty tools'));
+  assert.equal(ps('Wet Brush Original Detangler Hair Brush - Black', 'Hair brushes', W), wgw('Hair tools'));
+  assert.equal(ps('W7 Lash Applicator', 'Eyes', W), wgw('Beauty tools'));
+  assert.equal(ps('Artdeco Accessories Duo Pencil Sharpener', 'Personal care', W), wgw('Beauty tools'));
+  assert.equal(ps('LastSwab Beauty Swab', 'Sustainable', W), wgw('Beauty tools'));
+  assert.equal(ps('AR Home Makeup Ogranizer - 26x7x29cm', 'Mirrors & organizers', W), wgw('Beauty tools'));
+  assert.equal(ps('Vaseline Pure Petroleum Original Jelly - 250ml', 'Lips', W), wgw('Skincare'));
+  assert.equal(ps('NYX Soft Matte Lip Cream Montreal', 'Lips', W), wgw('Make-up'));
+  assert.equal(ps('Artdeco Waterproof Soft Lipliner 186', 'Lipliner', W), wgw('Make-up'));
+  assert.equal(ps('Australian Bodycare Spot Stick', 'Blackhead & pimple removers', W), wgw('Skincare'));
+  assert.equal(ps('Moroccanoil Body Pure Argan Oil 50ml', 'Handcream & oil', W), wgw('Bath & body'));
+  assert.equal(ps('Beter Foot File', 'Personal care', W), wgw('Nails'));
+  assert.equal(ps('Titania Foot Care Foot Cream - 100 ml', 'Manicure & pedicure', W), wgw('Bath & body'));
+  assert.equal(ps('SUNkissed 25 Days of Beauty Christmas Calendar - 25 parts', 'Personal care', W), wgw('Gift sets'));
+  assert.equal(ps('Technic Glam Squad Makeup Collection Set - 7 pieces', 'Personal care', W), wgw('Gift sets'));
+  assert.equal(ps('Baylis & Harding Boudoire Tropical Paradise Vanity Beauty Bag', 'Body lotion', W), wgw('Gift sets'));
+  assert.equal(ps('Beauty Formulas Aloe Vera Gel - 100ml', 'Personal Care', W), wgw('Skincare'));
+  assert.equal(ps('Aviator AVGSR 635BK Sunglasses', 'Women', W), 'wgw | Bags & Accessories | Sunglasses');
+  assert.equal(ps('Kleenex Mindfulness Collection Daydream - 3x70 pcs', 'Bathroom accessories', W), 'REJECT paper consumables');
+  assert.equal(ps('Always Dailies Long - 46 pcs', 'Personal care', W), 'REJECT health, dental or hygiene product (not beauty)');
+  assert.equal(ps('Always Classic Maxi 9 pcs', 'Hygiene', `${W} > Hygiene`), 'REJECT health, dental or hygiene product (not beauty)');
+  assert.equal(ps('Iroha Gold Tissue Eye Patches - 2 pcs', 'Face care', `${W} > Face & skin care > Face care`), wgw('Skincare'));
+});
+
+test('Plusshop/Bazta sorting: KGW toys and baby products leave the general group for pages KGW already has', () => {
+  const C = 'Children > Baby & children products';
+  const A = `${C} > Activities & play time`;
+  const T = `${A} > Toys`;
+  const toys = sub => `kgw | Toys & Games | ${sub}`;
+  assert.equal(ps('Squish Meez Cupcake Cuties Squishy Squeeze Toy - Assorted', 'Activities & play time', A), toys('Activity Toys'));
+  assert.equal(ps('Pop It Fidget Toy - Yellow & Pink', 'Activities & play time', A), toys('Activity Toys'));
+  assert.equal(ps('Hasbro Beyblade X Yell Kong 3-60GB – 2 Pcs', 'Activities & play time', A), toys('Activity Toys'));
+  assert.equal(ps('Hot Shots Light Up Yo Yo Toy', 'Activities & play time', A), toys('Activity Toys'));
+  assert.equal(ps('Disney Princess Tea Cup Playset With Squishy Toy – 7 cm – Assorted', 'Toys', T), toys('Activity Toys'));
+  assert.equal(ps('Janod Lagoon play kitchen', 'Activities & play time', A), toys('Toy Kitchens & Play Food'));
+  assert.equal(ps('Classic World Pizza Play Set - 37 pieces', 'Toys', T), toys('Toy Kitchens & Play Food'));
+  assert.equal(ps('Construction Machines Toolbox - assorted', 'Activities & play time', A), toys('Toy Tools'));
+  assert.equal(ps('Small EURO Play money', 'Activities & play time', A), toys('Pretend Shopping & Grocery'));
+  assert.equal(ps('Teamsterz JCB Excavator – 7 Inch', 'Activities & play time', A), toys('Toy Lorries & Construction Vehicles'));
+  assert.equal(ps('Teamsterz JCB Wheel Loader Truck – 7 Inch', 'Activities & play time', A), toys('Toy Lorries & Construction Vehicles'));
+  assert.equal(ps('Teamsterz Light & Sound Car Transporter with 3 Cars', 'Activities & play time', A), toys('Toy Lorries & Construction Vehicles'));
+  assert.equal(ps('Hot Wheels Monster Trucks Jeep Island Tours - GTJ44', 'Toys', T), toys('Toy Cars'));
+  assert.equal(ps('Teamsterz Light & Sound Police Motorbike', 'Activities & play time', A), toys('Toy Motorcycles'));
+  assert.equal(ps('Teamsterz Light & Sound Police Helicopter', 'Activities & play time', A), toys('Toy Helicopters'));
+  assert.equal(ps('Peppa Pig Air Peppa Jet', 'Activities & play time', A), toys('Toy Aeroplanes'));
+  assert.equal(ps('Teamsterz Light & Sound UK Ambulance', 'Activities & play time', A), toys('Toy Cars'));
+  assert.equal(ps('How Wheels 1:64 3-Pack - Assorted', 'Toys', T), toys('Toy Cars'));
+  assert.equal(ps('Rastar R/C Porsche 918 Spyder 1:24', 'Remote controlled toys', `${T} > Remote controlled toys`), toys('Remote Control Cars & Lorries'));
+  assert.equal(ps('SpeedWay Electric Force Racetrack', 'Toys', T), toys('Toy Racing Car & Track Sets'));
+  assert.equal(ps('Care Bears Cheer Bear – 14 Inch Knuffel', 'Activities & play time', A), toys('Stuffed Animals & Cuddly Toys'));
+  assert.equal(ps('Rastar Mini RS Robot Spaceman', 'Toys', T), toys('Robotic Toys'));
+  assert.equal(ps('Peppa Pig Stroller', 'Activities & play time', A), toys('Doll & Action Figure Accessories'));
+  assert.equal(ps('Peppa Pig Soft Ball', 'Activities & play time', A), toys('Playground Balls'));
+  assert.equal(ps('Fisher Price Little People Horse Stable Playset', 'Activities & play time', A), toys('Dolls, Playsets & Toy Figures'));
+  assert.equal(ps('Paw Patrol True Metal - Marshall', 'Activities & play time', A), toys('Action & Toy Figures'));
+  assert.equal(ps('HTI Boules with Carry Case – 8 pcs', 'Activities & play time', A), 'kgw | Sports & Outdoors | Outdoor Games');
+  assert.equal(ps('Tiny Love 5-in-1 Walk-Behind & Ride-On Baby Walker – Blue', 'Activities & play time', A), 'kgw | Baby & Toddler | Baby Walkers & Entertainers');
+  assert.equal(ps('Taf Toys Koala In Car Play Centre Seat Activity Mirror Toy', 'Traveling & leisure', `${C} > Traveling & leisure`), 'kgw | Baby & Toddler | Baby Activity Toys');
+  assert.equal(ps('Fat Brain Suction Kupz Sensory Stacking Toy', 'Baby & children products', C), 'kgw | Baby & Toddler | Sorting & Stacking Toys');
+  assert.equal(ps('VTech Sleepy Sloth Cot Light Projector With Melodies', 'Baby toys', `${C} > Baby toys`), 'kgw | Baby & Toddler | Night Lights & Ambient Lighting');
+  assert.equal(ps('VTech 3-in-1 Starry Skies Sheep Soother Projector With Melodies', 'Baby toys', `${C} > Baby toys`), 'kgw | Baby & Toddler | Night Lights & Ambient Lighting');
+  assert.equal(ps('Tommee Tippee Groclock Sleep Trainer Clock', 'Toys', T), 'kgw | Baby & Toddler | Night Lights & Ambient Lighting');
+  assert.equal(ps('myFirst iPad Cover', 'Remote controlled toys', `${T} > Remote controlled toys`), 'kgw | Kids Tech | PDA Cases');
+  assert.equal(ps('DANPOL Buckwheat Mattress 120x60cm Assorted - Boy', 'Furnitures', `${C} > Decor & children's room > Furnitures`), 'kgw | Baby & Toddler | Cot & Toddler Bed Accessories');
+  assert.equal(ps('Mothercare Mosquito Net For Crib', "Decor & children's room", `${C} > Decor & children's room`), 'kgw | Baby & Toddler | Cot & Toddler Bed Accessories');
+  assert.equal(ps('Relec Mosquito Repellent for Children - 100ml', 'Bathroom & care', `${C} > Bathroom & care`), 'kgw | Baby & Toddler | Baby Health');
+  assert.equal(ps('Paw Patrol Blue Party Stickers 6 Sheets', 'Activities & play time', `${C} > Decor & children's room`), toys('Toy Craft Kits'));
+});
+
 // A small Plusshop-like feed: the same product in two feeds (one link with "?gsnp"), a 29p card, a lubricant.
 const PS_HEAD = 'merchant_product_id,product_name,brand_name,search_price,in_stock,stock_quantity,merchant_category,category_name,merchant_product_category_path,product_gtin,merchant_deep_link,merchant_image_url\n';
 const psRow = (id, name, price, leaf, path, link, ean = '') =>

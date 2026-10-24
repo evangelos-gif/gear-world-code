@@ -146,19 +146,68 @@ const INTIMATE_CARE = /\b(intimate|feminine (wash|hygiene)|vaginal|femigel)\b/i;
 const SKIN_FORM = /\b(cream|serum|lotion|moisturi[sz]er|balm|mask|cleanser|toner|face oil|body oil|spf)\b/i;
 const TOILETRY_BAG = /\b(toiletry bag|wash bag|washbag|cosmetic bag|makeup bag|make-up bag|vanity case|beauty case)\b/i;
 
+// Sorting of 24 Oct 2026: products that were in the general "Beauty & Fragrances" group or on the wrong page, with real
+// names from the WGW database. Self-tan is skin care ("Dove Body Love Gradual Tanning Mousse" was hair care because of
+// "mousse"); its mitts and applicators are tools.
+const TAN_TOOL = /\b(tanning|tan|self[- ]?tan\w*) (mitts?|gloves?|applicators?)\b|\bapplicator mitts?\b/i;
+const SELF_TAN = /\b(self[- ]?tan\w*|tanning (mousse|foam|lotion|oil|spray|elixir|water|drops|gel|cream|mist)|gradual tan\w*|tan (mousse|lotion|drops|water|extender)|bronzing (water|mousse|lotion|drops))\b/i;
+// Hair-only brands: "Pantene ... Sorbet Mask" and "Olaplex No. 8 ... Moisture Mask" are hair care, not face masks.
+const HAIR_BRAND = /\b(pantene|tresemm[eé]|olaplex|lee stafford|head & shoulders|herbal essences|aussie|elvive|fructis|timotei|got2b|batiste|k[eé]rastase|redken)\b/i;
+// Perfumes named without "eau de parfum": "Dolce & Gabbana Light Blue Intense 50ML".
+const DESIGNER_PERFUME = /^(dolce & gabbana|d&g|hugo boss|calvin klein|giorgio armani|emporio armani|armani|versace|paco rabanne|rabanne|carolina herrera|jean paul gaultier|yves saint laurent|ysl|lanc[oô]me|gucci|burberry|chlo[eé]|marc jacobs|viktor & rolf|mugler|davidoff|azzaro|issey miyake|kenzo|givenchy|prada|valentino|bvlgari|bulgari|montblanc|tommy hilfiger|ralph lauren|jimmy choo|michael kors|dkny|elie saab|narciso rodriguez|cartier|herm[eè]s|dior|chanel|tom ford)\b.*\b\d{2,3} ?ml\b/i;
+// Feed folders ("merchant_category") that had no page yet.
+const BEAUTY_LEAF_MORE = [
+  [/^(Blackhead & pimple removers|Face moisturisers & serum|Scrubs & cleansers)$/i, 'Skincare'],
+  [/^(Body lotion|Hand ?cream & oil|Hand creme & oil|Hand soap & disinfectant|Hand wash & disinfectant)$/i, 'Bath & body'],
+  [/^(Conditioner|Hair treatments, oil & serum|Hairspray)$/i, 'Hair care'],
+  [/^(Hair ?brushes)$/i, 'Hair tools'],
+  [/^(Eyes|Highlighter & contour|Lipliner|Lips)$/i, 'Make-up'],
+  [/^(Mirrors & organi[sz]ers|Organi[sz]ers|Sponges|Cotton & cotton swabs)$/i, 'Beauty tools'],
+  [/^(Foot & nail files)$/i, 'Nails']
+];
+
 function beautySub(n, leaf) {
   if (/\b(eyelash curler|lash curler|tweezers)\b/i.test(n)) return 'Beauty tools';
   // "e.l.f. Angled Foundation Brush", "Revlon Essentials Flat Brush", "Kashoki Brush Case": tools, not make-up.
-  if (/\b(foundation|flat|kabuki|blending|powder|contour|blush|blusher|bronzer|eyeshadow|eye shadow|concealer|angled|stippling|buffing|fan|liner|brow|lip|makeup|make-up) brush(es)?\b|\bbrush (set|kit|case|cleaner|holder)\b/i.test(n)) return 'Beauty tools';
+  if (/\b(foundation|flat|kabuki|blending|powder|contour|blush|blusher|bronzer|eyeshadow|eye shadow|concealer|angled|stippling|buffing|fan|liner|brow|lip|makeup|make-up|oval) brush(es)?\b|\bbrush (set|kit|case|cleaner|holder)\b/i.test(n)) return 'Beauty tools';
+  if (TAN_TOOL.test(n)) return 'Beauty tools';
+  if (SELF_TAN.test(n)) return 'Skincare';
   // Women's razors and shaving gels ("Gillette Women Simply Venus", "Gillette Satin Care Sensitive Gel") are hair removal on WGW.
   if (/\b(venus|satin care|shav(e|ing) (gel|foam|cream))\b/i.test(n)) return 'Hair removal';
-  if (/\b(thermal protect\w*|heat protect\w*|hair clips?|hair grips?|hair ties|hair bands?|bobbles|scrunchies?|hair pins?)\b/i.test(n)) return 'Hair care';
-  if (/\b(make-?up remover|cleansing wipes|facial wipes|petroleum jelly)\b/i.test(n)) return 'Skincare';
+  if (/\b(thermal protect\w*|heat protect\w*|hair clips?|hair grips?|hair ties|hair bands?|bobbles|scrunchies?|hair ?pins?|bobby pins?)\b/i.test(n)) return 'Hair care';
+  // "Vaseline Pure Petroleum Original Jelly" too.
+  if (/\b(make-?up remover|cleansing wipes|facial wipes|petroleum)\b/i.test(n)) return 'Skincare';
   // "La Roche-Posay Anthelios SPF50 Anti-Shine Mist" is sun care; "Revlon Large Round Hair Brush" a hair tool.
   if (/\bspf ?\d+|\bsun (protect\w*|cream|milk|spray|mist|lotion)\b|\bafter ?sun\b|\banthelios\b/i.test(n)) return 'Skincare';
   if (/\b(hair ?brush(es)?|round brush(es)?|paddle brush(es)?|detangling brush(es)?|hair combs?)\b/i.test(n)) return 'Hair tools';
+  // Other brushes ("London Pride Pro Eyebrow Brush", "Real Techniques Brush Crush Blush") are make-up tools.
+  if (/\bbrush(es)?\b/i.test(n) && !/\b(nail|nails|body|bath|shower|back|foot|feet|tooth|cleaning)\b/i.test(n)) return 'Beauty tools';
+  // "Nuxe Rêve de Miel Hand & Nail Cream" is hand care; a filled bag of them is a gift.
+  if (/\bhands? (&|and) nails?\b/i.test(n)) return /\b(bags?|sets?|kits?|gifts?)\b/i.test(n) ? 'Gift sets' : 'Bath & body';
+  if (/\bfoot (cream|balm|lotion|mask|soak|spray|scrub)\b/i.test(n)) return 'Bath & body';
+  // "Nivea Cashmere & Cottonseed Body Shampoo", "Palmolive Aroma Essence ... Shower Gel": body care, unless a perfume set.
+  if (/\bbody shampoo\b|\bshower (gel|cream|oil|foam|milk|scrub|cream-gel)\b|\bbody wash\b/i.test(n) && !/\b(gifts?|sets?|calendar|advent|eau de|parfum|perfume|edp|edt)\b/i.test(n)) return 'Bath & body';
+  const hairTool = /\b(dryers?|straighteners?|curlers?|stylers?|brush(es)?|combs?|tongs|wands?)\b/i;
+  if (HAIR_BRAND.test(n) && !hairTool.test(n) && !/\b(body|shower|face|gifts?|sets?|calendar|advent)\b/i.test(n)) return 'Hair care';
+  // "Australian Bodycare Hair Loss Serum", "Got2b Curlz Moisturizing Hair Detangler": hair, not skin.
+  if (!FRAGRANCE_NAME.test(n) && !hairTool.test(n) && /\bhair\b.{0,25}\b(serum|treatment|tonic|oil|mask|spray|lotion|detangler|loss|growth)\b/i.test(n)
+    && !/\b(remov\w*|body|face|facial|skin|bleach|wax)\b/i.test(n)) return 'Hair care';
   for (const [re, sub] of NAME_SUBS) if (re.test(n)) return sub;
+  // Name words the general list has not got.
+  if (/\beau de parfume?\b|\bscent spray\b/i.test(n)) return 'Fragrance';
+  if (/^elizabeth arden green tea\b/i.test(n) && !/\b(deodorant|lotion|cream|shower|body|gel|soap|wash|bath)\b/i.test(n)) return 'Fragrance';
+  if (DESIGNER_PERFUME.test(n) && !/\b(gifts?|sets?|lotion|cream|gel|wash|deo|deodorant|balm|oil|shower|soap)\b/i.test(n)) return 'Fragrance';
+  if (/\b(applicators?|sharpeners?|swabs?|organi[sz]ers?|ogranizer|(make-?up|make up|spa) .{0,6}head ?band)\b/i.test(n)) return 'Beauty tools';
+  if (/(?<!(lash|brow) )\bcombs?\b|\bair styler\b/i.test(n)) return 'Hair tools';
+  if (/\b(foot files?|pedicure|callus)\b/i.test(n)) return 'Nails';
+  if (/\b(christmas|beauty) calendar\b|\bdays of beauty\b|\b(vanity|beauty) bags?\b|\bportrait case\b/i.test(n)) return 'Gift sets';
+  if (/\bshower\b/i.test(n)) return 'Bath & body';
+  if (/\bhead ?bands?\b/i.test(n)) return 'Hair care';
   for (const [re, sub] of BEAUTY_LEAF_SUBS) if (re.test(leaf)) return sub;
+  for (const [re, sub] of BEAUTY_LEAF_MORE) if (re.test(leaf)) return sub;
+  // Last: sets of several products are gifts ("Technic Glam Squad Makeup Collection Set"), a plain cream is skin care.
+  if (/\b(makeup|make-up|make up|beauty|care|pamper|bath|haul|collection|journal|boutique)\b.*\b(sets?|kits?)\b/i.test(n)) return 'Gift sets';
+  if (/\baloe vera\b|\bcr[eè]mes?\b|\bcreams?\b/i.test(n)) return 'Skincare';
   return 'Beauty & Fragrances';
 }
 
@@ -303,10 +352,14 @@ function babySub(n, p) {
   if (/corner protector|safety|gate|lock|guard|socket cover/i.test(n)) return 'Baby Safety';
   if (/thermometer|nasal|aspirator/i.test(n)) return 'Baby Health';
   if (/baby carrier|\bcarrier\b|\bsling\b/i.test(n)) return 'Baby Carriers';
+  // Insect repellents for children ("Relec Mosquito Repellent for Children") are health, not bathing.
+  if (/\b(insect|mosquito) (spray|repellent|lotion|roll-on)\b|\brepellent\b/i.test(n)) return 'Baby Health';
   if (/shampoo|lotion|oil|wash|soap|cream|sunscreen|sun cream|bath/i.test(n) || /Bathroom & care/i.test(p)) return 'Baby Bathing';
   if (/rattle/i.test(n)) return 'Rattles';
   if (/Baby toys/i.test(p) || /activity|play ?gym|mobile|stacking|sorting|push|pull/i.test(n)) return 'Baby Activity Toys';
   if (/blanket/i.test(n)) return 'Receiving Blankets';
+  // "DANPOL Buckwheat Mattress 120x60cm", "Mothercare Mosquito Net For Crib", "Träumeland Tencel layers".
+  if (/\b(mosquito nets?|mattress(es)?|mattress protectors?|tencel|cot (sheets?|bumpers?)|crib (sheets?|bumpers?)|bed rails?)\b/i.test(n)) return 'Cot & Toddler Bed Accessories';
   return 'Baby & Toddler';
 }
 
@@ -323,10 +376,15 @@ function toySub(n, p) {
   if (/\b(schleich|figures?|action figure|jurassic|transformers|dc universe|marvel|avengers|wwe|imaginext|super friends|batman)\b/i.test(n) || /Figures & action heroes/i.test(p)) return 'Action & Toy Figures';
   if (/\b(board game|game|games|dominoes|four in a row|connect 4|chess|monopoly|cluedo|twister|jenga)\b/i.test(n) || /(^|\s)Games(\s|$)/i.test(p)) return 'Board Games';
   if (/\b(nerf|blasters?|darts?|toy guns?|target)\b/i.test(n) || /Toy weapons/i.test(p)) return 'Toy Weapons & Gadgets';
-  if (/\b(track|race track|raceway)\b/i.test(n) && /\b(hot wheels|cars?|racing)\b/i.test(n)) return 'Toy Racing Car & Track Sets';
-  if (/\b(remote control|remote controlled|rc car|radio controlled)\b/i.test(n)) return 'Remote Control Cars & Lorries';
+  // "SpeedWay Electric Force Racetrack", "Rastar R/C Porsche 918 Spyder 1:24".
+  if ((/\b(track|race track|raceway)\b/i.test(n) && /\b(hot wheels|cars?|racing)\b/i.test(n)) || /\bracetracks?\b/i.test(n)) return 'Toy Racing Car & Track Sets';
+  if (/\b(remote control|remote controlled|rc car|radio controlled)\b|\br\/c\b/i.test(n)) return 'Remote Control Cars & Lorries';
   // "Thomas & Friends Edward Diecast Push-Along Toy Train" is a train, not a toy car.
   if (/\b(thomas & friends|thomas the tank|toy trains?|train sets?)\b/i.test(n)) return 'Toy Trains & Train Sets';
+  // Sorting of 24 Oct 2026: toy tool kits ("Construction Machines Toolbox") are toy tools; lorries, tractors and construction
+  // vehicles have their own KGW page ("Teamsterz JCB Wheel Loader Truck"); a monster truck is a car.
+  if (TOY_TOOL.test(n)) return 'Toy Tools';
+  if (BUILD_VEHICLE.test(n) && !/\bmonster trucks?\b/i.test(n)) return 'Toy Lorries & Construction Vehicles';
   if (/\b(hot wheels|matchbox|toy cars?|die-?cast|monster trucks?|vehicles?|trucks?|tractors?|diggers?|fire engine|police car)\b/i.test(n)) return 'Toy Cars';
   if (/\b(slime|play-?doh|clay|putty|dough|kinetic sand)\b/i.test(n)) return 'Play Dough & Putty';
   // "Bontempi Baby Melody Desk" is in the creative-toys folder but is a musical toy.
@@ -339,6 +397,45 @@ function toySub(n, p) {
   if (/\btrains?\b/i.test(n)) return 'Toy Trains & Train Sets';
   if (/\b(vtech|leapfrog|learning|educational|alphabet|counting)\b/i.test(n)) return 'Educational Toys';
   return 'Toys & Games';
+}
+
+// Sorting of 24 Oct 2026: toys the list above leaves in the general "Toys & Games" group (real names from the KGW
+// database), on pages KGW already has. Used only for those, so a product already on a page stays there.
+const ACTIVITY_TOY = /\b(squish\w*|squeez\w*|fidget\w*|anti-?stress|stress (balls?|toys?|relief)|stretchy|stretch|pop it|push poppers?|decompression|slow[- ]?ris\w*|yo[- ]?yos?|bouncers?|bouncy|bungee balls?|spinning tops?|spinners?|beyblade|whirly|scrunchems)\b/i;
+const PLAY_KITCHEN = /\b(play kitchens?|kitchen playsets?|toy kitchens?|play food|tea (play )?sets?|tea party|breakfast sets?|pastry sets?|pizza (play )?sets?|sushi (play )?sets?|lunch time|waffles?|cr[eê]pes?|fruit (&|and) vegetables?|green market|(?<!cement )mixers?|cooking sets?)\b/i;
+const TOY_TOOL = /\b(tool ?kits?|tool ?box(es)?|toolbox(es)?|tool sets?|work ?bench(es)?)\b/i;
+const BUILD_VEHICLE = /\b(jcb|excavators?|diggers?|bulldozers?|backhoe|loaders?|skid steer|dumpers?|tippers?|cranes?|cement mixers?|construction machines?|transporters?|lorry|lorries|trucks?|tractors?)\b/i;
+const TOY_CAR = /\b(cars?|vans?|ambulances?|jeeps?|buses|bus|taxis?|teamsterz|maisto|bburago|motor max|majorette|siku|welly)\b|\b1:\d{2,3}\b/i;
+const NIGHT_LIGHT = /\b(night ?lights?|star projectors?|soother projectors?|cot light|projectors? with melodies|groclock|sleep trainer)\b/i;
+
+function toyRefine(n) {
+  const toys = sub => ({ siteCategory: 'Toys & Games', subcategory: sub });
+  const baby = sub => ({ siteCategory: 'Baby & Toddler', subcategory: sub });
+  if (/\b(baby walkers?|walk-behind)\b/i.test(n)) return baby('Baby Walkers & Entertainers');
+  // "Taf Toys Koala In Car Play Centre Seat Activity Mirror Toy" is a baby toy for the car seat.
+  if (/\b(activity (toys?|mirror)|in car play|play centre|kick car)\b/i.test(n)) return baby('Baby Activity Toys');
+  if (/\b(stacking|nesting|shape sorter)\b/i.test(n)) return baby('Sorting & Stacking Toys');
+  // Squishy, fidget and stretchy toys, yo-yos and spinning tops: Google's "Activity Toys".
+  if (ACTIVITY_TOY.test(n)) return toys('Activity Toys');
+  if (TOY_TOOL.test(n)) return toys('Toy Tools');
+  if (PLAY_KITCHEN.test(n)) return toys('Toy Kitchens & Play Food');
+  if (/\b(play money|cash registers?|shopping trolley|shop till)\b/i.test(n)) return toys('Pretend Shopping & Grocery');
+  if (/\b(story ?books?|books?)\b/i.test(n)) return toys('Reading Toys');
+  if (/\b(boules|p[eé]tanque|croquet|skittles|bowling sets?)\b/i.test(n)) return { siteCategory: 'Sports & Outdoors', subcategory: 'Outdoor Games' };
+  if (/\b(soft balls?|footballs?|beach ?balls?|play ?balls?|playground balls?)\b/i.test(n)) return toys('Playground Balls');
+  if (/\b(care bears?|knuffel|pehmolelu|forever friends|soft toys?|plush\w*|cuddly|teddy)\b/i.test(n)) return toys('Stuffed Animals & Cuddly Toys');
+  if (/\b(robots?|robotic|electronic (toys?|pets?)|interactive (pets?|toys?))\b/i.test(n)) return toys('Robotic Toys');
+  if (/\b(blind ?bags?|surprise bags?|mystery (bags?|box(es)?)|lucky bags?)\b/i.test(n)) return toys('Toy Gift Baskets');
+  if (/\b(strollers?|prams?|buggy|pushchairs?)\b/i.test(n)) return toys('Doll & Action Figure Accessories');
+  if (BUILD_VEHICLE.test(n)) return toys('Toy Lorries & Construction Vehicles');
+  if (/\b(motorbikes?|motorcycles?|harley)\b/i.test(n)) return toys('Toy Motorcycles');
+  if (/\bhelicopters?\b/i.test(n)) return toys('Toy Helicopters');
+  if (/\b(jets?|aeroplanes?|airplanes?|planes?)\b/i.test(n)) return toys('Toy Aeroplanes');
+  // KGW keeps PAW Patrol vehicles with their figures ("Paw Patrol True Metal Off Road Mud - Chase").
+  if (/\bpaw patrol\b/i.test(n)) return toys('Action & Toy Figures');
+  if (TOY_CAR.test(n)) return toys('Toy Cars');
+  if (/\b(little people|playsets?|play sets?)\b/i.test(n)) return toys('Dolls, Playsets & Toy Figures');
+  return toys('Toys & Games');
 }
 
 function outdoorSub(n) {
@@ -438,6 +535,10 @@ export function classify({ name, feedCategory = '', awinCategory = '', brand = '
     // "Red LCD Graphic Drawing Tablet" is a drawing toy and "Planet Buddies ... Tablet Holder" a holder, not tablets.
     if (/\b(lcd (writing|drawing)|graphic drawing|drawing tablets?|writing tablets?|doodle (board|pad))\b/i.test(n)) return { site: 'kgw', siteCategory: 'Kids Tech', subcategory: 'Toy Drawing Tablets' };
     if (/\btablet (holders?|stands?|pillows?)\b/i.test(n)) return { site: 'kgw', siteCategory: 'Kids Tech', subcategory: 'Kids Tech' };
+    // Night lights and star projectors ("VTech Sleepy Sloth Cot Light Projector", "Tommee Tippee Groclock") have their own
+    // KGW page; "myFirst iPad Cover" is a case, not a toy.
+    if (NIGHT_LIGHT.test(n)) return { site: 'kgw', siteCategory: 'Baby & Toddler', subcategory: 'Night Lights & Ambient Lighting' };
+    if (/\b(ipad|tablet) (covers?|cases?)\b/i.test(n)) return { site: 'kgw', siteCategory: 'Kids Tech', subcategory: 'PDA Cases' };
     if (KIDS_TECH_NAME.test(n) && !NOT_KIDS_TECH_NAME.test(n) && !/toy camera|camera toy|play camera/i.test(n)) {
       return { site: 'kgw', siteCategory: 'Kids Tech', subcategory: kidsTechSub(n) };
     }
@@ -450,7 +551,10 @@ export function classify({ name, feedCategory = '', awinCategory = '', brand = '
     }
     if (/(^|\s)(Baby toys|Bottles & accessories|Eat & drink|Changing|Bathroom & care|Decor & children's room|Baby bath)(\s|$)/i.test(`${p} > ${leaf}`)
       || BABY_NAME.test(n)) {
-      return { site: 'kgw', siteCategory: 'Baby & Toddler', subcategory: babySub(n, p) };
+      const sub = babySub(n, p);
+      // "Paw Patrol Blue Party Stickers" in the children's-room folder: stickers, like the pink ones on the toy page.
+      if (sub === 'Baby & Toddler' && /\bstickers?\b/i.test(n)) return { site: 'kgw', siteCategory: 'Toys & Games', subcategory: 'Toy Craft Kits' };
+      return { site: 'kgw', siteCategory: 'Baby & Toddler', subcategory: sub };
     }
     if (/\bplaying cards\b/i.test(n)) return { site: 'kgw', siteCategory: 'Toys & Games', subcategory: 'Card Games' };
     if (ROLE_PLAY.test(n)) return { site: 'kgw', siteCategory: 'Toys & Games', subcategory: 'Pretend Professions & Role Playing' };
@@ -459,7 +563,9 @@ export function classify({ name, feedCategory = '', awinCategory = '', brand = '
     if ((/Outdoor toys|Outdoor play|Sport/i.test(p) || OUTDOOR_NAME.test(n)) && !NOT_OUTDOOR.test(n)) return { site: 'kgw', siteCategory: 'Sports & Outdoors', subcategory: outdoorSub(n) };
     const pl = `${p} > ${leaf}`;
     if (TOY_PATH.test(pl) || (/Baby & children products/i.test(pl) && (TOY_NAME.test(n) || NOT_OUTDOOR.test(n) || toySub(n, p) !== 'Toys & Games'))) {
-      return { site: 'kgw', siteCategory: 'Toys & Games', subcategory: toySub(n, p) };
+      const sub = toySub(n, p);
+      if (sub !== 'Toys & Games') return { site: 'kgw', siteCategory: 'Toys & Games', subcategory: sub };
+      return { site: 'kgw', ...toyRefine(n) };
     }
     return { reject: "children's product not in these plans" };
   }
@@ -471,6 +577,10 @@ export function classify({ name, feedCategory = '', awinCategory = '', brand = '
   const fragranceName = FRAGRANCE_NAME.test(n) && !HOME_SCENT.test(n);
   if (BEAUTY_PATH.test(p) || BEAUTY_PATH.test(leaf) || fragranceName || BEAUTY_LEAF_SUBS.some(([re]) => re.test(leaf))
     || ((pathWomen || /^Women$/i.test(leaf)) && BEAUTY_NAME.test(n))) {
+    // Tissues and the Always sanitary range in the personal-care folders ("Kleenex Family Maxi Pack", "Always Dailies Long",
+    // "Always Classic Maxi 9 pcs") are not beauty. A "Tissue Mask" or "Tissue Eye Patches" is.
+    if (/\b(kleenex|tissues|toilet roll|toilet paper)\b/i.test(n)) return { reject: 'paper consumables' };
+    if (/^always\b|\bpanty ?liners?\b|\bsanitary (towels?|pads?)\b/i.test(n)) return { reject: 'health, dental or hygiene product (not beauty)' };
     if (HOME_CLEAN_NAME.test(n)) return { site: 'hgw', siteCategory: 'Cleaning & Laundry', subcategory: cleaningSubPS(n, parts) };
     // "Scandinavia Bathroom Toothbrush Holder" and "Toothbrush mug" hold a toothbrush: bathroom accessories.
     if (/\btoothbrush (holders?|stands?|mugs?|cups?|tumblers?)\b/i.test(n)) return { site: 'hgw', siteCategory: 'Bedding & Bath', subcategory: 'Bathroom Accessories' };
@@ -496,6 +606,8 @@ export function classify({ name, feedCategory = '', awinCategory = '', brand = '
       const menSub = /\bdeo\b/i.test(n) && !fragranceName ? 'Deodorant' : menSubcategory(n);
       return { site: 'mgw', siteCategory: 'Grooming & Fragrances', subcategory: menSub };
     }
+    // "Aviator AVGSR 635BK Sunglasses" in the women's folder: a fashion accessory on the same site.
+    if (/\bsunglasses\b/i.test(n)) return { site: 'wgw', siteCategory: 'Bags & Accessories', subcategory: 'Sunglasses' };
     return { site: 'wgw', siteCategory: 'Beauty & Fragrances', subcategory: beautySub(n, leaf) };
   }
 
