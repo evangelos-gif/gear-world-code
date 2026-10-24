@@ -1,8 +1,8 @@
-// Lessons L50: D1 bills every row a query reads. "The same product at other retailers" and "similar products" on a
+// Lessons L51: D1 bills every row a query reads. "The same product at other retailers" and "similar products" on a
 // product page, and the "newest" cards of the home page, now read only the rows next to the product (or the newest
 // rows) through an index. These tests prove that they show exactly what the old full queries showed: on every
 // product of every site's test data, and on large random data with many equal prices, equal dates and product
-// groups. With the indexes of L50, their query plans never read a whole table.
+// groups. With the indexes of L51, their query plans never read a whole table.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -68,8 +68,8 @@ for (const s of [...OLD_SITES, 'tgw']) {
   });
 }
 
-// The indexes that lessons L50 adds to the older databases (CGW already has the first one).
-const L50_INDEXES = [
+// The indexes that lessons L51 adds to the older databases (CGW already has the first one).
+const L51_INDEXES = [
   'CREATE INDEX IF NOT EXISTS idx_products_active_category_price_id ON products(is_active, site_category, price, id);',
   `CREATE INDEX IF NOT EXISTS idx_products_group_key ON products(${LEGACY_GROUP_KEY});`,
   'CREATE INDEX IF NOT EXISTS idx_products_active_created ON products(is_active, created_at);'
@@ -121,17 +121,17 @@ function randomShop(code, n, seed) {
   return lines.join('\n');
 }
 
-// Same results with and without the L50 indexes (an index changes how rows are found, never which rows).
+// Same results with and without the L51 indexes (an index changes how rows are found, never which rows).
 for (const [code, seed, indexed] of [['cgw', 7, false], ['cgw', 13, true], ['mgw', 11, false], ['wgw', 23, true]]) {
-  test(`${code.toUpperCase()}, 900 random products${indexed ? ', L50 indexes' : ''}: same cards as the full queries, also when only 1-5 rows are read on each side`, async () => {
-    const db = memD1([schemaOf(code), randomShop(code, 900, seed), ...(indexed ? L50_INDEXES : [])]);
+  test(`${code.toUpperCase()}, 900 random products${indexed ? ', L51 indexes' : ''}: same cards as the full queries, also when only 1-5 rows are read on each side`, async () => {
+    const db = memD1([schemaOf(code), randomShop(code, 900, seed), ...(indexed ? L51_INDEXES : [])]);
     const ids = db.sql.prepare('SELECT id FROM products WHERE is_active = 1 ORDER BY id').all().map(r => r.id).filter((_, i) => i % 3 === 0);
     const checked = await compareAll(db, configs[code], ids, [undefined, 1, 2, 5]);
     assert.ok(checked > 240);
   });
 }
 
-// ---- Query plans with the indexes of L50 ----
+// ---- Query plans with the indexes of L51 ----
 
 
 // "SCAN p", "SCAN q" or "SCAN pick" read the few rows a subquery made; "SCAN products" would read the whole table.
@@ -141,12 +141,82 @@ function plansOf(db, entries) {
 const wholeTable = line => /^SCAN (products|product_group_offers)\b/.test(line);
 // The old full queries (no "pick" list of ids in them) run only when a result cannot be proved.
 const isFull = e => /ROW_NUMBER|ABS\(p\.price - \?\)/.test(e.text) && /ABS\(p\.price - \?\)|first_seen_at DESC/.test(e.text) && !/\bpick\b/.test(e.text);
+// The two reads next to the price. Each must walk the category+price index: sorting all the rows of a side
+// ("USE TEMP B-TREE FOR ORDER BY") would read them all; sorting only the ids of one price ("LAST TERM") is fine.
+const isSide = e => /p\.price (>=|<) \?\s+ORDER BY p\.price/.test(e.text);
+function assertSidePlan(plan, label) {
+  assert.ok(plan.some(line => /USING (COVERING )?INDEX idx_products_active_category_price_id/.test(line)), `${label}: ${plan.join(' | ')}`);
+  assert.ok(!plan.some(line => /TEMP B-TREE FOR ORDER BY/.test(line)), `${label}: ${plan.join(' | ')}`);
+}
+
+// ---- Many products at one price (lessons L51) ----
+// Real shops sell hundreds of products at one price (CGW: 873 at £10.95 in one category on 24 Oct 2026; about half
+// of CGW's products and 40% of MGW's and WGW's share their price with more than 40 others). Then all the rows read on
+// a side can be at the same distance from the price. The first version compared distances only, could not prove
+// those pages and ran the full query on them. The id decides between equal distances, as in the full query.
+function blockShop(code, seed) {
+  const r = random(seed);
+  const names = Object.values(configs[code].database.categories).flat();
+  const eans = Array.from({ length: 30 }, (_, i) => String(6000000000000 + i));
+  const rows = [];
+  for (const [price, n] of [[44.99, 120], [39.99, 100], [41, 3], [49.99, 60], [45.5, 2], [10.95, 90], [11.95, 85], [9.95, 45]]) {
+    for (let k = 0; k < n; k++) rows.push([price, names[0]]);
+  }
+  for (let k = 0; k < 60; k++) rows.push([5 + Math.floor(r() * 19500) / 100, names[0]]);
+  for (let k = 0; k < 50; k++) rows.push([44.99, names[1]]);
+  // Ids in random order, not price order.
+  for (let k = rows.length - 1; k > 0; k--) {
+    const j = Math.floor(r() * (k + 1));
+    [rows[k], rows[j]] = [rows[j], rows[k]];
+  }
+  const stock = ['In Stock', 'Out of Stock', 'in stock', '0'];
+  const lines = rows.map(([price, cat], i) => {
+    const ean = r() < 0.15 ? eans[Math.floor(r() * eans.length)] : '';
+    return `INSERT INTO products (awin_product_id, retailer, site_category, product_name, price, currency, stock_status,
+      image_url, affiliate_url, ean, is_active, created_at, updated_at, specs_json) VALUES ('${800000 + i}', 'Shop ${1 + Math.floor(r() * 4)}',
+      '${cat.replace(/'/g, "''")}', 'Block product ${i}', ${price}, 'GBP', '${stock[Math.floor(r() * stock.length)]}', 'https://images.example/b${i}.jpg',
+      'https://www.awin1.com/cread.php?awinmid=1&awinaffid=3057233&ued=b${i}', '${ean}', ${r() < 0.95 ? 1 : 0}, '2026-10-0${1 + Math.floor(r() * 9)} 10:00:00',
+      '2026-10-18 06:00:00', '{"gtin":"${ean}"}');`;
+  });
+  if (configs[code].database.groupTable) {
+    lines.push('CREATE TABLE IF NOT EXISTS product_group_offers (group_id INTEGER NOT NULL, product_id INTEGER NOT NULL UNIQUE, PRIMARY KEY (group_id, product_id));');
+    for (let g = 1; g <= 40; g++) {
+      for (let k = 0; k < 3; k++) lines.push(`INSERT INTO product_group_offers (group_id, product_id) VALUES (${g}, ${1 + Math.floor(r() * rows.length)}) ON CONFLICT DO NOTHING;`);
+    }
+  }
+  return lines.join('\n');
+}
+
+for (const code of ['mgw', 'cgw']) {
+  test(`${code.toUpperCase()}: with hundreds of products at one price, every product page still reads only the rows next to its price and shows the same cards`, async () => {
+    const extra = code === 'cgw' ? ['CREATE INDEX IF NOT EXISTS idx_product_group_offers_group ON product_group_offers(group_id);'] : [];
+    const db = memD1([schemaOf(code), blockShop(code, 3), ...L51_INDEXES, ...extra]);
+    useLayout(configs[code]);
+    const ids = db.sql.prepare('SELECT id FROM products WHERE is_active = 1 ORDER BY id').all().map(r => r.id);
+    let fullRuns = 0;
+    let sides = 0;
+    for (const id of ids) {
+      const p = await getProduct(db, id);
+      db.log.length = 0;
+      const fast = plain(await similarProducts(db, p, 8));
+      fullRuns += db.log.filter(isFull).length;
+      for (const [i, plan] of plansOf(db, db.log.filter(isSide)).entries()) {
+        assertSidePlan(plan, `${code} product ${id} side ${i}`);
+        sides++;
+      }
+      assert.deepEqual(fast, plain(await similarProducts(db, p, 8, { full: true })), `${code} similar ${id}`);
+      assert.deepEqual(plain(await offersFor(db, p)), plain(await offersFor(db, p, 12, { full: true })), `${code} offers ${id}`);
+    }
+    assert.ok(ids.length > 500 && sides === ids.length * 2, `${ids.length} products, ${sides} side reads`);
+    assert.equal(fullRuns, 0, `the full query ran for ${fullRuns} of ${ids.length} products`);
+  });
+}
 
 // With and without ANALYZE: D1 may or may not have statistics; the plans must not depend on them.
 for (const [code, analyze] of [['cgw', true], ['cgw', false], ['mgw', true], ['mgw', false]]) {
-  test(`${code.toUpperCase()} with the L50 indexes${analyze ? '' : ', no statistics'}: the product page lists and the newest cards never read a whole table`, async () => {
+  test(`${code.toUpperCase()} with the L51 indexes${analyze ? '' : ', no statistics'}: the product page lists and the newest cards never read a whole table`, async () => {
     const extra = code === 'cgw' ? ['CREATE INDEX IF NOT EXISTS idx_product_group_offers_group ON product_group_offers(group_id);'] : [];
-    const db = memD1([schemaOf(code), randomShop(code, 3000, 5), ...L50_INDEXES, ...extra, ...(analyze ? ['ANALYZE;'] : [])]);
+    const db = memD1([schemaOf(code), randomShop(code, 3000, 5), ...L51_INDEXES, ...extra, ...(analyze ? ['ANALYZE;'] : [])]);
     useLayout(configs[code]);
     const ids = db.sql.prepare('SELECT id FROM products WHERE is_active = 1 ORDER BY id').all().map(r => r.id).filter((_, i) => i % 50 === 0);
     let fullRuns = 0;

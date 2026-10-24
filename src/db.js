@@ -33,7 +33,7 @@ const IN_STOCK_WORDS = ['in_stock', 'in stock', '1', 'true', 'yes', 'available t
 
 // GTIN of an older-layout row: the ean column, or the gtin in specs_json when ean is empty.
 const LEGACY_GTIN = "COALESCE(NULLIF(TRIM(ean), ''), json_extract(specs_json, '$.gtin'))";
-// Its product-group key on the table's own columns: the same value as gk() through the view. The L50 index
+// Its product-group key on the table's own columns: the same value as gk() through the view. The L51 index
 // idx_products_group_key is built on exactly this text, so SQLite finds a group's rows through it.
 export const LEGACY_GROUP_KEY = `COALESCE(NULLIF(TRIM(${LEGACY_GTIN}), ''), 'id:' || id)`;
 
@@ -126,7 +126,7 @@ function cardSql(where, order, tail = '', from = `${LAYOUT.from} p`) {
       FROM ${from} WHERE ${where}) q) p WHERE p.rn = 1 ORDER BY ${order} ${tail}`;
 }
 
-// ---- Lists that read only the rows they show (lessons L50) ----
+// ---- Lists that read only the rows they show (lessons L51) ----
 // D1 bills every row a query reads (Workers Paid: 25 billion a month included, then $1 per billion). On the older
 // sites "the same product at other retailers" and "similar products" used to read the whole table or the whole
 // category for every product page (CGW: about 370,000 rows per page; the network paid about $24 on 23 Oct 2026).
@@ -141,7 +141,7 @@ const NEAR = 40;
 // SQLite always keeps the left side of a CROSS JOIN as the outer loop, so it reads each row by its id and never
 // the whole category or table, whatever its statistics say.
 //   CGW (groupById): the import's match table product_group_offers (index on group_id), and single product ids.
-//   Other older sites: the group key on the table's own columns (L50 index idx_products_group_key).
+//   Other older sites: the group key on the table's own columns (L51 index idx_products_group_key).
 // New layout: the group key as a filter (the caller's category filter keeps it small).
 // Binds: fromBinds go before the binds of the caller's WHERE, whereBinds after them.
 function groupFilter(keys) {
@@ -361,10 +361,16 @@ export async function getProductForRedirect(db, id) {
 }
 
 // Products of the same category closest in price (one card per product group, never the product's own group).
-// The rows next to the price are read through the category+price index: NEAR above and NEAR below. The cards are
-// then built from the groups of those rows only. Any row closer than the farthest row read on either side was read,
-// so when the last card is closer than that, no other group can come before it: the result is the full query's.
-// Otherwise (or with opts.full) the full query runs. Price is NOT NULL in both layouts, so no NULL price comes first.
+// The full query orders the cards by distance from the price, then by id. The rows next to the price are read in
+// that same order through the category+price index: NEAR at or above the price, NEAR below it. The cards are then
+// built from the groups of those rows only. A side that stopped at its limit has read every row of its side that
+// comes before its last row; so when the last card comes before that row (or is it) on every such side, no other
+// group can come before it: the result is the full query's. Otherwise (or with opts.full) the full query runs.
+// Many products often share one price (CGW: 873 at £10.95 in one category), so all the rows read on a side can be
+// at the same distance; the id decides between them, as in the full query (lessons L51: an earlier version compared
+// distances only, so every product with 40 others at its own price ran the full query). Below the price, the rows
+// of one price are sorted by id: SQLite then reads the whole last price block of that side, never more.
+// Price is NOT NULL in both layouts, so no NULL price comes first.
 export async function similarProducts(db, product, limit = 8, opts = {}) {
   if (!product.category_slug) return [];
   const c = catWhere(product.category_slug);
@@ -377,20 +383,21 @@ export async function similarProducts(db, product, limit = 8, opts = {}) {
   const near = Math.max(1, Number(opts.near) || NEAR);
   const side = (cond, dir) => db
     .prepare(`SELECT ${CARD_COLUMNS}, ${gk()} AS gk FROM ${LAYOUT.from} p WHERE ${where} AND ${cond}
-      ORDER BY p.price ${dir}, p.id ${dir} LIMIT ?`)
+      ORDER BY p.price ${dir}, p.id ASC LIMIT ?`)
     .bind(...binds, price, near);
   const [up, down] = (await db.batch([side('p.price >= ?', 'ASC'), side('p.price < ?', 'DESC')])).map(r => r.results || []);
   const dist = row => Math.abs(Number(row.price) - price);
-  const reach = rows => (rows.length < near ? Infinity : dist(rows[rows.length - 1]));
-  const radius = Math.min(reach(up), reach(down));
-  const proved = rows => (rows.length >= limit ? dist(rows[limit - 1]) < radius : radius === Infinity);
-  const read = [...up, ...down].sort((a, b) => dist(a) - dist(b) || Number(a.id) - Number(b.id));
+  // The full query's order: closer first, then the lower id (negative when a comes first).
+  const before = (a, b) => dist(a) - dist(b) || Number(a.id) - Number(b.id);
+  const ends = [up, down].filter(rows => rows.length >= near).map(rows => rows[rows.length - 1]);
+  const proved = rows => (rows.length >= limit ? ends.every(end => before(rows[limit - 1], end) <= 0) : ends.length === 0);
+  const read = [...up, ...down].sort(before);
   if (!LAYOUT.group) {
     const rows = read.slice(0, limit).map(({ gk: _key, ...row }) => row);
     return proved(rows) ? fixAll(rows) : full();
   }
   const keys = [...new Set(read.map(r => r.gk))];
-  if (!keys.length) return radius === Infinity ? [] : full();
+  if (!keys.length) return ends.length === 0 ? [] : full();
   const f = groupFilter(keys);
   const r = await db
     .prepare(cardSql(`${where} AND ${f.where}`, order, 'LIMIT ?', f.from))
