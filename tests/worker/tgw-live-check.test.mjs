@@ -33,7 +33,7 @@ test('business and data-centre kit is out in both shops', () => {
     'Western Digital Gold WD Enterprise Class SATA HDD', 'Lenovo 2TB 3.5" Enterprise SATA Hot Swap internal hard drive (4XB0F28713)',
     'Synology HAS5310-12T internal hard drive 12 TB 7200 RPM 512 MB 3.5" SAS3', 'Fujitsu SAS3 cable upgr. kit for RX2540',
     'HP HPE 4TB 6G SATA 3.5in NHP MDL HDD - Bulk', 'HP HPE P40497-B21 480GB 2.5 Internal SSD - Bulk', 'HPE 775403-001 Processor Heatsink/Radiator',
-    'Panasonic AW-UE100WEJ streaming camera', 'Panasonic AW-RM50AG camera remote control IR Wireless',
+    'Panasonic AW-UE100WEJ streaming camera', 'Panasonic AW-RM50AG camera remote control IR Wireless', 'Canon RC-IP1000 camera remote control Wired',
     'Panasonic AW-UE80 Dome IP security camera Indoor 1920 x 1080 pixels (AW-UE80WEJ)', 'Sony SRG-X40UH Dome IP security camera Indoor 3840 x 2160 pixels (SRG-X40UH/WC)',
     'Canon imageFORMULA DR-G2140 A3 High-Speed Production Network Scanner', 'Canon imageFORMULA DR-G2090 A3 Production Document Scanner',
     'HP ScanJet Enterprise Flow 9000 s1 ADF + Sheet-fed scanner 600 x 600 DPI A3 Blue, White',
