@@ -34,6 +34,7 @@ if ($env:CI -eq 'true' -and $isWin) {
 
 # 1. Every .ps1 parses without errors, and any .ps1 with non-ASCII text starts with a UTF-8 BOM
 Write-Host 'Syntax and encoding'
+$byteReturnPattern = '\breturn\s+\(?\s*(\$[A-Za-z_][A-Za-z0-9_.]*\.ToArray\(\)|\[System\.IO\.File\]::ReadAllBytes\(|\$[A-Za-z_][A-Za-z0-9_.]*\.GetBytes\()'
 $psFiles = @(Get-ChildItem -LiteralPath $repo -Recurse -File -Filter '*.ps1' | Where-Object { $_.FullName -notmatch '[\\/](\.git|node_modules|\.wrangler)[\\/]' })
 foreach ($f in $psFiles) {
     $tokens = $null; $errors = $null
@@ -44,7 +45,13 @@ foreach ($f in $psFiles) {
     $nonAscii = $false
     foreach ($b in $bytes) { if ($b -gt 127) { $nonAscii = $true; break } }
     Check ((-not $nonAscii) -or $hasBom) ('UTF-8 BOM when non-ASCII: ' + $f.Name)
+    # A function that returns bytes needs "return , $x": without the comma PowerShell unrolls the array (lessons L40).
+    $byteReturn = [regex]::Matches([System.IO.File]::ReadAllText($f.FullName), $byteReturnPattern)
+    Check ($byteReturn.Count -eq 0) ('returns byte arrays with the comma (L40): ' + $f.Name)
 }
+# (the samples are split in two, so this file does not match its own check)
+$byteReturnSample = @(('function A { return $ms.' + 'ToArray() }'), ('function B { return [System.IO.File]::' + 'ReadAllBytes($p) }'), ('function C { return $enc.' + 'GetBytes($s) }'), ('function D { return , $ms.' + 'ToArray() }'), 'function E { return ([BitConverter]::ToString($sha.ComputeHash($b))) }')
+Check ((@($byteReturnSample | Where-Object { $_ -match $byteReturnPattern }).Count -eq 3) -and -not ($byteReturnSample[3] -match $byteReturnPattern)) 'the L40 check finds a byte array returned without the comma'
 
 # 2. No secrets or Cloudflare IDs committed
 Write-Host 'Secret scan'
@@ -2138,11 +2145,13 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
     New-Item -ItemType Directory -Path $pState, $pBin -Force | Out-Null
     $pDb = [guid]::NewGuid().ToString()
     $pBm = '00000085-0000024c-00004c6d-' + [guid]::NewGuid().ToString('N')
+    $pVer = [guid]::NewGuid().ToString()
     # A fake hub folder on the "PC" and its own baseline list (same format as sites/gwh/live-baseline.txt).
     Write-Utf8 (Join-Path $pHub 'wrangler.toml') ("name = `"gear-world-hub`"`nmain = `"worker.js`"`n[[d1_databases]]`ndatabase_name = `"gear-world-registry`"`ndatabase_id = `"$pDb`"`n")
     Write-Utf8 (Join-Path $pHub 'worker.js') 'export default { fetch() { return new Response("hub") } };'
     Write-Utf8 (Join-Path $pHub 'public/index.html') '<!doctype html><title>Hub</title>'
     Write-Utf8 (Join-Path $pHub 'public/index-before-kgw-live.html') '<!doctype html><title>old</title>'
+    Write-Utf8 (Join-Path $pHub '.dev.vars') 'SECRET=never-in-the-zip'
     $pBase = Join-Path $work 'gwhp-baseline.txt'
     $bl = @('# test baseline', '# path | bytes | sha256 | kind')
     foreach ($rel in @('worker.js', 'public/index.html', 'public/index-before-kgw-live.html')) {
@@ -2161,6 +2170,7 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         'echo %* | findstr /C:"--file" >nul && goto file',
         'echo %* | findstr /C:"--command" >nul && goto query',
         'echo %* | findstr /C:"secret bulk" >nul && goto secret',
+        'echo %* | findstr /C:"deployments list" >nul && goto deployments',
         'echo %* | findstr /C:" deploy" >nul && goto deploy',
         'echo unknown command 1>&2',
         'exit /b 1',
@@ -2188,7 +2198,20 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         'copy /y %5 "%GW_FAKE_STATE%\secret-copy.json" >nul',
         'echo Finished processing secrets file',
         'exit /b 0',
+        ':deployments',
+        ('echo Version(s):  (100%%) ' + $pVer),
+        'exit /b 0',
         ':deploy',
+        'if exist "%GW_FAKE_STATE%\failother.flag" goto deployfail',
+        'if not exist "%GW_FAKE_STATE%\fail10007.flag" goto deployok',
+        'del "%GW_FAKE_STATE%\fail10007.flag"',
+        'echo Uploaded gear-world-hub-preview',
+        'echo X [ERROR] A request to the Cloudflare API failed. This Worker does not exist on your account. [code: 10007]',
+        'exit /b 1',
+        ':deployfail',
+        'echo X [ERROR] A request to the Cloudflare API failed. Something else. [code: 10021]',
+        'exit /b 1',
+        ':deployok',
         'echo Uploaded gear-world-hub-preview',
         'echo   https://gear-world-hub-preview.example-test.workers.dev',
         'exit /b 0'
@@ -2239,6 +2262,42 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         Check ((Run-P @('-Step', 'check')) -eq 0 -and (PLast).Contains('ΑΛΛΑΞΕ') -and (PLast).Contains('public/index.html')) 'hub photo check: a changed hub file on the PC is reported'
         Write-Utf8 (Join-Path $pHub 'public/index.html') '<!doctype html><title>Hub</title>'
         Check ((Get-TreeHash $pHub) -eq $pHubBefore) 'hub photo: the hub folder on the PC is never changed'
+        # live: backup, secret, new files, old copies moved, deploy from the hub folder
+        $pHubLive = Get-TreeHash $pHub
+        Check ((Run-P @('-Step', 'live')) -eq 0 -and (PCount 'deploy --config') -eq 2 -and (Get-TreeHash $pHub) -eq $pHubLive) 'hub photo live without -Apply: nothing changes'
+        Check ((Run-P @('-Step', 'live', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB PHOTO PREVIEW')) -eq 1 -and (PCount 'deploy --config') -eq 2 -and (PCount '(?m)secret bulk "[^"]+" --name gear-world-hub\s*$') -eq 0 -and (Get-TreeHash $pHub) -eq $pHubLive) 'hub photo live with the wrong phrase: nothing changes'
+        Check ((Run-P @('-Step', 'live', '-Apply', '-Approve', 'egkrino hub photo live')) -eq 0 -and (PCount 'deploy --config') -eq 3) 'hub photo live with approval: deploys once'
+        $c = PCalls
+        $liveCfg = [regex]::Escape((Join-Path $pHub 'wrangler.toml'))
+        Check ($c -match ('deploy --config "' + $liveCfg + '"')) 'hub photo live: deploys the hub folder with its own wrangler.toml'
+        $secretAt = [regex]::Match($c, '(?m)secret bulk "[^"]+" --name gear-world-hub\s*$').Index
+        Check ($secretAt -gt 0 -and $secretAt -lt $c.LastIndexOf('deploy --config')) 'hub photo live: the secret is set before the new code goes live'
+        Check ($c.LastIndexOf('deployments list --name gear-world-hub') -lt $c.LastIndexOf('deploy --config')) 'hub photo live: live version read before deploying'
+        $zips = @(Get-ChildItem -LiteralPath (Join-Path $pWork 'backups') -Filter 'gwh-before-photo-live-*.zip' -ErrorAction SilentlyContinue)
+        Check ($zips.Count -eq 1) 'hub photo live: hub folder zipped first'
+        if ($zips.Count -eq 1) {
+            Add-Type -AssemblyName System.IO.Compression.FileSystem
+            $z = [System.IO.Compression.ZipFile]::OpenRead($zips[0].FullName)
+            $names = @($z.Entries | ForEach-Object { $_.FullName -replace '\\', '/' })
+            $z.Dispose()
+            Check (($names -contains 'worker.js') -and ($names -contains 'wrangler.toml') -and ($names -contains 'public/index.html') -and ($names -contains 'public/index-before-kgw-live.html') -and -not ($names -contains '.dev.vars')) 'hub photo live: backup has the code, the config and every public file, never .dev.vars'
+        }
+        $lnotes = @(Get-ChildItem -LiteralPath (Join-Path $pWork 'backups') -Filter 'gwh-before-photo-live-*.txt' -ErrorAction SilentlyContinue)
+        Check ($lnotes.Count -eq 1 -and ([System.IO.File]::ReadAllText($lnotes[0].FullName)).Contains('rollback ' + $pVer + ' --name gear-world-hub')) 'hub photo live: rollback note with the old live version'
+        $gwhRepoDir = Join-Path (Join-Path $repo 'sites') 'gwh'
+        Check ((Get-FileHash -LiteralPath (Join-Path $pHub 'worker.js')).Hash -eq (Get-FileHash -LiteralPath (Join-Path $gwhRepoDir 'worker.js')).Hash -and (Test-Path -LiteralPath (Join-Path $pHub 'photo-search.js')) -and (Test-Path -LiteralPath (Join-Path $pHub 'public/gear-world-camera.js'))) 'hub photo live: the hub folder has the new files'
+        $movedOld = @(Get-ChildItem -LiteralPath (Join-Path $pWork 'backups') -Recurse -Filter 'index-before-kgw-live.html' -ErrorAction SilentlyContinue | Where-Object { $_.FullName -match 'gwh-old-copies-' })
+        Check (-not (Test-Path -LiteralPath (Join-Path $pHub 'public/index-before-kgw-live.html')) -and $movedOld.Count -eq 1) 'hub photo live: the old copy left public/ and was moved, not deleted'
+        Check ((Test-Path -LiteralPath (Join-Path $pHub '.dev.vars'))) 'hub photo live: .dev.vars on the PC is left alone'
+        Check ((Run-P @('-Step', 'live', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB PHOTO LIVE')) -eq 0 -and (PCount 'deploy --config') -eq 4) 'hub photo live: a second run (folder already new) can deploy again'
+        Write-Utf8 (Join-Path $pHub 'public/index.html') '<!doctype html><title>someone else changed this</title>'
+        Check ((Run-P @('-Step', 'live', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB PHOTO LIVE')) -eq 7 -and (PCount 'deploy --config') -eq 4) 'hub photo live: refused when the hub folder was changed by someone else'
+        # L39: "This Worker does not exist [code: 10007]" right after an upload: one more deploy; any other error: none
+        Write-Utf8 (Join-Path $pState 'fail10007.flag') 'once'
+        Check ((Run-P @('-Step', 'preview', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB PHOTO PREVIEW')) -eq 0 -and (PCount 'deploy --config') -eq 6 -and -not (Test-Path -LiteralPath (Join-Path $pState 'fail10007.flag'))) 'hub photo: a deploy answered with code 10007 is repeated once (L39)'
+        Write-Utf8 (Join-Path $pState 'failother.flag') 'always'
+        Check ((Run-P @('-Step', 'preview', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB PHOTO PREVIEW')) -eq 9 -and (PCount 'deploy --config') -eq 7) 'hub photo: any other deploy error stops at once, no repeat'
+        Remove-Item -LiteralPath (Join-Path $pState 'failother.flag') -Force
         & $exe -NoProfile -ExecutionPolicy Bypass -File $pTool -Step check -HubDir (Join-Path $work 'no-hub-here') -WorkDir $pWork -OutDir $pOut -BaselineFile $pBase -SkipInstall -NoClipboard -NoHttpCheck | Out-Null
         Check ($LASTEXITCODE -eq 2) 'hub photo: no hub folder gives exit code 2'
     } finally {

@@ -14,10 +14,15 @@
                                                   address (noindex, no analytics, newsletter sign-up closed), with the same
                                                   D1 and Workers AI, and its own secret for the anonymous visitor code.
                  Then a short live test of the test address, including one photo search.
+  -Step live     CHANGES THE LIVE HUB, one approval: ΕΓΚΡΙΝΩ HUB PHOTO LIVE. Only when the hub folder on this PC and the
+                 live site are still the code of 24/10/2026 and the 2 tables exist. First a zip of the hub folder and the
+                 number of the live version (for rollback), then the secret of the live Worker, then the new files are
+                 copied into the hub folder (the 4 old copies are moved to the backup folder, not deleted), then
+                 gearworldhub.com is deployed from that folder and checked.
   Report: <home>\gear-world-reports\GWH_PHOTO_<STEP>_<time>.txt (also copied to the clipboard)
 #>
 param(
-    [ValidateSet('check', 'preview')]
+    [ValidateSet('check', 'preview', 'live')]
     [string]$Step = 'check',
     [switch]$Apply,
     [string]$Approve = '',
@@ -37,6 +42,8 @@ $HubWorker = 'gear-world-hub'
 $PreviewName = 'gear-world-hub-preview'
 $PhraseD1 = 'ΕΓΚΡΙΝΩ HUB PHOTO D1'
 $PhrasePreview = 'ΕΓΚΡΙΝΩ HUB PHOTO PREVIEW'
+$PhraseLive = 'ΕΓΚΡΙΝΩ HUB PHOTO LIVE'
+$LiveUrl = 'https://gearworldhub.com'
 if (-not $HubDir) { $HubDir = Join-Path $HOME 'gear-world-hub' }
 if (-not $WorkDir) { $WorkDir = Join-Path $HOME 'gear-world-hub-photo' }
 if (-not $OutDir) { $OutDir = Join-Path $HOME 'gear-world-reports' }
@@ -167,6 +174,58 @@ function Write-PreviewConfig([string]$folder, [string]$dbId) {
     return $file
 }
 
+# sha256 of a live file as the Worker sends it. Cloudflare Web Analytics adds its own beacon script to HTML for some
+# visitors (lessons L38): it is taken out before comparing.
+function Get-LiveSha([string]$url, [bool]$isHtml) {
+    try {
+        $wc = New-Object System.Net.WebClient
+        $wc.Headers.Add('User-Agent', 'GearWorldQA-bot/1.0 (+read-only check)')
+        try { $bytes = $wc.DownloadData($url) } finally { $wc.Dispose() }
+    } catch { return 'error' }
+    if ($isHtml) {
+        $enc = New-Object System.Text.UTF8Encoding($false)
+        $text = $enc.GetString($bytes)
+        $clean = [regex]::Replace($text, '<script[^>]*static\.cloudflareinsights\.com/beacon\.min\.js[^>]*></script>\r?\n?', '')
+        if ($clean -ne $text) { $bytes = $enc.GetBytes($clean) }
+    }
+    return (Get-Sha $bytes)
+}
+
+# Deploy; when Cloudflare answers "This Worker does not exist" (code 10007) right after the upload of a NEW Worker,
+# wait and deploy once more: a deploy is safe to repeat (lessons L39).
+function Invoke-Deploy([string]$folder, [string]$config) {
+    $d = Invoke-Wrangler $folder ('deploy --config "{0}"' -f $config)
+    if ($d.code -ne 0 -and $d.text -match 'code: 10007') {
+        Say 'Το Cloudflare δεν είχε δει ακόμα τον καινούργιο Worker. Ξαναδοκιμάζω σε 15 δευτερόλεπτα...' 'Yellow'
+        Start-Sleep -Seconds 15
+        $d = Invoke-Wrangler $folder ('deploy --config "{0}"' -f $config)
+    }
+    return $d
+}
+
+# The version of a Worker that is live now (for going back). Read-only.
+function Get-LiveVersion([string]$folder, [string]$name) {
+    $r = Invoke-Wrangler $folder ('deployments list --name {0}' -f $name) -Retry
+    $ms = [regex]::Matches($r.text, '\(100%\)\s+([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})')
+    if ($ms.Count -eq 0) { return '' }
+    return $ms[$ms.Count - 1].Groups[1].Value
+}
+
+# The secret for the anonymous visitor code: random, never shown, never kept on this PC.
+function Set-PhotoSecret([string]$folder, [string]$worker) {
+    $rnd = New-Object byte[] 32
+    $rng = [System.Security.Cryptography.RandomNumberGenerator]::Create()
+    try { $rng.GetBytes($rnd) } finally { $rng.Dispose() }
+    $salt = [Convert]::ToBase64String($rnd).Replace('+', '-').Replace('/', '_').TrimEnd('=')
+    $secretFile = Join-Path ([System.IO.Path]::GetTempPath()) ('gw-hubphoto-secret-' + [guid]::NewGuid().ToString('N').Substring(0, 8) + '.json')
+    [System.IO.File]::WriteAllText($secretFile, ('{{"PHOTO_LIMIT_SALT":"{0}"}}' -f $salt), (New-Object System.Text.UTF8Encoding($false)))
+    try {
+        return (Invoke-Wrangler $folder ('secret bulk "{0}" --name {1}' -f $secretFile, $worker))
+    } finally {
+        Remove-Item -LiteralPath $secretFile -Force -ErrorAction SilentlyContinue
+    }
+}
+
 function Test-Tables([string]$folder) {
     $q = Invoke-Wrangler $folder ('d1 execute {0} --remote --json --command "SELECT name FROM sqlite_master WHERE type = ''table'' AND name IN (''photo_search_usage'', ''photo_search_daily'')"' -f $DbName) -Retry
     $rows = Get-JsonArray $q.text
@@ -186,16 +245,29 @@ function New-TestJpeg {
         $g.FillEllipse([System.Drawing.Brushes]::Orange, 130, 40, 60, 60)
     } finally { $g.Dispose() }
     $ms = New-Object System.IO.MemoryStream
-    try { $bmp.Save($ms, [System.Drawing.Imaging.ImageFormat]::Jpeg); return $ms.ToArray() } finally { $ms.Dispose(); $bmp.Dispose() }
+    # The comma keeps the bytes together: without it PowerShell unrolls the array and the body is sent as text (lessons L40).
+    try { $bmp.Save($ms, [System.Drawing.Imaging.ImageFormat]::Jpeg); return , $ms.ToArray() } finally { $ms.Dispose(); $bmp.Dispose() }
 }
 
-function Test-Preview([string]$base) {
+# The test address (preview) or, with -isLive, gearworldhub.com after the deploy: the same checks, with the right
+# expectations (the test address must say noindex, the live site must not).
+function Test-Preview([string]$base, [bool]$isLive = $false) {
     [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
     try {
-        $home1 = Invoke-WebRequest -UseBasicParsing -Uri ($base + '/') -TimeoutSec 30
+        $home1 = Invoke-WebRequest -UseBasicParsing -Uri ($base + '/?gwcheck=' + $stamp) -TimeoutSec 30
         $robots = ''
-        foreach ($k in @($home1.Headers.Keys)) { if ($k -ieq 'X-Robots-Tag') { $robots = [string]$home1.Headers[$k] } }
-        Say ('  Αρχική: {0}, κουμπί κάμερας: {1}, noindex: {2}' -f $home1.StatusCode, $(if ([string]$home1.Content -match 'gear-world-camera\.js') { 'ναι' } else { 'ΟΧΙ' }), $(if ($robots -match 'noindex') { 'ναι' } else { 'ΟΧΙ' }))
+        $perm = ''
+        foreach ($k in @($home1.Headers.Keys)) {
+            if ($k -ieq 'X-Robots-Tag') { $robots = [string]$home1.Headers[$k] }
+            if ($k -ieq 'Permissions-Policy') { $perm = [string]$home1.Headers[$k] }
+        }
+        $camera = $(if ([string]$home1.Content -match 'gear-world-camera\.js') { 'ναι' } else { 'ΟΧΙ' })
+        $onlyHub = $(if ($perm -match 'camera=\(self\)') { 'ναι' } else { 'ΟΧΙ' })
+        if ($isLive) {
+            Say ('  Αρχική: {0}, κουμπί κάμερας: {1}, κάμερα μόνο για το Hub (Permissions-Policy): {2}, noindex: {3}' -f $home1.StatusCode, $camera, $onlyHub, $(if ($robots -match 'noindex') { 'ΝΑΙ - λάθος για το live, στείλε την αναφορά στο Claude' } else { 'όχι (σωστό για το live)' }))
+        } else {
+            Say ('  Αρχική: {0}, κουμπί κάμερας: {1}, κάμερα μόνο για το Hub (Permissions-Policy): {2}, noindex: {3}' -f $home1.StatusCode, $camera, $onlyHub, $(if ($robots -match 'noindex') { 'ναι' } else { 'ΟΧΙ' }))
+        }
         $h = Invoke-WebRequest -UseBasicParsing -Uri ($base + '/api/health') -TimeoutSec 30
         Say ('  /api/health: {0}' -f $h.StatusCode)
         $s = (Invoke-WebRequest -UseBasicParsing -Uri ($base + '/api/search?q=drill') -TimeoutSec 60).Content | ConvertFrom-Json
@@ -205,10 +277,10 @@ function Test-Preview([string]$base) {
         return
     }
     try {
-        $jpeg = New-TestJpeg
+        [byte[]]$jpeg = New-TestJpeg
         $r = Invoke-WebRequest -UseBasicParsing -Uri ($base + '/api/photo-search') -Method Post -ContentType 'image/jpeg' -Body $jpeg -TimeoutSec 60
         $p = $r.Content | ConvertFrom-Json
-        Say ('  Δοκιμή φωτογραφίας (σχήμα, όχι προϊόν): απάντηση {0}, βρήκε προϊόν: {1}, λέξεις: {2}' -f $r.StatusCode, $p.found, (@($p.keywords) -join ' '))
+        Say ('  Δοκιμή φωτογραφίας ({0} bytes, σχήμα, όχι προϊόν): απάντηση {1}, βρήκε προϊόν: {2}, λέξεις: {3}' -f $jpeg.Length, $r.StatusCode, $p.found, (@($p.keywords) -join ' '))
     } catch {
         $msg = $_.Exception.Message
         $resp = $_.Exception.Response
@@ -287,6 +359,170 @@ if ($Step -eq 'check') {
     Finish 0
 }
 
+# ---------------- live ----------------
+if ($Step -eq 'live') {
+    # The new files of this version (from the repo) and their sha256.
+    $gwhRepo = Join-Path (Join-Path $repo 'sites') 'gwh'
+    $newFiles = @()
+    foreach ($n in @('worker.js', 'photo-search.js')) { $newFiles += $n }
+    $pubRepo = Join-Path $gwhRepo 'public'
+    foreach ($f in @(Get-ChildItem -LiteralPath $pubRepo -Recurse -File)) {
+        $newFiles += ('public/' + $f.FullName.Substring($pubRepo.Length).TrimStart('\', '/').Replace('\', '/'))
+    }
+    $newSha = @{}
+    foreach ($rel in $newFiles) { $newSha[$rel] = Get-Sha ([System.IO.File]::ReadAllBytes((Join-Path $gwhRepo ($rel.Replace('/', [System.IO.Path]::DirectorySeparatorChar))))) }
+    $oldCopies = @($baseline | Where-Object { $_.kind -eq 'old-copy' })
+
+    # Where is the hub folder on this PC: still the code of 24/10 (baseline), or already this version?
+    $pcIsBaseline = ($changed.Count -eq 0 -and $extra.Count -eq 0)
+    $pcIsNew = $true
+    foreach ($rel in $newFiles) {
+        $f = Join-Path $HubDir ($rel.Replace('/', [System.IO.Path]::DirectorySeparatorChar))
+        if (-not (Test-Path -LiteralPath $f -PathType Leaf) -or (Get-Sha ([System.IO.File]::ReadAllBytes($f))) -ne $newSha[$rel]) { $pcIsNew = $false; break }
+    }
+    foreach ($o in $oldCopies) { if (Test-Path -LiteralPath (Join-Path $HubDir ($o.path.Replace('/', [System.IO.Path]::DirectorySeparatorChar)))) { $pcIsNew = $false } }
+    if (-not $pcIsBaseline -and -not $pcIsNew) {
+        Say 'Ο φάκελος του Hub στον υπολογιστή δεν είναι ούτε ο κώδικας της 24/10 ούτε αυτή η έκδοση: κάποιος τον άλλαξε. ΔΕΝ αλλάζω τίποτα. Στείλε αυτή την αναφορά στο Claude.' 'Red'
+        Finish 7
+    }
+    if (-not $tables.ready) { Say ('Οι 2 πίνακες της D1 λείπουν: πρώτα το preview (φράση {0}). ΔΕΝ αλλάζω τίποτα.' -f $PhraseD1) 'Red'; Finish 8 }
+
+    # The live site: still the code of 24/10, or already this version? (the text files, read like a browser)
+    $liveState = 'unknown'
+    if (-not $NoHttpCheck) {
+        [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+        $isBase = $true
+        $isNew = $true
+        $diff = @()
+        $unread = @()
+        foreach ($b in @($baseline | Where-Object { $_.kind -eq 'file' -and $_.path -match '^public/.*\.(html|js|css)$' })) {
+            $rel = $b.path.Substring(7)
+            $urlPath = '/' + $rel
+            if ($rel -eq 'index.html') { $urlPath = '/' } elseif ($rel -match '/index\.html$') { $urlPath = '/' + $rel.Substring(0, $rel.Length - 10) }
+            $sha = Get-LiveSha ($LiveUrl + $urlPath + '?gwcheck=' + $stamp) ($rel -match '\.html$')
+            if ($sha -eq 'error') { $unread += $b.path; continue }
+            if ($sha -ne $b.sha) { $isBase = $false }
+            if (-not $newSha.ContainsKey($b.path) -or $sha -ne $newSha[$b.path]) { $isNew = $false }
+            if ($sha -ne $b.sha -and (-not $newSha.ContainsKey($b.path) -or $sha -ne $newSha[$b.path])) { $diff += $b.path }
+        }
+        if ($unread.Count -gt 0) {
+            Say 'Δεν μπόρεσα να διαβάσω κάποιες σελίδες του live gearworldhub.com (δίκτυο;). ΔΕΝ αλλάζω τίποτα. Ξανατρέξε την εντολή σε λίγο:' 'Red'
+            foreach ($x in $unread) { Say ('  - ' + $x) }
+            Finish 6
+        }
+        if ($isBase) { $liveState = 'baseline' } elseif ($isNew) { $liveState = 'new' } else { $liveState = 'mixed' }
+        if ($liveState -eq 'mixed') {
+            Say 'Το live gearworldhub.com δεν είναι ούτε ο κώδικας της 24/10 ούτε αυτή η έκδοση: κάποιος το άλλαξε. ΔΕΝ αλλάζω τίποτα. Αρχεία:' 'Red'
+            foreach ($x in $diff) { Say ('  - ' + $x) }
+            Finish 7
+        }
+        Say ('Live gearworldhub.com: {0}' -f $(if ($liveState -eq 'baseline') { 'ο κώδικας της 24/10 (χωρίς κάμερα)' } else { 'ήδη αυτή η έκδοση' }))
+    }
+    if ($pcIsNew -and $liveState -eq 'new') {
+        Say ''
+        Say 'Η αναζήτηση με φωτογραφία είναι ήδη live και ο φάκελος του υπολογιστή είναι ίδιος. Τίποτα να κάνω.' 'Green'
+        Finish 0
+    }
+
+    $liveVersion = Get-LiveVersion $gwh $HubWorker
+    Say ('Ζωντανή έκδοση του Worker "{0}": {1}' -f $HubWorker, $(if ($liveVersion) { 'βρέθηκε (για επαναφορά)' } else { '(δεν τη βρήκα)' }))
+    Say ''
+    Say ('Τι θα γίνει (φράση {0}):' -f $PhraseLive)
+    Say '  1. Αντίγραφο ασφαλείας: zip του φακέλου του Hub (worker.js, wrangler.toml, public) και ο αριθμός της ζωντανής έκδοσης.'
+    Say '  2. Μυστικό για τον ανώνυμο κωδικό στον live Worker (τυχαίο, δεν φαίνεται πουθενά).'
+    Say '  3. Τα νέα αρχεία μπαίνουν στον φάκελο του Hub: worker.js, photo-search.js, gear-world-camera.js, index.html, analytics.js, privacy.'
+    Say ('     Τα {0} παλιά αντίγραφα (index-before-*, app-before-kgw-live.js) πάνε στον φάκελο αντιγράφων: φεύγουν από το live (L04), δεν σβήνονται.' -f $oldCopies.Count)
+    Say '  4. Deploy του gearworldhub.com από τον φάκελο του Hub και έλεγχος: αρχική, /api/health, μία φωτογραφία, τα παλιά αντίγραφα 404.'
+    Say '  Η D1, τα 9 sites και οι άλλοι Workers (και ο gwh-sitemap) ΔΕΝ αλλάζουν.'
+    if (-not $Apply) { Say ''; Say 'Δοκιμή μόνο (χωρίς -Apply): δεν άλλαξε τίποτα.' 'Green'; Finish 0 }
+    if (-not (Confirm-Approval $PhraseLive)) { Say 'Δεν δόθηκε έγκριση: σταμάτησα χωρίς αλλαγές.' 'Yellow'; Finish 1 }
+    if (-not $liveVersion) { Say 'Δεν βρήκα τον αριθμό της ζωντανής έκδοσης: για ασφάλεια ΔΕΝ ανέβασα τίποτα.' 'Red'; Finish 11 }
+
+    # 1. Backup first
+    $bdir = Join-Path $WorkDir 'backups'
+    if (-not (Test-Path -LiteralPath $bdir)) { New-Item -ItemType Directory -Path $bdir -Force | Out-Null }
+    $tmpCopy = Join-Path ([System.IO.Path]::GetTempPath()) ('gwh-before-photo-' + $stamp)
+    New-Item -ItemType Directory -Path $tmpCopy -Force | Out-Null
+    foreach ($n in @('worker.js', 'wrangler.toml', 'photo-search.js')) {
+        $src = Join-Path $HubDir $n
+        if (Test-Path -LiteralPath $src) { Copy-Item -LiteralPath $src -Destination $tmpCopy -Force }
+    }
+    Copy-Item -LiteralPath (Join-Path $HubDir 'public') -Destination $tmpCopy -Recurse -Force
+    $zip = Join-Path $bdir ('gwh-before-photo-live-' + $stamp + '.zip')
+    Compress-Archive -Path (Join-Path $tmpCopy '*') -DestinationPath $zip -Force
+    Remove-Item -LiteralPath $tmpCopy -Recurse -Force
+    if (-not (Test-Path -LiteralPath $zip)) { Say 'Το αντίγραφο ασφαλείας δεν γράφτηκε: ΔΕΝ άλλαξα τίποτα.' 'Red'; Finish 11 }
+    $note = @(
+        ('Gear World Hub before the photo search went live, {0}' -f (Get-Date -Format 'yyyy-MM-dd HH:mm')),
+        ('Live version before: {0}' -f $liveVersion),
+        ('Hub folder before (worker.js, wrangler.toml, public): {0}' -f $zip),
+        'To go back (only with approval), in PowerShell:',
+        ('  npx wrangler rollback {0} --name {1}' -f $liveVersion, $HubWorker),
+        ('  then put the files of the zip back into {0}' -f $HubDir),
+        'Or in the Cloudflare dashboard: Workers > gear-world-hub > Deployments > the version above > Rollback.'
+    ) -join "`r`n"
+    $noteFile = Join-Path $bdir ('gwh-before-photo-live-' + $stamp + '.txt')
+    [System.IO.File]::WriteAllText($noteFile, $note, (New-Object System.Text.UTF8Encoding($false)))
+    Say ('Αντίγραφο ασφαλείας και οδηγίες επαναφοράς: {0}' -f $noteFile) 'Green'
+
+    # 2. The secret first: the old code does not use it, the new code needs it from its first request.
+    $s = Set-PhotoSecret $gwh $HubWorker
+    if ($s.code -ne 0) { Say 'Το μυστικό δεν μπήκε στον live Worker: ΔΕΝ ανέβασα τον νέο κώδικα. Έξοδος:' 'Red'; Say $s.text; Finish 10 }
+    Say 'Μυστικό του live Worker: OK' 'Green'
+
+    # 3. The new files into the hub folder; the old copies to the backup folder (moved, never deleted)
+    $moved = Join-Path $bdir ('gwh-old-copies-' + $stamp)
+    foreach ($o in $oldCopies) {
+        $src = Join-Path $HubDir ($o.path.Replace('/', [System.IO.Path]::DirectorySeparatorChar))
+        if (Test-Path -LiteralPath $src) {
+            $dst = Join-Path $moved ($o.path.Replace('/', [System.IO.Path]::DirectorySeparatorChar))
+            New-Item -ItemType Directory -Path (Split-Path -Parent $dst) -Force | Out-Null
+            Move-Item -LiteralPath $src -Destination $dst -Force
+        }
+    }
+    foreach ($rel in $newFiles) {
+        $src = Join-Path $gwhRepo ($rel.Replace('/', [System.IO.Path]::DirectorySeparatorChar))
+        $dst = Join-Path $HubDir ($rel.Replace('/', [System.IO.Path]::DirectorySeparatorChar))
+        New-Item -ItemType Directory -Path (Split-Path -Parent $dst) -Force | Out-Null
+        Copy-Item -LiteralPath $src -Destination $dst -Force
+    }
+    Say ('Νέα αρχεία στον φάκελο του Hub: {0} · παλιά αντίγραφα στο {1}' -f $newFiles.Count, $moved) 'Green'
+
+    # 4. Deploy the live Hub from its folder, with the wrangler version of this repo version
+    $d = Invoke-Deploy $gwh (Join-Path $HubDir 'wrangler.toml')
+    if ($d.code -ne 0) {
+        Say 'Το ανέβασμα απέτυχε: το live Hub έμεινε όπως ήταν (με το μυστικό, που ο παλιός κώδικας δεν χρησιμοποιεί). Έξοδος:' 'Red'
+        Say $d.text
+        Say ('Ο φάκελος του Hub έχει ήδη τα νέα αρχεία. Για να γυρίσει όπως ήταν: τα αρχεία του {0}.' -f $zip)
+        Finish 9
+    }
+    Say 'Το gearworldhub.com ανέβηκε με την αναζήτηση φωτογραφίας.' 'Green'
+    if (-not $NoHttpCheck) {
+        Start-Sleep -Seconds 8
+        try {
+            $wc = New-Object System.Net.WebClient
+            $wc.Headers.Add('User-Agent', 'GearWorldQA-bot/1.0 (+read-only check)')
+            $page = (New-Object System.Text.UTF8Encoding($false)).GetString($wc.DownloadData($LiveUrl + '/?gwcheck=' + $stamp))
+            $wc.Dispose()
+            Say ('  Αρχική με κουμπί κάμερας: {0}' -f $(if ($page -match 'gear-world-camera\.js') { 'ναι' } else { 'ΟΧΙ ακόμα (cache, ξαναδές σε 1 λεπτό)' }))
+            $old = $oldCopies | Select-Object -First 1
+            if ($old) {
+                $req = [System.Net.HttpWebRequest]::Create($LiveUrl + '/' + $old.path.Substring(7))
+                $req.AllowAutoRedirect = $true
+                $req.UserAgent = 'GearWorldQA-bot/1.0 (+read-only check)'
+                try { $resp = $req.GetResponse(); $code = [int]$resp.StatusCode; $resp.Close() } catch [System.Net.WebException] { $code = $(if ($_.Exception.Response) { [int]$_.Exception.Response.StatusCode } else { 0 }) }
+                Say ('  Παλιό αντίγραφο {0}: {1}' -f $old.path.Substring(7), $(if ($code -eq 404) { '404 (έφυγε): OK' } else { [string]$code }))
+            }
+        } catch {
+            Say ('  Ο έλεγχος της αρχικής δεν ολοκληρώθηκε: {0}' -f $_.Exception.Message) 'Yellow'
+        }
+        Test-Preview $LiveUrl $true
+    }
+    Say ''
+    Say 'ΕΤΟΙΜΟ: η αναζήτηση με φωτογραφία είναι live στο https://gearworldhub.com. Αν κάτι δεν σου αρέσει: οδηγίες επαναφοράς πιο πάνω.' 'Green'
+    Finish 0
+}
+
 # ---------------- preview ----------------
 Say ''
 Say 'Τι θα γίνει (το live gearworldhub.com ΔΕΝ αλλάζει):'
@@ -328,23 +564,12 @@ if (-not $tables.ready) {
 
 if (-not (Confirm-Approval $PhrasePreview)) { Say 'Δεν δόθηκε η έγκριση για το preview: σταμάτησα (δεν ανέβηκε τίποτα).' 'Yellow'; Finish 1 }
 $cfg = Write-PreviewConfig $gwh $dbId
-$d = Invoke-Wrangler $gwh ('deploy --config "{0}"' -f $cfg)
+$d = Invoke-Deploy $gwh $cfg
 if ($d.code -ne 0) { Say 'Το ανέβασμα απέτυχε. Το live Hub δεν άλλαξε. Έξοδος:' 'Red'; Say $d.text; Finish 9 }
 $um = [regex]::Match($d.text, 'https://[A-Za-z0-9\.\-]+\.workers\.dev')
 $url = $(if ($um.Success) { $um.Value } else { '' })
 
-# The secret for the anonymous visitor code: random, never shown, never saved on this PC.
-$rnd = New-Object byte[] 32
-$rng = [System.Security.Cryptography.RandomNumberGenerator]::Create()
-try { $rng.GetBytes($rnd) } finally { $rng.Dispose() }
-$salt = [Convert]::ToBase64String($rnd).Replace('+', '-').Replace('/', '_').TrimEnd('=')
-$secretFile = Join-Path ([System.IO.Path]::GetTempPath()) ('gw-hubphoto-secret-' + [guid]::NewGuid().ToString('N').Substring(0, 8) + '.json')
-[System.IO.File]::WriteAllText($secretFile, ('{{"PHOTO_LIMIT_SALT":"{0}"}}' -f $salt), (New-Object System.Text.UTF8Encoding($false)))
-try {
-    $s = Invoke-Wrangler $gwh ('secret bulk "{0}" --name {1}' -f $secretFile, $PreviewName)
-} finally {
-    Remove-Item -LiteralPath $secretFile -Force -ErrorAction SilentlyContinue
-}
+$s = Set-PhotoSecret $gwh $PreviewName
 if ($s.code -ne 0) { Say 'Το μυστικό του preview δεν μπήκε: η αναζήτηση με φωτογραφία εκεί θα απαντά "not ready". Έξοδος:' 'Red'; Say $s.text; Finish 10 }
 Say ('Ανέβηκε. Δοκιμαστική διεύθυνση: {0}' -f $(if ($url) { $url } else { '(δεν τη βρήκα στην έξοδο)' })) 'Green'
 if ($url -and -not $NoHttpCheck) { Start-Sleep -Seconds 8; Test-Preview $url }

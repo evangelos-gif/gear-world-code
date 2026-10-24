@@ -25,5 +25,7 @@ sites/*/wrangler.*.jsonc
 
 # Outputs of the automatic checks
 gwh-dist/
+gwh-dist-pc/
+gwh-pc-like/
 gwh-photo-shots/
 gwh-photo-report.txt
