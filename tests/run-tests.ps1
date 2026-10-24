@@ -2199,7 +2199,12 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         'echo Finished processing secrets file',
         'exit /b 0',
         ':deployments',
+        'if exist "%GW_FAKE_STATE%\split.flag" goto split',
         ('echo Version(s):  (100%%) ' + $pVer),
+        'exit /b 0',
+        ':split',
+        ('echo Version(s):  (50%%) ' + [guid]::NewGuid().ToString()),
+        ('echo               (50%%) ' + [guid]::NewGuid().ToString()),
         'exit /b 0',
         ':deploy',
         'if exist "%GW_FAKE_STATE%\failother.flag" goto deployfail',
@@ -2266,6 +2271,9 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         $pHubLive = Get-TreeHash $pHub
         Check ((Run-P @('-Step', 'live')) -eq 0 -and (PCount 'deploy --config') -eq 2 -and (Get-TreeHash $pHub) -eq $pHubLive) 'hub photo live without -Apply: nothing changes'
         Check ((Run-P @('-Step', 'live', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB PHOTO PREVIEW')) -eq 1 -and (PCount 'deploy --config') -eq 2 -and (PCount '(?m)secret bulk "[^"]+" --name gear-world-hub\s*$') -eq 0 -and (Get-TreeHash $pHub) -eq $pHubLive) 'hub photo live with the wrong phrase: nothing changes'
+        Write-Utf8 (Join-Path $pState 'split.flag') 'split'
+        Check ((Run-P @('-Step', 'live', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB PHOTO LIVE')) -eq 11 -and (PCount 'deploy --config') -eq 2 -and (PCount '(?m)secret bulk "[^"]+" --name gear-world-hub\s*$') -eq 0 -and (Get-TreeHash $pHub) -eq $pHubLive) 'hub photo live: no single live version to go back to: stops before any change'
+        Remove-Item -LiteralPath (Join-Path $pState 'split.flag') -Force
         Check ((Run-P @('-Step', 'live', '-Apply', '-Approve', 'egkrino hub photo live')) -eq 0 -and (PCount 'deploy --config') -eq 3) 'hub photo live with approval: deploys once'
         $c = PCalls
         $liveCfg = [regex]::Escape((Join-Path $pHub 'wrangler.toml'))

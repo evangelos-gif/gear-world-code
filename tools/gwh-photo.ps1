@@ -203,12 +203,16 @@ function Invoke-Deploy([string]$folder, [string]$config) {
     return $d
 }
 
-# The version of a Worker that is live now (for going back). Read-only.
+# The version of a Worker that is live now (for going back). Read-only. wrangler lists the deployments oldest first:
+# the last "Version(s):" block is the live one, and it must be ONE version with 100% of the visitors.
 function Get-LiveVersion([string]$folder, [string]$name) {
     $r = Invoke-Wrangler $folder ('deployments list --name {0}' -f $name) -Retry
-    $ms = [regex]::Matches($r.text, '\(100%\)\s+([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})')
-    if ($ms.Count -eq 0) { return '' }
-    return $ms[$ms.Count - 1].Groups[1].Value
+    if ($r.code -ne 0) { return '' }
+    $at = $r.text.LastIndexOf('Version(s):')
+    if ($at -lt 0) { return '' }
+    $ms = [regex]::Matches($r.text.Substring($at), '\((\d+)%\)\s+([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})')
+    if ($ms.Count -ne 1 -or $ms[0].Groups[1].Value -ne '100') { return '' }
+    return $ms[0].Groups[2].Value
 }
 
 # The secret for the anonymous visitor code: random, never shown, never kept on this PC.
@@ -425,7 +429,11 @@ if ($Step -eq 'live') {
     }
 
     $liveVersion = Get-LiveVersion $gwh $HubWorker
-    Say ('Ζωντανή έκδοση του Worker "{0}": {1}' -f $HubWorker, $(if ($liveVersion) { 'βρέθηκε (για επαναφορά)' } else { '(δεν τη βρήκα)' }))
+    if (-not $liveVersion) {
+        Say ('Δεν βρήκα τη ζωντανή έκδοση του Worker "{0}" (χρειάζεται για επαναφορά): για ασφάλεια ΔΕΝ αλλάζω τίποτα. Στείλε αυτή την αναφορά στο Claude.' -f $HubWorker) 'Red'
+        Finish 11
+    }
+    Say ('Ζωντανή έκδοση του Worker "{0}": βρέθηκε (για επαναφορά)' -f $HubWorker)
     Say ''
     Say ('Τι θα γίνει (φράση {0}):' -f $PhraseLive)
     Say '  1. Αντίγραφο ασφαλείας: zip του φακέλου του Hub (worker.js, wrangler.toml, public) και ο αριθμός της ζωντανής έκδοσης.'
@@ -436,7 +444,6 @@ if ($Step -eq 'live') {
     Say '  Η D1, τα 9 sites και οι άλλοι Workers (και ο gwh-sitemap) ΔΕΝ αλλάζουν.'
     if (-not $Apply) { Say ''; Say 'Δοκιμή μόνο (χωρίς -Apply): δεν άλλαξε τίποτα.' 'Green'; Finish 0 }
     if (-not (Confirm-Approval $PhraseLive)) { Say 'Δεν δόθηκε έγκριση: σταμάτησα χωρίς αλλαγές.' 'Yellow'; Finish 1 }
-    if (-not $liveVersion) { Say 'Δεν βρήκα τον αριθμό της ζωντανής έκδοσης: για ασφάλεια ΔΕΝ ανέβασα τίποτα.' 'Red'; Finish 11 }
 
     # 1. Backup first
     $bdir = Join-Path $WorkDir 'backups'
