@@ -223,17 +223,27 @@ function findFeed(archives, fname) {
 // "allowPaths" / "denyPaths" (PCHUB.UK, 24 Oct 2026): folder names of the feed's category path ("Default Category>
 // Peripherals>Mouses"); a product needs one allowed folder and no denied one. Its 99,975 "PC Components>Other" rows
 // and the spare parts, toner and POS folders never reach the site.
+// "looseFolders" (owner, 24 Oct 2026: as many as possible, if safe): catch-all folders such as PCHUB's "PC Components>
+// Other". A product there (and in no allowed folder) is taken only when its NAME alone says what tech product it is.
 const normBrand = b => String(b || '').toLowerCase().replace(/[^a-z0-9]+/g, '');
 const pathFolders = p => String(p || '').split('>').map(s => s.trim().toLowerCase()).filter(Boolean);
+const folderSet = list => (Array.isArray(list) && list.length ? new Set(list.map(s => s.toLowerCase())) : null);
+export function looseOnly(source, path) {
+  const allow = folderSet(source.allowPaths);
+  const loose = folderSet(source.looseFolders);
+  if (!allow || !loose) return false;
+  const folders = pathFolders(path);
+  return !folders.some(f => allow.has(f)) && folders.some(f => loose.has(f));
+}
 export function sourceFilter(source) {
   const brands = Array.isArray(source.brands) && source.brands.length ? new Set(source.brands.map(normBrand)) : null;
   const deny = Array.isArray(source.denyNames) && source.denyNames.length ? new RegExp(source.denyNames.join('|'), 'i') : null;
-  const allowPaths = Array.isArray(source.allowPaths) && source.allowPaths.length ? new Set(source.allowPaths.map(s => s.toLowerCase())) : null;
-  const denyPaths = Array.isArray(source.denyPaths) && source.denyPaths.length ? new Set(source.denyPaths.map(s => s.toLowerCase())) : null;
+  const allowPaths = folderSet(source.allowPaths);
+  const denyPaths = folderSet(source.denyPaths);
   return (name, brand, path = '') => {
     const folders = pathFolders(path);
     if (denyPaths && folders.some(f => denyPaths.has(f))) return `feed folder not for TGW (${source.retailer})`;
-    if (allowPaths && !folders.some(f => allowPaths.has(f))) return `feed folder not on the consumer list (${source.retailer})`;
+    if (allowPaths && !folders.some(f => allowPaths.has(f)) && !looseOnly(source, path)) return `feed folder not on the consumer list (${source.retailer})`;
     if (brands && !brands.has(normBrand(brand))) return `brand not on the consumer list (${source.retailer})`;
     if (deny && deny.test(name)) return `business IT, parts or services (${source.retailer})`;
     return '';
@@ -302,7 +312,9 @@ export async function planImport({ archive, sourcesFile, outDir, now = new Date(
         if (name.length > QUALITY.maxNameLength) { reject('name too long', short); continue; }
         const filtered = filter(name, brand, merchantCategory);
         if (filtered) { reject(filtered, short); continue; }
-        const cls = classify(name, `${merchantCategory || awinCategory} ${merchantCategory ? awinCategory : ''}`.trim());
+        // A product from a catch-all folder is classified by its name alone (the folder says nothing about it).
+        const cls = looseOnly(source, merchantCategory) ? classify(name, '')
+          : classify(name, `${merchantCategory || awinCategory} ${merchantCategory ? awinCategory : ''}`.trim());
         if (!cls.ok) { reject(cls.reason, short); continue; }
         if (!Number.isFinite(price) || price <= 0) { reject('no price', short); continue; }
         if (price < QUALITY.minPrice || price > QUALITY.maxPrice) { reject('price out of range', short); continue; }

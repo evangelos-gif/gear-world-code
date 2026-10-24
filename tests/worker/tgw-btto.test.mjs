@@ -20,14 +20,15 @@ test('Back to the Office is a TGW source with a consumer brand list and a "busin
     ['AMD Ryzen 9 9950X Processor 4.3 GHz 80 MB L2 & L3 Box', 'AMD'], ['Apple iPhone 15 128GB Black', 'Apple'],
     ['Kingston Technology 512G SSD KC600 SATA3 2.5"', 'Kingston Technology'], ['Philips Evnia 8000 – 31.5" 4K UHD 240Hz QD-OLED Monitor', 'Philips'],
     ['Corsair Harpoon RGB Pro mouse Gaming Right-hand USB Type-A Optical 12000 DPI', 'Corsair'], ['Eufy Floodlight E30 2K Smart Security Camera CCTV', 'Eufy']];
-  for (const [n, b] of keep) assert.equal(f(n, b), '', n);
+  for (const [n, b] of [...keep, ['HP 643A toner cartridge Original Yellow', 'HP']]) assert.equal(f(n, b), '', n);
   const out = [
     ['Logitech MeetUp', 'Logitech', 'business IT, parts or services (Back to the Office)'],
     ['Brother Labelling Tape 12mm', 'Brother', 'business IT, parts or services (Back to the Office)'],
     ['NETGEAR MHBTRM5-10000S network switch component', 'Netgear', 'business IT, parts or services (Back to the Office)'],
     ['Kingston Technology FURY 64GB 4800MT/s DDR5 ECC Reg CL36 DIMM (Kit of 4)', 'Kingston Technology', 'business IT, parts or services (Back to the Office)'],
     ['DELL 412-AAMT computer cooling system part/accessory Radiator block', 'Dell', 'business IT, parts or services (Back to the Office)'],
-    ['HP 643A toner cartridge Original Yellow', 'HP', 'business IT, parts or services (Back to the Office)'],
+    // Genuine toner is a consumer product since 24 Oct 2026 (owner: as many as possible, if safe); a fuser is a spare part.
+    ['HP Q3931-67915 fuser', 'HP', 'business IT, parts or services (Back to the Office)'],
     ['StarTech.com Desk Mount Triple Monitor Arm', 'StarTech.com', 'brand not on the consumer list (Back to the Office)'],
     ['Cisco Catalyst 9200', 'Cisco', 'brand not on the consumer list (Back to the Office)'],
     ['Hewlett Packard Enterprise ProLiant DL380', 'Hewlett Packard Enterprise', 'brand not on the consumer list (Back to the Office)']
@@ -86,7 +87,7 @@ test('two archive folders: the newest copy of each feed; a shop whose feed is mi
   writeFileSync(join(newArc, 'AWIN_61655_102827.csv.gz'), feed([
     [link(61655, 1), 'Logitech Speakers S150', '1', 'B-1', 'https://cdn.shopify.com/1.jpg', 'Computers', '17.99', 'Logitech', 'true', '5099206004023'],
     [link(61655, 2), 'Logitech C310 HD WEBCAM', '2', 'B-2', 'https://cdn.shopify.com/2.jpg', 'Computers', '26.99', 'Logitech', 'false', '5099206064225'],
-    [link(61655, 3), 'HP 643A toner cartridge Original Yellow', '3', 'B-3', 'https://cdn.shopify.com/3.jpg', 'Computers', '120', 'HP', 'true', ''],
+    [link(61655, 3), 'HP Q3931-67915 fuser', '3', 'B-3', 'https://cdn.shopify.com/3.jpg', 'Computers', '120', 'HP', 'true', ''],
     [link(61655, 4), 'Cisco Catalyst 9200 24-port switch', '4', 'B-4', 'https://cdn.shopify.com/4.jpg', 'Computers', '900', 'Cisco', 'true', '']
   ]));
   const sourcesFile = join(dir, 'sources.json');

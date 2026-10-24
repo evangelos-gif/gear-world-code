@@ -69,7 +69,11 @@ export const RULES = [
       // for Smartphones", "Belkin Boost Charge Smartphone Black Cigar lighter Auto", "InvisibleShield Glass Elite Apple iPhone 17e"
       // are phone accessories, not phones.
       'passive holders?', '(?:car|phone|smartphone|mobile) (?:mounts?|holders?)', 'mounts? for (?:smart)?phones?', 'cigar lighter', 'car chargers?',
-      'invisibleshield', 'glass elite', 'screen ?guards?'
+      'invisibleshield', 'glass elite', 'screen ?guards?',
+      // Mounts and arms (PCHUB.UK, owner 24 Oct 2026: as many as possible): "Arlo Ceiling Adapter Floodlight Mount",
+      // "Fellowes Computer Monitor Stand", "ARCTIC Z1 Basic - Desk Mount Monitor Arm". A TV wall mount stays with the TVs.
+      'monitor (?:wall )?(?:mounts?|arms?|stands?|risers?|brackets?)', '(?:desk|ceiling|camera|floodlight|pole|vesa|projector) (?:mounts?|brackets?)',
+      '(?:helmet|chest|head|handlebar|suction cup|tripod) (?:[\\w+-]+ ){0,3}mounts?'
     ]),
     // Watch listings say "Aluminium Case with Sport Band" and "GPS": those are watches, not accessories.
     exclude: words(['ev charger', 'car battery charger', 'trickle charger', 'pencil case', 'suitcase', 'briefcase', 'smart tv', 'televisions?', 'gps', '(?:aluminium|aluminum|titanium|stainless steel) case', 'bicycle parts', '(?:brake|gear) cables?',
@@ -118,7 +122,8 @@ export const RULES = [
       '(?:mini|midi|mid|full|micro|super)[- ]?tower', 'computer cases?',
       'printers?', 'ink cartridges?', 'toner', 'scanners?', 'label (?:printer|maker)s?', 'laminators?', 'shredders?', '3d printers?', 'calculators?'
     ]),
-    exclude: words(['baby monitor', 'heart rate monitor', 'blood pressure monitor', 'piano keyboard', 'musical keyboard', 'mouse trap', 'mouse mat', 'vitamins?', 'multivitamins?', 'tablets? \\d+ ?mg', 'dishwasher tablets?', 'notebook paper', 'spiral notebook', 'fountain pens?'])
+    // "Neomounts by Newstar Select tv wall mount" is in PCHUB's "Monitor & TV's" folder: a TV mount, not a monitor.
+    exclude: words(['tv (?:wall )?(?:mount|bracket)s?', 'television (?:mount|bracket)s?', 'flat (?:screen|panel) (?:wall )?(?:mount|bracket)s?', 'baby monitor', 'heart rate monitor', 'blood pressure monitor', 'piano keyboard', 'musical keyboard', 'mouse trap', 'mouse mat', 'vitamins?', 'multivitamins?', 'tablets? \\d+ ?mg', 'dishwasher tablets?', 'notebook paper', 'spiral notebook', 'fountain pens?'])
   },
   {
     slug: 'audio',
@@ -134,7 +139,7 @@ export const RULES = [
     slug: 'tv-home-cinema',
     include: words([
       'televisions?', 'smart tvs?', 'tv', 'oled', 'qled', 'qned', 'mini led', 'projectors?', 'projector screens?', 'streaming (?:stick|device|box)s?',
-      'fire tv', 'roku', 'chromecast', 'apple tv', 'tv wall (?:mount|bracket)s?'
+      'fire tv', 'roku', 'chromecast', 'apple tv', 'tv wall (?:mount|bracket)s?', 'tv (?:mount|bracket)s?', 'television (?:mount|bracket)s?', 'flat (?:screen|panel) (?:wall )?(?:mount|bracket)s?'
     ]),
     exclude: words(['tv stand furniture', 'tv cabinet', 'tv unit', 'tv bed', 'telescopes?', 'microscopes?', 'binoculars?'])
   },

@@ -7,7 +7,7 @@ import { mkdtempSync, mkdirSync, writeFileSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { gzipSync } from 'node:zlib';
-import { planImport, sourceFilter, cutToWord, PLACEHOLDER_IMAGE } from '../../tools/tgw-import-plan.mjs';
+import { planImport, sourceFilter, looseOnly, cutToWord, PLACEHOLDER_IMAGE } from '../../tools/tgw-import-plan.mjs';
 import { classify } from '../../sites/tgw/category-rules.js';
 
 const SOURCES = JSON.parse(readFileSync(new URL('../../sites/tgw/sources.json', import.meta.url), 'utf8')).sources;
@@ -28,14 +28,20 @@ test('PCHUB.UK is a TGW source: consumer folders, consumer brands and no busines
     ['Samsung Galaxy Tab S9 SM-X710N Snapdragon 128 GB 27.9 cm (11")', 'Samsung', `${D}>Laptops>Tablets & Accessories>Tablets`],
     ['D-Link 16-Port Gigabit Unmanaged Desktop Switch', 'D-Link', `${D}>Networking>Switches`],
     ['SanDisk ULTRA FLAIR USB flash drive 16 GB USB Type-A 3.2 Gen 1', 'Sandisk', `${D}>Storage>USB Flash Drives>${D}>Direktek`],
-    ['Fractal Design Core 1100 Mini Tower Black', 'Fractal Design', `${D}>PC Components>Cases & Cooling>Cases & Parts`]
+    ['Fractal Design Core 1100 Mini Tower Black', 'Fractal Design', `${D}>PC Components>Cases & Cooling>Cases & Parts`],
+    // Owner, 24 Oct 2026: as many as possible, if safe. Genuine toner and ink, laptop chargers and camera mounts are in.
+    ['HP 643A toner cartridge Original Yellow', 'HP', `${D}>Consumables>Toner Cartridges>Laser Toner & Cartridges`],
+    ['HP AC 65W power adapter/inverter Indoor Black', 'HP', `${D}>Power Conditioning>Batteries & Accessories>Power Adapters & Inverters`],
+    ['Arlo Ceiling Adapter Floodlight Mount FBA1001-10000S', 'Arlo', `${D}>Audio Visual>Cameras & Camcorders`]
   ];
   for (const [n, b, p] of keep) assert.equal(f(n, b, p), '', n);
   const out = [
-    ['Epson FRME LEF', 'Epson', `${D}>PC Components>Other`, 'feed folder not on the consumer list (PCHUB.UK)'],
-    ['STATUS 700W Carbon Fibre Element Patio Heater', 'STATUS', `${D}>PC Components>Other>${D}>Personal Stock`, 'feed folder not on the consumer list (PCHUB.UK)'],
+    ['STATUS 700W Carbon Fibre Element Patio Heater', 'STATUS', `${D}>PC Components>Other>${D}>Personal Stock`, 'brand not on the consumer list (PCHUB.UK)'],
+    ['Hypertec HYCFM00000 card reader Internal Metallic', 'Hypertec', `${D}>Storage>Data Storage>Card Readers`, 'brand not on the consumer list (PCHUB.UK)'],
+    ['HP Drum Color Imge Uni Cyn', 'HP', `${D}>PC Components>Other`, 'business IT, parts or services (PCHUB.UK)'],
+    ['HP Q3931-67915 fuser', 'HP', `${D}>Peripherals>Printers & Accessories>Print & Scan Accessories>Spare Parts`, 'feed folder not for TGW (PCHUB.UK)'],
+    ['Canon QY6-0068 Printhead for Pixma IP 100/ 100 Portable/ V', 'Canon', `${D}>Consumables>Others>Print Heads`, 'feed folder not for TGW (PCHUB.UK)'],
     ['HP 610913-B31 laptop spare part Keyboard', 'HP', `${D}>Laptops>Laptop Spare Parts`, 'feed folder not for TGW (PCHUB.UK)'],
-    ['HP 643A toner cartridge Original Yellow', 'HP', `${D}>Consumables>Toner Cartridges>Laser Toner & Cartridges`, 'feed folder not for TGW (PCHUB.UK)'],
     ['Targus Privacy Screen 14.1"W 35.8 cm (14.1")', 'Targus', `${D}>Monitor & TV's>Accessories>Privacy Filters`, 'feed folder not for TGW (PCHUB.UK)'],
     ['Hypertec GEN8-2.5TRAY computer case part HDD Cage', 'Hypertec', `${D}>PC Components>Cases & Cooling>Cases & Parts>Case Parts`, 'feed folder not for TGW (PCHUB.UK)'],
     ['Jabra A Ear Pads', 'Jabra', `${D}>Audio Visual>AV & Accessories>Televisions & Accessories>audio equipment parts & accessories>Portable Audio`, 'feed folder not for TGW (PCHUB.UK)'],
@@ -43,12 +49,25 @@ test('PCHUB.UK is a TGW source: consumer folders, consumer brands and no busines
     ['AG Neovo TM-23 computer monitor 58.4 cm (23") 1920 x 1080 pixels', 'AG Neovo', `${D}>Monitor & TV's>Monitors`, 'brand not on the consumer list (PCHUB.UK)'],
     ['DELL 37MGT internal hard drive 2 TB 7200 RPM 3.5" NL-SAS', 'Dell', `${D}>Storage>Internal Hard Drives`, 'business IT, parts or services (PCHUB.UK)'],
     ['Synology RackStation RS3618xs NAS Rack (2U) Intel® Xeon® D D-1521 8 GB', 'Synology', `${D}>Storage>NAS & Storage Servers`, 'business IT, parts or services (PCHUB.UK)'],
-    ['Arlo Ceiling Adapter Floodlight Mount FBA1001-10000S', 'Arlo', `${D}>Audio Visual>Cameras & Camcorders`, 'business IT, parts or services (PCHUB.UK)'],
     ['Hypertec HYMAS7401G (Legacy) memory module 1 GB 1 x 1 GB DDR2 667 MHz', 'Lenovo', `${D}>PC Components>Components>Memory Modules`, 'business IT, parts or services (PCHUB.UK)']
   ];
   for (const [n, b, p, why] of out) assert.equal(f(n, b, p), why, n);
   // Back to the Office has no folder lists: its filter is as before.
   assert.equal(sourceFilter(BTTO)('Logitech Speakers S150', 'Logitech'), '');
+});
+
+test('PCHUB.UK catch-all folders ("PC Components>Other"): in only when the name alone says what tech product it is', () => {
+  const f = sourceFilter(PCHUB);
+  assert.equal(looseOnly(PCHUB, `${D}>PC Components>Other`), true);
+  assert.equal(looseOnly(PCHUB, `${D}>Storage>USB Flash Drives>${D}>Direktek`), false, 'an allowed folder decides, not the catch-all one');
+  assert.equal(looseOnly(BTTO, 'Computers'), false);
+  const where = n => { const c = classify(n, ''); return c.ok ? c.slug : `REJECT ${c.reason}`; };
+  assert.equal(f('Epson FRME LEF', 'Epson', `${D}>PC Components>Other`), '');
+  assert.equal(where('Epson FRME LEF'), 'REJECT not tech', 'a cryptic part name is not a product');
+  assert.equal(f('Canon RUER MOUN', 'Canon', `${D}>PC Components>Other`), '');
+  assert.equal(where('Canon RUER MOUN'), 'REJECT not tech');
+  assert.equal(f('Logitech MX Master 3S Performance Wireless Mouse Graphite', 'Logitech', `${D}>PC Components>Other>${D}>Personal Stock`), '');
+  assert.equal(where('Logitech MX Master 3S Performance Wireless Mouse Graphite'), 'laptops-computing');
 });
 
 test('PCHUB.UK names cut at 70 characters lose the cut word, a dangling separator and an unclosed bracket', () => {
@@ -102,6 +121,22 @@ test('PCHUB.UK dry-run fixes: business projectors, hotel TVs, photo paper, call-
   assert.equal(where('Kingston Technology DataTraveler 64GB USB-C 3.2 Gen 1'), 'accessories-storage');
 });
 
+// Owner, 24 Oct 2026: as many products as possible, if safe. The new folders land on the right page.
+test('PCHUB.UK wider rules: ink and toner with printers, chargers and mounts with accessories, TV mounts with TVs', () => {
+  const where = (n, p) => { const c = classify(n, p); return c.ok ? c.slug : `REJECT ${c.reason}`; };
+  const M = `${D}>Monitor & TV's>Accessories`;
+  assert.equal(where('HP 643A toner cartridge Original Yellow', `${D}>Consumables>Toner Cartridges>Laser Toner & Cartridges`), 'laptops-computing');
+  assert.equal(where('HP AC 65W power adapter/inverter Indoor Black', `${D}>Power Conditioning>Batteries & Accessories>Power Adapters & Inverters`), 'accessories-storage');
+  assert.equal(where('Arlo Ceiling Adapter Floodlight Mount FBA1001-10000S', `${D}>Audio Visual>Cameras & Camcorders`), 'accessories-storage', 'a mount, not a camera');
+  assert.equal(where('Fellowes Computer Monitor Stand with 5 Height Adjustments', `${M}>Desk Mounts`), 'accessories-storage');
+  assert.equal(where('ARCTIC Z1 Basic - Desk Mount Monitor Arm', 'Computers'), 'accessories-storage');
+  assert.equal(where('Neomounts FPMA-W115 monitor mount / stand 76.2 cm (30") Black Wall', `${M}>Wall Mounts`), 'accessories-storage');
+  assert.equal(where('Neomounts by Newstar Select tv wall mount 81.3 cm (32") - 139.7 cm (55") Black', `${M}>Wall Mounts`), 'tv-home-cinema', 'a TV mount, not a monitor');
+  assert.equal(where("Vogel's WALL 3345 TV mount", `${M}>Wall Mounts`), 'tv-home-cinema');
+  assert.equal(where('GoPro Helmet Front + Side Mount', 'Computers'), 'accessories-storage');
+  assert.equal(where('LG UltraGear 27GR95QE OLED Gaming Monitor', `${D}>Monitor & TV's>Monitors`), 'gaming');
+});
+
 const header = ['aw_deep_link', 'product_name', 'aw_product_id', 'merchant_product_id', 'merchant_image_url', 'aw_image_url', 'merchant_category', 'search_price', 'rrp_price', 'brand_name', 'stock_quantity', 'ean', 'mpn'];
 const line = v => v.map(x => (/[",\n]/.test(x) ? `"${String(x).replace(/"/g, '""')}"` : x)).join(',');
 const feed = rows => gzipSync(Buffer.from([line(header), ...rows.map(line)].join('\n') + '\n'));
@@ -130,8 +165,8 @@ test('PCHUB.UK plan: consumer products only, names whole, no fake "was" price, n
   mkdirSync(out);
   const { stats, products, report } = await planImport({ archive: arc, sourcesFile, outDir: out, now: new Date('2026-10-24T12:00:00Z') });
   const names = products.map(p => p.product_name).sort();
-  assert.deepEqual(names, ['Lenovo ThinkPad E14 Gen 6 (AMD) AMD Ryzen™ 5 7535HS Laptop 35.6 cm (21M3002XUK)', 'Logitech Mouse M90',
-    'TP-Link Archer C50 wireless router Fast Ethernet Dual-band'], 'a cut name gets the part number, unless it already has it');
+  assert.deepEqual(names, ['HP 643A toner cartridge Original Yellow', 'Lenovo ThinkPad E14 Gen 6 (AMD) AMD Ryzen™ 5 7535HS Laptop 35.6 cm (21M3002XUK)',
+    'Logitech Mouse M90', 'TP-Link Archer C50 wireless router Fast Ethernet Dual-band'], 'a cut name gets the part number, unless it already has it');
   for (const p of products) {
     assert.equal(p.retailer, 'PCHUB.UK');
     assert.equal(p.was_price, null, 'rrp_price is price x 1.44 on every row: no "was" price');
@@ -139,9 +174,10 @@ test('PCHUB.UK plan: consumer products only, names whole, no fake "was" price, n
   }
   assert.equal(stats.rejected['no https image'], 1, 'the laptop has only "image coming soon" pictures');
   assert.equal(stats.rejected['out of stock'], 1);
-  assert.equal(stats.rejected['feed folder not on the consumer list (PCHUB.UK)'], 2);
-  assert.equal(stats.rejected['feed folder not for TGW (PCHUB.UK)'], 1);
-  assert.match(report, /== Per shop ==\r\n {2}PCHUB\.UK: 3 of 8 rows \(38%\)\r\n {6}laptops-computing 2 \| smart-home-wifi 1/);
+  assert.equal(stats.rejected['brand not on the consumer list (PCHUB.UK)'], 1, 'StarTech.com network cable');
+  assert.equal(stats.rejected['not tech'], 1, '"Epson FRME RCOR RIGH" in the catch-all folder');
+  assert.equal(stats.rejected['feed folder not on the consumer list (PCHUB.UK)'], undefined);
+  assert.match(report, /== Per shop ==\r\n {2}PCHUB\.UK: 4 of 8 rows \(50%\)\r\n {6}laptops-computing 3 \| smart-home-wifi 1/);
   assert.match(report, /-- PCHUB\.UK \| smart-home-wifi\r\n {3}TP-Link Archer C50 wireless router Fast Ethernet Dual-band \| 42\.47/);
   assert.match(report, /Back to the Office: its feed was not found \(or is empty\), so its products on the site are left exactly as they are\./);
   const finish = readFileSync(join(out, 'sql', '9999-finish.sql'), 'utf8');
