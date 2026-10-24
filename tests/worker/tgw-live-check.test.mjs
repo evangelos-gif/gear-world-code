@@ -101,6 +101,8 @@ test('laptop bags are accessories; a pack of ten bags is a trade pack', () => {
   assert.equal(where('Fellowes Shredder Bags 94 Litres'), 'laptops-computing', 'shredder bags are not laptop bags');
   assert.equal(where('Hama Valletta Camera Bag. 130 Colt. black', 'Default Category>Audio Visual>Cameras & Camcorders>Bags'), 'cameras-drones');
   assert.match(where('Monolith Leather Look Briefcase Black 43 cm'), /^REJECT/, 'a document briefcase is not a computer bag');
+  assert.equal(where('HP 255 G10 Intel Core i5 8GB RAM 256GB SSD 15.6" Laptop + Backpack Bundle'), 'laptops-computing', 'a laptop sold with a bag');
+  assert.equal(where('Lenovo IdeaPad Slim 3 Chromebook 14" + Sleeve case, ChromeOS'), 'laptops-computing');
 });
 
 test('computers, printers and a games console named "Wi-Fi" are not Wi-Fi kit; Apple\'s monitor is not a mount', () => {

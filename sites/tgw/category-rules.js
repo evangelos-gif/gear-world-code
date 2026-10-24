@@ -117,8 +117,8 @@ export const RULES = [
       // Sixth check (live site, 24 Oct 2026): 65 laptop bags were on the laptops page ("HP Everyday 16-inch Laptop Backpack",
       // "Targus TAR300 laptop case 39.6 cm (15.6\") Briefcase Black", "DELL Pro Briefcase 15"). A bag counts when its name says
       // what it carries (a size, a laptop, a tablet) or its maker makes computer bags (not "computer": Back to the Office files
-      // every product under "Computers").
-      '(?=.*(?:\\b(?:laptops?|notebooks?|macbook|ultrabook|chromebook|tablets?|ipad|targus|tucano|thule|case logic|kensington|dell|hp|lenovo|acer|asus|samsonite|wenger|mobilis|everki|incase|hyperx|razer)\\b|\\d(?:["”]|-inch| ?inch\\b))).*\\b(?:backpacks?|rucksacks?|briefcases?|messenger (?:bags?|cases?)|sleeve cases?|toploaders?|top loaders?|totes?)'
+      // every product under "Computers"), and a laptop sold with a bag ("... Intel Core i5 ... + Backpack") stays a laptop.
+      '^(?!.*\\b(?:intel|ryzen|snapdragon|windows 1[01]|chromeos|\\d+ ?gb (?:ram|ssd|memory)|\\d+ ?tb ssd)\\b)(?=.*(?:\\b(?:laptops?|notebooks?|macbook|ultrabook|chromebook|tablets?|ipad|targus|tucano|thule|case logic|kensington|dell|hp|lenovo|acer|asus|samsonite|wenger|mobilis|everki|incase|hyperx|razer)\\b|\\d(?:["”]|-inch| ?inch\\b))).*\\b(?:backpacks?|rucksacks?|briefcases?|messenger (?:bags?|cases?)|sleeve cases?|toploaders?|top loaders?|totes?)'
     ]),
     // Watch listings say "Aluminium Case with Sport Band" and "GPS": those are watches, not accessories. "Apple Studio Display -
     // Nano-texture glass - VESA mount adapter" is the monitor (sixth check), not a mount.
