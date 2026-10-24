@@ -22,7 +22,7 @@ const SQL_ROWS_PER_FILE = 400;
 const SAMPLES_PER_GROUP = 15;
 const SAMPLES_PER_SHOP = 10;
 const SAMPLES_PER_FOLDER = 3;
-const SAMPLES_LOOSE = 20;
+const SAMPLES_LOOSE = 30;
 
 // ---------- CSV ----------
 
@@ -313,18 +313,20 @@ export function findDuplicates(rows) {
     if (b === undefined || p.price < rows[b].price) cheapest.set(r, i);
   });
   const keep = rows.map((_, i) => cheapest.get(find(i)) === i);
+  const keptFor = rows.map((_, i) => (keep[i] ? -1 : cheapest.get(find(i)))); // the row that stays instead of this one
   const sameShop = keep.map((k, i) => (k ? -1 : i)).filter(i => i >= 0);
   const otherShop = [];
-  const seen = new Map(); // name or EAN + price -> the shop that has it
+  const seen = new Map(); // name or EAN + price -> the first row (of any shop) that has it
   rows.forEach((p, i) => {
     if (!keep[i]) return;
     const price = p.price.toFixed(2);
     const keys = [`n|${nameKey(p.product_name)}|${price}`];
     if (p.gtin) keys.push(`g|${p.gtin}|${price}`);
-    if (keys.some(k => seen.has(k) && seen.get(k) !== p.awin_advertiser_id)) { keep[i] = false; otherShop.push(i); return; }
-    for (const k of keys) if (!seen.has(k)) seen.set(k, p.awin_advertiser_id);
+    const other = keys.map(k => seen.get(k)).find(j => j !== undefined && rows[j].awin_advertiser_id !== p.awin_advertiser_id);
+    if (other !== undefined) { keep[i] = false; keptFor[i] = other; otherShop.push(i); return; }
+    for (const k of keys) if (!seen.has(k)) seen.set(k, i);
   });
-  return { keep, sameShop, otherShop };
+  return { keep, sameShop, otherShop, keptFor };
 }
 
 // Random examples that are the same on every run of the same feed (a fixed seed), so the report shows a spread of each group
@@ -488,8 +490,9 @@ export async function planImport({ archive, sourcesFile, outDir, now = new Date(
 
   // ---------- Duplicates out, then the counts and samples of what stays ----------
   const dup = findDuplicates(candidates.map(c => c.p));
-  for (const i of dup.sameShop) reject('duplicate: same shop, same name or EAN (the cheapest is kept)', candidates[i].short);
-  for (const i of dup.otherShop) reject('duplicate: same product and price at another shop', candidates[i].short);
+  const kept = i => candidates[dup.keptFor[i]].p;
+  for (const i of dup.sameShop) reject('duplicate: same shop, same name or EAN (the cheapest is kept)', `${candidates[i].short}  (kept: ${kept(i).price.toFixed(2)})`);
+  for (const i of dup.otherShop) reject('duplicate: same product and price at another shop', `${candidates[i].short}  (shown from ${kept(i).retailer})`);
   candidates.forEach((c, i) => {
     if (!dup.keep[i]) return;
     const { p, short } = c;

@@ -772,7 +772,8 @@
       "partsNames": [
         "\\b(internal(?! (?:solid state drive|ssd|hard drive|hdd))|lcd|led panel|display panel|digiti[sz]er|touch ?pads?|click ?pads?|palm ?rests?|heat ?sinks?|thermal module|fan module|motherboards?|main ?boards?|system ?boards?|logic boards?|daughter ?boards?|i/o boards?|boards?|flex cables?|cable kit|brackets?|camera (?:module|board|cable)s?|webcam (?:module|board|cable)s?|lamps?|duplex(?:er)?|feeders?|formatter|pick-?up|rollers?|paper feed|output bin|separation pad|connectors?|sim trays?|back glass|(?:back|bottom|top|base|rear|lcd|battery) covers?|doors?)\\b",
         "^(?!.*\\bpower ?banks?\\b).*\\bbatter(?:y|ies)\\b",
-        "\\bspeakers? ?\\(?(?:left|right|l\\+r|l/r)\\b|\\bleft and right\\b"
+        "\\bspeakers? ?\\(?(?:left|right|l\\+r|l/r)\\b|\\bleft and right\\b",
+        "\\b((?:wireless|wi-?fi|wlan|wwan|bluetooth|lte|4g|5g) (?:cards?|modules?)|mini ?pci-?e?|m\\.2 (?:cards?|modules?)|air filters?)\\b"
       ]
     }
   ]

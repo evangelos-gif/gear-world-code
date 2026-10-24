@@ -202,7 +202,8 @@ test('PCHUB.UK spare-part folders: names with letters missing and spare parts ar
   }
   assert.equal(f('DELL Opicl Scroll Mouse US', 'Dell', K), garbled, 'the Direktek folder too');
   for (const [n, b] of [["DELL 14.1'' XGA LCD Display w/o Screen Cable", 'Dell'], ['DELL Speaker, Internal', 'Dell'], ['HP Speakers (Left and Right)', 'HP'],
-    ['Samsung Battery for Galaxy S21', 'Samsung'], ['Epson ELPLP96 Projector Lamp', 'Epson'], ['DELL Motherboard, Intel Core i5', 'Dell'], ['DELL Camera Module HD', 'Dell']]) {
+    ['Samsung Battery for Galaxy S21', 'Samsung'], ['Epson ELPLP96 Projector Lamp', 'Epson'], ['DELL Motherboard, Intel Core i5', 'Dell'], ['DELL Camera Module HD', 'Dell'],
+    ['DELL Wireless Card, Wi-Fi 6E', 'Dell'], ['Epson ELPAF60 Air Filter for projector', 'Epson']]) {
     assert.equal(f(n, b, K), part, n);
   }
   for (const [n, b] of [['DELL USB Optical Mouse (Black)', 'Dell'], ['DELL AC Adapter 19.5V 4.62A 90W includes power cable', 'Dell'], ['Kodak LUMA 150 PROJECTOR', 'Kodak'],
@@ -259,6 +260,7 @@ test('duplicates: one shop shows a product once at its lowest price; another sho
   assert.deepEqual(d.keep, [false, true, false, false, true, false, true, true]);
   assert.deepEqual(d.sameShop, [0, 2, 5]);
   assert.deepEqual(d.otherShop, [3]);
+  assert.deepEqual(d.keptFor, [1, -1, 1, 1, -1, 6, -1, -1], 'which row stays instead (for the report)');
   // A shop is compared at its lowest price: PCHUB's cheapest row equals Back to the Office's price, so its dearer row is not
   // shown either (it is not PCHUB's real best price).
   assert.deepEqual(findDuplicates([mk(61655, sw, 16.99), mk(126641, sw, 16.99), mk(126641, sw, 18.49)]).keep, [true, false, false]);
@@ -322,8 +324,10 @@ test('TGW plan with both shops: duplicates out (cheapest kept), letters missing 
   assert.equal(stats.rejected['feed folder not for TGW (PCHUB.UK)'], 1, 'Hospitality TVs');
   assert.equal(stats.accepted, 6);
   assert.match(report, / {6}\s*1 {2}Computers\r\n {15}- TP-Link 8-Port 10\/100\/1000Mbps Desktop Network Switch \| 16\.99/, 'examples under each feed folder');
-  assert.match(report, /== Catch-all folders: products placed by their NAME alone/);
+  assert.match(report, /== Catch-all folders: products placed by their NAME alone \(up to 30 random examples per category\) ==/);
   assert.match(report, / {2}PCHUB\.UK: 2 of its 4 products\r\n/);
   assert.match(report, / {2}-- PCHUB\.UK \| laptops-computing: 1\r\n {5}DELL USB Optical Mouse \(Black\) \| 15\.76 \| Default Category>PC Components>Other/);
   assert.match(report, /the same product twice in one shop is shown once, at its lowest price/);
+  assert.match(report, /-- duplicate: same shop, same name or EAN \(the cheapest is kept\)\r\n {3}TP-Link 8-Port 10\/100\/1000Mbps Desktop Network Switch \| 19\.99 \| Computers {2}\(kept: 16\.99\)/);
+  assert.match(report, /Logitech Wireless Mouse M185 \| 16\.99 \| Default Category>Peripherals>Mouses {2}\(shown from Back to the Office\)/);
 });
