@@ -86,7 +86,8 @@ test('PCHUB.UK products land on the right TGW page (name and feed folder)', () =
   const where = (n, p) => { const c = classify(n, p); return c.ok ? c.slug : `REJECT ${c.reason}`; };
   assert.equal(where('Fractal Design Core 1100 Mini Tower Black', `${D}>PC Components>Cases & Cooling>Cases & Parts`), 'laptops-computing');
   assert.equal(where('Apple MQEH3ZM/A Smart Wearable Accessories Band Beige. Yellow Nylon', `${D}>Storage>Telecom & Navigation>Telecommunication Equipment Accessories>smartwatch accessories`), 'accessories-storage', 'a band, not a watch');
-  assert.equal(where('DELL EURO Simple E-Port II Docking Black', `${D}>Laptops>Docks & Port Replicators`), 'accessories-storage');
+  assert.equal(where('DELL Simple E-Port II Docking Black', `${D}>Laptops>Docks & Port Replicators`), 'accessories-storage');
+  assert.equal(where('DELL EURO Simple E-Port II Docking Black', `${D}>Laptops>Docks & Port Replicators`), 'REJECT not for UK buyers (plug or keyboard layout)', 'a European power cord (lessons L48)');
   assert.equal(where('Samsung Galaxy Watch4 Classic 3.56 cm (1.4") OLED 46 mm Digital', `${D}>Peripherals>Smart Watches>Smart Watches`), 'phones-smartwatches');
   assert.equal(where('Canon MAXIFY MB2150 Inkjet A4 600 x 1200 DPI 19 ppm Wi-Fi', `${D}>Peripherals>Printers & Accessories>Multifunctional Printer`), 'laptops-computing');
   assert.equal(where('Samsung EF-QG955 mobile phone case 15.8 cm (6.2") Cover Black', `${D}>Storage>Telecom & Navigation>Mobile & Accessories>Cases & Covers`), 'accessories-storage');

@@ -273,8 +273,18 @@ export function sourceFilter(source) {
       if (garbledName(name, brand)) return `name with letters missing (${source.retailer})`;
       if (partsNames && looseOnly(source, path) && partsNames.test(name)) return `spare part from a catch-all folder (${source.retailer})`;
     }
+    if (looseOnly(source, path) && vagueName(name, brand)) return `name says nothing about the product (${source.retailer})`;
     return '';
   };
+}
+
+// A product from a catch-all folder is placed by its name alone, so the name must say something: "Nintendo C/VOL (K1) EE"
+// (fourth dry run, 24 Oct 2026) has no word of 4 or more letters after the brand.
+export function vagueName(name, brand = '') {
+  const n = String(name || '').trim();
+  const b = String(brand || '').trim();
+  const rest = b && n.toLowerCase().startsWith(b.toLowerCase()) ? n.slice(b.length) : n.replace(/^\S+/, '');
+  return !/[A-Za-z]{4,}/.test(rest);
 }
 
 // ---------- Duplicates ----------
@@ -445,8 +455,11 @@ export async function planImport({ archive, sourcesFile, outDir, now = new Date(
         const wasPrice = Number.isFinite(wasRaw) && wasRaw > price * 1.04 && wasRaw < price * 5 ? wasRaw : null;
         const gtin = normalizeGtin(pick(rec, map.gtin));
         const condRaw = pick(rec, map.condition).toLowerCase();
-        const condition = /refurb/.test(condRaw) || /\brefurbished\b/i.test(name) ? 'refurbished'
-          : /used|pre-?owned/.test(condRaw) ? 'used' : (source.condition || 'new');
+        // The site shows a "Refurbished" badge: the name decides too ("Corsair HS65 W/L HEADSET CARBON REFURB", "Lenovo PREMIUM
+        // REFURBISHED ...", fourth dry run 24 Oct 2026). Back to the Office's graded laptops ("Dell Latitude ... (Grade B -
+        // Average)", "(Grade A1 - Like New)") were on the live site as new: 93 of them.
+        const condition = /refurb|renewed/.test(condRaw) || /\b(?:refurb(?:ished)?|renewed|grade [a-c]\d?)\b/i.test(name) ? 'refurbished'
+          : /used|pre-?owned|second-?hand/.test(condRaw) || /\bpre-?owned\b/i.test(name) ? 'used' : (source.condition || 'new');
         const specs = {};
         const colour = cleanText(pick(rec, map.colour));
         const size = cleanText(pick(rec, map.size));

@@ -45,8 +45,32 @@ export const DENY = [
     except: words(['cpu', 'pwm', 'a-?rgb']) },
   { label: 'spare part or service', re: words(['replacement part', 'spare part', 'repair kit', 'warranty extension', 'service plan', 'gift card', 'voucher']) },
   { label: 'consumable, not a gadget', re: words(['a{2,4} batteries', '(?:alkaline|lithium|rechargeable) batteries', 'batteries - (?:pack|value pack)', 'copier paper', 'printer paper', 'label paper', 'thermal paper', 'cleaning brush']) },
-  { label: 'toy, not a gadget', re: words(['toy drones?', 'stunt (?:\\w+ )?drones?', 'kids drones?', 'jigsaw puzzles?', 'piggy bank', 'ride on car', 'ball machine']) }
+  { label: 'toy, not a gadget', re: words(['toy drones?', 'stunt (?:\\w+ )?drones?', 'kids drones?', 'jigsaw puzzles?', 'piggy bank', 'ride on car', 'ball machine']) },
+  // Fourth dry run (24 Oct 2026): "HP 125 Wired Mouse (Bulk120)" is 120 mice for a business, at 484.23.
+  { label: 'trade pack (bulk quantity)', re: words(['bulk ?\\d{2,}']) },
+  { label: 'not for UK buyers (plug or keyboard layout)', re: notForUk() }
 ];
+
+// TGW is a UK site (fourth dry run, 24 Oct 2026): a charger, adapter or dock with a European, US or other plug ("Sandberg
+// USB-C AC Charger PD20W EU", "DELL 65W USB-C AC Adapter with SA Plug"), a keyboard with another country's layout ("CHERRY
+// ... USB ES keyboard", "Apple Magic Keyboard ... (MXCK3PO/A)": Apple's UK code ends in B/A) and a laptop set up for another
+// country (HP "#ABD" German, Lenovo "21KH00G4GE") do not work the way a UK buyer expects. A UK plug, or a plug used in the UK
+// too ("SA/KW/AE/SG/MY/HK" sockets are the UK type), stays.
+function notForUk() {
+  const other = 'spanish|italian|portuguese|nordic|pan nordic|danish|swedish|norwegian|finnish|dutch|turkish|greek|russian|arabic|hebrew|czech|polish|hungarian|swiss|belgian|german|french|slovenian|croatian|romanian|bulgarian|ukrainian|lithuanian|latvian|estonian|slovak|icelandic';
+  return new RegExp([
+    // a plug for another country, unless a UK plug comes with it ("Lenovo ... AC Adapter with UK Plug", "UK/EU plugs")
+    '^(?!.*\\buk\\b)(?:.*\\b(?:eu|euro|us|usa|sa|au|aus|swiss|ch|dk|jp|kr|br|cn|za|il) ?plugs?\\b|.*\\bschuko\\b|(?=.*\\b(?:eu|euro)\\b)(?=.*\\b(?:chargers?|adapters?|power|plugs?|cords?|psu|supply|docks?|docking)\\b))',
+    // a keyboard with another country's layout: the live site had "Apple Magic Keyboard QWERTZ German", "... for iPad Air
+    // 13-inch (M3) - French - Black", "CHERRY KC 6000 Slim keyboard Universal USB US English", "DELL Pro Keyboard - KB700 - US
+    // International (QWERTY)" next to the UK ones. A plain "English" layout (international) stays.
+    `^(?!.*\\buk\\b)(?=.*\\bkeyboards?\\b)(?=.*(?:\\b(?:qwertz|azerty|${other})\\b|\\bqwerty (?:us|international)\\b|\\bus (?:english|international|layout)\\b|\\(us\\)|\\b(?:es|de|fr|it|pt|nl|be|dk|se|no|fi|cz|pl|hu|gr|ru|tr|us) (?:keyboard|layout)\\b|\\bkeyboards?\\b.{0,40}\\bus\\s*$))`,
+    // Apple's country code (UK: B/A) on a product with a keyboard or a plug; an iPhone or a cable adapter is the same everywhere
+    '^(?=.*\\b(?:keyboards?|macbook|imac|mac mini|mac studio|chargers?|power)\\b)(?=.*\\b[a-z0-9]{4,6}(?:po|d|f|y|t|dk|s|h|ll|lb|ks|kn|sm|ch|rs|tu|ab|ze|zm)/a\\b)',
+    // HP and Lenovo computers and printers set up for another country (UK: HP "#ABU", Lenovo "...UK"); a mouse is the same everywhere
+    '^(?=.*\\b(?:laptops?|notebooks?|chromebooks?|elitebook|probook|zbook|pavilion|envy|spectre|omen|victus|dragonfly|thinkpad|thinkbook|ideapad|yoga|legion|loq|desktops?|all-in-one|keyboards?|printers?|chargers?|power)\\b)(?:.*#(?:aba|abb|abd|abe|abf|abh|abz|ab9|uug|uuz|b19)\\b|.*\\b(?:20|21|82|83)[a-z0-9]{6}(?:ge|fr|sp|ix|mx|pb|mh|us|ck|pg|mz|iv|sa)\\b)'
+  ].join('|'));
+}
 
 // Several rules can lead to the same category; the first match wins. Accessories come first so
 // "iPhone 15 case" is an accessory, and storage comes last so "laptop 512GB SSD" stays a laptop.
@@ -74,6 +98,10 @@ export const RULES = [
       // because their names do not say "case" ("Speck Presidio Perfect Clear + MS Apple iPhone 14 Plus/15 Plus Clear"), and
       // "Verbatim FWC-01 Active holder Mobile phone/Smartphone Black" too. The folder decides.
       'cases & covers',
+      // Fourth dry run: Back to the Office names "ZAGG Cases Luxe Snap Apple iPhone 16 Plus Black" and "dbramante1928 Lynge MS ICON -
+      // iPhone 18 Pro/iPhone 17 Pro" (one folder for everything): the word "case" comes first, or only the maker says it is a case.
+      '(?:case|cover|folio)s? (?:[\\w-]+ ){0,4}(?:for )?(?:apple )?(?:iphone|galaxy|pixel|ipad)',
+      'zagg', 'dbramante1928', 'otterbox', 'spigen', 'tech21', 'speck', 'uag', 'urban armor gear', 'case-mate', 'incipio', 'casetify', 'panzerglass', 'popsockets',
       // Mounts and arms (PCHUB.UK, owner 24 Oct 2026: as many as possible): "Arlo Ceiling Adapter Floodlight Mount",
       // "Fellowes Computer Monitor Stand", "ARCTIC Z1 Basic - Desk Mount Monitor Arm". A TV wall mount stays with the TVs.
       'monitor (?:wall )?(?:mounts?|arms?|stands?|risers?|brackets?)', '(?:desk|ceiling|camera|floodlight|pole|vesa|projector) (?:mounts?|brackets?)',
@@ -89,11 +117,15 @@ export const RULES = [
     include: words([
       'playstation', 'ps5', 'ps4', 'xbox', 'nintendo', 'switch 2(?!-)', 'switch oled', 'steam deck', 'video games?',
       'gaming (?:headset|keyboard|mouse|mice|chair|desk|monitor|controller|pc|laptop|console)s?', 'game ?pads?', 'game controllers?',
-      'controllers?', 'joysticks?', 'racing wheel', 'vr headset', 'meta quest'
+      'controllers?', 'joysticks?', 'racing wheel', 'vr headset', 'meta quest',
+      // Gaming monitors named without "monitor" (fourth dry run): "LG UltraGear 39GX950B evo GX9 39" OLED 5K2K 165Hz", "ASUS 26.5
+      // OLED MON ROG SWIFT PG27UCDM" were on the TV page because of "OLED".
+      'ultragear', 'rog swift', 'odyssey (?:g\\d+|oled|neo|ark)'
     ]),
-    // A network "gateway/controller ... Mbit/s" (PCHUB.UK "Networking>Routers & Accessories>Controllers") is not a game controller.
+    // A network "gateway/controller ... Mbit/s" (PCHUB.UK "Networking>Routers & Accessories>Controllers") is not a game controller,
+    // nor is "Antec ARGB & PWM FAN CONTROLLER fan speed controller".
     exclude: words(['board game', 'card game', 'jigsaw puzzle', 'smart tv', 'televisions?', 'google tv', 'oled tv', 'qled', '\\d{2}["”] (?:bravia|4k)',
-      'gateways?', 'mbit/s'])
+      'gateways?', 'mbit/s', '(?:fan|argb|rgb|led|lighting|pwm|midi|dj) (?:speed )?controllers?'])
   },
   {
     slug: 'smart-home-wifi',
@@ -109,8 +141,10 @@ export const RULES = [
       // Joybuy files smartwatches under "Smart Glasses"; real smart glasses (AR/XR, display) are wearables too
       'smart glasses', 'ai glasses', 'ar glasses', 'xr glasses', 'ar/xr glasses'
     ]),
-    // "DJI OM 5 Smartphone camera stabilizer" is a gimbal (cameras), not a phone.
-    exclude: words(['kids toy watch', 'tablets?', 'stabili[sz]ers?', 'gimbals?'])
+    // "DJI OM 5 Smartphone camera stabilizer" is a gimbal (cameras), not a phone. Fourth dry run: "Fujifilm Instax Mini Link 3
+    // Wireless Smartphone Photo Printer", "Hama FlexPro tripod Smartphone/Action camera" and "OnePlus Nord Buds 2 ... Wireless
+    // Earphones" are not phones either.
+    exclude: words(['kids toy watch', 'tablets?', 'stabili[sz]ers?', 'gimbals?', 'printers?', 'tripods?', 'earbuds?', 'earphones?', 'headphones?', 'headsets?', 'buds\\d*'])
   },
   {
     slug: 'laptops-computing',
@@ -126,10 +160,14 @@ export const RULES = [
       'geforce', 'radeon', 'socket am[345]', 'lga ?1[1-9]\\d\\d', 'wireless combo', 'keyboard and mouse',
       // PC cases named by their size (PCHUB.UK): "Fractal Design Core 1100 Mini Tower Black", "Corsair 4000D Airflow Midi Tower".
       '(?:mini|midi|mid|full|micro|super)[- ]?tower', 'computer cases?',
-      'printers?', 'ink cartridges?', 'toner', 'scanners?', 'label (?:printer|maker)s?', 'laminators?', 'shredders?', '3d printers?', 'calculators?'
+      'printers?', 'ink cartridges?', 'ink (?:bottles?|tanks?|refills?)', 'toner', 'scanners?', 'label (?:printer|maker)s?', 'laminators?', 'shredders?', '3d printers?', 'calculators?',
+      'fan (?:speed )?controllers?'
     ]),
-    // "Neomounts by Newstar Select tv wall mount" is in PCHUB's "Monitor & TV's" folder: a TV mount, not a monitor.
-    exclude: words(['tv (?:wall )?(?:mount|bracket)s?', 'television (?:mount|bracket)s?', 'flat (?:screen|panel) (?:wall )?(?:mount|bracket)s?', 'baby monitor', 'heart rate monitor', 'blood pressure monitor', 'piano keyboard', 'musical keyboard', 'mouse trap', 'mouse mat', 'vitamins?', 'multivitamins?', 'tablets? \\d+ ?mg', 'dishwasher tablets?', 'notebook paper', 'spiral notebook', 'fountain pens?'])
+    // "Neomounts by Newstar Select tv wall mount" is in PCHUB's "Monitor & TV's" folder: a TV mount, not a monitor. Fourth dry run:
+    // "Canon EOS R50 Camera inc RF-S 18-45mm Lens. CP1500 Printer" is a camera kit, an Instax printer goes with the Instax
+    // cameras, and "DELL Laptop 7.4v 4500mAh" is a laptop battery.
+    exclude: words(['tv (?:wall )?(?:mount|bracket)s?', 'television (?:mount|bracket)s?', 'flat (?:screen|panel) (?:wall )?(?:mount|bracket)s?', 'baby monitor', 'heart rate monitor', 'blood pressure monitor', 'piano keyboard', 'musical keyboard', 'mouse trap', 'mouse mat', 'vitamins?', 'multivitamins?', 'tablets? \\d+ ?mg', 'dishwasher tablets?', 'notebook paper', 'spiral notebook', 'fountain pens?',
+      'instax', 'eos', 'mirrorless', '\\d+(?:\\.\\d+)? ?v \\d{3,5} ?mah', 'laptop batter(?:y|ies)'])
   },
   {
     slug: 'audio',
@@ -153,12 +191,16 @@ export const RULES = [
     slug: 'cameras-drones',
     include: words([
       'digital cameras?', 'cameras?', 'stabili[sz]ers?', 'dslr', 'mirrorless', 'polaroid', 'instax', 'gopro', 'osmo', 'insta360', 'action cam(?:era)?s?',
-      'dash ?cams?', 'drones?', 'camera lens(?:es)?', 'gimbals?', 'camcorders?', 'vlog'
+      'dash ?cams?', 'drones?', 'camera lens(?:es)?', 'gimbals?', 'camcorders?', 'vlog',
+      // Camera bodies named by type (PCHUB.UK): "Canon EOS R8 ...", "... MILC Body 24.2 MP", "Panasonic Lumix", "Kodak PIXPRO".
+      'milc', 'eos', 'lumix', 'pixpro', 'quicksnap'
     ]),
     // "TP-Link Tapo Pan/Tilt Home Security WiFi Camera" and "Tapo Smart Wire-Free Security Battery Camera" (Back to the Office,
-    // 23 Oct 2026) are smart-home cameras.
+    // 23 Oct 2026) are smart-home cameras; so are "D-Link 2 Megapixel H.265 Outdoor Dome Camera" and "Ubiquiti (UVC-G6-INS-W-UK)
+    // ... WiFi-connected camera" (fourth dry run).
     exclude: words(['security cameras?', 'surveillance', 'cctv', 'doorbell', 'webcam', 'baby monitor', 'ip cameras?', 'ptz', 'telescopes?', 'binoculars?', 'rangefinders?', 'scopes?',
-      'home security', 'wi-?fi cameras?', 'pan/tilt', 'indoor cameras?', 'outdoor cameras?', 'security (?:[\\w-]+ ){1,3}cameras?', 'tapo'])
+      'home security', 'wi-?fi cameras?', 'pan/tilt', 'indoor cameras?', 'outdoor cameras?', 'security (?:[\\w-]+ ){1,3}cameras?', 'tapo',
+      '(?:dome|bullet|turret) cameras?', 'h\\.26[45]\\+?', 'ubiquiti', 'unifi', 'uvc-\\w+'])
   },
   {
     slug: 'smart-home-wifi',
@@ -169,7 +211,8 @@ export const RULES = [
       'network switch(?:es)?', 'desktop switch', 'unmanaged switch', '\\d+-port', 'gigabit', 'poe\\+?', 'ethernet', 'powerline', 'modems?', 'orbi', 'tp-link deco', 'deco [xmse]\\d+',
       // Back to the Office, 23 Oct 2026: "Tapo Smart Wire-Free Security Battery Camera", "TP-Link RE200 network extender Network repeater",
       // "TP-Link Archer T4E Internal WLAN".
-      'security (?:[\\w-]+ ){1,3}cameras?', 'tapo', 'repeaters?', 'network extenders?', 'wi-?fi extenders?', 'wlan'
+      'security (?:[\\w-]+ ){1,3}cameras?', 'tapo', 'repeaters?', 'network extenders?', 'wi-?fi extenders?', 'wlan',
+      '(?:dome|bullet|turret) cameras?', 'h\\.26[45]\\+?', 'uvc-\\w+'
     ]),
     exclude: words(['fake camera', 'dummy camera', 'router bits?', 'wood router'])
   },
@@ -203,7 +246,8 @@ export function topCategory(feedCategory) {
 
 // name: product name; feedCategory: merchant category path (and Awin category) as one string.
 export function classify(name, feedCategory = '') {
-  const n = String(name || '').toLowerCase();
+  // "Intel® Core™ i5" is "intel core i5" for the rules (Back to the Office files every laptop under "Computers").
+  const n = String(name || '').toLowerCase().replace(/[®™©]/g, '');
   const top = topCategory(feedCategory);
   if (DENY_TOP.includes(top)) return { ok: false, reason: `feed category: ${top}` };
   for (const d of DENY) if (d.re.test(n) && !(d.except && d.except.test(n))) return { ok: false, reason: d.label };
