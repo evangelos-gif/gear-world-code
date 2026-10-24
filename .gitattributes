@@ -2,3 +2,7 @@
 # PowerShell and batch files are stored byte-for-byte (UTF-8 BOM + CRLF) so Windows PowerShell 5.1 reads Greek text correctly.
 *.ps1 -text
 *.cmd -text
+
+# The Gear World Hub files (sites/gwh) are kept byte-for-byte as they run live (mixed line ends included),
+# so a deploy from here changes only what a change meant to change.
+sites/gwh/** -text

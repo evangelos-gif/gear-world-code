@@ -1,0 +1,697 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Gear World Hub - Discover specialist Gear World stores in one place.">
+  <title>Gear World Hub</title>
+  <link rel="stylesheet" href="/styles.css?v=20261005-ga4-1">
+<style id="gwh-business-banner-style">
+
+/* Lift the left hero content slightly to create room below */
+.hero-copy{
+  transform:translateY(-85px);
+}
+
+/* Compact sponsored banner inside hero */
+.gwh-business-banner{
+  margin-top:22px;
+  width:100%;
+  max-width:820px;
+}
+
+.gwh-business-banner-inner{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:22px;
+
+  padding:18px 20px;
+
+  background:
+    linear-gradient(
+      135deg,
+      rgba(18,31,48,.95) 0%,
+      rgba(11,22,36,.95) 100%
+    );
+
+  border:1px solid rgba(255,183,0,.55);
+  border-radius:14px;
+
+  box-shadow:
+    0 12px 28px rgba(0,0,0,.22),
+    inset 0 0 0 1px rgba(255,255,255,.02);
+}
+
+.gwh-business-copy{
+  min-width:0;
+}
+
+.gwh-sponsored{
+  display:block;
+  margin-bottom:4px;
+
+  color:#ffb700;
+  font-size:10px;
+  line-height:1.2;
+  font-weight:900;
+  letter-spacing:.13em;
+  text-transform:uppercase;
+}
+
+.gwh-business-copy strong{
+  display:block;
+
+  color:#fff;
+  font-size:16px;
+  line-height:1.25;
+  font-weight:850;
+}
+
+.gwh-business-copy p{
+  margin:4px 0 0;
+
+  color:#aebbd0;
+  font-size:13px;
+  line-height:1.35;
+}
+
+/* Highly visible but controlled blinking button */
+.gwh-business-link{
+  flex:0 0 auto;
+
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+
+  padding:13px 18px;
+
+  background:#ffb700;
+  color:#06111f;
+
+  border:2px solid #ffcf4a;
+  border-radius:9px;
+
+  font-size:14px;
+  font-weight:900;
+  text-decoration:none;
+  white-space:nowrap;
+
+  animation:gwhBusinessBlink 1.25s ease-in-out infinite;
+}
+
+@keyframes gwhBusinessBlink{
+
+  0%,100%{
+    background:#ffb700;
+    border-color:#ffcf4a;
+    box-shadow:
+      0 0 0 0 rgba(255,183,0,.15),
+      0 0 12px rgba(255,183,0,.20);
+    filter:brightness(1);
+    transform:scale(1);
+  }
+
+  50%{
+    background:#ffd45c;
+    border-color:#fff0b5;
+    box-shadow:
+      0 0 0 7px rgba(255,183,0,.14),
+      0 0 28px rgba(255,183,0,.80);
+    filter:brightness(1.18);
+    transform:scale(1.035);
+  }
+
+}
+
+.gwh-business-link:hover{
+  background:#ffd45c;
+  color:#06111f;
+}
+
+@media(max-width:900px){
+
+  .hero-copy{
+    transform:none;
+  }
+
+  .gwh-business-banner-inner{
+    flex-direction:column;
+    align-items:flex-start;
+  }
+
+  .gwh-business-link{
+    width:100%;
+  }
+
+}
+
+</style>
+<style id="gwh-vgw-card">
+/* GWH-VGW-CARD: 9 worlds, all cards the same size. Replaces the 8-card block (gwh-agw-card). */
+@media (min-width:1051px){
+body[data-gwh-compact-v2="true"] .gwh-quick-worlds{grid-template-columns:repeat(3,minmax(0,1fr)) !important;}
+}
+@media (max-width:1050px){
+body[data-gwh-compact-v2="true"] .gwh-quick-worlds > [data-world="VGW"]{grid-column:1 / -1;}
+}
+</style>
+</head>
+
+<body data-gwh-compact-v2="true">
+
+  <header class="site-header">
+    <div class="container header-inner">
+      <a class="brand" href="/">
+        <span class="brand-mark">GW</span>
+        <span>
+          <strong>Gear World</strong>
+          <small>Hub</small>
+        </span>
+      </a>
+
+      <nav class="main-nav">
+        <a href="#worlds">Gear Worlds</a>
+        <a href="#about">About</a>
+
+        <select id="gwhLanguage" class="gwh-language-select" aria-label="Language">
+          <option value="en-GB">English</option>
+          <option value="el-GR">Ελληνικά</option>
+          <option value="de-DE">Deutsch</option>
+          <option value="fr-FR">Français</option>
+          <option value="it-IT">Italiano</option>
+          <option value="es-ES">Español</option>
+          <option value="pt-PT">Português</option>
+          <option value="nl-NL">Nederlands</option>
+          <option value="sq-AL">Shqip</option>
+          <option value="ro-RO">Română</option>
+          <option value="ru-RU">Русский</option>
+        </select>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+
+    <section class="hero">
+      <div class="container hero-content">
+
+        <div class="hero-copy">
+          <span class="eyebrow">ONE HUB. EVERY GEAR WORLD.</span>
+
+          <h1>
+  What are you
+  <span>looking for?</span>
+</h1>
+
+          <p>
+            Explore specialist shopping for work, style, family, home and garden.
+          </p>
+
+          
+          <div id="worlds" class="gwh-choose-world-label">
+  CHOOSE A WORLD
+</div>
+<div class="gwh-quick-worlds" aria-label="Explore Gear Worlds">
+            <a
+  class="gwh-quick-world gwh-quick-world-live gwh-image-world"
+  href="https://constructiongearworld.com/"
+  data-world="CGW"
+  style="--world-image:url('/hub-cgw.jpg')"
+  aria-label="Tools & Workwear">
+
+  <span class="gwh-legacy-world-text">
+    <strong>Construction</strong>
+    <small>Tools · Workwear · PPE</small>
+  </span>
+
+  <span class="gwh-image-world-overlay">
+    <span class="gwh-image-world-code">CGW</span>
+    <strong class="gwh-image-world-title">Tools & Workwear</strong>
+    <small class="gwh-image-world-description">Tools, workwear and site equipment.</small>
+    <span class="gwh-image-world-cta">Shop →</span>
+  </span>
+</a>
+            <a
+  class="gwh-quick-world gwh-quick-world-live gwh-image-world"
+  href="https://mensgearworld.com/"
+  data-world="MGW"
+  style="--world-image:url('/hub-mgw.jpg')"
+  aria-label="Men">
+
+  <span class="gwh-legacy-world-text">
+    <strong>Men's</strong>
+    <small>Style · Tech · Everyday</small>
+  </span>
+
+  <span class="gwh-image-world-overlay">
+    <span class="gwh-image-world-code">MGW</span>
+    <strong class="gwh-image-world-title">Men</strong>
+    <small class="gwh-image-world-description">Clothing, footwear and accessories.</small>
+    <span class="gwh-image-world-cta">Shop →</span>
+  </span>
+</a>
+            <a
+  class="gwh-quick-world gwh-quick-world-live gwh-image-world"
+  href="https://womensgearworld.com/"
+  data-world="WGW"
+  style="--world-image:url('/hub-wgw.jpg')"
+  aria-label="Women">
+
+  <span class="gwh-legacy-world-text">
+    <strong>Women's</strong>
+    <small>Fashion · Beauty · Lifestyle</small>
+  </span>
+
+  <span class="gwh-image-world-overlay">
+    <span class="gwh-image-world-code">WGW</span>
+    <strong class="gwh-image-world-title">Women</strong>
+    <small class="gwh-image-world-description">Fashion, footwear and accessories.</small>
+    <span class="gwh-image-world-cta">Shop →</span>
+  </span>
+</a>
+            <a
+  class="gwh-quick-world gwh-quick-world-live gwh-image-world"
+  href="https://kidsgearworld.com/"
+  data-world="KGW"
+  style="--world-image:url('/hub-kgw.jpg')"
+  aria-label="Kids & Teens">
+
+  <span class="gwh-legacy-world-text">
+    <strong>Kids'</strong>
+    <small>Clothing · Toys · Tech</small>
+  </span>
+
+  <span class="gwh-image-world-overlay">
+    <span class="gwh-image-world-code">KGW</span>
+    <strong class="gwh-image-world-title">Kids & Teens</strong>
+    <small class="gwh-image-world-description">Clothing, footwear and everyday essentials.</small>
+    <span class="gwh-image-world-cta">Shop →</span>
+  </span>
+</a>
+            <a
+  class="gwh-quick-world gwh-quick-world-live gwh-image-world"
+  href="https://homegearworld.com/"
+  data-world="HGW"
+  style="--world-image:url('/hub-hgw.jpg')"
+  aria-label="Home">
+
+  <span class="gwh-legacy-world-text">
+    <strong>Home</strong>
+    <small>Furniture · Decor · Living</small>
+  </span>
+
+  <span class="gwh-image-world-overlay">
+    <span class="gwh-image-world-code">HGW</span>
+    <strong class="gwh-image-world-title">Home</strong>
+    <small class="gwh-image-world-description">Furniture, lighting and home accessories.</small>
+    <span class="gwh-image-world-cta">Shop →</span>
+  </span>
+</a>
+            <a
+  class="gwh-quick-world gwh-quick-world-live gwh-image-world"
+  href="https://gardengearworld.com/"
+  data-world="GGW"
+  style="--world-image:url('/hub-ggw.jpg')"
+  aria-label="Garden">
+
+  <span class="gwh-legacy-world-text">
+    <strong>Garden</strong>
+    <small>Tools · Outdoor · Garden Living</small>
+  </span>
+
+  <span class="gwh-image-world-overlay">
+    <span class="gwh-image-world-code">GGW</span>
+    <strong class="gwh-image-world-title">Garden</strong>
+    <small class="gwh-image-world-description">Garden tools and outdoor essentials.</small>
+    <span class="gwh-image-world-cta">Shop →</span>
+  </span>
+</a>
+            <a
+  class="gwh-quick-world gwh-quick-world-live gwh-image-world"
+  href="https://technologygearworld.com/"
+  data-world="TGW"
+  style="--world-image:url('/hub-tgw.jpg')"
+  aria-label="Technology">
+
+  <span class="gwh-legacy-world-text">
+    <strong>Technology</strong>
+    <small>Laptops · Phones · Audio · Gaming</small>
+  </span>
+
+  <span class="gwh-image-world-overlay">
+    <span class="gwh-image-world-code">TGW</span>
+    <strong class="gwh-image-world-title">Technology</strong>
+    <small class="gwh-image-world-description">Laptops, phones, audio and gaming tech.</small>
+    <span class="gwh-image-world-cta">Shop →</span>
+  </span>
+</a>
+            <a
+  class="gwh-quick-world gwh-quick-world-live gwh-image-world"
+  href="https://cargearworld.com/"
+  data-world="AGW"
+  style="--world-image:url('/hub-agw.jpg')"
+  aria-label="Car">
+
+  <span class="gwh-legacy-world-text">
+    <strong>Car</strong>
+    <small>Garage Tools · Parts · Car Care · Dash Cams</small>
+  </span>
+
+  <span class="gwh-image-world-overlay">
+    <span class="gwh-image-world-code">AGW</span>
+    <strong class="gwh-image-world-title">Car</strong>
+    <small class="gwh-image-world-description">Garage tools, parts, car care and dash cams.</small>
+    <span class="gwh-image-world-cta">Shop →</span>
+  </span>
+</a>
+            <a
+  class="gwh-quick-world gwh-quick-world-live gwh-image-world"
+  href="https://travelgearworld.com/"
+  data-world="VGW"
+  style="--world-image:url('/hub-vgw.jpg')"
+  aria-label="Travel">
+
+  <span class="gwh-legacy-world-text">
+    <strong>Travel</strong>
+    <small>Luggage · Travel Bags · Accessories · Camping</small>
+  </span>
+
+  <span class="gwh-image-world-overlay">
+    <span class="gwh-image-world-code">VGW</span>
+    <strong class="gwh-image-world-title">Travel</strong>
+    <small class="gwh-image-world-description">Luggage, travel bags, accessories and camping gear.</small>
+    <span class="gwh-image-world-cta">Shop →</span>
+  </span>
+</a>
+          </div>
+
+        </div>
+
+        <div class="hero-panel">
+          <div class="panel-label">GEAR WORLD NETWORK</div>
+
+          <div class="stat">
+            <strong>1</strong>
+            <span>Central Hub</span>
+          </div>
+
+          <div class="stat">
+            <strong>Multiple</strong>
+            <span>Specialist Worlds</span>
+          </div>
+
+          <div class="stat">
+            <strong>Global</strong>
+            <span>Shopping Discovery</span>
+          </div>
+        </div>
+
+      </div>
+<div class="gwh-secondary-search">
+  <span class="gwh-secondary-search-label">
+    SEARCH ALL WORLDS
+  </span>
+<form class="hub-search" id="hubSearch">
+            <input
+              id="hubSearchInput"
+              type="search"
+              placeholder="Search products, brands or categories..."
+              aria-label="Search products, brands or categories"
+              autocomplete="off"
+            >
+            <button type="submit">Search</button>
+          </form>
+
+          <div class="search-message" id="searchMessage" aria-live="polite"></div>
+</div>
+    </section>
+
+<section class="gwh-compact-how">
+  <div class="container">
+
+    <div class="gwh-compact-how-heading">
+      <span class="eyebrow">HOW IT WORKS</span>
+      <h2>
+        Choose a world. Browse products.
+        Buy directly from the retailer.
+      </h2>
+    </div>
+
+    <div class="gwh-compact-how-grid">
+
+      <div>
+        <strong>01</strong>
+        <span>Choose a world</span>
+      </div>
+
+      <div>
+        <strong>02</strong>
+        <span>Browse products</span>
+      </div>
+
+      <div>
+        <strong>03</strong>
+        <span>Buy from the retailer</span>
+      </div>
+
+    </div>
+
+    <p class="gwh-compact-disclosure">
+      Purchases are completed directly on the retailer's website.
+      Gear World may earn a commission from qualifying affiliate
+      purchases at no extra cost to you.
+    </p>
+
+  </div>
+</section>
+
+<section class="gwh-business-banner" aria-label="Sponsored business opportunity">
+
+  <div class="gwh-business-banner-inner">
+
+    <div class="gwh-business-copy">
+
+      <span class="gwh-sponsored">
+        Sponsored Partner
+      </span>
+
+      <strong>
+        Thinking of Selling Your Business?
+      </strong>
+
+      <p>
+        Reach global buyers with World Businesses for Sale. Plans from £395.
+      </p>
+
+    </div>
+
+    <a
+      class="gwh-business-link"
+      href="https://www.awin1.com/cread.php?awinmid=116725&awinaffid=3057233&ued=https%3A%2F%2Fworldbusinessesforsale.com%2Fpages%2Fsell-business"
+      target="_blank"
+      rel="nofollow sponsored noopener">
+      Sell Your Business &rarr;
+    </a>
+
+  </div>
+
+</section>
+
+    <section class="interests-section" id="interests"><div class="container"><div class="section-heading"><span class="eyebrow">EXPLORE</span><h2>Shop by Interest</h2><p>Jump straight into the gear and categories that interest you most.</p></div><div class="interest-grid"><a class="interest-card" href="https://constructiongearworld.com/category/power-tools/"><strong>Power Tools</strong><span>Construction Gear World</span></a><a class="interest-card" href="https://constructiongearworld.com/category/safety-footwear/"><strong>Safety Boots</strong><span>Construction Gear World</span></a><a class="interest-card" href="https://mensgearworld.com/category/shoes/"><strong>Men's Shoes</strong><span>Men's Gear World</span></a><a class="interest-card" href="https://mensgearworld.com/category/watches/"><strong>Men's Watches</strong><span>Men's Gear World</span></a><a class="interest-card" href="https://womensgearworld.com/category/bags/"><strong>Women's Bags</strong><span>Women's Gear World</span></a><a class="interest-card" href="https://womensgearworld.com/category/clothing/"><strong>Women's Fashion</strong><span>Women's Gear World</span></a></div></div></section>
+
+<section class="why-hub-section">
+  <div class="container">
+    <div class="section-heading">
+      <span class="eyebrow">WHY GEAR WORLD HUB</span>
+      <h2>One hub. Multiple specialist worlds.</h2>
+      <p>Discover, search and move between specialist Gear World sites from one central place.</p>
+    </div>
+
+    <div class="why-hub-grid">
+      <article class="why-hub-card">
+        <span class="why-hub-number">01</span>
+        <h3>One Central Hub</h3>
+        <p>Access Construction, Men's, Women's, Kids', Home, Garden, Technology, Car and Travel Gear World from one starting point.</p>
+      </article>
+
+      <article class="why-hub-card">
+        <span class="why-hub-number">02</span>
+        <h3>Search Across Worlds</h3>
+        <p>Search products across the live Gear World catalogues from one place.</p>
+      </article>
+
+      <article class="why-hub-card">
+        <span class="why-hub-number">03</span>
+        <h3>Growing Network</h3>
+        <p>Travel Gear World is now live, expanding the Gear World network to nine specialist shopping worlds.</p>
+      </article>
+    </div>
+  </div>
+</section>
+<!-- GWH-EMAIL-SIGNUP-START -->
+<section class="gwh-email-section" aria-labelledby="gwhEmailTitle">
+  <div class="container">
+    <div class="gwh-email-box">
+
+      <div class="gwh-email-copy">
+        <span class="eyebrow" data-email-i18n="eyebrow">
+          STAY CONNECTED
+        </span>
+
+        <h2 id="gwhEmailTitle" data-email-i18n="title">
+          Stay connected with Gear World.
+        </h2>
+
+        <p data-email-i18n="description">
+          Get updates about new Gear Worlds, products and network news.
+        </p>
+      </div>
+
+      <form class="gwh-email-form" id="gwhEmailForm">
+
+        <div class="gwh-email-row">
+          <label class="sr-only" for="gwhEmailInput" data-email-i18n="emailLabel">
+            Email address
+          </label>
+
+          <input
+            id="gwhEmailInput"
+            name="email"
+            type="email"
+            maxlength="254"
+            autocomplete="email"
+            required
+            placeholder="Your email address"
+            data-email-placeholder="emailPlaceholder"
+          >
+
+          <button
+            type="submit"
+            id="gwhEmailSubmit"
+            data-email-i18n="button"
+          >
+            Sign up
+          </button>
+        </div>
+
+        <input
+          class="gwh-email-honeypot"
+          type="text"
+          name="website"
+          tabindex="-1"
+          autocomplete="off"
+          aria-hidden="true"
+        >
+
+        <label class="gwh-email-consent">
+          <input
+            id="gwhEmailConsent"
+            type="checkbox"
+            required
+          >
+
+          <span data-email-i18n="consent">
+            I agree to receive Gear World email updates and understand that I can unsubscribe at any time.
+          </span>
+        </label>
+
+        <div
+          class="gwh-email-message"
+          id="gwhEmailMessage"
+          aria-live="polite"
+        ></div>
+
+      </form>
+
+    </div>
+  </div>
+</section>
+<!-- GWH-EMAIL-SIGNUP-END -->
+<section class="about-section" id="about">
+      <div class="container about-box">
+        <div>
+          <span class="eyebrow">THE IDEA</span>
+          <h2>A connected shopping ecosystem.</h2>
+        </div>
+
+        <p>
+          Gear World Hub brings specialist shopping sites together under one
+          network. Each Gear World can focus on its own audience while the Hub
+          makes the complete network easy to discover.
+        </p>
+      </div>
+    </section>
+
+  </main>
+
+  <footer>
+    <div class="container footer-inner">
+      <strong>Gear World Hub</strong>
+      <a
+        href="mailto:contact@gearworldhub.com"
+        class="footer-contact"
+        style="color:inherit;text-decoration:underline;text-underline-offset:3px;"
+      >contact@gearworldhub.com</a>
+      <span>&copy; <span id="year"></span> Gear World. All rights reserved.</span>
+      <!-- GWH-LEGAL-LINKS -->
+      <nav class="footer-legal" aria-label="Legal" style="display:flex;flex-wrap:wrap;gap:0 16px;"><a href="/privacy/" style="color:inherit;text-decoration:underline;text-underline-offset:3px;display:inline-block;min-height:40px;line-height:40px;">Privacy</a><a href="/cookies/" style="color:inherit;text-decoration:underline;text-underline-offset:3px;display:inline-block;min-height:40px;line-height:40px;">Cookies</a><a href="/terms/" style="color:inherit;text-decoration:underline;text-underline-offset:3px;display:inline-block;min-height:40px;line-height:40px;">Terms</a><a href="/affiliate-disclosure/" style="color:inherit;text-decoration:underline;text-underline-offset:3px;display:inline-block;min-height:40px;line-height:40px;">Affiliate disclosure</a><a href="/contact/" style="color:inherit;text-decoration:underline;text-underline-offset:3px;display:inline-block;min-height:40px;line-height:40px;">Contact</a></nav>
+    </div>
+  </footer>
+
+  <script src="/translations.js?v=20261005-search-gr-final"></script>
+<script src="/email-signup.js?v=20261005-ga4-1"></script>
+<script src="/app.js?v=20261005-mobile3"></script>
+<!-- GWH-ANALYTICS-CONSENT-START -->
+<div
+  class="gwh-analytics-consent"
+  id="gwhAnalyticsConsent"
+  hidden
+>
+  <p id="gwhAnalyticsConsentText">
+    We use optional analytics to understand how visitors use Gear World Hub.
+  </p>
+
+  <div class="gwh-analytics-consent-actions">
+    <button
+      type="button"
+      id="gwhAnalyticsAccept"
+    >
+      Allow analytics
+    </button>
+
+    <button
+      type="button"
+      class="secondary"
+      id="gwhAnalyticsReject"
+    >
+      Reject
+    </button>
+  </div>
+</div>
+<!-- GWH-ANALYTICS-CONSENT-END -->
+  <script src="/analytics.js?v=20261005-ga4-order-fix"></script>
+<script src="/gear-world-voice-v2.js" defer></script>
+</body>
+</html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

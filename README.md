@@ -17,6 +17,7 @@
 | `sites/tgw/` | Ό,τι είναι μόνο του TGW: ρυθμίσεις, migrations της D1, εικόνες, CSS, JS |
 | `sites/agw/` | Car Gear World (κωδικός AGW, cargearworld.com): νέο site με δική του D1, όπως το TGW |
 | `sites/vgw/` | Travel Gear World (κωδικός VGW, travelgearworld.com): νέο site με δική του D1, όπως το AGW, σε μπλε και πορτοκαλί (ασφαλή για δυσχρωματοψία) |
+| `sites/gwh/` | Gear World Hub (gearworldhub.com): ο κώδικας του Hub ακριβώς όπως τρέχει live, ελεγμένος με sha256 (δες `sites/gwh/README.md`) |
 | `tools/` | Εργαλεία για τον υπολογιστή (PowerShell) και ο έλεγχος ποιότητας `qa-gate.mjs` |
 | `tests/` | Αυτόματοι έλεγχοι (τρέχουν σε κάθε αλλαγή) |
 | `docs/LESSONS.md` | Τα λάθη του παρελθόντος και οι κανόνες που τα αποτρέπουν |

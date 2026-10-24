@@ -1,0 +1,20 @@
+# Gear World Hub (gearworldhub.com) - Worker gear-world-hub.
+# Copy of C:\Users\vagge\gear-world-hub\wrangler.toml (24/10/2026) without the D1 database ID.
+# The real file stays on the PC; tools fill the ID from `wrangler d1 list` when they deploy.
+name = "gear-world-hub"
+main = "worker.js"
+compatibility_date = "2026-09-24"
+
+[assets]
+directory = "public"
+binding = "ASSETS"
+run_worker_first = true
+
+
+[[d1_databases]]
+binding = "gear_world_registry"
+database_name = "gear-world-registry"
+database_id = "REPLACE_WITH_DATABASE_ID"
+
+[ai]
+binding = "AI"

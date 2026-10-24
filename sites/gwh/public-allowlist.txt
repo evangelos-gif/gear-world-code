@@ -1,0 +1,26 @@
+# Files allowed in public/ of the Hub (lessons L04). The 4 old copies that are still live
+# (index-before-*.html, app-before-kgw-live.js) are not here: see README.md.
+affiliate-disclosure/index.html
+analytics.js
+app.js
+contact/index.html
+cookies/index.html
+email-signup.js
+gear-world-voice-v2.js
+gwh-hero.png
+hub-agw.jpg
+hub-cgw.jpg
+hub-ggw.jpg
+hub-hgw.jpg
+hub-kgw.jpg
+hub-mgw.jpg
+hub-tgw.jpg
+hub-vgw.jpg
+hub-wgw.jpg
+index.html
+legal/legal.css
+legal/legal.js
+privacy/index.html
+styles.css
+terms/index.html
+translations.js
