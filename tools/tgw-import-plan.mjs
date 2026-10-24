@@ -21,6 +21,8 @@ const here = dirname(fileURLToPath(import.meta.url));
 const SQL_ROWS_PER_FILE = 400;
 const SAMPLES_PER_GROUP = 15;
 const SAMPLES_PER_SHOP = 10;
+const SAMPLES_PER_FOLDER = 3;
+const SAMPLES_LOOSE = 20;
 
 // ---------- CSV ----------
 
@@ -235,9 +237,30 @@ export function looseOnly(source, path) {
   const folders = pathFolders(path);
   return !folders.some(f => allow.has(f)) && folders.some(f => loose.has(f));
 }
+// PCHUB.UK's spare-part folders ("PC Components>Other", "Direktek") have names with every "a", "b" and "t" missing, while the
+// brand in front is whole: "DELL Opicl Scroll Mouse US" (Optical ... USB), "DELL Ki Mouse. US. 3 uons." (Kit ... buttons),
+// "DELL 280W Power Supply wih PFC", "Canon RUER MOUN" (dry runs of 24 Oct 2026). Such a name is not shown on the site: the
+// words after the brand have 8 or more letters and not one a, b or t (lessons L47).
+export function garbledName(name, brand = '') {
+  const n = String(name || '').trim();
+  const b = String(brand || '').trim();
+  const rest = b && n.toLowerCase().startsWith(b.toLowerCase()) ? n.slice(b.length) : n.replace(/^\S+/, '');
+  const letters = rest.replace(/[^A-Za-z]/g, '');
+  return letters.length >= 8 && !/[abt]/i.test(letters);
+}
+
+// "partsFolders" (PCHUB.UK: "Other", "Direktek"): folders that are mostly makers' spare parts. A name there with letters missing
+// is out, and a product there with no consumer folder is out when its name has a spare-part word ("partsNames": internal,
+// LCD, system board, roller, lamp, battery ...), because the folder cannot vouch for it (lessons L47).
+export function partsFolder(source, path) {
+  const parts = folderSet(source.partsFolders);
+  return Boolean(parts) && pathFolders(path).some(f => parts.has(f));
+}
+
 export function sourceFilter(source) {
   const brands = Array.isArray(source.brands) && source.brands.length ? new Set(source.brands.map(normBrand)) : null;
   const deny = Array.isArray(source.denyNames) && source.denyNames.length ? new RegExp(source.denyNames.join('|'), 'i') : null;
+  const partsNames = Array.isArray(source.partsNames) && source.partsNames.length ? new RegExp(source.partsNames.join('|'), 'i') : null;
   const allowPaths = folderSet(source.allowPaths);
   const denyPaths = folderSet(source.denyPaths);
   return (name, brand, path = '') => {
@@ -246,8 +269,84 @@ export function sourceFilter(source) {
     if (allowPaths && !folders.some(f => allowPaths.has(f)) && !looseOnly(source, path)) return `feed folder not on the consumer list (${source.retailer})`;
     if (brands && !brands.has(normBrand(brand))) return `brand not on the consumer list (${source.retailer})`;
     if (deny && deny.test(name)) return `business IT, parts or services (${source.retailer})`;
+    if (partsFolder(source, path)) {
+      if (garbledName(name, brand)) return `name with letters missing (${source.retailer})`;
+      if (partsNames && looseOnly(source, path) && partsNames.test(name)) return `spare part from a catch-all folder (${source.retailer})`;
+    }
     return '';
   };
+}
+
+// ---------- Duplicates ----------
+// Owner's rule (project memory): no product twice on the site, except the same product from ANOTHER shop at ANOTHER price
+// (kept for price comparison). In one shop the same name, or the same EAN, is one product and only its cheapest row is kept
+// (Back to the Office lists "TP-Link 8-Port 10/100/1000Mbps Desktop Network Switch" at 16.99, 19.99 and 27.99; the live
+// site had 116 such names, 24 Oct 2026). Between shops the same name or EAN at the same price is shown once (lessons L47).
+export const nameKey = name => String(name || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+
+export function findDuplicates(rows) {
+  const parent = rows.map((_, i) => i);
+  const find = i => { while (parent[i] !== i) { parent[i] = parent[parent[i]]; i = parent[i]; } return i; };
+  const union = (a, b) => { const ra = find(a), rb = find(b); if (ra !== rb) parent[Math.max(ra, rb)] = Math.min(ra, rb); };
+  const shop = p => `${p.awin_advertiser_id}|${p.item_condition || ''}`;
+  // An EAN that one shop puts on more than 3 different names is a code for a whole range, not for one product: not used.
+  const namesPerGtin = new Map();
+  for (const p of rows) {
+    if (!p.gtin) continue;
+    const k = `${shop(p)}|${p.gtin}`;
+    if (!namesPerGtin.has(k)) namesPerGtin.set(k, new Set());
+    namesPerGtin.get(k).add(nameKey(p.product_name));
+  }
+  const firstOf = new Map();
+  rows.forEach((p, i) => {
+    const keys = [`n|${shop(p)}|${nameKey(p.product_name)}`];
+    const g = `${shop(p)}|${p.gtin}`;
+    if (p.gtin && namesPerGtin.get(g).size <= 3) keys.push(`g|${g}`);
+    for (const k of keys) {
+      if (firstOf.has(k)) union(i, firstOf.get(k));
+      else firstOf.set(k, i);
+    }
+  });
+  const cheapest = new Map(); // group -> its cheapest row (the first one on a tie)
+  rows.forEach((p, i) => {
+    const r = find(i), b = cheapest.get(r);
+    if (b === undefined || p.price < rows[b].price) cheapest.set(r, i);
+  });
+  const keep = rows.map((_, i) => cheapest.get(find(i)) === i);
+  const sameShop = keep.map((k, i) => (k ? -1 : i)).filter(i => i >= 0);
+  const otherShop = [];
+  const seen = new Map(); // name or EAN + price -> the shop that has it
+  rows.forEach((p, i) => {
+    if (!keep[i]) return;
+    const price = p.price.toFixed(2);
+    const keys = [`n|${nameKey(p.product_name)}|${price}`];
+    if (p.gtin) keys.push(`g|${p.gtin}|${price}`);
+    if (keys.some(k => seen.has(k) && seen.get(k) !== p.awin_advertiser_id)) { keep[i] = false; otherShop.push(i); return; }
+    for (const k of keys) if (!seen.has(k)) seen.set(k, p.awin_advertiser_id);
+  });
+  return { keep, sameShop, otherShop };
+}
+
+// Random examples that are the same on every run of the same feed (a fixed seed), so the report shows a spread of each group
+// and not only its first rows.
+function makeRng(seed) {
+  let a = seed >>> 0;
+  return () => {
+    a = (a + 0x6D2B79F5) >>> 0;
+    let t = a;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+function addSample(store, key, item, size, rng) {
+  const r = (store[key] ||= { n: 0, items: [] });
+  r.n++;
+  if (r.items.length < size) r.items.push(item);
+  else {
+    const j = Math.floor(rng() * r.n);
+    if (j < size) r.items[j] = item;
+  }
 }
 
 export async function planImport({ archive, sourcesFile, outDir, now = new Date() }) {
@@ -261,7 +360,10 @@ export async function planImport({ archive, sourcesFile, outDir, now = new Date(
   const samples = { accepted: {}, rejected: {}, byRetailer: {} };
   const feedInfo = [];
   const products = new Map();
-  const seenNames = new Set();
+  // Rows that passed every check, in feed order; duplicates are taken out once all feeds are read (findDuplicates).
+  const candidates = [];
+  const seenKeys = new Set();
+  const rng = makeRng(47);
   const reject = (reason, rec) => {
     stats.rejected[reason] = (stats.rejected[reason] || 0) + 1;
     const list = (samples.rejected[reason] ||= []);
@@ -272,8 +374,8 @@ export async function planImport({ archive, sourcesFile, outDir, now = new Date(
     const filter = sourceFilter(source);
     let sourceRows = 0, missing = 0;
     // Per shop: rows, products and samples, so a new shop can be checked on its own (PCHUB.UK next to Back to the Office).
-    const rs = (stats.perRetailer[source.retailer] ||= { rows: 0, accepted: 0, perCategory: {}, feedCats: {} });
-    const rsamples = (samples.byRetailer[source.retailer] ||= {});
+    const rs = (stats.perRetailer[source.retailer] ||= { rows: 0, accepted: 0, loose: 0, perCategory: {}, feedCats: {}, folderSamples: {}, looseSamples: {} });
+    samples.byRetailer[source.retailer] ||= {};
     for (const feedId of source.feedIds) {
       const fname = `AWIN_${source.advertiserId}_${feedId}.csv.gz`;
       const found = findFeed(archives, fname);
@@ -313,7 +415,8 @@ export async function planImport({ archive, sourcesFile, outDir, now = new Date(
         const filtered = filter(name, brand, merchantCategory);
         if (filtered) { reject(filtered, short); continue; }
         // A product from a catch-all folder is classified by its name alone (the folder says nothing about it).
-        const cls = looseOnly(source, merchantCategory) ? classify(name, '')
+        const loose = looseOnly(source, merchantCategory);
+        const cls = loose ? classify(name, '')
           : classify(name, `${merchantCategory || awinCategory} ${merchantCategory ? awinCategory : ''}`.trim());
         if (!cls.ok) { reject(cls.reason, short); continue; }
         if (!Number.isFinite(price) || price <= 0) { reject('no price', short); continue; }
@@ -331,10 +434,8 @@ export async function planImport({ archive, sourcesFile, outDir, now = new Date(
         const merchantProductId = pick(rec, map.merchantProductId);
         if (!merchantProductId) { reject('no product id', short); continue; }
         const stableKey = `${source.advertiserId}:${merchantProductId}`;
-        if (products.has(stableKey)) { reject('duplicate product id', short); continue; }
-        const nameKey = `${source.advertiserId}|${name.toLowerCase()}|${price.toFixed(2)}`;
-        if (seenNames.has(nameKey)) { reject('duplicate (same name and price)', short); continue; }
-        seenNames.add(nameKey);
+        if (seenKeys.has(stableKey)) { reject('duplicate product id', short); continue; }
+        seenKeys.add(stableKey);
 
         // "ignoreWasPrice": a feed whose rrp_price is the same mark-up on every product (PCHUB.UK: price x 1.44) is not
         // a real earlier price, so no "was" price and no discount badge.
@@ -376,23 +477,7 @@ export async function planImport({ archive, sourcesFile, outDir, now = new Date(
           is_active: 1,
           last_seen_at: runStamp
         };
-        products.set(stableKey, p);
-        stats.accepted++;
-        stats.perCategory[cls.slug] = (stats.perCategory[cls.slug] || 0) + 1;
-        rs.accepted++;
-        rs.perCategory[cls.slug] = (rs.perCategory[cls.slug] || 0) + 1;
-        const rlist = (rsamples[cls.slug] ||= []);
-        if (rlist.length < SAMPLES_PER_SHOP) rlist.push(short);
-        const fc = truncate(merchantCategory || awinCategory || '-', 70);
-        const fcs = (stats.feedCats[cls.slug] ||= {});
-        fcs[fc] = (fcs[fc] || 0) + 1;
-        const rfc = (rs.feedCats[cls.slug] ||= {});
-        const fcLong = truncate(merchantCategory || awinCategory || '-', 110);
-        rfc[fcLong] = (rfc[fcLong] || 0) + 1;
-        if (gtin) stats.gtinValid++;
-        if (wasPrice) stats.withWas++;
-        const list = (samples.accepted[cls.slug] ||= []);
-        if (list.length < SAMPLES_PER_GROUP) list.push(short);
+        candidates.push({ p, short, loose, feedCategory: merchantCategory || awinCategory || '-' });
       }
       feedInfo.push(`  rows read: ${rows}`);
       sourceRows += rows;
@@ -400,6 +485,40 @@ export async function planImport({ archive, sourcesFile, outDir, now = new Date(
     if (sourceRows > 0 && missing === 0) readAdvertisers.add(source.advertiserId);
     else notRead.push(source.retailer);
   }
+
+  // ---------- Duplicates out, then the counts and samples of what stays ----------
+  const dup = findDuplicates(candidates.map(c => c.p));
+  for (const i of dup.sameShop) reject('duplicate: same shop, same name or EAN (the cheapest is kept)', candidates[i].short);
+  for (const i of dup.otherShop) reject('duplicate: same product and price at another shop', candidates[i].short);
+  candidates.forEach((c, i) => {
+    if (!dup.keep[i]) return;
+    const { p, short } = c;
+    const slug = p.category_slug;
+    const rs = stats.perRetailer[p.retailer];
+    products.set(p.stable_key, p);
+    stats.accepted++;
+    stats.perCategory[slug] = (stats.perCategory[slug] || 0) + 1;
+    rs.accepted++;
+    rs.perCategory[slug] = (rs.perCategory[slug] || 0) + 1;
+    const rlist = (samples.byRetailer[p.retailer][slug] ||= []);
+    if (rlist.length < SAMPLES_PER_SHOP) rlist.push(short);
+    const fc = truncate(c.feedCategory, 70);
+    const fcs = (stats.feedCats[slug] ||= {});
+    fcs[fc] = (fcs[fc] || 0) + 1;
+    const fcLong = truncate(c.feedCategory, 110);
+    const rfc = (rs.feedCats[slug] ||= {});
+    rfc[fcLong] = (rfc[fcLong] || 0) + 1;
+    const example = `${truncate(p.product_name, 90)} | ${p.price.toFixed(2)}`;
+    addSample((rs.folderSamples[slug] ||= {}), fcLong, example, SAMPLES_PER_FOLDER, rng);
+    if (c.loose) {
+      rs.loose++;
+      addSample(rs.looseSamples, slug, `${example} | ${truncate(c.feedCategory, 60)}`, SAMPLES_LOOSE, rng);
+    }
+    if (p.gtin) stats.gtinValid++;
+    if (p.was_price) stats.withWas++;
+    const list = (samples.accepted[slug] ||= []);
+    if (list.length < SAMPLES_PER_GROUP) list.push(short);
+  });
 
   // ---------- SQL (written, never executed here) ----------
   mkdirSync(join(outDir, 'sql'), { recursive: true });
@@ -445,17 +564,34 @@ export async function planImport({ archive, sourcesFile, outDir, now = new Date(
     if (cats) L.push('      ' + cats);
   }
   L.push('');
-  L.push('== Per shop: the biggest feed folders of each category ==');
+  L.push(`== Per shop: the biggest feed folders of each category (with up to ${SAMPLES_PER_FOLDER} random examples) ==`);
   for (const [r, v] of Object.entries(stats.perRetailer)) {
     if (!v.accepted) continue;
     for (const slug of CATEGORY_SLUGS) {
       const top = Object.entries(v.feedCats[slug] || {}).sort((a, b) => b[1] - a[1]).slice(0, 8);
       if (!top.length) continue;
       L.push(`  ${r} | ${slug}`);
-      for (const [c, n] of top) L.push(`      ${String(n).padStart(5)}  ${c}`);
+      for (const [c, n] of top) {
+        L.push(`      ${String(n).padStart(5)}  ${c}`);
+        for (const x of ((v.folderSamples[slug] || {})[c] || { items: [] }).items) L.push(`               - ${x}`);
+      }
     }
   }
   L.push('');
+  const looseShops = Object.entries(stats.perRetailer).filter(([, v]) => v.loose);
+  if (looseShops.length) {
+    L.push(`== Catch-all folders: products placed by their NAME alone (up to ${SAMPLES_LOOSE} random examples per category) ==`);
+    for (const [r, v] of looseShops) {
+      L.push(`  ${r}: ${v.loose} of its ${v.accepted} products`);
+      for (const slug of CATEGORY_SLUGS) {
+        const s = v.looseSamples[slug];
+        if (!s) continue;
+        L.push(`  -- ${r} | ${slug}: ${s.n}`);
+        for (const x of s.items) L.push(`     ${x}`);
+      }
+    }
+    L.push('');
+  }
   L.push('== Per category ==');
   for (const slug of CATEGORY_SLUGS) {
     L.push(`  ${slug.padEnd(24)} ${stats.perCategory[slug] || 0}`);
@@ -465,6 +601,9 @@ export async function planImport({ archive, sourcesFile, outDir, now = new Date(
   L.push('');
   L.push('== Rejected, by reason ==');
   for (const [k, v] of Object.entries(stats.rejected).sort((a, b) => b[1] - a[1])) L.push(`  ${k.padEnd(28)} ${v}`);
+  if (stats.rejected['duplicate: same shop, same name or EAN (the cheapest is kept)']) {
+    L.push('  (duplicates: the same product twice in one shop is shown once, at its lowest price - owner\'s rule)');
+  }
   L.push('');
   L.push(`== Samples: up to ${SAMPLES_PER_GROUP} accepted per category (name | price | feed category) ==`);
   for (const slug of CATEGORY_SLUGS) {

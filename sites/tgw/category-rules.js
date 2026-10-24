@@ -68,8 +68,12 @@ export const RULES = [
       // TGW dry run with PCHUB.UK (24 Oct 2026): "Belkin F7U017bt Passive holder Mobile phone/Smartphone", "Kensington Car Mount
       // for Smartphones", "Belkin Boost Charge Smartphone Black Cigar lighter Auto", "InvisibleShield Glass Elite Apple iPhone 17e"
       // are phone accessories, not phones.
-      'passive holders?', '(?:car|phone|smartphone|mobile) (?:mounts?|holders?)', 'mounts? for (?:smart)?phones?', 'cigar lighter', 'car chargers?',
+      '(?:active|passive) holders?', '(?:car|phone|smartphone|mobile) (?:mounts?|holders?)', 'mounts? for (?:smart)?phones?', 'cigar lighter', 'car chargers?',
       'invisibleshield', 'glass elite', 'screen ?guards?',
+      // Third dry run (24 Oct 2026): 153 cases from PCHUB's "Mobile & Accessories>Cases & Covers" folder were on the phones page,
+      // because their names do not say "case" ("Speck Presidio Perfect Clear + MS Apple iPhone 14 Plus/15 Plus Clear"), and
+      // "Verbatim FWC-01 Active holder Mobile phone/Smartphone Black" too. The folder decides.
+      'cases & covers',
       // Mounts and arms (PCHUB.UK, owner 24 Oct 2026: as many as possible): "Arlo Ceiling Adapter Floodlight Mount",
       // "Fellowes Computer Monitor Stand", "ARCTIC Z1 Basic - Desk Mount Monitor Arm". A TV wall mount stays with the TVs.
       'monitor (?:wall )?(?:mounts?|arms?|stands?|risers?|brackets?)', '(?:desk|ceiling|camera|floodlight|pole|vesa|projector) (?:mounts?|brackets?)',
@@ -87,7 +91,9 @@ export const RULES = [
       'gaming (?:headset|keyboard|mouse|mice|chair|desk|monitor|controller|pc|laptop|console)s?', 'game ?pads?', 'game controllers?',
       'controllers?', 'joysticks?', 'racing wheel', 'vr headset', 'meta quest'
     ]),
-    exclude: words(['board game', 'card game', 'jigsaw puzzle', 'smart tv', 'televisions?', 'google tv', 'oled tv', 'qled', '\\d{2}["”] (?:bravia|4k)'])
+    // A network "gateway/controller ... Mbit/s" (PCHUB.UK "Networking>Routers & Accessories>Controllers") is not a game controller.
+    exclude: words(['board game', 'card game', 'jigsaw puzzle', 'smart tv', 'televisions?', 'google tv', 'oled tv', 'qled', '\\d{2}["”] (?:bravia|4k)',
+      'gateways?', 'mbit/s'])
   },
   {
     slug: 'smart-home-wifi',

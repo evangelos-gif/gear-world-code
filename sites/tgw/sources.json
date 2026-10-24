@@ -20,7 +20,7 @@
       "currency": "GBP",
       "condition": "new",
       "approved": true,
-      "_comment": "Back to the Office (Shopify, one category 'Computers' for all 142,271 rows on 23 Oct 2026, 29,750 in stock). It sells business IT too (HPE, Cisco, BTI, Origin Storage, POS): only these consumer brands, and no product whose name says server, warranty, spare part ... (lessons L14, L40). Feed 111663 is the same shop's in-stock list: not used, 102827 has the stock of every product.",
+      "_comment": "Back to the Office (Shopify, one category 'Computers' for all 142,271 rows on 23 Oct 2026, 29,750 in stock). It sells business IT too (HPE, Cisco, BTI, Origin Storage, POS): only these consumer brands, and no product whose name says server, warranty, spare part ... (lessons L14, L40). Feed 111663 is the same shop's in-stock list: not used, 102827 has the stock of every product. Hotel TVs (Samsung HG.., \"Hospitality TV\") and network gateway/controllers are out; the same product twice in this shop is shown once, at its lowest price (lessons L47).",
       "brands": [
         "8BitDo",
         "Acer",
@@ -310,7 +310,8 @@
         "\\b(omada|video bars?|poly studio|mptz|logitech (rally|scribe|sight|tap|roommate)|rally (camera|bar|plus|mic pod|speaker|table hub|display hub|mount|system)|tap (ip|scheduler))\\b",
         "\\b(ups|uninterruptible|pdu|power distribution|surge protector rack|battery backup)\\b",
         "\\b(privacy filter|privacy screen|security lock slot|cable lock|thin client|zero client|taa)\\b",
-        "\\b(network card|nic|hba|raid controller|controller card|expansion card|interface card|riser)\\b"
+        "\\b(network card|nic|hba|raid controller|controller card|expansion card|interface card|riser)\\b",
+        "\\b(hospitality|hotel tvs?|hg\\d{2}[a-z]{1,3}\\d{2,4}[a-z]{0,6}|gateways?/controllers?|wlan controllers?|wireless lan controllers?|access point controllers?|cloud key)\\b"
       ]
     },
     {
@@ -322,7 +323,7 @@
       "currency": "GBP",
       "condition": "new",
       "approved": true,
-      "_comment": "PCHUB.UK (228,274 rows on 23 Oct 2026, a trade catalogue: 99,975 rows in 'PC Components>Other', spare parts, toner, POS, cables). Only products in the consumer folders of 'allowPaths' (folder names of merchant_category), never those of 'denyPaths', of the consumer brands (same list as Back to the Office) and without the business words. Every name is cut at 70 characters ('nameCutAt': the cut last word is taken off) and rrp_price is always price x 1.44 ('ignoreWasPrice': no fake discount). Data projectors (Epson EB, installation laser projectors), hotel TVs, photo paper, call-centre headsets and the makers' own replacement power supplies are out (dry run of 24 Oct 2026). Owner, 24 Oct 2026: as many as possible, if safe: more consumer brands, genuine ink and toner, laptop chargers, monitor and TV mounts, and from the catch-all folders ('looseFolders') only products whose name says what they are. Lessons L45, L46.",
+      "_comment": "PCHUB.UK (228,274 rows on 23 Oct 2026, a trade catalogue: 99,975 rows in 'PC Components>Other', spare parts, toner, POS, cables). Only products in the consumer folders of 'allowPaths' (folder names of merchant_category), never those of 'denyPaths', of the consumer brands (same list as Back to the Office) and without the business words. Every name is cut at 70 characters ('nameCutAt': the cut last word is taken off) and rrp_price is always price x 1.44 ('ignoreWasPrice': no fake discount). Data projectors (Epson EB, installation laser projectors), hotel TVs, photo paper, call-centre headsets and the makers' own replacement power supplies are out (dry run of 24 Oct 2026). Owner, 24 Oct 2026: as many as possible, if safe: more consumer brands, genuine ink and toner, laptop chargers, monitor and TV mounts, and from the catch-all folders ('looseFolders') only products whose name says what they are. Lessons L45, L46. Third dry run (24 Oct 2026): in the spare-part folders ('partsFolders': 'Other', 'Direktek') a name with letters missing ('DELL Opicl Scroll Mouse US') is out, and so is a product with no consumer folder whose name has a spare-part word ('partsNames'). Hotel TVs (folder 'Hospitality TVs', Samsung HG..) and network gateway/controllers are out; the same product twice in this shop is shown once, at its lowest price. Lessons L47.",
       "nameCutAt": 69,
       "ignoreWasPrice": true,
       "allowPaths": [
@@ -461,7 +462,8 @@
         "AV Extenders",
         "Signal Processing & Distribution",
         "Power Extensions",
-        "Telecom & Navigation Spare Parts"
+        "Telecom & Navigation Spare Parts",
+        "Hospitality TVs"
       ],
       "brands": [
         "8BitDo",
@@ -755,12 +757,22 @@
         "\\b(network card|nic|hba|raid controller|controller card|expansion card|interface card|riser)\\b",
         "\\b(legacy|expired|replacement|ear (?:pads?|cushions?)|lff|hot-?plug|hot-?swap|managed)\\b",
         "\\b(photo paper|paper rolls?|canvas rolls?|matte paper|glossy paper|luster paper|\\d+ ?sheets|\\d+ ?g/m2|\\d+ ?gsm|hospitality|signage|commercial display|biz \\d{3,4}|gn ?\\d{3,4}|telecoil|quick disconnect)\\b",
-        "^(?:dell|hp|hpe|lenovo|fujitsu)\\b.*\\bpower supply"
+        "^(?:dell|hp|hpe|lenovo|fujitsu)\\b.*\\bpower supply",
+        "\\b(hotel tvs?|hg\\d{2}[a-z]{1,3}\\d{2,4}[a-z]{0,6}|gateways?/controllers?|wlan controllers?|wireless lan controllers?|access point controllers?|cloud key)\\b"
       ],
       "looseFolders": [
         "Other",
         "Personal Stock",
         "Direktek"
+      ],
+      "partsFolders": [
+        "Other",
+        "Direktek"
+      ],
+      "partsNames": [
+        "\\b(internal(?! (?:solid state drive|ssd|hard drive|hdd))|lcd|led panel|display panel|digiti[sz]er|touch ?pads?|click ?pads?|palm ?rests?|heat ?sinks?|thermal module|fan module|motherboards?|main ?boards?|system ?boards?|logic boards?|daughter ?boards?|i/o boards?|boards?|flex cables?|cable kit|brackets?|camera (?:module|board|cable)s?|webcam (?:module|board|cable)s?|lamps?|duplex(?:er)?|feeders?|formatter|pick-?up|rollers?|paper feed|output bin|separation pad|connectors?|sim trays?|back glass|(?:back|bottom|top|base|rear|lcd|battery) covers?|doors?)\\b",
+        "^(?!.*\\bpower ?banks?\\b).*\\bbatter(?:y|ies)\\b",
+        "\\bspeakers? ?\\(?(?:left|right|l\\+r|l/r)\\b|\\bleft and right\\b"
       ]
     }
   ]
