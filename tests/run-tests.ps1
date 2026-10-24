@@ -2048,6 +2048,84 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
     }
 }
 
+# 10. gwh-code-export.ps1 (Hub code into the repo) on a fake hub folder: read-only, secrets/IDs/emails masked, exact text blocks
+Write-Host 'gwh-code-export.ps1'
+$hx = Join-Path $repo 'tools/gwh-code-export.ps1'
+$hxRoot = Join-Path $work 'hx-home'
+$hub = Join-Path $hxRoot 'gear-world-hub'
+$hxOut = Join-Path $work 'hx-out'
+$hxDb = [guid]::NewGuid().ToString()
+$hxAcc = [guid]::NewGuid().ToString('N')
+$hxMail = 'private.person' + '@gmail.com'
+New-Item -ItemType Directory -Path (Join-Path $hub 'public') -Force | Out-Null
+Write-Utf8 (Join-Path $hub 'worker.js') ("import { helper } from './lib/util.js';`r`nconst API_TOKEN = `"$fakeSecret`";`r`nconst OWNER = '$hxMail';`r`nconst CONTACT = 'contact@gearworldhub.com';`r`nconst MODEL = '@cf/meta/llama-3.1-8b-instruct-fp8';`r`nexport default { fetch(r, env) { return env.ASSETS.fetch(r) } };`r`n")
+Write-Utf8 (Join-Path $hub 'lib/util.js') "export function helper() { return 1 }`n"
+Write-Utf8 (Join-Path $hub 'wrangler.toml') ("name = `"gear-world-hub`"`nmain = `"worker.js`"`naccount_id = `"$hxAcc`"`n[assets]`ndirectory = `"./public`"`nbinding = `"ASSETS`"`n[[d1_databases]]`nbinding = `"DB`"`ndatabase_name = `"gear-world-registry`"`ndatabase_id = `"$hxDb`"`n")
+Write-Utf8 (Join-Path $hub 'package.json') '{ "name": "gear-world-hub", "private": true }'
+Write-Utf8 (Join-Path $hub '.dev.vars') 'TURNSTILE_SECRET=HUBSECRETVALUE123'
+Write-Utf8 (Join-Path $hub 'registry-export.sql') "INSERT INTO subscribers VALUES ('ROWDATA-MARKER');`n"
+Write-Utf8 (Join-Path $hub 'fix-hub-v3.ps1') "# PATCHSCRIPT-MARKER`n"
+Write-Utf8 (Join-Path $hub 'backups/vgw-hub-link-1/index.html') 'BACKUPDIR-MARKER'
+Write-Utf8 (Join-Path $hub 'node_modules/x/index.js') 'PACKAGE-MARKER'
+# index.html with a BOM and CRLF line ends, app.js without a final line end
+[System.IO.File]::WriteAllText((Join-Path $hub 'public/index.html'), "<!doctype html>`r`n<title>Hub</title>`r`n<p>Ελληνικά ✓</p>`r`n", (New-Object System.Text.UTF8Encoding($true)))
+Write-Utf8 (Join-Path $hub 'public/app.js') "console.log('app');"
+Write-Utf8 (Join-Path $hub 'public/privacy/index.html') "<h1>Privacy</h1>`n"
+Write-Utf8 (Join-Path $hub 'public/_headers') "/*`n  X-Content-Type-Options: nosniff`n"
+Write-Utf8 (Join-Path $hub 'public/index-before-rebrand.html') 'OLDPAGE-MARKER'
+Write-Utf8 (Join-Path $hub 'public/big.js') ('/*' + ('z' * 3000) + '*/')
+[System.IO.File]::WriteAllBytes((Join-Path $hub 'public/hub-tgw.jpg'), [byte[]](0xFF, 0xD8, 0xFF, 0x00, 0x10, 0x4A))
+[System.IO.File]::WriteAllBytes((Join-Path $hub 'public/latin1.txt'), [byte[]](0x63, 0x61, 0x66, 0xE9))
+$hxBefore = Get-TreeHash $hub
+& $exe -NoProfile -ExecutionPolicy Bypass -File $hx -Root $hxRoot -OutDir $hxOut -MaxTextKB 2 -SkipD1 -NoClipboard
+Check ($LASTEXITCODE -eq 0) 'hub export: exit code 0'
+$hxRep = @(Get-ChildItem -LiteralPath $hxOut -Filter 'GWH_CODE_EXPORT_*.txt' -ErrorAction SilentlyContinue)
+Check ($hxRep.Count -eq 1) 'hub export: one report written'
+if ($hxRep.Count -ge 1) {
+    $hr = [System.IO.File]::ReadAllText($hxRep[0].FullName)
+    $want = @('worker.js', 'lib/util.js', 'wrangler.toml', 'package.json', 'public/index.html', 'public/app.js', 'public/privacy/index.html', 'public/_headers')
+    $missing = @($want | Where-Object { -not $hr.Contains('<<<GW-FILE-BEGIN path=' + $_ + ' ') })
+    Check ($missing.Count -eq 0) ('hub export: Worker code, imports, config and public text files included ' + ($missing -join ','))
+    Check (-not $hr.Contains($fakeSecret)) 'hub export: hard-coded secret masked'
+    Check (-not $hr.Contains($hxDb) -and -not $hr.Contains($hxAcc)) 'hub export: database_id and account_id masked'
+    Check (-not $hr.Contains('HUBSECRETVALUE123') -and $hr.Contains('.dev.vars: present')) 'hub export: .dev.vars never read, presence reported'
+    Check (-not $hr.Contains($hxMail) -and $hr.Contains('contact@gearworldhub.com')) 'hub export: personal email masked, Gear World email kept'
+    Check ($hr.Contains("'@cf/meta/llama-3.1-8b-instruct-fp8'")) 'hub export: Workers AI model name is not taken for an email'
+    Check ($hr.Contains('secrets masked: 1 line(s)') -and $hr.Contains('personal email addresses masked: 1 line(s)') -and $hr.Contains('IDs masked: 2 line(s)')) 'hub export: masking reported'
+    $markers = @('ROWDATA-MARKER', 'PATCHSCRIPT-MARKER', 'BACKUPDIR-MARKER', 'PACKAGE-MARKER', 'OLDPAGE-MARKER', ('z' * 3000))
+    $leaked = @($markers | Where-Object { $hr.Contains($_) })
+    Check ($leaked.Count -eq 0) ('hub export: data files, patch scripts, backups, packages, old pages and big files not read ' + $leaked.Count)
+    Check ($hr.Contains('registry-export.sql') -and $hr.Contains('fix-hub-v3.ps1')) 'hub export: other files listed by name'
+    $jpgSha = (Get-FileHash -LiteralPath (Join-Path $hub 'public/hub-tgw.jpg') -Algorithm SHA256).Hash.ToLowerInvariant()
+    Check ($hr.Contains('BINARY | public/hub-tgw.jpg | 6 | ' + $jpgSha + ' | - |')) 'hub export: image listed with size and sha256'
+    Check ($hr.Contains('BACKUP | public/index-before-rebrand.html |')) 'hub export: backup-like public page listed (L04)'
+    Check ($hr.Contains('BIG | public/big.js |')) 'hub export: big file listed, text not included'
+    Check ($hr.Contains('NOTUTF8 | public/latin1.txt |')) 'hub export: non UTF-8 file listed, text not included'
+    $idx = [regex]::Match($hr, '(?m)^ASSET \| public/index\.html \| [0-9]+ \| [0-9a-f]{64} \| [0-9a-f]{64} \| [0-9: -]+ \| eol=crlf bom=yes')
+    Check $idx.Success 'hub export: line ends and BOM of the file recorded'
+    # Every text block must give back exactly its sha256 (this is what Claude checks after the paste)
+    $norm = $hr.Replace("`r`n", "`n")
+    $blocks = [regex]::Matches($norm, '(?s)<<<GW-FILE-BEGIN path=(\S+) sha256=([0-9a-f]{64}) >>>\n(.*?)\n<<<GW-FILE-END path=\1 >>>')
+    $hxSha = [System.Security.Cryptography.SHA256]::Create()
+    $badBlocks = @()
+    $byPath = @{}
+    foreach ($b in $blocks) {
+        $calc = ([BitConverter]::ToString($hxSha.ComputeHash((New-Object System.Text.UTF8Encoding($false)).GetBytes($b.Groups[3].Value)))).Replace('-', '').ToLowerInvariant()
+        if ($calc -ne $b.Groups[2].Value) { $badBlocks += $b.Groups[1].Value }
+        $byPath[$b.Groups[1].Value] = $b.Groups[3].Value
+    }
+    $hxSha.Dispose()
+    Check ($blocks.Count -eq 8 -and $badBlocks.Count -eq 0) ('hub export: every text block matches its sha256 ' + $blocks.Count + ' ' + ($badBlocks -join ','))
+    Check ($byPath['public/index.html'] -eq "<!doctype html>`n<title>Hub</title>`n<p>Ελληνικά ✓</p>`n") 'hub export: text block exact (BOM removed, LF, Greek kept)'
+    Check ($byPath['public/app.js'] -eq "console.log('app');") 'hub export: text without a final line end kept exact'
+} else { Check $false 'hub export report written' }
+Check ((Get-TreeHash $hub) -eq $hxBefore) 'hub export: hub folder unchanged (read-only)'
+New-Item -ItemType Directory -Path (Join-Path $work 'hx-empty') -Force | Out-Null
+& $exe -NoProfile -ExecutionPolicy Bypass -File $hx -Root (Join-Path $work 'hx-empty') -OutDir $hxOut -SkipD1 -NoClipboard
+Check ($LASTEXITCODE -eq 2) 'hub export: no hub folder gives exit code 2'
+& $exe -NoProfile -ExecutionPolicy Bypass -File $hx -HubDir $site -OutDir $hxOut -SkipD1 -NoClipboard
+Check ($LASTEXITCODE -eq 3) 'hub export: a folder of another Worker gives exit code 3'
+
 Remove-Item -LiteralPath $work -Recurse -Force -ErrorAction SilentlyContinue
 
 Write-Host ''
