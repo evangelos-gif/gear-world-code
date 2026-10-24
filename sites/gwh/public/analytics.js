@@ -310,4 +310,24 @@
     }
   );
 
+
+  // ----------------------------------------------------------
+  // PHOTO SEARCH (camera button, gear-world-camera.js)
+  // Only the outcome is sent: never the photo and never the
+  // words found in it.
+  // ----------------------------------------------------------
+
+  window.addEventListener(
+    "gwh:photo_search",
+    (event) => {
+      const detail = (event && event.detail) || {};
+
+      track("photo_search", {
+        photo_result: String(detail.result || "").slice(0, 20),
+        photo_world: String(detail.world || "").slice(0, 5),
+        results_count: Number(detail.results || 0)
+      });
+    }
+  );
+
 })();

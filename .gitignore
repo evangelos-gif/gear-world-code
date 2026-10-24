@@ -19,3 +19,11 @@ reports/
 # Real Wrangler configs hold Cloudflare IDs: only the .example files are committed
 sites/*/wrangler.jsonc
 sites/*/.dev.vars
+sites/*/wrangler.toml
+sites/*/wrangler.*.toml
+sites/*/wrangler.*.jsonc
+
+# Outputs of the automatic checks
+gwh-dist/
+gwh-photo-shots/
+gwh-photo-report.txt

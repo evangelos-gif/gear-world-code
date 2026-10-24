@@ -222,3 +222,34 @@ jobs:
             i18n-report.txt
             dev.log
           if-no-files-found: ignore
+
+  gwh-hub:
+    name: GWH (Hub) photo search on phone and desktop
+    runs-on: ubuntu-24.04
+    env:
+      WRANGLER_SEND_METRICS: 'false'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci --no-audit --no-fund
+      - name: Unit tests (photo search Worker and page texts)
+        run: node --test tests/worker/gwh-photo.test.mjs
+      - name: The Hub Worker builds (wrangler dry run, nothing is uploaded)
+        run: |
+          sed -e 's/REPLACE_WITH_DATABASE_ID/local-dev-only/' sites/gwh/wrangler.toml.example > sites/gwh/wrangler.ci.toml
+          npx wrangler deploy --dry-run --outdir gwh-dist --config sites/gwh/wrangler.ci.toml
+      - name: Camera button in 11 languages, phone (390 px) and desktop, grouped results (lessons L21, L24, L27, L35)
+        run: |
+          npx playwright install --with-deps chromium
+          node tools/gwh-photo-page-check.mjs --shots gwh-photo-shots --out gwh-photo-report.txt
+      - name: Keep the report and screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gwh-photo-report
+          path: |
+            gwh-photo-report.txt
+            gwh-photo-shots/
+          if-no-files-found: ignore

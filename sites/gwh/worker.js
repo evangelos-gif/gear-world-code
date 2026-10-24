@@ -1,4 +1,7 @@
-export default {
+// GWH-PHOTO-SEARCH: the photo search and the test address (preview) are in photo-search.js.
+import { handlePhotoSearch, previewResponse, addPreviewHeaders } from "./photo-search.js";
+
+const hubCore = {
   async fetch(request, env) {
     const url = new URL(request.url);
 
@@ -785,3 +788,19 @@ export default {
     return env.ASSETS.fetch(request);
   }
 };
+
+// GWH-PHOTO-SEARCH-START
+// Photo search (camera button). Every other request goes to hubCore above, unchanged.
+// On the test address (GWH_PREVIEW = "1") a few extra rules apply: see photo-search.js.
+export default {
+  async fetch(request, env, ctx) {
+    const early = previewResponse(request, env);
+    if (early) return addPreviewHeaders(early, env);
+    const url = new URL(request.url);
+    if (url.pathname === "/api/photo-search") {
+      return addPreviewHeaders(await handlePhotoSearch(request, env, ctx), env);
+    }
+    return addPreviewHeaders(await hubCore.fetch(request, env), env);
+  }
+};
+// GWH-PHOTO-SEARCH-END

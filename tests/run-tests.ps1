@@ -2126,6 +2126,127 @@ Check ($LASTEXITCODE -eq 2) 'hub export: no hub folder gives exit code 2'
 & $exe -NoProfile -ExecutionPolicy Bypass -File $hx -HubDir $site -OutDir $hxOut -SkipD1 -NoClipboard
 Check ($LASTEXITCODE -eq 3) 'hub export: a folder of another Worker gives exit code 3'
 
+# 11. gwh-photo.ps1 (Hub photo search: check and preview) with a fake wrangler (Windows only: runs .cmd files)
+if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
+    Write-Host 'gwh-photo.ps1 (fake wrangler)'
+    $pTool = Join-Path (Join-Path $repo 'tools') 'gwh-photo.ps1'
+    $pState = Join-Path $work 'gwhp-state'
+    $pWork = Join-Path $work 'gwhp-work'
+    $pOut = Join-Path $work 'gwhp-out'
+    $pBin = Join-Path $work 'gwhp-bin'
+    $pHub = Join-Path $work 'gwhp-hub'
+    New-Item -ItemType Directory -Path $pState, $pBin -Force | Out-Null
+    $pDb = [guid]::NewGuid().ToString()
+    $pBm = '00000085-0000024c-00004c6d-' + [guid]::NewGuid().ToString('N')
+    # A fake hub folder on the "PC" and its own baseline list (same format as sites/gwh/live-baseline.txt).
+    Write-Utf8 (Join-Path $pHub 'wrangler.toml') ("name = `"gear-world-hub`"`nmain = `"worker.js`"`n[[d1_databases]]`ndatabase_name = `"gear-world-registry`"`ndatabase_id = `"$pDb`"`n")
+    Write-Utf8 (Join-Path $pHub 'worker.js') 'export default { fetch() { return new Response("hub") } };'
+    Write-Utf8 (Join-Path $pHub 'public/index.html') '<!doctype html><title>Hub</title>'
+    Write-Utf8 (Join-Path $pHub 'public/index-before-kgw-live.html') '<!doctype html><title>old</title>'
+    $pBase = Join-Path $work 'gwhp-baseline.txt'
+    $bl = @('# test baseline', '# path | bytes | sha256 | kind')
+    foreach ($rel in @('worker.js', 'public/index.html', 'public/index-before-kgw-live.html')) {
+        $f = Join-Path $pHub $rel
+        $kind = 'file'
+        if ($rel -match 'before') { $kind = 'old-copy' }
+        $bl += ('{0} | {1} | {2} | {3}' -f $rel, (Get-Item -LiteralPath $f).Length, (Get-FileHash -LiteralPath $f -Algorithm SHA256).Hash.ToLowerInvariant(), $kind)
+    }
+    Write-Utf8 $pBase (($bl -join "`n") + "`n")
+    $pNpx = @(
+        '@echo off',
+        'echo %* >> "%GW_FAKE_STATE%\calls.log"',
+        'echo %* | findstr /C:"whoami" >nul && goto whoami',
+        'echo %* | findstr /C:"d1 list" >nul && goto d1list',
+        'echo %* | findstr /C:"time-travel info" >nul && goto tt',
+        'echo %* | findstr /C:"--file" >nul && goto file',
+        'echo %* | findstr /C:"--command" >nul && goto query',
+        'echo %* | findstr /C:"secret bulk" >nul && goto secret',
+        'echo %* | findstr /C:" deploy" >nul && goto deploy',
+        'echo unknown command 1>&2',
+        'exit /b 1',
+        ':whoami',
+        'echo You are logged in with an OAuth Token, associated with the email test@example.com.',
+        'exit /b 0',
+        ':d1list',
+        ('echo [{"uuid":"' + $pDb + '","name":"gear-world-registry"},{"uuid":"x","name":"other-site"}]'),
+        'exit /b 0',
+        ':tt',
+        ('echo Current bookmark: ' + $pBm),
+        'exit /b 0',
+        ':file',
+        'echo done> "%GW_FAKE_STATE%\tables.flag"',
+        'echo [{"results":[],"success":true}]',
+        'exit /b 0',
+        ':query',
+        'if exist "%GW_FAKE_STATE%\tables.flag" goto qyes',
+        'echo [{"results":[],"success":true}]',
+        'exit /b 0',
+        ':qyes',
+        'echo [{"results":[{"name":"photo_search_usage"},{"name":"photo_search_daily"}],"success":true}]',
+        'exit /b 0',
+        ':secret',
+        'copy /y %5 "%GW_FAKE_STATE%\secret-copy.json" >nul',
+        'echo Finished processing secrets file',
+        'exit /b 0',
+        ':deploy',
+        'echo Uploaded gear-world-hub-preview',
+        'echo   https://gear-world-hub-preview.example-test.workers.dev',
+        'exit /b 0'
+    ) -join "`r`n"
+    [System.IO.File]::WriteAllText((Join-Path $pBin 'npx.cmd'), $pNpx + "`r`n", [System.Text.Encoding]::ASCII)
+    $oldPath = $env:PATH
+    $env:PATH = $pBin + ';' + $oldPath
+    $env:GW_FAKE_STATE = $pState
+    $pCalls = Join-Path $pState 'calls.log'
+    function Run-P([string[]]$a) {
+        $all = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $pTool, '-HubDir', $pHub, '-WorkDir', $pWork, '-OutDir', $pOut, '-BaselineFile', $pBase, '-SkipInstall', '-NoClipboard', '-NoHttpCheck') + $a
+        & $exe @all | Out-Null
+        return $LASTEXITCODE
+    }
+    function PCalls { if (Test-Path -LiteralPath $pCalls) { return [System.IO.File]::ReadAllText($pCalls) } else { return '' } }
+    function PCount([string]$pattern) { return ([regex]::Matches((PCalls), $pattern)).Count }
+    function PLast { return [System.IO.File]::ReadAllText((@(Get-ChildItem -LiteralPath $pOut -Filter 'GWH_PHOTO_*.txt' | Sort-Object LastWriteTime, Name | Select-Object -Last 1)[0]).FullName) }
+    $pHubBefore = Get-TreeHash $pHub
+    try {
+        Check ((Run-P @('-Step', 'check')) -eq 0) 'hub photo check: exit 0'
+        $r = PLast
+        Check ($r.Contains('ίδιος με αυτόν που έτρεχε live') -and $r.Contains('δεν υπάρχουν ακόμα')) 'hub photo check: hub folder same as the baseline, tables not there yet'
+        Check ((PCount 'deploy --config') -eq 0 -and (PCount '--file') -eq 0 -and (PCount 'secret') -eq 0 -and (PCount 'time-travel') -eq 0) 'hub photo check: only reads'
+        Check (-not $r.Contains($pDb)) 'hub photo check: database id not in the report'
+        Check ((Run-P @('-Step', 'preview')) -eq 0 -and (PCount 'deploy --config') -eq 0 -and (PCount '--file') -eq 0) 'hub photo preview without -Apply: nothing changes'
+        Check ((Run-P @('-Step', 'preview', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB PHOTO LIVE')) -eq 1 -and (PCount '--file') -eq 0 -and (PCount 'deploy --config') -eq 0) 'hub photo preview with the wrong phrase: nothing changes'
+        Check ((Run-P @('-Step', 'preview', '-Apply', '-Approve', 'egkrino hub photo d1')) -eq 1 -and (PCount '--file') -eq 1 -and (PCount 'deploy --config') -eq 0) 'hub photo preview with only the D1 phrase: tables added, no deploy'
+        $c = PCalls
+        Check ($c.IndexOf('time-travel info gear-world-registry') -ge 0 -and $c.IndexOf('time-travel info') -lt $c.IndexOf('--file')) 'hub photo D1: restore point taken before the change'
+        Check ($c -match 'd1 execute gear-world-registry --remote --file "[^"]*0001_photo_search_limits\.sql"') 'hub photo D1: runs the migration file of the repo'
+        $notes = @(Get-ChildItem -LiteralPath (Join-Path $pWork 'backups') -Filter 'hub-photo-d1-*.txt' -ErrorAction SilentlyContinue)
+        Check ($notes.Count -eq 1 -and ([System.IO.File]::ReadAllText($notes[0].FullName)).Contains('--bookmark=' + $pBm)) 'hub photo D1: rollback note with the restore point'
+        Check ((Run-P @('-Step', 'preview', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB PHOTO PREVIEW')) -eq 0 -and (PCount '--file') -eq 1 -and (PCount 'deploy --config') -eq 1) 'hub photo preview with approval: tables already there, deploys once'
+        $c = PCalls
+        Check ($c -match 'deploy --config "[^"]*wrangler\.preview\.toml"' -and $c -match 'secret bulk "[^"]+" --name gear-world-hub-preview') 'hub photo preview: deploys the preview config and sets its secret'
+        $cfgs = @(Get-ChildItem -LiteralPath (Join-Path $pWork 'deploy') -Recurse -Filter 'wrangler.preview.toml' -ErrorAction SilentlyContinue)
+        $pc = $(if ($cfgs.Count) { [System.IO.File]::ReadAllText($cfgs[0].FullName) } else { '' })
+        Check ($pc -match '(?m)^name = "gear-world-hub-preview"' -and $pc -notmatch '(?m)^name = "gear-world-hub"\r?$' -and $pc.Contains('workers_dev = true') -and $pc.Contains('GWH_PREVIEW = "1"') -and $pc.Contains($pDb) -and $pc.Contains('binding = "AI"')) 'hub photo preview: separate test Worker, workers.dev, same D1 and AI, preview rules on'
+        $sc = Join-Path $pState 'secret-copy.json'
+        $sj = $(if (Test-Path -LiteralPath $sc) { [System.IO.File]::ReadAllText($sc) } else { '' })
+        Check ($sj -match '^\{"PHOTO_LIMIT_SALT":"[A-Za-z0-9_\-]{40,}"\}$') 'hub photo preview: a long random secret'
+        Check (@(Get-ChildItem -LiteralPath ([System.IO.Path]::GetTempPath()) -Filter 'gw-hubphoto-secret-*.json' -ErrorAction SilentlyContinue).Count -eq 0) 'hub photo preview: the secret file is deleted at once'
+        $r = PLast
+        Check ($r.Contains('https://gear-world-hub-preview.example-test.workers.dev') -and -not $r.Contains($pDb)) 'hub photo preview: report has the test address, not the database id'
+        Remove-Item -LiteralPath (Join-Path $pState 'tables.flag') -Force
+        Check ((Run-P @('-Step', 'preview', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB PHOTO D1;ΕΓΚΡΙΝΩ HUB PHOTO PREVIEW')) -eq 0 -and (PCount '--file') -eq 2 -and (PCount 'deploy --config') -eq 2) 'hub photo preview: both phrases in one paste, D1 then deploy'
+        Write-Utf8 (Join-Path $pHub 'public/index.html') '<!doctype html><title>Hub changed</title>'
+        Check ((Run-P @('-Step', 'check')) -eq 0 -and (PLast).Contains('ΑΛΛΑΞΕ') -and (PLast).Contains('public/index.html')) 'hub photo check: a changed hub file on the PC is reported'
+        Write-Utf8 (Join-Path $pHub 'public/index.html') '<!doctype html><title>Hub</title>'
+        Check ((Get-TreeHash $pHub) -eq $pHubBefore) 'hub photo: the hub folder on the PC is never changed'
+        & $exe -NoProfile -ExecutionPolicy Bypass -File $pTool -Step check -HubDir (Join-Path $work 'no-hub-here') -WorkDir $pWork -OutDir $pOut -BaselineFile $pBase -SkipInstall -NoClipboard -NoHttpCheck | Out-Null
+        Check ($LASTEXITCODE -eq 2) 'hub photo: no hub folder gives exit code 2'
+    } finally {
+        $env:PATH = $oldPath
+        Remove-Item Env:\GW_FAKE_STATE -ErrorAction SilentlyContinue
+    }
+}
+
 Remove-Item -LiteralPath $work -Recurse -Force -ErrorAction SilentlyContinue
 
 Write-Host ''
