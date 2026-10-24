@@ -263,7 +263,7 @@ export function sourceFilter(source) {
   const partsNames = Array.isArray(source.partsNames) && source.partsNames.length ? new RegExp(source.partsNames.join('|'), 'i') : null;
   const allowPaths = folderSet(source.allowPaths);
   const denyPaths = folderSet(source.denyPaths);
-  return (name, brand, path = '') => {
+  const filter = (name, brand, path = '') => {
     const folders = pathFolders(path);
     if (denyPaths && folders.some(f => denyPaths.has(f))) return `feed folder not for TGW (${source.retailer})`;
     if (allowPaths && !folders.some(f => allowPaths.has(f)) && !looseOnly(source, path)) return `feed folder not on the consumer list (${source.retailer})`;
@@ -276,6 +276,19 @@ export function sourceFilter(source) {
     if (looseOnly(source, path) && vagueName(name, brand)) return `name says nothing about the product (${source.retailer})`;
     return '';
   };
+  // The word of "denyNames" that stopped a product, for the report (sixth check, lessons L50: the word "serial", meant for
+  // serial ports, was also stopping "Serial ATA" disks). A rule that looks at the whole name gives its last 24 characters.
+  const denyEach = deny ? source.denyNames.map(d => new RegExp(d, 'i')) : [];
+  filter.denyWord = name => {
+    for (const re of denyEach) {
+      const m = String(name || '').match(re);
+      if (!m) continue;
+      const w = String(m[1] || m[0]).trim().toLowerCase();
+      return w.length > 24 ? `…${w.slice(-24)}` : w;
+    }
+    return '';
+  };
+  return filter;
 }
 
 // A product from a catch-all folder is placed by its name alone, so the name must say something: "Nintendo C/VOL (K1) EE"
@@ -368,7 +381,7 @@ export async function planImport({ archive, sourcesFile, outDir, now = new Date(
   // Only a retailer whose feed was found and read gets its missing products hidden by 9999-finish.sql.
   const readAdvertisers = new Set();
   const notRead = [];
-  const stats = { rows: 0, accepted: 0, rejected: {}, perCategory: {}, gtinValid: 0, withWas: 0, feedCats: {}, perRetailer: {} };
+  const stats = { rows: 0, accepted: 0, rejected: {}, perCategory: {}, gtinValid: 0, withWas: 0, feedCats: {}, perRetailer: {}, denyWords: {} };
   const samples = { accepted: {}, rejected: {}, byRetailer: {} };
   const feedInfo = [];
   const products = new Map();
@@ -425,7 +438,19 @@ export async function planImport({ archive, sourcesFile, outDir, now = new Date(
         if (!name) { reject('no product name', short); continue; }
         if (name.length > QUALITY.maxNameLength) { reject('name too long', short); continue; }
         const filtered = filter(name, brand, merchantCategory);
-        if (filtered) { reject(filtered, short); continue; }
+        if (filtered) {
+          if (filtered.startsWith('business IT')) {
+            const words = (stats.denyWords[source.retailer] ||= {});
+            const w = (words[filter.denyWord(name) || '?'] ||= { n: 0, inStock: 0, examples: [] });
+            w.n++;
+            if (inStockValue(pick(rec, map.inStock)) !== false) {
+              w.inStock++;
+              if (w.examples.length < 2) w.examples.push(truncate(name, 70));
+            }
+          }
+          reject(filtered, short);
+          continue;
+        }
         // A product from a catch-all folder is classified by its name alone (the folder says nothing about it).
         const loose = looseOnly(source, merchantCategory);
         const cls = loose ? classify(name, '')
@@ -621,6 +646,16 @@ export async function planImport({ archive, sourcesFile, outDir, now = new Date(
     L.push('  (duplicates: the same product twice in one shop is shown once, at its lowest price - owner\'s rule)');
   }
   L.push('');
+  // Which business word stopped how many products, most in-stock first: a word that stops consumer products shows up here.
+  if (Object.keys(stats.denyWords).length) {
+    L.push('== Business words: the word that left products out (rows | in stock | 2 in-stock examples), top 40 per shop ==');
+    for (const [r, words] of Object.entries(stats.denyWords)) {
+      L.push(`  ${r}`);
+      const top = Object.entries(words).sort((a, b) => b[1].inStock - a[1].inStock || b[1].n - a[1].n).slice(0, 40);
+      for (const [w, v] of top) L.push(`    ${String(v.n).padStart(5)} | ${String(v.inStock).padStart(5)} | ${w}${v.examples.length ? '  ->  ' + v.examples.join('  ;  ') : ''}`);
+    }
+    L.push('');
+  }
   L.push(`== Samples: up to ${SAMPLES_PER_GROUP} accepted per category (name | price | feed category) ==`);
   for (const slug of CATEGORY_SLUGS) {
     const list = samples.accepted[slug] || [];
