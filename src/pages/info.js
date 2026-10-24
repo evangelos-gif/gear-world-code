@@ -2,7 +2,7 @@
 // NOTE: legal texts are a starting point and need review by a qualified adviser before launch (task T31).
 import { html } from '../lib/html.js';
 import { categoryPath } from '../lib/text.js';
-import { page, breadcrumbs, breadcrumbSchema, searchForm, tr } from './layout.js';
+import { page, breadcrumbs, breadcrumbSchema, tr } from './layout.js';
 
 export const PLACEHOLDER = 'To be completed before launch';
 
@@ -155,13 +155,13 @@ export function infoPage(site, path) {
   });
 }
 
+// The search box is the header's: one per page (lessons L03).
 export function notFoundPage(site, path) {
   const body = html`
 <div class="wrap narrow">
   <article class="prose">
     <h1>Page not found</h1>
     <p>There is no page at this address. The product may have been removed by the retailer.</p>
-    ${searchForm(site, '', 'notfound-search')}
     <h2>Browse a category</h2>
     <ul class="chip-list">${site.categories.map(c => html`<li><a href="${categoryPath(c.slug)}">${c.name}</a></li>`)}</ul>
   </article>

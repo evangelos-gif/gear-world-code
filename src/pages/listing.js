@@ -2,7 +2,7 @@
 import { html, raw } from '../lib/html.js';
 import { categoryPath } from '../lib/text.js';
 import { SORT_OPTIONS } from '../db.js';
-import { page, productGrid, breadcrumbs, breadcrumbSchema, searchForm, categoryImage, tr } from './layout.js';
+import { page, productGrid, breadcrumbs, breadcrumbSchema, categoryImage, tr } from './layout.js';
 
 export function readListingParams(url) {
   const sp = url.searchParams;
@@ -162,13 +162,13 @@ export function categoryPage(site, cat, p, result, facets) {
   });
 }
 
+// One search box per page (lessons L03): the one in the header, which keeps the words searched for (searchValue).
 export function searchPage(site, q, p, result, usedQuery = '') {
   const params = keepParams(p, { q });
   const body = html`
 <div class="wrap">
   <header class="page-head">
     <h1>${q ? html`${tr('Results for “{0}”', q)}` : 'Search'}</h1>
-    ${searchForm(site, q, 'page-search')}
   </header>
   ${q ? html`<div class="listing">
     <aside class="listing-side">${filterForm('/search', p, null, { q })}</aside>

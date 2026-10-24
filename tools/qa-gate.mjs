@@ -73,6 +73,10 @@ function htmlChecks(path, res, { expectStatus = 200, indexable = true } = {}) {
   const h2s = all(h, /<h2[^>]*>([\s\S]*?)<\/h2>/g).map(m => textOf(m[1]));
   const dupH2 = h2s.filter((x, i) => h2s.indexOf(x) !== i && !/^(Categories|About this site|Gear World network)$/.test(x));
   check('L03', dupH2.length === 0, `${path}: no repeated section headings`, dupH2.join(', '));
+  // One search box per page: the header's; on the home page the hero's (the site's CSS hides the header's there).
+  const boxes = all(h, /<form class="search ([\w-]*)"/g).map(m => m[1]).join(', ');
+  const wantBoxes = path === '/' ? 'masthead-search, hero-search' : 'masthead-search';
+  check('L03', boxes === wantBoxes, `${path}: one search box`, boxes);
   const t = title(h);
   check('L10', t.length >= 10 && t.length <= 110, `${path}: <title> present (10-110 chars)`, t);
   if (indexable && expectStatus === 200 && robots(h).startsWith('index')) {
