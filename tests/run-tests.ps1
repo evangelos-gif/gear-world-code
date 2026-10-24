@@ -1183,6 +1183,13 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         'echo unknown command 1>&2',
         'exit /b 1',
         ':ttinfo',
+        'if not defined GW_FAKE_AUTHFLAKY goto ttinforeal',
+        'if exist "%GW_FAKE_STATE%\authflaky.txt" goto ttinforeal',
+        'echo once > "%GW_FAKE_STATE%\authflaky.txt"',
+        'echo X [ERROR] A request to the Cloudflare API failed.',
+        'echo   Authentication error [code: 10000]',
+        'exit /b 1',
+        ':ttinforeal',
         ('echo The current bookmark is ' + $liBookmark),
         'exit /b 0',
         ':layout',
@@ -1241,6 +1248,15 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         Check ($liReports.Count -ge 4) 'legacy import: a report for every run'
         $lastLi = [System.IO.File]::ReadAllText(($liReports | Sort-Object LastWriteTime | Select-Object -Last 1).FullName)
         Check ($lastLi.Contains("DELETE FROM products WHERE retailer = 'Coes'")) 'legacy import: report shows how to remove only this retailer'
+
+        # A passing Cloudflare sign-in error (10000) when the restore point is taken: tried again, then the import goes on
+        # with the restore point before loading (L43).
+        $liBefore = (LiCalls).Length
+        $env:GW_FAKE_AUTHFLAKY = '1'
+        Check ((Run-Li @('-Site', 'mgw', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ COES MGW')) -eq 0) 'legacy import: a passing sign-in error (10000) is tried again'
+        Remove-Item Env:\GW_FAKE_AUTHFLAKY
+        $ca = (LiCalls).Substring($liBefore)
+        Check (([regex]::Matches($ca, 'time-travel info mens-gear-world')).Count -eq 2 -and $ca.IndexOf('--file') -gt $ca.LastIndexOf('time-travel info')) 'legacy import: after the retry, restore point before loading'
 
         # Add-only plan (Joybuy beauty on WGW, where Joybuy is already on the site): hides nothing, never offers
         # to delete the shop's products, and its quick undo hides only the products it adds.
