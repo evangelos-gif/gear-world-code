@@ -411,6 +411,38 @@
       }
     }
 
+    // The words to search for, best first:
+    // 1. with the brand, when the photo shows one (used only if the sites sell that brand);
+    // 2. the words of the model without the brand; 3. the product type.
+    function withoutWords(text, words) {
+      const drop = new Set(String(words).toLowerCase().split(/\s+/).filter(Boolean));
+      return String(text).split(/\s+/).filter(w => w && !drop.has(w.toLowerCase())).join(" ");
+    }
+    function searchPlan(answer) {
+      const plan = [];
+      const add = (text, brand) => {
+        const q = String(text || "").replace(/\s+/g, " ").trim();
+        if (q.length >= 2 && !plan.some(p => p.q.toLowerCase() === q.toLowerCase())) plan.push({ q, brand });
+      };
+      const brand = String(answer.brand || "").replace(/\s+/g, " ").trim();
+      const query = String(answer.query || "").replace(/\s+/g, " ").trim();
+      const hasBrand = !!brand && query.toLowerCase().includes(brand.toLowerCase());
+      if (brand) add(hasBrand ? query : `${brand} ${query}`, brand);
+      add(hasBrand ? withoutWords(query, brand) : query, "");
+      add(answer.product, "");
+      return plan;
+    }
+    // Do the results have the brand of the photo? (e.g. "Bosch" finds "Bosch Professional")
+    function brandFound(results, brand) {
+      const b = brand.toLowerCase();
+      const first = b.split(/\s+/)[0];
+      return results.some(p => {
+        const pb = String(p.brand || "").toLowerCase().trim();
+        const name = String(p.product_name || "").toLowerCase();
+        return (pb.length >= 2 && (pb.includes(b) || b.includes(pb))) || (first.length >= 3 && name.includes(first));
+      });
+    }
+
     // Second opinion for the Gear World, only when the model did not choose one.
     async function classify(answer) {
       try {
@@ -455,7 +487,12 @@
       }
       const ordered = Array.from(groups.values())
         .sort((a, b) => (Number(b.key === bestKey) - Number(a.key === bestKey)) || (b.items.length - a.items.length));
-      const words = (answer.keywords && answer.keywords.length ? answer.keywords : [answer.product || query]).join(" · ");
+      // What the product is first, then the other words of the model (without repeating the product words).
+      const productType = String(answer.product || "").trim();
+      const typeWords = productType.toLowerCase().split(/\s+/);
+      const extra = (answer.keywords || []).filter(k => k && !typeWords.includes(String(k).toLowerCase()));
+      const list = (productType ? [productType] : []).concat(extra);
+      const words = (list.length ? list : [query]).join(" · ");
       let html = '<div class="gwh-search-summary gwh-photo-summary">' +
         `<div class="gwh-photo-found">${esc(tx("found", { words }))}</div>` +
         (answer.brand ? `<div class="gwh-photo-meta">${esc(tx("brand", { brand: answer.brand }))}</div>` : "") +
@@ -511,12 +548,23 @@
         const best = data.world || await classify(data);
         say(hubText("searchingAll", { query: data.query }, `Searching all Gear Worlds for "${data.query}"...`));
         let query = data.query;
-        let results = await searchAll(query);
-        if (results && !results.length && data.product && data.product.toLowerCase() !== query.toLowerCase()) {
-          const second = await searchAll(data.product);
-          if (second && second.length) { results = second; query = data.product; input.value = query; }
+        let results = null;
+        let spare = null;
+        for (const step of searchPlan(data)) {
+          const found = await searchAll(step.q);
+          if (!found) continue;
+          if (!results) { results = []; query = step.q; }
+          if (!found.length) continue;
+          // With the brand: only if the sites sell it. Otherwise the same words without the brand.
+          if (step.brand && !brandFound(found, step.brand)) { if (!spare) spare = { q: step.q, found }; continue; }
+          results = found;
+          query = step.q;
+          spare = null;
+          break;
         }
+        if (results && !results.length && spare) { results = spare.found; query = spare.q; }
         if (!results) { stop(hubText("loadError", {}, "We couldn't load product results. Please try again."), "error"); return; }
+        input.value = query;
         render(data, best, query, results);
         track(results.length ? "ok" : "no_results", best && best.key, results.length);
       } catch (_) {

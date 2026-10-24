@@ -64,6 +64,32 @@ const SEARCH_ANSWER = {
   results: [product('agw', 'Car Gear World', 11, 19.99), product('agw', 'Car Gear World', 12, 29), product('cgw', 'Construction Gear World', 21, 129.5), product('ggw', 'Garden Gear World', 31, 49)]
 };
 
+// Two more photos (like the owner's tests on 24/10): a brand the sites do not sell, and a brand the model left out
+// of its words. The page must search with the brand first and use it only when the sites have that brand.
+const item = (site, name, id, brand, title) => ({
+  id, product_id: id, site, site_name: name, site_url: `https://${site}.example.invalid`, product_name: title, brand,
+  retailer: 'Test Shop', price: 20 + id, currency: 'GBP', image_url: '', product_url: `https://example.invalid/?highlight=${id}`
+});
+const answer = results => ({ ok: true, count: results.length, partial: false, failed_sites: [], results });
+const SCENARIOS = {
+  superdry: {
+    photo: { ok: true, found: true, product: 'backpack', query: 'Superdry backpack', keywords: ['backpack', 'blue', 'fabric', 'travel'], brand: 'Superdry', world: { key: 'VGW', name: 'Travel Gear World', domain: 'travelgearworld.com' } },
+    search: q => /superdry/i.test(q)
+      ? answer([item('tgw', 'Technology Gear World', 41, 'Targus', 'Targus laptop backpack 15.6 inch')])
+      : q === 'backpack'
+        ? answer([item('vgw', 'Travel Gear World', 42, 'KONO', 'KONO travel backpack'), item('vgw', 'Travel Gear World', 43, 'Calvin Klein', 'Calvin Klein backpack'), item('tgw', 'Technology Gear World', 44, 'HP', 'HP laptop backpack')])
+        : answer([]),
+    expectSearches: ['Superdry backpack', 'backpack'], expectBox: 'backpack', expectFirst: 'vgw', expectWords: 'backpack · blue · fabric · travel'
+  },
+  mouse: {
+    photo: { ok: true, found: true, product: 'computer mouse', query: 'blue computer mouse', keywords: ['wireless', 'optical', 'blue'], brand: 'Logitech', world: { key: 'TGW', name: 'Technology Gear World', domain: 'technologygearworld.com' } },
+    search: q => /logitech/i.test(q)
+      ? answer([item('tgw', 'Technology Gear World', 51, 'Logitech', 'Logitech M240 Silent mouse'), item('tgw', 'Technology Gear World', 52, 'Logitech', 'Logitech Pebble 2 M350s mouse')])
+      : answer([item('tgw', 'Technology Gear World', 61, 'Asus', 'ASUS ROG Gladius IV Ace RED mouse')]),
+    expectSearches: ['Logitech blue computer mouse'], expectBox: 'Logitech blue computer mouse', expectFirst: 'tgw', expectWords: 'computer mouse · wireless · optical · blue'
+  }
+};
+
 const viewports = [
   { name: 'phone', width: 390, height: 844, isMobile: true, hasTouch: true, deviceScaleFactor: 2 },
   { name: 'desktop', width: 1366, height: 900, isMobile: false, hasTouch: false, deviceScaleFactor: 1 }
@@ -107,15 +133,21 @@ try {
       const errors = [];
       page.on('pageerror', e => errors.push(String(e.message || e)));
       let limitMode = false;
+      let scenario = null;
+      const searches = [];
       await page.route('**/*', async route => {
         const url = new URL(route.request().url());
         if (url.origin !== base) return route.abort();
         if (url.pathname === '/api/photo-search') {
           if (vp.name === 'phone' && locale === 'en-GB') photoBody = { body: route.request().postDataBuffer(), type: route.request().headers()['content-type'] };
           if (limitMode) return route.fulfill({ status: 429, contentType: 'application/json', body: JSON.stringify({ ok: false, error: 'limit_hour', retry_after: 600 }) });
-          return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(PHOTO_ANSWER) });
+          return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(scenario ? scenario.photo : PHOTO_ANSWER) });
         }
-        if (url.pathname === '/api/search') return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(SEARCH_ANSWER) });
+        if (url.pathname === '/api/search') {
+          const q = url.searchParams.get('q') || '';
+          searches.push(q);
+          return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(scenario ? scenario.search(q) : SEARCH_ANSWER) });
+        }
         if (url.pathname.startsWith('/api/')) return route.fulfill({ status: 404, contentType: 'application/json', body: '{"ok":false}' });
         return route.continue();
       });
@@ -151,9 +183,10 @@ try {
       check(groups.length === 3, `${tag}: results grouped by site`, JSON.stringify(groups.map(g => g.site)));
       check(groups[0] && groups[0].site === 'cgw' && groups[0].best && groups[0].badge === text('best', locale), `${tag}: best match first, said in words`);
       check(groups[1] && groups[1].site === 'agw' && groups[1].items === 2, `${tag}: then the site with the most results`);
-      check(await page.inputValue('#hubSearchInput') === 'cordless drill', `${tag}: the words are in the search box`);
+      // The brand on the photo (Makita) is searched first, because the sites sell it.
+      check(await page.inputValue('#hubSearchInput') === 'Makita cordless drill', `${tag}: the words, with the brand, are in the search box`);
       const summary = await page.locator('.gwh-photo-summary').innerText().catch(() => '');
-      check(summary.includes(text('found', locale).replace('{words}', 'drill · cordless · power · tool')) && summary.includes(text('editHint', locale)), `${tag}: words found and how to change them`);
+      check(summary.includes(text('found', locale).replace('{words}', 'cordless drill · power · tool')) && summary.includes(text('editHint', locale)), `${tag}: what the product is, the words found and how to change them`);
       const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
       check(overflow <= 1, `${tag}: no sideways scrolling`, `${overflow}px`);
       // The screenshot shows the search with the camera button and the results (the search is lower on the page).
@@ -166,6 +199,25 @@ try {
         await page.waitForFunction(t => (document.getElementById('searchMessage') || {}).textContent === t, text('limitHour', locale), { timeout: 10000 }).catch(() => {});
         check(await page.locator('#searchMessage').innerText() === text('limitHour', locale), `${tag}: friendly message when the hourly limit is reached`);
         await shootSearch(page, join(shotsDir, `${vp.name}-${locale}-limit.png`), vp.width);
+      }
+      // The brand first, and without it when the sites do not sell that brand (English only: the logic does not change with the language).
+      if (locale === 'en-GB') {
+        limitMode = false;
+        for (const [name, sc] of Object.entries(SCENARIOS)) {
+          scenario = sc;
+          searches.length = 0;
+          await page.evaluate(() => { const r = document.getElementById('hubSearchResults'); if (r) r.innerHTML = ''; });
+          await page.setInputFiles(inputSel, { name: `${name}.jpg`, mimeType: 'image/jpeg', buffer: bigJpeg });
+          await page.locator('.gwh-photo-group').first().waitFor({ state: 'visible', timeout: 15000 }).catch(() => {});
+          const first = await page.$$eval('.gwh-photo-group', els => els.map(e => e.dataset.site)[0] || '');
+          check(JSON.stringify(searches) === JSON.stringify(sc.expectSearches), `${tag} ${name}: searches made, in order`, searches.join(' | '));
+          check(await page.inputValue('#hubSearchInput') === sc.expectBox, `${tag} ${name}: the words in the search box`, await page.inputValue('#hubSearchInput'));
+          check(first === sc.expectFirst, `${tag} ${name}: the best Gear World first`, first);
+          const found = await page.locator('.gwh-photo-found').innerText().catch(() => '');
+          check(found === text('found', locale).replace('{words}', sc.expectWords), `${tag} ${name}: what the product is, first`, found);
+          await shootSearch(page, join(shotsDir, `${vp.name}-${locale}-${name}.png`), vp.width);
+        }
+        scenario = null;
       }
       check(errors.length === 0, `${tag}: no JavaScript errors`, errors.join(' | ').slice(0, 300));
       await context.close();
