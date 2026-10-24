@@ -61,7 +61,10 @@ export const RULES = [
       'phone (?:holder|mount|stand|grip|pouch|bag)s?', 'laptop (?:bag|sleeve|stand)s?', 'usb hubs?', 'docking stations?',
       '(?:watch|sport|silicone|nylon|leather|milanese|loop|solo) (?:bands?|straps?)', 'watch straps?', 'replacement bands?',
       'phone cool(?:er|ing)', 'cooling fan for (?:phone|mobile|live streaming)', 'live streaming cooler',
-      'phone lanyards?', 'lanyards?', 'apple pencil', 'stylus(?:es)?', 'i?watch (?:bands?|straps?)', 'airtags?', 'anti-lost', 'find my'
+      'phone lanyards?', 'lanyards?', 'apple pencil', 'stylus(?:es)?', 'i?watch (?:bands?|straps?)', 'airtags?', 'anti-lost', 'find my',
+      // PCHUB.UK (24 Oct 2026): "Apple MQEH3ZM/A Smart Wearable Accessories Band" in "smartwatch accessories" is a band, not a
+      // watch; "DELL EURO Simple E-Port II Docking" in "Docks & Port Replicators" is a dock (a games console dock stays gaming).
+      'smartwatch accessories', 'smart wearable accessories', 'docking', 'port replicators?'
     ]),
     // Watch listings say "Aluminium Case with Sport Band" and "GPS": those are watches, not accessories.
     exclude: words(['ev charger', 'car battery charger', 'trickle charger', 'pencil case', 'suitcase', 'briefcase', 'smart tv', 'televisions?', 'gps', '(?:aluminium|aluminum|titanium|stainless steel) case', 'bicycle parts', '(?:brake|gear) cables?',
@@ -105,6 +108,8 @@ export const RULES = [
       '\\d{2,3} ?mm (?:[\\w-]+ ){0,3}fans?', 'thermal paste', 'optical (?:disc )?drives?', 'memory modules?', 'ddr[345]',
       // Second dry run: "NVIDIA GeForce GT 730", "ASUS TUF Gaming B550-PLUS AMD B550 Socket AM4 ATX", "Logitech Wireless Combo MK270".
       'geforce', 'radeon', 'socket am[345]', 'lga ?1[1-9]\\d\\d', 'wireless combo', 'keyboard and mouse',
+      // PC cases named by their size (PCHUB.UK): "Fractal Design Core 1100 Mini Tower Black", "Corsair 4000D Airflow Midi Tower".
+      '(?:mini|midi|mid|full|micro|super)[- ]?tower', 'computer cases?',
       'printers?', 'ink cartridges?', 'toner', 'scanners?', 'label (?:printer|maker)s?', 'laminators?', 'shredders?', '3d printers?', 'calculators?'
     ]),
     exclude: words(['baby monitor', 'heart rate monitor', 'blood pressure monitor', 'piano keyboard', 'musical keyboard', 'mouse trap', 'mouse mat', 'vitamins?', 'multivitamins?', 'tablets? \\d+ ?mg', 'dishwasher tablets?', 'notebook paper', 'spiral notebook', 'fountain pens?'])

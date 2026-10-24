@@ -20,6 +20,7 @@ import { slugify, truncate } from '../src/lib/text.js';
 const here = dirname(fileURLToPath(import.meta.url));
 const SQL_ROWS_PER_FILE = 400;
 const SAMPLES_PER_GROUP = 15;
+const SAMPLES_PER_SHOP = 10;
 
 // ---------- CSV ----------
 
@@ -162,12 +163,29 @@ function inStockValue(raw) {
   return null;
 }
 
-function firstHttpsImage(rec, map) {
+// "Image coming soon" pictures are not product images (PCHUB.UK feed, 23 Oct 2026: entrepreneurship.ieee.org/...
+// Image-Coming-Soon-Placeholder.png); the next image column is tried instead (lessons L38).
+export const PLACEHOLDER_IMAGE = /placeholder|coming[-_ ]?soon|no[-_ ]?image|image[-_ ]?not[-_ ]?available|noimage|no[-_]?photo|default[-_]?image/i;
+export function firstHttpsImage(rec, map) {
   for (const i of map.images) {
     const v = String(rec[i] || '').trim();
-    if (/^https:\/\/[^\s"'<>]+$/i.test(v)) return v;
+    if (/^https:\/\/[^\s"'<>]+$/i.test(v) && !PLACEHOLDER_IMAGE.test(v)) return v;
   }
   return '';
+}
+
+// A feed that cuts every name at a fixed length (PCHUB.UK: 70 characters, "... Gigabit Ethernet Wir"): the cut last word,
+// then any dangling separator, small word or unclosed bracket, are taken off.
+export function cutToWord(name) {
+  let s = String(name || '').replace(/\s+\S*$/, '');
+  for (;;) {
+    const t = s.replace(/\s*[-–—,/(&+|:;.]+\s*$/, '').replace(/\s+(?:with|for|and|of|in|to|the|a|an|by|w|plus|incl)\.?$/i, '').trim();
+    if (t === s) break;
+    s = t;
+  }
+  const open = s.lastIndexOf('('), close = s.lastIndexOf(')');
+  if (open > close) s = s.slice(0, open).replace(/\s*[-–—,/&+|:;]+\s*$/, '').trim();
+  return s || String(name || '').trim();
 }
 
 function subcategoryOf(merchantCategory) {
@@ -202,11 +220,20 @@ function findFeed(archives, fname) {
 
 // Per-source filters in sources.json (lessons L14): "brands" (only these brands, e.g. consumer brands from a shop that
 // also sells business IT) and "denyNames" (words that mark a business product: server, toner, warranty ...).
+// "allowPaths" / "denyPaths" (PCHUB.UK, 24 Oct 2026): folder names of the feed's category path ("Default Category>
+// Peripherals>Mouses"); a product needs one allowed folder and no denied one. Its 99,975 "PC Components>Other" rows
+// and the spare parts, toner and POS folders never reach the site.
 const normBrand = b => String(b || '').toLowerCase().replace(/[^a-z0-9]+/g, '');
+const pathFolders = p => String(p || '').split('>').map(s => s.trim().toLowerCase()).filter(Boolean);
 export function sourceFilter(source) {
   const brands = Array.isArray(source.brands) && source.brands.length ? new Set(source.brands.map(normBrand)) : null;
   const deny = Array.isArray(source.denyNames) && source.denyNames.length ? new RegExp(source.denyNames.join('|'), 'i') : null;
-  return (name, brand) => {
+  const allowPaths = Array.isArray(source.allowPaths) && source.allowPaths.length ? new Set(source.allowPaths.map(s => s.toLowerCase())) : null;
+  const denyPaths = Array.isArray(source.denyPaths) && source.denyPaths.length ? new Set(source.denyPaths.map(s => s.toLowerCase())) : null;
+  return (name, brand, path = '') => {
+    const folders = pathFolders(path);
+    if (denyPaths && folders.some(f => denyPaths.has(f))) return `feed folder not for TGW (${source.retailer})`;
+    if (allowPaths && !folders.some(f => allowPaths.has(f))) return `feed folder not on the consumer list (${source.retailer})`;
     if (brands && !brands.has(normBrand(brand))) return `brand not on the consumer list (${source.retailer})`;
     if (deny && deny.test(name)) return `business IT, parts or services (${source.retailer})`;
     return '';
@@ -220,8 +247,8 @@ export async function planImport({ archive, sourcesFile, outDir, now = new Date(
   // Only a retailer whose feed was found and read gets its missing products hidden by 9999-finish.sql.
   const readAdvertisers = new Set();
   const notRead = [];
-  const stats = { rows: 0, accepted: 0, rejected: {}, perCategory: {}, gtinValid: 0, withWas: 0, feedCats: {} };
-  const samples = { accepted: {}, rejected: {} };
+  const stats = { rows: 0, accepted: 0, rejected: {}, perCategory: {}, gtinValid: 0, withWas: 0, feedCats: {}, perRetailer: {} };
+  const samples = { accepted: {}, rejected: {}, byRetailer: {} };
   const feedInfo = [];
   const products = new Map();
   const seenNames = new Set();
@@ -234,6 +261,9 @@ export async function planImport({ archive, sourcesFile, outDir, now = new Date(
   for (const source of sources) {
     const filter = sourceFilter(source);
     let sourceRows = 0, missing = 0;
+    // Per shop: rows, products and samples, so a new shop can be checked on its own (PCHUB.UK next to Back to the Office).
+    const rs = (stats.perRetailer[source.retailer] ||= { rows: 0, accepted: 0, perCategory: {} });
+    const rsamples = (samples.byRetailer[source.retailer] ||= {});
     for (const feedId of source.feedIds) {
       const fname = `AWIN_${source.advertiserId}_${feedId}.csv.gz`;
       const found = findFeed(archives, fname);
@@ -251,8 +281,17 @@ export async function planImport({ archive, sourcesFile, outDir, now = new Date(
           continue;
         }
         if (rec.length === 1 && rec[0] === '') continue;
-        rows++; stats.rows++;
-        const name = cleanProductName(cleanText(pick(rec, map.name)));
+        rows++; stats.rows++; rs.rows++;
+        const rawName = pick(rec, map.name);
+        let name = cleanProductName(cleanText(rawName));
+        // A cut name loses its last word; the maker's part number then tells two versions apart ("Lenovo ThinkPad T14 Gen 3
+        // ... Laptop" comes with several memory and disk sizes).
+        if (source.nameCutAt && rawName.length >= source.nameCutAt) {
+          name = cutToWord(name);
+          const mpnCut = cleanText(pick(rec, map.mpn));
+          const flat = v => v.toLowerCase().replace(/[^a-z0-9]+/g, '');
+          if (mpnCut && mpnCut.length <= 25 && !flat(name).includes(flat(mpnCut))) name = `${name} (${mpnCut})`;
+        }
         const merchantCategory = cleanText(pick(rec, map.merchantCategory));
         const awinCategory = cleanText(pick(rec, map.awinCategory));
         const brand = cleanText(pick(rec, map.brand));
@@ -261,7 +300,7 @@ export async function planImport({ archive, sourcesFile, outDir, now = new Date(
 
         if (!name) { reject('no product name', short); continue; }
         if (name.length > QUALITY.maxNameLength) { reject('name too long', short); continue; }
-        const filtered = filter(name, brand);
+        const filtered = filter(name, brand, merchantCategory);
         if (filtered) { reject(filtered, short); continue; }
         const cls = classify(name, `${merchantCategory || awinCategory} ${merchantCategory ? awinCategory : ''}`.trim());
         if (!cls.ok) { reject(cls.reason, short); continue; }
@@ -285,7 +324,9 @@ export async function planImport({ archive, sourcesFile, outDir, now = new Date(
         if (seenNames.has(nameKey)) { reject('duplicate (same name and price)', short); continue; }
         seenNames.add(nameKey);
 
-        const wasRaw = parsePrice(pick(rec, map.was));
+        // "ignoreWasPrice": a feed whose rrp_price is the same mark-up on every product (PCHUB.UK: price x 1.44) is not
+        // a real earlier price, so no "was" price and no discount badge.
+        const wasRaw = source.ignoreWasPrice ? NaN : parsePrice(pick(rec, map.was));
         const wasPrice = Number.isFinite(wasRaw) && wasRaw > price * 1.04 && wasRaw < price * 5 ? wasRaw : null;
         const gtin = normalizeGtin(pick(rec, map.gtin));
         const condRaw = pick(rec, map.condition).toLowerCase();
@@ -326,6 +367,10 @@ export async function planImport({ archive, sourcesFile, outDir, now = new Date(
         products.set(stableKey, p);
         stats.accepted++;
         stats.perCategory[cls.slug] = (stats.perCategory[cls.slug] || 0) + 1;
+        rs.accepted++;
+        rs.perCategory[cls.slug] = (rs.perCategory[cls.slug] || 0) + 1;
+        const rlist = (rsamples[cls.slug] ||= []);
+        if (rlist.length < SAMPLES_PER_SHOP) rlist.push(short);
         const fc = truncate(merchantCategory || awinCategory || '-', 70);
         const fcs = (stats.feedCats[cls.slug] ||= {});
         fcs[fc] = (fcs[fc] || 0) + 1;
@@ -377,6 +422,14 @@ export async function planImport({ archive, sourcesFile, outDir, now = new Date(
   L.push(`== Result: ${stats.accepted} of ${stats.rows} rows would be imported (${pct(stats.accepted, stats.rows)}) ==`);
   L.push(`valid GTIN: ${stats.gtinValid} (${pct(stats.gtinValid, stats.accepted)}) | with a was-price: ${stats.withWas}`);
   L.push('');
+  L.push('== Per shop ==');
+  for (const [r, v] of Object.entries(stats.perRetailer)) {
+    if (!v.rows) continue; // its feed was not read: said under "Feeds"
+    L.push(`  ${r}: ${v.accepted} of ${v.rows} rows (${pct(v.accepted, v.rows)})`);
+    const cats = CATEGORY_SLUGS.filter(sl => v.perCategory[sl]).map(sl => `${sl} ${v.perCategory[sl]}`).join(' | ');
+    if (cats) L.push('      ' + cats);
+  }
+  L.push('');
   L.push('== Per category ==');
   for (const slug of CATEGORY_SLUGS) {
     L.push(`  ${slug.padEnd(24)} ${stats.perCategory[slug] || 0}`);
@@ -393,6 +446,16 @@ export async function planImport({ archive, sourcesFile, outDir, now = new Date(
     if (!list.length) continue;
     L.push(`-- ${slug}`);
     for (const s of list) L.push(`   ${s}`);
+  }
+  L.push('');
+  L.push(`== Samples per shop: up to ${SAMPLES_PER_SHOP} accepted per category ==`);
+  for (const [r, bySlug] of Object.entries(samples.byRetailer)) {
+    for (const slug of CATEGORY_SLUGS) {
+      const list = bySlug[slug] || [];
+      if (!list.length) continue;
+      L.push(`-- ${r} | ${slug}`);
+      for (const x of list) L.push(`   ${x}`);
+    }
   }
   L.push('');
   L.push(`== Samples: up to ${SAMPLES_PER_GROUP} rejected per reason ==`);
