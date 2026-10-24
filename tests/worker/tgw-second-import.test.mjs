@@ -100,3 +100,28 @@ test('a hard disk priced far above the usual is left out; external disks, SSDs a
   assert.deepEqual(products.map(p => p.merchant_product_id).sort(), ['B-3', 'B-4', 'B-5']);
   assert.match(readFileSync(join(out, 'report.txt'), 'utf8'), /price far above the usual for this hard disk +2/);
 });
+
+// After the third import (24 Oct 2026, lessons L52).
+test('third import: enterprise switches, SAS disks and server lines out; Lancer Blade, fan blades, DDR5 and Lenovo USB-Ethernet in', () => {
+  for (const n of ['NETGEAR XSM4340V Managed L3 10G Ethernet (100/1000/10000) Power over (XSM4340V-100NES)', 'NETGEAR GSM4248UX Managed L2/L3 Gigabit Ethernet (10/100/1000) Power (GSM4248UX-100EUS)',
+    'Ubiquiti Enterprise Campus Switch Core Managed L2/L3 Gigabit (ECS-CORE)', 'Ubiquiti UniFi EAV-XG-24-PoE (2150W) Managed L2/L3 10G Ethernet', 'Ubiquiti UniFi ECS-48-PoE Managed L2/L3 10G Ethernet',
+    'Zyxel XS3800-28 Managed L2+ 10G Ethernet (100/1000/10000) Black', 'Zyxel XGS4600-32 Managed L3 Gigabit Ethernet (10/100/1000) Black', 'QNAP QSW-M7230-2X4F24T network switch Managed L3 10G Ethernet',
+    'Synology HAS5320-24T internal hard drive 24 TB 7200 RPM 1000 MB', 'Lenovo ThinkSystem 2.5" 960GB Read Intensive SATA 6Gb HS SSD', 'DELL PowerEdge T150 tower server',
+    'DELL 540-BBDV network card Internal Ethernet 10000 Mbit/s', 'Kingston Technology Server Premier 32 GB DDR5 4800 MT/s ECC Registered', 'DELL A6994465 memory module 16 GB 1 x 16 GB DDR3 240-pin DIMM ECC']) {
+    for (const s of [BTTO, PCHUB]) assert.ok(denied(s, n), `${s.retailer}: ${n}`);
+  }
+  for (const n of ['XPG LANCER BLADE memory module 32 GB 2 x 16 GB DDR5 288-pin DIMM ECC', 'Lian Li UNI FAN SL Wireless 120 Reverse Blade Computer case 12 cm Black 3 pc(s)',
+    'ADATA Premier memory module 32 GB 1 x 32 GB DDR5 ECC', 'Lenovo 4X90Q84427 network card Ethernet', 'Lenovo 4X90S91830 network card Ethernet 1000 Mbit/s',
+    'Ubiquiti UniFi Pro Max 48 PoE Managed L3 Gigabit Ethernet (USW-Pro-Max-48-PoE)', 'NETGEAR GS308E Managed L2/L3 Gigabit Ethernet (10/100/1000) Black', 'Synology HAT5320-24T internal hard drive 24 TB 7200 RPM 1024 MB']) {
+    for (const s of [BTTO, PCHUB]) assert.ok(!denied(s, n), `${s.retailer}: ${n}`);
+  }
+  assert.equal(where('XPG LANCER BLADE memory module 32 GB 2 x 16 GB DDR5 288-pin DIMM ECC'), 'laptops-computing');
+  assert.equal(where('Lenovo 4X90Q84427 network card Ethernet'), 'smart-home-wifi');
+});
+
+test('third import: a computer with a hard disk is not checked as a hard disk', () => {
+  assert.equal(hddCapacityTb('Acer Aspire XC-840 Desktop Intel Pentium Silver N6005 8Gb 1Tb HDD UHD Graphics Windows 11 (Grade B - Average)'), 0);
+  assert.equal(hddCapacityTb('HP Z2 G4 Intel® Core™ i7 i7-8700 16 GB DDR4-SDRAM 1 TB HDD Windows 10 Pro Tower Workstation'), 0);
+  assert.equal(hddCapacityTb('Western Digital WD Blue 3.5-Inch PC HDD internal hard drive 4 TB 5400 RPM 128 MB 3.5" Serial ATA III'), 4);
+  assert.equal(hddCapacityTb('Seagate Barracuda Desktop 24TB HDD internal hard drive 7200 RPM 512 MB 3.5" Serial ATA'), 24);
+});

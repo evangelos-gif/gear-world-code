@@ -296,6 +296,8 @@ const HDD_PRICE_PER_TB = 60, HDD_MIN_PRICE_CAP = 150;
 export function hddCapacityTb(name) {
   const n = String(name || '').toLowerCase();
   if (!/\binternal hard (?:disk )?drive\b|\bhdd\b/.test(n) || /\b(?:external|portable|nas|ssd|solid state)\b/.test(n)) return 0;
+  // a computer with a hard disk ("Acer Aspire XC-840 Desktop Intel Pentium Silver N6005 8Gb 1Tb HDD ... Windows 11", lessons L52)
+  if (/\b(?:intel|core i\d|core ultra|ryzen|pentium|celeron|athlon|ddr\d|windows|laptops?|notebooks?|workstations?|all-in-one|chromebook)\b/.test(n)) return 0;
   const m = n.match(/\b(\d{1,2}(?:\.\d+)?) ?tb\b/);
   return m ? Number(m[1]) : 0;
 }
