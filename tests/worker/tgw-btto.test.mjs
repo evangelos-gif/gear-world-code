@@ -59,6 +59,15 @@ test('Back to the Office dry-run fixes: business conference kit out, PC parts in
   assert.equal(where('TP-Link RE200 network extender Network repeater White 10, 100 Mbit/s'), 'smart-home-wifi');
   assert.equal(where('TP-Link Archer T4E Internal WLAN 867 Mbit/s'), 'smart-home-wifi');
   assert.equal(where('USB Desk Fan 150mm'), 'REJECT not tech');
+  // Second dry run (24 Oct 2026).
+  assert.equal(where('ARCTIC Freezer P12 Pro - 120 mm PWM Fan'), 'laptops-computing', 'a PC fan, not a freezer');
+  assert.equal(where('ARCTIC Freezer P12 Pro A-RGB - 120 mm A-RGB PWM Fan with Cable Splitter'), 'laptops-computing', 'a PC fan, not a cable');
+  assert.equal(where('Pedestal fan 16 inch'), 'REJECT home appliance (Home Gear World)');
+  assert.equal(where('ASUS GT730-SL-2GD5-BRK NVIDIA GeForce GT 730 2 GB GDDR5'), 'laptops-computing');
+  assert.equal(where('ASUS TUF Gaming B550-PLUS AMD B550 Socket AM4 ATX'), 'laptops-computing');
+  assert.equal(where('ASUS WS C621E SAGE Intel® C621 LGA 3647 (Socket P) EEB'), 'REJECT not tech', 'a server board');
+  assert.equal(where('Logitech Wireless Combo MK270'), 'laptops-computing');
+  assert.equal(where('ASUS USB-BT500 Bluetooth 3 Mbit/s'), 'accessories-storage');
 });
 
 const header = ['aw_deep_link', 'product_name', 'aw_product_id', 'merchant_product_id', 'merchant_image_url', 'merchant_category', 'search_price', 'brand_name', 'stock_status', 'ean'];

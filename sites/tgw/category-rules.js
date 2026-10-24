@@ -41,7 +41,8 @@ export const DENY = [
   { label: 'not allowed', re: words(['vape', 'e-?cig(?:arette)?s?', 'airsoft', 'knife', 'knives', 'crossbow', 'erotic', 'spy camera', 'hidden camera']) },
   { label: 'sunglasses (not tech)', re: words(['sunglasses', 'cycling glasses']) },
   { label: 'home appliance (Home Gear World)', re: words(['robot vacuums?', 'robot hoovers?', 'vacuum cleaners?', 'stick vacuum', 'fridge', 'freezer', 'kettle', 'toaster', 'air fryer', 'microwave', 'dehumidifier', 'heater', 'pedestal fan', 'tower fan', 'tumble dryers?', 'washing machines?', 'washer dryers?', 'dishwashers?', 'ovens?', 'hobs?', 'cooker hoods?', 'air conditioners?', 'ice makers?']),
-    except: words(['cpu']) },
+    // "ARCTIC Freezer P12 Pro - 120 mm PWM Fan" (second dry run, 24 Oct 2026) is a PC fan too.
+    except: words(['cpu', 'pwm', 'a-?rgb']) },
   { label: 'spare part or service', re: words(['replacement part', 'spare part', 'repair kit', 'warranty extension', 'service plan', 'gift card', 'voucher']) },
   { label: 'consumable, not a gadget', re: words(['a{2,4} batteries', '(?:alkaline|lithium|rechargeable) batteries', 'batteries - (?:pack|value pack)', 'copier paper', 'printer paper', 'label paper', 'thermal paper', 'cleaning brush']) },
   { label: 'toy, not a gadget', re: words(['toy drones?', 'stunt (?:\\w+ )?drones?', 'kids drones?', 'jigsaw puzzles?', 'piggy bank', 'ride on car', 'ball machine']) }
@@ -63,7 +64,8 @@ export const RULES = [
       'phone lanyards?', 'lanyards?', 'apple pencil', 'stylus(?:es)?', 'i?watch (?:bands?|straps?)', 'airtags?', 'anti-lost', 'find my'
     ]),
     // Watch listings say "Aluminium Case with Sport Band" and "GPS": those are watches, not accessories.
-    exclude: words(['ev charger', 'car battery charger', 'trickle charger', 'pencil case', 'suitcase', 'briefcase', 'smart tv', 'televisions?', 'gps', '(?:aluminium|aluminum|titanium|stainless steel) case', 'bicycle parts', '(?:brake|gear) cables?'])
+    exclude: words(['ev charger', 'car battery charger', 'trickle charger', 'pencil case', 'suitcase', 'briefcase', 'smart tv', 'televisions?', 'gps', '(?:aluminium|aluminum|titanium|stainless steel) case', 'bicycle parts', '(?:brake|gear) cables?',
+      'pwm'])
   },
   {
     slug: 'gaming',
@@ -100,7 +102,9 @@ export const RULES = [
       'psu', 'power supply unit', 'cpu (?:water |air |liquid )?coolers?', 'liquid coolers?', 'aio', '(?:case|pc) fans?', 'cooler master', 'serial ata', 'sata',
       // PC parts named without those words (Back to the Office, 23 Oct 2026): "ARCTIC P12 - Pressure-optimised 120 mm Fan",
       // "ARCTIC MX-4 ... Thermal Paste", "ASUS DRW-24D5MT optical disc drive", "Kingston ... ValueRAM memory module ... DDR4".
-      '\\d{2,3} ?mm (?:pwm |case |pc |computer )?fans?', 'thermal paste', 'optical (?:disc )?drives?', 'memory modules?', 'ddr[345]',
+      '\\d{2,3} ?mm (?:[\\w-]+ ){0,3}fans?', 'thermal paste', 'optical (?:disc )?drives?', 'memory modules?', 'ddr[345]',
+      // Second dry run: "NVIDIA GeForce GT 730", "ASUS TUF Gaming B550-PLUS AMD B550 Socket AM4 ATX", "Logitech Wireless Combo MK270".
+      'geforce', 'radeon', 'socket am[345]', 'lga ?1[1-9]\\d\\d', 'wireless combo', 'keyboard and mouse',
       'printers?', 'ink cartridges?', 'toner', 'scanners?', 'label (?:printer|maker)s?', 'laminators?', 'shredders?', '3d printers?', 'calculators?'
     ]),
     exclude: words(['baby monitor', 'heart rate monitor', 'blood pressure monitor', 'piano keyboard', 'musical keyboard', 'mouse trap', 'mouse mat', 'vitamins?', 'multivitamins?', 'tablets? \\d+ ?mg', 'dishwasher tablets?', 'notebook paper', 'spiral notebook', 'fountain pens?'])
@@ -150,7 +154,7 @@ export const RULES = [
   {
     slug: 'accessories-storage',
     // "Kingston ... Canvas Select 512GB micSDXC" (Back to the Office) writes microSD without "ro".
-    include: words(['ssds?', 'nvme', 'external hard drives?', 'portable hard drives?', 'hard drives?', 'hdd', 'nas', 'memory cards?', 'micro ?sd(?:xc|hc)?', 'micsd(?:xc|hc)?', 'sd(?:xc|hc)', 'sd cards?', 'usb (?:stick|flash drive)s?', 'flash drives?', 'portable ssd', '\\d+ ?tb usb', 'adapters?', 'plugs?']),
+    include: words(['ssds?', 'nvme', 'external hard drives?', 'portable hard drives?', 'hard drives?', 'hdd', 'nas', 'memory cards?', 'micro ?sd(?:xc|hc)?', 'micsd(?:xc|hc)?', 'sd(?:xc|hc)', 'sd cards?', 'usb-bt\\d+', 'bluetooth (?:adapter|dongle)s?', 'usb (?:stick|flash drive)s?', 'flash drives?', 'portable ssd', '\\d+ ?tb usb', 'adapters?', 'plugs?']),
     exclude: words(['laptops?', 'desktop pc', 'mini pc', 'console', 'bicycle parts'])
   }
 ];

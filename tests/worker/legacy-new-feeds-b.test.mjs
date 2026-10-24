@@ -189,6 +189,41 @@ test('Plusshop/Bazta dry-run fixes: kids products land on the right KGW page, ga
   assert.equal(ps('Ferrestock Garden hose', 'Garden tools', 'Home > Household > Tools and garden appliances > Water hoses and accessories'), 'ggw | Watering & Irrigation | Hose Pipes');
 });
 
+// The second dry run (24 Oct 2026): what was still on the wrong page or left out.
+test('Plusshop/Bazta second dry-run fixes: watch kits, baby pages KGW already has, outdoor games, kitchen cleaners, grooming', () => {
+  const C = 'Children > Baby & children products';
+  const O = `${C} > Activities & play time > Outdoor toys`;
+  assert.equal(ps('Repair kit for watches', 'Wristwatches', 'Men > Accessories > Watches > Wristwatches'), 'REJECT watch strap or box (not a watch)');
+  assert.equal(ps('A|X Armani Exchange AX5900 ZOE', 'Wristwatches', 'Women > Accessories > Watches > Wristwatches'), 'wgw | Watches | Watches');
+  assert.equal(ps('Philips Avent Ultra Air Silicone 6-12 Months Baby Girl Pacifiers – 2 pcs', 'Baby & children products', C), 'kgw | Baby & Toddler | Baby Soothers');
+  assert.equal(ps('Swaddle Me Original - Elephants & Rainbows', 'Changing', `${C} > Changing`), 'kgw | Baby & Toddler | Swaddling Blankets');
+  assert.equal(ps('Tommee Tippee Twist & Click Advanced Nappy Disposal Bin', 'Changing', `${C} > Changing`), 'kgw | Baby & Toddler | Nappy Buckets');
+  assert.equal(ps('Angelcare nappy pail & 5 refill cassettes', 'Changing', `${C} > Changing`), 'kgw | Baby & Toddler | Nappy Buckets');
+  assert.equal(ps('MAM Micro Steriliser', 'Baby & children products', C), 'kgw | Baby & Toddler | Bottle Warmers & Sterilisers');
+  assert.equal(ps('Diono Pushchair rain cover', 'Baby & children products', C), 'kgw | Baby & Toddler | Baby Pushchair & Pram Accessories');
+  assert.equal(ps('Summer Infant Learn-to-Sit High Chair', 'Eat & drink', `${C} > Eat & drink`), 'kgw | Baby & Toddler | High Chairs & Boosters Seats');
+  assert.equal(ps('Tommee Tippee Grobag Snuggle 1 Pink - 0-4 months', "Decor & children's room", `${C} > Decor & children's room`), 'kgw | Baby & Toddler | Baby & Toddler Sleepwear');
+  assert.equal(ps('Kikka Boo Silicone Training Spoons with Suction Cup – Pink – 2 pcs', 'Baby & children products', C), 'kgw | Baby & Toddler | Nursing & Feeding');
+  assert.equal(ps('Nivea Sun Kids Sunscreen SPF50+ - 250ml', 'Baby & children products', C), 'kgw | Baby & Toddler | Baby Bathing');
+  assert.equal(ps('LeapFrog Bright Colors Fruit Learning Smoothie Toy Cup - Assorted', 'Baby toys', `${C} > Baby toys`), 'kgw | Baby & Toddler | Baby Activity Toys');
+  assert.equal(ps('Thomas & Friends Edward Diecast Push-Along Toy Train', 'Toys', `${C} > Activities & play time > Toys`), 'kgw | Toys & Games | Toy Trains & Train Sets');
+  assert.equal(ps('SmartGames Go Genius Football Board Game', 'Activities & play time', O), 'kgw | Toys & Games | Board Games');
+  assert.equal(ps('Bestway Hose bathing ring 91cm', 'Activities & play time', O), 'kgw | Sports & Outdoors | Water Play Equipment');
+  assert.equal(ps('Aqua Shot Mega Pack Water Blasters – 4 pcs', 'Activities & play time', O), 'kgw | Sports & Outdoors | Water Play Equipment');
+  assert.equal(ps('HTI Action Mission Target Mission Shooting Set', 'Activities & play time', O), 'kgw | Toys & Games | Toy Weapons & Gadgets');
+  const K = 'Home > Household > Kitchen';
+  assert.equal(ps('Stardrops The Pink Stuff Squeezy Scrubber', 'Kitchen', K), 'hgw | Cleaning & Laundry | Cleaning Products');
+  assert.equal(ps('Cif Power & Shine Kitchen Spray - 700ml', 'Kitchen', K), 'hgw | Cleaning & Laundry | Cleaning Products');
+  assert.equal(ps('Bref Power Lime & Dirt Remover - 750ml', 'Kitchen', K), 'hgw | Cleaning & Laundry | Cleaning Products');
+  assert.equal(ps('Gillette Satin Care Sensitive Gel - 200ml', 'Shaving & hair-cutting', 'Men > Women > Personal care > Shaving & hair-cutting'), 'wgw | Beauty & Fragrances | Hair removal');
+  assert.equal(ps('Axe Black Deo Spray - 150ml', 'Personal Care', 'Men > Personal Care'), 'mgw | Grooming & Fragrances | Deodorant');
+  assert.equal(ps('La Roche-Posay Anthelios SPF50 Anti-Shine Mist - 75ml', 'Body care', 'Women > Personal care > Body care'), 'wgw | Beauty & Fragrances | Skincare');
+  assert.equal(ps('Revlon Large Round Hair Brush', 'Hair care & styling', 'Women > Personal care > Hair care & styling'), 'wgw | Beauty & Fragrances | Hair tools');
+  assert.equal(ps('Technic Nail Beauty Case Kit - 12 pieces', 'Personal care', 'Women > Personal care > Toiletry bags'), 'wgw | Beauty & Fragrances | Gift sets');
+  assert.equal(ps('Scandinavia Bathroom Toothbrush Holder - Green', 'Toilet and bathroom', 'Men > Women > Personal care > Toilet and bathroom'), 'hgw | Bedding & Bath | Bathroom Accessories');
+  assert.equal(ps('Colgate Max White One Toothpaste - 75ml', 'Dental care', 'Men > Women > Personal care > Dental care'), 'REJECT health or dental product');
+});
+
 // A small Plusshop-like feed: the same product in two feeds (one link with "?gsnp"), a 29p card, a lubricant.
 const PS_HEAD = 'merchant_product_id,product_name,brand_name,search_price,in_stock,stock_quantity,merchant_category,category_name,merchant_product_category_path,product_gtin,merchant_deep_link,merchant_image_url\n';
 const psRow = (id, name, price, leaf, path, link, ean = '') =>

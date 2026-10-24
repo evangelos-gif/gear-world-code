@@ -1293,6 +1293,9 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         $bBad = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', (Join-Path $repo 'tools\legacy-import-batch.ps1'), '-Pairs', 'joybuy:xyz', '-OutDir', $bOut, '-NoClipboard')
         & $exe @bBad | Out-Null
         Check ($LASTEXITCODE -eq 2) 'import batch: a wrong site is refused'
+        $bBadC = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', (Join-Path $repo 'tools\legacy-import-batch.ps1'), '-Pairs', 'none', '-Cleanups', 'viaduct-sizes:xyz', '-OutDir', $bOut, '-NoClipboard')
+        & $exe @bBadC | Out-Null
+        Check ($LASTEXITCODE -eq 2) 'import batch: a wrong clean-up site is refused'
     } finally {
         $env:PATH = $oldPath
         Remove-Item Env:\GW_FAKE_STATE -ErrorAction SilentlyContinue
@@ -1391,6 +1394,16 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         Check ($undoF.Count -eq 1 -and ([System.IO.File]::ReadAllText($undoF[0].FullName)).Contains('SET is_active = 1')) 'cleanup: rollback file written'
         $rp = @(Get-ChildItem -LiteralPath $bk -Filter '*-restore-point.txt' -ErrorAction SilentlyContinue)
         Check ($rp.Count -eq 1 -and ([System.IO.File]::ReadAllText($rp[0].FullName)).Contains($lcBookmark)) 'cleanup: restore point written with the bookmark'
+        # legacy-import-batch.ps1 -Cleanups: the clean-up in the same paste and the same report (read-only here, no imports).
+        if (Test-Path -LiteralPath $lcCalls) { Remove-Item -LiteralPath $lcCalls -Force }
+        $cbOut = Join-Path $work 'batch-cleanup-out'
+        & $exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $repo 'tools\legacy-import-batch.ps1') -Pairs none -Cleanups 'instock:mgw' -WorkDir $lcWork -OutDir $cbOut -NoClipboard | Out-Null
+        Check ($LASTEXITCODE -eq 0) 'import batch with -Cleanups (read-only): exit 0'
+        $cbRep = @(Get-ChildItem -LiteralPath $cbOut -File -Filter 'IMPORT_BATCH_*.txt')
+        $cbText = ''
+        if ($cbRep.Count -eq 1) { $cbText = [System.IO.File]::ReadAllText($cbRep[0].FullName) }
+        Check ($cbText.Contains('cleanup instock -> MGW: exit 0') -and $cbText.Contains('##### CLEANUP_INSTOCK_MGW_')) 'import batch with -Cleanups: the clean-up report is in the batch report'
+        Check (-not ((LcCalls) -match '--file|time-travel')) 'import batch with -Cleanups without -Apply: only reads'
     } finally {
         $env:PATH = $oldPath
         Remove-Item Env:\GW_FAKE_STATE -ErrorAction SilentlyContinue
