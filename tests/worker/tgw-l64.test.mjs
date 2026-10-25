@@ -100,6 +100,32 @@ test('the right page: an SSD filed under game controllers, and things made for a
   for (const [name, cat, slug] of cases) assert.equal(where(null, name, '', cat), slug, name);
 });
 
+test('second dry run (25 Oct 2026): the NAME decides, not Joybuy\'s folder; straps, bags, coin cells, business parts', () => {
+  // A phone in Joybuy's "Microphone Accessories" folder stays a phone (the first fix looked at the folder too).
+  assert.equal(where(null, 'Google Pixel 11 5G Smartphone - 6.3 inch, 12GB RAM, 512GB, Obsidian', '', 'Electronics > Audio > Audio Accessories > Microphone Accessories'), 'phones-smartwatches');
+  assert.equal(where(null, 'VoxorAI BOX1 Black Keyboard – Wireless Keyboard with Bluetooth Connectivity. Compatible with iPhone, iPad', '',
+    'Electronics > Electronics Accessories > Computer Components > Input Devices > Keyboards'), 'laptops-computing');
+  assert.equal(where(null, 'Apple - iPhone Crossbody Strap - Blue', '', 'Electronics > Electronics Accessories > Computer Accessories > Handheld Device Accessories'), 'accessories-storage');
+  const SPK = 'Electronics > Audio > Audio Accessories > Speaker Accessories';
+  assert.equal(where(null, 'VoxorAI Bestseller: Gray Travel Bag, Packing Bag, Clothing Storage Bag, Gadget Bag, 8-piece Travel Storage Set', '', SPK), 'OUT not matched (feed says tech)');
+  assert.equal(where(null, 'Verbex K60 Black Selfie Stick – Portable Tripod for Live Streaming, Photography, and Video Calls', '', SPK), 'cameras-drones');
+  assert.equal(where(null, 'BOSE SoundLink Micro (2nd Gen) Portable Bluetooth Speaker Blue Dusk', '', 'Electronics > Audio > Audio Components > Audio Transmitters > Bluetooth Transmitters'), 'audio');
+  assert.equal(where(null, 'FIFINE K688CTW White Podcast Microphone Kit | Dynamic Mic with Boom Arm, XLR/USB Ports', '', SPK), 'audio', 'a microphone stays in audio');
+  const BAT = 'Electronics > Electronics Accessories > Power > Batteries > Tablet Computer Batteries';
+  assert.equal(where(null, 'DURACELL LR44 1.5V Alkaline Button Batteries - 2 Pack', '', BAT), 'OUT consumable, not a gadget');
+  assert.equal(where(null, 'Energizer CR2016 Lithium Coin Cell - Pack of 1', '', BAT), 'OUT consumable, not a gadget');
+  assert.equal(where(null, 'Xiaomi 33W Power Bank 10000mAh (Integrated Cable) Tan', '', BAT), 'accessories-storage');
+  assert.equal(where(null, 'Apple - AirTag - 4 Pack', '', 'Electronics > Electronics Accessories > Computer Accessories > Handheld Device Accessories'), 'accessories-storage');
+  for (const [filter, r, name, brand] of [
+    [PCNOVA, 'PcNova (IT-Supplies)', 'Toshiba MG Series internal hard drive 22 TB 7200 RPM 512 MB', 'Toshiba'],
+    [PCHUB, 'PCHUB.UK', 'Logitech GROUP 15m Extender Cable', 'Logitech'],
+    [BTTO, 'Back to the Office', 'Logitech GROUP 10m Extended Cable', 'Logitech'],
+    [PCNOVA, 'PcNova (IT-Supplies)', 'HP Sps- Brac Wl Combo keyboard Mouse included Office RF Wireless', 'HP']
+  ]) assert.equal(where(filter, name, brand, `${D}>Personal Stock`), `OUT ${BUSINESS(r)}`, name);
+  assert.equal(where(PCHUB, 'Toshiba Canvio Basics external hard drive 2 TB Black', 'Toshiba', `${D}>Storage>External Hard Drives`), 'accessories-storage');
+  assert.equal(where(PCHUB, 'Logitech MX Keys S Combo keyboard Mouse included Office RF Wireless + Bluetooth', 'Logitech', `${D}>Peripherals>Keyboards`), 'laptops-computing');
+});
+
 test('stationery is not tech: paint markers (read as printer ink) and a ballpoint pen set (read as a mouse)', () => {
   const INK = 'Office Supplies > Office Instruments > Writing & Drawing Instrument Accessories > Marker & Highlighter Ink Refills';
   for (const name of ['Posca PC-1M Ultra Fine Tip Paint Marker (8 Pack) - Assorted Colours', 'Pentel Fine Paint Marker Metallic Colours Pack of 6',

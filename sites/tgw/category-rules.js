@@ -44,7 +44,10 @@ export const DENY = [
     // "ARCTIC Freezer P12 Pro - 120 mm PWM Fan" (second dry run, 24 Oct 2026) is a PC fan too.
     except: words(['cpu', 'pwm', 'a-?rgb']) },
   { label: 'spare part or service', re: words(['replacement part', 'spare part', 'repair kit', 'warranty extension', 'service plan', 'gift card', 'voucher']) },
-  { label: 'consumable, not a gadget', re: words(['a{2,4} batteries', '(?:alkaline|lithium|rechargeable) batteries', 'batteries - (?:pack|value pack)', 'copier paper', 'printer paper', 'label paper', 'thermal paper', 'cleaning brush']) },
+  // Coin cells: "DURACELL LR44 1.5V Alkaline Button Batteries - 2 Pack", "Energizer CR2016 Lithium Coin Cell - Pack of 1" were on the
+  // computing page (Joybuy's folder "Tablet Computer Batteries", lessons L64).
+  { label: 'consumable, not a gadget', re: words(['a{2,4} batteries', '(?:alkaline|lithium|rechargeable) batteries', 'batteries - (?:pack|value pack)', 'copier paper', 'printer paper', 'label paper', 'thermal paper', 'cleaning brush',
+    'button (?:cell )?batteries', 'coin cells?']) },
   { label: 'toy, not a gadget', re: words(['toy drones?', 'stunt (?:\\w+ )?drones?', 'kids drones?', 'jigsaw puzzles?', 'piggy bank', 'ride on car', 'ball machine']) },
   // Fourth dry run (24 Oct 2026): "HP 125 Wired Mouse (Bulk120)" is 120 mice for a business, at 484.23.
   // "Urban Armor Gear ... Metropolis SE, BULK 33 cm (13\") Cover" (fifth dry run) is one cover: a size is not a quantity.
@@ -111,6 +114,8 @@ export const RULES = [
       '(?:watch|sport|silicone|nylon|leather|milanese|loop|solo) (?:bands?|straps?)', 'watch straps?', 'replacement bands?',
       'phone cool(?:er|ing)', 'cooling fan for (?:phone|mobile|live streaming)', 'live streaming cooler',
       'phone lanyards?', 'lanyards?', 'apple pencil', 'stylus(?:es)?', 'i?watch (?:bands?|straps?)', 'airtags?', 'anti-lost', 'find my',
+      // "Apple - iPhone Crossbody Strap - Blue" was on the phones page (lessons L64)
+      '(?:crossbody|phone) straps?',
       // PCHUB.UK (24 Oct 2026): "Apple MQEH3ZM/A Smart Wearable Accessories Band" in "smartwatch accessories" is a band, not a
       // watch; "DELL EURO Simple E-Port II Docking" in "Docks & Port Replicators" is a dock (a games console dock stays gaming).
       'smartwatch accessories', 'smart wearable accessories', 'docking', 'port replicators?',
@@ -161,10 +166,10 @@ export const RULES = [
     // A network "gateway/controller ... Mbit/s" (PCHUB.UK "Networking>Routers & Accessories>Controllers") is not a game controller,
     // nor is "Antec ARGB & PWM FAN CONTROLLER fan speed controller".
     exclude: words(['board game', 'card game', 'jigsaw puzzle', 'smart tv', 'televisions?', 'google tv', 'oled tv', 'qled', '\\d{2}["”] (?:bravia|4k)',
-      'gateways?', 'mbit/s', '(?:fan|argb|rgb|led|lighting|pwm|midi|dj) (?:speed )?controllers?',
-      // Dry run of 25 Oct 2026 (lessons L64): Joybuy files "Samsung 990 Pro PCIe 4.0 NVMe 2TB" under "... Game Controllers". A
-      // gaming laptop, PC or console that names its SSD stays ("Razer Blade 16 ... Gaming Laptop ... 4TB SSD").
-      '^(?!.*\\b(?:laptops?|notebooks?|pcs?|desktops?|consoles?|rog ally|msi claw|legion go|steam deck)\\b).*\\b(?:ssds?|nvme|solid state)'])
+      'gateways?', 'mbit/s', '(?:fan|argb|rgb|led|lighting|pwm|midi|dj) (?:speed )?controllers?']),
+    // Dry run of 25 Oct 2026 (lessons L64): Joybuy files "Samsung 990 Pro PCIe 4.0 NVMe 2TB" under "... Game Controllers". A
+    // gaming laptop, PC or console that names its SSD stays ("Razer Blade 16 ... Gaming Laptop ... 4TB SSD").
+    excludeName: words(['^(?!.*\\b(?:laptops?|notebooks?|pcs?|desktops?|consoles?|rog ally|msi claw|legion go|steam deck)\\b).*\\b(?:ssds?|nvme|solid state)'])
   },
   {
     slug: 'smart-home-wifi',
@@ -184,10 +189,11 @@ export const RULES = [
     // Wireless Smartphone Photo Printer", "Hama FlexPro tripod Smartphone/Action camera" and "OnePlus Nord Buds 2 ... Wireless
     // Earphones" are not phones either.
     exclude: words(['kids toy watch', 'tablets?', 'stabili[sz]ers?', 'gimbals?', 'printers?', 'tripods?', 'earbuds?', 'earphones?', 'headphones?', 'headsets?', 'buds\\d*',
-      '(?:oneplus|xiaomi|redmi|oppo|honor|realme|nothing) pad', 'tab [a-z]{0,2}\\d+', 'matepad',
-      // Dry run of 25 Oct 2026 (lessons L64): things made "for iPhone" are not phones: "MOVESPEED Solid State Drive – 1TB ...
-      // Portable SSD", "BOYA BY-V20 ... Wireless Microphone for iPhone 16/17", "VoxorAI M28 ... Selfie Fill Light".
-      'ssds?', 'nvme', 'solid state', 'microphones?', 'lavalier', '(?:fill|selfie|ring|video) lights?'])
+      '(?:oneplus|xiaomi|redmi|oppo|honor|realme|nothing) pad', 'tab [a-z]{0,2}\\d+', 'matepad']),
+    // Dry run of 25 Oct 2026 (lessons L64): things made "for iPhone" are not phones: "MOVESPEED Solid State Drive – 1TB ...
+    // Portable SSD", "BOYA BY-V20 ... Wireless Microphone for iPhone 16/17", "VoxorAI M28 ... Selfie Fill Light", "VoxorAI BOX1
+    // Black Keyboard – Wireless Keyboard ... Compatible with iPhone". The NAME decides (excludeName), not Joybuy's folder.
+    excludeName: words(['ssds?', 'nvme', 'solid state', 'microphones?', 'lavalier', '(?:fill|selfie|ring|video) lights?', 'keyboards?'])
   },
   {
     slug: 'laptops-computing',
@@ -232,7 +238,10 @@ export const RULES = [
       'record players?', 'amplifiers?', 'dab radios?', 'microphones?', 'lavalier', 'voice recorders?', 'dictaphones?', 'audio receivers?',
       'home theat(?:er|re)', '\\d+(?:\\.\\d+){1,2} channels?'
     ]),
-    exclude: words(['ear defenders?', 'hearing protection', 'speaker cable', 'smart speaker', 'televisions?', 'smart tvs?'])
+    exclude: words(['ear defenders?', 'hearing protection', 'speaker cable', 'smart speaker', 'televisions?', 'smart tvs?']),
+    // Lessons L64 (live site, 25 Oct 2026): Joybuy's "Speaker Accessories" folder has travel bags ("VoxorAI Bestseller: Gray Travel
+    // Bag, Packing Bag, Clothing Storage Bag ...") and selfie sticks ("Verbex K60 Black Selfie Stick – Portable Tripod ...").
+    excludeName: words(['travel bags?', 'packing bags?', '(?:clothing|garment) storage', 'toiletry bags?', 'travel (?:storage|organi[sz]ing) set', 'selfie sticks?'])
   },
   {
     slug: 'tv-home-cinema',
@@ -250,8 +259,8 @@ export const RULES = [
       // Camera bodies named by type (PCHUB.UK): "Canon EOS R8 ...", "... MILC Body 24.2 MP", "Panasonic Lumix", "Kodak PIXPRO".
       // Not "[EOS 01.10.23]" (end of sale) in a software licence's name (lessons L64).
       'milc', 'eos(?! \\d{1,2}\\.\\d)', 'lumix', 'pixpro', 'quicksnap',
-      // lights for photos and video calls (lessons L64)
-      '(?:fill|selfie|ring|video) lights?'
+      // lights for photos and video calls, and selfie sticks (lessons L64)
+      '(?:fill|selfie|ring|video) lights?', 'selfie sticks?'
     ]),
     // "TP-Link Tapo Pan/Tilt Home Security WiFi Camera" and "Tapo Smart Wire-Free Security Battery Camera" (Back to the Office,
     // 23 Oct 2026) are smart-home cameras; so are "D-Link 2 Megapixel H.265 Outdoor Dome Camera" and "Ubiquiti (UVC-G6-INS-W-UK)
@@ -334,7 +343,9 @@ export function classify(name, feedCategory = '') {
   const only = ONLY_TOP[top];
   for (const r of RULES) {
     if (only && !only.includes(r.slug)) continue;
-    if (r.include.test(text) && !(r.exclude && r.exclude.test(text))) return { ok: true, slug: r.slug };
+    // excludeName looks at the NAME only (lessons L64): Joybuy files a "Google Pixel 11 5G Smartphone" under "Microphone
+    // Accessories", so a word of the feed category must not stop it being a phone.
+    if (r.include.test(text) && !(r.exclude && r.exclude.test(text)) && !(r.excludeName && r.excludeName.test(n))) return { ok: true, slug: r.slug };
   }
   return { ok: false, reason: TECH_TOPS.includes(top) ? 'not matched (feed says tech)' : 'not tech' };
 }
