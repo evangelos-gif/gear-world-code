@@ -1330,6 +1330,13 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         $bBadC = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', (Join-Path $repo 'tools\legacy-import-batch.ps1'), '-Pairs', 'none', '-Cleanups', 'viaduct-sizes:xyz', '-OutDir', $bOut, '-NoClipboard')
         & $exe @bBadC | Out-Null
         Check ($LASTEXITCODE -eq 2) 'import batch: a wrong clean-up site is refused'
+        # A pair for Construction Gear World is accepted (legacy-import.ps1 has CGW; lessons L63): an empty archive only ends that pair.
+        $cgwArch = Join-Path $work 'batch-cgw-empty-archive'
+        New-Item -ItemType Directory -Path $cgwArch -Force | Out-Null
+        $cOut = Join-Path $work 'batch-cgw-out'
+        & $exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $repo 'tools\legacy-import-batch.ps1') -Pairs 'grabo:cgw' -Archive $cgwArch -WorkDir $liWork -OutDir $cOut -NoClipboard | Out-Null
+        $cRep = @(Get-ChildItem -LiteralPath $cOut -File -Filter 'IMPORT_BATCH_*.txt' -ErrorAction SilentlyContinue)
+        Check ($LASTEXITCODE -eq 0 -and $cRep.Count -eq 1 -and ([System.IO.File]::ReadAllText($cRep[0].FullName)).Contains('grabo -> CGW: exit')) 'import batch: a CGW pair is accepted'
     } finally {
         $env:PATH = $oldPath
         Remove-Item Env:\GW_FAKE_STATE -ErrorAction SilentlyContinue

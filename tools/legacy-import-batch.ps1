@@ -46,7 +46,8 @@ $list = @()
 if ($Pairs.Trim().ToLower() -ne 'none') {
     foreach ($p in ($Pairs -split ',')) {
         $t = $p.Trim().ToLower()
-        if ($t -notmatch '^[a-z0-9\-]{2,40}:(mgw|wgw|kgw|hgw|ggw)$') {
+        # CGW too (legacy-import.ps1 has it): GRABO on Construction Gear World (25 Oct 2026, lessons L63).
+        if ($t -notmatch '^[a-z0-9\-]{2,40}:(cgw|mgw|wgw|kgw|hgw|ggw)$') {
             Write-Host ('Λάθος ζευγάρι κατάστημα:site: {0}' -f $p) -ForegroundColor Red
             exit 2
         }
