@@ -90,6 +90,7 @@ const COLUMNS = {
   currency: ['currency'],
   displayPrice: ['display_price'],
   inStock: ['in_stock', 'is_for_sale', 'stock_status', 'stock_quantity'],
+  stockQuantity: ['stock_quantity'],
   images: ['large_image', 'merchant_image_url', 'alternate_image', 'aw_image_url', 'merchant_thumb_url'],
   link: ['aw_deep_link'],
   merchantProductId: ['merchant_product_id', 'aw_product_id'],
@@ -257,6 +258,29 @@ export function partsFolder(source, path) {
   return Boolean(parts) && pathFolders(path).some(f => parts.has(f));
 }
 
+// "rulesFrom" (25 Oct 2026, lessons L63): PcNova.co.uk and GamingKit send the same wholesale catalogue as PCHUB.UK (the same
+// "Default Category>..." folders, spare parts, toner, names cut at 70 characters), so they take PCHUB's rules instead of a
+// second copy that would drift. A field the shop sets itself wins over the inherited one.
+export const RULE_FIELDS = ['brands', 'denyNames', 'allowPaths', 'denyPaths', 'looseFolders', 'partsFolders', 'partsNames', 'nameCutAt', 'ignoreWasPrice'];
+export function resolveSources(list) {
+  const byId = new Map(list.map(s => [Number(s.advertiserId), s]));
+  return list.map(s => {
+    if (!s.rulesFrom) return s;
+    const base = byId.get(Number(s.rulesFrom));
+    if (!base || base.rulesFrom) throw new Error(`${s.retailer}: rulesFrom ${s.rulesFrom} must be a shop in sources.json with its own rules`);
+    const inherited = Object.fromEntries(RULE_FIELDS.filter(k => k in base && !(k in s)).map(k => [k, base[k]]));
+    return { ...inherited, ...s };
+  });
+}
+
+// The stock a row says: "stockFromQuantity" (GamingKit, 25 Oct 2026) trusts the stock_quantity column over in_stock, because
+// the feed marks all 50,000 rows in_stock = 1 while most have stock_quantity = 0 (lessons L63: no out-of-stock product shown).
+export function rowStock(source, inStockRaw, quantityRaw) {
+  const q = String(quantityRaw || '').trim();
+  if (source.stockFromQuantity && /^\d+$/.test(q)) return Number(q) > 0;
+  return inStockValue(inStockRaw);
+}
+
 export function sourceFilter(source) {
   const brands = Array.isArray(source.brands) && source.brands.length ? new Set(source.brands.map(normBrand)) : null;
   const deny = Array.isArray(source.denyNames) && source.denyNames.length ? new RegExp(source.denyNames.join('|'), 'i') : null;
@@ -363,6 +387,52 @@ export function findDuplicates(rows) {
   return { keep, sameShop, otherShop, keptFor };
 }
 
+// The same product kept at two shops at DIFFERENT prices: both are shown, as separate cards (owner's rule: price comparison).
+// The report counts them per pair of shops, so a shop that mostly repeats another shop's catalogue (PcNova.co.uk and GamingKit
+// next to PCHUB.UK, 25 Oct 2026) is seen before its first import (lessons L63). Same keys as findDuplicates: the name, and an
+// EAN that the shop does not put on more than 3 different names (GamingKit gives 012345678912 to thousands of products).
+export function crossShopOverlap(rows) {
+  const shopOf = p => p.retailer;
+  const namesPerGtin = new Map();
+  for (const p of rows) {
+    if (!p.gtin) continue;
+    const k = `${shopOf(p)}|${p.gtin}`;
+    if (!namesPerGtin.has(k)) namesPerGtin.set(k, new Set());
+    namesPerGtin.get(k).add(nameKey(p.product_name));
+  }
+  const keysOf = p => {
+    const keys = [`n|${nameKey(p.product_name)}`];
+    if (p.gtin && namesPerGtin.get(`${shopOf(p)}|${p.gtin}`).size <= 3) keys.push(`g|${p.gtin}`);
+    return keys;
+  };
+  const byKey = new Map(); // key -> Map(shop -> its cheapest row with that key)
+  for (const p of rows) {
+    for (const k of keysOf(p)) {
+      if (!byKey.has(k)) byKey.set(k, new Map());
+      const m = byKey.get(k), cur = m.get(shopOf(p));
+      if (!cur || p.price < cur.price) m.set(shopOf(p), p);
+    }
+  }
+  const perShop = {}, pairs = {};
+  for (const p of rows) {
+    const s = (perShop[shopOf(p)] ||= { kept: 0, elsewhere: 0 });
+    s.kept++;
+    const others = new Map();
+    for (const k of keysOf(p)) for (const [shop, q] of byKey.get(k)) if (shop !== shopOf(p) && !others.has(shop)) others.set(shop, q);
+    if (!others.size) continue;
+    s.elsewhere++;
+    for (const [shop, q] of others) {
+      const [a, b] = [shopOf(p), shop].sort();
+      if (shopOf(p) !== a) continue; // each pair counted from one side only
+      const pr = (pairs[`${a} | ${b}`] ||= { a, b, n: 0, cheaperA: 0, cheaperB: 0, same: 0, examples: [] });
+      pr.n++;
+      if (p.price < q.price) pr.cheaperA++; else if (p.price > q.price) pr.cheaperB++; else pr.same++;
+      if (pr.examples.length < 8) pr.examples.push(`${truncate(p.product_name, 70)} | ${a} ${p.price.toFixed(2)} | ${b} ${q.price.toFixed(2)}`);
+    }
+  }
+  return { perShop, pairs };
+}
+
 // Random examples that are the same on every run of the same feed (a fixed seed), so the report shows a spread of each group
 // and not only its first rows.
 function makeRng(seed) {
@@ -386,7 +456,7 @@ function addSample(store, key, item, size, rng) {
 }
 
 export async function planImport({ archive, sourcesFile, outDir, now = new Date() }) {
-  const sources = JSON.parse(readFileSync(sourcesFile, 'utf8')).sources.filter(s => s.approved);
+  const sources = resolveSources(JSON.parse(readFileSync(sourcesFile, 'utf8')).sources).filter(s => s.approved);
   const runStamp = now.toISOString().replace('T', ' ').slice(0, 19);
   const archives = archiveList(archive);
   // Only a retailer whose feed was found and read gets its missing products hidden by 9999-finish.sql.
@@ -410,7 +480,7 @@ export async function planImport({ archive, sourcesFile, outDir, now = new Date(
     const filter = sourceFilter(source);
     let sourceRows = 0, missing = 0;
     // Per shop: rows, products and samples, so a new shop can be checked on its own (PCHUB.UK next to Back to the Office).
-    const rs = (stats.perRetailer[source.retailer] ||= { rows: 0, accepted: 0, loose: 0, perCategory: {}, feedCats: {}, folderSamples: {}, looseSamples: {} });
+    const rs = (stats.perRetailer[source.retailer] ||= { rows: 0, accepted: 0, loose: 0, qtyZero: 0, perCategory: {}, feedCats: {}, folderSamples: {}, looseSamples: {} });
     samples.byRetailer[source.retailer] ||= {};
     for (const feedId of source.feedIds) {
       const fname = `AWIN_${source.advertiserId}_${feedId}.csv.gz`;
@@ -476,7 +546,8 @@ export async function planImport({ archive, sourcesFile, outDir, now = new Date(
         if (hddTb && price > Math.max(HDD_MIN_PRICE_CAP, HDD_PRICE_PER_TB * hddTb)) { reject('price far above the usual for this hard disk', short); continue; }
         const currency = detectCurrency(rec, map, source);
         if (currency !== QUALITY.currency) { reject(`currency ${currency || 'unknown'}`, short); continue; }
-        const stock = inStockValue(pick(rec, map.inStock));
+        const quantity = pick(rec, map.stockQuantity);
+        const stock = rowStock(source, pick(rec, map.inStock), quantity);
         if (QUALITY.requireInStock && stock === false) { reject('out of stock', short); continue; }
         const image = firstHttpsImage(rec, map);
         if (QUALITY.requireImage && !image) { reject('no https image', short); continue; }
@@ -533,7 +604,7 @@ export async function planImport({ archive, sourcesFile, outDir, now = new Date(
           is_active: 1,
           last_seen_at: runStamp
         };
-        candidates.push({ p, short, loose, feedCategory: merchantCategory || awinCategory || '-' });
+        candidates.push({ p, short, loose, feedCategory: merchantCategory || awinCategory || '-', qtyZero: quantity === '0' });
       }
       feedInfo.push(`  rows read: ${rows}`);
       sourceRows += rows;
@@ -556,6 +627,7 @@ export async function planImport({ archive, sourcesFile, outDir, now = new Date(
     stats.accepted++;
     stats.perCategory[slug] = (stats.perCategory[slug] || 0) + 1;
     rs.accepted++;
+    if (c.qtyZero) rs.qtyZero++;
     rs.perCategory[slug] = (rs.perCategory[slug] || 0) + 1;
     const rlist = (samples.byRetailer[p.retailer][slug] ||= []);
     if (rlist.length < SAMPLES_PER_SHOP) rlist.push(short);
@@ -619,6 +691,18 @@ export async function planImport({ archive, sourcesFile, outDir, now = new Date(
     L.push(`  ${r}: ${v.accepted} of ${v.rows} rows (${pct(v.accepted, v.rows)})`);
     const cats = CATEGORY_SLUGS.filter(sl => v.perCategory[sl]).map(sl => `${sl} ${v.perCategory[sl]}`).join(' | ');
     if (cats) L.push('      ' + cats);
+    if (v.qtyZero) L.push(`      in stock by the feed, but stock_quantity 0: ${v.qtyZero} (lessons L63)`);
+  }
+  L.push('');
+  const overlap = crossShopOverlap(all);
+  const pairList = Object.values(overlap.pairs).sort((x, y) => y.n - x.n);
+  L.push('== The same product at two shops, at different prices (both are shown, as separate cards) ==');
+  for (const [r, v] of Object.entries(overlap.perShop)) {
+    L.push(`  ${r}: ${v.kept} kept | ${v.elsewhere} also at another shop | ${v.kept - v.elsewhere} only at ${r}`);
+  }
+  for (const pr of pairList) {
+    L.push(`  ${pr.a} and ${pr.b}: ${pr.n} (cheaper at ${pr.a}: ${pr.cheaperA} | cheaper at ${pr.b}: ${pr.cheaperB}${pr.same ? ` | same price: ${pr.same}` : ''})`);
+    for (const x of pr.examples) L.push(`      e.g. ${x}`);
   }
   L.push('');
   L.push(`== Per shop: the biggest feed folders of each category (with up to ${SAMPLES_PER_FOLDER} random examples) ==`);

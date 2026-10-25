@@ -11,7 +11,7 @@ export default {
   lang: 'en-GB',
   locale: 'en-GB',
   currency: 'GBP',
-  assetVersion: '2026-10-25-wgw-ship-1',
+  assetVersion: '2026-10-25-wgw-ship-2',
   promos: promosFor('WGW'),
   awinPublisherId: AWIN_PUBLISHER_ID,
   storagePrefix: 'wgw',
@@ -55,8 +55,13 @@ export default {
   ],
   // Where the retailers deliver (lessons L62): every product card and product page says it, so a visitor from
   // any country sees at once whether they can order. default: every retailer not named in retailers.
-  // Country codes: src/lib/delivery.js. All the retailers here are UK shops.
-  deliversTo: { default: ['GB'] },
+  // Country codes: src/lib/delivery.js. The other retailers are UK shops. 100% PURE (100percentpure.de, lessons L63)
+  // delivers to Germany and nearly all of the EU, Switzerland and Norway, not to the UK (100percentpure.de/Versand-Lieferung,
+  // read 25 Oct 2026).
+  deliversTo: { default: ['GB'], retailers: { '100% PURE': ['EU', 'CH', 'NO'] } },
+  // 100% PURE sells in euros: its prices stay in euros, with "≈ £…" next to them (lessons L25, L63).
+  convertForeignPrices: true,
+  retailersFromEurope: true,
   displayCurrencies: ['GBP', 'EUR', 'ALL', 'RON', 'RUB'],
   cart: { name: 'Gear Cart', maxItems: 30, maxQuantity: 99 },
   voiceSearch: true,

@@ -24,9 +24,17 @@ export function parseRates(base, quotes, rows) {
   return { rates, date };
 }
 
+// The visitor's display currencies, and site.foreignCurrencies: currencies some retailers sell in (CGW: GRABO in US dollars),
+// so their prices get "≈ £…" too (lessons L63).
+export function rateQuotes(site) {
+  const base = String(site.currency || 'GBP').toUpperCase();
+  const all = [...(site.displayCurrencies || []), ...(site.foreignCurrencies || [])].map(c => String(c).toUpperCase());
+  return [...new Set(all)].filter(c => c !== base && /^[A-Z]{3}$/.test(c));
+}
+
 export async function exchangeRates(site, ctx, fetcher = fetch) {
   const base = String(site.currency || 'GBP').toUpperCase();
-  const quotes = (site.displayCurrencies || []).map(c => String(c).toUpperCase()).filter(c => c !== base);
+  const quotes = rateQuotes(site);
   if (!quotes.length) return { ok: true, base, date: '', rates: {} };
   const now = Date.now();
   if (memory && now - memory.at < TTL_SECONDS * 1000) return memory.data;

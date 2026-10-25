@@ -118,6 +118,9 @@ export async function readProducts({ archive, rules }) {
           variants: 0, inStockVariants: 0, unknownStock: 0, prices: [], currency: get('currency').toUpperCase(), ean: get('ean') || get('product_gtin') };
         groups.set(key, g);
       }
+      // Two feeds of one shop can list the same product, only one with categories (100% PURE, 25 Oct 2026, lessons L63).
+      if (!g.feedCategory) g.feedCategory = cleanText(get('merchant_category'));
+      if (!g.awinCategory) g.awinCategory = cleanText(get('category_name'));
       g.variants++;
       if (qty === null || !Number.isFinite(qty)) g.unknownStock++;
       else if (qty > 0) g.inStockVariants++;

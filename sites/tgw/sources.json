@@ -795,6 +795,31 @@
         "\\b((?:wireless|wi-?fi|wlan|wwan|bluetooth|lte|4g|5g) (?:cards?|modules?)|mini ?pci-?e?|m\\.2 (?:cards?|modules?)|air filters?)\\b",
         "\\b(encrypted hdd|hardware kit)\\b"
       ]
+    },
+    {
+      "advertiserId": 125822,
+      "feedIds": [
+        114610
+      ],
+      "retailer": "PcNova.co.uk",
+      "currency": "GBP",
+      "condition": "new",
+      "approved": true,
+      "rulesFrom": 126641,
+      "_comment": "PcNova.co.uk (229,625 rows on 25 Oct 2026): the same wholesale catalogue as PCHUB.UK (same count, the same \"Default Category>...\" folders, names cut at 70 characters, pictures from stockinthechannel.com; rrp_price is price x 1.38, not a real earlier price). It takes PCHUB.UK's rules (rulesFrom). Its product links go to it-supplies.co.uk. The dry run counts how many products no other shop has, and how many are the same product at another price (lessons L63)."
+    },
+    {
+      "advertiserId": 124146,
+      "feedIds": [
+        113741
+      ],
+      "retailer": "GamingKit",
+      "currency": "GBP",
+      "condition": "new",
+      "approved": true,
+      "rulesFrom": 126641,
+      "stockFromQuantity": true,
+      "_comment": "GamingKit (50,000 rows on 25 Oct 2026, gamingkit.co.uk): the same wholesale catalogue as PCHUB.UK, so it takes PCHUB.UK's rules (rulesFrom). Every row says in_stock = 1 but most say stock_quantity = 0: stockFromQuantity (a row is in stock only with a quantity above 0). Many rows have the made-up EAN 012345678912 and an \"Image coming soon\" picture; the report counts the same product at two shops (lessons L63)."
     }
   ]
 }

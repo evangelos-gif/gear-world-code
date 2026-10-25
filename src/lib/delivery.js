@@ -5,7 +5,8 @@
 // The countries come from the site config, from each retailer's own delivery page, never guessed:
 //   deliversTo: { default: ['GB'], retailers: { Reidl: ['DE', 'AT'] } }
 // default: every retailer that is not named. retailers: the retailer name as the site shows it (after
-// database.retailerNames). Codes are ISO 3166 country codes; 'WORLD' means worldwide.
+// database.retailerNames). Codes are ISO 3166 country codes, plus 'EU' (the European Union, for a shop that delivers to
+// nearly all of it) and 'WORLD' (worldwide).
 // A site without deliversTo shows nothing (and keeps its old retailer flag, site.retailerCountries).
 
 export const WORLDWIDE = 'WORLD';
@@ -19,12 +20,12 @@ export const COUNTRY_NAMES = {
   CY: 'Cyprus', MT: 'Malta', PL: 'Poland', CZ: 'Czechia', SK: 'Slovakia', HU: 'Hungary', RO: 'Romania',
   BG: 'Bulgaria', HR: 'Croatia', SI: 'Slovenia', AL: 'Albania', DK: 'Denmark', SE: 'Sweden', NO: 'Norway',
   FI: 'Finland', IS: 'Iceland', EE: 'Estonia', LV: 'Latvia', LT: 'Lithuania', US: 'United States',
-  CA: 'Canada', MX: 'Mexico', AU: 'Australia', NZ: 'New Zealand', JP: 'Japan'
+  CA: 'Canada', MX: 'Mexico', AU: 'Australia', NZ: 'New Zealand', JP: 'Japan', EU: 'European Union'
 };
 
 // Countries with a flag file, public/assets/flags/<code>.svg (TGW keeps them; tools/theme-site.mjs copies them).
 // The flag only helps the eye: the country name is always written next to it.
-export const FLAGS = ['GB', 'DE', 'AT', 'NL', 'US'];
+export const FLAGS = ['GB', 'DE', 'AT', 'NL', 'US', 'EU'];
 
 const own = (obj, key) => Boolean(obj) && Object.prototype.hasOwnProperty.call(obj, key);
 
