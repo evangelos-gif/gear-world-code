@@ -247,6 +247,8 @@ test('live check: memory far dearer than usual is left out; a laptop or graphics
   assert.equal(memoryCapacityGb('Kingston Technology FURY 256GB 3200MT/s DDR4 CL16 DIMM (Kit of 8) (KF432C16RB2K8/256)'), 256);
   assert.equal(memoryCapacityGb('G.Skill Ripjaws S5 2 x 16GB DDR5 6000MHz DIMM'), 32, 'a kit without its total is counted whole');
   assert.equal(memoryCapacityGb('Corsair Dominator Titanium memory module 96 GB 2 x 48 GB DDR5'), 96);
+  assert.equal(memoryCapacityGb('HP 16GB DDR5 (1x16GB) 4800 UDIMM ECC Memory'), 16, 'a UDIMM is a module');
+  assert.equal(memoryCapacityGb('DELL 64G. RDIMM. 2933MHz. DDR4. 64GB'), 64);
   assert.equal(memoryCapacityGb('ASUS ROG Strix G16 Gaming Laptop 32GB RAM 1TB SSD DDR5 memory module'), 0);
   assert.equal(memoryCapacityGb('Gigabyte GeForce RTX 5070 Ti 16GB GDDR7 graphics card'), 0);
   assert.equal(memoryCapacityGb('Logitech MX Keys S Combo'), 0);

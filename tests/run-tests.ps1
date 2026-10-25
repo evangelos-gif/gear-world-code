@@ -300,6 +300,7 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         'echo %* | findstr /C:"migrations apply" >nul && goto ok',
         'echo %* | findstr /C:"time-travel info" >nul && goto ttinfo',
         'echo %* | findstr /C:"--command" >nul && goto query',
+        'echo %* | findstr /C:"--file" >nul && goto execfile',
         'echo %* | findstr /C:"d1 execute" >nul && goto ok',
         'echo %* | findstr /C:" deploy" >nul && goto deploy',
         'echo unknown command 1>&2',
@@ -339,6 +340,12 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         'echo Uploaded technology-gear-world',
         'echo   https://technology-gear-world.example-test.workers.dev',
         'exit /b 0',
+        ':execfile',
+        'if not defined GW_FAKE_IMPORTFLAKY goto ok',
+        'if exist "%GW_FAKE_STATE%\importflaky.txt" goto ok',
+        'echo flaky > "%GW_FAKE_STATE%\importflaky.txt"',
+        'echo X [ERROR] Not currently importing anything.',
+        'exit /b 1',
         ':ok',
         'echo OK',
         'exit /b 0'
@@ -389,6 +396,13 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         Check ($iBackup -ge 0 -and $iExec -gt $iBackup) 'cloudflare import: restore point before loading'
         $notes = @(Get-ChildItem -LiteralPath (Join-Path $cfWork 'backups') -Filter '*.txt' -ErrorAction SilentlyContinue)
         Check ($notes.Count -eq 1 -and ([System.IO.File]::ReadAllText($notes[0].FullName)).Contains($fakeBookmark)) 'cloudflare import: restore point written with the bookmark'
+        # 25 Oct 2026 (lessons L64): D1 answered "Not currently importing anything" after loading 0005.sql. The same file is sent again.
+        $env:GW_FAKE_IMPORTFLAKY = '1'
+        $fileCallsBefore = ([regex]::Matches((Calls), '--file')).Count
+        Check ((Run-Cf @('-Step', 'import', '-Archive', $arch, '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ TGW IMPORT')) -eq 0) 'cloudflare import: "Not currently importing anything" is retried, exit 0'
+        Remove-Item Env:\GW_FAKE_IMPORTFLAKY
+        $sqlCount = @(Get-ChildItem -LiteralPath $cfOut -Directory -Filter 'TGW_IMPORT_PLAN_*' | Sort-Object LastWriteTime | Select-Object -Last 1 | ForEach-Object { Get-ChildItem -LiteralPath (Join-Path $_.FullName 'sql') -Filter '*.sql' }).Count
+        Check ((Test-Path -LiteralPath (Join-Path $state 'importflaky.txt')) -and ([regex]::Matches((Calls), '--file')).Count -eq $fileCallsBefore + $sqlCount + 1) 'cloudflare import: the file with the passing error is sent twice, every other file once'
         # A big import needs -PaidPlan (lessons L49): about 8 D1 rows written per product; Workers Free allows 100,000 a day.
         $bigArch = Join-Path $work 'awin-big'
         New-Item -ItemType Directory -Path $bigArch -Force | Out-Null

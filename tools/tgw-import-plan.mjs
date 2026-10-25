@@ -330,7 +330,8 @@ export const NOT_NEW_REASON = 'not new (incomplete, open box or damaged box): th
 const MEM_PRICE_PER_GB = 40, MEM_MIN_PRICE_CAP = 150;
 export function memoryCapacityGb(name) {
   const n = String(name || '').toLowerCase().replace(/\b(?:desktop|laptop|notebook|pc|server|workstation|gaming) (?:memory|ram)\b/g, 'memory');
-  if (!/\bmemory modules?\b|\b(?:c?so-?)?dimms?\b|\bcsodimm\b|\bram kit\b/.test(n)) return 0;
+  // "HP 16GB DDR5 (1x16GB) 4800 UDIMM ECC Memory" (third dry run): UDIMM, RDIMM and LRDIMM are modules too.
+  if (!/\bmemory modules?\b|\b(?:c?so-?|u|r|lr)?dimms?\b|\bcsodimm\b|\bram kit\b/.test(n)) return 0;
   if (/\b(?:gddr\d\w*|graphics|laptops?|notebooks?|desktops?|pcs?|mini pc|workstations?|nas|ssd|tablets?|phones?)\b/.test(n)) return 0;
   // The largest size in the name, a kit written "2 x 16GB" counted whole: a doubt makes the limit higher, never lower.
   let gb = 0;
