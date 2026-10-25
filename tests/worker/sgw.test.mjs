@@ -101,7 +101,7 @@ test('front-end files are the TGW ones recoloured (run: node tools/theme-site.mj
     assert.ok(Buffer.compare(readFileSync(`sites/sgw/public/assets/${name}`), Buffer.from(content)) === 0, `${name} is out of date`);
   }
   const css = String(files['site.css']);
-  assert.match(css, /--gold: #ffcd2e/);
+  assert.match(css, /--gold: #4cc3ff/);
   assert.ok(!/#f2b84b|#0a1222/i.test(css), 'no TGW colour left');
 });
 
