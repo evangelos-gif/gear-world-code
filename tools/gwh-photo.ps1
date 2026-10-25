@@ -176,7 +176,7 @@ function Write-PreviewConfig([string]$folder, [string]$dbId) {
 }
 
 # sha256 of a live file as the Worker sends it. Cloudflare Web Analytics adds its own beacon script to HTML for some
-# visitors (lessons L38): it is taken out before comparing.
+# visitors (lessons L57): it is taken out before comparing.
 function Get-LiveSha([string]$url, [bool]$isHtml) {
     try {
         $wc = New-Object System.Net.WebClient
@@ -193,7 +193,7 @@ function Get-LiveSha([string]$url, [bool]$isHtml) {
 }
 
 # Deploy; when Cloudflare answers "This Worker does not exist" (code 10007) right after the upload of a NEW Worker,
-# wait and deploy once more: a deploy is safe to repeat (lessons L39).
+# wait and deploy once more: a deploy is safe to repeat (lessons L58).
 function Invoke-Deploy([string]$folder, [string]$config) {
     $d = Invoke-Wrangler $folder ('deploy --config "{0}"' -f $config)
     if ($d.code -ne 0 -and $d.text -match 'code: 10007') {
@@ -250,7 +250,7 @@ function New-TestJpeg {
         $g.FillEllipse([System.Drawing.Brushes]::Orange, 130, 40, 60, 60)
     } finally { $g.Dispose() }
     $ms = New-Object System.IO.MemoryStream
-    # The comma keeps the bytes together: without it PowerShell unrolls the array and the body is sent as text (lessons L40).
+    # The comma keeps the bytes together: without it PowerShell unrolls the array and the body is sent as text (lessons L59).
     try { $bmp.Save($ms, [System.Drawing.Imaging.ImageFormat]::Jpeg); return , $ms.ToArray() } finally { $ms.Dispose(); $bmp.Dispose() }
 }
 
@@ -506,7 +506,8 @@ if ($Step -eq 'live') {
         New-Item -ItemType Directory -Path (Split-Path -Parent $dst) -Force | Out-Null
         Copy-Item -LiteralPath $src -Destination $dst -Force
     }
-    Say ('Νέα αρχεία στον φάκελο του Hub: {0} · παλιά αντίγραφα στο {1}' -f $newFiles.Count, $moved) 'Green'
+    if ($oldCopies.Count) { Say ('Νέα αρχεία στον φάκελο του Hub: {0} · παλιά αντίγραφα στο {1}' -f $newFiles.Count, $moved) 'Green' }
+    else { Say ('Νέα αρχεία στον φάκελο του Hub: {0}' -f $newFiles.Count) 'Green' }
 
     # 4. Deploy the live Hub from its folder, with the wrangler version of this repo version
     $d = Invoke-Deploy $gwh (Join-Path $HubDir 'wrangler.toml')

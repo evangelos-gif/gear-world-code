@@ -1,6 +1,6 @@
 // Gear World Hub cross-site search (/api/search in sites/gwh/worker.js): how the Hub asks the 9 sites.
 // On Cloudflare a Worker can wait for at most 6 answers at a time; a 7th fetch waits in a queue. The fake fetch below
-// follows the same rule, so these tests show what visitors get when slow sites hold the 6 places (lessons L41).
+// follows the same rule, so these tests show what visitors get when slow sites hold the 6 places (lessons L60).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { DatabaseSync } from 'node:sqlite';
@@ -97,7 +97,7 @@ test('search: all 9 sites answer, never more than 6 asked at once, same answer a
   assert.deepEqual(Object.keys(data), ['ok', 'query', 'count', 'sites', 'results', 'country_code', 'partial', 'failed_sites']);
 });
 
-test('search: when the 6 old sites are slow, the fast sites at the end of the list still answer (L41)', async () => {
+test('search: when the 6 old sites are slow, the fast sites at the end of the list still answer (L60)', async () => {
   const fake = cloudflareLikeFetch(OLD_SIX);
   const started = Date.now();
   const { status, data } = await search(fake, 'SJCAM dash cam');

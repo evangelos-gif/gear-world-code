@@ -45,13 +45,13 @@ foreach ($f in $psFiles) {
     $nonAscii = $false
     foreach ($b in $bytes) { if ($b -gt 127) { $nonAscii = $true; break } }
     Check ((-not $nonAscii) -or $hasBom) ('UTF-8 BOM when non-ASCII: ' + $f.Name)
-    # A function that returns bytes needs "return , $x": without the comma PowerShell unrolls the array (lessons L40).
+    # A function that returns bytes needs "return , $x": without the comma PowerShell unrolls the array (lessons L59).
     $byteReturn = [regex]::Matches([System.IO.File]::ReadAllText($f.FullName), $byteReturnPattern)
-    Check ($byteReturn.Count -eq 0) ('returns byte arrays with the comma (L40): ' + $f.Name)
+    Check ($byteReturn.Count -eq 0) ('returns byte arrays with the comma (L59): ' + $f.Name)
 }
 # (the samples are split in two, so this file does not match its own check)
 $byteReturnSample = @(('function A { return $ms.' + 'ToArray() }'), ('function B { return [System.IO.File]::' + 'ReadAllBytes($p) }'), ('function C { return $enc.' + 'GetBytes($s) }'), ('function D { return , $ms.' + 'ToArray() }'), 'function E { return ([BitConverter]::ToString($sha.ComputeHash($b))) }')
-Check ((@($byteReturnSample | Where-Object { $_ -match $byteReturnPattern }).Count -eq 3) -and -not ($byteReturnSample[3] -match $byteReturnPattern)) 'the L40 check finds a byte array returned without the comma'
+Check ((@($byteReturnSample | Where-Object { $_ -match $byteReturnPattern }).Count -eq 3) -and -not ($byteReturnSample[3] -match $byteReturnPattern)) 'the L59 check finds a byte array returned without the comma'
 
 # 2. No secrets or Cloudflare IDs committed
 Write-Host 'Secret scan'
@@ -2306,9 +2306,9 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         Check ((PCount '(?m)secret bulk "[^"]+" --name gear-world-hub\s*$') -eq 1 -and (PLast).Contains('υπάρχει ήδη, έμεινε ίδιο')) 'hub photo live: an existing secret of the live Worker is kept'
         Write-Utf8 (Join-Path $pHub 'public/index.html') '<!doctype html><title>someone else changed this</title>'
         Check ((Run-P @('-Step', 'live', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB PHOTO LIVE')) -eq 7 -and (PCount 'deploy --config') -eq 4) 'hub photo live: refused when the hub folder was changed by someone else'
-        # L39: "This Worker does not exist [code: 10007]" right after an upload: one more deploy; any other error: none
+        # L58: "This Worker does not exist [code: 10007]" right after an upload: one more deploy; any other error: none
         Write-Utf8 (Join-Path $pState 'fail10007.flag') 'once'
-        Check ((Run-P @('-Step', 'preview', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB PHOTO PREVIEW')) -eq 0 -and (PCount 'deploy --config') -eq 6 -and -not (Test-Path -LiteralPath (Join-Path $pState 'fail10007.flag'))) 'hub photo: a deploy answered with code 10007 is repeated once (L39)'
+        Check ((Run-P @('-Step', 'preview', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB PHOTO PREVIEW')) -eq 0 -and (PCount 'deploy --config') -eq 6 -and -not (Test-Path -LiteralPath (Join-Path $pState 'fail10007.flag'))) 'hub photo: a deploy answered with code 10007 is repeated once (L58)'
         Write-Utf8 (Join-Path $pState 'failother.flag') 'always'
         Check ((Run-P @('-Step', 'preview', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB PHOTO PREVIEW')) -eq 9 -and (PCount 'deploy --config') -eq 7) 'hub photo: any other deploy error stops at once, no repeat'
         Remove-Item -LiteralPath (Join-Path $pState 'failother.flag') -Force
