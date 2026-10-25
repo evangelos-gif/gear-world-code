@@ -192,7 +192,7 @@ switch ($Step) {
         Say 'Τι θα γίνει:'
         Say ('  - Ανεβαίνει η σελίδα του Gear World Group στον Worker "{0}", στο {1} και στο www.{1}.' -f $WorkerName, $Domain)
         Say '  - Η Cloudflare φτιάχνει μόνη της τις εγγραφές για τη σελίδα. Οι εγγραφές email (MX, Google) ΔΕΝ αλλάζουν.'
-        Say '  - Τα 7 sites, το hub και οι βάσεις ΔΕΝ αλλάζουν.'
+        Say '  - Τα Gear World sites, το hub και οι βάσεις ΔΕΝ αλλάζουν.'
         if ($live) { Say ('  - Επαναφορά: Rollback στο {0} ή: npx wrangler rollback {1} --name {2}' -f $DashLink, $live, $WorkerName) }
         else { Say ('  - Επαναφορά: npx wrangler delete --name {0} (σβήνει τη σελίδα· το email δεν επηρεάζεται)' -f $WorkerName) }
         if (-not $Apply) { Say ''; Say 'Δοκιμή μόνο (χωρίς -Apply): δεν άλλαξε τίποτα.' 'Green'; Finish 0 }
