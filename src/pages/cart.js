@@ -4,7 +4,7 @@
 // without JavaScript; the site script keeps the browser's list and this address in step.
 import { html } from '../lib/html.js';
 import { productPath } from '../lib/text.js';
-import { page, breadcrumbs, tr, priceTag } from './layout.js';
+import { page, breadcrumbs, tr, priceTag, deliveryLine } from './layout.js';
 
 // items=12:2,34:1 -> [{ id: 12, qty: 2 }, { id: 34, qty: 1 }]: whole numbers only, no repeats, limits from config.
 export function parseCartItems(url, { maxItems = 30, maxQuantity = 99 } = {}) {
@@ -50,6 +50,7 @@ export function cartPage(site, products, items) {
     <div class="cart-info">
       <p class="cart-name" translate="no"><a href="${productPath(p)}">${p.product_name}</a></p>
       <p class="cart-meta"><span translate="no">${p.retailer}</span>${inStock ? '' : html` · <span class="warn">Out of stock</span>`}</p>
+      ${deliveryLine(site, p.retailer, { cls: 'cart-ship', max: 0 })}
       <p class="cart-price">${priceTag(site, p.price, cur)}${l.qty > 1 ? html` <span class="cart-each" translate="no">× ${l.qty}</span>` : ''}</p>
       <div class="cart-controls">
         <div class="qty" role="group" aria-label="Quantity">
