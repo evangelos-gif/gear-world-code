@@ -274,14 +274,15 @@ function kidsPlace(n, c) {
 // Seeds ("Wildflower Meadow Refill Tabs"), TILSWALL paint sprayers ("... Spray Gun ... for Fence, Shed, Furniture") and
 // garage shelves ("... Shelving Racking for Shed, Garage") in Sheds. The shared rules (lib/garden.mjs) stay unchanged for
 // the other shops (Gardenista, Mint Outdoor and My Tool Shed are not touched).
-export const NOT_GARDEN_JOYBUY = words(['scissors', 'kitchen shears', 'meat shears', 'poultry shears', 'knife', 'knives', 'cleaver', 'chopping board',
-  'cutting board', 'towel', 'towels', 'towel set', 'bath sheet', 'bath sheets', 'flannel', 'flannels', 'bath mat', 'bath mats', 'diffuser', 'diffusers',
+export const NOT_GARDEN_JOYBUY = words(['towel', 'towels', 'towel set', 'bath sheet', 'bath sheets', 'flannel', 'flannels', 'bath mat', 'bath mats', 'diffuser', 'diffusers',
   'essential oil', 'essential oils', 'aromatherapy', 'air freshener', 'room spray', 'moisture absorber', 'moisture absorbers', 'moisture trap', 'dehumidifier',
   'dehumidifiers', 'refill tab', 'refill tabs', 'unibond', 'paint sprayer', 'paint sprayers', 'paint spray gun', 'spray gun', 'spray guns', 'paint gun', 'hvlp',
   'airless']);
-// Same plan, not in the owner's list: a pool float among the loungers, a kitchen food clip among the BBQs. These words
-// count only in the head of the name: "BBQ Grilling Tools Set | Disposable Gloves, ..., Food Clip" is a BBQ tool set.
-const NOT_GARDEN_JOYBUY_HEAD = words(['inflatable', 'pool float', 'pool floats', 'floatie', 'lilo', 'food clip', 'bread clip', 'baking clip']);
+// Kitchen scissors and knives, and (same plan, not in the owner's list) a pool float among the loungers and a kitchen food clip
+// among the BBQs. These words count only in the head of the name: "BJ Stainless Steel BBQ Set, 3-Piece with Barbecue Scissors
+// & Steak Clips" and "BBQ Grilling Tools Set | ..., Food Clip" are BBQ tool sets (second plan of 25 Oct 2026).
+const NOT_GARDEN_JOYBUY_HEAD = words(['scissors', 'kitchen shears', 'meat shears', 'poultry shears', 'knife', 'knives', 'cleaver', 'chopping board',
+  'cutting board', 'inflatable', 'pool float', 'pool floats', 'floatie', 'lilo', 'food clip', 'bread clip', 'baking clip']);
 // "<what it is> for <what it is used with>": the part after "for" says what a product is used with, not what it is.
 const FOR_PART = /\s+(?:(?:ideal|suitable|perfect|great|designed|made|used|use|compatible|works?|fits?)\s+)?for\s+/i;
 // The head of a name says what the product is: the words before "with", " – ", " | ", a comma, a bracket or "for".

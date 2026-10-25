@@ -71,6 +71,8 @@ const REAL_OUT = [
   ['JOYFURNOS 2-Pack Heavy Duty Steel Shelving – 5 Shelves, Bolt-Free Assembly, Each Unit Size 75×30×150 cm, Load Capacity 650 kg per Unit – Suitable for Garage or Storage Shed, Silver', /shelves or racking/],
   ['Sloosh Inflatable Tanning Pool Lounger Float, 70" x 46" Extra Large Pool Floats Adult with Pillow, 4 in 1 Suntan Tub Raft Floatie,Sunbathing Bed Lounge for Water Blow Up Party Gifts, L-Blue', /pool float/],
   ['【Black Friday Early Deals】DJI Osmo Action 4 Adventure Combo - 4K/120fps Waterproof Action Camera with a 1/1.3-Inch Sensor, 10-bit & D-Log M Color Performance, 155° FOV, Up to 7.5 h with 3 Extra Batteries, Outdoor Camera', /not one that watches a home/],
+  ['KAWA 64GB Micro SD Card, High Endurance Video Monitoring Card, microSDXC Flash Memory Card, A1, U3, Class10, V30, High Speed TF Card for DashCam, Security Camera, Baby Monitor, Phones, Tablets', /not one that watches a home/],
+  ['COOKER KING Food Grade Aluminium Foil for Barbecue Baking, 15μm, 20m x 30cm', /made FOR a garden product/],
   ['AIRMATE 1800W PTC Ceramic Tower Heater, Fast Heating with 80° Oscillation, Smart Thermostat, 4-Stage Sleep Mode, 24H Timer, Remote Control & Child Lock', /appliance with an app/]
 ];
 // ... and from the same report, products that were right: they stay (sheds and a deck box "with Shelves", a BBQ tool set
@@ -87,6 +89,9 @@ const REAL_IN = [
   ['Huacan cleaning barbecue brush, wire brush, wire brush for barbecue grills and barbecue stoves, cleaning brush, barbecue tool', 'ggw', 'BBQ accessories'],
   ['Huacan Portable Charcoal BBQ Grill for Camping & Home – 1 Pack', 'ggw', 'BBQs'],
   ['Vonhaus Outdoor Pizza Oven with Accessories', 'ggw', 'Pizza ovens'],
+  // Second plan of 25 Oct 2026 (09:33): BBQ tool sets that list scissors stay; only scissors that ARE the product go.
+  ['BJ Stainless Steel BBQ Set, 3-Piece with Barbecue Scissors & Steak Clips', 'ggw', 'BBQs'],
+  ['Maxcook 3pcs Stainless Steel BBQ Grilling Accessories Set - BBQ Tongs, Oil Brush, Scissors Set (Black) MCPJ9562', 'ggw', 'BBQ accessories'],
   ['MADLAND 3 Self-Watering Plant Pots, 16.5cm Diameter, Beige Resin Flower Pots with Bottom Trays, Deep Water Storage Reservoir, Clean and Mess-Free Small Planting Pots, Suitable for Herbs, Succulents, Pothos, Windowsills and Gardens', 'ggw', 'Plants'],
   ['Miracle Gro Quick Grow Lawn Seed 56m2', 'ggw', 'Seeds & bulbs'],
   ['UME 2 Pack Solar Pathway Lights Outdoor, Bright Solar Garden Lights with Metal Design–IP65 Waterproof, Auto On/Off, 3000K LED Landscape Lighting for Yard, Lawn, Walkway, Driveway, Patio Decor', 'ggw', 'Solar lights'],
