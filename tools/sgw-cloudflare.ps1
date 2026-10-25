@@ -321,6 +321,25 @@ switch ($Step) {
         }
         Say ('Ανέβηκε με τα domains {0} και www.{0}.' -f $Domain) 'Green'
         if ($NoHttpCheck) { Finish 0 }
+        # Lessons L36: the first check of a new domain asks Cloudflare (1.1.1.1), not the router. A router that asked too early
+        # keeps "does not exist" for ~30 minutes, while the site already works. Wait here until Cloudflare answers, then clear
+        # this PC's DNS cache and only then open the site.
+        Say 'Ρωτώ την Cloudflare (1.1.1.1) αν το domain είναι έτοιμο (έως 5 λεπτά)...'
+        $cfReady = $false
+        for ($i = 1; $i -le 20; $i++) {
+            try {
+                $ans = @(Resolve-DnsName -Name $Domain -Server 1.1.1.1 -Type A -DnsOnly -ErrorAction Stop | Where-Object { $_.IPAddress })
+                if ($ans.Count -gt 0) { $cfReady = $true; break }
+            } catch { }
+            Start-Sleep -Seconds 15
+        }
+        if ($cfReady) {
+            Say ('  Cloudflare: το {0} είναι έτοιμο.' -f $Domain) 'Green'
+            try { ipconfig /flushdns | Out-Null } catch { }
+        } else {
+            Say ('  Cloudflare: το {0} δεν φαίνεται ακόμα. Συνήθως θέλει λίγα λεπτά. Πες στο Claude «έγινε»: ελέγχει μόνο του.' -f $Domain) 'Yellow'
+            Finish 0
+        }
         [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
         Say 'Ελέγχω τη ζωντανή διεύθυνση (το SSL μπορεί να θέλει έως 5 λεπτά)...'
         $ok = $false
@@ -338,7 +357,7 @@ switch ($Step) {
             }
         }
         if (-not $ok) {
-            Say ('Το https://{0} δεν απάντησε ακόμα. Συνήθως θέλει λίγα λεπτά. Άνοιξέ το σε 10 λεπτά και πες στο Claude τι βλέπεις.' -f $Domain) 'Yellow'
+            Say ('Η Cloudflare δείχνει το {0} έτοιμο, αλλά από αυτόν τον υπολογιστή δεν απάντησε ακόμα (ο router μπορεί να θυμάται το παλιό έως ~30 λεπτά, L36). Πες στο Claude «έγινε»: ελέγχει μόνο του.' -f $Domain) 'Yellow'
             Finish 0
         }
         try {
