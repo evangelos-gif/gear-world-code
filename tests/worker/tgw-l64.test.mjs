@@ -6,13 +6,16 @@
 //  - Joybuy's camping gas stove with the accessories, and a pen given only as a free gift;
 //  - "�" (a character the PCHUB.UK feed lost) in names;
 //  - Back to the Office and PCHUB.UK say in_stock = 1 with stock_quantity 0 on about 24,000 products (stockFromQuantity).
+// The live check after the import (same day): server memory and Panasonic Toughbook accessories on the computing page, memory at
+// far more than the usual price (£9,847.99 for 64 GB), "(Incomplete - Fully Functional)" and "BOX DAMAGED" shown as new, camera
+// bundles on the audio and accessories pages, replacement ear cushions, a slogan left in front of a TV's name.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtempSync, mkdirSync, writeFileSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { gzipSync } from 'node:zlib';
-import { planImport, sourceFilter, resolveSources, rowStock } from '../../tools/tgw-import-plan.mjs';
+import { planImport, sourceFilter, resolveSources, rowStock, memoryCapacityGb, NOT_NEW, NOT_NEW_REASON } from '../../tools/tgw-import-plan.mjs';
 import { classify, cleanProductName, notUkHint } from '../../sites/tgw/category-rules.js';
 
 const SOURCES = JSON.parse(readFileSync(new URL('../../sites/tgw/sources.json', import.meta.url), 'utf8')).sources;
@@ -156,6 +159,12 @@ test('a sales slogan in front of the name is taken off', () => {
     'Coocaa 40"CTQH38 Direct-LED FHD HDR10 Dolby Audio QLED Freely Tivo');
   assert.equal(cleanProductName('Black Friday Deals!COMFEE\' RCD92WH2UKY(E) 88L Under Counter Fridge'), 'COMFEE\' RCD92WH2UKY(E) 88L Under Counter Fridge');
   assert.equal(cleanProductName('Black Friday Special Edition Headphones'), 'Black Friday Special Edition Headphones', 'a name, not a slogan');
+  // live check: every promotion in front goes, slogans and brackets in any order
+  const TV = 'Coocaa 55"CRUG50 Direct LED 4K HDR Smart Roku TV-55CRUG50ZUK(HDR10,Dolby Audio)';
+  assert.equal(cleanProductName(`Black Friday Deal | Black Friday Deal | ${TV}`), TV);
+  assert.equal(cleanProductName(`【Black Friday Early Deals】Black Friday Deal | ${TV}`), TV);
+  assert.equal(cleanProductName(`Black Friday Deal | 【Free Delivery】 ${TV}`), TV);
+  assert.equal(cleanProductName(`[Back-to-School] ${TV}`), TV);
 });
 
 test('stock: Back to the Office, PCHUB.UK (and PcNova, with PCHUB\'s rules) trust stock_quantity; Joybuy keeps in_stock', () => {
@@ -166,6 +175,67 @@ test('stock: Back to the Office, PCHUB.UK (and PcNova, with PCHUB\'s rules) trus
     assert.equal(rowStock(s, 'true', ''), true, `${s.retailer}: no quantity, in_stock decides`);
   }
   assert.equal(rowStock(shop(123932), '1', '0'), true, 'Joybuy: unchanged');
+});
+
+test('live check after the import (25 Oct 2026): server memory, Toughbook accessories and Toshiba MG09 out; consumer memory stays', () => {
+  const MEM = `${D}>PC Components>Components>Memory Modules`;
+  const KT = 'Kingston Technology';
+  for (const [filter, r, name, brand, path] of [
+    [PCHUB, 'PCHUB.UK', 'Samsung M321R8GA0EB2-CCP memory module 64 GB 1 x 64 GB DDR5 288-pin', 'Samsung', MEM],
+    [PCHUB, 'PCHUB.UK', 'Samsung M393A4K40DB3-CWE memory module 32 GB 1 x 32 GB DDR4 288-pin', 'Samsung', MEM],
+    [PCHUB, 'PCHUB.UK', 'Samsung M386A8K40CM2-CVF memory module 64 GB DDR4 2933 MHz', 'Samsung', MEM],
+    [BTTO, 'Back to the Office', 'Lenovo 4X77A77032 memory module 64 GB 1 x 64 GB DDR5 288-pin DIMM ECC', 'Lenovo', 'Computers'],
+    [PCHUB, 'PCHUB.UK', 'Lenovo 4ZC7A08744 memory module 64 GB 1 x 64 GB DDR4', 'Lenovo', MEM],
+    [PCHUB, 'PCHUB.UK', 'Kingston Technology KSM32RD8/16HDR memory module 16 GB 1 x 16 GB', KT, MEM],
+    [PCHUB, 'PCHUB.UK', 'Kingston Technology KSM56R46BD4-64HA memory module 64 GB 1 x 64 GB', KT, MEM],
+    [BTTO, 'Back to the Office', 'Kingston Technology KCS-UC556D4-64G memory module 64 GB 1 x 64 GB DDR5 5600 MT/s ECC', KT, 'Computers'],
+    [PCHUB, 'PCHUB.UK', 'Kingston Technology KTH-PL556D8-32G memory module 32 GB 1 x 32 GB', KT, MEM],
+    [PCHUB, 'PCHUB.UK', 'Kingston Technology System Specific Memory KTH-PL426/32G memory', KT, MEM],
+    [PCHUB, 'PCHUB.UK', 'Kingston Technology KTD-PE432D8/32G memory module 32 GB 1 x 32 GB', KT, MEM],
+    [PCHUB, 'PCHUB.UK', 'Kingston Technology KTL-TS432/32G memory module 32 GB 1 x 32 GB DDR4', KT, MEM],
+    [BTTO, 'Back to the Office', 'Panasonic FZ-VNP026U stylus pen 11.3 g Black', 'Panasonic', 'Computers'],
+    [PCHUB, 'PCHUB.UK', 'Panasonic FZ-VEB551U laptop dock/port replicator Docking Black', 'Panasonic', `${D}>Laptops>Docks & Port Replicators`],
+    [PCNOVA, 'PcNova (IT-Supplies)', 'Toshiba MG09 internal hard drive 18 TB 7200 RPM 512 MB 3.5"', 'Toshiba', `${D}>Storage>Internal Hard Drives>${D}>Personal Stock`]
+  ]) assert.equal(where(filter, name, brand, path), `OUT ${BUSINESS(r)}`, name);
+  assert.equal(where(PCHUB, 'Kingston Technology FURY Beast 64GB 6000MT/s DDR5 CL36 DIMM (KF560C36BBEK2-64)', KT, MEM), 'laptops-computing');
+  assert.equal(where(PCHUB, 'Samsung M425R1GB4BB0-CQK memory module 8 GB 1 x 8 GB DDR5 SODIMM', 'Samsung', MEM), 'laptops-computing');
+  assert.equal(where(PCHUB, 'Toshiba N300 internal hard drive 8 TB 7200 RPM 3.5" Serial ATA', 'Toshiba', `${D}>Storage>Internal Hard Drives`), 'accessories-storage');
+  assert.equal(where(BTTO, 'Panasonic Lumix DC-FZ82 Bridge Camera', 'Panasonic', 'Computers'), 'cameras-drones');
+});
+
+test('live check: camera bundles are cameras, replacement ear cushions are spare parts, camera mounts stay accessories', () => {
+  const CAM = 'Cameras & Optics > Cameras > Digital Cameras';
+  const GEAR = 'Cameras & Optics > Camera & Optic Accessories > Camera Parts & Accessories > Camera Gears';
+  const SPK = 'Electronics > Audio > Audio Accessories > Speaker Accessories';
+  for (const name of ['Insta360 X5 Creator Combo (X5 + Quick Reader + 114 cm Invisible Selfie Stick + Lens Protector)',
+    'DJI Osmo Pocket 4 Standard Combo & Shokz OpenDots One Black Open-Ear Clip On Headphones',
+    'DJI Osmo Action 6 Adventure Combo&Shokz OpenRun Mini Black Bone Conduction Headphones',
+    'DJI Osmo Pocket 4 Creator Combo & Shokz OpenDots One Grey Wireless Clip Open Ear Earbuds']) {
+    assert.equal(where(null, name, '', CAM), 'cameras-drones', name);
+  }
+  assert.equal(where(null, 'Insta360 X5 Standard Lens Protector', '', GEAR), 'accessories-storage');
+  assert.equal(where(null, 'Ulanzi CO62 Go-Quick ll Magnetic Backpack Clip Mount for GoPro Hero 12 11 10 9 8 7 6 5 4 Session 3+ 3 2 1 Max, DJI Osmo Action, Insta360, Action Cameras Backpack Strap Mount for Phone with Support Vertical Shots', '', GEAR), 'accessories-storage');
+  for (const name of ['DELL Pro Wired Headset Ear Cushions - HE324', 'DELL Wireless Headset Ear Cushions - HE424', 'Dell Pro Wired/Wireless Headset Ear Cushions']) {
+    assert.equal(where(null, name, '', SPK), 'OUT spare part or service', name);
+  }
+  assert.equal(where(null, 'Sennheiser HD 560S Over-Ear Headphones with Velour Ear Pads', '', 'Electronics > Audio > Audio Components > Headphones & Headsets > Headphones'), 'audio');
+  assert.equal(where(null, 'Shokz OpenRun Pro 2 Bone Conduction Headphones', '', 'Electronics > Audio > Audio Components > Headphones & Headsets > Headphones'), 'audio');
+});
+
+test('live check: memory far dearer than usual is left out; a laptop or graphics card naming its memory is not a module', () => {
+  assert.equal(memoryCapacityGb('Lenovo 4X77A77032 memory module 64 GB 1 x 64 GB DDR5 288-pin DIMM ECC'), 64);
+  assert.equal(memoryCapacityGb('HP 64GB DDR5 (1x64GB) 6400 CSODIMM NECC Memory'), 64);
+  assert.equal(memoryCapacityGb('Kingston FURY Beast 16GB 3200MHz DDR4 CL16 Desktop Memory Single DIMM'), 16, '"Desktop Memory" is a kind of module');
+  assert.equal(memoryCapacityGb('Corsair Vengeance RGB 32GB (2x16GB) DDR5 6000MHz RAM Kit'), 32);
+  assert.equal(memoryCapacityGb('Kingston Technology FURY 256GB 3200MT/s DDR4 CL16 DIMM (Kit of 8) (KF432C16RB2K8/256)'), 256);
+  assert.equal(memoryCapacityGb('G.Skill Ripjaws S5 2 x 16GB DDR5 6000MHz DIMM'), 32, 'a kit without its total is counted whole');
+  assert.equal(memoryCapacityGb('Corsair Dominator Titanium memory module 96 GB 2 x 48 GB DDR5'), 96);
+  assert.equal(memoryCapacityGb('ASUS ROG Strix G16 Gaming Laptop 32GB RAM 1TB SSD DDR5 memory module'), 0);
+  assert.equal(memoryCapacityGb('Gigabyte GeForce RTX 5070 Ti 16GB GDDR7 graphics card'), 0);
+  assert.equal(memoryCapacityGb('Logitech MX Keys S Combo'), 0);
+  for (const n of ['Sharp 42 Inch FHD LED Smart TV - 2T-C42CG2KG2FB (Incomplete - Fully Functional)', 'Fellowes BOX DAMAGED - 60CS Cross Cut Shredder',
+    'Brother BOX DAMAGED BTD180CLVAL C-M-Y Ink Bottles 48.8ml', 'Apple iPad Air 11" Open-Box', 'Sony Bravia 8 II Ex-Display']) assert.ok(NOT_NEW.test(n), n);
+  for (const n of ['Samsung 990 PRO 2TB NVMe SSD', 'Apple AirPods Pro 3 (USB-C) with MagSafe Charging Case', 'Logitech MX Master 4 Complete']) assert.ok(!NOT_NEW.test(n), n);
 });
 
 const header = ['aw_deep_link', 'product_name', 'aw_product_id', 'merchant_product_id', 'merchant_image_url', 'merchant_category', 'search_price', 'brand_name', 'in_stock', 'stock_quantity', 'ean'];
@@ -201,4 +271,28 @@ test('dry run: a row in stock only by in_stock is left out, and the report count
   assert.equal(stats.rejected[BUSINESS('Back to the Office')], 1, 'the Toughbook');
   assert.match(report, /-- out of stock: quantity 0, although the feed says in stock \(Back to the Office\)\r\n {3}Motorola Moto G30/);
   assert.doesNotMatch(report, /in stock by the feed, but stock_quantity 0/, 'nothing kept with quantity 0 any more');
+});
+
+test('dry run: memory far dearer than usual is left out (2026 prices stay); "Incomplete" is not new, and is left out', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'tgw-l64b-'));
+  const arc = join(dir, 'GW_AWIN_BULK_ARCHIVE');
+  mkdirSync(arc);
+  writeFileSync(join(arc, 'AWIN_61655_102827.csv.gz'), feed([
+    [link(61655, 21), 'HP 8GB DDR5 5600 SODIMM Memory', '21', 'B-21', img(21), 'Computers', '409.99', 'HP', '1', '5', ''],
+    [link(61655, 22), 'Kingston Technology FURY Beast 64GB 6000MT/s DDR5 CL36 DIMM (Kit of 2) RGB EXPO', '22', 'B-22', img(22), 'Computers', '1469.99', 'Kingston Technology', '1', '4', ''],
+    [link(61655, 23), 'Sharp 42 Inch FHD LED Smart TV - 2T-C42CG2KG2FB (Incomplete - Fully Functional)', '23', 'B-23', img(23), 'Computers', '213.99', 'Sharp', '1', '9', ''],
+    [link(61655, 24), 'Sharp 42 Inch FHD LED Smart TV - 2T-C42CG2KG2FB', '24', 'B-24', img(24), 'Computers', '279.99', 'Sharp', '1', '9', '']
+  ]));
+  const sourcesFile = join(dir, 'sources.json');
+  writeFileSync(sourcesFile, JSON.stringify({ sources: SOURCES.filter(s => s.advertiserId === 61655) }));
+  const out = join(dir, 'out');
+  mkdirSync(out);
+  const { stats, products } = await planImport({ archive: arc, sourcesFile, outDir: out, now: new Date('2026-10-25T20:00:00Z') });
+  const by = Object.fromEntries(products.map(p => [p.merchant_product_id, p]));
+  assert.deepEqual(Object.keys(by).sort(), ['B-22', 'B-24']);
+  assert.equal(stats.rejected['price far above the usual for this memory'], 1, 'the HP 8 GB at £409.99');
+  // The site shows only new and refurbished (cards, compare table): an incomplete TV must not be shown as new.
+  assert.equal(stats.rejected[NOT_NEW_REASON], 1, 'the incomplete TV');
+  assert.equal(by['B-24'].item_condition, 'new');
+  assert.equal(by['B-22'].item_condition, 'new');
 });

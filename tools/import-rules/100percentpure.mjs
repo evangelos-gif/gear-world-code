@@ -36,16 +36,19 @@ export function productKey(get) {
 // shade "Creme"), and as the last word of an English part ("Hair Detangler - Leave-In Haarpflege"). Other German compounds
 // of the same kinds (Gesichts..., Augen..., Haar..., Körper..., Lippen..., Feuchtigkeits..., Reinigungs...) too. Only these
 // words are taken off, so an English part such as "Hydrating Hand Wash - Tea Tree" stays. The shop's notes "Diese Größe ist
-// ein Auslaufartikel" (this size is being discontinued) and "PRE LAUNCH" are not part of the name.
+// ein Auslaufartikel" or just "Auslaufartikel" (being discontinued) and "PRE LAUNCH" are not part of the name.
+// Live check of 25 Oct 2026 (lessons L64): "Powder Puff - Puderquaste", "Nail & Cuticle Oil - Nagelöl", "Matcha Oat Milk
+// Nourishing Mask - Pulvermaske - Auslaufartikel", "Organic Marula Oil - Auslaufartikel" were on the site with the German.
 const GERMAN_TYPES = ['Augencreme', 'Augenpflege', 'Augenpads', 'Lippenstift', 'Lidschatten', 'Rouge', 'Gesichtsmaske', 'Gesichtsreinigung',
   'Gesichtswasser', 'Gesichtsöl', 'Gesichtspflege', 'Gesichtsserum', 'Gesichtsspray', 'Feuchtigkeitsserum', 'Feuchtigkeitspflege',
   'Reinigungspeeling', 'Reinigungspad', 'Wimperntusche', 'Handcreme', 'Fußcreme', 'Körperlotion', 'Körperbutter', 'Körperpeeling', 'Nachtpflege',
-  'Tagespflege', 'Haarserum', 'Haarkur', 'Haarmaske', 'Haarpflege', 'Lippenpflege', 'Badesalz', 'Duschgel', 'Make-?Up Palette', 'Puder', 'Gutschein'];
+  'Tagespflege', 'Haarserum', 'Haarkur', 'Haarmaske', 'Haarpflege', 'Lippenpflege', 'Badesalz', 'Duschgel', 'Make-?Up Palette', 'Puderquaste',
+  'Pulvermaske', 'Nagelöl', 'Nagelpflege', 'Puder', 'Gutschein'];
 const TYPE = `(?:Getönte\\s+)?(?:${GERMAN_TYPES.join('|')})`;
 const TYPE_PART = new RegExp(`^${TYPE}$`, 'i');
 const TYPE_END = new RegExp(`\\s+${TYPE}$`, 'i');
-const COMPOUND = /^(?:Gesichts|Augen|Haar|Körper|Lippen|Feuchtigkeits|Reinigungs)\p{Ll}{3,}$/u;
-const NOTE = /^(?:Diese Größe ist ein Auslaufartikel|pre[- ]?launch)$/i;
+const COMPOUND = /^(?:Gesichts|Augen|Haar|Körper|Lippen|Feuchtigkeits|Reinigungs|Nagel|Puder|Pulver)\p{Ll}{3,}$/u;
+const NOTE = /^(?:(?:Diese Größe ist ein )?Auslaufartikel|pre[- ]?launch)$/i;
 const PRE_LAUNCH = /\bpre[- ]?launch\b/i;
 // A whole German name (dry run of 25 Oct 2026: "Kosmetikspatel Set").
 const ENGLISH = [[/\bKosmetikspatel\b/gi, 'Cosmetic Spatula']];
@@ -75,7 +78,7 @@ const words = list => new RegExp('(?<![a-z0-9])(' + list.map(w => w.replace(/[.*
 const NOT_PRODUCT = words(['gift card', 'gutschein', 'voucher', 'e-gift']);
 // The first list that matches the name decides (then the shop's category, then Awin's): WGW's own subcategory names.
 const BY_NAME = [
-  ['Beauty tools', words(['cleansing pad', 'face pad', 'reinigungspad', 'brush', 'sponge', 'applicator', 'sharpener', 'spatula'])],
+  ['Beauty tools', words(['cleansing pad', 'face pad', 'reinigungspad', 'brush', 'sponge', 'applicator', 'sharpener', 'spatula', 'powder puff', 'puderquaste'])],
   ['Hair care', words(['shampoo', 'conditioner', 'hair serum', 'hair mask', 'hair oil', 'hair spray', 'dry shampoo', 'scalp', 'haarserum', 'haarkur',
     'detangler', 'leave-in'])],
   ['Make-up', words(['foundation', 'concealer', 'lipstick', 'lippenstift', 'lip glaze', 'lip caramel', 'lip liner', 'lip gloss', 'lip & cheek', 'cheek tint',

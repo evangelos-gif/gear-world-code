@@ -43,7 +43,10 @@ export const DENY = [
   { label: 'home appliance (Home Gear World)', re: words(['robot vacuums?', 'robot hoovers?', 'vacuum cleaners?', 'stick vacuum', 'fridge', 'freezer', 'kettle', 'toaster', 'air fryer', 'microwave', 'dehumidifier', 'heater', 'pedestal fan', 'tower fan', 'tumble dryers?', 'washing machines?', 'washer dryers?', 'dishwashers?', 'ovens?', 'hobs?', 'cooker hoods?', 'air conditioners?', 'ice makers?']),
     // "ARCTIC Freezer P12 Pro - 120 mm PWM Fan" (second dry run, 24 Oct 2026) is a PC fan too.
     except: words(['cpu', 'pwm', 'a-?rgb']) },
-  { label: 'spare part or service', re: words(['replacement part', 'spare part', 'repair kit', 'warranty extension', 'service plan', 'gift card', 'voucher']) },
+  // "DELL Pro Wired Headset Ear Cushions - HE324" (Joybuy, lessons L64): replacement ear cushions are a spare part, as for the
+  // other shops; headphones sold "with velour ear pads" are headphones.
+  { label: 'spare part or service', re: words(['replacement part', 'spare part', 'repair kit', 'warranty extension', 'service plan', 'gift card', 'voucher',
+    '^(?!.*\\bwith\\b).*\\bear (?:pads?|cushions?)']) },
   // Coin cells: "DURACELL LR44 1.5V Alkaline Button Batteries - 2 Pack", "Energizer CR2016 Lithium Coin Cell - Pack of 1" were on the
   // computing page (Joybuy's folder "Tablet Computer Batteries", lessons L64).
   { label: 'consumable, not a gadget', re: words(['a{2,4} batteries', '(?:alkaline|lithium|rechargeable) batteries', 'batteries - (?:pack|value pack)', 'copier paper', 'printer paper', 'label paper', 'thermal paper', 'cleaning brush',
@@ -145,7 +148,10 @@ export const RULES = [
     // Watch listings say "Aluminium Case with Sport Band" and "GPS": those are watches, not accessories. "Apple Studio Display -
     // Nano-texture glass - VESA mount adapter" is the monitor (sixth check), not a mount.
     exclude: words(['ev charger', 'car battery charger', 'trickle charger', 'pencil case', 'suitcase', 'smart tv', 'televisions?', 'gps', '(?:aluminium|aluminum|titanium|stainless steel) case', 'bicycle parts', '(?:brake|gear) cables?',
-      'pwm', 'apple (?:studio|pro) display(?: xdr)?(?= -)'])
+      'pwm', 'apple (?:studio|pro) display(?: xdr)?(?= -)']),
+    // Lessons L64 (live check): "Insta360 X5 Creator Combo (X5 + Quick Reader + ... + Lens Protector)" is the camera with its
+    // accessories, not a lens protector ("combo" or "bundle" only: a "GoPro Adventure Kit" is accessories).
+    excludeName: words(['(?:insta360|gopro|dji|osmo)\\b[^|]{0,40}\\b(?:combo|bundle)\\b'])
   },
   {
     slug: 'gaming',
@@ -241,7 +247,9 @@ export const RULES = [
     exclude: words(['ear defenders?', 'hearing protection', 'speaker cable', 'smart speaker', 'televisions?', 'smart tvs?']),
     // Lessons L64 (live site, 25 Oct 2026): Joybuy's "Speaker Accessories" folder has travel bags ("VoxorAI Bestseller: Gray Travel
     // Bag, Packing Bag, Clothing Storage Bag ...") and selfie sticks ("Verbex K60 Black Selfie Stick – Portable Tripod ...").
-    excludeName: words(['travel bags?', 'packing bags?', '(?:clothing|garment) storage', 'toiletry bags?', 'travel (?:storage|organi[sz]ing) set', 'selfie sticks?'])
+    // Live check: "DJI Osmo Pocket 4 Creator Combo & Shokz OpenDots One ... Earbuds" is a camera bundle (the head of the name).
+    excludeName: words(['travel bags?', 'packing bags?', '(?:clothing|garment) storage', 'toiletry bags?', 'travel (?:storage|organi[sz]ing) set', 'selfie sticks?',
+      '^(?:dji )?osmo (?:pocket|action|360)', '^insta360'])
   },
   {
     slug: 'tv-home-cinema',
@@ -361,9 +369,10 @@ export function cleanProductName(name) {
     .replace(/\s*�+\s*$/, '')
     .replace(/\s+�+\s+/g, ' – ')
     .replace(/�+/g, ' ')
-    .replace(/^\s*(?:【[^】]{0,40}】|\[[^\]]{0,40}\]|\([^)]*(?:deal|sale|delivery|offer)[^)]*\))\s*/gi, '')
-    // Joybuy, 25 Oct 2026: "Black Friday Deal | Coocaa 40"CTQH38 ...", "Black Friday Deals!COMFEE' RCD92WH2UKY(E) ..." (lessons L64)
-    .replace(/^\s*(?:black friday|cyber monday|prime day|flash sale|hot sale)(?: early)?(?: deals?| sale| offers?)?\s*[|:!–-]+\s*/i, '')
+    // Joybuy, 25 Oct 2026: "Black Friday Deal | Coocaa 40"CTQH38 ...", "Black Friday Deals!COMFEE' RCD92WH2UKY(E) ..." (lessons L64).
+    // Live check after the import: "Black Friday Deal | Coocaa 55"CRUG50 ..." was still on the site, as if the name had the
+    // slogan twice; every promotion in front (brackets and slogans, in any order) is taken off.
+    .replace(/^(?:\s*(?:【[^】]{0,40}】|\[[^\]]{0,40}\]|\([^)]*(?:deal|sale|delivery|offer)[^)]*\)|(?:black friday|cyber monday|prime day|flash sale|hot sale)(?: early)?(?: deals?| sale| offers?)?\s*[|:!–-]+)\s*)+/i, '')
     .replace(/^(\s*\S+)\s+(?:none|null|undefined|n\/a)\s+/i, '$1 ')
     .replace(/^(\s*([a-z][a-z0-9]*))\s+\2\b/i, '$1')
     .replace(/\s{2,}/g, ' ')

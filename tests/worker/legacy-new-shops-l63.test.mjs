@@ -55,6 +55,22 @@ test('100% PURE, after the first dry run (25 Oct 2026): German words in the midd
   assert.equal(pure.displayBrand(''), '');
 });
 
+test('100% PURE, live check after the import (25 Oct 2026, lessons L64): the German left on the site, "Auslaufartikel" on its own', () => {
+  const cases = [
+    ['Powder Puff - Puderquaste', 'Powder Puff'],
+    ['Nail & Cuticle Oil - Nagelöl', 'Nail & Cuticle Oil'],
+    ['Matcha Oat Milk Nourishing Mask - Pulvermaske - Auslaufartikel', 'Matcha Oat Milk Nourishing Mask'],
+    ['Organic Marula Oil - Auslaufartikel', 'Organic Marula Oil'],
+    ['Lip Glaze Fruit Pigments Vixen - Lippenstift - Auslaufartikel', 'Lip Glaze Fruit Pigments Vixen'],
+    ['BROWFOOD Eyebrow Enhancing Serum - 5ml - Auslaufartikel', 'BROWFOOD Eyebrow Enhancing Serum - 5ml'],
+    // the shade "Creme" stays, as before
+    ['Fruit Pigments Healthy Foundation - Creme', 'Fruit Pigments Healthy Foundation - Creme']
+  ];
+  for (const [feed, card] of cases) assert.equal(pure.displayName(feed), card, feed);
+  assert.equal(place(pure.classify({ name: 'Powder Puff - Puderquaste', feedCategory: 'Puder' })), 'wgw | Beauty & Fragrances | Beauty tools', 'a puff is a tool');
+  assert.equal(place(pure.classify({ name: 'Organic Marula Oil - Auslaufartikel' })), 'wgw | Beauty & Fragrances | Skincare', 'still for sale while stocks last');
+});
+
 test('every shop name passes the check of legacy-import.ps1, which hands it to wrangler ("%" broke 100% PURE, L63)', async () => {
   const ps = readFileSync(new URL('../../tools/legacy-import.ps1', import.meta.url), 'utf8');
   const m = /\$RetailerName -notmatch "([^"]+)"/.exec(ps);

@@ -319,6 +319,25 @@ export function sourceFilter(source) {
   return filter;
 }
 
+// Not new, whatever the feed says (lessons L64): incomplete, open box, ex-display or in a damaged box.
+export const NOT_NEW = /\b(?:incomplete|box damaged|damaged (?:box|packaging)|open[- ]box|ex[- ]display)\b/i;
+export const NOT_NEW_REASON = 'not new (incomplete, open box or damaged box): the site has no "Used" label yet';
+
+// Memory modules (lessons L64, live check of 25 Oct 2026): "Lenovo 4X77A77032 memory module 64 GB ... DDR5 ... ECC" at
+// £9,847.99 and "Samsung M321RAJA0MB0-CWM memory module 128 GB" at £5,151.72 were on the computing page. Even with the
+// memory prices of 2026, more than £40 a GB (and than £150) is a price error or a server part. A computer, a graphics card
+// or a NAS that names its memory is not a memory module; "Desktop Memory" and "Laptop Memory" are kinds of module.
+const MEM_PRICE_PER_GB = 40, MEM_MIN_PRICE_CAP = 150;
+export function memoryCapacityGb(name) {
+  const n = String(name || '').toLowerCase().replace(/\b(?:desktop|laptop|notebook|pc|server|workstation|gaming) (?:memory|ram)\b/g, 'memory');
+  if (!/\bmemory modules?\b|\b(?:c?so-?)?dimms?\b|\bcsodimm\b|\bram kit\b/.test(n)) return 0;
+  if (/\b(?:gddr\d\w*|graphics|laptops?|notebooks?|desktops?|pcs?|mini pc|workstations?|nas|ssd|tablets?|phones?)\b/.test(n)) return 0;
+  // The largest size in the name, a kit written "2 x 16GB" counted whole: a doubt makes the limit higher, never lower.
+  let gb = 0;
+  for (const m of n.matchAll(/\b(?:(\d{1,2}) ?x ?)?(\d{1,4}) ?gb\b/g)) gb = Math.max(gb, (m[1] ? Number(m[1]) : 1) * Number(m[2]));
+  return gb;
+}
+
 // Internal hard disks: the capacity in TB from the name, or 0 for anything else (SSDs, external disks, a NAS with disks).
 const HDD_PRICE_PER_TB = 60, HDD_MIN_PRICE_CAP = 150;
 export function hddCapacityTb(name) {
@@ -548,6 +567,12 @@ export async function planImport({ archive, sourcesFile, outDir, now = new Date(
         // overcharges. A hard disk dearer than 60 per TB (and than 150) is left out.
         const hddTb = hddCapacityTb(name);
         if (hddTb && price > Math.max(HDD_MIN_PRICE_CAP, HDD_PRICE_PER_TB * hddTb)) { reject('price far above the usual for this hard disk', short); continue; }
+        const memGb = memoryCapacityGb(name);
+        if (memGb && price > Math.max(MEM_MIN_PRICE_CAP, MEM_PRICE_PER_GB * memGb)) { reject('price far above the usual for this memory', short); continue; }
+        // Live check of 25 Oct 2026 (lessons L64): "Sharp 42 Inch FHD LED Smart TV ... (Incomplete - Fully Functional)" and "Fellowes
+        // BOX DAMAGED - 60CS Cross Cut Shredder" were on the site as new. They are not new, and the site has no "Used" label yet
+        // (the cards and the compare table know only new and refurbished), so they are left out until it has one.
+        if (NOT_NEW.test(name)) { reject(NOT_NEW_REASON, short); continue; }
         const currency = detectCurrency(rec, map, source);
         if (currency !== QUALITY.currency) { reject(`currency ${currency || 'unknown'}`, short); continue; }
         const quantity = pick(rec, map.stockQuantity);
