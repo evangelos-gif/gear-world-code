@@ -7,7 +7,12 @@
 //  - Nemo cordless tools (drills, impact wrenches, grinders, saws, work lights; many are waterproof) with their batteries
 //    and chargers: Power Tools.
 //  - Left out: repair kits ("Kits for Nemo Hammer Drill - Balance Pressure Assembly", "V3 Nemo Flood Light Replacement &
-//    Accessories - Upper Body"), single spare parts and seals, and boat-hull cleaning (not construction gear).
+//    Accessories - Upper Body"), single spare parts ("OTTOVAC AA Battery Compartment with Switch"), and boat-hull cleaning
+//    (not construction gear).
+//  - In, after the first dry run (25 Oct 2026; owner: as many as possible, if safe): everything on GRABO's own accessory
+//    shelf ("Suction Gripster Accessories"): seals and suction plates for brick, pavers, plank tile and textured stone (each
+//    with the load it holds), the ERGUO extension arms and the VAC-Plate workholding kit. They are sold on their own to fit a
+//    lifter, like a blade for a saw. So is "GRABO V2 (1 Battery, 1 Seal)", the lifter itself with its battery and seal.
 // Lessons L14: a "yes" list and a "no" list, a read-only plan with samples first, an import only with approval.
 export const RULES = {
   key: 'grabo',
@@ -30,7 +35,7 @@ export function productKey(get) {
 }
 
 const words = list => new RegExp('(?<![a-z0-9])(' + list.map(w => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|') + ')(?![a-z0-9])', 'i');
-const REPAIR = /^\s*kits? for\b|\breplacement\b.*\b(?:upper|lower|body|head|housing|assembly)\b|\b(?:assembly|o-ring|gasket|switch|spring|gear set|armature|carbon brush(?:es)?|motor housing|trigger)\b/i;
+const REPAIR = /^\s*kits? for\b|\breplacement\b.*\b(?:upper|lower|body|head|housing|assembly)\b|\b(?:assembly|o-ring|gasket|switch|spring|gear set|armature|carbon brush(?:es)?|motor housing|trigger|battery compartment)\b/i;
 const NOT_CONSTRUCTION = words(['hull', 'watercraft', 'boat', 'antifouling', 'barnacle']);
 const LIFTER = words(['gripster', 'suction', 'vacuum lifter', 'lifter', 'grabo']);
 const LIFTER_EXTRA = words(['lifting strap', 'sling', 'bore mount', 'core drill holder', 'tile vibration', 'vibrator', 'carry case', 'case', 'bag', 'battery', 'charger', 'seal']);
@@ -42,10 +47,12 @@ export function classify({ name, feedCategory = '' }) {
   const cat = String(feedCategory || '');
   if (NOT_CONSTRUCTION.test(n) || /watercraft|vehicle/i.test(cat)) return { reject: 'boat or vehicle care, not construction gear' };
   if (REPAIR.test(n)) return { reject: 'repair kit or spare part' };
-  // A foam or rubber seal is a wear part of the lifter: on its own it is a spare part, not something to compare.
-  if (/\bseal\b/i.test(n) && !/\bgripster\b/i.test(n.replace(/\bfor\b.*$/i, ''))) return { reject: 'repair kit or spare part' };
-  const grabo = /grabo|gripster|suction/i.test(n) || /gripster/i.test(cat);
-  if (grabo && (LIFTER.test(n) || LIFTER_EXTRA.test(n))) return { site: 'cgw', siteCategory: 'Site Equipment', subcategory: 'Site Equipment' };
+  const SITE = { site: 'cgw', siteCategory: 'Site Equipment', subcategory: 'Site Equipment' };
+  // GRABO's own shelves ("Suction Gripsters", "Suction Gripster Accessories / Batteries / Chargers"): the lifters and what
+  // is sold to fit them (seals and plates with their load, ERGUO arms, jigs, mounts, remotes).
+  if (/gripster/i.test(cat)) return SITE;
+  const grabo = /grabo|gripster|suction/i.test(n);
+  if (grabo && (LIFTER.test(n) || LIFTER_EXTRA.test(n))) return SITE;
   if (TOOL.test(n) || /hardware > tools|power tool/i.test(cat)) return { site: 'cgw', siteCategory: 'Power Tools', subcategory: 'Power Tools' };
   return { reject: 'not a GRABO lifter or a Nemo tool' };
 }

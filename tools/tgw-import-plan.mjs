@@ -261,7 +261,8 @@ export function partsFolder(source, path) {
 // "rulesFrom" (25 Oct 2026, lessons L63): PcNova.co.uk and GamingKit send the same wholesale catalogue as PCHUB.UK (the same
 // "Default Category>..." folders, spare parts, toner, names cut at 70 characters), so they take PCHUB's rules instead of a
 // second copy that would drift. A field the shop sets itself wins over the inherited one.
-export const RULE_FIELDS = ['brands', 'denyNames', 'allowPaths', 'denyPaths', 'looseFolders', 'partsFolders', 'partsNames', 'nameCutAt', 'ignoreWasPrice'];
+export const RULE_FIELDS = ['brands', 'denyNames', 'allowPaths', 'denyPaths', 'looseFolders', 'partsFolders', 'partsNames', 'nameCutAt', 'ignoreWasPrice',
+  'stockFromQuantity'];
 export function resolveSources(list) {
   const byId = new Map(list.map(s => [Number(s.advertiserId), s]));
   return list.map(s => {
@@ -275,6 +276,9 @@ export function resolveSources(list) {
 
 // The stock a row says: "stockFromQuantity" (GamingKit, 25 Oct 2026) trusts the stock_quantity column over in_stock, because
 // the feed marks all 50,000 rows in_stock = 1 while most have stock_quantity = 0 (lessons L63: no out-of-stock product shown).
+// In the feeds of the same day Back to the Office and PCHUB.UK say in_stock = 1 with stock_quantity 0 on about 24,000 of the
+// products the plan kept, about as many as the plan had more than the import of 24 Oct (old phones such as the Motorola Moto
+// G30 among them): they trust the quantity too (lessons L64).
 export function rowStock(source, inStockRaw, quantityRaw) {
   const q = String(quantityRaw || '').trim();
   if (source.stockFromQuantity && /^\d+$/.test(q)) return Number(q) > 0;
@@ -548,7 +552,12 @@ export async function planImport({ archive, sourcesFile, outDir, now = new Date(
         if (currency !== QUALITY.currency) { reject(`currency ${currency || 'unknown'}`, short); continue; }
         const quantity = pick(rec, map.stockQuantity);
         const stock = rowStock(source, pick(rec, map.inStock), quantity);
-        if (QUALITY.requireInStock && stock === false) { reject('out of stock', short); continue; }
+        if (QUALITY.requireInStock && stock === false) {
+          // Counted per shop when only the quantity says so (lessons L64), so the report shows what stockFromQuantity leaves out.
+          const byQuantity = source.stockFromQuantity && inStockValue(pick(rec, map.inStock)) !== false;
+          reject(byQuantity ? `out of stock: quantity 0, although the feed says in stock (${source.retailer})` : 'out of stock', short);
+          continue;
+        }
         const image = firstHttpsImage(rec, map);
         if (QUALITY.requireImage && !image) { reject('no https image', short); continue; }
         const link = pick(rec, map.link);

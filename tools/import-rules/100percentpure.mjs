@@ -7,10 +7,13 @@
 // The shop delivers to Germany and most of Europe, not to the UK (100percentpure.de/Versand-Lieferung, read 25 Oct 2026):
 // every card says so (deliversTo in sites/wgw/site.config.js, lessons L62). Gift cards are not products to compare.
 // Lessons L14: a "yes" list and a "no" list, a read-only plan with samples first, an import only with approval.
+// The database name of the shop has no "%": the import tools hand the name to wrangler through a .cmd file, where "%" is a
+// special sign (first dry run, 25 Oct 2026: "Μη αναμενόμενο όνομα καταστήματος"). The site shows "100% PURE" through
+// retailerNames in sites/wgw/site.config.js.
 export const RULES = {
   key: '100percentpure',
   advertiserId: 13991,
-  retailer: '100% PURE',
+  retailer: '100 Percent Pure',
   currency: 'EUR',
   shop: /^https:\/\/(www\.)?100percentpure\.de\//i,
   sites: ['wgw'],
@@ -28,19 +31,53 @@ export function productKey(get) {
   return String(get('merchant_product_id') || '').trim();
 }
 
-// German product types the shop puts after " - " (from the feed of 25 Oct 2026). Only these are taken off, so an English
-// part such as "Hydrating Hand Wash - Tea Tree" stays.
-const GERMAN_TYPE = /\s+-\s+(?:Augencreme|Augenpflege|Lippenstift|Lidschatten|Rouge|Gesichtsmaske|Gesichtsreinigung|Gesichtswasser|Gesichtsöl|Gesichtspflege|Feuchtigkeitsserum|Wimperntusche|Handcreme|Körperlotion|Körperbutter|Körperpeeling|Nachtpflege|(?:Getönte )?Tagespflege|Haarserum|Haarkur|Haarmaske|Reinigungspad|Lippenpflege|Badesalz|Duschgel|Make-?Up Palette|Puder|Gutschein)\s*$/i;
+// German product types the shop puts between " - " (feeds of 25 Oct 2026). They are taken off wherever they are: at the
+// end ("... Eye Cream 30 ml - Augencreme"), in the middle ("... Tinted Moisturizer - Getönte Tagespflege - Creme" keeps its
+// shade "Creme"), and as the last word of an English part ("Hair Detangler - Leave-In Haarpflege"). Other German compounds
+// of the same kinds (Gesichts..., Augen..., Haar..., Körper..., Lippen..., Feuchtigkeits..., Reinigungs...) too. Only these
+// words are taken off, so an English part such as "Hydrating Hand Wash - Tea Tree" stays. The shop's notes "Diese Größe ist
+// ein Auslaufartikel" (this size is being discontinued) and "PRE LAUNCH" are not part of the name.
+const GERMAN_TYPES = ['Augencreme', 'Augenpflege', 'Augenpads', 'Lippenstift', 'Lidschatten', 'Rouge', 'Gesichtsmaske', 'Gesichtsreinigung',
+  'Gesichtswasser', 'Gesichtsöl', 'Gesichtspflege', 'Gesichtsserum', 'Gesichtsspray', 'Feuchtigkeitsserum', 'Feuchtigkeitspflege',
+  'Reinigungspeeling', 'Reinigungspad', 'Wimperntusche', 'Handcreme', 'Fußcreme', 'Körperlotion', 'Körperbutter', 'Körperpeeling', 'Nachtpflege',
+  'Tagespflege', 'Haarserum', 'Haarkur', 'Haarmaske', 'Haarpflege', 'Lippenpflege', 'Badesalz', 'Duschgel', 'Make-?Up Palette', 'Puder', 'Gutschein'];
+const TYPE = `(?:Getönte\\s+)?(?:${GERMAN_TYPES.join('|')})`;
+const TYPE_PART = new RegExp(`^${TYPE}$`, 'i');
+const TYPE_END = new RegExp(`\\s+${TYPE}$`, 'i');
+const COMPOUND = /^(?:Gesichts|Augen|Haar|Körper|Lippen|Feuchtigkeits|Reinigungs)\p{Ll}{3,}$/u;
+const NOTE = /^(?:Diese Größe ist ein Auslaufartikel|pre[- ]?launch)$/i;
+const PRE_LAUNCH = /\bpre[- ]?launch\b/i;
+// A whole German name (dry run of 25 Oct 2026: "Kosmetikspatel Set").
+const ENGLISH = [[/\bKosmetikspatel\b/gi, 'Cosmetic Spatula']];
 export function displayName(name) {
-  return String(name || '').replace(GERMAN_TYPE, '').replace(/\s{2,}/g, ' ').trim();
+  const parts = String(name || '').split(/\s+-\s+/);
+  const out = [parts[0].trim()];
+  for (const raw of parts.slice(1)) {
+    let p = raw.trim();
+    if (!p || NOTE.test(p) || TYPE_PART.test(p) || COMPOUND.test(p)) continue;
+    p = p.replace(TYPE_END, '');
+    const tokens = p.split(/\s+/);
+    if (tokens.length > 1 && COMPOUND.test(tokens[tokens.length - 1])) p = tokens.slice(0, -1).join(' ');
+    if (p) out.push(p);
+  }
+  let n = out.filter(Boolean).join(' - ');
+  for (const [re, en] of ENGLISH) n = n.replace(re, en);
+  return n.replace(/\s{2,}/g, ' ').trim();
+}
+
+// The brand as the site shows it: the feed writes "100% PURE® - Purity Cosmetics Inc." (the company after the brand).
+export function displayBrand(brand) {
+  const b = String(brand || '').trim();
+  return /^100\s*%\s*pure\b/i.test(b) ? '100% PURE' : b;
 }
 
 const words = list => new RegExp('(?<![a-z0-9])(' + list.map(w => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|') + ')(?![a-z0-9])', 'i');
 const NOT_PRODUCT = words(['gift card', 'gutschein', 'voucher', 'e-gift']);
 // The first list that matches the name decides (then the shop's category, then Awin's): WGW's own subcategory names.
 const BY_NAME = [
-  ['Beauty tools', words(['cleansing pad', 'face pad', 'reinigungspad', 'brush', 'sponge', 'applicator', 'sharpener'])],
-  ['Hair care', words(['shampoo', 'conditioner', 'hair serum', 'hair mask', 'hair oil', 'hair spray', 'dry shampoo', 'scalp', 'haarserum', 'haarkur'])],
+  ['Beauty tools', words(['cleansing pad', 'face pad', 'reinigungspad', 'brush', 'sponge', 'applicator', 'sharpener', 'spatula'])],
+  ['Hair care', words(['shampoo', 'conditioner', 'hair serum', 'hair mask', 'hair oil', 'hair spray', 'dry shampoo', 'scalp', 'haarserum', 'haarkur',
+    'detangler', 'leave-in'])],
   ['Make-up', words(['foundation', 'concealer', 'lipstick', 'lippenstift', 'lip glaze', 'lip caramel', 'lip liner', 'lip gloss', 'lip & cheek', 'cheek tint',
     'eye shadow', 'eyeshadow', 'lidschatten', 'mascara', 'wimperntusche', 'eyeliner', 'eye liner', 'brow', 'blush', 'rouge', 'bronzer', 'highlighter',
     'luminizer', 'primer', 'powder', 'puder', 'palette', 'tinted moisturizer', 'bb cream', 'cc cream', '2nd skin'])],
@@ -63,6 +100,9 @@ const BY_CATEGORY = [
 export function classify({ name, feedCategory = '', awinCategory = '' }) {
   const n = displayName(name);
   if (NOT_PRODUCT.test(name) || /gutschein|gift card/i.test(feedCategory)) return { reject: 'gift card, not a product' };
+  // "Watermelon Cucumber Intense Water Locking Mist - Gesichtsspray - PRE LAUNCH": not on sale yet (owner: nothing that
+  // cannot be bought today).
+  if (PRE_LAUNCH.test(name)) return { reject: 'pre-launch, not on sale yet' };
   for (const [sub, re] of BY_NAME) if (re.test(n)) return { site: 'wgw', siteCategory: 'Beauty & Fragrances', subcategory: sub };
   for (const [sub, re] of BY_CATEGORY) if (re.test(feedCategory)) return { site: 'wgw', siteCategory: 'Beauty & Fragrances', subcategory: sub, doubt: true };
   const awin = String(awinCategory || '');

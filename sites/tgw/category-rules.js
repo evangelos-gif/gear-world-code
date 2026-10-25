@@ -50,7 +50,12 @@ export const DENY = [
   // "Urban Armor Gear ... Metropolis SE, BULK 33 cm (13\") Cover" (fifth dry run) is one cover: a size is not a quantity.
   // Sixth check (live site, 24 Oct 2026): "DELL 14-16 EcoLoop Briefcase - CC3624 (Pack 10 pcs)" is ten bags.
   { label: 'trade pack (bulk quantity)', re: words(['bulk ?\\d{2,}(?! ?(?:cm|mm|in\\b|inch|"))', 'pack \\d{2,} ?pcs']) },
-  { label: 'not for UK buyers (plug or keyboard layout)', re: notForUk() }
+  { label: 'not for UK buyers (plug or keyboard layout)', re: notForUk() },
+  // Dry run of 25 Oct 2026 (lessons L64): Joybuy's "BRS 11-Series Camping Gas Stove with Carry Bag and Multifunctional Adapter"
+  // was with the accessories (because of "Adapter"), and "ZTE Nubia Pen White – Free Gift Only" is given with a phone, not
+  // sold on its own.
+  { label: 'camping or cooking gear (not tech)', re: words(['(?:gas|camping|portable) stoves?', 'stoves?', 'gas burners?', 'butane', 'gas cartridges?']) },
+  { label: 'free gift, not sold on its own', re: words(['(?:free )?gift only', 'not for (?:individual )?sale']) }
 ];
 
 // TGW is a UK site (fourth dry run, 24 Oct 2026): a charger, adapter or dock with a European, US or other plug ("Sandberg
@@ -59,10 +64,15 @@ export const DENY = [
 // country (HP "#ABD" German, Lenovo "21KH00G4GE") do not work the way a UK buyer expects. A UK plug, or a plug used in the UK
 // too ("SA/KW/AE/SG/MY/HK" sockets are the UK type), stays.
 function notForUk() {
-  const other = 'spanish|italian|portuguese|nordic|pan nordic|danish|swedish|norwegian|finnish|dutch|turkish|greek|russian|arabic|hebrew|czech|polish|hungarian|swiss|belgian|german|french|slovenian|croatian|romanian|bulgarian|ukrainian|lithuanian|latvian|estonian|slovak|icelandic';
+  // "belg": PcNova.co.uk, 25 Oct 2026: "HP 725 Multi-Device Rchrgbl WL KBD Belg keyboard" (lessons L64).
+  const other = 'spanish|italian|portuguese|nordic|pan nordic|danish|swedish|norwegian|finnish|dutch|turkish|greek|russian|arabic|hebrew|czech|polish|hungarian|swiss|belgian|belg|german|french|slovenian|croatian|romanian|bulgarian|ukrainian|lithuanian|latvian|estonian|slovak|icelandic';
   return new RegExp([
     // a plug for another country, unless a UK plug comes with it ("Lenovo ... AC Adapter with UK Plug", "UK/EU plugs")
     '^(?!.*\\buk\\b)(?:.*\\b(?:eu|euro|us|usa|sa|au|aus|swiss|ch|dk|jp|kr|br|cn|za|il) ?plugs?\\b|.*\\bwith (?:eu|euro|us|usa|sa|au|aus|swiss|ch|dk|jp|kr|br|cn|za|il)\\b|.*\\bschuko\\b|(?=.*\\b(?:eu|euro)\\b)(?=.*\\b(?:chargers?|adapters?|power|plugs?|cords?|psu|supply|docks?|docking)\\b))',
+    // Lessons L64 (live site, 25 Oct 2026): HP's European printers "HP CLR LASERJET ENT 4701DN PRINTER:EUR", "... PRNTR:EUR",
+    // and a power adapter whose maker's code ends in the US version: "DELL 65W Barrel ... AC Adapter ... (PA-12-US)".
+    '\\b(?:printers?|prntr|mfp):\\s?(?:eur?|euro)\\b',
+    '^(?!.*\\buk\\b)(?=.*\\b(?:chargers?|ac adapters?|power adapters?|power supply|psu)\\b).*-(?:us|usa)\\)\\s*$',
     // a keyboard with another country's layout: the live site had "Apple Magic Keyboard QWERTZ German", "... for iPad Air
     // 13-inch (M3) - French - Black", "CHERRY KC 6000 Slim keyboard Universal USB US English", "DELL Pro Keyboard - KB700 - US
     // International (QWERTY)" next to the UK ones. A plain "English" layout (international) stays.
@@ -228,7 +238,8 @@ export const RULES = [
       'digital cameras?', 'cameras?', 'stabili[sz]ers?', 'dslr', 'mirrorless', 'polaroid', 'instax', 'gopro', 'osmo', 'insta360', 'action cam(?:era)?s?',
       'dash ?cams?', 'drones?', 'camera lens(?:es)?', 'gimbals?', 'camcorders?', 'vlog',
       // Camera bodies named by type (PCHUB.UK): "Canon EOS R8 ...", "... MILC Body 24.2 MP", "Panasonic Lumix", "Kodak PIXPRO".
-      'milc', 'eos', 'lumix', 'pixpro', 'quicksnap'
+      // Not "[EOS 01.10.23]" (end of sale) in a software licence's name (lessons L64).
+      'milc', 'eos(?! \\d{1,2}\\.\\d)', 'lumix', 'pixpro', 'quicksnap'
     ]),
     // "TP-Link Tapo Pan/Tilt Home Security WiFi Camera" and "Tapo Smart Wire-Free Security Battery Camera" (Back to the Office,
     // 23 Oct 2026) are smart-home cameras; so are "D-Link 2 Megapixel H.265 Outdoor Dome Camera" and "Ubiquiti (UVC-G6-INS-W-UK)
@@ -290,7 +301,8 @@ const UK_HINTS = [
   /\b(?:eu|euro|us|usa|sa|au|aus|swiss|ch|dk|jp|kr|br|cn|za|il) ?plugs?\b/i, /\bwith (?:eu|euro|us|usa|sa|au|aus|swiss|ch|dk|jp|kr|br|cn|za|il)\b/i,
   /\bschuko\b/i, /\b(?:qwertz|azerty)\b/i, /\bqwerty \w+(?: \w+)?/i, /\bus (?:english|international|layout)\b|\(us\)/i,
   /\b(?:spanish|italian|portuguese|nordic|danish|swedish|norwegian|finnish|dutch|turkish|greek|russian|arabic|hebrew|czech|polish|hungarian|swiss|belgian|german|french|slovenian|croatian|romanian|bulgarian|ukrainian|lithuanian|latvian|estonian|slovak|icelandic)\b/i,
-  /\b[a-z0-9]{5}(?:[ac-z]|[a-z]{2})\/a\b/i, /#\w{3}\b/, /\b(?:20|21|82|83)[a-z0-9]{8}\b/i, /\b(?:eu|euro)\b/i, /\b\w+ (?:keyboard|layout)\b/i
+  /\b[a-z0-9]{5}(?:[ac-z]|[a-z]{2})\/a\b/i, /#\w{3}\b/, /\b(?:20|21|82|83)[a-z0-9]{8}\b/i, /\b(?:eu|euro)\b/i, /\b\w+ (?:keyboard|layout)\b/i,
+  /\b(?:printers?|prntr|mfp):\s?(?:eur?|euro)\b/i, /-(?:us|usa)\)\s*$/i
 ];
 export function notUkHint(name) {
   for (const re of UK_HINTS) {
@@ -318,8 +330,14 @@ export function classify(name, feedCategory = '') {
 // Feed names often start with promotions such as "【Black Friday Early Deals】" or "[Back-to-School]".
 // Sixth check (live site, 24 Oct 2026): PCHUB.UK names "HP None Intel Core Ultra 9 285HX ..." (an empty series) and
 // "HP HP ProBook 460 ...": the brand once, without "None".
+// Lessons L64 (live site, 25 Oct 2026): PCHUB.UK sends "�" (a character its feed lost) in place of a dash or a space:
+// "Samsung Q600H Q-Series Soundbar with Subwoofer � 3.1.2ch Dolby Atmos", "LG UltraGear evo�GX9 45GX950B", "... Smart AI
+// Monitor�". Between spaces it was a dash, inside a word a space, at the end nothing.
 export function cleanProductName(name) {
   return String(name || '')
+    .replace(/\s*�+\s*$/, '')
+    .replace(/\s+�+\s+/g, ' – ')
+    .replace(/�+/g, ' ')
     .replace(/^\s*(?:【[^】]{0,40}】|\[[^\]]{0,40}\]|\([^)]*(?:deal|sale|delivery|offer)[^)]*\))\s*/gi, '')
     .replace(/^(\s*\S+)\s+(?:none|null|undefined|n\/a)\s+/i, '$1 ')
     .replace(/^(\s*([a-z][a-z0-9]*))\s+\2\b/i, '$1')

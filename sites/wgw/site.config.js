@@ -30,10 +30,13 @@ export default {
       'everyday-essentials': ['Everyday Carry / EDC']
     },
     // The same shop comes in under two names from two feeds; shown once, with its usual name.
+    // "100 Percent Pure": the database name of 100% PURE has no "%", which the import tools cannot pass to wrangler (lessons
+    // L63); visitors see the shop's real name.
     retailerNames: {
       'Watch Enclave Affiliate Programme': 'Watch Enclave',
       'Joybuy UK': 'Joybuy',
-      'Opulensi Perfumes Lattafa Sapil Anfar': 'Opulensi Perfumes'
+      'Opulensi Perfumes Lattafa Sapil Anfar': 'Opulensi Perfumes',
+      '100 Percent Pure': '100% PURE'
     }
   },
 
@@ -57,7 +60,7 @@ export default {
   // any country sees at once whether they can order. default: every retailer not named in retailers.
   // Country codes: src/lib/delivery.js. The other retailers are UK shops. 100% PURE (100percentpure.de, lessons L63)
   // delivers to Germany and nearly all of the EU, Switzerland and Norway, not to the UK (100percentpure.de/Versand-Lieferung,
-  // read 25 Oct 2026).
+  // read 25 Oct 2026). The key is the name visitors see (after retailerNames).
   deliversTo: { default: ['GB'], retailers: { '100% PURE': ['EU', 'CH', 'NO'] } },
   // 100% PURE sells in euros: its prices stay in euros, with "≈ £…" next to them (lessons L25, L63).
   convertForeignPrices: true,

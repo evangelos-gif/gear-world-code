@@ -1,4 +1,4 @@
-// Technology Gear World: PcNova.co.uk (Awin 125822) and GamingKit (124146), approved on 25 Oct 2026 (lessons L63). Both send
+// Technology Gear World: PcNova.co.uk (Awin 125822) and GamingKit (124146), approved by Awin on 25 Oct 2026 (lessons L63). Both send
 // the same wholesale catalogue as PCHUB.UK, so they take PCHUB's rules (rulesFrom); GamingKit says in_stock = 1 on all
 // 50,000 rows while most have stock_quantity = 0; the dry run counts the same product at two shops. Names, folders and
 // prices are from the awin-feed-sample report of 25 Oct 2026.
@@ -13,12 +13,16 @@ import { planImport, resolveSources, rowStock, crossShopOverlap, RULE_FIELDS } f
 const SOURCES = JSON.parse(readFileSync(new URL('../../sites/tgw/sources.json', import.meta.url), 'utf8')).sources;
 const D = 'Default Category';
 
-test('PcNova.co.uk and GamingKit are TGW sources with the rules of PCHUB.UK', () => {
+test('PcNova and GamingKit are TGW sources with the rules of PCHUB.UK', () => {
   const all = resolveSources(SOURCES);
   const pchub = all.find(s => s.advertiserId === 126641);
-  for (const [id, feed, name] of [[125822, 114610, 'PcNova.co.uk'], [124146, 113741, 'GamingKit']]) {
+  // Owner, 25 Oct 2026 (lessons L64): PcNova is imported under the name of the shop its button opens; GamingKit is not imported
+  // (all of its products were also at PCHUB.UK, every one dearer). GamingKit keeps its rules, so a later yes only flips "approved".
+  assert.equal(SOURCES.find(s => s.advertiserId === 125822).approved, true);
+  assert.equal(SOURCES.find(s => s.advertiserId === 124146).approved, false);
+  for (const [id, feed, name] of [[125822, 114610, 'PcNova (IT-Supplies)'], [124146, 113741, 'GamingKit']]) {
     const raw = SOURCES.find(s => s.advertiserId === id);
-    assert.ok(raw && raw.approved, name);
+    assert.ok(raw, name);
     assert.equal(raw.rulesFrom, 126641, `${name} takes PCHUB's rules`);
     assert.ok(!raw.allowPaths && !raw.brands, `${name} has no second copy of the rules`);
     const s = all.find(x => x.advertiserId === id);
@@ -27,7 +31,9 @@ test('PcNova.co.uk and GamingKit are TGW sources with the rules of PCHUB.UK', ()
     for (const k of RULE_FIELDS) assert.deepEqual(s[k], pchub[k], `${name}: ${k}`);
   }
   assert.equal(all.find(s => s.advertiserId === 124146).stockFromQuantity, true);
-  assert.equal(all.find(s => s.advertiserId === 125822).stockFromQuantity, undefined);
+  // Lessons L64: PCHUB.UK trusts the quantity too, and PcNova.co.uk takes it with the other rules.
+  assert.equal(all.find(s => s.advertiserId === 125822).stockFromQuantity, true);
+  assert.equal(SOURCES.find(s => s.advertiserId === 125822).stockFromQuantity, undefined, 'inherited, not a second copy');
   // A field of the shop itself wins; a missing base shop is an error, not a shop without rules.
   const mine = resolveSources([{ advertiserId: 1, retailer: 'A', brands: ['x'], nameCutAt: 69 }, { advertiserId: 2, retailer: 'B', rulesFrom: 1, nameCutAt: 80 }]);
   assert.deepEqual(mine[1].brands, ['x']);
@@ -99,7 +105,8 @@ test('dry run with the three catalogue shops: PCHUB rules for all, GamingKit sto
     [link(124146, 23), 'Segway NINEBOT KICKSCOOTER E2 PRO B', '23', 'G-3', SOON, `${D}>PC Components>Other`, '338.484001', '', 'Segway', '1', '0', '8720254406749']
   ]));
   const sourcesFile = join(dir, 'sources.json');
-  writeFileSync(sourcesFile, JSON.stringify({ sources: SOURCES }));
+  // GamingKit is not imported (owner, lessons L64); the test turns it on to check its rules all the same.
+  writeFileSync(sourcesFile, JSON.stringify({ sources: SOURCES.map(s => (s.advertiserId === 124146 ? { ...s, approved: true } : s)) }));
   const out = join(dir, 'out');
   mkdirSync(out);
   const { stats, products, report } = await planImport({ archive: arc, sourcesFile, outDir: out, now: new Date('2026-10-25T17:00:00Z') });
@@ -108,16 +115,16 @@ test('dry run with the three catalogue shops: PCHUB rules for all, GamingKit sto
     'GamingKit | Logitech Wireless Mouse M185 Grey | 13.25',
     'PCHUB.UK | Logitech Mouse M90 | 21.65',
     'PCHUB.UK | TP-Link Archer C50 wireless router | 42.47',
-    'PcNova.co.uk | Logitech Mouse M90 | 20.8'
+    'PcNova (IT-Supplies) | Logitech Mouse M90 | 20.8'
   ], 'the router at the same price is shown once; the cheaper mouse at PcNova stays; GamingKit\'s M90 has none in stock');
-  assert.equal(stats.rejected['out of stock'], 1, 'GamingKit: Logitech M90 (stock_quantity 0)');
+  assert.equal(stats.rejected['out of stock: quantity 0, although the feed says in stock (GamingKit)'], 1, 'GamingKit: Logitech M90 (stock_quantity 0)');
   assert.equal(stats.rejected['brand not on the consumer list (GamingKit)'], 1, 'the Segway scooter: PCHUB\'s brand list');
   assert.equal(stats.rejected['duplicate: same product and price at another shop'], 1);
   assert.ok(products.every(p => p.was_price === null), 'PCHUB rule ignoreWasPrice holds for PcNova (rrp = price x 1.38)');
   assert.match(report, /== The same product at two shops, at different prices \(both are shown, as separate cards\) ==/);
-  assert.match(report, / {2}PCHUB\.UK and PcNova\.co\.uk: 1 \(cheaper at PCHUB\.UK: 0 \| cheaper at PcNova\.co\.uk: 1\)/);
+  assert.match(report, / {2}PCHUB\.UK and PcNova \(IT-Supplies\): 1 \(cheaper at PCHUB\.UK: 0 \| cheaper at PcNova \(IT-Supplies\): 1\)/);
   assert.match(report, / {2}GamingKit: 1 kept \| 0 also at another shop \| 1 only at GamingKit/);
-  assert.match(report, /Sources: Joybuy \(123932: 114093\); Back to the Office \(61655: 102827\); PCHUB\.UK \(126641: 115609\); PcNova\.co\.uk \(125822: 114610\); GamingKit \(124146: 113741\)/);
+  assert.match(report, /Sources: Joybuy \(123932: 114093\); Back to the Office \(61655: 102827\); PCHUB\.UK \(126641: 115609\); PcNova \(IT-Supplies\) \(125822: 114610\); GamingKit \(124146: 113741\)/);
   // GamingKit's feed was read, so its products missing from a later feed are hidden; Joybuy and Back to the Office were not.
   const finish = readFileSync(join(out, 'sql', '9999-finish.sql'), 'utf8');
   assert.match(finish, /awin_advertiser_id IN \(126641, 125822, 124146\)/);
