@@ -411,9 +411,9 @@
       }
     }
 
-    // The words to search for, best first:
-    // 1. with the brand, when the photo shows one (used only if the sites sell that brand);
-    // 2. the words of the model without the brand; 3. the product type.
+    // The words to search for:
+    // 1. with the brand, when the photo shows one; 2. the words of the model without the brand (both at the same
+    // time, so the visitor waits once); 3. the product type, only when nothing was found.
     function withoutWords(text, words) {
       const drop = new Set(String(words).toLowerCase().split(/\s+/).filter(Boolean));
       return String(text).split(/\s+/).filter(w => w && !drop.has(w.toLowerCase())).join(" ");
@@ -432,15 +432,28 @@
       add(answer.product, "");
       return plan;
     }
-    // Do the results have the brand of the photo? (e.g. "Bosch" finds "Bosch Professional")
-    function brandFound(results, brand) {
+    // Is this product of the brand in the photo? (e.g. "Bosch" finds "Bosch Professional")
+    function isBrand(product, brand) {
       const b = brand.toLowerCase();
       const first = b.split(/\s+/)[0];
-      return results.some(p => {
-        const pb = String(p.brand || "").toLowerCase().trim();
-        const name = String(p.product_name || "").toLowerCase();
-        return (pb.length >= 2 && (pb.includes(b) || b.includes(pb))) || (first.length >= 3 && name.includes(first));
-      });
+      const pb = String(product.brand || "").toLowerCase().trim();
+      const name = String(product.product_name || "").toLowerCase();
+      return (pb.length >= 2 && (pb.includes(b) || b.includes(pb))) || (first.length >= 3 && name.includes(first));
+    }
+    // The products of the brand first, then the other similar ones; each product once, at most 8 per site.
+    function mergeResults(first, second) {
+      const seen = new Set();
+      const perSite = new Map();
+      const out = [];
+      for (const product of first.concat(second)) {
+        const site = String(product.site || "").toLowerCase();
+        const key = `${site}:${String(product.id)}`;
+        if (seen.has(key) || (perSite.get(site) || 0) >= 8) continue;
+        seen.add(key);
+        perSite.set(site, (perSite.get(site) || 0) + 1);
+        out.push(product);
+      }
+      return out;
     }
 
     // Second opinion for the Gear World, only when the model did not choose one.
@@ -547,20 +560,33 @@
         input.value = data.query;
         const best = data.world || await classify(data);
         say(hubText("searchingAll", { query: data.query }, `Searching all Gear Worlds for "${data.query}"...`));
+        const plan = searchPlan(data);
         let query = data.query;
         let results = null;
         let spare = null;
-        for (const step of searchPlan(data)) {
+        if (plan.length && plan[0].brand) {
+          // With and without the brand at the same time: the brand's products first, then the other similar ones.
+          const branded = plan.shift();
+          const plain = plan.length ? plan.shift() : null;
+          const both = await Promise.all([searchAll(branded.q), plain ? searchAll(plain.q) : Promise.resolve(null)]);
+          const hits = (both[0] || []).filter(p => isBrand(p, branded.brand));
+          if (hits.length) {
+            results = mergeResults(hits, both[1] || []);
+            query = branded.q;
+          } else if (both[1] && both[1].length) {
+            results = both[1];
+            query = plain.q;
+          } else {
+            if (both[0] || both[1]) { results = []; query = plain ? plain.q : branded.q; }
+            if (both[0] && both[0].length) spare = { q: branded.q, found: both[0] };
+          }
+        }
+        // Without a brand (or nothing found yet): one search after the other.
+        for (const step of plan) {
+          if (results && results.length) break;
           const found = await searchAll(step.q);
           if (!found) continue;
-          if (!results) { results = []; query = step.q; }
-          if (!found.length) continue;
-          // With the brand: only if the sites sell it. Otherwise the same words without the brand.
-          if (step.brand && !brandFound(found, step.brand)) { if (!spare) spare = { q: step.q, found }; continue; }
-          results = found;
-          query = step.q;
-          spare = null;
-          break;
+          if (!results || found.length) { results = found; query = step.q; }
         }
         if (results && !results.length && spare) { results = spare.found; query = spare.q; }
         if (!results) { stop(hubText("loadError", {}, "We couldn't load product results. Please try again."), "error"); return; }

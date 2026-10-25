@@ -2153,7 +2153,7 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
     Write-Utf8 (Join-Path $pHub 'public/index-before-kgw-live.html') '<!doctype html><title>old</title>'
     Write-Utf8 (Join-Path $pHub '.dev.vars') 'SECRET=never-in-the-zip'
     $pBase = Join-Path $work 'gwhp-baseline.txt'
-    $bl = @('# test baseline', '# path | bytes | sha256 | kind')
+    $bl = @('# test baseline', '# version: test hub v0', '# path | bytes | sha256 | kind')
     foreach ($rel in @('worker.js', 'public/index.html', 'public/index-before-kgw-live.html')) {
         $f = Join-Path $pHub $rel
         $kind = 'file'
@@ -2170,6 +2170,7 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         'echo %* | findstr /C:"--file" >nul && goto file',
         'echo %* | findstr /C:"--command" >nul && goto query',
         'echo %* | findstr /C:"secret bulk" >nul && goto secret',
+        'echo %* | findstr /C:"secret list" >nul && goto secretlist',
         'echo %* | findstr /C:"deployments list" >nul && goto deployments',
         'echo %* | findstr /C:" deploy" >nul && goto deploy',
         'echo unknown command 1>&2',
@@ -2197,6 +2198,9 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         ':secret',
         'copy /y %5 "%GW_FAKE_STATE%\secret-copy.json" >nul',
         'echo Finished processing secrets file',
+        'exit /b 0',
+        ':secretlist',
+        'if exist "%GW_FAKE_STATE%\livesalt.flag" echo Secret Name: PHOTO_LIMIT_SALT',
         'exit /b 0',
         ':deployments',
         'if exist "%GW_FAKE_STATE%\split.flag" goto split',
@@ -2238,7 +2242,7 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
     try {
         Check ((Run-P @('-Step', 'check')) -eq 0) 'hub photo check: exit 0'
         $r = PLast
-        Check ($r.Contains('ίδιος με αυτόν που έτρεχε live') -and $r.Contains('δεν υπάρχουν ακόμα')) 'hub photo check: hub folder same as the baseline, tables not there yet'
+        Check ($r.Contains('ίδιος με αυτόν που έτρεχε live (test hub v0') -and $r.Contains('δεν υπάρχουν ακόμα')) 'hub photo check: hub folder same as the baseline (its version named), tables not there yet'
         Check ((PCount 'deploy --config') -eq 0 -and (PCount '--file') -eq 0 -and (PCount 'secret') -eq 0 -and (PCount 'time-travel') -eq 0) 'hub photo check: only reads'
         Check (-not $r.Contains($pDb)) 'hub photo check: database id not in the report'
         Check ((Run-P @('-Step', 'preview')) -eq 0 -and (PCount 'deploy --config') -eq 0 -and (PCount '--file') -eq 0) 'hub photo preview without -Apply: nothing changes'
@@ -2297,7 +2301,9 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         $movedOld = @(Get-ChildItem -LiteralPath (Join-Path $pWork 'backups') -Recurse -Filter 'index-before-kgw-live.html' -ErrorAction SilentlyContinue | Where-Object { $_.FullName -match 'gwh-old-copies-' })
         Check (-not (Test-Path -LiteralPath (Join-Path $pHub 'public/index-before-kgw-live.html')) -and $movedOld.Count -eq 1) 'hub photo live: the old copy left public/ and was moved, not deleted'
         Check ((Test-Path -LiteralPath (Join-Path $pHub '.dev.vars'))) 'hub photo live: .dev.vars on the PC is left alone'
+        Write-Utf8 (Join-Path $pState 'livesalt.flag') 'the live Worker has the secret now'
         Check ((Run-P @('-Step', 'live', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB PHOTO LIVE')) -eq 0 -and (PCount 'deploy --config') -eq 4) 'hub photo live: a second run (folder already new) can deploy again'
+        Check ((PCount '(?m)secret bulk "[^"]+" --name gear-world-hub\s*$') -eq 1 -and (PLast).Contains('υπάρχει ήδη, έμεινε ίδιο')) 'hub photo live: an existing secret of the live Worker is kept'
         Write-Utf8 (Join-Path $pHub 'public/index.html') '<!doctype html><title>someone else changed this</title>'
         Check ((Run-P @('-Step', 'live', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB PHOTO LIVE')) -eq 7 -and (PCount 'deploy --config') -eq 4) 'hub photo live: refused when the hub folder was changed by someone else'
         # L39: "This Worker does not exist [code: 10007]" right after an upload: one more deploy; any other error: none

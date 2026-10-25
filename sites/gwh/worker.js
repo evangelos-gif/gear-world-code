@@ -176,7 +176,24 @@ const hubCore = {
           name: row.site_name,
           base: `https://${row.domain}`
         })).filter(site => /^https:\/\/[a-z0-9.-]+$/.test(site.base));
-        const querySpecialists = async (term) => Promise.allSettled(sites.map(async site => {
+        // GWH-FAIR-SEARCH: a Worker waits for at most 6 answers at a time (Cloudflare limit). A 7th fetch waits in a
+        // queue while its 4.5 s timer already runs, so fast sites at the end of the list were cut off when slow sites
+        // held the 6 places. Now at most 6 sites are asked at once, and each site gets its full 4.5 s from the moment
+        // it is really asked. The answer (order and fields) stays the same (lessons L41).
+        const settleAtMostSix = async (items, task) => {
+          const out = new Array(items.length);
+          let next = 0;
+          const lane = async () => {
+            while (next < items.length) {
+              const i = next++;
+              try { out[i] = { status: "fulfilled", value: await task(items[i]) }; }
+              catch (reason) { out[i] = { status: "rejected", reason }; }
+            }
+          };
+          await Promise.all(Array.from({ length: Math.min(6, items.length) }, lane));
+          return out;
+        };
+        const querySpecialists = async (term) => settleAtMostSix(sites, async site => {
           const endpoint = new URL("/api/products", site.base);
           endpoint.searchParams.set("search", term);
           endpoint.searchParams.set("page", "1");
@@ -195,7 +212,7 @@ const hubCore = {
           } finally {
             clearTimeout(timeout);
           }
-        }));
+        });
         // GW_MULTILINGUAL_ASCII_FALLBACK_V2: Retry zero-result ASCII query once.
         // Only retry after ALL specialist requests have succeeded with zero products.
         // Never silently replace a matching brand, model or existing English result.

@@ -64,8 +64,9 @@ const SEARCH_ANSWER = {
   results: [product('agw', 'Car Gear World', 11, 19.99), product('agw', 'Car Gear World', 12, 29), product('cgw', 'Construction Gear World', 21, 129.5), product('ggw', 'Garden Gear World', 31, 49)]
 };
 
-// Two more photos (like the owner's tests on 24/10): a brand the sites do not sell, and a brand the model left out
-// of its words. The page must search with the brand first and use it only when the sites have that brand.
+// More photos (like the owner's tests on 24/10): a brand the sites do not sell, a brand the model left out of its
+// words, and a brand with few products. The page searches with and without the brand at the same time, shows the
+// brand's products first and then the other similar ones, and drops the brand when the sites do not sell it.
 const item = (site, name, id, brand, title) => ({
   id, product_id: id, site, site_name: name, site_url: `https://${site}.example.invalid`, product_name: title, brand,
   retailer: 'Test Shop', price: 20 + id, currency: 'GBP', image_url: '', product_url: `https://example.invalid/?highlight=${id}`
@@ -79,14 +80,26 @@ const SCENARIOS = {
       : q === 'backpack'
         ? answer([item('vgw', 'Travel Gear World', 42, 'KONO', 'KONO travel backpack'), item('vgw', 'Travel Gear World', 43, 'Calvin Klein', 'Calvin Klein backpack'), item('tgw', 'Technology Gear World', 44, 'HP', 'HP laptop backpack')])
         : answer([]),
-    expectSearches: ['Superdry backpack', 'backpack'], expectBox: 'backpack', expectFirst: 'vgw', expectWords: 'backpack · blue · fabric · travel'
+    expectSearches: ['Superdry backpack', 'backpack'], expectBox: 'backpack', expectFirst: 'vgw', expectWords: 'backpack · blue · fabric · travel',
+    expectGroups: 'vgw:2 tgw:1', expectFirstItem: 'KONO travel backpack'
   },
   mouse: {
     photo: { ok: true, found: true, product: 'computer mouse', query: 'blue computer mouse', keywords: ['wireless', 'optical', 'blue'], brand: 'Logitech', world: { key: 'TGW', name: 'Technology Gear World', domain: 'technologygearworld.com' } },
     search: q => /logitech/i.test(q)
       ? answer([item('tgw', 'Technology Gear World', 51, 'Logitech', 'Logitech M240 Silent mouse'), item('tgw', 'Technology Gear World', 52, 'Logitech', 'Logitech Pebble 2 M350s mouse')])
       : answer([item('tgw', 'Technology Gear World', 61, 'Asus', 'ASUS ROG Gladius IV Ace RED mouse')]),
-    expectSearches: ['Logitech blue computer mouse'], expectBox: 'Logitech blue computer mouse', expectFirst: 'tgw', expectWords: 'computer mouse · wireless · optical · blue'
+    expectSearches: ['Logitech blue computer mouse', 'blue computer mouse'], expectBox: 'Logitech blue computer mouse', expectFirst: 'tgw', expectWords: 'computer mouse · wireless · optical · blue',
+    expectGroups: 'tgw:3', expectFirstItem: 'Logitech M240 Silent mouse'
+  },
+  sjcam: {
+    photo: { ok: true, found: true, product: 'dash cam', query: 'dash cam', keywords: ['camera', 'car', 'black'], brand: 'SJCAM', world: { key: 'AGW', name: 'Car Gear World', domain: 'cargearworld.com' } },
+    search: q => /sjcam/i.test(q)
+      ? answer([item('agw', 'Car Gear World', 71, 'SJCAM', 'SJCAM M60 Dash Cam')])
+      : q === 'dash cam'
+        ? answer([item('agw', 'Car Gear World', 72, 'Nextbase', 'Nextbase 322GW Dash Cam'), item('agw', 'Car Gear World', 71, 'SJCAM', 'SJCAM M60 Dash Cam'), item('agw', 'Car Gear World', 73, 'Vantrue', 'Vantrue N2 Pro Dash Cam'), item('tgw', 'Technology Gear World', 74, 'DDPAI', 'DDPAI Mini Dash Cam')])
+        : answer([]),
+    expectSearches: ['SJCAM dash cam', 'dash cam'], expectBox: 'SJCAM dash cam', expectFirst: 'agw', expectWords: 'dash cam · camera · car · black',
+    expectGroups: 'agw:3 tgw:1', expectFirstItem: 'SJCAM M60 Dash Cam'
   }
 };
 
@@ -209,8 +222,12 @@ try {
           await page.evaluate(() => { const r = document.getElementById('hubSearchResults'); if (r) r.innerHTML = ''; });
           await page.setInputFiles(inputSel, { name: `${name}.jpg`, mimeType: 'image/jpeg', buffer: bigJpeg });
           await page.locator('.gwh-photo-group').first().waitFor({ state: 'visible', timeout: 15000 }).catch(() => {});
-          const first = await page.$$eval('.gwh-photo-group', els => els.map(e => e.dataset.site)[0] || '');
-          check(JSON.stringify(searches) === JSON.stringify(sc.expectSearches), `${tag} ${name}: searches made, in order`, searches.join(' | '));
+          const groupsNow = await page.$$eval('.gwh-photo-group', els => els.map(e => ({ site: e.dataset.site, n: e.querySelectorAll('.gwh-search-item').length, first: ((e.querySelector('.gwh-search-name') || {}).textContent || '').trim() })));
+          const first = (groupsNow[0] || {}).site || '';
+          // With and without the brand go out at the same time, so their order does not matter.
+          check(JSON.stringify(searches.slice().sort()) === JSON.stringify(sc.expectSearches.slice().sort()), `${tag} ${name}: searches made`, searches.join(' | '));
+          check(groupsNow.map(g => `${g.site}:${g.n}`).join(' ') === sc.expectGroups, `${tag} ${name}: products per site, each once`, groupsNow.map(g => `${g.site}:${g.n}`).join(' '));
+          check((groupsNow[0] || {}).first === sc.expectFirstItem, `${tag} ${name}: the brand's products first`, (groupsNow[0] || {}).first);
           check(await page.inputValue('#hubSearchInput') === sc.expectBox, `${tag} ${name}: the words in the search box`, await page.inputValue('#hubSearchInput'));
           check(first === sc.expectFirst, `${tag} ${name}: the best Gear World first`, first);
           const found = await page.locator('.gwh-photo-found').innerText().catch(() => '');

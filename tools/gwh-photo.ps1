@@ -4,8 +4,8 @@
 
 .DESCRIPTION
   -Step check    READ-ONLY. Cloudflare login, the hub D1 (are the 2 photo-search tables there?), and whether the hub
-                 folder on this PC is still exactly the code that ran live on 24/10/2026 (sites/gwh/live-baseline.txt),
-                 so a later deploy never undoes a change made somewhere else.
+                 folder on this PC is still exactly the version that runs live (sites/gwh/live-baseline.txt, its
+                 "# version:" line names it), so a later deploy never undoes a change made somewhere else.
   -Step preview  CHANGES CLOUDFLARE, two separate approvals (the live Hub gearworldhub.com does NOT change):
                    1. ΕΓΚΡΙΝΩ HUB PHOTO D1      - a Time Travel restore point of the hub D1 first, then 2 NEW tables for the
                                                   fair-use counts (sites/gwh/migrations/0001_photo_search_limits.sql).
@@ -15,10 +15,11 @@
                                                   D1 and Workers AI, and its own secret for the anonymous visitor code.
                  Then a short live test of the test address, including one photo search.
   -Step live     CHANGES THE LIVE HUB, one approval: ΕΓΚΡΙΝΩ HUB PHOTO LIVE. Only when the hub folder on this PC and the
-                 live site are still the code of 24/10/2026 and the 2 tables exist. First a zip of the hub folder and the
-                 number of the live version (for rollback), then the secret of the live Worker, then the new files are
-                 copied into the hub folder (the 4 old copies are moved to the backup folder, not deleted), then
-                 gearworldhub.com is deployed from that folder and checked.
+                 live site are still the version of live-baseline.txt (or already this version) and the 2 tables exist.
+                 First a zip of the hub folder and the number of the live version (for rollback), then the secret of
+                 the live Worker if it is not there yet, then the files of this version are copied into the hub folder
+                 (old copies listed in the baseline are moved to the backup folder, not deleted), then gearworldhub.com
+                 is deployed from that folder and checked.
   Report: <home>\gear-world-reports\GWH_PHOTO_<STEP>_<time>.txt (also copied to the clipboard)
 #>
 param(
@@ -300,10 +301,12 @@ Say ('GWH PHOTO SEARCH - step: {0} - {1} - {2}' -f $Step, $(if ($Apply) { 'APPLY
 Say ('Code version: {0}' -f (Split-Path -Leaf $repo))
 if (-not (Get-Command node -ErrorAction SilentlyContinue)) { Say 'Δεν βρέθηκε το Node.js. Στείλε στο Claude αυτό το μήνυμα.' 'Red'; Finish 3 }
 
-# 1. The hub folder on this PC: still the code that ran live on 24/10/2026?
+# 1. The hub folder on this PC: still the version that runs live (live-baseline.txt)?
 $baseline = @()
+$liveLabel = 'live-baseline.txt'
 if (-not $BaselineFile) { $BaselineFile = Join-Path (Join-Path (Join-Path $repo 'sites') 'gwh') 'live-baseline.txt' }
 foreach ($line in [System.IO.File]::ReadAllLines($BaselineFile)) {
+    if ($line -match '^\s*#\s*version:\s*(.+)$') { $liveLabel = $Matches[1].Trim(); continue }
     if ($line -match '^\s*#' -or -not $line.Trim()) { continue }
     $p = $line -split ' \| '
     if ($p.Count -ge 4) { $baseline += @{ path = $p[0]; bytes = [long]$p[1]; sha = $p[2]; kind = $p[3] } }
@@ -328,9 +331,9 @@ if (Test-Path -LiteralPath $pub) {
     }
 }
 if ($changed.Count -eq 0 -and $extra.Count -eq 0) {
-    Say ('Φάκελος του Hub στον υπολογιστή: ίδιος με αυτόν που έτρεχε live στις 24/10 ({0} αρχεία): OK' -f $baseline.Count) 'Green'
+    Say ('Φάκελος του Hub στον υπολογιστή: ίδιος με αυτόν που έτρεχε live ({0}, {1} αρχεία): OK' -f $liveLabel, $baseline.Count) 'Green'
 } else {
-    Say 'Φάκελος του Hub στον υπολογιστή: ΑΛΛΑΞΕ μετά τις 24/10 (το preview δεν επηρεάζεται, αλλά το Claude πρέπει να το δει πριν από το live):' 'Yellow'
+    Say ('Φάκελος του Hub στον υπολογιστή: ΑΛΛΑΞΕ μετά την έκδοση {0} (το preview δεν επηρεάζεται, αλλά το Claude πρέπει να το δει πριν από το live):' -f $liveLabel) 'Yellow'
     foreach ($c in $changed) { Say ('  - άλλαξε: ' + $c) }
     foreach ($x in $extra) { Say ('  - νέο αρχείο: ' + $x) }
 }
@@ -377,7 +380,7 @@ if ($Step -eq 'live') {
     foreach ($rel in $newFiles) { $newSha[$rel] = Get-Sha ([System.IO.File]::ReadAllBytes((Join-Path $gwhRepo ($rel.Replace('/', [System.IO.Path]::DirectorySeparatorChar))))) }
     $oldCopies = @($baseline | Where-Object { $_.kind -eq 'old-copy' })
 
-    # Where is the hub folder on this PC: still the code of 24/10 (baseline), or already this version?
+    # Where is the hub folder on this PC: still the version that runs live (baseline), or already this version?
     $pcIsBaseline = ($changed.Count -eq 0 -and $extra.Count -eq 0)
     $pcIsNew = $true
     foreach ($rel in $newFiles) {
@@ -386,12 +389,12 @@ if ($Step -eq 'live') {
     }
     foreach ($o in $oldCopies) { if (Test-Path -LiteralPath (Join-Path $HubDir ($o.path.Replace('/', [System.IO.Path]::DirectorySeparatorChar)))) { $pcIsNew = $false } }
     if (-not $pcIsBaseline -and -not $pcIsNew) {
-        Say 'Ο φάκελος του Hub στον υπολογιστή δεν είναι ούτε ο κώδικας της 24/10 ούτε αυτή η έκδοση: κάποιος τον άλλαξε. ΔΕΝ αλλάζω τίποτα. Στείλε αυτή την αναφορά στο Claude.' 'Red'
+        Say ('Ο φάκελος του Hub στον υπολογιστή δεν είναι ούτε η έκδοση {0} ούτε αυτή η έκδοση: κάποιος τον άλλαξε. ΔΕΝ αλλάζω τίποτα. Στείλε αυτή την αναφορά στο Claude.' -f $liveLabel) 'Red'
         Finish 7
     }
     if (-not $tables.ready) { Say ('Οι 2 πίνακες της D1 λείπουν: πρώτα το preview (φράση {0}). ΔΕΝ αλλάζω τίποτα.' -f $PhraseD1) 'Red'; Finish 8 }
 
-    # The live site: still the code of 24/10, or already this version? (the text files, read like a browser)
+    # The live site: still the version of the baseline, or already this version? (the text files, read like a browser)
     $liveState = 'unknown'
     if (-not $NoHttpCheck) {
         [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
@@ -416,11 +419,11 @@ if ($Step -eq 'live') {
         }
         if ($isBase) { $liveState = 'baseline' } elseif ($isNew) { $liveState = 'new' } else { $liveState = 'mixed' }
         if ($liveState -eq 'mixed') {
-            Say 'Το live gearworldhub.com δεν είναι ούτε ο κώδικας της 24/10 ούτε αυτή η έκδοση: κάποιος το άλλαξε. ΔΕΝ αλλάζω τίποτα. Αρχεία:' 'Red'
+            Say ('Το live gearworldhub.com δεν είναι ούτε η έκδοση {0} ούτε αυτή η έκδοση: κάποιος το άλλαξε. ΔΕΝ αλλάζω τίποτα. Αρχεία:' -f $liveLabel) 'Red'
             foreach ($x in $diff) { Say ('  - ' + $x) }
             Finish 7
         }
-        Say ('Live gearworldhub.com: {0}' -f $(if ($liveState -eq 'baseline') { 'ο κώδικας της 24/10 (χωρίς κάμερα)' } else { 'ήδη αυτή η έκδοση' }))
+        Say ('Live gearworldhub.com: {0}' -f $(if ($liveState -eq 'baseline') { $liveLabel } else { 'ήδη αυτή η έκδοση' }))
     }
     if ($pcIsNew -and $liveState -eq 'new') {
         Say ''
@@ -437,10 +440,15 @@ if ($Step -eq 'live') {
     Say ''
     Say ('Τι θα γίνει (φράση {0}):' -f $PhraseLive)
     Say '  1. Αντίγραφο ασφαλείας: zip του φακέλου του Hub (worker.js, wrangler.toml, public) και ο αριθμός της ζωντανής έκδοσης.'
-    Say '  2. Μυστικό για τον ανώνυμο κωδικό στον live Worker (τυχαίο, δεν φαίνεται πουθενά).'
-    Say '  3. Τα νέα αρχεία μπαίνουν στον φάκελο του Hub: worker.js, photo-search.js, gear-world-camera.js, index.html, analytics.js, privacy.'
-    Say ('     Τα {0} παλιά αντίγραφα (index-before-*, app-before-kgw-live.js) πάνε στον φάκελο αντιγράφων: φεύγουν από το live (L04), δεν σβήνονται.' -f $oldCopies.Count)
-    Say '  4. Deploy του gearworldhub.com από τον φάκελο του Hub και έλεγχος: αρχική, /api/health, μία φωτογραφία, τα παλιά αντίγραφα 404.'
+    $sl = Invoke-Wrangler $gwh ('secret list --name {0} --format pretty' -f $HubWorker) -Retry
+    $hasSalt = ($sl.code -eq 0 -and $sl.text -match 'Secret Name:\s*PHOTO_LIMIT_SALT')
+    $baseSha = @{}
+    foreach ($b in $baseline) { $baseSha[$b.path] = $b.sha }
+    $differs = @($newFiles | Where-Object { -not $baseSha.ContainsKey($_) -or $baseSha[$_] -ne $newSha[$_] })
+    Say $(if ($hasSalt) { '  2. Μυστικό για τον ανώνυμο κωδικό: υπάρχει ήδη στον live Worker, μένει ίδιο.' } else { '  2. Μυστικό για τον ανώνυμο κωδικό στον live Worker (τυχαίο, δεν φαίνεται πουθενά).' })
+    Say ('  3. Τα {0} αρχεία αυτής της έκδοσης μπαίνουν στον φάκελο του Hub. Αλλάζουν ή είναι νέα: {1}' -f $newFiles.Count, $(if ($differs.Count) { $differs -join ', ' } else { 'κανένα' }))
+    if ($oldCopies.Count) { Say ('     Τα {0} παλιά αντίγραφα (index-before-*, app-before-kgw-live.js) πάνε στον φάκελο αντιγράφων: φεύγουν από το live (L04), δεν σβήνονται.' -f $oldCopies.Count) }
+    Say $(if ($oldCopies.Count) { '  4. Deploy του gearworldhub.com από τον φάκελο του Hub και έλεγχος: αρχική, /api/health, μία φωτογραφία, τα παλιά αντίγραφα 404.' } else { '  4. Deploy του gearworldhub.com από τον φάκελο του Hub και έλεγχος: αρχική, /api/health, αναζήτηση, μία φωτογραφία.' })
     Say '  Η D1, τα 9 sites και οι άλλοι Workers (και ο gwh-sitemap) ΔΕΝ αλλάζουν.'
     if (-not $Apply) { Say ''; Say 'Δοκιμή μόνο (χωρίς -Apply): δεν άλλαξε τίποτα.' 'Green'; Finish 0 }
     if (-not (Confirm-Approval $PhraseLive)) { Say 'Δεν δόθηκε έγκριση: σταμάτησα χωρίς αλλαγές.' 'Yellow'; Finish 1 }
@@ -460,7 +468,7 @@ if ($Step -eq 'live') {
     Remove-Item -LiteralPath $tmpCopy -Recurse -Force
     if (-not (Test-Path -LiteralPath $zip)) { Say 'Το αντίγραφο ασφαλείας δεν γράφτηκε: ΔΕΝ άλλαξα τίποτα.' 'Red'; Finish 11 }
     $note = @(
-        ('Gear World Hub before the photo search went live, {0}' -f (Get-Date -Format 'yyyy-MM-dd HH:mm')),
+        ('Gear World Hub before this version went live ({0}), {1}' -f (Split-Path -Leaf $repo), (Get-Date -Format 'yyyy-MM-dd HH:mm')),
         ('Live version before: {0}' -f $liveVersion),
         ('Hub folder before (worker.js, wrangler.toml, public): {0}' -f $zip),
         'To go back (only with approval), in PowerShell:',
@@ -473,9 +481,14 @@ if ($Step -eq 'live') {
     Say ('Αντίγραφο ασφαλείας και οδηγίες επαναφοράς: {0}' -f $noteFile) 'Green'
 
     # 2. The secret first: the old code does not use it, the new code needs it from its first request.
-    $s = Set-PhotoSecret $gwh $HubWorker
-    if ($s.code -ne 0) { Say 'Το μυστικό δεν μπήκε στον live Worker: ΔΕΝ ανέβασα τον νέο κώδικα. Έξοδος:' 'Red'; Say $s.text; Finish 10 }
-    Say 'Μυστικό του live Worker: OK' 'Green'
+    #    When it is already there it stays (a new one would only start the fair-use counts again).
+    if ($hasSalt) {
+        Say 'Μυστικό του live Worker: υπάρχει ήδη, έμεινε ίδιο' 'Green'
+    } else {
+        $s = Set-PhotoSecret $gwh $HubWorker
+        if ($s.code -ne 0) { Say 'Το μυστικό δεν μπήκε στον live Worker: ΔΕΝ ανέβασα τον νέο κώδικα. Έξοδος:' 'Red'; Say $s.text; Finish 10 }
+        Say 'Μυστικό του live Worker: OK' 'Green'
+    }
 
     # 3. The new files into the hub folder; the old copies to the backup folder (moved, never deleted)
     $moved = Join-Path $bdir ('gwh-old-copies-' + $stamp)
