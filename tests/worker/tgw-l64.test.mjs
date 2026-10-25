@@ -220,6 +220,13 @@ test('live check: camera bundles are cameras, replacement ear cushions are spare
   }
   assert.equal(where(null, 'Sennheiser HD 560S Over-Ear Headphones with Velour Ear Pads', '', 'Electronics > Audio > Audio Components > Headphones & Headsets > Headphones'), 'audio');
   assert.equal(where(null, 'Shokz OpenRun Pro 2 Bone Conduction Headphones', '', 'Electronics > Audio > Audio Components > Headphones & Headsets > Headphones'), 'audio');
+  // an action camera "for the outdoors" is not a security camera; a camera light that says "Mini LED" is not a TV
+  assert.equal(where(null, 'DJI Osmo Action 4 Adventure Combo - 4K/120fps Waterproof Action Camera with a 1/1.3-Inch Sensor, 10-bit & D-Log M Color Performance, 155° FOV, Up to 7.5 h with 3 Extra Batteries, Outdoor Camera', '', CAM), 'cameras-drones');
+  assert.equal(where(null, 'ULANZI LM18 Vlogging Light for DJI Osmo Action 3/4/5 Pro Camera Cage Accessories, Mini LED Action Camera Light', '', GEAR), 'cameras-drones');
+  assert.equal(where(null, 'ULANZI PK-04 Carrying Bag + ULANZI LM001 Magnetic Mini LED Light for DJI Osmo Pocket 3 – Travel & Vlogging Value Bundle', '', GEAR), 'cameras-drones');
+  assert.equal(where(null, 'Reolink Argus 4 Pro Outdoor Camera Battery', '', 'Electronics > Video > Video Surveillance'), 'smart-home-wifi');
+  assert.equal(where(PCHUB, 'Sony BRAVIA 9 II K65XR95M2PB 65 Inch 4K HDR True RGB Mini LED Smart', 'Sony', `${D}>TV & Audio>Televisions`), 'tv-home-cinema');
+  assert.equal(where(null, 'TCL 98Q6C QD-Mini LED 4K HDR Smart Google TV-98Q6C-UK', '', 'Electronics > Video > Televisions'), 'tv-home-cinema');
 });
 
 test('live check: memory far dearer than usual is left out; a laptop or graphics card naming its memory is not a module', () => {

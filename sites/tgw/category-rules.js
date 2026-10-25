@@ -254,10 +254,13 @@ export const RULES = [
   {
     slug: 'tv-home-cinema',
     include: words([
-      'televisions?', 'smart tvs?', 'tv', 'oled', 'qled', 'qned', 'mini led', 'projectors?', 'projector screens?', 'streaming (?:stick|device|box)s?',
+      // "Mini LED" is a kind of TV screen; a "Magnetic Mini LED Light for DJI Osmo Pocket 3" is a camera light (live check, L64).
+      'televisions?', 'smart tvs?', 'tv', 'oled', 'qled', 'qned', 'mini led(?! (?:lights?|lamps?)\\b)', 'projectors?', 'projector screens?', 'streaming (?:stick|device|box)s?',
       'fire tv', 'roku', 'chromecast', 'apple tv', 'tv wall (?:mount|bracket)s?', 'tv (?:mount|bracket)s?', 'television (?:mount|bracket)s?', 'flat (?:screen|panel) (?:wall )?(?:mount|bracket)s?'
     ]),
-    exclude: words(['tv stand furniture', 'tv cabinet', 'tv unit', 'tv bed', 'telescopes?', 'microscopes?', 'binoculars?'])
+    // Camera lights "for DJI Osmo" say "Mini LED" too: "ULANZI LM18 Vlogging Light for DJI Osmo Action ... Mini LED Action Ca..."
+    exclude: words(['tv stand furniture', 'tv cabinet', 'tv unit', 'tv bed', 'telescopes?', 'microscopes?', 'binoculars?',
+      'vlog(?:ging)?', 'camera (?:cages?|accessor(?:y|ies))', '(?:fill|video|selfie|ring) lights?', 'for (?:dji|gopro|insta360|osmo)'])
   },
   {
     slug: 'cameras-drones',
@@ -273,8 +276,11 @@ export const RULES = [
     // "TP-Link Tapo Pan/Tilt Home Security WiFi Camera" and "Tapo Smart Wire-Free Security Battery Camera" (Back to the Office,
     // 23 Oct 2026) are smart-home cameras; so are "D-Link 2 Megapixel H.265 Outdoor Dome Camera" and "Ubiquiti (UVC-G6-INS-W-UK)
     // ... WiFi-connected camera" (fourth dry run).
+    // An action camera "for the outdoors" is still an action camera: "DJI Osmo Action 4 Adventure Combo - ... Outdoor Camera"
+    // was on the smart-home page (live check, lessons L64).
     exclude: words(['security cameras?', 'surveillance', 'cctv', 'doorbell', 'webcam', 'baby monitor', 'ip cameras?', 'ptz', 'telescopes?', 'binoculars?', 'rangefinders?', 'scopes?',
-      'home security', 'wi-?fi cameras?', 'pan/tilt', 'indoor cameras?', 'outdoor cameras?', 'security (?:[\\w-]+ ){1,3}cameras?', 'tapo',
+      'home security', 'wi-?fi cameras?', 'pan/tilt', 'indoor cameras?', '^(?!.*\\b(?:action cam(?:era)?s?|gopro|osmo|insta360)\\b).*\\boutdoor cameras?',
+      'security (?:[\\w-]+ ){1,3}cameras?', 'tapo',
       '(?:dome|bullet|turret) cameras?', 'h\\.26[45]\\+?', 'ubiquiti', 'unifi', 'uvc-\\w+'])
   },
   {
