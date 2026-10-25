@@ -197,6 +197,16 @@ test('live check after the import (25 Oct 2026): server memory, Toughbook access
     [PCHUB, 'PCHUB.UK', 'Panasonic FZ-VEB551U laptop dock/port replicator Docking Black', 'Panasonic', `${D}>Laptops>Docks & Port Replicators`],
     [PCNOVA, 'PcNova (IT-Supplies)', 'Toshiba MG09 internal hard drive 18 TB 7200 RPM 512 MB 3.5"', 'Toshiba', `${D}>Storage>Internal Hard Drives>${D}>Personal Stock`]
   ]) assert.equal(where(filter, name, brand, path), `OUT ${BUSINESS(r)}`, name);
+  // Third dry run (25 Oct 2026, 19:42): with the PCHUB.UK copy out by its code (KSM56E46BD8-32MH), PcNova's copy came in, its
+  // name cut at 70 characters before the code. Server memory is known by its words too: DDR5 ECC unbuffered or registered.
+  for (const [filter, r] of [[PCNOVA, 'PcNova (IT-Supplies)'], [PCHUB, 'PCHUB.UK']]) {
+    for (const name of ['Kingston Technology 32GB DDR5 5600MT/s ECC Unbuffered DIMM CL46 2Rx8', 'Kingston Technology 16GB DDR5 5600MT/s ECC Unbuffered DIMM CL46 1Rx8',
+      'HP 16GB DDR5 (1x16GB) 4800 UDIMM ECC Memory']) {
+      assert.equal(where(filter, name, name.split(' ')[0] === 'HP' ? 'HP' : KT, MEM), `OUT ${BUSINESS(r)}`, `${r}: ${name}`);
+    }
+  }
+  assert.equal(where(PCHUB, 'Corsair Vengeance memory module 32 GB 2 x 16 GB DDR5 ECC', 'Corsair', MEM), 'laptops-computing', 'DDR5 named ECC stays (L54)');
+  assert.equal(where(PCHUB, 'Crucial CT2K16G56C46S5 memory module 32 GB 2 x 16 GB DDR5 ECC', 'Crucial', MEM), 'laptops-computing');
   assert.equal(where(PCHUB, 'Kingston Technology FURY Beast 64GB 6000MT/s DDR5 CL36 DIMM (KF560C36BBEK2-64)', KT, MEM), 'laptops-computing');
   assert.equal(where(PCHUB, 'Samsung M425R1GB4BB0-CQK memory module 8 GB 1 x 8 GB DDR5 SODIMM', 'Samsung', MEM), 'laptops-computing');
   assert.equal(where(PCHUB, 'Toshiba N300 internal hard drive 8 TB 7200 RPM 3.5" Serial ATA', 'Toshiba', `${D}>Storage>Internal Hard Drives`), 'accessories-storage');
