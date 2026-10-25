@@ -80,6 +80,70 @@ test('SGW rules send other sites\' products away and keep look-alikes out (appro
   ]) assert.equal(ok(name, cat), false, name);
 });
 
+test('dry-run fixes (25 Oct 2026): shops whose sections are unreliable are sorted by the product name only', () => {
+  // Coes: every sport product has the Awin category "Fitness"; Joybuy: sub-sections are often wrong (sources.json "sectionHints": false).
+  const coes = { sectionHints: false };
+  const at = (n, c, src = coes) => classify(cleanProductName(n), c, c, src);
+  for (const [name, cat, s] of [
+    ['Adidas F50 Club Firm/Multi Ground Boots', 'Sports Fitness', 'football-team-sports'],
+    ['Grays Anatomic Pro Glove L/H', 'Sports Fitness', 'football-team-sports'],
+    ['Kookaburra Ghost 5.1 Right Hand Batting Pads', 'Sports Fitness', 'football-team-sports'],
+    ['Adidas 22yds Spikeless', 'Sports Fitness', 'football-team-sports'],
+    ['Adidas Lux Shinguard', 'Sports Fitness', 'football-team-sports'],
+    ['Ronhill Tech Short Sleeve Tee M', 'Sports Fitness', 'running'],
+    ['ON Cloudmonster 3 Men', 'Sports Fitness', 'running'],
+    ['Brooks Ghost 17', 'Sports Fitness', 'running'],
+    ['Head Hydrosorb Grip', 'Sports Fitness', 'racket-sports'],
+    ['K-Swiss Hypercourt Skirt 3', 'Sports Fitness', 'racket-sports'],
+    ['Speedo Biofuse Ear Plug', 'Sports Fitness', 'water-sports'],
+    ['Hoka Kaha 3 Gtx M', 'Sports Fitness', 'hiking-climbing-winter'],
+    ['Awesome Endure', 'Sports Fitness', 'nutrition-hydration'],
+    ['Adidas Graphic Tee', 'Sports Fitness', 'sportswear-shoes-bags'],
+    ['1000 Mile Fusion Walk Socks in Charcoal', 'Sports Fitness', 'sportswear-shoes-bags'],
+    ['Applied Nutrition ABE White Pre Workout Energy Drink Natural - 12 x 330ml', 'Health & Beauty > Health Care > Fitness & Nutrition', 'nutrition-hydration'],
+    ['SPORTSOUL 40" & 48" Folding Mini Fitness Indoor Exercise Workout Rebounder Trampoline with Handle', 'Sporting Goods > Exercise & Fitness', 'fitness-gym'],
+    ['Lichico Under Desk Fitness Walking Pad Treadmill with 9% Incline, Running Machine for Home Exercise', 'Sporting Goods > Exercise & Fitness', 'fitness-gym'],
+    ['Adidas 4.7" Sports bracelet', 'Training accessories', 'running'],
+    ['OutdoorMaster wheeled golf club travel bag, gray, thickened design', 'Sporting Goods > Outdoor Recreation > Cycling', 'golf-skate-more']
+  ]) assert.equal(at(name, cat).slug, s, name);
+  for (const [name, cat] of [
+    ['Adidas Runfalcon 5 J Trainers', 'Sports Fitness'],
+    ['Adidas Duramo Sl2 El C Trainers', 'Sports Fitness'],
+    ['Adidas Colourblock Swim Boxers', 'Sports Fitness'],
+    ['Awesome Defence Multi Vitamin', 'Sports Fitness'],
+    ['Ray-Ban Wayfarer Sunglasses', 'Sports Fitness'],
+    ['Elderberry Gummies', 'Fitness Equipment'],
+    ['PELLIOT Outdoor Travel Toiletry Bag White', 'Sporting Goods > Outdoor Recreation > Camping & Hiking'],
+    ['SUNCOJIA Foldable Cart with Wheels for Beach, Camping, Sports, Lightweight and Portable', 'Sporting Goods > Outdoor Recreation'],
+    ['3M Safety Goggles 1623AF, 1 Pair', 'Sporting Goods > Athletics'],
+    ['Kent and Stowe Sure and Fit Gloves Large', 'Sporting Goods > Athletics > Rounders'],
+    ['Beneunder LC168, Lightweight Foldable Tote Bag 35L, Beige', 'Sporting Goods > Outdoor Recreation > Cycling > Unicycle Accessories']
+  ]) assert.equal(at(name, cat).ok, false, name);
+  // A shop with reliable sections (Plusshop, Bazta) still gets the second chance from its "Sport & fitness" section.
+  assert.equal(classify('InShape Fitness Ball - Ø 65cm', 'Home > Sport & fitness', '').slug, 'fitness-gym');
+  assert.equal(at('Capelli Sport STROBE LIGHT', 'Sporting Goods > Exercise & Fitness').ok, false);
+});
+
+test('sizes in product names are taken out, so each size is one card (owner\'s rule for duplicates)', () => {
+  for (const [raw, clean] of [
+    ["EU43 Li-Ning Men's RED HARE 9 ULTRA Racing Running Shoes", "Li-Ning Men's RED HARE 9 ULTRA Racing Running Shoes"],
+    ['OutdoorMaster Cycling Gloves Orange XL', 'OutdoorMaster Cycling Gloves Orange'],
+    ['Yoga sports set - Classic black - M', 'Yoga sports set - Classic black'],
+    ['Yoga leggings - Mocha brown - EU M', 'Yoga leggings - Mocha brown'],
+    ['DKONI HS-062 Adult Mountain Cycling Helmet Black/Orange M 54-58cm', 'DKONI HS-062 Adult Mountain Cycling Helmet Black/Orange'],
+    ['PELLIOT Hiking Shoes Men Black EU41', 'PELLIOT Hiking Shoes Men Black'],
+    ['PELLIOT Trail running shoes Women White 37', 'PELLIOT Trail running shoes Women White'],
+    ['PELLIOT Running Shoes Unisex Lightweight, Obsidian Black (EU 43)', 'PELLIOT Running Shoes Unisex Lightweight, Obsidian Black'],
+    ['ACTION,INLINE SKATE,PW-113 L', 'ACTION,INLINE SKATE,PW-113'],
+    ['ACTION Inline Skating Helmet PW-903-PG, Size S', 'ACTION Inline Skating Helmet PW-903-PG'],
+    ["Women's sports trousers Pink L size", "Women's sports trousers Pink"],
+    // Kept: M means men's here, L is a capacity, Size 5 is a ball size.
+    ['Ronhill Tech Short Sleeve Tee M', 'Ronhill Tech Short Sleeve Tee M'],
+    ['Water Bottle 1 L', 'Water Bottle 1 L'],
+    ['Gilbert Rugby Ball Size 5', 'Gilbert Rugby Ball Size 5']
+  ]) assert.equal(cleanProductName(raw), clean, raw);
+});
+
 test('every site category has rules, and the menu order matches the site', () => {
   assert.deepEqual(CATEGORY_SLUGS, site.categories.map(c => c.slug));
 });
@@ -89,6 +153,7 @@ test('sources: the first-wave shops are approved, VEVOR waits for the second wav
   const approved = src.filter(s => s.approved).map(s => s.retailer);
   assert.deepEqual(approved, ['Coes', 'Joybuy', 'Plusshop UK', 'Bazta UK', 'Beyond Shakers']);
   assert.equal(src.find(s => s.retailer === 'VEVOR').approved, false);
+  for (const r of ['Coes', 'Joybuy']) assert.equal(src.find(s => s.retailer === r).sectionHints, false, r);
   for (const s of src.filter(x => x.approved && !x.rulesFrom && x.retailer !== 'Beyond Shakers')) assert.ok(s.allowPaths && s.allowPaths.length, s.retailer);
 });
 

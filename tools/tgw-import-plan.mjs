@@ -681,10 +681,11 @@ export async function planImport({ archive, sourcesFile, outDir, now = new Date(
         }
         // A product from a catch-all folder is classified by its name alone (the folder says nothing about it).
         const loose = looseOnly(source, merchantCategory);
-        // Third argument: every merchant category column (leaf and full path). TGW's rules ignore it.
+        // Third argument: every merchant category column (leaf and full path). Fourth: the shop's sources.json entry
+        // (SGW reads its "sectionHints"). TGW's rules ignore both.
         const categoryPaths = map.merchantCategory.map(i => cleanText(rec[i])).filter(Boolean).join(' | ');
-        const cls = loose ? classify(name, '')
-          : classify(name, `${merchantCategory || awinCategory} ${merchantCategory ? awinCategory : ''}`.trim(), categoryPaths);
+        const cls = loose ? classify(name, '', '', source)
+          : classify(name, `${merchantCategory || awinCategory} ${merchantCategory ? awinCategory : ''}`.trim(), categoryPaths, source);
         if (!cls.ok) { reject(cls.reason, cls.reason.startsWith('not for UK') ? `${short}  [${notUkHint(name)}]` : short); continue; }
         if (!Number.isFinite(price) || price <= 0) { reject('no price', short); continue; }
         if (price < QUALITY.minPrice || price > QUALITY.maxPrice) { reject('price out of range', short); continue; }
