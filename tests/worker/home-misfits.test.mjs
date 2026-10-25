@@ -19,6 +19,32 @@ function db() {
   return d;
 }
 
+// Lessons L56: what the Joybuy cleaning rules placed on HGW on 25 Oct 2026 and now leave out (names from the database).
+function joybuyDb() {
+  const d = db();
+  const add = d.prepare('INSERT INTO products (id, retailer, site_category, product_name, price, affiliate_url) VALUES (?, ?, ?, ?, ?, ?)');
+  const out = ['BABO EU Standard 6D Double-Sided Embossed Bamboo Pulp Toilet Rolls, 4-Ply, 150g', '【PurePair Bundle】Bc Babycare Flushable Toilet Wipe 3 Packs x 42 Wipes',
+    'Breeze Pure Hypoallergenic Flushable Toilet Wipes， 1-Ply， 80 Wipes', 'Andrex Ultimate Fresh Hygiene Wipes Quad Pack 4 x 36 Sheets',
+    'SUNKISS Trustplus Wet Wipes for Adult No Rinse, Extra Large 8x12 Body Wipes', 'Carex Cleansing Hygiene Wipes Antibacterial Biodegradable Fibre 15Wipes',
+    'JORDAN&JUDY Silicone Wash Bag, Portable Large-Capacity Waterproof Storage', 'Petaboo 5-in-1 Cordless Vacuum Pet Grooming Kits A150',
+    'Zero In Ultra Power Household Pest Killer, Bed Bug and Dust Mite Steam Gun'];
+  out.forEach((n, i) => add.run(100 + i, 'Joybuy UK', i === 7 ? 'Home Appliances' : 'Cleaning & Laundry', n, 5, 'x'));
+  const stay = ['Dettol Antibacterial Surface Cleansing Wipes, 126 Large Wipes', 'Vilscijon Gray Shoe Washing Bags for Washing Machine, Set of 2',
+    'Flash Speedmop Antibacterial Lemon Wet Floor Wipes, 10 Wipes', 'Andrex Kitchen Towel'];
+  stay.forEach((n, i) => add.run(200 + i, 'Joybuy UK', 'Cleaning & Laundry', n, 5, 'x'));
+  // Another shop's toilet rolls are not this rule's business.
+  add.run(300, 'Other Shop', 'Cleaning & Laundry', 'Soft Toilet Rolls 9 Pack', 5, 'x');
+  return d;
+}
+
+test('Joybuy on HGW (L56): toilet paper, personal wipes, a toiletry bag, pet grooming and a pest killer hidden; cleaning products stay', () => {
+  const d = joybuyDb();
+  assert.deepEqual(d.prepare(idsSql()).all().map(r => r.id), [1, 2, 100, 101, 102, 103, 104, 105, 106, 107, 108]);
+  const reasons = d.prepare(summarySql()).all().map(r => r.reason);
+  assert.ok(reasons.some(r => /not a home cleaning product/.test(r)));
+  for (const s of [summarySql(), samplesSql(), idsSql(), keptSql()]) assert.doesNotMatch(s, /[%<>&|^"]/);
+});
+
 test('rings and keyboards hidden on HGW, home products stay', () => {
   const d = db();
   assert.deepEqual(d.prepare(idsSql()).all().map(r => r.id), [1, 2]);

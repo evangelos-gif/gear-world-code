@@ -206,7 +206,7 @@ test('Joybuy rules: garden, smart home, cleaning, kids tech and school bags go t
     ['JOOAN 2K Outdoor Security Camera LAN 2.4G WiFi 360 PTZ Cam', 'Home & Garden > Business & Home Security > Security Monitors', 'hgw', 'Smart Home'],
     ['eufy E340 2K Dual Cameras Smart Video Doorbell with Chime', 'Electronics > Networking > Network Security', 'hgw', 'Smart Home'],
     ['WIZ Smart Plug White: Wi-Fi Connected Smart Home Device', 'Home & Garden > Lighting', 'hgw', 'Smart Home'],
-    ['eufy G50 Hybrid Robot Vacuum and Mop - 4000Pa Suction', 'Home & Garden > Household Appliances > Vacuums', 'hgw', 'Cleaning & Laundry'],
+    ['eufy G50 Hybrid Robot Vacuum and Mop - 4000Pa Suction', 'Home & Garden > Household Appliances > Vacuums', 'hgw', 'Home Appliances'],
     ['Marvel 3D Spider-man Walkie Talkies', 'Toys & Games > Toys > Educational Toys', 'kgw', 'Kids Tech'],
     ["TABWEE K8 Kids' Tablet, 7-inch, 2GB RAM", 'Electronics > Computers > Tablet Computers', 'kgw', 'Kids Tech'],
     ['Paw Patrol Kids Backpack School Bag', 'Luggage & Bags > Backpacks', 'kgw', 'School & Backpacks']
@@ -245,10 +245,11 @@ test('Joybuy rules: fixes from the all-sites plan (indoor furniture, kitchen ove
     ['Black Lanterns Decorative Indoor: Hurricane Lantern Candle Holder Front Porch Garden Wall Decorations']
   ]) assert.ok(c(name, cat).reject, `${name} must be left out`);
   const sub = (name, cat) => c(name, cat).subcategory;
-  assert.equal(sub('Hoover H-Wash 300 Pro Integrated Washing Machine', 'Home & Garden > Household Appliances > Laundry Appliances'), 'Laundry & ironing');
-  assert.equal(sub('Philips STE1040/20 1000 Series Garment Steamer, 1800w', 'Home & Garden > Household Appliances > Floor & Steam Cleaners'), 'Laundry & ironing');
-  assert.equal(sub('Fairy Max Power Washing Up Liquid, Original, 660ml', H), 'Cleaning');
-  assert.equal(c('Tineco Pure ONE Station 5 Cordless Stick Vacuum, iLoop Smart Sensor').siteCategory, 'Cleaning & Laundry');
+  // HGW's own subcategory names (lessons L56).
+  assert.equal(sub('Hoover H-Wash 300 Pro Integrated Washing Machine', 'Home & Garden > Household Appliances > Laundry Appliances'), 'Washing Machine');
+  assert.equal(sub('Philips STE1040/20 1000 Series Garment Steamer, 1800w', 'Home & Garden > Household Appliances > Floor & Steam Cleaners'), 'Ironing & Clothes Care');
+  assert.equal(sub('Fairy Max Power Washing Up Liquid, Original, 660ml', H), 'Dishwashing');
+  assert.equal(c('Tineco Pure ONE Station 5 Cordless Stick Vacuum, iLoop Smart Sensor').siteCategory, 'Home Appliances');
   assert.equal(sub("TABWEE K8 Kids' Tablet, 7-inch, 2 MP front camera + 5 MP rear camera", 'Electronics'), 'Kids tablets');
   const S = 'Health & Beauty > Personal Care > Shaving & Grooming';
   assert.equal(sub('Gillette Mach 3 2 Count', S), 'Shaving');

@@ -349,32 +349,45 @@ const COLS = ['awin_product_id', 'merchant_product_id', 'retailer', 'site_catego
   'price', 'currency', 'stock_status', 'merchant_category', 'image_url', 'affiliate_url', 'ean', 'is_active', 'created_at', 'updated_at'];
 
 // opts.site: which unique key the table has (STABLE_KEY_SITES). opts.keepCategory: a product already on the site keeps
-// its category and subcategory (only new products get the category of these rules).
+// its category and subcategory (only new products get the category of these rules). opts.replace: subcategory names an
+// earlier plan wrote that the site does not use (lessons L56): a product already on the site with one of them gets the
+// plan's category and subcategory; every other product keeps its own.
 export function insertSql(items, stamp, opts = {}) {
   const values = items.map(p => '(' + [p.awin_product_id, p.merchant_product_id, p.retailer, p.site_category, p.subcategory, p.brand, p.product_name,
     p.feed_product_name, p.price, p.currency, p.stock_status, p.merchant_category, p.image_url, p.affiliate_url, p.ean, 1, stamp, stamp].map(q).join(', ') + ')');
   const stable = STABLE_KEY_SITES.has(String(opts.site || ''));
   const skip = ['awin_product_id', 'retailer', 'created_at'].concat(stable ? ['merchant_product_id'] : [], opts.keepCategory ? ['site_category', 'subcategory'] : []);
-  const update = COLS.filter(c => !skip.includes(c)).map(c => `${c}=excluded.${c}`).join(', ');
+  const sets = COLS.filter(c => !skip.includes(c)).map(c => `${c}=excluded.${c}`);
+  const replace = (opts.keepCategory && Array.isArray(opts.replace)) ? opts.replace.filter(Boolean) : [];
+  if (replace.length) {
+    const list = replace.map(q).join(', ');
+    // SQLite reads products.<column> as the row's value BEFORE this update, so both lines test the old subcategory.
+    sets.push(`site_category=CASE WHEN products.subcategory IN (${list}) THEN excluded.site_category ELSE products.site_category END`,
+      `subcategory=CASE WHEN products.subcategory IN (${list}) THEN excluded.subcategory ELSE products.subcategory END`);
+  }
+  const update = sets.join(', ');
   const target = stable ? "(retailer, merchant_product_id) WHERE merchant_product_id IS NOT NULL AND TRIM(merchant_product_id) <> ''" : '(awin_product_id)';
   return `INSERT INTO products (${COLS.join(', ')}) VALUES\n${values.join(',\n')}\nON CONFLICT${target} DO UPDATE SET ${update};\n`;
 }
 
 function writeSql(dir, items, R, site, now) {
   mkdirSync(dir, { recursive: true });
+  const replace = (R.keepCategory && R.replaceSubcategories && R.replaceSubcategories[site]) || [];
   const stamp = now.toISOString().slice(0, 19).replace('T', ' ');
   const out = [];
   for (let i = 0, n = 1; i < items.length; i += ROWS_PER_FILE, n++) {
     const part = items.slice(i, i + ROWS_PER_FILE);
     let sql = `-- PLAN ONLY. NOT EXECUTED. ${R.retailer} (Awin ${R.advertiserId}) -> ${site.toUpperCase()}, part ${n}, ${part.length} products, ${stamp} UTC.\n` +
       '-- Adds new products and updates the same products on a later run (same awin_product_id). Deletes nothing.\n';
-    for (let j = 0; j < part.length; j += ROWS_PER_INSERT) sql += insertSql(part.slice(j, j + ROWS_PER_INSERT), stamp, { site, keepCategory: R.keepCategory });
+    for (let j = 0; j < part.length; j += ROWS_PER_INSERT) sql += insertSql(part.slice(j, j + ROWS_PER_INSERT), stamp, { site, keepCategory: R.keepCategory, replace });
     const file = join(dir, String(n).padStart(4, '0') + '.sql');
     writeFileSync(file, sql);
     out.push(file);
   }
   // The products this run keeps on the site (a refresh hides the retailer's other products: sold out or gone).
   writeFileSync(join(dir, 'ids.txt'), items.map(p => p.awin_product_id).join('\n') + (items.length ? '\n' : ''));
+  // The products with their planned place, for the comparison with the database (subcategory names, L56).
+  writeFileSync(join(dir, 'places.json'), JSON.stringify({ replace, places: items.map(p => [p.awin_product_id, p.site_category, p.subcategory]) }));
   return out;
 }
 

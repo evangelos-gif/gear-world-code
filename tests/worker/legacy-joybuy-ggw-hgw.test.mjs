@@ -98,12 +98,12 @@ const REAL_IN = [
   ['Vonhaus Hudson Grey Sun Lounger Chair With Cushion', 'ggw', 'Loungers'],
   // The one product moved on purpose: a planter "with Topped Trellis" is a planter, not fencing.
   ['Outsunny 72.5x31.5x149.5cm 45L Garden Wooden Pine Trough Planter with Topped Trellis Climbing Plants Flower Raised Bed Orange', 'ggw', 'Growing'],
-  ['JOOAN 2K Outdoor Security Camera LAN 2.4G WiFi 360°PTZ Cam for Home Surveillance IP66 Waterproof Motion Detect & Alert Sound Alarms Color Night 24/7 Record Cloud/8-256G Card Storage Auto Tracking', 'hgw', 'Security cameras & doorbells'],
-  ['Rexsun X6 Smart Doorbell – Compact Aluminum Alloy Video Doorbell, Real-Time View, Long Battery Life, Easy Installation, Voice Recording & MP3 Playback, Compatible with Windows, iOS & Linux, Memory Card Not Included', 'hgw', 'Security cameras & doorbells'],
-  ['Tapo C460 KIT Solar-Powered Security Camera Kit', 'hgw', 'Security cameras & doorbells'],
-  ['Xiaomi Self-Install Smart Lock (Keypad Included)', 'hgw', 'Smart home'],
-  ['TP-Link tapo T300 Smart Water Leak Sensor', 'hgw', 'Smart home'],
-  ['Eve Energy Matter Smart Plug with Power Meter, Smart Home Wi-Fi Power Outlet, Energy Monitoring, Remote Control, Thread Technology, Compatible with Apple Home, Alexa, Google Home & SmartThings, UK Type G Plug', 'hgw', 'Smart plugs & switches']
+  ['JOOAN 2K Outdoor Security Camera LAN 2.4G WiFi 360°PTZ Cam for Home Surveillance IP66 Waterproof Motion Detect & Alert Sound Alarms Color Night 24/7 Record Cloud/8-256G Card Storage Auto Tracking', 'hgw', 'Security Camera'],
+  ['Rexsun X6 Smart Doorbell – Compact Aluminum Alloy Video Doorbell, Real-Time View, Long Battery Life, Easy Installation, Voice Recording & MP3 Playback, Compatible with Windows, iOS & Linux, Memory Card Not Included', 'hgw', 'Video Doorbell'],
+  ['Tapo C460 KIT Solar-Powered Security Camera Kit', 'hgw', 'Security Camera'],
+  ['Xiaomi Self-Install Smart Lock (Keypad Included)', 'hgw', 'Smart Lock'],
+  ['TP-Link tapo T300 Smart Water Leak Sensor', 'hgw', 'Smart Sensor'],
+  ['Eve Energy Matter Smart Plug with Power Meter, Smart Home Wi-Fi Power Outlet, Energy Monitoring, Remote Control, Thread Technology, Compatible with Apple Home, Alexa, Google Home & SmartThings, UK Type G Plug', 'hgw', 'Smart Plug']
 ];
 
 test('Joybuy plan report of 25 Oct 2026, real names: the mistakes are left out with their reason, the right products stay', () => {
@@ -137,12 +137,12 @@ test('Joybuy GGW/HGW: products that were right before the fix stay where they we
   ggw('Wildflower Seeds Mix 100g, Native British Meadow', 'Plants, Growing & Garden Care', 'Seeds & bulbs');
   ggw('Peat-Free Multi-Purpose Compost 50L for Pots and Borders', 'Plants, Growing & Garden Care', 'Compost & feed');
   // Smart home devices and home cameras
-  hgw('TP-Link Tapo C200 Pan/Tilt Wi-Fi Camera, 1080p Home Security', 'Security cameras & doorbells');
-  hgw('JOOAN 2K Outdoor Security Camera LAN 2.4G WiFi 360 PTZ Cam', 'Security cameras & doorbells');
-  hgw('eufy E340 2K Dual Cameras Smart Video Doorbell with Chime', 'Security cameras & doorbells');
-  hgw('Blink Mini 2 Wireless Camera', 'Security cameras & doorbells');
-  hgw('tado Smart Radiator Thermostat X - Add-on Unit', 'Smart home');
-  hgw('WIZ Smart Plug White: Wi-Fi Connected Smart Home Device', 'Smart plugs & switches');
+  hgw('TP-Link Tapo C200 Pan/Tilt Wi-Fi Camera, 1080p Home Security', 'Security Camera');
+  hgw('JOOAN 2K Outdoor Security Camera LAN 2.4G WiFi 360 PTZ Cam', 'Security Camera');
+  hgw('eufy E340 2K Dual Cameras Smart Video Doorbell with Chime', 'Video Doorbell');
+  hgw('Blink Mini 2 Wireless Camera', 'Security Camera');
+  hgw('tado Smart Radiator Thermostat X - Add-on Unit', 'Smart Thermostat');
+  hgw('WIZ Smart Plug White: Wi-Fi Connected Smart Home Device', 'Smart Plug');
   // A kids' camera is still kids tech, not a reject
   assert.equal(c('VTech KidiZoom Duo DX Kids Camera, Wi-Fi Camera', 'Toys & Games').site, 'kgw');
 });

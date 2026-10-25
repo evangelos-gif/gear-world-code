@@ -28,7 +28,13 @@ export const RULES = {
   maxPrice: 2000,
   addOnly: true,
   keepQuery: true,
-  keepCategory: true
+  keepCategory: true,
+  // Subcategory names that earlier plans wrote on HGW and the site does not use (lessons L56). A product already on the site
+  // with one of these gets the plan's category and subcategory on the next import; every other product keeps its own.
+  replaceSubcategories: {
+    hgw: ['Laundry & ironing', 'Cleaning', 'Bins', 'Floor cleaning', 'Vacuum cleaners', 'Robot vacuums', 'Security cameras & doorbells', 'Smart lighting',
+      'Smart home', 'Smart plugs & switches']
+  }
 };
 
 // The router's id for a Joybuy product: merchant_product_id (the number at the end of the shop address).
@@ -200,34 +206,96 @@ const CLEANING = words(['vacuum cleaner', 'vacuum cleaners', 'robot vacuum', 'ro
 const NOT_CLEANING = words(['flask', 'flasks', 'vacuum sealer', 'vacuum seal', 'vacuum storage', 'vacuum bags', 'vacuum insulated', 'insulated', 'cup', 'mug', 'tumbler',
   'bottle', 'car', 'pool', 'pressure washer', 'leaf', 'gutter', 'toy', 'toys', 'kids', 'jewellery', 'bracelet', 'test kit', 'pet hair remover glove',
   'hair dryer', 'hairdryer', 'hair straightener', 'hair clipper', 'hair removal', 'hair brush', 'hairbrush', 'skin', 'face', 'facial', 'makeup', 'make-up',
-  'toilet tissue', 'toilet roll', 'kitchen roll', 'tissues', 'blanket', 'hoodie', 'runner', 'rug', 'rugs', 'duvet', 'pillow', 'towel', 'towels']);
+  'toilet tissue', 'toilet roll', 'kitchen roll', 'tissues', 'blanket', 'hoodie', 'runner', 'rug', 'rugs', 'duvet', 'pillow', 'towel', 'towels',
+  // Found on HGW after the import of 25 Oct 2026 (lessons L56): toilet paper and personal hygiene wipes, a toiletry bag, a pet
+  // grooming kit and a pest killer are not cleaning products.
+  'toilet rolls', 'toilet tissues', 'kitchen rolls', 'toilet wipe', 'toilet wipes', 'hygiene wipes', 'wet wipes for adult', 'body wipes', 'babycare',
+  'baby care', 'wash bag', 'wash bags', 'pet grooming', 'grooming', 'pest', 'pest killer', 'bed bug', 'bed bugs', 'insect', 'insects', 'mosquito']);
 
-// Order matters: a "Hoover" washing machine and a garment steamer are laundry; "washing up liquid" is kitchen cleaning.
-function cleaningSub(n) {
-  if (/robot/i.test(n) && /vacuum|\bmops?\b|hoover|deebot|roomba|roborock/i.test(n)) return 'Robot vacuums';
-  if (/washing machine|washer dryer|tumble dryer|heat pump dryer|\bdryer\b/i.test(n)) return 'Laundry & ironing';
-  if (/garment steamer|clothes steamer|handheld steamer|\bsteamer\b|\birons?\b|ironing/i.test(n)) return 'Laundry & ironing';
-  if (/washing[ -]up|dish/i.test(n)) return 'Cleaning';
-  if (/vacuum|\bvac\b|hoover/i.test(n)) return 'Vacuum cleaners';
-  if (/steam|carpet|\bmops?\b|floor/i.test(n)) return 'Floor cleaning';
-  if (/airer|laundry|washing|fabric|detergent|\blint\b/i.test(n)) return 'Laundry & ironing';
-  if (/\bbins?\b|trash can/i.test(n)) return 'Bins';
-  return 'Cleaning';
+// Home Gear World already has its own subcategories (written by the Hub router); new products take THOSE names (L42, L44,
+// L56), never new ones. Vacuum cleaners are under Home Appliances > Vacuum Cleaner on HGW, like the other 156.
+// Washing machines and tumble dryers had no place on HGW: they go to Home Appliances with a name in the site's style.
+// Order matters: "Washing Machine Cleaner" is a cleaning product, "Dustpan and Broom Set with ... Iron Handle" a brush,
+// "Bags For ... Vacuum" a vacuum accessory, a "Steam Carpet Cleaner" a steam cleaner, "Carpet Cleaning Solution" a product.
+export const HGW_SUBCATEGORIES = ['Cleaning Products', 'Laundry Detergent', 'Fabric Softener', 'Dishwashing', 'Mop', 'Cleaning Brush', 'Cloths & Sponges',
+  'Duster', 'Laundry Basket', 'Vacuum Accessories', 'Ironing Board', 'Laundry Hamper', 'Drying Rack', 'Steam Cleaner', 'Clothes Airer', 'Ironing & Clothes Care',
+  'Bins & Bin Bags', 'Cleaning Gloves', 'Vacuum Cleaner', 'Security Camera', 'Smart Thermostat', 'Video Doorbell', 'Motion Sensor', 'Smart Bulb', 'Smart Plug',
+  'Smart Home Accessories', 'Smart Sensor', 'Smart Lock', 'Smart Display', 'Smoke Alarm', 'Smart Speaker'];
+const APPLIANCES = 'Home Appliances';
+export function cleaningPlace(n) {
+  const at = (sub, siteCategory = 'Cleaning & Laundry') => ({ siteCategory, subcategory: sub });
+  // What the product IS: the head of the name ("BISSELL ... HydroSteam Carpet Cleaner, Carpet Stain Remover with ..." is a
+  // machine; "Shoe Washing Bags for Washing Machine" are bags).
+  const h = headOf(n);
+  // Liquids, tablets and other consumables first: "Washing Machine Cleaner", "Carpet Cleaning Solution", "Floor Cleaner".
+  if (/washing machine (cleaner|water softener)|machine cleaner|descaler|water softener|limescale|carpet (cleaning )?(solution|shampoo)|stain remover|upholstery/i.test(h)) {
+    return /stain remover|oxi/i.test(n) && /laundry|wash/i.test(n) ? at('Laundry Detergent') : at('Cleaning Products');
+  }
+  if (/fabric conditioner|fabric softener|laundry conditioner|dryer sheets|tumble dryer sheets/i.test(n)) return at('Fabric Softener');
+  if (/detergent|washing (powder|liquid|capsules|pods)\b|laundry (liquid|gel|pods|capsules|sheets|egg|cleanser|perfume|bleach|wash)\b|\bpods\b.*(wash|laundry)|scent booster|bio .*washes|\bwashes\b/i.test(n)) {
+    return /dishwasher|washing[ -]up|\bfinish\b/i.test(n) ? at('Dishwashing') : at('Laundry Detergent');
+  }
+  if (/washing[ -]up|wash-?up|dishwasher|\bdish\b|dish drainer|dish brush/i.test(n)) return at('Dishwashing');
+  // Machines.
+  if (/washer dryer|washing machine/i.test(h)) return at('Washing Machine', APPLIANCES);
+  if (/tumble dryer|heat pump dryer|condenser dryer|vented dryer/i.test(h)) return at('Tumble Dryer', APPLIANCES);
+  if (/\b(bags?|filters?|charger|battery|batteries|spare parts|side brush(es)?|replacement (head|brush|roller)|hose)\b/i.test(n) && /vacuum|\bvac\b|hoover|deebot|robot/i.test(n)) {
+    return at('Vacuum Accessories');
+  }
+  if (/steam (mop|cleaner|carpet cleaner)|steam generator cleaner|hydrosteam/i.test(h) && !/iron|garment/i.test(h)) return at('Steam Cleaner');
+  if (/vacuum|\bvac\b|hoover hf|hoover hl|dustbuster|carpet cleaner|spot cleaner|spotwash|hard ?floor cleaner|window (vac|cleaning robot)|winbot|cleaning robot|hydrovac|aquajet|robot (vacuum|mop)|deebot|roomba|roborock/i.test(h)
+    && !/solution|spray|liquid|wipes|(^|\s)\d+(\.\d+)?\s?(ml|l|litres?)\b/i.test(h)
+    // "Dreame L10s Ultra Gen 2 with Rotary Mops- 10,000Pa Suction, LiDAR ...": suction in Pa or LiDAR is a machine.
+    || /lidar|\b\d[\d,.]*\s?k?pa\b/i.test(n) && /suction|lidar/i.test(n)) {
+    return at('Vacuum Cleaner', APPLIANCES);
+  }
+  // Brushes and brooms before irons ("Broom Set with 75cm Iron Handle", "Iron Scrub Brush").
+  if (/broom|dustpan|toilet brush|scrub brush|cleaning brush|wire brush|gap cleaning brush|\bbrush(es)?\b|scrubber/i.test(n) && !/dish/i.test(n)) return at('Cleaning Brush');
+  if (/\bmops?\b|mop (pads?|refill|cloth|bucket|head)|spin mop|spray mop|speedmop/i.test(n) && !/wipes|liquid|spray mop floor cleaner|\bml\b/i.test(n)) return at('Mop');
+  if (/ironing board/i.test(n)) return at('Ironing Board');
+  if (/\biron\b|\birons\b|steam generator|garment steamer|clothes steamer|handheld steamer|\bsteamer\b|lint|fabric dye|\bdye\b|fabric protector|fabric freshener|shoe washing bag/i.test(n)) {
+    return at('Ironing & Clothes Care');
+  }
+  if (/drying rack/i.test(n)) return at('Drying Rack');
+  if (/airer|clothes horse|washing line|clothes line|\bpegs?\b|clothespins?|peg basket/i.test(n)) return at('Clothes Airer');
+  if (/hamper|laundry bag/i.test(n)) return at('Laundry Hamper');
+  if (/laundry basket/i.test(n)) return at('Laundry Basket');
+  if (/\bbins?\b|bin liners?|bin bags?|trash can|recycling|waste caddy|food waste/i.test(n)) return at('Bins & Bin Bags');
+  if (/duster/i.test(n)) return at('Duster');
+  if (/gloves/i.test(n)) return at('Cleaning Gloves');
+  if (/\bcloths?\b|j cloth|sponges?|scourers?|scouring|wash pads?|cleaning pads?|microfibre/i.test(h) && !/spray|liquid|wipes/i.test(h)) return at('Cloths & Sponges');
+  if (/laundry|washing/i.test(n)) return at('Ironing & Clothes Care');
+  return at('Cleaning Products');
+}
+
+// Smart Home: the site's own names.
+export function smartHomeSub(n) {
+  if (/doorbell/i.test(n)) return 'Video Doorbell';
+  if (/camera|\bcam\b|cctv|eufycam/i.test(n)) return 'Security Camera';
+  if (/smoke|carbon monoxide|\bco alarm/i.test(n)) return 'Smoke Alarm';
+  if (/thermostat|radiator|tado|hive/i.test(n)) return 'Smart Thermostat';
+  if (/\block\b|\blocks\b/i.test(n)) return 'Smart Lock';
+  if (/motion sensor|\bpir\b/i.test(n)) return 'Motion Sensor';
+  if (/sensor/i.test(n)) return 'Smart Sensor';
+  if (/echo show|nest hub|smart display|\bdisplay\b/i.test(n)) return 'Smart Display';
+  if (/echo dot|echo pop|nest mini|nest audio|homepod|smart speaker|\bspeaker\b/i.test(n)) return 'Smart Speaker';
+  if (/bulb|light|lighting|lightstrip|light strip|hue|lamp/i.test(n)) return 'Smart Bulb';
+  if (/plug|socket|switch|outlet/i.test(n)) return 'Smart Plug';
+  return 'Smart Home Accessories';
 }
 
 function homePlace(n, c) {
   if (/^(Food, Beverages|Toys & Games|Baby & Toddler|Apparel|Clothing & Accessories|Health & Beauty)/i.test(c)) return null;
   if (SMART_HOME.test(n) && !NOT_SMART_HOME.test(n)) {
-    const sub = /camera|cctv|doorbell|eufycam|arlo|blink|\bring (doorbell|camera|alarm)/i.test(n) ? 'Security cameras & doorbells'
-      : /bulb|light|lighting|lightstrip|hue/i.test(n) ? 'Smart lighting' : /plug|switch|socket/i.test(n) ? 'Smart plugs & switches' : 'Smart home';
-    if (sub === 'Security cameras & doorbells' && !HOME_CAMERA.test(n)) return { reject: 'a camera, but not one that watches a home (Smart Home)' };
+    const sub = smartHomeSub(n);
+    if ((sub === 'Security Camera' || sub === 'Video Doorbell') && !HOME_CAMERA.test(n)) return { reject: 'a camera, but not one that watches a home (Smart Home)' };
     return { site: 'hgw', siteCategory: 'Smart Home', subcategory: sub };
   }
   // "... Electric Heater with WiFi, Works with Alexa": left out of Smart Home and of the plan, with its reason in the report.
   if (SMART_HOME.test(n) && NOT_SMART_HOME.test(n) && APPLIANCE.test(n)) return { reject: 'an appliance with an app (heater, fan, kettle...), not a smart home device' };
   if (SMART_HOME.test(n) && NOT_HOME_CAMERA.test(n)) return { reject: 'a camera, but not one that watches a home (Smart Home)' };
   if ((CLEANING.test(n) || (CLEANING_CATEGORY.test(c) && CLEAN_HINT.test(n))) && !NOT_CLEANING.test(n)) {
-    return { site: 'hgw', siteCategory: 'Cleaning & Laundry', subcategory: cleaningSub(n) };
+    return { site: 'hgw', ...cleaningPlace(n) };
   }
   return null;
 }
