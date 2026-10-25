@@ -12,6 +12,8 @@
                  Approval phrase: ΕΓΚΡΙΝΩ TGW PREVIEW
   -Step import   CHANGES THE TGW DATABASE. Backs up the TGW database first, then loads the products from the
                  Awin feed (the same plan as tgw-import-plan). Approval phrase: ΕΓΚΡΙΝΩ TGW IMPORT
+                 It writes about 8 rows in D1 per product: above 90,000 it needs -PaidPlan (Cloudflare Workers Paid),
+                 because Workers Free allows 100,000 a day for the whole account (lessons L49).
   -Step domain   CHANGES CLOUDFLARE (LAUNCH). Connects technologygearworld.com and www to the TGW Worker as
                  Cloudflare Custom Domains (DNS and SSL are created by Cloudflare) and publishes the site there.
                  Google may then index it. Approval phrase: ΕΓΚΡΙΝΩ TGW DOMAIN
@@ -34,7 +36,8 @@ param(
     [string]$OutDir = '',
     [switch]$SkipInstall,
     [switch]$NoClipboard,
-    [switch]$NoHttpCheck
+    [switch]$NoHttpCheck,
+    [switch]$PaidPlan
 )
 
 $ErrorActionPreference = 'Stop'
@@ -90,7 +93,11 @@ function Confirm-Approval([string]$phrase) {
 }
 
 # Runs wrangler through a temporary .cmd file, so output is plain text in Windows PowerShell 5.1.
-# -Retry: on a network error ("fetch failed") try again, up to 3 times. Only for calls that are safe to repeat.
+# -Retry: on a network error ("fetch failed") or a passing Cloudflare error, try again, up to 3 times. Passing errors:
+# 7403 'account not authorized' (23 Oct 2026, between two successful calls) and 10000 'Authentication error' (24 Oct
+# 2026: the 1-hour wrangler sign-in ran out mid-run, L43). Only for calls that are safe to repeat.
+# The D1 import's 'Not currently importing anything' (25 Oct 2026, L64): wrangler asked for the state of an import that had
+# already finished (the file was loaded); every SQL file is an UPSERT, so sending it again is safe.
 function Invoke-Wrangler([string]$Folder, [string]$Arguments, [switch]$NonInteractive, [switch]$Retry) {
     if ($Arguments -match '[&|<>^%]') { throw 'Unsafe characters in wrangler arguments' }
     $tmp = [System.IO.Path]::GetTempPath()
@@ -114,9 +121,9 @@ function Invoke-Wrangler([string]$Folder, [string]$Arguments, [switch]$NonIntera
         }
         $text = (($out | ForEach-Object { "$_" }) -join "`n") -replace '\x1b\[[0-9;]*m', ''
         $result = @{ code = $code; text = $text }
-        $network = $text -match '(?i)fetch failed|connectivity issue|ECONNRESET|ETIMEDOUT|EAI_AGAIN|ENOTFOUND|socket hang up'
+        $network = $text -match '(?i)fetch failed|connectivity issue|ECONNRESET|ETIMEDOUT|EAI_AGAIN|ENOTFOUND|socket hang up|code: 7403|code: 10000|Not currently importing anything'
         if ($code -eq 0 -or -not $network -or $try -eq $tries) { break }
-        Say ('Πρόβλημα δικτύου με το Cloudflare. Ξαναδοκιμάζω σε {0} δευτερόλεπτα ({1}/{2})...' -f (5 * $try), ($try + 1), $tries) 'Yellow'
+        Say ('Προσωρινό πρόβλημα με το Cloudflare. Ξαναδοκιμάζω σε {0} δευτερόλεπτα ({1}/{2})...' -f (5 * $try), ($try + 1), $tries) 'Yellow'
         Start-Sleep -Seconds (5 * $try)
     }
     return $result
@@ -389,7 +396,9 @@ switch ($Step) {
 
     'import' {
         if (-not (Test-Path -LiteralPath $configPath) -or -not $db.found) { Say 'Πρώτα χρειάζεται το βήμα d1.' 'Red'; Finish 8 }
-        if (-not (Test-Path -LiteralPath $Archive)) { Say ('Δεν βρήκα το Awin archive: {0}' -f $Archive) 'Red'; Finish 2 }
+        # Several archive folders can be given, separated by ; (the newest copy of each feed is used).
+        $missingArchive = @(($Archive -split ';') | ForEach-Object { $_.Trim() } | Where-Object { $_ -and -not (Test-Path -LiteralPath $_) })
+        if ($missingArchive.Count -gt 0) { Say ('Δεν βρήκα το Awin archive: {0}' -f ($missingArchive -join ', ')) 'Red'; Finish 2 }
         $planDir = Join-Path $OutDir ('TGW_IMPORT_PLAN_' + $stamp)
         $k = 2
         while (Test-Path -LiteralPath $planDir) { $planDir = Join-Path $OutDir ('TGW_IMPORT_PLAN_{0}_{1}' -f $stamp, $k); $k++ }
@@ -398,13 +407,25 @@ switch ($Step) {
         $sqlDir = Join-Path $planDir 'sql'
         $files = @(Get-ChildItem -LiteralPath $sqlDir -Filter '*.sql' | Sort-Object Name)
         $head = ([System.IO.File]::ReadAllLines((Join-Path $planDir 'report.txt')) | Where-Object { $_ -match 'would be imported' } | Select-Object -First 1)
+        # Rows written in D1, measured on the TGW schema (lessons L49): about 8 per product (the table, 4 indexes, the unique key
+        # and the search index). Cloudflare Workers Free allows 100,000 a day for the whole account; past it D1 stops until midnight UTC.
+        $rowCount = 0
+        foreach ($f in $files) { $rowCount += @([System.IO.File]::ReadAllLines($f.FullName) | Where-Object { $_.StartsWith('INSERT INTO products') }).Count }
+        $writes = $rowCount * 8
         Say ''
         Say 'Τι θα γίνει:'
         Say ('  - Σημείο επαναφοράς (Cloudflare Time Travel) της D1 του TGW, γραμμένο στο {0}' -f (Join-Path $WorkDir 'backups'))
         Say ('  - Φόρτωση προϊόντων: {0}' -f $head)
+        Say ('  - Εγγραφές στη βάση: περίπου {0} (δωρεάν πλάνο Cloudflare: όριο 100.000 την ημέρα για όλο τον λογαριασμό)' -f $writes)
         Say ('  - {0} αρχεία SQL, το ένα μετά το άλλο. Σταματά στο πρώτο λάθος.' -f $files.Count)
         Say '  - Αλλάζει ΜΟΝΟ η D1 του TGW. Κανένα άλλο site.'
         if (-not $Apply) { Say ''; Say 'Δοκιμή μόνο (χωρίς -Apply): δεν άλλαξε τίποτα.' 'Green'; Finish 0 }
+        if ($writes -gt 90000 -and -not $PaidPlan) {
+            Say ''
+            Say ('ΣΤΑΜΑΤΗΣΑ χωρίς αλλαγές: περίπου {0} εγγραφές, πάνω από το ημερήσιο όριο του δωρεάν πλάνου του Cloudflare (100.000).' -f $writes) 'Red'
+            Say 'Με Workers Paid το όριο είναι 50 εκατομμύρια τον μήνα: τότε η εντολή παίρνει και -PaidPlan.' 'Yellow'
+            Finish 13
+        }
         if (-not (Confirm-Approval $Phrases.import)) { Say 'Δεν δόθηκε έγκριση: σταμάτησα χωρίς αλλαγές.' 'Yellow'; Finish 1 }
         $bdir = Join-Path $WorkDir 'backups'
         if (-not (Test-Path -LiteralPath $bdir)) { New-Item -ItemType Directory -Path $bdir -Force | Out-Null }

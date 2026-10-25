@@ -15,7 +15,8 @@
 // categories ("Health & Beauty > Personal Care > Cosmetics > Perfume & Cologne"). Joybuy also files perfumes under
 // "Home & Garden > Decor > Candles & Home Fragrances > Fragrance Oils", so a perfume NAME counts too.
 // Lessons L14: a "yes" list and a "no" list, a read-only plan with samples first, an import only with approval.
-import { gardenPlace } from './lib/garden.mjs';
+// Lessons L55: the GGW and HGW mistakes of the plan of 25 Oct 2026 (Joybuy names list what a product is FOR).
+import { gardenPlace, gardenWord, GARDEN_CATEGORIES } from './lib/garden.mjs';
 
 export const RULES = {
   key: 'joybuy',
@@ -27,7 +28,13 @@ export const RULES = {
   maxPrice: 2000,
   addOnly: true,
   keepQuery: true,
-  keepCategory: true
+  keepCategory: true,
+  // Subcategory names that earlier plans wrote on HGW and the site does not use (lessons L56). A product already on the site
+  // with one of these gets the plan's category and subcategory on the next import; every other product keeps its own.
+  replaceSubcategories: {
+    hgw: ['Laundry & ironing', 'Cleaning', 'Bins', 'Floor cleaning', 'Vacuum cleaners', 'Robot vacuums', 'Security cameras & doorbells', 'Smart lighting',
+      'Smart home', 'Smart plugs & switches']
+  }
 };
 
 // The router's id for a Joybuy product: merchant_product_id (the number at the end of the shop address).
@@ -41,31 +48,31 @@ const words = list => new RegExp('(?<![a-z0-9])(' + list.map(w => w.replace(/[.*
 const BEAUTY_CATEGORY = /^Health & Beauty > Personal Care > (Cosmetics|Hair ?care)\b/i;
 const DEODORANT_CATEGORY = /^Health & Beauty > Personal Care > Deodorant/i;
 const SHAVING_CATEGORY = /^Health & Beauty > Personal Care > Shaving & Grooming/i;
-const FRAGRANCE_NAME = words(['eau de parfum', 'eau de toilette', 'eau de cologne', 'edp', 'edt', 'parfum', 'perfume', 'perfumes', 'extrait', 'body mist', 'fragrance mist', 'hair mist']);
+export const FRAGRANCE_NAME = words(['eau de parfum', 'eau de toilette', 'eau de cologne', 'edp', 'edt', 'parfum', 'perfume', 'perfumes', 'extrait', 'body mist', 'fragrance mist', 'hair mist']);
 // Perfume words that are not something you wear.
-const HOME_SCENT = words(['candle', 'candles', 'diffuser', 'diffusers', 'reed', 'reeds', 'room spray', 'home fragrance', 'wax melt', 'wax melts', 'air freshener',
+export const HOME_SCENT = words(['candle', 'candles', 'diffuser', 'diffusers', 'reed', 'reeds', 'room spray', 'home fragrance', 'wax melt', 'wax melts', 'air freshener',
   'car freshener', 'incense', 'oil burner', 'laundry', 'detergent', 'fabric softener', 'washing']);
-const MEN = words(['men', "men's", 'mens', 'man', 'male', 'for him', 'pour homme', 'homme', 'gents', 'gentleman', 'gentlemen', 'aftershave', 'after shave',
+export const MEN = words(['men', "men's", 'mens', 'man', 'male', 'for him', 'pour homme', 'homme', 'gents', 'gentleman', 'gentlemen', 'aftershave', 'after shave',
   'beard', 'shaving', 'shave', 'boyfriend']);
 // Well-known men's perfume lines that often have no "men" in the name.
-const MEN_LINES = words(['sauvage', 'bleu de chanel', 'aventus', 'acqua di gio', 'acqua di giò', 'eros', 'invictus', '1 million', 'one million', 'le male', 'boss bottled',
+export const MEN_LINES = words(['sauvage', 'bleu de chanel', 'aventus', 'acqua di gio', 'acqua di giò', 'eros', 'invictus', '1 million', 'one million', 'le male', 'boss bottled',
   'terre d\'hermes', 'terre d’hermès', 'stronger with you', 'spicebomb', 'the one for men', 'dylan blue', 'phantom', 'wanted', 'fahrenheit', 'allure homme', 'ultra male',
   'polo blue', 'polo red', 'y eau de parfum', 'l\'homme', 'pour lui', 'bad boy', 'luna rossa', 'aqva', 'cool water man', 'toy boy',
   'uomo', 'montblanc legend', 'legend spirit', 'montblanc explorer', 'burberry hero', 'myslf', 'only the brave', 'boss the scent', 'le beau', 'kouros', 'aramis',
   'egoiste', 'azzaro chrome', 'davidoff', 'cool water', 'club de nuit intense', 'lattafa asad', 'asad', 'aqua di gio', 'k by dolce', 'ombre nomade man']);
-const WOMEN = words(['women', "women's", 'womens', 'woman', 'ladies', 'lady', 'female', 'for her', 'pour femme', 'femme', 'girl']);
-const UNISEX = words(['unisex']);
-const KIDS = words(['baby', 'babies', 'infant', 'infants', 'toddler', 'toddlers', 'kids', 'kid', "kid's", 'children', "children's", 'child', 'childs', 'junior', 'newborn', 'nappy']);
-const NOT_BEAUTY = words(['toothpaste', 'toothbrush', 'toothbrushes', 'mouthwash', 'floss', 'dental', 'denture', 'dentures', 'condom', 'condoms', 'lubricant', 'pregnancy',
+export const WOMEN = words(['women', "women's", 'womens', 'woman', 'ladies', 'lady', 'female', 'for her', 'pour femme', 'femme', 'girl']);
+export const UNISEX = words(['unisex']);
+export const KIDS = words(['baby', 'babies', 'infant', 'infants', 'toddler', 'toddlers', 'kids', 'kid', "kid's", 'children', "children's", 'child', 'childs', 'junior', 'newborn', 'nappy']);
+export const NOT_BEAUTY = words(['toothpaste', 'toothbrush', 'toothbrushes', 'mouthwash', 'floss', 'dental', 'denture', 'dentures', 'condom', 'condoms', 'lubricant', 'pregnancy',
   'ovulation', 'tampon', 'tampons', 'sanitary', 'incontinence', 'supplement', 'supplements', 'multivitamin', 'multivitamins', 'gummies', 'medicine', 'plaster', 'plasters',
   'bandage', 'bandages', 'thermometer', 'hearing aid', 'contact lens', 'contact lenses', 'pet', 'pets', 'dog', 'dogs', 'puppy', 'toy', 'toys', 'doll', 'dolls', 'lice', 'nits',
   'tattoo machine', 'gift card', 'voucher', 'otoscope', 'ear wax', 'ear cleaner', 'ear camera']);
 // Names in Chinese, Japanese or Korean script: the site is in English.
-const CJK = /[぀-ヿ㐀-鿿가-힯]/;
+export const CJK = /[぀-ヿ㐀-鿿가-힯]/;
 
 // Subcategory from the NAME first (Joybuy files many creams and serums under "Make-Up"), then from the feed category.
 // Order matters: "tinted moisturiser" is make-up, "hair mask" is hair care, "brush set" is a beauty tool.
-const NAME_SUBS = [
+export const NAME_SUBS = [
   [FRAGRANCE_NAME, 'Fragrance'],
   [words(['gift set', 'gift sets', 'beauty set', 'advent calendar', 'gift box', 'skincare set', 'skin care set', 'starter kit', 'discovery set']), 'Gift sets'],
   [words(['hair dryer', 'hairdryer', 'straightener', 'straighteners', 'curler', 'curlers', 'curling wand', 'curling tong', 'curling tongs', 'hair styler',
@@ -94,19 +101,19 @@ const CATEGORY_SUBS = [
   [/Skin Care/i, 'Skincare'], [/Bath & Body|Deodorant/i, 'Bath & body'], [/Shaving & Grooming|Hair Removal/i, 'Hair removal'], [/Make-?Up/i, 'Make-up']
 ];
 // Words that make a name clearly beauty. A product placed only because of its feed category is listed for checking (L14).
-const BEAUTY_WORDS = words(['beauty', 'cosmetic', 'cosmetics', 'makeup', 'make-up', 'skin', 'face', 'body', 'hair', 'lip', 'lips', 'eye', 'eyes', 'lash', 'cream',
+export const BEAUTY_WORDS = words(['beauty', 'cosmetic', 'cosmetics', 'makeup', 'make-up', 'skin', 'face', 'body', 'hair', 'lip', 'lips', 'eye', 'eyes', 'lash', 'cream',
   'oil', 'balm', 'gel', 'wash', 'lotion', 'scent', 'fragrance', 'spray', 'powder', 'wax', 'comb', 'brush', 'sponge', 'mirror', 'wig', 'wigs', 'extensions', 'perfume']);
 
-function subcategoryOf(name, feedCategory) {
+export function subcategoryOf(name, feedCategory) {
   for (const [re, sub] of NAME_SUBS) if (re.test(name)) return sub;
   for (const [re, sub] of CATEGORY_SUBS) if (re.test(feedCategory)) return sub;
   return 'Beauty';
 }
 
 // Women's hair removal often has no "women" in the name.
-const WOMEN_GROOMING = words(['venus', 'silk-épil', 'silk-epil', 'silk epil', 'epilator', 'epilators', 'ipl', 'dermaplaning', 'dermaplaner', 'lady shaver',
+export const WOMEN_GROOMING = words(['venus', 'silk-épil', 'silk-epil', 'silk epil', 'epilator', 'epilators', 'ipl', 'dermaplaning', 'dermaplaner', 'lady shaver',
   'ladyshave', 'bikini', 'satinelle', 'lumea']);
-const MEN_TOOLS = words(['trimmer', 'trimmers', 'multigroom', 'multi-groom', 'clipper', 'clippers', 'shaver', 'shavers', 'beard']);
+export const MEN_TOOLS = words(['trimmer', 'trimmers', 'multigroom', 'multi-groom', 'clipper', 'clippers', 'shaver', 'shavers', 'beard']);
 // Deodorant brands and lines for men.
 const MEN_DEODORANT = words(['lynx', 'right guard', 'old spice', 'brut', 'axe', 'mitchum men']);
 
@@ -126,7 +133,7 @@ const MEN_SUBS = [
   [words(['moisturiser', 'moisturizer', 'face wash', 'cream', 'serum', 'cleanser', 'scrub', 'eye', 'spf', 'balm', 'skin', 'fluid', 'sunscreen']), 'Skincare'],
   [/\bspf\s?\d/i, 'Skincare']
 ];
-function menSubcategory(n) {
+export function menSubcategory(n) {
   for (const [re, sub] of MEN_SUBS) if (re.test(n)) return sub;
   return 'Grooming';
 }
@@ -158,16 +165,33 @@ function beautyPlace(n, c) {
 }
 
 // ---------- Home Gear World: Smart Home, Cleaning & Laundry ----------
-const SMART_HOME = words(['smart plug', 'smart plugs', 'smart bulb', 'smart bulbs', 'smart light', 'smart lights', 'smart lighting', 'smart thermostat',
+export const SMART_HOME = words(['smart plug', 'smart plugs', 'smart bulb', 'smart bulbs', 'smart light', 'smart lights', 'smart lighting', 'smart thermostat',
   'smart speaker', 'smart display', 'smart lock', 'smart locks', 'smart hub', 'smart sensor', 'smart switch', 'smart radiator valve', 'smart blinds', 'smart curtain',
   'smart doorbell', 'smart alarm', 'smart smoke alarm', 'smart home', 'video doorbell', 'video doorbells', 'doorbell camera', 'security camera', 'security cameras',
   'indoor camera', 'outdoor camera', 'home camera', 'wifi camera', 'wi-fi camera', 'wireless camera', 'cctv', 'amazon alexa', 'with alexa', 'works with alexa',
   'echo dot', 'echo show', 'echo pop', 'google nest', 'google home', 'nest hub', 'nest cam', 'ring doorbell', 'ring camera', 'ring alarm', 'hive thermostat',
   'tado', 'philips hue', 'hue bulb', 'lightstrip', 'lightstrips', 'wifi plug', 'wi-fi plug', 'wifi bulb', 'wi-fi bulb', 'eufycam', 'eufy security', 'arlo',
   'blink outdoor', 'blink mini', 'switchbot', 'meross', 'govee', 'tapo', 'kasa']);
-const NOT_SMART_HOME = words(['smart tv', 'smart tvs', 'smartphone', 'smartphones', 'smart watch', 'smartwatch', 'case', 'cases', 'cover', 'covers', 'screen protector',
+// Plan of 25 Oct 2026 (lessons L55): a heater "with Wi-Fi, works with Alexa" in Smart Home. An appliance with an app
+// is not a smart home device (plugs, bulbs, cameras, doorbells, locks, thermostats, hubs and speakers are).
+// "Smart Radiator Thermostat" and "radiator valve" stay: only "electric radiator" and "radiator heater" are heaters.
+const APPLIANCE_WORDS = ['heater', 'heaters', 'convector', 'oil filled', 'oil-filled', 'electric radiator', 'radiator heater', 'fan', 'fans', 'air purifier',
+  'purifier', 'humidifier', 'dehumidifier', 'air conditioner', 'air conditioning', 'kettle', 'air fryer', 'coffee machine', 'microwave', 'electric blanket'];
+export const APPLIANCE = words(APPLIANCE_WORDS);
+// Plan of 25 Oct 2026 (L55): "DJI Osmo Action 4 ... Action Camera ..., Outdoor Camera" among the security cameras.
+const CAMERA_WORDS = ['action camera', 'action cameras', 'action cam', 'action cams', 'osmo', 'dji', 'gopro', 'insta360', 'akaso', 'vlog', 'vlogging', 'vlogger',
+  'helmet camera', 'body camera', 'body cam', 'bodycam', 'trail camera', 'trail cam', 'wildlife camera', 'camcorder', 'camcorders', 'webcam', 'webcams', 'drone',
+  'drones', 'gimbal', 'instant camera', 'digital camera', 'film camera', 'underwater camera', 'dashcam', 'dash camera'];
+export const NOT_HOME_CAMERA = words(CAMERA_WORDS);
+export const NOT_SMART_HOME = words(['smart tv', 'smart tvs', 'smartphone', 'smartphones', 'smart watch', 'smartwatch', 'case', 'cases', 'cover', 'covers', 'screen protector',
   'toy', 'toys', 'baby monitor', 'baby monitors', 'bracket', 'brackets', 'mount', 'mounts', 'hanger', 'accessory', 'accessories', 'replacement', 'strap', 'straps',
-  'dash cam', 'car', 'kids', 'vacuum', 'phone', 'iphone', 'ipad', 'cooler', 'gaming']);
+  'dash cam', 'car', 'kids', 'vacuum', 'phone', 'iphone', 'ipad', 'cooler', 'gaming',
+  ...CAMERA_WORDS, ...APPLIANCE_WORDS]);
+// A camera stays in "Security cameras & doorbells" only when the name says it watches a home (L55).
+export const HOME_CAMERA = words(['security', 'cctv', 'surveillance', 'doorbell', 'indoor', 'outdoor', 'home', 'house', 'ip camera', 'ptz', 'pan tilt',
+  'pan/tilt', 'pan & tilt', 'pan-tilt', 'night vision', 'motion detection', 'motion detect', 'two-way audio', '2-way audio', '2 way audio', 'two way audio',
+  'siren', 'floodlight', 'spotlight', 'alexa', 'google', 'eufy', 'eufycam', 'arlo', 'blink', 'ring', 'tapo', 'nest', 'ezviz', 'reolink', 'imou', 'jooan',
+  'wyze', 'annke', 'hikvision', 'kasa', 'swann', 'ctronics', 'iegeek', 'botslab', 'yi', 'pet camera', 'dog camera']);
 // A feed category alone is not enough (Joybuy files rugs, blankets and toilet rolls under cleaning): the name needs one of these too.
 const CLEAN_HINT = words(['clean', 'cleaner', 'cleaners', 'cleaning', 'vacuum', 'vac', 'hoover', 'mop', 'mops', 'steam', 'steamer', 'laundry', 'washing', 'wash',
   'detergent', 'bleach', 'disinfectant', 'degreaser', 'descaler', 'limescale', 'sponge', 'sponges', 'scrubber', 'scourer', 'scourers', 'duster', 'cloth', 'cloths',
@@ -182,30 +206,98 @@ const CLEANING = words(['vacuum cleaner', 'vacuum cleaners', 'robot vacuum', 'ro
 const NOT_CLEANING = words(['flask', 'flasks', 'vacuum sealer', 'vacuum seal', 'vacuum storage', 'vacuum bags', 'vacuum insulated', 'insulated', 'cup', 'mug', 'tumbler',
   'bottle', 'car', 'pool', 'pressure washer', 'leaf', 'gutter', 'toy', 'toys', 'kids', 'jewellery', 'bracelet', 'test kit', 'pet hair remover glove',
   'hair dryer', 'hairdryer', 'hair straightener', 'hair clipper', 'hair removal', 'hair brush', 'hairbrush', 'skin', 'face', 'facial', 'makeup', 'make-up',
-  'toilet tissue', 'toilet roll', 'kitchen roll', 'tissues', 'blanket', 'hoodie', 'runner', 'rug', 'rugs', 'duvet', 'pillow', 'towel', 'towels']);
+  'toilet tissue', 'toilet roll', 'kitchen roll', 'tissues', 'blanket', 'hoodie', 'runner', 'rug', 'rugs', 'duvet', 'pillow', 'towel', 'towels',
+  // Found on HGW after the import of 25 Oct 2026 (lessons L56): toilet paper and personal hygiene wipes, a toiletry bag, a pet
+  // grooming kit and a pest killer are not cleaning products.
+  'toilet rolls', 'toilet tissues', 'kitchen rolls', 'toilet wipe', 'toilet wipes', 'hygiene wipes', 'wet wipes for adult', 'body wipes', 'babycare',
+  'baby care', 'wash bag', 'wash bags', 'pet grooming', 'grooming', 'pest', 'pest killer', 'bed bug', 'bed bugs', 'insect', 'insects', 'mosquito']);
 
-// Order matters: a "Hoover" washing machine and a garment steamer are laundry; "washing up liquid" is kitchen cleaning.
-function cleaningSub(n) {
-  if (/robot/i.test(n) && /vacuum|\bmops?\b|hoover|deebot|roomba|roborock/i.test(n)) return 'Robot vacuums';
-  if (/washing machine|washer dryer|tumble dryer|heat pump dryer|\bdryer\b/i.test(n)) return 'Laundry & ironing';
-  if (/garment steamer|clothes steamer|handheld steamer|\bsteamer\b|\birons?\b|ironing/i.test(n)) return 'Laundry & ironing';
-  if (/washing[ -]up|dish/i.test(n)) return 'Cleaning';
-  if (/vacuum|\bvac\b|hoover/i.test(n)) return 'Vacuum cleaners';
-  if (/steam|carpet|\bmops?\b|floor/i.test(n)) return 'Floor cleaning';
-  if (/airer|laundry|washing|fabric|detergent|\blint\b/i.test(n)) return 'Laundry & ironing';
-  if (/\bbins?\b|trash can/i.test(n)) return 'Bins';
-  return 'Cleaning';
+// Home Gear World already has its own subcategories (written by the Hub router); new products take THOSE names (L42, L44,
+// L56), never new ones. Vacuum cleaners are under Home Appliances > Vacuum Cleaner on HGW, like the other 156.
+// Washing machines and tumble dryers had no place on HGW: they go to Home Appliances with a name in the site's style.
+// Order matters: "Washing Machine Cleaner" is a cleaning product, "Dustpan and Broom Set with ... Iron Handle" a brush,
+// "Bags For ... Vacuum" a vacuum accessory, a "Steam Carpet Cleaner" a steam cleaner, "Carpet Cleaning Solution" a product.
+export const HGW_SUBCATEGORIES = ['Cleaning Products', 'Laundry Detergent', 'Fabric Softener', 'Dishwashing', 'Mop', 'Cleaning Brush', 'Cloths & Sponges',
+  'Duster', 'Laundry Basket', 'Vacuum Accessories', 'Ironing Board', 'Laundry Hamper', 'Drying Rack', 'Steam Cleaner', 'Clothes Airer', 'Ironing & Clothes Care',
+  'Bins & Bin Bags', 'Cleaning Gloves', 'Vacuum Cleaner', 'Security Camera', 'Smart Thermostat', 'Video Doorbell', 'Motion Sensor', 'Smart Bulb', 'Smart Plug',
+  'Smart Home Accessories', 'Smart Sensor', 'Smart Lock', 'Smart Display', 'Smoke Alarm', 'Smart Speaker'];
+const APPLIANCES = 'Home Appliances';
+export function cleaningPlace(n) {
+  const at = (sub, siteCategory = 'Cleaning & Laundry') => ({ siteCategory, subcategory: sub });
+  // What the product IS: the head of the name ("BISSELL ... HydroSteam Carpet Cleaner, Carpet Stain Remover with ..." is a
+  // machine; "Shoe Washing Bags for Washing Machine" are bags).
+  const h = headOf(n);
+  // Liquids, tablets and other consumables first: "Washing Machine Cleaner", "Carpet Cleaning Solution", "Floor Cleaner".
+  if (/washing machine (cleaner|water softener)|machine cleaner|descaler|water softener|limescale|carpet (cleaning )?(solution|shampoo)|stain remover|upholstery/i.test(h)) {
+    return /stain remover|oxi/i.test(n) && /laundry|wash/i.test(n) ? at('Laundry Detergent') : at('Cleaning Products');
+  }
+  if (/fabric conditioner|fabric softener|laundry conditioner|dryer sheets|tumble dryer sheets/i.test(n)) return at('Fabric Softener');
+  if (/detergent|washing (powder|liquid|capsules|pods)\b|laundry (liquid|gel|pods|capsules|sheets|egg|cleanser|perfume|bleach|wash)\b|\bpods\b.*(wash|laundry)|scent booster|bio .*washes|\bwashes\b/i.test(n)) {
+    return /dishwasher|washing[ -]up|\bfinish\b/i.test(n) ? at('Dishwashing') : at('Laundry Detergent');
+  }
+  if (/washing[ -]up|wash-?up|dishwasher|\bdish\b|dish drainer|dish brush/i.test(n)) return at('Dishwashing');
+  // Machines.
+  if (/washer dryer|washing machine/i.test(h)) return at('Washing Machine', APPLIANCES);
+  if (/tumble dryer|heat pump dryer|condenser dryer|vented dryer/i.test(h)) return at('Tumble Dryer', APPLIANCES);
+  if (/\b(bags?|filters?|charger|battery|batteries|spare parts|side brush(es)?|replacement (head|brush|roller)|hose)\b/i.test(n) && /vacuum|\bvac\b|hoover|deebot|robot/i.test(n)) {
+    return at('Vacuum Accessories');
+  }
+  if (/steam (mop|cleaner|carpet cleaner)|steam generator cleaner|hydrosteam/i.test(h) && !/iron|garment/i.test(h)) return at('Steam Cleaner');
+  // "Samsung Jet 85 Pet, Max 210W Suction Power Cordless Vacuum Cleaner with Pet Tool+": a machine phrase anywhere counts.
+  if ((/vacuum|\bvac\b|hoover hf|hoover hl|dustbuster|carpet cleaner|spot cleaner|spotwash|hard ?floor cleaner|window (vac|cleaning robot)|winbot|cleaning robot|hydrovac|aquajet|robot (vacuum|mop)|deebot|roomba|roborock/i.test(h)
+      || /(cordless|stick|upright|handheld|cylinder|robot|wet (&|and) dry|bagless|pole) vacuum( cleaner)?\b|vacuum cleaner\b/i.test(n))
+    && !/solution|spray|liquid|wipes|(^|\s)\d+(\.\d+)?\s?(ml|l|litres?)\b/i.test(h)
+    // "Dreame L10s Ultra Gen 2 with Rotary Mops- 10,000Pa Suction, LiDAR ...": suction in Pa or LiDAR is a machine.
+    || /lidar|\b\d[\d,.]*\s?k?pa\b/i.test(n) && /suction|lidar/i.test(n)) {
+    return at('Vacuum Cleaner', APPLIANCES);
+  }
+  // Brushes and brooms before irons ("Broom Set with 75cm Iron Handle", "Iron Scrub Brush").
+  if (/broom|dustpan|toilet brush|scrub brush|cleaning brush|wire brush|gap cleaning brush|\bbrush(es)?\b|scrubber/i.test(n) && !/dish/i.test(n) && !/scourers?|scouring/i.test(h)) return at('Cleaning Brush');
+  if (/\bmops?\b|mop (pads?|refill|cloth|bucket|head)|spin mop|spray mop|speedmop/i.test(n) && !/wipes|liquid|spray mop floor cleaner|\bml\b/i.test(n)) return at('Mop');
+  if (/ironing board/i.test(n)) return at('Ironing Board');
+  if (/\biron\b|\birons\b|steam generator|garment steamer|clothes steamer|handheld steamer|\bsteamer\b|lint|fabric dye|\bdye\b|fabric protector|fabric freshener|shoe washing bag/i.test(n)) {
+    return at('Ironing & Clothes Care');
+  }
+  if (/drying rack/i.test(n)) return at('Drying Rack');
+  if (/airer|clothes horse|washing line|clothes line|\bpegs?\b|clothespins?|peg basket/i.test(n)) return at('Clothes Airer');
+  if (/hamper|laundry bag/i.test(n)) return at('Laundry Hamper');
+  if (/laundry basket/i.test(n)) return at('Laundry Basket');
+  if (/\bbins?\b|bin liners?|bin bags?|trash can|recycling|waste caddy|food waste/i.test(n)) return at('Bins & Bin Bags');
+  if (/duster/i.test(n)) return at('Duster');
+  if (/gloves/i.test(n)) return at('Cleaning Gloves');
+  if (/\bcloths?\b|j cloth|sponges?|scourers?|scouring|wash pads?|cleaning pads?|microfibre/i.test(h) && !/spray|liquid|wipes/i.test(h)) return at('Cloths & Sponges');
+  if (/laundry|washing/i.test(n)) return at('Ironing & Clothes Care');
+  return at('Cleaning Products');
+}
+
+// Smart Home: the site's own names.
+export function smartHomeSub(n) {
+  if (/doorbell/i.test(n)) return 'Video Doorbell';
+  if (/camera|\bcam\b|cctv|eufycam/i.test(n)) return 'Security Camera';
+  if (/smoke|carbon monoxide|\bco alarm/i.test(n)) return 'Smoke Alarm';
+  if (/thermostat|radiator|tado|hive/i.test(n)) return 'Smart Thermostat';
+  if (/\block\b|\blocks\b/i.test(n)) return 'Smart Lock';
+  if (/motion sensor|\bpir\b/i.test(n)) return 'Motion Sensor';
+  if (/sensor/i.test(n)) return 'Smart Sensor';
+  if (/echo show|nest hub|smart display|\bdisplay\b/i.test(n)) return 'Smart Display';
+  if (/echo dot|echo pop|nest mini|nest audio|homepod|smart speaker|\bspeaker\b/i.test(n)) return 'Smart Speaker';
+  if (/bulb|light|lighting|lightstrip|light strip|hue|lamp/i.test(n)) return 'Smart Bulb';
+  if (/plug|socket|switch|outlet/i.test(n)) return 'Smart Plug';
+  return 'Smart Home Accessories';
 }
 
 function homePlace(n, c) {
   if (/^(Food, Beverages|Toys & Games|Baby & Toddler|Apparel|Clothing & Accessories|Health & Beauty)/i.test(c)) return null;
   if (SMART_HOME.test(n) && !NOT_SMART_HOME.test(n)) {
-    const sub = /camera|cctv|doorbell|eufycam|arlo|blink|\bring (doorbell|camera|alarm)/i.test(n) ? 'Security cameras & doorbells'
-      : /bulb|light|lighting|lightstrip|hue/i.test(n) ? 'Smart lighting' : /plug|switch|socket/i.test(n) ? 'Smart plugs & switches' : 'Smart home';
+    const sub = smartHomeSub(n);
+    if ((sub === 'Security Camera' || sub === 'Video Doorbell') && !HOME_CAMERA.test(n)) return { reject: 'a camera, but not one that watches a home (Smart Home)' };
     return { site: 'hgw', siteCategory: 'Smart Home', subcategory: sub };
   }
+  // "... Electric Heater with WiFi, Works with Alexa": left out of Smart Home and of the plan, with its reason in the report.
+  if (SMART_HOME.test(n) && NOT_SMART_HOME.test(n) && APPLIANCE.test(n)) return { reject: 'an appliance with an app (heater, fan, kettle...), not a smart home device' };
+  if (SMART_HOME.test(n) && NOT_HOME_CAMERA.test(n)) return { reject: 'a camera, but not one that watches a home (Smart Home)' };
   if ((CLEANING.test(n) || (CLEANING_CATEGORY.test(c) && CLEAN_HINT.test(n))) && !NOT_CLEANING.test(n)) {
-    return { site: 'hgw', siteCategory: 'Cleaning & Laundry', subcategory: cleaningSub(n) };
+    return { site: 'hgw', ...cleaningPlace(n) };
   }
   return null;
 }
@@ -246,6 +338,71 @@ function kidsPlace(n, c) {
   return null;
 }
 
+// ---------- Garden Gear World: Joybuy's own checks around the shared garden rules (lessons L55) ----------
+// Mistakes of the plan of 25 Oct 2026: kitchen scissors in BBQ ("... Meat Scissors for Chicken, Poultry, Fish and BBQ"),
+// a towel set and a diffuser in Plants, Growing ("Wildflower" as a print or a scent), a UniBond moisture absorber in
+// Seeds ("Wildflower Meadow Refill Tabs"), TILSWALL paint sprayers ("... Spray Gun ... for Fence, Shed, Furniture") and
+// garage shelves ("... Shelving Racking for Shed, Garage") in Sheds. The shared rules (lib/garden.mjs) stay unchanged for
+// the other shops (Gardenista, Mint Outdoor and My Tool Shed are not touched).
+export const NOT_GARDEN_JOYBUY = words(['towel', 'towels', 'towel set', 'bath sheet', 'bath sheets', 'flannel', 'flannels', 'bath mat', 'bath mats', 'diffuser', 'diffusers',
+  'essential oil', 'essential oils', 'aromatherapy', 'air freshener', 'room spray', 'moisture absorber', 'moisture absorbers', 'moisture trap', 'dehumidifier',
+  'dehumidifiers', 'refill tab', 'refill tabs', 'unibond', 'paint sprayer', 'paint sprayers', 'paint spray gun', 'spray gun', 'spray guns', 'paint gun', 'hvlp',
+  'airless']);
+// Kitchen scissors and knives, and (same plan, not in the owner's list) a pool float among the loungers and a kitchen food clip
+// among the BBQs. These words count only in the head of the name: "BJ Stainless Steel BBQ Set, 3-Piece with Barbecue Scissors
+// & Steak Clips" and "BBQ Grilling Tools Set | ..., Food Clip" are BBQ tool sets (second plan of 25 Oct 2026).
+const NOT_GARDEN_JOYBUY_HEAD = words(['scissors', 'kitchen shears', 'meat shears', 'poultry shears', 'knife', 'knives', 'cleaver', 'chopping board',
+  'cutting board', 'inflatable', 'pool float', 'pool floats', 'floatie', 'lilo', 'food clip', 'bread clip', 'baking clip']);
+// "<what it is> for <what it is used with>": the part after "for" says what a product is used with, not what it is.
+const FOR_PART = /\s+(?:(?:ideal|suitable|perfect|great|designed|made|used|use|compatible|works?|fits?)\s+)?for\s+/i;
+// The head of a name says what the product is: the words before "with", " – ", " | ", a comma, a bracket or "for".
+// "Aoxun Garden Shed ... With 3 Shelves" is a shed; "JOYFURNOS 2-Pack Heavy Duty Steel Shelving – 5 Shelves" is shelving.
+const headOf = n => (String(n).split(/\s+with\s+|\s+[-–—|]\s+|\s*[|,(]\s*/i)[0].split(FOR_PART)[0] || String(n)).trim();
+// Shelves and racking are for a garage or inside a shed; greenhouse staging and plant stands are garden products.
+const SHELVING = words(['shelf', 'shelves', 'shelving', 'racking']);
+const SHELVING_OK = words(['greenhouse', 'greenhouses', 'staging', 'plant stand', 'plant stands']);
+// Accessories rightly named after the garden product they are for ("Waterproof Cover for BBQ", "Felt for Shed Roof").
+const MADE_FOR_OK = {
+  [GARDEN_CATEGORIES.bbq]: words(['cover', 'covers', 'brush', 'brushes', 'mat', 'mats', 'tongs', 'skewers', 'grate', 'grates', 'rib rack', 'thermometer', 'gloves',
+    'tool set', 'tools', 'utensils', 'spatula', 'basket', 'baskets', 'charcoal', 'briquettes', 'wood chips', 'smoking chips', 'pellets', 'firelighters',
+    'chimney starter', 'pizza stone', 'pizza peel']),
+  [GARDEN_CATEGORIES.buildings]: words(['base', 'bases', 'felt', 'roofing', 'anchor', 'anchors', 'staging', 'cover', 'covers']),
+  [GARDEN_CATEGORIES.plants]: words(['pot', 'pots', 'planter', 'planters', 'tray', 'trays', 'stake', 'stakes', 'support', 'supports', 'cane', 'canes', 'label',
+    'labels', 'cloche', 'cloches', 'netting', 'fleece', 'feed', 'food', 'fertiliser', 'fertilizer', 'compost', 'soil'])
+};
+// "Wildflower" alone is a scent or a print; seeds, plugs, bulbs and turf are the growing kind.
+const WILDFLOWER = /\bwild ?flowers?\b/gi;
+const GROWING = words(['seed', 'seeds', 'seedballs', 'turf', 'plug', 'plugs', 'plant', 'plants', 'bulb', 'bulbs', 'mix']);
+
+export function joybuyGarden(name, feedCategory = '') {
+  const n = String(name || '');
+  const place = gardenPlace(n, feedCategory);
+  if (!place) return null;
+  // Only products the shared rules would place are checked, so the report lists exactly what these checks keep out.
+  const what = headOf(n);
+  if (NOT_GARDEN_JOYBUY.test(n) || NOT_GARDEN_JOYBUY_HEAD.test(what)) {
+    return { reject: 'not a garden product (kitchen scissors or clip, towel, home scent, damp absorber, paint sprayer, pool float)' };
+  }
+  const cat = place.siteCategory;
+  if (SHELVING.test(what) && !SHELVING_OK.test(n)) return { reject: 'shelves or racking for a garage or a shed, not a garden building' };
+  // "Trough Planter with Topped Trellis" is a planter: a building or fencing word only after "with" does not make it one.
+  if (cat === GARDEN_CATEGORIES.buildings && !gardenWord(what, cat)) {
+    const other = gardenPlace(what, feedCategory);
+    if (other && other.siteCategory !== cat) return other;
+  }
+  if (cat === GARDEN_CATEGORIES.plants && !gardenWord(n.replace(WILDFLOWER, ' '), cat) && !GROWING.test(n)) {
+    return { reject: '"wildflower" is a scent or a print here, not seeds or plants' };
+  }
+  const head = n.split(FOR_PART)[0];
+  if (MADE_FOR_OK[cat] && head.trim() && head !== n && !gardenWord(head, cat)) {
+    // "Solar Lights for Shed" are outdoor lights; "Paint Sprayer ... for Fence, Shed" is not a shed.
+    const other = gardenPlace(head, feedCategory);
+    if (other) return other;
+    if (!MADE_FOR_OK[cat].test(head)) return { reject: 'made FOR a garden product, not one ("... for Fence, Shed", "... for BBQ")' };
+  }
+  return place;
+}
+
 // Decide where one product goes. Returns { site, siteCategory, subcategory, doubt? } or { reject: '<reason>' }.
 export function classify({ name, feedCategory = '' }) {
   const n = String(name || '');
@@ -253,11 +410,14 @@ export function classify({ name, feedCategory = '' }) {
   if (CJK.test(n)) return { reject: 'name not in English' };
   const beauty = beautyPlace(n, c);
   if (beauty) return beauty;
-  const garden = gardenPlace(n, c);
-  if (garden) return { site: 'ggw', ...garden };
+  // A product the garden or home checks leave out may still be kids tech or a school bag; the first reason is kept for the report.
+  const garden = joybuyGarden(n, c);
+  if (garden && !garden.reject) return { site: 'ggw', ...garden };
   const home = homePlace(n, c);
-  if (home) return home;
+  if (home && !home.reject) return home;
   const kids = kidsPlace(n, c);
   if (kids) return kids;
+  if (garden) return garden;
+  if (home) return home;
   return { reject: 'not in these plans (beauty, men\'s grooming, garden, smart home, cleaning, kids tech, school bags)' };
 }

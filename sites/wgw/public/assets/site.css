@@ -205,6 +205,25 @@ p { margin: 0 0 1em; }
 .badge { padding: 0 6px; border: 1px solid var(--ink-2); border-radius: 3px; font-size: .8rem; }
 .badge-out { border-color: var(--tag); color: var(--tag); }
 
+/* Where the retailer delivers (lessons L62): the words carry the meaning, the small flag only helps the eye */
+.label-ship { margin: -6px 0 8px; font-size: .82rem; line-height: 1.35; color: var(--ink-2); }
+.ship-word { font-weight: 600; }
+.ship-flags { display: inline-flex; gap: 3px; vertical-align: -1px; }
+/* On a line with "Delivers to:", the country names go to the next line together ("United Kingdom", not "United / Kingdom") */
+.label-ship .ship-names, .offer-ship .ship-names, .cart-ship .ship-names { display: inline-block; }
+.flag { display: inline-block; width: 18px; height: 12px; border-radius: 2px; box-shadow: 0 0 0 1px rgba(0, 0, 0, .15); }
+.retailer .flag, .offer-retailer .flag, .shelf-facts dd > .flag { margin-left: 6px; vertical-align: -1px; }
+.ship-globe { width: 15px; height: 15px; vertical-align: -3px; }
+.ship-more { font-weight: 600; }
+.offer-who { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.offer-ship { font-size: .85rem; line-height: 1.35; color: var(--text-2); }
+.offer-ship .flag { box-shadow: 0 0 0 1px rgba(255, 255, 255, .35); }
+.cart-ship { font-size: .85rem; line-height: 1.35; color: var(--ink-2); }
+/* A price in another currency (site.convertForeignPrices): "€31.00 ≈ £26.95" (lessons L25, L63; was CGW's extraCss) */
+.fx-base { display: inline-block; margin-left: 6px; font-family: var(--font-body); font-weight: 600; font-size: .85rem; color: var(--ink-2); white-space: nowrap; }
+.shelf-price .fx-base { font-size: 1.05rem; align-self: center; }
+.offer-price .fx-base { color: var(--text-2); }
+
 /* ---------- How it works ---------- */
 .steps { list-style: none; counter-reset: step; display: grid; gap: 16px; padding: 0; margin: 0; }
 @media (min-width: 800px) { .steps { grid-template-columns: repeat(3, 1fr); } }

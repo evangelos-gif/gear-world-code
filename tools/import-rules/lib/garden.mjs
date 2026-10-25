@@ -76,6 +76,14 @@ const OUTSIDE = words(['outdoor', 'garden', 'solar', 'waterproof', 'patio', 'ip4
 const FOOD_SEEDS = words(['chia', 'sesame', 'flax', 'linseed', 'sunflower seeds', 'pumpkin seeds', 'lotus seed', 'seed beads', 'beads', 'bird seed', 'roasted', 'salted', 'bread',
   'oil', 'seed oil', 'walnut', 'walnuts', 'nuts', 'artificial', 'fake', 'faux', 'silk', 'plastic plant', 'christmas tree seeds', 'lotus seeds', 'paste', 'bean', 'beans']);
 
+// Does the text hold one of the "yes" words of this garden category? Read-only helper for a shop's own rules (Joybuy
+// checks WHERE in a name the word stands, lessons L55); gardenPlace below is unchanged for every shop.
+export function gardenWord(text, siteCategory) {
+  const group = Object.keys(GARDEN_CATEGORIES).find(k => GARDEN_CATEGORIES[k] === siteCategory);
+  const rule = RULES.find(r => r[0] === group);
+  return Boolean(rule && rule[1].test(String(text || '')));
+}
+
 // Returns { siteCategory, subcategory } for a garden product, or null. `extra(name, feedCategory)` may add a shop's own no-words.
 export function gardenPlace(name, feedCategory = '') {
   const n = String(name || '');
@@ -95,4 +103,60 @@ export function gardenPlace(name, feedCategory = '') {
     return { siteCategory: GARDEN_CATEGORIES[group], subcategory: sub };
   }
   return null;
+}
+
+// ---------- Garden furniture shops (Mint Outdoor, Gardenista) ----------
+// Words that say a product is used outside. Cushions, rugs and pads count for the garden site only with one of these.
+export const OUTDOOR_HINT = words(['outdoor', 'outdoors', 'outside', 'garden', 'patio', 'balcony', 'yard', 'lawn', 'deck', 'decking', 'poolside', 'rattan',
+  'water resistant', 'water-resistant', 'waterproof', 'weatherproof', 'weather resistant', 'weather-resistant', 'all weather', 'all-weather', 'swing seat', 'swing chair',
+  'parasol', 'gazebo', 'sun lounger', 'bistro', 'picnic']);
+// Words of a garden furniture piece or set, for shops whose whole feed is garden furniture.
+export const FURNITURE_PIECE = words(['set', 'sets', 'sofa', 'sofas', 'chair', 'chairs', 'table', 'tables', 'bench', 'benches', 'stool', 'stools', 'daybed', 'day bed',
+  'lounger', 'loungers', 'seater', 'corner', 'dining', 'lounge', 'bistro', 'cube', 'footstool', 'ottoman', 'egg chair', 'swing', 'hammock', 'parasol', 'gazebo',
+  'fire pit', 'firepit', 'heater', 'heaters', 'chaise', 'armchair', 'cushion', 'cushions', 'cover', 'covers', 'rug', 'rugs', 'seat pad', 'seat pads', 'bench pad', 'pad', 'pads']);
+// Subcategory of Garden Furniture & Outdoor Living from the name. Furniture shops write names like
+// "Marbella 5-Seater Garden Lounge Set with Ottoman Chaise | Grey Cushions" (a lounge set), "Marbella Garden Lounge Set
+// Replacement Cushions/Covers" (cushions), "Linden Custom-Fitted Furniture Cover – Tailored Protection for Sofas" (a cover)
+// and "Lima 5 Seater ... Sofa Set Bundle with Armchair, Coffee Table & Protective Cover" (a sofa set). So:
+//   1. the head of the name (before "with", "for", "|", "–", "(" or a comma) says what the product is;
+//   2. a head that says "replacement cushions", "seat pad", "scatter cushions" or "cushion cover" is a cushion; one that
+//      ENDS with cover(s) is a cover, and one that ends with cushion(s)/pad(s)/rug(s) a cushion;
+//   3. otherwise the furniture words decide (dining, lounge/corner, bistro, loungers, chairs, tables...), then covers and cushions.
+const SOFT_END = /^(cushions?|pads?|pillows?|rugs?|toppers?)$/i;
+const COVER_END = /^covers?$/i;
+const SOFT_PHRASE = words(['replacement cushion', 'replacement cushions', 'armchair cushion', 'armchair cushions', 'lounger cushion', 'lounger cushions',
+  'headrest cushion', 'chair pad', 'chair pads', 'lounger pad', 'lounger pads', 'seat pad', 'seat pads', 'bench pad', 'bench pads', 'scatter cushion', 'scatter cushions',
+  'cushion cover', 'cushion covers', 'chair cushion', 'chair cushions', 'bench cushion', 'bench cushions', 'cushion set', 'cushion pads', 'pallet cushion', 'pallet cushions',
+  'back cushion', 'back cushions', 'seat cushion', 'seat cushions', 'outdoor rug', 'outdoor rugs', 'garden rug', 'garden rugs']);
+const PIECE_SUBS = [
+  ['Fire pits & heaters', words(['fire pit', 'fire pits', 'firepit', 'chiminea', 'chimenea', 'heater', 'heaters'])],
+  ['Parasols, gazebos & shade', words(['parasol', 'parasols', 'gazebo', 'gazebos', 'umbrella', 'pergola', 'awning', 'sun shade', 'sunshade', 'sail shade'])],
+  ['Hammocks & swing seats', words(['hammock', 'hammocks', 'swing', 'egg chair', 'hanging chair'])],
+  ['Loungers', words(['lounger', 'loungers', 'sunlounger', 'daybed', 'day bed', 'deck chair', 'deckchair', 'zero gravity', 'recliner', 'reclining'])],
+  ['Dining sets', words(['dining'])],
+  ['Lounge & corner sets', words(['corner', 'sofa', 'sofas', 'lounge', 'modular', 'chaise', 'l-shape', 'l shape', 'u-shape', 'u shape', 'coffee set', 'cube set'])],
+  ['Bistro sets', words(['bistro'])],
+  ['Chairs & benches', words(['chair', 'chairs', 'armchair', 'armchairs', 'bench', 'benches', 'stool', 'stools', 'footstool', 'ottoman'])],
+  ['Tables', words(['table', 'tables'])]
+];
+const COVER_ANY = words(['cover', 'covers']);
+// "Waterproof Garden Round Table Cover 210D Oxford Fabric" is a cover, not a table.
+const COVER_PHRASE = words(['table cover', 'table covers', 'bench cover', 'bench covers', 'chair cover', 'chair covers', 'sofa cover', 'sofa covers', 'furniture cover',
+  'furniture covers', 'set cover', 'set covers', 'lounger cover', 'lounger covers', 'parasol cover', 'parasol covers', 'hammock cover', 'hammock covers', 'canopy cover',
+  'canopy covers', 'seat cover', 'seat covers', 'line cover', 'cube cover', 'heater cover', 'fire pit cover']);
+// "Padded Sun Lounger Cushion 178 x 60cm": sizes at the end do not hide the last word.
+const TRAILING_SIZE = /(\s+(\d+(\.\d+)?\s*(x|×)\s*)*\d+(\.\d+)?\s*(cm|mm|m|in|inch|"|')?)+$/i;
+const SOFT_ANY = words(['cushion', 'cushions', 'pad', 'pads', 'pillow', 'pillows', 'rug', 'rugs', 'throw']);
+export function furnitureSub(name) {
+  const full = String(name || '');
+  const head = full.split(/\s+(?:with|w\/|for|incl\.?|including|plus)\s+|\s*[|–—(]\s*|,/i)[0].trim() || full;
+  const last = (head.replace(TRAILING_SIZE, '').split(/\s+/).pop() || '').split('/')[0];
+  // "Scatter Cushion Covers" are cushions; "Garden Bench Cover" is a cover.
+  if (SOFT_PHRASE.test(head)) return 'Cushions & rugs';
+  if (COVER_END.test(last) || COVER_PHRASE.test(head)) return 'Furniture covers';
+  if (SOFT_END.test(last)) return 'Cushions & rugs';
+  for (const [sub, re] of PIECE_SUBS) if (re.test(head)) return sub;
+  if (COVER_ANY.test(head)) return 'Furniture covers';
+  if (SOFT_ANY.test(head)) return 'Cushions & rugs';
+  return 'Garden furniture';
 }

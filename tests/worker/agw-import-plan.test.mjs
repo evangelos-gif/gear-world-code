@@ -113,7 +113,8 @@ test('plan: a Google Shopping feed in Downloads (GS Workwear) joins sizes, build
   assert.equal(stats.rows, 4);
   assert.equal(stats.accepted, 2);
   assert.equal(stats.sizesJoined, 1);
-  assert.deepEqual(stats.perRetailer, { 'GS Workwear': 2 });
+  assert.deepEqual(Object.keys(stats.perRetailer), ['GS Workwear']);
+  assert.equal(stats.perRetailer['GS Workwear'].accepted, 2);
   const charger = products.find(p => /Charger/.test(p.product_name));
   assert.equal(charger.product_name, 'Draper Car Battery Charger 12V');
   assert.equal(charger.price, 37.99);

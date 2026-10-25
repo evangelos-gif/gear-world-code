@@ -85,6 +85,9 @@ function Confirm-Approval([string]$phrase) {
 }
 
 # Runs wrangler in the hub folder through a temporary .cmd file (plain text output in Windows PowerShell 5.1).
+# -Retry: on a network error ("fetch failed") or a passing Cloudflare error, try again, up to 3 times. Passing errors:
+# 7403 'account not authorized' (23 Oct 2026, between two successful calls) and 10000 'Authentication error' (24 Oct
+# 2026: the 1-hour wrangler sign-in ran out mid-run, L43). Only for calls that are safe to repeat.
 function Invoke-Wrangler([string]$Arguments, [switch]$Retry) {
     if ($Arguments -match '[&|<>^%]') { throw 'Unsafe characters in wrangler arguments' }
     $lines = @('@echo off', ('cd /d "{0}"' -f $HubDir), 'set CI=true', 'set WRANGLER_SEND_METRICS=false', 'set FORCE_COLOR=0', 'set NO_COLOR=1', ('call npx --yes wrangler {0} 2>&1' -f $Arguments))
@@ -102,9 +105,9 @@ function Invoke-Wrangler([string]$Arguments, [switch]$Retry) {
         }
         $text = (($out | ForEach-Object { "$_" }) -join "`n") -replace '\x1b\[[0-9;]*m', ''
         $result = @{ code = $code; text = $text }
-        $network = $text -match '(?i)fetch failed|connectivity issue|ECONNRESET|ETIMEDOUT|EAI_AGAIN|ENOTFOUND|socket hang up'
+        $network = $text -match '(?i)fetch failed|connectivity issue|ECONNRESET|ETIMEDOUT|EAI_AGAIN|ENOTFOUND|socket hang up|code: 7403|code: 10000|Not currently importing anything'
         if ($code -eq 0 -or -not $network -or $try -eq $tries) { break }
-        Say ('Πρόβλημα δικτύου με το Cloudflare. Ξαναδοκιμάζω σε {0} δευτερόλεπτα...' -f (5 * $try)) 'Yellow'
+        Say ('Προσωρινό πρόβλημα με το Cloudflare. Ξαναδοκιμάζω σε {0} δευτερόλεπτα...' -f (5 * $try)) 'Yellow'
         Start-Sleep -Seconds (5 * $try)
     }
     return $result

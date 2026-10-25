@@ -234,6 +234,15 @@ if (Get-Command node -ErrorAction SilentlyContinue) {
         Check ($srep.Contains('Sony WH-1000XM5')) 'feed sample: shows sample products'
     }
     Check ((Get-FileHash -LiteralPath $gzPath -Algorithm SHA256).Hash -eq $archHash) 'feed sample: Awin archive unchanged'
+    $multiOut = Join-Path $work 'sample-multi'
+    & $exe -NoProfile -ExecutionPolicy Bypass -File $runTool -LocalRepo $repo -Tool awin-feed-sample -Advertiser '123932,30645' -Archive $arch -OutDir $multiOut -NoClipboard
+    Check ($LASTEXITCODE -eq 0) 'feed sample: several retailers in one run'
+    $multi = @(Get-ChildItem -LiteralPath $multiOut -Directory -Filter 'AWIN_FEED_SAMPLE_123932-30645_*' -ErrorAction SilentlyContinue)
+    Check ($multi.Count -eq 1) 'feed sample: one report folder for several retailers'
+    if ($multi.Count -ge 1) {
+        $mrep = [System.IO.File]::ReadAllText((Join-Path $multi[0].FullName 'report.txt'))
+        Check ($mrep.Contains('##### ADVERTISER 123932') -and $mrep.Contains('##### ADVERTISER 30645')) 'feed sample: one section per retailer'
+    }
 
     $carOut = Join-Path $work 'car-scan-run'
     & $exe -NoProfile -ExecutionPolicy Bypass -File $runTool -LocalRepo $repo -Tool car-feed-scan -Archive $arch -OutDir $carOut -KeyFile (Join-Path $work 'no-key.dat') -NoClipboard | Out-Null
@@ -355,6 +364,7 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         'echo %* | findstr /C:"migrations apply" >nul && goto ok',
         'echo %* | findstr /C:"time-travel info" >nul && goto ttinfo',
         'echo %* | findstr /C:"--command" >nul && goto query',
+        'echo %* | findstr /C:"--file" >nul && goto execfile',
         'echo %* | findstr /C:"d1 execute" >nul && goto ok',
         'echo %* | findstr /C:" deploy" >nul && goto deploy',
         'echo unknown command 1>&2',
@@ -394,6 +404,12 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         'echo Uploaded technology-gear-world',
         'echo   https://technology-gear-world.example-test.workers.dev',
         'exit /b 0',
+        ':execfile',
+        'if not defined GW_FAKE_IMPORTFLAKY goto ok',
+        'if exist "%GW_FAKE_STATE%\importflaky.txt" goto ok',
+        'echo flaky > "%GW_FAKE_STATE%\importflaky.txt"',
+        'echo X [ERROR] Not currently importing anything.',
+        'exit /b 1',
         ':ok',
         'echo OK',
         'exit /b 0'
@@ -444,6 +460,31 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         Check ($iBackup -ge 0 -and $iExec -gt $iBackup) 'cloudflare import: restore point before loading'
         $notes = @(Get-ChildItem -LiteralPath (Join-Path $cfWork 'backups') -Filter '*.txt' -ErrorAction SilentlyContinue)
         Check ($notes.Count -eq 1 -and ([System.IO.File]::ReadAllText($notes[0].FullName)).Contains($fakeBookmark)) 'cloudflare import: restore point written with the bookmark'
+        # 25 Oct 2026 (lessons L64): D1 answered "Not currently importing anything" after loading 0005.sql. The same file is sent again.
+        $env:GW_FAKE_IMPORTFLAKY = '1'
+        $fileCallsBefore = ([regex]::Matches((Calls), '--file')).Count
+        Check ((Run-Cf @('-Step', 'import', '-Archive', $arch, '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ TGW IMPORT')) -eq 0) 'cloudflare import: "Not currently importing anything" is retried, exit 0'
+        Remove-Item Env:\GW_FAKE_IMPORTFLAKY
+        $sqlCount = @(Get-ChildItem -LiteralPath $cfOut -Directory -Filter 'TGW_IMPORT_PLAN_*' | Sort-Object LastWriteTime | Select-Object -Last 1 | ForEach-Object { Get-ChildItem -LiteralPath (Join-Path $_.FullName 'sql') -Filter '*.sql' }).Count
+        Check ((Test-Path -LiteralPath (Join-Path $state 'importflaky.txt')) -and ([regex]::Matches((Calls), '--file')).Count -eq $fileCallsBefore + $sqlCount + 1) 'cloudflare import: the file with the passing error is sent twice, every other file once'
+        # A big import needs -PaidPlan (lessons L49): about 8 D1 rows written per product; Workers Free allows 100,000 a day.
+        $bigArch = Join-Path $work 'awin-big'
+        New-Item -ItemType Directory -Path $bigArch -Force | Out-Null
+        $sbBig = New-Object System.Text.StringBuilder
+        [void]$sbBig.Append("aw_deep_link,product_name,aw_product_id,merchant_product_id,merchant_image_url,merchant_category,search_price,currency,brand_name,in_stock`n")
+        for ($i = 1; $i -le 11400; $i++) {
+            [void]$sbBig.Append(('https://www.awin1.com/pclick.php?p={0}&a=1&m=123932,Sony WH-1000XM{0} Wireless Headphones,{0},JB-{0},https://img.example/{0}.jpg,Audio,{1}.99,GBP,Sony,1' -f $i, (20 + ($i % 50))) + "`n")
+        }
+        $bigGz = Join-Path $bigArch 'AWIN_123932_114093.csv.gz'
+        $fs = [System.IO.File]::Create($bigGz)
+        $gz = New-Object System.IO.Compression.GZipStream($fs, [System.IO.Compression.CompressionMode]::Compress)
+        $bytes = [System.Text.Encoding]::UTF8.GetBytes($sbBig.ToString())
+        $gz.Write($bytes, 0, $bytes.Length); $gz.Close(); $fs.Close()
+        $execBefore = ([regex]::Matches((Calls), '--file')).Count
+        Check ((Run-Cf @('-Step', 'import', '-Archive', $bigArch, '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ TGW IMPORT')) -eq 13) 'cloudflare import of 91,200 rows written without -PaidPlan: stops (exit 13)'
+        Check (([regex]::Matches((Calls), '--file')).Count -eq $execBefore) 'cloudflare import stopped by the free-plan limit: loads nothing'
+        Check ((Run-Cf @('-Step', 'import', '-Archive', $bigArch, '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ TGW IMPORT', '-PaidPlan')) -eq 0) 'cloudflare import with -PaidPlan: exit 0'
+        Check (([regex]::Matches((Calls), '--file')).Count -gt $execBefore) 'cloudflare import with -PaidPlan: loads the files'
         $deploysBefore = ([regex]::Matches((Calls), 'wrangler deploy')).Count
         Check ((Run-Cf @('-Step', 'domain')) -eq 0) 'cloudflare domain without -Apply: exit 0'
         Check (([regex]::Matches((Calls), 'wrangler deploy')).Count -eq $deploysBefore -and -not ([System.IO.File]::ReadAllText($cfg) -match '(?m)^\s*"routes"\s*:')) 'cloudflare domain without -Apply: changes nothing'
@@ -1642,6 +1683,13 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         'echo unknown command 1>&2',
         'exit /b 1',
         ':ttinfo',
+        'if not defined GW_FAKE_AUTHFLAKY goto ttinforeal',
+        'if exist "%GW_FAKE_STATE%\authflaky.txt" goto ttinforeal',
+        'echo once > "%GW_FAKE_STATE%\authflaky.txt"',
+        'echo X [ERROR] A request to the Cloudflare API failed.',
+        'echo   Authentication error [code: 10000]',
+        'exit /b 1',
+        ':ttinforeal',
         ('echo The current bookmark is ' + $liBookmark),
         'exit /b 0',
         ':layout',
@@ -1701,6 +1749,15 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         $lastLi = [System.IO.File]::ReadAllText(($liReports | Sort-Object LastWriteTime | Select-Object -Last 1).FullName)
         Check ($lastLi.Contains("DELETE FROM products WHERE retailer = 'Coes'")) 'legacy import: report shows how to remove only this retailer'
 
+        # A passing Cloudflare sign-in error (10000) when the restore point is taken: tried again, then the import goes on
+        # with the restore point before loading (L43).
+        $liBefore = (LiCalls).Length
+        $env:GW_FAKE_AUTHFLAKY = '1'
+        Check ((Run-Li @('-Site', 'mgw', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ COES MGW')) -eq 0) 'legacy import: a passing sign-in error (10000) is tried again'
+        Remove-Item Env:\GW_FAKE_AUTHFLAKY
+        $ca = (LiCalls).Substring($liBefore)
+        Check (([regex]::Matches($ca, 'time-travel info mens-gear-world')).Count -eq 2 -and $ca.IndexOf('--file') -gt $ca.LastIndexOf('time-travel info')) 'legacy import: after the retry, restore point before loading'
+
         # Add-only plan (Joybuy beauty on WGW, where Joybuy is already on the site): hides nothing, never offers
         # to delete the shop's products, and its quick undo hides only the products it adds.
         $jArch = Join-Path $work 'joybuy-arch'
@@ -1738,9 +1795,111 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
             Check ($bt.Contains('joybuy -> WGW: exit 0') -and $bt.Contains('joybuy -> MGW: exit 0') -and $bt.Contains('##### PLAN joybuy')) 'import batch: both pairs and the plan in the report'
         }
         Check (-not ((LiCalls) -match '--file|time-travel')) 'import batch without -Apply: only reads'
+        # -Tgw: the read-only TGW plan after the pairs, in the same report.
+        $tOut = Join-Path $work 'batch-tgw-out'
+        $bTgw = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', (Join-Path $repo 'tools\legacy-import-batch.ps1'), '-Pairs', 'joybuy:wgw', '-Tgw', '-Archive', $jArch, '-WorkDir', $liWork, '-OutDir', $tOut, '-NoClipboard')
+        & $exe @bTgw | Out-Null
+        Check ($LASTEXITCODE -eq 0) 'import batch with -Tgw (read-only): exit 0'
+        $tRep = @(Get-ChildItem -LiteralPath $tOut -File -Filter 'IMPORT_BATCH_*.txt')
+        if ($tRep.Count -ge 1) {
+            $tt = [System.IO.File]::ReadAllText($tRep[0].FullName)
+            Check ($tt.Contains('TGW: exit 0') -and $tt.Contains('##### PLAN TGW') -and $tt.Contains('TGW IMPORT PLAN (dry run, nothing imported)')) 'import batch with -Tgw: the TGW plan is in the report'
+        } else { Check $false 'import batch with -Tgw: one combined report' }
+        Check (-not ((LiCalls) -match '--file|time-travel')) 'import batch with -Tgw without -Apply: only reads'
         $bBad = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', (Join-Path $repo 'tools\legacy-import-batch.ps1'), '-Pairs', 'joybuy:xyz', '-OutDir', $bOut, '-NoClipboard')
         & $exe @bBad | Out-Null
         Check ($LASTEXITCODE -eq 2) 'import batch: a wrong site is refused'
+        $bBadC = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', (Join-Path $repo 'tools\legacy-import-batch.ps1'), '-Pairs', 'none', '-Cleanups', 'viaduct-sizes:xyz', '-OutDir', $bOut, '-NoClipboard')
+        & $exe @bBadC | Out-Null
+        Check ($LASTEXITCODE -eq 2) 'import batch: a wrong clean-up site is refused'
+        # A pair for Construction Gear World is accepted (legacy-import.ps1 has CGW; lessons L63): an empty archive only ends that pair.
+        $cgwArch = Join-Path $work 'batch-cgw-empty-archive'
+        New-Item -ItemType Directory -Path $cgwArch -Force | Out-Null
+        $cOut = Join-Path $work 'batch-cgw-out'
+        & $exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $repo 'tools\legacy-import-batch.ps1') -Pairs 'grabo:cgw' -Archive $cgwArch -WorkDir $liWork -OutDir $cOut -NoClipboard | Out-Null
+        $cRep = @(Get-ChildItem -LiteralPath $cOut -File -Filter 'IMPORT_BATCH_*.txt' -ErrorAction SilentlyContinue)
+        Check ($LASTEXITCODE -eq 0 -and $cRep.Count -eq 1 -and ([System.IO.File]::ReadAllText($cRep[0].FullName)).Contains('grabo -> CGW: exit')) 'import batch: a CGW pair is accepted'
+    } finally {
+        $env:PATH = $oldPath
+        Remove-Item Env:\GW_FAKE_STATE -ErrorAction SilentlyContinue
+    }
+}
+
+# 8c2. legacy-refresh.ps1 (price, picture and stock of shops already on a site, lessons L57) with a fake wrangler (Windows only)
+if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
+    Write-Host 'legacy-refresh.ps1 (fake wrangler)'
+    $rfTool = Join-Path (Join-Path $repo 'tools') 'legacy-refresh.ps1'
+    $rfState = Join-Path $work 'rf-state'
+    $rfBin = Join-Path $work 'rf-bin'
+    $rfWork = Join-Path $work 'rf-work'
+    $rfOut = Join-Path $work 'rf-out'
+    $rfArch = Join-Path $work 'rf-arch'
+    New-Item -ItemType Directory -Path $rfState, $rfBin, $rfArch -Force | Out-Null
+    $rfBookmark = '00000085-0000024c-00004c6d-' + [guid]::NewGuid().ToString('N')
+    $rfNpx = @(
+        '@echo off',
+        'echo %* >> "%GW_FAKE_STATE%\calls.log"',
+        'echo %* | findstr /C:"time-travel info" >nul && goto ttinfo',
+        'echo %* | findstr /C:"GROUP BY retailer" >nul && goto shops',
+        'echo %* | findstr /C:"sqlite_master" >nul && goto idx',
+        'echo %* | findstr /C:"id BETWEEN" >nul && goto rows',
+        'echo %* | findstr /C:"AS n FROM products WHERE retailer" >nul && goto after',
+        'echo %* | findstr /C:"--file" >nul && goto ok',
+        'echo unknown command 1>&2',
+        'exit /b 1',
+        ':ttinfo',
+        ('echo The current bookmark is ' + $rfBookmark),
+        'exit /b 0',
+        ':shops',
+        'echo [{"results":[{"retailer":"Tooled Up","n":2},{"retailer":"Reidl","n":5}],"success":true}]',
+        'exit /b 0',
+        ':idx',
+        'echo [{"results":[{"name":"idx_products_active_price","sql":"CREATE INDEX idx_products_active_price ON products(is_active, price)"},{"name":"idx_products_active_id","sql":"CREATE INDEX idx_products_active_id ON products(is_active, id)"}],"success":true}]',
+        'exit /b 0',
+        ':rows',
+        'echo [{"results":[{"id":1,"awin_product_id":"100046875","merchant_product_id":"100005800","product_name":"Bahco Spanner","price":11.99,"currency":"GBP","stock_status":"In Stock","image_url":"https://x/a.jpg","is_active":1},{"id":5,"awin_product_id":"555","merchant_product_id":"555","product_name":"Gone","price":7,"currency":"GBP","stock_status":"In Stock","image_url":"https://x/5.jpg","is_active":1}],"success":true}]',
+        'exit /b 0',
+        ':after',
+        'echo [{"results":[{"n":1}],"success":true}]',
+        'exit /b 0',
+        ':ok',
+        'echo OK',
+        'exit /b 0'
+    ) -join "`r`n"
+    [System.IO.File]::WriteAllText((Join-Path $rfBin 'npx.cmd'), $rfNpx + "`r`n", [System.Text.Encoding]::ASCII)
+    $rfCsv = "merchant_name,aw_product_id,merchant_product_id,product_name,merchant_image_url,search_price,currency,in_stock,stock_status,last_updated`n" +
+        ('Tooled Up,100046875,100005800,Bahco Spanner,https://x/a.jpg,12.50,GBP,1,In Stock,{0}' -f (Get-Date -Format 'yyyy-MM-dd HH:mm:ss')) + "`n"
+    [System.IO.File]::WriteAllText((Join-Path $rfArch 'AWIN_496_1001.csv'), $rfCsv, (New-Object System.Text.UTF8Encoding($false)))
+    $oldPath = $env:PATH
+    $env:PATH = $rfBin + ';' + $oldPath
+    $env:GW_FAKE_STATE = $rfState
+    $rfCalls = Join-Path $rfState 'calls.log'
+    function Run-Rf([string[]]$a) {
+        $all = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $rfTool, '-Archive', $rfArch, '-WorkDir', $rfWork, '-OutDir', $rfOut, '-NoClipboard') + $a
+        & $exe @all | Out-Null
+        return $LASTEXITCODE
+    }
+    function RfCalls { if (Test-Path -LiteralPath $rfCalls) { return [System.IO.File]::ReadAllText($rfCalls) } else { return '' } }
+    try {
+        Check ((Run-Rf @('-Pairs', 'tooled-up:cgw')) -eq 0) 'refresh without -Apply: exit 0'
+        Check (-not ((RfCalls) -match '--file|time-travel')) 'refresh without -Apply: only reads'
+        Check ((RfCalls) -match 'construction-gear-customers') 'refresh: reads the CGW database'
+        $rfRep = @(Get-ChildItem -LiteralPath $rfOut -Filter 'REFRESH_*.txt' -ErrorAction SilentlyContinue)
+        Check ($rfRep.Count -eq 1 -and ([System.IO.File]::ReadAllText($rfRep[0].FullName)).Contains('ΕΓΚΡΙΝΩ REFRESH TOOLED-UP CGW')) 'refresh: report with the plan and the approval phrase'
+        Check ((Run-Rf @('-Pairs', 'tooled-up:cgw', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ REFRESH TOOLED-UP MGW')) -eq 1) 'refresh with the wrong phrase: stops'
+        Check (-not ((RfCalls) -match '--file')) 'refresh with the wrong phrase: changes nothing'
+        Check ((Run-Rf @('-Pairs', 'tooled-up:cgw', '-Apply', '-Approve', 'egkrino refresh tooled-up cgw')) -eq 0) 'refresh with approval (Latin form): exit 0'
+        $rc = RfCalls
+        $iTT = $rc.IndexOf('time-travel info construction-gear-customers')
+        $iUp = $rc.IndexOf('update-0001.sql')
+        $iHide = $rc.IndexOf('hide.sql')
+        Check ($iTT -ge 0 -and $iUp -gt $iTT -and $iHide -gt $iUp) 'refresh: restore point, then the updates, then the hiding'
+        $rfUndo = @(Get-ChildItem -LiteralPath (Join-Path $rfWork 'backups') -Filter 'cgw-refresh-tooled-up-*-rollback.sql' -ErrorAction SilentlyContinue)
+        Check ($rfUndo.Count -eq 1 -and ([System.IO.File]::ReadAllText($rfUndo[0].FullName)).Contains('price = 11.99') -and ([System.IO.File]::ReadAllText($rfUndo[0].FullName)).Contains('SET is_active = 1')) 'refresh: rollback with the old price and the hidden product'
+        $rfNote = @(Get-ChildItem -LiteralPath (Join-Path $rfWork 'backups') -Filter 'cgw-restore-point-before-tooled-up-refresh-*.txt' -ErrorAction SilentlyContinue)
+        Check ($rfNote.Count -eq 1 -and ([System.IO.File]::ReadAllText($rfNote[0].FullName)).Contains($rfBookmark)) 'refresh: restore point written with the bookmark'
+        Check ((Run-Rf @('-Pairs', 'nobody:cgw')) -eq 5) 'refresh: a shop not on the site is reported'
+        Check ((Run-Rf @('-Pairs', 'tooled up:cgw')) -eq 2) 'refresh: a wrong pair is refused'
     } finally {
         $env:PATH = $oldPath
         Remove-Item Env:\GW_FAKE_STATE -ErrorAction SilentlyContinue
@@ -1839,6 +1998,16 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         Check ($undoF.Count -eq 1 -and ([System.IO.File]::ReadAllText($undoF[0].FullName)).Contains('SET is_active = 1')) 'cleanup: rollback file written'
         $rp = @(Get-ChildItem -LiteralPath $bk -Filter '*-restore-point.txt' -ErrorAction SilentlyContinue)
         Check ($rp.Count -eq 1 -and ([System.IO.File]::ReadAllText($rp[0].FullName)).Contains($lcBookmark)) 'cleanup: restore point written with the bookmark'
+        # legacy-import-batch.ps1 -Cleanups: the clean-up in the same paste and the same report (read-only here, no imports).
+        if (Test-Path -LiteralPath $lcCalls) { Remove-Item -LiteralPath $lcCalls -Force }
+        $cbOut = Join-Path $work 'batch-cleanup-out'
+        & $exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $repo 'tools\legacy-import-batch.ps1') -Pairs none -Cleanups 'instock:mgw' -WorkDir $lcWork -OutDir $cbOut -NoClipboard | Out-Null
+        Check ($LASTEXITCODE -eq 0) 'import batch with -Cleanups (read-only): exit 0'
+        $cbRep = @(Get-ChildItem -LiteralPath $cbOut -File -Filter 'IMPORT_BATCH_*.txt')
+        $cbText = ''
+        if ($cbRep.Count -eq 1) { $cbText = [System.IO.File]::ReadAllText($cbRep[0].FullName) }
+        Check ($cbText.Contains('cleanup instock -> MGW: exit 0') -and $cbText.Contains('##### CLEANUP_INSTOCK_MGW_')) 'import batch with -Cleanups: the clean-up report is in the batch report'
+        Check (-not ((LcCalls) -match '--file|time-travel')) 'import batch with -Cleanups without -Apply: only reads'
     } finally {
         $env:PATH = $oldPath
         Remove-Item Env:\GW_FAKE_STATE -ErrorAction SilentlyContinue

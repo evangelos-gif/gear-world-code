@@ -1,5 +1,6 @@
 // Gear World sites (shared by every site on the engine; TGW keeps the master copy). One small script; every page also works without it.
-// Parts: language (L24), currency (L25), Gear Cart (L26), compare (L23), voice search, newsletter, discount codes (L32).
+// Parts: language (L24, with country names for "Delivers to", L62), currency (L25), Gear Cart (L26), compare (L23),
+// voice search, newsletter, discount codes (L32).
 (function () {
   'use strict';
 
@@ -45,6 +46,16 @@
     if (isNaN(d.getTime())) return '';
     return new Intl.DateTimeFormat(lang, { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' }).format(d);
   }
+  // Country names ("Delivers to: Germany", lessons L62) come from the browser, in the visitor's language.
+  // An older browser without Intl.DisplayNames keeps the English name.
+  var regions = null;
+  function countryName(code) {
+    try {
+      if (!regions || regions.lang !== lang) regions = { lang: lang, names: new Intl.DisplayNames([lang], { type: 'region' }) };
+      var n = regions.names.of(String(code).toUpperCase());
+      return n && n !== code ? n : '';
+    } catch (e) { return ''; }
+  }
 
   var LETTERS = /[A-Za-zÀ-ɏͰ-ϿЀ-ӿ]/;
   var ATTRS = ['placeholder', 'aria-label', 'title'];
@@ -69,6 +80,11 @@
       for (var a = 0; a < ATTRS.length; a++) {
         var v = node.getAttribute(ATTRS[a]);
         if (v && LETTERS.test(v)) node.setAttribute(ATTRS[a], t(v.trim()));
+      }
+      if (node.hasAttribute('data-country')) {
+        var cname = countryName(node.getAttribute('data-country'));
+        if (cname) node.textContent = cname;
+        continue;
       }
       if (node.hasAttribute('data-i18n')) {
         var args = [];

@@ -1,5 +1,5 @@
-// Construction Gear World on the engine (lessons L28, L33): euro prices with "≈ £", retailer flags, the import's
-// own product matches, worldwide wording, and the old category and product addresses.
+// Construction Gear World on the engine (lessons L28, L33, L62): euro prices with "≈ £", where each retailer
+// delivers, the import's own product matches, worldwide wording, and the old category and product addresses.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -48,13 +48,15 @@ test('product addresses stay the old ones: /product/<name>-<id>/', async () => {
   assert.equal((await get(`/product/${legacySlug('Torqmaster Diamond Core Drill Bit 52mm')}-${id}/`, env)).status, 200);
 });
 
-test('a euro price stays in euros with "≈ £" next to it, and the retailer has its country flag', async () => {
+test('a euro price stays in euros with "≈ £" next to it, and the page says where the retailer delivers (L62)', async () => {
   const env = envOf();
   const id = idOf(env, 'Torqmaster Diamond Core Drill Bit 52mm');
   const html = await (await get(`/product/${legacySlug('Torqmaster Diamond Core Drill Bit 52mm')}-${id}/`, env)).text();
   assert.match(html, /€89\.90/);
   assert.match(html, /≈ £78\.17/);
-  assert.match(html, /Reidl <img class="flag" src="\/assets\/flags\/de\.svg\?v=[^"]+" alt="Germany"/);
+  // Reidl delivers to Germany and Austria only (reidl.de/shop/zahlungversand): flags, then the names.
+  assert.match(html, /<dt>Delivers to<\/dt><dd class="ship-dd"><span class="ship-flags"><img class="flag" src="\/assets\/flags\/de\.svg\?v=[^"]+" alt="" width="18" height="12"><img class="flag" src="\/assets\/flags\/at\.svg\?v=[^"]+" alt="" width="18" height="12"><\/span> <span class="ship-names"><span data-country="DE">Germany<\/span>, <span data-country="AT">Austria<\/span><\/span><\/dd>/);
+  assert.ok(!/Reidl <img class="flag"/.test(html), 'no second flag next to the retailer name');
   // Structured data keeps the real currency.
   assert.match(html, /"priceCurrency":"EUR"/);
   // A pound price gets no "≈".

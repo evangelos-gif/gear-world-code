@@ -83,7 +83,8 @@ test('category rules: cases from the real Joybuy report of 18 Oct 2026', () => {
     ['Hisense 75"E8Q Mini LED 4K HDR Smart VIDAA OS TV with Dolby Atmos speakers', 'Electronics > Video > Televisions', 'tv-home-cinema'],
     ['TECLAST P30T Tablet 10.1-inch Dual SIM 4G', 'Electronics > Computers > Tablet Computers', 'laptops-computing'],
     ['Cooler Master COOL Hyper 212 Pro', 'Electronics > Electronics Accessories > Computer Components', 'laptops-computing'],
-    ['Kingston Technology A400 480 GB 2.5" Serial ATA III TLC', 'Electronics > Electronics Accessories > Computer Components', 'laptops-computing'],
+    // a drive goes with the other drives on the storage page (sixth check, lessons L50)
+    ['Kingston Technology A400 480 GB 2.5" Serial ATA III TLC', 'Electronics > Electronics Accessories > Computer Components', 'accessories-storage'],
     ['Apple - AirTag - 4 Pack', 'Electronics > Electronics Accessories > Computer Accessories', 'accessories-storage'],
     ['DELL Wireless Audio Receiver - HR024', 'Electronics > Audio > Audio Accessories > Audio', 'audio'],
   ];

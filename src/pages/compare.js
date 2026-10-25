@@ -1,7 +1,7 @@
 // Compare 2-4 products side by side (lessons L23), with "Our pick" chosen by a rule that is shown on the page.
 import { html } from '../lib/html.js';
 import { productPath, formatPrice, savingPercent } from '../lib/text.js';
-import { page, breadcrumbs, tr, priceTag } from './layout.js';
+import { page, breadcrumbs, tr, priceTag, deliveryText } from './layout.js';
 
 export const COMPARE_MAX = 4;
 
@@ -68,6 +68,7 @@ export function comparePage(site, products, ids) {
     ${row('Previous price', p => (was(p) ? html`<s>${was(p)}</s> <span class="tag-save">${tr('Save {0}%', savingPercent(p.price, p.was_price))}</span>` : '—'))}
     ${row('Stock', p => (inStock(p) ? html`<span class="ok">In stock</span>` : html`<span class="warn">Out of stock</span>`))}
     ${row('Retailer', p => html`<span translate="no">${p.retailer}</span>`)}
+    ${site.deliversTo ? row('Delivers to', p => deliveryText(site, p.retailer) || '—') : ''}
     ${row('Brand', p => html`<span translate="no">${p.brand || '—'}</span>`)}
     ${row('Category', p => categoryName(p.category_slug))}
     ${row('Condition', p => (p.item_condition === 'refurbished' ? 'Refurbished' : 'New'))}

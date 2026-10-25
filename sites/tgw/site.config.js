@@ -11,7 +11,7 @@ export default {
   lang: 'en-GB',
   locale: 'en-GB',
   currency: 'GBP',
-  assetVersion: '2026-10-20-3',
+  assetVersion: '2026-10-25-ship-2',
   // Key prefix for what a visitor's browser remembers (compare list, cart, language, currency).
   // Discount codes and sales from retailers (promos/promos.js, lessons L32), with the Awin publisher id
   // used for their links. The id is public: it is part of every Awin link.
@@ -35,6 +35,11 @@ export default {
     { code: 'ro-RO', label: 'Română' },
     { code: 'ru-RU', label: 'Русский' }
   ],
+
+  // Where the retailers deliver (lessons L62): every product card and product page says it, so a visitor from
+  // any country sees at once whether they can order. default: every retailer not named in retailers.
+  // Country codes: src/lib/delivery.js. All the retailers here are UK shops.
+  deliversTo: { default: ['GB'] },
 
   // 5 display currencies, the same as the other Gear World sites. Retailers charge in GBP, so the GBP
   // price always stays on the page and the converted price is shown next to it as "≈" (lessons L25).

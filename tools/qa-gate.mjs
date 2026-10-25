@@ -114,6 +114,9 @@ htmlChecks('/', home);
 const fmtTotal = new Intl.NumberFormat('en-GB').format(total);
 check('L09', total === 0 || home.body.includes(fmtTotal), '/: real product count is in the HTML (not filled in later by JavaScript)', `expected ${fmtTotal}`);
 check('L09', !/>\s*0\s*(products|PRODUCTS)/.test(home.body) || total === 0, '/: no "0 products" placeholder');
+if (site && site.deliversTo && total > 0) {
+  check('L62', /<p class="label-ship" data-ship="[A-Z ]+">[\s\S]*?<span class="ship-word">Delivers to<\/span>:/.test(home.body), '/: product cards say where the retailer delivers');
+}
 
 // Categories
 const categoryPaths = site ? site.categories.map(c => `/category/${c.slug}/`) : all(home.body, /href="(\/category\/[^"?#]+\/)"/g).map(m => m[1]).filter((v, i, a) => a.indexOf(v) === i);
@@ -142,6 +145,9 @@ for (const p of productPaths) {
   const out = r.body.match(/<a class="btn btn-deal[^"]*" href="(\/out\/\d+)" rel="([^"]+)"/);
   check('L20', Boolean(out), `${p}: has a button to the retailer (/out/<id>)`);
   if (out) check('L20', /sponsored/.test(out[2]) && /nofollow/.test(out[2]), `${p}: retailer link is rel="sponsored nofollow"`, out[2]);
+  if (site && site.deliversTo) {
+    check('L62', /<dt>Delivers to<\/dt><dd class="ship-dd">[\s\S]*?(data-country="[A-Z]{2}"|>Worldwide<)/.test(r.body), `${p}: says where the retailer delivers`);
+  }
   const prod = jsonLd(r.body).find(x => x['@type'] === 'Product');
   check('L12', Boolean(prod), `${p}: Product structured data present`);
   if (prod) {

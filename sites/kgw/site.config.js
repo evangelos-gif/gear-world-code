@@ -12,7 +12,7 @@ export default {
   lang: 'en-GB',
   locale: 'en-GB',
   currency: 'GBP',
-  assetVersion: '2026-10-20-kgw-1',
+  assetVersion: '2026-10-25-kgw-ship-2',
   promos: promosFor('KGW'),
   awinPublisherId: AWIN_PUBLISHER_ID,
   storagePrefix: 'kgw',
@@ -54,6 +54,10 @@ export default {
     { code: 'ro-RO', label: 'Română' },
     { code: 'ru-RU', label: 'Русский' }
   ],
+  // Where the retailers deliver (lessons L62): every product card and product page says it, so a visitor from
+  // any country sees at once whether they can order. default: every retailer not named in retailers.
+  // Country codes: src/lib/delivery.js. All the retailers here are UK shops.
+  deliversTo: { default: ['GB'] },
   displayCurrencies: ['GBP', 'EUR', 'ALL', 'RON', 'RUB'],
   cart: { name: 'Gear Cart', maxItems: 30, maxQuantity: 99 },
   voiceSearch: true,

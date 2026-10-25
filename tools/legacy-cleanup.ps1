@@ -1,11 +1,13 @@
 ﻿<#
 .SYNOPSIS
-  Clean-up of products already on ONE older Gear World site (MGW, WGW or KGW): hides products that should not be shown.
+  Clean-up of products already on ONE older Gear World site (MGW, WGW, KGW, HGW or GGW): hides products that should not be shown.
 
 .DESCRIPTION
   Rules: tools/cleanup-rules/<rules>.mjs (-Rules instock): one card per product instead of one per size and colour,
   smartwatch straps, films and spare parts out of Watches, political party merchandise.
   -Rules family (KGW, a site for parents): medicines, food supplements, adult clothing and items for the mother.
+  -Rules noimage (any site): products shown without a picture (empty, not https, or Awin's noimage placeholder).
+  -Rules viaduct-sizes (MGW, WGW): the old Viaduct Clothing cards, one per size, once the new one-per-product cards are there.
   -Rules trade (CGW): puzzles, toys, supplements, baby and phone items from the general shops (InStock, Joybuy).
 
   Without -Apply: READ-ONLY. Counts what WOULD be hidden, per reason and category, with samples. Changes nothing.
@@ -18,7 +20,7 @@
 #>
 param(
     [Parameter(Mandatory = $true)][string]$Rules,
-    [Parameter(Mandatory = $true)][ValidateSet('mgw', 'wgw', 'kgw', 'hgw', 'cgw')][string]$Site,
+    [Parameter(Mandatory = $true)][ValidateSet('mgw', 'wgw', 'kgw', 'hgw', 'ggw', 'cgw')][string]$Site,
     [switch]$Apply,
     [string]$Approve = '',
     [string]$WorkDir = '',
@@ -34,6 +36,7 @@ $SiteInfo = @{
     wgw = @{ db = 'womens-gear-world'; domain = 'womensgearworld.com'; work = 'womens-gear-world-engine' }
     kgw = @{ db = 'kids-gear-world'; domain = 'kidsgearworld.com'; work = 'kids-gear-world-engine' }
     hgw = @{ db = 'home-gear-world'; domain = 'homegearworld.com'; work = 'home-gear-world-engine' }
+    ggw = @{ db = 'garden-gear-world'; domain = 'gardengearworld.com'; work = 'garden-gear-world-engine' }
     cgw = @{ db = 'construction-gear-customers'; domain = 'constructiongearworld.com'; work = 'construction-gear-world-engine' }
 }
 $DbName = $SiteInfo[$Site].db
@@ -88,7 +91,9 @@ function Confirm-Approval([string]$phrase) {
 }
 
 # Runs wrangler through a temporary .cmd file, so output is plain text in Windows PowerShell 5.1.
-# -Retry: on a network error try again, up to 3 times. Only for calls that are safe to repeat.
+# -Retry: on a network error ("fetch failed") or a passing Cloudflare error, try again, up to 3 times. Passing errors:
+# 7403 'account not authorized' (23 Oct 2026, between two successful calls) and 10000 'Authentication error' (24 Oct
+# 2026: the 1-hour wrangler sign-in ran out mid-run, L43). Only for calls that are safe to repeat.
 function Invoke-Wrangler([string]$Folder, [string]$Arguments, [switch]$Retry) {
     if ($Arguments -match '[&|<>^%]') { throw 'Unsafe characters in wrangler arguments' }
     $tmp = [System.IO.Path]::GetTempPath()
@@ -112,9 +117,9 @@ function Invoke-Wrangler([string]$Folder, [string]$Arguments, [switch]$Retry) {
         }
         $text = (($out | ForEach-Object { "$_" }) -join "`n") -replace '\x1b\[[0-9;]*m', ''
         $result = @{ code = $code; text = $text }
-        $network = $text -match '(?i)fetch failed|connectivity issue|ECONNRESET|ETIMEDOUT|EAI_AGAIN|ENOTFOUND|socket hang up'
+        $network = $text -match '(?i)fetch failed|connectivity issue|ECONNRESET|ETIMEDOUT|EAI_AGAIN|ENOTFOUND|socket hang up|code: 7403|code: 10000|Not currently importing anything'
         if ($code -eq 0 -or -not $network -or $try -eq $tries) { break }
-        Say ('Πρόβλημα δικτύου με το Cloudflare. Ξαναδοκιμάζω σε {0} δευτερόλεπτα ({1}/{2})...' -f (5 * $try), ($try + 1), $tries) 'Yellow'
+        Say ('Προσωρινό πρόβλημα με το Cloudflare. Ξαναδοκιμάζω σε {0} δευτερόλεπτα ({1}/{2})...' -f (5 * $try), ($try + 1), $tries) 'Yellow'
         Start-Sleep -Seconds (5 * $try)
     }
     return $result

@@ -3,6 +3,7 @@ import { html, raw, jsonLd, toString } from '../lib/html.js';
 import { productPath, categoryPath, formatPrice, savingPercent } from '../lib/text.js';
 import { promoBarHtml } from './offers.js';
 import { activePromos } from '../lib/promos.js';
+import { deliveryCountries, COUNTRY_NAMES, FLAGS, WORLDWIDE } from '../lib/delivery.js';
 
 // Files under /assets/ are cached for a year, so every link to them carries ?v=<assetVersion> (lessons L31).
 // Without it, a phone kept an old icons.svg that had no cart icon, and the cart button showed empty.
@@ -65,12 +66,51 @@ export function priceTag(site, amount, currency, cls = 'price') {
 }
 
 // Small flag next to a retailer that sells from another country (site.retailerCountries: { 'Reidl': 'DE' }).
-const COUNTRY_NAMES = { DE: 'Germany', NL: 'Netherlands', FR: 'France', IT: 'Italy', ES: 'Spain', IE: 'Ireland', PL: 'Poland', US: 'United States' };
+// A site that says where each retailer delivers (site.deliversTo, lessons L62) shows that instead.
 export function retailerFlag(site, name) {
+  if (site.deliversTo) return '';
   const cc = site.retailerCountries && site.retailerCountries[String(name || '')];
   if (!cc || !/^[A-Z]{2}$/.test(cc)) return '';
   const label = COUNTRY_NAMES[cc] || cc;
   return html` <img class="flag" src="${asset(site, `flags/${cc.toLowerCase()}.svg`)}" alt="${label}" title="${label}" width="18" height="12">`;
+}
+
+// Where the retailer delivers (lessons L62): the flags (only a help for the eye) and the country names.
+// The names are English in the HTML; the site script swaps each one (data-country) for the browser's own name
+// of that country in the visitor's language. max: how many countries to name (a card: 2, then "+3"); 0 = all.
+function deliveryParts(site, retailer, max) {
+  const list = deliveryCountries(site, retailer);
+  if (!list.length) return null;
+  if (list[0] === WORLDWIDE) {
+    return { codes: list, flags: html`<span class="ship-flags">${icon('globe', 'icon ship-globe')}</span>`, names: html`<span class="ship-names"><span class="ship-world">Worldwide</span></span>` };
+  }
+  const shown = max > 0 ? list.slice(0, max) : list;
+  const more = list.length - shown.length;
+  const withFlag = shown.filter(c => FLAGS.includes(c));
+  return {
+    codes: list,
+    flags: withFlag.length ? html`<span class="ship-flags">${withFlag.map(c => html`<img class="flag" src="${asset(site, `flags/${c.toLowerCase()}.svg`)}" alt="" width="18" height="12">`)}</span>` : '',
+    names: html`<span class="ship-names">${shown.map((c, i) => html`${i ? ', ' : ''}<span data-country="${c}">${COUNTRY_NAMES[c]}</span>`)}${more > 0 ? html` <span class="ship-more">+${more}</span>` : ''}</span>`
+  };
+}
+
+// Flags, then the names: the value next to "Delivers to" on the product page and the compare page.
+export function deliveryText(site, retailer, { max = 0 } = {}) {
+  const d = deliveryParts(site, retailer, max);
+  return d ? html`${d.flags ? html`${d.flags} ` : ''}${d.names}` : '';
+}
+
+// "[flags] Delivers to: Germany, Austria" as a line of its own (product cards, the price list, the cart). The flags
+// open the line, so a flag is never left alone at the end of one; the names move to the next line together.
+// tag 'span' for a place where a paragraph is not allowed. data-ship keeps the codes for the site script.
+export function deliveryLine(site, retailer, { cls = 'label-ship', tag = 'p', max = 2 } = {}) {
+  const d = deliveryParts(site, retailer, max);
+  if (!d) return '';
+  const inner = html`${d.flags ? html`${d.flags} ` : ''}<span class="ship-word">Delivers to</span>: ${d.names}`;
+  const codes = d.codes.join(' ');
+  return tag === 'span'
+    ? html`<span class="${cls}" data-ship="${codes}">${inner}</span>`
+    : html`<p class="${cls}" data-ship="${codes}">${inner}</p>`;
 }
 
 const CURRENCY_LABELS = { GBP: '£ GBP', EUR: '€ EUR', USD: '$ USD', ALL: 'Lek ALL', RON: 'lei RON', RUB: '₽ RUB' };
@@ -235,6 +275,7 @@ export function productCard(site, p, { headingLevel = 3 } = {}) {
     ${raw(`<${h} class="label-name" translate="no">`)}<a href="${href}">${p.product_name}</a>${raw(`</${h}>`)}
     <p class="label-price">${priceTag(site, p.price, p.currency)}${was ? html` <s class="was">${was}</s>` : ''}${pct ? html` <span class="tag-save">${tr('Save {0}%', pct)}</span>` : ''}</p>
     <p class="label-meta"><span class="retailer" translate="no">${p.retailer}${retailerFlag(site, p.retailer)}</span>${Number(p.offer_count) > 1 ? html`<a class="offers-link" href="${href}#prices">${tr('{0} retailers', p.offer_count)}</a>` : ''}${p.item_condition === 'refurbished' ? html`<span class="badge">Refurbished</span>` : ''}${Number(p.in_stock) === 1 ? '' : html`<span class="badge badge-out">Out of stock</span>`}</p>
+    ${deliveryLine(site, p.retailer)}
     <a class="btn btn-deal" href="/out/${p.id}" rel="sponsored nofollow noopener" target="_blank">${tr('View at {0}', p.retailer)}</a>
     <div class="card-actions">
       <button type="button" class="btn-compare" data-compare="${p.id}" aria-pressed="false" hidden>+ Compare</button>

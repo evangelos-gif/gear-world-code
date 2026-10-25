@@ -11,7 +11,7 @@ export default {
   lang: 'en-GB',
   locale: 'en-GB',
   currency: 'GBP',
-  assetVersion: '2026-10-20-cgw-1',
+  assetVersion: '2026-10-25-cgw-ship-2',
   promos: promosFor('CGW'),
   awinPublisherId: AWIN_PUBLISHER_ID,
   storagePrefix: 'cgw',
@@ -41,11 +41,18 @@ export default {
   // Same product from several retailers: one card, and a price table on its page.
   groupOffers: true,
 
-  // Two retailers sell in euros from other countries: their prices stay in euros, with "≈ £…" next to them,
-  // and a small flag next to the retailer name.
+  // Two retailers sell in euros from other countries and GRABO in US dollars: their prices stay in their currency,
+  // with "≈ £…" next to them. foreignCurrencies: rates fetched for that, besides the visitor's display currencies.
   convertForeignPrices: true,
-  retailerCountries: { Reidl: 'DE', VEVOR: 'NL' },
+  foreignCurrencies: ['USD'],
   retailersFromEurope: true,
+
+  // Where the retailers deliver (lessons L62): every product card and product page says it, so a visitor from
+  // any country sees at once whether they can order. default: every retailer not named in retailers.
+  // Country codes: src/lib/delivery.js. The other retailers are UK shops. Reidl: "Die Lieferung erfolgt
+  // innerhalb Deutschlands und nach Österreich" (reidl.de/shop/zahlungversand, 25 Oct 2026). VEVOR: the Dutch shop vevor.nl.
+  // GRABO (order.grabo.com, lessons L63): "Worldwide Shipping, fulfilled by our authorized dealers" (read 25 Oct 2026).
+  deliversTo: { default: ['GB'], retailers: { Reidl: ['DE', 'AT'], VEVOR: ['NL'], GRABO: ['WORLD'] } },
 
   languages: [
     { code: 'en-GB', label: 'English' },
@@ -92,10 +99,6 @@ export default {
     'rgba(6, 11, 22,': 'rgba(11, 10, 8,',
     'rgba(10, 18, 34,': 'rgba(20, 19, 16,'
   },
-  extraCss: `
-.flag { display: inline-block; width: 18px; height: 12px; margin-left: 6px; vertical-align: -1px; border-radius: 2px; box-shadow: 0 0 0 1px rgba(0, 0, 0, .15); }
-.fx-base { display: inline-block; margin-left: 6px; font-family: var(--font-body); font-weight: 600; font-size: .85rem; color: var(--ink-2); white-space: nowrap; }
-.shelf-price .fx-base { font-size: 1.05rem; align-self: center; }`,
   brandAccent: 'Gear World',
   heroEyebrow: 'Independent price comparison for trades and DIY',
   // Hero and category photos: the site's own hero image (docs/IMAGE-CREDITS.md).

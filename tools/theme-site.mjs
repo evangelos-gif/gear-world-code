@@ -3,7 +3,7 @@
 // Every Gear World site on the shared engine uses the same site.js, icons and fonts, so a fix made on TGW
 // reaches every site the next time this runs. The unit tests fail if a site's copy is out of date.
 //
-//   node tools/theme-site.mjs ggw          write sites/ggw/public/assets/{site.js,site.css,icons.svg,fonts/*}
+//   node tools/theme-site.mjs ggw          write sites/ggw/public/assets/{site.js,site.css,icons.svg,fonts/*,flags/*}
 //   node tools/theme-site.mjs ggw --check  only compare, exit 1 if different
 //
 // The colours come from cssColorMap in sites/<site>/site.config.js: { '<TGW colour>': '<this site colour>' }.
@@ -23,7 +23,7 @@ export async function themedFiles(siteCode) {
     const re = new RegExp(from.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/\s+/g, '\\s*'), 'gi');
     css = css.replace(re, to);
   }
-  // A few rules only one site needs (e.g. CGW: flags and "≈ £" next to euro prices), from its config.
+  // A few rules only one site needs (e.g. CGW: "≈ £" next to euro prices), from its config.
   if (site.extraCss) css += `\n/* ${site.code} only (site.config.js extraCss) */\n${String(site.extraCss).trim()}\n`;
   const files = {
     'site.css': css,
@@ -31,6 +31,8 @@ export async function themedFiles(siteCode) {
     'icons.svg': readFileSync(join(REF, 'icons.svg'), 'utf8')
   };
   for (const f of readdirSync(join(REF, 'fonts'))) files[`fonts/${f}`] = readFileSync(join(REF, 'fonts', f));
+  // Small flags for "Delivers to" (lessons L62), on every site that says where its retailers deliver.
+  if (site.deliversTo) for (const f of readdirSync(join(REF, 'flags'))) files[`flags/${f}`] = readFileSync(join(REF, 'flags', f));
   return files;
 }
 

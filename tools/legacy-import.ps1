@@ -93,7 +93,9 @@ function Confirm-Approval([string]$phrase) {
 }
 
 # Runs wrangler through a temporary .cmd file, so output is plain text in Windows PowerShell 5.1.
-# -Retry: on a network error try again, up to 3 times. Only for calls that are safe to repeat.
+# -Retry: on a network error ("fetch failed") or a passing Cloudflare error, try again, up to 3 times. Passing errors:
+# 7403 'account not authorized' (23 Oct 2026, between two successful calls) and 10000 'Authentication error' (24 Oct
+# 2026: the 1-hour wrangler sign-in ran out mid-run, L43). Only for calls that are safe to repeat.
 function Invoke-Wrangler([string]$Folder, [string]$Arguments, [switch]$Retry) {
     if ($Arguments -match '[&|<>^%]') { throw 'Unsafe characters in wrangler arguments' }
     $tmp = [System.IO.Path]::GetTempPath()
@@ -112,9 +114,9 @@ function Invoke-Wrangler([string]$Folder, [string]$Arguments, [switch]$Retry) {
         }
         $text = (($out | ForEach-Object { "$_" }) -join "`n") -replace '\x1b\[[0-9;]*m', ''
         $result = @{ code = $code; text = $text }
-        $network = $text -match '(?i)fetch failed|connectivity issue|ECONNRESET|ETIMEDOUT|EAI_AGAIN|ENOTFOUND|socket hang up'
+        $network = $text -match '(?i)fetch failed|connectivity issue|ECONNRESET|ETIMEDOUT|EAI_AGAIN|ENOTFOUND|socket hang up|code: 7403|code: 10000|Not currently importing anything'
         if ($code -eq 0 -or -not $network -or $try -eq $tries) { break }
-        Say ('Πρόβλημα δικτύου με το Cloudflare. Ξαναδοκιμάζω σε {0} δευτερόλεπτα ({1}/{2})...' -f (5 * $try), ($try + 1), $tries) 'Yellow'
+        Say ('Προσωρινό πρόβλημα με το Cloudflare. Ξαναδοκιμάζω σε {0} δευτερόλεπτα ({1}/{2})...' -f (5 * $try), ($try + 1), $tries) 'Yellow'
         Start-Sleep -Seconds (5 * $try)
     }
     return $result
@@ -174,7 +176,7 @@ $k = 2
 while (Test-Path -LiteralPath $planDir) { $planDir = Join-Path $OutDir ('IMPORT_PLAN_{0}_{1}_{2}' -f $Retailer, $stamp, $k); $k++ }
 Write-Host 'Φτιάχνω το σχέδιο από το feed (1-3 λεπτά)...'
 & node (Join-Path (Join-Path $repo 'tools') 'legacy-import-plan.mjs') --archive $Archive --retailer $Retailer --out $planDir | Out-Null
-if ($LASTEXITCODE -ne 0) { Say 'Το σχέδιο απέτυχε (δεν βρέθηκε feed ή λάθος στο αρχείο).' 'Red'; Finish 10 }
+if ($LASTEXITCODE -ne 0) { Say 'Το σχέδιο απέτυχε: δεν βρέθηκε feed, λάθος στο αρχείο, ή δεν διαβάστηκε το site του καταστήματος (δες το μήνυμα πιο πάνω). Δεν άλλαξε τίποτα.' 'Red'; Finish 10 }
 $plan = [System.IO.File]::ReadAllText((Join-Path $planDir 'plan.json'), [System.Text.Encoding]::UTF8) | ConvertFrom-Json
 $sp = $plan.sites.$Site
 if ($null -eq $sp -or [int]$sp.products -lt 1) { Say ('Το σχέδιο δεν έχει προϊόντα για το {0}.' -f $Site.ToUpper()) 'Red'; Finish 10 }
@@ -205,17 +207,24 @@ Say ('Βάση {0}: {1} ενεργά προϊόντα συνολικά, {2} απ
 
 # What the database has for this retailer, compared with the plan (read-only). Products no longer in the plan
 # (sold out in every size, or gone from the shop) are hidden after loading; nothing is deleted.
-$cur = Invoke-Wrangler $WorkDir ("d1 execute {0} --remote --json --command `"SELECT id, awin_product_id, is_active FROM products WHERE retailer = '{1}'`"" -f $DbName, $RetailerName) -Retry
+$cur = Invoke-Wrangler $WorkDir ("d1 execute {0} --remote --json --command `"SELECT id, awin_product_id, is_active, site_category, subcategory FROM products WHERE retailer = '{1}'`"" -f $DbName, $RetailerName) -Retry
 if ($cur.code -ne 0 -or $cur.text.IndexOf('[') -lt 0) { Say 'Δεν μπόρεσα να διαβάσω τα προϊόντα του καταστήματος. Δεν άλλαξε τίποτα.' 'Red'; Say $cur.text; Finish 4 }
 $diffDir = Join-Path $planDir ('diff-' + $Site)
 New-Item -ItemType Directory -Path $diffDir -Force | Out-Null
 $curFile = Join-Path $diffDir 'database.json.txt'
 [System.IO.File]::WriteAllText($curFile, $cur.text, (New-Object System.Text.UTF8Encoding($false)))
-& node (Join-Path (Join-Path $repo 'tools') 'legacy-import-diff.mjs') (Join-Path (Join-Path (Join-Path $planDir 'sql') $Site) 'ids.txt') $curFile $diffDir
+# The site's own subcategory names (lessons L56): the plan should use them, not new ones.
+$subsFile = Join-Path $diffDir 'site-subcategories.json.txt'
+$subs = Invoke-Wrangler $WorkDir ("d1 execute {0} --remote --json --command `"SELECT site_category, subcategory, COUNT(*) AS n FROM products WHERE is_active = 1 GROUP BY site_category, subcategory`"" -f $DbName) -Retry
+if ($subs.code -eq 0 -and $subs.text.IndexOf('[') -ge 0) { [System.IO.File]::WriteAllText($subsFile, $subs.text, (New-Object System.Text.UTF8Encoding($false))) }
+& node (Join-Path (Join-Path $repo 'tools') 'legacy-import-diff.mjs') (Join-Path (Join-Path (Join-Path $planDir 'sql') $Site) 'ids.txt') $curFile $diffDir $subsFile
 if ($LASTEXITCODE -ne 0) { Say 'Η σύγκριση με τη βάση απέτυχε. Δεν άλλαξε τίποτα.' 'Red'; Finish 10 }
 $d = ([System.IO.File]::ReadAllText((Join-Path $diffDir 'diff.txt'))).Trim() -split '\s+'
 $goneN = [int]$d[3]
 $hideGone = ($d[5] -eq '1')
+$recatN = 0
+$newSubsN = 0
+if ($d.Count -ge 8) { $recatN = [int]$d[6]; $newSubsN = [int]$d[7] }
 if ($AddOnly) {
     $hideGone = $false
     Say ('Σύγκριση με τη βάση: {0} νέα, {1} ενημέρωση τιμής/στοιχείων, {2} επιστρέφουν.' -f $d[0], $d[1], $d[2])
@@ -226,12 +235,19 @@ if ($AddOnly) {
         Say ('ΠΡΟΣΟΧΗ: λείπουν πάνω από τα μισά από τα {0} ενεργά προϊόντα. Μάλλον το feed δεν κατέβηκε ολόκληρο, οπότε ΔΕΝ θα κρυφτούν.' -f $d[4]) 'Yellow'
     }
 }
+if ($recatN -gt 0) { Say ('Υποκατηγορίες: {0} προϊόντα {1} παίρνουν τα ονόματα υποκατηγοριών που έχει ήδη το site (L56).' -f $recatN, $RetailerName) }
+if ($newSubsN -gt 0) {
+    Say ('ΠΡΟΣΟΧΗ: {0} υποκατηγορίες του σχεδίου δεν υπάρχουν ακόμα στο site (L56). Αν δεν τις περίμενες, μην εγκρίνεις και στείλε την αναφορά στο Claude:' -f $newSubsN) 'Yellow'
+    $ns = @([System.IO.File]::ReadAllLines((Join-Path $diffDir 'new-subcategories.txt')) | Where-Object { $_ })
+    foreach ($line in ($ns | Select-Object -First 15)) { Say ('  {0}' -f $line) 'Yellow' }
+}
 
 Say ''
 Say 'Τι θα γίνει με -Apply:'
 Say ('  - Σημείο επαναφοράς (Cloudflare Time Travel) της βάσης {0}, γραμμένο στο {1}' -f $DbName, (Join-Path $WorkDir 'backups'))
 Say ('  - Προσθήκη ή ενημέρωση {0} προϊόντων {1}. Δεν σβήνεται τίποτα, κανένα άλλο κατάστημα δεν αλλάζει.' -f $sp.products, $RetailerName)
 if ($goneN -gt 0 -and $hideGone) { Say ('  - Απόκρυψη {0} προϊόντων {1} που δεν είναι πια στο feed ή εξαντλήθηκαν (με αρχείο επαναφοράς).' -f $goneN, $RetailerName) }
+if ($recatN -gt 0) { Say ('  - Αλλαγή υποκατηγορίας σε {0} προϊόντα {1}, στα ονόματα που έχει ήδη το site (με αρχείο επαναφοράς των παλιών ονομάτων).' -f $recatN, $RetailerName) }
 if ($AddOnly) { Say ('  - Τα άλλα προϊόντα {0} στο site δεν αλλάζουν και δεν κρύβεται κανένα.' -f $RetailerName) }
 Say ('  - Αλλάζει ΜΟΝΟ η βάση του {0}. Κανένας κώδικας, κανένα άλλο site, κανένα deploy.' -f $Site.ToUpper())
 $phrase = 'ΕΓΚΡΙΝΩ {0} {1}' -f $Retailer.ToUpper(), $Site.ToUpper()
@@ -262,6 +278,12 @@ if ($hadBefore -gt 0 -or $AddOnly) {
     $quickUndoText = 'hide only the {0} products this import adds' -f $RetailerName
     if (-not $quickUndo) { $quickUndo = $restoreCmd; $quickUndoText = 'the whole database as it was' }
 }
+$recatUndo = ''
+if ($recatN -gt 0) {
+    $recatFile = Join-Path $bdir ('{0}-{1}-subcategories-{2}-rollback.sql' -f $Site, $Retailer, $stamp)
+    Copy-Item -LiteralPath (Join-Path $diffDir 'rollback-recat.sql') -Destination $recatFile -Force
+    $recatUndo = 'npx wrangler d1 execute {0} --remote --file "{1}"' -f $DbName, $recatFile
+}
 $backup = Join-Path $bdir ('{0}-restore-point-before-{1}-import-{2}.txt' -f $Site, $Retailer, $stamp)
 $note = @(
     ('{0} database restore point before the {1} import, {2}' -f $Site.ToUpper(), $RetailerName, (Get-Date -Format 'yyyy-MM-dd HH:mm')),
@@ -273,6 +295,7 @@ $note = @(
     ('  B) the whole database as it was:  {0}' -f $restoreCmd),
     'B also undoes any other change made to the database after this moment. Valid for 7 days (Free) or 30 days (Paid).'
 ) -join "`r`n"
+if ($recatUndo) { $note = $note + "`r`n" + ('  C) only the old subcategory names of the {0} products whose subcategory this import changes:  {1}' -f $recatN, $recatUndo) }
 [System.IO.File]::WriteAllText($backup, $note, (New-Object System.Text.UTF8Encoding($false)))
 Say ('Σημείο επαναφοράς: {0}' -f $backup) 'Green'
 
@@ -314,6 +337,7 @@ Say ('Δες τα: https://{0}/?search={1} (η αρχική και οι κατη
 if ($hadBefore -gt 0 -or $AddOnly) {
     # A refresh: the products were there before, so going back means hiding only the new ones, or the restore point.
     if ($undoNew) { Say ('Αν χρειαστεί επαναφορά (μόνο με έγκριση), κρύβει μόνο τα νέα προϊόντα: {0}' -f $undoNew) }
+    if ($recatUndo) { Say ('Επαναφορά μόνο των παλιών υποκατηγοριών ({0} προϊόντα, μόνο με έγκριση): {1}' -f $recatN, $recatUndo) }
     Say ('Επαναφορά όλης της βάσης όπως ήταν (μόνο με έγκριση): {0}' -f $restoreCmd)
 } else {
     Say ('Αν χρειαστεί επαναφορά (μόνο με έγκριση): {0}' -f $removeCmd)
