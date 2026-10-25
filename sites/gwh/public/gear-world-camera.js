@@ -440,6 +440,8 @@
       const name = String(product.product_name || "").toLowerCase();
       return (pb.length >= 2 && (pb.includes(b) || b.includes(pb))) || (first.length >= 3 && name.includes(first));
     }
+    // Below this many products of the brand, the other similar products are shown under them.
+    const FEW_BRAND = 4;
     // The products of the brand first, then the other similar ones; each product once, at most 8 per site.
     function mergeResults(first, second) {
       const seen = new Set();
@@ -571,7 +573,8 @@
           const both = await Promise.all([searchAll(branded.q), plain ? searchAll(plain.q) : Promise.resolve(null)]);
           const hits = (both[0] || []).filter(p => isBrand(p, branded.brand));
           if (hits.length) {
-            results = mergeResults(hits, both[1] || []);
+            // Many products of the brand: only those. A few: then also the other similar ones.
+            results = mergeResults(hits, hits.length >= FEW_BRAND ? [] : (both[1] || []));
             query = branded.q;
           } else if (both[1] && both[1].length) {
             results = both[1];

@@ -100,6 +100,15 @@ const SCENARIOS = {
         : answer([]),
     expectSearches: ['SJCAM dash cam', 'dash cam'], expectBox: 'SJCAM dash cam', expectFirst: 'agw', expectWords: 'dash cam · camera · car · black',
     expectGroups: 'agw:3 tgw:1', expectFirstItem: 'SJCAM M60 Dash Cam'
+  },
+  // Many products of the brand: only those, not the loose matches of other sites ("drill" fabric trousers).
+  bosch: {
+    photo: { ok: true, found: true, product: 'hammer drill', query: 'Bosch hammer drill', keywords: ['power', 'tool', 'cordless'], brand: 'Bosch', world: { key: 'CGW', name: 'Construction Gear World', domain: 'constructiongearworld.com' } },
+    search: q => /bosch/i.test(q)
+      ? answer([81, 82, 83, 84, 85].map(id => item('cgw', 'Construction Gear World', id, 'Bosch Professional', `Bosch GSB ${id} Hammer Drill`)))
+      : answer([item('cgw', 'Construction Gear World', 86, 'Makita', 'Makita HP1641 Hammer Drill'), item('mgw', "Men's Gear World", 87, 'Stan Ray', 'Slim Fatigue Natural Drill trousers')]),
+    expectSearches: ['Bosch hammer drill', 'hammer drill'], expectBox: 'Bosch hammer drill', expectFirst: 'cgw', expectWords: 'hammer drill · power · tool · cordless',
+    expectGroups: 'cgw:5', expectFirstItem: 'Bosch GSB 81 Hammer Drill'
   }
 };
 
