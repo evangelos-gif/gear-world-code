@@ -10,8 +10,9 @@
 // 2. Products that belong to (or would also show on) another Gear World site are counted apart, so the owner can
 //    decide the "yes" and "no" rules (L14) before any import: kids (KGW), swimwear (MGW/WGW), smartwatches and
 //    trackers (TGW or SGW: owner's decision), trainers with no sport word (sport or fashion: owner's decision),
-//    car racks (AGW), pools and trampolines (GGW), camping and travel (VGW, with the real VGW rules), tech (TGW rules).
-//    Owner (25 Oct 2026): sports shoes, gym, supplements and all fitness belong on SGW.
+//    car racks (AGW), pools and trampolines (GGW). Products that also fit the real VGW, AGW or TGW rules stay SGW
+//    products and are flagged. Owner (25 Oct 2026): anything to do with sport belongs on SGW, with sports shoes,
+//    gym, supplements and all fitness.
 // 3. Awin feed list (optional, --list <csv>): which programmes look like sports retailers, joined or not, with the
 //    link to apply. Tickets, betting, gym memberships and holidays are left out (no products to show).
 //
@@ -69,7 +70,7 @@ export const CATEGORIES = [
       '(?:mini |fitness |exercise |twist |step |side )?steppers?(?! (?:motors?|drivers?))', 'stair ?climbers?', 'vibration plates?', 'plyo(?:metric)? box(?:es)?', '(?:aerobic|fitness) steps?', 'step platforms?',
       'weighted vests?', 'weight vests?', '(?:ankle|wrist) weights?', 'hand grips?', 'grip strengtheners?', '(?:weight ?)?lifting (?:belts?|straps?|gloves?)',
       'wrist wraps?', 'knee sleeves?', 'gym gloves?', 'suspension trainers?', 'trx', 'rebounders?', 'fitness trampolines?', 'balance boards?',
-      'gymnastics mats?', 'hyperextension(?: benches?)?', 'sit ?up bars?', 'trap bars?', 'hex bars?', 'landmine', 'weight (?:sets?|racks?|trees?)']),
+      'gymnastics mats?', 'bodybuilding', 'powerlifting', 'weightlifting', 'calisthenics', 'hyperextension(?: benches?)?', 'sit ?up bars?', 'trap bars?', 'hex bars?', 'landmine', 'weight (?:sets?|racks?|trees?)']),
     ctx: words(['benches', 'bench', 'mats?', 'ropes?', 'weights?', 'bands?', 'rollers?', 'bars?', 'gloves?', 'balls?']),
     shop: words(['fitness', 'gym', 'strength training', 'weights?', 'cardio', 'yoga', 'pilates', 'exercise'])
   },
@@ -107,7 +108,7 @@ export const CATEGORIES = [
       'rugby (?:balls?|boots?|tops?|shirts?)', 'scrum caps?', 'tackle (?:bags?|pads?|shields?)', 'basketball(?: hoops?| nets?| stands?)?', 'netball(?: posts?)?',
       'volleyball(?: nets?)?', 'handball', 'cricket (?:bats?|balls?|pads?|helmets?|gloves?|stumps?|sets?|bags?)', 'batting gloves?', 'wicket ?keeping gloves?',
       '(?:field )?hockey (?:sticks?|balls?|shin)', 'baseball (?:bats?|gloves?|mitts?|balls?)', 'softball', 'lacrosse', 'american football',
-      'referee (?:whistles?|cards?|kits?)', 'tactics boards?', 'football kits?', 'footballs?', 'soccer balls?', 'futsal', 'rounders', 'gaelic football', 'hurling']),
+      'referee (?:whistles?|cards?|kits?)', 'tactics boards?', 'football kits?', 'footballs?', 'nfl', 'gridiron', 'american football (?:helmets?|balls?|gloves?|pads?)', 'shoulder pads? for football', 'soccer balls?', 'futsal', 'rounders', 'gaelic football', 'hurling']),
     ctx: words(['balls?', 'goals?', 'nets?', 'whistles?', 'cones?', 'bibs?']),
     shop: words(['football', 'soccer', 'rugby', 'cricket', 'basketball', 'netball', 'hockey', 'team sports?', 'volleyball', 'baseball'])
   },
@@ -224,7 +225,8 @@ export const SITE_RULES = [
   { key: 'agw', label: 'Also matches the Car Gear World rules (AGW)', rules: AGW_RULES },
   { key: 'tgw', label: 'Also matches the Technology Gear World rules (TGW)', rules: TGW_RULES }
 ];
-const OVERLAP_KEYS = [...OVERLAPS.map(o => o.key), ...SITE_RULES.map(s => s.key)];
+const OVERLAP_KEYS = OVERLAPS.map(o => o.key);
+const ALSO_KEYS = SITE_RULES.map(s => s.key);
 const overlapLabel = k => (OVERLAPS.find(o => o.key === k) || SITE_RULES.find(s => s.key === k) || { label: k }).label;
 
 // Words in a programme's name that point to a sports retailer (for the Awin list).
@@ -248,7 +250,8 @@ const low = s => String(s || '').toLowerCase().replace(/&/g, ' and ').replace(/[
 
 // name: product name; shopCat: the shop's category and Awin's category. Returns
 //   { sport: true, cat }                         a product for SGW
-//   { sport: false, overlap, cat }               a sport product that belongs to (or also fits) another site
+//   { sport: true, cat, also }                   a product for SGW that also fits the rules of VGW, AGW or TGW
+//   { sport: false, overlap, cat }               a sport product that belongs to another site
 //   { sport: false }                             not a sport product
 export function classify(name, shopCat = '') {
   const n = low(name), c = low(shopCat);
@@ -273,10 +276,13 @@ export function classify(name, shopCat = '') {
     }
   }
   if (!cat) return { sport: false };
+  // Owner (25 Oct 2026): anything to do with sport belongs on SGW (hiking, kayak, basketball, tennis, NFL, rugby,
+  // bodybuilding). A product that also fits the rules of VGW, AGW or TGW stays an SGW product and is only flagged,
+  // so the yes/no rules (L14) can decide which site shows it.
   for (const s of SITE_RULES) {
     let ok = false;
     try { ok = !!s.rules.classify(name, shopCat, shopCat).ok; } catch { ok = false; }
-    if (ok) return { sport: false, overlap: s.key, cat };
+    if (ok) return { sport: true, cat, also: s.key };
   }
   return { sport: true, cat };
 }
@@ -341,7 +347,7 @@ export async function scanArchive({ archives, maxRows = Infinity, log = () => {}
   for (const fi of all) {
     i++;
     const a = byAdv.get(fi.advertiserId) || { advertiserId: fi.advertiserId, merchant: '', files: [], rows: 0, products: 0, sport: 0, sportInStock: 0,
-      cats: {}, overlaps: {}, overlapSamples: {}, shopCats: {}, currencies: {}, samples: {}, ageDays: 9999, google: false, error: '', seen: new Set(), seenAll: new Set() };
+      cats: {}, also: {}, alsoSamples: {}, overlaps: {}, overlapSamples: {}, shopCats: {}, currencies: {}, samples: {}, ageDays: 9999, google: false, error: '', seen: new Set(), seenAll: new Set() };
     let map = null;
     try {
       const raw = createReadStream(fi.path);
@@ -378,6 +384,11 @@ export async function scanArchive({ archives, maxRows = Infinity, log = () => {}
           a.sport++;
           if (inStock(pick(rec, map.qty), pick(rec, map.flag)) !== false) a.sportInStock++;
           a.cats[r.cat] = (a.cats[r.cat] || 0) + 1;
+          if (r.also) {
+            a.also[r.also] = (a.also[r.also] || 0) + 1;
+            const al = (a.alsoSamples[r.also] ||= []);
+            if (al.length < 2 && (a.also[r.also] % 17 === 1)) al.push(`${name.slice(0, 70)} | ${price} ${cur}`);
+          }
           const sc = pick(rec, map.shopCat) || pick(rec, map.awinCat) || '(no category)';
           a.shopCats[sc] = (a.shopCats[sc] || 0) + 1;
           a.currencies[cur] = (a.currencies[cur] || 0) + 1;
@@ -447,7 +458,12 @@ export function render({ advs, files = [], list = null, archives = [], generated
     L.push(`  ${(c.label + (c.scan ? ' *' : '')).padEnd(46)} ${fmt(tot[c.key] || 0).padStart(8)}  from ${shops[c.key] || 0} retailer(s)`);
   }
   L.push('');
-  L.push('== SPORT PRODUCTS THAT BELONG TO (OR ALSO FIT) ANOTHER GEAR WORLD SITE - not counted above ==');
+  L.push('== SGW PRODUCTS THAT ALSO FIT THE RULES OF ANOTHER NEW SITE - counted above too (the yes/no rules decide) ==');
+  const al = {}, alShops = {};
+  for (const a of advs) for (const [k, x] of Object.entries(a.also)) { al[k] = (al[k] || 0) + x; alShops[k] = (alShops[k] || 0) + 1; }
+  for (const k of ALSO_KEYS) L.push(`  ${overlapLabel(k).padEnd(62)} ${fmt(al[k] || 0).padStart(8)}  from ${alShops[k] || 0} retailer(s)`);
+  L.push('');
+  L.push('== SPORT PRODUCTS THAT BELONG TO ANOTHER GEAR WORLD SITE (or wait for a decision) - not counted above ==');
   const ov = {}, ovShops = {};
   for (const a of advs) for (const [k, x] of Object.entries(a.overlaps)) { ov[k] = (ov[k] || 0) + x; ovShops[k] = (ovShops[k] || 0) + 1; }
   for (const k of OVERLAP_KEYS) L.push(`  ${overlapLabel(k).padEnd(62)} ${fmt(ov[k] || 0).padStart(8)}  from ${ovShops[k] || 0} retailer(s)`);
@@ -459,9 +475,12 @@ export function render({ advs, files = [], list = null, archives = [], generated
     L.push(`   by category: ${Object.entries(a.cats).sort((x, y) => y[1] - x[1]).map(([k, x]) => `${label(k)} ${fmt(x)}`).join(' | ')}`);
     const o = Object.entries(a.overlaps).sort((x, y) => y[1] - x[1]);
     if (o.length) L.push(`   other sites: ${o.map(([k, x]) => `${k} ${fmt(x)}`).join(' | ')}`);
+    const al2 = Object.entries(a.also).sort((x, y) => y[1] - x[1]);
+    if (al2.length) L.push(`   also fit: ${al2.map(([k, x]) => `${k} ${fmt(x)}`).join(' | ')}`);
     L.push(`   shop categories: ${Object.entries(a.shopCats).sort((x, y) => y[1] - x[1]).slice(0, 5).map(([c, x]) => `${c.slice(0, 50)} (${fmt(x)})`).join(' | ')}`);
     for (const [k, s] of Object.entries(a.samples)) for (const x of s.slice(0, 2)) L.push(`   e.g. [${label(k)}] ${x}`);
     for (const [k, s] of Object.entries(a.overlapSamples)) for (const x of s.slice(0, 1)) L.push(`   e.g. other site [${k}] ${x}`);
+    for (const [k, s] of Object.entries(a.alsoSamples)) for (const x of s.slice(0, 1)) L.push(`   e.g. also fits [${k}] ${x}`);
   }
   const onlyOverlap = advs.filter(a => a.sport === 0 && Object.keys(a.overlaps).length);
   if (onlyOverlap.length) {
@@ -506,8 +525,8 @@ export function render({ advs, files = [], list = null, archives = [], generated
 function toCsv(advs) {
   const q = v => `"${String(v ?? '').replace(/"/g, '""')}"`;
   const keys = [...CATEGORIES.map(c => c.key), OTHER.key];
-  const rows = [['advertiser_id', 'merchant', 'products', 'sport_products', 'sport_in_stock', ...keys, ...OVERLAP_KEYS.map(k => `other_site_${k}`)]];
-  for (const a of advs) rows.push([a.advertiserId, a.merchant, a.products, a.sport, a.sportInStock, ...keys.map(k => a.cats[k] || 0), ...OVERLAP_KEYS.map(k => a.overlaps[k] || 0)]);
+  const rows = [['advertiser_id', 'merchant', 'products', 'sport_products', 'sport_in_stock', ...keys, ...ALSO_KEYS.map(k => `also_fits_${k}`), ...OVERLAP_KEYS.map(k => `other_site_${k}`)]];
+  for (const a of advs) rows.push([a.advertiserId, a.merchant, a.products, a.sport, a.sportInStock, ...keys.map(k => a.cats[k] || 0), ...ALSO_KEYS.map(k => a.also[k] || 0), ...OVERLAP_KEYS.map(k => a.overlaps[k] || 0)]);
   return rows.map(r => r.map(q).join(',')).join('\r\n') + '\r\n';
 }
 

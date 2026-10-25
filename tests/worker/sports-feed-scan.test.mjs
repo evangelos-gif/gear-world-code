@@ -59,7 +59,14 @@ test('sport products of another Gear World site are counted apart', () => {
   assert.equal(ov('Thule Towbar Bike Rack 3 Bikes'), 'car');
   assert.equal(ov('Bestway Above Ground Swimming Pool'), 'garden');
   assert.equal(ov('Mens Swim Shorts Quick Dry'), 'swimwear');
-  assert.equal(ov('Hiking Boots Waterproof Mens'), 'vgw');
+  // anything to do with sport is SGW (owner, 25 Oct 2026): hiking boots stay SGW, flagged as also fitting VGW
+  assert.equal(cat('Hiking Boots Waterproof Mens'), 'outdoor-climbing');
+  assert.equal(classify('Hiking Boots Waterproof Mens').also, 'vgw');
+  assert.equal(cat('Sevylor Inflatable Kayak 2 Person'), 'water-sports');
+  assert.equal(cat('Spalding NBA Basketball Size 7'), 'team-sports');
+  assert.equal(cat('Wilson NFL Official Game Ball'), 'team-sports');
+  assert.equal(cat('Gilbert Rugby Ball Size 5'), 'team-sports');
+  assert.equal(cat('Bodybuilding Lifting Belt Leather'), 'fitness-gym');
   // smartwatches and supplements are counted even without a sport word (owner decides TGW or SGW)
   assert.equal(ov('Garmin Forerunner 265'), 'watch');
   assert.equal(ov('Samsung Galaxy Watch 7 44mm', 'Electronics > Wearables'), 'watch');
@@ -138,6 +145,7 @@ test('scan: two folders (newest copy counts), Google feed sizes joined, quantity
   assert.match(text, /222 Fast Running: 1 sport of 1 products .*Google format/);
   assert.match(text, /Awin: JOINED/);
   assert.match(text, /Smartwatches & fitness trackers \(decide: TGW or SGW\)\s+1/);
+  assert.match(text, /ALSO FIT THE RULES OF ANOTHER NEW SITE/);
   assert.match(text, /https:\/\/ui\.awin\.com\/merchant-profile\/333/);
   assert.doesNotMatch(text, /merchant-profile\/444/);
   assert.doesNotMatch(text, /merchant-profile\/111/);
