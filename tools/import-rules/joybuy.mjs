@@ -172,14 +172,15 @@ export const SMART_HOME = words(['smart plug', 'smart plugs', 'smart bulb', 'sma
 const APPLIANCE_WORDS = ['heater', 'heaters', 'convector', 'oil filled', 'oil-filled', 'electric radiator', 'radiator heater', 'fan', 'fans', 'air purifier',
   'purifier', 'humidifier', 'dehumidifier', 'air conditioner', 'air conditioning', 'kettle', 'air fryer', 'coffee machine', 'microwave', 'electric blanket'];
 export const APPLIANCE = words(APPLIANCE_WORDS);
+// Plan of 25 Oct 2026 (L55): "DJI Osmo Action 4 ... Action Camera ..., Outdoor Camera" among the security cameras.
+const CAMERA_WORDS = ['action camera', 'action cameras', 'action cam', 'action cams', 'osmo', 'dji', 'gopro', 'insta360', 'akaso', 'vlog', 'vlogging', 'vlogger',
+  'helmet camera', 'body camera', 'body cam', 'bodycam', 'trail camera', 'trail cam', 'wildlife camera', 'camcorder', 'camcorders', 'webcam', 'webcams', 'drone',
+  'drones', 'gimbal', 'instant camera', 'digital camera', 'film camera', 'underwater camera', 'dashcam', 'dash camera'];
+export const NOT_HOME_CAMERA = words(CAMERA_WORDS);
 export const NOT_SMART_HOME = words(['smart tv', 'smart tvs', 'smartphone', 'smartphones', 'smart watch', 'smartwatch', 'case', 'cases', 'cover', 'covers', 'screen protector',
   'toy', 'toys', 'baby monitor', 'baby monitors', 'bracket', 'brackets', 'mount', 'mounts', 'hanger', 'accessory', 'accessories', 'replacement', 'strap', 'straps',
   'dash cam', 'car', 'kids', 'vacuum', 'phone', 'iphone', 'ipad', 'cooler', 'gaming',
-  // Plan of 25 Oct 2026 (lessons L55): a DJI action camera ("Wi-Fi", "wireless camera") among the security cameras.
-  'action camera', 'action cameras', 'action cam', 'action cams', 'osmo', 'dji', 'gopro', 'insta360', 'akaso', 'vlog', 'vlogging', 'vlogger', 'helmet camera',
-  'body camera', 'body cam', 'bodycam', 'trail camera', 'trail cam', 'wildlife camera', 'camcorder', 'camcorders', 'webcam', 'webcams', 'drone', 'drones',
-  'gimbal', 'instant camera', 'digital camera', 'film camera', 'underwater camera', 'dashcam', 'dash camera',
-  ...APPLIANCE_WORDS]);
+  ...CAMERA_WORDS, ...APPLIANCE_WORDS]);
 // A camera stays in "Security cameras & doorbells" only when the name says it watches a home (L55).
 export const HOME_CAMERA = words(['security', 'cctv', 'surveillance', 'doorbell', 'indoor', 'outdoor', 'home', 'house', 'ip camera', 'ptz', 'pan tilt',
   'pan/tilt', 'pan & tilt', 'pan-tilt', 'night vision', 'motion detection', 'motion detect', 'two-way audio', '2-way audio', '2 way audio', 'two way audio',
@@ -224,6 +225,7 @@ function homePlace(n, c) {
   }
   // "... Electric Heater with WiFi, Works with Alexa": left out of Smart Home and of the plan, with its reason in the report.
   if (SMART_HOME.test(n) && NOT_SMART_HOME.test(n) && APPLIANCE.test(n)) return { reject: 'an appliance with an app (heater, fan, kettle...), not a smart home device' };
+  if (SMART_HOME.test(n) && NOT_HOME_CAMERA.test(n)) return { reject: 'a camera, but not one that watches a home (Smart Home)' };
   if ((CLEANING.test(n) || (CLEANING_CATEGORY.test(c) && CLEAN_HINT.test(n))) && !NOT_CLEANING.test(n)) {
     return { site: 'hgw', siteCategory: 'Cleaning & Laundry', subcategory: cleaningSub(n) };
   }
@@ -277,11 +279,17 @@ export const NOT_GARDEN_JOYBUY = words(['scissors', 'kitchen shears', 'meat shea
   'essential oil', 'essential oils', 'aromatherapy', 'air freshener', 'room spray', 'moisture absorber', 'moisture absorbers', 'moisture trap', 'dehumidifier',
   'dehumidifiers', 'refill tab', 'refill tabs', 'unibond', 'paint sprayer', 'paint sprayers', 'paint spray gun', 'spray gun', 'spray guns', 'paint gun', 'hvlp',
   'airless']);
+// Same plan, not in the owner's list: a pool float among the loungers, a kitchen food clip among the BBQs. These words
+// count only in the head of the name: "BBQ Grilling Tools Set | Disposable Gloves, ..., Food Clip" is a BBQ tool set.
+const NOT_GARDEN_JOYBUY_HEAD = words(['inflatable', 'pool float', 'pool floats', 'floatie', 'lilo', 'food clip', 'bread clip', 'baking clip']);
+// "<what it is> for <what it is used with>": the part after "for" says what a product is used with, not what it is.
+const FOR_PART = /\s+(?:(?:ideal|suitable|perfect|great|designed|made|used|use|compatible|works?|fits?)\s+)?for\s+/i;
+// The head of a name says what the product is: the words before "with", " – ", " | ", a comma, a bracket or "for".
+// "Aoxun Garden Shed ... With 3 Shelves" is a shed; "JOYFURNOS 2-Pack Heavy Duty Steel Shelving – 5 Shelves" is shelving.
+const headOf = n => (String(n).split(/\s+with\s+|\s+[-–—|]\s+|\s*[|,(]\s*/i)[0].split(FOR_PART)[0] || String(n)).trim();
 // Shelves and racking are for a garage or inside a shed; greenhouse staging and plant stands are garden products.
 const SHELVING = words(['shelf', 'shelves', 'shelving', 'racking']);
 const SHELVING_OK = words(['greenhouse', 'greenhouses', 'staging', 'plant stand', 'plant stands']);
-// "<what it is> for <what it is used with>": the part after "for" says what a product is used with, not what it is.
-const FOR_PART = /\s+(?:(?:ideal|suitable|perfect|great|designed|made|used|use|compatible|works?|fits?)\s+)?for\s+/i;
 // Accessories rightly named after the garden product they are for ("Waterproof Cover for BBQ", "Felt for Shed Roof").
 const MADE_FOR_OK = {
   [GARDEN_CATEGORIES.bbq]: words(['cover', 'covers', 'brush', 'brushes', 'mat', 'mats', 'tongs', 'skewers', 'grate', 'grates', 'rib rack', 'thermometer', 'gloves',
@@ -300,9 +308,17 @@ export function joybuyGarden(name, feedCategory = '') {
   const place = gardenPlace(n, feedCategory);
   if (!place) return null;
   // Only products the shared rules would place are checked, so the report lists exactly what these checks keep out.
-  if (NOT_GARDEN_JOYBUY.test(n)) return { reject: 'not a garden product (kitchen knife or scissors, towel, home scent, damp absorber, paint sprayer)' };
+  const what = headOf(n);
+  if (NOT_GARDEN_JOYBUY.test(n) || NOT_GARDEN_JOYBUY_HEAD.test(what)) {
+    return { reject: 'not a garden product (kitchen scissors or clip, towel, home scent, damp absorber, paint sprayer, pool float)' };
+  }
   const cat = place.siteCategory;
-  if (SHELVING.test(n) && !SHELVING_OK.test(n)) return { reject: 'shelves or racking for a garage or a shed, not a garden building' };
+  if (SHELVING.test(what) && !SHELVING_OK.test(n)) return { reject: 'shelves or racking for a garage or a shed, not a garden building' };
+  // "Trough Planter with Topped Trellis" is a planter: a building or fencing word only after "with" does not make it one.
+  if (cat === GARDEN_CATEGORIES.buildings && !gardenWord(what, cat)) {
+    const other = gardenPlace(what, feedCategory);
+    if (other && other.siteCategory !== cat) return other;
+  }
   if (cat === GARDEN_CATEGORIES.plants && !gardenWord(n.replace(WILDFLOWER, ' '), cat) && !GROWING.test(n)) {
     return { reject: '"wildflower" is a scent or a print here, not seeds or plants' };
   }

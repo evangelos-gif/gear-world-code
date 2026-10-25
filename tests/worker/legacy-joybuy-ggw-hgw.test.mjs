@@ -1,5 +1,5 @@
 // Joybuy UK -> Garden Gear World and Home Gear World: the mistakes of the plan of 25 Oct 2026 (lessons L55).
-// Names in the form Joybuy (Amazon-style titles) gives them; the UniBond and TILSWALL names are the shop's own wording.
+// The REAL_* names are copied from the plan report of 25 Oct 2026 09:07 (old rules); the others are in the same form.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtempSync, writeFileSync, readFileSync } from 'node:fs';
@@ -59,6 +59,61 @@ test('Joybuy plan of 25 Oct 2026: kitchen scissors, towels, diffusers, damp abso
   assert.match(c(...MISTAKES[17]).reject, /appliance with an app/);
 });
 
+// From the plan report of 25 Oct 2026 09:07 (the rules before L55): what was placed wrongly, word for word.
+const REAL_OUT = [
+  ['Wangmazi Kitchen Scissors, Sharp Heavy-Duty Shears, for Food, Chicken Bones and Duck Bones, Household Stainless Steel Food Scissors, for Deveining Shrimp, Barbecue Essential', /scissors/],
+  ['COOKER KING Silicone Food Clip Multi-Use Steak Clip BBQ Food Clip Bread Clip Baking Clip', /clip/],
+  ['Thread & Loom Towel Set 2 x Bath Towels, 2 x Hand Towels, 2 x Face Cloths Poppy Seed Black', /towel/],
+  ['Emma Molly Wildflower Bloom No-Fire Diffuser 300ml with Scented Paper Sticks and Rattan (Rose/Currant/Ambergris)', /home scent/],
+  ['UniBond AERO 360 Moisture Absorber Wildflower Meadow Refill (Pack 2)', /damp absorber/],
+  ['TILSWALL Paint Sprayer, Upgraded Ultra-Light Electric Paint Spray Gun with 600ml Detachable Cup, 2 Nozzles & 3 Patterns - Perfect for Fences, Sheds, Walls, Ceilings, Furniture, Cabinets, Garden, White', /paint sprayer/],
+  ['TILSWALL Upgraded Ultra-Light Electric Paint Sprayer, with 600 ml Detachable Cup + 2 Nozzles, 3 Spray Patterns, Suitable for Spraying Fences, Sheds, Walls, Ceilings, Cabinets, Furniture and Gardens, Blue', /paint sprayer/],
+  ['JOYFURNOS 2-Pack Heavy Duty Steel Shelving – 5 Shelves, Bolt-Free Assembly, Each Unit Size 75×30×150 cm, Load Capacity 650 kg per Unit – Suitable for Garage or Storage Shed, Silver', /shelves or racking/],
+  ['Sloosh Inflatable Tanning Pool Lounger Float, 70" x 46" Extra Large Pool Floats Adult with Pillow, 4 in 1 Suntan Tub Raft Floatie,Sunbathing Bed Lounge for Water Blow Up Party Gifts, L-Blue', /pool float/],
+  ['【Black Friday Early Deals】DJI Osmo Action 4 Adventure Combo - 4K/120fps Waterproof Action Camera with a 1/1.3-Inch Sensor, 10-bit & D-Log M Color Performance, 155° FOV, Up to 7.5 h with 3 Extra Batteries, Outdoor Camera', /not one that watches a home/],
+  ['AIRMATE 1800W PTC Ceramic Tower Heater, Fast Heating with 80° Oscillation, Smart Thermostat, 4-Stage Sleep Mode, 24H Timer, Remote Control & Child Lock', /appliance with an app/]
+];
+// ... and from the same report, products that were right: they stay (sheds and a deck box "with Shelves", a BBQ tool set
+// that lists a "Food Clip", plant pots "Suitable for Herbs", security cameras, smart locks and sensors).
+const REAL_IN = [
+  ['Aoxun Garden Shed Made Of Weatherproof Wood With 3 Shelves And Asphalt Roof', 'ggw', 'Sheds'],
+  ['Aoxun Outdoor Storage Cabinet, Wooden Garden Tool Shed with Waterproof Steel Roof, 3 Adjustable Shelves, Magnetic Door Closure, Powder Coated Handles, Weather Resistant, 81.5 x 34 x 161.5 cm, Black', 'ggw', 'Sheds'],
+  ['Costway 318 L Patio Wicker Storage Cabinet Deck Box with Removable Shelves-Brown', 'ggw', 'Garden storage'],
+  ['SuperFOIL Self-Adhesive Shed Insulation - 1m x 10m', 'ggw', 'Sheds'],
+  ['Large-capacity Vertical Firewood Rack Freestanding Metal Log Storage Holder for Fireplace, Patio, Indoor, Outdoor, Home Wood Organization', 'ggw', 'Log stores'],
+  ['Vonhaus Deep Walk in Greenhouse', 'ggw', 'Greenhouses'],
+  ['SUCOJIA Complete Set BBQ Grilling Tools Set | Disposable Gloves, Wooden Handle Oil Brush, Carbon Clip, Food Clip, Barbecue Skewers Set & Aluminum Foil Paper | Essential Barbecue Accessories, for Grill Enthusiasts', 'ggw', 'BBQ accessories'],
+  ['SUCOJIA Fish Grill Baskets for Outdoor Grill Vegetables, Stainless Steel BBQ Grill Basket for Fish Vegetables Shrimp, Tight Mesh Bold Encryption, Batch Barbecue Master, Extended Handle Anti-Scalding and Anti-Skid', 'ggw', 'BBQ accessories'],
+  ['Huacan cleaning barbecue brush, wire brush, wire brush for barbecue grills and barbecue stoves, cleaning brush, barbecue tool', 'ggw', 'BBQ accessories'],
+  ['Huacan Portable Charcoal BBQ Grill for Camping & Home – 1 Pack', 'ggw', 'BBQs'],
+  ['Vonhaus Outdoor Pizza Oven with Accessories', 'ggw', 'Pizza ovens'],
+  ['MADLAND 3 Self-Watering Plant Pots, 16.5cm Diameter, Beige Resin Flower Pots with Bottom Trays, Deep Water Storage Reservoir, Clean and Mess-Free Small Planting Pots, Suitable for Herbs, Succulents, Pothos, Windowsills and Gardens', 'ggw', 'Plants'],
+  ['Miracle Gro Quick Grow Lawn Seed 56m2', 'ggw', 'Seeds & bulbs'],
+  ['UME 2 Pack Solar Pathway Lights Outdoor, Bright Solar Garden Lights with Metal Design–IP65 Waterproof, Auto On/Off, 3000K LED Landscape Lighting for Yard, Lawn, Walkway, Driveway, Patio Decor', 'ggw', 'Solar lights'],
+  ['Vonhaus Hudson Grey Sun Lounger Chair With Cushion', 'ggw', 'Loungers'],
+  // The one product moved on purpose: a planter "with Topped Trellis" is a planter, not fencing.
+  ['Outsunny 72.5x31.5x149.5cm 45L Garden Wooden Pine Trough Planter with Topped Trellis Climbing Plants Flower Raised Bed Orange', 'ggw', 'Growing'],
+  ['JOOAN 2K Outdoor Security Camera LAN 2.4G WiFi 360°PTZ Cam for Home Surveillance IP66 Waterproof Motion Detect & Alert Sound Alarms Color Night 24/7 Record Cloud/8-256G Card Storage Auto Tracking', 'hgw', 'Security cameras & doorbells'],
+  ['Rexsun X6 Smart Doorbell – Compact Aluminum Alloy Video Doorbell, Real-Time View, Long Battery Life, Easy Installation, Voice Recording & MP3 Playback, Compatible with Windows, iOS & Linux, Memory Card Not Included', 'hgw', 'Security cameras & doorbells'],
+  ['Tapo C460 KIT Solar-Powered Security Camera Kit', 'hgw', 'Security cameras & doorbells'],
+  ['Xiaomi Self-Install Smart Lock (Keypad Included)', 'hgw', 'Smart home'],
+  ['TP-Link tapo T300 Smart Water Leak Sensor', 'hgw', 'Smart home'],
+  ['Eve Energy Matter Smart Plug with Power Meter, Smart Home Wi-Fi Power Outlet, Energy Monitoring, Remote Control, Thread Technology, Compatible with Apple Home, Alexa, Google Home & SmartThings, UK Type G Plug', 'hgw', 'Smart plugs & switches']
+];
+
+test('Joybuy plan report of 25 Oct 2026, real names: the mistakes are left out with their reason, the right products stay', () => {
+  for (const [name, why] of REAL_OUT) {
+    const r = c(name);
+    assert.ok(r.reject, `${name} must be left out, got ${JSON.stringify(r)}`);
+    assert.match(r.reject, why, name);
+  }
+  for (const [name, site, subcategory] of REAL_IN) {
+    const r = c(name);
+    assert.equal(r.site, site, name);
+    assert.equal(r.subcategory, subcategory, name);
+  }
+});
+
 test('Joybuy GGW/HGW: products that were right before the fix stay where they were', () => {
   const ggw = (name, siteCategory, subcategory) => assert.deepEqual(c(name), { site: 'ggw', siteCategory, subcategory }, name);
   const hgw = (name, subcategory) => assert.deepEqual(c(name), { site: 'hgw', siteCategory: 'Smart Home', subcategory }, name);
@@ -110,6 +165,6 @@ test('Joybuy plan for GGW and HGW: the mistakes are listed under LEFT OUT with t
   assert.deepEqual(r.accepted.hgw.map(p => p.product_name), ['TP-Link Tapo C200 Pan/Tilt Wi-Fi Camera, 1080p Home Security']);
   const text = readFileSync(join(out, 'report.txt'), 'utf8');
   assert.match(text, /== LEFT OUT, by reason ==/);
-  assert.match(text, /paint sprayer\)\n[\s\S]*TILSWALL/);
+  assert.match(text, /pool float\)\n[\s\S]*TILSWALL/);
   assert.match(text, /appliance with an app[\s\S]*Dreo Smart Space Heater/);
 });
