@@ -9,8 +9,9 @@
 //    per proposed category, in stock, currencies, top shop categories and samples.
 // 2. Products that belong to (or would also show on) another Gear World site are counted apart, so the owner can
 //    decide the "yes" and "no" rules (L14) before any import: kids (KGW), swimwear (MGW/WGW), smartwatches and
-//    trackers (TGW or SGW: owner's decision), car racks (AGW), pools and trampolines (GGW), camping and travel (VGW,
-//    with the real VGW rules), tech (TGW rules), food and supplements.
+//    trackers (TGW or SGW: owner's decision), trainers with no sport word (sport or fashion: owner's decision),
+//    car racks (AGW), pools and trampolines (GGW), camping and travel (VGW, with the real VGW rules), tech (TGW rules).
+//    Owner (25 Oct 2026): sports shoes, gym, supplements and all fitness belong on SGW.
 // 3. Awin feed list (optional, --list <csv>): which programmes look like sports retailers, joined or not, with the
 //    link to apply. Tickets, betting, gym memberships and holidays are left out (no products to show).
 //
@@ -172,12 +173,24 @@ export const CATEGORIES = [
     shop: words(['sports? (?:bags|accessories)', 'nutrition accessories'])
   },
   {
+    // Owner (25 Oct 2026): supplements belong on SGW. Sports nutrition counts without a sport word; general
+    // supplements (vitamins, collagen...) only with a sport word or in a sport shop category.
+    key: 'nutrition', label: 'Sports nutrition & supplements',
+    sure: words(['protein (?:powders?|bars?|shakes?|snacks?|cookies?|pancakes?|bites|crisps|puddings?|water)', 'whey(?: protein)?', 'casein', 'creatine',
+      'pre-?workouts?', 'bcaas?', 'eaas?', 'amino acids?', 'mass gainers?', 'weight gainers?', 'energy (?:gels?|chews?|bars?)', 'electrolytes?',
+      'isotonic', 'hydration (?:tablets?|powders?|drinks?)', 'beta-?alanine', 'glutamine', 'l-?carnitine', 'citrulline', 'sports nutrition', 'protein']),
+    ctx: words(['supplements?', 'vitamins?', 'multivitamins?', 'collagen', 'omega ?3', 'fish oil', 'magnesium', 'zinc', 'capsules', 'tablets', 'gummies',
+      'caffeine', 'recovery drinks?', 'joint support']),
+    shop: words(['sports nutrition', 'supplements?', 'protein'])
+  },
+  {
     key: 'sportswear-shoes', label: 'Sportswear & sports shoes',
     sure: words(['sports? bras?', 'gym (?:leggings|shorts|tops?|t-?shirts?|vests?|wear|hoodies?|joggers)', 'workout (?:leggings|shorts|tops?|clothes|wear|sets?)',
       'training (?:shoes?|trainers?|tops?|t-?shirts?|shorts|pants|jackets?|tights|jerseys?|bibs?)', 'compression (?:tops?|shirts?|shorts|tights|leggings|sleeves?|socks?)',
       'base ?layers?', 'thermal base layers?', 'track ?suits?', 'track (?:pants|tops?|jackets?)', 'activewear', 'sportswear', 'athletic (?:shorts|shoes?|socks?|wear)',
       'sports (?:shorts|tops?|t-?shirts?|socks?|shoes?|leggings|jackets?|vests?|caps?)', 'performance (?:t-?shirts?|tees?|tops?|socks?|shorts)', 'cross ?training shoes?',
-      'indoor court shoes?', 'spikes for (?:athletics|running)', 'athletics spikes']),
+      'indoor court shoes?', 'spikes for (?:athletics|running)', 'athletics spikes',
+      '(?:nike|adidas|asics|new balance|puma|reebok|under armour|hoka|salomon|brooks|saucony|mizuno|on running|altra|inov-?8|merrell|la sportiva|scarpa|karrimor|umbro|kappa|diadora|joma|lonsdale|everlast)[^|]{0,60}(?:trainers?|sneakers?|running shoes?|sports shoes?|gym shoes?|training shoes?)']),
     ctx: words(['leggings', 'joggers', 'trainers?', 'shorts', 'socks?', 'hoodies?', 'jackets?', 'vests?', 'tops?', 't-?shirts?', 'caps?', 'headbands?', 'sweatbands?', 'wristbands?']),
     shop: words(['sportswear', 'activewear', 'sports? (?:clothing|shoes|footwear|apparel)', 'athletic (?:clothing|shoes|footwear)'])
   }
@@ -189,14 +202,14 @@ export const OVERLAPS = [
   { key: 'kids', label: 'Kids (Kids\' Gear World, KGW)', re: words(["kids?", "kid's", 'children', "children's", 'childrens', 'child', "child's", 'childs', 'junior', 'juniors', 'jnr',
     'boys?', "boy's", 'girls?', "girl's", 'toddlers?', 'baby', 'babies', 'infants?', 'youth', 'balance bikes?', 'trikes?', 'tricycles?', 'stabilisers?',
     '(?:12|14|16|18) ?(?:inch|in|") (?:wheels? )?bikes?', 'toys?', 'paddling pools?', 'play ?houses?', 'play ?sets?', 'swing sets?']) },
-  { key: 'nutrition', always: true, label: 'Sports food & supplements (not gear)', re: words(['protein (?:powders?|bars?|shakes?|snacks?|cookies?|pancakes?)', 'whey', 'creatine', 'pre-?workout',
-    'bcaas?', 'eaas?', 'amino acids?', 'mass gainers?', 'energy (?:gels?|chews?)', 'electrolytes?', 'isotonic', 'protein']), unless: words(['shakers?', 'bottles?', 'scoops?', 'funnels?', 'containers?', 'storage', 'organi[sz]ers?', 'pill boxes?']) },
   { key: 'swimwear', label: 'Swimwear and fashion (Men\'s / Women\'s Gear World)', re: words(['bikinis?', 'swimsuits?', 'swimming costumes?', 'swim (?:shorts|trunks|dress(?:es)?|briefs)',
     'board ?shorts', 'tankinis?', 'beach ?wear', 'swimwear', 'kaftans?', 'sarongs?']), unless: words(['competition', 'racing', 'training', 'chlorine resistant', 'endurance', 'jammers?']) },
   { key: 'watch', always: true, label: 'Smartwatches & fitness trackers (decide: TGW or SGW)', re: words(['smart ?watch(?:es)?', 'fitness (?:trackers?|bands?|watch(?:es)?)', 'activity (?:trackers?|bands?)',
     'gps (?:sports? )?watch(?:es)?', 'sports? watch(?:es)?', 'running watch(?:es)?', 'multisport watch(?:es)?', 'heart rate (?:monitors?|straps?|sensors?)', 'hrm',
     'garmin (?:forerunner|fenix|f[eē]nix|venu|vivoactive|vivosmart|vivomove|instinct|epix|enduro|approach|lily|bounce)', 'fitbit', 'apple watch', 'galaxy watch', 'pixel watch',
     'polar (?:vantage|grit|pacer|ignite|unite|verity|h10|h9)', 'coros', 'amazfit', 'whoop', 'suunto', 'wahoo elemnt rival', 'smart rings?', 'oura']) },
+  { key: 'trainers', always: true, noCat: true, label: 'Trainers & sneakers with no sport word or sports brand (sport or fashion? decide)', re: words(['trainers?', 'sneakers?']),
+    unless: words(['personal trainers?', 'turbo trainers?', 'smart trainers?', 'bike trainers?', 'cross ?trainers?', 'suspension trainers?', 'potty trainers?', 'toilet trainers?', 'trainer (?:cups?|pants|seats?)']) },
   { key: 'car', label: 'Car racks and carriers (Car Gear World, AGW)', re: words(['(?:bike|cycle|bicycle|ski|snowboard|kayak|canoe|sup|surf ?board) (?:racks?|carriers?|mounts?|holders?) for (?:cars?|vehicles?|suvs?|vans?|tow ?bars?|towbars?)',
     'tow ?bar (?:bike|cycle) (?:racks?|carriers?)', 'towbar (?:bike|cycle) (?:racks?|carriers?)', '(?:roof|rear|boot|hitch|tailgate|spare wheel) (?:mounted )?(?:bike|cycle|ski|kayak) (?:racks?|carriers?)',
     '(?:bike|cycle|ski|kayak) (?:racks?|carriers?) (?:roof|rear|boot|hitch|tow ?bar|towbar|tailgate)', 'roof (?:bars?|racks?|boxes?)', 'tow ?bars?', 'towbars?', 'car (?:seat covers?|boot liners?)']) },
@@ -204,6 +217,7 @@ export const OVERLAPS = [
     'pool (?:covers?|pumps?|ladders?|filters?|heaters?|chemicals?|chlorine|liners?|vacuums?|cleaners?|floats?|lounger)', 'hot tubs?', 'spa (?:pools?|covers?)', 'lazy ?spa', 'garden games?',
     'swing seats?', 'garden swings?']), unless: words(['fitness trampolines?', 'rebounders?', 'mini trampolines? for (?:fitness|exercise|workout)', 'swimming pool (?:goggles|toys)']) }
 ];
+const KIDS = OVERLAPS[0];
 // Checked with the real rules of the other new sites, only for products that matched an SGW category.
 export const SITE_RULES = [
   { key: 'vgw', label: 'Also matches the Travel Gear World rules (VGW)', rules: VGW_RULES },
@@ -251,7 +265,12 @@ export function classify(name, shopCat = '') {
   // "always" groups (smartwatches) are counted even without a sport word, for the owner's TGW-or-SGW decision.
   for (const o of OVERLAPS) {
     if (!o.always && !cat && !ctx) continue;
-    if (o.re.test(n) && !(o.unless && o.unless.test(n))) return { sport: false, overlap: o.key, cat };
+    if (o.noCat && cat) continue;
+    if (o.re.test(n) && !(o.unless && o.unless.test(n))) {
+      // Kids' products go to KGW first, also in the groups counted without a sport word (kids' trainers, kids' smartwatches).
+      if (o.key !== KIDS.key && KIDS.re.test(n)) return { sport: false, overlap: KIDS.key, cat };
+      return { sport: false, overlap: o.key, cat };
+    }
   }
   if (!cat) return { sport: false };
   for (const s of SITE_RULES) {

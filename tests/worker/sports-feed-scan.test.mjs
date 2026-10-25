@@ -32,6 +32,15 @@ test('sport products go to the proposed category', () => {
   assert.equal(cat('Protein Shaker Bottle 700ml'), 'bags-bottles');
   assert.equal(cat("Women's Sports Bra High Impact"), 'sportswear-shoes');
   assert.equal(cat('Gym Leggings High Waist'), 'sportswear-shoes');
+  // owner, 25 Oct 2026: sports shoes, gym, supplements and all fitness belong on SGW
+  assert.equal(cat('Nike Air Zoom Pegasus 41 Mens Trainers'), 'sportswear-shoes');
+  assert.equal(cat('ASICS Gel-Kayano 31 Running Shoes'), 'running');
+  assert.equal(cat('Whey Protein Powder 1kg Chocolate'), 'nutrition');
+  assert.equal(cat('Creatine Monohydrate 500g'), 'nutrition');
+  assert.equal(cat('Pre-Workout Fruit Punch 30 Servings'), 'nutrition');
+  assert.equal(cat('Energy Gels Pack of 20'), 'nutrition');
+  assert.equal(cat('Vitamin D3 Tablets', 'Sports Nutrition > Vitamins'), 'nutrition');
+  assert.equal(cat('Vitamin D3 Tablets', 'Health > Vitamins'), null, 'a general supplement needs a sport word or a sport shop category');
 });
 
 test('not sport products, even with a sport word (L42)', () => {
@@ -54,8 +63,12 @@ test('sport products of another Gear World site are counted apart', () => {
   // smartwatches and supplements are counted even without a sport word (owner decides TGW or SGW)
   assert.equal(ov('Garmin Forerunner 265'), 'watch');
   assert.equal(ov('Samsung Galaxy Watch 7 44mm', 'Electronics > Wearables'), 'watch');
-  assert.equal(ov('Whey Protein Powder 1kg Chocolate'), 'nutrition');
   assert.equal(ov('Protein Shaker Bottle 700ml'), null);
+  // trainers with no sport word and no sports brand: counted apart (sport or fashion, owner decides)
+  assert.equal(ov('Chunky Platform Trainers White'), 'trainers');
+  assert.equal(ov('Nike Air Zoom Pegasus 41 Mens Trainers'), null);
+  assert.equal(ov('Cross Trainer Elliptical Machine'), null);
+  assert.equal(ov('Kids Light Up Trainers'), 'kids');
   // a fitness trampoline is gym gear, a garden trampoline is not a sport product
   assert.equal(cat('Fitness Trampoline Rebounder 40 inch'), 'fitness-gym');
   assert.equal(classify('10ft Trampoline with Safety Net').sport, false);
