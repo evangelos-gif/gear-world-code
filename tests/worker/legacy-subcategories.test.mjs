@@ -93,6 +93,11 @@ test('L56: every HGW place of the Joybuy rules is a subcategory the site already
     'Hoover H-Dry 300 8kg Heat Pump Tumble Dryer – White', 'Domestos Thick Bleach Toilet Cleaner, Original, 750ml', 'Flash Duster Dust Magnet Starter Kit',
     'BISSELL Revolution HydroSteam Carpet Cleaner, Carpet Stain Remover with Hydrosteam', 'JVL Three Tier Laundry Washing Clothes Drying Rack - White',
     'Addis 40L Faux Hessian Slim Laundry Hamper - Charcoal', 'Addis 40L Rectangular Laundry Basket - White'];
+  // Dry run of 25 Oct 2026 10:19: a vacuum whose name starts with the model, and steel pot scourers.
+  const c = n => classify({ name: n, feedCategory: 'Home & Garden > Household Appliances > Vacuums' });
+  assert.equal(c('Samsung Jet 85 Pet, Max 210W Suction Power Cordless Vacuum Cleaner with Pet Tool+, Woody Green - VS20C8522TN').subcategory, 'Vacuum Cleaner');
+  assert.equal(classify({ name: '6-Pack Stainless Steel Pot Scourers, 15g Each, Non-Rusting Metal Scrubber Pads (Bagged)', feedCategory: 'Home & Garden > Household Supplies > Household Cleaning Supplies' }).subcategory, 'Cloths & Sponges');
+  assert.equal(classify({ name: 'GARTOL 3 Piece Tool Holder, Broom Holder Wall, Garden Tool Holder, Wall Mount for Mop', feedCategory: 'Home & Garden > Household Supplies > Household Cleaning Supplies' }).subcategory, 'Cleaning Brush');
   const allowed = new Set([...HGW_SUBCATEGORIES, 'Washing Machine', 'Tumble Dryer']);
   for (const n of names) {
     const r = classify({ name: n, feedCategory: 'Home & Garden > Household Supplies > Household Cleaning Supplies' });

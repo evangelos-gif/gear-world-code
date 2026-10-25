@@ -243,14 +243,16 @@ export function cleaningPlace(n) {
     return at('Vacuum Accessories');
   }
   if (/steam (mop|cleaner|carpet cleaner)|steam generator cleaner|hydrosteam/i.test(h) && !/iron|garment/i.test(h)) return at('Steam Cleaner');
-  if (/vacuum|\bvac\b|hoover hf|hoover hl|dustbuster|carpet cleaner|spot cleaner|spotwash|hard ?floor cleaner|window (vac|cleaning robot)|winbot|cleaning robot|hydrovac|aquajet|robot (vacuum|mop)|deebot|roomba|roborock/i.test(h)
+  // "Samsung Jet 85 Pet, Max 210W Suction Power Cordless Vacuum Cleaner with Pet Tool+": a machine phrase anywhere counts.
+  if ((/vacuum|\bvac\b|hoover hf|hoover hl|dustbuster|carpet cleaner|spot cleaner|spotwash|hard ?floor cleaner|window (vac|cleaning robot)|winbot|cleaning robot|hydrovac|aquajet|robot (vacuum|mop)|deebot|roomba|roborock/i.test(h)
+      || /(cordless|stick|upright|handheld|cylinder|robot|wet (&|and) dry|bagless|pole) vacuum( cleaner)?\b|vacuum cleaner\b/i.test(n))
     && !/solution|spray|liquid|wipes|(^|\s)\d+(\.\d+)?\s?(ml|l|litres?)\b/i.test(h)
     // "Dreame L10s Ultra Gen 2 with Rotary Mops- 10,000Pa Suction, LiDAR ...": suction in Pa or LiDAR is a machine.
     || /lidar|\b\d[\d,.]*\s?k?pa\b/i.test(n) && /suction|lidar/i.test(n)) {
     return at('Vacuum Cleaner', APPLIANCES);
   }
   // Brushes and brooms before irons ("Broom Set with 75cm Iron Handle", "Iron Scrub Brush").
-  if (/broom|dustpan|toilet brush|scrub brush|cleaning brush|wire brush|gap cleaning brush|\bbrush(es)?\b|scrubber/i.test(n) && !/dish/i.test(n)) return at('Cleaning Brush');
+  if (/broom|dustpan|toilet brush|scrub brush|cleaning brush|wire brush|gap cleaning brush|\bbrush(es)?\b|scrubber/i.test(n) && !/dish/i.test(n) && !/scourers?|scouring/i.test(h)) return at('Cleaning Brush');
   if (/\bmops?\b|mop (pads?|refill|cloth|bucket|head)|spin mop|spray mop|speedmop/i.test(n) && !/wipes|liquid|spray mop floor cleaner|\bml\b/i.test(n)) return at('Mop');
   if (/ironing board/i.test(n)) return at('Ironing Board');
   if (/\biron\b|\birons\b|steam generator|garment steamer|clothes steamer|handheld steamer|\bsteamer\b|lint|fabric dye|\bdye\b|fabric protector|fabric freshener|shoe washing bag/i.test(n)) {

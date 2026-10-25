@@ -30,6 +30,7 @@ function joybuyDb() {
     'Zero In Ultra Power Household Pest Killer, Bed Bug and Dust Mite Steam Gun'];
   out.forEach((n, i) => add.run(100 + i, 'Joybuy UK', i === 7 ? 'Home Appliances' : 'Cleaning & Laundry', n, 5, 'x'));
   const stay = ['Dettol Antibacterial Surface Cleansing Wipes, 126 Large Wipes', 'Vilscijon Gray Shoe Washing Bags for Washing Machine, Set of 2',
+    'Bc Babycare Baby Food Maker & Blender: 6-Layer Grinding, 26000 RPM, 10oz Capacity',
     'Flash Speedmop Antibacterial Lemon Wet Floor Wipes, 10 Wipes', 'Andrex Kitchen Towel'];
   stay.forEach((n, i) => add.run(200 + i, 'Joybuy UK', 'Cleaning & Laundry', n, 5, 'x'));
   // Another shop's toilet rolls are not this rule's business.

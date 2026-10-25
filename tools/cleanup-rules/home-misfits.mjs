@@ -9,10 +9,11 @@ import { updateSql } from './instock.mjs';
 export const NOT_HOME = ['finediam', 'akko uk'];
 
 // Joybuy products that the cleaning rules placed on HGW before lessons L56 (import of 25 Oct 2026): toilet paper, personal
-// hygiene wipes, a toiletry bag, a pet grooming kit and a pest killer. The words are the ones joybuy.mjs now leaves out.
+// hygiene wipes, a toiletry bag, a pet grooming kit and a pest killer. The words are the ones joybuy.mjs now leaves out
+// (not "babycare": the dry run of 25 Oct 10:19 showed it would also hide a Bc Babycare baby food blender in Home Appliances).
 // (instr ... BETWEEN, not LIKE '%...%' or >, and char(38) for the ampersand, without ||: the command goes through cmd.exe, where %, >, & and | mean
 // something else.)
-export const JOYBUY_NOT_CLEANING = ['toilet roll', 'toilet tissue', 'toilet wipe', 'hygiene wipes', 'wet wipes for adult', 'body wipe', 'babycare', 'wash bag',
+export const JOYBUY_NOT_CLEANING = ['toilet roll', 'toilet tissue', 'toilet wipe', 'hygiene wipes', 'wet wipes for adult', 'body wipe', 'wash bag',
   'pet grooming', 'pest killer', 'bed bug'];
 
 export function hideSelect() {
