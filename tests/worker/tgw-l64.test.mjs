@@ -83,6 +83,37 @@ test('not tech, or not for sale on its own: a camping gas stove, a free-gift pen
   assert.equal(where(null, 'Baseus PowerCombo 65W Charger UK Gift Box', '', 'Electronics > Electronics Accessories > Power'), 'accessories-storage');
 });
 
+test('the right page: an SSD filed under game controllers, and things made for an iPhone are not phones', () => {
+  const GC = 'Electronics > Electronics Accessories > Computer Components > Input Devices > Game Controllers';
+  const cases = [
+    ['Samsung 990 Pro PCIe 4.0 NVMe 2TB', GC, 'accessories-storage'],
+    ['Kingston Technology 4000G NV3 M.2 2280 NVMe SSD', GC, 'accessories-storage'],
+    ['Sony PlayStation DualSense Wireless Controller - Chroma Pearl (PS5)', GC, 'gaming'],
+    ['Razer Blade 16 (2025) Gaming Laptop - NVIDIA GeForce RTX 5090, AMD Ryzen AI 9 365, 32GB RAM, 4TB SSD', '', 'gaming'],
+    ['MSI Claw 8 EX AI+ Intel Arc G3 Extreme 32GB RAM 1TB SSD 120Hz 8 Inch', '', 'gaming'],
+    ['MOVESPEED Solid State Drive – 1TB USB 3.2 Gen2x2 Portable SSD with 2060MB/s High-Speed for iPhone', 'Electronics > Electronics Accessories > Computer Components > Storage Devices > Floppy Drives', 'accessories-storage'],
+    ['BOYA BY-V20 V2.0 USB-C Wireless Microphone for iPhone 16/17, Android with One-Click Noise Cancelling', 'Electronics > Audio > Audio Accessories > Microphone Accessories', 'audio'],
+    ['VoxorAI M28 Black Fill Light, Selfie Fill Light, Magnetic Selfie Light, Magnetic Beauty Light for iPhone', 'Electronics > Electronics Accessories > Power > Batteries > Camera Batteries', 'cameras-drones'],
+    ['Apple iPhone 16 128GB Ultramarine', 'Electronics > Communications > Telephony > Mobile Phones > Unlocked Mobile Phones', 'phones-smartwatches'],
+    ['Apple Watch Series 11 GPS 46mm Silver Aluminium Case with Purple Fog Sport Band - M/L', 'Electronics > Computers > Smart Glasses', 'phones-smartwatches']
+  ];
+  for (const [name, cat, slug] of cases) assert.equal(where(null, name, '', cat), slug, name);
+});
+
+test('stationery is not tech: paint markers (read as printer ink) and a ballpoint pen set (read as a mouse)', () => {
+  const INK = 'Office Supplies > Office Instruments > Writing & Drawing Instrument Accessories > Marker & Highlighter Ink Refills';
+  for (const name of ['Posca PC-1M Ultra Fine Tip Paint Marker (8 Pack) - Assorted Colours', 'Pentel Fine Paint Marker Metallic Colours Pack of 6',
+    'Posca PC-5M Medium Tip Paint Marker (4 Pack) - Festive']) {
+    assert.equal(where(null, name, '', INK), 'OUT stationery (not tech)', name);
+  }
+  assert.equal(where(null, '4pcs Disney Mickey Mouse and Donald Duck Pen Set Officially Licensed Minnie Daisy Cute Anime Ballpoint Pens Colorful Smooth Stationery Gift', '',
+    'Office Supplies > Office Instruments > Writing & Drawing Instruments > Pens & Pencils > Pens'), 'OUT stationery (not tech)');
+  // still tech: a cable's "E-Marker" chip, a stylus, printer ink
+  assert.equal(where(null, 'Hama USB-C Cable, E-Marker, USB4 Gen4, 80 Gbit/s, 5 A, 240 W, 1.00 m', '', 'Computers'), 'accessories-storage');
+  assert.equal(where(null, 'Microsoft Surface Slim Pen 2 Stylus', '', 'Electronics > Electronics Accessories > Computer Accessories'), 'accessories-storage');
+  assert.equal(where(null, 'Canon CLI-571Y Yellow Ink Cartridge', '', 'Office Supplies > General Office Supplies'), 'laptops-computing');
+});
+
 test('"�" in a name: a dash between words, a space inside a word, nothing at the end', () => {
   assert.equal(cleanProductName('Samsung Q600H Q-Series Soundbar with Subwoofer � 3.1.2ch Dolby Atmos (HW-Q600H/XU)'),
     'Samsung Q600H Q-Series Soundbar with Subwoofer – 3.1.2ch Dolby Atmos (HW-Q600H/XU)');
@@ -92,6 +123,13 @@ test('"�" in a name: a dash between words, a space inside a word, nothing at t
   assert.equal(cleanProductName('TCL 75P7L-UK 75" QLED 4K Smart TV � Ultra Large 75 Inch HDR'), 'TCL 75P7L-UK 75" QLED 4K Smart TV – Ultra Large 75 Inch HDR');
   assert.equal(cleanProductName('Samsung Q990H Q-Series Soundbar with Subwoofer & Rear Speakers � (HW-Q990H/XU)'),
     'Samsung Q990H Q-Series Soundbar with Subwoofer & Rear Speakers – (HW-Q990H/XU)');
+});
+
+test('a sales slogan in front of the name is taken off', () => {
+  assert.equal(cleanProductName('Black Friday Deal | Coocaa 40"CTQH38 Direct-LED FHD HDR10 Dolby Audio QLED Freely Tivo'),
+    'Coocaa 40"CTQH38 Direct-LED FHD HDR10 Dolby Audio QLED Freely Tivo');
+  assert.equal(cleanProductName('Black Friday Deals!COMFEE\' RCD92WH2UKY(E) 88L Under Counter Fridge'), 'COMFEE\' RCD92WH2UKY(E) 88L Under Counter Fridge');
+  assert.equal(cleanProductName('Black Friday Special Edition Headphones'), 'Black Friday Special Edition Headphones', 'a name, not a slogan');
 });
 
 test('stock: Back to the Office, PCHUB.UK (and PcNova, with PCHUB\'s rules) trust stock_quantity; Joybuy keeps in_stock', () => {

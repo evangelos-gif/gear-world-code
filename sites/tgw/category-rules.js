@@ -55,7 +55,11 @@ export const DENY = [
   // was with the accessories (because of "Adapter"), and "ZTE Nubia Pen White – Free Gift Only" is given with a phone, not
   // sold on its own.
   { label: 'camping or cooking gear (not tech)', re: words(['(?:gas|camping|portable) stoves?', 'stoves?', 'gas burners?', 'butane', 'gas cartridges?']) },
-  { label: 'free gift, not sold on its own', re: words(['(?:free )?gift only', 'not for (?:individual )?sale']) }
+  { label: 'free gift, not sold on its own', re: words(['(?:free )?gift only', 'not for (?:individual )?sale']) },
+  // Same dry run: Joybuy's "Posca PC-1M Ultra Fine Tip Paint Marker (8 Pack)" (feed folder "... Marker & Highlighter Ink
+  // Refills", read as printer ink) and the live "4pcs Disney Mickey Mouse and Donald Duck Pen Set ... Ballpoint Pens ...
+  // Stationery Gift" (read as a computer mouse) are on the computing page. A USB-C cable's "E-Marker" chip is not a marker.
+  { label: 'stationery (not tech)', re: words(['paint markers?', 'marker pens?', 'posca', 'highlighters?', 'highlighter pens?', 'ballpoint', 'gel pens?', 'stationery']) }
 ];
 
 // TGW is a UK site (fourth dry run, 24 Oct 2026): a charger, adapter or dock with a European, US or other plug ("Sandberg
@@ -157,7 +161,10 @@ export const RULES = [
     // A network "gateway/controller ... Mbit/s" (PCHUB.UK "Networking>Routers & Accessories>Controllers") is not a game controller,
     // nor is "Antec ARGB & PWM FAN CONTROLLER fan speed controller".
     exclude: words(['board game', 'card game', 'jigsaw puzzle', 'smart tv', 'televisions?', 'google tv', 'oled tv', 'qled', '\\d{2}["”] (?:bravia|4k)',
-      'gateways?', 'mbit/s', '(?:fan|argb|rgb|led|lighting|pwm|midi|dj) (?:speed )?controllers?'])
+      'gateways?', 'mbit/s', '(?:fan|argb|rgb|led|lighting|pwm|midi|dj) (?:speed )?controllers?',
+      // Dry run of 25 Oct 2026 (lessons L64): Joybuy files "Samsung 990 Pro PCIe 4.0 NVMe 2TB" under "... Game Controllers". A
+      // gaming laptop, PC or console that names its SSD stays ("Razer Blade 16 ... Gaming Laptop ... 4TB SSD").
+      '^(?!.*\\b(?:laptops?|notebooks?|pcs?|desktops?|consoles?|rog ally|msi claw|legion go|steam deck)\\b).*\\b(?:ssds?|nvme|solid state)'])
   },
   {
     slug: 'smart-home-wifi',
@@ -177,7 +184,10 @@ export const RULES = [
     // Wireless Smartphone Photo Printer", "Hama FlexPro tripod Smartphone/Action camera" and "OnePlus Nord Buds 2 ... Wireless
     // Earphones" are not phones either.
     exclude: words(['kids toy watch', 'tablets?', 'stabili[sz]ers?', 'gimbals?', 'printers?', 'tripods?', 'earbuds?', 'earphones?', 'headphones?', 'headsets?', 'buds\\d*',
-      '(?:oneplus|xiaomi|redmi|oppo|honor|realme|nothing) pad', 'tab [a-z]{0,2}\\d+', 'matepad'])
+      '(?:oneplus|xiaomi|redmi|oppo|honor|realme|nothing) pad', 'tab [a-z]{0,2}\\d+', 'matepad',
+      // Dry run of 25 Oct 2026 (lessons L64): things made "for iPhone" are not phones: "MOVESPEED Solid State Drive – 1TB ...
+      // Portable SSD", "BOYA BY-V20 ... Wireless Microphone for iPhone 16/17", "VoxorAI M28 ... Selfie Fill Light".
+      'ssds?', 'nvme', 'solid state', 'microphones?', 'lavalier', '(?:fill|selfie|ring|video) lights?'])
   },
   {
     slug: 'laptops-computing',
@@ -239,7 +249,9 @@ export const RULES = [
       'dash ?cams?', 'drones?', 'camera lens(?:es)?', 'gimbals?', 'camcorders?', 'vlog',
       // Camera bodies named by type (PCHUB.UK): "Canon EOS R8 ...", "... MILC Body 24.2 MP", "Panasonic Lumix", "Kodak PIXPRO".
       // Not "[EOS 01.10.23]" (end of sale) in a software licence's name (lessons L64).
-      'milc', 'eos(?! \\d{1,2}\\.\\d)', 'lumix', 'pixpro', 'quicksnap'
+      'milc', 'eos(?! \\d{1,2}\\.\\d)', 'lumix', 'pixpro', 'quicksnap',
+      // lights for photos and video calls (lessons L64)
+      '(?:fill|selfie|ring|video) lights?'
     ]),
     // "TP-Link Tapo Pan/Tilt Home Security WiFi Camera" and "Tapo Smart Wire-Free Security Battery Camera" (Back to the Office,
     // 23 Oct 2026) are smart-home cameras; so are "D-Link 2 Megapixel H.265 Outdoor Dome Camera" and "Ubiquiti (UVC-G6-INS-W-UK)
@@ -339,6 +351,8 @@ export function cleanProductName(name) {
     .replace(/\s+�+\s+/g, ' – ')
     .replace(/�+/g, ' ')
     .replace(/^\s*(?:【[^】]{0,40}】|\[[^\]]{0,40}\]|\([^)]*(?:deal|sale|delivery|offer)[^)]*\))\s*/gi, '')
+    // Joybuy, 25 Oct 2026: "Black Friday Deal | Coocaa 40"CTQH38 ...", "Black Friday Deals!COMFEE' RCD92WH2UKY(E) ..." (lessons L64)
+    .replace(/^\s*(?:black friday|cyber monday|prime day|flash sale|hot sale)(?: early)?(?: deals?| sale| offers?)?\s*[|:!–-]+\s*/i, '')
     .replace(/^(\s*\S+)\s+(?:none|null|undefined|n\/a)\s+/i, '$1 ')
     .replace(/^(\s*([a-z][a-z0-9]*))\s+\2\b/i, '$1')
     .replace(/\s{2,}/g, ' ')
