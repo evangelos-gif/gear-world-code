@@ -102,3 +102,22 @@
 | cat-travel-tech.webp | https://www.pexels.com/photo/smartphone-charging-with-portable-power-bank-37475677/ |
 | cat-camping-outdoor.webp | https://www.pexels.com/photo/two-lighted-dome-tent-during-nighttime-2526025/ |
 | cat-beach-holiday.webp | https://www.pexels.com/photo/brown-woven-bag-on-beach-sand-8093198/ |
+
+## Sporty Gear World (SGW)
+
+Φωτογραφίες από το **Pexels** ([άδεια Pexels](https://www.pexels.com/license/)), κομμένες και μικρυμένες σε WebP. Θόλωσαν τα σήματα μάρκας στις ρακέτες και τα μπαλάκια (Head, Dunlop) και μεγάλωσαν τα πλάγια της φωτογραφίας με τη σκόνη πρωτεΐνης, για να μη φαίνεται μάρκα σαν να υποστηρίζει το site. Το λογότυπο, το favicon και το apple-touch-icon σχεδιάστηκαν για το repo (αθλητική μπάλα σε σκούρο τετράγωνο).
+
+| Αρχείο | Pexels |
+|---|---|
+| hero-1920.webp, hero-960.webp, og-image.png (φόντο) | https://www.pexels.com/photo/aerial-view-of-track-and-football-field-35678274/ |
+| cat-fitness-gym.webp | https://www.pexels.com/photo/gym-tools-6740821/ |
+| cat-running.webp | https://www.pexels.com/photo/close-up-photo-of-woman-tying-her-white-sneakers-on-running-track-3763869/ |
+| cat-cycling.webp | https://www.pexels.com/photo/2248713/ |
+| cat-football-team-sports.webp | https://www.pexels.com/photo/american-football-ball-26707860/ |
+| cat-racket-sports.webp | https://www.pexels.com/photo/209977/ |
+| cat-water-sports.webp | https://www.pexels.com/photo/a-person-using-kayak-13776575/ |
+| cat-hiking-climbing-winter.webp | https://www.pexels.com/photo/1365425/ |
+| cat-nutrition-hydration.webp | https://www.pexels.com/photo/white-plastic-container-without-a-label-and-a-pile-of-dry-food-with-a-clear-spoon-13779103/ |
+| cat-sportswear-shoes-bags.webp | https://www.pexels.com/photo/portrait-of-two-women-in-sports-clothing-5000490/ |
+| cat-golf-skate-more.webp | https://www.pexels.com/photo/5147028/ |
+| assets/flags/nl.svg | Η σημαία Ολλανδίας του CGW (για το VEVOR, δεύτερο κύμα) |

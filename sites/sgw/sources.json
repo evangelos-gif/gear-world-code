@@ -1,0 +1,15 @@
+{
+  "_comment": "Awin feeds used by Sporty Gear World. advertiserId is the Awin advertiser id (file names AWIN_<advertiserId>_<feedId>.csv.gz in the Awin archive folders). Without feedIds, every file of that retailer is read. Add a retailer only after Awin has approved the programme. allowPaths (lessons L65): only products from these sport sections of the shop's category path come in, never a tool or tech shop's product because its name has a sport word. First version (25 Oct 2026, after the sports feed scan): Coes, Joybuy UK, Plusshop UK, Bazta UK (the same catalogue at two prices, lessons L40) and Beyond Shakers. VEVOR NL comes in a second wave (owner, 25 Oct 2026). retailer is the name shown on the site.",
+  "sources": [
+    { "advertiserId": 30645, "feedIds": [116078], "retailer": "Coes", "currency": "GBP", "condition": "new", "approved": true,
+      "allowPaths": ["sports"] },
+    { "advertiserId": 123932, "feedIds": [114093], "retailer": "Joybuy", "currency": "GBP", "condition": "new", "approved": true,
+      "allowPaths": ["sporting goods", "fitness & nutrition", "sports nutrition"] },
+    { "advertiserId": 69306, "retailer": "Plusshop UK", "currency": "GBP", "condition": "new", "approved": true,
+      "allowPaths": ["sport & fitness", "training accessories"] },
+    { "advertiserId": 116097, "retailer": "Bazta UK", "currency": "GBP", "condition": "new", "approved": true, "rulesFrom": 69306 },
+    { "advertiserId": 66912, "retailer": "Beyond Shakers", "currency": "GBP", "condition": "new", "approved": true },
+    { "advertiserId": 118435, "feedIds": [109014], "retailer": "VEVOR", "currency": "EUR", "condition": "new", "approved": false,
+      "allowPaths": ["sport en buitenshuis"] }
+  ]
+}
