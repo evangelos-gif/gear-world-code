@@ -1336,6 +1336,87 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
     }
 }
 
+# 8c2. legacy-refresh.ps1 (price, picture and stock of shops already on a site, lessons L57) with a fake wrangler (Windows only)
+if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
+    Write-Host 'legacy-refresh.ps1 (fake wrangler)'
+    $rfTool = Join-Path (Join-Path $repo 'tools') 'legacy-refresh.ps1'
+    $rfState = Join-Path $work 'rf-state'
+    $rfBin = Join-Path $work 'rf-bin'
+    $rfWork = Join-Path $work 'rf-work'
+    $rfOut = Join-Path $work 'rf-out'
+    $rfArch = Join-Path $work 'rf-arch'
+    New-Item -ItemType Directory -Path $rfState, $rfBin, $rfArch -Force | Out-Null
+    $rfBookmark = '00000085-0000024c-00004c6d-' + [guid]::NewGuid().ToString('N')
+    $rfNpx = @(
+        '@echo off',
+        'echo %* >> "%GW_FAKE_STATE%\calls.log"',
+        'echo %* | findstr /C:"time-travel info" >nul && goto ttinfo',
+        'echo %* | findstr /C:"GROUP BY retailer" >nul && goto shops',
+        'echo %* | findstr /C:"sqlite_master" >nul && goto idx',
+        'echo %* | findstr /C:"id BETWEEN" >nul && goto rows',
+        'echo %* | findstr /C:"AS n FROM products WHERE retailer" >nul && goto after',
+        'echo %* | findstr /C:"--file" >nul && goto ok',
+        'echo unknown command 1>&2',
+        'exit /b 1',
+        ':ttinfo',
+        ('echo The current bookmark is ' + $rfBookmark),
+        'exit /b 0',
+        ':shops',
+        'echo [{"results":[{"retailer":"Tooled Up","n":2},{"retailer":"Reidl","n":5}],"success":true}]',
+        'exit /b 0',
+        ':idx',
+        'echo [{"results":[{"name":"idx_products_active_price","sql":"CREATE INDEX idx_products_active_price ON products(is_active, price)"},{"name":"idx_products_active_id","sql":"CREATE INDEX idx_products_active_id ON products(is_active, id)"}],"success":true}]',
+        'exit /b 0',
+        ':rows',
+        'echo [{"results":[{"id":1,"awin_product_id":"100046875","merchant_product_id":"100005800","product_name":"Bahco Spanner","price":11.99,"currency":"GBP","stock_status":"In Stock","image_url":"https://x/a.jpg","is_active":1},{"id":5,"awin_product_id":"555","merchant_product_id":"555","product_name":"Gone","price":7,"currency":"GBP","stock_status":"In Stock","image_url":"https://x/5.jpg","is_active":1}],"success":true}]',
+        'exit /b 0',
+        ':after',
+        'echo [{"results":[{"n":1}],"success":true}]',
+        'exit /b 0',
+        ':ok',
+        'echo OK',
+        'exit /b 0'
+    ) -join "`r`n"
+    [System.IO.File]::WriteAllText((Join-Path $rfBin 'npx.cmd'), $rfNpx + "`r`n", [System.Text.Encoding]::ASCII)
+    $rfCsv = "merchant_name,aw_product_id,merchant_product_id,product_name,merchant_image_url,search_price,currency,in_stock,stock_status,last_updated`n" +
+        ('Tooled Up,100046875,100005800,Bahco Spanner,https://x/a.jpg,12.50,GBP,1,In Stock,{0}' -f (Get-Date -Format 'yyyy-MM-dd HH:mm:ss')) + "`n"
+    [System.IO.File]::WriteAllText((Join-Path $rfArch 'AWIN_496_1001.csv'), $rfCsv, (New-Object System.Text.UTF8Encoding($false)))
+    $oldPath = $env:PATH
+    $env:PATH = $rfBin + ';' + $oldPath
+    $env:GW_FAKE_STATE = $rfState
+    $rfCalls = Join-Path $rfState 'calls.log'
+    function Run-Rf([string[]]$a) {
+        $all = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $rfTool, '-Archive', $rfArch, '-WorkDir', $rfWork, '-OutDir', $rfOut, '-NoClipboard') + $a
+        & $exe @all | Out-Null
+        return $LASTEXITCODE
+    }
+    function RfCalls { if (Test-Path -LiteralPath $rfCalls) { return [System.IO.File]::ReadAllText($rfCalls) } else { return '' } }
+    try {
+        Check ((Run-Rf @('-Pairs', 'tooled-up:cgw')) -eq 0) 'refresh without -Apply: exit 0'
+        Check (-not ((RfCalls) -match '--file|time-travel')) 'refresh without -Apply: only reads'
+        Check ((RfCalls) -match 'construction-gear-customers') 'refresh: reads the CGW database'
+        $rfRep = @(Get-ChildItem -LiteralPath $rfOut -Filter 'REFRESH_*.txt' -ErrorAction SilentlyContinue)
+        Check ($rfRep.Count -eq 1 -and ([System.IO.File]::ReadAllText($rfRep[0].FullName)).Contains('ΕΓΚΡΙΝΩ REFRESH TOOLED-UP CGW')) 'refresh: report with the plan and the approval phrase'
+        Check ((Run-Rf @('-Pairs', 'tooled-up:cgw', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ REFRESH TOOLED-UP MGW')) -eq 1) 'refresh with the wrong phrase: stops'
+        Check (-not ((RfCalls) -match '--file')) 'refresh with the wrong phrase: changes nothing'
+        Check ((Run-Rf @('-Pairs', 'tooled-up:cgw', '-Apply', '-Approve', 'egkrino refresh tooled-up cgw')) -eq 0) 'refresh with approval (Latin form): exit 0'
+        $rc = RfCalls
+        $iTT = $rc.IndexOf('time-travel info construction-gear-customers')
+        $iUp = $rc.IndexOf('update-0001.sql')
+        $iHide = $rc.IndexOf('hide.sql')
+        Check ($iTT -ge 0 -and $iUp -gt $iTT -and $iHide -gt $iUp) 'refresh: restore point, then the updates, then the hiding'
+        $rfUndo = @(Get-ChildItem -LiteralPath (Join-Path $rfWork 'backups') -Filter 'cgw-refresh-tooled-up-*-rollback.sql' -ErrorAction SilentlyContinue)
+        Check ($rfUndo.Count -eq 1 -and ([System.IO.File]::ReadAllText($rfUndo[0].FullName)).Contains('price = 11.99') -and ([System.IO.File]::ReadAllText($rfUndo[0].FullName)).Contains('SET is_active = 1')) 'refresh: rollback with the old price and the hidden product'
+        $rfNote = @(Get-ChildItem -LiteralPath (Join-Path $rfWork 'backups') -Filter 'cgw-restore-point-before-tooled-up-refresh-*.txt' -ErrorAction SilentlyContinue)
+        Check ($rfNote.Count -eq 1 -and ([System.IO.File]::ReadAllText($rfNote[0].FullName)).Contains($rfBookmark)) 'refresh: restore point written with the bookmark'
+        Check ((Run-Rf @('-Pairs', 'nobody:cgw')) -eq 5) 'refresh: a shop not on the site is reported'
+        Check ((Run-Rf @('-Pairs', 'tooled up:cgw')) -eq 2) 'refresh: a wrong pair is refused'
+    } finally {
+        $env:PATH = $oldPath
+        Remove-Item Env:\GW_FAKE_STATE -ErrorAction SilentlyContinue
+    }
+}
+
 # 8d. legacy-cleanup.ps1 (hide wrong products on MGW/WGW) with a fake wrangler (Windows only: runs .cmd files)
 if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
     Write-Host 'legacy-cleanup.ps1 (fake wrangler)'
