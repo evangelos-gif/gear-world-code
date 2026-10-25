@@ -76,6 +76,14 @@ const OUTSIDE = words(['outdoor', 'garden', 'solar', 'waterproof', 'patio', 'ip4
 const FOOD_SEEDS = words(['chia', 'sesame', 'flax', 'linseed', 'sunflower seeds', 'pumpkin seeds', 'lotus seed', 'seed beads', 'beads', 'bird seed', 'roasted', 'salted', 'bread',
   'oil', 'seed oil', 'walnut', 'walnuts', 'nuts', 'artificial', 'fake', 'faux', 'silk', 'plastic plant', 'christmas tree seeds', 'lotus seeds', 'paste', 'bean', 'beans']);
 
+// Does the text hold one of the "yes" words of this garden category? Read-only helper for a shop's own rules (Joybuy
+// checks WHERE in a name the word stands, lessons L55); gardenPlace below is unchanged for every shop.
+export function gardenWord(text, siteCategory) {
+  const group = Object.keys(GARDEN_CATEGORIES).find(k => GARDEN_CATEGORIES[k] === siteCategory);
+  const rule = RULES.find(r => r[0] === group);
+  return Boolean(rule && rule[1].test(String(text || '')));
+}
+
 // Returns { siteCategory, subcategory } for a garden product, or null. `extra(name, feedCategory)` may add a shop's own no-words.
 export function gardenPlace(name, feedCategory = '') {
   const n = String(name || '');

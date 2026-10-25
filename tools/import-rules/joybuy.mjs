@@ -15,7 +15,8 @@
 // categories ("Health & Beauty > Personal Care > Cosmetics > Perfume & Cologne"). Joybuy also files perfumes under
 // "Home & Garden > Decor > Candles & Home Fragrances > Fragrance Oils", so a perfume NAME counts too.
 // Lessons L14: a "yes" list and a "no" list, a read-only plan with samples first, an import only with approval.
-import { gardenPlace } from './lib/garden.mjs';
+// Lessons L55: the GGW and HGW mistakes of the plan of 25 Oct 2026 (Joybuy names list what a product is FOR).
+import { gardenPlace, gardenWord, GARDEN_CATEGORIES } from './lib/garden.mjs';
 
 export const RULES = {
   key: 'joybuy',
@@ -165,9 +166,25 @@ export const SMART_HOME = words(['smart plug', 'smart plugs', 'smart bulb', 'sma
   'echo dot', 'echo show', 'echo pop', 'google nest', 'google home', 'nest hub', 'nest cam', 'ring doorbell', 'ring camera', 'ring alarm', 'hive thermostat',
   'tado', 'philips hue', 'hue bulb', 'lightstrip', 'lightstrips', 'wifi plug', 'wi-fi plug', 'wifi bulb', 'wi-fi bulb', 'eufycam', 'eufy security', 'arlo',
   'blink outdoor', 'blink mini', 'switchbot', 'meross', 'govee', 'tapo', 'kasa']);
+// Plan of 25 Oct 2026 (lessons L55): a heater "with Wi-Fi, works with Alexa" in Smart Home. An appliance with an app
+// is not a smart home device (plugs, bulbs, cameras, doorbells, locks, thermostats, hubs and speakers are).
+// "Smart Radiator Thermostat" and "radiator valve" stay: only "electric radiator" and "radiator heater" are heaters.
+const APPLIANCE_WORDS = ['heater', 'heaters', 'convector', 'oil filled', 'oil-filled', 'electric radiator', 'radiator heater', 'fan', 'fans', 'air purifier',
+  'purifier', 'humidifier', 'dehumidifier', 'air conditioner', 'air conditioning', 'kettle', 'air fryer', 'coffee machine', 'microwave', 'electric blanket'];
+export const APPLIANCE = words(APPLIANCE_WORDS);
 export const NOT_SMART_HOME = words(['smart tv', 'smart tvs', 'smartphone', 'smartphones', 'smart watch', 'smartwatch', 'case', 'cases', 'cover', 'covers', 'screen protector',
   'toy', 'toys', 'baby monitor', 'baby monitors', 'bracket', 'brackets', 'mount', 'mounts', 'hanger', 'accessory', 'accessories', 'replacement', 'strap', 'straps',
-  'dash cam', 'car', 'kids', 'vacuum', 'phone', 'iphone', 'ipad', 'cooler', 'gaming']);
+  'dash cam', 'car', 'kids', 'vacuum', 'phone', 'iphone', 'ipad', 'cooler', 'gaming',
+  // Plan of 25 Oct 2026 (lessons L55): a DJI action camera ("Wi-Fi", "wireless camera") among the security cameras.
+  'action camera', 'action cameras', 'action cam', 'action cams', 'osmo', 'dji', 'gopro', 'insta360', 'akaso', 'vlog', 'vlogging', 'vlogger', 'helmet camera',
+  'body camera', 'body cam', 'bodycam', 'trail camera', 'trail cam', 'wildlife camera', 'camcorder', 'camcorders', 'webcam', 'webcams', 'drone', 'drones',
+  'gimbal', 'instant camera', 'digital camera', 'film camera', 'underwater camera', 'dashcam', 'dash camera',
+  ...APPLIANCE_WORDS]);
+// A camera stays in "Security cameras & doorbells" only when the name says it watches a home (L55).
+export const HOME_CAMERA = words(['security', 'cctv', 'surveillance', 'doorbell', 'indoor', 'outdoor', 'home', 'house', 'ip camera', 'ptz', 'pan tilt',
+  'pan/tilt', 'pan & tilt', 'pan-tilt', 'night vision', 'motion detection', 'motion detect', 'two-way audio', '2-way audio', '2 way audio', 'two way audio',
+  'siren', 'floodlight', 'spotlight', 'alexa', 'google', 'eufy', 'eufycam', 'arlo', 'blink', 'ring', 'tapo', 'nest', 'ezviz', 'reolink', 'imou', 'jooan',
+  'wyze', 'annke', 'hikvision', 'kasa', 'swann', 'ctronics', 'iegeek', 'botslab', 'yi', 'pet camera', 'dog camera']);
 // A feed category alone is not enough (Joybuy files rugs, blankets and toilet rolls under cleaning): the name needs one of these too.
 const CLEAN_HINT = words(['clean', 'cleaner', 'cleaners', 'cleaning', 'vacuum', 'vac', 'hoover', 'mop', 'mops', 'steam', 'steamer', 'laundry', 'washing', 'wash',
   'detergent', 'bleach', 'disinfectant', 'degreaser', 'descaler', 'limescale', 'sponge', 'sponges', 'scrubber', 'scourer', 'scourers', 'duster', 'cloth', 'cloths',
@@ -202,8 +219,11 @@ function homePlace(n, c) {
   if (SMART_HOME.test(n) && !NOT_SMART_HOME.test(n)) {
     const sub = /camera|cctv|doorbell|eufycam|arlo|blink|\bring (doorbell|camera|alarm)/i.test(n) ? 'Security cameras & doorbells'
       : /bulb|light|lighting|lightstrip|hue/i.test(n) ? 'Smart lighting' : /plug|switch|socket/i.test(n) ? 'Smart plugs & switches' : 'Smart home';
+    if (sub === 'Security cameras & doorbells' && !HOME_CAMERA.test(n)) return { reject: 'a camera, but not one that watches a home (Smart Home)' };
     return { site: 'hgw', siteCategory: 'Smart Home', subcategory: sub };
   }
+  // "... Electric Heater with WiFi, Works with Alexa": left out of Smart Home and of the plan, with its reason in the report.
+  if (SMART_HOME.test(n) && NOT_SMART_HOME.test(n) && APPLIANCE.test(n)) return { reject: 'an appliance with an app (heater, fan, kettle...), not a smart home device' };
   if ((CLEANING.test(n) || (CLEANING_CATEGORY.test(c) && CLEAN_HINT.test(n))) && !NOT_CLEANING.test(n)) {
     return { site: 'hgw', siteCategory: 'Cleaning & Laundry', subcategory: cleaningSub(n) };
   }
@@ -246,6 +266,56 @@ function kidsPlace(n, c) {
   return null;
 }
 
+// ---------- Garden Gear World: Joybuy's own checks around the shared garden rules (lessons L55) ----------
+// Mistakes of the plan of 25 Oct 2026: kitchen scissors in BBQ ("... Meat Scissors for Chicken, Poultry, Fish and BBQ"),
+// a towel set and a diffuser in Plants, Growing ("Wildflower" as a print or a scent), a UniBond moisture absorber in
+// Seeds ("Wildflower Meadow Refill Tabs"), TILSWALL paint sprayers ("... Spray Gun ... for Fence, Shed, Furniture") and
+// garage shelves ("... Shelving Racking for Shed, Garage") in Sheds. The shared rules (lib/garden.mjs) stay unchanged for
+// the other shops (Gardenista, Mint Outdoor and My Tool Shed are not touched).
+export const NOT_GARDEN_JOYBUY = words(['scissors', 'kitchen shears', 'meat shears', 'poultry shears', 'knife', 'knives', 'cleaver', 'chopping board',
+  'cutting board', 'towel', 'towels', 'towel set', 'bath sheet', 'bath sheets', 'flannel', 'flannels', 'bath mat', 'bath mats', 'diffuser', 'diffusers',
+  'essential oil', 'essential oils', 'aromatherapy', 'air freshener', 'room spray', 'moisture absorber', 'moisture absorbers', 'moisture trap', 'dehumidifier',
+  'dehumidifiers', 'refill tab', 'refill tabs', 'unibond', 'paint sprayer', 'paint sprayers', 'paint spray gun', 'spray gun', 'spray guns', 'paint gun', 'hvlp',
+  'airless']);
+// Shelves and racking are for a garage or inside a shed; greenhouse staging and plant stands are garden products.
+const SHELVING = words(['shelf', 'shelves', 'shelving', 'racking']);
+const SHELVING_OK = words(['greenhouse', 'greenhouses', 'staging', 'plant stand', 'plant stands']);
+// "<what it is> for <what it is used with>": the part after "for" says what a product is used with, not what it is.
+const FOR_PART = /\s+(?:(?:ideal|suitable|perfect|great|designed|made|used|use|compatible|works?|fits?)\s+)?for\s+/i;
+// Accessories rightly named after the garden product they are for ("Waterproof Cover for BBQ", "Felt for Shed Roof").
+const MADE_FOR_OK = {
+  [GARDEN_CATEGORIES.bbq]: words(['cover', 'covers', 'brush', 'brushes', 'mat', 'mats', 'tongs', 'skewers', 'grate', 'grates', 'rib rack', 'thermometer', 'gloves',
+    'tool set', 'tools', 'utensils', 'spatula', 'basket', 'baskets', 'charcoal', 'briquettes', 'wood chips', 'smoking chips', 'pellets', 'firelighters',
+    'chimney starter', 'pizza stone', 'pizza peel']),
+  [GARDEN_CATEGORIES.buildings]: words(['base', 'bases', 'felt', 'roofing', 'anchor', 'anchors', 'staging', 'cover', 'covers']),
+  [GARDEN_CATEGORIES.plants]: words(['pot', 'pots', 'planter', 'planters', 'tray', 'trays', 'stake', 'stakes', 'support', 'supports', 'cane', 'canes', 'label',
+    'labels', 'cloche', 'cloches', 'netting', 'fleece', 'feed', 'food', 'fertiliser', 'fertilizer', 'compost', 'soil'])
+};
+// "Wildflower" alone is a scent or a print; seeds, plugs, bulbs and turf are the growing kind.
+const WILDFLOWER = /\bwild ?flowers?\b/gi;
+const GROWING = words(['seed', 'seeds', 'seedballs', 'turf', 'plug', 'plugs', 'plant', 'plants', 'bulb', 'bulbs', 'mix']);
+
+export function joybuyGarden(name, feedCategory = '') {
+  const n = String(name || '');
+  const place = gardenPlace(n, feedCategory);
+  if (!place) return null;
+  // Only products the shared rules would place are checked, so the report lists exactly what these checks keep out.
+  if (NOT_GARDEN_JOYBUY.test(n)) return { reject: 'not a garden product (kitchen knife or scissors, towel, home scent, damp absorber, paint sprayer)' };
+  const cat = place.siteCategory;
+  if (SHELVING.test(n) && !SHELVING_OK.test(n)) return { reject: 'shelves or racking for a garage or a shed, not a garden building' };
+  if (cat === GARDEN_CATEGORIES.plants && !gardenWord(n.replace(WILDFLOWER, ' '), cat) && !GROWING.test(n)) {
+    return { reject: '"wildflower" is a scent or a print here, not seeds or plants' };
+  }
+  const head = n.split(FOR_PART)[0];
+  if (MADE_FOR_OK[cat] && head.trim() && head !== n && !gardenWord(head, cat)) {
+    // "Solar Lights for Shed" are outdoor lights; "Paint Sprayer ... for Fence, Shed" is not a shed.
+    const other = gardenPlace(head, feedCategory);
+    if (other) return other;
+    if (!MADE_FOR_OK[cat].test(head)) return { reject: 'made FOR a garden product, not one ("... for Fence, Shed", "... for BBQ")' };
+  }
+  return place;
+}
+
 // Decide where one product goes. Returns { site, siteCategory, subcategory, doubt? } or { reject: '<reason>' }.
 export function classify({ name, feedCategory = '' }) {
   const n = String(name || '');
@@ -253,11 +323,14 @@ export function classify({ name, feedCategory = '' }) {
   if (CJK.test(n)) return { reject: 'name not in English' };
   const beauty = beautyPlace(n, c);
   if (beauty) return beauty;
-  const garden = gardenPlace(n, c);
-  if (garden) return { site: 'ggw', ...garden };
+  // A product the garden or home checks leave out may still be kids tech or a school bag; the first reason is kept for the report.
+  const garden = joybuyGarden(n, c);
+  if (garden && !garden.reject) return { site: 'ggw', ...garden };
   const home = homePlace(n, c);
-  if (home) return home;
+  if (home && !home.reject) return home;
   const kids = kidsPlace(n, c);
   if (kids) return kids;
+  if (garden) return garden;
+  if (home) return home;
   return { reject: 'not in these plans (beauty, men\'s grooming, garden, smart home, cleaning, kids tech, school bags)' };
 }
