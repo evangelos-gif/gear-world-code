@@ -2320,6 +2320,95 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
     }
 }
 
+# 12. gw-old-workers.ps1 (which old Workers can go) with a fake wrangler and fake Cloudflare answers (Windows only)
+if ($isWin) {
+    Write-Host 'gw-old-workers.ps1 (fake wrangler and fake Cloudflare)'
+    $oTool = Join-Path (Join-Path $repo 'tools') 'gw-old-workers.ps1'
+    $oState = Join-Path $work 'gwo-state'
+    $oBin = Join-Path $work 'gwo-bin'
+    $oWork = Join-Path $work 'gwo-work'
+    $oOut = Join-Path $work 'gwo-out'
+    New-Item -ItemType Directory -Path $oState, $oBin -Force | Out-Null
+    $oToken = 'tok-SECRET-never-shown-' + [guid]::NewGuid().ToString('N').Substring(0, 6)
+    $oNpx = @(
+        '@echo off',
+        'echo %* >> "%GW_FAKE_STATE%\calls.log"',
+        'echo %* | findstr /C:"whoami" >nul && goto whoami',
+        'echo %* | findstr /C:"auth token" >nul && goto token',
+        'echo unknown command 1>&2',
+        'exit /b 1',
+        ':whoami',
+        'echo You are logged in with an OAuth Token, associated with the email test@example.com.',
+        'exit /b 0',
+        ':token',
+        ('echo {"type":"oauth","token":"' + $oToken + '"}'),
+        'exit /b 0'
+    ) -join "`r`n"
+    [System.IO.File]::WriteAllText((Join-Path $oBin 'npx.cmd'), $oNpx + "`r`n", [System.Text.Encoding]::ASCII)
+    # Fake Cloudflare: 2 old Workers safe, 1 used by the Hub, 1 with its own domain, the other 5 already gone.
+    $A = 'acc1'
+    $ok = { param($r) @{ success = $true; result = $r; result_info = @{ total_pages = 1 } } }
+    $fake = @{}
+    $fake['GET /accounts?page=1&per_page=50'] = & $ok @(@{ id = $A; name = 'Gear World' })
+    $scripts = @('gear-world-hub', 'gwh-sitemap', 'construction-gear-uk', 'gw-ml-isolated-hub-test', 'gw-ml-isolated-client-test', 'constraction-gear-uk', 'construction-gear-uk-preview')
+    $fake["GET /accounts/$A/workers/scripts?page=1&per_page=50"] = & $ok @($scripts | ForEach-Object { @{ id = $_ } })
+    $fake["GET /accounts/$A/workers/subdomain"] = & $ok @{ subdomain = 'example' }
+    $fake["GET /accounts/$A/workers/domains?page=1&per_page=50"] = & $ok @(@{ hostname = 'gearworldhub.com'; service = 'gear-world-hub' }, @{ hostname = 'old.example.com'; service = 'constraction-gear-uk' })
+    $fake['GET /zones?page=1&per_page=50'] = & $ok @()
+    $fake["GET /accounts/$A/storage/kv/namespaces?page=1&per_page=50"] = & $ok @()
+    $fake["GET /accounts/$A/queues?page=1&per_page=50"] = & $ok @()
+    $fake["GET /accounts/$A/pages/projects?page=1&per_page=50"] = & $ok @()
+    foreach ($s in $scripts) {
+        $bindings = @()
+        if ($s -eq 'gear-world-hub') { $bindings = @(@{ type = 'service'; name = 'HELPER'; service = 'gw-ml-isolated-client-test' }) }
+        $fake["GET /accounts/$A/workers/scripts/$s/settings"] = & $ok @{ bindings = $bindings; tail_consumers = @() }
+        $fake["GET /accounts/$A/workers/scripts/$s/subdomain"] = & $ok @{ enabled = $true }
+        $fake["GET /accounts/$A/workers/scripts/$s/schedules"] = & $ok @{ schedules = @() }
+        $fake["GET /accounts/$A/workers/scripts/$s/deployments"] = & $ok @{ deployments = @(@{ created_on = '2026-10-11T17:45:10Z' }) }
+        $fake["GET /accounts/$A/workers/scripts/$s/references"] = & $ok @{ services = @{ incoming = @() }; durable_objects = @(); dispatch_outbounds = @() }
+        $fake["GET /accounts/$A/workers/tails/by-consumer/$s"] = & $ok @()
+        $fake["GET /accounts/$A/workers/scripts/$s/content/v2"] = @{ success = $true; raw_text = ('// code of ' + $s); type = 'application/javascript' }
+        $fake["DELETE /accounts/$A/workers/scripts/$s" + '?force=false'] = & $ok $null
+    }
+    $oFake = Join-Path $oState 'fake-cloudflare.json'
+    [System.IO.File]::WriteAllText($oFake, ($fake | ConvertTo-Json -Depth 10), (New-Object System.Text.UTF8Encoding($false)))
+    $oldPath = $env:PATH
+    $env:PATH = $oBin + ';' + $oldPath
+    $env:GW_FAKE_STATE = $oState
+    $env:GW_CF_FAKE = $oFake
+    function Run-O([string[]]$a) {
+        $all = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $oTool, '-WorkDir', $oWork, '-OutDir', $oOut, '-SkipInstall', '-NoClipboard') + $a
+        & $exe @all | Out-Null
+        return $LASTEXITCODE
+    }
+    function OLast { return [System.IO.File]::ReadAllText((@(Get-ChildItem -LiteralPath $oOut -Filter 'GW_OLD_WORKERS_*.txt' | Sort-Object LastWriteTime, Name | Select-Object -Last 1)[0]).FullName) }
+    function OBackups { return @(Get-ChildItem -LiteralPath (Join-Path $oWork 'backups') -Recurse -File -ErrorAction SilentlyContinue) }
+    try {
+        Check ((Run-O @('-Step', 'check')) -eq 0) 'old workers check: exit 0'
+        $r = OLast
+        Check ($r.Contains('gw-ml-isolated-hub-test') -and ([regex]::Matches($r, 'ΑΣΦΑΛΕΣ ΝΑ ΣΒΗΣΤΕΙ')).Count -eq 2 -and ([regex]::Matches($r, '🟡 ΜΕΝΕΙ')).Count -eq 2 -and ([regex]::Matches($r, 'ΔΕΝ ΥΠΑΡΧΕΙ ΗΔΗ')).Count -eq 5) 'old workers check: 2 safe, 2 stay, 5 already gone'
+        Check ($r.Contains('τον χρησιμοποιεί: gear-world-hub') -and $r.Contains('old.example.com') -and $r.Contains('Ασφαλείς να σβηστούν: 2 από 9')) 'old workers check: says who uses a Worker and which domain points to it'
+        Check (-not $r.Contains($oToken) -and -not $r.Contains('tok-SECRET')) 'old workers check: the Cloudflare login is never in the report'
+        Check ((OBackups).Count -eq 0) 'old workers check: nothing saved, nothing deleted'
+        Check ((Run-O @('-Step', 'delete')) -eq 0 -and (OBackups).Count -eq 0 -and -not (OLast).Contains('Σβήστηκε')) 'old workers delete without -Apply: nothing changes'
+        Check ((Run-O @('-Step', 'delete', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB PHOTO LIVE')) -eq 1 -and (OBackups).Count -eq 0) 'old workers delete with the wrong phrase: nothing changes'
+        Check ((Run-O @('-Step', 'check', '-Only', 'gwh-sitemap')) -eq 2) 'old workers: gwh-sitemap can never be touched'
+        Check ((Run-O @('-Step', 'delete', '-Only', 'gear-world-hub', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ ΔΙΑΓΡΑΦΗ ΠΑΛΙΩΝ WORKERS')) -eq 2 -and (OBackups).Count -eq 0) 'old workers: a live Worker can never be deleted'
+        Check ((Run-O @('-Step', 'delete', '-Only', 'gw-ml-isolated-client-test', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ ΔΙΑΓΡΑΦΗ ΠΑΛΙΩΝ WORKERS')) -eq 0 -and (OLast).Contains('Τίποτα να σβήσω') -and (OBackups).Count -eq 0) 'old workers: a Worker that the Hub uses is not deleted'
+        Check ((Run-O @('-Step', 'delete', '-Apply', '-Approve', 'egkrino diagrafi palion workers')) -eq 1) 'old workers: the phrase must be the Greek one'
+        Check ((Run-O @('-Step', 'delete', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ ΔΙΑΓΡΑΦΗ ΠΑΛΙΩΝ WORKERS')) -eq 0) 'old workers delete with approval: exit 0'
+        $r = OLast
+        Check ($r.Contains('Σβήστηκε: gw-ml-isolated-hub-test') -and $r.Contains('Σβήστηκε: construction-gear-uk-preview') -and -not $r.Contains('Σβήστηκε: gw-ml-isolated-client-test') -and -not $r.Contains('Σβήστηκε: constraction-gear-uk')) 'old workers delete: only the 2 safe ones'
+        $saved = @(OBackups | ForEach-Object { $_.Name })
+        Check (($saved -contains 'gw-ml-isolated-hub-test-code.js') -and ($saved -contains 'gw-ml-isolated-hub-test-settings.json') -and ($saved -contains 'construction-gear-uk-preview-code.js') -and ($saved -contains 'README.txt') -and -not ($saved -contains 'gw-ml-isolated-client-test-code.js')) 'old workers delete: a backup of each one first'
+        Check (-not $r.Contains($oToken) -and -not ((Get-Content -Raw -LiteralPath (Join-Path $oState 'calls.log')).Contains($oToken))) 'old workers delete: the login is never written anywhere'
+    } finally {
+        $env:PATH = $oldPath
+        Remove-Item Env:\GW_FAKE_STATE -ErrorAction SilentlyContinue
+        Remove-Item Env:\GW_CF_FAKE -ErrorAction SilentlyContinue
+    }
+}
+
 Remove-Item -LiteralPath $work -Recurse -Force -ErrorAction SilentlyContinue
 
 Write-Host ''
