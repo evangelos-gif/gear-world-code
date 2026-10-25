@@ -296,7 +296,7 @@ const HDD_PRICE_PER_TB = 60, HDD_MIN_PRICE_CAP = 150;
 export function hddCapacityTb(name) {
   const n = String(name || '').toLowerCase();
   if (!/\binternal hard (?:disk )?drive\b|\bhdd\b/.test(n) || /\b(?:external|portable|nas|ssd|solid state)\b/.test(n)) return 0;
-  // a computer with a hard disk ("Acer Aspire XC-840 Desktop Intel Pentium Silver N6005 8Gb 1Tb HDD ... Windows 11", lessons L52)
+  // a computer with a hard disk ("Acer Aspire XC-840 Desktop Intel Pentium Silver N6005 8Gb 1Tb HDD ... Windows 11", lessons L54)
   if (/\b(?:intel|core i\d|core ultra|ryzen|pentium|celeron|athlon|ddr\d|windows|laptops?|notebooks?|workstations?|all-in-one|chromebook)\b/.test(n)) return 0;
   const m = n.match(/\b(\d{1,2}(?:\.\d+)?) ?tb\b/);
   return m ? Number(m[1]) : 0;
@@ -469,7 +469,7 @@ export async function planImport({ archive, sourcesFile, outDir, now = new Date(
         if (!cls.ok) { reject(cls.reason, cls.reason.startsWith('not for UK') ? `${short}  [${notUkHint(name)}]` : short); continue; }
         if (!Number.isFinite(price) || price <= 0) { reject('no price', short); continue; }
         if (price < QUALITY.minPrice || price > QUALITY.maxPrice) { reject('price out of range', short); continue; }
-        // After the second import (24 Oct 2026, lessons L51): Back to the Office priced "Western Digital WD80EFPX internal hard drive
+        // After the second import (24 Oct 2026, lessons L53): Back to the Office priced "Western Digital WD80EFPX internal hard drive
         // 8 TB" at 838.99 (usually about 200) and a 22 TB disk at 5,761.99. Such a price is an error: visitors would think the site
         // overcharges. A hard disk dearer than 60 per TB (and than 150) is left out.
         const hddTb = hddCapacityTb(name);

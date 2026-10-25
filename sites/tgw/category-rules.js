@@ -91,7 +91,7 @@ export const RULES = [
       'power ?banks?', 'usb-?c (?:cable|hub|adapter|charger)s?', 'lightning cables?', 'hdmi cables?', 'cables?',
       'phone cases?', 'tablet cases?', 'ipad cases?', 'screen protectors?', 'lens protectors?', 'camera protectors?', 'tempered glass',
       'phone (?:holder|mount|stand|grip|pouch|bag)s?', 'laptop (?:bag|sleeve|stand|riser)s?', 'usb hubs?', 'docking stations?',
-      // After the second import (24 Oct 2026, lessons L51): "Targus Privacy Screen 22\"W (16:10)", "Fellowes PrivaScreen 35.6 cm (14\")
+      // After the second import (24 Oct 2026, lessons L53): "Targus Privacy Screen 22\"W (16:10)", "Fellowes PrivaScreen 35.6 cm (14\")
       // Laptop Frameless display privacy filter" and "Fellowes Office Suites Laptop Riser" are accessories.
       'privacy (?:screens?|filters?)', 'privascreen',
       '(?:watch|sport|silicone|nylon|leather|milanese|loop|solo) (?:bands?|straps?)', 'watch straps?', 'replacement bands?',

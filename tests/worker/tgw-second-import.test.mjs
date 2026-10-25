@@ -1,4 +1,4 @@
-// Technology Gear World: the check of the live site after the second import (24 Oct 2026, lessons L51). The new count of
+// Technology Gear World: the check of the live site after the second import (24 Oct 2026, lessons L53). The new count of
 // "business words" in the dry-run report showed consumer products that those words were stopping, and the live database
 // showed server disks and a few business devices that came in with the "Serial ATA" disks, and hard disks at prices far
 // above the usual. Every name below is a real name from the report or the live site.
@@ -101,7 +101,7 @@ test('a hard disk priced far above the usual is left out; external disks, SSDs a
   assert.match(readFileSync(join(out, 'report.txt'), 'utf8'), /price far above the usual for this hard disk +2/);
 });
 
-// After the third import (24 Oct 2026, lessons L52).
+// After the third import (24 Oct 2026, lessons L54).
 test('third import: enterprise switches, SAS disks and server lines out; Lancer Blade, fan blades, DDR5 and Lenovo USB-Ethernet in', () => {
   for (const n of ['NETGEAR XSM4340V Managed L3 10G Ethernet (100/1000/10000) Power over (XSM4340V-100NES)', 'NETGEAR GSM4248UX Managed L2/L3 Gigabit Ethernet (10/100/1000) Power (GSM4248UX-100EUS)',
     'Ubiquiti Enterprise Campus Switch Core Managed L2/L3 Gigabit (ECS-CORE)', 'Ubiquiti UniFi EAV-XG-24-PoE (2150W) Managed L2/L3 10G Ethernet', 'Ubiquiti UniFi ECS-48-PoE Managed L2/L3 10G Ethernet',
