@@ -1115,6 +1115,75 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
     }
 }
 
+# 6d. gwh-sgw-link.ps1 (Sporty Gear World as the 10th hub card) on a fake hub that already has TGW, AGW and VGW
+if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
+    Write-Host 'gwh-sgw-link.ps1 (fake hub with TGW, AGW and VGW, fake wrangler)'
+    $aHubTool = Join-Path $repo 'tools\gwh-sgw-link.ps1'
+    $aHub = Join-Path $work 'shub'
+    $aState = Join-Path $work 'shub-state'
+    $aBin = Join-Path $work 'shub-bin'
+    $aOut = Join-Path $work 'shub-out'
+    New-Item -ItemType Directory -Path $aState, $aBin -Force | Out-Null
+    & node (Join-Path $repo 'tests\fixtures\make-hub-fixture.mjs') $aHub
+    & node (Join-Path $repo 'tools\gwh-tgw-link.mjs') --hub $aHub --write | Out-Null
+    & node (Join-Path $repo 'tools\gwh-agw-link.mjs') --hub $aHub --write | Out-Null
+    & node (Join-Path $repo 'tools\gwh-vgw-link.mjs') --hub $aHub --write | Out-Null
+    $aBookmark = '00000085-0000024c-00004c6d-' + [guid]::NewGuid().ToString('N')
+    $aFake = @(
+        '@echo off',
+        'echo %* >> "%GW_SHUB_STATE%\calls.log"',
+        'echo %* | findstr /C:"time-travel info" >nul && goto tt',
+        'echo %* | findstr /C:"--command" >nul && goto sites',
+        'echo %* | findstr /C:"--file" >nul && goto ok',
+        'echo %* | findstr /C:"deployments list" >nul && goto deps',
+        'echo %* | findstr /C:" deploy" >nul && goto ok',
+        'echo unknown command 1>&2',
+        'exit /b 1',
+        ':tt',
+        ('echo The current bookmark is ' + $aBookmark),
+        'exit /b 0',
+        ':sites',
+        'echo [{"results":[{"site_key":"TGW","domain":"technologygearworld.com","priority":70,"is_active":1}],"success":true}]',
+        'exit /b 0',
+        ':deps',
+        'echo []',
+        'exit /b 0',
+        ':ok',
+        'echo OK',
+        'exit /b 0'
+    ) -join "`r`n"
+    [System.IO.File]::WriteAllText((Join-Path $aBin 'npx.cmd'), $aFake + "`r`n", [System.Text.Encoding]::ASCII)
+    $oldPath = $env:PATH
+    $env:PATH = $aBin + ';' + $oldPath
+    $env:GW_SHUB_STATE = $aState
+    $aCalls = Join-Path $aState 'calls.log'
+    $aIndex = Join-Path $aHub 'public\index.html'
+    function Run-SHub([string[]]$a) {
+        $all = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $aHubTool, '-HubDir', $aHub, '-OutDir', $aOut, '-SkipOnline', '-NoClipboard') + $a
+        & $exe @all | Out-Null
+        return $LASTEXITCODE
+    }
+    function SHubCalls { if (Test-Path -LiteralPath $aCalls) { return [System.IO.File]::ReadAllText($aCalls) } else { return '' } }
+    try {
+        $before = [System.IO.File]::ReadAllText($aIndex)
+        Check ($before.Contains('data-world="VGW"')) 'sgw hub link: fake hub has the VGW card'
+        Check ((Run-SHub @()) -eq 0 -and [System.IO.File]::ReadAllText($aIndex) -eq $before -and -not ((SHubCalls) -match ' deploy|--file')) 'sgw hub link check: changes nothing'
+        Check ((Run-SHub @('-Apply', '-Approve', 'ΕΓΚΡΙΝΩ VGW HUB LINK')) -eq 1 -and [System.IO.File]::ReadAllText($aIndex) -eq $before) 'sgw hub link: the VGW phrase is not accepted'
+        Check ((Run-SHub @('-Apply', '-Approve', 'EGKRINO SGW HUB LINK')) -eq 0) 'sgw hub link with approval: exit 0'
+        $after = [System.IO.File]::ReadAllText($aIndex)
+        Check ($after.Contains('https://sportygearworld.com/') -and (Test-Path -LiteralPath (Join-Path $aHub 'public\hub-sgw.jpg'))) 'sgw hub link: card and photo added'
+        $c = SHubCalls
+        $iT = $c.IndexOf('time-travel info'); $iD = $c.IndexOf(' deploy'); $iF = $c.IndexOf('--file')
+        Check ($iT -ge 0 -and $iD -gt $iT -and $iF -gt $iD) 'sgw hub link: restore point, then deploy, then D1 row'
+        $sqlFile = @(Get-ChildItem -LiteralPath (Join-Path $aHub 'backups') -Recurse -Filter 'add-sgw-site.sql')
+        Check ($sqlFile.Count -eq 1 -and ([System.IO.File]::ReadAllText($sqlFile[0].FullName)).Contains("'SGW', 'Sporty Gear World', 'sportygearworld.com'")) 'sgw hub link: D1 row for SGW'
+        Check ((Run-SHub @()) -eq 0 -and [System.IO.File]::ReadAllText($aIndex) -eq $after) 'sgw hub link second check: files stay the same'
+    } finally {
+        $env:PATH = $oldPath
+        Remove-Item Env:\GW_SHUB_STATE -ErrorAction SilentlyContinue
+    }
+}
+
 # 7. ggw-engine.ps1 with a fake wrangler (Windows only: runs .cmd files)
 if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
     Write-Host 'ggw-engine.ps1 (fake wrangler)'

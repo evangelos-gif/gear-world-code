@@ -6,8 +6,10 @@ import { activePromos, barPromo, ukToday } from '../../src/lib/promos.js';
 import { PROMOS, promosFor, AWIN_PUBLISHER_ID } from '../../promos/promos.js';
 import tgw from '../../sites/tgw/site.config.js';
 
-const DAY = 86400000;
-const day = offset => ukToday(Date.now() + offset * DAY);
+// Days counted on the UK calendar, not as 24-hour steps: on the day the clocks go back (25 Oct 2026, 23:00-24:00 UTC)
+// "now minus 24 hours" is still the same UK date, and an offer that ended yesterday looked like it ends today.
+const TODAY = ukToday(Date.now());
+const day = offset => { const d = new Date(`${TODAY}T12:00:00Z`); d.setUTCDate(d.getUTCDate() + offset); return d.toISOString().slice(0, 10); };
 
 // A copy of TGW with offers dated around today, so the tests do not depend on the calendar.
 function siteWith(promos) {

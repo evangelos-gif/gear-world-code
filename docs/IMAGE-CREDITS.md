@@ -109,7 +109,7 @@
 
 | Αρχείο | Pexels |
 |---|---|
-| hero-1920.webp, hero-960.webp, og-image.png (φόντο) | https://www.pexels.com/photo/aerial-view-of-track-and-football-field-35678274/ |
+| hero-1920.webp, hero-960.webp, og-image.png (φόντο), tools/assets/hub-sgw.jpg (κάρτα στο hub) | https://www.pexels.com/photo/aerial-view-of-track-and-football-field-35678274/ |
 | cat-fitness-gym.webp | https://www.pexels.com/photo/gym-tools-6740821/ |
 | cat-running.webp | https://www.pexels.com/photo/close-up-photo-of-woman-tying-her-white-sneakers-on-running-track-3763869/ |
 | cat-cycling.webp | https://www.pexels.com/photo/2248713/ |
