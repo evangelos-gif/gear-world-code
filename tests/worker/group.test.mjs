@@ -1,7 +1,7 @@
 // Gear World Group company page.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { networkStats, groupPage, createGroupWorker } from '../../src/group.js';
+import { networkStats, groupPage, legalPage, legalPaths, createGroupWorker } from '../../src/group.js';
 import site from '../../sites/group/site.config.js';
 
 const fakeFetch = answers => async url => {
@@ -44,4 +44,49 @@ test('worker: www goes to the apex, preview hosts are hidden from search engines
   assert.match(prev.headers.get('content-security-policy') || '', /default-src 'self'/);
   const robots = await (await w.fetch(new Request('https://gearworldgroup.com/robots.txt'), {}, {})).text();
   assert.match(robots, /Sitemap: https:\/\/gearworldgroup.com\/sitemap.xml/);
+});
+
+// Lessons L17: Privacy, Terms, Cookies and the affiliate disclosure, linked from the footer of every page.
+const LEGAL = ['/how-we-make-money/', '/privacy/', '/cookies/', '/terms/'];
+
+test('L17: every page links to the four legal pages in its footer, with the year', () => {
+  assert.deepEqual(legalPaths().slice().sort(), LEGAL.slice().sort());
+  const pages = [groupPage(site, { products: 0, retailers: 0 }), ...LEGAL.map(p => legalPage(site, p))];
+  const year = String(new Date().getUTCFullYear());
+  for (const page of pages) {
+    const foot = page.slice(page.indexOf('<footer'));
+    for (const p of LEGAL) assert.ok(foot.includes(`href="${p}"`), `footer links to ${p}`);
+    assert.ok(foot.includes(`&copy; ${year}`), 'year in the footer');
+    assert.ok(!/<style|style="|<script/.test(page), 'no inline styles or scripts');
+  }
+});
+
+test('legal pages: own title and canonical, the site name and contact, no other site\'s name', () => {
+  for (const p of LEGAL) {
+    const page = legalPage({ ...site, contactEmail: 'partners@example.com' }, p);
+    assert.match(page, new RegExp(`<link rel="canonical" href="https://gearworldgroup.com${p}">`));
+    assert.match(page, /<h1>[^<]+<\/h1>/);
+    assert.ok(page.includes('Gear World Group'), p);
+    if (p === '/privacy/' || p === '/terms/') assert.ok(page.includes('mailto:partners@example.com'), `${p}: contact`);
+    assert.ok(!/Technology Gear World|Sporty Gear World|Hub/.test(page.slice(page.indexOf('<main'), page.indexOf('</main>'))), `${p}: describes this page only`);
+    assert.ok(page.includes('href="/#contact"'), `${p}: Contact goes to the home page`);
+  }
+  assert.equal(legalPage(site, '/nope/'), null);
+});
+
+test('worker: legal pages answer 200 as HTML, the address without the slash goes to the one with it', async () => {
+  const w = createGroupWorker({ ...site, sites: [] });
+  for (const p of LEGAL) {
+    const r = await w.fetch(new Request(`https://gearworldgroup.com${p}`), {}, {});
+    assert.equal(r.status, 200, p);
+    assert.match(r.headers.get('content-type') || '', /text\/html; charset=utf-8/);
+    assert.match(r.headers.get('content-security-policy') || '', /default-src 'self'/);
+    const noSlash = await w.fetch(new Request(`https://gearworldgroup.com${p.slice(0, -1)}`), {}, {});
+    assert.equal(noSlash.status, 301, `${p} without slash`);
+    assert.equal(noSlash.headers.get('location'), `https://gearworldgroup.com${p}`);
+  }
+  const prev = await w.fetch(new Request('https://gear-world-group.example.workers.dev/privacy/'), {}, {});
+  assert.match(prev.headers.get('x-robots-tag') || '', /noindex/);
+  const other = await w.fetch(new Request('https://gearworldgroup.com/somewhere'), {}, {});
+  assert.equal(other.status, 302, 'other addresses still go to the home page');
 });

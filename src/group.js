@@ -45,34 +45,145 @@ async function cachedStats(site, ctx) {
 const fmt = n => new Intl.NumberFormat('en-GB').format(n);
 const asset = (site, p) => `/assets/${p}?v=${encodeURIComponent(site.assetVersion)}`;
 
-export function groupPage(site, stats) {
+// Legal pages (lessons L17). They describe this company page only: one page, no forms, no cookies of its own.
+// Each Gear World site has its own legal pages. NOTE: a starting point that needs review by a qualified adviser (T31).
+const LEGAL_UPDATED = '26 October 2026';
+const FOOTER_LINKS = [
+  ['/how-we-make-money/', 'How we make money'],
+  ['/privacy/', 'Privacy policy'],
+  ['/cookies/', 'Cookies'],
+  ['/terms/', 'Terms of use']
+];
+
+const mail = site => (site.contactEmail ? html`<a href="mailto:${site.contactEmail}">${site.contactEmail}</a>` : 'the contact address on our home page');
+
+const LEGAL = {
+  '/how-we-make-money/': site => ({
+    title: 'How we make money',
+    description: `How the ${site.name} sites earn money through affiliate links.`,
+    content: html`
+<p>The Gear World sites are free to use. We earn money through affiliate links.</p>
+<h2>What an affiliate link is</h2>
+<p>When a shopper selects a "View at" button on one of our sites, they go to the retailer through an affiliate network such as Awin. If they then buy something, the retailer may pay us a commission. The shopper pays the same price as they would if they went to the retailer directly.</p>
+<h2>How this affects what shoppers see</h2>
+<p>We do not rank products by commission, and a retailer cannot pay to change a price or a product's position on our sites. Each site explains this on its own "How we make money" page.</p>
+<h2>This page</h2>
+<p>This company page has no affiliate links. It links only to the Gear World sites.</p>`
+  }),
+
+  '/privacy/': site => ({
+    title: 'Privacy policy',
+    description: `How ${site.name} (${site.domain}) handles personal data.`,
+    content: html`
+<p class="updated">Last updated: ${LEGAL_UPDATED}</p>
+<p>This policy covers ${site.domain}, the company page of ${site.name}, and explains your rights under UK data protection law (UK GDPR and the Data Protection Act 2018). Each Gear World site has its own privacy policy, linked in its footer.</p>
+<h2>Who is responsible</h2>
+<p>The data controller is ${site.operatorName}. Contact: ${mail(site)}.</p>
+<h2>What we collect</h2>
+<ul>
+<li><strong>Visiting this page.</strong> This page has no forms, no accounts and no analytics. We do not record your visit.</li>
+<li><strong>Email.</strong> If you email us, we keep your message and email address to reply and to keep a record of our business contacts (legitimate interests). We delete them when they are no longer needed.</li>
+<li><strong>Hosting.</strong> The site is hosted by Cloudflare, which processes technical data such as IP addresses to deliver and protect the site.</li>
+</ul>
+<h2>Cookies</h2>
+<p>This page sets no cookies of its own. See the <a href="/cookies/">cookies page</a>.</p>
+<h2>Sharing and transfers</h2>
+<p>We do not sell personal data. Our service provider (Cloudflare) may process data outside the UK with appropriate safeguards.</p>
+<h2>Your rights</h2>
+<p>You can ask for access to, correction or deletion of your data, ask us to restrict or stop using it, and ask for a copy. Email ${mail(site)}. You can also complain to the Information Commissioner's Office at <a href="https://ico.org.uk/">ico.org.uk</a>.</p>`
+  }),
+
+  '/cookies/': site => ({
+    title: 'Cookies',
+    description: `Which cookies ${site.domain} uses.`,
+    content: html`
+<p class="updated">Last updated: ${LEGAL_UPDATED}</p>
+<p>${site.domain} sets no advertising, analytics or tracking cookies and stores nothing on your device, so there is no cookie banner.</p>
+<h2>Strictly necessary</h2>
+<p>Our hosting provider Cloudflare may set short-lived security cookies to protect the site from bots. They are needed for the site to work safely and do not track you across sites.</p>
+<h2>Our other sites</h2>
+<p>Each Gear World site explains its own cookies on its cookies page.</p>`
+  }),
+
+  '/terms/': site => ({
+    title: 'Terms of use',
+    description: `The terms for using ${site.domain}.`,
+    content: html`
+<p class="updated">Last updated: ${LEGAL_UPDATED}</p>
+<p>These terms apply when you use ${site.domain}, operated by ${site.operatorName}. By using the site you accept them.</p>
+<h2>What the site does</h2>
+<p>This page gives retailers and affiliate networks information about ${site.name} and its sites. It does not sell anything. The product and retailer numbers come from the sites' public statistics, are updated every hour and are approximate.</p>
+<h2>Links to other websites</h2>
+<p>We are not responsible for the content of websites we link to. Each Gear World site has its own terms of use.</p>
+<h2>Liability</h2>
+<p>Nothing in these terms limits liability that cannot be limited by law. Otherwise we are not liable for losses arising from your use of this site.</p>
+<h2>Law</h2>
+<p>These terms are governed by the law of England and Wales.</p>
+<h2>Contact</h2>
+<p>${mail(site)}</p>`
+  })
+};
+
+export function legalPaths() {
+  return Object.keys(LEGAL);
+}
+
+// The same header and footer on every page; the footer always links to the legal pages (L17).
+function shell(site, { title, description, path, body }) {
   const year = new Date().getUTCFullYear();
-  const facts = [
-    stats.products ? `${fmt(stats.products)} products listed` : '',
-    stats.retailers ? `${fmt(stats.retailers)}+ retailers` : '',
-    `${site.sites.length} themed sites and a search hub`,
-    '11 languages'
-  ].filter(Boolean);
-  const doc = html`<!doctype html>
+  return toString(html`<!doctype html>
 <html lang="en-GB">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>${site.name} | Independent price comparison sites</title>
-<meta name="description" content="${site.name} runs ${site.sites.length} independent price comparison sites and a shared search hub. Information for retailers and affiliate networks.">
-<link rel="canonical" href="https://${site.domain}/">
+<title>${title}</title>
+<meta name="description" content="${description}">
+<link rel="canonical" href="https://${site.domain}${path}">
 <meta property="og:title" content="${site.name}">
 <meta property="og:description" content="Independent price comparison sites for UK shoppers.">
-<meta property="og:url" content="https://${site.domain}/">
+<meta property="og:url" content="https://${site.domain}${path}">
 <link rel="icon" href="${asset(site, 'favicon.svg')}" type="image/svg+xml">
 <link rel="stylesheet" href="${asset(site, 'group.css')}">
 </head>
 <body>
 <header class="top"><div class="wrap top-row">
   <a class="brand" href="/"><img src="${asset(site, 'logo.svg')}" alt="" width="40" height="40"><span>${site.name}</span></a>
-  <a class="top-link" href="#contact">Contact</a>
+  <a class="top-link" href="${path === '/' ? '#contact' : '/#contact'}">Contact</a>
 </div></header>
-<main id="main">
+<main id="main">${body}</main>
+<footer class="foot"><div class="wrap">
+  <nav aria-label="Legal"><ul class="foot-links">${FOOTER_LINKS.map(([href, label]) => html`<li><a href="${href}">${label}</a></li>`)}</ul></nav>
+  <p>This site sets no cookies of its own and does no tracking. Product numbers come from the sites' public statistics and are updated every hour.</p>
+  <p>&copy; ${year} ${site.operatorName}</p>
+</div></footer>
+</body>
+</html>`);
+}
+
+export function legalPage(site, path) {
+  const make = LEGAL[path];
+  if (!make) return null;
+  const p = make(site);
+  return shell(site, {
+    title: `${p.title} | ${site.name}`,
+    description: p.description,
+    path,
+    body: html`
+<section class="wrap section prose">
+  <h1>${p.title}</h1>
+  ${p.content}
+</section>`
+  });
+}
+
+export function groupPage(site, stats) {
+  const facts = [
+    stats.products ? `${fmt(stats.products)} products listed` : '',
+    stats.retailers ? `${fmt(stats.retailers)}+ retailers` : '',
+    `${site.sites.length} themed sites and a search hub`,
+    '11 languages'
+  ].filter(Boolean);
+  const body = html`
 <section class="hero"><div class="wrap">
   <p class="eyebrow">For retailers and affiliate networks</p>
   <h1>Independent price comparison sites for UK shoppers</h1>
@@ -119,15 +230,13 @@ export function groupPage(site, stats) {
     <div><dt>Awin publisher ID</dt><dd>${String(site.awinPublisherId)}</dd></div>
     <div><dt>Operator</dt><dd>${site.operatorName}</dd></div>
   </dl>
-</section>
-</main>
-<footer class="foot"><div class="wrap">
-  <p>This page uses no cookies and no tracking. Product numbers come from the sites' public statistics and are updated every hour.</p>
-  <p>&copy; ${year} ${site.operatorName}</p>
-</div></footer>
-</body>
-</html>`;
-  return toString(doc);
+</section>`;
+  return shell(site, {
+    title: `${site.name} | Independent price comparison sites`,
+    description: `${site.name} runs ${site.sites.length} independent price comparison sites and a shared search hub. Information for retailers and affiliate networks.`,
+    path: '/',
+    body
+  });
 }
 
 export function createGroupWorker(site) {
@@ -149,6 +258,16 @@ export function createGroupWorker(site) {
       if (url.pathname === '/' || url.pathname === '/index.html') {
         const stats = await cachedStats(site, ctx);
         const res = htmlResponse(groupPage(site, stats), { method: request.method, cache: 'page' });
+        if (preview) res.headers.set('X-Robots-Tag', 'noindex, nofollow');
+        return res;
+      }
+      // Legal pages; the address without the final slash goes to the one with it.
+      if (!url.pathname.endsWith('/') && LEGAL[`${url.pathname}/`]) {
+        url.pathname = `${url.pathname}/`;
+        return redirect(url.toString(), 301);
+      }
+      if (LEGAL[url.pathname]) {
+        const res = htmlResponse(legalPage(site, url.pathname), { method: request.method, cache: 'page' });
         if (preview) res.headers.set('X-Robots-Tag', 'noindex, nofollow');
         return res;
       }

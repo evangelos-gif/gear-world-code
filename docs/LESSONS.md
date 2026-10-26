@@ -47,7 +47,7 @@
 
 | # | Τι πήγε στραβά | Κανόνας για το TGW | Έλεγχος |
 |---|---|---|---|
-| L17 | Privacy Policy που ζητά «trade or profession», χωρίς Terms, το «Cookie Settings» με `href="#"`, footer χωρίς έτος (T13, T17–T20) | Privacy, Terms, Cookies και Affiliate disclosure από την πρώτη μέρα, με το όνομα του site από τις ρυθμίσεις. Footer με έτος. | Όλες οι νομικές σελίδες απαντούν 200 και έχουν link στο footer. |
+| L17 | Privacy Policy που ζητά «trade or profession», χωρίς Terms, το «Cookie Settings» με `href="#"`, footer χωρίς έτος (T13, T17–T20) | Privacy, Terms, Cookies και Affiliate disclosure από την πρώτη μέρα, με το όνομα του site από τις ρυθμίσεις. Footer με έτος. Το ίδιο και για τη σελίδα της εταιρείας gearworldgroup.com (χωριστός κώδικας, `src/group.js`), που μέχρι τις 26 Οκτ. 2026 δεν είχε νομικά links: οι σελίδες της περιγράφουν μόνο τη δική της σελίδα (καμία φόρμα, κανένα δικό της cookie) και παραπέμπουν στις σελίδες κάθε site. | Όλες οι νομικές σελίδες απαντούν 200 και έχουν link στο footer. Για το Group: `tests/worker/group.test.mjs` (L17). |
 
 ## Ζ. Εντολές και εργαλεία
 

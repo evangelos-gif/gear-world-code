@@ -41,3 +41,12 @@ p { margin: 0 0 1em; }
 .contact dt { min-width: 170px; color: var(--text-2); }
 .contact dd { margin: 0; font-weight: 600; }
 .foot { margin-top: 48px; padding: 24px 0; background: var(--deep); border-top: 1px solid var(--line); color: var(--text-2); font-size: .9rem; }
+.foot-links { list-style: none; margin: 0 0 8px; padding: 0; display: flex; flex-wrap: wrap; gap: 0 20px; }
+.foot-links a { display: inline-flex; align-items: center; min-height: 40px; color: var(--text); text-decoration: underline; text-underline-offset: 3px; }
+.foot-links a:hover { color: var(--gold); }
+.prose { max-width: 760px; }
+.prose h1 { max-width: none; }
+.prose h2 { font-size: 1.3rem; margin-top: 1.4em; }
+.prose ul { padding-left: 1.2em; }
+.prose li { margin-bottom: .5em; }
+.updated { color: var(--text-2); }
