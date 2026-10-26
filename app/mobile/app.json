@@ -52,7 +52,8 @@
           "microphonePermission": "Gear World uses the microphone only when you tap the microphone button, to turn what you say into a product search. The app does not keep any recordings.",
           "speechRecognitionPermission": "Gear World uses speech recognition to turn what you say into a product search. The app does not keep any recordings."
         }
-      ]
+      ],
+      "expo-image"
     ],
     "experiments": {
       "typedRoutes": true,
