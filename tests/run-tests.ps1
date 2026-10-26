@@ -1435,6 +1435,67 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
     }
 }
 
+# 8c3. awin-membership-check.ps1 (which Awin programmes still pay, lessons L61): fake wrangler and fake Awin server (Windows only)
+if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
+    Write-Host 'awin-membership-check.ps1 (fake wrangler, fake Awin server)'
+    $amDir = Join-Path $work 'am'
+    $amBin = Join-Path $amDir 'bin'
+    $amOut = Join-Path $amDir 'out'
+    New-Item -ItemType Directory -Path $amBin -Force | Out-Null
+    $amKey = 'TestKey' + ([guid]::NewGuid().ToString('N').Substring(0, 10))
+    $amKeyFile = Join-Path $amDir 'key.dat'
+    [System.IO.File]::WriteAllText($amKeyFile, (ConvertFrom-SecureString (ConvertTo-SecureString $amKey -AsPlainText -Force)), [System.Text.Encoding]::ASCII)
+    $amRows = '[{"results":[{"retailer":"Coes","n":10,"link":"https://www.awin1.com/cread.php?awinmid=30645&awinaffid=3057233&ued=https%3A%2F%2Fwww.coes.co.uk%2Fa","bad":0},' +
+        '{"retailer":"Finediam","n":5,"link":"https://www.awin1.com/cread.php?awinmid=125248&awinaffid=3057233&ued=https%3A%2F%2Ffinediam.com%2Fa","bad":0},' +
+        '{"retailer":"Juicy Couture UK","n":3,"link":"https://www.awin1.com/cread.php?awinmid=19471&awinaffid=3057233&ued=%26utm_source%3Daw","bad":3},' +
+        '{"retailer":"Tooled Up","n":7,"link":"https://www.tooled-up.com/x/?Referrer=affwin","bad":0}],"success":true}]'
+    [System.IO.File]::WriteAllText((Join-Path $amDir 'rows.json'), $amRows, (New-Object System.Text.UTF8Encoding($false)))
+    $amNpx = @(
+        '@echo off',
+        'echo %* >> "%GW_FAKE_STATE%\calls.log"',
+        'echo %* | findstr /C:"GROUP BY retailer" >nul && goto rows',
+        'echo unknown command 1>&2',
+        'exit /b 1',
+        ':rows',
+        'type "%GW_FAKE_STATE%\rows.json"',
+        'exit /b 0'
+    ) -join "`r`n"
+    [System.IO.File]::WriteAllText((Join-Path $amBin 'npx.cmd'), $amNpx + "`r`n", [System.Text.Encoding]::ASCII)
+    $today = Get-Date -Format 'yyyy-MM-dd'
+    $amSrv = Join-Path $amDir 'server.js'
+    Write-Utf8 $amSrv ("const http=require('http');const key=process.argv[2];const today=process.argv[3];" +
+      "const list='Advertiser ID,Advertiser Name,Primary Region,Membership Status,Feed ID,Last Imported,No of products,URL\n'+" +
+      "'30645,Coes,GB,active,116078,'+today+' 06:00:00,2,https://productdata.awin.com/datafeed/download/apikey/'+key+'/fid/116078/\n'+" +
+      "'125248,Finediam,GB,not joined,9,'+today+' 06:00:00,9,https://productdata.awin.com/datafeed/download/apikey/'+key+'/fid/9/\n';" +
+      "http.createServer((q,s)=>{if(!q.url.endsWith('/apikey/'+key)){s.writeHead(403);return s.end('bad key')}" +
+      "if(q.url.startsWith('/datafeed/list/')){s.writeHead(200,{'Content-Type':'text/csv'});return s.end(list)}" +
+      "s.writeHead(404);s.end('no')}).listen(8798,'127.0.0.1');")
+    $amProc = Start-Process -FilePath (Get-Command node).Source -ArgumentList @($amSrv, $amKey, $today) -PassThru -WindowStyle Hidden
+    Start-Sleep -Seconds 2
+    $oldPath = $env:PATH
+    $env:PATH = $amBin + ';' + $oldPath
+    $env:GW_FAKE_STATE = $amDir
+    try {
+        $all = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', (Join-Path (Join-Path $repo 'tools') 'awin-membership-check.ps1'), '-Sites', 'mgw', '-KeyFile', $amKeyFile,
+            '-BaseUrl', 'http://127.0.0.1:8798', '-WorkDir', $amDir, '-OutDir', $amOut, '-NoClipboard')
+        & $exe @all | Out-Null
+        Check ($LASTEXITCODE -eq 0) 'membership check: exit 0'
+        $amRep = [System.IO.File]::ReadAllText((@(Get-ChildItem -LiteralPath $amOut -Filter 'AWIN_MEMBERSHIP_*.txt')[0]).FullName)
+        Check ($amRep.Contains('ΕΝΤΑΞΕΙ: Coes (Awin 30645)')) 'membership check: a member with a fresh feed is fine'
+        Check ($amRep.Contains('ΠΡΟΒΛΗΜΑ: Finediam (Awin 125248)') -and $amRep.Contains('δεν είσαι μέλος')) 'membership check: not a member is a problem'
+        Check ($amRep.Contains('ΠΡΟΒΛΗΜΑ: Juicy Couture UK (Awin 19471)') -and $amRep.Contains('3 links χωρίς διεύθυνση προϊόντος')) 'membership check: not in the list and broken links'
+        Check ($amRep.Contains('MGW: Tooled Up (7)')) 'membership check: a plain shop link is listed'
+        Check ($amRep.Contains('merchant-profile/125248')) 'membership check: the Awin page of a programme to check'
+        $amList = [System.IO.File]::ReadAllText((@(Get-ChildItem -LiteralPath $amOut -Recurse -Filter 'awin-list.csv')[0]).FullName)
+        Check (-not $amRep.Contains($amKey) -and -not $amList.Contains($amKey) -and -not $amList.Contains('apikey')) 'membership check: the key is in no file'
+        Check (-not ([System.IO.File]::ReadAllText((Join-Path $amDir 'calls.log')) -match '--file|UPDATE|DELETE|INSERT')) 'membership check: only reads'
+    } finally {
+        $env:PATH = $oldPath
+        Remove-Item Env:\GW_FAKE_STATE -ErrorAction SilentlyContinue
+        if ($amProc -and -not $amProc.HasExited) { Stop-Process -Id $amProc.Id -Force -ErrorAction SilentlyContinue }
+    }
+}
+
 # 8d. legacy-cleanup.ps1 (hide wrong products on MGW/WGW) with a fake wrangler (Windows only: runs .cmd files)
 if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
     Write-Host 'legacy-cleanup.ps1 (fake wrangler)'
