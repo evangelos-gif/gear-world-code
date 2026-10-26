@@ -15,14 +15,20 @@
 //     index holding the column + 2 per update trigger firing on it. Above the budget, the plan keeps the first changes
 //     and leaves the rest for the next run.
 //
+//
+// --from-shop (job 3, lessons L60): for a shop whose Awin feed stopped (Red Gorilla, Wavytalk and Gardenista since 15 May
+// 2026) the source is the shop's own live Shopify catalogue (/products.json, read-only GETs; the shop address comes from the
+// products' links). There a product sold out on the shop is hidden too (as at import, L39), and a price changes only when
+// the shop sells in the currency of the site (/meta.json).
+//
 // node tools/legacy-refresh-plan.mjs --archive <dir> --retailer "<name on the site>" --rows <wrangler json> [--rows ...]
-//   --indexes <wrangler json of sqlite_master> --out <dir> [--max-writes 90000] [--advertiser <id>] [--now <iso date>]
+//   --indexes <wrangler json of sqlite_master> --out <dir> [--max-writes 90000] [--advertiser <id>] [--now <iso date>] [--from-shop]
 import { createReadStream, existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { createGunzip } from 'node:zlib';
 import { basename, join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { readCsvRecords, parsePrice } from './tgw-import-plan.mjs';
-import { stockFlag, pickImage } from './legacy-import-plan.mjs';
+import { stockFlag, pickImage, realImage, readShopifyCatalog } from './legacy-import-plan.mjs';
 import { rowsFromWrangler } from './cleanup-rules/tidy.mjs';
 import { IN_STOCK_WORDS, fixMojibake } from '../src/db.js';
 
@@ -129,6 +135,57 @@ export function writeCosts(rows) {
   return { price: per('price'), image_url: per('image_url'), stock_status: per('stock_status'), is_active: per('is_active') };
 }
 
+// The shop's own address from the products' links (Awin cread.php ?ued=..., or the plain shop link): the most common host,
+// used by at least 4 in 5 products. Empty when there is none (e.g. pclick.php links carry no shop address).
+export function linkHost(url) {
+  let u;
+  try { u = new URL(String(url || '')); } catch { return ''; }
+  if (/(^|\.)awin1\.com$/i.test(u.hostname)) {
+    const inner = u.searchParams.get('ued') || '';
+    if (!inner) return '';
+    try { u = new URL(inner); } catch { return ''; }
+  }
+  return u.protocol === 'https:' ? u.hostname.toLowerCase() : '';
+}
+export function shopOriginOf(rows) {
+  const count = new Map();
+  for (const r of rows) { const h = linkHost(r.affiliate_url); if (h) count.set(h, (count.get(h) || 0) + 1); }
+  let best = '', n = 0;
+  for (const [h, c] of count) if (c > n) { best = h; n = c; }
+  return best && n >= rows.length * 0.8 ? `https://${best}` : '';
+}
+
+// The currency the shop sells in (Shopify /meta.json). Empty when it cannot be read: then no price changes.
+export async function readShopCurrency(origin, { fetchImpl = globalThis.fetch } = {}) {
+  try {
+    const res = await fetchImpl(`${origin}/meta.json`, { headers: { accept: 'application/json', 'user-agent': 'GearWorldRefresh/1.0' }, signal: AbortSignal.timeout(20000) });
+    if (!res || !res.ok) return '';
+    const d = await res.json();
+    return /^[A-Z]{3}$/.test(String(d && d.currency || '').toUpperCase()) ? String(d.currency).toUpperCase() : '';
+  } catch { return ''; }
+}
+
+// The live catalogue in the shape of a feed: one entry per option (variant), found by its id and by its SKU.
+const picKey = u => String(u || '').split('?')[0].toLowerCase();
+export function feedFromShopify(catalog, currency, now = new Date()) {
+  const byAw = new Map(), byMid = new Map();
+  let rows = 0;
+  const abs = u => (String(u || '').startsWith('//') ? 'https:' + u : String(u || ''));
+  for (const p of catalog.values()) {
+    const images = (p.images || []).map(i => realImage(abs(i && typeof i === 'object' ? i.src : i))).filter(Boolean);
+    for (const v of p.variants || []) {
+      rows++;
+      const own = v.featured_image ? realImage(abs(typeof v.featured_image === 'object' ? v.featured_image.src : v.featured_image)) : '';
+      const e = { aw: String(v.id), mid: String(v.sku || '').trim(), price: currency ? parsePrice(String(v.price ?? '')) : NaN, currency: currency || '',
+        inStock: typeof v.available === 'boolean' ? v.available : null, stockText: '', image: own || images[0] || '', images };
+      byAw.set(e.aw, e);
+      byMid.set(e.aw, e);
+      if (e.mid && !byMid.has(e.mid)) byMid.set(e.mid, e);
+    }
+  }
+  return { byAw, byMid, rows, newest: now.toISOString().slice(0, 19).replace('T', ' '), newestFile: 0, shop: true };
+}
+
 const daysBetween = (a, b) => (b - a) / 86400000;
 function parseFeedDate(s) {
   const t = Date.parse(String(s).replace(' ', 'T'));
@@ -145,6 +202,7 @@ export function planRefresh({ rows, feed, costs, maxWrites = 90000, now = new Da
   const stale = staleDays !== null && staleDays > STALE_DAYS;
   const changes = [];
   const gone = [];
+  const soldOut = [];
   const bigPrice = [];
   const currencySkip = [];
   let same = 0;
@@ -153,6 +211,8 @@ export function planRefresh({ rows, feed, costs, maxWrites = 90000, now = new Da
     const f = matchRow(r, feed);
     if (!f) { gone.push(Number(r.id)); continue; }
     feedStock[f.inStock === true ? 'in' : (f.inStock === false ? 'out' : 'unknown')]++;
+    // The shop's own catalogue (L60): sold out on the shop -> hidden, as at import (L39); there is no feed to bring it back.
+    if (feed.shop && f.inStock === false) { soldOut.push(Number(r.id)); continue; }
     const set = {}, old = {};
     if (Number.isFinite(f.price) && f.price > 0) {
       const curCurrency = String(r.currency || 'GBP').toUpperCase();
@@ -164,7 +224,10 @@ export function planRefresh({ rows, feed, costs, maxWrites = 90000, now = new Da
       }
     }
     // A picture only when the feed has a real one and it is another picture (an Awin 200px proxy becomes the full image, L38).
-    if (f.image && f.image !== String(r.image_url || '')) { set.image_url = f.image; old.image_url = r.image_url ?? null; }
+    // From the shop's catalogue only when the saved picture is no longer one of the product's pictures (deleted, L39).
+    const curPic = String(r.image_url || '');
+    const keepPic = Array.isArray(f.images) && f.images.some(u => picKey(u) === picKey(curPic));
+    if (f.image && f.image !== curPic && !keepPic) { set.image_url = f.image; old.image_url = r.image_url ?? null; }
     if (f.inStock !== null && f.inStock !== inStockText(r.stock_status)) {
       // The shop's own word when the site reads it the same way, else the engine's plain words.
       let text = String(f.stockText || '').trim();
@@ -177,7 +240,7 @@ export function planRefresh({ rows, feed, costs, maxWrites = 90000, now = new Da
   }
   // A feed that misses most products is more likely a broken download than a closed shop.
   const safe = !(active.length >= 100 && gone.length > active.length * 0.5);
-  const hideAll = safe ? gone : [];
+  const hideAll = [...(safe ? gone : []), ...soldOut];
   // The budget: changes first (cheap, and they fix prices and pictures), then hides; the rest waits for the next run.
   let writes = 0;
   const doChanges = [], doHides = [];
@@ -188,7 +251,7 @@ export function planRefresh({ rows, feed, costs, maxWrites = 90000, now = new Da
   const left = { changes: stale ? 0 : changes.length - doChanges.length, hides: stale ? 0 : hideAll.length - doHides.length };
   const count = col => doChanges.filter(c => col in c.set).length;
   return {
-    active: active.length, matched: active.length - gone.length, same, changes: doChanges, hides: doHides, gone: gone.length, safe, stale, staleDays,
+    active: active.length, matched: active.length - gone.length, same, changes: doChanges, hides: doHides, gone: gone.length, soldOut: soldOut.length, safe, stale, staleDays,
     staleFrom, feedStock, bigPrice, currencySkip, writes, left, costs,
     counts: { price: count('price'), image_url: count('image_url'), stock_status: count('stock_status'),
       toOut: doChanges.filter(c => 'stock_status' in c.set && !inStockText(c.set.stock_status)).length,
@@ -222,23 +285,27 @@ export function writePlan(out, p) {
   writeFileSync(join(out, 'hide.sql'), p.hides.length ? idsSql(p.hides, false).join('\n') + '\n' : '');
   writeFileSync(join(out, 'rollback.sql'), [...p.changes.map(rollbackStatement), ...idsSql(p.hides, true)].join('\n') + '\n');
   writeFileSync(join(out, 'hidden-ids.txt'), p.hides.join('\n') + (p.hides.length ? '\n' : ''));
-  const summary = { active: p.active, matched: p.matched, same: p.same, changes: p.changes.length, hides: p.hides.length, gone: p.gone, safe: p.safe,
+  const summary = { active: p.active, matched: p.matched, same: p.same, changes: p.changes.length, hides: p.hides.length, gone: p.gone, soldOut: p.soldOut || 0, safe: p.safe,
     stale: p.stale, staleDays: p.staleDays, staleFrom: p.staleFrom, feedStock: p.feedStock, writes: p.writes, left: p.left, counts: p.counts, costs: p.costs, bigPrice: p.bigPrice.length,
     currencySkip: p.currencySkip.length, updateFiles: files };
   writeFileSync(join(out, 'summary.json'), JSON.stringify(summary, null, 2));
   return summary;
 }
 
-export function renderReport({ retailer, site, feedFiles, feedRows, newest, p }) {
+export function renderReport({ retailer, site, feedFiles, feedRows, newest, p, shop = null }) {
   const fmt = n => new Intl.NumberFormat('en-GB').format(n);
   const L = [];
-  L.push(`Feed: ${feedFiles.join(', ')} (${fmt(feedRows)} γραμμές${newest ? `, νεότερη ενημέρωση προϊόντος ${newest}` : ''})`);
-  L.push(`Ενεργά προϊόντα ${retailer} στο ${site.toUpperCase()}: ${fmt(p.active)}. Βρέθηκαν στο feed: ${fmt(p.matched)} (ίδια: ${fmt(p.same)}). Δεν υπάρχουν πια στο feed: ${fmt(p.gone)}.`);
-  if (!newest && p.staleFrom === 'file') L.push(`Το feed δεν γράφει πότε ενημερώθηκε κάθε προϊόν: ο έλεγχος παλιού feed (L39) έγινε με το νεότερο αρχείο του (${p.staleDays} ημ.).`);
+  if (shop) L.push(`Πηγή: ο ζωντανός κατάλογος του καταστήματος ${shop.origin} (${fmt(feedRows)} επιλογές, νόμισμα ${shop.currency || 'άγνωστο'}), όχι το feed του Awin (L60).`);
+  else L.push(`Feed: ${feedFiles.join(', ')} (${fmt(feedRows)} γραμμές${newest ? `, νεότερη ενημέρωση προϊόντος ${newest}` : ''})`);
+  const where = shop ? 'στο κατάστημα' : 'στο feed';
+  L.push(`Ενεργά προϊόντα ${retailer} στο ${site.toUpperCase()}: ${fmt(p.active)}. Βρέθηκαν ${where}: ${fmt(p.matched)} (ίδια: ${fmt(p.same)}). Δεν υπάρχουν πια ${where}: ${fmt(p.gone)}.`);
+  if (shop) L.push(`Εξαντλημένα στο κατάστημα: ${fmt(p.soldOut || 0)} (κρύβονται, όπως στην εισαγωγή, L39).`);
+  if (shop && !shop.currency) L.push('ΠΡΟΣΟΧΗ: δεν διάβασα το νόμισμα του καταστήματος· οι τιμές δεν αλλάζουν.');
+  if (!shop && !newest && p.staleFrom === 'file') L.push(`Το feed δεν γράφει πότε ενημερώθηκε κάθε προϊόν: ο έλεγχος παλιού feed (L39) έγινε με το νεότερο αρχείο του (${p.staleDays} ημ.).`);
   if (p.stale && p.staleFrom === 'file') L.push(`ΠΡΟΣΟΧΗ: το νεότερο αρχείο του feed είναι ${p.staleDays} ημερών (πάνω από ${STALE_DAYS}). Δεν θα αλλάξει τίποτα (L39). Χρειάζεται νεότερο feed (εργαλείο awin-feed-download).`);
   else if (p.stale) L.push(`ΠΡΟΣΟΧΗ: το feed έχει να ενημερωθεί ${p.staleDays} μέρες (πάνω από ${STALE_DAYS}). Δεν θα αλλάξει τίποτα (L39).`);
   if (!p.safe) L.push(`ΠΡΟΣΟΧΗ: λείπουν από το feed πάνω από τα μισά ενεργά προϊόντα (${fmt(p.gone)} από ${fmt(p.active)}). Μάλλον δεν κατέβηκε ολόκληρο: ΔΕΝ θα κρυφτεί κανένα.`);
-  if (p.feedStock && p.matched) L.push(`Απόθεμα στο feed για τα ${fmt(p.matched)} που βρέθηκαν: σε απόθεμα ${fmt(p.feedStock.in)}, εξαντλημένα ${fmt(p.feedStock.out)}, χωρίς στοιχείο ${fmt(p.feedStock.unknown)}.`);
+  if (!shop && p.feedStock && p.matched) L.push(`Απόθεμα στο feed για τα ${fmt(p.matched)} που βρέθηκαν: σε απόθεμα ${fmt(p.feedStock.in)}, εξαντλημένα ${fmt(p.feedStock.out)}, χωρίς στοιχείο ${fmt(p.feedStock.unknown)}.`);
   L.push(`Αλλαγές: τιμή ${fmt(p.counts.price)}, εικόνα ${fmt(p.counts.image_url)}, απόθεμα ${fmt(p.counts.stock_status)} (σε απόθεμα ξανά: ${fmt(p.counts.toIn)}, εξαντλήθηκαν: ${fmt(p.counts.toOut)}). Απόκρυψη: ${fmt(p.hides.length)}.`);
   L.push(`Εγγραφές D1: περίπου ${fmt(p.writes)} (ανά προϊόν: τιμή ${p.costs.price}, εικόνα ${p.costs.image_url}, απόθεμα ${p.costs.stock_status}, απόκρυψη ${p.costs.is_active}).`);
   if (p.left.changes || p.left.hides) L.push(`Όριο εγγραφών: ${fmt(p.left.changes)} αλλαγές και ${fmt(p.left.hides)} αποκρύψεις μένουν για την επόμενη εκτέλεση (κάθε εκτέλεση ξαναϋπολογίζει μόνο όσα διαφέρουν).`);
@@ -246,7 +313,7 @@ export function renderReport({ retailer, site, feedFiles, feedRows, newest, p })
     L.push(`ΠΡΟΣΟΧΗ: ${fmt(p.bigPrice.length)} τιμές αλλάζουν πάνω από ${PRICE_JUMP} φορές. ΔΕΝ αλλάζουν· να ελεγχθούν:`);
     for (const b of p.bigPrice.slice(0, 15)) L.push(`   - ${String(fixMojibake(b.name)).slice(0, 90)}: ${b.from} -> ${b.to}`);
   }
-  if (p.currencySkip.length) L.push(`ΠΡΟΣΟΧΗ: ${fmt(p.currencySkip.length)} προϊόντα έχουν άλλο νόμισμα στο feed (${p.currencySkip[0].from} -> ${p.currencySkip[0].to}). Η τιμή τους δεν αλλάζει.`);
+  if (p.currencySkip.length) L.push(`ΠΡΟΣΟΧΗ: ${fmt(p.currencySkip.length)} προϊόντα έχουν άλλο νόμισμα ${where} (${p.currencySkip[0].from} -> ${p.currencySkip[0].to}). Η τιμή τους δεν αλλάζει.`);
   const samples = p.changes.filter(c => 'price' in c.set).slice(0, 8);
   if (samples.length) {
     L.push('Δείγματα αλλαγών τιμής:');
@@ -266,18 +333,38 @@ if (import.meta.url === pathToFileURL(process.argv[1] || '').href) {
   const now = opt('--now') ? new Date(opt('--now')) : new Date();
   const maxWrites = Number(opt('--max-writes') || 90000);
   mkdirSync(out, { recursive: true });
-  const { files, names } = await findFeeds(archive, retailer, opt('--advertiser'));
-  if (!files.length) {
-    const similar = Object.entries(names).filter(([, n]) => n && keyOf(n).includes(keyOf(retailer).split('-')[0])).map(([f, n]) => `${f}: ${n}`);
-    writeFileSync(join(out, 'report.txt'), `Δεν βρέθηκε feed με merchant_name "${retailer}" στο ${archive}.${similar.length ? `\nΠαρόμοια: ${similar.join('; ')}` : ''}\n`);
-    process.exit(3);
-  }
-  const feed = await readFeed(files);
   const rows = all('--rows').flatMap(f => rowsFromWrangler(readFileSync(f, 'utf8')));
   const costs = writeCosts(opt('--indexes') && existsSync(opt('--indexes')) ? rowsFromWrangler(readFileSync(opt('--indexes'), 'utf8')) : []);
-  const p = planRefresh({ rows, feed, costs, maxWrites, now });
-  const summary = writePlan(out, p);
-  const ages = files.map(f => Math.floor((now.getTime() - statSync(f).mtimeMs) / 86400000));
-  writeFileSync(join(out, 'report.txt'), renderReport({ retailer, site, feedFiles: files.map(f => `${basename(f)} (αρχείο ${ages[files.indexOf(f)]} ημ.)`), feedRows: feed.rows, newest: feed.newest, p }));
-  writeFileSync(join(out, 'counts.txt'), `${summary.changes} ${summary.hides} ${summary.writes} ${summary.stale ? 1 : 0} ${summary.safe ? 1 : 0} ${summary.active}\n`);
+  const finish = (feed, report) => {
+    const p = planRefresh({ rows, feed, costs, maxWrites, now });
+    const summary = writePlan(out, p);
+    writeFileSync(join(out, 'report.txt'), report(p));
+    writeFileSync(join(out, 'counts.txt'), `${summary.changes} ${summary.hides} ${summary.writes} ${summary.stale ? 1 : 0} ${summary.safe ? 1 : 0} ${summary.active}\n`);
+  };
+  if (args.includes('--from-shop')) {
+    // The shop's own live catalogue (L60). Read-only GETs; any failure changes nothing.
+    const origin = shopOriginOf(rows.filter(r => Number(r.is_active) === 1));
+    if (!origin) {
+      writeFileSync(join(out, 'report.txt'), 'Δεν βρήκα τη διεύθυνση του καταστήματος στα links των προϊόντων. Δεν άλλαξε τίποτα.\n');
+      process.exit(3);
+    }
+    let catalog;
+    try { catalog = await readShopifyCatalog(origin); } catch (e) {
+      writeFileSync(join(out, 'report.txt'), `Δεν διάβασα τον κατάλογο του καταστήματος ${origin}: ${e.message}\n`);
+      process.exit(4);
+    }
+    const currency = await readShopCurrency(origin);
+    const feed = feedFromShopify(catalog, currency, now);
+    finish(feed, p => renderReport({ retailer, site, feedFiles: [origin], feedRows: feed.rows, newest: feed.newest, p, shop: { origin, currency } }));
+  } else {
+    const { files, names } = await findFeeds(archive, retailer, opt('--advertiser'));
+    if (!files.length) {
+      const similar = Object.entries(names).filter(([, n]) => n && keyOf(n).includes(keyOf(retailer).split('-')[0])).map(([f, n]) => `${f}: ${n}`);
+      writeFileSync(join(out, 'report.txt'), `Δεν βρέθηκε feed με merchant_name "${retailer}" στο ${archive}.${similar.length ? `\nΠαρόμοια: ${similar.join('; ')}` : ''}\n`);
+      process.exit(3);
+    }
+    const feed = await readFeed(files);
+    const ages = files.map(f => Math.floor((now.getTime() - statSync(f).mtimeMs) / 86400000));
+    finish(feed, p => renderReport({ retailer, site, feedFiles: files.map((f, i) => `${basename(f)} (αρχείο ${ages[i]} ημ.)`), feedRows: feed.rows, newest: feed.newest, p }));
+  }
 }

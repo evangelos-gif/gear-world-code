@@ -22,6 +22,11 @@
   100,000 a day, lessons L49); what is left waits for the next run. -PaidPlan: Workers Paid, up to 1,000,000 per run.
   It changes ONLY the products of these shops in these sites' databases. No code, no other shop, no deploy.
 
+  -FromShop (job 3, lessons L60): for shops whose Awin feed stopped (Red Gorilla, Wavytalk, Gardenista: not refreshed since
+  15 May 2026) the source is the shop's own live Shopify catalogue instead of the feed (read-only GETs to the shop; its
+  address comes from the products' links). Products gone from the shop or sold out there are hidden; a price changes only
+  when the shop sells in the site's currency. Same approval phrase. Example: -Pairs "gardenista:hgw" -FromShop
+
   Rollback (printed): the rollback file puts back the old values and shows the hidden products again; or the restore point.
   Report: <home>\gear-world-reports\REFRESH_<time>.txt (also copied to the clipboard)
 #>
@@ -35,6 +40,7 @@ param(
     [string]$OutDir = '',
     [int]$MaxWrites = 90000,
     [switch]$PaidPlan,
+    [switch]$FromShop,
     [switch]$NoClipboard
 )
 
@@ -190,8 +196,9 @@ if (-not $Archive) {
         $Archive = $best
     }
 }
-if (-not $Archive -or -not (Test-Path -LiteralPath $Archive)) { Say 'Δεν βρήκα τον φάκελο με τα feeds του Awin.' 'Red'; Finish 2 }
-Say ('Feeds: {0}' -f $Archive)
+if ((-not $FromShop) -and (-not $Archive -or -not (Test-Path -LiteralPath $Archive))) { Say 'Δεν βρήκα τον φάκελο με τα feeds του Awin.' 'Red'; Finish 2 }
+if (-not $Archive) { $Archive = $HOME }
+if ($FromShop) { Say 'Πηγή: ο ζωντανός κατάλογος κάθε καταστήματος (όχι τα feeds του Awin, L60).' } else { Say ('Feeds: {0}' -f $Archive) }
 Say ('Όριο εγγραφών D1 για όλη την εκτέλεση: {0}' -f $budget)
 
 $planRoot = Join-Path $OutDir ('REFRESH_PLAN_{0}' -f $stamp)
@@ -238,7 +245,9 @@ foreach ($pair in $list) {
     $last = 0
     $failed = $false
     for ($page = 1; $page -le 200; $page++) {
-        $sql = ('SELECT id, awin_product_id, merchant_product_id, product_name, price, currency, stock_status, image_url, is_active FROM products WHERE retailer = {0} AND is_active = 1 AND id BETWEEN {1} AND 2147483647 ORDER BY id LIMIT 5000' -f $sqlName, ($last + 1))
+        $cols = 'id, awin_product_id, merchant_product_id, product_name, price, currency, stock_status, image_url, is_active'
+        if ($FromShop) { $cols = $cols + ', affiliate_url' }
+        $sql = ('SELECT {2} FROM products WHERE retailer = {0} AND is_active = 1 AND id BETWEEN {1} AND 2147483647 ORDER BY id LIMIT 5000' -f $sqlName, ($last + 1), $cols)
         $r = Select-Raw $sql
         if ($null -eq $r) { $failed = $true; break }
         $f = Join-Path $dir ('rows-{0:D3}.json.txt' -f $page)
@@ -252,6 +261,7 @@ foreach ($pair in $list) {
     # 3. The plan (read-only).
     $a = @((Join-Path (Join-Path $repo 'tools') 'legacy-refresh-plan.mjs'), '--archive', $Archive, '--retailer', $name, '--site', $site, '--indexes', $idxFile, '--out', $dir, '--max-writes', [string]$budget)
     if ($Advertiser) { $a += @('--advertiser', $Advertiser) }
+    if ($FromShop) { $a += @('--from-shop') }
     foreach ($f in $rowFiles) { $a += @('--rows', $f) }
     & node @a
     $planCode = $LASTEXITCODE

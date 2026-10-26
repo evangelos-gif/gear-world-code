@@ -10,7 +10,8 @@ import { join } from 'node:path';
 import { gzipSync } from 'node:zlib';
 import { execFileSync, spawnSync } from 'node:child_process';
 import { DatabaseSync } from 'node:sqlite';
-import { findFeeds, readFeed, planRefresh, writeCosts, writePlan, keyOf, matchRow, newestFirst, renderReport } from '../../tools/legacy-refresh-plan.mjs';
+import { findFeeds, readFeed, planRefresh, writeCosts, writePlan, keyOf, matchRow, newestFirst, renderReport, linkHost, shopOriginOf, feedFromShopify, readShopCurrency } from '../../tools/legacy-refresh-plan.mjs';
+import { readShopifyCatalog } from '../../tools/legacy-import-plan.mjs';
 
 // The CGW indexes on products (read from the live database, 25 Oct 2026).
 const CGW_INDEXES = [
@@ -229,4 +230,72 @@ test('L58: the newest file wins; a feed without dates is judged by its newest fi
   assert.equal(old.stale, true, 'newest file 41 days old: nothing changes');
   assert.equal(old.changes.length + old.hides.length, 0);
   assert.match(renderReport({ retailer: 'Tooled Up', site: 'cgw', feedFiles: ['a'], feedRows: feed.rows, newest: '', p: old }), /ΠΡΟΣΟΧΗ: το νεότερο αρχείο του feed είναι 41 ημερών/);
+});
+
+// L60 (job 3, 26 Oct 2026): the Awin feeds of Red Gorilla (CGW), Wavytalk (MGW) and Gardenista (HGW) were not refreshed
+// after 15 May 2026, but the shops' own Shopify sites were live. Checked on the live sites that day: Gardenista and Red
+// Gorilla prices were the same; Wavytalk is a US store (USD) and the UK-plug options on MGW were sold out.
+test('L60: the shop address comes from the products\' links', () => {
+  const cread = u => `https://www.awin1.com/cread.php?awinmid=37292&awinaffid=3057233&ued=${encodeURIComponent(u)}`;
+  assert.equal(linkHost(cread('https://gardenistauk.com/products/cccd1vahinee?variant=37737710846101')), 'gardenistauk.com');
+  assert.equal(linkHost('https://www.awin1.com/pclick.php?p=45361363125&a=3057233&m=128533'), '', 'pclick carries no shop address');
+  assert.equal(linkHost('http://shop.example/x'), '', 'https only');
+  const rows = [1, 2, 3, 4, 5].map(i => ({ affiliate_url: cread(`https://www.redgorilla.red/products/p${i}?variant=${i}`) }));
+  assert.equal(shopOriginOf(rows), 'https://www.redgorilla.red');
+  assert.equal(shopOriginOf([...rows, ...[6, 7].map(() => ({ affiliate_url: cread('https://other.example/products/x') }))]), '', 'under 4 in 5 on one shop: none');
+});
+
+function fakeShop(products, currency) {
+  return async url => {
+    const u = new URL(url);
+    if (u.pathname === '/meta.json') return { ok: true, json: async () => ({ currency, domain: u.hostname }) };
+    if (u.pathname === '/products.json') return { ok: true, json: async () => ({ products: u.searchParams.get('page') === '1' ? products : [] }) };
+    return { ok: false, json: async () => ({}) };
+  };
+}
+const SHOP = [
+  { handle: 'cushion', images: [{ src: 'https://cdn.shopify.com/s/files/1/x/cushion.jpg?v=2' }],
+    variants: [{ id: 101, sku: 'C-1', price: '12.99', available: true, featured_image: null }, { id: 102, sku: 'C-2', price: '14.99', available: true, featured_image: null }] },
+  { handle: 'cover', images: [{ src: 'https://cdn.shopify.com/s/files/1/x/cover-new.jpg?v=9' }],
+    variants: [{ id: 201, sku: 'V-1', price: '29.99', available: false, featured_image: null }, { id: 202, sku: 'V-2', price: '7.99', available: true, featured_image: { src: 'https://cdn.shopify.com/s/files/1/x/cover-b.jpg?v=3' } }] }
+];
+
+test('L60: from the shop\'s live catalogue: same price kept, new price set, sold out and gone hidden, deleted picture replaced', async () => {
+  const fetchImpl = fakeShop(SHOP, 'GBP');
+  const catalog = await readShopifyCatalog('https://gardenistauk.com', { fetchImpl, pauseMs: 0 });
+  const currency = await readShopCurrency('https://gardenistauk.com', { fetchImpl });
+  assert.equal(currency, 'GBP');
+  const feed = feedFromShopify(catalog, currency, new Date('2026-10-26T22:00:00Z'));
+  const pic = 'https://cdn.shopify.com/s/files/1/x/cushion.jpg?v=1';
+  const rows = [
+    { id: 1, awin_product_id: '37292:101', merchant_product_id: '101', product_name: 'Cushion A', price: 12.99, currency: 'GBP', stock_status: 'in stock', image_url: pic, is_active: 1 },
+    { id: 2, awin_product_id: '37292:102', merchant_product_id: '102', product_name: 'Cushion B', price: 12.99, currency: 'GBP', stock_status: 'in stock', image_url: pic, is_active: 1 },
+    { id: 3, awin_product_id: '37292:201', merchant_product_id: '201', product_name: 'Cover set', price: 29.99, currency: 'GBP', stock_status: 'in stock', image_url: 'https://cdn.shopify.com/s/files/1/x/cover-new.jpg', is_active: 1 },
+    { id: 4, awin_product_id: '37292:202', merchant_product_id: '202', product_name: 'Cover B', price: 7.99, currency: 'GBP', stock_status: 'in stock', image_url: 'https://cdn.shopify.com/s/files/1/x/deleted.jpg', is_active: 1 },
+    { id: 5, awin_product_id: '37292:999', merchant_product_id: '999', product_name: 'Gone', price: 5, currency: 'GBP', stock_status: 'in stock', image_url: pic, is_active: 1 },
+    { id: 6, awin_product_id: '54965443821954', merchant_product_id: 'V-1', product_name: 'By SKU, sold out', price: 29.99, currency: 'GBP', stock_status: 'in stock', image_url: pic, is_active: 1 }
+  ];
+  const p = planRefresh({ rows, feed, costs: { price: 4, image_url: 3, stock_status: 3, is_active: 6 }, now: new Date('2026-10-26T22:00:00Z') });
+  const by = Object.fromEntries(p.changes.map(c => [c.id, c.set]));
+  assert.equal(by[1], undefined, 'same price; the picture is still one of the product\'s pictures (other ?v=): nothing');
+  assert.deepEqual(by[2], { price: 14.99 });
+  assert.deepEqual(by[4], { image_url: 'https://cdn.shopify.com/s/files/1/x/cover-b.jpg?v=3' }, 'deleted picture -> the option\'s own picture');
+  assert.deepEqual(p.hides.sort(), [3, 5, 6], 'sold out (by id and by SKU) and gone are hidden');
+  assert.equal(p.soldOut, 2);
+  assert.equal(p.stale, false);
+  const report = renderReport({ retailer: 'Gardenista', site: 'hgw', feedFiles: [], feedRows: feed.rows, newest: feed.newest, p, shop: { origin: 'https://gardenistauk.com', currency } });
+  assert.match(report, /Πηγή: ο ζωντανός κατάλογος του καταστήματος https:\/\/gardenistauk\.com \(4 επιλογές, νόμισμα GBP\)/);
+  assert.match(report, /Εξαντλημένα στο κατάστημα: 2/);
+  assert.match(report, /Δεν υπάρχουν πια στο κατάστημα: 1\./);
+});
+
+test('L60: a shop in another currency (Wavytalk, USD) changes no price; an unknown currency changes no price either', async () => {
+  const catalog = await readShopifyCatalog('https://wavytalk.com', { fetchImpl: fakeShop(SHOP, 'USD'), pauseMs: 0 });
+  const rows = [{ id: 2, awin_product_id: '102', merchant_product_id: '102', product_name: 'Steamlift', price: 9.99, currency: 'GBP', stock_status: 'In Stock', image_url: 'https://cdn.shopify.com/s/files/1/x/cushion.jpg', is_active: 1 }];
+  const usd = planRefresh({ rows, feed: feedFromShopify(catalog, 'USD'), costs: { price: 4, image_url: 3, stock_status: 3, is_active: 6 } });
+  assert.equal(usd.changes.length, 0);
+  assert.equal(usd.currencySkip.length, 1);
+  const unknown = planRefresh({ rows, feed: feedFromShopify(catalog, ''), costs: { price: 4, image_url: 3, stock_status: 3, is_active: 6 } });
+  assert.equal(unknown.changes.length, 0, 'no currency read: no price change');
+  assert.equal(await readShopCurrency('https://wavytalk.com', { fetchImpl: async () => { throw new Error('offline'); } }), '');
 });

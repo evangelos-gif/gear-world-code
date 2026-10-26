@@ -1422,6 +1422,13 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         Check ($rfNote.Count -eq 1 -and ([System.IO.File]::ReadAllText($rfNote[0].FullName)).Contains($rfBookmark)) 'refresh: restore point written with the bookmark'
         Check ((Run-Rf @('-Pairs', 'nobody:cgw')) -eq 5) 'refresh: a shop not on the site is reported'
         Check ((Run-Rf @('-Pairs', 'tooled up:cgw')) -eq 2) 'refresh: a wrong pair is refused'
+        # L60: -FromShop reads the shop address from the products' links; without one it stops and changes nothing.
+        $fileCallsBefore = ([regex]::Matches((RfCalls), '--file')).Count
+        Check ((Run-Rf @('-Pairs', 'tooled-up:cgw', '-FromShop', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ REFRESH TOOLED-UP CGW')) -eq 10) 'refresh -FromShop without a shop address in the links: stops (exit 10)'
+        Check (([regex]::Matches((RfCalls), '--file')).Count -eq $fileCallsBefore) 'refresh -FromShop without a shop address: changes nothing'
+        Check ((RfCalls) -match 'is_active, affiliate_url FROM products') 'refresh -FromShop: reads the product links'
+        $rfLast = @(Get-ChildItem -LiteralPath $rfOut -Filter 'REFRESH_*.txt' | Sort-Object LastWriteTime)
+        Check (([System.IO.File]::ReadAllText($rfLast[$rfLast.Count - 1].FullName)).Contains('Δεν βρήκα τη διεύθυνση του καταστήματος')) 'refresh -FromShop: says why it stopped'
     } finally {
         $env:PATH = $oldPath
         Remove-Item Env:\GW_FAKE_STATE -ErrorAction SilentlyContinue
