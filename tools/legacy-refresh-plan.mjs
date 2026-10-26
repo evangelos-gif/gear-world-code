@@ -8,7 +8,8 @@
 //   - active products that are no longer in the feed are hidden (is_active = 0, nothing is deleted);
 //   - hidden products stay hidden: a clean-up may have hidden them on purpose (one card per product, misfits...);
 //   - a price that changes more than 3 times up or down is not changed but listed for a person to check;
-//   - a feed whose products were last updated more than 30 days ago changes nothing (lessons L39: stale feeds);
+//   - a feed whose products were last updated more than 30 days ago changes nothing (lessons L39: stale feeds); a feed
+//     without that date (Reidl, Tooled Up) is judged by the date of its newest file on this PC;
 //   - a feed that misses more than half of the active products hides nothing (more likely a broken download);
 //   - the rows written in D1 are counted from the table's own indexes (lessons L49, L57): 1 + one per index holding the
 //     column. Above the budget, the plan keeps the first changes and leaves the rest for the next run.
@@ -22,7 +23,7 @@ import { pathToFileURL } from 'node:url';
 import { readCsvRecords, parsePrice } from './tgw-import-plan.mjs';
 import { stockFlag, pickImage } from './legacy-import-plan.mjs';
 import { rowsFromWrangler } from './cleanup-rules/tidy.mjs';
-import { IN_STOCK_WORDS } from '../src/db.js';
+import { IN_STOCK_WORDS, fixMojibake } from '../src/db.js';
 
 export const STALE_DAYS = 30;
 export const PRICE_JUMP = 3;
@@ -62,17 +63,23 @@ async function firstMerchantName(path) {
   return '';
 }
 
-// One entry per feed row, found by Awin product id and by the shop's own product id.
+// One entry per feed row, found by Awin product id and by the shop's own product id. The newest file is read first, so
+// when a product is in two files (Tooled Up: files of 1 and of 10 days, 26 Oct 2026) the fresher row wins (L58).
+export function newestFirst(paths, mtime = f => statSync(f).mtimeMs) {
+  return paths.map(f => ({ f, t: mtime(f) })).sort((a, b) => (b.t - a.t) || (a.f < b.f ? -1 : a.f > b.f ? 1 : 0)).map(x => x.f);
+}
+
 export async function readFeed(paths) {
   const byAw = new Map();
   const byMid = new Map();
-  let rows = 0, newest = '';
-  for (const f of paths) {
+  let rows = 0, newest = '', newestFile = 0;
+  for (const f of newestFirst(paths)) {
+    newestFile = Math.max(newestFile, statSync(f).mtimeMs);
     const raw = createReadStream(f);
     const stream = /\.gz$/i.test(f) ? raw.pipe(createGunzip()) : raw;
     let h = null;
     for await (const rec of readCsvRecords(stream)) {
-      if (!h) { h = rec.map(x => String(x).trim().toLowerCase().replace(/^﻿/, '')); continue; }
+      if (!h) { h = rec.map(x => String(x).trim().toLowerCase().replace(/^\uFEFF/, '')); continue; }
       if (rec.length < 3) continue;
       const get = c => { const i = h.indexOf(c); return i >= 0 ? String(rec[i] ?? '').trim() : ''; };
       rows++;
@@ -91,7 +98,7 @@ export async function readFeed(paths) {
       if (p.mid && !byMid.has(p.mid)) byMid.set(p.mid, p);
     }
   }
-  return { byAw, byMid, rows, newest };
+  return { byAw, byMid, rows, newest, newestFile };
 }
 
 // The feed row of a database row: the Awin product id, "<advertiser>:<shop id>", or the shop's own product id.
@@ -121,17 +128,22 @@ function parseFeedDate(s) {
 
 export function planRefresh({ rows, feed, costs, maxWrites = 90000, now = new Date() }) {
   const active = rows.filter(r => Number(r.is_active) === 1);
+  // The products' own update date; without it, the date of the newest feed file on this PC (L39, L58).
   const newestTime = feed.newest ? parseFeedDate(feed.newest) : NaN;
-  const staleDays = Number.isFinite(newestTime) ? Math.floor(daysBetween(newestTime, now.getTime())) : null;
+  const fileTime = Number(feed.newestFile) > 0 ? Number(feed.newestFile) : NaN;
+  const staleFrom = Number.isFinite(newestTime) ? 'products' : (Number.isFinite(fileTime) ? 'file' : '');
+  const staleDays = staleFrom ? Math.floor(daysBetween(staleFrom === 'products' ? newestTime : fileTime, now.getTime())) : null;
   const stale = staleDays !== null && staleDays > STALE_DAYS;
   const changes = [];
   const gone = [];
   const bigPrice = [];
   const currencySkip = [];
   let same = 0;
+  const feedStock = { in: 0, out: 0, unknown: 0 };
   for (const r of active) {
     const f = matchRow(r, feed);
     if (!f) { gone.push(Number(r.id)); continue; }
+    feedStock[f.inStock === true ? 'in' : (f.inStock === false ? 'out' : 'unknown')]++;
     const set = {}, old = {};
     if (Number.isFinite(f.price) && f.price > 0) {
       const curCurrency = String(r.currency || 'GBP').toUpperCase();
@@ -168,7 +180,7 @@ export function planRefresh({ rows, feed, costs, maxWrites = 90000, now = new Da
   const count = col => doChanges.filter(c => col in c.set).length;
   return {
     active: active.length, matched: active.length - gone.length, same, changes: doChanges, hides: doHides, gone: gone.length, safe, stale, staleDays,
-    bigPrice, currencySkip, writes, left, costs,
+    staleFrom, feedStock, bigPrice, currencySkip, writes, left, costs,
     counts: { price: count('price'), image_url: count('image_url'), stock_status: count('stock_status'),
       toOut: doChanges.filter(c => 'stock_status' in c.set && !inStockText(c.set.stock_status)).length,
       toIn: doChanges.filter(c => 'stock_status' in c.set && inStockText(c.set.stock_status)).length }
@@ -202,7 +214,7 @@ export function writePlan(out, p) {
   writeFileSync(join(out, 'rollback.sql'), [...p.changes.map(rollbackStatement), ...idsSql(p.hides, true)].join('\n') + '\n');
   writeFileSync(join(out, 'hidden-ids.txt'), p.hides.join('\n') + (p.hides.length ? '\n' : ''));
   const summary = { active: p.active, matched: p.matched, same: p.same, changes: p.changes.length, hides: p.hides.length, gone: p.gone, safe: p.safe,
-    stale: p.stale, staleDays: p.staleDays, writes: p.writes, left: p.left, counts: p.counts, costs: p.costs, bigPrice: p.bigPrice.length,
+    stale: p.stale, staleDays: p.staleDays, staleFrom: p.staleFrom, feedStock: p.feedStock, writes: p.writes, left: p.left, counts: p.counts, costs: p.costs, bigPrice: p.bigPrice.length,
     currencySkip: p.currencySkip.length, updateFiles: files };
   writeFileSync(join(out, 'summary.json'), JSON.stringify(summary, null, 2));
   return summary;
@@ -213,20 +225,23 @@ export function renderReport({ retailer, site, feedFiles, feedRows, newest, p })
   const L = [];
   L.push(`Feed: ${feedFiles.join(', ')} (${fmt(feedRows)} γραμμές${newest ? `, νεότερη ενημέρωση προϊόντος ${newest}` : ''})`);
   L.push(`Ενεργά προϊόντα ${retailer} στο ${site.toUpperCase()}: ${fmt(p.active)}. Βρέθηκαν στο feed: ${fmt(p.matched)} (ίδια: ${fmt(p.same)}). Δεν υπάρχουν πια στο feed: ${fmt(p.gone)}.`);
-  if (p.stale) L.push(`ΠΡΟΣΟΧΗ: το feed έχει να ενημερωθεί ${p.staleDays} μέρες (πάνω από ${STALE_DAYS}). Δεν θα αλλάξει τίποτα (L39).`);
+  if (!newest && p.staleFrom === 'file') L.push(`Το feed δεν γράφει πότε ενημερώθηκε κάθε προϊόν: ο έλεγχος παλιού feed (L39) έγινε με το νεότερο αρχείο του (${p.staleDays} ημ.).`);
+  if (p.stale && p.staleFrom === 'file') L.push(`ΠΡΟΣΟΧΗ: το νεότερο αρχείο του feed είναι ${p.staleDays} ημερών (πάνω από ${STALE_DAYS}). Δεν θα αλλάξει τίποτα (L39). Χρειάζεται νεότερο feed (εργαλείο awin-feed-download).`);
+  else if (p.stale) L.push(`ΠΡΟΣΟΧΗ: το feed έχει να ενημερωθεί ${p.staleDays} μέρες (πάνω από ${STALE_DAYS}). Δεν θα αλλάξει τίποτα (L39).`);
   if (!p.safe) L.push(`ΠΡΟΣΟΧΗ: λείπουν από το feed πάνω από τα μισά ενεργά προϊόντα (${fmt(p.gone)} από ${fmt(p.active)}). Μάλλον δεν κατέβηκε ολόκληρο: ΔΕΝ θα κρυφτεί κανένα.`);
+  if (p.feedStock && p.matched) L.push(`Απόθεμα στο feed για τα ${fmt(p.matched)} που βρέθηκαν: σε απόθεμα ${fmt(p.feedStock.in)}, εξαντλημένα ${fmt(p.feedStock.out)}, χωρίς στοιχείο ${fmt(p.feedStock.unknown)}.`);
   L.push(`Αλλαγές: τιμή ${fmt(p.counts.price)}, εικόνα ${fmt(p.counts.image_url)}, απόθεμα ${fmt(p.counts.stock_status)} (σε απόθεμα ξανά: ${fmt(p.counts.toIn)}, εξαντλήθηκαν: ${fmt(p.counts.toOut)}). Απόκρυψη: ${fmt(p.hides.length)}.`);
   L.push(`Εγγραφές D1: περίπου ${fmt(p.writes)} (ανά προϊόν: τιμή ${p.costs.price}, εικόνα ${p.costs.image_url}, απόθεμα ${p.costs.stock_status}, απόκρυψη ${p.costs.is_active}).`);
   if (p.left.changes || p.left.hides) L.push(`Όριο εγγραφών: ${fmt(p.left.changes)} αλλαγές και ${fmt(p.left.hides)} αποκρύψεις μένουν για την επόμενη εκτέλεση (κάθε εκτέλεση ξαναϋπολογίζει μόνο όσα διαφέρουν).`);
   if (p.bigPrice.length) {
     L.push(`ΠΡΟΣΟΧΗ: ${fmt(p.bigPrice.length)} τιμές αλλάζουν πάνω από ${PRICE_JUMP} φορές. ΔΕΝ αλλάζουν· να ελεγχθούν:`);
-    for (const b of p.bigPrice.slice(0, 15)) L.push(`   - ${String(b.name).slice(0, 90)}: ${b.from} -> ${b.to}`);
+    for (const b of p.bigPrice.slice(0, 15)) L.push(`   - ${String(fixMojibake(b.name)).slice(0, 90)}: ${b.from} -> ${b.to}`);
   }
   if (p.currencySkip.length) L.push(`ΠΡΟΣΟΧΗ: ${fmt(p.currencySkip.length)} προϊόντα έχουν άλλο νόμισμα στο feed (${p.currencySkip[0].from} -> ${p.currencySkip[0].to}). Η τιμή τους δεν αλλάζει.`);
   const samples = p.changes.filter(c => 'price' in c.set).slice(0, 8);
   if (samples.length) {
     L.push('Δείγματα αλλαγών τιμής:');
-    for (const c of samples) L.push(`   - ${String(c.name).slice(0, 80)}: ${c.old.price} -> ${c.set.price}`);
+    for (const c of samples) L.push(`   - ${String(fixMojibake(c.name)).slice(0, 80)}: ${c.old.price} -> ${c.set.price}`);
   }
   return L.join('\n') + '\n';
 }

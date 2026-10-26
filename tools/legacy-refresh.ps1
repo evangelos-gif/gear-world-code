@@ -109,11 +109,16 @@ function Invoke-Wrangler([string]$Arguments, [switch]$Retry) {
     for ($try = 1; $try -le $tries; $try++) {
         $cmdFile = Join-Path $tmp ('gw-wrangler-' + [guid]::NewGuid().ToString('N').Substring(0, 8) + '.cmd')
         [System.IO.File]::WriteAllText($cmdFile, ($lines -join "`r`n") + "`r`n", [System.Text.Encoding]::ASCII)
+        # wrangler writes UTF-8; Windows PowerShell would read it with the console code page (850, 737...): names came
+        # out as 'Schl├â┬╝ssel' (26 Oct 2026, lessons L58), and any other text would reach the plan and its rollback wrong.
+        $oldEnc = $null
+        try { $oldEnc = [Console]::OutputEncoding; [Console]::OutputEncoding = New-Object System.Text.UTF8Encoding($false) } catch { }
         try {
             $out = @(& $cmdFile)
             $code = $LASTEXITCODE
         } finally {
             Remove-Item -LiteralPath $cmdFile -ErrorAction SilentlyContinue
+            if ($oldEnc) { try { [Console]::OutputEncoding = $oldEnc } catch { } }
         }
         $text = (($out | ForEach-Object { "$_" }) -join "`n") -replace '\x1b\[[0-9;]*m', ''
         $result = @{ code = $code; text = $text }

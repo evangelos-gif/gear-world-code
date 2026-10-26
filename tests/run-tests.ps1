@@ -45,6 +45,13 @@ foreach ($f in $psFiles) {
     foreach ($b in $bytes) { if ($b -gt 127) { $nonAscii = $true; break } }
     Check ((-not $nonAscii) -or $hasBom) ('UTF-8 BOM when non-ASCII: ' + $f.Name)
 }
+# L58: a tool that reads database rows through wrangler (--json) reads its output as UTF-8, not with the console code page.
+foreach ($f in @($psFiles | Where-Object { $_.Name -like 'legacy-*.ps1' -and $_.DirectoryName -match '[\\/]tools$' })) {
+    $t = [System.IO.File]::ReadAllText($f.FullName)
+    if ($t.Contains('--json') -and $t.Contains('& $cmdFile')) {
+        Check ($t.Contains('[Console]::OutputEncoding = New-Object System.Text.UTF8Encoding($false)')) ('reads wrangler output as UTF-8 (L58): ' + $f.Name)
+    }
+}
 
 # 2. No secrets or Cloudflare IDs committed
 Write-Host 'Secret scan'
@@ -1368,7 +1375,7 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         'echo [{"results":[{"name":"idx_products_active_price","sql":"CREATE INDEX idx_products_active_price ON products(is_active, price)"},{"name":"idx_products_active_id","sql":"CREATE INDEX idx_products_active_id ON products(is_active, id)"}],"success":true}]',
         'exit /b 0',
         ':rows',
-        'echo [{"results":[{"id":1,"awin_product_id":"100046875","merchant_product_id":"100005800","product_name":"Bahco Spanner","price":11.99,"currency":"GBP","stock_status":"In Stock","image_url":"https://x/a.jpg","is_active":1},{"id":5,"awin_product_id":"555","merchant_product_id":"555","product_name":"Gone","price":7,"currency":"GBP","stock_status":"In Stock","image_url":"https://x/5.jpg","is_active":1}],"success":true}]',
+        'type "%GW_FAKE_STATE%\rows.json"',
         'exit /b 0',
         ':after',
         'echo [{"results":[{"n":1}],"success":true}]',
@@ -1381,6 +1388,9 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
     $rfCsv = "merchant_name,aw_product_id,merchant_product_id,product_name,merchant_image_url,search_price,currency,in_stock,stock_status,last_updated`n" +
         ('Tooled Up,100046875,100005800,Bahco Spanner,https://x/a.jpg,12.50,GBP,1,In Stock,{0}' -f (Get-Date -Format 'yyyy-MM-dd HH:mm:ss')) + "`n"
     [System.IO.File]::WriteAllText((Join-Path $rfArch 'AWIN_496_1001.csv'), $rfCsv, (New-Object System.Text.UTF8Encoding($false)))
+    # wrangler writes UTF-8 (L58): 'Bahco Schl<u umlaut>ssel' must reach the plan as it is, not as the console code page's 'Schl├╝ssel'.
+    $rfName = 'Bahco Schl' + [string][char]0x00FC + 'ssel'
+    [System.IO.File]::WriteAllText((Join-Path $rfState 'rows.json'), ('[{"results":[{"id":1,"awin_product_id":"100046875","merchant_product_id":"100005800","product_name":"NAME","price":11.99,"currency":"GBP","stock_status":"In Stock","image_url":"https://x/a.jpg","is_active":1},{"id":5,"awin_product_id":"555","merchant_product_id":"555","product_name":"Gone","price":7,"currency":"GBP","stock_status":"In Stock","image_url":"https://x/5.jpg","is_active":1}],"success":true}]').Replace('NAME', $rfName), (New-Object System.Text.UTF8Encoding($false)))
     $oldPath = $env:PATH
     $env:PATH = $rfBin + ';' + $oldPath
     $env:GW_FAKE_STATE = $rfState
@@ -1397,6 +1407,7 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         Check ((RfCalls) -match 'construction-gear-customers') 'refresh: reads the CGW database'
         $rfRep = @(Get-ChildItem -LiteralPath $rfOut -Filter 'REFRESH_*.txt' -ErrorAction SilentlyContinue)
         Check ($rfRep.Count -eq 1 -and ([System.IO.File]::ReadAllText($rfRep[0].FullName)).Contains('ΕΓΚΡΙΝΩ REFRESH TOOLED-UP CGW')) 'refresh: report with the plan and the approval phrase'
+        Check ($rfRep.Count -eq 1 -and ([System.IO.File]::ReadAllText($rfRep[0].FullName)).Contains($rfName + ': 11.99 -> 12.5')) 'refresh: names read as UTF-8 from wrangler (L58)'
         Check ((Run-Rf @('-Pairs', 'tooled-up:cgw', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ REFRESH TOOLED-UP MGW')) -eq 1) 'refresh with the wrong phrase: stops'
         Check (-not ((RfCalls) -match '--file')) 'refresh with the wrong phrase: changes nothing'
         Check ((Run-Rf @('-Pairs', 'tooled-up:cgw', '-Apply', '-Approve', 'egkrino refresh tooled-up cgw')) -eq 0) 'refresh with approval (Latin form): exit 0'

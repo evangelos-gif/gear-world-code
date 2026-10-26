@@ -10,7 +10,7 @@ import { join } from 'node:path';
 import { gzipSync } from 'node:zlib';
 import { execFileSync, spawnSync } from 'node:child_process';
 import { DatabaseSync } from 'node:sqlite';
-import { findFeeds, readFeed, planRefresh, writeCosts, writePlan, keyOf, matchRow } from '../../tools/legacy-refresh-plan.mjs';
+import { findFeeds, readFeed, planRefresh, writeCosts, writePlan, keyOf, matchRow, newestFirst, renderReport } from '../../tools/legacy-refresh-plan.mjs';
 
 // The CGW indexes on products (read from the live database, 25 Oct 2026).
 const CGW_INDEXES = [
@@ -167,4 +167,43 @@ test('command line: report and counts from wrangler output files; no feed found 
   const miss = spawnSync(process.execPath, [tool, '--archive', dir, '--retailer', 'Tooled', '--rows', rowsFile, '--out', join(out, 'x')]);
   assert.equal(miss.status, 3);
   assert.match(readFileSync(join(out, 'x', 'report.txt'), 'utf8'), /Παρόμοια: AWIN_496_1001\.csv\.gz: Tooled Up/);
+});
+
+// L58 (26 Oct 2026, dry run of Reidl and Tooled Up on CGW): Tooled Up came in files of 1 and of 10 days, and the older
+// file was read first by its name; neither feed had an update date, so the 30-day check (L39) never ran; the report
+// showed names as 'Schl├â┬╝ssel'. The site keeps such names saved twice as UTF-8 ('SchlÃ¼ssel') and shows them right.
+test('L58: the newest file wins; a feed without dates is judged by its newest file; stock in the feed is counted; names read right', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'refresh-l58-'));
+  const head = 'product_name,aw_product_id,merchant_product_id,merchant_image_url,search_price,merchant_name,currency,in_stock\n';
+  const oldFile = join(dir, 'AWIN_496_19857.csv.gz');
+  const newFile = join(dir, 'AWIN_496_89987.csv.gz');
+  writeFileSync(oldFile, gzipSync(head + 'Gedore Spanner,100046875,100005800,https://www.tooled-up.com/artwork/prodzoom/a.jpg,11.00,Tooled Up,GBP,1\n'
+    + 'Old File Only,200,300,https://www.tooled-up.com/artwork/prodzoom/d.jpg,5,Tooled Up,GBP,0\n'));
+  writeFileSync(newFile, gzipSync(head + 'Gedore Spanner,100046875,100005800,https://www.tooled-up.com/artwork/prodzoom/a.jpg,12.50,Tooled Up,GBP,1\n'));
+  const day = 86400000;
+  const now = Date.now();
+  utimesSync(oldFile, new Date(now - 10 * day), new Date(now - 10 * day));
+  utimesSync(newFile, new Date(now - 1 * day - 3600000), new Date(now - 1 * day - 3600000));
+  assert.deepEqual(newestFirst([oldFile, newFile]), [newFile, oldFile], 'by date, not by name');
+  const feed = await readFeed((await findFeeds(dir, 'Tooled Up')).files);
+  assert.equal(feed.byAw.get('100046875').price, 12.5, 'the row of the newer file');
+  assert.equal(feed.newest, '');
+  const rows = [
+    { id: 1, awin_product_id: '100046875', merchant_product_id: '100005800', product_name: 'Gedore Ring-Maulschl\u00c3\u00bcssel 10mm', price: 11.99, currency: 'GBP', stock_status: 'In Stock', image_url: 'https://www.tooled-up.com/artwork/prodzoom/a.jpg', is_active: 1 },
+    { id: 2, awin_product_id: '200', merchant_product_id: '300', product_name: 'Old File Only', price: 5, currency: 'GBP', stock_status: 'In Stock', image_url: 'https://www.tooled-up.com/artwork/prodzoom/d.jpg', is_active: 1 }
+  ];
+  const p = planRefresh({ rows, feed, costs: CGW_COSTS, now: new Date(now) });
+  assert.equal(p.staleFrom, 'file');
+  assert.equal(p.staleDays, 1);
+  assert.equal(p.stale, false);
+  assert.deepEqual(Object.fromEntries(p.changes.map(c => [c.id, c.set])), { 1: { price: 12.5 }, 2: { stock_status: '0' } });
+  assert.deepEqual(p.feedStock, { in: 1, out: 1, unknown: 0 });
+  const report = renderReport({ retailer: 'Tooled Up', site: 'cgw', feedFiles: ['a'], feedRows: feed.rows, newest: feed.newest, p });
+  assert.match(report, /Ring-Maulschl\u00fcssel 10mm: 11\.99 -> 12\.5/, 'the name as the site shows it');
+  assert.match(report, /ο έλεγχος παλιού feed \(L39\) έγινε με το νεότερο αρχείο του \(1 ημ\.\)/);
+  assert.match(report, /Απόθεμα στο feed για τα 2 που βρέθηκαν: σε απόθεμα 1, εξαντλημένα 1, χωρίς στοιχείο 0\./);
+  const old = planRefresh({ rows, feed, costs: CGW_COSTS, now: new Date(now + 40 * day) });
+  assert.equal(old.stale, true, 'newest file 41 days old: nothing changes');
+  assert.equal(old.changes.length + old.hides.length, 0);
+  assert.match(renderReport({ retailer: 'Tooled Up', site: 'cgw', feedFiles: ['a'], feedRows: feed.rows, newest: '', p: old }), /ΠΡΟΣΟΧΗ: το νεότερο αρχείο του feed είναι 41 ημερών/);
 });
