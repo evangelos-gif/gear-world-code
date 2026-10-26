@@ -2435,6 +2435,82 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
     }
 }
 
+# gw-backup.ps1 with a fake home, a fake drive folder and a fake wrangler (Windows only: runs .cmd files and robocopy)
+if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
+    Write-Host 'gw-backup.ps1 (fake home and wrangler)'
+    $bTool = Join-Path (Join-Path $repo 'tools') 'gw-backup.ps1'
+    $bHome = Join-Path $work 'bk-home'
+    $bTarget = Join-Path $work 'bk-drive\GearWorldBackup'
+    $bState = Join-Path $work 'bk-state'
+    $bBin = Join-Path $work 'bk-bin'
+    New-Item -ItemType Directory -Path $bState, $bBin -Force | Out-Null
+    Write-Utf8 (Join-Path $bHome 'gear-world-hub\worker.js') 'export default {}'
+    Write-Utf8 (Join-Path $bHome 'gear-world-hub\.dev.vars') 'X=1'
+    Write-Utf8 (Join-Path $bHome 'gear-world-hub\node_modules\pkg\index.js') '// package'
+    Write-Utf8 (Join-Path $bHome 'construction-gear-world-engine\backups\note.txt') 'bookmark'
+    Write-Utf8 (Join-Path $bHome 'sporty-gear-world\wrangler.jsonc') '{}'
+    Write-Utf8 (Join-Path $bHome 'Documents\private.txt') 'not gear world'
+    Write-Utf8 (Join-Path $bHome 'Downloads\GW_AWIN_BULK_ARCHIVE\AWIN_1_2.csv.gz') 'feed'
+    Write-Utf8 (Join-Path $bHome 'Downloads\48473-retail-en_GB.csv.gz') 'google feed'
+    Write-Utf8 (Join-Path $bHome 'Downloads\holiday.jpg') 'photo'
+    $bNpx = @(
+        '@echo off',
+        'echo %* >> "%GW_FAKE_STATE%\calls.log"',
+        'echo %* | findstr /C:"d1 list" >nul && goto d1list',
+        'echo %* | findstr /C:"sqlite_master" >nul && goto schema',
+        'echo %* | findstr /C:"MIN(rowid)" >nul && goto range',
+        'echo %* | findstr /C:"BETWEEN" >nul && goto rows',
+        'echo unknown command 1>&2',
+        'exit /b 1',
+        ':d1list',
+        'echo [{"uuid":"x","name":"test-db"}]',
+        'exit /b 0',
+        ':schema',
+        'echo [{"results":[{"type":"table","name":"products","tbl_name":"products","sql":"CREATE TABLE products (id INTEGER PRIMARY KEY, name TEXT)"},{"type":"table","name":"products_fts","tbl_name":"products_fts","sql":"CREATE VIRTUAL TABLE products_fts USING fts5(name)"},{"type":"table","name":"products_fts_data","tbl_name":"products_fts_data","sql":"CREATE TABLE products_fts_data(id INTEGER PRIMARY KEY, block BLOB)"}],"success":true}]',
+        'exit /b 0',
+        ':range',
+        'echo [{"results":[{"a":1,"b":5,"n":5}],"success":true}]',
+        'exit /b 0',
+        ':rows',
+        'echo [{"results":[{"_rowid":1,"id":1,"name":"Drill"}],"success":true}]',
+        'exit /b 0'
+    ) -join "`r`n"
+    [System.IO.File]::WriteAllText((Join-Path $bBin 'npx.cmd'), $bNpx + "`r`n", [System.Text.Encoding]::ASCII)
+    $oldPath = $env:PATH
+    $env:PATH = $bBin + ';' + $oldPath
+    $env:GW_FAKE_STATE = $bState
+    function Run-B([string[]]$a) {
+        $all = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $bTool, '-Target', $bTarget, '-HomeDir', $bHome, '-AllowSystemDrive', '-SkipGitHub', '-PageRows', '3', '-NoClipboard') + $a
+        & $exe @all | Out-Null
+        return $LASTEXITCODE
+    }
+    try {
+        $drive = ([string]$env:SystemDrive).TrimEnd(':').ToUpper()
+        Check ((Run-B @()) -eq 0 -and -not (Test-Path -LiteralPath $bTarget)) 'backup without -Apply: writes nothing'
+        $rep = @(Get-ChildItem -LiteralPath (Join-Path $bHome 'gear-world-reports') -Filter 'GW_BACKUP_*.txt' | Select-Object -Last 1)
+        $rt = $(if ($rep.Count) { [System.IO.File]::ReadAllText($rep[0].FullName) } else { '' })
+        Check ($rt.Contains('gear-world-hub') -and $rt.Contains('test-db') -and $rt.Contains('ΕΓΚΡΙΝΩ BACKUP ' + $drive) -and -not $rt.Contains('Documents')) 'backup plan: Gear World folders and databases, not other folders'
+        Check ((Run-B @('-Apply', '-Approve', 'ΕΓΚΡΙΝΩ BACKUP Q')) -eq 1 -and -not (Test-Path -LiteralPath $bTarget)) 'backup with the wrong phrase: writes nothing'
+        Check ((Run-B @('-Apply', '-Approve', ('egkrino backup ' + $drive))) -eq 0) 'backup with approval: exit 0'
+        $f = Join-Path $bTarget 'files'
+        Check ((Test-Path -LiteralPath (Join-Path $f 'gear-world-hub\worker.js')) -and (Test-Path -LiteralPath (Join-Path $f 'gear-world-hub\.dev.vars')) -and (Test-Path -LiteralPath (Join-Path $f 'construction-gear-world-engine\backups\note.txt'))) 'backup: Gear World folders copied'
+        Check (Test-Path -LiteralPath (Join-Path $f 'sporty-gear-world\wrangler.jsonc')) 'backup: a new site folder (sporty-gear-world) is copied too'
+        Check (-not (Test-Path -LiteralPath (Join-Path $f 'gear-world-hub\node_modules')) -and -not (Test-Path -LiteralPath (Join-Path $f 'Documents'))) 'backup: node_modules and other folders skipped'
+        Check ((Test-Path -LiteralPath (Join-Path $f 'Downloads\GW_AWIN_BULK_ARCHIVE\AWIN_1_2.csv.gz')) -and (Test-Path -LiteralPath (Join-Path $f 'Downloads\48473-retail-en_GB.csv.gz')) -and -not (Test-Path -LiteralPath (Join-Path $f 'Downloads\holiday.jpg'))) 'backup: Awin feeds copied, other downloads not'
+        $d = Join-Path $bTarget 'd1\test-db'
+        Check ((Test-Path -LiteralPath (Join-Path $d 'products-0001.json')) -and (Test-Path -LiteralPath (Join-Path $d 'products-0002.json')) -and -not (Test-Path -LiteralPath (Join-Path $d 'products_fts_data-0001.json'))) 'backup: table rows in pages, search index tables skipped'
+        Check (([System.IO.File]::ReadAllText((Join-Path $d 'schema.sql'))).Contains('CREATE VIRTUAL TABLE products_fts')) 'backup: schema has every table'
+        $calls = [System.IO.File]::ReadAllText((Join-Path $bState 'calls.log'))
+        Check (-not ($calls -match '(?i)INSERT|UPDATE|DELETE|DROP|deploy|time-travel restore')) 'backup: databases only read'
+        Check (Test-Path -LiteralPath (Join-Path $bTarget 'README-RESTORE.txt')) 'backup: restore instructions written'
+        Remove-Item -LiteralPath (Join-Path $bHome 'gear-world-hub\worker.js')
+        Check ((Run-B @('-Apply', '-Approve', ('ΕΓΚΡΙΝΩ BACKUP ' + $drive), '-SkipDatabases')) -eq 0 -and (Test-Path -LiteralPath (Join-Path $f 'gear-world-hub\worker.js'))) 'backup again: a file deleted on the PC stays on the drive'
+    } finally {
+        $env:PATH = $oldPath
+        Remove-Item Env:\GW_FAKE_STATE -ErrorAction SilentlyContinue
+    }
+}
+
 Remove-Item -LiteralPath $work -Recurse -Force -ErrorAction SilentlyContinue
 
 Write-Host ''
