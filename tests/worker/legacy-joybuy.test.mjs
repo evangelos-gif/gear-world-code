@@ -265,9 +265,25 @@ test('Joybuy rules: fixes from the all-sites plan (indoor furniture, kitchen ove
 test('Coes kids and My Tool Shed garden rules', async () => {
   const kids = (await import('../../tools/import-rules/coes-kids.mjs')).classify;
   const k = (name, brand = '') => kids({ name, brand });
-  assert.deepEqual(k('Adidas Copa Pure 3 League Turf Junior Boots', 'Adidas'), { site: 'kgw', siteCategory: 'Shoes', subcategory: 'Football boots' });
-  assert.equal(k('Barbour Boys Liddesdale Quilted Jacket', 'Barbour').siteCategory, 'Clothing');
-  assert.equal(k('Joules Junior Wellies Pink', 'Joules').subcategory, 'Boots');
+  // KGW's own subcategory names only (lessons L56; the dry run of 26 Oct 2026 warned about 10 new ones).
+  assert.deepEqual(k('Adidas Copa Pure 3 League Turf Junior Boots', 'Adidas'), { site: 'kgw', siteCategory: 'Shoes', subcategory: 'Shoes' });
+  assert.deepEqual(k('Barbour Boys Liddesdale Quilted Jacket', 'Barbour'), { site: 'kgw', siteCategory: 'Clothing', subcategory: 'Coats & Jackets' });
+  assert.equal(k('Joules Junior Wellies Pink', 'Joules').subcategory, 'Shoes');
+  assert.equal(k('Adidas Junior Ultraboost Trainers', 'Adidas').subcategory, 'Trainers');
+  assert.equal(k('Adidas Junior Entrada 22 Training Shorts', 'Adidas').subcategory, 'Clothing');
+  assert.equal(k('Levis Boys 511 Slim Jeans', 'Levis').subcategory, 'Trousers & Jeans');
+  assert.equal(k('Ralph Lauren Boys Polo Shirt', 'Ralph Lauren').subcategory, 'Shirts & Tops');
+  assert.deepEqual(k('Falke Kids Ankle Socks', 'Falke'), { site: 'kgw', siteCategory: 'Clothing', subcategory: 'Socks' });
+  assert.equal(k('Barbour Kids Beanie Hat', 'Barbour').subcategory, 'Accessories');
+  assert.equal(k('Puma Junior Shin Pads', 'Puma').subcategory, 'Sports & Outdoors');
+  const kgwNames = new Set(['Shoes', 'Trainers', 'Coats & Jackets', 'Clothing', 'Trousers & Jeans', 'Shirts & Tops', 'Socks', 'Nightwear & Loungewear', 'Accessories',
+    'Sunglasses', 'Sports & Outdoors', 'School Bags', 'Lunch Boxes & Bags']);
+  for (const n of ['Joules Girls Floral Dress', 'Barbour Kids Pyjamas', 'Nike Kids Hoodie', 'Joules Kids Backpack', 'Joules Kids Lunch Bag']) {
+    const r = k(n);
+    assert.ok(r.subcategory && kgwNames.has(r.subcategory), `${n}: ${r.subcategory}`);
+  }
+  const coes = (await import('../../tools/import-rules/coes.mjs')).classify;
+  assert.deepEqual(coes({ name: 'Taggs Dress Studs', brand: 'Taggs', feedCategory: 'Menswear' }), { site: 'mgw', siteCategory: "Men's Jewellery", subcategory: 'Cufflinks' });
   for (const n of ['Barbour Beaufort Wax Jacket', "Nobody's Child Layla Midi Dress", 'Failsworth Carloway Harris Tweed Baker Boy Cap']) assert.ok(k(n).reject, n);
   const mts = (await import('../../tools/import-rules/mytoolshed-garden.mjs')).classify;
   const g = (name, feedCategory) => mts({ name, feedCategory });

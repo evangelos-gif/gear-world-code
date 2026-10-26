@@ -46,21 +46,21 @@ export function classify({ name, brand = '' }) {
   if (!KIDS.test(kidsText)) return { reject: 'not a children\'s product (Coes adult items go to MGW/WGW with coes.mjs)' };
   if (NOT_FOR_KGW.test(kidsText)) return { reject: 'not clothing, shoes, accessories or sports kit (or an adult size in the name)' };
   if (SHOES.test(n)) {
-    return { site: 'kgw', siteCategory: 'Shoes', subcategory: pick(n, [[words(['football boots', 'astros', 'fg', 'ag', 'mg', 'turf', 'firm ground']), 'Football boots'],
-      [words(['trainer', 'trainers', 'sneaker', 'sneakers', 'running']), 'Trainers'], [words(['boot', 'boots', 'wellies', 'welly', 'wellington', 'wellingtons']), 'Boots'],
-      [words(['sandal', 'sandals', 'sliders', 'flip flops']), 'Sandals'], [words(['slipper', 'slippers']), 'Slippers']], 'Shoes') };
+    // KGW's own subcategory names (lessons L56; dry run of 26 Oct 2026 warned about 10 new ones): Trainers or Shoes.
+    return { site: 'kgw', siteCategory: 'Shoes', subcategory: pick(n, [[words(['football boots', 'astros', 'fg', 'ag', 'mg', 'turf', 'firm ground']), 'Shoes'],
+      [words(['trainer', 'trainers', 'sneaker', 'sneakers', 'running']), 'Trainers']], 'Shoes') };
   }
-  if (SPORTS.test(n)) return { site: 'kgw', siteCategory: 'Sports & Outdoors', subcategory: 'Sports kit' };
-  if (BAGS.test(n)) return { site: 'kgw', siteCategory: 'School & Backpacks', subcategory: /lunch/i.test(n) ? 'Lunch bags & boxes' : 'School bags & backpacks' };
+  if (SPORTS.test(n)) return { site: 'kgw', siteCategory: 'Sports & Outdoors', subcategory: 'Sports & Outdoors' };
+  if (BAGS.test(n)) return { site: 'kgw', siteCategory: 'School & Backpacks', subcategory: /lunch/i.test(n) ? 'Lunch Boxes & Bags' : 'School Bags' };
   if (ACCESSORIES.test(n) && !CLOTHING.test(n.replace(/\b(cap|caps)\b/gi, ' '))) {
-    return { site: 'kgw', siteCategory: 'Accessories', subcategory: pick(n, [[words(['hat', 'hats', 'beanie', 'cap', 'caps']), 'Hats & caps'],
-      [words(['gloves', 'glove', 'mittens']), 'Gloves'], [words(['socks', 'sock']), 'Socks'], [words(['sunglasses']), 'Sunglasses']], 'Accessories') };
+    if (words(['socks', 'sock']).test(n)) return { site: 'kgw', siteCategory: 'Clothing', subcategory: 'Socks' };
+    return { site: 'kgw', siteCategory: 'Accessories', subcategory: pick(n, [[words(['sunglasses']), 'Sunglasses']], 'Accessories') };
   }
   if (CLOTHING.test(n)) {
-    return { site: 'kgw', siteCategory: 'Clothing', subcategory: pick(n, [[words(['jacket', 'coat', 'gilet', 'parka', 'raincoat', 'rain jacket', 'fleece', 'snowsuit', 'puddle suit']), 'Coats & jackets'],
-      [words(['shorts', 'short', 'swim shorts', 'swimshorts', 'boardshorts', 'swimsuit']), 'Shorts & swimwear'], [words(['trousers', 'joggers', 'jogger', 'jeans', 'leggings', 'tracksuit']), 'Trousers'],
-      [words(['hoodie', 'hoody', 'sweatshirt', 'jumper', 'sweater', 'cardigan']), 'Jumpers & hoodies'], [words(['dress', 'skirt']), 'Dresses & skirts'],
-      [words(['pyjamas', 'pyjama', 'dressing gown', 'robe', 'onesie']), 'Nightwear']], 'Tops') };
+    return { site: 'kgw', siteCategory: 'Clothing', subcategory: pick(n, [[words(['jacket', 'coat', 'gilet', 'parka', 'raincoat', 'rain jacket', 'fleece', 'snowsuit', 'puddle suit']), 'Coats & Jackets'],
+      [words(['shorts', 'short', 'swim shorts', 'swimshorts', 'boardshorts', 'swimsuit']), 'Clothing'], [words(['trousers', 'joggers', 'jogger', 'jeans', 'leggings', 'tracksuit']), 'Trousers & Jeans'],
+      [words(['hoodie', 'hoody', 'sweatshirt', 'jumper', 'sweater', 'cardigan']), 'Clothing'], [words(['dress', 'skirt']), 'Clothing'],
+      [words(['pyjamas', 'pyjama', 'dressing gown', 'robe', 'onesie']), 'Nightwear & Loungewear']], 'Shirts & Tops') };
   }
   return { reject: 'not sure what it is (no shoe, clothing, accessory or sports word in the name)' };
 }

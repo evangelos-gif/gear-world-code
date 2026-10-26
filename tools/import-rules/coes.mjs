@@ -29,7 +29,8 @@ const TIE_AT_END = /(?<![a-z])(tie|ties)(\s+(in|with)\b.*)?$/i;
 const JEWELLERY_TIE = words(['tie clip', 'tie bar', 'tie pin']);
 // Words that are a fragrance or grooming product for sure ("Cologne Trousers" are trousers).
 const STRONG_FRAGRANCE = words(['atomiser', 'eau de toilette', 'eau de parfum', 'edt', 'edp', 'aftershave', 'after shave', 'perfume', 'parfum', 'shaving', 'shaving cream', 'body wash', 'lip balm', 'hand cream', 'make up', 'makeup']);
-const JEWELLERY = words(['cufflink', 'cufflinks', 'bracelet', 'bracelets', 'necklace', 'necklaces', 'earring', 'earrings', 'ring', 'rings', 'pendant', 'bangle', 'bangles', 'brooch', 'anklet', 'charm', 'charms', 'jewellery', 'tie pin']);
+// "Taggs Dress Studs" (dry run of 26 Oct 2026) are shirt studs for a dinner shirt, sold with cufflinks: not a dress.
+const JEWELLERY = words(['dress studs', 'shirt studs', 'cufflink', 'cufflinks', 'bracelet', 'bracelets', 'necklace', 'necklaces', 'earring', 'earrings', 'ring', 'rings', 'pendant', 'bangle', 'bangles', 'brooch', 'anklet', 'charm', 'charms', 'jewellery', 'tie pin']);
 const WATCHES = words(['watch', 'watches', 'smartwatch', 'chronograph']);
 const FRAGRANCE = words(['atomiser', 'fragrance', 'eau de toilette', 'eau de parfum', 'edt', 'edp', 'aftershave', 'after shave', 'cologne', 'perfume', 'parfum',
   'shaving', 'beard', 'moisturiser', 'face wash', 'body wash', 'shampoo', 'lip balm', 'hand cream', 'grooming', 'body lotion', 'make up', 'makeup', 'make-up', 'brush set']);
@@ -117,7 +118,7 @@ export function classify({ name, feedCategory, url = '', brand = '' }) {
     else { cat = 'Bags & Accessories'; sub = 'Accessories'; }
   } else if (JEWELLERY.test(n)) {
     cat = M ? "Men's Jewellery" : "Women's Jewellery";
-    sub = firstWord(n, [[words(['cufflink', 'cufflinks']), 'Cufflinks'], [words(['bracelet', 'bracelets', 'bangle', 'bangles']), 'Bracelets'], [words(['necklace', 'necklaces', 'pendant']), 'Necklaces'], [words(['earring', 'earrings']), 'Earrings'], [words(['ring', 'rings']), 'Rings']], 'Jewellery');
+    sub = firstWord(n, [[words(['cufflink', 'cufflinks', 'dress studs', 'shirt studs']), 'Cufflinks'], [words(['bracelet', 'bracelets', 'bangle', 'bangles']), 'Bracelets'], [words(['necklace', 'necklaces', 'pendant']), 'Necklaces'], [words(['earring', 'earrings']), 'Earrings'], [words(['ring', 'rings']), 'Rings']], 'Jewellery');
   } else if (WATCHES.test(n)) { cat = 'Watches'; sub = 'Watches'; }
   else if (FRAGRANCE.test(n) && (strongFragrance || !CLOTHING.test(n))) { cat = M ? 'Grooming & Fragrances' : 'Beauty & Fragrances'; sub = M ? 'Grooming & Fragrances' : 'Beauty & Fragrances'; }
   else if (BAGS.test(n)) { cat = 'Bags & Accessories'; sub = firstWord(n, [[words(['wallet', 'wallets', 'purse', 'coin holder', 'coin purse']), 'Wallets & Purses']], 'Bags'); }
