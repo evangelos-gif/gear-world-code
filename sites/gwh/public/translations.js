@@ -138,13 +138,13 @@
     whyDesc: ["Discover, search and move between specialist Gear World sites from one central place.","Ανακαλύψτε, αναζητήστε και μετακινηθείτε μεταξύ εξειδικευμένων Gear World sites από ένα κεντρικό σημείο.","Entdecken und durchsuchen Sie spezialisierte Gear World Sites von einem zentralen Ort aus.","Découvrez, recherchez et naviguez entre les sites Gear World spécialisés depuis un point central.","Scopri, cerca e passa tra i siti Gear World specializzati da un unico punto centrale.","Descubre, busca y navega entre sitios Gear World especializados desde un único lugar.","Descubra, pesquise e navegue entre sites Gear World especializados a partir de um único local.","Ontdek, zoek en navigeer tussen gespecialiseerde Gear World-sites vanuit één centrale plek.","Zbuloni, kërkoni dhe kaloni mes faqeve të specializuara Gear World nga një vend qendror.","Descoperiți, căutați și navigați între site-urile Gear World specializate dintr-un singur loc.","Открывайте, ищите и переходите между специализированными сайтами Gear World из одного центра."],
 
     oneHub: ["One Central Hub","Ένα κεντρικό Hub","Ein zentraler Hub","Un hub central","Un hub centrale","Un hub central","Um hub central","Eén centrale hub","Një hub qendror","Un hub central","Один центральный хаб"],
-    oneHubDesc: ["Access Construction, Men's, Women's, Kids', Home, Garden, Technology, Car and Travel Gear World from one starting point.","Πρόσβαση σε Construction, Men's, Women's, Kids', Home, Garden, Technology, Car και Travel Gear World από ένα σημείο.","Greifen Sie von einem Ausgangspunkt auf Construction, Men's, Women's, Kids', Home, Garden, Technology, Car und Travel Gear World zu.","Accédez à Construction, Men's, Women's, Kids', Home, Garden, Technology, Car et Travel Gear World depuis un seul point.","Accedi a Construction, Men's, Women's, Kids', Home, Garden, Technology, Car e Travel Gear World da un unico punto.","Acceda a Construction, Men's, Women's, Kids', Home, Garden, Technology, Car y Travel Gear World desde un solo punto.","Aceda a Construction, Men's, Women's, Kids', Home, Garden, Technology, Car e Travel Gear World a partir de um único ponto.","Open Construction, Men's, Women's, Kids', Home, Garden, Technology, Car en Travel Gear World vanaf één startpunt.","Hyni në Construction, Men's, Women's, Kids', Home, Garden, Technology, Car dhe Travel Gear World nga një pikë e vetme.","Accesați Construction, Men's, Women's, Kids', Home, Garden, Technology, Car și Travel Gear World dintr-un singur punct.","Получайте доступ к Construction, Men's, Women's, Kids', Home, Garden, Technology, Car и Travel Gear World из одной точки."],
+    oneHubDesc: ["Access Construction, Men's, Women's, Kids', Home, Garden, Technology, Car, Travel and Sporty Gear World from one starting point.","Πρόσβαση σε Construction, Men's, Women's, Kids', Home, Garden, Technology, Car, Travel και Sporty Gear World από ένα σημείο.","Greifen Sie von einem Ausgangspunkt auf Construction, Men's, Women's, Kids', Home, Garden, Technology, Car, Travel und Sporty Gear World zu.","Accédez à Construction, Men's, Women's, Kids', Home, Garden, Technology, Car, Travel et Sporty Gear World depuis un seul point.","Accedi a Construction, Men's, Women's, Kids', Home, Garden, Technology, Car, Travel e Sporty Gear World da un unico punto.","Acceda a Construction, Men's, Women's, Kids', Home, Garden, Technology, Car, Travel y Sporty Gear World desde un solo punto.","Aceda a Construction, Men's, Women's, Kids', Home, Garden, Technology, Car, Travel e Sporty Gear World a partir de um único ponto.","Open Construction, Men's, Women's, Kids', Home, Garden, Technology, Car, Travel en Sporty Gear World vanaf één startpunt.","Hyni në Construction, Men's, Women's, Kids', Home, Garden, Technology, Car, Travel dhe Sporty Gear World nga një pikë e vetme.","Accesați Construction, Men's, Women's, Kids', Home, Garden, Technology, Car, Travel și Sporty Gear World dintr-un singur punct.","Получайте доступ к Construction, Men's, Women's, Kids', Home, Garden, Technology, Car, Travel и Sporty Gear World из одной точки."],
 
     searchAcross: ["Search Across Worlds","Αναζήτηση σε όλους τους κόσμους","Welten durchsuchen","Rechercher dans les univers","Cerca tra i mondi","Buscar en los mundos","Pesquisar nos mundos","Zoek in werelden","Kërko në botë","Caută în universuri","Поиск по мирам"],
     searchAcrossDesc: ["Search products across the live Gear World catalogues from one place.","Αναζητήστε προϊόντα σε όλους τους live καταλόγους Gear World από ένα μέρος.","Durchsuchen Sie die Live-Gear-World-Kataloge von einem Ort aus.","Recherchez des produits dans les catalogues Gear World actifs depuis un seul endroit.","Cerca prodotti nei cataloghi Gear World live da un unico posto.","Busca productos en los catálogos Gear World activos desde un solo lugar.","Pesquise produtos nos catálogos Gear World ativos a partir de um só lugar.","Zoek producten in de live Gear World-catalogi vanaf één plek.","Kërkoni produkte në katalogët live Gear World nga një vend.","Căutați produse în cataloagele Gear World live dintr-un singur loc.","Ищите товары во всех активных каталогах Gear World из одного места."],
 
     growing: ["Growing Network","Αναπτυσσόμενο δίκτυο","Wachsendes Netzwerk","Réseau en croissance","Rete in crescita","Red en crecimiento","Rede em crescimento","Groeiend netwerk","Rrjet në rritje","Rețea în creștere","Растущая сеть"],
-    growingDesc: ["Travel Gear World is now live, expanding the Gear World network to nine specialist shopping worlds.","Το Travel Gear World είναι πλέον live, επεκτείνοντας το δίκτυο Gear World σε εννέα εξειδικευμένους κόσμους αγορών.","Travel Gear World ist jetzt live und erweitert das Gear World Netzwerk auf neun spezialisierte Einkaufswelten.","Travel Gear World est maintenant en ligne, portant le réseau Gear World à neuf univers d’achat spécialisés.","Travel Gear World è ora live, portando la rete Gear World a nove mondi dello shopping specializzati.","Travel Gear World ya está online, ampliando la red Gear World a nueve mundos de compras especializados.","Travel Gear World está agora online, expandindo a rede Gear World para nove mundos de compras especializados.","Travel Gear World is nu live en breidt het Gear World-netwerk uit naar negen gespecialiseerde winkelwerelden.","Travel Gear World tani është live, duke zgjeruar rrjetin Gear World në nëntë botë të specializuara blerjesh.","Travel Gear World este acum live, extinzând rețeaua Gear World la nouă universuri specializate de cumpărături.","Travel Gear World теперь работает, расширяя сеть Gear World до девяти специализированных торговых миров."],
+    growingDesc: ["Sporty Gear World is now live, expanding the Gear World network to ten specialist shopping worlds.","Το Sporty Gear World είναι πλέον live, επεκτείνοντας το δίκτυο Gear World σε δέκα εξειδικευμένους κόσμους αγορών.","Sporty Gear World ist jetzt live und erweitert das Gear World Netzwerk auf zehn spezialisierte Einkaufswelten.","Sporty Gear World est maintenant en ligne, portant le réseau Gear World à dix univers d’achat spécialisés.","Sporty Gear World è ora live, portando la rete Gear World a dieci mondi dello shopping specializzati.","Sporty Gear World ya está online, ampliando la red Gear World a diez mundos de compras especializados.","Sporty Gear World está agora online, expandindo a rede Gear World para dez mundos de compras especializados.","Sporty Gear World is nu live en breidt het Gear World-netwerk uit naar tien gespecialiseerde winkelwerelden.","Sporty Gear World tani është live, duke zgjeruar rrjetin Gear World në dhjetë botë të specializuara blerjesh.","Sporty Gear World este acum live, extinzând rețeaua Gear World la zece universuri specializate de cumpărături.","Sporty Gear World теперь работает, расширяя сеть Gear World до десяти специализированных торговых миров."],
 
     idea: ["THE IDEA","Η ΙΔΕΑ","DIE IDEE","L'IDÉE","L'IDEA","LA IDEA","A IDEIA","HET IDEE","IDEJA","IDEEA","ИДЕЯ"],
     aboutTitle: ["A connected shopping ecosystem.","Ένα συνδεδεμένο οικοσύστημα αγορών.","Ein vernetztes Shopping-Ökosystem.","Un écosystème d’achat connecté.","Un ecosistema di acquisti connesso.","Un ecosistema de compras conectado.","Um ecossistema de compras interligado.","Een verbonden winkelecosysteem.","Një ekosistem blerjesh i lidhur.","Un ecosistem de cumpărături interconectat.","Единая экосистема покупок."],
@@ -516,7 +516,8 @@
         "Garden",
         "Technology",
         "Car",
-        "Travel"
+        "Travel",
+        "Sport"
       ],
 
       descriptions: [
@@ -528,7 +529,8 @@
         "Garden tools and outdoor essentials.",
         "Laptops, phones, audio and gaming tech.",
         "Garage tools, parts, car care and dash cams.",
-        "Luggage, travel bags, accessories and camping gear."
+        "Luggage, travel bags, accessories and camping gear.",
+        "Fitness, running, cycling, team sports and nutrition."
       ],
 
       howLabel: "HOW IT WORKS",
@@ -559,7 +561,8 @@
         "Κήπος",
         "Τεχνολογία",
         "Αυτοκίνητο",
-        "Ταξίδι"
+        "Ταξίδι",
+        "Αθλητισμός"
       ],
 
       descriptions: [
@@ -571,7 +574,8 @@
         "Εργαλεία κήπου και είδη εξωτερικού χώρου.",
         "Laptop, κινητά, ήχος και gaming.",
         "Εργαλεία συνεργείου, ανταλλακτικά, περιποίηση και κάμερες.",
-        "Βαλίτσες, τσάντες ταξιδιού, αξεσουάρ και εξοπλισμός camping."
+        "Βαλίτσες, τσάντες ταξιδιού, αξεσουάρ και εξοπλισμός camping.",
+        "Γυμναστική, τρέξιμο, ποδήλατο, ομαδικά αθλήματα και διατροφή."
       ],
 
       howLabel: "ΠΩΣ ΛΕΙΤΟΥΡΓΕΙ",
@@ -602,7 +606,8 @@
         "Garten",
         "Technik",
         "Auto",
-        "Reisen"
+        "Reisen",
+        "Sport"
       ],
 
       descriptions: [
@@ -614,7 +619,8 @@
         "Gartenwerkzeuge und Outdoor-Zubehör.",
         "Laptops, Handys, Audio und Gaming.",
         "Werkstattwerkzeug, Teile, Autopflege und Dashcams.",
-        "Koffer, Reisetaschen, Zubehör und Campingausrüstung."
+        "Koffer, Reisetaschen, Zubehör und Campingausrüstung.",
+        "Fitness, Laufen, Radsport, Teamsport und Sporternährung."
       ],
 
       howLabel: "SO FUNKTIONIERT ES",
@@ -645,7 +651,8 @@
         "Jardin",
         "Technologie",
         "Auto",
-        "Voyage"
+        "Voyage",
+        "Sport"
       ],
 
       descriptions: [
@@ -657,7 +664,8 @@
         "Outils de jardin et essentiels pour l'extérieur.",
         "Ordinateurs portables, téléphones, audio et gaming.",
         "Outils de garage, pièces, entretien et dashcams.",
-        "Valises, sacs de voyage, accessoires et matériel de camping."
+        "Valises, sacs de voyage, accessoires et matériel de camping.",
+        "Fitness, course à pied, vélo, sports collectifs et nutrition."
       ],
 
       howLabel: "COMMENT ÇA MARCHE",
@@ -688,7 +696,8 @@
         "Giardino",
         "Tecnologia",
         "Auto",
-        "Viaggio"
+        "Viaggio",
+        "Sport"
       ],
 
       descriptions: [
@@ -700,7 +709,8 @@
         "Attrezzi da giardino ed essenziali per l'esterno.",
         "Laptop, smartphone, audio e gaming.",
         "Attrezzi da officina, ricambi, cura auto e dash cam.",
-        "Valigie, borse da viaggio, accessori e attrezzatura da campeggio."
+        "Valigie, borse da viaggio, accessori e attrezzatura da campeggio.",
+        "Fitness, corsa, ciclismo, sport di squadra e nutrizione."
       ],
 
       howLabel: "COME FUNZIONA",
@@ -731,7 +741,8 @@
         "Jardín",
         "Tecnología",
         "Coche",
-        "Viaje"
+        "Viaje",
+        "Deporte"
       ],
 
       descriptions: [
@@ -743,7 +754,8 @@
         "Herramientas de jardín y esenciales de exterior.",
         "Portátiles, móviles, audio y gaming.",
         "Herramientas de taller, recambios, cuidado y cámaras.",
-        "Maletas, bolsas de viaje, accesorios y equipo de camping."
+        "Maletas, bolsas de viaje, accesorios y equipo de camping.",
+        "Fitness, running, ciclismo, deportes de equipo y nutrición."
       ],
 
       howLabel: "CÓMO FUNCIONA",
@@ -774,7 +786,8 @@
         "Jardim",
         "Tecnologia",
         "Automóvel",
-        "Viagem"
+        "Viagem",
+        "Desporto"
       ],
 
       descriptions: [
@@ -786,7 +799,8 @@
         "Ferramentas de jardim e essenciais para exterior.",
         "Portáteis, telemóveis, áudio e gaming.",
         "Ferramentas de oficina, peças, cuidado e câmaras.",
-        "Malas, sacos de viagem, acessórios e equipamento de campismo."
+        "Malas, sacos de viagem, acessórios e equipamento de campismo.",
+        "Fitness, corrida, ciclismo, desportos coletivos e nutrição."
       ],
 
       howLabel: "COMO FUNCIONA",
@@ -817,7 +831,8 @@
         "Tuin",
         "Technologie",
         "Auto",
-        "Reizen"
+        "Reizen",
+        "Sport"
       ],
 
       descriptions: [
@@ -829,7 +844,8 @@
         "Tuingereedschap en outdoorbenodigdheden.",
         "Laptops, telefoons, audio en gaming.",
         "Garagegereedschap, onderdelen, autoverzorging en dashcams.",
-        "Koffers, reistassen, accessoires en kampeeruitrusting."
+        "Koffers, reistassen, accessoires en kampeeruitrusting.",
+        "Fitness, hardlopen, fietsen, teamsporten en sportvoeding."
       ],
 
       howLabel: "HOE HET WERKT",
@@ -860,7 +876,8 @@
         "Kopsht",
         "Teknologji",
         "Makina",
-        "Udhëtim"
+        "Udhëtim",
+        "Sport"
       ],
 
       descriptions: [
@@ -872,7 +889,8 @@
         "Vegla kopshti dhe pajisje për ambiente të jashtme.",
         "Laptopë, telefona, audio dhe gaming.",
         "Vegla garazhi, pjesë, kujdes makine dhe kamera.",
-        "Valixhe, çanta udhëtimi, aksesorë dhe pajisje kampingu."
+        "Valixhe, çanta udhëtimi, aksesorë dhe pajisje kampingu.",
+        "Fitnes, vrapim, çiklizëm, sporte ekipore dhe ushqyerje sportive."
       ],
 
       howLabel: "SI FUNKSIONON",
@@ -903,7 +921,8 @@
         "Grădină",
         "Tehnologie",
         "Auto",
-        "Călătorii"
+        "Călătorii",
+        "Sport"
       ],
 
       descriptions: [
@@ -915,7 +934,8 @@
         "Unelte de grădină și articole pentru exterior.",
         "Laptopuri, telefoane, audio și gaming.",
         "Scule de garaj, piese, îngrijire auto și camere.",
-        "Valize, genți de călătorie, accesorii și echipament de camping."
+        "Valize, genți de călătorie, accesorii și echipament de camping.",
+        "Fitness, alergare, ciclism, sporturi de echipă și nutriție."
       ],
 
       howLabel: "CUM FUNCȚIONEAZĂ",
@@ -946,7 +966,8 @@
         "Сад",
         "Технологии",
         "Авто",
-        "Путешествия"
+        "Путешествия",
+        "Спорт"
       ],
 
       descriptions: [
@@ -958,7 +979,8 @@
         "Садовые инструменты и товары для улицы.",
         "Ноутбуки, телефоны, аудио и игры.",
         "Гаражный инструмент, запчасти, уход и видеорегистраторы.",
-        "Чемоданы, дорожные сумки, аксессуары и снаряжение для кемпинга."
+        "Чемоданы, дорожные сумки, аксессуары и снаряжение для кемпинга.",
+        "Фитнес, бег, велоспорт, командные виды спорта и спортивное питание."
       ],
 
       howLabel: "КАК ЭТО РАБОТАЕТ",

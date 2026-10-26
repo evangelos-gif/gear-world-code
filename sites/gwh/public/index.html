@@ -147,13 +147,10 @@
 }
 
 </style>
-<style id="gwh-vgw-card">
-/* GWH-VGW-CARD: 9 worlds, all cards the same size. Replaces the 8-card block (gwh-agw-card). */
-@media (min-width:1051px){
-body[data-gwh-compact-v2="true"] .gwh-quick-worlds{grid-template-columns:repeat(3,minmax(0,1fr)) !important;}
-}
-@media (max-width:1050px){
-body[data-gwh-compact-v2="true"] .gwh-quick-worlds > [data-world="VGW"]{grid-column:1 / -1;}
+<style id="gwh-sgw-card">
+/* GWH-SGW-CARD: 10 worlds. 3 per row with Sport as one wide card on the last row; 2 per row up to 620px. Replaces gwh-vgw-card. */
+@media (min-width:621px){
+body[data-gwh-compact-v2="true"] .gwh-quick-worlds > [data-world="SGW"]{grid-column:1 / -1;aspect-ratio:5 / 1;background-position:center 12% !important;}
 }
 </style>
 </head>
@@ -384,6 +381,25 @@ body[data-gwh-compact-v2="true"] .gwh-quick-worlds > [data-world="VGW"]{grid-col
     <span class="gwh-image-world-cta">Shop →</span>
   </span>
 </a>
+            <a
+  class="gwh-quick-world gwh-quick-world-live gwh-image-world"
+  href="https://sportygearworld.com/"
+  data-world="SGW"
+  style="--world-image:url('/hub-sgw.jpg')"
+  aria-label="Sport">
+
+  <span class="gwh-legacy-world-text">
+    <strong>Sport</strong>
+    <small>Fitness · Running · Cycling · Team Sports</small>
+  </span>
+
+  <span class="gwh-image-world-overlay">
+    <span class="gwh-image-world-code">SGW</span>
+    <strong class="gwh-image-world-title">Sport</strong>
+    <small class="gwh-image-world-description">Fitness, running, cycling, team sports and nutrition.</small>
+    <span class="gwh-image-world-cta">Shop →</span>
+  </span>
+</a>
           </div>
 
         </div>
@@ -512,7 +528,7 @@ body[data-gwh-compact-v2="true"] .gwh-quick-worlds > [data-world="VGW"]{grid-col
       <article class="why-hub-card">
         <span class="why-hub-number">01</span>
         <h3>One Central Hub</h3>
-        <p>Access Construction, Men's, Women's, Kids', Home, Garden, Technology, Car and Travel Gear World from one starting point.</p>
+        <p>Access Construction, Men's, Women's, Kids', Home, Garden, Technology, Car, Travel and Sporty Gear World from one starting point.</p>
       </article>
 
       <article class="why-hub-card">
@@ -524,7 +540,7 @@ body[data-gwh-compact-v2="true"] .gwh-quick-worlds > [data-world="VGW"]{grid-col
       <article class="why-hub-card">
         <span class="why-hub-number">03</span>
         <h3>Growing Network</h3>
-        <p>Travel Gear World is now live, expanding the Gear World network to nine specialist shopping worlds.</p>
+        <p>Sporty Gear World is now live, expanding the Gear World network to ten specialist shopping worlds.</p>
       </article>
     </div>
   </div>

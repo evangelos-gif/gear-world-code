@@ -15,6 +15,7 @@ hub-ggw.jpg
 hub-hgw.jpg
 hub-kgw.jpg
 hub-mgw.jpg
+hub-sgw.jpg
 hub-tgw.jpg
 hub-vgw.jpg
 hub-wgw.jpg
