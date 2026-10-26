@@ -11,8 +11,9 @@
 //   - a feed whose products were last updated more than 30 days ago changes nothing (lessons L39: stale feeds); a feed
 //     without that date (Reidl, Tooled Up) is judged by the date of its newest file on this PC;
 //   - a feed that misses more than half of the active products hides nothing (more likely a broken download);
-//   - the rows written in D1 are counted from the table's own indexes (lessons L49, L57): 1 + one per index holding the
-//     column. Above the budget, the plan keeps the first changes and leaves the rest for the next run.
+//   - the rows written in D1 are counted from the table's own indexes and triggers (lessons L49, L57, L59): 1 + one per
+//     index holding the column + 2 per update trigger firing on it. Above the budget, the plan keeps the first changes
+//     and leaves the rest for the next run.
 //
 // node tools/legacy-refresh-plan.mjs --archive <dir> --retailer "<name on the site>" --rows <wrangler json> [--rows ...]
 //   --indexes <wrangler json of sqlite_master> --out <dir> [--max-writes 90000] [--advertiser <id>] [--now <iso date>]
@@ -113,10 +114,18 @@ export function matchRow(row, feed) {
 }
 
 // Rows written per changed column: 1 for the row, plus 1 for every index that holds the column (measured on the CGW
-// layout with the wrangler local D1, 25 Oct 2026: price 3, picture 1, stock 1, hide 12 = 1 + 11 indexes on is_active).
-export function writeCosts(indexRows) {
-  const sqls = indexRows.map(r => String(r.sql || '')).filter(Boolean);
-  const per = col => 1 + sqls.filter(s => new RegExp(`\\b${col}\\b`, 'i').test(s.replace(/^[^(]*\(/, ''))).length;
+// layout with the wrangler local D1, 25 Oct 2026: price 3, picture 1, stock 1, hide 12 = 1 + 11 indexes on is_active),
+// plus 2 for every UPDATE trigger that fires on the column (lessons L59: on MGW, WGW, KGW, HGW and GGW the search index
+// trigger fires on ANY update and rewrites the product's search entry; measured on the MGW layout, 26 Oct 2026:
+// price 4, stock 3, hide 6). The CGW trigger fires only for name, brand, subcategory, retailer and category: +0.
+export function writeCosts(rows) {
+  const sqls = rows.map(r => String(r.sql || '')).filter(Boolean);
+  const triggers = sqls.filter(s => /^\s*CREATE\s+TRIGGER\b/i.test(s));
+  const indexes = sqls.filter(s => !/^\s*CREATE\s+TRIGGER\b/i.test(s));
+  const onUpdate = triggers.map(s => /\bAFTER\s+UPDATE\b(?:\s+OF\s+([\s\S]*?))?\s+ON\s+["'`]?products\b/i.exec(s)).filter(Boolean)
+    .map(m => (m[1] ? m[1].split(',').map(c => c.trim().replace(/["'`]/g, '').toLowerCase()) : null));
+  const per = col => 1 + indexes.filter(s => new RegExp(`\\b${col}\\b`, 'i').test(s.replace(/^[^(]*\(/, ''))).length
+    + 2 * onUpdate.filter(cols => cols === null || cols.includes(col)).length;
   return { price: per('price'), image_url: per('image_url'), stock_status: per('stock_status'), is_active: per('is_active') };
 }
 

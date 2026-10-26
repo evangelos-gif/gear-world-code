@@ -227,10 +227,10 @@ foreach ($pair in $list) {
     if ($name -match '[|<>^%~"]') { Say ('Το όνομα «{0}» έχει χαρακτήρες που δεν περνούν με ασφάλεια. Σταματώ για αυτό το κατάστημα.' -f $name) 'Red'; $exitCode = 5; continue }
     $sqlName = Sql-Name $name
 
-    # 2. Indexes (for the rows D1 writes) and the shop's active products, 5,000 at a time (read-only).
+    # 2. Indexes and triggers (for the rows D1 writes, L57/L59) and the shop's active products, 5,000 at a time (read-only).
     $dir = Join-Path $planRoot ('{0}-{1}' -f $site, $key)
     New-Item -ItemType Directory -Path $dir -Force | Out-Null
-    $idx = Select-Raw "SELECT name, sql FROM sqlite_master WHERE type = 'index' AND tbl_name = 'products'"
+    $idx = Select-Raw "SELECT type, name, sql FROM sqlite_master WHERE type IN ('index', 'trigger') AND tbl_name = 'products'"
     if ($null -eq $idx) { Say 'Δεν μπόρεσα να διαβάσω τη δομή της βάσης. Δεν άλλαξε τίποτα.' 'Red'; $exitCode = 4; continue }
     $idxFile = Join-Path $dir 'indexes.json.txt'
     [System.IO.File]::WriteAllText($idxFile, $idx.text, (New-Object System.Text.UTF8Encoding($false)))

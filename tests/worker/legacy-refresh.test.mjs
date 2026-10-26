@@ -34,6 +34,29 @@ test('rows written per change, from the CGW indexes: price 3, picture 1, stock 1
   assert.deepEqual(writeCosts([]), { price: 1, image_url: 1, stock_status: 1, is_active: 1 });
 });
 
+// L59: the search-index trigger. On CGW it fires only for name, brand, subcategory, retailer, category and id: no cost for a
+// refresh. On MGW (and WGW, KGW, HGW, GGW) it fires on ANY update. Measured on the MGW layout with the wrangler local D1,
+// 26 Oct 2026: price 4, stock 3, hide 6 rows written per product (the index-only count said 2, 1 and 4).
+const CGW_FTS_AU = 'CREATE TRIGGER products_fts_au AFTER UPDATE OF product_name, brand, subcategory, retailer, merchant_category, id ON products BEGIN INSERT INTO products_fts(products_fts, rowid, product_name) VALUES (\'delete\', old.id, old.product_name); END';
+const MGW_FTS_AU = 'CREATE TRIGGER products_fts_au\nAFTER UPDATE ON products\nBEGIN\n  INSERT INTO products_fts(products_fts, rowid, product_name) VALUES(\'delete\', old.id, old.product_name);\nEND';
+const MGW_INDEXES = [
+  'CREATE INDEX idx_products_category\nON products(site_category)',
+  'CREATE INDEX idx_products_retailer\nON products(retailer)',
+  'CREATE INDEX idx_products_merchant_id\nON products(retailer, merchant_product_id)',
+  'CREATE INDEX idx_products_active\nON products(is_active)',
+  "CREATE UNIQUE INDEX ux_products_refresh_stable_key\nON products(retailer, merchant_product_id)\nWHERE retailer IN ('Stan Ray UK', 'Stattics', 'Watch Enclave', 'WATCH & WATCH')",
+  'CREATE INDEX idx_products_active_category_price_id ON products(is_active, site_category, price, id)',
+  "CREATE INDEX idx_products_group_key ON products(COALESCE(NULLIF(TRIM(COALESCE(NULLIF(TRIM(ean), ''), json_extract(specs_json, '$.gtin'))), ''), 'id:' || id))",
+  'CREATE INDEX idx_products_active_created ON products(is_active, created_at)'
+];
+
+test('L59: rows written count the search-index trigger: CGW unchanged, MGW layout price 4, stock 3, hide 6 (measured)', () => {
+  const insertTrigger = 'CREATE TRIGGER products_fts_ai AFTER INSERT ON products BEGIN INSERT INTO products_fts(rowid) VALUES (new.id); END';
+  assert.deepEqual(writeCosts([...CGW_INDEXES, CGW_FTS_AU, insertTrigger].map(sql => ({ sql }))), { price: 3, image_url: 1, stock_status: 1, is_active: 12 });
+  assert.deepEqual(writeCosts([...MGW_INDEXES, MGW_FTS_AU, insertTrigger].map(sql => ({ type: 'x', sql }))), { price: 4, image_url: 3, stock_status: 3, is_active: 6 });
+  assert.deepEqual(writeCosts(MGW_INDEXES.map(sql => ({ sql }))), { price: 2, image_url: 1, stock_status: 1, is_active: 4 }, 'without the trigger: indexes only');
+});
+
 const HEAD = 'aw_deep_link,product_name,aw_product_id,merchant_product_id,merchant_image_url,aw_image_url,merchant_category,search_price,merchant_name,merchant_id,currency,in_stock,stock_status,last_updated\n';
 const line = o => [o.link || 'https://www.awin1.com/pclick.php?p=1', `"${o.name}"`, o.aw, o.mid, o.img || '', o.awImg || '', 'Tools', o.price, o.merchant, o.adv, o.cur || 'GBP',
   o.inStock ?? '1', o.status ?? '', o.updated || '2026-10-24 22:00:00'].join(',') + '\n';
