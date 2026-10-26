@@ -40,7 +40,9 @@
    "Home",
    "Garden",
    "Technology",
-   "Car"
+   "Car",
+   "Travel",
+   "Sport"
   ],
   "worldDescriptions": [
    "Tools, workwear and site equipment.",
@@ -50,7 +52,9 @@
    "Furniture, lighting and home accessories.",
    "Garden tools and outdoor essentials.",
    "Laptops, phones, audio and gaming tech.",
-   "Garage tools, parts, car care and dash cams."
+   "Garage tools, parts, car care and dash cams.",
+   "Luggage, travel bags, accessories and camping gear.",
+   "Fitness, running, cycling, team sports and nutrition."
   ],
   "nl_eyebrow": "STAY CONNECTED",
   "nl_title": "Stay connected with Gear World.",
@@ -106,7 +110,9 @@
    "Σπίτι",
    "Κήπος",
    "Τεχνολογία",
-   "Αυτοκίνητο"
+   "Αυτοκίνητο",
+   "Ταξίδι",
+   "Αθλητισμός"
   ],
   "worldDescriptions": [
    "Εργαλεία, ρούχα εργασίας και εξοπλισμός εργοταξίου.",
@@ -116,7 +122,9 @@
    "Έπιπλα, φωτισμός και αξεσουάρ σπιτιού.",
    "Εργαλεία κήπου και είδη εξωτερικού χώρου.",
    "Laptop, κινητά, ήχος και gaming.",
-   "Εργαλεία συνεργείου, ανταλλακτικά, περιποίηση και κάμερες."
+   "Εργαλεία συνεργείου, ανταλλακτικά, περιποίηση και κάμερες.",
+   "Βαλίτσες, τσάντες ταξιδιού, αξεσουάρ και εξοπλισμός camping.",
+   "Γυμναστική, τρέξιμο, ποδήλατο, ομαδικά αθλήματα και διατροφή."
   ],
   "nl_eyebrow": "ΜΕΙΝΕΤΕ ΣΥΝΔΕΔΕΜΕΝΟΙ",
   "nl_title": "Μείνετε συνδεδεμένοι με το Gear World.",
@@ -172,7 +180,9 @@
    "Wohnen",
    "Garten",
    "Technik",
-   "Auto"
+   "Auto",
+   "Reisen",
+   "Sport"
   ],
   "worldDescriptions": [
    "Werkzeuge, Arbeitskleidung und Baustellenausrüstung.",
@@ -182,7 +192,9 @@
    "Möbel, Beleuchtung und Wohnaccessoires.",
    "Gartenwerkzeuge und Outdoor-Zubehör.",
    "Laptops, Handys, Audio und Gaming.",
-   "Werkstattwerkzeug, Teile, Autopflege und Dashcams."
+   "Werkstattwerkzeug, Teile, Autopflege und Dashcams.",
+   "Koffer, Reisetaschen, Zubehör und Campingausrüstung.",
+   "Fitness, Laufen, Radsport, Teamsport und Sporternährung."
   ],
   "nl_eyebrow": "BLEIBEN SIE INFORMIERT",
   "nl_title": "Bleiben Sie mit Gear World verbunden.",
@@ -238,7 +250,9 @@
    "Maison",
    "Jardin",
    "Technologie",
-   "Auto"
+   "Auto",
+   "Voyage",
+   "Sport"
   ],
   "worldDescriptions": [
    "Outils, vêtements de travail et équipement de chantier.",
@@ -248,7 +262,9 @@
    "Meubles, éclairage et accessoires pour la maison.",
    "Outils de jardin et essentiels pour l'extérieur.",
    "Ordinateurs portables, téléphones, audio et gaming.",
-   "Outils de garage, pièces, entretien et dashcams."
+   "Outils de garage, pièces, entretien et dashcams.",
+   "Valises, sacs de voyage, accessoires et matériel de camping.",
+   "Fitness, course à pied, vélo, sports collectifs et nutrition."
   ],
   "nl_eyebrow": "RESTEZ INFORMÉ",
   "nl_title": "Restez connecté à Gear World.",
@@ -304,7 +320,9 @@
    "Casa",
    "Giardino",
    "Tecnologia",
-   "Auto"
+   "Auto",
+   "Viaggio",
+   "Sport"
   ],
   "worldDescriptions": [
    "Utensili, abbigliamento da lavoro e attrezzature da cantiere.",
@@ -314,7 +332,9 @@
    "Mobili, illuminazione e accessori per la casa.",
    "Attrezzi da giardino ed essenziali per l'esterno.",
    "Laptop, smartphone, audio e gaming.",
-   "Attrezzi da officina, ricambi, cura auto e dash cam."
+   "Attrezzi da officina, ricambi, cura auto e dash cam.",
+   "Valigie, borse da viaggio, accessori e attrezzatura da campeggio.",
+   "Fitness, corsa, ciclismo, sport di squadra e nutrizione."
   ],
   "nl_eyebrow": "RESTA AGGIORNATO",
   "nl_title": "Resta connesso con Gear World.",
@@ -370,7 +390,9 @@
    "Hogar",
    "Jardín",
    "Tecnología",
-   "Coche"
+   "Coche",
+   "Viaje",
+   "Deporte"
   ],
   "worldDescriptions": [
    "Herramientas, ropa de trabajo y equipo de obra.",
@@ -380,7 +402,9 @@
    "Muebles, iluminación y accesorios para el hogar.",
    "Herramientas de jardín y esenciales de exterior.",
    "Portátiles, móviles, audio y gaming.",
-   "Herramientas de taller, recambios, cuidado y cámaras."
+   "Herramientas de taller, recambios, cuidado y cámaras.",
+   "Maletas, bolsas de viaje, accesorios y equipo de camping.",
+   "Fitness, running, ciclismo, deportes de equipo y nutrición."
   ],
   "nl_eyebrow": "MANTENTE INFORMADO",
   "nl_title": "Mantente conectado con Gear World.",
@@ -436,7 +460,9 @@
    "Casa",
    "Jardim",
    "Tecnologia",
-   "Automóvel"
+   "Automóvel",
+   "Viagem",
+   "Desporto"
   ],
   "worldDescriptions": [
    "Ferramentas, roupa de trabalho e equipamento de obra.",
@@ -446,7 +472,9 @@
    "Mobiliário, iluminação e acessórios para casa.",
    "Ferramentas de jardim e essenciais para exterior.",
    "Portáteis, telemóveis, áudio e gaming.",
-   "Ferramentas de oficina, peças, cuidado e câmaras."
+   "Ferramentas de oficina, peças, cuidado e câmaras.",
+   "Malas, sacos de viagem, acessórios e equipamento de campismo.",
+   "Fitness, corrida, ciclismo, desportos coletivos e nutrição."
   ],
   "nl_eyebrow": "MANTENHA-SE INFORMADO",
   "nl_title": "Mantenha-se ligado ao Gear World.",
@@ -502,7 +530,9 @@
    "Wonen",
    "Tuin",
    "Technologie",
-   "Auto"
+   "Auto",
+   "Reizen",
+   "Sport"
   ],
   "worldDescriptions": [
    "Gereedschap, werkkleding en bouwplaatsuitrusting.",
@@ -512,7 +542,9 @@
    "Meubels, verlichting en woonaccessoires.",
    "Tuingereedschap en outdoorbenodigdheden.",
    "Laptops, telefoons, audio en gaming.",
-   "Garagegereedschap, onderdelen, autoverzorging en dashcams."
+   "Garagegereedschap, onderdelen, autoverzorging en dashcams.",
+   "Koffers, reistassen, accessoires en kampeeruitrusting.",
+   "Fitness, hardlopen, fietsen, teamsporten en sportvoeding."
   ],
   "nl_eyebrow": "BLIJF OP DE HOOGTE",
   "nl_title": "Blijf verbonden met Gear World.",
@@ -568,7 +600,9 @@
    "Shtëpi",
    "Kopsht",
    "Teknologji",
-   "Makina"
+   "Makina",
+   "Udhëtim",
+   "Sport"
   ],
   "worldDescriptions": [
    "Vegla, veshje pune dhe pajisje kantieri.",
@@ -578,7 +612,9 @@
    "Mobilje, ndriçim dhe aksesorë shtëpie.",
    "Vegla kopshti dhe pajisje për ambiente të jashtme.",
    "Laptopë, telefona, audio dhe gaming.",
-   "Vegla garazhi, pjesë, kujdes makine dhe kamera."
+   "Vegla garazhi, pjesë, kujdes makine dhe kamera.",
+   "Valixhe, çanta udhëtimi, aksesorë dhe pajisje kampingu.",
+   "Fitnes, vrapim, çiklizëm, sporte ekipore dhe ushqyerje sportive."
   ],
   "nl_eyebrow": "QËNDRONI TË INFORMUAR",
   "nl_title": "Qëndroni të lidhur me Gear World.",
@@ -634,7 +670,9 @@
    "Casă",
    "Grădină",
    "Tehnologie",
-   "Auto"
+   "Auto",
+   "Călătorii",
+   "Sport"
   ],
   "worldDescriptions": [
    "Unelte, îmbrăcăminte de lucru și echipamente de șantier.",
@@ -644,7 +682,9 @@
    "Mobilier, iluminat și accesorii pentru casă.",
    "Unelte de grădină și articole pentru exterior.",
    "Laptopuri, telefoane, audio și gaming.",
-   "Scule de garaj, piese, îngrijire auto și camere."
+   "Scule de garaj, piese, îngrijire auto și camere.",
+   "Valize, genți de călătorie, accesorii și echipament de camping.",
+   "Fitness, alergare, ciclism, sporturi de echipă și nutriție."
   ],
   "nl_eyebrow": "RĂMÂNEȚI INFORMAT",
   "nl_title": "Rămâneți la curent cu Gear World.",
@@ -700,7 +740,9 @@
    "Дом",
    "Сад",
    "Технологии",
-   "Авто"
+   "Авто",
+   "Путешествия",
+   "Спорт"
   ],
   "worldDescriptions": [
    "Инструменты, рабочая одежда и оборудование для стройки.",
@@ -710,7 +752,9 @@
    "Мебель, освещение и аксессуары для дома.",
    "Садовые инструменты и товары для улицы.",
    "Ноутбуки, телефоны, аудио и игры.",
-   "Гаражный инструмент, запчасти, уход и видеорегистраторы."
+   "Гаражный инструмент, запчасти, уход и видеорегистраторы.",
+   "Чемоданы, дорожные сумки, аксессуары и снаряжение для кемпинга.",
+   "Фитнес, бег, велоспорт, командные виды спорта и спортивное питание."
   ],
   "nl_eyebrow": "ОСТАВАЙТЕСЬ В КУРСЕ",
   "nl_title": "Оставайтесь на связи с Gear World.",

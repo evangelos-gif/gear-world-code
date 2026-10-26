@@ -3,17 +3,17 @@
 ## App name (10/30)
 Gear World
 
-## Short description (74/80)
-Search tools, fashion, home, garden, tech, car and travel gear in one app.
+## Short description (79/80)
+Search tools, fashion, home, garden, tech, car, travel & sport gear in one app.
 
-## Full description (1532/4000)
-Gear World brings the whole Gear World shopping network to your phone. Find tools, workwear, fashion, kids' essentials, home, garden, technology, car and travel gear from retailers, all from one search.
+## Full description (1540/4000)
+Gear World brings the whole Gear World shopping network to your phone. Find tools, workwear, fashion, kids' essentials, home, garden, technology, car, travel and sport gear from retailers, all from one search.
 
 ONE SEARCH, EVERY WORLD
 Type what you need, or tap the microphone and say it, and Gear World searches every specialist Gear World site at once. Filter the results by world and open the product you want.
 
 CHOOSE A WORLD
-Browse each Gear World on its own: Tools & Workwear, Men, Women, Kids & Teens, Home, Garden, Technology, Car and Travel. New worlds appear in the app automatically as they launch.
+Browse each Gear World on its own: Tools & Workwear, Men, Women, Kids & Teens, Home, Garden, Technology, Car, Travel and Sport. New worlds appear in the app automatically as they launch.
 
 SHOP BY CATEGORY AND PRICE
 Open a category, sort by price or newest, and load more products as you scroll.

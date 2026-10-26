@@ -1,7 +1,7 @@
 import { HUB_URL, type World } from './api';
 
 // Order of the world titles and descriptions in the Hub translations (translations.js, V2.titles).
-export const HUB_ORDER = ['CGW', 'MGW', 'WGW', 'KGW', 'HGW', 'GGW', 'TGW', 'AGW'];
+export const HUB_ORDER = ['CGW', 'MGW', 'WGW', 'KGW', 'HGW', 'GGW', 'TGW', 'AGW', 'VGW', 'SGW'];
 
 /** The Hub keeps one photo per world at /hub-<code>.jpg (the same photo as the Hub card). */
 export function worldImage(key: string): string {

@@ -9,6 +9,10 @@ import { parseRegistry, parseSearch, parseSiteProduct, worldProductsUrl, safeBas
 import { formatPrice } from '../src/lib/format.ts';
 
 const HUB = JSON.parse(readFileSync(new URL('../src/i18n/hub-strings.json', import.meta.url), 'utf8'));
+// The world order the Hub uses for its titles and descriptions (src/lib/worlds-meta.ts, read as text).
+const HUB_ORDER: string[] = JSON.parse(
+  /HUB_ORDER = (\[[^\]]*\])/.exec(readFileSync(new URL('../src/lib/worlds-meta.ts', import.meta.url), 'utf8'))![1].replace(/'/g, '"')
+);
 
 test('language: phone language picks the right one, unknown falls back to English', () => {
   assert.equal(pickLocale(['el-GR']), 'el-GR');
@@ -35,8 +39,8 @@ test('texts: Hub texts (worlds, steps, newsletter) exist in all 11 languages', (
   for (const l of LOCALES) {
     const h = HUB[l.code];
     assert.ok(h, l.code);
-    assert.equal(h.worldTitles.length, 8);
-    assert.equal(h.worldDescriptions.length, 8);
+    assert.equal(h.worldTitles.length, HUB_ORDER.length);
+    assert.equal(h.worldDescriptions.length, HUB_ORDER.length);
     assert.equal(h.steps.length, 3);
     for (const k of ['searchPlaceholder', 'searchButton', 'disclosure', 'nl_consent', 'nl_button', 'productsFound', 'noProductsFor']) assert.ok(h[k], `${l.code}.${k}`);
   }
@@ -54,7 +58,8 @@ test('registry: worlds come from the Hub; bad rows are skipped', () => {
   assert.equal(w[0].base, 'https://constructiongearworld.com');
   assert.deepEqual(w[0].categories.map(c => c.slug), ['power-tools']);
   assert.throws(() => parseRegistry({ ok: false }));
-  assert.equal(FALLBACK_WORLDS.length, 8);
+  assert.equal(FALLBACK_WORLDS.length, 10);
+  assert.deepEqual(FALLBACK_WORLDS.map(w => w.key), HUB_ORDER);
 });
 
 test('search: Hub results become products with an /out/ link on the same site', () => {
