@@ -46,3 +46,16 @@
 | `live-baseline.txt` | Τα αρχεία που τρέχουν live τώρα, με το sha256 τους και το όνομα της έκδοσης (`# version:`). Το `tools/gwh-photo.ps1` ελέγχει ότι ο φάκελος του υπολογιστή και το live είναι ακόμα αυτή η έκδοση πριν από κάθε deploy. Ενημερώνεται μετά από κάθε live deploy |
 
 Το Gear World το διαλέγει το μοντέλο από τα 9 ενεργά sites. Το `/api/classify` μένει δεύτερη γνώμη: ξέρει κατηγορίες μόνο για τα 6 παλιά sites (μάθημα L56).
+
+## Ετικέτες της αναζήτησης (26/10/2026)
+Το `app.js` ήξερε μόνο τα πρώτα 6 sites: στα αποτελέσματα του TGW, AGW, VGW και SGW έγραφε «GEAR WORLD», και το κείμενο αναμονής έλεγε «Searching CGW, MGW, WGW, KGW, HGW and GGW...» (μάθημα L01: ο κώδικας δεν γράφει λίστα sites με το χέρι).
+
+| Αρχείο | Τι άλλαξε |
+|---|---|
+| `public/app.js` | Το `siteShortName()` δείχνει τον κωδικό του site όπως τον στέλνει το `/api/search` (3 γράμματα, με κεφαλαία): CGW … SGW, και κάθε νέο Gear World χωρίς αλλαγή κώδικα (`GWH-SHORT-NAMES`). Οτιδήποτε άλλο μένει «GEAR WORLD» |
+| `public/translations.js` | `searchingWorlds`: «Searching all Gear Worlds...» και στις 11 γλώσσες |
+| `public/index.html` | Νέο `?v=20261026-labels1` για τα 2 αρχεία (μάθημα L31) |
+
+Πριν από αυτή την αλλαγή, το repo πήρε ξανά τα live αρχεία της κάρτας Sport (SGW, από το `tools/gwh-sgw-link.ps1`): `index.html`, `translations.js`, `hub-sgw.jpg`, και το `live-baseline.txt` έγινε «photo search v2 + Sport card».
+
+Πάει live με το `tools/gwh-search-labels.ps1` (`-Step check`, μετά `-Step live -Apply` με τη φράση `ΕΓΚΡΙΝΩ HUB LABELS LIVE`). Έλεγχοι: `tests/worker/gwh-labels.test.mjs`.

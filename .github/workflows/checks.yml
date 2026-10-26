@@ -234,8 +234,8 @@ jobs:
         with:
           node-version: 22
       - run: npm ci --no-audit --no-fund
-      - name: Unit tests (photo search Worker, page texts, and how the Hub asks the 9 sites)
-        run: node --test tests/worker/gwh-photo.test.mjs tests/worker/gwh-search.test.mjs
+      - name: Unit tests (photo search Worker, page texts, search labels, and how the Hub asks the sites)
+        run: node --test tests/worker/gwh-photo.test.mjs tests/worker/gwh-search.test.mjs tests/worker/gwh-labels.test.mjs
       - name: The Hub Worker builds (wrangler dry run, nothing is uploaded)
         run: |
           sed -e 's/REPLACE_WITH_DATABASE_ID/local-dev-only/' sites/gwh/wrangler.toml.example > sites/gwh/wrangler.ci.toml

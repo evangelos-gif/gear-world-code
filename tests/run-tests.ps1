@@ -2320,6 +2320,130 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
     }
 }
 
+# 11b. gwh-search-labels.ps1 (Hub search labels: check and live) with a fake wrangler (Windows only: runs .cmd files)
+if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
+    Write-Host 'gwh-search-labels.ps1 (fake wrangler)'
+    $lTool = Join-Path (Join-Path $repo 'tools') 'gwh-search-labels.ps1'
+    $lState = Join-Path $work 'gwhl-state'
+    $lWork = Join-Path $work 'gwhl-work'
+    $lOut = Join-Path $work 'gwhl-out'
+    $lBin = Join-Path $work 'gwhl-bin'
+    $lHub = Join-Path $work 'gwhl-hub'
+    New-Item -ItemType Directory -Path $lState, $lBin, $lHub -Force | Out-Null
+    $lDb = [guid]::NewGuid().ToString()
+    $lVer = [guid]::NewGuid().ToString()
+    $lRepo = Join-Path (Join-Path $repo 'sites') 'gwh'
+    $lRepoPub = Join-Path $lRepo 'public'
+    # The fake hub on the "PC" runs the version before the change: the files of the repo, except the 3 files of the
+    # change, which get one more line (so they differ). The baseline lists the fake hub exactly as it is.
+    Write-Utf8 (Join-Path $lHub 'wrangler.toml') ("name = `"gear-world-hub`"`nmain = `"worker.js`"`n[[d1_databases]]`ndatabase_name = `"gear-world-registry`"`ndatabase_id = `"$lDb`"`n")
+    foreach ($n in @('worker.js', 'photo-search.js')) { Copy-Item -LiteralPath (Join-Path $lRepo $n) -Destination (Join-Path $lHub $n) -Force }
+    Copy-Item -LiteralPath $lRepoPub -Destination $lHub -Recurse -Force
+    $lPub = Join-Path $lHub 'public'
+    foreach ($n in @('app.js', 'translations.js', 'index.html')) { [System.IO.File]::AppendAllText((Join-Path $lPub $n), "`n/* before the search labels */`n") }
+    Write-Utf8 (Join-Path $lHub '.dev.vars') 'SECRET=never-in-the-zip'
+    $lBase = Join-Path $work 'gwhl-baseline.txt'
+    $bl = @('# test baseline', '# version: test hub v1', '# path | bytes | sha256 | kind')
+    $lRels = @('worker.js', 'photo-search.js') + @(Get-ChildItem -LiteralPath $lPub -Recurse -File | Sort-Object FullName | ForEach-Object { 'public/' + $_.FullName.Substring($lPub.Length).TrimStart('\', '/').Replace('\', '/') })
+    foreach ($rel in $lRels) {
+        $f = Join-Path $lHub ($rel.Replace('/', '\'))
+        $bl += ('{0} | {1} | {2} | file' -f $rel, (Get-Item -LiteralPath $f).Length, (Get-FileHash -LiteralPath $f -Algorithm SHA256).Hash.ToLowerInvariant())
+    }
+    Write-Utf8 $lBase (($bl -join "`n") + "`n")
+    $lNpx = @(
+        '@echo off',
+        'echo %* >> "%GW_FAKE_STATE%\calls.log"',
+        'echo %* | findstr /C:"whoami" >nul && goto whoami',
+        'echo %* | findstr /C:"deployments list" >nul && goto deployments',
+        'echo %* | findstr /C:" deploy" >nul && goto deploy',
+        'echo unknown command 1>&2',
+        'exit /b 1',
+        ':whoami',
+        'echo You are logged in with an OAuth Token, associated with the email test@example.com.',
+        'exit /b 0',
+        ':deployments',
+        'if exist "%GW_FAKE_STATE%\split.flag" goto split',
+        ('echo Version(s):  (100%%) ' + $lVer),
+        'exit /b 0',
+        ':split',
+        ('echo Version(s):  (50%%) ' + [guid]::NewGuid().ToString()),
+        ('echo               (50%%) ' + [guid]::NewGuid().ToString()),
+        'exit /b 0',
+        ':deploy',
+        'if exist "%GW_FAKE_STATE%\failother.flag" goto deployfail',
+        'echo Uploaded gear-world-hub',
+        'exit /b 0',
+        ':deployfail',
+        'echo X [ERROR] A request to the Cloudflare API failed. Something else. [code: 10021]',
+        'exit /b 1'
+    ) -join "`r`n"
+    [System.IO.File]::WriteAllText((Join-Path $lBin 'npx.cmd'), $lNpx + "`r`n", [System.Text.Encoding]::ASCII)
+    $oldPath = $env:PATH
+    $env:PATH = $lBin + ';' + $oldPath
+    $env:GW_FAKE_STATE = $lState
+    $lCalls = Join-Path $lState 'calls.log'
+    function Run-L([string[]]$a) {
+        $all = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $lTool, '-HubDir', $lHub, '-WorkDir', $lWork, '-OutDir', $lOut, '-BaselineFile', $lBase, '-SkipInstall', '-NoClipboard', '-NoHttpCheck') + $a
+        & $exe @all | Out-Null
+        return $LASTEXITCODE
+    }
+    function LCalls { if (Test-Path -LiteralPath $lCalls) { return [System.IO.File]::ReadAllText($lCalls) } else { return '' } }
+    function LCount([string]$pattern) { return ([regex]::Matches((LCalls), $pattern)).Count }
+    function LLast { return [System.IO.File]::ReadAllText((@(Get-ChildItem -LiteralPath $lOut -Filter 'GWH_LABELS_*.txt' | Sort-Object LastWriteTime, Name | Select-Object -Last 1)[0]).FullName) }
+    function LSha([string]$path) { return (Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash }
+    $lHubBefore = Get-TreeHash $lHub
+    $lOldApp = LSha (Join-Path $lPub 'app.js')
+    try {
+        Check ((Run-L @('-Step', 'check')) -eq 0) 'hub labels check: exit 0'
+        $r = LLast
+        Check ($r.Contains('ίδιος με την έκδοση που τρέχει live (test hub v1') -and $r.Contains('Αποτέλεσμα: ΕΝΤΑΞΕΙ')) 'hub labels check: the hub folder is the live version (named), ready for live'
+        Check ($r.Contains('Στον φάκελο του Hub μπαίνουν 3 αρχεία') -and $r.Contains('public/app.js:') -and $r.Contains('public/translations.js:') -and $r.Contains('public/index.html:') -and -not $r.Contains('public/styles.css:')) 'hub labels check: the plan is exactly app.js, translations.js and index.html'
+        Check ((LCount 'deploy --config') -eq 0 -and (Get-TreeHash $lHub) -eq $lHubBefore) 'hub labels check: only reads'
+        Check (-not $r.Contains($lDb) -and -not $r.Contains($lVer)) 'hub labels check: no database id or version id in the report'
+        Check ((Run-L @('-Step', 'live')) -eq 0 -and (LCount 'deploy --config') -eq 0 -and (Get-TreeHash $lHub) -eq $lHubBefore) 'hub labels live without -Apply: nothing changes'
+        Check ((Run-L @('-Step', 'live', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB PHOTO LIVE')) -eq 1 -and (LCount 'deploy --config') -eq 0 -and (Get-TreeHash $lHub) -eq $lHubBefore) 'hub labels live with the wrong phrase: nothing changes'
+        Write-Utf8 (Join-Path $lState 'split.flag') 'split'
+        Check ((Run-L @('-Step', 'live', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB LABELS LIVE')) -eq 11 -and (LCount 'deploy --config') -eq 0 -and (Get-TreeHash $lHub) -eq $lHubBefore) 'hub labels live: no single live version to go back to: stops before any change'
+        Remove-Item -LiteralPath (Join-Path $lState 'split.flag') -Force
+        Write-Utf8 (Join-Path $lState 'failother.flag') 'always'
+        Check ((Run-L @('-Step', 'live', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB LABELS LIVE')) -eq 9 -and (LCount 'deploy --config') -eq 1) 'hub labels live: a failed deploy stops at once (exit 9), no repeat'
+        Check ((Get-TreeHash $lHub) -eq $lHubBefore) 'hub labels live: after a failed deploy the hub folder is back as it was (= the live site)'
+        Remove-Item -LiteralPath (Join-Path $lState 'failother.flag') -Force
+        Check ((Run-L @('-Step', 'live', '-Apply', '-Approve', 'egkrino hub labels live')) -eq 0 -and (LCount 'deploy --config') -eq 2) 'hub labels live with approval: deploys once'
+        $c = LCalls
+        Check ($c -match ('deploy --config "' + [regex]::Escape((Join-Path $lHub 'wrangler.toml')) + '"')) 'hub labels live: deploys the hub folder with its own wrangler.toml'
+        Check ($c.LastIndexOf('deployments list --name gear-world-hub') -lt $c.LastIndexOf('deploy --config')) 'hub labels live: live version read before deploying'
+        foreach ($n in @('app.js', 'translations.js', 'index.html')) {
+            Check ((LSha (Join-Path $lPub $n)) -eq (LSha (Join-Path $lRepoPub $n))) ('hub labels live: ' + $n + ' in the hub folder is the new one')
+        }
+        Check ((LSha (Join-Path $lPub 'styles.css')) -eq (LSha (Join-Path $lRepoPub 'styles.css')) -and (LSha (Join-Path $lHub 'worker.js')) -eq (LSha (Join-Path $lRepo 'worker.js')) -and (Test-Path -LiteralPath (Join-Path $lHub '.dev.vars'))) 'hub labels live: the other files and .dev.vars are left alone'
+        $zips = @(Get-ChildItem -LiteralPath (Join-Path $lWork 'backups') -Filter 'gwh-before-labels-live-*.zip' -ErrorAction SilentlyContinue | Sort-Object LastWriteTime)
+        Check ($zips.Count -ge 1) 'hub labels live: the hub folder was zipped first'
+        if ($zips.Count -ge 1) {
+            Add-Type -AssemblyName System.IO.Compression.FileSystem
+            $z = [System.IO.Compression.ZipFile]::OpenRead($zips[-1].FullName)
+            $names = @($z.Entries | ForEach-Object { $_.FullName -replace '\\', '/' })
+            $z.Dispose()
+            Check (($names -contains 'worker.js') -and ($names -contains 'wrangler.toml') -and ($names -contains 'photo-search.js') -and ($names -contains 'public/app.js') -and ($names -contains 'public/hub-sgw.jpg') -and -not ($names -contains '.dev.vars')) 'hub labels live: the zip has the code, the config and every public file, never .dev.vars'
+        }
+        $lNotes = @(Get-ChildItem -LiteralPath (Join-Path $lWork 'backups') -Filter 'gwh-before-labels-live-*.txt' -ErrorAction SilentlyContinue | Sort-Object LastWriteTime)
+        Check ($lNotes.Count -ge 1 -and ([System.IO.File]::ReadAllText($lNotes[-1].FullName)).Contains('rollback ' + $lVer + ' --name gear-world-hub')) 'hub labels live: rollback note with the old live version'
+        $kept = @(Get-ChildItem -LiteralPath (Join-Path $lWork 'backups') -Recurse -Filter 'app.js' -ErrorAction SilentlyContinue | Where-Object { $_.FullName -match 'gwh-before-labels-files-' })
+        Check ($kept.Count -ge 1 -and (LSha $kept[0].FullName) -eq $lOldApp) 'hub labels live: the old app.js is kept as a plain copy'
+        $r = LLast
+        Check ($r.Contains('public/app.js | ') -and $r.Contains('ΕΤΟΙΜΟ') -and -not $r.Contains($lVer)) 'hub labels live: the report has the new baseline lines, not the version id'
+        Check ((Run-L @('-Step', 'check')) -eq 0 -and (LLast).Contains('έχει ήδη αυτή την έκδοση')) 'hub labels check after live: the hub folder has this version'
+        Write-Utf8 (Join-Path $lPub 'styles.css') 'body{}'
+        Check ((Run-L @('-Step', 'live', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB LABELS LIVE')) -eq 7 -and (LCount 'deploy --config') -eq 2) 'hub labels live: refused when someone else changed the hub folder'
+        Check ((LLast).Contains('public/styles.css')) 'hub labels: the changed file is named in the report'
+        & $exe -NoProfile -ExecutionPolicy Bypass -File $lTool -Step check -HubDir (Join-Path $work 'no-hub-here') -WorkDir $lWork -OutDir $lOut -BaselineFile $lBase -SkipInstall -NoClipboard -NoHttpCheck | Out-Null
+        Check ($LASTEXITCODE -eq 2) 'hub labels: no hub folder gives exit code 2'
+    } finally {
+        $env:PATH = $oldPath
+        Remove-Item Env:\GW_FAKE_STATE -ErrorAction SilentlyContinue
+    }
+}
+
 # 12. gw-old-workers.ps1 (which old Workers can go) with a fake wrangler and fake Cloudflare answers (Windows only)
 if ($isWin) {
     Write-Host 'gw-old-workers.ps1 (fake wrangler and fake Cloudflare)'

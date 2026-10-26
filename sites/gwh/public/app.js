@@ -302,12 +302,10 @@ function formatPrice(price, currency) {
 }
 
 function siteShortName(site) {
-  if (site === "cgw") return "CGW";
-  if (site === "mgw") return "MGW";
-  if (site === "wgw") return "WGW";
-  if (site === "kgw") return "KGW";
-  if (site === "hgw") return "HGW";
-  if (site === "ggw") return "GGW";
+  // GWH-SHORT-NAMES (26/10/2026): every Gear World code is shown as its own short name
+  // (CGW, MGW, WGW, KGW, HGW, GGW, TGW, AGW, VGW, SGW and any new world), not "GEAR WORLD".
+  const code = String(site || "").trim().toLowerCase();
+  if (/^[a-z]{3}$/.test(code)) return code.toUpperCase();
   return "GEAR WORLD";
 }
 
