@@ -594,7 +594,7 @@ export async function planImport({ archive, sourcesFile, outDir, now = new Date(
   // Only a retailer whose feed was found and read gets its missing products hidden by 9999-finish.sql.
   const readAdvertisers = new Set();
   const notRead = [];
-  const stats = { rows: 0, accepted: 0, rejected: {}, perCategory: {}, gtinValid: 0, withWas: 0, feedCats: {}, perRetailer: {}, denyWords: {} };
+  const stats = { rows: 0, accepted: 0, rejected: {}, perCategory: {}, gtinValid: 0, withWas: 0, feedCats: {}, perRetailer: {}, denyWords: {}, rejectFolders: {} };
   const samples = { accepted: {}, rejected: {}, byRetailer: {} };
   const feedInfo = [];
   const products = new Map();
@@ -648,7 +648,8 @@ export async function planImport({ archive, sourcesFile, outDir, now = new Date(
         if (raw.length === 1 && raw[0] === '') continue;
         rows++; stats.rows++; rs.rows++;
         const rawName = pick(rec, map.name);
-        let name = cleanProductName(cleanText(rawName));
+        // Second argument: the shop's sources.json entry (VGW reads its "skuEanInName"); the other sites ignore it.
+        let name = cleanProductName(cleanText(rawName), source);
         // A cut name loses its last word; the maker's part number then tells two versions apart ("Lenovo ThinkPad T14 Gen 3
         // ... Laptop" comes with several memory and disk sizes).
         if (source.nameCutAt && rawName.length >= source.nameCutAt) {
@@ -686,7 +687,17 @@ export async function planImport({ archive, sourcesFile, outDir, now = new Date(
         const categoryPaths = map.merchantCategory.map(i => cleanText(rec[i])).filter(Boolean).join(' | ');
         const cls = loose ? classify(name, '', '', source)
           : classify(name, `${merchantCategory || awinCategory} ${merchantCategory ? awinCategory : ''}`.trim(), categoryPaths, source);
-        if (!cls.ok) { reject(cls.reason, cls.reason.startsWith('not for UK') ? `${short}  [${notUkHint(name)}]` : short); continue; }
+        if (!cls.ok) {
+          // Per feed folder (27 Oct 2026, Case Luggage: 505 rows "not travel" and only 15 examples): the report shows which
+          // folders the rules leave out, so a whole folder of real products is not missed.
+          const folder = (merchantCategory || awinCategory || '(no folder)').slice(0, 90);
+          const byFolder = (stats.rejectFolders[cls.reason] ||= {});
+          const f = (byFolder[folder] ||= { n: 0, ex: [] });
+          f.n++;
+          if (f.ex.length < 3) f.ex.push(name.length > 90 ? name.slice(0, 89) + '…' : name);
+          reject(cls.reason, cls.reason.startsWith('not for UK') ? `${short}  [${notUkHint(name)}]` : short);
+          continue;
+        }
         if (!Number.isFinite(price) || price <= 0) { reject('no price', short); continue; }
         if (price < QUALITY.minPrice || price > QUALITY.maxPrice) { reject('price out of range', short); continue; }
         // After the second import (24 Oct 2026, lessons L53): Back to the Office priced "Western Digital WD80EFPX internal hard drive
@@ -948,6 +959,18 @@ export async function planImport({ archive, sourcesFile, outDir, now = new Date(
     for (const s of list) L.push(`   ${s}`);
   }
   L.push('');
+  const folderReasons = Object.entries(stats.rejectFolders).filter(([, f]) => Object.keys(f).length);
+  if (folderReasons.length) {
+    L.push('== Left out by the category rules, per feed folder (biggest 15, up to 3 examples) ==');
+    for (const [reason, byFolder] of folderReasons) {
+      L.push(`-- ${reason}`);
+      for (const [folder, f] of Object.entries(byFolder).sort((a, b) => b[1].n - a[1].n).slice(0, 15)) {
+        L.push(`   ${String(f.n).padStart(6)}  ${folder}`);
+        for (const x of f.ex) L.push(`            - ${x}`);
+      }
+    }
+    L.push('');
+  }
   L.push(`SQL written (NOT executed): ${sqlFiles.length} file(s) + 9999-finish.sql in ${join(outDir, 'sql')}`);
   L.push('=== END ===');
   const report = L.join('\r\n');

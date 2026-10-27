@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { gzipSync } from 'node:zlib';
 import { planVgwImport } from '../../tools/vgw-import-plan.mjs';
-import { classify, CATEGORY_SLUGS } from '../../sites/vgw/category-rules.js';
+import { classify, cleanProductName, CATEGORY_SLUGS } from '../../sites/vgw/category-rules.js';
 import site from '../../sites/vgw/site.config.js';
 
 test('VGW rules put real-looking products in the right category', () => {
@@ -146,6 +146,9 @@ test('plan: keeps euro prices, leaves out-of-stock and non-travel rows out, writ
   assert.equal(stats.perCategory['camping-outdoor'], 1);
   assert.equal(stats.rejected['out of stock'], 1);
   assert.match(report, /VGW IMPORT PLAN/);
+  // 27 Oct 2026: what the rules leave out is listed per feed folder, with examples.
+  assert.match(report, /== Left out by the category rules, per feed folder/);
+  assert.match(report, /-- not travel\r\n\s+1  Power Tools > Drills\r\n\s+- Bosch 18V Combi Drill/);
   const sql = readFileSync(join(out, 'sql', readdirSync(join(out, 'sql')).find(f => f === '0001.sql')), 'utf8');
   assert.match(sql, /-- VGW import plan .* NOT executed/);
   assert.match(sql, /'VEVOR', 'camping-outdoor'.*'EUR'/);
@@ -175,4 +178,43 @@ test('Case Luggage is on the VGW source list, loaded on its own feed', () => {
   assert.deepEqual(c.feedIds, [110976]);
   assert.equal(c.travelShop, true);
   assert.equal(c.approved, true);
+});
+
+test('Case Luggage first dry run (27 Oct 2026): names lose code and EAN, misplaced and missing products fixed', () => {
+  const CASE = { retailer: 'Case Luggage', travelShop: true, skuEanInName: true };
+  const clean = [
+    ['Delsey 76cm Spinner Suitcase - Helium Ultimate - Silver - 828512 - 3219110698428', 'Delsey 76cm Spinner Suitcase - Helium Ultimate - Silver'],
+    ['Roka Rolltop Medium Backpack Tote - Canfield B Rpet - Black - Black - 780988 - 5056590600668', 'Roka Rolltop Medium Backpack Tote - Canfield B Rpet - Black'],
+    ['Tumi Packing Cube - Travel Accessories - Black - 691048 - 0742315297149', 'Tumi Packing Cube - Black'],
+    ['Joules Set Of Four Packing Cubes - Henson Check - Henson Check - 827409', 'Joules Set Of Four Packing Cubes - Henson Check'],
+    ['Osprey Sling Bag - Daylite - Black - 825030 - 00843820184327', 'Osprey Sling Bag - Daylite - Black']
+  ];
+  for (const [raw, want] of clean) assert.equal(cleanProductName(raw, CASE), want, raw);
+  // Other shops keep their names as they are.
+  assert.equal(cleanProductName('Kono 20 Inch Cabin Suitcase - Black - 123456'), 'Kono 20 Inch Cabin Suitcase - Black - 123456');
+  const SUITCASES = 'Luggage & Bags > Suitcases';
+  const ok = [
+    ['Sprayground Full Size Luggage - The Sharkitecture - Black', 'luggage-suitcases'],
+    ['Tumi Large Dual Access Expandable Trunk 78.5cm - Alpha 4 - Black', 'luggage-suitcases'],
+    ['Tumi Large Garment Checked - Alpha 4 - Black', 'luggage-suitcases'],
+    ['Tumi Montclair Boarding Tote - Voyageur - Black Gunmetal', 'travel-bags-backpacks'],
+    ['Samsonite 17.3" Laptop Bag with Wheels - Spectrolite 3.0 - Black', 'travel-bags-backpacks'],
+    ['Rains Book Daypack Large W3 - Book - Lagoon 124', 'travel-bags-backpacks'],
+    ['Rains Daypack - Book - Black', 'travel-bags-backpacks'],
+    ['Tumi Hanging Travel Kit - Alpha 4 - Black', 'travel-accessories'],
+    ['Tumi Split Travel Kit - Alpha 4 - Black', 'travel-accessories'],
+    ['Tumi Electronic Cord Pouch - Alpha 4 - Black', 'travel-accessories'],
+    ['Delsey Beauty Case - Chatelet Air 2.0 - Dark brown', 'travel-accessories'],
+    ['Senz Luggage & Suitcases Mini Automatic - Umbrellas - Midnight Blue', 'travel-accessories'],
+    ['Sara Miller Phone Pouch - Leopard - Midnight Leopard', 'travel-accessories'],
+    ['Tumi Sunglasses Case - Belden - Blush', 'travel-accessories']
+  ];
+  for (const [name, slug] of ok) assert.equal(classify(name, SUITCASES, '', CASE).slug, slug, name);
+  for (const name of ['Tumi Q Tote - Voyageur - Rosewood', 'Secrid Mini Wallet- Emboss Lines + Cedar - Cedar',
+    'Lego 55cm Expandable Cabin Spinner Brick - Red', 'Miffy Cabin Trolley Spinner Suitcase - Kids Hardside Collection']) {
+    assert.equal(classify(name, SUITCASES, '', CASE).ok, false, name);
+  }
+  // Still true for the other shops: a guide book is a book, a waterproof phone pouch is beach gear.
+  assert.equal(classify('Lonely Planet Italy Travel Guide Book', 'Books > Travel').ok, false);
+  assert.equal(classify('Waterproof Phone Pouch for Beach Holiday', 'Sports').slug, 'beach-holiday');
 });
