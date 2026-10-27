@@ -274,8 +274,9 @@ foreach ($pair in $list) {
     $planCode = $LASTEXITCODE
     $reportFile = Join-Path $dir 'report.txt'
     if (Test-Path -LiteralPath $reportFile) { foreach ($line in [System.IO.File]::ReadAllLines($reportFile, [System.Text.Encoding]::UTF8)) { if ($line -match '^ΠΡΟΣΟΧΗ') { Say $line 'Yellow' } else { Say $line } } }
-    # 5 = the shop's catalogue was too big to read whole: only a sample was checked (L80). Nothing can change from it.
-    if ($planCode -eq 5) { Say 'Μόνο δείγμα (ο κατάλογος του καταστήματος είναι πολύ μεγάλος): δεν άλλαξε τίποτα.' 'Yellow'; continue }
+    # 5 = the shop's catalogue was not read whole (too big, stopped answering part-way, or -SampleOnly): only a sample
+    # was checked (L80). Nothing can change from it.
+    if ($planCode -eq 5) { Say 'Μόνο δείγμα (ο κατάλογος δεν διαβάστηκε ολόκληρος, ο λόγος πιο πάνω): δεν άλλαξε τίποτα.' 'Yellow'; continue }
     if ($planCode -ne 0) { Say 'Το σχέδιο δεν έγινε (δες πιο πάνω). Δεν άλλαξε τίποτα.' 'Red'; if ($exitCode -eq 0) { $exitCode = 10 }; continue }
     $c = ([System.IO.File]::ReadAllText((Join-Path $dir 'counts.txt'))).Trim() -split '\s+'
     $nChanges = [int]$c[0]; $nHides = [int]$c[1]; $writes = [int]$c[2]; $stale = ($c[3] -eq '1'); $activeBefore = [int]$c[5]
