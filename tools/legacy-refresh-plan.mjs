@@ -185,21 +185,22 @@ export function productHandle(url) {
 // When the full catalogue can't be read, why a sample is taken instead (L80), or null: a shop that fails on its very
 // first page is down, and a sample would only fail too.
 export function sampleReason(message, sampleOnly = false) {
-  if (sampleOnly) return 'μόνο δείγμα, -SampleOnly';
+  if (sampleOnly) return 'μόνο δείγμα, -SampleShops';
   if (/too big for this check/.test(message)) return 'πάνω από 10.000 προϊόντα';
   const page = /[?&]page=(\d+)/.exec(message);
   if (page && Number(page[1]) > 1) return `σταμάτησε να απαντά στη σελίδα ${page[1]} του καταλόγου`;
   return null;
 }
 
-export async function sampleShopProducts(rows, origin, { n = 100, fetchImpl = globalThis.fetch, pauseMs = 700, seed = 80, currency = '' } = {}) {
+export async function sampleShopProducts(rows, origin, { n = 100, fetchImpl = globalThis.fetch, pauseMs = 1000, seed = 80, currency = '' } = {}) {
   const live = rows.filter(r => Number(r.is_active) === 1);
   const list = live.map(r => ({ r, h: productHandle(r.affiliate_url) })).filter(x => x.h);
   let a = seed >>> 0;
   const rnd = () => { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
   for (let i = list.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [list[i], list[j]] = [list[j], list[i]]; }
   const st = { active: live.length, withHandle: list.length, checked: 0, same: 0, changed: 0, soldOut: 0, gone: 0, failed: 0, otherCurrency: 0,
-    examples: { changed: [], soldOut: [], gone: [] } };
+    throttled: false, examples: { changed: [], soldOut: [], gone: [] } };
+  let slowDowns = 0;
   const sleep = ms => new Promise(r => setTimeout(r, ms));
   const name = r => String(r.product_name || r.awin_product_id || '').slice(0, 80);
   for (const x of list.slice(0, n)) {
@@ -212,6 +213,9 @@ export async function sampleShopProducts(rows, origin, { n = 100, fetchImpl = gl
       // The shop asks us to slow down (instock.net stopped answering after 24 catalogue pages, 27 Oct 2026): wait, try once more.
       if (res && res.status === 429) { if (pauseMs) await sleep(Math.max(5000, pauseMs * 8)); res = await get(); }
     } catch { st.failed++; continue; }
+    // Still "slow down" three times in a row: stop, so that Shopify does not block this PC for longer (27 Oct 2026).
+    if (res && res.status === 429) { st.failed++; if (++slowDowns >= 3) { st.throttled = true; break; } continue; }
+    slowDowns = 0;
     if (res && res.status === 404) { st.checked++; st.gone++; if (st.examples.gone.length < 8) st.examples.gone.push(name(x.r)); continue; }
     let p = null;
     try { if (res && res.ok) p = await res.json(); } catch { p = null; }
@@ -236,7 +240,7 @@ export async function sampleShopProducts(rows, origin, { n = 100, fetchImpl = gl
 export function renderSampleReport({ retailer, site, origin, currency, st, limitNote }) {
   const pct = k => (st.checked ? Math.round((100 * st[k]) / st.checked) : 0);
   const L = [];
-  L.push(`Ο κατάλογος του ${origin} είναι πολύ μεγάλος για ολόκληρο έλεγχο (${limitNote}). Έλεγξα ένα τυχαίο δείγμα από τα προϊόντα ${retailer} του ${site.toUpperCase()}, ένα-ένα, μόνο με ανάγνωση (L80).`);
+  L.push(`Ο κατάλογος του ${origin} δεν ελέγχθηκε ολόκληρος (${limitNote}). Έλεγξα ένα τυχαίο δείγμα από τα προϊόντα ${retailer} του ${site.toUpperCase()}, ένα-ένα, μόνο με ανάγνωση (L80).`);
   L.push(`Ενεργά στο site: ${st.active} (με διεύθυνση προϊόντος: ${st.withHandle}). Ελέγχθηκαν: ${st.checked}${st.failed ? ` (δεν απάντησαν: ${st.failed})` : ''}. Νόμισμα καταστήματος: ${currency || 'άγνωστο'}.`);
   L.push(`Ίδια τιμή: ${st.same} (${pct('same')}%) · άλλη τιμή: ${st.changed} (${pct('changed')}%) · εξαντλημένα: ${st.soldOut} (${pct('soldOut')}%) · δεν υπάρχουν πια: ${st.gone} (${pct('gone')}%)${st.otherCurrency ? ` · άλλο νόμισμα: ${st.otherCurrency}` : ''}.`);
   for (const [k, label] of [['changed', 'Άλλη τιμή (στο site -> στο κατάστημα)'], ['soldOut', 'Εξαντλημένα'], ['gone', 'Δεν υπάρχουν πια']]) {
@@ -244,6 +248,7 @@ export function renderSampleReport({ retailer, site, origin, currency, st, limit
     L.push(`${label}:`);
     for (const e of st.examples[k]) L.push(`   - ${e}`);
   }
+  if (st.throttled) L.push('ΠΡΟΣΟΧΗ: το κατάστημα ζήτησε παύση (HTTP 429) τρεις φορές στη σειρά και σταμάτησα, για να μη μπλοκάρει το PC για περισσότερο. Το δείγμα είναι μικρότερο· ξαναδοκίμασε σε μία ώρα.');
   L.push('Δείγμα μόνο: δεν άλλαξε τίποτα, και από δείγμα δεν αλλάζει τίποτα.');
   return L.join('\n') + '\n';
 }
@@ -437,7 +442,7 @@ if (import.meta.url === pathToFileURL(process.argv[1] || '').href) {
       if (sampleOnly) throw new Error('sample only: too big for this check');
       catalog = await readShopifyCatalog(origin);
     } catch (e) {
-      // Too big to read whole, or it stopped answering part-way (instock.net at page 25, 27 Oct 2026), or -SampleOnly (L80):
+      // Too big to read whole, or it stopped answering part-way (instock.net at page 25, 27 Oct 2026), or -SampleShops (L80):
       // a sample of the site's own products instead, read-only, and no plan.
       const why = sampleReason(e.message, sampleOnly);
       if (why) {
@@ -447,7 +452,8 @@ if (import.meta.url === pathToFileURL(process.argv[1] || '').href) {
           limitNote: why }));
         process.exit(5);
       }
-      writeFileSync(join(out, 'report.txt'), `Δεν διάβασα τον κατάλογο του καταστήματος ${origin}: ${e.message}\n`);
+      const slow = /HTTP 429/.test(e.message) ? '\nΠΡΟΣΟΧΗ: το Shopify ζητά παύση (HTTP 429: πολλές αναγνώσεις από αυτό το PC σε λίγο χρόνο, και ισχύει για όλα τα καταστήματα Shopify). Ξαναδοκίμασε σε μία ώρα.' : '';
+      writeFileSync(join(out, 'report.txt'), `Δεν διάβασα τον κατάλογο του καταστήματος ${origin}: ${e.message}${slow}\n`);
       process.exit(4);
     }
     const currency = await readShopCurrency(origin);

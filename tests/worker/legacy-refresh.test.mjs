@@ -353,5 +353,26 @@ test('L80: a catalogue read that stops part-way falls back to a sample; one that
   assert.match(sampleReason(msg(25)), /σελίδα 25/);
   assert.equal(sampleReason(msg(1)), null);
   assert.match(sampleReason('...more than 10000 products: too big for this check...'), /10\.000/);
-  assert.match(sampleReason(msg(1), true), /SampleOnly/);
+  assert.match(sampleReason(msg(1), true), /SampleShops/);
+});
+
+test('27 Oct 2026: still 429 after the wait, three in a row, stops the sample and says so', async () => {
+  const awin = h => `https://www.awin1.com/cread.php?awinmid=122444&awinaffid=3057233&ued=${encodeURIComponent(`https://instock.net/products/${h}`)}`;
+  const rows = Array.from({ length: 10 }, (_, i) => ({ id: i + 1, awin_product_id: `122444:${i}`, product_name: `Item ${i}`, price: 5, currency: 'GBP', is_active: 1, affiliate_url: awin(`item-${i}`) }));
+  let calls = 0;
+  const fetchImpl = async () => { calls++; return { ok: false, status: 429, json: async () => ({}) }; };
+  const st = await sampleShopProducts(rows, 'https://instock.net', { n: 10, fetchImpl, pauseMs: 0, currency: 'GBP' });
+  assert.equal(st.throttled, true);
+  assert.equal(st.failed, 3);
+  assert.equal(calls, 6);
+  const text = renderSampleReport({ retailer: 'InStock UK', site: 'hgw', origin: 'https://instock.net', currency: 'GBP', st, limitNote: 'x' });
+  assert.match(text, /HTTP 429/);
+  assert.match(text, /δεν ελέγχθηκε ολόκληρος/);
+});
+
+test('27 Oct 2026: the catalogue reader names the HTTP status, so 429 (slow down) is told from a shop that is down', async () => {
+  const slow = async () => ({ ok: false, status: 429, json: async () => ({}) });
+  await assert.rejects(readShopifyCatalog('https://gardenistauk.com', { fetchImpl: slow, pauseMs: 0 }), /page=1, HTTP 429\)/);
+  const gone = async () => { throw new Error('offline'); };
+  await assert.rejects(readShopifyCatalog('https://gardenistauk.com', { fetchImpl: gone, pauseMs: 0 }), /page=1\)\. Nothing was changed/);
 });

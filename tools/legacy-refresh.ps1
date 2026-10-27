@@ -29,7 +29,9 @@
   A shop with more than 10,000 products (InStock, L80) is not read whole: -Sample N (default 100) of the site's own
   products are looked up one by one on the shop, and the report shows how many have the same price, another price, are
   sold out or gone. Nothing changes from a sample. The same happens when the shop stops answering part-way through its
-  catalogue. -SampleOnly goes straight to the sample (kinder to a big shop: no full catalogue read).
+  catalogue. -SampleShops "instock-uk" sends the shops named there straight to the sample (no full catalogue read: reading
+  InStock's catalogue made Shopify answer HTTP 429, "slow down", to this PC for every Shopify shop, 27 Oct 2026); the
+  other pairs of the same run are refreshed as usual. On 429 the sample waits, asks once more, and stops after 3 in a row.
 
   Rollback (printed): the rollback file puts back the old values and shows the hidden products again; or the restore point.
   Report: <home>\gear-world-reports\REFRESH_<time>.txt (also copied to the clipboard)
@@ -46,7 +48,7 @@ param(
     [switch]$PaidPlan,
     [switch]$FromShop,
     [int]$Sample = 100,
-    [switch]$SampleOnly,
+    [string]$SampleShops = '',
     [switch]$NoClipboard
 )
 
@@ -183,6 +185,14 @@ foreach ($p in ($Pairs -split ',')) {
 if ($list.Count -lt 1) { Say 'Δεν δόθηκε κανένα ζευγάρι κατάστημα:site.' 'Red'; Finish 2 }
 if ($Advertiser -and ($list.Count -ne 1 -or $Advertiser -notmatch '^\d{1,9}$')) { Say '-Advertiser μόνο με ΕΝΑ ζευγάρι και μόνο αριθμός.' 'Red'; Finish 2 }
 if (-not (Get-Command node -ErrorAction SilentlyContinue)) { Say 'Δεν βρέθηκε το Node.js.' 'Red'; Finish 3 }
+$shopKeys = @($list | ForEach-Object { ($_ -split ':')[0] })
+foreach ($s in ($SampleShops -split ',')) {
+    $k = Key-Of $s
+    if (-not $k) { continue }
+    if (-not $FromShop) { Say '-SampleShops μόνο μαζί με -FromShop.' 'Red'; Finish 2 }
+    if ($shopKeys -notcontains $k) { Say ('-SampleShops: το «{0}» δεν είναι στα -Pairs.' -f $s) 'Red'; Finish 2 }
+    Say ('Μόνο δείγμα για το {0} (χωρίς ανάγνωση όλου του καταλόγου, L80).' -f $k)
+}
 
 # The Awin archive on this PC (found automatically).
 function Count-Feeds([string]$dir) {
@@ -268,13 +278,13 @@ foreach ($pair in $list) {
     $a = @((Join-Path (Join-Path $repo 'tools') 'legacy-refresh-plan.mjs'), '--archive', $Archive, '--retailer', $name, '--site', $site, '--indexes', $idxFile, '--out', $dir, '--max-writes', [string]$budget)
     if ($Advertiser) { $a += @('--advertiser', $Advertiser) }
     if ($FromShop) { $a += @('--from-shop', '--sample', [string]$Sample) }
-    if ($FromShop -and $SampleOnly) { $a += @('--sample-only') }
+    if ($FromShop -and (@($SampleShops -split ',' | ForEach-Object { Key-Of $_ }) -contains $key)) { $a += @('--sample-only') }
     foreach ($f in $rowFiles) { $a += @('--rows', $f) }
     & node @a
     $planCode = $LASTEXITCODE
     $reportFile = Join-Path $dir 'report.txt'
     if (Test-Path -LiteralPath $reportFile) { foreach ($line in [System.IO.File]::ReadAllLines($reportFile, [System.Text.Encoding]::UTF8)) { if ($line -match '^ΠΡΟΣΟΧΗ') { Say $line 'Yellow' } else { Say $line } } }
-    # 5 = the shop's catalogue was not read whole (too big, stopped answering part-way, or -SampleOnly): only a sample
+    # 5 = the shop's catalogue was not read whole (too big, stopped answering part-way, or -SampleShops): only a sample
     # was checked (L80). Nothing can change from it.
     if ($planCode -eq 5) { Say 'Μόνο δείγμα (ο κατάλογος δεν διαβάστηκε ολόκληρος, ο λόγος πιο πάνω): δεν άλλαξε τίποτα.' 'Yellow'; continue }
     if ($planCode -ne 0) { Say 'Το σχέδιο δεν έγινε (δες πιο πάνω). Δεν άλλαξε τίποτα.' 'Red'; if ($exitCode -eq 0) { $exitCode = 10 }; continue }

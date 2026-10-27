@@ -202,15 +202,17 @@ export async function readShopifyCatalog(origin, { fetchImpl = globalThis.fetch,
   for (let page = 1; page <= maxPages; page++) {
     if (page > 1 && pauseMs) await sleep(pauseMs);
     const url = `${base}/products.json?limit=250&page=${page}`;
-    let data = null;
+    let data = null, status = 0;
     for (let attempt = 1; attempt <= 3 && !data; attempt++) {
       if (attempt > 1 && pauseMs) await sleep(pauseMs * 5);
       try {
         const res = await fetchImpl(url, { headers: { accept: 'application/json', 'user-agent': 'GearWorldImportPlan/1.0' }, signal: AbortSignal.timeout(20000) });
+        status = (res && res.status) || 0;
         if (res && res.ok) { const d = await res.json(); if (d && Array.isArray(d.products)) data = d; }
       } catch { data = null; }
     }
-    if (!data) throw new Error(`Could not read the shop's live catalogue (${url}). Nothing was changed; try again later.`);
+    // The HTTP status tells "slow down" (429, Shopify answers it for every shop to the same PC) from "down" (5xx).
+    if (!data) throw new Error(`Could not read the shop's live catalogue (${url}${status ? `, HTTP ${status}` : ''}). Nothing was changed; try again later.`);
     for (const p of data.products) if (p && p.handle) byHandle.set(String(p.handle).toLowerCase(), p);
     if (data.products.length < 250) break;
     if (page === maxPages) throw new Error(`The shop's live catalogue (${base}) has more than ${maxPages * 250} products: too big for this check. Nothing was changed.`);
