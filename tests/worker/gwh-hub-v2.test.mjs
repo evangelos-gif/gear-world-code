@@ -250,3 +250,51 @@ test('hub v2: the seasonal files are ready for the web and are served from the H
   const html = read('public/index.html');
   assert.ok(html.indexOf('id="gwh2Season"') > html.indexOf('id="deals"') && html.indexOf('id="gwh2Season"') < html.indexOf('id="gwh2Deals"'), 'the banner is at the top of the deals');
 });
+
+test('hub v2: the Worker answers byte ranges for the seasonal files (iPhone Safari needs 206), with a long cache', async () => {
+  const { default: worker } = await import('../../sites/gwh/worker.js');
+  const file = readFileSync(new URL('public/seasonal/halloween.mp4', ROOT));
+  const asked = [];
+  const env = {
+    ASSETS: {
+      fetch: async (req) => {
+        asked.push(`${req.method} ${new URL(req.url).pathname}${new URL(req.url).search} ${req.headers.get('Range') || ''}`.trim());
+        const path = new URL(req.url).pathname;
+        if (path === '/seasonal/halloween.mp4') return new Response(file, { status: 200, headers: { 'Content-Type': 'video/mp4', ETag: '"abc"' } });
+        return new Response('not found', { status: 404 });
+      }
+    }
+  };
+  const get = (path, headers = {}, method = 'GET') => worker.fetch(new Request(`https://gearworldhub.com${path}`, { method, headers }), env, { waitUntil() {} });
+
+  const whole = await get('/seasonal/halloween.mp4?v=29bd24c');
+  assert.equal(whole.status, 200);
+  assert.equal(whole.headers.get('Accept-Ranges'), 'bytes');
+  assert.equal(whole.headers.get('Content-Type'), 'video/mp4');
+  assert.equal(whole.headers.get('Cache-Control'), 'public, max-age=31536000, immutable');
+  assert.equal((await whole.arrayBuffer()).byteLength, file.length);
+  assert.equal(asked[0], 'GET /seasonal/halloween.mp4', 'the static file is read whole, without ?v= or Range');
+
+  const first = await get('/seasonal/halloween.mp4?v=29bd24c', { Range: 'bytes=0-1' });
+  assert.equal(first.status, 206);
+  assert.equal(first.headers.get('Content-Range'), `bytes 0-1/${file.length}`);
+  assert.equal(first.headers.get('Content-Length'), '2');
+  assert.deepEqual([...new Uint8Array(await first.arrayBuffer())], [...file.subarray(0, 2)]);
+
+  const tail = await get('/seasonal/halloween.mp4', { Range: 'bytes=-10' });
+  assert.equal(tail.status, 206);
+  assert.equal(tail.headers.get('Content-Range'), `bytes ${file.length - 10}-${file.length - 1}/${file.length}`);
+  const open = await get('/seasonal/halloween.mp4', { Range: `bytes=${file.length - 5}-` });
+  assert.equal((await open.arrayBuffer()).byteLength, 5);
+  const big = await get('/seasonal/halloween.mp4', { Range: 'bytes=0-99999999' });
+  assert.equal(big.status, 206);
+  assert.equal(big.headers.get('Content-Range'), `bytes 0-${file.length - 1}/${file.length}`);
+  const bad = await get('/seasonal/halloween.mp4', { Range: `bytes=${file.length}-` });
+  assert.equal(bad.status, 416);
+  assert.equal(bad.headers.get('Content-Range'), `bytes */${file.length}`);
+  const head = await get('/seasonal/halloween.mp4', { Range: 'bytes=0-1' }, 'HEAD');
+  assert.equal(head.status, 206);
+  assert.equal((await head.arrayBuffer()).byteLength, 0);
+  assert.equal((await get('/seasonal/missing.mp4')).status, 404);
+  assert.equal((await get('/seasonal/halloween.mp4', {}, 'POST')).status !== 206, true, 'only GET and HEAD');
+});

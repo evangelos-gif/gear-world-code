@@ -857,6 +857,43 @@ const hubCore = {
   }
 };
 
+// GWH-SEASONAL-MEDIA: the files of the seasonal banner (public/seasonal/*.mp4 and *.jpg). iPhone Safari plays a video
+// only when the server answers byte ranges ("Range: bytes=0-1") with 206 Partial Content, and the static files alone
+// answer 200 with the whole file. The files are small (at most about 150 KB), so the Worker reads the file once and
+// returns the part asked for. The page asks for them with ?v=, so browsers and Cloudflare may keep them for a year.
+async function seasonalMedia(request, env) {
+  const url = new URL(request.url);
+  if (!/^\/seasonal\/[a-z0-9-]+\.(mp4|jpg)$/.test(url.pathname)) return null;
+  if (request.method !== "GET" && request.method !== "HEAD") return null;
+  const full = await env.ASSETS.fetch(new Request(new URL(url.pathname, url.origin).toString(), { method: "GET" }));
+  if (full.status !== 200) return full;
+  const body = new Uint8Array(await full.arrayBuffer());
+  const total = body.length;
+  const headers = new Headers(full.headers);
+  headers.set("Accept-Ranges", "bytes");
+  headers.set("Cache-Control", "public, max-age=31536000, immutable");
+  headers.delete("Content-Encoding");
+  const head = request.method === "HEAD";
+  const m = /^bytes=(\d*)-(\d*)$/.exec(String(request.headers.get("Range") || "").trim());
+  if (!m || (m[1] === "" && m[2] === "")) {
+    headers.set("Content-Length", String(total));
+    return new Response(head ? null : body, { status: 200, headers });
+  }
+  let start;
+  let end;
+  if (m[1] === "") { start = Math.max(0, total - Number(m[2])); end = total - 1; }
+  else { start = Number(m[1]); end = m[2] === "" ? total - 1 : Math.min(Number(m[2]), total - 1); }
+  if (!Number.isFinite(start) || !Number.isFinite(end) || start > end || start >= total) {
+    headers.delete("Content-Length");
+    headers.set("Content-Range", `bytes */${total}`);
+    return new Response(null, { status: 416, headers });
+  }
+  const part = body.subarray(start, end + 1);
+  headers.set("Content-Range", `bytes ${start}-${end}/${total}`);
+  headers.set("Content-Length", String(part.length));
+  return new Response(head ? null : part, { status: 206, headers });
+}
+
 // GWH-PHOTO-SEARCH-START
 // Photo search (camera button). Every other request goes to hubCore above, unchanged.
 // On the test address (GWH_PREVIEW = "1") a few extra rules apply: see photo-search.js.
@@ -867,6 +904,8 @@ export default {
     const url = new URL(request.url);
     // GWH-POSTER-SCANS: a QR scan of a poster (?utm_source=poster) is counted in the background; never on the test address.
     posterScan(request, env, ctx, { site: "hub", domain: "gearworldhub.com", off: String((env && env.GWH_PREVIEW) || "") === "1" });
+    const media = await seasonalMedia(request, env);
+    if (media) return addPreviewHeaders(media, env);
     if (url.pathname === "/api/photo-search") {
       return addPreviewHeaders(await handlePhotoSearch(request, env, ctx), env);
     }
