@@ -3384,6 +3384,75 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
     }
 }
 
+# 14. seasonal-sites.ps1 (seasonal banners on the deals pages of the 10 sites) with fake site tools (Windows only)
+if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
+    Write-Host 'seasonal-sites.ps1 (fake site tools)'
+    $zTool = Join-Path (Join-Path $repo 'tools') 'seasonal-sites.ps1'
+    $zState = Join-Path $work 'ssn-state'
+    $zTools = Join-Path $work 'ssn-tools'
+    $zOut = Join-Path $work 'ssn-reports'
+    New-Item -ItemType Directory -Path $zState, $zTools -Force | Out-Null
+    # Fake site tools: they write down how they were called, and fail when their flag file is there.
+    $zFake = @(
+        'param([string]$Step, [switch]$Apply, [string]$Approve, [string]$OutDir, [switch]$NoClipboard, [switch]$SkipInstall, [switch]$NoHttpCheck)',
+        '$name = [System.IO.Path]::GetFileNameWithoutExtension($PSCommandPath)',
+        'Add-Content -LiteralPath (Join-Path $env:GW_FAKE_STATE ''sites.log'') -Value (''{0} {1} {2} {3}'' -f $name, $Step, [bool]$Apply, $Approve)',
+        'if (-not (Test-Path -LiteralPath $OutDir)) { New-Item -ItemType Directory -Path $OutDir -Force | Out-Null }',
+        'Set-Content -LiteralPath (Join-Path $OutDir ($name + ''-fake-report.txt'')) -Value (''fake report of '' + $name)',
+        'if (Test-Path -LiteralPath (Join-Path $env:GW_FAKE_STATE (''fail-'' + $name + ''.flag''))) { exit 9 }',
+        'exit 0'
+    ) -join "`r`n"
+    $zNames = @('sgw-cloudflare', 'tgw-cloudflare', 'agw-cloudflare', 'vgw-cloudflare', 'cgw-engine', 'mgw-engine', 'wgw-engine', 'kgw-engine', 'hgw-engine', 'ggw-engine')
+    foreach ($t in $zNames) { [System.IO.File]::WriteAllText((Join-Path $zTools ($t + '.ps1')), $zFake + "`r`n", [System.Text.Encoding]::ASCII) }
+    $env:GW_FAKE_STATE = $zState
+    $zSites = Join-Path $zState 'sites.log'
+    function Run-Z([string[]]$a) {
+        $all = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $zTool, '-OutDir', $zOut, '-SiteToolDir', $zTools, '-SkipInstall', '-NoClipboard', '-NoHttpCheck') + $a
+        & $exe @all | Out-Null
+        return $LASTEXITCODE
+    }
+    function ZText([string]$p) { if (Test-Path -LiteralPath $p) { return [System.IO.File]::ReadAllText($p) } else { return '' } }
+    function ZLast([string]$filter) {
+        $f = @(Get-ChildItem -LiteralPath $zOut -Filter $filter -ErrorAction SilentlyContinue | Sort-Object LastWriteTime, Name | Select-Object -Last 1)
+        if ($f.Count -eq 0) { return '' }
+        return [System.IO.File]::ReadAllText($f[0].FullName)
+    }
+    try {
+        # check: reads only, today's season comes from src/lib/seasons.js
+        Check ((Run-Z @('-Step', 'check')) -eq 0) 'seasonal check: exit 0'
+        $r = ZLast 'SEASONAL_SITES_CHECK_*.txt'
+        Check ($r -match 'Εποχή σήμερα: (halloween|black-friday|christmas) \(\d{4}-\d{2}-\d{2} έως \d{4}-\d{2}-\d{2}\)|Εποχή σήμερα: καμία') 'seasonal check: today''s season from the engine'
+        Check ($r.Contains('ΕΓΚΡΙΝΩ SEASONAL BANNERS') -and $r.Contains('ΔΕΝ αλλάζουν') -and $r.Contains('gwh-sitemap') -and $r.Contains('μόνο έλεγχος, δεν άλλαξε τίποτα')) 'seasonal check: the plan, what does not change, nothing changed'
+        Check (-not (Test-Path -LiteralPath $zSites)) 'seasonal check: no site tool run'
+        # apply without -Apply, with the wrong phrase, with a missing site tool: no site tool runs
+        Check ((Run-Z @('-Step', 'apply')) -eq 0 -and -not (Test-Path -LiteralPath $zSites)) 'seasonal apply without -Apply: nothing changes'
+        Check ((Run-Z @('-Step', 'apply', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB LIVE')) -eq 1 -and -not (Test-Path -LiteralPath $zSites)) 'seasonal apply with the wrong phrase: nothing changes'
+        $zAway = Join-Path $zTools 'hgw-engine.ps1'
+        Move-Item -LiteralPath $zAway -Destination ($zAway + '.away') -Force
+        Check ((Run-Z @('-Step', 'apply', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ SEASONAL BANNERS')) -eq 2 -and -not (Test-Path -LiteralPath $zSites)) 'seasonal apply: a missing site tool stops before any change (exit 2)'
+        Check ((ZLast 'SEASONAL_SITES_APPLY_*.txt').Contains('hgw-engine')) 'seasonal apply: the missing tool is named'
+        Move-Item -LiteralPath ($zAway + '.away') -Destination $zAway -Force
+        # a failing site: stops there, the next sites are not touched
+        Write-Utf8 (Join-Path $zState 'fail-wgw-engine.flag') 'fail'
+        Check ((Run-Z @('-Step', 'apply', '-Apply', '-Approve', 'egkrino seasonal banners')) -eq 12) 'seasonal apply: a failing site update stops the run (exit 12)'
+        $s = ZText $zSites
+        Check ($s.Contains('wgw-engine update True EGKRINO WGW UPDATE') -and -not $s.Contains('kgw-engine') -and -not $s.Contains('ggw-engine')) 'seasonal apply: after the failing site, no other site'
+        $r = ZLast 'SEASONAL_SITES_APPLY_*.txt'
+        Check ($r.Contains('Ανέβηκαν ήδη: SGW, TGW, AGW, VGW, CGW, MGW') -and $r.Contains('fake report of wgw-engine')) 'seasonal apply: the report names the sites already updated and quotes the failing site report'
+        Remove-Item -LiteralPath (Join-Path $zState 'fail-wgw-engine.flag') -Force
+        # the full run
+        Remove-Item -LiteralPath $zSites -Force
+        Check ((Run-Z @('-Step', 'apply', '-Apply', '-Approve', 'Εγκρίνω seasonal banners')) -eq 0) 'seasonal apply with approval (lower case, accent): exit 0'
+        $lines = @((ZText $zSites) -split "`r?`n" | Where-Object { $_ })
+        Check ((($lines | ForEach-Object { ($_ -split ' ')[0] }) -join ',') -eq ($zNames -join ',')) 'seasonal apply: the 10 sites in order, SGW first'
+        Check (@($lines | Where-Object { $_ -notmatch ' update True EGKRINO [A-Z]{3} UPDATE$' }).Count -eq 0) 'seasonal apply: every site with its own update step and phrase'
+        $r = ZLast 'SEASONAL_SITES_APPLY_*.txt'
+        Check ($r.Contains('ΕΤΟΙΜΟ') -and $r.Contains('fake report of ggw-engine') -and $r.Contains('GGW: ΕΝΤΑΞΕΙ')) 'seasonal apply: report ready, with each site report'
+    } finally {
+        Remove-Item Env:\GW_FAKE_STATE -ErrorAction SilentlyContinue
+    }
+}
+
 Remove-Item -LiteralPath $work -Recurse -Force -ErrorAction SilentlyContinue
 
 Write-Host ''

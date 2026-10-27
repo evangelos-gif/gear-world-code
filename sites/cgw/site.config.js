@@ -11,7 +11,7 @@ export default {
   lang: 'en-GB',
   locale: 'en-GB',
   currency: 'GBP',
-  assetVersion: '2026-10-25-cgw-ship-2',
+  assetVersion: '2026-10-28-cgw-season-1',
   promos: promosFor('CGW'),
   awinPublisherId: AWIN_PUBLISHER_ID,
   storagePrefix: 'cgw',

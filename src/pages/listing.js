@@ -1,5 +1,6 @@
 // Category, search and deals pages: server-rendered lists with filters and pagination (lessons L09, L10).
 import { html, raw } from '../lib/html.js';
+import { seasonBanner } from './season.js';
 import { categoryPath } from '../lib/text.js';
 import { SORT_OPTIONS } from '../db.js';
 import { page, productGrid, breadcrumbs, breadcrumbSchema, categoryImage, tr } from './layout.js';
@@ -194,7 +195,7 @@ export function searchPage(site, q, p, result, usedQuery = '') {
   });
 }
 
-export function dealsPage(site, p, result) {
+export function dealsPage(site, p, result, now = Date.now()) {
   const base = '/deals/';
   const crumbs = [{ name: 'Home', path: '/' }, { name: 'Price drops', path: base }];
   const body = html`
@@ -204,6 +205,8 @@ export function dealsPage(site, p, result) {
     <h1>Price drops</h1>
     <p class="lede">Products that cost less now than the retailer's previous price, biggest saving first.</p>
   </header>
+  ${p.page > 1 ? '' : seasonBanner(site, 'deals-list', now)}
+  <div id="deals-list"></div>
   ${resultsHeader(result)}
   ${result.products.length
     ? html`<h2 class="visually-hidden">${tr('Products')}</h2>${productGrid(site, result.products)}`

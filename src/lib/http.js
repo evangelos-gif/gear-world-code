@@ -5,6 +5,8 @@ const CSP = [
   "script-src 'self' https://challenges.cloudflare.com https://static.cloudflareinsights.com",
   "style-src 'self'",
   "img-src 'self' data: https:",
+  // The seasonal banner videos come from the Hub (one copy for all 11 sites, src/lib/seasons.js).
+  "media-src 'self' https://gearworldhub.com",
   "font-src 'self'",
   "connect-src 'self' https://cloudflareinsights.com",
   'frame-src https://challenges.cloudflare.com',

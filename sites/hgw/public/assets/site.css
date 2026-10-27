@@ -509,3 +509,23 @@ body.has-compare-bar { padding-bottom: 76px; }
   .hero .lede { order: 3; margin-bottom: 8px; font-size: .98rem; }
   .hero-facts { order: 4; }
 }
+
+/* Seasonal banner on the deals pages (src/pages/season.js): a muted video loop (or its still picture) with the text
+   on top, dark at the bottom and on the left so the text reads. No red or green (L35). */
+.season-banner { position: relative; isolation: isolate; display: flex; flex-direction: column; justify-content: flex-end; min-height: 300px; margin: 0 0 24px; border-radius: 16px; overflow: hidden; background: #05070c; color: #fff; }
+.season-media { position: absolute; inset: 0; z-index: -2; width: 100%; height: 100%; object-fit: cover; object-position: center 35%; }
+.season-mirror .season-media { transform: scaleX(-1); }
+.season-shade { position: absolute; inset: 0; z-index: -1; background: linear-gradient(0deg, rgba(5,8,16,.95) 0%, rgba(5,8,16,.78) 36%, rgba(5,8,16,.1) 72%, rgba(5,8,16,0) 100%), linear-gradient(90deg, rgba(5,8,16,.7) 0%, rgba(5,8,16,0) 62%); }
+.season-text { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; padding: 18px; max-width: 620px; }
+.season-eyebrow { margin: 0; font-size: .8rem; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: #ffc433; }
+.season-title { margin: 0; font-size: 1.6rem; line-height: 1.15; color: #fff; text-shadow: 0 2px 12px rgba(0,0,0,.5); }
+.season-count { margin: 0; display: inline-flex; align-items: center; min-height: 34px; padding: 4px 12px; border: 1px solid rgba(255,180,0,.6); border-radius: 999px; background: rgba(255,180,0,.16); color: #ffd36b; font-weight: 700; font-size: .9rem; }
+.season-pause { position: absolute; top: 10px; right: 10px; display: inline-flex; align-items: center; gap: 6px; min-width: 44px; min-height: 44px; padding: 0 14px; border: 1px solid rgba(255,255,255,.45); border-radius: 999px; background: rgba(5,8,16,.72); color: #fff; font: 600 .9rem var(--font-body); cursor: pointer; }
+.season-pause .icon { width: 18px; height: 18px; }
+@media (min-width: 720px) {
+  .season-banner { justify-content: center; min-height: 0; aspect-ratio: 960 / 360; }
+  .season-shade { background: linear-gradient(90deg, rgba(5,8,16,.95) 0%, rgba(5,8,16,.8) 38%, rgba(5,8,16,.2) 68%, rgba(5,8,16,0) 100%); }
+  .season-text { padding: 28px 34px; max-width: 54%; }
+  .season-title { font-size: 2rem; }
+  .season-pause { top: auto; bottom: 14px; right: 14px; }
+}

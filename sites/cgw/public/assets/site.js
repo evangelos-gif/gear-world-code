@@ -1,6 +1,6 @@
 // Gear World sites (shared by every site on the engine; TGW keeps the master copy). One small script; every page also works without it.
 // Parts: language (L24, with country names for "Delivers to", L62), currency (L25), Gear Cart (L26), compare (L23),
-// voice search, newsletter, discount codes (L32).
+// voice search, newsletter, discount codes (L32), the seasonal banner of the deals pages.
 (function () {
   'use strict';
 
@@ -445,6 +445,86 @@
     });
   }
 
+  // ---------- Seasonal banner on the deals pages (src/pages/season.js) ----------
+  // The muted video loop starts only after the page has loaded, plays while the banner is on the screen, and never
+  // with "reduce motion", Save-Data or a slow connection (then the still picture stays). Pause is remembered.
+  // The countdown changes once a minute (it shows minutes).
+  function stillOnly() {
+    try {
+      if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return true;
+      var c = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+      if (c && (c.saveData || /^(slow-2g|2g|3g)$/.test(String(c.effectiveType || '')))) return true;
+    } catch (e) { /* keep the video */ }
+    return false;
+  }
+  function setupSeason() {
+    var box = document.querySelector('[data-season]');
+    if (!box) return;
+    var count = box.querySelector('[data-season-count]');
+    var end = Date.parse(box.getAttribute('data-season-countdown') || '');
+    function tick() {
+      if (!count || isNaN(end)) return;
+      var left = end - Date.now();
+      if (!(left > 0)) { count.hidden = true; return; }
+      var mins = Math.floor(left / 60000), d = Math.floor(mins / 1440), h = Math.floor((mins % 1440) / 60), m = mins % 60;
+      count.textContent = d > 0 ? tf('Ends in {0} d {1} h {2} min', [d, h, m]) : tf('Ends in {0} h {1} min', [h, m]);
+      count.hidden = false;
+      setTimeout(tick, 60000 - (Date.now() % 60000) + 50);
+    }
+    tick();
+    var btn = box.querySelector('[data-season-pause]');
+    var still = box.querySelector('.season-media');
+    var video = null;
+    function label() {
+      if (!btn) return;
+      var paused = !video || video.paused;
+      btn.hidden = !video;
+      btn.setAttribute('aria-pressed', paused ? 'true' : 'false');
+      var span = btn.querySelector('span');
+      if (span) span.textContent = paused ? t('Play') : t('Pause');
+      var path = btn.querySelector('path');
+      if (path) path.setAttribute('d', paused ? 'M8 5v14l11-7z' : 'M8 5v14M16 5v14');
+    }
+    function start() {
+      if (stillOnly() || !box.getAttribute('data-season-video')) return;
+      video = document.createElement('video');
+      video.className = 'season-media';
+      video.muted = true; video.defaultMuted = true; video.loop = true; video.playsInline = true;
+      video.setAttribute('muted', ''); video.setAttribute('loop', ''); video.setAttribute('playsinline', '');
+      if (read('season-paused', '') !== '1') video.setAttribute('autoplay', '');
+      video.setAttribute('preload', 'none');
+      video.setAttribute('poster', box.getAttribute('data-season-poster') || '');
+      video.setAttribute('aria-hidden', 'true');
+      var src = document.createElement('source');
+      src.src = box.getAttribute('data-season-video');
+      src.type = 'video/mp4';
+      video.appendChild(src);
+      function fail() { if (video && video.parentNode) video.parentNode.removeChild(video); video = null; if (still) still.hidden = false; label(); }
+      src.addEventListener('error', fail);
+      video.addEventListener('error', fail);
+      video.addEventListener('playing', function () { if (still) still.hidden = true; label(); });
+      video.addEventListener('pause', label);
+      box.insertBefore(video, box.firstChild);
+      label();
+      function play() { var p = video && video.play(); if (p && p.catch) p.catch(label); }
+      if ('IntersectionObserver' in window) {
+        new IntersectionObserver(function (entries) {
+          var seen = entries.some(function (e) { return e.isIntersecting; });
+          if (!video) return;
+          if (seen && read('season-paused', '') !== '1') play();
+          else if (!seen && !video.paused) video.pause();
+        }, { rootMargin: '200px 0px' }).observe(box);
+      } else if (read('season-paused', '') !== '1') play();
+    }
+    if (btn) btn.addEventListener('click', function () {
+      if (!video) return;
+      if (video.paused) { write('season-paused', ''); var p = video.play(); if (p && p.catch) p.catch(function () {}); }
+      else { write('season-paused', '1'); video.pause(); }
+      label();
+    });
+    if (document.readyState === 'complete') start(); else window.addEventListener('load', start);
+  }
+
   // Language first, so every text the other parts write is already in the visitor's language.
   loadLanguage().then(function () {
     loadCurrency();
@@ -454,6 +534,7 @@
     setupVoice();
     setupNewsletter();
     setupCopy();
+    setupSeason();
     root.setAttribute('data-ready', lang);
   });
 })();
