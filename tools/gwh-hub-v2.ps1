@@ -68,6 +68,12 @@ $About = @{
     'public/hub-v2.css'     = 'η εμφάνιση της νέας σελίδας'
     'public/hub-v2.js'      = 'καμπάνιες, κουμπί φωτογραφίας, «Βρες δώρο», προσφορές, αναζήτηση κάτω στο κινητό, 11 γλώσσες'
     'public/hub-deals.json' = 'οι προσφορές με ημερομηνία λήξης, από το promos.js'
+    'public/seasonal/halloween.mp4' = 'Halloween (βίντεο) για το μπάνερ των προσφορών'
+    'public/seasonal/halloween.jpg' = 'Halloween (σταθερή εικόνα) για το μπάνερ των προσφορών'
+    'public/seasonal/black-friday.mp4' = 'Black Friday (βίντεο) για το μπάνερ των προσφορών'
+    'public/seasonal/black-friday.jpg' = 'Black Friday (σταθερή εικόνα) για το μπάνερ των προσφορών'
+    'public/seasonal/christmas.mp4' = 'Χριστούγεννα (βίντεο) για το μπάνερ των προσφορών'
+    'public/seasonal/christmas.jpg' = 'Χριστούγεννα (σταθερή εικόνα) για το μπάνερ των προσφορών'
 }
 
 $L = New-Object System.Collections.Generic.List[string]

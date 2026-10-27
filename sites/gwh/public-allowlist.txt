@@ -26,6 +26,12 @@ index.html
 legal/legal.css
 legal/legal.js
 privacy/index.html
+seasonal/black-friday.jpg
+seasonal/black-friday.mp4
+seasonal/christmas.jpg
+seasonal/christmas.mp4
+seasonal/halloween.jpg
+seasonal/halloween.mp4
 styles.css
 terms/index.html
 translations.js

@@ -66,6 +66,14 @@
     dealWithCode: ["With a code", "Με κωδικό", "Mit Code", "Avec un code", "Con un codice", "Con un código", "Com um código", "Met een code", "Me kod", "Cu un cod", "По коду"],
     dealSale: ["Sale", "Εκπτώσεις", "Aktion", "Soldes", "Saldi", "Rebajas", "Saldos", "Uitverkoop", "Ulje", "Reduceri", "Распродажа"],
     dealUntil: ["until {date}", "έως {date}", "bis {date}", "jusqu'au {date}", "fino al {date}", "hasta el {date}", "até {date}", "t/m {date}", "deri më {date}", "până la {date}", "до {date}"],
+    seasonAria: ["Seasonal offers", "Εποχικές προσφορές", "Saisonangebote", "Offres de saison", "Offerte di stagione", "Ofertas de temporada", "Ofertas da época", "Seizoensaanbiedingen", "Oferta sezonale", "Oferte de sezon", "Сезонные предложения"],
+    seasonHalloween: ["HALLOWEEN", "HALLOWEEN", "HALLOWEEN", "HALLOWEEN", "HALLOWEEN", "HALLOWEEN", "HALLOWEEN", "HALLOWEEN", "HALLOWEEN", "HALLOWEEN", "ХЭЛЛОУИН"],
+    seasonBlackFriday: ["BLACK FRIDAY", "BLACK FRIDAY", "BLACK FRIDAY", "BLACK FRIDAY", "BLACK FRIDAY", "BLACK FRIDAY", "BLACK FRIDAY", "BLACK FRIDAY", "BLACK FRIDAY", "BLACK FRIDAY", "ЧЁРНАЯ ПЯТНИЦА"],
+    xmasDealsTitle: ["Christmas offers in the Gear Worlds", "Χριστουγεννιάτικες προσφορές στα Gear Worlds", "Weihnachtsangebote in den Gear Worlds", "Offres de Noël dans les Gear Worlds", "Offerte di Natale nei Gear Worlds", "Ofertas de Navidad en los Gear Worlds", "Ofertas de Natal nos Gear Worlds", "Kerstaanbiedingen in de Gear Worlds", "Oferta të Krishtlindjeve në Gear Worlds", "Oferte de Crăciun în Gear Worlds", "Рождественские предложения в Gear Worlds"],
+    countdown: ["Ends in {d} d {h} h {m} min", "Λήγει σε {d} ημ. {h} ώρ. {m} λεπ.", "Endet in {d} T. {h} Std. {m} Min.", "Se termine dans {d} j {h} h {m} min", "Termina tra {d} g {h} h {m} min", "Termina en {d} d {h} h {m} min", "Termina em {d} d {h} h {m} min", "Eindigt over {d} d {h} u {m} min", "Mbaron pas {d} d {h} o {m} min", "Se încheie în {d} z {h} h {m} min", "До конца {d} д {h} ч {m} мин"],
+    countdownHours: ["Ends in {h} h {m} min", "Λήγει σε {h} ώρ. {m} λεπ.", "Endet in {h} Std. {m} Min.", "Se termine dans {h} h {m} min", "Termina tra {h} h {m} min", "Termina en {h} h {m} min", "Termina em {h} h {m} min", "Eindigt over {h} u {m} min", "Mbaron pas {h} o {m} min", "Se încheie în {h} h {m} min", "До конца {h} ч {m} мин"],
+    pause: ["Pause", "Παύση", "Pause", "Pause", "Pausa", "Pausa", "Pausa", "Pauze", "Ndalo", "Pauză", "Пауза"],
+    play: ["Play", "Αναπαραγωγή", "Abspielen", "Lecture", "Riproduci", "Reproducir", "Reproduzir", "Afspelen", "Luaj", "Redă", "Воспроизвести"],
     dealCta: ["See the offer", "Δείτε την προσφορά", "Zum Angebot", "Voir l'offre", "Vedi l'offerta", "Ver la oferta", "Ver a oferta", "Bekijk de aanbieding", "Shiko ofertën", "Vezi oferta", "Смотреть предложение"],
     dock: ["Search all Gear Worlds", "Αναζήτηση σε όλα τα Gear Worlds", "Alle Gear Worlds durchsuchen", "Chercher dans tous les Gear Worlds", "Cerca in tutti i Gear Worlds", "Buscar en todos los Gear Worlds", "Pesquisar em todos os Gear Worlds", "Zoek in alle Gear Worlds", "Kërko në të gjitha Gear Worlds", "Caută în toate Gear Worlds", "Искать во всех Gear Worlds"],
 
@@ -106,7 +114,9 @@
 
   // Texts that are the same word as in English on purpose (a name, or the same word in that language).
   const SAME_AS_ENGLISH = {
-    dockPhoto: ["fr-FR"], ideaPerfume: ["es-ES", "pt-PT"], ideaLamp: ["nl-NL"]
+    dockPhoto: ["fr-FR"], ideaPerfume: ["es-ES", "pt-PT"], ideaLamp: ["nl-NL"], pause: ["de-DE", "fr-FR"],
+    seasonHalloween: ["el-GR", "de-DE", "fr-FR", "it-IT", "es-ES", "pt-PT", "nl-NL", "sq-AL", "ro-RO"],
+    seasonBlackFriday: ["el-GR", "de-DE", "fr-FR", "it-IT", "es-ES", "pt-PT", "nl-NL", "sq-AL", "ro-RO"]
   };
 
   // Campaign slides: shopping seasons only (the Hub is one complete shop for the customer: no "new site" slides, the
@@ -255,7 +265,55 @@
   const mosaic = () => `<div class="gwh2-art gwh2-mosaic" aria-hidden="true">${WORLD_PICTURES.map(w => `<img src="/hub-${w}.jpg" alt="" width="700" height="420" loading="lazy" decoding="async">`).join("")}</div>`;
   const artFor = c => ART[c.art] || mosaic();
 
-  window.GearWorldHubV2 = { art: ART, artFor, locales: LOCALES, strings: T, sameAsEnglish: SAME_AS_ENGLISH, campaigns: CAMPAIGNS, fallbackCampaign: FALLBACK_CAMPAIGN, gifts: GIFTS, budgets: BUDGETS, popular: POPULAR, activeCampaigns, activeDeals, giftSearchUrl, ukToday };
+  // ---------- seasonal video banner at the top of the deals (owner, 27/10/2026; files from the gearworld-media repo,
+  // served from our own domain). A calendar that repeats every year by itself (UK days):
+  //   Halloween 20/10-31/10; Black Friday from 7 days before to 4 days after Black Friday (2026: 20/11-1/12) with a
+  //   countdown to the Monday after it, 23:59 UK time (2026: 30/11; November is always GMT); Christmas 2/12-24/12.
+  // Outside these days there is no banner. The video loops (muted) only when the visitor can afford it: with "reduce
+  // motion", Save-Data or a slow connection only the still picture shows, and the Pause button stops it.
+  const SEASON_MEDIA_VERSION = "29bd24c";
+  function blackFridayDay(year) {
+    const firstDay = new Date(Date.UTC(year, 10, 1)).getUTCDay();
+    const firstThursday = 1 + ((4 - firstDay + 7) % 7);
+    return firstThursday + 22;
+  }
+  const isoDay = (y, m, d) => new Date(Date.UTC(y, m - 1, d)).toISOString().slice(0, 10);
+  function seasonsOf(year) {
+    const bf = blackFridayDay(year);
+    return [
+      { id: "halloween", start: `${year}-10-20`, end: `${year}-10-31`, file: "halloween", name: "seasonHalloween", title: "halloweenTitle", mirror: true },
+      { id: "black-friday", start: isoDay(year, 11, bf - 7), end: isoDay(year, 11, bf + 4), file: "black-friday", name: "seasonBlackFriday", title: "bfTitle", countdownTo: `${isoDay(year, 11, bf + 3)}T23:59:00Z` },
+      { id: "christmas", start: `${year}-12-02`, end: `${year}-12-24`, file: "christmas", name: "xmasEyebrow", title: "xmasDealsTitle", mirror: true }
+    ];
+  }
+  function seasonFor(now) {
+    const today = now === undefined && previewDay() ? previewDay() : ukToday(now);
+    return seasonsOf(Number(today.slice(0, 4))).find(s => s.start <= today && today <= s.end) || null;
+  }
+  function seasonNow() {
+    const day = previewDay();
+    return day ? Date.parse(`${day}T12:00:00Z`) : Date.now();
+  }
+  // The countdown text, or "" when the countdown is over (or the season has none).
+  function countdownText(season, now) {
+    if (!season || !season.countdownTo) return "";
+    const left = Date.parse(season.countdownTo) - now;
+    if (!(left > 0)) return "";
+    const mins = Math.floor(left / 60000);
+    const d = Math.floor(mins / 1440), h = Math.floor((mins % 1440) / 60), m = mins % 60;
+    return d > 0 ? tx("countdown", { d, h, m }) : tx("countdownHours", { h, m });
+  }
+  // Only the still picture: "reduce motion", Save-Data, or a slow connection.
+  function stillOnly() {
+    try {
+      if (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) return true;
+      const c = typeof navigator !== "undefined" && (navigator.connection || navigator.mozConnection || navigator.webkitConnection);
+      if (c && (c.saveData || /^(slow-2g|2g|3g)$/.test(String(c.effectiveType || "")))) return true;
+    } catch (_) { /* ignore */ }
+    return false;
+  }
+
+  window.GearWorldHubV2 = { seasonFor, seasonsOf, blackFridayDay, countdownText, seasonMediaVersion: SEASON_MEDIA_VERSION, art: ART, artFor, locales: LOCALES, strings: T, sameAsEnglish: SAME_AS_ENGLISH, campaigns: CAMPAIGNS, fallbackCampaign: FALLBACK_CAMPAIGN, gifts: GIFTS, budgets: BUDGETS, popular: POPULAR, activeCampaigns, activeDeals, giftSearchUrl, ukToday };
 
   // ------------------------------------------------------------ page
   const $ = (selector, root) => (root || document).querySelector(selector);
@@ -346,15 +404,137 @@
   }
 
   // ---------- deals
+  // ---------- the seasonal banner (video loop with the text on top, in HTML)
+  let seasonVideoAllowedAfterLoad = false;
+  let countdownTimer = null;
+  const pausedByVisitor = () => { try { return localStorage.getItem("gwh2-season-paused") === "1"; } catch (_) { return false; } };
+  const rememberPaused = (yes) => { try { if (yes) localStorage.setItem("gwh2-season-paused", "1"); else localStorage.removeItem("gwh2-season-paused"); } catch (_) { /* ignore */ } };
+  const mediaUrl = (season, ext) => `/seasonal/${season.file}.${ext}?v=${SEASON_MEDIA_VERSION}`;
+
+  function seasonRange(season) {
+    const a = new Date(`${season.start}T12:00:00Z`), b = new Date(`${season.end}T12:00:00Z`);
+    try {
+      const f = new Intl.DateTimeFormat(locale(), { day: "numeric", month: "short", timeZone: "Europe/London" });
+      return typeof f.formatRange === "function" ? f.formatRange(a, b) : `${f.format(a)} – ${f.format(b)}`;
+    } catch (_) {
+      return `${season.start} – ${season.end}`;
+    }
+  }
+
+  function updateCountdown() {
+    if (countdownTimer) { clearTimeout(countdownTimer); countdownTimer = null; }
+    const el = document.querySelector("#gwh2Season [data-gwh2-count]");
+    const season = seasonFor();
+    if (!el || !season) return;
+    const text = countdownText(season, seasonNow());
+    el.textContent = text;
+    el.hidden = !text;
+    // The next update at the next full minute (the countdown shows minutes, nothing ticks every second).
+    if (text && !previewDay()) countdownTimer = setTimeout(updateCountdown, 60000 - (Date.now() % 60000) + 50);
+  }
+
+  function setPauseButton(video) {
+    const btn = document.querySelector("#gwh2Season .gwh2-season-pause");
+    if (!btn) return;
+    const paused = !video || video.paused;
+    btn.hidden = !video;
+    btn.setAttribute("aria-pressed", paused ? "true" : "false");
+    const label = btn.querySelector("span");
+    if (label) label.textContent = paused ? tx("play") : tx("pause");
+    btn.setAttribute("aria-label", paused ? tx("play") : tx("pause"));
+    btn.innerHTML = btn.innerHTML.replace(/<svg[\s\S]*?<\/svg>/, paused
+      ? '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>'
+      : '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14M16 5v14"/></svg>');
+  }
+
+  // The video is made only after the page has loaded, and only when the visitor can afford it. It plays while the
+  // banner is on the screen; if the browser cannot play it, the still picture stays.
+  function startSeasonVideo() {
+    const box = document.getElementById("gwh2Season");
+    const season = seasonFor();
+    if (!box || !season || !seasonVideoAllowedAfterLoad || stillOnly() || box.querySelector("video")) return;
+    const video = document.createElement("video");
+    video.className = "gwh2-season-media";
+    video.muted = true;
+    video.defaultMuted = true;
+    video.loop = true;
+    video.playsInline = true;
+    video.preload = "none";
+    video.setAttribute("muted", "");
+    video.setAttribute("loop", "");
+    video.setAttribute("playsinline", "");
+    if (!pausedByVisitor()) video.setAttribute("autoplay", "");
+    video.setAttribute("preload", "none");
+    video.setAttribute("poster", mediaUrl(season, "jpg"));
+    video.setAttribute("aria-hidden", "true");
+    video.setAttribute("tabindex", "-1");
+    const source = document.createElement("source");
+    source.src = mediaUrl(season, "mp4");
+    source.type = "video/mp4";
+    video.appendChild(source);
+    const still = box.querySelector("img.gwh2-season-media");
+    const fail = () => { video.remove(); if (still) still.hidden = false; setPauseButton(null); };
+    source.addEventListener("error", fail);
+    video.addEventListener("error", fail);
+    video.addEventListener("playing", () => { if (still) still.hidden = true; setPauseButton(video); });
+    video.addEventListener("pause", () => setPauseButton(video));
+    box.insertBefore(video, box.firstChild);
+    setPauseButton(video);
+    const play = () => { const p = video.play(); if (p && typeof p.catch === "function") p.catch(() => setPauseButton(video)); };
+    if (typeof IntersectionObserver === "function") {
+      new IntersectionObserver(entries => {
+        const seen = entries.some(e => e.isIntersecting);
+        if (seen && !pausedByVisitor() && video.isConnected) play();
+        else if (!seen && !video.paused) { video.pause(); }
+      }, { rootMargin: "200px 0px" }).observe(box);
+    } else if (!pausedByVisitor()) play();
+  }
+
+  function renderSeason(season, hasDeals) {
+    const box = document.getElementById("gwh2Season");
+    if (!box) return;
+    if (!season) { box.hidden = true; box.innerHTML = ""; box.removeAttribute("data-season"); return; }
+    box.hidden = false;
+    box.setAttribute("aria-label", tx("seasonAria"));
+    const cta = hasDeals ? "#gwh2Deals" : "#newsletter";
+    if (box.getAttribute("data-season") !== season.id) {
+      box.setAttribute("data-season", season.id);
+      box.className = `gwh2-season gwh2-season-${season.id}${season.mirror ? " gwh2-season-mirror" : ""}`;
+      box.innerHTML = `
+        <img class="gwh2-season-media" src="${esc(mediaUrl(season, "jpg"))}" alt="" width="960" height="528" decoding="async" loading="lazy">
+        <div class="gwh2-season-shade"></div>
+        <div class="gwh2-season-text">
+          <span class="gwh2-eyebrow" data-gwh2-season="eyebrow"></span>
+          <strong class="gwh2-season-title" data-gwh2-season="title"></strong>
+          <span class="gwh2-season-count" data-gwh2-count hidden></span>
+          <a class="gwh2-btn" data-gwh2-season="cta"></a>
+        </div>
+        <button type="button" class="gwh2-season-pause" hidden aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14M16 5v14"/></svg><span></span></button>`;
+      if (seasonVideoAllowedAfterLoad) startSeasonVideo();
+    }
+    box.querySelector('[data-gwh2-season="eyebrow"]').textContent = `${tx(season.name)} · ${seasonRange(season)}`;
+    box.querySelector('[data-gwh2-season="title"]').textContent = tx(season.title);
+    const link = box.querySelector('[data-gwh2-season="cta"]');
+    link.textContent = hasDeals ? tx("bfCta") : tx("soonCta");
+    link.setAttribute("href", cta);
+    link.setAttribute("data-gwh2-jump", cta);
+    setPauseButton(box.querySelector("video"));
+    updateCountdown();
+  }
+
   let deals = [];
   function renderDeals() {
     const section = document.getElementById("deals");
     const box = document.getElementById("gwh2Deals");
     if (!section || !box) return;
     const list = activeDeals(deals).slice(0, DEALS_SHOWN);
-    section.hidden = list.length === 0;
+    const season = seasonFor();
+    section.hidden = list.length === 0 && !season;
     const navLink = document.querySelector('.main-nav a[href="#deals"]');
-    if (navLink) navLink.hidden = list.length === 0;
+    if (navLink) navLink.hidden = section.hidden;
+    const head = section.querySelector(".gwh2-head");
+    if (head) head.hidden = list.length === 0;
+    renderSeason(season, list.length > 0);
     box.innerHTML = list.map(d => {
       const offer = d.kind === "code"
         ? (Number(d.minSpend) > 0 ? tx("dealCode", { off: money(d.off, d.currency), min: money(d.minSpend, d.currency) }) : tx("dealCodeNoMin", { off: money(d.off, d.currency) }))
@@ -532,12 +712,21 @@
       if (again) again.focus();
       return;
     }
+    const pause = t.closest("#gwh2Season .gwh2-season-pause");
+    if (pause) {
+      const video = document.querySelector("#gwh2Season video");
+      if (!video) return;
+      if (video.paused) { rememberPaused(false); const p = video.play(); if (p && typeof p.catch === "function") p.catch(() => {}); }
+      else { rememberPaused(true); video.pause(); }
+      setPauseButton(video);
+      return;
+    }
     const jump = t.closest("[data-gwh2-jump]");
     if (jump) {
       // Black Friday without any deal running: the button goes to the e-mail sign-up instead.
       let target = jump.getAttribute("data-gwh2-jump");
       const deal = document.getElementById("deals");
-      if (target === "#deals" && (!deal || deal.hidden)) target = "#newsletter";
+      if ((target === "#deals" || target === "#gwh2Deals") && (!deal || deal.hidden || !activeDeals(deals).length)) target = "#newsletter";
       const el = document.querySelector(target);
       if (el) {
         event.preventDefault();
@@ -574,6 +763,9 @@
     setupPhoto();
     setupDock();
     document.addEventListener("click", onClick);
+    // The seasonal video starts only after the whole page has loaded.
+    const allowVideo = () => { seasonVideoAllowedAfterLoad = true; startSeasonVideo(); };
+    if (document.readyState === "complete") allowVideo(); else window.addEventListener("load", allowVideo, { once: true });
     window.addEventListener("gwh-language-change", () => setTimeout(renderAll, 0));
   }
 

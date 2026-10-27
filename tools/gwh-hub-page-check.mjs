@@ -39,7 +39,7 @@ const results = [];
 const check = (ok, name, detail = '') => results.push({ ok: Boolean(ok), name, detail });
 
 // ---------- a tiny static server for the Hub files ----------
-const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.json': 'application/json', '.png': 'image/png', '.jpg': 'image/jpeg', '.svg': 'image/svg+xml' };
+const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.json': 'application/json', '.png': 'image/png', '.jpg': 'image/jpeg', '.svg': 'image/svg+xml', '.mp4': 'video/mp4' };
 const asked = [];
 const server = createServer((req, res) => {
   let path = decodeURIComponent(new URL(req.url, 'http://x').pathname);
@@ -268,6 +268,52 @@ try {
     check(want === 'all-worlds' ? pic === 'div:mosaic' : pic === 'svg', `campaigns on ${day}: ${want === 'all-worlds' ? 'the 10 worlds side by side' : 'a drawn picture of the season'}`, pic);
     await page.waitForTimeout(2500);
     await page.locator('#gwh2Campaigns').screenshot({ path: join(shotsDir, `campaign-${day}.png`) });
+    await context.close();
+  }
+  // The seasonal banner at the top of the deals (video loop, or its still picture; text on top in HTML).
+  for (const [day, want, vp, opts] of [
+    ['2026-10-28', 'halloween', viewports[0], {}], ['2026-11-28', 'black-friday', viewports[2], {}], ['2026-12-10', 'christmas', viewports[0], {}],
+    ['2026-11-10', '', viewports[0], {}], ['2026-10-28', 'halloween', viewports[0], { reducedMotion: 'reduce' }]
+  ]) {
+    const tag = `banner ${day} ${vp.name}${opts.reducedMotion ? ' reduce motion' : ''}`;
+    const context = await browser.newContext({ viewport: { width: vp.width, height: vp.height }, isMobile: vp.isMobile, hasTouch: vp.hasTouch, deviceScaleFactor: 1, ...opts });
+    await context.addInitScript(() => { try { localStorage.setItem('gwh-language', 'en-GB'); localStorage.setItem('gwh_analytics_consent', 'denied'); } catch (_) { /* ignore */ } });
+    const page = await context.newPage();
+    const errors = [];
+    page.on('pageerror', e => errors.push(String(e.message || e)));
+    await page.clock.setFixedTime(new Date(`${day}T12:00:00Z`));
+    await page.route('**/*', route => (new URL(route.request().url()).origin === base ? route.continue() : route.abort()));
+    await page.goto(base + '/', { waitUntil: 'load' });
+    await page.waitForTimeout(400);
+    const info = await page.evaluate(() => {
+      const b = document.getElementById('gwh2Season');
+      return { shown: !!b && !b.hidden, season: b ? b.getAttribute('data-season') || '' : '', title: (b && b.querySelector('.gwh2-season-title') || {}).textContent || '',
+        count: (b && b.querySelector('[data-gwh2-count]:not([hidden])') || {}).textContent || '', video: !!(b && b.querySelector('video')),
+        deals: !document.getElementById('deals').hidden };
+    });
+    if (!want) {
+      check(!info.shown, `${tag}: no banner outside the seasons`, JSON.stringify(info));
+    } else {
+      check(info.shown && info.season === want && info.title.length > 5, `${tag}: the ${want} banner with its title on top`, `${info.season} "${info.title}"`);
+      if (want === 'black-friday') check(/^Ends in \d+ d \d+ h \d+ min$/.test(info.count), `${tag}: countdown to 30/11 23:59`, info.count);
+      else check(!info.count, `${tag}: no countdown`);
+      if (opts.reducedMotion) check(!info.video, `${tag}: only the still picture, no video`);
+      else {
+        await page.locator('#gwh2Season').scrollIntoViewIfNeeded();
+        await page.waitForTimeout(1500);
+        const v = await page.evaluate(() => { const x = document.querySelector('#gwh2Season video'); const img = document.querySelector('#gwh2Season img'); return { video: !!x, muted: !!x && x.muted, loop: !!x && x.loop, inline: !!x && x.playsInline, preload: x ? x.getAttribute('preload') : '', poster: x ? x.getAttribute('poster') : '', src: x ? (x.querySelector('source') || {}).src || '' : '', still: !!img && !img.hidden, pause: !!document.querySelector('#gwh2Season .gwh2-season-pause:not([hidden])') }; });
+        // The test browser may not play H.264: then the still picture must stay (and that is all right).
+        check((v.video && v.muted && v.loop && v.inline && v.preload === 'none' && /\/seasonal\/[a-z-]+\.jpg\?v=/.test(v.poster) && /\/seasonal\/[a-z-]+\.mp4\?v=/.test(v.src)) || (!v.video && v.still), `${tag}: muted looping video after the page loaded (or the still picture)`, JSON.stringify(v));
+        if (v.video && v.pause) {
+          const box = await page.locator('#gwh2Season .gwh2-season-pause').boundingBox();
+          check(box && box.width >= 44 && box.height >= 44, `${tag}: Pause button at least 44 px`);
+          await page.click('#gwh2Season .gwh2-season-pause');
+          check(await page.evaluate(() => document.querySelector('#gwh2Season video').paused), `${tag}: Pause stops the video`);
+        }
+      }
+      await page.locator('#gwh2Season').screenshot({ path: join(shotsDir, `banner-${want}-${vp.name}${opts.reducedMotion ? '-still' : ''}.png`) });
+    }
+    check(errors.length === 0, `${tag}: no JavaScript errors`, errors.join(' | ').slice(0, 300));
     await context.close();
   }
   check(!asked.some(p => p.includes('gwh-hero.png')), 'the old 2.8 MB picture (gwh-hero.png) is never loaded');

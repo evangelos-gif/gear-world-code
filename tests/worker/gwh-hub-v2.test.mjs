@@ -154,8 +154,8 @@ test('hub v2: the page keeps every id and class the other scripts need, and load
   }
   assert.match(html, /<body class="gwh2" data-gwh-compact-v2="true">/);
   assert.match(html, /<div class="hero-copy">\s*<span class="eyebrow">/);
-  assert.match(html, /<link rel="stylesheet" href="\/hub-v2\.css\?v=20261027-hub5">/);
-  assert.match(html, /<script src="\/hub-v2\.js\?v=20261027-hub4" defer><\/script>/);
+  assert.match(html, /<link rel="stylesheet" href="\/hub-v2\.css\?v=20261027-hub6">/);
+  assert.match(html, /<script src="\/hub-v2\.js\?v=20261027-hub6" defer><\/script>/);
   assert.ok(html.indexOf('/gear-world-camera.js?v=') < html.indexOf('/hub-v2.js?v='), 'hub-v2.js after the camera script');
   assert.ok(!html.includes('/styles.css'), 'the old styles.css is not loaded');
   assert.ok(!html.includes('gwh-hero.png'), 'the 2.8 MB picture is gone from the page');
@@ -196,4 +196,57 @@ test('hub v2: no red or green (L35), nothing that moves by itself, buttons at le
   assert.match(css, /\.gwh2-round\{[^}]*width:44px;height:44px;/);
   assert.match(css, /\.gwh-business-link\{[^}]*animation:none !important;/);
   assert.match(css, /prefers-reduced-motion/);
+});
+
+test('hub v2: the seasonal video banner of the deals follows its own yearly calendar, with a countdown for Black Friday', () => {
+  const h = hub();
+  const id = day => { const x = h.seasonFor(at(day)); return x ? x.id : ''; };
+  // The owner's dates for 2026: Halloween 20/10-31/10, Black Friday 20/11-1/12 (countdown to 30/11 23:59), Christmas 2/12-24/12.
+  assert.deepEqual(['2026-10-19', '2026-10-20', '2026-10-31', '2026-11-01', '2026-11-19', '2026-11-20', '2026-12-01', '2026-12-02', '2026-12-24', '2026-12-25'].map(id),
+    ['', 'halloween', 'halloween', '', '', 'black-friday', 'black-friday', 'christmas', 'christmas', '']);
+  const bf = h.seasonsOf(2026).find(x => x.id === 'black-friday');
+  assert.equal(bf.countdownTo, '2026-11-30T23:59:00Z', '30/11 23:59 UK time (GMT in November)');
+  // Every year by itself: Black Friday is the day after the 4th Thursday of November.
+  assert.deepEqual([2026, 2027, 2028, 2029].map(h.blackFridayDay), [27, 26, 24, 23]);
+  assert.equal(id('2027-11-19'), 'black-friday');
+  assert.equal(id('2027-11-30'), 'black-friday');
+  assert.equal(id('2027-12-01'), '');
+  // The countdown: days, hours and minutes; nothing after the end.
+  assert.equal(h.countdownText(bf, Date.parse('2026-11-28T10:30:00Z')), 'Ends in 2 d 13 h 29 min');
+  assert.equal(h.countdownText(bf, Date.parse('2026-11-30T22:00:00Z')), 'Ends in 1 h 59 min');
+  assert.equal(h.countdownText(bf, Date.parse('2026-12-01T00:00:00Z')), '');
+  assert.equal(h.countdownText(h.seasonsOf(2026)[0], at('2026-10-25')), '', 'no countdown for Halloween');
+});
+
+test('hub v2: the seasonal files are ready for the web and are served from the Hub itself', () => {
+  const allow = read('public-allowlist.txt').split('\n').map(x => x.trim());
+  for (const name of ['halloween', 'black-friday', 'christmas']) {
+    const mp4 = readFileSync(new URL(`public/seasonal/${name}.mp4`, ROOT));
+    const jpg = readFileSync(new URL(`public/seasonal/${name}.jpg`, ROOT));
+    assert.ok(mp4.length > 20000 && mp4.length <= 200 * 1024, `${name}.mp4 is small (${mp4.length} bytes)`);
+    assert.ok(jpg.length > 5000 && jpg.length <= 80 * 1024, `${name}.jpg is small (${jpg.length} bytes)`);
+    assert.equal(mp4.toString('latin1', 4, 8), 'ftyp', `${name}.mp4 is an MP4`);
+    const moov = mp4.indexOf('moov', 0, 'latin1');
+    const mdat = mp4.indexOf('mdat', 0, 'latin1');
+    assert.ok(moov > 0 && moov < mdat, `${name}.mp4 can start before it is fully downloaded (moov first)`);
+    assert.ok(mp4.indexOf('soun', 0, 'latin1') < 0, `${name}.mp4 has no sound track`);
+    assert.equal(jpg[0], 0xff); assert.equal(jpg[1], 0xd8);
+    assert.ok(allow.includes(`seasonal/${name}.mp4`) && allow.includes(`seasonal/${name}.jpg`), `${name}: in the allow-list (L04)`);
+  }
+  const js = read('public/hub-v2.js');
+  // The video: muted, loops, plays inline, nothing loaded before it is needed, the still picture as its poster.
+  for (const a of ['"muted"', '"loop"', '"playsinline"', '"autoplay"', '"preload", "none"', '"poster"']) assert.ok(js.includes(a), `video ${a}`);
+  assert.match(js, /\/seasonal\/\$\{season\.file\}\.\$\{ext\}\?v=\$\{SEASON_MEDIA_VERSION\}/, 'files from our own domain, with ?v= (L31)');
+  assert.ok(!/raw\.githubusercontent|github\.com\/.*seasonal/.test(js), 'never straight from GitHub');
+  // Only the still picture with "reduce motion", Save-Data or a slow connection; a Pause button; starts after load.
+  assert.match(js, /prefers-reduced-motion: reduce/);
+  assert.match(js, /saveData/);
+  assert.match(js, /slow-2g\|2g\|3g/);
+  assert.match(js, /gwh2-season-pause/);
+  assert.match(js, /window\.addEventListener\("load", allowVideo/);
+  const css = read('public/hub-v2.css');
+  assert.match(css, /\.gwh2-season-pause\{[^}]*min-width:44px;min-height:44px;/);
+  assert.match(css, /\.gwh2-season-shade\{[^}]*linear-gradient\(90deg,rgba\(5,8,16,\.95\)/, 'dark gradient on the left (wider screens)');
+  const html = read('public/index.html');
+  assert.ok(html.indexOf('id="gwh2Season"') > html.indexOf('id="deals"') && html.indexOf('id="gwh2Season"') < html.indexOf('id="gwh2Deals"'), 'the banner is at the top of the deals');
 });

@@ -157,6 +157,18 @@ svg.gwh2-art{stroke:none;} /* the drawn pictures: no outline from the icon style
 .gwh2-deal-meta,.gwh2-deal-worlds{color:var(--soft);font-size:14px;}
 .gwh2-deal-cta{color:var(--accent);font-size:14px;font-weight:800;}
 
+/* seasonal banner at the top of the deals: video loop (or its still picture), text on top in HTML */
+.gwh2-season{position:relative;display:flex;flex-direction:column;justify-content:flex-end;min-height:300px;margin-bottom:22px;border-radius:18px;overflow:hidden;background:#05070c;isolation:isolate;}
+.gwh2-season-media{position:absolute;inset:0;z-index:-2;width:100%;height:100%;object-fit:cover;object-position:center 35%;}
+.gwh2-season-mirror .gwh2-season-media{transform:scaleX(-1);}
+.gwh2-season-shade{position:absolute;inset:0;z-index:-1;background:linear-gradient(0deg,rgba(5,8,16,.96) 0%,rgba(5,8,16,.82) 38%,rgba(5,8,16,.15) 72%,rgba(5,8,16,0) 100%);}
+.gwh2-season-text{display:flex;flex-direction:column;align-items:flex-start;gap:8px;max-width:560px;padding:20px 18px 20px;}
+.gwh2-season-title{font-size:24px;line-height:1.15;font-weight:900;text-shadow:0 2px 12px rgba(0,0,0,.5);}
+.gwh2-season-count{display:inline-flex;align-items:center;min-height:34px;padding:4px 12px;border:1px solid rgba(255,180,0,.6);border-radius:999px;background:rgba(255,180,0,.16);color:#ffd36b;font-size:14px;font-weight:800;}
+.gwh2-season-pause{position:absolute;top:10px;right:10px;display:inline-flex;align-items:center;gap:6px;min-width:44px;min-height:44px;padding:0 14px;border:1px solid rgba(255,255,255,.45);border-radius:999px;background:rgba(5,8,16,.72);color:#fff;font-size:14px;font-weight:700;cursor:pointer;}
+.gwh2-season-pause svg{width:18px;height:18px;}
+.gwh2-season-pause:hover{border-color:var(--accent);}
+
 /* how it works */
 .gwh-compact-how-heading h2{margin:6px 0 14px;font-size:22px;line-height:1.25;font-weight:900;}
 .gwh-compact-how-grid{display:grid;grid-template-columns:1fr;gap:8px;}
@@ -240,6 +252,11 @@ body.gwh2-dock-on{padding-bottom:84px;}
   .gwh-image-world-description{display:block;color:var(--soft);font-size:13px;line-height:1.4;}
   .gwh-image-world-cta{display:block;margin-top:6px;color:var(--accent);font-size:13px;font-weight:800;}
   .gwh2-deals{grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:16px;}
+  .gwh2-season{justify-content:center;min-height:0;aspect-ratio:960 / 380;}
+  .gwh2-season-shade{background:linear-gradient(90deg,rgba(5,8,16,.95) 0%,rgba(5,8,16,.8) 38%,rgba(5,8,16,.2) 68%,rgba(5,8,16,0) 100%);}
+  .gwh2-season-text{padding:28px 34px;max-width:52%;}
+  .gwh2-season-title{font-size:30px;}
+  .gwh2-season-pause{top:auto;bottom:14px;right:14px;}
   .gwh-compact-how-grid{grid-template-columns:repeat(3,minmax(0,1fr));}
   .gwh-email-row{grid-template-columns:minmax(0,1fr) auto;}
   .gwh-business-banner-inner{flex-direction:row;align-items:center;justify-content:space-between;}

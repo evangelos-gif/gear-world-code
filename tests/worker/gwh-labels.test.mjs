@@ -73,7 +73,7 @@ test('search labels: the Hub folder has only allowed files, and the baseline nam
   for (const f of ['app.js', 'translations.js', 'index.html', 'hub-sgw.jpg']) assert.ok(allow.includes(f), f);
   const base = read('live-baseline.txt').split('\n').filter(l => l && !l.startsWith('#')).map(l => l.split(' | ')[0]);
   // The 3 new files of the Hub V2 (tools/gwh-hub-v2.ps1) are not live yet: they enter the baseline after its live step.
-  const notLiveYet = ['hub-v2.css', 'hub-v2.js', 'hub-deals.json'];
+  const notLiveYet = ['hub-v2.css', 'hub-v2.js', 'hub-deals.json', ...['halloween', 'black-friday', 'christmas'].flatMap(n => [`seasonal/${n}.mp4`, `seasonal/${n}.jpg`])];
   for (const f of allow) if (!notLiveYet.includes(f)) assert.ok(base.includes(`public/${f}`), `baseline has public/${f}`);
   assert.ok(base.includes('worker.js') && base.includes('photo-search.js'));
 });
