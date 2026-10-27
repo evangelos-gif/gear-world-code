@@ -3,7 +3,8 @@
 // Opens the home page in a real browser (Chromium) on a small phone (320 px), a phone (390 px) and a desktop
 // (1366 px), and checks what the owner asked for on 27/10/2026:
 //   - the search is on the first screen of the phone, with the camera inside it and the big photo button
-//   - nothing moves by itself: no running animations, and the campaign slide stays the same until an arrow is used
+//   - nothing moves by itself: the season picture drops in once (ends within 3 s), and the slide stays the same
+//     until an arrow is used; with "reduce motion" nothing moves at all
 //   - the campaigns follow their dates (Black Friday only 27-30/11), the arrows go round
 //   - the gift finder asks only the Gear Worlds of the idea and the chosen price (no new database cost)
 //   - the deals come from hub-deals.json, keep their end date and link to a site page, never /go/ or /out/
@@ -125,8 +126,12 @@ try {
       check(small.length === 0, `${tag}: every button at least 44 px tall`, small.map(x => `${x.t}:${Math.round(x.h)}`).join(', '));
 
       // nothing moves by itself
+      // The campaign picture drops in once; after 3 s nothing moves any more, and nothing repeats.
+      const endless = await page.evaluate(() => document.getAnimations().filter(a => { const t = a.effect && a.effect.getComputedTiming(); return !t || t.iterations !== 1 || t.endTime > 3000; }).length);
+      check(endless === 0, `${tag}: every animation plays once and ends within 3 s`, `${endless} endless or long`);
+      await page.waitForTimeout(3000);
       const anims = await page.evaluate(() => document.getAnimations().filter(a => a.playState === 'running').length);
-      check(anims === 0, `${tag}: nothing moves or blinks by itself`, `${anims} running animations`);
+      check(anims === 0, `${tag}: after 3 s nothing moves or blinks by itself`, `${anims} running animations`);
       if (full) {
         const before = await page.getAttribute('.gwh2-slide', 'data-campaign');
         await page.clock.runFor(8000);
@@ -234,6 +239,20 @@ try {
     await context.close();
   }
 
+  // "Reduce motion" on the phone: the campaign picture is there, but nothing moves at all.
+  {
+    const context = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, reducedMotion: 'reduce' });
+    const page = await context.newPage();
+    await page.clock.setFixedTime(new Date('2026-10-28T12:00:00Z'));
+    await page.route('**/*', route => (new URL(route.request().url()).origin === base ? route.continue() : route.abort()));
+    await page.goto(base + '/', { waitUntil: 'load' });
+    await page.waitForTimeout(300);
+    const r = await page.evaluate(() => ({ art: !!document.querySelector('#gwh2Campaigns svg.gwh2-art'), running: document.getAnimations().filter(a => a.playState === 'running').length }));
+    check(r.art && r.running === 0, 'reduce motion: the Halloween picture shows and nothing moves', JSON.stringify(r));
+    await page.locator('#gwh2Campaigns').screenshot({ path: join(shotsDir, 'phone-halloween-reduce-motion.png') });
+    await context.close();
+  }
+
   // The campaigns follow their dates (UK days).
   const days = { '2026-10-28': 'halloween', '2026-11-20': 'black-friday-soon,christmas', '2026-11-30': 'black-friday,christmas', '2026-12-01': 'christmas', '2027-01-05': 'winter-sales,new-year-fitness', '2027-02-20': 'all-worlds' };
   for (const [day, want] of Object.entries(days)) {
@@ -245,6 +264,10 @@ try {
       if (i < n - 1) await page.click('[data-gwh2-slide="1"]');
     }
     check(seen.join(',') === want, `campaigns on ${day}`, seen.join(','));
+    const pic = await page.evaluate(() => { const a = document.querySelector('#gwh2Campaigns .gwh2-art'); return a ? a.tagName.toLowerCase() + (a.classList.contains('gwh2-mosaic') ? ':mosaic' : '') : ''; });
+    check(want === 'all-worlds' ? pic === 'div:mosaic' : pic === 'svg', `campaigns on ${day}: ${want === 'all-worlds' ? 'the 10 worlds side by side' : 'a drawn picture of the season'}`, pic);
+    await page.waitForTimeout(2500);
+    await page.locator('#gwh2Campaigns').screenshot({ path: join(shotsDir, `campaign-${day}.png`) });
     await context.close();
   }
   check(!asked.some(p => p.includes('gwh-hero.png')), 'the old 2.8 MB picture (gwh-hero.png) is never loaded');

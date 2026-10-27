@@ -113,15 +113,15 @@
   // owner's wish of 27/10/2026). Each one shows only between its first and last day (UK time). Nothing turns by itself.
   // Deals slides go to the e-mail sign-up when no deal runs. Add the next seasons here, with their dates.
   const CAMPAIGNS = [
-    { id: "halloween", start: "2026-10-20", end: "2026-10-31", image: "/hub-hgw.jpg", eyebrow: "halloweenEyebrow", title: "halloweenTitle", text: "halloweenText", cta: "bfCta", href: "#deals" },
-    { id: "black-friday", start: "2026-11-27", end: "2026-11-30", image: "/hub-tgw.jpg", eyebrow: "bfEyebrow", title: "bfTitle", text: "bfText", cta: "bfCta", href: "#deals" },
-    { id: "black-friday-soon", start: "2026-11-13", end: "2026-11-26", image: "/hub-wgw.jpg", eyebrow: "soonEyebrow", title: "soonTitle", text: "soonText", cta: "soonCta", href: "#newsletter" },
-    { id: "christmas", start: "2026-11-01", end: "2026-12-24", image: "/hub-kgw.jpg", eyebrow: "xmasEyebrow", title: "xmasTitle", text: "xmasText", cta: "xmasCta", href: "#gifts" },
-    { id: "winter-sales", start: "2026-12-26", end: "2027-01-15", image: "/hub-mgw.jpg", eyebrow: "salesEyebrow", title: "salesTitle", text: "bfText", cta: "bfCta", href: "#deals" },
-    { id: "new-year-fitness", start: "2027-01-01", end: "2027-01-31", image: "/hub-sgw.jpg", eyebrow: "fitnessEyebrow", title: "fitnessTitle", text: "fitnessText", cta: "fitnessCta", href: "https://sportygearworld.com/" },
-    { id: "valentines-day", start: "2027-02-01", end: "2027-02-14", image: "/hub-wgw.jpg", eyebrow: "valEyebrow", title: "valTitle", text: "xmasText", cta: "xmasCta", href: "#gifts" }
+    { id: "halloween", start: "2026-10-20", end: "2026-10-31", art: "halloween", eyebrow: "halloweenEyebrow", title: "halloweenTitle", text: "halloweenText", cta: "bfCta", href: "#deals" },
+    { id: "black-friday", start: "2026-11-27", end: "2026-11-30", art: "black-friday", eyebrow: "bfEyebrow", title: "bfTitle", text: "bfText", cta: "bfCta", href: "#deals" },
+    { id: "black-friday-soon", start: "2026-11-13", end: "2026-11-26", art: "black-friday-soon", eyebrow: "soonEyebrow", title: "soonTitle", text: "soonText", cta: "soonCta", href: "#newsletter" },
+    { id: "christmas", start: "2026-11-01", end: "2026-12-24", art: "christmas", eyebrow: "xmasEyebrow", title: "xmasTitle", text: "xmasText", cta: "xmasCta", href: "#gifts" },
+    { id: "winter-sales", start: "2026-12-26", end: "2027-01-15", art: "winter-sales", eyebrow: "salesEyebrow", title: "salesTitle", text: "bfText", cta: "bfCta", href: "#deals" },
+    { id: "new-year-fitness", start: "2027-01-01", end: "2027-01-31", art: "new-year-fitness", eyebrow: "fitnessEyebrow", title: "fitnessTitle", text: "fitnessText", cta: "fitnessCta", href: "https://sportygearworld.com/" },
+    { id: "valentines-day", start: "2027-02-01", end: "2027-02-14", art: "valentines-day", eyebrow: "valEyebrow", title: "valTitle", text: "xmasText", cta: "xmasCta", href: "#gifts" }
   ];
-  const FALLBACK_CAMPAIGN = { id: "all-worlds", start: "", end: "", image: "/hub-cgw.jpg", eyebrow: "allEyebrow", title: "allTitle", text: "allText", cta: "allCta", href: "#worlds" };
+  const FALLBACK_CAMPAIGN = { id: "all-worlds", start: "", end: "", art: "", eyebrow: "allEyebrow", title: "allTitle", text: "allText", cta: "allCta", href: "#worlds" };
 
   // Gift finder: each idea searches only the Gear Worlds that sell it (fewer requests, better matches).
   const GIFTS = [
@@ -193,7 +193,69 @@
     return `/api/search?${params.toString()}`;
   }
 
-  window.GearWorldHubV2 = { locales: LOCALES, strings: T, sameAsEnglish: SAME_AS_ENGLISH, campaigns: CAMPAIGNS, fallbackCampaign: FALLBACK_CAMPAIGN, gifts: GIFTS, budgets: BUDGETS, popular: POPULAR, activeCampaigns, activeDeals, giftSearchUrl, ukToday };
+  // ---------- campaign pictures: drawn here (SVG), one idea per season, no photos of our sites. Things drop in ONCE
+  // when the slide opens (about 2 seconds) and then stay still; nothing loops, and with "reduce motion" nothing moves.
+  // Colours without red/green (L35): orange, amber, purple, blue, pink, white.
+  const svgOpen = (id, top, bottom) => `<svg class="gwh2-art" viewBox="0 0 700 260" preserveAspectRatio="xMidYMid slice" aria-hidden="true" focusable="false"><defs><linearGradient id="${id}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${top}"/><stop offset="1" stop-color="${bottom}"/></linearGradient></defs><rect width="700" height="260" fill="url(#${id})"/>`;
+  // a thing that drops in from above, once (cls: gwh2-drop = with a small bounce, gwh2-fall = softly, with fade-in)
+  const once = (cls, delay, x, y, inner, scale) => `<g class="${cls} gwh2-d${delay}"><g transform="translate(${x} ${y})${scale ? ` scale(${scale})` : ""}">${inner}</g></g>`;
+  const stars = (list, color) => list.map(([x, y, r]) => `<circle cx="${x}" cy="${y}" r="${r}" fill="${color || "#ffffff"}" opacity=".75"/>`).join("");
+  const spider = (len) => `<line x1="0" y1="${-len}" x2="0" y2="-8" stroke="#d9d2f5" stroke-width="1.5"/><g stroke="#e9e4ff" stroke-width="2.4" fill="none" stroke-linecap="round"><path d="M-4 -2 q-12 -12 -22 -6"/><path d="M-5 1 q-14 -3 -24 4"/><path d="M-5 4 q-12 5 -19 15"/><path d="M-3 6 q-8 9 -11 19"/><path d="M4 -2 q12 -12 22 -6"/><path d="M5 1 q14 -3 24 4"/><path d="M5 4 q12 5 19 15"/><path d="M3 6 q8 9 11 19"/></g><circle cy="-6" r="6" fill="#e9e4ff"/><ellipse cy="5" rx="9" ry="10" fill="#e9e4ff"/><circle cx="-2.5" cy="-7" r="1.6" fill="#3a1d5c"/><circle cx="2.5" cy="-7" r="1.6" fill="#3a1d5c"/>`;
+  const ghost = `<path d="M-28 34 V-4 a28 28 0 0 1 56 0 V34 l-9 -9 l-9.5 9 l-9.5 -9 l-9.5 9 l-9.5 -9 Z" fill="#f4f1ff"/><ellipse cx="-10" cy="-2" rx="4.5" ry="6.5" fill="#2a1650"/><ellipse cx="10" cy="-2" rx="4.5" ry="6.5" fill="#2a1650"/><ellipse cy="14" rx="5" ry="6" fill="#2a1650"/>`;
+  const pumpkin = `<rect x="-3.5" y="-36" width="7" height="12" rx="2.5" fill="#7a5230"/><ellipse rx="36" ry="27" fill="#ff8a1f"/><ellipse cx="-15" rx="15" ry="26" fill="#f27a10"/><ellipse cx="15" rx="15" ry="26" fill="#f27a10"/><ellipse rx="10" ry="27" fill="#ff9a3a"/><path d="M-17 -6 h10 l-5 -9 Z M7 -6 h10 l-5 -9 Z" fill="#ffd36b"/><path d="M-18 6 q18 16 36 0 q-18 7 -36 0 Z" fill="#ffd36b"/>`;
+  const bat = `<path d="M0 0 q-6 -8 -16 -6 q4 3 3 7 q-6 -2 -11 2 q8 1 10 6 q8 -4 14 -2 q6 -2 14 2 q2 -5 10 -6 q-5 -4 -11 -2 q-1 -4 3 -7 q-10 -2 -16 6 Z" fill="#120a24"/>`;
+  const tag = (fill, text) => `<path d="M0 0 h64 l20 21 l-20 21 h-64 a8 8 0 0 1 -8 -8 v-26 a8 8 0 0 1 8 -8 Z" fill="${fill}"/><circle cx="66" cy="21" r="4.5" fill="#0b1626"/><text x="28" y="31" text-anchor="middle" font-family="Arial, sans-serif" font-size="28" font-weight="900" fill="#06111f">${text}</text>`;
+  const bag = (fill, handle) => `<path d="M-14 -40 q0 -18 14 -18 q14 0 14 18" fill="none" stroke="${handle}" stroke-width="5" stroke-linecap="round"/><path d="M-34 -42 h68 l6 62 h-80 Z" fill="${fill}"/><rect x="-40" y="14" width="80" height="6" fill="#000" opacity=".12"/>`;
+  const heart = (fill) => `<path d="M0 10 C0 -4 -18 -6 -18 7 C-18 19 0 27 0 34 C0 27 18 19 18 7 C18 -6 0 -4 0 10 Z" fill="${fill}"/>`;
+  const snow = (r) => `<g stroke="#ffffff" stroke-width="${r / 3}" stroke-linecap="round"><path d="M0 ${-r} V${r} M${-r} 0 H${r} M${-r * .7} ${-r * .7} L${r * .7} ${r * .7} M${-r * .7} ${r * .7} L${r * .7} ${-r * .7}"/></g>`;
+  const giftBox = (box, ribbon) => `<rect x="-30" y="-24" width="60" height="48" rx="4" fill="${box}"/><rect x="-34" y="-34" width="68" height="14" rx="3" fill="${box}"/><rect x="-5" y="-34" width="10" height="58" fill="${ribbon}"/><path d="M0 -34 q-20 -18 -22 -4 q2 6 22 4 q20 2 22 -4 q-2 -14 -22 4" fill="${ribbon}"/>`;
+
+  const ART = {
+    halloween: svgOpen("gwh2ArtHw", "#140a2e", "#3d1e60") +
+      stars([[60, 30, 1.6], [150, 60, 1.2], [230, 24, 1.8], [300, 70, 1.1], [610, 150, 1.3], [660, 40, 1.6], [420, 30, 1.2]]) +
+      `<circle cx="520" cy="80" r="70" fill="#ffe08a" opacity=".12"/><circle cx="520" cy="80" r="44" fill="#ffe7a3"/><circle cx="506" cy="70" r="7" fill="#f2d58a"/><circle cx="534" cy="94" r="5" fill="#f2d58a"/>` +
+      `<g transform="translate(470 60)">${bat}</g><g transform="translate(585 112) scale(.75)">${bat}</g>` +
+      `<path d="M0 226 Q120 204 240 222 T480 220 T700 226 V260 H0 Z" fill="#0e0720"/>` +
+      once("gwh2-fall", 2, 255, 128, ghost) + once("gwh2-fall", 4, 405, 150, ghost, ".75") +
+      once("gwh2-drop", 1, 110, 74, spider(240)) + once("gwh2-drop", 3, 330, 52, spider(240), ".85") + once("gwh2-drop", 5, 625, 104, spider(260), ".9") +
+      `<g transform="translate(175 214)">${pumpkin}</g><g transform="translate(555 220) scale(.72)">${pumpkin}</g><g transform="translate(250 228) scale(.5)">${pumpkin}</g></svg>`,
+    "black-friday": svgOpen("gwh2ArtBf", "#05070c", "#161c2a") +
+      `<polygon points="0,190 700,70 700,118 0,238" fill="#ffb400" opacity=".12"/>` +
+      stars([[80, 40, 1.5], [200, 30, 1.2], [520, 36, 1.4], [640, 58, 1.2]], "#ffb400") +
+      once("gwh2-fall", 1, 96, 40, tag("#ffb400", "%")) + once("gwh2-fall", 3, 520, 26, tag("#f5f7fb", "%"), ".85") + once("gwh2-fall", 5, 600, 120, tag("#6cb6ff", "%"), ".7") +
+      once("gwh2-drop", 2, 270, 226, bag("#ffb400", "#ffd36b")) + once("gwh2-drop", 4, 360, 230, bag("#6cb6ff", "#cfe3ff"), ".9") + once("gwh2-drop", 6, 440, 232, bag("#f5f7fb", "#c9d3e3"), ".78") + `</svg>`,
+    "black-friday-soon": svgOpen("gwh2ArtSoon", "#0b1430", "#1d2a58") +
+      stars([[60, 50, 1.4], [640, 40, 1.6], [580, 210, 1.2], [110, 210, 1.2]], "#ffb400") +
+      once("gwh2-drop", 1, 250, 40, `<rect x="0" y="0" width="130" height="150" rx="14" fill="#f5f7fb"/><rect x="0" y="0" width="130" height="40" rx="14" fill="#ffb400"/><rect x="0" y="26" width="130" height="14" fill="#ffb400"/><circle cx="34" cy="0" r="6" fill="#0b1626"/><circle cx="96" cy="0" r="6" fill="#0b1626"/><text x="65" y="122" text-anchor="middle" font-family="Arial, sans-serif" font-size="76" font-weight="900" fill="#0b1626">27</text>`) +
+      once("gwh2-drop", 3, 420, 78, `<rect x="0" y="0" width="150" height="100" rx="10" fill="#6cb6ff"/><path d="M6 8 L75 58 L144 8" fill="none" stroke="#0b1430" stroke-width="6" stroke-linejoin="round"/>`) +
+      once("gwh2-fall", 5, 120, 120, tag("#ffb400", "%"), ".8") + `</svg>`,
+    christmas: svgOpen("gwh2ArtXmas", "#0c1a3a", "#1f4078") +
+      stars([[70, 30, 1.4], [190, 50, 1.1], [560, 26, 1.5], [650, 70, 1.2]]) +
+      `<path d="M0 222 Q175 200 350 214 T700 210 V260 H0 Z" fill="#e8f0ff"/>` +
+      `<g transform="translate(350 40)"><path d="M0 0 L60 70 H34 L80 124 H50 L96 178 H-96 L-50 124 H-80 L-34 70 H-60 Z" fill="#cfe3ff"/><rect x="-12" y="178" width="24" height="18" fill="#7a5230"/><polygon points="0,-22 6,-6 22,-6 9,4 14,20 0,10 -14,20 -9,4 -22,-6 -6,-6" fill="#ffd36b"/><circle cx="-20" cy="96" r="7" fill="#ffb400"/><circle cx="26" cy="138" r="7" fill="#6cb6ff"/><circle cx="-42" cy="152" r="7" fill="#ffb400"/><circle cx="14" cy="64" r="6" fill="#6cb6ff"/><circle cx="50" cy="160" r="6" fill="#ffb400"/></g>` +
+      once("gwh2-drop", 2, 205, 200, giftBox("#ffb400", "#0b57b5")) + once("gwh2-drop", 4, 500, 204, giftBox("#6cb6ff", "#ffb400"), ".85") +
+      once("gwh2-fall", 1, 90, 90, snow(9)) + once("gwh2-fall", 3, 160, 150, snow(6)) + once("gwh2-fall", 5, 600, 110, snow(9)) + once("gwh2-fall", 2, 640, 180, snow(6)) + once("gwh2-fall", 4, 470, 60, snow(7)) + once("gwh2-fall", 6, 250, 70, snow(5)) + `</svg>`,
+    "winter-sales": svgOpen("gwh2ArtSales", "#0e2a4a", "#1d4f82") +
+      `<path d="M0 226 Q175 210 350 222 T700 218 V260 H0 Z" fill="#e8f0ff"/>` +
+      once("gwh2-fall", 1, 100, 70, snow(10)) + once("gwh2-fall", 3, 610, 60, snow(12)) + once("gwh2-fall", 5, 220, 160, snow(7)) + once("gwh2-fall", 2, 520, 170, snow(7)) +
+      once("gwh2-drop", 2, 270, 60, tag("#ffb400", "%")) + once("gwh2-drop", 4, 390, 104, tag("#f5f7fb", "%"), ".9") +
+      once("gwh2-drop", 6, 350, 228, bag("#6cb6ff", "#cfe3ff"), ".85") + `</svg>`,
+    "new-year-fitness": svgOpen("gwh2ArtFit", "#0b1626", "#163057") +
+      once("gwh2-fall", 1, 80, 40, `<rect width="10" height="18" rx="2" fill="#ffb400" transform="rotate(20)"/>`) + once("gwh2-fall", 3, 160, 80, `<rect width="10" height="18" rx="2" fill="#6cb6ff" transform="rotate(-25)"/>`) + once("gwh2-fall", 2, 560, 50, `<rect width="10" height="18" rx="2" fill="#f5f7fb" transform="rotate(35)"/>`) + once("gwh2-fall", 5, 640, 110, `<rect width="10" height="18" rx="2" fill="#ffb400" transform="rotate(-10)"/>`) + once("gwh2-fall", 4, 470, 30, `<circle r="5" fill="#6cb6ff"/>`) + once("gwh2-fall", 6, 230, 34, `<circle r="5" fill="#ffb400"/>`) +
+      once("gwh2-drop", 2, 190, 176, `<rect x="-70" y="-6" width="140" height="12" rx="6" fill="#c9d3e3"/><rect x="-70" y="-30" width="20" height="60" rx="5" fill="#ffb400"/><rect x="-92" y="-22" width="20" height="44" rx="5" fill="#ffb400"/><rect x="50" y="-30" width="20" height="60" rx="5" fill="#ffb400"/><rect x="72" y="-22" width="20" height="44" rx="5" fill="#ffb400"/>`) +
+      once("gwh2-drop", 4, 470, 150, `<circle r="44" fill="none" stroke="#f5f7fb" stroke-width="8"/><rect x="-8" y="-62" width="16" height="12" rx="3" fill="#f5f7fb"/><path d="M0 0 V-28 M0 0 L20 12" stroke="#ffb400" stroke-width="6" stroke-linecap="round"/>`) +
+      once("gwh2-drop", 6, 365, 228, `<path d="M-60 -10 q4 -28 30 -30 l10 14 q16 10 46 14 q30 4 34 18 v8 h-120 Z" fill="#6cb6ff"/><rect x="-62" y="2" width="124" height="10" rx="5" fill="#f5f7fb"/>`, ".8") + `</svg>`,
+    "valentines-day": svgOpen("gwh2ArtVal", "#24082e", "#4f1446") +
+      stars([[70, 40, 1.4], [620, 30, 1.6], [560, 200, 1.2]], "#ffd1e8") +
+      once("gwh2-fall", 1, 110, 50, heart("#ff7ab6")) + once("gwh2-fall", 3, 200, 120, heart("#ffb400"), ".7") + once("gwh2-fall", 5, 560, 60, heart("#f5f7fb"), ".8") + once("gwh2-fall", 2, 630, 140, heart("#ff7ab6"), ".6") + once("gwh2-fall", 4, 470, 24, heart("#ffb400"), ".5") +
+      once("gwh2-drop", 2, 300, 190, giftBox("#ff7ab6", "#f5f7fb")) + once("gwh2-drop", 4, 410, 150, `<rect x="0" y="0" width="120" height="80" rx="8" fill="#f5f7fb"/><path d="M4 6 L60 46 L116 6" fill="none" stroke="#4f1446" stroke-width="5" stroke-linejoin="round"/><g transform="translate(60 52) scale(.5)">${heart("#ff7ab6")}</g>`) + `</svg>`
+  };
+  // Between seasons: the 10 Gear Worlds side by side (their own pictures are right for "choose a world").
+  const WORLD_PICTURES = ["cgw", "mgw", "wgw", "kgw", "hgw", "ggw", "tgw", "agw", "vgw", "sgw"];
+  const mosaic = () => `<div class="gwh2-art gwh2-mosaic" aria-hidden="true">${WORLD_PICTURES.map(w => `<img src="/hub-${w}.jpg" alt="" width="700" height="420" loading="lazy" decoding="async">`).join("")}</div>`;
+  const artFor = c => ART[c.art] || mosaic();
+
+  window.GearWorldHubV2 = { art: ART, artFor, locales: LOCALES, strings: T, sameAsEnglish: SAME_AS_ENGLISH, campaigns: CAMPAIGNS, fallbackCampaign: FALLBACK_CAMPAIGN, gifts: GIFTS, budgets: BUDGETS, popular: POPULAR, activeCampaigns, activeDeals, giftSearchUrl, ukToday };
 
   // ------------------------------------------------------------ page
   const $ = (selector, root) => (root || document).querySelector(selector);
@@ -266,7 +328,7 @@
     const many = list.length > 1;
     box.innerHTML = `
       <div class="gwh2-slide" data-campaign="${esc(c.id)}">
-        <img class="gwh2-slide-img" src="${esc(c.image)}" alt="" width="700" height="420" decoding="async">
+        ${artFor(c)}
         <div class="gwh2-slide-body">
           <span class="gwh2-eyebrow">${esc(tx(c.eyebrow))}</span>
           <strong class="gwh2-slide-title">${esc(title)}</strong>

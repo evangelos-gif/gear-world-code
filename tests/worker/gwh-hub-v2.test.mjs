@@ -82,7 +82,8 @@ test('hub v2: campaigns follow their UK dates; Black Friday only 27-30 November;
     assert.match(c.end, /^\d{4}-\d{2}-\d{2}$/, c.id);
     assert.ok(c.start <= c.end, c.id);
     assert.ok(/^(#[a-z]+|https:\/\/[a-z]+gearworld\.com\/)$/.test(c.href), `${c.id}: a part of the page or a Gear World site`);
-    assert.ok(existsSync(new URL(`public${c.image}`, ROOT)), `${c.id}: its picture is in the Hub folder`);
+    assert.ok(typeof h.art[c.art] === 'string' && h.art[c.art].startsWith('<svg class="gwh2-art"') && h.art[c.art].endsWith('</svg>'), `${c.id}: its own drawn picture (no photo of our sites)`);
+    assert.ok(!/<img|\.jpg|\.png|href=/.test(h.art[c.art]), `${c.id}: the picture is drawn, not a photo or a link`);
   }
 });
 
@@ -153,8 +154,8 @@ test('hub v2: the page keeps every id and class the other scripts need, and load
   }
   assert.match(html, /<body class="gwh2" data-gwh-compact-v2="true">/);
   assert.match(html, /<div class="hero-copy">\s*<span class="eyebrow">/);
-  assert.match(html, /<link rel="stylesheet" href="\/hub-v2\.css\?v=20261027-hub2">/);
-  assert.match(html, /<script src="\/hub-v2\.js\?v=20261027-hub3" defer><\/script>/);
+  assert.match(html, /<link rel="stylesheet" href="\/hub-v2\.css\?v=20261027-hub4">/);
+  assert.match(html, /<script src="\/hub-v2\.js\?v=20261027-hub4" defer><\/script>/);
   assert.ok(html.indexOf('/gear-world-camera.js?v=') < html.indexOf('/hub-v2.js?v='), 'hub-v2.js after the camera script');
   assert.ok(!html.includes('/styles.css'), 'the old styles.css is not loaded');
   assert.ok(!html.includes('gwh-hero.png'), 'the 2.8 MB picture is gone from the page');
@@ -181,11 +182,16 @@ test('hub v2: no red or green (L35), nothing that moves by itself, buttons at le
       assert.ok(!(r > 150 && g < 90 && b < 90), `${file}: ${c} is not red`);
       assert.ok(!(g > 150 && r < 110 && b < 110), `${file}: ${c} is not green`);
     }
-    assert.ok(!/@keyframes|setInterval\(/.test(code), `${file}: no animation and no timer that changes the page`);
+    assert.ok(!/setInterval\(|requestAnimationFrame\(|infinite/.test(code), `${file}: no timer or endless animation that changes the page`);
   }
+  // Campaign pictures: things drop in ONCE (at most 2 s, at most 1 s late), then stay still; none with "reduce motion".
+  const css = read('public/hub-v2.css');
+  assert.deepEqual([...css.matchAll(/@keyframes\s+([A-Za-z0-9]+)/g)].map(m => m[1]).sort(), ['gwh2Drop', 'gwh2Fall']);
+  for (const m of css.matchAll(/animation:([a-zA-Z0-9]+) ([0-9.]+)s/g)) assert.ok(Number(m[2]) <= 2, `${m[1]} lasts at most 2 s`);
+  for (const m of css.matchAll(/animation-delay:([0-9.]+)s/g)) assert.ok(Number(m[1]) <= 1, 'starts within 1 s');
+  assert.match(css, /prefers-reduced-motion:reduce\)\{\s*\*\{[^}]*animation:none !important;/);
   const js = read('public/hub-v2.js');
   assert.ok(!/setTimeout\([^)]*slide/.test(js), 'slides change only with the arrows');
-  const css = read('public/hub-v2.css');
   assert.match(css, /\.gwh2-chip\{min-height:44px;/);
   assert.match(css, /\.gwh2-round\{[^}]*width:44px;height:44px;/);
   assert.match(css, /\.gwh-business-link\{[^}]*animation:none !important;/);
