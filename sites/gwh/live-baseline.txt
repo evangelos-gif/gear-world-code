@@ -1,10 +1,11 @@
 # Gear World Hub: the files that run live now, with their sha256.
-# version: search labels (commit b3b86f7, live since 26/10/2026 19:40, tools/gwh-search-labels.ps1)
+# version: poster scans (commit 22a7e42, live since 27/10/2026 21:50, tools/poster-setup.ps1)
 # Checked against the PC (C:\Users\vagge\gear-world-hub) and gearworldhub.com by tools/gwh-photo.ps1 and tools/gwh-search-labels.ps1,
 # so a deploy never undoes a change made somewhere else. Update this file after every live deploy of the Hub.
-# Earlier: photo search v2 + Sport card (SGW, gwh-sgw-link.ps1, checked 26/10/2026 16:22); photo search v2 (2c7ac37, 25/10/2026 09:54); photo search v1 (fc44f6f, 24/10/2026 17:19); before the photo search: commit d1c300d (24/10/2026).
+# Earlier: search labels (b3b86f7, 26/10/2026 19:40); photo search v2 + Sport card (SGW, gwh-sgw-link.ps1, checked 26/10/2026 16:22); photo search v2 (2c7ac37, 25/10/2026 09:54); photo search v1 (fc44f6f, 24/10/2026 17:19); before the photo search: commit d1c300d (24/10/2026).
 # path | bytes | sha256 | kind
 photo-search.js | 13896 | 2acb422e58c287bd243592a1c197e7e9675b990b70a6144f682ff369d4862a30 | file
+poster-scan.js | 4467 | 4263d662787de1e5b98f838c6ba6b6b903517b6b94e29de370082e3e3a1ccba5 | file
 public/affiliate-disclosure/index.html | 2324 | 338f4d60bb57182cf0d33795561caddd9d5cad62bb77e7ffab778dfa79a5a20d | file
 public/analytics.js | 8449 | 803495489351be5636f8fd4a8c8bc4d794983214fc651a1f6c9a91551c552ff2 | file
 public/app.js | 10487 | b4da4e9697ee18f1ad4c44ab1c76ec5593eeb2a3921903295d7ed4c3852bb260 | file
@@ -31,4 +32,4 @@ public/privacy/index.html | 7735 | 495bf7518b10707f96755c9d3d6c3a8be8694a5631ed2
 public/styles.css | 30248 | 3ee1705f5ee3eda295e6cd5f59bb2a2497050b84b38307abeafe4170dc302f31 | file
 public/terms/index.html | 2782 | 4ad51d9397d5171cbc73da00175aa79954300c8366f079beef0a9c3ca45050e3 | file
 public/translations.js | 59802 | 5e956f583984f0f9c18ff9ddee336a2f64f64790f9ddd7b66a2ce83aaaa474a9 | file
-worker.js | 29328 | 1aa5a9ee100a3bc5f044946b00d9a7753ee9d7418c7e23bd35fbdafa5b0af742 | file
+worker.js | 29732 | 4e5941bcf1082fbc906097f093464d1d7da63b8d87cf5b078b33163000e4c7e4 | file
