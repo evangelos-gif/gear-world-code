@@ -56,15 +56,22 @@ test('hub v2: every text in the 11 languages of the Hub, translated, with the sa
 test('hub v2: campaigns follow their UK dates; Black Friday only 27-30 November; nothing outside the dates', () => {
   const h = hub();
   const ids = day => h.activeCampaigns(at(day)).map(c => c.id).join(',');
-  assert.equal(ids('2026-10-28'), 'sporty-gear-world');
-  assert.equal(ids('2026-11-12'), 'christmas,sporty-gear-world');
-  assert.equal(ids('2026-11-13'), 'black-friday-soon,christmas,sporty-gear-world');
-  assert.equal(ids('2026-11-26'), 'black-friday-soon,christmas,sporty-gear-world');
-  assert.equal(ids('2026-11-27'), 'black-friday,christmas,sporty-gear-world');
-  assert.equal(ids('2026-11-30'), 'black-friday,christmas,sporty-gear-world');
-  assert.equal(ids('2026-12-01'), 'christmas,sporty-gear-world');
-  assert.equal(ids('2026-12-25'), 'sporty-gear-world');
-  assert.equal(ids('2027-01-01'), 'all-worlds', 'without campaigns: the general slide');
+  assert.equal(ids('2026-10-28'), 'halloween');
+  assert.equal(ids('2026-10-31'), 'halloween');
+  assert.equal(ids('2026-11-12'), 'christmas');
+  assert.equal(ids('2026-11-13'), 'black-friday-soon,christmas');
+  assert.equal(ids('2026-11-26'), 'black-friday-soon,christmas');
+  assert.equal(ids('2026-11-27'), 'black-friday,christmas');
+  assert.equal(ids('2026-11-30'), 'black-friday,christmas');
+  assert.equal(ids('2026-12-01'), 'christmas');
+  assert.equal(ids('2026-12-25'), 'all-worlds');
+  assert.equal(ids('2026-12-26'), 'winter-sales');
+  assert.equal(ids('2027-01-05'), 'winter-sales,new-year-fitness');
+  assert.equal(ids('2027-02-14'), 'valentines-day');
+  assert.equal(ids('2027-02-15'), 'all-worlds', 'without campaigns: the general slide');
+  // Shopping seasons only: no slide about a new site (the owner, 27/10/2026).
+  assert.ok(!h.campaigns.some(c => /new-?site|gear-world$|sporty-gear-world/.test(c.id)));
+  for (const c of h.campaigns) for (const k of ['eyebrow', 'title', 'text']) if (c[k]) assert.ok(!/NEW GEAR WORLD|ΝΕΟ GEAR WORLD/i.test(h.strings[c[k]][0] + h.strings[c[k]][1]), `${c.id}: no "new Gear World" text`);
   // 30/11 at 23:30 in London is still Black Friday week; 1/12 00:30 London is not.
   assert.ok(h.activeCampaigns(Date.parse('2026-11-30T23:30:00Z')).some(c => c.id === 'black-friday'));
   assert.ok(!h.activeCampaigns(Date.parse('2026-12-01T00:30:00Z')).some(c => c.id === 'black-friday'));
@@ -147,7 +154,7 @@ test('hub v2: the page keeps every id and class the other scripts need, and load
   assert.match(html, /<body class="gwh2" data-gwh-compact-v2="true">/);
   assert.match(html, /<div class="hero-copy">\s*<span class="eyebrow">/);
   assert.match(html, /<link rel="stylesheet" href="\/hub-v2\.css\?v=20261027-hub2">/);
-  assert.match(html, /<script src="\/hub-v2\.js\?v=20261027-hub2" defer><\/script>/);
+  assert.match(html, /<script src="\/hub-v2\.js\?v=20261027-hub3" defer><\/script>/);
   assert.ok(html.indexOf('/gear-world-camera.js?v=') < html.indexOf('/hub-v2.js?v='), 'hub-v2.js after the camera script');
   assert.ok(!html.includes('/styles.css'), 'the old styles.css is not loaded');
   assert.ok(!html.includes('gwh-hero.png'), 'the 2.8 MB picture is gone from the page');

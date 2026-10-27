@@ -133,10 +133,10 @@ try {
         const after = await page.getAttribute('.gwh2-slide', 'data-campaign');
         check(before === after, `${tag}: the campaign slide stays the same without the arrows (8 s)`, `${before} -> ${after}`);
         const seen = [before];
-        for (let i = 0; i < 3; i++) { await page.click('[data-gwh2-slide="1"]'); seen.push(await page.getAttribute('.gwh2-slide', 'data-campaign')); }
-        check(seen.join(',') === 'black-friday,christmas,sporty-gear-world,black-friday', `${tag}: the arrows go through the 3 campaigns of 28/11 and round`, seen.join(','));
+        for (let i = 0; i < 2; i++) { await page.click('[data-gwh2-slide="1"]'); seen.push(await page.getAttribute('.gwh2-slide', 'data-campaign')); }
+        check(seen.join(',') === 'black-friday,christmas,black-friday', `${tag}: the arrows go through the 2 campaigns of 28/11 and round`, seen.join(','));
         await page.click('[data-gwh2-slide="-1"]');
-        check(await page.getAttribute('.gwh2-slide', 'data-campaign') === 'sporty-gear-world', `${tag}: the back arrow works`);
+        check(await page.getAttribute('.gwh2-slide', 'data-campaign') === 'christmas', `${tag}: the back arrow works`);
       }
 
       // the 10 worlds, translated by translations.js
@@ -235,7 +235,7 @@ try {
   }
 
   // The campaigns follow their dates (UK days).
-  const days = { '2026-10-28': 'sporty-gear-world', '2026-11-20': 'black-friday-soon,christmas,sporty-gear-world', '2026-11-30': 'black-friday,christmas,sporty-gear-world', '2026-12-01': 'christmas,sporty-gear-world', '2027-01-05': 'all-worlds' };
+  const days = { '2026-10-28': 'halloween', '2026-11-20': 'black-friday-soon,christmas', '2026-11-30': 'black-friday,christmas', '2026-12-01': 'christmas', '2027-01-05': 'winter-sales,new-year-fitness', '2027-02-20': 'all-worlds' };
   for (const [day, want] of Object.entries(days)) {
     const { context, page } = await openPage(browser, viewports[0], 'en-GB', { day });
     const seen = [];
