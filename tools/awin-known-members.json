@@ -1,0 +1,8 @@
+{
+  "_comment": "Awin programmes that have products on the sites but no product feed in the Awin feed list, so tools/awin-membership-check cannot see their membership. The owner opened each programme's page in Awin and saw the status below (lessons L79). Check again if a programme's clicks stop earning; remove an entry if the page no longer says Joined.",
+  "members": [
+    { "id": 48473, "name": "GS Workwear", "status": "joined", "confirmed": "2026-10-27", "source": "owner's screenshot of the Awin programme page" },
+    { "id": 125248, "name": "Finediam", "status": "joined", "confirmed": "2026-10-27", "source": "owner's screenshot of the Awin programme page" },
+    { "id": 19471, "name": "Juicy Couture UK", "status": "joined", "confirmed": "2026-10-27", "source": "owner's screenshot of the Awin programme page" }
+  ]
+}

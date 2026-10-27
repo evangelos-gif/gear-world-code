@@ -11,7 +11,9 @@
        Windows user in <home>\gear-world-secrets\awin-feed-key.dat; asked once if it is not there).
   Then says for every programme: member with a fresh feed (ΕΝΤΑΞΕΙ), member with a feed older than 30 days (ΠΡΟΣΟΧΗ),
   in the list but not a member or not in the list at all (ΠΡΟΒΛΗΜΑ: the clicks earn nothing), and broken links.
-  Each programme that is not fine gets its Awin page (https://ui.awin.com/merchant-profile/<id>).
+  Each programme that is not fine gets its Awin page (https://ui.awin.com/awin/affiliate/3057233/merchant-profile/<id>).
+  A programme with no feed in the list is ΠΡΟΣΟΧΗ, not ΠΡΟΒΛΗΜΑ: the list only has programmes with a feed. Programmes the
+  owner saw as Joined on their Awin page are kept in tools/awin-known-members.json (lessons L79).
   No product link is ever opened (no clicks). Nothing is hidden or changed: that is a separate step with its own approval.
   Report: <home>\gear-world-reports\AWIN_MEMBERSHIP_<time>.txt (also copied to the clipboard). The key is never written.
 #>

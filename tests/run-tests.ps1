@@ -1483,7 +1483,8 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         $amRep = [System.IO.File]::ReadAllText((@(Get-ChildItem -LiteralPath $amOut -Filter 'AWIN_MEMBERSHIP_*.txt')[0]).FullName)
         Check ($amRep.Contains('ΕΝΤΑΞΕΙ: Coes (Awin 30645)')) 'membership check: a member with a fresh feed is fine'
         Check ($amRep.Contains('ΠΡΟΒΛΗΜΑ: Finediam (Awin 125248)') -and $amRep.Contains('δεν είσαι μέλος')) 'membership check: not a member is a problem'
-        Check ($amRep.Contains('ΠΡΟΒΛΗΜΑ: Juicy Couture UK (Awin 19471)') -and $amRep.Contains('3 links χωρίς διεύθυνση προϊόντος')) 'membership check: not in the list and broken links'
+        # L79: not in the feed list, but the owner saw "Joined" on its Awin page (tools/awin-known-members.json): fine, links still counted.
+        Check ($amRep.Contains('ΕΝΤΑΞΕΙ: Juicy Couture UK (Awin 19471)') -and $amRep.Contains('«Joined» στη σελίδα του Awin') -and $amRep.Contains('3 links χωρίς διεύθυνση προϊόντος')) 'membership check: a confirmed member without a feed, and broken links'
         Check ($amRep.Contains('MGW: Tooled Up (7)')) 'membership check: a plain shop link is listed'
         Check ($amRep.Contains('merchant-profile/125248')) 'membership check: the Awin page of a programme to check'
         $amList = [System.IO.File]::ReadAllText((@(Get-ChildItem -LiteralPath $amOut -Recurse -Filter 'awin-list.csv')[0]).FullName)

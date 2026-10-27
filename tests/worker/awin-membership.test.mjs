@@ -7,7 +7,7 @@ import { mkdtempSync, writeFileSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { execFileSync } from 'node:child_process';
-import { advertiserOf, readAwinList, planMembership, renderMembershipReport } from '../../tools/awin-membership-plan.mjs';
+import { readKnownMembers, advertiserOf, readAwinList, planMembership, renderMembershipReport } from '../../tools/awin-membership-plan.mjs';
 
 const cread = (id, ued) => `https://www.awin1.com/cread.php?awinmid=${id}&awinaffid=3057233&ued=${ued}`;
 
@@ -37,7 +37,7 @@ function sites() {
   ];
 }
 
-test('L61: member and fresh = ΕΝΤΑΞΕΙ; not a member or not in the list = ΠΡΟΒΛΗΜΑ; stale feed = ΠΡΟΣΟΧΗ; broken links counted', async () => {
+test('L61/L79: member and fresh = ΕΝΤΑΞΕΙ; not a member = ΠΡΟΒΛΗΜΑ; not in the list or stale feed = ΠΡΟΣΟΧΗ; broken links counted', async () => {
   const dir = mkdtempSync(join(tmpdir(), 'awin-list-'));
   writeFileSync(join(dir, 'list.csv'), '﻿' + LIST);
   const list = await readAwinList(join(dir, 'list.csv'));
@@ -50,19 +50,38 @@ test('L61: member and fresh = ΕΝΤΑΞΕΙ; not a member or not in the list = 
   assert.equal(by['122382'].total, 589);
   assert.equal(by['125248'].level, 'red');
   assert.match(by['125248'].reason, /δεν είσαι μέλος \(not joined\)/);
-  assert.equal(by['19471'].level, 'red');
-  assert.match(by['19471'].reason, /δεν υπάρχει στη λίστα/);
+  // L79: the feed list only has programmes with a feed; Juicy Couture UK was "Joined" on its Awin page (27 Oct 2026).
+  assert.equal(by['19471'].level, 'yellow');
+  assert.match(by['19471'].reason, /δεν υπάρχει στη λίστα feeds του Awin, που έχει μόνο προγράμματα με feed/);
   assert.equal(by['19471'].bad, 43);
   assert.equal(by['56439'].level, 'yellow', 'Red Gorilla: member, feed from 15 May');
   assert.deepEqual(plan.plain.map(x => x.retailer), ['Tooled Up']);
-  assert.deepEqual(plan.programmes.map(p => p.level), ['red', 'red', 'yellow', 'green', 'green'], 'problems first');
+  assert.deepEqual(plan.programmes.map(p => p.level), ['red', 'yellow', 'yellow', 'green', 'green'], 'problems first');
   const report = renderMembershipReport(plan);
-  assert.match(report, /Σύνολο: 2 🔴 ΠΡΟΒΛΗΜΑ · 1 🟡 ΠΡΟΣΟΧΗ · 1 με χαλασμένα links\. Ενεργά προϊόντα σε προγράμματα που δεν πληρώνουν: 310\./);
+  assert.match(report, /Σύνολο: 1 🔴 ΠΡΟΒΛΗΜΑ · 2 🟡 ΠΡΟΣΟΧΗ · 1 με χαλασμένα links\. Ενεργά προϊόντα σε προγράμματα που δεν πληρώνουν: 267\./);
   assert.match(report, /🔴 ΠΡΟΒΛΗΜΑ: Finediam \(Awin 125248\) \| MGW 267 \| δεν είσαι μέλος/);
-  assert.match(report, /https:\/\/ui\.awin\.com\/merchant-profile\/19471/);
+  assert.match(report, /https:\/\/ui\.awin\.com\/awin\/affiliate\/3057233\/merchant-profile\/19471/);
   assert.match(report, /43 links χωρίς διεύθυνση προϊόντος/);
   assert.match(report, /GGW: Tooled Up \(710\)/);
   assert.doesNotMatch(report, /merchant-profile\/30645/, 'no link for a programme that is fine');
+  // With the owner's confirmation (tools/awin-known-members.json) it is ΕΝΤΑΞΕΙ, and its broken links are still counted.
+  const known = { 19471: { id: 19471, status: 'joined', confirmed: '2026-10-27' } };
+  const plan2 = planMembership({ sites: sites(), list, known, now: new Date('2026-10-26T22:00:00Z') });
+  const j = plan2.programmes.find(p => p.id === '19471');
+  assert.equal(j.level, 'green');
+  assert.match(j.reason, /«Joined» στη σελίδα του Awin, 2026-10-27/);
+  assert.match(renderMembershipReport(plan2), /43 links χωρίς διεύθυνση προϊόντος/);
+  // The feed list still wins over the confirmation file: a programme the list says "not joined" stays ΠΡΟΒΛΗΜΑ.
+  const plan3 = planMembership({ sites: sites(), list, known: { 125248: { id: 125248, status: 'joined' } } });
+  assert.equal(plan3.programmes.find(p => p.id === '125248').level, 'red');
+});
+
+test('L79: the confirmed members file of the repo is valid and holds the three programmes seen as Joined on 27 Oct 2026', () => {
+  const known = readKnownMembers(join(process.cwd(), 'tools', 'awin-known-members.json'));
+  for (const id of ['48473', '125248', '19471']) {
+    assert.equal(known[id].status, 'joined', id);
+    assert.match(known[id].confirmed, /^\d{4}-\d{2}-\d{2}$/);
+  }
 });
 
 test('command line: wrangler output files and the Awin list in, report and summary out; without a list everything is "not in the list"', () => {
@@ -71,9 +90,13 @@ test('command line: wrangler output files and the Awin list in, report and summa
   writeFileSync(f, 'wrangler text\n' + JSON.stringify([{ results: sites()[0].rows, success: true }]));
   writeFileSync(join(dir, 'list.csv'), LIST);
   const tool = join(process.cwd(), 'tools', 'awin-membership-plan.mjs');
-  execFileSync(process.execPath, [tool, '--site', `mgw=${f}`, '--list', join(dir, 'list.csv'), '--out', join(dir, 'out'), '--now', '2026-10-26T22:00:00Z']);
+  execFileSync(process.execPath, [tool, '--site', `mgw=${f}`, '--list', join(dir, 'list.csv'), '--out', join(dir, 'out'), '--now', '2026-10-26T22:00:00Z', '--known', 'none']);
   const summary = JSON.parse(readFileSync(join(dir, 'out', 'summary.json'), 'utf8'));
   assert.deepEqual(summary.map(s => [s.id, s.level]), [['125248', 'red'], ['30645', 'green'], ['122382', 'green']]);
-  execFileSync(process.execPath, [tool, '--site', `mgw=${f}`, '--out', join(dir, 'out2')]);
-  assert.match(readFileSync(join(dir, 'out2', 'report.txt'), 'utf8'), /Σύνολο: 3 🔴 ΠΡΟΒΛΗΜΑ/);
+  // Without a list nothing is known: ΠΡΟΣΟΧΗ for all, not ΠΡΟΒΛΗΜΑ (L79); with the repo's file Finediam is ΕΝΤΑΞΕΙ.
+  execFileSync(process.execPath, [tool, '--site', `mgw=${f}`, '--out', join(dir, 'out2'), '--known', 'none']);
+  assert.match(readFileSync(join(dir, 'out2', 'report.txt'), 'utf8'), /Σύνολο: 0 🔴 ΠΡΟΒΛΗΜΑ · 3 🟡 ΠΡΟΣΟΧΗ/);
+  execFileSync(process.execPath, [tool, '--site', `mgw=${f}`, '--out', join(dir, 'out3')]);
+  const s3 = JSON.parse(readFileSync(join(dir, 'out3', 'summary.json'), 'utf8'));
+  assert.equal(s3.find(s => s.id === '125248').level, 'green');
 });

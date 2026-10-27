@@ -5,19 +5,34 @@
 //   - you are a member and its feed is fresh            -> ΕΝΤΑΞΕΙ
 //   - you are a member but its feed is older than 30 days -> ΠΡΟΣΟΧΗ (stale feed, see legacy-refresh -FromShop, L60)
 //   - it is in the list but you are not a member          -> ΠΡΟΒΛΗΜΑ: the clicks on its products earn nothing
-//   - it is not in the list at all                        -> ΠΡΟΒΛΗΜΑ: most likely closed or the partnership ended
+//   - it is not in the list at all                        -> ΠΡΟΣΟΧΗ: the list only has programmes WITH a product feed, so
+//                                                            membership is unknown (27 Oct 2026, lessons L79: GS Workwear,
+//                                                            Finediam and Juicy Couture UK were "Joined" on their Awin pages)
+//   - not in the list, but in tools/awin-known-members.json -> ΕΝΤΑΞΕΙ: the owner saw "Joined" on its Awin page (date kept)
 //   - its Awin links have no product address (?ued=...)   -> ΠΡΟΒΛΗΜΑ: a click does not open the product
 // Nothing is changed anywhere. Hiding the products of a programme that does not pay is a separate step.
 //
 // node tools/awin-membership-plan.mjs --list <awin list csv> --site cgw=<wrangler json> [--site ...] --out <dir> [--now <iso>]
 import { createReadStream, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
-import { pathToFileURL } from 'node:url';
+import { dirname, join } from 'node:path';
+import { fileURLToPath, pathToFileURL } from 'node:url';
+import { existsSync } from 'node:fs';
 import { readCsvRecords } from './tgw-import-plan.mjs';
 import { rowsFromWrangler } from './cleanup-rules/tidy.mjs';
 
 export const STALE_DAYS = 30;
 export const PUBLISHER_ID = '3057233';
+// The programme's page in the Awin publisher interface (the address that opens for the owner, 27 Oct 2026).
+export const awinPage = id => `https://ui.awin.com/awin/affiliate/${PUBLISHER_ID}/merchant-profile/${id}`;
+
+// Programmes the owner saw as "Joined" on their Awin page although they have no feed in the feed list (lessons L79).
+export function readKnownMembers(path) {
+  if (!path || !existsSync(path)) return {};
+  const data = JSON.parse(readFileSync(path, 'utf8'));
+  const out = {};
+  for (const m of data.members || []) if (/^\d{1,9}$/.test(String(m.id))) out[String(m.id)] = m;
+  return out;
+}
 
 // The Awin advertiser id of a product link: cread.php?awinmid=<id> or pclick.php?...&m=<id>. Empty for a plain shop link.
 export function advertiserOf(link) {
@@ -45,7 +60,7 @@ export async function readAwinList(path) {
 const isMember = s => /^(active|joined)$/i.test(String(s || '').trim());
 const parseDate = s => { const t = Date.parse(String(s || '').trim().replace(' ', 'T')); return Number.isFinite(t) ? t : NaN; };
 
-export function planMembership({ sites, list, now = new Date() }) {
+export function planMembership({ sites, list, known = {}, now = new Date() }) {
   const byId = new Map();
   for (const r of list) { if (!byId.has(r.id)) byId.set(r.id, []); byId.get(r.id).push(r); }
   const programmes = new Map();
@@ -72,7 +87,14 @@ export function planMembership({ sites, list, now = new Date() }) {
     const newest = times.length ? Math.max(...times) : NaN;
     const days = Number.isFinite(newest) ? Math.floor((now.getTime() - newest) / 86400000) : null;
     let level, reason;
-    if (!feeds.length) { level = 'red'; reason = 'δεν υπάρχει στη λίστα feeds του Awin: μάλλον έκλεισε ή έληξε η συνεργασία'; }
+    const k = known[p.id];
+    if (!feeds.length && k && /^joined$/i.test(String(k.status || ''))) {
+      level = 'green';
+      reason = `μέλος («Joined» στη σελίδα του Awin, ${k.confirmed || '?'}), χωρίς feed στη λίστα του Awin: οι τιμές του δεν ανανεώνονται από feed`;
+    } else if (!feeds.length) {
+      level = 'yellow';
+      reason = 'δεν υπάρχει στη λίστα feeds του Awin, που έχει μόνο προγράμματα με feed: άνοιξε τη σελίδα του και δες αν γράφει «Joined» (L79)';
+    }
     else if (!member) { level = 'red'; reason = `δεν είσαι μέλος (${statuses.join(', ')}): τα clicks στα προϊόντα του δεν πληρώνουν`; }
     else if (days !== null && days > STALE_DAYS) { level = 'yellow'; reason = `μέλος, αλλά το feed έχει να ανανεωθεί ${days} μέρες (L60)`; }
     else { level = 'green'; reason = 'μέλος' + (days !== null ? `, feed ${days} ημ.` : ''); }
@@ -98,7 +120,7 @@ export function renderMembershipReport(plan) {
     const where = p.sites.map(s => `${s.site.toUpperCase()} ${fmt(s.n)}`).join(', ');
     const names = p.retailers.join(' / ');
     L.push(`${mark[p.level]}: ${names} (Awin ${p.id}${p.awinName && p.awinName !== names ? `, «${p.awinName}»` : ''}) | ${where} | ${p.reason}`);
-    if (p.level !== 'green') L.push(`   Έλεγχος στο Awin: https://ui.awin.com/merchant-profile/${p.id}`);
+    if (p.level !== 'green') L.push(`   Έλεγχος στο Awin: ${awinPage(p.id)}`);
     if (p.bad > 0) L.push(`   🔴 ΠΡΟΒΛΗΜΑ: ${fmt(p.bad)} links χωρίς διεύθυνση προϊόντος (το ued= δεν ξεκινά με http): το click δεν ανοίγει το προϊόν.`);
   }
   if (plan.plain.length) {
@@ -119,7 +141,9 @@ if (import.meta.url === pathToFileURL(process.argv[1] || '').href) {
   const out = opt('--out');
   mkdirSync(out, { recursive: true });
   const list = opt('--list') ? await readAwinList(opt('--list')) : [];
-  const plan = planMembership({ sites, list, now: opt('--now') ? new Date(opt('--now')) : new Date() });
+  // Default: the confirmed members kept in the repo next to this tool; --known none turns it off (tests).
+  const knownPath = opt('--known') === 'none' ? '' : (opt('--known') || join(dirname(fileURLToPath(import.meta.url)), 'awin-known-members.json'));
+  const plan = planMembership({ sites, list, known: readKnownMembers(knownPath), now: opt('--now') ? new Date(opt('--now')) : new Date() });
   writeFileSync(join(out, 'report.txt'), renderMembershipReport(plan));
   writeFileSync(join(out, 'summary.json'), JSON.stringify(plan.programmes.map(p => ({ id: p.id, retailers: p.retailers, total: p.total, level: p.level, member: p.member, days: p.days, bad: p.bad })), null, 2));
 }
