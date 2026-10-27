@@ -26,6 +26,9 @@
   15 May 2026) the source is the shop's own live Shopify catalogue instead of the feed (read-only GETs to the shop; its
   address comes from the products' links). Products gone from the shop or sold out there are hidden; a price changes only
   when the shop sells in the site's currency. Same approval phrase. Example: -Pairs "gardenista:hgw" -FromShop
+  A shop with more than 10,000 products (InStock, L80) is not read whole: -Sample N (default 100) of the site's own
+  products are looked up one by one on the shop, and the report shows how many have the same price, another price, are
+  sold out or gone. Nothing changes from a sample.
 
   Rollback (printed): the rollback file puts back the old values and shows the hidden products again; or the restore point.
   Report: <home>\gear-world-reports\REFRESH_<time>.txt (also copied to the clipboard)
@@ -41,6 +44,7 @@ param(
     [int]$MaxWrites = 90000,
     [switch]$PaidPlan,
     [switch]$FromShop,
+    [int]$Sample = 100,
     [switch]$NoClipboard
 )
 
@@ -261,12 +265,14 @@ foreach ($pair in $list) {
     # 3. The plan (read-only).
     $a = @((Join-Path (Join-Path $repo 'tools') 'legacy-refresh-plan.mjs'), '--archive', $Archive, '--retailer', $name, '--site', $site, '--indexes', $idxFile, '--out', $dir, '--max-writes', [string]$budget)
     if ($Advertiser) { $a += @('--advertiser', $Advertiser) }
-    if ($FromShop) { $a += @('--from-shop') }
+    if ($FromShop) { $a += @('--from-shop', '--sample', [string]$Sample) }
     foreach ($f in $rowFiles) { $a += @('--rows', $f) }
     & node @a
     $planCode = $LASTEXITCODE
     $reportFile = Join-Path $dir 'report.txt'
     if (Test-Path -LiteralPath $reportFile) { foreach ($line in [System.IO.File]::ReadAllLines($reportFile, [System.Text.Encoding]::UTF8)) { if ($line -match '^ΠΡΟΣΟΧΗ') { Say $line 'Yellow' } else { Say $line } } }
+    # 5 = the shop's catalogue was too big to read whole: only a sample was checked (L80). Nothing can change from it.
+    if ($planCode -eq 5) { Say 'Μόνο δείγμα (ο κατάλογος του καταστήματος είναι πολύ μεγάλος): δεν άλλαξε τίποτα.' 'Yellow'; continue }
     if ($planCode -ne 0) { Say 'Το σχέδιο δεν έγινε (δες πιο πάνω). Δεν άλλαξε τίποτα.' 'Red'; if ($exitCode -eq 0) { $exitCode = 10 }; continue }
     $c = ([System.IO.File]::ReadAllText((Join-Path $dir 'counts.txt'))).Trim() -split '\s+'
     $nChanges = [int]$c[0]; $nHides = [int]$c[1]; $writes = [int]$c[2]; $stale = ($c[3] -eq '1'); $activeBefore = [int]$c[5]

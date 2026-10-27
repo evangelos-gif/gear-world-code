@@ -165,6 +165,75 @@ export async function readShopCurrency(origin, { fetchImpl = globalThis.fetch } 
   } catch { return ''; }
 }
 
+// A shop whose live catalogue is too big to read whole (InStock, 27 Oct 2026: more than 10,000 products, lessons L80):
+// a random sample of the SITE's own products is looked up one by one (/products/<handle>.js, read-only GETs), to show how
+// far out of date they are. Nothing is changed from a sample; the owner decides what to do with the numbers.
+export function productHandle(url) {
+  let u;
+  try { u = new URL(String(url || '')); } catch { return null; }
+  if (/(^|\.)awin1\.com$/i.test(u.hostname)) {
+    const inner = u.searchParams.get('ued') || '';
+    try { u = new URL(inner); } catch { return null; }
+  }
+  const m = /\/products\/([^/?#]+)/i.exec(u.pathname);
+  if (!m) return null;
+  let handle;
+  try { handle = decodeURIComponent(m[1]).toLowerCase(); } catch { return null; }
+  return { handle, variant: u.searchParams.get('variant') || '' };
+}
+
+export async function sampleShopProducts(rows, origin, { n = 100, fetchImpl = globalThis.fetch, pauseMs = 300, seed = 80, currency = '' } = {}) {
+  const live = rows.filter(r => Number(r.is_active) === 1);
+  const list = live.map(r => ({ r, h: productHandle(r.affiliate_url) })).filter(x => x.h);
+  let a = seed >>> 0;
+  const rnd = () => { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+  for (let i = list.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [list[i], list[j]] = [list[j], list[i]]; }
+  const st = { active: live.length, withHandle: list.length, checked: 0, same: 0, changed: 0, soldOut: 0, gone: 0, failed: 0, otherCurrency: 0,
+    examples: { changed: [], soldOut: [], gone: [] } };
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
+  const name = r => String(r.product_name || r.awin_product_id || '').slice(0, 80);
+  for (const x of list.slice(0, n)) {
+    if (pauseMs && (st.checked + st.failed)) await sleep(pauseMs);
+    let res;
+    try {
+      res = await fetchImpl(`${origin}/products/${encodeURIComponent(x.h.handle)}.js`, { headers: { accept: 'application/json', 'user-agent': 'GearWorldRefresh/1.0' }, signal: AbortSignal.timeout(20000) });
+    } catch { st.failed++; continue; }
+    if (res && res.status === 404) { st.checked++; st.gone++; if (st.examples.gone.length < 8) st.examples.gone.push(name(x.r)); continue; }
+    let p = null;
+    try { if (res && res.ok) p = await res.json(); } catch { p = null; }
+    if (!p || !Array.isArray(p.variants)) { st.failed++; continue; }
+    st.checked++;
+    const mid = String(x.r.merchant_product_id || '').trim();
+    const own = String(x.r.awin_product_id || '').split(':').pop();
+    const v = p.variants.find(v => String(v.id) === x.h.variant) || p.variants.find(v => String(v.id) === own || (mid && String(v.sku || '').trim() === mid)) || null;
+    const open = v ? (v.available === true ? [v] : []) : p.variants.filter(v => v.available === true);
+    if (!open.length) { st.soldOut++; if (st.examples.soldOut.length < 8) st.examples.soldOut.push(name(x.r)); continue; }
+    const rowCurrency = String(x.r.currency || 'GBP').toUpperCase();
+    if (!currency || currency !== rowCurrency) { st.otherCurrency++; continue; }
+    // Shopify's .js gives prices in pence.
+    const price = Math.min(...open.map(v => Number(v.price) / 100).filter(Number.isFinite));
+    const old = Number(x.r.price);
+    if (Number.isFinite(price) && Math.abs(price - old) < 0.005) st.same++;
+    else { st.changed++; if (st.examples.changed.length < 8) st.examples.changed.push(`${name(x.r)}: ${old} -> ${price}`); }
+  }
+  return st;
+}
+
+export function renderSampleReport({ retailer, site, origin, currency, st, limitNote }) {
+  const pct = k => (st.checked ? Math.round((100 * st[k]) / st.checked) : 0);
+  const L = [];
+  L.push(`Ο κατάλογος του ${origin} είναι πολύ μεγάλος για ολόκληρο έλεγχο (${limitNote}). Έλεγξα ένα τυχαίο δείγμα από τα προϊόντα ${retailer} του ${site.toUpperCase()}, ένα-ένα, μόνο με ανάγνωση (L80).`);
+  L.push(`Ενεργά στο site: ${st.active} (με διεύθυνση προϊόντος: ${st.withHandle}). Ελέγχθηκαν: ${st.checked}${st.failed ? ` (δεν απάντησαν: ${st.failed})` : ''}. Νόμισμα καταστήματος: ${currency || 'άγνωστο'}.`);
+  L.push(`Ίδια τιμή: ${st.same} (${pct('same')}%) · άλλη τιμή: ${st.changed} (${pct('changed')}%) · εξαντλημένα: ${st.soldOut} (${pct('soldOut')}%) · δεν υπάρχουν πια: ${st.gone} (${pct('gone')}%)${st.otherCurrency ? ` · άλλο νόμισμα: ${st.otherCurrency}` : ''}.`);
+  for (const [k, label] of [['changed', 'Άλλη τιμή (στο site -> στο κατάστημα)'], ['soldOut', 'Εξαντλημένα'], ['gone', 'Δεν υπάρχουν πια']]) {
+    if (!st.examples[k].length) continue;
+    L.push(`${label}:`);
+    for (const e of st.examples[k]) L.push(`   - ${e}`);
+  }
+  L.push('Δείγμα μόνο: δεν άλλαξε τίποτα, και από δείγμα δεν αλλάζει τίποτα.');
+  return L.join('\n') + '\n';
+}
+
 // The live catalogue in the shape of a feed: one entry per option (variant), found by its id and by its SKU.
 const picKey = u => String(u || '').split('?')[0].toLowerCase();
 export function feedFromShopify(catalog, currency, now = new Date()) {
@@ -350,6 +419,13 @@ if (import.meta.url === pathToFileURL(process.argv[1] || '').href) {
     }
     let catalog;
     try { catalog = await readShopifyCatalog(origin); } catch (e) {
+      // Too big to read whole (L80): a sample of the site's own products instead, read-only, and no plan.
+      if (/too big for this check/.test(e.message)) {
+        const currency = await readShopCurrency(origin);
+        const st = await sampleShopProducts(rows, origin, { n: Number(opt('--sample') || 100), currency });
+        writeFileSync(join(out, 'report.txt'), renderSampleReport({ retailer, site, origin, currency, st, limitNote: 'πάνω από 10.000 προϊόντα' }));
+        process.exit(5);
+      }
       writeFileSync(join(out, 'report.txt'), `Δεν διάβασα τον κατάλογο του καταστήματος ${origin}: ${e.message}\n`);
       process.exit(4);
     }

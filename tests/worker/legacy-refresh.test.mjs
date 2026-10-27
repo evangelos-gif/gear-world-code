@@ -10,7 +10,7 @@ import { join } from 'node:path';
 import { gzipSync } from 'node:zlib';
 import { execFileSync, spawnSync } from 'node:child_process';
 import { DatabaseSync } from 'node:sqlite';
-import { findFeeds, readFeed, planRefresh, writeCosts, writePlan, keyOf, matchRow, newestFirst, renderReport, linkHost, shopOriginOf, feedFromShopify, readShopCurrency } from '../../tools/legacy-refresh-plan.mjs';
+import { findFeeds, readFeed, planRefresh, writeCosts, writePlan, keyOf, matchRow, newestFirst, renderReport, linkHost, shopOriginOf, feedFromShopify, readShopCurrency, productHandle, sampleShopProducts, renderSampleReport } from '../../tools/legacy-refresh-plan.mjs';
 import { readShopifyCatalog } from '../../tools/legacy-import-plan.mjs';
 
 // The CGW indexes on products (read from the live database, 25 Oct 2026).
@@ -298,4 +298,42 @@ test('L60: a shop in another currency (Wavytalk, USD) changes no price; an unkno
   const unknown = planRefresh({ rows, feed: feedFromShopify(catalog, ''), costs: { price: 4, image_url: 3, stock_status: 3, is_active: 6 } });
   assert.equal(unknown.changes.length, 0, 'no currency read: no price change');
   assert.equal(await readShopCurrency('https://wavytalk.com', { fetchImpl: async () => { throw new Error('offline'); } }), '');
+});
+
+test('L80: a catalogue too big to read whole (InStock) is sampled product by product: same, new price, sold out, gone', async () => {
+  const awin = h => `https://www.awin1.com/cread.php?awinmid=122444&awinaffid=3057233&ued=${encodeURIComponent(`https://instock.net/products/${h}`)}`;
+  assert.deepEqual(productHandle(awin('0-5mm-drill-bit?variant=77')), { handle: '0-5mm-drill-bit', variant: '77' });
+  assert.equal(productHandle('https://www.awin1.com/cread.php?awinmid=1&awinaffid=3057233&ued='), null);
+  const rows = [
+    { id: 1, awin_product_id: '122444:11', product_name: 'Same Price Lamp', price: 20, currency: 'GBP', is_active: 1, affiliate_url: awin('same-lamp') },
+    { id: 2, awin_product_id: '122444:21', product_name: 'New Price Kettle', price: 30, currency: 'GBP', is_active: 1, affiliate_url: awin('kettle?variant=21') },
+    { id: 3, awin_product_id: '122444:31', product_name: 'Sold Out Fan', price: 15, currency: 'GBP', is_active: 1, affiliate_url: awin('fan') },
+    { id: 4, awin_product_id: '122444:41', product_name: 'Gone Rug', price: 50, currency: 'GBP', is_active: 1, affiliate_url: awin('rug') },
+    { id: 5, awin_product_id: '122444:51', product_name: 'Hidden Chair', price: 50, currency: 'GBP', is_active: 0, affiliate_url: awin('chair') }
+  ];
+  const shop = {
+    'same-lamp': { variants: [{ id: 11, price: 2000, available: true }] },
+    kettle: { variants: [{ id: 20, price: 1000, available: true }, { id: 21, price: 3499, available: true }] },
+    fan: { variants: [{ id: 31, price: 1500, available: false }] }
+  };
+  const asked = [];
+  const fetchImpl = async url => {
+    asked.push(url);
+    const h = /\/products\/([^/]+)\.js$/.exec(url)[1];
+    if (!shop[h]) return { ok: false, status: 404, json: async () => ({}) };
+    return { ok: true, status: 200, json: async () => shop[h] };
+  };
+  const st = await sampleShopProducts(rows, 'https://instock.net', { n: 10, fetchImpl, pauseMs: 0, currency: 'GBP' });
+  assert.equal(st.active, 4, 'hidden products are not sampled');
+  assert.equal(asked.length, 4);
+  assert.ok(asked.every(u => /^https:\/\/instock\.net\/products\/[a-z-]+\.js$/.test(u)), 'only the shop\'s own product pages, never an Awin link');
+  assert.deepEqual([st.checked, st.same, st.changed, st.soldOut, st.gone], [4, 1, 1, 1, 1]);
+  assert.match(st.examples.changed[0], /New Price Kettle: 30 -> 34\.99/, 'the option in the link decides the price');
+  const report = renderSampleReport({ retailer: 'InStock UK', site: 'hgw', origin: 'https://instock.net', currency: 'GBP', st, limitNote: 'πάνω από 10.000 προϊόντα' });
+  assert.match(report, /Ίδια τιμή: 1 \(25%\) · άλλη τιμή: 1 \(25%\) · εξαντλημένα: 1 \(25%\) · δεν υπάρχουν πια: 1 \(25%\)/);
+  assert.match(report, /Δείγμα μόνο: δεν άλλαξε τίποτα/);
+  // Another currency: no price comparison.
+  const st2 = await sampleShopProducts(rows, 'https://instock.net', { n: 10, fetchImpl, pauseMs: 0, currency: 'USD' });
+  assert.equal(st2.same + st2.changed, 0);
+  assert.equal(st2.otherCurrency, 2);
 });
