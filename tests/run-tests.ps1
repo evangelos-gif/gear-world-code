@@ -3160,13 +3160,16 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         Check ($s.Contains('kgw-engine update True EGKRINO KGW UPDATE') -and -not $s.Contains('hgw-engine') -and -not $s.Contains('ggw-engine') -and (QCount 'gear-world-hub\\wrangler.toml') -eq 0) 'posters apply: after the failing site, no other site and no Hub deploy'
         Check ((Get-TreeHash $qHub) -eq $qHubBefore) 'posters apply: the Hub folder is untouched when a site fails'
         Remove-Item -LiteralPath (Join-Path $qState 'fail-kgw-engine.flag') -Force
-        # a failing Hub deploy: the hub folder goes back as it was
+        # a failing Hub deploy (after the 10 sites): the hub folder goes back as it was
+        Remove-Item -LiteralPath $qSites -Force -ErrorAction SilentlyContinue
+        $hubDeploys = QCount 'deploy --config "[^"]*gear-world-hub\\wrangler\.toml"'
         Write-Utf8 (Join-Path $qState 'hubfail.flag') 'fail'
         Check ((Run-Q @('-Step', 'apply', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ POSTER STATS')) -eq 9) 'posters apply: a failing Hub deploy stops (exit 9)'
+        Check (@((QText $qSites) -split "`r?`n" | Where-Object { $_ }).Count -eq 10 -and (QCount 'deploy --config "[^"]*gear-world-hub\\wrangler\.toml"') -eq ($hubDeploys + 1)) 'posters apply: the Hub deploy came after the 10 sites, and failed once'
         Check ((Get-TreeHash $qHub) -eq $qHubBefore) 'posters apply: after a failing Hub deploy the hub folder (and its wrangler.toml) is back as it was'
         Remove-Item -LiteralPath (Join-Path $qState 'hubfail.flag') -Force
         # the full run
-        Remove-Item -LiteralPath $qSites -Force
+        Remove-Item -LiteralPath $qSites -Force -ErrorAction SilentlyContinue
         $before = QCount 'd1 create'
         Check ((Run-Q @('-Step', 'apply', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ POSTER STATS')) -eq 0) 'posters apply with approval: exit 0'
         Check ((QCount 'd1 create') -eq $before) 'posters apply: the database made in an earlier run is not made again'

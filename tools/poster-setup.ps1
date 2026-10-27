@@ -152,13 +152,18 @@ function Invoke-Wrangler([string]$Folder, [string]$Arguments, [switch]$Retry) {
     return $result
 }
 
-# The JSON array that wrangler printed with --json (warnings before it are skipped).
+# The JSON array that wrangler printed with --json (warnings before it are skipped), as a flat array of its items.
+# Windows PowerShell 5.1 gives a JSON array back as ONE object (the array) and PowerShell 7 as its items: both end up
+# here as the items (lessons L76).
 function Get-JsonArray([string]$text) {
     $m = [regex]::Match($text, '(?m)^\s*\[')
     $j = $text.LastIndexOf(']')
     if (-not $m.Success -or $j -le $m.Index) { return $null }
+    try { $parsed = ConvertFrom-Json -InputObject $text.Substring($m.Index, $j - $m.Index + 1) } catch { return $null }
+    $items = New-Object System.Collections.ArrayList
+    foreach ($x in @($parsed)) { if ($null -ne $x) { [void]$items.Add($x) } }
     # The comma keeps an empty array an array (PowerShell returns nothing for a bare @()).
-    try { return , @($text.Substring($m.Index, $j - $m.Index + 1) | ConvertFrom-Json) } catch { return $null }
+    return , $items.ToArray()
 }
 
 # Rows of a read-only SELECT on the poster database, or $null on error.
