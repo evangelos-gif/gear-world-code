@@ -1,5 +1,7 @@
 // GWH-PHOTO-SEARCH: the photo search and the test address (preview) are in photo-search.js.
 import { handlePhotoSearch, previewResponse, addPreviewHeaders } from "./photo-search.js";
+// GWH-POSTER-SCANS: poster QR scans of the home page are counted in poster-scan.js (lessons L76).
+import { posterScan } from "./poster-scan.js";
 
 const hubCore = {
   async fetch(request, env) {
@@ -179,7 +181,7 @@ const hubCore = {
         // GWH-FAIR-SEARCH: a Worker waits for at most 6 answers at a time (Cloudflare limit). A 7th fetch waits in a
         // queue while its 4.5 s timer already runs, so fast sites at the end of the list were cut off when slow sites
         // held the 6 places. Now at most 6 sites are asked at once, and each site gets its full 4.5 s from the moment
-        // it is really asked. The answer (order and fields) stays the same (lessons L41).
+        // it is really asked. The answer (order and fields) stays the same (lessons L74).
         const settleAtMostSix = async (items, task) => {
           const out = new Array(items.length);
           let next = 0;
@@ -814,6 +816,8 @@ export default {
     const early = previewResponse(request, env);
     if (early) return addPreviewHeaders(early, env);
     const url = new URL(request.url);
+    // GWH-POSTER-SCANS: a QR scan of a poster (?utm_source=poster) is counted in the background; never on the test address.
+    posterScan(request, env, ctx, { site: "hub", domain: "gearworldhub.com", off: String((env && env.GWH_PREVIEW) || "") === "1" });
     if (url.pathname === "/api/photo-search") {
       return addPreviewHeaders(await handlePhotoSearch(request, env, ctx), env);
     }

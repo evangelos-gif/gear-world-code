@@ -2996,6 +2996,231 @@ if ($isWin) {
     }
 }
 
+# 13. poster-setup.ps1 and poster-stats.ps1 (poster QR scans, lessons L76) with a fake wrangler, fake site tools and a
+#     fake hub folder (Windows only: runs .cmd files)
+if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
+    Write-Host 'poster-setup.ps1 and poster-stats.ps1 (fake wrangler and fake site tools)'
+    $qTool = Join-Path (Join-Path $repo 'tools') 'poster-setup.ps1'
+    $qStats = Join-Path (Join-Path $repo 'tools') 'poster-stats.ps1'
+    $qHome = Join-Path $work 'pst-home'
+    $qState = Join-Path $work 'pst-state'
+    $qBin = Join-Path $work 'pst-bin'
+    $qTools = Join-Path $work 'pst-tools'
+    $qOut = Join-Path $qHome 'gear-world-reports'
+    $qHub = Join-Path $qHome 'gear-world-hub'
+    $qWork = Join-Path $qHome 'gear-world-posters'
+    New-Item -ItemType Directory -Path $qState, $qBin, $qTools, $qHub -Force | Out-Null
+    $qDb = [guid]::NewGuid().ToString()
+    $qOtherDb = [guid]::NewGuid().ToString()
+    $qVer = [guid]::NewGuid().ToString()
+    # The live configs of the 4 new sites on the "PC" (as their d1/domain steps write them)
+    $qPc = @{ 'sporty-gear-world' = 'sportygearworld.com'; 'technology-gear-world' = 'technologygearworld.com'; 'car-gear-world' = 'cargearworld.com'; 'travel-gear-world' = 'travelgearworld.com' }
+    foreach ($k in $qPc.Keys) {
+        New-Item -ItemType Directory -Path (Join-Path $qHome $k) -Force | Out-Null
+        Write-Utf8 (Join-Path (Join-Path $qHome $k) 'wrangler.jsonc') ("// $k`r`n{`r`n  `"name`": `"$k`",`r`n  `"main`": `"worker.js`",`r`n  `"d1_databases`": [{ `"binding`": `"DB`", `"database_name`": `"$k`", `"database_id`": `"$qOtherDb`" }],`r`n  `"ai`": { `"binding`": `"AI`" },`r`n  `"observability`": { `"enabled`": true },`r`n  `"routes`": [{ `"pattern`": `"$($qPc[$k])`", `"custom_domain`": true }]`r`n}`r`n")
+    }
+    # The fake hub runs the version before the change: the repo files, but worker.js has one more line and there is no
+    # poster-scan.js yet. The test baseline lists the fake hub exactly as it is.
+    $qRepoHub = Join-Path (Join-Path $repo 'sites') 'gwh'
+    Write-Utf8 (Join-Path $qHub 'wrangler.toml') ("name = `"gear-world-hub`"`r`nmain = `"worker.js`"`r`n`r`n[[d1_databases]]`r`nbinding = `"gear_world_registry`"`r`ndatabase_name = `"gear-world-registry`"`r`ndatabase_id = `"$qOtherDb`"`r`n")
+    foreach ($n in @('worker.js', 'photo-search.js')) { Copy-Item -LiteralPath (Join-Path $qRepoHub $n) -Destination (Join-Path $qHub $n) -Force }
+    [System.IO.File]::AppendAllText((Join-Path $qHub 'worker.js'), "`n// before the poster scans`n")
+    Copy-Item -LiteralPath (Join-Path $qRepoHub 'public') -Destination $qHub -Recurse -Force
+    $qPub = Join-Path $qHub 'public'
+    $qBase = Join-Path $work 'pst-baseline.txt'
+    $bl = @('# test baseline', '# version: test hub before posters', '# path | bytes | sha256 | kind')
+    $qRels = @('worker.js', 'photo-search.js') + @(Get-ChildItem -LiteralPath $qPub -Recurse -File | Sort-Object FullName | ForEach-Object { 'public/' + $_.FullName.Substring($qPub.Length).TrimStart('\', '/').Replace('\', '/') })
+    foreach ($rel in $qRels) {
+        $f = Join-Path $qHub ($rel.Replace('/', '\'))
+        $bl += ('{0} | {1} | {2} | file' -f $rel, (Get-Item -LiteralPath $f).Length, (Get-FileHash -LiteralPath $f -Algorithm SHA256).Hash.ToLowerInvariant())
+    }
+    Write-Utf8 $qBase (($bl -join "`n") + "`n")
+    # Fake site tools: they write down how they were called, and fail when their flag file is there.
+    $fakeTool = @(
+        'param([string]$Step, [switch]$Apply, [string]$Approve, [string]$OutDir, [switch]$NoClipboard, [switch]$SkipInstall, [switch]$NoHttpCheck)',
+        '$name = [System.IO.Path]::GetFileNameWithoutExtension($PSCommandPath)',
+        'Add-Content -LiteralPath (Join-Path $env:GW_FAKE_STATE ''sites.log'') -Value (''{0} {1} {2} {3}'' -f $name, $Step, [bool]$Apply, $Approve)',
+        'if (-not (Test-Path -LiteralPath $OutDir)) { New-Item -ItemType Directory -Path $OutDir -Force | Out-Null }',
+        'Set-Content -LiteralPath (Join-Path $OutDir ($name + ''-fake-report.txt'')) -Value (''fake report of '' + $name)',
+        'if (Test-Path -LiteralPath (Join-Path $env:GW_FAKE_STATE (''fail-'' + $name + ''.flag''))) { exit 9 }',
+        'exit 0'
+    ) -join "`r`n"
+    foreach ($t in @('sgw-cloudflare', 'tgw-cloudflare', 'agw-cloudflare', 'vgw-cloudflare', 'cgw-engine', 'mgw-engine', 'wgw-engine', 'kgw-engine', 'hgw-engine', 'ggw-engine')) {
+        [System.IO.File]::WriteAllText((Join-Path $qTools ($t + '.ps1')), $fakeTool + "`r`n", [System.Text.Encoding]::ASCII)
+    }
+    $qNpx = @(
+        '@echo off',
+        'echo %* >> "%GW_FAKE_STATE%\calls.log"',
+        'echo %* | findstr /L /C:"whoami" >nul && goto whoami',
+        'echo %* | findstr /L /C:"DELETE FROM" >nul && goto delete',
+        'echo %* | findstr /L /C:"BETWEEN" >nul && goto stats',
+        'echo %* | findstr /L /C:"sqlite_master" >nul && goto table',
+        'echo %* | findstr /L /C:"COALESCE" >nul && goto others',
+        'echo %* | findstr /L /C:"ORDER BY day, site" >nul && goto testrows',
+        'echo %* | findstr /L /C:"AS n FROM poster_scans" >nul && goto left',
+        'echo %* | findstr /L /C:"migrations apply" >nul && goto ok',
+        'echo %* | findstr /L /C:"d1 create" >nul && goto create',
+        'echo %* | findstr /L /C:"d1 list" >nul && goto list',
+        'echo %* | findstr /L /C:"deployments list" >nul && goto deployments',
+        'echo %* | findstr /L /C:" deploy" >nul && goto deploy',
+        'echo unknown command 1>&2',
+        'exit /b 1',
+        ':whoami',
+        'echo You are logged in with an OAuth Token, associated with the email test@example.com.',
+        'exit /b 0',
+        ':ok',
+        'echo done',
+        'exit /b 0',
+        ':create',
+        'echo created > "%GW_FAKE_STATE%\db.flag"',
+        'echo Created your new D1 database.',
+        'exit /b 0',
+        ':list',
+        ('if exist "%GW_FAKE_STATE%\db.flag" echo [{"uuid":"' + $qDb + '","name":"gear-world-posters"},{"uuid":"' + $qOtherDb + '","name":"kids-gear-world"}]'),
+        ('if not exist "%GW_FAKE_STATE%\db.flag" echo [{"uuid":"' + $qOtherDb + '","name":"kids-gear-world"}]'),
+        'exit /b 0',
+        ':table',
+        'echo [{"results":[{"name":"poster_scans"}],"success":true}]',
+        'exit /b 0',
+        ':others',
+        'echo [{"results":[{"n":5,"s":17}],"success":true}]',
+        'exit /b 0',
+        ':testrows',
+        'if exist "%GW_FAKE_STATE%\rows.flag" echo [{"results":[{"day":"2026-10-27","campaign":"poster-test","site":"kgw","scans":1},{"day":"2026-10-27","campaign":"poster-test","site":"hub","scans":2}],"success":true}]',
+        'if not exist "%GW_FAKE_STATE%\rows.flag" echo [{"results":[],"success":true}]',
+        'exit /b 0',
+        ':left',
+        'echo [{"results":[{"n":0}],"success":true}]',
+        'exit /b 0',
+        ':delete',
+        'del "%GW_FAKE_STATE%\rows.flag" 2>nul',
+        'echo deleted',
+        'exit /b 0',
+        ':stats',
+        'echo [{"results":[{"day":"2026-10-26","campaign":"poster-a","site":"cgw","scans":3},{"day":"2026-10-27","campaign":"poster-a","site":"cgw","scans":2},{"day":"2026-10-27","campaign":"poster10","site":"hub","scans":200},{"day":"2026-10-27","campaign":"other","site":"sgw","scans":1}],"success":true}]',
+        'exit /b 0',
+        ':deployments',
+        'echo %* | findstr /L /C:"gear-world-posters" >nul && goto counterdep',
+        ('echo Version(s):  (100%%) ' + $qVer),
+        'exit /b 0',
+        ':counterdep',
+        ('if exist "%GW_FAKE_STATE%\counter.flag" echo Version(s):  (100%%) ' + $qVer),
+        'if exist "%GW_FAKE_STATE%\counter.flag" exit /b 0',
+        'echo X [ERROR] This Worker does not exist on your account. [code: 10007]',
+        'exit /b 1',
+        ':deploy',
+        'echo %* | findstr /L /C:"posters" >nul && echo up > "%GW_FAKE_STATE%\counter.flag"',
+        'echo %* | findstr /L /C:"gear-world-hub" >nul && if exist "%GW_FAKE_STATE%\hubfail.flag" goto deployfail',
+        'echo Uploaded',
+        'exit /b 0',
+        ':deployfail',
+        'echo X [ERROR] A request to the Cloudflare API failed. Something else. [code: 10021]',
+        'exit /b 1'
+    ) -join "`r`n"
+    [System.IO.File]::WriteAllText((Join-Path $qBin 'npx.cmd'), $qNpx + "`r`n", [System.Text.Encoding]::ASCII)
+    $oldPath = $env:PATH
+    $env:PATH = $qBin + ';' + $oldPath
+    $env:GW_FAKE_STATE = $qState
+    $qCalls = Join-Path $qState 'calls.log'
+    $qSites = Join-Path $qState 'sites.log'
+    function Run-Q([string[]]$a) {
+        $all = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $qTool, '-PcHome', $qHome, '-BaselineFile', $qBase, '-SiteToolDir', $qTools, '-SkipInstall', '-NoClipboard', '-NoHttpCheck') + $a
+        & $exe @all | Out-Null
+        return $LASTEXITCODE
+    }
+    function QText([string]$p) { if (Test-Path -LiteralPath $p) { return [System.IO.File]::ReadAllText($p) } else { return '' } }
+    function QCount([string]$pattern) { return ([regex]::Matches((QText $qCalls), $pattern)).Count }
+    function QLast([string]$filter) {
+        $f = @(Get-ChildItem -LiteralPath $qOut -Filter $filter -ErrorAction SilentlyContinue | Sort-Object LastWriteTime, Name | Select-Object -Last 1)
+        if ($f.Count -eq 0) { return '' }
+        return [System.IO.File]::ReadAllText($f[0].FullName)
+    }
+    function QPcHash { $s = ''; foreach ($k in ($qPc.Keys | Sort-Object)) { $s += (Get-FileHash -LiteralPath (Join-Path (Join-Path $qHome $k) 'wrangler.jsonc') -Algorithm SHA256).Hash }; return $s }
+    $qHubBefore = Get-TreeHash $qHub
+    $qPcBefore = QPcHash
+    try {
+        # check: reads only
+        Check ((Run-Q @('-Step', 'check')) -eq 0) 'posters check: exit 0'
+        $r = QLast 'POSTER_SETUP_CHECK_*.txt'
+        Check ($r.Contains('Αποτέλεσμα: ΕΝΤΑΞΕΙ') -and $r.Contains('δεν υπάρχει ακόμα') -and $r.Contains('POSTERS: θα μπει') -and $r.Contains('worker.js, poster-scan.js')) 'posters check: ready, the database and the counter are new, the Hub plan is worker.js and poster-scan.js'
+        Check ((QCount 'd1 create|migrations apply| deploy ') -eq 0 -and (QPcHash) -eq $qPcBefore -and (Get-TreeHash $qHub) -eq $qHubBefore -and -not (Test-Path -LiteralPath $qSites)) 'posters check: nothing made, deployed or written, no site tool run'
+        Check (-not $r.Contains($qVer) -and -not $r.Contains($qOtherDb)) 'posters check: no version or database id in the report'
+        # apply without -Apply, with the wrong phrase, with a missing PC config: nothing changes
+        Check ((Run-Q @('-Step', 'apply')) -eq 0 -and (QCount 'd1 create| deploy ') -eq 0 -and (QPcHash) -eq $qPcBefore) 'posters apply without -Apply: nothing changes'
+        Check ((Run-Q @('-Step', 'apply', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ POSTER CLEANUP')) -eq 1 -and (QCount 'd1 create| deploy ') -eq 0 -and (QPcHash) -eq $qPcBefore -and -not (Test-Path -LiteralPath $qSites)) 'posters apply with the wrong phrase: nothing changes'
+        $qMove = Join-Path (Join-Path $qHome 'car-gear-world') 'wrangler.jsonc'
+        Move-Item -LiteralPath $qMove -Destination ($qMove + '.away') -Force
+        Check ((Run-Q @('-Step', 'apply', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ POSTER STATS')) -eq 8 -and (QCount 'd1 create| deploy ') -eq 0) 'posters apply: a missing PC config stops before any change (exit 8)'
+        Check ((QLast 'POSTER_SETUP_APPLY_*.txt').Contains('car-gear-world')) 'posters apply: the missing config is named'
+        Move-Item -LiteralPath ($qMove + '.away') -Destination $qMove -Force
+        # a failing site tool: stops there, the next sites and the Hub are not touched
+        Write-Utf8 (Join-Path $qState 'fail-kgw-engine.flag') 'fail'
+        Check ((Run-Q @('-Step', 'apply', '-Apply', '-Approve', 'egkrino poster stats')) -eq 12) 'posters apply: a failing site update stops the run (exit 12)'
+        $s = QText $qSites
+        Check ($s.Contains('kgw-engine update True EGKRINO KGW UPDATE') -and -not $s.Contains('hgw-engine') -and -not $s.Contains('ggw-engine') -and (QCount 'gear-world-hub\\wrangler.toml') -eq 0) 'posters apply: after the failing site, no other site and no Hub deploy'
+        Check ((Get-TreeHash $qHub) -eq $qHubBefore) 'posters apply: the Hub folder is untouched when a site fails'
+        Remove-Item -LiteralPath (Join-Path $qState 'fail-kgw-engine.flag') -Force
+        # a failing Hub deploy: the hub folder goes back as it was
+        Write-Utf8 (Join-Path $qState 'hubfail.flag') 'fail'
+        Check ((Run-Q @('-Step', 'apply', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ POSTER STATS')) -eq 9) 'posters apply: a failing Hub deploy stops (exit 9)'
+        Check ((Get-TreeHash $qHub) -eq $qHubBefore) 'posters apply: after a failing Hub deploy the hub folder (and its wrangler.toml) is back as it was'
+        Remove-Item -LiteralPath (Join-Path $qState 'hubfail.flag') -Force
+        # the full run
+        Remove-Item -LiteralPath $qSites -Force
+        $before = QCount 'd1 create'
+        Check ((Run-Q @('-Step', 'apply', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ POSTER STATS')) -eq 0) 'posters apply with approval: exit 0'
+        Check ((QCount 'd1 create') -eq $before) 'posters apply: the database made in an earlier run is not made again'
+        $order = @((QText $qSites) -split "`r?`n" | Where-Object { $_ } | ForEach-Object { ($_ -split ' ')[0] })
+        Check (($order -join ',') -eq 'sgw-cloudflare,tgw-cloudflare,agw-cloudflare,vgw-cloudflare,cgw-engine,mgw-engine,wgw-engine,kgw-engine,hgw-engine,ggw-engine') 'posters apply: the 10 sites in order, SGW first'
+        Check (@((QText $qSites) -split "`r?`n" | Where-Object { $_ -and $_ -notmatch ' update True EGKRINO [A-Z]{3} UPDATE$' }).Count -eq 0) 'posters apply: every site with its own update step and phrase'
+        $c = QText $qCalls
+        Check ($c.LastIndexOf('migrations apply gear-world-posters --remote') -lt $c.LastIndexOf('sites\posters\wrangler.jsonc') -and $c.LastIndexOf('sites\posters\wrangler.jsonc') -lt $c.LastIndexOf('gear-world-hub\wrangler.toml')) 'posters apply: table, then the counter Worker, then (after the sites) the Hub'
+        foreach ($k in $qPc.Keys) {
+            $t = QText (Join-Path (Join-Path $qHome $k) 'wrangler.jsonc')
+            Check (([regex]::Matches($t, '"POSTERS"')).Count -eq 1 -and $t.Contains($qOtherDb) -and $t.Contains('"routes"')) ('posters apply: POSTERS once in the PC config of ' + $k + ', the rest kept')
+        }
+        $ht = QText (Join-Path $qHub 'wrangler.toml')
+        Check (([regex]::Matches($ht, 'binding = "POSTERS"')).Count -eq 1 -and $ht.Contains('service = "gear-world-posters"') -and $ht.Contains($qOtherDb)) 'posters apply: POSTERS once in the Hub wrangler.toml'
+        Check ((Get-FileHash -LiteralPath (Join-Path $qHub 'worker.js')).Hash -eq (Get-FileHash -LiteralPath (Join-Path $qRepoHub 'worker.js')).Hash -and (Get-FileHash -LiteralPath (Join-Path $qHub 'poster-scan.js')).Hash -eq (Get-FileHash -LiteralPath (Join-Path $qRepoHub 'poster-scan.js')).Hash) 'posters apply: the new worker.js and poster-scan.js in the Hub folder'
+        # one backup folder per run that got past the checks (the run with the failing site, the failing Hub, the full run)
+        $bks = @(Get-ChildItem -LiteralPath (Join-Path $qWork 'backups') -Directory -Filter 'before-poster-stats-*' | Sort-Object Name)
+        Check ($bks.Count -eq 3) 'posters apply: a backup folder for every run that changed something'
+        if ($bks.Count -ge 1) {
+            $bk = $bks[$bks.Count - 1].FullName
+            $rb = QText (Join-Path $bk 'rollback.txt')
+            Check ($rb.Contains('rollback ' + $qVer + ' --name sporty-gear-world') -and $rb.Contains('--name construction-gear-uk') -and $rb.Contains('--name gear-world-hub')) 'posters apply: the rollback note has the live versions of the sites and the Hub'
+            Check ((Test-Path -LiteralPath (Join-Path $bk 'car-gear-world.wrangler.jsonc')) -and (Test-Path -LiteralPath (Join-Path $bk 'gear-world-hub.wrangler.toml')) -and (Test-Path -LiteralPath (Join-Path $bk 'gear-world-hub-folder.zip'))) 'posters apply: copies of the PC configs and a zip of the Hub folder'
+            Check (-not (QText (Join-Path $bks[0].FullName 'car-gear-world.wrangler.jsonc')).Contains('POSTERS') -and -not (QText (Join-Path $bk 'gear-world-hub.wrangler.toml')).Contains('POSTERS')) 'posters apply: the copies are from before the change'
+        }
+        Check ((QText (Join-Path $qWork 'wrangler.jsonc')).Contains($qDb)) 'posters apply: the counter config on the PC has the database id'
+        $r = QLast 'POSTER_SETUP_APPLY_*.txt'
+        Check ($r.Contains('ΕΤΟΙΜΟ') -and $r.Contains('poster-scan.js | ') -and -not $r.Contains($qDb) -and -not $r.Contains($qVer)) 'posters apply: report ready, with the Hub baseline lines, no database or version id'
+        # running it again is safe
+        Check ((Run-Q @('-Step', 'apply', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ POSTER STATS')) -eq 0) 'posters apply again: exit 0'
+        Check (([regex]::Matches((QText (Join-Path (Join-Path $qHome 'sporty-gear-world') 'wrangler.jsonc')), '"POSTERS"')).Count -eq 1 -and ([regex]::Matches((QText (Join-Path $qHub 'wrangler.toml')), 'binding = "POSTERS"')).Count -eq 1) 'posters apply again: POSTERS still once'
+        # test-cleanup: only the poster-test rows, after a file that can put them back
+        Write-Utf8 (Join-Path $qState 'rows.flag') 'rows'
+        Check ((Run-Q @('-Step', 'test-cleanup')) -eq 0 -and (QCount 'DELETE FROM') -eq 0) 'posters test-cleanup without -Apply: nothing deleted'
+        Check ((QLast 'POSTER_SETUP_TEST-CLEANUP_*.txt').Contains('Δοκιμαστικές γραμμές (poster-test): 2, με 3 μετρήσεις')) 'posters test-cleanup: the test rows are listed'
+        Check ((Run-Q @('-Step', 'test-cleanup', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ POSTER STATS')) -eq 1 -and (QCount 'DELETE FROM') -eq 0) 'posters test-cleanup with the wrong phrase: nothing deleted'
+        Check ((Run-Q @('-Step', 'test-cleanup', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ POSTER CLEANUP')) -eq 0 -and (QCount "DELETE FROM poster_scans WHERE campaign = 'poster-test'") -eq 1) 'posters test-cleanup with approval: one DELETE of the test rows only'
+        $undo = @(Get-ChildItem -LiteralPath (Join-Path $qWork 'backups') -Filter 'poster-test-rows-*.sql' | Select-Object -Last 1)
+        Check ($undo.Count -eq 1 -and ([regex]::Matches((QText $undo[0].FullName), 'INSERT INTO poster_scans')).Count -eq 2) 'posters test-cleanup: the file to put them back has the 2 rows'
+        Check ((QLast 'POSTER_SETUP_TEST-CLEANUP_*.txt').Contains('Δοκιμαστικές γραμμές τώρα: 0: ΕΝΤΑΞΕΙ')) 'posters test-cleanup: 0 test rows left'
+        # poster-stats: read-only matrix
+        & $exe -NoProfile -ExecutionPolicy Bypass -File $qStats -Days 30 -WorkDir $qWork -OutDir $qOut -SkipInstall -NoClipboard | Out-Null
+        Check ($LASTEXITCODE -eq 0) 'poster-stats: exit 0'
+        $r = QLast 'POSTER_STATS_*.txt'
+        Check ($r.Contains('Σύνολο: 206 σαρώσεις') -and $r.Contains('HUB') -and $r.Contains('SGW') -and $r.Contains('2026-10-27')) 'poster-stats: total, site columns and days'
+        Check ($r -match '(?m)^poster-a\s+0\s+5\s' -and $r -match '(?m)^poster10\s+200\s') 'poster-stats: poster x site cells'
+        Check ($r.Contains('έφτασε το όριο των 200') -and $r.Contains('2026-10-27 poster10 HUB')) 'poster-stats: the daily cap is pointed out'
+        Check ((QCount 'BETWEEN') -ge 1 -and -not ((QText $qCalls) -match 'INSERT|UPDATE poster')) 'poster-stats: only reads'
+    } finally {
+        $env:PATH = $oldPath
+        Remove-Item Env:\GW_FAKE_STATE -ErrorAction SilentlyContinue
+    }
+}
+
 Remove-Item -LiteralPath $work -Recurse -Force -ErrorAction SilentlyContinue
 
 Write-Host ''

@@ -18,3 +18,9 @@ database_id = "REPLACE_WITH_DATABASE_ID"
 
 [ai]
 binding = "AI"
+
+# Poster QR scans (lessons L76): the private Worker that counts them. tools/poster-setup.ps1 adds the same
+# block to the real wrangler.toml on the PC.
+[[services]]
+binding = "POSTERS"
+service = "gear-world-posters"

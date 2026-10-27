@@ -1,0 +1,20 @@
+// gear-world-posters - Wrangler config TEMPLATE. The private Worker that counts poster QR scans (lessons L76).
+// No public address: no routes, workers.dev and preview addresses off. Only the Gear World Workers reach it,
+// through their service binding POSTERS. The real file (wrangler.jsonc) is made on the PC by tools/poster-setup.ps1
+// and is never committed, because it holds the Cloudflare database ID.
+{
+  "name": "gear-world-posters",
+  "main": "worker.js",
+  "compatibility_date": "2026-10-01",
+  "workers_dev": false,
+  "preview_urls": false,
+  "d1_databases": [
+    {
+      "binding": "POSTER_DB",
+      "database_name": "gear-world-posters",
+      "database_id": "REPLACE_WITH_DATABASE_ID",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "observability": { "enabled": true }
+}

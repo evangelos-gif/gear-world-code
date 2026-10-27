@@ -19,7 +19,11 @@
     }
   ],
   // Search in other languages asks Gear World Hub (secret GW_INTERNAL_TOKEN, already set on this Worker).
-  "services": [{ "binding": "GW_HUB", "service": "gear-world-hub" }],
+  "services": [
+    { "binding": "GW_HUB", "service": "gear-world-hub" },
+    // Poster QR scans (lessons L76): the private Worker that counts them (tools/poster-setup.ps1 makes it first).
+    { "binding": "POSTERS", "service": "gear-world-posters" }
+  ],
   // Keep any setting added in the Cloudflare dashboard (secrets are always kept).
   "keep_vars": true,
   // Search in other languages: Workers AI turns the words into English (src/lib/hub.js).

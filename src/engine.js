@@ -15,6 +15,7 @@ import { findPromo } from './lib/promos.js';
 import { infoPage, infoPaths, notFoundPage, errorPage } from './pages/info.js';
 import { useSiteAssets, useRates } from './pages/layout.js';
 import { sitemapIndex, sitemapStatic, sitemapProducts, robotsTxt, SITEMAP_CHUNK } from './seo.js';
+import { posterScan } from './lib/poster-scan.js';
 
 const PER_PAGE = 24;
 
@@ -65,6 +66,8 @@ export function createWorker(site) {
     }
 
     if (path === '/') {
+      // Poster QR scans (lessons L76): counted in the background, the page does not wait for it. Not on a test address.
+      posterScan(request, env, ctx, { site: site.code.toLowerCase(), domain: site.domain, off: env.CLICK_LOG === 'off' });
       return cached(request, env, ctx, async () => {
         const data = await db.homeData(env.DB, site.categories.map(c => c.slug));
         return htmlResponse(homePage(site, data), { method });
