@@ -150,3 +150,29 @@ test('plan: keeps euro prices, leaves out-of-stock and non-travel rows out, writ
   assert.match(sql, /-- VGW import plan .* NOT executed/);
   assert.match(sql, /'VEVOR', 'camping-outdoor'.*'EUR'/);
 });
+
+test('Case Luggage (27 Oct 2026): a travel shop gives context, the rules still decide', () => {
+  const CASE = { retailer: 'Case Luggage', travelShop: true };
+  const ok = [
+    ['Samsonite Luggage 55cm Carry On Spinner Suitcase - C-Lite', 'luggage-suitcases'],
+    ['TUMI Alpha Bravo Navigation Backpack', 'travel-bags-backpacks'],
+    ['Briggs & Riley Baseline Garment Bag', 'travel-bags-backpacks'],
+    ['Samsonite Global Travel Accessories Packing Cube Set', 'travel-accessories']
+  ];
+  for (const [name, slug] of ok) assert.equal(classify(name, '', '', CASE).slug, slug, name);
+  // Without travel context a plain backpack is not travel (Joybuy sells school and laptop backpacks too).
+  assert.equal(classify('TUMI Alpha Bravo Navigation Backpack', '', '', { retailer: 'Joybuy' }).ok, false);
+  // The DENY rules still win in a travel shop.
+  for (const name of ['Samsonite Kids Backpack Unicorn', 'TUMI Travel Size Perfume 30ml', 'Victorinox Swiss Army Knife']) {
+    assert.equal(classify(name, '', '', CASE).ok, false, name);
+  }
+});
+
+test('Case Luggage is on the VGW source list, loaded on its own feed', () => {
+  const sources = JSON.parse(readFileSync(new URL('../../sites/vgw/sources.json', import.meta.url), 'utf8')).sources;
+  const c = sources.find(s => s.advertiserId === 121020);
+  assert.ok(c, 'Case Luggage in sources.json');
+  assert.deepEqual(c.feedIds, [110976]);
+  assert.equal(c.travelShop, true);
+  assert.equal(c.approved, true);
+});

@@ -5,7 +5,8 @@
 //      (Kids' site), cosmetics and hygiene products, clothes and swimwear, pet items, toys and stickers,
 //      gun and instrument cases, knives.
 //   2. "Travel context": the NAME says travel / luggage / holiday / camping / hiking, or the shop's category is a
-//      real camping or luggage section. Generic words such as "backpack", "adapter" or "power bank" count only with it.
+//      real camping or luggage section, or the whole shop is a travel shop (sources.json "travelShop": true, e.g.
+//      Case Luggage, 27 Oct 2026). Generic words such as "backpack", "adapter" or "power bank" count only with it.
 //   3. The FIRST rule whose `include` matches the NAME and whose `exclude` does not wins. Order matters:
 //      luggage before security ("Suitcase with TSA Lock" is a suitcase), bags before security ("Crossbody Bag
 //      with RFID" is a bag).
@@ -115,12 +116,14 @@ const CAMPING_SECTION_NO = words(['skewers?', 'kebab', 'grill (?:baskets?|pans?|
 
 // name: product name; feedCategory: merchant category path (and Awin category) as one string.
 // paths: every merchant category column of the row (leaf and full path), from the import tool.
-export function classify(name, feedCategory = '', paths = '') {
+// source: the shop's entry in sources.json. A travel shop ("travelShop": true) gives every product travel context;
+// the DENY rules and each category's own words still decide.
+export function classify(name, feedCategory = '', paths = '', source = null) {
   const n = String(name || '');
   const cat = `${String(feedCategory || '')} | ${String(paths || '')}`;
   for (const d of DENY) if (d.re.test(n)) return { ok: false, reason: d.label };
   const campingFeed = CAMPING_FEED.test(cat);
-  const ctx = campingFeed || LUGGAGE_FEED.test(cat) || TRAVEL_WORDS.test(n);
+  const ctx = campingFeed || LUGGAGE_FEED.test(cat) || TRAVEL_WORDS.test(n) || Boolean(source && source.travelShop);
   for (const r of RULES) {
     if (r.ctx && !ctx) continue;
     if (r.include.test(n) && !(r.exclude && r.exclude.test(n))) return { ok: true, slug: r.slug };
