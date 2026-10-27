@@ -1,8 +1,8 @@
 # Gear World Hub: the files that run live now, with their sha256.
-# version: poster scans (commit 22a7e42, live since 27/10/2026 21:50, tools/poster-setup.ps1)
-# Checked against the PC (C:\Users\vagge\gear-world-hub) and gearworldhub.com by tools/gwh-photo.ps1 and tools/gwh-search-labels.ps1,
+# version: Hub V2 "Combination" (commit ece23dc, live since 27/10/2026 22:14, tools/gwh-hub-v2.ps1)
+# Checked against the PC (C:\Users\vagge\gear-world-hub) and gearworldhub.com by tools/gwh-hub-v2.ps1 (earlier gwh-photo.ps1, gwh-search-labels.ps1),
 # so a deploy never undoes a change made somewhere else. Update this file after every live deploy of the Hub.
-# Earlier: search labels (b3b86f7, 26/10/2026 19:40); photo search v2 + Sport card (SGW, gwh-sgw-link.ps1, checked 26/10/2026 16:22); photo search v2 (2c7ac37, 25/10/2026 09:54); photo search v1 (fc44f6f, 24/10/2026 17:19); before the photo search: commit d1c300d (24/10/2026).
+# Earlier: poster scans (22a7e42, 27/10/2026 21:50); search labels (b3b86f7, 26/10/2026 19:40); photo search v2 + Sport card (SGW, gwh-sgw-link.ps1, checked 26/10/2026 16:22); photo search v2 (2c7ac37, 25/10/2026 09:54); photo search v1 (fc44f6f, 24/10/2026 17:19); before the photo search: commit d1c300d (24/10/2026).
 # path | bytes | sha256 | kind
 photo-search.js | 13896 | 2acb422e58c287bd243592a1c197e7e9675b990b70a6144f682ff369d4862a30 | file
 poster-scan.js | 4467 | 4263d662787de1e5b98f838c6ba6b6b903517b6b94e29de370082e3e3a1ccba5 | file
@@ -17,19 +17,28 @@ public/gear-world-voice-v2.js | 6498 | 2a6a40abee6b120f58bc727d024a7a88f53e07eda
 public/gwh-hero.png | 2791819 | 0359af073136cebab97894fa641d5ee68d064657bf208eb5faf9074b6c6087f7 | file
 public/hub-agw.jpg | 50536 | 3a6e178fb995a5ab2f6ade8d1edd25867cec99691f120f296c1fb7afe1b280f0 | file
 public/hub-cgw.jpg | 93698 | a48e6bda1f90e6696d654ca1d523b4b257067929fe180644bec453d10193ff2e | file
+public/hub-deals.json | 3356 | adf54651ef03a8ab643a1320c00d00ae9450a690f73c0a7cd0462e6f04ab15e3 | file
 public/hub-ggw.jpg | 64474 | 617575c1ef745463a19bc0f01bae0e3fb668c53471528c2472631bdf059ea828 | file
 public/hub-hgw.jpg | 43683 | d187d0f4cb19f74a3014f8be1111c489e9e181c5f44ca06c59ec2512c5004031 | file
 public/hub-kgw.jpg | 46157 | 2dbb1ab4a833e60de756a474e09ed9167b0d21d124dc49354269a09680f62874 | file
 public/hub-mgw.jpg | 53350 | 3e9fecbbd8d7106f7d588b3204ba06d34241027e49a7dcfa4b92e0a1058187c5 | file
 public/hub-sgw.jpg | 65539 | af854b4de3cc2c246c96bd85eb0bb0a17cc591cf3b4e8fcde52f22915c80f87e | file
 public/hub-tgw.jpg | 32388 | 0bdf9069f1010dedc32b1c87a7c31976ca6431b5df885cc327762a32782049b7 | file
+public/hub-v2.css | 21237 | ced3788229843a8ca4639d690f194b5c2abbfe1615e3dd962c246d7d126817dd | file
+public/hub-v2.js | 76762 | 9adebafe04e48c5e2dc860781895f5b94c1f6f13fec6354a54ba70aef53ad385 | file
 public/hub-vgw.jpg | 53044 | 959862755e58d5a2094db9c921b16e5deb811cc327f55a490f6acd21be80ef1d | file
 public/hub-wgw.jpg | 47732 | 867493c5961736b0865948677d8e272052a9691193ce5c48a05a74d788666ee1 | file
-public/index.html | 20894 | 79339b70da09e0124ca5ab069f70098a8e74f06c915fe55c981a2f2ff48e229c | file
+public/index.html | 19069 | eca6bdc17a56fea1a4a0ba2c3d5c6423fcf9d9958fdd0f448c8fb88e170deb6d | file
 public/legal/legal.css | 2807 | b648bfa528c28771eb1b2533ec40d5a914f02faac98141dc331accaedf036e7e | file
 public/legal/legal.js | 1444 | 10e95d2066c0fe2e294b8909d4e5832d943cabb81441493b9e7a5585809f0118 | file
 public/privacy/index.html | 7735 | 495bf7518b10707f96755c9d3d6c3a8be8694a5631ed2219b7d6719054ce331f | file
+public/seasonal/black-friday.jpg | 30703 | 57f7637c369e5d61b0c572cf1c35e1dcb65ee47812d8bed00ca11907ad7ec01a | file
+public/seasonal/black-friday.mp4 | 102790 | 84450f8b49510573ed6983bd5ebac0f5160cb1c1c74db87c2611505da0a6501c | file
+public/seasonal/christmas.jpg | 41581 | 9489d02d5d6d1504505fd26a699bbd6c81644467c3093ad58e3840278393fde8 | file
+public/seasonal/christmas.mp4 | 151124 | c3c48c1f8ed5f9365c109abcda78d1b7370d7fc5bacb66bdd3b353b549784eaf | file
+public/seasonal/halloween.jpg | 24949 | 8721ab76571cd8e3e2918fa00a18cf53bec6094165b675982d685f85a2355cf6 | file
+public/seasonal/halloween.mp4 | 76910 | 5dd78dbd0659a14a38ba1b0e7a7d710c7331dbd086933bd5e4a756949b082e50 | file
 public/styles.css | 30248 | 3ee1705f5ee3eda295e6cd5f59bb2a2497050b84b38307abeafe4170dc302f31 | file
 public/terms/index.html | 2782 | 4ad51d9397d5171cbc73da00175aa79954300c8366f079beef0a9c3ca45050e3 | file
 public/translations.js | 59802 | 5e956f583984f0f9c18ff9ddee336a2f64f64790f9ddd7b66a2ce83aaaa474a9 | file
-worker.js | 29732 | 4e5941bcf1082fbc906097f093464d1d7da63b8d87cf5b078b33163000e4c7e4 | file
+worker.js | 35466 | 2719af16b1ed021e0457bf81770d0c97f6d755cbaa513948619cf51e88063243 | file
