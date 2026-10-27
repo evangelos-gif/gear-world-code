@@ -1,0 +1,41 @@
+/* Gear World Hub - legal pages. Same colours as the hub; light text on dark, links underlined (lessons L21, L35). */
+:root { --bg: #08111f; --card: #101c2e; --text: #f5f7fb; --muted: #c9d4e3; --gold: #ffc94d; --border: rgba(255,255,255,.14); }
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body { margin: 0; background: var(--bg); color: var(--text); font: 17px/1.65 system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif; }
+a { color: var(--gold); text-decoration: underline; text-underline-offset: 3px; }
+a:hover, a:focus-visible { color: #fff; }
+.lg-wrap { width: min(100% - 32px, 820px); margin: 0 auto; }
+.lg-header { border-bottom: 1px solid var(--border); background: var(--card); }
+.lg-header .lg-wrap { min-height: 64px; display: flex; align-items: center; }
+.lg-brand { color: #fff; font-weight: 800; font-size: 20px; text-decoration: none; letter-spacing: .2px; }
+.lg-brand span { color: var(--gold); }
+.lg-main { padding: 20px 0 48px; }
+.lg-crumbs { color: var(--muted); font-size: 15px; margin-bottom: 8px; }
+.lg-prose h1 { font-size: clamp(28px, 6vw, 40px); line-height: 1.2; margin: 8px 0 12px; }
+.lg-prose h2 { font-size: 21px; margin: 32px 0 8px; color: #fff; }
+.lg-prose p, .lg-prose li { color: var(--muted); }
+.lg-prose strong { color: #fff; }
+.lg-prose ul { padding-left: 22px; }
+.lg-prose li { margin-bottom: 10px; }
+.lg-updated { font-size: 15px; }
+.lg-table-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: 10px; }
+table { width: 100%; border-collapse: collapse; font-size: 15px; min-width: 560px; }
+th, td { text-align: left; vertical-align: top; padding: 10px 12px; border-bottom: 1px solid var(--border); }
+th { color: #fff; background: var(--card); }
+td { color: var(--muted); }
+code { color: #fff; font-size: 14px; }
+@media (max-width: 640px) {
+  table { min-width: 0; }
+  thead { display: none; }
+  tr { display: block; padding: 6px 0; border-bottom: 1px solid var(--border); }
+  td { display: grid; grid-template-columns: 112px 1fr; gap: 10px; border: 0; padding: 6px 12px; }
+  td::before { content: attr(data-label); color: #fff; font-weight: 600; }
+}
+.lg-status { color: #fff; font-weight: 600; }
+.lg-button { min-height: 44px; padding: 10px 18px; border-radius: 10px; border: 2px solid var(--gold); background: var(--gold); color: #08111f; font: inherit; font-weight: 700; cursor: pointer; }
+.lg-button:hover, .lg-button:focus-visible { background: #fff; border-color: #fff; }
+.lg-footer { border-top: 1px solid var(--border); padding: 24px 0 32px; color: var(--muted); font-size: 15px; }
+.lg-legal { display: flex; flex-wrap: wrap; gap: 6px 18px; margin-bottom: 8px; }
+.lg-legal a { display: inline-block; min-height: 40px; line-height: 40px; }
+.lg-legal a[aria-current="page"] { color: #fff; font-weight: 700; }

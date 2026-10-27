@@ -34,6 +34,7 @@ if ($env:CI -eq 'true' -and $isWin) {
 
 # 1. Every .ps1 parses without errors, and any .ps1 with non-ASCII text starts with a UTF-8 BOM
 Write-Host 'Syntax and encoding'
+$byteReturnPattern = '\breturn\s+\(?\s*(\$[A-Za-z_][A-Za-z0-9_.]*\.ToArray\(\)|\[System\.IO\.File\]::ReadAllBytes\(|\$[A-Za-z_][A-Za-z0-9_.]*\.GetBytes\()'
 $psFiles = @(Get-ChildItem -LiteralPath $repo -Recurse -File -Filter '*.ps1' | Where-Object { $_.FullName -notmatch '[\\/](\.git|node_modules|\.wrangler)[\\/]' })
 foreach ($f in $psFiles) {
     $tokens = $null; $errors = $null
@@ -44,7 +45,13 @@ foreach ($f in $psFiles) {
     $nonAscii = $false
     foreach ($b in $bytes) { if ($b -gt 127) { $nonAscii = $true; break } }
     Check ((-not $nonAscii) -or $hasBom) ('UTF-8 BOM when non-ASCII: ' + $f.Name)
+    # A function that returns bytes needs "return , $x": without the comma PowerShell unrolls the array (lessons L73).
+    $byteReturn = [regex]::Matches([System.IO.File]::ReadAllText($f.FullName), $byteReturnPattern)
+    Check ($byteReturn.Count -eq 0) ('returns byte arrays with the comma (L73): ' + $f.Name)
 }
+# (the samples are split in two, so this file does not match its own check)
+$byteReturnSample = @(('function A { return $ms.' + 'ToArray() }'), ('function B { return [System.IO.File]::' + 'ReadAllBytes($p) }'), ('function C { return $enc.' + 'GetBytes($s) }'), ('function D { return , $ms.' + 'ToArray() }'), 'function E { return ([BitConverter]::ToString($sha.ComputeHash($b))) }')
+Check ((@($byteReturnSample | Where-Object { $_ -match $byteReturnPattern }).Count -eq 3) -and -not ($byteReturnSample[3] -match $byteReturnPattern)) 'the L73 check finds a byte array returned without the comma'
 
 # 2. No secrets or Cloudflare IDs committed
 Write-Host 'Secret scan'
@@ -2508,6 +2515,484 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
     } finally {
         $env:PATH = $oldPath
         Remove-Item Env:\GW_FAKE_STATE -ErrorAction SilentlyContinue
+    }
+}
+
+# 10. gwh-code-export.ps1 (Hub code into the repo) on a fake hub folder: read-only, secrets/IDs/emails masked, exact text blocks
+Write-Host 'gwh-code-export.ps1'
+$hx = Join-Path $repo 'tools/gwh-code-export.ps1'
+$hxRoot = Join-Path $work 'hx-home'
+$hub = Join-Path $hxRoot 'gear-world-hub'
+$hxOut = Join-Path $work 'hx-out'
+$hxDb = [guid]::NewGuid().ToString()
+$hxAcc = [guid]::NewGuid().ToString('N')
+$hxMail = 'private.person' + '@gmail.com'
+New-Item -ItemType Directory -Path (Join-Path $hub 'public') -Force | Out-Null
+Write-Utf8 (Join-Path $hub 'worker.js') ("import { helper } from './lib/util.js';`r`nconst API_TOKEN = `"$fakeSecret`";`r`nconst OWNER = '$hxMail';`r`nconst CONTACT = 'contact@gearworldhub.com';`r`nconst MODEL = '@cf/meta/llama-3.1-8b-instruct-fp8';`r`nexport default { fetch(r, env) { return env.ASSETS.fetch(r) } };`r`n")
+Write-Utf8 (Join-Path $hub 'lib/util.js') "export function helper() { return 1 }`n"
+Write-Utf8 (Join-Path $hub 'wrangler.toml') ("name = `"gear-world-hub`"`nmain = `"worker.js`"`naccount_id = `"$hxAcc`"`n[assets]`ndirectory = `"./public`"`nbinding = `"ASSETS`"`n[[d1_databases]]`nbinding = `"DB`"`ndatabase_name = `"gear-world-registry`"`ndatabase_id = `"$hxDb`"`n")
+Write-Utf8 (Join-Path $hub 'package.json') '{ "name": "gear-world-hub", "private": true }'
+Write-Utf8 (Join-Path $hub '.dev.vars') 'TURNSTILE_SECRET=HUBSECRETVALUE123'
+Write-Utf8 (Join-Path $hub 'registry-export.sql') "INSERT INTO subscribers VALUES ('ROWDATA-MARKER');`n"
+Write-Utf8 (Join-Path $hub 'fix-hub-v3.ps1') "# PATCHSCRIPT-MARKER`n"
+Write-Utf8 (Join-Path $hub 'backups/vgw-hub-link-1/index.html') 'BACKUPDIR-MARKER'
+Write-Utf8 (Join-Path $hub 'node_modules/x/index.js') 'PACKAGE-MARKER'
+# index.html with a BOM and CRLF line ends, app.js without a final line end
+[System.IO.File]::WriteAllText((Join-Path $hub 'public/index.html'), "<!doctype html>`r`n<title>Hub</title>`r`n<p>Ελληνικά ✓</p>`r`n", (New-Object System.Text.UTF8Encoding($true)))
+Write-Utf8 (Join-Path $hub 'public/app.js') "console.log('app');"
+Write-Utf8 (Join-Path $hub 'public/privacy/index.html') "<h1>Privacy</h1>`n"
+Write-Utf8 (Join-Path $hub 'public/_headers') "/*`n  X-Content-Type-Options: nosniff`n"
+Write-Utf8 (Join-Path $hub 'public/index-before-rebrand.html') 'OLDPAGE-MARKER'
+Write-Utf8 (Join-Path $hub 'public/big.js') ('/*' + ('z' * 3000) + '*/')
+[System.IO.File]::WriteAllBytes((Join-Path $hub 'public/hub-tgw.jpg'), [byte[]](0xFF, 0xD8, 0xFF, 0x00, 0x10, 0x4A))
+[System.IO.File]::WriteAllBytes((Join-Path $hub 'public/latin1.txt'), [byte[]](0x63, 0x61, 0x66, 0xE9))
+$hxBefore = Get-TreeHash $hub
+& $exe -NoProfile -ExecutionPolicy Bypass -File $hx -Root $hxRoot -OutDir $hxOut -MaxTextKB 2 -SkipD1 -NoClipboard
+Check ($LASTEXITCODE -eq 0) 'hub export: exit code 0'
+$hxRep = @(Get-ChildItem -LiteralPath $hxOut -Filter 'GWH_CODE_EXPORT_*.txt' -ErrorAction SilentlyContinue)
+Check ($hxRep.Count -eq 1) 'hub export: one report written'
+if ($hxRep.Count -ge 1) {
+    $hr = [System.IO.File]::ReadAllText($hxRep[0].FullName)
+    $want = @('worker.js', 'lib/util.js', 'wrangler.toml', 'package.json', 'public/index.html', 'public/app.js', 'public/privacy/index.html', 'public/_headers')
+    $missing = @($want | Where-Object { -not $hr.Contains('<<<GW-FILE-BEGIN path=' + $_ + ' ') })
+    Check ($missing.Count -eq 0) ('hub export: Worker code, imports, config and public text files included ' + ($missing -join ','))
+    Check (-not $hr.Contains($fakeSecret)) 'hub export: hard-coded secret masked'
+    Check (-not $hr.Contains($hxDb) -and -not $hr.Contains($hxAcc)) 'hub export: database_id and account_id masked'
+    Check (-not $hr.Contains('HUBSECRETVALUE123') -and $hr.Contains('.dev.vars: present')) 'hub export: .dev.vars never read, presence reported'
+    Check (-not $hr.Contains($hxMail) -and $hr.Contains('contact@gearworldhub.com')) 'hub export: personal email masked, Gear World email kept'
+    Check ($hr.Contains("'@cf/meta/llama-3.1-8b-instruct-fp8'")) 'hub export: Workers AI model name is not taken for an email'
+    Check ($hr.Contains('secrets masked: 1 line(s)') -and $hr.Contains('personal email addresses masked: 1 line(s)') -and $hr.Contains('IDs masked: 2 line(s)')) 'hub export: masking reported'
+    $markers = @('ROWDATA-MARKER', 'PATCHSCRIPT-MARKER', 'BACKUPDIR-MARKER', 'PACKAGE-MARKER', 'OLDPAGE-MARKER', ('z' * 3000))
+    $leaked = @($markers | Where-Object { $hr.Contains($_) })
+    Check ($leaked.Count -eq 0) ('hub export: data files, patch scripts, backups, packages, old pages and big files not read ' + $leaked.Count)
+    Check ($hr.Contains('registry-export.sql') -and $hr.Contains('fix-hub-v3.ps1')) 'hub export: other files listed by name'
+    $jpgSha = (Get-FileHash -LiteralPath (Join-Path $hub 'public/hub-tgw.jpg') -Algorithm SHA256).Hash.ToLowerInvariant()
+    Check ($hr.Contains('BINARY | public/hub-tgw.jpg | 6 | ' + $jpgSha + ' | - |')) 'hub export: image listed with size and sha256'
+    Check ($hr.Contains('BACKUP | public/index-before-rebrand.html |')) 'hub export: backup-like public page listed (L04)'
+    Check ($hr.Contains('BIG | public/big.js |')) 'hub export: big file listed, text not included'
+    Check ($hr.Contains('NOTUTF8 | public/latin1.txt |')) 'hub export: non UTF-8 file listed, text not included'
+    $idx = [regex]::Match($hr, '(?m)^ASSET \| public/index\.html \| [0-9]+ \| [0-9a-f]{64} \| [0-9a-f]{64} \| [0-9: -]+ \| eol=crlf bom=yes')
+    Check $idx.Success 'hub export: line ends and BOM of the file recorded'
+    # Every text block must give back exactly its sha256 (this is what Claude checks after the paste)
+    $norm = $hr.Replace("`r`n", "`n")
+    $blocks = [regex]::Matches($norm, '(?s)<<<GW-FILE-BEGIN path=(\S+) sha256=([0-9a-f]{64}) >>>\n(.*?)\n<<<GW-FILE-END path=\1 >>>')
+    $hxSha = [System.Security.Cryptography.SHA256]::Create()
+    $badBlocks = @()
+    $byPath = @{}
+    foreach ($b in $blocks) {
+        $calc = ([BitConverter]::ToString($hxSha.ComputeHash((New-Object System.Text.UTF8Encoding($false)).GetBytes($b.Groups[3].Value)))).Replace('-', '').ToLowerInvariant()
+        if ($calc -ne $b.Groups[2].Value) { $badBlocks += $b.Groups[1].Value }
+        $byPath[$b.Groups[1].Value] = $b.Groups[3].Value
+    }
+    $hxSha.Dispose()
+    Check ($blocks.Count -eq 8 -and $badBlocks.Count -eq 0) ('hub export: every text block matches its sha256 ' + $blocks.Count + ' ' + ($badBlocks -join ','))
+    Check ($byPath['public/index.html'] -eq "<!doctype html>`n<title>Hub</title>`n<p>Ελληνικά ✓</p>`n") 'hub export: text block exact (BOM removed, LF, Greek kept)'
+    Check ($byPath['public/app.js'] -eq "console.log('app');") 'hub export: text without a final line end kept exact'
+} else { Check $false 'hub export report written' }
+Check ((Get-TreeHash $hub) -eq $hxBefore) 'hub export: hub folder unchanged (read-only)'
+New-Item -ItemType Directory -Path (Join-Path $work 'hx-empty') -Force | Out-Null
+& $exe -NoProfile -ExecutionPolicy Bypass -File $hx -Root (Join-Path $work 'hx-empty') -OutDir $hxOut -SkipD1 -NoClipboard
+Check ($LASTEXITCODE -eq 2) 'hub export: no hub folder gives exit code 2'
+& $exe -NoProfile -ExecutionPolicy Bypass -File $hx -HubDir $site -OutDir $hxOut -SkipD1 -NoClipboard
+Check ($LASTEXITCODE -eq 3) 'hub export: a folder of another Worker gives exit code 3'
+
+# 11. gwh-photo.ps1 (Hub photo search: check and preview) with a fake wrangler (Windows only: runs .cmd files)
+if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
+    Write-Host 'gwh-photo.ps1 (fake wrangler)'
+    $pTool = Join-Path (Join-Path $repo 'tools') 'gwh-photo.ps1'
+    $pState = Join-Path $work 'gwhp-state'
+    $pWork = Join-Path $work 'gwhp-work'
+    $pOut = Join-Path $work 'gwhp-out'
+    $pBin = Join-Path $work 'gwhp-bin'
+    $pHub = Join-Path $work 'gwhp-hub'
+    New-Item -ItemType Directory -Path $pState, $pBin -Force | Out-Null
+    $pDb = [guid]::NewGuid().ToString()
+    $pBm = '00000085-0000024c-00004c6d-' + [guid]::NewGuid().ToString('N')
+    $pVer = [guid]::NewGuid().ToString()
+    # A fake hub folder on the "PC" and its own baseline list (same format as sites/gwh/live-baseline.txt).
+    Write-Utf8 (Join-Path $pHub 'wrangler.toml') ("name = `"gear-world-hub`"`nmain = `"worker.js`"`n[[d1_databases]]`ndatabase_name = `"gear-world-registry`"`ndatabase_id = `"$pDb`"`n")
+    Write-Utf8 (Join-Path $pHub 'worker.js') 'export default { fetch() { return new Response("hub") } };'
+    Write-Utf8 (Join-Path $pHub 'public/index.html') '<!doctype html><title>Hub</title>'
+    Write-Utf8 (Join-Path $pHub 'public/index-before-kgw-live.html') '<!doctype html><title>old</title>'
+    Write-Utf8 (Join-Path $pHub '.dev.vars') 'SECRET=never-in-the-zip'
+    $pBase = Join-Path $work 'gwhp-baseline.txt'
+    $bl = @('# test baseline', '# version: test hub v0', '# path | bytes | sha256 | kind')
+    foreach ($rel in @('worker.js', 'public/index.html', 'public/index-before-kgw-live.html')) {
+        $f = Join-Path $pHub $rel
+        $kind = 'file'
+        if ($rel -match 'before') { $kind = 'old-copy' }
+        $bl += ('{0} | {1} | {2} | {3}' -f $rel, (Get-Item -LiteralPath $f).Length, (Get-FileHash -LiteralPath $f -Algorithm SHA256).Hash.ToLowerInvariant(), $kind)
+    }
+    Write-Utf8 $pBase (($bl -join "`n") + "`n")
+    $pNpx = @(
+        '@echo off',
+        'echo %* >> "%GW_FAKE_STATE%\calls.log"',
+        'echo %* | findstr /C:"whoami" >nul && goto whoami',
+        'echo %* | findstr /C:"d1 list" >nul && goto d1list',
+        'echo %* | findstr /C:"time-travel info" >nul && goto tt',
+        'echo %* | findstr /C:"--file" >nul && goto file',
+        'echo %* | findstr /C:"--command" >nul && goto query',
+        'echo %* | findstr /C:"secret bulk" >nul && goto secret',
+        'echo %* | findstr /C:"secret list" >nul && goto secretlist',
+        'echo %* | findstr /C:"deployments list" >nul && goto deployments',
+        'echo %* | findstr /C:" deploy" >nul && goto deploy',
+        'echo unknown command 1>&2',
+        'exit /b 1',
+        ':whoami',
+        'echo You are logged in with an OAuth Token, associated with the email test@example.com.',
+        'exit /b 0',
+        ':d1list',
+        ('echo [{"uuid":"' + $pDb + '","name":"gear-world-registry"},{"uuid":"x","name":"other-site"}]'),
+        'exit /b 0',
+        ':tt',
+        ('echo Current bookmark: ' + $pBm),
+        'exit /b 0',
+        ':file',
+        'echo done> "%GW_FAKE_STATE%\tables.flag"',
+        'echo [{"results":[],"success":true}]',
+        'exit /b 0',
+        ':query',
+        'if exist "%GW_FAKE_STATE%\tables.flag" goto qyes',
+        'echo [{"results":[],"success":true}]',
+        'exit /b 0',
+        ':qyes',
+        'echo [{"results":[{"name":"photo_search_usage"},{"name":"photo_search_daily"}],"success":true}]',
+        'exit /b 0',
+        ':secret',
+        'copy /y %5 "%GW_FAKE_STATE%\secret-copy.json" >nul',
+        'echo Finished processing secrets file',
+        'exit /b 0',
+        ':secretlist',
+        'if exist "%GW_FAKE_STATE%\livesalt.flag" echo Secret Name: PHOTO_LIMIT_SALT',
+        'exit /b 0',
+        ':deployments',
+        'if exist "%GW_FAKE_STATE%\split.flag" goto split',
+        ('echo Version(s):  (100%%) ' + $pVer),
+        'exit /b 0',
+        ':split',
+        ('echo Version(s):  (50%%) ' + [guid]::NewGuid().ToString()),
+        ('echo               (50%%) ' + [guid]::NewGuid().ToString()),
+        'exit /b 0',
+        ':deploy',
+        'if exist "%GW_FAKE_STATE%\failother.flag" goto deployfail',
+        'if not exist "%GW_FAKE_STATE%\fail10007.flag" goto deployok',
+        'del "%GW_FAKE_STATE%\fail10007.flag"',
+        'echo Uploaded gear-world-hub-preview',
+        'echo X [ERROR] A request to the Cloudflare API failed. This Worker does not exist on your account. [code: 10007]',
+        'exit /b 1',
+        ':deployfail',
+        'echo X [ERROR] A request to the Cloudflare API failed. Something else. [code: 10021]',
+        'exit /b 1',
+        ':deployok',
+        'echo Uploaded gear-world-hub-preview',
+        'echo   https://gear-world-hub-preview.example-test.workers.dev',
+        'exit /b 0'
+    ) -join "`r`n"
+    [System.IO.File]::WriteAllText((Join-Path $pBin 'npx.cmd'), $pNpx + "`r`n", [System.Text.Encoding]::ASCII)
+    $oldPath = $env:PATH
+    $env:PATH = $pBin + ';' + $oldPath
+    $env:GW_FAKE_STATE = $pState
+    $pCalls = Join-Path $pState 'calls.log'
+    function Run-P([string[]]$a) {
+        $all = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $pTool, '-HubDir', $pHub, '-WorkDir', $pWork, '-OutDir', $pOut, '-BaselineFile', $pBase, '-SkipInstall', '-NoClipboard', '-NoHttpCheck') + $a
+        & $exe @all | Out-Null
+        return $LASTEXITCODE
+    }
+    function PCalls { if (Test-Path -LiteralPath $pCalls) { return [System.IO.File]::ReadAllText($pCalls) } else { return '' } }
+    function PCount([string]$pattern) { return ([regex]::Matches((PCalls), $pattern)).Count }
+    function PLast { return [System.IO.File]::ReadAllText((@(Get-ChildItem -LiteralPath $pOut -Filter 'GWH_PHOTO_*.txt' | Sort-Object LastWriteTime, Name | Select-Object -Last 1)[0]).FullName) }
+    $pHubBefore = Get-TreeHash $pHub
+    try {
+        Check ((Run-P @('-Step', 'check')) -eq 0) 'hub photo check: exit 0'
+        $r = PLast
+        Check ($r.Contains('ίδιος με αυτόν που έτρεχε live (test hub v0') -and $r.Contains('δεν υπάρχουν ακόμα')) 'hub photo check: hub folder same as the baseline (its version named), tables not there yet'
+        Check ((PCount 'deploy --config') -eq 0 -and (PCount '--file') -eq 0 -and (PCount 'secret') -eq 0 -and (PCount 'time-travel') -eq 0) 'hub photo check: only reads'
+        Check (-not $r.Contains($pDb)) 'hub photo check: database id not in the report'
+        Check ((Run-P @('-Step', 'preview')) -eq 0 -and (PCount 'deploy --config') -eq 0 -and (PCount '--file') -eq 0) 'hub photo preview without -Apply: nothing changes'
+        Check ((Run-P @('-Step', 'preview', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB PHOTO LIVE')) -eq 1 -and (PCount '--file') -eq 0 -and (PCount 'deploy --config') -eq 0) 'hub photo preview with the wrong phrase: nothing changes'
+        Check ((Run-P @('-Step', 'preview', '-Apply', '-Approve', 'egkrino hub photo d1')) -eq 1 -and (PCount '--file') -eq 1 -and (PCount 'deploy --config') -eq 0) 'hub photo preview with only the D1 phrase: tables added, no deploy'
+        $c = PCalls
+        Check ($c.IndexOf('time-travel info gear-world-registry') -ge 0 -and $c.IndexOf('time-travel info') -lt $c.IndexOf('--file')) 'hub photo D1: restore point taken before the change'
+        Check ($c -match 'd1 execute gear-world-registry --remote --file "[^"]*0001_photo_search_limits\.sql"') 'hub photo D1: runs the migration file of the repo'
+        $notes = @(Get-ChildItem -LiteralPath (Join-Path $pWork 'backups') -Filter 'hub-photo-d1-*.txt' -ErrorAction SilentlyContinue)
+        Check ($notes.Count -eq 1 -and ([System.IO.File]::ReadAllText($notes[0].FullName)).Contains('--bookmark=' + $pBm)) 'hub photo D1: rollback note with the restore point'
+        Check ((Run-P @('-Step', 'preview', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB PHOTO PREVIEW')) -eq 0 -and (PCount '--file') -eq 1 -and (PCount 'deploy --config') -eq 1) 'hub photo preview with approval: tables already there, deploys once'
+        $c = PCalls
+        Check ($c -match 'deploy --config "[^"]*wrangler\.preview\.toml"' -and $c -match 'secret bulk "[^"]+" --name gear-world-hub-preview') 'hub photo preview: deploys the preview config and sets its secret'
+        $cfgs = @(Get-ChildItem -LiteralPath (Join-Path $pWork 'deploy') -Recurse -Filter 'wrangler.preview.toml' -ErrorAction SilentlyContinue)
+        $pc = $(if ($cfgs.Count) { [System.IO.File]::ReadAllText($cfgs[0].FullName) } else { '' })
+        Check ($pc -match '(?m)^name = "gear-world-hub-preview"' -and $pc -notmatch '(?m)^name = "gear-world-hub"\r?$' -and $pc.Contains('workers_dev = true') -and $pc.Contains('GWH_PREVIEW = "1"') -and $pc.Contains($pDb) -and $pc.Contains('binding = "AI"')) 'hub photo preview: separate test Worker, workers.dev, same D1 and AI, preview rules on'
+        $sc = Join-Path $pState 'secret-copy.json'
+        $sj = $(if (Test-Path -LiteralPath $sc) { [System.IO.File]::ReadAllText($sc) } else { '' })
+        Check ($sj -match '^\{"PHOTO_LIMIT_SALT":"[A-Za-z0-9_\-]{40,}"\}$') 'hub photo preview: a long random secret'
+        Check (@(Get-ChildItem -LiteralPath ([System.IO.Path]::GetTempPath()) -Filter 'gw-hubphoto-secret-*.json' -ErrorAction SilentlyContinue).Count -eq 0) 'hub photo preview: the secret file is deleted at once'
+        $r = PLast
+        Check ($r.Contains('https://gear-world-hub-preview.example-test.workers.dev') -and -not $r.Contains($pDb)) 'hub photo preview: report has the test address, not the database id'
+        Remove-Item -LiteralPath (Join-Path $pState 'tables.flag') -Force
+        Check ((Run-P @('-Step', 'preview', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB PHOTO D1;ΕΓΚΡΙΝΩ HUB PHOTO PREVIEW')) -eq 0 -and (PCount '--file') -eq 2 -and (PCount 'deploy --config') -eq 2) 'hub photo preview: both phrases in one paste, D1 then deploy'
+        Write-Utf8 (Join-Path $pHub 'public/index.html') '<!doctype html><title>Hub changed</title>'
+        Check ((Run-P @('-Step', 'check')) -eq 0 -and (PLast).Contains('ΑΛΛΑΞΕ') -and (PLast).Contains('public/index.html')) 'hub photo check: a changed hub file on the PC is reported'
+        Write-Utf8 (Join-Path $pHub 'public/index.html') '<!doctype html><title>Hub</title>'
+        Check ((Get-TreeHash $pHub) -eq $pHubBefore) 'hub photo: the hub folder on the PC is never changed'
+        # live: backup, secret, new files, old copies moved, deploy from the hub folder
+        $pHubLive = Get-TreeHash $pHub
+        Check ((Run-P @('-Step', 'live')) -eq 0 -and (PCount 'deploy --config') -eq 2 -and (Get-TreeHash $pHub) -eq $pHubLive) 'hub photo live without -Apply: nothing changes'
+        Check ((Run-P @('-Step', 'live', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB PHOTO PREVIEW')) -eq 1 -and (PCount 'deploy --config') -eq 2 -and (PCount '(?m)secret bulk "[^"]+" --name gear-world-hub\s*$') -eq 0 -and (Get-TreeHash $pHub) -eq $pHubLive) 'hub photo live with the wrong phrase: nothing changes'
+        Write-Utf8 (Join-Path $pState 'split.flag') 'split'
+        Check ((Run-P @('-Step', 'live', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB PHOTO LIVE')) -eq 11 -and (PCount 'deploy --config') -eq 2 -and (PCount '(?m)secret bulk "[^"]+" --name gear-world-hub\s*$') -eq 0 -and (Get-TreeHash $pHub) -eq $pHubLive) 'hub photo live: no single live version to go back to: stops before any change'
+        Remove-Item -LiteralPath (Join-Path $pState 'split.flag') -Force
+        Check ((Run-P @('-Step', 'live', '-Apply', '-Approve', 'egkrino hub photo live')) -eq 0 -and (PCount 'deploy --config') -eq 3) 'hub photo live with approval: deploys once'
+        $c = PCalls
+        $liveCfg = [regex]::Escape((Join-Path $pHub 'wrangler.toml'))
+        Check ($c -match ('deploy --config "' + $liveCfg + '"')) 'hub photo live: deploys the hub folder with its own wrangler.toml'
+        $secretAt = [regex]::Match($c, '(?m)secret bulk "[^"]+" --name gear-world-hub\s*$').Index
+        Check ($secretAt -gt 0 -and $secretAt -lt $c.LastIndexOf('deploy --config')) 'hub photo live: the secret is set before the new code goes live'
+        Check ($c.LastIndexOf('deployments list --name gear-world-hub') -lt $c.LastIndexOf('deploy --config')) 'hub photo live: live version read before deploying'
+        $zips = @(Get-ChildItem -LiteralPath (Join-Path $pWork 'backups') -Filter 'gwh-before-photo-live-*.zip' -ErrorAction SilentlyContinue)
+        Check ($zips.Count -eq 1) 'hub photo live: hub folder zipped first'
+        if ($zips.Count -eq 1) {
+            Add-Type -AssemblyName System.IO.Compression.FileSystem
+            $z = [System.IO.Compression.ZipFile]::OpenRead($zips[0].FullName)
+            $names = @($z.Entries | ForEach-Object { $_.FullName -replace '\\', '/' })
+            $z.Dispose()
+            Check (($names -contains 'worker.js') -and ($names -contains 'wrangler.toml') -and ($names -contains 'public/index.html') -and ($names -contains 'public/index-before-kgw-live.html') -and -not ($names -contains '.dev.vars')) 'hub photo live: backup has the code, the config and every public file, never .dev.vars'
+        }
+        $lnotes = @(Get-ChildItem -LiteralPath (Join-Path $pWork 'backups') -Filter 'gwh-before-photo-live-*.txt' -ErrorAction SilentlyContinue)
+        Check ($lnotes.Count -eq 1 -and ([System.IO.File]::ReadAllText($lnotes[0].FullName)).Contains('rollback ' + $pVer + ' --name gear-world-hub')) 'hub photo live: rollback note with the old live version'
+        $gwhRepoDir = Join-Path (Join-Path $repo 'sites') 'gwh'
+        Check ((Get-FileHash -LiteralPath (Join-Path $pHub 'worker.js')).Hash -eq (Get-FileHash -LiteralPath (Join-Path $gwhRepoDir 'worker.js')).Hash -and (Test-Path -LiteralPath (Join-Path $pHub 'photo-search.js')) -and (Test-Path -LiteralPath (Join-Path $pHub 'public/gear-world-camera.js'))) 'hub photo live: the hub folder has the new files'
+        $movedOld = @(Get-ChildItem -LiteralPath (Join-Path $pWork 'backups') -Recurse -Filter 'index-before-kgw-live.html' -ErrorAction SilentlyContinue | Where-Object { $_.FullName -match 'gwh-old-copies-' })
+        Check (-not (Test-Path -LiteralPath (Join-Path $pHub 'public/index-before-kgw-live.html')) -and $movedOld.Count -eq 1) 'hub photo live: the old copy left public/ and was moved, not deleted'
+        Check ((Test-Path -LiteralPath (Join-Path $pHub '.dev.vars'))) 'hub photo live: .dev.vars on the PC is left alone'
+        Write-Utf8 (Join-Path $pState 'livesalt.flag') 'the live Worker has the secret now'
+        Check ((Run-P @('-Step', 'live', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB PHOTO LIVE')) -eq 0 -and (PCount 'deploy --config') -eq 4) 'hub photo live: a second run (folder already new) can deploy again'
+        Check ((PCount '(?m)secret bulk "[^"]+" --name gear-world-hub\s*$') -eq 1 -and (PLast).Contains('υπάρχει ήδη, έμεινε ίδιο')) 'hub photo live: an existing secret of the live Worker is kept'
+        Write-Utf8 (Join-Path $pHub 'public/index.html') '<!doctype html><title>someone else changed this</title>'
+        Check ((Run-P @('-Step', 'live', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB PHOTO LIVE')) -eq 7 -and (PCount 'deploy --config') -eq 4) 'hub photo live: refused when the hub folder was changed by someone else'
+        # L72: "This Worker does not exist [code: 10007]" right after an upload: one more deploy; any other error: none
+        Write-Utf8 (Join-Path $pState 'fail10007.flag') 'once'
+        Check ((Run-P @('-Step', 'preview', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB PHOTO PREVIEW')) -eq 0 -and (PCount 'deploy --config') -eq 6 -and -not (Test-Path -LiteralPath (Join-Path $pState 'fail10007.flag'))) 'hub photo: a deploy answered with code 10007 is repeated once (L72)'
+        Write-Utf8 (Join-Path $pState 'failother.flag') 'always'
+        Check ((Run-P @('-Step', 'preview', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB PHOTO PREVIEW')) -eq 9 -and (PCount 'deploy --config') -eq 7) 'hub photo: any other deploy error stops at once, no repeat'
+        Remove-Item -LiteralPath (Join-Path $pState 'failother.flag') -Force
+        & $exe -NoProfile -ExecutionPolicy Bypass -File $pTool -Step check -HubDir (Join-Path $work 'no-hub-here') -WorkDir $pWork -OutDir $pOut -BaselineFile $pBase -SkipInstall -NoClipboard -NoHttpCheck | Out-Null
+        Check ($LASTEXITCODE -eq 2) 'hub photo: no hub folder gives exit code 2'
+    } finally {
+        $env:PATH = $oldPath
+        Remove-Item Env:\GW_FAKE_STATE -ErrorAction SilentlyContinue
+    }
+}
+
+# 11b. gwh-search-labels.ps1 (Hub search labels: check and live) with a fake wrangler (Windows only: runs .cmd files)
+if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
+    Write-Host 'gwh-search-labels.ps1 (fake wrangler)'
+    $lTool = Join-Path (Join-Path $repo 'tools') 'gwh-search-labels.ps1'
+    $lState = Join-Path $work 'gwhl-state'
+    $lWork = Join-Path $work 'gwhl-work'
+    $lOut = Join-Path $work 'gwhl-out'
+    $lBin = Join-Path $work 'gwhl-bin'
+    $lHub = Join-Path $work 'gwhl-hub'
+    New-Item -ItemType Directory -Path $lState, $lBin, $lHub -Force | Out-Null
+    $lDb = [guid]::NewGuid().ToString()
+    $lVer = [guid]::NewGuid().ToString()
+    $lRepo = Join-Path (Join-Path $repo 'sites') 'gwh'
+    $lRepoPub = Join-Path $lRepo 'public'
+    # The fake hub on the "PC" runs the version before the change: the files of the repo, except the 3 files of the
+    # change, which get one more line (so they differ). The baseline lists the fake hub exactly as it is.
+    Write-Utf8 (Join-Path $lHub 'wrangler.toml') ("name = `"gear-world-hub`"`nmain = `"worker.js`"`n[[d1_databases]]`ndatabase_name = `"gear-world-registry`"`ndatabase_id = `"$lDb`"`n")
+    foreach ($n in @('worker.js', 'photo-search.js')) { Copy-Item -LiteralPath (Join-Path $lRepo $n) -Destination (Join-Path $lHub $n) -Force }
+    Copy-Item -LiteralPath $lRepoPub -Destination $lHub -Recurse -Force
+    $lPub = Join-Path $lHub 'public'
+    foreach ($n in @('app.js', 'translations.js', 'index.html')) { [System.IO.File]::AppendAllText((Join-Path $lPub $n), "`n/* before the search labels */`n") }
+    Write-Utf8 (Join-Path $lHub '.dev.vars') 'SECRET=never-in-the-zip'
+    $lBase = Join-Path $work 'gwhl-baseline.txt'
+    $bl = @('# test baseline', '# version: test hub v1', '# path | bytes | sha256 | kind')
+    $lRels = @('worker.js', 'photo-search.js') + @(Get-ChildItem -LiteralPath $lPub -Recurse -File | Sort-Object FullName | ForEach-Object { 'public/' + $_.FullName.Substring($lPub.Length).TrimStart('\', '/').Replace('\', '/') })
+    foreach ($rel in $lRels) {
+        $f = Join-Path $lHub ($rel.Replace('/', '\'))
+        $bl += ('{0} | {1} | {2} | file' -f $rel, (Get-Item -LiteralPath $f).Length, (Get-FileHash -LiteralPath $f -Algorithm SHA256).Hash.ToLowerInvariant())
+    }
+    Write-Utf8 $lBase (($bl -join "`n") + "`n")
+    $lNpx = @(
+        '@echo off',
+        'echo %* >> "%GW_FAKE_STATE%\calls.log"',
+        'echo %* | findstr /C:"whoami" >nul && goto whoami',
+        'echo %* | findstr /C:"deployments list" >nul && goto deployments',
+        'echo %* | findstr /C:" deploy" >nul && goto deploy',
+        'echo unknown command 1>&2',
+        'exit /b 1',
+        ':whoami',
+        'echo You are logged in with an OAuth Token, associated with the email test@example.com.',
+        'exit /b 0',
+        ':deployments',
+        'if exist "%GW_FAKE_STATE%\split.flag" goto split',
+        ('echo Version(s):  (100%%) ' + $lVer),
+        'exit /b 0',
+        ':split',
+        ('echo Version(s):  (50%%) ' + [guid]::NewGuid().ToString()),
+        ('echo               (50%%) ' + [guid]::NewGuid().ToString()),
+        'exit /b 0',
+        ':deploy',
+        'if exist "%GW_FAKE_STATE%\failother.flag" goto deployfail',
+        'echo Uploaded gear-world-hub',
+        'exit /b 0',
+        ':deployfail',
+        'echo X [ERROR] A request to the Cloudflare API failed. Something else. [code: 10021]',
+        'exit /b 1'
+    ) -join "`r`n"
+    [System.IO.File]::WriteAllText((Join-Path $lBin 'npx.cmd'), $lNpx + "`r`n", [System.Text.Encoding]::ASCII)
+    $oldPath = $env:PATH
+    $env:PATH = $lBin + ';' + $oldPath
+    $env:GW_FAKE_STATE = $lState
+    $lCalls = Join-Path $lState 'calls.log'
+    function Run-L([string[]]$a) {
+        $all = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $lTool, '-HubDir', $lHub, '-WorkDir', $lWork, '-OutDir', $lOut, '-BaselineFile', $lBase, '-SkipInstall', '-NoClipboard', '-NoHttpCheck') + $a
+        & $exe @all | Out-Null
+        return $LASTEXITCODE
+    }
+    function LCalls { if (Test-Path -LiteralPath $lCalls) { return [System.IO.File]::ReadAllText($lCalls) } else { return '' } }
+    function LCount([string]$pattern) { return ([regex]::Matches((LCalls), $pattern)).Count }
+    function LLast { return [System.IO.File]::ReadAllText((@(Get-ChildItem -LiteralPath $lOut -Filter 'GWH_LABELS_*.txt' | Sort-Object LastWriteTime, Name | Select-Object -Last 1)[0]).FullName) }
+    function LSha([string]$path) { return (Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash }
+    $lHubBefore = Get-TreeHash $lHub
+    $lOldApp = LSha (Join-Path $lPub 'app.js')
+    try {
+        Check ((Run-L @('-Step', 'check')) -eq 0) 'hub labels check: exit 0'
+        $r = LLast
+        Check ($r.Contains('ίδιος με την έκδοση που τρέχει live (test hub v1') -and $r.Contains('Αποτέλεσμα: ΕΝΤΑΞΕΙ')) 'hub labels check: the hub folder is the live version (named), ready for live'
+        Check ($r.Contains('Στον φάκελο του Hub μπαίνουν 3 αρχεία') -and $r.Contains('public/app.js:') -and $r.Contains('public/translations.js:') -and $r.Contains('public/index.html:') -and -not $r.Contains('public/styles.css:')) 'hub labels check: the plan is exactly app.js, translations.js and index.html'
+        Check ((LCount 'deploy --config') -eq 0 -and (Get-TreeHash $lHub) -eq $lHubBefore) 'hub labels check: only reads'
+        Check (-not $r.Contains($lDb) -and -not $r.Contains($lVer)) 'hub labels check: no database id or version id in the report'
+        Check ((Run-L @('-Step', 'live')) -eq 0 -and (LCount 'deploy --config') -eq 0 -and (Get-TreeHash $lHub) -eq $lHubBefore) 'hub labels live without -Apply: nothing changes'
+        Check ((Run-L @('-Step', 'live', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB PHOTO LIVE')) -eq 1 -and (LCount 'deploy --config') -eq 0 -and (Get-TreeHash $lHub) -eq $lHubBefore) 'hub labels live with the wrong phrase: nothing changes'
+        Write-Utf8 (Join-Path $lState 'split.flag') 'split'
+        Check ((Run-L @('-Step', 'live', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB LABELS LIVE')) -eq 11 -and (LCount 'deploy --config') -eq 0 -and (Get-TreeHash $lHub) -eq $lHubBefore) 'hub labels live: no single live version to go back to: stops before any change'
+        Remove-Item -LiteralPath (Join-Path $lState 'split.flag') -Force
+        Write-Utf8 (Join-Path $lState 'failother.flag') 'always'
+        Check ((Run-L @('-Step', 'live', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB LABELS LIVE')) -eq 9 -and (LCount 'deploy --config') -eq 1) 'hub labels live: a failed deploy stops at once (exit 9), no repeat'
+        Check ((Get-TreeHash $lHub) -eq $lHubBefore) 'hub labels live: after a failed deploy the hub folder is back as it was (= the live site)'
+        Remove-Item -LiteralPath (Join-Path $lState 'failother.flag') -Force
+        Check ((Run-L @('-Step', 'live', '-Apply', '-Approve', 'egkrino hub labels live')) -eq 0 -and (LCount 'deploy --config') -eq 2) 'hub labels live with approval: deploys once'
+        $c = LCalls
+        Check ($c -match ('deploy --config "' + [regex]::Escape((Join-Path $lHub 'wrangler.toml')) + '"')) 'hub labels live: deploys the hub folder with its own wrangler.toml'
+        Check ($c.LastIndexOf('deployments list --name gear-world-hub') -lt $c.LastIndexOf('deploy --config')) 'hub labels live: live version read before deploying'
+        foreach ($n in @('app.js', 'translations.js', 'index.html')) {
+            Check ((LSha (Join-Path $lPub $n)) -eq (LSha (Join-Path $lRepoPub $n))) ('hub labels live: ' + $n + ' in the hub folder is the new one')
+        }
+        Check ((LSha (Join-Path $lPub 'styles.css')) -eq (LSha (Join-Path $lRepoPub 'styles.css')) -and (LSha (Join-Path $lHub 'worker.js')) -eq (LSha (Join-Path $lRepo 'worker.js')) -and (Test-Path -LiteralPath (Join-Path $lHub '.dev.vars'))) 'hub labels live: the other files and .dev.vars are left alone'
+        $zips = @(Get-ChildItem -LiteralPath (Join-Path $lWork 'backups') -Filter 'gwh-before-labels-live-*.zip' -ErrorAction SilentlyContinue | Sort-Object LastWriteTime)
+        Check ($zips.Count -ge 1) 'hub labels live: the hub folder was zipped first'
+        if ($zips.Count -ge 1) {
+            Add-Type -AssemblyName System.IO.Compression.FileSystem
+            $z = [System.IO.Compression.ZipFile]::OpenRead($zips[-1].FullName)
+            $names = @($z.Entries | ForEach-Object { $_.FullName -replace '\\', '/' })
+            $z.Dispose()
+            Check (($names -contains 'worker.js') -and ($names -contains 'wrangler.toml') -and ($names -contains 'photo-search.js') -and ($names -contains 'public/app.js') -and ($names -contains 'public/hub-sgw.jpg') -and -not ($names -contains '.dev.vars')) 'hub labels live: the zip has the code, the config and every public file, never .dev.vars'
+        }
+        $lNotes = @(Get-ChildItem -LiteralPath (Join-Path $lWork 'backups') -Filter 'gwh-before-labels-live-*.txt' -ErrorAction SilentlyContinue | Sort-Object LastWriteTime)
+        Check ($lNotes.Count -ge 1 -and ([System.IO.File]::ReadAllText($lNotes[-1].FullName)).Contains('rollback ' + $lVer + ' --name gear-world-hub')) 'hub labels live: rollback note with the old live version'
+        $kept = @(Get-ChildItem -LiteralPath (Join-Path $lWork 'backups') -Recurse -Filter 'app.js' -ErrorAction SilentlyContinue | Where-Object { $_.FullName -match 'gwh-before-labels-files-' })
+        Check ($kept.Count -ge 1 -and (LSha $kept[0].FullName) -eq $lOldApp) 'hub labels live: the old app.js is kept as a plain copy'
+        $r = LLast
+        Check ($r.Contains('public/app.js | ') -and $r.Contains('ΕΤΟΙΜΟ') -and -not $r.Contains($lVer)) 'hub labels live: the report has the new baseline lines, not the version id'
+        Check ((Run-L @('-Step', 'check')) -eq 0 -and (LLast).Contains('έχει ήδη αυτή την έκδοση')) 'hub labels check after live: the hub folder has this version'
+        Write-Utf8 (Join-Path $lPub 'styles.css') 'body{}'
+        Check ((Run-L @('-Step', 'live', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB LABELS LIVE')) -eq 7 -and (LCount 'deploy --config') -eq 2) 'hub labels live: refused when someone else changed the hub folder'
+        Check ((LLast).Contains('public/styles.css')) 'hub labels: the changed file is named in the report'
+        & $exe -NoProfile -ExecutionPolicy Bypass -File $lTool -Step check -HubDir (Join-Path $work 'no-hub-here') -WorkDir $lWork -OutDir $lOut -BaselineFile $lBase -SkipInstall -NoClipboard -NoHttpCheck | Out-Null
+        Check ($LASTEXITCODE -eq 2) 'hub labels: no hub folder gives exit code 2'
+    } finally {
+        $env:PATH = $oldPath
+        Remove-Item Env:\GW_FAKE_STATE -ErrorAction SilentlyContinue
+    }
+}
+
+# 12. gw-old-workers.ps1 (which old Workers can go) with a fake wrangler and fake Cloudflare answers (Windows only)
+if ($isWin) {
+    Write-Host 'gw-old-workers.ps1 (fake wrangler and fake Cloudflare)'
+    $oTool = Join-Path (Join-Path $repo 'tools') 'gw-old-workers.ps1'
+    $oState = Join-Path $work 'gwo-state'
+    $oBin = Join-Path $work 'gwo-bin'
+    $oWork = Join-Path $work 'gwo-work'
+    $oOut = Join-Path $work 'gwo-out'
+    New-Item -ItemType Directory -Path $oState, $oBin -Force | Out-Null
+    $oToken = 'tok-SECRET-never-shown-' + [guid]::NewGuid().ToString('N').Substring(0, 6)
+    $oNpx = @(
+        '@echo off',
+        'echo %* >> "%GW_FAKE_STATE%\calls.log"',
+        'echo %* | findstr /C:"whoami" >nul && goto whoami',
+        'echo %* | findstr /C:"auth token" >nul && goto token',
+        'echo unknown command 1>&2',
+        'exit /b 1',
+        ':whoami',
+        'echo You are logged in with an OAuth Token, associated with the email test@example.com.',
+        'exit /b 0',
+        ':token',
+        ('echo {"type":"oauth","token":"' + $oToken + '"}'),
+        'exit /b 0'
+    ) -join "`r`n"
+    [System.IO.File]::WriteAllText((Join-Path $oBin 'npx.cmd'), $oNpx + "`r`n", [System.Text.Encoding]::ASCII)
+    # Fake Cloudflare: 2 old Workers safe, 1 used by the Hub, 1 with its own domain, the other 5 already gone.
+    $A = 'acc1'
+    $ok = { param($r) @{ success = $true; result = $r; result_info = @{ total_pages = 1 } } }
+    $fake = @{}
+    $fake['GET /accounts?page=1&per_page=50'] = & $ok @(@{ id = $A; name = 'Gear World' })
+    $scripts = @('gear-world-hub', 'gwh-sitemap', 'construction-gear-uk', 'gw-ml-isolated-hub-test', 'gw-ml-isolated-client-test', 'constraction-gear-uk', 'construction-gear-uk-preview')
+    $fake["GET /accounts/$A/workers/scripts?page=1&per_page=50"] = & $ok @($scripts | ForEach-Object { @{ id = $_ } })
+    $fake["GET /accounts/$A/workers/subdomain"] = & $ok @{ subdomain = 'example' }
+    $fake["GET /accounts/$A/workers/domains?page=1&per_page=50"] = & $ok @(@{ hostname = 'gearworldhub.com'; service = 'gear-world-hub' }, @{ hostname = 'old.example.com'; service = 'constraction-gear-uk' })
+    $fake['GET /zones?page=1&per_page=50'] = & $ok @()
+    $fake["GET /accounts/$A/storage/kv/namespaces?page=1&per_page=50"] = & $ok @()
+    $fake["GET /accounts/$A/queues?page=1&per_page=50"] = & $ok @()
+    $fake["GET /accounts/$A/pages/projects?page=1&per_page=50"] = & $ok @()
+    foreach ($s in $scripts) {
+        $bindings = @()
+        if ($s -eq 'gear-world-hub') { $bindings = @(@{ type = 'service'; name = 'HELPER'; service = 'gw-ml-isolated-client-test' }) }
+        $fake["GET /accounts/$A/workers/scripts/$s/settings"] = & $ok @{ bindings = $bindings; tail_consumers = @() }
+        $fake["GET /accounts/$A/workers/scripts/$s/subdomain"] = & $ok @{ enabled = $true }
+        $fake["GET /accounts/$A/workers/scripts/$s/schedules"] = & $ok @{ schedules = @() }
+        $fake["GET /accounts/$A/workers/scripts/$s/deployments"] = & $ok @{ deployments = @(@{ created_on = '2026-10-11T17:45:10Z' }) }
+        $fake["GET /accounts/$A/workers/scripts/$s/references"] = & $ok @{ services = @{ incoming = @() }; durable_objects = @(); dispatch_outbounds = @() }
+        $fake["GET /accounts/$A/workers/tails/by-consumer/$s"] = & $ok @()
+        $fake["GET /accounts/$A/workers/scripts/$s/content/v2"] = @{ success = $true; raw_text = ('// code of ' + $s); type = 'application/javascript' }
+        $fake["DELETE /accounts/$A/workers/scripts/$s" + '?force=false'] = & $ok $null
+    }
+    $oFake = Join-Path $oState 'fake-cloudflare.json'
+    [System.IO.File]::WriteAllText($oFake, ($fake | ConvertTo-Json -Depth 10), (New-Object System.Text.UTF8Encoding($false)))
+    $oldPath = $env:PATH
+    $env:PATH = $oBin + ';' + $oldPath
+    $env:GW_FAKE_STATE = $oState
+    $env:GW_CF_FAKE = $oFake
+    function Run-O([string[]]$a) {
+        $all = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $oTool, '-WorkDir', $oWork, '-OutDir', $oOut, '-SkipInstall', '-NoClipboard') + $a
+        & $exe @all | Out-Null
+        return $LASTEXITCODE
+    }
+    function OLast { return [System.IO.File]::ReadAllText((@(Get-ChildItem -LiteralPath $oOut -Filter 'GW_OLD_WORKERS_*.txt' | Sort-Object LastWriteTime, Name | Select-Object -Last 1)[0]).FullName) }
+    function OBackups { return @(Get-ChildItem -LiteralPath (Join-Path $oWork 'backups') -Recurse -File -ErrorAction SilentlyContinue) }
+    try {
+        Check ((Run-O @('-Step', 'check')) -eq 0) 'old workers check: exit 0'
+        $r = OLast
+        Check ($r.Contains('gw-ml-isolated-hub-test') -and ([regex]::Matches($r, 'ΑΣΦΑΛΕΣ ΝΑ ΣΒΗΣΤΕΙ')).Count -eq 2 -and ([regex]::Matches($r, '🟡 ΜΕΝΕΙ')).Count -eq 2 -and ([regex]::Matches($r, 'ΔΕΝ ΥΠΑΡΧΕΙ ΗΔΗ')).Count -eq 5) 'old workers check: 2 safe, 2 stay, 5 already gone'
+        Check ($r.Contains('τον χρησιμοποιεί: gear-world-hub') -and $r.Contains('old.example.com') -and $r.Contains('Ασφαλείς να σβηστούν: 2 από 9')) 'old workers check: says who uses a Worker and which domain points to it'
+        Check (-not $r.Contains($oToken) -and -not $r.Contains('tok-SECRET')) 'old workers check: the Cloudflare login is never in the report'
+        Check ((OBackups).Count -eq 0) 'old workers check: nothing saved, nothing deleted'
+        Check ((Run-O @('-Step', 'delete')) -eq 0 -and (OBackups).Count -eq 0 -and -not (OLast).Contains('Σβήστηκε')) 'old workers delete without -Apply: nothing changes'
+        Check ((Run-O @('-Step', 'delete', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB PHOTO LIVE')) -eq 1 -and (OBackups).Count -eq 0) 'old workers delete with the wrong phrase: nothing changes'
+        Check ((Run-O @('-Step', 'check', '-Only', 'gwh-sitemap')) -eq 2) 'old workers: gwh-sitemap can never be touched'
+        Check ((Run-O @('-Step', 'delete', '-Only', 'gear-world-hub', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ ΔΙΑΓΡΑΦΗ ΠΑΛΙΩΝ WORKERS')) -eq 2 -and (OBackups).Count -eq 0) 'old workers: a live Worker can never be deleted'
+        Check ((Run-O @('-Step', 'delete', '-Only', 'gw-ml-isolated-client-test', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ ΔΙΑΓΡΑΦΗ ΠΑΛΙΩΝ WORKERS')) -eq 0 -and (OLast).Contains('Τίποτα να σβήσω') -and (OBackups).Count -eq 0) 'old workers: a Worker that the Hub uses is not deleted'
+        Check ((Run-O @('-Step', 'delete', '-Apply', '-Approve', 'egkrino diagrafi palion workers')) -eq 1) 'old workers: the phrase must be the Greek one'
+        Check ((Run-O @('-Step', 'delete', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ ΔΙΑΓΡΑΦΗ ΠΑΛΙΩΝ WORKERS')) -eq 0) 'old workers delete with approval: exit 0'
+        $r = OLast
+        Check ($r.Contains('Σβήστηκε: gw-ml-isolated-hub-test') -and $r.Contains('Σβήστηκε: construction-gear-uk-preview') -and -not $r.Contains('Σβήστηκε: gw-ml-isolated-client-test') -and -not $r.Contains('Σβήστηκε: constraction-gear-uk')) 'old workers delete: only the 2 safe ones'
+        $saved = @(OBackups | ForEach-Object { $_.Name })
+        Check (($saved -contains 'gw-ml-isolated-hub-test-code.js') -and ($saved -contains 'gw-ml-isolated-hub-test-settings.json') -and ($saved -contains 'construction-gear-uk-preview-code.js') -and ($saved -contains 'README.txt') -and -not ($saved -contains 'gw-ml-isolated-client-test-code.js')) 'old workers delete: a backup of each one first'
+        Check (-not $r.Contains($oToken) -and -not ((Get-Content -Raw -LiteralPath (Join-Path $oState 'calls.log')).Contains($oToken))) 'old workers delete: the login is never written anywhere'
+    } finally {
+        $env:PATH = $oldPath
+        Remove-Item Env:\GW_FAKE_STATE -ErrorAction SilentlyContinue
+        Remove-Item Env:\GW_CF_FAKE -ErrorAction SilentlyContinue
     }
 }
 
