@@ -604,6 +604,7 @@ export async function planImport({ archive, sourcesFile, outDir, now = new Date(
   // Google format feeds: one row per size and colour; all of them are one product at its lowest price (lessons L34).
   const googleSeen = new Map();
   const rng = makeRng(47);
+  const folderRng = makeRng(78);
   const reject = (reason, rec) => {
     stats.rejected[reason] = (stats.rejected[reason] || 0) + 1;
     const list = (samples.rejected[reason] ||= []);
@@ -694,7 +695,10 @@ export async function planImport({ archive, sourcesFile, outDir, now = new Date(
           const byFolder = (stats.rejectFolders[cls.reason] ||= {});
           const f = (byFolder[folder] ||= { n: 0, ex: [] });
           f.n++;
-          if (f.ex.length < 3) f.ex.push(name.length > 90 ? name.slice(0, 89) + '…' : name);
+          // Up to 6 examples spread over the folder (its own random numbers, so the other samples stay the same).
+          const shown = name.length > 90 ? name.slice(0, 89) + '…' : name;
+          if (f.ex.length < 6) f.ex.push(shown);
+          else { const j = Math.floor(folderRng() * f.n); if (j < 6) f.ex[j] = shown; }
           reject(cls.reason, cls.reason.startsWith('not for UK') ? `${short}  [${notUkHint(name)}]` : short);
           continue;
         }
@@ -961,7 +965,7 @@ export async function planImport({ archive, sourcesFile, outDir, now = new Date(
   L.push('');
   const folderReasons = Object.entries(stats.rejectFolders).filter(([, f]) => Object.keys(f).length);
   if (folderReasons.length) {
-    L.push('== Left out by the category rules, per feed folder (biggest 15, up to 3 examples) ==');
+    L.push('== Left out by the category rules, per feed folder (biggest 15, up to 6 examples) ==');
     for (const [reason, byFolder] of folderReasons) {
       L.push(`-- ${reason}`);
       for (const [folder, f] of Object.entries(byFolder).sort((a, b) => b[1].n - a[1].n).slice(0, 15)) {

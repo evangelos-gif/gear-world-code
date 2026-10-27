@@ -218,3 +218,30 @@ test('Case Luggage first dry run (27 Oct 2026): names lose code and EAN, misplac
   assert.equal(classify('Lonely Planet Italy Travel Guide Book', 'Books > Travel').ok, false);
   assert.equal(classify('Waterproof Phone Pouch for Beach Holiday', 'Sports').slug, 'beach-holiday');
 });
+
+test('Case Luggage second dry run (27 Oct 2026): suitcases named by size, adaptors, covers, washkits; big umbrellas out', () => {
+  const CASE = { retailer: 'Case Luggage', travelShop: true, skuEanInName: true };
+  const SUITCASES = 'Luggage & Bags > Suitcases';
+  const ok = [
+    ['Tumi Large Front Access Expandable Checked 76cm - 19 Degree Front Access - Black Textured', 'luggage-suitcases'],
+    ['Tumi International Expandable Carry-On - Alpha 3 - Black', 'luggage-suitcases'],
+    ['Tumi Short Trip Expandable Packing Case - Alpha 3 - Black', 'luggage-suitcases'],
+    ['Sara Miller Zip Crossbody - Ditsy Floral', 'travel-bags-backpacks'],
+    ['Tumi Medium Crossbody - Alpha 4 - Black', 'travel-bags-backpacks'],
+    ['Go Travel Worldwide USB Earthed - Adaptors', 'travel-tech'],
+    ['Tumi Garment Cover - Black', 'travel-accessories'],
+    ['Bric\'s Suit Cover - Life - Olive', 'travel-accessories'],
+    ['Bric\'s Washkit - Life - Olive', 'travel-accessories'],
+    ['Tumi Small Auto Close Umbrella - Umbrellas - Black', 'travel-accessories'],
+    ['Senz Luggage & Suitcases Mini Automatic - Umbrellas - Midnight Blue', 'travel-accessories'],
+    ['Fulton Umbrellas Aerolite Travel Umbrella - Dark Red', 'travel-accessories']
+  ];
+  for (const [name, slug] of ok) assert.equal(classify(name, SUITCASES, '', CASE).slug, slug, name);
+  for (const name of ['Fulton Umbrellas Open & Close Jumbo - Black', 'Blunt Umbrellas Umbrella Classic - Black',
+    'Bric\'s Opera Bag - X bags - Black', 'Carl Friedrik Dunloe Briefcase - Sonder - Chocolate', 'Tumi Large 15" Laptop Cover - Alpha 4 - Black']) {
+    assert.equal(classify(name, SUITCASES, '', CASE).ok, false, name);
+  }
+  // The same sizes on another shop's suitcase still mean a suitcase; a 55cm bath towel does not.
+  assert.equal(classify('Kono Expandable Carry-On 55cm Hard Shell', 'Shoelaces').slug, 'luggage-suitcases');
+  assert.equal(classify('Bath Towel 55cm x 140cm', 'Home > Towels').ok, false);
+});
