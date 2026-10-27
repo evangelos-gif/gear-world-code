@@ -49,20 +49,22 @@ export const RULES = [
       'full[- ]size luggage', '(?:expandable|dual access(?: expandable)?) trunks?', '\\d[- ]wheel(?:ed)? packing cases?', 'expandable packing cases?', 'garment (?:checked|check[- ]in)',
       // Second dry run (27 Oct 2026): Tumi names a suitcase by its size and use only ("Front Access Expandable Checked 76cm").
       'expandable (?:checked|check[- ]in|carry[- ]on|cabin)', 'international (?:expandable )?carry[- ]on', '(?:short|extended|long|worldwide) trip (?:expandable )?(?:packing )?cases?',
-      '(?:checked|check[- ]in|carry[- ]on|cabin) \\d{2,3}(?:\\.\\d)? ?cm', '\\d{2,3}(?:\\.\\d)? ?cm (?:spinner|trolley|cabin|carry[- ]on|checked|check[- ]in)']),
+      '(?:checked|check[- ]in|carry[- ]on|cabin) \\d{2,3}(?:\\.\\d)? ?cm', '\\d{2,3}(?:\\.\\d)? ?cm (?:spinner|trolley|cabin|carry[- ]on|checked|check[- ]in)',
+      // Third dry run (27 Oct 2026): "Joules Large Trolley Spinner", "Carl Friedrik The Carry-on".
+      'trolley spinners?', '(?:large|medium|small|cabin) (?:trolley )?spinners?', 'the carry[- ]on']),
     // Accessories FOR a suitcase are not a suitcase ("Suitcase Cover", "Luggage Strap").
     exclude: words(['(?:suitcase|luggage) (?:covers?|straps?|tags?|scales?|organi[sz]ers?|belts?|trackers?)', 'packing cubes?', 'fidget', 'salad', 'mop', 'shopping trolley', 'sack trolley', 'wax', 'cosmetic (?:case|bag)s? only', 'umbrellas?'])
   },
   {
     slug: 'travel-bags-backpacks',
     include: words(['travel (?:backpacks?|rucksacks?|bags?)', 'rucksacks?', 'backpacks?', 'day ?packs?', 'duffel(?: bags?)?', 'duffle(?: bags?)?', 'holdalls?', 'weekend(?:er)? bags?', 'weekenders?', 'overnight bags?', 'garment (?:bags?|carriers?)', 'suit carriers?', 'sling bags?', 'bum bags?', 'waist (?:bags?|packs?)', 'cross ?body bags?', 'messenger bags?', 'shoulder bags?', 'packable bags?', 'foldable bags?', 'reisetasche', 'rugzak(?:ken)?', 'reistas(?:sen)?',
-      'boarding totes?', 'travel totes?', 'cross ?body', '(?:wheeled|rolling) (?:briefcases?|laptop (?:bags?|cases?|briefcases?))', 'laptop bags? with wheels']),
+      'boarding totes?', 'travel totes?', 'cross ?body', 'just in case (?:totes?|tote bags?|duffels?|backpacks?)', '(?:wheeled|rolling) (?:briefcases?|laptop (?:bags?|cases?|briefcases?))', 'laptop bags? with wheels']),
     ctx: true,
     exclude: words(['laptop sleeve', 'cool(?:er)? bags?', 'cooler', 'insulated', 'nappy', 'golf', 'pet carrier', 'blowers?', 'trimmers?', 'sprayers?'])
   },
   {
     slug: 'documents-security',
-    include: words(['passport (?:holders?|covers?|wallets?|cases?)', 'travel wallets?', 'document (?:holders?|wallets?|organi[sz]ers?)', 'rfid (?:wallets?|card holders?|sleeves?|blocking cards?|pouch(?:es)?)', 'money belts?', 'neck wallets?', 'hidden (?:wallet|pouch)', 'tsa (?:locks?|padlocks?)', 'luggage locks?', 'combination (?:locks?|padlocks?)', 'cable locks?', 'luggage trackers?', 'item trackers?', 'bluetooth trackers?', 'smart tags?', 'airtags?']),
+    include: words(['passport (?:holders?|covers?|wallets?|cases?)', 'travel wallets?', 'document (?:holders?|wallets?|organi[sz]ers?)', 'rfid (?:wallets?|card holders?|sleeves?|blocking cards?|pouch(?:es)?)', 'money belts?', 'neck wallets?', 'hidden (?:wallet|pouch)', 'tsa (?:locks?|padlocks?)', 'tsa [^|]{0,25}locks?', 'luggage locks?', 'combination (?:locks?|padlocks?)', 'cable locks?', 'luggage trackers?', 'item trackers?', 'bluetooth trackers?', 'smart tags?', 'airtags?']),
     ctx: true,
     exclude: words(['suitcases?', 'luggage sets?', 'backpacks?', 'rucksacks?', 'crossbody', '(?:shoulder|messenger|travel|duffel|duffle|sling) bags?'])
   },
@@ -74,7 +76,8 @@ export const RULES = [
   },
   {
     slug: 'travel-tech',
-    include: words(['travel adapt(?:er|or)s?', 'plug adapt(?:er|or)s?', 'worldwide usb(?: earthed)?', 'earthed adapt(?:er|or)s?', 'universal adapt(?:er|or)s?', 'world adapt(?:er|or)s?', 'power banks?', 'powerbanks?', 'portable chargers?', 'voltage converters?', 'travel chargers?', 'usb chargers?', 'multi (?:plug|charger)s?', 'noise cancell?ing (?:headphones|earbuds)', 'translat(?:ors?|ion earbuds)', 'translator earbuds', 'action cam(?:era)?s?', 'gimbals?', 'selfie sticks?', 'portable speakers?', 'e-?readers?', 'travel routers?', 'mifi']),
+    include: words(['travel adapt(?:er|or)s?', 'plug adapt(?:er|or)s?', 'worldwide usb(?: earthed)?', 'earthed adapt(?:er|or)s?',
+      '(?:uk|eu|euro|usa?|sa|aus?|world(?:wide)?)(?:\\s*(?:-|to|&)\\s*(?:uk|eu|euro|usa?|sa|aus?))?\\s+adapt(?:er|or)s?', 'universal adapt(?:er|or)s?', 'world adapt(?:er|or)s?', 'power banks?', 'powerbanks?', 'portable chargers?', 'voltage converters?', 'travel chargers?', 'usb chargers?', 'multi (?:plug|charger)s?', 'noise cancell?ing (?:headphones|earbuds)', 'translat(?:ors?|ion earbuds)', 'translator earbuds', 'action cam(?:era)?s?', 'gimbals?', 'selfie sticks?', 'portable speakers?', 'e-?readers?', 'travel routers?', 'mifi']),
     ctx: true,
     // Big home audio, phones and car gear belong on Technology or Car Gear World.
     exclude: words(['soundbars?', 'tvs?', 'laptops?', 'smartphones?', 'jump starters?', 'car', 'dash ?cams?', 'gaming', 'heated', 'verwarmde?'])
@@ -93,7 +96,7 @@ export const RULES = [
   },
   {
     slug: 'travel-accessories',
-    include: words(['packing cubes?', 'compression (?:bags?|cubes?|sacks?)', 'luggage (?:tags?|straps?|scales?|covers?|organi[sz]ers?)', 'suitcase (?:covers?|straps?)', 'toiletry bags?', 'wash ?bags?', 'dopp kits?', 'travel bottles?', 'travel bottle (?:pouch|set)', 'liquids? bags?', 'travel (?:organi[sz]ers?|towels?|umbrellas?|kettles?|irons?|hair ?dryers?|mugs?|bottles?|clotheslines?|laundry bags?|shoe bags?|pill (?:boxes|cases)|jewellery (?:case|box|roll)s?|storage bags?)', 'pill box(?:es)?', 'shoe bags?', 'laundry bags?', 'microfib(?:re|er) towels?', 'quick[- ]dry towels?', 'disposable (?:bath )?towels?',
+    include: words(['packing cubes?', 'compression (?:bags?|cubes?|sacks?)', 'luggage (?:tags?|straps?|scales?|covers?|organi[sz]ers?)', 'suitcase (?:covers?|straps?)', 'toiletry bags?', 'wash ?bags?', 'dopp kits?', 'travel bottles?', 'travel bottle (?:pouch|set)', 'liquids? bags?', 'travel (?:organi[sz]ers?|towels?|umbrellas?|kettles?|irons?|hair ?dryers?|mugs?|bottles?|clotheslines?|laundry bags?|shoe bags?|pill (?:boxes|cases)|jewellery (?:case|box|roll)s?|storage bags?)', 'pill box(?:es)?', 'pill cases?', 'toiletry (?:bricks?|cases?|pouch(?:es)?)', 'shoe bags?', 'laundry bags?', 'microfib(?:re|er) towels?', 'quick[- ]dry towels?', 'disposable (?:bath )?towels?',
       // Case Luggage (27 Oct 2026): fashion phone pouches and sunglasses cases are accessories, not beach gear.
       'phone pouch(?:es)?', 'sunglasses cases?', 'travel kits?', 'hanging (?:travel |toiletry )?kits?', 'toiletry kits?',
       '(?:electronics?|tech|cable|cord) (?:cord )?pouch(?:es)?', '(?:electronics?|tech|cable) organi[sz]ers?', 'beauty cases?', 'vanity cases?',

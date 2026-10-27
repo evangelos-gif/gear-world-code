@@ -245,3 +245,28 @@ test('Case Luggage second dry run (27 Oct 2026): suitcases named by size, adapto
   assert.equal(classify('Kono Expandable Carry-On 55cm Hard Shell', 'Shoelaces').slug, 'luggage-suitcases');
   assert.equal(classify('Bath Towel 55cm x 140cm', 'Home > Towels').ok, false);
 });
+
+test('Case Luggage third dry run (27 Oct 2026): trolley spinners, The Carry-on, country adaptors, TSA key lock, pill case', () => {
+  const CASE = { retailer: 'Case Luggage', travelShop: true, skuEanInName: true };
+  const SUITCASES = 'Luggage & Bags > Suitcases';
+  const ACC = 'Luggage & Bags > Luggage Accessories';
+  const ok = [
+    ['Joules Large Trolley Spinner - Coast Softside - Navy', SUITCASES, 'luggage-suitcases'],
+    ['Carl Friedrik The Carry-on - Aluminium - Black', SUITCASES, 'luggage-suitcases'],
+    ['Tumi Just In Case Tote Bag - Voyageur - Alpine Green', 'Luggage & Bags > Shopping Totes', 'travel-bags-backpacks'],
+    ['Go Travel UK - USA Adaptor Twin Pack - Adaptors - White', ACC, 'travel-tech'],
+    ['Go Travel UK-SA Adaptor - Adaptors', ACC, 'travel-tech'],
+    ['Go Travel UK-EU Adaptor - Adaptors', ACC, 'travel-tech'],
+    ['Go Travel TSA Alert Key Lock - Locks', ACC, 'documents-security'],
+    ['Ettinger Large Travel Pill Case - Capra - Black', SUITCASES, 'travel-accessories'],
+    ['Sprayground Toiletry Brick - Gold Floral Remix - Gold Floral', SUITCASES, 'travel-accessories']
+  ];
+  for (const [name, cat, slug] of ok) assert.equal(classify(name, cat, '', CASE).slug, slug, name);
+  for (const name of ['Sara Miller Large Tote Bag - Leopard - Midnight Leopard', 'Tumi Medium 15" Expandable Briefcase - Alpha 4 - Black',
+    'Go Travel 2M Usb Cable - Electronics - White']) {
+    assert.equal(classify(name, SUITCASES, '', CASE).ok, false, name);
+  }
+  // Another shop still needs travel context for an adaptor, and a salad spinner is never luggage.
+  assert.equal(classify('UK-EU Adaptor', 'Electronics').ok, false);
+  assert.equal(classify('Large Salad Spinner', 'Kitchen').ok, false);
+});
