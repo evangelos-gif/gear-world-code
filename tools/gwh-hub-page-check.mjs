@@ -139,7 +139,7 @@ try {
         check(before === after, `${tag}: the campaign slide stays the same without the arrows (8 s)`, `${before} -> ${after}`);
         const seen = [before];
         for (let i = 0; i < 2; i++) { await page.click('[data-gwh2-slide="1"]'); seen.push(await page.getAttribute('.gwh2-slide', 'data-campaign')); }
-        check(seen.join(',') === 'black-friday,christmas,black-friday', `${tag}: the arrows go through the 2 campaigns of 28/11 and round`, seen.join(','));
+        check(seen.join(',') === 'season-black-friday,christmas,season-black-friday', `${tag}: the arrows go through the 2 slides of 28/11 (Black Friday video, Christmas) and round`, seen.join(','));
         await page.click('[data-gwh2-slide="-1"]');
         check(await page.getAttribute('.gwh2-slide', 'data-campaign') === 'christmas', `${tag}: the back arrow works`);
       }
@@ -247,14 +247,14 @@ try {
     await page.route('**/*', route => (new URL(route.request().url()).origin === base ? route.continue() : route.abort()));
     await page.goto(base + '/', { waitUntil: 'load' });
     await page.waitForTimeout(300);
-    const r = await page.evaluate(() => ({ art: !!document.querySelector('#gwh2Campaigns svg.gwh2-art'), running: document.getAnimations().filter(a => a.playState === 'running').length }));
-    check(r.art && r.running === 0, 'reduce motion: the Halloween picture shows and nothing moves', JSON.stringify(r));
+    const r = await page.evaluate(() => ({ still: !!document.querySelector('#gwh2Campaigns img.gwh2-season-media:not([hidden])'), video: !!document.querySelector('#gwh2Campaigns video'), running: document.getAnimations().filter(a => a.playState === 'running').length }));
+    check(r.still && !r.video && r.running === 0, 'reduce motion: the Halloween still picture shows in the hero and nothing moves', JSON.stringify(r));
     await page.locator('#gwh2Campaigns').screenshot({ path: join(shotsDir, 'phone-halloween-reduce-motion.png') });
     await context.close();
   }
 
   // The campaigns follow their dates (UK days).
-  const days = { '2026-10-28': 'halloween', '2026-11-20': 'black-friday-soon,christmas', '2026-11-30': 'black-friday,christmas', '2026-12-01': 'christmas', '2027-01-05': 'winter-sales,new-year-fitness', '2027-02-20': 'all-worlds' };
+  const days = { '2026-10-28': 'season-halloween', '2026-11-15': 'black-friday-soon,christmas', '2026-11-30': 'season-black-friday,christmas', '2026-12-10': 'season-christmas', '2027-01-05': 'winter-sales,new-year-fitness', '2027-02-20': 'all-worlds' };
   for (const [day, want] of Object.entries(days)) {
     const { context, page } = await openPage(browser, viewports[0], 'en-GB', { day });
     const seen = [];
@@ -264,13 +264,15 @@ try {
       if (i < n - 1) await page.click('[data-gwh2-slide="1"]');
     }
     check(seen.join(',') === want, `campaigns on ${day}`, seen.join(','));
-    const pic = await page.evaluate(() => { const a = document.querySelector('#gwh2Campaigns .gwh2-art'); return a ? a.tagName.toLowerCase() + (a.classList.contains('gwh2-mosaic') ? ':mosaic' : '') : ''; });
-    check(want === 'all-worlds' ? pic === 'div:mosaic' : pic === 'svg', `campaigns on ${day}: ${want === 'all-worlds' ? 'the 10 worlds side by side' : 'a drawn picture of the season'}`, pic);
+    const pic = await page.evaluate(() => { const v = document.querySelector('#gwh2Campaigns .gwh2-slide-video'); if (v) return 'video-slide'; const a = document.querySelector('#gwh2Campaigns .gwh2-art'); return a ? a.tagName.toLowerCase() + (a.classList.contains('gwh2-mosaic') ? ':mosaic' : '') : ''; });
+    const last = want.split(',').pop();
+    const wantPic = last.startsWith('season-') ? 'video-slide' : last === 'all-worlds' ? 'div:mosaic' : 'svg';
+    check(pic === wantPic, `campaigns on ${day}: ${wantPic === 'video-slide' ? 'the seasonal video' : wantPic === 'svg' ? 'a drawn picture of the season' : 'the 10 worlds side by side'}`, pic);
     await page.waitForTimeout(2500);
     await page.locator('#gwh2Campaigns').screenshot({ path: join(shotsDir, `campaign-${day}.png`) });
     await context.close();
   }
-  // The seasonal banner at the top of the deals (video loop, or its still picture; text on top in HTML).
+  // The seasonal video in the hero (video loop, or its still picture; text on top in HTML).
   for (const [day, want, vp, opts] of [
     ['2026-10-28', 'halloween', viewports[0], {}], ['2026-11-28', 'black-friday', viewports[2], {}], ['2026-12-10', 'christmas', viewports[0], {}],
     ['2026-11-10', '', viewports[0], {}], ['2026-10-28', 'halloween', viewports[0], { reducedMotion: 'reduce' }]
@@ -286,32 +288,32 @@ try {
     await page.goto(base + '/', { waitUntil: 'load' });
     await page.waitForTimeout(400);
     const info = await page.evaluate(() => {
-      const b = document.getElementById('gwh2Season');
-      return { shown: !!b && !b.hidden, season: b ? b.getAttribute('data-season') || '' : '', title: (b && b.querySelector('.gwh2-season-title') || {}).textContent || '',
+      const b = document.querySelector('#gwh2Campaigns .gwh2-slide-video');
+      return { shown: !!b, season: b ? (b.getAttribute('data-campaign') || '').replace('season-', '') : '', title: (b && b.querySelector('.gwh2-season-title') || {}).textContent || '',
         count: (b && b.querySelector('[data-gwh2-count]:not([hidden])') || {}).textContent || '', video: !!(b && b.querySelector('video')),
-        deals: !document.getElementById('deals').hidden };
+        first: document.querySelector('#gwh2Campaigns .gwh2-slide').getAttribute('data-campaign') };
     });
     if (!want) {
-      check(!info.shown, `${tag}: no banner outside the seasons`, JSON.stringify(info));
+      check(!info.shown, `${tag}: no seasonal video outside the seasons (the drawn slides instead)`, JSON.stringify(info));
     } else {
-      check(info.shown && info.season === want && info.title.length > 5, `${tag}: the ${want} banner with its title on top`, `${info.season} "${info.title}"`);
+      check(info.shown && info.season === want && info.first === `season-${want}` && info.title.length > 5, `${tag}: the ${want} video first in the hero, with its title on top`, `${info.season} "${info.title}"`);
       if (want === 'black-friday') check(/^Ends in \d+ d \d+ h \d+ min$/.test(info.count), `${tag}: countdown to 30/11 23:59`, info.count);
       else check(!info.count, `${tag}: no countdown`);
       if (opts.reducedMotion) check(!info.video, `${tag}: only the still picture, no video`);
       else {
-        await page.locator('#gwh2Season').scrollIntoViewIfNeeded();
+        await page.locator('#gwh2Campaigns').scrollIntoViewIfNeeded();
         await page.waitForTimeout(1500);
-        const v = await page.evaluate(() => { const x = document.querySelector('#gwh2Season video'); const img = document.querySelector('#gwh2Season img'); return { video: !!x, muted: !!x && x.muted, loop: !!x && x.loop, inline: !!x && x.playsInline, preload: x ? x.getAttribute('preload') : '', poster: x ? x.getAttribute('poster') : '', src: x ? (x.querySelector('source') || {}).src || '' : '', still: !!img && !img.hidden, pause: !!document.querySelector('#gwh2Season .gwh2-season-pause:not([hidden])') }; });
+        const v = await page.evaluate(() => { const x = document.querySelector('#gwh2Campaigns video'); const img = document.querySelector('#gwh2Campaigns img.gwh2-season-media'); return { video: !!x, muted: !!x && x.muted, loop: !!x && x.loop, inline: !!x && x.playsInline, preload: x ? x.getAttribute('preload') : '', poster: x ? x.getAttribute('poster') : '', src: x ? (x.querySelector('source') || {}).src || '' : '', still: !!img && !img.hidden, pause: !!document.querySelector('#gwh2Campaigns .gwh2-season-pause:not([hidden])') }; });
         // The test browser may not play H.264: then the still picture must stay (and that is all right).
         check((v.video && v.muted && v.loop && v.inline && v.preload === 'none' && /\/seasonal\/[a-z-]+\.jpg\?v=/.test(v.poster) && /\/seasonal\/[a-z-]+\.mp4\?v=/.test(v.src)) || (!v.video && v.still), `${tag}: muted looping video after the page loaded (or the still picture)`, JSON.stringify(v));
         if (v.video && v.pause) {
-          const box = await page.locator('#gwh2Season .gwh2-season-pause').boundingBox();
+          const box = await page.locator('#gwh2Campaigns .gwh2-season-pause').boundingBox();
           check(box && box.width >= 44 && box.height >= 44, `${tag}: Pause button at least 44 px`);
-          await page.click('#gwh2Season .gwh2-season-pause');
-          check(await page.evaluate(() => document.querySelector('#gwh2Season video').paused), `${tag}: Pause stops the video`);
+          await page.click('#gwh2Campaigns .gwh2-season-pause');
+          check(await page.evaluate(() => document.querySelector('#gwh2Campaigns video').paused), `${tag}: Pause stops the video`);
         }
       }
-      await page.locator('#gwh2Season').screenshot({ path: join(shotsDir, `banner-${want}-${vp.name}${opts.reducedMotion ? '-still' : ''}.png`) });
+      await page.locator('#gwh2Campaigns').screenshot({ path: join(shotsDir, `hero-${want}-${vp.name}${opts.reducedMotion ? '-still' : ''}.png`) });
     }
     check(errors.length === 0, `${tag}: no JavaScript errors`, errors.join(' | ').slice(0, 300));
     await context.close();

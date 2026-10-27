@@ -290,6 +290,16 @@
     const today = now === undefined && previewDay() ? previewDay() : ukToday(now);
     return seasonsOf(Number(today.slice(0, 4))).find(s => s.start <= today && today <= s.end) || null;
   }
+  // The slides of the hero: the seasonal video first (in its days), then the other running campaigns, without the
+  // drawn slide of the same season (owner, 27/10/2026: "this I want in the hero").
+  const SEASON_REPLACES = { halloween: ["halloween"], "black-friday": ["black-friday", "black-friday-soon"], christmas: ["christmas"] };
+  function heroSlides(now) {
+    const season = seasonFor(now);
+    const list = activeCampaigns(now);
+    if (!season) return list;
+    const rest = list.filter(c => c !== FALLBACK_CAMPAIGN && !(SEASON_REPLACES[season.id] || []).includes(c.id));
+    return [{ id: `season-${season.id}`, season }, ...rest];
+  }
   function seasonNow() {
     const day = previewDay();
     return day ? Date.parse(`${day}T12:00:00Z`) : Date.now();
@@ -313,7 +323,7 @@
     return false;
   }
 
-  window.GearWorldHubV2 = { seasonFor, seasonsOf, blackFridayDay, countdownText, seasonMediaVersion: SEASON_MEDIA_VERSION, art: ART, artFor, locales: LOCALES, strings: T, sameAsEnglish: SAME_AS_ENGLISH, campaigns: CAMPAIGNS, fallbackCampaign: FALLBACK_CAMPAIGN, gifts: GIFTS, budgets: BUDGETS, popular: POPULAR, activeCampaigns, activeDeals, giftSearchUrl, ukToday };
+  window.GearWorldHubV2 = { heroSlides, seasonFor, seasonsOf, blackFridayDay, countdownText, seasonMediaVersion: SEASON_MEDIA_VERSION, art: ART, artFor, locales: LOCALES, strings: T, sameAsEnglish: SAME_AS_ENGLISH, campaigns: CAMPAIGNS, fallbackCampaign: FALLBACK_CAMPAIGN, gifts: GIFTS, budgets: BUDGETS, popular: POPULAR, activeCampaigns, activeDeals, giftSearchUrl, ukToday };
 
   // ------------------------------------------------------------ page
   const $ = (selector, root) => (root || document).querySelector(selector);
@@ -375,15 +385,42 @@
 
   // ---------- campaigns
   let slide = 0;
+  const slideNav = (n) => (n > 1 ? `<div class="gwh2-slide-nav">
+              <button type="button" class="gwh2-round" data-gwh2-slide="-1" aria-label="${esc(tx("prev"))}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button>
+              <span class="gwh2-slide-count" aria-live="polite" aria-label="${esc(tx("slideAria", { n: slide + 1, total: n }))}">${slide + 1} / ${n}</span>
+              <button type="button" class="gwh2-round" data-gwh2-slide="1" aria-label="${esc(tx("next"))}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg></button>
+            </div>` : "");
+
   function renderCampaigns() {
     const box = document.getElementById("gwh2Campaigns");
     if (!box) return;
-    const list = activeCampaigns();
+    const list = heroSlides();
     if (slide >= list.length) slide = 0;
     const c = list[slide];
+    if (c.season) {
+      // The seasonal video with its text on top (HTML, 11 languages), a dark shade at the bottom and on the left.
+      const season = c.season;
+      box.innerHTML = `
+      <div class="gwh2-slide gwh2-slide-video gwh2-season-${esc(season.id)}${season.mirror ? " gwh2-season-mirror" : ""}" data-campaign="${esc(c.id)}" role="group" aria-label="${esc(tx("seasonAria"))}">
+        <img class="gwh2-season-media" src="${esc(mediaUrl(season, "jpg"))}" alt="" width="960" height="528" decoding="async">
+        <div class="gwh2-season-shade"></div>
+        <div class="gwh2-season-text">
+          <span class="gwh2-eyebrow">${esc(`${tx(season.name)} · ${seasonRange(season)}`)}</span>
+          <strong class="gwh2-season-title">${esc(tx(season.title))}</strong>
+          <span class="gwh2-season-count" data-gwh2-count hidden></span>
+          <div class="gwh2-slide-foot">
+            <a class="gwh2-btn" href="#gwh2Deals" data-gwh2-jump="#gwh2Deals" data-gwh2-season-cta>${esc(activeDeals(deals).length || !dealsLoaded ? tx("bfCta") : tx("soonCta"))}</a>
+            ${slideNav(list.length)}
+          </div>
+        </div>
+        <button type="button" class="gwh2-season-pause" hidden aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14M16 5v14"/></svg><span></span></button>
+      </div>`;
+      updateCountdown();
+      if (seasonVideoAllowedAfterLoad) startSeasonVideo();
+      return;
+    }
     const external = /^https:\/\//.test(c.href);
     const title = c.title ? tx(c.title) : c.titleText;
-    const many = list.length > 1;
     box.innerHTML = `
       <div class="gwh2-slide" data-campaign="${esc(c.id)}">
         ${artFor(c)}
@@ -393,19 +430,17 @@
           <span class="gwh2-slide-text">${esc(tx(c.text))}</span>
           <div class="gwh2-slide-foot">
             <a class="gwh2-btn" href="${esc(c.href)}"${external ? "" : ` data-gwh2-jump="${esc(c.href)}"`}>${esc(tx(c.cta))}</a>
-            ${many ? `<div class="gwh2-slide-nav">
-              <button type="button" class="gwh2-round" data-gwh2-slide="-1" aria-label="${esc(tx("prev"))}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button>
-              <span class="gwh2-slide-count" aria-live="polite" aria-label="${esc(tx("slideAria", { n: slide + 1, total: list.length }))}">${slide + 1} / ${list.length}</span>
-              <button type="button" class="gwh2-round" data-gwh2-slide="1" aria-label="${esc(tx("next"))}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg></button>
-            </div>` : ""}
+            ${slideNav(list.length)}
           </div>
         </div>
       </div>`;
   }
 
   // ---------- deals
-  // ---------- the seasonal banner (video loop with the text on top, in HTML)
+  // ---------- the seasonal video of the hero (video loop with the text on top, in HTML)
   let seasonVideoAllowedAfterLoad = false;
+  let dealsLoaded = false;
+  const seasonBox = () => document.querySelector("#gwh2Campaigns .gwh2-slide-video");
   let countdownTimer = null;
   const pausedByVisitor = () => { try { return localStorage.getItem("gwh2-season-paused") === "1"; } catch (_) { return false; } };
   const rememberPaused = (yes) => { try { if (yes) localStorage.setItem("gwh2-season-paused", "1"); else localStorage.removeItem("gwh2-season-paused"); } catch (_) { /* ignore */ } };
@@ -423,7 +458,8 @@
 
   function updateCountdown() {
     if (countdownTimer) { clearTimeout(countdownTimer); countdownTimer = null; }
-    const el = document.querySelector("#gwh2Season [data-gwh2-count]");
+    const box = seasonBox();
+    const el = box && box.querySelector("[data-gwh2-count]");
     const season = seasonFor();
     if (!el || !season) return;
     const text = countdownText(season, seasonNow());
@@ -434,7 +470,8 @@
   }
 
   function setPauseButton(video) {
-    const btn = document.querySelector("#gwh2Season .gwh2-season-pause");
+    const box = seasonBox();
+    const btn = box && box.querySelector(".gwh2-season-pause");
     if (!btn) return;
     const paused = !video || video.paused;
     btn.hidden = !video;
@@ -448,9 +485,9 @@
   }
 
   // The video is made only after the page has loaded, and only when the visitor can afford it. It plays while the
-  // banner is on the screen; if the browser cannot play it, the still picture stays.
+  // hero is on the screen; if the browser cannot play it, the still picture stays.
   function startSeasonVideo() {
-    const box = document.getElementById("gwh2Season");
+    const box = seasonBox();
     const season = seasonFor();
     if (!box || !season || !seasonVideoAllowedAfterLoad || stillOnly() || box.querySelector("video")) return;
     const video = document.createElement("video");
@@ -490,51 +527,18 @@
     } else if (!pausedByVisitor()) play();
   }
 
-  function renderSeason(season, hasDeals) {
-    const box = document.getElementById("gwh2Season");
-    if (!box) return;
-    if (!season) { box.hidden = true; box.innerHTML = ""; box.removeAttribute("data-season"); return; }
-    box.hidden = false;
-    box.setAttribute("aria-label", tx("seasonAria"));
-    const cta = hasDeals ? "#gwh2Deals" : "#newsletter";
-    if (box.getAttribute("data-season") !== season.id) {
-      box.setAttribute("data-season", season.id);
-      box.className = `gwh2-season gwh2-season-${season.id}${season.mirror ? " gwh2-season-mirror" : ""}`;
-      box.innerHTML = `
-        <img class="gwh2-season-media" src="${esc(mediaUrl(season, "jpg"))}" alt="" width="960" height="528" decoding="async" loading="lazy">
-        <div class="gwh2-season-shade"></div>
-        <div class="gwh2-season-text">
-          <span class="gwh2-eyebrow" data-gwh2-season="eyebrow"></span>
-          <strong class="gwh2-season-title" data-gwh2-season="title"></strong>
-          <span class="gwh2-season-count" data-gwh2-count hidden></span>
-          <a class="gwh2-btn" data-gwh2-season="cta"></a>
-        </div>
-        <button type="button" class="gwh2-season-pause" hidden aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14M16 5v14"/></svg><span></span></button>`;
-      if (seasonVideoAllowedAfterLoad) startSeasonVideo();
-    }
-    box.querySelector('[data-gwh2-season="eyebrow"]').textContent = `${tx(season.name)} · ${seasonRange(season)}`;
-    box.querySelector('[data-gwh2-season="title"]').textContent = tx(season.title);
-    const link = box.querySelector('[data-gwh2-season="cta"]');
-    link.textContent = hasDeals ? tx("bfCta") : tx("soonCta");
-    link.setAttribute("href", cta);
-    link.setAttribute("data-gwh2-jump", cta);
-    setPauseButton(box.querySelector("video"));
-    updateCountdown();
-  }
-
   let deals = [];
   function renderDeals() {
     const section = document.getElementById("deals");
     const box = document.getElementById("gwh2Deals");
     if (!section || !box) return;
     const list = activeDeals(deals).slice(0, DEALS_SHOWN);
-    const season = seasonFor();
-    section.hidden = list.length === 0 && !season;
+    section.hidden = list.length === 0;
     const navLink = document.querySelector('.main-nav a[href="#deals"]');
     if (navLink) navLink.hidden = section.hidden;
-    const head = section.querySelector(".gwh2-head");
-    if (head) head.hidden = list.length === 0;
-    renderSeason(season, list.length > 0);
+    // The button of the seasonal video: to the deals, or to the e-mail sign-up when no deal runs.
+    const seasonCta = document.querySelector("#gwh2Campaigns [data-gwh2-season-cta]");
+    if (seasonCta) seasonCta.textContent = list.length || !dealsLoaded ? tx("bfCta") : tx("soonCta");
     box.innerHTML = list.map(d => {
       const offer = d.kind === "code"
         ? (Number(d.minSpend) > 0 ? tx("dealCode", { off: money(d.off, d.currency), min: money(d.minSpend, d.currency) }) : tx("dealCodeNoMin", { off: money(d.off, d.currency) }))
@@ -555,8 +559,8 @@
     if (typeof window.fetch !== "function") return;
     fetch("/hub-deals.json", { headers: { Accept: "application/json" }, cache: "no-cache" })
       .then(r => (r.ok ? r.json() : null))
-      .then(data => { deals = data && Array.isArray(data.deals) ? data.deals : []; renderDeals(); })
-      .catch(() => { deals = []; renderDeals(); });
+      .then(data => { deals = data && Array.isArray(data.deals) ? data.deals : []; dealsLoaded = true; renderDeals(); })
+      .catch(() => { deals = []; dealsLoaded = true; renderDeals(); });
   }
 
   // ---------- gift finder
@@ -705,16 +709,16 @@
     if (chip) { runSearch(chip.getAttribute("data-q")); return; }
     const move = t.closest("[data-gwh2-slide]");
     if (move) {
-      const n = activeCampaigns().length;
+      const n = heroSlides().length;
       slide = (slide + Number(move.getAttribute("data-gwh2-slide")) + n) % n;
       renderCampaigns();
       const again = document.querySelector(`[data-gwh2-slide="${move.getAttribute("data-gwh2-slide")}"]`);
       if (again) again.focus();
       return;
     }
-    const pause = t.closest("#gwh2Season .gwh2-season-pause");
+    const pause = t.closest("#gwh2Campaigns .gwh2-season-pause");
     if (pause) {
-      const video = document.querySelector("#gwh2Season video");
+      const video = document.querySelector("#gwh2Campaigns video");
       if (!video) return;
       if (video.paused) { rememberPaused(false); const p = video.play(); if (p && typeof p.catch === "function") p.catch(() => {}); }
       else { rememberPaused(true); video.pause(); }

@@ -154,8 +154,8 @@ test('hub v2: the page keeps every id and class the other scripts need, and load
   }
   assert.match(html, /<body class="gwh2" data-gwh-compact-v2="true">/);
   assert.match(html, /<div class="hero-copy">\s*<span class="eyebrow">/);
-  assert.match(html, /<link rel="stylesheet" href="\/hub-v2\.css\?v=20261027-hub6">/);
-  assert.match(html, /<script src="\/hub-v2\.js\?v=20261027-hub6" defer><\/script>/);
+  assert.match(html, /<link rel="stylesheet" href="\/hub-v2\.css\?v=20261027-hub7">/);
+  assert.match(html, /<script src="\/hub-v2\.js\?v=20261027-hub7" defer><\/script>/);
   assert.ok(html.indexOf('/gear-world-camera.js?v=') < html.indexOf('/hub-v2.js?v='), 'hub-v2.js after the camera script');
   assert.ok(!html.includes('/styles.css'), 'the old styles.css is not loaded');
   assert.ok(!html.includes('gwh-hero.png'), 'the 2.8 MB picture is gone from the page');
@@ -246,9 +246,21 @@ test('hub v2: the seasonal files are ready for the web and are served from the H
   assert.match(js, /window\.addEventListener\("load", allowVideo/);
   const css = read('public/hub-v2.css');
   assert.match(css, /\.gwh2-season-pause\{[^}]*min-width:44px;min-height:44px;/);
-  assert.match(css, /\.gwh2-season-shade\{[^}]*linear-gradient\(90deg,rgba\(5,8,16,\.95\)/, 'dark gradient on the left (wider screens)');
+  assert.match(css, /\.gwh2-season-shade\{[^}]*linear-gradient\(0deg,[^}]*linear-gradient\(90deg,rgba\(5,8,16,\.7\)/, 'dark shade at the bottom and on the left, so the text reads');
   const html = read('public/index.html');
-  assert.ok(html.indexOf('id="gwh2Season"') > html.indexOf('id="deals"') && html.indexOf('id="gwh2Season"') < html.indexOf('id="gwh2Deals"'), 'the banner is at the top of the deals');
+  assert.ok(html.indexOf('id="gwh2Campaigns"') > html.indexOf('class="gwh2-top"') && html.indexOf('id="gwh2Campaigns"') < html.indexOf('id="worlds"'), 'the seasonal video is in the hero (owner, 27/10/2026)');
+  assert.ok(!html.includes('id="gwh2Season"'), 'not a second time in the deals');
+  // The hero: the seasonal video first in its days, then the other campaigns, without the drawn slide of the same season.
+  const h = hub();
+  const ids = day => h.heroSlides(at(day)).map(x => x.id).join(',');
+  assert.equal(ids('2026-10-28'), 'season-halloween');
+  assert.equal(ids('2026-11-10'), 'christmas');
+  assert.equal(ids('2026-11-15'), 'black-friday-soon,christmas');
+  assert.equal(ids('2026-11-20'), 'season-black-friday,christmas');
+  assert.equal(ids('2026-12-01'), 'season-black-friday,christmas');
+  assert.equal(ids('2026-12-10'), 'season-christmas');
+  assert.equal(ids('2026-12-25'), 'all-worlds');
+  assert.equal(ids('2027-01-05'), 'winter-sales,new-year-fitness');
 });
 
 test('hub v2: the Worker answers byte ranges for the seasonal files (iPhone Safari needs 206), with a long cache', async () => {
