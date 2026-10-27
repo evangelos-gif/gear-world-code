@@ -110,3 +110,91 @@ test('search: when the 6 old sites are slow, the fast sites at the end of the li
   assert.equal(fake.most() <= 6, true);
   assert.ok(took < 7000, `the whole search stays short (${took} ms)`);
 });
+
+// Gift finder filters and ranking (GWH-GIFT-FILTERS, GWH-RANKING-V2). A plain fake: each host answers its own products.
+function productsFetch(byHost) {
+  const asked = [];
+  const fetch = async (url) => {
+    const u = new URL(url);
+    asked.push(u);
+    const products = byHost[u.hostname] || [];
+    return new Response(JSON.stringify({ products }), { headers: { 'Content-Type': 'application/json' } });
+  };
+  return { fetch, asked };
+}
+
+async function searchWith(fake, query) {
+  const saved = globalThis.fetch;
+  globalThis.fetch = fake.fetch;
+  try {
+    const response = await hub.fetch(new Request(`https://gearworldhub.com/api/search?${query}`), makeEnv(), {});
+    return { status: response.status, data: await response.json() };
+  } finally {
+    globalThis.fetch = saved;
+  }
+}
+
+test('search: worlds= asks only those Gear Worlds, in their usual order', async () => {
+  const fake = productsFetch({ 'mensgearworld.com': [{ id: 1, product_name: 'Leather watch', price: 40 }], 'technologygearworld.com': [{ id: 2, product_name: 'Smart watch', price: 45 }] });
+  const { status, data } = await searchWith(fake, 'q=watch&worlds=tgw,mgw');
+  assert.equal(status, 200);
+  assert.deepEqual(fake.asked.map(u => u.hostname), ['mensgearworld.com', 'technologygearworld.com']);
+  assert.deepEqual(data.filters.worlds, ['mgw', 'tgw']);
+  assert.deepEqual(Object.keys(data.sites), ['mgw', 'tgw']);
+  assert.equal(data.count, 2);
+});
+
+test('search: bad or unknown worlds are refused, and nothing is asked', async () => {
+  for (const q of ['q=watch&worlds=xyz', 'q=watch&worlds=mg1', 'q=watch&worlds=' + 'mgw,'.repeat(12)]) {
+    const fake = productsFetch({});
+    const { status, data } = await searchWith(fake, q);
+    assert.equal(status, 400, q);
+    assert.equal(data.ok, false);
+    assert.equal(fake.asked.length, 0, `no site asked for ${q}`);
+  }
+});
+
+test('search: max_price and min_price go to the sites as max/min and the Hub drops anything outside the range', async () => {
+  const fake = productsFetch({ 'kidsgearworld.com': [
+    { id: 1, product_name: 'Toy car', price: 12 }, { id: 2, product_name: 'Toy kitchen', price: 80 }, { id: 3, product_name: 'Toy without price' }
+  ] });
+  const { status, data } = await searchWith(fake, 'q=toy&worlds=kgw&max_price=25');
+  assert.equal(status, 200);
+  assert.equal(fake.asked[0].searchParams.get('max'), '25');
+  assert.equal(fake.asked[0].searchParams.get('min'), null);
+  assert.deepEqual(data.results.map(r => r.id), [1]);
+  assert.equal(data.filters.max_price, 25);
+  const high = await searchWith(productsFetch({ 'kidsgearworld.com': [{ id: 2, product_name: 'Toy kitchen', price: 180 }, { id: 1, product_name: 'Toy car', price: 12 }] }), 'q=toy&worlds=kgw&min_price=100');
+  assert.deepEqual(high.data.results.map(r => r.id), [2]);
+  for (const q of ['q=toy&max_price=abc', 'q=toy&max_price=0', 'q=toy&min_price=60&max_price=50', 'q=toy&max_price=999999']) {
+    const r = await searchWith(productsFetch({}), q);
+    assert.equal(r.status, 400, q);
+  }
+});
+
+test('search: without the new parameters nothing extra is sent or returned', async () => {
+  const fake = productsFetch({ 'kidsgearworld.com': [{ id: 1, product_name: 'Toy car', price: 12 }] });
+  const { data } = await searchWith(fake, 'q=toy');
+  assert.equal(fake.asked.length, 9);
+  assert.equal(fake.asked.every(u => !u.searchParams.has('max') && !u.searchParams.has('min')), true);
+  assert.equal('filters' in data, false);
+});
+
+test('search: real cordless drills come before a drill brush set from another world (ranking v2)', async () => {
+  const fake = productsFetch({
+    'cargearworld.com': [{ id: 1, product_name: 'Oxerbog 15-Piece Cordless Drill Brush Set', price: 19.99 }, { id: 2, product_name: 'Car vacuum', price: 30 }],
+    'constructiongearworld.com': [
+      { id: 10, product_name: 'Bosch GRD 18V-127 18v Cordless Right Angle Drill', price: 314.95, site_category: 'Power Tools', subcategory: 'Drills' },
+      { id: 11, product_name: 'Bosch UNIVERSALHAMMER P4A 18v Cordless SDS Drill', price: 183.95, site_category: 'Power Tools', subcategory: 'Drills' },
+      { id: 12, product_name: 'Black and Decker BDCIM18 18v Cordless Impact Driver', price: 65.95, site_category: 'Power Tools' },
+      { id: 13, product_name: 'Makita Cordless Drill Driver', price: 99, site_category: 'Power Tools', subcategory: 'Drills' }
+    ]
+  });
+  const { data } = await searchWith(fake, 'q=cordless%20drill');
+  const order = data.results.map(r => `${r.site}:${r.id}`);
+  assert.equal(order[0], 'cgw:13', 'the exact phrase in a drill comes first');
+  assert.ok(order.indexOf('cgw:10') < order.indexOf('agw:1'), 'a drill before the brush set');
+  assert.ok(order.indexOf('cgw:11') < order.indexOf('agw:1'), 'a drill before the brush set');
+  const brushes = await searchWith(productsFetch({ 'cargearworld.com': [{ id: 1, product_name: 'Drill brush set', price: 9 }, { id: 2, product_name: 'Cordless drill', price: 50 }] }), 'q=drill%20brush');
+  assert.equal(brushes.data.results[0].id, 1, 'asking for the accessory finds the accessory first');
+});

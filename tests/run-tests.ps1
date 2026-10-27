@@ -2907,6 +2907,166 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
     }
 }
 
+# 11c. gwh-hub-v2.ps1 (the new Hub page "Συνδυασμός": check, preview, live) with a fake wrangler (Windows only)
+if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
+    Write-Host 'gwh-hub-v2.ps1 (fake wrangler)'
+    $vTool = Join-Path (Join-Path $repo 'tools') 'gwh-hub-v2.ps1'
+    $vState = Join-Path $work 'gwhv-state'
+    $vWork = Join-Path $work 'gwhv-work'
+    $vOut = Join-Path $work 'gwhv-out'
+    $vBin = Join-Path $work 'gwhv-bin'
+    $vHub = Join-Path $work 'gwhv-hub'
+    New-Item -ItemType Directory -Path $vState, $vBin, $vHub -Force | Out-Null
+    $vDb = [guid]::NewGuid().ToString()
+    $vVer = [guid]::NewGuid().ToString()
+    $vRepo = Join-Path (Join-Path $repo 'sites') 'gwh'
+    $vRepoPub = Join-Path $vRepo 'public'
+    # The fake hub on the "PC" runs the version before the change: the files of the repo, except worker.js and
+    # index.html (one more line, so they differ) and the 3 new files (not there yet). The baseline lists it exactly.
+    $vCfg = "name = `"gear-world-hub`"`nmain = `"worker.js`"`n[[d1_databases]]`ndatabase_name = `"gear-world-registry`"`ndatabase_id = `"$vDb`"`n`n[[services]]`nbinding = `"POSTERS`"`nservice = `"gear-world-posters`"`n"
+    Write-Utf8 (Join-Path $vHub 'wrangler.toml') $vCfg
+    foreach ($n in @('worker.js', 'photo-search.js', 'poster-scan.js')) { Copy-Item -LiteralPath (Join-Path $vRepo $n) -Destination (Join-Path $vHub $n) -Force }
+    Copy-Item -LiteralPath $vRepoPub -Destination $vHub -Recurse -Force
+    $vPub = Join-Path $vHub 'public'
+    foreach ($n in @('hub-v2.css', 'hub-v2.js', 'hub-deals.json')) { Remove-Item -LiteralPath (Join-Path $vPub $n) -Force }
+    [System.IO.File]::AppendAllText((Join-Path $vHub 'worker.js'), "`n// before the Hub V2`n")
+    [System.IO.File]::AppendAllText((Join-Path $vPub 'index.html'), "`n<!-- before the Hub V2 -->`n")
+    Write-Utf8 (Join-Path $vHub '.dev.vars') 'SECRET=never-in-the-zip'
+    $vBase = Join-Path $work 'gwhv-baseline.txt'
+    $bl = @('# test baseline', '# version: test hub v2-before', '# path | bytes | sha256 | kind')
+    $vRels = @('worker.js', 'photo-search.js', 'poster-scan.js') + @(Get-ChildItem -LiteralPath $vPub -Recurse -File | Sort-Object FullName | ForEach-Object { 'public/' + $_.FullName.Substring($vPub.Length).TrimStart('\', '/').Replace('\', '/') })
+    foreach ($rel in $vRels) {
+        $f = Join-Path $vHub ($rel.Replace('/', '\'))
+        $bl += ('{0} | {1} | {2} | file' -f $rel, (Get-Item -LiteralPath $f).Length, (Get-FileHash -LiteralPath $f -Algorithm SHA256).Hash.ToLowerInvariant())
+    }
+    Write-Utf8 $vBase (($bl -join "`n") + "`n")
+    $vNpx = @(
+        '@echo off',
+        'echo %* >> "%GW_FAKE_STATE%\calls.log"',
+        'echo %* | findstr /C:"whoami" >nul && goto whoami',
+        'echo %* | findstr /C:"d1 list" >nul && goto d1list',
+        'echo %* | findstr /C:"secret list" >nul && goto secretlist',
+        'echo %* | findstr /C:"secret bulk" >nul && goto secret',
+        'echo %* | findstr /C:"deployments list" >nul && goto deployments',
+        'echo %* | findstr /C:" deploy" >nul && goto deploy',
+        'echo unknown command 1>&2',
+        'exit /b 1',
+        ':whoami',
+        'echo You are logged in with an OAuth Token, associated with the email test@example.com.',
+        'exit /b 0',
+        ':d1list',
+        ('echo [{"uuid":"' + $vDb + '","name":"gear-world-registry"},{"uuid":"x","name":"other-site"}]'),
+        'exit /b 0',
+        ':secretlist',
+        'if exist "%GW_FAKE_STATE%\salt.flag" echo Secret Name: PHOTO_LIMIT_SALT',
+        'exit /b 0',
+        ':secret',
+        'echo set> "%GW_FAKE_STATE%\salt.flag"',
+        'echo Finished processing secrets file',
+        'exit /b 0',
+        ':deployments',
+        'if exist "%GW_FAKE_STATE%\split.flag" goto split',
+        ('echo Version(s):  (100%%) ' + $vVer),
+        'exit /b 0',
+        ':split',
+        ('echo Version(s):  (50%%) ' + [guid]::NewGuid().ToString()),
+        ('echo               (50%%) ' + [guid]::NewGuid().ToString()),
+        'exit /b 0',
+        ':deploy',
+        'if exist "%GW_FAKE_STATE%\failother.flag" goto deployfail',
+        'echo Uploaded the Worker',
+        'echo   https://gear-world-hub-preview.example-test.workers.dev',
+        'exit /b 0',
+        ':deployfail',
+        'echo X [ERROR] A request to the Cloudflare API failed. Something else. [code: 10021]',
+        'exit /b 1'
+    ) -join "`r`n"
+    [System.IO.File]::WriteAllText((Join-Path $vBin 'npx.cmd'), $vNpx + "`r`n", [System.Text.Encoding]::ASCII)
+    $oldPath = $env:PATH
+    $env:PATH = $vBin + ';' + $oldPath
+    $env:GW_FAKE_STATE = $vState
+    $vCalls = Join-Path $vState 'calls.log'
+    function Run-V([string[]]$a) {
+        $all = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $vTool, '-HubDir', $vHub, '-WorkDir', $vWork, '-OutDir', $vOut, '-BaselineFile', $vBase, '-SkipInstall', '-NoClipboard', '-NoHttpCheck') + $a
+        & $exe @all | Out-Null
+        return $LASTEXITCODE
+    }
+    function VCalls { if (Test-Path -LiteralPath $vCalls) { return [System.IO.File]::ReadAllText($vCalls) } else { return '' } }
+    function VCount([string]$pattern) { return ([regex]::Matches((VCalls), $pattern)).Count }
+    function VLast { return [System.IO.File]::ReadAllText((@(Get-ChildItem -LiteralPath $vOut -Filter 'GWH_HUB_V2_*.txt' | Sort-Object LastWriteTime, Name | Select-Object -Last 1)[0]).FullName) }
+    function VSha([string]$path) { return (Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash }
+    $vHubBefore = Get-TreeHash $vHub
+    $vOldIndex = VSha (Join-Path $vPub 'index.html')
+    try {
+        Check ((Run-V @('-Step', 'check')) -eq 0) 'hub v2 check: exit 0'
+        $r = VLast
+        Check ($r.Contains('ίδιος με την έκδοση που τρέχει live (test hub v2-before') -and $r.Contains('Αποτέλεσμα: ΕΝΤΑΞΕΙ') -and $r.Contains('POSTERS) στη ρύθμιση του Hub: υπάρχει')) 'hub v2 check: the hub folder is the live version, posters on, ready'
+        Check ($r.Contains('Στον φάκελο του Hub μπαίνουν 5 αρχεία') -and $r.Contains('- worker.js:') -and $r.Contains('public/index.html:') -and $r.Contains('public/hub-v2.css:') -and $r.Contains('public/hub-v2.js:') -and $r.Contains('public/hub-deals.json:') -and -not $r.Contains('public/styles.css:') -and -not $r.Contains('poster-scan.js:')) 'hub v2 check: the plan is exactly worker.js, index.html and the 3 new files'
+        Check ((VCount 'deploy --config') -eq 0 -and (VCount 'secret bulk') -eq 0 -and (Get-TreeHash $vHub) -eq $vHubBefore) 'hub v2 check: only reads'
+        Check (-not $r.Contains($vDb) -and -not $r.Contains($vVer)) 'hub v2 check: no database id or version id in the report'
+        # preview
+        Check ((Run-V @('-Step', 'preview')) -eq 0 -and (VCount 'deploy --config') -eq 0) 'hub v2 preview without -Apply: nothing changes'
+        Check ((Run-V @('-Step', 'preview', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB LIVE')) -eq 1 -and (VCount 'deploy --config') -eq 0) 'hub v2 preview with the live phrase: nothing changes'
+        Check ((Run-V @('-Step', 'preview', '-Apply', '-Approve', 'egkrino hub preview')) -eq 0 -and (VCount 'deploy --config') -eq 1) 'hub v2 preview with approval: deploys once'
+        $c = VCalls
+        Check ($c -match 'deploy --config "[^"]*wrangler\.preview\.toml"' -and $c -match 'secret bulk "[^"]+" --name gear-world-hub-preview') 'hub v2 preview: deploys the preview config, sets the photo secret of the test Worker'
+        $cfgs = @(Get-ChildItem -LiteralPath (Join-Path $vWork 'deploy') -Recurse -Filter 'wrangler.preview.toml' -ErrorAction SilentlyContinue)
+        $pc = $(if ($cfgs.Count) { [System.IO.File]::ReadAllText($cfgs[0].FullName) } else { '' })
+        Check ($pc -match '(?m)^name = "gear-world-hub-preview"' -and $pc -notmatch '(?m)^name = "gear-world-hub"\r?$' -and $pc.Contains('workers_dev = true') -and $pc.Contains('GWH_PREVIEW = "1"') -and $pc.Contains($vDb) -and -not $pc.Contains('POSTERS')) 'hub v2 preview: separate test Worker, workers.dev, preview rules on, no poster counting'
+        $r = VLast
+        Check ($r.Contains('https://gear-world-hub-preview.example-test.workers.dev') -and $r.Contains('?gwh-date=2026-11-28') -and -not $r.Contains($vDb)) 'hub v2 preview: report has the test address and the Black Friday link, not the database id'
+        Check ((Get-TreeHash $vHub) -eq $vHubBefore) 'hub v2 preview: the hub folder on the PC is not changed'
+        Check ((Run-V @('-Step', 'preview', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB PREVIEW')) -eq 0 -and (VCount 'secret bulk') -eq 1) 'hub v2 preview again: the existing secret of the test Worker is kept'
+        # live: the posters go first
+        Write-Utf8 (Join-Path $vHub 'wrangler.toml') ($vCfg.Substring(0, $vCfg.IndexOf('[[services]]')))
+        Check ((Run-V @('-Step', 'live', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB LIVE')) -eq 8 -and (VCount 'deploy --config') -eq 2) 'hub v2 live: refused before the poster counting is on the Hub'
+        Write-Utf8 (Join-Path $vHub 'wrangler.toml') $vCfg
+        Check ((Run-V @('-Step', 'live')) -eq 0 -and (VCount 'deploy --config') -eq 2 -and (Get-TreeHash $vHub) -eq $vHubBefore) 'hub v2 live without -Apply: nothing changes'
+        Check ((Run-V @('-Step', 'live', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB PREVIEW')) -eq 1 -and (VCount 'deploy --config') -eq 2 -and (Get-TreeHash $vHub) -eq $vHubBefore) 'hub v2 live with the preview phrase: nothing changes'
+        Write-Utf8 (Join-Path $vState 'split.flag') 'split'
+        Check ((Run-V @('-Step', 'live', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB LIVE')) -eq 11 -and (VCount 'deploy --config') -eq 2 -and (Get-TreeHash $vHub) -eq $vHubBefore) 'hub v2 live: no single live version to go back to: stops before any change'
+        Remove-Item -LiteralPath (Join-Path $vState 'split.flag') -Force
+        Write-Utf8 (Join-Path $vState 'failother.flag') 'always'
+        Check ((Run-V @('-Step', 'live', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB LIVE')) -eq 9 -and (VCount 'deploy --config') -eq 3) 'hub v2 live: a failed deploy stops at once (exit 9), no repeat'
+        Check ((Get-TreeHash $vHub) -eq $vHubBefore) 'hub v2 live: after a failed deploy the hub folder is back as it was (new files removed too)'
+        Remove-Item -LiteralPath (Join-Path $vState 'failother.flag') -Force
+        Check ((Run-V @('-Step', 'live', '-Apply', '-Approve', 'egkrino hub live')) -eq 0 -and (VCount 'deploy --config') -eq 4) 'hub v2 live with approval: deploys once'
+        $c = VCalls
+        Check ($c -match ('deploy --config "' + [regex]::Escape((Join-Path $vHub 'wrangler.toml')) + '"')) 'hub v2 live: deploys the hub folder with its own wrangler.toml (POSTERS kept)'
+        Check ($c.LastIndexOf('deployments list --name gear-world-hub') -lt $c.LastIndexOf('deploy --config')) 'hub v2 live: live version read before deploying'
+        foreach ($n in @('index.html', 'hub-v2.css', 'hub-v2.js', 'hub-deals.json')) {
+            Check ((VSha (Join-Path $vPub $n)) -eq (VSha (Join-Path $vRepoPub $n))) ('hub v2 live: public/' + $n + ' in the hub folder is the new one')
+        }
+        Check ((VSha (Join-Path $vHub 'worker.js')) -eq (VSha (Join-Path $vRepo 'worker.js'))) 'hub v2 live: worker.js in the hub folder is the new one'
+        Check ((Test-Path -LiteralPath (Join-Path $vPub 'styles.css')) -and (Test-Path -LiteralPath (Join-Path $vPub 'gwh-hero.png')) -and (Test-Path -LiteralPath (Join-Path $vHub '.dev.vars')) -and ([System.IO.File]::ReadAllText((Join-Path $vHub 'wrangler.toml'))) -eq $vCfg) 'hub v2 live: styles.css, the old picture, .dev.vars and wrangler.toml are left alone'
+        $zips = @(Get-ChildItem -LiteralPath (Join-Path $vWork 'backups') -Filter 'gwh-before-v2-live-*.zip' -ErrorAction SilentlyContinue | Sort-Object LastWriteTime)
+        Check ($zips.Count -ge 1) 'hub v2 live: the hub folder was zipped first'
+        if ($zips.Count -ge 1) {
+            Add-Type -AssemblyName System.IO.Compression.FileSystem
+            $z = [System.IO.Compression.ZipFile]::OpenRead($zips[-1].FullName)
+            $names = @($z.Entries | ForEach-Object { $_.FullName -replace '\\', '/' })
+            $z.Dispose()
+            Check (($names -contains 'worker.js') -and ($names -contains 'wrangler.toml') -and ($names -contains 'poster-scan.js') -and ($names -contains 'public/index.html') -and -not ($names -contains 'public/hub-v2.js') -and -not ($names -contains '.dev.vars')) 'hub v2 live: the zip has the code, the config and the old public files, never .dev.vars'
+        }
+        $vNotes = @(Get-ChildItem -LiteralPath (Join-Path $vWork 'backups') -Filter 'gwh-before-v2-live-*.txt' -ErrorAction SilentlyContinue | Sort-Object LastWriteTime)
+        $vn = $(if ($vNotes.Count) { [System.IO.File]::ReadAllText($vNotes[-1].FullName) } else { '' })
+        Check ($vn.Contains('rollback ' + $vVer + ' --name gear-world-hub') -and $vn.Contains('public/hub-v2.js')) 'hub v2 live: rollback note with the old live version and the new files to delete'
+        $kept = @(Get-ChildItem -LiteralPath (Join-Path $vWork 'backups') -Recurse -Filter 'index.html' -ErrorAction SilentlyContinue | Where-Object { $_.FullName -match 'gwh-before-v2-files-' })
+        Check ($kept.Count -ge 1 -and (VSha $kept[0].FullName) -eq $vOldIndex) 'hub v2 live: the old index.html is kept as a plain copy'
+        $r = VLast
+        Check ($r.Contains('public/hub-v2.js | ') -and $r.Contains('ΕΤΟΙΜΟ') -and -not $r.Contains($vVer)) 'hub v2 live: the report has the new baseline lines, not the version id'
+        Check ((Run-V @('-Step', 'check')) -eq 0 -and (VLast).Contains('έχει ήδη αυτή την έκδοση')) 'hub v2 check after live: the hub folder has this version'
+        Write-Utf8 (Join-Path $vPub 'styles.css') 'body{}'
+        Check ((Run-V @('-Step', 'live', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB LIVE')) -eq 7 -and (VCount 'deploy --config') -eq 4) 'hub v2 live: refused when someone else changed the hub folder'
+        Check ((VLast).Contains('public/styles.css')) 'hub v2: the changed file is named in the report'
+        & $exe -NoProfile -ExecutionPolicy Bypass -File $vTool -Step check -HubDir (Join-Path $work 'no-hub-here') -WorkDir $vWork -OutDir $vOut -BaselineFile $vBase -SkipInstall -NoClipboard -NoHttpCheck | Out-Null
+        Check ($LASTEXITCODE -eq 2) 'hub v2: no hub folder gives exit code 2'
+    } finally {
+        $env:PATH = $oldPath
+        Remove-Item Env:\GW_FAKE_STATE -ErrorAction SilentlyContinue
+    }
+}
+
 # 12. gw-old-workers.ps1 (which old Workers can go) with a fake wrangler and fake Cloudflare answers (Windows only)
 if ($isWin) {
     Write-Host 'gw-old-workers.ps1 (fake wrangler and fake Cloudflare)'

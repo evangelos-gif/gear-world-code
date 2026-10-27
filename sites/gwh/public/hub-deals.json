@@ -1,0 +1,147 @@
+{
+  "about": "Made by tools/gwh-deals.mjs from promos/promos.js. Do not edit by hand: change promos.js and run the tool.",
+  "deals": [
+    {
+      "id": "joybuy-halloween",
+      "retailer": "Joybuy",
+      "slug": "joybuy",
+      "kind": "code",
+      "campaign": "Halloween",
+      "currency": "GBP",
+      "sites": [
+        "TGW",
+        "MGW",
+        "WGW",
+        "HGW",
+        "KGW",
+        "SGW"
+      ],
+      "start": "2026-10-20",
+      "end": "2026-12-31",
+      "link": "https://technologygearworld.com/discount-codes/joybuy/",
+      "off": 4,
+      "minSpend": 20
+    },
+    {
+      "id": "joybuy-beauty",
+      "retailer": "Joybuy",
+      "slug": "joybuy",
+      "kind": "code",
+      "campaign": "Halloween",
+      "currency": "GBP",
+      "sites": [
+        "TGW",
+        "MGW",
+        "WGW",
+        "HGW",
+        "KGW"
+      ],
+      "start": "2026-10-20",
+      "end": "2026-12-31",
+      "link": "https://technologygearworld.com/discount-codes/joybuy/",
+      "off": 5,
+      "minSpend": 30
+    },
+    {
+      "id": "joybuy-sports",
+      "retailer": "Joybuy",
+      "slug": "joybuy",
+      "kind": "code",
+      "campaign": "Halloween",
+      "currency": "GBP",
+      "sites": [
+        "TGW",
+        "MGW",
+        "WGW",
+        "HGW",
+        "KGW",
+        "SGW"
+      ],
+      "start": "2026-10-20",
+      "end": "2026-12-31",
+      "link": "https://technologygearworld.com/discount-codes/joybuy/",
+      "off": 5,
+      "minSpend": 45
+    },
+    {
+      "id": "joybuy-tools",
+      "retailer": "Joybuy",
+      "slug": "joybuy",
+      "kind": "code",
+      "campaign": "Halloween",
+      "currency": "GBP",
+      "sites": [
+        "TGW",
+        "MGW",
+        "WGW",
+        "HGW",
+        "KGW"
+      ],
+      "start": "2026-10-20",
+      "end": "2026-12-31",
+      "link": "https://technologygearworld.com/discount-codes/joybuy/",
+      "off": 15,
+      "minSpend": 100
+    },
+    {
+      "id": "joybuy-household",
+      "retailer": "Joybuy",
+      "slug": "joybuy",
+      "kind": "sale",
+      "campaign": "Household & Cleaning",
+      "currency": "GBP",
+      "sites": [
+        "HGW"
+      ],
+      "start": "2026-10-20",
+      "end": "2026-12-31",
+      "link": "https://homegearworld.com/discount-codes/joybuy/",
+      "upTo": 60
+    },
+    {
+      "id": "joybuy-home-pet",
+      "retailer": "Joybuy",
+      "slug": "joybuy",
+      "kind": "sale",
+      "campaign": "Home & Living & Pet",
+      "currency": "GBP",
+      "sites": [
+        "HGW"
+      ],
+      "start": "2026-10-20",
+      "end": "2026-12-31",
+      "link": "https://homegearworld.com/discount-codes/joybuy/",
+      "upTo": 50
+    },
+    {
+      "id": "joybuy-baby",
+      "retailer": "Joybuy",
+      "slug": "joybuy",
+      "kind": "sale",
+      "campaign": "Baby",
+      "currency": "GBP",
+      "sites": [
+        "KGW"
+      ],
+      "start": "2026-10-20",
+      "end": "2026-12-31",
+      "link": "https://kidsgearworld.com/discount-codes/joybuy/",
+      "upTo": 60
+    },
+    {
+      "id": "joybuy-hotpot",
+      "retailer": "Joybuy",
+      "slug": "joybuy",
+      "kind": "sale",
+      "campaign": "Hotpot & Asian Food",
+      "currency": "GBP",
+      "sites": [
+        "HGW"
+      ],
+      "start": "2026-10-20",
+      "end": "2026-12-31",
+      "link": "https://homegearworld.com/discount-codes/joybuy/",
+      "upTo": 20
+    }
+  ]
+}

@@ -144,6 +144,25 @@ const hubCore = {
         return Response.json({ ok: false, error: "Invalid country code." }, { status: 400 });
       }
       const country = countryRaw || null;
+      // GWH-GIFT-FILTERS: the gift finder asks only some Gear Worlds (worlds=mgw,tgw) and a price range
+      // (max_price, min_price). Without these parameters the search is exactly as before. Fewer worlds = fewer requests.
+      const worldsRaw = String(url.searchParams.get("worlds") || "").trim().toLowerCase();
+      const worldList = worldsRaw ? worldsRaw.split(",").map(w => w.trim()).filter(Boolean) : [];
+      if (worldList.length > 11 || worldList.some(w => !/^[a-z]{3}$/.test(w))) {
+        return Response.json({ ok: false, error: "Invalid worlds." }, { status: 400 });
+      }
+      const readPrice = name => {
+        const raw = url.searchParams.get(name);
+        if (raw === null || raw === "") return null;
+        const n = Number(raw);
+        return Number.isFinite(n) && n > 0 && n <= 100000 ? n : NaN;
+      };
+      const maxPrice = readPrice("max_price");
+      const minPrice = readPrice("min_price");
+      if (Number.isNaN(maxPrice) || Number.isNaN(minPrice) || (maxPrice !== null && minPrice !== null && minPrice > maxPrice)) {
+        return Response.json({ ok: false, error: "Invalid price range." }, { status: 400 });
+      }
+      const priced = maxPrice !== null || minPrice !== null;
       // GW_MULTILINGUAL_V1: Translate query ONCE before six-site fan-out.
       // Only non-ASCII searches invoke AI; original query remains available for display.
       let searchQuery = safeQuery;
@@ -178,6 +197,12 @@ const hubCore = {
           name: row.site_name,
           base: `https://${row.domain}`
         })).filter(site => /^https:\/\/[a-z0-9.-]+$/.test(site.base));
+        if (worldList.length) {
+          const wanted = new Set(worldList);
+          const chosen = sites.filter(site => wanted.has(site.key));
+          if (!chosen.length) return Response.json({ ok: false, error: "Unknown worlds." }, { status: 400 });
+          sites.splice(0, sites.length, ...chosen);
+        }
         // GWH-FAIR-SEARCH: a Worker waits for at most 6 answers at a time (Cloudflare limit). A 7th fetch waits in a
         // queue while its 4.5 s timer already runs, so fast sites at the end of the list were cut off when slow sites
         // held the 6 places. Now at most 6 sites are asked at once, and each site gets its full 4.5 s from the moment
@@ -201,6 +226,8 @@ const hubCore = {
           endpoint.searchParams.set("page", "1");
           endpoint.searchParams.set("limit", "8");
           if (country) endpoint.searchParams.set("deliver_to", country);
+          if (maxPrice !== null) endpoint.searchParams.set("max", String(maxPrice));
+          if (minPrice !== null) endpoint.searchParams.set("min", String(minPrice));
           const controller = new AbortController();
           const timeout = setTimeout(() => controller.abort(), 4500);
           try {
@@ -256,6 +283,10 @@ const hubCore = {
           const { site, products } = outcome.value;
           for (const product of products) {
             if (product.id === null || product.id === undefined) continue;
+            if (priced) {
+              const price = Number(product.price);
+              if (!Number.isFinite(price) || (maxPrice !== null && price > maxPrice) || (minPrice !== null && price < minPrice)) continue;
+            }
             const key = `${site.key}:${String(product.id)}`;
             if (seen.has(key)) continue;
             seen.add(key);
@@ -326,7 +357,14 @@ const hubCore = {
             console.error('Gear World Hub delivery registry lookup failed:', error);
           }
         }
+        // GWH-RANKING-V2: whole words count, not only the exact phrase. A product with every word of the search, from a
+        // Gear World with many matches, now comes before an accessory that only repeats the phrase ("cordless drill"
+        // showed a drill brush set from the car site first). Equal scores keep the order of the sites, as before.
         const q = searchQuery.toLowerCase();
+        const words = q.split(/[^a-z0-9]+/).filter(w => w.length >= 2);
+        const ACCESSORY = /\b(brush(es)?|bits?|attachments?|adapters?|adaptors?|cases?|covers?|holders?|mounts?|straps?|replacements?|spares?|accessor(y|ies)|refills?|stickers?|decals?|cleaning|memory cards?)\b/;
+        const askedForAccessory = ACCESSORY.test(q);
+        const hasWord = (text, w) => text.split(/[^a-z0-9]+/).some(t => t === w || t === `${w}s` || t === `${w}es` || (w.length >= 5 && t.startsWith(w)));
         const score = product => {
           const name = String(product.product_name || "").toLowerCase();
           const brand = String(product.brand || "").toLowerCase();
@@ -340,15 +378,26 @@ const hubCore = {
           if (brand.includes(q)) value += 20;
           if (subcategory.includes(q)) value += 15;
           if (category.includes(q)) value += 10;
+          if (words.length) {
+            const hits = words.filter(w => hasWord(name, w)).length;
+            value += Math.round(30 * hits / words.length);
+            if (words.length > 1 && hits === words.length) value += 20;
+            if (words.some(w => hasWord(subcategory, w) || hasWord(category, w))) value += 10;
+          }
+          if (!askedForAccessory && ACCESSORY.test(name)) value -= 35;
+          value += 2 * Math.min(8, siteCounts[product.site] || 0);
+          if (product.stock_status === "in_stock") value += 3;
           return value;
         };
-        results.sort((a, b) => score(b) - score(a));
+        const scores = new Map(results.map(product => [product, score(product)]));
+        results.sort((a, b) => scores.get(b) - scores.get(a));
         return Response.json({
           ok: true, query: safeQuery, count: results.length,
           sites: siteCounts, results,
           country_code: country,
           partial: failures.length > 0,
-          failed_sites: failures
+          failed_sites: failures,
+          ...(worldList.length || priced ? { filters: { worlds: sites.map(site => site.key), max_price: maxPrice, min_price: minPrice } } : {})
         }, { headers: { "Cache-Control": "public, max-age=60" } });
       } catch (error) {
         console.error("Gear World Hub search error:", error);

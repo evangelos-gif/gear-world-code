@@ -284,7 +284,7 @@ jobs:
           node-version: 22
       - run: npm ci --no-audit --no-fund
       - name: Unit tests (photo search Worker, page texts, search labels, and how the Hub asks the sites)
-        run: node --test tests/worker/gwh-photo.test.mjs tests/worker/gwh-search.test.mjs tests/worker/gwh-labels.test.mjs
+        run: node --test tests/worker/gwh-photo.test.mjs tests/worker/gwh-search.test.mjs tests/worker/gwh-labels.test.mjs tests/worker/gwh-hub-v2.test.mjs
       - name: The Hub Worker builds (wrangler dry run, nothing is uploaded)
         run: |
           sed -e 's/REPLACE_WITH_DATABASE_ID/local-dev-only/' sites/gwh/wrangler.toml.example > sites/gwh/wrangler.ci.toml
@@ -300,6 +300,8 @@ jobs:
         run: |
           npx playwright install --with-deps chromium
           node tools/gwh-photo-page-check.mjs --shots gwh-photo-shots --out gwh-photo-report.txt
+      - name: Hub V2 page (Combination) on 320 px, 390 px and desktop - search first, no moving parts, gift finder, deals, dock
+        run: node tools/gwh-hub-page-check.mjs --shots gwh-hub-shots --out gwh-hub-report.txt
       - name: Keep the report and screenshots
         if: always()
         uses: actions/upload-artifact@v4
@@ -308,4 +310,6 @@ jobs:
           path: |
             gwh-photo-report.txt
             gwh-photo-shots/
+            gwh-hub-report.txt
+            gwh-hub-shots/
           if-no-files-found: ignore

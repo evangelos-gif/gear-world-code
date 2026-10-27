@@ -11,12 +11,15 @@ gear-world-voice-v2.js
 gwh-hero.png
 hub-agw.jpg
 hub-cgw.jpg
+hub-deals.json
 hub-ggw.jpg
 hub-hgw.jpg
 hub-kgw.jpg
 hub-mgw.jpg
 hub-sgw.jpg
 hub-tgw.jpg
+hub-v2.css
+hub-v2.js
 hub-vgw.jpg
 hub-wgw.jpg
 index.html
