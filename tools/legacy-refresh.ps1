@@ -28,7 +28,8 @@
   when the shop sells in the site's currency. Same approval phrase. Example: -Pairs "gardenista:hgw" -FromShop
   A shop with more than 10,000 products (InStock, L80) is not read whole: -Sample N (default 100) of the site's own
   products are looked up one by one on the shop, and the report shows how many have the same price, another price, are
-  sold out or gone. Nothing changes from a sample.
+  sold out or gone. Nothing changes from a sample. The same happens when the shop stops answering part-way through its
+  catalogue. -SampleOnly goes straight to the sample (kinder to a big shop: no full catalogue read).
 
   Rollback (printed): the rollback file puts back the old values and shows the hidden products again; or the restore point.
   Report: <home>\gear-world-reports\REFRESH_<time>.txt (also copied to the clipboard)
@@ -45,6 +46,7 @@ param(
     [switch]$PaidPlan,
     [switch]$FromShop,
     [int]$Sample = 100,
+    [switch]$SampleOnly,
     [switch]$NoClipboard
 )
 
@@ -266,6 +268,7 @@ foreach ($pair in $list) {
     $a = @((Join-Path (Join-Path $repo 'tools') 'legacy-refresh-plan.mjs'), '--archive', $Archive, '--retailer', $name, '--site', $site, '--indexes', $idxFile, '--out', $dir, '--max-writes', [string]$budget)
     if ($Advertiser) { $a += @('--advertiser', $Advertiser) }
     if ($FromShop) { $a += @('--from-shop', '--sample', [string]$Sample) }
+    if ($FromShop -and $SampleOnly) { $a += @('--sample-only') }
     foreach ($f in $rowFiles) { $a += @('--rows', $f) }
     & node @a
     $planCode = $LASTEXITCODE

@@ -10,7 +10,7 @@ import { join } from 'node:path';
 import { gzipSync } from 'node:zlib';
 import { execFileSync, spawnSync } from 'node:child_process';
 import { DatabaseSync } from 'node:sqlite';
-import { findFeeds, readFeed, planRefresh, writeCosts, writePlan, keyOf, matchRow, newestFirst, renderReport, linkHost, shopOriginOf, feedFromShopify, readShopCurrency, productHandle, sampleShopProducts, renderSampleReport } from '../../tools/legacy-refresh-plan.mjs';
+import { findFeeds, readFeed, planRefresh, writeCosts, writePlan, keyOf, matchRow, newestFirst, renderReport, linkHost, shopOriginOf, feedFromShopify, readShopCurrency, productHandle, sampleShopProducts, renderSampleReport, sampleReason } from '../../tools/legacy-refresh-plan.mjs';
 import { readShopifyCatalog } from '../../tools/legacy-import-plan.mjs';
 
 // The CGW indexes on products (read from the live database, 25 Oct 2026).
@@ -336,4 +336,22 @@ test('L80: a catalogue too big to read whole (InStock) is sampled product by pro
   const st2 = await sampleShopProducts(rows, 'https://instock.net', { n: 10, fetchImpl, pauseMs: 0, currency: 'USD' });
   assert.equal(st2.same + st2.changed, 0);
   assert.equal(st2.otherCurrency, 2);
+});
+
+test('L80: the sample waits and asks again once when the shop says 429 (slow down)', async () => {
+  const awin = h => `https://www.awin1.com/cread.php?awinmid=122444&awinaffid=3057233&ued=${encodeURIComponent(`https://instock.net/products/${h}`)}`;
+  const rows = [{ id: 1, awin_product_id: '122444:11', product_name: 'Lamp', price: 20, currency: 'GBP', is_active: 1, affiliate_url: awin('lamp') }];
+  let calls = 0;
+  const fetchImpl = async () => { calls++; return calls === 1 ? { ok: false, status: 429, json: async () => ({}) } : { ok: true, status: 200, json: async () => ({ variants: [{ id: 11, price: 2000, available: true }] }) }; };
+  const st = await sampleShopProducts(rows, 'https://instock.net', { n: 5, fetchImpl, pauseMs: 0, currency: 'GBP' });
+  assert.equal(calls, 2);
+  assert.deepEqual([st.checked, st.same, st.failed], [1, 1, 0]);
+});
+
+test('L80: a catalogue read that stops part-way falls back to a sample; one that fails on page 1 does not', () => {
+  const msg = n => `Could not read the shop's live catalogue (https://instock.net/products.json?limit=250&page=${n}). Nothing was changed; try again later.`;
+  assert.match(sampleReason(msg(25)), /σελίδα 25/);
+  assert.equal(sampleReason(msg(1)), null);
+  assert.match(sampleReason('...more than 10000 products: too big for this check...'), /10\.000/);
+  assert.match(sampleReason(msg(1), true), /SampleOnly/);
 });

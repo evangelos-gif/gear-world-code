@@ -182,7 +182,17 @@ export function productHandle(url) {
   return { handle, variant: u.searchParams.get('variant') || '' };
 }
 
-export async function sampleShopProducts(rows, origin, { n = 100, fetchImpl = globalThis.fetch, pauseMs = 300, seed = 80, currency = '' } = {}) {
+// When the full catalogue can't be read, why a sample is taken instead (L80), or null: a shop that fails on its very
+// first page is down, and a sample would only fail too.
+export function sampleReason(message, sampleOnly = false) {
+  if (sampleOnly) return 'μόνο δείγμα, -SampleOnly';
+  if (/too big for this check/.test(message)) return 'πάνω από 10.000 προϊόντα';
+  const page = /[?&]page=(\d+)/.exec(message);
+  if (page && Number(page[1]) > 1) return `σταμάτησε να απαντά στη σελίδα ${page[1]} του καταλόγου`;
+  return null;
+}
+
+export async function sampleShopProducts(rows, origin, { n = 100, fetchImpl = globalThis.fetch, pauseMs = 700, seed = 80, currency = '' } = {}) {
   const live = rows.filter(r => Number(r.is_active) === 1);
   const list = live.map(r => ({ r, h: productHandle(r.affiliate_url) })).filter(x => x.h);
   let a = seed >>> 0;
@@ -195,8 +205,12 @@ export async function sampleShopProducts(rows, origin, { n = 100, fetchImpl = gl
   for (const x of list.slice(0, n)) {
     if (pauseMs && (st.checked + st.failed)) await sleep(pauseMs);
     let res;
+    const url = `${origin}/products/${encodeURIComponent(x.h.handle)}.js`;
+    const get = () => fetchImpl(url, { headers: { accept: 'application/json', 'user-agent': 'GearWorldRefresh/1.0' }, signal: AbortSignal.timeout(20000) });
     try {
-      res = await fetchImpl(`${origin}/products/${encodeURIComponent(x.h.handle)}.js`, { headers: { accept: 'application/json', 'user-agent': 'GearWorldRefresh/1.0' }, signal: AbortSignal.timeout(20000) });
+      res = await get();
+      // The shop asks us to slow down (instock.net stopped answering after 24 catalogue pages, 27 Oct 2026): wait, try once more.
+      if (res && res.status === 429) { if (pauseMs) await sleep(Math.max(5000, pauseMs * 8)); res = await get(); }
     } catch { st.failed++; continue; }
     if (res && res.status === 404) { st.checked++; st.gone++; if (st.examples.gone.length < 8) st.examples.gone.push(name(x.r)); continue; }
     let p = null;
@@ -418,12 +432,19 @@ if (import.meta.url === pathToFileURL(process.argv[1] || '').href) {
       process.exit(3);
     }
     let catalog;
-    try { catalog = await readShopifyCatalog(origin); } catch (e) {
-      // Too big to read whole (L80): a sample of the site's own products instead, read-only, and no plan.
-      if (/too big for this check/.test(e.message)) {
+    const sampleOnly = args.includes('--sample-only');
+    try {
+      if (sampleOnly) throw new Error('sample only: too big for this check');
+      catalog = await readShopifyCatalog(origin);
+    } catch (e) {
+      // Too big to read whole, or it stopped answering part-way (instock.net at page 25, 27 Oct 2026), or -SampleOnly (L80):
+      // a sample of the site's own products instead, read-only, and no plan.
+      const why = sampleReason(e.message, sampleOnly);
+      if (why) {
         const currency = await readShopCurrency(origin);
         const st = await sampleShopProducts(rows, origin, { n: Number(opt('--sample') || 100), currency });
-        writeFileSync(join(out, 'report.txt'), renderSampleReport({ retailer, site, origin, currency, st, limitNote: 'πάνω από 10.000 προϊόντα' }));
+        writeFileSync(join(out, 'report.txt'), renderSampleReport({ retailer, site, origin, currency, st,
+          limitNote: why }));
         process.exit(5);
       }
       writeFileSync(join(out, 'report.txt'), `Δεν διάβασα τον κατάλογο του καταστήματος ${origin}: ${e.message}\n`);
