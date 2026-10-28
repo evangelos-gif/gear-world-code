@@ -1423,6 +1423,11 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         Check ((Run-Rf @('-Pairs', 'tooled-up:cgw', '-SlowShops', 'tooled-up')) -eq 2) 'refresh -SlowShops without -FromShop: stops'
         Check ((Run-Rf @('-Pairs', 'tooled-up:cgw', '-AcceptJumps', 'reidl')) -eq 2) 'refresh -AcceptJumps with a shop not in -Pairs: stops'
         Check ((Run-Rf @('-Pairs', 'tooled-up:cgw', '-FromShop', '-SampleShops', 'tooled-up', '-SlowShops', 'tooled-up')) -eq 2) 'refresh: a shop in both -SampleShops and -SlowShops: stops'
+        Check ((Run-Rf @('-Pairs', 'tooled-up:cgw', '-FromShop', '-FeedShops', 'reidl')) -eq 2) 'refresh -FeedShops with a shop not in -Pairs: stops'
+        $rfBefore = @(Get-ChildItem -LiteralPath $rfOut -Filter 'REFRESH_*.txt').Count
+        Check ((Run-Rf @('-Pairs', 'tooled-up:cgw', '-FromShop', '-FeedShops', 'tooled-up')) -eq 0) 'refresh -FromShop -FeedShops: exit 0 without the network'
+        $rfNew = @(Get-ChildItem -LiteralPath $rfOut -Filter 'REFRESH_*.txt' | Sort-Object LastWriteTime | Select-Object -Last 1)
+        Check (@(Get-ChildItem -LiteralPath $rfOut -Filter 'REFRESH_*.txt').Count -eq ($rfBefore + 1) -and ([System.IO.File]::ReadAllText($rfNew[0].FullName)).Contains($rfName + ': 11.99 -> 12.5')) 'refresh -FeedShops: that shop is planned from its Awin feed'
         $rfNote = @(Get-ChildItem -LiteralPath (Join-Path $rfWork 'backups') -Filter 'cgw-restore-point-before-tooled-up-refresh-*.txt' -ErrorAction SilentlyContinue)
         Check ($rfNote.Count -eq 1 -and ([System.IO.File]::ReadAllText($rfNote[0].FullName)).Contains($rfBookmark)) 'refresh: restore point written with the bookmark'
         Check ((Run-Rf @('-Pairs', 'nobody:cgw')) -eq 5) 'refresh: a shop not on the site is reported'

@@ -39,6 +39,8 @@
   command again within 48 hours takes the answers from memory, shows the plan and asks each site's phrase. Products that
   did not answer stay as they are. Windows is kept awake while it runs.
   -AcceptJumps "gardenista": that shop's prices that change more than 3 times change too (the owner checked them).
+  -FeedShops "my-tool-shed": with -FromShop, these shops are refreshed from their Awin feed as without -FromShop, so one
+  run (one report) can mix both kinds of shop.
 
   Rollback (printed): the rollback file puts back the old values and shows the hidden products again; or the restore point.
   Report: <home>\gear-world-reports\REFRESH_<time>.txt (also copied to the clipboard)
@@ -58,6 +60,7 @@ param(
     [string]$SampleShops = '',
     [string]$SlowShops = '',
     [string]$AcceptJumps = '',
+    [string]$FeedShops = '',
     [switch]$NoClipboard
 )
 
@@ -209,7 +212,12 @@ function Shop-List([string]$value, [string]$label) {
 $sampleKeys = Shop-List $SampleShops '-SampleShops'
 $slowKeys = Shop-List $SlowShops '-SlowShops'
 $jumpKeys = Shop-List $AcceptJumps '-AcceptJumps'
-if ((($sampleKeys.Count + $slowKeys.Count) -gt 0) -and -not $FromShop) { Say '-SampleShops και -SlowShops μόνο μαζί με -FromShop.' 'Red'; Finish 2 }
+$feedKeys = Shop-List $FeedShops '-FeedShops'
+if ((($sampleKeys.Count + $slowKeys.Count + $feedKeys.Count) -gt 0) -and -not $FromShop) { Say '-SampleShops, -SlowShops και -FeedShops μόνο μαζί με -FromShop.' 'Red'; Finish 2 }
+foreach ($k in $feedKeys) {
+    if (($sampleKeys -contains $k) -or ($slowKeys -contains $k)) { Say ('Το {0} είναι στα -FeedShops και σε -SampleShops ή -SlowShops: διάλεξε ένα.' -f $k) 'Red'; Finish 2 }
+    Say ('Το {0} ανανεώνεται από το feed του Awin, όχι από το κατάστημα.' -f $k)
+}
 foreach ($k in $sampleKeys) {
     if ($slowKeys -contains $k) { Say ('Το {0} είναι και στα -SampleShops και στα -SlowShops: διάλεξε ένα.' -f $k) 'Red'; Finish 2 }
     Say ('Μόνο δείγμα για το {0} (χωρίς ανάγνωση όλου του καταλόγου, L80).' -f $k)
@@ -243,9 +251,10 @@ if (-not $Archive) {
         $Archive = $best
     }
 }
-if ((-not $FromShop) -and (-not $Archive -or -not (Test-Path -LiteralPath $Archive))) { Say 'Δεν βρήκα τον φάκελο με τα feeds του Awin.' 'Red'; Finish 2 }
+if (((-not $FromShop) -or $feedKeys.Count -gt 0) -and (-not $Archive -or -not (Test-Path -LiteralPath $Archive))) { Say 'Δεν βρήκα τον φάκελο με τα feeds του Awin.' 'Red'; Finish 2 }
 if (-not $Archive) { $Archive = $HOME }
-if ($FromShop) { Say 'Πηγή: ο ζωντανός κατάλογος κάθε καταστήματος (όχι τα feeds του Awin, L60).' } else { Say ('Feeds: {0}' -f $Archive) }
+if ($FromShop) { Say 'Πηγή: ο ζωντανός κατάλογος κάθε καταστήματος (όχι τα feeds του Awin, L60).' }
+if ((-not $FromShop) -or $feedKeys.Count -gt 0) { Say ('Feeds: {0}' -f $Archive) }
 Say ('Όριο εγγραφών D1 για όλη την εκτέλεση: {0}' -f $budget)
 
 $planRoot = Join-Path $OutDir ('REFRESH_PLAN_{0}' -f $stamp)
@@ -308,7 +317,7 @@ foreach ($pair in $list) {
     # 3. The plan (read-only).
     $a = @((Join-Path (Join-Path $repo 'tools') 'legacy-refresh-plan.mjs'), '--archive', $Archive, '--retailer', $name, '--site', $site, '--indexes', $idxFile, '--out', $dir, '--max-writes', [string]$budget)
     if ($Advertiser) { $a += @('--advertiser', $Advertiser) }
-    if ($FromShop) { $a += @('--from-shop', '--sample', [string]$Sample) }
+    if ($FromShop -and ($feedKeys -notcontains $key)) { $a += @('--from-shop', '--sample', [string]$Sample) }
     if ($FromShop -and ($sampleKeys -contains $key)) { $a += @('--sample-only') }
     if ($FromShop -and ($slowKeys -contains $key)) { $a += @('--slow', '--memory', (Join-Path $OutDir 'shop-memory')) }
     if ($jumpKeys -contains $key) { $a += @('--accept-jumps') }
