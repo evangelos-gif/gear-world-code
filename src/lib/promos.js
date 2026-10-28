@@ -6,15 +6,23 @@ export function ukToday(now = Date.now()) {
 }
 
 const VALID_DAY = /^\d{4}-\d{2}-\d{2}$/;
+const KIND_ORDER = { code: 0, coupon: 1, sale: 2 };
 
-// Offers that run today: started, not ended, complete enough to show. Codes first, then bigger saving.
+function complete(p) {
+  if (p.kind === 'code') return Boolean(p.code);
+  if (p.kind === 'coupon') return Number(p.off) > 0 && Number(p.minSpend) >= 0;
+  return Number(p.upTo) > 0;
+}
+
+// Offers that run today: started, not ended, complete enough to show. Codes first, then coupons (money off with no
+// code to type), then sales; within a kind, the smaller minimum spend first.
 export function activePromos(site, now = Date.now()) {
   const today = ukToday(now);
   return (site.promos || [])
     .filter(p => p && p.id && p.retailer && p.slug && VALID_DAY.test(p.start || '') && VALID_DAY.test(p.end || ''))
     .filter(p => p.start <= today && today <= p.end)
-    .filter(p => (p.kind === 'code' ? Boolean(p.code) : Number(p.upTo) > 0))
-    .sort((a, b) => (a.kind === b.kind ? 0 : a.kind === 'code' ? -1 : 1) || (Number(a.minSpend) || 0) - (Number(b.minSpend) || 0));
+    .filter(complete)
+    .sort((a, b) => ((KIND_ORDER[a.kind] ?? 2) - (KIND_ORDER[b.kind] ?? 2)) || (Number(a.minSpend) || 0) - (Number(b.minSpend) || 0));
 }
 
 export function promoRetailers(site, now = Date.now()) {

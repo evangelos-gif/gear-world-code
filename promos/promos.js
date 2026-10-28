@@ -8,7 +8,8 @@
 //   retailer  shown name; slug: address of the retailer page (/discount-codes/<slug>/)
 //   awinMid   Awin advertiser id; url: landing page given by the retailer (becomes an Awin deep link)
 //   sites     site codes that show it (only sites where the retailer fits)
-//   kind      'code' (code, off, minSpend) or 'sale' (upTo, and optional extraOff/extraMin/day)
+//   kind      'code' (code, off, minSpend), 'coupon' (off, minSpend: money off with no code to type, the retailer's
+//             own coupon on its page) or 'sale' (upTo, and optional extraOff/extraMin/day)
 //   campaign  campaign name as the retailer wrote it
 //   start/end first and last day (YYYY-MM-DD, UK time); bar: emoji shown in the top bar (one per site)
 //   source    where it came from, for checking later
@@ -18,6 +19,7 @@ export const AWIN_PUBLISHER_ID = 3057233;
 const JOYBUY = { retailer: 'Joybuy', slug: 'joybuy', awinMid: 123932, currency: 'GBP' };
 const JOYBUY_EMAIL = 'Awin email "Joybuy UK" to UK partners, received 20 Oct 2026';
 const HALLOWEEN = 'https://www.joybuy.co.uk/campaign/active/2hGagKjWWkaR2Kxt1wwwT8LAwXWK';
+const JOYDAY_EMAIL = 'Awin email "Joybuy UK - Joyday campaign - Oct" to UK partners, received 26 Oct 2026 (approved by the owner 28 Oct 2026)';
 
 export const PROMOS = [
   { ...JOYBUY, id: 'joybuy-halloween', kind: 'code', campaign: 'Halloween', code: 'halloween', off: 4, minSpend: 20,
@@ -35,7 +37,9 @@ export const PROMOS = [
   { ...JOYBUY, id: 'joybuy-baby', kind: 'sale', campaign: 'Baby', upTo: 60,
     url: 'https://www.joybuy.co.uk/campaign/active/3ch27U9EYB1mZUfSbrzEq886jtsx', sites: ['KGW'], start: '2026-10-20', end: '2026-12-31', source: JOYBUY_EMAIL },
   { ...JOYBUY, id: 'joybuy-hotpot', kind: 'sale', campaign: 'Hotpot & Asian Food', upTo: 20,
-    url: 'https://www.joybuy.co.uk/minihome/UK-Mini-HP-CN-Food', sites: ['HGW'], start: '2026-10-20', end: '2026-12-31', source: JOYBUY_EMAIL }
+    url: 'https://www.joybuy.co.uk/minihome/UK-Mini-HP-CN-Food', sites: ['HGW'], start: '2026-10-20', end: '2026-12-31', source: JOYBUY_EMAIL },
+  { ...JOYBUY, id: 'joybuy-joy-day', kind: 'coupon', campaign: 'Joy Day', off: 15, minSpend: 99,
+    url: 'https://www.joybuy.co.uk/campaign/active/ojYViWn7U8SqEeb4F2gE5Uw4MdW', sites: ['TGW'], start: '2026-10-26', end: '2026-10-31', source: JOYDAY_EMAIL }
 ];
 
 export function promosFor(siteCode) {

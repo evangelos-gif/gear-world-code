@@ -143,6 +143,14 @@ function Get-Season {
     return $null
 }
 
+# The offers of this version (promos/promos.js) that still run or are coming: they go up with the same update.
+function Get-Offers {
+    $lib = (Join-Path (Join-Path $repo 'promos') 'promos.js').Replace('\', '/')
+    $js = "import('file:///" + $lib.TrimStart('/') + "').then(m => { const t = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/London' }).format(new Date()); for (const p of m.PROMOS) if (p.end >= t) console.log(p.id + ' | ' + p.sites.join(',') + ' | ' + p.start + ' to ' + p.end); })"
+    try { $out = @(& node --input-type=module -e $js 2>$null) } catch { $out = @() }
+    return @($out | Where-Object { $_ -match '^[a-z0-9-]+ \| [A-Z,]+ \| \d{4}-\d{2}-\d{2} to \d{4}-\d{2}-\d{2}$' })
+}
+
 function Test-Sites([bool]$after, $season) {
     $problems = 0
     foreach ($s in $Sites) {
@@ -191,6 +199,9 @@ Say '  Τα 10 sites, ένα-ένα (πρώτα το SGW), το καθένα μ�
 Say '  για επαναφορά, ανεβαίνει και δοκιμάζεται. Στο πρώτο πρόβλημα σταματώ: όσα ανέβηκαν δουλεύουν κανονικά.'
 Say '  Αλλάζει: το μπάνερ στις σελίδες /discount-codes/ και /deals/, το site.js (το βίντεο, η Παύση, η αντίστροφη μέτρηση),'
 Say '  οι μεταφράσεις (11 γλώσσες) και ο κανόνας media-src για τα βίντεο του Hub.'
+$offers = @(Get-Offers)
+Say ('  Μαζί ανεβαίνουν οι προσφορές αυτής της έκδοσης (promos/promos.js, εγκεκριμένες με «ΕΓΚΡΙΝΩ ΠΡΟΣΦΟΡΕΣ»): {0}' -f $offers.Count)
+foreach ($o in $offers) { Say ('    ' + $o) }
 Say '  ΔΕΝ αλλάζουν: οι βάσεις, τα προϊόντα, τα links /out/, το Hub και οι άλλοι Workers (και ο gwh-sitemap).'
 Say '  Επαναφορά (μόνο με έγκριση): κάθε site γράφει τη δική του σημείωση με τη ζωντανή έκδοση (npx wrangler rollback ...),'
 Say '  ή στο Cloudflare: https://dash.cloudflare.com/?to=/:account/workers-and-pages > Worker > Deployments > Rollback.'

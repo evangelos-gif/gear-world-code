@@ -3423,6 +3423,7 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         $r = ZLast 'SEASONAL_SITES_CHECK_*.txt'
         Check ($r -match 'Εποχή σήμερα: (halloween|black-friday|christmas) \(\d{4}-\d{2}-\d{2} έως \d{4}-\d{2}-\d{2}\)|Εποχή σήμερα: καμία') 'seasonal check: today''s season from the engine'
         Check ($r.Contains('ΕΓΚΡΙΝΩ SEASONAL BANNERS') -and $r.Contains('ΔΕΝ αλλάζουν') -and $r.Contains('gwh-sitemap') -and $r.Contains('μόνο έλεγχος, δεν άλλαξε τίποτα')) 'seasonal check: the plan, what does not change, nothing changed'
+        Check ($r -match 'Μαζί ανεβαίνουν οι προσφορές αυτής της έκδοσης \(promos/promos\.js, εγκεκριμένες με «ΕΓΚΡΙΝΩ ΠΡΟΣΦΟΡΕΣ»\): \d+') 'seasonal check: the offers of this version are listed in the plan'
         Check (-not (Test-Path -LiteralPath $zSites)) 'seasonal check: no site tool run'
         # apply without -Apply, with the wrong phrase, with a missing site tool: no site tool runs
         Check ((Run-Z @('-Step', 'apply')) -eq 0 -and -not (Test-Path -LiteralPath $zSites)) 'seasonal apply without -Apply: nothing changes'

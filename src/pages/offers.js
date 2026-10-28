@@ -17,7 +17,7 @@ function ukDate(day) {
 }
 
 function offerText(p) {
-  if (p.kind === 'code') return tr('{0} off when you spend {1}', money(p.off, p.currency), money(p.minSpend, p.currency));
+  if (p.kind === 'code' || p.kind === 'coupon') return tr('{0} off when you spend {1}', money(p.off, p.currency), money(p.minSpend, p.currency));
   // A changing part of tr() is plain text, never another tr(): the day is its own text ("every Thursday").
   return html`${tr('Up to {0}% off', p.upTo)}${p.extraOff ? html`. ${tr('{0} off when you spend {1}', money(p.extraOff, p.currency), money(p.extraMin, p.currency))}${p.day ? html` (${tr(`every ${p.day}`)})` : ''}` : ''}`;
 }
@@ -115,6 +115,7 @@ export function promoBarHtml(site, now = Date.now()) {
   return html`<div class="promo-bar"><p class="wrap promo-row"><span aria-hidden="true">${p.bar}</span>
   ${p.kind === 'code'
     ? tr('{0}: {1} off {2}+ with code {3}', p.retailer, money(p.off, p.currency), money(p.minSpend, p.currency), p.code)
+    : p.kind === 'coupon' ? tr('{0}: {1} off when you spend {2}', p.retailer, money(p.off, p.currency), money(p.minSpend, p.currency))
     : tr('{0}: up to {1}% off', p.retailer, p.upTo)}
   <a href="${OFFERS_PATH}${p.slug}/">${tr('All codes')}<span aria-hidden="true"> &rarr;</span></a></p></div>`;
 }

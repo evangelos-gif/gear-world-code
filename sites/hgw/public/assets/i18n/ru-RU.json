@@ -111,6 +111,7 @@
  "In stock, at the joint lowest price, with the bigger saving.": "В наличии, по такой же самой низкой цене, с большей скидкой.",
  "Independent comparison": "Независимое сравнение",
  "Independent price comparison for your home": "Независимое сравнение цен для вашего дома",
+ "Joy Day": "Joy Day",
  "Just added": "Новые поступления",
  "Kitchen": "Кухня",
  "Kitchen & Dining": "Кухня и столовая",
@@ -256,6 +257,7 @@
  "{0} products": "{0} товаров",
  "{0} retailers": "Магазинов: {0}",
  "{0}: up to {1}% off": "{0}: скидки до {1}%",
+ "{0}: {1} off when you spend {2}": "{0}: скидка {1} при покупке от {2}",
  "{0}: {1} off {2}+ with code {3}": "{0}: скидка {1} от {2} с кодом {3}",
  "✓ In cart": "✓ В корзине",
  "✓ In compare": "✓ В сравнении"

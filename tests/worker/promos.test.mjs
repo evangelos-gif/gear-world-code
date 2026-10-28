@@ -45,7 +45,10 @@ test('the Joybuy data: every entry has an end date, an Awin advertiser id and a 
     assert.ok(p.source, `${p.id}: source of the offer`);
   }
   assert.equal(new Set(PROMOS.map(p => p.id)).size, PROMOS.length, 'ids are unique');
-  assert.deepEqual(promosFor('TGW').map(p => p.code), ['halloween', 'beauty', 'sports', 'tools']);
+  assert.deepEqual(promosFor('TGW').filter(p => p.kind === 'code').map(p => p.code), ['halloween', 'beauty', 'sports', 'tools']);
+  const joy = PROMOS.find(p => p.id === 'joybuy-joy-day');
+  assert.deepEqual([joy.kind, joy.off, joy.minSpend, joy.start, joy.end, joy.sites.join(), joy.code, joy.bar], ['coupon', 15, 99, '2026-10-26', '2026-10-31', 'TGW', undefined, undefined],
+    'Joy Day (Awin email of 26 Oct, approved 28 Oct): TGW only, no code, no bar, until 31 Oct');
   assert.ok(promosFor('KGW').some(p => p.campaign === 'Baby') && !promosFor('TGW').some(p => p.campaign === 'Baby'));
   assert.equal(AWIN_PUBLISHER_ID, 3057233);
 });
@@ -114,4 +117,20 @@ test('a sale with a weekly extra renders as plain translatable texts (no HTML in
   assert.match(page, /£5 off when you spend £20/);
   assert.match(page, /data-i18n="every Thursday"/);
   assert.ok(!/&lt;span/.test(page), 'no escaped HTML');
+});
+
+test('a coupon (money off, no code to type): after the codes, before the sales, with no code box and its own /go/ link', async () => {
+  const coupon = { ...base, id: 'joybuy-joy-day', kind: 'coupon', campaign: 'Joy Day', off: 15, minSpend: 99, start: day(-1), end: day(2) };
+  const site = siteWith([sale, coupon, live]);
+  assert.deepEqual(activePromos(site).map(p => p.id), ['joybuy-live', 'joybuy-joy-day', 'joybuy-sale']);
+  assert.deepEqual(activePromos(siteWith([{ ...coupon, off: 0 }])), [], 'a coupon without an amount is never shown');
+  const worker = createWorker(siteWith([coupon]));
+  const page = await (await get(worker, '/discount-codes/joybuy/', { DB: fakeDb() })).text();
+  assert.match(page, /data-i18n="Joy Day"/);
+  assert.match(page, /£15 off when you spend £99/);
+  assert.match(page, /href="\/go\/joybuy-joy-day"/);
+  assert.ok(!/promo-code-card|btn-copy/.test(page), 'no code to copy');
+  const bar = await (await get(createWorker(siteWith([{ ...coupon, bar: '🎮' }])), '/about/', { DB: fakeDb() })).text();
+  assert.match(bar, /Joybuy: £15 off when you spend £99/);
+  assert.ok(!/undefined/.test(bar));
 });
