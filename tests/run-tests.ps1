@@ -1418,6 +1418,11 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         Check ($iTT -ge 0 -and $iUp -gt $iTT -and $iHide -gt $iUp) 'refresh: restore point, then the updates, then the hiding'
         $rfUndo = @(Get-ChildItem -LiteralPath (Join-Path $rfWork 'backups') -Filter 'cgw-refresh-tooled-up-*-rollback.sql' -ErrorAction SilentlyContinue)
         Check ($rfUndo.Count -eq 1 -and ([System.IO.File]::ReadAllText($rfUndo[0].FullName)).Contains('price = 11.99') -and ([System.IO.File]::ReadAllText($rfUndo[0].FullName)).Contains('SET is_active = 1')) 'refresh: rollback with the old price and the hidden product'
+        # L81: the shops named in -SlowShops / -AcceptJumps must be in -Pairs; the slow check needs -FromShop. Nothing is read or changed.
+        Check ((Run-Rf @('-Pairs', 'tooled-up:cgw', '-FromShop', '-SlowShops', 'instock-uk')) -eq 2) 'refresh -SlowShops with a shop not in -Pairs: stops'
+        Check ((Run-Rf @('-Pairs', 'tooled-up:cgw', '-SlowShops', 'tooled-up')) -eq 2) 'refresh -SlowShops without -FromShop: stops'
+        Check ((Run-Rf @('-Pairs', 'tooled-up:cgw', '-AcceptJumps', 'reidl')) -eq 2) 'refresh -AcceptJumps with a shop not in -Pairs: stops'
+        Check ((Run-Rf @('-Pairs', 'tooled-up:cgw', '-FromShop', '-SampleShops', 'tooled-up', '-SlowShops', 'tooled-up')) -eq 2) 'refresh: a shop in both -SampleShops and -SlowShops: stops'
         $rfNote = @(Get-ChildItem -LiteralPath (Join-Path $rfWork 'backups') -Filter 'cgw-restore-point-before-tooled-up-refresh-*.txt' -ErrorAction SilentlyContinue)
         Check ($rfNote.Count -eq 1 -and ([System.IO.File]::ReadAllText($rfNote[0].FullName)).Contains($rfBookmark)) 'refresh: restore point written with the bookmark'
         Check ((Run-Rf @('-Pairs', 'nobody:cgw')) -eq 5) 'refresh: a shop not on the site is reported'

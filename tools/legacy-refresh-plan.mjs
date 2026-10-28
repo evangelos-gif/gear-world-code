@@ -23,7 +23,7 @@
 //
 // node tools/legacy-refresh-plan.mjs --archive <dir> --retailer "<name on the site>" --rows <wrangler json> [--rows ...]
 //   --indexes <wrangler json of sqlite_master> --out <dir> [--max-writes 90000] [--advertiser <id>] [--now <iso date>] [--from-shop]
-import { createReadStream, existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
+import { appendFileSync, createReadStream, existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { createGunzip } from 'node:zlib';
 import { basename, join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -237,6 +237,83 @@ export async function sampleShopProducts(rows, origin, { n = 100, fetchImpl = gl
   return st;
 }
 
+// The slow full check (L81): every active product of the site looked up on the shop one by one (/products/<handle>.js,
+// about one a second, the pace at which the 200-product InStock sample of 28 Oct 2026 met no "slow down"). Answers are
+// kept in a memory file per shop for 48 hours, shared by the sites, so an interrupted or stopped run goes on where it
+// stopped and a second run can apply the plan without asking the shop again. Products that did not answer are left out
+// of the plan (untouched); a product the shop answers 404 for is gone. Read-only on the shop.
+export const SLOW_MEMORY_HOURS = 48;
+export function slimShopProduct(p) {
+  const src = i => (i && typeof i === 'object' ? i.src : i) || null;
+  return {
+    variants: (p.variants || []).map(v => ({ id: v.id, sku: v.sku || '', price: Number.isFinite(Number(v.price)) ? (Number(v.price) / 100).toFixed(2) : '',
+      available: typeof v.available === 'boolean' ? v.available : null, featured_image: src(v.featured_image) })),
+    images: (p.images || []).slice(0, 12).map(src).filter(Boolean)
+  };
+}
+export async function slowShopCheck(rows, origin, { memoryFile = '', now = new Date(), fetchImpl = globalThis.fetch, pauseMs = 1000, log = () => {}, clock = () => Date.now() } = {}) {
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
+  const live = rows.filter(r => Number(r.is_active) === 1);
+  const handles = new Set();
+  let noHandle = 0;
+  for (const r of live) { const h = productHandle(r.affiliate_url); if (h) handles.add(h.handle); else noHandle++; }
+  const memory = new Map();
+  if (memoryFile && existsSync(memoryFile)) {
+    for (const line of readFileSync(memoryFile, 'utf8').split('\n')) {
+      let e = null;
+      try { e = JSON.parse(line); } catch { continue; }
+      const age = now.getTime() - Date.parse(e && e.t);
+      if (e && e.h && age >= -3600000 && age <= SLOW_MEMORY_HOURS * 3600000) memory.set(e.h, e);
+    }
+  }
+  const st = { active: live.length, handles: handles.size, noHandle, fromMemory: 0, asked: 0, noAnswer: 0, left: 0, throttled: false };
+  const catalog = new Map(), answered = new Set();
+  const use = e => { if (e.s === 200 && e.p) { answered.add(e.h); catalog.set(e.h, e.p); } else if (e.s === 404) answered.add(e.h); else st.noAnswer++; };
+  const todo = [];
+  for (const h of handles) { const e = memory.get(h); if (e) { st.fromMemory++; use(e); } else todo.push(h); }
+  // Shopify said "slow down" to this PC less than 30 minutes ago (another site of the same run): no asking now.
+  const pauseFile = memoryFile ? memoryFile.replace(/\.jsonl$/, '') + '.paused' : '';
+  if (pauseFile && existsSync(pauseFile) && now.getTime() - statSync(pauseFile).mtimeMs < 30 * 60000) { st.throttled = true; st.left = todo.length; todo.length = 0; }
+  if (memoryFile) mkdirSync(resolve(memoryFile, '..'), { recursive: true });
+  let slowDowns = 0, last = 0;
+  for (let i = 0; i < todo.length; i++) {
+    const wait = pauseMs - (clock() - last);
+    if (last && pauseMs && wait > 0) await sleep(wait);
+    last = clock();
+    const h = todo[i];
+    const url = `${origin}/products/${encodeURIComponent(h)}.js`;
+    const get = () => fetchImpl(url, { headers: { accept: 'application/json', 'user-agent': 'GearWorldRefresh/1.0' }, signal: AbortSignal.timeout(20000) });
+    let res = null;
+    try {
+      res = await get();
+      if (res && res.status === 429) { if (pauseMs) await sleep(Math.max(5000, pauseMs * 8)); res = await get(); }
+    } catch { res = null; }
+    if (res && res.status === 429) {
+      if (++slowDowns >= 3) { st.throttled = true; st.left = todo.length - i; if (pauseFile) writeFileSync(pauseFile, new Date(clock()).toISOString()); break; }
+      continue;
+    }
+    slowDowns = 0;
+    const t = new Date(clock()).toISOString();
+    let e = { h, t, s: 0 };
+    if (res && res.status === 404) e = { h, t, s: 404 };
+    else if (res && res.ok) { let p = null; try { p = await res.json(); } catch { p = null; } if (p && Array.isArray(p.variants)) e = { h, t, s: 200, p: slimShopProduct(p) }; }
+    st.asked++;
+    use(e);
+    if (memoryFile) appendFileSync(memoryFile, JSON.stringify(e) + '\n');
+    if ((i + 1) % 250 === 0) log(`   έλεγχος ${i + 1} από ${todo.length}...`);
+  }
+  const checkedRows = live.filter(r => { const h = productHandle(r.affiliate_url); return h && answered.has(h.handle); });
+  return { catalog, checkedRows, st };
+}
+export function renderSlowLines(st, retailer, site, checked) {
+  const fmt = n => new Intl.NumberFormat('en-GB').format(n);
+  const L = [`Αργός πλήρης έλεγχος ένα-ένα (L81): ${fmt(st.active)} ενεργά ${retailer} στο ${site.toUpperCase()}, ${fmt(st.handles)} διαφορετικά προϊόντα του καταστήματος. Ρωτήθηκαν τώρα: ${fmt(st.asked)} · από τη μνήμη (${SLOW_MEMORY_HOURS} ώρες): ${fmt(st.fromMemory)} · δεν απάντησαν: ${fmt(st.noAnswer)}${st.noHandle ? ` · χωρίς διεύθυνση προϊόντος: ${fmt(st.noHandle)}` : ''}.`,
+    `Το σχέδιο αφορά τα ${fmt(checked)} ενεργά που ελέγχθηκαν· όσα δεν ελέγχθηκαν μένουν όπως είναι.`];
+  if (st.throttled) L.push(`ΠΡΟΣΟΧΗ: το Shopify ζήτησε παύση (HTTP 429) και σταμάτησα· έμειναν ${fmt(st.left)}. Ξανατρέξε την ίδια εντολή σε μία ώρα: συνεχίζει από εκεί που σταμάτησε.`);
+  if (st.asked) L.push('Ο έλεγχος έγινε τώρα: αυτή η εκτέλεση δεν ζητά φράση έγκρισης. Ξανατρέξε την ίδια εντολή μέσα σε 48 ώρες: παίρνει τις απαντήσεις από τη μνήμη (γρήγορα) και τότε ζητά τη φράση.');
+  return L;
+}
+
 export function renderSampleReport({ retailer, site, origin, currency, st, limitNote }) {
   const pct = k => (st.checked ? Math.round((100 * st[k]) / st.checked) : 0);
   const L = [];
@@ -280,7 +357,7 @@ function parseFeedDate(s) {
   return Number.isFinite(t) ? t : NaN;
 }
 
-export function planRefresh({ rows, feed, costs, maxWrites = 90000, now = new Date() }) {
+export function planRefresh({ rows, feed, costs, maxWrites = 90000, now = new Date(), acceptJumps = false }) {
   const active = rows.filter(r => Number(r.is_active) === 1);
   // The products' own update date; without it, the date of the newest feed file on this PC (L39, L58).
   const newestTime = feed.newest ? parseFeedDate(feed.newest) : NaN;
@@ -307,8 +384,10 @@ export function planRefresh({ rows, feed, costs, maxWrites = 90000, now = new Da
       const oldPrice = Number(r.price);
       if (f.currency && f.currency !== curCurrency) currencySkip.push({ id: Number(r.id), from: curCurrency, to: f.currency });
       else if (Math.abs(f.price - oldPrice) >= 0.005) {
-        if (oldPrice > 0 && (f.price > oldPrice * PRICE_JUMP || f.price < oldPrice / PRICE_JUMP)) bigPrice.push({ id: Number(r.id), name: r.product_name || r.awin_product_id, from: oldPrice, to: f.price });
-        else { set.price = f.price; old.price = oldPrice; }
+        const big = oldPrice > 0 && (f.price > oldPrice * PRICE_JUMP || f.price < oldPrice / PRICE_JUMP);
+        if (big) bigPrice.push({ id: Number(r.id), name: r.product_name || r.awin_product_id, from: oldPrice, to: f.price });
+        // -AcceptJumps "<shop>": the owner checked these on the shop and wants them (Gardenista cushion covers, 28 Oct 2026).
+        if (!big || acceptJumps) { set.price = f.price; old.price = oldPrice; }
       }
     }
     // A picture only when the feed has a real one and it is another picture (an Awin 200px proxy becomes the full image, L38).
@@ -340,7 +419,7 @@ export function planRefresh({ rows, feed, costs, maxWrites = 90000, now = new Da
   const count = col => doChanges.filter(c => col in c.set).length;
   return {
     active: active.length, matched: active.length - gone.length, same, changes: doChanges, hides: doHides, gone: gone.length, soldOut: soldOut.length, safe, stale, staleDays,
-    staleFrom, feedStock, bigPrice, currencySkip, writes, left, costs,
+    staleFrom, feedStock, bigPrice, acceptJumps, currencySkip, writes, left, costs,
     counts: { price: count('price'), image_url: count('image_url'), stock_status: count('stock_status'),
       toOut: doChanges.filter(c => 'stock_status' in c.set && !inStockText(c.set.stock_status)).length,
       toIn: doChanges.filter(c => 'stock_status' in c.set && inStockText(c.set.stock_status)).length }
@@ -398,7 +477,9 @@ export function renderReport({ retailer, site, feedFiles, feedRows, newest, p, s
   L.push(`Εγγραφές D1: περίπου ${fmt(p.writes)} (ανά προϊόν: τιμή ${p.costs.price}, εικόνα ${p.costs.image_url}, απόθεμα ${p.costs.stock_status}, απόκρυψη ${p.costs.is_active}).`);
   if (p.left.changes || p.left.hides) L.push(`Όριο εγγραφών: ${fmt(p.left.changes)} αλλαγές και ${fmt(p.left.hides)} αποκρύψεις μένουν για την επόμενη εκτέλεση (κάθε εκτέλεση ξαναϋπολογίζει μόνο όσα διαφέρουν).`);
   if (p.bigPrice.length) {
-    L.push(`ΠΡΟΣΟΧΗ: ${fmt(p.bigPrice.length)} τιμές αλλάζουν πάνω από ${PRICE_JUMP} φορές. ΔΕΝ αλλάζουν· να ελεγχθούν:`);
+    L.push(p.acceptJumps
+      ? `ΠΡΟΣΟΧΗ: ${fmt(p.bigPrice.length)} τιμές αλλάζουν πάνω από ${PRICE_JUMP} φορές και ΑΛΛΑΖΟΥΝ (-AcceptJumps):`
+      : `ΠΡΟΣΟΧΗ: ${fmt(p.bigPrice.length)} τιμές αλλάζουν πάνω από ${PRICE_JUMP} φορές. ΔΕΝ αλλάζουν· να ελεγχθούν:`);
     for (const b of p.bigPrice.slice(0, 15)) L.push(`   - ${String(fixMojibake(b.name)).slice(0, 90)}: ${b.from} -> ${b.to}`);
   }
   if (p.currencySkip.length) L.push(`ΠΡΟΣΟΧΗ: ${fmt(p.currencySkip.length)} προϊόντα έχουν άλλο νόμισμα ${where} (${p.currencySkip[0].from} -> ${p.currencySkip[0].to}). Η τιμή τους δεν αλλάζει.`);
@@ -423,11 +504,14 @@ if (import.meta.url === pathToFileURL(process.argv[1] || '').href) {
   mkdirSync(out, { recursive: true });
   const rows = all('--rows').flatMap(f => rowsFromWrangler(readFileSync(f, 'utf8')));
   const costs = writeCosts(opt('--indexes') && existsSync(opt('--indexes')) ? rowsFromWrangler(readFileSync(opt('--indexes'), 'utf8')) : []);
-  const finish = (feed, report) => {
-    const p = planRefresh({ rows, feed, costs, maxWrites, now });
+  const acceptJumps = args.includes('--accept-jumps');
+  // live = 1: the slow check asked the shop in this very run, so no approval is asked (L81): the next run applies from memory.
+  const finish = (feed, report, use = rows, live = 0) => {
+    const p = planRefresh({ rows: use, feed, costs, maxWrites, now, acceptJumps });
     const summary = writePlan(out, p);
+    const activeAll = rows.filter(r => Number(r.is_active) === 1).length;
     writeFileSync(join(out, 'report.txt'), report(p));
-    writeFileSync(join(out, 'counts.txt'), `${summary.changes} ${summary.hides} ${summary.writes} ${summary.stale ? 1 : 0} ${summary.safe ? 1 : 0} ${summary.active}\n`);
+    writeFileSync(join(out, 'counts.txt'), `${summary.changes} ${summary.hides} ${summary.writes} ${summary.stale ? 1 : 0} ${summary.safe ? 1 : 0} ${activeAll} ${live}\n`);
   };
   if (args.includes('--from-shop')) {
     // The shop's own live catalogue (L60). Read-only GETs; any failure changes nothing.
@@ -435,6 +519,20 @@ if (import.meta.url === pathToFileURL(process.argv[1] || '').href) {
     if (!origin) {
       writeFileSync(join(out, 'report.txt'), 'Δεν βρήκα τη διεύθυνση του καταστήματος στα links των προϊόντων. Δεν άλλαξε τίποτα.\n');
       process.exit(3);
+    }
+    if (args.includes('--slow')) {
+      const currency = await readShopCurrency(origin);
+      const memoryFile = join(resolve(opt('--memory') || join(out, '..')), `${new URL(origin).hostname}.jsonl`);
+      const { catalog, checkedRows, st } = await slowShopCheck(rows, origin, { memoryFile, now, log: m => console.log(m) });
+      const lines = renderSlowLines(st, retailer, site, checkedRows.length);
+      if (!checkedRows.length) {
+        writeFileSync(join(out, 'report.txt'), [...lines, 'Δεν ελέγχθηκε κανένα προϊόν: δεν άλλαξε τίποτα.'].join('\n') + '\n');
+        process.exit(4);
+      }
+      const feed = feedFromShopify(catalog, currency, now);
+      finish(feed, p => lines.join('\n') + '\n' + renderReport({ retailer, site, feedFiles: [origin], feedRows: feed.rows, newest: feed.newest, p, shop: { origin, currency } }),
+        checkedRows, st.asked ? 1 : 0);
+      process.exit(0);
     }
     let catalog;
     const sampleOnly = args.includes('--sample-only');

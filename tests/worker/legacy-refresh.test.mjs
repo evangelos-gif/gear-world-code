@@ -10,7 +10,7 @@ import { join } from 'node:path';
 import { gzipSync } from 'node:zlib';
 import { execFileSync, spawnSync } from 'node:child_process';
 import { DatabaseSync } from 'node:sqlite';
-import { findFeeds, readFeed, planRefresh, writeCosts, writePlan, keyOf, matchRow, newestFirst, renderReport, linkHost, shopOriginOf, feedFromShopify, readShopCurrency, productHandle, sampleShopProducts, renderSampleReport, sampleReason } from '../../tools/legacy-refresh-plan.mjs';
+import { findFeeds, readFeed, planRefresh, writeCosts, writePlan, keyOf, matchRow, newestFirst, renderReport, linkHost, shopOriginOf, feedFromShopify, readShopCurrency, productHandle, sampleShopProducts, renderSampleReport, sampleReason, slowShopCheck, renderSlowLines, slimShopProduct } from '../../tools/legacy-refresh-plan.mjs';
 import { readShopifyCatalog } from '../../tools/legacy-import-plan.mjs';
 
 // The CGW indexes on products (read from the live database, 25 Oct 2026).
@@ -184,7 +184,7 @@ test('command line: report and counts from wrangler output files; no feed found 
   writeFileSync(idxFile, JSON.stringify([{ results: CGW_INDEXES.map((sql, i) => ({ name: `i${i}`, sql })), success: true }]));
   const tool = join(process.cwd(), 'tools', 'legacy-refresh-plan.mjs');
   execFileSync(process.execPath, [tool, '--archive', dir, '--retailer', 'Tooled Up', '--site', 'cgw', '--rows', rowsFile, '--indexes', idxFile, '--out', out, '--now', '2026-10-25T12:00:00Z']);
-  assert.equal(readFileSync(join(out, 'counts.txt'), 'utf8').trim(), '2 1 16 0 1 5');
+  assert.equal(readFileSync(join(out, 'counts.txt'), 'utf8').trim(), '2 1 16 0 1 5 0');
   const report = readFileSync(join(out, 'report.txt'), 'utf8');
   assert.match(report, /ΠΡΟΣΟΧΗ: 1 τιμές αλλάζουν πάνω από 3 φορές/);
   assert.match(report, /απόκρυψη 12/);
@@ -375,4 +375,75 @@ test('27 Oct 2026: the catalogue reader names the HTTP status, so 429 (slow down
   await assert.rejects(readShopifyCatalog('https://gardenistauk.com', { fetchImpl: slow, pauseMs: 0 }), /page=1, HTTP 429\)/);
   const gone = async () => { throw new Error('offline'); };
   await assert.rejects(readShopifyCatalog('https://gardenistauk.com', { fetchImpl: gone, pauseMs: 0 }), /page=1\)\. Nothing was changed/);
+});
+
+// L81: the slow full check (InStock, 16,587 products, 28 Oct 2026).
+const instockRow = (id, handle, vid, price, extra = {}) => ({
+  id, awin_product_id: `122444:${vid}`, merchant_product_id: String(vid), product_name: `Item ${id}`, price, currency: 'GBP', is_active: 1,
+  stock_status: 'in stock', image_url: `https://cdn.shopify.com/${handle}.jpg`,
+  affiliate_url: `https://www.awin1.com/cread.php?awinmid=122444&awinaffid=3057233&ued=${encodeURIComponent(`https://instock.net/products/${handle}?variant=${vid}`)}`, ...extra });
+const jsProduct = (handle, vid, pence, available = true) => ({ handle, images: [`//cdn.shopify.com/${handle}.jpg`], variants: [{ id: vid, sku: '', price: pence, available, featured_image: null }] });
+
+test('L81: the slow check asks each product once, remembers the answers, and the plan touches only what answered', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'slow-'));
+  const memoryFile = join(dir, 'shop-memory', 'instock.net.jsonl');
+  const rows = [instockRow(1, 'hammer', 11, 26), instockRow(2, 'socks', 22, 9.99), instockRow(3, 'gone-table', 33, 120), instockRow(4, 'silent', 44, 5),
+    instockRow(5, 'hammer', 12, 26), { ...instockRow(6, 'x', 66, 1), affiliate_url: 'https://www.awin1.com/pclick.php?p=1' }];
+  // The shop's pictures are https://cdn...; the rows keep the same picture so only price and stock count here.
+  for (const r of rows) r.image_url = String(r.image_url);
+  const asked = [];
+  const fetchImpl = async url => {
+    const h = /products\/([^.]+)\.js/.exec(url)[1];
+    asked.push(h);
+    if (h === 'hammer') return { ok: true, status: 200, json: async () => ({ handle: h, images: ['//cdn.shopify.com/hammer.jpg'], variants: [{ id: 11, sku: '', price: 2800, available: true }, { id: 12, sku: '', price: 2600, available: true }] }) };
+    if (h === 'socks') return { ok: true, status: 200, json: async () => jsProduct(h, 22, 999, false) };
+    if (h === 'gone-table') return { ok: false, status: 404, json: async () => ({}) };
+    throw new Error('timeout');
+  };
+  const now = new Date('2026-10-28T20:00:00Z');
+  const one = await slowShopCheck(rows, 'https://instock.net', { memoryFile, now, fetchImpl, pauseMs: 0, clock: () => now.getTime() });
+  assert.deepEqual(asked.sort(), ['gone-table', 'hammer', 'silent', 'socks']);
+  assert.deepEqual([one.st.active, one.st.handles, one.st.asked, one.st.noAnswer, one.st.noHandle], [6, 4, 4, 1, 1]);
+  assert.deepEqual(one.checkedRows.map(r => r.id).sort(), [1, 2, 3, 5]);
+  const feed = feedFromShopify(one.catalog, 'GBP', now);
+  const p = planRefresh({ rows: one.checkedRows, feed, costs: writeCosts([]), now });
+  assert.deepEqual(p.changes.map(c => [c.id, c.set.price]), [[1, 28]]);
+  assert.deepEqual(p.hides.sort(), [2, 3]);
+  assert.equal(p.same, 1);
+  assert.match(renderSlowLines(one.st, 'InStock UK', 'cgw', one.checkedRows.length).join('\n'), /δεν ζητά φράση/);
+
+  // Same command again within 48 hours: nothing is asked again except the product that did not answer... which is remembered too.
+  asked.length = 0;
+  const two = await slowShopCheck(rows, 'https://instock.net', { memoryFile, now: new Date(now.getTime() + 20 * 3600000), fetchImpl, pauseMs: 0 });
+  assert.deepEqual([asked.length, two.st.asked, two.st.fromMemory], [0, 0, 4]);
+  assert.doesNotMatch(renderSlowLines(two.st, 'InStock UK', 'cgw', two.checkedRows.length).join('\n'), /δεν ζητά φράση/);
+  // After 48 hours the memory is too old: everything is asked again.
+  const three = await slowShopCheck(rows, 'https://instock.net', { memoryFile, now: new Date(now.getTime() + 49 * 3600000), fetchImpl, pauseMs: 0 });
+  assert.equal(three.st.asked, 4);
+  assert.equal(slimShopProduct({ variants: [{ id: 1, price: 2051, available: true }], images: [{ src: '//a.jpg' }] }).variants[0].price, '20.51');
+});
+
+test('L81: three "slow down" answers stop the slow check, and the next site of the run does not ask for 30 minutes', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'slow-'));
+  const memoryFile = join(dir, 'instock.net.jsonl');
+  const rows = Array.from({ length: 8 }, (_, i) => instockRow(i + 1, `item-${i}`, 100 + i, 5));
+  let calls = 0;
+  const slow = async () => { calls++; return { ok: false, status: 429, json: async () => ({}) }; };
+  const now = new Date('2026-10-28T20:00:00Z');
+  const one = await slowShopCheck(rows, 'https://instock.net', { memoryFile, now, fetchImpl: slow, pauseMs: 0, clock: () => now.getTime() });
+  assert.deepEqual([one.st.throttled, one.st.left, calls, one.checkedRows.length], [true, 6, 6, 0]);
+  assert.match(renderSlowLines(one.st, 'InStock UK', 'hgw', 0).join('\n'), /HTTP 429/);
+  calls = 0;
+  const two = await slowShopCheck(rows, 'https://instock.net', { memoryFile, now: new Date(), fetchImpl: slow, pauseMs: 0 });
+  assert.deepEqual([two.st.throttled, calls], [true, 0]);
+});
+
+test('-AcceptJumps: a price that changes more than 3 times changes too, and is still listed', () => {
+  const now = new Date('2026-10-28T20:00:00Z');
+  const rows = [instockRow(1, 'cushion-cover', 7, 7.99)];
+  const feed = feedFromShopify(new Map([['cushion-cover', slimShopProduct(jsProduct('cushion-cover', 7, 2999))]]), 'GBP', now);
+  const held = planRefresh({ rows, feed, costs: writeCosts([]), now });
+  assert.deepEqual([held.changes.length, held.bigPrice.length], [0, 1]);
+  const taken = planRefresh({ rows, feed, costs: writeCosts([]), now, acceptJumps: true });
+  assert.deepEqual([taken.changes.map(c => c.set.price), taken.bigPrice.length], [[29.99], 1]);
 });

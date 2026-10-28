@@ -32,6 +32,13 @@
   catalogue. -SampleShops "instock-uk" sends the shops named there straight to the sample (no full catalogue read: reading
   InStock's catalogue made Shopify answer HTTP 429, "slow down", to this PC for every Shopify shop, 27 Oct 2026); the
   other pairs of the same run are refreshed as usual. On 429 the sample waits, asks once more, and stops after 3 in a row.
+  -SlowShops "instock-uk" (L81): the full check for such a shop, product by product (/products/<handle>.js, about one a
+  second; InStock: 16,587 products on 5 sites, about 4-5 hours). The answers are kept for 48 hours in
+  <home>\gear-world-reports\shop-memory (one file per shop, shared by the sites), so a stopped or interrupted run goes on
+  where it stopped. A run that asked the shop does not ask for approval (it may have run for hours, unattended): the same
+  command again within 48 hours takes the answers from memory, shows the plan and asks each site's phrase. Products that
+  did not answer stay as they are. Windows is kept awake while it runs.
+  -AcceptJumps "gardenista": that shop's prices that change more than 3 times change too (the owner checked them).
 
   Rollback (printed): the rollback file puts back the old values and shows the hidden products again; or the restore point.
   Report: <home>\gear-world-reports\REFRESH_<time>.txt (also copied to the clipboard)
@@ -49,6 +56,8 @@ param(
     [switch]$FromShop,
     [int]$Sample = 100,
     [string]$SampleShops = '',
+    [string]$SlowShops = '',
+    [string]$AcceptJumps = '',
     [switch]$NoClipboard
 )
 
@@ -186,12 +195,34 @@ if ($list.Count -lt 1) { Say 'Δεν δόθηκε κανένα ζευγάρι κ
 if ($Advertiser -and ($list.Count -ne 1 -or $Advertiser -notmatch '^\d{1,9}$')) { Say '-Advertiser μόνο με ΕΝΑ ζευγάρι και μόνο αριθμός.' 'Red'; Finish 2 }
 if (-not (Get-Command node -ErrorAction SilentlyContinue)) { Say 'Δεν βρέθηκε το Node.js.' 'Red'; Finish 3 }
 $shopKeys = @($list | ForEach-Object { ($_ -split ':')[0] })
-foreach ($s in ($SampleShops -split ',')) {
-    $k = Key-Of $s
-    if (-not $k) { continue }
-    if (-not $FromShop) { Say '-SampleShops μόνο μαζί με -FromShop.' 'Red'; Finish 2 }
-    if ($shopKeys -notcontains $k) { Say ('-SampleShops: το «{0}» δεν είναι στα -Pairs.' -f $s) 'Red'; Finish 2 }
+# The shops named in -SampleShops, -SlowShops or -AcceptJumps: each must be one of the -Pairs.
+function Shop-List([string]$value, [string]$label) {
+    $keys = @()
+    foreach ($s in ($value -split ',')) {
+        $k = Key-Of $s
+        if (-not $k) { continue }
+        if ($shopKeys -notcontains $k) { Say ('{0}: το «{1}» δεν είναι στα -Pairs.' -f $label, $s) 'Red'; Finish 2 }
+        $keys += $k
+    }
+    return ,$keys
+}
+$sampleKeys = Shop-List $SampleShops '-SampleShops'
+$slowKeys = Shop-List $SlowShops '-SlowShops'
+$jumpKeys = Shop-List $AcceptJumps '-AcceptJumps'
+if ((($sampleKeys.Count + $slowKeys.Count) -gt 0) -and -not $FromShop) { Say '-SampleShops και -SlowShops μόνο μαζί με -FromShop.' 'Red'; Finish 2 }
+foreach ($k in $sampleKeys) {
+    if ($slowKeys -contains $k) { Say ('Το {0} είναι και στα -SampleShops και στα -SlowShops: διάλεξε ένα.' -f $k) 'Red'; Finish 2 }
     Say ('Μόνο δείγμα για το {0} (χωρίς ανάγνωση όλου του καταλόγου, L80).' -f $k)
+}
+foreach ($k in $slowKeys) { Say ('Αργός πλήρης έλεγχος για το {0}: ένα-ένα, περίπου 1 προϊόν το δευτερόλεπτο (L81).' -f $k) }
+foreach ($k in $jumpKeys) { Say ('Οι τιμές του {0} που αλλάζουν πάνω από 3 φορές ΑΛΛΑΖΟΥΝ κι αυτές (-AcceptJumps).' -f $k) 'Yellow' }
+if ($slowKeys.Count -gt 0) {
+    # Hours of checking: keep Windows awake while this window runs (ES_CONTINUOUS | ES_SYSTEM_REQUIRED). A closed laptop lid still sleeps.
+    try {
+        Add-Type -Namespace GearWorld -Name Power -MemberDefinition '[DllImport("kernel32.dll")] public static extern uint SetThreadExecutionState(uint esFlags);' -ErrorAction Stop
+        [void][GearWorld.Power]::SetThreadExecutionState([uint32]2147483649)
+        Say 'Ο υπολογιστής δεν θα πέσει σε αναστολή όσο τρέχει (αν είναι laptop: στο ρεύμα, με ανοιχτό καπάκι).'
+    } catch { }
 }
 
 # The Awin archive on this PC (found automatically).
@@ -278,7 +309,9 @@ foreach ($pair in $list) {
     $a = @((Join-Path (Join-Path $repo 'tools') 'legacy-refresh-plan.mjs'), '--archive', $Archive, '--retailer', $name, '--site', $site, '--indexes', $idxFile, '--out', $dir, '--max-writes', [string]$budget)
     if ($Advertiser) { $a += @('--advertiser', $Advertiser) }
     if ($FromShop) { $a += @('--from-shop', '--sample', [string]$Sample) }
-    if ($FromShop -and (@($SampleShops -split ',' | ForEach-Object { Key-Of $_ }) -contains $key)) { $a += @('--sample-only') }
+    if ($FromShop -and ($sampleKeys -contains $key)) { $a += @('--sample-only') }
+    if ($FromShop -and ($slowKeys -contains $key)) { $a += @('--slow', '--memory', (Join-Path $OutDir 'shop-memory')) }
+    if ($jumpKeys -contains $key) { $a += @('--accept-jumps') }
     foreach ($f in $rowFiles) { $a += @('--rows', $f) }
     & node @a
     $planCode = $LASTEXITCODE
@@ -290,11 +323,14 @@ foreach ($pair in $list) {
     if ($planCode -ne 0) { Say 'Το σχέδιο δεν έγινε (δες πιο πάνω). Δεν άλλαξε τίποτα.' 'Red'; if ($exitCode -eq 0) { $exitCode = 10 }; continue }
     $c = ([System.IO.File]::ReadAllText((Join-Path $dir 'counts.txt'))).Trim() -split '\s+'
     $nChanges = [int]$c[0]; $nHides = [int]$c[1]; $writes = [int]$c[2]; $stale = ($c[3] -eq '1'); $activeBefore = [int]$c[5]
+    $live = ($c.Count -gt 6 -and $c[6] -eq '1')
     $phrase = 'ΕΓΚΡΙΝΩ REFRESH {0} {1}' -f $key.ToUpper(), $site.ToUpper()
     if ($stale -or ($nChanges + $nHides) -eq 0) {
         if (-not $stale) { Say 'Τίποτα να αλλάξει.' 'Green' }
         continue
     }
+    # The slow check asked the shop in this run (hours, maybe unattended): no approval now; the next run applies from memory (L81).
+    if ($live) { Say ('Πρόβα: δεν άλλαξε τίποτα. Ξανατρέξε την ίδια εντολή μέσα σε 48 ώρες για να ζητήσει τη φράση {0}.' -f $phrase) 'Green'; continue }
     if (-not $Apply) { Say ('Δοκιμή μόνο: δεν άλλαξε τίποτα. Η φράση έγκρισης: {0}' -f $phrase) 'Green'; continue }
     if (-not (Confirm-Approval $phrase)) { Say 'Δεν δόθηκε έγκριση: δεν άλλαξε τίποτα σε αυτό το κατάστημα.' 'Yellow'; if ($exitCode -eq 0) { $exitCode = 1 }; continue }
 
