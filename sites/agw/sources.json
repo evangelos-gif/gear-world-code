@@ -5,7 +5,7 @@
     { "advertiserId": 49385, "feedIds": [118472], "retailer": "My Tool Shed", "currency": "GBP", "condition": "new", "approved": true },
     { "advertiserId": 28807, "feedIds": [95330, 94852], "retailer": "SGS Engineering", "currency": "GBP", "condition": "new", "approved": true },
     { "advertiserId": 123932, "feedIds": [114093], "retailer": "Joybuy", "currency": "GBP", "condition": "new", "approved": true },
-    { "advertiserId": 118435, "feedIds": [109014], "retailer": "VEVOR", "currency": "EUR", "condition": "new", "approved": true },
+    { "advertiserId": 118435, "feedIds": [109014], "retailer": "VEVOR", "currency": "EUR", "condition": "new", "keepSiteNames": true, "approved": true },
     { "advertiserId": 48473, "file": "^48473-.+\\.csv(\\.gz)?$", "format": "google", "retailer": "GS Workwear", "currency": "GBP", "condition": "new", "approved": true }
   ]
 }

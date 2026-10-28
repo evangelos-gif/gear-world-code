@@ -76,7 +76,7 @@ test('plan: reads every file of a retailer, keeps euro prices, writes SQL that i
   const sources = join(dir, 'sources.json');
   writeFileSync(sources, JSON.stringify({ sources: [
     { advertiserId: 496, retailer: 'Tooled Up', currency: 'GBP', approved: true },
-    { advertiserId: 118435, retailer: 'VEVOR', currency: 'EUR', approved: true }
+    { advertiserId: 118435, retailer: 'VEVOR', currency: 'EUR', approved: true, keepSiteNames: true }
   ] }));
   const { stats, report } = await planAgwImport({ archive: dir, sourcesFile: sources, outDir: out, now: new Date('2026-10-21T20:00:00Z') });
   assert.equal(stats.rows, 5);
@@ -89,6 +89,14 @@ test('plan: reads every file of a retailer, keeps euro prices, writes SQL that i
   const sql = readFileSync(join(out, 'sql', readdirSync(join(out, 'sql')).find(f => f === '0001.sql')), 'utf8');
   assert.match(sql, /-- AGW import plan .* NOT executed/);
   assert.match(sql, /'VEVOR', 'car-electronics'.*'EUR'/);
+  // VEVOR (keepSiteNames, lessons L79): a product already on the site keeps its English name and address; Tooled Up does not.
+  const vevor = sql.split('\n').find(l => l.includes("'VEVOR'"));
+  const tooled = sql.split('\n').find(l => l.includes("'Tooled Up'"));
+  assert.ok(vevor.includes("'VEVOR 4K Dashcam voor auto'"), 'a new VEVOR product comes in with the feed name');
+  assert.ok(!/DO UPDATE SET.*product_name = excluded/.test(vevor) && !/DO UPDATE SET.*product_slug = excluded/.test(vevor));
+  assert.match(vevor, /DO UPDATE SET.*price = excluded\.price/);
+  assert.match(tooled, /DO UPDATE SET.*product_name = excluded\.product_name.*product_slug = excluded\.product_slug/);
+  assert.match(report, /VEVOR: names of products already on the site are kept/);
 });
 
 test('plan: a Google Shopping feed in Downloads (GS Workwear) joins sizes, builds the Awin link, --only keeps the rest out', async () => {

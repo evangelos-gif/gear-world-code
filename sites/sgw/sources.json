@@ -9,7 +9,7 @@
       "allowPaths": ["sport & fitness", "training accessories"] },
     { "advertiserId": 116097, "retailer": "Bazta UK", "currency": "GBP", "condition": "new", "approved": true, "rulesFrom": 69306 },
     { "advertiserId": 66912, "retailer": "Beyond Shakers", "currency": "GBP", "condition": "new", "approved": true },
-    { "advertiserId": 118435, "feedIds": [109014], "retailer": "VEVOR", "currency": "EUR", "condition": "new", "approved": false,
+    { "advertiserId": 118435, "feedIds": [109014], "retailer": "VEVOR", "currency": "EUR", "condition": "new", "keepSiteNames": true, "approved": false,
       "allowPaths": ["sport en buitenshuis"] }
   ]
 }
