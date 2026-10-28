@@ -3,6 +3,7 @@
 // Site code AGW ("CGW" is Construction Gear World). Clickref on Awin: agw-<product id>.
 
 import { promosFor, AWIN_PUBLISHER_ID } from '../../promos/promos.js';
+import guides from './guides.js';
 
 export default {
   code: 'AGW',
@@ -12,8 +13,10 @@ export default {
   lang: 'en-GB',
   locale: 'en-GB',
   currency: 'GBP',
-  assetVersion: '2026-10-28-agw-season-1',
+  assetVersion: '2026-10-29-agw-guides-1',
   promos: promosFor('AGW'),
+  // Buying guides (/guides/, lessons L82): words in guides.js, prices and stock live from the database.
+  guides,
   awinPublisherId: AWIN_PUBLISHER_ID,
   storagePrefix: 'agw',
 

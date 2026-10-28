@@ -237,6 +237,7 @@ function footer(site, year) {
       <h2>About this site</h2>
       <ul>
         ${activePromos(site).length ? html`<li><a href="/discount-codes/">Discount codes</a></li>` : ''}
+        ${site.guides && site.guides.length ? html`<li><a href="/guides/">Buying guides</a></li>` : ''}
         <li><a href="/about/">About us</a></li>
         <li><a href="/how-we-make-money/">How we make money</a></li>
         <li><a href="/contact/">Contact</a></li>

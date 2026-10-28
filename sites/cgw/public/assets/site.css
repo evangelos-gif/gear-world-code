@@ -372,6 +372,21 @@ body.has-compare-bar { padding-bottom: 76px; }
 .pick-name a { color: var(--text); font-weight: 700; font-size: 1.1rem; }
 .pick-note, .pick-rule { color: var(--text-2); font-size: .92rem; max-width: 70ch; }
 .compare-table tbody th, .compare-table thead th:first-child { position: sticky; left: 0; z-index: 1; }
+/* Buying guides (/guides/, lessons L82): tables reuse the compare table; each pick is a light card like a product label. */
+.guide-table .price { font-size: 1.15rem; }
+.guide-table th[scope="row"] { min-width: 150px; }
+.guide-pick { margin: 16px 0 20px; padding: 14px 16px; background: var(--paper); color: var(--ink); border: 1px solid var(--paper-edge); border-radius: var(--radius); }
+.guide-pick h3 { margin: 0 0 6px; color: var(--ink); }
+.guide-pick h3 a { color: var(--ink); }
+.guide-pick h3 span { color: var(--ink-2); }
+.guide-pick ul { margin: 10px 0 12px; }
+.guide-pick .btn-deal { width: auto; min-width: 200px; }
+.guide-changed { padding: 10px 14px; border-left: 4px solid var(--gold); background: var(--panel); }
+.guide-note { color: var(--text-2); font-size: .92rem; }
+.guide-source { font-size: .85rem; white-space: nowrap; }
+.guide-list { list-style: none; padding-left: 0; }
+.guide-list li { padding: 14px 0; border-bottom: 1px solid var(--line); }
+.guide-list h2 { font-size: 1.35rem; margin-bottom: .3em; }
 @media (max-width: 600px) { .compare-table tbody th { width: 84px; padding: 10px 8px; font-size: .85rem; } .compare-photo img { width: 96px; height: 96px; } }
 
 /* Language and currency (lessons L24, L25) */

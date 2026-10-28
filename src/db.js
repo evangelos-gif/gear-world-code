@@ -326,6 +326,14 @@ export async function getProductsByIds(db, ids) {
   return ids.map(id => byId.get(id)).filter(Boolean);
 }
 
+// Products of a buying guide (lessons L82), by primary key only: with "p.is_active = 1" SQLite chose the is_active
+// index on the AGW database and read 9,868 rows for 11 products; "+p.is_active" keeps it on the key (22 rows, L51).
+export async function getGuideProducts(db, ids) {
+  if (!ids.length) return [];
+  const r = await db.prepare(`SELECT * FROM ${LAYOUT.from} p WHERE +p.is_active = 1 AND p.id IN (${ids.map(() => '?').join(',')})`).bind(...ids).all();
+  return fixAll(r.results);
+}
+
 export async function getProduct(db, id) {
   return fix(await db.prepare(`SELECT * FROM ${LAYOUT.from} p WHERE p.id = ? AND p.is_active = 1 LIMIT 1`).bind(id).first());
 }

@@ -16,6 +16,7 @@ import { infoPage, infoPaths, notFoundPage, errorPage } from './pages/info.js';
 import { useSiteAssets, useRates } from './pages/layout.js';
 import { sitemapIndex, sitemapStatic, sitemapProducts, robotsTxt, SITEMAP_CHUNK } from './seo.js';
 import { posterScan } from './lib/poster-scan.js';
+import { guidePage, guidesIndexPage, findGuide, guideProductIds, GUIDES_PATH } from './pages/guides.js';
 
 const PER_PAGE = 24;
 
@@ -49,7 +50,7 @@ export function createWorker(site) {
     }
 
     // Lower-case and trailing-slash normalisation for page paths.
-    if (/^\/(category|product|discount-codes)\/[^?]*[^/]$/.test(path) || path === '/discount-codes' || (infoPaths().includes(path + '/')) || path === '/deals') {
+    if (/^\/(category|product|discount-codes|guides)\/[^?]*[^/]$/.test(path) || path === '/discount-codes' || path === '/guides' || (infoPaths().includes(path + '/')) || path === '/deals') {
       url.pathname = path + '/';
       return redirect(url.toString(), 301);
     }
@@ -133,6 +134,21 @@ export function createWorker(site) {
         const result = await db.listProducts(env.DB, { onSale: true, inStock: true }, { sort: 'saving', page: p.page, perPage: PER_PAGE });
         if (p.page > 1 && p.page > result.pages) return notFound(path, method);
         return htmlResponse(dealsPage(site, p, result), { method });
+      });
+    }
+
+    // Buying guides (lessons L82): only on a site that has them (site.guides). Prices and stock come from the
+    // database by product id (a few rows, primary key), so a guide never shows a price the site does not have.
+    if (site.guides && site.guides.length && path === GUIDES_PATH) {
+      return htmlResponse(guidesIndexPage(site), { method, cache: 'page' });
+    }
+    m = path.match(/^\/guides\/([a-z0-9-]{1,80})\/$/);
+    if (m) {
+      const guide = findGuide(site, m[1]);
+      if (!guide) return notFound(path, method);
+      return cached(request, env, ctx, async () => {
+        const products = await db.getGuideProducts(env.DB, guideProductIds(guide));
+        return htmlResponse(guidePage(site, guide, products), { method });
       });
     }
 

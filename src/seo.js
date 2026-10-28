@@ -37,7 +37,8 @@ export function sitemapStatic(site, counts = null) {
   const cats = site.categories.filter(c => !counts || Number(counts[c.slug]) > 0);
   const offers = promoRetailers(site);
   const paths = ['/', '/deals/', ...cats.map(c => categoryPath(c.slug)), ...infoPaths(),
-    ...(offers.length ? ['/discount-codes/', ...offers.map(r => `/discount-codes/${r.slug}/`)] : [])];
+    ...(offers.length ? ['/discount-codes/', ...offers.map(r => `/discount-codes/${r.slug}/`)] : []),
+    ...(site.guides && site.guides.length ? ['/guides/', ...site.guides.map(g => `/guides/${g.slug}/`)] : [])];
   return urlset(paths.map(p => ({ loc: `https://${site.domain}${p}` })));
 }
 
