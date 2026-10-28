@@ -820,9 +820,9 @@ export async function planImport({ archive, sourcesFile, outDir, now = new Date(
   const cols = ['stable_key', 'awin_advertiser_id', 'awin_product_id', 'merchant_product_id', 'retailer', 'category_slug', 'subcategory', 'brand', 'product_name', 'product_slug', 'description', 'price', 'was_price', 'currency', 'in_stock', 'item_condition', 'image_url', 'affiliate_url', 'merchant_category', 'gtin', 'mpn', 'specs_json', 'is_active', 'last_seen_at'];
   const updateCols = cols.filter(c => c !== 'stable_key' && c !== 'awin_advertiser_id' && c !== 'merchant_product_id');
   // "keepSiteNames" (VEVOR NL, lessons L79): the shop's feed is in Dutch and the site shows the names translated into English.
-  // A product already on the site keeps its shown name and address; only a new product comes in with the feed's name.
+  // A product already on the site keeps its shown name, address and description; only a new product comes in with the feed's text.
   const keepNames = new Set(sources.filter(s => s.keepSiteNames).map(s => Number(s.advertiserId)));
-  const keptCols = updateCols.filter(c => c !== 'product_name' && c !== 'product_slug');
+  const keptCols = updateCols.filter(c => c !== 'product_name' && c !== 'product_slug' && c !== 'description');
   const all = [...products.values()];
   const sqlFiles = [];
   for (let i = 0; i < all.length; i += SQL_ROWS_PER_FILE) {
@@ -851,7 +851,7 @@ export async function planImport({ archive, sourcesFile, outDir, now = new Date(
   L.push('== Feeds ==');
   L.push(...feedInfo);
   for (const r of notRead) L.push(`${r}: its feed was not found (or is empty), so its products on the site are left exactly as they are.`);
-  for (const s of sources.filter(x => x.keepSiteNames)) L.push(`${s.retailer}: names of products already on the site are kept (translated into English, lessons L79). A new product comes in with the feed's own name, to be translated.`);
+  for (const s of sources.filter(x => x.keepSiteNames)) L.push(`${s.retailer}: names and descriptions of products already on the site are kept (translated into English, lessons L79). A new product comes in with the feed's own text, to be translated.`);
   L.push('');
   L.push(`== Result: ${stats.accepted} of ${stats.rows} rows would be imported (${pct(stats.accepted, stats.rows)}) ==`);
   if (stats.sizesJoined) L.push(`sizes and colours joined into one product (Google format feeds): ${stats.sizesJoined} rows`);

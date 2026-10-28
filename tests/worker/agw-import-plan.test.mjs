@@ -94,9 +94,10 @@ test('plan: reads every file of a retailer, keeps euro prices, writes SQL that i
   const tooled = sql.split('\n').find(l => l.includes("'Tooled Up'"));
   assert.ok(vevor.includes("'VEVOR 4K Dashcam voor auto'"), 'a new VEVOR product comes in with the feed name');
   assert.ok(!/DO UPDATE SET.*product_name = excluded/.test(vevor) && !/DO UPDATE SET.*product_slug = excluded/.test(vevor));
+  assert.ok(!/DO UPDATE SET.*description = excluded/.test(vevor), 'the translated description is kept too');
   assert.match(vevor, /DO UPDATE SET.*price = excluded\.price/);
-  assert.match(tooled, /DO UPDATE SET.*product_name = excluded\.product_name.*product_slug = excluded\.product_slug/);
-  assert.match(report, /VEVOR: names of products already on the site are kept/);
+  assert.match(tooled, /DO UPDATE SET.*product_name = excluded\.product_name.*product_slug = excluded\.product_slug.*description = excluded\.description/);
+  assert.match(report, /VEVOR: names and descriptions of products already on the site are kept/);
 });
 
 test('plan: a Google Shopping feed in Downloads (GS Workwear) joins sizes, builds the Awin link, --only keeps the rest out', async () => {

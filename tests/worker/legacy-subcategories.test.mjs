@@ -59,6 +59,21 @@ test('L56: the import moves only the products with a wrong subcategory name; the
   assert.doesNotMatch(insertSql(plan, 's', { site: 'hgw', keepCategory: true }), /CASE WHEN/);
 });
 
+test('keepNames (L79): a product already on the site keeps its translated name, the feed name still follows the feed', () => {
+  const db = new DatabaseSync(':memory:');
+  db.exec(STABLE_TABLE);
+  const first = [item(9, 'Power Tools', 'Wall Chasers', 'VEVOR Muurfrees 4800W')];
+  db.exec(insertSql(first, 's1', { site: 'hgw', keepNames: true }));
+  db.exec("UPDATE products SET product_name = 'VEVOR Wall Chaser 4800W'");
+  const again = [{ ...first[0], product_name: 'VEVOR Muurfrees 4800W nieuw', feed_product_name: 'VEVOR Muurfrees 4800W nieuw', price: 12 }];
+  db.exec(insertSql(again, 's2', { site: 'hgw', keepNames: true }));
+  const row = db.prepare('SELECT product_name, feed_product_name, price FROM products').get();
+  assert.equal(row.product_name, 'VEVOR Wall Chaser 4800W', 'the English name stays');
+  assert.equal(row.feed_product_name, 'VEVOR Muurfrees 4800W nieuw');
+  assert.equal(row.price, 12, 'price still updates');
+  assert.match(insertSql(again, 's2', { site: 'hgw' }), /product_name=excluded\.product_name/, 'without keepNames the name follows the feed');
+});
+
 test('L56: the comparison counts the moves, writes their rollback and lists subcategories the site does not have', () => {
   const db = new DatabaseSync(':memory:');
   db.exec(STABLE_TABLE);
