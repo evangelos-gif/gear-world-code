@@ -31,7 +31,8 @@ const CAR = words(['gas strut', 'gas struts', 'strut', 'struts', 'trolley jack',
   'jump starter', 'jump pack', 'battery charger', 'battery tester', 'obd', 'brake', 'brakes', 'clutch', 'timing', 'exhaust', 'suspension', 'engine crane',
   'engine stand', 'transmission jack', 'oil drain', 'motorcycle', 'motorbike', 'caravan', 'motorhome', 'car', 'vehicle', 'van', 'bonnet', 'boot',
   'tailgate', 'wiper', 'screenwash', 'valeting', 'car wash', 'creeper', 'nitrolift', 'automotive', 'mechanic', "mechanic's", 'mechanics']);
-const GARDEN = words(['lawn mower', 'lawnmower', 'mower', 'strimmer', 'grass trimmer', 'hedge trimmer', 'brush cutter', 'leaf blower', 'leaf vacuum',
+const GARDEN = words(['lawn mower', 'lawnmower', 'mower', 'strimmer', 'grass trimmer', 'hedge trimmer', 'hedgetrimmer', 'line trimmer',
+  'string trimmer', 'brush cutter', 'brushcutter', 'leaf blower', 'leaf vacuum',
   'chainsaw', 'chain saw', 'log splitter', 'wood chipper', 'chipper', 'shredder', 'tiller', 'cultivator', 'rotavator', 'pressure washer', 'scarifier',
   'garden']);
 const NOT_TRADE = words(['treadmill', 'exercise bike', 'rowing machine', 'dumbbell', 'dumbbells', 'kettlebell', 'barbell', 'weight plate', 'gym',
@@ -54,13 +55,14 @@ const POWER = words(['drill', 'drills', 'drill driver', 'combi drill', 'hammer d
   'magnetic drill', 'core drill', 'air compressor', 'compressor', 'air tool', 'air tools', 'air ratchet', 'air hammer', 'air nailer', 'air sander',
   'spray gun', 'paint sprayer', 'welder', 'welding', 'plasma cutter', 'cordless', 'brushless', 'rk20', 'rk40', '18v', '20v', '40v', 'linisher',
   'saw blade', 'saw blades', 'drill bit', 'drill bits', 'cutting disc', 'cutting discs', 'grinding disc', 'grinding discs', 'flap disc', 'sanding sheets',
-  'sanding discs', 'hole saw', 'tile cutter', 'tile saw', 'wet saw']);
+  'sanding discs', 'hole saw', 'tile cutter', 'tile saw', 'wet saw', 'air impact', 'auger bit', 'auger bits', 'flat bit', 'spade bit', 'router bit',
+  'jigsaw blade', 'jigsaw blades']);
 const SITE = words(['work light', 'worklight', 'site light', 'flood light', 'floodlight', 'inspection lamp', 'inspection light', 'head torch', 'generator',
   'space heater', 'diesel heater', 'paraffin heater', 'workshop heater', 'heater', 'industrial fan', 'dehumidifier', 'extension reel', 'extension lead',
   'cable reel', 'ladder', 'step ladder', 'scaffold', 'sack truck', 'platform truck', 'hand truck', 'workbench', 'work bench', 'tool chest', 'tool cabinet',
   'roller cabinet', 'tool box', 'toolbox', 'tool storage', 'tool trolley', 'vice', 'bench vice', 'hydraulic press', 'workshop press', 'parts washer',
   'storage cabinet', 'shelving', 'racking', 'cabinet', 'tool bag', 'tool backpack', 'backpack', 'blasting cabinet', 'sand blaster', 'shot blaster',
-  'workshop storage', 'garage storage']);
+  'workshop storage', 'garage storage', 'dumper', 'power barrow', 'ground protection', 'ground guard']);
 const LIGHT = words(['work light', 'worklight', 'site light', 'flood light', 'floodlight', 'inspection lamp', 'inspection light', 'head torch',
   'headlamp', 'head lamp', 'torch']);
 const HAND = words(['spanner', 'spanners', 'wrench', 'wrenches', 'torque wrench', 'socket', 'sockets', 'socket set', 'ratchet', 'screwdriver',

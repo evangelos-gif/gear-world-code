@@ -54,3 +54,11 @@ test('L82, first dry run (29 Oct 2026): Rikä is a brand, not a power tool; mach
     ['Female QRC to 1/4 BSPM', 'Hardware > Tools > Compressors > SGS'], ['V-TUF MIDI Spare pack of bags (10Bags)', 'Hardware > Tools > V-Tuf'],
     ['SC24H / SC50H / SC50T Cowling', 'Hardware > Tools > Compressors > SGS']]) assert.equal(place(name, cat), 'out', name);
 });
+
+test('L82, third dry run: brushcutters are garden; air impact kits and auger bits are power tools; dumpers are site equipment', () => {
+  assert.equal(place('Stihl FSA 30 (AS) 11V Cordless Brushcutter (Body Only)', 'Power Tools > Garden > Stihl'), 'out');
+  assert.equal(place('SGS 1/2 Inch Air Impact & 3/8 Inch Ratchet Wrench 15pcs Kit Rubber Grip'), 'Power Tools/Power Tools');
+  assert.equal(place('Rikä WABR015 Wood Auger Bit 18mm x 160/235', 'Hardware > Tool Accessories > Drill & Screwdriver Accessories > Drill & Screwdriver Bits > Rikä'), 'Power Tools/Power Tools');
+  assert.equal(place('Hyundai 196cc 300kg Petrol Tracked Mini Dumper Power Barrow Transporter', 'Home & Garden > Lawn & Garden > Gardening > Gardening Tools > Wheelbarrows > Hyundai'), 'Site Equipment/Site Equipment');
+  assert.equal(place('Ground Guard Fast Cover Plus Interlocking System', 'Garage Equipment > Garage Flooring > Standard > GroundGuard'), 'Site Equipment/Site Equipment');
+});
