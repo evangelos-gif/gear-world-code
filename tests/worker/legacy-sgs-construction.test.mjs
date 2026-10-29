@@ -21,7 +21,8 @@ test('L82: hand tools and site equipment have their own CGW places', () => {
   assert.equal(place('SGS 7 Drawer Roller Cabinet', 'Garage Equipment > Tool Storage > SGS'), 'Site Equipment/Site Equipment');
   assert.equal(place('SGS Diesel Space Heater 20kW', 'Heating > SGS'), 'Site Equipment/Site Equipment');
   assert.equal(place('SGS Rechargeable LED Work Light', 'Lighting > SGS'), 'Site Equipment/Lighting');
-  assert.equal(place('SGS Bolt Cutter Set', 'Power Tools > SGS'), 'Power Tools/Power Tools (doubt)');
+  assert.equal(place('SGS Belt Linisher 4in', 'Power Tools > Workshop Tools > SIP'), 'Power Tools/Power Tools');
+  assert.equal(place('SGS Magnetic Base', 'Power Tools > Accessories > SGS'), 'Power Tools/Power Tools (doubt)');
 });
 
 test('L82: cars and vans (AGW), garden machinery (GGW), fitness and spare parts stay out', () => {
@@ -38,4 +39,18 @@ test('L82: cars and vans (AGW), garden machinery (GGW), fitness and spare parts 
   ]) assert.equal(place(name, cat), 'out', name);
   assert.equal(RULES.advertiserId, 28807);
   assert.ok(RULES.shop.test('https://www.sgs-engineering.com/rika-rk40-combi-drill'));
+});
+
+test('L82, first dry run (29 Oct 2026): Rikä is a brand, not a power tool; machine parts and hydraulics stay out', () => {
+  assert.equal(place('Rikä 20oz Fibreglass Claw Hammer with Soft Grip Handle', 'Hand Tools > Hammers > Rikä'), 'Hand Tools/Hand Tools');
+  assert.equal(place('Rikä FFNR008 1st Fix Collated Nails Galv Ring 51 x 2.8mm 3000pk (No Fuel)'), 'Hand Tools/DIY');
+  assert.equal(place('Rikä TWSR028 Woodscrew Twin-Thread CSK BZP 10 x 1in 200pk'), 'Hand Tools/DIY');
+  assert.equal(place('Rikä RK40 40V SDS-Plus Rotary Hammer Drill Kit | Tabless | 4Ah'), 'Power Tools/Power Tools');
+  assert.equal(place('Teng Tools 26in Classic Cabinet 7 Drawers Red', 'Tool Storage > Tool Chests & Cabinets > Teng Tools'), 'Site Equipment/Site Equipment');
+  assert.equal(place('SGS LED Headlamp | Rechargeable | 400 Lumen'), 'Site Equipment/Lighting');
+  assert.equal(place('SGS Heavy Duty Bolt Cutters 36in'), 'Hand Tools/Hand Tools');
+  for (const [name, cat] of [['M6x16 Bolt', 'Hardware > Tools > SGS'], ['GPS520 Handle Bracket Assembly (40, 41, 42, 43 & 44)', 'Hardware > Tools > SGS'],
+    ['SWV40 2.5m Hose 38mm diameter', 'Hardware > Tools > SGS'], ['Power Team HDT10273 O Ring (-114) Nitrile .81 X .62', 'Hardware > Tools > Hydraulic Technologies'],
+    ['Female QRC to 1/4 BSPM', 'Hardware > Tools > Compressors > SGS'], ['V-TUF MIDI Spare pack of bags (10Bags)', 'Hardware > Tools > V-Tuf'],
+    ['SC24H / SC50H / SC50T Cowling', 'Hardware > Tools > Compressors > SGS']]) assert.equal(place(name, cat), 'out', name);
 });

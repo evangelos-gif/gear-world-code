@@ -19,6 +19,7 @@ export const RULES = {
 };
 
 const words = list => new RegExp('(?<![a-z0-9])(' + list.map(w => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|') + ')(?![a-z0-9])', 'i');
+const ADULT = words(['erotic', 'adult', 'naked', 'nude', 'sexy', 'boobs', 'willy']);
 const FOR_HER = words(['earring', 'earrings', 'necklace for her', 'for her', 'ladies', "women's", 'womens', 'woman', 'girls', 'brooch', 'hair clip',
   'hair slide', 'anklet', 'charm bracelet']);
 const NOT_HERE = words(['gift card', 'gift voucher', 'voucher', 'empty box', 'replacement back', 'replacement backs', 'spare back', 'spare backs',
@@ -33,13 +34,19 @@ const SMALL = words(['keyring', 'key ring', 'keychain', 'key chain', 'hip flask'
   'jewellery box', 'valet tray']);
 const JEWEL = words(['bracelet', 'bracelets', 'ring', 'rings', 'signet', 'necklace', 'chain', 'pendant', 'dog tag']);
 
+// The feed name carries the chosen option: "Motor Racing Car Cufflinks Cufflinks Box" (2 options: box or not).
+export function cardName(name) {
+  return String(name || '').replace(/\s+/g, ' ').trim().replace(/(\bcufflinks?)\s+cufflinks?\s+box$/i, '$1');
+}
+
 // Decide where one product goes. Returns { site, siteCategory, subcategory } or { reject: '<reason>' }.
 export function classify({ name, feedCategory = '' }) {
   const n = String(name || '');
   const cat = String(feedCategory || '');
   if (NOT_HERE.test(n)) return { reject: 'gift card, packaging or spare part' };
+  if (ADULT.test(n) || /adult/i.test(cat)) return { reject: 'adult-themed (not on the sites)' };
   if (FOR_HER.test(n) || /women|ladies/i.test(cat)) return { reject: "women's jewellery (not on Men's Gear World)" };
-  if (CUFFLINK.test(n)) return { site: 'mgw', siteCategory: "Men's Jewellery", subcategory: 'Cufflinks' };
+  if (CUFFLINK.test(n)) return { site: 'mgw', siteCategory: "Men's Jewellery", subcategory: 'Cufflinks', name: cardName(n) };
   if (TIE_PIN.test(n)) return { site: 'mgw', siteCategory: "Men's Jewellery", subcategory: 'Jewellery' };
   if (TIE.test(n)) return { site: 'mgw', siteCategory: 'Bags & Accessories', subcategory: 'Ties' };
   if (WALLET.test(n)) return { site: 'mgw', siteCategory: 'Bags & Accessories', subcategory: 'Wallets & Purses' };

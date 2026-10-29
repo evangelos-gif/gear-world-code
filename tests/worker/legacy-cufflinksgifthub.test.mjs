@@ -1,7 +1,7 @@
 // L83: Cufflinks Gift Hub on Men's Gear World (29 Oct 2026): its new feed, into places MGW already has.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { classify, RULES } from '../../tools/import-rules/cufflinksgifthub.mjs';
+import { classify, cardName, RULES } from '../../tools/import-rules/cufflinksgifthub.mjs';
 
 const place = (name, feedCategory = '') => {
   const c = classify({ name, feedCategory });
@@ -25,4 +25,11 @@ test("L83: women's jewellery, gift cards and packaging stay out", () => {
     assert.equal(place(n), 'out', n);
   assert.equal(RULES.advertiserId, 130341);
   assert.ok(RULES.shop.test('https://www.cufflinksgifthub.co.uk/products/football-cufflinks'));
+});
+
+test('L83, first dry run: the option is not part of the card name; adult-themed cufflinks stay out', () => {
+  assert.equal(cardName('Motor Racing Car Cufflinks Cufflinks Box'), 'Motor Racing Car Cufflinks');
+  assert.equal(cardName('Silver Football Cufflinks in Gift Box'), 'Silver Football Cufflinks in Gift Box');
+  assert.equal(classify({ name: 'Lion Flag Cufflinks Cufflinks Box' }).name, 'Lion Flag Cufflinks');
+  assert.equal(place('Erotic Woman Cufflinks', 'Cufflinks||Adult Themed Cufflinks'), 'out');
 });
