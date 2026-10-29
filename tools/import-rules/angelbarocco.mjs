@@ -17,7 +17,11 @@ export const RULES = {
 
 const words = list => new RegExp('(?<![a-z0-9])(' + list.map(w => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|') + ')(?![a-z0-9])', 'i');
 
-const NOT_PRODUCT = words(['gift card', 'gift voucher', 'e-gift', 'voucher', 'shipping protection', 'insurance', 'jewellery box', 'jewelry box', 'gift box', 'gift bag', 'polishing cloth']);
+// Dry run 29 Oct 2026: jewellery boxes and travel cases are packaging, not jewellery.
+const NOT_PRODUCT = words(['gift card', 'gift voucher', 'e-gift', 'voucher', 'shipping protection', 'insurance', 'jewellery box', 'jewelry box', 'gift box', 'gift bag', 'polishing cloth',
+  'travel case', 'jewellery case', 'jewelry case', 'jewellery roll', 'jewellery pouch', 'jewellery organiser']);
+// Hair clips go to WGW's own place for them (Bags & Accessories > Accessories).
+const HAIR = words(['hair clip', 'hair clips', 'hair pin', 'hair pins', 'hairpin', 'hair slide', 'claw clip', 'hair comb', 'headband', 'scrunchie', 'barrette']);
 const MEN = words(['men', "men's", 'mens', 'for him', 'gents']);
 const SET = words(['set', 'sets', 'duo', 'trio', 'gift set']);
 export const EARRINGS = words(['earring', 'earrings', 'hoop', 'hoops', 'stud', 'studs', 'huggie', 'huggies', 'ear cuff', 'ear cuffs', 'ear climber', 'ear climbers', 'ear jacket', 'ear jackets',
@@ -47,6 +51,7 @@ export function classify({ name }) {
   const n = String(name || '');
   if (NOT_PRODUCT.test(n)) return { reject: 'gift card, packaging or service, not jewellery' };
   if (MEN.test(n)) return { reject: "men's jewellery (not in this plan)" };
+  if (HAIR.test(n)) return { site: 'wgw', siteCategory: 'Bags & Accessories', subcategory: 'Accessories' };
   if (!JEWELLERY.test(n)) return { reject: 'not sure it is jewellery (no jewellery word in the name)' };
   return { site: 'wgw', siteCategory: "Women's Jewellery", subcategory: jewellerySub(n) };
 }

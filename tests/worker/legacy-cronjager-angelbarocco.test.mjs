@@ -24,6 +24,9 @@ test('Angel Barocco: pearl and silver jewellery go to WGW Women\'s Jewellery wit
   assert.equal(c('Angel Barocco Gift Card').reject, 'gift card, packaging or service, not jewellery');
   assert.match(c("Men's Pearl Bracelet").reject, /men's jewellery/);
   assert.match(c('Gift Wrapping Service').reject, /not sure|gift/);
+  // Dry run 29 Oct 2026: a travel case is packaging; a hair clip is an accessory, not jewellery.
+  assert.match(c('Portable Zip Jewellery Travel Case – Velvet Lined').reject, /packaging/);
+  assert.equal(place('Baroque Pearl Floral Hair Clip with Golden Accents'), 'Bags & Accessories > Accessories');
   for (const n of ['Gold Petal Pearl Drop Earrings', 'Silver Initial Letter Ring']) assert.equal(c(n).site, 'wgw');
 });
 
@@ -81,7 +84,43 @@ test('Cronjager: each kind of product goes to its site with that site\'s own sub
     ['Ceramic Cat Shaped Tea Spoon Set – 4 Colors, Hang-on Cup Design', 'Kitchen Units', '', 'hgw Kitchen & Dining > Cutlery'],
     ['Chinese Elm Bonsai Tree', 'Agricultural Products', 'Yorkshire Bonsai', 'ggw Plants, Growing & Garden Care > Plants'],
     ['Bonsai Training Wire 2mm', '', 'Yorkshire Bonsai', 'ggw Plants, Growing & Garden Care > Ties & Wire'],
-    ['Glazed Bonsai Pot 20cm', '', 'Yorkshire Bonsai', 'ggw Plants, Growing & Garden Care > Growing']
+    ['Glazed Bonsai Pot 20cm', '', 'Yorkshire Bonsai', 'ggw Plants, Growing & Garden Care > Growing'],
+    // Fixed after the first dry run (29 Oct 2026):
+    ['Blue Sapphire & Blue Topaz Half Eternity Band in Sterling Silver', "Women's Jewellery", 'Vianne Jewellery', "wgw Women's Jewellery > Rings"],
+    ['Pink Heart Ring Ankle Cuffs', "Women's Jewellery", '8th Sin', "wgw Women's Jewellery > Bracelets"],
+    ['Alchemy Black Rose Droppers', "Women's Jewellery", '8th Sin', "wgw Women's Jewellery > Earrings"],
+    ['Mortar Board Graduation Cap Personalised Silver Charm', "Women's Jewellery", 'Scarlett Jewellery', "wgw Women's Jewellery > Jewellery"],
+    ['Peridot Halo Stud Earrings with Jackets in 18k Gold Vermeil', "Women's Jewellery", 'Vianne Jewellery', "wgw Women's Jewellery > Earrings"],
+    ['Lilac Cape Amethyst Gemstone Bracelet', "Women's Jewellery", 'Made Here with Love', "wgw Women's Jewellery > Bracelets"],
+    ['Pearl Chain Ring-to-Bracelet Hand Harness', "Women's Jewellery", 'Savaé Design', "wgw Women's Jewellery > Bracelets"],
+    ['Fred Bennett Tungsten Ring with Brown Wood Inlay', "Women's Jewellery", 'Gecko Jewellery Retail', "mgw Men's Jewellery > Jewellery"],
+    ['Fred Bennett Navy Blue Leather Wallet', 'Bags', 'Gecko Jewellery Retail', 'mgw Bags & Accessories > Wallets & Purses'],
+    ['Silver Steed Show Jumper Brooch / Stock Tie Pin', "Men's Jewellery", 'Silver Steed', "mgw Men's Jewellery > Jewellery"],
+    ['White & Black Floral Print Short Sleeves Shirt', "Women's Tops", 'Pamoni', 'mgw Clothing > Shirts'],
+    ['Navy Blue Silk Tie, \'Enticement\' Pink Serpent design and tropical flowers', "Women's Accessories", 'Alice Acreman Silks', 'mgw Bags & Accessories > Ties'],
+    ['Dark in Love Larissa Lace Robe', "Men's Outerwear", "Kate's Clothing", 'wgw Clothing > Nightwear'],
+    ['Vixxsin Halston Pants - Mens Trousers', "Men's Outerwear", "Kate's Clothing", 'mgw Clothing > Trousers'],
+    ['TOP DOG - T-Shirt Black', 'General Clothing', 'Spiral Direct', 'mgw Clothing > T-Shirts'],
+    ['INFERNAL UNICORN - Boat Neck Bat Sleeve Top Black', 'General Clothing', 'Spiral Direct', 'wgw Clothing > Tops & Blouses'],
+    ['Freya Linen Cropped Blouse - Chocolate', 'General Clothing', 'Má + Lin_online', 'wgw Clothing > Tops & Blouses'],
+    ['Hot Air Balloon Sock Box - 3 Pairs of Bamboo Socks (His)', 'General Clothing', 'Swole Panda', 'mgw Clothing > Socks'],
+    ['Radioactive Unicorn Hallow-Queen Nail Polish', 'Cosmetics', "Kate's Clothing", 'wgw Beauty & Fragrances > Nails'],
+    ['Manic Panic Divine Wine Semi-Permanent Hair Dye - Deep Burgundy Wine Red Vegan', 'Haircare Appliances', "Kate's Clothing", 'wgw Beauty & Fragrances > Hair care'],
+    ['Rad Spa | Hand Soap', 'Cleaning', 'Rad Wax', 'wgw Beauty & Fragrances > Bath & body'],
+    ['Dark in Love Belladonna Embroidered Folding Parasol', 'Accessories', "Kate's Clothing", 'wgw Bags & Accessories > Accessories'],
+    ['BURNT ROSE - Fleece Blanket with Double Sided Print', 'Home Textiles', 'Spiral Direct', 'hgw Bedding & Bath > Bed Linen'],
+    ['Bauhaus Wall Art - Geometric Wall Sculpture - Home Decor - Colourful Art', 'Art', 'We Are Lunarium', 'hgw Home Decor > Wall Art'],
+    ['Countryside Tapestry', 'Art', 'Printworks', 'hgw Home Decor > Wall Art'],
+    ['Lady Wearing Glasses, a portrait', 'Art', 'Rhia Janta-Cooper Fine Art', 'hgw Home Decor > Wall Art'],
+    ['Eliza with towel-white Swimmer - Penzance - Giclée Screen Print', 'Art', "The Artist's House Gallery", 'hgw Home Decor > Wall Art'],
+    ['Manchester United FC Shirts A3', 'Art', 'Terry Kneeshaw Art', 'hgw Home Decor > Wall Art'],
+    ['Alchemy Gothic Poe’s Raven Mug & Spoon Set', 'Crockery', "Kate's Clothing", 'hgw Kitchen & Dining > Drinkware'],
+    ['Gothic Gifts Deadly Nightshade Decorative Glass Potion Bottle', 'Art', "Kate's Clothing", 'hgw Home Decor > Ornament'],
+    ['2 Goose Seasoning Bottle – Handcrafted Ceramic Spice Bottle', 'Crockery', '4AM STUDIO', 'hgw Kitchen & Dining > Tableware'],
+    ['BLACK MAGIC 180G CITRUS & VANILLA', 'Art', 'Parks Candles', 'hgw Home Decor > Home Fragrance'],
+    ['Tamarind and Resin Coffee Table - Sky Blue', 'Living Room', 'Yorkshire Bonsai', 'hgw Furniture > Coffee Table'],
+    ['Gothic Gifts Poisonous Plants Plant Pot', 'Art', "Kate's Clothing", 'ggw Plants, Growing & Garden Care > Growing'],
+    ['RAD-ARONDACK CHAIR BLACK FERN', 'Beds', 'Twist Distribution', 'ggw Garden Furniture & Outdoor Living > Chairs & benches']
   ];
   for (const [n, cat, brand, want] of yes) assert.equal(place(n, cat, brand), want, n);
   const no = [
@@ -89,6 +128,12 @@ test('Cronjager: each kind of product goes to its site with that site\'s own sub
     ['ENGLAND - Unisex Hoodie', 'General Clothing', 'English.Army', /print-on-demand/],
     ['Christian Nation - Premium Pique Polo Shirt', 'General Clothing', '', /print-on-demand/],
     ["Air Jordan 4 Retro Wmns 'Frozen Moments'", "Children's Footwear", 'www.remixd.store', /resold trainers/],
+    ["Air Jordan 4 Retro 'Fear' 2024", "Children's Footwear", 'My Store', /resold trainers/],
+    ['Cool Wax', 'General Clothing', 'Rad Wax', /Sporty Gear World/],
+    ['Sierra Designs Flex Trail 40L-60L Rucksack - Wild Dove/Peat', 'Bags', 'Twist Distribution', /Sporty Gear World/],
+    ['Will you be my Maid of Honor box', "Women's Jewellery", 'Made Here with Love', /gift boxes/],
+    ['Laura Ashley Fashion Drawstring Gift Pouch', 'Bags', 'Gecko Jewellery Retail', /gift boxes/],
+    ['CTHULHU - Kids T-Shirt Black', 'General Clothing', 'Spiral Direct', /children/],
     ['AIXO Pastel De Mint Padel Racket Full Carbon', 'Badminton', 'Aixo', /Sporty Gear World/],
     ['Sierra Designs High Route 3000 1 Person Tent Min Weight 930gms', 'Outdoor Adventure', '', /Sporty Gear World/],
     ['40mm Premium Judo Mats', 'Cleaning', 'Sprung Gym Flooring', /Sporty Gear World/],
@@ -99,11 +144,12 @@ test('Cronjager: each kind of product goes to its site with that site\'s own sub
     ['Tower Juicer (pre-sell)', 'Juicers', '', /pre-order/],
     ['Silver Steed Gift Boxes', 'Adult Gifts', 'Silver Steed', /not for these sites/],
     ['Kids Unicorn Necklace', "Women's Jewellery", 'Gecko Jewellery Retail', /children/],
-    ['Wolf Moon T-Shirt', 'General Clothing', 'Spiral Direct', /no men\/women in the name \(Spiral Direct\)/]
+    ['Palm Hadley One Piece', 'Swimming Accessories', 'Sisstrevolution', /no men\/women in the name \(Sisstrevolution\)/]
   ];
   for (const [n, cat, brand, want] of no) assert.match(place(n, cat, brand), want, n);
   // A garment's jewellery words are a print or a detail; a jewellery name with a garment word stays jewellery.
   assert.doesNotMatch(place('Ring Spun Cotton Tee', 'General Clothing', 'Kate\'s Clothing'), /Jewellery/);
+  assert.match(place('Wolf Moon T-Shirt', 'General Clothing', 'Spiral Direct'), /^mgw Clothing > T-Shirts/, 'Spiral\'s unisex cut');
   assert.match(place('Charm Print Midi Dress', 'General Clothing', 'Má + Lin_online'), /^wgw Clothing > Dresses/);
   // Placed only because of the feed category: marked for the report's CHECK list.
   assert.equal(c('Lunar Phase Silver', "Women's Jewellery", 'We Are Lunarium').doubt, true);
