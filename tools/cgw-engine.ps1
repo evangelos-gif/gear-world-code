@@ -351,11 +351,13 @@ switch ($Step) {
         if ($PreviewName -eq $WorkerName -or $PreviewName -notmatch '-preview$') { Say 'Λάθος όνομα δοκιμαστικού Worker: δεν σβήνω τίποτα.' 'Red'; Finish 12 }
         if (-not $Apply) { Say ''; Say 'Δοκιμή μόνο (χωρίς -Apply): δεν άλλαξε τίποτα.' 'Green'; Finish 0 }
         if (-not (Confirm-Approval $Phrases['remove-preview'])) { Say 'Δεν δόθηκε έγκριση: σταμάτησα χωρίς αλλαγές.' 'Yellow'; Finish 1 }
-        # Run from an empty folder: no wrangler config there, so only the Worker named here can be meant.
-        $empty = Join-Path $WorkDir 'empty-for-delete'
-        if (-not (Test-Path -LiteralPath $empty)) { New-Item -ItemType Directory -Path $empty -Force | Out-Null }
-        if (@(Get-ChildItem -LiteralPath $empty -Force).Count -gt 0) { Say ('Ο φάκελος {0} δεν είναι άδειος: δεν σβήνω τίποτα.' -f $empty) 'Red'; Finish 12 }
+        # A new empty folder for every run, so no wrangler config can be there and only the Worker named here can be
+        # meant. wrangler leaves its own .wrangler folder behind, so a fixed folder refused the second run (L83).
+        $empty = Join-Path $WorkDir ('empty-for-delete-' + $stamp)
+        if (Test-Path -LiteralPath $empty) { Say ('Ο φάκελος {0} υπάρχει ήδη: δεν σβήνω τίποτα.' -f $empty) 'Red'; Finish 12 }
+        New-Item -ItemType Directory -Path $empty -Force | Out-Null
         $d = Invoke-Wrangler $empty ('delete {0}' -f $PreviewName) -NonInteractive
+        Remove-Item -LiteralPath $empty -Recurse -Force -ErrorAction SilentlyContinue
         if ($d.code -ne 0) {
             if ($d.text -match '(?i)not found|does not exist|10007') { Say ('Ο δοκιμαστικός Worker "{0}" δεν υπάρχει ήδη: τίποτα να σβήσω.' -f $PreviewName) 'Green'; Finish 0 }
             Say 'Το σβήσιμο απέτυχε. Τίποτα άλλο δεν άλλαξε. Έξοδος:' 'Red'; Say $d.text; Finish 9

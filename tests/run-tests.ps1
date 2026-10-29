@@ -1730,7 +1730,12 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         function CDeletes { return ([regex]::Matches((CCalls), 'wrangler delete ')).Count }
         Check ((Run-C @('-Step', 'remove-preview')) -eq 0 -and (CDeletes) -eq 0) 'cgw remove-preview without -Apply: deletes nothing'
         Check ((Run-C @('-Step', 'remove-preview', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ CGW SWITCH')) -eq 1 -and (CDeletes) -eq 0) 'cgw remove-preview with the wrong phrase: deletes nothing'
+        # A folder left by an earlier run (wrangler writes its own .wrangler there) must not block the delete (L83).
+        $leftover = Join-Path (Join-Path (Join-Path $cWork 'empty-for-delete') '.wrangler') 'tmp'
+        New-Item -ItemType Directory -Path $leftover -Force | Out-Null
+        [System.IO.File]::WriteAllText((Join-Path $leftover 'x.txt'), 'left by wrangler')
         Check ((Run-C @('-Step', 'remove-preview', '-Apply', '-Approve', 'egkrino cgw remove preview')) -eq 0 -and (CDeletes) -eq 1) 'cgw remove-preview with approval: one delete'
+        Check (@(Get-ChildItem -LiteralPath $cWork -Directory -Filter 'empty-for-delete-*').Count -eq 0) 'cgw remove-preview: its own empty folder is removed afterwards'
         $c = CCalls
         Check ($c -match 'wrangler delete construction-gear-uk-preview\s' -and -not ($c -match 'delete construction-gear-uk\s') -and (CDeploys) -eq 3) 'cgw remove-preview: only the test Worker, no deploy'
         Check (@(Get-ChildItem -LiteralPath $cOut -Filter 'CGW_ENGINE_*.txt').Count -ge 8) 'cgw: a report for every run'
