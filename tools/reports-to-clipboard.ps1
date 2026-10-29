@@ -23,7 +23,8 @@ $files = @()
 if (Test-Path -LiteralPath $OutDir) {
     $top = @(Get-ChildItem -LiteralPath $OutDir -File -Filter '*.txt' | Where-Object { $_.LastWriteTime -ge $from -and $_.Name -notlike 'REPORTS_*' })
     $plans = @(Get-ChildItem -LiteralPath $OutDir -Directory -Filter 'IMPORT_PLAN_*' | ForEach-Object { Get-Item -LiteralPath (Join-Path $_.FullName 'report.txt') -ErrorAction SilentlyContinue } | Where-Object { $_ -and $_.LastWriteTime -ge $from })
-    $files = @(@($top) + @($plans) | Sort-Object LastWriteTime)
+    $all = @($top) + @($plans)
+    $files = @($all | Sort-Object LastWriteTime, FullName)
 }
 $parts = New-Object System.Collections.Generic.List[string]
 $parts.Add(('Όλες οι αναφορές αυτής της εντολής (από {0}): {1}' -f $from.ToString('yyyy-MM-dd HH:mm'), $files.Count))

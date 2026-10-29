@@ -1459,6 +1459,10 @@ $rcSince = (Get-Date).AddMinutes(-1).ToString('yyyyMMddHHmmss')
 [System.IO.File]::WriteAllText((Join-Path (Join-Path $rcOut 'REFRESH_PLAN_x') 'report.txt'), 'inner plan file', (New-Object System.Text.UTF8Encoding($true)))
 New-Item -ItemType Directory -Path (Join-Path $rcOut 'IMPORT_PLAN_sgs-construction_x') -Force | Out-Null
 [System.IO.File]::WriteAllText((Join-Path (Join-Path $rcOut 'IMPORT_PLAN_sgs-construction_x') 'report.txt'), 'import plan samples', (New-Object System.Text.UTF8Encoding($true)))
+# Clear, different times (two files written in the same instant would have no order).
+(Get-Item -LiteralPath (Join-Path $rcOut 'IMPORT_SGS-CONSTRUCTION_CGW_x.txt')).LastWriteTime = (Get-Date).AddSeconds(-30)
+(Get-Item -LiteralPath (Join-Path (Join-Path $rcOut 'IMPORT_PLAN_sgs-construction_x') 'report.txt')).LastWriteTime = (Get-Date).AddSeconds(-25)
+(Get-Item -LiteralPath (Join-Path $rcOut 'REFRESH_x.txt')).LastWriteTime = (Get-Date).AddSeconds(-20)
 & $exe -NoProfile -ExecutionPolicy Bypass -File $rcTool -Since $rcSince -OutDir $rcOut -NoClipboard | Out-Null
 Check ($LASTEXITCODE -eq 0) 'reports-to-clipboard: exit 0'
 $rcAll = @(Get-ChildItem -LiteralPath $rcOut -File -Filter 'REPORTS_*.txt')
