@@ -18,6 +18,9 @@
                  Approval phrase: ΕΓΚΡΙΝΩ GGW SWITCH
   -Step update   CHANGES THE LIVE SITE. Publishes a newer version of the new GGW (after the switch).
                  Approval phrase: ΕΓΚΡΙΝΩ GGW UPDATE
+  -Step remove-preview  CHANGES CLOUDFLARE (the test Worker only). Deletes the test Worker
+                 "garden-gear-world-preview". Only that name can ever be deleted: gardengearworld.com, the live Worker
+                 and the database stay as they are. Approval phrase: ΕΓΚΡΙΝΩ GGW REMOVE PREVIEW
 
   Without -Apply, every step only shows what it WOULD do. With -Apply, it still asks for the approval phrase.
   It never touches the other Gear World sites, the Hub or any database.
@@ -27,7 +30,7 @@
   Report: <home>\gear-world-reports\GGW_ENGINE_<step>_<time>.txt (also copied to the clipboard)
 #>
 param(
-    [ValidateSet('check', 'preview', 'switch', 'update')]
+    [ValidateSet('check', 'preview', 'switch', 'update', 'remove-preview')]
     [string]$Step = 'check',
     [switch]$Apply,
     [string]$Approve = '',
@@ -45,7 +48,7 @@ $DbName = 'garden-gear-world'
 $WorkerName = 'garden-gear-world'
 $PreviewName = 'garden-gear-world-preview'
 $Domain = 'gardengearworld.com'
-$Phrases = @{ preview = 'ΕΓΚΡΙΝΩ GGW PREVIEW'; switch = 'ΕΓΚΡΙΝΩ GGW SWITCH'; update = 'ΕΓΚΡΙΝΩ GGW UPDATE' }
+$Phrases = @{ preview = 'ΕΓΚΡΙΝΩ GGW PREVIEW'; switch = 'ΕΓΚΡΙΝΩ GGW SWITCH'; update = 'ΕΓΚΡΙΝΩ GGW UPDATE'; 'remove-preview' = 'ΕΓΚΡΙΝΩ GGW REMOVE PREVIEW' }
 if (-not $WorkDir) { $WorkDir = Join-Path $HOME 'garden-gear-world-engine' }
 if (-not $OldSiteDir) { $OldSiteDir = Join-Path $HOME 'garden-gear-world' }
 if (-not $OutDir) { $OutDir = Join-Path $HOME 'gear-world-reports' }
@@ -321,6 +324,28 @@ switch ($Step) {
         if ($url -and -not $NoHttpCheck) { Start-Sleep -Seconds 5; [void](Test-Live $url) }
         Say ''
         Say 'ΕΤΟΙΜΟ: άνοιξε τη δοκιμαστική διεύθυνση στο κινητό. Το live GGW δεν άλλαξε.' 'Green'
+        Finish 0
+    }
+
+    'remove-preview' {
+        Say ''
+        Say 'Τι θα γίνει:'
+        Say ('  - Σβήνεται ΜΟΝΟ ο δοκιμαστικός Worker "{0}" (η διεύθυνση *.workers.dev παύει να ανοίγει).' -f $PreviewName)
+        Say ('  - Το {0}, ο Worker "{1}", η D1 και τα άλλα sites ΔΕΝ αλλάζουν.' -f $Domain, $WorkerName)
+        Say '  - Αν τον ξαναχρειαστούμε: το βήμα preview τον φτιάχνει ξανά σε 1 λεπτό.'
+        if ($PreviewName -eq $WorkerName -or $PreviewName -notmatch '-preview$') { Say 'Λάθος όνομα δοκιμαστικού Worker: δεν σβήνω τίποτα.' 'Red'; Finish 12 }
+        if (-not $Apply) { Say ''; Say 'Δοκιμή μόνο (χωρίς -Apply): δεν άλλαξε τίποτα.' 'Green'; Finish 0 }
+        if (-not (Confirm-Approval $Phrases['remove-preview'])) { Say 'Δεν δόθηκε έγκριση: σταμάτησα χωρίς αλλαγές.' 'Yellow'; Finish 1 }
+        # Run from an empty folder: no wrangler config there, so only the Worker named here can be meant.
+        $empty = Join-Path $WorkDir 'empty-for-delete'
+        if (-not (Test-Path -LiteralPath $empty)) { New-Item -ItemType Directory -Path $empty -Force | Out-Null }
+        if (@(Get-ChildItem -LiteralPath $empty -Force).Count -gt 0) { Say ('Ο φάκελος {0} δεν είναι άδειος: δεν σβήνω τίποτα.' -f $empty) 'Red'; Finish 12 }
+        $d = Invoke-Wrangler $empty ('delete {0}' -f $PreviewName) -NonInteractive
+        if ($d.code -ne 0) {
+            if ($d.text -match '(?i)not found|does not exist|10007') { Say ('Ο δοκιμαστικός Worker "{0}" δεν υπάρχει ήδη: τίποτα να σβήσω.' -f $PreviewName) 'Green'; Finish 0 }
+            Say 'Το σβήσιμο απέτυχε. Τίποτα άλλο δεν άλλαξε. Έξοδος:' 'Red'; Say $d.text; Finish 9
+        }
+        Say ('Σβήστηκε ο δοκιμαστικός Worker "{0}". Το {1} δεν άλλαξε.' -f $PreviewName, $Domain) 'Green'
         Finish 0
     }
 

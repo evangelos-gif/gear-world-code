@@ -1280,6 +1280,12 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         $c = GCalls
         Check ($c.LastIndexOf('deployments list') -lt $c.LastIndexOf('deploy --config')) 'ggw switch: live version read before deploying'
         Check ((Run-G @('-Step', 'update', '-Apply', '-Approve', 'EGKRINO GGW UPDATE')) -eq 0 -and (GDeploys) -eq 3) 'ggw update with approval: deploys once'
+        function GDeletes { return ([regex]::Matches((GCalls), 'wrangler delete ')).Count }
+        Check ((Run-G @('-Step', 'remove-preview')) -eq 0 -and (GDeletes) -eq 0) 'ggw remove-preview without -Apply: deletes nothing'
+        Check ((Run-G @('-Step', 'remove-preview', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ GGW SWITCH')) -eq 1 -and (GDeletes) -eq 0) 'ggw remove-preview with the wrong phrase: deletes nothing'
+        Check ((Run-G @('-Step', 'remove-preview', '-Apply', '-Approve', 'egkrino ggw remove preview')) -eq 0 -and (GDeletes) -eq 1) 'ggw remove-preview with approval: one delete'
+        $c = GCalls
+        Check ($c -match 'wrangler delete garden-gear-world-preview\s' -and -not ($c -match 'delete garden-gear-world\s') -and (GDeploys) -eq 3) 'ggw remove-preview: only the test Worker, no deploy'
         Check (@(Get-ChildItem -LiteralPath $gOut -Filter 'GGW_ENGINE_*.txt').Count -ge 8) 'ggw: a report for every run'
     } finally {
         $env:PATH = $oldPath
@@ -1376,6 +1382,12 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         $c = MCalls
         Check ($c.LastIndexOf('deployments list') -lt $c.LastIndexOf('deploy --config')) 'mgw switch: live version read before deploying'
         Check ((Run-M @('-Step', 'update', '-Apply', '-Approve', 'EGKRINO MGW UPDATE')) -eq 0 -and (MDeploys) -eq 3) 'mgw update with approval: deploys once'
+        function MDeletes { return ([regex]::Matches((MCalls), 'wrangler delete ')).Count }
+        Check ((Run-M @('-Step', 'remove-preview')) -eq 0 -and (MDeletes) -eq 0) 'mgw remove-preview without -Apply: deletes nothing'
+        Check ((Run-M @('-Step', 'remove-preview', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ MGW SWITCH')) -eq 1 -and (MDeletes) -eq 0) 'mgw remove-preview with the wrong phrase: deletes nothing'
+        Check ((Run-M @('-Step', 'remove-preview', '-Apply', '-Approve', 'egkrino mgw remove preview')) -eq 0 -and (MDeletes) -eq 1) 'mgw remove-preview with approval: one delete'
+        $c = MCalls
+        Check ($c -match 'wrangler delete mens-gear-world-preview\s' -and -not ($c -match 'delete mens-gear-world\s') -and (MDeploys) -eq 3) 'mgw remove-preview: only the test Worker, no deploy'
         Check (@(Get-ChildItem -LiteralPath $mOut -Filter 'MGW_ENGINE_*.txt').Count -ge 8) 'mgw: a report for every run'
     } finally {
         $env:PATH = $oldPath
@@ -1472,6 +1484,12 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         $c = WCalls
         Check ($c.LastIndexOf('deployments list') -lt $c.LastIndexOf('deploy --config')) 'wgw switch: live version read before deploying'
         Check ((Run-W @('-Step', 'update', '-Apply', '-Approve', 'EGKRINO WGW UPDATE')) -eq 0 -and (WDeploys) -eq 3) 'wgw update with approval: deploys once'
+        function WDeletes { return ([regex]::Matches((WCalls), 'wrangler delete ')).Count }
+        Check ((Run-W @('-Step', 'remove-preview')) -eq 0 -and (WDeletes) -eq 0) 'wgw remove-preview without -Apply: deletes nothing'
+        Check ((Run-W @('-Step', 'remove-preview', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ WGW SWITCH')) -eq 1 -and (WDeletes) -eq 0) 'wgw remove-preview with the wrong phrase: deletes nothing'
+        Check ((Run-W @('-Step', 'remove-preview', '-Apply', '-Approve', 'egkrino wgw remove preview')) -eq 0 -and (WDeletes) -eq 1) 'wgw remove-preview with approval: one delete'
+        $c = WCalls
+        Check ($c -match 'wrangler delete womens-gear-world-preview\s' -and -not ($c -match 'delete womens-gear-world\s') -and (WDeploys) -eq 3) 'wgw remove-preview: only the test Worker, no deploy'
         Check (@(Get-ChildItem -LiteralPath $wOut -Filter 'WGW_ENGINE_*.txt').Count -ge 8) 'wgw: a report for every run'
     } finally {
         $env:PATH = $oldPath
