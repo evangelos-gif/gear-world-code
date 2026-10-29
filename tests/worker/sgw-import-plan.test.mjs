@@ -151,10 +151,18 @@ test('every site category has rules, and the menu order matches the site', () =>
 test('sources: the first-wave shops are approved, VEVOR waits for the second wave, sport sections only (L65)', () => {
   const src = JSON.parse(readFileSync('sites/sgw/sources.json', 'utf8')).sources;
   const approved = src.filter(s => s.approved).map(s => s.retailer);
-  assert.deepEqual(approved, ['Coes', 'Joybuy', 'Plusshop UK', 'Bazta UK', 'Beyond Shakers']);
+  assert.deepEqual(approved, ['Coes', 'Joybuy', 'Plusshop UK', 'Bazta UK', 'Beyond Shakers', 'Cronjager']);
   assert.equal(src.find(s => s.retailer === 'VEVOR').approved, false);
   for (const r of ['Coes', 'Joybuy']) assert.equal(src.find(s => s.retailer === r).sectionHints, false, r);
-  for (const s of src.filter(x => x.approved && !x.rulesFrom && x.retailer !== 'Beyond Shakers')) assert.ok(s.allowPaths && s.allowPaths.length, s.retailer);
+  // A shop's sport sections (allowPaths) or, for a marketplace of many brands, its sport brands (brands) decide first.
+  for (const s of src.filter(x => x.approved && !x.rulesFrom && x.retailer !== 'Beyond Shakers')) {
+    assert.ok((s.allowPaths && s.allowPaths.length) || (s.brands && s.brands.length), s.retailer);
+  }
+  // Cronjager has one feed per currency: only the GBP feed is read, so one card never mixes pounds and euros.
+  const cj = src.find(s => s.retailer === 'Cronjager');
+  assert.deepEqual(cj.feedIds, [95541]);
+  assert.equal(cj.currency, 'GBP');
+  assert.ok(!cj.brands.some(b => /irish army|english|remixd|my store|daytona/i.test(b)), 'no slogan merch, resold trainers or motorbike helmets');
 });
 
 test('plan: two archive folders, only the sport section of a shop, kids and tools out, SQL not executed', async () => {
@@ -189,4 +197,33 @@ test('plan: two archive folders, only the sport section of a shop, kids and tool
   const sql = readFileSync(join(out, 'sql', readdirSync(join(out, 'sql')).find(f => f === '0001.sql')), 'utf8');
   assert.match(sql, /-- SGW import plan .* NOT executed/);
   assert.match(sql, /'Plusshop UK', 'fitness-gym'.*'GBP'/);
+});
+
+test('plan: Cronjager (one feed per currency, many brands) - only the GBP feed and only its sport brands (29 Oct 2026)', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'sgw-cj-'));
+  const a = join(dir, 'GW_AWIN_BULK_ARCHIVE');
+  mkdirSync(a);
+  const out = join(dir, 'out');
+  const head = 'aw_deep_link,product_name,aw_product_id,merchant_product_id,merchant_image_url,merchant_category,search_price,currency,brand_name,in_stock,ean\n';
+  const link = p => `https://www.awin1.com/pclick.php?p=${p}&a=1&m=98661`;
+  const rows = cur => head
+    + `${link(1)},AIXO Pastel De Mint Padel Racket Full Carbon,1,A-1,https://img.example/1.jpg,Badminton,${cur === 'GBP' ? 120 : 140},${cur},Aixo,1,\n`
+    + `${link(2)},Mahee Tandem Kayak | Blue | Stable & Durable,2,F-1,https://img.example/2.jpg,General Clothing,${cur === 'GBP' ? 499 : 580},${cur},Fatyak Kayaks,1,\n`
+    + `${link(3)},Beginnings Trace Chain Necklace,3,G-1,https://img.example/3.jpg,Cycling,${cur === 'GBP' ? 40 : 47},${cur},Gecko Jewellery Retail,1,\n`
+    + `${link(4)},Yoga Shorts - Irish Army,4,I-1,https://img.example/4.jpg,General Clothing,${cur === 'GBP' ? 60 : 70},${cur},Irish Army,1,\n`
+    + `${link(5)},7mm Interlocking PVC Dog Kennel Tiles,5,S-1,https://img.example/5.jpg,General Clothing,${cur === 'GBP' ? 30 : 35},${cur},Sprung Gym Flooring,1,\n`;
+  writeFileSync(join(a, 'AWIN_98661_95541.csv.gz'), gzipSync(rows('GBP')));
+  writeFileSync(join(a, 'AWIN_98661_95542.csv.gz'), gzipSync(rows('EUR')));
+  const sources = join(dir, 'sources.json');
+  const real = JSON.parse(readFileSync('sites/sgw/sources.json', 'utf8')).sources.find(s => s.retailer === 'Cronjager');
+  writeFileSync(sources, JSON.stringify({ sources: [real] }));
+  const { stats } = await planSgwImport({ archive: a, sourcesFile: sources, outDir: out, now: new Date('2026-10-29T23:30:00Z') });
+  assert.equal(stats.rows, 5, 'only the GBP feed is read');
+  assert.equal(stats.accepted, 2, 'the padel racket and the kayak');
+  assert.equal(stats.perCategory['racket-sports'], 1);
+  assert.equal(stats.perCategory['water-sports'], 1);
+  assert.ok(Object.keys(stats.rejected).some(k => /brand not on the consumer list/.test(k)), 'jewellery and slogan merch stay out');
+  const sql = readdirSync(join(out, 'sql')).map(f => readFileSync(join(out, 'sql', f), 'utf8')).join('\n');
+  assert.doesNotMatch(sql, /'EUR'/);
+  assert.doesNotMatch(sql, /Necklace|Irish Army|Kennel/);
 });
