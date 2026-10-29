@@ -292,6 +292,9 @@ export async function planLegacyImport({ archive, retailer, outDir, now = new Da
   const accepted = Object.fromEntries(R.sites.map(s => [s, []]));
   const rejected = {};
   const reject = (p, why) => { (rejected[why] ||= []).push(p); };
+  // One card per product number and site: the sites have a unique key on (retailer, merchant_product_id) (CGW too), and
+  // one SGS product came in both feeds with two different links (import of 29 Oct 2026 stopped at file 0002, L85).
+  const takenIds = new Set();
   for (const p of products) {
     if (!p.name) { reject(p, 'no product name'); continue; }
     if (p.shopCheck === 'gone') { reject(p, "not on the shop's site any more (page not found)"); continue; }
@@ -313,13 +316,17 @@ export async function planLegacyImport({ archive, retailer, outDir, now = new Da
     const name = c.name || (rules.displayName ? rules.displayName(p.name) : p.name);
     const hit = markerHit(name, markers[c.site]);
     if (hit) { reject(p, `name has text that belongs to another site ("${hit}")`); continue; }
+    // On KGW/HGW/GGW the merchant id is the unique key, so it must be the same on every run: the product key
+    // (e.g. the Shopify handle), not the first size of the feed.
+    const merchantId = STABLE_KEY_SITES.has(c.site)
+      ? (p.key.startsWith('http') ? (p.key.replace(/^https?:\/\/[^/]+\/products\//i, '').replace(/^https?:.*/i, '') || p.firstVariant) : p.key)
+      : (p.key.startsWith('http') ? p.firstVariant : p.key);
+    const taken = `${c.site}|${String(merchantId || '').trim()}`;
+    if (String(merchantId || '').trim() && takenIds.has(taken)) { reject(p, 'the same product number twice in the feeds (another link): kept once'); continue; }
+    takenIds.add(taken);
     accepted[c.site].push({
       awin_product_id: `${R.advertiserId}:${p.key.replace(/^https?:\/\/[^/]+\/products\//i, '')}`,
-      // On KGW/HGW/GGW the merchant id is the unique key, so it must be the same on every run: the product key
-      // (e.g. the Shopify handle), not the first size of the feed.
-      merchant_product_id: STABLE_KEY_SITES.has(c.site)
-        ? (p.key.startsWith('http') ? (p.key.replace(/^https?:\/\/[^/]+\/products\//i, '').replace(/^https?:.*/i, '') || p.firstVariant) : p.key)
-        : (p.key.startsWith('http') ? p.firstVariant : p.key),
+      merchant_product_id: merchantId,
       retailer: R.retailer, site_category: c.siteCategory, subcategory: c.subcategory, brand: p.brand || null,
       product_name: name, feed_product_name: p.name, price, currency: R.currency, stock_status: 'in stock',
       merchant_category: p.feedCategory || null, image_url: p.image,

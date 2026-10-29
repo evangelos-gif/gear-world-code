@@ -2,6 +2,11 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { classify, RULES } from '../../tools/import-rules/sgs-construction.mjs';
+import { planLegacyImport } from '../../tools/legacy-import-plan.mjs';
+import { mkdtempSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { gzipSync } from 'node:zlib';
 
 const place = (name, feedCategory = '') => {
   const c = classify({ name, feedCategory });
@@ -61,4 +66,18 @@ test('L82, third dry run: brushcutters are garden; air impact kits and auger bit
   assert.equal(place('Rikä WABR015 Wood Auger Bit 18mm x 160/235', 'Hardware > Tool Accessories > Drill & Screwdriver Accessories > Drill & Screwdriver Bits > Rikä'), 'Power Tools/Power Tools');
   assert.equal(place('Hyundai 196cc 300kg Petrol Tracked Mini Dumper Power Barrow Transporter', 'Home & Garden > Lawn & Garden > Gardening > Gardening Tools > Wheelbarrows > Hyundai'), 'Site Equipment/Site Equipment');
   assert.equal(place('Ground Guard Fast Cover Plus Interlocking System', 'Garage Equipment > Garage Flooring > Standard > GroundGuard'), 'Site Equipment/Site Equipment');
+});
+
+test('L85: one product number in both SGS feeds with two links becomes ONE card (the import of 29 Oct 2026 stopped on it)', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'sgs-'));
+  const head = 'merchant_product_id,product_name,brand_name,search_price,currency,merchant_category,ean,merchant_deep_link,merchant_image_url\n';
+  const row = (mid, name, link) => `${mid},"${name}",Rikä,119.99,GBP,Power Tools > Rikä RK40 > Rikä,5056000000001,${link},https://www.sgs-engineering.com/images/${mid}.jpg\n`;
+  writeFileSync(join(dir, 'AWIN_28807_94852.csv.gz'), gzipSync(head
+    + row('RK40IW', 'Rikä RK40 40V Cordless Impact Wrench | Body Only', 'https://www.sgs-engineering.com/rika-rk40-impact-wrench')
+    + row('RK40CD', 'Rikä RK40 40V Cordless Combi Drill | Body Only', 'https://www.sgs-engineering.com/rika-rk40-combi-drill')));
+  writeFileSync(join(dir, 'AWIN_28807_95330.csv.gz'), gzipSync(head
+    + row('RK40IW', 'Rikä RK40 40V Cordless Impact Wrench | Body Only', 'https://www.sgs-engineering.com/power-tools/rika-rk40-impact-wrench')));
+  const r = await planLegacyImport({ archive: dir, retailer: 'sgs-construction', outDir: mkdtempSync(join(tmpdir(), 'sgs-out-')), now: new Date('2026-10-29T23:30:00Z') });
+  assert.deepEqual(r.accepted.cgw.map(p => p.merchant_product_id).sort(), ['RK40CD', 'RK40IW']);
+  assert.equal((r.rejected['the same product number twice in the feeds (another link): kept once'] || []).length, 1);
 });
