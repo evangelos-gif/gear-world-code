@@ -135,7 +135,12 @@ test('Cronjager: each kind of product goes to its site with that site\'s own sub
     ['Vissla Center Line Eco Ss Shirt', 'General Clothing', 'www.remixd.store', 'mgw Clothing > Shirts'],
     ['AFENDS Blair Mini Dress', 'General Clothing', 'www.remixd.store', 'wgw Clothing > Dresses'],
     ['Marble Ball Print Pure Cotton Shirt', 'General Clothing', 'Pamoni', 'mgw Clothing > Shirts'],
-    ['GRIM RIPPER - Back Pack - With Laptop Pocket', 'Bags', 'Spiral Direct', 'wgw Bags & Accessories > Bags']
+    ['GRIM RIPPER - Back Pack - With Laptop Pocket', 'Bags', 'Spiral Direct', 'wgw Bags & Accessories > Bags'],
+    // Found in the databases after the import (29 Oct 2026, 23:15):
+    ['Classic Black Shawl Collar Tuxedo with Double-Breasted Vest', 'General Clothing', 'Pamoni', 'mgw Clothing > Suits'],
+    ['Silver Crown With Blue Gem Stone Cufflinks', "Men's Jewellery", 'Pamoni', "mgw Men's Jewellery > Cufflinks"],
+    ['Amuse society Port woven jump suit', 'General Clothing', 'www.remixd.store', 'wgw Clothing > Dresses'],
+    ['Punk Rave Goth Coiling Dragon Crown', 'Fancy Dress', "Kate's Clothing", 'wgw Bags & Accessories > Accessories']
   ];
   for (const [n, cat, brand, want] of yes) assert.equal(place(n, cat, brand), want, n);
   const no = [

@@ -347,7 +347,7 @@ function fashion({ n, url, feedCategory, brand, b }) {
   const garment = parts.some(s => GARMENT.test(s.replace(JEWELLERY_PHRASES, ' ')));
   const jewelleryWord = STRONG_JEWELLERY.test(n) || WEAK_JEWELLERY.test(n);
   const jewelleryEnd = JEWELLERY_END.test(last) && !/\b(hair|hat|safety|clothes|bobby|head|rubber|elastic|watch|key|napkin)\s+(pin|band|bands|ring)\s*$/i.test(last);
-  if (!jewelleryEnd && (HAIR.test(n) || SMALL_ACCESSORY.test(n))) {
+  if (!jewelleryEnd && !(STRONG_JEWELLERY.test(n) && !HAIR.test(n)) && (HAIR.test(n) || SMALL_ACCESSORY.test(n))) {
     return { site: g === 'M' ? 'mgw' : 'wgw', siteCategory: 'Bags & Accessories', subcategory: 'Accessories' };
   }
   if (!garment && WATCH.test(n) && !NOT_A_WATCH.test(n) && !STRONG_JEWELLERY.test(n)) {
@@ -379,6 +379,8 @@ function fashion({ n, url, feedCategory, brand, b }) {
   const garmentParts = parts.filter(s => GARMENT.test(s));
   // The last part that names a garment: "TOP DOG - T-Shirt Black" -> "T-Shirt Black" (the first part is the design).
   let clothName = garmentParts.length ? garmentParts[garmentParts.length - 1] : n;
+  // "Shawl Collar Tuxedo" is a tuxedo, "jump suit" a jumpsuit (database check after the import, 29 Oct 2026).
+  clothName = clothName.replace(/\bshawl (collar|lapels?)\b/gi, '$1').replace(/\bjump ?suit\b/gi, 'jumpsuit');
   if (garment) clothName = clothName.replace(JEWELLERY_ALL, ' ');
   clothName = clothName.replace(/\bworker\b/gi, 'worker vest').replace(/\bbolero\b/gi, 'bolero jacket').replace(/\btuxedo\b(?!\s+(blazer|jacket))/gi, 'tuxedo suit')
     .replace(/\bturnup sleeve\b/gi, 'turnup sleeve top').replace(/\bskort\b/gi, 'skort skirt').replace(/\bcapelet\b|\bcape\b/gi, 'cape jacket')
@@ -435,7 +437,7 @@ export function classify({ name, feedCategory = '', url = '', brand = '' }) {
   }
   // Beauty brands ("Radioactive Unicorn Pumpkin Spice Liquid Eye Shadow") and small accessories ("silk folding hand fan
   // with ... painted artwork") are fashion even with a home word in the name.
-  if (BEAUTY_BRAND_NAME.test(n) || ((SMALL_ACCESSORY.test(n) || HAIR.test(n)) && !/\b(ceiling|desk|electric|pedestal) fans?\b/i.test(n))) {
+  if (BEAUTY_BRAND_NAME.test(n) || ((SMALL_ACCESSORY.test(n) || HAIR.test(n)) && !STRONG_JEWELLERY.test(n) && !/\b(ceiling|desk|electric|pedestal) fans?\b/i.test(n))) {
     return fashion({ n, url, feedCategory: cat, brand: bn, b });
   }
   const homeContext = HOME_CATEGORY.test(cat);
