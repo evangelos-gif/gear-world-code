@@ -120,7 +120,22 @@ test('Cronjager: each kind of product goes to its site with that site\'s own sub
     ['BLACK MAGIC 180G CITRUS & VANILLA', 'Art', 'Parks Candles', 'hgw Home Decor > Home Fragrance'],
     ['Tamarind and Resin Coffee Table - Sky Blue', 'Living Room', 'Yorkshire Bonsai', 'hgw Furniture > Coffee Table'],
     ['Gothic Gifts Poisonous Plants Plant Pot', 'Art', "Kate's Clothing", 'ggw Plants, Growing & Garden Care > Growing'],
-    ['RAD-ARONDACK CHAIR BLACK FERN', 'Beds', 'Twist Distribution', 'ggw Garden Furniture & Outdoor Living > Chairs & benches']
+    ['RAD-ARONDACK CHAIR BLACK FERN', 'Beds', 'Twist Distribution', 'ggw Garden Furniture & Outdoor Living > Chairs & benches'],
+    // Fixed after the second dry run (29 Oct 2026, 22:58):
+    ['Beginnings Trace Chain Necklace', 'Cycling', 'Gecko Jewellery Retail', "wgw Women's Jewellery > Necklaces"],
+    ['Women’s One-Piece Training Swimsuit – Tie Back', 'Swimming Accessories', 'Macke Swimwear', 'wgw Clothing > Clothing'],
+    ['CELTIC DRAGON - 2in1 Boot-Cut Leggings with Micro Slant Skirt', 'General Clothing', 'Spiral Direct', 'wgw Clothing > Trousers'],
+    ['Dark in Love Gwen Pleated Garter Shorts', 'General Clothing', "Kate's Clothing", 'wgw Clothing > Shorts'],
+    ['Radioactive Unicorn Pumpkin Spice Liquid Eye Shadow', 'Cosmetics', "Kate's Clothing", 'wgw Beauty & Fragrances > Make-up'],
+    ['Tyre Sole Laced Driving Loafers, slate grey suede', "Children's Footwear", 'Hugs & Co.', 'mgw Shoes > Shoes'],
+    ["Women's Penny Driving Loafers, brown suede", "Children's Footwear", 'Hugs & Co.', 'wgw Shoes > Shoes'],
+    ["Hot pink 'Fuchsia' silk folding hand fan with butterfly and mushroom painted artwork", 'General Clothing', 'Alice Acreman Silks', 'wgw Bags & Accessories > Accessories'],
+    ['A Ceramic Duck Egg Cup – Handmade Breakfast Egg Holder', 'Crockery', '4AM STUDIO', 'hgw Kitchen & Dining > Tableware'],
+    ['Gothic Gifts Coffin Shelving Display', 'Art', "Kate's Clothing", 'hgw Storage & Organisation > Shelving Unit'],
+    ['Vissla Center Line Eco Ss Shirt', 'General Clothing', 'www.remixd.store', 'mgw Clothing > Shirts'],
+    ['AFENDS Blair Mini Dress', 'General Clothing', 'www.remixd.store', 'wgw Clothing > Dresses'],
+    ['Marble Ball Print Pure Cotton Shirt', 'General Clothing', 'Pamoni', 'mgw Clothing > Shirts'],
+    ['GRIM RIPPER - Back Pack - With Laptop Pocket', 'Bags', 'Spiral Direct', 'wgw Bags & Accessories > Bags']
   ];
   for (const [n, cat, brand, want] of yes) assert.equal(place(n, cat, brand), want, n);
   const no = [
@@ -144,7 +159,8 @@ test('Cronjager: each kind of product goes to its site with that site\'s own sub
     ['Tower Juicer (pre-sell)', 'Juicers', '', /pre-order/],
     ['Silver Steed Gift Boxes', 'Adult Gifts', 'Silver Steed', /not for these sites/],
     ['Kids Unicorn Necklace', "Women's Jewellery", 'Gecko Jewellery Retail', /children/],
-    ['Palm Hadley One Piece', 'Swimming Accessories', 'Sisstrevolution', /no men\/women in the name \(Sisstrevolution\)/]
+    ['Deflow SUPRA QUATTRO - Quad fins', 'Swimming Accessories', 'www.remixd.store', /Sporty Gear World/],
+    ['Team Phun Sunday phunday hooded sweat', 'General Clothing', 'www.remixd.store', /no men\/women in the name \(www\.remixd\.store\)/]
   ];
   for (const [n, cat, brand, want] of no) assert.match(place(n, cat, brand), want, n);
   // A garment's jewellery words are a print or a detail; a jewellery name with a garment word stays jewellery.

@@ -112,7 +112,7 @@ const SPORTS_NAME = words(['padel', 'pickleball', 'racket', 'racquet', 'kayak', 
   'bodyboards', 'wetsuit', 'wetsuits', 'changing robe', 'changing poncho', 'surf poncho', 'gym flooring', 'judo', 'tatami', 'yoga mat', 'exercise mat', 'gym mat',
   'tent', 'tents', 'sleeping bag', 'sleeping pad', 'air bed', 'snow pants', 'ski', 'skis', 'snowboard', 'dumbbell', 'dumbbells', 'kettlebell', 'kettlebells', 'barbell',
   'weight plate', 'weight plates', 'resistance band', 'resistance bands', 'boxing gloves', 'surf wax', 'swim fins', 'leash', 'gym', 'workout', 'kelty', 'sierra designs',
-  'court system', 'overgrip', 'skates']);
+  'court system', 'overgrip', 'skates', 'deflow', 'c-skins', 'shorty', 'fins', 'fin bolt', 'longboard fin', 'surf wax', 'traction pad']);
 // Rad Wax makes surf wax ("Cool Wax", "Base Coat") and, as Rad Spa, soaps and room sprays.
 const SURF_WAX = /^(cool|cold|warm|tropical|base coat)\b|\bwax comb\b|^rad wax\b/i;
 const MOTOR_CATEGORY = /^(Vehicle Security|Auto Care|Contact Lenses|Bluetooth Adapters|Visor|Visier|Visière|Visera|Car Parts)$/i;
@@ -155,7 +155,7 @@ const HOME_PLACES = [
   [words(['floor lamp', 'floor lamps', 'standing lamp']), 'Lighting', 'Floor Lamp'],
   [words(['wall light', 'wall lights', 'wall lamp', 'wall lamps', 'sconce', 'sconces']), 'Lighting', 'Wall Light'],
   [words(['lampshade', 'lampshades', 'lamp shade', 'lamp shades', 'light shade', 'light shades']), 'Lighting', 'Lampshade'],
-  [words(['table lamp', 'table lamps', 'desk lamp', 'bedside lamp', 'lamp', 'lamps']), 'Lighting', 'Table Lamp'],
+  [words(['table lamp', 'table lamps', 'desk lamp', 'bedside lamp', 'lamp', 'lamps', 'led light', 'globe light', 'night light', 'mood light']), 'Lighting', 'Table Lamp'],
   [words(['duvet cover', 'duvet covers', 'duvet set', 'duvet', 'quilt cover', 'bedding set', 'bedding', 'comforter']), 'Bedding & Bath', 'Duvet'],
   [words(['pillow case', 'pillowcase', 'pillowcases', 'pillow', 'pillows']), 'Bedding & Bath', 'Pillow'],
   [words(['fitted sheet', 'flat sheet', 'bed sheet', 'bed sheets']), 'Bedding & Bath', 'Bed Sheet'],
@@ -171,6 +171,7 @@ const HOME_PLACES = [
   [words(['jewellery box', 'jewelry box', 'trinket box', 'keepsake box', 'storage box', 'storage boxes']), 'Storage & Organisation', 'Storage Box'],
   [words(['jewellery stand', 'jewelry stand', 'jewellery holder', 'jewelry holder', 'earring holder', 'ring holder', 'necklace holder', 'jewellery tree', 'jewellery organiser',
     'jewelry organizer', 'wall hook', 'wall hooks', 'spice rack']), 'Storage & Organisation', 'Storage Rack'],
+  [words(['shelving', 'shelving display', 'display shelf', 'wall shelf', 'shelf', 'shelves']), 'Storage & Organisation', 'Shelving Unit'],
   [words(['napkin ring', 'napkin rings']), 'Kitchen & Dining', 'Tableware'],
   [words(['mirror', 'mirrors']), 'Home Decor', 'Mirror'],
   // "Bauhaus Wall Art - Geometric Wall Sculpture", "Countryside Tapestry", "Garage Rules Metal Sign": pictures for a wall.
@@ -178,7 +179,8 @@ const HOME_PLACES = [
     'limited edition prints']), 'Home Decor', 'Wall Art'],
   [words(['ornament', 'ornaments', 'figurine', 'figurines', 'sculpture', 'sculptures', 'statue', 'statues', 'suncatcher', 'suncatchers', 'sun catcher', 'sun catchers',
     'light catcher', 'hanging decoration', 'decoration', 'decorations', 'decorative', 'trinket dish', 'trinket tray', 'ring dish', 'jewellery dish', 'jewelry dish',
-    'wind chime', 'wind chimes', 'wind spinner', 'dreamcatcher', 'dream catcher', 'bookend', 'bookends', 'prism', 'crystal ball', 'plaque', 'potion bottle', 'christmas']),
+    'wind chime', 'wind chimes', 'wind spinner', 'dreamcatcher', 'dream catcher', 'bookend', 'bookends', 'prism', 'crystal ball', 'plaque', 'potion bottle', 'christmas',
+    'crystal skull', 'skull']),
     'Home Decor', 'Ornament'],
   [words(['shot glass', 'shot glasses', 'wine glass', 'wine glasses', 'glasses', 'stemless glass', 'drinking glass', 'gin glass', 'whisky glass', 'whiskey glass', 'pint glass',
     'beer glass', 'cocktail glass', 'martini glass', 'highball', 'highballs', 'champagne flute', 'champagne flutes', 'flutes', 'coupe', 'coupes', 'rocks glass', 'glassware',
@@ -187,7 +189,7 @@ const HOME_PLACES = [
   // A mug wins over its spoon ("Mug & Spoon Set"); spoons win over a cup that is only the design ("Tea Spoon Set, Hang-on Cup Design").
   [/(?<![a-z0-9])(mug|mugs|mug\d+|travel mug|tankard|tankards)(?![a-z])/i, 'Kitchen & Dining', 'Drinkware'],
   [words(['spoon', 'spoons', 'teaspoon', 'teaspoons', 'tea spoon', 'tea spoons', 'cutlery', 'fork', 'forks', 'knife', 'knives']), 'Kitchen & Dining', 'Cutlery'],
-  [words(['seasoning', 'spice', 'salt and pepper', 'jar', 'jars', 'coffee set']), 'Kitchen & Dining', 'Tableware'],
+  [words(['seasoning', 'spice', 'salt and pepper', 'jar', 'jars', 'coffee set', 'egg cup', 'egg cups', 'saucer']), 'Kitchen & Dining', 'Tableware'],
   [words(['cup', 'cups', 'tumbler', 'tumblers', 'water bottle', 'bottle', 'bottles', 'flask', 'flasks', 'teapot', 'tea pot', 'tea set', 'teacup', 'tea cup', 'coffee cup',
     'beaker', 'beakers', 'mug tree']), 'Kitchen & Dining', 'Drinkware'],
   [words(['chopping board', 'cutting board', 'serving board', 'cheese board']), 'Kitchen & Dining', 'Chopping Board'],
@@ -259,11 +261,12 @@ const GARMENT = words(['t-shirt', 't-shirts', 't shirt', 'tee', 'tees', 'shirt',
   'nightwear', 'sleepwear', 'nightdress', 'cape', 'capelet', 'bolero', 'shawl', 'poncho',
   'bag', 'bags', 'handbag', 'backpack', 'rucksack', 'tote', 'purse', 'wallet', 'clutch', 'satchel', 'pouch', 'scarf', 'scarves', 'beanie', 'hat', 'hats', 'cap', 'caps',
   'beret', 'gloves', 'mittens', 'belt', 'belts', 'shoes', 'boots', 'trainers', 'sneakers', 'sandals', 'heels', 'slippers', 'loafers', 'sunglasses', 'umbrella', 'parasol',
-  'polo', 'fleece', 'parka', 'bomber', 'worker', 'longsleeve', 'turnup sleeve', 'tuxedo', 'waistcoat', 'tie', 'ties', 'necktie', 'bow tie', 'pocket square', 'cravat']);
+  'polo', 'fleece', 'parka', 'bomber', 'worker', 'longsleeve', 'turnup sleeve', 'tuxedo', 'waistcoat', 'sunga', 'swimbrief', 'swim brief', 'shrug', 'overskirt', 'cincher',
+  'bloomers', 'cloak', 'flats', 'mary jane', 'espadrilles', 'back pack']);
 const HAIR = words(['hair clip', 'hair clips', 'claw clip', 'claw clips', 'hair slide', 'hair slides', 'hair pin', 'hair pins', 'hairpin', 'hairpins', 'bobby pin', 'bobby pins',
   'hair comb', 'scrunchie', 'scrunchies', 'headband', 'headbands', 'hair band', 'hair bands', 'hair bow', 'hair bows', 'hair accessory', 'hair accessories', 'barrette', 'barrettes']);
 const SMALL_ACCESSORY = words(['keyring', 'key ring', 'keyrings', 'key chain', 'keychain', 'bag charm', 'phone charm', 'lanyard', 'pin badge', 'enamel pin', 'fan', 'hand fan',
-  'lace fan', 'silk fan', 'parasol', 'card holder', 'cardholder']);
+  'lace fan', 'silk fan', 'parasol', 'card holder', 'cardholder', 'arm warmers', 'arm sleeves', 'fishnet sleeves', 'crown', 'tiara']);
 // Ties, pocket squares and cravats are for men unless the name says women ("Rust Luxury Silk Pocket Square and tie").
 const MEN_ITEM = /\b(neck ?ties?|bow ?ties?|pocket squares?|cravats?)\b|\bties?\s*($|[,'"‘’(&]|and\b|set\b|gift\b|in\b)|\bsilk ties?\b/i;
 const WATCH = words(['watch', 'watches', 'wristwatch', 'chronograph']);
@@ -275,14 +278,23 @@ const MEN_CATEGORY = /^Men's (Jewellery|Watches)$/i;
 const BEAUTY_CATEGORY = /^(Cosmetics|Haircare Products|Haircare Appliances|Bodycare Appliances)$/i;
 // Brands that sell (almost) only for women or only for men; a "Men's"/"Women's" in the name still wins. The feed's
 // "Men's Outerwear" holds Kate's Clothing's women's coats and robes, so it says nothing (dry run 29 Oct 2026).
-const WOMEN_BRAND = /^(má \+ lin.*|ma \+ lin.*|macke swimwear|alice acreman silks|made here with love|gecko jewellery retail|scarlett jewellery|vianne jewellery|hugs & co\.?|we are lunarium|savaé design|savae design|serene jewellery|vurchoo ethical jewellery|luxe tones|kate's clothing|no more nobody|8th sin)$/i;
+const WOMEN_BRAND = /^(má \+ lin.*|ma \+ lin.*|macke swimwear|alice acreman silks|made here with love|gecko jewellery retail|scarlett jewellery|vianne jewellery|we are lunarium|savaé design|savae design|serene jewellery|vurchoo ethical jewellery|luxe tones|kate's clothing|no more nobody|8th sin)$/i;
 const MEN_BRAND = /^(pamoni|bdxy studios|swole panda)$/i;
 const MEN_LINE = /^fred bennett\b/i; // Fred Bennett is a men's jewellery and gifts line (sold by Gecko Jewellery).
 // Spiral Direct: a T-shirt, hoody or vest without "Ladies" is its unisex (men's) cut; tops with a women's cut have
 // their own names ("Boat Neck Bat Sleeve Top", "Fish Tail Hoody", "Acid Wash Turnup Sleeve").
 const SPIRAL_WOMEN_CUT = words(['dress', 'skirt', 'leggings', 'corset', 'tunic', 'smock', 'bat sleeve', 'cap sleeve', 'boat neck', 'boatneck', 'goth sleeve', 'turnup sleeve',
-  'top', 'tops', 'ripped hoody', 'large hood', 'fish tail', 'cami', 'bodycon', 'skater', 'maxi', 'crop', 'bikini', 'swimsuit']);
+  'top', 'tops', 'ripped hoody', 'large hood', 'fish tail', 'cami', 'bodycon', 'skater', 'maxi', 'crop', 'bikini', 'swimsuit', 'gathered', 'slant', 'racer', 'pyjama set']);
 const SPIRAL_MEN_CUT = words(['t-shirt', 'tee', 'hoody', 'hoodie', 'longsleeve', 'long sleeve', 'vest', 'worker', 'joggers', 'shirt', 'sweatshirt', 'jacket', 'shorts', 'cargo']);
+// Garments that are for women whatever the shop ("AFENDS Blair Mini Dress", "Sisstrevolution Matira Pant" has none).
+const WOMEN_GARMENT = words(['dress', 'dresses', 'skirt', 'skirts', 'skort', 'overskirt', 'blouse', 'bikini', 'swimsuit', 'one piece', 'bra', 'bralette', 'jumpsuit', 'playsuit',
+  'corset', 'camisole', 'cami', 'knickers', 'bodysuit', 'bloomers', 'cincher', 'mary jane', 'heels', 'flats', 'maternity']);
+// Shop names at the start of the product name (www.remixd.store sells surf brands): Vissla is men's, Amuse Society and
+// Sisstrevolution women's.
+const NAME_BRAND_MEN = /^vissla\b/i;
+const NAME_BRAND_WOMEN = /^(amuse society|sisstrevolution)\b/i;
+// Hugs & Co.: shoes without "Women's" are its men's shoes ("Busby Men's Winter Chelsea Boot", "Tyre Sole Driving Loafers").
+const SHOE = words(['shoe', 'shoes', 'loafers', 'loafer', 'brogues', 'boots', 'boot', 'sneakers', 'slippers', 'espadrilles', 'sandals', 'trainers']);
 const BEAUTY_BRAND_NAME = /^(rad spa|radioactive unicorn|manic panic|amplified manic panic)\b|\|\s*manic panic$/i;
 
 function menJewellerySub(n) {
@@ -307,8 +319,9 @@ export function genderHint(n, url, feedCategory, brand) {
   const w = WOMEN.test(n) || WOMEN.test(handle), m = MEN.test(n) || MEN.test(handle);
   if (m && !w) return 'M';
   if (w && !m) return 'W';
-  if (MEN_LINE.test(n) || MEN_BRAND.test(brand)) return 'M';
-  if (WOMEN_BRAND.test(brand)) return 'W';
+  if (MEN_LINE.test(n) || MEN_BRAND.test(brand) || NAME_BRAND_MEN.test(n)) return 'M';
+  if (WOMEN_BRAND.test(brand) || NAME_BRAND_WOMEN.test(n)) return 'W';
+  if (/^hugs & co\.?$/i.test(brand)) return SHOE.test(n) ? 'M' : 'W';
   if (/^spiral direct$/i.test(brand)) {
     // Spiral names are "DESIGN - Garment Colour": the design ("TOP DOG") says nothing about the cut.
     const parts = segments(n);
@@ -317,6 +330,7 @@ export function genderHint(n, url, feedCategory, brand) {
     if (SPIRAL_MEN_CUT.test(garmentText)) return 'M';
     return 'W';
   }
+  if (WOMEN_GARMENT.test(n)) return 'W';
   if (MEN_CATEGORY.test(feedCategory)) return 'M';
   if (WOMEN_CATEGORY.test(feedCategory)) return 'W';
   return '';
@@ -368,8 +382,14 @@ function fashion({ n, url, feedCategory, brand, b }) {
   if (garment) clothName = clothName.replace(JEWELLERY_ALL, ' ');
   clothName = clothName.replace(/\bworker\b/gi, 'worker vest').replace(/\bbolero\b/gi, 'bolero jacket').replace(/\btuxedo\b(?!\s+(blazer|jacket))/gi, 'tuxedo suit')
     .replace(/\bturnup sleeve\b/gi, 'turnup sleeve top').replace(/\bskort\b/gi, 'skort skirt').replace(/\bcapelet\b|\bcape\b/gi, 'cape jacket')
-    .replace(/\bone piece\b/gi, 'swimsuit').replace(/\bloafers\b/gi, 'loafers shoes').replace(/\bv[\s-]?neck\b(?=.*\b(top|tee|t-shirt|dress)\b)/gi, ' ')
-    .replace(/\s+/g, ' ').trim();
+    .replace(/\bone[\s-]piece\b/gi, 'swimsuit').replace(/\bloafers\b/gi, 'loafers shoes').replace(/\bv[\s-]?neck\b(?=.*\b(top|tee|t-shirt|dress)\b)/gi, ' ')
+    .replace(/\bboot[\s-]?cut\b/gi, 'bootcut').replace(/\b(garter|handkerchief)\b(?=.*\b(shorts|skirt|dress|top|hem)\b)/gi, ' ')
+    .replace(/\b(sunga|swim ?brief)\b/gi, 'swimwear').replace(/\bshrug\b/gi, 'shrug cardigan').replace(/\boverskirt\b/gi, 'overskirt skirt')
+    .replace(/\bcincher\b/gi, 'cincher corset').replace(/\bbloomers\b/gi, 'bloomers knickers').replace(/\bcloak\b/gi, 'cloak coat')
+    .replace(/\b(mary jane|flats|heels)\b/gi, '$1 shoes').replace(/\bback pack\b/gi, 'backpack').replace(/\s+/g, ' ').trim();
+  // Words the Coes "not clothing" list knows are only a print or a name on a garment ("Marble Ball Print Shirt",
+  // "Spicy Sports Spray Jacket", "TOP DOG - T-Shirt").
+  if (garment) clothName = clothName.replace(/\b(ball|balls|game|dog|chocolate|pen|spray|tape|grips?|stick|book|cleaning|polish|protector)\b/gi, ' ').replace(/\s+/g, ' ').trim();
   const c = fashionPlace({ name: clothName, feedCategory: hint, url, brand: '' });
   if (c.reject && /no men\/women/.test(c.reject)) return { reject: `no men/women in the name (${b})` };
   if (c.reject && /not sure/.test(c.reject)) return { reject: `not sure what it is (${b})` };
@@ -388,7 +408,8 @@ export function classify({ name, feedCategory = '', url = '', brand = '' }) {
   if (RESOLD_SELLER.test(bn) && (RESOLD_TRAINERS.test(n) || /^Children's Footwear$/i.test(cat))) {
     return { reject: 'resold trainers (www.remixd.store, My Store): cannot check they are genuine' };
   }
-  if (SPORTS_CATEGORY.test(cat) || SPORTS_NAME.test(n) || (/^rad wax$/.test(bn) && SURF_WAX.test(n))) return { reject: SPORTS_REASON };
+  // The feed's sports categories also hold jewellery ("Beginnings Trace Chain Necklace" under "Cycling", dry run 29 Oct 2026).
+  if ((SPORTS_CATEGORY.test(cat) && !STRONG_JEWELLERY.test(n)) || SPORTS_NAME.test(n) || (/^rad wax$/.test(bn) && SURF_WAX.test(n))) return { reject: SPORTS_REASON };
   if (MOTOR_CATEGORY.test(cat) || MOTOR_NAME.test(n)) return { reject: MOTOR_REASON };
   if (PRE_ORDER.test(n)) return { reject: 'pre-order: not in stock yet' };
   if (SPARE.test(n) || /^Appliance Spares$/i.test(cat)) return { reject: 'spare part' };
@@ -411,6 +432,11 @@ export function classify({ name, feedCategory = '', url = '', brand = '' }) {
   if (HOME_STRONG.test(n) && !FASHION.test(n.replace(HOME_STRONG_ALL, ' '))) {
     const h = homePlace(n);
     if (h) return h;
+  }
+  // Beauty brands ("Radioactive Unicorn Pumpkin Spice Liquid Eye Shadow") and small accessories ("silk folding hand fan
+  // with ... painted artwork") are fashion even with a home word in the name.
+  if (BEAUTY_BRAND_NAME.test(n) || ((SMALL_ACCESSORY.test(n) || HAIR.test(n)) && !/\b(ceiling|desk|electric|pedestal) fans?\b/i.test(n))) {
+    return fashion({ n, url, feedCategory: cat, brand: bn, b });
   }
   const homeContext = HOME_CATEGORY.test(cat);
   if (!FASHION.test(n) || homeContext) {
