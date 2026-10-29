@@ -1457,6 +1457,8 @@ $rcSince = (Get-Date).AddMinutes(-1).ToString('yyyyMMddHHmmss')
 [System.IO.File]::WriteAllText((Join-Path $rcOut 'IMPORT_SGS-CONSTRUCTION_CGW_x.txt'), 'first report Ω', (New-Object System.Text.UTF8Encoding($true)))
 [System.IO.File]::WriteAllText((Join-Path $rcOut 'REFRESH_x.txt'), 'second report', (New-Object System.Text.UTF8Encoding($true)))
 [System.IO.File]::WriteAllText((Join-Path (Join-Path $rcOut 'REFRESH_PLAN_x') 'report.txt'), 'inner plan file', (New-Object System.Text.UTF8Encoding($true)))
+New-Item -ItemType Directory -Path (Join-Path $rcOut 'IMPORT_PLAN_sgs-construction_x') -Force | Out-Null
+[System.IO.File]::WriteAllText((Join-Path (Join-Path $rcOut 'IMPORT_PLAN_sgs-construction_x') 'report.txt'), 'import plan samples', (New-Object System.Text.UTF8Encoding($true)))
 & $exe -NoProfile -ExecutionPolicy Bypass -File $rcTool -Since $rcSince -OutDir $rcOut -NoClipboard | Out-Null
 Check ($LASTEXITCODE -eq 0) 'reports-to-clipboard: exit 0'
 $rcAll = @(Get-ChildItem -LiteralPath $rcOut -File -Filter 'REPORTS_*.txt')
@@ -1464,7 +1466,8 @@ $rcText = ''
 if ($rcAll.Count -eq 1) { $rcText = [System.IO.File]::ReadAllText($rcAll[0].FullName, [System.Text.Encoding]::UTF8) }
 Check ($rcText.Contains('first report ' + [string][char]0x03A9) -and $rcText.Contains('second report')) 'reports-to-clipboard: joins the reports of this paste (UTF-8 kept)'
 Check ($rcText.IndexOf('first report') -lt $rcText.IndexOf('second report')) 'reports-to-clipboard: oldest first'
-Check (-not $rcText.Contains('old report') -and -not $rcText.Contains('inner plan file')) 'reports-to-clipboard: leaves out older reports and plan folders'
+Check (-not $rcText.Contains('old report') -and -not $rcText.Contains('inner plan file')) 'reports-to-clipboard: leaves out older reports and refresh plan folders'
+Check ($rcText.Contains('import plan samples') -and $rcText.Contains('IMPORT_PLAN_sgs-construction_x\report.txt')) 'reports-to-clipboard: adds the full import plan of the same paste (L14 samples)'
 & $exe -NoProfile -ExecutionPolicy Bypass -File $rcTool -Since 'yesterday' -OutDir $rcOut -NoClipboard | Out-Null
 Check ($LASTEXITCODE -eq 2) 'reports-to-clipboard: a wrong -Since stops'
 

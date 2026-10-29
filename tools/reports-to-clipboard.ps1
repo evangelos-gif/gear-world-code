@@ -4,8 +4,9 @@
 .DESCRIPTION
   When one paste runs several tools, each copies its own report to the clipboard and only the last one stays there.
   Run this tool last, with the time the paste started (-Since yyyyMMddHHmmss): it joins every report written in
-  <home>\gear-world-reports since then (the top folder only, oldest first), writes them as one REPORTS_<time>.txt
-  and copies that to the clipboard. It changes nothing else.
+  <home>\gear-world-reports since then (the top folder, oldest first), with the full import plans of the same time
+  (IMPORT_PLAN_*\report.txt: their samples per category are what a dry run is checked by, lessons L14), writes them as
+  one REPORTS_<time>.txt and copies that to the clipboard. It changes nothing else.
 .EXAMPLE
   $t0 = Get-Date -Format 'yyyyMMddHHmmss'; <tool 1>; <tool 2>; powershell -NoProfile -ExecutionPolicy Bypass -File $f -Ref <commit> -Tool reports-to-clipboard -Since $t0
 #>
@@ -20,13 +21,17 @@ if ($Since -notmatch '^\d{14}$') { Write-Host 'Λάθος ώρα έναρξης 
 $from = [datetime]::ParseExact($Since, 'yyyyMMddHHmmss', [System.Globalization.CultureInfo]::InvariantCulture)
 $files = @()
 if (Test-Path -LiteralPath $OutDir) {
-    $files = @(Get-ChildItem -LiteralPath $OutDir -File -Filter '*.txt' | Where-Object { $_.LastWriteTime -ge $from -and $_.Name -notlike 'REPORTS_*' } | Sort-Object LastWriteTime)
+    $top = @(Get-ChildItem -LiteralPath $OutDir -File -Filter '*.txt' | Where-Object { $_.LastWriteTime -ge $from -and $_.Name -notlike 'REPORTS_*' })
+    $plans = @(Get-ChildItem -LiteralPath $OutDir -Directory -Filter 'IMPORT_PLAN_*' | ForEach-Object { Get-Item -LiteralPath (Join-Path $_.FullName 'report.txt') -ErrorAction SilentlyContinue } | Where-Object { $_ -and $_.LastWriteTime -ge $from })
+    $files = @(@($top) + @($plans) | Sort-Object LastWriteTime)
 }
 $parts = New-Object System.Collections.Generic.List[string]
 $parts.Add(('Όλες οι αναφορές αυτής της εντολής (από {0}): {1}' -f $from.ToString('yyyy-MM-dd HH:mm'), $files.Count))
 foreach ($f in $files) {
     $parts.Add('')
-    $parts.Add(('########## {0} ##########' -f $f.Name))
+    $label = $f.Name
+    if ($f.Name -eq 'report.txt') { $label = (Split-Path -Leaf $f.DirectoryName) + '\report.txt' }
+    $parts.Add(('########## {0} ##########' -f $label))
     $parts.Add(([System.IO.File]::ReadAllText($f.FullName, [System.Text.Encoding]::UTF8)).TrimEnd())
 }
 if ($files.Count -eq 0) { $parts.Add('Δεν γράφτηκε καμία αναφορά από τότε.') }
