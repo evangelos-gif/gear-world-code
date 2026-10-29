@@ -25,7 +25,7 @@ function productsFor(guide, change = {}) {
     if (c.gone) return [];
     return [{
       id, product_name: `Product ${id}`, product_slug: `product-${id}`, retailer: c.retailer || 'Shop',
-      price: c.price ?? guide.prices[id], currency: 'GBP', in_stock: c.out ? 0 : 1, last_seen_at: c.seen || '2026-10-24 10:00:00'
+      price: c.price ?? guide.prices[id], currency: 'GBP', image_url: `https://img.example/${id}.jpg`, in_stock: c.out ? 0 : 1, last_seen_at: c.seen || '2026-10-24 10:00:00'
     }];
   });
 }
@@ -91,6 +91,10 @@ test('guides: with nothing changed, every row and card is there, no change note,
     // Each card's button goes through /out/ (click log, Awin), never straight to a shop.
     assert.ok(!/href="https?:\/\/(?!(www\.makitatools|www\.dewalt|[a-z]+gearworld|gearworldhub))/.test(html.split('<main')[1].split('</main>')[0]), site.code);
     assert.match(html, /class="btn btn-deal" href="\/out\/\d+" rel="sponsored nofollow noopener"/);
+    // A photo on every card and every table row (the cheapest shop's), linking to the product page.
+    assert.equal((html.match(/<a class="guide-pick-photo" href="\/product\/[^"]+" tabindex="-1" aria-hidden="true"><img src="https:\/\/img\.example\/\d+\.jpg" alt=""/g) || []).length, cards, site.code);
+    const rows = g.blocks.filter(b => b.type === 'offers').reduce((n, b) => n + b.rows.length, 0);
+    assert.equal((html.match(/<a class="guide-thumb" href=/g) || []).length, rows, site.code);
   }
 });
 

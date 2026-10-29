@@ -67,6 +67,12 @@ function oldestCheck(products) {
 
 const dateArg = (site, day) => ({ text: formatDate(`${day} 12:00:00`, site.locale), date: day });
 
+// The shop's product photo (the cheapest shop's), linking to the product page. Decorative: the name is next to it.
+function photo(p, cls, size) {
+  if (!p || !p.image_url) return '';
+  return html`<a class="${cls}" href="${productPath(p)}" tabindex="-1" aria-hidden="true"><img src="${p.image_url}" alt="" width="${size}" height="${size}" loading="lazy" decoding="async" referrerpolicy="no-referrer"></a>`;
+}
+
 function priceLink(site, p) {
   return html`<a href="${productPath(p)}" translate="no">${priceTag(site, p.price, p.currency)}</a>`;
 }
@@ -109,7 +115,7 @@ function offersBlock(site, byId, b) {
   <thead><tr><th scope="col">${b.columns[0]}</th>${textCols.map(c => html`<th scope="col">${c}</th>`)}${unitHead ? html`<th scope="col">${unitHead}</th>` : ''}${b.shops.map(s => html`<th scope="col" translate="no">${s}</th>`)}</tr></thead>
   <tbody>${rows.map(({ r, cells }) => {
     const best = cheapest(byId, Object.values(r.offers));
-    return html`<tr><th scope="row" translate="no"><a href="${productPath(best)}">${r.name}</a></th>${r.cells.map(c => html`<td>${c}</td>`)}${unitHead ? html`<td translate="no">${pencePer(best.price, r.units)}</td>` : ''}${cells.map(p => html`<td>${p ? priceLink(site, p) : ''}</td>`)}</tr>`;
+    return html`<tr><th scope="row" translate="no">${photo(best, 'guide-thumb', 72)}<a href="${productPath(best)}">${r.name}</a></th>${r.cells.map(c => html`<td>${c}</td>`)}${unitHead ? html`<td translate="no">${pencePer(best.price, r.units)}</td>` : ''}${cells.map(p => html`<td>${p ? priceLink(site, p) : ''}</td>`)}</tr>`;
   })}</tbody>
 </table>
 </div>
@@ -122,6 +128,8 @@ function picksBlock(site, byId, b) {
   if (!items.length) return '';
   return html`<h2>${b.heading}</h2>
 ${items.map(({ it, n, p }) => html`<section class="guide-pick">
+  ${photo(p, 'guide-pick-photo', 140)}
+  <div class="guide-pick-main">
   <h3><span>${n}.</span> <a href="${productPath(p)}" translate="no">${it.name}</a></h3>
   <p class="label-price">${priceTag(site, p.price, p.currency)} <span class="retailer" translate="no">${p.retailer}</span></p>
   <ul>
@@ -131,6 +139,7 @@ ${items.map(({ it, n, p }) => html`<section class="guide-pick">
     <li><strong>Who should skip:</strong> ${it.skip}</li>
   </ul>
   <p><a class="btn btn-deal" href="/out/${p.id}" rel="sponsored nofollow noopener" target="_blank">${tr('View at {0}', p.retailer)}</a></p>
+  </div>
 </section>`)}`;
 }
 
