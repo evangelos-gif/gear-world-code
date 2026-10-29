@@ -211,19 +211,21 @@ test('plan: Cronjager (one feed per currency, many brands) - only the GBP feed a
     + `${link(2)},Mahee Tandem Kayak | Blue | Stable & Durable,2,F-1,https://img.example/2.jpg,General Clothing,${cur === 'GBP' ? 499 : 580},${cur},Fatyak Kayaks,1,\n`
     + `${link(3)},Beginnings Trace Chain Necklace,3,G-1,https://img.example/3.jpg,Cycling,${cur === 'GBP' ? 40 : 47},${cur},Gecko Jewellery Retail,1,\n`
     + `${link(4)},Yoga Shorts - Irish Army,4,I-1,https://img.example/4.jpg,General Clothing,${cur === 'GBP' ? 60 : 70},${cur},Irish Army,1,\n`
-    + `${link(5)},7mm Interlocking PVC Dog Kennel Tiles,5,S-1,https://img.example/5.jpg,General Clothing,${cur === 'GBP' ? 30 : 35},${cur},Sprung Gym Flooring,1,\n`;
+    + `${link(5)},7mm Interlocking PVC Dog Kennel Tiles,5,S-1,https://img.example/5.jpg,General Clothing,${cur === 'GBP' ? 30 : 35},${cur},Sprung Gym Flooring,1,\n`
+    + `${link(6)},Pet-Friendly Artificial Grass for Dog Areas & Kennels,6,C-1,https://img.example/6.jpg,Arts & Crafts,${cur === 'GBP' ? 1157 : 1300},${cur},Central Sports UK,1,\n`
+    + `${link(7)},9' 1 Heritage Square Tail Retro Longboard Gloss Tint,7,R-1,https://img.example/7.jpg,General Clothing,${cur === 'GBP' ? 750 : 860},${cur},Circle One Surf,1,\n`;
   writeFileSync(join(a, 'AWIN_98661_95541.csv.gz'), gzipSync(rows('GBP')));
   writeFileSync(join(a, 'AWIN_98661_95542.csv.gz'), gzipSync(rows('EUR')));
   const sources = join(dir, 'sources.json');
   const real = JSON.parse(readFileSync('sites/sgw/sources.json', 'utf8')).sources.find(s => s.retailer === 'Cronjager');
   writeFileSync(sources, JSON.stringify({ sources: [real] }));
   const { stats } = await planSgwImport({ archive: a, sourcesFile: sources, outDir: out, now: new Date('2026-10-29T23:30:00Z') });
-  assert.equal(stats.rows, 5, 'only the GBP feed is read');
-  assert.equal(stats.accepted, 2, 'the padel racket and the kayak');
+  assert.equal(stats.rows, 7, 'only the GBP feed is read');
+  assert.equal(stats.accepted, 3, 'the padel racket, the kayak and the surf longboard');
   assert.equal(stats.perCategory['racket-sports'], 1);
-  assert.equal(stats.perCategory['water-sports'], 1);
+  assert.equal(stats.perCategory['water-sports'], 2, 'a 9-foot retro longboard is a surfboard');
   assert.ok(Object.keys(stats.rejected).some(k => /brand not on the consumer list/.test(k)), 'jewellery and slogan merch stay out');
   const sql = readdirSync(join(out, 'sql')).map(f => readFileSync(join(out, 'sql', f), 'utf8')).join('\n');
   assert.doesNotMatch(sql, /'EUR'/);
-  assert.doesNotMatch(sql, /Necklace|Irish Army|Kennel/);
+  assert.doesNotMatch(sql, /Necklace|Irish Army|Kennel|Dog Areas/);
 });

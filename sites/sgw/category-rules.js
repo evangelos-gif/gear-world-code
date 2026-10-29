@@ -128,7 +128,9 @@ export const RULES = [
     slug: 'water-sports',
     include: words(['kayaks?', 'canoes?', 'paddle ?boards?', 'sup boards?', 'stand ?up paddle(?: ?boards?)?', 'isup', 'kayak paddles?', '(?:sup|kayak|canoe) (?:paddles?|seats?|pumps?|leashes?|outriggers?)', 'wetsuits?', 'shortie wetsuits?', 'swim(?:ming)? (?:goggles|caps?|fins|training|buoys?|bags?|paddles?|snorkels?)', 'swimming goggles', 'kick ?boards?', 'pull buoys?', 'diving (?:masks?|fins|computers?|torches?)', 'dive (?:masks?|computers?|fins|torches?)', 'scuba (?:masks?|fins|sets?|gear)', 'freediving', 'snorkel(?:l?ing)? (?:sets?|masks?)', 'surf ?boards?', 'body ?boards?', 'boogie ?boards?', 'skim ?boards?', 'kite ?surf(?:ing)?', 'wind ?surf(?:ing)?', 'wake ?boards?', 'water ?skis?', 'buoyancy aids?', 'life ?jackets?', 'rash (?:vests?|guards?)', 'water shoes?', 'aqua shoes?', 'swimrun', 'open water', 'tow floats?', 'dry ?robes?', 'changing robes?', 'surf ponchos?', '(?:training|competition|racing) swimsuits?', 'swimsuits? for (?:training|competition)', 'jammers?',
       'swim ?caps?', 'swimcaps?', 'swim hats?', 'ear ?plugs?', 'nose ?clips?', 'aqua ?shorts?', 'water ?shorts?', 'medalist', 'swimming suits?', 'speedo',
-      'skatinger', 'dry (?:bags?|sacks?)']),
+      'skatinger', 'dry (?:bags?|sacks?)',
+      // A 9-foot "Retro Longboard" or a "Noserider" is a surfboard, not a skateboard (Cronjager dry run, 29 Oct 2026).
+      'noseriders?', '(?:retro|classic|heritage|mini|surf) longboards?', 'longboard surfboards?', 'surfboards?']),
     exclude: words(['scuba (?:safety|shoes?|boots?)', 'dog life ?jackets?'])
   },
   {
