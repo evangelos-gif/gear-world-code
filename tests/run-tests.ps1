@@ -274,6 +274,15 @@ if (Get-Command node -ErrorAction SilentlyContinue) {
     Check ((Get-FileHash -LiteralPath $gzPath -Algorithm SHA256).Hash -eq $archHash) 'sports feed scan: Awin archive unchanged'
     & $exe -NoProfile -ExecutionPolicy Bypass -File $runTool -LocalRepo $repo -Tool sports-feed-scan -Archive (Join-Path $work 'no-such-folder') -OutDir $sportsOut -KeyFile (Join-Path $work 'no-key.dat') -NoClipboard | Out-Null
     Check ($LASTEXITCODE -eq 2) 'sports feed scan: missing archive gives exit code 2'
+    $motoOut = Join-Path $work 'moto-scan-run'
+    & $exe -NoProfile -ExecutionPolicy Bypass -File $runTool -LocalRepo $repo -Tool moto-feed-scan -Archive $arch -OutDir $motoOut -KeyFile (Join-Path $work 'no-key.dat') -NoClipboard | Out-Null
+    Check ($LASTEXITCODE -eq 0) 'moto feed scan: exit code 0 through gw-run, without a saved key'
+    $motoRuns = @(Get-ChildItem -LiteralPath $motoOut -Directory -Filter 'MOTO_FEED_SCAN_*' -ErrorAction SilentlyContinue)
+    Check ($motoRuns.Count -eq 1) 'moto feed scan: report folder written'
+    if ($motoRuns.Count -ge 1) { Check ([System.IO.File]::ReadAllText((Join-Path $motoRuns[0].FullName 'report.txt')).Contains('BIKER FEED SCAN')) 'moto feed scan: BGW report' }
+    Check ((Get-FileHash -LiteralPath $gzPath -Algorithm SHA256).Hash -eq $archHash) 'moto feed scan: Awin archive unchanged'
+    & $exe -NoProfile -ExecutionPolicy Bypass -File $runTool -LocalRepo $repo -Tool moto-feed-scan -Archive (Join-Path $work 'no-such-folder') -OutDir $motoOut -KeyFile (Join-Path $work 'no-key.dat') -NoClipboard | Out-Null
+    Check ($LASTEXITCODE -eq 2) 'moto feed scan: missing archive gives exit code 2'
     $agwOut = Join-Path $work 'agw-plan-run'
     & $exe -NoProfile -ExecutionPolicy Bypass -File $runTool -LocalRepo $repo -Tool agw-import-plan -Archive $arch -OutDir $agwOut -NoClipboard | Out-Null
     Check ($LASTEXITCODE -eq 0) 'agw import plan: exit code 0 through gw-run'
