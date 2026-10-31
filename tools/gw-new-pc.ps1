@@ -10,7 +10,8 @@
     1. Copies the Gear World folders from the drive to your user folder (C:\Users\<name>\) and the Awin feeds to
        Downloads. Only ADDS: a file that is newer on this PC is never overwritten and nothing is deleted.
        gear-world-secrets is NOT copied: the Awin key is locked to the old PC's Windows user, so the first Awin tool
-       asks for it once here.
+       asks for it once here. Old backup folders (GearWorld_Backups ...) stay on the drive unless -WithArchives:
+       they are not needed to work and are the biggest part.
     2. Installs Node.js (LTS) with winget if it is missing (Windows asks you to allow it).
     3. npm install in every copied project with a package.json and no node_modules (they are not in the backup).
     4. Cloudflare sign-in (npx wrangler login opens the browser) if this PC is not signed in yet.
@@ -26,6 +27,7 @@ param(
     [switch]$SkipNode,
     [switch]$SkipNpm,
     [switch]$SkipLogin,
+    [switch]$WithArchives,
     [string]$HomeDir = '',
     [string]$OutDir = '',
     [switch]$NoClipboard
@@ -79,14 +81,26 @@ function Format-Size([double]$b) {
     if ($b -ge 1MB) { return ('{0:N0} MB' -f ($b / 1MB)) }
     return ('{0:N0} KB' -f ($b / 1KB))
 }
-function Get-FolderSize([string]$dir) {
-    $total = [double]0; $count = 0
+# Size of a folder on the drive, and how much of it would really be copied to $dst (missing or older there).
+function Get-FolderSize([string]$dir, [string]$dst = '') {
+    $total = [double]0; $count = 0; $copy = [double]0; $copyFiles = 0
     $stack = New-Object System.Collections.Stack
     $stack.Push($dir)
     while ($stack.Count -gt 0) {
         $d = $stack.Pop()
         try {
-            foreach ($f in [System.IO.Directory]::GetFiles($d)) { try { $total += (New-Object System.IO.FileInfo($f)).Length; $count++ } catch { } }
+            foreach ($f in [System.IO.Directory]::GetFiles($d)) {
+                try {
+                    $fi = New-Object System.IO.FileInfo($f)
+                    $total += $fi.Length; $count++
+                    $todo = $true
+                    if ($dst) {
+                        $there = New-Object System.IO.FileInfo($dst + $f.Substring($dir.Length))
+                        if ($there.Exists -and $there.LastWriteTimeUtc -ge $fi.LastWriteTimeUtc.AddSeconds(-2)) { $todo = $false }
+                    }
+                    if ($todo) { $copy += $fi.Length; $copyFiles++ }
+                } catch { }
+            }
             foreach ($s in [System.IO.Directory]::GetDirectories($d)) {
                 if ($SkipDirs -contains [System.IO.Path]::GetFileName($s)) { continue }
                 if (([System.IO.File]::GetAttributes($s) -band [System.IO.FileAttributes]::ReparsePoint) -ne 0) { continue }
@@ -94,7 +108,7 @@ function Get-FolderSize([string]$dir) {
             }
         } catch { }
     }
-    return @{ bytes = $total; files = $count }
+    return @{ bytes = $total; files = $count; copy = $copy; copyFiles = $copyFiles }
 }
 # Runs a command line through a temporary .cmd file and reads its output as UTF-8 (lessons L58).
 function Invoke-Cmd([string]$Folder, [string]$Line) {
@@ -165,8 +179,10 @@ try { $srcFormat = [string](New-Object System.IO.DriveInfo((Split-Path -Qualifie
 # 2. What would be copied to this PC.
 $filesDir = Join-Path $Source 'files'
 $copies = @()
+$archives = @()
 foreach ($d in @(Get-ChildItem -LiteralPath $filesDir -Directory -Force -ErrorAction SilentlyContinue | Sort-Object Name)) {
     if ($d.Name -eq 'Downloads' -or $NoCopy -contains $d.Name) { continue }
+    if ($d.Name -match '(?i)backup' -and -not $WithArchives) { $archives += $d.Name; continue }
     $copies += @{ name = $d.Name; src = $d.FullName; dst = (Join-Path $HomeDir $d.Name) }
 }
 $dl = Join-Path $filesDir 'Downloads'
@@ -176,18 +192,24 @@ Say '== Αρχεία από τον δίσκο προς αυτόν τον υπο�
 $need = [double]0
 $projects = @()
 foreach ($c in $copies) {
-    $s = Get-FolderSize $c.src
-    $need += $s.bytes
-    $here = $(if (Test-Path -LiteralPath $c.dst) { 'υπάρχει ήδη εδώ: μόνο όσα λείπουν ή είναι παλιότερα' } else { 'νέο' })
+    if (Test-Path -LiteralPath $c.dst) {
+        $s = Get-FolderSize $c.src $c.dst
+        $here = $(if ($s.copyFiles -gt 0) { 'υπάρχει εδώ, θα αντιγραφούν {0} αρχεία ({1}) που λείπουν ή είναι παλιότερα' -f $s.copyFiles, (Format-Size $s.copy) } else { 'υπάρχει εδώ, ίδιο: τίποτα να αντιγραφεί' })
+    } else {
+        $s = Get-FolderSize $c.src
+        $here = 'νέο'
+    }
+    $need += $s.copy
     Say ('  {0,-40} {1,10}  {2} αρχεία, {3}' -f $c.name, (Format-Size $s.bytes), $s.files, $here)
-    if ($c.name -ne 'Downloads' -and (Test-Path -LiteralPath (Join-Path $c.src 'package.json'))) { $projects += $c.name }
+    if ($c.name -ne 'Downloads' -and (Test-Path -LiteralPath (Join-Path $c.src 'package.json')) -and -not (Test-Path -LiteralPath (Join-Path $c.dst 'node_modules'))) { $projects += $c.name }
 }
 if ($copies.Count -eq 0) { Say '  Το backup δεν έχει φακέλους (files\ άδειο).' 'Yellow' }
 Say '  Δεν αντιγράφεται: gear-world-secrets (το κλειδί του Awin ανοίγει μόνο στον παλιό υπολογιστή· εδώ θα σου ζητηθεί μία φορά).'
+if ($archives.Count -gt 0) { Say ('  Μένουν στον δίσκο (παλιά αντίγραφα, δεν χρειάζονται για δουλειά): {0}. Με -WithArchives αντιγράφονται κι αυτά.' -f ($archives -join ', ')) }
 $sysQual = Split-Path -Qualifier $HomeDir
 $free = [double](New-Object System.IO.DriveInfo($sysQual)).AvailableFreeSpace
 $fits = $need -lt ($free * 0.9)
-Say ('  Σύνολο {0}, ελεύθερα στον {1} {2}.' -f (Format-Size $need), $sysQual, (Format-Size $free))
+Say ('  Θα αντιγραφούν {0}, ελεύθερα στον {1} {2}.' -f (Format-Size $need), $sysQual, (Format-Size $free))
 if (-not $fits) { Say '  ΠΡΟΒΛΗΜΑ: δεν χωράει σε αυτόν τον υπολογιστή.' 'Red' }
 
 # 3. What this PC still needs.

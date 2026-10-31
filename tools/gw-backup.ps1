@@ -43,10 +43,14 @@ param(
     [string]$WorkDir = '',
     [string]$OutDir = '',
     [int]$PageRows = 3000,
+    [string]$GitHubApi = 'https://api.github.com',
+    [string]$GitHubZip = 'https://codeload.github.com',
     [switch]$NoClipboard
 )
 
 $ErrorActionPreference = 'Stop'
+$ProgressPreference = 'SilentlyContinue' # much faster downloads in Windows PowerShell 5.1
+if (([uri]$GitHubApi).Host -notin @('api.github.com', '127.0.0.1') -or ([uri]$GitHubZip).Host -notin @('codeload.github.com', '127.0.0.1')) { Write-Host 'Μη αναμενόμενη διεύθυνση GitHub.' -ForegroundColor Red; exit 2 }
 if (-not $HomeDir) { $HomeDir = $HOME }
 if (-not $OutDir) { $OutDir = Join-Path $HomeDir 'gear-world-reports' }
 if (-not $WorkDir) { $WorkDir = Join-Path $HomeDir 'gear-world-backup-work' }
@@ -231,7 +235,10 @@ if (-not $SkipGitHub) {
     Say '== GitHub (μόνο ανάγνωση) =='
     foreach ($r in $Repos) {
         try {
-            $list = @(Invoke-RestMethod -UseBasicParsing -Uri ('https://api.github.com/repos/{0}/{1}/branches?per_page=100' -f $Owner, $r) -Headers @{ 'User-Agent' = 'gear-world-backup' })
+            $resp = Invoke-RestMethod -UseBasicParsing -Uri ('{0}/repos/{1}/{2}/branches?per_page=100' -f $GitHubApi, $Owner, $r) -Headers @{ 'User-Agent' = 'gear-world-backup' }
+            # Windows PowerShell 5.1 hands a JSON array over as ONE object: unroll it, or all branch names are glued into one (L63).
+            $list = @()
+            foreach ($x in $resp) { if ([string]$x.name) { $list += $x } }
             $branches[$r] = $list
             Say ('  {0}: {1} κλάδοι' -f $r, $list.Count)
         } catch {
@@ -255,7 +262,9 @@ if (-not $SkipDatabases) {
             Say '  Δεν μπόρεσα να διαβάσω τις βάσεις (σύνδεση στο Cloudflare;). Οι βάσεις παραλείπονται.' 'Yellow'
         } else {
             $dbBytes = [double]0
-            foreach ($x in @($j | ConvertFrom-Json)) {
+            # Windows PowerShell 5.1 hands a JSON array over as ONE object: unroll it with foreach (L63).
+            $parsed = $j | ConvertFrom-Json
+            foreach ($x in $parsed) {
                 if ($x.name -match '^[a-z0-9\-]{2,60}$') { $dbs += [string]$x.name; try { $dbBytes += [double]$x.file_size } catch { } }
             }
             Say ('  {0} βάσεις: {1}' -f $dbs.Count, ($dbs -join ', '))
@@ -316,7 +325,7 @@ if (-not $SkipGitHub) {
             $name = [string]$b.name
             $file = Join-Path $dir (($name -replace '[^A-Za-z0-9._-]', '_') + '.zip')
             try {
-                Invoke-WebRequest -UseBasicParsing -OutFile $file -Uri ('https://codeload.github.com/{0}/{1}/zip/refs/heads/{2}' -f $Owner, $r, $name)
+                Invoke-WebRequest -UseBasicParsing -OutFile $file -Uri ('{0}/{1}/{2}/zip/refs/heads/{3}' -f $GitHubZip, $Owner, $r, $name)
                 $manifest.Add(('{0}  {1}' -f $name, $b.commit.sha))
             } catch {
                 $problems++; Say ('  ΠΡΟΒΛΗΜΑ: {0} {1}' -f $r, $name) 'Red'

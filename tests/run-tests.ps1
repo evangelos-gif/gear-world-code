@@ -53,6 +53,12 @@ foreach ($f in @($psFiles | Where-Object { ($_.Name -like 'legacy-*.ps1' -or $_.
     }
 }
 
+# L63: Windows PowerShell 5.1 hands a JSON array over as ONE object, so @(... | ConvertFrom-Json) / @(Invoke-RestMethod ...) is a one-item list.
+foreach ($f in @($psFiles | Where-Object { $_.DirectoryName -match '[\\/]tools$' })) {
+    $t = [System.IO.File]::ReadAllText($f.FullName)
+    Check (-not ($t -match '@\([^()]*\|\s*ConvertFrom-Json\s*\)' -or $t.Contains('@(Invoke-RestMethod'))) ('JSON lists unrolled with foreach (L63): ' + $f.Name)
+}
+
 # 2. No secrets or Cloudflare IDs committed
 Write-Host 'Secret scan'
 $patterns = @(
@@ -1848,7 +1854,7 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         'echo unknown command 1>&2',
         'exit /b 1',
         ':d1list',
-        'echo [{"uuid":"x","name":"test-db","file_size":4096}]',
+        'echo [{"uuid":"x","name":"test-db","file_size":4096},{"uuid":"y","name":"second-db","file_size":2048}]',
         'exit /b 0',
         ':schema',
         'echo [{"results":[{"type":"table","name":"products","tbl_name":"products","sql":"CREATE TABLE products (id INTEGER PRIMARY KEY, name TEXT)"},{"type":"table","name":"products_fts","tbl_name":"products_fts","sql":"CREATE VIRTUAL TABLE products_fts USING fts5(name)"},{"type":"table","name":"products_fts_data","tbl_name":"products_fts_data","sql":"CREATE TABLE products_fts_data(id INTEGER PRIMARY KEY, block BLOB)"}],"success":true}]',
@@ -1861,11 +1867,21 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         'exit /b 0'
     ) -join "`r`n"
     [System.IO.File]::WriteAllText((Join-Path $bBin 'npx.cmd'), $bNpx + "`r`n", [System.Text.Encoding]::ASCII)
+    # Fake GitHub: two branches (one with a slash) in gear-world-code, one in gearworld-media (L63).
+    $bSrv = Join-Path $bState 'github.js'
+    Write-Utf8 $bSrv ("const http=require('http');" +
+      "const br={'gear-world-code':[{name:'main',commit:{sha:'a1'}},{name:'claude/bgw',commit:{sha:'b2'}}],'gearworld-media':[{name:'main',commit:{sha:'c3'}}]};" +
+      "http.createServer((q,s)=>{const m=/^\/repos\/evangelos-gif\/([^\/]+)\/branches/.exec(q.url);" +
+      "if(m&&br[m[1]]){s.writeHead(200,{'Content-Type':'application/json'});return s.end(JSON.stringify(br[m[1]]))}" +
+      "if(/^\/evangelos-gif\/[^\/]+\/zip\/refs\/heads\//.test(q.url)){s.writeHead(200,{'Content-Type':'application/zip'});return s.end('PK zip')}" +
+      "s.writeHead(404);s.end('no')}).listen(8797,'127.0.0.1');")
+    $bProc = Start-Process -FilePath (Get-Command node).Source -ArgumentList @($bSrv) -PassThru -WindowStyle Hidden
+    Start-Sleep -Seconds 2
     $oldPath = $env:PATH
     $env:PATH = $bBin + ';' + $oldPath
     $env:GW_FAKE_STATE = $bState
     function Run-B([string[]]$a) {
-        $all = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $bTool, '-Target', $bTarget, '-HomeDir', $bHome, '-AllowSystemDrive', '-SkipGitHub', '-PageRows', '3', '-NoClipboard') + $a
+        $all = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $bTool, '-Target', $bTarget, '-HomeDir', $bHome, '-AllowSystemDrive', '-GitHubApi', 'http://127.0.0.1:8797', '-GitHubZip', 'http://127.0.0.1:8797', '-PageRows', '3', '-NoClipboard') + $a
         & $exe @all | Out-Null
         return $LASTEXITCODE
     }
@@ -1895,6 +1911,12 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         Check ((Test-Path -LiteralPath (Join-Path $d 'products-0001.json')) -and (Test-Path -LiteralPath (Join-Path $d 'products-0002.json')) -and -not (Test-Path -LiteralPath (Join-Path $d 'products_fts_data-0001.json'))) 'backup: table rows in pages, search index tables skipped'
         $page = $(if (Test-Path -LiteralPath (Join-Path $d 'products-0001.json')) { [System.IO.File]::ReadAllText((Join-Path $d 'products-0001.json')) } else { '' })
         Check ($page.Contains($bName)) 'backup: rows read as UTF-8 from wrangler (L58, L62)'
+        $dbDirs = @($(if ($runs.Count) { Get-ChildItem -LiteralPath $runs[0].FullName -Directory | ForEach-Object { $_.Name } }))
+        Check ($dbDirs.Count -eq 2 -and ($dbDirs -contains 'second-db') -and (Test-Path -LiteralPath (Join-Path $runs[0].FullName 'second-db\products-0001.json'))) 'backup: every database in its own folder, not one glued name (L63)'
+        $g = Join-Path $bTarget 'github'
+        Check ((Test-Path -LiteralPath (Join-Path $g 'gear-world-code\main.zip')) -and (Test-Path -LiteralPath (Join-Path $g 'gear-world-code\claude_bgw.zip')) -and (Test-Path -LiteralPath (Join-Path $g 'gearworld-media\main.zip'))) 'backup: a zip for every GitHub branch (L63)'
+        $bt = $(if (Test-Path -LiteralPath (Join-Path $g 'gear-world-code\branches.txt')) { [System.IO.File]::ReadAllText((Join-Path $g 'gear-world-code\branches.txt')) } else { '' })
+        Check ($bt.Contains('claude/bgw  b2') -and $bt.Contains('main  a1')) 'backup: branches.txt has every branch and its commit'
         Check (Test-Path -LiteralPath (Join-Path $old 'products-0001.json')) 'backup: an older database copy is never deleted (L62)'
         Check (([System.IO.File]::ReadAllText((Join-Path $d 'schema.sql'))).Contains('CREATE VIRTUAL TABLE products_fts')) 'backup: schema has every table'
         $calls = [System.IO.File]::ReadAllText((Join-Path $bState 'calls.log'))
@@ -1903,6 +1925,7 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         Remove-Item -LiteralPath (Join-Path $bHome 'gear-world-hub\worker.js')
         Check ((Run-B @('-Apply', '-Approve', ('ΕΓΚΡΙΝΩ BACKUP ' + $drive), '-SkipDatabases')) -eq 0 -and (Test-Path -LiteralPath (Join-Path $f 'gear-world-hub\worker.js'))) 'backup again: a file deleted on the PC stays on the drive'
     } finally {
+        if ($bProc -and -not $bProc.HasExited) { Stop-Process -Id $bProc.Id -Force -ErrorAction SilentlyContinue }
         $env:PATH = $oldPath
         Remove-Item Env:\GW_FAKE_STATE -ErrorAction SilentlyContinue
         Remove-Item Env:\GW_RUN_REF -ErrorAction SilentlyContinue
@@ -1924,6 +1947,7 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
     Write-Utf8 (Join-Path $nSrc 'files\gear-world-secrets\awin-feed-key.dat') 'locked to the old PC'
     Write-Utf8 (Join-Path $nSrc 'files\gear-world-reports\note.txt') 'OLD from the drive'
     Write-Utf8 (Join-Path $nSrc 'files\Downloads\GW_AWIN_BULK_ARCHIVE\AWIN_1_2.csv.gz') 'feed'
+    Write-Utf8 (Join-Path $nSrc 'files\GearWorld_Backups\old.zip') 'old backup'
     [System.IO.File]::SetLastWriteTime((Join-Path $nSrc 'files\gear-world-reports\note.txt'), (Get-Date).AddDays(-30))
     Write-Utf8 (Join-Path $nHome 'gear-world-reports\note.txt') 'NEW on this PC'
     $nNpx = @(
@@ -1961,10 +1985,14 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         Check ((Run-N @('-Source', $nSrc, '-Apply', '-Approve', 'egkrino new pc')) -eq 0) 'new pc with approval: exit 0'
         Check ((Test-Path -LiteralPath (Join-Path $nHome 'gear-world-hub\worker.js')) -and (Test-Path -LiteralPath (Join-Path $nHome 'Downloads\GW_AWIN_BULK_ARCHIVE\AWIN_1_2.csv.gz'))) 'new pc: Gear World folders and Awin feeds copied'
         Check (-not (Test-Path -LiteralPath (Join-Path $nHome 'gear-world-secrets'))) 'new pc: the Awin key of the old PC is not copied'
+        Check (-not (Test-Path -LiteralPath (Join-Path $nHome 'GearWorld_Backups'))) 'new pc: old backup folders stay on the drive'
         Check (([System.IO.File]::ReadAllText((Join-Path $nHome 'gear-world-reports\note.txt'))).Contains('NEW on this PC')) 'new pc: a newer file on this PC is not overwritten'
         Check ((NCalls) -match 'npm install --no-audit --no-fund in .*gear-world-hub') 'new pc: npm install in the copied project'
         Check ([regex]::Matches((NCalls), 'wrangler login').Count -eq 1) 'new pc: Cloudflare sign-in when not signed in'
         Check ((Run-N @('-Source', $nSrc, '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ NEW PC')) -eq 0 -and [regex]::Matches((NCalls), 'wrangler login').Count -eq 1 -and [regex]::Matches((NCalls), 'npm install').Count -eq 1) 'new pc again: no second sign-in or npm install'
+        $rep2 = @(Get-ChildItem -LiteralPath (Join-Path $nHome 'gear-world-reports') -Filter 'GW_NEW_PC_*.txt' | Sort-Object LastWriteTime | Select-Object -Last 1)
+        $rt2 = $(if ($rep2.Count) { [System.IO.File]::ReadAllText($rep2[0].FullName) } else { '' })
+        Check ($rt2.Contains('gear-world-hub') -and $rt2.Contains('τίποτα να αντιγραφεί') -and $rt2.Contains('GearWorld_Backups')) 'new pc again: counts only what is missing, archives named'
         Check ((Run-N @('-Source', (Join-Path $work 'np-nothing'))) -eq 2) 'new pc: no backup there, stops'
     } finally {
         $env:PATH = $oldPath
