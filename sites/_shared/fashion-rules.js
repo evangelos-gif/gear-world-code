@@ -45,10 +45,10 @@ const WOMEN_FEED = /(?:^|[^a-z])(?:womenswear|women'?s(?:wear)?|womens|women|lad
 // catalogue 31 Oct 2026: PcNova, GamingKit and PCHUB.UK "Toner black", "Transfer Belt", "Fuser kit", "networking cable",
 // "Computer case Fan" went to beauty, belts, home decor and garden electrical). Shared by the fashion and home/garden rules.
 export const OFFICE_PARTS = words(['toner (?:black|cyan|magenta|yellow|cartridges?|waste|twin|kits?|contract|collector)', 'toner waste', 'waste toner',
-  'printheads?', 'print heads?', 'fuser(?: kits?| units?| assembly)?', 'transfer (?:belts?|kits?|rollers?|units?)', 'drum (?:units?|kits?|cartridges?)',
+  'printheads?', 'print heads?', 'fuser(?: kits?| units?| assembly)?', 'transfer (?:belts?|kits?|rollers?|units?)', 'drum (?:units?|cartridges?)', 'printer drums?', 'imaging drums?', 'drum kits? for (?:brother|hp|oki|xerox|kyocera|lexmark|canon|ricoh|sharp|konica|samsung|dell|epson)',
   'printer(?:/scanner)? (?:spare parts?|labels?|ribbons?|consumables?)', 'ink cartridges?', 'ink (?:multipack|ribbons?)', 'separation pads?', 'maintenance kits? for',
   'networking cables?', 'patch cables?', '(?:power|telephone|audio|lightning|usb(?:-c)?|hdmi|displayport|ethernet|network|sata|vga|dvi|serial|parallel|dc) cables?(?! (?:reels?|ties?))', 'serial cables?', 'parallel cables?', 'cat ?[5-8]e?a? (?:cables?|patch|u\\/utp|f\\/utp|s\\/utp)', '[usf]\\/utp', 'cable kit\\. splitter',
-  'intercom', 'keyfobs?', 'proximity (?:cards?|fobs?)', 'computer cases?', '(?:computer )?case fans?', 'pwm fans?', 'midi tower', 'serial ata', 'nand', 'ssd',
+  'intercom (?:systems?|accessor(?:y|ies)|stations?|panels?|units?|modules?|kits?)', 'video intercoms?', 'door intercoms?', 'keyfobs?', 'proximity (?:cards?|fobs?)', 'computer cases?', '(?:computer )?case fans?', 'pwm fans?', 'midi tower', 'serial ata', 'nand', 'ssd',
   'laptop (?:cable )?locks?', 'cable locks?', 'gas struts?', 'microsoft office', 'office professional', 'barcode (?:printers?|scanners?|readers?|labels?)', 'bar code (?:printers?|scanners?|readers?|labels?)', 'label printers?', 'stamp tape', 'directlabel']);
 const HARD_DENY = words(['gift cards?', 'gift vouchers?', 'e-?vouchers?', 'vouchers?']);
 // re: words that mark another kind of product when they come AFTER the product type in the name ("Black Cat Cufflinks"

@@ -26,13 +26,14 @@ import * as MGW_RULES from '../sites/mgw/category-rules.js';
 import * as WGW_RULES from '../sites/wgw/category-rules.js';
 import * as HGW_RULES from '../sites/hgw/category-rules.js';
 import * as GGW_RULES from '../sites/ggw/category-rules.js';
+import * as KGW_RULES from '../sites/kgw/category-rules.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const repoRoot = join(here, '..');
 
 // The sites with general category rules: the 5 newer ones, and since 31 Oct 2026 Men's and Women's (phase 4, the shared
-// fashion rules) and Home and Garden (sites/_shared/home-garden-rules.js). The other older sites (CGW, KGW) still have
-// rules per shop only (tools/import-rules/), so they cannot take a shop they do not know yet: they follow, one by one.
+// fashion rules), Home and Garden (sites/_shared/home-garden-rules.js) and Kids' (kids-rules.js). Construction (CGW) still
+// has rules per shop only (tools/import-rules/), so they cannot take a shop they do not know yet: they follow, one by one.
 export const SHADOW_SITES = [
   { code: 'TGW', dir: 'tgw', name: 'Technology', rules: TGW_RULES },
   { code: 'AGW', dir: 'agw', name: 'Car', rules: AGW_RULES },
@@ -42,9 +43,10 @@ export const SHADOW_SITES = [
   { code: 'MGW', dir: 'mgw', name: "Men's", rules: MGW_RULES },
   { code: 'WGW', dir: 'wgw', name: "Women's", rules: WGW_RULES },
   { code: 'HGW', dir: 'hgw', name: 'Home', rules: HGW_RULES },
-  { code: 'GGW', dir: 'ggw', name: 'Garden', rules: GGW_RULES }
+  { code: 'GGW', dir: 'ggw', name: 'Garden', rules: GGW_RULES },
+  { code: 'KGW', dir: 'kgw', name: "Kids'", rules: KGW_RULES }
 ];
-export const OLD_SITES = ['CGW', 'KGW'];
+export const OLD_SITES = ['CGW'];
 const JOINED = /^(active|joined)$/i;
 // The network is for UK buyers in £. A programme of another region (Reidl DE, Kastner & Öhler DE/AT, Pneus BE in the first run,
 // 31 Oct 2026) has German or French names and euro prices: like VEVOR NL it needs English names first (lessons L79).
@@ -190,7 +192,7 @@ export async function shadowCatalog({ archive, outDir, list = null, now = new Da
     const top = [...per.entries()].sort((a, b) => b[1] - a[1]).slice(0, 6).map(([adv, n]) => `${cut(shopName(adv), 22)} ${fmt(n)}`);
     if (top.length) L.push(`    ${r.site.code}: ${top.join(', ')}`);
   }
-  L.push(`  ${OLD_SITES.join(', ')}: δεν έχουν ακόμα γενικούς κανόνες κατηγοριών (μόνο κανόνες ανά κατάστημα). Μπαίνουν στη Φάση 4.`);
+  if (OLD_SITES.length) L.push(`  ${OLD_SITES.join(', ')}: ${OLD_SITES.length === 1 ? 'δεν έχει' : 'δεν έχουν'} ακόμα γενικούς κανόνες κατηγοριών (μόνο κανόνες ανά κατάστημα). Μπαίνει${OLD_SITES.length === 1 ? '' : 'ουν'} στη Φάση 4.`);
   L.push('');
 
   L.push('== Ανά site: τα δικά του καταστήματα - γραμμές feed, πόσα μένουν, γιατί έμειναν έξω τα άλλα ==');
