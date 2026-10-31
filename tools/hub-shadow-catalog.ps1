@@ -20,7 +20,9 @@ param(
     [string]$OutDir = '',
     [string]$KeyFile = '',
     [string]$BaseUrl = 'https://productdata.awin.com',
-    [switch]$NoClipboard
+    [switch]$NoClipboard,
+    # -Last: only copy the summary of the latest run to the clipboard again (nothing is read or run; a few seconds).
+    [switch]$Last
 )
 $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'
@@ -30,6 +32,17 @@ if (-not $OutDir) { $OutDir = Join-Path $HOME 'gear-world-reports' }
 if (-not $KeyFile) { $KeyFile = Join-Path (Join-Path $HOME 'gear-world-secrets') 'awin-feed-key.dat' }
 Write-Host ''
 Write-Host 'Hub: κατάλογος «στη σκιά» (Φάση 1) - ΜΟΝΟ ΑΝΑΓΝΩΣΗ (δεν αλλάζει κανένα site, βάση ή αρχείο)' -ForegroundColor Cyan
+if ($Last) {
+    # A click or a selection in the PowerShell window replaces the clipboard with the screen text (31 Oct 2026, twice):
+    # this copies the latest summary again without running the 15-minute check.
+    $latest = $null
+    if (Test-Path -LiteralPath $OutDir) { $latest = Get-ChildItem -LiteralPath $OutDir -Directory -Filter 'HUB_SHADOW_*' | Sort-Object Name | Select-Object -Last 1 }
+    if (-not $latest -or -not (Test-Path -LiteralPath (Join-Path $latest.FullName 'summary.txt'))) { Write-Host 'Δεν βρέθηκε σύνοψη. Τρέξε πρώτα τον κανονικό έλεγχο.' -ForegroundColor Yellow; exit 4 }
+    $text = [System.IO.File]::ReadAllText((Join-Path $latest.FullName 'summary.txt'), [System.Text.Encoding]::UTF8)
+    Set-Clipboard -Value $text
+    Write-Host ('OK - Η σύνοψη του {0} αντιγράφηκε στο πρόχειρο. Πάτα Ctrl+V στη συζήτηση με το Claude.' -f $latest.Name) -ForegroundColor Green
+    exit 0
+}
 
 $node = Get-Command node -ErrorAction SilentlyContinue
 if (-not $node) { Write-Host 'Δεν βρέθηκε το Node.js. Στείλε στο Claude αυτό το μήνυμα.' -ForegroundColor Red; exit 3 }
@@ -89,5 +102,8 @@ if (-not $NoClipboard) { try { Set-Clipboard -Value $summary; $copied = $true } 
 Write-Host ''
 Write-Host ('OK - Η σύνοψη γράφτηκε: {0}' -f $summaryPath) -ForegroundColor Green
 Write-Host 'Δεν άλλαξε τίποτα: ούτε τα αρχεία, ούτε τα sites, ούτε οι βάσεις.'
-if ($copied) { Write-Host 'Αντιγράφηκε στο πρόχειρο. Πήγαινε στη συζήτηση με το Claude και πάτα Ctrl+V.' -ForegroundColor Green }
+if ($copied) {
+    Write-Host 'Αντιγράφηκε στο πρόχειρο. Πήγαινε στη συζήτηση με το Claude και πάτα Ctrl+V.' -ForegroundColor Green
+    Write-Host 'Μην κάνεις κλικ ή επιλογή μέσα σε αυτό το παράθυρο: αντιγράφει τα γράμματα της οθόνης πάνω από τη σύνοψη.' -ForegroundColor Yellow
+}
 exit 0
