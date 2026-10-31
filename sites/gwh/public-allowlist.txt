@@ -6,6 +6,7 @@ app.js
 contact/index.html
 cookies/index.html
 email-signup.js
+gearworldhub-indexnow-k7q4m9x2w5.txt
 gear-world-camera.js
 gear-world-voice-v2.js
 gwh-hero.png
@@ -27,6 +28,7 @@ index.html
 legal/legal.css
 legal/legal.js
 privacy/index.html
+robots.txt
 seasonal/black-friday.jpg
 seasonal/black-friday.mp4
 seasonal/christmas.jpg

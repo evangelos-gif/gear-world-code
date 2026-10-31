@@ -70,3 +70,14 @@
 | `public/hub-bgw.jpg` | Η φωτογραφία της κάρτας (Pexels, `docs/IMAGE-CREDITS.md`) |
 
 Πάει live με το `tools/gwh-hub-v2.ps1`: `-Step live` (`ΕΓΚΡΙΝΩ HUB LIVE`), `-Step register` (η γραμμή BGW στη D1 `gear-world-registry`, για να ψάχνει εκεί η αναζήτηση, `ΕΓΚΡΙΝΩ HUB BGW SEARCH`) και `-Step remove-preview` (`ΕΓΚΡΙΝΩ HUB REMOVE PREVIEW`), στην ίδια επικόλληση. Live από 31/10/2026 11:58 (το `live-baseline.txt` ενημερώθηκε).
+
+## Bing Webmaster Tools (31/10/2026)
+| Αρχείο | Τι άλλαξε |
+|---|---|
+| `public/robots.txt` | Το Hub έχει πια δικό του robots.txt (στο μοτίβο των sites): `Allow: /`, `Disallow: /api/`, `Sitemap: https://gearworldhub.com/sitemap.xml`. Το Cloudflare βάζει από πάνω τα δικά του Content Signals. Το sitemap το σερβίρει ακόμα ο Worker `gwh-sitemap`, που ΔΕΝ αλλάζει |
+| `public/index.html` | Τίτλος «Gear World Hub – Gear, Gifts & Deals From Every Gear World», περιγραφή 151 χαρακτήρων, νέο `?v=20261031-seo1` για το `translations.js` (μάθημα L31) |
+| `public/translations.js` | Το `document.title` γράφει τον ίδιο τίτλο, και η περιγραφή είναι το νέο `metaDesc` σε 11 γλώσσες (120–160 χαρακτήρες, χωρίς αριθμό κόσμων) αντί για «heroDesc + Gear World Hub.» (≈85) |
+| `public/terms/index.html`, `public/contact/index.html` | Περιγραφές 149 και 126 χαρακτήρων |
+| `public/gearworldhub-indexnow-k7q4m9x2w5.txt` | Το κλειδί του IndexNow (δημόσιο εκ σχεδιασμού) |
+
+Πάει live με το `tools/gwh-hub-v2.ps1` (`-Step live`, φράση `ΕΓΚΡΙΝΩ HUB LIVE`). Μετά το deploy το εργαλείο ελέγχει τίτλο, robots.txt και κλειδί, και στέλνει στο IndexNow τις σελίδες του live sitemap. Ξανά, χωρίς deploy: `-Step indexnow -Apply` (δεν αλλάζει τίποτα στο Hub). Το robots.txt δεν συγκρίνεται byte-προς-byte με το live, γιατί το Cloudflare του προσθέτει τα Content Signals. Έλεγχοι: `tests/worker/gwh-seo.test.mjs`.

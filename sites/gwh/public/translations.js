@@ -74,6 +74,21 @@
       "Откройте специализированные магазины для работы, стиля, семьи, дома и сада."
     ],
 
+    // The meta description of the home page (Bing Webmaster Tools, 31/10/2026: 120-160 characters, no number of worlds).
+    metaDesc: [
+      "Search every Gear World in one place: workwear and tools, tech, home and garden, fashion, kids, travel, car, sport and more. Find gift ideas and deals.",
+      "Αναζητήστε σε όλα τα Gear Worlds μαζί: ρούχα εργασίας και εργαλεία, τεχνολογία, σπίτι και κήπο, μόδα, παιδικά, ταξίδια, αυτοκίνητο, σπορ. Δώρα και προσφορές.",
+      "Alle Gear Worlds an einem Ort: Arbeitskleidung und Werkzeug, Technik, Haus und Garten, Mode, Kinder, Reisen, Auto, Sport und mehr. Geschenkideen und Angebote.",
+      "Tous les Gear Worlds au même endroit : vêtements de travail et outils, high-tech, maison et jardin, mode, enfants, voyage, auto, sport. Idées cadeaux et promos.",
+      "Tutti i Gear World in un posto: abbigliamento da lavoro e attrezzi, tecnologia, casa e giardino, moda, bambini, viaggi, auto, sport. Idee regalo e offerte.",
+      "Todos los Gear Worlds en un lugar: ropa de trabajo y herramientas, tecnología, hogar y jardín, moda, niños, viajes, coche, deporte. Ideas de regalo y ofertas.",
+      "Todos os Gear Worlds num só lugar: roupa de trabalho e ferramentas, tecnologia, casa e jardim, moda, crianças, viagens, carro, desporto. Ideias de presentes.",
+      "Zoek in alle Gear Worlds op één plek: werkkleding en gereedschap, tech, huis en tuin, mode, kinderen, reizen, auto, sport. Cadeau-ideeën en aanbiedingen.",
+      "Të gjitha Gear Worlds në një vend: veshje pune dhe vegla, teknologji, shtëpi dhe kopsht, modë, fëmijë, udhëtime, makina, sport. Ide për dhurata dhe oferta.",
+      "Toate Gear Worlds într-un singur loc: îmbrăcăminte de lucru și unelte, tehnologie, casă și grădină, modă, copii, călătorii, mașină, sport. Idei de cadouri.",
+      "Все Gear Worlds в одном месте: спецодежда и инструменты, техника, дом и сад, мода, дети, путешествия, авто, спорт и другое. Идеи подарков и предложения."
+    ],
+
     searchPlaceholder: [
       "Search products, brands or categories...",
       "Αναζήτηση προϊόντων, μαρκών ή κατηγοριών...",
@@ -294,13 +309,13 @@
       select.setAttribute("aria-label", tr("languageLabel"));
     }
 
-    document.title = "Gear World Hub";
+    document.title = "Gear World Hub \u2013 Gear, Gifts & Deals From Every Gear World";
 
     const meta = document.querySelector('meta[name="description"]');
     if (meta) {
       meta.setAttribute(
         "content",
-        `${tr("heroDesc")} Gear World Hub.`
+        tr("metaDesc")
       );
     }
 

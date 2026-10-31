@@ -33,12 +33,17 @@
   -Step remove-preview  CHANGES CLOUDFLARE (the test Worker only), one approval: ΕΓΚΡΙΝΩ HUB REMOVE PREVIEW. Deletes the
                  test Worker "gear-world-hub-preview" (owner, 29/10/2026: no test address is left running after a live
                  update). gearworldhub.com, its D1 and the sites do NOT change.
+  -Step indexnow  Tells IndexNow (Bing, Yandex and others) that the pages of the Hub sitemap changed. Needs -Apply, no phrase:
+                 it changes nothing on the Hub, its D1 or the sites. The live step does it by itself after a deploy.
   Biker card (31/10/2026): index.html, translations.js, hub-v2.js, hub-v2.css and hub-bgw.jpg. One paste: live, register,
   remove-preview, each with its own phrase.
+  Bing Webmaster Tools (31/10/2026): robots.txt with the Sitemap line, the new title of the home page (index.html and
+  translations.js), meta descriptions of 120-160 characters (home page in 11 languages, /terms/, /contact/) and the
+  IndexNow key file. The gwh-sitemap Worker does not change.
   Report: <home>\gear-world-reports\GWH_HUB_V2_<STEP>_<time>.txt (also copied to the clipboard)
 #>
 param(
-    [ValidateSet('check', 'preview', 'live', 'register', 'remove-preview')]
+    [ValidateSet('check', 'preview', 'live', 'register', 'remove-preview', 'indexnow')]
     [string]$Step = 'check',
     [switch]$Apply,
     [string]$Approve = '',
@@ -61,6 +66,9 @@ $PhraseLive = 'ΕΓΚΡΙΝΩ HUB LIVE'
 $PhraseRegister = 'ΕΓΚΡΙΝΩ HUB BGW SEARCH'
 $PhraseRemovePreview = 'ΕΓΚΡΙΝΩ HUB REMOVE PREVIEW'
 $LiveUrl = 'https://gearworldhub.com'
+# IndexNow (Bing Webmaster Tools, 31/10/2026): the key is public by design, it is served as /<key>.txt.
+$IndexNowKey = 'gearworldhub-indexnow-k7q4m9x2w5'
+$HomeTitle = 'Gear World Hub ' + [char]0x2013 + ' Gear, Gifts & Deals From Every Gear World'
 if (-not $HubDir) { $HubDir = Join-Path $HOME 'gear-world-hub' }
 if (-not $WorkDir) { $WorkDir = Join-Path $HOME 'gear-world-hub-v2' }
 if (-not $OutDir) { $OutDir = Join-Path $HOME 'gear-world-reports' }
@@ -75,10 +83,14 @@ $Bad = 'Magenta'
 $About = @{
     'worker.js'             = 'η αναζήτηση δέχεται και κόσμους + μέγιστη τιμή (για το «Βρες δώρο»), και βάζει πρώτα τα προϊόντα με όλες τις λέξεις'
     'poster-scan.js'        = 'η μέτρηση των αφισών (ίδια με αυτή που μπήκε με το POSTER STATS)'
-    'public/index.html'     = 'η κάρτα «Motorbike & Scooter» (Biker Gear World, BGW) μετά το Sport, και «11 Gear Worlds» στα κείμενα'
+    'public/index.html'     = 'νέος τίτλος «Gear World Hub – Gear, Gifts & Deals From Every Gear World» και νέα περιγραφή για το Bing (151 χαρακτήρες)'
+    'public/robots.txt'     = 'robots.txt του Hub με τη γραμμή Sitemap: https://gearworldhub.com/sitemap.xml (το Cloudflare βάζει από πάνω τα Content Signals του)'
+    ('public/' + $IndexNowKey + '.txt') = 'το κλειδί του IndexNow (δημόσιο, έτσι δουλεύει το IndexNow)'
+    'public/terms/index.html' = 'νέα περιγραφή για το Bing (149 χαρακτήρες)'
+    'public/contact/index.html' = 'νέα περιγραφή για το Bing (126 χαρακτήρες)'
     'public/hub-v2.css'     = '11 κάρτες: 2 ανά σειρά στο κινητό (το Biker μόνο του στην τελευταία), 6 + 5 σε μεγάλη οθόνη'
     'public/hub-v2.js'      = '«11 Gear Worlds» στα κείμενα, σε 11 γλώσσες'
-    'public/translations.js' = 'τίτλος και κείμενο της κάρτας Biker σε 11 γλώσσες'
+    'public/translations.js' = 'ο ίδιος νέος τίτλος, και περιγραφή 120-160 χαρακτήρων σε 11 γλώσσες (αντί για «κείμενο + Gear World Hub.», 85 χαρακτήρες)'
     'public/hub-bgw.jpg'    = 'η φωτογραφία της κάρτας Biker (Pexels, χωρίς μάρκες)'
     'public/hub-deals.json' = 'οι προσφορές με ημερομηνία λήξης, από το promos.js'
     'public/seasonal/halloween.mp4' = 'Halloween (βίντεο) για το μπάνερ των προσφορών'
@@ -324,6 +336,15 @@ function Test-Site([string]$base, [bool]$isLive) {
     } else {
         if ($robots -match 'noindex') { Say '  Δοκιμαστική διεύθυνση με noindex (δεν μπαίνει στο Google): ΕΝΤΑΞΕΙ' $Ok } else { Say '  ΠΡΟΣΟΧΗ: η δοκιμαστική διεύθυνση δεν λέει noindex.' $Warn }
     }
+    $titleOk = $html.Contains('<title>Gear World Hub ' + [char]0x2013 + ' Gear, Gifts &amp; Deals From Every Gear World</title>')
+    if ($titleOk) { Say '  Νέος τίτλος της αρχικής: ΕΝΤΑΞΕΙ' $Ok } else { Say '  Νέος τίτλος της αρχικής: ΠΡΟΣΟΧΗ - δεν τον βλέπω ακόμα (cache;)' $Warn }
+    $rb = Get-Web ($base + '/robots.txt?gwcheck=' + $stamp)
+    $rbText = (New-Object System.Text.UTF8Encoding($false)).GetString($rb.bytes)
+    if ($rb.status -eq 200 -and $rbText.Contains('Sitemap: https://gearworldhub.com/sitemap.xml')) { Say '  robots.txt με τη γραμμή Sitemap: ΕΝΤΑΞΕΙ' $Ok }
+    else { Say ('  robots.txt: ΠΡΟΣΟΧΗ - δεν βλέπω τη γραμμή Sitemap (απάντηση {0})' -f $rb.status) $Warn }
+    $kf = Get-Web ($base + '/' + $IndexNowKey + '.txt?gwcheck=' + $stamp)
+    $kfText = (New-Object System.Text.UTF8Encoding($false)).GetString($kf.bytes).Trim()
+    if ($kf.status -eq 200 -and $kfText -eq $IndexNowKey) { Say '  Κλειδί IndexNow: ΕΝΤΑΞΕΙ' $Ok } else { Say ('  Κλειδί IndexNow: ΠΡΟΣΟΧΗ (απάντηση {0})' -f $kf.status) $Warn }
     $deals = Get-Web ($base + '/hub-deals.json?gwcheck=' + $stamp)
     if ($deals.status -eq 200) { Say '  Οι προσφορές (hub-deals.json) διαβάζονται: ΕΝΤΑΞΕΙ' $Ok } else { Say ('  Οι προσφορές (hub-deals.json): ΠΡΟΒΛΗΜΑ (απάντηση {0})' -f $deals.status) $Bad }
     $s = Get-Web ($base + '/api/search?q=suitcase&worlds=vgw&max_price=100')
@@ -343,10 +364,40 @@ function Test-Site([string]$base, [bool]$isLive) {
     }
 }
 
+# IndexNow: the pages of the live sitemap (the gwh-sitemap Worker, read only), else the 6 pages it listed on 31/10/2026.
+function Send-IndexNow {
+    [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+    $urls = @()
+    $sm = Get-Web ($LiveUrl + '/sitemap.xml')
+    if ($sm.status -eq 200) {
+        $xml = (New-Object System.Text.UTF8Encoding($false)).GetString($sm.bytes)
+        foreach ($m in [regex]::Matches($xml, '<loc>\s*(https://gearworldhub\.com/[^<\s]*)\s*</loc>')) { $urls += $m.Groups[1].Value }
+    }
+    if ($urls.Count -eq 0) { $urls = @('/', '/privacy/', '/terms/', '/cookies/', '/contact/', '/affiliate-disclosure/') | ForEach-Object { $LiveUrl + $_ } }
+    $body = @{ host = 'gearworldhub.com'; key = $IndexNowKey; keyLocation = ($LiveUrl + '/' + $IndexNowKey + '.txt'); urlList = @($urls) } | ConvertTo-Json -Depth 3
+    try {
+        $r = Invoke-WebRequest -UseBasicParsing -Method Post -Uri 'https://api.indexnow.org/indexnow' -ContentType 'application/json; charset=utf-8' -Body ([System.Text.Encoding]::UTF8.GetBytes($body)) -TimeoutSec 30
+        $code = [int]$r.StatusCode
+    } catch {
+        $code = 0
+        if ($_.Exception.Response) { $code = [int]$_.Exception.Response.StatusCode }
+    }
+    if ($code -eq 200 -or $code -eq 202) { Say ('IndexNow: {0} σελίδες στάλθηκαν (απάντηση {1}): ΕΝΤΑΞΕΙ' -f $urls.Count, $code) $Ok; return $true }
+    Say ('IndexNow: ΠΡΟΣΟΧΗ - απάντηση {0}. Το Hub είναι εντάξει· ξανατρέξε με -Step indexnow -Apply σε λίγα λεπτά.' -f $code) $Warn
+    return $false
+}
+
 # ---------------- start ----------------
 Say ('GWH HUB V2 («Συνδυασμός») - step: {0} - {1} - {2}' -f $Step, $(if ($Apply) { 'APPLY (με έγκριση)' } else { 'ΜΟΝΟ ΕΛΕΓΧΟΣ (δεν αλλάζει τίποτα)' }), (Get-Date -Format 'yyyy-MM-dd HH:mm')) $Ok
 Say ('Code version: {0}' -f (Split-Path -Leaf $repo))
 if (-not (Get-Command node -ErrorAction SilentlyContinue)) { Say 'Δεν βρέθηκε το Node.js. Στείλε στο Claude αυτό το μήνυμα.' $Bad; Finish 3 }
+
+if ($Step -eq 'indexnow') {
+    Say 'Τι θα γίνει: ενημερώνω το IndexNow (Bing, Yandex κ.ά.) ότι οι σελίδες του sitemap του Hub άλλαξαν. Το Hub, η D1 και τα sites ΔΕΝ αλλάζουν.'
+    if (-not $Apply) { Say 'Δοκιμή μόνο (χωρίς -Apply): δεν στάλθηκε τίποτα.' $Ok; Finish 0 }
+    if ($NoHttpCheck) { Say 'Χωρίς δίκτυο (-NoHttpCheck): δεν στάλθηκε τίποτα.' $Warn; Finish 0 }
+    if (Send-IndexNow) { Finish 0 } else { Finish 14 }
+}
 
 # 1. The version that runs live (live-baseline.txt) and the files of this version (the repo)
 $baseline = @()
@@ -414,7 +465,8 @@ $liveState = 'unknown'
 $unread = @()
 if (-not $NoHttpCheck) {
     [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-    $paths = @(@($baseline | Where-Object { $_.path -like 'public/*' } | ForEach-Object { $_.path }) + @($newFiles | Where-Object { $_ -like 'public/*' }) | Sort-Object -Unique)
+    # robots.txt is not compared: Cloudflare puts its managed Content Signals above the Hub's own lines (Test-Site reads it).
+    $paths = @(@($baseline | Where-Object { $_.path -like 'public/*' } | ForEach-Object { $_.path }) + @($newFiles | Where-Object { $_ -like 'public/*' }) | Where-Object { $_ -ne 'public/robots.txt' } | Sort-Object -Unique)
     $isBase = $true
     $isNew = $true
     $diff = @()
@@ -692,7 +744,7 @@ Say 'Το gearworldhub.com ανέβηκε με το νέο Hub.' $Ok
 
 # 4. Live checks (the edge may keep the old files for a few seconds)
 if (-not $NoHttpCheck) {
-    $pubPlan = @($plan | Where-Object { $_ -like 'public/*' })
+    $pubPlan = @($plan | Where-Object { $_ -like 'public/*' -and $_ -ne 'public/robots.txt' })
     $state = @{}
     for ($try = 1; $try -le 4; $try++) {
         Start-Sleep -Seconds $(if ($try -eq 1) { 8 } else { 10 })
@@ -708,7 +760,8 @@ if (-not $NoHttpCheck) {
         else { Say ('  {0}: ΠΡΟΣΟΧΗ - το live δείχνει ακόμα άλλη έκδοση (cache;). Ξαναδές σε 1-2 λεπτά.' -f $rel) $Warn }
     }
     Test-Site $LiveUrl $true
-}
+    [void](Send-IndexNow)
+} else { Say 'IndexNow: δεν στάλθηκε (χωρίς έλεγχο δικτύου).' }
 Say ''
 Say 'Για το live-baseline.txt (το ενημερώνει το Claude):'
 foreach ($rel in $plan) { Say ('  {0} | {1} | {2} | file' -f $rel, (Get-Item -LiteralPath (Local-Path $HubDir $rel)).Length, $newSha[$rel]) }
