@@ -7,7 +7,8 @@
 // (110/70, 180/55) or a diagonal (D) build ("90/90 D21"). twoWheel tells them apart.
 
 // "-225-40-r19-93y", "-235-35-zr19-91y", "-110-70-r17-54v", "-90-90-d21-54h", "-260-40-vr18-84v", "-205-55-r16-91w-xl"
-const SLUG_SIZE = /-(\d{2,3})-(\d{2,3})-(zr|vr|wr|r|d|b)?-?(\d{2})(?:-5)?(?:-(\d{2,3}(?:-\d{2,3})?)([a-z]{1,2}))?(?=-|$)/i;
+// Van tyres add C to the rim ("-215-65-r16c-109-107t"): kept as "R16C" (second dry run, 31 Oct 2026).
+const SLUG_SIZE = /-(\d{2,3})-(\d{2,3})-(zr|vr|wr|r|d|b)?-?(\d{2})(?:-5)?(c)?(?:-(\d{2,3}(?:-\d{2,3})?)([a-z]{1,2}))?(?=-|$)/i;
 
 export function sizeFromLink(link) {
   let path = '';
@@ -20,8 +21,8 @@ export function sizeFromLink(link) {
   const cons = (m[3] || '').toUpperCase();
   const rim = Number(m[4]);
   if (width < 60 || width > 400 || aspect < 25 || aspect > 110 || rim < 8 || rim > 26) return null;
-  const load = m[5] ? `${m[5].replace('-', '/')}${(m[6] || '').toUpperCase()}` : '';
-  const text = `${width}/${aspect} ${cons || '-'}${rim}${load ? ' ' + load : ''}`.replace(' -', '-');
+  const load = m[6] ? `${m[6].replace('-', '/')}${(m[7] || '').toUpperCase()}` : '';
+  const text = `${width}/${aspect} ${cons || '-'}${rim}${m[5] ? 'C' : ''}${load ? ' ' + load : ''}`.replace(' -', '-');
   return { width, aspect, cons, rim, load, text, twoWheel: width % 10 === 0 || cons === 'D' || cons === 'B' };
 }
 

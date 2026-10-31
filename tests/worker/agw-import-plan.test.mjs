@@ -161,6 +161,11 @@ test('L87: Pneus.be cards get brand, model and the size from the shop address; m
   assert.equal(tyreName('ContiRoad', 'Continental', 'https://www.pneus.be/continental-contiroad-110-70-r17-54v__9285700').size.twoWheel, true);
   assert.equal(tyreName('Trailmax', 'Dunlop', 'https://www.pneus.be/dunlop-trailmax-90-90-d21-54h__4304961').size.twoWheel, true);
   assert.equal(tyreName('Spare', 'X', 'https://www.pneus.be/spare-tyre__1').size, null);
+  // Second dry run: van tyres with C, classic VR tyres, Kleber Quadraxer (a car tyre, not a quad).
+  assert.equal(tyreName('Vansmart MCV3+', 'Maxxis', 'https://www.pneus.be/maxxis-vansmart-mcv3-plus-215-65-r16c-109-107t__1').name, 'Maxxis Vansmart MCV3+ 215/65 R16C 109/107T');
+  assert.equal(classify('Maxxis Vansmart MCV3+ 215/65 R16C 109/107T', 'tyres').slug, 'tyres-wheels');
+  assert.equal(classify('Vredestein Sprint Classic 195/70 VR14 91V', 'tyres').slug, 'tyres-wheels');
+  assert.equal(classify('Kleber Quadraxer 3 195/50 R15 82H', 'tyres').slug, 'tyres-wheels');
 
   const dir = mkdtempSync(join(tmpdir(), 'agw-pneus-'));
   const out = join(dir, 'out');

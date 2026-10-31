@@ -129,8 +129,9 @@ export function topCategory(feedCategory) {
   return String(feedCategory || '').split('>')[0].trim();
 }
 
-const TYRE_SIZE = /(?:^|[^0-9])\d{3}\s?\/\s?\d{2}\s?Z?R\s?F?\s?\d{2}(?:[.,]5)?(?![0-9])/i;
-const TWO_WHEEL_FEED = /\bmoto\w*|motorbike|motorcycle|scooter|quad|\bv[ée]lo|bicycle|\bbike|fiets|fahrrad|kart/i;
+const TYRE_SIZE = /(?:^|[^0-9])\d{3}\s?\/\s?\d{2}\s?[ZVW]?R\s?F?\s?\d{2}(?:[.,]5)?C?(?![0-9])/i;
+// "quad" only as a word: Kleber Quadraxer is a car all-season tyre (second Pneus.be dry run, 31 Oct 2026).
+const TWO_WHEEL_FEED = /\bmoto\w*|motorbike|motorcycle|scooter|\bquads?\b|\bv[ée]lo|bicycle|\bbike|fiets|fahrrad|\bkart/i;
 const GARDEN_FEED = /garden machinery|(?:^|\|)\s*garden tools\b/i;
 const VEHICLE_FEED = /> motor vehicles >|snowmobiles|> vehicles > (?:motor|watercraft|aircraft)/i;
 const VEHICLE_FEED_OK = words(['de-?icers?', 'ice scrapers?', 'screenwash', 'covers?']);
