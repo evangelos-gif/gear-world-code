@@ -40,7 +40,7 @@ test('hub v2: every text in the 11 languages of the Hub, translated, with the sa
     const vars = (list[0].match(/\{[a-z]+\}/g) || []).sort().join();
     list.forEach((text, i) => assert.equal((text.match(/\{[a-z]+\}/g) || []).sort().join(), vars, `${key} keeps its {placeholders} in ${LOCALES[i]}`));
   }
-  assert.equal(h.strings.lead[1], 'Γράψτε το, πείτε το ή φωτογραφίστε το. Ψάχνουμε σε όλα τα 10 Gear Worlds μαζί.');
+  assert.equal(h.strings.lead[1], 'Γράψτε το, πείτε το ή φωτογραφίστε το. Ψάχνουμε σε όλα τα 11 Gear Worlds μαζί.');
   assert.equal(h.strings.photoBtn[1], 'Αναζήτηση με φωτογραφία');
   // Every text the page or the script asks for exists.
   const html = read('public/index.html');
@@ -154,14 +154,14 @@ test('hub v2: the page keeps every id and class the other scripts need, and load
   }
   assert.match(html, /<body class="gwh2" data-gwh-compact-v2="true">/);
   assert.match(html, /<div class="hero-copy">\s*<span class="eyebrow">/);
-  assert.match(html, /<link rel="stylesheet" href="\/hub-v2\.css\?v=20261027-hub7">/);
-  assert.match(html, /<script src="\/hub-v2\.js\?v=20261027-hub7" defer><\/script>/);
+  assert.match(html, /<link rel="stylesheet" href="\/hub-v2\.css\?v=20261031-bgw1">/);
+  assert.match(html, /<script src="\/hub-v2\.js\?v=20261031-bgw1" defer><\/script>/);
   assert.ok(html.indexOf('/gear-world-camera.js?v=') < html.indexOf('/hub-v2.js?v='), 'hub-v2.js after the camera script');
   assert.ok(!html.includes('/styles.css'), 'the old styles.css is not loaded');
   assert.ok(!html.includes('gwh-hero.png'), 'the 2.8 MB picture is gone from the page');
-  // The 10 worlds in the order of the V2 translations (translations.js translates them by position).
+  // The 11 worlds in the order of the V2 translations (translations.js translates them by position). Biker (BGW) since 31/10/2026.
   const order = [...html.matchAll(/data-world="([A-Z]{3})"/g)].map(m => m[1]);
-  assert.deepEqual(order, ['CGW', 'MGW', 'WGW', 'KGW', 'HGW', 'GGW', 'TGW', 'AGW', 'VGW', 'SGW']);
+  assert.deepEqual(order, ['CGW', 'MGW', 'WGW', 'KGW', 'HGW', 'GGW', 'TGW', 'AGW', 'VGW', 'SGW', 'BGW']);
   for (const cls of ['gwh-image-world-title', 'gwh-image-world-description', 'gwh-image-world-cta', 'gwh-choose-world-label', 'gwh-compact-how-heading', 'gwh-compact-how-grid', 'gwh-compact-disclosure', 'gwh-business-banner', 'gwh-sponsored', 'gwh-business-copy', 'gwh-business-link', 'footer-inner', 'about-box']) {
     assert.ok(html.includes(cls), cls);
   }

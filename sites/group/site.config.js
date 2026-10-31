@@ -8,7 +8,7 @@ export default {
   // Shown on the page. Must be an address that receives mail (gearworldgroup.com uses Google Workspace).
   contactEmail: 'evangelos@gearworldgroup.com',
   awinPublisherId: 3057233,
-  assetVersion: '2026-10-26-group-5',
+  assetVersion: '2026-10-31-group-6',
   hub: { name: 'Gear World Hub', url: 'https://gearworldhub.com/', text: 'One search across every Gear World site, in 11 languages.' },
   // stats: true = the site answers /api/stats; its live product count is added up on the page.
   sites: [
@@ -21,6 +21,7 @@ export default {
     { name: 'Construction Gear World', url: 'https://constructiongearworld.com/', text: 'Power tools, hand tools, workwear and site equipment.', stats: true },
     { name: 'Car Gear World', url: 'https://cargearworld.com/', text: 'Garage tools, car parts, car care, dash cams and EV charging.', stats: true },
     { name: 'Travel Gear World', url: 'https://travelgearworld.com/', text: 'Luggage, travel bags, travel accessories and camping gear.', stats: true },
-    { name: 'Sporty Gear World', url: 'https://sportygearworld.com/', text: 'Gym and fitness, running, cycling, team and racket sports, sports nutrition and sportswear.', stats: true }
+    { name: 'Sporty Gear World', url: 'https://sportygearworld.com/', text: 'Gym and fitness, running, cycling, team and racket sports, sports nutrition and sportswear.', stats: true },
+    { name: 'Biker Gear World', url: 'https://bikergearworld.com/', text: 'Motorbike helmets, riding gear, parts and tools, luggage and locks, intercoms, electric scooters, kick scooters and electric motorbikes.', stats: true }
   ]
 };

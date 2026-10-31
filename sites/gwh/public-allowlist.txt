@@ -10,6 +10,7 @@ gear-world-camera.js
 gear-world-voice-v2.js
 gwh-hero.png
 hub-agw.jpg
+hub-bgw.jpg
 hub-cgw.jpg
 hub-deals.json
 hub-ggw.jpg

@@ -59,3 +59,14 @@
 Πριν από αυτή την αλλαγή, το repo πήρε ξανά τα live αρχεία της κάρτας Sport (SGW, από το `tools/gwh-sgw-link.ps1`): `index.html`, `translations.js`, `hub-sgw.jpg`, και το `live-baseline.txt` έγινε «photo search v2 + Sport card».
 
 Πάει live με το `tools/gwh-search-labels.ps1` (`-Step check`, μετά `-Step live -Apply` με τη φράση `ΕΓΚΡΙΝΩ HUB LABELS LIVE`). Έλεγχοι: `tests/worker/gwh-labels.test.mjs`.
+
+## Biker Gear World στο Hub (31/10/2026)
+| Αρχείο | Τι άλλαξε |
+|---|---|
+| `public/index.html` | 11η κάρτα «Motorbike & Scooter» (BGW, bikergearworld.com) μετά το Sport· «11 Gear Worlds» στα κείμενα· νέα `?v=20261031-bgw1` για `hub-v2.css`, `hub-v2.js`, `translations.js` (μάθημα L31) |
+| `public/translations.js` | Τίτλος και κείμενο της κάρτας σε 11 γλώσσες (οι κάρτες μεταφράζονται με τη σειρά τους) |
+| `public/hub-v2.js` | «11» αντί για «10» στα 6 κείμενα που λένε πόσα Gear Worlds έχουμε, σε 11 γλώσσες. Το μωσαϊκό των καμπανιών κρατά τις 10 πρώτες φωτογραφίες (5 x 2) |
+| `public/hub-v2.css` | 11 κάρτες: στο κινητό 2 ανά σειρά και το Biker μόνο του στην τελευταία· από 980 px 6 + 5 (με 5 ανά σειρά το 11ο θα έμενε μόνο του) |
+| `public/hub-bgw.jpg` | Η φωτογραφία της κάρτας (Pexels, `docs/IMAGE-CREDITS.md`) |
+
+Πάει live με το `tools/gwh-hub-v2.ps1`: `-Step live` (`ΕΓΚΡΙΝΩ HUB LIVE`), `-Step register` (η γραμμή BGW στη D1 `gear-world-registry`, για να ψάχνει εκεί η αναζήτηση, `ΕΓΚΡΙΝΩ HUB BGW SEARCH`) και `-Step remove-preview` (`ΕΓΚΡΙΝΩ HUB REMOVE PREVIEW`), στην ίδια επικόλληση. Μετά το live ενημερώνεται το `live-baseline.txt` και φεύγει η εξαίρεση `notLiveYet` από το `tests/worker/gwh-labels.test.mjs`.

@@ -3132,8 +3132,34 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         'echo %* | findstr /C:"secret list" >nul && goto secretlist',
         'echo %* | findstr /C:"secret bulk" >nul && goto secret',
         'echo %* | findstr /C:"deployments list" >nul && goto deployments',
+        'echo %* | findstr /C:"time-travel info" >nul && goto ttinfo',
+        'echo %* | findstr /C:"--file" >nul && goto d1file',
+        'echo %* | findstr /C:"--command" >nul && goto d1query',
+        'echo %* | findstr /C:"delete gear-world-hub-preview" >nul && goto delpreview',
         'echo %* | findstr /C:" deploy" >nul && goto deploy',
         'echo unknown command 1>&2',
+        'exit /b 1',
+        ':ttinfo',
+        ('echo The current bookmark is 00000085-0000024c-00004c6d-' + [guid]::NewGuid().ToString('N')),
+        'exit /b 0',
+        ':d1file',
+        'echo added> "%GW_FAKE_STATE%\bgw.flag"',
+        'echo OK',
+        'exit /b 0',
+        ':d1query',
+        'if exist "%GW_FAKE_STATE%\bgw.flag" goto d1yes',
+        'echo [{"results":[],"success":true}]',
+        'exit /b 0',
+        ':d1yes',
+        'echo [{"results":[{"site_key":"BGW"}],"success":true}]',
+        'exit /b 0',
+        ':delpreview',
+        'if exist "%GW_FAKE_STATE%\deleted.flag" goto delgone',
+        'echo deleted> "%GW_FAKE_STATE%\deleted.flag"',
+        'echo Successfully deleted gear-world-hub-preview',
+        'exit /b 0',
+        ':delgone',
+        'echo X [ERROR] This Worker does not exist on your account. [code: 10007]',
         'exit /b 1',
         ':whoami',
         'echo You are logged in with an OAuth Token, associated with the email test@example.com.',
@@ -3243,6 +3269,24 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         Write-Utf8 (Join-Path $vPub 'styles.css') 'body{}'
         Check ((Run-V @('-Step', 'live', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB LIVE')) -eq 7 -and (VCount 'deploy --config') -eq 4) 'hub v2 live: refused when someone else changed the hub folder'
         Check ((VLast).Contains('public/styles.css')) 'hub v2: the changed file is named in the report'
+        # register: Biker Gear World in the Hub's list of sites (one D1 row, restore point first)
+        Check ((Run-V @('-Step', 'register')) -eq 0 -and (VCount '--file') -eq 0) 'hub register without -Apply: nothing changes'
+        Check ((Run-V @('-Step', 'register', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB LIVE')) -eq 1 -and (VCount '--file') -eq 0) 'hub register with the live phrase: nothing changes'
+        Check ((Run-V @('-Step', 'register', '-Apply', '-Approve', 'egkrino hub bgw search')) -eq 0 -and (VCount '--file') -eq 1) 'hub register with approval: one SQL file runs'
+        $c = VCalls
+        Check ($c.LastIndexOf('time-travel info gear-world-registry') -lt $c.LastIndexOf('--file') -and $c.LastIndexOf('time-travel info gear-world-registry') -ge 0) 'hub register: restore point read before the change'
+        $sqls = @(Get-ChildItem -LiteralPath (Join-Path $vWork 'backups') -Filter 'add-bgw-site-*.sql' -ErrorAction SilentlyContinue)
+        Check ($sqls.Count -eq 1 -and ([System.IO.File]::ReadAllText($sqls[0].FullName)).Contains("INSERT OR IGNORE INTO sites") -and ([System.IO.File]::ReadAllText($sqls[0].FullName)).Contains("'BGW', 'Biker Gear World', 'bikergearworld.com'")) 'hub register: INSERT OR IGNORE of the BGW row'
+        Check (@(Get-ChildItem -LiteralPath (Join-Path $vWork 'backups') -Filter 'gwh-registry-before-bgw-*.txt').Count -eq 1) 'hub register: restore note written'
+        Check ((Run-V @('-Step', 'register', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB BGW SEARCH')) -eq 0 -and (VCount '--file') -eq 1 -and (VLast).Contains('ήδη στη λίστα')) 'hub register twice: the row is there, nothing runs again'
+        # remove-preview: the test Worker goes, from a new empty folder (L83)
+        Check ((Run-V @('-Step', 'remove-preview')) -eq 0 -and (VCount 'delete gear-world-hub-preview') -eq 0) 'hub remove-preview without -Apply: nothing deleted'
+        Check ((Run-V @('-Step', 'remove-preview', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB LIVE')) -eq 1 -and (VCount 'delete gear-world-hub-preview') -eq 0) 'hub remove-preview with the live phrase: nothing deleted'
+        $deploysNow = VCount 'deploy --config'
+        Check ((Run-V @('-Step', 'remove-preview', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB REMOVE PREVIEW')) -eq 0 -and (VCount 'delete gear-world-hub-preview') -eq 1 -and (VCount 'deploy --config') -eq $deploysNow) 'hub remove-preview with approval: deletes only the test Worker, no deploy'
+        Check (-not ((VCalls) -match 'delete gear-world-hub(\s|$)')) 'hub remove-preview: the live Worker is never named'
+        Check (@(Get-ChildItem -LiteralPath $vWork -Directory -Filter 'empty-for-delete-*' -ErrorAction SilentlyContinue).Count -eq 0) 'hub remove-preview: the empty folder is removed afterwards'
+        Check ((Run-V @('-Step', 'remove-preview', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB REMOVE PREVIEW')) -eq 0 -and (VLast).Contains('δεν υπάρχει ήδη')) 'hub remove-preview twice: already gone is fine'
         & $exe -NoProfile -ExecutionPolicy Bypass -File $vTool -Step check -HubDir (Join-Path $work 'no-hub-here') -WorkDir $vWork -OutDir $vOut -BaselineFile $vBase -SkipInstall -NoClipboard -NoHttpCheck | Out-Null
         Check ($LASTEXITCODE -eq 2) 'hub v2: no hub folder gives exit code 2'
     } finally {

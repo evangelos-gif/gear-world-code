@@ -125,8 +125,10 @@ svg.gwh2-art{stroke:none;} /* the drawn pictures: no outline from the icon style
 .gwh2-head h2{margin:0;font-size:24px;line-height:1.15;font-weight:900;letter-spacing:0;text-transform:none;}
 .gwh2-head > span{color:var(--muted);font-size:14px;}
 
-/* the 10 worlds (texts come from translations.js, by the order of the cards) */
+/* the 11 worlds (texts come from translations.js, by the order of the cards). Phones: 2 per row, the 11th (Biker) on a row of its own;
+   wide screens: 6 + 5 (5 per row would leave the 11th alone). */
 .gwh-quick-worlds{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;}
+.gwh-quick-worlds > [data-world="BGW"]{grid-column:1 / -1;}
 .gwh-image-world{display:flex;align-items:center;gap:10px;min-height:72px;padding:8px;border:1px solid transparent;border-radius:14px;background:var(--card);text-decoration:none;}
 .gwh-image-world:hover{background:var(--card-hover);border-color:rgba(255,180,0,.45);}
 .gwh2-world-img{flex:0 0 auto;width:56px;height:56px;border-radius:10px;object-fit:cover;background:#0f1b2c;}
@@ -247,6 +249,7 @@ body.gwh2-dock-on{padding-bottom:84px;}
   .gwh2-photo{grid-column:1 / -1;justify-self:start;padding:0 20px;}
   .gwh2-art{height:180px;}
   .gwh-quick-worlds{grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:14px;}
+  .gwh-quick-worlds > [data-world="BGW"]{grid-column:auto;}
   .gwh-image-world{flex-direction:column;align-items:stretch;gap:0;padding:0;overflow:hidden;border-radius:16px;}
   .gwh2-world-img{width:100%;height:120px;border-radius:0;}
   .gwh2-world-text{padding:12px 14px 14px;gap:2px;}
@@ -268,6 +271,7 @@ body.gwh2-dock-on{padding-bottom:84px;}
 }
 
 @media (min-width:980px){
+  .gwh-quick-worlds{grid-template-columns:repeat(6,minmax(0,1fr));}
   .gwh2-top-grid{flex-direction:row;align-items:stretch;gap:40px;}
   .hero-copy{flex:1 1 560px;justify-content:center;}
   .gwh2-campaigns{flex:1 1 420px;}
