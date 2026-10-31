@@ -43,7 +43,7 @@ const REPAIR = /\b(spare part|spare pack|spares?\b|replacement (switch|motor|bru
 const PART = words(['bolt', 'bolts', 'nut', 'nuts', 'lock nut', 'washer', 'washers', 'o ring', 'o-ring', 'gasket', 'cowling', 'tank cap', 'choke lever',
   'gear case', 'assembly', 'bracket', 'manifold', 'manifold block', 'connector', 'coupler', 'coupling', 'fitting', 'retaining ring', 'valve', 'filter',
   'nozzle', 'wand', 'dust bag', 'shaft', 'gauge', 'bspf', 'bspm', 'qrc', 'pcl', 'nptf', 'reservoir']);
-const MODEL_FIRST = /^\s*(?:[A-Z]{1,5}\d{1,4}[A-Z]{0,2}(?:\s*\/\s*|\s+))+/; // "GPS520 / GPBS520 ...", "SC24H Wheel", "SWV40 2.5m Hose"
+const MODEL_FIRST = /^\s*(?:[A-Z]{1,5}\d{1,4}[A-Z]{0,2}(?:\s*\/\s*|\s+))+|^\s*M\d{1,2}\s*x\s*\d+/i; // also a single "M6x55 screw" // "GPS520 / GPBS520 ...", "SC24H Wheel", "SWV40 2.5m Hose"
 const HYDRAULICS = /power team|hydraulic technologies|(^|> ?)hydraulics\b/i;
 // Rikä is SGS's own brand for everything (hammers, screws, nails, bags): the brand alone says nothing.
 const FIXINGS = words(['screw', 'screws', 'nail', 'nails', 'wall plug', 'wall plugs', 'anchor', 'anchors', 'rivet', 'rivets', 'staples', 'fixings']);
@@ -82,8 +82,12 @@ export function classify({ name, feedCategory = '', awinCategory = '' }) {
   const power = POWER.test(n);
   if ((CAR.test(n) || CAR_FEED.test(cat)) && !(power && !CAR.test(n))) return { reject: 'for cars and vans (Car Gear World has SGS)' };
   if (PART.test(n) && !power && !HAND.test(n)) return { reject: 'spare part or repair kit' };
-  if ((FIXINGS.test(n) || /screws?\b/i.test(n)) && !/\b(gun|driver|nailer|drill)\b/i.test(n)) return { site: 'cgw', siteCategory: 'Hand Tools', subcategory: 'DIY' };
+  // Machines and blades before fixings: "ABAC Screw Air Compressor" and "Recip Saw Blades ... with Nails" went to DIY in the
+  // import of 31 Oct 2026; so did a nail puller and ground-protection anchors.
   if (power) return { site: 'cgw', siteCategory: 'Power Tools', subcategory: 'Power Tools' };
+  if (/nail pullers?|pry bars?|wrecking bars?/i.test(n)) return { site: 'cgw', siteCategory: 'Hand Tools', subcategory: 'Hand Tools' };
+  if (/ground ?guard|ground protection/i.test(`${n} ${cat}`)) return { site: 'cgw', siteCategory: 'Site Equipment', subcategory: 'Site Equipment' };
+  if ((FIXINGS.test(n) || /screws?\b/i.test(n)) && !/\b(gun|driver|nailer|drill)\b/i.test(n)) return { site: 'cgw', siteCategory: 'Hand Tools', subcategory: 'DIY' };
   if (LIGHT.test(n)) return { site: 'cgw', siteCategory: 'Site Equipment', subcategory: 'Lighting' };
   if (SITE.test(n)) return { site: 'cgw', siteCategory: 'Site Equipment', subcategory: 'Site Equipment' };
   if (HAND.test(n)) return { site: 'cgw', siteCategory: 'Hand Tools', subcategory: 'Hand Tools' };

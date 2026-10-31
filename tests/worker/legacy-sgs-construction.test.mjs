@@ -81,3 +81,13 @@ test('L85: one product number in both SGS feeds with two links becomes ONE card 
   assert.deepEqual(r.accepted.cgw.map(p => p.merchant_product_id).sort(), ['RK40CD', 'RK40IW']);
   assert.equal((r.rejected['the same product number twice in the feeds (another link): kept once'] || []).length, 1);
 });
+
+test('L82, import of 31 Oct 2026: screw compressors and recip blades are power tools, not fixings; a single spare screw is out', () => {
+  assert.equal(place('ABAC 4152055003 Screw Air Compressor - SPINN7 5E 10 400/50 270 E CE Receiver Mounted with Dryer 270L 34.7CFM 10Bar 10HP', 'Hardware > Tools > Compressors > ABAC'), 'Power Tools/Power Tools');
+  assert.equal(place('Rikä 150mm 14TPI Bi-Metal Recip Saw Blades for Metal and Wood with Nails - Pack of 5 - Type S922BF'), 'Power Tools/Power Tools');
+  assert.equal(place('Rikä 2-Piece Nail Puller Set | 8in and 12in Carbon Steel Pry Bars'), 'Hand Tools/Hand Tools');
+  assert.equal(place('Ground Guard Anchors for Sloping Ground (Pack of 10)'), 'Site Equipment/Site Equipment');
+  assert.equal(place('M6x55 screw', 'Hardware > Tools > SGS'), 'out');
+  assert.equal(place('Rikä DWSR038 3.5 x 35mm Self-Drilling Bugle BZP Collated Drywall Screw 1000pk'), 'Hand Tools/DIY');
+  assert.equal(place('Rikä 15mm T-Type Nails | 1000 Pack for 2-in-1 Staple Guns'), 'Hand Tools/DIY');
+});
