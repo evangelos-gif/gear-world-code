@@ -17,6 +17,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import * as TGW_RULES from '../sites/tgw/category-rules.js';
 import { normalizeGtin } from '../src/lib/gtin.js';
 import { slugify, truncate } from '../src/lib/text.js';
+import { tyreName } from './tyre-name.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const SQL_ROWS_PER_FILE = 400;
@@ -651,6 +652,14 @@ export async function planImport({ archive, sourcesFile, outDir, now = new Date(
         const rawName = pick(rec, map.name);
         // Second argument: the shop's sources.json entry (VGW reads its "skuEanInName"); the other sites ignore it.
         let name = cleanProductName(cleanText(rawName), source);
+        // A tyre shop (sources.json "tyreSizeFromLink", Pneus.be, L87): brand + model + the size from the shop's address.
+        // A tyre without a size in its address, or a motorbike/scooter size, is left out here.
+        if (source.tyreSizeFromLink) {
+          const t = tyreName(name, cleanText(pick(rec, map.brand)), rec[header.indexOf('merchant_deep_link')]);
+          if (!t.size) { reject('tyre without a size in its address', `${truncate(name, 90)}`); continue; }
+          if (t.size.twoWheel) { reject('motorbike or bicycle', `${truncate(t.name, 90)}`); continue; }
+          name = t.name;
+        }
         // A cut name loses its last word; the maker's part number then tells two versions apart ("Lenovo ThinkPad T14 Gen 3
         // ... Laptop" comes with several memory and disk sizes).
         if (source.nameCutAt && rawName.length >= source.nameCutAt) {

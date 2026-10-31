@@ -152,3 +152,35 @@ test('L87: a tyre size makes a car tyre; motorbike and bicycle tyres stay out', 
   assert.equal(at('Michelin Pilot Street 2 110/70-17', 'Moto'), 'OUT');
   assert.equal(at('Schwalbe Marathon 700x35C', 'Vélo'), 'OUT');
 });
+
+test('L87: Pneus.be cards get brand, model and the size from the shop address; motorbike tyres and other feeds stay out', async () => {
+  const { tyreName } = await import('../../tools/tyre-name.mjs');
+  const t = tyreName('P Zero PZ4 LS', 'Pirelli', 'https://www.pneus.be/pirelli-p-zero-pz4-ls-225-40-r19-93y__9998526?rows=20&ID=aff_tn_be_awin');
+  assert.equal(t.name, 'Pirelli P Zero PZ4 LS 225/40 R19 93Y');
+  assert.equal(tyreName('Primacy 3 ZP', 'MICHELIN', 'https://www.pneus.be/michelin-primacy-3-zp-205-55-r16-91w__8945677').name, 'Michelin Primacy 3 ZP 205/55 R16 91W');
+  assert.equal(tyreName('ContiRoad', 'Continental', 'https://www.pneus.be/continental-contiroad-110-70-r17-54v__9285700').size.twoWheel, true);
+  assert.equal(tyreName('Trailmax', 'Dunlop', 'https://www.pneus.be/dunlop-trailmax-90-90-d21-54h__4304961').size.twoWheel, true);
+  assert.equal(tyreName('Spare', 'X', 'https://www.pneus.be/spare-tyre__1').size, null);
+
+  const dir = mkdtempSync(join(tmpdir(), 'agw-pneus-'));
+  const out = join(dir, 'out');
+  const head = 'aw_deep_link,product_name,aw_product_id,merchant_product_id,merchant_image_url,merchant_category,search_price,currency,brand_name,in_stock,ean,merchant_deep_link\n';
+  const row = (id, model, brand, slug) => `https://www.awin1.com/pclick.php?p=${id}&a=1&m=82533,${model},${id},${id},https://static.tyres.net/${id}.jpg,tyres,100.00,EUR,${brand},1,,https://www.pneus.be/${slug}__${id}?rows=20\n`;
+  writeFileSync(join(dir, 'AWIN_82533_93972.csv.gz'), gzipSync(head
+    + row(1, 'P Zero PZ4 LS', 'Pirelli', 'pirelli-p-zero-pz4-ls-225-40-r19-93y')
+    + row(2, 'P Zero PZ4 LS', 'Pirelli', 'pirelli-p-zero-pz4-ls-235-55-r18-100v')
+    + row(3, 'ContiRoad', 'Continental', 'continental-contiroad-110-70-r17-54v')
+    + row(4, 'Spare Tyre', 'X', 'spare-tyre')));
+  writeFileSync(join(dir, 'AWIN_82533_112042.csv.gz'), gzipSync(head + row(9, 'P Zero PZ4 LS', 'Pirelli', 'pirelli-p-zero-pz4-ls-225-40-r19-93y')));
+  const sources = join(dir, 'sources.json');
+  writeFileSync(sources, JSON.stringify({ sources: [
+    { advertiserId: 82533, feedIds: [93972], retailer: 'Pneus.be', currency: 'EUR', condition: 'new', tyreSizeFromLink: true, approved: true }
+  ] }));
+  const { stats, products } = await planAgwImport({ archive: dir, sourcesFile: sources, outDir: out, now: new Date('2026-10-31T15:00:00Z') });
+  assert.equal(stats.rows, 4, 'only the chosen feed');
+  const names = [...products.values()].map(p => p.product_name).sort();
+  assert.deepEqual(names, ['Pirelli P Zero PZ4 LS 225/40 R19 93Y', 'Pirelli P Zero PZ4 LS 235/55 R18 100V']);
+  assert.ok([...products.values()].every(p => p.category_slug === 'tyres-wheels' && p.currency === 'EUR'));
+  assert.equal(stats.rejected['motorbike or bicycle'], 1);
+  assert.equal(stats.rejected['tyre without a size in its address'], 1);
+});
