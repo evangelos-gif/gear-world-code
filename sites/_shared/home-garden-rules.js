@@ -13,7 +13,7 @@
 //   5. The subcategory is the type word that comes last, with the name each site already uses ("Coffee Table", "Rakes").
 
 import { fixMojibake } from '../../src/db.js';
-import { words, lastAt, headOf } from './fashion-rules.js';
+import { words, lastAt, headOf, OFFICE_PARTS } from './fashion-rules.js';
 
 const GARDEN = words(['garden', 'gardens', 'outdoor', 'outdoors', 'patio', 'lawn', 'solar', 'rattan', 'balcony', 'decking', 'bistro', 'parasol', 'festoon', 'garden ?furniture', 'alfresco', 'allotment', 'greenhouse']);
 const INDOOR = words(['indoor', 'living room', 'bedroom', 'kitchen', 'bathroom', 'office']);
@@ -23,6 +23,8 @@ const HARD_DENY = words(['gift cards?', 'gift vouchers?', 'vouchers?']);
 const DENY = [
   { re: words(["men'?s", "women'?s", 'ladies', 't-?shirts?', 'jumpers?', 'jackets?', 'trousers', 'jeans', 'dress(?:es)?', 'shoes?', 'trainers?', 'boots', 'socks', 'hoodies?', 'leggings', 'bras?']),
     label: 'clothing (Men\'s / Women\'s Gear World)' },
+  { re: /$^/, anywhere: OFFICE_PARTS, label: 'office or computer part (Technology Gear World)' },
+  { re: words(['brooch(?:es)?', 'earrings?', 'necklaces?', 'bracelets?', 'cufflinks?', 'lapel pins?', 'pin badges?']), label: 'jewellery (Women\'s / Men\'s Gear World)' },
   { re: words(['crisps', 'snacks?', 'chocolates?', 'sweets', 'biscuits', 'cakes?(?! (?:stand|tins?|plates?|knife|slice))', 'sauce', 'coffee beans', 'ground coffee', 'tea bags', 'wine(?! (?:glass|glasses|rack|cooler|chiller|bottle opener|stopper|aerator))', 'beer', 'gin(?! glass)', 'whisky']),
     label: 'food or drink (not shown)' },
   { re: words(['toys?', 'kids?', "children'?s", 'baby', 'nursery', 'toddlers?', 'lego', 'dolls?', 'teddy']), label: 'children\'s product (Kids\' Gear World)' },
@@ -60,7 +62,7 @@ const RULES = [
       ['Litter Pickers', words(['litter pickers?'])], ['Cultivators & Grubbers', words(['cultivators?', 'grubbers?', 'weeders?'])], ['Lawn Sweepers', words(['lawn sweepers?'])], ['Fruit Pickers', words(['fruit pickers?'])], ['Salt Spreaders', words(['salt spreaders?'])],
       ['Composters', words(['composters?'])], ['Pop Up Bags', words(['pop ?up bags?', 'garden (?:bags?|sacks?)'])], ['Garden Tool Kits', words(['tool (?:kits?|sets?)'])], ['Other Garden Accessories', /./]] },
   { key: 'bbq', site: 'ggw', slug: 'bbq-outdoor-cooking',
-    include: words(['bbqs?', 'barbecues?', 'barbeques?', 'charcoal grills?', 'gas grills?', 'kamado', 'smokers?(?! (?:pipe|tobacco))', 'pizza ovens?', 'outdoor (?:kitchen|cooking|grill)', 'grill (?:brush|tongs|mat|cover)', 'kebab skewers?', 'skewers?', 'charcoal', 'briquettes?', 'firelighters?', 'plancha', 'grill (?:lighters?|knives|tools?|sets?)']),
+    include: words(['bbqs?', 'barbecues?', 'barbeques?', 'charcoal grills?', 'gas grills?', 'kamado', 'smokers?(?! (?:pipe|tobacco))', 'pizza ovens?', 'outdoor (?:kitchen|cooking|grill)', 'grill (?:brush|tongs|mat|cover)', 'kebab skewers?', 'skewers?', 'charcoal (?:bags?|briquettes?|starters?|chimneys?|baskets?|\\d+ ?kg)', '\\d+ ?kg (?:of )?charcoal', 'lumpwood', 'briquettes?', 'firelighters?', 'plancha', 'grill (?:lighters?|knives|tools?|sets?)']),
     exclude: words(['bbq sauce', 'grill pan', 'health grill', 'contact grill', 'toastie']),
     subs: [['Pizza ovens', words(['pizza ovens?'])], ['BBQ accessories', words(['brush', 'tongs', 'mat', 'covers?', 'skewers?', 'charcoal', 'briquettes?', 'firelighters?', 'accessor(?:y|ies)', 'tools?', 'thermometers?', 'gloves?'])], ['BBQs', /./]] },
   { key: 'garden-buildings', site: 'ggw', slug: 'garden-buildings-fencing-storage',

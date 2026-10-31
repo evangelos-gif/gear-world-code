@@ -41,10 +41,20 @@ const MEN_FEED = /(?:^|[^a-z])(?:menswear|men'?s(?:wear)?|mens|men|gents|male|ho
 const WOMEN_FEED = /(?:^|[^a-z])(?:womenswear|women'?s(?:wear)?|womens|women|ladies|ladieswear|female|femme)(?![a-z])/i;
 
 // ---------- Not for these sites ----------
+// Office, printer, network and computer parts: wherever they are in the name, they belong to Technology Gear World (shadow
+// catalogue 31 Oct 2026: PcNova, GamingKit and PCHUB.UK "Toner black", "Transfer Belt", "Fuser kit", "networking cable",
+// "Computer case Fan" went to beauty, belts, home decor and garden electrical). Shared by the fashion and home/garden rules.
+export const OFFICE_PARTS = words(['toner (?:black|cyan|magenta|yellow|cartridges?|waste|twin|kits?|contract|collector)', 'toner waste', 'waste toner',
+  'printheads?', 'print heads?', 'fuser(?: kits?| units?| assembly)?', 'transfer (?:belts?|kits?|rollers?|units?)', 'drum (?:units?|kits?|cartridges?)',
+  'printer(?:/scanner)? (?:spare parts?|labels?|ribbons?|consumables?)', 'ink cartridges?', 'ink (?:multipack|ribbons?)', 'separation pads?', 'maintenance kits? for',
+  'networking cables?', 'patch cables?', 'serial cables?', 'parallel cables?', 'cat ?[5-8]e?a? (?:cables?|patch|u\\/utp|f\\/utp|s\\/utp)', '[usf]\\/utp', 'cable kit\\. splitter',
+  'intercom', 'keyfobs?', 'proximity (?:cards?|fobs?)', 'computer cases?', '(?:computer )?case fans?', 'pwm fans?', 'midi tower', 'serial ata', 'nand', 'ssd',
+  'laptop (?:cable )?locks?', 'cable locks?', 'gas struts?', 'microsoft office', 'office professional', 'barcode (?:printers?|scanners?|readers?|labels?)', 'bar code (?:printers?|scanners?|readers?|labels?)', 'label printers?', 'stamp tape', 'directlabel']);
 const HARD_DENY = words(['gift cards?', 'gift vouchers?', 'e-?vouchers?', 'vouchers?']);
 // re: words that mark another kind of product when they come AFTER the product type in the name ("Black Cat Cufflinks"
 // stay, "... Pocket Watch Holster" is decided by its last word). anywhere: phrases that decide wherever they are ("Torch for Cats").
 const DENY = [
+  { re: /$^/, anywhere: OFFICE_PARTS, label: 'office or computer part (Technology Gear World)' },
   { re: words(['pets?', 'pet supplies', 'dog (?:leads?|collars?|beds?|bowls?|toys?|harness(?:es)?|coats?)', 'cat (?:litter|toys?|trees?|scratch\\w*)', 'poop', 'aquariums?', 'kittens?', 'puppy']),
     anywhere: words(['for (?:dogs?|cats?|pets?|puppies)', 'pet (?:supplies|stains?|toys?)', 'dog urine', 'cat toy']), label: 'pet item (Home Gear World)' },
   { re: words(['phone cases?', 'iphone', 'ipad', 'samsung galaxy', 'airpods', 'screen protectors?', 'usb hub', 'keypad phone', 'mobile phone', 'phone covers?', 'mobile covers?', 'flex cable']),

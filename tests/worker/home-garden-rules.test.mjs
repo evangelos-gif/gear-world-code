@@ -74,4 +74,14 @@ test('each product goes to one of the pair, and other Gear Worlds\' products sta
   assert.equal(on(HGW, 'Kids Bunk Bed with Storage'), 'no: children\'s product (Kids\' Gear World)');
   assert.equal(on(HGW, 'Dog Bed Large Grey'), 'no: pet item (not shown yet)');
   assert.equal(on(HGW, 'Gift Card £50'), 'no: gift card or voucher');
+  // Shadow catalogue 31 Oct 2026: printer parts, network cables, a colour and a brooch placed by one word of the name.
+  const office = 'no: office or computer part (Technology Gear World)';
+  assert.equal(on(HGW, 'OKI 44289103 Fuser kit. 60K pages for OKI C 612/711'), office);
+  assert.equal(on(HGW, 'Epson 1005246 printer/scanner spare part'), office);
+  assert.equal(on(GGW, 'Cables Direct B5-102 networking cable Black 2 m Cat5e U/UTP (UTP)'), office);
+  assert.equal(on(GGW, 'StarTech.com 6.6ft (2m) Laptop Cable Lock - 4-Digit Combination'), office);
+  assert.equal(on(HGW, 'NitroLift Autotrail Bed Gas Strut'), office);
+  assert.match(on(GGW, 'Mackinaw Jacket (Charcoal) | XS | Stan Ray®'), /^no: /);
+  assert.match(on(GGW, 'Weber Briquettes 4kg'), /^bbq-outdoor-cooking/);
+  assert.equal(on(HGW, 'Natural Freshwater Pearl Fan Brooch with Zircon'), 'no: jewellery (Women\'s / Men\'s Gear World)');
 });

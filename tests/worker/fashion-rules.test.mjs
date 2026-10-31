@@ -85,6 +85,12 @@ test('who it is for: one site, both sites (unisex) or Kids\' Gear World', () => 
 });
 
 test('other Gear Worlds\' products and look-alikes stay out', () => {
+  const office = 'no: office or computer part (Technology Gear World)';
+  assert.equal(on(WGW, 'Sharp MX-51GTBA Toner black. 40K pages for Sharp MX 4112'), office, 'printer toner is not skincare');
+  assert.equal(on(MGW, 'HP RM1-8177-000CN Transfer Belt for HP CLJ CP 3525'), office, 'a transfer belt is not a belt');
+  assert.equal(on(MGW, 'Paxton Net2 hands-free keyfob'), office);
+  assert.equal(on(WGW, 'Intenso Top 256 GB 2.5" Serial ATA III 3D NAND'), office);
+  assert.equal(on(MGW, 'Barcode Cufflinks'), 'jewellery/Cufflinks', 'a barcode pattern stays');
   for (const name of ['Tease Torch for Cats', 'Flashlight Flex Cable for iPhone 13 Pro', 'PAPO Wild Animal Kingdom Male Zebra Toy Figure', 'Stattics Gift Card',
     'Xiaomi Luggage Classic Pro 28" Black - Unisex Travel Suitcase', 'Multi Tool RJ45 RJ12 RJ11 Wire Cable Crimper', 'Garden Hose Reel 30m']) {
     assert.match(on(MGW, name), /^no:/, name);

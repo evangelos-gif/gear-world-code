@@ -175,6 +175,14 @@ export async function shadowCatalog({ archive, outDir, list = null, now = new Da
     const extra = r.rows.length - mine;
     L.push(`  ${r.site.code} ${r.site.name.padEnd(10)} από τα δικά του ${fmt(mine).padStart(7)} | νέα +${fmt(extra).padStart(7)} | σύνολο ${fmt(r.rows.length).padStart(7)}   (${r.seconds} δευτ.)`);
   }
+  // Which of its own shops give a site its products (to compare with what the site shows today).
+  L.push('  «από τα δικά του», ανά κατάστημα (τα 6 μεγαλύτερα):');
+  for (const r of results) {
+    const per = new Map();
+    for (const p of r.rows) if (r.listed.has(p.adv)) per.set(p.adv, (per.get(p.adv) || 0) + 1);
+    const top = [...per.entries()].sort((a, b) => b[1] - a[1]).slice(0, 6).map(([adv, n]) => `${cut(shopName(adv), 22)} ${fmt(n)}`);
+    if (top.length) L.push(`    ${r.site.code}: ${top.join(', ')}`);
+  }
   L.push(`  ${OLD_SITES.join(', ')}: δεν έχουν ακόμα γενικούς κανόνες κατηγοριών (μόνο κανόνες ανά κατάστημα). Μπαίνουν στη Φάση 4.`);
   L.push('');
 
