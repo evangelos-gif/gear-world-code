@@ -8,7 +8,7 @@
   1. Finds the Awin feed folders on this PC (GW_AWIN_BULK_ARCHIVE, GW_AWIN_NEW_..., in Downloads).
   2. If the Awin feed key is already saved (by awin-feed-download.ps1), reads the Awin feed list (read-only) so that only
      programmes you have JOINED count. Without the key every feed on this PC counts, and the summary says so.
-  3. Offers every joined shop to the sites with general category rules (TGW, AGW, VGW, SGW, BGW, MGW, WGW, HGW, GGW): a shop a site already
+  3. Offers every joined shop to the sites with general category rules (all 10 sites since 31 Oct 2026): a shop a site already
      has keeps that site's own rules, a new shop is placed by the product name alone. Same checks as a real import.
   It imports nothing, writes no SQL, downloads no feed, does not contact Cloudflare or D1 and changes no file.
   The key is never written to the report, the clipboard or the repo.
@@ -74,7 +74,7 @@ if (Test-Path -LiteralPath $KeyFile) {
 } else { Write-Host 'Δεν υπάρχει φυλαγμένο κλειδί του Awin: μετράνε όλα τα αρχεία του υπολογιστή.' -ForegroundColor Yellow }
 
 Write-Host ('Φάκελοι: {0}' -f $Archive)
-Write-Host 'Διαβάζω όλα τα feeds για όλα τα sites με γενικούς κανόνες (σήμερα 9)... (μπορεί να πάρει 10-30 λεπτά, άφησέ το να τελειώσει)'
+Write-Host 'Διαβάζω όλα τα feeds για όλα τα sites με γενικούς κανόνες (σήμερα και τα 10)... (μπορεί να πάρει 10-30 λεπτά, άφησέ το να τελειώσει)'
 # More memory for Node: all the joined feeds are read five times (one per site).
 $nodeArgs = @('--max-old-space-size=6144', (Join-Path (Join-Path $repo 'tools') 'hub-shadow-catalog.mjs'), '--archive', $Archive, '--out', $run)
 if ($listFile) { $nodeArgs += @('--list', $listFile) }

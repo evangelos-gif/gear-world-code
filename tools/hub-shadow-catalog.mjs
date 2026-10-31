@@ -27,13 +27,14 @@ import * as WGW_RULES from '../sites/wgw/category-rules.js';
 import * as HGW_RULES from '../sites/hgw/category-rules.js';
 import * as GGW_RULES from '../sites/ggw/category-rules.js';
 import * as KGW_RULES from '../sites/kgw/category-rules.js';
+import * as CGW_RULES from '../sites/cgw/category-rules.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const repoRoot = join(here, '..');
 
 // The sites with general category rules: the 5 newer ones, and since 31 Oct 2026 Men's and Women's (phase 4, the shared
-// fashion rules), Home and Garden (sites/_shared/home-garden-rules.js) and Kids' (kids-rules.js). Construction (CGW) still
-// has rules per shop only (tools/import-rules/), so they cannot take a shop they do not know yet: they follow, one by one.
+// fashion rules), Home and Garden (sites/_shared/home-garden-rules.js), Kids' (kids-rules.js) and Construction
+// (construction-rules.js). Before that the old sites had rules per shop only (tools/import-rules/), so they cannot take a shop they do not know yet: they follow, one by one.
 export const SHADOW_SITES = [
   { code: 'TGW', dir: 'tgw', name: 'Technology', rules: TGW_RULES },
   { code: 'AGW', dir: 'agw', name: 'Car', rules: AGW_RULES },
@@ -44,9 +45,11 @@ export const SHADOW_SITES = [
   { code: 'WGW', dir: 'wgw', name: "Women's", rules: WGW_RULES },
   { code: 'HGW', dir: 'hgw', name: 'Home', rules: HGW_RULES },
   { code: 'GGW', dir: 'ggw', name: 'Garden', rules: GGW_RULES },
-  { code: 'KGW', dir: 'kgw', name: "Kids'", rules: KGW_RULES }
+  { code: 'KGW', dir: 'kgw', name: "Kids'", rules: KGW_RULES },
+  { code: 'CGW', dir: 'cgw', name: 'Construction', rules: CGW_RULES }
 ];
-export const OLD_SITES = ['CGW'];
+// Every site has general rules since 31 Oct 2026 (the list stays for a site added later).
+export const OLD_SITES = [];
 const JOINED = /^(active|joined)$/i;
 // The network is for UK buyers in £. A programme of another region (Reidl DE, Kastner & Öhler DE/AT, Pneus BE in the first run,
 // 31 Oct 2026) has German or French names and euro prices: like VEVOR NL it needs English names first (lessons L79).

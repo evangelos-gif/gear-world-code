@@ -97,7 +97,7 @@ test('shadow catalogue: new shop routed by each site\'s rules, not-joined shop o
   assert.ok(!names('BGW').some(n => /Motorradhelm/.test(n)), 'the DE shop is not counted');
   assert.match(summary, /BGW Biker .*νέα \+ +1 /);
   assert.match(summary, /Moto Test Shop/);
-  assert.match(summary, /CGW: .*Φάση 4/);
+  assert.doesNotMatch(summary, /Μπαίνουν? στη Φάση 4/, 'every site has general rules');
   assert.match(summary, /MGW Men's/);
   assert.match(summary, /WGW Women's/);
   assert.match(summary, /HGW Home/);
@@ -106,6 +106,7 @@ test('shadow catalogue: new shop routed by each site\'s rules, not-joined shop o
   assert.match(summary, /γραμμές +\d+ → μένουν/);
   assert.match(summary, /GGW Garden/);
   assert.match(summary, /KGW Kids'/);
+  assert.match(summary, /CGW Construction/);
   for (const r of results) {
     assert.ok(existsSync(join(out, r.site.code, 'report.txt')), `${r.site.code} report written`);
     assert.ok(!existsSync(join(out, r.site.code, 'sql')), `${r.site.code}: no SQL`);
