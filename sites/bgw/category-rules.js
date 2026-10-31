@@ -34,13 +34,13 @@ const MOTO_STRICT = words(['motor ?bikes?', 'motor ?cycles?', 'motor ?cycling', 
   'ninebot', 'segway', 'vespa', 'lambretta', 'ducati', 'kawasaki', 'ktm', 'harley(?:-davidson)?',
   'alpinestars', 'dainese', 'richa', 'shoei', 'arai', 'hjc', 'agv', 'ls2', 'caberg', 'nolan', 'tcx', 'furygan', 'rst', 'spada',
   'frank thomas', 'weise', 'knox', 'forcefield', 'kriega', 'givi', 'shad', 'sw-motech', 'cardo', 'sena', 'interphone',
-  'optimate', 'motul', 'putoline', 'silkolene', 'scottoiler', 'tutoro', 'pinlock', 'loboo', 'oxford (?:products|monster|boss|hd|rainseal)']);
+  'optimate', 'bike it', 'motul', 'putoline', 'silkolene', 'scottoiler', 'tutoro', 'pinlock', 'loboo', 'oxford (?:products|monster|boss|hd|rainseal)']);
 const BIKER = words(['bikers?']);
 // A product for several vehicles is for the one its name puts first: "Car Tyre Inflator for Car, Motorcycle, Bike" is Car
 // Gear World's, "Cordless Bike Pump ... Motorcycle" is Sporty's, "Motorcycle and Bicycle Wheel Balancer" stays here
 // (import plan of 31 Oct 2026: Joybuy's car inflators and jump starters name a motorcycle among other vehicles).
 const CAR_FIRST = words(['cars?', 'vans?', 'suvs?', 'trucks?', 'lorr(?:y|ies)', 'caravans?', 'motorhomes?', 'rv', 'automotive']);
-const BICYCLE_FIRST = words(['bicycles?', 'cycling', 'e-?bikes?', 'electric bikes?', 'mtb', 'bmx', 'bikes?']);
+const BICYCLE_FIRST = words(['bicycles?', 'cycling', 'e-?bikes?', 'electric bikes?', 'mtb', 'bmx', 'bikes?(?! it(?![a-z]))']);
 const before = (re, n, idx) => { const i = n.search(re); return i >= 0 && i < idx; };
 const SCOOTER = words(['scooters?', 'kick-?scooters?']);
 
@@ -55,12 +55,14 @@ export const DENY = [
     'derailleurs?', 'chainrings?', 'cranksets?', 'shimano', 'sram', 'pedals?', 'bottom brackets?', 'bike (?:lights?|bells?|computers?|pumps?|baskets?|bottle cages?|saddles?|stands? for (?:bicycles?|cycles?))',
     'fietsen?\\w*', 'fahrrad\\w*']) },
   // "Bike" alone, with no motorbike word, is a bicycle ("Bike Lights Set USB", "Bike Lock D Lock").
-  { label: 'bicycle or e-bike (Sporty Gear World)', unlessMoto: true, re: /(?:^|[^a-z0-9])bikes?(?![a-z0-9])/i },
+  // "Bike It" is a motorbike accessories brand (Webbs), not a bicycle.
+  { label: 'bicycle or e-bike (Sporty Gear World)', unlessMoto: true, re: /(?:^|[^a-z0-9])bikes?(?![a-z0-9])(?! it(?![a-z]))/i },
   { label: 'car product (Car Gear World)', unlessMoto: true, re: words(['cars?', 'car (?:seats?|boot|roof|wash|tyres?|batter(?:y|ies)|chargers?)', 'vans?', 'suvs?', 'trucks?', 'lorr(?:y|ies)', 'vrachtwagens?', 'automobiel', 'caravans?', 'motorhomes?', 'tow ?bars?', 'towbars?', 'trailer hitch\\w*', 'roof (?:bars?|racks?|boxes?)']) },
   { label: 'fashion biker jacket or boots (Men\'s / Women\'s Gear World)', unlessMoto: true, re: words(['biker (?:jackets?|boots?|bags?|vests?|gilets?|jeans|style)', 'chelsea boots?', 'ankle boots?', 'heeled', 'heels?', 'faux leather', 'pu leather', 'vegan leather', 'womens? leather jackets?', 'cropped', 'fashion']) },
   // "Kick Scooter for Kids ... Toddler Toys": a scooter stays a BGW product (owner, 29 Oct 2026); a ride-on motorbike or quad does not.
   { label: 'kids\' ride-on toy (Kids\' Gear World)', unlessScooter: true, re: words(['ride[- ]?ons?', 'toys?', 'toy (?:motor ?bikes?|motorcycles?|scooters?)', 'play vehicles?', 'push ?alongs?', 'rocking (?:horses?|motor ?bikes?)', 'foot to floor', 'sit[- ]on', 'balance bikes?', 'trikes?', 'tricycles?', 'kinder\\w*']) },
-  { label: 'work helmet, hard hat or tool (Construction Gear World)', re: words(['hard ?hats?', 'safety helmets?', 'schutzhelm\\w*', 'bump caps?', 'ear defenders?', 'climbing helmets?', 'deburring', 'bolsters?', 'chisels?', 'welders?', 'welding', 'angle grinders?', 'winkelschleifer', 'hi-?vis (?:workwear|coveralls?|trousers|polo)', 'safety (?:boots?|shoes?|trainers?)', 'work (?:boots?|gloves?|wear|trousers)', 'workwear', 'steel toe\\w*']) },
+  // "Rst Workwear Ce Mens Motorcycle Boots" is a riding boot: a motorbike word in the name wins.
+  { label: 'work helmet, hard hat or tool (Construction Gear World)', unlessMoto: true, re: words(['hard ?hats?', 'safety helmets?', 'schutzhelm\\w*', 'bump caps?', 'ear defenders?', 'climbing helmets?', 'deburring', 'bolsters?', 'chisels?', 'welders?', 'welding', 'angle grinders?', 'winkelschleifer', 'hi-?vis (?:workwear|coveralls?|trousers|polo)', 'safety (?:boots?|shoes?|trainers?)', 'work (?:boots?|gloves?|wear|trousers)', 'workwear', 'steel toe\\w*']) },
   { label: 'garden machinery (Garden Gear World)', unlessMoto: true, re: words(['chainsaws?', 'stihl', 'husqvarna', 'bar (?:and|&) chain', 'strimmers?', 'brush ?cutters?', 'hedge trimmers?', 'lawn ?mowers?', 'leaf blowers?', 'tillers?', 'generators?', 'garden machinery', 'mowers?']) },
   { label: 'phone or computer part (Technology Gear World)', re: words(['motorola', 'moto (?:g|e|x|z)\\d*\\w*', 'moto edge', 'screen protectors?', 'mobile phone (?:screen|back)\\w*', 'keyboards?', 'keycaps?', 'mouse', 'mice', 'thermal paste', 'mp3', 'psu', 'power supply', 'printers?', 'scanners?', 'laptops?', 'notebook', 'tablets?', 'ethernet', 'sfp\\+?', 'transceivers?', 'apfc', 'spare part/accessory', 'graphics cards?', 'motherboards?', 'ssd', 'hdd', 'smart ?watch(?:es)?', 'earbuds', 'head ?phones?']) },
   { label: 'horse riding (not motorbike)', unlessMoto: true, re: words(['equestrian', 'horses?', 'horse riding', 'jodhpurs?', 'riding (?:hats?|helmets?|boots?|tights|breeches|gloves?|crops?)', 'saddles?(?! ?bags?)', 'bridles?', 'stirrups?', 'girths?', 'numnahs?', 'hoof\\w*', 'ponies', 'pony', 'paddock boots?', 'jockey']) },
@@ -71,7 +73,7 @@ export const DENY = [
   // Casual clothing (Webbs' Triumph T-shirts): a Kevlar riding hoodie or a CE-armoured shirt is riding gear and stays.
   { label: 'casual clothing or print (Men\'s / Women\'s Gear World)', unless: /kevlar|aramid|armou?r|(?:^|[^a-z])ce(?:[^a-z]|$)|riding|protect/i,
     re: words(['t-?shirts?', 'tees?', 'hoodies?', 'sweatshirts?', 'polo shirts?', 'baseball caps?', 'snapbacks?', 'beanies?']) },
-  { label: 'service, insurance or not allowed', re: words(['warranty', 'installation (?:service|fee)s?', 'fitting service', 'insurance', 'training course', 'lessons?', 'cbt', 'hire', 'rental', 'subscription', 'knife', 'knives', 'machete', 'air (?:rifles?|pistols?|guns?)', 'bb guns?', 'pepper spray', 'stun gun', 'taser', 'vape', 'e-?cig\\w*', 'unrestricted', 'derestrict\\w*', 'de-?restrict\\w*', 'speed (?:limiter )?(?:removal|unlock)\\w*']) },
+  { label: 'service, insurance or not allowed', re: words(['(?:extended )?warranty (?:plans?|cover|extensions?|registration)', 'extended warranty', 'installation (?:service|fee)s?', 'fitting service', 'insurance', 'training course', 'lessons?', 'cbt', 'hire', 'rental', 'subscription', 'knife', 'knives', 'machete', 'air (?:rifles?|pistols?|guns?)', 'bb guns?', 'pepper spray', 'stun gun', 'taser', 'vape', 'e-?cig\\w*', 'unrestricted', 'derestrict\\w*', 'de-?restrict\\w*', 'speed (?:limiter )?(?:removal|unlock)\\w*']) },
   { label: 'not new (no "Used" label on the site)', re: words(['\\(used\\)', 'used - (?:like new|very good|good|acceptable)', 'pre-?owned', 'second-?hand', 'refurb(?:ished)?', 'renewed', 'open[- ]box', 'ex[- ]display', 'b-?grade', 'preloved']) }
 ];
 
@@ -94,7 +96,7 @@ export const RULES = [
   },
   {
     slug: 'protection',
-    include: words(['(?:knee|elbow|shoulder|hip|shin) (?:guards?|pads?|protectors?|armou?r)', 'protective (?:vests?|shorts|shirts?|jackets?|gear)', 'hi-?vis\\w*', 'high visibility', 'reflective (?:vests?|bands?|belts?|sashes?|tape|stickers?)', 'pressure suits?', 'body ?guards?', 'ear ?plugs?']),
+    include: words(['(?:knee|elbow|shoulder|hip|shin) (?:guards?|pads?|protectors?|armou?r)', 'protective (?:vests?|shorts|shirts?|jackets?|gear)', 'hi-?vis\\w*', 'high visibility', 'reflective (?:vests?|bands?|belts?|sashes?|tape|stickers?)', 'pressure suits?', 'body ?guards?', 'ear ?plugs?', 'bright (?:tops?|vests?)']),
     ctx: true
   },
   {
@@ -109,13 +111,13 @@ export const RULES = [
   },
   {
     slug: 'helmets',
-    include: words(['helmets?', 'visors?', 'goggles', 'tear[- ]?offs?', 'roll[- ]?offs?', 'anti-?(?:fog|rain)\\w*']),
+    include: words(['helmets?', 'visors?', 'goggles', 'tear[- ]?offs?', 'roll[- ]?offs?', 'anti-?(?:fog|rain)\\w*', '(?:full|open)[- ]face', 'flip[- ]?(?:front|up)', 'modular']),
     exclude: words(['hard hats?', 'safety helmets?', 'welding', 'ski', 'snowboard', 'climbing', 'hooks?', 'hangers?', 'stands?', 'shel(?:f|ves)', 'dryers?', 'drying', 'racks?', 'wall mount\\w*']),
     ctx: true
   },
   {
     slug: 'jackets-trousers',
-    include: words(['jackets?', 'trousers', 'jeans?', 'pants', 'hoodies?', 'shirts?', 'leathers', '(?:one|two|1|2)[- ]piece (?:suits?|leathers)', 'race suits?', 'over-?suits?', 'over-?trousers', 'rain ?suits?', 'waterproof (?:suits?|covers? for jackets?)', 'base ?layers?', 'thermal (?:tops?|leggings|vests?|layers?)', 'neck (?:warmers?|tubes?)', 'balaclavas?', 'headgear', 'snoods?', 'gilets?', 'jerseys?', 'riding (?:suits?|shirts?)', 'kevlar (?:jeans|hoodies?|shirts?)', 'armou?red (?:jeans|hoodies?|shirts?|leggings)']),
+    include: words(['jackets?', 'trousers', 'jeans?', 'pants', 'hoodies?', 'shirts?', 'leathers', '(?:one|two|1|2)[- ]piece (?:suits?|leathers)', 'race suits?', 'over-?suits?', 'over-?trousers', 'rain ?suits?', 'waterproof (?:suits?|covers? for jackets?)', 'base ?layers?', 'thermal (?:tops?|leggings|vests?|layers?)', 'neck ?(?:warmers?|tubes?)', 'balaclavas?', 'headgear', 'snoods?', 'gilets?', 'jerseys?', 'riding (?:suits?|shirts?)', 'kevlar (?:jeans|hoodies?|shirts?)', 'armou?red (?:jeans|hoodies?|shirts?|leggings)']),
     exclude: new RegExp(`${words(['jacket (?:hangers?|racks?)', 'airbag']).source}|${HELMET_STORAGE.source}`, 'i'),
     ctx: true
   },
@@ -160,7 +162,7 @@ export const RULES = [
   },
   {
     slug: 'luggage-security',
-    include: words(['luggage (?:racks?|systems?|plates?)', 'roll[- ]?(?:bags?|tops?)', 'dry ?bags?', 'backpacks?', 'rucksacks?', 'bags?', 'locks?', 'padlocks?', 'chain locks?', 'shackle locks?', 'cable locks?', 'u-?locks?', 'alarms?', 'immobili[sz]ers?', 'covers?', 'rain covers?', 'cargo nets?', 'bungee (?:cords?|nets?|straps?)', 'rear racks?', 'sissy bars?', 'mounting (?:plates?|kits?) for (?:top ?box\\w*|panniers?)']),
+    include: words(['luggage (?:racks?|systems?|plates?)', 'tour ?packs?', 'leverlock', 'chain\\d+', 'combi chains?', 'roll[- ]?(?:bags?|tops?)', 'dry ?bags?', 'backpacks?', 'rucksacks?', 'bags?', 'locks?', 'padlocks?', 'chain locks?', 'shackle locks?', 'cable locks?', 'u-?locks?', 'alarms?', 'immobili[sz]ers?', 'covers?', 'rain covers?', 'cargo nets?', 'bungee (?:cords?|nets?|straps?)', 'rear racks?', 'sissy bars?', 'mounting (?:plates?|kits?) for (?:top ?box\\w*|panniers?)']),
     exclude: words(['chain lube', 'seat covers? for cars?']),
     ctx: true
   },
@@ -168,6 +170,13 @@ export const RULES = [
     slug: 'parts-maintenance',
     include: words(['paddock stands?', 'paddock stand (?:sets?|bobbins?)', 'bobbins', 'motor ?(?:bike|cycle) (?:lifts?|stands?|jacks?|ramps?|dollies?|wheel chocks?)', 'chain (?:lube|lubes|lubricants?|cleaners?|wax|kits?|breakers?|riveters?|splitters?|alignment\\w*|brush(?:es)?)', 'chain (?:and|&) sprocket\\w*',
       'sprockets?', 'fork oil', 'optimate', 'scottoiler', 'tyre warmers?', 'crash (?:bungs?|bars?|protectors?)', 'frame sliders?', 'heated grips?']),
+  },
+  {
+    // Nikwax re-proofing for riding gear; its tent proofing is camping (Travel Gear World).
+    slug: 'parts-maintenance',
+    include: words(['nikwax']),
+    exclude: words(['tents?']),
+    ctx: true
   },
   {
     slug: 'parts-maintenance',
@@ -181,7 +190,7 @@ export const RULES = [
 // Second chance (step 4): the shop's own motorbike section names the category. Checked in this order on the shop's path.
 // Not for shops whose sub-sections are unreliable (sources.json "sectionHints": false, Joybuy, as on SGW).
 export const SECTION_RULES = [
-  { slug: 'helmets', re: /motor ?(?:cycle|bike) helmets?/i },
+  { slug: 'helmets', re: /motor ?(?:cycle|bike) helmets?|(?:^|[\s>|])[a-z]*\s?helmets(?:$|[\s>|])/i },
   { slug: 'boots-gloves', re: /motor ?(?:cycle|bike) (?:boots|gloves)/i },
   { slug: 'jackets-trousers', re: /motor ?(?:cycle|bike) (?:jackets|pants|trousers|suits|clothing)/i },
   { slug: 'protection', re: /motor ?(?:cycle|bike) (?:armou?r|protectors?|body protection)/i },
@@ -242,7 +251,8 @@ export function classify(name, feedCategory = '', paths = '', source = null) {
     if (r.ctx && !ctx) continue;
     if (r.include.test(n) && !(r.exclude && r.exclude.test(n))) return { ok: true, slug: r.slug };
   }
-  if (hints && motoFeed) for (const s of SECTION_RULES) if (s.re.test(cat)) return { ok: true, slug: s.slug };
+  // A motorbike shop's brand sections count too (Webbs: "Shop by brand > SHOEI HELMETS").
+  if (hints && (motoFeed || (source && source.motoShop))) for (const s of SECTION_RULES) if (s.re.test(cat)) return { ok: true, slug: s.slug };
   return { ok: false, reason: motoFeed ? 'not matched (shop says motorbike)' : 'not motorbike or scooter' };
 }
 

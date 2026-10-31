@@ -150,6 +150,18 @@ test('Webbs Motorcycles (joined 31 Oct 2026): a motorbike shop, so helmets named
   ]) assert.equal(at(n, c).slug, s, n);
   assert.equal(at('Triumph Burnham T-Shirt Grey | Triumph Motorcycle Clothing', 'Motorcycle Clothing > Casual Clothing > All Triumph Casual Clothing').ok, false);
   assert.equal(at('Muc-Off Bicycle Cleaner 1L', 'Shop by brand > MUC-OFF').ok, false);
+  // Dry run of 31 Oct 2026: "+ 5 Year Warranty" is a promotion, "Bike It" a motorbike brand, Shoei's brand section names helmets.
+  for (const [n, c, sl] of [
+    ['Scorpion Exo-1400 Evo Carbon Full Face Motorcycle Helmet Red + 5 Year Warranty', 'Motorcycle Helmets > Full Face Helmets', 'helmets'],
+    ['Shoei J-Cruise 3 Whizzy Tc-1 – Black / Red – Open Face', 'Shop by brand > SHOEI HELMETS', 'helmets'],
+    ['Bike It Guardian Pro 3 Intelligent Battery Charger And Maintainer 12/14.4V 3.8A', 'Shop by brand > BIKE IT', 'parts-maintenance'],
+    ['Bike It Nautica Outdoor Motorcycle Rain Cover', 'Shop by brand > BIKE IT', 'luggage-security'],
+    ['Venti Check Necktube', 'Shop by brand > VENTI CLOTHING', 'jackets-trousers'],
+    ['Oxford Atlas T-30 Advanced Tourpack Black', 'Shop by brand > OXFORD ACCESSORIES', 'luggage-security'],
+    ['Rst Workwear Ce Mens Motorcycle Boots – Sand', 'Motorcycle Clothing > Mens Motorcycle Clothing & Boots > Mens Motorcycle Boots', 'boots-gloves']
+  ]) assert.equal(at(n, c).slug, sl, n);
+  assert.equal(at('Nikwax Tent & Gear Solar Proof 500Ml', 'Christmas Gift Guide > £25 and under').ok, false);
+  assert.equal(at('Muc-Off Bike Care Pack', 'Shop by brand > MUC-OFF').ok, false);
   // Without "motoShop" the same name says nothing about a motorbike.
   assert.equal(classify('Oxford Rainex Outdoor Cover', 'Shop by brand > OXFORD ACCESSORIES', '').ok, false);
 });
