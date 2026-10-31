@@ -120,6 +120,12 @@ test('fixes after the first dry run (31 Oct 2026, real feed names)', () => {
   for (const [n, c] of [['SGS 1A Compact Automatic Battery Charger | 6V/12V', 'Electronics > Power'], ['SGS 45cc Petrol Chainsaw - 15in Bar with Chain Oil 1L', 'Garden Equipment > Chainsaws'],
     ['SGS Mini Cordless Tyre Inflator Power Bank', 'Home & Garden > Automotive'], ['SGS 2 Stroke Oil - 1 Litre', 'Home & Garden > Lawn & Garden'], ['NitroLift Quiver Rack Top Box Gas Strut', 'Hardware']]) assert.equal(at(n, c).ok, false, n);
   assert.equal(at('Carlube XST011 2-Stroke Mineral Motorcycle Oil 1L', 'Engine Oil').slug, 'parts-maintenance');
+  // Second dry run: garage storage for riding gear is Parts, chainsaw chain oil is not a motorbike product.
+  for (const n of ['Sealey Motorcycle Helmet And Jacket Hook', 'Sealey Motorcycle Boots, Helmet and Jacket Stand', 'Sealey Motorcycle Boots and Helmet Stand', 'Sealey Drying Fan Stand for Helmet, Gloves and Boots']) {
+    assert.equal(at(n, 'Motorcycle Tools').slug, 'parts-maintenance', n);
+  }
+  assert.equal(at('Stihl Synthplus Chain Oil 1L', 'Garden Equipment > Accessories & Spare Parts > Stihl').ok, false);
+  assert.equal(at('Motorcycle Chain Lube 400ml', '').slug, 'parts-maintenance');
 });
 
 test('sizes in product names are taken out, so each size is one card (owner\'s rule for duplicates)', () => {

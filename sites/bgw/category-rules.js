@@ -61,7 +61,7 @@ export const DENY = [
   // "Kick Scooter for Kids ... Toddler Toys": a scooter stays a BGW product (owner, 29 Oct 2026); a ride-on motorbike or quad does not.
   { label: 'kids\' ride-on toy (Kids\' Gear World)', unlessScooter: true, re: words(['ride[- ]?ons?', 'toys?', 'toy (?:motor ?bikes?|motorcycles?|scooters?)', 'play vehicles?', 'push ?alongs?', 'rocking (?:horses?|motor ?bikes?)', 'foot to floor', 'sit[- ]on', 'balance bikes?', 'trikes?', 'tricycles?', 'kinder\\w*']) },
   { label: 'work helmet, hard hat or tool (Construction Gear World)', re: words(['hard ?hats?', 'safety helmets?', 'schutzhelm\\w*', 'bump caps?', 'ear defenders?', 'climbing helmets?', 'deburring', 'bolsters?', 'chisels?', 'welders?', 'welding', 'angle grinders?', 'winkelschleifer', 'hi-?vis (?:workwear|coveralls?|trousers|polo)', 'safety (?:boots?|shoes?|trainers?)', 'work (?:boots?|gloves?|wear|trousers)', 'workwear', 'steel toe\\w*']) },
-  { label: 'garden machinery (Garden Gear World)', unlessMoto: true, re: words(['chainsaws?', 'strimmers?', 'brush ?cutters?', 'hedge trimmers?', 'lawn ?mowers?', 'leaf blowers?', 'tillers?', 'generators?', 'garden machinery', 'mowers?']) },
+  { label: 'garden machinery (Garden Gear World)', unlessMoto: true, re: words(['chainsaws?', 'stihl', 'husqvarna', 'bar (?:and|&) chain', 'strimmers?', 'brush ?cutters?', 'hedge trimmers?', 'lawn ?mowers?', 'leaf blowers?', 'tillers?', 'generators?', 'garden machinery', 'mowers?']) },
   { label: 'phone or computer part (Technology Gear World)', re: words(['motorola', 'moto (?:g|e|x|z)\\d*\\w*', 'moto edge', 'screen protectors?', 'mobile phone (?:screen|back)\\w*', 'keyboards?', 'keycaps?', 'mouse', 'mice', 'thermal paste', 'mp3', 'psu', 'power supply', 'printers?', 'scanners?', 'laptops?', 'notebook', 'tablets?', 'ethernet', 'sfp\\+?', 'transceivers?', 'apfc', 'spare part/accessory', 'graphics cards?', 'motherboards?', 'ssd', 'hdd', 'smart ?watch(?:es)?', 'earbuds', 'head ?phones?']) },
   { label: 'horse riding (not motorbike)', unlessMoto: true, re: words(['equestrian', 'horses?', 'horse riding', 'jodhpurs?', 'riding (?:hats?|helmets?|boots?|tights|breeches|gloves?|crops?)', 'saddles?(?! ?bags?)', 'bridles?', 'stirrups?', 'girths?', 'numnahs?', 'hoof\\w*', 'ponies', 'pony', 'paddock boots?', 'jockey']) },
   { label: 'mobility, sea or video scooter (not a riding scooter)', re: words(['mobility (?:scooters?|aids?)', 'mobility', 'scootmobiel\\w*', 'sea scooters?', 'underwater scooters?', 'dive scooters?', 'water scooters?', 'knee (?:scooters?|walkers?)', 'video scooter', 'wheelchairs?', 'rollators?', 'hoverboards?', 'skateboards?', 'snow scooters?', 'scooter (?:boards?|mp3)']) },
@@ -113,13 +113,13 @@ export const RULES = [
   {
     slug: 'jackets-trousers',
     include: words(['jackets?', 'trousers', 'jeans', 'pants', 'leathers', '(?:one|two|1|2)[- ]piece (?:suits?|leathers)', 'race suits?', 'over-?suits?', 'over-?trousers', 'rain ?suits?', 'waterproof (?:suits?|covers? for jackets?)', 'base ?layers?', 'thermal (?:tops?|leggings|vests?|layers?)', 'neck (?:warmers?|tubes?)', 'balaclavas?', 'headgear', 'snoods?', 'jerseys?', 'riding (?:suits?|shirts?)', 'kevlar (?:jeans|hoodies?|shirts?)', 'armou?red (?:jeans|hoodies?|shirts?|leggings)']),
-    exclude: words(['jacket (?:hangers?|racks?)', 'airbag']),
+    exclude: new RegExp(`${words(['jacket (?:hangers?|racks?)', 'airbag']).source}|${HELMET_STORAGE.source}`, 'i'),
     ctx: true
   },
   {
     slug: 'boots-gloves',
     include: words(['boots?', 'gloves?', 'gauntlets?', '(?:handlebar|hand) muffs?', 'muffs?', 'boot (?:covers?|bags?|liners?)', 'overboots?', 'glove (?:liners?|bags?)', 'heated (?:gloves?|insoles?|socks?)', 'riding (?:shoes?|socks?)', 'boot socks?']),
-    exclude: words(['boot (?:racks?|lifts?|trays?|liners for cars?)', 'car boot']),
+    exclude: new RegExp(`${words(['boot (?:racks?|lifts?|trays?|liners for cars?)', 'car boot']).source}|${HELMET_STORAGE.source}`, 'i'),
     ctx: true
   },
   {
@@ -163,7 +163,7 @@ export const RULES = [
   },
   {
     slug: 'parts-maintenance',
-    include: words(['paddock stands?', 'paddock stand (?:sets?|bobbins?)', 'bobbins', 'motor ?(?:bike|cycle) (?:lifts?|stands?|jacks?|ramps?|dollies?|wheel chocks?)', 'chain (?:lube|lubes|lubricants?|cleaners?|wax|oil|kits?|breakers?|riveters?|splitters?|alignment\\w*|brush(?:es)?)', 'chain (?:and|&) sprocket\\w*',
+    include: words(['paddock stands?', 'paddock stand (?:sets?|bobbins?)', 'bobbins', 'motor ?(?:bike|cycle) (?:lifts?|stands?|jacks?|ramps?|dollies?|wheel chocks?)', 'chain (?:lube|lubes|lubricants?|cleaners?|wax|kits?|breakers?|riveters?|splitters?|alignment\\w*|brush(?:es)?)', 'chain (?:and|&) sprocket\\w*',
       'sprockets?', 'fork oil', 'optimate', 'scottoiler', 'tyre warmers?', 'crash (?:bungs?|bars?|protectors?)', 'frame sliders?', 'heated grips?']),
   },
   {
