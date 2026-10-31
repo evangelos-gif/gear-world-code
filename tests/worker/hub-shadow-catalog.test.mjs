@@ -34,7 +34,10 @@ function fixture() {
     + '496,Tooled Up,GB,active,89987,Tooled Up,2\n'
     + '99001,Moto Test Shop,GB,active,1,Main,3\n'
     + '99003,Missing Shop,GB,active,7,Main,5000\n'
-    + '99002,Not Joined Shop,GB,notjoined,2,Main,1\n');
+    + '99002,Not Joined Shop,GB,notjoined,2,Main,1\n'
+    + '99004,Reidl Test,DE,active,9,Main,10\n');
+  writeFileSync(join(b, 'AWIN_99004_9.csv.gz'), gzipSync(head
+    + `${link(7, 99004)},Shoei GT-Air 3 Motorradhelm,7,R-1,https://img.example/7.jpg,Helme,499,GBP,Shoei,1,\n`));
   return { dir, archive: `${a};${b}`, files: [join(a, 'AWIN_496_89987.csv.gz'), join(b, 'AWIN_99001_1.csv.gz')], listFile };
 }
 const hash = f => createHash('sha256').update(readFileSync(f)).digest('hex');
@@ -44,13 +47,14 @@ test('offered shops: joined AND on this PC, joined feeds only; missing and not-j
   const { byAdv, cj } = archiveFeeds(fx.archive.split(';'));
   assert.equal(cj, 1);
   const list = await readList(fx.listFile);
-  const { offered, missing, notJoined, joinedCount } = offeredShops(byAdv, list);
+  const { offered, missing, notJoined, foreign, joinedCount } = offeredShops(byAdv, list);
   assert.deepEqual([...offered.keys()].sort(), [496, 99001]);
-  assert.equal(joinedCount, 3);
+  assert.equal(joinedCount, 4);
+  assert.deepEqual(foreign.map(f => f.adv), [99004], 'a DE programme is not offered (L79: names in English first)');
   assert.deepEqual(missing.map(m => m.adv), [99003]);
   assert.deepEqual(notJoined, [99002]);
   const none = offeredShops(byAdv, null);
-  assert.equal(none.offered.size, 3, 'without the Awin list every shop on the PC is offered');
+  assert.equal(none.offered.size, 4, 'without the Awin list every shop on the PC is offered');
 });
 
 test('site sources: a listed shop keeps its own rules, an unlisted one is added without a section filter', () => {
@@ -62,6 +66,7 @@ test('site sources: a listed shop keeps its own rules, an unlisted one is added 
   assert.equal(sources.find(s => s.advertiserId === 118435).approved, false, 'a shop the site keeps out stays out');
   const added = sources.find(s => s.advertiserId === 99001);
   assert.equal(added.approved, true);
+  assert.equal(added.currency, '', 'no currency is assumed for a new shop: a feed without one is left out');
   assert.equal(added.allowPaths, undefined);
   assert.ok(listed.has(496) && !listed.has(99001));
 });
@@ -88,6 +93,8 @@ test('shadow catalogue: new shop routed by each site\'s rules, not-joined shop o
   assert.match(summary, /99003 Missing Shop/);
   assert.match(summary, /ΔΕΝ είσαι μέλος/);
   assert.match(summary, /Αρχεία CJ στον υπολογιστή: 1/);
+  assert.match(summary, /Καταστήματα εκτός UK: 1 \(Reidl Test DE\)/);
+  assert.ok(!names('BGW').some(n => /Motorradhelm/.test(n)), 'the DE shop is not counted');
   assert.match(summary, /BGW Biker .*νέα \+ +1 /);
   assert.match(summary, /Moto Test Shop/);
   assert.match(summary, /CGW, MGW, WGW, KGW, HGW, GGW: .*Φάση 4/);

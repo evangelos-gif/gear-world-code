@@ -37,6 +37,9 @@ export const SHADOW_SITES = [
 ];
 export const OLD_SITES = ['CGW', 'MGW', 'WGW', 'KGW', 'HGW', 'GGW'];
 const JOINED = /^(active|joined)$/i;
+// The network is for UK buyers in £. A programme of another region (Reidl DE, Kastner & Öhler DE/AT, Pneus BE in the first run,
+// 31 Oct 2026) has German or French names and euro prices: like VEVOR NL it needs English names first (lessons L79).
+const UK_REGION = /^(gb|uk|united kingdom)$/i;
 const SAMPLES = 4;
 const SHOPS_SHOWN = 10;
 
@@ -62,26 +65,30 @@ export function offeredShops(byAdv, list) {
   const offered = new Map();
   const missing = [];
   const notJoined = [];
+  const foreign = [];
   if (!list) {
     for (const [adv, feeds] of byAdv) offered.set(adv, { name: '', feedIds: [...feeds].sort((a, b) => a - b) });
-    return { offered, missing, notJoined, joinedCount: null };
+    return { offered, missing, notJoined, foreign, joinedCount: null };
   }
   const joined = new Map();
   for (const r of list) {
     const adv = Number(r.id), fid = Number(r.feedId);
     if (!adv || !JOINED.test(r.membership)) continue;
-    const j = joined.get(adv) || { name: r.name, feeds: new Map() };
+    const j = joined.get(adv) || { name: r.name, feeds: new Map(), regions: new Set() };
+    if (r.region) j.regions.add(r.region);
     if (fid) j.feeds.set(fid, r);
     joined.set(adv, j);
   }
   for (const [adv, j] of joined) {
+    // Only a shop whose every region is known and none is the UK is left out (a missing region never drops a shop).
+    if (j.regions.size && ![...j.regions].some(x => UK_REGION.test(x))) { foreign.push({ adv, name: j.name, region: [...j.regions].join('/') }); continue; }
     const onPc = byAdv.get(adv) || new Set();
     const feedIds = [...j.feeds.keys()].filter(f => onPc.has(f)).sort((a, b) => a - b);
     for (const [f, r] of j.feeds) if (!onPc.has(f)) missing.push({ adv, name: j.name, feedId: f, products: r.products || 0 });
     if (feedIds.length) offered.set(adv, { name: j.name, feedIds });
   }
   for (const adv of byAdv.keys()) if (!joined.has(adv)) notJoined.push(adv);
-  return { offered, missing, notJoined, joinedCount: joined.size };
+  return { offered, missing, notJoined, foreign, joinedCount: joined.size };
 }
 
 // The sources one site gets: its own list unchanged, plus every offered shop it does not list, with no section filter.
@@ -90,7 +97,7 @@ export function siteSources(own, offered) {
   const added = [];
   for (const [adv, o] of offered) {
     if (listed.has(adv)) continue;
-    added.push({ advertiserId: adv, feedIds: o.feedIds, retailer: o.name || `Awin ${adv}`, currency: 'GBP', condition: 'new', approved: true, hubShadow: true });
+    added.push({ advertiserId: adv, feedIds: o.feedIds, retailer: o.name || `Awin ${adv}`, currency: '', condition: 'new', approved: true, hubShadow: true });
   }
   return { sources: [...own, ...added], listed };
 }
@@ -101,7 +108,7 @@ const cut = (s, n) => (String(s).length > n ? String(s).slice(0, n - 1) + '…' 
 export async function shadowCatalog({ archive, outDir, list = null, now = new Date(), sites = SHADOW_SITES, log = () => {} }) {
   const archives = archiveList(archive);
   const { byAdv, cj } = archiveFeeds(archives);
-  const { offered, missing, notJoined, joinedCount } = offeredShops(byAdv, list);
+  const { offered, missing, notJoined, foreign, joinedCount } = offeredShops(byAdv, list);
   // Shop names: the name a site already uses, else the Awin list's.
   const owns = sites.map(site => JSON.parse(readFileSync(join(repoRoot, 'sites', site.dir, 'sources.json'), 'utf8')).sources);
   const names = new Map();
@@ -146,6 +153,7 @@ export async function shadowCatalog({ archive, outDir, list = null, now = new Da
     L.push(`Feeds μελών που ΛΕΙΠΟΥΝ από τον υπολογιστή: ${missing.length} (δεν μετρήθηκαν). Τα μεγαλύτερα:`);
     for (const m of top.slice(0, 8)) L.push(`  - ${m.adv} ${cut(m.name, 36)} (feed ${m.feedId}, ${fmt(m.products)} προϊόντα)`);
   }
+  if (foreign.length) L.push(`Καταστήματα εκτός UK: ${foreign.length} (${foreign.slice(0, 6).map(f => `${cut(f.name, 24)} ${f.region}`).join(', ')}). Δεν μετρήθηκαν: θέλουν πρώτα αγγλικά ονόματα, όπως το VEVOR (L79).`);
   if (notJoined.length) L.push(`Αρχεία στον υπολογιστή από ${notJoined.length} καταστήματα όπου ΔΕΝ είσαι μέλος: δεν μετρήθηκαν (δεν πληρώνουν).`);
   if (cj) L.push(`Αρχεία CJ στον υπολογιστή: ${cj}. Δεν διαβάζονται ακόμα (Φάση 5).`);
   L.push('');
