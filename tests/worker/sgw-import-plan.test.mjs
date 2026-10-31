@@ -124,6 +124,15 @@ test('dry-run fixes (25 Oct 2026): shops whose sections are unreliable are sorte
   assert.equal(at('Capelli Sport STROBE LIGHT', 'Sporting Goods > Exercise & Fitness').ok, false);
 });
 
+test('Bern Helmets (joined 31 Oct 2026): bike helmets to Cycling, snow helmets and goggles to Winter, youth helmets to Kids\' Gear World', () => {
+  const at = (n, c) => classify(cleanProductName(n), c, c);
+  assert.equal(at('Bern Major Helmet - Matte Black', 'Bike Helmets Fitness').slug, 'cycling');
+  assert.equal(at('Bern Hendrix MIPS Carbon Winter Helmet - Matte Black Hatstyle', 'Snow Helmets Gadgets').slug, 'hiking-climbing-winter');
+  assert.equal(at('Bern B-1 Winter Goggle - Zeiss Black', 'Bern Ski and Snowboard Helmets Gadgets').slug, 'hiking-climbing-winter');
+  assert.equal(at('Bern Winter Liner - Universal Adult Package', 'Bern Bike Helmets Fitness').slug, 'hiking-climbing-winter');
+  assert.equal(at('Bern Nino 2.0 Youth Helmet', 'Bike Helmets Fitness').ok, false);
+});
+
 test('sizes in product names are taken out, so each size is one card (owner\'s rule for duplicates)', () => {
   for (const [raw, clean] of [
     ["EU43 Li-Ning Men's RED HARE 9 ULTRA Racing Running Shoes", "Li-Ning Men's RED HARE 9 ULTRA Racing Running Shoes"],
@@ -151,10 +160,10 @@ test('every site category has rules, and the menu order matches the site', () =>
 test('sources: the first-wave shops are approved, VEVOR waits for the second wave, sport sections only (L65)', () => {
   const src = JSON.parse(readFileSync('sites/sgw/sources.json', 'utf8')).sources;
   const approved = src.filter(s => s.approved).map(s => s.retailer);
-  assert.deepEqual(approved, ['Coes', 'Joybuy', 'Plusshop UK', 'Bazta UK', 'Beyond Shakers']);
+  assert.deepEqual(approved, ['Coes', 'Joybuy', 'Plusshop UK', 'Bazta UK', 'Beyond Shakers', 'Bern Helmets']);
   assert.equal(src.find(s => s.retailer === 'VEVOR').approved, false);
   for (const r of ['Coes', 'Joybuy']) assert.equal(src.find(s => s.retailer === r).sectionHints, false, r);
-  for (const s of src.filter(x => x.approved && !x.rulesFrom && x.retailer !== 'Beyond Shakers')) assert.ok(s.allowPaths && s.allowPaths.length, s.retailer);
+  for (const s of src.filter(x => x.approved && !x.rulesFrom && !['Beyond Shakers', 'Bern Helmets'].includes(x.retailer))) assert.ok(s.allowPaths && s.allowPaths.length, s.retailer);
 });
 
 test('plan: two archive folders, only the sport section of a shop, kids and tools out, SQL not executed', async () => {

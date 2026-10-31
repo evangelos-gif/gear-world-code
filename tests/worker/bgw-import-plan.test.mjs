@@ -128,6 +128,32 @@ test('fixes after the first dry run (31 Oct 2026, real feed names)', () => {
   assert.equal(at('Motorcycle Chain Lube 400ml', '').slug, 'parts-maintenance');
 });
 
+test('Webbs Motorcycles (joined 31 Oct 2026): a motorbike shop, so helmets named only by model come in; casual T-shirts and bicycle products do not', () => {
+  const webbs = { motoShop: true };
+  const at = (n, c) => classify(cleanProductName(n), c, c, webbs);
+  for (const [n, c, s] of [
+    ['Arai Tour-X 5 Solid Matt Black', 'Motorcycle Helmets > Full Face Helmets', 'helmets'],
+    ['Hjc I71 Viz – Black – Full Face', 'Motorcycle Helmets > Full Face Helmets', 'helmets'],
+    ['Scorpion Adx-2 Lewis Black/Orange', 'Motorcycle Helmets > Flip Front Helmets', 'helmets'],
+    ['Rst S1 Ce Mens Textile Motorcycle Jacket Black', 'Motorcycle Clothing > Mens Motorcycle Clothing & Boots > Mens Motorcycle Jackets', 'jackets-trousers'],
+    ['Rst Pro Series D3O Airbag Leather Suit Black/Flo Yellow', 'Motorcycle Clothing > Mens Motorcycle Clothing & Boots > Mens Motorcycle Jackets > Mens Leather Motorcycle Jackets', 'jackets-trousers'],
+    ['Venti Enigma Kevlar Riding Hoodie Navy', 'Motorcycle Clothing > Mens Motorcycle Clothing & Boots > Mens Motorcycle Jackets', 'jackets-trousers'],
+    ['Oxford Ladies Original Approved Slim Aramid Jean Black', 'Motorcycle Clothing > Ladies Motorcycle Clothing & Boots > Ladies Motorcycle Trousers', 'jackets-trousers'],
+    ['Triumph Dalton Motorcycle Gloves Brown | Triumph Motorcycle Clothing', 'Motorcycle Clothing > Mens Motorcycle Clothing & Boots > Mens Motorcycle Gloves', 'boots-gloves'],
+    ['Oxford Rainex Outdoor Cover', 'Shop by brand > OXFORD ACCESSORIES', 'luggage-security'],
+    ['Mammoth Disc Lock Reminder', 'Shop by brand > MAMMOTH LOCKS', 'luggage-security'],
+    ['Quadlock Mag Case Iphone 17 Air', 'Shop by brand > QUADLOCK', 'electronics'],
+    ['Cardo Spirit Intercom Solo', 'Christmas Gift Guide > Over £50', 'electronics'],
+    ['Muc-Off All Weather Chain Lube', 'Shop by brand > MUC-OFF', 'parts-maintenance'],
+    ['Nikwax Fabric & Leather Proof Spray 300Ml', 'Christmas Gift Guide > £25 and under', 'parts-maintenance'],
+    ['Visiodry Anti-Rain Aerosol Spray 35Ml Single', 'Shop by brand > VISIODRY', 'helmets']
+  ]) assert.equal(at(n, c).slug, s, n);
+  assert.equal(at('Triumph Burnham T-Shirt Grey | Triumph Motorcycle Clothing', 'Motorcycle Clothing > Casual Clothing > All Triumph Casual Clothing').ok, false);
+  assert.equal(at('Muc-Off Bicycle Cleaner 1L', 'Shop by brand > MUC-OFF').ok, false);
+  // Without "motoShop" the same name says nothing about a motorbike.
+  assert.equal(classify('Oxford Rainex Outdoor Cover', 'Shop by brand > OXFORD ACCESSORIES', '').ok, false);
+});
+
 test('sizes in product names are taken out, so each size is one card (owner\'s rule for duplicates)', () => {
   for (const [raw, clean] of [
     ['Full Face Motorcycle Helmet Matte Black M 57-58cm', 'Full Face Motorcycle Helmet Matte Black'],
@@ -145,7 +171,8 @@ test('every site category has rules, and the menu order matches the site', () =>
 test('sources: the first-wave shops are approved, VEVOR waits for the second wave, motorbike sections only (L65)', () => {
   const src = JSON.parse(readFileSync('sites/bgw/sources.json', 'utf8')).sources;
   const approved = src.filter(s => s.approved).map(s => s.retailer);
-  assert.deepEqual(approved, ['Tooled Up', 'My Tool Shed', 'Joybuy', 'SGS Engineering', 'Plusshop UK', 'Bazta UK']);
+  assert.deepEqual(approved, ['Tooled Up', 'My Tool Shed', 'Joybuy', 'Webbs Motorcycles', 'SGS Engineering', 'Plusshop UK', 'Bazta UK']);
+  assert.equal(src.find(s => s.retailer === 'Webbs Motorcycles').motoShop, true);
   const vevor = src.find(s => s.retailer === 'VEVOR');
   assert.equal(vevor.approved, false);
   assert.equal(vevor.keepSiteNames, true, 'lessons L79: a VEVOR rules file keeps the translated names');
