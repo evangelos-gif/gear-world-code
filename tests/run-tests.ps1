@@ -283,6 +283,15 @@ if (Get-Command node -ErrorAction SilentlyContinue) {
     Check ((Get-FileHash -LiteralPath $gzPath -Algorithm SHA256).Hash -eq $archHash) 'moto feed scan: Awin archive unchanged'
     & $exe -NoProfile -ExecutionPolicy Bypass -File $runTool -LocalRepo $repo -Tool moto-feed-scan -Archive (Join-Path $work 'no-such-folder') -OutDir $motoOut -KeyFile (Join-Path $work 'no-key.dat') -NoClipboard | Out-Null
     Check ($LASTEXITCODE -eq 2) 'moto feed scan: missing archive gives exit code 2'
+    $gamingOut = Join-Path $work 'gaming-scan-run'
+    & $exe -NoProfile -ExecutionPolicy Bypass -File $runTool -LocalRepo $repo -Tool gaming-feed-scan -Archive $arch -OutDir $gamingOut -KeyFile (Join-Path $work 'no-key.dat') -NoClipboard | Out-Null
+    Check ($LASTEXITCODE -eq 0) 'gaming feed scan: exit code 0 through gw-run, without a saved key'
+    $gamingRuns = @(Get-ChildItem -LiteralPath $gamingOut -Directory -Filter 'GAMING_FEED_SCAN_*' -ErrorAction SilentlyContinue)
+    Check ($gamingRuns.Count -eq 1) 'gaming feed scan: report folder written'
+    if ($gamingRuns.Count -ge 1) { Check ([System.IO.File]::ReadAllText((Join-Path $gamingRuns[0].FullName 'report.txt')).Contains('GAMING FEED SCAN')) 'gaming feed scan: PGW report' }
+    Check ((Get-FileHash -LiteralPath $gzPath -Algorithm SHA256).Hash -eq $archHash) 'gaming feed scan: Awin archive unchanged'
+    & $exe -NoProfile -ExecutionPolicy Bypass -File $runTool -LocalRepo $repo -Tool gaming-feed-scan -Archive (Join-Path $work 'no-such-folder') -OutDir $gamingOut -KeyFile (Join-Path $work 'no-key.dat') -NoClipboard | Out-Null
+    Check ($LASTEXITCODE -eq 2) 'gaming feed scan: missing archive gives exit code 2'
     $agwOut = Join-Path $work 'agw-plan-run'
     & $exe -NoProfile -ExecutionPolicy Bypass -File $runTool -LocalRepo $repo -Tool agw-import-plan -Archive $arch -OutDir $agwOut -NoClipboard | Out-Null
     Check ($LASTEXITCODE -eq 0) 'agw import plan: exit code 0 through gw-run'
