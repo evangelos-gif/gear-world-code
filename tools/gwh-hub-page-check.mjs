@@ -144,9 +144,9 @@ try {
         check(await page.getAttribute('.gwh2-slide', 'data-campaign') === 'christmas', `${tag}: the back arrow works`);
       }
 
-      // the 10 worlds, translated by translations.js
+      // the 11 worlds, translated by translations.js
       const worlds = await page.$$eval('.gwh-image-world', els => els.map(e => ({ world: e.dataset.world, href: e.getAttribute('href'), title: e.querySelector('.gwh-image-world-title').textContent.trim() })));
-      check(worlds.length === 10 && worlds.every(w => /^https:\/\/[a-z]+gearworld\.com\/$/.test(w.href)), `${tag}: 10 Gear World cards with their sites`, worlds.map(w => w.world).join(','));
+      check(worlds.length === 11 && worlds.every(w => /^https:\/\/[a-z]+gearworld\.com\/$/.test(w.href)), `${tag}: 11 Gear World cards with their sites (BGW since 31/10/2026)`, worlds.map(w => w.world).join(','));
       if (locale === 'el-GR') check(worlds[0].title === 'Εργαλεία & ρούχα εργασίας' || /[Α-Ωα-ω]/.test(worlds[0].title), `${tag}: world titles in Greek`, worlds[0].title);
 
       // deals: from hub-deals.json, to site pages only
