@@ -19,7 +19,7 @@ import { fixMojibake } from '../../src/db.js';
 const words = list => new RegExp(`(?:^|[^a-z0-9])(?:${list.join('|')})(?![a-z0-9])`, 'i');
 
 // Shop categories that make a product a car product (top part before ">" or anywhere in the path).
-const CAR_FEED = /automotive|vehicles? (?:parts|repairs|accessories)|vehicles & parts|car (?:parts|accessories|care|electronics|audio|cleaning)|motoring|automobiel|autozubeh|kfz|gas strut applications > (?:cars|vans|caravans|motorhomes)/i;
+const CAR_FEED = /automotive|pneus?|banden|reifen|jantes|velgen|felgen|vehicles? (?:parts|repairs|accessories)|vehicles & parts|car (?:parts|accessories|care|electronics|audio|cleaning)|motoring|automobiel|autozubeh|kfz|gas strut applications > (?:cars|vans|caravans|motorhomes)/i;
 const CAR_WORDS = words(['cars?', 'vehicles?', 'automotive', 'motoring', 'auto', 'van', 'vans', '4x4 vehicle', 'suv', 'campervan', 'motorhome', 'caravan',
   'tyres?', 'tires?', 'dash ?cams?', 'obd2?', 'obdii', 'windscreen', 'windshield', 'number plate', 'tow ?bar', 'tow ball', 'roof box', 'roof bars',
   'ev', 'carplay', 'android auto', 'sat ?nav', 'jump starter', 'jump leads', 'wiper blades?', 'brake (?:pads|discs)',
@@ -64,7 +64,7 @@ export const RULES = [
   },
   {
     slug: 'tyres-wheels',
-    include: words(['tyres?', 'tires?', 'tyre inflators?', 'tire inflators?', 'inflators?', 'tyre (?:pressure|tread|gauge)\\w*', 'tpms', 'puncture', 'alloy wheels?', 'wheel (?:nuts?|bolts?|braces?|trims?|chocks?|dolly|dollies|balancers?|spacers?|locks?)', 'locking wheel nuts', 'wheel nut', 'wheel socket', 'valve (?:caps?|cores?)', 'bandenpomp', 'bead (?:blaster|breaker|seater)']),
+    include: words(['tyres?', 'tires?', 'pneus?', 'banden', 'reifen', 'jantes?', 'velgen', 'felgen', 'rims?', 'tyre inflators?', 'tire inflators?', 'inflators?', 'tyre (?:pressure|tread|gauge)\\w*', 'tpms', 'puncture', 'alloy wheels?', 'wheel (?:nuts?|bolts?|braces?|trims?|chocks?|dolly|dollies|balancers?|spacers?|locks?)', 'locking wheel nuts', 'wheel nut', 'wheel socket', 'valve (?:caps?|cores?)', 'bandenpomp', 'bead (?:blaster|breaker|seater)']),
     exclude: words(['tyre shine', 'tire shine', 'tyre (?:dressing|gel|cleaner)', 'tire (?:dressing|gel|cleaner)', 'trolleys?', 'trucks?', 'wheelbarrows?', 'sack'])
   },
   {
@@ -129,6 +129,8 @@ export function topCategory(feedCategory) {
   return String(feedCategory || '').split('>')[0].trim();
 }
 
+const TYRE_SIZE = /(?:^|[^0-9])\d{3}\s?\/\s?\d{2}\s?Z?R\s?F?\s?\d{2}(?:[.,]5)?(?![0-9])/i;
+const TWO_WHEEL_FEED = /\bmoto\w*|motorbike|motorcycle|scooter|quad|\bv[ée]lo|bicycle|\bbike|fiets|fahrrad|kart/i;
 const GARDEN_FEED = /garden machinery|(?:^|\|)\s*garden tools\b/i;
 const VEHICLE_FEED = /> motor vehicles >|snowmobiles|> vehicles > (?:motor|watercraft|aircraft)/i;
 const VEHICLE_FEED_OK = words(['de-?icers?', 'ice scrapers?', 'screenwash', 'covers?']);
@@ -150,6 +152,13 @@ export function classify(name, feedCategory = '', paths = '') {
   const n = String(name || '');
   const cat = `${String(feedCategory || '')} | ${String(paths || '')}`;
   for (const d of DENY) if (d.re.test(n)) return { ok: false, reason: d.label };
+  // A tyre size ("205/55 R16 91V", "235/45ZR18") is a car tyre even without the word "tyre": tyre shops such as
+  // Pneus.be (Awin 82533) name tyres by brand, model and size only (31 Oct 2026, lessons L87). Motorbike, quad and
+  // bicycle tyres stay out (Biker Gear World later).
+  if (TYRE_SIZE.test(n)) {
+    if (TWO_WHEEL_FEED.test(cat) || TWO_WHEEL_FEED.test(n)) return { ok: false, reason: 'motorbike or bicycle' };
+    return { ok: true, slug: 'tyres-wheels' };
+  }
   // Spark plugs and engine oil for lawnmowers, and whole vehicles (snowmobiles) listed under "Motor Vehicles".
   if (GARDEN_FEED.test(cat)) return { ok: false, reason: 'garden or farm machine' };
   if (VEHICLE_FEED.test(cat) && !VEHICLE_FEED_OK.test(n)) return { ok: false, reason: 'a vehicle, not gear' };

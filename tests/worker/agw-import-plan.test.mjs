@@ -140,3 +140,15 @@ test('rules: car-only tools without the word car, head torches and power tool ch
   assert.equal(at('Portwest Classic Ear Protector'), 'OUT');
   assert.equal(at('Draper Socket Set (10 Piece)'), 'OUT', 'a plain socket set is not only for cars');
 });
+
+// L87: Pneus.be (Awin 82533, approved 29 Oct 2026) names tyres by brand, model and size only.
+test('L87: a tyre size makes a car tyre; motorbike and bicycle tyres stay out', () => {
+  const at = (n, cat = '') => { const c = classify(n, cat); return c.ok ? c.slug : 'OUT'; };
+  assert.equal(at('Michelin Primacy 4 205/55 R16 91V', 'Pneus été'), 'tyres-wheels');
+  assert.equal(at('Continental WinterContact TS 870 235/45ZR18 98V XL'), 'tyres-wheels');
+  assert.equal(at('Bridgestone Turanza 6 225/45 R17 94Y', 'Tourisme > Été'), 'tyres-wheels');
+  assert.equal(at('Jante alu 17 pouces', 'Jantes'), 'tyres-wheels');
+  assert.equal(at('Pirelli Diablo Rosso IV 120/70 ZR17 58W', 'Pneus moto'), 'OUT');
+  assert.equal(at('Michelin Pilot Street 2 110/70-17', 'Moto'), 'OUT');
+  assert.equal(at('Schwalbe Marathon 700x35C', 'Vélo'), 'OUT');
+});
