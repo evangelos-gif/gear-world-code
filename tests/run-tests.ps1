@@ -1879,7 +1879,12 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         Check ((Run-B @('-Apply', '-Approve', 'ΕΓΚΡΙΝΩ BACKUP Q')) -eq 1 -and -not (Test-Path -LiteralPath $bTarget)) 'backup with the wrong phrase: writes nothing'
         $old = Join-Path $bTarget 'd1\2000-01-01_0000\test-db'
         Write-Utf8 (Join-Path $old 'products-0001.json') '[]'
+        $env:GW_RUN_REF = 'abcdef0123456789abcdef0123456789abcdef01'
         Check ((Run-B @('-Apply', '-Approve', ('egkrino backup ' + $drive))) -eq 0) 'backup with approval: exit 0'
+        Remove-Item Env:\GW_RUN_REF -ErrorAction SilentlyContinue
+        $launch = Join-Path $bTarget 'GEAR-WORLD-NEW-PC.cmd'
+        $lt = $(if (Test-Path -LiteralPath $launch) { [System.IO.File]::ReadAllText($launch) } else { '' })
+        Check ($lt.Contains('-Ref abcdef0123456789abcdef0123456789abcdef01 -Tool gw-new-pc -Source "%~dp0." -Apply') -and (Test-Path -LiteralPath (Join-Path $bTarget 'tools\gw-run.ps1'))) 'backup: one double-click for another PC, pinned to the tested version'
         $f = Join-Path $bTarget 'files'
         Check ((Test-Path -LiteralPath (Join-Path $f 'gear-world-hub\worker.js')) -and (Test-Path -LiteralPath (Join-Path $f 'gear-world-hub\.dev.vars')) -and (Test-Path -LiteralPath (Join-Path $f 'construction-gear-world-engine\backups\note.txt')) -and (Test-Path -LiteralPath (Join-Path $f 'sporty-gear-world\worker.js'))) 'backup: Gear World folders copied'
         Check (-not (Test-Path -LiteralPath (Join-Path $f 'gear-world-hub\node_modules')) -and -not (Test-Path -LiteralPath (Join-Path $f 'Documents'))) 'backup: node_modules and other folders skipped'
@@ -1897,6 +1902,70 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         Check (Test-Path -LiteralPath (Join-Path $bTarget 'README-RESTORE.txt')) 'backup: restore instructions written'
         Remove-Item -LiteralPath (Join-Path $bHome 'gear-world-hub\worker.js')
         Check ((Run-B @('-Apply', '-Approve', ('ΕΓΚΡΙΝΩ BACKUP ' + $drive), '-SkipDatabases')) -eq 0 -and (Test-Path -LiteralPath (Join-Path $f 'gear-world-hub\worker.js'))) 'backup again: a file deleted on the PC stays on the drive'
+    } finally {
+        $env:PATH = $oldPath
+        Remove-Item Env:\GW_FAKE_STATE -ErrorAction SilentlyContinue
+        Remove-Item Env:\GW_RUN_REF -ErrorAction SilentlyContinue
+    }
+}
+
+# gw-new-pc.ps1: another PC from the backup drive, with fake npx and npm (Windows only: runs .cmd files and robocopy)
+if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
+    Write-Host 'gw-new-pc.ps1 (fake drive, home, npx and npm)'
+    $nTool = Join-Path (Join-Path $repo 'tools') 'gw-new-pc.ps1'
+    $nSrc = Join-Path $work 'np-drive\GearWorldBackup'
+    $nHome = Join-Path $work 'np-home'
+    $nState = Join-Path $work 'np-state'
+    $nBin = Join-Path $work 'np-bin'
+    New-Item -ItemType Directory -Path $nState, $nBin, $nHome -Force | Out-Null
+    Write-Utf8 (Join-Path $nSrc 'README-RESTORE.txt') 'GEAR WORLD'
+    Write-Utf8 (Join-Path $nSrc 'files\gear-world-hub\worker.js') 'export default {}'
+    Write-Utf8 (Join-Path $nSrc 'files\gear-world-hub\package.json') '{"name":"hub"}'
+    Write-Utf8 (Join-Path $nSrc 'files\gear-world-secrets\awin-feed-key.dat') 'locked to the old PC'
+    Write-Utf8 (Join-Path $nSrc 'files\gear-world-reports\note.txt') 'OLD from the drive'
+    Write-Utf8 (Join-Path $nSrc 'files\Downloads\GW_AWIN_BULK_ARCHIVE\AWIN_1_2.csv.gz') 'feed'
+    [System.IO.File]::SetLastWriteTime((Join-Path $nSrc 'files\gear-world-reports\note.txt'), (Get-Date).AddDays(-30))
+    Write-Utf8 (Join-Path $nHome 'gear-world-reports\note.txt') 'NEW on this PC'
+    $nNpx = @(
+        '@echo off',
+        'echo %* >> "%GW_FAKE_STATE%\calls.log"',
+        'echo %* | findstr /C:"wrangler whoami" >nul && goto whoami',
+        'echo %* | findstr /C:"wrangler login" >nul && goto login',
+        'exit /b 1',
+        ':whoami',
+        'if exist "%GW_FAKE_STATE%\loggedin.txt" (echo You are logged in with an OAuth Token) else (echo You are not authenticated. Please run wrangler login.)',
+        'exit /b 0',
+        ':login',
+        'echo yes> "%GW_FAKE_STATE%\loggedin.txt"',
+        'exit /b 0'
+    ) -join "`r`n"
+    [System.IO.File]::WriteAllText((Join-Path $nBin 'npx.cmd'), $nNpx + "`r`n", [System.Text.Encoding]::ASCII)
+    $nNpm = @('@echo off', 'echo npm %* in %CD% >> "%GW_FAKE_STATE%\calls.log"', 'mkdir node_modules', 'exit /b 0') -join "`r`n"
+    [System.IO.File]::WriteAllText((Join-Path $nBin 'npm.cmd'), $nNpm + "`r`n", [System.Text.Encoding]::ASCII)
+    $oldPath = $env:PATH
+    $env:PATH = $nBin + ';' + $oldPath
+    $env:GW_FAKE_STATE = $nState
+    function Run-N([string[]]$a) {
+        $all = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $nTool, '-HomeDir', $nHome, '-NoClipboard') + $a
+        & $exe @all | Out-Null
+        return $LASTEXITCODE
+    }
+    function NCalls { $c = Join-Path $nState 'calls.log'; if (Test-Path -LiteralPath $c) { return [System.IO.File]::ReadAllText($c) } else { return '' } }
+    try {
+        Check ((Run-N @('-Source', ($nSrc + '\.'))) -eq 0 -and -not (Test-Path -LiteralPath (Join-Path $nHome 'gear-world-hub'))) 'new pc without -Apply: changes nothing'
+        $rep = @(Get-ChildItem -LiteralPath (Join-Path $nHome 'gear-world-reports') -Filter 'GW_NEW_PC_*.txt' | Select-Object -Last 1)
+        $rt = $(if ($rep.Count) { [System.IO.File]::ReadAllText($rep[0].FullName) } else { '' })
+        Check ($rt.Contains('gear-world-hub') -and $rt.Contains('ΕΓΚΡΙΝΩ NEW PC') -and $rt.Contains('Cloudflare')) 'new pc plan: folders, sign-in and the approval phrase'
+        Check (-not ((NCalls) -match 'wrangler login|npm install')) 'new pc without -Apply: no sign-in, no npm install'
+        Check ((Run-N @('-Source', $nSrc, '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ NEW MAC')) -eq 1 -and -not (Test-Path -LiteralPath (Join-Path $nHome 'gear-world-hub'))) 'new pc with the wrong phrase: changes nothing'
+        Check ((Run-N @('-Source', $nSrc, '-Apply', '-Approve', 'egkrino new pc')) -eq 0) 'new pc with approval: exit 0'
+        Check ((Test-Path -LiteralPath (Join-Path $nHome 'gear-world-hub\worker.js')) -and (Test-Path -LiteralPath (Join-Path $nHome 'Downloads\GW_AWIN_BULK_ARCHIVE\AWIN_1_2.csv.gz'))) 'new pc: Gear World folders and Awin feeds copied'
+        Check (-not (Test-Path -LiteralPath (Join-Path $nHome 'gear-world-secrets'))) 'new pc: the Awin key of the old PC is not copied'
+        Check (([System.IO.File]::ReadAllText((Join-Path $nHome 'gear-world-reports\note.txt'))).Contains('NEW on this PC')) 'new pc: a newer file on this PC is not overwritten'
+        Check ((NCalls) -match 'npm install --no-audit --no-fund in .*gear-world-hub') 'new pc: npm install in the copied project'
+        Check ([regex]::Matches((NCalls), 'wrangler login').Count -eq 1) 'new pc: Cloudflare sign-in when not signed in'
+        Check ((Run-N @('-Source', $nSrc, '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ NEW PC')) -eq 0 -and [regex]::Matches((NCalls), 'wrangler login').Count -eq 1 -and [regex]::Matches((NCalls), 'npm install').Count -eq 1) 'new pc again: no second sign-in or npm install'
+        Check ((Run-N @('-Source', (Join-Path $work 'np-nothing'))) -eq 2) 'new pc: no backup there, stops'
     } finally {
         $env:PATH = $oldPath
         Remove-Item Env:\GW_FAKE_STATE -ErrorAction SilentlyContinue

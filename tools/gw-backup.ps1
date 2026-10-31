@@ -19,6 +19,8 @@
                READ-ONLY for Cloudflare: only SELECT. Every run writes a NEW dated folder (d1\2026-10-31_2200\...),
                so older copies stay on the drive. wrangler output is read as UTF-8 (L58, L62).
     README-RESTORE.txt  how to get everything back.
+    GEAR-WORLD-NEW-PC.cmd + tools\gw-run.ps1  on another PC, one double-click runs gw-new-pc from this same tested
+               version: it copies the folders to that PC, installs Node.js and signs in to Cloudflare (with approval).
   The site databases are only READ. No site, database, Worker or GitHub change.
 
   The drive then holds your site settings (.dev.vars, wrangler files) and customer emails (Rewards, Hub sign-ups):
@@ -271,6 +273,7 @@ Say 'Τι θα γίνει με -Apply:'
 Say ('  - Αντιγραφή στο {0}: μόνο προσθήκη ή ενημέρωση αρχείων, τίποτα δεν σβήνεται στον δίσκο.' -f $Target)
 Say '  - Zip κάθε κλάδου του GitHub, και αντίγραφο κάθε βάσης D1 σε νέο φάκελο με ημερομηνία (μόνο ανάγνωση, με SELECT).'
 Say '  - Ο υπολογιστής μένει ξύπνιος όσο τρέχει: άφησέ τον στην πρίζα, με ανοιχτό καπάκι.'
+Say '  - Στον δίσκο μπαίνει και το GEAR-WORLD-NEW-PC.cmd: σε άλλον υπολογιστή, διπλό κλικ για να τρέξει το project εκεί.'
 Say '  - Καμία αλλαγή σε site, βάση, Worker ή GitHub.'
 Say '  - Ο δίσκος θα έχει ρυθμίσεις των sites και emails πελατών: φύλαξέ τον στο σπίτι.'
 $phrase = 'ΕΓΚΡΙΝΩ BACKUP {0}' -f $letter
@@ -390,11 +393,14 @@ $readme = @(
     '  d1\       ένας φάκελος με ημερομηνία για κάθε backup (π.χ. d1\2026-10-31_2200\), μέσα κάθε βάση των sites:',
     '            schema.sql (πίνακες) και <πίνακας>-0001.json ... (όλες οι γραμμές). Τα παλιότερα μένουν.',
     '',
-    'ΑΝ ΧΑΛΑΣΕΙ Ο ΥΠΟΛΟΓΙΣΤΗΣ',
-    '  1. Σε νέο υπολογιστή: εγκατάστησε Node.js (LTS) από https://nodejs.org',
-    '  2. Αντέγραψε τα περιεχόμενα του files\ στον φάκελο χρήστη (C:\Users\<όνομα>\), και το files\Downloads\ στα Downloads.',
-    '  3. Στο PowerShell: npx wrangler login (σύνδεση στο Cloudflare ξανά, ο κωδικός δεν αντιγράφεται).',
+    'ΓΙΑ ΝΑ ΔΟΥΛΕΨΕΙΣ ΣΕ ΑΛΛΟΝ ΥΠΟΛΟΓΙΣΤΗ (ή αν χαλάσει αυτός)',
+    '  1. Σύνδεσε τον δίσκο και άνοιξε τον φάκελο GearWorldBackup.',
+    '  2. Διπλό κλικ στο GEAR-WORLD-NEW-PC.cmd. Δείχνει τι θα γίνει και ζητά τη φράση ΕΓΚΡΙΝΩ NEW PC.',
+    '     Αντιγράφει τους φακέλους (μόνο προσθήκη), βάζει Node.js αν λείπει, κάνει npm install, και ανοίγει',
+    '     τον browser για σύνδεση στο Cloudflare. Στο τέλος πάτα Ctrl+V στη συζήτηση με το Claude.',
+    '  3. Το κλειδί του Awin θα σου ζητηθεί μία φορά εκεί (είναι κλειδωμένο στον παλιό υπολογιστή).',
     '  4. Ο κώδικας είναι και στο GitHub (evangelos-gif/gear-world-code). Τα zip εδώ είναι για την περίπτωση που λείπει.',
+    '  Μόνο σε δικό σου υπολογιστή. Δούλευε σε έναν υπολογιστή κάθε φορά: πριν αλλάξεις, κάνε backup στον παλιό.',
     '  5. Οι βάσεις: τα sites ζουν στο Cloudflare και δεν χάνονται με τον υπολογιστή. Το d1\ είναι για την περίπτωση',
     '     που χαλάσει μια βάση: πες στο Claude «επαναφορά βάσης από το backup» και ποια ημερομηνία θέλεις.',
     '     Για αλλαγές των τελευταίων 7-30 ημερών υπάρχει και το Cloudflare Time Travel.',
@@ -402,6 +408,22 @@ $readme = @(
     'ΠΡΟΣΟΧΗ: εδώ υπάρχουν ρυθμίσεις των sites (.dev.vars, wrangler) και emails πελατών. Φύλαξε τον δίσκο στο σπίτι.'
 ) -join "`r`n"
 [System.IO.File]::WriteAllText((Join-Path $Target 'README-RESTORE.txt'), $readme + "`r`n", (New-Object System.Text.UTF8Encoding($true)))
+
+# 9. Another PC: one double-click on GEAR-WORLD-NEW-PC.cmd runs gw-new-pc from this same tested version.
+$ref = [string]$env:GW_RUN_REF
+$runner = Join-Path $PSScriptRoot 'gw-run.ps1'
+if ($ref -match '^[0-9a-f]{40}$' -and (Test-Path -LiteralPath $runner)) {
+    $tdir = Join-Path $Target 'tools'
+    if (-not (Test-Path -LiteralPath $tdir)) { New-Item -ItemType Directory -Path $tdir -Force | Out-Null }
+    Copy-Item -LiteralPath $runner -Destination (Join-Path $tdir 'gw-run.ps1') -Force
+    $launch = @('@echo off', 'title Gear World - new PC', ('powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0tools\gw-run.ps1" -Ref {0} -Tool gw-new-pc -Source "%~dp0." -Apply' -f $ref), 'pause') -join "`r`n"
+    [System.IO.File]::WriteAllText((Join-Path $Target 'GEAR-WORLD-NEW-PC.cmd'), $launch + "`r`n", [System.Text.Encoding]::ASCII)
+    Say ''
+    Say ('Για άλλον υπολογιστή: διπλό κλικ στο {0}' -f (Join-Path $Target 'GEAR-WORLD-NEW-PC.cmd'))
+} else {
+    Say ''
+    Say 'Το GEAR-WORLD-NEW-PC.cmd γράφεται όταν το backup τρέχει με την εντολή 3 γραμμών του Claude.' 'Yellow'
+}
 $logDir = Join-Path $Target 'logs'
 if (-not (Test-Path -LiteralPath $logDir)) { New-Item -ItemType Directory -Path $logDir -Force | Out-Null }
 

@@ -63,6 +63,8 @@ if (-not (Test-Path -LiteralPath $toolPath)) {
     exit 2
 }
 
+# The tool can see which tested version runs it (gw-backup writes it into GEAR-WORLD-NEW-PC.cmd on the drive).
+if ($Ref -match '^[0-9a-f]{40}$') { $env:GW_RUN_REF = $Ref }
 $exe = (Get-Process -Id $PID).Path
 $toolArgs = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $toolPath) + @($args)
 & $exe @toolArgs
