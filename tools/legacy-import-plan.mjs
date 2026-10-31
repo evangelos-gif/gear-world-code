@@ -9,6 +9,7 @@ import { createGunzip } from 'node:zlib';
 import { basename, join, resolve, dirname } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { readCsvRecords, cleanText, parsePrice } from './tgw-import-plan.mjs';
+import { isCjLink } from './cj-feed.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const AWIN_PUBLISHER_ID = 3057233;
@@ -80,9 +81,12 @@ export function pickImage(get) {
 // Read the feed and join the rows of one product (one row per size) into one product.
 // A shop's rules may say where its feed is (rules.feedFiles: full paths, e.g. a Google-format feed saved in Downloads)
 // and how its columns map to the Awin names used below (rules.field). Without them: AWIN_<id>_<feed>.csv(.gz) in the archive.
+// A CJ shop (rules.RULES.network 'cj', lessons L86): CJ_<advertiser>.csv(.gz), written by tools/cj-feed-download.ps1.
 export function feedPaths({ archive, rules }) {
   if (typeof rules.feedFiles === 'function') return rules.feedFiles(archive).filter(f => existsSync(f)).sort();
-  return readdirSync(archive).filter(f => new RegExp(`^AWIN_${rules.RULES.advertiserId}_\\d+\\.csv(\\.gz)?$`, 'i').test(f)).sort().map(f => join(archive, f));
+  const name = rules.RULES.network === 'cj' ? new RegExp(`^CJ_${rules.RULES.advertiserId}\\.csv(\\.gz)?$`, 'i')
+    : new RegExp(`^AWIN_${rules.RULES.advertiserId}_\\d+\\.csv(\\.gz)?$`, 'i');
+  return readdirSync(archive).filter(f => name.test(f)).sort().map(f => join(archive, f));
 }
 
 export async function readProducts({ archive, rules }) {
@@ -114,7 +118,7 @@ export async function readProducts({ archive, rules }) {
       if (!g) {
         g = { key, name: cleanText(get('product_name')), brand: cleanText(get('brand_name')), feedCategory: cleanText(get('merchant_category')),
           awinCategory: cleanText(get('category_name')),
-          link, page, image: pickImage(get), firstVariant: get('merchant_product_id'),
+          link, page, image: pickImage(get), firstVariant: get('merchant_product_id'), tracked: get('aw_deep_link'),
           variants: 0, inStockVariants: 0, unknownStock: 0, prices: [], currency: get('currency').toUpperCase(), ean: get('ean') || get('product_gtin') };
         groups.set(key, g);
       }
@@ -126,6 +130,9 @@ export async function readProducts({ archive, rules }) {
   }
   return { files, rows, products: [...groups.values()] };
 }
+
+// A CJ link as https (CJ answers on both).
+const httpsLink = u => String(u || '').replace(/^http:\/\//i, 'https://');
 
 const hostOf = url => { try { return new URL(url).hostname.toLowerCase(); } catch { return ''; } };
 
@@ -308,6 +315,8 @@ export async function planLegacyImport({ archive, retailer, outDir, now = new Da
     if (!/^https:\/\//i.test(p.image || '')) { reject(p, 'no image'); continue; }
     if (!R.shop.test(p.link || '')) { reject(p, `link is not the shop's own page (${hostOf(p.link) || 'no link'})`); continue; }
     if (p.currency && p.currency !== R.currency) { reject(p, `currency ${p.currency}, expected ${R.currency}`); continue; }
+    // CJ: the product's own CJ tracking link earns the commission; without one the click would not pay (L86).
+    if (R.network === 'cj' && !isCjLink(p.tracked)) { reject(p, 'no CJ tracking link (the click would not pay)'); continue; }
     const c = rules.classify({ name: p.name, feedCategory: p.feedCategory, awinCategory: p.awinCategory, url: p.link, brand: p.brand,
       shopType: p.shopType || '', shopTags: p.shopTags || [] });
     if (c.reject) { reject(p, c.reject); continue; }
@@ -325,12 +334,13 @@ export async function planLegacyImport({ archive, retailer, outDir, now = new Da
     if (String(merchantId || '').trim() && takenIds.has(taken)) { reject(p, 'the same product number twice in the feeds (another link): kept once'); continue; }
     takenIds.add(taken);
     accepted[c.site].push({
-      awin_product_id: `${R.advertiserId}:${p.key.replace(/^https?:\/\/[^/]+\/products\//i, '')}`,
+      awin_product_id: `${R.network === 'cj' ? 'cj' : ''}${R.advertiserId}:${p.key.replace(/^https?:\/\/[^/]+\/products\//i, '')}`,
       merchant_product_id: merchantId,
       retailer: R.retailer, site_category: c.siteCategory, subcategory: c.subcategory, brand: p.brand || null,
       product_name: name, feed_product_name: p.name, price, currency: R.currency, stock_status: 'in stock',
       merchant_category: p.feedCategory || null, image_url: p.image,
-      affiliate_url: `https://www.awin1.com/cread.php?awinmid=${R.advertiserId}&awinaffid=${AWIN_PUBLISHER_ID}&ued=${encodeURIComponent(R.keepQuery ? (p.link || p.page) : (p.page || p.link))}`,
+      affiliate_url: R.network === 'cj' ? httpsLink(p.tracked)
+        : `https://www.awin1.com/cread.php?awinmid=${R.advertiserId}&awinaffid=${AWIN_PUBLISHER_ID}&ued=${encodeURIComponent(R.keepQuery ? (p.link || p.page) : (p.page || p.link))}`,
       ean: /^\d{8,14}$/.test(p.ean || '') ? p.ean : null, variants: p.variants,
       // Placed only because of the feed category (no clear word in the name): listed in the report for checking.
       doubt: Boolean(c.doubt)
@@ -403,7 +413,7 @@ function writeSql(dir, items, R, site, now) {
 function renderPlan({ R, files, rows, products, accepted, rejected, sqlFiles, now, shopImages, shopCheck }) {
   const fmt = n => new Intl.NumberFormat('en-GB').format(n);
   const total = Object.values(accepted).reduce((a, l) => a + l.length, 0);
-  const L = [`IMPORT PLAN (read-only, nothing executed) ${R.retailer} - Awin ${R.advertiserId} - ${now.toISOString().slice(0, 16).replace('T', ' ')} UTC`,
+  const L = [`IMPORT PLAN (read-only, nothing executed) ${R.retailer} - ${R.network === 'cj' ? 'CJ' : 'Awin'} ${R.advertiserId} - ${now.toISOString().slice(0, 16).replace('T', ' ')} UTC`,
     `Feed files: ${files.join(', ') || 'none found'}`,
     `Feed rows: ${fmt(rows)} (one row per size) -> ${fmt(products.length)} products -> ${fmt(total)} would be imported, ${fmt(products.length - total)} left out`,
     ...(shopImages ? [`Pictures from the shop's product pages (the feed has none): ${fmt(shopImages.filled)} products (${fmt(shopImages.asked)} pages read)`] : []),

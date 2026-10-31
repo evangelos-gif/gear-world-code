@@ -1475,6 +1475,64 @@ Check ($rcText.Contains('import plan samples') -and $rcText.Contains('IMPORT_PLA
 & $exe -NoProfile -ExecutionPolicy Bypass -File $rcTool -Since 'yesterday' -OutDir $rcOut -NoClipboard | Out-Null
 Check ($LASTEXITCODE -eq 2) 'reports-to-clipboard: a wrong -Since stops'
 
+# 8c5. cj-feed-download.ps1 (CJ Affiliate catalogues, lessons L86) with a fake CJ API (Windows only: DPAPI token file)
+if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
+    Write-Host 'cj-feed-download.ps1 (fake CJ API)'
+    $cjDir = Join-Path $work 'cj'
+    $cjArch = Join-Path $cjDir 'archive'
+    $cjOut = Join-Path $cjDir 'out'
+    New-Item -ItemType Directory -Path $cjArch, $cjOut -Force | Out-Null
+    $cjToken = 'cjToken' + ([guid]::NewGuid().ToString('N').Substring(0, 16))
+    $cjTokenFile = Join-Path $cjDir 'cj-token.dat'
+    [System.IO.File]::WriteAllText($cjTokenFile, (ConvertFrom-SecureString (ConvertTo-SecureString $cjToken -AsPlainText -Force)), [System.Text.Encoding]::ASCII)
+    $cjSrv = Join-Path $cjDir 'server.js'
+    Write-Utf8 $cjSrv @'
+const http = require('http');
+const token = process.argv[2];
+const p = i => ({ id: 'XP-' + i, title: 'Xplora X6Play Kids Smartwatch ' + i, brand: 'Xplora', link: 'https://xplora.co.uk/products/x6play-' + i,
+  imageLink: 'https://cdn.shopify.com/x' + i + '.png', availability: 'in stock', advertiserId: '5175167', advertiserName: 'XPLORA UK',
+  price: { amount: 149.99, currency: 'GBP' }, salePrice: { amount: 129.99, currency: 'GBP' }, linkCode: { clickUrl: 'https://www.anrdoezrs.net/click-101917444-1?u=' + i } });
+http.createServer((q, s) => {
+  let b = ''; q.on('data', c => b += c); q.on('end', () => {
+    const send = x => { s.writeHead(200, { 'Content-Type': 'application/json' }); s.end(JSON.stringify(x)); };
+    if (q.headers.authorization !== 'Bearer ' + token) { s.writeHead(401); return s.end('{"errors":[{"message":"Unauthorized"}]}'); }
+    const query = JSON.parse(b).query;
+    if (query.includes('__schema') || query.includes('__type')) return send({ errors: [{ message: 'introspection is off' }] });
+    if (!query.includes('companyId: "7806395"')) return send({ errors: [{ message: 'Not authorized for this company' }] });
+    send({ data: { shoppingProducts: { totalCount: 2, count: 2, resultList: [p(1), p(2)] } } });
+  });
+}).listen(8799, '127.0.0.1');
+'@
+    $cjProc = Start-Process -FilePath (Get-Command node).Source -ArgumentList @($cjSrv, $cjToken) -PassThru -WindowStyle Hidden
+    Start-Sleep -Seconds 2
+    try {
+        $cjTool = Join-Path (Join-Path $repo 'tools') 'cj-feed-download.ps1'
+        $cjArgs = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $cjTool, '-TokenFile', $cjTokenFile, '-Archive', $cjArch, '-Api', 'http://127.0.0.1:8799/query',
+            '-Cid', '8114224,7806395', '-PauseMs', '0', '-OutDir', $cjOut, '-NoClipboard')
+        & $exe @cjArgs | Out-Null
+        Check ($LASTEXITCODE -eq 0) 'cj-feed-download: read-only run, exit 0'
+        $cjRep = [System.IO.File]::ReadAllText((@(Get-ChildItem -LiteralPath $cjOut -Filter 'CJ_FEED_DOWNLOAD_*.txt')[0]).FullName)
+        Check ($cjRep.Contains('(CID) που δούλεψε: 7806395') -and $cjRep.Contains('CID 8114224 δεν δούλεψε')) 'cj-feed-download: finds the CJ account id that works'
+        Check ($cjRep.Contains('5175167: προϊόντα στο CJ: 2') -and $cjRep.Contains('link CJ: www.anrdoezrs.net')) 'cj-feed-download: products and samples with the CJ link'
+        Check (@(Get-ChildItem -LiteralPath $cjArch -File).Count -eq 0) 'cj-feed-download: read-only writes no feed'
+        & $exe @($cjArgs + @('-Apply', '-Approve', 'wrong phrase')) | Out-Null
+        Check ($LASTEXITCODE -eq 1 -and @(Get-ChildItem -LiteralPath $cjArch -File).Count -eq 0) 'cj-feed-download: a wrong phrase changes nothing'
+        & $exe @($cjArgs + @('-Apply', '-Approve', ('ΕΓΚΡΙΝΩ CJ FEED DOWNLOAD'))) | Out-Null
+        Check ($LASTEXITCODE -eq 0 -and (Test-Path -LiteralPath (Join-Path $cjArch 'CJ_5175167.csv.gz'))) 'cj-feed-download: with the phrase the feed is saved as CJ_5175167.csv.gz'
+        $cjAll = (@(Get-ChildItem -LiteralPath $cjOut -Filter 'CJ_FEED_DOWNLOAD_*.txt') | ForEach-Object { [System.IO.File]::ReadAllText($_.FullName) }) -join "`n"
+        Check ($cjAll.Contains('OK, 2 προϊόντα') -and $cjAll.Contains('με link του CJ: 2')) 'cj-feed-download: report counts the products and their CJ links'
+        Check (-not $cjAll.Contains($cjToken)) 'cj-feed-download: the token is in no report'
+        $cjPlanOut = Join-Path $cjDir 'plan'
+        & $exe -NoProfile -ExecutionPolicy Bypass -File $runTool -LocalRepo $repo -Tool legacy-import-plan -Retailer 'xplora' -Archive $cjArch -OutDir $cjPlanOut -NoClipboard | Out-Null
+        $cjPlan = @(Get-ChildItem -LiteralPath $cjPlanOut -Recurse -Filter 'report.txt')
+        $cjPlanText = ''
+        if ($cjPlan.Count -eq 1) { $cjPlanText = [System.IO.File]::ReadAllText($cjPlan[0].FullName) }
+        Check ($cjPlanText.Contains('XPLORA UK - CJ 5175167') -and $cjPlanText.Contains('2 would be imported')) 'cj-feed-download: the import plan reads the CJ feed'
+    } finally {
+        if ($cjProc -and -not $cjProc.HasExited) { Stop-Process -Id $cjProc.Id -Force -ErrorAction SilentlyContinue }
+    }
+}
+
 # 8c3. awin-membership-check.ps1 (which Awin programmes still pay, lessons L61): fake wrangler and fake Awin server (Windows only)
 if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
     Write-Host 'awin-membership-check.ps1 (fake wrangler, fake Awin server)'

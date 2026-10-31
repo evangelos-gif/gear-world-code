@@ -19,6 +19,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { existsSync } from 'node:fs';
 import { readCsvRecords } from './tgw-import-plan.mjs';
 import { rowsFromWrangler } from './cleanup-rules/tidy.mjs';
+import { isCjLink } from './cj-feed.mjs';
 
 export const STALE_DAYS = 30;
 export const PUBLISHER_ID = '3057233';
@@ -65,10 +66,13 @@ export function planMembership({ sites, list, known = {}, now = new Date() }) {
   for (const r of list) { if (!byId.has(r.id)) byId.set(r.id, []); byId.get(r.id).push(r); }
   const programmes = new Map();
   const plain = [];
+  // CJ shops (lessons L86) pay through CJ, not Awin: listed apart, not as links without commission.
+  const cj = [];
   for (const { site, rows } of sites) {
     for (const r of rows) {
       const n = Number(r.n) || 0;
       const id = advertiserOf(r.link);
+      if (!id && isCjLink(r.link)) { cj.push({ site, retailer: r.retailer, n }); continue; }
       if (!id) { plain.push({ site, retailer: r.retailer, n }); continue; }
       if (!programmes.has(id)) programmes.set(id, { id, retailers: new Set(), sites: [], total: 0, bad: 0 });
       const p = programmes.get(id);
@@ -103,7 +107,7 @@ export function planMembership({ sites, list, known = {}, now = new Date() }) {
   }
   const rank = { red: 0, yellow: 1, green: 2 };
   out.sort((a, b) => (rank[a.level] - rank[b.level]) || (b.total - a.total));
-  return { programmes: out, plain, listed: list.length };
+  return { programmes: out, plain, cj, listed: list.length };
 }
 
 export function renderMembershipReport(plan) {
@@ -122,6 +126,11 @@ export function renderMembershipReport(plan) {
     L.push(`${mark[p.level]}: ${names} (Awin ${p.id}${p.awinName && p.awinName !== names ? `, «${p.awinName}»` : ''}) | ${where} | ${p.reason}`);
     if (p.level !== 'green') L.push(`   Έλεγχος στο Awin: ${awinPage(p.id)}`);
     if (p.bad > 0) L.push(`   🔴 ΠΡΟΒΛΗΜΑ: ${fmt(p.bad)} links χωρίς διεύθυνση προϊόντος (το ued= δεν ξεκινά με http): το click δεν ανοίγει το προϊόν.`);
+  }
+  if (plan.cj && plan.cj.length) {
+    L.push('');
+    L.push('Μέσω CJ (όχι Awin): τα links τους είναι links του CJ και πληρώνουν από το CJ (L86):');
+    for (const x of plan.cj) L.push(`   ${x.site.toUpperCase()}: ${x.retailer} (${fmt(x.n)})`);
   }
   if (plan.plain.length) {
     L.push('');
