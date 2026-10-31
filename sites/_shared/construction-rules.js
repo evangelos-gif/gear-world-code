@@ -43,7 +43,9 @@ const DENY = [
       'axle stands?', 'trolley jacks?', 'bottle jacks?', 'wheel (?:bearings?|nuts?|braces?|chocks?|alignment|balancers?|studs?)', 'steering', 'suspension', 'coil springs?', 'spring compressors?',
       'jump (?:starters?|leads)', 'battery (?:testers?|analy[sz]ers?)', 'clutch', 'exhausts?', 'alternators?', 'gearbox', 'camshafts?', 'crankshafts?', 'dent (?:repair|pullers?)', 'windscreens?', 'wipers?']),
     label: 'car tool (Car Gear World)' },
-  { re: words(['bicycles?', 'bikes?', 'cycling', 'cycle (?:tools?|stands?|racks?|repair)']), label: 'cycling (Sporty Gear World)' },
+  { re: words(['bicycles?', 'bikes?', 'cycling', 'cycle (?:tools?|stands?|racks?|repair)']), anywhere: words(['for (?:bikes?|bicycles?)', 'bike it', 'quad lock']), label: 'cycling or motorbike (Sporty / Biker Gear World)' },
+  { re: /$^/, anywhere: words(['playmobil', 'lego', 'play-?doh', 'playsets?', 'junior designer', 'safety 1st', 'fisher[- ]price', 'little tikes']), label: 'children\'s product (Kids\' Gear World)' },
+  { re: /$^/, anywhere: words(['bikini', 'brazilian', 'shaping tool', 'exercise bands?', 'resistance bands?']), label: 'fashion, beauty or sport (not construction)' },
   { re: words(['kids?', "kid'?s", "children'?s", 'childrens', 'child', 'toddlers?', 'baby', 'babies', 'toys?']), label: 'children\'s product (Kids\' Gear World)' },
   { re: words(['dress(?:es)?', 'skirts?', 'blouses?', 'bras?', 'lingerie', 'bikinis?', 'swim\\w*', 'handbags?', 'purses?', 'jewell?ery', 'necklaces?', 'earrings?', 'bracelets?', 'perfumes?',
     'eau de (?:parfum|toilette)', 'aftershaves?', 'make-?up', 'cufflinks?', 'watch(?:es)?']), label: 'fashion or beauty (Men\'s / Women\'s Gear World)' },
@@ -170,13 +172,14 @@ function typeOf(n) {
 // a trade word or brand, or a tools / workwear / safety section (shadow catalogue 31 Oct 2026: PcNova "power adapter"
 // was a power tool, Coes walking socks and Lights4fun lanterns workwear and site lights). sources.json "tradeShop": true
 // marks the tool and workwear shops (Tooled Up, GS Workwear, My Tool Shed ...).
-const TRADE = words(['work', 'works', 'workwear', 'work ?wear', 'workman', 'workmans?', 'workshop', 'work ?site', 'job ?site', 'site', 'trade', 'trades(?:man|men|person)?', 'contractors?', 'builders?', 'construction',
+const TRADE = words(['work', 'workwear', 'work ?wear', 'workman', 'workmans?', 'workshop', 'work ?site', 'job ?site', 'site', 'trade', 'trades(?:man|men|person)?', 'contractors?', 'builders?', 'construction',
   'safety', 'protective', 'hi[- ]?vis\\w*', 'high visibility', 'ppe', 'en ?iso', 'en ?\\d{3,5}', 'en20345', 's[1-3]p? (?:src|hro|wru|esd|safety|boots?|shoes?|trainers?)', 'sbp? (?:src|safety|boots?|shoes?)', 'steel toe', 'composite toe', 'midsole', 'toe ?caps?', 'anti[- ]static',
-  'tools?', 'toolkit', 'power tools?', 'cordless', 'brushless', '18 ?v', '12 ?v', '36 ?v', '54 ?v', '110 ?v', 'sds', 'drills?', 'saws?', 'grinders?', 'sanders?', 'spanners?', 'wrench(?:es)?', 'sockets?',
-  'screwdrivers?', 'hammers?', 'chisels?', 'pliers', 'clamps?', 'levels?', 'tape measures?', 'ladders?', 'scaffold\\w*', 'trestles?', 'welding', 'welders?', 'compressors?', 'plumbing', 'plumbers?',
+  'tool (?:kits?|sets?|bags?|box(?:es)?|chests?|belts?|cases?)', 'toolkit', 'power tools?', 'hand tools?', 'cordless (?:drills?|saws?|grinders?|impact|combi|sanders?)', 'brushless', '18 ?v', '36 ?v', '54 ?v', '110 ?v', 'sds',
+  'combi drills?', 'drill drivers?', 'impact (?:drivers?|wrench(?:es)?)', 'angle grinders?', '(?:circular|mitre|reciprocating|table|plunge) saws?', 'sanders?', 'spanners?', 'wrench(?:es)?', 'socket sets?',
+  'screwdrivers?', 'claw hammers?', 'chisels?', 'pliers', 'spirit levels?', 'tape measures?', 'ladders?', 'scaffold\\w*', 'trestles?', 'welding', 'welders?', 'compressors?', 'plumbing', 'plumbers?',
   'electricians?', 'carpenters?', 'joiners?', 'plasterers?', 'roofers?', 'decorators?', 'mechanics?', 'engineers?', 'dewalt', 'makita', 'milwaukee', 'bosch professional', 'stanley', 'draper', 'sealey',
   'einhell', 'ryobi', 'festool', 'hikoki', 'metabo', 'hilti', 'snickers', 'dickies', 'scruffs', 'portwest', 'caterpillar', 'blaklader', 'blåkläder', 'helly hansen workwear', 'apache', 'dewalt', 'faithfull',
-  'irwin', 'bahco', 'wera', 'knipex', 'stabila', 'tough ?built', 'trend', 'olympia', 'rolson', 'silverline', 'timco', 'fischer', 'hultafors', 'jsp', '3m', 'uvex', 'skechers work', 'amblers safety', 'buckler']);
+  'irwin', 'bahco', 'wera', 'knipex', 'stabila', 'tough ?built', 'trend', 'olympia', 'rolson', 'silverline', 'timco', 'fischer', 'hultafors', 'jsp', '3m (?:peltor|ffp\\d|aura|secure ?fit|safety|respirators?|ear ?plugs?|ear ?defenders?|masks?)', 'peltor', 'uvex', 'skechers work', 'amblers safety', 'buckler']);
 const TRADE_SECTION = /(?:^|>|\s)(?:tools?|tool accessories|hardware|hand tools|power tools|workwear|work ?wear|safety|ppe|personal protective|site equipment|construction|building|trade|workshop|garage equipment|measuring tools)(?:\s|>|$)/i;
 export function forTrade(name, feedCategory = '', source = null) {
   if (source && source.tradeShop) return true;

@@ -105,12 +105,18 @@ export function offeredShops(byAdv, list) {
   return { offered, missing, notJoined, foreign, joinedCount: joined.size };
 }
 
+// Shops that are offered as NEW shops only to some sites. PcNova, GamingKit and PCHUB.UK send the same wholesale IT
+// catalogue (L63): on the other 10 sites their names only gave wrong matches (printer drums as toys, power adapters as
+// power tools, shadow catalogue 31 Oct 2026). A site that already lists the shop keeps it.
+export const SHOP_FIT = { 125822: ['TGW'], 124146: ['TGW'], 126641: ['TGW'] };
+
 // The sources one site gets: its own list unchanged, plus every offered shop it does not list, with no section filter.
-export function siteSources(own, offered) {
+export function siteSources(own, offered, code = '') {
   const listed = new Set(own.map(s => Number(s.advertiserId)));
   const added = [];
   for (const [adv, o] of offered) {
     if (listed.has(adv)) continue;
+    if (code && SHOP_FIT[adv] && !SHOP_FIT[adv].includes(code)) continue;
     added.push({ advertiserId: adv, feedIds: o.feedIds, retailer: o.name || `Awin ${adv}`, currency: '', condition: 'new', approved: true, hubShadow: true });
   }
   return { sources: [...own, ...added], listed };
@@ -131,7 +137,7 @@ export async function shadowCatalog({ archive, outDir, list = null, now = new Da
   const results = [];
   for (const [i, site] of sites.entries()) {
     const own = owns[i];
-    const { sources, listed } = siteSources(own, offered);
+    const { sources, listed } = siteSources(own, offered, site.code);
     const dir = join(outDir, site.code);
     mkdirSync(dir, { recursive: true });
     const sourcesFile = join(dir, 'sources-shadow.json');
