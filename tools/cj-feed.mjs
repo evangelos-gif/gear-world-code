@@ -230,7 +230,13 @@ export async function run({ mode, cids, pid, advertisers, out, token, api = CJ_A
     const q = `{ shoppingProductFeeds(companyId: "${S.cid}"${fs.args.includes('limit') ? ', limit: 500' : ''}) { ${['totalCount', 'count'].filter(x => fs.outer.includes(x)).join(' ')} resultList { ${want.join(' ')} } } }`;
     const r = await gql({ token, api, fetchImpl, query: q });
     if (r.errors || !r.data) S.feedsError = mask(errText(r.errors));
-    else S.feeds = (r.data.shoppingProductFeeds.resultList || []).map(f => Object.fromEntries(want.map(k => [k, f[k] ?? ''])));
+    else {
+      // The API lists every CJ feed (first run, 31 Oct 2026: 500 feeds of shops that never accepted us), so the report
+      // shows only the feeds of the chosen advertisers and the total.
+      const all = r.data.shoppingProductFeeds.resultList || [];
+      S.feedsTotal = all.length;
+      S.feeds = all.filter(f => advertisers.includes(String(f.advertiserId))).map(f => Object.fromEntries(want.map(k => [k, f[k] ?? ''])));
+    }
   }
   for (const adv of advertisers) {
     const A = { advertiser: adv, ok: false };

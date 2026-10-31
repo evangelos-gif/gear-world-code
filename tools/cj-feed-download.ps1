@@ -25,7 +25,7 @@ param(
     [string]$Approve = '',
     [string]$Archive = '',
     [string]$TokenFile = '',
-    [string]$Cid = '7806395,8114224',
+    [string]$Cid = '8114224,7806395',
     [string]$PropertyId = '101917444',
     [string]$Api = 'https://ads.api.cj.com/query',
     [int]$PauseMs = 1000,
@@ -107,7 +107,7 @@ function Show-Summary($S) {
     if (@($S.fields).Count) { Say ('  Πεδία προϊόντος: {0}' -f (@($S.fields) -join ', ')) }
     if ($S.feedsError) { Say ('  Η λίστα feeds δεν ήρθε: {0}' -f $S.feedsError) 'Yellow' }
     if ($null -ne $S.feeds) {
-        Say ('Feeds καταστημάτων που σε δέχτηκαν: {0}' -f @($S.feeds).Count)
+        Say ('Feeds των καταστημάτων που ζήτησες: {0} (το CJ έδωσε {1} feeds συνολικά, και από καταστήματα που δεν σε έχουν δεχτεί)' -f @($S.feeds).Count, $S.feedsTotal)
         foreach ($f in @($S.feeds)) { if ($f) { Say ('  {0} {1} | feed: {2} | προϊόντα: {3} | νόμισμα: {4} | ανανέωση: {5}' -f $f.advertiserId, $f.advertiserName, $f.feedName, $f.productCount, $f.currency, $f.lastUpdated) } }
     }
 }

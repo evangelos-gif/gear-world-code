@@ -26,6 +26,9 @@ const ACCESSORY = words(['strap', 'straps', 'band', 'bands', 'charger', 'charger
 const WATCH = /\b(smart ?watch(es)?|watch ?phones?|kids'? watch(es)?|children'?s watch(es)?|gps watch(es)?)\b|\bx[56] ?play\b|\bxgo ?\d*\b|\bxjr\b|\bx6\b|\bx5\b|\bxmove\b|\bxplora ?x\d/i;
 const PHONE_OR_TRACKER = words(['phone', 'mobile', 'tracker', 'gps tracker', 'xtag', 'x-tag', 'tag']);
 const WATCH_CATEGORY = /watch|wearable/i;
+// Models named without a product word (first download, 31 Oct 2026: 9 rows, 4 products): XploraOne and the HMD Fusion X1
+// phone that Xplora sells with its parental app. Both go to Kids Tech (no watch is claimed for them).
+const OWN_MODELS = /\bxplora ?one\b|\bhmd fusion\b|\bfusion x1\b/i;
 
 // Decide where one product goes. Returns { site, siteCategory, subcategory } or { reject: '<reason>' }.
 export function classify({ name, feedCategory = '' }) {
@@ -35,6 +38,7 @@ export function classify({ name, feedCategory = '' }) {
   // "Strap for X6Play" is an accessory even though it names the watch.
   if (ACCESSORY.test(n) && !/\b(with|incl\.?|including|\+)\s+(strap|charger)/i.test(n)) return { site: 'kgw', siteCategory: 'Kids Tech', subcategory: 'Kids Tech' };
   if (WATCH.test(n)) return { site: 'kgw', siteCategory: 'Kids Tech', subcategory: 'Kids Smartwatches' };
+  if (OWN_MODELS.test(n)) return { site: 'kgw', siteCategory: 'Kids Tech', subcategory: 'Kids Tech' };
   if (PHONE_OR_TRACKER.test(n)) return { site: 'kgw', siteCategory: 'Kids Tech', subcategory: 'Kids Tech' };
   if (WATCH_CATEGORY.test(cat)) return { site: 'kgw', siteCategory: 'Kids Tech', subcategory: 'Kids Smartwatches', doubt: true };
   return { reject: 'not sure what it is (no watch, phone or accessory word in the name)' };

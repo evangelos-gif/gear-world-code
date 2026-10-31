@@ -57,7 +57,8 @@ function fakeCj({ products, goodCid = '7806395' }) {
     if (ty) return json({ data: { __type: TYPES[ty[1]] ? { fields: TYPES[ty[1]] } : null } });
     const cid = (/companyId: "(\d+)"/.exec(q) || [])[1];
     if (cid !== goodCid) return json({ errors: [{ message: `Not authorized for company ${cid}` }] });
-    if (q.includes('shoppingProductFeeds')) return json({ data: { shoppingProductFeeds: { totalCount: 1, resultList: [{ advertiserId: '5175167', advertiserName: 'XPLORA UK', feedName: 'UK feed', productCount: String(products.length), currency: 'GBP' }] } } });
+    if (q.includes('shoppingProductFeeds')) return json({ data: { shoppingProductFeeds: { totalCount: 1, resultList: [{ advertiserId: '5175167', advertiserName: 'XPLORA UK', feedName: 'UK feed', productCount: String(products.length), currency: 'GBP' },
+      { advertiserId: '3773223', advertiserName: 'SHEIN', feedName: 'FR', productCount: '9', currency: 'EUR' }] } } });
     const limit = Number((/limit: (\d+)/.exec(q) || [])[1] || 1000);
     const offset = Number((/offset: (\d+)/.exec(q) || [])[1] || 0);
     return json({ data: { shoppingProducts: { totalCount: products.length, count: Math.min(limit, products.length - offset), resultList: products.slice(offset, offset + limit) } } });
@@ -72,7 +73,9 @@ test('L86: probe is read-only, finds the CID that works and shows samples with t
   assert.equal(S.cid, '7806395');
   assert.match(S.cidTried[0].error, /Not authorized/);
   assert.deepEqual(S.queries, ['shoppingProducts', 'shoppingProductFeeds', 'travelExperienceProducts']);
+  assert.equal(S.feeds.length, 1, 'only the feeds of the chosen advertisers');
   assert.equal(S.feeds[0].advertiserName, 'XPLORA UK');
+  assert.equal(S.feedsTotal, 2);
   assert.equal(S.advertisers[0].total, 2);
   assert.equal(S.advertisers[0].samples[0].tracking, 'www.anrdoezrs.net');
   assert.equal(S.advertisers[0].samples[0].price, '129.99', 'the lower sale price');
@@ -132,6 +135,9 @@ test('L86: XPLORA rules: watches and accessories into the Kids Tech places KGW h
   assert.equal(place('X6Play Magnetic Charging Cable'), 'Kids Tech/Kids Tech');
   assert.equal(place('Xplora XJR with strap bundle'), 'Kids Tech/Kids Smartwatches');
   assert.equal(place('Limited Edition Blue', 'Wearables > Smartwatches'), 'Kids Tech/Kids Smartwatches (doubt)');
+  // First real download (31 Oct 2026): two models named without a product word.
+  assert.equal(place('XploraOne', 'Active Product'), 'Kids Tech/Kids Tech');
+  assert.equal(place('HMD Fusion X1', 'Active Product'), 'Kids Tech/Kids Tech');
   for (const n of ['Xplora Pay As You Go SIM Card', 'Xplora Gift Card £50', '12 Month Extended Warranty', 'Mystery thing'])
     assert.equal(place(n), 'out', n);
   assert.equal(RULES.network, 'cj');
