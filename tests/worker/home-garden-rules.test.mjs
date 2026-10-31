@@ -74,6 +74,10 @@ test('each product goes to one of the pair, and other Gear Worlds\' products sta
   assert.equal(on(HGW, 'Kids Bunk Bed with Storage'), 'no: children\'s product (Kids\' Gear World)');
   assert.equal(on(HGW, 'Dog Bed Large Grey'), 'no: pet item (not shown yet)');
   assert.equal(on(HGW, 'Gift Card £50'), 'no: gift card or voucher');
+  // Owner, 31 Oct 2026: Home Office is furniture and the desk set-up; printers and office supplies stay on Technology.
+  assert.match(on(HGW, 'HP OfficeJet Pro 9010e All-in-One Printer'), /^no: /);
+  assert.match(on(HGW, 'Leitz Lever Arch File A4'), /^no: /);
+  assert.equal(on(HGW, 'Habitat Oak Writing Desk'), 'home-office/Office Desk');
   // Shadow catalogue 31 Oct 2026: printer parts, network cables, a colour and a brooch placed by one word of the name.
   const office = 'no: office or computer part (Technology Gear World)';
   assert.equal(on(HGW, 'OKI 44289103 Fuser kit. 60K pages for OKI C 612/711'), office);
