@@ -3,7 +3,7 @@
 //
 // The owner wants every product of every network to come in through the Hub and be shared out to the right site and
 // category on its own. Before anything changes, this tool shows what that would mean, with today's feeds:
-//   - every Awin programme the owner has JOINED (Awin feed list, --list) whose feed is on this PC is offered to all 5 sites
+//   - every Awin programme the owner has JOINED (Awin feed list, --list) whose feed is on this PC is offered to every site with general rules (SHADOW_SITES)
 //     that have general category rules (TGW, AGW, VGW, SGW, BGW);
 //   - a shop a site already lists in its sources.json keeps exactly its own rules there (allowPaths, feedIds, ... L65);
 //   - a shop a site does not list yet is offered with no section filter: the site's rules decide by the name alone;
