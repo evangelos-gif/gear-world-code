@@ -604,8 +604,11 @@ export async function planImport({ archive, sourcesFile, outDir, now = new Date(
   // Google format feeds: one row per size and colour; all of them are one product at its lowest price (lessons L34).
   const googleSeen = new Map();
   const rng = makeRng(47);
+  // The shop whose feed is being read: its own count of reasons (the Hub shadow summary shows why a shop gives few products).
+  let shopReasons = null;
   const reject = (reason, rec) => {
     stats.rejected[reason] = (stats.rejected[reason] || 0) + 1;
+    if (shopReasons) shopReasons[reason] = (shopReasons[reason] || 0) + 1;
     const list = (samples.rejected[reason] ||= []);
     if (list.length < (reason.startsWith('not matched') ? 40 : SAMPLES_PER_GROUP)) list.push(rec);
   };
@@ -614,7 +617,8 @@ export async function planImport({ archive, sourcesFile, outDir, now = new Date(
     const filter = sourceFilter(source);
     let sourceRows = 0, missing = 0;
     // Per shop: rows, products and samples, so a new shop can be checked on its own (PCHUB.UK next to Back to the Office).
-    const rs = (stats.perRetailer[source.retailer] ||= { rows: 0, accepted: 0, loose: 0, qtyZero: 0, perCategory: {}, feedCats: {}, folderSamples: {}, looseSamples: {} });
+    const rs = (stats.perRetailer[source.retailer] ||= { rows: 0, accepted: 0, loose: 0, qtyZero: 0, perCategory: {}, feedCats: {}, folderSamples: {}, looseSamples: {}, rejected: {} });
+    shopReasons = rs.rejected;
     samples.byRetailer[source.retailer] ||= {};
     const google = source.format === 'google';
     const extra = sourceFiles(source, archives);
@@ -782,8 +786,10 @@ export async function planImport({ archive, sourcesFile, outDir, now = new Date(
   // ---------- Duplicates out, then the counts and samples of what stays ----------
   const dup = findDuplicates(candidates.map(c => c.p));
   const kept = i => candidates[dup.keptFor[i]].p;
-  for (const i of dup.sameShop) reject('duplicate: same shop, same name or EAN (the cheapest is kept)', `${candidates[i].short}  (kept: ${kept(i).price.toFixed(2)})`);
-  for (const i of dup.otherShop) reject('duplicate: same product and price at another shop', `${candidates[i].short}  (shown from ${kept(i).retailer})`);
+  const shopOf = i => (stats.perRetailer[candidates[i].p.retailer] || {}).rejected || null;
+  for (const i of dup.sameShop) shopReasons = shopOf(i), reject('duplicate: same shop, same name or EAN (the cheapest is kept)', `${candidates[i].short}  (kept: ${kept(i).price.toFixed(2)})`);
+  for (const i of dup.otherShop) shopReasons = shopOf(i), reject('duplicate: same product and price at another shop', `${candidates[i].short}  (shown from ${kept(i).retailer})`);
+  shopReasons = null;
   candidates.forEach((c, i) => {
     if (!dup.keep[i]) return;
     const { p, short } = c;

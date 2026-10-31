@@ -136,12 +136,19 @@ export async function shadowCatalog({ archive, outDir, list = null, now = new Da
     const { stats, products } = await planImport({ archive: archives, sourcesFile, outDir: dir, now, rules: site.rules, label: `${site.code} HUB SHADOW`, writeSql: false });
     // Only what the summary needs: the full product rows are dropped here (the site report has the details).
     const rows = products.map(p => ({ key: p.stable_key, adv: Number(p.awin_advertiser_id), retailer: p.retailer, slug: p.category_slug, name: p.product_name, price: p.price }));
+    // Own shops: rows read, products kept and the main reasons for the rest (to compare with what the site shows today).
+    const ownShops = sources.filter(s => listed.has(Number(s.advertiserId))).map(s => {
+      const r = stats.perRetailer[s.retailer];
+      if (!r) return null;
+      const why = Object.entries(r.rejected || {}).sort((a, b) => b[1] - a[1]).slice(0, 3);
+      return { retailer: s.retailer, rows: r.rows, kept: r.accepted, why };
+    }).filter(Boolean).sort((a, b) => b.rows - a.rows);
     const rowsPerShop = new Map();
     for (const s of sources) {
       const r = stats.perRetailer[s.retailer];
       if (r) rowsPerShop.set(Number(s.advertiserId), Math.max(rowsPerShop.get(Number(s.advertiserId)) || 0, r.rows));
     }
-    results.push({ site, listed, rows, rowsPerShop, seconds: Math.round((Date.now() - t0) / 1000) });
+    results.push({ site, listed, rows, rowsPerShop, ownShops, seconds: Math.round((Date.now() - t0) / 1000) });
   }
   const shopName = adv => names.get(adv) || `Awin ${adv}`;
 
@@ -184,6 +191,17 @@ export async function shadowCatalog({ archive, outDir, list = null, now = new Da
     if (top.length) L.push(`    ${r.site.code}: ${top.join(', ')}`);
   }
   L.push(`  ${OLD_SITES.join(', ')}: δεν έχουν ακόμα γενικούς κανόνες κατηγοριών (μόνο κανόνες ανά κατάστημα). Μπαίνουν στη Φάση 4.`);
+  L.push('');
+
+  L.push('== Ανά site: τα δικά του καταστήματα - γραμμές feed, πόσα μένουν, γιατί έμειναν έξω τα άλλα ==');
+  for (const r of results) {
+    L.push(`  -- ${r.site.code}`);
+    for (const o of r.ownShops) {
+      const why = o.why.map(([k, v]) => `${cut(k, 60)} ${fmt(v)}`).join('; ');
+      if (!o.rows) { L.push(`     ${cut(o.retailer, 24).padEnd(24)} δεν βρέθηκε feed στον υπολογιστή`); continue; }
+      L.push(`     ${cut(o.retailer, 24).padEnd(24)} γραμμές ${fmt(o.rows).padStart(7)} → μένουν ${fmt(o.kept).padStart(6)}${why ? `  | έξω: ${why}` : ''}`);
+    }
+  }
   L.push('');
 
   L.push(`== Ανά site: τα καταστήματα που θα έφερναν νέα προϊόντα (έως ${SHOPS_SHOWN}) ==`);

@@ -102,6 +102,8 @@ test('shadow catalogue: new shop routed by each site\'s rules, not-joined shop o
   assert.match(summary, /WGW Women's/);
   assert.match(summary, /HGW Home/);
   assert.match(summary, /«από τα δικά του», ανά κατάστημα/);
+  assert.match(summary, /τα δικά του καταστήματα - γραμμές feed/);
+  assert.match(summary, /γραμμές +\d+ → μένουν/);
   assert.match(summary, /GGW Garden/);
   for (const r of results) {
     assert.ok(existsSync(join(out, r.site.code, 'report.txt')), `${r.site.code} report written`);
