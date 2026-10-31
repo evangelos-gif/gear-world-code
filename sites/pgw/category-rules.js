@@ -56,7 +56,7 @@ export const NO = words(['toners?', 'ink(?: cartridges?)?', 'toner cartridges?',
   'cufflinks?', 'knives', 'knife', 'swiss army', 'umbrellas?', 'sunglasses', 'saws?', 'drills?', 'drill sets?', 'riveters?', 'rivet', 'sprays?', 'cleaning', 'cleaners?', 'polish', 'shears', 'hedge', 'swim',
   'squishy', 'hockey', 'golf', 'utv', 'sewer', 'rioolcamera', 'inspection cameras?', 'light switch(?:es)?', 'plate/switch covers?', '(?:wall|light) switch covers?', 'perfumes?', 'eau de', 'travel case gold', 'festool', 'bahco', 'gesipa', 'fiskars', 'victorinox',
   'karcher', 'kärcher', 'hockeytafel', 'baq', 'replacebase', 'redriver', 'replacement', 'compatible batter(?:y|ies)', 'batter(?:y|ies) for', 'case parts?', 'computer case part', 'hdd cages?', 'caddies', 'caddy',
-  'laptop (?:bags?|backpacks?|sleeves?)', 'backpacks?', 'sleeves?', 'translator', 'translation', 'screwdrivers?', 'smartphones?', 'unlocked', 'android phones?', '5g phones?', 'sports? (?:action )?cam(?:era)?s?', 'action cam(?:era)?s?', '360 cam(?:era)?s?', 'selfie', 'ddr[23]', 'ecc', 'rdimm', 'lrdimm', 'registered', 'fully buffered', 'thin clients?', 'workstation', 'quadro', 'tesla', 'industrial', 'lab equipment']);
+  'laptop (?:bags?|backpacks?|sleeves?)', 'backpacks?', 'sleeves?', 'translator', 'translation', 'screwdrivers?', 'refurb(?:ished)?', 'renewed', 'pre-?owned', 'open[- ]box', 'ex[- ]display', 'b-?grade', 'marvo scorpion ba-?\\d+', 'smartphones?', 'unlocked', 'android phones?', '5g phones?', 'sports? (?:action )?cam(?:era)?s?', 'action cam(?:era)?s?', '360 cam(?:era)?s?', 'selfie', 'ddr[23]', 'ecc', 'rdimm', 'lrdimm', 'registered', 'fully buffered', 'thin clients?', 'workstation', 'quadro', 'tesla', 'industrial', 'lab equipment']);
 
 // Monitor refresh rate: 144 Hz and more is a gaming screen (the TGW rules use 170 Hz for TVs; monitors start lower).
 export function refreshHz(name) {
@@ -101,7 +101,7 @@ export const CATEGORIES = [
       'lenovo legion go(?: s)?', 'legion go(?: s)?', 'msi claw', 'playstation portal', 'retro (?:game )?consoles?', 'game consoles?', 'games consoles?', '(?:portable|handheld|hand held) (?:game |gaming )?consoles?',
       'retroid', 'anbernic', 'ayaneo', 'evercade', 'meta quest ?\\d?', 'playstation vr ?2?', 'psvr ?2?', 'game drive(?: for (?:playstation|xbox))?', 'storage expansion cards? for xbox', 'seagate storage expansion card']),
     ctx: words(['consoles?', 'handheld (?:game |gaming )?consoles?', 'vr headsets?']),
-    type: words(['consoles?(?! (?:case|cover|skin|stand|grip)s?)'])
+    type: words(['(?<!podcast |audio |mixing |mixer )consoles?(?! (?:case|cover|skin|stand|grip)s?)'])
   },
   {
     key: 'pcs-laptops', label: 'Gaming PCs & laptops',
@@ -147,9 +147,9 @@ export const CATEGORIES = [
     key: 'streaming', label: 'Streaming: cameras, microphones & lights',
     sure: words(['stream ?decks?', 'capture cards?', 'game capture', 'elgato', 'key ?lights?', 'ring lights?', 'green ?screens?', 'streaming (?:kits?|lights?|cameras?|microphones?|mics?|bundles?|webcams?)', 'streamer (?:kits?|bundles?)',
       '(?:usb|streaming|podcast|podcasting|condenser|xlr|gaming) (?:microphones?|mics?)', 'shure (?:mv7|sm7b)', 'rode (?:podmic|nt-?usb|psa1|procaster)', 'blue yeti', 'yeti (?:x|nano|gx)', 'hyperx (?:quadcast|solocast|duocast)',
-      'razer (?:kiyo|seiren)', 'facecam', 'mic (?:arms?|stands?|booms?)', 'microphone (?:arms?|stands?|booms?)', 'go ?xlr', 'wave ?xlr', 'rodecaster', 'live ?streaming (?:cameras?|webcams?|microphones?|mics?|lights?)']),
+      'razer (?:kiyo|seiren)', 'facecam', 'mic (?:arms?|stands?|booms?)', 'microphone (?:arms?|stands?|booms?)', 'go ?xlr', 'wave ?xlr', 'rodecaster', 'stream controllers?', 'podcast consoles?', 'live ?streaming (?:cameras?|webcams?|microphones?|mics?|lights?)']),
     ctx: words(['microphones?', 'mics?', 'webcams?', 'web cams?', 'cameras?', '(?:led |video )?lights?', 'light ?panels?', 'pop filters?', 'boom arms?', 'audio interfaces?']),
-    type: words(['microphones?', 'webcams?', 'web cams?', 'capture cards?', 'ring lights?', 'key ?lights?'])
+    type: words(['microphones?', 'webcams?', 'web cams?', 'capture cards?', 'ring lights?', 'key ?lights?', 'stream (?:controllers?|decks?)', '(?:podcast|audio) consoles?', '(?:led )?light ?strips?', 'lightstrips?', 'light (?:matrix|panels?|bars?)', 'wall lights?'])
   },
   {
     key: 'components', label: 'PC components',
@@ -158,10 +158,10 @@ export const CATEGORIES = [
       '(?:am[45]|lga ?1[78]\\d{2}|socket am[45]|[abxz][4-9]\\d0e?) (?:atx|matx|micro ?atx|mini ?itx|e-?atx)', 'ddr[45](?:-?\\d{4})? (?:ram|memory|desktop memory|kits?|\\d+ ?gb)', '\\d+ ?gb (?:\\(\\d ?x ?\\d+ ?gb\\) )?ddr[45]',
       '(?:nvme|m\\.2|pcie (?:gen ?)?[345]\\.0) (?:ssds?|solid state drives?)', 'cpu coolers?', 'cpu (?:air|liquid) coolers?', '(?:aio|all-?in-?one) (?:liquid |water )?(?:cpu )?coolers?', 'liquid coolers?', 'pc cases?', 'computer cases?',
       '(?:atx|micro ?atx|mini ?itx) (?:pc )?cases?', '(?:midi|mid|full)[- ]?tower(?: cases?| (?:black|white|grey))?', 'gaming(?:-| )behuizing', 'power supply units?', '\\d{3,4} ?w (?:atx )?(?:psu|power supply)', '\\d{3,4} ?w 80\\+',
-      'case fans?', 'rgb fans?', 'thermal (?:paste|compound)',
+      'case fans?', 'rgb fans?', 'thermal (?:paste|compound)', 'gaming (?:pc )?cases?',
       '(?:cooler master|fractal(?: design)?|nzxt|lian li|phanteks|thermaltake|montech|jonsbo|deepcool|antec|hyte|be quiet!?|corsair|sharkoon|kolink|aerocool) (?:[a-z0-9.+-]+ ){0,3}?(?:case|chassis)']),
     ctx: null,
-    type: words(['graphics cards?', 'motherboards?', 'processors?', 'cpu coolers?', 'liquid coolers?', '(?:pc|computer|atx|tower) cases?', 'power supply units?', 'psus?'])
+    type: words(['graphics cards?', 'motherboards?', 'processors?', 'cpu coolers?', 'liquid coolers?', '(?:pc|computer|atx|tower|gaming) cases?', 'power supply units?', 'psus?'])
   }
 ];
 export const OTHER = { key: 'other-gaming', label: 'Other gaming products' };
@@ -185,9 +185,16 @@ const low = s => String(s || '').toLowerCase().replace(/&amp;/g, ' and ').replac
 const NOT_GAME = words(['playstands?', 'memory', 'micro ?sd\\w*', 'sd cards?', 'express cards?', 'cases?', 'covers?', 'stands?', 'grips?', 'chargers?', 'charging', 'docks?', 'skins?', 'protectors?', 'cables?', 'bags?', 'caps', 'fans?', 'drives?', 'ssds?', 'storage', 'mounts?', 'holders?', 'controllers?', 'headsets?']);
 
 // The category whose product word the name says (e.g. "keyboard"), or null.
+// The product word that comes FIRST in the name wins (dry run of 31 Oct 2026: "ONIKUMA GT808 ... headset, ideal for PC/laptop
+// gamers" is a headset, "AJAZZ ... Stream Controller" a streaming deck, "... Gaming Case" a PC case).
 function typeOf(n) {
-  for (const k of CATEGORIES) if (k.type && k.type.test(n)) return k.key;
-  return null;
+  let best = null, at = Infinity;
+  for (const k of CATEGORIES) {
+    if (!k.type) continue;
+    const i = n.search(k.type);
+    if (i >= 0 && i < at) { at = i; best = k.key; }
+  }
+  return best;
 }
 
 // A console named in the name: its accessories (cases, covers, stands, grips, chargers, cooling fans) are PGW products.

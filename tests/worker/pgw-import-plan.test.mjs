@@ -88,6 +88,20 @@ test('fixes after the first dry run (31 Oct 2026, real Joybuy names: games in "B
   assert.ok(pchub.allowPaths.includes('Gaming & Gadgets'), 'PCHUB\'s own gaming folder');
 });
 
+test('fixes after the second dry run (31 Oct 2026): the product word that comes first wins, refurbished stays out', () => {
+  for (const [n, s] of [
+    ['ONIKUMA GT808, RGB-lit triple-mode wireless headset, ideal for PC/laptop/FPS gamers', 'headsets'],
+    ['AJAZZ AKP153 Studio Deck Stream Controller, 15 Macro Keys, Side Screen', 'streaming'],
+    ['Fractal Design Meshify 3 Black RGB TG Light Tint Gaming Case', 'components'],
+    ['Maono CASTER AU-AM100 Professional Podcast Console XLR and 3.5mm', 'streaming'],
+    ['Yeelight Obsid RGBIC LED Light Strip for Gaming Desk', 'streaming'],
+    ['ARZOPA A1M 17.3 Portable Monitor 1080P FHD IPS Gaming Screen with Stand for Laptop', 'monitors'],
+    ['GTPLAYER Gaming Chair, Office Chair with Massage Footrest for Desk', 'chairs-desks']
+  ]) assert.equal(slug(n), s, n);
+  for (const n of ['LG Refurbished LG UltraGear GX9 34GX900A-B 34" OLED WQHD 240Hz', 'Lenovo Refurbished Lenovo Legion Go S 8ARP1 83L3 16GB RAM 1TB SSD',
+    'Marvo Scorpion BA-002 Ranger 600G Waterproof 15.6 Inch Gaming Laptop']) assert.equal(ok(n), false, n);
+});
+
 test('10 categories, as the owner chose (31 Oct 2026)', () => {
   assert.deepEqual(CATEGORY_SLUGS, ['games-cards', 'controllers', 'consoles', 'pcs-laptops', 'monitors', 'mice-keyboards', 'headsets', 'chairs-desks', 'streaming', 'components']);
 });
