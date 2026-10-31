@@ -172,8 +172,8 @@ function fakeD1(code, site) {
 }
 const FX_FETCH = async () => new Response('[]', { headers: { 'Content-Type': 'application/json' } });
 
-test('every shop of the engine is checked (the 10 sites)', () => {
-  assert.deepEqual([...codes].sort(), ['agw', 'cgw', 'ggw', 'hgw', 'kgw', 'mgw', 'sgw', 'tgw', 'vgw', 'wgw']);
+test('every shop of the engine is checked (the 11 sites, BGW the newest)', () => {
+  assert.deepEqual([...codes].sort(), ['agw', 'bgw', 'cgw', 'ggw', 'hgw', 'kgw', 'mgw', 'sgw', 'tgw', 'vgw', 'wgw']);
 });
 
 for (const code of codes) {

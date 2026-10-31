@@ -1,0 +1,16 @@
+{
+  "_comment": "Awin feeds used by Biker Gear World. advertiserId is the Awin advertiser id (file names AWIN_<advertiserId>_<feedId>.csv.gz in the Awin archive folders); feedIds as on Car Gear World. Without feedIds, every file of that retailer is read. Add a retailer only after Awin has approved the programme. allowPaths (lessons L65): only products from these motorbike or scooter sections of the shop's category path come in (Tooled Up and My Tool Shed: 'Cycle & Motorcycle > Motorcycle', never their 'Cycle' sections; Joybuy: its vehicle parts and riding scooter sections, where a product still needs a motorbike or scooter word in its name). SGS Engineering has no motorbike section: only names that say motorbike or paddock stand come in. First version (31 Oct 2026, after the motorbike feed scan): Tooled Up, My Tool Shed, Joybuy UK, SGS Engineering, Plusshop UK and Bazta UK (the same catalogue at two prices, lessons L40). VEVOR NL waits for the second wave, as on SGW: its names are in Dutch and need an English translation first (lessons L79). sectionHints false: Joybuy's sub-sections are often wrong (plan of 25 Oct 2026 on SGW), so only the product name picks the category. retailer is the name shown on the site.",
+  "sources": [
+    { "advertiserId": 496, "feedIds": [89987], "retailer": "Tooled Up", "currency": "GBP", "condition": "new", "approved": true,
+      "allowPaths": ["motorcycle", "motorcycle tools", "motorcycle lifts & stands"] },
+    { "advertiserId": 49385, "feedIds": [118472], "retailer": "My Tool Shed", "currency": "GBP", "condition": "new", "approved": true,
+      "allowPaths": ["motorcycle", "motorcycle tools", "motorcycle lifts & stands"] },
+    { "advertiserId": 123932, "feedIds": [114093], "retailer": "Joybuy", "currency": "GBP", "condition": "new", "approved": true,
+      "allowPaths": ["riding scooters", "vehicle parts & accessories", "motorcycles & scooters", "motor vehicles"], "sectionHints": false },
+    { "advertiserId": 28807, "feedIds": [95330, 94852], "retailer": "SGS Engineering", "currency": "GBP", "condition": "new", "approved": true },
+    { "advertiserId": 69306, "retailer": "Plusshop UK", "currency": "GBP", "condition": "new", "approved": true,
+      "allowPaths": ["bikes & scooters", "car & bike"] },
+    { "advertiserId": 116097, "retailer": "Bazta UK", "currency": "GBP", "condition": "new", "approved": true, "rulesFrom": 69306 },
+    { "advertiserId": 118435, "feedIds": [109014], "retailer": "VEVOR", "currency": "EUR", "condition": "new", "keepSiteNames": true, "approved": false }
+  ]
+}

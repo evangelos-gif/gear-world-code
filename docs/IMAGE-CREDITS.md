@@ -121,3 +121,22 @@
 | cat-sportswear-shoes-bags.webp | https://www.pexels.com/photo/portrait-of-two-women-in-sports-clothing-5000490/ |
 | cat-golf-skate-more.webp | https://www.pexels.com/photo/5147028/ |
 | assets/flags/nl.svg | Η σημαία Ολλανδίας του CGW (για το VEVOR, δεύτερο κύμα) |
+
+## Biker Gear World (BGW)
+
+Φωτογραφίες από το **Pexels** ([άδεια Pexels](https://www.pexels.com/license/)), κομμένες και μικρυμένες σε WebP. Θόλωσαν τα σήματα μάρκας: το τύπωμα στην παλάμη του γαντιού, τα γράμματα στο λάστιχο, το όνομα του κατασκευαστή στο φέρινγκ και στο ντεπόζιτο, το σήμα του χάρτη στο κινητό και το λογότυπο στο στήθος του αναβάτη. Κανένα πρόσωπο δεν αναγνωρίζεται και καμία πινακίδα δεν φαίνεται. Η κεντρική φωτογραφία σκουράινει στο 88% για να διαβάζεται το λευκό κείμενο. Το λογότυπο, το favicon και το apple-touch-icon σχεδιάστηκαν για το repo (κράνος σε σκούρο τετράγωνο).
+
+| Αρχείο | Pexels |
+|---|---|
+| hero-1920.webp, hero-960.webp, og-image.png (φόντο), tools/assets/hub-bgw.jpg (κάρτα στο hub) | https://www.pexels.com/photo/person-on-motorbike-at-night-17506588/ |
+| cat-helmets.webp | https://www.pexels.com/photo/close-up-of-a-helmet-lying-on-a-motorcycle-seat-17533722/ |
+| cat-jackets-trousers.webp | https://www.pexels.com/photo/a-man-riding-a-motorcycle-13580953/ |
+| cat-boots-gloves.webp | https://www.pexels.com/photo/crop-man-putting-on-leather-gloves-4846400/ |
+| cat-parts-maintenance.webp | https://www.pexels.com/photo/a-close-up-shot-of-a-person-using-a-wrench-on-a-motorcycle-5184918/ |
+| cat-luggage-security.webp | https://www.pexels.com/photo/scenic-motorcycle-adventure-in-mountain-landscape-30314258/ |
+| cat-electronics.webp | https://www.pexels.com/photo/a-biker-using-a-cellphone-for-navigation-5794250/ |
+| cat-electric-scooters.webp | https://www.pexels.com/photo/woman-riding-on-a-scooter-on-a-street-at-sunset-15648066/ |
+| cat-kick-scooters.webp | https://www.pexels.com/photo/handlebar-scooter-close-up-1731751/ |
+| cat-electric-motorbikes.webp | https://www.pexels.com/photo/photo-of-yellow-motor-scooter-3614952/ |
+| cat-protection.webp | https://www.pexels.com/photo/close-up-shot-of-a-person-riding-a-motorcycle-12536116/ |
+| assets/flags/nl.svg | Η σημαία Ολλανδίας του CGW (για το VEVOR, δεύτερο κύμα) |

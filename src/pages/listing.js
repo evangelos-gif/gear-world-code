@@ -132,6 +132,7 @@ export function categoryPage(site, cat, p, result, facets) {
     <div class="cat-banner-text">
       <h1>${cat.name}</h1>
       <p class="lede">${cat.intro}</p>
+      ${cat.note ? html`<p class="category-note">${cat.note}</p>` : ''}
     </div>
   </header>
   <div class="listing">

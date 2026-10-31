@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Biker Gear World">
+  <rect width="64" height="64" rx="12" fill="#17131f"/>
+  <path d="M12.5 43.5c0-16 9.5-27 22-27 10.5 0 17 7.5 17 18.5v8.5z" fill="none" stroke="#c39bff" stroke-width="4.6" stroke-linejoin="round"/>
+  <path d="M31 28.5h20.2v8.6H33.5c-2.6 0-4.4-1.9-4.4-4.3s1.5-4.3 1.9-4.3z" fill="#f0edf5"/>
+  <path d="M12.5 47.5h39" stroke="#c39bff" stroke-width="3" stroke-linecap="round"/>
+</svg>
