@@ -8,6 +8,7 @@ import { join } from 'node:path';
 import { gzipSync } from 'node:zlib';
 import { planPgwImport } from '../../tools/pgw-import-plan.mjs';
 import { classify, cleanProductName, CATEGORY_SLUGS } from '../../sites/pgw/category-rules.js';
+import site from '../../sites/pgw/site.config.js';
 
 const slug = (n, c = '') => classify(cleanProductName(n), c, c).slug;
 const ok = (n, c = '') => classify(cleanProductName(n), c, c).ok;
@@ -102,7 +103,8 @@ test('fixes after the second dry run (31 Oct 2026): the product word that comes 
     'Marvo Scorpion BA-002 Ranger 600G Waterproof 15.6 Inch Gaming Laptop']) assert.equal(ok(n), false, n);
 });
 
-test('10 categories, as the owner chose (31 Oct 2026)', () => {
+test('10 categories, as the owner chose (31 Oct 2026), in the menu order of the site', () => {
+  assert.deepEqual(CATEGORY_SLUGS, site.categories.map(c => c.slug));
   assert.deepEqual(CATEGORY_SLUGS, ['games-cards', 'controllers', 'consoles', 'pcs-laptops', 'monitors', 'mice-keyboards', 'headsets', 'chairs-desks', 'streaming', 'components']);
 });
 

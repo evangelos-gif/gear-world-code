@@ -140,3 +140,21 @@
 | cat-electric-motorbikes.webp | https://www.pexels.com/photo/photo-of-yellow-motor-scooter-3614952/ |
 | cat-protection.webp | https://www.pexels.com/photo/close-up-shot-of-a-person-riding-a-motorcycle-12536116/ |
 | assets/flags/nl.svg | Η σημαία Ολλανδίας του CGW (για το VEVOR, δεύτερο κύμα) |
+
+## Gaming Gear World (PGW)
+
+Φωτογραφίες από το **Pexels** ([άδεια Pexels](https://www.pexels.com/license/)), κομμένες και μικρυμένες σε WebP. Σβήστηκαν τα σήματα μάρκας: το λογότυπο στην κονσόλα και στο κουμπί του χειριστηρίου (Κονσόλες) και το σήμα στο ακουστικό (Headsets). Στα Εξαρτήματα κόπηκε η φωτογραφία ώστε να μη φαίνεται το όνομα του μοντέλου της κάρτας γραφικών. Κανένα πρόσωπο δεν αναγνωρίζεται. Το λογότυπο, το favicon και το apple-touch-icon σχεδιάστηκαν για το repo (χειριστήριο σε μαύρο τετράγωνο, ηλεκτρικό μπλε).
+
+| Αρχείο | Pexels |
+|---|---|
+| hero-1920.webp, hero-960.webp, og-image.png (φόντο) | https://www.pexels.com/photo/modern-gaming-desk-setup-with-rgb-lighting-30469973/ |
+| cat-games-cards.webp | https://www.pexels.com/photo/two-people-holding-black-gaming-consoles-442576/ |
+| cat-controllers.webp | https://www.pexels.com/photo/a-pair-of-camouflage-game-controller-on-black-surface-7887636/ |
+| cat-consoles.webp | https://www.pexels.com/photo/a-white-video-game-console-8782574/ |
+| cat-pcs-laptops.webp | https://www.pexels.com/photo/low-light-photography-of-computer-gaming-rig-set-1038916/ |
+| cat-monitors.webp | https://www.pexels.com/photo/two-computer-flat-screen-monitors-turned-on-777001/ |
+| cat-mice-keyboards.webp | https://www.pexels.com/photo/close-up-view-of-a-person-typing-on-keyboards-5380584/ |
+| cat-headsets.webp | https://www.pexels.com/photo/headphones-on-a-laptop-10670819/ |
+| cat-chairs-desks.webp | https://www.pexels.com/photo/a-leather-gaming-chair-in-front-of-the-computer-7862491/ |
+| cat-streaming.webp | https://www.pexels.com/photo/microphone-and-headphones-in-music-studio-10933701/ |
+| cat-components.webp | https://www.pexels.com/photo/high-performance-gpu-with-cooling-fan-design-35569902/ |
