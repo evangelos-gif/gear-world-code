@@ -40,6 +40,25 @@ test('everyday tech stays on TGW; office, TV and printer products are not PGW pr
   assert.equal(refreshHz('Monitor 27" 240Hz (overclock 280 Hz)'), 280);
 });
 
+test('first scan on the PC (31 Oct 2026): wholesale catalogue and shared model names are not gaming products', () => {
+  const wholesale = 'Default Category>PC Components>Other';
+  for (const n of ['Epson 1005246 printer/scanner spare part', 'HP 1.8m 3-wire power cord for HP', 'Excel 100-712 wall plate/switch cover White', 'FDL 0.2M DISPLAY PORT TO VGA ADAPTOR - M-F',
+    'Zebra DS2278 Handheld bar code reader 1D/2D LED White', 'Xerox 008R13041 Staples for Light Production Finisher', 'StarTech.com 2 Port PCI Express SATA 6 Gbps eSATA Controller Card',
+    'Lenovo 3 Button Optical USB Wheel Mouse', 'Fellowes Back Support for Office Chair', 'APC Fixed Shelf - 250lbs/114kg. Black', '2-Power 4GB DDR3 1333MHz DIMM Memory - replaces KTD-XPS730B/4G',
+    'Seagate Barracuda ST8000DM004 internal hard drive 8 TB', 'Logitech C925e Business Webcam', 'Forum Fiberschleifscheibe Korund 115 mm K100', 'Bahco Barracuda Hand Saw 20" / 500mm 7tpi',
+    'Victorinox Huntsman Swiss Army Knife Red 1371300', 'Karcher RM 652 Cockpit Care Car Interior Cleaning Spray Bottle', 'Gesipa PowerBird Pro Gold Edition Cordless Riveter', 'Console Controller Cufflinks',
+    'Guhring No 1083 19 Piece AeroX Cobolt M42 1.0 -10mm By 0.5mm Drill Set', 'Speedo Xpress Light Panel Swim Shorts', 'Festool CT-ASA CT Boom Arm', 'K65 OMR']) {
+    assert.equal(classify(n, wholesale).sport, false, n);
+  }
+  assert.equal(cat('ASUS ROG Strix Scope II 96 Wireless keyboard Gaming USB'), 'mice-keyboards', 'a keyboard, even with a laptop name in it');
+  assert.equal(cat('Cooler Master Silencio S600 Midi Tower Black'), 'components', 'a PC case, not a gaming PC');
+  assert.equal(cat('Corsair CF-9010052-UK video game chair PC gaming chair Mesh seat Black'), 'chairs-desks');
+  assert.equal(cat('Death Howl-PS5'), 'games-cards');
+  assert.equal(cat('Microsoft NBA 2K21 Standard Xbox One'), 'games-cards');
+  assert.equal(cat('Seagate Game Drive for PlayStation Consoles 2 TB'), 'consoles');
+  assert.equal(cat('DOBE Nintendo Switch Cover Blue'), 'consoles');
+});
+
 test('gaming toys and merchandise belong to other sites; gaming products that fit TGW are flagged', () => {
   assert.equal(ov('Xbox Logo T-Shirt'), 'merch');
   assert.equal(ov('PlayStation Controller Night Light'), null, 'the word controller keeps it out of merchandise (unless list)');
