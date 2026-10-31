@@ -40,7 +40,7 @@ export const GAMING_CTX = words(['gaming', 'gamers?', "gamer's", 'e-?sports?', '
   'switch (?:2|oled|lite)', 'steam deck', 'razer', 'steelseries', 'hyperx', 'corsair', 'logitech g(?: ?pro|\\d{3})?', 'roccat', 'turtle beach', 'alienware', 'asus rog', 'rog (?:strix|zephyrus|flow|ally|swift|azoth|harpe|gladius|keris|delta|cetra|falchion|claymore)',
   'tuf gaming', 'lenovo legion', 'hp omen', 'acer predator', 'acer nitro', 'gravastar', 'elgato', 'secretlab', 'noblechairs', '8bitdo', 'thrustmaster', 'fanatec', 'nacon', 'powera', 'astro a\\d{2}',
   'glorious', 'endgame gear', 'zowie', 'cooler master', 'nzxt', 'trust gxt', 'arozzi', 'dxracer', 'gtplayer', 'gtracing', 'live ?stream(?:ing|ers?)?', 'streamers?', 'twitch', 'podcast(?:ing|ers?)?', 'content creators?',
-  'dualsense', 'dualshock', 'joy-?cons?', 'game ?pads?', 'fps', 'mmo', 'rpg']);
+  'dualsense', 'dualshock', 'joy-?cons?', 'game ?pads?']);
 // A shop category that says gaming. Not "PC Components", "Peripherals" or "Computers" (whole wholesale catalogues).
 export const GAMING_SHOP = words(['gaming', 'gamers?', 'video ?games?', 'video game (?:software|consoles?|accessories)', 'pc games?', 'console games?', 'games consoles?', 'game consoles?', 'e-?sports?',
   'playstation', 'xbox', 'nintendo']);
@@ -56,7 +56,7 @@ export const NO = words(['toners?', 'ink(?: cartridges?)?', 'toner cartridges?',
   'cufflinks?', 'knives', 'knife', 'swiss army', 'umbrellas?', 'sunglasses', 'saws?', 'drills?', 'drill sets?', 'riveters?', 'rivet', 'sprays?', 'cleaning', 'cleaners?', 'polish', 'shears', 'hedge', 'swim',
   'squishy', 'hockey', 'golf', 'utv', 'sewer', 'rioolcamera', 'inspection cameras?', 'light switch(?:es)?', 'plate/switch covers?', '(?:wall|light) switch covers?', 'perfumes?', 'eau de', 'travel case gold', 'festool', 'bahco', 'gesipa', 'fiskars', 'victorinox',
   'karcher', 'kärcher', 'hockeytafel', 'baq', 'replacebase', 'redriver', 'replacement', 'compatible batter(?:y|ies)', 'batter(?:y|ies) for', 'case parts?', 'computer case part', 'hdd cages?', 'caddies', 'caddy',
-  'laptop (?:bags?|backpacks?|sleeves?)', 'backpacks?', 'sleeves?', 'translator', 'translation', 'ddr[23]', 'ecc', 'rdimm', 'lrdimm', 'registered', 'fully buffered', 'thin clients?', 'workstation', 'quadro', 'tesla', 'industrial', 'lab equipment']);
+  'laptop (?:bags?|backpacks?|sleeves?)', 'backpacks?', 'sleeves?', 'translator', 'translation', 'screwdrivers?', 'smartphones?', 'unlocked', 'android phones?', '5g phones?', 'sports? (?:action )?cam(?:era)?s?', 'action cam(?:era)?s?', '360 cam(?:era)?s?', 'selfie', 'ddr[23]', 'ecc', 'rdimm', 'lrdimm', 'registered', 'fully buffered', 'thin clients?', 'workstation', 'quadro', 'tesla', 'industrial', 'lab equipment']);
 
 // Monitor refresh rate: 144 Hz and more is a gaming screen (the TGW rules use 170 Hz for TVs; monitors start lower).
 export function refreshHz(name) {
@@ -78,25 +78,25 @@ export const CATEGORIES = [
   {
     key: 'games-cards', label: 'Games & gift cards',
     sure: words(['(?:ps5|ps4|playstation ?[45]|xbox(?: series [xs]| one)?|nintendo switch(?: 2)?|switch 2|pc) (?:video )?games?(?! (?:drives?|consoles?|controllers?|chairs?|desks?|headsets?|mouse|keyboards?|monitors?|laptops?|pcs?))',
-      'video games?(?! (?:chairs?|consoles?|controllers?|accessories))', '(?:-|–|\\(|for )\\s?(?:ps5|ps4|xbox series x\\|?s?|xbox one|nintendo switch 2?|switch 2?)\\)?$',
+      'video games?(?! (?:chairs?|consoles?|controllers?|accessories|gamepads?|game ?pads?))', '\\((?:xbox one ?/ ?xbox series x|xbox series x ?/ ?xbox one|ps4 ?/ ?ps5|ps5 ?/ ?ps4)\\)', 'cross-?gen (?:bundle|edition)',
       '(?:psn|playstation|playstation store|xbox|nintendo eshop|eshop|steam|roblox|fortnite|ea ?play) (?:gift |wallet |store )?(?:cards?|credit|vouchers?|codes?|top-?ups?)', 'v-?bucks', 'robux',
       'xbox game ?pass(?: ultimate| core)?', 'playstation plus', 'ps plus (?:essential|extra|premium|\\d+)', 'nintendo switch online', 'amiibo',
       // Icecat names of games: "Warner Bros Mortal Kombat 11 Ultimate English Xbox One", "Outright Games ... Standard Multilingual PlayStation 4".
       '(?:standard|deluxe|ultimate|gold|collector\'?s|goty|definitive|complete|premium|special|launch)(?: edition)? (?:english|multilingual|german|french|italian|spanish|dutch|polish|portuguese|simplified chinese|traditional chinese|uk english)', 'pegi ?(?:3|7|12|16|18)']),
     ctx: words(['games?', 'gift cards?', '(?:standard|deluxe|gold|ultimate|collector\'?s|game of the year|goty|day one|launch) edition']),
-    type: words(['video games?(?! (?:chairs?|consoles?|controllers?|accessories|drives?))', 'gift cards?', 'game ?pass'])
+    type: words(['video games?(?! (?:chairs?|consoles?|controllers?|accessories|drives?|gamepads?|game ?pads?))', 'gift cards?', 'game ?pass'])
   },
   {
     key: 'controllers', label: 'Controllers, wheels & sticks',
     sure: words(['game ?pads?', 'game controllers?', 'gaming controllers?', '(?:ps5|ps4|playstation|xbox|switch|nintendo switch|pc|wireless|wired) (?:pro )?controllers?(?! cards?)', 'pro controllers?', 'dualsense(?: edge)?', 'dualshock',
-      'joy-?cons?', 'racing wheels?', 'sim racing', 'racing simulators?', 'flight sticks?', 'hotas', 'arcade sticks?', 'fight ?sticks?', 'thrustmaster', 'fanatec', '8bitdo', 'razer (?:wolverine|kishi|raiju)',
+      'joy-?cons?', 'racing wheels?', 'race wheels?', 'wheels? (?:and|&) pedals?', 'sim racing', 'racing simulators?', 'flight sticks?', 'hotas', 'arcade sticks?', 'fight ?sticks?', 'thrustmaster', 'fanatec', '8bitdo', 'razer (?:wolverine|kishi|raiju)',
       'controller (?:charging (?:stations?|docks?)|chargers?|grips?|skins?|thumb ?grips?|paddles?)', 'charging (?:stations?|docks?) for (?:ps5|dualsense|xbox|controllers?)', 'thumb ?grips? for']),
     ctx: words(['controllers?', '(?:steering )?wheels?', 'pedals?', 'joysticks?', 'paddles?', 'shifters?']),
-    type: words(['controllers?(?! cards?)', 'gamepads?', 'game ?pads?', 'joysticks?', 'racing wheels?'])
+    type: words(['controllers?(?! cards?)', 'gamepads?', 'game ?pads?', 'joysticks?', 'racing wheels?', 'race wheels?'])
   },
   {
     key: 'consoles', label: 'Consoles & handhelds',
-    sure: words(['(?:ps5|ps4|playstation ?5|playstation ?4) (?:pro |slim |digital (?:edition )?)?(?:consoles?|bundles?|slim|pro|digital edition)', 'playstation 5 console', 'xbox series [xs](?: console| bundle)?',
+    sure: words(['(?:ps5|ps4|playstation ?5|playstation ?4) (?:pro |slim |digital (?:edition )?)?(?:consoles?|bundles?|slim|pro|digital edition)', 'playstation 5 console', 'xbox series [xs](?: \\d+ ?(?:gb|tb))?(?: digital(?: edition)?)? (?:console|bundle)',
       'xbox one (?:s|x)(?: console)?', 'nintendo switch(?: 2| oled| lite)? (?:console|bundle|oled model)', 'switch (?:2|oled|lite) (?:console|bundle)', 'nintendo switch lite', 'steam deck(?: oled| lcd)?', 'rog ally(?: x)?',
       'lenovo legion go(?: s)?', 'legion go(?: s)?', 'msi claw', 'playstation portal', 'retro (?:game )?consoles?', 'game consoles?', 'games consoles?', '(?:portable|handheld|hand held) (?:game |gaming )?consoles?',
       'retroid', 'anbernic', 'ayaneo', 'evercade', 'meta quest ?\\d?', 'playstation vr ?2?', 'psvr ?2?', 'game drive(?: for (?:playstation|xbox))?', 'storage expansion cards? for xbox', 'seagate storage expansion card']),
@@ -130,7 +130,7 @@ export const CATEGORIES = [
   {
     key: 'headsets', label: 'Headsets & gaming audio',
     sure: words(['gaming (?:headsets?|headphones?|earbuds?|earphones?|speakers?|soundbars?|sound ?bars?)', 'steelseries arctis', 'arctis nova', 'razer (?:kraken|barracuda|blackshark|nari|hammerhead)', 'hyperx cloud',
-      'turtle beach', 'astro a\\d{2}', 'corsair (?:virtuoso|hs\\d{2}|void)', 'logitech g ?(?:pro x headset|435|535|733|335|935)', 'pulse (?:3d|elite|explore)', 'playstation pulse', '(?:ps5|ps4|xbox|playstation) (?:headsets?|earbuds?|headphones?)',
+      'turtle beach (?:stealth|recon|atlas|elite|nex|earforce|ear force)', 'astro a\\d{2}', 'corsair (?:virtuoso|hs\\d{2}|void)', 'logitech g ?(?:pro x headset|435|535|733|335|935)', 'pulse (?:3d|elite|explore)', 'playstation pulse', '(?:ps5|ps4|xbox|playstation) (?:headsets?|earbuds?|headphones?)',
       'headset (?:stands?|holders?|hangers?)']),
     ctx: words(['headsets?', 'headphones?', 'earbuds?', 'earphones?', 'speakers?', 'sound ?bars?', 'dacs?']),
     type: words(['headsets?', 'headphones?', 'earbuds?', 'earphones?'])
@@ -182,7 +182,7 @@ export const GAME_SUFFIX = /(?:\s-\s?|[a-z0-9]-|\s–\s|\(|\bfor\s|\b(?:standard
 const low = s => String(s || '').toLowerCase().replace(/&amp;/g, ' and ').replace(/&/g, ' and ').replace(/[’`]/g, "'").replace(/[™®]/g, ' ').replace(/[ \s]+/g, ' ').trim();
 
 // Accessories named "... for PS5" are not games.
-const NOT_GAME = words(['cases?', 'covers?', 'stands?', 'grips?', 'chargers?', 'charging', 'docks?', 'skins?', 'protectors?', 'cables?', 'bags?', 'caps', 'fans?', 'drives?', 'ssds?', 'storage', 'mounts?', 'holders?', 'controllers?', 'headsets?']);
+const NOT_GAME = words(['playstands?', 'memory', 'micro ?sd\\w*', 'sd cards?', 'express cards?', 'cases?', 'covers?', 'stands?', 'grips?', 'chargers?', 'charging', 'docks?', 'skins?', 'protectors?', 'cables?', 'bags?', 'caps', 'fans?', 'drives?', 'ssds?', 'storage', 'mounts?', 'holders?', 'controllers?', 'headsets?']);
 
 // The category whose product word the name says (e.g. "keyboard"), or null.
 function typeOf(n) {
@@ -192,7 +192,7 @@ function typeOf(n) {
 
 // A console named in the name: its accessories (cases, covers, stands, grips, chargers, cooling fans) are PGW products.
 const CONSOLE_NAME = words(['ps5', 'ps4', 'playstation ?[45]?', 'dualsense', 'dualshock', 'xbox(?: series [xs]| one)?', 'nintendo switch(?: 2| oled| lite)?', 'switch (?:2|oled|lite)', 'joy-?cons?', 'steam deck', 'rog ally', 'legion go']);
-const CONSOLE_ACCESSORY = words(['(?:carry(?:ing)? |travel |protective |hard ?shell |grip |silicone )?cases?', 'covers?', 'stands?', 'skins?', 'grips?', 'docks?', 'docking stations?', 'cooling fans?', 'coolers?', 'screen protectors?',
+const CONSOLE_ACCESSORY = words(['playstands?', 'expansion cards?', 'memory cards?', 'microsdxc express cards?', 'portable ssds?', '(?:carry(?:ing)? |travel |protective |hard ?shell |grip |silicone )?cases?', 'covers?', 'stands?', 'skins?', 'grips?', 'docks?', 'docking stations?', 'cooling fans?', 'coolers?', 'screen protectors?',
   'chargers?', 'charging (?:stations?|docks?|cables?)', 'starter kits?', 'accessor(?:y|ies) (?:kits?|packs?|bundles?)', 'storage', 'expansion cards?', 'carry bags?', 'travel bags?']);
 // Components from a retail brand only (OEM part catalogues: Dell, HP and Lenovo power supplies and fans, 2-Power memory).
 const OEM_PART = /^(?:dell|hp|hpe|hewlett|lenovo|fujitsu|ibm|cisco|startech(?:\.com)?|2-?power|origin storage|bti|microconnect|hypertec|axiom|v7|lindy|apc|supermicro)\b/i;

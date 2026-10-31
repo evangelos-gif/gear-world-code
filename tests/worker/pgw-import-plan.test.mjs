@@ -68,6 +68,26 @@ test('a shop section that says gaming gives the gaming context (Plusshop UK, Baz
   assert.equal(classify('Mouse Pad XXL', 'Computer & gaming accessories', 'Computer & gaming accessories').slug, 'mice-keyboards');
 });
 
+test('fixes after the first dry run (31 Oct 2026, real Joybuy names: games in "Board Games", sports cams with "60FPS")', () => {
+  const games = 'Toys & Games > Games > Board Games';
+  for (const [n, c, s] of [
+    ['Star Wars Outlaws (Xbox Series X)', games, 'games-cards'],
+    ['Electronic Arts Madden NFL: 22 (Xbox One/Xbox Series X)', games, 'games-cards'],
+    ['Activision Call of Duty: Black Ops 7 - Cross-Gen Bundle - Xbox Series X and Xbox One', games, 'games-cards'],
+    ['Xbox Series S 512GB Console - White', '', 'consoles'],
+    ['HORI Dual USB PlayStand for Nintendo Switch 2', '', 'consoles'],
+    ['Lexar PLAY PRO MicroSDXC Express Card 512GB for Nintendo Switch 2', '', 'consoles'],
+    ['EasySMX D10 PC Controller Video Game Gamepad - Elite Wireless BT Gamepad with TMR', '', 'controllers'],
+    ['Turtle Beach VelocityOne Race Wheel & Pedal System for Xbox & Windows 10/11', 'Toys & Games > Games > Roulette Wheels & Sets', 'controllers'],
+    ['Turtle Beach Stealth 600 Wireless Gaming Headset GEN3 PS - White', '', 'headsets']
+  ]) assert.equal(classify(n, c, c).slug, s, n);
+  for (const n of ['XbotGo Chameleon AI Team Sports Action Cam 4K 60FPS', 'nubia Z80 Ultra 5G Unlocked Android Gaming Phone', 'Fanttik S1 Pro Electric Screwdriver for Gaming Console Repair']) {
+    assert.equal(classify(n, '', '').ok, false, n);
+  }
+  const pchub = JSON.parse(readFileSync('sites/pgw/sources.json', 'utf8')).sources.find(s => s.retailer === 'PCHUB.UK');
+  assert.ok(pchub.allowPaths.includes('Gaming & Gadgets'), 'PCHUB\'s own gaming folder');
+});
+
 test('10 categories, as the owner chose (31 Oct 2026)', () => {
   assert.deepEqual(CATEGORY_SLUGS, ['games-cards', 'controllers', 'consoles', 'pcs-laptops', 'monitors', 'mice-keyboards', 'headsets', 'chairs-desks', 'streaming', 'components']);
 });
