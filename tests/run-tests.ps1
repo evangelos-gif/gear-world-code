@@ -315,6 +315,21 @@ if (Get-Command node -ErrorAction SilentlyContinue) {
     Check ((Get-FileHash -LiteralPath $gzPath -Algorithm SHA256).Hash -eq $archHash) 'bgw import plan: Awin archive unchanged'
     & $exe -NoProfile -ExecutionPolicy Bypass -File $runTool -LocalRepo $repo -Tool bgw-import-plan -Archive ($arch + ';' + (Join-Path $work 'no-such-folder')) -OutDir $bgwOut -NoClipboard | Out-Null
     Check ($LASTEXITCODE -eq 2) 'bgw import plan: a missing archive folder gives exit code 2'
+    # Hub shadow catalogue (phase 1): every shop on the PC offered to the 5 sites, read-only, no SQL.
+    $hubOut = Join-Path $work 'hub-shadow-run'
+    & $exe -NoProfile -ExecutionPolicy Bypass -File $runTool -LocalRepo $repo -Tool hub-shadow-catalog -Archive $arch -OutDir $hubOut -KeyFile (Join-Path $work 'no-key.dat') -NoClipboard | Out-Null
+    Check ($LASTEXITCODE -eq 0) 'hub shadow catalogue: exit code 0 through gw-run, without a saved key'
+    $hubRuns = @(Get-ChildItem -LiteralPath $hubOut -Directory -Filter 'HUB_SHADOW_*' -ErrorAction SilentlyContinue)
+    Check ($hubRuns.Count -eq 1) 'hub shadow catalogue: report folder written'
+    if ($hubRuns.Count -ge 1) {
+        $hs = [System.IO.File]::ReadAllText((Join-Path $hubRuns[0].FullName 'summary.txt'))
+        Check ($hs.Contains('BGW Biker') -and $hs.Contains('TGW Technology')) 'hub shadow catalogue: summary for the 5 sites'
+        Check (Test-Path -LiteralPath (Join-Path (Join-Path $hubRuns[0].FullName 'BGW') 'report.txt')) 'hub shadow catalogue: full report per site'
+        Check (-not (Test-Path -LiteralPath (Join-Path (Join-Path $hubRuns[0].FullName 'TGW') 'sql'))) 'hub shadow catalogue: no SQL written'
+    }
+    Check ((Get-FileHash -LiteralPath $gzPath -Algorithm SHA256).Hash -eq $archHash) 'hub shadow catalogue: Awin archive unchanged'
+    & $exe -NoProfile -ExecutionPolicy Bypass -File $runTool -LocalRepo $repo -Tool hub-shadow-catalog -Archive ($arch + ';' + (Join-Path $work 'no-such-folder')) -OutDir $hubOut -KeyFile (Join-Path $work 'no-key.dat') -NoClipboard | Out-Null
+    Check ($LASTEXITCODE -eq 2) 'hub shadow catalogue: a missing archive folder gives exit code 2'
 
     $coesCsv = "merchant_name,aw_product_id,brand_name,merchant_product_id,merchant_category,product_name,merchant_deep_link,merchant_image_url,search_price,stock_quantity`n" +
         "Coes,1,Barbour,10,Menswear,Barbour Beaufort Wax Jacket,https://www.coes.co.uk/products/beaufort?variant=10,https://cdn.shopify.com/1.png,299,1`n" +

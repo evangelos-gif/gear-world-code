@@ -582,7 +582,7 @@ function addSample(store, key, item, size, rng) {
 // rules: a site's category-rules.js (default TGW). Other sites with their own database reuse this tool with their own
 // rules and label (tools/agw-import-plan.mjs, tools/vgw-import-plan.mjs). QUALITY.currencies (list) or QUALITY.currency.
 // only: a list of Awin advertiser ids, to plan just those retailers (their SQL then touches only them).
-export async function planImport({ archive, sourcesFile, outDir, now = new Date(), rules = TGW_RULES, label = 'TGW', only = null }) {
+export async function planImport({ archive, sourcesFile, outDir, now = new Date(), rules = TGW_RULES, label = 'TGW', only = null, writeSql = true }) {
   const { classify, cleanProductName, QUALITY, CATEGORY_SLUGS } = rules;
   const notUkHint = rules.notUkHint || (() => '');
   const currencies = QUALITY.currencies || [QUALITY.currency];
@@ -816,7 +816,9 @@ export async function planImport({ archive, sourcesFile, outDir, now = new Date(
   });
 
   // ---------- SQL (written, never executed here) ----------
-  mkdirSync(join(outDir, 'sql'), { recursive: true });
+  // writeSql false (the Hub's shadow catalogue, phase 1): only the report, no SQL at all.
+  mkdirSync(outDir, { recursive: true });
+  if (writeSql) mkdirSync(join(outDir, 'sql'), { recursive: true });
   const cols = ['stable_key', 'awin_advertiser_id', 'awin_product_id', 'merchant_product_id', 'retailer', 'category_slug', 'subcategory', 'brand', 'product_name', 'product_slug', 'description', 'price', 'was_price', 'currency', 'in_stock', 'item_condition', 'image_url', 'affiliate_url', 'merchant_category', 'gtin', 'mpn', 'specs_json', 'is_active', 'last_seen_at'];
   const updateCols = cols.filter(c => c !== 'stable_key' && c !== 'awin_advertiser_id' && c !== 'merchant_product_id');
   // "keepSiteNames" (VEVOR NL, lessons L79): the shop's feed is in Dutch and the site shows the names translated into English.
@@ -825,7 +827,7 @@ export async function planImport({ archive, sourcesFile, outDir, now = new Date(
   const keptCols = updateCols.filter(c => c !== 'product_name' && c !== 'product_slug' && c !== 'description');
   const all = [...products.values()];
   const sqlFiles = [];
-  for (let i = 0; i < all.length; i += SQL_ROWS_PER_FILE) {
+  for (let i = 0; writeSql && i < all.length; i += SQL_ROWS_PER_FILE) {
     const part = all.slice(i, i + SQL_ROWS_PER_FILE);
     const lines = part.map(p => `INSERT INTO products (${cols.join(', ')}) VALUES (${cols.map(c => sq(p[c])).join(', ')}) ON CONFLICT(stable_key) DO UPDATE SET ${(keepNames.has(Number(p.awin_advertiser_id)) ? keptCols : updateCols).map(c => `${c} = excluded.${c}`).join(', ')}, updated_at = datetime('now');`);
     const name = `${String(sqlFiles.length + 1).padStart(4, '0')}.sql`;
@@ -839,7 +841,7 @@ export async function planImport({ archive, sourcesFile, outDir, now = new Date(
     ...(advIds.length ? [`UPDATE products SET is_active = 0, updated_at = datetime('now') WHERE awin_advertiser_id IN (${advIds.join(', ')}) AND is_active = 1 AND last_seen_at < ${sq(runStamp)};`] : []),
     `INSERT INTO import_runs (source, inserted, updated, deactivated, notes) VALUES (${sq('awin:' + (advIds.join(',') || 'none'))}, ${all.length}, 0, 0, ${sq('planned ' + runStamp)});`
   ];
-  writeFileSync(join(outDir, 'sql', '9999-finish.sql'), finish.join('\n') + '\n');
+  if (writeSql) writeFileSync(join(outDir, 'sql', '9999-finish.sql'), finish.join('\n') + '\n');
 
   // ---------- Report ----------
   const L = [];
@@ -953,7 +955,7 @@ export async function planImport({ archive, sourcesFile, outDir, now = new Date(
     for (const s of list) L.push(`   ${s}`);
   }
   L.push('');
-  L.push(`SQL written (NOT executed): ${sqlFiles.length} file(s) + 9999-finish.sql in ${join(outDir, 'sql')}`);
+  L.push(writeSql ? `SQL written (NOT executed): ${sqlFiles.length} file(s) + 9999-finish.sql in ${join(outDir, 'sql')}` : 'No SQL written (report only).');
   L.push('=== END ===');
   const report = L.join('\r\n');
   writeFileSync(join(outDir, 'report.txt'), '﻿' + report);
