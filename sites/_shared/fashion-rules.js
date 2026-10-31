@@ -18,7 +18,7 @@
 
 import { fixMojibake } from '../../src/db.js';
 
-const words = list => new RegExp(`(?:^|[^a-z0-9])(?:${list.join('|')})(?![a-z0-9])`, 'i');
+export const words = list => new RegExp(`(?:^|[^a-z0-9])(?:${list.join('|')})(?![a-z0-9])`, 'i');
 
 // ---------- Who it is for ----------
 const MEN = words(["men'?s", 'mens', 'men', 'man', 'gents?', "gent'?s", 'male', 'homme', 'pour homme', 'for him', 'him', 'masculine', 'uomo', 'herren', 'boyfriend']);
@@ -186,16 +186,18 @@ export function audience(name, feedCategory = '', source = null) {
 
 // The last place in a text where a pattern matches (-1: nowhere). The product type is usually the last noun before the
 // details: "Work Socks for Steel Toe Boots" are socks, "Oxford Shirt" is a shirt, "Watch Cufflinks" are cufflinks.
-function lastAt(re, text) {
+export function lastAt(re, text) {
   const g = new RegExp(re.source, re.flags.includes('g') ? re.flags : re.flags + 'g');
   let at = -1, m;
-  while ((m = g.exec(text))) { at = m.index + m[0].length; if (m[0].length === 0) g.lastIndex++; }
+  // Overlapping matches count too ("Stick Vacuum Cleaner": "stick vacuum" and "vacuum cleaner"), so the search goes on one
+  // character after the start of each match and keeps the furthest end.
+  while ((m = g.exec(text))) { at = Math.max(at, m.index + m[0].length); g.lastIndex = m.index + 1; }
   return at;
 }
 // The part of a name that says what it is: before " for ", " with ", " - ", " | ", " – ", "(" or a comma.
 export function headOf(name) {
   const n = String(name || '');
-  const cut = n.search(/\s+(?:for|with|that|featuring|incl\.?|including)\s+|\s[-–|]\s|\(|,|:/i);
+  const cut = n.search(/\s+(?:for|with|that|featuring|incl\.?|including)\s+|\s+w\/\s*|\s[-–|]\s|\(|,|:/i);
   return (cut > 3 ? n.slice(0, cut) : n).trim();
 }
 // The category rule whose words come last in the text (ties: the earlier rule).

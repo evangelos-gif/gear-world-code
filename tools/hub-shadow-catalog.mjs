@@ -24,13 +24,15 @@ import * as SGW_RULES from '../sites/sgw/category-rules.js';
 import * as BGW_RULES from '../sites/bgw/category-rules.js';
 import * as MGW_RULES from '../sites/mgw/category-rules.js';
 import * as WGW_RULES from '../sites/wgw/category-rules.js';
+import * as HGW_RULES from '../sites/hgw/category-rules.js';
+import * as GGW_RULES from '../sites/ggw/category-rules.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const repoRoot = join(here, '..');
 
 // The sites with general category rules: the 5 newer ones, and since 31 Oct 2026 Men's and Women's (phase 4, the shared
-// fashion rules). The other older sites (CGW, KGW, HGW, GGW) still have rules per shop only (tools/import-rules/), so they
-// cannot take a shop they do not know yet: they follow, one by one.
+// fashion rules) and Home and Garden (sites/_shared/home-garden-rules.js). The other older sites (CGW, KGW) still have
+// rules per shop only (tools/import-rules/), so they cannot take a shop they do not know yet: they follow, one by one.
 export const SHADOW_SITES = [
   { code: 'TGW', dir: 'tgw', name: 'Technology', rules: TGW_RULES },
   { code: 'AGW', dir: 'agw', name: 'Car', rules: AGW_RULES },
@@ -38,9 +40,11 @@ export const SHADOW_SITES = [
   { code: 'SGW', dir: 'sgw', name: 'Sporty', rules: SGW_RULES },
   { code: 'BGW', dir: 'bgw', name: 'Biker', rules: BGW_RULES },
   { code: 'MGW', dir: 'mgw', name: "Men's", rules: MGW_RULES },
-  { code: 'WGW', dir: 'wgw', name: "Women's", rules: WGW_RULES }
+  { code: 'WGW', dir: 'wgw', name: "Women's", rules: WGW_RULES },
+  { code: 'HGW', dir: 'hgw', name: 'Home', rules: HGW_RULES },
+  { code: 'GGW', dir: 'ggw', name: 'Garden', rules: GGW_RULES }
 ];
-export const OLD_SITES = ['CGW', 'KGW', 'HGW', 'GGW'];
+export const OLD_SITES = ['CGW', 'KGW'];
 const JOINED = /^(active|joined)$/i;
 // The network is for UK buyers in £. A programme of another region (Reidl DE, Kastner & Öhler DE/AT, Pneus BE in the first run,
 // 31 Oct 2026) has German or French names and euro prices: like VEVOR NL it needs English names first (lessons L79).

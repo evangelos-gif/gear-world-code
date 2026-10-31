@@ -1,0 +1,14 @@
+{
+  "_comment": "Awin shops of Garden Gear World for the shared import and the Hub's shadow catalogue (31 Oct 2026, phase 4 of 'every product through the Hub'). The general rules are in sites/_shared/home-garden-rules.js; a shop here can set: allowPaths (only these sections, lessons L65, taken from the sections of the products the site showed on 31 Oct 2026), sectionHints (false, or the top sections whose names may place a product), gardenShop (every product of the shop is for the garden: Mint Outdoor, Lights4fun, Tooled Up's garden sections), defaultCategory (a shop whose names do not say the type: tado, Beyond Shakers). The older per-shop import rules (tools/import-rules/) still load this site until the shared import replaces them.",
+  "sources": [
+    { "advertiserId": 123932, "retailer": "Joybuy UK", "currency": "GBP", "condition": "new", "approved": true, "feedIds": [114093], "allowPaths": ["home & garden", "furniture"], "sectionHints": ["Home & Garden", "Furniture"] },
+    { "advertiserId": 69306, "retailer": "Plusshop UK", "currency": "GBP", "condition": "new", "approved": true, "allowPaths": ["bathroom", "bathroom accessories", "clean, iron & dry", "cleaning", "cleaning products", "coffee & tea", "floor mops & buckets", "garden tools", "grill & accessories", "home", "home security", "household", "kitchen", "kitchen appliances", "kitchen scales", "knives & accessories", "laundry", "steam mop & cleaner", "tableware & cutlery trays", "toilet and bathroom", "vacuum cleaners", "wine & cocktail"] },
+    { "advertiserId": 116097, "retailer": "Bazta UK", "currency": "GBP", "condition": "new", "approved": true, "rulesFrom": 69306 },
+    { "advertiserId": 98661, "retailer": "Cronjager", "currency": "GBP", "condition": "new", "approved": true, "allowPaths": ["art", "arts & crafts", "beds", "living room", "crockery", "decorations", "drinkware", "cleaning"] },
+    { "advertiserId": 37292, "retailer": "Gardenista", "currency": "GBP", "condition": "new", "approved": true },
+    { "advertiserId": 1531, "retailer": "Lights4fun", "currency": "GBP", "condition": "new", "approved": true, "gardenShop": true, "defaultCategory": "outdoor-lighting" },
+    { "advertiserId": 114094, "retailer": "Mint Outdoor", "currency": "GBP", "condition": "new", "approved": true, "gardenShop": true },
+    { "advertiserId": 496, "retailer": "Tooled Up", "currency": "GBP", "condition": "new", "approved": true, "allowPaths": ["garden tools"], "gardenShop": true },
+    { "advertiserId": 49385, "retailer": "My Tool Shed", "currency": "GBP", "condition": "new", "approved": true, "allowPaths": ["garden tools"], "gardenShop": true }
+  ]
+}
