@@ -22,20 +22,25 @@ import * as AGW_RULES from '../sites/agw/category-rules.js';
 import * as VGW_RULES from '../sites/vgw/category-rules.js';
 import * as SGW_RULES from '../sites/sgw/category-rules.js';
 import * as BGW_RULES from '../sites/bgw/category-rules.js';
+import * as MGW_RULES from '../sites/mgw/category-rules.js';
+import * as WGW_RULES from '../sites/wgw/category-rules.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const repoRoot = join(here, '..');
 
-// The 5 sites with general category rules. The 6 older sites (CGW, MGW, WGW, KGW, HGW, GGW) only have rules per shop
-// (tools/import-rules/), so they cannot take a shop they do not know yet: phase 4.
+// The sites with general category rules: the 5 newer ones, and since 31 Oct 2026 Men's and Women's (phase 4, the shared
+// fashion rules). The other older sites (CGW, KGW, HGW, GGW) still have rules per shop only (tools/import-rules/), so they
+// cannot take a shop they do not know yet: they follow, one by one.
 export const SHADOW_SITES = [
   { code: 'TGW', dir: 'tgw', name: 'Technology', rules: TGW_RULES },
   { code: 'AGW', dir: 'agw', name: 'Car', rules: AGW_RULES },
   { code: 'VGW', dir: 'vgw', name: 'Travel', rules: VGW_RULES },
   { code: 'SGW', dir: 'sgw', name: 'Sporty', rules: SGW_RULES },
-  { code: 'BGW', dir: 'bgw', name: 'Biker', rules: BGW_RULES }
+  { code: 'BGW', dir: 'bgw', name: 'Biker', rules: BGW_RULES },
+  { code: 'MGW', dir: 'mgw', name: "Men's", rules: MGW_RULES },
+  { code: 'WGW', dir: 'wgw', name: "Women's", rules: WGW_RULES }
 ];
-export const OLD_SITES = ['CGW', 'MGW', 'WGW', 'KGW', 'HGW', 'GGW'];
+export const OLD_SITES = ['CGW', 'KGW', 'HGW', 'GGW'];
 const JOINED = /^(active|joined)$/i;
 // The network is for UK buyers in £. A programme of another region (Reidl DE, Kastner & Öhler DE/AT, Pneus BE in the first run,
 // 31 Oct 2026) has German or French names and euro prices: like VEVOR NL it needs English names first (lessons L79).
@@ -213,7 +218,7 @@ export async function shadowCatalog({ archive, outDir, list = null, now = new Da
   }
   L.push('');
 
-  L.push(`== Καταστήματα που δεν δίνουν ΚΑΝΕΝΑ προϊόν στα 5 sites (τα μεγαλύτερα, έως 15) ==`);
+  L.push(`== Καταστήματα που δεν δίνουν ΚΑΝΕΝΑ προϊόν στα ${results.length} sites (τα μεγαλύτερα, έως 15) ==`);
   L.push('  (συνήθως ανήκουν σε παλιό site: ρούχα, σπίτι, κήπος, εργαλεία. Μπαίνουν με τη Φάση 4)');
   const taken = new Map();
   for (const e of sitesOf.keys()) { const adv = Number(String(e).split(':')[0]); taken.set(adv, (taken.get(adv) || 0) + 1); }
