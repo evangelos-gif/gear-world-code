@@ -36,6 +36,13 @@ const MOTO_STRICT = words(['motor ?bikes?', 'motor ?cycles?', 'motor ?cycling', 
   'frank thomas', 'weise', 'knox', 'forcefield', 'kriega', 'givi', 'shad', 'sw-motech', 'cardo', 'sena', 'interphone',
   'optimate', 'motul', 'putoline', 'silkolene', 'scottoiler', 'tutoro', 'pinlock', 'loboo', 'oxford (?:products|monster|boss|hd|rainseal)']);
 const BIKER = words(['bikers?']);
+// A product for several vehicles is for the one its name puts first: "Car Tyre Inflator for Car, Motorcycle, Bike" is Car
+// Gear World's, "Cordless Bike Pump ... Motorcycle" is Sporty's, "Motorcycle and Bicycle Wheel Balancer" stays here
+// (import plan of 31 Oct 2026: Joybuy's car inflators and jump starters name a motorcycle among other vehicles).
+const CAR_FIRST = words(['cars?', 'vans?', 'suvs?', 'trucks?', 'lorr(?:y|ies)', 'caravans?', 'motorhomes?', 'rv', 'automotive']);
+const BICYCLE_FIRST = words(['bicycles?', 'cycling', 'e-?bikes?', 'electric bikes?', 'mtb', 'bmx', 'bikes?']);
+const before = (re, n, idx) => { const i = n.search(re); return i >= 0 && i < idx; };
+const SCOOTER = words(['scooters?', 'kick-?scooters?']);
 
 // Kids' ride-on toys (Kids' Gear World). Kids' helmets, gloves and kick scooters are BGW products (owner, 29 Oct 2026).
 const KIDS = words(['kids?', "kid'?s", 'children', "children'?s", 'child', 'toddlers?', 'boys?', 'girls?', 'junior', 'youth']);
@@ -51,15 +58,17 @@ export const DENY = [
   { label: 'bicycle or e-bike (Sporty Gear World)', unlessMoto: true, re: /(?:^|[^a-z0-9])bikes?(?![a-z0-9])/i },
   { label: 'car product (Car Gear World)', unlessMoto: true, re: words(['cars?', 'car (?:seats?|boot|roof|wash|tyres?|batter(?:y|ies)|chargers?)', 'vans?', 'suvs?', 'trucks?', 'lorr(?:y|ies)', 'vrachtwagens?', 'automobiel', 'caravans?', 'motorhomes?', 'tow ?bars?', 'towbars?', 'trailer hitch\\w*', 'roof (?:bars?|racks?|boxes?)']) },
   { label: 'fashion biker jacket or boots (Men\'s / Women\'s Gear World)', unlessMoto: true, re: words(['biker (?:jackets?|boots?|bags?|vests?|gilets?|jeans|style)', 'chelsea boots?', 'ankle boots?', 'heeled', 'heels?', 'faux leather', 'pu leather', 'vegan leather', 'womens? leather jackets?', 'cropped', 'fashion']) },
-  { label: 'kids\' ride-on toy (Kids\' Gear World)', re: words(['ride[- ]?ons?', 'toys?', 'toy (?:motor ?bikes?|motorcycles?|scooters?)', 'play vehicles?', 'push ?alongs?', 'rocking (?:horses?|motor ?bikes?)', 'foot to floor', 'sit[- ]on', 'balance bikes?', 'trikes?', 'tricycles?', 'kinder\\w*']) },
+  // "Kick Scooter for Kids ... Toddler Toys": a scooter stays a BGW product (owner, 29 Oct 2026); a ride-on motorbike or quad does not.
+  { label: 'kids\' ride-on toy (Kids\' Gear World)', unlessScooter: true, re: words(['ride[- ]?ons?', 'toys?', 'toy (?:motor ?bikes?|motorcycles?|scooters?)', 'play vehicles?', 'push ?alongs?', 'rocking (?:horses?|motor ?bikes?)', 'foot to floor', 'sit[- ]on', 'balance bikes?', 'trikes?', 'tricycles?', 'kinder\\w*']) },
   { label: 'work helmet, hard hat or tool (Construction Gear World)', re: words(['hard ?hats?', 'safety helmets?', 'schutzhelm\\w*', 'bump caps?', 'ear defenders?', 'climbing helmets?', 'deburring', 'bolsters?', 'chisels?', 'welders?', 'welding', 'angle grinders?', 'winkelschleifer', 'hi-?vis (?:workwear|coveralls?|trousers|polo)', 'safety (?:boots?|shoes?|trainers?)', 'work (?:boots?|gloves?|wear|trousers)', 'workwear', 'steel toe\\w*']) },
+  { label: 'garden machinery (Garden Gear World)', unlessMoto: true, re: words(['chainsaws?', 'strimmers?', 'brush ?cutters?', 'hedge trimmers?', 'lawn ?mowers?', 'leaf blowers?', 'tillers?', 'generators?', 'garden machinery', 'mowers?']) },
   { label: 'phone or computer part (Technology Gear World)', re: words(['motorola', 'moto (?:g|e|x|z)\\d*\\w*', 'moto edge', 'screen protectors?', 'mobile phone (?:screen|back)\\w*', 'keyboards?', 'keycaps?', 'mouse', 'mice', 'thermal paste', 'mp3', 'psu', 'power supply', 'printers?', 'scanners?', 'laptops?', 'notebook', 'tablets?', 'ethernet', 'sfp\\+?', 'transceivers?', 'apfc', 'spare part/accessory', 'graphics cards?', 'motherboards?', 'ssd', 'hdd', 'smart ?watch(?:es)?', 'earbuds', 'head ?phones?']) },
   { label: 'horse riding (not motorbike)', unlessMoto: true, re: words(['equestrian', 'horses?', 'horse riding', 'jodhpurs?', 'riding (?:hats?|helmets?|boots?|tights|breeches|gloves?|crops?)', 'saddles?(?! ?bags?)', 'bridles?', 'stirrups?', 'girths?', 'numnahs?', 'hoof\\w*', 'ponies', 'pony', 'paddock boots?', 'jockey']) },
   { label: 'mobility, sea or video scooter (not a riding scooter)', re: words(['mobility (?:scooters?|aids?)', 'mobility', 'scootmobiel\\w*', 'sea scooters?', 'underwater scooters?', 'dive scooters?', 'water scooters?', 'knee (?:scooters?|walkers?)', 'video scooter', 'wheelchairs?', 'rollators?', 'hoverboards?', 'skateboards?', 'snow scooters?', 'scooter (?:boards?|mp3)']) },
   { label: 'gift, model or clothing print', re: words(['die[- ]?cast', 'scale models?', 'models? (?:motor ?bikes?|motorcycles?|kits?|scooters?)', '1:\\d{1,2}', 'cufflinks?', 'birthday', 'greeting cards?', 'gift cards?', 'vouchers?', 'posters?', 'wall art', 'canvas prints?', 'stickers?', 'decals?', 'mugs?', 'keyrings?', 'key ?chains?', 'fridge magnets?',
     't-?shirts?', 'tees?', 'hoodies?', 'sweatshirts?', 'baseball caps?', 'snapbacks?', 'beanies?', 'jewell?ery', 'necklaces?', 'pendants?', 'bracelets?', 'earrings?', 'watch(?:es)?', 'lingerie', 'bras?', 'underwear', 'pyjamas?',
     'books?', 'jigsaws?', 'puzzles?', 'lego', 'playmobil', 'christmas', 'novelty', 'costumes?', 'fancy dress', 'figurines?', 'ornaments?', 'cake toppers?', 'party']) },
-  { label: 'service, insurance or not allowed', re: words(['warranty', 'installation', 'insurance', 'training course', 'lessons?', 'cbt', 'hire', 'rental', 'subscription', 'knife', 'knives', 'machete', 'air (?:rifles?|pistols?|guns?)', 'bb guns?', 'pepper spray', 'stun gun', 'taser', 'vape', 'e-?cig\\w*', 'unrestricted', 'derestrict\\w*', 'de-?restrict\\w*', 'speed (?:limiter )?(?:removal|unlock)\\w*']) },
+  { label: 'service, insurance or not allowed', re: words(['warranty', 'installation (?:service|fee)s?', 'fitting service', 'insurance', 'training course', 'lessons?', 'cbt', 'hire', 'rental', 'subscription', 'knife', 'knives', 'machete', 'air (?:rifles?|pistols?|guns?)', 'bb guns?', 'pepper spray', 'stun gun', 'taser', 'vape', 'e-?cig\\w*', 'unrestricted', 'derestrict\\w*', 'de-?restrict\\w*', 'speed (?:limiter )?(?:removal|unlock)\\w*']) },
   { label: 'not new (no "Used" label on the site)', re: words(['\\(used\\)', 'used - (?:like new|very good|good|acceptable)', 'pre-?owned', 'second-?hand', 'refurb(?:ished)?', 'renewed', 'open[- ]box', 'ex[- ]display', 'b-?grade', 'preloved']) }
 ];
 
@@ -71,6 +80,8 @@ const ACCESSORY = ['covers?', 'helmets?', 'stands?', 'batter(?:y|ies)', 'charger
 // A vehicle word, and an accessory word right after it ("moped cover", "pit bike tyres") or "for a moped". A vehicle's own
 // specs do not count ("Electric Motorcycle, 2800W Motor, 72V 30Ah Battery").
 const VEHICLE = '(?:motor ?bikes?|motor ?cycles?|mopeds?|scooters?|pit ?bikes?|dirt ?bikes?|quad ?bikes?|quads?|atvs?)';
+
+const HELMET_STORAGE = words(['hooks?', 'hangers?', 'stands?', 'shel(?:f|ves)', 'dryers?', 'drying', 'racks?', 'wall mount\\w*']);
 
 // ctx: true = only with a motorbike or scooter word in the name or a motorbike section of the shop.
 export const RULES = [
@@ -84,18 +95,24 @@ export const RULES = [
     ctx: true
   },
   {
+    slug: 'electronics',
+    include: words(['intercoms?', 'cardo', 'sena (?:\\d+\\w*|smh\\w*|srl\\w*|spider\\w*|packtalk\\w*|outrush\\w*)', 'packtalk\\w*', 'interphone', 'quad ?lock', 'helmet (?:cam(?:era)?s?|speakers?|headsets?|communicators?|intercoms?)']),
+  },
+  {
+    // Helmet hooks, stands, shelves and dryers are garage storage (Parts & Maintenance), not helmets (import plan, 31 Oct 2026).
     slug: 'helmets',
+    exclude: HELMET_STORAGE,
     include: words(['(?:motor ?(?:bike|cycle)|moto ?cross|mx|scooter|moped|full[- ]face|flip[- ]?(?:front|up)|modular|open[- ]face|jet|adventure|dual[- ]sport|enduro|trials?|off[- ]road|retro|cafe racer|carbon) helmets?', 'helmet (?:visors?|peaks?|liners?|bags?|locks?|spoilers?)', 'pinlock\\w*', 'ece 22\\.0[56]'])
   },
   {
     slug: 'helmets',
     include: words(['helmets?', 'visors?', 'goggles', 'tear[- ]?offs?', 'roll[- ]?offs?']),
-    exclude: words(['hard hats?', 'safety helmets?', 'welding', 'ski', 'snowboard', 'climbing']),
+    exclude: words(['hard hats?', 'safety helmets?', 'welding', 'ski', 'snowboard', 'climbing', 'hooks?', 'hangers?', 'stands?', 'shel(?:f|ves)', 'dryers?', 'drying', 'racks?', 'wall mount\\w*']),
     ctx: true
   },
   {
     slug: 'jackets-trousers',
-    include: words(['jackets?', 'trousers', 'jeans', 'pants', 'leathers', '(?:one|two|1|2)[- ]piece (?:suits?|leathers)', 'race suits?', 'over-?suits?', 'over-?trousers', 'rain ?suits?', 'waterproof (?:suits?|covers? for jackets?)', 'base ?layers?', 'thermal (?:tops?|leggings|vests?|layers?)', 'neck (?:warmers?|tubes?)', 'balaclavas?', 'snoods?', 'jerseys?', 'riding (?:suits?|shirts?)', 'kevlar (?:jeans|hoodies?|shirts?)', 'armou?red (?:jeans|hoodies?|shirts?|leggings)']),
+    include: words(['jackets?', 'trousers', 'jeans', 'pants', 'leathers', '(?:one|two|1|2)[- ]piece (?:suits?|leathers)', 'race suits?', 'over-?suits?', 'over-?trousers', 'rain ?suits?', 'waterproof (?:suits?|covers? for jackets?)', 'base ?layers?', 'thermal (?:tops?|leggings|vests?|layers?)', 'neck (?:warmers?|tubes?)', 'balaclavas?', 'headgear', 'snoods?', 'jerseys?', 'riding (?:suits?|shirts?)', 'kevlar (?:jeans|hoodies?|shirts?)', 'armou?red (?:jeans|hoodies?|shirts?|leggings)']),
     exclude: words(['jacket (?:hangers?|racks?)', 'airbag']),
     ctx: true
   },
@@ -130,17 +147,13 @@ export const RULES = [
   },
   {
     slug: 'electronics',
-    include: words(['intercoms?', 'cardo', 'sena (?:\\d+\\w*|smh\\w*|srl\\w*|spider\\w*|packtalk\\w*|outrush\\w*)', 'packtalk\\w*', 'interphone', 'quad ?lock', 'helmet (?:cam(?:era)?s?|speakers?|headsets?|communicators?)']),
-  },
-  {
-    slug: 'electronics',
     include: words(['bluetooth (?:headsets?|communicators?|speakers?)', 'communication systems?', 'phone (?:mounts?|holders?|cradles?|cases? for (?:handlebars?|motor\\w*))', 'handlebar (?:mounts?|phone holders?)', 'sat ?navs?', 'gps (?:navigators?|trackers?|units?|mounts?)', 'navigat(?:ors?|ion)', 'dash ?cams?', 'action cam(?:era)?s?', 'camera mounts?', 'usb (?:chargers?|sockets?|ports?|outlets?)', 'wireless chargers?', 'tyre pressure (?:monitors?|sensors?|monitoring\\w*)', 'tpms', 'trackers?', 'carplay', 'android auto', 'radar detectors?']),
     ctx: true
   },
   {
     slug: 'luggage-security',
     include: words(['top ?box(?:es)?', 'top ?cases?', 'topcase\\w*', 'motorkoffer\\w*', 'panniers?', 'tank ?bags?', 'tail ?bags?', 'tail ?packs?', 'seat bags?', 'disc locks?', 'disc lock alarms?', 'ground anchors?', '(?:wall|floor) anchors?', 'security chains?', '(?:motor ?bike|motor ?cycle|scooter|moped) covers?', 'saddle ?bags?', 'saddlebags?']),
-    exclude: words(['bicycles?'])
+    exclude: words(['bicycles?', 'gas struts?'])
   },
   {
     slug: 'luggage-security',
@@ -151,12 +164,12 @@ export const RULES = [
   {
     slug: 'parts-maintenance',
     include: words(['paddock stands?', 'paddock stand (?:sets?|bobbins?)', 'bobbins', 'motor ?(?:bike|cycle) (?:lifts?|stands?|jacks?|ramps?|dollies?|wheel chocks?)', 'chain (?:lube|lubes|lubricants?|cleaners?|wax|oil|kits?|breakers?|riveters?|splitters?|alignment\\w*|brush(?:es)?)', 'chain (?:and|&) sprocket\\w*',
-      'sprockets?', 'fork oil', '(?:2|4|two|four)[- ]?(?:t|stroke) (?:engine )?oils?', '1[05]w[- ]?[345]0', '20w[- ]?50', 'battery (?:chargers?|tenders?|optimi[sz]ers?|maintainers?)', 'optimate', 'scottoiler', 'tyre (?:levers?|changers?|inflators?|pumps?|repair kits?|warmers?)', 'tyre warmers?', 'crash (?:bungs?|bars?|protectors?)', 'frame sliders?', 'heated grips?']),
+      'sprockets?', 'fork oil', 'optimate', 'scottoiler', 'tyre warmers?', 'crash (?:bungs?|bars?|protectors?)', 'frame sliders?', 'heated grips?']),
   },
   {
     slug: 'parts-maintenance',
     include: words(['stands?', 'lifts?', 'jacks?', 'wheel chocks?', 'chocks?', 'front wheel clamps?', 'wheel clamps?', 'oils?', 'lube\\w*', 'lubricants?', 'grease', 'brake (?:pads?|fluid|discs?|levers?|bleeders?|shoes)', 'batter(?:y|ies)', 'chargers?', 'tyres?', 'tires?', 'inner tubes?', 'puncture repair\\w*', 'tyre\\w*',
-      'inflators?', '(?:foot|track|hand|stirrup) pumps?', 'air compressors?', 'compressors?', 'spark plugs?', '(?:air|oil|fuel) filters?', 'filters?', 'mirrors?', 'levers?', 'grips?', 'indicators?', 'headlights?', 'head ?lamps?', 'tail ?lights?', 'bulbs?', 'leds?', 'exhausts?', 'silencers?', 'windscreens?', 'wind ?shields?', 'screens?', 'hand ?guards?',
+      'inflators?', '(?:foot|track|hand|stirrup) pumps?', '(?:2|4|two|four)[- ]?(?:t|stroke) (?:engine )?oils?', '1[05]w[- ]?[345]0', '20w[- ]?50', 'battery (?:chargers?|tenders?|optimi[sz]ers?|maintainers?)', 'tyre (?:levers?|changers?|inflators?|pumps?|repair kits?|bead breakers?)', 'hooks?', 'hangers?', 'shel(?:f|ves)', 'dryers?', 'mats?', 'air compressors?', 'compressors?', 'spark plugs?', '(?:air|oil|fuel) filters?', 'filters?', 'mirrors?', 'levers?', 'grips?', 'indicators?', 'headlights?', 'head ?lamps?', 'tail ?lights?', 'bulbs?', 'leds?', 'exhausts?', 'silencers?', 'windscreens?', 'wind ?shields?', 'screens?', 'hand ?guards?',
       'cleaners?', 'polish\\w*', 'degreasers?', 'protectants?', 'wash\\w*', 'sponges?', 'microfib(?:re|er)s?', 'tools?', 'tool (?:kits?|sets?|rolls?|boxes)', 'spanners?', 'wrench(?:es)?', 'sockets?', 'socket sets?', 'pullers?', 'extractors?', 'compressors?', 'gauges?', 'torque\\w*', 'ramps?', 'loading ramps?', 'trailers?', 'transport\\w*', 'tie[- ]?downs?', 'ratchet straps?', 'straps?', 'dollies?', 'dolly', 'creepers?', 'workshop\\w*', 'service (?:kits?|stands?)', 'carb(?:urett?ors?)?', 'cables?', 'clutch\\w*', 'gaskets?', 'pistons?', 'fuel (?:cans?|caddies?|tanks?|taps?|pumps?)', 'jerry cans?', 'spoke\\w*', 'valve\\w*', 'bearings?', 'seals?', 'fork\\w*', 'shocks?', 'suspension', 'chains?', 'pads?', 'drip trays?', 'shelters?', 'garages?', 'storage tents?', 'vices?', 'kits?']),
     ctx: true
   }
@@ -201,20 +214,29 @@ export function classify(name, feedCategory = '', paths = '', source = null) {
   const n = String(name || '');
   const cat = `${String(feedCategory || '')} | ${String(paths || '')}`.replace(BOTH_FEED, ' ');
   const moto = MOTO_STRICT.test(n);
+  const scooterOnly = SCOOTER.test(n) && !RIDE_ON.test(n);
   for (const d of DENY) {
     if (d.unlessMoto && moto) continue;
+    if (d.unlessScooter && scooterOnly) continue;
     if (d.re.test(n)) return { ok: false, reason: d.label };
   }
   // "Biker" alone is fashion ("Leather Biker Jacket Women"); a real motorbike jacket names motorbike, a brand or armour.
   if (BIKER.test(n) && !moto && !/armou?r|\bce\b|protect|cordura|kevlar|aramid/i.test(n)) return { ok: false, reason: 'fashion biker jacket or boots (Men\'s / Women\'s Gear World)' };
   if (KIDS.test(n) && RIDE_ON.test(n) && !KIT.test(n)) return { ok: false, reason: 'kids\' ride-on toy (Kids\' Gear World)' };
+  if (moto) {
+    const at = n.search(MOTO_STRICT);
+    if (before(CAR_FIRST, n, at)) return { ok: false, reason: 'car product (Car Gear World)' };
+    if (before(BICYCLE_FIRST, n, at)) return { ok: false, reason: 'bicycle or e-bike (Sporty Gear World)' };
+  }
   const motoFeed = MOTO_FEED.test(cat);
-  const ctx = moto || motoFeed;
+  // A shop whose sub-sections are unreliable (Joybuy: "Silverline Tool Bag" under "Motorcycle Bags & Panniers") gives no
+  // motorbike context: there the product name must say motorbike or scooter.
+  const hints = !source || source.sectionHints !== false;
+  const ctx = moto || (hints && motoFeed);
   for (const r of RULES) {
     if (r.ctx && !ctx) continue;
     if (r.include.test(n) && !(r.exclude && r.exclude.test(n))) return { ok: true, slug: r.slug };
   }
-  const hints = !source || source.sectionHints !== false;
   if (hints && motoFeed) for (const s of SECTION_RULES) if (s.re.test(cat)) return { ok: true, slug: s.slug };
   return { ok: false, reason: motoFeed ? 'not matched (shop says motorbike)' : 'not motorbike or scooter' };
 }

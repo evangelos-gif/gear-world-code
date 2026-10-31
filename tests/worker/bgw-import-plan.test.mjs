@@ -86,10 +86,40 @@ test('a general word counts only with a motorbike word or a motorbike section of
   assert.equal(slug('Waterproof Jacket', 'Motorcycle Clothing > Jackets'), 'jackets-trousers');
   assert.equal(ok('Heavy Duty Shackle Lock', 'Vehicles & Parts > Vehicle Parts & Accessories'), false);
   assert.equal(slug('Heavy Duty Shackle Lock', 'Motorcycle Security'), 'luggage-security');
-  // Joybuy: its sub-sections never pick the category (sectionHints false), the name does.
-  assert.equal(classify('Sealey Valve Spring Compressor', TOOLS, TOOLS, { sectionHints: false }).slug, 'parts-maintenance');
-  assert.equal(classify('Draper Wall Hook', 'Motorcycle Lifts & Stands', '', { sectionHints: false }).ok, false);
-  assert.equal(classify('Draper Wall Hook', 'Motorcycle Lifts & Stands', '').slug, 'parts-maintenance');
+  // Joybuy: its sub-sections are unreliable (sectionHints false), so only the product name says motorbike.
+  assert.equal(classify('Sealey Valve Spring Compressor', TOOLS, TOOLS, { sectionHints: false }).ok, false);
+  assert.equal(classify('Sealey Motorcycle Valve Spring Compressor', TOOLS, TOOLS, { sectionHints: false }).slug, 'parts-maintenance');
+  assert.equal(classify('Draper Wall Bracket', 'Motorcycle Lifts & Stands', '', { sectionHints: false }).ok, false);
+  assert.equal(classify('Draper Wall Bracket', 'Motorcycle Lifts & Stands', '').slug, 'parts-maintenance', 'the second chance from the shop section');
+});
+
+test('fixes after the first dry run (31 Oct 2026, real feed names)', () => {
+  const joybuy = { sectionHints: false };
+  const V = 'Vehicles & Parts > Vehicle Parts & Accessories > Vehicle Maintenance, Care & Decor';
+  const at = (n, c, src = null) => classify(n, c, c, src);
+  // Helmet hooks, hangers and shelves are garage storage; a helmet bag stays with the helmets.
+  assert.equal(at('Sealey Motorcycle Helmet Hook', 'Motorcycle Tools').slug, 'parts-maintenance');
+  assert.equal(at('Sealey Helmet Hanger / Dryer', 'Motorcycle Tools').slug, 'parts-maintenance');
+  assert.equal(at('Sealey Fleece Lined Helmet Bag', 'Motorcycle Tools').slug, 'helmets');
+  assert.equal(at('LOBOO R1X Motorcycle Helmet Headset, 45 mm Speakers', V, joybuy).slug, 'electronics');
+  assert.equal(at('LOBOO Motorcycle Riding Headgear', V, joybuy).slug, 'jackets-trousers');
+  // "Installation" in a tool name is not a service.
+  assert.equal(at('Sealey 3 Piece Motorcycle Stud Installation Tool Set', 'Motorcycle Tools').slug, 'parts-maintenance');
+  // Kids' scooters stay, even when the name says toy; a kids' ride-on motorbike goes to Kids' Gear World.
+  assert.equal(at('Neuleb 3 Wheel Kick Scooter for Kids Ages 3-10, Light Up Flashing Wheels, Toddler Toys', 'Sporting Goods > Outdoor Recreation > Riding Scooters', joybuy).slug, 'kick-scooters');
+  assert.equal(at('AA1-023RD HOMCOM Electric Scooter for Kids, Folded Powdered Scooters for Ages 7-12 Years Toy', '', joybuy).slug, 'electric-scooters');
+  assert.equal(at('370-335V70GN AIYAPLAY 12V Kids Electric Motorbike, Kids Electric Ride on Motorcycle', '', joybuy).ok, false);
+  // A product for several vehicles goes to the site of the vehicle its name puts first.
+  assert.match(at('COCCKO Inflatable Pump, Portable Wireless Air Compressor - Smart Car / Motorcycle / Bike', V, joybuy).reason, /Car Gear World/);
+  assert.match(at('AstroAI Inflation Devices, Electric Bike Pump Presta Valve for Motorcycle', V, joybuy).reason, /Sporty Gear World/);
+  assert.equal(at('Sealey WTS01 Motorcycle and Bicycle Wheel Balancer and Truing Stand', 'Motorcycle Tools').slug, 'parts-maintenance');
+  // Joybuy's motorbike section is not enough: the name must say motorbike.
+  assert.equal(at('Silverline Tool Bag Hard Base Wide Mouth', 'Vehicles & Parts > Vehicle Parts & Accessories > Vehicle Storage & Cargo > Motorcycle Bags & Panniers', joybuy).ok, false);
+  assert.equal(at('66L Motorcycle Tail Bag, Waterproof', 'Motorcycle Bags & Panniers', joybuy).slug, 'luggage-security');
+  // SGS Engineering: general chargers, inflators, garden 2-stroke oil and chainsaws are not motorbike products.
+  for (const [n, c] of [['SGS 1A Compact Automatic Battery Charger | 6V/12V', 'Electronics > Power'], ['SGS 45cc Petrol Chainsaw - 15in Bar with Chain Oil 1L', 'Garden Equipment > Chainsaws'],
+    ['SGS Mini Cordless Tyre Inflator Power Bank', 'Home & Garden > Automotive'], ['SGS 2 Stroke Oil - 1 Litre', 'Home & Garden > Lawn & Garden'], ['NitroLift Quiver Rack Top Box Gas Strut', 'Hardware']]) assert.equal(at(n, c).ok, false, n);
+  assert.equal(at('Carlube XST011 2-Stroke Mineral Motorcycle Oil 1L', 'Engine Oil').slug, 'parts-maintenance');
 });
 
 test('sizes in product names are taken out, so each size is one card (owner\'s rule for duplicates)', () => {
