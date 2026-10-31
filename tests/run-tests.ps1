@@ -324,6 +324,15 @@ if (Get-Command node -ErrorAction SilentlyContinue) {
     Check ((Get-FileHash -LiteralPath $gzPath -Algorithm SHA256).Hash -eq $archHash) 'bgw import plan: Awin archive unchanged'
     & $exe -NoProfile -ExecutionPolicy Bypass -File $runTool -LocalRepo $repo -Tool bgw-import-plan -Archive ($arch + ';' + (Join-Path $work 'no-such-folder')) -OutDir $bgwOut -NoClipboard | Out-Null
     Check ($LASTEXITCODE -eq 2) 'bgw import plan: a missing archive folder gives exit code 2'
+    $pgwOut = Join-Path $work 'pgw-plan-run'
+    & $exe -NoProfile -ExecutionPolicy Bypass -File $runTool -LocalRepo $repo -Tool pgw-import-plan -Archive $arch -OutDir $pgwOut -NoClipboard | Out-Null
+    Check ($LASTEXITCODE -eq 0) 'pgw import plan: exit code 0 through gw-run'
+    $pgwPlans = @(Get-ChildItem -LiteralPath $pgwOut -Directory -Filter 'PGW_IMPORT_PLAN_*' -ErrorAction SilentlyContinue)
+    Check ($pgwPlans.Count -eq 1) 'pgw import plan: report folder written'
+    if ($pgwPlans.Count -ge 1) { Check ([System.IO.File]::ReadAllText((Join-Path $pgwPlans[0].FullName 'report.txt')).Contains('PGW IMPORT PLAN')) 'pgw import plan: PGW report' }
+    Check ((Get-FileHash -LiteralPath $gzPath -Algorithm SHA256).Hash -eq $archHash) 'pgw import plan: Awin archive unchanged'
+    & $exe -NoProfile -ExecutionPolicy Bypass -File $runTool -LocalRepo $repo -Tool pgw-import-plan -Archive ($arch + ';' + (Join-Path $work 'no-such-folder')) -OutDir $pgwOut -NoClipboard | Out-Null
+    Check ($LASTEXITCODE -eq 2) 'pgw import plan: a missing archive folder gives exit code 2'
     # Hub shadow catalogue (phase 1): every shop on the PC offered to the 5 sites, read-only, no SQL.
     $hubOut = Join-Path $work 'hub-shadow-run'
     & $exe -NoProfile -ExecutionPolicy Bypass -File $runTool -LocalRepo $repo -Tool hub-shadow-catalog -Archive $arch -OutDir $hubOut -KeyFile (Join-Path $work 'no-key.dat') -NoClipboard | Out-Null
