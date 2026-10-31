@@ -72,8 +72,6 @@ test('search labels: the Hub folder has only allowed files, and the baseline nam
   const allow = read('public-allowlist.txt').split('\n').map(s => s.trim()).filter(s => s && !s.startsWith('#'));
   for (const f of ['app.js', 'translations.js', 'index.html', 'hub-sgw.jpg']) assert.ok(allow.includes(f), f);
   const base = read('live-baseline.txt').split('\n').filter(l => l && !l.startsWith('#')).map(l => l.split(' | ')[0]);
-  // Files of a version that is not live yet: the baseline names them after the live deploy (Biker card, 31/10/2026).
-  const notLiveYet = ['hub-bgw.jpg'];
-  for (const f of allow) if (!notLiveYet.includes(f)) assert.ok(base.includes(`public/${f}`), `baseline has public/${f}`);
+  for (const f of allow) assert.ok(base.includes(`public/${f}`), `baseline has public/${f}`);
   assert.ok(base.includes('worker.js') && base.includes('photo-search.js'));
 });

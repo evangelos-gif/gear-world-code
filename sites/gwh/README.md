@@ -69,4 +69,4 @@
 | `public/hub-v2.css` | 11 κάρτες: στο κινητό 2 ανά σειρά και το Biker μόνο του στην τελευταία· από 980 px 6 + 5 (με 5 ανά σειρά το 11ο θα έμενε μόνο του) |
 | `public/hub-bgw.jpg` | Η φωτογραφία της κάρτας (Pexels, `docs/IMAGE-CREDITS.md`) |
 
-Πάει live με το `tools/gwh-hub-v2.ps1`: `-Step live` (`ΕΓΚΡΙΝΩ HUB LIVE`), `-Step register` (η γραμμή BGW στη D1 `gear-world-registry`, για να ψάχνει εκεί η αναζήτηση, `ΕΓΚΡΙΝΩ HUB BGW SEARCH`) και `-Step remove-preview` (`ΕΓΚΡΙΝΩ HUB REMOVE PREVIEW`), στην ίδια επικόλληση. Μετά το live ενημερώνεται το `live-baseline.txt` και φεύγει η εξαίρεση `notLiveYet` από το `tests/worker/gwh-labels.test.mjs`.
+Πάει live με το `tools/gwh-hub-v2.ps1`: `-Step live` (`ΕΓΚΡΙΝΩ HUB LIVE`), `-Step register` (η γραμμή BGW στη D1 `gear-world-registry`, για να ψάχνει εκεί η αναζήτηση, `ΕΓΚΡΙΝΩ HUB BGW SEARCH`) και `-Step remove-preview` (`ΕΓΚΡΙΝΩ HUB REMOVE PREVIEW`), στην ίδια επικόλληση. Live από 31/10/2026 11:58 (το `live-baseline.txt` ενημερώθηκε).
