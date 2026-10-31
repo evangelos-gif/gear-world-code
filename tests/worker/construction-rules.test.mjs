@@ -6,7 +6,9 @@ import { readFileSync } from 'node:fs';
 import * as CGW from '../../sites/cgw/category-rules.js';
 import cgwConfig from '../../sites/cgw/site.config.js';
 
-const on = (name, feed = '', source = null) => {
+// Names of the tool and workwear shops (sources.json "tradeShop"); a shop without it needs a trade word (test below).
+const TRADE_SHOP = { tradeShop: true };
+const on = (name, feed = '', source = TRADE_SHOP) => {
   const c = CGW.classify(CGW.cleanProductName(name), feed, '', source);
   return c.ok ? `${c.slug}/${c.subcategory}` : `no: ${c.reason}`;
 };
@@ -77,4 +79,14 @@ test('other Gear Worlds\' products stay out, with the site they belong to', () =
   assert.equal(on('Gift Card £50'), 'no: gift card or voucher');
   // No rule matches an empty word (a stray ",," in a word list would make every name match).
   assert.equal(on('Zzzz Qqqq'), 'no: not a construction product');
+});
+
+test('a shop that is not a tool or workwear shop needs a trade word, brand or section (shadow catalogue 31 Oct 2026)', () => {
+  const other = { retailer: 'New shop' };
+  assert.match(on('HP AC Smart pin slim power adapter (90-watt)', 'Default Category>Power Adapters', other), /^no: /);
+  assert.match(on('1000 Mile Approach Socks in Navy', 'Sports', other), /^no: /);
+  assert.match(on('Sol Wooden Solar Lantern', '594', other), /^no: /);
+  assert.match(on('DeWalt DCD796 18V Combi Drill', '', other), /^power-tools\//);
+  assert.match(on('Snickers 6241 AllroundWork Trousers', '', other), /^workwear\//);
+  assert.equal(on('Rst S1 Ce Mens Textile Motorcycle Jacket Black', '', other), 'no: motorbike clothing (Biker Gear World)');
 });

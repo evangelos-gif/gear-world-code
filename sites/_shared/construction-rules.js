@@ -31,6 +31,7 @@ const HARD_DENY = words(['gift cards?', 'gift vouchers?', 'vouchers?']);
 // re: words that leave a product out when they come AFTER its type in the name; anywhere: wherever they are.
 const DENY = [
   { re: /$^/, anywhere: OFFICE_PARTS, label: 'office or computer part (Technology Gear World)' },
+  { re: /$^/, anywhere: words(['(?:motorcycle|motorbike|biker|motocross) (?:jackets?|trousers|jeans|boots?|gloves?|helmets?|suits?|leathers|clothing)']), label: 'motorbike clothing (Biker Gear World)' },
   { re: words(['lawn ?mowers?', 'mowers?', 'hedge ?trimmers?', 'hedgecutters?', 'grass (?:trimmers?|shears)', 'strimmers?', 'line trimmers?', 'leaf blowers?', 'blower vac\\w*',
     'garden (?:vacs?|vacuums?|shredders?|forks?|spades?|rakes?|shears|hoses?|tools?|sprayers?|trowels?)', 'shredders?', 'secateurs', 'loppers?', 'pruners?', 'pruning (?:saws?|shears)',
     'hose ?pipes?', 'hose reels?', 'sprinklers?', 'brush ?cutters?', 'scarifiers?', 'lawn (?:rakers?|aerators?|spreaders?)', 'tillers?', 'cultivators?', 'chain ?saws?',
@@ -165,6 +166,23 @@ function typeOf(n) {
   return cut.length > 3 ? cut : head;
 }
 
+// A shop that is not a tool or workwear shop (a new shop, Joybuy) places a product here only with a sign of trade use:
+// a trade word or brand, or a tools / workwear / safety section (shadow catalogue 31 Oct 2026: PcNova "power adapter"
+// was a power tool, Coes walking socks and Lights4fun lanterns workwear and site lights). sources.json "tradeShop": true
+// marks the tool and workwear shops (Tooled Up, GS Workwear, My Tool Shed ...).
+const TRADE = words(['work', 'works', 'workwear', 'work ?wear', 'workman', 'workmans?', 'workshop', 'work ?site', 'job ?site', 'site', 'trade', 'trades(?:man|men|person)?', 'contractors?', 'builders?', 'construction',
+  'safety', 'protective', 'hi[- ]?vis\\w*', 'high visibility', 'ppe', 'en ?iso', 'en ?\\d{3,5}', 'en20345', 's[1-3]p? (?:src|hro|wru|esd|safety|boots?|shoes?|trainers?)', 'sbp? (?:src|safety|boots?|shoes?)', 'steel toe', 'composite toe', 'midsole', 'toe ?caps?', 'anti[- ]static',
+  'tools?', 'toolkit', 'power tools?', 'cordless', 'brushless', '18 ?v', '12 ?v', '36 ?v', '54 ?v', '110 ?v', 'sds', 'drills?', 'saws?', 'grinders?', 'sanders?', 'spanners?', 'wrench(?:es)?', 'sockets?',
+  'screwdrivers?', 'hammers?', 'chisels?', 'pliers', 'clamps?', 'levels?', 'tape measures?', 'ladders?', 'scaffold\\w*', 'trestles?', 'welding', 'welders?', 'compressors?', 'plumbing', 'plumbers?',
+  'electricians?', 'carpenters?', 'joiners?', 'plasterers?', 'roofers?', 'decorators?', 'mechanics?', 'engineers?', 'dewalt', 'makita', 'milwaukee', 'bosch professional', 'stanley', 'draper', 'sealey',
+  'einhell', 'ryobi', 'festool', 'hikoki', 'metabo', 'hilti', 'snickers', 'dickies', 'scruffs', 'portwest', 'caterpillar', 'blaklader', 'blåkläder', 'helly hansen workwear', 'apache', 'dewalt', 'faithfull',
+  'irwin', 'bahco', 'wera', 'knipex', 'stabila', 'tough ?built', 'trend', 'olympia', 'rolson', 'silverline', 'timco', 'fischer', 'hultafors', 'jsp', '3m', 'uvex', 'skechers work', 'amblers safety', 'buckler']);
+const TRADE_SECTION = /(?:^|>|\s)(?:tools?|tool accessories|hardware|hand tools|power tools|workwear|work ?wear|safety|ppe|personal protective|site equipment|construction|building|trade|workshop|garage equipment|measuring tools)(?:\s|>|$)/i;
+export function forTrade(name, feedCategory = '', source = null) {
+  if (source && source.tradeShop) return true;
+  return TRADE.test(String(name || '')) || TRADE_SECTION.test(String(feedCategory || ''));
+}
+
 export function makeRules(site) {
   if (site !== 'cgw') throw new Error(`construction rules: unknown site ${site}`);
   const slugs = Object.keys(CATEGORY_NAMES[site]);
@@ -193,6 +211,7 @@ export function makeRules(site) {
     }
     if (!hit) return { ok: false, reason: 'not a construction product' };
     const rule = hit.rule;
+    if (!forTrade(n, feedCategory, source)) return { ok: false, reason: 'not a construction product (no trade word, brand or section)' };
     const pickSub = text => {
       let best = null, at = -1, len = 0;
       for (const [label, re] of rule.subs) {
