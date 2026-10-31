@@ -47,7 +47,7 @@ const WOMEN_FEED = /(?:^|[^a-z])(?:womenswear|women'?s(?:wear)?|womens|women|lad
 export const OFFICE_PARTS = words(['toner (?:black|cyan|magenta|yellow|cartridges?|waste|twin|kits?|contract|collector)', 'toner waste', 'waste toner',
   'printheads?', 'print heads?', 'fuser(?: kits?| units?| assembly)?', 'transfer (?:belts?|kits?|rollers?|units?)', 'drum (?:units?|kits?|cartridges?)',
   'printer(?:/scanner)? (?:spare parts?|labels?|ribbons?|consumables?)', 'ink cartridges?', 'ink (?:multipack|ribbons?)', 'separation pads?', 'maintenance kits? for',
-  'networking cables?', 'patch cables?', 'serial cables?', 'parallel cables?', 'cat ?[5-8]e?a? (?:cables?|patch|u\\/utp|f\\/utp|s\\/utp)', '[usf]\\/utp', 'cable kit\\. splitter',
+  'networking cables?', 'patch cables?', '(?:power|telephone|audio|lightning|usb(?:-c)?|hdmi|displayport|ethernet|network|sata|vga|dvi|serial|parallel|dc) cables?(?! (?:reels?|ties?))', 'serial cables?', 'parallel cables?', 'cat ?[5-8]e?a? (?:cables?|patch|u\\/utp|f\\/utp|s\\/utp)', '[usf]\\/utp', 'cable kit\\. splitter',
   'intercom', 'keyfobs?', 'proximity (?:cards?|fobs?)', 'computer cases?', '(?:computer )?case fans?', 'pwm fans?', 'midi tower', 'serial ata', 'nand', 'ssd',
   'laptop (?:cable )?locks?', 'cable locks?', 'gas struts?', 'microsoft office', 'office professional', 'barcode (?:printers?|scanners?|readers?|labels?)', 'bar code (?:printers?|scanners?|readers?|labels?)', 'label printers?', 'stamp tape', 'directlabel']);
 const HARD_DENY = words(['gift cards?', 'gift vouchers?', 'e-?vouchers?', 'vouchers?']);

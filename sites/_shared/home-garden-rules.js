@@ -21,7 +21,7 @@ const INDOOR = words(['indoor', 'living room', 'bedroom', 'kitchen', 'bathroom',
 // Not for these two sites (other Gear Worlds or nobody's).
 const HARD_DENY = words(['gift cards?', 'gift vouchers?', 'vouchers?']);
 const DENY = [
-  { re: words(["men'?s", "women'?s", 'ladies', 't-?shirts?', 'jumpers?', 'jackets?', 'trousers', 'jeans', 'dress(?:es)?', 'shoes?', 'trainers?', 'boots', 'socks', 'hoodies?', 'leggings', 'bras?']),
+  { re: words(["men'?s", "women'?s", 'ladies', 't-?shirts?', 'jumpers?', 'jackets?', 'trousers', 'jeans', 'dress(?:es)?', 'shoes?', 'trainers?', 'boots', 'socks', 'hoodies?', 'sweatshirts?', 'crew(?: ?necks?)?', 'tees', 'leggings', 'bras?']),
     label: 'clothing (Men\'s / Women\'s Gear World)' },
   { re: /$^/, anywhere: OFFICE_PARTS, label: 'office or computer part (Technology Gear World)' },
   { re: words(['brooch(?:es)?', 'earrings?', 'necklaces?', 'bracelets?', 'cufflinks?', 'lapel pins?', 'pin badges?']), label: 'jewellery (Women\'s / Men\'s Gear World)' },
