@@ -1,0 +1,255 @@
+#!/usr/bin/env node
+// Pets feed scan. READ-ONLY: reads the Awin feed files on this PC (and, if given, a copy of the Awin feed list)
+// and writes a report. It imports nothing and changes no file.
+// For the planned Pets Gear World site (petsgearworld.com, code ZGW: PGW is Gaming, GGW is Garden).
+// Owner (1 Nov 2026): dogs, cats, small pets, birds, fish and reptiles, chickens. No live animals, no prescription
+// medicines. Pet products now on Home (HGW) and Kids' (KGW) are copied to the new site first.
+//
+// 1. Feeds on this PC, in one or more folders (AWIN_<advertiserId>_<feedId>.csv[.gz] and Google Shopping files
+//    "<advertiserId>-<name>.csv[.gz]"). When the same file is in two folders, the newest copy counts (L41).
+//    Per retailer: how many DIFFERENT pet products (Google files: all sizes of a product are one product, L34),
+//    per proposed category, in stock (a quantity of 0 is out of stock, L64), currencies, shop categories, samples.
+// 2. Products that belong to another Gear World site are counted apart (L14): children's toys and costumes (KGW), wild
+//    birds and pest deterrents (Garden), vacuums "for pet hair" (Home), dog-print clothing, mugs and decor; horse and
+//    riding gear apart too, for the owner to decide.
+// 3. Awin feed list (optional, --list <csv>): which programmes look like pet retailers, joined or not, with the link to
+//    apply. Pet insurance, vets and services are left out.
+//
+// The rules are in sites/zgw/category-rules.js (first version, 1 Nov 2026); the import plan will use the same rules.
+//
+// Usage: node tools/pets-feed-scan.mjs --archive <dir>[;<dir>...] --out <dir> [--list <feed list csv>] [--max-rows <n per feed>]
+import { createReadStream, existsSync, mkdirSync, writeFileSync } from 'node:fs';
+import { createGunzip } from 'node:zlib';
+import { join, resolve } from 'node:path';
+import { pathToFileURL } from 'node:url';
+import { readCsvRecords, googleBaseName } from './tgw-import-plan.mjs';
+import { inStock, listFeedFiles, readList } from './gaming-feed-scan.mjs';
+import { classifyPets, CATEGORIES, OTHER, OVERLAPS } from '../sites/zgw/category-rules.js';
+export { CATEGORIES, OTHER, OVERLAPS, inStock, listFeedFiles, readList };
+
+const words = list => new RegExp(`(?<![a-z0-9])(?:${list.join('|')})(?![a-z0-9])`, 'i');
+const low = s => String(s || '').toLowerCase().replace(/&amp;/g, ' and ').replace(/&/g, ' and ').replace(/[’`]/g, "'").replace(/[™®]/g, ' ').replace(/[ \s]+/g, ' ').trim();
+
+const OVERLAP_KEYS = [...new Set(OVERLAPS.map(o => o.key))];
+const overlapLabel = k => (OVERLAPS.find(o => o.key === k) || { label: k }).label;
+
+// Words in a programme's name that point to a pet retailer (for the Awin list).
+export const PROGRAMME_WORDS = words(['pets?', 'pet supplies', 'pet shop', 'petshop', 'zooplus', 'viovet', 'omlet', 'animed', 'pet drugs online', 'medicanimal', 'monster pet', 'lords (?:and|&) labradors', 'pets at home',
+  'jollyes', 'pet supermarket', 'butternut box', 'tails\\.com', "lily'?s kitchen", 'harringtons', 'burns', 'barking heads', 'yumove', 'petsafe', 'furbo', 'pooch', 'canine', 'feline', 'dogs?', 'cats?', 'pupp(?:y|ies)',
+  'kittens?', 'aquatics?', 'aquarium', 'reptiles?', 'equestrian', 'equine', 'horses?', 'bitiba', 'zooplus', 'petplanet', 'time for paws', 'ruffwear', 'kong', 'trixie', 'petface', 'scrumbles', 'forthglade', 'pet ?kit']);
+// Programmes that are insurance, vets, services or not products: left out of the list.
+export const PROGRAMME_NO = words(['insurance', 'insure', 'cover', 'vets? (?:clinic|practice|surgery|appointments?)', 'online vets?', 'joii', 'boarding', 'sitting', 'sitters?', 'walkers?', 'walking services?', 'grooming salons?',
+  'training (?:courses?|classes)', 'loans?', 'finance', 'credit', 'dating', 'hosting', 'courses?', 'tickets?', 'events?', 'magazines?', 'hotels?', 'holidays?', 'casino', 'bingo', 'betting', 'catering', 'catalogue']);
+
+export function isPetProgramme(name, vertical = '') {
+  const t = String(name || '');
+  if (PROGRAMME_NO.test(t)) return false;
+  return PROGRAMME_WORDS.test(t) || /\bpets?\b|animals?/i.test(String(vertical || ''));
+}
+
+// name: product name; shopCat: the shop's category and Awin's category. Returns
+//   { sport: true, cat }                         a product for ZGW ("sport" keeps the shared report code)
+//   { sport: false, overlap, cat }               a product that belongs to another site
+//   { sport: false }                             not a ZGW product
+export function classify(name, shopCat = '') {
+  const r = classifyPets(name, shopCat);
+  if (r.overlap) return { sport: false, overlap: r.overlap, cat: r.cat };
+  if (!r.cat) return r.why ? { sport: false, why: r.why } : { sport: false };
+  return { sport: true, cat: r.cat };
+}
+
+// ---------- Reading the feeds (the same columns as the gaming scan) ----------
+
+const AWIN_COLS = {
+  merchant: ['merchant_name'], name: ['product_name'], price: ['search_price', 'store_price', 'display_price', 'price'], currency: ['currency'],
+  qty: ['stock_quantity'], flag: ['in_stock', 'is_for_sale', 'stock_status'], shopCat: ['merchant_category', 'merchant_product_category_path'], awinCat: ['category_name'], brand: ['brand_name']
+};
+const GOOGLE_COLS = { merchant: [], name: ['title'], price: ['sale_price', 'price'], currency: [], qty: [], flag: ['availability'], shopCat: ['product_type'], awinCat: ['google_product_category'], brand: ['brand'] };
+function mapHeader(header) {
+  const h = header.map(x => String(x).trim().toLowerCase().replace(/^﻿/, ''));
+  const google = !h.includes('product_name') && h.includes('title') && (h.includes('link') || h.includes('id'));
+  const cols = google ? GOOGLE_COLS : AWIN_COLS;
+  return { google, ...Object.fromEntries(Object.entries(cols).map(([k, names]) => [k, names.map(x => h.indexOf(x)).filter(i => i >= 0)])) };
+}
+const pick = (rec, idxs) => { for (const i of idxs) { const v = rec[i]; if (v !== undefined && String(v).trim() !== '') return String(v).trim(); } return ''; };
+
+export async function scanArchive({ archives, maxRows = Infinity, log = () => {}, now = Date.now() }) {
+  const all = listFeedFiles(archives);
+  const files = [];
+  const byAdv = new Map();
+  let i = 0;
+  for (const fi of all) {
+    i++;
+    const a = byAdv.get(fi.advertiserId) || { advertiserId: fi.advertiserId, merchant: '', files: [], rows: 0, products: 0, sport: 0, sportInStock: 0,
+      cats: {}, overlaps: {}, overlapSamples: {}, shopCats: {}, currencies: {}, samples: {}, ageDays: 9999, google: false, error: '', seen: new Set(), seenAll: new Set() };
+    let map = null;
+    try {
+      const raw = createReadStream(fi.path);
+      const stream = /\.gz$/i.test(fi.file) ? raw.pipe(createGunzip()) : raw;
+      let n = 0;
+      for await (const rec of readCsvRecords(stream)) {
+        if (!map) {
+          map = mapHeader(rec);
+          if (!map.name.length) break;
+          if (map.google) a.google = true;
+          continue;
+        }
+        if (rec.length < 3) continue;
+        n++; a.rows++;
+        if (!a.merchant && map.merchant.length) a.merchant = pick(rec, map.merchant);
+        let name = pick(rec, map.name);
+        if (map.google) name = googleBaseName(name);
+        const key = low(name);
+        if (!key) continue;
+        const brand = pick(rec, map.brand);
+        const shopCat = [pick(rec, map.shopCat), pick(rec, map.awinCat)].filter(Boolean).join(' | ');
+        const prodKey = `${low(brand)}|${key}`;
+        if (!a.seenAll.has(prodKey)) { a.seenAll.add(prodKey); a.products++; }
+        const r = classify(name, shopCat);
+        if (!r.sport && !r.overlap) { if (n >= maxRows) break; continue; }
+        const bucket = r.sport ? `cat:${r.cat}` : `ov:${r.overlap}`;
+        if (a.seen.has(`${bucket}|${prodKey}`)) { if (n >= maxRows) break; continue; }
+        a.seen.add(`${bucket}|${prodKey}`);
+        const priceText = pick(rec, map.price);
+        const cur = (pick(rec, map.currency) || (priceText.match(/\b([A-Z]{3})\b/) || [])[1] || '?').toUpperCase();
+        const price = (priceText.match(/\d+(?:[.,]\d+)?/) || [''])[0];
+        if (r.sport) {
+          a.sport++;
+          if (inStock(pick(rec, map.qty), pick(rec, map.flag)) !== false) a.sportInStock++;
+          a.cats[r.cat] = (a.cats[r.cat] || 0) + 1;
+          const sc = pick(rec, map.shopCat) || pick(rec, map.awinCat) || '(no category)';
+          a.shopCats[sc] = (a.shopCats[sc] || 0) + 1;
+          a.currencies[cur] = (a.currencies[cur] || 0) + 1;
+          const list = (a.samples[r.cat] ||= []);
+          if (list.length < 3 && (a.cats[r.cat] % 23 === 1)) list.push(`${name.slice(0, 80)} | ${price} ${cur}`);
+        } else {
+          a.overlaps[r.overlap] = (a.overlaps[r.overlap] || 0) + 1;
+          const list = (a.overlapSamples[r.overlap] ||= []);
+          if (list.length < 2 && (a.overlaps[r.overlap] % 17 === 1)) list.push(`${name.slice(0, 70)} | ${price} ${cur}`);
+        }
+        if (n >= maxRows) break;
+      }
+    } catch (e) {
+      if (!map && fi.kind !== 'awin') { log(`${i}/${all.length} skipped`); continue; }
+      a.error = String(e && e.message || e).slice(0, 160);
+    }
+    if (fi.kind !== 'awin' && !(map && map.name.length)) { log(`${i}/${all.length} skipped`); continue; }
+    a.files.push(`${fi.file} (${new Date(fi.mtime).toISOString().slice(0, 10)})`);
+    a.ageDays = Math.min(a.ageDays, Math.floor((now - fi.mtime) / 86400000));
+    files.push(fi);
+    byAdv.set(fi.advertiserId, a);
+    log(`${i}/${all.length} ${fi.file}`);
+  }
+  const advs = [...byAdv.values()];
+  for (const a of advs) { delete a.seen; delete a.seenAll; }
+  return { advs, files };
+}
+
+const JOINED = /^(active|joined)$/i;
+
+export function render({ advs, files = [], list = null, archives = [], generated = new Date() }) {
+  const fmt = x => new Intl.NumberFormat('en-GB').format(x);
+  const pct = (x, y) => (y ? `${Math.round((x / y) * 100)}%` : '-');
+  const label = k => (CATEGORIES.find(c => c.key === k) || OTHER).label;
+  const names = new Map();
+  const joinedIds = new Set();
+  if (list) for (const r of list) { if (r.id && r.name && !names.has(r.id)) names.set(r.id, r.name); if (JOINED.test(r.membership)) joinedIds.add(r.id); }
+  const who = a => a.merchant || names.get(String(a.advertiserId)) || (a.google ? 'Google Shopping feed' : '?');
+  const L = [];
+  L.push(`PETS FEED SCAN (read-only) - for Pets Gear World (petsgearworld.com, code ZGW) ${generated.toISOString().slice(0, 16).replace('T', ' ')} UTC`);
+  L.push(`Folders read: ${archives.join(' ; ') || '-'}`);
+  L.push(`Feed files: ${files.length} (newest copy of each file name)`);
+  const withPets = advs.filter(a => a.sport > 0).sort((x, y) => y.sport - x.sport);
+  const total = withPets.reduce((t, a) => t + a.sport, 0);
+  const totalInStock = withPets.reduce((t, a) => t + a.sportInStock, 0);
+  L.push(`Retailers in the feeds: ${advs.length} | with pet products: ${withPets.length} | different pet products: ${fmt(total)} (in stock ${pct(totalInStock, total)})`);
+  const errs = advs.filter(a => a.error);
+  if (errs.length) L.push(`Could not read: ${errs.map(a => `${a.advertiserId} (${a.error})`).join('; ')}`);
+  L.push('');
+  L.push('== PET PRODUCTS PER PROPOSED CATEGORY (all retailers) ==');
+  const tot = {}, shops = {};
+  for (const a of withPets) for (const [k, x] of Object.entries(a.cats)) { tot[k] = (tot[k] || 0) + x; shops[k] = (shops[k] || 0) + 1; }
+  for (const c of [...CATEGORIES, OTHER]) L.push(`  ${c.label.padEnd(46)} ${fmt(tot[c.key] || 0).padStart(8)}  from ${shops[c.key] || 0} retailer(s)`);
+  L.push('');
+  L.push('== PRODUCTS THAT BELONG TO ANOTHER GEAR WORLD SITE (or wait for your decision) - not counted above ==');
+  const ov = {}, ovShops = {};
+  for (const a of advs) for (const [k, x] of Object.entries(a.overlaps)) { ov[k] = (ov[k] || 0) + x; ovShops[k] = (ovShops[k] || 0) + 1; }
+  for (const k of OVERLAP_KEYS) L.push(`  ${overlapLabel(k).padEnd(72)} ${fmt(ov[k] || 0).padStart(8)}  from ${ovShops[k] || 0} retailer(s)`);
+  L.push('');
+  L.push('== RETAILERS WITH PET PRODUCTS (most first) ==');
+  for (const a of withPets) {
+    const joined = list ? (joinedIds.has(String(a.advertiserId)) ? ' | Awin: JOINED' : ' | Awin: not joined or not in the list') : '';
+    L.push(`-- ${a.advertiserId} ${who(a)}: ${fmt(a.sport)} pet of ${fmt(a.products)} products (${pct(a.sport, a.products)}) | in stock ${pct(a.sportInStock, a.sport)} | ${Object.entries(a.currencies).map(([c, x]) => `${c} ${fmt(x)}`).join(', ')} | file ${a.ageDays}d old${a.google ? ' | Google format (sizes joined)' : ''}${joined}`);
+    L.push(`   by category: ${Object.entries(a.cats).sort((x, y) => y[1] - x[1]).map(([k, x]) => `${label(k)} ${fmt(x)}`).join(' | ')}`);
+    const o = Object.entries(a.overlaps).sort((x, y) => y[1] - x[1]);
+    if (o.length) L.push(`   other sites: ${o.map(([k, x]) => `${k} ${fmt(x)}`).join(' | ')}`);
+    L.push(`   shop categories: ${Object.entries(a.shopCats).sort((x, y) => y[1] - x[1]).slice(0, 5).map(([c, x]) => `${c.slice(0, 50)} (${fmt(x)})`).join(' | ')}`);
+    for (const [k, s] of Object.entries(a.samples)) for (const x of s.slice(0, 2)) L.push(`   e.g. [${label(k)}] ${x}`);
+    for (const [k, s] of Object.entries(a.overlapSamples)) for (const x of s.slice(0, 1)) L.push(`   e.g. other site [${k}] ${x}`);
+  }
+  const onlyOverlap = advs.filter(a => a.sport === 0 && Object.keys(a.overlaps).length);
+  if (onlyOverlap.length) {
+    L.push('');
+    L.push('== RETAILERS WITH ONLY OTHER-SITE PRODUCTS (e.g. toys, clothing, wild birds) ==');
+    for (const a of onlyOverlap) L.push(`  ${a.advertiserId} ${who(a)}: ${Object.entries(a.overlaps).map(([k, x]) => `${k} ${fmt(x)}`).join(' | ')}`);
+  }
+  const none = advs.filter(a => a.sport === 0 && !Object.keys(a.overlaps).length);
+  L.push('');
+  L.push(`== NO PET PRODUCTS (${none.length}) ==`);
+  L.push('  ' + none.map(a => `${a.advertiserId} ${who(a)}`).join(', '));
+  L.push('');
+  L.push('== FEED FILES USED ==');
+  for (const f of files) L.push(`  ${f.file}  (${new Date(f.mtime).toISOString().slice(0, 10)}, ${f.dir})`);
+  if (list) {
+    L.push('');
+    const here = new Set(advs.map(a => String(a.advertiserId)));
+    L.push(`== AWIN FEED LIST: ${list.length} feeds, ${list.filter(r => JOINED.test(r.membership)).length} from programmes you joined ==`);
+    const pets = list.filter(r => isPetProgramme(`${r.name} ${r.feedName}`, r.vertical));
+    const byId = new Map();
+    for (const r of pets) { const had = byId.get(r.id); if (!had) byId.set(r.id, { ...r }); else had.products += r.products; }
+    const uniq = [...byId.values()].sort((x, y) => y.products - x.products);
+    L.push('-- Pet programmes you JOINED --');
+    for (const r of uniq.filter(r => JOINED.test(r.membership))) {
+      L.push(`  ${r.id.padEnd(7)} ${r.name.slice(0, 40).padEnd(40)} ${r.region.padEnd(4)} ${fmt(r.products).padStart(9)} products | file on this PC: ${here.has(r.id) ? 'yes' : 'NO'}`);
+    }
+    L.push('-- Pet programmes NOT joined (apply WITH petsgearworld.com once it is live: open the link, "Join programme") --');
+    for (const r of uniq.filter(r => !JOINED.test(r.membership))) {
+      L.push(`  ${r.id.padEnd(7)} ${r.name.slice(0, 40).padEnd(40)} ${r.region.padEnd(4)} ${fmt(r.products).padStart(9)} products | ${r.membership || '?'} | https://ui.awin.com/merchant-profile/${r.id}`);
+    }
+    L.push('Note: the list match is by name only; check each profile before applying.');
+  } else {
+    L.push('');
+    L.push('Awin feed list: not read (no saved feed key on this PC).');
+  }
+  L.push('');
+  L.push('Note: a first sort by keywords, products counted once per retailer (same brand and name). Before any import, each retailer');
+  L.push('gets its own yes/no rules and a dry-run report with samples (L14). Nothing was imported and no file was changed.');
+  return { text: L.join('\n') + '\n', withPets };
+}
+
+function toCsv(advs) {
+  const q = v => `"${String(v ?? '').replace(/"/g, '""')}"`;
+  const keys = [...CATEGORIES.map(c => c.key), OTHER.key];
+  const rows = [['advertiser_id', 'merchant', 'products', 'pet_products', 'pet_in_stock', ...keys, ...OVERLAP_KEYS.map(k => `other_site_${k}`)]];
+  for (const a of advs) rows.push([a.advertiserId, a.merchant, a.products, a.sport, a.sportInStock, ...keys.map(k => a.cats[k] || 0), ...OVERLAP_KEYS.map(k => a.overlaps[k] || 0)]);
+  return rows.map(r => r.map(q).join(',')).join('\r\n') + '\r\n';
+}
+
+async function main() {
+  const args = process.argv.slice(2);
+  const val = x => { const i = args.indexOf(`--${x}`); return i >= 0 ? args[i + 1] : ''; };
+  const archives = String(val('archive') || '').split(';').map(s => s.trim()).filter(Boolean).map(s => resolve(s));
+  const found = archives.filter(d => existsSync(d));
+  if (!found.length) { console.error(`Archive folder not found: ${archives.join(' ; ') || '(none given)'}`); process.exit(2); }
+  const out = resolve(val('out') || 'pets-feed-scan');
+  mkdirSync(out, { recursive: true });
+  const { advs, files } = await scanArchive({ archives: found, maxRows: Number(val('max-rows')) || Infinity, log: m => process.stdout.write(`\r${m}`.padEnd(90).slice(0, 90)) });
+  process.stdout.write('\n');
+  const list = val('list') && existsSync(val('list')) ? await readList(val('list')) : null;
+  const { text } = render({ advs, files, list, archives: found });
+  writeFileSync(join(out, 'report.txt'), text);
+  writeFileSync(join(out, 'retailers.csv'), '﻿' + toCsv(advs.sort((x, y) => y.sport - x.sport)));
+  console.log(`Report: ${join(out, 'report.txt')}`);
+}
+
+if (import.meta.url === pathToFileURL(process.argv[1] || '').href) main();

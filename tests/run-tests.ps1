@@ -292,6 +292,15 @@ if (Get-Command node -ErrorAction SilentlyContinue) {
     Check ((Get-FileHash -LiteralPath $gzPath -Algorithm SHA256).Hash -eq $archHash) 'gaming feed scan: Awin archive unchanged'
     & $exe -NoProfile -ExecutionPolicy Bypass -File $runTool -LocalRepo $repo -Tool gaming-feed-scan -Archive (Join-Path $work 'no-such-folder') -OutDir $gamingOut -KeyFile (Join-Path $work 'no-key.dat') -NoClipboard | Out-Null
     Check ($LASTEXITCODE -eq 2) 'gaming feed scan: missing archive gives exit code 2'
+    $petsOut = Join-Path $work 'pets-scan-run'
+    & $exe -NoProfile -ExecutionPolicy Bypass -File $runTool -LocalRepo $repo -Tool pets-feed-scan -Archive $arch -OutDir $petsOut -KeyFile (Join-Path $work 'no-key.dat') -NoClipboard | Out-Null
+    Check ($LASTEXITCODE -eq 0) 'pets feed scan: exit code 0 through gw-run, without a saved key'
+    $petsRuns = @(Get-ChildItem -LiteralPath $petsOut -Directory -Filter 'PETS_FEED_SCAN_*' -ErrorAction SilentlyContinue)
+    Check ($petsRuns.Count -eq 1) 'pets feed scan: report folder written'
+    if ($petsRuns.Count -ge 1) { Check ([System.IO.File]::ReadAllText((Join-Path $petsRuns[0].FullName 'report.txt')).Contains('PETS FEED SCAN')) 'pets feed scan: ZGW report' }
+    Check ((Get-FileHash -LiteralPath $gzPath -Algorithm SHA256).Hash -eq $archHash) 'pets feed scan: Awin archive unchanged'
+    & $exe -NoProfile -ExecutionPolicy Bypass -File $runTool -LocalRepo $repo -Tool pets-feed-scan -Archive (Join-Path $work 'no-such-folder') -OutDir $petsOut -KeyFile (Join-Path $work 'no-key.dat') -NoClipboard | Out-Null
+    Check ($LASTEXITCODE -eq 2) 'pets feed scan: missing archive gives exit code 2'
     $agwOut = Join-Path $work 'agw-plan-run'
     & $exe -NoProfile -ExecutionPolicy Bypass -File $runTool -LocalRepo $repo -Tool agw-import-plan -Archive $arch -OutDir $agwOut -NoClipboard | Out-Null
     Check ($LASTEXITCODE -eq 0) 'agw import plan: exit code 0 through gw-run'
