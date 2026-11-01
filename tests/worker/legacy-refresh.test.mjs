@@ -321,17 +321,23 @@ test('L66: a big shop: only our products kept, slow answers asked again, past th
       if (n >= 3) return { ok: false, status: 400, text: async () => '{"errors":"Page * Limit exceeds the 25000 limit."}' };
       return { ok: true, status: 200, json: async () => ({ products: page(n) }) };
     }
+    if (u.pathname === '/collections.json') return { ok: true, status: 200, json: async () => ({ collections: [{ handle: 'boots', products_count: 1 }, { handle: 'empty', products_count: 0 }] }) };
+    if (u.pathname === '/collections/boots/products.json') return { ok: true, status: 200, json: async () => ({ products: [{ handle: 'in-a-collection', images: [], variants: [{ id: 4242, sku: 'B1', price: '30.00', available: false }] }] }) };
     if (u.pathname === '/products/found-later.js') return { ok: true, status: 200, json: async () => ({ handle: 'found-later', images: ['//cdn.shopify.com/later.jpg'], variants: [{ id: 777, sku: 'L1', price: 2499, available: true }] }) };
     if (u.pathname === '/products/gone.js') return { ok: false, status: 404, text: async () => 'not found' };
     return { ok: false, status: 503, headers: { get: () => null } };
   };
   const row = (id, aw, h, price = 10) => ({ id, awin_product_id: `48473:${aw}`, merchant_product_id: String(aw), product_name: `P${id}`, price, currency: 'GBP',
     stock_status: 'in stock', image_url: `https://cdn.shopify.com/p${aw - 10000}.jpg`, is_active: 1, affiliate_url: h ? cread(`https://www.gsworkwear.com/products/${h}?variant=${aw}`) : cread('https://www.gsworkwear.com/') });
-  const rows = [row(1, 10003, 'p3'), row(2, 10300, 'p300', 9), row(3, 777, 'found-later', 20), row(4, 888, 'gone'), row(5, 999, 'shop-is-down'), row(6, 555, '')];
-  const big = await readShopCatalogBig('https://www.gsworkwear.com', rows, { fetchImpl, pauseMs: 0, waits: [0, 0] });
+  const rows = [row(1, 10003, 'p3'), row(2, 10300, 'p300', 9), row(3, 777, 'found-later', 20), row(4, 888, 'gone'), row(5, 999, 'shop-is-down'), row(6, 555, ''), row(7, 4242, 'in-a-collection', 30)];
+  const lines = [];
+  const big = await readShopCatalogBig('https://www.gsworkwear.com', rows, { fetchImpl, pauseMs: 0, waits: [0, 0], checkWaits: [0], log: l => lines.push(l) });
   assert.equal(big.capped, true);
-  assert.equal(big.seen, 500);
-  assert.deepEqual([...big.catalog.keys()].sort(), ['found-later', 'p3', 'p300'], 'only our products are kept');
+  assert.equal(big.seen, 501);
+  assert.equal(big.collections, 1, 'the empty collection is skipped');
+  assert.deepEqual([...big.catalog.keys()].sort(), ['found-later', 'in-a-collection', 'p3', 'p300'], 'only our products are kept');
+  assert.ok(lines.some(l => /syllog/.test(l)), 'progress is shown');
+  assert.ok(!calls.includes('/products/in-a-collection.js'), 'a product found in a collection is not asked for again');
   assert.equal(big.checked, 3);
   assert.equal(big.notFound, 1);
   assert.deepEqual([...big.unchecked].sort(), [5, 6], 'no answer, or no product address: not checked');
@@ -339,13 +345,13 @@ test('L66: a big shop: only our products kept, slow answers asked again, past th
   const feed = feedFromShopify(big.catalog, 'GBP');
   feed.unchecked = big.unchecked;
   const p = planRefresh({ rows, feed, costs: { price: 3, image_url: 1, stock_status: 1, is_active: 12 } });
-  assert.deepEqual(p.hides, [4], 'only the product the shop says is not there is hidden');
+  assert.deepEqual(p.hides.sort((a, b) => a - b), [4, 7], 'the product the shop says is not there, and the sold-out one from a collection');
   assert.equal(p.notChecked, 2);
-  assert.equal(p.matched, 3);
+  assert.equal(p.matched, 4);
   assert.deepEqual(Object.fromEntries(p.changes.map(c => [c.id, c.set.price])), { 2: 10, 3: 24.99 });
   const report = renderReport({ retailer: 'GS Workwear', site: 'cgw', feedFiles: [], feedRows: feed.rows, newest: feed.newest, p,
-    shop: { origin: 'https://www.gsworkwear.com', currency: 'GBP', capped: true, seen: big.seen, checked: big.checked, notFound: big.notFound } });
-  assert.match(report, /Μεγάλο κατάστημα \(L66\): .* Διαβάστηκαν 500· 3 δικά μας ελέγχθηκαν ένα-ένα \(1 δεν υπάρχουν πια\)\. Δεν ελέγχθηκαν 2: μένουν όπως είναι\./);
+    shop: { origin: 'https://www.gsworkwear.com', currency: 'GBP', capped: true, seen: big.seen, collections: big.collections, checked: big.checked, notFound: big.notFound } });
+  assert.match(report, /Μεγάλο κατάστημα \(L66\): .* Διαβάστηκαν 501 \(και από 1 κατηγορίες του\)· 3 δικά μας ελέγχθηκαν ένα-ένα \(1 δεν υπάρχουν πια\)\. Δεν ελέγχθηκαν 2: μένουν όπως είναι\./);
   assert.deepEqual([...wantedFromRows([row(9, 10001, 'p1')]).ids].sort(), ['10001', '48473:10001']);
 });
 
@@ -357,4 +363,37 @@ test('L66: a shop that never answers changes nothing; a small shop is read to it
   assert.equal(small.capped, false);
   assert.equal(small.checked, 0);
   assert.deepEqual([...small.catalog.keys()], ['cushion']);
+});
+
+test('L66: the one-by-one check stops after 3 failures in a row; reading stops as soon as all our products are seen', async () => {
+  const cread = u => `https://www.awin1.com/cread.php?awinmid=122444&awinaffid=3057233&ued=${encodeURIComponent(u)}`;
+  const calls = [];
+  const fetchImpl = async url => {
+    const u = new URL(url);
+    calls.push(u.pathname + u.search);
+    if (u.pathname === '/products.json') return { ok: false, status: 400, text: async () => 'Page * Limit exceeds the 25000 limit' };
+    if (u.pathname === '/collections.json') return { ok: true, status: 200, json: async () => ({ collections: [] }) };
+    return { ok: false, status: 403, text: async () => 'blocked' };
+  };
+  const rows = Array.from({ length: 8 }, (_, i) => ({ id: i + 1, awin_product_id: `122444:${i + 1}`, merchant_product_id: String(i + 1), is_active: 1,
+    affiliate_url: cread(`https://instock.net/products/h${i + 1}`) }));
+  await assert.rejects(readShopCatalogBig('https://instock.net', rows, { fetchImpl, pauseMs: 0, waits: [0], checkWaits: [0] }), /empty/, 'a cap at page 1 reads nothing: nothing changes');
+  const page1 = [{ handle: 'h1', variants: [{ id: 1, price: '1.00', available: true }] }];
+  const fetch2 = async url => {
+    const u = new URL(url);
+    calls.push(u.pathname + u.search);
+    if (u.pathname === '/products.json') return Number(u.searchParams.get('page')) === 1 ? { ok: true, status: 200, json: async () => ({ products: [...page1, ...Array.from({ length: 249 }, (_, i) => ({ handle: `x${i}`, variants: [{ id: 900000 + i }] }))] }) }
+      : { ok: false, status: 400, text: async () => 'Page * Limit exceeds the 25000 limit' };
+    if (u.pathname === '/collections.json') return { ok: true, status: 200, json: async () => ({ collections: [] }) };
+    return { ok: false, status: 403, text: async () => 'blocked' };
+  };
+  calls.length = 0;
+  const big = await readShopCatalogBig('https://instock.net', rows, { fetchImpl: fetch2, pauseMs: 0, waits: [0], checkWaits: [0] });
+  assert.equal(big.checked, 3, '3 refusals in a row stop the one-by-one check');
+  assert.equal(big.stoppedEarly, true);
+  assert.equal(big.unchecked.size, 7, 'everything not seen stays as it is');
+  const one = [{ id: 1, awin_product_id: '122444:1', merchant_product_id: '1', is_active: 1, affiliate_url: '' }];
+  calls.length = 0;
+  await readShopCatalogBig('https://instock.net', one, { fetchImpl: fetch2, pauseMs: 0, waits: [0] });
+  assert.deepEqual(calls, ['/products.json?limit=250&page=1'], 'all ours seen on page 1: no more requests');
 });
