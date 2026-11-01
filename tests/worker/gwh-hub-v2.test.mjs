@@ -154,8 +154,8 @@ test('hub v2: the page keeps every id and class the other scripts need, and load
   }
   assert.match(html, /<body class="gwh2" data-gwh-compact-v2="true">/);
   assert.match(html, /<div class="hero-copy">\s*<span class="eyebrow">/);
-  assert.match(html, /<link rel="stylesheet" href="\/hub-v2\.css\?v=20261101-zgw1">/);
-  assert.match(html, /<script src="\/hub-v2\.js\?v=20261101-zgw1" defer><\/script>/);
+  assert.match(html, /<link rel="stylesheet" href="\/hub-v2\.css\?v=20261101-zgw2">/);
+  assert.match(html, /<script src="\/hub-v2\.js\?v=20261101-zgw2" defer><\/script>/);
   assert.ok(html.indexOf('/gear-world-camera.js?v=') < html.indexOf('/hub-v2.js?v='), 'hub-v2.js after the camera script');
   assert.ok(!html.includes('/styles.css'), 'the old styles.css is not loaded');
   assert.ok(!html.includes('gwh-hero.png'), 'the 2.8 MB picture is gone from the page');
@@ -201,16 +201,17 @@ test('hub v2: no red or green (L35), nothing that moves by itself, buttons at le
 test('hub v2: the seasonal video banner of the deals follows its own yearly calendar, with a countdown for Black Friday', () => {
   const h = hub();
   const id = day => { const x = h.seasonFor(at(day)); return x ? x.id : ''; };
-  // The owner's dates for 2026: Halloween 20/10-31/10, Black Friday 20/11-1/12 (countdown to 30/11 23:59), Christmas 2/12-24/12.
+  // The owner's dates for 2026: Halloween 20/10-31/10, Black Friday 20/11-1/12 (countdown to 30/11 23:59), Christmas 1/11-24/12
+  // (owner, 1/11/2026: the Christmas video from 1 November; in the Black Friday days that one shows).
   assert.deepEqual(['2026-10-19', '2026-10-20', '2026-10-31', '2026-11-01', '2026-11-19', '2026-11-20', '2026-12-01', '2026-12-02', '2026-12-24', '2026-12-25'].map(id),
-    ['', 'halloween', 'halloween', '', '', 'black-friday', 'black-friday', 'christmas', 'christmas', '']);
+    ['', 'halloween', 'halloween', 'christmas', 'christmas', 'black-friday', 'black-friday', 'christmas', 'christmas', '']);
   const bf = h.seasonsOf(2026).find(x => x.id === 'black-friday');
   assert.equal(bf.countdownTo, '2026-11-30T23:59:00Z', '30/11 23:59 UK time (GMT in November)');
   // Every year by itself: Black Friday is the day after the 4th Thursday of November.
   assert.deepEqual([2026, 2027, 2028, 2029].map(h.blackFridayDay), [27, 26, 24, 23]);
   assert.equal(id('2027-11-19'), 'black-friday');
   assert.equal(id('2027-11-30'), 'black-friday');
-  assert.equal(id('2027-12-01'), '');
+  assert.equal(id('2027-12-01'), 'christmas');
   // The countdown: days, hours and minutes; nothing after the end.
   assert.equal(h.countdownText(bf, Date.parse('2026-11-28T10:30:00Z')), 'Ends in 2 d 13 h 29 min');
   assert.equal(h.countdownText(bf, Date.parse('2026-11-30T22:00:00Z')), 'Ends in 1 h 59 min');
@@ -254,8 +255,8 @@ test('hub v2: the seasonal files are ready for the web and are served from the H
   const h = hub();
   const ids = day => h.heroSlides(at(day)).map(x => x.id).join(',');
   assert.equal(ids('2026-10-28'), 'season-halloween');
-  assert.equal(ids('2026-11-10'), 'christmas');
-  assert.equal(ids('2026-11-15'), 'black-friday-soon,christmas');
+  assert.equal(ids('2026-11-10'), 'season-christmas');
+  assert.equal(ids('2026-11-15'), 'season-christmas,black-friday-soon');
   assert.equal(ids('2026-11-20'), 'season-black-friday,christmas');
   assert.equal(ids('2026-12-01'), 'season-black-friday,christmas');
   assert.equal(ids('2026-12-10'), 'season-christmas');

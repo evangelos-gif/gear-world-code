@@ -33,7 +33,9 @@ test('seasons: the owner\'s dates, every year by itself, the same calendar as th
   const h = hub();
   for (const year of [2026, 2027, 2028, 2029, 2030]) {
     const mine = seasonsOf(year).map(s => [s.id, s.start, s.end, s.countdownTo || '', s.file, !!s.mirror]);
-    const theirs = JSON.parse(JSON.stringify(h.seasonsOf(year).map(s => [s.id, s.start, s.end, s.countdownTo || '', s.file, !!s.mirror])));
+    // Owner, 1/11/2026: on the Hub the Christmas video starts on 1 November (changed on the PC, live since 1/11); the sites keep 2 December.
+    const theirs = JSON.parse(JSON.stringify(h.seasonsOf(year).map(s => [s.id, s.id === 'christmas' ? `${year}-12-02` : s.start, s.end, s.countdownTo || '', s.file, !!s.mirror])));
+    assert.equal(h.seasonsOf(year).find(s => s.id === 'christmas').start, `${year}-11-01`, `${year}: the Hub's Christmas from 1 November`);
     assert.deepEqual(mine, theirs, `${year}: the sites and the Hub show the same season`);
   }
   assert.equal(SEASON_MEDIA_VERSION, h.seasonMediaVersion, 'the same files (?v=) as the Hub');
