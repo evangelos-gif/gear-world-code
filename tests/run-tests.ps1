@@ -2000,6 +2000,66 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
     }
 }
 
+# awin-sales.ps1 with a fake Awin API (token in the Authorization header only) and a fake wrangler (Windows only)
+if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
+    Write-Host 'awin-sales.ps1 (fake Awin API and wrangler)'
+    $asDir = Join-Path $work 'as'
+    $asBin = Join-Path $asDir 'bin'
+    $asOut = Join-Path $asDir 'out'
+    New-Item -ItemType Directory -Path $asBin, $asOut -Force | Out-Null
+    $asTok = 'TestApiToken0123456789'
+    $asTokFile = Join-Path $asDir 'token.dat'
+    [System.IO.File]::WriteAllText($asTokFile, (ConvertFrom-SecureString (ConvertTo-SecureString $asTok -AsPlainText -Force)), [System.Text.Encoding]::ASCII)
+    $asBad = Join-Path $asDir 'bad.dat'
+    [System.IO.File]::WriteAllText($asBad, (ConvertFrom-SecureString (ConvertTo-SecureString 'WrongApiToken0123456789' -AsPlainText -Force)), [System.Text.Encoding]::ASCII)
+    $asName = 'Bahco Schl' + [string][char]0x00FC + 'ssel'
+    [System.IO.File]::WriteAllText((Join-Path $asDir 'names.json'), ('[{"results":[{"id":13819,"product_name":"NAME"},{"id":6883,"product_name":"Laptop Stand"}],"success":true}]').Replace('NAME', $asName), (New-Object System.Text.UTF8Encoding($false)))
+    $asNpx = @(
+        '@echo off',
+        'echo %* >> "%GW_FAKE_STATE%\calls.log"',
+        'echo %* | findstr /C:"product_name" >nul && goto names',
+        'echo unknown command 1>&2',
+        'exit /b 1',
+        ':names',
+        'type "%GW_FAKE_STATE%\names.json"',
+        'exit /b 0'
+    ) -join "`r`n"
+    [System.IO.File]::WriteAllText((Join-Path $asBin 'npx.cmd'), $asNpx + "`r`n", [System.Text.Encoding]::ASCII)
+    $asSrv = Join-Path $asDir 'server.js'
+    Write-Utf8 $asSrv ("const http=require('http');const tok=process.argv[2];" +
+      "const tx=[{id:1,advertiserId:496,commissionStatus:'pending',commissionAmount:{amount:1.35,currency:'GBP'},saleAmount:{amount:45,currency:'GBP'},clickRefs:{clickRef:'cgw-13819'},transactionDate:'2026-10-20T10:00:00'}," +
+      "{id:2,advertiserId:61655,commissionStatus:'approved',commissionAmount:{amount:2,currency:'GBP'},saleAmount:{amount:80,currency:'GBP'},clickRefs:{clickRef:'tgw-6883'},transactionDate:'2026-10-28T10:00:00'}];" +
+      "http.createServer((q,s)=>{if(q.headers.authorization!=='Bearer '+tok||q.url.includes(tok)){s.writeHead(401);return s.end('no')}" +
+      "if(q.url.startsWith('/publishers/3057233/transactions/')){s.writeHead(200,{'Content-Type':'application/json'});return s.end(JSON.stringify(tx))}" +
+      "if(q.url.startsWith('/publishers/3057233/programmes')){s.writeHead(200,{'Content-Type':'application/json'});return s.end(JSON.stringify([{id:496,name:'Tooled Up'},{id:61655,name:'Back to the Office'}]))}" +
+      "s.writeHead(404);s.end('no')}).listen(8796,'127.0.0.1');")
+    $asProc = Start-Process -FilePath (Get-Command node).Source -ArgumentList @($asSrv, $asTok) -PassThru -WindowStyle Hidden
+    Start-Sleep -Seconds 2
+    $oldPath = $env:PATH
+    $env:PATH = $asBin + ';' + $oldPath
+    $env:GW_FAKE_STATE = $asDir
+    function Run-As([string[]]$a) {
+        $all = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', (Join-Path (Join-Path $repo 'tools') 'awin-sales.ps1'), '-BaseUrl', 'http://127.0.0.1:8796', '-WorkDir', $asDir, '-OutDir', $asOut, '-NoClipboard') + $a
+        & $exe @all | Out-Null
+        return $LASTEXITCODE
+    }
+    try {
+        Check ((Run-As @('-Days', '40', '-TokenFile', $asTokFile)) -eq 0) 'awin sales: exit 0'
+        $asRep = [System.IO.File]::ReadAllText((@(Get-ChildItem -LiteralPath $asOut -Filter 'AWIN_SALES_*.txt')[0]).FullName)
+        Check ($asRep.Contains('Σύνολο: 2 πωλήσεις')) 'awin sales: two 31-day windows, each sale once'
+        Check ($asRep.Contains('«' + $asName + '» (προϊόν #13819)') -and $asRep.Contains('Tooled Up')) 'awin sales: product names from the database (UTF-8) and shop names'
+        Check ($asRep -match 'TGW\s+1 πωλήσεις' -and $asRep -match 'CGW\s+1 πωλήσεις') 'awin sales: by site from the clickref'
+        $asAll = (@(Get-ChildItem -LiteralPath $asOut -Recurse -File) | ForEach-Object { [System.IO.File]::ReadAllText($_.FullName) }) -join "`n"
+        Check (-not $asAll.Contains($asTok)) 'awin sales: the API token is in no file'
+        Check (-not ([System.IO.File]::ReadAllText((Join-Path $asDir 'calls.log')) -match '--file|UPDATE|DELETE|INSERT')) 'awin sales: databases only read'
+        Check ((Run-As @('-Days', '10', '-TokenFile', $asBad)) -eq 4) 'awin sales: a wrong token stops with -NewToken advice'
+    } finally {
+        if ($asProc -and -not $asProc.HasExited) { Stop-Process -Id $asProc.Id -Force -ErrorAction SilentlyContinue }
+        $env:PATH = $oldPath
+        Remove-Item Env:\GW_FAKE_STATE -ErrorAction SilentlyContinue
+    }
+}
+
 Remove-Item -LiteralPath $work -Recurse -Force -ErrorAction SilentlyContinue
 
 Write-Host ''
