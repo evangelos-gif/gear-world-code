@@ -41,8 +41,8 @@ export const PET_BRAND = words(['pawhut', 'petsafe', 'ancol', 'rosewood pet', 'k
 export const PET_CTX = words(['dogs?', "dog'?s", 'doggy', 'doggie', 'pupp(?:y|ies)', 'pups?', 'cats?', "cat'?s", 'kittens?', 'kitty', 'pets?', "pet'?s", 'rabbits?', 'bunny', 'bunnies',
   'guinea pigs?', 'hamsters?', 'gerbils?', 'ferrets?', 'chinchillas?', 'degus?', 'parrots?', 'budgies?', 'budgerigars?', 'canar(?:y|ies)', 'cockatiels?', 'lovebirds?', 'aviar(?:y|ies)',
   'aquariums?', 'fish ?tanks?', 'aquatics?', 'tropical fish', 'goldfish', 'koi', 'betta', 'reptiles?', 'tortoises?', 'snakes?', 'lizards?', 'geckos?', 'bearded dragons?', 'vivariums?', 'terrariums?',
-  'chicken (?:coops?|houses?|runs?|feeders?|drinkers?|waterers?|nesting boxes?|fencing|netting|feed|pellets|corn|grit|treats?|keeping)', 'hen (?:houses?|coops?|runs?)', 'poultry', 'for (?:chickens|hens|poultry)', 'coops?', 'layers? (?:pellets|mash)',
-  'finch(?:es)?', 'parakeets?', 'conures?', 'macaws?', 'cockatoos?', 'african greys?', 'cage birds?', 'bird ?cages?', 'small birds?', 'pet birds?', 'paws?', 'catnip', 'kibble', 'horses?', 'equestrian', 'pon(?:y|ies)', 'kong (?:classic|extreme|puppy|wobbler|kickeroo|toys?)', 'felix (?:as good as it looks|cat|pouches|original|crispies)',
+  'chicken (?:coops?|houses?|runs?|feeders?|drinkers?|waterers?|nesting boxes?|fencing|netting|feed|pellets|corn|grit|treats?|keeping)', 'hen (?:houses?|coops?|runs?)', 'poultry (?:feeders?|drinkers?|houses?|netting|fencing|runs?|feed|pellets|grit|keeping|incubators?)', 'for (?:chickens|hens|poultry)', 'coops?', 'layers? (?:pellets|mash)',
+  'zebra finch(?:es)?', 'finch (?:food|seed|cages?|nests?)', 'parakeets?', 'conures?', 'macaws?', 'cockatoos?', 'african greys?', 'cage birds?', 'bird ?cages?', 'small birds?', 'pet birds?', 'paws?', 'catnip', 'kibble', 'horses?', 'equestrian', 'pon(?:y|ies)', 'kong (?:classic|extreme|puppy|wobbler|kickeroo|toys?)', 'felix (?:as good as it looks|cat|pouches|original|crispies)',
   'trixie (?:dog|cat|pet)', 'tetra ?(?:min|pro|aquasafe|pond)', 'juwel (?:aquarium|rio|lido|primo)']);
 // A shop category that says pets (the shop's own path, or Awin's / Google's category).
 export const PET_SHOP = words(['pets?', 'pet supplies', 'pet care', 'pet products', 'animals? (?:and|&) pet supplies', 'dog (?:supplies|accessories|food|toys)', 'cat (?:supplies|accessories|food|toys)',
@@ -54,7 +54,7 @@ export const NO = words(['hush puppies', 'caterpillar', 'cat (?:boots?|footwear|
   'watch dogs', 'snoop dogg', 'sea dog', 'mad dog', 'black cat fireworks?', 'copycat', 'cat in the hat', 'fishing', 'fish fingers', 'pet (?:bottles?|plastic|film|strapping|preforms?)', 'petg',
   'rpet', 'recycled pet', 'puppy (?:love|fat)', 'rat traps?', 'mouse traps?', 'rodent', 'rodenticide', 'poison', 'pest control', 'fly (?:sprays?|traps?|killers?)', 'ant (?:killers?|bait)', 'wasp',
   'slug (?:pellets?|killers?)', 'weed ?killers?', 'live (?:animals?|fish|insects?|food|crickets|mealworms|locusts)', 'prescription', 'pom-?v', 'vet prescription', 'insurance', 'gift cards?', 'vouchers?',
-  'snakes and ladders', 'king kong', 'master kong', 'master series', 'pp\\+pet', 'pet material', 'rabbit fur', '(?:faux|artificial) (?:rabbit )?fur', 'hot water bottles?', 'plant terrariums?', 'propagation',
+  'snakes and ladders', 'king kong', 'richmond (?:and |& )?finch', 'umbrellas?', 'master kong', 'master series', 'pp\\+pet', 'pet material', 'rabbit fur', '(?:faux|artificial) (?:rabbit )?fur', 'hot water bottles?', 'plant terrariums?', 'propagation',
   'borescopes?', 'inspection cameras?', 'air fryers?', 'puzzle post', 'loafers?', 'donkey kong', 'hong kong', 'cat\\.\\s?[5-8]a?e?', 'uni-?cat', 'paper/pet', '\\(pet\\)', 'pet-?filter', 'polyethylene terephthalate',
   'parrot (?:anafi|bebop|disco|drones?|pf\\d+)', 'drones?', 'traps?', 'gas struts?', 'saw ?horses?', 'log horses?', 'crazy horse', 'pony dance', 'big pony', 'hyundai pony', 'ponytails?', 'hand (?:soap|wash)', 'palmolive',
   'bottle openers?', 'corkscrews?', 'cufflinks?', 'lapel pins?', 'tetra ?pak', 'flexi ?hoses?', 'turtle beach', 'cobra (?:golf|clubs?)', 'jaguar', 'puma', 'lynx (?:africa|body|deodorant)', 'mustang', 'red bull', 'tiger (?:balm|sheds?)', 'shark (?:vacuum|steam|flexstyle|hair)', 'snake ?(?:plants?|skin|print)',
@@ -146,9 +146,9 @@ export const CATEGORIES = [
 // or cat product ("Chicken Dry Dog Food" is dog food). Wild birds (feeders, fat balls) stay on Garden.
 export const BIRDS = {
   key: 'birds', label: 'Birds',
-  ctx: words(['parrots?', 'budgies?', 'budgerigars?', 'canar(?:y|ies)', 'cockatiels?', 'lovebirds?', 'finch(?:es)?', 'parakeets?', 'conures?', 'macaws?', 'cockatoos?', 'african greys?', 'aviar(?:y|ies)',
+  ctx: words(['parrots?', 'budgies?', 'budgerigars?', 'canar(?:y|ies)', 'cockatiels?', 'lovebirds?', 'zebra finch(?:es)?', 'finch (?:food|seed|cages?|nests?)', 'parakeets?', 'conures?', 'macaws?', 'cockatoos?', 'african greys?', 'aviar(?:y|ies)',
     'bird ?cages?', 'cage birds?', 'small birds?', 'pet birds?', '(?:bird|parrot|budgie|canary) (?:toys?|perch(?:es)?|swings?|baths?|ladders?|mirrors?|nests?|bells?|treats?|grit|cuttlefish|seed mix)',
-    'poultry', 'hens?', 'chicken (?:coops?|houses?|runs?|feeders?|drinkers?|waterers?|feed|pellets|corn|grit|nesting(?: boxes?)?|perch(?:es)?|fencing|netting|treats?|keeping)', 'for (?:chickens|hens|poultry)',
+    'poultry (?:feeders?|drinkers?|houses?|netting|fencing|runs?|feed|pellets|grit|keeping|incubators?)', 'hens?', 'chicken (?:coops?|houses?|runs?|feeders?|drinkers?|waterers?|feed|pellets|corn|grit|nesting(?: boxes?)?|perch(?:es)?|fencing|netting|treats?|keeping)', 'for (?:chickens|hens|poultry)',
     'coops?', 'eglu', 'layers? (?:pellets|mash)', 'mixed corn', 'egg incubators?', 'incubators?', 'duck (?:houses?|feed|pellets)', 'bantams?']),
   // The subcategories, as the site config lists them (sites/zgw/site.config.js): the first match wins.
   subs: [
@@ -158,7 +158,10 @@ export const BIRDS = {
   ],
   other: 'Other Cage Birds'
 };
-const NOT_BIRD = words(['dogs?', 'cats?', 'pupp(?:y|ies)', 'kittens?', 'for dogs', 'for cats']);
+// Not a bird product: dog and cat words, and cat and dog food brands ("Whiskas 1+ Poultry Feasts" is cat food; Richmond & Finch
+// phone cases were in Birds on the test site, 1 Nov 2026).
+const NOT_BIRD = words(['dogs?', 'cats?', 'pupp(?:y|ies)', 'kittens?', 'for dogs', 'for cats', 'feasts?', 'whiskas', 'felix', 'sheba', 'gourmet', 'pedigree', 'cesar', 'winalot', 'bakers', 'iams', 'purina',
+  'royal canin', "hill'?s", 'harringtons', "butcher'?s", 'dreamies', 'webbox', 'encore', 'applaws', "lily'?s kitchen", 'james wellbeloved', 'barking heads', 'meowing heads', 'forthglade', 'arden grange', 'chappie', 'misfits', 'wagg']);
 export function birdSub(text) {
   for (const [name, re] of BIRDS.subs) if (re.test(text)) return name;
   return BIRDS.other;

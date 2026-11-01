@@ -139,3 +139,11 @@ test('birds page: one link per kind of bird, and ?sub= shows only that kind (oth
   const food = await (await get('/category/food/', env)).text();
   assert.doesNotMatch(food, /class="sub-nav"/, 'no subcategory links where the config has none');
 });
+
+test('birds page: a subcategory without products is left out, the others show their number', async () => {
+  const env = envOf();
+  env.DB.sql.exec("UPDATE products SET is_active = 0 WHERE subcategory = 'Chickens & Poultry'");
+  const html = await (await get('/category/birds/', env)).text();
+  assert.ok(!html.includes('?sub=chickens'), 'no link to an empty subcategory');
+  assert.match(html, /\?sub=canaries"[^>]*>Canaries &amp; Finches <span class="sub-n" translate="no">\(\d+\)<\/span>/);
+});

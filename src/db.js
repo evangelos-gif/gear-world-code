@@ -303,6 +303,14 @@ export async function listProducts(db, filters, { sort = 'featured', page = 1, p
   return { products: fixAll(rows.results), total, page, pages: Math.ceil(total / perPage) };
 }
 
+// Products per subcategory of a category (only for a category whose site config lists subcategories: ZGW birds).
+export async function subcategoryCounts(db, category) {
+  const c = catWhere(category);
+  const r = await db.prepare(`SELECT p.subcategory AS name, COUNT(*) AS n FROM ${LAYOUT.from} p WHERE p.is_active = 1 AND ${c.sql}
+    AND p.subcategory IS NOT NULL GROUP BY p.subcategory`).bind(...c.binds).all();
+  return Object.fromEntries((r.results || []).map(x => [x.name, Number(x.n) || 0]));
+}
+
 export async function facets(db, category) {
   const c = catWhere(category);
   const [brands, retailers, price] = await db.batch([

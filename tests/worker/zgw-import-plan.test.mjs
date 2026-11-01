@@ -156,3 +156,11 @@ test('birds (owner, 1 Nov 2026): one category with a subcategory per kind of bir
   assert.equal(ok('Wild Bird Feeder Station', 'Garden'), false, 'wild birds stay on Garden');
   assert.equal(slug("Willit Women's Riding Pants Full Seat Silicone Breeches Equestrian", 'Sporting Goods > Outdoor Recreation > Equestrian | Apparel & Accessories > Clothing'), 'horse');
 });
+
+test('test site of 1 Nov 2026: Richmond & Finch phone cases, a birdcage umbrella and "Poultry Feasts" cat food are not birds', () => {
+  for (const [n, c] of [['Richmond & Finch White Marble iPhone 13 Cover', 'Gifts'], ['Richmond & Finch Wireless Charger', 'Gifts'], ['Fulton Umbrellas Birdcage White Umbrella', 'Gifts']]) assert.equal(ok(n, c), false, n);
+  assert.equal(slug('Whiskas 1+ Poultry Feasts in Gravy 12 x 85g', `${PET} > Cat Supplies > Cat Food`), 'food');
+  assert.equal(slug('Whiskas 1+ Poultry Feasts in Jelly 40 x 85g', ''), 'food', 'cat food by its brand, even without the cat section');
+  assert.equal(slug('Bucktons Budgerigar Food with Spirulina 500g', `${PET} > Bird Supplies`), 'birds');
+  assert.equal(slug('Zebra Finch Seed Mix 1kg', ''), 'birds');
+});

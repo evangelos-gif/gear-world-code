@@ -122,14 +122,16 @@ function resultsHeader(result) {
 
 // A category with subcategories in the site config (ZGW birds: chickens, canaries, budgies...) gets a row of links above the
 // products: "All" and one per subcategory. Other categories and sites show nothing here.
-function subcategoryNav(base, cat, p) {
-  const subs = Array.isArray(cat.subcategories) ? cat.subcategories : [];
+// Only the subcategories that have products, with their number (an empty "Chickens & Poultry" is left out until a shop has some).
+function subcategoryNav(base, cat, p, counts) {
+  const all = Array.isArray(cat.subcategories) ? cat.subcategories : [];
+  const subs = counts ? all.filter(s => (counts[s.name] || 0) > 0) : all;
   if (!subs.length) return '';
-  const link = (slug, name) => html`<li><a href="${slug ? `${base}?sub=${slug}` : base}"${(p.sub || '') === slug ? raw(' aria-current="page"') : ''}>${name}</a></li>`;
-  return html`<nav class="sub-nav" aria-label="${cat.name}"><ul class="chip-list">${link('', 'All')}${subs.map(s => link(s.slug, s.name))}</ul></nav>`;
+  const link = (slug, name, n) => html`<li><a href="${slug ? `${base}?sub=${slug}` : base}"${(p.sub || '') === slug ? raw(' aria-current="page"') : ''}>${name}${n ? html` <span class="sub-n" translate="no">(${n})</span>` : ''}</a></li>`;
+  return html`<nav class="sub-nav" aria-label="${cat.name}"><ul class="chip-list">${link('', 'All', 0)}${subs.map(s => link(s.slug, s.name, counts ? counts[s.name] : 0))}</ul></nav>`;
 }
 
-export function categoryPage(site, cat, p, result, facets) {
+export function categoryPage(site, cat, p, result, facets, subCounts = null) {
   const base = categoryPath(cat.slug);
   const filtered = hasFilters(p);
   const params = keepParams(p);
@@ -149,7 +151,7 @@ export function categoryPage(site, cat, p, result, facets) {
   <div class="listing">
     <aside class="listing-side">${filterForm(base, p, facets)}</aside>
     <div class="listing-main">
-      ${subcategoryNav(base, cat, p)}
+      ${subcategoryNav(base, cat, p, subCounts)}
       ${resultsHeader(result)}
       ${result.products.length
         ? html`<h2 class="visually-hidden">${tr('Products')}</h2>${productGrid(site, result.products)}`

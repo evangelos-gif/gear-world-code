@@ -84,12 +84,13 @@ export function createWorker(site) {
         // ?sub= only for a subcategory the site config lists for this category (ZGW birds); anything else is ignored.
         const sub = (Array.isArray(cat.subcategories) ? cat.subcategories : []).find(s => s.slug === p.sub);
         if (!sub) p.sub = '';
-        const [result, facets] = await Promise.all([
+        const [result, facets, subCounts] = await Promise.all([
           db.listProducts(env.DB, { ...p, category: cat.slug, subcategory: sub ? sub.name : '' }, { sort: p.sort, page: p.page, perPage: PER_PAGE }),
-          db.facets(env.DB, cat.slug)
+          db.facets(env.DB, cat.slug),
+          cat.subcategories && cat.subcategories.length ? db.subcategoryCounts(env.DB, cat.slug) : null
         ]);
         if (p.page > 1 && p.page > result.pages && !hasFilters(p)) return notFound(path, method);
-        return htmlResponse(categoryPage(site, cat, p, result, facets), { method });
+        return htmlResponse(categoryPage(site, cat, p, result, facets, subCounts), { method });
       });
     }
 
