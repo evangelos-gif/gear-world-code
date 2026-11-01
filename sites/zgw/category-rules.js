@@ -9,7 +9,10 @@
 // First version (1 Nov 2026), before the first scan on the owner's PC. Second version (1 Nov 2026, after the first scan:
 // 1,710 matches): brands that are also other things count only with a pet word ("Hong Kong" trousers are not Kong,
 // "Felix" boots and "Trixie" lingerie are not pet products), "CAT.6" cables, PET plastic, Donkey Kong, drones, traps,
-// saw horses and children's toy brands stay out; "Pork and Hide Twisters" are treats. How a product is classified:
+// saw horses and children's toy brands stay out; "Pork and Hide Twisters" are treats.
+// Third version (1 Nov 2026, after the first dry run): "chicken" alone is not a pet word (Joybuy noodles and dumplings);
+// shop sections for food, toys, clothing, kitchen, cameras and adult products decide, unless the name says it is for an
+// animal. How a product is classified:
 //   1. NO: look-alike names ("Hush Puppies" shoes, "Cat 6" cables, Caterpillar workwear, "hot dog", "kitten heels",
 //      PET plastic), pest control, live animals and prescription medicines.
 //   2. A pet word in the name ("dog", "kitten", "aquarium", "PawHut") or a pet shop category ("Pet Supplies").
@@ -38,7 +41,7 @@ export const PET_BRAND = words(['pawhut', 'petsafe', 'ancol', 'rosewood pet', 'k
 export const PET_CTX = words(['dogs?', "dog'?s", 'doggy', 'doggie', 'pupp(?:y|ies)', 'pups?', 'cats?', "cat'?s", 'kittens?', 'kitty', 'pets?', "pet'?s", 'rabbits?', 'bunny', 'bunnies',
   'guinea pigs?', 'hamsters?', 'gerbils?', 'ferrets?', 'chinchillas?', 'degus?', 'parrots?', 'budgies?', 'budgerigars?', 'canar(?:y|ies)', 'cockatiels?', 'lovebirds?', 'aviar(?:y|ies)',
   'aquariums?', 'fish ?tanks?', 'aquatics?', 'tropical fish', 'goldfish', 'koi', 'betta', 'reptiles?', 'tortoises?', 'snakes?', 'lizards?', 'geckos?', 'bearded dragons?', 'vivariums?', 'terrariums?',
-  'chickens?', 'hens?', 'poultry', 'paws?', 'catnip', 'kibble', 'horses?', 'equestrian', 'pon(?:y|ies)', 'kong (?:classic|extreme|puppy|wobbler|kickeroo|toys?)', 'felix (?:as good as it looks|cat|pouches|original|crispies)',
+  'chicken (?:coops?|houses?|runs?|feeders?|drinkers?|waterers?|nesting boxes?|fencing|netting)', 'hen (?:houses?|coops?|runs?)', 'poultry', 'paws?', 'catnip', 'kibble', 'horses?', 'equestrian', 'pon(?:y|ies)', 'kong (?:classic|extreme|puppy|wobbler|kickeroo|toys?)', 'felix (?:as good as it looks|cat|pouches|original|crispies)',
   'trixie (?:dog|cat|pet)', 'tetra ?(?:min|pro|aquasafe|pond)', 'juwel (?:aquarium|rio|lido|primo)']);
 // A shop category that says pets (the shop's own path, or Awin's / Google's category).
 export const PET_SHOP = words(['pets?', 'pet supplies', 'pet care', 'pet products', 'animals? (?:and|&) pet supplies', 'dog (?:supplies|accessories|food|toys)', 'cat (?:supplies|accessories|food|toys)',
@@ -50,7 +53,8 @@ export const NO = words(['hush puppies', 'caterpillar', 'cat (?:boots?|footwear|
   'watch dogs', 'snoop dogg', 'sea dog', 'mad dog', 'black cat fireworks?', 'copycat', 'cat in the hat', 'fishing', 'fish fingers', 'pet (?:bottles?|plastic|film|strapping|preforms?)', 'petg',
   'rpet', 'recycled pet', 'puppy (?:love|fat)', 'rat traps?', 'mouse traps?', 'rodent', 'rodenticide', 'poison', 'pest control', 'fly (?:sprays?|traps?|killers?)', 'ant (?:killers?|bait)', 'wasp',
   'slug (?:pellets?|killers?)', 'weed ?killers?', 'live (?:animals?|fish|insects?|food|crickets|mealworms|locusts)', 'prescription', 'pom-?v', 'vet prescription', 'insurance', 'gift cards?', 'vouchers?',
-  'snakes and ladders', 'king kong', 'donkey kong', 'hong kong', 'cat\\.\\s?[5-8]a?e?', 'uni-?cat', 'paper/pet', '\\(pet\\)', 'pet-?filter', 'polyethylene terephthalate',
+  'snakes and ladders', 'king kong', 'master kong', 'master series', 'pp\\+pet', 'pet material', 'rabbit fur', '(?:faux|artificial) (?:rabbit )?fur', 'hot water bottles?', 'plant terrariums?', 'propagation',
+  'borescopes?', 'inspection cameras?', 'air fryers?', 'puzzle post', 'loafers?', 'donkey kong', 'hong kong', 'cat\\.\\s?[5-8]a?e?', 'uni-?cat', 'paper/pet', '\\(pet\\)', 'pet-?filter', 'polyethylene terephthalate',
   'parrot (?:anafi|bebop|disco|drones?|pf\\d+)', 'drones?', 'traps?', 'gas struts?', 'saw ?horses?', 'log horses?', 'crazy horse', 'pony dance', 'big pony', 'hyundai pony', 'ponytails?', 'hand (?:soap|wash)', 'palmolive',
   'bottle openers?', 'corkscrews?', 'cufflinks?', 'lapel pins?', 'tetra ?pak', 'flexi ?hoses?', 'turtle beach', 'cobra (?:golf|clubs?)', 'jaguar', 'puma', 'lynx (?:africa|body|deodorant)', 'mustang', 'red bull', 'tiger (?:balm|sheds?)', 'shark (?:vacuum|steam|flexstyle|hair)', 'snake ?(?:plants?|skin|print)',
   'python', 'gecko (?:tape|grip)', 'bunny (?:ears|costume)', 'chicken (?:breasts?|fillets?|thighs?|wings?|stock|soup|noodles?)', 'rotisserie', 'egg (?:cups?|cookers?|poachers?)']);
@@ -88,7 +92,7 @@ export const CATEGORIES = [
   {
     key: 'food', label: 'Food & treats',
     sure: words(['(?:dog|cat|puppy|kitten|pet|rabbit|guinea pig|hamster|bird|parrot|fish|reptile|tortoise) (?:food|treats?|biscuits?|kibble|snacks?|chews?|pouches|nuggets|pellets|flakes|seed|mix|nibbles)',
-      '(?:wet|dry|grain[- ]free|complete|senior|adult|puppy|kitten|hypoallergenic) (?:dog |cat )?food', 'dental (?:sticks?|chews?)', 'chews? for (?:dogs?|cats?|pupp(?:y|ies))', 'dentastix', 'rawhide', 'hide (?:chews?|twists?|twisters|rolls?|bones?)', '(?:pork|beef|chicken|duck|lamb) (?:and|&) hide', 'pigs? ears', 'bully sticks?', 'jerky (?:for|dog|cat)',
+      '(?:wet|dry|grain[- ]free|complete|senior|adult|puppy|kitten|hypoallergenic) (?:dog |cat )?food', 'dental (?:sticks?|chews?)', 'pigs in blankets', 'chews? for (?:dogs?|cats?|pupp(?:y|ies))', 'dentastix', 'rawhide', 'hide (?:chews?|twists?|twisters|rolls?|bones?)', '(?:pork|beef|chicken|duck|lamb) (?:and|&) hide', 'pigs? ears', 'bully sticks?', 'jerky (?:for|dog|cat)',
       'royal canin', 'purina', 'pro plan', 'pedigree', 'whiskas', 'felix', 'iams', "hill'?s science", "lily'?s kitchen", 'harringtons', 'burns pet', 'applaws', 'james wellbeloved', 'eukanuba', "butcher'?s",
       "wainwright'?s", 'bakers complete', 'dreamies', 'webbox', 'sheba', 'gourmet gold', 'barking heads', 'meowing heads', 'forthglade', 'arden grange', 'scrumbles', 'timothy hay', 'meadow hay', 'mealworms? (?:dried)?',
       'suet (?:for|pellets)', 'fish flakes', 'tetra ?min', 'versele-?laga', 'burgess excel', 'oxbow']),
@@ -161,14 +165,26 @@ export const OTHER = { key: 'other-pet', label: 'Other pet products' };
 // pet word or a pet shop. A pet word for the animal ("for dogs", "dog toy", "chew") keeps a product here.
 const FOR_PETS = words(['for (?:dogs?|cats?|pupp(?:y|ies)|kittens?|pets?|rabbits?|guinea pigs?|hamsters?|birds?|parrots?)', '(?:dog|cat|pet|puppy|kitten) toys?', 'chew(?:s|ing)?', 'squeak(?:y|er|ers)', 'catnip', 'tug',
   'fetch', '(?:dog|puppy|pet) (?:coats?|jumpers?|jackets?|bandanas?|boots?|costumes?|raincoats?|pyjamas)', '(?:dog|cat|pet|puppy|kitten) (?:carriers?|leads?|leash(?:es)?|collars?|harness(?:es)?|beds?|bowls?|feeders?|crates?|kennels?|litter|food|treats?)',
+  '(?:dog|cat|pet|puppy|kitten) (?!walk(?:ing|ers?) )(?:[a-z-]+ ){1,2}(?:carriers?|coats?|jackets?|beds?|bowls?|collars?|leads?|leash(?:es)?|harness(?:es)?|blankets?|conditioners?|shampoos?|treats?|food)', 'barbour dog',
   'pet carriers?', 'pawhut', 'good boy', 'petstages', 'rosewood pet', 'ancol']);
+
+// Shop sections that are never pet products, or belong to another site, unless the name says it is for an animal
+// (dry run of 1 Nov 2026: Joybuy noodles and dumplings "with chicken", security cameras with "pet detection", an adult
+// "Kitty Collar", unicorn pony toys, horse-bit loafers).
+const SHOP_ADULT = words(['intimate', 'adult', 'erotic', 'sex(?:ual)?', 'fetish', 'bdsm', 'lingerie']);
+const SHOP_FOOD = words(['food, beverages', 'food items', 'grocer(?:y|ies)', 'beverages', 'drinks', 'confectionery']);
+const SHOP_CAMERA = words(['surveillance', 'security cameras?', 'cctv']);
+const SHOP_TOYS = words(['toys? (?:and|&) games', 'toys', 'baby toys', 'baby (?:and|&) toddler', 'dolls(?: (?:and|&) accessories)?', 'activities (?:and|&) play ?time', 'games']);
+const SHOP_CLOTHES = words(['menswear', 'womenswear', 'clothing', 'apparel (?:and|&) accessories', 'fashion', 'shoes', 'footwear', 'jewellery']);
+const SHOP_KITCHEN = words(['kitchen (?:and|&) dining', 'kitchen appliances', 'household appliances?']);
+const PET_STRONG = new RegExp(`${FOR_PETS.source}|${words(['(?:dog|cat|puppy|kitten|pet) (?:food|treats?|biscuits?|chews?)']).source}`, 'i');
 export const OVERLAPS = [
   // Named for children: always Kids' ("Kids Dog Costume"), unless it is for the animal ("baby gate for dogs").
   { key: 'kids', label: 'Children\'s toys, costumes & books with animals (Kids\' Gear World, KGW)', re: words(['kids?', "kid'?s", 'children', "children'?s", 'childrens', 'toddlers?', 'baby', 'babies', 'paw patrol', 'gabby', 'peppa']),
     unless: words(['for (?:dogs?|cats?|pets?|pupp(?:y|ies)|kittens?)']) },
   { key: 'kids', label: 'Children\'s toys, costumes & books with animals (Kids\' Gear World, KGW)', re: words(['paw patrol', 'soft toys?', 'plush(?:ies)?', 'stuffed (?:animals?|toys?)', 'cuddly toys?', 'teddy', 'kids?', "kid'?s", 'children', "children'?s", 'childrens',
     'baby', 'babies', 'toddlers?', 'gabby', 'peppa', 'squishmallows?', 'jellycat', 'keel toys', 'fisher[- ]price', 'toy story', 'pluche', 'warmies', 'hello kitty', 'barbie', 'schleich', 'cuddly',
-    'activity cubes?', 'learning toys?', 'play ?sets?', 'dolls?', 'schulranzen', 'school ?bags?', 'horse club', 'lego', 'playmobil', 'sylvanian', 'figures?', 'figurines?', 'colouring', 'jigsaws?', 'puzzles? for kids', 'story ?books?', 'picture books?',
+    'activity cubes?', 'learning toys?', 'vtech', 'lamaze', 'play ?sets?', 'dolls?', 'unicorns?', 'peter rabbit', 'comfort blankets?', 'comforters?', 'schulranzen', 'school ?bags?', 'horse club', 'lego', 'playmobil', 'sylvanian', 'figures?', 'figurines?', 'colouring', 'jigsaws?', 'puzzles? for kids', 'story ?books?', 'picture books?',
     'books?', 'rocking horses?', 'ride[- ]on', 'hobby horses?', 'my little pony', 'interactive (?:pets?|puppy|kitten) toys? for kids', 'robot (?:dog|cat|pet)s?', 'fingerlings', 'furreal', 'tamagotchi']), unless: FOR_PETS },
   { key: 'garden', label: 'Wild birds, wildlife & pest deterrents (Garden Gear World, GGW)', re: words(['wild birds?', 'bird ?feeders?', 'bird (?:baths?|boxes?|tables?|seed|food)', 'nest(?:ing)? boxes?', 'suet', 'fat balls?', 'niger seed', 'sunflower hearts', 'hedgehog', 'bee hotels?', 'insect hotels?',
     'bug hotels?', 'squirrels?', 'repell(?:ers?|ents?)', 'scarers?', 'deterrents?', 'ultrasonic', 'pet[- ](?:safe|friendly) (?:weed|lawn|slug|grass|artificial grass|fertili[sz]ers?)', 'artificial grass', 'lawn']),
@@ -204,7 +220,14 @@ function typeOf(n) {
 export function classifyPets(name, shopCat = '', opts = {}) {
   const n = low(name), c = low(shopCat);
   if (!n || NO.test(n)) return { why: 'no-list' };
+  if (SHOP_ADULT.test(c)) return { why: 'no-list' };
   const petShop = PET_SHOP.test(c) || Boolean(opts.petShop);
+  if (!petShop && !PET_STRONG.test(n)) {
+    if (SHOP_FOOD.test(c) || SHOP_CAMERA.test(c)) return { why: 'no-list' };
+    if (SHOP_TOYS.test(c)) return (PET_CTX.test(n) || PET_BRAND.test(n)) ? { overlap: 'kids', cat: null } : {};
+    if (SHOP_CLOTHES.test(c)) return (PET_CTX.test(n) || PET_BRAND.test(n)) ? { overlap: 'merch', cat: null } : {};
+    if (SHOP_KITCHEN.test(c)) return (PET_CTX.test(n) || PET_BRAND.test(n)) ? { overlap: 'home', cat: null } : {};
+  }
   const brand = PET_BRAND.test(n);
   const ctxName = PET_CTX.test(n) || brand;
   if (!ctxName && !petShop) return {};

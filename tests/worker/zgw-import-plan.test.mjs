@@ -87,3 +87,34 @@ test('plan: ZGW products in, children\'s toys and out-of-stock rows out, SQL not
   const sql = readFileSync(join(out, 'sql', readdirSync(join(out, 'sql')).find(f => f === '0001.sql')), 'utf8');
   assert.match(sql, /-- ZGW import plan .* NOT executed/);
 });
+
+test('fixes after the first dry run (1 Nov 2026): human food, adult, camera, toy and clothing sections; "chicken" alone', () => {
+  const food = 'Food, Beverages & Tobacco > Food Items > Pasta & Noodles';
+  for (const [n, c] of [
+    ['Master Kong Classic Bucket Noodles - Scallion & Pork Flavor 109g x 12', food],
+    ['Korean Street Chicken Ramen Korean Chicken Flavour Bowl 112g', food],
+    ['HANSS Kitten Paw-Shaped Shrimp Ball 200g/Pack', 'Food, Beverages & Tobacco > Food Items > Frozen Desserts'],
+    ['Birds Eye 2 Southern Fried Chicken in Breadcrumbs 180g', 'Food, Beverages & Tobacco > Food Items > Meat'],
+    ['Chicken Shawarma Recipe Kit', 'Gifts'],
+    ['Master Series Sugar Kitty Collar - Pink', 'Intimate play'],
+    ['CINMOORE 3K Security Camera Indoor, AI Person/Pet/Cry Detection', 'Cameras & Optics > Cameras > Surveillance Cameras'],
+    ['Magical Kingdom Style N Go Unicorn Pony With Comb Toy', 'Dolls & accessories'],
+    ['VTech Pull Along Puppy Pal Toy', 'Activities & play time'],
+    ['Clementoni Harry Potter Hagrid\'s Hut Terrarium', 'Toys & Games > Toys > Educational Toys'],
+    ['G. H. Bass Panama Horse Bit Lincoln Saddle Bar Penny Loafers', 'Menswear'],
+    ['OYAJIA Chamber Air Fryer', 'Home & Garden > Kitchen & Dining > Kitchen Appliances'],
+    ['Peter Rabbit Comfort Blanket', 'Baby & Toddler > Baby Toys'],
+    ['XLLX Long Hot Water Bottle 1.8L Soft Artificial Rabbit Fur Cover', 'Home & Garden > Household Supplies'],
+    ['JORDAN&JUDY Cleaning Brush, 2-Pack, PP+PET, Long Handle', 'Home & Garden > Household Supplies'],
+    ['Mushroom Plant Terrarium, Set of 10 Unique Propagation Station', 'Home & Garden > Decor']
+  ]) assert.equal(ok(n, c), false, n);
+  for (const [n, c, s] of [
+    ['Bakers Meaty Meals Chicken Dry Dog Food 2.7kg', `${PET} > Pet Food Scoops`, 'food'],
+    ['Whiskas 1+ Poultry Feasts Adult Wet Cat Food Pouches in Jelly 12 x 85g', `${PET} > Cat Supplies > Cat Food`, 'food'],
+    ['Good Boy Pigs in Blankets 60g', `${PET} > Pet Food Scoops`, 'food'],
+    ['HomerunPET 135L Deluxe Edition Pet Dryer, PD135, Salon-Grade Drying', `${PET} > Pet Grooming Supplies > Pet Hair Dryers`, 'grooming'],
+    ['Barbour Dog Small Quilted Carrier', 'Womenswear', 'travel'],
+    ['Hunter Tambo Dog Toy - Whale', 'Household', 'toys'],
+    ['Omlet Eglu Cube Chicken Coop', '', 'outdoor']
+  ]) assert.equal(slug(n, c), s, n);
+});
