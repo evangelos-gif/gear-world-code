@@ -64,8 +64,8 @@ test('search labels: the waiting text names no list of sites, in all 11 language
 test('search labels: the page loads the new app.js and translations.js (new ?v=, lessons L31)', () => {
   const html = read('public/index.html');
   assert.match(html, /<script src="\/app\.js\?v=20261026-labels1"><\/script>/);
-  // Later versions change the ?v= of translations.js again (Bing title and descriptions, 31/10/2026).
-  assert.match(html, /<script src="\/translations\.js\?v=20261031-(?:bgw1|seo1)"><\/script>/);
+  // Later versions change the ?v= of translations.js again (Gaming card, then Bing title and descriptions).
+  assert.match(html, /<script src="\/translations\.js\?v=(?:20261031-pgw1|20261101-seo1)"><\/script>/);
   assert.ok(!html.includes('app.js?v=20261005-mobile3') && !html.includes('translations.js?v=20261005-search-gr-final'), 'old ?v= gone');
 });
 
@@ -73,8 +73,9 @@ test('search labels: the Hub folder has only allowed files, and the baseline nam
   const allow = read('public-allowlist.txt').split('\n').map(s => s.trim()).filter(s => s && !s.startsWith('#'));
   for (const f of ['app.js', 'translations.js', 'index.html', 'hub-sgw.jpg']) assert.ok(allow.includes(f), f);
   const base = read('live-baseline.txt').split('\n').filter(l => l && !l.startsWith('#')).map(l => l.split(' | ')[0]);
-  // New files of a version that is not live yet: in the baseline after its live deploy (Bing, 31/10/2026).
-  const pending = new Set(['robots.txt', 'gearworldhub-indexnow-k7q4m9x2w5.txt'].filter(f => !base.includes(`public/${f}`)));
-  for (const f of allow) assert.ok(base.includes(`public/${f}`) || pending.has(f), `baseline has public/${f}`);
+  // A file not yet live (the next Hub change, e.g. a new card photo) is allowed only when gwh-hub-v2.ps1 describes it
+  // in $About, so the live step shows it in its plan; after the live deploy the baseline names it (L04).
+  const tool = readFileSync(new URL('../../tools/gwh-hub-v2.ps1', import.meta.url), 'utf8');
+  for (const f of allow) assert.ok(base.includes(`public/${f}`) || tool.includes(`'public/${f}'`), `baseline (or the next change) has public/${f}`);
   assert.ok(base.includes('worker.js') && base.includes('photo-search.js'));
 });

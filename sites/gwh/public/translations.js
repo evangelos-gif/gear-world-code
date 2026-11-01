@@ -533,7 +533,8 @@
         "Car",
         "Travel",
         "Sport",
-        "Motorbike & Scooter"
+        "Motorbike & Scooter",
+        "Gaming"
       ],
 
       descriptions: [
@@ -547,7 +548,8 @@
         "Garage tools, parts, car care and dash cams.",
         "Luggage, travel bags, accessories and camping gear.",
         "Fitness, running, cycling, team sports and nutrition.",
-        "Helmets, riding gear, parts, scooters and e-motorbikes."
+        "Helmets, riding gear, parts, scooters and e-motorbikes.",
+        "Consoles, gaming PCs, monitors, headsets and chairs."
       ],
 
       howLabel: "HOW IT WORKS",
@@ -580,7 +582,8 @@
         "Αυτοκίνητο",
         "Ταξίδι",
         "Αθλητισμός",
-        "Μηχανή & πατίνι"
+        "Μηχανή & πατίνι",
+        "Gaming"
       ],
 
       descriptions: [
@@ -594,7 +597,8 @@
         "Εργαλεία συνεργείου, ανταλλακτικά, περιποίηση και κάμερες.",
         "Βαλίτσες, τσάντες ταξιδιού, αξεσουάρ και εξοπλισμός camping.",
         "Γυμναστική, τρέξιμο, ποδήλατο, ομαδικά αθλήματα και διατροφή.",
-        "Κράνη, ρούχα αναβάτη, ανταλλακτικά, πατίνια και ηλεκτρικές μηχανές."
+        "Κράνη, ρούχα αναβάτη, ανταλλακτικά, πατίνια και ηλεκτρικές μηχανές.",
+        "Κονσόλες, gaming PC, οθόνες, headsets και καρέκλες."
       ],
 
       howLabel: "ΠΩΣ ΛΕΙΤΟΥΡΓΕΙ",
@@ -627,7 +631,8 @@
         "Auto",
         "Reisen",
         "Sport",
-        "Motorrad & Roller"
+        "Motorrad & Roller",
+        "Gaming"
       ],
 
       descriptions: [
@@ -641,7 +646,8 @@
         "Werkstattwerkzeug, Teile, Autopflege und Dashcams.",
         "Koffer, Reisetaschen, Zubehör und Campingausrüstung.",
         "Fitness, Laufen, Radsport, Teamsport und Sporternährung.",
-        "Helme, Motorradbekleidung, Teile, Roller und E-Motorräder."
+        "Helme, Motorradbekleidung, Teile, Roller und E-Motorräder.",
+        "Konsolen, Gaming-PCs, Monitore, Headsets und Stühle."
       ],
 
       howLabel: "SO FUNKTIONIERT ES",
@@ -674,7 +680,8 @@
         "Auto",
         "Voyage",
         "Sport",
-        "Moto & trottinette"
+        "Moto & trottinette",
+        "Gaming"
       ],
 
       descriptions: [
@@ -688,7 +695,8 @@
         "Outils de garage, pièces, entretien et dashcams.",
         "Valises, sacs de voyage, accessoires et matériel de camping.",
         "Fitness, course à pied, vélo, sports collectifs et nutrition.",
-        "Casques, équipement moto, pièces, trottinettes et motos électriques."
+        "Casques, équipement moto, pièces, trottinettes et motos électriques.",
+        "Consoles, PC gaming, écrans, casques et chaises."
       ],
 
       howLabel: "COMMENT ÇA MARCHE",
@@ -721,7 +729,8 @@
         "Auto",
         "Viaggio",
         "Sport",
-        "Moto & monopattino"
+        "Moto & monopattino",
+        "Gaming"
       ],
 
       descriptions: [
@@ -735,7 +744,8 @@
         "Attrezzi da officina, ricambi, cura auto e dash cam.",
         "Valigie, borse da viaggio, accessori e attrezzatura da campeggio.",
         "Fitness, corsa, ciclismo, sport di squadra e nutrizione.",
-        "Caschi, abbigliamento moto, ricambi, monopattini e moto elettriche."
+        "Caschi, abbigliamento moto, ricambi, monopattini e moto elettriche.",
+        "Console, PC gaming, monitor, cuffie e sedie."
       ],
 
       howLabel: "COME FUNZIONA",
@@ -768,7 +778,8 @@
         "Coche",
         "Viaje",
         "Deporte",
-        "Moto y patinete"
+        "Moto y patinete",
+        "Gaming"
       ],
 
       descriptions: [
@@ -782,7 +793,8 @@
         "Herramientas de taller, recambios, cuidado y cámaras.",
         "Maletas, bolsas de viaje, accesorios y equipo de camping.",
         "Fitness, running, ciclismo, deportes de equipo y nutrición.",
-        "Cascos, equipación de moto, recambios, patinetes y motos eléctricas."
+        "Cascos, equipación de moto, recambios, patinetes y motos eléctricas.",
+        "Consolas, PC gaming, monitores, auriculares y sillas."
       ],
 
       howLabel: "CÓMO FUNCIONA",
@@ -815,7 +827,8 @@
         "Automóvel",
         "Viagem",
         "Desporto",
-        "Mota e trotinete"
+        "Mota e trotinete",
+        "Gaming"
       ],
 
       descriptions: [
@@ -829,7 +842,8 @@
         "Ferramentas de oficina, peças, cuidado e câmaras.",
         "Malas, sacos de viagem, acessórios e equipamento de campismo.",
         "Fitness, corrida, ciclismo, desportos coletivos e nutrição.",
-        "Capacetes, equipamento de mota, peças, trotinetes e motas elétricas."
+        "Capacetes, equipamento de mota, peças, trotinetes e motas elétricas.",
+        "Consolas, PCs gaming, monitores, headsets e cadeiras."
       ],
 
       howLabel: "COMO FUNCIONA",
@@ -862,7 +876,8 @@
         "Auto",
         "Reizen",
         "Sport",
-        "Motor & step"
+        "Motor & step",
+        "Gaming"
       ],
 
       descriptions: [
@@ -876,7 +891,8 @@
         "Garagegereedschap, onderdelen, autoverzorging en dashcams.",
         "Koffers, reistassen, accessoires en kampeeruitrusting.",
         "Fitness, hardlopen, fietsen, teamsporten en sportvoeding.",
-        "Helmen, motorkleding, onderdelen, steps en elektrische motoren."
+        "Helmen, motorkleding, onderdelen, steps en elektrische motoren.",
+        "Consoles, gaming-pc’s, monitoren, headsets en stoelen."
       ],
 
       howLabel: "HOE HET WERKT",
@@ -909,7 +925,8 @@
         "Makina",
         "Udhëtim",
         "Sport",
-        "Motor & patinë"
+        "Motor & patinë",
+        "Gaming"
       ],
 
       descriptions: [
@@ -923,7 +940,8 @@
         "Vegla garazhi, pjesë, kujdes makine dhe kamera.",
         "Valixhe, çanta udhëtimi, aksesorë dhe pajisje kampingu.",
         "Fitnes, vrapim, çiklizëm, sporte ekipore dhe ushqyerje sportive.",
-        "Helmeta, veshje motoristi, pjesë, patina dhe motoçikleta elektrike."
+        "Helmeta, veshje motoristi, pjesë, patina dhe motoçikleta elektrike.",
+        "Konsola, PC gaming, monitorë, kufje dhe karrige."
       ],
 
       howLabel: "SI FUNKSIONON",
@@ -956,7 +974,8 @@
         "Auto",
         "Călătorii",
         "Sport",
-        "Moto & trotinetă"
+        "Moto & trotinetă",
+        "Gaming"
       ],
 
       descriptions: [
@@ -970,7 +989,8 @@
         "Scule de garaj, piese, îngrijire auto și camere.",
         "Valize, genți de călătorie, accesorii și echipament de camping.",
         "Fitness, alergare, ciclism, sporturi de echipă și nutriție.",
-        "Căști, echipament moto, piese, trotinete și motociclete electrice."
+        "Căști, echipament moto, piese, trotinete și motociclete electrice.",
+        "Console, PC-uri de gaming, monitoare, căști și scaune."
       ],
 
       howLabel: "CUM FUNCȚIONEAZĂ",
@@ -1003,7 +1023,8 @@
         "Авто",
         "Путешествия",
         "Спорт",
-        "Мото и самокаты"
+        "Мото и самокаты",
+        "Гейминг"
       ],
 
       descriptions: [
@@ -1017,7 +1038,8 @@
         "Гаражный инструмент, запчасти, уход и видеорегистраторы.",
         "Чемоданы, дорожные сумки, аксессуары и снаряжение для кемпинга.",
         "Фитнес, бег, велоспорт, командные виды спорта и спортивное питание.",
-        "Шлемы, мотоэкипировка, запчасти, самокаты и электромотоциклы."
+        "Шлемы, мотоэкипировка, запчасти, самокаты и электромотоциклы.",
+        "Консоли, игровые ПК, мониторы, гарнитуры и кресла."
       ],
 
       howLabel: "КАК ЭТО РАБОТАЕТ",
