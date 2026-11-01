@@ -122,6 +122,14 @@ export function matchRow(row, feed) {
   if (colon > 0 && feed.byMid.has(id.slice(colon + 1))) return feed.byMid.get(id.slice(colon + 1));
   const mid = String(row.merchant_product_id || '');
   if (mid && feed.byMid.has(mid)) return feed.byMid.get(mid);
+  // A shop's catalogue (L66): the option in the row's link, or, for a row whose link names no option (GS Workwear keeps
+  // only the product address), the product itself by its address.
+  if (feed.byHandle && row.affiliate_url) {
+    const v = variantOf(row.affiliate_url);
+    if (v) return feed.byAw.get(v) || null;
+    const h = handleOf(row.affiliate_url);
+    if (h && feed.byHandle.has(h)) return feed.byHandle.get(h);
+  }
   return null;
 }
 
@@ -171,6 +179,15 @@ export function handleOf(url) {
   try { return decodeURIComponent(m[1]).toLowerCase(); } catch { return m[1].toLowerCase(); }
 }
 
+// The option (variant) id in a shop link (?variant=<id>), also inside an Awin link's ued=. Empty when there is none.
+export function variantOf(url) {
+  let u;
+  try { u = new URL(String(url || '')); } catch { return ''; }
+  if (/(^|\.)awin1\.com$/i.test(u.hostname)) { try { u = new URL(u.searchParams.get('ued') || ''); } catch { return ''; } }
+  const v = u.searchParams.get('variant') || '';
+  return /^\d{1,20}$/.test(v) ? v : '';
+}
+
 // What we look for in a shop: the option ids and SKUs of our rows, and the handles in their links.
 export function wantedFromRows(rows) {
   const ids = new Set(), handles = new Set();
@@ -179,6 +196,8 @@ export function wantedFromRows(rows) {
     if (aw) { ids.add(aw); if (aw.indexOf(':') > 0) ids.add(aw.slice(aw.indexOf(':') + 1)); }
     const mid = String(r.merchant_product_id || '').trim();
     if (mid) ids.add(mid);
+    const v = variantOf(r.affiliate_url);
+    if (v) ids.add(v);
     const h = handleOf(r.affiliate_url);
     if (h) handles.add(h);
   }
@@ -227,25 +246,31 @@ export async function readShopCatalogBig(origin, rows, { fetchImpl = globalThis.
   if (!/^https:\/\/[a-z0-9.-]+$/i.test(base)) throw new Error(`shopOrigin is not a shop address: ${origin}`);
   if (typeof fetchImpl !== 'function') throw new Error(`Cannot read ${base}: this Node.js has no fetch. Nothing was changed.`);
   const sleep = ms => (ms ? new Promise(r => setTimeout(r, ms)) : Promise.resolve());
-  const started = clock();
+  let started = clock();
   const outOfTime = () => clock() - started > maxMinutes * 60000;
   const active = rows.filter(r => Number(r.is_active) === 1);
   const want = wantedFromRows(active);
   // Our rows by every key a shop option can match (its id or SKU), to know when all of ours have been seen.
-  const byKey = new Map();
+  const byKey = new Map(), byHandleRows = new Map();
   for (const r of active) {
     const keys = new Set();
     const aw = String(r.awin_product_id || '');
     if (aw) { keys.add(aw); if (aw.indexOf(':') > 0) keys.add(aw.slice(aw.indexOf(':') + 1)); }
     const mid = String(r.merchant_product_id || '').trim();
     if (mid) keys.add(mid);
+    const v = variantOf(r.affiliate_url);
+    if (v) keys.add(v);
     for (const k of keys) { if (!byKey.has(k)) byKey.set(k, []); byKey.get(k).push(Number(r.id)); }
+    // A row whose link names no option is found by its product address (L66).
+    const h = v ? '' : handleOf(r.affiliate_url);
+    if (h) { if (!byHandleRows.has(h)) byHandleRows.set(h, []); byHandleRows.get(h).push(Number(r.id)); }
   }
   const unseen = new Set(active.map(r => Number(r.id)));
   const catalog = new Map();
   const take = p => {
     if (!p || !p.handle) return;
     let mine = want.handles.has(String(p.handle).toLowerCase());
+    for (const id of byHandleRows.get(String(p.handle).toLowerCase()) || []) unseen.delete(id);
     for (const v of p.variants || []) {
       for (const k of [String(v.id), v.sku ? String(v.sku).trim() : '']) {
         if (!k || !byKey.has(k)) continue;
@@ -270,6 +295,7 @@ export async function readShopCatalogBig(origin, rows, { fetchImpl = globalThis.
     if (page === maxPages) capped = true;
   }
   if (!seen) throw new Error(`The shop's live catalogue (${base}) is empty. Nothing was changed.`);
+  started = clock(); // the time limit is for steps 2 and 3: step 1 has its own (100 pages)
   // 2. Past the cap: the shop's collections, each read to its end (or its own cap), until all ours are seen.
   if (capped && unseen.size) {
     const list = [];
@@ -340,11 +366,21 @@ export async function readShopCurrency(origin, { fetchImpl = globalThis.fetch } 
 // The live catalogue in the shape of a feed: one entry per option (variant), found by its id and by its SKU.
 const picKey = u => String(u || '').split('?')[0].toLowerCase();
 export function feedFromShopify(catalog, currency, now = new Date()) {
-  const byAw = new Map(), byMid = new Map();
+  const byAw = new Map(), byMid = new Map(), byHandle = new Map();
   let rows = 0;
   const abs = u => (String(u || '').startsWith('//') ? 'https:' + u : String(u || ''));
   for (const p of catalog.values()) {
     const images = (p.images || []).map(i => realImage(abs(i && typeof i === 'object' ? i.src : i))).filter(Boolean);
+    // The product as a whole, for a row without an option (L66): the lowest price of the options in stock (of all when
+    // none is), in stock when any option is, the product's first picture.
+    const vs = (p.variants || []).map(v => ({ price: parsePrice(String(v.price ?? '')), available: v.available }));
+    const known = vs.filter(v => typeof v.available === 'boolean');
+    const pool = vs.filter(v => v.available === true && Number.isFinite(v.price));
+    const prices = (pool.length ? pool : vs).map(v => v.price).filter(Number.isFinite);
+    if (p.handle && vs.length) {
+      byHandle.set(String(p.handle).toLowerCase(), { aw: `handle:${p.handle}`, mid: '', price: currency && prices.length ? Math.min(...prices) : NaN, currency: currency || '',
+        inStock: known.length ? known.some(v => v.available === true) : null, stockText: '', image: images[0] || '', images });
+    }
     for (const v of p.variants || []) {
       rows++;
       const own = v.featured_image ? realImage(abs(typeof v.featured_image === 'object' ? v.featured_image.src : v.featured_image)) : '';
@@ -355,7 +391,7 @@ export function feedFromShopify(catalog, currency, now = new Date()) {
       if (e.mid && !byMid.has(e.mid)) byMid.set(e.mid, e);
     }
   }
-  return { byAw, byMid, rows, newest: now.toISOString().slice(0, 19).replace('T', ' '), newestFile: 0, shop: true };
+  return { byAw, byMid, byHandle, rows, newest: now.toISOString().slice(0, 19).replace('T', ' '), newestFile: 0, shop: true };
 }
 
 const daysBetween = (a, b) => (b - a) / 86400000;

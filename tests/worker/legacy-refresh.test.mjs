@@ -10,7 +10,7 @@ import { join } from 'node:path';
 import { gzipSync } from 'node:zlib';
 import { execFileSync, spawnSync } from 'node:child_process';
 import { DatabaseSync } from 'node:sqlite';
-import { findFeeds, readFeed, planRefresh, writeCosts, writePlan, keyOf, matchRow, newestFirst, renderReport, linkHost, shopOriginOf, feedFromShopify, readShopCurrency, handleOf, wantedFromRows, readShopCatalogBig } from '../../tools/legacy-refresh-plan.mjs';
+import { findFeeds, readFeed, planRefresh, writeCosts, writePlan, keyOf, matchRow, newestFirst, renderReport, linkHost, shopOriginOf, feedFromShopify, readShopCurrency, handleOf, wantedFromRows, readShopCatalogBig, variantOf } from '../../tools/legacy-refresh-plan.mjs';
 import { readShopifyCatalog } from '../../tools/legacy-import-plan.mjs';
 
 // The CGW indexes on products (read from the live database, 25 Oct 2026).
@@ -396,4 +396,43 @@ test('L66: the one-by-one check stops after 3 failures in a row; reading stops a
   calls.length = 0;
   await readShopCatalogBig('https://instock.net', one, { fetchImpl: fetch2, pauseMs: 0, waits: [0] });
   assert.deepEqual(calls, ['/products.json?limit=250&page=1'], 'all ours seen on page 1: no more requests');
+});
+
+// L66 (1 Nov 2026, second run): GS Workwear rows keep only the product address (https://www.gsworkwear.com/products/<handle>,
+// merchant_product_id a slug), so no option id or SKU matched and 9,361 products looked "gone" (the safety rule hid none).
+test('L66: a row without an option is found by its product address; a row with an option still needs that option', async () => {
+  assert.equal(variantOf('https://www.awin1.com/cread.php?awinmid=125248&ued=' + encodeURIComponent('https://finediam.com/products/ring?variant=58207647760765')), '58207647760765');
+  assert.equal(variantOf('https://www.gsworkwear.com/products/socks'), '');
+  const shop = new Map([
+    ['caterpillar-premium-work-sock-3-pair-pack-footwear', { handle: 'caterpillar-premium-work-sock-3-pair-pack-footwear', images: [{ src: 'https://cdn.shopify.com/socks.jpg' }],
+      variants: [{ id: 1, price: '11.99', available: true }, { id: 2, price: '9.99', available: true }, { id: 3, price: '7.99', available: false }] }],
+    ['dewalt-blade', { handle: 'dewalt-blade', images: [], variants: [{ id: 5, price: '42.50', available: true }] }],
+    ['old-boots', { handle: 'old-boots', images: [], variants: [{ id: 6, price: '50.00', available: false }, { id: 7, price: '55.00', available: false }] }],
+    ['ring', { handle: 'ring', images: [], variants: [{ id: 8, price: '100.00', available: true }] }]
+  ]);
+  const feed = feedFromShopify(shop, 'GBP');
+  const gs = (id, slug, h, price) => ({ id, awin_product_id: `48473:${slug}`, merchant_product_id: slug, product_name: slug, price, currency: 'GBP', stock_status: 'in stock',
+    image_url: 'https://cdn.shopify.com/socks.jpg', is_active: 1, affiliate_url: `https://www.gsworkwear.com/products/${h}` });
+  const rows = [
+    gs(1, 'caterpillar-caterpillar-premium-work-sock-3-pair-pack', 'caterpillar-premium-work-sock-3-pair-pack-footwear', 9.99),
+    gs(2, 'dewalt-dewalt-dt8481', 'dewalt-blade', 39.99),
+    gs(3, 'old-boots', 'old-boots', 50),
+    gs(4, 'gone-from-shop', 'no-such-handle', 5),
+    { ...gs(5, 'x', 'ring', 100), affiliate_url: 'https://www.awin1.com/cread.php?awinmid=125248&ued=' + encodeURIComponent('https://finediam.com/products/ring?variant=999') }
+  ];
+  assert.equal(matchRow(rows[0], feed).price, 9.99, 'lowest price of the options in stock');
+  const p = planRefresh({ rows, feed, costs: { price: 3, image_url: 1, stock_status: 1, is_active: 12 } });
+  assert.deepEqual(Object.fromEntries(p.changes.map(c => [c.id, c.set.price])), { 2: 42.5 });
+  assert.deepEqual(p.hides.sort((a, b) => a - b), [3, 4, 5], 'all options sold out; product gone; the row\'s own option gone');
+  // Reading stops as soon as every row is seen by its address.
+  const calls = [];
+  const fetchImpl = async url => {
+    calls.push(url);
+    const u = new URL(url);
+    if (u.pathname === '/products.json') return { ok: true, status: 200, json: async () => ({ products: [...shop.values(), ...Array.from({ length: 246 }, (_, i) => ({ handle: `z${i}`, variants: [{ id: 9000 + i }] }))] }) };
+    return { ok: false, status: 400, text: async () => 'Page * Limit exceeds the 25000 limit' };
+  };
+  const big = await readShopCatalogBig('https://www.gsworkwear.com', rows.slice(0, 3), { fetchImpl, pauseMs: 0, waits: [0] });
+  assert.equal(calls.length, 1, 'all three seen on page 1: no more pages');
+  assert.deepEqual([...big.catalog.keys()].sort(), ['caterpillar-premium-work-sock-3-pair-pack-footwear', 'dewalt-blade', 'old-boots']);
 });
