@@ -1,6 +1,6 @@
 // Pets feed scan (read-only): which feed products are for the planned Pets Gear World (ZGW, petsgearworld.com), which
-// belong to another Gear World site (children's toys, wild birds, vacuums, dog-print clothing), which are horse gear (for
-// the owner to decide), and which Awin programmes look like pet retailers (not insurance or vets).
+// belong to another Gear World site (children's toys, wild birds, vacuums, dog-print clothing), horse and riding gear (the
+// 11th category, owner 1 Nov 2026), and which Awin programmes look like pet retailers (not insurance or vets).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
@@ -44,7 +44,7 @@ test('look-alike names, pest control, live animals and prescriptions are not pet
   assert.equal(classify('Dog', '').sport, false, 'a pet word alone, without a pet shop or a category word, is not counted');
 });
 
-test('products of another site, and horse gear, are counted apart', () => {
+test('products of another site are counted apart; horse gear is its own category', () => {
   assert.equal(ov('Paw Patrol Chase Plush 20cm'), 'kids');
   assert.equal(ov('Kids Dog Costume'), 'kids', 'a costume for a child');
   assert.equal(ov('Wild Bird Feeder Station with 4 Feeders'), null, 'no pet word: not counted at all');
@@ -53,8 +53,11 @@ test('products of another site, and horse gear, are counted apart', () => {
   assert.equal(ov('Mens Dog Walking Jacket Waterproof'), 'merch');
   assert.equal(ov('Womens Cat Print Pyjamas'), 'merch');
   assert.equal(ov('Dog Print Backpack'), 'merch');
-  assert.equal(ov('Horse Fly Mask Full Face'), 'horse');
-  assert.equal(ov('Hoof Chews for Dogs'), null, 'a dog chew, not horse gear');
+  assert.equal(cat('Horse Fly Mask Full Face'), 'horse', 'horse and riding: the 11th category (owner, 1 Nov 2026)');
+  assert.equal(cat('Equestrian Saddle Pad Navy'), 'horse');
+  assert.equal(cat('Hoof Chews for Dogs'), 'food', 'a dog chew, not horse gear');
+  assert.equal(classify('PONY DANCE Eyelet Blackout Curtains', '').sport, false);
+  assert.equal(classify('Charles Buyers Horse Moulded Top Stick', '').sport, false, 'a horse word without a horse product word');
 });
 
 test('Awin programmes that sell pet products, not insurance or vets', () => {

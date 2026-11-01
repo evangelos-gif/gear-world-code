@@ -7,9 +7,9 @@
      files "<id>-<name>.csv.gz" in Downloads), reads the newest copy of each feed and counts, per retailer, how many
      different pet products it has, per proposed category (beds and crates, leads and collars, toys, food and treats,
      cat trees and litter, grooming, bowls and feeders, travel and carriers, small pets / birds / fish / reptiles,
-     chicken coops and outdoor), with samples.
+     chicken coops and outdoor, horse and riding), with samples.
   2. Counts apart the products that belong to another Gear World site (children's toys and costumes, wild birds, vacuums
-     "for pet hair", dog-print clothing and gifts) and horse and riding gear (for the owner to decide).
+     "for pet hair", dog-print clothing and gifts). Horse and riding gear is the 11th category (owner, 1 Nov 2026).
   3. If the Awin feed key is already saved on this PC (by awin-feed-download.ps1), reads the Awin feed list (read-only)
      and shows which pet programmes you joined and which you could apply to, with links. Pet insurance and vets are left out.
   It imports nothing, downloads no feed, does not contact Cloudflare and changes no file.

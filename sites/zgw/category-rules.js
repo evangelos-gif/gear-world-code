@@ -15,10 +15,13 @@
 //   2. A pet word in the name ("dog", "kitten", "aquarium", "PawHut") or a pet shop category ("Pet Supplies").
 //   3. Products of another Gear World site go apart: children's toys and costumes (KGW), wild birds and pest
 //      deterrents (Garden), vacuums and pet-hair cleaners (Home), dog-print clothing, mugs and decor (Men's, Women's,
-//      Home), horse and riding gear (not in the plan yet: the owner decides).
+//      Home). Horse and riding gear is the 11th category (owner, 1 Nov 2026).
 //   4. A clear name ("dog bed", "cat litter", "Royal Canin"), unless the name says another category's product word; then
 //      the product word with a pet word ("PawHut ... crate").
 //   5. A pet shop product without a category word: "other pet products". Otherwise: not a pet product.
+
+import { fixMojibake } from '../../src/db.js';
+import { cleanProductName as tgwCleanName, notUkHint as tgwNotUkHint } from '../tgw/category-rules.js';
 
 // A list of regex fragments -> one regex with word edges (L42: "cat" must not match "category").
 const words = list => new RegExp(`(?<![a-z0-9])(?:${list.join('|')})(?![a-z0-9])`, 'i');
@@ -79,13 +82,13 @@ export const CATEGORIES = [
     sure: words(['(?:dog|cat|pet|puppy|kitten|parrot|bird|rabbit|hamster) (?:toys?|balls?|chews?|ropes?|frisbees?|tug(?:s| toys?)?|puzzles?|teasers?|wands?|tunnels?)', 'chew toys?', 'squeaky (?:dog |pet )?toys?', 'tug (?:toys?|ropes?)',
       'ball (?:launchers?|throwers?)', 'chuckit!?', 'kong (?:classic|extreme|puppy|wobbler|kickeroo|toys?)', 'catnip(?: toys?)?', 'cat (?:wands?|teasers?|tunnels?|laser)', 'snuffle mats?', 'lick mats?', 'treat (?:puzzles?|balls?|dispensers?)',
       'interactive (?:dog |cat |pet )?toys?', 'training clickers?', 'dog (?:agility|training) (?:sets?|kits?|equipment)', 'nylabone', 'petstages']),
-    ctx: words(['toys?', 'balls?', 'chews?', 'frisbees?', 'puzzles?', 'clickers?']),
+    ctx: words(['toys?', 'balls?', 'frisbees?', 'puzzles?', 'clickers?']),
     type: words(['toys?', 'balls?', 'frisbees?', 'clickers?'])
   },
   {
     key: 'food', label: 'Food & treats',
     sure: words(['(?:dog|cat|puppy|kitten|pet|rabbit|guinea pig|hamster|bird|parrot|fish|reptile|tortoise) (?:food|treats?|biscuits?|kibble|snacks?|chews?|pouches|nuggets|pellets|flakes|seed|mix|nibbles)',
-      '(?:wet|dry|grain[- ]free|complete|senior|adult|puppy|kitten|hypoallergenic) (?:dog |cat )?food', 'dental (?:sticks?|chews?)', 'dentastix', 'rawhide', 'hide (?:chews?|twists?|twisters|rolls?|bones?)', '(?:pork|beef|chicken|duck|lamb) (?:and|&) hide', 'pigs? ears', 'bully sticks?', 'jerky (?:for|dog|cat)',
+      '(?:wet|dry|grain[- ]free|complete|senior|adult|puppy|kitten|hypoallergenic) (?:dog |cat )?food', 'dental (?:sticks?|chews?)', 'chews? for (?:dogs?|cats?|pupp(?:y|ies))', 'dentastix', 'rawhide', 'hide (?:chews?|twists?|twisters|rolls?|bones?)', '(?:pork|beef|chicken|duck|lamb) (?:and|&) hide', 'pigs? ears', 'bully sticks?', 'jerky (?:for|dog|cat)',
       'royal canin', 'purina', 'pro plan', 'pedigree', 'whiskas', 'felix', 'iams', "hill'?s science", "lily'?s kitchen", 'harringtons', 'burns pet', 'applaws', 'james wellbeloved', 'eukanuba', "butcher'?s",
       "wainwright'?s", 'bakers complete', 'dreamies', 'webbox', 'sheba', 'gourmet gold', 'barking heads', 'meowing heads', 'forthglade', 'arden grange', 'scrumbles', 'timothy hay', 'meadow hay', 'mealworms? (?:dried)?',
       'suet (?:for|pellets)', 'fish flakes', 'tetra ?min', 'versele-?laga', 'burgess excel', 'oxbow']),
@@ -101,7 +104,7 @@ export const CATEGORIES = [
   },
   {
     key: 'grooming', label: 'Grooming & care',
-    sure: words(['(?:dog|cat|pet|puppy|kitten|horse) (?:shampoos?|conditioners?|brush(?:es)?|combs?|grooming|clippers?|nail (?:clippers?|grinders?|trimmers?)|wipes|toothbrush(?:es)?|toothpaste|dental (?:kits?|care)|ear cleaners?|eye wipes?|deodori[sz]ers?|colognes?|perfumes?|towels?|dryers?|hair dryers?|nappies|diapers|pads)',
+    sure: words(['(?:dog|cat|pet|puppy|kitten) (?:shampoos?|conditioners?|brush(?:es)?|combs?|grooming|clippers?|nail (?:clippers?|grinders?|trimmers?)|wipes|toothbrush(?:es)?|toothpaste|dental (?:kits?|care)|ear cleaners?|eye wipes?|deodori[sz]ers?|colognes?|perfumes?|towels?|dryers?|hair dryers?|nappies|diapers|pads)',
       'puppy (?:pads|training pads)', 'grooming (?:tables?|arms?|kits?|gloves?|brush(?:es)?|scissors|shears|tools?)', 'deshedding (?:tools?|brush(?:es)?)', 'furminator', 'flea (?:combs?|collars?|treatments?|sprays?|shampoos?)', 'tick (?:removers?|twisters?|collars?)', 'seresto', 'bob martin',
       "johnson'?s veterinary", 'beaphar', 'yumove', 'paw (?:balm|wax|cleaners?|washers?)', 'joint (?:supplements?|care) for (?:dogs?|cats?)', 'pet hair (?:removers?|rollers?|brush(?:es)?)']),
     ctx: words(['shampoos?', 'conditioners?', 'brush(?:es)?', 'combs?', 'clippers?', 'grooming', 'wipes', 'toothbrush(?:es)?', 'toothpaste', 'supplements?', 'vitamins?']),
@@ -140,6 +143,18 @@ export const CATEGORIES = [
     type: words(['coops?', 'enclosures?', 'incubators?', 'catios?'])
   }
 ];
+// Horse and riding: the 11th category (owner, 1 Nov 2026). A horse word ("horse", "pony", "equestrian") with a horse
+// product word, or from a pet shop. Not a dog or cat product ("hoof chews for dogs" are treats).
+export const HORSE = {
+  key: 'horse', label: 'Horse & riding',
+  ctx: words(['horses?', "horse'?s", 'pon(?:y|ies)', 'equestrian', 'equine']),
+  type: words(['saddles?', 'saddle ?(?:pads?|cloths?)', 'bridles?', 'numnahs?', 'girths?', 'stirrups?', 'hay ?nets?', 'rugs?', 'fly (?:masks?|sprays?|fringes?|rugs?|veils?)', 'jodhpurs', 'riding (?:hats?|helmets?|boots?|gloves?|crops?|whips?|tights)',
+    'whips?', 'crops?', 'lead ropes?', 'head ?collars?', 'halters?', 'grooming', 'brush(?:es)?', 'combs?', 'shampoos?', 'hoof', 'hooves', 'treats?', 'feed', 'licks?', 'supplements?', 'boots?', 'bandages?', 'wraps?',
+    'buckets?', 'troughs?', 'feeders?', 'mane', 'tail', 'bits?', 'reins?', 'martingales?', 'boot (?:hooks?|jacks?)', 'stable'])
+};
+CATEGORIES.push({ key: HORSE.key, label: HORSE.label, sure: words(['equestrian', 'equine', 'horse (?:rugs?|treats?|feed|licks?|shampoos?|grooming|brush(?:es)?|boots?|bandages?|fly masks?|saddles?)', 'numnahs?', 'jodhpurs']), ctx: HORSE.ctx, type: HORSE.type });
+const NOT_HORSE = words(['dogs?', 'cats?', 'pupp(?:y|ies)', 'kittens?', 'rabbits?', 'chews?', 'for dogs']);
+
 export const OTHER = { key: 'other-pet', label: 'Other pet products' };
 
 // Products that go to another Gear World site (or wait for the owner). Checked before the pet categories, only with a
@@ -153,7 +168,7 @@ export const OVERLAPS = [
     unless: words(['for (?:dogs?|cats?|pets?|pupp(?:y|ies)|kittens?)']) },
   { key: 'kids', label: 'Children\'s toys, costumes & books with animals (Kids\' Gear World, KGW)', re: words(['paw patrol', 'soft toys?', 'plush(?:ies)?', 'stuffed (?:animals?|toys?)', 'cuddly toys?', 'teddy', 'kids?', "kid'?s", 'children', "children'?s", 'childrens',
     'baby', 'babies', 'toddlers?', 'gabby', 'peppa', 'squishmallows?', 'jellycat', 'keel toys', 'fisher[- ]price', 'toy story', 'pluche', 'warmies', 'hello kitty', 'barbie', 'schleich', 'cuddly',
-    'activity cubes?', 'learning toys?', 'play ?sets?', 'dolls?', 'lego', 'playmobil', 'sylvanian', 'figures?', 'figurines?', 'colouring', 'jigsaws?', 'puzzles? for kids', 'story ?books?', 'picture books?',
+    'activity cubes?', 'learning toys?', 'play ?sets?', 'dolls?', 'schulranzen', 'school ?bags?', 'horse club', 'lego', 'playmobil', 'sylvanian', 'figures?', 'figurines?', 'colouring', 'jigsaws?', 'puzzles? for kids', 'story ?books?', 'picture books?',
     'books?', 'rocking horses?', 'ride[- ]on', 'hobby horses?', 'my little pony', 'interactive (?:pets?|puppy|kitten) toys? for kids', 'robot (?:dog|cat|pet)s?', 'fingerlings', 'furreal', 'tamagotchi']), unless: FOR_PETS },
   { key: 'garden', label: 'Wild birds, wildlife & pest deterrents (Garden Gear World, GGW)', re: words(['wild birds?', 'bird ?feeders?', 'bird (?:baths?|boxes?|tables?|seed|food)', 'nest(?:ing)? boxes?', 'suet', 'fat balls?', 'niger seed', 'sunflower hearts', 'hedgehog', 'bee hotels?', 'insect hotels?',
     'bug hotels?', 'squirrels?', 'repell(?:ers?|ents?)', 'scarers?', 'deterrents?', 'ultrasonic', 'pet[- ](?:safe|friendly) (?:weed|lawn|slug|grass|artificial grass|fertili[sz]ers?)', 'artificial grass', 'lawn']),
@@ -165,9 +180,7 @@ export const OVERLAPS = [
     'dresses?', 'leggings', 'scarf', 'scarves', 'mugs?', 'cups?', 'tea towels?', 'aprons?', 'cushion covers?', 'cushions?', 'throws?', 'bedding', 'bed linen', 'duvet(?: covers?| sets?)?', 'pillowcases?', 'rugs?', 'doormats?',
     'wall art', 'canvas', 'prints?', 'posters?', 'framed', 'ornaments?', 'decorations?', 'baubles?', 'christmas cards?', 'greeting cards?', 'birthday cards?', 'wrapping paper', 'gift bags?', 'jewellery', 'necklaces?', 'pendants?',
     'earrings?', 'bracelets?', 'charms?', 'rings?', 'keyrings?', 'key ?chains?', 'tote bags?', 'handbags?', 'backpacks?', 'purses?', 'wallets?', 'phone cases?', 'calendars?', 'diar(?:y|ies)', 'notebooks?', 'stickers?', 'candles?', 'lamps?', 'night lights?']),
-    unless: FOR_PETS },
-  { key: 'horse', label: 'Horse & riding gear (not in the ZGW plan yet: the owner decides)', re: words(['horses?', 'equestrian', 'equine', 'pon(?:y|ies)', 'riding', 'saddles?', 'saddle ?pads?', 'bridles?', 'numnahs?', 'girths?', 'stirrups?', 'hay ?nets?', 'horse rugs?', 'fly masks?',
-    'jodhpurs', 'hoof', 'hooves']), unless: words(['dogs?', 'cats?', 'pupp(?:y|ies)', 'kittens?', 'chews?']) }
+    unless: FOR_PETS }
 ];
 
 const low = s => String(s || '').toLowerCase().replace(/&amp;/g, ' and ').replace(/&/g, ' and ').replace(/[’`]/g, "'").replace(/[™®]/g, ' ').replace(/[ \s]+/g, ' ').trim();
@@ -176,6 +189,7 @@ const low = s => String(s || '').toLowerCase().replace(/&amp;/g, ' and ').replac
 function typeOf(n) {
   let best = null, at = Infinity;
   for (const k of CATEGORIES) {
+    if (k.key === HORSE.key) continue;
     const i = n.search(k.type);
     if (i >= 0 && i < at) { at = i; best = k.key; }
   }
@@ -184,7 +198,7 @@ function typeOf(n) {
 
 // The pets classifier shared by the feed scan and (later) the import plan. shopCat: the shop's category path (and Awin's).
 //   { cat }                 a ZGW product in that category
-//   { overlap, cat }        a product of another Gear World site (or horse gear, which waits for the owner)
+//   { overlap, cat }        a product of another Gear World site
 //   { why: 'no-list' }      never a ZGW product (look-alike names, pest control, live animals, prescription medicines)
 //   {}                      not a pet product
 export function classifyPets(name, shopCat = '', opts = {}) {
@@ -201,15 +215,58 @@ export function classifyPets(name, shopCat = '', opts = {}) {
       return { overlap: o.key, cat };
     }
   }
+  // Horse and riding gear: a horse word with a horse product word (or from a pet shop), not a dog or cat product.
+  if (HORSE.ctx.test(n) && !NOT_HORSE.test(n)) return (HORSE.type.test(n) || petShop) ? { cat: HORSE.key } : {};
   const type = typeOf(n);
   let cat = null;
   // 1. A clear name, unless the name says another category's product word first.
-  for (const k of CATEGORIES) if (k.sure.test(n) && (!type || type === k.key)) { cat = k.key; break; }
+  for (const k of CATEGORIES) if (k.key !== HORSE.key && k.sure.test(n) && (!type || type === k.key)) { cat = k.key; break; }
   // 2. The product word, with a pet word in the name or a pet shop ("PawHut ... crate", "Pet Supplies > ... bowl").
   if (!cat && type) cat = type;
-  if (!cat) for (const k of CATEGORIES) if (k.ctx.test(n)) { cat = k.key; break; }
+  if (!cat) for (const k of CATEGORIES) if (k.key !== HORSE.key && k.ctx.test(n)) { cat = k.key; break; }
   // 3. A pet product without a category word: only from a pet shop or a pet brand (a name with just "dog" in it is not enough).
   if (!cat && (petShop || brand)) cat = OTHER.key;
   if (!cat) return {};
   return { cat };
 }
+
+// ---------- The import plan's interface (tools/tgw-import-plan.mjs planImport) ----------
+
+export const CATEGORY_SLUGS = CATEGORIES.map(k => k.key);
+
+// A UK site: prices in pounds only (the Dutch VEVOR feed in euros stays out).
+export const QUALITY = {
+  currencies: ['GBP'],
+  minPrice: 1,
+  maxPrice: 3000,
+  requireImage: true,
+  requireInStock: true,
+  affiliateHosts: ['www.awin1.com', 'awin1.com'],
+  maxNameLength: 400
+};
+
+const OVERLAP_REASON = { kids: 'children\'s toy, costume or book (Kids\' Gear World)', garden: 'wild birds or pest deterrent (Garden Gear World)', home: 'vacuum or home appliance (Home Gear World)',
+  merch: 'clothing, gift or decor for people (Men\'s / Women\'s / Home Gear World)' };
+
+export function topCategory(feedCategory) {
+  return String(feedCategory || '').split('>')[0].trim();
+}
+
+// name: product name; feedCategory: the shop's category; paths: the shop's category path; source: its sources.json entry.
+export function classify(name, feedCategory = '', paths = '', source = null) {
+  const shopCat = [feedCategory, paths].filter(Boolean).join(' | ');
+  const r = classifyPets(name, shopCat, { petShop: Boolean(source && source.petShop) });
+  if (r.cat && !r.overlap) {
+    if (r.cat === OTHER.key) return { ok: false, reason: 'pet product, but no ZGW category' };
+    return { ok: true, slug: r.cat };
+  }
+  if (r.overlap) return { ok: false, reason: OVERLAP_REASON[r.overlap] || 'another Gear World site' };
+  if (r.why === 'no-list') return { ok: false, reason: 'look-alike name, pest control, live animal or prescription (not a pet product)' };
+  return { ok: false, reason: 'not a pet product' };
+}
+
+// The same name cleaning and "not for the UK" hints as Technology Gear World (the same shops: Joybuy, Plusshop).
+export function cleanProductName(name) {
+  return tgwCleanName(fixMojibake(String(name || '')));
+}
+export const notUkHint = tgwNotUkHint;

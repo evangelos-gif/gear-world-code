@@ -2,7 +2,7 @@
 // Pets feed scan. READ-ONLY: reads the Awin feed files on this PC (and, if given, a copy of the Awin feed list)
 // and writes a report. It imports nothing and changes no file.
 // For the planned Pets Gear World site (petsgearworld.com, code ZGW: PGW is Gaming, GGW is Garden).
-// Owner (1 Nov 2026): dogs, cats, small pets, birds, fish and reptiles, chickens. No live animals, no prescription
+// Owner (1 Nov 2026): dogs, cats, small pets, birds, fish and reptiles, chickens, horses and riding. No live animals, no prescription
 // medicines. Pet products now on Home (HGW) and Kids' (KGW) are copied to the new site first.
 //
 // 1. Feeds on this PC, in one or more folders (AWIN_<advertiserId>_<feedId>.csv[.gz] and Google Shopping files
@@ -10,8 +10,8 @@
 //    Per retailer: how many DIFFERENT pet products (Google files: all sizes of a product are one product, L34),
 //    per proposed category, in stock (a quantity of 0 is out of stock, L64), currencies, shop categories, samples.
 // 2. Products that belong to another Gear World site are counted apart (L14): children's toys and costumes (KGW), wild
-//    birds and pest deterrents (Garden), vacuums "for pet hair" (Home), dog-print clothing, mugs and decor; horse and
-//    riding gear apart too, for the owner to decide.
+//    birds and pest deterrents (Garden), vacuums "for pet hair" (Home), dog-print clothing, mugs and decor. Horse and
+//    riding gear is the 11th category (owner, 1 Nov 2026).
 // 3. Awin feed list (optional, --list <csv>): which programmes look like pet retailers, joined or not, with the link to
 //    apply. Pet insurance, vets and services are left out.
 //
