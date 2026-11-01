@@ -8,6 +8,7 @@ import { join } from 'node:path';
 import { gzipSync } from 'node:zlib';
 import { planZgwImport } from '../../tools/zgw-import-plan.mjs';
 import { classify, cleanProductName, CATEGORY_SLUGS, QUALITY } from '../../sites/zgw/category-rules.js';
+import site from '../../sites/zgw/site.config.js';
 
 const slug = (n, c = '') => classify(cleanProductName(n), c, c).slug;
 const ok = (n, c = '') => classify(cleanProductName(n), c, c).ok;
@@ -51,6 +52,7 @@ test('ZGW rules leave out children\'s toys, people\'s clothing, vacuums and look
 test('11 categories (10 + horse and riding, owner 1 Nov 2026), prices in pounds only', () => {
   assert.deepEqual(CATEGORY_SLUGS, ['beds-crates', 'walking', 'toys', 'food', 'cats', 'grooming', 'feeding', 'travel', 'small-pets', 'outdoor', 'horse']);
   assert.deepEqual(QUALITY.currencies, ['GBP']);
+  assert.deepEqual(CATEGORY_SLUGS, site.categories.map(c => c.slug), 'the same order as the site menu');
 });
 
 test('sources: Joybuy, Plusshop, Bazta and Coes; Red Gorilla and VEVOR off; no text of another site', () => {

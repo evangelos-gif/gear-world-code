@@ -119,7 +119,7 @@ test('hub v2: the gift finder asks only Gear Worlds that exist, with a price, an
 
 test('hub v2: deals come from promos.js (hub-deals.json is up to date), keep the end date, link to a site page only', async () => {
   const domains = await siteDomains();
-  assert.equal(Object.keys(domains).length, 12, 'the 12 Gear Worlds (PGW the newest)');
+  assert.equal(Object.keys(domains).length, 13, 'the 13 Gear Worlds (ZGW the newest; its Hub card comes with the Hub step)');
   const want = dealsJson(buildDeals(PROMOS, domains));
   assert.equal(read('public/hub-deals.json'), want, 'run: node tools/gwh-deals.mjs');
   const { deals } = JSON.parse(want);
