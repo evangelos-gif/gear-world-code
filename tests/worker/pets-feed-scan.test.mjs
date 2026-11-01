@@ -95,3 +95,19 @@ test('scan: counts per retailer and category, other sites apart, Awin list with 
   assert.match(text, /apply WITH petsgearworld\.com/);
   assert.doesNotMatch(text, /aming|gaminggearworld|Biker/, 'no text of another site (L01)');
 });
+
+test('first scan on the PC (1 Nov 2026): look-alike brands, cables, PET plastic, drones, traps and toy brands are not pet products', () => {
+  for (const [n, c] of [['Dassy Stretch-Arbeitshose Hong Kong PESCO41 201099', ''], ['Schütze Sicherheitsstiefel FELIX 6383X KH S3S ESD', ''], ['LOVE STORIES Slip TRIXIE tiger braun', ''],
+    ['FDL IP68 RATED CAT.6A WEATHERPROOF ENCLOSURE BOX', 'Default Category>PC Components>Other'], ['Zebra Wristbands/Tags. Paper/PET. 4.25x11in', ''], ['Nintendo Donkey Kong Bananza Standard', ''],
+    ['Parrot PF070312 camera drone part/accessory Battery', 'Computers'], ['Proctor Brothers Cage Rabbit Trap', ''], ['NitroLift Volvo Dog Guard Gas Strut 235N', ''], ['Palmolive Aquarium Hand Soap 300ml', 'Household'],
+    ['Rino & Pelle Feline Faux Fur Jacket With Knitted Sleeves', 'Womenswear'], ['Vizrt Connect Tetra 4-Channel 12G/3G-SDI - NDI Converter', ''], ['ALFI Isolierkanne Juwel 1l Edelstahl silber', ''],
+    ['Makita Smartholder Chainsaw Log Horse', ''], ['Uberstar Budgie Bottle Opener Corkscrew', 'Gifts']]) {
+    assert.equal(classify(n, c).sport, false, n);
+  }
+  assert.equal(ov('Keel Toys Soft Cuddly Rabbit - White', 'Toys'), 'kids');
+  assert.equal(ov("Fisher Price Puppy's Activity Cube Learning Toy"), 'kids');
+  assert.equal(cat('Good Boy Pork and Hide Twisters 60g', 'Animals & Pet Supplies > Pet Supplies > Dog Supplies'), 'food', 'a treat, not a reptile hide');
+  assert.equal(cat('Felix As Good As It Looks Cat Food 12x100g'), 'food');
+  assert.equal(cat('KONG Classic Dog Toy Large'), 'toys');
+  assert.equal(cat('Barbour Dog Small Quilted Carrier', 'Gifts'), 'travel');
+});
