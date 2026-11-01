@@ -1,6 +1,6 @@
-// Import rules for Swan & Edgar (CJ Affiliate advertiser 7953236) on Men's and Women's Gear World (1 Nov 2026, lessons L88).
+// Import rules for Swan & Edgar (CJ Affiliate advertiser 7983236) on Men's and Women's Gear World (1 Nov 2026, lessons L88).
 // A British watch brand (swanandedgar.com, GBP) that accepted us on CJ on 1 Nov 2026. Its catalogue comes from the CJ
-// product search API (tools/cj-feed-download.ps1 -> CJ_7953236.csv.gz); each card's link is its CJ tracking link (L86).
+// product search API (tools/cj-feed-download.ps1 -> CJ_7983236.csv.gz); each card's link is its CJ tracking link (L86).
 // The places already exist (lessons L56): MGW Watches > Men's Watches / Unisex Watches / Watches, WGW Watches > Watches.
 //  - Men's and plain watches -> MGW Men's Watches; "unisex" -> MGW Unisex Watches; ladies' / women's -> WGW Watches.
 //  - Straps, winders and watch boxes -> MGW Watches > Watches.
@@ -10,7 +10,7 @@
 export const RULES = {
   key: 'swan-edgar',
   network: 'cj',
-  advertiserId: 7953236,
+  advertiserId: 7983236,
   retailer: 'Swan and Edgar',
   currency: 'GBP',
   shop: /^https:\/\/(www\.)?swanandedgar\.(com|co\.uk)\//i,
