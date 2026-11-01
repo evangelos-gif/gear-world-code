@@ -187,6 +187,17 @@
 
   // Deals from hub-deals.json (made from promos/promos.js by tools/gwh-deals.mjs): only those that run today, codes
   // first (smaller minimum spend first), then sales (bigger saving first). Every link is a retailer page of a site.
+  // The campaign name of a deal ("Halloween") once that season is over: not shown, the code itself still runs to its
+  // end date (owner, 1/11/2026: the Joybuy codes of the Halloween campaign run to 31/12).
+  const SEASON_WORDS = { halloween: /halloween/i, "black-friday": /black ?friday|cyber ?monday/i, christmas: /christmas|xmas/i };
+  function campaignLabel(d, now) {
+    const name = String((d && d.campaign) || "");
+    const today = ukToday(now);
+    const year = Number(today.slice(0, 4));
+    for (const s of seasonsOf(year)) if (SEASON_WORDS[s.id] && SEASON_WORDS[s.id].test(name) && today > s.end) return "";
+    return name;
+  }
+
   function activeDeals(deals, now) {
     const today = ukToday(now);
     return (Array.isArray(deals) ? deals : [])
@@ -284,7 +295,8 @@
       { id: "halloween", start: `${year}-10-20`, end: `${year}-10-31`, file: "halloween", name: "seasonHalloween", title: "halloweenTitle", mirror: true },
       { id: "black-friday", start: isoDay(year, 11, bf - 7), end: isoDay(year, 11, bf + 4), file: "black-friday", name: "seasonBlackFriday", title: "bfTitle", countdownTo: `${isoDay(year, 11, bf + 3)}T23:59:00Z` },
       // Owner, 1/11/2026: the Christmas video (the fireplace) from 1 November; during Black Friday (listed first) that one shows.
-      { id: "christmas", start: `${year}-11-01`, end: `${year}-12-24`, file: "christmas", name: "xmasEyebrow", title: "xmasDealsTitle", mirror: true }
+      // Its button opens the gift finder, not the deals (owner, 1/11/2026: "See deals" led to the Joybuy Halloween codes).
+      { id: "christmas", start: `${year}-11-01`, end: `${year}-12-24`, file: "christmas", name: "xmasEyebrow", title: "xmasDealsTitle", mirror: true, gifts: true }
     ];
   }
   function seasonFor(now) {
@@ -324,7 +336,7 @@
     return false;
   }
 
-  window.GearWorldHubV2 = { heroSlides, seasonFor, seasonsOf, blackFridayDay, countdownText, seasonMediaVersion: SEASON_MEDIA_VERSION, art: ART, artFor, locales: LOCALES, strings: T, sameAsEnglish: SAME_AS_ENGLISH, campaigns: CAMPAIGNS, fallbackCampaign: FALLBACK_CAMPAIGN, gifts: GIFTS, budgets: BUDGETS, popular: POPULAR, activeCampaigns, activeDeals, giftSearchUrl, ukToday };
+  window.GearWorldHubV2 = { heroSlides, campaignLabel, seasonFor, seasonsOf, blackFridayDay, countdownText, seasonMediaVersion: SEASON_MEDIA_VERSION, art: ART, artFor, locales: LOCALES, strings: T, sameAsEnglish: SAME_AS_ENGLISH, campaigns: CAMPAIGNS, fallbackCampaign: FALLBACK_CAMPAIGN, gifts: GIFTS, budgets: BUDGETS, popular: POPULAR, activeCampaigns, activeDeals, giftSearchUrl, ukToday };
 
   // ------------------------------------------------------------ page
   const $ = (selector, root) => (root || document).querySelector(selector);
@@ -410,7 +422,9 @@
           <strong class="gwh2-season-title">${esc(tx(season.title))}</strong>
           <span class="gwh2-season-count" data-gwh2-count hidden></span>
           <div class="gwh2-slide-foot">
-            <a class="gwh2-btn" href="#gwh2Deals" data-gwh2-jump="#gwh2Deals" data-gwh2-season-cta>${esc(activeDeals(deals).length || !dealsLoaded ? tx("bfCta") : tx("soonCta"))}</a>
+            ${season.gifts
+              ? `<a class="gwh2-btn" href="#gifts" data-gwh2-jump="#gifts">${esc(tx("xmasCta"))}</a>`
+              : `<a class="gwh2-btn" href="#gwh2Deals" data-gwh2-jump="#gwh2Deals" data-gwh2-season-cta>${esc(activeDeals(deals).length || !dealsLoaded ? tx("bfCta") : tx("soonCta"))}</a>`}
             ${slideNav(list.length)}
           </div>
         </div>
@@ -549,7 +563,7 @@
         <a class="gwh2-deal" href="${esc(d.link)}">
           <span class="gwh2-deal-top"><span class="gwh2-deal-shop">${esc(d.retailer)}</span><span class="gwh2-deal-end">${esc(tx("dealUntil", { date: longDate(d.end) }))}</span></span>
           <strong class="gwh2-deal-offer">${esc(offer)}</strong>
-          <span class="gwh2-deal-meta">${esc(d.kind === "code" ? tx("dealWithCode") : tx("dealSale"))} · ${esc(d.campaign || "")}</span>
+          <span class="gwh2-deal-meta">${esc(d.kind === "code" ? tx("dealWithCode") : tx("dealSale"))}${campaignLabel(d) ? ` · ${esc(campaignLabel(d))}` : ""}</span>
           <span class="gwh2-deal-worlds">${esc(worlds)}</span>
           <span class="gwh2-deal-cta">${esc(tx("dealCta"))} →</span>
         </a>`;

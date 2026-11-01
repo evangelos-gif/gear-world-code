@@ -155,7 +155,7 @@ test('hub v2: the page keeps every id and class the other scripts need, and load
   assert.match(html, /<body class="gwh2" data-gwh-compact-v2="true">/);
   assert.match(html, /<div class="hero-copy">\s*<span class="eyebrow">/);
   assert.match(html, /<link rel="stylesheet" href="\/hub-v2\.css\?v=20261031-pgw1">/);
-  assert.match(html, /<script src="\/hub-v2\.js\?v=20261101-xmas1" defer><\/script>/);
+  assert.match(html, /<script src="\/hub-v2\.js\?v=20261101-xmas2" defer><\/script>/);
   assert.ok(html.indexOf('/gear-world-camera.js?v=') < html.indexOf('/hub-v2.js?v='), 'hub-v2.js after the camera script');
   assert.ok(!html.includes('/styles.css'), 'the old styles.css is not loaded');
   assert.ok(!html.includes('gwh-hero.png'), 'the 2.8 MB picture is gone from the page');
@@ -311,4 +311,18 @@ test('hub v2: the Worker answers byte ranges for the seasonal files (iPhone Safa
   assert.equal((await head.arrayBuffer()).byteLength, 0);
   assert.equal((await get('/seasonal/missing.mp4')).status, 404);
   assert.equal((await get('/seasonal/halloween.mp4', {}, 'POST')).status !== 206, true, 'only GET and HEAD');
+});
+
+test('hub v2: the Christmas video opens the gift finder, and a deal does not say "Halloween" after Halloween (owner, 1/11/2026)', () => {
+  const h = hub();
+  const xmas = h.seasonsOf(2026).find(s => s.id === 'christmas');
+  assert.equal(xmas.gifts, true);
+  const code = read('public/hub-v2.js');
+  assert.ok(code.includes('`<a class="gwh2-btn" href="#gifts" data-gwh2-jump="#gifts">${esc(tx("xmasCta"))}</a>`'));
+  const d = { campaign: 'Halloween' };
+  assert.equal(h.campaignLabel(d, at('2026-10-30')), 'Halloween');
+  assert.equal(h.campaignLabel(d, at('2026-11-01')), '');
+  assert.equal(h.campaignLabel({ campaign: 'Black Friday' }, at('2026-11-28')), 'Black Friday');
+  assert.equal(h.campaignLabel({ campaign: 'Black Friday' }, at('2026-12-02')), '');
+  assert.equal(h.campaignLabel({ campaign: 'Beauty week' }, at('2026-12-02')), 'Beauty week');
 });
