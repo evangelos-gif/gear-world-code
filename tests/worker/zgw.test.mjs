@@ -122,3 +122,20 @@ test('colour-blind safe colours (lessons L35): no red or green signal colours le
   assert.ok(ratio('#ffffff', v('tag')) >= 4.5, 'white text on the price-drop tag');
   assert.ok(ratio(v('ok'), v('surface')) >= 4.5, '"in stock" on cards');
 });
+
+test('birds page: one link per kind of bird, and ?sub= shows only that kind (other values are ignored)', async () => {
+  const env = envOf();
+  const all = await (await get('/category/birds/', env)).text();
+  assert.match(all, /<nav class="sub-nav"/);
+  for (const s of site.categories.find(c => c.slug === 'birds').subcategories) assert.ok(all.includes(`?sub=${s.slug}`), s.slug);
+  assert.match(all, /Wooden Chicken Coop/);
+  assert.match(all, /Canary Breeding Cage/);
+  const hens = await (await get('/category/birds/?sub=chickens', env)).text();
+  assert.match(hens, /Wooden Chicken Coop/);
+  assert.doesNotMatch(hens, /Canary Breeding Cage/);
+  assert.match(hens, /noindex/);
+  const wrong = await (await get('/category/birds/?sub=dragons', env)).text();
+  assert.match(wrong, /Canary Breeding Cage/, 'an unknown subcategory shows the whole category');
+  const food = await (await get('/category/food/', env)).text();
+  assert.doesNotMatch(food, /class="sub-nav"/, 'no subcategory links where the config has none');
+});

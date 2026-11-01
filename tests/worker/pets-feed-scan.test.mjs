@@ -29,7 +29,7 @@ test('pet products go to the proposed category (names from the live Gear World s
   assert.equal(cat('60cm Foldable Pet Carrier Cat Bag w/ Cushion'), 'travel');
   assert.equal(cat('Rabbit Hutch with Run 2 Tier'), 'small-pets');
   assert.equal(cat('Fluval Flex Aquarium 57L'), 'small-pets');
-  assert.equal(cat('Omlet Eglu Cube Chicken Coop'), 'outdoor');
+  assert.equal(cat('Omlet Eglu Cube Chicken Coop'), 'birds', 'chickens are birds (owner, 1 Nov 2026)');
   assert.equal(cat('Pet Gate Baby Gate for Dogs Extra Wide'), 'beds-crates', '"baby" here is for the dog');
   assert.equal(cat('Stainless Steel Bowl Set', 'Pet Supplies > Dogs > Bowls'), 'feeding', 'the shop says pets');
 });

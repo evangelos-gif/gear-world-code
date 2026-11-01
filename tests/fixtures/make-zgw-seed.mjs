@@ -19,7 +19,7 @@ const ICON_PATHS = {
   'feeding': '<ellipse cx="100" cy="120" rx="60" ry="22"/><path d="M40 120v12c0 12 27 22 60 22s60-10 60-22v-12"/>',
   'travel': '<rect x="45" y="65" width="110" height="80" rx="12"/><path d="M80 65V50h40v15M65 90h70M65 110h70"/>',
   'small-pets': '<path d="M40 150V70l60-30 60 30v80z"/><path d="M75 150v-40h50v40"/>',
-  'outdoor': '<path d="M35 150V90l65-40 65 40v60z"/><path d="M85 150v-35h30v35M35 150h130"/>',
+  'birds': '<path d="M60 120c0-35 25-60 55-60 20 0 30 15 30 30l20 5-20 10c0 30-25 50-55 50-15 0-30-10-30-35z"/><circle cx="120" cy="85" r="4"/>',
   'horse': '<path d="M55 150c0-40 15-80 55-90l20-15 5 25c15 15 20 35 15 50l-20-5-10 35z"/>'
 };
 function image(cat) {
@@ -40,9 +40,11 @@ const MODELS = {
   'feeding': ['Stainless Steel Dog Bowl', 'Slow Feeder Dog Bowl', 'Automatic Cat Feeder', 'Pet Water Fountain 2L'],
   'travel': ['Pet Carrier Backpack', 'Dog Car Seat Cover', 'Soft Cat Carrier', 'Folding Dog Ramp'],
   'small-pets': ['Rabbit Hutch with Run', 'Guinea Pig Cage', 'Hamster Wheel Silent', 'Aquarium 60L Starter Kit'],
-  'outdoor': ['Wooden Chicken Coop', 'Poultry Feeder 5kg', 'Outdoor Dog Run', 'Chicken Drinker 3L'],
+  'birds': ['Wooden Chicken Coop', 'Canary Breeding Cage', 'Budgie Rope Perch', 'Bird Cage with Stand'],
   'horse': ['Horse Fly Mask', 'Equestrian Saddle Pad', 'Horse Grooming Kit', 'Horse Treats Apple 1kg']
 };
+// Birds: the subcategory per kind of bird, as category-rules.js writes it (the Birds page filters on it).
+const SUBS = { 'Wooden Chicken Coop': 'Chickens & Poultry', 'Canary Breeding Cage': 'Canaries & Finches', 'Budgie Rope Perch': 'Budgies & Parrots', 'Bird Cage with Stand': 'Other Cage Birds' };
 // Every product its own EAN (the site groups offers by EAN): most valid, some missing, some invalid (lessons L12).
 function ean13(body12) {
   const d = String(body12).split('').map(Number);
@@ -70,7 +72,7 @@ function add({ cat, model, brand, retailer: [advId, retailer, currency], price, 
     merchant_product_id: mpid,
     retailer,
     category_slug: cat,
-    subcategory: model.split(' ').slice(-1)[0],
+    subcategory: SUBS[model] || model.split(' ').slice(-1)[0],
     brand,
     product_name: name,
     product_slug: slugify(name),

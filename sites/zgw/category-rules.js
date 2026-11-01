@@ -41,7 +41,8 @@ export const PET_BRAND = words(['pawhut', 'petsafe', 'ancol', 'rosewood pet', 'k
 export const PET_CTX = words(['dogs?', "dog'?s", 'doggy', 'doggie', 'pupp(?:y|ies)', 'pups?', 'cats?', "cat'?s", 'kittens?', 'kitty', 'pets?', "pet'?s", 'rabbits?', 'bunny', 'bunnies',
   'guinea pigs?', 'hamsters?', 'gerbils?', 'ferrets?', 'chinchillas?', 'degus?', 'parrots?', 'budgies?', 'budgerigars?', 'canar(?:y|ies)', 'cockatiels?', 'lovebirds?', 'aviar(?:y|ies)',
   'aquariums?', 'fish ?tanks?', 'aquatics?', 'tropical fish', 'goldfish', 'koi', 'betta', 'reptiles?', 'tortoises?', 'snakes?', 'lizards?', 'geckos?', 'bearded dragons?', 'vivariums?', 'terrariums?',
-  'chicken (?:coops?|houses?|runs?|feeders?|drinkers?|waterers?|nesting boxes?|fencing|netting)', 'hen (?:houses?|coops?|runs?)', 'poultry', 'paws?', 'catnip', 'kibble', 'horses?', 'equestrian', 'pon(?:y|ies)', 'kong (?:classic|extreme|puppy|wobbler|kickeroo|toys?)', 'felix (?:as good as it looks|cat|pouches|original|crispies)',
+  'chicken (?:coops?|houses?|runs?|feeders?|drinkers?|waterers?|nesting boxes?|fencing|netting|feed|pellets|corn|grit|treats?|keeping)', 'hen (?:houses?|coops?|runs?)', 'poultry', 'for (?:chickens|hens|poultry)', 'coops?', 'layers? (?:pellets|mash)',
+  'finch(?:es)?', 'parakeets?', 'conures?', 'macaws?', 'cockatoos?', 'african greys?', 'cage birds?', 'bird ?cages?', 'small birds?', 'pet birds?', 'paws?', 'catnip', 'kibble', 'horses?', 'equestrian', 'pon(?:y|ies)', 'kong (?:classic|extreme|puppy|wobbler|kickeroo|toys?)', 'felix (?:as good as it looks|cat|pouches|original|crispies)',
   'trixie (?:dog|cat|pet)', 'tetra ?(?:min|pro|aquasafe|pond)', 'juwel (?:aquarium|rio|lido|primo)']);
 // A shop category that says pets (the shop's own path, or Awin's / Google's category).
 export const PET_SHOP = words(['pets?', 'pet supplies', 'pet care', 'pet products', 'animals? (?:and|&) pet supplies', 'dog (?:supplies|accessories|food|toys)', 'cat (?:supplies|accessories|food|toys)',
@@ -69,9 +70,10 @@ export const CATEGORIES = [
     key: 'beds-crates', label: 'Beds, crates & kennels',
     sure: words(['(?:dog|cat|pet|puppy|kitten) (?:beds?|baskets?|cushions?|mattress(?:es)?|sofas?|blankets?|caves?|igloos?|crates?|cages?|kennels?|houses?|pens?|playpens?|gates?|steps|stairs|ramps? for (?:beds?|sofas?))',
       '(?:dog|puppy) (?:crate|kennel) (?:covers?|mats?|beds?)', 'calming (?:dog |cat |pet )?beds?', 'orthopaedic (?:dog |pet )?beds?', 'donut (?:dog |cat |pet )?beds?', 'dog crate furniture', 'pet playpens?', 'puppy (?:pens?|play ?pens?)',
-      'whelping (?:box|pens?)', 'pet (?:doors?|gates?)', 'dog (?:flaps?|doors?)']),
-    ctx: words(['beds?', 'baskets?', 'cushions?', 'mattress(?:es)?', 'blankets?', 'crates?', 'kennels?', 'playpens?', 'gates?', 'houses?']),
-    type: words(['beds?(?! (?:linen|sheets?|frames?|throws?|spreads?))', 'baskets?', 'crates?', 'kennels?', 'playpens?', 'pet gates?', 'dog houses?', 'cat houses?'])
+      'whelping (?:box|pens?)', 'pet (?:doors?|gates?)', 'dog (?:flaps?|doors?)', 'dog (?:runs?|fences?|fencing)', 'outdoor (?:dog |cat |pet )?(?:kennels?|houses?|runs?|enclosures?|pens?)',
+      'pet (?:enclosures?|fences?|fencing|runs?)', 'catios?', 'cat (?:enclosures?|runs?|fences?|fencing)']),
+    ctx: words(['beds?', 'baskets?', 'cushions?', 'mattress(?:es)?', 'blankets?', 'crates?', 'kennels?', 'playpens?', 'gates?', 'houses?', 'enclosures?']),
+    type: words(['beds?(?! (?:linen|sheets?|frames?|throws?|spreads?))', 'baskets?', 'crates?', 'kennels?', 'playpens?', 'pet gates?', 'dog houses?', 'cat houses?', 'enclosures?', 'catios?'])
   },
   {
     key: 'walking', label: 'Leads, collars, harnesses & coats',
@@ -85,7 +87,7 @@ export const CATEGORIES = [
     key: 'toys', label: 'Toys & training',
     sure: words(['(?:dog|cat|pet|puppy|kitten|parrot|bird|rabbit|hamster) (?:toys?|balls?|chews?|ropes?|frisbees?|tug(?:s| toys?)?|puzzles?|teasers?|wands?|tunnels?)', 'chew toys?', 'squeaky (?:dog |pet )?toys?', 'tug (?:toys?|ropes?)',
       'ball (?:launchers?|throwers?)', 'chuckit!?', 'kong (?:classic|extreme|puppy|wobbler|kickeroo|toys?)', 'catnip(?: toys?)?', 'cat (?:wands?|teasers?|tunnels?|laser)', 'snuffle mats?', 'lick mats?', 'treat (?:puzzles?|balls?|dispensers?)',
-      'interactive (?:dog |cat |pet )?toys?', 'training clickers?', 'dog (?:agility|training) (?:sets?|kits?|equipment)', 'nylabone', 'petstages']),
+      'interactive (?:dog |cat |pet )?toys?', 'training clickers?', 'dog (?:agility|training) (?:sets?|kits?|equipment)', 'dog (?:pools?|paddling pools?)', 'nylabone', 'petstages']),
     ctx: words(['toys?', 'balls?', 'frisbees?', 'puzzles?', 'clickers?']),
     type: words(['toys?', 'balls?', 'frisbees?', 'clickers?'])
   },
@@ -130,24 +132,40 @@ export const CATEGORIES = [
     type: words(['carriers?', 'strollers?', 'car seats?', 'seat covers?', 'boot liners?', 'dog guards?'])
   },
   {
-    key: 'small-pets', label: 'Small pets, birds, fish & reptiles',
-    sure: words(['(?:rabbit|guinea pig|hamster|gerbil|ferret|chinchilla|small animal|bird|parrot|budgie|canary|cockatiel) (?:hutch(?:es)?|cages?|runs?|houses?|bedding|hides?|wheels?|bottles?|perches?|swings?|baths?|stands?|tunnels?)', 'rabbit (?:hutch(?:es)?|runs?)', 'hutch(?:es)?',
-      'guinea pig', 'hamster', 'small animal', 'bird ?cages?', 'parrot (?:cages?|stands?|perches?)', 'aviar(?:y|ies)', 'aquariums?', 'fish ?tanks?', 'aquarium (?:filters?|heaters?|lights?|gravel|plants?|decorations?|pumps?)',
+    key: 'small-pets', label: 'Small pets, fish & reptiles',
+    sure: words(['(?:rabbit|guinea pig|hamster|gerbil|ferret|chinchilla|degu|rat|mouse|small animal) (?:hutch(?:es)?|cages?|runs?|houses?|bedding|hides?|wheels?|bottles?|tunnels?|igloos?|hay racks?)', 'rabbit (?:hutch(?:es)?|runs?)', 'hutch(?:es)?',
+      'guinea pig', 'hamster', 'small animal', 'aquariums?', 'fish ?tanks?', 'aquarium (?:filters?|heaters?|lights?|gravel|plants?|decorations?|pumps?)',
       'water conditioners? (?:for )?(?:aquariums?|fish)', 'tetra', 'fluval', 'juwel', 'vivariums?', 'terrariums?', 'reptile (?:heat|uv|lamps?|bulbs?|mats?|hides?|substrates?|tanks?)', 'heat mats? for reptiles', 'exo terra', 'zoo med',
       'tortoise (?:tables?|houses?|food)', 'pond (?:fish|food)', 'koi (?:food|pellets?)', 'burgess', 'oxbow']),
-    ctx: words(['hutch(?:es)?', 'cages?', 'runs?', 'bedding', 'wheels?', 'perches?', 'filters?', 'heaters?', 'substrates?', 'gravel', 'tanks?']),
-    type: words(['hutch(?:es)?', 'cages?', 'aquariums?', 'fish ?tanks?', 'vivariums?', 'terrariums?', 'perches?'])
-  },
-  {
-    key: 'outdoor', label: 'Chicken coops & outdoor',
-    sure: words(['chicken (?:coops?|houses?|runs?|feeders?|drinkers?|waterers?|fencing|netting|nesting boxes?|perches?)', 'hen (?:houses?|coops?|runs?)', 'poultry (?:feeders?|drinkers?|houses?|netting|fencing|runs?)', 'coops?', 'eglu', 'omlet',
-      'dog (?:runs?|fences?|fencing|pens? outdoor|kennels? outdoor|houses? outdoor|pools?|paddling pools?)', 'outdoor (?:dog |cat |pet )?(?:kennels?|houses?|runs?|enclosures?|pens?)', 'pet (?:enclosures?|fences?|fencing|runs?)', 'catios?', 'cat (?:enclosures?|runs?|fences?|fencing)',
-      'nesting boxes? for (?:hens|chickens)', 'egg incubators?']),
-    ctx: words(['coops?', 'runs?', 'fences?', 'fencing', 'enclosures?', 'netting', 'drinkers?', 'incubators?']),
-    type: words(['coops?', 'enclosures?', 'incubators?', 'catios?'])
+    ctx: words(['hutch(?:es)?', 'cages?', 'runs?', 'bedding', 'wheels?', 'filters?', 'heaters?', 'substrates?', 'gravel', 'tanks?']),
+    type: words(['hutch(?:es)?', 'aquariums?', 'fish ?tanks?', 'vivariums?', 'terrariums?'])
   }
 ];
-// Horse and riding: the 11th category (owner, 1 Nov 2026). A horse word ("horse", "pony", "equestrian") with a horse
+// Birds: one category with a subcategory per kind of bird (owner, 1 Nov 2026: "birds, with subcategories for chickens,
+// canaries and so on", no "chicken coops" category). A bird word in the name (or a bird section of a pet shop), not a dog
+// or cat product ("Chicken Dry Dog Food" is dog food). Wild birds (feeders, fat balls) stay on Garden.
+export const BIRDS = {
+  key: 'birds', label: 'Birds',
+  ctx: words(['parrots?', 'budgies?', 'budgerigars?', 'canar(?:y|ies)', 'cockatiels?', 'lovebirds?', 'finch(?:es)?', 'parakeets?', 'conures?', 'macaws?', 'cockatoos?', 'african greys?', 'aviar(?:y|ies)',
+    'bird ?cages?', 'cage birds?', 'small birds?', 'pet birds?', '(?:bird|parrot|budgie|canary) (?:toys?|perch(?:es)?|swings?|baths?|ladders?|mirrors?|nests?|bells?|treats?|grit|cuttlefish|seed mix)',
+    'poultry', 'hens?', 'chicken (?:coops?|houses?|runs?|feeders?|drinkers?|waterers?|feed|pellets|corn|grit|nesting(?: boxes?)?|perch(?:es)?|fencing|netting|treats?|keeping)', 'for (?:chickens|hens|poultry)',
+    'coops?', 'eglu', 'layers? (?:pellets|mash)', 'mixed corn', 'egg incubators?', 'incubators?', 'duck (?:houses?|feed|pellets)', 'bantams?']),
+  // The subcategories, as the site config lists them (sites/zgw/site.config.js): the first match wins.
+  subs: [
+    ['Chickens & Poultry', words(['poultry', 'hens?', 'chickens?', 'coops?', 'eglu', 'layers?', 'mixed corn', 'incubators?', 'ducks?', 'quails?', 'bantams?', 'chicks'])],
+    ['Canaries & Finches', words(['canar(?:y|ies)', 'finch(?:es)?'])],
+    ['Budgies & Parrots', words(['parrots?', 'budgies?', 'budgerigars?', 'cockatiels?', 'lovebirds?', 'parakeets?', 'conures?', 'macaws?', 'cockatoos?', 'african greys?'])]
+  ],
+  other: 'Other Cage Birds'
+};
+const NOT_BIRD = words(['dogs?', 'cats?', 'pupp(?:y|ies)', 'kittens?', 'for dogs', 'for cats']);
+export function birdSub(text) {
+  for (const [name, re] of BIRDS.subs) if (re.test(text)) return name;
+  return BIRDS.other;
+}
+CATEGORIES.push({ key: BIRDS.key, label: BIRDS.label, sure: BIRDS.ctx, ctx: BIRDS.ctx, type: words(['bird ?cages?', 'coops?', 'aviar(?:y|ies)']) });
+
+// Horse and riding: the 11th category (owner, 1 Nov 2026), after Birds. A horse word ("horse", "pony", "equestrian") with a horse
 // product word, or from a pet shop. Not a dog or cat product ("hoof chews for dogs" are treats).
 export const HORSE = {
   key: 'horse', label: 'Horse & riding',
@@ -183,7 +201,7 @@ const SHOP_MAP = [
   [words(['toys?']), 'toys'], [words(['litter', 'scratch(?:ers?|ing)', 'cat furniture']), 'cats'], [words(['beds?', 'bed accessories', 'kennels?', 'crates?', 'playpens?', 'houses?']), 'beds-crates'],
   [words(['collars?', 'harness(?:es)?', 'leash(?:es)?', 'leads?', 'apparel', 'training aids?']), 'walking'], [words(['carriers?', 'strollers?', 'car seats?', 'travel']), 'travel'],
   [words(['bowls?', 'feeders?', 'waterers?', 'fountains?']), 'feeding'], [words(['grooming', 'shampoos?', 'flea', 'tick', 'vitamins?', 'supplements?', 'oral care', 'first aid', 'health']), 'grooming'],
-  [words(['food', 'treats?', 'snacks?']), 'food'], [words(['small animals?', 'birds?', 'fish', 'aquari(?:um|a)', 'reptiles?', 'amphibians?']), 'small-pets'], [words(['poultry', 'chickens?']), 'outdoor']
+  [words(['food', 'treats?', 'snacks?']), 'food'], [words(['birds?', 'poultry', 'chickens?']), 'birds'], [words(['small animals?', 'fish', 'aquari(?:um|a)', 'reptiles?', 'amphibians?']), 'small-pets']
 ];
 const PET_STRONG = new RegExp(`${FOR_PETS.source}|${words(['(?:dog|cat|puppy|kitten|pet) (?:food|treats?|biscuits?|chews?)']).source}`, 'i');
 export const OVERLAPS = [
@@ -213,7 +231,7 @@ const low = s => String(s || '').toLowerCase().replace(/&amp;/g, ' and ').replac
 function typeOf(n) {
   let best = null, at = Infinity;
   for (const k of CATEGORIES) {
-    if (k.key === HORSE.key) continue;
+    if (k.key === HORSE.key || k.key === BIRDS.key) continue;
     const i = n.search(k.type);
     if (i >= 0 && i < at) { at = i; best = k.key; }
   }
@@ -229,6 +247,9 @@ export function classifyPets(name, shopCat = '', opts = {}) {
   const n = low(name), c = low(shopCat);
   if (!n || NO.test(n)) return { why: 'no-list' };
   if (SHOP_ADULT.test(c)) return { why: 'no-list' };
+  // An equestrian shop section is horse and riding gear, even when the section also says clothing ("Women's Riding Pants
+  // ... Equestrian" in Sporting Goods > Outdoor Recreation > Equestrian).
+  if (SHOP_HORSE.test(c) && (PET_CTX.test(n) || /riding|breeches|jodhpurs|saddle|bridle|stirrup|girth|numnah/.test(n))) return { cat: HORSE.key };
   const petShop = PET_SHOP.test(c) || Boolean(opts.petShop);
   if (!petShop && !PET_STRONG.test(n)) {
     if (SHOP_FOOD.test(c) || SHOP_CAMERA.test(c)) return { why: 'no-list' };
@@ -239,7 +260,6 @@ export function classifyPets(name, shopCat = '', opts = {}) {
   const brand = PET_BRAND.test(n);
   const ctxName = PET_CTX.test(n) || brand;
   if (!ctxName && !petShop) return {};
-  // An equestrian shop section is horse and riding gear ("Women's Riding Pants ... Equestrian").
   if (SHOP_HORSE.test(c)) return { cat: HORSE.key };
   // In a pet shop section the shop has already said it is for an animal: no other site takes it ("Pet Handbag",
   // "Small Animal Bedding", "Plush Toy" in Dog Supplies, second dry run of 1 Nov 2026).
@@ -252,17 +272,19 @@ export function classifyPets(name, shopCat = '', opts = {}) {
   }
   // Horse and riding gear: a horse word with a horse product word (or from a pet shop), not a dog or cat product.
   if (HORSE.ctx.test(n) && !NOT_HORSE.test(n)) return (HORSE.type.test(n) || petShop) ? { cat: HORSE.key } : {};
+  // Birds, with the subcategory of the kind of bird.
+  if (BIRDS.ctx.test(n) && !NOT_BIRD.test(n)) return { cat: BIRDS.key, sub: birdSub(n) };
   const type = typeOf(n);
   let cat = null;
   // 1. A clear name, unless the name says another category's product word first.
-  for (const k of CATEGORIES) if (k.key !== HORSE.key && k.sure.test(n) && (!type || type === k.key)) { cat = k.key; break; }
+  for (const k of CATEGORIES) if (k.key !== HORSE.key && k.key !== BIRDS.key && k.sure.test(n) && (!type || type === k.key)) { cat = k.key; break; }
   // 2. The product word, with a pet word in the name or a pet shop ("PawHut ... crate", "Pet Supplies > ... bowl").
   if (!cat && type) cat = type;
-  if (!cat) for (const k of CATEGORIES) if (k.key !== HORSE.key && k.ctx.test(n)) { cat = k.key; break; }
-  // 3. A pet product without a category word: only from a pet shop or a pet brand (a name with just "dog" in it is not enough).
+  if (!cat) for (const k of CATEGORIES) if (k.key !== HORSE.key && k.key !== BIRDS.key && k.ctx.test(n)) { cat = k.key; break; }
   // 3. A pet shop product without a category word: the shop's own section names the category ("JW Hol-ee Roller" in
   //    Dog Toys, "Encore Pâté" in Dog Food, a sweater in Pet Apparel).
   if (!cat && petShop) for (const [re, key] of SHOP_MAP) if (re.test(c)) { cat = key; break; }
+  if (cat === BIRDS.key) return { cat, sub: birdSub(`${n} ${c}`) };
   if (!cat && (petShop || brand)) cat = OTHER.key;
   if (!cat) return {};
   return { cat };
@@ -296,7 +318,7 @@ export function classify(name, feedCategory = '', paths = '', source = null) {
   const r = classifyPets(name, shopCat, { petShop: Boolean(source && source.petShop) });
   if (r.cat && !r.overlap) {
     if (r.cat === OTHER.key) return { ok: false, reason: 'pet product, but no ZGW category' };
-    return { ok: true, slug: r.cat };
+    return r.sub ? { ok: true, slug: r.cat, sub: r.sub } : { ok: true, slug: r.cat };
   }
   if (r.overlap) return { ok: false, reason: OVERLAP_REASON[r.overlap] || 'another Gear World site' };
   if (r.why === 'no-list') return { ok: false, reason: 'look-alike name, pest control, live animal or prescription (not a pet product)' };

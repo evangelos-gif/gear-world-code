@@ -175,5 +175,5 @@
 | cat-feeding.webp | https://www.pexels.com/photo/overhead-shot-of-dog-food-in-a-white-and-blue-bowl-4432260/ |
 | cat-travel.webp | https://www.pexels.com/photo/close-up-of-a-white-and-orange-cat-21767483/ |
 | cat-small-pets.webp | https://www.pexels.com/photo/cute-guinea-pig-resting-on-straw-bedding-33091471/ |
-| cat-outdoor.webp | https://www.pexels.com/photo/chickens-on-brown-hay-7790127/ |
+| cat-birds.webp | https://www.pexels.com/photo/budgerigar-parrot-in-a-cage-22813870/ |
 | cat-horse.webp | https://www.pexels.com/photo/horse-saddles-and-horses-in-rustic-outdoor-setting-37309071/ |

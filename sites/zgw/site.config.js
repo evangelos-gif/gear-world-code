@@ -15,7 +15,7 @@ export default {
   lang: 'en-GB',
   locale: 'en-GB',
   currency: 'GBP',
-  assetVersion: '2026-11-01-zgw-1',
+  assetVersion: '2026-11-01-zgw-2',
   promos: promosFor('ZGW'),
   awinPublisherId: AWIN_PUBLISHER_ID,
   storagePrefix: 'zgw',
@@ -99,7 +99,10 @@ export default {
 .hero .eyebrow { color: #f6eee2; }
 /* 11 categories: 2 per row on tablets, 4 per row on wide screens (rows of 4, 4 and 3). */
 @media (min-width: 720px) and (max-width: 1099px) { .cat-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-@media (min-width: 1100px) { .cat-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); } }`,
+@media (min-width: 1100px) { .cat-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+/* Birds: the row of subcategory links above the products (chickens, canaries, budgies...). */
+.sub-nav .chip-list { margin: 0 0 14px; }
+.sub-nav a[aria-current="page"] { background: var(--gold); border-color: var(--gold); color: var(--ink); }`,
   brandAccent: 'Gear World',
   heroEyebrow: 'Independent price comparison for pet owners',
   // Photos: Pexels licence (free for commercial use), brand marks removed. Sources in docs/IMAGE-CREDITS.md.
@@ -137,8 +140,8 @@ export default {
     { name: 'Gaming Gear World', url: 'https://gaminggearworld.com/' }
   ],
 
-  // 11 categories (owner, 1 Nov 2026: 10 for dogs, cats, small pets, birds, fish and chickens, and horse and riding as the
-  // 11th). Products are sorted into them by category-rules.js (the same order). A category with no products yet is
+  // 11 categories (owner, 1 Nov 2026: dogs, cats, small pets and fish, Birds with a subcategory per kind of bird, and horse
+  // and riding as the 11th). Products are sorted into them by category-rules.js (the same order). A category with no products yet is
   // noindex and left out of the sitemap.
   categories: [
     {
@@ -182,14 +185,22 @@ export default {
       description: 'Compare prices on pet carriers, pet backpacks, dog car seats, seat covers and strollers from trusted retailers.'
     },
     {
-      slug: 'small-pets', name: 'Small Pets, Birds, Fish & Reptiles', nav: 'Small Pets', short: 'small pet supplies', icon: 'home',
-      intro: 'Hutches and cages, bedding, bottles and hides for small animals, bird cages, aquariums and vivariums.',
-      description: 'Compare prices on hutches, cages, small animal bedding, bird cages, aquariums and vivariums from trusted retailers.'
+      slug: 'small-pets', name: 'Small Pets, Fish & Reptiles', nav: 'Small Pets', short: 'small pet supplies', icon: 'home',
+      intro: 'Hutches and cages, bedding, bottles and hides for rabbits, guinea pigs and hamsters, aquariums and vivariums.',
+      description: 'Compare prices on hutches, small animal cages and bedding, aquariums and vivariums from trusted retailers.'
     },
     {
-      slug: 'outdoor', name: 'Chicken Coops & Outdoor', nav: 'Coops & Outdoor', short: 'chicken coops and runs', icon: 'home',
-      intro: 'Chicken coops and runs, poultry feeders and drinkers, dog runs, pet fences and outdoor enclosures.',
-      description: 'Compare prices on chicken coops, runs, poultry feeders and drinkers, dog runs and pet fences from trusted retailers.'
+      // Owner (1 Nov 2026): one Birds category with a subcategory per kind of bird, no "chicken coops" category. The names
+      // are the ones category-rules.js writes in the products' subcategory (BIRDS.subs).
+      slug: 'birds', name: 'Birds', nav: 'Birds', short: 'bird supplies', icon: 'home',
+      intro: 'Everything for chickens and poultry, canaries and finches, budgies and parrots: cages, food, perches, toys, feeders and drinkers.',
+      description: 'Compare prices on supplies for chickens, canaries, budgies and parrots: cages, food, perches, toys, feeders and drinkers from trusted retailers.',
+      subcategories: [
+        { slug: 'chickens', name: 'Chickens & Poultry' },
+        { slug: 'canaries', name: 'Canaries & Finches' },
+        { slug: 'parrots', name: 'Budgies & Parrots' },
+        { slug: 'other', name: 'Other Cage Birds' }
+      ]
     },
     {
       slug: 'horse', name: 'Horse & Riding', nav: 'Horse & Riding', short: 'horse and riding gear', icon: 'globe',

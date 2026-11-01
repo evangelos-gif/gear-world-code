@@ -265,10 +265,12 @@ export function ftsQuery(text) {
   return terms.slice(0, 8).map(t => `"${t.replace(/"/g, '""')}"*`).join(' AND ');
 }
 
-function buildFilter({ category, brand, retailer, maxPrice, minPrice, inStock, condition, search, onSale }) {
+function buildFilter({ category, subcategory, brand, retailer, maxPrice, minPrice, inStock, condition, search, onSale }) {
   const where = ['p.is_active = 1'];
   const binds = [];
   if (category) { const c = catWhere(category); where.push(c.sql); binds.push(...c.binds); }
+  // Only a site whose config lists subcategories for the category passes one (ZGW birds).
+  if (subcategory) { where.push('p.subcategory = ?'); binds.push(subcategory); }
   if (brand) { where.push('p.brand = ?'); binds.push(brand); }
   if (retailer) { where.push('p.retailer = ?'); binds.push(retailer); }
   if (Number.isFinite(maxPrice) && maxPrice > 0) { where.push('p.price <= ?'); binds.push(maxPrice); }

@@ -49,8 +49,8 @@ test('ZGW rules leave out children\'s toys, people\'s clothing, vacuums and look
   ]) assert.equal(ok(name, c), false, name);
 });
 
-test('11 categories (10 + horse and riding, owner 1 Nov 2026), prices in pounds only', () => {
-  assert.deepEqual(CATEGORY_SLUGS, ['beds-crates', 'walking', 'toys', 'food', 'cats', 'grooming', 'feeding', 'travel', 'small-pets', 'outdoor', 'horse']);
+test('11 categories (birds with subcategories and horse and riding, owner 1 Nov 2026), prices in pounds only', () => {
+  assert.deepEqual(CATEGORY_SLUGS, ['beds-crates', 'walking', 'toys', 'food', 'cats', 'grooming', 'feeding', 'travel', 'small-pets', 'birds', 'horse']);
   assert.deepEqual(QUALITY.currencies, ['GBP']);
   assert.deepEqual(CATEGORY_SLUGS, site.categories.map(c => c.slug), 'the same order as the site menu');
 });
@@ -117,7 +117,7 @@ test('fixes after the first dry run (1 Nov 2026): human food, adult, camera, toy
     ['HomerunPET 135L Deluxe Edition Pet Dryer, PD135, Salon-Grade Drying', `${PET} > Pet Grooming Supplies > Pet Hair Dryers`, 'grooming'],
     ['Barbour Dog Small Quilted Carrier', 'Womenswear', 'travel'],
     ['Hunter Tambo Dog Toy - Whale', 'Household', 'toys'],
-    ['Omlet Eglu Cube Chicken Coop', '', 'outdoor']
+    ['Omlet Eglu Cube Chicken Coop', '', 'birds']
   ]) assert.equal(slug(n, c), s, n);
 });
 
@@ -132,4 +132,27 @@ test('second dry run (1 Nov 2026): the pet shop section decides when the name ha
     ["Willit Women's Riding Pants Full Seat Silicone Breeches Equestrian", 'Sporting Goods > Outdoor Recreation > Equestrian', 'horse']
   ]) assert.equal(slug(n, c), s, n);
   assert.equal(ok('Hoover HF4 Cordless Stick Vacuum Cleaner with Pet Tool', 'Home & Garden > Kitchen & Dining > Kitchen Appliances'), false);
+});
+
+test('birds (owner, 1 Nov 2026): one category with a subcategory per kind of bird; chicken-flavoured pet food stays food', () => {
+  const sub = (n, c = '') => classify(cleanProductName(n), c, c).sub;
+  for (const [n, c, s] of [
+    ['Omlet Eglu Cube Chicken Coop', '', 'Chickens & Poultry'],
+    ['Layers Pellets 20kg', '', 'Chickens & Poultry'],
+    ['Sealey Poultry Feeder 6kg Pack of 2', 'Garden Tools', 'Chickens & Poultry'],
+    ['Classic De Luxe Canary Cage', '', 'Canaries & Finches'],
+    ['RIO Eggfood for Budgies and Other Small Birds 250g', `${PET} > Bird Supplies > Bird Food`, 'Budgies & Parrots'],
+    ['Parrot Rope Perch Large', '', 'Budgies & Parrots'],
+    ['Bird Cage with Stand', '', 'Other Cage Birds']
+  ]) {
+    assert.equal(slug(n, c), 'birds', n);
+    assert.equal(sub(n, c), s, n);
+  }
+  const birds = site.categories.find(c => c.slug === 'birds');
+  for (const s of ['Chickens & Poultry', 'Canaries & Finches', 'Budgies & Parrots', 'Other Cage Birds']) assert.ok(birds.subcategories.some(x => x.name === s), `${s} is in the site config`);
+  assert.equal(slug('Bakers Meaty Meals Chicken Dry Dog Food 2.7kg', `${PET} > Pet Food Scoops`), 'food');
+  assert.equal(slug('Whiskas 1+ Poultry Feasts Adult Wet Cat Food Pouches', `${PET} > Cat Supplies > Cat Food`), 'food');
+  assert.equal(slug('Outdoor Dog Kennel Wooden', ''), 'beds-crates', 'outdoor kennels are with the beds and kennels');
+  assert.equal(ok('Wild Bird Feeder Station', 'Garden'), false, 'wild birds stay on Garden');
+  assert.equal(slug("Willit Women's Riding Pants Full Seat Silicone Breeches Equestrian", 'Sporting Goods > Outdoor Recreation > Equestrian | Apparel & Accessories > Clothing'), 'horse');
 });

@@ -13,6 +13,7 @@ export function readListingParams(url) {
   };
   const pageNo = Math.max(1, Math.min(500, Number.parseInt(sp.get('page') || '1', 10) || 1));
   return {
+    sub: /^[a-z0-9-]{1,40}$/.test(sp.get('sub') || '') ? sp.get('sub') : '',
     brand: (sp.get('brand') || '').slice(0, 80),
     retailer: (sp.get('retailer') || '').slice(0, 80),
     maxPrice: num(sp.get('max')),
@@ -25,7 +26,7 @@ export function readListingParams(url) {
 }
 
 export function hasFilters(p) {
-  return Boolean(p.brand || p.retailer || Number.isFinite(p.maxPrice) || Number.isFinite(p.minPrice) || p.inStock || p.condition || (p.sort && p.sort !== 'featured'));
+  return Boolean(p.sub || p.brand || p.retailer || Number.isFinite(p.maxPrice) || Number.isFinite(p.minPrice) || p.inStock || p.condition || (p.sort && p.sort !== 'featured'));
 }
 
 function pageLink(basePath, params, pageNo) {
@@ -39,6 +40,7 @@ function pageLink(basePath, params, pageNo) {
 function keepParams(p, extra = {}) {
   return {
     ...extra,
+    sub: p.sub,
     brand: p.brand,
     retailer: p.retailer,
     min: Number.isFinite(p.minPrice) ? String(p.minPrice) : '',
@@ -118,6 +120,15 @@ function resultsHeader(result) {
   return html`<p class="result-count">${count}${result.pages > 1 ? html`, ${tr('page {0} of {1}', result.page, result.pages)}` : ''}</p>`;
 }
 
+// A category with subcategories in the site config (ZGW birds: chickens, canaries, budgies...) gets a row of links above the
+// products: "All" and one per subcategory. Other categories and sites show nothing here.
+function subcategoryNav(base, cat, p) {
+  const subs = Array.isArray(cat.subcategories) ? cat.subcategories : [];
+  if (!subs.length) return '';
+  const link = (slug, name) => html`<li><a href="${slug ? `${base}?sub=${slug}` : base}"${(p.sub || '') === slug ? raw(' aria-current="page"') : ''}>${name}</a></li>`;
+  return html`<nav class="sub-nav" aria-label="${cat.name}"><ul class="chip-list">${link('', 'All')}${subs.map(s => link(s.slug, s.name))}</ul></nav>`;
+}
+
 export function categoryPage(site, cat, p, result, facets) {
   const base = categoryPath(cat.slug);
   const filtered = hasFilters(p);
@@ -138,6 +149,7 @@ export function categoryPage(site, cat, p, result, facets) {
   <div class="listing">
     <aside class="listing-side">${filterForm(base, p, facets)}</aside>
     <div class="listing-main">
+      ${subcategoryNav(base, cat, p)}
       ${resultsHeader(result)}
       ${result.products.length
         ? html`<h2 class="visually-hidden">${tr('Products')}</h2>${productGrid(site, result.products)}`
