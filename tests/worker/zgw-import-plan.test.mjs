@@ -118,3 +118,16 @@ test('fixes after the first dry run (1 Nov 2026): human food, adult, camera, toy
     ['Omlet Eglu Cube Chicken Coop', '', 'outdoor']
   ]) assert.equal(slug(n, c), s, n);
 });
+
+test('second dry run (1 Nov 2026): the pet shop section decides when the name has no category word, and no other site takes it', () => {
+  for (const [n, c, s] of [
+    ['JW Hol-ee Roller Size 3.5', `${PET} > Dog Supplies > Dog Toys`, 'toys'],
+    ['Encore Pâté Selection 5 x 150g', `${PET} > Dog Supplies > Dog Food`, 'food'],
+    ['Sotnos Colour Block Red & Pink Sweater XS', `${PET} > Pet Apparel`, 'walking'],
+    ['pecute Built-in Frame Series Daily Pet Handbag - Dark Grey', `${PET} > Cat Supplies > Cat Carriers`, 'travel'],
+    ['Carefresh Tutti Frutti Small Animal Bedding 10L', `${PET} > Small Animal Supplies > Small Animal Bedding`, 'small-pets'],
+    ['House of Paws Chocolate Dipped Strawberry Plush Toy', `${PET} > Dog Supplies > Dog Toys`, 'toys'],
+    ["Willit Women's Riding Pants Full Seat Silicone Breeches Equestrian", 'Sporting Goods > Outdoor Recreation > Equestrian', 'horse']
+  ]) assert.equal(slug(n, c), s, n);
+  assert.equal(ok('Hoover HF4 Cordless Stick Vacuum Cleaner with Pet Tool', 'Home & Garden > Kitchen & Dining > Kitchen Appliances'), false);
+});

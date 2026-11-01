@@ -177,6 +177,14 @@ const SHOP_CAMERA = words(['surveillance', 'security cameras?', 'cctv']);
 const SHOP_TOYS = words(['toys? (?:and|&) games', 'toys', 'baby toys', 'baby (?:and|&) toddler', 'dolls(?: (?:and|&) accessories)?', 'activities (?:and|&) play ?time', 'games']);
 const SHOP_CLOTHES = words(['menswear', 'womenswear', 'clothing', 'apparel (?:and|&) accessories', 'fashion', 'shoes', 'footwear', 'jewellery']);
 const SHOP_KITCHEN = words(['kitchen (?:and|&) dining', 'kitchen appliances', 'household appliances?']);
+const SHOP_HORSE = words(['equestrian', 'horse riding', 'horse care']);
+// The pet shop's own sections, most specific first (Joybuy uses the Google product categories).
+const SHOP_MAP = [
+  [words(['toys?']), 'toys'], [words(['litter', 'scratch(?:ers?|ing)', 'cat furniture']), 'cats'], [words(['beds?', 'bed accessories', 'kennels?', 'crates?', 'playpens?', 'houses?']), 'beds-crates'],
+  [words(['collars?', 'harness(?:es)?', 'leash(?:es)?', 'leads?', 'apparel', 'training aids?']), 'walking'], [words(['carriers?', 'strollers?', 'car seats?', 'travel']), 'travel'],
+  [words(['bowls?', 'feeders?', 'waterers?', 'fountains?']), 'feeding'], [words(['grooming', 'shampoos?', 'flea', 'tick', 'vitamins?', 'supplements?', 'oral care', 'first aid', 'health']), 'grooming'],
+  [words(['food', 'treats?', 'snacks?']), 'food'], [words(['small animals?', 'birds?', 'fish', 'aquari(?:um|a)', 'reptiles?', 'amphibians?']), 'small-pets'], [words(['poultry', 'chickens?']), 'outdoor']
+];
 const PET_STRONG = new RegExp(`${FOR_PETS.source}|${words(['(?:dog|cat|puppy|kitten|pet) (?:food|treats?|biscuits?|chews?)']).source}`, 'i');
 export const OVERLAPS = [
   // Named for children: always Kids' ("Kids Dog Costume"), unless it is for the animal ("baby gate for dogs").
@@ -231,7 +239,11 @@ export function classifyPets(name, shopCat = '', opts = {}) {
   const brand = PET_BRAND.test(n);
   const ctxName = PET_CTX.test(n) || brand;
   if (!ctxName && !petShop) return {};
-  for (const o of OVERLAPS) {
+  // An equestrian shop section is horse and riding gear ("Women's Riding Pants ... Equestrian").
+  if (SHOP_HORSE.test(c)) return { cat: HORSE.key };
+  // In a pet shop section the shop has already said it is for an animal: no other site takes it ("Pet Handbag",
+  // "Small Animal Bedding", "Plush Toy" in Dog Supplies, second dry run of 1 Nov 2026).
+  if (!petShop) for (const o of OVERLAPS) {
     if (o.re.test(n) && !(o.unless && o.unless.test(n))) {
       let cat = null;
       for (const k of CATEGORIES) if (k.sure.test(n)) { cat = k.key; break; }
@@ -248,6 +260,9 @@ export function classifyPets(name, shopCat = '', opts = {}) {
   if (!cat && type) cat = type;
   if (!cat) for (const k of CATEGORIES) if (k.key !== HORSE.key && k.ctx.test(n)) { cat = k.key; break; }
   // 3. A pet product without a category word: only from a pet shop or a pet brand (a name with just "dog" in it is not enough).
+  // 3. A pet shop product without a category word: the shop's own section names the category ("JW Hol-ee Roller" in
+  //    Dog Toys, "Encore Pâté" in Dog Food, a sweater in Pet Apparel).
+  if (!cat && petShop) for (const [re, key] of SHOP_MAP) if (re.test(c)) { cat = key; break; }
   if (!cat && (petShop || brand)) cat = OTHER.key;
   if (!cat) return {};
   return { cat };
