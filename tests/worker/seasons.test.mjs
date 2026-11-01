@@ -28,7 +28,7 @@ function hub() {
 test('seasons: the owner\'s dates, every year by itself, the same calendar as the Hub', () => {
   const id = day => (seasonFor(at(day)) || {}).id || '';
   assert.deepEqual(['2026-10-19', '2026-10-20', '2026-10-31', '2026-11-01', '2026-11-19', '2026-11-20', '2026-12-01', '2026-12-02', '2026-12-24', '2026-12-25'].map(id),
-    ['', 'halloween', 'halloween', '', '', 'black-friday', 'black-friday', 'christmas', 'christmas', '']);
+    ['', 'halloween', 'halloween', 'christmas', 'christmas', 'black-friday', 'black-friday', 'christmas', 'christmas', '']);
   assert.deepEqual([2026, 2027, 2028].map(blackFridayDay), [27, 26, 24]);
   const h = hub();
   for (const year of [2026, 2027, 2028, 2029, 2030]) {
@@ -70,14 +70,15 @@ test('seasons: the banner on the codes page and the price drops (first page), wi
   const bf = toString(seasonBanner(site, 'deals-list', Date.parse('2026-11-28T10:30:00Z')));
   assert.ok(bf.includes('data-season-countdown="2026-11-30T23:59:00Z"'));
   assert.ok(bf.includes('<p class="season-count" data-season-count><span data-i18n="Ends in {0} d {1} h {2} min" data-i18n-0="2" data-i18n-1="13" data-i18n-2="29">Ends in 2 d 13 h 29 min</span></p>'));
-  assert.equal(toString(seasonBanner(site, 'x', at('2026-11-10'))), '', 'no banner outside the seasons');
+  assert.equal(toString(seasonBanner(site, 'x', at('2026-11-02'))).includes('data-season="christmas"'), true, 'from 1/11 the Christmas video (owner, 1/11/2026)');
+  assert.equal(toString(seasonBanner(site, 'x', at('2026-12-28'))), '', 'no banner outside the seasons');
 
   const offersHtml = String(offersIndexPage(site, at('2026-12-10')));
   assert.ok(offersHtml.indexOf('season-christmas') > 0 && offersHtml.indexOf('season-christmas') < offersHtml.indexOf('id="offers-list"'), 'codes page: the banner, then the list');
   const deals = (page, day) => String(dealsPage(site, { page }, { products: [], total: 0, pages: 1, page }, at(day)));
   assert.ok(deals(1, '2026-10-28').includes('season-halloween') && deals(1, '2026-10-28').includes('id="deals-list"'));
   assert.ok(!deals(2, '2026-10-28').includes('season-banner'), 'only on the first page of the price drops');
-  assert.ok(!deals(1, '2026-11-10').includes('season-banner'));
+  assert.ok(!deals(1, '2026-12-28').includes('season-banner'));
 });
 
 test('seasons: every dictionary of every site has the banner texts, with the same {placeholders}', () => {

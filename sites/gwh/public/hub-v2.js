@@ -283,7 +283,8 @@
     return [
       { id: "halloween", start: `${year}-10-20`, end: `${year}-10-31`, file: "halloween", name: "seasonHalloween", title: "halloweenTitle", mirror: true },
       { id: "black-friday", start: isoDay(year, 11, bf - 7), end: isoDay(year, 11, bf + 4), file: "black-friday", name: "seasonBlackFriday", title: "bfTitle", countdownTo: `${isoDay(year, 11, bf + 3)}T23:59:00Z` },
-      { id: "christmas", start: `${year}-12-02`, end: `${year}-12-24`, file: "christmas", name: "xmasEyebrow", title: "xmasDealsTitle", mirror: true }
+      // Owner, 1/11/2026: the Christmas video (the fireplace) from 1 November; during Black Friday (listed first) that one shows.
+      { id: "christmas", start: `${year}-11-01`, end: `${year}-12-24`, file: "christmas", name: "xmasEyebrow", title: "xmasDealsTitle", mirror: true }
     ];
   }
   function seasonFor(now) {

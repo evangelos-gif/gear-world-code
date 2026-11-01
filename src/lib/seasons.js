@@ -26,7 +26,8 @@ export function seasonsOf(year) {
   return [
     { id: 'halloween', start: `${year}-10-20`, end: `${year}-10-31`, file: 'halloween', name: 'Halloween', title: 'Halloween offers', mirror: true },
     { id: 'black-friday', start: isoDay(year, 11, bf - 7), end: isoDay(year, 11, bf + 4), file: 'black-friday', name: 'Black Friday', title: 'Black Friday offers', countdownTo: `${isoDay(year, 11, bf + 3)}T23:59:00Z` },
-    { id: 'christmas', start: `${year}-12-02`, end: `${year}-12-24`, file: 'christmas', name: 'Christmas', title: 'Christmas offers', mirror: true }
+    // Owner, 1/11/2026: the Christmas video (the fireplace) from 1 November, as on the Hub; Black Friday (listed first) wins in its days.
+    { id: 'christmas', start: `${year}-11-01`, end: `${year}-12-24`, file: 'christmas', name: 'Christmas', title: 'Christmas offers', mirror: true }
   ];
 }
 

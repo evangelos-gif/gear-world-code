@@ -81,3 +81,6 @@
 | `public/gearworldhub-indexnow-k7q4m9x2w5.txt` | Το κλειδί του IndexNow (δημόσιο εκ σχεδιασμού) |
 
 Πάει live με το `tools/gwh-hub-v2.ps1` (`-Step live`, φράση `ΕΓΚΡΙΝΩ HUB LIVE`). Μετά το deploy το εργαλείο ελέγχει τίτλο, robots.txt και κλειδί, και στέλνει στο IndexNow τις σελίδες του live sitemap. Ξανά, χωρίς deploy: `-Step indexnow -Apply` (δεν αλλάζει τίποτα στο Hub). Το robots.txt δεν συγκρίνεται byte-προς-byte με το live, γιατί το Cloudflare του προσθέτει τα Content Signals. Έλεγχοι: `tests/worker/gwh-seo.test.mjs`.
+
+## Χριστούγεννα από 1 Νοεμβρίου (1/11/2026)
+Το βίντεο των Χριστουγέννων (το τζάκι, `seasonal/christmas.mp4`, φτιαγμένο με fal) παίζει στο hero του Hub από 1/11 έως 24/12 (πριν: από 2/12). Στις μέρες της Black Friday (20/11–1/12 για το 2026) δείχνεται εκείνη, όπως πριν. Το ίδιο ημερολόγιο έχουν και τα sites (`src/lib/seasons.js`, σελίδα κωδικών και προσφορών): το παίρνουν στο επόμενο update τους. `hub-v2.js?v=20261101-xmas1`.
