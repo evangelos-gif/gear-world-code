@@ -10,7 +10,7 @@ import { join } from 'node:path';
 import { gzipSync } from 'node:zlib';
 import { execFileSync, spawnSync } from 'node:child_process';
 import { DatabaseSync } from 'node:sqlite';
-import { findFeeds, readFeed, planRefresh, writeCosts, writePlan, keyOf, matchRow, newestFirst, renderReport, linkHost, shopOriginOf, feedFromShopify, readShopCurrency } from '../../tools/legacy-refresh-plan.mjs';
+import { findFeeds, readFeed, planRefresh, writeCosts, writePlan, keyOf, matchRow, newestFirst, renderReport, linkHost, shopOriginOf, feedFromShopify, readShopCurrency, handleOf, wantedFromRows, readShopCatalogBig } from '../../tools/legacy-refresh-plan.mjs';
 import { readShopifyCatalog } from '../../tools/legacy-import-plan.mjs';
 
 // The CGW indexes on products (read from the live database, 25 Oct 2026).
@@ -298,4 +298,63 @@ test('L60: a shop in another currency (Wavytalk, USD) changes no price; an unkno
   const unknown = planRefresh({ rows, feed: feedFromShopify(catalog, ''), costs: { price: 4, image_url: 3, stock_status: 3, is_active: 6 } });
   assert.equal(unknown.changes.length, 0, 'no currency read: no price change');
   assert.equal(await readShopCurrency('https://wavytalk.com', { fetchImpl: async () => { throw new Error('offline'); } }), '');
+});
+
+// L66 (1 Nov 2026): GS Workwear, InStock (instock.net) and Finediam have more than 10,000 products; /products.json stops at
+// 25,000 (HTTP 400 "Page * Limit exceeds the 25000 limit") and Finediam answered page 11 with "too many requests".
+test('L66: a big shop: only our products kept, slow answers asked again, past the cap each missing product asked for by itself', async () => {
+  const cread = u => `https://www.awin1.com/cread.php?awinmid=48473&awinaffid=3057233&ued=${encodeURIComponent(u)}`;
+  assert.equal(handleOf(cread('https://www.gsworkwear.com/products/Thor-Boots?variant=5')), 'thor-boots');
+  assert.equal(handleOf('https://shop.example/collections/all'), '');
+  const page = n => Array.from({ length: 250 }, (_, i) => {
+    const k = (n - 1) * 250 + i;
+    return { handle: `p${k}`, body_html: 'x'.repeat(50), images: [{ src: `https://cdn.shopify.com/p${k}.jpg` }], variants: [{ id: 10000 + k, sku: `S${k}`, price: '10.00', available: true }] };
+  });
+  const calls = [];
+  let slow = 1;
+  const fetchImpl = async url => {
+    const u = new URL(url);
+    calls.push(u.pathname + u.search);
+    if (u.pathname === '/products.json') {
+      const n = Number(u.searchParams.get('page'));
+      if (n === 2 && slow-- > 0) return { ok: false, status: 429, headers: { get: () => null } };
+      if (n >= 3) return { ok: false, status: 400, text: async () => '{"errors":"Page * Limit exceeds the 25000 limit."}' };
+      return { ok: true, status: 200, json: async () => ({ products: page(n) }) };
+    }
+    if (u.pathname === '/products/found-later.js') return { ok: true, status: 200, json: async () => ({ handle: 'found-later', images: ['//cdn.shopify.com/later.jpg'], variants: [{ id: 777, sku: 'L1', price: 2499, available: true }] }) };
+    if (u.pathname === '/products/gone.js') return { ok: false, status: 404, text: async () => 'not found' };
+    return { ok: false, status: 503, headers: { get: () => null } };
+  };
+  const row = (id, aw, h, price = 10) => ({ id, awin_product_id: `48473:${aw}`, merchant_product_id: String(aw), product_name: `P${id}`, price, currency: 'GBP',
+    stock_status: 'in stock', image_url: `https://cdn.shopify.com/p${aw - 10000}.jpg`, is_active: 1, affiliate_url: h ? cread(`https://www.gsworkwear.com/products/${h}?variant=${aw}`) : cread('https://www.gsworkwear.com/') });
+  const rows = [row(1, 10003, 'p3'), row(2, 10300, 'p300', 9), row(3, 777, 'found-later', 20), row(4, 888, 'gone'), row(5, 999, 'shop-is-down'), row(6, 555, '')];
+  const big = await readShopCatalogBig('https://www.gsworkwear.com', rows, { fetchImpl, pauseMs: 0, waits: [0, 0] });
+  assert.equal(big.capped, true);
+  assert.equal(big.seen, 500);
+  assert.deepEqual([...big.catalog.keys()].sort(), ['found-later', 'p3', 'p300'], 'only our products are kept');
+  assert.equal(big.checked, 3);
+  assert.equal(big.notFound, 1);
+  assert.deepEqual([...big.unchecked].sort(), [5, 6], 'no answer, or no product address: not checked');
+  assert.ok(calls.filter(c => c === '/products.json?limit=250&page=2').length === 2, 'page 2 asked again after 429');
+  const feed = feedFromShopify(big.catalog, 'GBP');
+  feed.unchecked = big.unchecked;
+  const p = planRefresh({ rows, feed, costs: { price: 3, image_url: 1, stock_status: 1, is_active: 12 } });
+  assert.deepEqual(p.hides, [4], 'only the product the shop says is not there is hidden');
+  assert.equal(p.notChecked, 2);
+  assert.equal(p.matched, 3);
+  assert.deepEqual(Object.fromEntries(p.changes.map(c => [c.id, c.set.price])), { 2: 10, 3: 24.99 });
+  const report = renderReport({ retailer: 'GS Workwear', site: 'cgw', feedFiles: [], feedRows: feed.rows, newest: feed.newest, p,
+    shop: { origin: 'https://www.gsworkwear.com', currency: 'GBP', capped: true, seen: big.seen, checked: big.checked, notFound: big.notFound } });
+  assert.match(report, /Μεγάλο κατάστημα \(L66\): .* Διαβάστηκαν 500· 3 δικά μας ελέγχθηκαν ένα-ένα \(1 δεν υπάρχουν πια\)\. Δεν ελέγχθηκαν 2: μένουν όπως είναι\./);
+  assert.deepEqual([...wantedFromRows([row(9, 10001, 'p1')]).ids].sort(), ['10001', '48473:10001']);
+});
+
+test('L66: a shop that never answers changes nothing; a small shop is read to its end without the per-product check', async () => {
+  const down = async () => ({ ok: false, status: 503, headers: { get: () => null } });
+  await assert.rejects(readShopCatalogBig('https://finediam.com', [], { fetchImpl: down, pauseMs: 0, waits: [0] }), /Nothing was changed/);
+  const small = await readShopCatalogBig('https://gardenistauk.com', [{ id: 1, awin_product_id: '37292:101', merchant_product_id: '101', is_active: 1, affiliate_url: '' }],
+    { fetchImpl: fakeShop(SHOP, 'GBP'), pauseMs: 0, waits: [0] });
+  assert.equal(small.capped, false);
+  assert.equal(small.checked, 0);
+  assert.deepEqual([...small.catalog.keys()], ['cushion']);
 });

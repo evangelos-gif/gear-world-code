@@ -21,6 +21,12 @@
 // products' links). There a product sold out on the shop is hidden too (as at import, L39), and a price changes only when
 // the shop sells in the currency of the site (/meta.json).
 //
+// Big shops (1 Nov 2026, lessons L66: GS Workwear, InStock and Finediam have more than 10,000 products): /products.json
+// gives at most 25,000 products (page x 250; HTTP 400 past it) and slows down quick requests (HTTP 429). Only our own
+// products are kept in memory; slow answers are waited for and asked again; past the cap, each of our products that was
+// not seen is asked for by itself (/products/<handle>.js): "not found" (404) is gone, any other answer is NOT CHECKED and
+// that product is left exactly as it is.
+//
 // node tools/legacy-refresh-plan.mjs --archive <dir> --retailer "<name on the site>" --rows <wrangler json> [--rows ...]
 //   --indexes <wrangler json of sqlite_master> --out <dir> [--max-writes 90000] [--advertiser <id>] [--now <iso date>] [--from-shop]
 import { createReadStream, existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
@@ -155,6 +161,111 @@ export function shopOriginOf(rows) {
   return best && n >= rows.length * 0.8 ? `https://${best}` : '';
 }
 
+// The product handle in a shop link (/products/<handle>), also inside an Awin link's ued=. Empty when there is none.
+export function handleOf(url) {
+  let u;
+  try { u = new URL(String(url || '')); } catch { return ''; }
+  if (/(^|\.)awin1\.com$/i.test(u.hostname)) { try { u = new URL(u.searchParams.get('ued') || ''); } catch { return ''; } }
+  const m = /\/products\/([^/?#]+)/i.exec(u.pathname);
+  if (!m) return '';
+  try { return decodeURIComponent(m[1]).toLowerCase(); } catch { return m[1].toLowerCase(); }
+}
+
+// What we look for in a shop: the option ids and SKUs of our rows, and the handles in their links.
+export function wantedFromRows(rows) {
+  const ids = new Set(), handles = new Set();
+  for (const r of rows) {
+    const aw = String(r.awin_product_id || '');
+    if (aw) { ids.add(aw); if (aw.indexOf(':') > 0) ids.add(aw.slice(aw.indexOf(':') + 1)); }
+    const mid = String(r.merchant_product_id || '').trim();
+    if (mid) ids.add(mid);
+    const h = handleOf(r.affiliate_url);
+    if (h) handles.add(h);
+  }
+  return { ids, handles };
+}
+
+const trimProduct = p => ({ handle: String(p.handle || '').toLowerCase(),
+  images: (p.images || []).map(i => ({ src: i && typeof i === 'object' ? i.src : i })),
+  variants: (p.variants || []).map(v => ({ id: v.id, sku: v.sku, price: v.price, available: v.available,
+    featured_image: v.featured_image ? { src: typeof v.featured_image === 'object' ? v.featured_image.src : v.featured_image } : null })) });
+// /products/<handle>.js gives prices in pence and pictures as plain addresses: the same shape as /products.json.
+const fromJs = d => trimProduct({ handle: d.handle, images: d.images || [],
+  variants: (d.variants || []).map(v => ({ ...v, price: Number.isFinite(Number(v.price)) ? (Number(v.price) / 100).toFixed(2) : '' })) });
+
+// One GET, waiting and asking again when the shop is slow or says "too many requests" (429, 5xx, no answer).
+async function getShop(fetchImpl, url, waits) {
+  for (let attempt = 0; ; attempt++) {
+    let res = null;
+    try { res = await fetchImpl(url, { headers: { accept: 'application/json', 'user-agent': 'GearWorldRefresh/1.0' }, signal: AbortSignal.timeout(30000) }); } catch { res = null; }
+    const status = res ? (res.status ?? (res.ok ? 200 : 500)) : 0;
+    if (res && res.ok) { try { return { status, data: await res.json() }; } catch { /* broken answer: ask again */ } }
+    else if (status === 400 || status === 404) {
+      let text = '';
+      try { text = res.text ? await res.text() : JSON.stringify(await res.json()); } catch { /* no body */ }
+      return { status, text };
+    }
+    if (attempt >= waits.length) return { status: status || 0 };
+    let wait = waits[attempt];
+    const after = res && res.headers && typeof res.headers.get === 'function' ? Number(res.headers.get('retry-after')) : NaN;
+    if (Number.isFinite(after) && after > 0) wait = Math.min(60000, Math.max(wait, after * 1000));
+    if (wait) await new Promise(r => setTimeout(r, wait));
+  }
+}
+
+// The shop's live catalogue, only our products (L60, L66). Returns the catalogue, whether the shop's cap was reached,
+// and the ids of our rows that could not be checked (left as they are).
+export async function readShopCatalogBig(origin, rows, { fetchImpl = globalThis.fetch, pauseMs = 400, maxPages = 100, maxChecks = 500,
+  waits = [2000, 5000, 15000, 30000] } = {}) {
+  const base = String(origin || '').replace(/\/+$/, '');
+  if (!/^https:\/\/[a-z0-9.-]+$/i.test(base)) throw new Error(`shopOrigin is not a shop address: ${origin}`);
+  if (typeof fetchImpl !== 'function') throw new Error(`Cannot read ${base}: this Node.js has no fetch. Nothing was changed.`);
+  const sleep = ms => (ms ? new Promise(r => setTimeout(r, ms)) : Promise.resolve());
+  const want = wantedFromRows(rows);
+  const ours = p => want.handles.has(String(p.handle || '').toLowerCase())
+    || (p.variants || []).some(v => want.ids.has(String(v.id)) || (v.sku && want.ids.has(String(v.sku).trim())));
+  const catalog = new Map();
+  let seen = 0, pages = 0, capped = false;
+  for (let page = 1; page <= maxPages; page++) {
+    if (page > 1) await sleep(pauseMs);
+    const url = `${base}/products.json?limit=250&page=${page}`;
+    const r = await getShop(fetchImpl, url, waits);
+    if (r.status === 400 && /25[,.]?000|limit/i.test(r.text || '')) { capped = true; break; }
+    if (!r.data || !Array.isArray(r.data.products)) throw new Error(`Could not read the shop's live catalogue (${url}). Nothing was changed; try again later.`);
+    pages++;
+    seen += r.data.products.length;
+    for (const p of r.data.products) if (p && p.handle && ours(p)) catalog.set(String(p.handle).toLowerCase(), trimProduct(p));
+    if (r.data.products.length < 250) break;
+    if (page === maxPages) capped = true;
+  }
+  if (!seen) throw new Error(`The shop's live catalogue (${base}) is empty. Nothing was changed.`);
+  const unchecked = new Set();
+  let checked = 0, notFound = 0;
+  if (capped) {
+    // Past the cap: each of our products not seen is asked for by itself. Only "not found" (404) counts as gone.
+    const first = feedFromShopify(catalog, '');
+    const byHandle = new Map();
+    for (const r of rows) {
+      if (Number(r.is_active) !== 1 || matchRow(r, first)) continue;
+      const h = handleOf(r.affiliate_url);
+      if (!h) { unchecked.add(Number(r.id)); continue; }
+      if (catalog.has(h)) continue; // the product is there, the option is not: gone
+      if (!byHandle.has(h)) byHandle.set(h, []);
+      byHandle.get(h).push(Number(r.id));
+    }
+    for (const [h, ids] of byHandle) {
+      if (checked >= maxChecks) { for (const id of ids) unchecked.add(id); continue; }
+      await sleep(pauseMs);
+      checked++;
+      const r = await getShop(fetchImpl, `${base}/products/${encodeURIComponent(h)}.js`, waits);
+      if (r.data && r.data.handle) catalog.set(h, fromJs(r.data));
+      else if (r.status === 404) notFound++;
+      else for (const id of ids) unchecked.add(id);
+    }
+  }
+  return { catalog, capped, seen, pages, checked, notFound, unchecked };
+}
+
 // The currency the shop sells in (Shopify /meta.json). Empty when it cannot be read: then no price changes.
 export async function readShopCurrency(origin, { fetchImpl = globalThis.fetch } = {}) {
   try {
@@ -202,6 +313,7 @@ export function planRefresh({ rows, feed, costs, maxWrites = 90000, now = new Da
   const stale = staleDays !== null && staleDays > STALE_DAYS;
   const changes = [];
   const gone = [];
+  let notChecked = 0;
   const soldOut = [];
   const bigPrice = [];
   const currencySkip = [];
@@ -209,7 +321,11 @@ export function planRefresh({ rows, feed, costs, maxWrites = 90000, now = new Da
   const feedStock = { in: 0, out: 0, unknown: 0 };
   for (const r of active) {
     const f = matchRow(r, feed);
-    if (!f) { gone.push(Number(r.id)); continue; }
+    if (!f) {
+      // A big shop's product that could not be checked (L66) is left exactly as it is.
+      if (feed.unchecked && feed.unchecked.has(Number(r.id))) { notChecked++; continue; }
+      gone.push(Number(r.id)); continue;
+    }
     feedStock[f.inStock === true ? 'in' : (f.inStock === false ? 'out' : 'unknown')]++;
     // The shop's own catalogue (L60): sold out on the shop -> hidden, as at import (L39); there is no feed to bring it back.
     if (feed.shop && f.inStock === false) { soldOut.push(Number(r.id)); continue; }
@@ -251,7 +367,7 @@ export function planRefresh({ rows, feed, costs, maxWrites = 90000, now = new Da
   const left = { changes: stale ? 0 : changes.length - doChanges.length, hides: stale ? 0 : hideAll.length - doHides.length };
   const count = col => doChanges.filter(c => col in c.set).length;
   return {
-    active: active.length, matched: active.length - gone.length, same, changes: doChanges, hides: doHides, gone: gone.length, soldOut: soldOut.length, safe, stale, staleDays,
+    active: active.length, matched: active.length - gone.length - notChecked, notChecked, same, changes: doChanges, hides: doHides, gone: gone.length, soldOut: soldOut.length, safe, stale, staleDays,
     staleFrom, feedStock, bigPrice, currencySkip, writes, left, costs,
     counts: { price: count('price'), image_url: count('image_url'), stock_status: count('stock_status'),
       toOut: doChanges.filter(c => 'stock_status' in c.set && !inStockText(c.set.stock_status)).length,
@@ -300,6 +416,7 @@ export function renderReport({ retailer, site, feedFiles, feedRows, newest, p, s
   const where = shop ? 'στο κατάστημα' : 'στο feed';
   L.push(`Ενεργά προϊόντα ${retailer} στο ${site.toUpperCase()}: ${fmt(p.active)}. Βρέθηκαν ${where}: ${fmt(p.matched)} (ίδια: ${fmt(p.same)}). Δεν υπάρχουν πια ${where}: ${fmt(p.gone)}.`);
   if (shop) L.push(`Εξαντλημένα στο κατάστημα: ${fmt(p.soldOut || 0)} (κρύβονται, όπως στην εισαγωγή, L39).`);
+  if (shop && shop.capped) L.push(`Μεγάλο κατάστημα (L66): ο κατάλογός του έχει πάνω από 25.000 προϊόντα (όριο του Shopify). Διαβάστηκαν ${fmt(shop.seen)}· ${fmt(shop.checked)} δικά μας ελέγχθηκαν ένα-ένα (${fmt(shop.notFound)} δεν υπάρχουν πια). Δεν ελέγχθηκαν ${fmt(p.notChecked || 0)}: μένουν όπως είναι.`);
   if (shop && !shop.currency) L.push('ΠΡΟΣΟΧΗ: δεν διάβασα το νόμισμα του καταστήματος· οι τιμές δεν αλλάζουν.');
   if (!shop && !newest && p.staleFrom === 'file') L.push(`Το feed δεν γράφει πότε ενημερώθηκε κάθε προϊόν: ο έλεγχος παλιού feed (L39) έγινε με το νεότερο αρχείο του (${p.staleDays} ημ.).`);
   if (p.stale && p.staleFrom === 'file') L.push(`ΠΡΟΣΟΧΗ: το νεότερο αρχείο του feed είναι ${p.staleDays} ημερών (πάνω από ${STALE_DAYS}). Δεν θα αλλάξει τίποτα (L39). Χρειάζεται νεότερο feed (εργαλείο awin-feed-download).`);
@@ -348,14 +465,16 @@ if (import.meta.url === pathToFileURL(process.argv[1] || '').href) {
       writeFileSync(join(out, 'report.txt'), 'Δεν βρήκα τη διεύθυνση του καταστήματος στα links των προϊόντων. Δεν άλλαξε τίποτα.\n');
       process.exit(3);
     }
-    let catalog;
-    try { catalog = await readShopifyCatalog(origin); } catch (e) {
+    let big;
+    try { big = await readShopCatalogBig(origin, rows.filter(r => Number(r.is_active) === 1), { maxChecks: Number(opt('--max-checks') || 500) }); } catch (e) {
       writeFileSync(join(out, 'report.txt'), `Δεν διάβασα τον κατάλογο του καταστήματος ${origin}: ${e.message}\n`);
       process.exit(4);
     }
     const currency = await readShopCurrency(origin);
-    const feed = feedFromShopify(catalog, currency, now);
-    finish(feed, p => renderReport({ retailer, site, feedFiles: [origin], feedRows: feed.rows, newest: feed.newest, p, shop: { origin, currency } }));
+    const feed = feedFromShopify(big.catalog, currency, now);
+    feed.unchecked = big.unchecked;
+    finish(feed, p => renderReport({ retailer, site, feedFiles: [origin], feedRows: feed.rows, newest: feed.newest, p,
+      shop: { origin, currency, capped: big.capped, seen: big.seen, checked: big.checked, notFound: big.notFound } }));
   } else {
     const { files, names } = await findFeeds(archive, retailer, opt('--advertiser'));
     if (!files.length) {
