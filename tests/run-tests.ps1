@@ -1248,10 +1248,10 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
 if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
     Write-Host 'zgw-cloudflare.ps1 (fake wrangler)'
     $cfTool = Join-Path (Join-Path $repo 'tools') 'zgw-cloudflare.ps1'
-    $state = Join-Path $work 'pcf-state'
-    $cfWork = Join-Path $work 'pcf-work'
-    $cfOut = Join-Path $work 'pcf-out'
-    $cfBin = Join-Path $work 'pcf-bin'
+    $state = Join-Path $work 'zcf-state'
+    $cfWork = Join-Path $work 'zcf-work'
+    $cfOut = Join-Path $work 'zcf-out'
+    $cfBin = Join-Path $work 'zcf-bin'
     New-Item -ItemType Directory -Path $state, $cfBin -Force | Out-Null
     $fakeDb = [guid]::NewGuid().ToString()
     $fakeAcct = [guid]::NewGuid().ToString('N')
