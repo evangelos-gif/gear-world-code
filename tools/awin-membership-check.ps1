@@ -12,6 +12,9 @@
   Then says for every programme: member with a fresh feed (ΕΝΤΑΞΕΙ), member with a feed older than 30 days (ΠΡΟΣΟΧΗ),
   in the list but not a member or not in the list at all (ΠΡΟΒΛΗΜΑ: the clicks earn nothing), and broken links.
   Each programme that is not fine gets its Awin page (https://ui.awin.com/merchant-profile/<id>).
+  With the Awin API token of tools/awin-sales.ps1 (<home>\gear-world-secrets\awin-api-token.dat) the partnership itself
+  comes from the Awin API (joined / pending / suspended / rejected / not joined, lessons L65): a programme can be joined
+  and pay without a feed in the list. Without the token, membership comes from the feed list as before.
   No product link is ever opened (no clicks). Nothing is hidden or changed: that is a separate step with its own approval.
   Report: <home>\gear-world-reports\AWIN_MEMBERSHIP_<time>.txt (also copied to the clipboard). The key is never written.
 #>
@@ -19,6 +22,9 @@ param(
     [string]$Sites = 'cgw,mgw,wgw,kgw,hgw,ggw',
     [string]$KeyFile = '',
     [string]$BaseUrl = 'https://productdata.awin.com',
+    [string]$ApiTokenFile = '',
+    [string]$ApiBaseUrl = 'https://api.awin.com',
+    [string]$PublisherId = '3057233',
     [string]$WorkDir = '',
     [string]$OutDir = '',
     [switch]$NoClipboard
@@ -38,6 +44,8 @@ $SiteInfo = @{
 }
 if (-not $OutDir) { $OutDir = Join-Path $HOME 'gear-world-reports' }
 if (-not $KeyFile) { $KeyFile = Join-Path (Join-Path $HOME 'gear-world-secrets') 'awin-feed-key.dat' }
+if (-not $ApiTokenFile) { $ApiTokenFile = Join-Path (Join-Path $HOME 'gear-world-secrets') 'awin-api-token.dat' }
+$script:apiToken = ''
 $stamp = Get-Date -Format 'yyyyMMdd_HHmmss'
 $script:Work = ''
 $script:secret = ''
@@ -45,7 +53,8 @@ $script:secret = ''
 $L = New-Object System.Collections.Generic.List[string]
 function Mask([string]$s) {
     if ($script:secret) { $s = $s.Replace($script:secret, '***') }
-    return [regex]::Replace($s, '(?i)(apikey/)[^/\s]+', '$1***')
+    if ($script:apiToken) { $s = $s.Replace($script:apiToken, '***') }
+    return [regex]::Replace($s, '(?i)(apikey/|Bearer\s+)[^/\s]+', '$1***')
 }
 function Say([string]$t, [string]$c = '') { $t = Mask $t; $L.Add($t); if ($c) { Write-Host $t -ForegroundColor $c } else { Write-Host $t } }
 function Finish([int]$code) {
@@ -95,6 +104,8 @@ Say 'Προγράμματα Awin που πληρώνουν - ΜΟΝΟ ΑΝΑΓΝ
 Say ('Ώρα: {0}' -f (Get-Date -Format 'yyyy-MM-dd HH:mm'))
 $host1 = ([uri]$BaseUrl).Host
 if ($host1 -ne 'productdata.awin.com' -and $host1 -ne '127.0.0.1') { Say 'Μη αναμενόμενη διεύθυνση του Awin.' 'Red'; Finish 2 }
+$host2 = ([uri]$ApiBaseUrl).Host
+if (($host2 -ne 'api.awin.com' -and $host2 -ne '127.0.0.1') -or $PublisherId -notmatch '^\d{3,12}$') { Say 'Μη αναμενόμενη διεύθυνση του Awin API.' 'Red'; Finish 2 }
 if (-not (Get-Command node -ErrorAction SilentlyContinue)) { Say 'Δεν βρέθηκε το Node.js.' 'Red'; Finish 3 }
 $list = @()
 foreach ($s in ($Sites -split ',')) {
@@ -165,8 +176,29 @@ if ($script:secret -match '^[A-Za-z0-9]{8,64}$') {
 } else { Say 'Δεν υπάρχει (ή δεν διαβάζεται) το κλειδί των feeds του Awin.' 'Yellow' }
 if (-not $listFile) { Say '🟡 ΠΡΟΣΟΧΗ: χωρίς τη λίστα του Awin δεν ξέρω ποια προγράμματα πληρώνουν. Παρακάτω μόνο τα στοιχεία των sites.' 'Yellow'; if ($exitCode -eq 0) { $exitCode = 5 } }
 
+# 2b. Your partnerships from the Awin API (read-only, L65), with the token saved by awin-sales. All or nothing.
+$relArgs = @()
+if (Test-Path -LiteralPath $ApiTokenFile) {
+    try {
+        $sec = ConvertTo-SecureString ([System.IO.File]::ReadAllText($ApiTokenFile).Trim())
+        $script:apiToken = [System.Runtime.InteropServices.Marshal]::PtrToStringBSTR([System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($sec)).Trim()
+    } catch { $script:apiToken = '' }
+}
+if ($script:apiToken -match '^[A-Za-z0-9\-]{16,80}$') {
+    $ok = $true
+    foreach ($rel in @('joined', 'pending', 'suspended', 'rejected', 'notjoined')) {
+        $f = Join-Path $planDir ('programmes-{0}.json' -f $rel)
+        try {
+            Invoke-WebRequest -UseBasicParsing -Uri ('{0}/publishers/{1}/programmes?relationship={2}' -f $ApiBaseUrl.TrimEnd('/'), $PublisherId, $rel) -Headers @{ Authorization = ('Bearer ' + $script:apiToken) } -OutFile $f -TimeoutSec 120
+            $relArgs += @('--relation', ('{0}={1}' -f $rel, $f))
+        } catch { $ok = $false; Say ('Το Awin API δεν έδωσε τις συνεργασίες ({0}): {1}' -f $rel, (Mask $_.Exception.Message)) 'Yellow'; break }
+        Start-Sleep -Milliseconds 400
+    }
+    if (-not $ok) { $relArgs = @(); Say '🟡 ΠΡΟΣΟΧΗ: οι συνεργασίες βγαίνουν μόνο από τη λίστα feeds.' 'Yellow' }
+} else { Say 'Χωρίς κλειδί API του Awin: οι συνεργασίες βγαίνουν μόνο από τη λίστα feeds (το κλειδί το δίνεις μία φορά στο awin-sales).' }
+
 # 3. The check (read-only).
-$a = @((Join-Path (Join-Path $repo 'tools') 'awin-membership-plan.mjs'), '--out', $planDir) + $siteArgs
+$a = @((Join-Path (Join-Path $repo 'tools') 'awin-membership-plan.mjs'), '--out', $planDir) + $siteArgs + $relArgs
 if ($listFile) { $a += @('--list', $listFile) }
 & node @a
 if ($LASTEXITCODE -ne 0) { Say 'Ο έλεγχος δεν ολοκληρώθηκε.' 'Red'; Finish 10 }

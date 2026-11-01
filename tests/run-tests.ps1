@@ -1475,15 +1475,22 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
       "'125248,Finediam,GB,not joined,9,'+today+' 06:00:00,9,https://productdata.awin.com/datafeed/download/apikey/'+key+'/fid/9/\n';" +
       "http.createServer((q,s)=>{if(!q.url.endsWith('/apikey/'+key)){s.writeHead(403);return s.end('bad key')}" +
       "if(q.url.startsWith('/datafeed/list/')){s.writeHead(200,{'Content-Type':'text/csv'});return s.end(list)}" +
-      "s.writeHead(404);s.end('no')}).listen(8798,'127.0.0.1');")
-    $amProc = Start-Process -FilePath (Get-Command node).Source -ArgumentList @($amSrv, $amKey, $today) -PassThru -WindowStyle Hidden
+      "s.writeHead(404);s.end('no')}).listen(8798,'127.0.0.1');" +
+      "const api=process.argv[4];const rel={joined:[{id:30645,name:'Coes'},{id:19471,name:'Juicy Couture UK'}],rejected:[{id:125248,name:'Finediam'}]};" +
+      "http.createServer((q,s)=>{if(q.headers.authorization!=='Bearer '+api||q.url.includes(api)){s.writeHead(401);return s.end('no')}" +
+      "const m=/^\/publishers\/3057233\/programmes\?relationship=([a-z]+)$/.exec(q.url);if(m){s.writeHead(200,{'Content-Type':'application/json'});return s.end(JSON.stringify(rel[m[1]]||[]))}" +
+      "s.writeHead(404);s.end('no')}).listen(8795,'127.0.0.1');")
+    $amApi = 'TestApiToken9876543210'
+    $amApiFile = Join-Path $amDir 'api.dat'
+    [System.IO.File]::WriteAllText($amApiFile, (ConvertFrom-SecureString (ConvertTo-SecureString $amApi -AsPlainText -Force)), [System.Text.Encoding]::ASCII)
+    $amProc = Start-Process -FilePath (Get-Command node).Source -ArgumentList @($amSrv, $amKey, $today, $amApi) -PassThru -WindowStyle Hidden
     Start-Sleep -Seconds 2
     $oldPath = $env:PATH
     $env:PATH = $amBin + ';' + $oldPath
     $env:GW_FAKE_STATE = $amDir
     try {
         $all = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', (Join-Path (Join-Path $repo 'tools') 'awin-membership-check.ps1'), '-Sites', 'mgw', '-KeyFile', $amKeyFile,
-            '-BaseUrl', 'http://127.0.0.1:8798', '-WorkDir', $amDir, '-OutDir', $amOut, '-NoClipboard')
+            '-BaseUrl', 'http://127.0.0.1:8798', '-ApiTokenFile', (Join-Path $amDir 'no-api.dat'), '-WorkDir', $amDir, '-OutDir', $amOut, '-NoClipboard')
         & $exe @all | Out-Null
         Check ($LASTEXITCODE -eq 0) 'membership check: exit 0'
         $amRep = [System.IO.File]::ReadAllText((@(Get-ChildItem -LiteralPath $amOut -Filter 'AWIN_MEMBERSHIP_*.txt')[0]).FullName)
@@ -1495,6 +1502,17 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         $amList = [System.IO.File]::ReadAllText((@(Get-ChildItem -LiteralPath $amOut -Recurse -Filter 'awin-list.csv')[0]).FullName)
         Check (-not $amRep.Contains($amKey) -and -not $amList.Contains($amKey) -and -not $amList.Contains('apikey')) 'membership check: the key is in no file'
         Check (-not ([System.IO.File]::ReadAllText((Join-Path $amDir 'calls.log')) -match '--file|UPDATE|DELETE|INSERT')) 'membership check: only reads'
+        # L65: with the Awin API the partnership decides (joined without a feed = ΠΡΟΣΟΧΗ, rejected = ΠΡΟΒΛΗΜΑ).
+        $amOut2 = Join-Path $amDir 'out2'
+        $all = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', (Join-Path (Join-Path $repo 'tools') 'awin-membership-check.ps1'), '-Sites', 'mgw', '-KeyFile', $amKeyFile,
+            '-BaseUrl', 'http://127.0.0.1:8798', '-ApiTokenFile', $amApiFile, '-ApiBaseUrl', 'http://127.0.0.1:8795', '-WorkDir', $amDir, '-OutDir', $amOut2, '-NoClipboard')
+        & $exe @all | Out-Null
+        Check ($LASTEXITCODE -eq 0) 'membership check with the Awin API: exit 0'
+        $amRep2 = [System.IO.File]::ReadAllText((@(Get-ChildItem -LiteralPath $amOut2 -Filter 'AWIN_MEMBERSHIP_*.txt')[0]).FullName)
+        Check ($amRep2.Contains('ΠΡΟΣΟΧΗ: Juicy Couture UK (Awin 19471)') -and $amRep2.Contains('δεν έχει feed')) 'membership check (L65): joined without a feed is ΠΡΟΣΟΧΗ, not ΠΡΟΒΛΗΜΑ'
+        Check ($amRep2.Contains('ΠΡΟΒΛΗΜΑ: Finediam (Awin 125248)') -and $amRep2.Contains('απέρριψε') -and $amRep2.Contains('από το Awin API')) 'membership check (L65): the partnership comes from the Awin API'
+        $amAll = (@(Get-ChildItem -LiteralPath $amOut2 -Recurse -File) | ForEach-Object { [System.IO.File]::ReadAllText($_.FullName) }) -join "`n"
+        Check (-not $amAll.Contains($amApi)) 'membership check: the API token is in no file'
     } finally {
         $env:PATH = $oldPath
         Remove-Item Env:\GW_FAKE_STATE -ErrorAction SilentlyContinue

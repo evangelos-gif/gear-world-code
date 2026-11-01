@@ -7,7 +7,7 @@ import { mkdtempSync, writeFileSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { execFileSync } from 'node:child_process';
-import { advertiserOf, readAwinList, planMembership, renderMembershipReport } from '../../tools/awin-membership-plan.mjs';
+import { advertiserOf, readAwinList, planMembership, renderMembershipReport, readRelations } from '../../tools/awin-membership-plan.mjs';
 
 const cread = (id, ued) => `https://www.awin1.com/cread.php?awinmid=${id}&awinaffid=3057233&ued=${ued}`;
 
@@ -76,4 +76,28 @@ test('command line: wrangler output files and the Awin list in, report and summa
   assert.deepEqual(summary.map(s => [s.id, s.level]), [['125248', 'red'], ['30645', 'green'], ['122382', 'green']]);
   execFileSync(process.execPath, [tool, '--site', `mgw=${f}`, '--out', join(dir, 'out2')]);
   assert.match(readFileSync(join(dir, 'out2', 'report.txt'), 'utf8'), /Σύνολο: 3 🔴 ΠΡΟΒΛΗΜΑ/);
+});
+
+test('L65: with the Awin API the partnership decides: joined without a feed is ΠΡΟΣΟΧΗ, not ΠΡΟΒΛΗΜΑ; rejected and unknown are ΠΡΟΒΛΗΜΑ', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'awin-rel-'));
+  writeFileSync(join(dir, 'list.csv'), LIST);
+  const list = await readAwinList(join(dir, 'list.csv'));
+  const relations = readRelations([
+    ['joined', JSON.stringify([{ id: 30645, name: 'Coes' }, { id: 122382, name: 'Watch Enclave' }, { id: 19471, name: 'Juicy Couture UK' }, { id: 56439, name: 'Red Gorilla' }])],
+    ['rejected', JSON.stringify([{ id: 125248, name: 'Finediam' }])],
+    ['notjoined', '\uFEFF' + JSON.stringify([{ id: 19471, name: 'Juicy Couture UK' }])]
+  ]);
+  assert.equal(relations.get('19471').rel, 'joined', 'joined wins over another list');
+  const plan = planMembership({ sites: sites(), list, relations, now: new Date('2026-10-26T22:00:00Z') });
+  const by = Object.fromEntries(plan.programmes.map(p => [p.id, p]));
+  assert.equal(by['30645'].level, 'green');
+  assert.equal(by['19471'].level, 'yellow', 'joined, no feed in the list (like GS Workwear on 1 Nov 2026)');
+  assert.match(by['19471'].reason, /μέλος \(Awin API\), αλλά δεν έχει feed/);
+  assert.equal(by['125248'].level, 'red');
+  assert.match(by['125248'].reason, /απέρριψε/);
+  assert.equal(by['56439'].level, 'yellow', 'joined, feed from 15 May');
+  const none = planMembership({ sites: [{ site: 'cgw', rows: [{ retailer: 'Gone', n: 5, link: cread(99, 'https%3A%2F%2Fx.com'), bad: 0 }] }], list, relations });
+  assert.match(none.programmes[0].reason, /δεν το γνωρίζει πια/);
+  assert.match(renderMembershipReport(plan), /Συνεργασίες: από το Awin API/);
+  assert.throws(() => readRelations([['joined', '{"error":"unauthorised"}']]));
 });
