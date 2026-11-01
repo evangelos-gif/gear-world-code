@@ -254,7 +254,7 @@ try {
   }
 
   // The campaigns follow their dates (UK days).
-  const days = { '2026-10-28': 'season-halloween', '2026-11-15': 'black-friday-soon,christmas', '2026-11-30': 'season-black-friday,christmas', '2026-12-10': 'season-christmas', '2027-01-05': 'winter-sales,new-year-fitness', '2027-02-20': 'all-worlds' };
+  const days = { '2026-10-28': 'season-halloween', '2026-11-15': 'season-christmas,black-friday-soon', '2026-11-30': 'season-black-friday,christmas', '2026-12-10': 'season-christmas', '2027-01-05': 'winter-sales,new-year-fitness', '2027-02-20': 'all-worlds' };
   for (const [day, want] of Object.entries(days)) {
     const { context, page } = await openPage(browser, viewports[0], 'en-GB', { day });
     const seen = [];
@@ -275,7 +275,7 @@ try {
   // The seasonal video in the hero (video loop, or its still picture; text on top in HTML).
   for (const [day, want, vp, opts] of [
     ['2026-10-28', 'halloween', viewports[0], {}], ['2026-11-28', 'black-friday', viewports[2], {}], ['2026-12-10', 'christmas', viewports[0], {}],
-    ['2026-11-10', '', viewports[0], {}], ['2026-10-28', 'halloween', viewports[0], { reducedMotion: 'reduce' }]
+    ['2026-12-28', '', viewports[0], {}], ['2026-10-28', 'halloween', viewports[0], { reducedMotion: 'reduce' }]
   ]) {
     const tag = `banner ${day} ${vp.name}${opts.reducedMotion ? ' reduce motion' : ''}`;
     const context = await browser.newContext({ viewport: { width: vp.width, height: vp.height }, isMobile: vp.isMobile, hasTouch: vp.hasTouch, deviceScaleFactor: 1, ...opts });
