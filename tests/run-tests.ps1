@@ -3458,15 +3458,15 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         ('echo The current bookmark is 00000085-0000024c-00004c6d-' + [guid]::NewGuid().ToString('N')),
         'exit /b 0',
         ':d1file',
-        'echo added> "%GW_FAKE_STATE%\pgw.flag"',
+        'echo added> "%GW_FAKE_STATE%\zgw.flag"',
         'echo OK',
         'exit /b 0',
         ':d1query',
-        'if exist "%GW_FAKE_STATE%\pgw.flag" goto d1yes',
+        'if exist "%GW_FAKE_STATE%\zgw.flag" goto d1yes',
         'echo [{"results":[],"success":true}]',
         'exit /b 0',
         ':d1yes',
-        'echo [{"results":[{"site_key":"PGW"}],"success":true}]',
+        'echo [{"results":[{"site_key":"ZGW"}],"success":true}]',
         'exit /b 0',
         ':delpreview',
         'if exist "%GW_FAKE_STATE%\deleted.flag" goto delgone',
@@ -3584,16 +3584,16 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         Write-Utf8 (Join-Path $vPub 'styles.css') 'body{}'
         Check ((Run-V @('-Step', 'live', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB LIVE')) -eq 7 -and (VCount 'deploy --config') -eq 4) 'hub v2 live: refused when someone else changed the hub folder'
         Check ((VLast).Contains('public/styles.css')) 'hub v2: the changed file is named in the report'
-        # register: Gaming Gear World in the Hub's list of sites (one D1 row, restore point first)
+        # register: Pets Gear World in the Hub's list of sites (one D1 row, restore point first)
         Check ((Run-V @('-Step', 'register')) -eq 0 -and (VCount '--file') -eq 0) 'hub register without -Apply: nothing changes'
         Check ((Run-V @('-Step', 'register', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB LIVE')) -eq 1 -and (VCount '--file') -eq 0) 'hub register with the live phrase: nothing changes'
-        Check ((Run-V @('-Step', 'register', '-Apply', '-Approve', 'egkrino hub pgw search')) -eq 0 -and (VCount '--file') -eq 1) 'hub register with approval: one SQL file runs'
+        Check ((Run-V @('-Step', 'register', '-Apply', '-Approve', 'egkrino hub zgw search')) -eq 0 -and (VCount '--file') -eq 1) 'hub register with approval: one SQL file runs'
         $c = VCalls
         Check ($c.LastIndexOf('time-travel info gear-world-registry') -lt $c.LastIndexOf('--file') -and $c.LastIndexOf('time-travel info gear-world-registry') -ge 0) 'hub register: restore point read before the change'
-        $sqls = @(Get-ChildItem -LiteralPath (Join-Path $vWork 'backups') -Filter 'add-pgw-site-*.sql' -ErrorAction SilentlyContinue)
-        Check ($sqls.Count -eq 1 -and ([System.IO.File]::ReadAllText($sqls[0].FullName)).Contains("INSERT OR IGNORE INTO sites") -and ([System.IO.File]::ReadAllText($sqls[0].FullName)).Contains("'PGW', 'Gaming Gear World', 'gaminggearworld.com'")) 'hub register: INSERT OR IGNORE of the PGW row'
-        Check (@(Get-ChildItem -LiteralPath (Join-Path $vWork 'backups') -Filter 'gwh-registry-before-pgw-*.txt').Count -eq 1) 'hub register: restore note written'
-        Check ((Run-V @('-Step', 'register', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB PGW SEARCH')) -eq 0 -and (VCount '--file') -eq 1 -and (VLast).Contains('ήδη στη λίστα')) 'hub register twice: the row is there, nothing runs again'
+        $sqls = @(Get-ChildItem -LiteralPath (Join-Path $vWork 'backups') -Filter 'add-zgw-site-*.sql' -ErrorAction SilentlyContinue)
+        Check ($sqls.Count -eq 1 -and ([System.IO.File]::ReadAllText($sqls[0].FullName)).Contains("INSERT OR IGNORE INTO sites") -and ([System.IO.File]::ReadAllText($sqls[0].FullName)).Contains("'ZGW', 'Pets Gear World', 'petsgearworld.com'")) 'hub register: INSERT OR IGNORE of the ZGW row'
+        Check (@(Get-ChildItem -LiteralPath (Join-Path $vWork 'backups') -Filter 'gwh-registry-before-zgw-*.txt').Count -eq 1) 'hub register: restore note written'
+        Check ((Run-V @('-Step', 'register', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB ZGW SEARCH')) -eq 0 -and (VCount '--file') -eq 1 -and (VLast).Contains('ήδη στη λίστα')) 'hub register twice: the row is there, nothing runs again'
         # remove-preview: the test Worker goes, from a new empty folder (L83)
         Check ((Run-V @('-Step', 'remove-preview')) -eq 0 -and (VCount 'delete gear-world-hub-preview') -eq 0) 'hub remove-preview without -Apply: nothing deleted'
         Check ((Run-V @('-Step', 'remove-preview', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB LIVE')) -eq 1 -and (VCount 'delete gear-world-hub-preview') -eq 0) 'hub remove-preview with the live phrase: nothing deleted'

@@ -165,7 +165,7 @@
 
 | Αρχείο | Pexels |
 |---|---|
-| hero-1920.webp, hero-960.webp, og-image.png (φόντο) | https://www.pexels.com/photo/dogs-and-a-cat-lying-on-a-cushion-7329892/ |
+| hero-1920.webp, hero-960.webp, og-image.png (φόντο), sites/gwh/public/hub-zgw.jpg (κάρτα στο hub) | https://www.pexels.com/photo/dogs-and-a-cat-lying-on-a-cushion-7329892/ |
 | cat-beds-crates.webp | https://www.pexels.com/photo/dog-resting-on-pet-bed-2248516/ |
 | cat-walking.webp | https://www.pexels.com/photo/close-up-photo-of-a-brown-dog-13228217/ |
 | cat-toys.webp | https://www.pexels.com/photo/boston-terrier-dog-chewing-yellow-toy-indoors-30401679/ |

@@ -12,6 +12,7 @@ gwh-hero.png
 hub-agw.jpg
 hub-bgw.jpg
 hub-pgw.jpg
+hub-zgw.jpg
 hub-cgw.jpg
 hub-deals.json
 hub-ggw.jpg
