@@ -82,7 +82,8 @@ $Bad = 'Magenta'
 
 # What each file of the change does, in the words of the report.
 $About = @{
-    'worker.js'             = 'η αναζήτηση δέχεται και κόσμους + μέγιστη τιμή (για το «Βρες δώρο»), και βάζει πρώτα τα προϊόντα με όλες τις λέξεις'
+    'worker.js'             = 'η λίστα μελών: οι εγγραφές «Get deal updates» των 12 sites (μόνο από την ιδιωτική τους σύνδεση) και η αντιγραφή όσων συμφώνησαν στο MailerLite κάθε 30 λεπτά (L90)'
+    'members.js'            = 'ο κώδικας της λίστας μελών και του MailerLite (νέο αρχείο, L90)'
     'poster-scan.js'        = 'η μέτρηση των αφισών (ίδια με αυτή που μπήκε με το POSTER STATS)'
     'public/index.html'     = 'νέος τίτλος «Gear World Hub – Gear, Gifts & Deals From Every Gear World» και νέα περιγραφή για το Bing (151 χαρακτήρες)'
     'public/robots.txt'     = 'robots.txt του Hub με τη γραμμή Sitemap: https://gearworldhub.com/sitemap.xml (το Cloudflare βάζει από πάνω τα Content Signals του)'
@@ -421,7 +422,7 @@ $baseSha = @{}
 foreach ($b in $baseline) { $baseSha[$b.path] = $b.sha }
 
 $gwhRepo = Join-Path (Join-Path $repo 'sites') 'gwh'
-$newFiles = @('worker.js', 'photo-search.js', 'poster-scan.js')
+$newFiles = @('worker.js', 'photo-search.js', 'poster-scan.js', 'members.js')
 $pubRepo = Join-Path $gwhRepo 'public'
 foreach ($f in @(Get-ChildItem -LiteralPath $pubRepo -Recurse -File | Sort-Object FullName)) {
     $newFiles += ('public/' + $f.FullName.Substring($pubRepo.Length).TrimStart('\', '/').Replace('\', '/'))
@@ -661,6 +662,12 @@ if (-not $pcIsBaseline -and -not $pcIsNew) {
     Finish 7
 }
 if (-not $postersOn) { Say 'Πρώτα η μέτρηση των αφισών (ΕΓΚΡΙΝΩ POSTER STATS), μετά το νέο Hub: ΔΕΝ αλλάζω τίποτα.' $Bad; Finish 8 }
+# The member list (lessons L90): the new code writes new columns of hub_subscribers, so they must be there first.
+if ($plan -contains 'members.js') {
+    $mq = Invoke-Wrangler $gwh ('d1 execute {0} --remote --json --command "PRAGMA table_info(hub_subscribers)"' -f $DbName) -Retry
+    if ($mq.code -ne 0 -or $mq.text -notmatch '"mailerlite_status"') { Say 'Πρώτα η λίστα μελών στη βάση του Hub (ΕΓΚΡΙΝΩ HUB MEMBERS, tools/hub-members.ps1), μετά το νέο Hub: ΔΕΝ αλλάζω τίποτα.' $Bad; Finish 15 }
+    Say 'Λίστα μελών στη βάση του Hub (νέα πεδία): υπάρχει: ΕΝΤΑΞΕΙ' $Ok
+}
 if ($unread.Count -gt 0) { Say 'Δεν μπόρεσα να διαβάσω όλο το live gearworldhub.com: ΔΕΝ αλλάζω τίποτα. Ξανατρέξε την εντολή σε λίγο.' $Bad; Finish 6 }
 if ($liveState -eq 'mixed') { Say 'Το live gearworldhub.com άλλαξε από αλλού: ΔΕΝ αλλάζω τίποτα. Στείλε αυτή την αναφορά στο Claude.' $Bad; Finish 7 }
 if ($pcIsNew -and $liveState -eq 'new') {
@@ -680,7 +687,7 @@ $bdir = Join-Path $WorkDir 'backups'
 if (-not (Test-Path -LiteralPath $bdir)) { New-Item -ItemType Directory -Path $bdir -Force | Out-Null }
 $tmpCopy = Join-Path ([System.IO.Path]::GetTempPath()) ('gwh-before-v2-' + $stamp)
 New-Item -ItemType Directory -Path $tmpCopy -Force | Out-Null
-foreach ($n in @('worker.js', 'wrangler.toml', 'photo-search.js', 'poster-scan.js')) {
+foreach ($n in @('worker.js', 'wrangler.toml', 'photo-search.js', 'poster-scan.js', 'members.js')) {
     $src = Join-Path $HubDir $n
     if (Test-Path -LiteralPath $src) { Copy-Item -LiteralPath $src -Destination $tmpCopy -Force }
 }
