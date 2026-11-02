@@ -3997,6 +3997,182 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
     }
 }
 
+# 16. gwh-mailerlite.ps1 (Gear World email step 5a: Hub sign-ups to MailerLite) with a fake wrangler (Windows only)
+if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
+    Write-Host 'gwh-mailerlite.ps1 (fake wrangler)'
+    $mTool = Join-Path (Join-Path $repo 'tools') 'gwh-mailerlite.ps1'
+    $mState = Join-Path $work 'gwhm-state'
+    $mWork = Join-Path $work 'gwhm-work'
+    $mOut = Join-Path $work 'gwhm-out'
+    $mBin = Join-Path $work 'gwhm-bin'
+    $mHub = Join-Path $work 'gwhm-hub'
+    New-Item -ItemType Directory -Path $mState, $mBin, $mHub -Force | Out-Null
+    $mDb = [guid]::NewGuid().ToString()
+    $mVer = [guid]::NewGuid().ToString()
+    $mRepo = Join-Path (Join-Path $repo 'sites') 'gwh'
+    # The fake hub on the "PC" runs the version before the change: the files of the repo, except the 4 changed files
+    # (one more line, so they differ) and mailerlite.js (not there yet). The baseline lists it exactly.
+    $mCfg = "name = `"gear-world-hub`"`nmain = `"worker.js`"`n[[d1_databases]]`ndatabase_name = `"gear-world-registry`"`ndatabase_id = `"$mDb`"`n`n[[services]]`nbinding = `"POSTERS`"`nservice = `"gear-world-posters`"`n"
+    Write-Utf8 (Join-Path $mHub 'wrangler.toml') $mCfg
+    foreach ($n in @('worker.js', 'photo-search.js', 'poster-scan.js')) { Copy-Item -LiteralPath (Join-Path $mRepo $n) -Destination (Join-Path $mHub $n) -Force }
+    Copy-Item -LiteralPath (Join-Path $mRepo 'public') -Destination $mHub -Recurse -Force
+    $mPub = Join-Path $mHub 'public'
+    [System.IO.File]::AppendAllText((Join-Path $mHub 'worker.js'), "`n// before MailerLite`n")
+    foreach ($n in @('email-signup.js', 'index.html', 'privacy\index.html')) { [System.IO.File]::AppendAllText((Join-Path $mPub $n), "`n<!-- before MailerLite -->`n") }
+    Write-Utf8 (Join-Path $mHub '.dev.vars') 'SECRET=never-in-the-zip'
+    $mBase = Join-Path $work 'gwhm-baseline.txt'
+    $bl = @('# test baseline', '# version: test hub before mailerlite', '# path | bytes | sha256 | kind')
+    $mRels = @('worker.js', 'photo-search.js', 'poster-scan.js') + @(Get-ChildItem -LiteralPath $mPub -Recurse -File | Sort-Object FullName | ForEach-Object { 'public/' + $_.FullName.Substring($mPub.Length).TrimStart('\', '/').Replace('\', '/') })
+    foreach ($rel in $mRels) {
+        $f = Join-Path $mHub ($rel.Replace('/', '\'))
+        $bl += ('{0} | {1} | {2} | file' -f $rel, (Get-Item -LiteralPath $f).Length, (Get-FileHash -LiteralPath $f -Algorithm SHA256).Hash.ToLowerInvariant())
+    }
+    Write-Utf8 $mBase (($bl -join "`n") + "`n")
+    # A baseline where one more file differs (styles.css): the tool must refuse, it is not part of step 5a.
+    $mBaseOther = Join-Path $work 'gwhm-baseline-other.txt'
+    Write-Utf8 $mBaseOther ((($bl | ForEach-Object { if ($_ -like 'public/styles.css |*') { 'public/styles.css | 1 | ' + ('0' * 64) + ' | file' } else { $_ } }) -join "`n") + "`n")
+    $mNpx = @(
+        '@echo off',
+        'echo %* >> "%GW_FAKE_STATE%\calls.log"',
+        'echo %* | findstr /C:"whoami" >nul && goto whoami',
+        'echo %* | findstr /C:"d1 list" >nul && goto d1list',
+        'echo %* | findstr /C:"secret list" >nul && goto secretlist',
+        'echo %* | findstr /C:"secret bulk" >nul && goto secret',
+        'echo %* | findstr /C:"deployments list" >nul && goto deployments',
+        'echo %* | findstr /C:"time-travel info" >nul && goto ttinfo',
+        'echo %* | findstr /C:"--file" >nul && goto d1file',
+        'echo %* | findstr /C:"PRAGMA" >nul && goto pragma',
+        'echo %* | findstr /C:"GROUP BY" >nul && goto groups',
+        'echo %* | findstr /C:"COUNT" >nul && goto count',
+        'echo %* | findstr /C:"delete gear-world-hub-preview" >nul && goto delpreview',
+        'echo %* | findstr /C:" deploy" >nul && goto deploy',
+        'echo unknown command 1>&2',
+        'exit /b 1',
+        ':ttinfo',
+        ('echo The current bookmark is 00000085-0000024c-00004c6d-' + [guid]::NewGuid().ToString('N')),
+        'exit /b 0',
+        ':d1file',
+        'if exist "%GW_FAKE_STATE%\migfail.flag" goto d1filefail',
+        'echo done> "%GW_FAKE_STATE%\migrated.flag"',
+        'echo OK',
+        'exit /b 0',
+        ':d1filefail',
+        'echo X [ERROR] duplicate column name: ml_status',
+        'exit /b 1',
+        ':pragma',
+        'if exist "%GW_FAKE_STATE%\migrated.flag" echo [{"results":[{"cid":0,"name":"id"},{"cid":1,"name":"email"},{"cid":9,"name":"ml_status"}],"success":true}]',
+        'if not exist "%GW_FAKE_STATE%\migrated.flag" echo [{"results":[{"cid":0,"name":"id"},{"cid":1,"name":"email"}],"success":true}]',
+        'exit /b 0',
+        ':groups',
+        'echo [{"results":[{"s":"hold","n":7}],"success":true}]',
+        'exit /b 0',
+        ':count',
+        'echo [{"results":[{"n":7}],"success":true}]',
+        'exit /b 0',
+        ':delpreview',
+        'echo Successfully deleted gear-world-hub-preview',
+        'exit /b 0',
+        ':whoami',
+        'echo You are logged in with an OAuth Token, associated with the email test@example.com.',
+        'exit /b 0',
+        ':d1list',
+        ('echo [{"uuid":"' + $mDb + '","name":"gear-world-registry"},{"uuid":"x","name":"other-site"}]'),
+        'exit /b 0',
+        ':secretlist',
+        'if exist "%GW_FAKE_STATE%\key.flag" echo [{"name":"GW_INTERNAL_TOKEN","type":"secret_text"},{"name":"MAILERLITE_API_KEY","type":"secret_text"},{"name":"PHOTO_LIMIT_SALT","type":"secret_text"}]',
+        'if not exist "%GW_FAKE_STATE%\key.flag" echo [{"name":"PHOTO_LIMIT_SALT","type":"secret_text"}]',
+        'exit /b 0',
+        ':secret',
+        'echo Finished processing secrets file',
+        'exit /b 0',
+        ':deployments',
+        ('echo Version(s):  (100%%) ' + $mVer),
+        'exit /b 0',
+        ':deploy',
+        'if exist "%GW_FAKE_STATE%\failother.flag" goto deployfail',
+        'echo Uploaded the Worker',
+        'echo   https://gear-world-hub-preview.example-test.workers.dev',
+        'exit /b 0',
+        ':deployfail',
+        'echo X [ERROR] A request to the Cloudflare API failed. Something else. [code: 10021]',
+        'exit /b 1'
+    ) -join "`r`n"
+    [System.IO.File]::WriteAllText((Join-Path $mBin 'npx.cmd'), $mNpx + "`r`n", [System.Text.Encoding]::ASCII)
+    $oldPath = $env:PATH
+    $env:PATH = $mBin + ';' + $oldPath
+    $env:GW_FAKE_STATE = $mState
+    $mCalls = Join-Path $mState 'calls.log'
+    Write-Utf8 (Join-Path $mState 'key.flag') 'key'
+    function Run-M([string[]]$a, [string]$base = $mBase) {
+        $all = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $mTool, '-HubDir', $mHub, '-WorkDir', $mWork, '-OutDir', $mOut, '-BaselineFile', $base, '-SkipInstall', '-NoClipboard', '-NoHttpCheck') + $a
+        & $exe @all | Out-Null
+        return $LASTEXITCODE
+    }
+    function MCalls { if (Test-Path -LiteralPath $mCalls) { return [System.IO.File]::ReadAllText($mCalls) } else { return '' } }
+    function MCount([string]$pattern) { return ([regex]::Matches((MCalls), $pattern)).Count }
+    function MLast { return [System.IO.File]::ReadAllText((@(Get-ChildItem -LiteralPath $mOut -Filter 'GWH_MAILERLITE_*.txt' | Sort-Object LastWriteTime, Name | Select-Object -Last 1)[0]).FullName) }
+    $mHubBefore = Get-TreeHash $mHub
+    try {
+        Check ((Run-M @('-Step', 'check')) -eq 0) 'mailerlite hub check: exit 0'
+        $r = MLast
+        Check ($r.Contains('ίδιος με την έκδοση που τρέχει live (test hub before mailerlite') -and $r.Contains('Αποτέλεσμα: ΕΝΤΑΞΕΙ') -and $r.Contains('MAILERLITE_API_KEY) στον Hub: υπάρχει') -and $r.Contains('7 εγγραφές')) 'mailerlite hub check: live version, key there, 7 sign-ups counted, ready'
+        Check ($r.Contains('Στον φάκελο του Hub μπαίνουν 5 αρχεία') -and $r.Contains('- mailerlite.js:') -and $r.Contains('- worker.js:') -and $r.Contains('- public/email-signup.js:') -and $r.Contains('- public/index.html:') -and $r.Contains('- public/privacy/index.html:') -and -not $r.Contains('photo-search.js:')) 'mailerlite hub check: the plan is exactly the 5 files of step 5a'
+        Check ((MCount 'deploy --config') -eq 0 -and (MCount '--file') -eq 0 -and (Get-TreeHash $mHub) -eq $mHubBefore) 'mailerlite hub check: only reads'
+        Check (-not $r.Contains($mDb) -and -not $r.Contains($mVer)) 'mailerlite hub check: no database id or version id in the report'
+        Check ((Run-M @('-Step', 'check') $mBaseOther) -eq 13) 'mailerlite hub: a difference outside step 5a (styles.css) stops the tool'
+        # preview
+        Check ((Run-M @('-Step', 'preview')) -eq 0 -and (MCount 'deploy --config') -eq 0) 'mailerlite hub preview without -Apply: nothing changes'
+        Check ((Run-M @('-Step', 'preview', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB REMOVE PREVIEW')) -eq 1 -and (MCount 'deploy --config') -eq 0) 'mailerlite hub preview with another phrase: nothing changes'
+        Check ((Run-M @('-Step', 'preview', '-Apply', '-Approve', 'egkrino mailerlite sites')) -eq 0 -and (MCount 'deploy --config') -eq 1) 'mailerlite hub preview with approval (Latin form): deploys once'
+        $cfgs = @(Get-ChildItem -LiteralPath (Join-Path $mWork 'deploy') -Recurse -Filter 'wrangler.preview.toml' -ErrorAction SilentlyContinue)
+        $pc = $(if ($cfgs.Count) { [System.IO.File]::ReadAllText($cfgs[0].FullName) } else { '' })
+        Check ($pc -match '(?m)^name = "gear-world-hub-preview"' -and $pc.Contains('GWH_PREVIEW = "1"') -and $pc.Contains($mDb) -and -not $pc.Contains('POSTERS') -and $pc -notmatch '(?m)^crons') 'mailerlite hub preview: test Worker, preview rules on, no poster counting, no cron'
+        Check ((MCount '--file') -eq 0 -and (Get-TreeHash $mHub) -eq $mHubBefore) 'mailerlite hub preview: no D1 change, the hub folder is not changed'
+        # live: refused without the key, with the wrong phrase, after a failed migration
+        Remove-Item -LiteralPath (Join-Path $mState 'key.flag') -Force
+        Check ((Run-M @('-Step', 'live', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ MAILERLITE SITES')) -eq 8 -and (MCount 'deploy --config') -eq 1 -and (MCount '--file') -eq 0) 'mailerlite hub live: refused without the MailerLite key'
+        Write-Utf8 (Join-Path $mState 'key.flag') 'key'
+        Check ((Run-M @('-Step', 'live')) -eq 0 -and (Get-TreeHash $mHub) -eq $mHubBefore) 'mailerlite hub live without -Apply: nothing changes'
+        Check ((Run-M @('-Step', 'live', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB LIVE')) -eq 1 -and (MCount '--file') -eq 0 -and (Get-TreeHash $mHub) -eq $mHubBefore) 'mailerlite hub live with another phrase: nothing changes'
+        Write-Utf8 (Join-Path $mState 'migfail.flag') 'fail'
+        Check ((Run-M @('-Step', 'live', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ MAILERLITE SITES')) -eq 12 -and (MCount 'deploy --config') -eq 1 -and (Get-TreeHash $mHub) -eq $mHubBefore) 'mailerlite hub live: a failed D1 change stops before the files and the deploy'
+        Remove-Item -LiteralPath (Join-Path $mState 'migfail.flag') -Force
+        Write-Utf8 (Join-Path $mState 'failother.flag') 'always'
+        Check ((Run-M @('-Step', 'live', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ MAILERLITE SITES')) -eq 9 -and (MCount 'deploy --config') -eq 2) 'mailerlite hub live: a failed deploy stops at once (exit 9)'
+        Check ((Get-TreeHash $mHub) -eq $mHubBefore) 'mailerlite hub live: after a failed deploy the hub folder and wrangler.toml are back as they were'
+        Check (Test-Path -LiteralPath (Join-Path $mState 'migrated.flag')) 'mailerlite hub live: the D1 change (additive) stays after a failed deploy'
+        Remove-Item -LiteralPath (Join-Path $mState 'failother.flag') -Force
+        Check ((Run-M @('-Step', 'live', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ MAILERLITE SITES')) -eq 0 -and (MCount 'deploy --config') -eq 3) 'mailerlite hub live with approval: deploys once'
+        Check ((MCount '--file') -eq 2) 'mailerlite hub live: the D1 migration is not run again once its columns exist'
+        $c = MCalls
+        Check ($c -match ('deploy --config "' + [regex]::Escape((Join-Path $mHub 'wrangler.toml')) + '"')) 'mailerlite hub live: deploys the hub folder with its own wrangler.toml'
+        $cfgNow = [System.IO.File]::ReadAllText((Join-Path $mHub 'wrangler.toml'))
+        Check ($cfgNow -match '(?m)^\[triggers\]' -and $cfgNow -match '(?m)^crons = \["\*/10 \* \* \* \*"\]' -and $cfgNow.Contains('binding = "POSTERS"') -and $cfgNow.Contains($mDb)) 'mailerlite hub live: the cron is added, POSTERS and the database id are kept'
+        $same = $true
+        foreach ($rel in @('mailerlite.js', 'worker.js', 'public\email-signup.js', 'public\index.html', 'public\privacy\index.html')) {
+            if ((Get-FileHash -LiteralPath (Join-Path $mHub $rel) -Algorithm SHA256).Hash -ne (Get-FileHash -LiteralPath (Join-Path $mRepo $rel) -Algorithm SHA256).Hash) { $same = $false }
+        }
+        Check $same 'mailerlite hub live: the 5 files in the hub folder are the files of this version'
+        $r = MLast
+        Check ($r.Contains('mailerlite.js | ') -and $r.Contains('ΕΤΟΙΜΟ') -and -not $r.Contains($mDb) -and -not $r.Contains($mVer)) 'mailerlite hub live: report with the baseline lines, without ids'
+        $notes = @(Get-ChildItem -LiteralPath (Join-Path $mWork 'backups') -Filter 'gwh-before-mailerlite-live-*.txt' | Sort-Object Name)
+        $zips = @(Get-ChildItem -LiteralPath (Join-Path $mWork 'backups') -Filter 'gwh-before-mailerlite-live-*.zip')
+        $nt = $(if ($notes.Count) { [System.IO.File]::ReadAllText($notes[-1].FullName) } else { '' })
+        Check ($zips.Count -ge 1 -and $nt.Contains($mVer) -and $nt.Contains('time-travel restore gear-world-registry --bookmark=')) 'mailerlite hub live: zip, live version and D1 restore point kept first'
+        $zipNames = @()
+        Add-Type -AssemblyName System.IO.Compression.FileSystem
+        $za = [System.IO.Compression.ZipFile]::OpenRead($zips[0].FullName)
+        try { $zipNames = @($za.Entries | ForEach-Object { $_.FullName }) } finally { $za.Dispose() }
+        Check (($zipNames -join ',') -notmatch 'dev\.vars' -and ($zipNames -join ',') -match 'wrangler\.toml') 'mailerlite hub live: the backup has wrangler.toml, never .dev.vars'
+        $deploys = MCount 'deploy --config'
+        Check ((Run-M @('-Step', 'live', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ MAILERLITE SITES')) -eq 0 -and (MCount 'deploy --config') -eq $deploys) 'mailerlite hub live again: already live, nothing to do'
+        Check ((Run-M @('-Step', 'remove-preview', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB REMOVE PREVIEW')) -eq 0 -and (MCount 'delete gear-world-hub-preview') -eq 1 -and (MCount 'delete gear-world-hub ') -eq 0) 'mailerlite hub remove-preview: deletes only the test Worker'
+    } finally {
+        $env:PATH = $oldPath
+        Remove-Item Env:\GW_FAKE_STATE -ErrorAction SilentlyContinue
+    }
+}
+
 Remove-Item -LiteralPath $work -Recurse -Force -ErrorAction SilentlyContinue
 
 Write-Host ''

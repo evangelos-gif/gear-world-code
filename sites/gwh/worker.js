@@ -2,6 +2,8 @@
 import { handlePhotoSearch, previewResponse, addPreviewHeaders } from "./photo-search.js";
 // GWH-POSTER-SCANS: poster QR scans of the home page are counted in poster-scan.js (lessons L76).
 import { posterScan } from "./poster-scan.js";
+// GWH-MAILERLITE: email sign-ups to the Hub D1 and MailerLite (Gear World email, step 5).
+import { handleSubscribe, syncPending } from "./mailerlite.js";
 
 const hubCore = {
   async fetch(request, env) {
@@ -746,6 +748,8 @@ const hubCore = {
     }
 
     // GWH-EMAIL-SUBSCRIBE-START
+    // Since email step 5 (November 2026) /api/subscribe is answered by mailerlite.js (see the default export below),
+    // so this older block is no longer reached. It stays only so the history of the Hub is easy to follow.
     // ============================================================
     // HUB EMAIL SIGNUP
     // ============================================================
@@ -899,9 +903,13 @@ async function seasonalMedia(request, env) {
 // On the test address (GWH_PREVIEW = "1") a few extra rules apply: see photo-search.js.
 export default {
   async fetch(request, env, ctx) {
+    const url = new URL(request.url);
+    // GWH-MAILERLITE: email sign-ups (D1 first, then MailerLite) are in mailerlite.js; on the test address it writes nothing.
+    if (url.pathname === "/api/subscribe") {
+      return addPreviewHeaders(await handleSubscribe(request, env, ctx), env);
+    }
     const early = previewResponse(request, env);
     if (early) return addPreviewHeaders(early, env);
-    const url = new URL(request.url);
     // GWH-POSTER-SCANS: a QR scan of a poster (?utm_source=poster) is counted in the background; never on the test address.
     posterScan(request, env, ctx, { site: "hub", domain: "gearworldhub.com", off: String((env && env.GWH_PREVIEW) || "") === "1" });
     const media = await seasonalMedia(request, env);
@@ -910,6 +918,10 @@ export default {
       return addPreviewHeaders(await handlePhotoSearch(request, env, ctx), env);
     }
     return addPreviewHeaders(await hubCore.fetch(request, env), env);
+  },
+  // GWH-MAILERLITE: the cron (wrangler.toml [triggers], every 10 minutes) sends sign-ups that are still 'pending'.
+  async scheduled(controller, env, ctx) {
+    ctx.waitUntil(syncPending(env).catch(() => {}));
   }
 };
 // GWH-PHOTO-SEARCH-END

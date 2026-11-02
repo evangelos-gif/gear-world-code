@@ -24,3 +24,8 @@ binding = "AI"
 [[services]]
 binding = "POSTERS"
 service = "gear-world-posters"
+
+# Gear World email (step 5): every 10 minutes the Hub sends sign-ups that are still waiting to MailerLite
+# (mailerlite.js syncPending). tools/gwh-mailerlite.ps1 adds the same block to the real wrangler.toml on the PC.
+[triggers]
+crons = ["*/10 * * * *"]
