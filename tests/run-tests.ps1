@@ -3983,6 +3983,92 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
     }
 }
 
+# 16. gwh-mailerlite-key.ps1 (Gear World email, step 2: the MailerLite key as a secret of the Hub) with a fake wrangler
+if ($isWin) {
+    Write-Host 'gwh-mailerlite-key.ps1 (fake wrangler)'
+    $mTool = Join-Path (Join-Path $repo 'tools') 'gwh-mailerlite-key.ps1'
+    $mHome = Join-Path $work 'mlk-home'
+    $mState = Join-Path $work 'mlk-state'
+    $mBin = Join-Path $work 'mlk-bin'
+    $mOut = Join-Path $mHome 'gear-world-reports'
+    New-Item -ItemType Directory -Path $mState, $mBin -Force | Out-Null
+    $mVer = [guid]::NewGuid().ToString()
+    $mKey = 'mlTestKey0123456789abcdefABCDEF.xyz'
+    $mNpx = @(
+        '@echo off',
+        'echo %* >> "%GW_FAKE_STATE%\calls.log"',
+        'echo %* | findstr /L /C:"whoami" >nul && goto whoami',
+        'echo %* | findstr /L /C:"secret put" >nul && goto secretput',
+        'echo %* | findstr /L /C:"secret list" >nul && goto secretlist',
+        'echo %* | findstr /L /C:"deployments list" >nul && goto deployments',
+        'echo unknown command 1>&2',
+        'exit /b 1',
+        ':whoami',
+        'echo You are logged in with an OAuth Token, associated with the email test@example.com.',
+        'exit /b 0',
+        ':deployments',
+        ('echo Version(s):  (100%%) ' + $mVer),
+        'exit /b 0',
+        ':secretlist',
+        'if exist "%GW_FAKE_STATE%\secret.txt" echo [{"name":"PHOTO_LIMIT_SALT","type":"secret_text"},{"name":"MAILERLITE_API_KEY","type":"secret_text"}]',
+        'if not exist "%GW_FAKE_STATE%\secret.txt" echo [{"name":"PHOTO_LIMIT_SALT","type":"secret_text"}]',
+        'exit /b 0',
+        ':secretput',
+        'set /p GWSECRET=',
+        '>"%GW_FAKE_STATE%\secret.txt" echo %GWSECRET%',
+        'echo Success! Uploaded secret MAILERLITE_API_KEY',
+        'exit /b 0'
+    ) -join "`r`n"
+    [System.IO.File]::WriteAllText((Join-Path $mBin 'npx.cmd'), $mNpx + "`r`n", [System.Text.Encoding]::ASCII)
+    $oldPath = $env:PATH
+    $env:PATH = $mBin + ';' + $oldPath
+    $env:GW_FAKE_STATE = $mState
+    $env:GW_TEST_ML_KEY = $mKey
+    $mCalls = Join-Path $mState 'calls.log'
+    function Run-M([string[]]$a) {
+        $all = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $mTool, '-PcHome', $mHome, '-SkipInstall', '-NoClipboard', '-NoHttpCheck') + $a
+        & $exe @all | Out-Null
+        return $LASTEXITCODE
+    }
+    function MText([string]$p) { if (Test-Path -LiteralPath $p) { return [System.IO.File]::ReadAllText($p) } else { return '' } }
+    function MCount([string]$pattern) { return ([regex]::Matches((MText $mCalls), $pattern)).Count }
+    function MLast([string]$filter) {
+        $f = @(Get-ChildItem -LiteralPath $mOut -Filter $filter -ErrorAction SilentlyContinue | Sort-Object LastWriteTime, Name | Select-Object -Last 1)
+        if ($f.Count -eq 0) { return '' }
+        return [System.IO.File]::ReadAllText($f[0].FullName)
+    }
+    try {
+        # check: reads only
+        Check ((Run-M @('-Step', 'check')) -eq 0) 'mailerlite key check: exit 0'
+        $r = MLast 'GWH_MAILERLITE_KEY_CHECK_*.txt'
+        Check ($r.Contains('Αποτέλεσμα: ΕΝΤΑΞΕΙ') -and $r.Contains('PHOTO_LIMIT_SALT') -and $r.Contains('ΕΓΚΡΙΝΩ MAILERLITE ΚΛΕΙΔΙ') -and -not $r.Contains($mVer)) 'mailerlite key check: secret names and the phrase in the report, no version id'
+        Check ((MCount 'secret put') -eq 0) 'mailerlite key check: nothing stored'
+        # apply without -Apply, with the wrong phrase, with a key that is not one: nothing stored
+        Check ((Run-M @('-Step', 'apply')) -eq 0 -and (MCount 'secret put') -eq 0) 'mailerlite key apply without -Apply: nothing stored'
+        Check ((Run-M @('-Step', 'apply', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ AWIN SYNC', '-KeyEnv', 'GW_TEST_ML_KEY', '-NoKeyTest')) -eq 1 -and (MCount 'secret put') -eq 0) 'mailerlite key apply with the wrong phrase: nothing stored'
+        $env:GW_TEST_ML_KEY = 'has a space in it 0123456789'
+        Check ((Run-M @('-Step', 'apply', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ MAILERLITE ΚΛΕΙΔΙ', '-KeyEnv', 'GW_TEST_ML_KEY', '-NoKeyTest')) -eq 8 -and (MCount 'secret put') -eq 0) 'mailerlite key apply: a key with spaces is not stored (exit 8)'
+        $env:GW_TEST_ML_KEY = $mKey
+        # the full run (Latin form of the phrase)
+        Check ((Run-M @('-Step', 'apply', '-Apply', '-Approve', 'egkrino mailerlite κλειδι', '-KeyEnv', 'GW_TEST_ML_KEY', '-NoKeyTest')) -eq 0) 'mailerlite key apply with approval: exit 0'
+        $c = MText $mCalls
+        Check ($c.Contains('secret put MAILERLITE_API_KEY --name gear-world-hub') -and -not ($c -match '(?m)^\s*deploy\b|\bd1 |secret delete|secret bulk|rollback'))'mailerlite key apply: only the Hub secret is stored, no deploy, D1 or delete'
+        Check ((MText (Join-Path $mState 'secret.txt')).Trim() -eq $mKey) 'mailerlite key apply: the key reached wrangler (through its input)'
+        Check (-not $c.Contains($mKey)) 'mailerlite key apply: the key is never on a command line'
+        $r = MLast 'GWH_MAILERLITE_KEY_APPLY_*.txt'
+        Check ($r.Contains('ΕΤΟΙΜΟ') -and -not $r.Contains($mKey) -and -not $r.Contains($mVer)) 'mailerlite key apply: report ready, without the key or the version id'
+        Check ($r.Contains('secret delete MAILERLITE_API_KEY --name gear-world-hub')) 'mailerlite key apply: the report says how to undo it'
+        $notes = @(Get-ChildItem -LiteralPath (Join-Path (Join-Path $mHome 'gear-world-mailerlite') 'backups') -Filter 'gwh-before-mailerlite-key-*.txt' -ErrorAction SilentlyContinue)
+        $nt = ''
+        if ($notes.Count -gt 0) { $nt = [System.IO.File]::ReadAllText($notes[0].FullName) }
+        Check ($notes.Count -eq 1 -and $nt.Contains($mVer) -and $nt.Contains('PHOTO_LIMIT_SALT') -and -not $nt.Contains($mKey)) 'mailerlite key apply: backup note on the PC with the live version and secret names, without the key'
+    } finally {
+        $env:PATH = $oldPath
+        Remove-Item Env:\GW_FAKE_STATE -ErrorAction SilentlyContinue
+        Remove-Item Env:\GW_TEST_ML_KEY -ErrorAction SilentlyContinue
+    }
+}
+
 Remove-Item -LiteralPath $work -Recurse -Force -ErrorAction SilentlyContinue
 
 Write-Host ''
