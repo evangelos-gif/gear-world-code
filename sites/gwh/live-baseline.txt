@@ -1,12 +1,13 @@
 # Gear World Hub: the files that run live now, with their sha256.
-# version: Hub V2 + Pets card + email to MailerLite (commit d407dcc, live since 02/11/2026 21:53, tools/gwh-mailerlite.ps1; D1 migration 0002, cron */10)
+# version: Hub V2 + Pets card + email to MailerLite + Get deal updates of the sites (commit 54550dd, live since 02/11/2026 22:44, tools/gwh-hub-v2.ps1; D1 migrations 0002 and 0003, cron */10)
 # Checked against the PC (C:\Users\vagge\gear-world-hub) and gearworldhub.com by tools/gwh-hub-v2.ps1 (earlier gwh-photo.ps1, gwh-search-labels.ps1),
 # so a deploy never undoes a change made somewhere else. Update this file after every live deploy of the Hub.
-# Earlier: Hub V2 + Pets card (64d31a8, 02/11/2026 05:59); Hub SEO texts + Christmas video from 1 November (changed on the PC 1/11/2026 by another chat, on top of a71f234); Hub V2 + Biker and Gaming cards (a71f234, 31/10/2026 22:35); Hub V2 + Biker card (070b362, 31/10/2026 11:58); Hub V2 "Combination" (ece23dc, 27/10/2026 22:14); poster scans (22a7e42, 27/10/2026 21:50); search labels (b3b86f7, 26/10/2026 19:40); photo search v2 + Sport card (SGW, gwh-sgw-link.ps1, checked 26/10/2026 16:22); photo search v2 (2c7ac37, 25/10/2026 09:54); photo search v1 (fc44f6f, 24/10/2026 17:19); before the photo search: commit d1c300d (24/10/2026).
+# Earlier: Hub V2 + Pets card + email to MailerLite (d407dcc, 02/11/2026 21:53); Hub V2 + Pets card (64d31a8, 02/11/2026 05:59); Hub SEO texts + Christmas video from 1 November (changed on the PC 1/11/2026 by another chat, on top of a71f234); Hub V2 + Biker and Gaming cards (a71f234, 31/10/2026 22:35); Hub V2 + Biker card (070b362, 31/10/2026 11:58); Hub V2 "Combination" (ece23dc, 27/10/2026 22:14); poster scans (22a7e42, 27/10/2026 21:50); search labels (b3b86f7, 26/10/2026 19:40); photo search v2 + Sport card (SGW, gwh-sgw-link.ps1, checked 26/10/2026 16:22); photo search v2 (2c7ac37, 25/10/2026 09:54); photo search v1 (fc44f6f, 24/10/2026 17:19); before the photo search: commit d1c300d (24/10/2026).
 # path | bytes | sha256 | kind
 photo-search.js | 13896 | 2acb422e58c287bd243592a1c197e7e9675b990b70a6144f682ff369d4862a30 | file
 poster-scan.js | 4467 | 4263d662787de1e5b98f838c6ba6b6b903517b6b94e29de370082e3e3a1ccba5 | file
 mailerlite.js | 12136 | 479ff961eebecb0cd2c57a71f61d94cb253377b0e3f47eaa9e42e3cf5180d9c0 | file
+members.js | 4850 | c2174041baf09aa79056fe678c1afa43f2dffdd9e7274ca391109d6d7056c5e1 | file
 public/affiliate-disclosure/index.html | 2324 | 338f4d60bb57182cf0d33795561caddd9d5cad62bb77e7ffab778dfa79a5a20d | file
 public/analytics.js | 8449 | 803495489351be5636f8fd4a8c8bc4d794983214fc651a1f6c9a91551c552ff2 | file
 public/app.js | 10487 | b4da4e9697ee18f1ad4c44ab1c76ec5593eeb2a3921903295d7ed4c3852bb260 | file
@@ -47,4 +48,4 @@ public/seasonal/halloween.mp4 | 76910 | 5dd78dbd0659a14a38ba1b0e7a7d710c7331dbd0
 public/styles.css | 30248 | 3ee1705f5ee3eda295e6cd5f59bb2a2497050b84b38307abeafe4170dc302f31 | file
 public/terms/index.html | 2896 | eaed030bc76149948fece8268941a0a130353247e92b3fc3737205a3e6eb5711 | file
 public/translations.js | 65335 | aeff2516b7054c2d43c6d1e6eed7bae6b3f83d528515cec57e7a7e6000a3471a | file
-worker.js | 36320 | 07dad794cb5350a02138373a32e2ab80cda2f4761fb9043a181924baec81454f | file
+worker.js | 36661 | a28df42b7327c85f9dd079b1ee1cc9396e01e512602d23cdcc061b5f4cfd6a29 | file
