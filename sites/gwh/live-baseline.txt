@@ -1,8 +1,8 @@
 # Gear World Hub: the files that run live now, with their sha256.
-# version: Hub SEO texts + Christmas video from 1 November (changed on the PC on 1/11/2026 by another chat, read from gearworldhub.com 1/11/2026 23:20), on top of a71f234
+# version: Hub V2 + Pets card (commit 64d31a8, live since 02/11/2026 05:59, tools/gwh-hub-v2.ps1)
 # Checked against the PC (C:\Users\vagge\gear-world-hub) and gearworldhub.com by tools/gwh-hub-v2.ps1 (earlier gwh-photo.ps1, gwh-search-labels.ps1),
 # so a deploy never undoes a change made somewhere else. Update this file after every live deploy of the Hub.
-# Earlier: Hub V2 + Biker and Gaming cards (a71f234, 31/10/2026 22:35); Hub V2 + Biker card (070b362, 31/10/2026 11:58); Hub V2 "Combination" (ece23dc, 27/10/2026 22:14); poster scans (22a7e42, 27/10/2026 21:50); search labels (b3b86f7, 26/10/2026 19:40); photo search v2 + Sport card (SGW, gwh-sgw-link.ps1, checked 26/10/2026 16:22); photo search v2 (2c7ac37, 25/10/2026 09:54); photo search v1 (fc44f6f, 24/10/2026 17:19); before the photo search: commit d1c300d (24/10/2026).
+# Earlier: Hub SEO texts + Christmas video from 1 November (changed on the PC 1/11/2026 by another chat, on top of a71f234); Hub V2 + Biker and Gaming cards (a71f234, 31/10/2026 22:35); Hub V2 + Biker card (070b362, 31/10/2026 11:58); Hub V2 "Combination" (ece23dc, 27/10/2026 22:14); poster scans (22a7e42, 27/10/2026 21:50); search labels (b3b86f7, 26/10/2026 19:40); photo search v2 + Sport card (SGW, gwh-sgw-link.ps1, checked 26/10/2026 16:22); photo search v2 (2c7ac37, 25/10/2026 09:54); photo search v1 (fc44f6f, 24/10/2026 17:19); before the photo search: commit d1c300d (24/10/2026).
 # path | bytes | sha256 | kind
 photo-search.js | 13896 | 2acb422e58c287bd243592a1c197e7e9675b990b70a6144f682ff369d4862a30 | file
 poster-scan.js | 4467 | 4263d662787de1e5b98f838c6ba6b6b903517b6b94e29de370082e3e3a1ccba5 | file
@@ -27,11 +27,12 @@ public/hub-mgw.jpg | 53350 | 3e9fecbbd8d7106f7d588b3204ba06d34241027e49a7dcfa4b9
 public/hub-pgw.jpg | 38274 | a40a3d0bd7ab821b3ca9568d6567ac7a58c87eb48ee3ef9b3d83621a87fd69b1 | file
 public/hub-sgw.jpg | 65539 | af854b4de3cc2c246c96bd85eb0bb0a17cc591cf3b4e8fcde52f22915c80f87e | file
 public/hub-tgw.jpg | 32388 | 0bdf9069f1010dedc32b1c87a7c31976ca6431b5df885cc327762a32782049b7 | file
-public/hub-v2.css | 21392 | 5d49ee02386a7b535773f63947537b655df5d61e30842412beba8e18a54b6416 | file
-public/hub-v2.js | 77876 | e7a3428def445206e8c9bd04ece8becad4d001d79e44d168c6545b22ee70cd3f | file
+public/hub-v2.css | 21515 | 15847fd0cd140e73d7c5ddb8ef3c98fcaf8c29539673af6149f695a59f3f6c56 | file
+public/hub-v2.js | 77876 | 29cb051fb5ca1098c16a2495d07ceede70e28649e35914ae98d0abb9f0ae7cc2 | file
 public/hub-vgw.jpg | 53044 | 959862755e58d5a2094db9c921b16e5deb811cc327f55a490f6acd21be80ef1d | file
 public/hub-wgw.jpg | 47732 | 867493c5961736b0865948677d8e272052a9691193ce5c48a05a74d788666ee1 | file
-public/index.html | 20572 | 2356b4d8a1fde44960781575d3b5839902a4d2686dccf448a56d3874ec6e96d9 | file
+public/hub-zgw.jpg | 47026 | 0b8a6da39104a4f01c15286c298c8ed37a21c7768b7af715c03d11990d4511c0 | file
+public/index.html | 21226 | 616d79672cbaa85b9addcdf8e6ffeb84d808680ee995497b183ab8808279ce56 | file
 public/legal/legal.css | 2807 | b648bfa528c28771eb1b2533ec40d5a914f02faac98141dc331accaedf036e7e | file
 public/legal/legal.js | 1444 | 10e95d2066c0fe2e294b8909d4e5832d943cabb81441493b9e7a5585809f0118 | file
 public/privacy/index.html | 7735 | 495bf7518b10707f96755c9d3d6c3a8be8694a5631ed2219b7d6719054ce331f | file
@@ -44,5 +45,5 @@ public/seasonal/halloween.jpg | 24949 | 8721ab76571cd8e3e2918fa00a18cf53bec60941
 public/seasonal/halloween.mp4 | 76910 | 5dd78dbd0659a14a38ba1b0e7a7d710c7331dbd086933bd5e4a756949b082e50 | file
 public/styles.css | 30248 | 3ee1705f5ee3eda295e6cd5f59bb2a2497050b84b38307abeafe4170dc302f31 | file
 public/terms/index.html | 2896 | eaed030bc76149948fece8268941a0a130353247e92b3fc3737205a3e6eb5711 | file
-public/translations.js | 64317 | 03d1586c9c0fe0959e22ab985245787c05bba1a222d05e5bb4542ba36226ad29 | file
+public/translations.js | 65335 | aeff2516b7054c2d43c6d1e6eed7bae6b3f83d528515cec57e7a7e6000a3471a | file
 worker.js | 35466 | 2719af16b1ed021e0457bf81770d0c97f6d755cbaa513948619cf51e88063243 | file
