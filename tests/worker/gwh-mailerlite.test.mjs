@@ -18,7 +18,9 @@ const KEY = 'test-key-not-real';
 function makeDb({ migrate = true } = {}) {
   const sql = new DatabaseSync(':memory:');
   const schema = readFileSync(new URL('schema.sql', ROOT), 'utf8');
-  const table = schema.match(/CREATE TABLE hub_subscribers \([^;]+\);/)[0];
+  // The table as it was before migration 0002 (schema.sql now shows it after the migration).
+  const table = schema.match(/CREATE TABLE hub_subscribers \([^;]+\);/)[0].replace(/, ml_status TEXT[^;]*\);$/, ');');
+  assert.ok(!table.includes('ml_status'));
   sql.exec(table);
   sql.exec("INSERT INTO hub_subscribers (email) VALUES ('old1@example.com'), ('old2@example.com')");
   if (migrate) sql.exec(readFileSync(new URL('migrations/0002_mailerlite_sync.sql', ROOT), 'utf8'));

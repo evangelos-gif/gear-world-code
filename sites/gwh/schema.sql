@@ -230,7 +230,7 @@ CREATE TABLE feed_sources (
 );
 
 -- table: hub_subscribers
-CREATE TABLE hub_subscribers (id INTEGER PRIMARY KEY AUTOINCREMENT, email TEXT NOT NULL COLLATE NOCASE UNIQUE, locale TEXT NOT NULL DEFAULT 'en-GB', marketing_consent INTEGER NOT NULL DEFAULT 1 CHECK(marketing_consent IN (0,1)), consent_version TEXT NOT NULL DEFAULT '2026-10-05', source TEXT NOT NULL DEFAULT 'hub-homepage', status TEXT NOT NULL DEFAULT 'active', created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP);
+CREATE TABLE hub_subscribers (id INTEGER PRIMARY KEY AUTOINCREMENT, email TEXT NOT NULL COLLATE NOCASE UNIQUE, locale TEXT NOT NULL DEFAULT 'en-GB', marketing_consent INTEGER NOT NULL DEFAULT 1 CHECK(marketing_consent IN (0,1)), consent_version TEXT NOT NULL DEFAULT '2026-10-05', source TEXT NOT NULL DEFAULT 'hub-homepage', status TEXT NOT NULL DEFAULT 'active', created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, ml_status TEXT NOT NULL DEFAULT 'pending', ml_synced_at TEXT, ml_attempts INTEGER NOT NULL DEFAULT 0, ml_error TEXT);
 
 -- table: routing_rules
 CREATE TABLE routing_rules (
@@ -308,3 +308,15 @@ ON routing_rules(category_id);
 -- index: ux_routing_rule
 CREATE UNIQUE INDEX ux_routing_rule
 ON routing_rules(category_id, rule_type, field_name, match_value, is_negative);
+
+-- Added by migrations/0002_mailerlite_sync.sql (Gear World email step 5a, live 02/11/2026 21:53):
+-- index: idx_hub_subscribers_ml_status
+CREATE INDEX idx_hub_subscribers_ml_status ON hub_subscribers(ml_status);
+
+-- table: subscribe_usage
+CREATE TABLE subscribe_usage (
+  visitor TEXT NOT NULL,
+  hour TEXT NOT NULL,
+  count INTEGER NOT NULL DEFAULT 0,
+  PRIMARY KEY (visitor, hour)
+);
