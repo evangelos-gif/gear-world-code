@@ -1,5 +1,5 @@
 // gear-world-awin-sync: the private Worker that copies the Awin sales of every Gear World site into the D1 database
-// gear-world-awin, so the private dashboard can show real sales and commission (lessons L89).
+// gear-world-awin, so the private dashboard can show real sales and commission (lessons L91).
 // - Read-only towards Awin: it only calls GET endpoints of the Publisher API with the owner's token (secret AWIN_TOKEN).
 // - No public address (no routes, workers.dev off): it runs on its cron only, and answers 404 to any request.
 // - The publisher id is not stored anywhere: it is read from Awin (/accounts) at every run.

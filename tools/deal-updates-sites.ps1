@@ -1,6 +1,6 @@
 ﻿<#
 .SYNOPSIS
-  "Get deal updates" on the 12 sites (lessons L90): the form at the bottom of every page, which sends a sign-up to the
+  "Get deal updates" on the 12 sites (lessons L92): the form at the bottom of every page, which sends a sign-up to the
   one member list of Gear World Hub. Read-only unless -Apply and the approval phrase.
 
 .DESCRIPTION

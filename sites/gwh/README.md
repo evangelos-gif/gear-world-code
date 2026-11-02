@@ -13,6 +13,7 @@
 | Αρχείο | Τι είναι |
 |---|---|
 | `worker.js` | Ο Worker: `/api/health`, `/api/registry`, `/api/search` (αναζήτηση σε όλα τα sites, μετάφραση με Workers AI), `/api/classify` (σε ποιο site ανήκει ένα προϊόν), `/api/subscribe` (email στη D1). Όλα τα άλλα: αρχεία του `public/` |
+| `mailerlite.js` | Email του Gear World (βήμα 5α, 2/11/2026): το `/api/subscribe` γράφει την εγγραφή πρώτα στη D1 (`hub_subscribers`, στήλη `ml_status`) και μετά τη στέλνει στο MailerLite· το cron (κάθε 10 λεπτά) ξαναστέλνει όσες μένουν «pending». Οι εγγραφές πριν από την αλλαγή είναι «hold» (βήμα 6). Κλειδί: μυστικό `MAILERLITE_API_KEY`. Εργαλείο: `tools/gwh-mailerlite.ps1` |
 | `wrangler.toml.example` | Οι ρυθμίσεις του Worker χωρίς το ID της D1 (`run_worker_first`, bindings `ASSETS`, `gear_world_registry`, `AI`) |
 | `public/` | Αρχική σελίδα, νομικές σελίδες (Privacy, Terms, Cookies, Affiliate disclosure, Contact), JS, CSS, εικόνες |
 | `public-allowlist.txt` | Τα αρχεία που επιτρέπονται στο `public/` (μάθημα L04) |

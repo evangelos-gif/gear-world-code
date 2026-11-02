@@ -1,4 +1,4 @@
-// "Get deal updates" (lessons L90): every site sends a sign-up to the one member list of Gear World Hub, through the
+// "Get deal updates" (lessons L92): every site sends a sign-up to the one member list of Gear World Hub, through the
 // service binding HUB. The form works without JavaScript, the site never sends the visitor's IP address, and an older
 // site's own database is not touched.
 import { test } from 'node:test';
@@ -39,8 +39,8 @@ const form = (site, fields, headers = {}) => new Request(`https://${site.domain}
   body: new URLSearchParams(fields).toString()
 });
 
-test('every shop of the engine is checked (the 12 sites)', () => {
-  assert.equal(codes.length, 12);
+test('every shop of the engine is checked (the 13 sites, Pets included)', () => {
+  assert.equal(codes.length, 13);
 });
 
 for (const code of codes) {

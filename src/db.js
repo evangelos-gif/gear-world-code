@@ -265,10 +265,12 @@ export function ftsQuery(text) {
   return terms.slice(0, 8).map(t => `"${t.replace(/"/g, '""')}"*`).join(' AND ');
 }
 
-function buildFilter({ category, brand, retailer, maxPrice, minPrice, inStock, condition, search, onSale }) {
+function buildFilter({ category, subcategory, brand, retailer, maxPrice, minPrice, inStock, condition, search, onSale }) {
   const where = ['p.is_active = 1'];
   const binds = [];
   if (category) { const c = catWhere(category); where.push(c.sql); binds.push(...c.binds); }
+  // Only a site whose config lists subcategories for the category passes one (ZGW birds).
+  if (subcategory) { where.push('p.subcategory = ?'); binds.push(subcategory); }
   if (brand) { where.push('p.brand = ?'); binds.push(brand); }
   if (retailer) { where.push('p.retailer = ?'); binds.push(retailer); }
   if (Number.isFinite(maxPrice) && maxPrice > 0) { where.push('p.price <= ?'); binds.push(maxPrice); }
@@ -299,6 +301,14 @@ export async function listProducts(db, filters, { sort = 'featured', page = 1, p
   ]);
   const total = Number(count.results?.[0]?.n || 0);
   return { products: fixAll(rows.results), total, page, pages: Math.ceil(total / perPage) };
+}
+
+// Products per subcategory of a category (only for a category whose site config lists subcategories: ZGW birds).
+export async function subcategoryCounts(db, category) {
+  const c = catWhere(category);
+  const r = await db.prepare(`SELECT p.subcategory AS name, COUNT(*) AS n FROM ${LAYOUT.from} p WHERE p.is_active = 1 AND ${c.sql}
+    AND p.subcategory IS NOT NULL GROUP BY p.subcategory`).bind(...c.binds).all();
+  return Object.fromEntries((r.results || []).map(x => [x.name, Number(x.n) || 0]));
 }
 
 export async function facets(db, category) {

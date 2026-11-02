@@ -754,7 +754,8 @@ export async function planImport({ archive, sourcesFile, outDir, now = new Date(
           merchant_product_id: merchantProductId,
           retailer: source.retailer,
           category_slug: cls.slug,
-          subcategory: subcategoryOf(merchantCategory) || null,
+          // A site's rules may name the subcategory themselves (ZGW birds: "Chickens & Poultry", ...); else the shop's last folder.
+          subcategory: cls.sub || subcategoryOf(merchantCategory) || null,
           brand: brand || null,
           product_name: name,
           product_slug: slugify(name),

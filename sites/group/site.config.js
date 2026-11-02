@@ -8,7 +8,7 @@ export default {
   // Shown on the page. Must be an address that receives mail (gearworldgroup.com uses Google Workspace).
   contactEmail: 'evangelos@gearworldgroup.com',
   awinPublisherId: 3057233,
-  assetVersion: '2026-10-31-group-7',
+  assetVersion: '2026-11-01-group-8',
   hub: { name: 'Gear World Hub', url: 'https://gearworldhub.com/', text: 'One search across every Gear World site, in 11 languages.' },
   // stats: true = the site answers /api/stats; its live product count is added up on the page.
   sites: [
@@ -23,6 +23,7 @@ export default {
     { name: 'Travel Gear World', url: 'https://travelgearworld.com/', text: 'Luggage, travel bags, travel accessories and camping gear.', stats: true },
     { name: 'Sporty Gear World', url: 'https://sportygearworld.com/', text: 'Gym and fitness, running, cycling, team and racket sports, sports nutrition and sportswear.', stats: true },
     { name: 'Biker Gear World', url: 'https://bikergearworld.com/', text: 'Motorbike helmets, riding gear, parts and tools, luggage and locks, intercoms, electric scooters, kick scooters and electric motorbikes.', stats: true },
-    { name: 'Gaming Gear World', url: 'https://gaminggearworld.com/', text: 'Consoles and games, gaming PCs and laptops, gaming monitors, keyboards and mice, headsets, gaming chairs, streaming gear and PC components.', stats: true }
+    { name: 'Gaming Gear World', url: 'https://gaminggearworld.com/', text: 'Consoles and games, gaming PCs and laptops, gaming monitors, keyboards and mice, headsets, gaming chairs, streaming gear and PC components.', stats: true },
+    { name: 'Pets Gear World', url: 'https://petsgearworld.com/', text: 'Pet food and treats, beds and crates, leads and collars, toys, cat trees and litter, grooming, bowls, carriers, small pets, birds and horse riding gear.', stats: true }
   ]
 };

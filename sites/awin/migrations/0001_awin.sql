@@ -1,5 +1,5 @@
 -- gear-world-awin: the Awin sales of every Gear World site, copied by the private Worker gear-world-awin-sync
--- (src/awin-sync.js, lessons L89). Read-only towards Awin. No customer data: Awin sends none, and the full answer is
+-- (src/awin-sync.js, lessons L91). Read-only towards Awin. No customer data: Awin sends none, and the full answer is
 -- never stored (only the fields below). The site and product come from our own clickref, e.g. "cgw-82540".
 CREATE TABLE IF NOT EXISTS awin_transactions (
   id TEXT PRIMARY KEY,                 -- Awin transaction id

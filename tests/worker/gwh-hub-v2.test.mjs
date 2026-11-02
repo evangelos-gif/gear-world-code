@@ -40,7 +40,7 @@ test('hub v2: every text in the 11 languages of the Hub, translated, with the sa
     const vars = (list[0].match(/\{[a-z]+\}/g) || []).sort().join();
     list.forEach((text, i) => assert.equal((text.match(/\{[a-z]+\}/g) || []).sort().join(), vars, `${key} keeps its {placeholders} in ${LOCALES[i]}`));
   }
-  assert.equal(h.strings.lead[1], 'Γράψτε το, πείτε το ή φωτογραφίστε το. Ψάχνουμε σε όλα τα 12 Gear Worlds μαζί.');
+  assert.equal(h.strings.lead[1], 'Γράψτε το, πείτε το ή φωτογραφίστε το. Ψάχνουμε σε όλα τα 13 Gear Worlds μαζί.');
   assert.equal(h.strings.photoBtn[1], 'Αναζήτηση με φωτογραφία');
   // Every text the page or the script asks for exists.
   const html = read('public/index.html');
@@ -119,7 +119,7 @@ test('hub v2: the gift finder asks only Gear Worlds that exist, with a price, an
 
 test('hub v2: deals come from promos.js (hub-deals.json is up to date), keep the end date, link to a site page only', async () => {
   const domains = await siteDomains();
-  assert.equal(Object.keys(domains).length, 12, 'the 12 Gear Worlds (PGW the newest)');
+  assert.equal(Object.keys(domains).length, 13, 'the 13 Gear Worlds (ZGW the newest; its Hub card comes with the Hub step)');
   const want = dealsJson(buildDeals(PROMOS, domains));
   assert.equal(read('public/hub-deals.json'), want, 'run: node tools/gwh-deals.mjs');
   const { deals } = JSON.parse(want);
@@ -154,14 +154,14 @@ test('hub v2: the page keeps every id and class the other scripts need, and load
   }
   assert.match(html, /<body class="gwh2" data-gwh-compact-v2="true">/);
   assert.match(html, /<div class="hero-copy">\s*<span class="eyebrow">/);
-  assert.match(html, /<link rel="stylesheet" href="\/hub-v2\.css\?v=20261031-pgw1">/);
-  assert.match(html, /<script src="\/hub-v2\.js\?v=20261101-xmas2" defer><\/script>/);
+  assert.match(html, /<link rel="stylesheet" href="\/hub-v2\.css\?v=20261101-zgw2">/);
+  assert.match(html, /<script src="\/hub-v2\.js\?v=20261101-zgw2" defer><\/script>/);
   assert.ok(html.indexOf('/gear-world-camera.js?v=') < html.indexOf('/hub-v2.js?v='), 'hub-v2.js after the camera script');
   assert.ok(!html.includes('/styles.css'), 'the old styles.css is not loaded');
   assert.ok(!html.includes('gwh-hero.png'), 'the 2.8 MB picture is gone from the page');
-  // The 12 worlds in the order of the V2 translations (translations.js translates them by position). Biker (BGW) and Gaming (PGW) since 31/10/2026.
+  // The 13 worlds in the order of the V2 translations (translations.js translates them by position). Biker (BGW) and Gaming (PGW) since 31/10/2026, Pets (ZGW) since 1/11/2026.
   const order = [...html.matchAll(/data-world="([A-Z]{3})"/g)].map(m => m[1]);
-  assert.deepEqual(order, ['CGW', 'MGW', 'WGW', 'KGW', 'HGW', 'GGW', 'TGW', 'AGW', 'VGW', 'SGW', 'BGW', 'PGW']);
+  assert.deepEqual(order, ['CGW', 'MGW', 'WGW', 'KGW', 'HGW', 'GGW', 'TGW', 'AGW', 'VGW', 'SGW', 'BGW', 'PGW', 'ZGW']);
   for (const cls of ['gwh-image-world-title', 'gwh-image-world-description', 'gwh-image-world-cta', 'gwh-choose-world-label', 'gwh-compact-how-heading', 'gwh-compact-how-grid', 'gwh-compact-disclosure', 'gwh-business-banner', 'gwh-sponsored', 'gwh-business-copy', 'gwh-business-link', 'footer-inner', 'about-box']) {
     assert.ok(html.includes(cls), cls);
   }
@@ -201,8 +201,8 @@ test('hub v2: no red or green (L35), nothing that moves by itself, buttons at le
 test('hub v2: the seasonal video banner of the deals follows its own yearly calendar, with a countdown for Black Friday', () => {
   const h = hub();
   const id = day => { const x = h.seasonFor(at(day)); return x ? x.id : ''; };
-  // The owner's dates for 2026: Halloween 20/10-31/10, Black Friday 20/11-1/12 (countdown to 30/11 23:59), Christmas (the
-  // fireplace video) from 1/11 (owner, 1/11/2026) to 24/12, with Black Friday in its own days.
+  // The owner's dates for 2026: Halloween 20/10-31/10, Black Friday 20/11-1/12 (countdown to 30/11 23:59), Christmas 1/11-24/12
+  // (owner, 1/11/2026: the Christmas video from 1 November; in the Black Friday days that one shows).
   assert.deepEqual(['2026-10-19', '2026-10-20', '2026-10-31', '2026-11-01', '2026-11-19', '2026-11-20', '2026-12-01', '2026-12-02', '2026-12-24', '2026-12-25'].map(id),
     ['', 'halloween', 'halloween', 'christmas', 'christmas', 'black-friday', 'black-friday', 'christmas', 'christmas', '']);
   const bf = h.seasonsOf(2026).find(x => x.id === 'black-friday');
@@ -255,7 +255,6 @@ test('hub v2: the seasonal files are ready for the web and are served from the H
   const h = hub();
   const ids = day => h.heroSlides(at(day)).map(x => x.id).join(',');
   assert.equal(ids('2026-10-28'), 'season-halloween');
-  // From 1/11 the Christmas video (owner, 1/11/2026), then the Black Friday countdown slide from 13/11.
   assert.equal(ids('2026-11-10'), 'season-christmas');
   assert.equal(ids('2026-11-15'), 'season-christmas,black-friday-soon');
   assert.equal(ids('2026-11-20'), 'season-black-friday,christmas');
@@ -311,18 +310,4 @@ test('hub v2: the Worker answers byte ranges for the seasonal files (iPhone Safa
   assert.equal((await head.arrayBuffer()).byteLength, 0);
   assert.equal((await get('/seasonal/missing.mp4')).status, 404);
   assert.equal((await get('/seasonal/halloween.mp4', {}, 'POST')).status !== 206, true, 'only GET and HEAD');
-});
-
-test('hub v2: the Christmas video opens the gift finder, and a deal does not say "Halloween" after Halloween (owner, 1/11/2026)', () => {
-  const h = hub();
-  const xmas = h.seasonsOf(2026).find(s => s.id === 'christmas');
-  assert.equal(xmas.gifts, true);
-  const code = read('public/hub-v2.js');
-  assert.ok(code.includes('`<a class="gwh2-btn" href="#gifts" data-gwh2-jump="#gifts">${esc(tx("xmasCta"))}</a>`'));
-  const d = { campaign: 'Halloween' };
-  assert.equal(h.campaignLabel(d, at('2026-10-30')), 'Halloween');
-  assert.equal(h.campaignLabel(d, at('2026-11-01')), '');
-  assert.equal(h.campaignLabel({ campaign: 'Black Friday' }, at('2026-11-28')), 'Black Friday');
-  assert.equal(h.campaignLabel({ campaign: 'Black Friday' }, at('2026-12-02')), '');
-  assert.equal(h.campaignLabel({ campaign: 'Beauty week' }, at('2026-12-02')), 'Beauty week');
 });

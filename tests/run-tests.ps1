@@ -292,6 +292,15 @@ if (Get-Command node -ErrorAction SilentlyContinue) {
     Check ((Get-FileHash -LiteralPath $gzPath -Algorithm SHA256).Hash -eq $archHash) 'gaming feed scan: Awin archive unchanged'
     & $exe -NoProfile -ExecutionPolicy Bypass -File $runTool -LocalRepo $repo -Tool gaming-feed-scan -Archive (Join-Path $work 'no-such-folder') -OutDir $gamingOut -KeyFile (Join-Path $work 'no-key.dat') -NoClipboard | Out-Null
     Check ($LASTEXITCODE -eq 2) 'gaming feed scan: missing archive gives exit code 2'
+    $petsOut = Join-Path $work 'pets-scan-run'
+    & $exe -NoProfile -ExecutionPolicy Bypass -File $runTool -LocalRepo $repo -Tool pets-feed-scan -Archive $arch -OutDir $petsOut -KeyFile (Join-Path $work 'no-key.dat') -NoClipboard | Out-Null
+    Check ($LASTEXITCODE -eq 0) 'pets feed scan: exit code 0 through gw-run, without a saved key'
+    $petsRuns = @(Get-ChildItem -LiteralPath $petsOut -Directory -Filter 'PETS_FEED_SCAN_*' -ErrorAction SilentlyContinue)
+    Check ($petsRuns.Count -eq 1) 'pets feed scan: report folder written'
+    if ($petsRuns.Count -ge 1) { Check ([System.IO.File]::ReadAllText((Join-Path $petsRuns[0].FullName 'report.txt')).Contains('PETS FEED SCAN')) 'pets feed scan: ZGW report' }
+    Check ((Get-FileHash -LiteralPath $gzPath -Algorithm SHA256).Hash -eq $archHash) 'pets feed scan: Awin archive unchanged'
+    & $exe -NoProfile -ExecutionPolicy Bypass -File $runTool -LocalRepo $repo -Tool pets-feed-scan -Archive (Join-Path $work 'no-such-folder') -OutDir $petsOut -KeyFile (Join-Path $work 'no-key.dat') -NoClipboard | Out-Null
+    Check ($LASTEXITCODE -eq 2) 'pets feed scan: missing archive gives exit code 2'
     $agwOut = Join-Path $work 'agw-plan-run'
     & $exe -NoProfile -ExecutionPolicy Bypass -File $runTool -LocalRepo $repo -Tool agw-import-plan -Archive $arch -OutDir $agwOut -NoClipboard | Out-Null
     Check ($LASTEXITCODE -eq 0) 'agw import plan: exit code 0 through gw-run'
@@ -333,6 +342,15 @@ if (Get-Command node -ErrorAction SilentlyContinue) {
     Check ((Get-FileHash -LiteralPath $gzPath -Algorithm SHA256).Hash -eq $archHash) 'pgw import plan: Awin archive unchanged'
     & $exe -NoProfile -ExecutionPolicy Bypass -File $runTool -LocalRepo $repo -Tool pgw-import-plan -Archive ($arch + ';' + (Join-Path $work 'no-such-folder')) -OutDir $pgwOut -NoClipboard | Out-Null
     Check ($LASTEXITCODE -eq 2) 'pgw import plan: a missing archive folder gives exit code 2'
+    $zgwOut = Join-Path $work 'zgw-plan-run'
+    & $exe -NoProfile -ExecutionPolicy Bypass -File $runTool -LocalRepo $repo -Tool zgw-import-plan -Archive $arch -OutDir $zgwOut -NoClipboard | Out-Null
+    Check ($LASTEXITCODE -eq 0) 'zgw import plan: exit code 0 through gw-run'
+    $zgwPlans = @(Get-ChildItem -LiteralPath $zgwOut -Directory -Filter 'ZGW_IMPORT_PLAN_*' -ErrorAction SilentlyContinue)
+    Check ($zgwPlans.Count -eq 1) 'zgw import plan: report folder written'
+    if ($zgwPlans.Count -ge 1) { Check ([System.IO.File]::ReadAllText((Join-Path $zgwPlans[0].FullName 'report.txt')).Contains('ZGW IMPORT PLAN')) 'zgw import plan: ZGW report' }
+    Check ((Get-FileHash -LiteralPath $gzPath -Algorithm SHA256).Hash -eq $archHash) 'zgw import plan: Awin archive unchanged'
+    & $exe -NoProfile -ExecutionPolicy Bypass -File $runTool -LocalRepo $repo -Tool zgw-import-plan -Archive ($arch + ';' + (Join-Path $work 'no-such-folder')) -OutDir $zgwOut -NoClipboard | Out-Null
+    Check ($LASTEXITCODE -eq 2) 'zgw import plan: a missing archive folder gives exit code 2'
     # Hub shadow catalogue (phase 1): every shop on the PC offered to the 5 sites, read-only, no SQL.
     $hubOut = Join-Path $work 'hub-shadow-run'
     & $exe -NoProfile -ExecutionPolicy Bypass -File $runTool -LocalRepo $repo -Tool hub-shadow-catalog -Archive $arch -OutDir $hubOut -KeyFile (Join-Path $work 'no-key.dat') -NoClipboard | Out-Null
@@ -1220,6 +1238,138 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         Check ((Run-Cf @('-Step', 'update', '-Apply', '-Approve', 'egkrino pgw update', '-NoHttpCheck')) -eq 0 -and ([regex]::Matches((Calls), 'wrangler deploy')).Count -eq $deploysBefore + 1) 'pgw cloudflare update with approval: deploys once'
         $reports = @(Get-ChildItem -LiteralPath $cfOut -Filter 'PGW_CLOUDFLARE_*.txt' -ErrorAction SilentlyContinue)
         Check ($reports.Count -ge 6) 'pgw cloudflare: a report for every run'
+    } finally {
+        $env:PATH = $oldPath
+        Remove-Item Env:\GW_FAKE_STATE -ErrorAction SilentlyContinue
+    }
+}
+
+# 5g. zgw-cloudflare.ps1 (Pets Gear World, same steps as the gaming site; the domain step also turns the test address off) with a fake wrangler (Windows only: runs .cmd files)
+if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
+    Write-Host 'zgw-cloudflare.ps1 (fake wrangler)'
+    $cfTool = Join-Path (Join-Path $repo 'tools') 'zgw-cloudflare.ps1'
+    $state = Join-Path $work 'zcf-state'
+    $cfWork = Join-Path $work 'zcf-work'
+    $cfOut = Join-Path $work 'zcf-out'
+    $cfBin = Join-Path $work 'zcf-bin'
+    New-Item -ItemType Directory -Path $state, $cfBin -Force | Out-Null
+    $fakeDb = [guid]::NewGuid().ToString()
+    $fakeAcct = [guid]::NewGuid().ToString('N')
+    $fakeBookmark = '00000085-0000024c-00004c6d-' + [guid]::NewGuid().ToString('N')
+    $fakeNpx = @(
+        '@echo off',
+        'echo %* >> "%GW_FAKE_STATE%\calls.log"',
+        'echo %* | findstr /C:"whoami" >nul && goto whoami',
+        'echo %* | findstr /C:"d1 list" >nul && goto d1list',
+        'echo %* | findstr /C:"d1 create" >nul && goto d1create',
+        'echo %* | findstr /C:"migrations apply" >nul && goto ok',
+        'echo %* | findstr /C:"time-travel info" >nul && goto ttinfo',
+        'echo %* | findstr /C:"--command" >nul && goto query',
+        'echo %* | findstr /C:"d1 execute" >nul && goto ok',
+        'echo %* | findstr /C:" deploy" >nul && goto deploy',
+        'echo unknown command 1>&2',
+        'exit /b 1',
+        ':whoami',
+        'if defined GW_FAKE_NOLOGIN goto nologin',
+        'echo You are logged in with an OAuth Token, associated with the email test@example.com.',
+        ('echo ^| Test Account ^| ' + $fakeAcct + ' ^|'),
+        'exit /b 0',
+        ':nologin',
+        'echo You are not authenticated. Please run wrangler login.',
+        'exit /b 1',
+        ':d1list',
+        'if not defined GW_FAKE_FLAKY goto d1listreal',
+        'if exist "%GW_FAKE_STATE%\flaky.txt" goto d1listreal',
+        'echo flaky > "%GW_FAKE_STATE%\flaky.txt"',
+        'echo X [ERROR] fetch failed',
+        'exit /b 1',
+        ':d1listreal',
+        'if exist "%GW_FAKE_STATE%\db.txt" goto d1listyes',
+        'echo []',
+        'exit /b 0',
+        ':d1listyes',
+        ('echo [{"uuid":"' + $fakeDb + '","name":"pets-gear-world"}]'),
+        'exit /b 0',
+        ':d1create',
+        'echo created > "%GW_FAKE_STATE%\db.txt"',
+        'echo Successfully created DB',
+        'exit /b 0',
+        ':ttinfo',
+        ('echo The current bookmark is ' + $fakeBookmark),
+        'exit /b 0',
+        ':query',
+        'echo [{"results":[{"category_slug":"audio","n":1}],"success":true}]',
+        'exit /b 0',
+        ':deploy',
+        'echo Uploaded pets-gear-world',
+        'echo   https://pets-gear-world.example-test.workers.dev',
+        'exit /b 0',
+        ':ok',
+        'echo OK',
+        'exit /b 0'
+    ) -join "`r`n"
+    [System.IO.File]::WriteAllText((Join-Path $cfBin 'npx.cmd'), $fakeNpx + "`r`n", [System.Text.Encoding]::ASCII)
+    $oldPath = $env:PATH
+    $env:PATH = $cfBin + ';' + $oldPath
+    $env:GW_FAKE_STATE = $state
+    $calls = Join-Path $state 'calls.log'
+    function Run-Cf([string[]]$a) {
+        $all = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $cfTool, '-WorkDir', $cfWork, '-OutDir', $cfOut, '-SkipInstall', '-NoClipboard') + $a
+        & $exe @all | Out-Null
+        return $LASTEXITCODE
+    }
+    function Calls { if (Test-Path -LiteralPath $calls) { return [System.IO.File]::ReadAllText($calls) } else { return '' } }
+    try {
+        $env:GW_FAKE_NOLOGIN = '1'
+        Check ((Run-Cf @('-Step', 'check')) -eq 4) 'zgw cloudflare: not logged in gives exit 4'
+        Remove-Item Env:\GW_FAKE_NOLOGIN
+        $lastReport = @(Get-ChildItem -LiteralPath $cfOut -Filter 'ZGW_CLOUDFLARE_CHECK_*.txt' | Sort-Object LastWriteTime | Select-Object -Last 1)
+        Check ($lastReport.Count -eq 1 -and ([System.IO.File]::ReadAllText($lastReport[0].FullName)).Contains('not authenticated')) 'zgw cloudflare: report shows the wrangler output'
+        $env:GW_FAKE_FLAKY = '1'
+        Check ((Run-Cf @('-Step', 'check')) -eq 0) 'zgw cloudflare: one network error is retried'
+        Remove-Item Env:\GW_FAKE_FLAKY
+        Check (([regex]::Matches((Calls), 'd1 list')).Count -eq 2) 'zgw cloudflare: the D1 list was read twice'
+        Check ((Run-Cf @('-Step', 'check')) -eq 0) 'zgw cloudflare check: exit 0'
+        Check (-not ((Calls) -match 'd1 create|deploy|execute|migrations')) 'zgw cloudflare check: only reads'
+        Check ((Run-Cf @('-Step', 'd1')) -eq 0) 'zgw cloudflare d1 without -Apply: exit 0'
+        Check (-not ((Calls) -match 'd1 create')) 'zgw cloudflare d1 without -Apply: creates nothing'
+        Check ((Run-Cf @('-Step', 'd1', '-Apply', '-Approve', 'yes please')) -eq 1) 'zgw cloudflare d1 with wrong phrase: stops'
+        Check (-not ((Calls) -match 'd1 create')) 'zgw cloudflare d1 with wrong phrase: creates nothing'
+        Check ((Run-Cf @('-Step', 'preview', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ ZGW PREVIEW')) -eq 8) 'zgw cloudflare preview before d1: refused'
+        Check ((Run-Cf @('-Step', 'd1', '-Apply', '-Approve', 'egkrino zgw d1')) -eq 0) 'zgw cloudflare d1 with approval (Latin form): exit 0'
+        $c = Calls
+        Check ($c -match 'd1 create pets-gear-world' -and $c -match 'migrations apply pets-gear-world --remote') 'zgw cloudflare d1: creates the database and its tables'
+        $cfg = Join-Path $cfWork 'wrangler.jsonc'
+        Check ((Test-Path -LiteralPath $cfg) -and ([System.IO.File]::ReadAllText($cfg)).Contains($fakeDb)) 'zgw cloudflare d1: local wrangler.jsonc has the database id'
+        Check ((Run-Cf @('-Step', 'preview', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ ZGW PREVIEW')) -eq 0) 'zgw cloudflare preview with approval: exit 0'
+        Check ((Calls) -match '(?m)wrangler deploy') 'zgw cloudflare preview: deploys'
+        Check (@(Get-ChildItem -LiteralPath (Join-Path $cfWork 'deploy') -Recurse -Filter 'promos.js' -ErrorAction SilentlyContinue).Count -ge 1) 'zgw cloudflare preview: the deploy copy has promos/ (the site config imports it)'
+        Check (-not ((Calls) -match 'routes|custom_domain|petsgearworld\.com')) 'zgw cloudflare preview: no custom domain'
+        Check ((Run-Cf @('-Step', 'import', '-Archive', $arch)) -eq 0) 'zgw cloudflare import without -Apply: exit 0'
+        Check (-not ((Calls) -match 'd1 execute .*--file')) 'zgw cloudflare import without -Apply: loads nothing'
+        Check ((Run-Cf @('-Step', 'import', '-Archive', ($arch + ';' + (Join-Path $work 'no-such-folder')))) -eq 2) 'zgw cloudflare import: a missing archive folder in the list stops it'
+        Check ((Run-Cf @('-Step', 'import', '-Archive', $arch, '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ ZGW IMPORT')) -eq 0) 'zgw cloudflare import with approval: exit 0'
+        $c = Calls
+        $iBackup = $c.IndexOf('time-travel info')
+        $iExec = $c.IndexOf('--file')
+        Check ($iBackup -ge 0 -and $iExec -gt $iBackup) 'zgw cloudflare import: restore point before loading'
+        $notes = @(Get-ChildItem -LiteralPath (Join-Path $cfWork 'backups') -Filter '*.txt' -ErrorAction SilentlyContinue)
+        Check ($notes.Count -eq 1 -and ([System.IO.File]::ReadAllText($notes[0].FullName)).Contains($fakeBookmark)) 'zgw cloudflare import: restore point written with the bookmark'
+        $deploysBefore = ([regex]::Matches((Calls), 'wrangler deploy')).Count
+        Check ((Run-Cf @('-Step', 'domain')) -eq 0) 'zgw cloudflare domain without -Apply: exit 0'
+        Check (([regex]::Matches((Calls), 'wrangler deploy')).Count -eq $deploysBefore -and -not ([System.IO.File]::ReadAllText($cfg) -match '(?m)^\s*"routes"\s*:')) 'zgw cloudflare domain without -Apply: changes nothing'
+        Check ((Run-Cf @('-Step', 'domain', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ ZGW DOMAIN', '-NoHttpCheck')) -eq 0) 'zgw cloudflare domain with approval: exit 0'
+        $cfgNow = [System.IO.File]::ReadAllText($cfg)
+        Check ($cfgNow.Contains('"pattern": "petsgearworld.com", "custom_domain": true') -and $cfgNow.Contains('"pattern": "www.petsgearworld.com", "custom_domain": true') -and $cfgNow.Contains($fakeDb)) 'zgw cloudflare domain: config has both custom domains and keeps the database id'
+        Check (@(Get-ChildItem -LiteralPath $cfWork -Filter 'wrangler.jsonc.before-domain-*').Count -eq 1) 'zgw cloudflare domain: old config saved first'
+        Check (([System.IO.File]::ReadAllText($cfg)) -match '"workers_dev"\s*:\s*false') 'zgw cloudflare domain: the test address (*.workers.dev) is switched off in the same step'
+        Check (([regex]::Matches((Calls), 'wrangler deploy')).Count -eq $deploysBefore + 1) 'zgw cloudflare domain: deploys once'
+        Check ((Run-Cf @('-Step', 'domain', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ ZGW DOMAIN', '-NoHttpCheck')) -eq 0 -and ([regex]::Matches([System.IO.File]::ReadAllText($cfg), '(?m)^\s*"routes"\s*:')).Count -eq 1) 'zgw cloudflare domain twice: routes added only once'
+        $deploysBefore = ([regex]::Matches((Calls), 'wrangler deploy')).Count
+        Check ((Run-Cf @('-Step', 'update', '-Apply', '-Approve', 'wrong')) -eq 1 -and ([regex]::Matches((Calls), 'wrangler deploy')).Count -eq $deploysBefore) 'zgw cloudflare update with wrong phrase: no deploy'
+        Check ((Run-Cf @('-Step', 'update', '-Apply', '-Approve', 'egkrino zgw update', '-NoHttpCheck')) -eq 0 -and ([regex]::Matches((Calls), 'wrangler deploy')).Count -eq $deploysBefore + 1) 'zgw cloudflare update with approval: deploys once'
+        $reports = @(Get-ChildItem -LiteralPath $cfOut -Filter 'ZGW_CLOUDFLARE_*.txt' -ErrorAction SilentlyContinue)
+        Check ($reports.Count -ge 6) 'zgw cloudflare: a report for every run'
     } finally {
         $env:PATH = $oldPath
         Remove-Item Env:\GW_FAKE_STATE -ErrorAction SilentlyContinue
@@ -3274,7 +3424,7 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
     # index.html (one more line, so they differ) and the 3 new files (not there yet). The baseline lists it exactly.
     $vCfg = "name = `"gear-world-hub`"`nmain = `"worker.js`"`n[[d1_databases]]`ndatabase_name = `"gear-world-registry`"`ndatabase_id = `"$vDb`"`n`n[[services]]`nbinding = `"POSTERS`"`nservice = `"gear-world-posters`"`n"
     Write-Utf8 (Join-Path $vHub 'wrangler.toml') $vCfg
-    foreach ($n in @('worker.js', 'photo-search.js', 'poster-scan.js', 'members.js')) { Copy-Item -LiteralPath (Join-Path $vRepo $n) -Destination (Join-Path $vHub $n) -Force }
+    foreach ($n in @('worker.js', 'photo-search.js', 'poster-scan.js', 'mailerlite.js', 'members.js')) { Copy-Item -LiteralPath (Join-Path $vRepo $n) -Destination (Join-Path $vHub $n) -Force }
     Copy-Item -LiteralPath $vRepoPub -Destination $vHub -Recurse -Force
     $vPub = Join-Path $vHub 'public'
     foreach ($n in @('hub-v2.css', 'hub-v2.js', 'hub-deals.json')) { Remove-Item -LiteralPath (Join-Path $vPub $n) -Force }
@@ -3283,7 +3433,7 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
     Write-Utf8 (Join-Path $vHub '.dev.vars') 'SECRET=never-in-the-zip'
     $vBase = Join-Path $work 'gwhv-baseline.txt'
     $bl = @('# test baseline', '# version: test hub v2-before', '# path | bytes | sha256 | kind')
-    $vRels = @('worker.js', 'photo-search.js', 'poster-scan.js', 'members.js') + @(Get-ChildItem -LiteralPath $vPub -Recurse -File | Sort-Object FullName | ForEach-Object { 'public/' + $_.FullName.Substring($vPub.Length).TrimStart('\', '/').Replace('\', '/') })
+    $vRels = @('worker.js', 'photo-search.js', 'poster-scan.js', 'mailerlite.js', 'members.js') + @(Get-ChildItem -LiteralPath $vPub -Recurse -File | Sort-Object FullName | ForEach-Object { 'public/' + $_.FullName.Substring($vPub.Length).TrimStart('\', '/').Replace('\', '/') })
     foreach ($rel in $vRels) {
         $f = Join-Path $vHub ($rel.Replace('/', '\'))
         $bl += ('{0} | {1} | {2} | file' -f $rel, (Get-Item -LiteralPath $f).Length, (Get-FileHash -LiteralPath $f -Algorithm SHA256).Hash.ToLowerInvariant())
@@ -3309,18 +3459,18 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         ('echo The current bookmark is 00000085-0000024c-00004c6d-' + [guid]::NewGuid().ToString('N')),
         'exit /b 0',
         ':pragma',
-        'echo [{"results":[{"name":"email"},{"name":"mailerlite_status"}],"success":true}]',
+        'echo [{"results":[{"name":"email"},{"name":"ml_status"},{"name":"member_source"}],"success":true}]',
         'exit /b 0',
         ':d1file',
-        'echo added> "%GW_FAKE_STATE%\pgw.flag"',
+        'echo added> "%GW_FAKE_STATE%\zgw.flag"',
         'echo OK',
         'exit /b 0',
         ':d1query',
-        'if exist "%GW_FAKE_STATE%\pgw.flag" goto d1yes',
+        'if exist "%GW_FAKE_STATE%\zgw.flag" goto d1yes',
         'echo [{"results":[],"success":true}]',
         'exit /b 0',
         ':d1yes',
-        'echo [{"results":[{"site_key":"PGW"}],"success":true}]',
+        'echo [{"results":[{"site_key":"ZGW"}],"success":true}]',
         'exit /b 0',
         ':delpreview',
         'if exist "%GW_FAKE_STATE%\deleted.flag" goto delgone',
@@ -3438,16 +3588,16 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         Write-Utf8 (Join-Path $vPub 'styles.css') 'body{}'
         Check ((Run-V @('-Step', 'live', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB LIVE')) -eq 7 -and (VCount 'deploy --config') -eq 4) 'hub v2 live: refused when someone else changed the hub folder'
         Check ((VLast).Contains('public/styles.css')) 'hub v2: the changed file is named in the report'
-        # register: Gaming Gear World in the Hub's list of sites (one D1 row, restore point first)
+        # register: Pets Gear World in the Hub's list of sites (one D1 row, restore point first)
         Check ((Run-V @('-Step', 'register')) -eq 0 -and (VCount '--file') -eq 0) 'hub register without -Apply: nothing changes'
         Check ((Run-V @('-Step', 'register', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB LIVE')) -eq 1 -and (VCount '--file') -eq 0) 'hub register with the live phrase: nothing changes'
-        Check ((Run-V @('-Step', 'register', '-Apply', '-Approve', 'egkrino hub pgw search')) -eq 0 -and (VCount '--file') -eq 1) 'hub register with approval: one SQL file runs'
+        Check ((Run-V @('-Step', 'register', '-Apply', '-Approve', 'egkrino hub zgw search')) -eq 0 -and (VCount '--file') -eq 1) 'hub register with approval: one SQL file runs'
         $c = VCalls
         Check ($c.LastIndexOf('time-travel info gear-world-registry') -lt $c.LastIndexOf('--file') -and $c.LastIndexOf('time-travel info gear-world-registry') -ge 0) 'hub register: restore point read before the change'
-        $sqls = @(Get-ChildItem -LiteralPath (Join-Path $vWork 'backups') -Filter 'add-pgw-site-*.sql' -ErrorAction SilentlyContinue)
-        Check ($sqls.Count -eq 1 -and ([System.IO.File]::ReadAllText($sqls[0].FullName)).Contains("INSERT OR IGNORE INTO sites") -and ([System.IO.File]::ReadAllText($sqls[0].FullName)).Contains("'PGW', 'Gaming Gear World', 'gaminggearworld.com'")) 'hub register: INSERT OR IGNORE of the PGW row'
-        Check (@(Get-ChildItem -LiteralPath (Join-Path $vWork 'backups') -Filter 'gwh-registry-before-pgw-*.txt').Count -eq 1) 'hub register: restore note written'
-        Check ((Run-V @('-Step', 'register', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB PGW SEARCH')) -eq 0 -and (VCount '--file') -eq 1 -and (VLast).Contains('ήδη στη λίστα')) 'hub register twice: the row is there, nothing runs again'
+        $sqls = @(Get-ChildItem -LiteralPath (Join-Path $vWork 'backups') -Filter 'add-zgw-site-*.sql' -ErrorAction SilentlyContinue)
+        Check ($sqls.Count -eq 1 -and ([System.IO.File]::ReadAllText($sqls[0].FullName)).Contains("INSERT OR IGNORE INTO sites") -and ([System.IO.File]::ReadAllText($sqls[0].FullName)).Contains("'ZGW', 'Pets Gear World', 'petsgearworld.com'")) 'hub register: INSERT OR IGNORE of the ZGW row'
+        Check (@(Get-ChildItem -LiteralPath (Join-Path $vWork 'backups') -Filter 'gwh-registry-before-zgw-*.txt').Count -eq 1) 'hub register: restore note written'
+        Check ((Run-V @('-Step', 'register', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB ZGW SEARCH')) -eq 0 -and (VCount '--file') -eq 1 -and (VLast).Contains('ήδη στη λίστα')) 'hub register twice: the row is there, nothing runs again'
         # remove-preview: the test Worker goes, from a new empty folder (L83)
         Check ((Run-V @('-Step', 'remove-preview')) -eq 0 -and (VCount 'delete gear-world-hub-preview') -eq 0) 'hub remove-preview without -Apply: nothing deleted'
         Check ((Run-V @('-Step', 'remove-preview', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB LIVE')) -eq 1 -and (VCount 'delete gear-world-hub-preview') -eq 0) 'hub remove-preview with the live phrase: nothing deleted'
@@ -3851,7 +4001,183 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
     }
 }
 
-# 15. awin-setup.ps1 (Awin sales in the private dashboard, lessons L89) with a fake wrangler (Windows only: runs .cmd files)
+# 16. gwh-mailerlite.ps1 (Gear World email step 5a: Hub sign-ups to MailerLite) with a fake wrangler (Windows only)
+if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
+    Write-Host 'gwh-mailerlite.ps1 (fake wrangler)'
+    $mTool = Join-Path (Join-Path $repo 'tools') 'gwh-mailerlite.ps1'
+    $mState = Join-Path $work 'gwhm-state'
+    $mWork = Join-Path $work 'gwhm-work'
+    $mOut = Join-Path $work 'gwhm-out'
+    $mBin = Join-Path $work 'gwhm-bin'
+    $mHub = Join-Path $work 'gwhm-hub'
+    New-Item -ItemType Directory -Path $mState, $mBin, $mHub -Force | Out-Null
+    $mDb = [guid]::NewGuid().ToString()
+    $mVer = [guid]::NewGuid().ToString()
+    $mRepo = Join-Path (Join-Path $repo 'sites') 'gwh'
+    # The fake hub on the "PC" runs the version before the change: the files of the repo, except the 4 changed files
+    # (one more line, so they differ) and mailerlite.js (not there yet). The baseline lists it exactly.
+    $mCfg = "name = `"gear-world-hub`"`nmain = `"worker.js`"`n[[d1_databases]]`ndatabase_name = `"gear-world-registry`"`ndatabase_id = `"$mDb`"`n`n[[services]]`nbinding = `"POSTERS`"`nservice = `"gear-world-posters`"`n"
+    Write-Utf8 (Join-Path $mHub 'wrangler.toml') $mCfg
+    foreach ($n in @('worker.js', 'photo-search.js', 'poster-scan.js')) { Copy-Item -LiteralPath (Join-Path $mRepo $n) -Destination (Join-Path $mHub $n) -Force }
+    Copy-Item -LiteralPath (Join-Path $mRepo 'public') -Destination $mHub -Recurse -Force
+    $mPub = Join-Path $mHub 'public'
+    [System.IO.File]::AppendAllText((Join-Path $mHub 'worker.js'), "`n// before MailerLite`n")
+    foreach ($n in @('email-signup.js', 'index.html', 'privacy\index.html')) { [System.IO.File]::AppendAllText((Join-Path $mPub $n), "`n<!-- before MailerLite -->`n") }
+    Write-Utf8 (Join-Path $mHub '.dev.vars') 'SECRET=never-in-the-zip'
+    $mBase = Join-Path $work 'gwhm-baseline.txt'
+    $bl = @('# test baseline', '# version: test hub before mailerlite', '# path | bytes | sha256 | kind')
+    $mRels = @('worker.js', 'photo-search.js', 'poster-scan.js') + @(Get-ChildItem -LiteralPath $mPub -Recurse -File | Sort-Object FullName | ForEach-Object { 'public/' + $_.FullName.Substring($mPub.Length).TrimStart('\', '/').Replace('\', '/') })
+    foreach ($rel in $mRels) {
+        $f = Join-Path $mHub ($rel.Replace('/', '\'))
+        $bl += ('{0} | {1} | {2} | file' -f $rel, (Get-Item -LiteralPath $f).Length, (Get-FileHash -LiteralPath $f -Algorithm SHA256).Hash.ToLowerInvariant())
+    }
+    Write-Utf8 $mBase (($bl -join "`n") + "`n")
+    # A baseline where one more file differs (styles.css): the tool must refuse, it is not part of step 5a.
+    $mBaseOther = Join-Path $work 'gwhm-baseline-other.txt'
+    Write-Utf8 $mBaseOther ((($bl | ForEach-Object { if ($_ -like 'public/styles.css |*') { 'public/styles.css | 1 | ' + ('0' * 64) + ' | file' } else { $_ } }) -join "`n") + "`n")
+    $mNpx = @(
+        '@echo off',
+        'echo %* >> "%GW_FAKE_STATE%\calls.log"',
+        'echo %* | findstr /C:"whoami" >nul && goto whoami',
+        'echo %* | findstr /C:"d1 list" >nul && goto d1list',
+        'echo %* | findstr /C:"secret list" >nul && goto secretlist',
+        'echo %* | findstr /C:"secret bulk" >nul && goto secret',
+        'echo %* | findstr /C:"deployments list" >nul && goto deployments',
+        'echo %* | findstr /C:"time-travel info" >nul && goto ttinfo',
+        'echo %* | findstr /C:"--file" >nul && goto d1file',
+        'echo %* | findstr /C:"PRAGMA" >nul && goto pragma',
+        'echo %* | findstr /C:"GROUP BY" >nul && goto groups',
+        'echo %* | findstr /C:"COUNT" >nul && goto count',
+        'echo %* | findstr /C:"delete gear-world-hub-preview" >nul && goto delpreview',
+        'echo %* | findstr /C:" deploy" >nul && goto deploy',
+        'echo unknown command 1>&2',
+        'exit /b 1',
+        ':ttinfo',
+        ('echo The current bookmark is 00000085-0000024c-00004c6d-' + [guid]::NewGuid().ToString('N')),
+        'exit /b 0',
+        ':d1file',
+        'if exist "%GW_FAKE_STATE%\migfail.flag" goto d1filefail',
+        'echo done> "%GW_FAKE_STATE%\migrated.flag"',
+        'echo OK',
+        'exit /b 0',
+        ':d1filefail',
+        'echo X [ERROR] duplicate column name: ml_status',
+        'exit /b 1',
+        ':pragma',
+        'if exist "%GW_FAKE_STATE%\migrated.flag" echo [{"results":[{"cid":0,"name":"id"},{"cid":1,"name":"email"},{"cid":9,"name":"ml_status"}],"success":true}]',
+        'if not exist "%GW_FAKE_STATE%\migrated.flag" echo [{"results":[{"cid":0,"name":"id"},{"cid":1,"name":"email"}],"success":true}]',
+        'exit /b 0',
+        ':groups',
+        'echo [{"results":[{"s":"hold","n":7}],"success":true}]',
+        'exit /b 0',
+        ':count',
+        'echo [{"results":[{"n":7}],"success":true}]',
+        'exit /b 0',
+        ':delpreview',
+        'echo Successfully deleted gear-world-hub-preview',
+        'exit /b 0',
+        ':whoami',
+        'echo You are logged in with an OAuth Token, associated with the email test@example.com.',
+        'exit /b 0',
+        ':d1list',
+        ('echo [{"uuid":"' + $mDb + '","name":"gear-world-registry"},{"uuid":"x","name":"other-site"}]'),
+        'exit /b 0',
+        ':secretlist',
+        'if exist "%GW_FAKE_STATE%\key.flag" echo [{"name":"GW_INTERNAL_TOKEN","type":"secret_text"},{"name":"MAILERLITE_API_KEY","type":"secret_text"},{"name":"PHOTO_LIMIT_SALT","type":"secret_text"}]',
+        'if not exist "%GW_FAKE_STATE%\key.flag" echo [{"name":"PHOTO_LIMIT_SALT","type":"secret_text"}]',
+        'exit /b 0',
+        ':secret',
+        'echo Finished processing secrets file',
+        'exit /b 0',
+        ':deployments',
+        ('echo Version(s):  (100%%) ' + $mVer),
+        'exit /b 0',
+        ':deploy',
+        'if exist "%GW_FAKE_STATE%\failother.flag" goto deployfail',
+        'echo Uploaded the Worker',
+        'echo   https://gear-world-hub-preview.example-test.workers.dev',
+        'exit /b 0',
+        ':deployfail',
+        'echo X [ERROR] A request to the Cloudflare API failed. Something else. [code: 10021]',
+        'exit /b 1'
+    ) -join "`r`n"
+    [System.IO.File]::WriteAllText((Join-Path $mBin 'npx.cmd'), $mNpx + "`r`n", [System.Text.Encoding]::ASCII)
+    $oldPath = $env:PATH
+    $env:PATH = $mBin + ';' + $oldPath
+    $env:GW_FAKE_STATE = $mState
+    $mCalls = Join-Path $mState 'calls.log'
+    Write-Utf8 (Join-Path $mState 'key.flag') 'key'
+    function Run-M([string[]]$a, [string]$base = $mBase) {
+        $all = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $mTool, '-HubDir', $mHub, '-WorkDir', $mWork, '-OutDir', $mOut, '-BaselineFile', $base, '-SkipInstall', '-NoClipboard', '-NoHttpCheck') + $a
+        & $exe @all | Out-Null
+        return $LASTEXITCODE
+    }
+    function MCalls { if (Test-Path -LiteralPath $mCalls) { return [System.IO.File]::ReadAllText($mCalls) } else { return '' } }
+    function MCount([string]$pattern) { return ([regex]::Matches((MCalls), $pattern)).Count }
+    function MLast { return [System.IO.File]::ReadAllText((@(Get-ChildItem -LiteralPath $mOut -Filter 'GWH_MAILERLITE_*.txt' | Sort-Object LastWriteTime, Name | Select-Object -Last 1)[0]).FullName) }
+    $mHubBefore = Get-TreeHash $mHub
+    try {
+        Check ((Run-M @('-Step', 'check')) -eq 0) 'mailerlite hub check: exit 0'
+        $r = MLast
+        Check ($r.Contains('ίδιος με την έκδοση που τρέχει live (test hub before mailerlite') -and $r.Contains('Αποτέλεσμα: ΕΝΤΑΞΕΙ') -and $r.Contains('MAILERLITE_API_KEY) στον Hub: υπάρχει') -and $r.Contains('7 εγγραφές')) 'mailerlite hub check: live version, key there, 7 sign-ups counted, ready'
+        Check ($r.Contains('Στον φάκελο του Hub μπαίνουν 5 αρχεία') -and $r.Contains('- mailerlite.js:') -and $r.Contains('- worker.js:') -and $r.Contains('- public/email-signup.js:') -and $r.Contains('- public/index.html:') -and $r.Contains('- public/privacy/index.html:') -and -not $r.Contains('photo-search.js:')) 'mailerlite hub check: the plan is exactly the 5 files of step 5a'
+        Check ((MCount 'deploy --config') -eq 0 -and (MCount '--file') -eq 0 -and (Get-TreeHash $mHub) -eq $mHubBefore) 'mailerlite hub check: only reads'
+        Check (-not $r.Contains($mDb) -and -not $r.Contains($mVer)) 'mailerlite hub check: no database id or version id in the report'
+        Check ((Run-M @('-Step', 'check') $mBaseOther) -eq 13) 'mailerlite hub: a difference outside step 5a (styles.css) stops the tool'
+        # preview
+        Check ((Run-M @('-Step', 'preview')) -eq 0 -and (MCount 'deploy --config') -eq 0) 'mailerlite hub preview without -Apply: nothing changes'
+        Check ((Run-M @('-Step', 'preview', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB REMOVE PREVIEW')) -eq 1 -and (MCount 'deploy --config') -eq 0) 'mailerlite hub preview with another phrase: nothing changes'
+        Check ((Run-M @('-Step', 'preview', '-Apply', '-Approve', 'egkrino mailerlite sites')) -eq 0 -and (MCount 'deploy --config') -eq 1) 'mailerlite hub preview with approval (Latin form): deploys once'
+        $cfgs = @(Get-ChildItem -LiteralPath (Join-Path $mWork 'deploy') -Recurse -Filter 'wrangler.preview.toml' -ErrorAction SilentlyContinue)
+        $pc = $(if ($cfgs.Count) { [System.IO.File]::ReadAllText($cfgs[0].FullName) } else { '' })
+        Check ($pc -match '(?m)^name = "gear-world-hub-preview"' -and $pc.Contains('GWH_PREVIEW = "1"') -and $pc.Contains($mDb) -and -not $pc.Contains('POSTERS') -and $pc -notmatch '(?m)^crons') 'mailerlite hub preview: test Worker, preview rules on, no poster counting, no cron'
+        Check ((MCount '--file') -eq 0 -and (Get-TreeHash $mHub) -eq $mHubBefore) 'mailerlite hub preview: no D1 change, the hub folder is not changed'
+        # live: refused without the key, with the wrong phrase, after a failed migration
+        Remove-Item -LiteralPath (Join-Path $mState 'key.flag') -Force
+        Check ((Run-M @('-Step', 'live', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ MAILERLITE SITES')) -eq 8 -and (MCount 'deploy --config') -eq 1 -and (MCount '--file') -eq 0) 'mailerlite hub live: refused without the MailerLite key'
+        Write-Utf8 (Join-Path $mState 'key.flag') 'key'
+        Check ((Run-M @('-Step', 'live')) -eq 0 -and (Get-TreeHash $mHub) -eq $mHubBefore) 'mailerlite hub live without -Apply: nothing changes'
+        Check ((Run-M @('-Step', 'live', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB LIVE')) -eq 1 -and (MCount '--file') -eq 0 -and (Get-TreeHash $mHub) -eq $mHubBefore) 'mailerlite hub live with another phrase: nothing changes'
+        Write-Utf8 (Join-Path $mState 'migfail.flag') 'fail'
+        Check ((Run-M @('-Step', 'live', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ MAILERLITE SITES')) -eq 12 -and (MCount 'deploy --config') -eq 1 -and (Get-TreeHash $mHub) -eq $mHubBefore) 'mailerlite hub live: a failed D1 change stops before the files and the deploy'
+        Remove-Item -LiteralPath (Join-Path $mState 'migfail.flag') -Force
+        Write-Utf8 (Join-Path $mState 'failother.flag') 'always'
+        Check ((Run-M @('-Step', 'live', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ MAILERLITE SITES')) -eq 9 -and (MCount 'deploy --config') -eq 2) 'mailerlite hub live: a failed deploy stops at once (exit 9)'
+        Check ((Get-TreeHash $mHub) -eq $mHubBefore) 'mailerlite hub live: after a failed deploy the hub folder and wrangler.toml are back as they were'
+        Check (Test-Path -LiteralPath (Join-Path $mState 'migrated.flag')) 'mailerlite hub live: the D1 change (additive) stays after a failed deploy'
+        Remove-Item -LiteralPath (Join-Path $mState 'failother.flag') -Force
+        Check ((Run-M @('-Step', 'live', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ MAILERLITE SITES')) -eq 0 -and (MCount 'deploy --config') -eq 3) 'mailerlite hub live with approval: deploys once'
+        Check ((MCount '--file') -eq 2) 'mailerlite hub live: the D1 migration is not run again once its columns exist'
+        $c = MCalls
+        Check ($c -match ('deploy --config "' + [regex]::Escape((Join-Path $mHub 'wrangler.toml')) + '"')) 'mailerlite hub live: deploys the hub folder with its own wrangler.toml'
+        $cfgNow = [System.IO.File]::ReadAllText((Join-Path $mHub 'wrangler.toml'))
+        Check ($cfgNow -match '(?m)^\[triggers\]' -and $cfgNow -match '(?m)^crons = \["\*/10 \* \* \* \*"\]' -and $cfgNow.Contains('binding = "POSTERS"') -and $cfgNow.Contains($mDb)) 'mailerlite hub live: the cron is added, POSTERS and the database id are kept'
+        $same = $true
+        foreach ($rel in @('mailerlite.js', 'worker.js', 'public\email-signup.js', 'public\index.html', 'public\privacy\index.html')) {
+            if ((Get-FileHash -LiteralPath (Join-Path $mHub $rel) -Algorithm SHA256).Hash -ne (Get-FileHash -LiteralPath (Join-Path $mRepo $rel) -Algorithm SHA256).Hash) { $same = $false }
+        }
+        Check $same 'mailerlite hub live: the 5 files in the hub folder are the files of this version'
+        $r = MLast
+        Check ($r.Contains('mailerlite.js | ') -and $r.Contains('ΕΤΟΙΜΟ') -and -not $r.Contains($mDb) -and -not $r.Contains($mVer)) 'mailerlite hub live: report with the baseline lines, without ids'
+        $notes = @(Get-ChildItem -LiteralPath (Join-Path $mWork 'backups') -Filter 'gwh-before-mailerlite-live-*.txt' | Sort-Object Name)
+        $zips = @(Get-ChildItem -LiteralPath (Join-Path $mWork 'backups') -Filter 'gwh-before-mailerlite-live-*.zip')
+        $nt = $(if ($notes.Count) { [System.IO.File]::ReadAllText($notes[-1].FullName) } else { '' })
+        Check ($zips.Count -ge 1 -and $nt.Contains($mVer) -and $nt.Contains('time-travel restore gear-world-registry --bookmark=')) 'mailerlite hub live: zip, live version and D1 restore point kept first'
+        $zipNames = @()
+        Add-Type -AssemblyName System.IO.Compression.FileSystem
+        $za = [System.IO.Compression.ZipFile]::OpenRead($zips[0].FullName)
+        try { $zipNames = @($za.Entries | ForEach-Object { $_.FullName }) } finally { $za.Dispose() }
+        Check (($zipNames -join ',') -notmatch 'dev\.vars' -and ($zipNames -join ',') -match 'wrangler\.toml') 'mailerlite hub live: the backup has wrangler.toml, never .dev.vars'
+        $deploys = MCount 'deploy --config'
+        Check ((Run-M @('-Step', 'live', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ MAILERLITE SITES')) -eq 0 -and (MCount 'deploy --config') -eq $deploys) 'mailerlite hub live again: already live, nothing to do'
+        Check ((Run-M @('-Step', 'remove-preview', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB REMOVE PREVIEW')) -eq 0 -and (MCount 'delete gear-world-hub-preview') -eq 1 -and (MCount 'delete gear-world-hub ') -eq 0) 'mailerlite hub remove-preview: deletes only the test Worker'
+    } finally {
+        $env:PATH = $oldPath
+        Remove-Item Env:\GW_FAKE_STATE -ErrorAction SilentlyContinue
+    }
+}
+
+# 17. awin-setup.ps1 (Awin sales in the private dashboard, lessons L91) with a fake wrangler (Windows only: runs .cmd files)
 if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
     Write-Host 'awin-setup.ps1 (fake wrangler)'
     $aTool = Join-Path (Join-Path $repo 'tools') 'awin-setup.ps1'
@@ -3987,7 +4313,7 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
     }
 }
 
-# 16. hub-members.ps1 (the one member list in the Hub, lessons L90) with a fake wrangler (Windows only: runs .cmd files)
+# 18. hub-members.ps1 (the one member list in the Hub, lessons L92) with a fake wrangler (Windows only: runs .cmd files)
 if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
     Write-Host 'hub-members.ps1 (fake wrangler)'
     $mTool = Join-Path (Join-Path $repo 'tools') 'hub-members.ps1'
@@ -3999,16 +4325,14 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
     $mHub = Join-Path $mHome 'gear-world-hub'
     New-Item -ItemType Directory -Path $mState, $mBin, $mHub -Force | Out-Null
     Write-Utf8 (Join-Path $mHub 'wrangler.toml') "name = `"gear-world-hub`"`r`nmain = `"worker.js`"`r`n`r`n[[services]]`r`nbinding = `"POSTERS`"`r`nservice = `"gear-world-posters`"`r`n"
-    $mKey = 'mlTestKey0123456789abcdefghij'
     $mBook = '00000085-0000024c-00004c6d-' + [guid]::NewGuid().ToString('N')
     $mBase = '{"name":"id"},{"name":"email"},{"name":"locale"},{"name":"marketing_consent"},{"name":"consent_version"},{"name":"source"},{"name":"status"},{"name":"created_at"},{"name":"updated_at"}'
+    $mMl = ',{"name":"ml_status"},{"name":"ml_synced_at"},{"name":"ml_attempts"},{"name":"ml_error"}'
     $mNew = ',{"name":"site"},{"name":"first_name"},{"name":"country"},{"name":"member_source"},{"name":"mailerlite_group"},{"name":"mailerlite_status"},{"name":"mailerlite_tries"},{"name":"mailerlite_synced_at"}'
     $mNpx = @(
         '@echo off',
         'echo %* >> "%GW_FAKE_STATE%\calls.log"',
         'echo %* | findstr /L /C:"whoami" >nul && goto whoami',
-        'echo %* | findstr /L /C:"secret put" >nul && goto secretput',
-        'echo %* | findstr /L /C:"secret list" >nul && goto secretlist',
         'echo %* | findstr /L /C:"time-travel info" >nul && goto tt',
         'echo %* | findstr /L /C:"--file" >nul && goto d1file',
         'echo %* | findstr /L /C:"PRAGMA table_info" >nul && goto pragma',
@@ -4027,8 +4351,12 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         ('echo The current bookmark is ' + $mBook),
         'exit /b 0',
         ':pragma',
-        ('if exist "%GW_FAKE_STATE%\migrated.flag" echo [{"results":[' + $mBase + $mNew + '],"success":true}]'),
-        ('if not exist "%GW_FAKE_STATE%\migrated.flag" echo [{"results":[' + $mBase + '],"success":true}]'),
+        'if exist "%GW_FAKE_STATE%\noml.flag" goto pragmaold',
+        ('if exist "%GW_FAKE_STATE%\migrated.flag" echo [{"results":[' + $mBase + $mMl + $mNew + '],"success":true}]'),
+        ('if not exist "%GW_FAKE_STATE%\migrated.flag" echo [{"results":[' + $mBase + $mMl + '],"success":true}]'),
+        'exit /b 0',
+        ':pragmaold',
+        ('echo [{"results":[' + $mBase + '],"success":true}]'),
         'exit /b 0',
         ':hubcount',
         'echo [{"results":[{"n":1,"c":1}],"success":true}]',
@@ -4037,7 +4365,7 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         'echo [{"results":[{"id":1,"email":"first@hub.example","marketing_consent":1}],"success":true}]',
         'exit /b 0',
         ':after',
-        'echo [{"results":[{"n":3,"c":2,"r":2}],"success":true}]',
+        'echo [{"results":[{"n":3,"c":2,"r":2,"p":0}],"success":true}]',
         'exit /b 0',
         ':cgw',
         'echo [{"results":[{"email":"Maria.K@Example.com ","first_name":"Maria","country":"GB","marketing_consent":1,"created_at":"2026-09-20 10:00:00"},{"email":"bob@builder.example","first_name":"Bob","country":"GB","marketing_consent":0,"created_at":"2026-09-21 10:00:00"}],"success":true}]',
@@ -4057,22 +4385,12 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         ')',
         'echo migrated> "%GW_FAKE_STATE%\migrated.flag"',
         'echo OK',
-        'exit /b 0',
-        ':secretlist',
-        'if exist "%GW_FAKE_STATE%\key.txt" echo [{"name":"MAILERLITE_TOKEN","type":"secret_text"}]',
-        'if not exist "%GW_FAKE_STATE%\key.txt" echo []',
-        'exit /b 0',
-        ':secretput',
-        'set /p GWSECRET=',
-        '>"%GW_FAKE_STATE%\key.txt" echo %GWSECRET%',
-        'echo Success! Uploaded secret MAILERLITE_TOKEN',
         'exit /b 0'
     ) -join "`r`n"
     [System.IO.File]::WriteAllText((Join-Path $mBin 'npx.cmd'), $mNpx + "`r`n", [System.Text.Encoding]::ASCII)
     $oldPath = $env:PATH
     $env:PATH = $mBin + ';' + $oldPath
     $env:GW_FAKE_STATE = $mState
-    $env:GW_TEST_ML_KEY = $mKey
     $mCalls = Join-Path $mState 'calls.log'
     function Run-M([string[]]$a) {
         $all = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $mTool, '-PcHome', $mHome, '-SkipInstall', '-NoClipboard') + $a
@@ -4086,39 +4404,41 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         return [System.IO.File]::ReadAllText($f[0].FullName)
     }
     try {
+        # A Hub without the MailerLite fields of email step 5 (ml_status): nothing changes
+        Write-Utf8 (Join-Path $mState 'noml.flag') 'old'
+        Check ((Run-M @('-Step', 'check')) -eq 2) 'members check before email step 5: ΠΡΟΣΟΧΗ (exit 2)'
+        Check ((Run-M @('-Step', 'apply', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB MEMBERS')) -eq 7 -and -not ((MText $mCalls) -match '--file|time-travel')) 'members apply before email step 5: stops, nothing changes'
+        Remove-Item -LiteralPath (Join-Path $mState 'noml.flag') -Force
         Check ((Run-M @('-Step', 'check')) -eq 0) 'members check: exit 0'
         $r = MLast 'HUB_MEMBERS_CHECK_*.txt'
-        Check ($r.Contains('CGW: 2 μέλη, 1 με συγκατάθεση') -and $r.Contains('MGW: 0 μέλη, 0 με συγκατάθεση (1 χωρίς σωστό email') -and $r.Contains('λείπουν 8') -and $r.Contains('δεν υπάρχει ακόμα (θα μπει)')) 'members check: counts per site, the missing fields and the timer'
+        Check ($r.Contains('CGW: 2 μέλη, 1 με συγκατάθεση') -and $r.Contains('MGW: 0 μέλη, 0 με συγκατάθεση (1 χωρίς σωστό email') -and $r.Contains('λείπουν 8') -and $r.Contains('κράτηση')) 'members check: counts per site, the missing fields and the hold'
         Check ($r.Contains('m***@example.com') -and -not $r.Contains('maria.k@example.com') -and -not $r.Contains('bob@builder.example')) 'members check: email addresses only masked in the report'
-        Check (-not ((MText $mCalls) -match '--file|secret put')) 'members check: nothing changed'
+        Check (-not ((MText $mCalls) -match '--file|secret')) 'members check: nothing changed'
         Check ((Run-M @('-Step', 'apply')) -eq 0 -and -not ((MText $mCalls) -match '--file')) 'members apply without -Apply: nothing changes'
         Check ((Run-M @('-Step', 'apply', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ DEAL UPDATES')) -eq 1 -and -not ((MText $mCalls) -match '--file')) 'members apply with the wrong phrase: nothing changes'
-        Check ((Run-M @('-Step', 'apply', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB MEMBERS', '-TokenEnv', 'GW_TEST_ML_KEY')) -eq 0) 'members apply with approval: exit 0'
+        Check ((Run-M @('-Step', 'apply', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB MEMBERS')) -eq 0) 'members apply with approval: exit 0'
         $sql = MText (Join-Path $mState 'import.sql')
-        Check ($sql.Contains('ALTER TABLE hub_subscribers ADD COLUMN mailerlite_status TEXT;') -and $sql.Contains("UPDATE hub_subscribers SET mailerlite_group = 'existing' WHERE mailerlite_group IS NULL;") -and $sql.Contains('CREATE TABLE IF NOT EXISTS member_rate')) 'members apply: the new fields, the limits table and the members from before'
-        Check ($sql.Contains("'maria.k@example.com', 'en-GB', 1") -and $sql.Contains("'bob@builder.example', 'en-GB', 0") -and $sql.Contains("'Maria'") -and -not $sql.Contains('not-an-email') -and $sql.Contains("'rewards:cgw'")) 'members apply: the Rewards members with their consent, a wrong email is left out'
-        Check ($sql.Contains('marketing_consent = MAX(hub_subscribers.marketing_consent, excluded.marketing_consent)') -and -not ($sql -match '(?i)\b(DELETE|DROP)\b|phone|last_name|trade')) 'members apply: nobody deleted, consent never taken away, no phone, surname or trade'
+        Check ($sql.Contains('ALTER TABLE hub_subscribers ADD COLUMN member_source TEXT;') -and $sql.Contains('CREATE TABLE IF NOT EXISTS member_rate') -and -not $sql.Contains("SET mailerlite_group")) 'members apply: the new fields and the limits table'
+        Check ($sql.Contains("'maria.k@example.com', 'en-GB', 1") -and $sql.Contains("'bob@builder.example', 'en-GB', 0") -and $sql.Contains("'Maria'") -and -not $sql.Contains('not-an-email') -and $sql.Contains("'rewards:cgw', 'hold')")) 'members apply: the Rewards members with their consent, on hold; a wrong email is left out'
+        Check ($sql.Contains("SET ml_status = 'hold' WHERE substr(member_source, 1, 8) = 'rewards:' AND ml_status = 'pending' AND ml_synced_at IS NULL")) 'members apply: Rewards members still waiting for MailerLite go on hold (L92)'
+        Check ($sql.Contains('marketing_consent = MAX(hub_subscribers.marketing_consent, excluded.marketing_consent)') -and -not ($sql -match '(?i)\b(DELETE|DROP)\b|phone|last_name|trade') -and -not ($sql -match "(?i)ON CONFLICT[^;]*ml_status")) 'members apply: nobody deleted, consent never taken away, the MailerLite state of a member already there never changes'
         Check (@(Get-ChildItem -LiteralPath $mWork -Filter 'members-*.sql' -ErrorAction SilentlyContinue).Count -eq 0) 'members apply: the file with the email addresses does not stay on the disk'
         $bk = @(Get-ChildItem -LiteralPath (Join-Path $mWork 'backups') -Directory | Select-Object -Last 1)
-        Check ($bk.Count -eq 1 -and (MText (Join-Path $bk[0].FullName 'rollback.txt')).Contains('--bookmark=' + $mBook) -and (Test-Path -LiteralPath (Join-Path $bk[0].FullName 'hub_subscribers.json')) -and -not (MText (Join-Path $bk[0].FullName 'gear-world-hub.wrangler.toml')).Contains('crons')) 'members apply: restore point, all members and the config from before, in the backup'
-        $toml = MText (Join-Path $mHub 'wrangler.toml')
-        Check ($toml.Contains('crons = ["*/30 * * * *"]') -and $toml.Contains('binding = "POSTERS"')) 'members apply: the 30-minute timer in the Hub config, the rest kept'
-        Check ((MText (Join-Path $mState 'key.txt')).Trim() -eq $mKey -and -not (MText $mCalls).Contains($mKey)) 'members apply: the key reached wrangler through its input, never on a command line'
+        Check ($bk.Count -eq 1 -and (MText (Join-Path $bk[0].FullName 'rollback.txt')).Contains('--bookmark=' + $mBook) -and (Test-Path -LiteralPath (Join-Path $bk[0].FullName 'hub_subscribers.json'))) 'members apply: restore point and all members from before, in the backup'
+        Check (-not (MText (Join-Path $mHub 'wrangler.toml')).Contains('crons') -and -not ((MText $mCalls) -match 'secret')) 'members apply: the Hub config and its secrets are not touched'
         $r = MLast 'HUB_MEMBERS_APPLY_*.txt'
-        Check ($r.Contains('ΕΤΟΙΜΟ') -and -not $r.Contains($mKey) -and -not $r.Contains('maria.k@example.com') -and -not $r.Contains($mBook)) 'members apply: report ready, without the key, the email addresses or the bookmark'
-        # again: the fields are there, nothing is added twice, the members from before are not marked again
-        Check ((Run-M @('-Step', 'apply', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB MEMBERS', '-TokenEnv', 'GW_NO_SUCH_VAR')) -eq 0) 'members apply again: exit 0 (no key this time: kept)'
+        Check ($r.Contains('ΕΤΟΙΜΟ') -and -not $r.Contains('maria.k@example.com') -and -not $r.Contains($mBook)) 'members apply: report ready, without the email addresses or the bookmark'
+        # again: the fields are there, nothing is added twice
+        Check ((Run-M @('-Step', 'apply', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB MEMBERS')) -eq 0) 'members apply again: exit 0'
         $sql = MText (Join-Path $mState 'import.sql')
-        Check (-not $sql.Contains('ALTER TABLE') -and -not $sql.Contains("SET mailerlite_group = 'existing'") -and $sql.Contains("'maria.k@example.com'")) 'members apply again: no field added twice, new sign-ups are not marked as members from before'
-        Check (([regex]::Matches((MText (Join-Path $mHub 'wrangler.toml')), 'crons')).Count -eq 1) 'members apply again: the timer is there once'
+        Check (-not $sql.Contains('ALTER TABLE') -and $sql.Contains("'maria.k@example.com'")) 'members apply again: no field added twice'
     } finally {
         $env:PATH = $oldPath
         Remove-Item Env:\GW_FAKE_STATE -ErrorAction SilentlyContinue
-        Remove-Item Env:\GW_TEST_ML_KEY -ErrorAction SilentlyContinue
     }
 }
 
-# 17. deal-updates-sites.ps1 ("Get deal updates" on the 12 sites, lessons L90) with fake site tools (Windows only)
+# 19. deal-updates-sites.ps1 ("Get deal updates" on the 12 sites, lessons L92) with fake site tools (Windows only)
 if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
     Write-Host 'deal-updates-sites.ps1 (fake site tools)'
     $dTool = Join-Path (Join-Path $repo 'tools') 'deal-updates-sites.ps1'

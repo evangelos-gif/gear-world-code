@@ -144,9 +144,9 @@ try {
         check(await page.getAttribute('.gwh2-slide', 'data-campaign') === 'christmas', `${tag}: the back arrow works`);
       }
 
-      // the 12 worlds, translated by translations.js
+      // the 13 worlds, translated by translations.js
       const worlds = await page.$$eval('.gwh-image-world', els => els.map(e => ({ world: e.dataset.world, href: e.getAttribute('href'), title: e.querySelector('.gwh-image-world-title').textContent.trim() })));
-      check(worlds.length === 12 && worlds.every(w => /^https:\/\/[a-z]+gearworld\.com\/$/.test(w.href)), `${tag}: 12 Gear World cards with their sites (BGW and PGW since 31/10/2026)`, worlds.map(w => w.world).join(','));
+      check(worlds.length === 13 && worlds.every(w => /^https:\/\/[a-z]+gearworld\.com\/$/.test(w.href)), `${tag}: 13 Gear World cards with their sites (BGW and PGW since 31/10/2026, ZGW since 1/11/2026)`, worlds.map(w => w.world).join(','));
       if (locale === 'el-GR') check(worlds[0].title === 'Εργαλεία & ρούχα εργασίας' || /[Α-Ωα-ω]/.test(worlds[0].title), `${tag}: world titles in Greek`, worlds[0].title);
 
       // deals: from hub-deals.json, to site pages only
@@ -254,6 +254,7 @@ try {
   }
 
   // The campaigns follow their dates (UK days).
+  // Owner, 1/11/2026: the Christmas video from 1 November (Black Friday first in its own days).
   const days = { '2026-10-28': 'season-halloween', '2026-11-15': 'season-christmas,black-friday-soon', '2026-11-30': 'season-black-friday,christmas', '2026-12-10': 'season-christmas', '2027-01-05': 'winter-sales,new-year-fitness', '2027-02-20': 'all-worlds' };
   for (const [day, want] of Object.entries(days)) {
     const { context, page } = await openPage(browser, viewports[0], 'en-GB', { day });
@@ -275,7 +276,7 @@ try {
   // The seasonal video in the hero (video loop, or its still picture; text on top in HTML).
   for (const [day, want, vp, opts] of [
     ['2026-10-28', 'halloween', viewports[0], {}], ['2026-11-28', 'black-friday', viewports[2], {}], ['2026-12-10', 'christmas', viewports[0], {}],
-    ['2026-12-28', '', viewports[0], {}], ['2026-10-28', 'halloween', viewports[0], { reducedMotion: 'reduce' }]
+    ['2026-11-10', 'christmas', viewports[0], {}], ['2026-10-19', '', viewports[0], {}], ['2026-10-28', 'halloween', viewports[0], { reducedMotion: 'reduce' }]
   ]) {
     const tag = `banner ${day} ${vp.name}${opts.reducedMotion ? ' reduce motion' : ''}`;
     const context = await browser.newContext({ viewport: { width: vp.width, height: vp.height }, isMobile: vp.isMobile, hasTouch: vp.hasTouch, deviceScaleFactor: 1, ...opts });

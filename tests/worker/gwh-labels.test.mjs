@@ -64,8 +64,7 @@ test('search labels: the waiting text names no list of sites, in all 11 language
 test('search labels: the page loads the new app.js and translations.js (new ?v=, lessons L31)', () => {
   const html = read('public/index.html');
   assert.match(html, /<script src="\/app\.js\?v=20261026-labels1"><\/script>/);
-  // Later versions change the ?v= of translations.js again (Gaming card, then Bing title and descriptions).
-  assert.match(html, /<script src="\/translations\.js\?v=(?:20261031-pgw1|20261101-seo1)"><\/script>/);
+  assert.match(html, /<script src="\/translations\.js\?v=20261101-zgw2"><\/script>/);
   assert.ok(!html.includes('app.js?v=20261005-mobile3') && !html.includes('translations.js?v=20261005-search-gr-final'), 'old ?v= gone');
 });
 

@@ -18,7 +18,7 @@ import { sitemapIndex, sitemapStatic, sitemapProducts, robotsTxt, SITEMAP_CHUNK 
 import { posterScan } from './lib/poster-scan.js';
 import { guidePage, guidesIndexPage, findGuide, guideProductIds, GUIDES_PATH } from './pages/guides.js';
 
-// Gear World Hub keeps the one list of members; sites reach it only through a service binding (lessons L90).
+// Gear World Hub keeps the one list of members; sites reach it only through a service binding (lessons L92).
 // The address is not public: requests from the internet never carry this host name.
 export const HUB_SUBSCRIBE_URL = 'https://hub.internal/internal/subscribe';
 // Newer sites bind it as HUB; the older sites already had GW_HUB (the same Worker, used for search translations).
@@ -46,7 +46,7 @@ export function createWorker(site) {
   async function handle(request, env, ctx) {
     const url = new URL(request.url);
     const method = request.method;
-    // "Get deal updates" is on when this Worker can reach Gear World Hub (service binding HUB, lessons L90).
+    // "Get deal updates" is on when this Worker can reach Gear World Hub (service binding HUB, lessons L92).
     site.dealUpdates = hubReady(env);
 
     // One canonical host (lessons L11): www and any other host redirect to the apex domain.
@@ -101,12 +101,16 @@ export function createWorker(site) {
       if (!cat) return notFound(path, method);
       return cached(request, env, ctx, async () => {
         const p = readListingParams(url);
-        const [result, facets] = await Promise.all([
-          db.listProducts(env.DB, { ...p, category: cat.slug }, { sort: p.sort, page: p.page, perPage: PER_PAGE }),
-          db.facets(env.DB, cat.slug)
+        // ?sub= only for a subcategory the site config lists for this category (ZGW birds); anything else is ignored.
+        const sub = (Array.isArray(cat.subcategories) ? cat.subcategories : []).find(s => s.slug === p.sub);
+        if (!sub) p.sub = '';
+        const [result, facets, subCounts] = await Promise.all([
+          db.listProducts(env.DB, { ...p, category: cat.slug, subcategory: sub ? sub.name : '' }, { sort: p.sort, page: p.page, perPage: PER_PAGE }),
+          db.facets(env.DB, cat.slug),
+          cat.subcategories && cat.subcategories.length ? db.subcategoryCounts(env.DB, cat.slug) : null
         ]);
         if (p.page > 1 && p.page > result.pages && !hasFilters(p)) return notFound(path, method);
-        return htmlResponse(categoryPage(site, cat, p, result, facets), { method });
+        return htmlResponse(categoryPage(site, cat, p, result, facets, subCounts), { method });
       });
     }
 
@@ -336,7 +340,7 @@ export function createWorker(site) {
     }, { cache: 'short' });
   }
 
-  // Sign-up for deal updates. With the service binding HUB (lessons L90) the address goes to the one member list of
+  // Sign-up for deal updates. With the service binding HUB (lessons L92) the address goes to the one member list of
   // Gear World Hub, for every site, older ones included (their own databases do not change, L28). Without it, newer
   // sites keep their own newsletter table as before. Works as a plain form post (an HTML answer) or as JSON.
   async function newsletter(request, env, url) {

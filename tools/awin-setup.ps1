@@ -1,6 +1,6 @@
 ﻿<#
 .SYNOPSIS
-  Awin sales in the private dashboard (lessons L89): a private Worker copies the Awin sales of every Gear World site
+  Awin sales in the private dashboard (lessons L91): a private Worker copies the Awin sales of every Gear World site
   into its own D1 database every 2 hours. Read-only unless -Apply and the typed approval phrase.
 
 .DESCRIPTION

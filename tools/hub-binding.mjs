@@ -1,20 +1,17 @@
-// "Get deal updates" (lessons L90): small changes to the Worker configs that stay on the PC.
-//   - the 6 newer sites (wrangler.jsonc): the service binding HUB -> gear-world-hub, so their form reaches the Hub;
-//   - the Hub (wrangler.toml): a cron every 30 minutes, which copies new members with consent to MailerLite.
+// "Get deal updates" (lessons L92): one small change to the Worker configs that stay on the PC:
+// the 6 newer sites (wrangler.jsonc) get the service binding HUB -> gear-world-hub, so their form reaches the Hub.
+// (The Hub's own timer to MailerLite is set by tools/gwh-mailerlite.ps1, Gear World email step 5.)
 // Like tools/poster-config.mjs: the text is changed in one place only, comments and layout stay, and the result is
 // read back (everything that was there is still there).
 //
 //   node tools/hub-binding.mjs check-hub <wrangler.jsonc>    prints "has" or "missing"
 //   node tools/hub-binding.mjs add-hub <wrangler.jsonc>      prints "added" or "already" (exit 1 on any doubt)
-//   node tools/hub-binding.mjs check-cron <wrangler.toml>    prints "has" or "missing"
-//   node tools/hub-binding.mjs add-cron <wrangler.toml>      prints "added" or "already" (exit 1 on any doubt)
 import { readFileSync, writeFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 import { blankJsonc, parseJsonc } from './poster-config.mjs';
 
 export const BINDING = 'HUB';
 export const SERVICE = 'gear-world-hub';
-export const CRON = '*/30 * * * *';
 const ENTRY = `{ "binding": "${BINDING}", "service": "${SERVICE}" }`;
 
 const hasHub = cfg => Array.isArray(cfg.services) && cfg.services.some(s => s && s.binding === BINDING);
@@ -55,31 +52,16 @@ export function addHubJsonc(text) {
   return { text: out, changed: true };
 }
 
-const cronHas = text => /^\s*crons\s*=\s*\[[^\]]*"\*\/30 \* \* \* \*"[^\]]*\]\s*$/m.test(text);
-
-// The Hub's wrangler.toml: [triggers] crons = ["*/30 * * * *"] at the end (a table of its own).
-export function addCronToml(text) {
-  if (!/^\s*name\s*=\s*"gear-world-hub"\s*$/m.test(text)) throw new Error('not the Hub config');
-  if (cronHas(text)) return { text, changed: false };
-  if (/^\s*\[triggers\]\s*$/m.test(text) || /^\s*crons\s*=/m.test(text)) throw new Error('the Hub already has other triggers');
-  const nl = text.includes('\r\n') ? '\r\n' : '\n';
-  const body = text.replace(/[\r\n]+$/, '');
-  const out = `${body}${nl}${nl}# Members with consent are copied to MailerLite every 30 minutes (lessons L90), added by tools/hub-members.ps1${nl}[triggers]${nl}crons = ["${CRON}"]${nl}`;
-  if (!out.startsWith(body) || !cronHas(out)) throw new Error('change failed');
-  return { text: out, changed: true };
-}
-
 function main(argv) {
   const [mode, file] = argv;
-  if (!file || !['check-hub', 'add-hub', 'check-cron', 'add-cron'].includes(mode)) { console.log('usage: hub-binding.mjs check-hub|add-hub|check-cron|add-cron <file>'); return 2; }
+  if (!file || !['check-hub', 'add-hub'].includes(mode)) { console.log('usage: hub-binding.mjs check-hub|add-hub <file>'); return 2; }
   let text;
   try { text = readFileSync(file, 'utf8'); } catch { console.log('missing-file'); return 2; }
   const bom = text.charCodeAt(0) === 0xfeff;
   if (bom) text = text.slice(1);
   try {
     if (mode === 'check-hub') { console.log(hasHub(parseJsonc(text)) ? 'has' : 'missing'); return 0; }
-    if (mode === 'check-cron') { console.log(cronHas(text) ? 'has' : 'missing'); return 0; }
-    const r = mode === 'add-hub' ? addHubJsonc(text) : addCronToml(text);
+    const r = addHubJsonc(text);
     if (r.changed) writeFileSync(file, (bom ? '﻿' : '') + r.text, 'utf8');
     console.log(r.changed ? 'added' : 'already');
     return 0;

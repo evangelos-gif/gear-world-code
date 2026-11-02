@@ -2,8 +2,10 @@
 import { handlePhotoSearch, previewResponse, addPreviewHeaders } from "./photo-search.js";
 // GWH-POSTER-SCANS: poster QR scans of the home page are counted in poster-scan.js (lessons L76).
 import { posterScan } from "./poster-scan.js";
-// GWH-MEMBERS: the one member list ("Get deal updates" of the 12 sites) and its copy to MailerLite (lessons L90).
-import { isInternal, handleInternal, syncMailerLite } from "./members.js";
+// GWH-MAILERLITE: email sign-ups to the Hub D1 and MailerLite (Gear World email, step 5).
+import { handleSubscribe, syncPending } from "./mailerlite.js";
+// GWH-MEMBERS: "Get deal updates" of the sites, into the same list (lessons L92).
+import { isInternal, handleInternal } from "./members.js";
 
 const hubCore = {
   async fetch(request, env) {
@@ -748,6 +750,8 @@ const hubCore = {
     }
 
     // GWH-EMAIL-SUBSCRIBE-START
+    // Since email step 5 (November 2026) /api/subscribe is answered by mailerlite.js (see the default export below),
+    // so this older block is no longer reached. It stays only so the history of the Hub is easy to follow.
     // ============================================================
     // HUB EMAIL SIGNUP
     // ============================================================
@@ -903,9 +907,13 @@ export default {
   async fetch(request, env, ctx) {
     // GWH-MEMBERS: sign-ups from the sites, only through their service binding HUB (this host name has no route).
     if (isInternal(new URL(request.url))) return handleInternal(request, env, ctx);
+    const url = new URL(request.url);
+    // GWH-MAILERLITE: email sign-ups (D1 first, then MailerLite) are in mailerlite.js; on the test address it writes nothing.
+    if (url.pathname === "/api/subscribe") {
+      return addPreviewHeaders(await handleSubscribe(request, env, ctx), env);
+    }
     const early = previewResponse(request, env);
     if (early) return addPreviewHeaders(early, env);
-    const url = new URL(request.url);
     // GWH-POSTER-SCANS: a QR scan of a poster (?utm_source=poster) is counted in the background; never on the test address.
     posterScan(request, env, ctx, { site: "hub", domain: "gearworldhub.com", off: String((env && env.GWH_PREVIEW) || "") === "1" });
     const media = await seasonalMedia(request, env);
@@ -913,16 +921,11 @@ export default {
     if (url.pathname === "/api/photo-search") {
       return addPreviewHeaders(await handlePhotoSearch(request, env, ctx), env);
     }
-    const res = await hubCore.fetch(request, env);
-    // GWH-MEMBERS: a sign-up on the Hub page is copied to MailerLite in the background (when there is a key).
-    if (url.pathname === "/api/subscribe" && request.method === "POST" && res.ok && ctx && ctx.waitUntil) {
-      ctx.waitUntil(syncMailerLite(env, { limit: 5 }));
-    }
-    return addPreviewHeaders(res, env);
+    return addPreviewHeaders(await hubCore.fetch(request, env), env);
   },
-  // GWH-MEMBERS: every 30 minutes, members with consent not yet in MailerLite (or failed before) are copied there.
-  async scheduled(event, env, ctx) {
-    ctx.waitUntil(syncMailerLite(env, { limit: 50 }));
+  // GWH-MAILERLITE: the cron (wrangler.toml [triggers], every 10 minutes) sends sign-ups that are still 'pending'.
+  async scheduled(controller, env, ctx) {
+    ctx.waitUntil(syncPending(env).catch(() => {}));
   }
 };
 // GWH-PHOTO-SEARCH-END

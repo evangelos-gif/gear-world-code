@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Pets Gear World">
+  <rect width="64" height="64" rx="12" fill="#2a1d14"/>
+  <ellipse cx="17.5" cy="27" rx="5.2" ry="6.6" transform="rotate(-18 17.5 27)" fill="#8fd0ff"/>
+  <ellipse cx="26.5" cy="17.5" rx="5.2" ry="6.8" transform="rotate(-6 26.5 17.5)" fill="#8fd0ff"/>
+  <ellipse cx="37.5" cy="17.5" rx="5.2" ry="6.8" transform="rotate(6 37.5 17.5)" fill="#8fd0ff"/>
+  <ellipse cx="46.5" cy="27" rx="5.2" ry="6.6" transform="rotate(18 46.5 27)" fill="#8fd0ff"/>
+  <path d="M32 30.5c-5.6 0-9.4 6.2-12.6 11.2-2.3 3.6-1.5 8.8 3.4 9.6 3.4.6 5.6-1.6 9.2-1.6s5.8 2.2 9.2 1.6c4.9-.8 5.7-6 3.4-9.6C41.4 36.7 37.6 30.5 32 30.5z" fill="#f6eee2"/>
+</svg>

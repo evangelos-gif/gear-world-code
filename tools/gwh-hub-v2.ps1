@@ -26,8 +26,8 @@
                  already. First a zip of the hub folder and the number of the live version (for rollback), then the
                  changed files go into the hub folder, then gearworldhub.com is deployed from it and checked. If the
                  deploy fails, the old files go back into the hub folder, so it stays the same as the live site.
-  -Step register CHANGES THE HUB D1 (one row), one approval: ΕΓΚΡΙΝΩ HUB PGW SEARCH. Adds Gaming Gear World (PGW,
-                 gaminggearworld.com) to the list of sites in the D1 "gear-world-registry", so the Hub search and the photo
+  -Step register CHANGES THE HUB D1 (one row), one approval: ΕΓΚΡΙΝΩ HUB ZGW SEARCH. Adds Pets Gear World (ZGW,
+                 petsgearworld.com) to the list of sites in the D1 "gear-world-registry", so the Hub search and the photo
                  search ask it too. Time Travel restore point first. Nothing else in the D1 changes; running it twice
                  adds nothing (INSERT OR IGNORE).
   -Step remove-preview  CHANGES CLOUDFLARE (the test Worker only), one approval: ΕΓΚΡΙΝΩ HUB REMOVE PREVIEW. Deletes the
@@ -36,11 +36,13 @@
   -Step indexnow  Tells IndexNow (Bing, Yandex and others) that the pages of the Hub sitemap changed. Needs -Apply, no phrase:
                  it changes nothing on the Hub, its D1 or the sites. The live step does it by itself after a deploy.
   Biker card (31/10/2026, live): index.html, translations.js, hub-v2.js, hub-v2.css and hub-bgw.jpg.
-  Gaming card (31/10/2026): the same 4 files and hub-pgw.jpg, "12 Gear Worlds" in the texts. One paste: live, register,
-  remove-preview, each with its own phrase (BGW is already in the D1 list of sites).
-  Bing Webmaster Tools (31/10/2026): robots.txt with the Sitemap line, the new title of the home page (index.html and
-  translations.js), meta descriptions of 120-160 characters (home page in 11 languages, /terms/, /contact/) and the
-  IndexNow key file. The gwh-sitemap Worker does not change.
+  Gaming card (31/10/2026, live): the same 4 files and hub-pgw.jpg, "12 Gear Worlds" in the texts.
+  Pets card (1/11/2026, live): the same 4 files and hub-zgw.jpg, "13 Gear Worlds" in the texts. One paste: live, register,
+  remove-preview, each with its own phrase (BGW and PGW are already in the D1 list of sites).
+  Bing Webmaster Tools (31/10/2026, live): robots.txt with the Sitemap line, the new title of the home page, meta
+  descriptions of 120-160 characters and the IndexNow key file.
+  Email step 5a (2/11/2026, live, tools/gwh-mailerlite.ps1): mailerlite.js, sign-ups to the Hub D1 and MailerLite.
+  Get deal updates (L92): members.js and worker.js, the sign-ups of the sites (service binding HUB) into the same list.
   Report: <home>\gear-world-reports\GWH_HUB_V2_<STEP>_<time>.txt (also copied to the clipboard)
 #>
 param(
@@ -64,7 +66,7 @@ $PreviewName = 'gear-world-hub-preview'
 $DbName = 'gear-world-registry'
 $PhrasePreview = 'ΕΓΚΡΙΝΩ HUB PREVIEW'
 $PhraseLive = 'ΕΓΚΡΙΝΩ HUB LIVE'
-$PhraseRegister = 'ΕΓΚΡΙΝΩ HUB PGW SEARCH'
+$PhraseRegister = 'ΕΓΚΡΙΝΩ HUB ZGW SEARCH'
 $PhraseRemovePreview = 'ΕΓΚΡΙΝΩ HUB REMOVE PREVIEW'
 $LiveUrl = 'https://gearworldhub.com'
 # IndexNow (Bing Webmaster Tools, 31/10/2026): the key is public by design, it is served as /<key>.txt.
@@ -82,19 +84,20 @@ $Bad = 'Magenta'
 
 # What each file of the change does, in the words of the report.
 $About = @{
-    'worker.js'             = 'η λίστα μελών: οι εγγραφές «Get deal updates» των 12 sites (μόνο από την ιδιωτική τους σύνδεση) και η αντιγραφή όσων συμφώνησαν στο MailerLite κάθε 30 λεπτά (L90)'
-    'members.js'            = 'ο κώδικας της λίστας μελών και του MailerLite (νέο αρχείο, L90)'
+    'worker.js'             = 'η φόρμα «Get deal updates» των sites: οι εγγραφές τους (μόνο από την ιδιωτική τους σύνδεση) μπαίνουν στην ίδια λίστα με τη φόρμα του Hub και πάνε στο MailerLite όπως αυτή (L92)'
+    'members.js'            = 'ο κώδικας της φόρμας «Get deal updates» των sites (νέο αρχείο, L92)'
     'poster-scan.js'        = 'η μέτρηση των αφισών (ίδια με αυτή που μπήκε με το POSTER STATS)'
-    'public/index.html'     = 'νέος τίτλος «Gear World Hub – Gear, Gifts & Deals From Every Gear World» και νέα περιγραφή για το Bing (151 χαρακτήρες)'
+    'public/index.html'     = 'η κάρτα «Pets» (Pets Gear World, ZGW) μετά το Gaming, και «13 Gear Worlds» στα κείμενα'
+    'public/hub-v2.css'     = '13 κάρτες: 2 ανά σειρά στο κινητό (το Pets μόνο του στην τελευταία), όσες χωράνε σε μεγάλη οθόνη'
+    'public/hub-v2.js'      = '«13 Gear Worlds» στα κείμενα, σε 11 γλώσσες'
+    'public/translations.js' = 'τίτλος και κείμενο της κάρτας Pets σε 11 γλώσσες'
     'public/robots.txt'     = 'robots.txt του Hub με τη γραμμή Sitemap: https://gearworldhub.com/sitemap.xml (το Cloudflare βάζει από πάνω τα Content Signals του)'
     'public/gearworldhub-indexnow-k7q4m9x2w5.txt' = 'το κλειδί του IndexNow (δημόσιο, έτσι δουλεύει το IndexNow)'
     'public/terms/index.html' = 'νέα περιγραφή για το Bing (149 χαρακτήρες)'
     'public/contact/index.html' = 'νέα περιγραφή για το Bing (126 χαρακτήρες)'
-    'public/translations.js' = 'ο ίδιος νέος τίτλος, και περιγραφή 120-160 χαρακτήρων σε 11 γλώσσες (αντί για «κείμενο + Gear World Hub.», 85 χαρακτήρες)'
-    'public/hub-v2.css'     = '12 κάρτες: 2 ανά σειρά στο κινητό (6 γεμάτες σειρές), 6 + 6 σε μεγάλη οθόνη'
-    'public/hub-v2.js'      = 'το βίντεο των Χριστουγέννων (τζάκι) από 1/11, το κουμπί του ανοίγει το «Βρες δώρο», και οι προσφορές δεν γράφουν πια «Halloween»'
     'public/hub-bgw.jpg'    = 'η φωτογραφία της κάρτας Biker (Pexels, χωρίς μάρκες)'
     'public/hub-pgw.jpg'    = 'η φωτογραφία της κάρτας Gaming (Pexels, χωρίς μάρκες)'
+    'public/hub-zgw.jpg'    = 'η φωτογραφία της κάρτας Pets (Pexels, χωρίς μάρκες)'
     'public/hub-deals.json' = 'οι προσφορές με ημερομηνία λήξης, από το promos.js'
     'public/seasonal/halloween.mp4' = 'Halloween (βίντεο) για το μπάνερ των προσφορών'
     'public/seasonal/halloween.jpg' = 'Halloween (σταθερή εικόνα) για το μπάνερ των προσφορών'
@@ -422,7 +425,7 @@ $baseSha = @{}
 foreach ($b in $baseline) { $baseSha[$b.path] = $b.sha }
 
 $gwhRepo = Join-Path (Join-Path $repo 'sites') 'gwh'
-$newFiles = @('worker.js', 'photo-search.js', 'poster-scan.js', 'members.js')
+$newFiles = @('worker.js', 'photo-search.js', 'poster-scan.js', 'mailerlite.js', 'members.js')
 $pubRepo = Join-Path $gwhRepo 'public'
 foreach ($f in @(Get-ChildItem -LiteralPath $pubRepo -Recurse -File | Sort-Object FullName)) {
     $newFiles += ('public/' + $f.FullName.Substring($pubRepo.Length).TrimStart('\', '/').Replace('\', '/'))
@@ -517,21 +520,21 @@ $liveVersion = Get-LiveVersion $gwh $HubWorker
 if ($liveVersion) { Say ('Ζωντανή έκδοση του Worker "{0}": βρέθηκε (για επαναφορά): ΕΝΤΑΞΕΙ' -f $HubWorker) $Ok }
 else { Say ('Ζωντανή έκδοση του Worker "{0}": ΠΡΟΒΛΗΜΑ - δεν τη βρήκα (χρειάζεται για επαναφορά)' -f $HubWorker) $Bad }
 
-# ---------------- register: Gaming Gear World in the Hub's list of sites (D1 gear-world-registry) ----------------
+# ---------------- register: Pets Gear World in the Hub's list of sites (D1 gear-world-registry) ----------------
 if ($Step -eq 'register') {
     Say ''
     Say 'Τι θα γίνει:'
-    Say '  - Μία νέα γραμμή στη D1 του Hub (πίνακας sites): PGW, Gaming Gear World, gaminggearworld.com.'
-    Say '  - Έτσι η αναζήτηση του Hub (και με φωτογραφία) ψάχνει και στο Gaming. Οι άλλες γραμμές ΔΕΝ αλλάζουν.'
+    Say '  - Μία νέα γραμμή στη D1 του Hub (πίνακας sites): ZGW, Pets Gear World, petsgearworld.com.'
+    Say '  - Έτσι η αναζήτηση του Hub (και με φωτογραφία) ψάχνει και στο Pets. Οι άλλες γραμμές ΔΕΝ αλλάζουν.'
     Say '  - Πρώτα σημείο επαναφοράς (Cloudflare Time Travel) της D1 του Hub.'
     $dl = Invoke-Wrangler $gwh 'd1 list --json' -Retry
     $list = Get-JsonArray $dl.text
     $dbId = ''
     if ($list) { foreach ($d in $list) { if ($d.name -eq $DbName) { $dbId = [string]$d.uuid } } }
     if (-not $dbId) { Say ('Δεν βρήκα τη D1 "{0}". Δεν αλλάζω τίποτα.' -f $DbName) $Bad; Finish 5 }
-    $q = Invoke-Wrangler $gwh ('d1 execute {0} --remote --json --command "SELECT site_key FROM sites WHERE site_key = ''PGW'' OR domain = ''gaminggearworld.com''"' -f $DbName) -Retry
+    $q = Invoke-Wrangler $gwh ('d1 execute {0} --remote --json --command "SELECT site_key FROM sites WHERE site_key = ''ZGW'' OR domain = ''petsgearworld.com''"' -f $DbName) -Retry
     if ($q.code -ne 0) { Say 'Δεν μπόρεσα να διαβάσω τη λίστα sites του Hub. Δεν αλλάζω τίποτα. Έξοδος:' $Bad; Say $q.text; Finish 5 }
-    if ($q.text -match '"site_key"\s*:\s*"PGW"') { Say 'Το Gaming (PGW) είναι ήδη στη λίστα sites του Hub: τίποτα να αλλάξω.' $Ok; Finish 0 }
+    if ($q.text -match '"site_key"\s*:\s*"ZGW"') { Say 'Το Pets (ZGW) είναι ήδη στη λίστα sites του Hub: τίποτα να αλλάξω.' $Ok; Finish 0 }
     if (-not $Apply) { Say ''; Say 'Δοκιμή μόνο (χωρίς -Apply): δεν άλλαξε τίποτα.' $Ok; Finish 0 }
     if (-not (Confirm-Approval $PhraseRegister)) { Say 'Δεν δόθηκε έγκριση: σταμάτησα χωρίς αλλαγές.' $Warn; Finish 1 }
     $bdir = Join-Path $WorkDir 'backups'
@@ -540,35 +543,35 @@ if ($Step -eq 'register') {
     $bm = [regex]::Match($tt.text, '[0-9a-f]{8}-[0-9a-f]{8}-[0-9a-f]{8}-[0-9a-f]{32}')
     if (-not $bm.Success) { Say 'Δεν βρήκα σημείο επαναφοράς της D1 του Hub: για ασφάλεια ΔΕΝ αλλάζω τίποτα.' $Bad; Finish 11 }
     $note = @(
-        ('Hub D1 restore point before adding Gaming Gear World (PGW), {0}' -f (Get-Date -Format 'yyyy-MM-dd HH:mm')),
+        ('Hub D1 restore point before adding Pets Gear World (ZGW), {0}' -f (Get-Date -Format 'yyyy-MM-dd HH:mm')),
         'To go back (only with approval), in PowerShell:',
         ('  npx wrangler d1 time-travel restore {0} --bookmark={1}' -f $DbName, $bm.Value),
-        "Or remove only the new row: npx wrangler d1 execute $DbName --remote --command `"DELETE FROM sites WHERE site_key = 'PGW'`""
+        "Or remove only the new row: npx wrangler d1 execute $DbName --remote --command `"DELETE FROM sites WHERE site_key = 'ZGW'`""
     ) -join "`r`n"
-    $noteFile = Join-Path $bdir ('gwh-registry-before-pgw-' + $stamp + '.txt')
+    $noteFile = Join-Path $bdir ('gwh-registry-before-zgw-' + $stamp + '.txt')
     [System.IO.File]::WriteAllText($noteFile, $note, (New-Object System.Text.UTF8Encoding($false)))
     Say ('Σημείο επαναφοράς: {0}' -f $noteFile) $Ok
-    $sql = Join-Path $bdir ('add-pgw-site-' + $stamp + '.sql')
+    $sql = Join-Path $bdir ('add-zgw-site-' + $stamp + '.sql')
     # OR IGNORE: site_key and domain are UNIQUE, so running it twice never adds a second row.
     $sqlText = @(
         "INSERT OR IGNORE INTO sites (site_key, site_name, domain, audience, destination_db, destination_worker, priority, is_active)",
-        "VALUES ('PGW', 'Gaming Gear World', 'gaminggearworld.com', 'gaming', 'gaming-gear-world', 'gaming-gear-world', (SELECT COALESCE(MAX(priority), 0) + 10 FROM sites), 1);"
+        "VALUES ('ZGW', 'Pets Gear World', 'petsgearworld.com', 'pets', 'pets-gear-world', 'pets-gear-world', (SELECT COALESCE(MAX(priority), 0) + 10 FROM sites), 1);"
     ) -join "`n"
     [System.IO.File]::WriteAllText($sql, $sqlText + "`n", (New-Object System.Text.UTF8Encoding($false)))
     $x = Invoke-Wrangler $gwh ('d1 execute {0} --remote --file "{1}"' -f $DbName, $sql) -Retry
-    if ($x.code -ne 0) { Say 'Η γραμμή του Gaming στη D1 του Hub δεν μπήκε. Τίποτα άλλο δεν άλλαξε. Έξοδος:' $Bad; Say $x.text; Finish 12 }
-    $v = Invoke-Wrangler $gwh ('d1 execute {0} --remote --json --command "SELECT site_key FROM sites WHERE site_key = ''PGW''"' -f $DbName) -Retry
-    if ($v.text -notmatch '"site_key"\s*:\s*"PGW"') { Say 'Η γραμμή γράφτηκε αλλά δεν τη βρίσκω: στείλε αυτή την αναφορά στο Claude.' $Warn; Finish 12 }
-    Say 'Το Gaming (PGW) μπήκε στη λίστα sites του Hub: η αναζήτηση του gearworldhub.com ψάχνει τώρα και εκεί.' $Ok
+    if ($x.code -ne 0) { Say 'Η γραμμή του Pets στη D1 του Hub δεν μπήκε. Τίποτα άλλο δεν άλλαξε. Έξοδος:' $Bad; Say $x.text; Finish 12 }
+    $v = Invoke-Wrangler $gwh ('d1 execute {0} --remote --json --command "SELECT site_key FROM sites WHERE site_key = ''ZGW''"' -f $DbName) -Retry
+    if ($v.text -notmatch '"site_key"\s*:\s*"ZGW"') { Say 'Η γραμμή γράφτηκε αλλά δεν τη βρίσκω: στείλε αυτή την αναφορά στο Claude.' $Warn; Finish 12 }
+    Say 'Το Pets (ZGW) μπήκε στη λίστα sites του Hub: η αναζήτηση του gearworldhub.com ψάχνει τώρα και εκεί.' $Ok
     if (-not $NoHttpCheck) {
         Start-Sleep -Seconds 5
-        $s = Get-Web ($LiveUrl + '/api/search?q=headset&worlds=pgw')
+        $s = Get-Web ($LiveUrl + '/api/search?q=dog&worlds=zgw')
         try {
             $j = (New-Object System.Text.UTF8Encoding($false)).GetString($s.bytes) | ConvertFrom-Json
             $n = @($j.results).Count
-            if ($j.ok -and $n -gt 0) { Say ('  Αναζήτηση Hub στο Gaming ("headset"): {0} προϊόντα: ΕΝΤΑΞΕΙ' -f $n) $Ok }
-            else { Say '  Αναζήτηση Hub στο Gaming: 0 προϊόντα ακόμα (ξαναδές σε 1 λεπτό).' $Warn }
-        } catch { Say ('  Αναζήτηση Hub στο Gaming: ο έλεγχος δεν ολοκληρώθηκε ({0})' -f $_.Exception.Message) $Warn }
+            if ($j.ok -and $n -gt 0) { Say ('  Αναζήτηση Hub στο Pets ("dog"): {0} προϊόντα: ΕΝΤΑΞΕΙ' -f $n) $Ok }
+            else { Say '  Αναζήτηση Hub στο Pets: 0 προϊόντα ακόμα (ξαναδές σε 1 λεπτό).' $Warn }
+        } catch { Say ('  Αναζήτηση Hub στο Pets: ο έλεγχος δεν ολοκληρώθηκε ({0})' -f $_.Exception.Message) $Warn }
     }
     Finish 0
 }
@@ -662,10 +665,10 @@ if (-not $pcIsBaseline -and -not $pcIsNew) {
     Finish 7
 }
 if (-not $postersOn) { Say 'Πρώτα η μέτρηση των αφισών (ΕΓΚΡΙΝΩ POSTER STATS), μετά το νέο Hub: ΔΕΝ αλλάζω τίποτα.' $Bad; Finish 8 }
-# The member list (lessons L90): the new code writes new columns of hub_subscribers, so they must be there first.
+# The member list (lessons L92): the new code writes new columns of hub_subscribers, so they must be there first.
 if ($plan -contains 'members.js') {
     $mq = Invoke-Wrangler $gwh ('d1 execute {0} --remote --json --command "PRAGMA table_info(hub_subscribers)"' -f $DbName) -Retry
-    if ($mq.code -ne 0 -or $mq.text -notmatch '"mailerlite_status"') { Say 'Πρώτα η λίστα μελών στη βάση του Hub (ΕΓΚΡΙΝΩ HUB MEMBERS, tools/hub-members.ps1), μετά το νέο Hub: ΔΕΝ αλλάζω τίποτα.' $Bad; Finish 15 }
+    if ($mq.code -ne 0 -or $mq.text -notmatch '"member_source"' -or $mq.text -notmatch '"ml_status"') { Say 'Πρώτα η λίστα μελών στη βάση του Hub (ΕΓΚΡΙΝΩ HUB MEMBERS, tools/hub-members.ps1), μετά το νέο Hub: ΔΕΝ αλλάζω τίποτα.' $Bad; Finish 15 }
     Say 'Λίστα μελών στη βάση του Hub (νέα πεδία): υπάρχει: ΕΝΤΑΞΕΙ' $Ok
 }
 if ($unread.Count -gt 0) { Say 'Δεν μπόρεσα να διαβάσω όλο το live gearworldhub.com: ΔΕΝ αλλάζω τίποτα. Ξανατρέξε την εντολή σε λίγο.' $Bad; Finish 6 }
@@ -687,7 +690,7 @@ $bdir = Join-Path $WorkDir 'backups'
 if (-not (Test-Path -LiteralPath $bdir)) { New-Item -ItemType Directory -Path $bdir -Force | Out-Null }
 $tmpCopy = Join-Path ([System.IO.Path]::GetTempPath()) ('gwh-before-v2-' + $stamp)
 New-Item -ItemType Directory -Path $tmpCopy -Force | Out-Null
-foreach ($n in @('worker.js', 'wrangler.toml', 'photo-search.js', 'poster-scan.js', 'members.js')) {
+foreach ($n in @('worker.js', 'wrangler.toml', 'photo-search.js', 'poster-scan.js', 'mailerlite.js', 'members.js')) {
     $src = Join-Path $HubDir $n
     if (Test-Path -LiteralPath $src) { Copy-Item -LiteralPath $src -Destination $tmpCopy -Force }
 }

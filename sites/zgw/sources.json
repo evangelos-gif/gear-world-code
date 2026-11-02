@@ -1,0 +1,12 @@
+{
+  "_comment": "Awin feeds used by Pets Gear World (ZGW). advertiserId and feedIds as in the Awin archive folders (AWIN_<advertiserId>_<feedId>.csv.gz). Add a retailer only after Awin has approved the programme. First version (1 Nov 2026, after the pets feed scan): Joybuy UK (the main source, about 960 pet products), Plusshop UK and Bazta UK (the same catalogue: at the same price only the Plusshop card stays, tools/cleanup-rules/twin-price.mjs) and Coes (Barbour Dog). VEVOR is the Dutch feed in euros (lessons L79). Red Gorilla's Awin feed stopped in May 2026 (stale prices): off until it sends a fresh feed. Aquatics Shop UK (Fishcave Aquatics) approved 2 Nov 2026: aquarium and pond products only, never its live fish (\"aquatics\": true, lessons L90). zooplus, Viovet and Omlet: applied 2 Nov 2026.",
+  "sources": [
+    { "advertiserId": 123932, "feedIds": [114093], "retailer": "Joybuy", "currency": "GBP", "condition": "new", "approved": true },
+    { "advertiserId": 69306, "retailer": "Plusshop UK", "currency": "GBP", "condition": "new", "approved": true },
+    { "advertiserId": 116097, "retailer": "Bazta UK", "currency": "GBP", "condition": "new", "approved": true, "rulesFrom": 69306 },
+    { "advertiserId": 30645, "feedIds": [116078], "retailer": "Coes", "currency": "GBP", "condition": "new", "approved": true, "sectionHints": false },
+    { "advertiserId": 129759, "feedIds": [117341], "retailer": "Aquatics Shop UK", "currency": "GBP", "condition": "new", "approved": true, "aquatics": true },
+    { "advertiserId": 56439, "feedIds": [94548], "retailer": "Red Gorilla", "currency": "GBP", "condition": "new", "approved": false },
+    { "advertiserId": 118435, "feedIds": [109014], "retailer": "VEVOR", "currency": "EUR", "condition": "new", "keepSiteNames": true, "approved": false }
+  ]
+}

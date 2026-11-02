@@ -234,7 +234,9 @@ test('worker: the test address is noindex, has no analytics and never writes new
   const signup = await hub.fetch(new Request('https://gear-world-hub-preview.example.workers.dev/api/subscribe', {
     method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: 'a@example.com', consent: true })
   }), e, {});
-  assert.equal(signup.status, 403);
+  // Since email step 5 (mailerlite.js) the test address answers like the live Hub, but writes and sends nothing.
+  assert.equal(signup.status, 200);
+  assert.deepEqual(await signup.json(), { ok: true, preview: true });
   assert.deepEqual(served, ['/'], 'only the page itself came from the files');
   assert.equal(previewResponse(new Request(`${ORIGIN}/robots.txt`), {}), null);
   const r = new Response('x');
@@ -303,5 +305,6 @@ test('privacy page: explains the photo search and the date is updated', () => {
   assert.match(html, /<strong>Photo search\.<\/strong>/);
   assert.match(html, /We do not store the photo/);
   assert.match(html, /deleted after 2 days/);
-  assert.match(html, /Last updated: 24 October 2026/);
+  // The date moved on with Gear World email step 5 (MailerLite, 2 November 2026); the photo search text is unchanged.
+  assert.match(html, /Last updated: (24 October|2 November) 2026/);
 });

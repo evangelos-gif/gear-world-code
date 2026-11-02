@@ -1,22 +1,21 @@
 ﻿<#
 .SYNOPSIS
-  The one member list in Gear World Hub (lessons L90): new fields in the Hub's member table, a copy of the old Rewards
-  members, the 30-minute copy to MailerLite and the MailerLite key. Read-only unless -Apply and the approval phrase.
+  The one member list in Gear World Hub (lessons L92): new fields in the Hub's member table and a copy of the old
+  Rewards members, which wait ('hold') until the owner approves sending them to MailerLite. Read-only unless -Apply and
+  the approval phrase. The way to MailerLite is the Hub's mailerlite.js (Gear World email step 5, its own tool).
 
 .DESCRIPTION
   -Step check   READ-ONLY. The Hub's D1 (gear-world-registry): which new fields of hub_subscribers are there; how many
-                members each of the 6 older sites has (and how many gave marketing consent); the Hub config on this PC
-                (the 30-minute timer); the MailerLite key (set or not). Shows the plan. Nothing changes.
-  -Step apply   CHANGES THE HUB'S D1, THE HUB CONFIG ON THIS PC AND ONE SECRET, one approval: ΕΓΚΡΙΝΩ HUB MEMBERS.
-                  1. backup: a D1 restore point (Time Travel), all rows of hub_subscribers in a file on this PC, and a
-                     copy of the Hub's wrangler.toml;
-                  2. the new fields (only the missing ones) and the table member_rate; the members already there are
-                     marked as members from before (no automatic welcome email);
+                members each of the 6 older sites has (and how many gave marketing consent). Shows the plan.
+  -Step apply   CHANGES THE HUB'S D1, one approval: ΕΓΚΡΙΝΩ HUB MEMBERS. Only when the Hub already has the MailerLite
+                fields of email step 5 (ml_status).
+                  1. backup: a D1 restore point (Time Travel) and all rows of hub_subscribers in a file on this PC;
+                  2. the new fields (only the missing ones) and the table member_rate;
                   3. the Rewards members of the 6 older sites are copied in: email, first name, country, consent, site,
-                     date. Never the phone, surname or trade. Their own databases are only read. Nobody is deleted.
-                  4. the 30-minute timer in the Hub's wrangler.toml (it takes effect with the next Hub update);
-                  5. the MailerLite key, pasted here (never shown, never in a file or the report). Enter skips it.
-                Running it again is safe: fields and members already there are kept.
+                     date, with ml_status 'hold' (they go to MailerLite only with the owner's approval, email step 6).
+                     Never the phone, surname or trade. Their own databases are only read. Nobody is deleted.
+                  4. Rewards members still waiting ('pending', never sent) are put on 'hold' (lessons L92).
+                Running it again is safe: fields and members already there are kept. No email is sent.
   Report: <home>\gear-world-reports\HUB_MEMBERS_<STEP>_<time>.txt (also copied to the clipboard). Email addresses never
   go into the report: only counts and masked examples (j***@gmail.com).
 #>
@@ -29,7 +28,6 @@ param(
     [string]$HubDir = '',
     [string]$WorkDir = '',
     [string]$OutDir = '',
-    [string]$TokenEnv = '',
     [switch]$SkipInstall,
     [switch]$NoClipboard
 )
@@ -39,8 +37,6 @@ $repo = Split-Path -Parent $PSScriptRoot
 $Phrase = 'ΕΓΚΡΙΝΩ HUB MEMBERS'
 $DbName = 'gear-world-registry'
 $HubWorker = 'gear-world-hub'
-$SecretName = 'MAILERLITE_TOKEN'
-$KeyPage = 'https://dashboard.mailerlite.com/integrations/api'
 if (-not $PcHome) { $PcHome = $HOME }
 if (-not $HubDir) { $HubDir = Join-Path $PcHome 'gear-world-hub' }
 if (-not $WorkDir) { $WorkDir = Join-Path $PcHome 'gear-world-members' }
@@ -57,7 +53,7 @@ $OldSites = @(
     @{ code = 'kgw'; db = 'kids-gear-world' },
     @{ code = 'cgw'; db = 'construction-gear-customers' }
 )
-# The new fields of hub_subscribers (sites/gwh/migrations/0002_members.sql), in order.
+# The new fields of hub_subscribers (sites/gwh/migrations/0003_members.sql), in order.
 $Columns = @(
     @{ name = 'site'; sql = 'ALTER TABLE hub_subscribers ADD COLUMN site TEXT' },
     @{ name = 'first_name'; sql = 'ALTER TABLE hub_subscribers ADD COLUMN first_name TEXT' },
@@ -152,19 +148,6 @@ function Invoke-Wrangler([string]$Folder, [string]$Arguments, [switch]$Retry) {
     return $result
 }
 
-function Set-KeySecret([string]$Folder, [string]$Value) {
-    $cmdFile = New-CmdFile $Folder ('secret put {0} --name {1}' -f $SecretName, $HubWorker)
-    try {
-        $out = @($Value | & $cmdFile)
-        $code = $LASTEXITCODE
-    } finally {
-        Remove-Item -LiteralPath $cmdFile -ErrorAction SilentlyContinue
-    }
-    $text = (($out | ForEach-Object { "$_" }) -join "`n") -replace '\x1b\[[0-9;]*m', ''
-    if ($Value) { $text = $text.Replace($Value, '[key]') }
-    return @{ code = $code; text = $text }
-}
-
 function Get-JsonArray([string]$text) {
     $m = [regex]::Match($text, '(?m)^\s*\[')
     $j = $text.LastIndexOf(']')
@@ -207,24 +190,6 @@ function Prepare-Deploy {
     return $dest
 }
 
-function Invoke-HubBinding([string]$mode, [string]$file) {
-    $helper = Join-Path (Join-Path $repo 'tools') 'hub-binding.mjs'
-    $out = @(& node $helper $mode $file)
-    $code = $LASTEXITCODE
-    $text = (($out | ForEach-Object { "$_" }) -join ' ').Trim()
-    if ($code -ne 0) { return ('error ' + $text) }
-    return $text
-}
-
-function Get-KeyState([string]$folder) {
-    $r = Invoke-Wrangler $folder ('secret list --name {0}' -f $HubWorker) -Retry
-    if ($r.code -ne 0) { return 'unknown' }
-    $j = Get-JsonArray $r.text
-    if ($null -eq $j) { return 'unknown' }
-    foreach ($s in $j) { if ([string]$s.name -eq $SecretName) { return 'yes' } }
-    return 'no'
-}
-
 function Sql-Text([object]$v, [int]$max) {
     if ($null -eq $v) { return 'NULL' }
     $t = ([string]$v).Trim()
@@ -256,6 +221,7 @@ if ($null -eq $info -or $info.Count -eq 0) { Say 'Δεν διάβασα τον �
 $have = @{}
 foreach ($c in $info) { $have[[string]$c.name] = $true }
 $missing = @($Columns | Where-Object { -not $have.ContainsKey($_.name) })
+$hasMl = $have.ContainsKey('ml_status')
 $hubNow = Read-Db $deploy $DbName 'SELECT COUNT(*) AS n, SUM(marketing_consent = 1) AS c FROM hub_subscribers'
 Say ''
 Say 'Λίστα μελών του Hub (hub_subscribers):'
@@ -288,28 +254,24 @@ if ($withConsent.Count -gt 0) {
     Say ('  Με συγκατάθεση (κρυμμένα): {0}' -f (Hide-Emails (($withConsent | ForEach-Object { $_.email }) -join ', ')))
 }
 
-# 3. the Hub config on this PC and the MailerLite key
-$cfgPc = Join-Path $HubDir 'wrangler.toml'
-$cronState = 'no-config'
-if (Test-Path -LiteralPath $cfgPc) { $cronState = Invoke-HubBinding 'check-cron' $cfgPc }
-$keyState = Get-KeyState $deploy
 Say ''
-if ($cronState -eq 'has') { Say 'Χρονόμετρο 30 λεπτών στη ρύθμιση του Hub: υπάρχει' }
-elseif ($cronState -eq 'missing') { Say 'Χρονόμετρο 30 λεπτών στη ρύθμιση του Hub: δεν υπάρχει ακόμα (θα μπει)' }
-else { Say ('Ρύθμιση του Hub στον υπολογιστή ({0}): ΠΡΟΒΛΗΜΑ - {1}' -f $cfgPc, $cronState) 'Yellow' }
-if ($keyState -eq 'yes') { Say 'Κλειδί MailerLite στο Hub: υπάρχει' } elseif ($keyState -eq 'no') { Say ('Κλειδί MailerLite στο Hub: δεν υπάρχει ακόμα (από {0})' -f $KeyPage) } else { Say 'Κλειδί MailerLite στο Hub: δεν διαβάστηκε' 'Yellow' }
+if ($hasMl) { Say 'Πεδία MailerLite του Hub (ml_status, βήμα 5 του email): υπάρχουν: ΕΝΤΑΞΕΙ' 'Green' }
+else { Say 'Πεδία MailerLite του Hub (ml_status): ΔΕΝ υπάρχουν ακόμα. Πρώτα το βήμα 5 του email (gwh-mailerlite).' 'Yellow' }
+if ($hasMl -and $have.ContainsKey('member_source')) {
+    $wait = Read-Db $deploy $DbName "SELECT ml_status AS s, COUNT(*) AS n FROM hub_subscribers WHERE substr(member_source, 1, 8) = 'rewards:' GROUP BY ml_status"
+    if ($null -ne $wait) { foreach ($w in $wait) { Say ('  Μέλη Rewards με κατάσταση {0}: {1}' -f $w.s, $w.n) } }
+}
 
 if ($Step -eq 'check') {
     Say ''
     Say ('Πλάνο του apply (φράση: {0}):' -f $Phrase)
-    Say '  1. backup: σημείο επαναφοράς της βάσης του Hub, όλα τα μέλη σε αρχείο στον υπολογιστή, αντίγραφο του wrangler.toml'
-    Say ('  2. τα νέα πεδία ({0} λείπουν) και ο πίνακας ορίων· όσοι είναι ήδη μέσα μετράνε ως «μέλη από πριν» (χωρίς αυτόματο καλωσόρισμα)' -f $missing.Count)
-    Say ('  3. αντιγραφή των {0} μελών Rewards: email, μικρό όνομα, χώρα, συγκατάθεση, site, ημερομηνία (όχι τηλέφωνο, επώνυμο, επάγγελμα)' -f $members.Count)
-    Say '  4. το χρονόμετρο 30 λεπτών στη ρύθμιση του Hub (ισχύει με το επόμενο ανέβασμα του Hub)'
-    Say '  5. το κλειδί του MailerLite (το επικολλάς· με σκέτο Enter το αφήνεις για αργότερα)'
+    Say '  1. backup: σημείο επαναφοράς της βάσης του Hub και όλα τα μέλη σε αρχείο στον υπολογιστή'
+    Say ('  2. τα νέα πεδία ({0} λείπουν) και ο πίνακας ορίων' -f $missing.Count)
+    Say ('  3. αντιγραφή των {0} μελών Rewards: email, μικρό όνομα, χώρα, συγκατάθεση, site, ημερομηνία (όχι τηλέφωνο, επώνυμο, επάγγελμα), σε «κράτηση» (hold)' -f $members.Count)
+    Say '  4. όσα μέλη Rewards περιμένουν να σταλούν στο MailerLite μπαίνουν σε «κράτηση» (στέλνονται μόνο με τη δική σου έγκριση)'
     Say '  Τα παλιά sites και οι βάσεις τους δεν αλλάζουν. Κανένα μέλος δεν σβήνεται. Κανένα email δεν φεύγει από εδώ.'
     Say ''
-    if (-not $readOk -or $cronState -like 'error*' -or $cronState -eq 'no-config') { Say 'Αποτέλεσμα: ΠΡΟΣΟΧΗ (δες τα παραπάνω). Δεν άλλαξε τίποτα.' 'Yellow'; Finish 2 }
+    if (-not $readOk -or -not $hasMl) { Say 'Αποτέλεσμα: ΠΡΟΣΟΧΗ (δες τα παραπάνω). Δεν άλλαξε τίποτα.' 'Yellow'; Finish 2 }
     Say 'Αποτέλεσμα: ΕΝΤΑΞΕΙ (μόνο έλεγχος, δεν άλλαξε τίποτα)' 'Green'
     Finish 0
 }
@@ -317,7 +279,7 @@ if ($Step -eq 'check') {
 # ================= apply =================
 if (-not $Apply) { Say ''; Say ('Χωρίς -Apply δεν αλλάζει τίποτα. Για την αλλαγή: -Step apply -Apply και η φράση {0}' -f $Phrase) 'Yellow'; Finish 0 }
 if (-not $readOk) { Say 'Δεν διάβασα όλα τα παλιά sites: για ασφάλεια ΔΕΝ αλλάζω τίποτα. Ξανατρέξε σε λίγο.' 'Red'; Finish 6 }
-if ($cronState -ne 'has' -and $cronState -ne 'missing') { Say 'Η ρύθμιση του Hub στον υπολογιστή δεν είναι αυτή που περίμενα: ΔΕΝ αλλάζω τίποτα.' 'Red'; Finish 7 }
+if (-not $hasMl) { Say 'Πρώτα τα πεδία MailerLite του Hub (βήμα 5 του email, gwh-mailerlite): ΔΕΝ αλλάζω τίποτα.' 'Red'; Finish 7 }
 if (-not (Confirm-Approval $Phrase)) { Say 'Δεν δόθηκε η σωστή φράση. Δεν άλλαξε τίποτα.' 'Yellow'; Finish 1 }
 Say ''
 Say 'Έγκριση: ΕΝΤΑΞΕΙ.' 'Green'
@@ -332,28 +294,26 @@ $all = Read-Db $deploy $DbName 'SELECT * FROM hub_subscribers'
 if ($null -eq $all) { Say 'Δεν διάβασα τα μέλη για το backup: ΔΕΝ άλλαξα τίποτα.' 'Red'; Finish 11 }
 $rowsFile = Join-Path $bdir 'hub_subscribers.json'
 [System.IO.File]::WriteAllText($rowsFile, (ConvertTo-Json -InputObject @($all) -Depth 4), (New-Object System.Text.UTF8Encoding($false)))
-Copy-Item -LiteralPath $cfgPc -Destination (Join-Path $bdir 'gear-world-hub.wrangler.toml') -Force
 $note = @(
     ('Gear World Hub - member list, {0}' -f (Get-Date -Format 'yyyy-MM-dd HH:mm')),
     'Back to how the Hub database was (Time Travel restore point, only with approval):',
-    ('  npx wrangler d1 time-travel restore {0} --bookmark={1}' -f $DbName, $bm.Value),
-    ('Hub config on this PC before the change: {0}' -f (Join-Path $bdir 'gear-world-hub.wrangler.toml')),
-    ('Remove the MailerLite key: npx wrangler secret delete {0} --name {1}' -f $SecretName, $HubWorker)
+    ('  npx wrangler d1 time-travel restore {0} --bookmark={1}' -f $DbName, $bm.Value)
 ) -join "`r`n"
 [System.IO.File]::WriteAllText((Join-Path $bdir 'rollback.txt'), $note, (New-Object System.Text.UTF8Encoding($false)))
-Say ('1. Backup: σημείο επαναφοράς, {0} μέλη σε αρχείο, ρύθμιση του Hub: ΕΝΤΑΞΕΙ ({1})' -f @($all).Count, $bdir) 'Green'
+Say ('1. Backup: σημείο επαναφοράς, {0} μέλη σε αρχείο: ΕΝΤΑΞΕΙ ({1})' -f @($all).Count, $bdir) 'Green'
 
 # 2. new fields (only the missing ones) and the limits table
 $sqlFile = Join-Path $WorkDir ('members-' + $stamp + '.sql')
 $lines = New-Object System.Collections.Generic.List[string]
 foreach ($c in $missing) { $lines.Add($c.sql + ';') }
 $lines.Add('CREATE TABLE IF NOT EXISTS member_rate (rl_key TEXT PRIMARY KEY, hits INTEGER NOT NULL DEFAULT 0, expires_at INTEGER NOT NULL);')
-# The members already there are members from before (no automatic welcome): only when the field is new.
-if (@($missing | Where-Object { $_.name -eq 'mailerlite_group' }).Count -gt 0) { $lines.Add("UPDATE hub_subscribers SET mailerlite_group = 'existing' WHERE mailerlite_group IS NULL;") }
-# 3. the Rewards members: added when new, else only empty fields are filled (consent is never taken away).
+# 3. the Rewards members: added when new ('hold': MailerLite only after approval), else only empty fields are filled
+#    (consent is never taken away, the MailerLite state of a member already there never changes).
 foreach ($m in $members) {
-    $lines.Add(("INSERT INTO hub_subscribers (email, locale, marketing_consent, consent_version, source, status, created_at, updated_at, site, first_name, country, member_source, mailerlite_group) VALUES ({0}, 'en-GB', {1}, {2}, 'rewards', 'active', COALESCE({3}, CURRENT_TIMESTAMP), CURRENT_TIMESTAMP, {4}, {5}, {6}, {7}, 'existing') ON CONFLICT (email) DO UPDATE SET first_name = COALESCE(hub_subscribers.first_name, excluded.first_name), country = COALESCE(hub_subscribers.country, excluded.country), site = COALESCE(hub_subscribers.site, excluded.site), marketing_consent = MAX(hub_subscribers.marketing_consent, excluded.marketing_consent);" -f (Sql-Text $m.email 254), $m.consent, (Sql-Text ('rewards-' + $m.site) 40), (Sql-Text $m.created 40), (Sql-Text $m.site 3), (Sql-Text $m.first 60), (Sql-Text $m.country 60), (Sql-Text ('rewards:' + $m.site) 20)))
+    $lines.Add(("INSERT INTO hub_subscribers (email, locale, marketing_consent, consent_version, source, status, created_at, updated_at, site, first_name, country, member_source, ml_status) VALUES ({0}, 'en-GB', {1}, {2}, 'rewards', 'active', COALESCE({3}, CURRENT_TIMESTAMP), CURRENT_TIMESTAMP, {4}, {5}, {6}, {7}, 'hold') ON CONFLICT (email) DO UPDATE SET first_name = COALESCE(hub_subscribers.first_name, excluded.first_name), country = COALESCE(hub_subscribers.country, excluded.country), site = COALESCE(hub_subscribers.site, excluded.site), marketing_consent = MAX(hub_subscribers.marketing_consent, excluded.marketing_consent);" -f (Sql-Text $m.email 254), $m.consent, (Sql-Text ('rewards-' + $m.site) 40), (Sql-Text $m.created 40), (Sql-Text $m.site 3), (Sql-Text $m.first 60), (Sql-Text $m.country 60), (Sql-Text ('rewards:' + $m.site) 20)))
 }
+# 4. Rewards members that were never sent and still wait for MailerLite: on hold (lessons L92).
+$lines.Add("UPDATE hub_subscribers SET ml_status = 'hold' WHERE substr(member_source, 1, 8) = 'rewards:' AND ml_status = 'pending' AND ml_synced_at IS NULL;")
 [System.IO.File]::WriteAllText($sqlFile, ($lines -join "`n") + "`n", (New-Object System.Text.UTF8Encoding($false)))
 try {
     $x = Invoke-Wrangler $deploy ('d1 execute {0} --remote --file "{1}"' -f $DbName, $sqlFile) -Retry
@@ -367,42 +327,11 @@ $have2 = @{}
 if ($null -ne $info2) { foreach ($c in $info2) { $have2[[string]$c.name] = $true } }
 $still = @($Columns | Where-Object { -not $have2.ContainsKey($_.name) })
 if ($still.Count -gt 0) { Say 'Τα νέα πεδία δεν φαίνονται μετά την αλλαγή. Στείλε στο Claude αυτό το μήνυμα.' 'Red'; Finish 12 }
-$after = Read-Db $deploy $DbName "SELECT COUNT(*) AS n, SUM(marketing_consent = 1) AS c, SUM(substr(member_source, 1, 8) = 'rewards:') AS r FROM hub_subscribers"
-Say ('2-3. Νέα πεδία και μέλη: ΕΝΤΑΞΕΙ. Μέλη τώρα: {0} (με συγκατάθεση: {1}, από Rewards: {2})' -f $after[0].n, $after[0].c, $after[0].r) 'Green'
-
-# 4. the 30-minute timer in the Hub config on this PC
-$cr = Invoke-HubBinding 'add-cron' $cfgPc
-if ($cr -ne 'added' -and $cr -ne 'already') { Say ('Το χρονόμετρο δεν μπήκε στη ρύθμιση του Hub ({0}). Η βάση είναι έτοιμη· στείλε στο Claude αυτό το μήνυμα.' -f $cr) 'Red'; Finish 13 }
-Say ('4. Χρονόμετρο 30 λεπτών στη ρύθμιση του Hub: {0} (ισχύει με το επόμενο ανέβασμα του Hub)' -f $(if ($cr -eq 'added') { 'μπήκε' } else { 'υπήρχε ήδη' })) 'Green'
-
-# 5. the MailerLite key
-$plain = ''
-if ($TokenEnv) {
-    $plain = [string][System.Environment]::GetEnvironmentVariable($TokenEnv)
-} else {
-    Write-Host ''
-    Write-Host ('Κλειδί MailerLite: άνοιξε {0}, πάτα "Generate new token", όνομα "Gear World Hub", και αντέγραψέ το.' -f $KeyPage) -ForegroundColor Yellow
-    Write-Host 'Αν δεν το έχεις τώρα, πάτα σκέτο Enter: όλα τα άλλα μένουν έτοιμα.' -ForegroundColor Yellow
-    $sec = Read-Host 'Επικόλλησε εδώ το κλειδί (δεν φαίνεται όσο το επικολλάς) και πάτα Enter' -AsSecureString
-    $bstr = [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($sec)
-    try { $plain = [System.Runtime.InteropServices.Marshal]::PtrToStringBSTR($bstr) } finally { [System.Runtime.InteropServices.Marshal]::ZeroFreeBSTR($bstr) }
-}
-$plain = ([string]$plain).Trim()
-if ($plain) { $script:Secrets.Add($plain) }
-if (-not $plain) {
-    Say '5. Κλειδί MailerLite: δεν δόθηκε τώρα (τρέξε την ίδια εντολή ξανά όταν το έχεις· τα υπόλοιπα κρατιούνται).' 'Yellow'
-} elseif ($plain -match '\s' -or $plain.Length -lt 20 -or $plain.Length -gt 2000) {
-    Say '5. Αυτό δεν μοιάζει με κλειδί του MailerLite. Δεν το αποθήκευσα. Τα υπόλοιπα έγιναν.' 'Red'
-    Finish 8
-} else {
-    $s = Set-KeySecret $deploy $plain
-    $plain = ''
-    if ($s.code -ne 0) { Say '5. Το κλειδί δεν αποθηκεύτηκε. Τα υπόλοιπα έγιναν. Στείλε στο Claude αυτό το μήνυμα.' 'Red'; foreach ($line in @($s.text -split "`n" | Select-Object -Last 6)) { Say ('  ' + $line) }; Finish 8 }
-    Say '5. Κλειδί MailerLite: αποθηκεύτηκε στο Hub ως μυστικό (δεν φαίνεται ποτέ ξανά).' 'Green'
-}
+$after = Read-Db $deploy $DbName "SELECT COUNT(*) AS n, SUM(marketing_consent = 1) AS c, SUM(substr(member_source, 1, 8) = 'rewards:') AS r, SUM(substr(member_source, 1, 8) = 'rewards:' AND ml_status = 'pending') AS p FROM hub_subscribers"
+Say ('2-4. Νέα πεδία και μέλη: ΕΝΤΑΞΕΙ. Μέλη τώρα: {0} (με συγκατάθεση: {1}, από Rewards: {2}, Rewards που περιμένουν MailerLite: {3})' -f $after[0].n, $after[0].c, $after[0].r, $after[0].p) 'Green'
 
 Say ''
 Say ('Επαναφορά (μόνο αν χρειαστεί): {0}' -f (Join-Path $bdir 'rollback.txt'))
-Say 'Επόμενο: το νέο Hub (preview, live, σβήσιμο preview). Τα email προς το MailerLite ξεκινούν μόνο μετά το live του Hub.'
+Say 'Τα μέλη Rewards μένουν σε «κράτηση»: στο MailerLite πηγαίνουν μόνο με τη δική σου έγκριση. Κανένα email δεν στάλθηκε.'
 Say 'Αποτέλεσμα: ΕΤΟΙΜΟ' 'Green'
 Finish 0

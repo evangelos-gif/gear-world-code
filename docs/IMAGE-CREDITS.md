@@ -158,3 +158,22 @@
 | cat-chairs-desks.webp | https://www.pexels.com/photo/a-leather-gaming-chair-in-front-of-the-computer-7862491/ |
 | cat-streaming.webp | https://www.pexels.com/photo/microphone-and-headphones-in-music-studio-10933701/ |
 | cat-components.webp | https://www.pexels.com/photo/high-performance-gpu-with-cooling-fan-design-35569902/ |
+
+## Pets Gear World (ZGW)
+
+Φωτογραφίες από το **Pexels** ([άδεια Pexels](https://www.pexels.com/license/)), κομμένες και μικρυμένες σε WebP. Σβήστηκε το σήμα στη βούρτσα (Περιποίηση) και θόλωσαν τα ανάγλυφα γράμματα στο παιχνίδι (Παιχνίδια). Κανένα πρόσωπο δεν αναγνωρίζεται (στην Περιποίηση φαίνονται μόνο χέρια). Το λογότυπο, το favicon και το apple-touch-icon σχεδιάστηκαν για το repo (πατουσάκι σε καφέ τετράγωνο, γαλάζιο και κρεμ).
+
+| Αρχείο | Pexels |
+|---|---|
+| hero-1920.webp, hero-960.webp, og-image.png (φόντο), sites/gwh/public/hub-zgw.jpg (κάρτα στο hub) | https://www.pexels.com/photo/dogs-and-a-cat-lying-on-a-cushion-7329892/ |
+| cat-beds-crates.webp | https://www.pexels.com/photo/dog-resting-on-pet-bed-2248516/ |
+| cat-walking.webp | https://www.pexels.com/photo/close-up-photo-of-a-brown-dog-13228217/ |
+| cat-toys.webp | https://www.pexels.com/photo/boston-terrier-dog-chewing-yellow-toy-indoors-30401679/ |
+| cat-food.webp | https://www.pexels.com/photo/close-up-shot-of-a-dog-eating-6568950/ |
+| cat-cats.webp | https://www.pexels.com/photo/two-cats-lying-on-a-scratching-post-16881826/ |
+| cat-grooming.webp | https://www.pexels.com/photo/groomer-brushing-a-dog-19145879/ |
+| cat-feeding.webp | https://www.pexels.com/photo/overhead-shot-of-dog-food-in-a-white-and-blue-bowl-4432260/ |
+| cat-travel.webp | https://www.pexels.com/photo/close-up-of-a-white-and-orange-cat-21767483/ |
+| cat-small-pets.webp | https://www.pexels.com/photo/cute-guinea-pig-resting-on-straw-bedding-33091471/ |
+| cat-birds.webp | https://www.pexels.com/photo/budgerigar-parrot-in-a-cage-22813870/ |
+| cat-horse.webp | https://www.pexels.com/photo/horse-saddles-and-horses-in-rustic-outdoor-setting-37309071/ |

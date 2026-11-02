@@ -227,7 +227,7 @@ export function searchForm(site, value = '', cls = '') {
 }
 
 // "Get deal updates": a plain form (works without JavaScript). It is shown only when the site can pass the sign-up to
-// Gear World Hub (service binding HUB), which keeps the one list of members (lessons L90).
+// Gear World Hub (service binding HUB), which keeps the one list of members (lessons L92).
 function dealUpdates(site, path) {
   if (!site.dealUpdates) return '';
   return html`<section class="deal-updates" id="deal-updates" aria-labelledby="deal-updates-h">
