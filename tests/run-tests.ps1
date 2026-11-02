@@ -3847,6 +3847,142 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
     }
 }
 
+# 15. awin-setup.ps1 (Awin sales in the private dashboard, lessons L89) with a fake wrangler (Windows only: runs .cmd files)
+if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
+    Write-Host 'awin-setup.ps1 (fake wrangler)'
+    $aTool = Join-Path (Join-Path $repo 'tools') 'awin-setup.ps1'
+    $aHome = Join-Path $work 'awn-home'
+    $aState = Join-Path $work 'awn-state'
+    $aBin = Join-Path $work 'awn-bin'
+    $aOut = Join-Path $aHome 'gear-world-reports'
+    $aWork = Join-Path $aHome 'gear-world-awin'
+    New-Item -ItemType Directory -Path $aState, $aBin -Force | Out-Null
+    $aDb = [guid]::NewGuid().ToString()
+    $aOtherDb = [guid]::NewGuid().ToString()
+    $aVer = [guid]::NewGuid().ToString()
+    $aToken = 'awinTestToken0123456789abcdef'
+    $aNpx = @(
+        '@echo off',
+        'echo %* >> "%GW_FAKE_STATE%\calls.log"',
+        'echo %* | findstr /L /C:"whoami" >nul && goto whoami',
+        'echo %* | findstr /L /C:"secret put" >nul && goto secretput',
+        'echo %* | findstr /L /C:"secret list" >nul && goto secretlist',
+        'echo %* | findstr /L /C:"awin_sync_runs" >nul && goto runs',
+        'echo %* | findstr /L /C:"FROM awin_transactions" >nul && goto totals',
+        'echo %* | findstr /L /C:"migrations apply" >nul && goto ok',
+        'echo %* | findstr /L /C:"d1 create" >nul && goto create',
+        'echo %* | findstr /L /C:"d1 list" >nul && goto list',
+        'echo %* | findstr /L /C:"deployments list" >nul && goto deployments',
+        'echo %* | findstr /L /C:" deploy" >nul && goto deploy',
+        'echo unknown command 1>&2',
+        'exit /b 1',
+        ':whoami',
+        'echo You are logged in with an OAuth Token, associated with the email test@example.com.',
+        'exit /b 0',
+        ':ok',
+        'echo done',
+        'exit /b 0',
+        ':create',
+        'echo created > "%GW_FAKE_STATE%\db.flag"',
+        'echo Created your new D1 database.',
+        'exit /b 0',
+        ':list',
+        ('if exist "%GW_FAKE_STATE%\db.flag" echo [{"uuid":"' + $aDb + '","name":"gear-world-awin"},{"uuid":"' + $aOtherDb + '","name":"kids-gear-world"}]'),
+        ('if not exist "%GW_FAKE_STATE%\db.flag" echo [{"uuid":"' + $aOtherDb + '","name":"kids-gear-world"}]'),
+        'exit /b 0',
+        ':runs',
+        'if exist "%GW_FAKE_STATE%\db.flag" echo [{"results":[],"success":true}]',
+        'if exist "%GW_FAKE_STATE%\db.flag" exit /b 0',
+        'echo X [ERROR] no such table: awin_sync_runs',
+        'exit /b 1',
+        ':totals',
+        'echo [{"results":[{"n":0,"c":null,"last":null}],"success":true}]',
+        'exit /b 0',
+        ':deployments',
+        ('if exist "%GW_FAKE_STATE%\worker.flag" echo Version(s):  (100%%) ' + $aVer),
+        'if exist "%GW_FAKE_STATE%\worker.flag" exit /b 0',
+        'echo X [ERROR] This Worker does not exist on your account. [code: 10007]',
+        'exit /b 1',
+        ':deploy',
+        'if exist "%GW_FAKE_STATE%\deployfail.flag" goto deployfail',
+        'echo up > "%GW_FAKE_STATE%\worker.flag"',
+        'echo Uploaded gear-world-awin-sync',
+        'exit /b 0',
+        ':deployfail',
+        'echo X [ERROR] A request to the Cloudflare API failed. Something else. [code: 10021]',
+        'exit /b 1',
+        ':secretlist',
+        'if not exist "%GW_FAKE_STATE%\worker.flag" echo X [ERROR] This Worker does not exist on your account. [code: 10007]',
+        'if not exist "%GW_FAKE_STATE%\worker.flag" exit /b 1',
+        'if exist "%GW_FAKE_STATE%\secret.txt" echo [{"name":"AWIN_TOKEN","type":"secret_text"}]',
+        'if not exist "%GW_FAKE_STATE%\secret.txt" echo []',
+        'exit /b 0',
+        ':secretput',
+        'set /p GWSECRET=',
+        '>"%GW_FAKE_STATE%\secret.txt" echo %GWSECRET%',
+        'echo Success! Uploaded secret AWIN_TOKEN',
+        'exit /b 0'
+    ) -join "`r`n"
+    [System.IO.File]::WriteAllText((Join-Path $aBin 'npx.cmd'), $aNpx + "`r`n", [System.Text.Encoding]::ASCII)
+    $oldPath = $env:PATH
+    $env:PATH = $aBin + ';' + $oldPath
+    $env:GW_FAKE_STATE = $aState
+    $env:GW_TEST_AWIN_TOKEN = $aToken
+    $aCalls = Join-Path $aState 'calls.log'
+    function Run-A([string[]]$a) {
+        $all = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $aTool, '-PcHome', $aHome, '-SkipInstall', '-NoClipboard') + $a
+        & $exe @all | Out-Null
+        return $LASTEXITCODE
+    }
+    function AText([string]$p) { if (Test-Path -LiteralPath $p) { return [System.IO.File]::ReadAllText($p) } else { return '' } }
+    function ACount([string]$pattern) { return ([regex]::Matches((AText $aCalls), $pattern)).Count }
+    function ALast([string]$filter) {
+        $f = @(Get-ChildItem -LiteralPath $aOut -Filter $filter -ErrorAction SilentlyContinue | Sort-Object LastWriteTime, Name | Select-Object -Last 1)
+        if ($f.Count -eq 0) { return '' }
+        return [System.IO.File]::ReadAllText($f[0].FullName)
+    }
+    try {
+        # check: reads only
+        Check ((Run-A @('-Step', 'check')) -eq 0) 'awin check: exit 0'
+        $r = ALast 'AWIN_SETUP_CHECK_*.txt'
+        Check ($r.Contains('Αποτέλεσμα: ΕΝΤΑΞΕΙ') -and $r.Contains('δεν υπάρχει ακόμα (θα φτιαχτεί)') -and $r.Contains('δεν υπάρχει ακόμα (θα ανέβει)') -and $r.Contains('ΕΓΚΡΙΝΩ AWIN SYNC')) 'awin check: the database, the Worker and the token are new; the plan names the phrase'
+        Check ((ACount 'd1 create|migrations apply| deploy |secret put') -eq 0) 'awin check: nothing made, deployed or stored'
+        # apply without -Apply, with the wrong phrase: nothing changes
+        Check ((Run-A @('-Step', 'apply')) -eq 0 -and (ACount 'd1 create| deploy |secret put') -eq 0) 'awin apply without -Apply: nothing changes'
+        Check ((Run-A @('-Step', 'apply', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ POSTER STATS')) -eq 1 -and (ACount 'd1 create| deploy |secret put') -eq 0) 'awin apply with the wrong phrase: nothing changes'
+        # a failing deploy: stops before the token
+        Write-Utf8 (Join-Path $aState 'deployfail.flag') 'fail'
+        Check ((Run-A @('-Step', 'apply', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ AWIN SYNC', '-TokenEnv', 'GW_TEST_AWIN_TOKEN')) -eq 7 -and (ACount 'secret put') -eq 0) 'awin apply: a failing deploy stops before the token (exit 7)'
+        Remove-Item -LiteralPath (Join-Path $aState 'deployfail.flag') -Force
+        # a token that does not look like one: not stored
+        $env:GW_TEST_AWIN_TOKEN = 'has a space'
+        Check ((Run-A @('-Step', 'apply', '-Apply', '-Approve', 'egkrino awin sync', '-TokenEnv', 'GW_TEST_AWIN_TOKEN')) -eq 8 -and (ACount 'secret put') -eq 0) 'awin apply: a wrong token is not stored (exit 8)'
+        $env:GW_TEST_AWIN_TOKEN = $aToken
+        # the full run
+        $creates = ACount 'd1 create'
+        Check ((Run-A @('-Step', 'apply', '-Apply', '-Approve', 'Εγκρίνω awin sync', '-TokenEnv', 'GW_TEST_AWIN_TOKEN')) -eq 0) 'awin apply with approval: exit 0'
+        Check ((ACount 'd1 create') -eq $creates) 'awin apply: the database made in an earlier run is not made again'
+        $c = AText $aCalls
+        Check ($c.LastIndexOf('migrations apply gear-world-awin --remote') -lt $c.LastIndexOf(' deploy --config') -and $c.LastIndexOf(' deploy --config') -lt $c.LastIndexOf('secret put AWIN_TOKEN --name gear-world-awin-sync')) 'awin apply: tables, then the Worker, then the token'
+        Check ((AText (Join-Path $aState 'secret.txt')).Trim() -eq $aToken) 'awin apply: the token reached wrangler (through its input)'
+        Check (-not $c.Contains($aToken)) 'awin apply: the token is never on a command line'
+        $r = ALast 'AWIN_SETUP_APPLY_*.txt'
+        Check ($r.Contains('ΕΤΟΙΜΟ') -and -not $r.Contains($aToken) -and -not $r.Contains($aDb) -and -not $r.Contains($aVer)) 'awin apply: report ready, without the token, the database id or the version'
+        Check ($r.Contains('wrangler delete --name gear-world-awin-sync') -and $r.Contains('d1 delete gear-world-awin')) 'awin apply: the report says how to undo it'
+        $cfg = AText (Join-Path $aWork 'wrangler.jsonc')
+        Check ($cfg.Contains($aDb) -and $cfg.Contains('"workers_dev": false') -and -not $cfg.Contains('"routes"') -and -not $cfg.Contains($aToken)) 'awin apply: the config on the PC has the database id, no public address, no token'
+        $tracked = @(Get-ChildItem -LiteralPath (Join-Path (Join-Path $repo 'sites') 'awin') -Recurse -File | Where-Object { $_.Name -eq 'wrangler.jsonc' })
+        Check ($tracked.Count -eq 0) 'awin apply: no real wrangler.jsonc in the repo folder'
+        # running it again keeps the token when asked
+        $puts = ACount 'secret put'
+        Check ((Run-A @('-Step', 'apply', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ AWIN SYNC', '-KeepToken')) -eq 0 -and (ACount 'secret put') -eq $puts) 'awin apply again with -KeepToken: exit 0, the token is not asked again'
+    } finally {
+        $env:PATH = $oldPath
+        Remove-Item Env:\GW_FAKE_STATE -ErrorAction SilentlyContinue
+        Remove-Item Env:\GW_TEST_AWIN_TOKEN -ErrorAction SilentlyContinue
+    }
+}
+
 Remove-Item -LiteralPath $work -Recurse -Force -ErrorAction SilentlyContinue
 
 Write-Host ''

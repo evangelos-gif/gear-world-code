@@ -1,0 +1,21 @@
+// gear-world-awin-sync - Wrangler config TEMPLATE. The private Worker that copies the Awin sales into D1 (lessons L89).
+// No public address: no routes, workers.dev and preview addresses off. It runs on its cron only.
+// The real file (wrangler.jsonc) is made on the PC by tools/awin-setup.ps1 and is never committed, because it holds
+// the Cloudflare database ID. The Awin token is a secret (AWIN_TOKEN), never in a file.
+{
+  "name": "gear-world-awin-sync",
+  "main": "worker.js",
+  "compatibility_date": "2026-10-01",
+  "workers_dev": false,
+  "preview_urls": false,
+  "triggers": { "crons": ["23 */2 * * *"] },
+  "d1_databases": [
+    {
+      "binding": "AWIN_DB",
+      "database_name": "gear-world-awin",
+      "database_id": "REPLACE_WITH_DATABASE_ID",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "observability": { "enabled": true }
+}
