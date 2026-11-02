@@ -55,10 +55,11 @@ test('11 categories (birds with subcategories and horse and riding, owner 1 Nov 
   assert.deepEqual(CATEGORY_SLUGS, site.categories.map(c => c.slug), 'the same order as the site menu');
 });
 
-test('sources: Joybuy, Plusshop, Bazta and Coes; Red Gorilla and VEVOR off; no text of another site', () => {
+test('sources: Joybuy, Plusshop, Bazta, Coes and Aquatics Shop UK; Red Gorilla and VEVOR off; no text of another site', () => {
   const text = readFileSync('sites/zgw/sources.json', 'utf8');
   const src = JSON.parse(text).sources;
-  assert.deepEqual(src.filter(s => s.approved).map(s => s.retailer), ['Joybuy', 'Plusshop UK', 'Bazta UK', 'Coes']);
+  assert.deepEqual(src.filter(s => s.approved).map(s => s.retailer), ['Joybuy', 'Plusshop UK', 'Bazta UK', 'Coes', 'Aquatics Shop UK']);
+  assert.equal(src.find(s => s.retailer === 'Aquatics Shop UK').aquatics, true, 'its live fish stay out (L90)');
   assert.equal(src.find(s => s.retailer === 'Bazta UK').rulesFrom, 69306);
   assert.equal(src.find(s => s.retailer === 'Red Gorilla').approved, false);
   assert.equal(src.find(s => s.retailer === 'VEVOR').approved, false);
@@ -163,4 +164,24 @@ test('test site of 1 Nov 2026: Richmond & Finch phone cases, a birdcage umbrella
   assert.equal(slug('Whiskas 1+ Poultry Feasts in Jelly 40 x 85g', ''), 'food', 'cat food by its brand, even without the cat section');
   assert.equal(slug('Bucktons Budgerigar Food with Spirulina 500g', `${PET} > Bird Supplies`), 'birds');
   assert.equal(slug('Zebra Finch Seed Mix 1kg', ''), 'birds');
+});
+
+test('Aquatics Shop UK (approved 2 Nov 2026): aquarium and pond products in, its live fish never (L90)', () => {
+  const aq = { aquatics: true };
+  const s = n => { const r = classify(n, '', '', aq); return r.ok ? r.slug : r.reason; };
+  // Names from the shop's own catalogue (fishcaveaquatics.co.uk, 2 Nov 2026).
+  for (const n of ['Tetra Easy Balance - Available In 3 Sizes', 'Fluval Aquasky 2.0 Bluetooth LED, 16W, up to 32.5″ / 83 cm', 'Fish Science Mini Algae Wafers 45g',
+    'Clearseal Aura 250 Aquarium Set', 'Oase Heatup 200 31.5cm', 'Seachem Purigen', 'Tetra Test 6 in 1 Water Test Kit (25 Strips)', 'NT Labs Winter Pond Food 190g',
+    'Betta Choice 6" Pink Fern Foregrounder', 'Classic Plane Wreckage 4446', 'Hikari Shrimp Cuisine 10g', 'Dennerle Shrimp King 5 in 1 Pack', 'Juwel SmartFeed 2.0 - Premium Automatic Feeder']) {
+    assert.equal(s(n), 'small-pets', n);
+  }
+  for (const n of ['Neon Tetra - Paracheirodon Innesi', 'Blue Orfe 4-5 Inch', 'Thai Silk Flowerhorn -  4 Inches', 'Cherry Red Shrimp - Neocardina Denticulata',
+    'Blueberry Snail - Viviparus sp', 'True Parrot Cichlid', 'Gold Base Hybrid Vieja 5-6 inches', 'Golden Nugget 10cm', 'King Tiger Plec L066',
+    'Mixed Colour Vampire Crab - Geosesarma sp', 'Freshwater Golden Clam - Corbicula Fluminea', 'Jellybean Parrot Fish']) {
+    assert.match(s(n), /live animal/, n);
+  }
+  assert.equal(classify('test product', '', '', aq).ok, false);
+  assert.equal(classify('Custom Order', '', '', aq).ok, false);
+  // Other shops keep the general rules: a parrot cage is still a bird product.
+  assert.equal(classify('Large Parrot Cage with Stand', 'Pet Supplies > Birds', '', null).slug, 'birds');
 });

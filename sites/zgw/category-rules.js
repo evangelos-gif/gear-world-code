@@ -293,6 +293,56 @@ export function classifyPets(name, shopCat = '', opts = {}) {
   return { cat };
 }
 
+// ---------- An aquatics shop (sources.json "aquatics": true; Aquatics Shop UK, Awin 129759, 2 Nov 2026) ----------
+// Its feed has no categories and no brands, and the shop also sells LIVE fish, shrimps, snails, crabs and clams
+// ("Neon Tetra - Paracheirodon Innesi", "Blue Orfe 4-5 Inch"). Pets Gear World never lists live animals (lessons L90).
+// A product of this shop goes to "Small pets, fish & reptiles" only when its name says what kind of product it is
+// (a product word or a size such as 250ml, 100g or 16W); a species name with no product word, or a Latin name after
+// " - ", is a live animal.
+const AQ_UNIT = /(?<![a-z0-9])\d+(?:[.,]\d+)?\s?(?:g|kg|mg|ml|l|ltr|litres?|liters?|w|watts?|lph|l\/h|oz|fl ?oz|gallons?)(?![a-z0-9])/i;
+const AQ_FOOD = words(['foods?', 'flakes?', 'pellets?', 'wafers?', 'sticks?', 'granules?', 'crisps?', 'bites', 'treats?', 'tablets?', 'cuisine', 'frozen', 'freeze[- ]dried',
+  'bloodworms?', 'daphnia', 'krill', 'mysis', 'spirulina', 'vacation', 'weekend', 'holiday food', 'chips']);
+const AQ_PRODUCT = words(['aquariums?', 'aquaria', 'tanks?', 'fish ?tanks?', 'bowls?', 'filters?', 'filtration', 'pumps?', 'powerheads?', 'wave ?makers?', 'heaters?', 'thermostats?',
+  'thermometers?', 'leds?', 'lights?', 'lighting', 'lamps?', 'bulbs?', 'tubes?', 'sets?', 'kits?', 'starter', 'conditioners?', 'treatments?', 'remed(?:y|ies)', 'cure',
+  'tests?', 'test strips', 'clarifiers?', 'bacteria', 'balance', 'minus', 'buffer', 'salts?', 'minerals?', 'fertili[sz]ers?', 'co2', 'stress coat', 'coat', 'safe',
+  'gravel', 'sand', 'substrate', 'soil', 'pebbles', 'rocks?', 'stones?', 'slate', 'wood', 'roots?', 'driftwood', 'caves?', 'ornaments?', 'decor(?:ation)?s?',
+  'plants?', 'plastic', 'silk', 'artificial', 'moss', 'backgrounds?', 'posters?', 'nets?', 'siphons?', 'gravel cleaner', 'cleaners?', 'scrapers?', 'brush(?:es)?',
+  'magnets?', 'magnetic', 'airline', 'air ?stones?', 'air ?pumps?', 'tubing', 'hose', 'valves?', 'media', 'foams?', 'sponges?', 'pads?', 'wool', 'floss',
+  'cartridges?', 'rings', 'ceramic', 'feeders?', 'stands?', 'cabinets?', 'lids?', 'hoods?', 'covers?', 'sterili[sz]ers?', 'uv', 'clarifier', 'breeding box', 'breeders?',
+  'hatchery', 'nets?', 'tweezers', 'scissors', 'wipes', 'spares?', 'replacement', 'impellers?', 'controllers?', 'timers?', 'skimmers?', 'ponds?', 'fountains?',
+  'house', 'houses', 'bridge', 'castle', 'shipwreck', 'skull', 'figure', 'resin', 'available in \\d+ sizes', 'pack of \\d+', '\\d+ ?pack', 'x ?\\d+'])
+  ;
+const AQ_SPECIES = words(['cichlids?', 'plecos?', 'plecs?', 'l\\d{3}a?', 'l0\\d\\d', 'cor(?:y|ies)', 'corydoras', 'loach(?:es)?', 'barbs?', 'rasboras?', 'danios?', 'tetras?',
+  'guppy', 'guppies', 'molly', 'mollies', 'platys?', 'platies', 'swordtails?', 'angel ?fish', 'angels?', 'gourami', 'puffer(?:fish)?', 'knife ?fish', 'catfish',
+  'shrimps?', 'snails?', 'crabs?', 'clams?', 'goldfish', 'orfe', 'koi', 'flowerhorn', 'vieja', 'piranhas?', 'bichirs?', 'eels?', 'arowana', 'headstanders?',
+  'hatchet ?fish', 'silver dollars?', 'acara', 'severum', 'mbuna', 'oscars?', 'discus', 'ram', 'killifish', 'rainbow ?fish', 'rainbows?', 'shiners?', 'whiptail',
+  'gar', 'half ?beak', 'glass ?fish', 'mouthbrooder', 'peacock', 'julie', 'kribensis', 'texas', 'parrot', 'jack dempsey', 'firemouth', 'convict', 'golden nugget',
+  'bristlenose', 'otocinclus', 'minnows?', 'sharks?', 'betta fish', 'siamese fighter', 'axolotls?', 'terrapins?', 'turtles?', 'frogs?', 'newts?', 'lizards?',
+  'geckos?', 'snakes?', 'tortoises?', 'live', 'wild', 'pt', 'sold as a pair', 'assorted (?:male|female)']);
+// The aquarium brands of the shop (its own "Brand:" tags, 2 Nov 2026). A live fish never starts with a brand.
+const AQ_BRAND = new RegExp(`^(?:\\d+ )?(?:${['api', 'alfa gamma', 'aqua one', 'aquael', 'aquarian', 'aquavitro', 'betta', 'blagdon', 'boyu', 'ciano', 'classic', 'clearseal',
+  'cloverleaf', 'colombo', 'dennerle', 'easy[- ]life', 'eheim', 'evolution aqua', 'fish science', 'fluval', 'gamma', 'hikari', 'hobby', 'hugo', 'interpet', 'ista', 'juwel',
+  'marina', 'nt labs', 'newa', 'oase', 'ocean nutrition', 'reeflowers', 'seachem', 'sera', 'sicce', 'stendker', 'supa', 'superfish', 'tmc', 'tetra', 'tetratec', 'unipac',
+  'vitalis', 'waterlife', 'xiao ba wang', 'xinyou', 'esha', 'jbl', 'king british', 'love fish'].join('|')})(?![a-z0-9])`, 'i');
+const AQ_LATIN = / - \(?[A-Z][a-z]{3,} (?:\(?[A-Z]?[a-z]{3,}|sp\b)/;
+const AQ_FISH_SIZE = /(?<![a-z0-9])\d+(?:\s?-\s?\d+)?\s?(?:inch|inches|")(?![a-z0-9])/i;
+
+export function classifyAquatics(name) {
+  const raw = String(name || '');
+  const n = low(raw);
+  if (!n || NO.test(n)) return { ok: false, reason: 'look-alike name, pest control, live animal or prescription (not a pet product)' };
+  if (/^(?:test product|custom order)$/.test(n)) return { ok: false, reason: 'not a product (shop test or custom order)' };
+  const unit = AQ_UNIT.test(n), food = AQ_FOOD.test(n), product = AQ_PRODUCT.test(n), brand = AQ_BRAND.test(n);
+  const species = AQ_SPECIES.test(n), fishSize = AQ_FISH_SIZE.test(n);
+  // Live animals: a species word with a fish size ("Thai Silk Flowerhorn - 4 Inches"), a Latin name after " - ", or a
+  // species word or a fish size with no product word and no brand.
+  const live = (species && fishSize && !unit && !food) ||
+    (!brand && !unit && !food && (AQ_LATIN.test(raw) || ((species || fishSize) && !product)));
+  if (live) return { ok: false, reason: 'live animal (Pets Gear World lists no live animals)' };
+  if (brand || unit || food || product) return { ok: true, slug: 'small-pets' };
+  return { ok: false, reason: 'no product word (could be a live animal or a plant): not listed' };
+}
+
 // ---------- The import plan's interface (tools/tgw-import-plan.mjs planImport) ----------
 
 export const CATEGORY_SLUGS = CATEGORIES.map(k => k.key);
@@ -317,6 +367,7 @@ export function topCategory(feedCategory) {
 
 // name: product name; feedCategory: the shop's category; paths: the shop's category path; source: its sources.json entry.
 export function classify(name, feedCategory = '', paths = '', source = null) {
+  if (source && source.aquatics) return classifyAquatics(name);
   const shopCat = [feedCategory, paths].filter(Boolean).join(' | ');
   const r = classifyPets(name, shopCat, { petShop: Boolean(source && source.petShop) });
   if (r.cat && !r.overlap) {
