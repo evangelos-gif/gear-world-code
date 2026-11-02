@@ -24,7 +24,7 @@
   "ai": { "binding": "AI" },
   // Poster QR scans (lessons L76): the private Worker that counts them (tools/poster-setup.ps1 makes it first).
   // The live config on the PC gets the same line from tools/poster-setup.ps1.
-  "services": [{ "binding": "POSTERS", "service": "gear-world-posters" }],
+  "services": [{ "binding": "HUB", "service": "gear-world-hub" }, { "binding": "POSTERS", "service": "gear-world-posters" }],
   "observability": { "enabled": true }
   // Custom domain is added only at launch, with approval (ΕΓΚΡΙΝΩ TGW DOMAIN):
   // "routes": [

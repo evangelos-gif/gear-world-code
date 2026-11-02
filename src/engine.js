@@ -12,11 +12,29 @@ import { exchangeRates } from './lib/fx.js';
 import { translationsFor } from './lib/hub.js';
 import { offersIndexPage, retailerOffersPage, OFFERS_PATH } from './pages/offers.js';
 import { findPromo } from './lib/promos.js';
-import { infoPage, infoPaths, notFoundPage, errorPage } from './pages/info.js';
+import { infoPage, infoPaths, notFoundPage, errorPage, dealUpdatesPage } from './pages/info.js';
 import { useSiteAssets, useRates } from './pages/layout.js';
 import { sitemapIndex, sitemapStatic, sitemapProducts, robotsTxt, SITEMAP_CHUNK } from './seo.js';
 import { posterScan } from './lib/poster-scan.js';
 import { guidePage, guidesIndexPage, findGuide, guideProductIds, GUIDES_PATH } from './pages/guides.js';
+
+// Gear World Hub keeps the one list of members; sites reach it only through a service binding (lessons L90).
+// The address is not public: requests from the internet never carry this host name.
+export const HUB_SUBSCRIBE_URL = 'https://hub.internal/internal/subscribe';
+// Newer sites bind it as HUB; the older sites already had GW_HUB (the same Worker, used for search translations).
+export function hubBinding(env) {
+  const b = env && (env.HUB || env.GW_HUB);
+  return b && typeof b.fetch === 'function' ? b : null;
+}
+export function hubReady(env) {
+  return Boolean(hubBinding(env));
+}
+// A one-way key for the visitor's IP address, so the Hub can limit attempts without ever seeing the address.
+export async function clientKey(ip) {
+  const bytes = new TextEncoder().encode('gw-deal-updates:' + String(ip || 'unknown'));
+  const hash = await crypto.subtle.digest('SHA-256', bytes);
+  return [...new Uint8Array(hash)].slice(0, 16).map(b => b.toString(16).padStart(2, '0')).join('');
+}
 
 const PER_PAGE = 24;
 
@@ -28,6 +46,8 @@ export function createWorker(site) {
   async function handle(request, env, ctx) {
     const url = new URL(request.url);
     const method = request.method;
+    // "Get deal updates" is on when this Worker can reach Gear World Hub (service binding HUB, lessons L90).
+    site.dealUpdates = hubReady(env);
 
     // One canonical host (lessons L11): www and any other host redirect to the apex domain.
     const host = url.hostname.toLowerCase();
@@ -44,7 +64,7 @@ export function createWorker(site) {
 
     // POST endpoints
     if (method === 'POST') {
-      if (path === '/api/newsletter' && !db.isLegacy()) return newsletter(request, env, url);
+      if (path === '/api/newsletter' && (hubReady(env) || !db.isLegacy())) return newsletter(request, env, url);
       if (path === '/api/csp-report') return cspReport(request);
       return textResponse('Not found', { status: 404, cache: 'none' });
     }
@@ -316,31 +336,67 @@ export function createWorker(site) {
     }, { cache: 'short' });
   }
 
+  // Sign-up for deal updates. With the service binding HUB (lessons L90) the address goes to the one member list of
+  // Gear World Hub, for every site, older ones included (their own databases do not change, L28). Without it, newer
+  // sites keep their own newsletter table as before. Works as a plain form post (an HTML answer) or as JSON.
   async function newsletter(request, env, url) {
+    const ctype = (request.headers.get('content-type') || '').toLowerCase();
+    const isForm = ctype.includes('application/x-www-form-urlencoded') || ctype.includes('multipart/form-data');
+    const answer = (ok, message, status) => (isForm
+      ? htmlResponse(dealUpdatesPage(site, ok, message), { status, cache: 'none' })
+      : jsonResponse(ok ? { ok: true, message } : { ok: false, error: message }, { status }));
     const origin = request.headers.get('origin');
-    if (origin && origin !== url.origin) return jsonResponse({ ok: false, error: 'This form only works on this website.' }, { status: 403 });
-    if (!(request.headers.get('content-type') || '').includes('application/json')) {
-      return jsonResponse({ ok: false, error: 'Send the form as JSON.' }, { status: 415 });
-    }
-    const ip = request.headers.get('cf-connecting-ip') || 'unknown';
-    const allowed = await rateLimit(env.DB, { route: 'newsletter', client: ip, limit: 5, windowSeconds: 3600 });
-    if (!allowed) return jsonResponse({ ok: false, error: 'Too many attempts. Try again in an hour.' }, { status: 429 });
+    if (origin && origin !== url.origin) return answer(false, 'This form only works on this website.', 403);
+    if (!isForm && !ctype.includes('application/json')) return answer(false, 'Send the form as JSON.', 415);
+    if (Number(request.headers.get('content-length') || 0) > 4096) return answer(false, 'The form is too large.', 413);
     let data;
-    try { data = await request.json(); } catch { return jsonResponse({ ok: false, error: 'The form data could not be read.' }, { status: 400 }); }
+    try {
+      if (isForm) {
+        const f = await request.formData();
+        data = { email: f.get('email'), consent: f.get('consent') === 'yes' || f.get('consent') === 'on', page: f.get('page'), website: f.get('website') };
+      } else {
+        data = await request.json();
+      }
+    } catch { return answer(false, 'The form data could not be read.', 400); }
+    if (!data || typeof data !== 'object') return answer(false, 'The form data could not be read.', 400);
+    const thanks = 'Thanks. You are signed up for deal updates. Every email has an unsubscribe link.';
+    // A filled hidden field means a bot: the same answer as a real sign-up, and nothing is kept.
+    if (String(data.website || '').trim()) return answer(true, thanks, 200);
     const email = String(data.email || '').trim().toLowerCase();
-    if (!/^[^\s@]{1,64}@[^\s@]{1,190}\.[^\s@]{2,24}$/.test(email)) {
-      return jsonResponse({ ok: false, error: 'Enter a valid email address.' }, { status: 400 });
+    if (!/^[^\s@]{1,64}@[^\s@]{1,190}\.[^\s@]{2,24}$/.test(email)) return answer(false, 'Enter a valid email address.', 400);
+    if (data.consent !== true) return answer(false, 'Tick the box to agree to receive deal emails.', 400);
+    const ip = request.headers.get('cf-connecting-ip') || 'unknown';
+    const page = /^\/[^/\\]/.test(String(data.page || '')) || data.page === '/' ? String(data.page).slice(0, 200) : '/';
+
+    if (hubReady(env)) {
+      let r;
+      try {
+        const res = await hubBinding(env).fetch(HUB_SUBSCRIBE_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, consent: true, site: site.code.toLowerCase(), page, client: await clientKey(ip) })
+        });
+        r = await res.json().catch(() => ({ ok: false }));
+        if (res.status === 429 || (r && r.error === 'too_many')) return answer(false, 'Too many attempts. Try again in an hour.', 429);
+      } catch {
+        r = { ok: false };
+      }
+      if (!r || !r.ok) return answer(false, 'Sign-up is not working right now. Please try again later.', 503);
+      // Same answer whether or not the address was already on the list, so the form does not reveal who signed up.
+      return answer(true, thanks, 200);
     }
-    if (data.consent !== true) return jsonResponse({ ok: false, error: 'Tick the box to agree to receive the newsletter.' }, { status: 400 });
+
+    // No Hub link: newer sites keep their own newsletter table (as before), with Turnstile.
+    const allowed = await rateLimit(env.DB, { route: 'newsletter', client: ip, limit: 5, windowSeconds: 3600 });
+    if (!allowed) return answer(false, 'Too many attempts. Try again in an hour.', 429);
     const human = await verifyTurnstile(data.turnstile_token, env.TURNSTILE_SECRET_KEY, ip);
-    if (!human) return jsonResponse({ ok: false, error: 'The security check failed. Reload the page and try again.' }, { status: 403 });
+    if (!human) return answer(false, 'The security check failed. Reload the page and try again.', 403);
     await db.addNewsletter(env.DB, {
       email,
       consentText: `Newsletter from ${site.name}. Unsubscribe any time.`,
-      sourcePath: String(data.page || '').slice(0, 200)
+      sourcePath: page
     });
-    // Same answer whether or not the address was already registered, so the form does not reveal who signed up.
-    return jsonResponse({ ok: true, message: 'Thanks. You are signed up.' }, { status: 200 });
+    return answer(true, 'Thanks. You are signed up.', 200);
   }
 
   async function cspReport(request) {

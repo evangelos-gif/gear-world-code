@@ -161,7 +161,7 @@ ${header(site, currentCategory, searchValue)}
 <main id="main">
 ${body}
 </main>
-${footer(site, year)}
+${footer(site, year, path)}
 </body>
 </html>`;
   return toString(doc);
@@ -226,8 +226,31 @@ export function searchForm(site, value = '', cls = '') {
 </form>`;
 }
 
-function footer(site, year) {
+// "Get deal updates": a plain form (works without JavaScript). It is shown only when the site can pass the sign-up to
+// Gear World Hub (service binding HUB), which keeps the one list of members (lessons L90).
+function dealUpdates(site, path) {
+  if (!site.dealUpdates) return '';
+  return html`<section class="deal-updates" id="deal-updates" aria-labelledby="deal-updates-h">
+  <div class="wrap deal-updates-row">
+    <div class="deal-updates-text">
+      <h2 id="deal-updates-h">Get deal updates</h2>
+      <p>The best deals from ${site.name} and the other Gear Worlds, about once a week. Free, and you can unsubscribe any time.</p>
+    </div>
+    <form class="deal-form" action="/api/newsletter" method="post">
+      <label class="visually-hidden" for="du-email">Email address</label>
+      <input id="du-email" name="email" type="email" required maxlength="254" autocomplete="email" placeholder="Your email address">
+      <input type="hidden" name="page" value="${path || '/'}">
+      <span class="du-hp" aria-hidden="true"><label for="du-website">Leave this empty</label><input id="du-website" name="website" type="text" tabindex="-1" autocomplete="off"></span>
+      <label class="du-consent"><input type="checkbox" name="consent" value="yes" required> Email me deals from Gear World. See the <a href="/privacy/">privacy policy</a>.</label>
+      <button type="submit">Get deal updates</button>
+    </form>
+  </div>
+</section>`;
+}
+
+function footer(site, year, path = '/') {
   return html`<footer class="site-footer">
+${dealUpdates(site, path)}
   <div class="wrap footer-grid">
     <section>
       <h2>Categories</h2>

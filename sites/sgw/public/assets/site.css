@@ -548,6 +548,22 @@ body.has-compare-bar { padding-bottom: 76px; }
   .season-pause { top: auto; bottom: 14px; right: 14px; }
 }
 
+/* Get deal updates (lessons L90): a plain form at the top of the footer. */
+.deal-updates { border-bottom: 1px solid var(--line); background: var(--panel); }
+.deal-updates-row { display: grid; gap: 14px; padding-top: 22px; padding-bottom: 22px; align-items: center; }
+@media (min-width: 800px) { .deal-updates-row { grid-template-columns: 1fr 1.2fr; } }
+.deal-updates h2 { margin: 0 0 4px; }
+.deal-updates p { margin: 0; color: var(--text); }
+.deal-form { display: grid; gap: 10px; grid-template-columns: 1fr auto; }
+.deal-form input[type="email"] { min-width: 0; padding: 11px 12px; border-radius: var(--radius); border: 1px solid var(--line); background: var(--surface); color: var(--ink); font: inherit; }
+.deal-form button { padding: 11px 16px; border: 0; border-radius: var(--radius); background: var(--gold); color: var(--deep); font: inherit; font-weight: 700; cursor: pointer; }
+.deal-form button:focus-visible, .deal-form input:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
+.du-consent { grid-column: 1 / -1; display: flex; gap: 8px; align-items: flex-start; font-size: .92rem; color: var(--text); }
+.du-consent input { margin-top: 3px; width: 18px; height: 18px; flex: 0 0 auto; }
+.du-consent a { color: var(--link); }
+.du-hp { position: absolute; left: -10000px; width: 1px; height: 1px; overflow: hidden; }
+@media (max-width: 480px) { .deal-form { grid-template-columns: 1fr; } }
+
 /* SGW only (site.config.js extraCss) */
 .flag { display: inline-block; width: 18px; height: 12px; margin-left: 6px; vertical-align: -1px; border-radius: 2px; box-shadow: 0 0 0 1px rgba(0, 0, 0, .15); }
 .fx-base { display: inline-block; margin-left: 6px; font-family: var(--font-body); font-weight: 600; font-size: .85rem; color: var(--ink-2); white-space: nowrap; }

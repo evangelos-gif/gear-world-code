@@ -71,8 +71,9 @@ const PAGES = {
 <h2>What we collect</h2>
 <ul>
 <li><strong>Clicks to retailers.</strong> When you select a "View at" button we record the product, the retailer, the page you were on, the date and your country as reported by our hosting provider. We do not record your IP address or anything that identifies you. We use this to understand which products are useful (legitimate interests).</li>
-<li><strong>Newsletter.</strong> If you sign up, we keep your email address, the date and the consent text you agreed to. We use it only to send the newsletter (consent). You can withdraw consent at any time by emailing us, and we will delete your address.</li>
-<li><strong>Abuse protection.</strong> To stop automated abuse of forms we keep a one-way scrambled (hashed) form of your IP address for up to one hour, and the form uses Cloudflare Turnstile (legitimate interests).</li>
+${site.dealUpdates ? html`<li><strong>Deal updates.</strong> If you sign up with the "Get deal updates" form, we keep your email address, the site you signed up on, the date and the consent you gave. The list is shared by the Gear World sites and kept by Gear World Hub (gearworldhub.com), and the emails are sent for us by MailerLite (our email service provider). We use it only to send deal and new-site emails (consent). Every email has an unsubscribe link, and you can also ask us by email to delete your address.</li>
+<li><strong>Abuse protection.</strong> To stop automated abuse of the form we keep a one-way scrambled (hashed) form of your IP address for up to one hour (legitimate interests).</li>` : html`<li><strong>Newsletter.</strong> If you sign up, we keep your email address, the date and the consent text you agreed to. We use it only to send the newsletter (consent). You can withdraw consent at any time by emailing us, and we will delete your address.</li>
+<li><strong>Abuse protection.</strong> To stop automated abuse of forms we keep a one-way scrambled (hashed) form of your IP address for up to one hour, and the form uses Cloudflare Turnstile (legitimate interests).</li>`}
 <li><strong>Hosting.</strong> The site is hosted by Cloudflare, which processes technical data such as IP addresses to deliver and protect the site.</li>
 ${site.voiceSearch ? html`<li><strong>Voice search.</strong> If you press the microphone button, your browser asks for permission and its own speech service turns what you say into text (for example Google in Chrome, Apple in Safari). Their privacy policies apply to that step. We receive only the text, as a normal search, and we do not record audio.</li>` : ''}
 ${site.cart || (site.languages || []).length > 1 ? html`<li><strong>Choices kept on your device.</strong> Your browser remembers your language, currency, compare list${site.cart ? ` and ${site.cart.name}` : ''} in its local storage. This stays on your device and is not sent to us. You can clear it in your browser settings.</li>` : ''}
@@ -82,9 +83,9 @@ ${site.cart || (site.languages || []).length > 1 ? html`<li><strong>Choices kept
 <h2>When you go to a retailer</h2>
 <p>Retailer links go through Awin. Awin and the retailer may set their own cookies to record that you came from this site. Their privacy policies apply on their websites, for example the <a href="https://www.awin.com/gb/privacy">Awin privacy policy</a>.</p>
 <h2>Sharing and transfers</h2>
-<p>We do not sell personal data. Our service providers (Cloudflare) may process data outside the UK with appropriate safeguards.</p>
+<p>We do not sell personal data. Our service providers (Cloudflare${site.dealUpdates ? ' and MailerLite' : ''}) may process data outside the UK with appropriate safeguards.</p>
 <h2>How long we keep data</h2>
-<p>Click records: up to 26 months. Newsletter: until you unsubscribe. Abuse protection: up to one hour.</p>
+<p>Click records: up to 26 months. ${site.dealUpdates ? 'Deal updates' : 'Newsletter'}: until you unsubscribe. Abuse protection: up to one hour.</p>
 <h2>Your rights</h2>
 <p>You can ask for access to, correction or deletion of your data, ask us to restrict or stop using it, and ask for a copy. Email ${contactLink(site)}. You can also complain to the Information Commissioner's Office at <a href="https://ico.org.uk/">ico.org.uk</a>.</p>`
   }),
@@ -97,7 +98,7 @@ ${site.cart || (site.languages || []).length > 1 ? html`<li><strong>Choices kept
 <p>Last updated: ${UPDATED}</p>
 <p>${site.name} does not set advertising, analytics or tracking cookies, so there is no cookie banner.</p>
 <h2>Strictly necessary</h2>
-<p>Our hosting provider Cloudflare may set short-lived security cookies to protect the site from bots. If you use the newsletter form, Cloudflare Turnstile checks that you are a person. These are needed for the site to work safely and do not track you across sites.</p>
+<p>Our hosting provider Cloudflare may set short-lived security cookies to protect the site from bots. ${site.dealUpdates ? '' : 'If you use the newsletter form, Cloudflare Turnstile checks that you are a person. '}These are needed for the site to work safely and do not track you across sites.</p>
 <h2>Saved on your device</h2>
 <p>Your browser's local storage keeps your language, currency, compare list${site.cart ? ` and ${site.cart.name}` : ''}, so they are still there on your next visit. This information is not a cookie, is not sent to us and is not used for tracking. Clearing your browser data removes it.</p>
 <h2>After you leave this site</h2>
@@ -185,4 +186,17 @@ export function errorPage(site) {
   </article>
 </div>`;
   return page(site, { title: `Error | ${site.name}`, description: 'Error', path: '/', canonical: null, robots: 'noindex,nofollow', body });
+}
+
+// The answer to the "Get deal updates" form when it is sent without JavaScript (a normal form post).
+export function dealUpdatesPage(site, ok, message) {
+  const body = html`
+<div class="wrap narrow">
+  <article class="prose">
+    <h1>${ok ? 'You are signed up' : 'Not signed up yet'}</h1>
+    <p>${message}</p>
+    <p><a href="/">${tr('Go to the home page')}</a></p>
+  </article>
+</div>`;
+  return page(site, { title: `Deal updates | ${site.name}`, description: 'Deal updates sign-up.', path: '/api/newsletter', canonical: null, robots: 'noindex,nofollow', body });
 }

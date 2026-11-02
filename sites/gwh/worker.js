@@ -2,6 +2,8 @@
 import { handlePhotoSearch, previewResponse, addPreviewHeaders } from "./photo-search.js";
 // GWH-POSTER-SCANS: poster QR scans of the home page are counted in poster-scan.js (lessons L76).
 import { posterScan } from "./poster-scan.js";
+// GWH-MEMBERS: the one member list ("Get deal updates" of the 12 sites) and its copy to MailerLite (lessons L90).
+import { isInternal, handleInternal, syncMailerLite } from "./members.js";
 
 const hubCore = {
   async fetch(request, env) {
@@ -899,6 +901,8 @@ async function seasonalMedia(request, env) {
 // On the test address (GWH_PREVIEW = "1") a few extra rules apply: see photo-search.js.
 export default {
   async fetch(request, env, ctx) {
+    // GWH-MEMBERS: sign-ups from the sites, only through their service binding HUB (this host name has no route).
+    if (isInternal(new URL(request.url))) return handleInternal(request, env, ctx);
     const early = previewResponse(request, env);
     if (early) return addPreviewHeaders(early, env);
     const url = new URL(request.url);
@@ -909,7 +913,16 @@ export default {
     if (url.pathname === "/api/photo-search") {
       return addPreviewHeaders(await handlePhotoSearch(request, env, ctx), env);
     }
-    return addPreviewHeaders(await hubCore.fetch(request, env), env);
+    const res = await hubCore.fetch(request, env);
+    // GWH-MEMBERS: a sign-up on the Hub page is copied to MailerLite in the background (when there is a key).
+    if (url.pathname === "/api/subscribe" && request.method === "POST" && res.ok && ctx && ctx.waitUntil) {
+      ctx.waitUntil(syncMailerLite(env, { limit: 5 }));
+    }
+    return addPreviewHeaders(res, env);
+  },
+  // GWH-MEMBERS: every 30 minutes, members with consent not yet in MailerLite (or failed before) are copied there.
+  async scheduled(event, env, ctx) {
+    ctx.waitUntil(syncMailerLite(env, { limit: 50 }));
   }
 };
 // GWH-PHOTO-SEARCH-END

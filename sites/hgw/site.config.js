@@ -11,7 +11,7 @@ export default {
   lang: 'en-GB',
   locale: 'en-GB',
   currency: 'GBP',
-  assetVersion: '2026-10-28-hgw-season-1',
+  assetVersion: '2026-11-03-hgw-deals-1',
   promos: promosFor('HGW'),
   awinPublisherId: AWIN_PUBLISHER_ID,
   storagePrefix: 'hgw',
