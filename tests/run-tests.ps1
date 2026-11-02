@@ -4012,7 +4012,7 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         'echo %* | findstr /L /C:"time-travel info" >nul && goto tt',
         'echo %* | findstr /L /C:"--file" >nul && goto d1file',
         'echo %* | findstr /L /C:"PRAGMA table_info" >nul && goto pragma',
-        'echo %* | findstr /L /C:"member_source LIKE" >nul && goto after',
+        'echo %* | findstr /L /C:"substr(member_source" >nul && goto after',
         'echo %* | findstr /L /C:"SELECT * FROM hub_subscribers" >nul && goto allrows',
         'echo %* | findstr /L /C:"FROM hub_subscribers" >nul && goto hubcount',
         'echo %* | findstr /L /C:"construction-gear-customers" >nul && goto cgw',

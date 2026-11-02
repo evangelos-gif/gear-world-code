@@ -234,14 +234,14 @@ function dealUpdates(site, path) {
   <div class="wrap deal-updates-row">
     <div class="deal-updates-text">
       <h2 id="deal-updates-h">Get deal updates</h2>
-      <p>The best deals from ${site.name} and the other Gear Worlds, about once a week. Free, and you can unsubscribe any time.</p>
+      <p>${tr('The best deals from {0} and the other Gear Worlds, about once a week. Free, and you can unsubscribe any time.', site.name)}</p>
     </div>
     <form class="deal-form" action="/api/newsletter" method="post">
       <label class="visually-hidden" for="du-email">Email address</label>
       <input id="du-email" name="email" type="email" required maxlength="254" autocomplete="email" placeholder="Your email address">
       <input type="hidden" name="page" value="${path || '/'}">
       <span class="du-hp" aria-hidden="true"><label for="du-website">Leave this empty</label><input id="du-website" name="website" type="text" tabindex="-1" autocomplete="off"></span>
-      <label class="du-consent"><input type="checkbox" name="consent" value="yes" required> Email me deals from Gear World. See the <a href="/privacy/">privacy policy</a>.</label>
+      <label class="du-consent"><input type="checkbox" name="consent" value="yes" required> Email me deals from Gear World. <a href="/privacy/">Privacy policy</a></label>
       <button type="submit">Get deal updates</button>
     </form>
   </div>

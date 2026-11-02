@@ -52,8 +52,8 @@ for (const f of ['layout', 'home', 'listing', 'product', 'compare', 'cart', 'inf
   if (!existsSync(file)) continue;
   for (const m of readFileSync(file, 'utf8').matchAll(/\btr\('((?:[^'\\]|\\.)*)'/g)) scriptKeys.add(m[1].replace(/\\'/g, "'"));
 }
-// Messages the Worker sends to the newsletter form, which the site script shows translated.
-for (const m of readFileSync(join('src', 'engine.js'), 'utf8').matchAll(/\b(?:error|message): '((?:[^'\\]|\\.)*)'/g)) scriptKeys.add(m[1]);
+// Messages the Worker sends to the newsletter form (as JSON, or on the deal-updates answer page), shown translated.
+for (const m of readFileSync(join('src', 'engine.js'), 'utf8').matchAll(/\b(?:(?:error|message): |answer\((?:true|false|ok), |thanks = )'((?:[^'\\]|\\.)*)'/g)) scriptKeys.add(m[1]);
 // Texts that only appear with many products (page buttons): the test data has too few products to show them.
 for (const k of ['Pages', 'Next', 'Previous']) scriptKeys.add(k);
 // "Delivers to: Germany" (lessons L62): the label, and "Worldwide" (no retailer of the test data has it).

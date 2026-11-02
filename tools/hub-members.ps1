@@ -367,7 +367,7 @@ $have2 = @{}
 if ($null -ne $info2) { foreach ($c in $info2) { $have2[[string]$c.name] = $true } }
 $still = @($Columns | Where-Object { -not $have2.ContainsKey($_.name) })
 if ($still.Count -gt 0) { Say 'Τα νέα πεδία δεν φαίνονται μετά την αλλαγή. Στείλε στο Claude αυτό το μήνυμα.' 'Red'; Finish 12 }
-$after = Read-Db $deploy $DbName "SELECT COUNT(*) AS n, SUM(marketing_consent = 1) AS c, SUM(member_source LIKE 'rewards:%') AS r FROM hub_subscribers"
+$after = Read-Db $deploy $DbName "SELECT COUNT(*) AS n, SUM(marketing_consent = 1) AS c, SUM(substr(member_source, 1, 8) = 'rewards:') AS r FROM hub_subscribers"
 Say ('2-3. Νέα πεδία και μέλη: ΕΝΤΑΞΕΙ. Μέλη τώρα: {0} (με συγκατάθεση: {1}, από Rewards: {2})' -f $after[0].n, $after[0].c, $after[0].r) 'Green'
 
 # 4. the 30-minute timer in the Hub config on this PC
