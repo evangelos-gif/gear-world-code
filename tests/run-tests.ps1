@@ -4306,6 +4306,21 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         # running it again keeps the token when asked
         $puts = ACount 'secret put'
         Check ((Run-A @('-Step', 'apply', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ AWIN SYNC', '-KeepToken')) -eq 0 -and (ACount 'secret put') -eq $puts) 'awin apply again with -KeepToken: exit 0, the token is not asked again'
+        # -Step token (Awin revoked all keys on 3/11/2026): only the secret changes, and only a key Awin accepts
+        $deploys = ACount ' deploy --config'
+        $creates = ACount 'd1 create|migrations apply'
+        $env:GW_TEST_AWIN_TOKEN = 'newAwinTestToken9876543210abcd'
+        Check ((Run-A @('-Step', 'token')) -eq 0 -and (ACount 'secret put') -eq $puts) 'awin token without -Apply: nothing changes'
+        Check ((Run-A @('-Step', 'token', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ AWIN SYNC', '-TokenEnv', 'GW_TEST_AWIN_TOKEN')) -eq 1 -and (ACount 'secret put') -eq $puts) 'awin token with the wrong phrase: nothing changes'
+        $env:GW_TEST_AWIN_API = 'refused'
+        Check ((Run-A @('-Step', 'token', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ AWIN TOKEN', '-TokenEnv', 'GW_TEST_AWIN_TOKEN')) -eq 10 -and (ACount 'secret put') -eq $puts) 'awin token: a key Awin refuses is not stored'
+        $env:GW_TEST_AWIN_API = 'ok'
+        Check ((Run-A @('-Step', 'token', '-Apply', '-Approve', 'egkrino awin token', '-TokenEnv', 'GW_TEST_AWIN_TOKEN')) -eq 0 -and (ACount 'secret put') -eq ($puts + 1)) 'awin token with approval: exit 0, the secret is replaced once'
+        Check ((AText (Join-Path $aState 'secret.txt')).Trim() -eq 'newAwinTestToken9876543210abcd' -and -not (AText $aCalls).Contains('newAwinTestToken9876543210abcd')) 'awin token: the new key reached wrangler through its input, never on a command line'
+        Check ((ACount ' deploy --config') -eq $deploys -and (ACount 'd1 create|migrations apply') -eq $creates) 'awin token: no deploy, no database change'
+        $r = ALast 'AWIN_SETUP_TOKEN_*.txt'
+        Check ($r.Contains('ΕΤΟΙΜΟ') -and $r.Contains('secret delete AWIN_TOKEN --name gear-world-awin-sync') -and -not $r.Contains('newAwinTestToken9876543210abcd')) 'awin token: report ready, with how to undo, without the key'
+        Remove-Item Env:\GW_TEST_AWIN_API -ErrorAction SilentlyContinue
     } finally {
         $env:PATH = $oldPath
         Remove-Item Env:\GW_FAKE_STATE -ErrorAction SilentlyContinue

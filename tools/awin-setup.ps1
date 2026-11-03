@@ -13,10 +13,14 @@
                      or put in the report.
                 Everything is new, so nothing of the sites needs a backup; to undo it, the report says how to delete
                 the two new things. Running it again is safe (what is there is kept; the token can be replaced).
+  -Step token   CHANGES ONE SECRET ONLY, one approval: ΕΓΚΡΙΝΩ AWIN TOKEN. Replaces AWIN_TOKEN of the Worker
+                gear-world-awin-sync with a new Awin key (Awin revoked all keys on 3/11/2026). The key is pasted here,
+                first tested with one read-only call to the Awin API (GET /accounts) and stored only if Awin accepts it.
+                The Worker code, the database and the sites do not change. A refused key changes nothing.
   Report: <home>\gear-world-reports\AWIN_SETUP_<STEP>_<time>.txt (also copied to the clipboard)
 #>
 param(
-    [ValidateSet('check', 'apply')]
+    [ValidateSet('check', 'apply', 'token')]
     [string]$Step = 'check',
     [switch]$Apply,
     [string]$Approve = '',
@@ -32,6 +36,7 @@ param(
 $ErrorActionPreference = 'Stop'
 $repo = Split-Path -Parent $PSScriptRoot
 $Phrase = 'ΕΓΚΡΙΝΩ AWIN SYNC'
+$PhraseToken = 'ΕΓΚΡΙΝΩ AWIN TOKEN'
 $DbName = 'gear-world-awin'
 $WorkerName = 'gear-world-awin-sync'
 $SecretName = 'AWIN_TOKEN'
@@ -279,6 +284,63 @@ if ($Step -eq 'check') {
     Say '  Τα sites και οι βάσεις τους δεν αλλάζουν.'
     Say ''
     Say 'Αποτέλεσμα: ΕΝΤΑΞΕΙ (μόνο έλεγχος, δεν άλλαξε τίποτα)' 'Green'
+    Finish 0
+}
+
+# ================= token (replace AWIN_TOKEN only) =================
+if ($Step -eq 'token') {
+    Say ''
+    Say ('Πλάνο (φράση: {0}): αλλάζει ΜΟΝΟ το μυστικό {1} του Worker {2}.' -f $PhraseToken, $SecretName, $WorkerName)
+    Say '  Πριν αποθηκευτεί, το νέο κλειδί δοκιμάζεται με μία ανάγνωση στο Awin (λίστα λογαριασμών). Αν το Awin το αρνηθεί, δεν αλλάζει τίποτα.'
+    Say '  Ο κώδικας του Worker, η βάση gear-world-awin και τα sites ΔΕΝ αλλάζουν.'
+    Say '  Backup: το παλιό κλειδί το ακύρωσε το Awin (3/11/2026), οπότε δεν υπάρχει κάτι για να γυρίσουμε πίσω.'
+    Say ('  Επαναφορά (μόνο με έγκριση): npx wrangler secret delete {0} --name {1}, ή ξανά αυτό το βήμα με άλλο κλειδί.' -f $SecretName, $WorkerName)
+    if ($worker -ne 'yes') { Say ('Ο Worker {0} δεν βρέθηκε: πρώτα το βήμα apply. Δεν άλλαξε τίποτα.' -f $WorkerName) 'Red'; Finish 7 }
+    if (-not $Apply) { Say ''; Say ('Χωρίς -Apply δεν αλλάζει τίποτα. Για την αλλαγή: -Step token -Apply και η φράση {0}' -f $PhraseToken) 'Yellow'; Finish 0 }
+    if (-not (Confirm-Approval $PhraseToken)) { Say 'Δεν δόθηκε η σωστή φράση. Δεν άλλαξε τίποτα.' 'Yellow'; Finish 1 }
+    Say ''
+    Say 'Έγκριση: ΕΝΤΑΞΕΙ.' 'Green'
+    $plain = ''
+    if ($TokenEnv) {
+        $plain = [string][System.Environment]::GetEnvironmentVariable($TokenEnv)
+    } else {
+        Write-Host ''
+        Write-Host ('Από τη σελίδα {0}: αντέγραψε το νέο κλειδί.' -f $TokenPage) -ForegroundColor Yellow
+        $sec = Read-Host 'Επικόλλησε εδώ το κλειδί (δεν φαίνεται όσο το επικολλάς) και πάτα Enter' -AsSecureString
+        $bstr = [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($sec)
+        try { $plain = [System.Runtime.InteropServices.Marshal]::PtrToStringBSTR($bstr) } finally { [System.Runtime.InteropServices.Marshal]::ZeroFreeBSTR($bstr) }
+    }
+    $plain = ([string]$plain).Trim()
+    if ($plain) { $script:Secrets.Add($plain) }
+    if (-not $plain) { Say 'Δεν δόθηκε κλειδί. Δεν άλλαξε τίποτα.' 'Yellow'; Finish 8 }
+    if ($plain -match '\s' -or $plain.Length -lt 16 -or $plain.Length -gt 200) { Say 'Αυτό δεν μοιάζει με κλειδί του Awin (κενά ή λάθος μήκος). Δεν άλλαξε τίποτα.' 'Red'; Finish 8 }
+    # One read-only call to Awin with the new key (in the request header only).
+    $awinOk = $false
+    $awinNote = ''
+    if ($env:GW_TEST_AWIN_API) {
+        $awinOk = ($env:GW_TEST_AWIN_API -eq 'ok')
+        $awinNote = 'test'
+    } else {
+        try {
+            $resp = Invoke-RestMethod -UseBasicParsing -Method Get -Uri 'https://api.awin.com/accounts?type=publisher' -Headers @{ Authorization = ('Bearer ' + $plain) } -TimeoutSec 30
+            $count = @($resp.accounts).Count
+            $awinOk = $true
+            $awinNote = ('{0} λογαριασμός/οί publisher' -f $count)
+        } catch {
+            $code = 0
+            try { $code = [int]$_.Exception.Response.StatusCode } catch { }
+            $awinNote = ('απάντηση {0}' -f $code)
+        }
+    }
+    if (-not $awinOk) { Say ('Το Awin ΔΕΝ δέχτηκε το νέο κλειδί ({0}). Δεν άλλαξε τίποτα. Φτιάξε νέο κλειδί και ξανατρέξε.' -f $awinNote) 'Red'; Finish 10 }
+    Say ('Το Awin δέχτηκε το νέο κλειδί ({0}): ΕΝΤΑΞΕΙ' -f $awinNote) 'Green'
+    $s = Set-TokenSecret $deploy $plain
+    $plain = ''
+    if ($s.code -ne 0) { Say 'Το κλειδί δεν αποθηκεύτηκε στο Cloudflare. Το παλιό (ακυρωμένο) μένει. Στείλε στο Claude αυτό το μήνυμα.' 'Red'; foreach ($line in @($s.text -split "`n" | Select-Object -Last 8)) { Say ('  ' + $line) }; Finish 8 }
+    if ((Get-SecretState $deploy) -ne 'yes') { Say 'Το μυστικό δεν φαίνεται μετά την αλλαγή. Στείλε στο Claude αυτό το μήνυμα.' 'Red'; Finish 9 }
+    Say ('Νέο κλειδί: αποθηκεύτηκε ως {0} στον Worker {1} (δεν φαίνεται ποτέ ξανά).' -f $SecretName, $WorkerName) 'Green'
+    Say ''
+    Say 'Αποτέλεσμα: ΕΤΟΙΜΟ. Ο επόμενος συγχρονισμός γίνεται στο :23 της επόμενης ζυγής ώρας (π.χ. 20:23, 22:23).' 'Green'
     Finish 0
 }
 
