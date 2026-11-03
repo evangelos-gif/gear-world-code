@@ -31,9 +31,10 @@ function fakeD1(code, site) {
   return { sql, prepare: text => stmt(text), batch: async list => Promise.all(list.map(s => s.all())) };
 }
 
-test('one Google Ads account for the network, every Gear World domain in the linker, the label still empty', () => {
+test('one Google Ads account for the network, every Gear World domain in the linker, the same conversion label on the sites and the Hub', () => {
   assert.equal(GOOGLE_ADS_ID, 'AW-18554591090');
-  assert.match(OUTBOUND_LABEL, /^[A-Za-z0-9_-]*$/);
+  assert.equal(OUTBOUND_LABEL, 'Y2PgCP3X0bEdEPKuwo9F');
+  assert.match(readFileSync('sites/gwh/public/analytics.js', 'utf8'), /const ADS_LABEL = "Y2PgCP3X0bEdEPKuwo9F";/);
   assert.equal(codes.length, 13);
   for (const code of codes) {
     const site = readFileSync(`sites/${code}/site.config.js`, 'utf8').match(/^\s*domain: '([^']+)'/m)[1];
@@ -152,7 +153,7 @@ test('Hub: one choice for analytics and ads, Allow and Reject alike, ads only af
   assert.match(js, /ad_personalization: "denied"/);
   assert.doesNotMatch(js, /ad_personalization: "granted"/);
   assert.match(js, /if \(window\.gwhAdsLoaded === true && ADS_LABEL && LIVE\)/);
-  assert.match(index, /<script src="\/analytics\.js\?v=20261103-ads1"><\/script>/);
+  assert.match(index, /<script src="\/analytics\.js\?v=20261103-ads2"><\/script>/);
   assert.doesNotMatch(index, /class="secondary"\s*id="gwhAnalyticsReject"/);
   assert.doesNotMatch(index, /googletagmanager/);
   const cookies = readFileSync('sites/gwh/public/cookies/index.html', 'utf8');

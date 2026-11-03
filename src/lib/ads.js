@@ -8,8 +8,8 @@
 
 export const GOOGLE_ADS_ID = 'AW-18554591090';
 // The conversion label of the "outbound_click" conversion action (Google Ads > Goals > Conversions).
-// Empty: the click is not sent to Google Ads.
-export const OUTBOUND_LABEL = '';
+// Conversion action "Outbound click" (count: one, enhanced conversions off), created 3/11/2026. Empty: nothing is sent.
+export const OUTBOUND_LABEL = 'Y2PgCP3X0bEdEPKuwo9F';
 
 // Every Gear World domain: the Google tag passes the click id across them (cross-domain linker).
 export const GEAR_WORLD_DOMAINS = [

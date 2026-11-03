@@ -48,7 +48,7 @@ async function newPage(browser) {
     const headers = {};
     r.headers.forEach((v, k) => { if (!/^(content-encoding|content-length|transfer-encoding)$/i.test(k)) headers[k] = v; });
     let body = Buffer.from(await r.arrayBuffer());
-    if (/text\/html/.test(r.headers.get('content-type') || '')) body = Buffer.from(body.toString('utf8').replace(/data-label=""/, `data-label="${LABEL}"`));
+    if (/text\/html/.test(r.headers.get('content-type') || '')) body = Buffer.from(body.toString("utf8").replace(/data-label="[^"]*"/, `data-label="${LABEL}"`));
     return route.fulfill({ status: r.status, headers, body });
   });
   return { context, page, google, errors };
@@ -145,10 +145,10 @@ try {
     await context.close();
   }
 
-  // the real label is still empty: no conversion is sent from the real page
+  // the real page carries the label of the conversion "Outbound click"
   {
     const html = await (await fetch(`${local}/`)).text();
-    check(/<meta name="gw-ads" content="AW-18554591090" data-label="[A-Za-z0-9_-]*"/.test(html), 'the page has the Google Ads account and the label field');
+    check(/<meta name="gw-ads" content="AW-18554591090" data-label="Y2PgCP3X0bEdEPKuwo9F"/.test(html), 'the page has the Google Ads account and the conversion label of "Outbound click"');
   }
 } finally {
   await browser.close();

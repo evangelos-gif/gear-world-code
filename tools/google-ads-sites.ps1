@@ -1,13 +1,13 @@
 ﻿<#
 .SYNOPSIS
-  Google Ads tag on the 12 live sites (lessons L93): the cookie banner, the Google tag AW-18554591090 only after
+  Google Ads tag on the 13 live sites (lessons L93): the cookie banner, the Google tag AW-18554591090 only after
   "Allow" (consent mode v2), the conversion "outbound_click" on "View at" and discount-code clicks, and the campaign
   (utm_source / utm_campaign) passed to Awin. Read-only unless -Apply and the approval phrase.
 
 .DESCRIPTION
-  -Step check   READ-ONLY. The 12 site tools are there? Shows the plan.
-  -Step apply   CHANGES THE 12 LIVE SITES, one approval: ΕΓΚΡΙΝΩ GOOGLE ADS TAG. In this order:
-                  1. the 12 sites, each with its own update step and its usual checks (newer sites first). Each update
+  -Step check   READ-ONLY. The 13 site tools are there? Shows the plan.
+  -Step apply   CHANGES THE 13 LIVE SITES, one approval: ΕΓΚΡΙΝΩ GOOGLE ADS LABEL. In this order:
+                  1. the 13 sites, each with its own update step and its usual checks (newer sites first). Each update
                      publishes this version: consent.js, the banner, "Cookie settings", the new cookies and privacy
                      texts, the styles and the translations;
                   2. every home page has the banner and the Google Ads line, and no Google script in the page itself.
@@ -30,13 +30,15 @@ param(
 
 $ErrorActionPreference = 'Stop'
 $repo = Split-Path -Parent $PSScriptRoot
-$Phrase = 'ΕΓΚΡΙΝΩ GOOGLE ADS TAG'
+$Phrase = 'ΕΓΚΡΙΝΩ GOOGLE ADS LABEL'
+# The conversion label of "Outbound click" (src/lib/ads.js OUTBOUND_LABEL): every home page must carry it.
+$Label = 'Y2PgCP3X0bEdEPKuwo9F'
 if (-not $PcHome) { $PcHome = $HOME }
 if (-not $OutDir) { $OutDir = Join-Path $PcHome 'gear-world-reports' }
 if (-not $SiteToolDir) { $SiteToolDir = Join-Path $repo 'tools' }
 $stamp = Get-Date -Format 'yyyyMMdd_HHmmss'
 
-# The 12 live sites in the order of the update: the newer ones first, then the older ones.
+# The 13 live sites in the order of the update: the newer ones first (Pets, live since 1/11/2026, too), then the older ones.
 $Sites = @(
     @{ code = 'sgw'; tool = 'sgw-cloudflare'; domain = 'sportygearworld.com'; pc = 'sporty-gear-world' },
     @{ code = 'tgw'; tool = 'tgw-cloudflare'; domain = 'technologygearworld.com'; pc = 'technology-gear-world' },
@@ -44,6 +46,7 @@ $Sites = @(
     @{ code = 'vgw'; tool = 'vgw-cloudflare'; domain = 'travelgearworld.com'; pc = 'travel-gear-world' },
     @{ code = 'bgw'; tool = 'bgw-cloudflare'; domain = 'bikergearworld.com'; pc = 'biker-gear-world' },
     @{ code = 'pgw'; tool = 'pgw-cloudflare'; domain = 'gaminggearworld.com'; pc = 'gaming-gear-world' },
+    @{ code = 'zgw'; tool = 'zgw-cloudflare'; domain = 'petsgearworld.com'; pc = 'pets-gear-world' },
     @{ code = 'cgw'; tool = 'cgw-engine'; domain = 'constructiongearworld.com'; pc = '' },
     @{ code = 'mgw'; tool = 'mgw-engine'; domain = 'mensgearworld.com'; pc = '' },
     @{ code = 'wgw'; tool = 'wgw-engine'; domain = 'womensgearworld.com'; pc = '' },
@@ -106,7 +109,7 @@ function Test-Ads([string]$domain) {
         $wc.Headers.Add('User-Agent', 'GearWorldQA-bot/1.0 (+read-only check)')
         $wc.Encoding = [System.Text.Encoding]::UTF8
         try { $html = $wc.DownloadString(('https://{0}/?gwcheck={1}' -f $domain, $stamp)) } finally { $wc.Dispose() }
-        return (($html -match '<meta name="gw-ads" content="AW-18554591090"') -and ($html -match 'data-consent hidden') -and -not ($html -match 'googletagmanager'))
+        return (($html -match ('<meta name="gw-ads" content="AW-18554591090" data-label="' + $Label + '"')) -and ($html -match 'data-consent hidden') -and -not ($html -match 'googletagmanager'))
     } catch { return $false }
 }
 
@@ -121,13 +124,13 @@ if (-not (Get-Command node -ErrorAction SilentlyContinue)) { Say 'Δεν βρέ�
 $problems = 0
 $missingTools = @($Sites | Where-Object { -not (Test-Path -LiteralPath (Join-Path $SiteToolDir ($_.tool + '.ps1'))) } | ForEach-Object { $_.tool })
 if ($missingTools.Count -gt 0) { Say ('Εργαλεία sites που λείπουν: {0}' -f ($missingTools -join ', ')) 'Yellow'; $problems++ }
-else { Say 'Τα 12 εργαλεία των sites: υπάρχουν' }
+else { Say ('Τα {0} εργαλεία των sites: υπάρχουν' -f $Sites.Count) }
 
 if ($Step -eq 'check') {
     Say ''
     Say ('Πλάνο του apply (φράση: {0}):' -f $Phrase)
-    Say ('  1. τα 12 sites, το καθένα με το δικό του update: {0}' -f (($Sites | ForEach-Object { $_.code.ToUpper() }) -join ', '))
-    Say '     (banner για cookies, Google Ads μόνο μετά το «Allow», «Cookie settings», νέα κείμενα cookies/privacy)'
+    Say ('  1. τα 13 sites, το καθένα με το δικό του update: {0}' -f (($Sites | ForEach-Object { $_.code.ToUpper() }) -join ', '))
+    Say ('     (banner για cookies, Google Ads μόνο μετά το «Allow», «Cookie settings», η μετατροπή «Outbound click» με label {0})' -f $Label)
     Say '  2. έλεγχος ότι κάθε αρχική σελίδα έχει το banner και καμία κλήση στη Google πριν το «Allow»'
     Say '  Οι βάσεις των sites και οι ρυθμίσεις τους στον υπολογιστή δεν αλλάζουν.'
     Say ''
@@ -143,7 +146,7 @@ if (-not (Confirm-Approval $Phrase)) { Say 'Δεν δόθηκε η σωστή φ
 Say ''
 Say 'Έγκριση: ΕΝΤΑΞΕΙ.' 'Green'
 
-# 1. the 12 sites, one by one
+# 1. the 13 sites, one by one
 $done = New-Object System.Collections.Generic.List[string]
 foreach ($s in $Sites) {
     $tool = Join-Path $SiteToolDir ($s.tool + '.ps1')
@@ -168,7 +171,7 @@ if (-not $NoHttpCheck) {
     $noAds = @()
     foreach ($s in $Sites) { if (-not (Test-Ads $s.domain)) { $noAds += $s.domain } }
     if ($noAds.Count -gt 0) { Say ('2. Το banner δεν φαίνεται ακόμα σε: {0} (η cache κρατάει έως λίγα λεπτά· στείλε στο Claude αυτή την αναφορά)' -f ($noAds -join ', ')) 'Yellow' }
-    else { Say '2. Και οι 12 αρχικές σελίδες έχουν το banner και καμία κλήση στη Google πριν το «Allow»: ΕΝΤΑΞΕΙ' 'Green' }
+    else { Say ('2. Και οι 13 αρχικές σελίδες έχουν το banner, το label {0} και καμία κλήση στη Google πριν το «Allow»: ΕΝΤΑΞΕΙ' -f $Label) 'Green' }
 }
 Say ''
 Say ('Ανέβηκαν: {0}' -f ($done -join ', '))

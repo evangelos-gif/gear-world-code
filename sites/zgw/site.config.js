@@ -15,7 +15,7 @@ export default {
   lang: 'en-GB',
   locale: 'en-GB',
   currency: 'GBP',
-  assetVersion: '2026-11-03-zgw-ads-1',
+  assetVersion: '2026-11-03-zgw-ads-2',
   promos: promosFor('ZGW'),
   awinPublisherId: AWIN_PUBLISHER_ID,
   storagePrefix: 'zgw',

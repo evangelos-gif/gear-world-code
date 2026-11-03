@@ -5,7 +5,7 @@
   // Google Ads (lessons L93): loaded only after "Allow", like Google Analytics. Remarketing stays off.
   const ADS_ID = "AW-18554591090";
   // The label of the "outbound_click" conversion (Google Ads > Goals > Conversions). Empty: nothing is sent.
-  const ADS_LABEL = "";
+  const ADS_LABEL = "Y2PgCP3X0bEdEPKuwo9F";
   const SITE_DOMAINS = [
     "constructiongearworld.com", "mensgearworld.com", "womensgearworld.com", "kidsgearworld.com",
     "homegearworld.com", "gardengearworld.com", "sportygearworld.com", "technologygearworld.com",
