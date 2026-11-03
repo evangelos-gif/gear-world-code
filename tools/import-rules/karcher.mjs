@@ -64,7 +64,11 @@ export function classify({ name, feedCategory = '', url = '' }) {
   const cat = String(feedCategory || '');
   if (PROFESSIONAL.test(cat) || PROFESSIONAL.test(String(url || ''))) return { reject: 'professional range (for businesses)' };
   if (NOT_A_PRODUCT.test(n)) return { reject: 'spare part, service or gift card' };
-  const garden = /home & garden > (watering|garden|pumps|high-pressure|pressure washers|outdoor|sweepers)|watering|garden power tools|pumps/i.test(cat);
+  // The shop's garden and outdoor sections (first dry run, 3 Nov 2026: pressure washer guns, lances, brushes and the
+  // 18 V batteries sat in "Consumer Outdoor", "Retail Battery Platform", "Portable Cleaner", "Mobile Cleaning").
+  const garden = /home & garden > (watering|garden|pumps|high-pressure|pressure washers|outdoor|sweepers|consumer outdoor|retail battery|portable clean|mobile clean)|watering|garden power tools|pumps|consumer outdoor|pipe cleaning/i.test(cat);
+  // Every path says "Home & Garden": only the rest of it tells home from garden.
+  const place = cat.replace(/home\s*&\s*garden/ig, ' ');
   // Garden first: pressure washers and watering are the GGW products; "hose" also appears on vacuum cleaners.
   if (PRESSURE.test(n) || /high-pressure|pressure washer|outdoor (mobile )?clean|sweeper/i.test(cat)) return G('Power Garden Tools', 'Outdoor Power Tools');
   if (REEL.test(n) && !/suction/i.test(n)) return G('Watering & Irrigation', 'Hose Reels & Storage');
@@ -81,6 +85,7 @@ export function classify({ name, feedCategory = '', url = '' }) {
   if (BLOWER.test(n)) return G('Power Garden Tools', 'Garden Blowers');
   if (CHAINSAW.test(n)) return G('Power Garden Tools', 'Chainsaws & Accessories');
   if (BATTERY.test(n) && garden) return G('Power Garden Tools', 'Outdoor Power Tools');
+  if (garden && /consumer outdoor|retail battery|portable clean|mobile clean|pipe cleaning/i.test(cat)) return G('Power Garden Tools', 'Outdoor Power Tools');
   // Home.
   if (AIR.test(n) || /air purif/i.test(cat)) return H('Home Appliances', 'Air Purifier');
   if (STEAM.test(n) || /steam clean/i.test(cat)) return H('Cleaning & Laundry', 'Steam Cleaner');
@@ -88,7 +93,7 @@ export function classify({ name, feedCategory = '', url = '' }) {
   if (WINDOW.test(n) || /window/i.test(cat)) return H('Cleaning & Laundry', 'Cleaning Products');
   if (VACUUM.test(n) || /vacuum|carpet|spot clean/i.test(cat)) return H('Home Appliances', 'Vacuum Cleaner');
   if (FLOOR.test(n) || /hard floor|floor clean/i.test(cat)) return H('Cleaning & Laundry', 'Mop');
-  if (/cleaning agents/i.test(cat) || DETERGENT.test(n)) return /garden|outdoor|patio|stone|wood|vehicle|car /i.test(n + ' ' + cat)
+  if (/cleaning agents/i.test(cat) || DETERGENT.test(n)) return /garden|outdoor|patio|vehicle|car |high pressure|pressure washer/i.test(n + ' ' + place) && !/floor|parquet|textile|carpet|upholster|window|glass/i.test(n + ' ' + place)
     ? G('Power Garden Tools', 'Outdoor Power Tools', true) : H('Cleaning & Laundry', 'Cleaning Products');
   if (garden) return G('Power Garden Tools', 'Outdoor Power Tools', true);
   return { reject: 'not sure what it is (no cleaning, garden or watering word)' };

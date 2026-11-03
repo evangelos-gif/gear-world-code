@@ -1150,7 +1150,7 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
       "const feed=zlib.gzipSync('aw_product_id,product_name,merchant_deep_link,search_price\n1,A Jacket,https://www.coes.co.uk/products/a,10\n2,B Shirt,https://www.coes.co.uk/products/b,20\n');" +
       "http.createServer((q,s)=>{if(!q.url.includes('/apikey/'+key+'/')&&!q.url.endsWith('/apikey/'+key)){s.writeHead(403);return s.end('bad key')}" +
       "if(q.url.startsWith('/datafeed/list/')){s.writeHead(200,{'Content-Type':'text/csv'});return s.end(list)}" +
-      "if(q.url.includes('/fid/116078/')&&q.url.includes('columns/')){s.writeHead(200,{'Content-Type':'application/x-gzip'});return s.end(feed)}" +
+      "if(q.url.includes('/fid/116078/')&&q.url.includes('columns/')&&q.url.includes('merchant_product_category_path')){s.writeHead(200,{'Content-Type':'application/x-gzip'});return s.end(feed)}" +
       "s.writeHead(404);s.end('no')}).listen(8799,'127.0.0.1');")
     $node = (Get-Command node).Source
     $proc = Start-Process -FilePath $node -ArgumentList @($srv, $fdKey) -PassThru -WindowStyle Hidden

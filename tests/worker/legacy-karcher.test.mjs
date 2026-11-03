@@ -33,3 +33,13 @@ test('L89: retailer name without the umlaut; CJ shop', () => {
   assert.match(RULES.retailer, /^[\x20-\x7e]+$/);
   assert.ok(RULES.shop.test('https://www.karcher.com/gb/en/home-and-garden/products/primoflexr-hose-1-2-20-m-p26451380?utm_content=feed'));
 });
+
+test('L89, first dry run: outdoor accessories and batteries to GGW, floor care to HGW', () => {
+  assert.equal(place('Kärcher G 180 Q gun', 'Accessories > Home & Garden > Consumer Outdoor > Trigger guns'), 'ggw Power Garden Tools/Outdoor Power Tools');
+  assert.equal(place('Kärcher WB 7 Plus', 'Accessories > Home & Garden > Consumer Outdoor > Brushes'), 'ggw Power Garden Tools/Outdoor Power Tools');
+  assert.equal(place('Kärcher Battery Power 18/50', 'Accessories > Home & Garden > Retail Battery Platform > Batteries'), 'ggw Power Garden Tools/Outdoor Power Tools');
+  assert.equal(place('Kärcher PC 15', 'Accessories > Home & Garden > Consumer Outdoor > Pipe Cleaning'), 'ggw Power Garden Tools/Outdoor Power Tools');
+  assert.equal(place('Kärcher Floor care waxed parquet/parquet with oil-wax finish', 'Cleaning Agents > Home & Garden > Floor Polisher > Floor care'), 'hgw Cleaning & Laundry/Cleaning Products');
+  assert.equal(place('Kärcher Textile Surface Protector', 'Cleaning Agents > Home & Garden > Spray extraction cleaners > Textile care'), 'hgw Cleaning & Laundry/Cleaning Products');
+  assert.equal(place('Kärcher Car Shampoo 3-in-1 RM 610, 1l', 'Cleaning Agents > Home & Garden > High pressure washers'), 'ggw Power Garden Tools/Outdoor Power Tools');
+});
