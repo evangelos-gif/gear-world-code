@@ -22,7 +22,9 @@ $from = [datetime]::ParseExact($Since, 'yyyyMMddHHmmss', [System.Globalization.C
 $files = @()
 if (Test-Path -LiteralPath $OutDir) {
     $top = @(Get-ChildItem -LiteralPath $OutDir -File -Filter '*.txt' | Where-Object { $_.LastWriteTime -ge $from -and $_.Name -notlike 'REPORTS_*' })
-    $plans = @(Get-ChildItem -LiteralPath $OutDir -Directory -Filter 'IMPORT_PLAN_*' | ForEach-Object { Get-Item -LiteralPath (Join-Path $_.FullName 'report.txt') -ErrorAction SilentlyContinue } | Where-Object { $_ -and $_.LastWriteTime -ge $from })
+    # Plan and sample folders of the same paste: IMPORT_PLAN_*, AGW/VGW/SGW/TGW_IMPORT_PLAN_*, AWIN_FEED_SAMPLE_* (3 Nov 2026: the
+    # feed sample and the AGW plan were missing from one paste). REFRESH_PLAN_* folders stay out (their report is the top file).
+    $plans = @(Get-ChildItem -LiteralPath $OutDir -Directory | Where-Object { $_.Name -like '*IMPORT_PLAN_*' -or $_.Name -like 'AWIN_FEED_SAMPLE_*' } | ForEach-Object { Get-Item -LiteralPath (Join-Path $_.FullName 'report.txt') -ErrorAction SilentlyContinue } | Where-Object { $_ -and $_.LastWriteTime -ge $from })
     $all = @($top) + @($plans)
     $files = @($all | Sort-Object LastWriteTime, FullName)
 }
