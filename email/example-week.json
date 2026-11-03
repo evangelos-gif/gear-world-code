@@ -1,0 +1,111 @@
+{
+ "slug": "deals-2026-11-05",
+ "checked": "3 Nov 2026",
+ "preheader": "Price drops on travel, car and bike gear, plus Bonfire Night and early gift ideas.",
+ "headline": "Bonfire Night, cosy evenings and the first gift ideas",
+ "intro": "Our picks from across the Gear Worlds this week, with every price checked on our sites.",
+ "items": [
+  {
+   "section": "drop",
+   "site": "Travel Gear World",
+   "name": "Joules Cabin Spinner Suitcase, Boat Club",
+   "note": "Cabin size, four spinner wheels.",
+   "url": "https://travelgearworld.com/product/joules-cabin-trolley-spinner-suitcase-boat-club-natural-blue-814720-5060388017163-1468/",
+   "image": "https://cdn.shopify.com/s/files/1/0925/7615/3981/files/joules-cabin-trolley-spinner-suitcase-boat-club-natural-blue-814720-5060388017163-67087022621053.jpg?v=1775633676",
+   "price": 67.6,
+   "was_price": 169,
+   "retailer": "Case Luggage"
+  },
+  {
+   "section": "drop",
+   "site": "Car Gear World",
+   "name": "Draper Battery Booster Jump Leads",
+   "note": "Worth keeping in the boot before the cold mornings.",
+   "url": "https://cargearworld.com/product/draper-battery-booster-cable-jump-leads-2439/",
+   "image": "https://www.tooled-up.com/artwork/prodzoom/06073_ELJL16.jpg",
+   "price": 11.99,
+   "was_price": 52.13,
+   "retailer": "Tooled Up"
+  },
+  {
+   "section": "drop",
+   "site": "Biker Gear World",
+   "name": "Sealey Motorcycle Portable Fuel Tank",
+   "note": "For track days and long rides.",
+   "url": "https://bikergearworld.com/product/sealey-motorcycle-portable-fuel-tank-75/",
+   "image": "https://www.tooled-up.com/artwork/prodzoom/sealey_MS029.V3_DFC1680047.jpg",
+   "price": 30.95,
+   "was_price": 50.34,
+   "retailer": "Tooled Up"
+  },
+  {
+   "section": "pick",
+   "site": "Garden Gear World",
+   "name": "VonHaus 2-in-1 Fire Pit with BBQ Grill",
+   "note": "A fire pit and a grill in one, for Bonfire Night in the garden.",
+   "url": "https://gardengearworld.com/product/vonhaus-fire-pit-2-in-1-with-bbq-cooking-grill-3902/",
+   "image": "https://images1.joy-sourcing.com/da/s800x800_jfsintlpro-000-product/t1/4294967296/7602176/62073701122558/1529991/6a7eecd5E785f8339/42b10752b5083d5e.png",
+   "price": 54.99,
+   "was_price": null,
+   "retailer": "Joybuy UK"
+  },
+  {
+   "section": "pick",
+   "site": "Construction Gear World",
+   "name": "Sealey Rechargeable Auto-Sensor LED Head Torch",
+   "note": "Hands-free light for dark evenings in the shed or under the car.",
+   "url": "https://constructiongearworld.com/product/sealey-rechargeable-auto-sensor-led-head-torch-black-red-66325/",
+   "image": "https://www.tooled-up.com/artwork/prodzoom/sealey_HT102R.V2_DFC0148671.jpg",
+   "price": 16.95,
+   "was_price": null,
+   "retailer": "Tooled Up"
+  },
+  {
+   "section": "pick",
+   "site": "Kids' Gear World",
+   "name": "LEGO Friends Advent Calendar 2026 (42698)",
+   "note": "24 doors of LEGO, ready for 1 December.",
+   "url": "https://kidsgearworld.com/product/lego-friends-42698-advent-calendar-2026-building-toy-set-for-kids-with-mini-builds-surprises-386-pieces-4982/",
+   "image": "https://images1.joy-sourcing.com/da/s800x800_jfsintlpro-000-product/t1/4294967296/2293760/610983601162735/351280/6a833406E8c74f52c/42b10752b5083d5e.jpg",
+   "price": 18.39,
+   "was_price": null,
+   "retailer": "Joybuy"
+  },
+  {
+   "section": "pick",
+   "site": "Technology Gear World",
+   "name": "BOYA BY-V20 Wireless USB-C Microphone",
+   "note": "Two clip-on mics for clear video on your phone.",
+   "url": "https://technologygearworld.com/product/boya-by-v20-v2-0-usb-c-wireless-microphone-for-iphone-16-17-android-with-one-click-noise-c-1695/",
+   "image": "https://images1.joy-sourcing.com/da/s800x800_jfsintlpro-000-product/t1/4294967296/5832704/6109817250431/124734/690423c4Ea5aa4f29/42b10752b5083d5e.jpg",
+   "price": 38,
+   "was_price": null,
+   "retailer": "Joybuy"
+  },
+  {
+   "section": "pick",
+   "site": "Gaming Gear World",
+   "name": "Razer Kraken Kitty V2 BT Wireless Headset",
+   "note": "Wireless gaming headset with the kitty ears.",
+   "url": "https://gaminggearworld.com/product/razer-kraken-kitty-v2-bt-wireless-gaming-headset-with-kitty-ears-pink-253/",
+   "image": "https://images1.joy-sourcing.com/da/s800x800_jfsintlpro-000-product/t1/4294967296/7340032/6109817194096/348661/6aaf452fE254c947e/42b10752b5083d5e.png",
+   "price": 79.99,
+   "was_price": null,
+   "retailer": "Joybuy"
+  }
+ ],
+ "codes": [
+  {
+   "title": "£4 off orders of £20+",
+   "code": "HALLOWEEN",
+   "retailer": "Joybuy",
+   "ends": "31 Dec 2026"
+  },
+  {
+   "title": "5% off your first order",
+   "code": "GSW5",
+   "retailer": "GS Workwear",
+   "ends": "31 Dec 2027"
+  }
+ ]
+}
