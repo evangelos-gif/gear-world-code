@@ -4508,6 +4508,48 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
     }
 }
 
+# 17. awin-offers.ps1 (Gear World email: every Awin offer of the joined programmes, read-only) from a saved API answer
+Write-Host 'awin-offers.ps1 (saved API answer)'
+$oTool = Join-Path (Join-Path $repo 'tools') 'awin-offers.ps1'
+$oOut = Join-Path $work 'offers-out'
+$oItems = @(
+    '{"promotionId":101,"type":"voucher","advertiser":{"id":28807,"name":"SGS Engineering","joined":true},"title":"20% Off RK40 Power Tools","description":"Enjoy 20% off RK40 products using the code POWER20","terms":"Terms","startDate":"2026-11-02T00:00:00.000","endDate":"2099-12-08T23:59:00.000","url":"https://www.sgs-engineering.com/rk40","urlTracking":"https://www.awin1.com/cread.php?awinmid=28807&awinaffid=3057233&ued=rk40","regions":{"all":false,"list":[{"name":"United Kingdom","countryCode":"GB"}]},"voucher":{"code":"POWER20","exclusive":false,"attributable":true}}',
+    '{"promotionId":102,"type":"promotion","advertiser":{"id":28807,"name":"SGS Engineering","joined":true},"title":"Black Friday Deals Now Live!","description":"Save 10% on all SGS products and up to 25% on top brands","terms":"","startDate":"2026-11-02T00:00:00.000","endDate":"2099-11-30T23:59:00.000","url":"https://www.sgs-engineering.com/black-friday","urlTracking":"https://www.awin1.com/cread.php?awinmid=28807&awinaffid=3057233&ued=bf","regions":{"all":false,"list":[{"name":"United Kingdom","countryCode":"GB"}]}}',
+    '{"promotionId":103,"type":"promotion","advertiser":{"id":118000,"name":"GamingKit","joined":true},"title":"Explore SanDisk Ultra USB flash drive 32 GB at GamingKit","description":"Explore SanDisk Ultra USB flash drive at GamingKit. Review the linked product listing for specifications.","startDate":"2026-10-22T00:00:00.000","endDate":"2099-10-21T23:59:00.000","url":"https://www.gamingkit.co.uk/sandisk","urlTracking":"https://www.awin1.com/cread.php?awinmid=118000&ued=sandisk","regions":{"all":false,"list":[{"name":"United Kingdom","countryCode":"GB"}]}}',
+    '{"promotionId":104,"type":"promotion","advertiser":{"id":5,"name":"Old Shop","joined":true},"title":"Expired Summer Sale 50% off","description":"","startDate":"2020-01-01T00:00:00.000","endDate":"2020-02-01T23:59:00.000","url":"https://example.com/old","regions":{"all":true}}',
+    '{"promotionId":101,"type":"voucher","advertiser":{"id":28807,"name":"SGS Engineering","joined":true},"title":"20% Off RK40 Power Tools","description":"duplicate","startDate":"2026-11-02T00:00:00.000","endDate":"2099-12-08T23:59:00.000","url":"https://www.sgs-engineering.com/rk40","regions":{"all":true},"voucher":{"code":"POWER20"}}',
+    '{"promotionId":105,"type":"promotion","advertiser":{"id":119000,"name":"PCHUB.UK","joined":true},"title":"Free Eco Delivery - UK Mainland","description":"Free Eco Delivery is available for eligible UK-mainland deliveries","startDate":"2026-10-22T00:00:00.000","endDate":null,"url":"https://www.pchub.uk/delivery","regions":{"all":true}}',
+    '{"promotionId":106,"type":"promotion","advertiser":{"id":123932,"name":"Joybuy UK","joined":true},"title":"Singles Day","description":"£30 off £199 / £5 off £49","startDate":"2099-11-10T00:00:00.000","endDate":"2099-11-11T23:59:00.000","url":"https://www.joybuy.co.uk/singles-day","regions":{"all":true}}'
+)
+$oFileObj = Join-Path $work 'offers-data.json'
+$oFileArr = Join-Path $work 'offers-array.json'
+Write-Utf8 $oFileObj ('{"data":[' + ($oItems -join ',') + ']}')
+Write-Utf8 $oFileArr ('[' + ($oItems -join ',') + ']')
+function Run-O([string[]]$a) {
+    $all = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $oTool, '-OutDir', $oOut, '-NoClipboard') + $a
+    & $exe @all | Out-Null
+    return $LASTEXITCODE
+}
+function OLast([string]$filter) {
+    $f = @(Get-ChildItem -LiteralPath $oOut -Filter $filter -ErrorAction SilentlyContinue | Sort-Object LastWriteTime, Name | Select-Object -Last 1)
+    if ($f.Count -eq 0) { return '' }
+    return [System.IO.File]::ReadAllText($f[0].FullName)
+}
+Check ((Run-O @('-FromFile', $oFileObj)) -eq 0) 'awin offers: exit 0 on a saved answer with "data"'
+$r = OLast 'AWIN_OFFERS_*.txt'
+Check ($r.Contains('ΚΩΔΙΚΟΣ POWER20') -and $r.Contains('Black Friday Deals Now Live!') -and $r.Contains('Free Eco Delivery') -and $r.Contains('Singles Day')) 'awin offers: codes, sales, free delivery and upcoming offers in the summary'
+Check ($r.Contains('ΧΩΡΙΣ ΛΗΞΗ') -and $r.Contains('ΕΡΧΕΤΑΙ') -and $r.Contains('2099-12-08')) 'awin offers: offers without an end date and upcoming ones are marked'
+Check ($r.Contains('Πραγματικές προσφορές (κωδικός ή έκπτωση): 4') -and $r.Contains('Σύνολο: 5 προσφορές')) 'awin offers: duplicates and expired offers left out, product listings not counted as offers'
+Check (-not $r.Contains('Explore SanDisk') -and -not $r.Contains('Expired Summer Sale')) 'awin offers: "Explore ..." listings and expired offers are not in the summary'
+Check (-not $r.Contains('cread.php') -and -not $r.Contains('awin1.com')) 'awin offers: no Awin tracking link in the summary'
+$c = OLast 'AWIN_OFFERS_*.csv'
+Check ($c.Contains('Explore SanDisk') -and $c.Contains('POWER20') -and -not $c.Contains('cread.php') -and -not $c.Contains('Expired Summer Sale')) 'awin offers: the CSV has every valid offer, never a tracking link or an expired offer'
+Check ((Run-O @('-FromFile', $oFileArr)) -eq 0 -and (OLast 'AWIN_OFFERS_*.txt').Contains('Πραγματικές προσφορές (κωδικός ή έκπτωση): 4')) 'awin offers: a plain JSON array gives the same result'
+$env:GW_TEST_AWIN_OFFERS = 'not a token value'
+Check ((Run-O @('-TokenEnv', 'GW_TEST_AWIN_OFFERS')) -eq 8) 'awin offers: a token with spaces is refused before any request (exit 8)'
+Check (-not (OLast 'AWIN_OFFERS_*.txt').Contains('not a token value')) 'awin offers: the token never reaches the report'
+Remove-Item Env:\GW_TEST_AWIN_OFFERS -ErrorAction SilentlyContinue
+
 Remove-Item -LiteralPath $work -Recurse -Force -ErrorAction SilentlyContinue
 
 Write-Host ''
