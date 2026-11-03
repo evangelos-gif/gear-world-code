@@ -24,3 +24,10 @@ test('L90: the card name is the part before the selling line', () => {
   assert.equal(RULES.advertiserId, 31711);
   assert.ok(RULES.shop.test('https://www.meaco.com/products/meaco-dd8l-dehumidifier?variant=1&country=GB'));
 });
+
+test('L90, first dry run: the shop test products stay out, a fan sold with its bag goes in', () => {
+  assert.equal(place('Dummy Sub Test (DO NOT PUBLISH PEASE), Alcohol', 'Dehumidifiers, Air Purifiers'), 'out');
+  assert.equal(place('Dummy PDP Dev Test, Black / Small'), 'out');
+  assert.equal(place('MeacoFan Sefte® 10" Pedestal Air Circulator with Storage Bag'), 'Home Appliances/Fan');
+  assert.equal(place('MeacoFan Sefte® 6 Air Circulator Storage Bag', 'Filters, Spares'), 'out');
+});

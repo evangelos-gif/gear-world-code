@@ -47,7 +47,11 @@ export function classify({ name, feedCategory = '' }) {
     if (HUMID.test(n)) return H('Humidifier');
     return H('Dehumidifier');
   }
-  if (SPARE.test(n) || /^spares$/i.test(cat.trim())) return { reject: 'spare part, bracket or storage bag sold alone' };
+  // The shop's own test products ("Dummy Sub Test (DO NOT PUBLISH PEASE)", first dry run 3 Nov 2026).
+  if (/\bdummy\b|do not publish|\btest product\b|dev test/i.test(n)) return { reject: 'test product of the shop' };
+  // "MeacoFan Sefte 10\" Pedestal Air Circulator with Storage Bag" is the fan with a bag; a bag alone stays out.
+  const withBag = /\bwith storage bag\b/i.test(n) && FAN.test(n.replace(/\bwith storage bag\b/ig, ' '));
+  if (!withBag && (SPARE.test(n) || /^spares$/i.test(cat.trim()))) return { reject: 'spare part, bracket or storage bag sold alone' };
   if (AIRCON.test(n)) return H('Air Conditioner');
   if (DEHUM.test(n)) return H('Dehumidifier');
   if (HUMID.test(n)) return H('Humidifier');
