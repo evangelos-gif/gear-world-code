@@ -51,6 +51,8 @@ jobs:
         run: node tools/layout-check.mjs http://127.0.0.1:8787 --lang de-DE --currency RUB --shots layout-shots-de --out layout-report-de.txt
       - name: Every page translated in all 10 languages (lessons L24)
         run: node tools/i18n-check.mjs http://127.0.0.1:8787 --site sites/tgw --out i18n-report.txt
+      - name: Cookie banner and Google Ads only after Allow (lessons L93, real browser)
+        run: node tools/ads-consent-check.mjs http://127.0.0.1:8787 --site sites/tgw --out ads-report.txt
       - name: Keep the reports and screenshots
         if: always()
         uses: actions/upload-artifact@v4
@@ -63,6 +65,7 @@ jobs:
             layout-report-de.txt
             layout-shots-de/
             i18n-report.txt
+            ads-report.txt
             dev.log
           if-no-files-found: ignore
 

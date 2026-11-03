@@ -12,6 +12,7 @@ import { exchangeRates } from './lib/fx.js';
 import { translationsFor } from './lib/hub.js';
 import { offersIndexPage, retailerOffersPage, OFFERS_PATH } from './pages/offers.js';
 import { findPromo } from './lib/promos.js';
+import { campaignRefs } from './lib/ads.js';
 import { infoPage, infoPaths, notFoundPage, errorPage, dealUpdatesPage } from './pages/info.js';
 import { useSiteAssets, useRates } from './pages/layout.js';
 import { sitemapIndex, sitemapStatic, sitemapProducts, robotsTxt, SITEMAP_CHUNK } from './seo.js';
@@ -245,7 +246,8 @@ export function createWorker(site) {
     if (!product) return redirect('/', 302);
     // clickref lets the Awin reports show which site and product produced a click or sale (lessons L15).
     const clickRef = `${site.code.toLowerCase()}-${id}`;
-    const target = affiliateTarget(product.affiliate_url, product.retailer, site.awin, clickRef);
+    // utm_campaign / utm_source of the visit (lessons L93) go to Awin as clickref2 / clickref3: clicks and sales per campaign.
+    const target = affiliateTarget(product.affiliate_url, product.retailer, site.awin, clickRef, campaignRefs(url));
     if (!target) return redirect('/', 302);
     // CLICK_LOG = "off" on a preview Worker that shares a live database: test clicks are not recorded.
     if (request.method === 'GET' && !isBot(request) && env.CLICK_LOG !== 'off') {
@@ -279,7 +281,7 @@ export function createWorker(site) {
     if (!promo) return notFound(url.pathname, request.method);
     const clickRef = `${site.code.toLowerCase()}-promo-${promo.id}`.slice(0, 50);
     const awin = { publisherId: site.awinPublisherId, advertisers: { [promo.retailer]: promo.awinMid } };
-    const target = affiliateTarget(promo.url, promo.retailer, awin, clickRef);
+    const target = affiliateTarget(promo.url, promo.retailer, awin, clickRef, campaignRefs(url));
     if (!target) return redirect(OFFERS_PATH, 302);
     if (request.method === 'GET' && !isBot(request) && env.CLICK_LOG !== 'off') {
       let pagePath = '';
@@ -470,13 +472,19 @@ export function createWorker(site) {
 // so for a retailer we have an Awin programme with it becomes an Awin deep link (lessons L29):
 //   https://www.awin1.com/cread.php?awinmid=<advertiser>&awinaffid=<publisher>&clickref=<ref>&ued=<address>
 // awin = { publisherId, advertisers: { 'Retailer name': advertiserId } } from the site config.
-export function affiliateTarget(address, retailer, awin, clickRef) {
+// extra = { clickref2, clickref3 }: the campaign of the visit (lessons L93), only on an Awin link, never over a value
+// the link already has. A plain retailer address gets nothing added.
+export function affiliateTarget(address, retailer, awin, clickRef, extra = {}) {
+  const addExtra = t => {
+    for (const k of ['clickref2', 'clickref3']) if (extra && extra[k] && !t.searchParams.has(k)) t.searchParams.set(k, extra[k]);
+    return t;
+  };
   let target;
   try { target = new URL(String(address || '')); } catch { return null; }
   if (target.protocol !== 'https:' && target.protocol !== 'http:') return null;
   if (/(^|\.)awin1\.com$/i.test(target.hostname)) {
     if (!target.searchParams.has('clickref')) target.searchParams.set('clickref', clickRef);
-    return target;
+    return addExtra(target);
   }
   const mid = awin && awin.advertisers ? Number(awin.advertisers[String(retailer || '')]) : 0;
   const aff = awin ? Number(awin.publisherId) : 0;
@@ -485,6 +493,7 @@ export function affiliateTarget(address, retailer, awin, clickRef) {
   deep.searchParams.set('awinmid', String(mid));
   deep.searchParams.set('awinaffid', String(aff));
   deep.searchParams.set('clickref', clickRef);
+  addExtra(deep);
   deep.searchParams.set('ued', target.toString());
   return deep;
 }

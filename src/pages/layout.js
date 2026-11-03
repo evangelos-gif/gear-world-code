@@ -4,6 +4,7 @@ import { productPath, categoryPath, formatPrice, savingPercent } from '../lib/te
 import { promoBarHtml } from './offers.js';
 import { activePromos } from '../lib/promos.js';
 import { deliveryCountries, COUNTRY_NAMES, FLAGS, WORLDWIDE } from '../lib/delivery.js';
+import { GOOGLE_ADS_ID, OUTBOUND_LABEL, GEAR_WORLD_DOMAINS } from '../lib/ads.js';
 
 // Files under /assets/ are cached for a year, so every link to them carries ?v=<assetVersion> (lessons L31).
 // Without it, a phone kept an old icons.svg that had no cart icon, and the cart button showed empty.
@@ -152,6 +153,7 @@ ${next ? html`<link rel="next" href="${absolute(site, next)}">` : ''}
 <link rel="preload" href="/assets/fonts/barlow-sc-700.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="${asset(site, 'site.css')}">
 <script src="${asset(site, 'site.js')}" defer></script>
+${adsHead(site)}
 ${site.cloudflareAnalyticsToken ? html`<script defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon="${JSON.stringify({ token: site.cloudflareAnalyticsToken })}"></script>` : ''}
 ${schema.map(s => jsonLd(s))}
 </head>
@@ -162,9 +164,33 @@ ${header(site, currentCategory, searchValue)}
 ${body}
 </main>
 ${footer(site, year, path)}
+${consentBanner(site)}
 </body>
 </html>`;
   return toString(doc);
+}
+
+// Google Ads (lessons L93). Only our own script is in the page: consent.js loads the Google tag (gtag.js) once, and only
+// after the visitor selects "Allow" in the banner. Before that nothing goes to Google. site.googleAds: false turns it off.
+function adsHead(site) {
+  if (site.googleAds === false) return '';
+  return html`<meta name="gw-ads" content="${GOOGLE_ADS_ID}" data-label="${OUTBOUND_LABEL}" data-domain="${site.domain}" data-linker="${GEAR_WORLD_DOMAINS.join(' ')}">
+<script src="${asset(site, 'consent.js')}" defer></script>`;
+}
+
+// The cookie banner: hidden until consent.js shows it (no choice saved yet). "Allow" and "Reject" look the same
+// (UK GDPR: saying no is as easy as saying yes). "Cookie settings" in the footer opens it again.
+function consentBanner(site) {
+  if (site.googleAds === false) return '';
+  return html`<section class="consent" data-consent hidden aria-label="Cookies">
+  <div class="wrap consent-row">
+    <p class="consent-text">We would like to use Google cookies to see which of our ads bring visitors to this site. They are set only if you allow them, and you can change your choice at any time. <a href="/cookies/">More about cookies</a></p>
+    <div class="consent-buttons">
+      <button type="button" class="consent-btn" data-consent-choice="granted">Allow</button>
+      <button type="button" class="consent-btn" data-consent-choice="denied">Reject</button>
+    </div>
+  </div>
+</section>`;
 }
 
 // Language and currency pickers: shown by the site script, because they need it to work.
@@ -266,6 +292,7 @@ ${dealUpdates(site, path)}
         <li><a href="/contact/">Contact</a></li>
         <li><a href="/privacy/">Privacy policy</a></li>
         <li><a href="/cookies/">Cookies</a></li>
+        ${site.googleAds === false ? '' : html`<li><button type="button" class="consent-open" data-consent-open hidden>Cookie settings</button></li>`}
         <li><a href="/terms/">Terms of use</a></li>
       </ul>
     </section>

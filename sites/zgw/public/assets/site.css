@@ -564,6 +564,19 @@ body.has-compare-bar { padding-bottom: 76px; }
 .du-hp { position: absolute; left: -10000px; width: 1px; height: 1px; overflow: hidden; }
 @media (max-width: 480px) { .deal-form { grid-template-columns: 1fr; } }
 
+/* Cookie banner and "Cookie settings" (lessons L93): Allow and Reject look exactly the same. */
+.consent { position: fixed; left: 0; right: 0; bottom: 0; z-index: 50; background: var(--deep); color: #fff; border-top: 3px solid var(--gold); box-shadow: 0 -4px 16px rgba(0, 0, 0, .25); }
+.consent[hidden] { display: none; }
+.consent-row { display: grid; gap: 12px; padding-top: 14px; padding-bottom: 14px; align-items: center; }
+@media (min-width: 800px) { .consent-row { grid-template-columns: 1fr auto; } }
+.consent-text { margin: 0; font-size: .95rem; line-height: 1.45; color: #fff; }
+.consent-text a { color: #fff; text-decoration: underline; }
+.consent-buttons { display: flex; gap: 10px; }
+.consent-btn { flex: 1 1 0; min-width: 110px; padding: 11px 16px; border: 2px solid var(--gold); border-radius: var(--radius); background: var(--gold); color: var(--deep); font: inherit; font-weight: 700; cursor: pointer; }
+.consent-btn:focus-visible, .consent-text a:focus-visible { outline: 3px solid #fff; outline-offset: 2px; }
+.consent-open { display: inline-flex; align-items: center; min-height: 40px; padding: 0; border: 0; background: none; color: inherit; font: inherit; text-decoration: underline; cursor: pointer; }
+.consent-open[hidden] { display: none; }
+
 /* ZGW only (site.config.js extraCss) */
 .flag { display: inline-block; width: 18px; height: 12px; margin-left: 6px; vertical-align: -1px; border-radius: 2px; box-shadow: 0 0 0 1px rgba(0, 0, 0, .15); }
 .fx-base { display: inline-block; margin-left: 6px; font-family: var(--font-body); font-weight: 600; font-size: .85rem; color: var(--ink-2); white-space: nowrap; }

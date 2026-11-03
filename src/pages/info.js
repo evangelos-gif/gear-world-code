@@ -14,7 +14,7 @@ function contactLink(site) {
   return site.contactEmail ? html`<a href="mailto:${site.contactEmail}">${site.contactEmail}</a>` : PLACEHOLDER;
 }
 
-const UPDATED = '19 October 2026';
+const UPDATED = '3 November 2026';
 
 const PAGES = {
   // About, money and contact pages are translated (lessons L24): whole sentences only, no link in the middle of
@@ -70,7 +70,7 @@ const PAGES = {
 <p>The data controller is ${operator(site)}. Contact: ${contactLink(site)}.</p>
 <h2>What we collect</h2>
 <ul>
-<li><strong>Clicks to retailers.</strong> When you select a "View at" button we record the product, the retailer, the page you were on, the date and your country as reported by our hosting provider. We do not record your IP address or anything that identifies you. We use this to understand which products are useful (legitimate interests).</li>
+<li><strong>Clicks to retailers.</strong> When you select a "View at" button we record the product, the retailer, the page you were on, the date and your country as reported by our hosting provider. We do not record your IP address or anything that identifies you. We use this to understand which products are useful (legitimate interests). If you came to this site from one of our ads or campaign links, the campaign name and source of that link (utm_campaign, utm_source) go with the click to Awin, so we can see which campaigns are useful. They do not identify you.</li>
 ${site.dealUpdates ? html`<li><strong>Deal updates.</strong> If you sign up with the "Get deal updates" form, we keep your email address, the site you signed up on, the date and the consent you gave. The list is shared by the Gear World sites and kept by Gear World Hub (gearworldhub.com), and the emails are sent for us by MailerLite (our email service provider). We use it only to send deal and new-site emails (consent). Every email has an unsubscribe link, and you can also ask us by email to delete your address.</li>
 <li><strong>Abuse protection.</strong> To stop automated abuse of the form we keep a one-way scrambled (hashed) form of your IP address for up to one hour (legitimate interests).</li>` : html`<li><strong>Newsletter.</strong> If you sign up, we keep your email address, the date and the consent text you agreed to. We use it only to send the newsletter (consent). You can withdraw consent at any time by emailing us, and we will delete your address.</li>
 <li><strong>Abuse protection.</strong> To stop automated abuse of forms we keep a one-way scrambled (hashed) form of your IP address for up to one hour, and the form uses Cloudflare Turnstile (legitimate interests).</li>`}
@@ -79,13 +79,13 @@ ${site.voiceSearch ? html`<li><strong>Voice search.</strong> If you press the mi
 ${site.cart || (site.languages || []).length > 1 ? html`<li><strong>Choices kept on your device.</strong> Your browser remembers your language, currency, compare list${site.cart ? ` and ${site.cart.name}` : ''} in its local storage. This stays on your device and is not sent to us. You can clear it in your browser settings.</li>` : ''}
 </ul>
 <h2>Cookies and tracking</h2>
-<p>We do not use advertising or tracking cookies. See the <a href="/cookies/">cookies page</a> for details.</p>
+${site.googleAds === false ? html`<p>We do not use advertising or tracking cookies. See the <a href="/cookies/">cookies page</a> for details.</p>` : html`<p>Only if you select "Allow" in the cookie banner, we use Google Ads (Google Ireland Limited) to measure which of our ads bring visitors and which visits lead to a click to a retailer. Google then sets its cookies on this site and receives details of your visit, such as the page, a click on a "View at" button, the ad click identifier and your IP address. We do not use Google for personalised advertising (remarketing). Legal basis: your consent. You can change your choice at any time with "Cookie settings" at the bottom of every page. The <a href="https://policies.google.com/privacy">Google privacy policy</a> applies to the data Google receives. If you select "Reject", or make no choice, nothing is sent to Google. See the <a href="/cookies/">cookies page</a> for details.</p>`}
 <h2>When you go to a retailer</h2>
 <p>Retailer links go through Awin. Awin and the retailer may set their own cookies to record that you came from this site. Their privacy policies apply on their websites, for example the <a href="https://www.awin.com/gb/privacy">Awin privacy policy</a>.</p>
 <h2>Sharing and transfers</h2>
-<p>We do not sell personal data. Our service providers (Cloudflare${site.dealUpdates ? ' and MailerLite' : ''}) may process data outside the UK with appropriate safeguards.</p>
+<p>We do not sell personal data. Our service providers (Cloudflare${site.dealUpdates ? ', MailerLite' : ''}${site.googleAds === false ? '' : ' and, only after you allow it, Google'}) may process data outside the UK with appropriate safeguards.</p>
 <h2>How long we keep data</h2>
-<p>Click records: up to 26 months. ${site.dealUpdates ? 'Deal updates' : 'Newsletter'}: until you unsubscribe. Abuse protection: up to one hour.</p>
+<p>Click records: up to 26 months. ${site.dealUpdates ? 'Deal updates' : 'Newsletter'}: until you unsubscribe. Abuse protection: up to one hour.${site.googleAds === false ? '' : ' Google Ads cookies: up to 90 days, or until you select "Reject".'}</p>
 <h2>Your rights</h2>
 <p>You can ask for access to, correction or deletion of your data, ask us to restrict or stop using it, and ask for a copy. Email ${contactLink(site)}. You can also complain to the Information Commissioner's Office at <a href="https://ico.org.uk/">ico.org.uk</a>.</p>`
   }),
@@ -96,11 +96,13 @@ ${site.cart || (site.languages || []).length > 1 ? html`<li><strong>Choices kept
     description: `Which cookies ${site.name} uses.`,
     content: html`
 <p>Last updated: ${UPDATED}</p>
-<p>${site.name} does not set advertising, analytics or tracking cookies, so there is no cookie banner.</p>
+${site.googleAds === false ? html`<p>${site.name} does not set advertising, analytics or tracking cookies, so there is no cookie banner.</p>` : html`<p>${site.name} sets advertising cookies only if you select "Allow" in the cookie banner. Until then, and if you select "Reject", no request goes to Google and no Google cookie is set. You can change your choice at any time with "Cookie settings" at the bottom of every page.</p>
+<h2>Optional: Google Ads (only after "Allow")</h2>
+<p>The Google tag measures which of our ads bring visitors and when a visit leads to a click on a "View at" button or a discount code. It does not show you personalised ads (remarketing is off). Cookies: <code>_gcl_au</code>, and <code>_gcl_aw</code> or similar <code>_gcl_</code> cookies when you came from a Google ad, each kept up to 90 days. Selecting "Reject" later removes them from this site. The <a href="https://policies.google.com/privacy">Google privacy policy</a> applies.</p>`}
 <h2>Strictly necessary</h2>
 <p>Our hosting provider Cloudflare may set short-lived security cookies to protect the site from bots. ${site.dealUpdates ? '' : 'If you use the newsletter form, Cloudflare Turnstile checks that you are a person. '}These are needed for the site to work safely and do not track you across sites.</p>
 <h2>Saved on your device</h2>
-<p>Your browser's local storage keeps your language, currency, compare list${site.cart ? ` and ${site.cart.name}` : ''}, so they are still there on your next visit. This information is not a cookie, is not sent to us and is not used for tracking. Clearing your browser data removes it.</p>
+<p>Your browser's local storage keeps your language, currency, compare list${site.cart ? ` and ${site.cart.name}` : ''}${site.googleAds === false ? '' : ' and your cookie choice'}, so they are still there on your next visit. This information is not a cookie, is not sent to us and is not used for tracking. Clearing your browser data removes it.${site.googleAds === false ? '' : ' Only after "Allow", the campaign name of the link you arrived from (utm_campaign, utm_source) is kept in this browser tab until you close it, so a later click to a retailer still counts for that campaign.'}</p>
 <h2>After you leave this site</h2>
 <p>When you select a "View at" button, Awin and the retailer may set cookies on their own websites to record the referral. You can manage those in your browser settings.</p>`
   }),

@@ -2,14 +2,15 @@
 
 const CSP = [
   "default-src 'self'",
-  "script-src 'self' https://challenges.cloudflare.com https://static.cloudflareinsights.com",
+  // Google Ads (lessons L93): these addresses are only reached after the visitor allows cookies in the banner.
+  "script-src 'self' https://challenges.cloudflare.com https://static.cloudflareinsights.com https://www.googletagmanager.com https://www.googleadservices.com https://googleads.g.doubleclick.net https://www.google.com",
   "style-src 'self'",
   "img-src 'self' data: https:",
   // The seasonal banner videos come from the Hub (one copy for all 11 sites, src/lib/seasons.js).
   "media-src 'self' https://gearworldhub.com",
   "font-src 'self'",
-  "connect-src 'self' https://cloudflareinsights.com",
-  'frame-src https://challenges.cloudflare.com',
+  "connect-src 'self' https://cloudflareinsights.com https://www.googletagmanager.com https://www.google.com https://google.com https://googleads.g.doubleclick.net https://www.googleadservices.com",
+  'frame-src https://challenges.cloudflare.com https://td.doubleclick.net https://www.googletagmanager.com',
   "form-action 'self'",
   "base-uri 'none'",
   "frame-ancestors 'self'",

@@ -28,6 +28,8 @@ export async function themedFiles(siteCode) {
   const files = {
     'site.css': css,
     'site.js': readFileSync(join(REF, 'site.js'), 'utf8'),
+    // The cookie banner and Google Ads (lessons L93).
+    'consent.js': readFileSync(join(REF, 'consent.js'), 'utf8'),
     'icons.svg': readFileSync(join(REF, 'icons.svg'), 'utf8')
   };
   for (const f of readdirSync(join(REF, 'fonts'))) files[`fonts/${f}`] = readFileSync(join(REF, 'fonts', f));

@@ -4523,6 +4523,61 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
     }
 }
 
+# 20. google-ads-sites.ps1 (Google Ads tag on the 12 sites, lessons L93) with fake site tools (Windows only)
+if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
+    Write-Host 'google-ads-sites.ps1 (fake site tools)'
+    $gTool = Join-Path (Join-Path $repo 'tools') 'google-ads-sites.ps1'
+    $gHome = Join-Path $work 'gas-home'
+    $gState = Join-Path $work 'gas-state'
+    $gTools = Join-Path $work 'gas-tools'
+    $gOut = Join-Path $gHome 'gear-world-reports'
+    New-Item -ItemType Directory -Path $gState, $gTools -Force | Out-Null
+    $gFake = @(
+        'param([string]$Step, [switch]$Apply, [string]$Approve, [string]$OutDir, [switch]$NoClipboard)',
+        '$name = [System.IO.Path]::GetFileNameWithoutExtension($PSCommandPath)',
+        'Add-Content -LiteralPath (Join-Path $env:GW_FAKE_STATE ''sites.log'') -Value (''{0} {1} {2} {3}'' -f $name, $Step, [bool]$Apply, $Approve)',
+        'if (-not (Test-Path -LiteralPath $OutDir)) { New-Item -ItemType Directory -Path $OutDir -Force | Out-Null }',
+        'Set-Content -LiteralPath (Join-Path $OutDir ($name + ''-fake-report.txt'')) -Value (''fake report of '' + $name)',
+        'if (Test-Path -LiteralPath (Join-Path $env:GW_FAKE_STATE (''fail-'' + $name + ''.flag''))) { exit 9 }',
+        'exit 0'
+    ) -join "`r`n"
+    $gNames = @('sgw-cloudflare', 'tgw-cloudflare', 'agw-cloudflare', 'vgw-cloudflare', 'bgw-cloudflare', 'pgw-cloudflare', 'cgw-engine', 'mgw-engine', 'wgw-engine', 'kgw-engine', 'hgw-engine', 'ggw-engine')
+    foreach ($t in $gNames) { [System.IO.File]::WriteAllText((Join-Path $gTools ($t + '.ps1')), $gFake + "`r`n", [System.Text.Encoding]::ASCII) }
+    $env:GW_FAKE_STATE = $gState
+    $gSites = Join-Path $gState 'sites.log'
+    function Run-G([string[]]$a) {
+        $all = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $gTool, '-PcHome', $gHome, '-SiteToolDir', $gTools, '-NoClipboard', '-NoHttpCheck') + $a
+        & $exe @all | Out-Null
+        return $LASTEXITCODE
+    }
+    function GText([string]$p) { if (Test-Path -LiteralPath $p) { return [System.IO.File]::ReadAllText($p) } else { return '' } }
+    function GLast([string]$filter) {
+        $f = @(Get-ChildItem -LiteralPath $gOut -Filter $filter -ErrorAction SilentlyContinue | Sort-Object LastWriteTime, Name | Select-Object -Last 1)
+        if ($f.Count -eq 0) { return '' }
+        return [System.IO.File]::ReadAllText($f[0].FullName)
+    }
+    try {
+        Check ((Run-G @('-Step', 'check')) -eq 0 -and -not (Test-Path -LiteralPath $gSites)) 'google ads check: exit 0, no site touched'
+        $r = GLast 'GOOGLE_ADS_CHECK_*.txt'
+        Check ($r.Contains('ΕΓΚΡΙΝΩ GOOGLE ADS TAG') -and $r.Contains('SGW, TGW, AGW, VGW, BGW, PGW, CGW, MGW, WGW, KGW, HGW, GGW')) 'google ads check: the phrase and the 12 sites in the plan'
+        Check ((Run-G @('-Step', 'apply')) -eq 0 -and -not (Test-Path -LiteralPath $gSites)) 'google ads apply without -Apply: nothing changes'
+        Check ((Run-G @('-Step', 'apply', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ DEAL UPDATES')) -eq 1 -and -not (Test-Path -LiteralPath $gSites)) 'google ads apply with the wrong phrase: nothing changes'
+        Write-Utf8 (Join-Path $gState 'fail-mgw-engine.flag') 'fail'
+        Check ((Run-G @('-Step', 'apply', '-Apply', '-Approve', 'egkrino google ads tag')) -eq 12) 'google ads apply: a failing site stops the run (exit 12)'
+        $s = GText $gSites
+        Check ($s.Contains('mgw-engine update True EGKRINO MGW UPDATE') -and -not $s.Contains('wgw-engine') -and (GLast 'GOOGLE_ADS_APPLY_*.txt').Contains('fake report of mgw-engine')) 'google ads apply: after the failing site, no other site; its report is quoted'
+        Remove-Item -LiteralPath (Join-Path $gState 'fail-mgw-engine.flag') -Force
+        Remove-Item -LiteralPath $gSites -Force
+        Check ((Run-G @('-Step', 'apply', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ GOOGLE ADS TAG')) -eq 0) 'google ads apply with approval: exit 0'
+        $lines = @((GText $gSites) -split "`r?`n" | Where-Object { $_ })
+        Check ((($lines | ForEach-Object { ($_ -split ' ')[0] }) -join ',') -eq ($gNames -join ',')) 'google ads apply: the 12 sites in order, newer ones first'
+        Check (@($lines | Where-Object { $_ -notmatch ' update True EGKRINO [A-Z]{3} UPDATE$' }).Count -eq 0) 'google ads apply: every site with its own update step and phrase'
+        Check ((GLast 'GOOGLE_ADS_APPLY_*.txt').Contains('ΕΤΟΙΜΟ')) 'google ads apply: report ready'
+    } finally {
+        Remove-Item Env:\GW_FAKE_STATE -ErrorAction SilentlyContinue
+    }
+}
+
 Remove-Item -LiteralPath $work -Recurse -Force -ErrorAction SilentlyContinue
 
 Write-Host ''

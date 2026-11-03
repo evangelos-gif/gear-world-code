@@ -149,7 +149,7 @@ try {
     for (const locale of LOCALES) {
       const context = await browser.newContext({ viewport: { width: vp.width, height: vp.height }, isMobile: vp.isMobile, hasTouch: vp.hasTouch, deviceScaleFactor: vp.deviceScaleFactor });
       await context.addInitScript(([l]) => {
-        try { localStorage.setItem('gwh-language', l); localStorage.setItem('gwh_analytics_consent', 'denied'); } catch (_) { /* ignore */ }
+        try { localStorage.setItem('gwh-language', l); localStorage.setItem('gwh_cookie_consent', 'denied'); } catch (_) { /* ignore */ }
       }, [locale]);
       const page = await context.newPage();
       const errors = [];

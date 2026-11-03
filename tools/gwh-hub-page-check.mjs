@@ -76,7 +76,7 @@ const viewports = [
 async function openPage(browser, vp, locale, { day = '2026-11-28', consent = 'denied' } = {}) {
   const context = await browser.newContext({ viewport: { width: vp.width, height: vp.height }, isMobile: vp.isMobile, hasTouch: vp.hasTouch, deviceScaleFactor: vp.deviceScaleFactor });
   await context.addInitScript(([l, c]) => {
-    try { localStorage.setItem('gwh-language', l); if (c) localStorage.setItem('gwh_analytics_consent', c); else localStorage.removeItem('gwh_analytics_consent'); } catch (_) { /* ignore */ }
+    try { localStorage.setItem('gwh-language', l); if (c) localStorage.setItem('gwh_cookie_consent', c); else localStorage.removeItem('gwh_cookie_consent'); } catch (_) { /* ignore */ }
   }, [locale, consent]);
   const page = await context.newPage();
   await page.clock.setFixedTime(new Date(`${day}T12:00:00Z`));
@@ -280,7 +280,7 @@ try {
   ]) {
     const tag = `banner ${day} ${vp.name}${opts.reducedMotion ? ' reduce motion' : ''}`;
     const context = await browser.newContext({ viewport: { width: vp.width, height: vp.height }, isMobile: vp.isMobile, hasTouch: vp.hasTouch, deviceScaleFactor: 1, ...opts });
-    await context.addInitScript(() => { try { localStorage.setItem('gwh-language', 'en-GB'); localStorage.setItem('gwh_analytics_consent', 'denied'); } catch (_) { /* ignore */ } });
+    await context.addInitScript(() => { try { localStorage.setItem('gwh-language', 'en-GB'); localStorage.setItem('gwh_cookie_consent', 'denied'); } catch (_) { /* ignore */ } });
     const page = await context.newPage();
     const errors = [];
     page.on('pageerror', e => errors.push(String(e.message || e)));
