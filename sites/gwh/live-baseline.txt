@@ -1,5 +1,5 @@
 # Gear World Hub: the files that run live now, with their sha256.
-# version: Hub V2 + Pets card + email to MailerLite + Get deal updates of the sites + Google Ads after consent (commit 1fec033, live since 03/11/2026 23:11, tools/gwh-hub-v2.ps1; D1 migrations 0002 and 0003, cron */10)
+# version: Hub V2 + Pets card + email to MailerLite + Get deal updates of the sites + Google Ads after consent with its label (commit 5080797, live since 04/11/2026 00:11, tools/gwh-hub-v2.ps1; D1 migrations 0002 and 0003, cron */10)
 # Checked against the PC (C:\Users\vagge\gear-world-hub) and gearworldhub.com by tools/gwh-hub-v2.ps1 (earlier gwh-photo.ps1, gwh-search-labels.ps1),
 # so a deploy never undoes a change made somewhere else. Update this file after every live deploy of the Hub.
 # Earlier: Hub V2 + Pets card + email to MailerLite (d407dcc, 02/11/2026 21:53); Hub V2 + Pets card (64d31a8, 02/11/2026 05:59); Hub SEO texts + Christmas video from 1 November (changed on the PC 1/11/2026 by another chat, on top of a71f234); Hub V2 + Biker and Gaming cards (a71f234, 31/10/2026 22:35); Hub V2 + Biker card (070b362, 31/10/2026 11:58); Hub V2 "Combination" (ece23dc, 27/10/2026 22:14); poster scans (22a7e42, 27/10/2026 21:50); search labels (b3b86f7, 26/10/2026 19:40); photo search v2 + Sport card (SGW, gwh-sgw-link.ps1, checked 26/10/2026 16:22); photo search v2 (2c7ac37, 25/10/2026 09:54); photo search v1 (fc44f6f, 24/10/2026 17:19); before the photo search: commit d1c300d (24/10/2026).
@@ -9,7 +9,7 @@ poster-scan.js | 4467 | 4263d662787de1e5b98f838c6ba6b6b903517b6b94e29de370082e3e
 mailerlite.js | 12136 | 479ff961eebecb0cd2c57a71f61d94cb253377b0e3f47eaa9e42e3cf5180d9c0 | file
 members.js | 4850 | c2174041baf09aa79056fe678c1afa43f2dffdd9e7274ca391109d6d7056c5e1 | file
 public/affiliate-disclosure/index.html | 2324 | 58a68e2ac849dcfdf32aa849f5ef82f557d152398251c206aa3af2e506edc05d | file
-public/analytics.js | 13621 | 8a283360f9116a7507d6206288c75e0d935fad47f32003771fcedc4579b878a9 | file
+public/analytics.js | 13641 | ba57b531b1a67b1ff880ecdbd2896edab62ba914ff6161c1570e8faf0c97dfdd | file
 public/app.js | 10487 | b4da4e9697ee18f1ad4c44ab1c76ec5593eeb2a3921903295d7ed4c3852bb260 | file
 public/contact/index.html | 1895 | 811e09cfa582cfdd4bbd181085db3882e6230e11301893938218a9ddefece72b | file
 public/cookies/index.html | 4400 | d5369e76303de7ebaee5b2903f6959a9f0fb6ee3403414e9df2ab6750c46a73c | file
@@ -34,7 +34,7 @@ public/hub-v2.js | 77876 | 29cb051fb5ca1098c16a2495d07ceede70e28649e35914ae98d0a
 public/hub-vgw.jpg | 53044 | 959862755e58d5a2094db9c921b16e5deb811cc327f55a490f6acd21be80ef1d | file
 public/hub-wgw.jpg | 47732 | 867493c5961736b0865948677d8e272052a9691193ce5c48a05a74d788666ee1 | file
 public/hub-zgw.jpg | 47026 | 0b8a6da39104a4f01c15286c298c8ed37a21c7768b7af715c03d11990d4511c0 | file
-public/index.html | 21365 | 3040d55a563886e2ef909fa8100fbdadb456f9a04c1e4a00bbfcdaa2abb90ec7 | file
+public/index.html | 21365 | 389657ff980dcbd7e37df209ecc7797f88cc01eeb8ceb52d83b51c2995ce1ec7 | file
 public/legal/legal.css | 2807 | b648bfa528c28771eb1b2533ec40d5a914f02faac98141dc331accaedf036e7e | file
 public/legal/legal.js | 1672 | 7e28c23aca008777d846d658fc4f94acb8705ddeccb6da9a4b31be476173e762 | file
 public/privacy/index.html | 9055 | d979fd96964b68a257bef211691e95e0d52a0f5292dd6debe8ef8e43f1b3ef78 | file
