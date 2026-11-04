@@ -190,6 +190,13 @@ export async function searchAll(query: string): Promise<SearchResult> {
   return parseSearch(await fetchJson<HubSearchResponse>(`${HUB_URL}/api/search?q=${encodeURIComponent(q)}`, {}, 20000));
 }
 
+// ---------- Deals: the Hub's list of retailer offers (new deals appear without a new app version) ----------
+
+/** The Hub's deals file as it came; `parseDeals` (seasons.ts) checks it. */
+export async function getDealsData(): Promise<unknown> {
+  return fetchJson<unknown>(`${HUB_URL}/hub-deals.json`, { headers: { 'Cache-Control': 'no-cache' } });
+}
+
 // ---------- Photo search: the Hub names the product in a photo (the same endpoint as the Hub's camera button) ----------
 
 /**

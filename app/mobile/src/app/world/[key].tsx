@@ -5,6 +5,7 @@ import { FlatList, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ProductCard } from '@/components/product-card';
+import { ImageShade } from '@/components/image-shade';
 import { SearchBox } from '@/components/search-box';
 import { Button, Chip, ErrorBox, Loading, TopBar, Txt } from '@/components/ui';
 import { useI18n } from '@/i18n';
@@ -77,7 +78,7 @@ export default function WorldScreen() {
     <View style={s.header}>
       <View style={s.hero}>
         <Image source={{ uri: worldImage(world.key) }} style={StyleSheet.absoluteFill} contentFit="cover" />
-        <View style={s.shade} />
+        <ImageShade />
         <View style={s.heroText}>
           <Txt v="eyebrow">{world.name}</Txt>
           <Txt v="title">{title}</Txt>
@@ -139,7 +140,6 @@ const s = StyleSheet.create({
   list: { paddingHorizontal: S.lg, paddingBottom: S.xxl, gap: S.md, width: '100%', maxWidth: MAX_WIDTH, alignSelf: 'center' },
   header: { gap: S.md, paddingTop: S.lg, paddingBottom: S.sm },
   hero: { minHeight: 190, borderRadius: R.lg, overflow: 'hidden', backgroundColor: C.cardHigh },
-  shade: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(3,10,31,0.6)' },
   heroText: { flex: 1, justifyContent: 'flex-end', padding: S.lg, gap: S.xs },
   group: { gap: S.sm },
   chips: { gap: S.sm, paddingVertical: S.xs },

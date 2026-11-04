@@ -11,6 +11,9 @@ import {
   parsePhotoAnswer, photoErrorMessage, shrinkSize, base64ToBytes, isJpeg, searchPlan, isBrand, mergeResults, photoResults,
   orderByBest, countByWorld, photoWords, encodePhotoParam, decodePhotoParam, PHOTO_MAX_BYTES
 } from '../src/lib/photo.ts';
+import {
+  ukDay, blackFridayDay, heroSlides, countdownParts, seasonFor, parseDeals, activeDeals, campaignLabel, CAMPAIGNS, FALLBACK_CAMPAIGN, seasonsOf
+} from '../src/lib/seasons.ts';
 
 const HUB = JSON.parse(readFileSync(new URL('../src/i18n/hub-strings.json', import.meta.url), 'utf8'));
 // The world order the Hub uses for its titles and descriptions (src/lib/worlds-meta.ts, read as text).
@@ -251,4 +254,61 @@ test('photo: best Gear World first, words shown, and the screen address is check
   assert.equal(decodePhotoParam(''), null);
   assert.equal(decodePhotoParam('{not json'), null);
   assert.equal(decodePhotoParam(undefined), null);
+});
+
+
+const SEASON = JSON.parse(readFileSync(new URL('../src/i18n/season-strings.json', import.meta.url), 'utf8'));
+
+test('seasons: UK days, Black Friday and the slides of each period, like the Hub', () => {
+  assert.equal(ukDay(Date.parse('2026-11-04T23:30:00Z')), '2026-11-04', 'November is GMT');
+  assert.equal(ukDay(Date.parse('2026-07-01T23:30:00Z')), '2026-07-02', 'summer is BST (+1 h)');
+  assert.equal(ukDay(Date.parse('2026-10-25T00:30:00Z')), '2026-10-25');
+  assert.equal(ukDay(Date.parse('2026-03-29T23:30:00Z')), '2026-03-30', 'BST starts on the last Sunday of March');
+  assert.equal(blackFridayDay(2026), 27);
+  assert.equal(blackFridayDay(2027), 26);
+  const ids = (iso: string) => heroSlides(Date.parse(iso)).map(x => x.id);
+  assert.deepEqual(ids('2026-11-04T12:00:00Z'), ['season-christmas']);
+  assert.deepEqual(ids('2026-11-15T12:00:00Z'), ['season-christmas', 'black-friday-soon'], 'from 13/11 the Black Friday countdown slide, no offers promised');
+  assert.deepEqual(ids('2026-11-28T12:00:00Z'), ['season-black-friday', 'christmas']);
+  assert.deepEqual(ids('2026-12-27T12:00:00Z'), ['winter-sales']);
+  assert.deepEqual(ids('2027-03-10T12:00:00Z'), ['all-worlds'], 'outside every season: the "13 Gear Worlds" slide');
+  const bf = seasonFor('2026-11-28')!;
+  assert.deepEqual(countdownParts(bf, Date.parse('2026-11-28T00:00:00Z')), { d: 2, h: 23, m: 59 });
+  assert.equal(countdownParts(bf, Date.parse('2026-12-01T00:00:00Z')), null, 'no countdown once it is over');
+  assert.equal(countdownParts(seasonFor('2026-11-04')!, Date.now()), null, 'Christmas has no countdown');
+});
+
+test('seasons: every campaign text exists in all 11 languages, with the same placeholders', () => {
+  const keys = new Set<string>();
+  for (const c of [...CAMPAIGNS, FALLBACK_CAMPAIGN]) [c.eyebrow, c.title, c.text, c.cta].forEach(k => keys.add(k));
+  for (const s2 of seasonsOf(2026)) [s2.name, s2.title].forEach(k => keys.add(k));
+  for (const k of ['countdown', 'countdownHours', 'bfCta', 'soonCta', 'allCta', 'prev', 'next', 'slideAria', 'seasonAria', 'navDeals',
+    'dealsTitle', 'dealsSub', 'dealCode', 'dealCodeNoMin', 'dealUpTo', 'dealWithCode', 'dealSale', 'dealUntil', 'dealCta']) keys.add(k);
+  for (const l of LOCALES) {
+    for (const k of keys) {
+      const v = SEASON[l.code]?.[k];
+      assert.ok(typeof v === 'string' && v.trim(), `${l.code}.${k}`);
+      assert.deepEqual((v.match(/\{\w+\}/g) ?? []).sort(), (SEASON['en-GB'][k].match(/\{\w+\}/g) ?? []).sort(), `${l.code}.${k} placeholders`);
+    }
+  }
+  for (const c of CAMPAIGNS) assert.ok(!/gift/i.test(SEASON['en-GB'][c.cta]), `${c.id}: no gift-finder button (the app has none yet)`);
+});
+
+test('deals: only checked site links, only running deals, codes first, old season names hidden', () => {
+  const raw = { deals: [
+    { id: 'a', retailer: 'Joybuy', kind: 'code', campaign: 'Halloween', currency: 'GBP', sites: ['TGW', 'mgw', 'x'], start: '2026-10-20', end: '2026-12-31', link: 'https://technologygearworld.com/discount-codes/joybuy/', off: 5, minSpend: 30 },
+    { id: 'b', retailer: 'Joybuy', kind: 'code', campaign: '', currency: 'GBP', sites: ['TGW'], start: '2026-10-20', end: '2026-12-31', link: 'https://technologygearworld.com/discount-codes/joybuy/', off: 4, minSpend: 20 },
+    { id: 'c', retailer: 'SGS', kind: 'sale', campaign: 'Black Friday', currency: 'GBP', sites: ['CGW'], start: '2026-11-02', end: '2026-11-30', link: 'https://constructiongearworld.com/discount-codes/sgs/', upTo: 25 },
+    { id: 'd', retailer: 'Old', kind: 'code', start: '2026-09-01', end: '2026-10-01', link: 'https://cgw.example.com/discount-codes/old/', off: 3 },
+    { id: 'e', retailer: 'Bad', kind: 'code', start: '2026-10-01', end: '2026-12-31', link: 'https://constructiongearworld.com/go/123', off: 3 },
+    { id: 'f', retailer: 'Zero', kind: 'sale', start: '2026-10-01', end: '2026-12-31', link: 'https://constructiongearworld.com/discount-codes/zero/', upTo: 0 }
+  ] };
+  const deals = parseDeals(raw);
+  assert.deepEqual(deals.map(d => d.id), ['a', 'b', 'c', 'd', 'f'], 'a /go/ link is never taken');
+  assert.deepEqual(deals[0].sites, ['TGW', 'MGW']);
+  assert.deepEqual(activeDeals(deals, '2026-11-04').map(d => d.id), ['b', 'a', 'c'], 'codes by smaller minimum spend, then sales; old and empty deals out');
+  assert.equal(campaignLabel(deals[0], '2026-11-04'), '', 'Halloween is over: the name is not shown, the code still runs');
+  assert.equal(campaignLabel(deals[2], '2026-11-04'), 'Black Friday');
+  assert.deepEqual(parseDeals(null), []);
+  assert.deepEqual(parseDeals({ deals: 'x' }), []);
 });

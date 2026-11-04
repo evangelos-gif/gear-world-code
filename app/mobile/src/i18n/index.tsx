@@ -5,17 +5,20 @@ import { createContext, useContext, useEffect, useMemo, useState, type ReactNode
 import { APP_STRINGS, type AppKey } from './app-strings';
 import { DEFAULT_LOCALE, fill, isLocale, lookup, pickLocale, type Dict, type LocaleCode } from './core';
 import HUB from './hub-strings.json';
+// Seasons, campaigns and deals: the Hub home page texts (hub-v2.js), copied so the app and the Hub say the same.
+import SEASON from './season-strings.json';
 
 const STORAGE_KEY = 'gw-language';
 
 type HubEntry = (typeof HUB)['en-GB'];
 type HubTextKey = { [K in keyof HubEntry]: HubEntry[K] extends string ? K : never }[keyof HubEntry];
 type HubListKey = { [K in keyof HubEntry]: HubEntry[K] extends string[] ? K : never }[keyof HubEntry];
-export type TextKey = AppKey | HubTextKey;
+type SeasonKey = keyof (typeof SEASON)['en-GB'];
+export type TextKey = AppKey | HubTextKey | SeasonKey;
 
 const DICTS: Record<string, Dict> = {};
 for (const code of Object.keys(HUB)) {
-  DICTS[code] = { ...(HUB as Record<string, Dict>)[code], ...(APP_STRINGS[code] ?? {}) };
+  DICTS[code] = { ...(SEASON as Record<string, Dict>)[code], ...(HUB as Record<string, Dict>)[code], ...(APP_STRINGS[code] ?? {}) };
 }
 
 type I18n = {

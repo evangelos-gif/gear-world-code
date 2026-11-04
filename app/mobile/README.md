@@ -10,6 +10,7 @@
 | «Δες το στο κατάστημα» | `<site>/out/<id>` στον browser του κινητού (καταγραφή click + Awin) |
 | Newsletter | `gearworldhub.com/api/subscribe` (ίδια συγκατάθεση με το Hub) |
 | Αναζήτηση με φωτογραφία | `gearworldhub.com/api/photo-search` (JPEG έως 1 MB, δεν αποθηκεύεται) και μετά `gearworldhub.com/api/search` |
+| Καμπάνιες εποχής και προσφορές (αρχική) | ίδιες εποχές και ημερομηνίες με την αρχική του Hub (`src/lib/seasons.ts`, κείμενα `src/i18n/season-strings.json` από το `hub-v2.js`)· εικόνες `gearworldhub.com/seasonal/*.jpg`· προσφορές από το `gearworldhub.com/hub-deals.json`, ζωντανά. Το κουμπί ανοίγει τη σελίδα κωδικών του site στον browser· ποτέ κωδικός ή `/go/`, `/out/` μέσα στην εφαρμογή |
 | Νομικές σελίδες | `gearworldhub.com/privacy/`, `/terms/`, `/affiliate-disclosure/`, `/contact/` |
 | Κείμενα 11 γλωσσών | `src/i18n/hub-strings.json` (από το Hub) και `src/i18n/app-strings.ts` |
 

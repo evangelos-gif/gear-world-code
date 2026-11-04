@@ -1,15 +1,20 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
-import { RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { RefreshControl, ScrollView, StyleSheet, View, type ScrollViewInstance } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { Deals } from '@/components/deals';
 import { Footer } from '@/components/footer';
 import { Newsletter } from '@/components/newsletter';
 import { SearchBox } from '@/components/search-box';
+import { SeasonBanner } from '@/components/season-banner';
 import { Chip, IconButton, Txt } from '@/components/ui';
 import { WorldCard } from '@/components/world-card';
 import { useI18n } from '@/i18n';
+import { getDealsData } from '@/lib/api';
+import { activeDeals, DEALS_SHOWN, parseDeals, ukDay, type Deal, type Target } from '@/lib/seasons';
 import { INTERESTS } from '@/lib/worlds-meta';
 import { useWorlds } from '@/lib/worlds-context';
 import { C, MAX_WIDTH, R, S } from '@/theme';
@@ -18,6 +23,27 @@ export default function Home() {
   const { t, list } = useI18n();
   const { worlds, loading, refresh, find } = useWorlds();
   const steps = list('steps');
+  const scroll = useRef<ScrollViewInstance>(null);
+  const places = useRef<Record<string, number>>({});
+  const [deals, setDeals] = useState<Deal[]>([]);
+  const [dealsLoaded, setDealsLoaded] = useState(false);
+
+  // The Hub's deals: read each time the app starts or the person pulls down to refresh.
+  const loadDeals = useCallback(() => {
+    getDealsData()
+      .then(data => setDeals(parseDeals(data)))
+      .catch(() => setDeals([]))
+      .finally(() => setDealsLoaded(true));
+  }, []);
+  useEffect(() => { loadDeals(); }, [loadDeals]);
+
+  const today = ukDay(Date.now());
+  const shownDeals = activeDeals(deals, today).slice(0, DEALS_SHOWN);
+  const remember = (name: string) => (e: { nativeEvent: { layout: { y: number } } }) => { places.current[name] = e.nativeEvent.layout.y; };
+  const goTo = (target: Target) => {
+    if (typeof target === 'object') { router.push({ pathname: '/world/[key]', params: { key: target.world } }); return; }
+    scroll.current?.scrollTo({ y: Math.max(0, (places.current[target] ?? 0) - S.sm), animated: true });
+  };
 
   const pairs: (typeof worlds)[] = [];
   for (let i = 0; i < worlds.length; i += 2) pairs.push(worlds.slice(i, i + 2));
@@ -30,9 +56,10 @@ export default function Home() {
         <IconButton icon="settings-outline" label={t('settings')} onPress={() => router.push('/settings')} />
       </View>
       <ScrollView
+        ref={scroll}
         contentContainerStyle={s.scroll}
         keyboardShouldPersistTaps="handled"
-        refreshControl={<RefreshControl refreshing={loading} onRefresh={refresh} tintColor={C.gold} colors={[C.gold]} />}>
+        refreshControl={<RefreshControl refreshing={loading} onRefresh={() => { refresh(); loadDeals(); }} tintColor={C.gold} colors={[C.gold]} />}>
         <View style={s.inner}>
           <View style={s.hero}>
             <Txt v="eyebrow">{t('heroEyebrow')}</Txt>
@@ -41,7 +68,15 @@ export default function Home() {
             <SearchBox showTip onSearch={q => router.push({ pathname: '/search', params: { q } })} />
           </View>
 
-          <View style={s.section}>
+          <SeasonBanner hasDeals={shownDeals.length > 0} dealsLoaded={dealsLoaded} onTarget={goTo} />
+
+          {shownDeals.length ? (
+            <View style={s.section} onLayout={remember('deals')}>
+              <Deals deals={shownDeals} day={today} />
+            </View>
+          ) : null}
+
+          <View style={s.section} onLayout={remember('worlds')}>
             <Txt v="eyebrow">{t('choose')}</Txt>
             <Txt v="h2">{t('exploreWorlds')}</Txt>
             <View style={s.grid}>
@@ -80,7 +115,7 @@ export default function Home() {
             </View>
           </View>
 
-          <View style={s.section}>
+          <View style={s.section} onLayout={remember('newsletter')}>
             <Newsletter />
           </View>
 
