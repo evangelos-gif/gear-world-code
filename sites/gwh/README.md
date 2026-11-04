@@ -97,3 +97,12 @@
 Πριν από κάθε ανέβασμα: `node tools/gwh-guides.mjs check` (μόνο ανάγνωση). Στις 4/11 ένα από τα 58 προϊόντα (Joules Packaway Duffle, Stripe) είχε φύγει από το κατάστημα (404) και αντικαταστάθηκε, και 17 διευθύνσεις είχαν αλλάξει μετά από νέα εισαγωγή (μάθημα L94). Οι σελίδες δεν είναι στο sitemap: το σερβίρει ο Worker `gwh-sitemap`, που δεν αλλάζει χωρίς να ρωτήσουμε.
 
 Live από 4/11/2026 18:43 (commit 74f1905· το `live-baseline.txt` ενημερώθηκε· η δοκιμαστική διεύθυνση σβήστηκε την ίδια ώρα). Πήγε με το `tools/gwh-hub-v2.ps1`: `-Step preview` (`ΕΓΚΡΙΝΩ HUB GUIDES PREVIEW`), και μετά στην ίδια επικόλληση `-Step live` (`ΕΓΚΡΙΝΩ HUB GUIDES LIVE`) και `-Step remove-preview` (`ΕΓΚΡΙΝΩ HUB REMOVE PREVIEW`). Έλεγχοι: `tests/worker/gwh-guides.test.mjs` και `tools/gwh-guides-page-check.mjs`.
+Πάει με το `tools/gwh-hub-v2.ps1`: `-Step preview` (`ΕΓΚΡΙΝΩ HUB GUIDES PREVIEW`), και μετά στην ίδια επικόλληση `-Step live` (`ΕΓΚΡΙΝΩ HUB GUIDES LIVE`) και `-Step remove-preview` (`ΕΓΚΡΙΝΩ HUB REMOVE PREVIEW`). Έλεγχοι: `tests/worker/gwh-guides.test.mjs` και `tools/gwh-guides-page-check.mjs`.
+
+## Κατηγορίες των sites στο /api/registry (4/11/2026, πρόταση Α)
+Το `/api/registry` δίνει σε κάθε site και το πεδίο `shop_categories`: τις κατηγορίες του μενού του (όνομα, slug, link `https://<site>/category/<slug>/`), από τα `sites/<code>/site.config.js`. Τις διαβάζει η εφαρμογή Gear World για τα κουμπιά κατηγοριών (και στα 7 νέα worlds, που δεν έχουν κατηγορίες στη D1).
+
+- Γράφονται μέσα στο `worker.js`, ανάμεσα στις γραμμές `GWH-SHOP-CATEGORIES`, με το `node tools/gwh-shop-categories.mjs --write`. Το `--check` λέει αν είναι ίδιες με τις ρυθμίσεις των sites (το ελέγχει και το τεστ).
+- Η D1 (`categories`), το πεδίο `categories` της απάντησης και το `/api/classify` **δεν** αλλάζουν, γιατί από εκεί περνούν οι εισαγωγές (μάθημα L70).
+- Όταν αλλάξουν οι κατηγορίες ενός site, χρειάζεται `--write` και νέο ανέβασμα του Hub.
+- Έλεγχοι: `tests/worker/gwh-shop-categories.test.mjs`.
