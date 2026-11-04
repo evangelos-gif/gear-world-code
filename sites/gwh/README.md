@@ -106,3 +106,4 @@ Live από 4/11/2026 18:43 (commit 74f1905· το `live-baseline.txt` ενημ�
 - Η D1 (`categories`), το πεδίο `categories` της απάντησης και το `/api/classify` **δεν** αλλάζουν, γιατί από εκεί περνούν οι εισαγωγές (μάθημα L70).
 - Όταν αλλάξουν οι κατηγορίες ενός site, χρειάζεται `--write` και νέο ανέβασμα του Hub.
 - Έλεγχοι: `tests/worker/gwh-shop-categories.test.mjs`.
+- Live από 4/11/2026 19:37 (commit 8d5fa61, φράσεις `ΕΓΚΡΙΝΩ HUB REGISTRY PREVIEW` / `LIVE`· η δοκιμαστική διεύθυνση σβήστηκε στην ίδια εντολή). Στο live: 117 κατηγορίες στα 13 sites, όλα τα links 200, το `/api/classify` ίδιο με πριν.
