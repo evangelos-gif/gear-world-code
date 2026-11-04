@@ -62,7 +62,13 @@
         }
       ],
       "expo-image",
-      "expo-web-browser"
+      "expo-web-browser",
+      [
+        "expo-navigation-bar",
+        {
+          "enforceContrast": false
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

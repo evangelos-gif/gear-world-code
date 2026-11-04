@@ -1,6 +1,6 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router } from 'expo-router';
-import type { ComponentProps, ReactNode } from 'react';
+import { useState, type ComponentProps, type ReactNode } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View, type StyleProp, type TextProps, type ViewStyle } from 'react-native';
 
 import { useI18n } from '@/i18n';
@@ -88,6 +88,42 @@ export function ErrorBox({ message, onRetry }: { message: string; onRetry?: () =
   );
 }
 
+/**
+ * A menu that opens downwards: one button "Label: chosen ▾", and the choices drop down under it (owner, 4/11/2026:
+ * instead of a row of buttons that must be scrolled to the right). The chosen one has a tick and bold text.
+ */
+export function Dropdown<T extends string>({ label, value, options, onChange }: {
+  label: string; value: T; options: { value: T; label: string }[]; onChange: (value: T) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const current = options.find(o => o.value === value)?.label ?? options[0]?.label ?? '';
+  return (
+    <View style={dd.wrap}>
+      <Pressable accessibilityRole="button" accessibilityState={{ expanded: open }} accessibilityLabel={`${label}: ${current}`}
+        onPress={() => setOpen(!open)} style={({ pressed }) => [dd.button, open && dd.buttonOpen, pressed && b.pressed]}>
+        <Text style={dd.label} numberOfLines={1}>{label}:</Text>
+        <Text style={dd.value} numberOfLines={1}>{current}</Text>
+        <Ionicons name={open ? 'chevron-up' : 'chevron-down'} size={20} color={C.gold} />
+      </Pressable>
+      {open ? (
+        <View style={dd.list}>
+          {options.map((o, i) => {
+            const selected = o.value === value;
+            return (
+              <Pressable key={o.value || '_all'} accessibilityRole="button" accessibilityState={{ selected }} accessibilityLabel={o.label}
+                onPress={() => { setOpen(false); if (!selected) onChange(o.value); }}
+                style={({ pressed }) => [dd.item, i > 0 && dd.itemLine, pressed && dd.itemPressed]}>
+                <View style={dd.tick}>{selected ? <Ionicons name="checkmark" size={20} color={C.gold} /> : null}</View>
+                <Text style={[dd.itemText, selected && dd.itemSelected]} numberOfLines={2}>{o.label}</Text>
+              </Pressable>
+            );
+          })}
+        </View>
+      ) : null}
+    </View>
+  );
+}
+
 export function Checkbox({ checked, onChange, label }: { checked: boolean; onChange: (v: boolean) => void; label: string }) {
   return (
     <Pressable accessibilityRole="checkbox" accessibilityState={{ checked }} onPress={() => onChange(!checked)} style={cb.row}>
@@ -124,6 +160,21 @@ const ch = StyleSheet.create({
   selected: { backgroundColor: C.gold, borderColor: C.gold },
   label: { color: C.text, fontSize: 15, fontWeight: '600' },
   labelSelected: { color: C.onGold, fontWeight: '800' }
+});
+
+const dd = StyleSheet.create({
+  wrap: { gap: S.xs },
+  button: { minHeight: 50, borderRadius: R.md, borderWidth: 1, borderColor: C.border, backgroundColor: C.card, paddingHorizontal: S.lg, flexDirection: 'row', alignItems: 'center', gap: S.sm },
+  buttonOpen: { borderColor: C.gold },
+  label: { color: C.muted, fontSize: 15, fontWeight: '600' },
+  value: { color: C.text, fontSize: 16, fontWeight: '800', flex: 1 },
+  list: { borderRadius: R.md, borderWidth: 1, borderColor: C.border, backgroundColor: C.cardHigh, overflow: 'hidden' },
+  item: { minHeight: 48, paddingHorizontal: S.md, flexDirection: 'row', alignItems: 'center', gap: S.sm },
+  itemLine: { borderTopWidth: 1, borderTopColor: C.border },
+  itemPressed: { backgroundColor: C.card },
+  tick: { width: 22, alignItems: 'center' },
+  itemText: { color: C.text, fontSize: 16, flex: 1 },
+  itemSelected: { fontWeight: '800' }
 });
 
 const ib = StyleSheet.create({

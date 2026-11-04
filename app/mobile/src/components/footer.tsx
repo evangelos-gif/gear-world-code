@@ -1,3 +1,4 @@
+import { router } from 'expo-router';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { LEGAL } from '@/lib/api';
@@ -30,6 +31,9 @@ export function Footer() {
   return (
     <View style={s.footer}>
       <LegalLinks />
+      <Pressable accessibilityRole="link" onPress={() => router.push('/settings')} style={s.link}>
+        <Txt v="small" style={s.linkText}>{`${t('settings')} · ${t('about')}`}</Txt>
+      </Pressable>
       <Txt v="small">© {new Date().getFullYear()} {t('footerRights')}</Txt>
     </View>
   );

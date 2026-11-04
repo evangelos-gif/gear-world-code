@@ -1,11 +1,11 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { FlatList, ScrollView, StyleSheet, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { FlatList, StyleSheet, View } from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ProductCard } from '@/components/product-card';
 import { SearchBox } from '@/components/search-box';
-import { Chip, ErrorBox, Loading, TopBar, Txt } from '@/components/ui';
+import { Dropdown, ErrorBox, Loading, TopBar, Txt } from '@/components/ui';
 import { useI18n } from '@/i18n';
 import { searchAll, type SearchResult } from '@/lib/api';
 import { countByWorld, decodePhotoParam, encodePhotoParam, orderByBest, photoResults, photoWords } from '@/lib/photo';
@@ -17,6 +17,8 @@ import { C, MAX_WIDTH, S } from '@/theme';
 export default function SearchScreen() {
   const { t, list } = useI18n();
   const { find } = useWorlds();
+  // Android draws the app behind its own buttons at the bottom: the list ends above them (owner, 4/11/2026).
+  const bottom = useSafeAreaInsets().bottom;
   const params = useLocalSearchParams<{ q?: string; photo?: string }>();
   const q = String(params.q ?? '').trim();
   // Set when the search came from a photo: then the words are searched like the Hub's camera button does.
@@ -99,12 +101,9 @@ export default function SearchScreen() {
           </Txt>
           {result.partial ? <Txt v="small" style={s.partial}>{t('partial')}</Txt> : null}
           {Object.keys(result.counts).length > 1 ? (
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.chips}>
-              <Chip label={`${t('allFilter')} (${result.products.length})`} selected={!filter} onPress={() => setFilter('')} />
-              {Object.entries(result.counts).map(([k, n]) => (
-                <Chip key={k} label={`${worldLabel(k)} (${n})`} selected={filter === k} onPress={() => setFilter(k)} />
-              ))}
-            </ScrollView>
+            <Dropdown label={t('worldLabel')} value={filter} onChange={setFilter}
+              options={[{ value: '', label: `${t('allFilter')} (${result.products.length})` },
+                ...Object.entries(result.counts).map(([k, n]) => ({ value: k, label: `${worldLabel(k)} (${n})` }))]} />
           ) : null}
         </View>
       ) : null}
@@ -120,7 +119,7 @@ export default function SearchScreen() {
         numColumns={2}
         ListHeaderComponent={header}
         columnWrapperStyle={s.colWrap}
-        contentContainerStyle={s.list}
+        contentContainerStyle={[s.list, { paddingBottom: S.xxl + bottom }]}
         keyboardShouldPersistTaps="handled"
         renderItem={({ item }) => <View style={s.cell}><ProductCard product={item} showWorld /></View>}
       />
@@ -138,7 +137,6 @@ const s = StyleSheet.create({
   photoMeta: { color: C.text },
   photoHint: { color: C.faint },
   partial: { color: C.blue },
-  chips: { gap: S.sm, paddingVertical: S.xs },
   colWrap: { gap: S.md },
   cell: { flex: 1, maxWidth: '50%' }
 });

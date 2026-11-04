@@ -5,7 +5,7 @@ export const APP_KEYS = [
   'back', 'retry', 'loadError', 'partial', 'allFilter', 'viewAt', 'moreOnSite', 'inStock', 'outOfStock',
   'priceNote', 'retailer', 'brand', 'category', 'visitSite', 'searchIn', 'allProducts', 'loadMore',
   'sortFeatured', 'sortPriceAsc', 'sortPriceDesc', 'sortNewest', 'noProducts', 'voiceTip', 'productMissing',
-  'opensBrowser', 'worldProducts', 'categories',
+  'opensBrowser', 'worldProducts', 'categories', 'sortLabel', 'worldLabel', 'photoShort', 'voiceShort',
   'voiceStart', 'voiceStop', 'voiceListening', 'voiceDenied', 'voiceBlocked',
   'voiceOpenSettings', 'voiceNoSpeech', 'voiceLanguage', 'voiceUnavailable', 'voiceFailed',
   'photoStart', 'photoNote', 'photoTake', 'photoPick', 'photoCancel', 'photoLooking', 'photoFound', 'photoBrand', 'photoBestMatch',
@@ -16,6 +16,9 @@ export type AppKey = (typeof APP_KEYS)[number];
 
 export const APP_STRINGS: Record<string, Record<AppKey, string>> = {
   'en-GB': {
+    photoShort: "Photo", voiceShort: "Voice",
+    worldLabel: "World",
+    sortLabel: "Sort",
     settings: 'Settings', legal: 'Legal', privacy: 'Privacy policy', terms: 'Terms of use',
     affiliate: 'Affiliate disclosure', contact: 'Contact', about: 'About', version: 'Version {version}',
     aboutText: 'The Gear World app brings the whole Gear World network to your phone. On the web: {url}',
@@ -59,6 +62,9 @@ export const APP_STRINGS: Record<string, Record<AppKey, string>> = {
     photoBlocked: "Camera access is turned off for Gear World. You can turn it on in your phone's settings."
   },
   'el-GR': {
+    photoShort: "Φωτογραφία", voiceShort: "Φωνή",
+    worldLabel: "Κόσμος",
+    sortLabel: "Ταξινόμηση",
     settings: 'Ρυθμίσεις', legal: 'Νομικά', privacy: 'Πολιτική απορρήτου', terms: 'Όροι χρήσης',
     affiliate: 'Δήλωση affiliate', contact: 'Επικοινωνία', about: 'Σχετικά', version: 'Έκδοση {version}',
     aboutText: 'Η εφαρμογή Gear World φέρνει όλο το δίκτυο Gear World στο κινητό σας. Στο web: {url}',
@@ -102,6 +108,9 @@ export const APP_STRINGS: Record<string, Record<AppKey, string>> = {
     photoBlocked: "Η πρόσβαση στην κάμερα είναι κλειστή για το Gear World. Μπορείτε να την ανοίξετε από τις ρυθμίσεις του κινητού σας."
   },
   'de-DE': {
+    photoShort: "Foto", voiceShort: "Sprache",
+    worldLabel: "Welt",
+    sortLabel: "Sortieren",
     settings: 'Einstellungen', legal: 'Rechtliches', privacy: 'Datenschutzerklärung', terms: 'Nutzungsbedingungen',
     affiliate: 'Affiliate-Hinweis', contact: 'Kontakt', about: 'Über die App', version: 'Version {version}',
     aboutText: 'Die Gear World App bringt das gesamte Gear World Netzwerk auf Ihr Handy. Im Web: {url}',
@@ -145,6 +154,9 @@ export const APP_STRINGS: Record<string, Record<AppKey, string>> = {
     photoBlocked: "Der Kamerazugriff ist für Gear World ausgeschaltet. Sie können ihn in den Einstellungen Ihres Telefons einschalten."
   },
   'fr-FR': {
+    photoShort: "Photo", voiceShort: "Voix",
+    worldLabel: "Monde",
+    sortLabel: "Trier",
     settings: 'Paramètres', legal: 'Mentions légales', privacy: 'Politique de confidentialité', terms: "Conditions d'utilisation",
     affiliate: "Divulgation d'affiliation", contact: 'Contact', about: 'À propos', version: 'Version {version}',
     aboutText: "L'application Gear World réunit tout le réseau Gear World sur votre téléphone. Sur le web : {url}",
@@ -188,6 +200,9 @@ export const APP_STRINGS: Record<string, Record<AppKey, string>> = {
     photoBlocked: "L'accès à l'appareil photo est désactivé pour Gear World. Vous pouvez l'activer dans les réglages de votre téléphone."
   },
   'it-IT': {
+    photoShort: "Foto", voiceShort: "Voce",
+    worldLabel: "Mondo",
+    sortLabel: "Ordina",
     settings: 'Impostazioni', legal: 'Note legali', privacy: 'Informativa sulla privacy', terms: 'Termini di utilizzo',
     affiliate: "Informativa sull'affiliazione", contact: 'Contatti', about: 'Informazioni', version: 'Versione {version}',
     aboutText: "L'app Gear World porta tutta la rete Gear World sul tuo telefono. Sul web: {url}",
@@ -231,6 +246,9 @@ export const APP_STRINGS: Record<string, Record<AppKey, string>> = {
     photoBlocked: "L'accesso alla fotocamera è disattivato per Gear World. Puoi attivarlo nelle impostazioni del telefono."
   },
   'es-ES': {
+    photoShort: "Foto", voiceShort: "Voz",
+    worldLabel: "Mundo",
+    sortLabel: "Ordenar",
     settings: 'Ajustes', legal: 'Información legal', privacy: 'Política de privacidad', terms: 'Condiciones de uso',
     affiliate: 'Aviso de afiliación', contact: 'Contacto', about: 'Acerca de', version: 'Versión {version}',
     aboutText: 'La app Gear World lleva toda la red Gear World a tu móvil. En la web: {url}',
@@ -274,6 +292,9 @@ export const APP_STRINGS: Record<string, Record<AppKey, string>> = {
     photoBlocked: "El acceso a la cámara está desactivado para Gear World. Puedes activarlo en los ajustes del teléfono."
   },
   'pt-PT': {
+    photoShort: "Foto", voiceShort: "Voz",
+    worldLabel: "Mundo",
+    sortLabel: "Ordenar",
     settings: 'Definições', legal: 'Informação legal', privacy: 'Política de privacidade', terms: 'Termos de utilização',
     affiliate: 'Divulgação de afiliados', contact: 'Contacto', about: 'Sobre', version: 'Versão {version}',
     aboutText: 'A app Gear World traz toda a rede Gear World para o seu telemóvel. Na web: {url}',
@@ -317,6 +338,9 @@ export const APP_STRINGS: Record<string, Record<AppKey, string>> = {
     photoBlocked: "O acesso à câmara está desativado para o Gear World. Pode ativá-lo nas definições do telemóvel."
   },
   'nl-NL': {
+    photoShort: "Foto", voiceShort: "Stem",
+    worldLabel: "Wereld",
+    sortLabel: "Sorteren",
     settings: 'Instellingen', legal: 'Juridisch', privacy: 'Privacybeleid', terms: 'Gebruiksvoorwaarden',
     affiliate: 'Affiliate-verklaring', contact: 'Contact', about: 'Over', version: 'Versie {version}',
     aboutText: 'De Gear World-app brengt het hele Gear World-netwerk naar uw telefoon. Op het web: {url}',
@@ -360,6 +384,9 @@ export const APP_STRINGS: Record<string, Record<AppKey, string>> = {
     photoBlocked: "Cameratoegang staat uit voor Gear World. U kunt dit aanzetten in de instellingen van uw telefoon."
   },
   'sq-AL': {
+    photoShort: "Foto", voiceShort: "Zë",
+    worldLabel: "Bota",
+    sortLabel: "Rendit",
     settings: 'Cilësimet', legal: 'Ligjore', privacy: 'Politika e privatësisë', terms: 'Kushtet e përdorimit',
     affiliate: 'Deklarata e affiliate', contact: 'Kontakt', about: 'Rreth aplikacionit', version: 'Versioni {version}',
     aboutText: 'Aplikacioni Gear World sjell të gjithë rrjetin Gear World në telefonin tuaj. Në web: {url}',
@@ -403,6 +430,9 @@ export const APP_STRINGS: Record<string, Record<AppKey, string>> = {
     photoBlocked: "Qasja në kamerë është e çaktivizuar për Gear World. Mund ta aktivizoni te cilësimet e telefonit."
   },
   'ro-RO': {
+    photoShort: "Foto", voiceShort: "Voce",
+    worldLabel: "Lume",
+    sortLabel: "Sortare",
     settings: 'Setări', legal: 'Informații legale', privacy: 'Politica de confidențialitate', terms: 'Termeni de utilizare',
     affiliate: 'Declarație de afiliere', contact: 'Contact', about: 'Despre', version: 'Versiunea {version}',
     aboutText: 'Aplicația Gear World aduce întreaga rețea Gear World pe telefonul dvs. Pe web: {url}',
@@ -446,6 +476,9 @@ export const APP_STRINGS: Record<string, Record<AppKey, string>> = {
     photoBlocked: "Accesul la cameră este dezactivat pentru Gear World. Îl puteți activa din setările telefonului."
   },
   'ru-RU': {
+    photoShort: "Фото", voiceShort: "Голос",
+    worldLabel: "Мир",
+    sortLabel: "Сортировка",
     settings: 'Настройки', legal: 'Правовая информация', privacy: 'Политика конфиденциальности', terms: 'Условия использования',
     affiliate: 'Партнёрские ссылки', contact: 'Контакты', about: 'О приложении', version: 'Версия {version}',
     aboutText: 'Приложение Gear World объединяет всю сеть Gear World в вашем телефоне. В интернете: {url}',

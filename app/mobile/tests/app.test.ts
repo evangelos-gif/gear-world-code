@@ -161,6 +161,17 @@ test('photo: the camera and gallery are asked for with a clear reason, and the m
   assert.equal(picker[1].microphonePermission, speech[1].microphonePermission);
 });
 
+test('screens: Android draws no grey band over the bottom of the app', () => {
+  const app = JSON.parse(readFileSync(new URL('../app.json', import.meta.url), 'utf8')).expo;
+  const nav = app.plugins.find((p: unknown) => Array.isArray(p) && p[0] === 'expo-navigation-bar');
+  assert.ok(nav, 'navigation bar plugin configured');
+  assert.equal(nav[1].enforceContrast, false);
+  for (const f of ['index.tsx', 'search.tsx', 'settings.tsx', 'world/[key].tsx']) {
+    const src = readFileSync(new URL(`../src/app/${f}`, import.meta.url), 'utf8');
+    assert.match(src, /useSafeAreaInsets\(\)\.bottom/, `${f} ends its list above the phone's buttons`);
+  }
+});
+
 test('photo: the Hub answer is checked, and every failure has its own message', () => {
   const a = parsePhotoAnswer({ ok: true, found: true, product: 'cordless drill', query: 'Bosch cordless drill', keywords: ['drill', 'cordless', 'green'], brand: 'Bosch', world: { key: 'cgw', name: 'Construction Gear World', domain: 'constructiongearworld.com' } });
   assert.deepEqual(a, { product: 'cordless drill', query: 'Bosch cordless drill', keywords: ['drill', 'cordless', 'green'], brand: 'Bosch', world: { key: 'CGW', name: 'Construction Gear World' } });

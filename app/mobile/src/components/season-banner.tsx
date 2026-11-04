@@ -125,7 +125,7 @@ const s = StyleSheet.create({
   card: { minHeight: 200, borderRadius: R.lg, overflow: 'hidden', backgroundColor: C.cardHigh, borderWidth: 1, borderColor: C.border },
   mirror: { transform: [{ scaleX: -1 }] },
   body: { flex: 1, justifyContent: 'flex-end', padding: S.lg, gap: S.xs },
-  eyebrow: { color: C.gold, fontSize: 12, fontWeight: '800', letterSpacing: 1, textTransform: 'uppercase', ...TEXT_ON_PICTURE },
+  eyebrow: { color: C.gold, fontSize: 12, fontWeight: '800', letterSpacing: 1, ...TEXT_ON_PICTURE },
   title: { color: C.text, fontSize: 22, lineHeight: 27, fontWeight: '800', ...TEXT_ON_PICTURE },
   text: { color: C.text, fontSize: 14, lineHeight: 19, ...TEXT_ON_PICTURE },
   foot: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: S.sm, marginTop: S.sm },

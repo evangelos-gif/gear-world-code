@@ -15,9 +15,9 @@ const openPhotoResults = (answer: PhotoAnswer) =>
   router.push({ pathname: '/search', params: { q: answer.query, photo: encodePhotoParam(answer) } });
 
 /** Search field, camera (photo search), microphone (voice search in the app's language) and Search button. */
-export function SearchBox({ initial = '', placeholder, onSearch, onPhoto = openPhotoResults, autoFocus, showTip }: {
+export function SearchBox({ initial = '', placeholder, onSearch, onPhoto = openPhotoResults, autoFocus }: {
   initial?: string; placeholder?: string; onSearch: (q: string) => void; onPhoto?: (answer: PhotoAnswer) => void;
-  autoFocus?: boolean; showTip?: boolean;
+  autoFocus?: boolean;
 }) {
   const { t, locale } = useI18n();
   const [q, setQ] = useState(initial);
@@ -55,25 +55,33 @@ export function SearchBox({ initial = '', placeholder, onSearch, onPhoto = openP
           accessibilityLabel={placeholder ?? t('searchPlaceholder')}
           style={s.input}
         />
-        {photo.supported ? (
-          <Pressable accessibilityRole="button" accessibilityLabel={t('photoStart')} accessibilityState={{ busy: photo.busy, disabled: photo.busy }}
-            disabled={photo.busy} onPress={() => { voice.clearMessage(); photo.start(); }} hitSlop={6}
-            style={({ pressed }) => [s.mic, pressed && s.pressed]}>
-            {photo.busy ? <ActivityIndicator size="small" color={C.gold} /> : <Ionicons name="camera" size={22} color={C.gold} />}
-          </Pressable>
-        ) : null}
-        {voice.supported ? (
-          <Pressable accessibilityRole="button" accessibilityLabel={voice.listening ? t('voiceStop') : t('voiceStart')}
-            accessibilityState={{ busy: voice.listening }} onPress={() => { photo.clearMessage(); voice.toggle(); }} hitSlop={6}
-            style={({ pressed }) => [s.mic, voice.listening && s.micOn, pressed && s.pressed]}>
-            <Ionicons name={voice.listening ? 'stop' : 'mic'} size={22} color={voice.listening ? C.onGold : C.gold} />
-          </Pressable>
-        ) : null}
         <Pressable accessibilityRole="button" accessibilityLabel={t('searchButton')} onPress={() => run(q)}
           style={({ pressed }) => [s.button, pressed && s.pressed]}>
           <Txt style={s.buttonText}>{t('searchButton')}</Txt>
         </Pressable>
       </View>
+
+      {/* Camera and microphone under the field, each with its name (owner, 4/11/2026: the field was too narrow). */}
+      {photo.supported || voice.supported ? (
+        <View style={s.tools}>
+          {photo.supported ? (
+            <Pressable accessibilityRole="button" accessibilityLabel={t('photoStart')} accessibilityState={{ busy: photo.busy, disabled: photo.busy }}
+              disabled={photo.busy} onPress={() => { voice.clearMessage(); photo.start(); }}
+              style={({ pressed }) => [s.tool, pressed && s.pressed]}>
+              {photo.busy ? <ActivityIndicator size="small" color={C.gold} /> : <Ionicons name="camera" size={20} color={C.gold} />}
+              <Txt style={s.toolText} numberOfLines={1}>{t('photoShort')}</Txt>
+            </Pressable>
+          ) : null}
+          {voice.supported ? (
+            <Pressable accessibilityRole="button" accessibilityLabel={voice.listening ? t('voiceStop') : t('voiceStart')}
+              accessibilityState={{ busy: voice.listening }} onPress={() => { photo.clearMessage(); voice.toggle(); }}
+              style={({ pressed }) => [s.tool, voice.listening && s.toolOn, pressed && s.pressed]}>
+              <Ionicons name={voice.listening ? 'stop' : 'mic'} size={20} color={voice.listening ? C.onGold : C.gold} />
+              <Txt style={[s.toolText, voice.listening && s.toolTextOn]} numberOfLines={1}>{voice.listening ? t('voiceStop') : t('voiceShort')}</Txt>
+            </Pressable>
+          ) : null}
+        </View>
+      ) : null}
 
       {voice.listening ? (
         <View style={s.line} accessibilityLiveRegion="polite">
@@ -119,12 +127,6 @@ export function SearchBox({ initial = '', placeholder, onSearch, onPhoto = openP
 
       {warn ? <Txt v="small" style={s.info} accessibilityLiveRegion="polite">{t('min2')}</Txt> : null}
 
-      {showTip && voice.supported && !warn && !voice.message && !voice.listening && !photo.message && !photo.busy ? (
-        <View style={s.line}>
-          <Ionicons name="mic-outline" size={16} color={C.faint} />
-          <Txt v="small" style={s.tipText}>{t('voiceTip')}</Txt>
-        </View>
-      ) : null}
     </View>
   );
 }
@@ -134,11 +136,14 @@ const s = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', backgroundColor: C.card, borderRadius: R.md, borderWidth: 1, borderColor: C.border, paddingLeft: S.lg, minHeight: 54 },
   rowListening: { borderColor: C.gold, borderWidth: 2 },
   input: { flex: 1, color: C.text, fontSize: 16, paddingVertical: S.md, minWidth: 0 },
-  mic: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', marginHorizontal: S.xs, borderWidth: 1, borderColor: C.border },
-  micOn: { backgroundColor: C.gold, borderColor: C.gold },
-  button: { backgroundColor: C.gold, alignSelf: 'stretch', justifyContent: 'center', paddingHorizontal: S.lg, borderTopRightRadius: R.md - 1, borderBottomRightRadius: R.md - 1 },
-  pressed: { opacity: 0.8 },
+  tools: { flexDirection: 'row', gap: S.sm },
+  tool: { flex: 1, minHeight: 46, borderRadius: R.pill, borderWidth: 1, borderColor: C.gold, backgroundColor: C.card, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.sm, paddingHorizontal: S.md },
+  toolOn: { backgroundColor: C.gold },
+  toolText: { color: C.text, fontWeight: '700', fontSize: 15, flexShrink: 1 },
+  toolTextOn: { color: C.onGold },
+  button: { backgroundColor: C.gold, alignSelf: 'stretch', justifyContent: 'center', alignItems: 'center', paddingHorizontal: S.lg, borderTopRightRadius: R.md - 1, borderBottomRightRadius: R.md - 1 },
   buttonText: { color: C.onGold, fontWeight: '800' },
+  pressed: { opacity: 0.8 },
   line: { flexDirection: 'row', alignItems: 'flex-start', gap: 6 },
   messageBody: { flex: 1, gap: S.xs },
   listening: { color: C.gold, fontWeight: '700', flex: 1 },

@@ -1,13 +1,13 @@
 import { Image } from 'expo-image';
 import { useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { FlatList, ScrollView, StyleSheet, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { FlatList, StyleSheet, View } from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ProductCard } from '@/components/product-card';
 import { ImageShade } from '@/components/image-shade';
 import { SearchBox } from '@/components/search-box';
-import { Button, Chip, ErrorBox, Loading, TopBar, Txt } from '@/components/ui';
+import { Button, Chip, Dropdown, ErrorBox, Loading, TopBar, Txt } from '@/components/ui';
 import { useI18n } from '@/i18n';
 import { worldProducts, type Product, type SortKey } from '@/lib/api';
 import { openInBrowser } from '@/lib/open';
@@ -27,6 +27,8 @@ export default function WorldScreen() {
   const { t, list } = useI18n();
   const params = useLocalSearchParams<{ key: string; category?: string }>();
   const { find, loading: worldsLoading } = useWorlds();
+  // Android draws the app behind its own buttons at the bottom: the list ends above them (owner, 4/11/2026).
+  const bottom = useSafeAreaInsets().bottom;
   const world = find(String(params.key ?? ''));
 
   const [category, setCategory] = useState(String(params.category ?? ''));
@@ -90,19 +92,11 @@ export default function WorldScreen() {
       <SearchBox key={world.key} placeholder={t('searchIn', { world: title })} onSearch={v => setSearch(v)} />
       {search ? <Chip label={`× ${search}`} selected onPress={() => setSearch('')} /> : null}
       {world.categories.length > 0 ? (
-        <View style={s.group}>
-          <Txt v="label">{t('categories')}</Txt>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.chips}>
-            <Chip label={t('allProducts')} selected={!category} onPress={() => setCategory('')} />
-            {[...world.categories].sort((a, b) => Number(b.slug === category) - Number(a.slug === category)).map(c => (
-              <Chip key={c.slug} label={c.name} selected={category === c.slug} onPress={() => setCategory(c.slug)} />
-            ))}
-          </ScrollView>
-        </View>
+        <Dropdown label={t('category')} value={category}
+          options={[{ value: '', label: t('allProducts') }, ...world.categories.map(c => ({ value: c.slug, label: c.name }))]}
+          onChange={setCategory} />
       ) : null}
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.chips}>
-        {SORTS.map(o => <Chip key={o.key} label={t(o.label)} selected={sort === o.key} onPress={() => setSort(o.key)} />)}
-      </ScrollView>
+      <Dropdown label={t('sortLabel')} value={sort} options={SORTS.map(o => ({ value: o.key, label: t(o.label) }))} onChange={setSort} />
       {!loading || page > 1 ? <Txt v="small" accessibilityLiveRegion="polite">{t('worldProducts', { count: total })}</Txt> : null}
       {error && items.length === 0 ? <ErrorBox message={t('loadError')} onRetry={() => load(1)} /> : null}
       {loading && page === 1 && items.length === 0 ? <Loading /> : null}
@@ -127,7 +121,7 @@ export default function WorldScreen() {
         ListHeaderComponent={header}
         ListFooterComponent={footer}
         columnWrapperStyle={s.colWrap}
-        contentContainerStyle={s.list}
+        contentContainerStyle={[s.list, { paddingBottom: S.xxl + bottom }]}
         keyboardShouldPersistTaps="handled"
         renderItem={({ item }) => <View style={s.cell}><ProductCard product={item} /></View>}
       />
@@ -141,8 +135,6 @@ const s = StyleSheet.create({
   header: { gap: S.md, paddingTop: S.lg, paddingBottom: S.sm },
   hero: { minHeight: 190, borderRadius: R.lg, overflow: 'hidden', backgroundColor: C.cardHigh },
   heroText: { flex: 1, justifyContent: 'flex-end', padding: S.lg, gap: S.xs },
-  group: { gap: S.sm },
-  chips: { gap: S.sm, paddingVertical: S.xs },
   colWrap: { gap: S.md },
   cell: { flex: 1, maxWidth: '50%' },
   more: { paddingTop: S.lg, gap: S.sm },

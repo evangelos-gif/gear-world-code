@@ -3,14 +3,15 @@ import { Image } from 'expo-image';
 import { router } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { RefreshControl, ScrollView, StyleSheet, View, type ScrollViewInstance } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Deals } from '@/components/deals';
 import { Footer } from '@/components/footer';
 import { Newsletter } from '@/components/newsletter';
 import { SearchBox } from '@/components/search-box';
 import { SeasonBanner } from '@/components/season-banner';
-import { Chip, IconButton, Txt } from '@/components/ui';
+import { LanguageButton } from '@/components/language-button';
+import { Chip, Txt } from '@/components/ui';
 import { WorldCard } from '@/components/world-card';
 import { useI18n } from '@/i18n';
 import { getDealsData } from '@/lib/api';
@@ -22,6 +23,8 @@ import { C, MAX_WIDTH, R, S } from '@/theme';
 export default function Home() {
   const { t, list } = useI18n();
   const { worlds, loading, refresh, find } = useWorlds();
+  // Android draws the app behind its own buttons at the bottom: the list ends above them (owner, 4/11/2026).
+  const bottom = useSafeAreaInsets().bottom;
   const steps = list('steps');
   const scroll = useRef<ScrollViewInstance>(null);
   const places = useRef<Record<string, number>>({});
@@ -53,11 +56,11 @@ export default function Home() {
       <View style={s.topbar}>
         <Image source={require('@/assets/brand/logo-horizontal.png')} style={s.logo} contentFit="contain"
           accessibilityLabel="Gear World" />
-        <IconButton icon="settings-outline" label={t('settings')} onPress={() => router.push('/settings')} />
+        <LanguageButton />
       </View>
       <ScrollView
         ref={scroll}
-        contentContainerStyle={s.scroll}
+        contentContainerStyle={[s.scroll, { paddingBottom: S.xxl + bottom }]}
         keyboardShouldPersistTaps="handled"
         refreshControl={<RefreshControl refreshing={loading} onRefresh={() => { refresh(); loadDeals(); }} tintColor={C.gold} colors={[C.gold]} />}>
         <View style={s.inner}>
@@ -65,7 +68,7 @@ export default function Home() {
             <Txt v="eyebrow">{t('heroEyebrow')}</Txt>
             <Txt v="title">{t('heroTitle1')} <Txt v="title" style={s.gold}>{t('heroTitle2')}</Txt></Txt>
             <Txt v="muted">{t('heroDesc')}</Txt>
-            <SearchBox showTip onSearch={q => router.push({ pathname: '/search', params: { q } })} />
+            <SearchBox onSearch={q => router.push({ pathname: '/search', params: { q } })} />
           </View>
 
           <SeasonBanner hasDeals={shownDeals.length > 0} dealsLoaded={dealsLoaded} onTarget={goTo} />
@@ -129,7 +132,7 @@ export default function Home() {
 const s = StyleSheet.create({
   safe: { flex: 1, backgroundColor: C.bg },
   topbar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: S.lg, paddingVertical: S.sm, backgroundColor: C.bgDeep, borderBottomWidth: 1, borderBottomColor: C.border },
-  logo: { width: 170, height: 50 },
+  logo: { width: 150, height: 46 },
   scroll: { paddingBottom: S.xxl },
   inner: { width: '100%', maxWidth: MAX_WIDTH, alignSelf: 'center', paddingHorizontal: S.lg, gap: S.xl, paddingTop: S.lg },
   hero: { gap: S.md },
