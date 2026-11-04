@@ -18,10 +18,10 @@
   -Step check    READ-ONLY. Is the hub folder on this PC still exactly the version that runs live
                  (sites/gwh/live-baseline.txt, its "# version:" line names it), and gearworldhub.com too? Cloudflare
                  login, the live version of the Worker (needed to go back), the poster counting (it goes first).
-  -Step preview  CHANGES CLOUDFLARE, one approval: ΕΓΚΡΙΝΩ HUB GUIDES PREVIEW. The test Worker "gear-world-hub-preview" on a
+  -Step preview  CHANGES CLOUDFLARE, one approval: ΕΓΚΡΙΝΩ HUB REGISTRY PREVIEW. The test Worker "gear-world-hub-preview" on a
                  *.workers.dev address gets this version (noindex, no Google Analytics, e-mail sign-up closed, no
                  poster counting; the same D1 and Workers AI, read only). gearworldhub.com does NOT change.
-  -Step live     CHANGES THE LIVE HUB, one approval: ΕΓΚΡΙΝΩ HUB GUIDES LIVE. Only when the hub folder on this PC and the
+  -Step live     CHANGES THE LIVE HUB, one approval: ΕΓΚΡΙΝΩ HUB REGISTRY LIVE. Only when the hub folder on this PC and the
                  live site are still the version of live-baseline.txt (or already this version) and the posters count
                  already. First a zip of the hub folder and the number of the live version (for rollback), then the
                  changed files go into the hub folder, then gearworldhub.com is deployed from it and checked. If the
@@ -46,6 +46,9 @@
   Gift guides (4/11/2026): /guides/ and 5 guide pages made by tools/gwh-guides.mjs from sites/gwh/guides/guides.json,
   their links under the gift finder (index.html, hub-v2.js, hub-v2.css). Phrases of this release: ΕΓΚΡΙΝΩ HUB GUIDES PREVIEW,
   then ΕΓΚΡΙΝΩ HUB GUIDES LIVE together with remove-preview (ΕΓΚΡΙΝΩ HUB REMOVE PREVIEW) in the same paste.
+  Shop categories (owner, 4/11/2026, option A): worker.js only, /api/registry gets shop_categories from the sites'
+  site.config.js (tools/gwh-shop-categories.mjs). Phrases of this release: ΕΓΚΡΙΝΩ HUB REGISTRY PREVIEW, then ΕΓΚΡΙΝΩ HUB
+  REGISTRY LIVE together with remove-preview. The D1 and /api/classify do not change (L70).
   Report: <home>\gear-world-reports\GWH_HUB_V2_<STEP>_<time>.txt (also copied to the clipboard)
 #>
 param(
@@ -67,8 +70,8 @@ $repo = Split-Path -Parent $PSScriptRoot
 $HubWorker = 'gear-world-hub'
 $PreviewName = 'gear-world-hub-preview'
 $DbName = 'gear-world-registry'
-$PhrasePreview = 'ΕΓΚΡΙΝΩ HUB GUIDES PREVIEW'
-$PhraseLive = 'ΕΓΚΡΙΝΩ HUB GUIDES LIVE'
+$PhrasePreview = 'ΕΓΚΡΙΝΩ HUB REGISTRY PREVIEW'
+$PhraseLive = 'ΕΓΚΡΙΝΩ HUB REGISTRY LIVE'
 $PhraseRegister = 'ΕΓΚΡΙΝΩ HUB ZGW SEARCH'
 $PhraseRemovePreview = 'ΕΓΚΡΙΝΩ HUB REMOVE PREVIEW'
 $LiveUrl = 'https://gearworldhub.com'
@@ -87,7 +90,7 @@ $Bad = 'Magenta'
 
 # What each file of the change does, in the words of the report.
 $About = @{
-    'worker.js'             = 'η φόρμα «Get deal updates» των sites: οι εγγραφές τους (μόνο από την ιδιωτική τους σύνδεση) μπαίνουν στην ίδια λίστα με τη φόρμα του Hub και πάνε στο MailerLite όπως αυτή (L92)'
+    'worker.js'             = 'το /api/registry δίνει και shop_categories: οι κατηγορίες του μενού κάθε site (από τα site.config.js) για την εφαρμογή· η D1, το categories και το /api/classify δεν αλλάζουν (L70)'
     'members.js'            = 'ο κώδικας της φόρμας «Get deal updates» των sites (νέο αρχείο, L92)'
     'poster-scan.js'        = 'η μέτρηση των αφισών (ίδια με αυτή που μπήκε με το POSTER STATS)'
     'public/index.html'     = 'κάτω από το «Βρες δώρο»: «Christmas gift guides» με 5 links στους οδηγούς δώρων· νέο ?v= για hub-v2.css και hub-v2.js'
