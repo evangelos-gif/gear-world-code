@@ -287,6 +287,9 @@ test('seasons: UK days, Black Friday and the slides of each period, like the Hub
   assert.deepEqual(countdownParts(bf, Date.parse('2026-11-28T00:00:00Z')), { d: 2, h: 23, m: 59 });
   assert.equal(countdownParts(bf, Date.parse('2026-12-01T00:00:00Z')), null, 'no countdown once it is over');
   assert.equal(countdownParts(seasonFor('2026-11-04')!, Date.now()), null, 'Christmas has no countdown');
+  const xmas = seasonFor('2026-11-04')!;
+  assert.equal(xmas.title, 'xmasTitle', 'the Christmas picture promises no offers (none from the retailers yet)');
+  assert.ok(!/offer/i.test(SEASON['en-GB'][xmas.title]));
 });
 
 test('seasons: every campaign text exists in all 11 languages, with the same placeholders', () => {

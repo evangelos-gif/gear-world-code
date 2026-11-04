@@ -1,7 +1,7 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useRef } from 'react';
 import { RefreshControl, ScrollView, StyleSheet, View, type ScrollViewInstance } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -14,8 +14,8 @@ import { LanguageButton } from '@/components/language-button';
 import { Chip, Txt } from '@/components/ui';
 import { WorldCard } from '@/components/world-card';
 import { useI18n } from '@/i18n';
-import { getDealsData } from '@/lib/api';
-import { activeDeals, DEALS_SHOWN, parseDeals, ukDay, type Deal, type Target } from '@/lib/seasons';
+import { activeDeals, DEALS_SHOWN, ukDay, type Target } from '@/lib/seasons';
+import { useDeals } from '@/lib/use-deals';
 import { INTERESTS } from '@/lib/worlds-meta';
 import { useWorlds } from '@/lib/worlds-context';
 import { C, MAX_WIDTH, R, S } from '@/theme';
@@ -28,17 +28,8 @@ export default function Home() {
   const steps = list('steps');
   const scroll = useRef<ScrollViewInstance>(null);
   const places = useRef<Record<string, number>>({});
-  const [deals, setDeals] = useState<Deal[]>([]);
-  const [dealsLoaded, setDealsLoaded] = useState(false);
-
-  // The Hub's deals: read each time the app starts or the person pulls down to refresh.
-  const loadDeals = useCallback(() => {
-    getDealsData()
-      .then(data => setDeals(parseDeals(data)))
-      .catch(() => setDeals([]))
-      .finally(() => setDealsLoaded(true));
-  }, []);
-  useEffect(() => { loadDeals(); }, [loadDeals]);
+  // The Hub's deals: read when the app starts, and again when the person pulls down to refresh.
+  const { deals, loaded: dealsLoaded, reload: loadDeals } = useDeals();
 
   const today = ukDay(Date.now());
   const shownDeals = activeDeals(deals, today).slice(0, DEALS_SHOWN);

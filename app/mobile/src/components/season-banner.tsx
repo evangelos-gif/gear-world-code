@@ -59,6 +59,7 @@ export function SeasonBanner({ hasDeals, dealsLoaded, onTarget }: {
     const left = countdownParts(season, now);
     body = left ? (left.d > 0 ? t('countdown', left) : t('countdownHours', { h: left.h, m: left.m })) : '';
     if (season.gifts) {
+      body = body || t('allText');
       cta = t('allCta');
       target = 'worlds';
     } else {

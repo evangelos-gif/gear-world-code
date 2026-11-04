@@ -39,13 +39,17 @@ export type Season = {
   countdownTo: string | null;
 };
 
-/** The seasonal pictures of the Hub (the same calendar every year, UK days). */
+/**
+ * The seasonal pictures of the Hub (the same calendar every year, UK days). One change from the Hub: the Christmas
+ * picture says "Gifts for everyone, from 13 Gear Worlds", not "Christmas offers", because no retailer has sent
+ * Christmas offers yet and its button goes to the worlds (owner, 4/11/2026: the title promised offers that were not there).
+ */
 export function seasonsOf(year: number): Season[] {
   const bf = blackFridayDay(year);
   return [
     { id: 'halloween', start: `${year}-10-20`, end: `${year}-10-31`, file: 'halloween', name: 'seasonHalloween', title: 'halloweenTitle', mirror: true, gifts: false, countdownTo: null },
     { id: 'black-friday', start: isoUtc(year, 11, bf - 7), end: isoUtc(year, 11, bf + 4), file: 'black-friday', name: 'seasonBlackFriday', title: 'bfTitle', mirror: false, gifts: false, countdownTo: `${isoUtc(year, 11, bf + 3)}T23:59:00Z` },
-    { id: 'christmas', start: `${year}-11-01`, end: `${year}-12-24`, file: 'christmas', name: 'xmasEyebrow', title: 'xmasDealsTitle', mirror: true, gifts: true, countdownTo: null }
+    { id: 'christmas', start: `${year}-11-01`, end: `${year}-12-24`, file: 'christmas', name: 'xmasEyebrow', title: 'xmasTitle', mirror: true, gifts: true, countdownTo: null }
   ];
 }
 

@@ -5,6 +5,7 @@ import { FlatList, StyleSheet, View } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ProductCard } from '@/components/product-card';
+import { Deals } from '@/components/deals';
 import { ImageShade } from '@/components/image-shade';
 import { SearchBox } from '@/components/search-box';
 import { Button, Chip, Dropdown, ErrorBox, Loading, TopBar, Txt } from '@/components/ui';
@@ -12,6 +13,8 @@ import { useI18n } from '@/i18n';
 import { worldProducts, type Product, type SortKey } from '@/lib/api';
 import { openInBrowser } from '@/lib/open';
 import { rememberProducts } from '@/lib/product-cache';
+import { activeDeals, ukDay } from '@/lib/seasons';
+import { useDeals } from '@/lib/use-deals';
 import { worldDescription, worldImage, worldTitle } from '@/lib/worlds-meta';
 import { useWorlds } from '@/lib/worlds-context';
 import { C, MAX_WIDTH, R, S } from '@/theme';
@@ -27,6 +30,7 @@ export default function WorldScreen() {
   const { t, list } = useI18n();
   const params = useLocalSearchParams<{ key: string; category?: string }>();
   const { find, loading: worldsLoading } = useWorlds();
+  const { deals } = useDeals();
   // Android draws the app behind its own buttons at the bottom: the list ends above them (owner, 4/11/2026).
   const bottom = useSafeAreaInsets().bottom;
   const world = find(String(params.key ?? ''));
@@ -74,6 +78,9 @@ export default function WorldScreen() {
   }
 
   const title = worldTitle(world, list('worldTitles'));
+  // This world's deals from the Hub (owner, 4/11/2026: the offers should be on the world pages too).
+  const today = ukDay(Date.now());
+  const worldDeals = activeDeals(deals, today).filter(d => d.sites.includes(world.key)).slice(0, 4);
   const desc = worldDescription(world, list('worldDescriptions'));
 
   const header = (
@@ -89,6 +96,7 @@ export default function WorldScreen() {
       </View>
       <Button kind="secondary" icon="open-outline" label={t('visitSite', { site: world.domain })} hint={t('opensBrowser')}
         onPress={() => openInBrowser(`${world.base}/`)} />
+      {worldDeals.length ? <Deals compact deals={worldDeals} day={today} /> : null}
       <SearchBox key={world.key} placeholder={t('searchIn', { world: title })} onSearch={v => setSearch(v)} />
       {search ? <Chip label={`× ${search}`} selected onPress={() => setSearch('')} /> : null}
       {world.categories.length > 0 ? (
