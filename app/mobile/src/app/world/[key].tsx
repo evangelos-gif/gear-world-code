@@ -13,6 +13,7 @@ import { useI18n } from '@/i18n';
 import { worldProducts, type Product, type SortKey } from '@/lib/api';
 import { openInBrowser } from '@/lib/open';
 import { rememberProducts } from '@/lib/product-cache';
+import { apiSlug, categoriesFor } from '@/lib/site-categories';
 import { activeDeals, ukDay } from '@/lib/seasons';
 import { useDeals } from '@/lib/use-deals';
 import { worldDescription, worldImage, worldTitle } from '@/lib/worlds-meta';
@@ -52,7 +53,8 @@ export default function WorldScreen() {
     setLoading(true);
     setError(false);
     try {
-      const r = await worldProducts(world, { search, category, sort, page: pageNo, limit: 24 });
+      // A home-screen link may use the Hub's name for a category: the site gets the name it understands.
+      const r = await worldProducts(world, { search, category: apiSlug(world.key, category) ?? '', sort, page: pageNo, limit: 24 });
       if (id !== request.current) return;
       rememberProducts(r.products);
       setItems(prev => (pageNo === 1 ? r.products : [...prev, ...r.products.filter(p => !prev.some(x => x.key === p.key))]));
@@ -78,6 +80,7 @@ export default function WorldScreen() {
   }
 
   const title = worldTitle(world, list('worldTitles'));
+  const categories = categoriesFor(world);
   // This world's deals from the Hub (owner, 4/11/2026: the offers should be on the world pages too).
   const today = ukDay(Date.now());
   const worldDeals = activeDeals(deals, today).filter(d => d.sites.includes(world.key)).slice(0, 4);
@@ -99,9 +102,9 @@ export default function WorldScreen() {
       {worldDeals.length ? <Deals compact deals={worldDeals} day={today} /> : null}
       <SearchBox key={world.key} placeholder={t('searchIn', { world: title })} onSearch={v => setSearch(v)} />
       {search ? <Chip label={`× ${search}`} selected onPress={() => setSearch('')} /> : null}
-      {world.categories.length > 0 ? (
-        <Dropdown label={t('category')} value={category}
-          options={[{ value: '', label: t('allProducts') }, ...world.categories.map(c => ({ value: c.slug, label: c.name }))]}
+      {categories.length > 0 ? (
+        <Dropdown label={t('category')} value={apiSlug(world.key, category) ?? ''}
+          options={[{ value: '', label: t('allProducts') }, ...categories.map(c => ({ value: c.slug, label: c.name }))]}
           onChange={setCategory} />
       ) : null}
       <Dropdown label={t('sortLabel')} value={sort} options={SORTS.map(o => ({ value: o.key, label: t(o.label) }))} onChange={setSort} />

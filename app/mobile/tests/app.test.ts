@@ -14,6 +14,7 @@ import {
 import {
   ukDay, blackFridayDay, heroSlides, countdownParts, seasonFor, parseDeals, activeDeals, campaignLabel, CAMPAIGNS, FALLBACK_CAMPAIGN, seasonsOf
 } from '../src/lib/seasons.ts';
+import { apiSlug, categoriesFor } from '../src/lib/site-categories.ts';
 
 const HUB = JSON.parse(readFileSync(new URL('../src/i18n/hub-strings.json', import.meta.url), 'utf8'));
 // The world order the Hub uses for its titles and descriptions (src/lib/worlds-meta.ts, read as text).
@@ -325,4 +326,24 @@ test('deals: only checked site links, only running deals, codes first, old seaso
   assert.equal(campaignLabel(deals[2], '2026-11-04'), 'Black Friday');
   assert.deepEqual(parseDeals(null), []);
   assert.deepEqual(parseDeals({ deals: 'x' }), []);
+});
+
+
+test('categories: every world has categories the site understands', () => {
+  const none = (key: string) => ({ key, categories: [] as { key: string; name: string; slug: string }[] });
+  for (const key of ['TGW', 'AGW', 'VGW', 'SGW', 'BGW', 'PGW', 'ZGW']) {
+    const list = categoriesFor(none(key));
+    assert.ok(list.length >= 5, `${key} has its own categories while the Hub gives none`);
+    for (const c of list) assert.match(c.slug, /^[a-z0-9-]+$/);
+  }
+  // The Hub's own list wins when it has one.
+  assert.deepEqual(categoriesFor({ key: 'TGW', categories: [{ key: 'x', name: 'X', slug: 'x' }] }).map(c => c.slug), ['x']);
+  // Older sites: the four names their product API does not know are corrected, the unfilterable gifts are left out.
+  assert.equal(apiSlug('CGW', 'safety-boots'), 'safety-footwear');
+  assert.equal(apiSlug('MGW', 'mens-jewellery'), 'jewellery');
+  assert.equal(apiSlug('WGW', 'everyday-carry-edc'), 'everyday-essentials');
+  assert.equal(apiSlug('MGW', 'gifts-for-men'), null);
+  assert.equal(apiSlug('HGW', 'lighting'), 'lighting');
+  const mgw = categoriesFor({ key: 'MGW', categories: [{ key: 'g', name: 'Gifts', slug: 'gifts-for-men' }, { key: 'j', name: 'Jewellery', slug: 'mens-jewellery' }] });
+  assert.deepEqual(mgw.map(c => c.slug), ['jewellery']);
 });
