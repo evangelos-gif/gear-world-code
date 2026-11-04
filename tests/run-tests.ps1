@@ -3614,6 +3614,95 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
     }
 }
 
+# 11d. gwh-sitemap.ps1 (the gift guides in the Hub sitemap: check, preview, live, remove-preview) with a fake wrangler (Windows only)
+if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
+    Write-Host 'gwh-sitemap.ps1 (fake wrangler)'
+    $sTool = Join-Path (Join-Path $repo 'tools') 'gwh-sitemap.ps1'
+    $sState = Join-Path $work 'gwsm-state'
+    $sWork = Join-Path $work 'gwsm-work'
+    $sOut = Join-Path $work 'gwsm-out'
+    $sBin = Join-Path $work 'gwsm-bin'
+    New-Item -ItemType Directory -Path $sState, $sBin -Force | Out-Null
+    $sVer = [guid]::NewGuid().ToString()
+    $sNpx = @(
+        '@echo off',
+        'echo %* >> "%GW_FAKE_STATE%\calls.log"',
+        'echo %* | findstr /C:"whoami" >nul && goto whoami',
+        'echo %* | findstr /C:"deployments list" >nul && goto deployments',
+        'echo %* | findstr /C:"delete gwh-sitemap-preview" >nul && goto delpreview',
+        'echo %* | findstr /C:" deploy" >nul && goto deploy',
+        'echo unknown command 1>&2',
+        'exit /b 1',
+        ':whoami',
+        'echo You are logged in with an OAuth Token, associated with the email test@example.com.',
+        'exit /b 0',
+        ':deployments',
+        'if exist "%GW_FAKE_STATE%\nover.flag" exit /b 0',
+        ('echo Version(s):  (100%%) ' + $sVer),
+        'exit /b 0',
+        ':deploy',
+        'echo %* | findstr /C:"wrangler.preview.toml" >nul && copy /y wrangler.preview.toml "%GW_FAKE_STATE%\preview.toml" >nul',
+        'echo %* | findstr /C:"wrangler.toml" | findstr /V /C:"preview" >nul && copy /y wrangler.toml "%GW_FAKE_STATE%\live.toml" >nul',
+        'echo Uploaded the Worker',
+        'echo   https://gwh-sitemap-preview.example-test.workers.dev',
+        'exit /b 0',
+        ':delpreview',
+        'if exist "%GW_FAKE_STATE%\deleted.flag" goto delgone',
+        'echo deleted> "%GW_FAKE_STATE%\deleted.flag"',
+        'echo Successfully deleted gwh-sitemap-preview',
+        'exit /b 0',
+        ':delgone',
+        'echo X [ERROR] This Worker does not exist on your account. [code: 10007]',
+        'exit /b 1'
+    ) -join "`r`n"
+    [System.IO.File]::WriteAllText((Join-Path $sBin 'npx.cmd'), $sNpx + "`r`n", [System.Text.Encoding]::ASCII)
+    $oldPath = $env:PATH
+    $env:PATH = $sBin + ';' + $oldPath
+    $env:GW_FAKE_STATE = $sState
+    $sCalls = Join-Path $sState 'calls.log'
+    function Run-S([string[]]$a) {
+        $all = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $sTool, '-WorkDir', $sWork, '-OutDir', $sOut, '-SkipInstall', '-NoClipboard', '-NoHttpCheck') + $a
+        & $exe @all | Out-Null
+        return $LASTEXITCODE
+    }
+    function SCalls { if (Test-Path -LiteralPath $sCalls) { return [System.IO.File]::ReadAllText($sCalls) } else { return '' } }
+    function SCount([string]$pattern) { return ([regex]::Matches((SCalls), $pattern)).Count }
+    function SLast { return [System.IO.File]::ReadAllText((@(Get-ChildItem -LiteralPath $sOut -Filter 'GWH_SITEMAP_*.txt' | Sort-Object LastWriteTime, Name | Select-Object -Last 1)[0]).FullName) }
+    try {
+        Check ((Run-S @('-Step', 'check')) -eq 0) 'sitemap check: exit 0'
+        $r = SLast
+        Check ($r.Contains('Cloudflare login: ΕΝΤΑΞΕΙ') -and $r.Contains('Αποτέλεσμα: ΕΝΤΑΞΕΙ') -and $r.Contains('6 σελίδες των οδηγών')) 'sitemap check: login, live version, ready'
+        Check ((SCount ' deploy') -eq 0 -and (SCount 'delete') -eq 0) 'sitemap check: only reads'
+        Check (-not $r.Contains($sVer)) 'sitemap check: no version id in the report'
+        Check ((Run-S @('-Step', 'preview')) -eq 0 -and (SCount ' deploy') -eq 0) 'sitemap preview without -Apply: nothing changes'
+        Check ((Run-S @('-Step', 'preview', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ SITEMAP LIVE')) -eq 1 -and (SCount ' deploy') -eq 0) 'sitemap preview with the live phrase: nothing changes'
+        Check ((Run-S @('-Step', 'preview', '-Apply', '-Approve', 'egkrino sitemap preview')) -eq 0 -and (SCount ' deploy') -eq 1) 'sitemap preview with approval: deploys once'
+        $pt = $(if (Test-Path -LiteralPath (Join-Path $sState 'preview.toml')) { [System.IO.File]::ReadAllText((Join-Path $sState 'preview.toml')) } else { '' })
+        Check ($pt.Contains('name = "gwh-sitemap-preview"') -and $pt.Contains('workers_dev = true') -and -not $pt.Contains('routes') -and -not $pt.Contains('name = "gwh-sitemap"')) 'sitemap preview: its own test Worker, workers.dev, no route'
+        Check ((SLast).Contains('https://gwh-sitemap-preview.example-test.workers.dev/sitemap.xml')) 'sitemap preview: the report has the test address'
+        Check ((Run-S @('-Step', 'live')) -eq 0 -and (SCount ' deploy') -eq 1) 'sitemap live without -Apply: nothing changes'
+        Check ((Run-S @('-Step', 'live', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ SITEMAP PREVIEW')) -eq 1 -and (SCount ' deploy') -eq 1) 'sitemap live with the preview phrase: nothing changes'
+        Write-Utf8 (Join-Path $sState 'nover.flag') 'x'
+        Check ((Run-S @('-Step', 'live', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ SITEMAP LIVE')) -eq 11 -and (SCount ' deploy') -eq 1) 'sitemap live: no live version to go back to: stops before any change'
+        Remove-Item -LiteralPath (Join-Path $sState 'nover.flag') -Force
+        Check ((Run-S @('-Step', 'live', '-Apply', '-Approve', 'egkrino sitemap live')) -eq 0 -and (SCount ' deploy') -eq 2) 'sitemap live with approval: deploys once'
+        $lt = $(if (Test-Path -LiteralPath (Join-Path $sState 'live.toml')) { [System.IO.File]::ReadAllText((Join-Path $sState 'live.toml')) } else { '' })
+        Check ($lt.Contains('name = "gwh-sitemap"') -and $lt.Contains('pattern = "gearworldhub.com/sitemap.xml", zone_name = "gearworldhub.com"') -and $lt.Contains('workers_dev = false')) 'sitemap live: the live Worker with its own route'
+        $note = @(Get-ChildItem -LiteralPath (Join-Path $sWork 'backups') -Filter 'gwh-sitemap-before-live-*.txt' -ErrorAction SilentlyContinue)
+        Check ($note.Count -eq 1 -and [System.IO.File]::ReadAllText($note[0].FullName).Contains('npx wrangler rollback ' + $sVer + ' --name gwh-sitemap')) 'sitemap live: rollback note with the old live version'
+        Check (@(Get-ChildItem -LiteralPath (Join-Path $sWork 'backups') -Filter 'gwh-sitemap-before-*.js' -ErrorAction SilentlyContinue).Count -eq 1) 'sitemap live: the old code is kept'
+        Check (-not (SLast).Contains($sVer)) 'sitemap live: no version id in the report'
+        Check ((Run-S @('-Step', 'remove-preview', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ SITEMAP LIVE')) -eq 1 -and (SCount 'delete gwh-sitemap-preview') -eq 0) 'sitemap remove-preview with the live phrase: nothing deleted'
+        Check ((Run-S @('-Step', 'remove-preview', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ SITEMAP REMOVE PREVIEW')) -eq 0 -and (SCount 'delete gwh-sitemap-preview') -eq 1) 'sitemap remove-preview: deletes the test Worker once'
+        Check (-not ((SCalls) -match 'delete gwh-sitemap(\s|$)')) 'sitemap remove-preview: the live Worker is never named'
+        Check (@(Get-ChildItem -LiteralPath $sWork -Directory -Filter 'empty-for-delete-*' -ErrorAction SilentlyContinue).Count -eq 0) 'sitemap remove-preview: the empty folder is removed afterwards'
+        Check ((Run-S @('-Step', 'remove-preview', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ SITEMAP REMOVE PREVIEW')) -eq 0 -and (SLast).Contains('δεν υπάρχει ήδη')) 'sitemap remove-preview twice: already gone is fine'
+    } finally {
+        $env:PATH = $oldPath
+        Remove-Item Env:\GW_FAKE_STATE -ErrorAction SilentlyContinue
+    }
+}
+
 # 12. gw-old-workers.ps1 (which old Workers can go) with a fake wrangler and fake Cloudflare answers (Windows only)
 if ($isWin) {
     Write-Host 'gw-old-workers.ps1 (fake wrangler and fake Cloudflare)'
