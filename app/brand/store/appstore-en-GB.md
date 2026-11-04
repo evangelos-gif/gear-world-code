@@ -9,19 +9,19 @@ Gear World
 Shop every Gear World at once
 
 ## Promotional text
-Search tools, workwear, fashion, kids, home, garden, tech, car, travel and sport gear from retailers in one app, by typing or with your voice.
+Search tools, workwear, fashion, kids, home, garden, tech, car, travel, sport, motorbike, gaming and pet gear from retailers in one app, by typing or with your voice.
 
 ## Keywords
-shopping,deals,tools,workwear,fashion,kids,home,garden,tech,car,travel,sport,price,compare,retailers
+shopping,deals,tools,workwear,fashion,kids,home,garden,tech,car,travel,sport,motorbike,gaming,pets
 
 ## Description
-Gear World brings the whole Gear World shopping network to your phone. Find tools, workwear, fashion, kids' essentials, home, garden, technology, car, travel and sport gear from retailers, all from one search.
+Gear World brings the whole Gear World shopping network to your phone. Find tools, workwear, fashion, kids' essentials, home, garden, technology, car, travel, sport, motorbike, gaming and pet gear from retailers, all from one search.
 
 ONE SEARCH, EVERY WORLD
 Type what you need, or tap the microphone and say it, and Gear World searches every specialist Gear World site at once. Filter the results by world and open the product you want.
 
 CHOOSE A WORLD
-Browse each Gear World on its own: Tools & Workwear, Men, Women, Kids & Teens, Home, Garden, Technology, Car, Travel and Sport. New worlds appear in the app automatically as they launch.
+Browse each Gear World on its own: Tools & Workwear, Men, Women, Kids & Teens, Home, Garden, Technology, Car, Travel, Sport, Motorbike & Scooter, Gaming and Pets. New worlds appear in the app automatically as they launch.
 
 SHOP BY CATEGORY AND PRICE
 Open a category, sort by price or newest, and load more products as you scroll.
@@ -50,7 +50,7 @@ Website: https://gearworldhub.com
 2026 Gear World
 
 ## App Review notes
-Gear World is the free mobile app of gearworldhub.com, the hub of the Gear World network of specialist shopping websites (tools and workwear, men, women, kids, home, garden, technology, car, travel and sport).
+Gear World is the free mobile app of gearworldhub.com, the hub of the Gear World network of specialist shopping websites (tools and workwear, men, women, kids, home, garden, technology, car, travel, sport, motorbike, gaming and pets).
 
 No account or sign-in is needed.
 

@@ -58,7 +58,7 @@ test('registry: worlds come from the Hub; bad rows are skipped', () => {
   assert.equal(w[0].base, 'https://constructiongearworld.com');
   assert.deepEqual(w[0].categories.map(c => c.slug), ['power-tools']);
   assert.throws(() => parseRegistry({ ok: false }));
-  assert.equal(FALLBACK_WORLDS.length, 10);
+  assert.equal(FALLBACK_WORLDS.length, HUB_ORDER.length);
   assert.deepEqual(FALLBACK_WORLDS.map(w => w.key), HUB_ORDER);
 });
 

@@ -42,7 +42,10 @@
    "Technology",
    "Car",
    "Travel",
-   "Sport"
+   "Sport",
+   "Motorbike & Scooter",
+   "Gaming",
+   "Pets"
   ],
   "worldDescriptions": [
    "Tools, workwear and site equipment.",
@@ -54,7 +57,10 @@
    "Laptops, phones, audio and gaming tech.",
    "Garage tools, parts, car care and dash cams.",
    "Luggage, travel bags, accessories and camping gear.",
-   "Fitness, running, cycling, team sports and nutrition."
+   "Fitness, running, cycling, team sports and nutrition.",
+   "Helmets, riding gear, parts, scooters and e-motorbikes.",
+   "Consoles, gaming PCs, monitors, headsets and chairs.",
+   "Food, beds, leads, toys and cat trees for pets."
   ],
   "nl_eyebrow": "STAY CONNECTED",
   "nl_title": "Stay connected with Gear World.",
@@ -112,7 +118,10 @@
    "Τεχνολογία",
    "Αυτοκίνητο",
    "Ταξίδι",
-   "Αθλητισμός"
+   "Αθλητισμός",
+   "Μηχανή & πατίνι",
+   "Gaming",
+   "Κατοικίδια"
   ],
   "worldDescriptions": [
    "Εργαλεία, ρούχα εργασίας και εξοπλισμός εργοταξίου.",
@@ -124,7 +133,10 @@
    "Laptop, κινητά, ήχος και gaming.",
    "Εργαλεία συνεργείου, ανταλλακτικά, περιποίηση και κάμερες.",
    "Βαλίτσες, τσάντες ταξιδιού, αξεσουάρ και εξοπλισμός camping.",
-   "Γυμναστική, τρέξιμο, ποδήλατο, ομαδικά αθλήματα και διατροφή."
+   "Γυμναστική, τρέξιμο, ποδήλατο, ομαδικά αθλήματα και διατροφή.",
+   "Κράνη, ρούχα αναβάτη, ανταλλακτικά, πατίνια και ηλεκτρικές μηχανές.",
+   "Κονσόλες, gaming PC, οθόνες, headsets και καρέκλες.",
+   "Τροφές, κρεβάτια, λουριά, παιχνίδια και ονυχοδρόμια."
   ],
   "nl_eyebrow": "ΜΕΙΝΕΤΕ ΣΥΝΔΕΔΕΜΕΝΟΙ",
   "nl_title": "Μείνετε συνδεδεμένοι με το Gear World.",
@@ -182,7 +194,10 @@
    "Technik",
    "Auto",
    "Reisen",
-   "Sport"
+   "Sport",
+   "Motorrad & Roller",
+   "Gaming",
+   "Haustiere"
   ],
   "worldDescriptions": [
    "Werkzeuge, Arbeitskleidung und Baustellenausrüstung.",
@@ -194,7 +209,10 @@
    "Laptops, Handys, Audio und Gaming.",
    "Werkstattwerkzeug, Teile, Autopflege und Dashcams.",
    "Koffer, Reisetaschen, Zubehör und Campingausrüstung.",
-   "Fitness, Laufen, Radsport, Teamsport und Sporternährung."
+   "Fitness, Laufen, Radsport, Teamsport und Sporternährung.",
+   "Helme, Motorradbekleidung, Teile, Roller und E-Motorräder.",
+   "Konsolen, Gaming-PCs, Monitore, Headsets und Stühle.",
+   "Futter, Betten, Leinen, Spielzeug und Kratzbäume."
   ],
   "nl_eyebrow": "BLEIBEN SIE INFORMIERT",
   "nl_title": "Bleiben Sie mit Gear World verbunden.",
@@ -252,7 +270,10 @@
    "Technologie",
    "Auto",
    "Voyage",
-   "Sport"
+   "Sport",
+   "Moto & trottinette",
+   "Gaming",
+   "Animaux"
   ],
   "worldDescriptions": [
    "Outils, vêtements de travail et équipement de chantier.",
@@ -264,7 +285,10 @@
    "Ordinateurs portables, téléphones, audio et gaming.",
    "Outils de garage, pièces, entretien et dashcams.",
    "Valises, sacs de voyage, accessoires et matériel de camping.",
-   "Fitness, course à pied, vélo, sports collectifs et nutrition."
+   "Fitness, course à pied, vélo, sports collectifs et nutrition.",
+   "Casques, équipement moto, pièces, trottinettes et motos électriques.",
+   "Consoles, PC gaming, écrans, casques et chaises.",
+   "Nourriture, paniers, laisses, jouets et arbres à chat."
   ],
   "nl_eyebrow": "RESTEZ INFORMÉ",
   "nl_title": "Restez connecté à Gear World.",
@@ -322,7 +346,10 @@
    "Tecnologia",
    "Auto",
    "Viaggio",
-   "Sport"
+   "Sport",
+   "Moto & monopattino",
+   "Gaming",
+   "Animali"
   ],
   "worldDescriptions": [
    "Utensili, abbigliamento da lavoro e attrezzature da cantiere.",
@@ -334,7 +361,10 @@
    "Laptop, smartphone, audio e gaming.",
    "Attrezzi da officina, ricambi, cura auto e dash cam.",
    "Valigie, borse da viaggio, accessori e attrezzatura da campeggio.",
-   "Fitness, corsa, ciclismo, sport di squadra e nutrizione."
+   "Fitness, corsa, ciclismo, sport di squadra e nutrizione.",
+   "Caschi, abbigliamento moto, ricambi, monopattini e moto elettriche.",
+   "Console, PC gaming, monitor, cuffie e sedie.",
+   "Cibo, cucce, guinzagli, giochi e tiragraffi."
   ],
   "nl_eyebrow": "RESTA AGGIORNATO",
   "nl_title": "Resta connesso con Gear World.",
@@ -392,7 +422,10 @@
    "Tecnología",
    "Coche",
    "Viaje",
-   "Deporte"
+   "Deporte",
+   "Moto y patinete",
+   "Gaming",
+   "Mascotas"
   ],
   "worldDescriptions": [
    "Herramientas, ropa de trabajo y equipo de obra.",
@@ -404,7 +437,10 @@
    "Portátiles, móviles, audio y gaming.",
    "Herramientas de taller, recambios, cuidado y cámaras.",
    "Maletas, bolsas de viaje, accesorios y equipo de camping.",
-   "Fitness, running, ciclismo, deportes de equipo y nutrición."
+   "Fitness, running, ciclismo, deportes de equipo y nutrición.",
+   "Cascos, equipación de moto, recambios, patinetes y motos eléctricas.",
+   "Consolas, PC gaming, monitores, auriculares y sillas.",
+   "Comida, camas, correas, juguetes y rascadores."
   ],
   "nl_eyebrow": "MANTENTE INFORMADO",
   "nl_title": "Mantente conectado con Gear World.",
@@ -462,7 +498,10 @@
    "Tecnologia",
    "Automóvel",
    "Viagem",
-   "Desporto"
+   "Desporto",
+   "Mota e trotinete",
+   "Gaming",
+   "Animais"
   ],
   "worldDescriptions": [
    "Ferramentas, roupa de trabalho e equipamento de obra.",
@@ -474,7 +513,10 @@
    "Portáteis, telemóveis, áudio e gaming.",
    "Ferramentas de oficina, peças, cuidado e câmaras.",
    "Malas, sacos de viagem, acessórios e equipamento de campismo.",
-   "Fitness, corrida, ciclismo, desportos coletivos e nutrição."
+   "Fitness, corrida, ciclismo, desportos coletivos e nutrição.",
+   "Capacetes, equipamento de mota, peças, trotinetes e motas elétricas.",
+   "Consolas, PCs gaming, monitores, headsets e cadeiras.",
+   "Comida, camas, trelas, brinquedos e arranhadores."
   ],
   "nl_eyebrow": "MANTENHA-SE INFORMADO",
   "nl_title": "Mantenha-se ligado ao Gear World.",
@@ -532,7 +574,10 @@
    "Technologie",
    "Auto",
    "Reizen",
-   "Sport"
+   "Sport",
+   "Motor & step",
+   "Gaming",
+   "Huisdieren"
   ],
   "worldDescriptions": [
    "Gereedschap, werkkleding en bouwplaatsuitrusting.",
@@ -544,7 +589,10 @@
    "Laptops, telefoons, audio en gaming.",
    "Garagegereedschap, onderdelen, autoverzorging en dashcams.",
    "Koffers, reistassen, accessoires en kampeeruitrusting.",
-   "Fitness, hardlopen, fietsen, teamsporten en sportvoeding."
+   "Fitness, hardlopen, fietsen, teamsporten en sportvoeding.",
+   "Helmen, motorkleding, onderdelen, steps en elektrische motoren.",
+   "Consoles, gaming-pc’s, monitoren, headsets en stoelen.",
+   "Voer, manden, riemen, speelgoed en krabpalen."
   ],
   "nl_eyebrow": "BLIJF OP DE HOOGTE",
   "nl_title": "Blijf verbonden met Gear World.",
@@ -602,7 +650,10 @@
    "Teknologji",
    "Makina",
    "Udhëtim",
-   "Sport"
+   "Sport",
+   "Motor & patinë",
+   "Gaming",
+   "Kafshë shtëpiake"
   ],
   "worldDescriptions": [
    "Vegla, veshje pune dhe pajisje kantieri.",
@@ -614,7 +665,10 @@
    "Laptopë, telefona, audio dhe gaming.",
    "Vegla garazhi, pjesë, kujdes makine dhe kamera.",
    "Valixhe, çanta udhëtimi, aksesorë dhe pajisje kampingu.",
-   "Fitnes, vrapim, çiklizëm, sporte ekipore dhe ushqyerje sportive."
+   "Fitnes, vrapim, çiklizëm, sporte ekipore dhe ushqyerje sportive.",
+   "Helmeta, veshje motoristi, pjesë, patina dhe motoçikleta elektrike.",
+   "Konsola, PC gaming, monitorë, kufje dhe karrige.",
+   "Ushqim, shtretër, rripa, lodra dhe gërvishtëse për mace."
   ],
   "nl_eyebrow": "QËNDRONI TË INFORMUAR",
   "nl_title": "Qëndroni të lidhur me Gear World.",
@@ -672,7 +726,10 @@
    "Tehnologie",
    "Auto",
    "Călătorii",
-   "Sport"
+   "Sport",
+   "Moto & trotinetă",
+   "Gaming",
+   "Animale de companie"
   ],
   "worldDescriptions": [
    "Unelte, îmbrăcăminte de lucru și echipamente de șantier.",
@@ -684,7 +741,10 @@
    "Laptopuri, telefoane, audio și gaming.",
    "Scule de garaj, piese, îngrijire auto și camere.",
    "Valize, genți de călătorie, accesorii și echipament de camping.",
-   "Fitness, alergare, ciclism, sporturi de echipă și nutriție."
+   "Fitness, alergare, ciclism, sporturi de echipă și nutriție.",
+   "Căști, echipament moto, piese, trotinete și motociclete electrice.",
+   "Console, PC-uri de gaming, monitoare, căști și scaune.",
+   "Hrană, culcușuri, lese, jucării și stâlpi de zgâriat."
   ],
   "nl_eyebrow": "RĂMÂNEȚI INFORMAT",
   "nl_title": "Rămâneți la curent cu Gear World.",
@@ -742,7 +802,10 @@
    "Технологии",
    "Авто",
    "Путешествия",
-   "Спорт"
+   "Спорт",
+   "Мото и самокаты",
+   "Гейминг",
+   "Питомцы"
   ],
   "worldDescriptions": [
    "Инструменты, рабочая одежда и оборудование для стройки.",
@@ -754,7 +817,10 @@
    "Ноутбуки, телефоны, аудио и игры.",
    "Гаражный инструмент, запчасти, уход и видеорегистраторы.",
    "Чемоданы, дорожные сумки, аксессуары и снаряжение для кемпинга.",
-   "Фитнес, бег, велоспорт, командные виды спорта и спортивное питание."
+   "Фитнес, бег, велоспорт, командные виды спорта и спортивное питание.",
+   "Шлемы, мотоэкипировка, запчасти, самокаты и электромотоциклы.",
+   "Консоли, игровые ПК, мониторы, гарнитуры и кресла.",
+   "Корм, лежанки, поводки, игрушки и когтеточки."
   ],
   "nl_eyebrow": "ОСТАВАЙТЕСЬ В КУРСЕ",
   "nl_title": "Оставайтесь на связи с Gear World.",

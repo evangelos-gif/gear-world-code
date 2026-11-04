@@ -45,7 +45,10 @@ export const FALLBACK_WORLDS: World[] = [
   ['TGW', 'Technology Gear World', 'technologygearworld.com', 'technology'],
   ['AGW', 'Car Gear World', 'cargearworld.com', 'car'],
   ['VGW', 'Travel Gear World', 'travelgearworld.com', 'travel'],
-  ['SGW', 'Sporty Gear World', 'sportygearworld.com', 'sport']
+  ['SGW', 'Sporty Gear World', 'sportygearworld.com', 'sport'],
+  ['BGW', 'Biker Gear World', 'bikergearworld.com', 'motorbike'],
+  ['PGW', 'Gaming Gear World', 'gaminggearworld.com', 'gaming'],
+  ['ZGW', 'Pets Gear World', 'petsgearworld.com', 'pets']
 ].map(([key, name, domain, audience]) => ({ key, name, domain, base: `https://${domain}`, audience, categories: [] }));
 
 const DOMAIN_RE = /^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$/;
