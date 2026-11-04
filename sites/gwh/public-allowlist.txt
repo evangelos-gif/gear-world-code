@@ -41,3 +41,10 @@ seasonal/halloween.mp4
 styles.css
 terms/index.html
 translations.js
+guides/guides.css
+guides/index.html
+guides/christmas-gifts-for-him/index.html
+guides/christmas-gifts-for-her/index.html
+guides/christmas-gifts-for-kids/index.html
+guides/christmas-gifts-for-diy-lovers/index.html
+guides/christmas-gifts-for-travellers/index.html

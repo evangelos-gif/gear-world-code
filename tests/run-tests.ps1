@@ -3535,7 +3535,7 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         Check (-not $r.Contains($vDb) -and -not $r.Contains($vVer)) 'hub v2 check: no database id or version id in the report'
         # preview
         Check ((Run-V @('-Step', 'preview')) -eq 0 -and (VCount 'deploy --config') -eq 0) 'hub v2 preview without -Apply: nothing changes'
-        Check ((Run-V @('-Step', 'preview', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB LIVE')) -eq 1 -and (VCount 'deploy --config') -eq 0) 'hub v2 preview with the live phrase: nothing changes'
+        Check ((Run-V @('-Step', 'preview', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB GUIDES LIVE')) -eq 1 -and (VCount 'deploy --config') -eq 0) 'hub v2 preview with the live phrase: nothing changes'
         Check ((Run-V @('-Step', 'preview', '-Apply', '-Approve', 'egkrino hub preview')) -eq 0 -and (VCount 'deploy --config') -eq 1) 'hub v2 preview with approval: deploys once'
         $c = VCalls
         Check ($c -match 'deploy --config "[^"]*wrangler\.preview\.toml"' -and $c -match 'secret bulk "[^"]+" --name gear-world-hub-preview') 'hub v2 preview: deploys the preview config, sets the photo secret of the test Worker'
@@ -3545,18 +3545,18 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         $r = VLast
         Check ($r.Contains('https://gear-world-hub-preview.example-test.workers.dev') -and $r.Contains('?gwh-date=2026-11-28') -and -not $r.Contains($vDb)) 'hub v2 preview: report has the test address and the Black Friday link, not the database id'
         Check ((Get-TreeHash $vHub) -eq $vHubBefore) 'hub v2 preview: the hub folder on the PC is not changed'
-        Check ((Run-V @('-Step', 'preview', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB PREVIEW')) -eq 0 -and (VCount 'secret bulk') -eq 1) 'hub v2 preview again: the existing secret of the test Worker is kept'
+        Check ((Run-V @('-Step', 'preview', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB GUIDES PREVIEW')) -eq 0 -and (VCount 'secret bulk') -eq 1) 'hub v2 preview again: the existing secret of the test Worker is kept'
         # live: the posters go first
         Write-Utf8 (Join-Path $vHub 'wrangler.toml') ($vCfg.Substring(0, $vCfg.IndexOf('[[services]]')))
-        Check ((Run-V @('-Step', 'live', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB LIVE')) -eq 8 -and (VCount 'deploy --config') -eq 2) 'hub v2 live: refused before the poster counting is on the Hub'
+        Check ((Run-V @('-Step', 'live', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB GUIDES LIVE')) -eq 8 -and (VCount 'deploy --config') -eq 2) 'hub v2 live: refused before the poster counting is on the Hub'
         Write-Utf8 (Join-Path $vHub 'wrangler.toml') $vCfg
         Check ((Run-V @('-Step', 'live')) -eq 0 -and (VCount 'deploy --config') -eq 2 -and (Get-TreeHash $vHub) -eq $vHubBefore) 'hub v2 live without -Apply: nothing changes'
-        Check ((Run-V @('-Step', 'live', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB PREVIEW')) -eq 1 -and (VCount 'deploy --config') -eq 2 -and (Get-TreeHash $vHub) -eq $vHubBefore) 'hub v2 live with the preview phrase: nothing changes'
+        Check ((Run-V @('-Step', 'live', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB GUIDES PREVIEW')) -eq 1 -and (VCount 'deploy --config') -eq 2 -and (Get-TreeHash $vHub) -eq $vHubBefore) 'hub v2 live with the preview phrase: nothing changes'
         Write-Utf8 (Join-Path $vState 'split.flag') 'split'
-        Check ((Run-V @('-Step', 'live', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB LIVE')) -eq 11 -and (VCount 'deploy --config') -eq 2 -and (Get-TreeHash $vHub) -eq $vHubBefore) 'hub v2 live: no single live version to go back to: stops before any change'
+        Check ((Run-V @('-Step', 'live', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB GUIDES LIVE')) -eq 11 -and (VCount 'deploy --config') -eq 2 -and (Get-TreeHash $vHub) -eq $vHubBefore) 'hub v2 live: no single live version to go back to: stops before any change'
         Remove-Item -LiteralPath (Join-Path $vState 'split.flag') -Force
         Write-Utf8 (Join-Path $vState 'failother.flag') 'always'
-        Check ((Run-V @('-Step', 'live', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB LIVE')) -eq 9 -and (VCount 'deploy --config') -eq 3) 'hub v2 live: a failed deploy stops at once (exit 9), no repeat'
+        Check ((Run-V @('-Step', 'live', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB GUIDES LIVE')) -eq 9 -and (VCount 'deploy --config') -eq 3) 'hub v2 live: a failed deploy stops at once (exit 9), no repeat'
         Check ((Get-TreeHash $vHub) -eq $vHubBefore) 'hub v2 live: after a failed deploy the hub folder is back as it was (new files removed too)'
         Remove-Item -LiteralPath (Join-Path $vState 'failother.flag') -Force
         Check ((Run-V @('-Step', 'live', '-Apply', '-Approve', 'egkrino hub live')) -eq 0 -and (VCount 'deploy --config') -eq 4) 'hub v2 live with approval: deploys once'
@@ -3586,11 +3586,11 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         Check ($r.Contains('public/hub-v2.js | ') -and $r.Contains('ΕΤΟΙΜΟ') -and -not $r.Contains($vVer)) 'hub v2 live: the report has the new baseline lines, not the version id'
         Check ((Run-V @('-Step', 'check')) -eq 0 -and (VLast).Contains('έχει ήδη αυτή την έκδοση')) 'hub v2 check after live: the hub folder has this version'
         Write-Utf8 (Join-Path $vPub 'styles.css') 'body{}'
-        Check ((Run-V @('-Step', 'live', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB LIVE')) -eq 7 -and (VCount 'deploy --config') -eq 4) 'hub v2 live: refused when someone else changed the hub folder'
+        Check ((Run-V @('-Step', 'live', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB GUIDES LIVE')) -eq 7 -and (VCount 'deploy --config') -eq 4) 'hub v2 live: refused when someone else changed the hub folder'
         Check ((VLast).Contains('public/styles.css')) 'hub v2: the changed file is named in the report'
         # register: Pets Gear World in the Hub's list of sites (one D1 row, restore point first)
         Check ((Run-V @('-Step', 'register')) -eq 0 -and (VCount '--file') -eq 0) 'hub register without -Apply: nothing changes'
-        Check ((Run-V @('-Step', 'register', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB LIVE')) -eq 1 -and (VCount '--file') -eq 0) 'hub register with the live phrase: nothing changes'
+        Check ((Run-V @('-Step', 'register', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB GUIDES LIVE')) -eq 1 -and (VCount '--file') -eq 0) 'hub register with the live phrase: nothing changes'
         Check ((Run-V @('-Step', 'register', '-Apply', '-Approve', 'egkrino hub zgw search')) -eq 0 -and (VCount '--file') -eq 1) 'hub register with approval: one SQL file runs'
         $c = VCalls
         Check ($c.LastIndexOf('time-travel info gear-world-registry') -lt $c.LastIndexOf('--file') -and $c.LastIndexOf('time-travel info gear-world-registry') -ge 0) 'hub register: restore point read before the change'
@@ -3600,7 +3600,7 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         Check ((Run-V @('-Step', 'register', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB ZGW SEARCH')) -eq 0 -and (VCount '--file') -eq 1 -and (VLast).Contains('ήδη στη λίστα')) 'hub register twice: the row is there, nothing runs again'
         # remove-preview: the test Worker goes, from a new empty folder (L83)
         Check ((Run-V @('-Step', 'remove-preview')) -eq 0 -and (VCount 'delete gear-world-hub-preview') -eq 0) 'hub remove-preview without -Apply: nothing deleted'
-        Check ((Run-V @('-Step', 'remove-preview', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB LIVE')) -eq 1 -and (VCount 'delete gear-world-hub-preview') -eq 0) 'hub remove-preview with the live phrase: nothing deleted'
+        Check ((Run-V @('-Step', 'remove-preview', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB GUIDES LIVE')) -eq 1 -and (VCount 'delete gear-world-hub-preview') -eq 0) 'hub remove-preview with the live phrase: nothing deleted'
         $deploysNow = VCount 'deploy --config'
         Check ((Run-V @('-Step', 'remove-preview', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB REMOVE PREVIEW')) -eq 0 -and (VCount 'delete gear-world-hub-preview') -eq 1 -and (VCount 'deploy --config') -eq $deploysNow) 'hub remove-preview with approval: deletes only the test Worker, no deploy'
         Check (-not ((VCalls) -match 'delete gear-world-hub(\s|$)')) 'hub remove-preview: the live Worker is never named'

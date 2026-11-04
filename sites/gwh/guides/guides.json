@@ -1,0 +1,729 @@
+{
+ "checked": "2026-11-04",
+ "note": "Prices read from the product pages of the Gear World sites (GET only, never /out/). Rebuild the pages with: node tools/gwh-guides.mjs build. Re-check with: node tools/gwh-guides.mjs check.",
+ "guides": [
+  {
+   "slug": "christmas-gifts-for-him",
+   "site": "mgw",
+   "short": "For him",
+   "title": "Christmas gifts for him, from £24.99 to £140",
+   "metaTitle": "Christmas Gifts for Him: 12 Ideas from £24.99 | Gear World Hub",
+   "description": "Twelve Christmas gifts for him in four budgets, from a £24.99 fragrance to a leather valet box. Real prices from Men's Gear World, checked 4 Nov 2026.",
+   "intro": "Twelve gifts for him, picked from the men's products we compare, in four budgets. We have not tested these products. We picked them on brand, materials and price, and every one was in stock when we checked.",
+   "tips": [
+    {
+     "label": "Quick tip:",
+     "text": "not sure of his size? The umbrella, card holder, keyring and valet box need no size at all."
+    }
+   ],
+   "items": [
+    {
+     "group": "Under £25",
+     "name": "Lattafa Nebras Elixir 100ml EDP",
+     "url": "https://mensgearworld.com/product/lattafa-nebras-elixir-100ml-edp-unisex-45551/",
+     "why": "A full 100ml bottle for under £25",
+     "price": 24.99,
+     "retailer": "Opulensi Perfumes",
+     "image": "https://cdn.shopify.com/s/files/1/0725/8003/8975/files/Lattafa_Nebras_Elixir_100ml_EDP_bottle_front_white.jpg?v=1762284210"
+    },
+    {
+     "group": "£25",
+     "name": "Fulton Magnum-1 Auto Folding Umbrella",
+     "url": "https://mensgearworld.com/product/fulton-magnum-1-auto-folding-umbrella-in-black-33914/",
+     "why": "Opens at the press of a button and folds small for a bag",
+     "price": 25.0,
+     "retailer": "Coes",
+     "image": "https://cdn.shopify.com/s/files/1/0247/7952/2097/files/e7416ebabb118877b53e141e7ad07c7e.png?v=1705573883"
+    },
+    {
+     "group": "£25",
+     "name": "Gianni Conti Leather Card Holder",
+     "url": "https://mensgearworld.com/product/gianni-conti-men-s-leather-card-holder-34086/",
+     "why": "Slim leather alternative to a bulky wallet",
+     "price": 25.0,
+     "retailer": "Coes",
+     "image": "https://cdn.shopify.com/s/files/1/0247/7952/2097/files/public_903a121c-d273-407d-a0d6-c57abfb9e075.png?v=1785940752"
+    },
+    {
+     "group": "£25",
+     "name": "Peregrine Porter Ribbed Beanie",
+     "url": "https://mensgearworld.com/product/peregrine-porter-ribbed-beanie-35256/",
+     "why": "A simple winter hat that suits most styles",
+     "price": 25.0,
+     "retailer": "Coes",
+     "image": "https://cdn.shopify.com/s/files/1/0247/7952/2097/files/e613199967f1e38d3b718069483278f8.png?v=1753285904"
+    },
+    {
+     "group": "Under £50",
+     "name": "R. M. Williams Plaited Keyring",
+     "url": "https://mensgearworld.com/product/plaited-keyring-35270/",
+     "why": "A small leather piece from the Australian bootmaker",
+     "price": 35.0,
+     "retailer": "Coes",
+     "image": "https://cdn.shopify.com/s/files/1/0247/7952/2097/files/public_e4807b7b-f6b8-4884-9d8e-0ec9ab052ebe.png?v=1787222200"
+    },
+    {
+     "group": "Under £50",
+     "name": "Barbour Banff Quilted Gloves",
+     "url": "https://mensgearworld.com/product/barbour-banff-quilted-gloves-32658/",
+     "why": "Quilted winter gloves from Barbour",
+     "price": 39.95,
+     "retailer": "Coes",
+     "image": "https://cdn.shopify.com/s/files/1/0247/7952/2097/files/bfde145091ac0d354cb076e64d21ffb4.png?v=1721379898"
+    },
+    {
+     "group": "Under £50",
+     "name": "Barbour Merino Cashmere Tartan Scarf",
+     "url": "https://mensgearworld.com/product/barbour-merino-cashmere-tartan-scarf-in-classic-tartan-32852/",
+     "why": "Pairs with the gloves for a two-part gift",
+     "price": 39.95,
+     "retailer": "Coes",
+     "image": "https://cdn.shopify.com/s/files/1/0247/7952/2097/files/5ae464822ac3a0d5173fd822c65d2db7.webp?v=1685968135"
+    },
+    {
+     "group": "Under £100",
+     "name": "Barbour Cascade City Backpack",
+     "url": "https://mensgearworld.com/product/barbour-cascade-city-backpack-32692/",
+     "why": "An everyday bag for work or the commute",
+     "price": 69.95,
+     "retailer": "Coes",
+     "image": "https://cdn.shopify.com/s/files/1/0247/7952/2097/files/8e4b42e02bb589720ef3c336db13c78f.png?v=1769098414"
+    },
+    {
+     "group": "Under £100",
+     "name": "William David Merino 1/4 Zip Jumper",
+     "url": "https://mensgearworld.com/product/william-david-100-merino-1-4-zip-knit-jumper-36588/",
+     "why": "100% merino, smart enough for the office",
+     "price": 89.95,
+     "retailer": "Coes",
+     "image": "https://cdn.shopify.com/s/files/1/0247/7952/2097/files/EcommerceImages-095.png?v=1727942823"
+    },
+    {
+     "group": "Under £100",
+     "name": "R. M. Williams Drover Solid Hide Belt",
+     "url": "https://mensgearworld.com/product/r-m-williams-drover-3-piece-solid-hide-belt-35855/",
+     "why": "Solid hide leather belt meant to last",
+     "price": 90.0,
+     "retailer": "Coes",
+     "image": "https://cdn.shopify.com/s/files/1/0247/7952/2097/files/public_3d96ba71-5323-44a6-8c66-8d8c9803d441.png?v=1787222019"
+    },
+    {
+     "group": "Splurge",
+     "name": "Dents Chalford Cashmere-Lined Deerskin Gloves",
+     "url": "https://mensgearworld.com/product/dents-chalford-handsewn-three-point-cashmere-lined-deerskin-gloves-33296/",
+     "why": "Hand-sewn deerskin with a cashmere lining",
+     "price": 115.0,
+     "retailer": "Coes",
+     "image": "https://cdn.shopify.com/s/files/1/0247/7952/2097/files/d3bf866cf59d5db5bcf3bd0b72eebaf3.webp?v=1695632166"
+    },
+    {
+     "group": "Splurge",
+     "name": "Loake Large Valet Box",
+     "url": "https://mensgearworld.com/product/loake-large-valet-box-34759/",
+     "why": "Keeps watches, cufflinks and keys in one place",
+     "price": 140.0,
+     "retailer": "Coes",
+     "image": "https://cdn.shopify.com/s/files/1/0247/7952/2097/files/a4f30df769bcbb79c2c6818969062e61.png?v=1773137210"
+    }
+   ]
+  },
+  {
+   "slug": "christmas-gifts-for-her",
+   "site": "wgw",
+   "short": "For her",
+   "title": "Christmas gifts for her, from £17 to £179",
+   "metaTitle": "Christmas Gifts for Her: 12 Ideas from £17 | Gear World Hub",
+   "description": "Twelve Christmas gifts for her, from a £16.99 handwarmer to a Hugo Boss watch, plus a perfume price tip. Real prices from Women's Gear World, checked 4 Nov 2026.",
+   "intro": "Twelve gifts for her from the women's products we compare, plus one tip that can save you money on perfume. We have not tested these products. We picked them on brand, materials and price, and every one was in stock when we checked.",
+   "tips": [
+    {
+     "label": "Compare before you buy:",
+     "html": "The same bottle can cost different amounts at different shops. On 4 Nov, <a href=\"https://womensgearworld.com/product/armaf-club-de-nuit-untold-unisex-eau-de-parfum-105-ml-34679/\">Armaf Club De Nuit Untold 105ml</a> was £26.99 at Bazta UK and <a href=\"https://womensgearworld.com/product/armaf-club-de-nuit-untold-unisex-eau-de-parfum-105-ml-32043/\">£32.99 at Plusshop UK</a>, a £6 difference. The Lattafa gift set above was £28.99 at Bazta UK and <a href=\"https://womensgearworld.com/product/lattafa-yara-yara-candy-anniversary-gift-set-100ml-2-pcs-31827/\">£31.99 at Plusshop UK</a>. Delivery costs can change the total, so check the final price at checkout."
+    }
+   ],
+   "items": [
+    {
+     "group": "Under £25",
+     "name": "Katie Loxton Cable Knit Handwarmer",
+     "url": "https://womensgearworld.com/product/katie-loxton-cable-knit-handwarmer-24378/",
+     "why": "A cosy stocking filler",
+     "price": 16.99,
+     "retailer": "Coes",
+     "image": "https://cdn.shopify.com/s/files/1/0247/7952/2097/files/kls869-10.jpg?v=1786444008"
+    },
+    {
+     "group": "Under £25",
+     "name": "White Stuff Mel Multipack Earrings",
+     "url": "https://womensgearworld.com/product/white-stuff-mel-multipack-earrings-25886/",
+     "why": "Several pairs in one gift",
+     "price": 18.5,
+     "retailer": "Coes",
+     "image": "https://cdn.shopify.com/s/files/1/0247/7952/2097/files/ceaba752d24c416c05ea6aab3c61d6d2.png?v=1754048669"
+    },
+    {
+     "group": "Under £25",
+     "name": "Katie Loxton Animal Print Foil Scarf",
+     "url": "https://womensgearworld.com/product/katie-loxton-abstract-animal-printed-foil-scarf-24364/",
+     "why": "A light scarf that adds colour to a winter coat",
+     "price": 19.99,
+     "retailer": "Coes",
+     "image": "https://cdn.shopify.com/s/files/1/0247/7952/2097/files/0d54c1f84439211176404f9883389307.png?v=1755175842"
+    },
+    {
+     "group": "Under £25",
+     "name": "Rino & Pelle Mirko Earmuffs",
+     "url": "https://womensgearworld.com/product/rino-pelle-mirko-earmuffs-25188/",
+     "why": "A warm winter extra",
+     "price": 20.95,
+     "retailer": "Coes",
+     "image": "https://cdn.shopify.com/s/files/1/0247/7952/2097/files/public_04e9e8cc-0352-4312-8001-d762db8586b2.png?v=1786528483"
+    },
+    {
+     "group": "Under £50",
+     "name": "Lattafa Yara & Yara Candy Gift Set (2 x 100ml)",
+     "url": "https://womensgearworld.com/product/lattafa-yara-yara-candy-anniversary-gift-set-100ml-2-pcs-35074/",
+     "why": "Two full-size perfumes, already boxed as a set",
+     "price": 28.99,
+     "retailer": "Bazta UK",
+     "image": "https://bazta.com/media/catalog/product/l/a/lattafa-yara-and-yara-candy-anniversary-gift-set-100ml-2pcs.png"
+    },
+    {
+     "group": "Under £50",
+     "name": "Katie Loxton Birthstone Necklace",
+     "url": "https://womensgearworld.com/product/katie-loxton-birthstone-necklace-24375/",
+     "why": "Personal, if you know her birth month",
+     "price": 32.99,
+     "retailer": "Coes",
+     "image": "https://cdn.shopify.com/s/files/1/0247/7952/2097/files/klj6627-10.jpg?v=1786452734"
+    },
+    {
+     "group": "Under £50",
+     "name": "Barbour Blair Tartan Scarf",
+     "url": "https://womensgearworld.com/product/barbour-blair-tartan-scarf-23491/",
+     "why": "A classic winter scarf",
+     "price": 34.95,
+     "retailer": "Coes",
+     "image": "https://cdn.shopify.com/s/files/1/0247/7952/2097/files/public_94d29ee8-56d7-445d-be62-83e9dc6b4d37.png?v=1785938649"
+    },
+    {
+     "group": "Under £50",
+     "name": "Estella Bartlett 10mm Gemstone Bracelet",
+     "url": "https://womensgearworld.com/product/estella-bartlett-10mm-gemstone-bracelet-23850/",
+     "why": "Gemstone beads in a simple everyday bracelet",
+     "price": 40.0,
+     "retailer": "Coes",
+     "image": "https://cdn.shopify.com/s/files/1/0247/7952/2097/files/7265ee3aad889042d2a55d11b4f44765.png?v=1771254994"
+    },
+    {
+     "group": "Under £50",
+     "name": "Fairfax & Favor Leather Card Holder",
+     "url": "https://womensgearworld.com/product/fairfax-favor-signature-card-holder-leather-24019/",
+     "why": "A small leather piece she will use every day",
+     "price": 45.0,
+     "retailer": "Coes",
+     "image": "https://cdn.shopify.com/s/files/1/0247/7952/2097/files/public_42049587-9455-480d-a4fe-a759ea842d83.png?v=1788456313"
+    },
+    {
+     "group": "Under £100",
+     "name": "Holland Cooper Essential Tote Bag",
+     "url": "https://womensgearworld.com/product/holland-cooper-essential-tote-bag-24208/",
+     "why": "Big enough for work, the gym or a weekend away",
+     "price": 59.0,
+     "retailer": "Coes",
+     "image": "https://cdn.shopify.com/s/files/1/0247/7952/2097/files/large_60b8a490-7cd1-497a-95d1-736aaa8ddca8.png?v=1791196824"
+    },
+    {
+     "group": "Splurge",
+     "name": "Michael Kors MK3203 Women's Watch, 39mm",
+     "url": "https://womensgearworld.com/product/michael-kors-mk3203-women-s-watch-39mm-silver-dial-stainless-steel-1714/",
+     "why": "Silver dial with a stainless steel case",
+     "price": 159.0,
+     "retailer": "Watch Enclave",
+     "image": "https://cdn.shopify.com/s/files/1/0955/5027/5910/files/michael-kors-darci-quartz-womens-watch-mk3203-5193989.webp?v=1779096698"
+    },
+    {
+     "group": "Splurge",
+     "name": "Hugo Boss Infinity Women's Watch, 35mm",
+     "url": "https://womensgearworld.com/product/hugo-boss-infinity-1502518-women-s-watch-35mm-blue-dial-stainless-steel-1678/",
+     "why": "Blue dial with a stainless steel case",
+     "price": 179.0,
+     "retailer": "Watch Enclave",
+     "image": "https://cdn.shopify.com/s/files/1/0955/5027/5910/files/hugo-boss-infinity-quartz-womens-watch-hb1502518-7069007.webp?v=1779098006"
+    }
+   ]
+  },
+  {
+   "slug": "christmas-gifts-for-kids",
+   "site": "kgw",
+   "short": "For kids",
+   "title": "Christmas gifts for kids, by age, from £26 to £71",
+   "metaTitle": "Christmas Gifts for Kids by Age: 12 Toys from £26 | Gear World Hub",
+   "description": "Twelve Christmas toys for kids grouped by age, from babies to older kids: LEGO, Playmobil, VTech and more. Real prices from Kids' Gear World, checked 4 Nov 2026.",
+   "intro": "Twelve toys from the Kids' Gear World range, grouped by age, for parents and family buying for children. We have not tested these toys. We picked well-known toy brands that were in stock, and for most we show the cheapest shop we found. Always check the age label on the product page before you buy, especially for toys with small parts.",
+   "tips": [
+    {
+     "label": "The same toy, two prices:",
+     "html": "On 4 Nov, the <a href=\"https://kidsgearworld.com/product/k-nex-kid-education-group-building-set-131-pcs-9350/\">K'NEX Kid Education Group Building Set (131 pcs)</a> was £49.35 at Bazta UK and <a href=\"https://kidsgearworld.com/product/k-nex-kid-education-group-building-set-131-pcs-6862/\">£55.75 at Plusshop UK</a>. The SmartMax set above was £25.99 at Bazta UK and <a href=\"https://kidsgearworld.com/product/smartmax-start-plus-building-set-30-pcs-6207/\">£29.99 at Plusshop UK</a>. Check delivery costs too, because they can change which shop is cheaper overall."
+    }
+   ],
+   "items": [
+    {
+     "group": "Babies",
+     "name": "Fisher-Price Simply Senses Newborn Gym",
+     "url": "https://kidsgearworld.com/product/fisher-price-simply-senses-newborn-gym-8988/",
+     "why": "A play mat with toys overhead for the first months",
+     "price": 33.99,
+     "retailer": "Bazta UK",
+     "image": "https://bazta.com/media/catalog/product/f/i/fisher-price-simply-senses-newborn-gym.png"
+    },
+    {
+     "group": "Toddlers",
+     "name": "LeapFrog Count-Along Basket & Scanner",
+     "url": "https://kidsgearworld.com/product/leapfrog-count-along-basket-scanner-learning-toy-9829/",
+     "why": "Pretend shopping that also teaches counting",
+     "price": 30.99,
+     "retailer": "Bazta UK",
+     "image": "https://bazta.com/media/catalog/product/l/e/leapfrog-count-along-basket-scanner-learning-toy-1.png"
+    },
+    {
+     "group": "Toddlers",
+     "name": "LEGO DUPLO Town Animal Building Game 10472",
+     "url": "https://kidsgearworld.com/product/lego-duplo-town-animal-building-game-10472-educational-construction-building-set-for-toddlers-and-preschool-kids-4707/",
+     "why": "Big DUPLO bricks made for small hands",
+     "price": 33.74,
+     "retailer": "Joybuy",
+     "image": "https://images1.joy-sourcing.com/da/s800x800_jfsintlpro-000-product/t1/4294967296/7274496/6109796677689/395440/6a1084d7E87226012/42b10752b5083d5e.jpg"
+    },
+    {
+     "group": "Toddlers",
+     "name": "VTech Toot-Toot Fire Station Playset",
+     "url": "https://kidsgearworld.com/product/vtech-toot-toot-fire-station-playset-9418/",
+     "why": "Lights and sounds, part of a range kids can add to",
+     "price": 29.99,
+     "retailer": "Bazta UK",
+     "image": "https://bazta.com/media/catalog/product/v/t/vtech-toot-toot-fire-station.png"
+    },
+    {
+     "group": "Pre-school",
+     "name": "SmartMax Start Plus Building Set, 30 pcs",
+     "url": "https://kidsgearworld.com/product/smartmax-start-plus-building-set-30-pcs-9125/",
+     "why": "Magnetic rods and balls that click together",
+     "price": 25.99,
+     "retailer": "Bazta UK",
+     "image": "https://bazta.com/media/catalog/product/s/m/smartmax-start-plus-building-set_-_30_pcs.png"
+    },
+    {
+     "group": "Pre-school",
+     "name": "Playmobil City Life School Bus Playset",
+     "url": "https://kidsgearworld.com/product/playmobil-city-life-school-bus-playset-9390/",
+     "why": "A big vehicle with figures for role play",
+     "price": 31.29,
+     "retailer": "Bazta UK",
+     "image": "https://bazta.com/media/catalog/product/p/l/playmobil-city-life-school-bus-playset-1.png"
+    },
+    {
+     "group": "Ages 6+",
+     "name": "K'NEX Typhoon Frenzy Roller Coaster",
+     "url": "https://kidsgearworld.com/product/k-nex-typhoon-frenzy-roller-coaster-building-set-9263/",
+     "why": "Build it, then watch it run",
+     "price": 35.29,
+     "retailer": "Bazta UK",
+     "image": "https://bazta.com/media/catalog/product/k/n/knex-typhoon-frenzy-roller-coaster-building-set-1.png"
+    },
+    {
+     "group": "Ages 6+",
+     "name": "Schleich Dinosaur Set with Cave",
+     "url": "https://kidsgearworld.com/product/schleich-dinosaur-set-with-cave-9077/",
+     "why": "Detailed figures for dinosaur fans",
+     "price": 39.89,
+     "retailer": "Bazta UK",
+     "image": "https://bazta.com/media/catalog/product/s/c/schleich-dinosaur-set-with-cave.png"
+    },
+    {
+     "group": "Ages 6+",
+     "name": "LEGO City Vintage Steam Train 60511",
+     "url": "https://kidsgearworld.com/product/lego-city-vintage-steam-train-building-set-60511-creative-toy-for-kids-collectors-with-classic-locomotive-4589/",
+     "why": "A classic locomotive to build and display",
+     "price": 63.99,
+     "retailer": "Joybuy",
+     "image": "https://images1.joy-sourcing.com/da/s800x800_jfsintlpro-000-product/t1/4294967296/3670016/610981777866/324800/6a108500Ecd970af4/42b10752b5083d5e.jpg"
+    },
+    {
+     "group": "Ages 6+",
+     "name": "Playmobil Large Pirates Ship with Crew",
+     "url": "https://kidsgearworld.com/product/playmobil-large-pirates-ship-with-crew-playset-9404/",
+     "why": "The \"big present\" option for pirate fans",
+     "price": 71.39,
+     "retailer": "Bazta UK",
+     "image": "https://bazta.com/media/catalog/product/p/l/playmobil-large-pirates-with-ship-playset.png"
+    },
+    {
+     "group": "Older kids",
+     "name": "COBI R.M.S. Titanic 1:700, 600 pieces",
+     "url": "https://kidsgearworld.com/product/cobi-r-m-s-titanic-1-700-scale-600-piece-brick-building-set-for-adults-and-kids-collectible-ship-model-4275/",
+     "why": "A longer build for patient builders",
+     "price": 33.49,
+     "retailer": "Joybuy",
+     "image": "https://images1.joy-sourcing.com/da/s800x800_jfsintlpro-000-product/t1/4294967296/6422528/62073701265065/168367/6a8bd74dE459d561c/42b10752b5083d5e.png"
+    },
+    {
+     "group": "Older kids",
+     "name": "LEGO Technic Tipping Dump Truck 42203",
+     "url": "https://kidsgearworld.com/product/lego-technic-tipping-dump-truck-42203-building-set-for-kids-adults-remote-controlled-toy-construction-vehicle-5164/",
+     "why": "Technic parts and a working tipper",
+     "price": 33.74,
+     "retailer": "Joybuy",
+     "image": "https://images1.joy-sourcing.com/da/s800x800_jfsintlpro-000-product/t1/4294967296/1835008/101615961167450/283751/69a2a956E843dc55e/42b10752b5083d5e.jpg"
+    }
+   ]
+  },
+  {
+   "slug": "christmas-gifts-for-diy-lovers",
+   "site": "cgw",
+   "short": "For DIY lovers",
+   "title": "Christmas gifts for DIY lovers and tradespeople, from £20 to £110",
+   "metaTitle": "Christmas Gifts for DIY Lovers: 10 Tools from £20 | Gear World Hub",
+   "description": "Ten tool gifts for DIY lovers and tradespeople from Stanley, Bahco, Milwaukee and Makita, with two shops compared. Prices checked 4 Nov 2026.",
+   "intro": "Ten tool gifts from Construction Gear World, where the same tool is often sold by two shops at different prices. We have not tested these tools. We picked well-known tool brands, and for each one we show the cheapest shop we found on 4 Nov.",
+   "tips": [
+    {
+     "label": "Before you buy a cordless tool:",
+     "text": "check on the product page whether a battery and charger are included. Many cordless tools are sold as the tool only, which suits someone who already owns batteries of the same brand."
+    },
+    {
+     "label": "Biggest saving:",
+     "text": "the Milwaukee M12 impact driver was £31 cheaper at My Tool Shed than at Tooled Up on 4 Nov. Every Construction Gear World product page shows both prices side by side. Some of these tools are marked \"available to order\", which usually means delivery takes a few extra days, so order early for Christmas."
+    }
+   ],
+   "items": [
+    {
+     "group": "Under £25",
+     "name": "Stanley Heavy Duty Combination Square",
+     "url": "https://constructiongearworld.com/product/stanley-heavy-duty-combination-square-37236/",
+     "why": "Marks square and 45° lines, an everyday tool",
+     "price": 19.95,
+     "retailer": "My Tool Shed",
+     "image": "https://www.mytoolshed.co.uk/artwork/prodzoom/STA046151.jpg",
+     "offers": [
+      {
+       "retailer": "My Tool Shed",
+       "price": 19.95
+      },
+      {
+       "retailer": "Tooled Up",
+       "price": 29.95
+      }
+     ]
+    },
+    {
+     "group": "Under £50",
+     "name": "Bahco 808050 Ratchet Screwdriver + 6 Bits",
+     "url": "https://constructiongearworld.com/product/bahco-808050-ratchet-screwdriver-and-6-screwdriver-bits-3055/",
+     "why": "One handle that replaces a drawer of screwdrivers",
+     "price": 29.95,
+     "retailer": "Tooled Up",
+     "image": "https://www.tooled-up.com/artwork/prodzoom/BAH808050.jpg",
+     "offers": [
+      {
+       "retailer": "Tooled Up",
+       "price": 29.95
+      },
+      {
+       "retailer": "My Tool Shed",
+       "price": 29.95
+      }
+     ]
+    },
+    {
+     "group": "Under £50",
+     "name": "Bahco BahCofit 10 Piece Colour Coded Screwdriver Set",
+     "url": "https://constructiongearworld.com/product/bahco-b219-010rb-bahcofit-10-piece-colour-coded-screwdriver-set-3607/",
+     "why": "Colour coding makes the right tip easy to find",
+     "price": 35.95,
+     "retailer": "Tooled Up",
+     "image": "https://www.tooled-up.com/artwork/prodzoom/BAHB219010RB.jpg",
+     "offers": [
+      {
+       "retailer": "Tooled Up",
+       "price": 35.95
+      },
+      {
+       "retailer": "My Tool Shed",
+       "price": 35.95
+      }
+     ]
+    },
+    {
+     "group": "Under £50",
+     "name": "Stanley FatMax XTREME Tape Measure Kit, 2 pieces",
+     "url": "https://constructiongearworld.com/product/stanley-2-piece-fatmax-xtreme-tape-measure-kit-13745/",
+     "why": "Two tapes, so one can live in the van",
+     "price": 39.95,
+     "retailer": "Tooled Up",
+     "image": "https://www.tooled-up.com/artwork/prodzoom/Stanley-STAKIT31-2-Piece-FatMax-XTREME-Tape-Measure-Kit.jpg",
+     "offers": [
+      {
+       "retailer": "Tooled Up",
+       "price": 39.95
+      },
+      {
+       "retailer": "My Tool Shed",
+       "price": 39.95
+      }
+     ]
+    },
+    {
+     "group": "Under £50",
+     "name": "Stanley 5 Piece Compact Handyman Tool Kit",
+     "url": "https://constructiongearworld.com/product/stanley-5-piece-compact-handyman-tool-kit-20529/",
+     "why": "A starter kit for a first home",
+     "price": 46.95,
+     "retailer": "Tooled Up",
+     "image": "https://www.tooled-up.com/artwork/prodzoom/Stanley-STAKIT7-5-Piece-Compact-Handyman-Kit.jpg",
+     "offers": [
+      {
+       "retailer": "Tooled Up",
+       "price": 46.95
+      },
+      {
+       "retailer": "My Tool Shed",
+       "price": 46.95
+      }
+     ]
+    },
+    {
+     "group": "Under £50",
+     "name": "Draper Expert 12 Piece Hi Torq Combination Spanner Set",
+     "url": "https://constructiongearworld.com/product/draper-expert-12-piece-hi-torq-combination-spanner-set-metric-31666/",
+     "why": "A full metric spanner set",
+     "price": 48.95,
+     "retailer": "My Tool Shed",
+     "image": "https://www.mytoolshed.co.uk/artwork/prodzoom/draper_64605_1.jpg",
+     "offers": [
+      {
+       "retailer": "My Tool Shed",
+       "price": 48.95
+      },
+      {
+       "retailer": "Tooled Up",
+       "price": 52.95
+      }
+     ]
+    },
+    {
+     "group": "Under £100",
+     "name": "Milwaukee LDM 30 Laser Distance Measure",
+     "url": "https://constructiongearworld.com/product/milwaukee-ldm-30-laser-distance-measure-30m-13998/",
+     "why": "Measures a room without a second person",
+     "price": 82.95,
+     "retailer": "Tooled Up",
+     "image": "https://www.tooled-up.com/artwork/prodzoom/LDM_30--Hero_1.jpg",
+     "offers": [
+      {
+       "retailer": "Tooled Up",
+       "price": 82.95
+      },
+      {
+       "retailer": "My Tool Shed",
+       "price": 85.95
+      }
+     ]
+    },
+    {
+     "group": "Under £100",
+     "name": "Milwaukee M12 BRAID Right Angle Impact Driver",
+     "url": "https://constructiongearworld.com/product/milwaukee-m12-braid-12v-cordless-compact-right-angle-impact-driver-23068/",
+     "why": "Gets into tight spaces a normal driver cannot",
+     "price": 99.95,
+     "retailer": "My Tool Shed",
+     "image": "https://www.mytoolshed.co.uk/artwork/prodzoom/M12_BRAID-0--Hero_01.jpg",
+     "offers": [
+      {
+       "retailer": "My Tool Shed",
+       "price": 99.95
+      },
+      {
+       "retailer": "Tooled Up",
+       "price": 130.95
+      }
+     ]
+    },
+    {
+     "group": "Splurge",
+     "name": "Makita MR009G 40v DAB Radio and Work Light",
+     "url": "https://constructiongearworld.com/product/makita-mr009g-40v-max-xgt-cordless-dab-radio-and-work-light-lantern-no-batteries-no-battery-charger-1685/",
+     "why": "Radio and site light in one",
+     "price": 105.95,
+     "retailer": "Tooled Up",
+     "image": "https://www.tooled-up.com/artwork/prodzoom/makita_MR009GZ_C2L0.jpg",
+     "offers": [
+      {
+       "retailer": "Tooled Up",
+       "price": 105.95
+      },
+      {
+       "retailer": "My Tool Shed",
+       "price": 119.95
+      }
+     ]
+    },
+    {
+     "group": "Splurge",
+     "name": "Stanley 6 Piece Measuring and Marking Professional Kit",
+     "url": "https://constructiongearworld.com/product/stanley-6-piece-measuring-and-marking-professional-kit-28519/",
+     "why": "A complete measuring set for a tradesperson",
+     "price": 109.95,
+     "retailer": "My Tool Shed",
+     "image": "https://www.mytoolshed.co.uk/artwork/prodzoom/Stanley-STAKIT4-6-Piece-Measuring-Marking-Professional-Kit.jpg",
+     "offers": [
+      {
+       "retailer": "My Tool Shed",
+       "price": 109.95
+      },
+      {
+       "retailer": "Tooled Up",
+       "price": 109.95
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "slug": "christmas-gifts-for-travellers",
+   "site": "vgw",
+   "short": "For travellers",
+   "title": "Christmas gifts for travellers, from £15 to £175",
+   "metaTitle": "Christmas Gifts for Travellers: 12 Ideas from £15 | Gear World Hub",
+   "description": "Twelve travel gifts below their previous price, from a £15.40 wash bag to Osprey and Peak Design backpacks. Real prices from Travel Gear World, checked 4 Nov 2026.",
+   "intro": "Twelve travel gifts from Travel Gear World, all currently listed below the retailer's previous price. We have not tested these products. We picked known travel brands, from a wash bag for a stocking to a cabin backpack for the frequent flyer.",
+   "tips": [
+    {
+     "label": "About the previous prices:",
+     "text": "they are the prices the retailer shows as the earlier price on 4 Nov. Reductions can end at any time, so check the price on the retailer's page before you buy. Most of these come in other colours too."
+    }
+   ],
+   "items": [
+    {
+     "group": "Under £25",
+     "name": "London Zoo Washbag, Green",
+     "url": "https://travelgearworld.com/product/london-zoo-washbag-travel-accessories-green-827461-5060388018030-630/",
+     "why": "Small, useful, easy to wrap",
+     "price": 15.4,
+     "retailer": "Case Luggage",
+     "image": "https://cdn.shopify.com/s/files/1/0925/7615/3981/files/London_Zoo_ZA1002-002_green_heritage_zoological_garden_m.jpg?v=1782911595",
+     "was": 22.0
+    },
+    {
+     "group": "Under £25",
+     "name": "Sara Miller Phone Pouch, Ditsy Floral",
+     "url": "https://travelgearworld.com/product/sara-miller-phone-pouch-ditsy-floral-ditsy-floral-816854-5060388017279-593/",
+     "why": "Keeps the phone to hand at airports",
+     "price": 16.0,
+     "retailer": "Case Luggage",
+     "image": "https://cdn.shopify.com/s/files/1/0925/7615/3981/files/sara-miller-london-phone-pouch-ditsy-floral-ditsy-floral-816854-5060388017279-67087391392125.jpg?v=1775633616",
+     "was": 40.0
+    },
+    {
+     "group": "Under £25",
+     "name": "Rains Wash Bag Small, Black",
+     "url": "https://travelgearworld.com/product/rains-wash-bag-wash-bag-small-black-798112-5711747500450-1441/",
+     "why": "A compact wash bag from the Danish brand Rains",
+     "price": 20.0,
+     "retailer": "Case Luggage",
+     "image": "https://cdn.shopify.com/s/files/1/0925/7615/3981/files/rains-wash-bag-wash-bag-small-black-798112-5711747500450-67085836419453.jpg?v=1775635876",
+     "was": 25.0
+    },
+    {
+     "group": "Under £50",
+     "name": "Joules Duffle, Boat Club, Natural Blue",
+     "url": "https://travelgearworld.com/product/joules-duffle-boat-club-natural-blue-814706-5060388017149-1470/",
+     "why": "A roomy duffle for weekends away",
+     "price": 34.0,
+     "retailer": "Case Luggage",
+     "image": "https://cdn.shopify.com/s/files/1/0925/7615/3981/files/joules-duffle-boat-club-natural-blue-814706-5060388017149-67087025996157.jpg?v=1775634979",
+     "was": 85.0
+    },
+    {
+     "group": "Under £50",
+     "name": "London Zoo Packing Cube Set, Green",
+     "url": "https://travelgearworld.com/product/london-zoo-packing-cube-set-travel-accessories-green-827454-5060388018023-629/",
+     "why": "Keeps a suitcase organised",
+     "price": 28.0,
+     "retailer": "Case Luggage",
+     "image": "https://cdn.shopify.com/s/files/1/0925/7615/3981/files/London_Zoo_ZA1001-002_green_heritage_zoological_garden_1.jpg?v=1782911595",
+     "was": 40.0
+    },
+    {
+     "group": "Under £50",
+     "name": "Carl Friedrik Luggage Tag, Black",
+     "url": "https://travelgearworld.com/product/carl-friedrik-the-luggage-tag-in-black-black-789776-5060869620448-1031/",
+     "why": "A smart tag that makes a suitcase easy to spot",
+     "price": 39.2,
+     "retailer": "Case Luggage",
+     "image": "https://cdn.shopify.com/s/files/1/0925/7615/3981/files/carl-friedrik-the-luggage-tag-in-black-black-789776-5060869620448-67085723435389.jpg?v=1775635944",
+     "was": 55.0
+    },
+    {
+     "group": "Under £50",
+     "name": "Rains Msn Bag Backpack, Black",
+     "url": "https://travelgearworld.com/product/rains-backpack-msn-bag-black-793681-5711747497491-1426/",
+     "why": "An everyday backpack that also works as a day bag abroad",
+     "price": 45.0,
+     "retailer": "Case Luggage",
+     "image": "https://cdn.shopify.com/s/files/1/0925/7615/3981/files/rains-backpack-msn-bag-black-793681-5711747497491-67085830652285.jpg?v=1775635898",
+     "was": 65.0
+    },
+    {
+     "group": "Under £100",
+     "name": "Bric's X Travel 2 Pocket Backpack, Olive",
+     "url": "https://travelgearworld.com/product/bric-s-2-pocket-backpack-x-travel-olive-713627-8016623887968-643/",
+     "why": "Italian luggage brand, travel-sized backpack",
+     "price": 56.0,
+     "retailer": "Case Luggage",
+     "image": "https://cdn.shopify.com/s/files/1/0925/7615/3981/files/bric-s-2-pocket-backpack-x-travel-olive-713627-8016623887968-67084545851773.jpg?v=1775632025",
+     "was": 80.0
+    },
+    {
+     "group": "Under £100",
+     "name": "Rains Hilo Weekend Bag, Black",
+     "url": "https://travelgearworld.com/product/rains-weekend-bag-hilo-black-798013-5711747558406-924/",
+     "why": "Sized for a weekend away",
+     "price": 63.0,
+     "retailer": "Case Luggage",
+     "image": "https://cdn.shopify.com/s/files/1/0925/7615/3981/files/rains-weekend-bag-hilo-black-798013-5711747558406-67086084833661.jpg?v=1775638691",
+     "was": 79.0
+    },
+    {
+     "group": "Under £100",
+     "name": "Bric's X Bags Small Holdall, Honey",
+     "url": "https://travelgearworld.com/product/bric-s-small-holdall-x-bags-honey-821841-8016623982793-1273/",
+     "why": "A holdall for short trips",
+     "price": 69.3,
+     "retailer": "Case Luggage",
+     "image": "https://cdn.shopify.com/s/files/1/0925/7615/3981/files/Brics_BXG40203_honey_m.jpg?v=1774023585",
+     "was": 99.0
+    },
+    {
+     "group": "Splurge",
+     "name": "Osprey Transporter Travel Backpack 44L, Black",
+     "url": "https://travelgearworld.com/product/osprey-travel-backpack-44l-transporter-black-819480-0843820194647-902/",
+     "why": "A large travel backpack for longer trips",
+     "price": 152.0,
+     "retailer": "Case Luggage",
+     "image": "https://cdn.shopify.com/s/files/1/0925/7615/3981/files/osprey-travel-backpack-44l-transporter-black-819480-0843820194647-67087225618813.jpg?v=1775633986",
+     "was": 190.0
+    },
+    {
+     "group": "Splurge",
+     "name": "Peak Design 30L Travel Backpack, Black",
+     "url": "https://travelgearworld.com/product/peak-design-30l-travel-backpack-black-819534-0818373025885-889/",
+     "why": "For the frequent flyer who packs light",
+     "price": 175.0,
+     "retailer": "Case Luggage",
+     "image": "https://cdn.shopify.com/s/files/1/0925/7615/3981/files/peak-design-30l-travel-backpack-black-819534-0818373025885-67087205204349.jpg?v=1775638266",
+     "was": 219.0
+    }
+   ]
+  }
+ ]
+}

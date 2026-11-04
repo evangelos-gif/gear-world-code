@@ -85,3 +85,15 @@
 
 ## Χριστούγεννα από 1 Νοεμβρίου (1/11/2026)
 Το βίντεο των Χριστουγέννων (το τζάκι, `seasonal/christmas.mp4`, φτιαγμένο με fal) παίζει στο hero του Hub από 1/11 έως 24/12 (πριν: από 2/12). Στις μέρες της Black Friday (20/11–1/12 για το 2026) δείχνεται εκείνη, όπως πριν. Το ίδιο ημερολόγιο έχουν και τα sites (`src/lib/seasons.js`, σελίδα κωδικών και προσφορών): το παίρνουν στο επόμενο update τους. `hub-v2.js?v=20261101-xmas1`.
+
+## Οδηγοί δώρων (4/11/2026)
+| Αρχείο | Τι είναι |
+|---|---|
+| `guides/guides.json` | Τα δεδομένα των 5 οδηγών: 58 προϊόντα, ομάδες (budget ή ηλικία), γιατί είναι καλό δώρο, τιμή, κατάστημα, φωτογραφία, link στη σελίδα του προϊόντος στο site. Τιμές από τις σελίδες των sites (GET, ποτέ `/out/`), έλεγχος 4/11/2026 |
+| `public/guides/index.html` και `public/guides/<slug>/index.html` | Οι σελίδες, φτιαγμένες από το `node tools/gwh-guides.mjs build` (στατικές, χωρίς ερώτημα στη D1). Στα αγγλικά, όπως όλα τα κείμενα των sites |
+| `public/guides/guides.css` | Η εμφάνισή τους, πάνω στο `legal/legal.css` (ίδια navy και χρυσό) |
+| `public/index.html`, `hub-v2.js`, `hub-v2.css` | Κάτω από το «Βρες δώρο»: «Christmas gift guides» με 5 links (κείμενα σε 11 γλώσσες), νέο `?v=` (L31) |
+
+Πριν από κάθε ανέβασμα: `node tools/gwh-guides.mjs check` (μόνο ανάγνωση). Στις 4/11 ένα από τα 58 προϊόντα (Joules Packaway Duffle, Stripe) είχε φύγει από το κατάστημα (404) και αντικαταστάθηκε, και 17 διευθύνσεις είχαν αλλάξει μετά από νέα εισαγωγή (μάθημα L94). Οι σελίδες δεν είναι στο sitemap: το σερβίρει ο Worker `gwh-sitemap`, που δεν αλλάζει χωρίς να ρωτήσουμε.
+
+Πάει με το `tools/gwh-hub-v2.ps1`: `-Step preview` (`ΕΓΚΡΙΝΩ HUB GUIDES PREVIEW`), και μετά στην ίδια επικόλληση `-Step live` (`ΕΓΚΡΙΝΩ HUB GUIDES LIVE`) και `-Step remove-preview` (`ΕΓΚΡΙΝΩ HUB REMOVE PREVIEW`). Έλεγχοι: `tests/worker/gwh-guides.test.mjs` και `tools/gwh-guides-page-check.mjs`.

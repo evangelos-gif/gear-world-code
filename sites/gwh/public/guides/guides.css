@@ -1,0 +1,36 @@
+/* Gear World Hub - gift guides (4/11/2026). On top of /legal/legal.css: the same navy and gold, no red or green
+   for information (lessons L35), at least 12 px from the screen edge and 44 px buttons on the phone (L21). */
+.gd-main { padding-top: 16px; }
+.gd-article h1 { font-size: clamp(26px, 6vw, 38px); line-height: 1.2; margin: 8px 0 12px; }
+.gd-lead { color: var(--muted); margin: 0 0 10px; }
+.gd-checked { display: inline-block; margin: 4px 0 8px; padding: 8px 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--card); color: #fff; font-size: 15px; }
+.gd-group h2, .gd-more h2 { font-size: 21px; margin: 28px 0 10px; color: #fff; }
+.gd-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
+.gd-item { display: grid; grid-template-columns: 96px 1fr; gap: 14px; align-items: start; padding: 12px; border: 1px solid var(--border); border-radius: 14px; background: var(--card); }
+.gd-img { display: block; width: 96px; height: 96px; border-radius: 10px; overflow: hidden; background: #fff; }
+.gd-img img { display: block; width: 100%; height: 100%; object-fit: contain; }
+.gd-body { min-width: 0; }
+.gd-body h3 { margin: 0 0 4px; font-size: 17px; line-height: 1.35; overflow-wrap: anywhere; }
+.gd-body h3 a { color: #fff; text-decoration: none; }
+.gd-body h3 a:hover, .gd-body h3 a:focus-visible { color: var(--gold); text-decoration: underline; }
+.gd-why { margin: 0 0 6px; color: var(--muted); font-size: 15px; line-height: 1.5; }
+.gd-price { margin: 0; color: var(--muted); font-size: 15px; }
+.gd-price strong { color: #fff; font-size: 20px; }
+.gd-price s { margin-left: 6px; color: var(--muted); }
+.gd-save { display: inline-block; margin-left: 6px; color: var(--gold); font-weight: 700; font-size: 14px; }
+.gd-other { margin: 2px 0 10px; color: var(--muted); font-size: 14px; }
+.gd-btn { display: inline-flex; align-items: center; min-height: 44px; padding: 8px 16px; border: 2px solid var(--gold); border-radius: 10px; background: var(--gold); color: #08111f; font-weight: 800; font-size: 15px; text-decoration: none; }
+.gd-btn:hover, .gd-btn:focus-visible { background: #fff; border-color: #fff; color: #08111f; }
+.gd-btn-ghost { background: transparent; color: var(--gold); }
+.gd-tips { margin-top: 24px; display: grid; gap: 10px; }
+.gd-tip { margin: 0; padding: 12px 14px; border-left: 4px solid var(--gold); border-radius: 6px; background: var(--card); color: var(--muted); }
+.gd-tip strong { color: #fff; }
+.gd-note { margin-top: 20px; color: var(--muted); font-size: 15px; }
+.gd-more ul { padding-left: 20px; }
+.gd-more li { margin-bottom: 8px; }
+.gd-more li a { display: inline-block; min-height: 40px; line-height: 1.4; padding: 8px 0; }
+@media (min-width: 760px) {
+  .gd-list { grid-template-columns: 1fr 1fr; }
+  .gd-item { grid-template-columns: 120px 1fr; }
+  .gd-img { width: 120px; height: 120px; }
+}
