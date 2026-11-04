@@ -4248,7 +4248,8 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         'if not exist "%GW_FAKE_STATE%\secret.txt" echo []',
         'exit /b 0',
         ':secretput',
-        'set /p GWSECRET=',
+        'set "GWSECRET="',
+        'for /f "usebackq delims=" %%L in (`more`) do if not defined GWSECRET set "GWSECRET=%%L"',
         '>"%GW_FAKE_STATE%\secret.txt" echo %GWSECRET%',
         'echo Success! Uploaded secret AWIN_TOKEN',
         'exit /b 0'
