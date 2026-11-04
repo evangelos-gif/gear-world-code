@@ -3536,7 +3536,7 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         # preview
         Check ((Run-V @('-Step', 'preview')) -eq 0 -and (VCount 'deploy --config') -eq 0) 'hub v2 preview without -Apply: nothing changes'
         Check ((Run-V @('-Step', 'preview', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB GUIDES LIVE')) -eq 1 -and (VCount 'deploy --config') -eq 0) 'hub v2 preview with the live phrase: nothing changes'
-        Check ((Run-V @('-Step', 'preview', '-Apply', '-Approve', 'egkrino hub preview')) -eq 0 -and (VCount 'deploy --config') -eq 1) 'hub v2 preview with approval: deploys once'
+        Check ((Run-V @('-Step', 'preview', '-Apply', '-Approve', 'egkrino hub guides preview')) -eq 0 -and (VCount 'deploy --config') -eq 1) 'hub v2 preview with approval: deploys once'
         $c = VCalls
         Check ($c -match 'deploy --config "[^"]*wrangler\.preview\.toml"' -and $c -match 'secret bulk "[^"]+" --name gear-world-hub-preview') 'hub v2 preview: deploys the preview config, sets the photo secret of the test Worker'
         $cfgs = @(Get-ChildItem -LiteralPath (Join-Path $vWork 'deploy') -Recurse -Filter 'wrangler.preview.toml' -ErrorAction SilentlyContinue)
@@ -3559,7 +3559,7 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         Check ((Run-V @('-Step', 'live', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB GUIDES LIVE')) -eq 9 -and (VCount 'deploy --config') -eq 3) 'hub v2 live: a failed deploy stops at once (exit 9), no repeat'
         Check ((Get-TreeHash $vHub) -eq $vHubBefore) 'hub v2 live: after a failed deploy the hub folder is back as it was (new files removed too)'
         Remove-Item -LiteralPath (Join-Path $vState 'failother.flag') -Force
-        Check ((Run-V @('-Step', 'live', '-Apply', '-Approve', 'egkrino hub live')) -eq 0 -and (VCount 'deploy --config') -eq 4) 'hub v2 live with approval: deploys once'
+        Check ((Run-V @('-Step', 'live', '-Apply', '-Approve', 'egkrino hub guides live')) -eq 0 -and (VCount 'deploy --config') -eq 4) 'hub v2 live with approval: deploys once'
         $c = VCalls
         Check ($c -match ('deploy --config "' + [regex]::Escape((Join-Path $vHub 'wrangler.toml')) + '"')) 'hub v2 live: deploys the hub folder with its own wrangler.toml (POSTERS kept)'
         Check ($c.LastIndexOf('deployments list --name gear-world-hub') -lt $c.LastIndexOf('deploy --config')) 'hub v2 live: live version read before deploying'
