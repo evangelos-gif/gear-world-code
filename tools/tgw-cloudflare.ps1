@@ -32,6 +32,7 @@ param(
     [switch]$Apply,
     [string]$Approve = '',
     [string]$Archive = '',
+    [string]$Only = '',
     [string]$WorkDir = '',
     [string]$OutDir = '',
     [switch]$SkipInstall,
@@ -48,7 +49,13 @@ $Phrases = @{ d1 = 'ΕΓΚΡΙΝΩ TGW D1'; preview = 'ΕΓΚΡΙΝΩ TGW PREVIE
 $Domain = 'technologygearworld.com'
 if (-not $WorkDir) { $WorkDir = Join-Path $HOME 'technology-gear-world' }
 if (-not $OutDir) { $OutDir = Join-Path $HOME 'gear-world-reports' }
-if (-not $Archive) { $Archive = Join-Path (Join-Path $HOME 'Downloads') 'GW_AWIN_BULK_ARCHIVE' }
+if (-not $Archive) {
+    # Every Awin feed folder in Downloads (GW_AWIN_BULK_ARCHIVE, GW_AWIN_NEW_...), as on SGW: the TGW shops' feeds are in
+    # more than one, and the newest copy of each feed is used (4 Nov 2026 refresh, L92).
+    $dl = Join-Path $HOME 'Downloads'
+    $found = @(Get-ChildItem -LiteralPath $dl -Directory -Filter 'GW_AWIN_*' -ErrorAction SilentlyContinue | ForEach-Object { $_.FullName })
+    if ($found.Count -gt 0) { $Archive = $found -join ';' } else { $Archive = Join-Path $dl 'GW_AWIN_BULK_ARCHIVE' }
+}
 $configPath = Join-Path $WorkDir 'wrangler.jsonc'
 $stamp = Get-Date -Format 'yyyyMMdd_HHmmss'
 
@@ -402,7 +409,11 @@ switch ($Step) {
         $planDir = Join-Path $OutDir ('TGW_IMPORT_PLAN_' + $stamp)
         $k = 2
         while (Test-Path -LiteralPath $planDir) { $planDir = Join-Path $OutDir ('TGW_IMPORT_PLAN_{0}_{1}' -f $stamp, $k); $k++ }
-        & node (Join-Path (Join-Path $repo 'tools') 'tgw-import-plan.mjs') --archive $Archive --out $planDir | Out-Null
+        # -Only 126641: only that retailer is loaded, and only its missing products are hidden (one shop, one phrase, L92).
+        if ($Only -and $Only -notmatch '^[0-9]+(,[0-9]+)*$') { Say 'Λάθος -Only (μόνο αριθμοί Awin, χωρισμένοι με κόμμα).' 'Red'; Finish 2 }
+        $planArgs = @((Join-Path (Join-Path $repo 'tools') 'tgw-import-plan.mjs'), '--archive', $Archive, '--out', $planDir)
+        if ($Only) { $planArgs += @('--only', $Only); Say ('Μόνο τα καταστήματα Awin: {0}' -f $Only) }
+        & node @planArgs | Out-Null
         if ($LASTEXITCODE -ne 0) { Say 'Το σχέδιο import απέτυχε.' 'Red'; Finish 10 }
         $sqlDir = Join-Path $planDir 'sql'
         $files = @(Get-ChildItem -LiteralPath $sqlDir -Filter '*.sql' | Sort-Object Name)

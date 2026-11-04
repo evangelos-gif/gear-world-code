@@ -212,6 +212,19 @@ if (Get-Command node -ErrorAction SilentlyContinue) {
     }
     Check ((Get-FileHash -LiteralPath $gzPath -Algorithm SHA256).Hash -eq $archHash) 'import plan: Awin archive unchanged'
 
+    # -Only (L92): one shop per run, so each shop's import has its own approval and touches only its own products.
+    $onlyOut = Join-Path $work 'plan-only'
+    & $exe -NoProfile -ExecutionPolicy Bypass -File $planTool -Archive $arch -Only 123932 -OutDir $onlyOut -NoClipboard
+    Check ($LASTEXITCODE -eq 0) 'import plan -Only: exit code 0'
+    $onlyPlans = @(Get-ChildItem -LiteralPath $onlyOut -Directory -Filter 'TGW_IMPORT_PLAN_*' -ErrorAction SilentlyContinue)
+    if ($onlyPlans.Count -ge 1) {
+        $orep = [System.IO.File]::ReadAllText((Join-Path $onlyPlans[0].FullName 'report.txt'))
+        Check ($orep.Contains('(only these)')) 'import plan -Only: report says only these shops'
+        Check (-not $orep.Contains('PCHUB.UK (')) 'import plan -Only: other shops not planned'
+    } else { Check $false 'import plan -Only: report folder written' }
+    & $exe -NoProfile -ExecutionPolicy Bypass -File $planTool -Archive $arch -Only 'Joybuy' -OutDir $onlyOut -NoClipboard
+    Check ($LASTEXITCODE -eq 2) 'import plan -Only: a name instead of an Awin number is refused'
+
     & $exe -NoProfile -ExecutionPolicy Bypass -File $planTool -Archive (Join-Path $work 'no-such-folder') -OutDir $planOut -NoClipboard
     Check ($LASTEXITCODE -eq 2) 'import plan: missing archive gives exit code 2'
 
@@ -461,6 +474,7 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         Check (@(Get-ChildItem -LiteralPath (Join-Path $cfWork 'deploy') -Recurse -Filter 'promos.js' -ErrorAction SilentlyContinue).Count -ge 1) 'cloudflare preview: the deploy copy has promos/ (the site config imports it)'
         Check (-not ((Calls) -match 'routes|custom_domain|technologygearworld\.com')) 'cloudflare preview: no custom domain'
         Check ((Run-Cf @('-Step', 'import', '-Archive', $arch)) -eq 0) 'cloudflare import without -Apply: exit 0'
+        Check ((Run-Cf @('-Step', 'import', '-Archive', $arch, '-Only', 'Joybuy')) -eq 2) 'cloudflare import -Only with a name, not an Awin number: refused (L92)'
         Check (-not ((Calls) -match 'd1 execute .*--file')) 'cloudflare import without -Apply: loads nothing'
         Check ((Run-Cf @('-Step', 'import', '-Archive', $arch, '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ TGW IMPORT')) -eq 0) 'cloudflare import with approval: exit 0'
         $c = Calls

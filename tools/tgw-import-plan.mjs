@@ -867,6 +867,9 @@ export async function planImport({ archive, sourcesFile, outDir, now = new Date(
   L.push(`${label} IMPORT PLAN (dry run, nothing imported) ${runStamp} UTC`);
   L.push(`Archive: ${archives.join(' ; ')}`);
   L.push(`Sources: ${sources.map(s => `${s.retailer} (${s.advertiserId}: ${s.file ? 'file ' + s.file : (s.feedIds || []).join(',') || 'all files'})`).join('; ')}${onlyIds ? ' (only these)' : ''}`);
+  // L92: with --only the other shops are not read, so the same product at the same price at another shop is not taken out
+  // (PcNova and GamingKit send the PCHUB.UK catalogue, L63). A whole-site refresh never uses --only.
+  if (onlyIds) L.push('NOTE: --only reads just these shops: duplicates with the other shops of the site are NOT checked. For a refresh of shops already on the site, plan the whole site.');
   L.push('');
   L.push('== Feeds ==');
   L.push(...feedInfo);
@@ -999,7 +1002,7 @@ if (process.argv[1] && pathToFileURL(resolve(process.argv[1])).href === import.m
   const outDir = val('out');
   const sourcesFile = val('sources') || join(here, '..', 'sites', 'tgw', 'sources.json');
   if (!archive || !outDir) {
-    console.error('usage: node tools/tgw-import-plan.mjs --archive <dir> --out <dir> [--sources <file>]');
+    console.error('usage: node tools/tgw-import-plan.mjs --archive <dir> --out <dir> [--sources <file>] [--only <advertiser ids>]');
     process.exit(2);
   }
   if (existsSync(join(outDir, 'report.txt'))) {
@@ -1007,7 +1010,9 @@ if (process.argv[1] && pathToFileURL(resolve(process.argv[1])).href === import.m
     process.exit(2);
   }
   mkdirSync(outDir, { recursive: true });
-  const { stats, sqlFiles } = await planImport({ archive, sourcesFile, outDir });
+  // --only 126641,61655: plan just these retailers (the SQL and the finish step then touch only them, L92).
+  const only = val('only') ? val('only').split(',').map(x => x.trim()).filter(Boolean) : null;
+  const { stats, sqlFiles } = await planImport({ archive, sourcesFile, outDir, only });
   console.log(`rows ${stats.rows} | would import ${stats.accepted} | SQL files ${sqlFiles.length} (not executed)`);
   console.log(`report: ${join(outDir, 'report.txt')}`);
 }

@@ -13,13 +13,20 @@
 #>
 param(
     [string]$Archive = '',
+    [string]$Only = '',
     [string]$OutDir = '',
     [switch]$NoClipboard
 )
 
 $ErrorActionPreference = 'Stop'
 $repo = Split-Path -Parent $PSScriptRoot
-if (-not $Archive) { $Archive = Join-Path (Join-Path $HOME 'Downloads') 'GW_AWIN_BULK_ARCHIVE' }
+if (-not $Archive) {
+    # Every Awin feed folder in Downloads (GW_AWIN_BULK_ARCHIVE, GW_AWIN_NEW_...), as on SGW: the TGW shops' feeds are in
+    # more than one, and the newest copy of each feed is used (4 Nov 2026 refresh, L92).
+    $dl = Join-Path $HOME 'Downloads'
+    $found = @(Get-ChildItem -LiteralPath $dl -Directory -Filter 'GW_AWIN_*' -ErrorAction SilentlyContinue | ForEach-Object { $_.FullName })
+    if ($found.Count -gt 0) { $Archive = $found -join ';' } else { $Archive = Join-Path $dl 'GW_AWIN_BULK_ARCHIVE' }
+}
 if (-not $OutDir) { $OutDir = Join-Path $HOME 'gear-world-reports' }
 
 Write-Host ''
@@ -49,7 +56,8 @@ $run = Join-Path $OutDir ('TGW_IMPORT_PLAN_' + (Get-Date -Format 'yyyyMMdd_HHmms
 $mjs = Join-Path (Join-Path $repo 'tools') 'tgw-import-plan.mjs'
 Write-Host ('Archive: {0}' -f $Archive)
 Write-Host 'Διαβάζω το feed... (μπορεί να πάρει 1-2 λεπτά)'
-& node $mjs --archive $Archive --out $run
+if ($Only -and $Only -notmatch '^[0-9]+(,[0-9]+)*$') { Write-Host 'Λάθος -Only (μόνο αριθμοί Awin, χωρισμένοι με κόμμα).' -ForegroundColor Red; exit 2 }
+if ($Only) { & node $mjs --archive $Archive --out $run --only $Only } else { & node $mjs --archive $Archive --out $run }
 $code = $LASTEXITCODE
 if ($code -ne 0) {
     Write-Host 'Το εργαλείο σταμάτησε με σφάλμα. Στείλε στο Claude ό,τι γράφει η οθόνη.' -ForegroundColor Red
