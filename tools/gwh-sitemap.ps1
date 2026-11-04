@@ -17,7 +17,7 @@
   -Step live            CHANGES THE LIVE SITEMAP, one approval: ΕΓΚΡΙΝΩ SITEMAP LIVE. Only when gearworldhub.com/sitemap.xml
                         is still the version of 24/10/2026 (or already the new one) and the live version of the Worker is
                         known. First a note with that version and the old sitemap (for going back), then the deploy of
-                        gwh-sitemap with its own route (sites/gwh-sitemap/wrangler.toml), then a check of the live sitemap.
+                        gwh-sitemap with its own route (sites/gwh-sitemap/gwh-sitemap.toml), then a check of the live sitemap.
   -Step remove-preview  CHANGES CLOUDFLARE (the test Worker only), one approval: ΕΓΚΡΙΝΩ SITEMAP REMOVE PREVIEW. Deletes
                         "gwh-sitemap-preview" from a new empty folder (lessons L83). Never gwh-sitemap itself.
   Report: <home>\gear-world-reports\GWH_SITEMAP_<STEP>_<time>.txt (also copied to the clipboard)
@@ -297,10 +297,10 @@ if ($liveState -eq 'new') { Say ''; Say 'Το live sitemap έχει ήδη τη 
 if ($liveState -eq 'other') { Say 'Το live sitemap άλλαξε από αλλού: ΔΕΝ αλλάζω τίποτα. Στείλε αυτή την αναφορά στο Claude.' $Bad; Finish 7 }
 if ($liveState -eq 'error') { Say 'Δεν μπόρεσα να διαβάσω το live sitemap: ΔΕΝ αλλάζω τίποτα. Ξανατρέξε την εντολή σε λίγο.' $Bad; Finish 6 }
 if (-not $liveVersion) { Say ('Δεν βρήκα τη ζωντανή έκδοση του "{0}" (χρειάζεται για επαναφορά): για ασφάλεια ΔΕΝ αλλάζω τίποτα.' -f $LiveWorker) $Bad; Finish 11 }
-$cfgLive = Join-Path $folder 'wrangler.toml'
+$cfgLive = Join-Path $folder 'gwh-sitemap.toml'
 $cfgText = [System.IO.File]::ReadAllText($cfgLive)
 if ($cfgText -notmatch '(?m)^name = "gwh-sitemap"\r?$' -or $cfgText -notmatch 'pattern = "gearworldhub\.com/sitemap\.xml", zone_name = "gearworldhub\.com"' -or $cfgText -notmatch '(?m)^workers_dev = false\r?$') {
-    Say 'Το wrangler.toml του sitemap δεν έχει τη μορφή που περίμενα: ΔΕΝ ανέβασα τίποτα.' $Bad; Finish 13
+    Say 'Το gwh-sitemap.toml του sitemap δεν έχει τη μορφή που περίμενα: ΔΕΝ ανέβασα τίποτα.' $Bad; Finish 13
 }
 if (-not $Apply) { Say ''; Say 'Δοκιμή μόνο (χωρίς -Apply): δεν άλλαξε τίποτα.' $Ok; Finish 0 }
 if (-not (Confirm-Approval $PhraseLive)) { Say 'Δεν δόθηκε έγκριση: σταμάτησα χωρίς αλλαγές.' $Warn; Finish 1 }

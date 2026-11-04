@@ -3642,7 +3642,7 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         'exit /b 0',
         ':deploy',
         'echo %* | findstr /C:"wrangler.preview.toml" >nul && copy /y wrangler.preview.toml "%GW_FAKE_STATE%\preview.toml" >nul',
-        'echo %* | findstr /C:"wrangler.toml" | findstr /V /C:"preview" >nul && copy /y wrangler.toml "%GW_FAKE_STATE%\live.toml" >nul',
+        'echo %* | findstr /C:"gwh-sitemap.toml" >nul && copy /y gwh-sitemap.toml "%GW_FAKE_STATE%\live.toml" >nul',
         'echo Uploaded the Worker',
         'echo   https://gwh-sitemap-preview.example-test.workers.dev',
         'exit /b 0',
@@ -3672,20 +3672,20 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         Check ((Run-S @('-Step', 'check')) -eq 0) 'sitemap check: exit 0'
         $r = SLast
         Check ($r.Contains('Cloudflare login: ΕΝΤΑΞΕΙ') -and $r.Contains('Αποτέλεσμα: ΕΝΤΑΞΕΙ') -and $r.Contains('6 σελίδες των οδηγών')) 'sitemap check: login, live version, ready'
-        Check ((SCount ' deploy') -eq 0 -and (SCount 'delete') -eq 0) 'sitemap check: only reads'
+        Check ((SCount 'deploy --config') -eq 0 -and (SCount 'delete') -eq 0) 'sitemap check: only reads'
         Check (-not $r.Contains($sVer)) 'sitemap check: no version id in the report'
-        Check ((Run-S @('-Step', 'preview')) -eq 0 -and (SCount ' deploy') -eq 0) 'sitemap preview without -Apply: nothing changes'
-        Check ((Run-S @('-Step', 'preview', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ SITEMAP LIVE')) -eq 1 -and (SCount ' deploy') -eq 0) 'sitemap preview with the live phrase: nothing changes'
-        Check ((Run-S @('-Step', 'preview', '-Apply', '-Approve', 'egkrino sitemap preview')) -eq 0 -and (SCount ' deploy') -eq 1) 'sitemap preview with approval: deploys once'
+        Check ((Run-S @('-Step', 'preview')) -eq 0 -and (SCount 'deploy --config') -eq 0) 'sitemap preview without -Apply: nothing changes'
+        Check ((Run-S @('-Step', 'preview', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ SITEMAP LIVE')) -eq 1 -and (SCount 'deploy --config') -eq 0) 'sitemap preview with the live phrase: nothing changes'
+        Check ((Run-S @('-Step', 'preview', '-Apply', '-Approve', 'egkrino sitemap preview')) -eq 0 -and (SCount 'deploy --config') -eq 1) 'sitemap preview with approval: deploys once'
         $pt = $(if (Test-Path -LiteralPath (Join-Path $sState 'preview.toml')) { [System.IO.File]::ReadAllText((Join-Path $sState 'preview.toml')) } else { '' })
         Check ($pt.Contains('name = "gwh-sitemap-preview"') -and $pt.Contains('workers_dev = true') -and -not $pt.Contains('routes') -and -not $pt.Contains('name = "gwh-sitemap"')) 'sitemap preview: its own test Worker, workers.dev, no route'
         Check ((SLast).Contains('https://gwh-sitemap-preview.example-test.workers.dev/sitemap.xml')) 'sitemap preview: the report has the test address'
-        Check ((Run-S @('-Step', 'live')) -eq 0 -and (SCount ' deploy') -eq 1) 'sitemap live without -Apply: nothing changes'
-        Check ((Run-S @('-Step', 'live', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ SITEMAP PREVIEW')) -eq 1 -and (SCount ' deploy') -eq 1) 'sitemap live with the preview phrase: nothing changes'
+        Check ((Run-S @('-Step', 'live')) -eq 0 -and (SCount 'deploy --config') -eq 1) 'sitemap live without -Apply: nothing changes'
+        Check ((Run-S @('-Step', 'live', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ SITEMAP PREVIEW')) -eq 1 -and (SCount 'deploy --config') -eq 1) 'sitemap live with the preview phrase: nothing changes'
         Write-Utf8 (Join-Path $sState 'nover.flag') 'x'
-        Check ((Run-S @('-Step', 'live', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ SITEMAP LIVE')) -eq 11 -and (SCount ' deploy') -eq 1) 'sitemap live: no live version to go back to: stops before any change'
+        Check ((Run-S @('-Step', 'live', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ SITEMAP LIVE')) -eq 11 -and (SCount 'deploy --config') -eq 1) 'sitemap live: no live version to go back to: stops before any change'
         Remove-Item -LiteralPath (Join-Path $sState 'nover.flag') -Force
-        Check ((Run-S @('-Step', 'live', '-Apply', '-Approve', 'egkrino sitemap live')) -eq 0 -and (SCount ' deploy') -eq 2) 'sitemap live with approval: deploys once'
+        Check ((Run-S @('-Step', 'live', '-Apply', '-Approve', 'egkrino sitemap live')) -eq 0 -and (SCount 'deploy --config') -eq 2) 'sitemap live with approval: deploys once'
         $lt = $(if (Test-Path -LiteralPath (Join-Path $sState 'live.toml')) { [System.IO.File]::ReadAllText((Join-Path $sState 'live.toml')) } else { '' })
         Check ($lt.Contains('name = "gwh-sitemap"') -and $lt.Contains('pattern = "gearworldhub.com/sitemap.xml", zone_name = "gearworldhub.com"') -and $lt.Contains('workers_dev = false')) 'sitemap live: the live Worker with its own route'
         $note = @(Get-ChildItem -LiteralPath (Join-Path $sWork 'backups') -Filter 'gwh-sitemap-before-live-*.txt' -ErrorAction SilentlyContinue)

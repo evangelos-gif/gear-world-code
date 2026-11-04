@@ -39,8 +39,8 @@ test('sitemap: same answers as before (content type, HEAD without a body, 404 fo
   }
 });
 
-test('sitemap: wrangler.toml is the live Worker with its own route, no ids, no workers.dev', () => {
-  const toml = readFileSync(new URL('../../sites/gwh-sitemap/wrangler.toml', import.meta.url), 'utf8');
+test('sitemap: gwh-sitemap.toml is the live Worker with its own route, no ids, no workers.dev', () => {
+  const toml = readFileSync(new URL('../../sites/gwh-sitemap/gwh-sitemap.toml', import.meta.url), 'utf8');
   assert.match(toml, /^name = "gwh-sitemap"$/m);
   assert.match(toml, /^main = "worker\.js"$/m);
   assert.match(toml, /^compatibility_date = "2026-10-24"$/m);

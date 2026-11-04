@@ -1,0 +1,11 @@
+# The sitemap Worker of gearworldhub.com (only /sitemap.xml). No database, no secrets, no ids (so it can be in the repo;
+# sites/*/wrangler.toml and wrangler.*.toml files are never committed, see .gitignore).
+# The live route stays exactly as it was made on 24/10/2026. The test address (preview) is a separate Worker,
+# "gwh-sitemap-preview", made by tools/gwh-sitemap.ps1 from this file with workers_dev = true and no route.
+name = "gwh-sitemap"
+main = "worker.js"
+compatibility_date = "2026-10-24"
+workers_dev = false
+routes = [
+  { pattern = "gearworldhub.com/sitemap.xml", zone_name = "gearworldhub.com" }
+]
