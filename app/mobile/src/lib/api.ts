@@ -190,6 +190,33 @@ export async function searchAll(query: string): Promise<SearchResult> {
   return parseSearch(await fetchJson<HubSearchResponse>(`${HUB_URL}/api/search?q=${encodeURIComponent(q)}`, {}, 20000));
 }
 
+// ---------- Photo search: the Hub names the product in a photo (the same endpoint as the Hub's camera button) ----------
+
+/**
+ * Sends one JPEG (already made smaller on the phone) to the Hub once. The Hub does not store it.
+ * Returns the HTTP status and the answer as it came; throws ApiError('network' | 'timeout') when there is no answer.
+ */
+export async function photoSearch(jpeg: Uint8Array): Promise<{ status: number; data: unknown }> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 35000);
+  try {
+    const body = new Uint8Array(jpeg).buffer;
+    const res = await fetch(`${HUB_URL}/api/photo-search`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'image/jpeg', Accept: 'application/json' },
+      body,
+      signal: controller.signal
+    });
+    let data: unknown = null;
+    try { data = JSON.parse(await res.text()); } catch { /* not JSON */ }
+    return { status: res.status, data };
+  } catch (e) {
+    throw new ApiError(e instanceof Error && e.name === 'AbortError' ? 'timeout' : 'network');
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 // ---------- One world: the site's own product API ----------
 
 type SiteProductsResponse = {

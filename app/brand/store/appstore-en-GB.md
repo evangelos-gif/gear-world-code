@@ -18,7 +18,7 @@ shopping,deals,tools,workwear,fashion,kids,home,garden,tech,car,travel,sport,mot
 Gear World brings the whole Gear World shopping network to your phone. Find tools, workwear, fashion, kids' essentials, home, garden, technology, car, travel, sport, motorbike, gaming and pet gear from retailers, all from one search.
 
 ONE SEARCH, EVERY WORLD
-Type what you need, or tap the microphone and say it, and Gear World searches every specialist Gear World site at once. Filter the results by world and open the product you want.
+Type what you need, tap the microphone and say it, or take a photo with the camera, and Gear World searches every specialist Gear World site at once. Filter the results by world and open the product you want.
 
 CHOOSE A WORLD
 Browse each Gear World on its own: Tools & Workwear, Men, Women, Kids & Teens, Home, Garden, Technology, Car, Travel, Sport, Motorbike & Scooter, Gaming and Pets. New worlds appear in the app automatically as they launch.
@@ -31,6 +31,9 @@ Each product shows the price, stock and retailer. Tap "View at" and the retailer
 
 11 LANGUAGES
 English, Greek, German, French, Italian, Spanish, Portuguese, Dutch, Albanian, Romanian and Russian.
+
+SEARCH WITH A PHOTO
+Seen something you like? Take a photo or pick one from your gallery, and Gear World finds similar products across every world. Your photo is only used to find products and is not saved.
 
 FREE, NO ACCOUNT NEEDED
 No sign-up, no ads and no in-app purchases. You can join the Gear World newsletter if you want updates.
@@ -56,10 +59,11 @@ No account or sign-in is needed.
 
 How to review:
 1. On the home screen, type a product (for example "backpack") and tap Search, or tap the microphone button and say it. The app asks for microphone and speech recognition permission only at that moment. Apple's speech recognition turns the speech into text; the app keeps no audio.
-2. Results come from all Gear World sites at once and can be filtered by world.
-3. Tap a world (for example Technology) to browse its categories and sort by price.
-4. Open a product and tap "View at <retailer>". The retailer's website opens in Safari through an Awin affiliate link, and the purchase happens on the retailer's website. The app sells nothing itself and has no in-app purchases.
-5. Settings: 11 languages and the legal pages (privacy, terms, affiliate disclosure, contact).
+2. Or tap the camera button, then "Take a photo" or "Choose from gallery". The app asks for camera permission only at that moment (the gallery uses the system photo picker). The photo is made smaller on the phone (max 1024 px JPEG, without location data), sent once to gearworldhub.com to name the product, and not stored. The words found go into the search box, and the products of the best-matching world come first.
+3. Results come from all Gear World sites at once and can be filtered by world.
+4. Tap a world (for example Technology) to browse its categories and sort by price.
+5. Open a product and tap "View at <retailer>". The retailer's website opens in Safari through an Awin affiliate link, and the purchase happens on the retailer's website. The app sells nothing itself and has no in-app purchases.
+6. Settings: 11 languages and the legal pages (privacy, terms, affiliate disclosure, contact).
 
 The affiliate disclosure is shown on the home screen and on every product page. There are no ads, no tracking and no analytics. The optional newsletter sign-up sends only the email address, with explicit consent, to gearworldhub.com.
 
