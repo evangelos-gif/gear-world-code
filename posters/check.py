@@ -2,7 +2,7 @@
 # phone camera would: each code alone at several sizes (pixels per QR square, like a photo from near or far), and the
 # whole poster at phone-photo sizes. Every code must give exactly its address. READ-ONLY.
 # Usage (after build.py): python3 check.py cgw      (or hub)
-import sys, os, json
+import sys, os, json, re
 import cv2
 import zxingcpp
 
@@ -10,7 +10,10 @@ name = sys.argv[1]
 out = os.path.join(os.path.dirname(os.path.abspath(__file__)), name, 'out')
 img = cv2.imread(os.path.join(out, 'check.png'))
 boxes = json.load(open(os.path.join(out, 'qr-boxes.json')))
-sc = img.shape[1] / 420  # pixels per mm
+# pixels per mm: the page width in mm comes from the poster's own SVG (A3 landscape 420, portrait 297)
+svg = next(f for f in sorted(os.listdir(out)) if f.endswith('.svg'))
+page_w = float(re.search(r'viewBox="0 0 ([0-9.]+) ', open(os.path.join(out, svg)).read(2000)).group(1))
+sc = img.shape[1] / page_w
 det = cv2.QRCodeDetector()
 PX_PER_MODULE = (3, 4, 6, 10, 16)  # 3 = a far, small photo of the code; 16 = very close
 

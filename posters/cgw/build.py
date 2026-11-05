@@ -1,41 +1,47 @@
-# Construction Gear World A3 poster (poster-cgw), 5/11/2026. The same look as the Hub poster (posters/hub): navy space,
-# the gold-detailed Earth, gold frame, the gold GW mark. Top centre: Construction Gear World with a big QR to its home
-# page. Bottom: the GEAR WORLD ECOSYSTEM strip with every site of the Hub home page and a smaller QR to the Hub.
-# A3 landscape, 420 x 297 mm. Rules (Manager, 5/11/2026): Gear World is the hero; no prices, codes or Black Friday (the
-# poster stays up for months); no logos or photos of shops or brands; never "UK retailers"; every name in words; colours
-# navy, blue, orange and gold only (white only behind the QR codes and for text).
-# The QR addresses are printed: they must NEVER change (lessons L76). Both poster names are known to the counter
-# (src/posters.js, lessons L95; tests/worker/posters.test.mjs checks it). Build: see posters/README.md.
-import os, json, random, subprocess
+# Construction Gear World A3 poster (poster-cgw), PORTRAIT 297 x 420 mm, 5/11/2026. Laid out like the owner's example
+# (a photo of a CGW poster on a site hoarding): header with the CGW logo, "Compare gear, save money" badge, a big photo
+# with the SCAN ME box, four reasons on the right, a phone with the real site, the categories, and a "Part of Gear World
+# Hub" bar. Differences from the example, on purpose: no brand logos or brand names (the owner's rule, and they are
+# trademarks); the photo is the site's own hero image (docs/IMAGE-CREDITS.md), the phone shows the real site.
+# Colours: the CGW colours (warm black #1d1b17 and amber #ffc21a), as in the example; no red or green.
+# The QR address is printed: it must NEVER change (lessons L76). poster-cgw is known to the counter (src/posters.js,
+# lessons L95; tests/worker/posters.test.mjs checks it). Build and checks: posters/README.md.
+import os, io, json, base64, random
 import qrcode, cairosvg
+from PIL import Image, ImageFilter, ImageEnhance
 from xml.sax.saxutils import escape
 
 HERE = os.path.dirname(os.path.abspath(__file__))
+REPO = os.path.dirname(os.path.dirname(HERE))
 OUT = os.path.join(HERE, 'out')
 os.makedirs(OUT, exist_ok=True)
 
-W, H = 420, 297
+W, H = 297, 420
 URL_CGW = 'https://constructiongearworld.com/?utm_source=poster&utm_medium=qr&utm_campaign=poster-cgw&utm_content=cgw'
-URL_HUB = 'https://gearworldhub.com/?utm_source=poster&utm_medium=qr&utm_campaign=poster-cgw&utm_content=hub'
-NAVY, DEEP, GOLD, GOLD2, WHITE, INK = '#0e2a66', '#060f26', '#d9ae4a', '#f3d78f', '#ffffff', '#0f1d3d'
-ORANGE, BLUE_TXT, BLUE_SOFT = '#f08a24', '#d6e0f5', '#b9c7e6'
-# The 13 Gear Worlds in the order of the Hub home page (gearworldhub.com, 5/11/2026); Construction is this poster.
-WORLDS = ['Construction', "Men's", "Women's", "Kids'", 'Home', 'Garden', 'Technology',
-          'Car', 'Travel', 'Sporty', 'Biker', 'Gaming', 'Pets']
-HERE_WORLD = 'Construction'
-CX, CY, R = 210, 152, 136
-EARTH = os.path.join(HERE, 'earth.json')
-if not os.path.exists(EARTH):
-    subprocess.run(['node', os.path.join(HERE, '..', 'earth.mjs'), EARTH, str(CX), str(CY), str(R), '12', '14'], check=True)
-E = json.load(open(EARTH))
+BLACK, BLACK2, AMBER, AMBER2, WHITE, GREY = '#1d1b17', '#121110', '#ffc21a', '#ffd75e', '#ffffff', '#c9c3b4'
+COND = 'Barlow Condensed'  # SIL Open Font License; weights as families: SemiBold, (Bold), ExtraBold, Black
+HERO = os.path.join(REPO, 'sites', 'cgw', 'public', 'assets', 'img', 'hero-1774.webp')
+PHONE = os.path.join(HERE, 'phone-screen.jpg')
+CATS = ['Power tools', 'Hand tools', 'Safety boots', 'Workwear', 'PPE', 'Site equipment']
 
 
-def text(x, y, s, size, weight=400, fill=WHITE, anchor='middle', family='Inter', spacing=0):
+def text(x, y, s, size, weight=400, fill=WHITE, anchor='middle', family='Inter', spacing=0, extra=''):
     ls = f' letter-spacing="{spacing}"' if spacing else ''
-    return f'<text x="{x:.2f}" y="{y:.2f}" font-family="{family}" font-size="{size}" font-weight="{weight}" fill="{fill}" text-anchor="{anchor}"{ls}>{escape(s)}</text>'
+    return f'<text x="{x:.2f}" y="{y:.2f}" font-family="{family}" font-size="{size}" font-weight="{weight}" fill="{fill}" text-anchor="{anchor}"{ls}{extra}>{escape(s)}</text>'
 
 
-def qr_path(url, x, y, size, fill=INK):
+def cond(x, y, s, size, weight='Black', fill=WHITE, anchor='start', spacing=0, extra=''):
+    fam = COND if weight == 'Bold' else f'{COND} {weight}'
+    w = 700 if weight == 'Bold' else 400
+    return text(x, y, s, size, w, fill, anchor, fam, spacing, extra)
+
+
+def jpeg_uri(img, quality=90):
+    buf = io.BytesIO(); img.save(buf, 'JPEG', quality=quality, optimize=True)
+    return 'data:image/jpeg;base64,' + base64.b64encode(buf.getvalue()).decode()
+
+
+def qr_path(url, x, y, size, fill=BLACK2):
     q = qrcode.QRCode(error_correction=qrcode.constants.ERROR_CORRECT_M, border=0)
     q.add_data(url); q.make(fit=True)
     m = q.get_matrix(); n = len(m); s = size / n
@@ -43,136 +49,172 @@ def qr_path(url, x, y, size, fill=INK):
     return f'<path d="{d}" fill="{fill}" shape-rendering="crispEdges"/>', n
 
 
-def gw_mark(x, y, size):
-    # The Gear World mark of the Hub header (a rounded square with GW), in gold.
-    return (f'<rect x="{x}" y="{y}" width="{size}" height="{size}" rx="{size * .24:.2f}" fill="url(#gold)"/>'
-            + text(x + size / 2, y + size * .66, 'GW', size * .46, 900, NAVY, family='Inter Display', spacing=-.1))
+def brush(x, y, w, h, seed, fill=AMBER, rot=0):
+    # A paint-stroke shape: ragged left and right ends, slightly wavy top and bottom.
+    rnd = random.Random(seed)
+    pts = []
+    for i in range(13):
+        pts.append((x + w * i / 12, y + rnd.uniform(-.6, .9)))
+    for i in range(9):
+        pts.append((x + w + rnd.uniform(-2.4, 1.2), y + h * (i + .5) / 9))
+    for i in range(12, -1, -1):
+        pts.append((x + w * i / 12, y + h + rnd.uniform(-.9, .6)))
+    for i in range(8, -1, -1):
+        pts.append((x + rnd.uniform(-1.2, 2.4), y + h * (i + .5) / 9))
+    d = 'M' + ' L'.join(f'{a:.2f} {b:.2f}' for a, b in pts) + ' Z'
+    t = f' transform="rotate({rot} {x + w / 2:.1f} {y + h / 2:.1f})"' if rot else ''
+    return f'<path d="{d}" fill="{fill}"{t}/>'
 
+
+# ---------- the photo: the site's own hero image, right part (helmet, gloves, boots, tools, the site at sunset) ----------
+PX0, PY0, PX1, PY1 = 0, 64, 206, 286  # photo area on the poster (mm)
+hero = Image.open(HERO).convert('RGB')
+pw, ph = PX1 - PX0, PY1 - PY0
+cw = round(hero.height * pw / ph)
+crop = hero.crop((hero.width - cw, 0, hero.width, hero.height))
+crop = crop.resize((crop.width * 5 // 2, crop.height * 5 // 2), Image.LANCZOS).filter(ImageFilter.UnsharpMask(radius=2, percent=60, threshold=2))
+crop = ImageEnhance.Contrast(crop).enhance(1.04)
+photo_uri = jpeg_uri(crop, 88)
+
+phone = Image.open(PHONE).convert('RGB')
+phone_uri = jpeg_uri(phone, 90)
 
 boxes = {}
-o = [f'<svg xmlns="http://www.w3.org/2000/svg" width="{W}mm" height="{H}mm" viewBox="0 0 {W} {H}">']
+o = [f'<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="{W}mm" height="{H}mm" viewBox="0 0 {W} {H}">']
 o.append(f'''<defs>
-<radialGradient id="space" cx="50%" cy="45%" r="75%"><stop offset="0" stop-color="#10224f"/><stop offset="1" stop-color="{DEEP}"/></radialGradient>
-<radialGradient id="ocean" cx="38%" cy="30%" r="80%"><stop offset="0" stop-color="#2a63c9"/><stop offset=".55" stop-color="#143a8a"/><stop offset="1" stop-color="#071a45"/></radialGradient>
-<radialGradient id="glow" cx="50%" cy="50%" r="50%"><stop offset=".86" stop-color="#4f86ff" stop-opacity=".0"/><stop offset=".93" stop-color="#4f86ff" stop-opacity=".35"/><stop offset="1" stop-color="#4f86ff" stop-opacity="0"/></radialGradient>
-<radialGradient id="shade" cx="50%" cy="50%" r="50%"><stop offset=".55" stop-color="#000" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".45"/></radialGradient>
-<linearGradient id="gold" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="{GOLD2}"/><stop offset=".5" stop-color="{GOLD}"/><stop offset="1" stop-color="#a9802a"/></linearGradient>
-<linearGradient id="sides" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="{DEEP}" stop-opacity=".95"/><stop offset=".33" stop-color="{DEEP}" stop-opacity="0"/><stop offset=".67" stop-color="{DEEP}" stop-opacity="0"/><stop offset="1" stop-color="{DEEP}" stop-opacity=".95"/></linearGradient>
-<linearGradient id="foot" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="{DEEP}" stop-opacity="0"/><stop offset=".45" stop-color="{DEEP}" stop-opacity=".85"/><stop offset="1" stop-color="{DEEP}" stop-opacity=".95"/></linearGradient>
-<clipPath id="disc"><circle cx="{CX}" cy="{CY}" r="{R}"/></clipPath>
+<linearGradient id="phTop" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="{BLACK2}" stop-opacity=".85"/><stop offset=".22" stop-color="{BLACK2}" stop-opacity="0"/><stop offset=".72" stop-color="{BLACK2}" stop-opacity="0"/><stop offset="1" stop-color="{BLACK2}" stop-opacity=".92"/></linearGradient>
+<linearGradient id="phSide" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="{BLACK2}" stop-opacity=".55"/><stop offset=".42" stop-color="{BLACK2}" stop-opacity="0"/><stop offset=".86" stop-color="{BLACK2}" stop-opacity="0"/><stop offset="1" stop-color="{BLACK2}" stop-opacity=".95"/></linearGradient>
+<linearGradient id="amber" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="{AMBER2}"/><stop offset="1" stop-color="{AMBER}"/></linearGradient>
+<clipPath id="photo"><rect x="{PX0}" y="{PY0}" width="{pw}" height="{ph}"/></clipPath>
+<clipPath id="screen"><rect x="0" y="0" width="58" height="113" rx="5"/></clipPath>
 </defs>''')
+o.append(f'<rect width="{W}" height="{H}" fill="{BLACK}"/>')
+# faint diagonal hazard texture on the dark parts
+o.append('<g opacity=".05">' + ''.join(f'<path d="M{-60 + i * 9} {H} L{60 + i * 9 + 120} {H - 240}" stroke="{AMBER}" stroke-width="2.2"/>' for i in range(60)) + '</g>')
 
-# ---------- background: the same space, Earth, orbit and frame as the Hub poster ----------
-o.append(f'<rect width="{W}" height="{H}" fill="url(#space)"/>')
-random.seed(13)
-for _ in range(260):  # stars, a few of them gold
-    x, y = random.uniform(0, W), random.uniform(0, H)
-    if (x - CX) ** 2 + (y - CY) ** 2 < (R + 6) ** 2: continue
-    c = GOLD2 if random.random() < .25 else WHITE
-    o.append(f'<circle cx="{x:.1f}" cy="{y:.1f}" r="{random.uniform(.15, .55):.2f}" fill="{c}" opacity="{random.uniform(.35, .9):.2f}"/>')
-o.append(f'<ellipse cx="{CX}" cy="{CY + 8}" rx="{R + 58}" ry="{R * .34:.1f}" fill="none" stroke="url(#gold)" stroke-width=".7" opacity=".75" transform="rotate(-12 {CX} {CY})"/>')
-o.append(f'<circle cx="{CX}" cy="{CY}" r="{R + 9}" fill="url(#glow)"/>')
-o.append(f'<circle cx="{CX}" cy="{CY}" r="{R}" fill="url(#ocean)"/>')
-o.append(f'<g clip-path="url(#disc)"><path d="{E["grat"]}" fill="none" stroke="{GOLD}" stroke-width=".22" opacity=".45"/>')
-o.append(f'<path d="{E["land"]}" fill="{GOLD}" fill-opacity=".22" stroke="{GOLD2}" stroke-width=".34" stroke-linejoin="round"/></g>')
-o.append(f'<circle cx="{CX}" cy="{CY}" r="{R}" fill="url(#shade)"/>')
-o.append(f'<circle cx="{CX}" cy="{CY}" r="{R}" fill="none" stroke="url(#gold)" stroke-width="1.1"/>')
-o.append(f'<rect width="{W}" height="{H}" fill="url(#sides)"/>')
-o.append(f'<rect y="186" width="{W}" height="{H - 186}" fill="url(#foot)"/>')
-o.append(f'<rect x="6" y="6" width="{W - 12}" height="{H - 12}" rx="3" fill="none" stroke="url(#gold)" stroke-width=".8"/>')
-o.append(f'<rect x="8.2" y="8.2" width="{W - 16.4}" height="{H - 16.4}" rx="2" fill="none" stroke="{GOLD}" stroke-width=".25" opacity=".7"/>')
+# photo
+o.append(f'<g clip-path="url(#photo)"><image x="{PX0}" y="{PY0}" width="{pw}" height="{ph}" preserveAspectRatio="xMidYMid slice" xlink:href="{photo_uri}"/>')
+o.append(f'<rect x="{PX0}" y="{PY0}" width="{pw}" height="{ph}" fill="url(#phTop)"/><rect x="{PX0}" y="{PY0}" width="{pw}" height="{ph}" fill="url(#phSide)"/></g>')
 
-# ---------- top centre: the Construction Gear World card with the big QR ----------
-cw, ch = 106, 160
-cx0, cy0 = CX - cw / 2, 17
-o.append(f'<rect x="{cx0 - 1.6}" y="{cy0 - 1.6}" width="{cw + 3.2}" height="{ch + 3.2}" rx="5.5" fill="url(#gold)"/>')
-o.append(f'<rect x="{cx0}" y="{cy0}" width="{cw}" height="{ch}" rx="4" fill="{WHITE}"/>')
-o.append(text(CX, cy0 + 11.5, 'Construction Gear World', 7.4, 800, NAVY, family='Inter Display'))
-o.append(text(CX, cy0 + 18.6, 'Tools  ·  Workwear  ·  Safety', 4.4, 700, INK, spacing=.2))
-qs = 76  # 41 modules of 1.85 mm; at least 4 modules of white on every side (the quiet zone of the QR standard)
-path, n_cgw = qr_path(URL_CGW, CX - qs / 2, cy0 + 26.5, qs)
+# ---------- header ----------
+o.append(f'<rect width="{W}" height="{PY0}" fill="{BLACK2}"/>')
+o.append(f'<rect y="{PY0 - 1.2}" width="{W}" height="1.2" fill="{AMBER}"/>')
+lx, ly, ls_ = 14, 13, 34  # the CGW logo (sites/cgw/public/assets/logo.svg), drawn at 34 mm
+sc = ls_ / 64
+o.append(f'''<g transform="translate({lx} {ly}) scale({sc:.4f})">
+<rect width="64" height="64" rx="12" fill="{BLACK}" stroke="{AMBER}" stroke-opacity=".35" stroke-width="1"/>
+<path d="M14 40c0-10.5 8-19 18-19s18 8.5 18 19z" fill="{AMBER}"/><path d="M28 21.5V16h8v5.5" fill="{AMBER}"/>
+<path d="M27 24v14M37 24v14" stroke="{BLACK}" stroke-width="2.5" stroke-linecap="round"/>
+<rect x="9" y="40" width="46" height="6" rx="3" fill="{AMBER}"/><path d="M17 52h30" stroke="{AMBER}" stroke-width="3" stroke-linecap="round" opacity=".55"/></g>''')
+o.append(cond(lx + ls_ + 6, 30.5, 'CONSTRUCTION', 19.5, 'Black', WHITE, spacing=.2))
+o.append(cond(lx + ls_ + 6, 48.5, 'GEAR WORLD', 19.5, 'Black', AMBER, spacing=.2))
+o.append(cond(lx, 58.4, 'TOOLS   |   WORKWEAR   |   PPE   |   SAFETY BOOTS   |   SITE EQUIPMENT', 4.9, 'SemiBold', GREY, spacing=.5))
+# badge
+o.append(brush(196, 12, 88, 40, 7, rot=-5))
+o.append(f'<g transform="rotate(-5 240 32) skewX(-6)">')
+o.append(cond(243, 29.5, 'COMPARE GEAR.', 11.6, 'Black', BLACK2, 'middle'))
+o.append(cond(243, 43.5, 'SAVE MONEY.', 11.6, 'Black', BLACK2, 'middle'))
+o.append('</g>')
+
+# ---------- SCAN ME box on the photo ----------
+qx0, qy0, qw = 16, 84, 84
+o.append(f'<rect x="{qx0 + 10}" y="{qy0}" width="{qw - 20}" height="13" rx="2.5" fill="{BLACK2}" stroke="{AMBER}" stroke-width=".8"/>')
+o.append(cond(qx0 + qw / 2 - 5, qy0 + 10, 'SCAN ME', 10.4, 'Black', WHITE, 'middle', spacing=.6))
+# small phone icon next to SCAN ME (the words are about 40 mm wide)
+px, py = qx0 + qw / 2 + 18.5, qy0 + 2.6
+o.append(f'<rect x="{px}" y="{py}" width="4.6" height="7.8" rx="1" fill="none" stroke="{AMBER}" stroke-width=".9"/><circle cx="{px + 2.3}" cy="{py + 6.4}" r=".45" fill="{AMBER}"/>')
+cy_ = qy0 + 16
+o.append(f'<rect x="{qx0 - 1.4}" y="{cy_ - 1.4}" width="{qw + 2.8}" height="{qw + 2.8}" rx="6" fill="{AMBER}"/>')
+o.append(f'<rect x="{qx0}" y="{cy_}" width="{qw}" height="{qw}" rx="5" fill="{WHITE}"/>')
+qs = 66  # 41 squares of 1.61 mm, 9 mm of white around it (more than the 4 squares the QR standard asks for)
+path, n = qr_path(URL_CGW, qx0 + (qw - qs) / 2, cy_ + (qw - qs) / 2, qs)
 o.append(path)
-boxes['cgw'] = {'box': [cx0, cy0, cw, ch], 'url': URL_CGW, 'modules': n_cgw, 'module_mm': round(qs / n_cgw, 2)}
-o.append(text(CX, cy0 + 116, 'constructiongearworld.com', 6.2, 800, NAVY))
-o.append(f'<rect x="{CX - 26}" y="{cy0 + 121.5}" width="52" height="11" rx="5.5" fill="{NAVY}"/>')
-o.append(text(CX, cy0 + 128.9, 'SCAN ME', 4.4, 800, GOLD2, spacing=.8))
-o.append(f'<line x1="{cx0 + 12}" y1="{cy0 + 139}" x2="{cx0 + cw - 12}" y2="{cy0 + 139}" stroke="{GOLD}" stroke-width=".35"/>')
-o.append(text(CX, cy0 + 146, 'Power tools  ·  Hand tools  ·  Workwear', 4.0, 600, INK))
-o.append(text(CX, cy0 + 152.5, 'Safety boots  ·  PPE  ·  Site equipment', 4.0, 600, INK))
+boxes['cgw'] = {'box': [qx0, cy_, qw, qw], 'url': URL_CGW, 'modules': n, 'module_mm': round(qs / n, 2)}
+ty = cy_ + qw + 6
+o.append(brush(qx0 - 3, ty, qw + 6, 22, 11, rot=-3))
+o.append(f'<g transform="rotate(-3 {qx0 + qw / 2} {ty + 11})">')
+o.append(cond(qx0 + qw / 2, ty + 9.6, 'VISIT CONSTRUCTION', 8.6, 'Black', BLACK2, 'middle'))
+o.append(cond(qx0 + qw / 2, ty + 18.2, 'GEAR WORLD', 8.6, 'Black', BLACK2, 'middle'))
+o.append('</g>')
 
-# ---------- left: Gear World first (the gold GW mark) ----------
-lx = 26
-o.append(gw_mark(lx, 56, 13))
-o.append(text(lx + 17, 64.8, 'GEAR WORLD', 6.2, 800, GOLD2, 'start', 'Inter Display', 1.6))
-o.append(text(lx, 90, 'Built for', 13, 800, WHITE, 'start', 'Inter Display'))
-o.append(text(lx, 106, 'the job.', 13, 800, GOLD2, 'start', 'Inter Display'))
-o.append(text(lx, 120, 'Compare prices on tools, workwear', 4.6, 500, BLUE_TXT, 'start'))
-o.append(text(lx, 127, 'and safety gear in one place.', 4.6, 500, BLUE_TXT, 'start'))
-
-# ---------- right: how it works (orange steps) ----------
-rx1 = W - 26
-bw, bh = 112, 44
-bx, by = rx1 - bw, 66
-o.append(text(rx1, 60, 'HOW IT WORKS', 6.2, 800, GOLD2, 'end', 'Inter Display', 1.2))
-o.append(f'<rect x="{bx}" y="{by}" width="{bw}" height="{bh}" rx="3" fill="{NAVY}" fill-opacity=".9" stroke="url(#gold)" stroke-width=".55"/>')
-for i, step in enumerate(['Scan the code', 'Compare the deals', 'Buy direct from the shop']):
-    yy = by + 12 + i * 11
-    o.append(f'<circle cx="{bx + 10}" cy="{yy - 1.5}" r="3.4" fill="{ORANGE}"/>')
-    o.append(text(bx + 10, yy, str(i + 1), 4.0, 800, WHITE))
-    o.append(text(bx + 17, yy, step, 4.8, 600, WHITE, 'start'))
-o.append(text(rx1, 122, 'Free to use.', 5.2, 700, WHITE, 'end'))
-o.append(text(rx1, 129.5, 'No sign-up needed.', 4.6, 500, BLUE_TXT, 'end'))
-
-# ---------- bottom: the GEAR WORLD ECOSYSTEM strip and the smaller Hub QR ----------
-px0, py0, px1, py1 = 18, 187, W - 18, 283
-o.append(f'<rect x="{px0}" y="{py0}" width="{px1 - px0}" height="{py1 - py0}" rx="4" fill="{DEEP}" fill-opacity=".82" stroke="url(#gold)" stroke-width=".7"/>')
-hw, hh = 70, 88  # the Hub card, right of the strip
-hx0, hy0 = px1 - 6 - hw, py0 + 4
-LX = (px0 + hx0) / 2  # centre of the names area
-o.append(text(LX, 203, 'GEAR WORLD ECOSYSTEM', 5.0, 800, GOLD2, spacing=1.6))
-o.append(f'<line x1="{LX - 112}" y1="201.4" x2="{LX - 58}" y2="201.4" stroke="{GOLD}" stroke-width=".35"/><line x1="{LX + 58}" y1="201.4" x2="{LX + 112}" y2="201.4" stroke="{GOLD}" stroke-width=".35"/>')
+# ---------- four reasons, right column ----------
+rx = 214
+o.append(f'<rect x="{PX1}" y="{PY0}" width="{W - PX1}" height="{PY1 - PY0}" fill="{BLACK2}" fill-opacity=".86"/>')
 
 
-def chips(names, y):
-    widths = [len(nm) * 3.05 + 12 for nm in names]
-    gap = 4; total = sum(widths) + gap * (len(names) - 1); x = LX - total / 2
-    for nm, w in zip(names, widths):
-        if nm == HERE_WORLD:
-            o.append(f'<rect x="{x:.2f}" y="{y}" width="{w:.2f}" height="11" rx="5.5" fill="url(#gold)"/>')
-            o.append(text(x + w / 2, y + 7.5, nm, 5.0, 800, NAVY))
-        else:
-            o.append(f'<rect x="{x:.2f}" y="{y}" width="{w:.2f}" height="11" rx="5.5" fill="{NAVY}" fill-opacity=".85" stroke="url(#gold)" stroke-width=".55"/>')
-            o.append(text(x + w / 2, y + 7.5, nm, 5.0, 700, WHITE))
-        x += w + gap
+def icon(kind, cx, cy):
+    s = [f'<circle cx="{cx}" cy="{cy}" r="8.2" fill="{AMBER}"/><circle cx="{cx}" cy="{cy}" r="9.6" fill="none" stroke="{AMBER}" stroke-width=".5" opacity=".6"/>']
+    st = f'fill="none" stroke="{BLACK2}" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"'
+    if kind == 'tag':
+        s.append(f'<path d="M{cx - 4.6} {cy - 1} L{cx - 1} {cy - 4.6} L{cx + 4.6} {cy - 4.6} L{cx + 4.6} {cy + 1} L{cx + 1} {cy + 4.6} Z" {st}/><circle cx="{cx + 2.2}" cy="{cy - 2.2}" r=".9" fill="{BLACK2}"/>')
+    elif kind == 'helmet':
+        s.append(f'<path d="M{cx - 5} {cy + 2} C{cx - 5} {cy - 3.5} {cx - 2} {cy - 5} {cx} {cy - 5} C{cx + 2} {cy - 5} {cx + 5} {cy - 3.5} {cx + 5} {cy + 2} Z" {st}/><path d="M{cx - 6.2} {cy + 2.6} H{cx + 6.2}" {st}/><path d="M{cx} {cy - 5} V{cy - 1.5}" {st}/>')
+    elif kind == 'shop':
+        s.append(f'<path d="M{cx - 5.6} {cy - 4} H{cx - 3.8} L{cx - 2.2} {cy + 2} H{cx + 4} L{cx + 5.2} {cy - 2.2} H{cx - 3.2}" {st}/><circle cx="{cx - 1.4}" cy="{cy + 4.4}" r=".95" fill="{BLACK2}"/><circle cx="{cx + 3.2}" cy="{cy + 4.4}" r=".95" fill="{BLACK2}"/>')
+    elif kind == 'shield':
+        s.append(f'<path d="M{cx} {cy - 5.4} L{cx + 4.6} {cy - 3.6} V{cy + .2} C{cx + 4.6} {cy + 3.2} {cx + 2.4} {cy + 4.8} {cx} {cy + 5.6} C{cx - 2.4} {cy + 4.8} {cx - 4.6} {cy + 3.2} {cx - 4.6} {cy + .2} V{cy - 3.6} Z" {st}/><path d="M{cx - 2} {cy} L{cx - .4} {cy + 1.7} L{cx + 2.4} {cy - 1.6}" {st}/>')
+    return ''.join(s)
 
 
-chips(WORLDS[:7], 211)
-chips(WORLDS[7:], 226.5)
-o.append(text(LX, 247, 'Tools  ·  Fashion  ·  Kids  ·  Home  ·  Garden  ·  Tech  ·  Car  ·  Travel  ·  Sport  ·  Motorbike  ·  Gaming  ·  Pets', 3.6, 500, BLUE_SOFT))
-o.append(text(LX, 262, 'Looking for more than tools?', 5.6, 800, WHITE))
-o.append(text(LX, 270.5, 'Search all 13 Gear Worlds at once in the Gear World Hub', 4.6, 500, BLUE_TXT))
-# arrow to the Hub card
-ax = hx0 - 9
-o.append(f'<path d="M{ax - 14} 266.3 H{ax}" stroke="{ORANGE}" stroke-width="1.1" stroke-linecap="round"/><path d="M{ax - 3.2} 263.2 L{ax + .6} 266.3 L{ax - 3.2} 269.4" fill="none" stroke="{ORANGE}" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round"/>')
-o.append(f'<rect x="{hx0 - 1.2}" y="{hy0 - 1.2}" width="{hw + 2.4}" height="{hh + 2.4}" rx="4.5" fill="url(#gold)"/>')
-o.append(f'<rect x="{hx0}" y="{hy0}" width="{hw}" height="{hh}" rx="3.4" fill="{WHITE}"/>')
-hcx = hx0 + hw / 2
-o.append(text(hcx, hy0 + 8.6, 'Gear World Hub', 5.8, 800, NAVY, family='Inter Display'))
-o.append(text(hcx, hy0 + 13.6, 'Every world in one search', 3.3, 600, INK))
-hqs = 50  # 41 modules of 1.22 mm, at least 4 modules of white around it
-path, n_hub = qr_path(URL_HUB, hcx - hqs / 2, hy0 + 19, hqs)
-o.append(path)
-boxes['hub'] = {'box': [hx0, hy0, hw, hh], 'url': URL_HUB, 'modules': n_hub, 'module_mm': round(hqs / n_hub, 2)}
-o.append(text(hcx, hy0 + 78.2, 'gearworldhub.com', 4.8, 800, NAVY))
-o.append(text(hcx, hy0 + 84.2, 'SCAN FOR THE HUB', 2.9, 800, ORANGE, spacing=.5))
+reasons = [('tag', 'COMPARE PRICES', 'IN ONE PLACE'), ('helmet', 'TOOLS, WORKWEAR,', 'PPE & MORE'),
+           ('shop', 'BUY DIRECT', 'FROM THE SHOP'), ('shield', 'FREE TO USE,', 'NO SIGN-UP')]
+for i, (k, a, b) in enumerate(reasons):
+    yy = 86 + i * 27
+    o.append(icon(k, rx + 9, yy))
+    o.append(cond(rx + 22, yy - 1, a, 7.0, 'ExtraBold', WHITE))
+    o.append(cond(rx + 22, yy + 6.4, b, 7.0, 'ExtraBold', AMBER))
 
-o.append(text(W - 13, 287.4, 'POSTER CGW', 2.2, 700, GOLD, 'end', spacing=.4))
+# ---------- the phone with the real site ----------
+fx, fy, fw, fh, frot = 214, 186, 64, 120, 7
+o.append(f'<g transform="rotate({frot} {fx + fw / 2} {fy + fh / 2})">')
+o.append(f'<rect x="{fx + 1.5}" y="{fy + 2.5}" width="{fw}" height="{fh}" rx="8" fill="#000" opacity=".45"/>')
+o.append(f'<rect x="{fx}" y="{fy}" width="{fw}" height="{fh}" rx="8" fill="#0b0b0a" stroke="#3a3833" stroke-width=".8"/>')
+sx, sy = fx + 3, fy + 3.5
+o.append(f'<g transform="translate({sx} {sy})"><g clip-path="url(#screen)"><image x="0" y="0" width="58" height="113" preserveAspectRatio="xMidYMin slice" xlink:href="{phone_uri}"/></g></g>')
+o.append(f'<rect x="{fx + fw / 2 - 7}" y="{fy + 1.6}" width="14" height="2.6" rx="1.3" fill="#0b0b0a"/>')
+o.append('</g>')
+
+# ---------- everything for the job ----------
+o.append(brush(14, 294, 120, 17, 21, fill=BLACK2))
+o.append(cond(18, 303.6, 'EVERYTHING FOR', 11, 'Black', WHITE, spacing=.2))
+o.append(cond(18, 316.8, 'THE JOB IN ONE PLACE', 12, 'Black', AMBER, spacing=.2, extra=' font-style="italic"'))
+# arrow
+o.append(f'<path d="M136 313 C150 315 160 313 170 307" fill="none" stroke="{AMBER}" stroke-width="1.6" stroke-linecap="round"/><path d="M164.5 305.6 L170.6 306.6 L168.2 312.2" fill="none" stroke="{AMBER}" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>')
+
+
+def chip(x, y, name):
+    w = len(name) * 3.35 + 11
+    o.append(f'<rect x="{x:.2f}" y="{y}" width="{w:.2f}" height="11.5" rx="2.2" fill="{BLACK2}" stroke="{AMBER}" stroke-width=".7"/>')
+    o.append(cond(x + w / 2, y + 8.3, name.upper(), 6.4, 'ExtraBold', WHITE, 'middle', spacing=.3))
+    return w
+
+
+x = 16
+for nm in CATS[:3]:
+    x += chip(x, 326, nm) + 4
+x = 16
+for nm in CATS[3:]:
+    x += chip(x, 341, nm) + 4
+o.append(text(16, 365, 'Compare prices across shops, then buy direct from the one you choose.', 4.5, 500, GREY, 'start'))
+
+# ---------- footer: part of Gear World Hub ----------
+o.append(f'<rect y="378" width="{W}" height="{H - 378}" fill="url(#amber)"/>')
+o.append(text(16, 403.2, 'Part of', 6.4, 600, BLACK2, 'start'))
+gx, gy, gs = 41, 391, 17  # the Gear World mark (the Hub header: a rounded square with GW)
+o.append(f'<rect x="{gx}" y="{gy}" width="{gs}" height="{gs}" rx="4" fill="{BLACK2}"/>')
+o.append(text(gx + gs / 2, gy + 11.6, 'GW', 8, 900, AMBER, family='Inter Display'))
+o.append(text(gx + gs + 4, 400.6, 'Gear World Hub', 10.5, 800, BLACK2, 'start', 'Inter Display'))
+o.append(text(gx + gs + 4.4, 407.6, 'gearworldhub.com', 4.8, 700, BLACK2, 'start'))
+o.append(f'<rect x="170" y="388" width=".8" height="22" fill="{BLACK2}" opacity=".55"/>')
+o.append(cond(180, 397.6, 'ONE HUB.', 10, 'Black', BLACK2))
+o.append(cond(180, 407.8, 'EVERY GEAR WORLD.', 10, 'Black', BLACK2))
+o.append(text(W - 6, H - 3, 'POSTER CGW', 2.0, 700, BLACK2, 'end', spacing=.4, extra=' opacity=".6"'))
 o.append('</svg>')
 
 svg = '\n'.join(o)
 open(os.path.join(OUT, 'poster-cgw.svg'), 'w').write(svg)
 cairosvg.svg2pdf(bytestring=svg.encode(), write_to=os.path.join(OUT, 'GearWorld-Poster-Construction-A3.pdf'))
-cairosvg.svg2png(bytestring=svg.encode(), write_to=os.path.join(OUT, 'preview.png'), output_width=2480)
-cairosvg.svg2png(bytestring=svg.encode(), write_to=os.path.join(OUT, 'check.png'), output_width=6000)
+cairosvg.svg2png(bytestring=svg.encode(), write_to=os.path.join(OUT, 'preview.png'), output_width=1754)
+cairosvg.svg2png(bytestring=svg.encode(), write_to=os.path.join(OUT, 'check.png'), output_width=4200)
 json.dump(boxes, open(os.path.join(OUT, 'qr-boxes.json'), 'w'), indent=1)
 print('poster-cgw:', {k: (v['modules'], v['module_mm']) for k, v in boxes.items()})

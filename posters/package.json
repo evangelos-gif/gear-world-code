@@ -1,11 +1,12 @@
 {
   "name": "gear-world-posters-art",
   "private": true,
-  "description": "The Earth drawing of the printed A3 posters (posters/earth.mjs). Not part of any Worker.",
+  "description": "The Earth drawing (earth.mjs) and the Barlow Condensed font (fonts.py) of the printed A3 posters. Not part of any Worker.",
   "type": "module",
   "dependencies": {
     "d3-geo": "3.1.1",
     "topojson-client": "3.1.0",
-    "world-atlas": "2.0.2"
+    "world-atlas": "2.0.2",
+    "@fontsource/barlow-condensed": "5.2.6"
   }
 }
