@@ -18,11 +18,16 @@ os.makedirs(OUT, exist_ok=True)
 
 W, H = 297, 420
 URL_CGW = 'https://constructiongearworld.com/?utm_source=poster&utm_medium=qr&utm_campaign=poster-cgw&utm_content=cgw'
+URL_HUB = 'https://gearworldhub.com/?utm_source=poster&utm_medium=qr&utm_campaign=poster-cgw&utm_content=hub'
 BLACK, BLACK2, AMBER, AMBER2, WHITE, GREY = '#1d1b17', '#121110', '#ffc21a', '#ffd75e', '#ffffff', '#c9c3b4'
 COND = 'Barlow Condensed'  # SIL Open Font License; weights as families: SemiBold, (Bold), ExtraBold, Black
 HERO = os.path.join(REPO, 'sites', 'cgw', 'public', 'assets', 'img', 'hero-1774.webp')
 PHONE = os.path.join(HERE, 'phone-screen.jpg')
 CATS = ['Power tools', 'Hand tools', 'Safety boots', 'Workwear', 'PPE', 'Site equipment']
+# The 13 Gear Worlds in the order of the Hub home page (gearworldhub.com, 5/11/2026); Construction is this poster.
+WORLDS = ['Construction', "Men's", "Women's", "Kids'", 'Home', 'Garden', 'Technology',
+          'Car', 'Travel', 'Sporty', 'Biker', 'Gaming', 'Pets']
+HERE_WORLD = 'Construction'
 
 
 def text(x, y, s, size, weight=400, fill=WHITE, anchor='middle', family='Inter', spacing=0, extra=''):
@@ -64,6 +69,37 @@ def brush(x, y, w, h, seed, fill=AMBER, rot=0):
     d = 'M' + ' L'.join(f'{a:.2f} {b:.2f}' for a, b in pts) + ' Z'
     t = f' transform="rotate({rot} {x + w / 2:.1f} {y + h / 2:.1f})"' if rot else ''
     return f'<path d="{d}" fill="{fill}"{t}/>'
+
+
+def ecosystem(x0, y_head, y_rows, max_w, size_head, hub_card, tagline_y, labels=True):
+    """GEAR WORLD ECOSYSTEM: every site of the Hub home page (in its order) as chips, Construction picked out, and the
+    smaller QR of the Hub in a white card (hub_card = x, y, w, h). The band itself is drawn by the caller."""
+    o.append(cond(x0, y_head, 'GEAR WORLD ECOSYSTEM', size_head, 'Black', BLACK2, spacing=.6))
+    widths = [len(nm) * 2.75 + 8 for nm in WORLDS]
+    split = 6  # 6 names on the first row, 7 on the second
+    for row, names in enumerate((WORLDS[:split], WORLDS[split:])):
+        x = x0
+        for nm in names:
+            w = len(nm) * 2.75 + 8
+            y = y_rows + row * 14
+            if nm == HERE_WORLD:
+                o.append(f'<rect x="{x:.2f}" y="{y}" width="{w:.2f}" height="10.5" rx="5.25" fill="{WHITE}" stroke="{BLACK2}" stroke-width=".8"/>')
+                o.append(cond(x + w / 2, y + 7.4, nm.upper(), 5.2, 'Black', BLACK2, 'middle', spacing=.3))
+            else:
+                o.append(f'<rect x="{x:.2f}" y="{y}" width="{w:.2f}" height="10.5" rx="5.25" fill="{BLACK2}"/>')
+                o.append(cond(x + w / 2, y + 7.4, nm.upper(), 5.2, 'ExtraBold', WHITE, 'middle', spacing=.3))
+            x += w + 3
+        assert x - x0 <= max_w + 3, ('the names do not fit', x - x0, max_w)
+    o.append(cond(x0, tagline_y, 'ONE HUB. EVERY GEAR WORLD.', 8.4, 'Black', BLACK2, spacing=.3))
+    hx, hy, hw, hh = hub_card
+    o.append(f'<rect x="{hx}" y="{hy}" width="{hw}" height="{hh}" rx="4" fill="{WHITE}" stroke="{BLACK2}" stroke-width=".8"/>')
+    hqs = 45  # 41 squares of 1.1 mm, at least 5 mm of white above and beside it
+    path, n_hub = qr_path(URL_HUB, hx + (hw - hqs) / 2, hy + 5.5, hqs)
+    o.append(path)
+    boxes['hub'] = {'box': [hx, hy, hw, hh], 'url': URL_HUB, 'modules': n_hub, 'module_mm': round(hqs / n_hub, 2)}
+    if labels:  # the words under the QR; without them the card is the QR and its white border only
+        o.append(cond(hx + hw / 2, hy + 5.5 + hqs + 9.4, 'GEAR WORLD HUB', 6.4, 'Black', BLACK2, 'middle', spacing=.4))
+        o.append(cond(hx + hw / 2, hy + 5.5 + hqs + 14.6, 'SCAN FOR EVERY WORLD', 3.8, 'ExtraBold', BLACK2, 'middle', spacing=.5))
 
 
 # ---------- the photo: the site's own hero image, right part (helmet, gloves, boots, tools, the site at sunset) ----------
@@ -175,11 +211,11 @@ o.append(f'<rect x="{fx + fw / 2 - 7}" y="{fy + 1.6}" width="14" height="2.6" rx
 o.append('</g>')
 
 # ---------- everything for the job ----------
-o.append(brush(14, 294, 120, 17, 21, fill=BLACK2))
-o.append(cond(18, 303.6, 'EVERYTHING FOR', 11, 'Black', WHITE, spacing=.2))
-o.append(cond(18, 316.8, 'THE JOB IN ONE PLACE', 12, 'Black', AMBER, spacing=.2, extra=' font-style="italic"'))
-# arrow
-o.append(f'<path d="M136 313 C150 315 160 313 170 307" fill="none" stroke="{AMBER}" stroke-width="1.6" stroke-linecap="round"/><path d="M164.5 305.6 L170.6 306.6 L168.2 312.2" fill="none" stroke="{AMBER}" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>')
+o.append(brush(14, 288, 120, 17, 21, fill=BLACK2))
+o.append(cond(18, 297.6, 'EVERYTHING FOR', 11, 'Black', WHITE, spacing=.2))
+o.append(cond(18, 310.8, 'THE JOB IN ONE PLACE', 12, 'Black', AMBER, spacing=.2))
+# arrow to the phone
+o.append(f'<path d="M136 306 C150 308 160 306 170 300" fill="none" stroke="{AMBER}" stroke-width="1.6" stroke-linecap="round"/><path d="M164.5 298.6 L170.6 299.6 L168.2 305.2" fill="none" stroke="{AMBER}" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>')
 
 
 def chip(x, y, name):
@@ -191,23 +227,15 @@ def chip(x, y, name):
 
 x = 16
 for nm in CATS[:3]:
-    x += chip(x, 326, nm) + 4
+    x += chip(x, 313.6, nm) + 4
 x = 16
 for nm in CATS[3:]:
-    x += chip(x, 341, nm) + 4
-o.append(text(16, 365, 'Compare prices across shops, then buy direct from the one you choose.', 4.5, 500, GREY, 'start'))
+    x += chip(x, 327.2, nm) + 4
 
-# ---------- footer: part of Gear World Hub ----------
-o.append(f'<rect y="378" width="{W}" height="{H - 378}" fill="url(#amber)"/>')
-o.append(text(16, 403.2, 'Part of', 6.4, 600, BLACK2, 'start'))
-gx, gy, gs = 41, 391, 17  # the Gear World mark (the Hub header: a rounded square with GW)
-o.append(f'<rect x="{gx}" y="{gy}" width="{gs}" height="{gs}" rx="4" fill="{BLACK2}"/>')
-o.append(text(gx + gs / 2, gy + 11.6, 'GW', 8, 900, AMBER, family='Inter Display'))
-o.append(text(gx + gs + 4, 400.6, 'Gear World Hub', 10.5, 800, BLACK2, 'start', 'Inter Display'))
-o.append(text(gx + gs + 4.4, 407.6, 'gearworldhub.com', 4.8, 700, BLACK2, 'start'))
-o.append(f'<rect x="170" y="388" width=".8" height="22" fill="{BLACK2}" opacity=".55"/>')
-o.append(cond(180, 397.6, 'ONE HUB.', 10, 'Black', BLACK2))
-o.append(cond(180, 407.8, 'EVERY GEAR WORLD.', 10, 'Black', BLACK2))
+# ---------- the Gear World ecosystem: every site and the smaller QR of the Hub ----------
+EY = 343  # the Hub card ends 8.5 mm above the bottom edge
+o.append(f'<rect y="{EY}" width="{W}" height="{H - EY}" fill="url(#amber)"/>')
+ecosystem(16, EY + 14, EY + 20, 200, 13, (225, EY + 1.5, 58, 67), EY + 59)
 o.append(text(W - 6, H - 3, 'POSTER CGW', 2.0, 700, BLACK2, 'end', spacing=.4, extra=' opacity=".6"'))
 o.append('</svg>')
 
