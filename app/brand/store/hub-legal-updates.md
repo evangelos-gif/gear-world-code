@@ -39,8 +39,8 @@ Heading with the anchor `id="delete-your-data"`:
 >
 > The anonymous daily codes used for fair-use limits are not linked to you and are deleted after 2 days.
 
-Open question for the owner before deploy: confirm "within one month" (the UK GDPR answer time) is a promise we can keep
-for removing an address from the Hub member list and MailerLite.
+Owner confirmed on 4/11/2026 («ναι, ένας μήνας»): "within one month" (the UK GDPR answer time) is the promise for
+removing an address from the Hub member list and MailerLite.
 
 ## 3. Terms of use (`/terms/`)
 

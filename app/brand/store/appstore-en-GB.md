@@ -63,7 +63,8 @@ How to review:
 3. Results come from all Gear World sites at once and can be filtered by world.
 4. Tap a world (for example Technology) to browse its categories and sort by price.
 5. Open a product and tap "View at <retailer>". The retailer's website opens in Safari through an Awin affiliate link, and the purchase happens on the retailer's website. The app sells nothing itself and has no in-app purchases.
-6. Settings: 11 languages and the legal pages (privacy, terms, affiliate disclosure, contact).
+6. The language button at the top of the home screen offers 11 languages. Settings (link at the bottom of the home screen) has the legal pages (privacy, terms, affiliate disclosure, contact).
+7. The home screen also shows the current shopping season and this week's deals from the retailers. A deal opens its retailer page on a Gear World website in Safari; the app shows no codes itself.
 
 The affiliate disclosure is shown on the home screen and on every product page. There are no ads, no tracking and no analytics. The optional newsletter sign-up sends only the email address, with explicit consent, to gearworldhub.com.
 

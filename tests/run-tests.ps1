@@ -543,6 +543,7 @@ if ($isWin) {
     New-Item -ItemType Directory -Path $adBin, $adState, (Join-Path $adTarget 'node_modules') -Force | Out-Null
     $fakeBuildId = [guid]::NewGuid().ToString()
     $fakeIosId = [guid]::NewGuid().ToString()
+    $fakeAabId = [guid]::NewGuid().ToString()
     $fakeEas = @(
         '@echo off',
         'echo %* >> "%GW_FAKE_STATE%\calls.log"',
@@ -550,6 +551,8 @@ if ($isWin) {
         'echo %* | findstr /C:"build --platform android --profile preview" >nul && goto build',
         'echo %* | findstr /C:"build --platform ios --profile production --auto-submit" >nul && goto ios',
         'echo %* | findstr /C:"build:list --platform ios" >nul && goto ioslist',
+        'echo %* | findstr /C:"build:view" >nul && goto aabview',
+        'echo %* | findstr /C:"build --platform android --profile production" >nul && goto aab',
         'echo unknown command 1>&2',
         'exit /b 1',
         ':whoami',
@@ -566,6 +569,13 @@ if ($isWin) {
         'exit /b 0',
         ':ioslist',
         ('echo [{"id":"' + $fakeIosId + '","platform":"IOS","status":"IN_QUEUE"}]'),
+        'exit /b 0',
+        ':aab',
+        'if not "%EAS_NO_VCS%"=="1" exit /b 7',
+        ('echo [{"id":"' + $fakeAabId + '","platform":"ANDROID","status":"NEW"}]'),
+        'exit /b 0',
+        ':aabview',
+        ('echo {"id":"' + $fakeAabId + '","status":"%GW_FAKE_AAB_STATUS%","appVersion":"1.0.1","appBuildVersion":"7","artifacts":{"buildUrl":"%GW_FAKE_AAB_URL%"}}'),
         'exit /b 0'
     ) -join "`r`n"
     [System.IO.File]::WriteAllText((Join-Path $adBin 'npx.cmd'), $fakeEas + "`r`n", [System.Text.Encoding]::ASCII)
@@ -593,9 +603,38 @@ if ($isWin) {
         Check (-not ((AdCalls) -match 'platform ios[^\r\n]*--non-interactive --no-wait')) 'iPhone build: interactive, so the Apple sign-in happens in the window'
         $iosRep = @(Get-ChildItem -LiteralPath $adOut -Filter 'GW_APP_DEV_*.txt' | Sort-Object LastWriteTime | Select-Object -Last 1)
         Check ($iosRep.Count -eq 1 -and ([System.IO.File]::ReadAllText($iosRep[0].FullName)).Contains('builds/' + $fakeIosId) -and ([System.IO.File]::ReadAllText($iosRep[0].FullName)).Contains('TestFlight')) 'iPhone build: report has the build link and the TestFlight steps'
+
+        # 9c. Google Play file (AAB): built, waited for, and only then downloaded (never sent to Google Play)
+        $playDir = Join-Path (Join-Path $work 'gear-world-app') 'play'
+        function AabFiles { return @(Get-ChildItem -LiteralPath $playDir -Filter '*.aab' -ErrorAction SilentlyContinue).Count }
+        function LastAdReport { $r = @(Get-ChildItem -LiteralPath $adOut -Filter 'GW_APP_DEV_*.txt' | Sort-Object LastWriteTime | Select-Object -Last 1); if ($r.Count -eq 1) { return [System.IO.File]::ReadAllText($r[0].FullName) } else { return '' } }
+        $playOk = 'ΕΓΚΡΙΝΩ GEAR WORLD PLAY BUILD'
+        Check ((Run-Ad @('-BuildAab', '-PlayApprove', 'wrong')) -eq 1 -and -not ((AdCalls) -match 'profile production --non-interactive')) 'Google Play build wrong phrase: nothing sent'
+        $env:GW_FAKE_AAB_STATUS = 'ERRORED'
+        $env:GW_FAKE_AAB_URL = 'https://expo.dev/artifacts/eas/test.aab'
+        Check ((Run-Ad @('-BuildAab', '-PlayApprove', $playOk, '-NoOpen')) -eq 9) 'Google Play build that fails: exit 9'
+        Check (((AdCalls) -match 'build --platform android --profile production --non-interactive --no-wait --json') -and ((AdCalls) -match ('build:view ' + $fakeAabId + ' --json'))) 'Google Play build: production AAB, then waits for it'
+        Check (-not ((AdCalls) -match 'submit[^\r\n]*android|android[^\r\n]*submit')) 'Google Play build: never submits to Google Play'
+        Check (((LastAdReport).Contains('builds/' + $fakeAabId)) -and ((LastAdReport).Contains('ERRORED')) -and (AabFiles) -eq 0) 'Google Play build that fails: report has the build link, nothing downloaded'
+        $env:GW_FAKE_AAB_STATUS = 'FINISHED'
+        $env:GW_FAKE_AAB_URL = 'http://expo.dev/artifacts/eas/test.aab'
+        Check ((Run-Ad @('-BuildAab', '-PlayApprove', $playOk, '-NoOpen')) -eq 9 -and (AabFiles) -eq 0) 'Google Play build: a link that is not https is refused'
+        $env:GW_FAKE_AAB_URL = 'https://expo.dev/artifacts/eas/test.apk'
+        Check ((Run-Ad @('-BuildAab', '-PlayApprove', $playOk, '-NoOpen')) -eq 9 -and (AabFiles) -eq 0) 'Google Play build: a link that is not an .aab file is refused'
+        $env:GW_FAKE_AAB_URL = 'https://gear-world-test.invalid/gear-world.aab'
+        Check ((Run-Ad @('-BuildAab', '-PlayApprove', $playOk, '-NoOpen')) -eq 9 -and (AabFiles) -eq 0 -and (LastAdReport).Contains('builds/' + $fakeAabId)) 'Google Play build: a failed download leaves no file'
+        [System.IO.File]::WriteAllText($adCalls, '')
+        Check ((Run-Ad @('-BuildAab', '-PlayApprove', $playOk, '-BuildIos', '-IosApprove', 'wrong')) -eq 1 -and -not ((AdCalls) -match 'build')) 'iPhone + Google Play with one wrong phrase: nothing sent'
+        $env:GW_FAKE_AAB_STATUS = 'ERRORED'
+        Check ((Run-Ad @('-BuildAab', '-PlayApprove', $playOk, '-BuildIos', '-IosApprove', 'ΕΓΚΡΙΝΩ GEAR WORLD IOS TESTFLIGHT', '-NoOpen')) -eq 9) 'iPhone + Google Play: runs both'
+        $c = AdCalls
+        $iA = $c.IndexOf('--profile production --non-interactive --no-wait --json')
+        $iI = $c.IndexOf('build --platform ios')
+        $iV = $c.IndexOf('build:view')
+        Check ($iA -ge 0 -and $iI -gt $iA -and $iV -gt $iI) 'iPhone + Google Play: AAB starts first, then the iPhone build, then the wait for the AAB'
     } finally {
         $env:PATH = $adOldPath
-        Remove-Item Env:\GW_FAKE_STATE, Env:\GW_FAKE_NOLOGIN -ErrorAction SilentlyContinue
+        Remove-Item Env:\GW_FAKE_STATE, Env:\GW_FAKE_NOLOGIN, Env:\GW_FAKE_AAB_STATUS, Env:\GW_FAKE_AAB_URL -ErrorAction SilentlyContinue
     }
 }
 

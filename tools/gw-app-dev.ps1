@@ -21,6 +21,10 @@
   -BuildIos with the phrase ΕΓΚΡΙΝΩ GEAR WORLD IOS TESTFLIGHT (-IosApprove) builds the iPhone app in the Expo cloud
     (profile "production") and uploads it to TestFlight, Apple's private testing area (not the public App Store).
     It asks in this window for the Apple account sign-in and the 2FA code; they are never written to the report.
+  -BuildAab with the phrase ΕΓΚΡΙΝΩ GEAR WORLD PLAY BUILD (-PlayApprove) builds the file for Google Play (AAB) in the
+    Expo cloud (profile "production"), waits until it is ready, downloads it to <home>\gear-world-app\play and opens
+    that folder. Nothing is sent to Google Play: the file is uploaded by hand in Play Console (closed testing).
+    With -BuildIos too, the AAB starts first and the iPhone build runs while it is being made.
   The phone connects through an ngrok tunnel (works on any network). -Lan uses the local Wi-Fi instead.
 
   Report: <home>\gear-world-reports\GW_APP_DEV_<time>.txt (also copied to the clipboard)
@@ -34,13 +38,16 @@ param(
     [string]$BuildApprove = '',
     [switch]$BuildIos,
     [string]$IosApprove = '',
+    [switch]$BuildAab,
+    [string]$PlayApprove = '',
     [switch]$Lan,
     [string]$Target = '',
     [string]$OutDir = '',
     [switch]$SkipNodeCheck,
     [switch]$SkipInstall,
     [switch]$NoStart,
-    [switch]$NoClipboard
+    [switch]$NoClipboard,
+    [switch]$NoOpen
 )
 
 $ErrorActionPreference = 'Stop'
@@ -49,6 +56,7 @@ $Phrase = 'ΕΓΚΡΙΝΩ GEAR WORLD APP SETUP'
 $NodePhrase = 'ΕΓΚΡΙΝΩ NODE LTS'
 $BuildPhrase = 'ΕΓΚΡΙΝΩ GEAR WORLD APP BUILD'
 $IosPhrase = 'ΕΓΚΡΙΝΩ GEAR WORLD IOS TESTFLIGHT'
+$PlayPhrase = 'ΕΓΚΡΙΝΩ GEAR WORLD PLAY BUILD'
 $source = Join-Path (Join-Path $repo 'app') 'mobile'
 if (-not $Target) { $Target = Join-Path (Join-Path $HOME 'gear-world-app') 'mobile' }
 if (-not $OutDir) { $OutDir = Join-Path $HOME 'gear-world-reports' }
@@ -278,6 +286,159 @@ function Build-Ios([string]$dir) {
     Say '  Η Apple στέλνει και email όταν ολοκληρωθεί η επεξεργασία.'
 }
 
+# A JSON answer of eas-cli, or $null. Takes the part between the first "{" and the last "}" if other text came with it.
+function Read-EasJson([string]$text) {
+    try { return ($text | ConvertFrom-Json) } catch { }
+    $a = $text.IndexOf('{'); $b = $text.LastIndexOf('}')
+    if ($a -ge 0 -and $b -gt $a) { try { return ($text.Substring($a, $b - $a + 1) | ConvertFrom-Json) } catch { } }
+    return $null
+}
+
+# Google Play file (AAB): EAS Build, profile "production" (Android App Bundle), started without waiting, so the
+# iPhone build can run meanwhile. Nothing is sent to Google Play. Returns the build number. Approval is checked by the caller.
+function Start-Aab([string]$dir) {
+    Say ''
+    Say 'Google Play: αρχείο AAB (EAS Build, προφίλ production).' 'Cyan'
+    $proj = Get-EasProject $dir
+    Say ('  Λογαριασμός Expo: {0}, έργο: {1}. Το build γίνεται στο cloud του Expo (περίπου 15-30 λεπτά).' -f $proj.owner, $proj.slug)
+    Say '  ΔΕΝ στέλνεται τίποτα στο Google Play: το αρχείο το ανεβάζουμε μαζί στο Play Console, με δική του φράση.'
+    Push-Location -LiteralPath $dir
+    $notLoggedIn = $false
+    $code = 0
+    $out = $null
+    try {
+        $env:EAS_NO_VCS = '1'
+        $env:EAS_PROJECT_ROOT = $dir
+        $env:EXPO_NO_TELEMETRY = '1'
+        $who = & npx.cmd --yes eas-cli@latest whoami
+        if ($LASTEXITCODE -ne 0) {
+            $notLoggedIn = $true
+        } else {
+            Say ('  Συνδεδεμένος στο Expo ως: {0}' -f (($who | Out-String).Trim() -split "`r?`n")[0])
+            Say '  Ανεβαίνει ο κώδικας και ξεκινά το build...'
+            $out = & npx.cmd --yes eas-cli@latest build --platform android --profile production --non-interactive --no-wait --json
+            $code = $LASTEXITCODE
+        }
+    } finally {
+        Pop-Location
+        Remove-Item Env:\EAS_NO_VCS, Env:\EAS_PROJECT_ROOT -ErrorAction SilentlyContinue
+    }
+    if ($notLoggedIn) {
+        Say 'Δεν είσαι συνδεδεμένος στο Expo σε αυτόν τον υπολογιστή. Στείλε αυτή την αναφορά στο Claude για την εντολή σύνδεσης.' 'Red'
+        Finish 4
+    }
+    $text = ($out | Out-String).Trim()
+    if ($code -ne 0) {
+        Say ('Το build για το Google Play δεν ξεκίνησε (κωδικός {0}). Στείλε την αναφορά και ό,τι γράφει η οθόνη στο Claude.' -f $code) 'Red'
+        if ($text) { Say $text }
+        Finish 9
+    }
+    $id = First-BuildId $text
+    if (-not $id) {
+        Say 'Το build στάλθηκε, αλλά δεν διάβασα τον αριθμό του. Στείλε την αναφορά στο Claude. Λίστα builds:' 'Yellow'
+        Say ('  https://expo.dev/accounts/{0}/projects/{1}/builds' -f $proj.owner, $proj.slug)
+        Finish 9
+    }
+    Say ('  Link του build: https://expo.dev/accounts/{0}/projects/{1}/builds/{2}' -f $proj.owner, $proj.slug, $id)
+    return $id
+}
+
+# Waits for the Google Play build, then downloads the AAB file next to the app folder (<home>\gear-world-app\play) and
+# opens that folder. Only an https link to an .aab file is accepted, and the file must be an archive (starts with "PK").
+function Wait-Aab([string]$dir, [string]$id) {
+    $proj = Get-EasProject $dir
+    $link = 'https://expo.dev/accounts/{0}/projects/{1}/builds/{2}' -f $proj.owner, $proj.slug, $id
+    Say ''
+    Say 'Google Play: περιμένω να τελειώσει το AAB (ελέγχω κάθε λεπτό, έως 2 ώρες). Μην κλείσεις αυτό το παράθυρο.' 'Cyan'
+    $build = $null
+    $status = ''
+    $started = Get-Date
+    Push-Location -LiteralPath $dir
+    try {
+        $env:EAS_NO_VCS = '1'
+        $env:EAS_PROJECT_ROOT = $dir
+        $env:EXPO_NO_TELEMETRY = '1'
+        $shown = ''
+        while ($true) {
+            $view = & npx.cmd --yes eas-cli@latest build:view $id --json
+            $build = $null
+            $found = Read-EasJson (($view | Out-String).Trim())
+            if ($found) { $build = @($found)[0] }
+            if ($build -and $build.status) { $status = [string]$build.status }
+            if ($status -eq 'FINISHED' -or $status -eq 'ERRORED' -or $status -eq 'CANCELED') { break }
+            if ($status -and $status -ne $shown) { Write-Host ('  {0}  {1}' -f (Get-Date -Format 'HH:mm'), $status); $shown = $status }
+            if (((Get-Date) - $started).TotalMinutes -ge 120) { $status = 'TIMEOUT'; break }
+            Start-Sleep -Seconds 60
+        }
+    } finally {
+        Pop-Location
+        Remove-Item Env:\EAS_NO_VCS, Env:\EAS_PROJECT_ROOT -ErrorAction SilentlyContinue
+    }
+    if ($status -ne 'FINISHED') {
+        if ($status -eq 'TIMEOUT') { Say 'Το AAB δεν τελείωσε μέσα σε 2 ώρες. Στείλε αυτή την αναφορά στο Claude.' 'Yellow' }
+        else { Say ('Το AAB δεν βγήκε (κατάσταση: {0}). Στείλε αυτή την αναφορά στο Claude.' -f $status) 'Red' }
+        Say ('  Link του build: {0}' -f $link)
+        Finish 9
+    }
+    $url = ''
+    if ($build.artifacts) {
+        $url = [string]$build.artifacts.buildUrl
+        if (-not $url) { $url = [string]$build.artifacts.applicationArchiveUrl }
+    }
+    if ($url -notmatch '^https://[A-Za-z0-9.-]+/\S*\.aab(\?\S*)?$') {
+        Say 'Το build τελείωσε, αλλά ο σύνδεσμός του δεν είναι αρχείο AAB: δεν κατέβασα τίποτα. Στείλε την αναφορά στο Claude.' 'Red'
+        Say ('  Link του build: {0}' -f $link)
+        Finish 9
+    }
+    $ver = ([string]$build.appVersion) -replace '[^0-9A-Za-z.]', ''
+    $num = ([string]$build.appBuildVersion) -replace '[^0-9]', ''
+    $playDir = Join-Path (Split-Path -Parent $dir) 'play'
+    if (-not (Test-Path -LiteralPath $playDir)) { New-Item -ItemType Directory -Path $playDir -Force | Out-Null }
+    $name = 'gear-world'
+    if ($ver) { $name += '-' + $ver }
+    if ($num) { $name += '-build' + $num }
+    $file = Join-Path $playDir ($name + '-' + $stamp + '.aab')
+    Say '  Κατεβαίνει το αρχείο...'
+    try {
+        [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+        $ProgressPreference = 'SilentlyContinue'
+        Invoke-WebRequest -UseBasicParsing -Uri $url -OutFile $file
+    } catch {
+        Remove-Item -LiteralPath $file -Force -ErrorAction SilentlyContinue
+        Say ('Το αρχείο δεν κατέβηκε: {0}. Στείλε την αναφορά στο Claude.' -f $_.Exception.Message) 'Red'
+        Say ('  Link του build: {0}' -f $link)
+        Finish 9
+    }
+    $isZip = $false
+    try {
+        $fs = [System.IO.File]::OpenRead($file)
+        try { $head = New-Object byte[] 2; $n = $fs.Read($head, 0, 2); $isZip = ($n -eq 2 -and $head[0] -eq 0x50 -and $head[1] -eq 0x4B) } finally { $fs.Close() }
+    } catch { $isZip = $false }
+    if (-not $isZip) {
+        Remove-Item -LiteralPath $file -Force -ErrorAction SilentlyContinue
+        Say 'Αυτό που κατέβηκε δεν είναι αρχείο AAB, οπότε το έσβησα. Στείλε την αναφορά στο Claude.' 'Red'
+        Say ('  Link του build: {0}' -f $link)
+        Finish 9
+    }
+    $mb = [math]::Round((Get-Item -LiteralPath $file).Length / 1MB, 1)
+    Say ''
+    Say 'Το αρχείο για το Google Play είναι έτοιμο.' 'Green'
+    Say ('  Αρχείο: {0} ({1} MB)' -f $file, $mb)
+    if ($ver -or $num) { Say ('  Έκδοση: {0}, build {1}' -f $ver, $num) }
+    Say ('  Link του build: {0}' -f $link)
+    Say '  Ο φάκελος του αρχείου άνοιξε. Δεν στάλθηκε τίποτα στο Google Play: το ανέβασμα στην κλειστή δοκιμή το κάνουμε μαζί, με δική του φράση.'
+    if (-not $NoOpen) { try { Start-Process -FilePath 'explorer.exe' -ArgumentList ('/select,"{0}"' -f $file) } catch { } }
+}
+
+# The cloud builds asked for, in this order: test APK, Google Play AAB (started), iPhone (interactive), then the AAB download.
+function Run-Builds([string]$dir) {
+    if ($BuildApk) { Build-Apk $dir }
+    $aabId = ''
+    if ($BuildAab) { $aabId = Start-Aab $dir }
+    if ($BuildIos) { Build-Ios $dir }
+    if ($aabId) { Wait-Aab $dir $aabId }
+}
+
 # Approvals for the cloud builds, each with its own phrase. Checked before anything changes.
 function Confirm-Builds {
     if ($BuildApk) {
@@ -288,10 +449,14 @@ function Confirm-Builds {
         if (-not (Confirm-Approval $IosPhrase $IosApprove)) { return $false }
         Say ('Έγκριση: {0}' -f $IosPhrase) 'Green'
     }
+    if ($BuildAab) {
+        if (-not (Confirm-Approval $PlayPhrase $PlayApprove)) { return $false }
+        Say ('Έγκριση: {0}' -f $PlayPhrase) 'Green'
+    }
     return $true
 }
 
-Say ('GEAR WORLD APP DEV - {0} - {1}' -f $(if ($Apply -or $InstallNode -or $BuildApk -or $BuildIos) { 'APPLY (με έγκριση)' } elseif ($StartOnly) { 'ΕΚΚΙΝΗΣΗ' } else { 'ΜΟΝΟ ΕΛΕΓΧΟΣ' }), (Get-Date -Format 'yyyy-MM-dd HH:mm'))
+Say ('GEAR WORLD APP DEV - {0} - {1}' -f $(if ($Apply -or $InstallNode -or $BuildApk -or $BuildIos -or $BuildAab) { 'APPLY (με έγκριση)' } elseif ($StartOnly) { 'ΕΚΚΙΝΗΣΗ' } else { 'ΜΟΝΟ ΕΛΕΓΧΟΣ' }), (Get-Date -Format 'yyyy-MM-dd HH:mm'))
 Say ('Code version: {0}' -f (Split-Path -Leaf $repo))
 
 # 1. Node.js
@@ -323,12 +488,11 @@ if ($StartOnly) {
     exit 0
 }
 
-if (($BuildApk -or $BuildIos) -and -not $Apply) {
+if (($BuildApk -or $BuildIos -or $BuildAab) -and -not $Apply) {
     if (-not (Test-Path -LiteralPath (Join-Path $Target 'node_modules'))) { Say 'Η εφαρμογή δεν έχει στηθεί ακόμα σε αυτόν τον υπολογιστή. Τρέξε πρώτα την εντολή με -Apply.' 'Red'; Finish 2 }
     if (-not $node.ok) { Say 'Πρώτα χρειάζεται νεότερο Node.js.' 'Red'; Finish 3 }
     if (-not (Confirm-Builds)) { Say 'Δεν δόθηκε έγκριση για το build: σταμάτησα χωρίς αλλαγές.' 'Yellow'; Finish 1 }
-    if ($BuildApk) { Build-Apk $Target }
-    if ($BuildIos) { Build-Ios $Target }
+    Run-Builds $Target
     Finish 0
 }
 
@@ -395,10 +559,8 @@ if ($exists) {
     Say ('  Remove-Item -LiteralPath "{0}" -Recurse -Force' -f $Target)
 }
 
-# 6. Cloud builds (only with -BuildApk / -BuildIos and their own phrases), then start
-if ($BuildApk) { Build-Apk $Target }
-if ($BuildIos) { Build-Ios $Target }
-if ($BuildApk -or $BuildIos) { Finish 0 }
+# 6. Cloud builds (only with -BuildApk / -BuildAab / -BuildIos and their own phrases), then start
+if ($BuildApk -or $BuildIos -or $BuildAab) { Run-Builds $Target; Finish 0 }
 if ($NoStart) { Finish 0 }
 Start-Expo $Target
 exit 0
