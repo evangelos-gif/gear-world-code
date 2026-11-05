@@ -60,10 +60,10 @@ test('the poster name is cleaned, and the counter keeps only the known posters',
   assert.equal(posterCampaign(new URL('https://a.com/?utm_campaign=Poster-B')), 'poster-b');
   assert.equal(posterCampaign(new URL('https://a.com/?utm_campaign=%3Cscript%3Ealert(1)')), 'scriptalert1');
   assert.equal(posterCampaign(new URL(`https://a.com/?utm_campaign=${'x'.repeat(100)}`)).length, 40);
-  for (const c of ['poster10', 'poster-a', 'poster-b', 'poster-c', 'poster-test']) assert.equal(campaignName(c), c);
+  for (const c of ['poster10', 'poster-a', 'poster-b', 'poster-c', 'poster-hub', 'poster13', 'poster-cgw', 'poster-test']) assert.equal(campaignName(c), c);
   assert.equal(campaignName('POSTER-A'), 'poster-a');
   for (const c of ['', 'poster-z', 'poster11', 'scriptalert1', undefined]) assert.equal(campaignName(c), 'other');
-  assert.deepEqual(SITES, ['hub', 'cgw', 'mgw', 'wgw', 'kgw', 'hgw', 'ggw', 'tgw', 'vgw', 'agw', 'sgw']);
+  assert.deepEqual(SITES, ['hub', 'cgw', 'mgw', 'wgw', 'kgw', 'hgw', 'ggw', 'tgw', 'vgw', 'agw', 'sgw', 'bgw', 'pgw', 'zgw']);
   assert.ok(CAMPAIGNS.includes('poster10'));
 });
 
@@ -174,6 +174,49 @@ const FX_FETCH = async () => new Response('[]', { headers: { 'Content-Type': 'ap
 
 test('every shop of the engine is checked (the 13 sites, ZGW the newest)', () => {
   assert.deepEqual([...codes].sort(), ['agw', 'bgw', 'cgw', 'ggw', 'hgw', 'kgw', 'mgw', 'pgw', 'sgw', 'tgw', 'vgw', 'wgw', 'zgw']);
+});
+
+// Lessons L95: Biker, Gaming and Pets went live while the counter did not know them, so their scans were lost; the
+// Hub posters (poster-hub, poster13) were printed while it did not know their names, so they counted as "other".
+test('every site of sites/ and the Hub are known to the counter, and the counter takes a scan from each', async () => {
+  for (const code of [...codes, 'hub']) assert.ok(SITES.includes(code), `${code} is missing in SITES of src/posters.js`);
+  assert.equal(new Set(SITES).size, SITES.length, 'no site twice');
+  const { sql, db } = posterDb();
+  const now = new Date('2026-11-05T12:00:00Z');
+  for (const code of [...codes, 'hub']) {
+    const r = await countScan(db, { site: code, campaign: 'poster-cgw' }, now);
+    assert.equal(r.ok && r.counted, true, code);
+  }
+  assert.equal(sql.prepare("SELECT COUNT(*) AS n FROM poster_scans WHERE campaign = 'poster-cgw'").get().n, codes.length + 1);
+});
+
+// Every printed poster kept in posters/ (its build script): each QR address has a poster name the counter knows (not
+// the test name), the site in utm_content is known, and the address is the home page of that very site.
+test('every poster in posters/ points only at known poster names and at the home page of known sites', async () => {
+  const domains = { hub: 'gearworldhub.com' };
+  for (const code of codes) domains[code] = (await import(`../../sites/${code}/site.config.js`)).default.domain;
+  const scripts = readdirSync('posters', { withFileTypes: true }).filter(d => d.isDirectory())
+    .map(d => `posters/${d.name}/build.py`).filter(f => existsSync(f));
+  assert.ok(scripts.includes('posters/hub/build.py') && scripts.includes('posters/cgw/build.py'), 'the Hub and CGW posters are kept');
+  let n = 0;
+  for (const f of scripts) {
+    const text = readFileSync(f, 'utf8');
+    const urls = text.match(/https:\/\/[a-z.]+\/\?utm_source=poster[^'"\s]*/g) || [];
+    assert.ok(urls.length > 0, `${f} has QR addresses`);
+    for (const raw of urls) {
+      const u = new URL(raw.replace(/&amp;/g, '&'));
+      const campaign = u.searchParams.get('utm_campaign');
+      const site = u.searchParams.get('utm_content');
+      assert.ok(CAMPAIGNS.includes(campaign) && campaign !== 'poster-test', `${f}: ${campaign} is not a known poster name`);
+      assert.equal(campaignName(campaign), campaign);
+      assert.ok(SITES.includes(site), `${f}: ${site} is not a known site`);
+      assert.equal(u.hostname, domains[site], `${f}: ${site} must open its own domain`);
+      assert.equal(u.pathname, '/');
+      assert.equal(u.searchParams.get('utm_medium'), 'qr');
+      n++;
+    }
+  }
+  assert.ok(n >= 3);
 });
 
 for (const code of codes) {

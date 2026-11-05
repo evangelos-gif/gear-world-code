@@ -6,7 +6,8 @@
   Reads the table poster_scans of the D1 database gear-world-posters (only SELECT) and shows:
     1. poster x site: the scans of the last -Days days (default 30), with the total per poster and per site;
     2. per day: the scans of every day that had any, per poster.
-  Posters: poster10 (the old one), poster-a, poster-b, poster-c; "other" = a poster name the counter does not know;
+  Posters: poster10 (the old one), poster-a, poster-b, poster-c, poster-hub (Hub only, the Earth), poster13 (the 13
+  worlds), poster-cgw (Construction Gear World); "other" = a poster name the counter does not know;
   poster-test = the test after the setup (deleted with tools/poster-setup.ps1 -Step test-cleanup).
   A cell of 200 means the daily limit of the counter was reached (most likely a bot, lessons L76).
   Changes nothing. Report: <home>\gear-world-reports\POSTER_STATS_<time>.txt (also copied to the clipboard)
@@ -27,8 +28,10 @@ $Cap = 200
 if (-not $WorkDir) { $WorkDir = Join-Path $HOME 'gear-world-posters' }
 if (-not $OutDir) { $OutDir = Join-Path $HOME 'gear-world-reports' }
 $stamp = Get-Date -Format 'yyyyMMdd_HHmmss'
-$SiteOrder = @('hub', 'cgw', 'mgw', 'wgw', 'kgw', 'hgw', 'ggw', 'tgw', 'vgw', 'agw', 'sgw')
-$PosterOrder = @('poster10', 'poster-a', 'poster-b', 'poster-c', 'other', 'poster-test')
+$SiteOrder = @('hub', 'cgw', 'mgw', 'wgw', 'kgw', 'hgw', 'ggw', 'tgw', 'vgw', 'agw', 'sgw', 'bgw', 'pgw', 'zgw')
+# The printed posters first (always shown, as many as $Printed), then "other" and the test.
+$PosterOrder = @('poster10', 'poster-a', 'poster-b', 'poster-c', 'poster-hub', 'poster13', 'poster-cgw', 'other', 'poster-test')
+$Printed = 7
 
 $L = New-Object System.Collections.Generic.List[string]
 function Say([string]$text, [string]$color = '') {
@@ -156,7 +159,7 @@ foreach ($row in $rows) {
     if ($daySum.ContainsKey($dk)) { $daySum[$dk] += $n } else { $daySum[$dk] = $n }
     if ($n -ge $Cap) { $capped += ('{0} {1} {2}' -f $row.day, $p, $s.ToUpper()) }
 }
-$used = @($posters | Where-Object { $p = $_; @($rows | Where-Object { ([string]$_.campaign).ToLower() -eq $p }).Count -gt 0 -or $PosterOrder.IndexOf($p) -lt 4 })
+$used = @($posters | Where-Object { $p = $_; @($rows | Where-Object { ([string]$_.campaign).ToLower() -eq $p }).Count -gt 0 -or $PosterOrder.IndexOf($p) -lt $Printed })
 $total = ($rows | Measure-Object -Property scans -Sum).Sum
 if (-not $total) { $total = 0 }
 

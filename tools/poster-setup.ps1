@@ -26,10 +26,17 @@
                       already updated keeps working. Running it again is safe (what is done is skipped or repeated).
   -Step test-cleanup  CHANGES THE POSTER DATABASE ONLY: deletes the rows of the test poster (poster-test), after saving
                       them in a file that can put them back. Approval: ΕΓΚΡΙΝΩ POSTER CLEANUP
+  -Step counter       Updates ONLY the private counter Worker gear-world-posters, when src/posters.js knows new poster
+                      names or new sites (5/11/2026: poster-hub, poster13, poster-cgw and bgw, pgw, zgw; lessons L95).
+                      Without -Apply: READ-ONLY (the database, the live version of the counter, its rows, the plan).
+                      With -Apply, one approval: ΕΓΚΡΙΝΩ POSTER COUNTER. 1. backup: rollback note with the live version and
+                      every row of poster_scans in a file that puts them back; 2. deploy of gear-world-posters only (same
+                      database and table: the sites, the Hub and their configs do not change); 3. a new live version and
+                      every row still there.
   Report: <home>\gear-world-reports\POSTER_SETUP_<STEP>_<time>.txt (also copied to the clipboard)
 #>
 param(
-    [ValidateSet('check', 'apply', 'test-cleanup')]
+    [ValidateSet('check', 'apply', 'test-cleanup', 'counter')]
     [string]$Step = 'check',
     [switch]$Apply,
     [string]$Approve = '',
@@ -48,6 +55,7 @@ $ErrorActionPreference = 'Stop'
 $repo = Split-Path -Parent $PSScriptRoot
 $Phrase = 'ΕΓΚΡΙΝΩ POSTER STATS'
 $PhraseCleanup = 'ΕΓΚΡΙΝΩ POSTER CLEANUP'
+$PhraseCounter = 'ΕΓΚΡΙΝΩ POSTER COUNTER'
 $DbName = 'gear-world-posters'
 $Counter = 'gear-world-posters'
 $HubWorker = 'gear-world-hub'
@@ -365,6 +373,89 @@ if ($Step -eq 'test-cleanup') {
     else { Say ('Αληθινές μετρήσεις: {0} γραμμές, πριν ήταν {1}: ΠΡΟΒΛΗΜΑ. Επαναφορά: npx wrangler d1 execute {2} --remote --file "{3}"' -f $after[0].n, $otherRows, $DbName, $undoFile) 'Red' }
     Say ''
     Say ('ΕΤΟΙΜΟ. Αν χρειαστεί να γυρίσουν πίσω (μόνο με έγκριση): npx wrangler d1 execute {0} --remote --file "{1}"' -f $DbName, $undoFile) 'Green'
+    Finish 0
+}
+
+# ================= counter: only the private counter Worker (new poster names or sites, lessons L95) =================
+if ($Step -eq 'counter') {
+    $namesOut = @(& node (Join-Path (Join-Path $repo 'tools') 'poster-names.mjs'))
+    $newSites = ''
+    $newCampaigns = ''
+    foreach ($line in $namesOut) {
+        if ("$line" -match '^sites=(.+)$') { $newSites = $Matches[1].Trim() }
+        if ("$line" -match '^campaigns=(.+)$') { $newCampaigns = $Matches[1].Trim() }
+    }
+    if (-not $newSites -or -not $newCampaigns) { Say 'Δεν μπόρεσα να διαβάσω τα ονόματα του μετρητή (tools/poster-names.mjs). Στείλε στο Claude αυτό το μήνυμα.' 'Red'; Finish 13 }
+    $dbId = Get-PosterDbId $deploy
+    if ($null -eq $dbId) { Say 'Δεν μπόρεσα να διαβάσω τη λίστα των βάσεων D1. Ξανατρέξε την εντολή σε λίγο. Δεν άλλαξε τίποτα.' 'Red'; Finish 6 }
+    if (-not $dbId) { Say ('Η βάση {0} δεν υπάρχει: ο μετρητής δεν έχει στηθεί ακόμα (πρώτα -Step apply). Δεν άλλαξε τίποτα.' -f $DbName) 'Red'; Finish 8 }
+    Say ('Βάση D1 {0}: υπάρχει: ΕΝΤΑΞΕΙ' -f $DbName) 'Green'
+    $counterLive = Get-LiveVersion $deploy $Counter
+    if (-not $counterLive -or $counterLive -eq 'missing') { Say ('Worker {0}: δεν βρέθηκε η ζωντανή του έκδοση: ΠΡΟΒΛΗΜΑ. Δεν άλλαξε τίποτα.' -f $Counter) 'Red'; Finish 8 }
+    Say ('Worker {0}: η ζωντανή έκδοση βρέθηκε (για επαναφορά): ΕΝΤΑΞΕΙ' -f $Counter) 'Green'
+    $rows = Select-Posters $deploy 'SELECT day, campaign, site, scans FROM poster_scans ORDER BY day, campaign, site'
+    if ($null -eq $rows) { Say 'Δεν μπόρεσα να διαβάσω τη βάση των αφισών. Ξανατρέξε την εντολή σε λίγο. Δεν άλλαξε τίποτα.' 'Red'; Finish 6 }
+    $rows = @($rows | Where-Object { $_ -and [string]$_.day -match '^\d{4}-\d{2}-\d{2}$' -and [string]$_.campaign -match '^[a-z0-9-]{1,40}$' -and [string]$_.site -match '^[a-z]{3}$' })
+    $scansBefore = 0
+    foreach ($r in $rows) { $scansBefore += [int]$r.scans }
+    Say ('Μετρήσεις στη βάση τώρα: {0} γραμμές, {1} σαρώσεις (ΔΕΝ αλλάζουν).' -f $rows.Count, $scansBefore)
+    Say ''
+    Say 'Τι θα ξέρει ο μετρητής μετά (από αυτή την έκδοση του κώδικα):'
+    Say ('  sites: {0}' -f $newSites)
+    Say ('  αφίσες: {0}' -f $newCampaigns)
+    Say ''
+    Say ('Τι θα γίνει με -Step counter -Apply και τη φράση {0}:' -f $PhraseCounter)
+    Say '  1. Αντίγραφα ασφαλείας: σημείωμα με τη ζωντανή έκδοση του μετρητή (για επαναφορά) και όλες οι γραμμές της βάσης σε αρχείο που τις ξαναβάζει.'
+    Say ('  2. Ανεβαίνει ΜΟΝΟ ο ιδιωτικός Worker {0} (χωρίς δημόσια διεύθυνση), με την ίδια βάση και τον ίδιο πίνακα.' -f $Counter)
+    Say '  3. Έλεγχος: νέα ζωντανή έκδοση και όλες οι γραμμές της βάσης στη θέση τους.'
+    Say '  Τα sites, το Hub, ο Worker gwh-sitemap, οι βάσεις των sites και τα τυπωμένα QR ΔΕΝ αλλάζουν. Οι παλιές μετρήσεις «other» μένουν «other».'
+    Say ('  Επαναφορά (μόνο με έγκριση): npx wrangler rollback <ζωντανή έκδοση> --name {0}, από το σημείωμα του βήματος 1. Ή στο Cloudflare: {1} > {0} > Deployments > Rollback.' -f $Counter, $DashLink)
+    if (-not $Apply) { Say ''; Say 'Μόνο έλεγχος (χωρίς -Apply): δεν άλλαξε τίποτα.' 'Green'; Finish 0 }
+    if (-not (Confirm-Approval $PhraseCounter)) { Say 'Δεν δόθηκε έγκριση: σταμάτησα χωρίς αλλαγές.' 'Yellow'; Finish 1 }
+
+    # 1. Backups first
+    $bdir = Join-Path (Join-Path $WorkDir 'backups') ('before-poster-counter-' + $stamp)
+    New-Item -ItemType Directory -Path $bdir -Force | Out-Null
+    $note = @(
+        ('Gear World poster counter before the update ({0}), {1}' -f (Split-Path -Leaf $repo), (Get-Date -Format 'yyyy-MM-dd HH:mm')),
+        'To go back (only with approval), in PowerShell:',
+        ('  npx wrangler rollback {0} --name {1}' -f $counterLive, $Counter),
+        ('Or in the Cloudflare dashboard: {0} > {1} > Deployments > the version above > Rollback.' -f $DashLink, $Counter),
+        ('The rows of poster_scans at that moment are in poster-scans.sql of this folder: npx wrangler d1 execute {0} --remote --file poster-scans.sql puts them back.' -f $DbName)
+    )
+    $noteFile = Join-Path $bdir 'rollback.txt'
+    [System.IO.File]::WriteAllText($noteFile, ($note -join "`r`n") + "`r`n", (New-Object System.Text.UTF8Encoding($false)))
+    $dump = @('-- The rows of poster_scans on ' + (Get-Date -Format 'yyyy-MM-dd HH:mm') + ', before the counter update (tools/poster-setup.ps1 -Step counter).')
+    foreach ($r in $rows) {
+        $dump += ("INSERT INTO poster_scans (day, campaign, site, scans) VALUES ('{0}', '{1}', '{2}', {3}) ON CONFLICT (day, campaign, site) DO UPDATE SET scans = excluded.scans;" -f $r.day, $r.campaign, $r.site, [int]$r.scans)
+    }
+    $dumpFile = Join-Path $bdir 'poster-scans.sql'
+    [System.IO.File]::WriteAllText($dumpFile, ($dump -join "`r`n") + "`r`n", (New-Object System.Text.UTF8Encoding($false)))
+    if (-not (Test-Path -LiteralPath $noteFile) -or -not (Test-Path -LiteralPath $dumpFile)) { Say 'Τα αντίγραφα ασφαλείας δεν γράφτηκαν: ΔΕΝ άλλαξα τίποτα.' 'Red'; Finish 11 }
+    Say ''
+    Say ('1. Αντίγραφα ασφαλείας ({0} γραμμές) και οδηγίες επαναφοράς: {1}: ΕΝΤΑΞΕΙ' -f $rows.Count, $bdir) 'Green'
+
+    # 2. The counter Worker only (its config is made from the template, with the database ID, on this PC only)
+    $tpl = [System.IO.File]::ReadAllText((Join-Path $postersDir 'wrangler.jsonc.example'))
+    if ($tpl.IndexOf('REPLACE_WITH_DATABASE_ID') -lt 0) { Say 'Το πρότυπο του Worker μέτρησης δεν έχει τη μορφή που περίμενα. Δεν άλλαξε τίποτα.' 'Red'; Finish 13 }
+    $counterCfg = Join-Path $postersDir 'wrangler.jsonc'
+    [System.IO.File]::WriteAllText($counterCfg, $tpl.Replace('REPLACE_WITH_DATABASE_ID', $dbId), (New-Object System.Text.UTF8Encoding($false)))
+    Copy-Item -LiteralPath $counterCfg -Destination (Join-Path $WorkDir 'wrangler.jsonc') -Force
+    $d = Invoke-Deploy $postersDir $counterCfg
+    if ($d.code -ne 0) { Say 'Ο Worker μέτρησης δεν ανέβηκε: ο μετρητής έμεινε όπως ήταν και μετράει κανονικά. Έξοδος:' 'Red'; Say $d.text; Finish 9 }
+
+    # 3. Checks
+    $cv = Get-LiveVersion $postersDir $Counter
+    if (-not $cv -or $cv -eq 'missing') { Say '2. Ο Worker μέτρησης ανέβηκε, αλλά δεν βρίσκω τη ζωντανή του έκδοση: ΠΡΟΣΟΧΗ. Ξανατρέξε σε 1 λεπτό (είναι ασφαλές).' 'Yellow'; Finish 9 }
+    if ($cv -eq $counterLive) { Say '2. Worker μέτρησης: η ζωντανή έκδοση δεν άλλαξε: ΠΡΟΣΟΧΗ. Ξανατρέξε σε 1 λεπτό (είναι ασφαλές).' 'Yellow'; Finish 9 }
+    Say ('2. Worker {0}: νέα ζωντανή έκδοση: ΕΝΤΑΞΕΙ' -f $Counter) 'Green'
+    $after = Select-Posters $postersDir 'SELECT COUNT(*) AS n, COALESCE(SUM(scans), 0) AS s FROM poster_scans'
+    if ($null -eq $after -or $after.Count -lt 1) { Say '3. Δεν μπόρεσα να ξαναδιαβάσω τη βάση: ΠΡΟΣΟΧΗ. Τρέξε το poster-stats για έλεγχο.' 'Yellow'; Finish 0 }
+    if ([int]$after[0].n -ge $rows.Count -and [int]$after[0].s -ge $scansBefore) { Say ('3. Βάση: {0} γραμμές, {1} σαρώσεις (καμία δεν χάθηκε): ΕΝΤΑΞΕΙ' -f $after[0].n, $after[0].s) 'Green' }
+    else { Say ('3. Βάση: {0} γραμμές, πριν ήταν {1}: ΠΡΟΒΛΗΜΑ. Επαναφορά των γραμμών από το {2}' -f $after[0].n, $rows.Count, $dumpFile) 'Red'; Finish 9 }
+    Say ''
+    Say ('ΕΤΟΙΜΟ: ο μετρητής ξέρει τώρα τα sites {0} και τις αφίσες {1}. Πες στο Claude να κάνει τη δοκιμαστική σάρωση (poster-test).' -f $newSites, $newCampaigns) 'Green'
+    Say ('Επαναφορά, αν χρειαστεί (μόνο με έγκριση): {0}' -f $noteFile)
     Finish 0
 }
 

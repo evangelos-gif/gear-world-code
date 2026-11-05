@@ -3,17 +3,21 @@
 // binding POSTERS (src/lib/poster-scan.js). One request = +1 for (day, poster, site) in the D1 table poster_scans.
 // Nothing about the visitor arrives here or is kept: only the site code and the poster name.
 
-// The sites that count (the Hub and the 10 Gear Worlds), as the Workers send them.
-export const SITES = ['hub', 'cgw', 'mgw', 'wgw', 'kgw', 'hgw', 'ggw', 'tgw', 'vgw', 'agw', 'sgw'];
+// The sites that count (the Hub and the 13 Gear Worlds), as the Workers send them. A new site goes in here BEFORE it
+// launches, or its scans are lost (lessons L95; tests/worker/posters.test.mjs checks every site of sites/).
+// 5/11/2026: bgw (Biker), pgw (Gaming), zgw (Pets).
+export const SITES = ['hub', 'cgw', 'mgw', 'wgw', 'kgw', 'hgw', 'ggw', 'tgw', 'vgw', 'agw', 'sgw', 'bgw', 'pgw', 'zgw'];
 
 // The printed posters (utm_campaign). Anything else that comes with utm_source=poster is counted as "other", so a
-// made-up address cannot add rows; a new poster is one more name here and an update of this Worker only.
+// made-up address cannot add rows; a new poster is one more name here and an update of this Worker only
+// (tools/poster-setup.ps1 -Step counter), BEFORE the poster is put up (lessons L95; every poster in posters/ is checked).
 // poster-test: the test after a change (it is deleted afterwards with tools/poster-setup.ps1 -Step test-cleanup).
-export const CAMPAIGNS = ['poster10', 'poster-a', 'poster-b', 'poster-c', 'poster-test'];
+// 5/11/2026: poster-hub (Hub only, the Earth), poster13 (the 13 worlds), poster-cgw (Construction Gear World).
+export const CAMPAIGNS = ['poster10', 'poster-a', 'poster-b', 'poster-c', 'poster-hub', 'poster13', 'poster-cgw', 'poster-test'];
 export const OTHER = 'other';
 
 // At most this many counts per day, poster and site. A real poster gets far fewer; a bot that keeps opening the
-// address cannot use up the daily D1 write allowance of the account (lessons L49): 11 sites x 6 names x 200 at most.
+// address cannot use up the daily D1 write allowance of the account (lessons L49): 14 sites x 9 names x 200 at most.
 export const DAILY_CAP = 200;
 
 export const COUNT_SQL = 'INSERT INTO poster_scans (day, campaign, site, scans) VALUES (?, ?, ?, 1) '

@@ -3809,6 +3809,7 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
     $qDb = [guid]::NewGuid().ToString()
     $qOtherDb = [guid]::NewGuid().ToString()
     $qVer = [guid]::NewGuid().ToString()
+    $qVer2 = [guid]::NewGuid().ToString()
     # The live configs of the 4 new sites on the "PC" (as their d1/domain steps write them)
     $qPc = @{ 'sporty-gear-world' = 'sportygearworld.com'; 'technology-gear-world' = 'technologygearworld.com'; 'car-gear-world' = 'cargearworld.com'; 'travel-gear-world' = 'travelgearworld.com' }
     foreach ($k in $qPc.Keys) {
@@ -3853,6 +3854,7 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         'echo %* | findstr /L /C:"sqlite_master" >nul && goto table',
         'echo %* | findstr /L /C:"COALESCE" >nul && goto others',
         'echo %* | findstr /L /C:"ORDER BY day, site" >nul && goto testrows',
+        'echo %* | findstr /L /C:"ORDER BY day, campaign, site" >nul && goto allrows',
         'echo %* | findstr /L /C:"AS n FROM poster_scans" >nul && goto left',
         'echo %* | findstr /L /C:"migrations apply" >nul && goto ok',
         'echo %* | findstr /L /C:"d1 create" >nul && goto create',
@@ -3888,6 +3890,9 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         ':left',
         'echo [{"results":[{"n":0}],"success":true}]',
         'exit /b 0',
+        ':allrows',
+        'echo [{"results":[{"day":"2026-11-01","campaign":"other","site":"hub","scans":1},{"day":"2026-11-04","campaign":"other","site":"cgw","scans":2},{"day":"2026-11-04","campaign":"poster-a","site":"zgw","scans":4}],"success":true}]',
+        'exit /b 0',
         ':delete',
         'del "%GW_FAKE_STATE%\rows.flag" 2>nul',
         'echo deleted',
@@ -3900,12 +3905,19 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         ('echo Version(s):  (100%%) ' + $qVer),
         'exit /b 0',
         ':counterdep',
-        ('if exist "%GW_FAKE_STATE%\counter.flag" echo Version(s):  (100%%) ' + $qVer),
-        'if exist "%GW_FAKE_STATE%\counter.flag" exit /b 0',
+        'if not exist "%GW_FAKE_STATE%\counter.flag" goto nocounter',
+        ('if exist "%GW_FAKE_STATE%\verB.flag" echo Version(s):  (100%%) ' + $qVer2),
+        ('if not exist "%GW_FAKE_STATE%\verB.flag" echo Version(s):  (100%%) ' + $qVer),
+        'exit /b 0',
+        ':nocounter',
         'echo X [ERROR] This Worker does not exist on your account. [code: 10007]',
         'exit /b 1',
+        ':toggle',
+        'if exist "%GW_FAKE_STATE%\verB.flag" (del "%GW_FAKE_STATE%\verB.flag") else (echo b> "%GW_FAKE_STATE%\verB.flag")',
+        'exit /b 0',
         ':deploy',
         'echo %* | findstr /L /C:"posters" >nul && echo up > "%GW_FAKE_STATE%\counter.flag"',
+        'echo %* | findstr /L /C:"posters" >nul && call :toggle',
         'echo %* | findstr /L /C:"gear-world-hub" >nul && if exist "%GW_FAKE_STATE%\hubfail.flag" goto deployfail',
         'echo Uploaded',
         'exit /b 0',
@@ -4006,6 +4018,28 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         $undo = @(Get-ChildItem -LiteralPath (Join-Path $qWork 'backups') -Filter 'poster-test-rows-*.sql' | Select-Object -Last 1)
         Check ($undo.Count -eq 1 -and ([regex]::Matches((QText $undo[0].FullName), 'INSERT INTO poster_scans')).Count -eq 2) 'posters test-cleanup: the file to put them back has the 2 rows'
         Check ((QLast 'POSTER_SETUP_TEST-CLEANUP_*.txt').Contains('Δοκιμαστικές γραμμές τώρα: 0: ΕΝΤΑΞΕΙ')) 'posters test-cleanup: 0 test rows left'
+        # counter (lessons L95): only the counter Worker, after a rollback note and a copy of every row
+        $cDeploys = QCount 'sites\\posters\\wrangler\.jsonc'
+        $cHub = QCount 'gear-world-hub\\wrangler\.toml'
+        $cPc = QPcHash
+        Remove-Item -LiteralPath $qSites -Force -ErrorAction SilentlyContinue
+        Check ((Run-Q @('-Step', 'counter')) -eq 0) 'posters counter without -Apply: exit 0'
+        $r = QLast 'POSTER_SETUP_COUNTER_*.txt'
+        Check ($r.Contains('sgw,bgw,pgw,zgw') -and $r.Contains('poster-hub,poster13,poster-cgw') -and $r.Contains('3 γραμμές, 7 σαρώσεις') -and $r.Contains('Μόνο έλεγχος')) 'posters counter check: the new sites and posters, the rows now, nothing changed'
+        Check ((QCount 'sites\\posters\\wrangler\.jsonc') -eq $cDeploys -and @(Get-ChildItem -LiteralPath (Join-Path $qWork 'backups') -Directory -Filter 'before-poster-counter-*' -ErrorAction SilentlyContinue).Count -eq 0) 'posters counter check: no deploy, no backup'
+        Check ((Run-Q @('-Step', 'counter', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ POSTER STATS')) -eq 1 -and (QCount 'sites\\posters\\wrangler\.jsonc') -eq $cDeploys) 'posters counter with the wrong phrase: no deploy'
+        Check ((Run-Q @('-Step', 'counter', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ POSTER COUNTER')) -eq 0) 'posters counter with approval: exit 0'
+        Check ((QCount 'sites\\posters\\wrangler\.jsonc') -eq ($cDeploys + 1) -and (QCount 'gear-world-hub\\wrangler\.toml') -eq $cHub -and -not (Test-Path -LiteralPath $qSites) -and (QPcHash) -eq $cPc) 'posters counter: one deploy of the counter only; no site tool, no Hub deploy, the PC configs as they were'
+        $cb = @(Get-ChildItem -LiteralPath (Join-Path $qWork 'backups') -Directory -Filter 'before-poster-counter-*' | Sort-Object Name | Select-Object -Last 1)
+        Check ($cb.Count -eq 1) 'posters counter: a backup folder'
+        if ($cb.Count -eq 1) {
+            $rb = QText (Join-Path $cb[0].FullName 'rollback.txt')
+            $dump = QText (Join-Path $cb[0].FullName 'poster-scans.sql')
+            Check ($rb.Contains('--name gear-world-posters') -and ($rb.Contains('rollback ' + $qVer + ' ') -or $rb.Contains('rollback ' + $qVer2 + ' '))) 'posters counter: the rollback note has the live version from before'
+            Check (([regex]::Matches($dump, 'INSERT INTO poster_scans')).Count -eq 3 -and $dump.Contains("'2026-11-04', 'poster-a', 'zgw', 4")) 'posters counter: every row saved first, in a file that puts them back'
+        }
+        $r = QLast 'POSTER_SETUP_COUNTER_*.txt'
+        Check ($r.Contains('ΕΤΟΙΜΟ') -and $r.Contains('νέα ζωντανή έκδοση: ΕΝΤΑΞΕΙ') -and $r.Contains('καμία δεν χάθηκε') -and -not $r.Contains($qVer) -and -not $r.Contains($qVer2) -and -not $r.Contains($qDb)) 'posters counter: ready, new version, rows all there, no ids in the report'
         # poster-stats: read-only matrix
         & $exe -NoProfile -ExecutionPolicy Bypass -File $qStats -Days 30 -WorkDir $qWork -OutDir $qOut -SkipInstall -NoClipboard | Out-Null
         Check ($LASTEXITCODE -eq 0) 'poster-stats: exit 0'
