@@ -162,15 +162,42 @@ if ($ListFeeds) {
     $pick = @($all | Where-Object { $cur -eq 'ALL' -or ([string]$_.currency).ToUpperInvariant() -eq $cur })
     $pick = @($pick | Sort-Object -Property @{ Expression = { [long](('0' + ([string]$_.productCount -replace '\D', ''))) }; Descending = $true }, @{ Expression = { [string]$_.advertiserName }; Descending = $false })
     $shops = @($pick | ForEach-Object { [string]$_.advertiserId } | Sort-Object -Unique)
-    Say ('Feeds στο CJ: {0} συνολικά. Σε {1}: {2} feeds από {3} καταστήματα (τα μεγαλύτερα πρώτα).' -f $all.Count, $cur, $pick.Count, $shops.Count)
-    Say 'Ένα κατάστημα με feed εδώ έχει προϊόντα που μπορούν να μπουν σε site. Η αίτηση γίνεται στο CJ: Partners > Advertisers.'
+    $told = ''
+    if ($null -ne $S.feedsApiTotal) { $told = (' (το CJ λέει ότι έχει {0})' -f $S.feedsApiTotal) }
+    Say ('Feeds στο CJ: διαβάστηκαν {0}{1}. Σε {2}: {3} feeds από {4} καταστήματα.' -f $all.Count, $told, $cur, $pick.Count, $shops.Count)
+    if ($S.feedsCapped) { Say ('  ΠΡΟΣΟΧΗ: η λίστα σταμάτησε στα {0} feeds (όριο σελίδων), μπορεί να λείπουν καταστήματα. Στείλε το στο Claude.' -f $all.Count) 'Yellow' }
+    Say 'Μία γραμμή για κάθε κατάστημα (το μεγαλύτερο feed του), τα μεγαλύτερα πρώτα. Η αίτηση γίνεται στο CJ: Partners > Advertisers.'
+    # One line per shop, its biggest feed (the list is already sorted); shops whose feeds are all empty are only counted
+    # (lessons L96: Travel Luggage had a feed with 0 products). ΠΑΛΙΟ = older than 30 days (lessons L39).
+    $seen = @{}
+    $rows = New-Object System.Collections.Generic.List[object]
     foreach ($f in $pick) {
-        $mine = ''
-        if ($ids -contains ([string]$f.advertiserId)) { $mine = ' | ΔΙΚΟ ΣΟΥ (σε έχει δεχτεί)' }
+        $k = [string]$f.advertiserId
+        if ($seen.ContainsKey($k)) { $seen[$k] = $seen[$k] + 1; continue }
+        $seen[$k] = 1
+        $rows.Add($f)
+    }
+    $oldDay = (Get-Date).AddDays(-30).ToString('yyyy-MM-dd')
+    $empty = 0
+    foreach ($f in $rows) {
+        $k = [string]$f.advertiserId
+        $n = [long](('0' + ([string]$f.productCount -replace '\D', '')))
+        $isMine = $ids -contains $k
+        if ($n -le 0 -and -not $isMine) { $empty++; continue }
+        $extra = ''
+        if ($seen[$k] -gt 1) { $extra = (' (+{0} ακόμα feeds)' -f ($seen[$k] - 1)) }
         $upd = [string]$f.lastUpdated
         if ($upd.Length -gt 10) { $upd = $upd.Substring(0, 10) }
-        Say ('  {0} {1} | feed: {2} | προϊόντα: {3} | νόμισμα: {4} | γλώσσα: {5} | ανανέωση: {6}{7}' -f $f.advertiserId, $f.advertiserName, $f.feedName, $f.productCount, $f.currency, $f.language, $upd, $mine)
+        $old = ''
+        if ($upd -and $upd -lt $oldDay) { $old = ' | ΠΑΛΙΟ (πάνω από 30 μέρες)' }
+        $more = ''
+        if ($cur -eq 'ALL') { $more = (' | νόμισμα: {0}' -f $f.currency) }
+        if ([string]$f.language -and [string]$f.language -ne 'en') { $more += (' | γλώσσα: {0}' -f $f.language) }
+        $mine = ''
+        if ($isMine) { $mine = ' | ΔΙΚΟ ΣΟΥ (σε έχει δεχτεί)' }
+        Say ('  {0} {1} | προϊόντα: {2} | feed: {3}{4} | ανανέωση: {5}{6}{7}{8}' -f $k, ([string]$f.advertiserName).Trim(), $n, ([string]$f.feedName).Trim(), $extra, $upd, $more, $old, $mine)
     }
+    Say ('Καταστήματα μόνο με άδεια feeds (0 προϊόντα), δεν γράφονται εδώ: {0}' -f $empty)
     Say ''
     Say 'Μόνο ανάγνωση: δεν κατέβηκε τίποτα και δεν άλλαξε τίποτα.' 'Green'
     Finish 0

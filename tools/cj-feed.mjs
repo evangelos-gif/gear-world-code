@@ -24,6 +24,7 @@ export const CJ_API = 'https://ads.api.cj.com/query';
 export const PAGE = 1000;           // CJ gives at most 1,000 products per request
 export const MAX_PRODUCTS = 50000;  // a sane ceiling for one advertiser
 export const FEED_PAGE = 500;      // feeds per request of the feed list (first run: exactly 500 came back)
+export const FEED_MAX_PAGES = 200; // most pages of the feed list (100,000 feeds); CJ's totalCount usually stops it sooner
 
 // The columns the import tools read (same names as tools/awin-feed-download.ps1 asks Awin for).
 export const COLUMNS = ['data_feed_id', 'merchant_id', 'merchant_name', 'aw_product_id', 'aw_deep_link', 'brand_name', 'merchant_product_id',
@@ -231,19 +232,27 @@ export async function run({ mode, cids, pid, advertisers, out, token, api = CJ_A
     const outer = ['totalCount', 'count'].filter(x => fs.outer.includes(x)).join(' ');
     // Mode "list" (6 Nov 2026, lessons L96) pages through every feed with offset, when the API has it: the first run
     // stopped at exactly 500, the limit of one page.
-    const pages = mode === 'list' && fs.args.includes('offset') && fs.args.includes('limit') ? 20 : 1;
+    // The second run (6 Nov 2026) stopped at exactly 10,000 = the old cap of 20 pages: now up to FEED_MAX_PAGES pages,
+    // it stops when CJ's own total (totalCount) is reached, and the report says when the cap cut the list.
+    const pages = mode === 'list' && fs.args.includes('offset') && fs.args.includes('limit') ? FEED_MAX_PAGES : 1;
     const all = [];
+    let apiTotal = null;
     for (let pg = 0; pg < pages; pg++) {
       const lim = fs.args.includes('limit') ? `, limit: ${FEED_PAGE}` : '';
       const off = pg && fs.args.includes('offset') ? `, offset: ${pg * FEED_PAGE}` : '';
       const q = `{ shoppingProductFeeds(companyId: "${S.cid}"${lim}${off}) { ${outer} resultList { ${want.join(' ')} } } }`;
       const r = await gql({ token, api, fetchImpl, query: q });
       if (r.errors || !r.data) { S.feedsError = mask(errText(r.errors)); break; }
-      const got = r.data.shoppingProductFeeds.resultList || [];
+      const block = r.data.shoppingProductFeeds;
+      if (apiTotal === null && block.totalCount != null && block.totalCount !== '' && Number.isFinite(Number(block.totalCount))) apiTotal = Number(block.totalCount);
+      const got = block.resultList || [];
       all.push(...got);
       if (got.length < FEED_PAGE) break;
+      if (apiTotal !== null && all.length >= apiTotal) break;
+      if (pages > 1 && pg === pages - 1) { S.feedsCapped = true; break; }
       if (pauseMs) await sleep(pauseMs);
     }
+    S.feedsApiTotal = apiTotal;
     if (!S.feedsError || all.length) {
       // The API lists every CJ feed (first run, 31 Oct 2026: 500 feeds of shops that never accepted us). Probe and
       // download show only the feeds of the chosen advertisers and the total; "list" shows them all.

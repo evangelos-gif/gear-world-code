@@ -6,7 +6,7 @@ import { mkdtempSync, readFileSync, writeFileSync, readdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { gunzipSync } from 'node:zlib';
-import { run, toFeedRow, productQuery, isCjLink, makeMask, COLUMNS } from '../../tools/cj-feed.mjs';
+import { run, toFeedRow, productQuery, isCjLink, makeMask, COLUMNS, FEED_MAX_PAGES } from '../../tools/cj-feed.mjs';
 import { planLegacyImport } from '../../tools/legacy-import-plan.mjs';
 import { classify, RULES } from '../../tools/import-rules/xplora.mjs';
 import { planMembership, renderMembershipReport } from '../../tools/awin-membership-plan.mjs';
@@ -209,4 +209,41 @@ test('L96: list mode pages through every CJ feed (also of shops that never accep
   assert.equal(S.advertisers.length, 0, 'no product query per shop in list mode');
   assert.deepEqual(readdirSync(out), [], 'nothing written');
   assert.doesNotMatch(JSON.stringify(S), new RegExp(TOKEN));
+});
+
+test('L96: the feed list stops at CJ\'s own total, and says when the page cap cut it (second run stopped at 10,000)', async () => {
+  const schema = { queryType: { fields: SCHEMA.queryType.fields.map(f => f.name === 'shoppingProductFeeds'
+    ? { ...f, args: [{ name: 'companyId' }, { name: 'limit' }, { name: 'offset' }] } : f) } };
+  const mk = total => {
+    const calls = [];
+    const fetchImpl = async (url, init) => {
+      const q = JSON.parse(init.body).query;
+      const json = x => ({ status: 200, text: async () => JSON.stringify(x) });
+      if (q.includes('__schema')) return json({ data: { __schema: schema } });
+      const ty = /__type\(name: "(\w+)"\)/.exec(q);
+      if (ty) return json({ data: { __type: TYPES[ty[1]] ? { fields: TYPES[ty[1]] } : null } });
+      if (q.includes('shoppingProductFeeds')) {
+        calls.push(q);
+        const offset = Number((/offset: (\d+)/.exec(q) || [])[1] || 0);
+        // Always a full page: only CJ's total (or the cap) can stop the loop.
+        const resultList = Array.from({ length: 500 }, (_, i) => ({ advertiserId: String(offset + i), feedName: 'UK', productCount: '1', currency: 'GBP' }));
+        return json({ data: { shoppingProductFeeds: { totalCount: total, resultList } } });
+      }
+      return json({ data: { shoppingProducts: { totalCount: 0, count: 0, resultList: [] } } });
+    };
+    return { calls, fetchImpl };
+  };
+  const a = mk(1000);
+  const S = await run({ mode: 'list', cids: ['7806395'], pid: '101917444', advertisers: [], out: mkdtempSync(join(tmpdir(), 'cj-list-')), token: TOKEN, api: API, fetchImpl: a.fetchImpl, pauseMs: 0 });
+  assert.equal(a.calls.length, 2, 'stops when totalCount is reached, no empty third page');
+  assert.equal(S.feedsTotal, 1000);
+  assert.equal(S.feedsApiTotal, 1000);
+  assert.equal(S.feedsCapped, undefined);
+  const b = mk(null);
+  const T = await run({ mode: 'list', cids: ['7806395'], pid: '101917444', advertisers: [], out: mkdtempSync(join(tmpdir(), 'cj-list-')), token: TOKEN, api: API, fetchImpl: b.fetchImpl, pauseMs: 0 });
+  assert.equal(b.calls.length, FEED_MAX_PAGES, 'no total from CJ: the page cap ends the loop');
+  assert.equal(T.feedsTotal, FEED_MAX_PAGES * 500);
+  assert.ok(FEED_MAX_PAGES * 500 > 10000, 'the cap is above the 10,000 of the second run');
+  assert.equal(T.feedsCapped, true, 'the report can warn that the list was cut');
+  assert.equal(T.feedsApiTotal, null);
 });
