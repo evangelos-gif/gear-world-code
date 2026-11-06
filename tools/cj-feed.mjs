@@ -23,6 +23,7 @@ import { pathToFileURL } from 'node:url';
 export const CJ_API = 'https://ads.api.cj.com/query';
 export const PAGE = 1000;           // CJ gives at most 1,000 products per request
 export const MAX_PRODUCTS = 50000;  // a sane ceiling for one advertiser
+export const FEED_PAGE = 500;      // feeds per request of the feed list (first run: exactly 500 came back)
 
 // The columns the import tools read (same names as tools/awin-feed-download.ps1 asks Awin for).
 export const COLUMNS = ['data_feed_id', 'merchant_id', 'merchant_name', 'aw_product_id', 'aw_deep_link', 'brand_name', 'merchant_product_id',
@@ -227,17 +228,31 @@ export async function run({ mode, cids, pid, advertisers, out, token, api = CJ_A
   if (d.ok && d.shoppingProductFeeds) {
     const fs = d.shoppingProductFeeds;
     const want = ['advertiserId', 'advertiserName', 'feedName', 'productCount', 'lastUpdated', 'currency', 'language', 'adId'].filter(x => fs.fields.some(f => f.name === x && !f.object));
-    const q = `{ shoppingProductFeeds(companyId: "${S.cid}"${fs.args.includes('limit') ? ', limit: 500' : ''}) { ${['totalCount', 'count'].filter(x => fs.outer.includes(x)).join(' ')} resultList { ${want.join(' ')} } } }`;
-    const r = await gql({ token, api, fetchImpl, query: q });
-    if (r.errors || !r.data) S.feedsError = mask(errText(r.errors));
-    else {
-      // The API lists every CJ feed (first run, 31 Oct 2026: 500 feeds of shops that never accepted us), so the report
-      // shows only the feeds of the chosen advertisers and the total.
-      const all = r.data.shoppingProductFeeds.resultList || [];
+    const outer = ['totalCount', 'count'].filter(x => fs.outer.includes(x)).join(' ');
+    // Mode "list" (6 Nov 2026, lessons L96) pages through every feed with offset, when the API has it: the first run
+    // stopped at exactly 500, the limit of one page.
+    const pages = mode === 'list' && fs.args.includes('offset') && fs.args.includes('limit') ? 20 : 1;
+    const all = [];
+    for (let pg = 0; pg < pages; pg++) {
+      const lim = fs.args.includes('limit') ? `, limit: ${FEED_PAGE}` : '';
+      const off = pg && fs.args.includes('offset') ? `, offset: ${pg * FEED_PAGE}` : '';
+      const q = `{ shoppingProductFeeds(companyId: "${S.cid}"${lim}${off}) { ${outer} resultList { ${want.join(' ')} } } }`;
+      const r = await gql({ token, api, fetchImpl, query: q });
+      if (r.errors || !r.data) { S.feedsError = mask(errText(r.errors)); break; }
+      const got = r.data.shoppingProductFeeds.resultList || [];
+      all.push(...got);
+      if (got.length < FEED_PAGE) break;
+      if (pauseMs) await sleep(pauseMs);
+    }
+    if (!S.feedsError || all.length) {
+      // The API lists every CJ feed (first run, 31 Oct 2026: 500 feeds of shops that never accepted us). Probe and
+      // download show only the feeds of the chosen advertisers and the total; "list" shows them all.
       S.feedsTotal = all.length;
-      S.feeds = all.filter(f => advertisers.includes(String(f.advertiserId))).map(f => Object.fromEntries(want.map(k => [k, f[k] ?? ''])));
+      const pick = mode === 'list' ? all : all.filter(f => advertisers.includes(String(f.advertiserId)));
+      S.feeds = pick.map(f => Object.fromEntries(want.map(k => [k, f[k] ?? ''])));
     }
   }
+  if (mode === 'list') { S.ok = S.feeds !== null; if (!S.ok && !S.feedsError) S.feedsError = 'the CJ API has no feed list (shoppingProductFeeds)'; return S; }
   for (const adv of advertisers) {
     const A = { advertiser: adv, ok: false };
     if (mode === 'probe') {
@@ -277,7 +292,7 @@ if (import.meta.url === pathToFileURL(process.argv[1] || '').href) {
   const mask = makeMask(token);
   const list = s => s.split(/[,\s]+/).filter(x => /^\d{3,12}$/.test(x));
   try {
-    const S = await run({ mode: opt('--mode') === 'download' ? 'download' : 'probe', cids: list(opt('--cid')), pid: opt('--pid'), advertisers: list(opt('--advertisers')),
+    const S = await run({ mode: ['download', 'list'].includes(opt('--mode')) ? opt('--mode') : 'probe', cids: list(opt('--cid')), pid: opt('--pid'), advertisers: list(opt('--advertisers')),
       out: opt('--out'), token, api: opt('--api') || CJ_API, pauseMs: Number(opt('--pause') || 1000) });
     process.stdout.write(mask(JSON.stringify(S)) + '\n');
   } catch (e) {

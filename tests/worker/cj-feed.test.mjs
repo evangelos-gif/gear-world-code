@@ -179,3 +179,34 @@ test('L86: the Awin membership check lists CJ shops apart (they pay through CJ)'
   assert.equal(plan.plain.length, 0);
   assert.match(renderMembershipReport(plan), /Μέσω CJ \(όχι Awin\)[\s\S]*KGW: XPLORA UK \(12\)/);
 });
+
+test('L96: list mode pages through every CJ feed (also of shops that never accepted us), downloads nothing', async () => {
+  // The first real run stopped at exactly 500 feeds (one page): with "limit" and "offset" the list goes on page by page.
+  const feeds = Array.from({ length: 503 }, (_, i) => ({ advertiserId: String(7000000 + i), advertiserName: `Shop ${i}`, feedName: 'UK', productCount: String(i), currency: i % 2 ? 'GBP' : 'USD' }));
+  const schema = { queryType: { fields: SCHEMA.queryType.fields.map(f => f.name === 'shoppingProductFeeds'
+    ? { ...f, args: [{ name: 'companyId' }, { name: 'limit' }, { name: 'offset' }] } : f) } };
+  const calls = [];
+  const fetchImpl = async (url, init) => {
+    const q = JSON.parse(init.body).query;
+    calls.push(q);
+    const json = x => ({ status: 200, text: async () => JSON.stringify(x) });
+    if (q.includes('__schema')) return json({ data: { __schema: schema } });
+    const ty = /__type\(name: "(\w+)"\)/.exec(q);
+    if (ty) return json({ data: { __type: TYPES[ty[1]] ? { fields: TYPES[ty[1]] } : null } });
+    if (q.includes('shoppingProductFeeds')) {
+      const limit = Number((/limit: (\d+)/.exec(q) || [])[1] || 500);
+      const offset = Number((/offset: (\d+)/.exec(q) || [])[1] || 0);
+      return json({ data: { shoppingProductFeeds: { totalCount: feeds.length, resultList: feeds.slice(offset, offset + limit) } } });
+    }
+    return json({ data: { shoppingProducts: { totalCount: 0, count: 0, resultList: [] } } });
+  };
+  const out = mkdtempSync(join(tmpdir(), 'cj-list-'));
+  const S = await run({ mode: 'list', cids: ['7806395'], pid: '101917444', advertisers: ['5175167'], out, token: TOKEN, api: API, fetchImpl, pauseMs: 0 });
+  assert.equal(S.ok, true);
+  assert.equal(S.feedsTotal, 503);
+  assert.equal(S.feeds.length, 503, 'list mode keeps every feed, not only the chosen shops');
+  assert.ok(calls.some(q => /shoppingProductFeeds\(companyId: "7806395", limit: 500, offset: 500\)/.test(q)), 'second page asked');
+  assert.equal(S.advertisers.length, 0, 'no product query per shop in list mode');
+  assert.deepEqual(readdirSync(out), [], 'nothing written');
+  assert.doesNotMatch(JSON.stringify(S), new RegExp(TOKEN));
+});

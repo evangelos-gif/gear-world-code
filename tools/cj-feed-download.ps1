@@ -10,6 +10,9 @@
   Without -Apply: READ-ONLY. Shows which CJ account id works, the feeds of the advertisers that accepted you, how many
   products each chosen advertiser (-Advertiser, CJ advertiser ids, default 5175167 = XPLORA UK) has, and 5 sample
   products with their price, stock and CJ tracking link. Nothing is saved.
+  -ListFeeds (READ-ONLY, lessons L96): lists EVERY product feed the CJ API knows, also of shops that have not accepted
+  you yet, in one currency (-Currency GBP, or ALL), biggest first, with the shop number, name, products, language and
+  last update. The shops given with -Advertiser are marked as yours. Nothing is downloaded and nothing changes.
   With -Apply and the approval phrase ΕΓΚΡΙΝΩ CJ FEED DOWNLOAD: downloads every product, checks the file (product
   names, CJ tracking links), moves the old copy to <folder>\_old\<time>\ and only then puts the new one in its place.
   A download with less than half the products of the old copy is NOT used. The sites do not change: the import is a
@@ -22,6 +25,8 @@
 param(
     [string[]]$Advertiser = @('5175167'),
     [switch]$Apply,
+    [switch]$ListFeeds,
+    [string]$Currency = 'GBP',
     [string]$Approve = '',
     [string]$Archive = '',
     [string]$TokenFile = '',
@@ -142,6 +147,34 @@ try {
     $script:secret = [System.Runtime.InteropServices.Marshal]::PtrToStringBSTR([System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($sec)).Trim()
 } catch { Say 'Δεν μπόρεσα να διαβάσω το φυλαγμένο κλειδί. Σβήσε το αρχείο του και ξανατρέξε για να το δώσεις ξανά.' 'Red'; Say $TokenFile; Finish 3 }
 if ($script:secret -notmatch '^[A-Za-z0-9._~+/=-]{10,400}$') { Say 'Το φυλαγμένο κλειδί δεν μοιάζει με κλειδί του CJ. Σβήσε το αρχείο του και ξανατρέξε.' 'Red'; Say $TokenFile; Finish 3 }
+
+# 2a. -ListFeeds: every CJ feed, also of shops that have not accepted us, read-only (lessons L96).
+if ($ListFeeds) {
+    if ($Apply) { Say 'Το -ListFeeds είναι μόνο ανάγνωση: τρέξε το χωρίς -Apply.' 'Red'; Finish 2 }
+    $cur = ([string]$Currency).Trim().ToUpperInvariant()
+    if ($cur -notmatch '^(ALL|[A-Z]{3})$') { Say ('Λάθος νόμισμα: {0} (π.χ. GBP ή ALL)' -f $Currency) 'Red'; Finish 2 }
+    $S = Invoke-CjFeed 'list' '-'
+    if ($null -eq $S) { Finish 4 }
+    if ($S.error) { Say ('Το CJ δεν απάντησε σωστά: {0}' -f $S.error) 'Red'; Finish 4 }
+    Say ('CJ: διεύθυνση {0} | λογαριασμός (CID) που δούλεψε: {1}' -f $S.api, $S.cid)
+    if ($S.feedsError) { Say ('  Η λίστα feeds δεν ήρθε ολόκληρη: {0}' -f $S.feedsError) 'Yellow' }
+    $all = @($S.feeds | Where-Object { $_ })
+    $pick = @($all | Where-Object { $cur -eq 'ALL' -or ([string]$_.currency).ToUpperInvariant() -eq $cur })
+    $pick = @($pick | Sort-Object -Property @{ Expression = { [long](('0' + ([string]$_.productCount -replace '\D', ''))) }; Descending = $true }, @{ Expression = { [string]$_.advertiserName }; Descending = $false })
+    $shops = @($pick | ForEach-Object { [string]$_.advertiserId } | Sort-Object -Unique)
+    Say ('Feeds στο CJ: {0} συνολικά. Σε {1}: {2} feeds από {3} καταστήματα (τα μεγαλύτερα πρώτα).' -f $all.Count, $cur, $pick.Count, $shops.Count)
+    Say 'Ένα κατάστημα με feed εδώ έχει προϊόντα που μπορούν να μπουν σε site. Η αίτηση γίνεται στο CJ: Partners > Advertisers.'
+    foreach ($f in $pick) {
+        $mine = ''
+        if ($ids -contains ([string]$f.advertiserId)) { $mine = ' | ΔΙΚΟ ΣΟΥ (σε έχει δεχτεί)' }
+        $upd = [string]$f.lastUpdated
+        if ($upd.Length -gt 10) { $upd = $upd.Substring(0, 10) }
+        Say ('  {0} {1} | feed: {2} | προϊόντα: {3} | νόμισμα: {4} | γλώσσα: {5} | ανανέωση: {6}{7}' -f $f.advertiserId, $f.advertiserName, $f.feedName, $f.productCount, $f.currency, $f.language, $upd, $mine)
+    }
+    Say ''
+    Say 'Μόνο ανάγνωση: δεν κατέβηκε τίποτα και δεν άλλαξε τίποτα.' 'Green'
+    Finish 0
+}
 
 # 2. Read-only look (always first).
 $S = Invoke-CjFeed 'probe' '-'

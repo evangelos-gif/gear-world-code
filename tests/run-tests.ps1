@@ -1526,6 +1526,14 @@ http.createServer((q, s) => {
         $cjAll = (@(Get-ChildItem -LiteralPath $cjOut -Filter 'CJ_FEED_DOWNLOAD_*.txt') | ForEach-Object { [System.IO.File]::ReadAllText($_.FullName) }) -join "`n"
         Check ($cjAll.Contains('OK, 2 προϊόντα') -and $cjAll.Contains('με link του CJ: 2')) 'cj-feed-download: report counts the products and their CJ links'
         Check (-not $cjAll.Contains($cjToken)) 'cj-feed-download: the token is in no report'
+        # L96: -ListFeeds is read-only (with -Apply it refuses); this fake API has no feed list, so the report says so.
+        $cjFiles = @(Get-ChildItem -LiteralPath $cjArch -File).Count
+        & $exe @($cjArgs + @('-ListFeeds', '-Apply')) | Out-Null
+        Check ($LASTEXITCODE -eq 2 -and @(Get-ChildItem -LiteralPath $cjArch -File).Count -eq $cjFiles) 'cj-feed-download: -ListFeeds with -Apply refuses and changes nothing'
+        Remove-Item -LiteralPath (Join-Path $cjOut '*') -Force -ErrorAction SilentlyContinue
+        & $exe @($cjArgs + @('-ListFeeds')) | Out-Null
+        $cjList = (@(Get-ChildItem -LiteralPath $cjOut -Filter 'CJ_FEED_DOWNLOAD_*.txt') | ForEach-Object { [System.IO.File]::ReadAllText($_.FullName) }) -join "`n"
+        Check ($LASTEXITCODE -eq 0 -and $cjList.Contains('Η λίστα feeds δεν ήρθε') -and $cjList.Contains('Μόνο ανάγνωση: δεν κατέβηκε τίποτα') -and @(Get-ChildItem -LiteralPath $cjArch -File).Count -eq $cjFiles) 'cj-feed-download: -ListFeeds is read-only and says when the feed list is missing'
         $cjPlanOut = Join-Path $cjDir 'plan'
         & $exe -NoProfile -ExecutionPolicy Bypass -File $runTool -LocalRepo $repo -Tool legacy-import-plan -Retailer 'xplora' -Archive $cjArch -OutDir $cjPlanOut -NoClipboard | Out-Null
         $cjPlan = @(Get-ChildItem -LiteralPath $cjPlanOut -Recurse -Filter 'report.txt')
