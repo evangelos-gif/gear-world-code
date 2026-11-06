@@ -131,25 +131,36 @@ function subcategoryNav(base, cat, p, counts) {
   return html`<nav class="sub-nav" aria-label="${cat.name}"><ul class="chip-list">${link('', 'All', 0)}${subs.map(s => link(s.slug, s.name, counts ? counts[s.name] : 0))}</ul></nav>`;
 }
 
+// A subcategory marked `index: true` in the site config (TGW Mini PCs, lessons L97) is a page of its own: its name as the
+// heading, its own text, title and description, and an address search engines may list (?sub=<slug>, also in the sitemap).
+// With any other filter it is "noindex", like every filtered list.
+export function subPath(cat, sub) {
+  return `${categoryPath(cat.slug)}?sub=${sub.slug}`;
+}
+
 export function categoryPage(site, cat, p, result, facets, subCounts = null) {
   const base = categoryPath(cat.slug);
-  const filtered = hasFilters(p);
+  const sub = p.sub ? (Array.isArray(cat.subcategories) ? cat.subcategories : []).find(s => s.slug === p.sub) : null;
+  const own = sub && sub.index ? sub : null;
+  const filtered = own ? hasFilters({ ...p, sub: '' }) : hasFilters(p);
   const params = keepParams(p);
-  const crumbs = [{ name: 'Home', path: '/' }, { name: cat.name, path: base }];
-  const canonical = filtered ? base : (p.page > 1 ? pageLink(base, {}, p.page) : base);
+  const home = own ? subPath(cat, own) : base;
+  const crumbs = [{ name: 'Home', path: '/' }, { name: cat.name, path: base }, ...(own ? [{ name: own.name, path: home }] : [])];
+  const pageOf = n => (own ? pageLink(base, { sub: own.slug }, n) : pageLink(base, {}, n));
+  const canonical = filtered ? home : (p.page > 1 ? pageOf(p.page) : home);
   const body = html`
 <div class="wrap">
   ${breadcrumbs(crumbs)}
   <header class="page-head${categoryImage(site, cat.slug) ? ' cat-banner' : ''}">
     ${categoryImage(site, cat.slug) ? html`<img class="cat-banner-img" src="${categoryImage(site, cat.slug)}" alt="" width="720" height="480" fetchpriority="high" decoding="async">` : ''}
     <div class="cat-banner-text">
-      <h1>${cat.name}</h1>
-      <p class="lede">${cat.intro}</p>
+      <h1>${own ? own.name : cat.name}</h1>
+      <p class="lede">${own ? own.intro || cat.intro : cat.intro}</p>
       ${cat.note ? html`<p class="category-note">${cat.note}</p>` : ''}
     </div>
   </header>
   <div class="listing">
-    <aside class="listing-side">${filterForm(base, p, facets)}</aside>
+    <aside class="listing-side">${filterForm(base, p, facets, sub ? { sub: sub.slug } : {})}</aside>
     <div class="listing-main">
       ${subcategoryNav(base, cat, p, subCounts)}
       ${resultsHeader(result)}
@@ -165,13 +176,13 @@ export function categoryPage(site, cat, p, result, facets, subCounts = null) {
 </div>`;
   const pageSuffix = p.page > 1 ? ` (page ${p.page})` : '';
   return page(site, {
-    title: `${cat.name}${pageSuffix} | Compare prices | ${site.name}`,
-    description: cat.description,
+    title: `${own ? own.title || own.name : cat.name}${pageSuffix} | Compare prices | ${site.name}`,
+    description: own ? own.description || cat.description : cat.description,
     path: base,
     canonical,
     robots: filtered || !result.products.length ? 'noindex,follow' : 'index,follow',
-    prev: !filtered && p.page > 1 ? pageLink(base, {}, p.page - 1) : null,
-    next: !filtered && p.page < result.pages ? pageLink(base, {}, p.page + 1) : null,
+    prev: !filtered && p.page > 1 ? pageOf(p.page - 1) : null,
+    next: !filtered && p.page < result.pages ? pageOf(p.page + 1) : null,
     currentCategory: cat.slug,
     body,
     schema: [breadcrumbSchema(site, crumbs)]

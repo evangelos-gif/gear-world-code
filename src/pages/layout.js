@@ -229,7 +229,9 @@ function header(site, currentCategory, searchValue) {
   </div>
   <nav class="catbar" aria-label="Categories">
     <ul class="wrap catbar-list">
-      ${site.categories.map(c => html`<li><a href="${categoryPath(c.slug)}"${c.slug === currentCategory ? raw(' aria-current="page"') : ''}>${c.nav || c.name}</a></li>`)}
+      ${site.categories.map(c => html`<li><a href="${categoryPath(c.slug)}"${c.slug === currentCategory ? raw(' aria-current="page"') : ''}>${c.nav || c.name}</a></li>${
+        // A subcategory with `menu: true` gets its own link right after its category (TGW Mini PCs, lessons L97).
+        (Array.isArray(c.subcategories) ? c.subcategories : []).filter(s => s.menu).map(s => html`<li><a href="${categoryPath(c.slug)}?sub=${s.slug}">${s.nav || s.name}</a></li>`)}`)}
     </ul>
   </nav>
   ${site.hub && site.hub.tagline ? html`<section data-gw-network class="hub-strip" aria-label="${site.hub.name}">

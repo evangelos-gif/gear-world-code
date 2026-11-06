@@ -265,12 +265,29 @@ export function ftsQuery(text) {
   return terms.slice(0, 8).map(t => `"${t.replace(/"/g, '""')}"*`).join(' AND ');
 }
 
-function buildFilter({ category, subcategory, brand, retailer, maxPrice, minPrice, inStock, condition, search, onSale }) {
+// A subcategory found by words in the product name (TGW "Mini PCs", 6 Nov 2026, lessons L97): the feeds file mini PCs
+// under "Computers" or "PC's & Workstations", so the feed's own subcategory cannot find them. `words`: a name matches
+// when it has one of them as whole words ("nuc" finds "Cubi NUC 1M", not "D-Link Nuclias"); `not`: it has none of these
+// (a "power adapter for mini PC" is not a mini PC). Brackets, commas, dots, slashes, hyphens and the like count as spaces.
+const PUNCT = ['(', ')', ',', '.', '/', '-', ':', ';', '|', '+'];
+const NAME_WORDS = `(' ' || ${PUNCT.reduce((e, ch) => `replace(${e}, '${ch}', ' ')`, 'lower(p.product_name)')} || ' ')`;
+const wordOf = w => ' ' + String(w).toLowerCase().replace(/[(),./:;|+-]/g, ' ').replace(/\s+/g, ' ').trim() + ' ';
+export function nameMatch(m) {
+  const words = (m && Array.isArray(m.words) ? m.words : []).map(wordOf).filter(w => w.trim().length > 1).slice(0, 30);
+  const not = (m && Array.isArray(m.not) ? m.not : []).map(wordOf).filter(w => w.trim().length > 1).slice(0, 30);
+  if (!words.length) return null;
+  const any = list => '(' + list.map(() => `instr(${NAME_WORDS}, ?) > 0`).join(' OR ') + ')';
+  return { sql: not.length ? `${any(words)} AND NOT ${any(not)}` : any(words), binds: [...words, ...not] };
+}
+
+function buildFilter({ category, subcategory, subMatch, brand, retailer, maxPrice, minPrice, inStock, condition, search, onSale }) {
   const where = ['p.is_active = 1'];
   const binds = [];
   if (category) { const c = catWhere(category); where.push(c.sql); binds.push(...c.binds); }
   // Only a site whose config lists subcategories for the category passes one (ZGW birds).
   if (subcategory) { where.push('p.subcategory = ?'); binds.push(subcategory); }
+  const nm = subMatch ? nameMatch(subMatch) : null;
+  if (nm) { where.push(nm.sql); binds.push(...nm.binds); }
   if (brand) { where.push('p.brand = ?'); binds.push(brand); }
   if (retailer) { where.push('p.retailer = ?'); binds.push(retailer); }
   if (Number.isFinite(maxPrice) && maxPrice > 0) { where.push('p.price <= ?'); binds.push(maxPrice); }
@@ -304,15 +321,28 @@ export async function listProducts(db, filters, { sort = 'featured', page = 1, p
 }
 
 // Products per subcategory of a category (only for a category whose site config lists subcategories: ZGW birds).
-export async function subcategoryCounts(db, category) {
+// A subcategory with `match` (words in the name, TGW Mini PCs) is counted by those words, under its own name.
+export async function subcategoryCounts(db, category, subs = []) {
   const c = catWhere(category);
-  const r = await db.prepare(`SELECT p.subcategory AS name, COUNT(*) AS n FROM ${LAYOUT.from} p WHERE p.is_active = 1 AND ${c.sql}
-    AND p.subcategory IS NOT NULL GROUP BY p.subcategory`).bind(...c.binds).all();
-  return Object.fromEntries((r.results || []).map(x => [x.name, Number(x.n) || 0]));
+  const byName = (subs || []).filter(s => s && s.match && nameMatch({ words: s.match, not: s.exclude }));
+  const list = [db.prepare(`SELECT p.subcategory AS name, COUNT(*) AS n FROM ${LAYOUT.from} p WHERE p.is_active = 1 AND ${c.sql}
+    AND p.subcategory IS NOT NULL GROUP BY p.subcategory`).bind(...c.binds)];
+  for (const s of byName) {
+    const nm = nameMatch({ words: s.match, not: s.exclude });
+    list.push(db.prepare(`SELECT ? AS name, COUNT(*) AS n FROM ${LAYOUT.from} p WHERE p.is_active = 1 AND ${c.sql} AND ${nm.sql}`)
+      .bind(s.name, ...c.binds, ...nm.binds));
+  }
+  const res = await db.batch(list);
+  const out = Object.fromEntries((res[0].results || []).map(x => [x.name, Number(x.n) || 0]));
+  for (let i = 1; i < res.length; i++) for (const x of res[i].results || []) out[x.name] = Number(x.n) || 0;
+  return out;
 }
 
-export async function facets(db, category) {
-  const c = catWhere(category);
+// subMatch (TGW Mini PCs): the brands, shops and prices of that subcategory only.
+export async function facets(db, category, subMatch = null) {
+  const base = catWhere(category);
+  const nm = subMatch ? nameMatch(subMatch) : null;
+  const c = nm ? { sql: `${base.sql} AND ${nm.sql}`, binds: [...base.binds, ...nm.binds] } : base;
   const [brands, retailers, price] = await db.batch([
     db.prepare(`SELECT brand AS name, COUNT(*) AS n FROM ${LAYOUT.from} p WHERE p.is_active = 1 AND ${c.sql}
       AND brand IS NOT NULL AND TRIM(brand) <> '' GROUP BY brand ORDER BY n DESC, brand LIMIT 40`).bind(...c.binds),

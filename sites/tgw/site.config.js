@@ -11,7 +11,7 @@ export default {
   lang: 'en-GB',
   locale: 'en-GB',
   currency: 'GBP',
-  assetVersion: '2026-11-03-tgw-ads-2',
+  assetVersion: '2026-11-06-tgw-minipc-1',
   // Key prefix for what a visitor's browser remembers (compare list, cart, language, currency).
   // Discount codes and sales from retailers (promos/promos.js, lessons L32), with the Awin publisher id
   // used for their links. The id is public: it is part of every Awin link.
@@ -94,7 +94,22 @@ export default {
     {
       slug: 'laptops-computing', name: 'Laptops & Computing', nav: 'Laptops & Computing', short: 'laptops, tablets, PCs and printers', icon: 'laptop',
       intro: 'Laptops, tablets and iPads, desktop PCs, monitors, keyboards, printers and ink. Compare prices across retailers before you buy.',
-      description: 'Compare laptop, tablet, desktop PC, monitor and printer prices from trusted retailers. Filter by brand and price, then buy direct.'
+      description: 'Compare laptop, tablet, desktop PC, monitor and printer prices from trusted retailers. Filter by brand and price, then buy direct.',
+      // Mini PCs (owner, 6 Nov 2026, lessons L97): found by words in the product name, because the feeds file them under
+      // "Computers" or "PC's & Workstations". Their own page (?sub=mini-pcs, in the sitemap) and a link in the menu.
+      // Checked on the live database (6 Nov 2026): 140 mini PCs; the words below leave out Tiny-In-One monitors, power
+      // adapters "for mini PC" and the D-Link "Nuclias" products.
+      subcategories: [
+        {
+          slug: 'mini-pcs', name: 'Mini PCs', nav: 'Mini PCs', index: true, menu: true,
+          title: 'Mini PCs',
+          intro: 'Small desktop computers that fit behind a monitor or under a TV: Intel NUC, Lenovo Tiny, HP and Dell mini PCs and more. Compare prices across retailers before you buy.',
+          description: 'Compare mini PC prices from trusted retailers: Intel NUC, Lenovo Tiny, HP and Dell mini desktops and more. Filter by brand and price, then buy direct.',
+          match: ['mini pc', 'mini pcs', 'minipc', 'mini computer', 'mini desktop', 'micro pc', 'nuc', 'chromebox', 'tiny'],
+          exclude: ['dock', 'docking', 'mount', 'bracket', 'stand', 'case', 'cable', 'adapter', 'charger', 'inverter', 'power supply',
+            'keyboard', 'mouse', 'controller', 'memory', 'enclosure', 'tiny in one', 'monitor']
+        }
+      ]
     },
     {
       slug: 'phones-smartwatches', name: 'Phones & Smartwatches', nav: 'Phones & Watches', short: 'phones and smartwatches', icon: 'phone',
