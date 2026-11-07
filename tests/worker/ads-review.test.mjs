@@ -186,5 +186,5 @@ test('gearworldgroup.com: "Operator" is the person and the country, the footer s
   const html = groupPage(site, { products: 0, retailers: 0 });
   assert.ok(html.includes('<div><dt>Operator</dt><dd>Evangelos Kalogerakis, United Kingdom</dd></div>'));
   assert.match(html, /<p>&copy; \d{4} Gear World Group · Run by Evangelos Kalogerakis, United Kingdom · We don't sell products: we link to retailers and may earn a commission\.<\/p>/);
-  assert.ok(!/England|Sponsored|\bCart\b/.test(html));
+  assert.ok(!/England|Sponsored|\bCart\b|UK shoppers|UK retailers/.test(html));
 });
