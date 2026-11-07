@@ -6,6 +6,7 @@
 // here first; those sites delete nothing.
 
 import { promosFor, AWIN_PUBLISHER_ID } from '../../promos/promos.js';
+import { networkFor } from '../../promos/network.js';
 
 export default {
   code: 'ZGW',
@@ -125,20 +126,8 @@ export default {
   cloudflareAnalyticsToken: '',
 
   hub: { name: 'Gear World Hub', url: 'https://gearworldhub.com/', tagline: 'One Hub. Every Gear World.' },
-  network: [
-    { name: 'Construction Gear World', url: 'https://constructiongearworld.com/' },
-    { name: "Men's Gear World", url: 'https://mensgearworld.com/' },
-    { name: "Women's Gear World", url: 'https://womensgearworld.com/' },
-    { name: "Kids' Gear World", url: 'https://kidsgearworld.com/' },
-    { name: 'Home Gear World', url: 'https://homegearworld.com/' },
-    { name: 'Garden Gear World', url: 'https://gardengearworld.com/' },
-    { name: 'Technology Gear World', url: 'https://technologygearworld.com/' },
-    { name: 'Car Gear World', url: 'https://cargearworld.com/' },
-    { name: 'Travel Gear World', url: 'https://travelgearworld.com/' },
-    { name: 'Sporty Gear World', url: 'https://sportygearworld.com/' },
-    { name: 'Biker Gear World', url: 'https://bikergearworld.com/' },
-    { name: 'Gaming Gear World', url: 'https://gaminggearworld.com/' }
-  ],
+  // The other 12 Gear World sites, from the one shared list (promos/network.js, lessons L99).
+  network: networkFor('ZGW'),
 
   // 11 categories (owner, 1 Nov 2026: dogs, cats, small pets and fish, Birds with a subcategory per kind of bird, and horse
   // and riding as the 11th). Products are sorted into them by category-rules.js (the same order). A category with no products yet is

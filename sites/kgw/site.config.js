@@ -3,6 +3,7 @@
 // A site for parents: products, words and pictures must suit a family audience.
 
 import { promosFor, AWIN_PUBLISHER_ID } from '../../promos/promos.js';
+import { networkFor } from '../../promos/network.js';
 
 export default {
   code: 'KGW',
@@ -112,14 +113,8 @@ export default {
   cloudflareAnalyticsToken: '',
 
   hub: { name: 'Gear World Hub', url: 'https://gearworldhub.com/', tagline: 'One Hub. Every Gear World.' },
-  network: [
-    { name: 'Construction Gear World', url: 'https://constructiongearworld.com/' },
-    { name: "Men's Gear World", url: 'https://mensgearworld.com/' },
-    { name: "Women's Gear World", url: 'https://womensgearworld.com/' },
-    { name: 'Home Gear World', url: 'https://homegearworld.com/' },
-    { name: 'Garden Gear World', url: 'https://gardengearworld.com/' },
-    { name: 'Technology Gear World', url: 'https://technologygearworld.com/' }
-  ],
+  // The other 12 Gear World sites, from the one shared list (promos/network.js, lessons L99).
+  network: networkFor('KGW'),
 
   categories: [
     {

@@ -3,6 +3,7 @@
 // Site code VGW ("Voyage": TGW is Technology Gear World, GGW is Garden Gear World). Clickref on Awin: vgw-<product id>.
 
 import { promosFor, AWIN_PUBLISHER_ID } from '../../promos/promos.js';
+import { networkFor } from '../../promos/network.js';
 
 export default {
   code: 'VGW',
@@ -115,16 +116,8 @@ export default {
   cloudflareAnalyticsToken: '',
 
   hub: { name: 'Gear World Hub', url: 'https://gearworldhub.com/', tagline: 'One Hub. Every Gear World.' },
-  network: [
-    { name: 'Construction Gear World', url: 'https://constructiongearworld.com/' },
-    { name: "Men's Gear World", url: 'https://mensgearworld.com/' },
-    { name: "Women's Gear World", url: 'https://womensgearworld.com/' },
-    { name: "Kids' Gear World", url: 'https://kidsgearworld.com/' },
-    { name: 'Home Gear World', url: 'https://homegearworld.com/' },
-    { name: 'Garden Gear World', url: 'https://gardengearworld.com/' },
-    { name: 'Technology Gear World', url: 'https://technologygearworld.com/' },
-    { name: 'Car Gear World', url: 'https://cargearworld.com/' }
-  ],
+  // The other 12 Gear World sites, from the one shared list (promos/network.js, lessons L99).
+  network: networkFor('VGW'),
 
   // 8 categories (22 Oct 2026, first version: may change after the travel feed scan).
   // Products are sorted into them by category-rules.js.

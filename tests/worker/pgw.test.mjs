@@ -34,7 +34,7 @@ test('code PGW, 10 categories with their photos, and no other site\'s name in th
   assert.equal(site.categories.length, 10);
   for (const c of site.categories) assert.ok(readFileSync(`sites/pgw/public/assets/img/cat-${c.slug}.webp`).length > 1000, c.slug);
   assert.ok(site.foreignMarkers.includes('TGW') && site.foreignMarkers.includes('Technology Gear') && site.foreignMarkers.includes('Biker Gear'), 'no other site\'s name');
-  assert.ok(site.network.some(s => s.url === 'https://technologygearworld.com/') && site.network.length === 11, 'the 11 other Gear World sites in the network links');
+  assert.ok(site.network.some(s => s.url === 'https://technologygearworld.com/') && site.network.length === 12, 'the 12 other Gear World sites in the network links');
 });
 
 test('every category page works and lists products', async () => {
