@@ -116,3 +116,18 @@ Live από 4/11/2026 18:43 (commit 74f1905· το `live-baseline.txt` ενημ�
 | οι νομικές σελίδες και οι 6 σελίδες των οδηγών | Η γραμμή «Run by Evangelos Kalogerakis, United Kingdom · We don't sell products…» στο footer και link «About» |
 
 Live από 7/11/2026 (commit f4c8c35· το `live-baseline.txt` ενημερώθηκε και τα 48 αρχεία της σελίδας ελέγχθηκαν με GET ότι είναι ίδια με το gearworldhub.com). Πήγε με το `tools/gwh-hub-v2.ps1`: `-Step preview` (`ΕΓΚΡΙΝΩ HUB ADS PREVIEW`), μετά `-Step live` (`ΕΓΚΡΙΝΩ HUB ADS LIVE`) και `-Step remove-preview` (`ΕΓΚΡΙΝΩ HUB REMOVE PREVIEW`). Το `worker.js` δεν άλλαξε. Έλεγχοι: `tests/worker/ads-review.test.mjs` και `tools/gwh-hub-page-check.mjs`.
+
+## Αναζήτηση και σύγκριση τιμών, όχι καταστήματα (μάθημα L102)
+Ένας ανεξάρτητος έλεγχος μετά την ένσταση στο Google Ads βρήκε ακόμα λέξεις καταστήματος στο Hub.
+
+| Αρχείο | Τι άλλαξε |
+|---|---|
+| `public/index.html` | «The idea»: «Independent product search and price comparison.» και ότι κάθε προϊόν δείχνει το κατάστημα που το πουλά (πριν: «A connected shopping ecosystem», «specialist shopping sites»). Οι 13 κάρτες γράφουν «Explore →» (πριν: «Shop →»). Νέο `?v=20261108-wording1` για `hub-v2.css`, `hub-v2.js`, `translations.js` (L31) |
+| `public/translations.js` | Τα ίδια σε 11 γλώσσες (και «Entdecken →» αντί για «Einkaufen →»)· και τα παλιά κείμενα που δεν φαίνονται πια («Shopping Discovery», «Shop by Interest», «13 specialist shopping worlds»), γιατί η Google διαβάζει και τα scripts |
+| `public/hub-v2.js` | «13 price-comparison sites, one search» (πριν: «13 specialist shops»), «Halloween across 13 Gear Worlds» και «Discount codes from retailers listed on Gear World» (πριν: «Halloween offers», «our retailers»), «See sport gear» (πριν: «Shop sport»), «Seasonal banner» αντί για «Seasonal offers», σε 11 γλώσσες |
+| `public/hub-v2.css` | Φεύγουν οι κανόνες της κάρτας «Sell Your Business» (`.gwh-business-*`, `.gwh-sponsored`) |
+| `public/privacy/index.html` | «a product search and price-comparison service for adults» (πριν: «a shopping directory») |
+
+Το `worker.js` και η D1 δεν αλλάζουν. Πάει με το `tools/gwh-hub-v2.ps1`: `-Step preview` (`ΕΓΚΡΙΝΩ HUB WORDING PREVIEW`), και μετά στην ίδια επικόλληση `-Step live` (`ΕΓΚΡΙΝΩ HUB WORDING LIVE`) και `-Step remove-preview` (`ΕΓΚΡΙΝΩ HUB REMOVE PREVIEW`). Μετά το live ενημερώνεται το `live-baseline.txt`. Έλεγχοι: `tests/worker/ads-wording.test.mjs` και `tools/gwh-hub-page-check.mjs`.
+
+Το `/about/` δεν είναι ακόμα στο sitemap: το σερβίρει ο Worker `gwh-sitemap` (`sites/gwh-sitemap/worker.js`, λίστα `PAGES`), που δεν αλλάζει χωρίς έγκριση του Evangelos. Στις 7/11 το live sitemap έχει ακόμα τις 6 σελίδες της 24/10 (οι οδηγοί δώρων δεν έχουν ανέβει).

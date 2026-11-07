@@ -207,15 +207,6 @@ svg.gwh2-art{stroke:none;} /* the drawn pictures: no outline from the icon style
 .about-box h2{margin:6px 0 0;font-size:22px;font-weight:900;}
 .about-box p{margin:0;color:var(--soft);}
 
-/* sponsored card: quiet, at the bottom, never blinking */
-.gwh-business-banner{padding:4px 0 34px;}
-.gwh-business-banner-inner{display:flex;flex-direction:column;align-items:flex-start;gap:14px;padding:16px 18px;border:1px solid var(--line);border-radius:14px;background:rgba(255,255,255,.02);}
-.gwh-sponsored{display:block;margin-bottom:4px;color:var(--muted);font-size:11px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;}
-.gwh-business-copy strong{display:block;font-size:16px;font-weight:800;}
-.gwh-business-copy p{margin:4px 0 0;color:var(--soft);font-size:14px;}
-.gwh-business-link{display:inline-flex;align-items:center;min-height:44px;padding:0 16px;border:1px solid var(--line-strong);border-radius:10px;color:var(--text);font-size:14px;font-weight:700;text-decoration:none;white-space:nowrap;animation:none !important;}
-.gwh-business-link:hover{border-color:var(--accent);color:var(--accent);}
-
 /* footer */
 footer{border-top:1px solid var(--line);padding:22px 0 26px;}
 .footer-inner{display:flex;flex-direction:column;gap:6px;color:var(--muted);font-size:14px;}
@@ -266,7 +257,6 @@ body.gwh2-dock-on{padding-bottom:84px;}
   .gwh2-season-title{font-size:30px;}
   .gwh-compact-how-grid{grid-template-columns:repeat(3,minmax(0,1fr));}
   .gwh-email-row{grid-template-columns:minmax(0,1fr) auto;}
-  .gwh-business-banner-inner{flex-direction:row;align-items:center;justify-content:space-between;}
   .footer-inner{flex-direction:row;flex-wrap:wrap;align-items:center;gap:6px 22px;}
   .gwh-analytics-consent{flex-direction:row;align-items:center;justify-content:space-between;bottom:18px;}
   .gwh-analytics-consent button{flex:0 0 auto;}

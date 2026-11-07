@@ -34,6 +34,8 @@ vm.runInNewContext(readFileSync(join(publicDir, 'hub-v2.js'), 'utf8'), sandbox);
 const HUB = sandbox.window.GearWorldHubV2;
 const LOCALES = [...HUB.locales];
 const text = (key, locale) => HUB.strings[key][LOCALES.indexOf(locale)];
+// The "idea" title of translations.js in the 11 languages (lessons L102: product search and price comparison).
+const ABOUT_TITLE = JSON.parse(readFileSync(join(publicDir, 'translations.js'), 'utf8').match(/\n    aboutTitle: (\[[^\n]*\]),\n/)[1]);
 
 const results = [];
 const check = (ok, name, detail = '') => results.push({ ok: Boolean(ok), name, detail });
@@ -168,6 +170,15 @@ try {
       check(!ads.card, `${tag}: no "Sell Your Business" sponsored card`);
       check(ads.about.trim().length > 0, `${tag}: "About" in the menu opens /about/`, ads.about);
       check(/Evangelos Kalogerakis/.test(ads.footer) && /Gear World/.test(ads.footer), `${tag}: the footer says who runs Gear World`, ads.footer);
+      // Lessons L102: a network of product search and price-comparison sites, never shops (in the page's language).
+      const words = await page.evaluate(() => ({
+        about: ((document.querySelector('.about-section h2') || {}).textContent || '').trim(),
+        cta: [...document.querySelectorAll('.gwh-image-world-cta')].map(e => e.textContent.trim()),
+        body: document.body.innerText
+      }));
+      check(words.about.length > 0 && words.about === ABOUT_TITLE[LOCALES.indexOf(locale)], `${tag}: "The idea" is product search and price comparison`, words.about);
+      check(words.cta.length === 13 && !words.cta.some(t => /^(Shop|Einkaufen)\b/i.test(t)), `${tag}: the world cards say "Explore", not "Shop"`, words.cta[0] || '');
+      check(!/shopping ecosystem|specialist shopping|specialist shops|shopping sites|Shop sport|our retailers|Christmas offers|Halloween offers/i.test(words.body), `${tag}: no shop or "offers" wording on the page`);
 
       if (full) {
         // gift finder: Her, up to £25, perfume -> only WGW, max_price=25

@@ -154,8 +154,8 @@ test('hub v2: the page keeps every id and class the other scripts need, and load
   }
   assert.match(html, /<body class="gwh2" data-gwh-compact-v2="true">/);
   assert.match(html, /<div class="hero-copy">\s*<span class="eyebrow">/);
-  assert.match(html, /<link rel="stylesheet" href="\/hub-v2\.css\?v=20261104-guides1">/);
-  assert.match(html, /<script src="\/hub-v2\.js\?v=20261108-ads1" defer><\/script>/);
+  assert.match(html, /<link rel="stylesheet" href="\/hub-v2\.css\?v=20261108-wording1">/);
+  assert.match(html, /<script src="\/hub-v2\.js\?v=20261108-wording1" defer><\/script>/);
   assert.ok(html.indexOf('/gear-world-camera.js?v=') < html.indexOf('/hub-v2.js?v='), 'hub-v2.js after the camera script');
   assert.ok(!html.includes('/styles.css'), 'the old styles.css is not loaded');
   assert.ok(!html.includes('gwh-hero.png'), 'the 2.8 MB picture is gone from the page');
@@ -197,7 +197,8 @@ test('hub v2: no red or green (L35), nothing that moves by itself, buttons at le
   assert.ok(!/setTimeout\([^)]*slide/.test(js), 'slides change only with the arrows');
   assert.match(css, /\.gwh2-chip\{min-height:44px;/);
   assert.match(css, /\.gwh2-round\{[^}]*width:44px;height:44px;/);
-  assert.match(css, /\.gwh-business-link\{[^}]*animation:none !important;/);
+  // The rules of the sponsored card left with the card (Google Ads review, lessons L101, L102).
+  assert.ok(!/gwh-business|gwh-sponsored|sponsored/i.test(css), 'no sponsored-card styles left');
   assert.match(css, /prefers-reduced-motion/);
 });
 
