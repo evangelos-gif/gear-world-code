@@ -143,6 +143,7 @@ function Get-Web([string]$url) {
         $req.UserAgent = 'GearWorldQA-bot/1.0 (+read-only check)'
         $req.Accept = '*/*'
         $req.Timeout = 30000
+        $req.CachePolicy = New-Object System.Net.Cache.HttpRequestCachePolicy([System.Net.Cache.HttpRequestCacheLevel]::NoCacheNoStore)
         $resp = $req.GetResponse()
     } catch [System.Net.WebException] {
         $resp = $_.Exception.Response
@@ -159,7 +160,8 @@ function Get-Web([string]$url) {
 
 # Which version a sitemap address sends: 'before', 'new', 'other' or 'error'.
 function Get-SitemapState([string]$url) {
-    $w = Get-Web ($url + '?gwcheck=' + $stamp)
+    # No query string: the sitemap Worker answers 404 to any query string (L104), so the address is read as it is.
+    $w = Get-Web $url
     if ($w.status -ne 200) { return 'error' }
     $sha = Get-Sha $w.bytes
     if ($sha -eq $script:shaBefore) { return 'before' }
