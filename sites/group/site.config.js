@@ -4,7 +4,9 @@
 export default {
   name: 'Gear World Group',
   domain: 'gearworldgroup.com',
-  operatorName: 'Gear World',
+  // Owner's decision, 7 Nov 2026 (Google Ads review, lessons L101): the person who runs the network and the country,
+  // never a home address.
+  operatorName: 'Evangelos Kalogerakis, United Kingdom',
   // Shown on the page. Must be an address that receives mail (gearworldgroup.com uses Google Workspace).
   contactEmail: 'evangelos@gearworldgroup.com',
   awinPublisherId: 3057233,

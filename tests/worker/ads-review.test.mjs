@@ -11,9 +11,9 @@ import { createWorker } from '../../src/engine.js';
 const CODES = ['agw', 'bgw', 'cgw', 'ggw', 'hgw', 'kgw', 'mgw', 'pgw', 'sgw', 'tgw', 'vgw', 'wgw', 'zgw'];
 const NEW_KEYS = ['Saved list', '+ Save', '✓ Saved', 'Saved to your list.', 'Your saved list is full ({0} products).', 'Your saved list is empty',
   'Clear the saved list', 'Use the + Save button on any product to keep it here while you compare retailers.', 'Sold by', '(not by Gear World)',
-  '{0} delivers to', 'Stock at {0}', 'Contact:', 'run by Evangelos Kalogerakis, England',
+  '{0} delivers to', 'Stock at {0}', 'Contact:', 'Run by Evangelos Kalogerakis, United Kingdom',
   "We don't sell products: we link to retailers and may earn a commission.",
-  'Gear World is a product search and price-comparison network run by Evangelos Kalogerakis in England. We do not sell products, take payments or handle deliveries. Every product links to the retailer that sells it, and we may earn a commission through the Awin and CJ affiliate networks.'];
+  'Gear World is a network of independent product search and price-comparison sites from the same publisher. We do not sell products, take payments or handle deliveries. Every product links to the retailer that sells it, and we may earn a commission through the Awin and CJ affiliate networks.'];
 // The words of a shop's basket, in the 10 languages of the sites: none may be in the texts of the saved list.
 const CART_WORDS = /Warenkorb|καλάθι|Καλάθι|carrito|panier|carrello|winkelwagen|carrinho|coș|Coș|корзин|shport/;
 
@@ -32,7 +32,10 @@ test('every dictionary of the 13 sites has the new words, and no basket word is 
       for (const k of ['+ Cart', '✓ In cart', 'Added to your cart.', 'Gear Cart', 'Your Gear Cart is empty', 'Empty the Gear Cart', 'Estimated total']) assert.ok(!(k in d), `${c}/${f}: ${k}`);
       assert.match(d['{0} delivers to'], /\{0\}/);
       assert.match(d['Stock at {0}'], /\{0\}/);
-      assert.ok(d['run by Evangelos Kalogerakis, England'].includes('Evangelos Kalogerakis'), `${c}/${f}: the name stays`);
+      // Owner's decision, 7 Nov 2026: the name as in the Google verification (Latin letters) and the country, no address.
+      assert.ok(d['Run by Evangelos Kalogerakis, United Kingdom'].includes('Evangelos Kalogerakis'), `${c}/${f}: the name stays`);
+      for (const k of ['run by Evangelos Kalogerakis, England']) assert.ok(!(k in d), `${c}/${f}: old ${k}`);
+      assert.ok(!Object.values(d).some(v => /England|Αγγλία|Inglaterra|Angleterre|Inghilterra|Engeland|Anglia|Англи|Angli\b/.test(v) && /Kalogerakis/.test(v)), `${c}/${f}: "United Kingdom", not England`);
     }
   }
 });
@@ -83,10 +86,12 @@ test('TGW pages: saved list, product labels, About and footer; the old /cart/ ad
   const home = out['/'].html;
   assert.match(home, /<a class="cart-link" href="\/saved\/" data-cart-link><svg class="icon"[^>]*><use href="[^"]*#saved"><\/use><\/svg><span class="cart-word">Saved list<\/span>/);
   assert.match(home, />\+ Save<\/button>/);
-  assert.match(home, /<p class="footer-legal"><span translate="no">&copy; \d{4} Gear World<\/span> · <span>run by Evangelos Kalogerakis, England<\/span> · <span>We don't sell products: we link to retailers and may earn a commission\.<\/span><\/p>/);
+  assert.match(home, /<p class="footer-legal"><span translate="no">&copy; \d{4} Gear World<\/span> · <span>Run by Evangelos Kalogerakis, United Kingdom<\/span> · <span>We don't sell products: we link to retailers and may earn a commission\.<\/span><\/p>/);
   assert.ok(!/Gear Cart|\+ Cart|>Cart</.test(home));
   const about = out['/about/'].html;
-  assert.match(about, /<p class="about-lead">Gear World is a product search and price-comparison network run by Evangelos Kalogerakis in England\./);
+  assert.match(about, /<p class="about-lead">Gear World is a network of independent product search and price-comparison sites from the same publisher\./);
+  assert.match(about, /<p class="about-run"><span>Run by Evangelos Kalogerakis, United Kingdom<\/span><\/p>/);
+  assert.ok(!/England/.test(about), 'no "England" on /about/');
   assert.match(about, /<p class="about-contact"><span>Contact:<\/span> <a href="mailto:contact@gearworldhub\.com" translate="no">contact@gearworldhub\.com<\/a><\/p>/);
   assert.ok(!/UK retailers/.test(about));
   const saved = out[`/saved/?items=${product.map(p => p.id).join(',')}`].html;
@@ -116,6 +121,14 @@ test('TGW product page: "Sold by <retailer> (not by Gear World)", "<retailer> de
   if (s.deliversTo) assert.ok(html.includes(`<dt><span data-i18n="{0} delivers to" data-i18n-0="${retailer}">${retailer} delivers to</span></dt>`));
   assert.ok(!/<dt>Retailer<\/dt>|<dt>Stock<\/dt>|<dt>Delivers to<\/dt>/.test(html));
   assert.match(html, /View at /, 'the button stays "View at <retailer>"');
+  // The markup of a comparison page (Google "product snippets"), never the Offer of a shop that sells (merchant listings).
+  const ld = [...html.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)].map(m => JSON.parse(m[1])).flat();
+  const prod = ld.find(x => x['@type'] === 'Product');
+  assert.equal(prod.offers['@type'], 'AggregateOffer');
+  assert.ok(!('seller' in prod.offers) && !('price' in prod.offers) && !('availability' in prod.offers), JSON.stringify(prod.offers));
+  assert.ok(Number(prod.offers.lowPrice) > 0 && Number(prod.offers.highPrice) >= Number(prod.offers.lowPrice) && prod.offers.offerCount >= 1);
+  assert.match(prod.offers.priceCurrency, /^[A-Z]{3}$/);
+  assert.ok(!html.includes('"@type":"Offer"'));
 });
 
 test('the Hub: /about/, "About" in the menu opens it, the footer line on every page, no sponsored card', () => {
@@ -127,13 +140,14 @@ test('the Hub: /about/, "About" in the menu opens it, the footer line on every p
   assert.ok(!/sponsoredDesc|sellBusiness|sponsoredPartner|sellingBusiness|sponsoredAria/.test(tjs));
   const rights = JSON.parse(tjs.match(/footerRights: (\[[^\n]*\]),/)[1]);
   assert.equal(rights.length, 11);
-  for (const r of rights) assert.ok(r.startsWith('Gear World · ') && r.includes('Evangelos Kalogerakis'), r);
+  for (const r of rights) assert.ok(r.startsWith('Gear World · ') && r.includes('Evangelos Kalogerakis') && !/England|Αγγλία|Inglaterra|Angleterre|Inghilterra|Engeland|Anglia|Англи|Angli\b/.test(r), r);
   const about = readFileSync(`${pub}/about/index.html`, 'utf8');
-  assert.match(about, /<p data-about="lead">Gear World is a product search and price-comparison network run by Evangelos Kalogerakis in England\. We do not sell products, take payments or handle deliveries\./);
+  assert.match(about, /<p data-about="run">Run by Evangelos Kalogerakis, United Kingdom<\/p>/);
+  assert.match(about, /<p data-about="lead">Gear World is a network of independent product search and price-comparison sites from the same publisher\. We do not sell products, take payments or handle deliveries\./);
   assert.match(about, /<a href="mailto:contact@gearworldhub\.com" translate="no">contact@gearworldhub\.com<\/a>/);
   assert.match(about, /<link rel="canonical" href="https:\/\/gearworldhub\.com\/about\/">/);
   const ajs = readFileSync(`${pub}/about/about.js`, 'utf8');
-  for (const key of ['home', 'crumb', 'title', 'lead', 'contact']) {
+  for (const key of ['home', 'crumb', 'title', 'lead', 'run', 'contact']) {
     const row = ajs.match(new RegExp(`\\b${key}: \\[([\\s\\S]*?)\\]`))[1];
     assert.equal((row.match(/"(?:[^"\\]|\\.)*"/g) || []).length, 11, key);
   }
@@ -143,9 +157,33 @@ test('the Hub: /about/, "About" in the menu opens it, the footer line on every p
     ...readdirSync(`${pub}/guides`, { withFileTypes: true }).filter(d => d.isDirectory()).map(d => `guides/${d.name}/index.html`), 'guides/index.html'];
   for (const p of pages) {
     const h = readFileSync(`${pub}/${p}`, 'utf8');
-    assert.ok(h.includes("Gear World · run by Evangelos Kalogerakis, England · We don't sell products: we link to retailers and may earn a commission."), `${p}: footer line`);
+    assert.ok(h.includes("Gear World · Run by Evangelos Kalogerakis, United Kingdom · We don't sell products: we link to retailers and may earn a commission."), `${p}: footer line`);
+    assert.ok(!/Kalogerakis, England|Kalogerakis in England/.test(h), `${p}: no "England"`);
     assert.ok(!h.includes('All rights reserved'), p);
     if (p !== 'index.html') assert.match(h, /<a href="\/about\/"( aria-current="page")?>About<\/a>/, `${p}: About link in the footer`);
   }
   assert.ok(existsSync('sites/gwh-sitemap') || true);
+});
+
+test('the Hub: the deals come "From retailers listed on Gear World", the Christmas slide speaks of gifts, not offers', async () => {
+  const pub = 'sites/gwh/public';
+  const index = readFileSync(`${pub}/index.html`, 'utf8');
+  assert.ok(index.includes('<span data-gwh2="dealsSub">From retailers listed on Gear World, each with its end date.</span>'));
+  assert.ok(!/Gear World retailers|Christmas offers in the Gear Worlds/.test(index));
+  const js = readFileSync(`${pub}/hub-v2.js`, 'utf8');
+  assert.ok(!/Gear World retailers|Christmas offers in the Gear Worlds|xmasDealsTitle/.test(js));
+  const row = JSON.parse(js.match(/    dealsSub: (\[[^\n]*\]),\n/)[1]);
+  assert.equal(row.length, 11);
+  assert.equal(row[0], 'From retailers listed on Gear World, each with its end date.');
+  assert.match(js, /file: "christmas", name: "xmasEyebrow", title: "xmasTitle", mirror: true, gifts: true \}/);
+});
+
+test('gearworldgroup.com: "Operator" is the person and the country, the footer says Gear World sells nothing', async () => {
+  const site = (await import('../../sites/group/site.config.js')).default;
+  assert.equal(site.operatorName, 'Evangelos Kalogerakis, United Kingdom');
+  const { groupPage } = await import('../../src/group.js');
+  const html = groupPage(site, { products: 0, retailers: 0 });
+  assert.ok(html.includes('<div><dt>Operator</dt><dd>Evangelos Kalogerakis, United Kingdom</dd></div>'));
+  assert.match(html, /<p>&copy; \d{4} Gear World Group · Run by Evangelos Kalogerakis, United Kingdom · We don't sell products: we link to retailers and may earn a commission\.<\/p>/);
+  assert.ok(!/England|Sponsored|\bCart\b/.test(html));
 });

@@ -154,7 +154,7 @@ function shell(site, { title, description, path, body }) {
 <footer class="foot"><div class="wrap">
   <nav aria-label="Legal"><ul class="foot-links">${FOOTER_LINKS.map(([href, label]) => html`<li><a href="${href}">${label}</a></li>`)}</ul></nav>
   <p>This site sets no cookies of its own and does no tracking. Product numbers come from the sites' public statistics and are updated every hour.</p>
-  <p>&copy; ${year} ${site.operatorName}</p>
+  <p>&copy; ${year} ${site.name} · Run by ${site.operatorName} · We don't sell products: we link to retailers and may earn a commission.</p>
 </div></footer>
 </body>
 </html>`);

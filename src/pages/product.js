@@ -41,16 +41,24 @@ export function productPage(site, product, category, similar, offers = []) {
     158
   );
   const gtin = normalizeGtin(product.gtin);
+  // Gear World sells nothing (Google Ads review, 7 Nov 2026, lessons L101): the prices of the retailers as an
+  // AggregateOffer, the markup of a comparison page (Google "product snippets"). A plain Offer is what a shop that
+  // sells the product writes (Google "merchant listings", which also need Gear World to be the seller).
+  const currency = String(product.currency || site.currency).toUpperCase();
+  // The retailers in stock when there are any, so the low price is one you can get.
+  const all = offers.length ? offers : [product];
+  const inStockOffers = all.filter(o => Number(o.in_stock) === 1);
+  const prices = (inStockOffers.length ? inStockOffers : all)
+    .filter(o => String(o.currency || site.currency).toUpperCase() === currency)
+    .map(o => Number(o.price))
+    .filter(n => Number.isFinite(n) && n > 0);
+  if (!prices.length) prices.push(Number(product.price));
   const offer = {
-    '@type': 'Offer',
-    url: absolute(site, path),
-    price: Number(product.price).toFixed(2),
-    priceCurrency: String(product.currency || site.currency).toUpperCase(),
-    availability: inStock ? 'https://schema.org/InStock' : 'https://schema.org/OutOfStock',
-    itemCondition: product.item_condition === 'refurbished'
-      ? 'https://schema.org/RefurbishedCondition'
-      : product.item_condition === 'used' ? 'https://schema.org/UsedCondition' : 'https://schema.org/NewCondition',
-    seller: { '@type': 'Organization', name: product.retailer }
+    '@type': 'AggregateOffer',
+    priceCurrency: currency,
+    lowPrice: Math.min(...prices).toFixed(2),
+    highPrice: Math.max(...prices).toFixed(2),
+    offerCount: prices.length
   };
   const productSchema = {
     '@context': 'https://schema.org',

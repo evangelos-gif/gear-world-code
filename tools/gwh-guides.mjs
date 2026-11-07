@@ -112,7 +112,7 @@ ${body}
       <a href="/contact/">Contact</a>
     </nav>
     <p><a href="mailto:contact@gearworldhub.com">contact@gearworldhub.com</a></p>
-    <p>&copy; <span id="lgYear">2026</span> Gear World · run by Evangelos Kalogerakis, England · We don't sell products: we link to retailers and may earn a commission.</p>
+    <p>&copy; <span id="lgYear">2026</span> Gear World · Run by Evangelos Kalogerakis, United Kingdom · We don't sell products: we link to retailers and may earn a commission.</p>
   </div>
 </footer>
 <script src="${ASSETS.legalJs}" defer></script>
@@ -204,6 +204,9 @@ export function buildPages(data) {
 
 // ---------- check (read-only) ----------
 const UA = 'GearWorldQA-bot/1.0 (+read-only check)';
+// The price and stock of THIS product at its retailer: from the page itself (the shelf price and "Stock at <retailer>"),
+// because since 7 Nov 2026 the structured data is an AggregateOffer with the range of all retailers (lessons L101).
+// Older pages (a plain Offer in the structured data) still read.
 export function readProductPage(html) {
   const out = {};
   for (const m of html.matchAll(/<script[^>]+application\/ld\+json[^>]*>([\s\S]*?)<\/script>/g)) {
@@ -215,6 +218,10 @@ export function readProductPage(html) {
       out.inStock = /InStock/.test(String(of.availability || ''));
     }
   }
+  const shelf = html.match(/<p class="shelf-price"><span class="price" data-price="([0-9]+(?:\.[0-9]{1,2})?)"/);
+  if (shelf) out.price = Number(shelf[1]);
+  const stock = html.match(/<dd class="(ok|warn)">(In stock|Out of stock)<\/dd>/);
+  if (stock) out.inStock = stock[2] === 'In stock';
   const was = html.match(/<s class="was">\s*£\s?([0-9][0-9,]*\.[0-9]{2})/);
   out.was = was ? Number(was[1].replace(/,/g, '')) : null;
   return out;

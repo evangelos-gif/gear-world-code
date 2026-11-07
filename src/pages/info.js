@@ -17,7 +17,7 @@ function contactLink(site) {
 const UPDATED = '3 November 2026';
 
 // Who runs the network and how to reach them, the same on every site and on the Hub (Google Ads review, 7 Nov 2026,
-// lessons L101).
+// lessons L101). Owner's decision, 7 Nov 2026: "Run by Evangelos Kalogerakis, United Kingdom" and the email, no address.
 export const NETWORK_EMAIL = 'contact@gearworldhub.com';
 
 const PAGES = {
@@ -27,7 +27,8 @@ const PAGES = {
     title: 'About us',
     description: `What ${site.name} is, where the prices come from and how the site is run.`,
     content: html`
-<p class="about-lead">Gear World is a product search and price-comparison network run by Evangelos Kalogerakis in England. We do not sell products, take payments or handle deliveries. Every product links to the retailer that sells it, and we may earn a commission through the Awin and CJ affiliate networks.</p>
+<p class="about-lead">Gear World is a network of independent product search and price-comparison sites from the same publisher. We do not sell products, take payments or handle deliveries. Every product links to the retailer that sells it, and we may earn a commission through the Awin and CJ affiliate networks.</p>
+<p class="about-run"><span>Run by Evangelos Kalogerakis, United Kingdom</span></p>
 <p class="about-contact"><span>Contact:</span> <a href="mailto:${NETWORK_EMAIL}" translate="no">${NETWORK_EMAIL}</a></p>
 <p>${site.retailersFromEurope
   ? tr('{0} is an independent price comparison site. It lists products from retailers in the UK and Europe, so you can compare prices in one place and then buy from the retailer you choose.', site.name)
@@ -73,7 +74,7 @@ const PAGES = {
 <p>Last updated: ${UPDATED}</p>
 <p>This policy explains what personal data ${site.name} (${site.domain}) uses, why, and your rights under UK data protection law (UK GDPR and the Data Protection Act 2018).</p>
 <h2>Who is responsible</h2>
-<p>The data controller is ${operator(site)}. Contact: ${contactLink(site)}.</p>
+<p>The data controller is ${operator(site)}, run by Evangelos Kalogerakis, United Kingdom. Contact: ${contactLink(site)}.</p>
 <h2>What we collect</h2>
 <ul>
 <li><strong>Clicks to retailers.</strong> When you select a "View at" button we record the product, the retailer, the page you were on, the date and your country as reported by our hosting provider. We do not record your IP address or anything that identifies you. We use this to understand which products are useful (legitimate interests). If you came to this site from one of our ads or campaign links, the campaign name and source of that link (utm_campaign, utm_source) go with the click to Awin, so we can see which campaigns are useful. They do not identify you.</li>
@@ -119,7 +120,7 @@ ${site.googleAds === false ? html`<p>${site.name} does not set advertising, anal
     description: `The terms for using ${site.name}.`,
     content: html`
 <p>Last updated: ${UPDATED}</p>
-<p>These terms apply when you use ${site.domain}, operated by ${operator(site)}. By using the site you accept them.</p>
+<p>These terms apply when you use ${site.domain}, operated by ${operator(site)} (run by Evangelos Kalogerakis, United Kingdom). By using the site you accept them.</p>
 <h2>What the site does</h2>
 <p>${site.name} shows product information and prices supplied by retailers. We do not sell products. Any purchase is a contract between you and the retailer, on the retailer's terms.</p>
 <h2>Accuracy</h2>

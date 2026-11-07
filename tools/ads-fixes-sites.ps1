@@ -2,8 +2,9 @@
 .SYNOPSIS
   Google Ads review fixes on the 13 live sites (lessons L101): the "Gear Cart" becomes a "Saved list" (no quantity,
   no total, bookmark icon, /saved/), the product page says "Sold by <retailer> (not by Gear World)", "<retailer>
-  delivers to" and "Stock at <retailer>", /about/ says who runs Gear World, and every footer says "run by Evangelos
-  Kalogerakis, England · We don't sell products". In all 10 languages. Read-only unless -Apply and the phrase.
+  delivers to" and "Stock at <retailer>", /about/ says who runs Gear World, and every footer says "Run by Evangelos
+  Kalogerakis, United Kingdom · We don't sell products" (owner's decision, 7/11/2026). The product structured data is an
+  AggregateOffer (a comparison page, not a shop). In all 10 languages. Read-only unless -Apply and the phrase.
 
 .DESCRIPTION
   -Step check   READ-ONLY. The 13 site tools are there? Shows the plan.
@@ -114,8 +115,8 @@ function Get-Page([string]$url) {
 function Test-Fixes([string]$domain) {
     $homePage = Get-Page ('https://{0}/?gwcheck={1}' -f $domain, $stamp)
     $about = Get-Page ('https://{0}/about/?gwcheck={1}' -f $domain, $stamp)
-    $okHome = ($homePage -match 'href="/saved/"') -and ($homePage -match 'class="footer-legal"') -and ($homePage -match 'run by Evangelos Kalogerakis, England') -and -not ($homePage -match 'Gear Cart|\+ Cart<')
-    $okAbout = ($about -match 'class="about-lead"') -and ($about -match 'contact@gearworldhub\.com')
+    $okHome = ($homePage -match 'href="/saved/"') -and ($homePage -match 'class="footer-legal"') -and ($homePage -match 'Run by Evangelos Kalogerakis, United Kingdom') -and -not ($homePage -match 'Gear Cart|\+ Cart<')
+    $okAbout = ($about -match 'class="about-lead"') -and ($about -match 'class="about-run"') -and ($about -match 'contact@gearworldhub\.com')
     return ($okHome -and $okAbout)
 }
 

@@ -309,7 +309,7 @@ ${dealUpdates(site, path)}
   </div>
   <div class="wrap footer-note">
     <p>${tr('{0} compares prices from trusted retailers.', site.name)} ${' '}When you buy through a link on this site we may earn a commission from the retailer, at no extra cost to you. Prices and stock can change. Always check the final price on the retailer's website.</p>
-    <p class="footer-legal"><span translate="no">&copy; ${year} Gear World</span> · <span>run by Evangelos Kalogerakis, England</span> · <span>We don't sell products: we link to retailers and may earn a commission.</span></p>
+    <p class="footer-legal"><span translate="no">&copy; ${year} Gear World</span> · <span>Run by Evangelos Kalogerakis, United Kingdom</span> · <span>We don't sell products: we link to retailers and may earn a commission.</span></p>
   </div>
 </footer>`;
 }

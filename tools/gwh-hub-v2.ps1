@@ -51,8 +51,9 @@
   REGISTRY LIVE together with remove-preview. The D1 and /api/classify do not change (L70).
   Google Ads review (7/11/2026, lessons L101): the new page /about/ (who runs Gear World, that it sells nothing,
   contact@gearworldhub.com, in 11 languages by about.js), "About" in the menu opens it, the "Sell Your Business"
-  sponsored card is gone, and every page's footer says "run by Evangelos Kalogerakis, England · We don't sell
-  products". worker.js does not change. Phrases of this release: ΕΓΚΡΙΝΩ HUB ADS PREVIEW, then ΕΓΚΡΙΝΩ HUB ADS LIVE
+  sponsored card is gone, and every page's footer says "Run by Evangelos Kalogerakis, United Kingdom · We don't sell
+  products" (owner's decision, 7/11/2026). The deals line says "From retailers listed on Gear World" and the Christmas
+  slide speaks of gifts, not offers. worker.js does not change. Phrases of this release: ΕΓΚΡΙΝΩ HUB ADS PREVIEW, then ΕΓΚΡΙΝΩ HUB ADS LIVE
   together with remove-preview (ΕΓΚΡΙΝΩ HUB REMOVE PREVIEW) in the same paste.
   Report: <home>\gear-world-reports\GWH_HUB_V2_<STEP>_<time>.txt (also copied to the clipboard)
 #>
@@ -98,14 +99,14 @@ $About = @{
     'worker.js'             = 'το /api/registry δίνει και shop_categories: οι κατηγορίες του μενού κάθε site (από τα site.config.js) για την εφαρμογή· η D1, το categories και το /api/classify δεν αλλάζουν (L70)'
     'members.js'            = 'ο κώδικας της φόρμας «Get deal updates» των sites (νέο αρχείο, L92)'
     'poster-scan.js'        = 'η μέτρηση των αφισών (ίδια με αυτή που μπήκε με το POSTER STATS)'
-    'public/index.html'     = 'το «About» ανοίγει τη νέα σελίδα /about/, φεύγει η κάρτα «Sell Your Business», νέα γραμμή στο footer (ποιος τρέχει το Gear World, ότι δεν πουλάμε)· νέο ?v= για translations.js (L101)'
-    'public/about/index.html' = 'νέα σελίδα /about/: ποιος τρέχει το Gear World, ότι δεν πουλάμε, δεν παίρνουμε πληρωμές, δεν κάνουμε παραδόσεις, contact@gearworldhub.com (νέο αρχείο, L101)'
+    'public/index.html'     = 'το «About» ανοίγει τη νέα σελίδα /about/, φεύγει η κάρτα «Sell Your Business», νέα γραμμή στο footer (ποιος τρέχει το Gear World, ότι δεν πουλάμε)· «From retailers listed on Gear World»· νέο ?v= για translations.js και hub-v2.js (L101)'
+    'public/about/index.html' = 'νέα σελίδα /about/: «Run by Evangelos Kalogerakis, United Kingdom», ότι δεν πουλάμε, δεν παίρνουμε πληρωμές, δεν κάνουμε παραδόσεις, contact@gearworldhub.com (νέο αρχείο, L101)'
     'public/about/about.js' = 'η σελίδα /about/ στη γλώσσα που διάλεξε ο επισκέπτης, 11 γλώσσες (νέο αρχείο, L101)'
     'public/privacy/index.html' = 'νέα γραμμή στο footer και link «About» (L101)'
     'public/cookies/index.html' = 'νέα γραμμή στο footer και link «About» (L101)'
     'public/affiliate-disclosure/index.html' = 'νέα γραμμή στο footer και link «About» (L101)'
     'public/hub-v2.css'     = 'τα 5 links των οδηγών δώρων, 44 px όπως τα κουμπιά του «Βρες δώρο»'
-    'public/hub-v2.js'      = 'τα κείμενα των links των οδηγών δώρων σε 11 γλώσσες'
+    'public/hub-v2.js'      = '«From retailers listed on Gear World» στις προσφορές και «Gifts for everyone» στη χριστουγεννιάτικη διαφάνεια, σε 11 γλώσσες (L101)'
     'public/guides/guides.css' = 'η εμφάνιση των οδηγών δώρων (νέο αρχείο)'
     'public/guides/index.html' = 'νέα γραμμή στο footer και link «About» (L101)'
     'public/guides/christmas-gifts-for-him/index.html' = 'οδηγός δώρων: νέα γραμμή στο footer και link «About» (L101)'

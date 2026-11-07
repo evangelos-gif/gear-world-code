@@ -157,7 +157,9 @@ for (const p of productPaths) {
   if (prod) {
     const gtinKeys = Object.keys(prod).filter(k => /^gtin/.test(k));
     for (const k of gtinKeys) check('L12', normalizeGtin(prod[k]) === String(prod[k]), `${p}: ${k} passes the GS1 check digit`, String(prod[k]));
-    check('L12', prod.offers && Number(prod.offers.price) > 0, `${p}: offer has a price`);
+    check('L12', prod.offers && Number(prod.offers.lowPrice) > 0 && Number(prod.offers.highPrice) >= Number(prod.offers.lowPrice), `${p}: offer has a price`);
+    // Google Ads review (lessons L101): the markup of a comparison page, never the one of a shop that sells.
+    check('L101', prod.offers && prod.offers['@type'] === 'AggregateOffer' && !prod.offers.seller && Number(prod.offers.offerCount) >= 1, `${p}: AggregateOffer (product snippet), no Offer and no seller`);
   }
   // Only on sites built from this repo: older sites might record a click even for a check, so they are skipped.
   if (out && site) {
@@ -174,9 +176,10 @@ for (const p of ['/deals/', '/about/', '/how-we-make-money/', '/contact/', '/pri
   const r = await get(p);
   htmlChecks(p, r);
   // Google Ads review (lessons L101): who runs the network, in the footer of every page and at the top of /about/.
-  if (site) check('L101', /<p class="footer-legal"><span translate="no">&copy; \d{4} Gear World<\/span> · <span>run by Evangelos Kalogerakis, England<\/span> · <span>We don't sell products: we link to retailers and may earn a commission\.<\/span><\/p>/.test(r.body), `${p}: footer says who runs Gear World and that it sells nothing`);
+  if (site) check('L101', /<p class="footer-legal"><span translate="no">&copy; \d{4} Gear World<\/span> · <span>Run by Evangelos Kalogerakis, United Kingdom<\/span> · <span>We don't sell products: we link to retailers and may earn a commission\.<\/span><\/p>/.test(r.body), `${p}: footer says who runs Gear World and that it sells nothing`);
   if (site && p === '/about/') {
-    check('L101', /<p class="about-lead">Gear World is a product search and price-comparison network run by Evangelos Kalogerakis in England\. We do not sell products, take payments or handle deliveries\./.test(r.body), '/about/: says who runs Gear World and what it does not do');
+    check('L101', /<p class="about-lead">Gear World is a network of independent product search and price-comparison sites from the same publisher\. We do not sell products, take payments or handle deliveries\./.test(r.body), '/about/: says what Gear World is and what it does not do');
+    check('L101', /<p class="about-run"><span>Run by Evangelos Kalogerakis, United Kingdom<\/span><\/p>/.test(r.body), '/about/: "Run by Evangelos Kalogerakis, United Kingdom"');
     check('L101', /<a href="mailto:contact@gearworldhub\.com" translate="no">contact@gearworldhub\.com<\/a>/.test(r.body), '/about/: contact@gearworldhub.com');
     check('L101', !/UK retailers/.test(r.body), '/about/: never "UK retailers"');
   }

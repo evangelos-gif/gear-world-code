@@ -155,7 +155,7 @@ test('hub v2: the page keeps every id and class the other scripts need, and load
   assert.match(html, /<body class="gwh2" data-gwh-compact-v2="true">/);
   assert.match(html, /<div class="hero-copy">\s*<span class="eyebrow">/);
   assert.match(html, /<link rel="stylesheet" href="\/hub-v2\.css\?v=20261104-guides1">/);
-  assert.match(html, /<script src="\/hub-v2\.js\?v=20261104-guides1" defer><\/script>/);
+  assert.match(html, /<script src="\/hub-v2\.js\?v=20261108-ads1" defer><\/script>/);
   assert.ok(html.indexOf('/gear-world-camera.js?v=') < html.indexOf('/hub-v2.js?v='), 'hub-v2.js after the camera script');
   assert.ok(!html.includes('/styles.css'), 'the old styles.css is not loaded');
   assert.ok(!html.includes('gwh-hero.png'), 'the 2.8 MB picture is gone from the page');
@@ -170,7 +170,7 @@ test('hub v2: the page keeps every id and class the other scripts need, and load
   assert.ok(!/gwh-business-banner|Sponsored Partner|worldbusinessesforsale|Plans from £395/.test(html), 'no sponsored card');
   assert.match(html, /<a href="\/about\/">About<\/a>/);
   assert.ok(!html.includes('href="#about"'), 'About is the /about/ page now');
-  assert.match(html, /&copy; <span id="year"><\/span> Gear World · run by Evangelos Kalogerakis, England · We don't sell products: we link to retailers and may earn a commission\./);
+  assert.match(html, /&copy; <span id="year"><\/span> Gear World · Run by Evangelos Kalogerakis, United Kingdom · We don't sell products: we link to retailers and may earn a commission\./);
   assert.ok(!/gwhBusinessBlink|@keyframes/.test(html));
   assert.ok(!/href="[^"]*\/(go|out)\//.test(html), 'no /go/ or /out/ link');
   const allow = read('public-allowlist.txt').split('\n').map(s => s.trim());
