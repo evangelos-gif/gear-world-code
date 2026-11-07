@@ -1,8 +1,10 @@
 // Gear World Hub sitemap (Worker gwh-sitemap, 4/11/2026): the 6 pages of 24/10/2026 stay, and the 6 pages of the gift
-// guides come in. before-worker.js is the exact code that ran live before (its sitemap was checked against the live one).
+// guides come in, with /about/ (owner, 7/11/2026: the page that says who runs Gear World, lessons L101, L103).
+// before-worker.js is the exact code that ran live before (its sitemap was checked against the live one; on 7/11/2026
+// gearworldhub.com/sitemap.xml still sent it, sha256 121319...abf).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync, existsSync } from 'node:fs';
 import before from '../../sites/gwh-sitemap/before-worker.js';
 import now from '../../sites/gwh-sitemap/worker.js';
 import { sitemapBody, sha256 } from '../../tools/gwh-sitemap.mjs';
@@ -17,10 +19,16 @@ test('sitemap: the old version is exactly the one that ran live on 24/10/2026', 
   assert.equal(sha256(body), '121319387a663907ebb2d314e89fbadc039643fa1125352cff3bdabd9ea64abf');
 });
 
-test('sitemap: the new version keeps the 6 pages and adds /guides/ and every guide of guides.json', async () => {
+test('sitemap: the new version keeps the 6 pages and adds /about/, /guides/ and every guide of guides.json', async () => {
   const body = await sitemapBody('new');
   const guides = loadData().guides.map(g => `https://gearworldhub.com/guides/${g.slug}/`);
-  assert.deepEqual(locs(body), [...OLD, 'https://gearworldhub.com/guides/', ...guides]);
+  assert.deepEqual(locs(body), [...OLD, 'https://gearworldhub.com/about/', 'https://gearworldhub.com/guides/', ...guides]);
+  assert.equal(locs(body).length, 13);
+  // Every page of the sitemap is a page of the Hub (sites/gwh/public/<page>index.html), so none of them answers 404.
+  for (const l of locs(body)) {
+    const page = l.replace('https://gearworldhub.com/', '');
+    assert.ok(existsSync(new URL(`../../sites/gwh/public/${page}index.html`, import.meta.url)), `${l} is a page of the Hub`);
+  }
   assert.match(body, /^<\?xml version="1\.0" encoding="UTF-8"\?>\n<urlset xmlns="http:\/\/www\.sitemaps\.org\/schemas\/sitemap\/0\.9">\n/);
   assert.ok(body.endsWith('</urlset>\n'));
   assert.equal(new Set(locs(body)).size, locs(body).length, 'no page twice');

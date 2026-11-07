@@ -1,11 +1,12 @@
 ﻿<#
 .SYNOPSIS
-  Gear World Hub sitemap (the small Worker "gwh-sitemap" on gearworldhub.com/sitemap.xml): the gift guides go in.
+  Gear World Hub sitemap (the small Worker "gwh-sitemap" on gearworldhub.com/sitemap.xml): /about/ and the gift guides go in.
   Read-only unless -Step preview/live/remove-preview with -Apply and the typed approval phrase.
 
 .DESCRIPTION
   The Worker gwh-sitemap was made on 24/10/2026 in another chat and sends 6 pages. The new version
-  (sites/gwh-sitemap/worker.js) sends the same 6 pages and the 6 pages of the gift guides (/guides/ and 5 guides).
+  (sites/gwh-sitemap/worker.js) sends the same 6 pages, /about/ (who runs Gear World, owner 7/11/2026, lessons L103)
+  and the 6 pages of the gift guides (/guides/ and 5 guides, owner 4/11/2026): 13 pages.
   Nothing else changes: the Hub Worker (gear-world-hub), its D1, the route and the sites stay as they are.
 
   -Step check           READ-ONLY. Which version gearworldhub.com/sitemap.xml sends now (the one of 24/10/2026,
@@ -195,7 +196,7 @@ function Get-LiveVersion([string]$folder) {
 }
 
 # ---------------- start ----------------
-Say ('GWH SITEMAP (οδηγοί δώρων στο sitemap του Hub) - step: {0} - {1} - {2}' -f $Step, $(if ($Apply) { 'APPLY (με έγκριση)' } else { 'ΜΟΝΟ ΕΛΕΓΧΟΣ (δεν αλλάζει τίποτα)' }), (Get-Date -Format 'yyyy-MM-dd HH:mm')) $Ok
+Say ('GWH SITEMAP (/about/ και οδηγοί δώρων στο sitemap του Hub) - step: {0} - {1} - {2}' -f $Step, $(if ($Apply) { 'APPLY (με έγκριση)' } else { 'ΜΟΝΟ ΕΛΕΓΧΟΣ (δεν αλλάζει τίποτα)' }), (Get-Date -Format 'yyyy-MM-dd HH:mm')) $Ok
 Say ('Code version: {0}' -f (Split-Path -Leaf $repo))
 if (-not (Get-Command node -ErrorAction SilentlyContinue)) { Say 'Δεν βρέθηκε το Node.js. Στείλε στο Claude αυτό το μήνυμα.' $Bad; Finish 3 }
 if ($PreviewName -eq $LiveWorker -or $PreviewName -notmatch '-preview$') { Say 'Λάθος όνομα δοκιμαστικού Worker: δεν κάνω τίποτα.' $Bad; Finish 12 }
@@ -209,7 +210,7 @@ $script:shaNew = ([string]$hn.text).Trim()
 if ($hb.code -ne 0 -or $hn.code -ne 0 -or $script:shaBefore -notmatch '^[0-9a-f]{64}$' -or $script:shaNew -notmatch '^[0-9a-f]{64}$') {
     Say 'Δεν μπόρεσα να φτιάξω τα δύο sitemap από τον κώδικα: ΔΕΝ αλλάζω τίποτα. Στείλε στο Claude αυτό το μήνυμα.' $Bad; Finish 13
 }
-Say 'Τι αλλάζει: στο https://gearworldhub.com/sitemap.xml μπαίνουν και οι 6 σελίδες των οδηγών δώρων (/guides/ και 5 οδηγοί), μαζί με τις 6 που έχει ήδη.'
+Say 'Τι αλλάζει: στο https://gearworldhub.com/sitemap.xml μπαίνουν η σελίδα /about/ και οι 6 σελίδες των οδηγών δώρων (/guides/ και 5 οδηγοί), μαζί με τις 6 που έχει ήδη: 13 σελίδες.'
 
 # 2. What the live sitemap is now
 $liveState = 'unknown'
@@ -217,7 +218,7 @@ if (-not $NoHttpCheck) {
     $liveState = Get-SitemapState $LiveUrl
     switch ($liveState) {
         'before' { Say 'Live sitemap: η έκδοση της 24/10/2026 (6 σελίδες): ΕΝΤΑΞΕΙ' $Ok }
-        'new' { Say 'Live sitemap: έχει ήδη τη νέα έκδοση (12 σελίδες): ΕΝΤΑΞΕΙ' $Ok }
+        'new' { Say 'Live sitemap: έχει ήδη τη νέα έκδοση (13 σελίδες): ΕΝΤΑΞΕΙ' $Ok }
         'other' { Say 'Live sitemap: ΠΡΟΒΛΗΜΑ - δεν είναι ούτε η έκδοση της 24/10/2026 ούτε η νέα (άλλαξε από αλλού).' $Bad }
         default { Say 'Live sitemap: ΠΡΟΣΟΧΗ - δεν μπόρεσα να το διαβάσω τώρα.' $Warn }
     }
@@ -284,7 +285,7 @@ if ($Step -eq 'preview') {
     if ($url -and -not $NoHttpCheck) {
         Start-Sleep -Seconds 8
         $st = Get-SitemapState ($url + '/sitemap.xml')
-        if ($st -eq 'new') { Say '  Το sitemap της δοκιμαστικής έχει τις 12 σελίδες της νέας έκδοσης: ΕΝΤΑΞΕΙ' $Ok }
+        if ($st -eq 'new') { Say '  Το sitemap της δοκιμαστικής έχει τις 13 σελίδες της νέας έκδοσης: ΕΝΤΑΞΕΙ' $Ok }
         else { Say ('  ΠΡΟΣΟΧΗ - το sitemap της δοκιμαστικής δεν είναι ακόμα η νέα έκδοση ({0}). Ξαναδές σε 1 λεπτό.' -f $st) $Warn }
     }
     Say ''
@@ -314,7 +315,7 @@ if (-not $NoHttpCheck) {
     if ($oldBody.status -eq 200) { [System.IO.File]::WriteAllBytes((Join-Path $bdir ('sitemap-before-' + $stamp + '.xml')), $oldBody.bytes) }
 }
 $note = @(
-    ('Gear World Hub sitemap before the gift guides went in ({0}), {1}' -f (Split-Path -Leaf $repo), (Get-Date -Format 'yyyy-MM-dd HH:mm')),
+    ('Gear World Hub sitemap before /about/ and the gift guides went in ({0}), {1}' -f (Split-Path -Leaf $repo), (Get-Date -Format 'yyyy-MM-dd HH:mm')),
     ('Live version of gwh-sitemap before: {0}' -f $liveVersion),
     ('Its code: gwh-sitemap-before-{0}.js (the same as sites/gwh-sitemap/before-worker.js)' -f $stamp),
     'To go back (only with approval), in PowerShell:',
@@ -338,9 +339,9 @@ if (-not $NoHttpCheck) {
         $st = Get-SitemapState $LiveUrl
         if ($st -eq 'new') { break }
     }
-    if ($st -eq 'new') { Say '  https://gearworldhub.com/sitemap.xml: 12 σελίδες (οι 6 παλιές και οι 6 των οδηγών): ΕΝΤΑΞΕΙ' $Ok }
+    if ($st -eq 'new') { Say '  https://gearworldhub.com/sitemap.xml: 13 σελίδες (οι 6 παλιές, το /about/ και οι 6 των οδηγών): ΕΝΤΑΞΕΙ' $Ok }
     else { Say ('  ΠΡΟΣΟΧΗ - το live sitemap δεν δείχνει ακόμα τη νέα έκδοση ({0}). Ξαναδές σε 1-2 λεπτά.' -f $st) $Warn }
 }
 Say ''
-Say 'ΕΤΟΙΜΟ: το sitemap του Hub έχει και τους οδηγούς δώρων. Αν κάτι δεν σου αρέσει: οδηγίες επαναφοράς πιο πάνω.' $Ok
+Say 'ΕΤΟΙΜΟ: το sitemap του Hub έχει και το /about/ και τους οδηγούς δώρων. Αν κάτι δεν σου αρέσει: οδηγίες επαναφοράς πιο πάνω.' $Ok
 Finish 0
