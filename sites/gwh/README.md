@@ -107,3 +107,12 @@ Live από 4/11/2026 18:43 (commit 74f1905· το `live-baseline.txt` ενημ�
 - Όταν αλλάξουν οι κατηγορίες ενός site, χρειάζεται `--write` και νέο ανέβασμα του Hub.
 - Έλεγχοι: `tests/worker/gwh-shop-categories.test.mjs`.
 - Live από 4/11/2026 19:37 (commit 8d5fa61, φράσεις `ΕΓΚΡΙΝΩ HUB REGISTRY PREVIEW` / `LIVE`· η δοκιμαστική διεύθυνση σβήστηκε στην ίδια εντολή). Στο live: 117 κατηγορίες στα 13 sites, όλα τα links 200, το `/api/classify` ίδιο με πριν.
+
+## Διορθώσεις για το Google Ads (7/11/2026, μάθημα L101)
+| Αρχείο | Τι άλλαξε |
+|---|---|
+| `public/about/index.html`, `public/about/about.js` | Νέα σελίδα `/about/` σε 11 γλώσσες: τι είναι το Gear World, «Run by Evangelos Kalogerakis, United Kingdom», ότι δεν πουλάμε, δεν παίρνουμε πληρωμές και δεν κάνουμε παραδόσεις, contact@gearworldhub.com |
+| `public/index.html`, `public/translations.js`, `public/hub-v2.js` | Το «About» του μενού ανοίγει το `/about/`, φεύγει η κάρτα «Sell Your Business», «From retailers listed on Gear World» στις προσφορές, η χριστουγεννιάτικη διαφάνεια λέει «Gifts for everyone, from 13 Gear Worlds» |
+| οι νομικές σελίδες και οι 6 σελίδες των οδηγών | Η γραμμή «Run by Evangelos Kalogerakis, United Kingdom · We don't sell products…» στο footer και link «About» |
+
+Live από 7/11/2026 (commit f4c8c35· το `live-baseline.txt` ενημερώθηκε και τα 48 αρχεία της σελίδας ελέγχθηκαν με GET ότι είναι ίδια με το gearworldhub.com). Πήγε με το `tools/gwh-hub-v2.ps1`: `-Step preview` (`ΕΓΚΡΙΝΩ HUB ADS PREVIEW`), μετά `-Step live` (`ΕΓΚΡΙΝΩ HUB ADS LIVE`) και `-Step remove-preview` (`ΕΓΚΡΙΝΩ HUB REMOVE PREVIEW`). Το `worker.js` δεν άλλαξε. Έλεγχοι: `tests/worker/ads-review.test.mjs` και `tools/gwh-hub-page-check.mjs`.
