@@ -18,10 +18,10 @@
   -Step check    READ-ONLY. Is the hub folder on this PC still exactly the version that runs live
                  (sites/gwh/live-baseline.txt, its "# version:" line names it), and gearworldhub.com too? Cloudflare
                  login, the live version of the Worker (needed to go back), the poster counting (it goes first).
-  -Step preview  CHANGES CLOUDFLARE, one approval: ΕΓΚΡΙΝΩ HUB WORDING PREVIEW. The test Worker "gear-world-hub-preview" on a
+  -Step preview  CHANGES CLOUDFLARE, one approval: ΕΓΚΡΙΝΩ HUB CLEANUP PREVIEW. The test Worker "gear-world-hub-preview" on a
                  *.workers.dev address gets this version (noindex, no Google Analytics, e-mail sign-up closed, no
                  poster counting; the same D1 and Workers AI, read only). gearworldhub.com does NOT change.
-  -Step live     CHANGES THE LIVE HUB, one approval: ΕΓΚΡΙΝΩ HUB WORDING LIVE. Only when the hub folder on this PC and the
+  -Step live     CHANGES THE LIVE HUB, one approval: ΕΓΚΡΙΝΩ HUB CLEANUP LIVE. Only when the hub folder on this PC and the
                  live site are still the version of live-baseline.txt (or already this version) and the posters count
                  already. First a zip of the hub folder and the number of the live version (for rollback), then the
                  changed files go into the hub folder, then gearworldhub.com is deployed from it and checked. If the
@@ -59,8 +59,17 @@
   "Independent product search and price comparison.", the world cards say "Explore →" (not "Shop →"), the campaign
   texts have no "13 specialist shops", "Shop sport", "our retailers" or Halloween "offers", privacy says "a product
   search and price-comparison service", and the styles of the sponsored card are gone; all 11 languages, new ?v= for
-  hub-v2.css, hub-v2.js and translations.js. worker.js does not change. Phrases of this release: ΕΓΚΡΙΝΩ HUB WORDING
-  PREVIEW, then ΕΓΚΡΙΝΩ HUB WORDING LIVE together with remove-preview (ΕΓΚΡΙΝΩ HUB REMOVE PREVIEW) in the same paste.
+  hub-v2.css, hub-v2.js and translations.js. worker.js does not change. Phrases of that release: ΕΓΚΡΙΝΩ HUB WORDING
+  PREVIEW / LIVE (live since 7/11/2026 21:54, 5842265).
+  Clean-up after the appeal (lessons L103): the affiliate disclosure and privacy say what is there (the Hub links only to
+  the Gear World sites and has no affiliate links; the retailer links of the sites go through Awin), contact says
+  "business enquiries", terms say who runs Gear World, the 3 changed legal pages get a new "Last updated"; the deals
+  slides (Halloween, Black Friday, the winter slide) speak of the retailers' codes only while one runs, otherwise they
+  show the sign-up text and button; the winter slide is "After Christmas across 13 Gear Worlds"; the Greek "partner
+  shops", the French "paniers"/"Baskets" and the English "retailer" inside other languages are gone; the gift guides
+  say "retailer" instead of "shop"; styles.css (not loaded by the page) loses the rules of the sponsored card. New ?v=
+  for hub-v2.css, hub-v2.js and translations.js. worker.js and the D1 do not change. Phrases of this release: ΕΓΚΡΙΝΩ HUB
+  CLEANUP PREVIEW, then ΕΓΚΡΙΝΩ HUB CLEANUP LIVE together with remove-preview (ΕΓΚΡΙΝΩ HUB REMOVE PREVIEW) in the same paste.
   Report: <home>\gear-world-reports\GWH_HUB_V2_<STEP>_<time>.txt (also copied to the clipboard)
 #>
 param(
@@ -82,8 +91,8 @@ $repo = Split-Path -Parent $PSScriptRoot
 $HubWorker = 'gear-world-hub'
 $PreviewName = 'gear-world-hub-preview'
 $DbName = 'gear-world-registry'
-$PhrasePreview = 'ΕΓΚΡΙΝΩ HUB WORDING PREVIEW'
-$PhraseLive = 'ΕΓΚΡΙΝΩ HUB WORDING LIVE'
+$PhrasePreview = 'ΕΓΚΡΙΝΩ HUB CLEANUP PREVIEW'
+$PhraseLive = 'ΕΓΚΡΙΝΩ HUB CLEANUP LIVE'
 $PhraseRegister = 'ΕΓΚΡΙΝΩ HUB ZGW SEARCH'
 $PhraseRemovePreview = 'ΕΓΚΡΙΝΩ HUB REMOVE PREVIEW'
 $LiveUrl = 'https://gearworldhub.com'
@@ -105,26 +114,27 @@ $About = @{
     'worker.js'             = 'το /api/registry δίνει και shop_categories: οι κατηγορίες του μενού κάθε site (από τα site.config.js) για την εφαρμογή· η D1, το categories και το /api/classify δεν αλλάζουν (L70)'
     'members.js'            = 'ο κώδικας της φόρμας «Get deal updates» των sites (νέο αρχείο, L92)'
     'poster-scan.js'        = 'η μέτρηση των αφισών (ίδια με αυτή που μπήκε με το POSTER STATS)'
-    'public/index.html'     = '«The idea»: «Independent product search and price comparison.» αντί για «A connected shopping ecosystem», οι 13 κάρτες γράφουν «Explore →» αντί για «Shop →»· νέο ?v= για hub-v2.css, hub-v2.js και translations.js (L102)'
+    'public/index.html'     = 'νέο ?v= για hub-v2.css, hub-v2.js και translations.js, και το σχόλιο της σελίδας χωρίς «partner» (L103)'
     'public/about/index.html' = 'νέα σελίδα /about/: «Run by Evangelos Kalogerakis, United Kingdom», ότι δεν πουλάμε, δεν παίρνουμε πληρωμές, δεν κάνουμε παραδόσεις, contact@gearworldhub.com (νέο αρχείο, L101)'
     'public/about/about.js' = 'η σελίδα /about/ στη γλώσσα που διάλεξε ο επισκέπτης, 11 γλώσσες (νέο αρχείο, L101)'
-    'public/privacy/index.html' = '«a product search and price-comparison service» αντί για «a shopping directory» (L102)'
+    'public/privacy/index.html' = 'το Hub δεν έχει affiliate links (όχι πια «partner links on the Hub»)· τα links προς καταστήματα στα sites περνούν από το Awin· «Last updated: 7 November 2026» (L103)'
     'public/cookies/index.html' = 'νέα γραμμή στο footer και link «About» (L101)'
-    'public/affiliate-disclosure/index.html' = 'νέα γραμμή στο footer και link «About» (L101)'
-    'public/hub-v2.css'     = 'φεύγουν οι κανόνες της κάρτας «Sell Your Business» (.gwh-business-*, .gwh-sponsored), που δεν υπάρχει πια (L102)'
-    'public/hub-v2.js'      = '«13 price-comparison sites, one search» αντί για «13 specialist shops», «Halloween across 13 Gear Worlds» και «retailers listed on Gear World» αντί για «offers» και «our retailers», «See sport gear», «Seasonal banner», σε 11 γλώσσες (L102)'
+    'public/affiliate-disclosure/index.html' = '«On the Hub»: τα links του Hub πάνε μόνο σε σελίδες των Gear World sites, χωρίς affiliate links και χωρίς πληρωμένες θέσεις (όχι πια «partner banners»)· «Last updated: 7 November 2026» (L103)'
+    'public/hub-v2.css'     = 'η κλάση του καταστήματος στις προσφορές λέγεται gwh2-deal-retailer (όχι «shop») (L103)'
+    'public/hub-v2.js'      = 'οι διαφάνειες προσφορών (Halloween, Black Friday, χειμώνας) μιλούν για κωδικούς μόνο όταν τρέχει κάποιος, αλλιώς δείχνουν την εγγραφή email· «After Christmas across 13 Gear Worlds»· «Chaussures de sport» αντί για «Baskets»· το όνομα του καταστήματος translate="no" (L103)'
+    'public/styles.css'     = 'φεύγουν οι κανόνες της κάρτας «Sell Your Business» (.gwh-business-*) και τα σχόλια «shop» (το αρχείο δεν το φορτώνει η σελίδα· μένει για τα παλιά εργαλεία) (L103)'
+    'public/contact/index.html' = '«business enquiries from retailers and affiliate networks» αντί για «partnership enquiries» (L103)'
     'public/guides/guides.css' = 'η εμφάνιση των οδηγών δώρων (νέο αρχείο)'
     'public/guides/index.html' = 'νέα γραμμή στο footer και link «About» (L101)'
-    'public/guides/christmas-gifts-for-him/index.html' = 'οδηγός δώρων: νέα γραμμή στο footer και link «About» (L101)'
-    'public/guides/christmas-gifts-for-her/index.html' = 'οδηγός δώρων: νέα γραμμή στο footer και link «About» (L101)'
-    'public/guides/christmas-gifts-for-kids/index.html' = 'οδηγός δώρων: νέα γραμμή στο footer και link «About» (L101)'
-    'public/guides/christmas-gifts-for-diy-lovers/index.html' = 'οδηγός δώρων: νέα γραμμή στο footer και link «About» (L101)'
-    'public/guides/christmas-gifts-for-travellers/index.html' = 'οδηγός δώρων: νέα γραμμή στο footer και link «About» (L101)'
-    'public/translations.js' = '«The idea» με αναζήτηση προϊόντων και σύγκριση τιμών, «Explore →» στις κάρτες (και «Entdecken →»), χωρίς «shopping» στα κείμενα, σε 11 γλώσσες (L102)'
+    'public/guides/christmas-gifts-for-him/index.html' = 'οδηγός δώρων: «which shows the retailer that sells it», «on the retailer''s website» αντί για «shop» (L103)'
+    'public/guides/christmas-gifts-for-her/index.html' = 'οδηγός δώρων: «retailer» αντί για «shop» (L103)'
+    'public/guides/christmas-gifts-for-kids/index.html' = 'οδηγός δώρων: «retailer» αντί για «shop», χωρίς «Pretend shopping» (L103)'
+    'public/guides/christmas-gifts-for-diy-lovers/index.html' = 'οδηγός δώρων: «two retailers» αντί για «two shops» (L103)'
+    'public/guides/christmas-gifts-for-travellers/index.html' = 'οδηγός δώρων: «retailer» αντί για «shop» (L103)'
+    'public/translations.js' = 'στα ελληνικά «από το κατάστημα» αντί για «συνεργαζόμενα καταστήματα», στα γαλλικά «couchages» αντί για «paniers», «retailer» μεταφρασμένο σε 7 γλώσσες, ονόματα κλειδιών χωρίς «shop» (L103)'
     'public/robots.txt'     = 'robots.txt του Hub με τη γραμμή Sitemap: https://gearworldhub.com/sitemap.xml (το Cloudflare βάζει από πάνω τα Content Signals του)'
     'public/gearworldhub-indexnow-k7q4m9x2w5.txt' = 'το κλειδί του IndexNow (δημόσιο, έτσι δουλεύει το IndexNow)'
-    'public/terms/index.html' = 'νέα γραμμή στο footer και link «About» (L101)'
-    'public/contact/index.html' = 'νέα γραμμή στο footer και link «About» (L101)'
+    'public/terms/index.html' = '«operated by Gear World (run by Evangelos Kalogerakis, United Kingdom)», «Last updated: 7 November 2026» (L103)'
     'public/hub-bgw.jpg'    = 'η φωτογραφία της κάρτας Biker (Pexels, χωρίς μάρκες)'
     'public/hub-pgw.jpg'    = 'η φωτογραφία της κάρτας Gaming (Pexels, χωρίς μάρκες)'
     'public/hub-zgw.jpg'    = 'η φωτογραφία της κάρτας Pets (Pexels, χωρίς μάρκες)'

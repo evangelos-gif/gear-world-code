@@ -130,10 +130,10 @@
     multiple: ["Multiple","Πολλαπλά","Mehrere","Plusieurs","Multipli","Múltiples","Vários","Meerdere","Shumë","Multiple","Несколько"],
     specialistWorlds: ["Specialist Worlds","Εξειδικευμένοι κόσμοι","Spezialisierte Welten","Univers spécialisés","Mondi specializzati","Mundos especializados","Mundos especializados","Gespecialiseerde werelden","Botë të specializuara","Universuri specializate","Специализированные миры"],
     global: ["Global","Παγκόσμια","Global","Mondial","Globale","Global","Global","Wereldwijd","Global","Global","Глобально"],
-    shoppingDiscovery: ["Price Comparison","Σύγκριση τιμών","Preisvergleich","Comparaison de prix","Confronto prezzi","Comparación de precios","Comparação de preços","Prijsvergelijking","Krahasim çmimesh","Comparare prețuri","Сравнение цен"],
+    comparisonLabel: ["Price Comparison","Σύγκριση τιμών","Preisvergleich","Comparaison de prix","Confronto prezzi","Comparación de precios","Comparação de preços","Prijsvergelijking","Krahasim çmimesh","Comparare prețuri","Сравнение цен"],
 
     explore: ["EXPLORE","ΕΞΕΡΕΥΝΗΣΤΕ","ENTDECKEN","EXPLORER","ESPLORA","EXPLORAR","EXPLORAR","ONTDEK","EKSPLORO","EXPLOREAZĂ","ИССЛЕДУЙТЕ"],
-    shopInterest: ["Browse by Interest","Εξερεύνηση ανά ενδιαφέρον","Nach Interesse stöbern","Parcourir par intérêt","Sfoglia per interesse","Explorar por interés","Explorar por interesse","Bladeren op interesse","Shfletoni sipas interesit","Răsfoiți după interes","Обзор по интересам"],
+    browseInterest: ["Browse by Interest","Εξερεύνηση ανά ενδιαφέρον","Nach Interesse stöbern","Parcourir par intérêt","Sfoglia per interesse","Explorar por interés","Explorar por interesse","Bladeren op interesse","Shfletoni sipas interesit","Răsfoiți după interes","Обзор по интересам"],
     interestDesc: ["Jump straight into the gear and categories that interest you most.","Μεταβείτε απευθείας στα προϊόντα και τις κατηγορίες που σας ενδιαφέρουν περισσότερο.","Direkt zu den Produkten und Kategorien, die Sie am meisten interessieren.","Accédez directement aux produits et catégories qui vous intéressent le plus.","Vai direttamente ai prodotti e alle categorie che ti interessano di più.","Ve directamente a los productos y categorías que más te interesan.","Aceda diretamente aos produtos e categorias que mais lhe interessam.","Ga direct naar de producten en categorieën die u het meest interesseren.","Kaloni direkt te produktet dhe kategoritë që ju interesojnë më shumë.","Accesați direct produsele și categoriile care vă interesează cel mai mult.","Сразу переходите к интересующим вас товарам и категориям."],
 
     powerTools: ["Power Tools","Ηλεκτρικά εργαλεία","Elektrowerkzeuge","Outils électriques","Elettroutensili","Herramientas eléctricas","Ferramentas elétricas","Elektrisch gereedschap","Vegla elektrike","Scule electrice","Электроинструменты"],
@@ -380,7 +380,7 @@
       const strong = stats[2].querySelector("strong");
       const span = stats[2].querySelector("span");
       if (strong) strong.textContent = tr("global");
-      if (span) span.textContent = tr("shoppingDiscovery");
+      if (span) span.textContent = tr("comparisonLabel");
     }
 
     const interests = document.querySelector("#worlds");
@@ -394,7 +394,7 @@
         const p = heading.querySelector("p");
 
         if (eyebrow) eyebrow.textContent = tr("explore");
-        if (h2) h2.textContent = tr("shopInterest");
+        if (h2) h2.textContent = tr("browseInterest");
         if (p) p.textContent = tr("interestDesc");
       }
 
@@ -505,7 +505,7 @@
     "en-GB": {
       choose: "CHOOSE A WORLD",
       searchAll: "SEARCH ALL WORLDS",
-      shop: "Explore →",
+      explore: "Explore →",
 
       titles: [
         "Tools & Workwear",
@@ -556,7 +556,7 @@
     "el-GR": {
       choose: "ΕΠΙΛΕΞΤΕ ΚΟΣΜΟ",
       searchAll: "ΑΝΑΖΗΤΗΣΗ ΣΕ ΟΛΟΥΣ ΤΟΥΣ ΚΟΣΜΟΥΣ",
-      shop: "Εξερεύνηση →",
+      explore: "Εξερεύνηση →",
 
       titles: [
         "Εργαλεία & Ρούχα Εργασίας",
@@ -592,22 +592,22 @@
 
       howLabel: "ΠΩΣ ΛΕΙΤΟΥΡΓΕΙ",
       howTitle:
-        "Επιλέξτε έναν κόσμο. Περιηγηθείτε στα προϊόντα. Αγοράστε απευθείας από τα συνεργαζόμενα καταστήματα.",
+        "Επιλέξτε έναν κόσμο. Περιηγηθείτε στα προϊόντα. Αγοράστε απευθείας από το κατάστημα.",
 
       steps: [
         "Επιλέξτε έναν κόσμο",
         "Περιηγηθείτε στα προϊόντα",
-        "Αγοράστε από τα συνεργαζόμενα καταστήματα"
+        "Αγοράστε από το κατάστημα"
       ],
 
       disclosure:
-        "Οι αγορές ολοκληρώνονται απευθείας στις ιστοσελίδες των συνεργαζόμενων καταστημάτων. Το Gear World μπορεί να λαμβάνει προμήθεια από επιλέξιμες αγορές μέσω affiliate links, χωρίς επιπλέον κόστος για εσάς."
+        "Οι αγορές ολοκληρώνονται απευθείας στην ιστοσελίδα του καταστήματος. Το Gear World μπορεί να λαμβάνει προμήθεια από επιλέξιμες αγορές μέσω affiliate links, χωρίς επιπλέον κόστος για εσάς."
     },
 
     "de-DE": {
       choose: "WÄHLEN SIE EINE WELT",
       searchAll: "ALLE WELTEN DURCHSUCHEN",
-      shop: "Entdecken →",
+      explore: "Entdecken →",
 
       titles: [
         "Werkzeug & Arbeitskleidung",
@@ -658,7 +658,7 @@
     "fr-FR": {
       choose: "CHOISISSEZ UN UNIVERS",
       searchAll: "RECHERCHER DANS TOUS LES UNIVERS",
-      shop: "Découvrir →",
+      explore: "Découvrir →",
 
       titles: [
         "Outils & vêtements de travail",
@@ -689,7 +689,7 @@
         "Fitness, course à pied, vélo, sports collectifs et nutrition.",
         "Casques, équipement moto, pièces, trottinettes et motos électriques.",
         "Consoles, PC gaming, écrans, casques et chaises.",
-        "Nourriture, paniers, laisses, jouets et arbres à chat."
+        "Nourriture, couchages, laisses, jouets et arbres à chat."
       ],
 
       howLabel: "COMMENT ÇA MARCHE",
@@ -703,13 +703,13 @@
       ],
 
       disclosure:
-        "Les achats sont finalisés directement sur le site du retailer. Gear World peut recevoir une commission sur les achats éligibles effectués via des liens affiliés, sans coût supplémentaire pour vous."
+        "Les achats sont finalisés directement sur le site du marchand. Gear World peut recevoir une commission sur les achats éligibles effectués via des liens affiliés, sans coût supplémentaire pour vous."
     },
 
     "it-IT": {
       choose: "SCEGLI UN MONDO",
       searchAll: "CERCA IN TUTTI I MONDI",
-      shop: "Esplora →",
+      explore: "Esplora →",
 
       titles: [
         "Utensili & abbigliamento da lavoro",
@@ -754,13 +754,13 @@
       ],
 
       disclosure:
-        "Gli acquisti vengono completati direttamente sul sito del retailer. Gear World può ricevere una commissione dagli acquisti idonei effettuati tramite link affiliati, senza costi aggiuntivi per te."
+        "Gli acquisti vengono completati direttamente sul sito del negozio. Gear World può ricevere una commissione dagli acquisti idonei effettuati tramite link affiliati, senza costi aggiuntivi per te."
     },
 
     "es-ES": {
       choose: "ELIGE UN MUNDO",
       searchAll: "BUSCAR EN TODOS LOS MUNDOS",
-      shop: "Explorar →",
+      explore: "Explorar →",
 
       titles: [
         "Herramientas y ropa de trabajo",
@@ -805,13 +805,13 @@
       ],
 
       disclosure:
-        "Las compras se completan directamente en la web del retailer. Gear World puede recibir una comisión por compras válidas realizadas mediante enlaces de afiliado, sin coste adicional para ti."
+        "Las compras se completan directamente en la web de la tienda. Gear World puede recibir una comisión por compras válidas realizadas mediante enlaces de afiliado, sin coste adicional para ti."
     },
 
     "pt-PT": {
       choose: "ESCOLHA UM MUNDO",
       searchAll: "PESQUISAR EM TODOS OS MUNDOS",
-      shop: "Explorar →",
+      explore: "Explorar →",
 
       titles: [
         "Ferramentas e roupa de trabalho",
@@ -856,13 +856,13 @@
       ],
 
       disclosure:
-        "As compras são concluídas diretamente no site do retailer. A Gear World pode receber uma comissão por compras elegíveis feitas através de links de afiliado, sem custo adicional para si."
+        "As compras são concluídas diretamente no site da loja. A Gear World pode receber uma comissão por compras elegíveis feitas através de links de afiliado, sem custo adicional para si."
     },
 
     "nl-NL": {
       choose: "KIES EEN WERELD",
       searchAll: "ZOEK IN ALLE WERELDEN",
-      shop: "Bekijk →",
+      explore: "Bekijk →",
 
       titles: [
         "Gereedschap & werkkleding",
@@ -913,7 +913,7 @@
     "sq-AL": {
       choose: "ZGJIDHNI NJË BOTË",
       searchAll: "KËRKONI NË TË GJITHA BOTËT",
-      shop: "Shfleto →",
+      explore: "Shfleto →",
 
       titles: [
         "Vegla & veshje pune",
@@ -958,13 +958,13 @@
       ],
 
       disclosure:
-        "Blerjet përfundojnë drejtpërdrejt në faqen e retailer-it. Gear World mund të marrë komision nga blerjet e kualifikuara përmes lidhjeve affiliate, pa kosto shtesë për ju."
+        "Blerjet përfundojnë drejtpërdrejt në faqen e dyqanit. Gear World mund të marrë komision nga blerjet e kualifikuara përmes lidhjeve affiliate, pa kosto shtesë për ju."
     },
 
     "ro-RO": {
       choose: "ALEGEȚI O LUME",
       searchAll: "CĂUTAȚI ÎN TOATE LUMILE",
-      shop: "Explorează →",
+      explore: "Explorează →",
 
       titles: [
         "Unelte & îmbrăcăminte de lucru",
@@ -1009,13 +1009,13 @@
       ],
 
       disclosure:
-        "Achizițiile sunt finalizate direct pe site-ul retailerului. Gear World poate primi un comision pentru achizițiile eligibile realizate prin linkuri afiliate, fără costuri suplimentare pentru dvs."
+        "Achizițiile sunt finalizate direct pe site-ul magazinului. Gear World poate primi un comision pentru achizițiile eligibile realizate prin linkuri afiliate, fără costuri suplimentare pentru dvs."
     },
 
     "ru-RU": {
       choose: "ВЫБЕРИТЕ РАЗДЕЛ",
       searchAll: "ПОИСК ПО ВСЕМ РАЗДЕЛАМ",
-      shop: "Смотреть →",
+      explore: "Смотреть →",
 
       titles: [
         "Инструменты и спецодежда",
@@ -1060,7 +1060,7 @@
       ],
 
       disclosure:
-        "Покупка оформляется непосредственно на сайте retailer. Gear World может получать комиссию за соответствующие покупки по партнерским ссылкам без дополнительных расходов для вас."
+        "Покупка оформляется непосредственно на сайте продавца. Gear World может получать комиссию за соответствующие покупки по партнёрским ссылкам без дополнительных расходов для вас."
     }
   };
 
@@ -1122,7 +1122,7 @@
       }
 
       if (cta) {
-        cta.textContent = data.shop;
+        cta.textContent = data.explore;
       }
 
       if (data.titles[index]) {

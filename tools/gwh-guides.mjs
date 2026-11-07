@@ -139,12 +139,12 @@ ${g.items.map(it => card(it, site)).join('\n')}
   const body = `  <article class="gd-article">
     <h1>${esc(guide.title)}</h1>
     <p class="gd-lead">${esc(guide.intro)}</p>
-    <p class="gd-checked">Price checked ${checked}, may change. Each product opens its page on ${esc(site.name)}, part of Gear World, where you can see the shop and buy.</p>
+    <p class="gd-checked">Price checked ${checked}, may change. Each product opens its page on ${esc(site.name)}, part of Gear World, which shows the retailer that sells it.</p>
 ${groups}
     <aside class="gd-tips" aria-label="Tips">
 ${tips}
     </aside>
-    <p class="gd-note">Prices and stock come from ${esc(site.name)} and were checked on ${checked}. They may change at any time, so check the final price at the shop before you buy. Gear World may earn a commission if you buy through our sites, at no extra cost to you: see our <a href="/affiliate-disclosure/">affiliate disclosure</a>.</p>
+    <p class="gd-note">Prices and stock come from ${esc(site.name)} and were checked on ${checked}. They may change at any time, so check the final price on the retailer's website before you buy. Gear World may earn a commission if you buy through our sites, at no extra cost to you: see our <a href="/affiliate-disclosure/">affiliate disclosure</a>.</p>
     <nav class="gd-more" aria-label="More gift guides">
       <h2>More gift guides</h2>
       <ul>

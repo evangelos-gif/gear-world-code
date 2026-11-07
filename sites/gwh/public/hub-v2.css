@@ -157,7 +157,7 @@ svg.gwh2-art{stroke:none;} /* the drawn pictures: no outline from the icon style
 .gwh2-deal{display:flex;flex-direction:column;gap:6px;padding:18px;border:1px solid rgba(255,180,0,.35);border-radius:16px;background:var(--card);text-decoration:none;}
 .gwh2-deal:hover{background:var(--card-hover);border-color:var(--accent);}
 .gwh2-deal-top{display:flex;flex-wrap:wrap;justify-content:space-between;gap:4px 10px;font-size:12px;font-weight:800;letter-spacing:.06em;}
-.gwh2-deal-shop{color:var(--accent);text-transform:uppercase;}
+.gwh2-deal-retailer{color:var(--accent);text-transform:uppercase;}
 .gwh2-deal-end{color:var(--blue);}
 .gwh2-deal-offer{font-size:19px;line-height:1.25;font-weight:900;}
 .gwh2-deal-meta,.gwh2-deal-worlds{color:var(--soft);font-size:14px;}

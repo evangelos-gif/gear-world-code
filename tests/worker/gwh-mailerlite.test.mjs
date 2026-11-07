@@ -314,5 +314,5 @@ test('mailerlite: the Hub form, its 11 languages and the privacy page match the 
   const privacy = readFileSync(new URL('public/privacy/index.html', ROOT), 'utf8');
   assert.match(privacy, /MailerLite/);
   assert.match(privacy, /opened and which links/);
-  assert.match(privacy, /Last updated: (2|3) November 2026/);
+  assert.match(privacy, /Last updated: (2|3|7) November 2026/);
 });

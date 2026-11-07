@@ -130,4 +130,21 @@ Live από 7/11/2026 (commit f4c8c35· το `live-baseline.txt` ενημερώ�
 
 Το `worker.js` και η D1 δεν αλλάζουν. Πάει με το `tools/gwh-hub-v2.ps1`: `-Step preview` (`ΕΓΚΡΙΝΩ HUB WORDING PREVIEW`), και μετά στην ίδια επικόλληση `-Step live` (`ΕΓΚΡΙΝΩ HUB WORDING LIVE`) και `-Step remove-preview` (`ΕΓΚΡΙΝΩ HUB REMOVE PREVIEW`). Μετά το live ενημερώνεται το `live-baseline.txt`. Έλεγχοι: `tests/worker/ads-wording.test.mjs` και `tools/gwh-hub-page-check.mjs`.
 
-Το `/about/` δεν είναι ακόμα στο sitemap: το σερβίρει ο Worker `gwh-sitemap` (`sites/gwh-sitemap/worker.js`, λίστα `PAGES`), που δεν αλλάζει χωρίς έγκριση του Evangelos. Στις 7/11 το live sitemap έχει ακόμα τις 6 σελίδες της 24/10 (οι οδηγοί δώρων δεν έχουν ανέβει).
+Το sitemap το σερβίρει ο Worker `gwh-sitemap` (`sites/gwh-sitemap/worker.js`, λίστα `PAGES`). Ο Evangelos είπε ναι στις 7/11/2026 να μπει και το `/about/`, μαζί με τις 6 σελίδες των οδηγών δώρων (ναι από 4/11): 13 σελίδες. Στις 7/11/2026 22:13 το live `https://gearworldhub.com/sitemap.xml` έχει ακόμα τις 6 σελίδες της 24/10 (sha256 `121319…4abf`, η έκδοση του `before-worker.js`). Ανεβαίνει με το `tools/gwh-sitemap.ps1` (`ΕΓΚΡΙΝΩ SITEMAP PREVIEW`, μετά `ΕΓΚΡΙΝΩ SITEMAP LIVE` και `ΕΓΚΡΙΝΩ SITEMAP REMOVE PREVIEW`).
+
+## Καθάρισμα μετά την ένσταση (μάθημα L103)
+Ένας πλήρης έλεγχος όλων των κειμένων σε 11 γλώσσες βρήκε ακόμα λέξεις συνεργασίας ή καταστήματος.
+
+| Αρχείο | Τι άλλαξε |
+|---|---|
+| `public/affiliate-disclosure/index.html` | «On the Hub»: τα links του Hub πάνε μόνο σε σελίδες των Gear World sites· το Hub δεν έχει affiliate links ούτε πληρωμένες θέσεις (πριν: «Some links, such as partner banners, are affiliate links»). «Last updated: 7 November 2026» |
+| `public/privacy/index.html` | «The Hub itself has no affiliate links; the links to retailers on those sites go through the Awin affiliate network» (πριν: «and partner links on the Hub»). «Last updated: 7 November 2026» (η αλλαγή του L102 δεν είχε αλλάξει την ημερομηνία) |
+| `public/terms/index.html` | «operated by Gear World (run by Evangelos Kalogerakis, United Kingdom)», όπως στα sites. «Last updated: 7 November 2026» |
+| `public/contact/index.html` | «business enquiries from retailers and affiliate networks» (πριν: «partnership enquiries») |
+| `public/hub-v2.js` | Οι διαφάνειες προσφορών (Halloween, Black Friday, χειμώνας) λένε «The retailers' offers…» / «See the deals» μόνο όταν το `hub-deals.json` έχει κωδικό που τρέχει σήμερα· αλλιώς, και όσο φορτώνει η λίστα, «Sign up and hear about the offers first.» / «Tell me first» προς την εγγραφή (`campaignView`). Το ίδιο το κουμπί του βίντεο της Black Friday. Η χειμερινή διαφάνεια: «26 DECEMBER – 15 JANUARY», «After Christmas across 13 Gear Worlds» (πριν: «Sales … in 13 Gear Worlds» στις 10 γλώσσες). «Chaussures de sport» αντί για «Baskets». Το όνομα του καταστήματος στις προσφορές `translate="no"`, κλάση `gwh2-deal-retailer` |
+| `public/translations.js` | Ελληνικά «Αγοράστε απευθείας από το κατάστημα» (πριν: «από τα συνεργαζόμενα καταστήματα»), γαλλικά «couchages» (πριν: «paniers»), «retailer» μεταφρασμένο σε 7 γλώσσες, κλειδιά χωρίς «shop» (`explore`, `comparisonLabel`, `browseInterest`) |
+| `public/hub-v2.css`, `public/index.html` | Η κλάση `gwh2-deal-retailer`· νέο `?v=20261108-cleanup1` (L31)· το σχόλιο της σελίδας χωρίς «partner» |
+| `guides/guides.json`, `tools/gwh-guides.mjs` και οι 5 οδηγοί | «retailer» αντί για «shop», «which shows the retailer that sells it», χωρίς «Pretend shopping». Οι τιμές ξαναελέγχθηκαν στις 7/11/2026 (`node tools/gwh-guides.mjs check`, 58/58 ίδιες) |
+| `public/styles.css` | Δεν το φορτώνει η σελίδα από τις 27/10, αλλά σερβίρεται: φεύγουν οι κανόνες `.gwh-business-*` και τα σχόλια «shop». Δεν σβήνεται, γιατί το `gwh-hub-v2.ps1` δεν σβήνει αρχεία από τον φάκελο του υπολογιστή (θα έμενε live) και τα tests των παλιών εργαλείων το περιμένουν |
+
+Το `worker.js` και η D1 δεν αλλάζουν. Πάει με το `tools/gwh-hub-v2.ps1`: `-Step preview` (`ΕΓΚΡΙΝΩ HUB CLEANUP PREVIEW`), και μετά στην ίδια επικόλληση `-Step live` (`ΕΓΚΡΙΝΩ HUB CLEANUP LIVE`) και `-Step remove-preview` (`ΕΓΚΡΙΝΩ HUB REMOVE PREVIEW`). Μετά το live ενημερώνεται το `live-baseline.txt`. Έλεγχοι: `tests/worker/ads-cleanup.test.mjs` και `tools/gwh-hub-page-check.mjs`.

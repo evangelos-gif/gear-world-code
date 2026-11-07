@@ -34,8 +34,8 @@
     halloweenEyebrow: ["HALLOWEEN WEEK", "ΕΒΔΟΜΑΔΑ HALLOWEEN", "HALLOWEEN-WOCHE", "SEMAINE D'HALLOWEEN", "SETTIMANA DI HALLOWEEN", "SEMANA DE HALLOWEEN", "SEMANA DO HALLOWEEN", "HALLOWEENWEEK", "JAVA E HALLOWEEN", "SĂPTĂMÂNA DE HALLOWEEN", "НЕДЕЛЯ ХЭЛЛОУИНА"],
     halloweenTitle: ["Halloween across 13 Gear Worlds", "Halloween σε 13 Gear Worlds", "Halloween in 13 Gear Worlds", "Halloween dans 13 Gear Worlds", "Halloween in 13 Gear Worlds", "Halloween en 13 Gear Worlds", "Halloween em 13 Gear Worlds", "Halloween in 13 Gear Worlds", "Halloween në 13 Gear Worlds", "Halloween în 13 Gear Worlds", "Хэллоуин в 13 Gear Worlds"],
     halloweenText: ["Discount codes from retailers listed on Gear World, each with its end date.", "Κωδικοί έκπτωσης από καταστήματα που εμφανίζονται στο Gear World, ο καθένας με ημερομηνία λήξης.", "Rabattcodes von Händlern, die auf Gear World gelistet sind, jeder mit Enddatum.", "Des codes promo de marchands présents sur Gear World, chacun avec sa date de fin.", "Codici sconto da negozi presenti su Gear World, ognuno con la sua data di fine.", "Códigos de descuento de tiendas que aparecen en Gear World, cada uno con su fecha de fin.", "Códigos de desconto de lojas presentes na Gear World, cada um com a sua data de fim.", "Kortingscodes van winkels die op Gear World staan, elk met een einddatum.", "Kode zbritjeje nga dyqanet që shfaqen në Gear World, secili me datë mbarimi.", "Coduri de reducere de la magazine prezente pe Gear World, fiecare cu data de final.", "Промокоды магазинов, представленных на Gear World, у каждого своя дата окончания."],
-    salesEyebrow: ["WINTER SALES", "ΧΕΙΜΕΡΙΝΕΣ ΕΚΠΤΩΣΕΙΣ", "WINTERSCHLUSSVERKAUF", "SOLDES D'HIVER", "SALDI INVERNALI", "REBAJAS DE INVIERNO", "SALDOS DE INVERNO", "WINTERUITVERKOOP", "ULJET E DIMRIT", "REDUCERI DE IARNĂ", "ЗИМНИЕ РАСПРОДАЖИ"],
-    salesTitle: ["Boxing Day and January sales", "Εκπτώσεις μετά τα Χριστούγεννα σε 13 Gear Worlds", "Sale nach Weihnachten in 13 Gear Worlds", "Les soldes d'après Noël dans 13 Gear Worlds", "Saldi dopo Natale in 13 Gear Worlds", "Rebajas de después de Navidad en 13 Gear Worlds", "Saldos depois do Natal em 13 Gear Worlds", "Uitverkoop na Kerst in 13 Gear Worlds", "Ulje pas Krishtlindjeve në 13 Gear Worlds", "Reduceri după Crăciun în 13 Gear Worlds", "Распродажи после Рождества в 13 Gear Worlds"],
+    salesEyebrow: ["26 DECEMBER – 15 JANUARY", "26 ΔΕΚΕΜΒΡΙΟΥ – 15 ΙΑΝΟΥΑΡΙΟΥ", "26. DEZEMBER – 15. JANUAR", "26 DÉCEMBRE – 15 JANVIER", "26 DICEMBRE – 15 GENNAIO", "26 DE DICIEMBRE – 15 DE ENERO", "26 DE DEZEMBRO – 15 DE JANEIRO", "26 DECEMBER T/M 15 JANUARI", "26 DHJETOR – 15 JANAR", "26 DECEMBRIE – 15 IANUARIE", "26 ДЕКАБРЯ – 15 ЯНВАРЯ"],
+    salesTitle: ["After Christmas across 13 Gear Worlds", "Μετά τα Χριστούγεννα σε 13 Gear Worlds", "Nach Weihnachten in 13 Gear Worlds", "Après Noël dans 13 Gear Worlds", "Dopo Natale in 13 Gear Worlds", "Después de Navidad en 13 Gear Worlds", "Depois do Natal em 13 Gear Worlds", "Na Kerst in 13 Gear Worlds", "Pas Krishtlindjeve në 13 Gear Worlds", "După Crăciun în 13 Gear Worlds", "После Рождества в 13 Gear Worlds"],
     fitnessEyebrow: ["JANUARY", "ΙΑΝΟΥΑΡΙΟΣ", "JANUAR", "JANVIER", "GENNAIO", "ENERO", "JANEIRO", "JANUARI", "JANAR", "IANUARIE", "ЯНВАРЬ"],
     fitnessTitle: ["New year, new routine", "Νέα χρονιά, νέα ρουτίνα", "Neues Jahr, neue Routine", "Nouvelle année, nouvelle routine", "Anno nuovo, nuova routine", "Año nuevo, nueva rutina", "Ano novo, nova rotina", "Nieuw jaar, nieuwe routine", "Vit i ri, rutinë e re", "An nou, rutină nouă", "Новый год — новые привычки"],
     fitnessText: ["Fitness, running and home gym, from Sporty Gear World.", "Γυμναστική, τρέξιμο και γυμναστήριο στο σπίτι, από το Sporty Gear World.", "Fitness, Laufen und Heimtraining von Sporty Gear World.", "Fitness, course et salle de sport à la maison, avec Sporty Gear World.", "Fitness, corsa e palestra in casa, da Sporty Gear World.", "Fitness, running y gimnasio en casa, en Sporty Gear World.", "Fitness, corrida e ginásio em casa, na Sporty Gear World.", "Fitness, hardlopen en thuis trainen, bij Sporty Gear World.", "Fitnes, vrapim dhe palestër në shtëpi, nga Sporty Gear World.", "Fitness, alergare și sală acasă, de la Sporty Gear World.", "Фитнес, бег и домашний спортзал от Sporty Gear World."],
@@ -101,7 +101,7 @@
     ideaPerfume: ["Perfume", "Άρωμα", "Parfüm", "Parfum", "Profumo", "Perfume", "Perfume", "Parfum", "Parfum", "Parfum", "Парфюм"],
     ideaScarf: ["Scarf", "Κασκόλ", "Schal", "Écharpe", "Sciarpa", "Bufanda", "Cachecol", "Sjaal", "Shall", "Eșarfă", "Шарф"],
     ideaBackpack: ["Backpack", "Σακίδιο", "Rucksack", "Sac à dos", "Zaino", "Mochila", "Mochila", "Rugzak", "Çantë shpine", "Rucsac", "Рюкзак"],
-    ideaTrainers: ["Trainers", "Αθλητικά παπούτσια", "Turnschuhe", "Baskets", "Scarpe da ginnastica", "Zapatillas", "Ténis", "Sneakers", "Atlete", "Adidași", "Кроссовки"],
+    ideaTrainers: ["Trainers", "Αθλητικά παπούτσια", "Turnschuhe", "Chaussures de sport", "Scarpe da ginnastica", "Zapatillas", "Ténis", "Sneakers", "Atlete", "Adidași", "Кроссовки"],
     ideaPyjamas: ["Pyjamas", "Πιτζάμες", "Schlafanzug", "Pyjama", "Pigiama", "Pijama", "Pijama", "Pyjama", "Pizhame", "Pijama", "Пижама"],
     ideaLamp: ["Lamp", "Φωτιστικό", "Lampe", "Lampe", "Lampada", "Lámpara", "Candeeiro", "Lamp", "Llambë", "Lampă", "Лампа"],
     ideaCandle: ["Candle", "Κερί", "Kerze", "Bougie", "Candela", "Vela", "Vela", "Kaars", "Qiri", "Lumânare", "Свеча"],
@@ -128,7 +128,8 @@
   // Campaign slides: the seasons of the year only (no "new site" slides, the owner's wish of 27/10/2026). They promise
   // no offers that may not be there, and the Hub sells nothing (Google Ads review, lessons L101, L102). Each one shows
   // only between its first and last day (UK time). Nothing turns by itself.
-  // Deals slides go to the e-mail sign-up when no deal runs. Add the next seasons here, with their dates.
+  // Deals slides (href "#deals") speak of the retailers' codes only while hub-deals.json has one running today; without
+  // one they show the e-mail sign-up text and button instead (campaignView, lessons L103). Add the next seasons here.
   const CAMPAIGNS = [
     { id: "halloween", start: "2026-10-20", end: "2026-10-31", art: "halloween", eyebrow: "halloweenEyebrow", title: "halloweenTitle", text: "halloweenText", cta: "bfCta", href: "#deals" },
     { id: "black-friday", start: "2026-11-27", end: "2026-11-30", art: "black-friday", eyebrow: "bfEyebrow", title: "bfTitle", text: "bfText", cta: "bfCta", href: "#deals" },
@@ -213,6 +214,17 @@
       .filter(d => (d.kind === "code" ? Number(d.off) > 0 : Number(d.upTo) > 0))
       .sort((a, b) => (a.kind === b.kind ? 0 : a.kind === "code" ? -1 : 1) ||
         (a.kind === "code" ? (Number(a.minSpend) || 0) - (Number(b.minSpend) || 0) : (Number(b.upTo) || 0) - (Number(a.upTo) || 0)));
+  }
+
+  // What a campaign slide says. A deals slide (Halloween, Black Friday, the winter slide) speaks of the retailers'
+  // codes and sales only when the list has loaded and a code or sale runs today; otherwise, and while the list is
+  // still loading, it shows the sign-up text and button, like the button of the seasonal video (lessons L103).
+  function hasRealDeals(list, loaded, now) {
+    return Boolean(loaded) && activeDeals(list, now).length > 0;
+  }
+  function campaignView(c, list, loaded, now) {
+    if (!c || c.href !== "#deals" || hasRealDeals(list, loaded, now)) return { text: c && c.text, cta: c && c.cta, href: c && c.href };
+    return { text: "soonText", cta: "soonCta", href: "#newsletter" };
   }
 
   function giftSearchUrl(idea, budget) {
@@ -344,7 +356,7 @@
     return false;
   }
 
-  window.GearWorldHubV2 = { heroSlides, campaignLabel, seasonFor, seasonsOf, blackFridayDay, countdownText, seasonMediaVersion: SEASON_MEDIA_VERSION, art: ART, artFor, locales: LOCALES, strings: T, sameAsEnglish: SAME_AS_ENGLISH, campaigns: CAMPAIGNS, fallbackCampaign: FALLBACK_CAMPAIGN, gifts: GIFTS, budgets: BUDGETS, popular: POPULAR, activeCampaigns, activeDeals, giftSearchUrl, ukToday };
+  window.GearWorldHubV2 = { heroSlides, campaignLabel, seasonFor, seasonsOf, blackFridayDay, countdownText, seasonMediaVersion: SEASON_MEDIA_VERSION, art: ART, artFor, locales: LOCALES, strings: T, sameAsEnglish: SAME_AS_ENGLISH, campaigns: CAMPAIGNS, fallbackCampaign: FALLBACK_CAMPAIGN, gifts: GIFTS, budgets: BUDGETS, popular: POPULAR, activeCampaigns, activeDeals, campaignView, hasRealDeals, giftSearchUrl, ukToday };
 
   // ------------------------------------------------------------ page
   const $ = (selector, root) => (root || document).querySelector(selector);
@@ -432,7 +444,7 @@
           <div class="gwh2-slide-foot">
             ${season.gifts
               ? `<a class="gwh2-btn" href="#gifts" data-gwh2-jump="#gifts">${esc(tx("xmasCta"))}</a>`
-              : `<a class="gwh2-btn" href="#gwh2Deals" data-gwh2-jump="#gwh2Deals" data-gwh2-season-cta>${esc(activeDeals(deals).length || !dealsLoaded ? tx("bfCta") : tx("soonCta"))}</a>`}
+              : `<a class="gwh2-btn" href="#gwh2Deals" data-gwh2-jump="#gwh2Deals" data-gwh2-season-cta>${esc(hasRealDeals(deals, dealsLoaded) ? tx("bfCta") : tx("soonCta"))}</a>`}
             ${slideNav(list.length)}
           </div>
         </div>
@@ -442,17 +454,18 @@
       if (seasonVideoAllowedAfterLoad) startSeasonVideo();
       return;
     }
-    const external = /^https:\/\//.test(c.href);
+    const view = campaignView(c, deals, dealsLoaded);
+    const external = /^https:\/\//.test(view.href);
     const title = c.title ? tx(c.title) : c.titleText;
     box.innerHTML = `
-      <div class="gwh2-slide" data-campaign="${esc(c.id)}">
+      <div class="gwh2-slide" data-campaign="${esc(c.id)}"${c.href === "#deals" ? " data-gwh2-deals-slide" : ""}>
         ${artFor(c)}
         <div class="gwh2-slide-body">
           <span class="gwh2-eyebrow">${esc(tx(c.eyebrow))}</span>
           <strong class="gwh2-slide-title">${esc(title)}</strong>
-          <span class="gwh2-slide-text">${esc(tx(c.text))}</span>
+          <span class="gwh2-slide-text">${esc(tx(view.text))}</span>
           <div class="gwh2-slide-foot">
-            <a class="gwh2-btn" href="${esc(c.href)}"${external ? "" : ` data-gwh2-jump="${esc(c.href)}"`}>${esc(tx(c.cta))}</a>
+            <a class="gwh2-btn" href="${esc(view.href)}"${external ? "" : ` data-gwh2-jump="${esc(view.href)}"`}>${esc(tx(view.cta))}</a>
             ${slideNav(list.length)}
           </div>
         </div>
@@ -561,7 +574,9 @@
     if (navLink) navLink.hidden = section.hidden;
     // The button of the seasonal video: to the deals, or to the e-mail sign-up when no deal runs.
     const seasonCta = document.querySelector("#gwh2Campaigns [data-gwh2-season-cta]");
-    if (seasonCta) seasonCta.textContent = list.length || !dealsLoaded ? tx("bfCta") : tx("soonCta");
+    if (seasonCta) seasonCta.textContent = hasRealDeals(deals, dealsLoaded) ? tx("bfCta") : tx("soonCta");
+    // A drawn deals slide (no video, so it can be drawn again) follows the list too (lessons L103).
+    if (document.querySelector("#gwh2Campaigns [data-gwh2-deals-slide]")) renderCampaigns();
     box.innerHTML = list.map(d => {
       const offer = d.kind === "code"
         ? (Number(d.minSpend) > 0 ? tx("dealCode", { off: money(d.off, d.currency), min: money(d.minSpend, d.currency) }) : tx("dealCodeNoMin", { off: money(d.off, d.currency) }))
@@ -569,7 +584,7 @@
       const worlds = (Array.isArray(d.sites) ? d.sites : []).filter(s => /^[A-Z]{3}$/.test(s)).join(" · ");
       return `
         <a class="gwh2-deal" href="${esc(d.link)}">
-          <span class="gwh2-deal-top"><span class="gwh2-deal-shop">${esc(d.retailer)}</span><span class="gwh2-deal-end">${esc(tx("dealUntil", { date: longDate(d.end) }))}</span></span>
+          <span class="gwh2-deal-top"><span class="gwh2-deal-retailer" translate="no">${esc(d.retailer)}</span><span class="gwh2-deal-end">${esc(tx("dealUntil", { date: longDate(d.end) }))}</span></span>
           <strong class="gwh2-deal-offer">${esc(offer)}</strong>
           <span class="gwh2-deal-meta">${esc(d.kind === "code" ? tx("dealWithCode") : tx("dealSale"))}${campaignLabel(d) ? ` · ${esc(campaignLabel(d))}` : ""}</span>
           <span class="gwh2-deal-worlds">${esc(worlds)}</span>

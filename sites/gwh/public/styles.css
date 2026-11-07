@@ -582,8 +582,6 @@ footer {
 
 .hero h1{font-size:clamp(44px,6vw,72px) !important;line-height:1 !important;}
 
-.gwh-business-link{animation:none !important;box-shadow:0 8px 22px rgba(255,183,0,.18) !important;}
-
 @media(max-width:620px){.hero h1{font-size:38px !important;line-height:1.02 !important;letter-spacing:-.04em !important;}}
 
 @media(max-width:620px){.hero-panel{display:none !important;}}
@@ -601,10 +599,10 @@ footer {
 @media(max-width:620px){.world-card:nth-child(2) .world-link::after{content:"Visit Men\27s \2192" !important;}}
 @media(max-width:620px){.world-card:nth-child(3) .world-link::after{content:"Visit Women\27s \2192" !important;}}
 @media(max-width:620px){.world-card{padding:22px !important;}.world-card h3{margin:22px 0 10px !important;}}
-@media(max-width:620px){html,body{max-width:100%;overflow-x:hidden;}.hero,.hero-content,.hero-copy{width:100%;max-width:100%;min-width:0;}.hero .container{width:calc(100% - 28px)!important;max-width:none!important;}.hub-search,.gwh-business-banner{width:100%!important;max-width:100%!important;}.gwh-quick-worlds{width:100%!important;}}
+@media(max-width:620px){html,body{max-width:100%;overflow-x:hidden;}.hero,.hero-content,.hero-copy{width:100%;max-width:100%;min-width:0;}.hero .container{width:calc(100% - 28px)!important;max-width:none!important;}.hub-search{width:100%!important;max-width:100%!important;}.gwh-quick-worlds{width:100%!important;}}
 @media(max-width:620px){.gwh-quick-worlds{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:8px!important;width:100%!important;overflow:visible!important;padding:0!important;}.gwh-quick-world{flex:initial!important;min-width:0!important;padding:10px 8px!important;gap:7px!important;}.gwh-quick-code{width:30px!important;height:30px!important;font-size:9px!important;}.gwh-quick-world strong{font-size:11px!important;}.gwh-quick-world small{display:none!important;}}
 
-/* SHOP BY INTEREST */
+/* BROWSE BY INTEREST */
 
 .interests-section{
   padding:60px 0 70px;
@@ -667,7 +665,7 @@ footer {
 
 @media(max-width:620px){.interest-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:10px!important;}.interest-card{padding:15px!important;min-height:88px;}.interest-card strong{font-size:16px!important;}.interest-card span{font-size:11px!important;line-height:1.3;}}
 
-/* SHOP BY INTEREST - 2 COLUMNS */
+/* BROWSE BY INTEREST - 2 COLUMNS */
 .interest-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important;}
 
 
@@ -1041,10 +1039,6 @@ body[data-gwh-compact-v2="true"] .gwh-image-world:hover{
   line-height:1.45;
 }
 
-body[data-gwh-compact-v2="true"] .gwh-business-banner{
-  margin:26px auto 32px !important;
-}
-
 /* These duplicated discovery/explanation blocks are no longer
    part of the primary customer journey. Keep DOM for compatibility. */
 body[data-gwh-compact-v2="true"] .interests-section,
@@ -1226,7 +1220,7 @@ body[data-gwh-compact-v2="true"] .gwh-image-world{
     font-size:12px !important;
   }
 
-  /* Bring shopping decision higher */
+  /* Bring the search higher */
   body[data-gwh-compact-v2="true"] .hero{
     padding-top:20px !important;
   }

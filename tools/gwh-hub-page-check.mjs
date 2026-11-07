@@ -179,6 +179,12 @@ try {
       check(words.about.length > 0 && words.about === ABOUT_TITLE[LOCALES.indexOf(locale)], `${tag}: "The idea" is product search and price comparison`, words.about);
       check(words.cta.length === 13 && !words.cta.some(t => /^(Shop|Einkaufen)\b/i.test(t)), `${tag}: the world cards say "Explore", not "Shop"`, words.cta[0] || '');
       check(!/shopping ecosystem|specialist shopping|specialist shops|shopping sites|Shop sport|our retailers|Christmas offers|Halloween offers/i.test(words.body), `${tag}: no shop or "offers" wording on the page`);
+      // Lessons L103: no partner, sponsor or basket words in any language (the Greek "partner shops", the French
+      // "paniers" and "Baskets" are gone), and the retailer of every deal stays untranslated.
+      const l103 = words.body.match(/\bpartners?\b|sponsor|συνεργαζόμεν|\bpaniers?\b|\bBaskets\b|shopping|Boxing Day and January sales/i);
+      check(!l103, `${tag}: no partner, sponsor or basket words on the page (L103)`, l103 ? l103[0] : '');
+      const dealNames = await page.$$eval('.gwh2-deal-retailer', els => els.map(e => e.getAttribute('translate')));
+      check(dealNames.length >= 1 && dealNames.every(t => t === 'no') && !(await page.$('.gwh2-deal-shop')), `${tag}: the retailer of every deal is translate="no" (L103)`, dealNames.join(','));
 
       if (full) {
         // gift finder: Her, up to £25, perfume -> only WGW, max_price=25
@@ -328,6 +334,40 @@ try {
         }
       }
       await page.locator('#gwh2Campaigns').screenshot({ path: join(shotsDir, `hero-${want}-${vp.name}${opts.reducedMotion ? '-still' : ''}.png`) });
+    }
+    check(errors.length === 0, `${tag}: no JavaScript errors`, errors.join(' | ').slice(0, 300));
+    await context.close();
+  }
+  // Lessons L103: a deals slide (the winter slide, the Black Friday video) speaks of the retailers' codes only while one
+  // runs (hub-deals.json); without one it shows the sign-up text and button.
+  for (const [day, emptyList, want] of [['2026-12-28', false, 'deals'], ['2026-12-28', true, 'signup'], ['2027-01-05', false, 'signup'], ['2026-11-28', false, 'deals'], ['2026-11-28', true, 'signup']]) {
+    const tag = `deals slide ${day}${emptyList ? ' (no deals in the list)' : ''}`;
+    const context = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+    await context.addInitScript(() => { try { localStorage.setItem('gwh-language', 'en-GB'); localStorage.setItem('gwh_cookie_consent', 'denied'); } catch (_) { /* ignore */ } });
+    const page = await context.newPage();
+    const errors = [];
+    page.on('pageerror', e => errors.push(String(e.message || e)));
+    await page.clock.setFixedTime(new Date(`${day}T12:00:00Z`));
+    await page.route('**/*', route => {
+      const url = new URL(route.request().url());
+      if (url.origin !== base) return route.abort();
+      if (emptyList && url.pathname === '/hub-deals.json') return route.fulfill({ status: 200, contentType: 'application/json', body: '{"deals":[]}' });
+      return route.continue();
+    });
+    await page.goto(base + '/', { waitUntil: 'load' });
+    await page.waitForTimeout(600);
+    const v = await page.evaluate(() => {
+      const slide = document.querySelector('#gwh2Campaigns .gwh2-slide');
+      const btn = slide && slide.querySelector('.gwh2-btn');
+      return { id: slide ? slide.getAttribute('data-campaign') : '', text: ((slide && slide.querySelector('.gwh2-slide-text')) || {}).textContent || '',
+        cta: btn ? btn.textContent.trim() : '', jump: btn ? btn.getAttribute('data-gwh2-jump') || '' : '' };
+    });
+    if (day === '2026-11-28') {
+      check(v.id === 'season-black-friday' && v.cta === text(want === 'deals' ? 'bfCta' : 'soonCta', 'en-GB'), `${tag}: the Black Friday video button says "${text(want === 'deals' ? 'bfCta' : 'soonCta', 'en-GB')}"`, JSON.stringify(v));
+    } else {
+      const wantText = text(want === 'deals' ? 'bfText' : 'soonText', 'en-GB');
+      const wantCta = text(want === 'deals' ? 'bfCta' : 'soonCta', 'en-GB');
+      check(v.id === 'winter-sales' && v.text === wantText && v.cta === wantCta && v.jump === (want === 'deals' ? '#deals' : '#newsletter'), `${tag}: the winter slide says "${wantText}" with "${wantCta}"`, JSON.stringify(v));
     }
     check(errors.length === 0, `${tag}: no JavaScript errors`, errors.join(' | ').slice(0, 300));
     await context.close();

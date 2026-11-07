@@ -305,7 +305,7 @@ test('privacy page: explains the photo search and the date is updated', () => {
   assert.match(html, /<strong>Photo search\.<\/strong>/);
   assert.match(html, /We do not store the photo/);
   assert.match(html, /deleted after 2 days/);
-  // The date moved on with Gear World email step 5 (2 November 2026) and Google Ads (3 November 2026, lessons L93);
-  // the photo search text is unchanged.
-  assert.match(html, /Last updated: (24 October|2 November|3 November) 2026/);
+  // The date moved on with Gear World email step 5 (2 November 2026), Google Ads (3 November 2026, lessons L93) and
+  // the clean-up after the Google Ads review (7 November 2026, lessons L103); the photo search text is unchanged.
+  assert.match(html, /Last updated: (24 October|2 November|3 November|7 November) 2026/);
 });

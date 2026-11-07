@@ -112,3 +112,10 @@ test('guides: the price check reads THIS product from the page when the structur
   assert.deepEqual(readProductPage(html), { price: 15.4, inStock: true, was: 22 });
   assert.equal(readProductPage(html.replace('<dd class="ok">In stock</dd>', '<dd class="warn">Out of stock</dd>')).inStock, false);
 });
+
+test('guides: the price check still reads a product page where "Stock at <retailer>" keeps the name untranslated (L103)', () => {
+  const html = `<script type="application/ld+json">{"@context":"https://schema.org","@type":"Product","name":"X","offers":{"@type":"AggregateOffer","priceCurrency":"GBP","lowPrice":"12.00","highPrice":"19.99","offerCount":3}}</script>
+    <p class="shelf-price"><span class="price" data-price="15.40" data-currency="GBP">£15.40</span></p>
+    <div><dt><span data-i18n="Stock at {0}" data-i18n-0="Shop" data-i18n-keep="0">Stock at <span translate="no">Shop</span></span></dt><dd class="warn">Out of stock</dd></div>`;
+  assert.deepEqual(readProductPage(html), { price: 15.4, inStock: false, was: null });
+});
