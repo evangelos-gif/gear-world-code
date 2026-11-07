@@ -1,0 +1,32 @@
+// gear-world-prices - Wrangler config TEMPLATE. The private Worker that logs the prices of the 13 Gear World sites once
+// a day (lessons L100). No public address: no routes, workers.dev and preview addresses off. It only runs on its cron,
+// every 15 minutes, one site per run (UTC). It READS the 13 site databases (one SELECT at a time, readOnly() in
+// price-log.js) and WRITES only to its own database gear-world-prices. The real file (wrangler.jsonc) is made on the PC
+// by tools/prices-setup.ps1 (with tools/prices-config.mjs) and is never committed, because it holds the database IDs.
+{
+  "name": "gear-world-prices",
+  "main": "worker.js",
+  "compatibility_date": "2026-10-01",
+  "workers_dev": false,
+  "preview_urls": false,
+  "triggers": { "crons": ["*/15 * * * *"] },
+  "limits": { "cpu_ms": 60000 },
+  "vars": { "DAILY_WRITE_CAP": "1000000" },
+  "d1_databases": [
+    { "binding": "PRICES_DB", "database_name": "gear-world-prices", "database_id": "REPLACE_WITH_DATABASE_ID", "migrations_dir": "migrations" },
+    { "binding": "DB_CGW", "database_name": "construction-gear-customers", "database_id": "REPLACE_WITH_DATABASE_ID" },
+    { "binding": "DB_MGW", "database_name": "mens-gear-world", "database_id": "REPLACE_WITH_DATABASE_ID" },
+    { "binding": "DB_WGW", "database_name": "womens-gear-world", "database_id": "REPLACE_WITH_DATABASE_ID" },
+    { "binding": "DB_KGW", "database_name": "kids-gear-world", "database_id": "REPLACE_WITH_DATABASE_ID" },
+    { "binding": "DB_HGW", "database_name": "home-gear-world", "database_id": "REPLACE_WITH_DATABASE_ID" },
+    { "binding": "DB_GGW", "database_name": "garden-gear-world", "database_id": "REPLACE_WITH_DATABASE_ID" },
+    { "binding": "DB_TGW", "database_name": "technology-gear-world", "database_id": "REPLACE_WITH_DATABASE_ID" },
+    { "binding": "DB_AGW", "database_name": "car-gear-world", "database_id": "REPLACE_WITH_DATABASE_ID" },
+    { "binding": "DB_VGW", "database_name": "travel-gear-world", "database_id": "REPLACE_WITH_DATABASE_ID" },
+    { "binding": "DB_SGW", "database_name": "sporty-gear-world", "database_id": "REPLACE_WITH_DATABASE_ID" },
+    { "binding": "DB_BGW", "database_name": "biker-gear-world", "database_id": "REPLACE_WITH_DATABASE_ID" },
+    { "binding": "DB_PGW", "database_name": "gaming-gear-world", "database_id": "REPLACE_WITH_DATABASE_ID" },
+    { "binding": "DB_ZGW", "database_name": "pets-gear-world", "database_id": "REPLACE_WITH_DATABASE_ID" }
+  ],
+  "observability": { "enabled": true }
+}

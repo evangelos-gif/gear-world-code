@@ -4702,6 +4702,174 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
     }
 }
 
+# 21. prices-setup.ps1 (the daily price log, lessons L100) with a fake wrangler (Windows only: runs .cmd files)
+if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
+    Write-Host 'prices-setup.ps1 (fake wrangler)'
+    $pTool = Join-Path (Join-Path $repo 'tools') 'prices-setup.ps1'
+    $pHome = Join-Path $work 'prc-home'
+    $pState = Join-Path $work 'prc-state'
+    $pBin = Join-Path $work 'prc-bin'
+    $pOut = Join-Path $pHome 'gear-world-reports'
+    $pWork = Join-Path $pHome 'gear-world-prices'
+    New-Item -ItemType Directory -Path $pState, $pBin -Force | Out-Null
+    $pNames = @('construction-gear-customers', 'mens-gear-world', 'womens-gear-world', 'kids-gear-world', 'home-gear-world', 'garden-gear-world', 'technology-gear-world', 'car-gear-world', 'travel-gear-world', 'sporty-gear-world', 'biker-gear-world', 'gaming-gear-world', 'pets-gear-world')
+    $pIds = @{}
+    foreach ($n in $pNames) { $pIds[$n] = [guid]::NewGuid().ToString() }
+    $pDb = [guid]::NewGuid().ToString()
+    $pVer = [guid]::NewGuid().ToString()
+    $pVer2 = [guid]::NewGuid().ToString()
+    $pAllIds = @($pIds.Values) + @($pDb, $pVer, $pVer2)
+    $pJson = (($pNames | ForEach-Object { '{"uuid":"' + $pIds[$_] + '","name":"' + $_ + '"}' }) -join ',')
+    $pJson12 = (($pNames | Where-Object { $_ -ne 'pets-gear-world' } | ForEach-Object { '{"uuid":"' + $pIds[$_] + '","name":"' + $_ + '"}' }) -join ',')
+    $pToday = [DateTime]::UtcNow.ToString('yyyy-MM-dd')
+    $pNpx = @(
+        '@echo off',
+        'echo %* >> "%GW_FAKE_STATE%\calls.log"',
+        'echo %* | findstr /L /C:"whoami" >nul && goto whoami',
+        'echo %* | findstr /L /C:"sqlite_master" >nul && goto tables',
+        'echo %* | findstr /L /C:"price_runs" >nul && goto runs',
+        'echo %* | findstr /L /C:"migrations apply" >nul && goto migrate',
+        'echo %* | findstr /L /C:"d1 create" >nul && goto create',
+        'echo %* | findstr /L /C:"d1 list" >nul && goto list',
+        'echo %* | findstr /L /C:"deployments list" >nul && goto deployments',
+        'echo %* | findstr /L /C:" deploy " >nul && goto deploy',
+        'echo unknown command 1>&2',
+        'exit /b 1',
+        ':whoami',
+        'echo You are logged in with an OAuth Token, associated with the email test@example.com.',
+        'exit /b 0',
+        ':list',
+        'if exist "%GW_FAKE_STATE%\nosite.flag" goto listnosite',
+        ('if exist "%GW_FAKE_STATE%\db.flag" echo [' + $pJson + ',{"uuid":"' + $pDb + '","name":"gear-world-prices"}]'),
+        ('if not exist "%GW_FAKE_STATE%\db.flag" echo [' + $pJson + ']'),
+        'exit /b 0',
+        ':listnosite',
+        ('echo [' + $pJson12 + ']'),
+        'exit /b 0',
+        ':create',
+        'echo created> "%GW_FAKE_STATE%\db.flag"',
+        'echo Created your new D1 database.',
+        'exit /b 0',
+        ':migrate',
+        'echo made> "%GW_FAKE_STATE%\tables.flag"',
+        'echo Migrations applied.',
+        'exit /b 0',
+        ':tables',
+        'if exist "%GW_FAKE_STATE%\tables.flag" echo [{"results":[{"name":"price_last"},{"name":"price_log"},{"name":"price_runs"}],"success":true}]',
+        'if not exist "%GW_FAKE_STATE%\tables.flag" echo [{"results":[],"success":true}]',
+        'exit /b 0',
+        ':runs',
+        ('echo [{"results":[{"day":"' + $pToday + '","site":"cgw","status":"ok","products":3,"changed":1,"added":0,"gone":0,"writes":2,"ms":1500,"attempts":1,"error":null},{"day":"' + $pToday + '","site":"mgw","status":"error","products":0,"changed":0,"added":0,"gone":0,"writes":0,"ms":200,"attempts":2,"error":"D1_ERROR: overloaded"}],"success":true}]'),
+        'exit /b 0',
+        ':deployments',
+        'if not exist "%GW_FAKE_STATE%\worker.flag" goto noworker',
+        ('if exist "%GW_FAKE_STATE%\verB.flag" echo Version(s):  (100%%) ' + $pVer2),
+        ('if not exist "%GW_FAKE_STATE%\verB.flag" echo Version(s):  (100%%) ' + $pVer),
+        'exit /b 0',
+        ':noworker',
+        'echo X [ERROR] This Worker does not exist on your account. [code: 10007]',
+        'exit /b 1',
+        ':toggle',
+        'if exist "%GW_FAKE_STATE%\verB.flag" (del "%GW_FAKE_STATE%\verB.flag") else (echo b> "%GW_FAKE_STATE%\verB.flag")',
+        'exit /b 0',
+        ':deploy',
+        'if exist "%GW_FAKE_STATE%\deployfail.flag" goto deployfail',
+        'echo up> "%GW_FAKE_STATE%\worker.flag"',
+        'call :toggle',
+        'echo Uploaded gear-world-prices',
+        'findstr /L /C:"*/15 * * * *" %5 >nul && echo   schedule: */15 * * * *',
+        'exit /b 0',
+        ':deployfail',
+        'echo X [ERROR] A request to the Cloudflare API failed. Something else. [code: 10021]',
+        'exit /b 1'
+    ) -join "`r`n"
+    [System.IO.File]::WriteAllText((Join-Path $pBin 'npx.cmd'), $pNpx + "`r`n", [System.Text.Encoding]::ASCII)
+    $oldPath = $env:PATH
+    $env:PATH = $pBin + ';' + $oldPath
+    $env:GW_FAKE_STATE = $pState
+    $pCalls = Join-Path $pState 'calls.log'
+    function Run-P([string[]]$a) {
+        $all = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $pTool, '-PcHome', $pHome, '-SkipInstall', '-NoClipboard') + $a
+        & $exe @all | Out-Null
+        return $LASTEXITCODE
+    }
+    function PText([string]$p) { if (Test-Path -LiteralPath $p) { return [System.IO.File]::ReadAllText($p) } else { return '' } }
+    function PCount([string]$pattern) { return ([regex]::Matches((PText $pCalls), $pattern)).Count }
+    function PLast([string]$filter) {
+        $f = @(Get-ChildItem -LiteralPath $pOut -Filter $filter -ErrorAction SilentlyContinue | Sort-Object LastWriteTime, Name | Select-Object -Last 1)
+        if ($f.Count -eq 0) { return '' }
+        return [System.IO.File]::ReadAllText($f[0].FullName)
+    }
+    function PNoIds([string]$t) { foreach ($i in $pAllIds) { if ($t.Contains($i)) { return $false } }; return $true }
+    function PFlag([string]$n, [bool]$on) { $f = Join-Path $pState ($n + '.flag'); if ($on) { Write-Utf8 $f 'x' } else { Remove-Item -LiteralPath $f -Force -ErrorAction SilentlyContinue } }
+    $pChanges = 'd1 create| deploy |migrations apply'
+    try {
+        # check: reads only
+        Check ((Run-P @('-Step', 'check')) -eq 0) 'prices check: exit 0'
+        $r = PLast 'PRICES_SETUP_CHECK_*.txt'
+        Check ($r.Contains('Αποτέλεσμα: ΕΝΤΑΞΕΙ') -and $r.Contains('Οι 13 βάσεις των sites') -and $r.Contains('δεν υπάρχει ακόμα') -and $r.Contains('[ΕΓΚΡΙΝΩ PRICES D1]') -and $r.Contains('[ΕΓΚΡΙΝΩ PRICES WORKER]')) 'prices check: ready, both phrases in the plan'
+        Check ((PCount $pChanges) -eq 0 -and (PNoIds $r)) 'prices check: nothing made or deployed, no id in the report'
+        # nothing changes without -Apply, with the wrong phrase, or with a site database missing
+        Check ((Run-P @('-Step', 'apply')) -eq 0 -and (PCount $pChanges) -eq 0) 'prices apply without -Apply: nothing changes'
+        Check ((Run-P @('-Step', 'apply', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ PRICES WORKER', '-ApproveWorker', 'ΕΓΚΡΙΝΩ PRICES WORKER')) -eq 1 -and (PCount $pChanges) -eq 0) 'prices apply with the wrong D1 phrase: nothing changes'
+        Check (-not (Test-Path -LiteralPath (Join-Path $pWork 'backups'))) 'prices apply with the wrong phrase: no backup folder either'
+        PFlag 'nosite' $true
+        Check ((Run-P @('-Step', 'apply', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ PRICES D1', '-ApproveWorker', 'ΕΓΚΡΙΝΩ PRICES WORKER')) -eq 8 -and (PCount $pChanges) -eq 0) 'prices apply: a missing site database stops before any change (exit 8)'
+        Check ((PLast 'PRICES_SETUP_APPLY_*.txt').Contains('pets-gear-world')) 'prices apply: the missing site database is named'
+        PFlag 'nosite' $false
+        # the D1 phrase only: the database and its tables, no Worker
+        Check ((Run-P @('-Step', 'apply', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ PRICES D1', '-ApproveWorker', 'ΕΓΚΡΙΝΩ PRICES STOP')) -eq 1) 'prices apply with the D1 phrase only: exit 1'
+        Check ((PCount 'd1 create gear-world-prices') -eq 1 -and (PCount 'migrations apply gear-world-prices --remote') -eq 1 -and (PCount ' deploy ') -eq 0) 'prices apply with the D1 phrase only: the database and its tables, no deploy'
+        $cfgText = PText (Join-Path $pWork 'wrangler.jsonc')
+        Check ($cfgText.Contains($pDb) -and @($pIds.Values | Where-Object { -not $cfgText.Contains($_) }).Count -eq 0 -and $cfgText.Contains('*/15 * * * *')) 'prices apply: the config on the PC has the price database and the 13 site database ids, and the cron'
+        Check (@(Get-ChildItem -LiteralPath $pWork -Filter 'ids-*.json' -ErrorAction SilentlyContinue).Count -eq 0) 'prices apply: the temporary id file is gone'
+        $r = PLast 'PRICES_SETUP_APPLY_*.txt'
+        Check ($r.Contains('ο Worker ΔΕΝ ανέβηκε') -or $r.Contains('Ο Worker ΔΕΝ ανέβηκε')) 'prices apply with the D1 phrase only: the report says the Worker did not go up'
+        Check ((PNoIds $r)) 'prices apply: no id in the report'
+        $bk = @(Get-ChildItem -LiteralPath (Join-Path $pWork 'backups') -Directory -Filter 'before-prices-*' | Sort-Object Name | Select-Object -Last 1)
+        Check ($bk.Count -eq 1 -and (PText (Join-Path $bk[0].FullName 'rollback.txt')).Contains('did not exist') -and (PText (Join-Path $bk[0].FullName 'databases-before.txt')).Contains('pets-gear-world') -and (PNoIds (PText (Join-Path $bk[0].FullName 'databases-before.txt')))) 'prices apply: a rollback note and the list of databases (names only) first'
+        # a failing deploy: exit 9, the database is not made again
+        PFlag 'deployfail' $true
+        Check ((Run-P @('-Step', 'apply', '-Apply', '-ApproveWorker', 'ΕΓΚΡΙΝΩ PRICES WORKER')) -eq 9 -and (PCount 'd1 create') -eq 1 -and (PCount 'migrations apply') -eq 1 -and (PCount ' deploy ') -eq 1) 'prices apply: a failing deploy stops (exit 9); the database is not made again'
+        PFlag 'deployfail' $false
+        # the Worker phrase: deploy, live version, cron
+        Check ((Run-P @('-Step', 'apply', '-Apply', '-ApproveWorker', 'egkrino prices worker')) -eq 0 -and (PCount ' deploy ') -eq 2) 'prices apply with the Worker phrase: exit 0, one more deploy'
+        $r = PLast 'PRICES_SETUP_APPLY_*.txt'
+        Check ($r.Contains('ΕΤΟΙΜΟ') -and $r.Contains('νέα ζωντανή έκδοση: ΕΝΤΑΞΕΙ') -and $r.Contains('κάθε 15 λεπτά (*/15 * * * *): ΕΝΤΑΞΕΙ') -and (PNoIds $r)) 'prices apply: ready, new live version, the cron, no ids'
+        # from nothing, both phrases in one run: the database, its tables, then the Worker
+        foreach ($f in @('db', 'tables', 'worker', 'verB')) { PFlag $f $false }
+        Remove-Item -LiteralPath $pCalls -Force
+        Check ((Run-P @('-Step', 'apply', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ PRICES D1', '-ApproveWorker', 'ΕΓΚΡΙΝΩ PRICES WORKER')) -eq 0) 'prices apply with both phrases: exit 0'
+        $c = PText $pCalls
+        Check ($c.IndexOf('d1 create gear-world-prices') -ge 0 -and $c.IndexOf('d1 create gear-world-prices') -lt $c.IndexOf('migrations apply gear-world-prices') -and $c.IndexOf('migrations apply gear-world-prices') -lt $c.IndexOf(' deploy --config')) 'prices apply: the database, then its tables, then the Worker'
+        # again: the database is there, only the Worker goes up; the note has its live version
+        Check ((Run-P @('-Step', 'apply', '-Apply', '-ApproveWorker', 'ΕΓΚΡΙΝΩ PRICES WORKER')) -eq 0 -and (PCount 'd1 create') -eq 1 -and (PCount 'migrations apply') -eq 1 -and (PCount ' deploy ') -eq 2) 'prices apply again: only the Worker, no database step'
+        $bk = @(Get-ChildItem -LiteralPath (Join-Path $pWork 'backups') -Directory -Filter 'before-prices-2*' | Sort-Object Name | Select-Object -Last 1)
+        Check ($bk.Count -eq 1 -and (PText (Join-Path $bk[0].FullName 'rollback.txt')) -match ('rollback (' + $pVer + '|' + $pVer2 + ') --name gear-world-prices')) 'prices apply again: the rollback note has the live version from before'
+        # status: reads only
+        Check ((Run-P @('-Step', 'status')) -eq 0) 'prices status: exit 0'
+        $r = PLast 'PRICES_SETUP_STATUS_*.txt'
+        Check ($r.Contains('CGW: ok') -and $r.Contains('MGW: error') -and $r.Contains('λάθος: D1_ERROR: overloaded') -and $r.Contains('Μόνο ανάγνωση') -and (PNoIds $r)) 'prices status: the runs of today, site by site, with the error'
+        # stop: the Worker without its cron, the data stay
+        $before = PCount ' deploy '
+        Check ((Run-P @('-Step', 'stop')) -eq 0 -and (PCount ' deploy ') -eq $before) 'prices stop without -Apply: nothing changes'
+        Check ((Run-P @('-Step', 'stop', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ PRICES WORKER')) -eq 1 -and (PCount ' deploy ') -eq $before) 'prices stop with the wrong phrase: nothing changes'
+        Check ((Run-P @('-Step', 'stop', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ PRICES STOP')) -eq 0 -and (PCount ' deploy ') -eq ($before + 1)) 'prices stop with approval: one deploy'
+        $cfgText = PText (Join-Path $pWork 'wrangler.jsonc')
+        Check ($cfgText -match '"crons":\s*\[\]' -and -not $cfgText.Contains('*/15') -and $cfgText.Contains($pDb)) 'prices stop: the config has no cron, the same databases'
+        Check ((PLast 'PRICES_SETUP_STOP_*.txt').Contains('χωρίς ρολόι')) 'prices stop: the report says it no longer logs'
+        # never anything but SELECT on a database, never a delete or a rollback
+        $exec = @((PText $pCalls) -split "`r?`n" | Where-Object { $_ -match 'd1 execute' })
+        Check ($exec.Count -ge 3 -and @($exec | Where-Object { $_ -notmatch '--command "SELECT ' }).Count -eq 0) 'prices: every database query is a SELECT'
+        Check (-not ((PText $pCalls) -match '(?i)\bdelete\b|\brollback\b|INSERT|UPDATE |DROP ')) 'prices: no delete, rollback or write command'
+        $allReports = (@(Get-ChildItem -LiteralPath $pOut -Filter 'PRICES_SETUP_*.txt') | ForEach-Object { PText $_.FullName }) -join "`n"
+        Check (PNoIds $allReports) 'prices: no database or version id in any report'
+    } finally {
+        $env:PATH = $oldPath
+        Remove-Item Env:\GW_FAKE_STATE -ErrorAction SilentlyContinue
+    }
+}
+
 Remove-Item -LiteralPath $work -Recurse -Force -ErrorAction SilentlyContinue
 
 Write-Host ''

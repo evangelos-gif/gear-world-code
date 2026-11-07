@@ -422,6 +422,27 @@ jobs:
             dev.log
           if-no-files-found: ignore
 
+  prices-worker:
+    name: Price log Worker on local D1 (lessons L100)
+    runs-on: ubuntu-24.04
+    env:
+      WRANGLER_SEND_METRICS: 'false'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci --no-audit --no-fund
+      - name: The 13 site databases with synthetic products, the cron runs, the site databases stay the same
+        run: node tools/prices-local-check.mjs --out prices-local-report.txt
+      - name: Keep the report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: prices-local-report
+          path: prices-local-report.txt
+          if-no-files-found: ignore
+
   gwh-hub:
     name: GWH (Hub) photo search on phone and desktop
     runs-on: ubuntu-24.04
