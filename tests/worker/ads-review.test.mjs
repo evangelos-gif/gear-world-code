@@ -135,7 +135,8 @@ test('the Hub: /about/, "About" in the menu opens it, the footer line on every p
   const pub = 'sites/gwh/public';
   const index = readFileSync(`${pub}/index.html`, 'utf8');
   assert.match(index, /<a href="\/about\/">About<\/a>/);
-  assert.ok(!/gwh-business-banner|Sponsored Partner|worldbusinessesforsale|Plans from £395|Sell Your Business &rarr;/.test(index));
+  // Not even in a comment: a check that reads the page source (Google, the Manager's GET) must not find them.
+  assert.ok(!/gwh-business-banner|Sponsored Partner|worldbusinessesforsale|Plans from £395|Sell Your Business|sponsored card/i.test(index));
   const tjs = readFileSync(`${pub}/translations.js`, 'utf8');
   assert.ok(!/sponsoredDesc|sellBusiness|sponsoredPartner|sellingBusiness|sponsoredAria/.test(tjs));
   const rights = JSON.parse(tjs.match(/footerRights: (\[[^\n]*\]),/)[1]);
