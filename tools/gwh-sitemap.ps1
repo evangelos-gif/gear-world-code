@@ -313,8 +313,9 @@ $bdir = Join-Path $WorkDir 'backups'
 if (-not (Test-Path -LiteralPath $bdir)) { New-Item -ItemType Directory -Path $bdir -Force | Out-Null }
 Copy-Item -LiteralPath (Join-Path $folder 'before-worker.js') -Destination (Join-Path $bdir ('gwh-sitemap-before-' + $stamp + '.js')) -Force
 if (-not $NoHttpCheck) {
-    $oldBody = Get-Web ($LiveUrl + '?gwbackup=' + $stamp)
+    $oldBody = Get-Web $LiveUrl
     if ($oldBody.status -eq 200) { [System.IO.File]::WriteAllBytes((Join-Path $bdir ('sitemap-before-' + $stamp + '.xml')), $oldBody.bytes) }
+    else { Say ('Αντίγραφο του live sitemap: δεν διαβάστηκε (κωδικός {0})· κρατήθηκαν το before-worker.js και το σημείωμα επαναφοράς.' -f $oldBody.status) 'Yellow' }
 }
 $note = @(
     ('Gear World Hub sitemap before /about/ and the gift guides went in ({0}), {1}' -f (Split-Path -Leaf $repo), (Get-Date -Format 'yyyy-MM-dd HH:mm')),
