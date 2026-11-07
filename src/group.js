@@ -140,7 +140,7 @@ function shell(site, { title, description, path, body }) {
 <meta name="description" content="${description}">
 <link rel="canonical" href="https://${site.domain}${path}">
 <meta property="og:title" content="${site.name}">
-<meta property="og:description" content="Independent price comparison sites for UK shoppers.">
+<meta property="og:description" content="Independent product search and price-comparison sites. Each product shows the retailer that sells it and where that retailer delivers.">
 <meta property="og:url" content="https://${site.domain}${path}">
 <link rel="icon" href="${asset(site, 'favicon.svg')}" type="image/svg+xml">
 <link rel="stylesheet" href="${asset(site, 'group.css')}">
@@ -186,7 +186,8 @@ export function groupPage(site, stats) {
   const body = html`
 <section class="hero"><div class="wrap">
   <p class="eyebrow">For retailers and affiliate networks</p>
-  <h1>Independent price comparison sites for UK shoppers</h1>
+  <h1>Independent product search and price-comparison sites</h1>
+  <p class="lede">Each product shows the retailer that sells it and where that retailer delivers.</p>
   <p class="lede">${site.name} runs ${site.sites.length} themed price comparison sites and a shared search hub. We list retailers' products from their affiliate product feeds, so shoppers can compare prices in one place and then buy direct from the retailer.</p>
   <ul class="facts">${facts.map(f => html`<li>${f}</li>`)}</ul>
 </div></section>
