@@ -110,7 +110,7 @@ test('TGW product page: "Sold by <retailer> (not by Gear World)", "<retailer> de
   assert.ok(path && product.length);
   const { out } = await tgwPages(() => [path]);
   const html = out[path].html;
-  assert.match(html, /<dt>Sold by<\/dt><dd><span translate="no">([^<]+)<\/span>[\s\S]*? <span class="not-us">\(not by Gear World\)<\/span><\/dd>/);
+  assert.match(html, /<dt>Sold by<\/dt><dd><span translate="no">([^<]+)(?:<img [^>]+>)?<\/span> <span class="not-us">\(not by Gear World\)<\/span><\/dd>/);
   const retailer = html.match(/<dt>Sold by<\/dt><dd><span translate="no">([^<]+)<\/span>/)[1];
   assert.ok(html.includes(`<dt><span data-i18n="Stock at {0}" data-i18n-0="${retailer}">Stock at ${retailer}</span></dt>`));
   if (s.deliversTo) assert.ok(html.includes(`<dt><span data-i18n="{0} delivers to" data-i18n-0="${retailer}">${retailer} delivers to</span></dt>`));

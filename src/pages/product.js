@@ -80,7 +80,7 @@ export function productPage(site, product, category, similar, offers = []) {
         <p class="shelf-price">${priceTag(site, product.price, product.currency)}${was ? html`<s class="was">${was}</s>` : ''}</p>
         ${pct ? html`<p class="tag-save">${tr('Save {0}% on the previous price', pct)}</p>` : ''}
         <dl class="shelf-facts">
-          <div><dt>Sold by</dt><dd><span translate="no">${product.retailer}</span>${retailerFlag(site, product.retailer)} <span class="not-us">(not by Gear World)</span></dd></div>
+          <div><dt>Sold by</dt><dd><span translate="no">${product.retailer}${retailerFlag(site, product.retailer)}</span> <span class="not-us">(not by Gear World)</span></dd></div>
           ${delivers ? html`<div><dt>${tr('{0} delivers to', product.retailer)}</dt><dd class="ship-dd">${delivers}</dd></div>` : ''}
           <div><dt>${tr('Stock at {0}', product.retailer)}</dt><dd class="${inStock ? 'ok' : 'warn'}">${inStock ? 'In stock' : 'Out of stock'}</dd></div>
           ${product.item_condition === 'refurbished' ? html`<div><dt>Condition</dt><dd>Refurbished</dd></div>` : ''}

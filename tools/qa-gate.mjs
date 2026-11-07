@@ -149,7 +149,7 @@ for (const p of productPaths) {
     check('L62', /<dt><span data-i18n="\{0\} delivers to"[^>]*>[^<]+ delivers to<\/span><\/dt><dd class="ship-dd">[\s\S]*?(data-country="[A-Z]{2}"|>Worldwide<)/.test(r.body), `${p}: says where the retailer delivers ("<retailer> delivers to")`);
   }
   // Google Ads review (lessons L101): the page says who sells the product, and that it is not Gear World.
-  check('L101', /<dt>Sold by<\/dt><dd><span translate="no">[^<]+<\/span>[\s\S]*?<span class="not-us">\(not by Gear World\)<\/span><\/dd>/.test(r.body), `${p}: "Sold by <retailer> (not by Gear World)"`);
+  check('L101', /<dt>Sold by<\/dt><dd><span translate="no">[^<]+(?:<img [^>]+>)?<\/span> <span class="not-us">\(not by Gear World\)<\/span><\/dd>/.test(r.body), `${p}: "Sold by <retailer> (not by Gear World)"`);
   check('L101', /<dt><span data-i18n="Stock at \{0\}"[^>]*>Stock at [^<]+<\/span><\/dt>/.test(r.body), `${p}: "Stock at <retailer>"`);
   check('L101', !/<dt>Retailer<\/dt>|<dt>Stock<\/dt>/.test(r.body), `${p}: no bare "Retailer" or "Stock" label`);
   const prod = jsonLd(r.body).find(x => x['@type'] === 'Product');
