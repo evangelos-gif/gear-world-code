@@ -16,6 +16,10 @@ function contactLink(site) {
 
 const UPDATED = '3 November 2026';
 
+// Who runs the network and how to reach them, the same on every site and on the Hub (Google Ads review, 7 Nov 2026,
+// lessons L101).
+export const NETWORK_EMAIL = 'contact@gearworldhub.com';
+
 const PAGES = {
   // About, money and contact pages are translated (lessons L24): whole sentences only, no link in the middle of
   // a sentence, so each language can order the words its own way. Legal pages (legal: true) stay in English.
@@ -23,9 +27,11 @@ const PAGES = {
     title: 'About us',
     description: `What ${site.name} is, where the prices come from and how the site is run.`,
     content: html`
+<p class="about-lead">Gear World is a product search and price-comparison network run by Evangelos Kalogerakis in England. We do not sell products, take payments or handle deliveries. Every product links to the retailer that sells it, and we may earn a commission through the Awin and CJ affiliate networks.</p>
+<p class="about-contact"><span>Contact:</span> <a href="mailto:${NETWORK_EMAIL}" translate="no">${NETWORK_EMAIL}</a></p>
 <p>${site.retailersFromEurope
   ? tr('{0} is an independent price comparison site. It lists products from retailers in the UK and Europe, so you can compare prices in one place and then buy from the retailer you choose.', site.name)
-  : tr('{0} is an independent price comparison site. It lists products from UK retailers, so you can compare prices in one place and then buy from the retailer you choose.', site.name)}</p>
+  : tr('{0} is an independent price comparison site. It lists products from many retailers, so you can compare prices in one place and then buy from the retailer you choose.', site.name)}</p>
 <h2>What you can compare</h2>
 <ul class="chip-list">${site.categories.map(c => html`<li><a href="${categoryPath(c.slug)}">${c.name}</a></li>`)}</ul>
 <h2>Where the prices come from</h2>
@@ -76,7 +82,7 @@ ${site.dealUpdates ? html`<li><strong>Deal updates.</strong> If you sign up with
 <li><strong>Abuse protection.</strong> To stop automated abuse of forms we keep a one-way scrambled (hashed) form of your IP address for up to one hour, and the form uses Cloudflare Turnstile (legitimate interests).</li>`}
 <li><strong>Hosting.</strong> The site is hosted by Cloudflare, which processes technical data such as IP addresses to deliver and protect the site.</li>
 ${site.voiceSearch ? html`<li><strong>Voice search.</strong> If you press the microphone button, your browser asks for permission and its own speech service turns what you say into text (for example Google in Chrome, Apple in Safari). Their privacy policies apply to that step. We receive only the text, as a normal search, and we do not record audio.</li>` : ''}
-${site.cart || (site.languages || []).length > 1 ? html`<li><strong>Choices kept on your device.</strong> Your browser remembers your language, currency, compare list${site.cart ? ` and ${site.cart.name}` : ''} in its local storage. This stays on your device and is not sent to us. You can clear it in your browser settings.</li>` : ''}
+${site.cart || (site.languages || []).length > 1 ? html`<li><strong>Choices kept on your device.</strong> Your browser remembers your language, currency, compare list${site.cart ? ' and saved list' : ''} in its local storage. This stays on your device and is not sent to us. You can clear it in your browser settings.</li>` : ''}
 </ul>
 <h2>Cookies and tracking</h2>
 ${site.googleAds === false ? html`<p>We do not use advertising or tracking cookies. See the <a href="/cookies/">cookies page</a> for details.</p>` : html`<p>Only if you select "Allow" in the cookie banner, we use Google Ads (Google Ireland Limited) to measure which of our ads bring visitors and which visits lead to a click to a retailer. Google then sets its cookies on this site and receives details of your visit, such as the page, a click on a "View at" button, the ad click identifier and your IP address. We do not use Google for personalised advertising (remarketing). Legal basis: your consent. You can change your choice at any time with "Cookie settings" at the bottom of every page. The <a href="https://policies.google.com/privacy">Google privacy policy</a> applies to the data Google receives. If you select "Reject", or make no choice, nothing is sent to Google. See the <a href="/cookies/">cookies page</a> for details.</p>`}

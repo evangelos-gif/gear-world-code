@@ -7,7 +7,7 @@ import { homePage } from './pages/home.js';
 import { categoryPage, searchPage, dealsPage, readListingParams, hasFilters } from './pages/listing.js';
 import { productPage } from './pages/product.js';
 import { comparePage, parseCompareIds } from './pages/compare.js';
-import { cartPage, parseCartItems } from './pages/cart.js';
+import { cartPage, parseCartItems, cartQuery, SAVED_PATH } from './pages/cart.js';
 import { exchangeRates } from './lib/fx.js';
 import { translationsFor } from './lib/hub.js';
 import { offersIndexPage, retailerOffersPage, OFFERS_PATH } from './pages/offers.js';
@@ -139,8 +139,13 @@ export function createWorker(site) {
       return htmlResponse(comparePage(site, products, ids), { method, cache: 'short' });
     }
 
-    if (site.cart && (path === '/cart/' || path === '/cart')) {
-      if (path === '/cart') return redirect(new URL('/cart/' + url.search, url.origin).toString(), 301);
+    // The saved list (lessons L101). The older "Gear Cart" addresses (/cart/, also in bookmarks and old pages in a
+    // browser) lead here, with the same items.
+    if (site.cart && (path === '/cart/' || path === '/cart' || path === '/saved')) {
+      const items = parseCartItems(url, site.cart);
+      return redirect(new URL(cartQuery(items), url.origin).toString(), 301);
+    }
+    if (site.cart && path === SAVED_PATH) {
       const items = parseCartItems(url, site.cart);
       const products = await db.getProductsByIds(env.DB, items.map(x => x.id));
       return htmlResponse(cartPage(site, products, items), { method, cache: 'short' });

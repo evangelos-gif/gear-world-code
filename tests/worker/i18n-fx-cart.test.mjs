@@ -7,15 +7,14 @@ import { tr, priceTag } from '../../src/pages/layout.js';
 import { toString } from '../../src/lib/html.js';
 import site from '../../sites/tgw/site.config.js';
 
-test('cart items: whole numbers only, no repeats, quantity 1-99, at most 30 (lessons L26)', () => {
-  const u = q => new URL(`https://x.test/cart/?items=${q}`);
-  assert.deepEqual(parseCartItems(u('12:2,34,12:5,abc,0:1,-3:2,56:0,78:500')), [
-    { id: 12, qty: 2 }, { id: 34, qty: 1 }, { id: 56, qty: 1 }, { id: 78, qty: 99 }
-  ]);
-  const many = Array.from({ length: 40 }, (_, i) => `${i + 1}:1`).join(',');
+test('saved list items: whole numbers only, no repeats, the older quantity ignored, at most 30 (lessons L26, L101)', () => {
+  const u = q => new URL(`https://x.test/saved/?items=${q}`);
+  assert.deepEqual(parseCartItems(u('12:2,34,12:5,abc,0:1,-3:2,56:0,78:500')), [{ id: 12 }, { id: 34 }, { id: 56 }, { id: 78 }]);
+  assert.deepEqual(parseCartItems(u('5,9,5')), [{ id: 5 }, { id: 9 }]);
+  const many = Array.from({ length: 40 }, (_, i) => `${i + 1}`).join(',');
   assert.equal(parseCartItems(u(many), { maxItems: 30 }).length, 30);
-  assert.equal(cartQuery([]), '/cart/');
-  assert.equal(cartQuery([{ id: 5, qty: 2 }, { id: 9, qty: 1 }]), '/cart/?items=5:2,9:1');
+  assert.equal(cartQuery([]), '/saved/');
+  assert.equal(cartQuery([{ id: 5 }, { id: 9 }]), '/saved/?items=5,9');
 });
 
 test('exchange rates: only the asked currencies, positive numbers, from the site currency (lessons L25)', () => {

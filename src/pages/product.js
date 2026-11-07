@@ -80,16 +80,16 @@ export function productPage(site, product, category, similar, offers = []) {
         <p class="shelf-price">${priceTag(site, product.price, product.currency)}${was ? html`<s class="was">${was}</s>` : ''}</p>
         ${pct ? html`<p class="tag-save">${tr('Save {0}% on the previous price', pct)}</p>` : ''}
         <dl class="shelf-facts">
-          <div><dt>Retailer</dt><dd translate="no">${product.retailer}${retailerFlag(site, product.retailer)}</dd></div>
-          ${delivers ? html`<div><dt>Delivers to</dt><dd class="ship-dd">${delivers}</dd></div>` : ''}
-          <div><dt>Stock</dt><dd class="${inStock ? 'ok' : 'warn'}">${inStock ? 'In stock' : 'Out of stock'}</dd></div>
+          <div><dt>Sold by</dt><dd><span translate="no">${product.retailer}</span>${retailerFlag(site, product.retailer)} <span class="not-us">(not by Gear World)</span></dd></div>
+          ${delivers ? html`<div><dt>${tr('{0} delivers to', product.retailer)}</dt><dd class="ship-dd">${delivers}</dd></div>` : ''}
+          <div><dt>${tr('Stock at {0}', product.retailer)}</dt><dd class="${inStock ? 'ok' : 'warn'}">${inStock ? 'In stock' : 'Out of stock'}</dd></div>
           ${product.item_condition === 'refurbished' ? html`<div><dt>Condition</dt><dd>Refurbished</dd></div>` : ''}
           ${checked ? html`<div><dt>Price checked</dt><dd><time datetime="${String(product.last_seen_at).slice(0, 10)}">${checked}</time></dd></div>` : ''}
         </dl>
         <a class="btn btn-deal btn-big" href="/out/${product.id}" rel="sponsored nofollow noopener" target="_blank">${tr('View at {0}', product.retailer)}</a>
         <div class="card-actions card-actions-big">
           <button type="button" class="btn-compare btn-compare-big" data-compare="${product.id}" aria-pressed="false" hidden>+ Compare</button>
-          ${site.cart ? html`<button type="button" class="btn-cart btn-cart-big" data-cart="${product.id}" aria-pressed="false" hidden>+ Cart</button>` : ''}
+          ${site.cart ? html`<button type="button" class="btn-cart btn-cart-big" data-cart="${product.id}" aria-pressed="false" hidden>+ Save</button>` : ''}
         </div>
         ${offers.length > 1 ? html`<p class="shelf-offers"><a href="#prices">${tr('Compare {0} retailers', offers.length)}</a></p>` : ''}
         <p class="shelf-note">${tr('You buy on the {0} website, at their price.', product.retailer)} We may earn a commission. <a href="/how-we-make-money/">How this works</a></p>

@@ -50,9 +50,9 @@ try {
     const d = await (await fetch(base + '/api/products?limit=3')).json();
     const ids = (d.products || []).slice(0, 3).map(p => p.id);
     if (ids.length >= 2) comparePath = '/compare/?ids=' + ids.join(',');
-    if (ids.length) cartPath = '/cart/?items=' + ids.map((id, i) => `${id}:${i + 1}`).join(',');
+    if (ids.length) cartPath = '/saved/?items=' + ids.join(',');
   } catch { comparePath = ''; }
-  // The cart page exists only on sites with a cart.
+  // The saved list exists only on sites with one (site.cart).
   if (cartPath) {
     const r = await fetch(base + cartPath).catch(() => null);
     if (!r || r.status !== 200) cartPath = '';

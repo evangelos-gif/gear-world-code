@@ -55,7 +55,7 @@ test('a euro price stays in euros with "≈ £" next to it, and the page says wh
   assert.match(html, /€89\.90/);
   assert.match(html, /≈ £78\.17/);
   // Reidl delivers to Germany and Austria only (reidl.de/shop/zahlungversand): flags, then the names.
-  assert.match(html, /<dt>Delivers to<\/dt><dd class="ship-dd"><span class="ship-flags"><img class="flag" src="\/assets\/flags\/de\.svg\?v=[^"]+" alt="" width="18" height="12"><img class="flag" src="\/assets\/flags\/at\.svg\?v=[^"]+" alt="" width="18" height="12"><\/span> <span class="ship-names"><span data-country="DE">Germany<\/span>, <span data-country="AT">Austria<\/span><\/span><\/dd>/);
+  assert.match(html, /<dt><span data-i18n="\{0\} delivers to" data-i18n-0="[^"]+">[^<]+ delivers to<\/span><\/dt><dd class="ship-dd"><span class="ship-flags"><img class="flag" src="\/assets\/flags\/de\.svg\?v=[^"]+" alt="" width="18" height="12"><img class="flag" src="\/assets\/flags\/at\.svg\?v=[^"]+" alt="" width="18" height="12"><\/span> <span class="ship-names"><span data-country="DE">Germany<\/span>, <span data-country="AT">Austria<\/span><\/span><\/dd>/);
   assert.ok(!/Reidl <img class="flag"/.test(html), 'no second flag next to the retailer name');
   // Structured data keeps the real currency.
   assert.match(html, /"priceCurrency":"EUR"/);

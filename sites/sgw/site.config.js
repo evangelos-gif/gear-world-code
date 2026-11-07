@@ -13,7 +13,7 @@ export default {
   lang: 'en-GB',
   locale: 'en-GB',
   currency: 'GBP',
-  assetVersion: '2026-11-03-sgw-ads-2',
+  assetVersion: '2026-11-08-sgw-saved-1',
   promos: promosFor('SGW'),
   awinPublisherId: AWIN_PUBLISHER_ID,
   storagePrefix: 'sgw',
@@ -49,7 +49,7 @@ export default {
   deliversTo: { default: ['GB'] },
 
   displayCurrencies: ['GBP', 'EUR', 'ALL', 'RON', 'RUB'],
-  cart: { name: 'Gear Cart', maxItems: 30, maxQuantity: 99 },
+  cart: { name: 'Saved list', maxItems: 30 },
   voiceSearch: true,
 
   // Charcoal and sky blue (owner, 25 Oct 2026, option 2). The owner has a colour vision deficiency: blue and orange stay easy to

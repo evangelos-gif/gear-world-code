@@ -13,7 +13,7 @@ export default {
   lang: 'en-GB',
   locale: 'en-GB',
   currency: 'GBP',
-  assetVersion: '2026-11-03-vgw-ads-2',
+  assetVersion: '2026-11-08-vgw-saved-1',
   promos: promosFor('VGW'),
   awinPublisherId: AWIN_PUBLISHER_ID,
   storagePrefix: 'vgw',
@@ -43,7 +43,7 @@ export default {
     { code: 'ru-RU', label: 'Русский' }
   ],
   displayCurrencies: ['GBP', 'EUR', 'ALL', 'RON', 'RUB'],
-  cart: { name: 'Gear Cart', maxItems: 30, maxQuantity: 99 },
+  cart: { name: 'Saved list', maxItems: 30 },
   voiceSearch: true,
 
   // Ocean blue and sunset orange (22 Oct 2026). The owner has a colour vision deficiency: blue and orange stay

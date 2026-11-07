@@ -12,7 +12,7 @@ export default {
   lang: 'en-GB',
   locale: 'en-GB',
   currency: 'GBP',
-  assetVersion: '2026-11-03-hgw-ads-2',
+  assetVersion: '2026-11-08-hgw-saved-1',
   promos: promosFor('HGW'),
   awinPublisherId: AWIN_PUBLISHER_ID,
   storagePrefix: 'hgw',
@@ -59,7 +59,7 @@ export default {
   // Country codes: src/lib/delivery.js. All the retailers here are UK shops.
   deliversTo: { default: ['GB'] },
   displayCurrencies: ['GBP', 'EUR', 'ALL', 'RON', 'RUB'],
-  cart: { name: 'Gear Cart', maxItems: 30, maxQuantity: 99 },
+  cart: { name: 'Saved list', maxItems: 30 },
   voiceSearch: true,
 
   // Gear World family look in midnight navy with warm gold, like the Home Gear World logo and photos.

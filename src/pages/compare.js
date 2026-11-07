@@ -74,7 +74,7 @@ export function comparePage(site, products, ids) {
     ${row('Condition', p => (p.item_condition === 'refurbished' ? 'Refurbished' : 'New'))}
     ${row('EAN / GTIN', p => p.gtin || '—')}
     ${row('Price checked', p => (p.last_seen_at ? html`<time datetime="${String(p.last_seen_at).slice(0, 10)}">${String(p.last_seen_at).slice(0, 10)}</time>` : '—'))}
-    <tr><th scope="row"><span class="visually-hidden">Buy</span></th>${products.map(p => cell(p, html`<a class="btn btn-deal" href="/out/${p.id}" rel="sponsored nofollow noopener" target="_blank">${tr('View at {0}', p.retailer)}</a>${site.cart ? html`<button type="button" class="btn-cart" data-cart="${p.id}" aria-pressed="false" hidden>+ Cart</button>` : ''}`))}</tr>
+    <tr><th scope="row"><span class="visually-hidden">Buy</span></th>${products.map(p => cell(p, html`<a class="btn btn-deal" href="/out/${p.id}" rel="sponsored nofollow noopener" target="_blank">${tr('View at {0}', p.retailer)}</a>${site.cart ? html`<button type="button" class="btn-cart" data-cart="${p.id}" aria-pressed="false" hidden>+ Save</button>` : ''}`))}</tr>
   </tbody>
 </table>
 </div>` : '';

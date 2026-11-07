@@ -89,7 +89,7 @@ try {
     '/', ...(site.categories || []).map(c => `/category/${c.slug}/`), categoryPath ? `${categoryPath}?min=99999` : '', categoryPath ? `${categoryPath}?sort=price-asc&page=2` : '', '/deals/?page=2',
     productPath, '/deals/', '/search', '/search?q=laptop', '/search?q=zzzzqqq',
     ids.length >= 2 ? `/compare/?ids=${ids.slice(0, 2).join(',')}` : '', sameCat.length === 2 ? `/compare/?ids=${sameCat.join(',')}` : '', '/compare/',
-    ids.length ? `/cart/?items=${ids.map((id, i) => `${id}:${i + 1}`).join(',')}` : '', '/cart/',
+    ids.length ? `/saved/?items=${ids.join(',')}` : '', '/saved/',
     '/discount-codes/', ...[...new Set((site.promos || []).map(p => `/discount-codes/${p.slug}/`))],
     '/about/', '/how-we-make-money/', '/contact/', '/privacy/', '/cookies/', '/terms/', '/this-page-does-not-exist/'
   ].filter(Boolean);

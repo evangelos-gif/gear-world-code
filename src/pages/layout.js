@@ -7,7 +7,8 @@ import { deliveryCountries, COUNTRY_NAMES, FLAGS, WORLDWIDE } from '../lib/deliv
 import { GOOGLE_ADS_ID, OUTBOUND_LABEL, GEAR_WORLD_DOMAINS } from '../lib/ads.js';
 
 // Files under /assets/ are cached for a year, so every link to them carries ?v=<assetVersion> (lessons L31).
-// Without it, a phone kept an old icons.svg that had no cart icon, and the cart button showed empty.
+// Without it, a phone kept an old icons.svg that had no cart icon, and the cart button showed empty (the saved
+// list has its own "saved" icon, a bookmark, since 7 Nov 2026: lessons L101).
 let ICONS = '/assets/icons.svg';
 export function useSiteAssets(site) {
   ICONS = asset(site, 'icons.svg');
@@ -212,7 +213,7 @@ function prefsBar(site) {
 
 function cartLink(site) {
   if (!site.cart) return '';
-  return html`<a class="cart-link" href="/cart/" data-cart-link>${icon('cart')}<span class="cart-word">${site.cart.name}</span><span class="cart-count" data-cart-count hidden>0</span></a>`;
+  return html`<a class="cart-link" href="/saved/" data-cart-link>${icon('saved')}<span class="cart-word">Saved list</span><span class="cart-count" data-cart-count hidden>0</span></a>`;
 }
 
 function header(site, currentCategory, searchValue) {
@@ -308,7 +309,7 @@ ${dealUpdates(site, path)}
   </div>
   <div class="wrap footer-note">
     <p>${tr('{0} compares prices from trusted retailers.', site.name)} ${' '}When you buy through a link on this site we may earn a commission from the retailer, at no extra cost to you. Prices and stock can change. Always check the final price on the retailer's website.</p>
-    <p translate="no">&copy; ${year} ${site.name}</p>
+    <p class="footer-legal"><span translate="no">&copy; ${year} Gear World</span> · <span>run by Evangelos Kalogerakis, England</span> · <span>We don't sell products: we link to retailers and may earn a commission.</span></p>
   </div>
 </footer>`;
 }
@@ -332,7 +333,7 @@ export function productCard(site, p, { headingLevel = 3 } = {}) {
     <a class="btn btn-deal" href="/out/${p.id}" rel="sponsored nofollow noopener" target="_blank">${tr('View at {0}', p.retailer)}</a>
     <div class="card-actions">
       <button type="button" class="btn-compare" data-compare="${p.id}" aria-pressed="false" hidden>+ Compare</button>
-      ${site.cart ? html`<button type="button" class="btn-cart" data-cart="${p.id}" aria-pressed="false" hidden>+ Cart</button>` : ''}
+      ${site.cart ? html`<button type="button" class="btn-cart" data-cart="${p.id}" aria-pressed="false" hidden>+ Save</button>` : ''}
     </div>
   </div>
 </article>`;

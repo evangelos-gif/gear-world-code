@@ -13,7 +13,7 @@ export default {
   lang: 'en-GB',
   locale: 'en-GB',
   currency: 'GBP',
-  assetVersion: '2026-11-03-cgw-ads-2',
+  assetVersion: '2026-11-08-cgw-saved-1',
   promos: promosFor('CGW'),
   // Buying guides (/guides/, lessons L82): words in guides.js, prices and stock live from the database.
   guides,
@@ -72,7 +72,7 @@ export default {
     { code: 'ru-RU', label: 'Русский' }
   ],
   displayCurrencies: ['GBP', 'EUR', 'ALL', 'RON', 'RUB'],
-  cart: { name: 'Gear Cart', maxItems: 30, maxQuantity: 99 },
+  cart: { name: 'Saved list', maxItems: 30 },
   voiceSearch: true,
 
   // Gear World family look in charcoal and safety yellow, like a site helmet.

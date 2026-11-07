@@ -18,10 +18,10 @@
   -Step check    READ-ONLY. Is the hub folder on this PC still exactly the version that runs live
                  (sites/gwh/live-baseline.txt, its "# version:" line names it), and gearworldhub.com too? Cloudflare
                  login, the live version of the Worker (needed to go back), the poster counting (it goes first).
-  -Step preview  CHANGES CLOUDFLARE, one approval: ΕΓΚΡΙΝΩ HUB REGISTRY PREVIEW. The test Worker "gear-world-hub-preview" on a
+  -Step preview  CHANGES CLOUDFLARE, one approval: ΕΓΚΡΙΝΩ HUB ADS PREVIEW. The test Worker "gear-world-hub-preview" on a
                  *.workers.dev address gets this version (noindex, no Google Analytics, e-mail sign-up closed, no
                  poster counting; the same D1 and Workers AI, read only). gearworldhub.com does NOT change.
-  -Step live     CHANGES THE LIVE HUB, one approval: ΕΓΚΡΙΝΩ HUB REGISTRY LIVE. Only when the hub folder on this PC and the
+  -Step live     CHANGES THE LIVE HUB, one approval: ΕΓΚΡΙΝΩ HUB ADS LIVE. Only when the hub folder on this PC and the
                  live site are still the version of live-baseline.txt (or already this version) and the posters count
                  already. First a zip of the hub folder and the number of the live version (for rollback), then the
                  changed files go into the hub folder, then gearworldhub.com is deployed from it and checked. If the
@@ -49,6 +49,11 @@
   Shop categories (owner, 4/11/2026, option A): worker.js only, /api/registry gets shop_categories from the sites'
   site.config.js (tools/gwh-shop-categories.mjs). Phrases of this release: ΕΓΚΡΙΝΩ HUB REGISTRY PREVIEW, then ΕΓΚΡΙΝΩ HUB
   REGISTRY LIVE together with remove-preview. The D1 and /api/classify do not change (L70).
+  Google Ads review (7/11/2026, lessons L101): the new page /about/ (who runs Gear World, that it sells nothing,
+  contact@gearworldhub.com, in 11 languages by about.js), "About" in the menu opens it, the "Sell Your Business"
+  sponsored card is gone, and every page's footer says "run by Evangelos Kalogerakis, England · We don't sell
+  products". worker.js does not change. Phrases of this release: ΕΓΚΡΙΝΩ HUB ADS PREVIEW, then ΕΓΚΡΙΝΩ HUB ADS LIVE
+  together with remove-preview (ΕΓΚΡΙΝΩ HUB REMOVE PREVIEW) in the same paste.
   Report: <home>\gear-world-reports\GWH_HUB_V2_<STEP>_<time>.txt (also copied to the clipboard)
 #>
 param(
@@ -70,8 +75,8 @@ $repo = Split-Path -Parent $PSScriptRoot
 $HubWorker = 'gear-world-hub'
 $PreviewName = 'gear-world-hub-preview'
 $DbName = 'gear-world-registry'
-$PhrasePreview = 'ΕΓΚΡΙΝΩ HUB REGISTRY PREVIEW'
-$PhraseLive = 'ΕΓΚΡΙΝΩ HUB REGISTRY LIVE'
+$PhrasePreview = 'ΕΓΚΡΙΝΩ HUB ADS PREVIEW'
+$PhraseLive = 'ΕΓΚΡΙΝΩ HUB ADS LIVE'
 $PhraseRegister = 'ΕΓΚΡΙΝΩ HUB ZGW SEARCH'
 $PhraseRemovePreview = 'ΕΓΚΡΙΝΩ HUB REMOVE PREVIEW'
 $LiveUrl = 'https://gearworldhub.com'
@@ -93,21 +98,26 @@ $About = @{
     'worker.js'             = 'το /api/registry δίνει και shop_categories: οι κατηγορίες του μενού κάθε site (από τα site.config.js) για την εφαρμογή· η D1, το categories και το /api/classify δεν αλλάζουν (L70)'
     'members.js'            = 'ο κώδικας της φόρμας «Get deal updates» των sites (νέο αρχείο, L92)'
     'poster-scan.js'        = 'η μέτρηση των αφισών (ίδια με αυτή που μπήκε με το POSTER STATS)'
-    'public/index.html'     = 'κάτω από το «Βρες δώρο»: «Christmas gift guides» με 5 links στους οδηγούς δώρων· νέο ?v= για hub-v2.css και hub-v2.js'
+    'public/index.html'     = 'το «About» ανοίγει τη νέα σελίδα /about/, φεύγει η κάρτα «Sell Your Business», νέα γραμμή στο footer (ποιος τρέχει το Gear World, ότι δεν πουλάμε)· νέο ?v= για translations.js (L101)'
+    'public/about/index.html' = 'νέα σελίδα /about/: ποιος τρέχει το Gear World, ότι δεν πουλάμε, δεν παίρνουμε πληρωμές, δεν κάνουμε παραδόσεις, contact@gearworldhub.com (νέο αρχείο, L101)'
+    'public/about/about.js' = 'η σελίδα /about/ στη γλώσσα που διάλεξε ο επισκέπτης, 11 γλώσσες (νέο αρχείο, L101)'
+    'public/privacy/index.html' = 'νέα γραμμή στο footer και link «About» (L101)'
+    'public/cookies/index.html' = 'νέα γραμμή στο footer και link «About» (L101)'
+    'public/affiliate-disclosure/index.html' = 'νέα γραμμή στο footer και link «About» (L101)'
     'public/hub-v2.css'     = 'τα 5 links των οδηγών δώρων, 44 px όπως τα κουμπιά του «Βρες δώρο»'
     'public/hub-v2.js'      = 'τα κείμενα των links των οδηγών δώρων σε 11 γλώσσες'
     'public/guides/guides.css' = 'η εμφάνιση των οδηγών δώρων (νέο αρχείο)'
-    'public/guides/index.html' = 'η σελίδα με τους 5 οδηγούς δώρων (νέο αρχείο)'
-    'public/guides/christmas-gifts-for-him/index.html' = 'οδηγός δώρων: για εκείνον, 12 προϊόντα (νέο αρχείο)'
-    'public/guides/christmas-gifts-for-her/index.html' = 'οδηγός δώρων: για εκείνη, 12 προϊόντα (νέο αρχείο)'
-    'public/guides/christmas-gifts-for-kids/index.html' = 'οδηγός δώρων: για παιδιά ανά ηλικία, 12 προϊόντα (νέο αρχείο)'
-    'public/guides/christmas-gifts-for-diy-lovers/index.html' = 'οδηγός δώρων: για μάστορες, 10 εργαλεία με 2 καταστήματα (νέο αρχείο)'
-    'public/guides/christmas-gifts-for-travellers/index.html' = 'οδηγός δώρων: για ταξιδιώτες, 12 προϊόντα (νέο αρχείο)'
-    'public/translations.js' = 'τίτλος και κείμενο της κάρτας Pets σε 11 γλώσσες'
+    'public/guides/index.html' = 'νέα γραμμή στο footer και link «About» (L101)'
+    'public/guides/christmas-gifts-for-him/index.html' = 'οδηγός δώρων: νέα γραμμή στο footer και link «About» (L101)'
+    'public/guides/christmas-gifts-for-her/index.html' = 'οδηγός δώρων: νέα γραμμή στο footer και link «About» (L101)'
+    'public/guides/christmas-gifts-for-kids/index.html' = 'οδηγός δώρων: νέα γραμμή στο footer και link «About» (L101)'
+    'public/guides/christmas-gifts-for-diy-lovers/index.html' = 'οδηγός δώρων: νέα γραμμή στο footer και link «About» (L101)'
+    'public/guides/christmas-gifts-for-travellers/index.html' = 'οδηγός δώρων: νέα γραμμή στο footer και link «About» (L101)'
+    'public/translations.js' = 'η νέα γραμμή του footer σε 11 γλώσσες, χωρίς τα κείμενα της κάρτας «Sell Your Business»· το «About» του μενού δείχνει στο /about/ (L101)'
     'public/robots.txt'     = 'robots.txt του Hub με τη γραμμή Sitemap: https://gearworldhub.com/sitemap.xml (το Cloudflare βάζει από πάνω τα Content Signals του)'
     'public/gearworldhub-indexnow-k7q4m9x2w5.txt' = 'το κλειδί του IndexNow (δημόσιο, έτσι δουλεύει το IndexNow)'
-    'public/terms/index.html' = 'νέα περιγραφή για το Bing (149 χαρακτήρες)'
-    'public/contact/index.html' = 'νέα περιγραφή για το Bing (126 χαρακτήρες)'
+    'public/terms/index.html' = 'νέα γραμμή στο footer και link «About» (L101)'
+    'public/contact/index.html' = 'νέα γραμμή στο footer και link «About» (L101)'
     'public/hub-bgw.jpg'    = 'η φωτογραφία της κάρτας Biker (Pexels, χωρίς μάρκες)'
     'public/hub-pgw.jpg'    = 'η φωτογραφία της κάρτας Gaming (Pexels, χωρίς μάρκες)'
     'public/hub-zgw.jpg'    = 'η φωτογραφία της κάρτας Pets (Pexels, χωρίς μάρκες)'

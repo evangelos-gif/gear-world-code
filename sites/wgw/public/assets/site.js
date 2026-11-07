@@ -1,5 +1,5 @@
 // Gear World sites (shared by every site on the engine; TGW keeps the master copy). One small script; every page also works without it.
-// Parts: language (L24, with country names for "Delivers to", L62), currency (L25), Gear Cart (L26), compare (L23),
+// Parts: language (L24, with country names for "Delivers to", L62), currency (L25), saved list (L26, L101), compare (L23),
 // voice search, newsletter, discount codes (L32), the seasonal banner of the deals pages.
 (function () {
   'use strict';
@@ -195,11 +195,11 @@
     }
   }
 
-  // ---------- Gear Cart (lessons L26) ----------
-  // The list stays in this browser: product ids and quantities only. The cart page is /cart/?items=12:2,34:1,
-  // built by the server, and every buy button there goes through /out/<id>.
+  // ---------- Saved list (lessons L26, L101; the "Gear Cart" until 7 Nov 2026) ----------
+  // The list stays in this browser: product ids only (no quantities: nothing is bought here). The page is
+  // /saved/?items=12,34, built by the server, and every retailer button there goes through /out/<id>.
+  // The browser key stays "cart", so a list saved before keeps its products.
   var CART_MAX = 30;
-  var QTY_MAX = 99;
   function loadCart() {
     try {
       var v = JSON.parse(read('cart', '[]'));
@@ -207,15 +207,14 @@
       var out = [];
       for (var i = 0; i < v.length && out.length < CART_MAX; i++) {
         var id = String(v[i] && v[i].id);
-        var q = Math.min(QTY_MAX, Math.max(1, parseInt(v[i] && v[i].qty, 10) || 1));
-        if (/^\d{1,12}$/.test(id) && !out.some(function (x) { return x.id === id; })) out.push({ id: id, qty: q });
+        if (/^\d{1,12}$/.test(id) && !out.some(function (x) { return x.id === id; })) out.push({ id: id });
       }
       return out;
     } catch (e) { return []; }
   }
   function saveCart(list) { write('cart', JSON.stringify(list)); }
   function cartHref(list) {
-    return list.length ? '/cart/?items=' + list.map(function (x) { return x.id + ':' + x.qty; }).join(',') : '/cart/';
+    return list.length ? '/saved/?items=' + list.map(function (x) { return x.id; }).join(',') : '/saved/';
   }
 
   function setupCart() {
@@ -223,7 +222,7 @@
     var onCartPage = document.querySelector('[data-cart-items]');
     if (onCartPage) {
       var serverList = onCartPage.getAttribute('data-cart-items');
-      cart = serverList ? serverList.split(',').map(function (p) { var a = p.split(':'); return { id: a[0], qty: parseInt(a[1], 10) || 1 }; }) : [];
+      cart = serverList ? serverList.split(',').map(function (p) { return { id: p.split(':')[0] }; }) : [];
       saveCart(cart);
     }
     var links = document.querySelectorAll('[data-cart-link]');
@@ -235,7 +234,7 @@
     document.body.appendChild(status);
 
     function render() {
-      var units = cart.reduce(function (n, x) { return n + x.qty; }, 0);
+      var units = cart.length;
       for (var i = 0; i < links.length; i++) {
         links[i].href = cartHref(cart);
         var c = links[i].querySelector('[data-cart-count]');
@@ -245,7 +244,7 @@
         var on = cart.some(function (x) { return x.id === buttons[j].getAttribute('data-cart'); });
         buttons[j].hidden = false;
         buttons[j].setAttribute('aria-pressed', on ? 'true' : 'false');
-        buttons[j].textContent = on ? t('✓ In cart') : t('+ Cart');
+        buttons[j].textContent = on ? t('✓ Saved') : t('+ Save');
       }
     }
     document.addEventListener('click', function (ev) {
@@ -255,11 +254,11 @@
       if (b) {
         var id = b.getAttribute('data-cart');
         if (cart.some(function (x) { return x.id === id; })) { window.location.href = cartHref(cart); return; }
-        if (cart.length >= CART_MAX) { status.textContent = tf('Your cart is full ({0} products).', [String(CART_MAX)]); return; }
-        cart.push({ id: id, qty: 1 });
+        if (cart.length >= CART_MAX) { status.textContent = tf('Your saved list is full ({0} products).', [String(CART_MAX)]); return; }
+        cart.push({ id: id });
         saveCart(cart);
         render();
-        status.textContent = t('Added to your cart.');
+        status.textContent = t('Saved to your list.');
         return;
       }
       if (el.closest('[data-cart-clear]')) { cart = []; saveCart(cart); }

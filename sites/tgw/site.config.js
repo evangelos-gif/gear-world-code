@@ -12,7 +12,7 @@ export default {
   lang: 'en-GB',
   locale: 'en-GB',
   currency: 'GBP',
-  assetVersion: '2026-11-06-tgw-minipc-1',
+  assetVersion: '2026-11-08-tgw-saved-1',
   // Key prefix for what a visitor's browser remembers (compare list, cart, language, currency).
   // Discount codes and sales from retailers (promos/promos.js, lessons L32), with the Awin publisher id
   // used for their links. The id is public: it is part of every Awin link.
@@ -46,8 +46,8 @@ export default {
   // price always stays on the page and the converted price is shown next to it as "≈" (lessons L25).
   displayCurrencies: ['GBP', 'EUR', 'ALL', 'RON', 'RUB'],
 
-  // Gear Cart: a list kept in the visitor's browser. Every buy button goes through /out/<id> (lessons L26).
-  cart: { name: 'Gear Cart', maxItems: 30, maxQuantity: 99 },
+  // Saved list (the Gear Cart until 7 Nov 2026, lessons L101): a list kept in the visitor's browser. Every buy button goes through /out/<id> (lessons L26).
+  cart: { name: 'Saved list', maxItems: 30 },
 
   // Microphone button in every search box, like the other Gear World sites. The browser turns speech into
   // text (Chrome uses Google's service, Safari uses Apple's); the site only receives the text. Camera search

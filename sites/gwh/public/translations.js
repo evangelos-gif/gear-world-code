@@ -124,11 +124,6 @@
     garden: ["Garden","Κήπος","Garten","Jardin","Giardino","Jardín","Jardim","Tuin","Kopsht","Grădină","Сад"],
     gardenSub: ["Tools · Outdoor · Garden Living","Εργαλεία · Εξωτερικός χώρος · Κήπος","Werkzeuge · Outdoor · Gartenleben","Outils · Extérieur · Jardin","Utensili · Outdoor · Vita in giardino","Herramientas · Exterior · Jardín","Ferramentas · Exterior · Jardim","Gereedschap · Buiten · Tuinleven","Vegla · Ambient i jashtëm · Kopsht","Unelte · Exterior · Grădină","Инструменты · Улица · Сад"],
 
-    sponsoredAria: ["Sponsored business opportunity","Χορηγούμενη επιχειρηματική ευκαιρία","Gesponserte Geschäftsmöglichkeit","Opportunité commerciale sponsorisée","Opportunità commerciale sponsorizzata","Oportunidad de negocio patrocinada","Oportunidade de negócio patrocinada","Gesponsorde zakelijke kans","Mundësi biznesi e sponsorizuar","Oportunitate de afaceri sponsorizată","Спонсируемая бизнес-возможность"],
-    sponsoredPartner: ["Sponsored Partner","Χορηγούμενος συνεργάτης","Gesponserter Partner","Partenaire sponsorisé","Partner sponsorizzato","Socio patrocinado","Parceiro patrocinado","Gesponsorde partner","Partner i sponsorizuar","Partener sponsorizat","Спонсируемый партнёр"],
-    sellingBusiness: ["Thinking of Selling Your Business?","Σκέφτεστε να πουλήσετε την επιχείρησή σας;","Möchten Sie Ihr Unternehmen verkaufen?","Vous envisagez de vendre votre entreprise ?","Stai pensando di vendere la tua attività?","¿Está pensando en vender su negocio?","Está a pensar vender o seu negócio?","Overweegt u uw bedrijf te verkopen?","Po mendoni të shisni biznesin tuaj?","Vă gândiți să vă vindeți afacerea?","Думаете о продаже бизнеса?"],
-    sponsoredDesc: ["Reach global buyers with World Businesses for Sale. Plans from £395.","Προσεγγίστε αγοραστές παγκοσμίως με το World Businesses for Sale. Πακέτα από £395.","Erreichen Sie weltweite Käufer mit World Businesses for Sale. Tarife ab £395.","Touchez des acheteurs du monde entier avec World Businesses for Sale. Offres à partir de £395.","Raggiungi acquirenti in tutto il mondo con World Businesses for Sale. Piani da £395.","Llegue a compradores de todo el mundo con World Businesses for Sale. Planes desde £395.","Alcance compradores em todo o mundo com World Businesses for Sale. Planos desde £395.","Bereik wereldwijde kopers met World Businesses for Sale. Pakketten vanaf £395.","Arrini blerës globalë me World Businesses for Sale. Planet nga £395.","Ajungeți la cumpărători din întreaga lume cu World Businesses for Sale. Planuri de la £395.","Найдите покупателей по всему миру с World Businesses for Sale. Тарифы от £395."],
-    sellBusiness: ["Sell Your Business","Πουλήστε την επιχείρησή σας","Unternehmen verkaufen","Vendre votre entreprise","Vendi la tua attività","Venda su negocio","Venda o seu negócio","Verkoop uw bedrijf","Shitni biznesin tuaj","Vindeți-vă afacerea","Продать бизнес"],
 
     network: ["GEAR WORLD NETWORK","ΔΙΚΤΥΟ GEAR WORLD","GEAR WORLD NETZWERK","RÉSEAU GEAR WORLD","RETE GEAR WORLD","RED GEAR WORLD","REDE GEAR WORLD","GEAR WORLD NETWERK","RRJETI GEAR WORLD","REȚEAUA GEAR WORLD","СЕТЬ GEAR WORLD"],
     centralHub: ["Central Hub","Κεντρικό Hub","Zentraler Hub","Hub central","Hub centrale","Hub central","Hub central","Centrale hub","Hub qendror","Hub central","Центральный хаб"],
@@ -165,7 +160,7 @@
     aboutTitle: ["A connected shopping ecosystem.","Ένα συνδεδεμένο οικοσύστημα αγορών.","Ein vernetztes Shopping-Ökosystem.","Un écosystème d’achat connecté.","Un ecosistema di acquisti connesso.","Un ecosistema de compras conectado.","Um ecossistema de compras interligado.","Een verbonden winkelecosysteem.","Një ekosistem blerjesh i lidhur.","Un ecosistem de cumpărături interconectat.","Единая экосистема покупок."],
     aboutDesc: ["Gear World Hub brings specialist shopping sites together under one network. Each Gear World can focus on its own audience while the Hub makes the complete network easy to discover.","Το Gear World Hub ενώνει εξειδικευμένα sites αγορών σε ένα δίκτυο. Κάθε Gear World επικεντρώνεται στο δικό του κοινό, ενώ το Hub κάνει ολόκληρο το δίκτυο εύκολο στην ανακάλυψη.","Gear World Hub vereint spezialisierte Shopping-Sites in einem Netzwerk. Jede Gear World konzentriert sich auf ihre eigene Zielgruppe, während der Hub das gesamte Netzwerk leicht auffindbar macht.","Gear World Hub réunit des sites d’achat spécialisés au sein d'un même réseau. Chaque Gear World se concentre sur son propre public tandis que le Hub facilite la découverte de l'ensemble du réseau.","Gear World Hub riunisce siti specializzati per gli acquisti in un'unica rete. Ogni Gear World si concentra sul proprio pubblico mentre l'Hub rende semplice scoprire l'intera rete.","Gear World Hub reúne sitios de compras especializados en una sola red. Cada Gear World se centra en su propia audiencia mientras el Hub facilita descubrir toda la red.","Gear World Hub reúne sites de compras especializados numa só rede. Cada Gear World concentra-se no seu público enquanto o Hub facilita a descoberta de toda a rede.","Gear World Hub brengt gespecialiseerde winkelsites samen in één netwerk. Elke Gear World richt zich op zijn eigen publiek, terwijl de Hub het volledige netwerk makkelijk vindbaar maakt.","Gear World Hub bashkon faqe të specializuara blerjesh në një rrjet. Çdo Gear World fokusohet te audienca e vet ndërsa Hub-i e bën të gjithë rrjetin të lehtë për t'u zbuluar.","Gear World Hub reunește site-uri specializate de cumpărături într-o singură rețea. Fiecare Gear World se concentrează pe propriul public, iar Hub-ul face întreaga rețea ușor de descoperit.","Gear World Hub объединяет специализированные торговые сайты в одну сеть. Каждый Gear World ориентирован на свою аудиторию, а Хаб помогает легко находить всю сеть."],
 
-    footerRights: ["Gear World. All rights reserved.","Gear World. Με επιφύλαξη παντός δικαιώματος.","Gear World. Alle Rechte vorbehalten.","Gear World. Tous droits réservés.","Gear World. Tutti i diritti riservati.","Gear World. Todos los derechos reservados.","Gear World. Todos os direitos reservados.","Gear World. Alle rechten voorbehouden.","Gear World. Të gjitha të drejtat e rezervuara.","Gear World. Toate drepturile rezervate.","Gear World. Все права защищены."],
+    footerRights: ["Gear World · run by Evangelos Kalogerakis, England · We don't sell products: we link to retailers and may earn a commission.","Gear World · διαχείριση: Evangelos Kalogerakis, Αγγλία · Δεν πουλάμε προϊόντα: σας οδηγούμε στα καταστήματα και μπορεί να κερδίσουμε προμήθεια.","Gear World · betrieben von Evangelos Kalogerakis, England · Wir verkaufen keine Produkte: Wir verlinken auf Händler und erhalten möglicherweise eine Provision.","Gear World · géré par Evangelos Kalogerakis, Angleterre · Nous ne vendons pas de produits : nous renvoyons vers des marchands et pouvons percevoir une commission.","Gear World · gestito da Evangelos Kalogerakis, Inghilterra · Non vendiamo prodotti: rimandiamo ai negozi e possiamo ricevere una commissione.","Gear World · gestionado por Evangelos Kalogerakis, Inglaterra · No vendemos productos: enlazamos con tiendas y podemos ganar una comisión.","Gear World · gerido por Evangelos Kalogerakis, Inglaterra · Não vendemos produtos: ligamos a lojas e podemos receber uma comissão.","Gear World · gerund door Evangelos Kalogerakis, Engeland · We verkopen geen producten: we linken naar winkels en kunnen een commissie verdienen.","Gear World · drejtohet nga Evangelos Kalogerakis, Angli · Nuk shesim produkte: ju dërgojmë te dyqanet dhe mund të fitojmë një komision.","Gear World · administrat de Evangelos Kalogerakis, Anglia · Nu vindem produse: trimitem către magazine și putem primi un comision.","Gear World · управляет Evangelos Kalogerakis, Англия · Мы не продаём товары: мы даём ссылки на магазины и можем получать комиссию."],
 
     checkPrice: ["Check price","Δείτε τιμή","Preis prüfen","Voir le prix","Controlla il prezzo","Ver precio","Ver preço","Bekijk prijs","Shiko çmimin","Vezi prețul","Узнать цену"],
     min2: ["Please enter at least 2 characters.","Εισαγάγετε τουλάχιστον 2 χαρακτήρες.","Bitte geben Sie mindestens 2 Zeichen ein.","Veuillez saisir au moins 2 caractères.","Inserisci almeno 2 caratteri.","Introduce al menos 2 caracteres.","Introduza pelo menos 2 caracteres.","Voer minimaal 2 tekens in.","Vendosni të paktën 2 karaktere.","Introduceți cel puțin 2 caractere.","Введите не менее 2 символов."],
@@ -320,7 +315,7 @@
     }
 
     setText('.main-nav a[href="#worlds"]', "navWorlds");
-    setText('.main-nav a[href="#about"]', "navAbout");
+    setText('.main-nav a[href="/about/"]', "navAbout");
 
     setText(".hero-copy > .eyebrow", "heroEyebrow");
 
@@ -364,16 +359,6 @@
       if (strong) strong.textContent = tr(keys[0]);
       if (small) small.textContent = tr(keys[1]);
     });
-
-    const sponsored = document.querySelector(".gwh-business-banner");
-    if (sponsored) sponsored.setAttribute("aria-label", tr("sponsoredAria"));
-
-    setText(".gwh-sponsored", "sponsoredPartner");
-    setText(".gwh-business-copy strong", "sellingBusiness");
-    setText(".gwh-business-copy p", "sponsoredDesc");
-
-    const sellLink = document.querySelector(".gwh-business-link");
-    if (sellLink) sellLink.textContent = `${tr("sellBusiness")} →`;
 
     setText(".hero-panel .panel-label", "network");
 

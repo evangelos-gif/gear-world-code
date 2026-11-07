@@ -14,7 +14,7 @@ export default {
   lang: 'en-GB',
   locale: 'en-GB',
   currency: 'GBP',
-  assetVersion: '2026-11-03-bgw-ads-2',
+  assetVersion: '2026-11-08-bgw-saved-1',
   promos: promosFor('BGW'),
   awinPublisherId: AWIN_PUBLISHER_ID,
   storagePrefix: 'bgw',
@@ -48,7 +48,7 @@ export default {
   deliversTo: { default: ['GB'], retailers: { VEVOR: ['NL'] } },
 
   displayCurrencies: ['GBP', 'EUR', 'ALL', 'RON', 'RUB'],
-  cart: { name: 'Gear Cart', maxItems: 30, maxQuantity: 99 },
+  cart: { name: 'Saved list', maxItems: 30 },
   voiceSearch: true,
 
   // Night black and lilac, with amber links (proposal, 31 Oct 2026). The owner has a colour vision deficiency: lilac and

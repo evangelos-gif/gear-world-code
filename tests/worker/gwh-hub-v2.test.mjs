@@ -162,12 +162,15 @@ test('hub v2: the page keeps every id and class the other scripts need, and load
   // The 13 worlds in the order of the V2 translations (translations.js translates them by position). Biker (BGW) and Gaming (PGW) since 31/10/2026, Pets (ZGW) since 1/11/2026.
   const order = [...html.matchAll(/data-world="([A-Z]{3})"/g)].map(m => m[1]);
   assert.deepEqual(order, ['CGW', 'MGW', 'WGW', 'KGW', 'HGW', 'GGW', 'TGW', 'AGW', 'VGW', 'SGW', 'BGW', 'PGW', 'ZGW']);
-  for (const cls of ['gwh-image-world-title', 'gwh-image-world-description', 'gwh-image-world-cta', 'gwh-choose-world-label', 'gwh-compact-how-heading', 'gwh-compact-how-grid', 'gwh-compact-disclosure', 'gwh-business-banner', 'gwh-sponsored', 'gwh-business-copy', 'gwh-business-link', 'footer-inner', 'about-box']) {
+  for (const cls of ['gwh-image-world-title', 'gwh-image-world-description', 'gwh-image-world-cta', 'gwh-choose-world-label', 'gwh-compact-how-heading', 'gwh-compact-how-grid', 'gwh-compact-disclosure', 'footer-inner', 'about-box']) {
     assert.ok(html.includes(cls), cls);
   }
-  // The sponsored card: the same Awin link, at the bottom (after the sign-up), never blinking.
-  assert.ok(html.includes('href="https://www.awin1.com/cread.php?awinmid=116725&awinaffid=3057233&ued=https%3A%2F%2Fworldbusinessesforsale.com%2Fpages%2Fsell-business"'));
-  assert.ok(html.indexOf('class="gwh-business-banner"') > html.indexOf('id="newsletter"'));
+  // Google Ads review (7/11/2026, lessons L101): the "Sell Your Business" sponsored card is gone, "About" opens /about/,
+  // and the footer says who runs Gear World and that it sells nothing.
+  assert.ok(!/gwh-business-banner|Sponsored Partner|worldbusinessesforsale|Plans from £395/.test(html), 'no sponsored card');
+  assert.match(html, /<a href="\/about\/">About<\/a>/);
+  assert.ok(!html.includes('href="#about"'), 'About is the /about/ page now');
+  assert.match(html, /&copy; <span id="year"><\/span> Gear World · run by Evangelos Kalogerakis, England · We don't sell products: we link to retailers and may earn a commission\./);
   assert.ok(!/gwhBusinessBlink|@keyframes/.test(html));
   assert.ok(!/href="[^"]*\/(go|out)\//.test(html), 'no /go/ or /out/ link');
   const allow = read('public-allowlist.txt').split('\n').map(s => s.trim());

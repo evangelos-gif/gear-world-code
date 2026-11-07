@@ -69,7 +69,7 @@ test('cards and product pages say where the retailer delivers (lessons L62)', as
   assert.match(home, /<span class="ship-word">Delivers to<\/span>:/);
   const row = env.DB.sql.prepare("SELECT id, product_slug FROM products WHERE in_stock = 1 LIMIT 1").get();
   const page = await (await get(`/product/${row.product_slug}-${row.id}/`, env)).text();
-  assert.match(page, /<dt>Delivers to<\/dt><dd class="ship-dd">[\s\S]*?data-country="GB"/);
+  assert.match(page, /<dt><span data-i18n="\{0\} delivers to" data-i18n-0="[^"]+">[^<]+ delivers to<\/span><\/dt><dd class="ship-dd">[\s\S]*?data-country="GB"/);
 });
 
 test('the Joybuy "sports" code is shown on this site, with its end date (lessons L32)', () => {

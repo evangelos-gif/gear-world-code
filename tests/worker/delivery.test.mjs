@@ -88,11 +88,11 @@ test('the product page: "Delivers to" in the facts, and on every row of the pric
   const main = product({ id: 1, retailer: 'Reidl', currency: 'EUR', price: 89.9 });
   const offers = [main, product({ id: 2, retailer: 'Tooled Up', price: 79 })];
   const html = productPage(cgw, main, null, [], offers);
-  assert.match(html, /<dt>Delivers to<\/dt><dd class="ship-dd"><span class="ship-flags">.*?<\/span> <span class="ship-names"><span data-country="DE">Germany<\/span>, <span data-country="AT">Austria<\/span><\/span><\/dd>/);
+  assert.match(html, /<dt><span data-i18n="\{0\} delivers to" data-i18n-0="[^"]+">[^<]+ delivers to<\/span><\/dt><dd class="ship-dd"><span class="ship-flags">.*?<\/span> <span class="ship-names"><span data-country="DE">Germany<\/span>, <span data-country="AT">Austria<\/span><\/span><\/dd>/);
   assert.match(html, /<span class="offer-who"><span class="offer-retailer" translate="no">Reidl<\/span><span class="offer-ship" data-ship="DE AT"><span class="ship-flags">[\s\S]*?<\/span> <span class="ship-word">Delivers to<\/span>:/);
   assert.match(html, /<span class="offer-retailer" translate="no">Tooled Up<\/span><span class="offer-ship" data-ship="GB">/);
   // The same regex as the QA gate (tools/qa-gate.mjs, L62).
-  assert.match(html, /<dt>Delivers to<\/dt><dd class="ship-dd">[\s\S]*?(data-country="[A-Z]{2}"|>Worldwide<)/);
+  assert.match(html, /<dt><span data-i18n="\{0\} delivers to" data-i18n-0="[^"]+">[^<]+ delivers to<\/span><\/dt><dd class="ship-dd">[\s\S]*?(data-country="[A-Z]{2}"|>Worldwide<)/);
 });
 
 test('compare and cart pages say where each retailer delivers', () => {

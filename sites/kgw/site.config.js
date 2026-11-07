@@ -13,7 +13,7 @@ export default {
   lang: 'en-GB',
   locale: 'en-GB',
   currency: 'GBP',
-  assetVersion: '2026-11-03-kgw-ads-2',
+  assetVersion: '2026-11-08-kgw-saved-1',
   promos: promosFor('KGW'),
   awinPublisherId: AWIN_PUBLISHER_ID,
   storagePrefix: 'kgw',
@@ -60,7 +60,7 @@ export default {
   // Country codes: src/lib/delivery.js. All the retailers here are UK shops.
   deliversTo: { default: ['GB'] },
   displayCurrencies: ['GBP', 'EUR', 'ALL', 'RON', 'RUB'],
-  cart: { name: 'Gear Cart', maxItems: 30, maxQuantity: 99 },
+  cart: { name: 'Saved list', maxItems: 30 },
   voiceSearch: true,
 
   // Gear World family look in deep indigo with sunshine yellow and sky blue, like the Kids' Gear World logo.

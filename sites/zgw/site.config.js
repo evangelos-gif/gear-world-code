@@ -16,7 +16,7 @@ export default {
   lang: 'en-GB',
   locale: 'en-GB',
   currency: 'GBP',
-  assetVersion: '2026-11-03-zgw-ads-2',
+  assetVersion: '2026-11-08-zgw-saved-1',
   promos: promosFor('ZGW'),
   awinPublisherId: AWIN_PUBLISHER_ID,
   storagePrefix: 'zgw',
@@ -50,7 +50,7 @@ export default {
   deliversTo: { default: ['GB'] },
 
   displayCurrencies: ['GBP', 'EUR', 'ALL', 'RON', 'RUB'],
-  cart: { name: 'Gear Cart', maxItems: 30, maxQuantity: 99 },
+  cart: { name: 'Saved list', maxItems: 30 },
   voiceSearch: true,
 
   // Colour 3 chosen by the owner (1 Nov 2026): brown with cream and light blue. The owner has a colour vision deficiency:

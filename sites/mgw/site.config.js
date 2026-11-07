@@ -12,7 +12,7 @@ export default {
   lang: 'en-GB',
   locale: 'en-GB',
   currency: 'GBP',
-  assetVersion: '2026-11-03-mgw-ads-2',
+  assetVersion: '2026-11-08-mgw-saved-1',
   promos: promosFor('MGW'),
   awinPublisherId: AWIN_PUBLISHER_ID,
   storagePrefix: 'mgw',
@@ -61,7 +61,7 @@ export default {
   // (wavytalk.com/policies/shipping-policy, 25 Oct 2026).
   deliversTo: { default: ['GB'], retailers: { Wavytalk: ['US'] } },
   displayCurrencies: ['GBP', 'EUR', 'ALL', 'RON', 'RUB'],
-  cart: { name: 'Gear Cart', maxItems: 30, maxQuantity: 99 },
+  cart: { name: 'Saved list', maxItems: 30 },
   voiceSearch: true,
 
   // Gear World family look in black and gold, like the Men's Gear World logo.

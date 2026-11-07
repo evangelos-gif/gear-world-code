@@ -158,14 +158,16 @@ try {
       const allLinks = await page.$$eval('a[href]', els => els.map(e => e.getAttribute('href')));
       check(!allLinks.some(h => /\/(go|out)\//.test(h)), `${tag}: no /go/ or /out/ link on the page`);
 
-      // sponsored card: quiet and at the bottom
-      const sponsor = await page.evaluate(() => {
-        const card = document.querySelector('.gwh-business-banner');
-        const email = document.getElementById('newsletter');
-        const link = document.querySelector('.gwh-business-link');
-        return { after: !!(card && email && (email.compareDocumentPosition(card) & Node.DOCUMENT_POSITION_FOLLOWING)), animation: link ? getComputedStyle(link).animationName : '' };
-      });
-      check(sponsor.after && (sponsor.animation === 'none' || sponsor.animation === ''), `${tag}: "Sell Your Business" is a quiet card after the sign-up`, JSON.stringify(sponsor));
+      // Google Ads review (7/11/2026, lessons L101): no sponsored card, "About" opens /about/, the footer says who
+      // runs Gear World and that it sells nothing (in the page's language).
+      const ads = await page.evaluate(() => ({
+        card: !!document.querySelector('.gwh-business-banner, .gwh-business-link'),
+        about: (document.querySelector('.main-nav a[href="/about/"]') || {}).textContent || '',
+        footer: ((document.querySelector('.footer-inner > span') || {}).textContent || '').replace(/\s+/g, ' ')
+      }));
+      check(!ads.card, `${tag}: no "Sell Your Business" sponsored card`);
+      check(ads.about.trim().length > 0, `${tag}: "About" in the menu opens /about/`, ads.about);
+      check(/Evangelos Kalogerakis/.test(ads.footer) && /Gear World/.test(ads.footer), `${tag}: the footer says who runs Gear World`, ads.footer);
 
       if (full) {
         // gift finder: Her, up to £25, perfume -> only WGW, max_price=25

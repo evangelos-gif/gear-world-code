@@ -11,7 +11,7 @@
 </head>
 
 <!-- GWH-HUB-V2 (27/10/2026): the "Combination" Hub. Search first, campaigns with arrows, 13 worlds (Biker Gear World and Gaming Gear World added 31/10/2026, Pets Gear World 1/11/2026), gift finder,
-     deals with end dates, a quiet sponsored card. The ids and classes below are used by translations.js, app.js,
+     deals with end dates (the "Sell Your Business" sponsored card was taken off on 7/11/2026 for the Google Ads review, L101). The ids and classes below are used by translations.js, app.js,
      email-signup.js, analytics.js, gear-world-voice-v2.js, gear-world-camera.js and hub-v2.js: keep them. -->
 <body class="gwh2" data-gwh-compact-v2="true">
 
@@ -29,7 +29,7 @@
         <a href="#worlds">Gear Worlds</a>
         <a href="#deals" data-gwh2="navDeals" hidden>Deals</a>
         <a href="#gifts" data-gwh2="navGifts">Gift finder</a>
-        <a href="#about">About</a>
+        <a href="/about/">About</a>
       </nav>
 
       <select id="gwhLanguage" class="gwh-language-select" aria-label="Language">
@@ -374,25 +374,6 @@
       </div>
     </section>
 
-    <!-- Sponsored card: quiet, at the bottom, never blinking (the owner's brief, 27/10/2026). -->
-    <section class="gwh-business-banner" aria-label="Sponsored business opportunity">
-      <div class="container">
-        <div class="gwh-business-banner-inner">
-          <div class="gwh-business-copy">
-            <span class="gwh-sponsored">Sponsored Partner</span>
-            <strong>Thinking of Selling Your Business?</strong>
-            <p>Reach global buyers with World Businesses for Sale. Plans from £395.</p>
-          </div>
-          <a
-            class="gwh-business-link"
-            href="https://www.awin1.com/cread.php?awinmid=116725&awinaffid=3057233&ued=https%3A%2F%2Fworldbusinessesforsale.com%2Fpages%2Fsell-business"
-            target="_blank"
-            rel="nofollow sponsored noopener">
-            Sell Your Business &rarr;
-          </a>
-        </div>
-      </div>
-    </section>
 
   </main>
 
@@ -400,7 +381,7 @@
     <div class="container footer-inner">
       <strong>Gear World Hub</strong>
       <a href="mailto:contact@gearworldhub.com" class="footer-contact">contact@gearworldhub.com</a>
-      <span>&copy; <span id="year"></span> Gear World. All rights reserved.</span>
+      <span>&copy; <span id="year"></span> Gear World · run by Evangelos Kalogerakis, England · We don't sell products: we link to retailers and may earn a commission.</span>
       <!-- GWH-LEGAL-LINKS -->
       <nav class="footer-legal" aria-label="Legal"><a href="/privacy/">Privacy</a><a href="/cookies/">Cookies</a><a href="/terms/">Terms</a><a href="/affiliate-disclosure/">Affiliate disclosure</a><a href="/contact/">Contact</a></nav>
     </div>
@@ -418,7 +399,7 @@
     </button>
   </div>
 
-  <script src="/translations.js?v=20261104-thirteen1"></script>
+  <script src="/translations.js?v=20261108-ads1"></script>
 <script src="/email-signup.js?v=20261102-mailerlite-1"></script>
 <script src="/app.js?v=20261026-labels1"></script>
 <!-- GWH-ANALYTICS-CONSENT-START -->

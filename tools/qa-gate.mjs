@@ -146,8 +146,12 @@ for (const p of productPaths) {
   check('L20', Boolean(out), `${p}: has a button to the retailer (/out/<id>)`);
   if (out) check('L20', /sponsored/.test(out[2]) && /nofollow/.test(out[2]), `${p}: retailer link is rel="sponsored nofollow"`, out[2]);
   if (site && site.deliversTo) {
-    check('L62', /<dt>Delivers to<\/dt><dd class="ship-dd">[\s\S]*?(data-country="[A-Z]{2}"|>Worldwide<)/.test(r.body), `${p}: says where the retailer delivers`);
+    check('L62', /<dt><span data-i18n="\{0\} delivers to"[^>]*>[^<]+ delivers to<\/span><\/dt><dd class="ship-dd">[\s\S]*?(data-country="[A-Z]{2}"|>Worldwide<)/.test(r.body), `${p}: says where the retailer delivers ("<retailer> delivers to")`);
   }
+  // Google Ads review (lessons L101): the page says who sells the product, and that it is not Gear World.
+  check('L101', /<dt>Sold by<\/dt><dd><span translate="no">[^<]+<\/span>[\s\S]*?<span class="not-us">\(not by Gear World\)<\/span><\/dd>/.test(r.body), `${p}: "Sold by <retailer> (not by Gear World)"`);
+  check('L101', /<dt><span data-i18n="Stock at \{0\}"[^>]*>Stock at [^<]+<\/span><\/dt>/.test(r.body), `${p}: "Stock at <retailer>"`);
+  check('L101', !/<dt>Retailer<\/dt>|<dt>Stock<\/dt>/.test(r.body), `${p}: no bare "Retailer" or "Stock" label`);
   const prod = jsonLd(r.body).find(x => x['@type'] === 'Product');
   check('L12', Boolean(prod), `${p}: Product structured data present`);
   if (prod) {
@@ -169,6 +173,13 @@ for (const p of productPaths) {
 for (const p of ['/deals/', '/about/', '/how-we-make-money/', '/contact/', '/privacy/', '/cookies/', '/terms/']) {
   const r = await get(p);
   htmlChecks(p, r);
+  // Google Ads review (lessons L101): who runs the network, in the footer of every page and at the top of /about/.
+  if (site) check('L101', /<p class="footer-legal"><span translate="no">&copy; \d{4} Gear World<\/span> · <span>run by Evangelos Kalogerakis, England<\/span> · <span>We don't sell products: we link to retailers and may earn a commission\.<\/span><\/p>/.test(r.body), `${p}: footer says who runs Gear World and that it sells nothing`);
+  if (site && p === '/about/') {
+    check('L101', /<p class="about-lead">Gear World is a product search and price-comparison network run by Evangelos Kalogerakis in England\. We do not sell products, take payments or handle deliveries\./.test(r.body), '/about/: says who runs Gear World and what it does not do');
+    check('L101', /<a href="mailto:contact@gearworldhub\.com" translate="no">contact@gearworldhub\.com<\/a>/.test(r.body), '/about/: contact@gearworldhub.com');
+    check('L101', !/UK retailers/.test(r.body), '/about/: never "UK retailers"');
+  }
   if (opt('prelaunch')) check('L17', !r.body.includes('To be completed before launch'), `${p}: no placeholder text`);
 }
 const search = await get('/search?q=usb');
@@ -277,26 +288,31 @@ if (site && (site.displayCurrencies || []).length > 1) {
   }
 }
 
-// Gear Cart (lessons L26): a list in the browser; every buy button goes through /out/<id>.
+// Saved list (lessons L26, L101; the "Gear Cart" until 7 Nov 2026): a list in the browser; every retailer button
+// goes through /out/<id>. No cart, quantity or total anywhere (Google Ads, "unacceptable business practices").
 if (site && site.cart) {
-  check('L26', /data-cart="\d+"/.test(home.body), '/: product cards have a + Cart button');
-  check('L26', /href="\/cart\/"[^>]*data-cart-link/.test(home.body), '/: header links to the cart');
+  check('L101', /data-cart="\d+"/.test(home.body) && /\+ Save<\/button>/.test(home.body), '/: product cards have a + Save button');
+  check('L101', /href="\/saved\/"[^>]*data-cart-link/.test(home.body) && /#saved"/.test(home.body), '/: header links to the saved list, with the bookmark icon');
+  check('L101', !/\+ Cart<|Gear Cart|>Cart</.test(home.body), '/: no "Cart" anywhere');
   const cat = site.categories[0] ? site.categories[0].slug : '';
   const list = await get(`/api/products?category=${cat}&limit=2`);
   let ps = [];
   try { ps = JSON.parse(list.body).products || []; } catch { ps = []; }
   if (ps.length) {
-    const c = await get(`/cart/?items=${ps.map((p, i) => `${p.id}:${i + 2}`).join(',')},abc,0:5`);
-    htmlChecks('/cart/?items=…', c, { indexable: false });
-    check('L26', /<meta name="robots" content="noindex/.test(c.body), '/cart/: noindex');
+    const c = await get(`/saved/?items=${ps.map(p => p.id).join(',')},abc,0`);
+    htmlChecks('/saved/?items=…', c, { indexable: false });
+    check('L26', /<meta name="robots" content="noindex/.test(c.body), '/saved/: noindex');
     const outs = (c.body.match(/href="\/out\/\d+" rel="sponsored nofollow/g) || []).length;
-    check('L26', outs === ps.length, '/cart/: a retailer button through /out/ for every item', `${outs} buttons, ${ps.length} items`);
-    check('L26', !/awin1\.com/.test(c.body), '/cart/: no direct affiliate links (clicks must go through /out/)');
-    check('L26', c.body.includes(`data-cart-items="${ps.map((p, i) => `${p.id}:${i + 2}`).join(',')}"`), '/cart/: bad items are dropped, good ones kept with their quantity');
+    check('L26', outs === ps.length, '/saved/: a retailer button through /out/ for every item', `${outs} buttons, ${ps.length} items`);
+    check('L26', !/awin1\.com/.test(c.body), '/saved/: no direct affiliate links (clicks must go through /out/)');
+    check('L26', c.body.includes(`data-cart-items="${ps.map(p => p.id).join(',')}"`), '/saved/: bad items are dropped, good ones kept');
+    check('L101', !/Estimated total|class="qty"|Quantity/.test(c.body), '/saved/: no total and no quantity');
+    const old = await get(`/cart/?items=${ps.map((p, i) => `${p.id}:${i + 2}`).join(',')}`);
+    check('L101', old.status === 301 && (old.headers.get('location') || '').endsWith(`/saved/?items=${ps.map(p => p.id).join(',')}`), '/cart/?items=… (older addresses) leads to /saved/ with the same products');
   }
-  const empty = await get('/cart/');
-  check('L26', empty.status === 200 && /is empty/.test(empty.body), '/cart/: empty cart explains what to do');
-  check('L26', /Disallow: \/cart\//.test(rb.body), '/robots.txt blocks /cart/');
+  const empty = await get('/saved/');
+  check('L26', empty.status === 200 && /Your saved list is empty/.test(empty.body), '/saved/: an empty list explains what to do');
+  check('L26', /Disallow: \/saved\//.test(rb.body), '/robots.txt blocks /saved/');
 }
 
 // Voice search: the microphone is allowed for this site's own pages only.

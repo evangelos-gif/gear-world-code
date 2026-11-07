@@ -12,7 +12,7 @@ export default {
   lang: 'en-GB',
   locale: 'en-GB',
   currency: 'GBP',
-  assetVersion: '2026-11-03-ggw-ads-2',
+  assetVersion: '2026-11-08-ggw-saved-1',
   // Discount codes and sales from retailers (promos/promos.js, lessons L32), with the Awin publisher id
   // used for their links. The id is public: it is part of every Awin link.
   promos: promosFor('GGW'),
@@ -66,7 +66,7 @@ export default {
   // Country codes: src/lib/delivery.js. All the retailers here are UK shops.
   deliversTo: { default: ['GB'] },
   displayCurrencies: ['GBP', 'EUR', 'ALL', 'RON', 'RUB'],
-  cart: { name: 'Gear Cart', maxItems: 30, maxQuantity: 99 },
+  cart: { name: 'Saved list', maxItems: 30 },
   voiceSearch: true,
 
   // Gear World family look in garden green. tools/theme-site.mjs recolours the TGW stylesheet with this map.

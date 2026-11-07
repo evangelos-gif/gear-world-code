@@ -16,7 +16,7 @@ export default {
   lang: 'en-GB',
   locale: 'en-GB',
   currency: 'GBP',
-  assetVersion: '2026-11-03-pgw-ads-2',
+  assetVersion: '2026-11-08-pgw-saved-1',
   promos: promosFor('PGW'),
   awinPublisherId: AWIN_PUBLISHER_ID,
   storagePrefix: 'pgw',
@@ -49,7 +49,7 @@ export default {
   deliversTo: { default: ['GB'], retailers: { VEVOR: ['NL'] } },
 
   displayCurrencies: ['GBP', 'EUR', 'ALL', 'RON', 'RUB'],
-  cart: { name: 'Gear Cart', maxItems: 30, maxQuantity: 99 },
+  cart: { name: 'Saved list', maxItems: 30 },
   voiceSearch: true,
 
   // Colour 2 chosen by the owner (31 Oct 2026): black with electric blue and white. The owner has a colour vision
