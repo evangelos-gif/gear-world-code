@@ -258,6 +258,13 @@ if (Get-Command node -ErrorAction SilentlyContinue) {
     Check ($cars.Count -eq 1) 'car feed scan: report folder written'
     if ($cars.Count -ge 1) { Check ([System.IO.File]::ReadAllText((Join-Path $cars[0].FullName 'report.txt')).Contains('Retailers in the archive: 1')) 'car feed scan: reads the archive' }
     Check ((Get-FileHash -LiteralPath $gzPath -Algorithm SHA256).Hash -eq $archHash) 'car feed scan: Awin archive unchanged'
+    $miniOut = Join-Path $work 'mini-pc-scan-run'
+    & $exe -NoProfile -ExecutionPolicy Bypass -File $runTool -LocalRepo $repo -Tool mini-pc-scan -Archive $arch -OutDir $miniOut -NoClipboard | Out-Null
+    Check ($LASTEXITCODE -eq 0) 'mini PC scan (L97): exit code 0 through gw-run'
+    $minis = @(Get-ChildItem -LiteralPath $miniOut -Directory -Filter 'MINI_PC_SCAN_*' -ErrorAction SilentlyContinue)
+    Check ($minis.Count -eq 1) 'mini PC scan: report folder written'
+    if ($minis.Count -ge 1) { Check ([System.IO.File]::ReadAllText((Join-Path $minis[0].FullName 'report.txt'), [System.Text.Encoding]::UTF8).Contains('Feeds που διαβάστηκαν: 1.')) 'mini PC scan: reads the archive' }
+    Check ((Get-FileHash -LiteralPath $gzPath -Algorithm SHA256).Hash -eq $archHash) 'mini PC scan: Awin archive unchanged'
     $travelOut = Join-Path $work 'travel-scan-run'
     & $exe -NoProfile -ExecutionPolicy Bypass -File $runTool -LocalRepo $repo -Tool travel-feed-scan -Archive $arch -OutDir $travelOut -KeyFile (Join-Path $work 'no-key.dat') -NoClipboard | Out-Null
     Check ($LASTEXITCODE -eq 0) 'travel feed scan: exit code 0 through gw-run, without a saved key'
