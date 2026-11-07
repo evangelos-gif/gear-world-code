@@ -15,8 +15,11 @@ import tgw from '../../sites/tgw/site.config.js';
 
 const at = day => Date.parse(`${day}T12:00:00Z`);
 const SITES = readdirSync(new URL('../../sites/', import.meta.url)).filter(n => existsSync(new URL(`../../sites/${n}/public/assets/site.js`, import.meta.url)));
-const KEYS = ['Seasonal offers', 'Halloween', 'Black Friday', 'Christmas', 'Until {0}', 'Halloween offers', 'Black Friday offers', 'Christmas offers',
+// The titles promise no offers (Google Ads review, lessons L101, L102): gifts at Christmas, as on the Hub, and comparing
+// prices at Halloween and Black Friday. The section is named after the season.
+const KEYS = ['Halloween', 'Black Friday', 'Christmas', 'Until {0}', 'Gifts for everyone', 'Compare prices before you buy',
   'Ends in {0} d {1} h {2} min', 'Ends in {0} h {1} min', 'See the deals', 'Pause', 'Play'];
+const OLD_KEYS = ['Seasonal offers', 'Halloween offers', 'Black Friday offers', 'Christmas offers'];
 
 function hub() {
   const window = { addEventListener() {}, dispatchEvent() {} };
@@ -58,8 +61,9 @@ test('seasons: the files come from the Hub (one copy for all 11), and the sites 
 
 test('seasons: the banner on the codes page and the price drops (first page), with its text in tr() and the button to the list', () => {
   const site = { ...tgw, promos: [] };
-  const b = toString(seasonBanner(site, 'offers-list', at('2026-10-28')));
-  assert.match(b, /^<section class="season-banner season-halloween season-mirror" aria-label="Seasonal offers"/);
+  const b = toString(seasonBanner(site, 'offers-list', at('2026-10-28'), 3));
+  assert.match(b, /^<section class="season-banner season-halloween season-mirror" aria-label="Halloween"/);
+  assert.ok(b.includes('<h2 class="season-title"><span data-i18n="Compare prices before you buy">Compare prices before you buy</span></h2>'));
   assert.ok(b.includes('data-season-video="https://gearworldhub.com/seasonal/halloween.mp4?v='));
   assert.ok(b.includes('<img class="season-media" src="https://gearworldhub.com/seasonal/halloween.jpg?v='));
   assert.ok(b.includes('<span data-i18n="Halloween">Halloween</span> · <span data-i18n="Until {0}" data-i18n-0="31 Oct 2026" data-i18n-0-date="2026-10-31">Until 31 Oct 2026</span>'));
@@ -67,16 +71,31 @@ test('seasons: the banner on the codes page and the price drops (first page), wi
   assert.ok(b.includes('data-season-pause hidden'), 'Pause appears only with the video');
   assert.ok(!b.includes('<video'), 'the server writes no video: the script adds it after the page has loaded');
   assert.ok(!b.includes('data-season-count'), 'no countdown for Halloween');
-  const bf = toString(seasonBanner(site, 'deals-list', Date.parse('2026-11-28T10:30:00Z')));
+  const bf = toString(seasonBanner(site, 'deals-list', Date.parse('2026-11-28T10:30:00Z'), 12));
   assert.ok(bf.includes('data-season-countdown="2026-11-30T23:59:00Z"'));
+  assert.ok(bf.includes('aria-label="Black Friday"') && bf.includes('>Compare prices before you buy</span></h2>'));
   assert.ok(bf.includes('<p class="season-count" data-season-count><span data-i18n="Ends in {0} d {1} h {2} min" data-i18n-0="2" data-i18n-1="13" data-i18n-2="29">Ends in 2 d 13 h 29 min</span></p>'));
-  assert.equal(toString(seasonBanner(site, 'x', at('2026-11-02'))).includes('data-season="christmas"'), true, 'from 1/11 the Christmas video (owner, 1/11/2026)');
-  assert.equal(toString(seasonBanner(site, 'x', at('2026-12-28'))), '', 'no banner outside the seasons');
+  const xmas = toString(seasonBanner(site, 'x', at('2026-11-02'), 1));
+  assert.equal(xmas.includes('data-season="christmas"'), true, 'from 1/11 the Christmas video (owner, 1/11/2026)');
+  assert.ok(xmas.includes('aria-label="Christmas"') && xmas.includes('<h2 class="season-title"><span data-i18n="Gifts for everyone">Gifts for everyone</span></h2>'), 'Christmas speaks of gifts, as on the Hub (L101, L102)');
+  assert.equal(toString(seasonBanner(site, 'x', at('2026-12-28'), 5)), '', 'no banner outside the seasons');
+  // Nothing in the list the button goes to: no banner, so it never promises deals that are not there (L102).
+  assert.equal(toString(seasonBanner(site, 'x', at('2026-12-10'))), '', 'no count given: no banner');
+  assert.equal(toString(seasonBanner(site, 'x', at('2026-12-10'), 0)), '');
+  for (const day of ['2026-10-28', '2026-11-28', '2026-12-10']) {
+    assert.ok(!/offers?\b/i.test(toString(seasonBanner(site, 'x', at(day), 1)).replace(/href="#[^"]*"|id="[^"]*"/g, '')), `${day}: no "offers" on the banner`);
+  }
 
-  const offersHtml = String(offersIndexPage(site, at('2026-12-10')));
+  const promo = { id: 'tgw-test-xmas', slug: 'joybuy', retailer: 'Joybuy', kind: 'code', code: 'XMAS10', off: 10, minSpend: 50, currency: 'GBP',
+    start: '2026-11-01', end: '2026-12-31', campaign: 'Christmas', bar: '', sites: ['TGW'] };
+  const offersHtml = String(offersIndexPage({ ...site, promos: [promo] }, at('2026-12-10')));
+  assert.ok(offersHtml.includes('XMAS10'), 'the test code is listed');
   assert.ok(offersHtml.indexOf('season-christmas') > 0 && offersHtml.indexOf('season-christmas') < offersHtml.indexOf('id="offers-list"'), 'codes page: the banner, then the list');
-  const deals = (page, day) => String(dealsPage(site, { page }, { products: [], total: 0, pages: 1, page }, at(day)));
+  assert.ok(!String(offersIndexPage(site, at('2026-12-10'))).includes('season-banner'), 'codes page without codes: no banner');
+  const one = { id: 1, product_name: 'Test', retailer: 'Joybuy', price: 10, was_price: 12, currency: 'GBP', in_stock: 1, image_url: 'https://img.example/a.jpg', product_slug: 'test' };
+  const deals = (page, day, products = [one]) => String(dealsPage(site, { page }, { products, total: products.length, pages: 1, page }, at(day)));
   assert.ok(deals(1, '2026-10-28').includes('season-halloween') && deals(1, '2026-10-28').includes('id="deals-list"'));
+  assert.ok(!deals(1, '2026-10-28', []).includes('season-banner'), 'no price drops: no banner');
   assert.ok(!deals(2, '2026-10-28').includes('season-banner'), 'only on the first page of the price drops');
   assert.ok(!deals(1, '2026-12-28').includes('season-banner'));
 });
@@ -91,6 +110,7 @@ test('seasons: every dictionary of every site has the banner texts, with the sam
         assert.ok(typeof d[k] === 'string' && d[k].trim(), `${code} ${f}: "${k}"`);
         assert.equal(ph(d[k]), ph(k), `${code} ${f}: "${k}" keeps its placeholders`);
       }
+      for (const k of OLD_KEYS) assert.ok(!(k in d), `${code} ${f}: the old "${k}" is gone (L102)`);
     }
   }
 });

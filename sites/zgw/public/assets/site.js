@@ -37,6 +37,28 @@
     return s;
   }
   function tf(key, args) { return fill(t(key), args || []); }
+  // A text with a part that is never translated (data-i18n-keep="0": a retailer name, lessons L24 and L102): that part
+  // keeps its own translate="no" span, wherever the language puts it, so a browser translation leaves it alone.
+  function fillKept(node, s, args, keep) {
+    while (node.firstChild) node.removeChild(node.firstChild);
+    var parts = s.split(/(\{\d+\})/);
+    for (var p = 0; p < parts.length; p++) {
+      var m = /^\{(\d+)\}$/.exec(parts[p]);
+      var i = m ? Number(m[1]) : -1;
+      if (i < 0 || i >= args.length) {
+        if (parts[p]) node.appendChild(document.createTextNode(parts[p]));
+        continue;
+      }
+      if (keep.indexOf(String(i)) >= 0) {
+        var span = document.createElement('span');
+        span.setAttribute('translate', 'no');
+        span.textContent = args[i];
+        node.appendChild(span);
+      } else {
+        node.appendChild(document.createTextNode(args[i]));
+      }
+    }
+  }
 
   function formatNumberText(v) {
     return /^\d{1,3}(,\d{3})+$|^\d+$/.test(v) ? new Intl.NumberFormat(lang).format(Number(v.replace(/,/g, ''))) : v;
@@ -93,7 +115,8 @@
           var arg = node.getAttribute('data-i18n-' + i);
           args.push(date ? (formatDate(date) || arg) : formatNumberText(arg));
         }
-        node.textContent = tf(node.getAttribute('data-i18n'), args);
+        if (node.hasAttribute('data-i18n-keep')) fillKept(node, t(node.getAttribute('data-i18n')), args, node.getAttribute('data-i18n-keep').split(' '));
+        else node.textContent = tf(node.getAttribute('data-i18n'), args);
         continue;
       }
       if (tag === 'TIME' && node.getAttribute('datetime')) {

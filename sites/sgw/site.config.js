@@ -13,7 +13,7 @@ export default {
   lang: 'en-GB',
   locale: 'en-GB',
   currency: 'GBP',
-  assetVersion: '2026-11-08-sgw-saved-1',
+  assetVersion: '2026-11-08-sgw-wording-1',
   promos: promosFor('SGW'),
   awinPublisherId: AWIN_PUBLISHER_ID,
   storagePrefix: 'sgw',

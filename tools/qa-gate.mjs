@@ -114,9 +114,12 @@ htmlChecks('/', home);
 const fmtTotal = new Intl.NumberFormat('en-GB').format(total);
 check('L09', total === 0 || home.body.includes(fmtTotal), '/: real product count is in the HTML (not filled in later by JavaScript)', `expected ${fmtTotal}`);
 check('L09', !/>\s*0\s*(products|PRODUCTS)/.test(home.body) || total === 0, '/: no "0 products" placeholder');
+// "<retailer> delivers to" (lessons L62, L101, L102): the card says who delivers, with the retailer name untranslated.
+const SHIP_WORD = /<span class="ship-word"><span data-i18n="\{0\} delivers to" data-i18n-0="[^"]+" data-i18n-keep="0"><span translate="no">[^<]+<\/span> delivers to<\/span><\/span>:/;
 if (site && site.deliversTo && total > 0) {
-  check('L62', /<p class="label-ship" data-ship="[A-Z ]+">[\s\S]*?<span class="ship-word">Delivers to<\/span>:/.test(home.body), '/: product cards say where the retailer delivers');
+  check('L62', new RegExp(`<p class="label-ship" data-ship="[A-Z ]+">[\\s\\S]*?${SHIP_WORD.source}`).test(home.body), '/: product cards say where the retailer delivers ("<retailer> delivers to")');
 }
+if (site) check('L102', !/<span class="ship-word">Delivers to<\/span>|>Delivers to:/.test(home.body), '/: never a bare "Delivers to" on a card (the retailer delivers, not Gear World)');
 
 // Categories
 const categoryPaths = site ? site.categories.map(c => `/category/${c.slug}/`) : all(home.body, /href="(\/category\/[^"?#]+\/)"/g).map(m => m[1]).filter((v, i, a) => a.indexOf(v) === i);
@@ -146,7 +149,8 @@ for (const p of productPaths) {
   check('L20', Boolean(out), `${p}: has a button to the retailer (/out/<id>)`);
   if (out) check('L20', /sponsored/.test(out[2]) && /nofollow/.test(out[2]), `${p}: retailer link is rel="sponsored nofollow"`, out[2]);
   if (site && site.deliversTo) {
-    check('L62', /<dt><span data-i18n="\{0\} delivers to"[^>]*>[^<]+ delivers to<\/span><\/dt><dd class="ship-dd">[\s\S]*?(data-country="[A-Z]{2}"|>Worldwide<)/.test(r.body), `${p}: says where the retailer delivers ("<retailer> delivers to")`);
+    check('L62', /<dt><span data-i18n="\{0\} delivers to"[^>]*><span translate="no">[^<]+<\/span> delivers to<\/span><\/dt><dd class="ship-dd">[\s\S]*?(data-country="[A-Z]{2}"|>Worldwide<)/.test(r.body), `${p}: says where the retailer delivers ("<retailer> delivers to")`);
+    check('L102', !/<span class="ship-word">Delivers to<\/span>/.test(r.body), `${p}: the price list says "<retailer> delivers to" too, never a bare "Delivers to"`);
   }
   // Google Ads review (lessons L101): the page says who sells the product, and that it is not Gear World.
   check('L101', /<dt>Sold by<\/dt><dd><span translate="no">[^<]+(?:<img [^>]+>)?<\/span> <span class="not-us">\(not by Gear World\)<\/span><\/dd>/.test(r.body), `${p}: "Sold by <retailer> (not by Gear World)"`);
@@ -184,6 +188,16 @@ for (const p of ['/deals/', '/about/', '/how-we-make-money/', '/contact/', '/pri
     check('L101', !/UK retailers/.test(r.body), '/about/: never "UK retailers"');
   }
   if (opt('prelaunch')) check('L17', !r.body.includes('To be completed before launch'), `${p}: no placeholder text`);
+}
+// No "offers" promise without real retailer offers (Google Ads review, lessons L102): the seasonal banner speaks of gifts
+// or of comparing prices, and shows only above a list that has something in it (the codes page is checked under L32).
+if (site) {
+  for (const p of ['/deals/', '/discount-codes/']) {
+    const r = await get(p);
+    check('L102', !/Christmas offers|Black Friday offers|Halloween offers|Seasonal offers/.test(r.body), `${p}: no seasonal "offers" wording`);
+    const listed = p === '/deals/' ? /href="\/out\/\d+"/.test(r.body) : /class="promo-card/.test(r.body);
+    check('L102', !/class="season-banner/.test(r.body) || listed, `${p}: the seasonal banner shows only above real ${p === '/deals/' ? 'price drops' : 'codes'}`);
+  }
 }
 const search = await get('/search?q=usb');
 htmlChecks('/search?q=usb', search, { indexable: false });
@@ -255,6 +269,7 @@ if (site) {
     check('L23', (c.body.match(/href="\/out\/\d+" rel="sponsored nofollow/g) || []).length >= 2, '/compare/: a retailer button for every product');
     check('L23', c.body.includes('Our pick') || c.body.includes('we do not pick one'), '/compare/: our pick, or why there is none');
     check('L23', c.body.includes('How we pick:'), '/compare/: the pick rule is shown');
+    check('L102', /<th scope="row">Sold by<\/th>/.test(c.body) && /<th scope="row">Stock at the retailer<\/th>/.test(c.body) && (!site.deliversTo || /<th scope="row">The retailer delivers to<\/th>/.test(c.body)) && !/<th scope="row">(Retailer|Stock|Delivers to)<\/th>/.test(c.body), '/compare/: "Sold by", "Stock at the retailer"' + (site.deliversTo ? ', "The retailer delivers to"' : '') + ': never a bare "Retailer", "Stock" or "Delivers to"');
   }
   const bad = await get('/compare/?ids=abc,0,-1');
   check('L23', bad.status === 200 && bad.body.includes('Choose 2 to'), '/compare/: bad ids show the help text');

@@ -59,7 +59,7 @@ export function offersIndexPage(site, now = Date.now()) {
     <h1>${tr('Discount codes and offers')}</h1>
     <p class="lede">${tr('Codes and sales that retailers give to their affiliate partners. Every code has an end date and is removed when it ends.')}</p>
   </header>
-  ${seasonBanner(site, 'offers-list', now)}
+  ${seasonBanner(site, 'offers-list', now, promos.length)}
   <div id="offers-list"></div>
   ${retailers.length ? retailers.map(r => html`<section class="section" aria-labelledby="r-${r.slug}">
     <h2 id="r-${r.slug}" translate="no"><a href="${OFFERS_PATH}${r.slug}/">${r.name}</a></h2>

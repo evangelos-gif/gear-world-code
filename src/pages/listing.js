@@ -234,7 +234,7 @@ export function dealsPage(site, p, result, now = Date.now()) {
     <h1>Price drops</h1>
     <p class="lede">Products that cost less now than the retailer's previous price, biggest saving first.</p>
   </header>
-  ${p.page > 1 ? '' : seasonBanner(site, 'deals-list', now)}
+  ${p.page > 1 ? '' : seasonBanner(site, 'deals-list', now, result.products.length)}
   <div id="deals-list"></div>
   ${resultsHeader(result)}
   ${result.products.length

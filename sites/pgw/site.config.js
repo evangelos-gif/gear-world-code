@@ -16,7 +16,7 @@ export default {
   lang: 'en-GB',
   locale: 'en-GB',
   currency: 'GBP',
-  assetVersion: '2026-11-08-pgw-saved-1',
+  assetVersion: '2026-11-08-pgw-wording-1',
   promos: promosFor('PGW'),
   awinPublisherId: AWIN_PUBLISHER_ID,
   storagePrefix: 'pgw',

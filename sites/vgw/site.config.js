@@ -13,7 +13,7 @@ export default {
   lang: 'en-GB',
   locale: 'en-GB',
   currency: 'GBP',
-  assetVersion: '2026-11-08-vgw-saved-1',
+  assetVersion: '2026-11-08-vgw-wording-1',
   promos: promosFor('VGW'),
   awinPublisherId: AWIN_PUBLISHER_ID,
   storagePrefix: 'vgw',

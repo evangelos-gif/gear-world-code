@@ -16,12 +16,14 @@ export function countdownHtml(season, now) {
   return left.d > 0 ? tr('Ends in {0} d {1} h {2} min', left.d, left.h, left.m) : tr('Ends in {0} h {1} min', left.h, left.m);
 }
 
-// target: the id of the part of the page the button goes to (the codes, or the products).
-export function seasonBanner(site, target, now = Date.now()) {
+// target: the id of the part of the page the button goes to (the codes, or the products). listed: how many codes or
+// products that list has. With none there is no banner: its button must never promise deals that are not there
+// (Google Ads review, lessons L101, L102).
+export function seasonBanner(site, target, now = Date.now(), listed = 0) {
   const season = seasonFor(now);
-  if (!season) return '';
+  if (!season || !(Number(listed) > 0)) return '';
   const count = countdownHtml(season, now);
-  return html`<section class="season-banner season-${season.id}${season.mirror ? ' season-mirror' : ''}" aria-label="Seasonal offers"
+  return html`<section class="season-banner season-${season.id}${season.mirror ? ' season-mirror' : ''}" aria-label="${season.name}"
     data-season="${season.id}" data-season-video="${seasonMedia(season, 'mp4')}" data-season-poster="${seasonMedia(season, 'jpg')}"${season.countdownTo ? html` data-season-countdown="${season.countdownTo}"` : ''}>
   <img class="season-media" src="${seasonMedia(season, 'jpg')}" alt="" width="960" height="528" decoding="async">
   <div class="season-shade"></div>

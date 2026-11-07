@@ -7,6 +7,8 @@
 //   after it at 23:59 UK time (2026: 30/11; November is always GMT, so 23:59 UK = 23:59 UTC)
 //   Christmas 2/12-24/12
 // Outside these days there is no banner.
+// The titles promise no offers (Google Ads review, lessons L101, L102): Christmas speaks of gifts, as on the Hub, and
+// Halloween and Black Friday of comparing prices. The banner shows only above a list that has something in it.
 import { ukToday } from './promos.js';
 
 export const SEASON_MEDIA_BASE = 'https://gearworldhub.com/seasonal/';
@@ -24,10 +26,10 @@ const isoDay = (y, m, d) => new Date(Date.UTC(y, m - 1, d)).toISOString().slice(
 export function seasonsOf(year) {
   const bf = blackFridayDay(year);
   return [
-    { id: 'halloween', start: `${year}-10-20`, end: `${year}-10-31`, file: 'halloween', name: 'Halloween', title: 'Halloween offers', mirror: true },
-    { id: 'black-friday', start: isoDay(year, 11, bf - 7), end: isoDay(year, 11, bf + 4), file: 'black-friday', name: 'Black Friday', title: 'Black Friday offers', countdownTo: `${isoDay(year, 11, bf + 3)}T23:59:00Z` },
+    { id: 'halloween', start: `${year}-10-20`, end: `${year}-10-31`, file: 'halloween', name: 'Halloween', title: 'Compare prices before you buy', mirror: true },
+    { id: 'black-friday', start: isoDay(year, 11, bf - 7), end: isoDay(year, 11, bf + 4), file: 'black-friday', name: 'Black Friday', title: 'Compare prices before you buy', countdownTo: `${isoDay(year, 11, bf + 3)}T23:59:00Z` },
     // Owner, 1/11/2026: the Christmas video (the fireplace) from 1 November, as on the Hub; Black Friday (listed first) wins in its days.
-    { id: 'christmas', start: `${year}-11-01`, end: `${year}-12-24`, file: 'christmas', name: 'Christmas', title: 'Christmas offers', mirror: true }
+    { id: 'christmas', start: `${year}-11-01`, end: `${year}-12-24`, file: 'christmas', name: 'Christmas', title: 'Gifts for everyone', mirror: true }
   ];
 }
 

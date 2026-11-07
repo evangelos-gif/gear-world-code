@@ -66,9 +66,9 @@ export function comparePage(site, products, ids) {
   <tbody>
     ${row('Price', p => html`<strong class="compare-price">${priceTag(site, p.price, p.currency, 'compare-amount')}</strong>`)}
     ${row('Previous price', p => (was(p) ? html`<s>${was(p)}</s> <span class="tag-save">${tr('Save {0}%', savingPercent(p.price, p.was_price))}</span>` : '—'))}
-    ${row('Stock', p => (inStock(p) ? html`<span class="ok">In stock</span>` : html`<span class="warn">Out of stock</span>`))}
-    ${row('Retailer', p => html`<span translate="no">${p.retailer}</span>`)}
-    ${site.deliversTo ? row('Delivers to', p => deliveryText(site, p.retailer) || '—') : ''}
+    ${row('Sold by', p => html`<span translate="no">${p.retailer}</span>`)}
+    ${row('Stock at the retailer', p => (inStock(p) ? html`<span class="ok">In stock</span>` : html`<span class="warn">Out of stock</span>`))}
+    ${site.deliversTo ? row('The retailer delivers to', p => deliveryText(site, p.retailer) || '—') : ''}
     ${row('Brand', p => html`<span translate="no">${p.brand || '—'}</span>`)}
     ${row('Category', p => categoryName(p.category_slug))}
     ${row('Condition', p => (p.item_condition === 'refurbished' ? 'Refurbished' : 'New'))}

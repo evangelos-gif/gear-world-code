@@ -5,6 +5,10 @@
   delivers to" and "Stock at <retailer>", /about/ says who runs Gear World, and every footer says "Run by Evangelos
   Kalogerakis, United Kingdom · We don't sell products" (owner's decision, 7/11/2026). The product structured data is an
   AggregateOffer (a comparison page, not a shop). In all 10 languages. Read-only unless -Apply and the phrase.
+  Follow-up of the appeal (lessons L102): every product card, the price list and the saved list say "<retailer>
+  delivers to" (the name untranslated), the compare table says "Sold by", "Stock at the retailer" and "The retailer
+  delivers to", the seasonal banner of /deals/ and /discount-codes/ speaks of gifts or of comparing prices (never
+  "offers") and shows only above real price drops or codes, and the unused "Quantity" text is gone.
 
 .DESCRIPTION
   -Step check   READ-ONLY. The 13 site tools are there? Shows the plan.
@@ -15,8 +19,9 @@
                      Gear World.
                 It stops at the first problem; sites already updated keep working. Running it again is safe.
                 The site databases and their settings on this PC do not change. The Hub has its own step
-                (tools/gwh-hub-v2.ps1, ΕΓΚΡΙΝΩ HUB ADS LIVE).
-                Going back: each site tool's update with the version before (git commit c544884).
+                (tools/gwh-hub-v2.ps1, ΕΓΚΡΙΝΩ HUB WORDING LIVE since L102).
+                Going back: each site tool's update with the version before (git commit f4c8c35 for the L102
+                follow-up; c544884 before L101).
   Report: <home>\gear-world-reports\ADS_FIXES_<STEP>_<time>.txt (also copied to the clipboard)
 #>
 param(
@@ -115,7 +120,7 @@ function Get-Page([string]$url) {
 function Test-Fixes([string]$domain) {
     $homePage = Get-Page ('https://{0}/?gwcheck={1}' -f $domain, $stamp)
     $about = Get-Page ('https://{0}/about/?gwcheck={1}' -f $domain, $stamp)
-    $okHome = ($homePage -match 'href="/saved/"') -and ($homePage -match 'class="footer-legal"') -and ($homePage -match 'Run by Evangelos Kalogerakis, United Kingdom') -and -not ($homePage -match 'Gear Cart|\+ Cart<')
+    $okHome = ($homePage -match 'href="/saved/"') -and ($homePage -match 'class="footer-legal"') -and ($homePage -match 'Run by Evangelos Kalogerakis, United Kingdom') -and -not ($homePage -match 'Gear Cart|\+ Cart<') -and -not ($homePage -match 'class="ship-word">Delivers to<')
     $okAbout = ($about -match 'class="about-lead"') -and ($about -match 'class="about-run"') -and ($about -match 'contact@gearworldhub\.com')
     return ($okHome -and $okAbout)
 }
@@ -138,6 +143,7 @@ if ($Step -eq 'check') {
     Say ('Πλάνο του apply (φράση: {0}):' -f $Phrase)
     Say ('  1. τα 13 sites, το καθένα με το δικό του update: {0}' -f (($Sites | ForEach-Object { $_.code.ToUpper() }) -join ', '))
     Say '     («Saved list» αντί για «Gear Cart», «Sold by … (not by Gear World)», «… delivers to», «Stock at …», το /about/ και η γραμμή του footer, σε 10 γλώσσες)'
+    Say '     (L102: «<κατάστημα> delivers to» και στις κάρτες, το μπάνερ των Χριστουγέννων λέει «Gifts for everyone» και φαίνεται μόνο πάνω από πραγματικές προσφορές, χωρίς «Quantity»)'
     Say '  2. έλεγχος ότι κάθε αρχική σελίδα δείχνει στο /saved/ και έχει τη νέα γραμμή στο footer, και ότι το /about/ λέει ποιος τρέχει το Gear World'
     Say '  Οι βάσεις των sites και οι ρυθμίσεις τους στον υπολογιστή δεν αλλάζουν.'
     Say ''

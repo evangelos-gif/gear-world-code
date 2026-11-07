@@ -56,9 +56,12 @@ for (const f of ['layout', 'home', 'listing', 'product', 'compare', 'cart', 'inf
 for (const m of readFileSync(join('src', 'engine.js'), 'utf8').matchAll(/\b(?:(?:error|message): |answer\((?:true|false|ok), |thanks = )'((?:[^'\\]|\\.)*)'/g)) scriptKeys.add(m[1]);
 // Texts that only appear with many products (page buttons): the test data has too few products to show them.
 for (const k of ['Pages', 'Next', 'Previous']) scriptKeys.add(k);
-// "Delivers to: Germany" (lessons L62): the label, and "Worldwide" (no retailer of the test data has it).
-// The country names need no entry: the site script takes them from the browser (Intl.DisplayNames).
-if (site.deliversTo) for (const k of ['Delivers to', 'Worldwide']) scriptKeys.add(k);
+// "<retailer> delivers to: Germany" (lessons L62, L102): the label of the compare page, and "Worldwide" (no retailer of
+// the test data has it). "{0} delivers to" comes from tr() above. The country names need no entry: the site script
+// takes them from the browser (Intl.DisplayNames).
+if (site.deliversTo) for (const k of ['The retailer delivers to', 'Worldwide']) scriptKeys.add(k);
+// The seasonal banner titles (src/lib/seasons.js), whatever the season is on the day of the check.
+for (const k of ['Gifts for everyone', 'Compare prices before you buy', 'Halloween', 'Black Friday', 'Christmas']) scriptKeys.add(k);
 // Every text of the site config that pages show: category names, menu names and intros, hero texts.
 for (const c of site.categories || []) for (const k of ['name', 'nav', 'intro']) if (c[k]) scriptKeys.add(c[k]);
 for (const k of ['heroEyebrow', 'heroTitle', 'heroText', 'searchPlaceholder']) if (site[k]) scriptKeys.add(site[k]);

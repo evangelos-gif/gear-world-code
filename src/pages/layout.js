@@ -38,12 +38,22 @@ function brandName(site) {
 // Text with a changing part, e.g. tr('View at {0}', 'Joybuy'). The server writes the English text; the site
 // script translates the key and puts the parts back in, so word order can change per language (lessons L24).
 // A part can be a date: { date: '2026-10-18', text: '18 Oct 2026' }; the script writes it in the visitor's language.
+// A part can be a name that is never translated: { text: 'Joybuy', keep: true }. It sits in its own translate="no"
+// span, wherever the language puts it, so a browser translation cannot change a retailer name (lessons L24, L102).
 export function tr(key, ...args) {
   const txt = a => (a && typeof a === 'object' ? a.text : a);
-  const text = args.reduce((acc, a, i) => acc.split(`{${i}}`).join(String(txt(a))), key);
+  const kept = args.map((a, i) => (a && typeof a === 'object' && a.keep ? i : -1)).filter(i => i >= 0);
+  const inner = String(key).split(/(\{\d+\})/).map(part => {
+    const m = /^\{(\d+)\}$/.exec(part);
+    const i = m ? Number(m[1]) : -1;
+    if (i < 0 || i >= args.length) return escText(part);
+    const value = escText(String(txt(args[i])));
+    return kept.includes(i) ? `<span translate="no">${value}</span>` : value;
+  }).join('');
   const attrs = args.map((a, i) => ` data-i18n-${i}="${escAttr(txt(a))}"` +
-    (a && typeof a === 'object' && a.date ? ` data-i18n-${i}-date="${escAttr(a.date)}"` : '')).join('');
-  return raw(`<span data-i18n="${escAttr(key)}"${attrs}>${escText(text)}</span>`);
+    (a && typeof a === 'object' && a.date ? ` data-i18n-${i}-date="${escAttr(a.date)}"` : '')).join('') +
+    (kept.length ? ` data-i18n-keep="${kept.join(' ')}"` : '');
+  return raw(`<span data-i18n="${escAttr(key)}"${attrs}>${inner}</span>`);
 }
 const escText = v => String(v ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 const escAttr = v => escText(v).replace(/"/g, '&quot;').replace(/'/g, '&#39;');
@@ -96,19 +106,27 @@ function deliveryParts(site, retailer, max) {
   };
 }
 
-// Flags, then the names: the value next to "Delivers to" on the product page and the compare page.
+// Flags, then the names: the value next to "<retailer> delivers to" on the product page and the compare page.
 export function deliveryText(site, retailer, { max = 0 } = {}) {
   const d = deliveryParts(site, retailer, max);
   return d ? html`${d.flags ? html`${d.flags} ` : ''}${d.names}` : '';
 }
 
-// "[flags] Delivers to: Germany, Austria" as a line of its own (product cards, the price list, the cart). The flags
-// open the line, so a flag is never left alone at the end of one; the names move to the next line together.
-// tag 'span' for a place where a paragraph is not allowed. data-ship keeps the codes for the site script.
+// "<retailer> delivers to", the label of the delivery countries everywhere (product page, cards, price list, saved
+// list): it is the retailer that delivers, never Gear World (Google Ads review, lessons L101, L102). The retailer
+// name stays untranslated in its own translate="no" span (L24).
+export function deliversLabel(retailer) {
+  return tr('{0} delivers to', { text: String(retailer || ''), keep: true });
+}
+
+// "[flags] <retailer> delivers to: Germany, Austria" as a line of its own (product cards, the price list, the saved
+// list). The flags open the line, so a flag is never left alone at the end of one; the names move to the next line
+// together. tag 'span' for a place where a paragraph is not allowed. data-ship keeps the codes for the site script.
+// A site without delivery data (no deliversTo) shows nothing.
 export function deliveryLine(site, retailer, { cls = 'label-ship', tag = 'p', max = 2 } = {}) {
   const d = deliveryParts(site, retailer, max);
   if (!d) return '';
-  const inner = html`${d.flags ? html`${d.flags} ` : ''}<span class="ship-word">Delivers to</span>: ${d.names}`;
+  const inner = html`${d.flags ? html`${d.flags} ` : ''}<span class="ship-word">${deliversLabel(retailer)}</span>: ${d.names}`;
   const codes = d.codes.join(' ');
   return tag === 'span'
     ? html`<span class="${cls}" data-ship="${codes}">${inner}</span>`
