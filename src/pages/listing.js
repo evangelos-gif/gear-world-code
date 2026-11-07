@@ -190,7 +190,8 @@ export function categoryPage(site, cat, p, result, facets, subCounts = null) {
 }
 
 // One search box per page (lessons L03): the one in the header, which keeps the words searched for (searchValue).
-export function searchPage(site, q, p, result, usedQuery = '') {
+// facets: the shops and brands of the search (lessons L98), so the filters are the same as on a category page.
+export function searchPage(site, q, p, result, usedQuery = '', facets = null) {
   const params = keepParams(p, { q });
   const body = html`
 <div class="wrap">
@@ -198,13 +199,15 @@ export function searchPage(site, q, p, result, usedQuery = '') {
     <h1>${q ? html`${tr('Results for “{0}”', q)}` : 'Search'}</h1>
   </header>
   ${q ? html`<div class="listing">
-    <aside class="listing-side">${filterForm('/search', p, null, { q })}</aside>
+    <aside class="listing-side">${filterForm('/search', p, facets, { q })}</aside>
     <div class="listing-main">
       ${usedQuery ? html`<p class="search-note">${tr('Showing results for “{0}”', usedQuery)}</p>` : ''}
       ${resultsHeader(result)}
       ${result.products.length
         ? html`<h2 class="visually-hidden">${tr('Products')}</h2>${productGrid(site, result.products)}`
-        : html`<div class="empty"><h2>${tr('No products found for “{0}”', q)}</h2><p>Check the spelling, try a shorter word such as a brand name, or browse a category.</p>
+        : hasFilters(p)
+          ? html`<div class="empty"><h2>No products match these filters</h2><p><a class="btn btn-quiet" href="/search?q=${encodeURIComponent(q)}">Clear all</a></p></div>`
+          : html`<div class="empty"><h2>${tr('No products found for “{0}”', q)}</h2><p>Check the spelling, try a shorter word such as a brand name, or browse a category.</p>
           <ul class="chip-list">${site.categories.map(c => html`<li><a href="${categoryPath(c.slug)}">${c.name}</a></li>`)}</ul></div>`}
       ${pagination('/search', params, result)}
     </div>

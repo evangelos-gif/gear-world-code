@@ -149,10 +149,16 @@ export function createWorker(site) {
     if (path === '/search') {
       const q = (url.searchParams.get('q') || '').normalize('NFKC').trim().slice(0, 80);
       const p = readListingParams(url);
-      const found = q
-        ? await searchWithTranslation(env, { ...p, search: q }, { sort: p.sort, page: p.page, perPage: PER_PAGE })
-        : { result: { products: [], total: 0, page: 1, pages: 0 }, used: '' };
-      return htmlResponse(searchPage(site, q, p, found.result, found.used), { method, cache: 'short' });
+      // The shops and brands of the search (lessons L98) are read at the same time as the products; when the words found
+      // nothing and a translation did, they are read again for the translated words.
+      const [found, firstFacets] = q
+        ? await Promise.all([
+          searchWithTranslation(env, { ...p, search: q }, { sort: p.sort, page: p.page, perPage: PER_PAGE }),
+          db.searchFacets(env.DB, q)
+        ])
+        : [{ result: { products: [], total: 0, page: 1, pages: 0 }, used: '' }, null];
+      const searchFacets = q && found.used ? await db.searchFacets(env.DB, found.used) : firstFacets;
+      return htmlResponse(searchPage(site, q, p, found.result, found.used, searchFacets), { method, cache: 'short' });
     }
 
     if (path === '/deals/') {

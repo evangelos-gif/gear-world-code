@@ -358,6 +358,29 @@ export async function facets(db, category, subMatch = null) {
   };
 }
 
+// The brands and shops among the products a search finds (the search words only, like facets() for a category), so the
+// search page can filter by shop and brand too. Owner, 7 Nov 2026, on TGW: "doesn't have feature to select by retailer";
+// the search already obeyed ?retailer= and ?brand=, only its page had no list to choose from (lessons L98).
+export async function searchFacets(db, search) {
+  const f = buildFilter({ search });
+  if (!f) return { brands: [], retailers: [] };
+  // One query, shop and brand together. "+p.is_active" lets SQLite start from the products the search words found, not
+  // from every active product: on the live TGW "wireless mouse" reads about 2,200 rows instead of 30,000 (D1 counts
+  // rows read; the free plan allows 5 million a day for the whole account).
+  const where = f.sql.replace(/^p\.is_active = 1/, '+p.is_active = 1');
+  const rows = (await db.prepare(`SELECT p.retailer AS retailer, p.brand AS brand, COUNT(*) AS n FROM ${LAYOUT.from} p
+    WHERE ${where} GROUP BY p.retailer, p.brand`).bind(...f.binds).all()).results || [];
+  const sum = key => {
+    const m = new Map();
+    for (const r of rows) {
+      const name = typeof r[key] === 'string' ? r[key] : '';  // as stored: the filter asks for the exact name
+      if (name.trim()) m.set(name, (m.get(name) || 0) + (Number(r.n) || 0));
+    }
+    return [...m].map(([name, n]) => ({ name, n })).sort((x, y) => y.n - x.n || (x.name < y.name ? -1 : x.name > y.name ? 1 : 0));
+  };
+  return { brands: sum('brand').slice(0, 40), retailers: sum('retailer') };
+}
+
 // Up to 4 active products, in the order asked (compare page).
 export async function getProductsByIds(db, ids) {
   if (!ids.length) return [];
