@@ -36,7 +36,7 @@ test('texts: every app text exists and is filled in all 11 languages', () => {
     const dict = APP_STRINGS[l.code];
     assert.ok(dict, l.code);
     for (const k of APP_KEYS) assert.ok(typeof dict[k] === 'string' && dict[k].trim().length > 0, `${l.code}.${k}`);
-    for (const k of ['viewAt', 'moreOnSite', 'searchIn', 'visitSite', 'version', 'worldProducts', 'aboutText']) {
+    for (const k of ['viewAt', 'moreOnSite', 'searchIn', 'visitSite', 'version', 'worldProducts', 'aboutText', 'runBy']) {
       const en = APP_STRINGS['en-GB'][k].match(/\{\w+\}/g);
       assert.deepEqual(dict[k].match(/\{\w+\}/g), en, `${l.code}.${k} keeps its placeholders`);
     }
@@ -346,4 +346,22 @@ test('categories: every world has categories the site understands', () => {
   assert.equal(apiSlug('HGW', 'lighting'), 'lighting');
   const mgw = categoriesFor({ key: 'MGW', categories: [{ key: 'g', name: 'Gifts', slug: 'gifts-for-men' }, { key: 'j', name: 'Jewellery', slug: 'mens-jewellery' }] });
   assert.deepEqual(mgw.map(c => c.slug), ['jewellery']);
+});
+
+test('texts: the app never sounds like a shop (no shop, cart or basket) and says who runs it', () => {
+  // Gear World sells nothing: people compare products and buy on the retailer's website (owner and Manager, 7/11/2026).
+  const SEASONS = JSON.parse(readFileSync(new URL('../src/i18n/season-strings.json', import.meta.url), 'utf8'));
+  const english = [APP_STRINGS['en-GB'], HUB['en-GB'], SEASONS['en-GB']]
+    .flatMap(d => Object.values(d)).map(v => (typeof v === 'string' ? v : JSON.stringify(v)));
+  for (const s of english) {
+    assert.ok(!/\b(shop|shops|shopping|cart|basket|checkout)\b/i.test(s), `no shop wording: ${s}`);
+    assert.ok(!/UK retailers/i.test(s), `never "UK retailers": ${s}`);
+  }
+  for (const l of LOCALES) {
+    assert.ok(!/shop/i.test(SEASONS[l.code].allTitle) && !/shop/i.test(HUB[l.code].shopInterest), `${l.code}: no shop words`);
+  }
+  const settings = readFileSync(new URL('../src/app/settings.tsx', import.meta.url), 'utf8');
+  assert.match(settings, /t\('runBy', \{ name: LEGAL\.operator \}\)/);
+  const api = readFileSync(new URL('../src/lib/api.ts', import.meta.url), 'utf8');
+  assert.match(api, /operator: 'Evangelos Kalogerakis, United Kingdom'/);
 });

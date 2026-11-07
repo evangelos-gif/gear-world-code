@@ -3,35 +3,41 @@
 ## App name (10/30)
 Gear World
 
-## Short description (77/80)
-Tools, fashion, home, tech, car, travel, sport, gaming & pet gear in one app.
+## Short description (69/80)
+Find products and compare prices from many retailers with one search.
 
-## Full description (1836/4000)
-Gear World brings the whole Gear World shopping network to your phone. Find tools, workwear, fashion, kids' essentials, home, garden, technology, car, travel, sport, motorbike, gaming and pet gear from retailers, all from one search.
+## Full description (2181/4000)
+Gear World helps you find products and compare prices from many retailers across the 13 Gear World websites, with one search. Gear World sells nothing itself: when you find what you want, you buy it on the retailer's own website.
 
 ONE SEARCH, EVERY WORLD
-Type what you need, tap the microphone and say it, or take a photo with the camera, and Gear World searches every specialist Gear World site at once. Filter the results by world and open the product you want.
+Type what you need, tap the microphone and say it, or take a photo with the camera, and Gear World searches every Gear World website at once. Filter the results by world and open the product you want.
 
 CHOOSE A WORLD
 Browse each Gear World on its own: Tools & Workwear, Men, Women, Kids & Teens, Home, Garden, Technology, Car, Travel, Sport, Motorbike & Scooter, Gaming and Pets. New worlds appear in the app automatically as they launch.
 
-SHOP BY CATEGORY AND PRICE
-Open a category, sort by price or newest, and load more products as you scroll.
+BROWSE AND COMPARE BY PRICE
+Open a category, sort by lowest price, highest price or newest, and load more products as you scroll.
 
-BUY DIRECTLY FROM THE RETAILER
-Each product shows the price, stock and retailer. Tap "View at" and the retailer's website opens in your browser, where you complete your purchase on the retailer's own terms.
+THIS WEEK'S DEALS
+See the retailers' current offers, each with its end date. A deal opens the retailer's page on a Gear World website, where you see the offer and its terms.
 
-11 LANGUAGES
-English, Greek, German, French, Italian, Spanish, Portuguese, Dutch, Albanian, Romanian and Russian.
+YOU BUY ON THE RETAILER'S WEBSITE
+Each product shows the price, stock and retailer. Tap "View at" and the retailer's website opens in your browser, where you complete your purchase on the retailer's own terms. Gear World takes no payments and sells nothing itself.
 
 SEARCH WITH A PHOTO
 Seen something you like? Take a photo or pick one from your gallery, and Gear World finds similar products across every world. Your photo is only used to find products and is not saved.
+
+11 LANGUAGES
+English, Greek, German, French, Italian, Spanish, Portuguese, Dutch, Albanian, Romanian and Russian.
 
 FREE, NO ACCOUNT NEEDED
 No sign-up, no ads and no in-app purchases. You can join the Gear World newsletter if you want updates.
 
 HOW GEAR WORLD IS FUNDED
 Gear World is free to use. When you buy through a retailer link, Gear World may earn a commission from the retailer at no extra cost to you. Prices and stock come from retailers and can change, so always check the final price on the retailer's website.
+
+WHO RUNS GEAR WORLD
+Run by Evangelos Kalogerakis, United Kingdom. Contact: contact@gearworldhub.com
 
 Privacy policy: https://gearworldhub.com/privacy/
 Website: https://gearworldhub.com

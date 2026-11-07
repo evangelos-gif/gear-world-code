@@ -7,7 +7,9 @@ export const LEGAL = {
   terms: `${HUB_URL}/terms/`,
   affiliate: `${HUB_URL}/affiliate-disclosure/`,
   contact: `${HUB_URL}/contact/`,
-  email: 'contact@gearworldhub.com'
+  email: 'contact@gearworldhub.com',
+  // Who runs Gear World, written the same way on the Hub, the sites and the store pages (owner, 7/11/2026).
+  operator: 'Evangelos Kalogerakis, United Kingdom'
 } as const;
 
 export type Category = { key: string; name: string; slug: string };

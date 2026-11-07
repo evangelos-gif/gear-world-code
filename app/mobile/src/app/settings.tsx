@@ -51,6 +51,7 @@ export default function Settings() {
           <Txt v="h2">{t('about')}</Txt>
           <View style={[s.card, s.about]}>
             <Txt v="muted">{t('aboutText', { url: 'gearworldhub.com' })}</Txt>
+            <Txt v="small">{t('runBy', { name: LEGAL.operator })}</Txt>
             <Row label="gearworldhub.com" icon="open-outline" onPress={() => openInBrowser(`${HUB_URL}/`)} />
             <Txt v="small">{t('version', { version })}</Txt>
           </View>
