@@ -16,7 +16,7 @@ export default {
   lang: 'en-GB',
   locale: 'en-GB',
   currency: 'GBP',
-  assetVersion: '2026-11-08-zgw-wording-1',
+  assetVersion: '2026-11-08-zgw-cleanup-1',
   promos: promosFor('ZGW'),
   awinPublisherId: AWIN_PUBLISHER_ID,
   storagePrefix: 'zgw',
@@ -112,7 +112,7 @@ export default {
 
   homeTitle: 'Pets Gear World | Compare Pet Food, Dog Beds, Cat Trees, Leads & Toys',
   homeDescription:
-    'Compare prices on dog and cat food, treats, beds and crates, leads and collars, toys, cat trees and litter, grooming, bowls, carriers, small pet, bird and fish supplies and horse riding gear from trusted retailers. Independent price comparison: find the deal, then buy direct.',
+    'Compare prices on dog and cat food, treats, beds and crates, leads and collars, toys, cat trees and litter, grooming, bowls, carriers, small pet, bird and fish supplies and horse riding gear across retailers. Independent price comparison: find the deal, then buy direct.',
   heroTitle: 'Compare pet supplies prices in one place',
   heroText: 'Food and treats, beds, leads, toys, cat trees and litter, grooming, bowls and carriers for dogs, cats, small pets, birds, fish and horses from retailers in the UK and Europe. Find the deal, then buy direct from the retailer.',
   searchPlaceholder: 'Search dog beds, cat litter, dog food...',
@@ -136,54 +136,54 @@ export default {
     {
       slug: 'beds-crates', name: 'Beds, Crates & Kennels', nav: 'Beds & Crates', short: 'pet beds and crates', icon: 'home',
       intro: 'Dog and cat beds, calming and orthopaedic beds, blankets, crates, playpens and pet gates.',
-      description: 'Compare prices on dog and cat beds, calming beds, blankets, crates, playpens and pet gates from trusted retailers.'
+      description: 'Compare prices on dog and cat beds, calming beds, blankets, crates, playpens and pet gates across retailers.'
     },
     {
       slug: 'walking', name: 'Leads, Collars & Coats', nav: 'Leads & Collars', short: 'leads, collars and dog coats', icon: 'globe',
       intro: 'Dog leads and harnesses, collars and ID tags, poo bags, and coats and jumpers for dogs.',
-      description: 'Compare prices on dog leads, harnesses, collars, ID tags, poo bags and dog coats from trusted retailers.'
+      description: 'Compare prices on dog leads, harnesses, collars, ID tags, poo bags and dog coats across retailers.'
     },
     {
       slug: 'toys', name: 'Toys & Training', nav: 'Toys', short: 'pet toys', icon: 'gamepad',
       intro: 'Chew and squeaky toys, balls and launchers, cat wands and catnip toys, puzzle feeders and training aids.',
-      description: 'Compare prices on dog chew toys, balls, cat toys, catnip, puzzle feeders and training aids from trusted retailers.'
+      description: 'Compare prices on dog chew toys, balls, cat toys, catnip, puzzle feeders and training aids across retailers.'
     },
     {
-      slug: 'food', name: 'Food & Treats', nav: 'Food & Treats', short: 'pet food and treats', icon: 'cart',
+      slug: 'food', name: 'Food & Treats', nav: 'Food & Treats', short: 'pet food and treats', icon: 'home',
       intro: 'Dry and wet food, treats and dental chews for dogs and cats, and food for small pets and birds.',
-      description: 'Compare prices on dry and wet dog and cat food, treats, dental chews and small pet food from trusted retailers.'
+      description: 'Compare prices on dry and wet dog and cat food, treats, dental chews and small pet food across retailers.'
     },
     {
       slug: 'cats', name: 'Cat Trees, Litter & Scratchers', nav: 'Cat Trees & Litter', short: 'cat trees and litter', icon: 'home',
       intro: 'Cat trees and towers, scratching posts, cat litter, litter trays and automatic litter boxes.',
-      description: 'Compare prices on cat trees, scratching posts, cat litter, litter trays and automatic litter boxes from trusted retailers.'
+      description: 'Compare prices on cat trees, scratching posts, cat litter, litter trays and automatic litter boxes across retailers.'
     },
     {
       slug: 'grooming', name: 'Grooming & Care', nav: 'Grooming', short: 'pet grooming', icon: 'watch',
       intro: 'Shampoos, brushes and combs, nail clippers, pet dryers, flea and tick treatments and supplements.',
-      description: 'Compare prices on pet shampoos, brushes, nail clippers, pet dryers and flea and tick treatments from trusted retailers.'
+      description: 'Compare prices on pet shampoos, brushes, nail clippers, pet dryers and flea and tick treatments across retailers.'
     },
     {
       slug: 'feeding', name: 'Bowls, Feeders & Smart Gadgets', nav: 'Bowls & Feeders', short: 'pet bowls and feeders', icon: 'router',
       intro: 'Dog and cat bowls, slow feeders, automatic feeders, water fountains, pet cameras and GPS trackers.',
-      description: 'Compare prices on dog and cat bowls, slow feeders, automatic feeders, water fountains and pet trackers from trusted retailers.'
+      description: 'Compare prices on dog and cat bowls, slow feeders, automatic feeders, water fountains and pet trackers across retailers.'
     },
     {
       slug: 'travel', name: 'Travel, Car & Carriers', nav: 'Travel', short: 'pet carriers', icon: 'globe',
       intro: 'Pet carriers and backpacks, dog car seats and seat covers, strollers, ramps and travel bowls.',
-      description: 'Compare prices on pet carriers, pet backpacks, dog car seats, seat covers and strollers from trusted retailers.'
+      description: 'Compare prices on pet carriers, pet backpacks, dog car seats, seat covers and strollers across retailers.'
     },
     {
       slug: 'small-pets', name: 'Small Pets, Fish & Reptiles', nav: 'Small Pets', short: 'small pet supplies', icon: 'home',
       intro: 'Hutches and cages, bedding, bottles and hides for rabbits, guinea pigs and hamsters, aquariums and vivariums.',
-      description: 'Compare prices on hutches, small animal cages and bedding, aquariums and vivariums from trusted retailers.'
+      description: 'Compare prices on hutches, small animal cages and bedding, aquariums and vivariums across retailers.'
     },
     {
       // Owner (1 Nov 2026): one Birds category with a subcategory per kind of bird, no "chicken coops" category. The names
       // are the ones category-rules.js writes in the products' subcategory (BIRDS.subs).
       slug: 'birds', name: 'Birds', nav: 'Birds', short: 'bird supplies', icon: 'home',
       intro: 'Everything for chickens and poultry, canaries and finches, budgies and parrots: cages, food, perches, toys, feeders and drinkers.',
-      description: 'Compare prices on supplies for chickens, canaries, budgies and parrots: cages, food, perches, toys, feeders and drinkers from trusted retailers.',
+      description: 'Compare prices on supplies for chickens, canaries, budgies and parrots: cages, food, perches, toys, feeders and drinkers across retailers.',
       subcategories: [
         { slug: 'chickens', name: 'Chickens & Poultry' },
         { slug: 'canaries', name: 'Canaries & Finches' },
@@ -194,7 +194,7 @@ export default {
     {
       slug: 'horse', name: 'Horse & Riding', nav: 'Horse & Riding', short: 'horse and riding gear', icon: 'globe',
       intro: 'Horse rugs, saddle pads, grooming kits, treats, fly masks and riding wear.',
-      description: 'Compare prices on horse rugs, saddle pads, grooming kits, horse treats, fly masks and riding wear from trusted retailers.'
+      description: 'Compare prices on horse rugs, saddle pads, grooming kits, horse treats, fly masks and riding wear across retailers.'
     }
   ],
 

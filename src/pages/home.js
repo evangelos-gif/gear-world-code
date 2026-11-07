@@ -18,7 +18,7 @@ export function homePage(site, data) {
     <p class="lede">${site.heroText}</p>
     ${searchForm(site, '', 'hero-search')}
     <p class="hero-actions">
-      <a class="btn btn-gold" href="#cats-h">Shop by category</a>
+      <a class="btn btn-gold" href="#cats-h">Browse by category</a>
       ${deals.length ? html`<a class="btn btn-outline" href="/deals/">Today's price drops</a>` : ''}
     </p>
     ${data.lastUpdated ? html`<p class="hero-facts">${tr('Prices last updated {0}.', { date: String(data.lastUpdated).slice(0, 10), text: formatDate(data.lastUpdated, site.locale) })}</p>` : ''}
@@ -28,14 +28,14 @@ export function homePage(site, data) {
 <section class="stats" aria-label="In numbers">
   <ul class="stats-list">
     <li><strong>${fmt(data.totalProducts)}</strong> <span>products</span></li>
-    <li><strong>${fmt(retailerCount)}</strong> ${retailerCount === 1 ? tr('retailer partner') : tr('retailer partners')}</li>
+    <li><strong>${fmt(retailerCount)}</strong> ${retailerCount === 1 ? tr('retailer compared') : tr('retailers compared')}</li>
     <li><strong>${fmt(site.categories.length)}</strong> <span>main categories</span></li>
     <li>Independent comparison</li>
   </ul>
 </section>
 
 <section class="wrap section" aria-labelledby="cats-h">
-  <h2 id="cats-h">Shop by category</h2>
+  <h2 id="cats-h">Browse by category</h2>
   <ul class="cat-grid">
     ${site.categories.map(c => {
       const img = categoryImage(site, c.slug);

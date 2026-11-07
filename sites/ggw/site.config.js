@@ -12,7 +12,7 @@ export default {
   lang: 'en-GB',
   locale: 'en-GB',
   currency: 'GBP',
-  assetVersion: '2026-11-08-ggw-wording-1',
+  assetVersion: '2026-11-08-ggw-cleanup-1',
   // Discount codes and sales from retailers (promos/promos.js, lessons L32), with the Awin publisher id
   // used for their links. The id is public: it is part of every Awin link.
   promos: promosFor('GGW'),
@@ -103,7 +103,7 @@ export default {
 
   homeTitle: 'Garden Gear World | Compare Garden Tools, Mowers, Watering & Garden Care',
   homeDescription:
-    'Compare prices on garden tools, lawn mowers, trimmers, watering and garden care from trusted retailers. Independent price comparison: find the deal, then buy direct.',
+    'Compare prices on garden tools, lawn mowers, trimmers, watering and garden care across retailers. Independent price comparison: find the deal, then buy direct.',
   heroTitle: 'Compare garden prices in one place',
   heroText: 'Garden tools, power tools, watering and garden care in one place. Find the deal, then buy direct from the retailer.',
   searchPlaceholder: 'Search mowers, trimmers, hoses...',
@@ -126,42 +126,42 @@ export default {
     {
       slug: 'garden-tools', name: 'Garden Tools', nav: 'Garden Tools', short: 'garden hand tools', icon: 'home',
       intro: 'Spades, forks, rakes, hoes, shears, secateurs, loppers and pruning saws. Compare prices across retailers before you buy.',
-      description: 'Compare prices on spades, forks, rakes, shears, secateurs and other garden hand tools from trusted retailers.'
+      description: 'Compare prices on spades, forks, rakes, shears, secateurs and other garden hand tools across retailers.'
     },
     {
       slug: 'power-garden-tools', name: 'Power Garden Tools', nav: 'Power Tools', short: 'power garden tools', icon: 'plug',
       intro: 'Lawn mowers, grass trimmers, hedge trimmers, leaf blowers, chainsaws and pressure washers, cordless, electric and petrol.',
-      description: 'Compare lawn mower, grass trimmer, hedge trimmer, leaf blower, chainsaw and pressure washer prices from trusted retailers.'
+      description: 'Compare lawn mower, grass trimmer, hedge trimmer, leaf blower, chainsaw and pressure washer prices across retailers.'
     },
     {
       slug: 'garden-furniture-outdoor-living', name: 'Garden Furniture & Outdoor Living', nav: 'Furniture', short: 'garden furniture', icon: 'home',
       intro: 'Garden tables and chairs, benches, sun loungers, parasols and outdoor heating for patios and gardens.',
-      description: 'Compare garden furniture, bench, sun lounger and parasol prices from trusted retailers.'
+      description: 'Compare garden furniture, bench, sun lounger and parasol prices across retailers.'
     },
     {
       slug: 'bbq-outdoor-cooking', name: 'BBQ & Outdoor Cooking', nav: 'BBQ', short: 'barbecues', icon: 'home',
       intro: 'Charcoal and gas barbecues, pizza ovens, fire pits and barbecue tools and covers.',
-      description: 'Compare barbecue, pizza oven and fire pit prices from trusted retailers.'
+      description: 'Compare barbecue, pizza oven and fire pit prices across retailers.'
     },
     {
       slug: 'garden-buildings-fencing-storage', name: 'Garden Buildings, Fencing & Storage', nav: 'Sheds & Storage', short: 'sheds and storage', icon: 'home',
       intro: 'Sheds, garden storage boxes, greenhouses, fence panels, gates and trellis.',
-      description: 'Compare shed, garden storage, greenhouse and fencing prices from trusted retailers.'
+      description: 'Compare shed, garden storage, greenhouse and fencing prices across retailers.'
     },
     {
       slug: 'watering-irrigation', name: 'Watering & Irrigation', nav: 'Watering', short: 'watering', icon: 'home',
       intro: 'Garden hoses and reels, spray guns, sprinklers, watering cans, water butts and pumps.',
-      description: 'Compare garden hose, sprinkler, watering can, water butt and pump prices from trusted retailers.'
+      description: 'Compare garden hose, sprinkler, watering can, water butt and pump prices across retailers.'
     },
     {
       slug: 'plants-growing-garden-care', name: 'Plants, Growing & Garden Care', nav: 'Garden Care', short: 'garden care', icon: 'home',
       intro: 'Seeds, compost, plant food, lawn care, pots and planters, and pest control for a healthy garden.',
-      description: 'Compare prices on compost, plant food, lawn care, planters and garden care products from trusted retailers.'
+      description: 'Compare prices on compost, plant food, lawn care, planters and garden care products across retailers.'
     },
     {
       slug: 'outdoor-lighting-garden-electrical', name: 'Outdoor Lighting & Garden Electrical', nav: 'Lighting', short: 'outdoor lighting', icon: 'plug',
       intro: 'Solar and mains garden lights, security lights, outdoor sockets and extension reels.',
-      description: 'Compare outdoor lighting, solar light and garden electrical prices from trusted retailers.'
+      description: 'Compare outdoor lighting, solar light and garden electrical prices across retailers.'
     }
   ],
 

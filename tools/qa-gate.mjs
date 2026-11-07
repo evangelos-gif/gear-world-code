@@ -53,6 +53,16 @@ const jsonLd = h => all(h, /<script type="application\/ld\+json">([\s\S]*?)<\/sc
 
 const pageTitles = new Map();
 
+// Words of a shop that sells, ships or takes payment, or that claims a partnership (Google Ads review, lessons L101-L103).
+// Read from the page as the server sends it (meta description, aria labels and alt texts too), without the names that
+// stay untranslated (translate="no": products, brands, retailers) and without the rel="sponsored" of affiliate links.
+const SHOP_WORDS = /\b(add to (cart|basket|bag)|buy now|order now|shop now|shop by category|shop through|our (shops?|stores?|retailers|partners|stock)|retailer partners?|partner (shops?|stores?|retailers)|affiliate partners|trusted retailers|gear world retailers|UK (shoppers|retailers)|we (deliver|ship|dispatch)\b|free (delivery|shipping)|official (store|shop|retailer|partner|stockist|reseller)|authori[sz]ed (dealer|retailer|reseller|stockist|partner)|sponsored (card|partner|listing))/i;
+function withoutKeptNames(h) {
+  return h.replace(/<script[\s\S]*?<\/script>/g, ' ')
+    .replace(/<(h1|h2|h3|p|span|strong|a|dd|td|li|div|th)\b[^>]*translate="no"[^>]*>[\s\S]*?<\/\1>/g, ' ')
+    .replace(/\srel="[^"]*"/g, ' ');
+}
+
 function htmlChecks(path, res, { expectStatus = 200, indexable = true } = {}) {
   const h = res.body;
   const ct = res.headers.get('content-type') || '';
@@ -96,6 +106,10 @@ function htmlChecks(path, res, { expectStatus = 200, indexable = true } = {}) {
   }
   check('L17', h.includes(`&copy; ${new Date().getUTCFullYear()}`), `${path}: footer shows the current year`);
   for (const ld of jsonLd(h)) check('L12', !ld.__invalid, `${path}: JSON-LD is valid JSON`);
+  if (site) {
+    const words = withoutKeptNames(h).match(SHOP_WORDS);
+    check('L103', !words, `${path}: no shop or partner wording (we do not sell, ship or take payment)`, words ? words[0] : '');
+  }
   // Lessons L31: /assets/ files are cached for a year, so every link to them carries ?v=<version>.
   // Fonts are the exception: they must match the stylesheet's url() exactly, and a new font gets a new file name.
   const unversioned = all(h, /(?:href|src|srcset)="(\/assets\/[^"?#\s]+)(?=[#"\s])/g).map(x => x[1]).filter(u => !u.startsWith('/assets/fonts/'));
@@ -120,6 +134,11 @@ if (site && site.deliversTo && total > 0) {
   check('L62', new RegExp(`<p class="label-ship" data-ship="[A-Z ]+">[\\s\\S]*?${SHIP_WORD.source}`).test(home.body), '/: product cards say where the retailer delivers ("<retailer> delivers to")');
 }
 if (site) check('L102', !/<span class="ship-word">Delivers to<\/span>|>Delivers to:/.test(home.body), '/: never a bare "Delivers to" on a card (the retailer delivers, not Gear World)');
+// Lessons L103: "Browse by category", and the retailer name of every "View at" button in its own translate="no" span.
+if (site) check('L103', /<a class="btn btn-gold" href="#cats-h">Browse by category<\/a>/.test(home.body) && /<h2 id="cats-h">Browse by category<\/h2>/.test(home.body), '/: "Browse by category" (not "Shop by category")');
+const VIEW_AT = /<span data-i18n="View at \{0\}"([^>]*)>View at ([\s\S]*?)<\/span><\/a>/g;
+const viewAtKept = h => all(h, VIEW_AT).every(m => /data-i18n-keep="0"/.test(m[1]) && /^<span translate="no">[^<]*<\/span>$/.test(m[2]));
+if (site && total > 0) check('L103', all(home.body, VIEW_AT).length > 0 && viewAtKept(home.body), '/: every "View at <retailer>" keeps the retailer name untranslated (translate="no")');
 
 // Categories
 const categoryPaths = site ? site.categories.map(c => `/category/${c.slug}/`) : all(home.body, /href="(\/category\/[^"?#]+\/)"/g).map(m => m[1]).filter((v, i, a) => a.indexOf(v) === i);
@@ -154,7 +173,11 @@ for (const p of productPaths) {
   }
   // Google Ads review (lessons L101): the page says who sells the product, and that it is not Gear World.
   check('L101', /<dt>Sold by<\/dt><dd><span translate="no">[^<]+(?:<img [^>]+>)?<\/span> <span class="not-us">\(not by Gear World\)<\/span><\/dd>/.test(r.body), `${p}: "Sold by <retailer> (not by Gear World)"`);
-  check('L101', /<dt><span data-i18n="Stock at \{0\}"[^>]*>Stock at [^<]+<\/span><\/dt>/.test(r.body), `${p}: "Stock at <retailer>"`);
+  check('L101', /<dt><span data-i18n="Stock at \{0\}"[^>]*>Stock at (?:<span translate="no">)?[^<]+(?:<\/span>)?<\/span><\/dt>/.test(r.body), `${p}: "Stock at <retailer>"`);
+  if (site) {
+    check('L103', /<dt><span data-i18n="Stock at \{0\}" data-i18n-0="[^"]+" data-i18n-keep="0">Stock at <span translate="no">[^<]+<\/span><\/span><\/dt>/.test(r.body), `${p}: "Stock at <retailer>" keeps the retailer name untranslated`);
+    check('L103', all(r.body, VIEW_AT).length > 0 && viewAtKept(r.body), `${p}: every "View at <retailer>" (the button and the price list) keeps the retailer name untranslated`);
+  }
   check('L101', !/<dt>Retailer<\/dt>|<dt>Stock<\/dt>/.test(r.body), `${p}: no bare "Retailer" or "Stock" label`);
   const prod = jsonLd(r.body).find(x => x['@type'] === 'Product');
   check('L12', Boolean(prod), `${p}: Product structured data present`);
@@ -388,6 +411,10 @@ if (site && (site.promos || []).length) {
     check('L32', codes.every(c => r.body.includes(`translate="no">${c.code}</strong>`)), `${path}: every active code is on the page`);
     check('L32', (r.body.match(/Valid until/g) || []).length >= act.filter(p => p.slug === slug).length, `${path}: every offer shows its end date`);
     check('L32', !/awin1\.com/.test(r.body), `${path}: buttons go through /go/, never straight to Awin`);
+    // Lessons L103: the retailer name (and the code in the offer bar) stays untranslated wherever the language puts it.
+    const shopAt = all(r.body, /<span data-i18n="Shop at \{0\}"([^>]*)>Shop at <span translate="no">[^<]+<\/span><\/span>/g);
+    check('L103', shopAt.length >= act.filter(x => x.slug === slug).length && shopAt.every(m => /data-i18n-keep="0"/.test(m[1])), `${path}: "Shop at <retailer>" keeps the retailer name untranslated`);
+    check('L103', /<h1><span data-i18n="\{0\} discount codes" data-i18n-0="[^"]+" data-i18n-keep="0"><span translate="no">[^<]+<\/span> discount codes<\/span><\/h1>/.test(r.body), `${path}: the heading keeps the retailer name untranslated`);
     check('L32', staticUrls.includes(canonicalOrigin + path), `sitemap-static lists ${path}`);
     for (const p of act.filter(x => x.slug === slug).slice(0, 2)) {
       const o = await get(`/go/${p.id}`, { method: 'HEAD' });

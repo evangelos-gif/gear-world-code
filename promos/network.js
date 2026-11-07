@@ -1,4 +1,4 @@
-// Every Gear World shop, in the order of the Hub home page (gearworldhub.com, 7 Nov 2026), for the "Gear World network"
+// Every Gear World site, in the order of the Hub home page (gearworldhub.com, 7 Nov 2026), for the "Gear World network"
 // links in the footer of every site. One list for all the sites (lessons L99): each site's own list was written by hand,
 // so on 7 Nov 2026 the live TGW still showed only the first 6 sites and the Hub. A new site goes in here once, and every
 // site shows it at its next update. Kept with the shared promos because the sites' deploys copy this folder (src/ must

@@ -13,7 +13,7 @@ export default {
   lang: 'en-GB',
   locale: 'en-GB',
   currency: 'GBP',
-  assetVersion: '2026-11-08-vgw-wording-1',
+  assetVersion: '2026-11-08-vgw-cleanup-1',
   promos: promosFor('VGW'),
   awinPublisherId: AWIN_PUBLISHER_ID,
   storagePrefix: 'vgw',
@@ -125,42 +125,42 @@ export default {
     {
       slug: 'luggage-suitcases', name: 'Luggage & Suitcases', nav: 'Luggage', short: 'suitcases and luggage', icon: 'globe',
       intro: 'Cabin bags, large and medium suitcases, hard shell spinners, luggage sets and underseat bags.',
-      description: 'Compare prices on cabin bags, suitcases, hard shell spinners and luggage sets from trusted retailers.'
+      description: 'Compare prices on cabin bags, suitcases, hard shell spinners and luggage sets across retailers.'
     },
     {
       slug: 'travel-bags-backpacks', name: 'Travel Bags & Backpacks', nav: 'Bags & Backpacks', short: 'travel bags and backpacks', icon: 'home',
       intro: 'Travel backpacks, duffel bags, holdalls, weekend bags, garment bags and daypacks.',
-      description: 'Compare prices on travel backpacks, duffel bags, holdalls and weekend bags from trusted retailers.'
+      description: 'Compare prices on travel backpacks, duffel bags, holdalls and weekend bags across retailers.'
     },
     {
       slug: 'travel-accessories', name: 'Travel Accessories', nav: 'Accessories', short: 'travel accessories', icon: 'search',
       intro: 'Packing cubes, toiletry bags, luggage scales and tags, travel bottles, towels and umbrellas.',
-      description: 'Compare prices on packing cubes, toiletry bags, luggage scales, luggage tags and travel bottles from trusted retailers.'
+      description: 'Compare prices on packing cubes, toiletry bags, luggage scales, luggage tags and travel bottles across retailers.'
     },
     {
       slug: 'comfort-sleep', name: 'Comfort & Sleep', nav: 'Comfort', short: 'travel comfort', icon: 'headphones',
       intro: 'Neck pillows, eye masks, ear plugs, flight socks and travel blankets for long journeys.',
-      description: 'Compare prices on travel neck pillows, eye masks, ear plugs and flight socks from trusted retailers.'
+      description: 'Compare prices on travel neck pillows, eye masks, ear plugs and flight socks across retailers.'
     },
     {
       slug: 'documents-security', name: 'Documents & Security', nav: 'Security', short: 'travel documents and security', icon: 'watch',
       intro: 'Passport holders, RFID travel wallets, money belts, TSA locks and luggage trackers.',
-      description: 'Compare prices on passport holders, RFID travel wallets, TSA locks and luggage trackers from trusted retailers.'
+      description: 'Compare prices on passport holders, RFID travel wallets, TSA locks and luggage trackers across retailers.'
     },
     {
       slug: 'travel-tech', name: 'Travel Tech', nav: 'Travel Tech', short: 'travel tech', icon: 'plug',
       intro: 'Universal travel adapters, power banks, travel chargers, headphones and action cameras.',
-      description: 'Compare prices on universal travel adapters, power banks, travel chargers and noise cancelling headphones from trusted retailers.'
+      description: 'Compare prices on universal travel adapters, power banks, travel chargers and noise cancelling headphones across retailers.'
     },
     {
       slug: 'camping-outdoor', name: 'Camping & Outdoor', nav: 'Camping', short: 'camping and outdoor gear', icon: 'camera',
       intro: 'Tents, sleeping bags and mats, camping stoves, head torches, dry bags and hiking gear.',
-      description: 'Compare prices on tents, sleeping bags, camping stoves, head torches and dry bags from trusted retailers.'
+      description: 'Compare prices on tents, sleeping bags, camping stoves, head torches and dry bags across retailers.'
     },
     {
       slug: 'beach-holiday', name: 'Beach & Holiday', nav: 'Beach', short: 'beach and holiday gear', icon: 'phone',
       intro: 'Beach bags and towels, beach shelters, snorkel sets, waterproof phone pouches and sun hats.',
-      description: 'Compare prices on beach bags, beach towels, beach shelters, snorkel sets and waterproof phone pouches from trusted retailers.'
+      description: 'Compare prices on beach bags, beach towels, beach shelters, snorkel sets and waterproof phone pouches across retailers.'
     }
   ],
 

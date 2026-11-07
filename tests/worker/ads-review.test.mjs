@@ -44,8 +44,9 @@ test('the 13 sites: "Saved list" in the config, a new asset version, the bookmar
   for (const c of CODES) {
     const s = (await import(`../../sites/${c}/site.config.js`)).default;
     assert.deepEqual(s.cart, { name: 'Saved list', maxItems: 30 }, c);
-    // 2026-11-08-<code>-saved-N for L101, then -wording-N for the follow-up of L102 (a new version each time, L31).
-    assert.match(s.assetVersion, /^2026-11-08-[a-z]{3}-(saved|wording)-\d+$/, c);
+    // 2026-11-08-<code>-saved-N for L101, -wording-N for the follow-up of L102, -cleanup-N for L103 (a new version
+    // each time, L31).
+    assert.match(s.assetVersion, /^2026-11-08-[a-z]{3}-(saved|wording|cleanup)-\d+$/, c);
     const icons = readFileSync(`sites/${c}/public/assets/icons.svg`, 'utf8');
     assert.match(icons, /<symbol id="saved" /, c);
     const js = readFileSync(`sites/${c}/public/assets/site.js`, 'utf8');
@@ -118,10 +119,12 @@ test('TGW product page: "Sold by <retailer> (not by Gear World)", "<retailer> de
   const html = out[path].html;
   assert.match(html, /<dt>Sold by<\/dt><dd><span translate="no">([^<]+)(?:<img [^>]+>)?<\/span> <span class="not-us">\(not by Gear World\)<\/span><\/dd>/);
   const retailer = html.match(/<dt>Sold by<\/dt><dd><span translate="no">([^<]+)<\/span>/)[1];
-  assert.ok(html.includes(`<dt><span data-i18n="Stock at {0}" data-i18n-0="${retailer}">Stock at ${retailer}</span></dt>`));
+  // The retailer name stays untranslated in its own translate="no" span (lessons L103).
+  assert.ok(html.includes(`<dt><span data-i18n="Stock at {0}" data-i18n-0="${retailer}" data-i18n-keep="0">Stock at <span translate="no">${retailer}</span></span></dt>`));
   if (s.deliversTo) assert.ok(html.includes(`<dt><span data-i18n="{0} delivers to" data-i18n-0="${retailer}" data-i18n-keep="0"><span translate="no">${retailer}</span> delivers to</span></dt>`));
   assert.ok(!/<dt>Retailer<\/dt>|<dt>Stock<\/dt>|<dt>Delivers to<\/dt>/.test(html));
   assert.match(html, /View at /, 'the button stays "View at <retailer>"');
+  assert.ok(html.includes(`<span data-i18n="View at {0}" data-i18n-0="${retailer}" data-i18n-keep="0">View at <span translate="no">${retailer}</span></span>`), 'the retailer name of "View at" stays untranslated (L103)');
   // The markup of a comparison page (Google "product snippets"), never the Offer of a shop that sells (merchant listings).
   const ld = [...html.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)].map(m => JSON.parse(m[1])).flat();
   const prod = ld.find(x => x['@type'] === 'Product');

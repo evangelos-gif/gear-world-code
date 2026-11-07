@@ -29,7 +29,7 @@ export default [
           ['How long', 'Hours, depending on amps and battery size', 'Seconds for each start'],
           ['Recharges the car battery', 'Yes', 'No'],
           ['Can stay connected', 'The smart chargers below say yes (maintenance mode)', 'No'],
-          ['From (our shops)', { lowest: [6391, 2965, 6500, 3074, 4948, 1522] }, { lowest: [8895, 6586, 3160, 6787, 3361] }]
+          ['Lowest price (retailers listed)', { lowest: [6391, 2965, 6500, 3074, 4948, 1522] }, { lowest: [8895, 6586, 3160, 6787, 3361] }]
         ]
       },
       {

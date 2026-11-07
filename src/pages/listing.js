@@ -244,7 +244,7 @@ export function dealsPage(site, p, result, now = Date.now()) {
 </div>`;
   return page(site, {
     title: `${site.topicTitle} price drops${p.page > 1 ? ` (page ${p.page})` : ''} | ${site.name}`,
-    description: `Current price drops on ${site.topic} from trusted retailers, compared on ${site.name}.`,
+    description: `Current price drops on ${site.topic} from retailers listed on ${site.name}.`,
     path: base,
     canonical: p.page > 1 ? pageLink(base, {}, p.page) : base,
     robots: result.products.length ? 'index,follow' : 'noindex,follow',

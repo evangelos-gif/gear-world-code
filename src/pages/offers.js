@@ -1,6 +1,6 @@
 // Discount codes pages and the offer bar (lessons L32). Data: site.promos (promos/promos.js).
 import { html, raw } from '../lib/html.js';
-import { page, tr, breadcrumbs, breadcrumbSchema } from './layout.js';
+import { page, tr, keepName, breadcrumbs, breadcrumbSchema } from './layout.js';
 import { activePromos, barPromo, promoRetailers } from '../lib/promos.js';
 import { seasonBanner } from './season.js';
 
@@ -30,7 +30,7 @@ function promoCard(p) {
   <p class="promo-valid">${tr('Valid until {0}', ukDate(p.end))}</p>
   <p class="promo-actions">
     ${p.kind === 'code' ? html`<button type="button" class="btn btn-outline btn-copy" data-copy="${p.code}" hidden>${tr('Copy code')}</button>` : ''}
-    <a class="btn btn-deal" href="/go/${p.id}" rel="sponsored nofollow noopener" target="_blank">${tr('Shop at {0}', p.retailer)}</a>
+    <a class="btn btn-deal" href="/go/${p.id}" rel="sponsored nofollow noopener" target="_blank">${tr('Shop at {0}', keepName(p.retailer))}</a>
   </p>
 </li>`;
 }
@@ -45,7 +45,7 @@ function retailerBlock(promos, headingTag) {
 }
 
 function howTo(retailer) {
-  return html`<p class="promo-note">${tr('Copy the code, open {0} with the button and enter the code at checkout. {0} sets the final terms, so check the discount before you pay.', retailer)}</p>`;
+  return html`<p class="promo-note">${tr('Copy the code, open {0} with the button and enter the code at checkout. {0} sets the final terms, so check the discount before you pay.', keepName(retailer))}</p>`;
 }
 
 export function offersIndexPage(site, now = Date.now()) {
@@ -57,7 +57,7 @@ export function offersIndexPage(site, now = Date.now()) {
   ${breadcrumbs(crumbs)}
   <header class="page-head">
     <h1>${tr('Discount codes and offers')}</h1>
-    <p class="lede">${tr('Codes and sales that retailers give to their affiliate partners. Every code has an end date and is removed when it ends.')}</p>
+    <p class="lede">${tr('Codes and sales that retailers publish through their affiliate programmes. Every code has an end date and is removed when it ends.')}</p>
   </header>
   ${seasonBanner(site, 'offers-list', now, promos.length)}
   <div id="offers-list"></div>
@@ -69,7 +69,9 @@ export function offersIndexPage(site, now = Date.now()) {
 </div>`;
   return page(site, {
     title: `Discount codes and offers | ${site.name}`,
-    description: `Current discount codes and sales from ${retailers.map(r => r.name).join(', ') || 'our retailers'}, with end dates. Shop through ${site.name}.`,
+    // Who publishes the codes, and that this site only lists them (Google Ads review, lessons L103): never "our
+    // retailers" or "Shop through <site>".
+    description: `Current discount codes and sales from ${retailers.map(r => r.name).join(', ') || `retailers listed on ${site.name}`}, with end dates. Codes published by the retailers, compared on ${site.name}.`,
     path: OFFERS_PATH,
     robots: promos.length ? 'index,follow' : 'noindex,follow',
     body,
@@ -89,8 +91,8 @@ export function retailerOffersPage(site, slug, now = Date.now()) {
 <div class="wrap">
   ${breadcrumbs(crumbs)}
   <header class="page-head">
-    <h1>${tr('{0} discount codes', retailer)}</h1>
-    <p class="lede">${tr('Codes and sales that {0} gives to its affiliate partners. Every code has an end date and is removed when it ends.', retailer)}</p>
+    <h1>${tr('{0} discount codes', keepName(retailer))}</h1>
+    <p class="lede">${tr('Codes and sales that {0} publishes through its affiliate programme. Every code has an end date and is removed when it ends.', keepName(retailer))}</p>
   </header>
   ${promos.length ? html`${retailerBlock(promos, 'h2')}${howTo(retailer)}`
     : html`<div class="empty"><h2>${tr('No codes right now')}</h2><p>${tr('Check back soon. In the meantime, compare prices in the categories.')}</p></div>`}
@@ -114,8 +116,8 @@ export function promoBarHtml(site, now = Date.now()) {
   if (!p) return '';
   return html`<div class="promo-bar"><p class="wrap promo-row"><span aria-hidden="true">${p.bar}</span>
   ${p.kind === 'code'
-    ? tr('{0}: {1} off {2}+ with code {3}', p.retailer, money(p.off, p.currency), money(p.minSpend, p.currency), p.code)
-    : p.kind === 'coupon' ? tr('{0}: {1} off when you spend {2}', p.retailer, money(p.off, p.currency), money(p.minSpend, p.currency))
-    : tr('{0}: up to {1}% off', p.retailer, p.upTo)}
+    ? tr('{0}: {1} off {2}+ with code {3}', keepName(p.retailer), money(p.off, p.currency), money(p.minSpend, p.currency), keepName(p.code))
+    : p.kind === 'coupon' ? tr('{0}: {1} off when you spend {2}', keepName(p.retailer), money(p.off, p.currency), money(p.minSpend, p.currency))
+    : tr('{0}: up to {1}% off', keepName(p.retailer), p.upTo)}
   <a href="${OFFERS_PATH}${p.slug}/">${tr('All codes')}<span aria-hidden="true"> &rarr;</span></a></p></div>`;
 }

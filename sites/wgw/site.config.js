@@ -13,7 +13,7 @@ export default {
   lang: 'en-GB',
   locale: 'en-GB',
   currency: 'GBP',
-  assetVersion: '2026-11-08-wgw-wording-1',
+  assetVersion: '2026-11-08-wgw-cleanup-1',
   promos: promosFor('WGW'),
   // Buying guides (/guides/, lessons L82): words in guides.js, prices and stock live from the database.
   guides,
@@ -109,7 +109,7 @@ export default {
 
   homeTitle: "Women's Gear World | Compare Women's Clothing, Jewellery, Watches & Beauty",
   homeDescription:
-    "Compare prices on women's clothing, jewellery, watches, shoes, bags and beauty from trusted retailers. Independent price comparison: find the deal, then buy direct.",
+    "Compare prices on women's clothing, jewellery, watches, shoes, bags and beauty across retailers. Independent price comparison: find the deal, then buy direct.",
   heroTitle: "Compare women's fashion prices in one place",
   heroText: 'Clothing, jewellery, watches, shoes, bags and beauty in one place. Find the deal, then buy direct from the retailer.',
   searchPlaceholder: 'Search dresses, necklaces, perfume...',
@@ -130,42 +130,42 @@ export default {
     {
       slug: 'clothing', name: 'Clothing', nav: 'Clothing', short: 'clothing', icon: 'home',
       intro: 'Tops, dresses, jeans, jackets, knitwear and socks. Compare prices across retailers before you buy.',
-      description: "Compare prices on women's tops, dresses, jeans, jackets, knitwear and socks from trusted retailers."
+      description: "Compare prices on women's tops, dresses, jeans, jackets, knitwear and socks across retailers."
     },
     {
       slug: 'watches', name: 'Watches', nav: 'Watches', short: 'watches', icon: 'watch',
       intro: 'Dress watches, everyday watches and smartwatches. See the price at each retailer before you choose.',
-      description: "Compare women's watch and smartwatch prices from trusted retailers."
+      description: "Compare women's watch and smartwatch prices across retailers."
     },
     {
       slug: 'jewellery', name: "Women's Jewellery", nav: 'Jewellery', short: 'jewellery', icon: 'home',
       intro: 'Necklaces, bracelets, earrings and rings in gold, silver and crystal.',
-      description: "Compare prices on women's necklaces, bracelets, earrings and rings from trusted retailers."
+      description: "Compare prices on women's necklaces, bracelets, earrings and rings across retailers."
     },
     {
       slug: 'shoes', name: 'Shoes', nav: 'Shoes', short: 'shoes', icon: 'home',
       intro: 'Trainers, everyday shoes, boots and slippers.',
-      description: "Compare prices on women's trainers, shoes, boots and slippers from trusted retailers."
+      description: "Compare prices on women's trainers, shoes, boots and slippers across retailers."
     },
     {
       slug: 'bags-accessories', name: 'Bags & Accessories', nav: 'Bags', short: 'bags and accessories', icon: 'home',
       intro: 'Handbags, totes, backpacks, sunglasses and other accessories.',
-      description: "Compare prices on women's handbags, totes, backpacks and sunglasses from trusted retailers."
+      description: "Compare prices on women's handbags, totes, backpacks and sunglasses across retailers."
     },
     {
       slug: 'beauty-fragrances', name: 'Beauty & Fragrances', nav: 'Beauty', short: 'beauty and fragrances', icon: 'home',
       intro: 'Perfume, eau de parfum, perfume oils and beauty tools.',
-      description: "Compare prices on women's perfume, eau de parfum and beauty tools from trusted retailers."
+      description: "Compare prices on women's perfume, eau de parfum and beauty tools across retailers."
     },
     {
       slug: 'everyday-essentials', name: 'Everyday Essentials', nav: 'Essentials', short: 'everyday essentials', icon: 'plug',
       intro: 'Torches, multi-tools and handy gear for home, travel and every day.',
-      description: 'Compare prices on torches, multi-tools and everyday gear from trusted retailers.'
+      description: 'Compare prices on torches, multi-tools and everyday gear across retailers.'
     },
     {
       slug: 'gifts-for-her', name: 'Gifts for Her', nav: 'Gifts', short: 'gifts', icon: 'home',
       intro: 'Gift ideas from £15 to £150: jewellery, watches, perfume and bags, plus gift sets. Compare prices across retailers before you buy.',
-      description: "Gift ideas for her from £15 to £150: women's jewellery, watches, perfume, bags and gift sets from trusted retailers.",
+      description: "Gift ideas for her from £15 to £150: women's jewellery, watches, perfume, bags and gift sets, with prices across retailers.",
       // A collection: products from these categories in this price range, plus anything named "gift".
       collection: { from: ['jewellery', 'watches', 'beauty-fragrances', 'bags-accessories'], minPrice: 15, maxPrice: 150, words: ['gift'] }
     }

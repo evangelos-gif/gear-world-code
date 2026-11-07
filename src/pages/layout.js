@@ -55,6 +55,17 @@ export function tr(key, ...args) {
     (kept.length ? ` data-i18n-keep="${kept.join(' ')}"` : '');
   return raw(`<span data-i18n="${escAttr(key)}"${attrs}>${inner}</span>`);
 }
+// A name inside a translated text that is never translated, such as a retailer or a discount code:
+// tr('View at {0}', keepName('Joybuy')). It gets its own translate="no" span (lessons L24, L102, L103).
+export function keepName(text) {
+  return { text: String(text ?? ''), keep: true };
+}
+
+// "View at <retailer>", the button to the retailer everywhere (cards, product page, price list, compare, saved list,
+// guides). The retailer name stays untranslated, wherever the language puts it (lessons L103).
+export function viewAt(retailer) {
+  return tr('View at {0}', keepName(retailer));
+}
 const escText = v => String(v ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 const escAttr = v => escText(v).replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 
@@ -116,7 +127,7 @@ export function deliveryText(site, retailer, { max = 0 } = {}) {
 // list): it is the retailer that delivers, never Gear World (Google Ads review, lessons L101, L102). The retailer
 // name stays untranslated in its own translate="no" span (L24).
 export function deliversLabel(retailer) {
-  return tr('{0} delivers to', { text: String(retailer || ''), keep: true });
+  return tr('{0} delivers to', keepName(retailer || ''));
 }
 
 // "[flags] <retailer> delivers to: Germany, Austria" as a line of its own (product cards, the price list, the saved
@@ -326,7 +337,7 @@ ${dealUpdates(site, path)}
     </section>
   </div>
   <div class="wrap footer-note">
-    <p>${tr('{0} compares prices from trusted retailers.', site.name)} ${' '}When you buy through a link on this site we may earn a commission from the retailer, at no extra cost to you. Prices and stock can change. Always check the final price on the retailer's website.</p>
+    <p>${tr('{0} compares prices across retailers.', site.name)} ${' '}When you buy through a link on this site we may earn a commission from the retailer, at no extra cost to you. Prices and stock can change. Always check the final price on the retailer's website.</p>
     <p class="footer-legal"><span translate="no">&copy; ${year} Gear World</span> · <span>Run by Evangelos Kalogerakis, United Kingdom</span> · <span>We don't sell products: we link to retailers and may earn a commission.</span></p>
   </div>
 </footer>`;
@@ -348,7 +359,7 @@ export function productCard(site, p, { headingLevel = 3 } = {}) {
     <p class="label-price">${priceTag(site, p.price, p.currency)}${was ? html` <s class="was">${was}</s>` : ''}${pct ? html` <span class="tag-save">${tr('Save {0}%', pct)}</span>` : ''}</p>
     <p class="label-meta"><span class="retailer" translate="no">${p.retailer}${retailerFlag(site, p.retailer)}</span>${Number(p.offer_count) > 1 ? html`<a class="offers-link" href="${href}#prices">${tr('{0} retailers', p.offer_count)}</a>` : ''}${p.item_condition === 'refurbished' ? html`<span class="badge">Refurbished</span>` : ''}${Number(p.in_stock) === 1 ? '' : html`<span class="badge badge-out">Out of stock</span>`}</p>
     ${deliveryLine(site, p.retailer)}
-    <a class="btn btn-deal" href="/out/${p.id}" rel="sponsored nofollow noopener" target="_blank">${tr('View at {0}', p.retailer)}</a>
+    <a class="btn btn-deal" href="/out/${p.id}" rel="sponsored nofollow noopener" target="_blank">${viewAt(p.retailer)}</a>
     <div class="card-actions">
       <button type="button" class="btn-compare" data-compare="${p.id}" aria-pressed="false" hidden>+ Compare</button>
       ${site.cart ? html`<button type="button" class="btn-cart" data-cart="${p.id}" aria-pressed="false" hidden>+ Save</button>` : ''}

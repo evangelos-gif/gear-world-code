@@ -13,7 +13,7 @@ export default {
   lang: 'en-GB',
   locale: 'en-GB',
   currency: 'GBP',
-  assetVersion: '2026-11-08-sgw-wording-1',
+  assetVersion: '2026-11-08-sgw-cleanup-1',
   promos: promosFor('SGW'),
   awinPublisherId: AWIN_PUBLISHER_ID,
   storagePrefix: 'sgw',
@@ -107,7 +107,7 @@ export default {
 
   homeTitle: 'Sporty Gear World | Compare Fitness, Running, Cycling, Football & Sports Gear',
   homeDescription:
-    'Compare prices on gym equipment, running shoes, bikes, football boots, tennis rackets, kayaks, sports nutrition and sportswear from trusted retailers. Independent price comparison: find the deal, then buy direct.',
+    'Compare prices on gym equipment, running shoes, bikes, football boots, tennis rackets, kayaks, sports nutrition and sportswear across retailers. Independent price comparison: find the deal, then buy direct.',
   heroTitle: 'Compare sports gear prices in one place',
   heroText: 'Gym and fitness equipment, running, cycling, football, tennis, water sports, sports nutrition and sportswear from retailers around the world. Find the deal, then buy direct from the retailer.',
   searchPlaceholder: 'Search dumbbells, running shoes, footballs...',
@@ -129,52 +129,52 @@ export default {
     {
       slug: 'fitness-gym', name: 'Fitness & Gym', nav: 'Fitness & Gym', short: 'fitness and gym equipment', icon: 'home',
       intro: 'Dumbbells, kettlebells, benches, treadmills, exercise bikes, yoga mats, resistance bands and boxing gear.',
-      description: 'Compare prices on dumbbells, kettlebells, weight benches, treadmills, exercise bikes and yoga mats from trusted retailers.'
+      description: 'Compare prices on dumbbells, kettlebells, weight benches, treadmills, exercise bikes and yoga mats across retailers.'
     },
     {
       slug: 'running', name: 'Running', nav: 'Running', short: 'running gear', icon: 'watch',
       intro: 'Running shoes and clothing, hydration vests, running belts, armbands and athletics gear.',
-      description: 'Compare prices on running shoes, running clothing, hydration vests and running belts from trusted retailers.'
+      description: 'Compare prices on running shoes, running clothing, hydration vests and running belts across retailers.'
     },
     {
       slug: 'cycling', name: 'Cycling', nav: 'Cycling', short: 'cycling gear', icon: 'globe',
       intro: 'Bikes and e-bikes, helmets, bike lights and locks, pumps and tools, cycling clothing and turbo trainers.',
-      description: 'Compare prices on bikes, e-bikes, cycling helmets, bike lights, locks and turbo trainers from trusted retailers.'
+      description: 'Compare prices on bikes, e-bikes, cycling helmets, bike lights, locks and turbo trainers across retailers.'
     },
     {
       slug: 'football-team-sports', name: 'Football & Team Sports', nav: 'Team Sports', short: 'football and team sports gear', icon: 'gamepad',
       intro: 'Football boots and balls, goals and shin pads, plus basketball, rugby, American football, cricket and hockey gear.',
-      description: 'Compare prices on football boots, footballs, goals, basketballs, rugby balls and cricket gear from trusted retailers.'
+      description: 'Compare prices on football boots, footballs, goals, basketballs, rugby balls and cricket gear across retailers.'
     },
     {
       slug: 'racket-sports', name: 'Racket Sports', nav: 'Racket Sports', short: 'racket sports gear', icon: 'search',
       intro: 'Tennis, padel, badminton, squash, pickleball and table tennis rackets, balls, shoes and nets.',
-      description: 'Compare prices on tennis rackets, padel rackets, badminton sets, pickleball paddles and table tennis gear from trusted retailers.'
+      description: 'Compare prices on tennis rackets, padel rackets, badminton sets, pickleball paddles and table tennis gear across retailers.'
     },
     {
       slug: 'water-sports', name: 'Water Sports & Swimming', nav: 'Water Sports', short: 'water sports and swimming gear', icon: 'camera',
       intro: 'Kayaks, paddle boards, wetsuits, swimming goggles and caps, snorkelling and diving gear.',
-      description: 'Compare prices on kayaks, stand up paddle boards, wetsuits and swimming goggles from trusted retailers.'
+      description: 'Compare prices on kayaks, stand up paddle boards, wetsuits and swimming goggles across retailers.'
     },
     {
       slug: 'hiking-climbing-winter', name: 'Hiking, Climbing & Winter', nav: 'Hiking & Winter', short: 'hiking, climbing and winter sports gear', icon: 'router',
       intro: 'Walking boots, trekking poles, climbing harnesses and carabiners, skis, snowboards and ski goggles.',
-      description: 'Compare prices on walking boots, trekking poles, climbing gear, skis, snowboards and ski goggles from trusted retailers.'
+      description: 'Compare prices on walking boots, trekking poles, climbing gear, skis, snowboards and ski goggles across retailers.'
     },
     {
       slug: 'nutrition-hydration', name: 'Nutrition & Hydration', nav: 'Nutrition', short: 'sports nutrition', icon: 'plug',
       intro: 'Protein, creatine, pre-workout, electrolytes and energy gels, plus protein shakers and sports bottles.',
-      description: 'Compare prices on protein powder, creatine, pre-workout, electrolytes, shakers and sports bottles from trusted retailers.'
+      description: 'Compare prices on protein powder, creatine, pre-workout, electrolytes, shakers and sports bottles across retailers.'
     },
     {
       slug: 'sportswear-shoes-bags', name: 'Sportswear, Shoes & Bags', nav: 'Sportswear', short: 'sportswear, sports shoes and bags', icon: 'headphones',
       intro: 'Training shoes, sports bras, leggings, base layers, tracksuits, gym bags and kit bags.',
-      description: 'Compare prices on training shoes, sports bras, leggings, base layers, tracksuits and gym bags from trusted retailers.'
+      description: 'Compare prices on training shoes, sports bras, leggings, base layers, tracksuits and gym bags across retailers.'
     },
     {
       slug: 'golf-skate-more', name: 'Golf, Skate & More', nav: 'More Sports', short: 'golf, skate and more sports', icon: 'tv',
       intro: 'Golf balls, clubs and trolleys, skateboards and skates, fishing rods, darts, snooker and table games.',
-      description: 'Compare prices on golf balls and trolleys, skateboards, inline skates, fishing rods and dartboards from trusted retailers.'
+      description: 'Compare prices on golf balls and trolleys, skateboards, inline skates, fishing rods and dartboards across retailers.'
     }
   ],
 

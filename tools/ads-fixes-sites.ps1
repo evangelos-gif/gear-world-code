@@ -9,6 +9,11 @@
   delivers to" (the name untranslated), the compare table says "Sold by", "Stock at the retailer" and "The retailer
   delivers to", the seasonal banner of /deals/ and /discount-codes/ speaks of gifts or of comparing prices (never
   "offers") and shows only above real price drops or codes, and the unused "Quantity" text is gone.
+  Clean-up (lessons L103): "Browse by category" (not "Shop by category"), "<n> retailers compared" (not "retailer
+  partners"), "{0} compares prices across retailers" (not "trusted retailers"), the discount codes "published through
+  the retailers' affiliate programmes" (not "given to their affiliate partners") and no "Shop through <site>" or "our
+  retailers" in their description, "Lowest price (retailers listed)" in the Car guide (not "our shops"), and every
+  retailer name inside a translated text ("View at", "Stock at", "Shop at", the codes) in its own translate="no" span.
 
 .DESCRIPTION
   -Step check   READ-ONLY. The 13 site tools are there? Shows the plan.
@@ -19,9 +24,9 @@
                      Gear World.
                 It stops at the first problem; sites already updated keep working. Running it again is safe.
                 The site databases and their settings on this PC do not change. The Hub has its own step
-                (tools/gwh-hub-v2.ps1, ΕΓΚΡΙΝΩ HUB WORDING LIVE since L102).
-                Going back: each site tool's update with the version before (git commit f4c8c35 for the L102
-                follow-up; c544884 before L101).
+                (tools/gwh-hub-v2.ps1, ΕΓΚΡΙΝΩ HUB CLEANUP LIVE for L103).
+                Going back: each site tool's update with the version before (git commit 98b476d for the L103
+                clean-up; f4c8c35 for the L102 follow-up; c544884 before L101).
   Report: <home>\gear-world-reports\ADS_FIXES_<STEP>_<time>.txt (also copied to the clipboard)
 #>
 param(
@@ -82,7 +87,7 @@ function Finish([int]$code) {
     if (-not $NoClipboard) { try { Set-Clipboard -Value $text } catch { } }
     Write-Host ''
     Write-Host ('Η αναφορά γράφτηκε: {0}' -f $file)
-    if (-not $NoClipboard) { Write-Host 'Αντιγράφηκε στο πρόχειρο. Πήγαινε στη συζήτηση με το Claude και πάτα Ctrl+V.' -ForegroundColor Green }
+    if (-not $NoClipboard) { Write-Host 'Αντιγράφηκε στο πρόχειρο. Πήγαινε στη συζήτηση με το Claude και πάτα Ctrl+V.' -ForegroundColor Cyan }
     exit $code
 }
 
@@ -108,6 +113,8 @@ function Confirm-Approval([string]$phrase) {
 }
 
 # Does the home page link to the saved list and carry the new footer line, and does /about/ say who runs Gear World?
+# L103: "Browse by category", no "Shop by category", "retailer partners" or "trusted retailers", the retailer name of
+# "View at" in its own translate="no" span, and no "Shop through" / "our retailers" / "affiliate partners" on the codes page.
 # (no utm_source and a bot user agent: never counted as a poster scan, never a click)
 function Get-Page([string]$url) {
     try {
@@ -122,7 +129,9 @@ function Test-Fixes([string]$domain) {
     $about = Get-Page ('https://{0}/about/?gwcheck={1}' -f $domain, $stamp)
     $okHome = ($homePage -match 'href="/saved/"') -and ($homePage -match 'class="footer-legal"') -and ($homePage -match 'Run by Evangelos Kalogerakis, United Kingdom') -and -not ($homePage -match 'Gear Cart|\+ Cart<') -and -not ($homePage -match 'class="ship-word">Delivers to<')
     $okAbout = ($about -match 'class="about-lead"') -and ($about -match 'class="about-run"') -and ($about -match 'contact@gearworldhub\.com')
-    return ($okHome -and $okAbout)
+    $codes = Get-Page ('https://{0}/discount-codes/?gwcheck={1}' -f $domain, $stamp)
+    $okL103 = ($homePage -match 'Browse by category') -and -not ($homePage -match 'Shop by category|retailer partners?|trusted retailers') -and ($homePage -match 'data-i18n="View at \{0\}"[^>]*data-i18n-keep="0"') -and -not ($codes -match 'Shop through|our retailers|affiliate partners')
+    return ($okHome -and $okAbout -and $okL103)
 }
 
 # ---------------- start ----------------
@@ -130,7 +139,7 @@ $mode = 'ΜΟΝΟ ΕΛΕΓΧΟΣ (δεν αλλάζει τίποτα)'
 if ($Apply) { $mode = 'APPLY (με έγκριση)' }
 Say ('GOOGLE ADS REVIEW FIXES ON THE SITES - step: {0} - {1} - {2}' -f $Step, $mode, (Get-Date -Format 'yyyy-MM-dd HH:mm')) 'Cyan'
 Say ('Code version: {0}' -f (Split-Path -Leaf $repo))
-if (-not (Get-Command node -ErrorAction SilentlyContinue)) { Say 'Δεν βρέθηκε το Node.js. Στείλε στο Claude αυτό το μήνυμα.' 'Red'; Finish 3 }
+if (-not (Get-Command node -ErrorAction SilentlyContinue)) { Say 'Δεν βρέθηκε το Node.js. Στείλε στο Claude αυτό το μήνυμα.' 'Magenta'; Finish 3 }
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 
 $problems = 0
@@ -144,20 +153,21 @@ if ($Step -eq 'check') {
     Say ('  1. τα 13 sites, το καθένα με το δικό του update: {0}' -f (($Sites | ForEach-Object { $_.code.ToUpper() }) -join ', '))
     Say '     («Saved list» αντί για «Gear Cart», «Sold by … (not by Gear World)», «… delivers to», «Stock at …», το /about/ και η γραμμή του footer, σε 10 γλώσσες)'
     Say '     (L102: «<κατάστημα> delivers to» και στις κάρτες, το μπάνερ των Χριστουγέννων λέει «Gifts for everyone» και φαίνεται μόνο πάνω από πραγματικές προσφορές, χωρίς «Quantity»)'
+    Say '     (L103: «Browse by category», «retailers compared», «compares prices across retailers», κωδικοί «through their affiliate programmes», το όνομα του καταστήματος translate="no" στο «View at» / «Stock at»)'
     Say '  2. έλεγχος ότι κάθε αρχική σελίδα δείχνει στο /saved/ και έχει τη νέα γραμμή στο footer, και ότι το /about/ λέει ποιος τρέχει το Gear World'
     Say '  Οι βάσεις των sites και οι ρυθμίσεις τους στον υπολογιστή δεν αλλάζουν.'
     Say ''
     if ($problems -gt 0) { Say 'Αποτέλεσμα: ΠΡΟΣΟΧΗ (δες τα παραπάνω). Δεν άλλαξε τίποτα.' 'Yellow'; Finish 2 }
-    Say 'Αποτέλεσμα: ΕΝΤΑΞΕΙ (μόνο έλεγχος, δεν άλλαξε τίποτα)' 'Green'
+    Say 'Αποτέλεσμα: ΕΝΤΑΞΕΙ (μόνο έλεγχος, δεν άλλαξε τίποτα)' 'Cyan'
     Finish 0
 }
 
 # ================= apply =================
 if (-not $Apply) { Say ''; Say ('Χωρίς -Apply δεν αλλάζει τίποτα. Για την αλλαγή: -Step apply -Apply και η φράση {0}' -f $Phrase) 'Yellow'; Finish 0 }
-if ($problems -gt 0) { Say 'Υπάρχουν προβλήματα (δες τα παραπάνω): ΔΕΝ αλλάζω τίποτα.' 'Red'; Finish 8 }
+if ($problems -gt 0) { Say 'Υπάρχουν προβλήματα (δες τα παραπάνω): ΔΕΝ αλλάζω τίποτα.' 'Magenta'; Finish 8 }
 if (-not (Confirm-Approval $Phrase)) { Say 'Δεν δόθηκε η σωστή φράση. Δεν άλλαξε τίποτα.' 'Yellow'; Finish 1 }
 Say ''
-Say 'Έγκριση: ΕΝΤΑΞΕΙ.' 'Green'
+Say 'Έγκριση: ΕΝΤΑΞΕΙ.' 'Cyan'
 
 # 1. the 13 sites, one by one
 $done = New-Object System.Collections.Generic.List[string]
@@ -169,13 +179,13 @@ foreach ($s in $Sites) {
     & $exe @a | Out-Null
     $code = $LASTEXITCODE
     if ($code -ne 0) {
-        Say ('   {0}: ΠΡΟΒΛΗΜΑ (κωδικός {1}). Σταμάτησα εδώ. Ανέβηκαν ήδη: {2}' -f $s.code.ToUpper(), $code, $(if ($done.Count) { $done -join ', ' } else { 'κανένα' })) 'Red'
+        Say ('   {0}: ΠΡΟΒΛΗΜΑ (κωδικός {1}). Σταμάτησα εδώ. Ανέβηκαν ήδη: {2}' -f $s.code.ToUpper(), $code, $(if ($done.Count) { $done -join ', ' } else { 'κανένα' })) 'Magenta'
         $rep = @(Get-ChildItem -LiteralPath $OutDir -File -ErrorAction SilentlyContinue | Where-Object { $_.Name -like ('*' + $s.code + '*') -or $_.Name -like ('*' + $s.code.ToUpper() + '*') -or $_.Name -like ($s.tool + '*') } | Sort-Object LastWriteTime | Select-Object -Last 1)
         if ($rep.Count -eq 1) { foreach ($line in @([System.IO.File]::ReadAllLines($rep[0].FullName) | Select-Object -Last 15)) { Say ('     ' + $line) } }
         Finish 12
     }
     $done.Add($s.code.ToUpper())
-    Say ('   {0}: ΕΝΤΑΞΕΙ' -f $s.code.ToUpper()) 'Green'
+    Say ('   {0}: ΕΝΤΑΞΕΙ' -f $s.code.ToUpper()) 'Cyan'
 }
 
 # 2. every home page links to /saved/ and has the footer line, every /about/ says who runs Gear World
@@ -184,9 +194,9 @@ if (-not $NoHttpCheck) {
     $notYet = @()
     foreach ($s in $Sites) { if (-not (Test-Fixes $s.domain)) { $notYet += $s.domain } }
     if ($notYet.Count -gt 0) { Say ('2. Οι αλλαγές δεν φαίνονται ακόμα σε: {0} (η cache κρατάει έως λίγα λεπτά· στείλε στο Claude αυτή την αναφορά)' -f ($notYet -join ', ')) 'Yellow' }
-    else { Say '2. Και τα 13 sites: «Saved list» στο /saved/, η γραμμή του footer και το /about/: ΕΝΤΑΞΕΙ' 'Green' }
+    else { Say '2. Και τα 13 sites: «Saved list» στο /saved/, η γραμμή του footer, το /about/ και οι λέξεις του L103: ΕΝΤΑΞΕΙ' 'Cyan' }
 }
 Say ''
 Say ('Ανέβηκαν: {0}' -f ($done -join ', '))
-Say 'Αποτέλεσμα: ΕΤΟΙΜΟ' 'Green'
+Say 'Αποτέλεσμα: ΕΤΟΙΜΟ' 'Cyan'
 Finish 0

@@ -14,7 +14,8 @@ function contactLink(site) {
   return site.contactEmail ? html`<a href="mailto:${site.contactEmail}">${site.contactEmail}</a>` : PLACEHOLDER;
 }
 
-const UPDATED = '3 November 2026';
+// The legal texts last changed on 7 Nov 2026 (who runs Gear World, lessons L101); keep this date honest (L103).
+const UPDATED = '7 November 2026';
 
 // Who runs the network and how to reach them, the same on every site and on the Hub (Google Ads review, 7 Nov 2026,
 // lessons L101). Owner's decision, 7 Nov 2026: "Run by Evangelos Kalogerakis, United Kingdom" and the email, no address.

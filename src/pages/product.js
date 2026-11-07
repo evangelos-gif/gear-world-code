@@ -2,7 +2,7 @@
 import { html, raw } from '../lib/html.js';
 import { categoryPath, productPath, formatPrice, savingPercent, truncate, formatDate } from '../lib/text.js';
 import { normalizeGtin, gtinSchemaKey } from '../lib/gtin.js';
-import { page, productGrid, breadcrumbs, breadcrumbSchema, absolute, tr, priceTag, retailerFlag, deliveryText, deliveryLine, deliversLabel } from './layout.js';
+import { page, productGrid, breadcrumbs, breadcrumbSchema, absolute, tr, keepName, viewAt, priceTag, retailerFlag, deliveryText, deliveryLine, deliversLabel } from './layout.js';
 
 function specsList(product) {
   let specs = {};
@@ -90,17 +90,17 @@ export function productPage(site, product, category, similar, offers = []) {
         <dl class="shelf-facts">
           <div><dt>Sold by</dt><dd><span translate="no">${product.retailer}${retailerFlag(site, product.retailer)}</span> <span class="not-us">(not by Gear World)</span></dd></div>
           ${delivers ? html`<div><dt>${deliversLabel(product.retailer)}</dt><dd class="ship-dd">${delivers}</dd></div>` : ''}
-          <div><dt>${tr('Stock at {0}', product.retailer)}</dt><dd class="${inStock ? 'ok' : 'warn'}">${inStock ? 'In stock' : 'Out of stock'}</dd></div>
+          <div><dt>${tr('Stock at {0}', keepName(product.retailer))}</dt><dd class="${inStock ? 'ok' : 'warn'}">${inStock ? 'In stock' : 'Out of stock'}</dd></div>
           ${product.item_condition === 'refurbished' ? html`<div><dt>Condition</dt><dd>Refurbished</dd></div>` : ''}
           ${checked ? html`<div><dt>Price checked</dt><dd><time datetime="${String(product.last_seen_at).slice(0, 10)}">${checked}</time></dd></div>` : ''}
         </dl>
-        <a class="btn btn-deal btn-big" href="/out/${product.id}" rel="sponsored nofollow noopener" target="_blank">${tr('View at {0}', product.retailer)}</a>
+        <a class="btn btn-deal btn-big" href="/out/${product.id}" rel="sponsored nofollow noopener" target="_blank">${viewAt(product.retailer)}</a>
         <div class="card-actions card-actions-big">
           <button type="button" class="btn-compare btn-compare-big" data-compare="${product.id}" aria-pressed="false" hidden>+ Compare</button>
           ${site.cart ? html`<button type="button" class="btn-cart btn-cart-big" data-cart="${product.id}" aria-pressed="false" hidden>+ Save</button>` : ''}
         </div>
         ${offers.length > 1 ? html`<p class="shelf-offers"><a href="#prices">${tr('Compare {0} retailers', offers.length)}</a></p>` : ''}
-        <p class="shelf-note">${tr('You buy on the {0} website, at their price.', product.retailer)} We may earn a commission. <a href="/how-we-make-money/">How this works</a></p>
+        <p class="shelf-note">${tr('You buy on the {0} website, at their price.', keepName(product.retailer))} We may earn a commission. <a href="/how-we-make-money/">How this works</a></p>
       </div>
     </div>
   </article>
@@ -111,7 +111,7 @@ export function productPage(site, product, category, similar, offers = []) {
       <span class="offer-who"><span class="offer-retailer" translate="no">${o.retailer}${retailerFlag(site, o.retailer)}</span>${deliveryLine(site, o.retailer, { cls: 'offer-ship', tag: 'span', max: 0 })}</span>
       <span class="offer-price">${priceTag(site, o.price, o.currency)}${i === 0 && Number(o.in_stock) === 1 ? html` <span class="tag-best">${tr('Lowest price')}</span>` : ''}</span>
       <span class="offer-stock ${Number(o.in_stock) === 1 ? 'ok' : 'warn'}">${Number(o.in_stock) === 1 ? 'In stock' : 'Out of stock'}</span>
-      <a class="btn btn-deal" href="/out/${o.id}" rel="sponsored nofollow noopener" target="_blank">${tr('View at {0}', o.retailer)}</a>
+      <a class="btn btn-deal" href="/out/${o.id}" rel="sponsored nofollow noopener" target="_blank">${viewAt(o.retailer)}</a>
     </li>`)}</ul>
     <p class="offer-note">${site.database && site.database.groupTable ? tr('The same product at each retailer, matched by its product code. Prices and stock as the retailers report them.') : tr('Same product code (EAN) at each retailer. Prices and stock as the retailers report them.')}</p>
   </section>` : ''}

@@ -120,7 +120,7 @@ test('guides: a new price shows in the tables and cards, with the note; the chea
   assert.match(html, /class="guide-changed"/);
   assert.match(html, /<h3><span>1\.<\/span> <a href="\/product\/product-2965-2965\/" translate="no">Sealey 100HF/);
   assert.match(html, /data-price="24.50" data-currency="GBP">£24\.50<\/span> <span class="retailer" translate="no">Tooled Up<\/span>/);
-  assert.match(html, /<td><a href="\/product\/product-2965-2965\/" translate="no"><span class="price" data-price="24.50"/, '"From (our shops)" is the new lowest');
+  assert.match(html, /<td><a href="\/product\/product-2965-2965\/" translate="no"><span class="price" data-price="24.50"/, '"Lowest price (retailers listed)" is the new lowest');
 });
 
 test('guides: price per ml from the lowest price, as written in the guide (14.0p, 14.5p, 73p, 97p, 89p)', () => {

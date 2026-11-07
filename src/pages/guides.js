@@ -7,7 +7,7 @@
 // Product names, brands, shop names and prices are translate="no".
 import { html } from '../lib/html.js';
 import { productPath, formatDate } from '../lib/text.js';
-import { page, breadcrumbs, breadcrumbSchema, tr, priceTag } from './layout.js';
+import { page, breadcrumbs, breadcrumbSchema, tr, viewAt, priceTag } from './layout.js';
 
 export const GUIDES_PATH = '/guides/';
 
@@ -138,7 +138,7 @@ ${items.map(({ it, n, p }) => html`<section class="guide-pick">
     <li><strong>Who it's for:</strong> ${it.forWho}</li>
     <li><strong>Who should skip:</strong> ${it.skip}</li>
   </ul>
-  <p><a class="btn btn-deal" href="/out/${p.id}" rel="sponsored nofollow noopener" target="_blank">${tr('View at {0}', p.retailer)}</a></p>
+  <p><a class="btn btn-deal" href="/out/${p.id}" rel="sponsored nofollow noopener" target="_blank">${viewAt(p.retailer)}</a></p>
   </div>
 </section>`)}`;
 }

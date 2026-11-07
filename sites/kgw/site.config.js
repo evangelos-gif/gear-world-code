@@ -13,7 +13,7 @@ export default {
   lang: 'en-GB',
   locale: 'en-GB',
   currency: 'GBP',
-  assetVersion: '2026-11-08-kgw-wording-1',
+  assetVersion: '2026-11-08-kgw-cleanup-1',
   promos: promosFor('KGW'),
   awinPublisherId: AWIN_PUBLISHER_ID,
   storagePrefix: 'kgw',
@@ -99,7 +99,7 @@ export default {
 
   homeTitle: "Kids' Gear World | Compare Kids' Clothing, Toys, Baby Gear & Tech",
   homeDescription:
-    "Compare prices on kids' clothing, toys and games, baby and toddler gear, shoes, sports, kids' tech and school bags from trusted retailers. Independent price comparison: find the deal, then buy direct.",
+    "Compare prices on kids' clothing, toys and games, baby and toddler gear, shoes, sports, kids' tech and school bags across retailers. Independent price comparison: find the deal, then buy direct.",
   heroTitle: "Compare kids' gear prices in one place",
   heroText: 'Clothing, toys, baby gear, shoes, sports and school bags in one place. Find the deal, then buy direct from the retailer.',
   searchPlaceholder: 'Search toys, hoodies, scooters...',
@@ -120,54 +120,54 @@ export default {
     {
       slug: 'clothing', name: 'Clothing', nav: 'Clothing', short: 'clothing', icon: 'home',
       intro: 'Hoodies, T-shirts, pyjamas, coats, swimwear and socks for babies to teens. Compare prices across retailers before you buy.',
-      description: "Compare prices on kids' hoodies, T-shirts, pyjamas, coats, swimwear and socks from trusted retailers."
+      description: "Compare prices on kids' hoodies, T-shirts, pyjamas, coats, swimwear and socks across retailers."
     },
     {
       slug: 'baby-toddler', name: 'Baby & Toddler', nav: 'Baby', short: 'baby and toddler gear', icon: 'home',
       intro: 'Feeding, bath time, teething, sleep and nursery essentials for babies and toddlers.',
-      description: 'Compare prices on baby and toddler feeding, bath, teething, sleep and nursery essentials from trusted retailers.'
+      description: 'Compare prices on baby and toddler feeding, bath, teething, sleep and nursery essentials across retailers.'
     },
     {
       slug: 'toys-games', name: 'Toys & Games', nav: 'Toys', short: 'toys and games', icon: 'gamepad',
       intro: 'Puzzles, building sets, ride-ons, pretend play, outdoor toys and family games.',
-      description: 'Compare prices on puzzles, building sets, ride-ons, pretend play toys and family games from trusted retailers.'
+      description: 'Compare prices on puzzles, building sets, ride-ons, pretend play toys and family games across retailers.'
     },
     {
       slug: 'sports-outdoors', name: 'Sports & Outdoors', nav: 'Sports', short: 'sports and outdoor gear', icon: 'home',
       intro: 'Scooters, helmets, trampolines, football goals, sandpits and garden play.',
-      description: "Compare prices on kids' scooters, helmets, trampolines, football goals and garden play from trusted retailers."
+      description: "Compare prices on kids' scooters, helmets, trampolines, football goals and garden play across retailers."
     },
     {
       slug: 'kids-tech', name: 'Kids Tech', nav: 'Tech', short: 'kids tech', icon: 'headphones',
       intro: 'Headphones, kids’ watches, cameras, night lights and learning gadgets.',
-      description: "Compare prices on kids' headphones, watches, cameras, night lights and learning gadgets from trusted retailers."
+      description: "Compare prices on kids' headphones, watches, cameras, night lights and learning gadgets across retailers."
     },
     {
       slug: 'bedroom-home', name: 'Bedroom & Home', nav: 'Bedroom', short: 'bedroom and home', icon: 'home',
       intro: 'Beds, bedding, storage, desks and furniture for kids’ rooms.',
-      description: "Compare prices on kids' beds, bedding, storage, desks and furniture from trusted retailers."
+      description: "Compare prices on kids' beds, bedding, storage, desks and furniture across retailers."
     },
     {
       slug: 'accessories', name: 'Accessories', nav: 'Accessories', short: 'accessories', icon: 'home',
       intro: 'Hats, hair accessories, sunglasses, jewellery and party accessories for kids.',
-      description: "Compare prices on kids' hats, hair accessories, sunglasses and jewellery from trusted retailers."
+      description: "Compare prices on kids' hats, hair accessories, sunglasses and jewellery across retailers."
     },
     {
       slug: 'shoes', name: 'Shoes', nav: 'Shoes', short: 'shoes', icon: 'home',
       intro: 'Trainers, school shoes, boots, sandals and slippers.',
-      description: "Compare prices on kids' trainers, school shoes, boots, sandals and slippers from trusted retailers."
+      description: "Compare prices on kids' trainers, school shoes, boots, sandals and slippers across retailers."
     },
     {
       slug: 'gifts-for-kids', name: 'Gifts for Kids', nav: 'Gifts', short: 'gifts', icon: 'home',
       intro: 'Gift ideas from £10 to £60: toys, games, kids’ tech and accessories, plus gift sets. Compare prices across retailers before you buy.',
-      description: 'Gift ideas for kids from £10 to £60: toys, games, kids’ tech, accessories and gift sets from trusted retailers.',
+      description: 'Gift ideas for kids from £10 to £60: toys, games, kids’ tech, accessories and gift sets, with prices across retailers.',
       // A collection: products from these categories in this price range, plus anything named "gift".
       collection: { from: ['gifts-for-kids', 'toys-games', 'kids-tech', 'accessories'], minPrice: 10, maxPrice: 60, words: ['gift'] }
     },
     {
       slug: 'school-backpacks', name: 'School & Backpacks', nav: 'School', short: 'school bags and supplies', icon: 'home',
       intro: 'Backpacks, lunch bags, pencil cases and school supplies.',
-      description: "Compare prices on kids' backpacks, lunch bags, pencil cases and school supplies from trusted retailers."
+      description: "Compare prices on kids' backpacks, lunch bags, pencil cases and school supplies across retailers."
     }
   ],
 

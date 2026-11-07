@@ -206,7 +206,7 @@ export function groupPage(site, stats) {
     <ul class="ticks">
       <li>Product listings from your affiliate feed: price, stock and a "View at" button on every product page, category page and in our side-by-side compare tool.</li>
       <li>Price comparison: when several retailers sell the same product (same EAN), shoppers see every price in one table.</li>
-      <li>Your official promotions and voucher codes, only as you provide them, always with their end dates. Expired codes are removed automatically.</li>
+      <li>Your own promotions and voucher codes, only as you provide them, always with their end dates. Expired codes are removed automatically.</li>
       <li>Pages in 11 languages, with prices in GBP and an approximate price in the shopper's currency.</li>
       <li>Every retailer link goes through the affiliate network with a click reference per site and product, so you can see where each sale came from.</li>
       <li>Product pages with structured data for search engines: the lowest and highest price across retailers, the number of retailers, and the GTIN when the feed has one.</li>

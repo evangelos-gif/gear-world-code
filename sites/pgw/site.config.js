@@ -16,7 +16,7 @@ export default {
   lang: 'en-GB',
   locale: 'en-GB',
   currency: 'GBP',
-  assetVersion: '2026-11-08-pgw-wording-1',
+  assetVersion: '2026-11-08-pgw-cleanup-1',
   promos: promosFor('PGW'),
   awinPublisherId: AWIN_PUBLISHER_ID,
   storagePrefix: 'pgw',
@@ -108,7 +108,7 @@ export default {
 
   homeTitle: 'Gaming Gear World | Compare Consoles, Gaming PCs, Monitors, Headsets & Chairs',
   homeDescription:
-    'Compare prices on consoles, games, controllers, gaming PCs and laptops, gaming monitors, keyboards and mice, headsets, gaming chairs, streaming gear and PC components from trusted retailers. Independent price comparison: find the deal, then buy direct.',
+    'Compare prices on consoles, games, controllers, gaming PCs and laptops, gaming monitors, keyboards and mice, headsets, gaming chairs, streaming gear and PC components across retailers. Independent price comparison: find the deal, then buy direct.',
   heroTitle: 'Compare gaming gear prices in one place',
   heroText: 'Consoles and games, gaming PCs and laptops, monitors, keyboards, mice, headsets, chairs, streaming gear and PC components from retailers in the UK and Europe. Find the deal, then buy direct from the retailer.',
   searchPlaceholder: 'Search consoles, headsets, graphics cards...',
@@ -133,52 +133,52 @@ export default {
     {
       slug: 'games-cards', name: 'Games & Gift Cards', nav: 'Games', short: 'video games and gift cards', icon: 'gamepad',
       intro: 'PlayStation, Xbox, Nintendo Switch and PC games, special editions and gaming gift cards.',
-      description: 'Compare prices on PlayStation, Xbox, Nintendo Switch and PC games, special editions and gaming gift cards from trusted retailers.'
+      description: 'Compare prices on PlayStation, Xbox, Nintendo Switch and PC games, special editions and gaming gift cards across retailers.'
     },
     {
       slug: 'controllers', name: 'Controllers, Wheels & Sticks', nav: 'Controllers', short: 'controllers and racing wheels', icon: 'gamepad',
       intro: 'Wireless and pro controllers, racing wheels and pedals, flight sticks, charging docks and thumb grips.',
-      description: 'Compare prices on wireless and pro controllers, racing wheels, flight sticks and charging docks from trusted retailers.'
+      description: 'Compare prices on wireless and pro controllers, racing wheels, flight sticks and charging docks across retailers.'
     },
     {
       slug: 'consoles', name: 'Consoles & Handhelds', nav: 'Consoles', short: 'consoles and handhelds', icon: 'tv',
       intro: 'Home consoles, handheld gaming PCs, VR headsets and console accessories such as storage, cases and stands.',
-      description: 'Compare prices on consoles, handheld gaming PCs, VR headsets and console storage, cases and stands from trusted retailers.'
+      description: 'Compare prices on consoles, handheld gaming PCs, VR headsets and console storage, cases and stands across retailers.'
     },
     {
       slug: 'pcs-laptops', name: 'Gaming PCs & Laptops', nav: 'PCs & Laptops', short: 'gaming PCs and laptops', icon: 'laptop',
       intro: 'Gaming laptops and desktop PCs with dedicated graphics, and compact gaming mini PCs.',
-      description: 'Compare prices on gaming laptops, gaming desktop PCs and gaming mini PCs from trusted retailers.'
+      description: 'Compare prices on gaming laptops, gaming desktop PCs and gaming mini PCs across retailers.'
     },
     {
       slug: 'monitors', name: 'Gaming Monitors', nav: 'Monitors', short: 'gaming monitors', icon: 'tv',
       intro: 'Fast gaming monitors from 144 Hz to 500 Hz and more: IPS, VA and OLED, flat, curved and ultrawide.',
-      description: 'Compare prices on fast gaming monitors, OLED, curved and ultrawide screens from trusted retailers.'
+      description: 'Compare prices on fast gaming monitors, OLED, curved and ultrawide screens across retailers.'
     },
     {
       slug: 'mice-keyboards', name: 'Mice, Keyboards & Mouse Pads', nav: 'Mice & Keyboards', short: 'gaming mice and keyboards', icon: 'laptop',
       intro: 'Gaming mice, mechanical and magnetic-switch keyboards, keycaps and mouse pads.',
-      description: 'Compare prices on gaming mice, mechanical keyboards, keycaps and mouse pads from trusted retailers.'
+      description: 'Compare prices on gaming mice, mechanical keyboards, keycaps and mouse pads across retailers.'
     },
     {
       slug: 'headsets', name: 'Headsets & Gaming Audio', nav: 'Headsets', short: 'gaming headsets', icon: 'headphones',
       intro: 'Wired and wireless gaming headsets for PC and consoles, gaming earbuds and gaming soundbars.',
-      description: 'Compare prices on gaming headsets for PC, PlayStation, Xbox and Switch, gaming earbuds and soundbars from trusted retailers.'
+      description: 'Compare prices on gaming headsets for PC, PlayStation, Xbox and Switch, gaming earbuds and soundbars across retailers.'
     },
     {
       slug: 'chairs-desks', name: 'Gaming Chairs & Desks', nav: 'Chairs & Desks', short: 'gaming chairs and desks', icon: 'home',
       intro: 'Gaming chairs, gaming desks, racing seats and sim racing cockpits.',
-      description: 'Compare prices on gaming chairs, gaming desks and sim racing cockpits from trusted retailers.'
+      description: 'Compare prices on gaming chairs, gaming desks and sim racing cockpits across retailers.'
     },
     {
       slug: 'streaming', name: 'Streaming: Cameras, Mics & Lights', nav: 'Streaming', short: 'streaming gear', icon: 'mic',
       intro: 'Webcams, USB and XLR microphones, mic arms, capture cards, stream decks and lights for streamers.',
-      description: 'Compare prices on webcams, streaming microphones, capture cards, stream decks and lights from trusted retailers.'
+      description: 'Compare prices on webcams, streaming microphones, capture cards, stream decks and lights across retailers.'
     },
     {
       slug: 'components', name: 'PC Components', nav: 'Components', short: 'PC components', icon: 'plug',
       intro: 'Graphics cards, processors, motherboards, memory, NVMe SSDs, CPU coolers, PC cases and power supplies.',
-      description: 'Compare prices on graphics cards, processors, motherboards, memory, SSDs, coolers, cases and power supplies from trusted retailers.'
+      description: 'Compare prices on graphics cards, processors, motherboards, memory, SSDs, coolers, cases and power supplies across retailers.'
     }
   ],
 

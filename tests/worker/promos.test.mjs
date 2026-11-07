@@ -58,7 +58,8 @@ test('bar on every page, codes page, retailer page, and the sitemap lists them',
   const env = { DB: fakeDb() };
   const info = await (await get(worker, '/about/', env)).text();
   assert.match(info, /class="promo-bar"/);
-  assert.match(info, /Joybuy: £4 off £20\+ with code halloween/);
+  // The retailer name and the code stay untranslated, each in its own translate="no" span (lessons L103).
+  assert.match(info, /<span translate="no">Joybuy<\/span>: £4 off £20\+ with code <span translate="no">halloween<\/span>/);
   assert.match(info, /href="\/discount-codes\/joybuy\/"/);
   const page = await (await get(worker, '/discount-codes/joybuy/', env)).text();
   assert.match(page, /<meta name="robots" content="index,follow">/);
@@ -131,6 +132,6 @@ test('a coupon (money off, no code to type): after the codes, before the sales, 
   assert.match(page, /href="\/go\/joybuy-joy-day"/);
   assert.ok(!/promo-code-card|btn-copy/.test(page), 'no code to copy');
   const bar = await (await get(createWorker(siteWith([{ ...coupon, bar: '🎮' }])), '/about/', { DB: fakeDb() })).text();
-  assert.match(bar, /Joybuy: £15 off when you spend £99/);
+  assert.match(bar, /<span translate="no">Joybuy<\/span>: £15 off when you spend £99/);
   assert.ok(!/undefined/.test(bar));
 });

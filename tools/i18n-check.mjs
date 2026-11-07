@@ -107,15 +107,29 @@ try {
     }
     const page = await context.newPage();
     const missing = new Set();
+    // Lessons L103: after the translation, every kept part (a retailer name, a code) is still in its own translate="no"
+    // span with exactly the name the server wrote, wherever the language put it.
+    const lostNames = new Set();
+    let keptSeen = 0;
     for (const p of pages) {
       await page.goto(base + p, { waitUntil: 'networkidle' });
       await page.waitForSelector('html[data-ready]', { timeout: 10000 }).catch(() => {});
-      const r = await page.evaluate(() => ({ lang: document.documentElement.lang, ready: document.documentElement.getAttribute('data-ready'), miss: window.GW_I18N_MISSING || [] }));
+      const r = await page.evaluate(() => {
+        const kept = [...document.querySelectorAll('[data-i18n-keep]')];
+        const lost = kept.filter(el => !el.getAttribute('data-i18n-keep').split(' ').every(i => {
+          const name = el.getAttribute('data-i18n-' + i);
+          return [...el.children].some(c => c.tagName === 'SPAN' && c.getAttribute('translate') === 'no' && c.textContent === name);
+        })).map(el => el.getAttribute('data-i18n'));
+        return { lang: document.documentElement.lang, ready: document.documentElement.getAttribute('data-ready'), miss: window.GW_I18N_MISSING || [], kept: kept.length, lost };
+      });
+      keptSeen += r.kept;
+      for (const k of r.lost) lostNames.add(`${p}: ${k}`);
       if (!run.dump) check(r.ready === run.code && r.lang === run.code, `${run.code} ${p}: page switched to ${run.code}`, `lang=${r.lang} ready=${r.ready}`);
       for (const k of r.miss) missing.add(k);
     }
     if (run.dump) for (const k of missing) allKeys.add(k);
     else check(missing.size === 0, `${run.code}: every text on ${pages.length} pages is translated`, [...missing].slice(0, 8).join(' | '));
+    if (!run.dump) check(keptSeen > 0 && lostNames.size === 0, `${run.code}: retailer names and codes stay untranslated in their own translate="no" span (L103)`, `${keptSeen} kept texts; ${[...lostNames].slice(0, 5).join(' | ')}`);
     await context.close();
   }
 } finally {

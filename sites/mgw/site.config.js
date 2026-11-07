@@ -12,7 +12,7 @@ export default {
   lang: 'en-GB',
   locale: 'en-GB',
   currency: 'GBP',
-  assetVersion: '2026-11-08-mgw-wording-1',
+  assetVersion: '2026-11-08-mgw-cleanup-1',
   promos: promosFor('MGW'),
   awinPublisherId: AWIN_PUBLISHER_ID,
   storagePrefix: 'mgw',
@@ -98,7 +98,7 @@ export default {
 
   homeTitle: "Men's Gear World | Compare Men's Clothing, Watches, Jewellery & Grooming",
   homeDescription:
-    "Compare prices on men's clothing, watches, jewellery, shoes, grooming and everyday carry from trusted retailers. Independent price comparison: find the deal, then buy direct.",
+    "Compare prices on men's clothing, watches, jewellery, shoes, grooming and everyday carry across retailers. Independent price comparison: find the deal, then buy direct.",
   heroTitle: "Compare men's gear prices in one place",
   heroText: 'Clothing, watches, jewellery, shoes, grooming and everyday carry in one place. Find the deal, then buy direct from the retailer.',
   searchPlaceholder: 'Search watches, jackets, rings...',
@@ -119,42 +119,42 @@ export default {
     {
       slug: 'clothing', name: 'Clothing', nav: 'Clothing', short: 'clothing', icon: 'home',
       intro: 'T-shirts, hoodies, shirts, trousers, jackets and socks, from streetwear to workwear. Compare prices across retailers before you buy.',
-      description: "Compare prices on men's T-shirts, hoodies, shirts, trousers, jackets and socks from trusted retailers."
+      description: "Compare prices on men's T-shirts, hoodies, shirts, trousers, jackets and socks across retailers."
     },
     {
       slug: 'watches', name: 'Watches', nav: 'Watches', short: 'watches', icon: 'watch',
       intro: 'Chronographs, dress watches, sports watches and smartwatches. See the price at each retailer before you choose.',
-      description: "Compare men's watch prices: chronographs, dress watches, sports watches and smartwatches from trusted retailers."
+      description: "Compare men's watch prices: chronographs, dress watches, sports watches and smartwatches across retailers."
     },
     {
       slug: 'jewellery', name: "Men's Jewellery", nav: 'Jewellery', short: 'jewellery', icon: 'home',
       intro: 'Rings, wedding bands, chains, bracelets and necklaces in gold, silver and steel.',
-      description: "Compare prices on men's rings, wedding bands, chains, bracelets and necklaces from trusted retailers."
+      description: "Compare prices on men's rings, wedding bands, chains, bracelets and necklaces across retailers."
     },
     {
       slug: 'shoes', name: 'Shoes', nav: 'Shoes', short: 'shoes', icon: 'home',
       intro: 'Trainers, running shoes, boots and slippers.',
-      description: "Compare prices on men's trainers, running shoes, boots and slippers from trusted retailers."
+      description: "Compare prices on men's trainers, running shoes, boots and slippers across retailers."
     },
     {
       slug: 'everyday-carry', name: 'Everyday Carry / EDC', nav: 'EDC', short: 'everyday carry', icon: 'plug',
       intro: 'Torches, multi-tools, wallets and pocket gear for every day.',
-      description: 'Compare prices on EDC torches, multi-tools, wallets and pocket gear from trusted retailers.'
+      description: 'Compare prices on EDC torches, multi-tools, wallets and pocket gear across retailers.'
     },
     {
       slug: 'bags-accessories', name: 'Bags & Accessories', nav: 'Bags', short: 'bags and accessories', icon: 'home',
       intro: 'Bags, wallets, sunglasses, belts and other accessories.',
-      description: "Compare prices on men's bags, wallets, sunglasses and belts from trusted retailers."
+      description: "Compare prices on men's bags, wallets, sunglasses and belts across retailers."
     },
     {
       slug: 'grooming-fragrances', name: 'Grooming & Fragrances', nav: 'Grooming', short: 'grooming and fragrances', icon: 'home',
       intro: 'Shavers, trimmers, aftershave, perfume and perfume oils.',
-      description: "Compare prices on men's shavers, trimmers, aftershave and perfume from trusted retailers."
+      description: "Compare prices on men's shavers, trimmers, aftershave and perfume across retailers."
     },
     {
       slug: 'gifts-for-him', name: 'Gifts for Him', nav: 'Gifts', short: 'gifts', icon: 'home',
       intro: 'Gift ideas from £15 to £150: watches, jewellery, fragrances, everyday carry and bags, plus gift sets. Compare prices across retailers before you buy.',
-      description: "Gift ideas for him from £15 to £150: men's watches, jewellery, fragrances, everyday carry, bags and gift sets from trusted retailers.",
+      description: "Gift ideas for him from £15 to £150: men's watches, jewellery, fragrances, everyday carry, bags and gift sets, with prices across retailers.",
       // A collection: products from these categories in this price range, plus anything named "gift".
       collection: { from: ['watches', 'jewellery', 'grooming-fragrances', 'everyday-carry', 'bags-accessories'], minPrice: 15, maxPrice: 150, words: ['gift'] }
     }

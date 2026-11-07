@@ -14,7 +14,7 @@ export default {
   lang: 'en-GB',
   locale: 'en-GB',
   currency: 'GBP',
-  assetVersion: '2026-11-08-agw-wording-1',
+  assetVersion: '2026-11-08-agw-cleanup-1',
   promos: promosFor('AGW'),
   // Buying guides (/guides/, lessons L82): words in guides.js, prices and stock live from the database.
   guides,
@@ -119,52 +119,52 @@ export default {
     {
       slug: 'garage-tools-equipment', name: 'Garage Tools & Equipment', nav: 'Garage Tools', short: 'garage tools', icon: 'home',
       intro: 'Trolley jacks, axle stands, creepers, socket sets and specialist tools for brakes, engines and bodywork.',
-      description: 'Compare prices on trolley jacks, axle stands, creepers, socket sets and specialist car repair tools from trusted retailers.'
+      description: 'Compare prices on trolley jacks, axle stands, creepers, socket sets and specialist car repair tools across retailers.'
     },
     {
       slug: 'diagnostics-battery', name: 'Diagnostics & Battery', nav: 'Diagnostics', short: 'diagnostics and battery care', icon: 'plug',
       intro: 'OBD scanners and code readers, battery chargers and testers, jump starters and jump leads.',
-      description: 'Compare prices on OBD scanners, code readers, battery chargers, jump starters and jump leads from trusted retailers.'
+      description: 'Compare prices on OBD scanners, code readers, battery chargers, jump starters and jump leads across retailers.'
     },
     {
       slug: 'parts-maintenance', name: 'Parts & Maintenance', nav: 'Parts', short: 'car parts', icon: 'home',
       intro: 'Wiper blades, bulbs, filters, engine oil, brake parts, gas struts and other service parts.',
-      description: 'Compare prices on wiper blades, bulbs, filters, engine oil, brake parts and gas struts from trusted retailers.'
+      description: 'Compare prices on wiper blades, bulbs, filters, engine oil, brake parts and gas struts across retailers.'
     },
     {
       slug: 'tyres-wheels', name: 'Tyres & Wheels', nav: 'Tyres & Wheels', short: 'tyres and wheels', icon: 'globe',
       intro: 'Tyre inflators, pressure gauges and monitors, puncture repair, wheel tools and locking wheel nuts.',
-      description: 'Compare prices on tyre inflators, tyre pressure monitors, puncture repair kits and wheel tools from trusted retailers.'
+      description: 'Compare prices on tyre inflators, tyre pressure monitors, puncture repair kits and wheel tools across retailers.'
     },
     {
       slug: 'car-care-detailing', name: 'Car Care & Detailing', nav: 'Car Care', short: 'car care', icon: 'home',
       intro: 'Shampoo and snow foam, wax and polish, microfibre cloths, brushes, polishers and interior cleaners.',
-      description: 'Compare prices on car shampoo, snow foam, wax, polish, microfibre cloths and polishers from trusted retailers.'
+      description: 'Compare prices on car shampoo, snow foam, wax, polish, microfibre cloths and polishers across retailers.'
     },
     {
       slug: 'car-electronics', name: 'Car Electronics', nav: 'Electronics', short: 'car electronics', icon: 'phone',
       intro: 'Dash cams, CarPlay and Android Auto screens, reversing cameras, parking sensors, phone holders and chargers.',
-      description: 'Compare prices on dash cams, CarPlay screens, reversing cameras, parking sensors and car phone holders from trusted retailers.'
+      description: 'Compare prices on dash cams, CarPlay screens, reversing cameras, parking sensors and car phone holders across retailers.'
     },
     {
       slug: 'interior-comfort', name: 'Interior & Comfort', nav: 'Interior', short: 'interior accessories', icon: 'home',
       intro: 'Seat covers, floor and boot mats, organisers, sun shades and handheld car vacuums.',
-      description: 'Compare prices on seat covers, car mats, boot liners, organisers and car vacuums from trusted retailers.'
+      description: 'Compare prices on seat covers, car mats, boot liners, organisers and car vacuums across retailers.'
     },
     {
       slug: 'roof-towing-exterior', name: 'Roof, Towing & Exterior', nav: 'Roof & Towing', short: 'roof and towing gear', icon: 'home',
       intro: 'Roof bars and boxes, bike carriers, tow balls and towing electrics, car covers and number plate fittings.',
-      description: 'Compare prices on roof bars, roof boxes, bike carriers, tow balls and car covers from trusted retailers.'
+      description: 'Compare prices on roof bars, roof boxes, bike carriers, tow balls and car covers across retailers.'
     },
     {
       slug: 'ev-charging', name: 'EV Charging', nav: 'EV Charging', short: 'EV charging', icon: 'plug',
       intro: 'Home wallboxes, portable EV chargers and Type 2 charging cables for electric and plug-in hybrid cars.',
-      description: 'Compare prices on home wallboxes, portable EV chargers and Type 2 charging cables from trusted retailers.'
+      description: 'Compare prices on home wallboxes, portable EV chargers and Type 2 charging cables across retailers.'
     },
     {
       slug: 'safety-winter', name: 'Safety & Winter', nav: 'Safety & Winter', short: 'safety and winter gear', icon: 'home',
       intro: 'De-icer and ice scrapers, snow chains, warning triangles, first aid and emergency kits.',
-      description: 'Compare prices on de-icer, ice scrapers, snow chains, warning triangles and car emergency kits from trusted retailers.'
+      description: 'Compare prices on de-icer, ice scrapers, snow chains, warning triangles and car emergency kits across retailers.'
     }
   ],
 

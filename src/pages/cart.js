@@ -7,7 +7,7 @@
 // a saved list now (no quantities, no total), and the old /cart/ addresses lead here (engine.js).
 import { html } from '../lib/html.js';
 import { productPath } from '../lib/text.js';
-import { page, breadcrumbs, tr, priceTag, deliveryLine } from './layout.js';
+import { page, breadcrumbs, tr, viewAt, priceTag, deliveryLine } from './layout.js';
 
 export const SAVED_PATH = '/saved/';
 
@@ -53,7 +53,7 @@ export function cartPage(site, products, items) {
       <div class="cart-controls">
         <a class="cart-remove" href="${without(p.id)}" rel="nofollow">Remove</a>
       </div>
-      <a class="btn btn-deal" href="/out/${p.id}" rel="sponsored nofollow noopener" target="_blank">${tr('View at {0}', p.retailer)}</a>
+      <a class="btn btn-deal" href="/out/${p.id}" rel="sponsored nofollow noopener" target="_blank">${viewAt(p.retailer)}</a>
     </div>
   </li>`;
   })}

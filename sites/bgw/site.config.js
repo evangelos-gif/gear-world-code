@@ -14,7 +14,7 @@ export default {
   lang: 'en-GB',
   locale: 'en-GB',
   currency: 'GBP',
-  assetVersion: '2026-11-08-bgw-wording-1',
+  assetVersion: '2026-11-08-bgw-cleanup-1',
   promos: promosFor('BGW'),
   awinPublisherId: AWIN_PUBLISHER_ID,
   storagePrefix: 'bgw',
@@ -108,7 +108,7 @@ export default {
 
   homeTitle: 'Biker Gear World | Compare Motorbike Helmets, Riding Gear, Parts & Scooters',
   homeDescription:
-    'Compare prices on motorbike helmets, riding gear, parts, luggage and locks, intercoms, electric scooters and kick scooters from trusted retailers. Independent price comparison: find the deal, then buy direct.',
+    'Compare prices on motorbike helmets, riding gear, parts, luggage and locks, intercoms, electric scooters and kick scooters across retailers. Independent price comparison: find the deal, then buy direct.',
   heroTitle: 'Compare motorbike and scooter gear prices in one place',
   heroText: 'Helmets, riding gear, parts and tools, luggage and locks, intercoms, electric scooters, kick scooters and mopeds from retailers in the UK and Europe. Find the deal, then buy direct from the retailer.',
   searchPlaceholder: 'Search helmets, disc locks, scooters...',
@@ -131,53 +131,53 @@ export default {
     {
       slug: 'helmets', name: 'Motorbike Helmets', nav: 'Helmets', short: 'motorbike helmets', icon: 'globe',
       intro: 'Full face, flip front, open face and motocross helmets, visors and Pinlock inserts.',
-      description: 'Compare prices on full face, flip front, open face and motocross helmets, visors and Pinlock inserts from trusted retailers.'
+      description: 'Compare prices on full face, flip front, open face and motocross helmets, visors and Pinlock inserts across retailers.'
     },
     {
       slug: 'jackets-trousers', name: 'Jackets & Trousers', nav: 'Jackets', short: 'motorbike jackets and trousers', icon: 'home',
       intro: 'Textile and leather motorbike jackets, riding jeans and trousers, one-piece suits and waterproof over-suits.',
-      description: 'Compare prices on motorbike jackets, riding jeans, leather suits and waterproof over-suits from trusted retailers.'
+      description: 'Compare prices on motorbike jackets, riding jeans, leather suits and waterproof over-suits across retailers.'
     },
     {
       slug: 'boots-gloves', name: 'Boots & Gloves', nav: 'Boots & Gloves', short: 'motorbike boots and gloves', icon: 'watch',
       intro: 'Touring, sport and motocross boots, summer and winter riding gloves, heated gloves and handlebar muffs.',
-      description: 'Compare prices on motorbike boots, riding gloves, heated gloves and handlebar muffs from trusted retailers.'
+      description: 'Compare prices on motorbike boots, riding gloves, heated gloves and handlebar muffs across retailers.'
     },
     {
       slug: 'parts-maintenance', name: 'Parts & Maintenance', nav: 'Parts', short: 'motorbike parts and tools', icon: 'plug',
       intro: 'Paddock stands and lifts, chain lube and cleaners, oil, batteries and chargers, tyre tools and workshop tools.',
-      description: 'Compare prices on paddock stands, motorbike lifts, chain lube, oil, batteries and workshop tools from trusted retailers.'
+      description: 'Compare prices on paddock stands, motorbike lifts, chain lube, oil, batteries and workshop tools across retailers.'
     },
     {
       slug: 'luggage-security', name: 'Luggage, Locks & Covers', nav: 'Luggage & Locks', short: 'motorbike luggage and locks', icon: 'router',
       intro: 'Top boxes, panniers, tank and tail bags, disc locks, chains and ground anchors, and motorbike covers.',
-      description: 'Compare prices on top boxes, panniers, tank bags, disc locks, chains and motorbike covers from trusted retailers.'
+      description: 'Compare prices on top boxes, panniers, tank bags, disc locks, chains and motorbike covers across retailers.'
     },
     {
       slug: 'electronics', name: 'Intercoms, Cameras & Mounts', nav: 'Intercoms', short: 'motorbike intercoms and mounts', icon: 'headphones',
       intro: 'Helmet intercoms, phone mounts and chargers, helmet and dash cameras, and sat nav for riders.',
-      description: 'Compare prices on helmet intercoms, motorbike phone mounts, helmet cameras and sat nav from trusted retailers.'
+      description: 'Compare prices on helmet intercoms, motorbike phone mounts, helmet cameras and sat nav across retailers.'
     },
     {
       slug: 'electric-scooters', name: 'Electric Scooters', nav: 'E-Scooters', short: 'electric scooters', icon: 'phone',
       intro: 'Electric kick scooters for adults and teens, plus e-scooter tyres, chargers, locks and bags.',
-      description: 'Compare prices on electric scooters and e-scooter tyres, chargers, locks and bags from trusted retailers.',
+      description: 'Compare prices on electric scooters and e-scooter tyres, chargers, locks and bags across retailers.',
       note: 'In the UK, a privately owned e-scooter may only be ridden on private land with the owner\'s permission, not on public roads or pavements. Only rental e-scooters from the official trials may be used on public roads.'
     },
     {
       slug: 'kick-scooters', name: 'Kick Scooters', nav: 'Kick Scooters', short: 'kick scooters', icon: 'gamepad',
       intro: 'Folding kick scooters for adults, stunt scooters, three-wheel scooters for children and scooter parts.',
-      description: 'Compare prices on kick scooters for adults and children, stunt scooters and scooter parts from trusted retailers.'
+      description: 'Compare prices on kick scooters for adults and children, stunt scooters and scooter parts across retailers.'
     },
     {
       slug: 'electric-motorbikes', name: 'Electric Motorbikes & Mopeds', nav: 'Mopeds', short: 'electric motorbikes and mopeds', icon: 'tv',
       intro: 'Electric motorbikes and mopeds, 50cc and 125cc scooters, pit bikes and quad bikes.',
-      description: 'Compare prices on electric motorbikes, mopeds, 125cc scooters and pit bikes from trusted retailers.'
+      description: 'Compare prices on electric motorbikes, mopeds, 125cc scooters and pit bikes across retailers.'
     },
     {
       slug: 'protection', name: 'Protection & Hi-Vis', nav: 'Protection', short: 'rider protection and hi-vis', icon: 'camera',
       intro: 'Back and chest protectors, body armour, airbag vests, knee sliders, hi-vis vests and reflective gear.',
-      description: 'Compare prices on back protectors, body armour, airbag vests and hi-vis gear for riders from trusted retailers.'
+      description: 'Compare prices on back protectors, body armour, airbag vests and hi-vis gear for riders across retailers.'
     }
   ],
 

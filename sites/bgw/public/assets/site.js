@@ -218,10 +218,10 @@
     }
   }
 
-  // ---------- Saved list (lessons L26, L101; the "Gear Cart" until 7 Nov 2026) ----------
+  // ---------- Saved list (lessons L26, L101) ----------
   // The list stays in this browser: product ids only (no quantities: nothing is bought here). The page is
   // /saved/?items=12,34, built by the server, and every retailer button there goes through /out/<id>.
-  // The browser key stays "cart", so a list saved before keeps its products.
+  // The browser key has not changed, so a list saved before keeps its products.
   var CART_MAX = 30;
   function loadCart() {
     try {

@@ -13,7 +13,7 @@ export default {
   lang: 'en-GB',
   locale: 'en-GB',
   currency: 'GBP',
-  assetVersion: '2026-11-08-cgw-wording-1',
+  assetVersion: '2026-11-08-cgw-cleanup-1',
   promos: promosFor('CGW'),
   // Buying guides (/guides/, lessons L82): words in guides.js, prices and stock live from the database.
   guides,
@@ -132,32 +132,32 @@ export default {
     {
       slug: 'power-tools', name: 'Power Tools', nav: 'Power Tools', short: 'power tools', icon: 'plug',
       intro: 'Drills, impact drivers, saws, grinders, sanders, generators and batteries. Compare prices across retailers before you buy.',
-      description: 'Compare prices on drills, impact drivers, saws, grinders, generators and power tool batteries from trusted retailers.'
+      description: 'Compare prices on drills, impact drivers, saws, grinders, generators and power tool batteries across retailers.'
     },
     {
       slug: 'hand-tools', name: 'Hand Tools', nav: 'Hand Tools', short: 'hand tools', icon: 'home',
       intro: 'Spanners, sockets, screwdrivers, pliers, hammers, measuring tools and tool storage.',
-      description: 'Compare prices on spanners, sockets, screwdrivers, pliers, hammers and tool storage from trusted retailers.'
+      description: 'Compare prices on spanners, sockets, screwdrivers, pliers, hammers and tool storage across retailers.'
     },
     {
       slug: 'safety-footwear', name: 'Safety Footwear', nav: 'Safety Boots', short: 'safety footwear', icon: 'home',
       intro: 'Safety boots, safety trainers and rigger boots with toe caps and midsole protection.',
-      description: 'Compare prices on safety boots, safety trainers and rigger boots from trusted retailers.'
+      description: 'Compare prices on safety boots, safety trainers and rigger boots across retailers.'
     },
     {
       slug: 'workwear', name: 'Workwear', nav: 'Workwear', short: 'workwear', icon: 'home',
       intro: 'Hi-vis jackets, work trousers, coveralls, fleeces and work gloves.',
-      description: 'Compare prices on hi-vis jackets, work trousers, coveralls, fleeces and work gloves from trusted retailers.'
+      description: 'Compare prices on hi-vis jackets, work trousers, coveralls, fleeces and work gloves across retailers.'
     },
     {
       slug: 'ppe', name: 'PPE', nav: 'PPE', short: 'PPE', icon: 'home',
       intro: 'Hard hats, safety glasses, ear defenders, masks and respirators.',
-      description: 'Compare prices on hard hats, safety glasses, ear defenders, masks and respirators from trusted retailers.'
+      description: 'Compare prices on hard hats, safety glasses, ear defenders, masks and respirators across retailers.'
     },
     {
       slug: 'site-equipment', name: 'Site Equipment', nav: 'Site Equipment', short: 'site equipment', icon: 'home',
       intro: 'Ladders, work lights, wheelbarrows, mixers, pumps and site storage.',
-      description: 'Compare prices on ladders, work lights, wheelbarrows, mixers, pumps and site storage from trusted retailers.'
+      description: 'Compare prices on ladders, work lights, wheelbarrows, mixers, pumps and site storage across retailers.'
     }
   ],
 

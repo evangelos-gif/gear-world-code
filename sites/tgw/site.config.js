@@ -12,7 +12,7 @@ export default {
   lang: 'en-GB',
   locale: 'en-GB',
   currency: 'GBP',
-  assetVersion: '2026-11-08-tgw-wording-1',
+  assetVersion: '2026-11-08-tgw-cleanup-1',
   // Key prefix for what a visitor's browser remembers (compare list, cart, language, currency).
   // Discount codes and sales from retailers (promos/promos.js, lessons L32), with the Awin publisher id
   // used for their links. The id is public: it is part of every Awin link.
@@ -65,7 +65,7 @@ export default {
   // Shown in <title> of the home page and in social previews.
   homeTitle: 'Technology Gear World | Compare Laptops, Phones, Audio & Smart Tech',
   homeDescription:
-    'Compare prices on laptops, phones, headphones, gaming, TVs and smart home tech from trusted retailers. Independent price comparison: find the deal, then buy direct.',
+    'Compare prices on laptops, phones, headphones, gaming, TVs and smart home tech across retailers. Independent price comparison: find the deal, then buy direct.',
   heroTitle: 'Compare tech prices in one place',
   heroText: 'Laptops, phones, audio, gaming and smart home in one place. Find the deal, then buy direct from the retailer.',
   searchPlaceholder: 'Search laptops, headphones, TVs...',
@@ -89,7 +89,7 @@ export default {
     {
       slug: 'laptops-computing', name: 'Laptops & Computing', nav: 'Laptops & Computing', short: 'laptops, tablets, PCs and printers', icon: 'laptop',
       intro: 'Laptops, tablets and iPads, desktop PCs, monitors, keyboards, printers and ink. Compare prices across retailers before you buy.',
-      description: 'Compare laptop, tablet, desktop PC, monitor and printer prices from trusted retailers. Filter by brand and price, then buy direct.',
+      description: 'Compare laptop, tablet, desktop PC, monitor and printer prices across retailers. Filter by brand and price, then buy direct.',
       // Mini PCs (owner, 6 Nov 2026, lessons L97): found by words in the product name, because the feeds file them under
       // "Computers" or "PC's & Workstations". Their own page (?sub=mini-pcs, in the sitemap) and a link in the menu.
       // Checked on the live database (6 Nov 2026): 140 mini PCs; the words below leave out Tiny-In-One monitors, power
@@ -99,7 +99,7 @@ export default {
           slug: 'mini-pcs', name: 'Mini PCs', nav: 'Mini PCs', index: true, menu: true,
           title: 'Mini PCs',
           intro: 'Small desktop computers that fit behind a monitor or under a TV: Intel NUC, Lenovo Tiny, HP and Dell mini PCs and more. Compare prices across retailers before you buy.',
-          description: 'Compare mini PC prices from trusted retailers: Intel NUC, Lenovo Tiny, HP and Dell mini desktops and more. Filter by brand and price, then buy direct.',
+          description: 'Compare mini PC prices across retailers: Intel NUC, Lenovo Tiny, HP and Dell mini desktops and more. Filter by brand and price, then buy direct.',
           match: ['mini pc', 'mini pcs', 'minipc', 'mini computer', 'mini desktop', 'micro pc', 'nuc', 'chromebox', 'tiny'],
           exclude: ['dock', 'docking', 'mount', 'bracket', 'stand', 'case', 'cable', 'adapter', 'charger', 'inverter', 'power supply',
             'keyboard', 'mouse', 'controller', 'memory', 'enclosure', 'tiny in one', 'monitor']
@@ -109,37 +109,37 @@ export default {
     {
       slug: 'phones-smartwatches', name: 'Phones & Smartwatches', nav: 'Phones & Watches', short: 'phones and smartwatches', icon: 'phone',
       intro: 'SIM-free smartphones, smartwatches and fitness trackers, new and refurbished.',
-      description: 'Compare SIM-free phone, smartwatch and fitness tracker prices, new and refurbished, from trusted retailers.'
+      description: 'Compare SIM-free phone, smartwatch and fitness tracker prices, new and refurbished, across retailers.'
     },
     {
       slug: 'audio', name: 'Headphones & Audio', nav: 'Audio', short: 'headphones and speakers', icon: 'headphones',
       intro: 'Headphones, earbuds, Bluetooth speakers and soundbars. See the current price at each retailer in one list.',
-      description: 'Compare headphones, earbuds, speakers and soundbar prices from trusted retailers.'
+      description: 'Compare headphones, earbuds, speakers and soundbar prices across retailers.'
     },
     {
       slug: 'gaming', name: 'Gaming', nav: 'Gaming', short: 'gaming', icon: 'gamepad',
       intro: 'Consoles, controllers, gaming headsets, keyboards and chairs for PlayStation, Xbox, Nintendo and PC.',
-      description: 'Compare prices on consoles, controllers, gaming headsets and accessories from trusted retailers.'
+      description: 'Compare prices on consoles, controllers, gaming headsets and accessories across retailers.'
     },
     {
       slug: 'cameras-drones', name: 'Cameras & Drones', nav: 'Cameras', short: 'cameras and drones', icon: 'camera',
       intro: 'Digital and instant cameras, action cams, dash cams, drones, lenses and gimbals.',
-      description: 'Compare camera, action cam, dash cam and drone prices from trusted retailers.'
+      description: 'Compare camera, action cam, dash cam and drone prices across retailers.'
     },
     {
       slug: 'tv-home-cinema', name: 'TV & Home Cinema', nav: 'TV', short: 'TVs and projectors', icon: 'tv',
       intro: 'Smart TVs, projectors and streaming devices. Compare screen sizes and prices before you choose.',
-      description: 'Compare smart TV, projector and streaming device prices from trusted retailers.'
+      description: 'Compare smart TV, projector and streaming device prices across retailers.'
     },
     {
       slug: 'smart-home-wifi', name: 'Smart Home & Wi-Fi', nav: 'Smart Home', short: 'smart home and Wi-Fi', icon: 'home',
       intro: 'Smart plugs and bulbs, video doorbells, security cameras, smart speakers, Wi-Fi routers and mesh systems.',
-      description: 'Compare smart home, video doorbell, security camera, router and mesh Wi-Fi prices from trusted retailers.'
+      description: 'Compare smart home, video doorbell, security camera, router and mesh Wi-Fi prices across retailers.'
     },
     {
       slug: 'accessories-storage', name: 'Accessories & Storage', nav: 'Accessories', short: 'accessories and storage', icon: 'plug',
       intro: 'Chargers, power banks, cables, cases and screen protectors, plus SSDs, memory cards and USB sticks.',
-      description: 'Compare charger, power bank, cable, case, SSD and memory card prices from trusted retailers.'
+      description: 'Compare charger, power bank, cable, case, SSD and memory card prices across retailers.'
     }
   ],
 
