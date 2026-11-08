@@ -98,6 +98,8 @@ function Confirm-Approval([string]$phrase) {
         Write-Host ''
         Write-Host ('Για να συνεχίσω, γράψε ακριβώς: {0}' -f $phrase) -ForegroundColor Yellow
         Write-Host '(ή πάτα Enter για να σταματήσω χωρίς αλλαγές)'
+        # Lines left over from the paste (an empty last line) would answer the prompt by themselves (8 Nov 2026).
+        try { $Host.UI.RawUI.FlushInputBuffer() } catch { }
         $given = @(Read-Host 'Έγκριση')
     }
     foreach ($g in $given) { if ((Normalize-Phrase $g) -eq (Normalize-Phrase $phrase)) { return $true } }

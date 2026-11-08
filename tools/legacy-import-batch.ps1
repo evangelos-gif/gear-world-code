@@ -120,6 +120,8 @@ if ($Apply) {
         Write-Host ''
         Write-Host ('Για να γίνουν ΟΛΑ, γράψε ακριβώς: {0}' -f $AllPhrase) -ForegroundColor Yellow
         Write-Host '(ή πάτα Enter για να σταματήσω χωρίς καμία αλλαγή)'
+        # Lines left over from the paste (an empty last line) would answer the prompt by themselves (8 Nov 2026).
+        try { $Host.UI.RawUI.FlushInputBuffer() } catch { }
         $typed = Read-Host 'Έγκριση'
     }
     if ((Normalize-Phrase $typed) -ne (Normalize-Phrase $AllPhrase)) {
