@@ -15,7 +15,10 @@
       invalid: "Please enter a valid email address.",
       consentRequired: "Please tick the box to agree to receive Gear World deal emails.",
       error: "We could not complete your registration. Please try again.",
-      tooMany: "Too many attempts. Please try again in an hour."
+      tooMany: "Too many attempts. Please try again in an hour.",
+      waitCheck: "Please wait for the security check to finish, then try again.",
+      checkFailed: "The security check did not work. Please reload the page and try again.",
+      full: "Sign-ups are full for today. Please try again tomorrow."
     },
 
     "el-GR": {
@@ -31,7 +34,10 @@
       invalid: "Εισαγάγετε μια έγκυρη διεύθυνση email.",
       consentRequired: "Τσεκάρετε το κουτάκι για να συμφωνήσετε να λαμβάνετε email προσφορών από το Gear World.",
       error: "Η εγγραφή δεν ολοκληρώθηκε. Δοκιμάστε ξανά.",
-      tooMany: "Πολλές προσπάθειες. Δοκιμάστε ξανά σε μία ώρα."
+      tooMany: "Πολλές προσπάθειες. Δοκιμάστε ξανά σε μία ώρα.",
+      waitCheck: "Περιμένετε να ολοκληρωθεί ο έλεγχος ασφαλείας και δοκιμάστε ξανά.",
+      checkFailed: "Ο έλεγχος ασφαλείας απέτυχε. Ανανεώστε τη σελίδα και δοκιμάστε ξανά.",
+      full: "Οι εγγραφές για σήμερα συμπληρώθηκαν. Δοκιμάστε ξανά αύριο."
     },
 
     "de-DE": {
@@ -47,7 +53,10 @@
       invalid: "Bitte geben Sie eine gültige E-Mail-Adresse ein.",
       consentRequired: "Bitte setzen Sie das Häkchen, um den Angebots-E-Mails von Gear World zuzustimmen.",
       error: "Die Anmeldung konnte nicht abgeschlossen werden. Bitte versuchen Sie es erneut.",
-      tooMany: "Zu viele Versuche. Bitte versuchen Sie es in einer Stunde erneut."
+      tooMany: "Zu viele Versuche. Bitte versuchen Sie es in einer Stunde erneut.",
+      waitCheck: "Bitte warten Sie, bis die Sicherheitsprüfung abgeschlossen ist, und versuchen Sie es dann erneut.",
+      checkFailed: "Die Sicherheitsprüfung ist fehlgeschlagen. Bitte laden Sie die Seite neu und versuchen Sie es erneut.",
+      full: "Für heute sind keine Anmeldungen mehr möglich. Bitte versuchen Sie es morgen erneut."
     },
 
     "fr-FR": {
@@ -63,7 +72,10 @@
       invalid: "Veuillez saisir une adresse e-mail valide.",
       consentRequired: "Cochez la case pour accepter de recevoir les e-mails d'offres de Gear World.",
       error: "L'inscription n'a pas pu être finalisée. Veuillez réessayer.",
-      tooMany: "Trop de tentatives. Veuillez réessayer dans une heure."
+      tooMany: "Trop de tentatives. Veuillez réessayer dans une heure.",
+      waitCheck: "Veuillez attendre la fin de la vérification de sécurité, puis réessayer.",
+      checkFailed: "La vérification de sécurité a échoué. Veuillez recharger la page et réessayer.",
+      full: "Les inscriptions sont complètes pour aujourd'hui. Veuillez réessayer demain."
     },
 
     "it-IT": {
@@ -79,7 +91,10 @@
       invalid: "Inserisci un indirizzo email valido.",
       consentRequired: "Spunta la casella per accettare di ricevere le email di offerte di Gear World.",
       error: "Non è stato possibile completare l'iscrizione. Riprova.",
-      tooMany: "Troppi tentativi. Riprova tra un'ora."
+      tooMany: "Troppi tentativi. Riprova tra un'ora.",
+      waitCheck: "Attendi la fine del controllo di sicurezza, poi riprova.",
+      checkFailed: "Il controllo di sicurezza non è riuscito. Ricarica la pagina e riprova.",
+      full: "Le iscrizioni di oggi sono esaurite. Riprova domani."
     },
 
     "es-ES": {
@@ -95,7 +110,10 @@
       invalid: "Introduce una dirección de correo válida.",
       consentRequired: "Marca la casilla para aceptar recibir correos de ofertas de Gear World.",
       error: "No se pudo completar el registro. Inténtalo de nuevo.",
-      tooMany: "Demasiados intentos. Inténtalo de nuevo dentro de una hora."
+      tooMany: "Demasiados intentos. Inténtalo de nuevo dentro de una hora.",
+      waitCheck: "Espera a que termine la comprobación de seguridad y vuelve a intentarlo.",
+      checkFailed: "La comprobación de seguridad ha fallado. Recarga la página e inténtalo de nuevo.",
+      full: "Las inscripciones de hoy están completas. Inténtalo de nuevo mañana."
     },
 
     "pt-PT": {
@@ -111,7 +129,10 @@
       invalid: "Introduza um endereço de email válido.",
       consentRequired: "Assinale a caixa para aceitar receber emails de ofertas do Gear World.",
       error: "Não foi possível concluir o registo. Tente novamente.",
-      tooMany: "Demasiadas tentativas. Tente novamente dentro de uma hora."
+      tooMany: "Demasiadas tentativas. Tente novamente dentro de uma hora.",
+      waitCheck: "Aguarde até a verificação de segurança terminar e tente novamente.",
+      checkFailed: "A verificação de segurança falhou. Recarregue a página e tente novamente.",
+      full: "As inscrições de hoje estão completas. Tente novamente amanhã."
     },
 
     "nl-NL": {
@@ -127,7 +148,10 @@
       invalid: "Vul een geldig e-mailadres in.",
       consentRequired: "Vink het vakje aan om akkoord te gaan met de aanbiedingsmails van Gear World.",
       error: "De registratie kon niet worden voltooid. Probeer het opnieuw.",
-      tooMany: "Te veel pogingen. Probeer het over een uur opnieuw."
+      tooMany: "Te veel pogingen. Probeer het over een uur opnieuw.",
+      waitCheck: "Wacht tot de beveiligingscontrole klaar is en probeer het opnieuw.",
+      checkFailed: "De beveiligingscontrole is mislukt. Laad de pagina opnieuw en probeer het nog eens.",
+      full: "De aanmeldingen voor vandaag zijn vol. Probeer het morgen opnieuw."
     },
 
     "sq-AL": {
@@ -143,7 +167,10 @@
       invalid: "Vendosni një adresë emaili të vlefshme.",
       consentRequired: "Shënoni kutinë për të pranuar emailet me oferta nga Gear World.",
       error: "Regjistrimi nuk u përfundua. Provoni përsëri.",
-      tooMany: "Shumë përpjekje. Provoni përsëri pas një ore."
+      tooMany: "Shumë përpjekje. Provoni përsëri pas një ore.",
+      waitCheck: "Prisni që të përfundojë kontrolli i sigurisë dhe provoni përsëri.",
+      checkFailed: "Kontrolli i sigurisë dështoi. Ringarkoni faqen dhe provoni përsëri.",
+      full: "Regjistrimet për sot janë plotësuar. Provoni përsëri nesër."
     },
 
     "ro-RO": {
@@ -159,7 +186,10 @@
       invalid: "Introduceți o adresă de email validă.",
       consentRequired: "Bifați căsuța pentru a accepta emailurile cu oferte Gear World.",
       error: "Înscrierea nu a putut fi finalizată. Încercați din nou.",
-      tooMany: "Prea multe încercări. Încercați din nou peste o oră."
+      tooMany: "Prea multe încercări. Încercați din nou peste o oră.",
+      waitCheck: "Așteptați să se termine verificarea de securitate, apoi încercați din nou.",
+      checkFailed: "Verificarea de securitate a eșuat. Reîncărcați pagina și încercați din nou.",
+      full: "Înscrierile pentru astăzi s-au încheiat. Încercați din nou mâine."
     },
 
     "ru-RU": {
@@ -175,7 +205,10 @@
       invalid: "Введите действительный адрес электронной почты.",
       consentRequired: "Отметьте флажок, чтобы согласиться получать письма с предложениями Gear World.",
       error: "Не удалось завершить подписку. Попробуйте ещё раз.",
-      tooMany: "Слишком много попыток. Попробуйте ещё раз через час."
+      tooMany: "Слишком много попыток. Попробуйте ещё раз через час.",
+      waitCheck: "Дождитесь окончания проверки безопасности и попробуйте ещё раз.",
+      checkFailed: "Проверка безопасности не пройдена. Обновите страницу и попробуйте ещё раз.",
+      full: "На сегодня запись закрыта. Попробуйте ещё раз завтра."
     }
   };
 
@@ -222,7 +255,54 @@
     message.dataset.state = state;
   }
 
+  // GWH-TURNSTILE (security fixes F02, lessons L07, L106): Cloudflare Turnstile checks that a person fills in the form.
+  // It loads only when the visitor starts using the form (nothing is loaded for anyone else). The sitekey (public) comes
+  // from the Hub (/api/turnstile); the token goes with the sign-up and the Hub checks it with its secret key.
+  const turnstileBox = document.getElementById("gwhEmailTurnstile");
+  let turnstileState = "idle"; // idle, loading, ready, failed
+  let turnstileWidget = null;
+
+  function loadTurnstile() {
+    if (turnstileState !== "idle" || !turnstileBox) return;
+    turnstileState = "loading";
+    fetch("/api/turnstile", { headers: { Accept: "application/json" } })
+      .then((response) => response.json())
+      .then((data) => {
+        if (!data || !data.ok || !data.sitekey) throw new Error("not_ready");
+        return new Promise((resolve, reject) => {
+          window.gwhTurnstileReady = () => resolve(data.sitekey);
+          const script = document.createElement("script");
+          script.src = "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit&onload=gwhTurnstileReady";
+          script.async = true;
+          script.defer = true;
+          script.onerror = () => reject(new Error("blocked"));
+          document.head.appendChild(script);
+        });
+      })
+      .then((sitekey) => {
+        if (!window.turnstile) throw new Error("blocked");
+        turnstileBox.style.marginTop = "12px";
+        turnstileWidget = window.turnstile.render(turnstileBox, {
+          sitekey,
+          action: "hub-signup",
+          size: turnstileBox.clientWidth >= 300 ? "flexible" : "compact"
+        });
+        turnstileState = "ready";
+      })
+      .catch(() => {
+        turnstileState = "failed";
+      });
+  }
+
+  function turnstileToken() {
+    if (!window.turnstile || turnstileWidget === null) return "";
+    return String(window.turnstile.getResponse(turnstileWidget) || "");
+  }
+
   if (form && email && consent && submit) {
+    form.addEventListener("focusin", loadTurnstile);
+    form.addEventListener("pointerdown", loadTurnstile);
+
     form.addEventListener("submit", async (event) => {
       event.preventDefault();
 
@@ -237,6 +317,14 @@
       if (!consent.checked) {
         setMessage(t.consentRequired, "error");
         consent.focus();
+        return;
+      }
+
+      const token = turnstileToken();
+
+      if (!token) {
+        loadTurnstile();
+        setMessage(turnstileState === "failed" ? t.checkFailed : t.waitCheck, "error");
         return;
       }
 
@@ -259,7 +347,8 @@
             consent: true,
             consent_version: "2026-11-02",
             source: "hub",
-            website: honeypot?.value || ""
+            website: honeypot?.value || "",
+            turnstile_token: token
           })
         });
 
@@ -276,6 +365,14 @@
 
           if (data?.error === "too_many") {
             throw new Error("too_many");
+          }
+
+          if (data?.error === "limit_day") {
+            throw new Error("limit_day");
+          }
+
+          if (data?.error === "turnstile_failed" || data?.error === "turnstile_required") {
+            throw new Error("turnstile_failed");
           }
 
           throw new Error("subscribe_failed");
@@ -305,6 +402,12 @@
         else if (error.message === "too_many") {
           setMessage(t.tooMany, "error");
         }
+        else if (error.message === "limit_day") {
+          setMessage(t.full, "error");
+        }
+        else if (error.message === "turnstile_failed") {
+          setMessage(t.checkFailed, "error");
+        }
         else {
           setMessage(t.error, "error");
         }
@@ -312,6 +415,10 @@
       finally {
         submit.disabled = false;
         submit.textContent = copy().button;
+        // A token can be used only once: a new check for the next try.
+        if (window.turnstile && turnstileWidget !== null) {
+          try { window.turnstile.reset(turnstileWidget); } catch (_) { /* ignore */ }
+        }
       }
     });
   }

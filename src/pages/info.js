@@ -14,8 +14,9 @@ function contactLink(site) {
   return site.contactEmail ? html`<a href="mailto:${site.contactEmail}">${site.contactEmail}</a>` : PLACEHOLDER;
 }
 
-// The legal texts last changed on 7 Nov 2026 (who runs Gear World, lessons L101); keep this date honest (L103).
-const UPDATED = '7 November 2026';
+// The legal texts last changed on 8 Nov 2026 (Cloudflare Turnstile on the "Get deal updates" form, security fixes
+// F02, lessons L106; before: 7 Nov 2026, who runs Gear World, L101); keep this date honest (L103).
+const UPDATED = '8 November 2026';
 
 // Who runs the network and how to reach them, the same on every site and on the Hub (Google Ads review, 7 Nov 2026,
 // lessons L101). Owner's decision, 7 Nov 2026: "Run by Evangelos Kalogerakis, United Kingdom" and the email, no address.
@@ -80,7 +81,7 @@ const PAGES = {
 <ul>
 <li><strong>Clicks to retailers.</strong> When you select a "View at" button we record the product, the retailer, the page you were on, the date and your country as reported by our hosting provider. We do not record your IP address or anything that identifies you. We use this to understand which products are useful (legitimate interests). If you came to this site from one of our ads or campaign links, the campaign name and source of that link (utm_campaign, utm_source) go with the click to Awin, so we can see which campaigns are useful. They do not identify you.</li>
 ${site.dealUpdates ? html`<li><strong>Deal updates.</strong> If you sign up with the "Get deal updates" form, we keep your email address, the site you signed up on, the date and the consent you gave. The list is shared by the Gear World sites and kept by Gear World Hub (gearworldhub.com), and the emails are sent for us by MailerLite (our email service provider). We use it only to send deal and new-site emails (consent). Every email has an unsubscribe link, and you can also ask us by email to delete your address.</li>
-<li><strong>Abuse protection.</strong> To stop automated abuse of the form we keep a one-way scrambled (hashed) form of your IP address for up to one hour (legitimate interests).</li>` : html`<li><strong>Newsletter.</strong> If you sign up, we keep your email address, the date and the consent text you agreed to. We use it only to send the newsletter (consent). You can withdraw consent at any time by emailing us, and we will delete your address.</li>
+<li><strong>Abuse protection.</strong> To stop automated abuse of the form we keep a one-way scrambled (hashed) form of your IP address for up to one hour, and the form uses Cloudflare Turnstile, which checks that you are a person when you start to fill it in (legitimate interests).</li>` : html`<li><strong>Newsletter.</strong> If you sign up, we keep your email address, the date and the consent text you agreed to. We use it only to send the newsletter (consent). You can withdraw consent at any time by emailing us, and we will delete your address.</li>
 <li><strong>Abuse protection.</strong> To stop automated abuse of forms we keep a one-way scrambled (hashed) form of your IP address for up to one hour, and the form uses Cloudflare Turnstile (legitimate interests).</li>`}
 <li><strong>Hosting.</strong> The site is hosted by Cloudflare, which processes technical data such as IP addresses to deliver and protect the site.</li>
 ${site.voiceSearch ? html`<li><strong>Voice search.</strong> If you press the microphone button, your browser asks for permission and its own speech service turns what you say into text (for example Google in Chrome, Apple in Safari). Their privacy policies apply to that step. We receive only the text, as a normal search, and we do not record audio.</li>` : ''}
@@ -108,7 +109,7 @@ ${site.googleAds === false ? html`<p>${site.name} does not set advertising, anal
 <h2>Optional: Google Ads (only after "Allow")</h2>
 <p>The Google tag measures which of our ads bring visitors and when a visit leads to a click on a "View at" button or a discount code. It does not show you personalised ads (remarketing is off). Cookies: <code>_gcl_au</code>, and <code>_gcl_aw</code> or similar <code>_gcl_</code> cookies when you came from a Google ad, each kept up to 90 days. Selecting "Reject" later removes them from this site. The <a href="https://policies.google.com/privacy">Google privacy policy</a> applies.</p>`}
 <h2>Strictly necessary</h2>
-<p>Our hosting provider Cloudflare may set short-lived security cookies to protect the site from bots. ${site.dealUpdates ? '' : 'If you use the newsletter form, Cloudflare Turnstile checks that you are a person. '}These are needed for the site to work safely and do not track you across sites.</p>
+<p>Our hosting provider Cloudflare may set short-lived security cookies to protect the site from bots. ${site.dealUpdates ? 'If you use the "Get deal updates" form, Cloudflare Turnstile checks that you are a person. ' : 'If you use the newsletter form, Cloudflare Turnstile checks that you are a person. '}These are needed for the site to work safely and do not track you across sites.</p>
 <h2>Saved on your device</h2>
 <p>Your browser's local storage keeps your language, currency, compare list${site.cart ? ` and ${site.cart.name}` : ''}${site.googleAds === false ? '' : ' and your cookie choice'}, so they are still there on your next visit. This information is not a cookie, is not sent to us and is not used for tracking. Clearing your browser data removes it.${site.googleAds === false ? '' : ' Only after "Allow", the campaign name of the link you arrived from (utm_campaign, utm_source) is kept in this browser tab until you close it, so a later click to a retailer still counts for that campaign.'}</p>
 <h2>After you leave this site</h2>

@@ -5,7 +5,11 @@
   "name": "technology-gear-world",
   "main": "worker.js",
   "compatibility_date": "2026-10-01",
-  "workers_dev": true,
+  // No public test address on the live Worker (F04, lessons L106): workers.dev and the version preview URLs are off,
+  // so /out/ is reached only through the real domain and its security rules. A *-preview test Worker gets
+  // workers.dev from its tool; a new site gets it on its test address before launch (the tool's preview step).
+  "workers_dev": false,
+  "preview_urls": false,
   "assets": {
     "directory": "./public",
     "binding": "ASSETS"

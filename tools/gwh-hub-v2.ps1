@@ -76,9 +76,17 @@
   Only that file changes; worker.js and the D1 do not. The test address always answers robots.txt with its own
   "Disallow: /", so a preview cannot show this change and is not needed: the live step does not ask for one. After the
   deploy the live check reads gearworldhub.com/robots.txt: the Sitemap line and the SERankingBacklinksBot lines.
-  Phrases of this release: ΕΓΚΡΙΝΩ HUB ROBOTS LIVE together with remove-preview (ΕΓΚΡΙΝΩ HUB REMOVE PREVIEW) in the same
-  paste; remove-preview with no test Worker says it is already gone and changes nothing (ΕΓΚΡΙΝΩ HUB ROBOTS PREVIEW only
-  if a preview is wanted).
+  Phrases of that release: ΕΓΚΡΙΝΩ HUB ROBOTS LIVE (live since 8/11/2026 15:28, a0b1901).
+  Security fixes (lessons L106, 8/11/2026): security.js (new), worker.js, mailerlite.js, members.js, public/index.html,
+  public/email-signup.js and public/privacy/index.html. Turnstile on the Hub sign-up form (loaded only when the form is
+  used) and the Hub checks the tokens of the 13 sites' "Get deal updates" box; one daily limit of sign-ups for the network
+  (the app, without a widget, has its own small one); the translations of the search are kept for a day, never for bots,
+  within one daily limit, and the sites get translate=0 when the Hub has translated already; charset=utf-8 and the full
+  Content-Security-Policy as Report-Only (reports to /api/csp-report); the live Hub's wrangler.toml gets workers_dev = false
+  and preview_urls = false. The live step refuses until the Hub has its Turnstile keys (tools/gw-security-fixes.ps1
+  -Step turnstile, ΕΓΚΡΙΝΩ TURNSTILE) and the 13 sites already send the token (tools/ads-fixes-sites.ps1, ΕΓΚΡΙΝΩ ADS FIXES).
+  Phrases of this release: ΕΓΚΡΙΝΩ HUB SECURITY PREVIEW, then ΕΓΚΡΙΝΩ HUB SECURITY LIVE together with remove-preview
+  (ΕΓΚΡΙΝΩ HUB REMOVE PREVIEW) in the same paste.
   Report: <home>\gear-world-reports\GWH_HUB_V2_<STEP>_<time>.txt (also copied to the clipboard)
 #>
 param(
@@ -100,14 +108,18 @@ $repo = Split-Path -Parent $PSScriptRoot
 $HubWorker = 'gear-world-hub'
 $PreviewName = 'gear-world-hub-preview'
 $DbName = 'gear-world-registry'
-$PhrasePreview = 'ΕΓΚΡΙΝΩ HUB ROBOTS PREVIEW'
-$PhraseLive = 'ΕΓΚΡΙΝΩ HUB ROBOTS LIVE'
+$PhrasePreview = 'ΕΓΚΡΙΝΩ HUB SECURITY PREVIEW'
+$PhraseLive = 'ΕΓΚΡΙΝΩ HUB SECURITY LIVE'
 $PhraseRegister = 'ΕΓΚΡΙΝΩ HUB ZGW SEARCH'
 $PhraseRemovePreview = 'ΕΓΚΡΙΝΩ HUB REMOVE PREVIEW'
 $LiveUrl = 'https://gearworldhub.com'
 # IndexNow (Bing Webmaster Tools, 31/10/2026): the key is public by design, it is served as /<key>.txt.
 $IndexNowKey = 'gearworldhub-indexnow-k7q4m9x2w5'
 $HomeTitle = 'Gear World Hub ' + [char]0x2013 + ' Gear, Gifts & Deals From Every Gear World'
+# Security fixes (lessons L106): the Hub's Turnstile keys (names only; the values are Worker secrets, never here), and the
+# 13 sites whose "Get deal updates" box must already send the Turnstile token before the Hub checks it.
+$HubTurnstileSecrets = @('TURNSTILE_SECRET_KEY', 'TURNSTILE_SECRET_KEY_2', 'TURNSTILE_SITE_KEY')
+$SiteDomains = @('constructiongearworld.com', 'mensgearworld.com', 'womensgearworld.com', 'kidsgearworld.com', 'homegearworld.com', 'gardengearworld.com', 'technologygearworld.com', 'cargearworld.com', 'travelgearworld.com', 'sportygearworld.com', 'bikergearworld.com', 'gaminggearworld.com', 'petsgearworld.com')
 if (-not $HubDir) { $HubDir = Join-Path $HOME 'gear-world-hub' }
 if (-not $WorkDir) { $WorkDir = Join-Path $HOME 'gear-world-hub-v2' }
 if (-not $OutDir) { $OutDir = Join-Path $HOME 'gear-world-reports' }
@@ -120,13 +132,16 @@ $Bad = 'Magenta'
 
 # What each file of the change does, in the words of the report.
 $About = @{
-    'worker.js'             = 'το /api/registry δίνει και shop_categories: οι κατηγορίες του μενού κάθε site (από τα site.config.js) για την εφαρμογή· η D1, το categories και το /api/classify δεν αλλάζουν (L70)'
-    'members.js'            = 'ο κώδικας της φόρμας «Get deal updates» των sites (νέο αρχείο, L92)'
+    'worker.js'             = 'αναζήτηση: η μετάφραση κρατιέται μία μέρα, ποτέ για bots, μέσα στο ημερήσιο όριο, και τα sites παίρνουν translate=0 όταν μετέφρασε ήδη το Hub· charset=utf-8 και CSP σε Report-Only (/api/csp-report), /api/turnstile (L106)'
+    'security.js'           = 'νέο αρχείο: έλεγχος Turnstile, ημερήσια όρια του δικτύου (εγγραφές, μεταφράσεις), headers (L106)'
+    'mailerlite.js'         = 'η φόρμα του Hub θέλει το token του Turnstile· ημερήσιο όριο εγγραφών για όλο το δίκτυο, μικρό δικό της για την εφαρμογή (L106)'
+    'members.js'            = 'η φόρμα «Get deal updates» των sites: το Hub ελέγχει το token του Turnstile κάθε site, ίδιο ημερήσιο όριο, ημερήσιο όριο μεταφράσεων για τα sites (/internal/ai-slot) (L106)'
+    'public/email-signup.js' = 'το Turnstile φορτώνει μόνο όταν ο επισκέπτης αρχίζει να συμπληρώνει τη φόρμα· 3 νέα μηνύματα σε 11 γλώσσες (L106)'
     'poster-scan.js'        = 'η μέτρηση των αφισών (ίδια με αυτή που μπήκε με το POSTER STATS)'
-    'public/index.html'     = 'νέο ?v= για hub-v2.css, hub-v2.js και translations.js, και το σχόλιο της σελίδας χωρίς «partner» (L103)'
+    'public/index.html'     = 'η θέση του Turnstile στη φόρμα εγγραφής και νέο ?v= για το email-signup.js (L106)'
     'public/about/index.html' = 'νέα σελίδα /about/: «Run by Evangelos Kalogerakis, United Kingdom», ότι δεν πουλάμε, δεν παίρνουμε πληρωμές, δεν κάνουμε παραδόσεις, contact@gearworldhub.com (νέο αρχείο, L101)'
     'public/about/about.js' = 'η σελίδα /about/ στη γλώσσα που διάλεξε ο επισκέπτης, 11 γλώσσες (νέο αρχείο, L101)'
-    'public/privacy/index.html' = 'το Hub δεν έχει affiliate links (όχι πια «partner links on the Hub»)· τα links προς καταστήματα στα sites περνούν από το Awin· «Last updated: 7 November 2026» (L103)'
+    'public/privacy/index.html' = 'οι φόρμες εγγραφής χρησιμοποιούν το Cloudflare Turnstile· «Last updated: 8 November 2026» (L106)'
     'public/cookies/index.html' = 'νέα γραμμή στο footer και link «About» (L101)'
     'public/affiliate-disclosure/index.html' = '«On the Hub»: τα links του Hub πάνε μόνο σε σελίδες των Gear World sites, χωρίς affiliate links και χωρίς πληρωμένες θέσεις (όχι πια «partner banners»)· «Last updated: 7 November 2026» (L103)'
     'public/hub-v2.css'     = 'η κλάση του καταστήματος στις προσφορές λέγεται gwh2-deal-retailer (όχι «shop») (L103)'
@@ -354,6 +369,8 @@ function Write-PreviewConfig([string]$folder, [string]$dbId) {
     }
     $text = $text.Replace('REPLACE_WITH_DATABASE_ID', $dbId)
     $text = [regex]::Replace($text, '(?m)^name = "gear-world-hub"(\r?)$', ('name = "{0}"$1' -f $PreviewName))
+    # The template has "workers_dev = false" (live Hub, F04, lessons L106): the test Worker gets workers.dev instead (one key).
+    $text = [regex]::Replace($text, '(?m)^(workers_dev|preview_urls) = (true|false)\r?\n', '')
     $text = [regex]::Replace($text, '(?m)^(compatibility_date = [^\r\n]+)', ('$1' + "`nworkers_dev = true"))
     $text = [regex]::Replace($text, '(?m)^\[\[services\]\]\r?\nbinding = "POSTERS"\r?\nservice = "[^"]+"\r?\n?', '')
     $text = $text.TrimEnd() + "`n`n[vars]`nGWH_PREVIEW = `"1`"`n"
@@ -412,6 +429,13 @@ function Test-Site([string]$base, [bool]$isLive) {
     $kf = Get-Web ($base + '/' + $IndexNowKey + '.txt?gwcheck=' + $stamp)
     $kfText = (New-Object System.Text.UTF8Encoding($false)).GetString($kf.bytes).Trim()
     if ($kf.status -eq 200 -and $kfText -eq $IndexNowKey) { Say '  Κλειδί IndexNow: ΕΝΤΑΞΕΙ' $Ok } else { Say ('  Κλειδί IndexNow: ΠΡΟΣΟΧΗ (απάντηση {0})' -f $kf.status) $Warn }
+    # Security fixes (L106): the public Turnstile sitekey of the sign-up form, charset=utf-8 and the Report-Only policy.
+    $ts = Get-Web ($base + '/api/turnstile?gwcheck=' + $stamp)
+    $tsText = (New-Object System.Text.UTF8Encoding($false)).GetString($ts.bytes)
+    if ($ts.status -eq 200 -and $tsText -match '"sitekey"') { Say '  Turnstile της φόρμας εγγραφής (/api/turnstile): ΕΝΤΑΞΕΙ' $Ok } else { Say ('  Turnstile της φόρμας εγγραφής: ΠΡΟΒΛΗΜΑ (απάντηση {0})' -f $ts.status) $Bad }
+    $ct = $(if ($page.headers) { [string]$page.headers['Content-Type'] } else { '' })
+    $ro = $(if ($page.headers) { [string]$page.headers['Content-Security-Policy-Report-Only'] } else { '' })
+    if ($ct -match 'charset=utf-8' -and $ro -match 'challenges\.cloudflare\.com') { Say '  charset=utf-8 και CSP (Report-Only) της αρχικής: ΕΝΤΑΞΕΙ' $Ok } else { Say '  charset=utf-8 / CSP Report-Only της αρχικής: ΠΡΟΣΟΧΗ - δεν τα βλέπω ακόμα (cache;)' $Warn }
     $deals = Get-Web ($base + '/hub-deals.json?gwcheck=' + $stamp)
     if ($deals.status -eq 200) { Say '  Οι προσφορές (hub-deals.json) διαβάζονται: ΕΝΤΑΞΕΙ' $Ok } else { Say ('  Οι προσφορές (hub-deals.json): ΠΡΟΒΛΗΜΑ (απάντηση {0})' -f $deals.status) $Bad }
     $s = Get-Web ($base + '/api/search?q=suitcase&worlds=vgw&max_price=100')
@@ -454,6 +478,41 @@ function Send-IndexNow {
     return $false
 }
 
+# No public test address for the live Hub (security fixes F04, lessons L106): its wrangler.toml has no routes (the domain is
+# set in Cloudflare), so without these two lines every deploy switched gear-world-hub.<account>.workers.dev on again. The
+# lines go right after the name line (top level). Returns the text unchanged when both are already false.
+function Set-HubNoTestAddress([string]$text) {
+    $nl = $(if ($text.Contains("`r`n")) { "`r`n" } else { "`n" })
+    $t = [regex]::Replace($text, '(?m)^workers_dev[ \t]*=[ \t]*true[ \t]*(?=\r?$)', 'workers_dev = false')
+    $t = [regex]::Replace($t, '(?m)^preview_urls[ \t]*=[ \t]*true[ \t]*(?=\r?$)', 'preview_urls = false')
+    $anchor = '(?m)^(name[ \t]*=[ \t]*"gear-world-hub"[ \t]*)(?=\r?$)'
+    if ($t -notmatch '(?m)^preview_urls[ \t]*=') { $t = [regex]::Replace($t, $anchor, ('$1' + $nl + 'preview_urls = false')) }
+    if ($t -notmatch '(?m)^workers_dev[ \t]*=') { $t = [regex]::Replace($t, $anchor, ('$1' + $nl + 'workers_dev = false')) }
+    return $t
+}
+
+# Is everything ready for the security release (L106)? The Hub's Turnstile keys (names only) and, unless -NoHttpCheck,
+# the 13 sites already sending the Turnstile token of their box (read-only GET of each home page).
+function Get-SecurityReadiness([string]$folder) {
+    $state = @{ secretsOk = $false; missing = @(); sitesChecked = $false; notReady = @() }
+    $hs = Invoke-Wrangler $folder ('secret list --name {0}' -f $HubWorker) -Retry
+    $list = Get-JsonArray $hs.text
+    $names = @()
+    if ($list) { $names = @($list | ForEach-Object { [string]$_.name }) }
+    $state.missing = @($HubTurnstileSecrets | Where-Object { $names -notcontains $_ })
+    $state.secretsOk = ($hs.code -eq 0 -and $null -ne $list -and $state.missing.Count -eq 0)
+    if (-not $NoHttpCheck) {
+        [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+        $state.sitesChecked = $true
+        foreach ($sd in $SiteDomains) {
+            $w = Get-Web ('https://' + $sd + '/?gwcheck=' + $stamp)
+            $h = (New-Object System.Text.UTF8Encoding($false)).GetString($w.bytes)
+            if ($w.status -ne 200 -or $h -notmatch 'data-du-turnstile') { $state.notReady += $sd }
+        }
+    }
+    return $state
+}
+
 # ---------------- start ----------------
 Say ('GWH HUB V2 («Συνδυασμός») - step: {0} - {1} - {2}' -f $Step, $(if ($Apply) { 'APPLY (με έγκριση)' } else { 'ΜΟΝΟ ΕΛΕΓΧΟΣ (δεν αλλάζει τίποτα)' }), (Get-Date -Format 'yyyy-MM-dd HH:mm')) $Ok
 Say ('Code version: {0}' -f (Split-Path -Leaf $repo))
@@ -481,7 +540,7 @@ $baseSha = @{}
 foreach ($b in $baseline) { $baseSha[$b.path] = $b.sha }
 
 $gwhRepo = Join-Path (Join-Path $repo 'sites') 'gwh'
-$newFiles = @('worker.js', 'photo-search.js', 'poster-scan.js', 'mailerlite.js', 'members.js')
+$newFiles = @('worker.js', 'photo-search.js', 'poster-scan.js', 'mailerlite.js', 'members.js', 'security.js')
 $pubRepo = Join-Path $gwhRepo 'public'
 foreach ($f in @(Get-ChildItem -LiteralPath $pubRepo -Recurse -File | Sort-Object FullName)) {
     $newFiles += ('public/' + $f.FullName.Substring($pubRepo.Length).TrimStart('\', '/').Replace('\', '/'))
@@ -671,11 +730,25 @@ if ($plan.Count -eq 0) {
         $what = $(if ($About.ContainsKey($rel)) { $About[$rel] } else { 'νέα έκδοση του αρχείου' })
         Say ('     - {0}: {1}' -f $rel, $what)
     }
-    Say '  3. Deploy του gearworldhub.com από τον φάκελο του Hub (με το δικό του wrangler.toml), και έλεγχος της σελίδας και του «Βρες δώρο».'
+    Say '  3. Στο wrangler.toml του Hub: workers_dev = false και preview_urls = false (κλείνει η δοκιμαστική διεύθυνση gear-world-hub.<λογαριασμός>.workers.dev του live Hub, F04). Το παλιό wrangler.toml μένει στο zip και στα αρχεία επαναφοράς.'
+    Say '  4. Deploy του gearworldhub.com από τον φάκελο του Hub (με το δικό του wrangler.toml), και έλεγχος της σελίδας και του «Βρες δώρο».'
     Say '  Η D1, τα 11 sites και οι άλλοι Workers (και ο gwh-sitemap) ΔΕΝ αλλάζουν.'
     Say ('  Επαναφορά (μόνο με έγκριση): npx wrangler rollback <ζωντανή έκδοση> --name {0}, και τα αρχεία του zip πίσω στον φάκελο του Hub.' -f $HubWorker)
 }
 $readyLive = (($pcIsBaseline -or $pcIsNew) -and ($liveState -eq 'baseline' -or $liveState -eq 'new' -or ($NoHttpCheck -and $liveState -eq 'unknown')) -and $liveVersion -and $postersOn)
+# Security fixes (L106): the Hub checks Turnstile tokens from now on, so its keys must be there and the 13 sites must
+# already send the token of their box. Asked in check and live only (never changes anything).
+$security = $null
+if (($Step -eq 'check' -or $Step -eq 'live') -and $plan -contains 'security.js') {
+    $security = Get-SecurityReadiness $gwh
+    if ($security.secretsOk) { Say ('Κλειδιά Turnstile του Hub ({0}): υπάρχουν: ΕΝΤΑΞΕΙ' -f ($HubTurnstileSecrets -join ', ')) $Ok }
+    else { Say ('Κλειδιά Turnstile του Hub: ΠΡΟΒΛΗΜΑ - λείπουν: {0}. Πρώτα το tools/gw-security-fixes.ps1 -Step turnstile («ΕΓΚΡΙΝΩ TURNSTILE»).' -f $(if ($security.missing.Count) { $security.missing -join ', ' } else { '(δεν διαβάστηκαν)' })) $Bad }
+    if ($security.sitesChecked) {
+        if ($security.notReady.Count -eq 0) { Say ('Τα {0} sites στέλνουν το token του Turnstile από τη φόρμα «Get deal updates»: ΕΝΤΑΞΕΙ' -f $SiteDomains.Count) $Ok }
+        else { Say ('Τα sites που ΔΕΝ στέλνουν ακόμα το token του Turnstile: {0}. ΠΡΟΒΛΗΜΑ - πρώτα το tools/ads-fixes-sites.ps1 -Step apply («ΕΓΚΡΙΝΩ ADS FIXES»).' -f ($security.notReady -join ', ')) $Bad }
+    }
+    $readyLive = ($readyLive -and $security.secretsOk -and $security.notReady.Count -eq 0)
+}
 
 if ($Step -eq 'check') {
     Say ''
@@ -740,13 +813,17 @@ if (-not $liveVersion) {
 }
 if (-not $Apply) { Say ''; Say 'Δοκιμή μόνο (χωρίς -Apply): δεν άλλαξε τίποτα.' $Ok; Finish 0 }
 if (-not (Confirm-Approval $PhraseLive)) { Say 'Δεν δόθηκε έγκριση: σταμάτησα χωρίς αλλαγές.' $Warn; Finish 1 }
+if ($null -ne $security) {
+    if (-not $security.secretsOk) { Say 'Το Hub δεν έχει ακόμα τα κλειδιά Turnstile: πρώτα το tools/gw-security-fixes.ps1 -Step turnstile («ΕΓΚΡΙΝΩ TURNSTILE»). ΔΕΝ άλλαξε τίποτα.' $Bad; Finish 16 }
+    if ($security.notReady.Count -gt 0) { Say ('Τα sites {0} δεν στέλνουν ακόμα το token του Turnstile: πρώτα το tools/ads-fixes-sites.ps1 -Step apply («ΕΓΚΡΙΝΩ ADS FIXES»), αλλιώς οι εγγραφές τους θα απορρίπτονταν. ΔΕΝ άλλαξε τίποτα.' -f ($security.notReady -join ', ')) $Bad; Finish 17 }
+}
 
 # 1. Backup first: the whole hub folder that goes live (zip), and the files that change as plain copies
 $bdir = Join-Path $WorkDir 'backups'
 if (-not (Test-Path -LiteralPath $bdir)) { New-Item -ItemType Directory -Path $bdir -Force | Out-Null }
 $tmpCopy = Join-Path ([System.IO.Path]::GetTempPath()) ('gwh-before-v2-' + $stamp)
 New-Item -ItemType Directory -Path $tmpCopy -Force | Out-Null
-foreach ($n in @('worker.js', 'wrangler.toml', 'photo-search.js', 'poster-scan.js', 'mailerlite.js', 'members.js')) {
+foreach ($n in @('worker.js', 'wrangler.toml', 'photo-search.js', 'poster-scan.js', 'mailerlite.js', 'members.js', 'security.js')) {
     $src = Join-Path $HubDir $n
     if (Test-Path -LiteralPath $src) { Copy-Item -LiteralPath $src -Destination $tmpCopy -Force }
 }
@@ -782,6 +859,12 @@ $noteFile = Join-Path $bdir ('gwh-before-v2-live-' + $stamp + '.txt')
 [System.IO.File]::WriteAllText($noteFile, $note, (New-Object System.Text.UTF8Encoding($false)))
 Say ('Αντίγραφο ασφαλείας και οδηγίες επαναφοράς: {0}' -f $noteFile) $Ok
 
+# F04 (lessons L106): workers.dev and the preview URLs off in the Hub's wrangler.toml on this PC (the zip above has the old one).
+[byte[]]$tomlBytes = [System.IO.File]::ReadAllBytes($cfgPc)
+$tomlBefore = [System.IO.File]::ReadAllText($cfgPc)
+$tomlSafe = Set-HubNoTestAddress $tomlBefore
+$tomlChanged = ($tomlSafe -ne $tomlBefore)
+
 # Puts the hub folder back as it was (used only when the deploy fails).
 function Restore-Before {
     foreach ($rel in $plan) {
@@ -789,6 +872,17 @@ function Restore-Before {
         if ($hadBefore[$rel]) { Copy-Item -LiteralPath (Local-Path $keep $rel) -Destination $dst -Force }
         elseif (Test-Path -LiteralPath $dst) { Remove-Item -LiteralPath $dst -Force }
     }
+    if ($tomlChanged) { [System.IO.File]::WriteAllBytes($cfgPc, $tomlBytes) }
+}
+
+if ($tomlChanged) {
+    New-Item -ItemType Directory -Path $keep -Force | Out-Null
+    [System.IO.File]::WriteAllBytes((Join-Path $keep 'wrangler.toml'), $tomlBytes)
+    [System.IO.File]::WriteAllText($cfgPc, $tomlSafe, (New-Object System.Text.UTF8Encoding($false)))
+    Say ('wrangler.toml του Hub: workers_dev = false και preview_urls = false (κλείνει η δοκιμαστική διεύθυνση *.workers.dev του live Hub, F04). Το παλιό: {0}' -f (Join-Path $keep 'wrangler.toml')) $Ok
+    Say ('  Επαναφορά (μόνο με έγκριση): αυτό το αρχείο πίσω στο {0} και νέο deploy, ή Workers & Pages > {1} > Settings > Domains & Routes > workers.dev: https://dash.cloudflare.com/?to=/:account/workers-and-pages' -f $cfgPc, $HubWorker)
+} else {
+    Say 'wrangler.toml του Hub: workers_dev = false και preview_urls = false υπάρχουν ήδη: ΕΝΤΑΞΕΙ' $Ok
 }
 
 # 2. The new files into the hub folder

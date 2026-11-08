@@ -38,10 +38,16 @@ function row(db, email) {
 }
 
 // Fake MailerLite: the group exists, the field does not yet; answers can be switched per test.
+// Turnstile's Siteverify answers too (security fixes F02, lessons L106): a token for gearworldhub.com and the Hub form.
 function fakeMailerLite({ down = false, subscriberStatus = 201, groupExists = true } = {}) {
   const calls = [];
+  const verified = [];
   const impl = async (url, init = {}) => {
     const u = new URL(url);
+    if (u.hostname === 'challenges.cloudflare.com') {
+      verified.push(Object.fromEntries(new URLSearchParams(String(init.body))));
+      return new Response(JSON.stringify({ success: true, hostname: 'gearworldhub.com', action: 'hub-signup' }), { headers: { 'Content-Type': 'application/json' } });
+    }
     const body = init.body ? JSON.parse(init.body) : null;
     calls.push({ method: init.method, path: u.pathname, search: u.search, body, auth: init.headers && init.headers.Authorization });
     if (down) throw new Error('fetch failed');
@@ -53,11 +59,11 @@ function fakeMailerLite({ down = false, subscriberStatus = 201, groupExists = tr
     if (u.pathname === '/api/subscribers' && init.method === 'POST') return json(subscriberStatus, { data: { id: '55', email: body.email } });
     return json(404, {});
   };
-  return { calls, impl };
+  return { calls, verified, impl };
 }
 
 function env(extra = {}) {
-  return { gear_world_registry: makeDb(), MAILERLITE_API_KEY: KEY, PHOTO_LIMIT_SALT: 'test-salt-0123456789abcdef', ...extra };
+  return { gear_world_registry: makeDb(), MAILERLITE_API_KEY: KEY, PHOTO_LIMIT_SALT: 'test-salt-0123456789abcdef', TURNSTILE_SECRET_KEY: 'turnstile-secret-for-tests', ...extra };
 }
 
 function ctx() {
@@ -73,7 +79,7 @@ function post(body, headers = {}) {
   });
 }
 
-const FORM = { email: 'New.Person@Example.com', locale: 'el-GR', consent: true, consent_version: CONSENT_VERSION, source: 'hub', website: '' };
+const FORM = { email: 'New.Person@Example.com', locale: 'el-GR', consent: true, consent_version: CONSENT_VERSION, source: 'hub', website: '', turnstile_token: 'hub-widget-token' };
 
 async function withFetch(fake, fn) {
   const before = globalThis.fetch;
@@ -276,7 +282,7 @@ test('mailerlite: email addresses never reach the logs', async () => {
   const before = console.error;
   console.error = (...a) => logged.push(a.join(' '));
   try {
-    const res = await handleSubscribe(post(FORM), e, ctx());
+    const res = await withFetch(fakeMailerLite(), () => handleSubscribe(post(FORM), e, ctx()));
     assert.equal(res.status, 500);
   } finally { console.error = before; }
   assert.ok(logged.length > 0);
@@ -294,7 +300,7 @@ test('mailerlite: the key is never in the code or the config files', () => {
 
 test('mailerlite: the Hub form, its 11 languages and the privacy page match the new email', () => {
   const page = readFileSync(new URL('public/index.html', ROOT), 'utf8');
-  assert.match(page, /\/email-signup\.js\?v=20261102-mailerlite-1/);
+  assert.match(page, /\/email-signup\.js\?v=20261108-security1/);
   assert.ok(!page.includes('new Gear Worlds'), 'the form no longer promises news about new Gear Worlds');
   const code = readFileSync(new URL('public/email-signup.js', ROOT), 'utf8');
   const copy = new Function(`${code.slice(code.indexOf('const COPY'), code.indexOf('function locale'))}; return COPY;`)();
@@ -314,5 +320,5 @@ test('mailerlite: the Hub form, its 11 languages and the privacy page match the 
   const privacy = readFileSync(new URL('public/privacy/index.html', ROOT), 'utf8');
   assert.match(privacy, /MailerLite/);
   assert.match(privacy, /opened and which links/);
-  assert.match(privacy, /Last updated: (2|3|7) November 2026/);
+  assert.match(privacy, /Last updated: (2|3|7|8) November 2026/);
 });

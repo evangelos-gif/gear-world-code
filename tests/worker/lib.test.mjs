@@ -72,10 +72,20 @@ test('listing params are clamped', () => {
   assert.equal(hasFilters(readListingParams(new URL('https://x/category/a/?page=2'))), false);
 });
 
-test('safeEqual', () => {
-  assert.equal(safeEqual('Bearer abc', 'Bearer abc'), true);
-  assert.equal(safeEqual('Bearer abc', 'Bearer abd'), false);
-  assert.equal(safeEqual('', ''), false);
+test('safeEqual', async () => {
+  assert.equal(await safeEqual('Bearer abc', 'Bearer abc'), true);
+  assert.equal(await safeEqual('Bearer abc', 'Bearer abd'), false);
+  assert.equal(await safeEqual('', ''), false);
+  // F16 (lessons L106): a shorter or longer guess is compared the same way (SHA-256 digests of equal length), never
+  // stopped early by the length.
+  assert.equal(await safeEqual('Bearer ab', 'Bearer abc'), false);
+  assert.equal(await safeEqual('Bearer abcd', 'Bearer abc'), false);
+  assert.equal(await safeEqual(undefined, 'x'), false);
+  const { readFileSync } = await import('node:fs');
+  const src = readFileSync('src/lib/security.js', 'utf8');
+  const body = src.slice(src.indexOf('export async function safeEqual'));
+  assert.match(body, /crypto\.subtle\.digest\('SHA-256'/);
+  assert.doesNotMatch(body.slice(0, body.indexOf('\n}')), /\.length !== /, 'no early exit on the length');
 });
 
 test('site config: no duplicate slugs, every category has the texts it needs', () => {
@@ -99,7 +109,11 @@ test('preview hosts are never indexed; the real domain and local development are
 });
 
 test('search in other languages: Workers AI words are used, odd answers are not', async () => {
-  const { hubTranslation, translationsFor, AI_MODEL, AI_MODEL_2 } = await import('../../src/lib/hub.js');
+  const { hubTranslation: rawTranslation, translationsFor: rawFor, AI_MODEL, AI_MODEL_2 } = await import('../../src/lib/hub.js');
+  // Every model call takes a place of the daily limit from the Hub first (F03, L106): here the Hub always says yes.
+  const HUB = { fetch: async () => Response.json({ ok: true }) };
+  const hubTranslation = (env, q) => rawTranslation({ HUB, ...env }, q, { cache: null });
+  const translationsFor = (env, q) => rawFor({ HUB, ...env }, q, { cache: null });
   const seen = [];
   const env = { AI: { run: async (model, input) => { seen.push(model); return { response: 'sofa' }; } } };
   assert.equal(await hubTranslation(env, 'καναπές'), 'sofa');
@@ -107,7 +121,7 @@ test('search in other languages: Workers AI words are used, odd answers are not'
   assert.equal(await hubTranslation({ AI: { run: async () => ({ response: 'Here is: sofa\nbed' }) } }, 'καναπές'), '');
   assert.equal(await hubTranslation({ AI: { run: async () => { throw new Error('quota'); } } }, 'καναπές'), '');
   assert.equal(await hubTranslation(env, 'abc'), '', 'too short');
-  assert.equal(await hubTranslation({}, 'καναπές'), '', 'no AI, no Hub: nothing');
+  assert.equal(await rawTranslation({}, 'καναπές'), '', 'no AI, no Hub: nothing');
   // Next tries only when asked for (the engine stops at the first that finds products).
   const calls = [];
   const env3 = { AI: { run: async (model, input) => {

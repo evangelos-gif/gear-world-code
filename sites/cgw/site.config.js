@@ -13,7 +13,7 @@ export default {
   lang: 'en-GB',
   locale: 'en-GB',
   currency: 'GBP',
-  assetVersion: '2026-11-08-cgw-cleanup-1',
+  assetVersion: '2026-11-08-cgw-security-1',
   promos: promosFor('CGW'),
   // Buying guides (/guides/, lessons L82): words in guides.js, prices and stock live from the database.
   guides,

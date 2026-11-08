@@ -9,8 +9,21 @@
 // Unsubscribes happen in MailerLite (link in every email); MailerLite is the list that is sent to.
 // On the test address (GWH_PREVIEW = "1") nothing is written and nothing is sent: the form only answers.
 // The API key is the Worker secret MAILERLITE_API_KEY. Email addresses are never written to logs.
+//
+// Security fixes of 8/11/2026 (F02, lessons L07, L106, security.js):
+//   - a browser (it always sends Origin) must send a Turnstile token, checked here with the secret key of widget 1,
+//     for gearworldhub.com and the form "hub-signup"; no token or a bad one: nothing is written (403);
+//   - a request without Origin and without a token is the Gear World app (it has no widget yet): it is allowed only
+//     within its own small daily limit (SUBSCRIBE_APP_DAILY_LIMIT, default 10, 0 = never);
+//   - all sign-ups of the network (this form, the app and the 13 sites through members.js) share one daily limit
+//     (SUBSCRIBE_DAILY_LIMIT, default 50). When it is reached: 429 "limit_day", and the form says to try tomorrow.
+//   - status "active" (no double opt-in) stays for now: the owner decides about double opt-in later.
 
 import { visitorCode } from "./photo-search.js";
+import {
+  checkToken, takeNetworkSlot, readLimit, secondsToNextDay, HUB_ACTION,
+  DEFAULT_SUBSCRIBE_DAILY_LIMIT, DEFAULT_APP_DAILY_LIMIT
+} from "./security.js";
 
 export const ML_API = "https://connect.mailerlite.com/api";
 export const GROUP_NAME = "Gear World subscribers";
@@ -60,7 +73,20 @@ export async function cleanUsage(db, now) {
   await db.prepare("DELETE FROM subscribe_usage WHERE hour < ?").bind(oldHour).run();
 }
 
-export async function handleSubscribe(request, env, ctx) {
+// One place of the network's daily sign-up limit (and of the app's own one for a sign-up without a token).
+// Returns null when there is a place, else the answer to send.
+export async function dailySignupGate(db, now, env, { tokenless = false } = {}) {
+  const retry = String(secondsToNextDay(now));
+  if (tokenless) {
+    const appLimit = readLimit(env && env.SUBSCRIBE_APP_DAILY_LIMIT, DEFAULT_APP_DAILY_LIMIT, 100000);
+    if (!(await takeNetworkSlot(db, now, "subscribe-app", appLimit))) return reply(429, { ok: false, error: "limit_day" }, { "Retry-After": retry });
+  }
+  const limit = readLimit(env && env.SUBSCRIBE_DAILY_LIMIT, DEFAULT_SUBSCRIBE_DAILY_LIMIT, 100000);
+  if (!(await takeNetworkSlot(db, now, "subscribe", limit))) return reply(429, { ok: false, error: "limit_day" }, { "Retry-After": retry });
+  return null;
+}
+
+export async function handleSubscribe(request, env, ctx, { verify } = {}) {
   if (request.method !== "POST") return reply(405, { ok: false, error: "method_not_allowed" }, { Allow: "POST" });
   const url = new URL(request.url);
   const origin = request.headers.get("origin");
@@ -89,6 +115,17 @@ export async function handleSubscribe(request, env, ctx) {
   // The new Hub form sends the version of the consent text it showed; the app (and older pages) the first version.
   const consentVersion = body.consent_version === CONSENT_VERSION ? CONSENT_VERSION : OLD_CONSENT_VERSION;
 
+  // Turnstile (F02): a browser always sends Origin, so a request with Origin needs a token. Without Origin and without a
+  // token it is the app, which has only its own small daily limit (below).
+  const token = String(body.turnstile_token || "").trim();
+  const tokenless = !token;
+  if (tokenless && origin) return reply(403, { ok: false, error: "turnstile_required" });
+  if (!tokenless) {
+    const check = await checkToken(env, token, { domain: "gearworldhub.com", action: HUB_ACTION, ip: request.headers.get("cf-connecting-ip") || "", verify });
+    if (check === "not_ready") return reply(503, { ok: false, error: "not_ready" });
+    if (check !== "ok") return reply(403, { ok: false, error: "turnstile_failed" });
+  }
+
   // The test address answers like the live Hub but writes and sends nothing.
   if (isPreviewEnv(env)) return reply(200, { ok: true, preview: true });
 
@@ -103,6 +140,8 @@ export async function handleSubscribe(request, env, ctx) {
         return reply(429, { ok: false, error: "too_many" }, { "Retry-After": "3600" });
       }
     }
+    const full = await dailySignupGate(db, now, env, { tokenless });
+    if (full) return full;
     await db.prepare(`
       INSERT INTO hub_subscribers (email, locale, marketing_consent, consent_version, source, status, ml_status, ml_attempts, ml_error)
       VALUES (?, ?, 1, ?, ?, 'active', 'pending', 0, NULL)

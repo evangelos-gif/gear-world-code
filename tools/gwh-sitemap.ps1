@@ -36,6 +36,8 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+# HTTPS with TLS 1.2: Windows PowerShell 5.1 may still offer only older TLS, which GitHub and Cloudflare refuse (L106).
+[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 $repo = Split-Path -Parent $PSScriptRoot
 $PhrasePreview = 'ΕΓΚΡΙΝΩ SITEMAP PREVIEW'
 $PhraseLive = 'ΕΓΚΡΙΝΩ SITEMAP LIVE'

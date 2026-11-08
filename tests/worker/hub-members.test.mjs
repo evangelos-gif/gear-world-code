@@ -7,6 +7,20 @@ import { DatabaseSync } from 'node:sqlite';
 import hub from '../../sites/gwh/worker.js';
 import { handleInternal, isInternal, RATE_LIMIT, CONSENT_VERSION } from '../../sites/gwh/members.js';
 import { syncOne, syncPending, resetMailerLiteCache, GROUP_NAME, SOURCE_FIELD } from '../../sites/gwh/mailerlite.js';
+import { SITE_DOMAINS, TURNSTILE_VERIFY_URL } from '../../sites/gwh/security.js';
+
+// Turnstile (security fixes F02, lessons L106): every site sign-up carries the token of the site's box. A fake
+// Siteverify stands in for Cloudflare: a token "ok:<hostname>" passes for that hostname and the form "deal-updates".
+const TS = { TURNSTILE_SECRET_KEY: 'secret-widget-1', TURNSTILE_SECRET_KEY_2: 'secret-widget-2' };
+const realFetch = globalThis.fetch;
+const verifyCalls = [];
+globalThis.fetch = async (url, init) => {
+  if (String(url) !== TURNSTILE_VERIFY_URL) return realFetch(url, init);
+  const form = Object.fromEntries(new URLSearchParams(String(init.body)));
+  verifyCalls.push(form);
+  const m = /^ok:(.+)$/.exec(form.response);
+  return Response.json(m ? { success: true, hostname: m[1], action: 'deal-updates' } : { success: false, 'error-codes': ['invalid-input-response'] });
+};
 
 const KEY = 'ml-key-0123456789abcdef';
 
@@ -44,7 +58,8 @@ function fakeMailerLite() {
   return { calls, impl };
 }
 
-const post = (body, host = 'hub.internal') => new Request(`https://${host}/internal/subscribe`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+const withToken = body => ('turnstile_token' in body ? body : { ...body, turnstile_token: `ok:${SITE_DOMAINS[body.site] || 'example.com'}` });
+const post = (body, host = 'hub.internal') => new Request(`https://${host}/internal/subscribe`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(withToken(body)) });
 const CLIENT = 'a'.repeat(32);
 const get = (db, email) => ({ ...db.sql.prepare('SELECT * FROM hub_subscribers WHERE email = ?').get(email) });
 
@@ -52,7 +67,7 @@ test('only the private host name is the internal address; the public site never 
   assert.equal(isInternal(new URL('https://hub.internal/internal/subscribe')), true);
   assert.equal(isInternal(new URL('https://gearworldhub.com/internal/subscribe')), false);
   const db = registry();
-  const env = { gear_world_registry: db, ASSETS: { fetch: async () => new Response('asset', { status: 404 }) } };
+  const env = { gear_world_registry: db, ...TS, ASSETS: { fetch: async () => new Response('asset', { status: 404 }) } };
   const pub = await hub.fetch(post({ email: 'x@y.co', consent: true, site: 'cgw', client: CLIENT }, 'gearworldhub.com'), env, { waitUntil() {} });
   assert.notEqual(pub.status, 200);
   assert.equal(db.sql.prepare("SELECT COUNT(*) AS n FROM hub_subscribers WHERE email = 'x@y.co'").get().n, 0);
@@ -66,7 +81,7 @@ test('only the private host name is the internal address; the public site never 
 
 test('checks: a site that is not ours, no consent, a bad address; and the limit per visitor and hour', async () => {
   const db = registry();
-  const env = { gear_world_registry: db };
+  const env = { gear_world_registry: db, ...TS };
   const none = { sync: async () => 'pending' };
   assert.equal((await handleInternal(post({ email: 'a@b.co', consent: true, site: 'xyz', client: CLIENT }), env, {}, none)).status, 400);
   assert.equal((await handleInternal(post({ email: 'a@b.co', consent: false, site: 'cgw', client: CLIENT }), env, {}, none)).status, 400);
@@ -81,7 +96,7 @@ test('checks: a site that is not ours, no consent, a bad address; and the limit 
 test('a site sign-up goes to MailerLite the same way as the Hub form: group "Gear World subscribers", source_site, key only in the header', async () => {
   resetMailerLiteCache();
   const db = registry();
-  const env = { gear_world_registry: db, MAILERLITE_API_KEY: KEY };
+  const env = { gear_world_registry: db, ...TS, MAILERLITE_API_KEY: KEY };
   const ml = fakeMailerLite();
   const waits = [];
   const r = await handleInternal(post({ email: 'new@site.example', consent: true, site: 'kgw', client: CLIENT }), env, { waitUntil: p => waits.push(p) }, { sync: (e, email) => syncOne(e, email, ml.impl) });
@@ -97,7 +112,7 @@ test('Rewards members on hold are never sent by the timer; one who signs up agai
   resetMailerLiteCache();
   const db = registry();
   db.sql.exec("INSERT INTO hub_subscribers (email, marketing_consent, source, member_source, ml_status) VALUES ('old@rewards.example', 1, 'rewards-cgw', 'rewards:cgw', 'hold')");
-  const env = { gear_world_registry: db, MAILERLITE_API_KEY: KEY };
+  const env = { gear_world_registry: db, ...TS, MAILERLITE_API_KEY: KEY };
   const ml = fakeMailerLite();
   const first = await syncPending(env, ml.impl);
   assert.equal(ml.calls.filter(c => c.path === '/api/subscribers').length, 0, JSON.stringify(first));
@@ -111,7 +126,7 @@ test('Rewards members on hold are never sent by the timer; one who signs up agai
 
 test('the test address of the Hub answers but writes nothing', async () => {
   const db = registry();
-  const r = await handleInternal(post({ email: 'p@b.co', consent: true, site: 'cgw', client: CLIENT }), { gear_world_registry: db, GWH_PREVIEW: '1' }, {}, { sync: async () => { throw new Error('never'); } });
+  const r = await handleInternal(post({ email: 'p@b.co', consent: true, site: 'cgw', client: CLIENT }), { gear_world_registry: db, ...TS, GWH_PREVIEW: '1' }, {}, { sync: async () => { throw new Error('never'); } });
   assert.equal(r.status, 200);
   assert.equal(db.sql.prepare("SELECT COUNT(*) AS n FROM hub_subscribers WHERE email = 'p@b.co'").get().n, 0);
 });

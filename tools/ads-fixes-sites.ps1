@@ -20,6 +20,11 @@
   SERankingBacklinksBot out. The index goes in FIRST (tools/d1-native-index.ps1, ΕΓΚΡΙΝΩ ΕΥΡΕΤΗΡΙΑ D1): WITHOUT it the
   new code reads MORE rows than the old one (about 74,000 instead of 54,000 a page), so the apply step first checks the
   6 databases (read-only) and publishes nothing while one of them lacks it.
+  Security fixes (lessons L106): the live Workers answer only on their domains (workers.dev and the preview URLs off,
+  through each site tool's update), the "Get deal updates" box has Cloudflare Turnstile (its sitekey comes from the
+  Worker secret TURNSTILE_SITE_KEY: FIRST tools/gw-security-fixes.ps1 -Step turnstile, ΕΓΚΡΙΝΩ TURNSTILE; without the
+  key the box stays hidden), HSTS for one year with the subdomains, no click logged from a test address, the search
+  translations kept for one day and counted in a daily limit, and /api/stats kept 1 hour per data centre.
 
 .DESCRIPTION
   -Step check   READ-ONLY. The 13 site tools are there? Shows the plan.
@@ -32,8 +37,10 @@
                      Gear World.
                 It stops at the first problem; sites already updated keep working. Running it again is safe.
                 The site databases and their settings on this PC do not change. The Hub has its own step
-                (tools/gwh-hub-v2.ps1: ΕΓΚΡΙΝΩ HUB CLEANUP LIVE for L103, ΕΓΚΡΙΝΩ HUB ROBOTS LIVE for L105).
-                Going back: each site tool's update with the version before (git commit 12e54c0 before L105;
+                (tools/gwh-hub-v2.ps1: ΕΓΚΡΙΝΩ HUB CLEANUP LIVE for L103, ΕΓΚΡΙΝΩ HUB ROBOTS LIVE for L105,
+                ΕΓΚΡΙΝΩ HUB SECURITY LIVE for L106, which goes AFTER the 13 sites).
+                Going back: each site tool's update with the version before (git commit cceb262 before L106;
+                12e54c0 before L105;
                 98b476d for the L103 clean-up; f4c8c35 for the L102 follow-up; c544884 before L101).
   Report: <home>\gear-world-reports\ADS_FIXES_<STEP>_<time>.txt (also copied to the clipboard)
 #>
@@ -158,6 +165,11 @@ function Test-Fixes([string]$domain) {
     $okL105 = ($robots -match '(?m)^User-agent: SERankingBacklinksBot\s*$') -and ($robots -match '(?m)^Disallow: /out/\s*$')
     return ($okHome -and $okAbout -and $okL103 -and $okL105)
 }
+# L106: the "Get deal updates" box with Turnstile is on the home page (only once the site has its TURNSTILE_SITE_KEY).
+function Test-DealTurnstile([string]$domain) {
+    $homePage = Get-Page ('https://{0}/?gwcheck={1}-du' -f $domain, $stamp)
+    return ($homePage -match 'data-du-turnstile')
+}
 
 # ---------------- start ----------------
 $mode = 'ΜΟΝΟ ΕΛΕΓΧΟΣ (δεν αλλάζει τίποτα)'
@@ -193,6 +205,8 @@ if ($Step -eq 'check') {
     Say '     (L103: «Browse by category», «retailers compared», «compares prices across retailers», κωδικοί «through their affiliate programmes», το όνομα του καταστήματος translate="no" στο «View at» / «Stock at»)'
     Say '     (L105: η σελίδα προϊόντος των 6 νέων sites με ομάδες προσφορών (AGW, VGW, SGW, BGW, PGW, ZGW) διαβάζει μόνο τις γραμμές της ομάδας μέσα από το idx_products_group_key, τα «Παρόμοια» διαβάζουν λιγότερα και στα 13, και το robots.txt κλείνει το SERankingBacklinksBot)'
     Say '     ΠΡΩΤΑ το ευρετήριο στις 6 βάσεις: tools/d1-native-index.ps1 με «ΕΓΚΡΙΝΩ ΕΥΡΕΤΗΡΙΑ D1». Χωρίς αυτό ο νέος κώδικας διαβάζει ΠΕΡΙΣΣΟΤΕΡΕΣ γραμμές από τον παλιό (περίπου 74.000 αντί για 54.000 ανά σελίδα προϊόντος του AGW)· το apply ελέγχει πρώτα τις 6 βάσεις και δεν ανεβάζει τίποτα αν λείπει κάπου.'
+    Say '     (L106: το live site ανοίγει μόνο στο domain του (workers.dev και preview URLs κλειστά, με αντίγραφο του wrangler.jsonc πρώτα), Turnstile στο «Get deal updates», HSTS ενός χρόνου, καμία μέτρηση κλικ από δοκιμαστική διεύθυνση, οι μεταφράσεις της αναζήτησης κρατιούνται 1 μέρα και μετρούν σε ημερήσιο όριο, το /api/stats κρατιέται 1 ώρα)'
+    Say '     ΠΡΩΤΑ τα κλειδιά Turnstile: tools/gw-security-fixes.ps1 -Step turnstile με «ΕΓΚΡΙΝΩ TURNSTILE». Χωρίς αυτά το «Get deal updates» δεν φαίνεται μέχρι να μπουν. Το Hub (gwh-hub-v2, «ΕΓΚΡΙΝΩ HUB SECURITY LIVE») ανεβαίνει ΜΕΤΑ από τα 13 sites.'
     Say '  2. έλεγχος ότι κάθε αρχική σελίδα δείχνει στο /saved/ και έχει τη νέα γραμμή στο footer, και ότι το /about/ λέει ποιος τρέχει το Gear World'
     Say '  Οι βάσεις των sites και οι ρυθμίσεις τους στον υπολογιστή δεν αλλάζουν.'
     Say ''
@@ -235,6 +249,10 @@ if (-not $NoHttpCheck) {
     foreach ($s in $Sites) { if (-not (Test-Fixes $s.domain)) { $notYet += $s.domain } }
     if ($notYet.Count -gt 0) { Say ('2. Οι αλλαγές δεν φαίνονται ακόμα σε: {0} (η cache κρατάει έως λίγα λεπτά· στείλε στο Claude αυτή την αναφορά)' -f ($notYet -join ', ')) 'Yellow' }
     else { Say '2. Και τα 13 sites: «Saved list» στο /saved/, η γραμμή του footer, το /about/, οι λέξεις του L103 και το robots.txt του L105: ΕΝΤΑΞΕΙ' 'Cyan' }
+    $noBox = @()
+    foreach ($s in $Sites) { if (-not (Test-DealTurnstile $s.domain)) { $noBox += $s.domain } }
+    if ($noBox.Count -gt 0) { Say ('   L106: το «Get deal updates» με Turnstile δεν φαίνεται ακόμα σε: {0}. ΠΡΟΣΟΧΗ: πρώτα tools/gw-security-fixes.ps1 -Step turnstile («ΕΓΚΡΙΝΩ TURNSTILE»), ή η cache κρατάει λίγα λεπτά. Το Hub (ΕΓΚΡΙΝΩ HUB SECURITY LIVE) μόνο όταν φαίνεται και στα 13.' -f ($noBox -join ', ')) 'Yellow' }
+    else { Say '   L106: το «Get deal updates» με Turnstile και στα 13 sites: ΕΝΤΑΞΕΙ' 'Cyan' }
 }
 Say ''
 Say ('Ανέβηκαν: {0}' -f ($done -join ', '))

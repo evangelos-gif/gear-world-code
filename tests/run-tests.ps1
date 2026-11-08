@@ -582,6 +582,19 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         $deploysBefore = ([regex]::Matches((Calls), 'wrangler deploy')).Count
         Check ((Run-Cf @('-Step', 'update', '-Apply', '-Approve', 'wrong')) -eq 1 -and ([regex]::Matches((Calls), 'wrangler deploy')).Count -eq $deploysBefore) 'cloudflare update with wrong phrase: no deploy'
         Check ((Run-Cf @('-Step', 'update', '-Apply', '-Approve', 'egkrino tgw update', '-NoHttpCheck')) -eq 0 -and ([regex]::Matches((Calls), 'wrangler deploy')).Count -eq $deploysBefore + 1) 'cloudflare update with approval: deploys once'
+        # F04 (lessons L106): the live config ends with workers.dev and the preview URLs off. A config from before (on) is
+        # changed by the update step, after a copy of it; a preview on a live site is refused (it would publish live).
+        $cfgT = Join-Path $cfWork 'wrangler.jsonc'
+        $tNow = [System.IO.File]::ReadAllText($cfgT)
+        Check ($tNow -match '"workers_dev"\s*:\s*false' -and $tNow -match '"preview_urls"\s*:\s*false') 'tgw cloudflare domain: workers.dev and the preview URLs off in the live config (F04)'
+        [System.IO.File]::WriteAllText($cfgT, (($tNow -replace '"workers_dev"\s*:\s*false', '"workers_dev": true') -replace '\r?\n\s*"preview_urls"\s*:\s*false,', ''), (New-Object System.Text.UTF8Encoding($false)))
+        $dBefore = ([regex]::Matches((Calls), 'wrangler deploy')).Count
+        Check ((Run-Cf @('-Step', 'update', '-Apply', '-Approve', 'egkrino tgw update', '-NoHttpCheck')) -eq 0 -and ([regex]::Matches((Calls), 'wrangler deploy')).Count -eq $dBefore + 1) 'tgw cloudflare update (old config with workers.dev on): deploys once'
+        $tAfter = [System.IO.File]::ReadAllText($cfgT)
+        Check ($tAfter -match '"workers_dev"\s*:\s*false' -and $tAfter -match '"preview_urls"\s*:\s*false' -and $tAfter.Contains('custom_domain')) 'tgw cloudflare update: workers.dev and the preview URLs switched off, domains kept (F04)'
+        Check (@(Get-ChildItem -LiteralPath $cfWork -Filter 'wrangler.jsonc.before-no-test-address-*').Count -eq 1) 'tgw cloudflare update: the old config was copied first (rollback)'
+        $dBefore = ([regex]::Matches((Calls), 'wrangler deploy')).Count
+        Check ((Run-Cf @('-Step', 'preview', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ TGW PREVIEW')) -eq 8 -and ([regex]::Matches((Calls), 'wrangler deploy')).Count -eq $dBefore) 'tgw cloudflare preview on a live site: refused, nothing published'
         $reports = @(Get-ChildItem -LiteralPath $cfOut -Filter 'TGW_CLOUDFLARE_*.txt' -ErrorAction SilentlyContinue)
         Check ($reports.Count -ge 6) 'cloudflare: a report for every run'
     } finally {
@@ -1231,6 +1244,7 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         Check ($cfgNow.Contains('"pattern": "gaminggearworld.com", "custom_domain": true') -and $cfgNow.Contains('"pattern": "www.gaminggearworld.com", "custom_domain": true') -and $cfgNow.Contains($fakeDb)) 'pgw cloudflare domain: config has both custom domains and keeps the database id'
         Check (@(Get-ChildItem -LiteralPath $cfWork -Filter 'wrangler.jsonc.before-domain-*').Count -eq 1) 'pgw cloudflare domain: old config saved first'
         Check (([System.IO.File]::ReadAllText($cfg)) -match '"workers_dev"\s*:\s*false') 'pgw cloudflare domain: the test address (*.workers.dev) is switched off in the same step'
+        Check (([System.IO.File]::ReadAllText($cfg)) -match '"preview_urls"\s*:\s*false') 'pgw cloudflare domain: the preview URLs are off too (F04, L106)'
         Check (([regex]::Matches((Calls), 'wrangler deploy')).Count -eq $deploysBefore + 1) 'pgw cloudflare domain: deploys once'
         Check ((Run-Cf @('-Step', 'domain', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ PGW DOMAIN', '-NoHttpCheck')) -eq 0 -and ([regex]::Matches([System.IO.File]::ReadAllText($cfg), '(?m)^\s*"routes"\s*:')).Count -eq 1) 'pgw cloudflare domain twice: routes added only once'
         $deploysBefore = ([regex]::Matches((Calls), 'wrangler deploy')).Count
@@ -1723,6 +1737,7 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         $pc = Join-Path $gWork 'wrangler.preview.jsonc'
         $pt = $(if (Test-Path -LiteralPath $pc) { [System.IO.File]::ReadAllText($pc) } else { '' })
         Check ($pt.Contains('"name": "garden-gear-world-preview"') -and $pt.Contains($gDb) -and $pt.Contains('"CLICK_LOG": "off"') -and -not $pt.Contains('custom_domain')) 'ggw preview: separate test Worker, same database, clicks off, no domain'
+        Check ($pt.Contains('"workers_dev": true,') -and -not $pt.Contains('"workers_dev": false')) 'ggw preview: only the -preview test Worker gets a workers.dev address (F04, L106)'
         Check ((GCalls) -match 'deploy --config "[^"]*wrangler\.preview\.jsonc"') 'ggw preview: deploys the preview config'
         Check (@(Get-ChildItem -LiteralPath (Join-Path $gWork 'deploy') -Recurse -Filter 'promos.js' -ErrorAction SilentlyContinue).Count -ge 1) 'ggw preview: the deploy copy has promos/ (the site configs import it)'
         Check ((Run-G @('-Step', 'switch', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ GGW SWITCH')) -eq 11 -and (GDeploys) -eq 1) 'ggw switch without the old site code: refused, no deploy'
@@ -1745,6 +1760,7 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         Check ($notes.Count -eq 1 -and ([System.IO.File]::ReadAllText($notes[0].FullName)).Contains('rollback ' + $gVer)) 'ggw switch: rollback note with the old live version'
         $lc = [System.IO.File]::ReadAllText((Join-Path $gWork 'wrangler.jsonc'))
         Check ($lc.Contains('"name": "garden-gear-world"') -and $lc.Contains($gDb) -and $lc.Contains('"pattern": "gardengearworld.com", "custom_domain": true') -and $lc.Contains('"pattern": "www.gardengearworld.com", "custom_domain": true') -and $lc.Contains('"keep_vars": true') -and -not $lc.Contains('CLICK_LOG')) 'ggw switch: live config has the domains, the same database, keeps dashboard settings'
+        Check ($lc.Contains('"workers_dev": false,') -and $lc.Contains('"preview_urls": false,') -and -not $lc.Contains('"workers_dev": true')) 'ggw switch: the live Worker has workers.dev and the preview URLs off (F04, L106)'
         $c = GCalls
         Check ($c.LastIndexOf('deployments list') -lt $c.LastIndexOf('deploy --config')) 'ggw switch: live version read before deploying'
         Check ((Run-G @('-Step', 'update', '-Apply', '-Approve', 'EGKRINO GGW UPDATE')) -eq 0 -and (GDeploys) -eq 3) 'ggw update with approval: deploys once'
@@ -3487,6 +3503,14 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         ('echo [{"uuid":"' + $vDb + '","name":"gear-world-registry"},{"uuid":"x","name":"other-site"}]'),
         'exit /b 0',
         ':secretlist',
+        'echo %* | findstr /C:"gear-world-hub-preview" >nul && goto secretprev',
+        'if exist "%GW_FAKE_STATE%\nots.flag" goto secretnone',
+        'echo [{"name":"MAILERLITE_API_KEY","type":"secret_text"},{"name":"TURNSTILE_SECRET_KEY","type":"secret_text"},{"name":"TURNSTILE_SECRET_KEY_2","type":"secret_text"},{"name":"TURNSTILE_SITE_KEY","type":"secret_text"}]',
+        'exit /b 0',
+        ':secretnone',
+        'echo [{"name":"MAILERLITE_API_KEY","type":"secret_text"}]',
+        'exit /b 0',
+        ':secretprev',
         'if exist "%GW_FAKE_STATE%\salt.flag" echo Secret Name: PHOTO_LIMIT_SALT',
         'exit /b 0',
         ':secret',
@@ -3530,13 +3554,14 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         Check ((Run-V @('-Step', 'check')) -eq 0) 'hub v2 check: exit 0'
         $r = VLast
         Check ($r.Contains('ίδιος με την έκδοση που τρέχει live (test hub v2-before') -and $r.Contains('Αποτέλεσμα: ΕΝΤΑΞΕΙ') -and $r.Contains('POSTERS) στη ρύθμιση του Hub: υπάρχει')) 'hub v2 check: the hub folder is the live version, posters on, ready'
-        Check ($r.Contains('Στον φάκελο του Hub μπαίνουν 5 αρχεία') -and $r.Contains('- worker.js:') -and $r.Contains('public/index.html:') -and $r.Contains('public/hub-v2.css:') -and $r.Contains('public/hub-v2.js:') -and $r.Contains('public/hub-deals.json:') -and -not $r.Contains('public/styles.css:') -and -not $r.Contains('poster-scan.js:')) 'hub v2 check: the plan is exactly worker.js, index.html and the 3 new files'
+        Check ($r.Contains('Κλειδιά Turnstile του Hub (TURNSTILE_SECRET_KEY, TURNSTILE_SECRET_KEY_2, TURNSTILE_SITE_KEY): υπάρχουν: ΕΝΤΑΞΕΙ') -and $r.Contains('workers_dev = false και preview_urls = false')) 'hub v2 check: the Turnstile keys of the Hub are there; the plan turns workers.dev off (L106)'
+        Check ($r.Contains('Στον φάκελο του Hub μπαίνουν 6 αρχεία') -and $r.Contains('- security.js:') -and $r.Contains('- worker.js:') -and $r.Contains('public/index.html:') -and $r.Contains('public/hub-v2.css:') -and $r.Contains('public/hub-v2.js:') -and $r.Contains('public/hub-deals.json:') -and -not $r.Contains('public/styles.css:') -and -not $r.Contains('poster-scan.js:')) 'hub v2 check: the plan is exactly worker.js, index.html and the 3 new files'
         Check ((VCount 'deploy --config') -eq 0 -and (VCount 'secret bulk') -eq 0 -and (Get-TreeHash $vHub) -eq $vHubBefore) 'hub v2 check: only reads'
         Check (-not $r.Contains($vDb) -and -not $r.Contains($vVer)) 'hub v2 check: no database id or version id in the report'
         # preview
         Check ((Run-V @('-Step', 'preview')) -eq 0 -and (VCount 'deploy --config') -eq 0) 'hub v2 preview without -Apply: nothing changes'
-        Check ((Run-V @('-Step', 'preview', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB ROBOTS LIVE')) -eq 1 -and (VCount 'deploy --config') -eq 0) 'hub v2 preview with the live phrase: nothing changes'
-        Check ((Run-V @('-Step', 'preview', '-Apply', '-Approve', 'egkrino hub robots preview')) -eq 0 -and (VCount 'deploy --config') -eq 1) 'hub v2 preview with approval: deploys once'
+        Check ((Run-V @('-Step', 'preview', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB SECURITY LIVE')) -eq 1 -and (VCount 'deploy --config') -eq 0) 'hub v2 preview with the live phrase: nothing changes'
+        Check ((Run-V @('-Step', 'preview', '-Apply', '-Approve', 'egkrino hub security preview')) -eq 0 -and (VCount 'deploy --config') -eq 1) 'hub v2 preview with approval: deploys once'
         $c = VCalls
         Check ($c -match 'deploy --config "[^"]*wrangler\.preview\.toml"' -and $c -match 'secret bulk "[^"]+" --name gear-world-hub-preview') 'hub v2 preview: deploys the preview config, sets the photo secret of the test Worker'
         $cfgs = @(Get-ChildItem -LiteralPath (Join-Path $vWork 'deploy') -Recurse -Filter 'wrangler.preview.toml' -ErrorAction SilentlyContinue)
@@ -3545,21 +3570,26 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         $r = VLast
         Check ($r.Contains('https://gear-world-hub-preview.example-test.workers.dev') -and $r.Contains('?gwh-date=2026-11-28') -and -not $r.Contains($vDb)) 'hub v2 preview: report has the test address and the Black Friday link, not the database id'
         Check ((Get-TreeHash $vHub) -eq $vHubBefore) 'hub v2 preview: the hub folder on the PC is not changed'
-        Check ((Run-V @('-Step', 'preview', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB ROBOTS PREVIEW')) -eq 0 -and (VCount 'secret bulk') -eq 1) 'hub v2 preview again: the existing secret of the test Worker is kept'
+        Check ((Run-V @('-Step', 'preview', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB SECURITY PREVIEW')) -eq 0 -and (VCount 'secret bulk') -eq 1) 'hub v2 preview again: the existing secret of the test Worker is kept'
         # live: the posters go first
         Write-Utf8 (Join-Path $vHub 'wrangler.toml') ($vCfg.Substring(0, $vCfg.IndexOf('[[services]]')))
-        Check ((Run-V @('-Step', 'live', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB ROBOTS LIVE')) -eq 8 -and (VCount 'deploy --config') -eq 2) 'hub v2 live: refused before the poster counting is on the Hub'
+        Check ((Run-V @('-Step', 'live', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB SECURITY LIVE')) -eq 8 -and (VCount 'deploy --config') -eq 2) 'hub v2 live: refused before the poster counting is on the Hub'
         Write-Utf8 (Join-Path $vHub 'wrangler.toml') $vCfg
         Check ((Run-V @('-Step', 'live')) -eq 0 -and (VCount 'deploy --config') -eq 2 -and (Get-TreeHash $vHub) -eq $vHubBefore) 'hub v2 live without -Apply: nothing changes'
-        Check ((Run-V @('-Step', 'live', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB ROBOTS PREVIEW')) -eq 1 -and (VCount 'deploy --config') -eq 2 -and (Get-TreeHash $vHub) -eq $vHubBefore) 'hub v2 live with the preview phrase: nothing changes'
+        Check ((Run-V @('-Step', 'live', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB SECURITY PREVIEW')) -eq 1 -and (VCount 'deploy --config') -eq 2 -and (Get-TreeHash $vHub) -eq $vHubBefore) 'hub v2 live with the preview phrase: nothing changes'
         Write-Utf8 (Join-Path $vState 'split.flag') 'split'
-        Check ((Run-V @('-Step', 'live', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB ROBOTS LIVE')) -eq 11 -and (VCount 'deploy --config') -eq 2 -and (Get-TreeHash $vHub) -eq $vHubBefore) 'hub v2 live: no single live version to go back to: stops before any change'
+        Check ((Run-V @('-Step', 'live', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB SECURITY LIVE')) -eq 11 -and (VCount 'deploy --config') -eq 2 -and (Get-TreeHash $vHub) -eq $vHubBefore) 'hub v2 live: no single live version to go back to: stops before any change'
         Remove-Item -LiteralPath (Join-Path $vState 'split.flag') -Force
         Write-Utf8 (Join-Path $vState 'failother.flag') 'always'
-        Check ((Run-V @('-Step', 'live', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB ROBOTS LIVE')) -eq 9 -and (VCount 'deploy --config') -eq 3) 'hub v2 live: a failed deploy stops at once (exit 9), no repeat'
+        Check ((Run-V @('-Step', 'live', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB SECURITY LIVE')) -eq 9 -and (VCount 'deploy --config') -eq 3) 'hub v2 live: a failed deploy stops at once (exit 9), no repeat'
         Check ((Get-TreeHash $vHub) -eq $vHubBefore) 'hub v2 live: after a failed deploy the hub folder is back as it was (new files removed too)'
         Remove-Item -LiteralPath (Join-Path $vState 'failother.flag') -Force
-        Check ((Run-V @('-Step', 'live', '-Apply', '-Approve', 'egkrino hub robots live')) -eq 0 -and (VCount 'deploy --config') -eq 4) 'hub v2 live with approval: deploys once'
+        # Security fixes (L106): without the Hub's Turnstile keys the live step refuses, after the phrase, before any change.
+        Write-Utf8 (Join-Path $vState 'nots.flag') 'no keys'
+        Check ((Run-V @('-Step', 'live', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB SECURITY LIVE')) -eq 16 -and (VCount 'deploy --config') -eq 3 -and (Get-TreeHash $vHub) -eq $vHubBefore) 'hub v2 live without the Turnstile keys of the Hub: refused (exit 16), nothing changed'
+        Check ((VLast).Contains('gw-security-fixes.ps1 -Step turnstile')) 'hub v2 live: the report says which step goes first'
+        Remove-Item -LiteralPath (Join-Path $vState 'nots.flag') -Force
+        Check ((Run-V @('-Step', 'live', '-Apply', '-Approve', 'egkrino hub security live')) -eq 0 -and (VCount 'deploy --config') -eq 4) 'hub v2 live with approval: deploys once'
         $c = VCalls
         Check ($c -match ('deploy --config "' + [regex]::Escape((Join-Path $vHub 'wrangler.toml')) + '"')) 'hub v2 live: deploys the hub folder with its own wrangler.toml (POSTERS kept)'
         Check ($c.LastIndexOf('deployments list --name gear-world-hub') -lt $c.LastIndexOf('deploy --config')) 'hub v2 live: live version read before deploying'
@@ -3567,7 +3597,10 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
             Check ((VSha (Join-Path $vPub $n)) -eq (VSha (Join-Path $vRepoPub $n))) ('hub v2 live: public/' + $n + ' in the hub folder is the new one')
         }
         Check ((VSha (Join-Path $vHub 'worker.js')) -eq (VSha (Join-Path $vRepo 'worker.js'))) 'hub v2 live: worker.js in the hub folder is the new one'
-        Check ((Test-Path -LiteralPath (Join-Path $vPub 'styles.css')) -and (Test-Path -LiteralPath (Join-Path $vPub 'gwh-hero.png')) -and (Test-Path -LiteralPath (Join-Path $vHub '.dev.vars')) -and ([System.IO.File]::ReadAllText((Join-Path $vHub 'wrangler.toml'))) -eq $vCfg) 'hub v2 live: styles.css, the old picture, .dev.vars and wrangler.toml are left alone'
+        Check ((Test-Path -LiteralPath (Join-Path $vPub 'styles.css')) -and (Test-Path -LiteralPath (Join-Path $vPub 'gwh-hero.png')) -and (Test-Path -LiteralPath (Join-Path $vHub '.dev.vars')) -and ([System.IO.File]::ReadAllText((Join-Path $vHub 'wrangler.toml'))) -eq $vCfg.Replace('name = "gear-world-hub"', "name = `"gear-world-hub`"`nworkers_dev = false`npreview_urls = false")) 'hub v2 live: styles.css, the old picture, .dev.vars and wrangler.toml are left alone'
+        $oldTomls = @(Get-ChildItem -LiteralPath (Join-Path $vWork 'backups') -Recurse -Filter 'wrangler.toml' -ErrorAction SilentlyContinue | Where-Object { $_.FullName -match 'gwh-before-v2-files-' })
+        Check ($oldTomls.Count -ge 1 -and ([System.IO.File]::ReadAllText($oldTomls[-1].FullName)) -eq $vCfg) 'hub v2 live: the wrangler.toml from before (workers.dev on) is kept for rollback (F04)'
+        Check ((VSha (Join-Path $vHub 'security.js')) -eq (VSha (Join-Path $vRepo 'security.js'))) 'hub v2 live: security.js (new) is in the hub folder'
         $zips = @(Get-ChildItem -LiteralPath (Join-Path $vWork 'backups') -Filter 'gwh-before-v2-live-*.zip' -ErrorAction SilentlyContinue | Sort-Object LastWriteTime)
         Check ($zips.Count -ge 1) 'hub v2 live: the hub folder was zipped first'
         if ($zips.Count -ge 1) {
@@ -3586,11 +3619,11 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         Check ($r.Contains('public/hub-v2.js | ') -and $r.Contains('ΕΤΟΙΜΟ') -and -not $r.Contains($vVer)) 'hub v2 live: the report has the new baseline lines, not the version id'
         Check ((Run-V @('-Step', 'check')) -eq 0 -and (VLast).Contains('έχει ήδη αυτή την έκδοση')) 'hub v2 check after live: the hub folder has this version'
         Write-Utf8 (Join-Path $vPub 'styles.css') 'body{}'
-        Check ((Run-V @('-Step', 'live', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB ROBOTS LIVE')) -eq 7 -and (VCount 'deploy --config') -eq 4) 'hub v2 live: refused when someone else changed the hub folder'
+        Check ((Run-V @('-Step', 'live', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB SECURITY LIVE')) -eq 7 -and (VCount 'deploy --config') -eq 4) 'hub v2 live: refused when someone else changed the hub folder'
         Check ((VLast).Contains('public/styles.css')) 'hub v2: the changed file is named in the report'
         # register: Pets Gear World in the Hub's list of sites (one D1 row, restore point first)
         Check ((Run-V @('-Step', 'register')) -eq 0 -and (VCount '--file') -eq 0) 'hub register without -Apply: nothing changes'
-        Check ((Run-V @('-Step', 'register', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB ROBOTS LIVE')) -eq 1 -and (VCount '--file') -eq 0) 'hub register with the live phrase: nothing changes'
+        Check ((Run-V @('-Step', 'register', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB SECURITY LIVE')) -eq 1 -and (VCount '--file') -eq 0) 'hub register with the live phrase: nothing changes'
         Check ((Run-V @('-Step', 'register', '-Apply', '-Approve', 'egkrino hub zgw search')) -eq 0 -and (VCount '--file') -eq 1) 'hub register with approval: one SQL file runs'
         $c = VCalls
         Check ($c.LastIndexOf('time-travel info gear-world-registry') -lt $c.LastIndexOf('--file') -and $c.LastIndexOf('time-travel info gear-world-registry') -ge 0) 'hub register: restore point read before the change'
@@ -3600,7 +3633,7 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         Check ((Run-V @('-Step', 'register', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB ZGW SEARCH')) -eq 0 -and (VCount '--file') -eq 1 -and (VLast).Contains('ήδη στη λίστα')) 'hub register twice: the row is there, nothing runs again'
         # remove-preview: the test Worker goes, from a new empty folder (L83)
         Check ((Run-V @('-Step', 'remove-preview')) -eq 0 -and (VCount 'delete gear-world-hub-preview') -eq 0) 'hub remove-preview without -Apply: nothing deleted'
-        Check ((Run-V @('-Step', 'remove-preview', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB ROBOTS LIVE')) -eq 1 -and (VCount 'delete gear-world-hub-preview') -eq 0) 'hub remove-preview with the live phrase: nothing deleted'
+        Check ((Run-V @('-Step', 'remove-preview', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB SECURITY LIVE')) -eq 1 -and (VCount 'delete gear-world-hub-preview') -eq 0) 'hub remove-preview with the live phrase: nothing deleted'
         $deploysNow = VCount 'deploy --config'
         Check ((Run-V @('-Step', 'remove-preview', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB REMOVE PREVIEW')) -eq 0 -and (VCount 'delete gear-world-hub-preview') -eq 1 -and (VCount 'deploy --config') -eq $deploysNow) 'hub remove-preview with approval: deletes only the test Worker, no deploy'
         Check (-not ((VCalls) -match 'delete gear-world-hub(\s|$)')) 'hub remove-preview: the live Worker is never named'
@@ -4913,6 +4946,237 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         Remove-Item -LiteralPath (Join-Path $nxState 'wrong.flag') -Force
         & $exe -NoProfile -ExecutionPolicy Bypass -File $nxRunner -LocalRepo $repo -Tool d1-native-index -WorkDir $nxWork -OutDir $nxOut -SkipInstall -NoClipboard | Out-Null
         Check ($LASTEXITCODE -eq 0) 'd1 index: runs through gw-run'
+    } finally {
+        $env:PATH = $oldPath
+        Remove-Item Env:\GW_FAKE_STATE -ErrorAction SilentlyContinue
+    }
+}
+
+# 24. Security fixes of 8/11/2026 (lessons L106): TLS 1.2 in every tool with web requests, the Cloudflare challenge on
+#     /out/ in the 6 engine tools, and gw-security-fixes.ps1 (Turnstile keys, unused secrets, old widgets) with a fake wrangler
+Write-Host 'TLS 1.2 in every tool that makes web requests (L106)'
+$webPattern = 'Invoke-WebRequest|Invoke-RestMethod|HttpWebRequest|Net\.WebClient|WebRequest\]::Create'
+$tlsLine = '[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12'
+$noTls = @()
+foreach ($f in $psFiles) {
+    if ($f.FullName -match '[\\/]tests[\\/]') { continue }
+    $t = [System.IO.File]::ReadAllText($f.FullName)
+    if ($t -match $webPattern -and -not $t.Contains($tlsLine)) { $noTls += $f.Name }
+}
+foreach ($n in $noTls) { Write-Host ('    without TLS 1.2: ' + $n) -ForegroundColor Yellow }
+Check ($noTls.Count -eq 0) 'every .ps1 that makes web requests sets TLS 1.2 (L106)'
+Check ((('$r = Invoke-' + 'RestMethod -Uri https://api.github.com') -match $webPattern) -and (('$q = [System.Net.Http' + 'WebRequest]::Create($u)') -match $webPattern)) 'the TLS 1.2 check finds a web request'
+
+Write-Host 'Cloudflare challenge on /out/ in the engine tools (L106)'
+$chTexts = @()
+foreach ($code in @('cgw', 'mgw', 'wgw', 'kgw', 'hgw', 'ggw')) {
+    $p = Join-Path (Join-Path $repo 'tools') ($code + '-engine.ps1')
+    $tk = $null; $pe = $null
+    $ast = [System.Management.Automation.Language.Parser]::ParseFile($p, [ref]$tk, [ref]$pe)
+    $fn = $ast.Find({ param($node) ($node -is [System.Management.Automation.Language.FunctionDefinitionAst]) -and ($node.Name -eq 'Test-CloudflareChallenge') }, $true)
+    Check ($null -ne $fn) ('challenge check in ' + $code + '-engine.ps1')
+    if ($null -ne $fn) { $chTexts += $fn.Extent.Text }
+    $t = [System.IO.File]::ReadAllText($p)
+    Check ((-not ($t -match 'Invoke-(WebRequest|RestMethod)[^\r\n]*/out/')) -and $t.Contains("`$req.Method = 'HEAD'") -and $t.Contains('Test-CloudflareChallenge ([int]$er.StatusCode) $er.Headers)) { $challenge = $true; $er.Close() } else { throw }')) ($code + '-engine: /out/ only with HEAD (never a GET); any other error stays a problem')
+    Check ($t.Contains('Κουμπί καταστήματος: ΕΝΤΑΞΕΙ - η προστασία του Cloudflare στο /out/ ζητά έλεγχο από ρομπότ: κανονικό, οι κανονικοί επισκέπτες περνάνε')) ($code + '-engine: the challenge is reported as OK, in words')
+}
+Check ((@($chTexts | Select-Object -Unique)).Count -eq 1) 'the same challenge check in the 6 engine tools'
+if ($chTexts.Count -gt 0) {
+    . ([scriptblock]::Create($chTexts[0]))
+    $hA = New-Object System.Net.WebHeaderCollection
+    $hA.Add('Server', 'cloudflare')
+    $hA.Add('cf-mitigated', 'challenge')
+    $hB = New-Object System.Net.WebHeaderCollection
+    $hB.Add('Server', 'cloudflare')
+    $hB.Add('cf-chl-bypass', '1')
+    $hC = New-Object System.Net.WebHeaderCollection
+    $hC.Add('Server', 'cloudflare')
+    $hD = New-Object System.Net.WebHeaderCollection
+    $hD.Add('Server', 'nginx')
+    $hD.Add('cf-chl-bypass', '1')
+    Check (Test-CloudflareChallenge 403 $hA) 'challenge: a 403 with cf-mitigated: challenge is the Cloudflare check (OK)'
+    Check (Test-CloudflareChallenge 403 $hB) 'challenge: a Cloudflare 403 with a cf-chl header is the check too'
+    Check (-not (Test-CloudflareChallenge 403 $hC)) 'challenge: a plain Cloudflare 403 stays a problem'
+    Check (-not (Test-CloudflareChallenge 403 $hD)) 'challenge: a 403 that is not from Cloudflare stays a problem'
+    Check (-not (Test-CloudflareChallenge 500 $hA)) 'challenge: a 500 stays a problem, even with the header'
+    Check (-not (Test-CloudflareChallenge 403 $null)) 'challenge: no headers is a problem'
+}
+
+if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
+    Write-Host 'gw-security-fixes.ps1 (fake wrangler)'
+    $sfTool = Join-Path (Join-Path $repo 'tools') 'gw-security-fixes.ps1'
+    $sfState = Join-Path $work 'sf-state'
+    $sfBin = Join-Path $work 'sf-bin'
+    $sfWork = Join-Path $work 'sf-work'
+    $sfOut = Join-Path $work 'sf-out'
+    New-Item -ItemType Directory -Path $sfState, $sfBin -Force | Out-Null
+    $sfVer = [guid]::NewGuid().ToString()
+    $sfSite1 = '0x4FAKEsiteONEaaaaaaaa'
+    $sfSite2 = '0x4FAKEsiteTWOaaaaaaaa'
+    $sfSecret1 = '0x4FAKEsecretONE' + ('b' * 20)
+    $sfSecret2 = '0x4FAKEsecretTWO' + ('b' * 20)
+    # The misnamed secret: its NAME is TURNSTILE_SECRET_KEY followed by a (here made-up) secret value.
+    $sfMis = 'TURNSTILE_SECRET_KEY' + '0x4FAKEoldGARDENsecret' + ('c' * 14)
+    $sfOld = '0x4FAKEoldGARDENcccc'
+    $sfMixed = '0x4FAKEmixeddddddddd'
+    $sfOther = '0x4FAKEotherrrrrrrrr'
+    $sfW1Hosts = @('gearworldhub.com', 'constructiongearworld.com', 'mensgearworld.com', 'womensgearworld.com', 'kidsgearworld.com', 'homegearworld.com', 'gardengearworld.com', 'technologygearworld.com', 'cargearworld.com', 'travelgearworld.com')
+    $sfW2Hosts = @('sportygearworld.com', 'bikergearworld.com', 'gaminggearworld.com', 'petsgearworld.com')
+    $sfWorkers = @('gear-world-hub', 'construction-gear-uk', 'mens-gear-world', 'womens-gear-world', 'kids-gear-world', 'home-gear-world', 'garden-gear-world', 'technology-gear-world', 'car-gear-world', 'travel-gear-world', 'sporty-gear-world', 'biker-gear-world', 'gaming-gear-world', 'pets-gear-world')
+    function SFJson([string[]]$names) { return '[' + ((@($names | Where-Object { $_ }) | ForEach-Object { '{"name":"' + $_ + '","type":"secret_text"}' }) -join ',') + ']' }
+    function SFHosts([string[]]$h) { return '[' + ((@($h) | ForEach-Object { '"' + $_ + '"' }) -join ',') + ']' }
+    # Secret names before (s-), after the Turnstile step (p-) and after the clean-up (a-).
+    foreach ($w in $sfWorkers) {
+        $before = @('ADMIN_TOKEN')
+        $after = @('ADMIN_TOKEN')
+        $ts = @('TURNSTILE_SITE_KEY')
+        if ($w -eq 'gear-world-hub') { $before = @('MAILERLITE_API_KEY', 'PHOTO_LIMIT_SALT', 'GW_INTERNAL_TOKEN'); $after = @('MAILERLITE_API_KEY', 'PHOTO_LIMIT_SALT'); $ts = @('TURNSTILE_SECRET_KEY', 'TURNSTILE_SECRET_KEY_2', 'TURNSTILE_SITE_KEY') }
+        if ($w -eq 'garden-gear-world') { $before = @('ADMIN_TOKEN', 'TURNSTILE_SECRET_KEY', $sfMis, 'GW_INTERNAL_TOKEN') }
+        if ($w -eq 'construction-gear-uk') { $before = @('ADMIN_TOKEN', 'CGW_ADMIN_TOKEN', 'TURNSTILE_SECRET_KEY') }
+        if ($w -eq 'home-gear-world') { $before = @('ADMIN_TOKEN', 'HGW_ADMIN_TOKEN', 'SOMETHING_ELSE'); $after = @('ADMIN_TOKEN', 'SOMETHING_ELSE') }
+        Write-Utf8 (Join-Path $sfState ('s-' + $w + '.json')) (SFJson $before)
+        Write-Utf8 (Join-Path $sfState ('p-' + $w + '.json')) (SFJson (@($before) + @($ts)))
+        Write-Utf8 (Join-Path $sfState ('a-' + $w + '.json')) (SFJson (@($after) + @($ts)))
+    }
+    $sfW1 = '{"sitekey":"' + $sfSite1 + '","secret":"' + $sfSecret1 + '","name":"Gear World sign-up 1","domains":' + (SFHosts $sfW1Hosts) + ',"mode":"managed"}'
+    $sfW2 = '{"sitekey":"' + $sfSite2 + '","secret":"' + $sfSecret2 + '","name":"Gear World sign-up 2","domains":' + (SFHosts $sfW2Hosts) + ',"mode":"managed"}'
+    $sfOldW = '{"sitekey":"' + $sfOld + '","name":"Garden newsletter","domains":["gardengearworld.com","www.gardengearworld.com"],"mode":"managed"}'
+    $sfMixedW = '{"sitekey":"' + $sfMixed + '","name":"Shared","domains":["gardengearworld.com","example.org"],"mode":"managed"}'
+    $sfOtherW = '{"sitekey":"' + $sfOther + '","name":"Other site","domains":["example.org"],"mode":"managed"}'
+    Write-Utf8 (Join-Path $sfState 'w1.json') $sfW1
+    Write-Utf8 (Join-Path $sfState 'w2.json') $sfW2
+    Write-Utf8 (Join-Path $sfState 'widgets.json') ('[' + $sfOldW + ',' + $sfMixedW + ',' + $sfOtherW + ']')
+    Write-Utf8 (Join-Path $sfState 'widgets-after.json') ('[' + ($sfW1 -replace ',"secret":"[^"]*"', '') + ',' + ($sfW2 -replace ',"secret":"[^"]*"', '') + ',' + $sfOldW + ',' + $sfMixedW + ',' + $sfOtherW + ']')
+    $sfNpx = @(
+        '@echo off',
+        'echo %* >> "%GW_FAKE_STATE%\calls.log"',
+        'echo %* | findstr /L /C:"whoami" >nul && goto whoami',
+        'echo %* | findstr /L /C:"secret list" >nul && goto secretlist',
+        'echo %* | findstr /L /C:"secret put" >nul && goto secretput',
+        'echo %* | findstr /L /C:"secret delete" >nul && goto secretdelete',
+        'echo %* | findstr /L /C:"deployments list" >nul && goto deployments',
+        'echo %* | findstr /L /C:"widget list" >nul && goto widgetlist',
+        'echo %* | findstr /L /C:"widget create" >nul && goto widgetcreate',
+        'echo %* | findstr /L /C:"widget get" >nul && goto widgetget',
+        'echo %* | findstr /L /C:"widget delete" >nul && goto widgetdelete',
+        'echo unknown command 1>&2',
+        'exit /b 1',
+        ':whoami',
+        'echo You are logged in with an OAuth Token, associated with the email test@example.com.',
+        'exit /b 0',
+        ':secretlist',
+        'set "GWF=%GW_FAKE_STATE%\s-%6.json"',
+        'if exist "%GW_FAKE_STATE%\put.flag" set "GWF=%GW_FAKE_STATE%\p-%6.json"',
+        'if exist "%GW_FAKE_STATE%\after.flag" set "GWF=%GW_FAKE_STATE%\a-%6.json"',
+        'if exist "%GWF%" (type "%GWF%") else (echo [])',
+        'exit /b 0',
+        ':secretput',
+        'set "GWSECRET="',
+        'for /f "usebackq delims=" %%L in (`more`) do if not defined GWSECRET set "GWSECRET=%%L"',
+        '>>"%GW_FAKE_STATE%\puts.log" echo %7 %5 %GWSECRET%',
+        'echo x> "%GW_FAKE_STATE%\put.flag"',
+        'echo Success! Uploaded secret %5',
+        'exit /b 0',
+        ':secretdelete',
+        'echo x> "%GW_FAKE_STATE%\after.flag"',
+        'echo Success! Deleted secret %5',
+        'exit /b 0',
+        ':deployments',
+        ('echo Version(s):  (100%%) ' + $sfVer),
+        'exit /b 0',
+        ':widgetlist',
+        'if exist "%GW_FAKE_STATE%\nowidgets.flag" goto widgetfail',
+        'if exist "%GW_FAKE_STATE%\created.flag" (type "%GW_FAKE_STATE%\widgets-after.json") else (type "%GW_FAKE_STATE%\widgets.json")',
+        'exit /b 0',
+        ':widgetfail',
+        'echo X [ERROR] A request to the Cloudflare API failed. Unauthorized to access requested resource [code: 9109] 1>&2',
+        'exit /b 1',
+        ':widgetcreate',
+        'echo x> "%GW_FAKE_STATE%\created.flag"',
+        'echo %* | findstr /L /C:"sign-up 1" >nul && goto w1',
+        'type "%GW_FAKE_STATE%\w2.json"',
+        'exit /b 0',
+        ':widgetget',
+        ('echo %* | findstr /L /C:"' + $sfSite1 + '" >nul && goto w1'),
+        'type "%GW_FAKE_STATE%\w2.json"',
+        'exit /b 0',
+        ':w1',
+        'type "%GW_FAKE_STATE%\w1.json"',
+        'exit /b 0',
+        ':widgetdelete',
+        'echo Deleted widget',
+        'exit /b 0'
+    ) -join "`r`n"
+    [System.IO.File]::WriteAllText((Join-Path $sfBin 'npx.cmd'), $sfNpx + "`r`n", [System.Text.Encoding]::ASCII)
+    $oldPath = $env:PATH
+    $env:PATH = $sfBin + ';' + $oldPath
+    $env:GW_FAKE_STATE = $sfState
+    $sfCalls = Join-Path $sfState 'calls.log'
+    $sfPuts = Join-Path $sfState 'puts.log'
+    $script:sfConsole = ''
+    function Run-SF([string[]]$a) {
+        $all = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $sfTool, '-WorkDir', $sfWork, '-OutDir', $sfOut, '-SkipInstall', '-NoClipboard', '-NoHttpCheck') + $a
+        $o = & $exe @all | Out-String
+        $c = $LASTEXITCODE
+        $script:sfConsole += $o
+        return $c
+    }
+    function SFText([string]$p) { if (Test-Path -LiteralPath $p) { return [System.IO.File]::ReadAllText($p) } else { return '' } }
+    function SFCount([string]$pattern) { return ([regex]::Matches((SFText $sfCalls), $pattern)).Count }
+    function SFLast([string]$filter) {
+        $f = @(Get-ChildItem -LiteralPath $sfOut -Filter $filter -ErrorAction SilentlyContinue | Sort-Object LastWriteTime, Name | Select-Object -Last 1)
+        if ($f.Count -eq 0) { return '' }
+        return [System.IO.File]::ReadAllText($f[0].FullName)
+    }
+    # Every report, note and line on the screen: never a secret value, never the misnamed name.
+    function SFLeaks {
+        $all = $script:sfConsole
+        foreach ($d in @($sfOut, (Join-Path $sfWork 'backups'))) {
+            foreach ($f in @(Get-ChildItem -LiteralPath $d -File -ErrorAction SilentlyContinue)) { $all += [System.IO.File]::ReadAllText($f.FullName) }
+        }
+        return ($all.Contains($sfMis) -or $all.Contains($sfSecret1) -or $all.Contains($sfSecret2) -or $all.Contains('0x4FAKEoldGARDENsecret'))
+    }
+    $sfChanges = 'secret put|secret delete|widget create|widget delete'
+    $ell = [string][char]0x2026
+    try {
+        Check ((Run-SF @()) -eq 0) 'security check: exit 0'
+        Check ((SFCount $sfChanges) -eq 0 -and (SFCount 'secret list --name') -eq 14) 'security check: only reads (the secret names of the 14 Workers), changes nothing'
+        $r = SFLast 'GW_SECURITY_CHECK_*.txt'
+        Check ($r.Contains('θα σβηστεί: GW_INTERNAL_TOKEN') -and $r.Contains('θα σβηστεί: CGW_ADMIN_TOKEN') -and $r.Contains('θα σβηστεί: HGW_ADMIN_TOKEN') -and $r.Contains('ΕΓΚΡΙΝΩ TURNSTILE') -and $r.Contains('ΕΓΚΡΙΝΩ ΔΙΑΓΡΑΦΗ ΜΥΣΤΙΚΩΝ') -and $r.Contains('ΕΓΚΡΙΝΩ ΔΙΑΓΡΑΦΗ ΠΑΛΙΩΝ TURNSTILE')) 'security check: the plan with what goes and the three phrases'
+        Check ($r.Contains('TURNSTILE_SECRET_KEY' + $ell + ' (το όνομα') -and -not (SFLeaks)) 'security check: the misnamed secret shows only as TURNSTILE_SECRET_KEY... (F07)'
+        Check (-not ($r -match 'θα σβηστεί: (ADMIN_TOKEN|MAILERLITE_API_KEY|PHOTO_LIMIT_SALT|SOMETHING_ELSE)')) 'security check: what the code reads, and unknown names, stay'
+        Check ((Run-SF @('-Step', 'old-widgets', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ ΔΙΑΓΡΑΦΗ ΠΑΛΙΩΝ TURNSTILE')) -eq 8 -and (SFCount 'widget delete') -eq 0) 'old widgets before the new ones exist: refused, nothing deleted'
+        Write-Utf8 (Join-Path $sfState 'nowidgets.flag') 'x'
+        Check ((Run-SF @('-Step', 'turnstile', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ TURNSTILE')) -eq 5 -and (SFCount $sfChanges) -eq 0) 'turnstile: widgets not readable (older login): stops, nothing changes'
+        Check ((SFLast 'GW_SECURITY_TURNSTILE_*.txt').Contains('https://dash.cloudflare.com/?to=/:account/turnstile') -and (SFLast 'GW_SECURITY_TURNSTILE_*.txt').Contains('-Manual')) 'turnstile: says to log in again, or -Manual with the dashboard link'
+        Remove-Item -LiteralPath (Join-Path $sfState 'nowidgets.flag') -Force
+        Check ((Run-SF @('-Step', 'turnstile')) -eq 0 -and (SFCount $sfChanges) -eq 0) 'turnstile without -Apply: plan only'
+        Check ((Run-SF @('-Step', 'turnstile', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ ΔΙΑΓΡΑΦΗ ΜΥΣΤΙΚΩΝ')) -eq 1 -and (SFCount $sfChanges) -eq 0) 'turnstile with the wrong phrase: nothing changes'
+        Check ((Run-SF @('-Step', 'turnstile', '-Apply', '-Approve', 'Εγκρίνω turnstile')) -eq 0) 'turnstile with approval: exit 0'
+        $c = SFText $sfCalls
+        Check ($c.Contains('widget create "Gear World sign-up 1" --domain ' + ($sfW1Hosts -join ' --domain ') + ' --mode managed --json') -and $c.Contains('widget create "Gear World sign-up 2" --domain ' + ($sfW2Hosts -join ' --domain ') + ' --mode managed --json')) 'turnstile: two widgets, at most 10 hostnames each, the Hub and all 13 sites'
+        $pl = @((SFText $sfPuts) -split "`r?`n" | Where-Object { $_.Trim() } | ForEach-Object { $_.Trim() })
+        Check ($pl.Count -eq 16 -and ($pl -contains ('gear-world-hub TURNSTILE_SECRET_KEY ' + $sfSecret1)) -and ($pl -contains ('gear-world-hub TURNSTILE_SECRET_KEY_2 ' + $sfSecret2)) -and ($pl -contains ('gear-world-hub TURNSTILE_SITE_KEY ' + $sfSite1)) -and ($pl -contains ('garden-gear-world TURNSTILE_SITE_KEY ' + $sfSite1)) -and ($pl -contains ('sporty-gear-world TURNSTILE_SITE_KEY ' + $sfSite2)) -and ($pl -contains ('pets-gear-world TURNSTILE_SITE_KEY ' + $sfSite2))) 'turnstile: the Hub gets both secret keys and its sitekey, each site the sitekey of its widget'
+        Check (-not $c.Contains($sfSecret1) -and -not $c.Contains($sfSecret2) -and -not (SFLeaks)) 'turnstile: the secret keys only through standard input, never on a command line, the screen, a report or a note'
+        $note = @(Get-ChildItem -LiteralPath (Join-Path $sfWork 'backups') -Filter 'turnstile-before-*.txt' -ErrorAction SilentlyContinue)
+        Check ($note.Count -eq 1 -and ([System.IO.File]::ReadAllText($note[0].FullName)).Contains('npx wrangler rollback ' + $sfVer + ' --name pets-gear-world') -and $c.IndexOf('deployments list') -lt $c.IndexOf('secret put')) 'turnstile: the live version of each Worker noted first, with the rollback'
+        Check ((SFLast 'GW_SECURITY_TURNSTILE_*.txt').Contains('ΕΤΟΙΜΟ')) 'turnstile: report ready'
+        Check ((Run-SF @('-Step', 'turnstile', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ TURNSTILE')) -eq 0 -and (SFCount 'widget create') -eq 2 -and (SFCount 'widget get') -eq 2 -and -not (SFLeaks)) 'turnstile again: the two widgets are found and kept (no new ones)'
+        Check ((Run-SF @('-Step', 'secrets')) -eq 0 -and (SFCount 'secret delete') -eq 0) 'secrets without -Apply: plan only'
+        Check ((Run-SF @('-Step', 'secrets', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ TURNSTILE')) -eq 1 -and (SFCount 'secret delete') -eq 0) 'secrets with the wrong phrase: nothing deleted'
+        Check ((Run-SF @('-Step', 'secrets', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ ΔΙΑΓΡΑΦΗ ΜΥΣΤΙΚΩΝ')) -eq 0) 'secrets with approval: exit 0'
+        $c = SFText $sfCalls
+        Check ((SFCount 'secret delete') -eq 7 -and $c.Contains('secret delete GW_INTERNAL_TOKEN --name gear-world-hub') -and $c.Contains('secret delete CGW_ADMIN_TOKEN --name construction-gear-uk') -and $c.Contains('secret delete TURNSTILE_SECRET_KEY --name construction-gear-uk') -and $c.Contains('secret delete HGW_ADMIN_TOKEN --name home-gear-world') -and $c.Contains('secret delete TURNSTILE_SECRET_KEY --name garden-gear-world') -and $c.Contains('secret delete ' + $sfMis + ' --name garden-gear-world')) 'secrets: the 7 unused ones go, the misnamed one too'
+        Check ((SFCount 'secret delete (MAILERLITE_API_KEY|PHOTO_LIMIT_SALT|ADMIN_TOKEN|SOMETHING_ELSE|TURNSTILE_SITE_KEY|TURNSTILE_SECRET_KEY_2) ') -eq 0 -and (SFCount 'secret delete TURNSTILE_SECRET_KEY --name gear-world-hub') -eq 0) 'secrets: never one that the code reads (the Hub keeps its Turnstile keys)'
+        Check (-not (SFLeaks) -and (SFLast 'GW_SECURITY_SECRETS_*.txt').Contains('TURNSTILE_SECRET_KEY' + $ell)) 'secrets: the misnamed name never on the screen, in a report or a note (F07)'
+        $note = @(Get-ChildItem -LiteralPath (Join-Path $sfWork 'backups') -Filter 'secrets-before-*.txt' -ErrorAction SilentlyContinue)
+        Check ($note.Count -eq 1 -and ([System.IO.File]::ReadAllText($note[0].FullName)).Contains('npx wrangler rollback ' + $sfVer + ' --name garden-gear-world') -and $c.LastIndexOf('deployments list') -lt $c.IndexOf('secret delete')) 'secrets: the names and live versions noted before the first delete'
+        Check ((Run-SF @('-Step', 'old-widgets')) -eq 0 -and (SFCount 'widget delete') -eq 0) 'old widgets without -Apply: plan only'
+        $r = SFLast 'GW_SECURITY_OLD_WIDGETS_*.txt'
+        Check ($r.Contains($sfOld) -and $r.Contains('ΔΕΝ σβήνεται «Shared»')) 'old widgets: the old Garden widget goes; one shared with another site stays'
+        Check ((Run-SF @('-Step', 'old-widgets', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ TURNSTILE')) -eq 1 -and (SFCount 'widget delete') -eq 0) 'old widgets with the wrong phrase: nothing deleted'
+        Check ((Run-SF @('-Step', 'old-widgets', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ ΔΙΑΓΡΑΦΗ ΠΑΛΙΩΝ TURNSTILE')) -eq 0) 'old widgets with approval: exit 0'
+        Check ((SFCount 'widget delete') -eq 1 -and (SFCount ('widget delete ' + $sfOld + ' --skip-confirmation')) -eq 1) 'old widgets: only the old Garden widget is deleted (not ours, not shared, not another site)'
     } finally {
         $env:PATH = $oldPath
         Remove-Item Env:\GW_FAKE_STATE -ErrorAction SilentlyContinue

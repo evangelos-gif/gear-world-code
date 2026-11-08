@@ -73,7 +73,7 @@ test('the site code and settings: no shop or partner wording in what pages show 
     assert.ok(!/visually-hidden">Buy</.test(code), `${f}: a hidden "Buy" header`);
   }
   for (const c of CODES) {
-    assert.match(readFileSync(`sites/${c}/site.config.js`, 'utf8'), new RegExp(`assetVersion: '2026-11-08-${c}-cleanup-\\d+'`), `${c}: a new asset version for the new dictionaries (L31)`);
+    assert.match(readFileSync(`sites/${c}/site.config.js`, 'utf8'), new RegExp(`assetVersion: '2026-11-08-${c}-(cleanup|security)-\\d+'`), `${c}: a new asset version for the new dictionaries (L31; -security- for L106)`);
     // The served script, stylesheet and icons have no shop words even in a comment, and no shopping-cart drawing.
     for (const f of ['site.js', 'site.css', 'icons.svg']) {
       const text = readFileSync(`sites/${c}/public/assets/${f}`, 'utf8');
@@ -222,7 +222,9 @@ test('the Hub legal pages say what is there: no affiliate links on the Hub, who 
   assert.match(disc, /The Hub itself has no affiliate links and no paid placements\./);
   assert.match(disc, /take you to pages of the Gear World sites, never straight to a retailer/);
   const priv = readFileSync(`${PUB}/privacy/index.html`, 'utf8');
-  assert.match(priv, /<p class="lg-updated">Last updated: 7 November 2026<\/p>/);
+  // 8/11/2026 (L106): the sign-up forms use Cloudflare Turnstile, so the date moved on with the text.
+  assert.match(priv, /<p class="lg-updated">Last updated: 8 November 2026<\/p>/);
+  assert.match(priv, /also use Cloudflare Turnstile/);
   assert.match(priv, /The Hub itself has no affiliate links; the links to retailers on those sites go through the Awin affiliate network\./);
   const terms = readFileSync(`${PUB}/terms/index.html`, 'utf8');
   assert.match(terms, /<p class="lg-updated">Last updated: 7 November 2026<\/p>/);
@@ -233,8 +235,9 @@ test('the Hub legal pages say what is there: no affiliate links on the Hub, who 
     const text = readFileSync(f, 'utf8');
     assert.ok(!/awin1\.com|\/out\/\d|\/go\/[a-z0-9]/.test(text), `${f}: an affiliate link`);
   }
-  // The sites: privacy, cookies and terms changed on 7/11/2026 (L101), so their date says so.
-  assert.match(readFileSync('src/pages/info.js', 'utf8'), /const UPDATED = '7 November 2026';/);
+  // The sites: privacy, cookies and terms changed on 7/11/2026 (L101) and again on 8/11/2026 (Turnstile on the
+  // "Get deal updates" form, L106), so their date says so.
+  assert.match(readFileSync('src/pages/info.js', 'utf8'), /const UPDATED = '8 November 2026';/);
 });
 
 function hub() {
@@ -287,11 +290,11 @@ test('the Hub sitemap has /about/ (owner, 7/11/2026); the tools ask this release
   const body = await sitemapBody('new');
   assert.ok(body.includes('<loc>https://gearworldhub.com/about/</loc>'));
   const hubTool = readFileSync('tools/gwh-hub-v2.ps1', 'utf8');
-  // The release after this one (L105, robots.txt) asks its own phrases.
-  assert.ok(hubTool.includes("$PhrasePreview = 'ΕΓΚΡΙΝΩ HUB ROBOTS PREVIEW'") && hubTool.includes("$PhraseLive = 'ΕΓΚΡΙΝΩ HUB ROBOTS LIVE'"));
+  // The releases after this one ask their own phrases (L105 robots.txt: HUB ROBOTS; L106 security fixes: HUB SECURITY).
+  assert.ok(hubTool.includes("$PhrasePreview = 'ΕΓΚΡΙΝΩ HUB SECURITY PREVIEW'") && hubTool.includes("$PhraseLive = 'ΕΓΚΡΙΝΩ HUB SECURITY LIVE'"));
   assert.ok(hubTool.includes("$PhraseRemovePreview = 'ΕΓΚΡΙΝΩ HUB REMOVE PREVIEW'"));
   const tests = readFileSync('tests/run-tests.ps1', 'utf8');
-  assert.ok(tests.includes("'egkrino hub robots preview'") && tests.includes("'egkrino hub robots live'") && !/HUB WORDING|hub wording|HUB CLEANUP|hub cleanup/.test(tests));
+  assert.ok(tests.includes("'egkrino hub security preview'") && tests.includes("'egkrino hub security live'") && !/HUB WORDING|hub wording|HUB CLEANUP|hub cleanup|HUB ROBOTS|hub robots/.test(tests));
   const sitesTool = readFileSync('tools/ads-fixes-sites.ps1', 'utf8');
   assert.ok(sitesTool.includes("$Phrase = 'ΕΓΚΡΙΝΩ ADS FIXES'"));
   assert.ok(sitesTool.includes("'Browse by category'") && sitesTool.includes('data-i18n-keep="0"'), 'the live check looks for the L103 wording');

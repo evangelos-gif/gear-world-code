@@ -1,6 +1,7 @@
 // Gear World sites (shared by every site on the engine; TGW keeps the master copy). One small script; every page also works without it.
 // Parts: language (L24, with country names for "Delivers to", L62), currency (L25), saved list (L26, L101), compare (L23),
-// voice search, newsletter, discount codes (L32), the seasonal banner of the deals pages.
+// voice search, newsletter, the Turnstile check of "Get deal updates" (L106), discount codes (L32), the seasonal banner of
+// the deals pages.
 (function () {
   'use strict';
 
@@ -451,6 +452,56 @@
     });
   }
 
+  // ---------- "Get deal updates": Cloudflare Turnstile (lessons L07, L106) ----------
+  // The box stays a normal form post. Turnstile loads only when the visitor starts using the box (nothing loads for
+  // anyone else); its token goes with the form (the hidden field cf-turnstile-response) and the Hub checks it. A form
+  // sent before the check has finished waits, with a short note.
+  function setupDealUpdates() {
+    var form = document.querySelector('form.deal-form');
+    var box = form ? form.querySelector('[data-du-turnstile]') : null;
+    if (!form || !box) return;
+    var status = form.querySelector('[data-du-status]');
+    var state = 'idle';
+    var widget = null;
+    function show(text) {
+      if (!status) return;
+      status.textContent = text;
+      status.hidden = false;
+    }
+    function load() {
+      if (state !== 'idle') return;
+      state = 'loading';
+      window.gwDealTurnstileReady = function () {
+        try {
+          widget = window.turnstile.render(box, {
+            sitekey: box.getAttribute('data-sitekey'),
+            action: box.getAttribute('data-action') || 'deal-updates',
+            size: form.clientWidth >= 300 ? 'flexible' : 'compact',
+            callback: function () { if (status) status.hidden = true; }
+          });
+          state = 'ready';
+        } catch (e) {
+          state = 'failed';
+        }
+      };
+      var s = document.createElement('script');
+      s.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit&onload=gwDealTurnstileReady';
+      s.async = true;
+      s.defer = true;
+      s.onerror = function () { state = 'failed'; };
+      document.head.appendChild(s);
+    }
+    form.addEventListener('focusin', load);
+    form.addEventListener('pointerdown', load);
+    form.addEventListener('submit', function (ev) {
+      var token = window.turnstile && widget !== null ? window.turnstile.getResponse(widget) : '';
+      if (token) return;
+      ev.preventDefault();
+      load();
+      show(t(state === 'failed' ? 'The security check failed. Reload the page and try again.' : 'Wait for the security check to finish, then try again.'));
+    });
+  }
+
   // ---------- Discount codes: "Copy code" (lessons L32) ----------
   function setupCopy() {
     var buttons = document.querySelectorAll('[data-copy]');
@@ -555,6 +606,7 @@
     setupCompare();
     setupVoice();
     setupNewsletter();
+    setupDealUpdates();
     setupCopy();
     setupSeason();
     root.setAttribute('data-ready', lang);

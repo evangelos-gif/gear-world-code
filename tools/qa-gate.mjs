@@ -71,6 +71,10 @@ function htmlChecks(path, res, { expectStatus = 200, indexable = true } = {}) {
   for (const hname of ['x-content-type-options', 'x-frame-options', 'referrer-policy', 'permissions-policy', 'strict-transport-security', 'content-security-policy']) {
     check('L06', res.headers.has(hname), `${path}: header ${hname}`);
   }
+  // Security fixes (lessons L106): HSTS one year with the subdomains (no preload); Turnstile loads only when someone
+  // starts to use the "Get deal updates" form, never with the page.
+  check('L106', res.headers.get('strict-transport-security') === 'max-age=31536000; includeSubDomains', `${path}: HSTS one year with the subdomains`, res.headers.get('strict-transport-security'));
+  check('L106', !/<script[^>]+challenges\.cloudflare\.com/.test(h), `${path}: Turnstile is not loaded with the page`);
   const kb = Buffer.byteLength(h) / 1024;
   check('L02', kb < 100, `${path}: HTML under 100 KB`, `${kb.toFixed(1)} KB`);
   const styleTags = all(h, /<style\b/g).length;

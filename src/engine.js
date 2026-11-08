@@ -1,5 +1,5 @@
 // Gear World shared Worker engine. A site's worker.js does: export default createWorker(siteConfig).
-import { htmlResponse, jsonResponse, textResponse, redirect, withEdgeCache, secureHeaders } from './lib/http.js';
+import { htmlResponse, jsonResponse, textResponse, redirect, withEdgeCache, withPathCache, secureHeaders } from './lib/http.js';
 import { verifyTurnstile, rateLimit, isBot, safeEqual } from './lib/security.js';
 import { productPath } from './lib/text.js';
 import * as db from './db.js';
@@ -30,6 +30,17 @@ export function hubBinding(env) {
 export function hubReady(env) {
   return Boolean(hubBinding(env));
 }
+// The public Turnstile sitekey of the "Get deal updates" box (security fixes F02, lessons L106). It is a Worker secret
+// TURNSTILE_SITE_KEY, set on every site by tools/gw-security-fixes.ps1 -Step turnstile (a sitekey is public, but this way
+// it needs no change in the code or the configs). The Hub checks the token with its own secret key. Without a valid
+// sitekey the box is not shown, because the Hub would refuse every sign-up.
+// How long one data centre keeps /api/stats (the visitor still gets the same answer and headers).
+export const STATS_CACHE_SECONDS = 3600;
+export const TURNSTILE_ACTION = 'deal-updates';
+export function turnstileSiteKey(env) {
+  const k = String((env && env.TURNSTILE_SITE_KEY) || '').trim();
+  return /^[0-9]x[0-9A-Za-z_-]{10,64}$/.test(k) ? k : '';
+}
 // A one-way key for the visitor's IP address, so the Hub can limit attempts without ever seeing the address.
 export async function clientKey(ip) {
   const bytes = new TextEncoder().encode('gw-deal-updates:' + String(ip || 'unknown'));
@@ -47,11 +58,14 @@ export function createWorker(site) {
   async function handle(request, env, ctx) {
     const url = new URL(request.url);
     const method = request.method;
+    const host = url.hostname.toLowerCase();
     // "Get deal updates" is on when this Worker can reach Gear World Hub (service binding HUB, lessons L92).
     site.dealUpdates = hubReady(env);
+    // The box itself needs the Turnstile sitekey too (F02, L106); never on a test address (it is not one of the widget's
+    // hostnames, and a test Worker must not sign anyone up).
+    site.dealTurnstileKey = site.dealUpdates && !isPreviewHost(host, site.domain) ? turnstileSiteKey(env) : '';
 
     // One canonical host (lessons L11): www and any other host redirect to the apex domain.
-    const host = url.hostname.toLowerCase();
     if (host === `www.${site.domain}`) {
       url.hostname = site.domain;
       return redirect(url.toString(), 301);
@@ -158,7 +172,7 @@ export function createWorker(site) {
       // nothing and a translation did, they are read again for the translated words.
       const [found, firstFacets] = q
         ? await Promise.all([
-          searchWithTranslation(env, { ...p, search: q }, { sort: p.sort, page: p.page, perPage: PER_PAGE }),
+          searchWithTranslation(env, { ...p, search: q }, { sort: p.sort, page: p.page, perPage: PER_PAGE }, translateOptions(request, url)),
           db.searchFacets(env.DB, q)
         ])
         : [{ result: { products: [], total: 0, page: 1, pages: 0 }, used: '' }, null];
@@ -223,9 +237,13 @@ export function createWorker(site) {
       return textResponse(sitemapProducts(site, rows), { type: 'application/xml', method });
     }
 
-    if (path === '/api/stats') return jsonResponse(await db.stats(env.DB), { cache: 'short' });
+    // Product and retailer counts (the Hub and the group page read them): one D1 query per data centre and hour (L106).
+    if (path === '/api/stats') {
+      return withPathCache(request, ctx, `${url.origin}/api/stats`, STATS_CACHE_SECONDS,
+        async () => jsonResponse(await db.stats(env.DB), { cache: 'short' }), env);
+    }
     if (path === '/api/fx') return jsonResponse(await exchangeRates(site, ctx), { cache: 'hour' });
-    if (path === '/api/products') return apiProducts(env, url);
+    if (path === '/api/products') return apiProducts(env, url, request);
     if (path === '/api/admin/clicks') return adminClicks(request, env, url);
 
     // Static assets (public/) are served by Cloudflare before the Worker runs; anything else is a 404.
@@ -233,12 +251,22 @@ export function createWorker(site) {
     return notFound(path, method);
   }
 
+  // When a model may translate a search (src/lib/hub.js, F03, lessons L106): never for a bot, and never when the Hub
+  // sends translate=0 (it has translated the words already, so the site would only pay for the same work again).
+  function translateOptions(request, url) {
+    return {
+      noAI: isBot(request) || url.searchParams.get('translate') === '0',
+      site: site.code.toLowerCase(),
+      origin: `https://${site.domain}`
+    };
+  }
+
   // A search that finds nothing on page 1 is tried once more with the Hub's English words (src/lib/hub.js).
-  async function searchWithTranslation(env, filters, opts) {
+  async function searchWithTranslation(env, filters, opts, translate = {}) {
     const result = await db.listProducts(env.DB, filters, opts);
     if (!filters.search || result.total > 0 || opts.page > 1) return { result, used: '', tried: [] };
     const tried = [];
-    for await (const candidate of translationsFor(env, filters.search)) {
+    for await (const candidate of translationsFor(env, filters.search, translate)) {
       tried.push(candidate);
       const second = await db.listProducts(env.DB, { ...filters, search: candidate }, opts);
       if (second.total > 0) return { result: second, used: candidate, tried };
@@ -262,8 +290,10 @@ export function createWorker(site) {
     // utm_campaign / utm_source of the visit (lessons L93) go to Awin as clickref2 / clickref3: clicks and sales per campaign.
     const target = affiliateTarget(product.affiliate_url, product.retailer, site.awin, clickRef, campaignRefs(url));
     if (!target) return redirect('/', 302);
-    // CLICK_LOG = "off" on a preview Worker that shares a live database: test clicks are not recorded.
-    if (request.method === 'GET' && !isBot(request) && env.CLICK_LOG !== 'off') {
+    // CLICK_LOG = "off" on a preview Worker that shares a live database: test clicks are not recorded. A test address
+    // (*.workers.dev, a preview URL) never records a click either: it is not behind the security rules of the real
+    // domain, so its clicks would be fake Awin clicks (security fixes F04, lessons L106).
+    if (request.method === 'GET' && !isBot(request) && env.CLICK_LOG !== 'off' && !isPreviewHost(url.hostname, site.domain)) {
       let pagePath = '';
       try {
         const ref = new URL(request.headers.get('referer') || '');
@@ -296,7 +326,7 @@ export function createWorker(site) {
     const awin = { publisherId: site.awinPublisherId, advertisers: { [promo.retailer]: promo.awinMid } };
     const target = affiliateTarget(promo.url, promo.retailer, awin, clickRef, campaignRefs(url));
     if (!target) return redirect(OFFERS_PATH, 302);
-    if (request.method === 'GET' && !isBot(request) && env.CLICK_LOG !== 'off') {
+    if (request.method === 'GET' && !isBot(request) && env.CLICK_LOG !== 'off' && !isPreviewHost(url.hostname, site.domain)) {
       let pagePath = '';
       try {
         const ref = new URL(request.headers.get('referer') || '');
@@ -321,13 +351,13 @@ export function createWorker(site) {
     return redirect(target.toString(), 302, { 'X-Robots-Tag': 'noindex, nofollow' });
   }
 
-  async function apiProducts(env, url) {
+  async function apiProducts(env, url, request) {
     const p = readListingParams(url);
     const limit = Math.min(60, Math.max(1, Number.parseInt(url.searchParams.get('limit') || '24', 10) || 24));
     const catParam = url.searchParams.get('category') || '';
     const cat = categories.get(catParam) || site.categories.find(c => c.name === catParam);
     const search = (url.searchParams.get('search') || url.searchParams.get('q') || '').slice(0, 80);
-    const { result, used, tried } = await searchWithTranslation(env, { ...p, category: cat ? cat.slug : '', search }, { sort: p.sort, page: p.page, perPage: limit });
+    const { result, used, tried } = await searchWithTranslation(env, { ...p, category: cat ? cat.slug : '', search }, { sort: p.sort, page: p.page, perPage: limit }, translateOptions(request, url));
     const origin = `https://${site.domain}`;
     return jsonResponse({
       ok: true,
@@ -372,7 +402,7 @@ export function createWorker(site) {
     try {
       if (isForm) {
         const f = await request.formData();
-        data = { email: f.get('email'), consent: f.get('consent') === 'yes' || f.get('consent') === 'on', page: f.get('page'), website: f.get('website') };
+        data = { email: f.get('email'), consent: f.get('consent') === 'yes' || f.get('consent') === 'on', page: f.get('page'), website: f.get('website'), turnstile_token: f.get('cf-turnstile-response') };
       } else {
         data = await request.json();
       }
@@ -388,15 +418,22 @@ export function createWorker(site) {
     const page = /^\/[^/\\]/.test(String(data.page || '')) || data.page === '/' ? String(data.page).slice(0, 200) : '/';
 
     if (hubReady(env)) {
+      // Turnstile (F02, lessons L07, L106): the widget's token goes to the Hub, which checks it with its secret key (it
+      // knows which hostname and form the token was made for). Without a token nothing is sent.
+      const token = String(data.turnstile_token || '').trim();
+      if (!token || token.length > 2048) return answer(false, 'The security check failed. Reload the page and try again.', 403);
       let r;
       try {
         const res = await hubBinding(env).fetch(HUB_SUBSCRIBE_URL, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email, consent: true, site: site.code.toLowerCase(), page, client: await clientKey(ip) })
+          body: JSON.stringify({ email, consent: true, site: site.code.toLowerCase(), page, client: await clientKey(ip), turnstile_token: token })
         });
         r = await res.json().catch(() => ({ ok: false }));
+        // The network's sign-ups of the day are full (F02): a friendly answer, try tomorrow.
+        if (r && r.error === 'limit_day') return answer(false, 'Sign-ups are full for today. Please try again tomorrow.', 429);
         if (res.status === 429 || (r && r.error === 'too_many')) return answer(false, 'Too many attempts. Try again in an hour.', 429);
+        if (r && (r.error === 'turnstile_failed' || r.error === 'turnstile_required')) return answer(false, 'The security check failed. Reload the page and try again.', 403);
       } catch {
         r = { ok: false };
       }
@@ -428,7 +465,7 @@ export function createWorker(site) {
 
   async function adminClicks(request, env, url) {
     const auth = request.headers.get('authorization') || '';
-    if (!env.ADMIN_TOKEN || !safeEqual(auth, `Bearer ${env.ADMIN_TOKEN}`)) {
+    if (!env.ADMIN_TOKEN || !(await safeEqual(auth, `Bearer ${env.ADMIN_TOKEN}`))) {
       return jsonResponse({ ok: false, error: 'Unauthorized' }, { status: 401 });
     }
     const days = Math.min(400, Math.max(1, Number.parseInt(url.searchParams.get('days') || '30', 10) || 30));

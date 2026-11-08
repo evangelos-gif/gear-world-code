@@ -284,10 +284,11 @@ export function searchForm(site, value = '', cls = '') {
 </form>`;
 }
 
-// "Get deal updates": a plain form (works without JavaScript). It is shown only when the site can pass the sign-up to
-// Gear World Hub (service binding HUB), which keeps the one list of members (lessons L92).
+// "Get deal updates": a plain form post. It is shown only when the site can pass the sign-up to Gear World Hub (service
+// binding HUB), which keeps the one list of members (lessons L92), and when it has its Turnstile sitekey (F02, L07,
+// L106): the site script loads Turnstile only when the visitor starts using the form, and its token goes with the form.
 function dealUpdates(site, path) {
-  if (!site.dealUpdates) return '';
+  if (!site.dealUpdates || !site.dealTurnstileKey) return '';
   return html`<section class="deal-updates" id="deal-updates" aria-labelledby="deal-updates-h">
   <div class="wrap deal-updates-row">
     <div class="deal-updates-text">
@@ -300,7 +301,9 @@ function dealUpdates(site, path) {
       <input type="hidden" name="page" value="${path || '/'}">
       <span class="du-hp" aria-hidden="true"><label for="du-website">Leave this empty</label><input id="du-website" name="website" type="text" tabindex="-1" autocomplete="off"></span>
       <label class="du-consent"><input type="checkbox" name="consent" value="yes" required> Email me deals from Gear World. <a href="/privacy/">Privacy policy</a></label>
+      <div class="du-turnstile" data-du-turnstile data-sitekey="${site.dealTurnstileKey}" data-action="deal-updates"></div>
       <button type="submit">Get deal updates</button>
+      <p class="du-status" data-du-status role="status" aria-live="polite" hidden></p>
     </form>
   </div>
 </section>`;

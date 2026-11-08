@@ -8,7 +8,12 @@
 // - No IP address arrives here: the site sends a one-way key of it, used only to limit attempts (5 an hour).
 // - The Rewards members of the older sites were added by tools/hub-members.ps1 with ml_status 'hold': they go to
 //   MailerLite only with the owner's approval (email step 6), like the first Hub sign-ups.
-import { syncOne } from './mailerlite.js';
+// - Security fixes of 8/11/2026 (F02, F03, lessons L106, security.js): every sign-up carries the Turnstile token of the
+//   site's box; the Hub checks it with the secret key of that site's widget, for that site's hostname and the form
+//   "deal-updates" (no token, or a bad one: nothing is written). The network's daily sign-up limit counts here too.
+//   POST https://hub.internal/internal/ai-slot gives the sites one place of the daily limit of translation-model calls.
+import { syncOne, dailySignupGate } from './mailerlite.js';
+import { checkToken, takeNetworkSlot, readLimit, SITE_DOMAINS, SITE_ACTION, DEFAULT_TRANSLATE_DAILY_LIMIT } from './security.js';
 
 export const INTERNAL_HOST = 'hub.internal';
 export const SITE_CODES = ['cgw', 'mgw', 'wgw', 'kgw', 'hgw', 'ggw', 'tgw', 'agw', 'vgw', 'sgw', 'bgw', 'pgw', 'zgw'];
@@ -33,9 +38,23 @@ async function allowed(db, key, now) {
   return !row || Number(row.hits) <= RATE_LIMIT;
 }
 
-// POST https://hub.internal/internal/subscribe { email, consent, site, page, client } from a site's Worker.
-export async function handleInternal(request, env, ctx, { now = Date.now(), sync = syncOne } = {}) {
+// POST https://hub.internal/internal/ai-slot { site }: one place of the network's daily limit of calls to the translation
+// models (F03). { ok: false } when the day is full or the counter cannot be read: the site then searches without
+// translation. The Hub's own translations count against the same limit (worker.js).
+export async function aiSlot(env, now = new Date()) {
+  const db = env && env.gear_world_registry;
+  if (!db) return false;
+  const limit = readLimit(env.TRANSLATE_DAILY_LIMIT, DEFAULT_TRANSLATE_DAILY_LIMIT, 1000000);
+  try { return await takeNetworkSlot(db, now, 'translate', limit); } catch { return false; }
+}
+
+// POST https://hub.internal/internal/subscribe { email, consent, site, page, client, turnstile_token } from a site's Worker.
+export async function handleInternal(request, env, ctx, { now = Date.now(), sync = syncOne, verify } = {}) {
   const url = new URL(request.url);
+  if (url.pathname === '/internal/ai-slot' && request.method === 'POST') {
+    const ok = await aiSlot(env, new Date(now));
+    return json(ok ? { ok: true } : { ok: false, error: 'limit_day' }, ok ? 200 : 429);
+  }
   if (url.pathname !== '/internal/subscribe' || request.method !== 'POST') return json({ ok: false, error: 'not_found' }, 404);
   const db = env.gear_world_registry;
   if (!db) return json({ ok: false, error: 'no_database' }, 503);
@@ -47,10 +66,18 @@ export async function handleInternal(request, env, ctx, { now = Date.now(), sync
   if (!SITE_CODES.includes(site)) return json({ ok: false, error: 'site' }, 400);
   if (!body || body.consent !== true) return json({ ok: false, error: 'consent_required' }, 400);
   const key = /^[0-9a-f]{16,64}$/.test(String(body.client || '')) ? String(body.client) : 'unknown';
+  // Turnstile (F02): the token of the site's box, for that site's hostname and form. The site never sends the IP.
+  const token = String((body && body.turnstile_token) || '').trim();
+  if (!token) return json({ ok: false, error: 'turnstile_required' }, 403);
+  const check = await checkToken(env, token, { domain: SITE_DOMAINS[site], action: SITE_ACTION, verify });
+  if (check === 'not_ready') return json({ ok: false, error: 'not_ready' }, 503);
+  if (check !== 'ok') return json({ ok: false, error: 'turnstile_failed' }, 403);
   // The test address of the Hub answers but writes and sends nothing (like mailerlite.js).
   if (String(env.GWH_PREVIEW || '') === '1') return json({ ok: true, preview: true });
   try {
     if (!(await allowed(db, `${site}:${key}`, now))) return json({ ok: false, error: 'too_many' }, 429);
+    const full = await dailySignupGate(db, new Date(now), env);
+    if (full) return full;
     await db.prepare(`INSERT INTO hub_subscribers (email, locale, marketing_consent, consent_version, source, status, ml_status, ml_attempts, ml_error, site, member_source)
       VALUES (?, 'en-GB', 1, ?, ?, 'active', 'pending', 0, NULL, ?, ?)
       ON CONFLICT (email) DO UPDATE SET marketing_consent = 1, consent_version = excluded.consent_version, source = excluded.source,

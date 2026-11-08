@@ -167,6 +167,8 @@ function Write-PreviewConfig([string]$folder, [string]$dbId) {
     }
     $text = $text.Replace('REPLACE_WITH_DATABASE_ID', $dbId)
     $text = [regex]::Replace($text, '(?m)^name = "gear-world-hub"(\r?)$', ('name = "{0}"$1' -f $PreviewName))
+    # The template has "workers_dev = false" (live Hub, F04, lessons L106): the test Worker gets workers.dev instead (one key).
+    $text = [regex]::Replace($text, '(?m)^(workers_dev|preview_urls) = (true|false)\r?\n', '')
     $text = [regex]::Replace($text, '(?m)^(compatibility_date = [^\r\n]+)', ('$1' + "`nworkers_dev = true"))
     $text = $text.TrimEnd() + "`n`n[vars]`nGWH_PREVIEW = `"1`"`n"
     if ($text -match '(?m)^name = "gear-world-hub"\r?$' -or $text -notmatch ('(?m)^name = "{0}"' -f $PreviewName)) { Say 'Λάθος όνομα Worker στη ρύθμιση: ΔΕΝ ανέβασα τίποτα.' 'Red'; Finish 13 }

@@ -143,6 +143,17 @@ function Find-Database([string]$folder) {
 
 function Mask-Id([string]$id) { if ($id.Length -ge 8) { return $id.Substring(0, 4) + '...' + $id.Substring($id.Length - 4) } else { return $id } }
 
+# No public test address on the live site (security fixes F04, lessons L106): workers.dev and the version preview URLs
+# are switched off in the live config, so /out/ is reached only through the real domain and its security rules (a click
+# on workers.dev went past them and counted as a fake Awin click). Returns the config text with both set to false.
+function Set-NoTestAddress([string]$text) {
+    $t = [regex]::Replace($text, '"workers_dev"\s*:\s*true', '"workers_dev": false')
+    if ($t -notmatch '"workers_dev"\s*:') { $t = [regex]::Replace($t, '("compatibility_date"\s*:\s*"[^"]*",)', ('$1' + "`r`n" + '  "workers_dev": false,')) }
+    $t = [regex]::Replace($t, '"preview_urls"\s*:\s*true', '"preview_urls": false')
+    if ($t -notmatch '"preview_urls"\s*:') { $t = [regex]::Replace($t, '("workers_dev"\s*:\s*false,)', ('$1' + "`r`n" + '  "preview_urls": false,')) }
+    return $t
+}
+
 # Copy of this repo version, with the real wrangler.jsonc, ready for wrangler (npm ci once per version).
 function Prepare-Deploy {
     $ver = (Split-Path -Leaf $repo) -replace '[^A-Za-z0-9\-]', ''
@@ -250,6 +261,9 @@ switch ($Step) {
 
     'preview' {
         if (-not (Test-Path -LiteralPath $configPath) -or -not $db.found) { Say 'Πρώτα χρειάζεται το βήμα d1.' 'Red'; Finish 8 }
+        # The test address of a new site is its own Worker on *.workers.dev, before launch only: on a live site this step
+        # would publish to the real domain (security fixes, lessons L106).
+        if ([System.IO.File]::ReadAllText($configPath) -match '(?m)^\s*"routes"\s*:') { Say ('Το {0} είναι ήδη live στο {1}: το preview θα ανέβαζε κώδικα στο live site. Για νέα έκδοση: -Step update. Δεν άλλαξε τίποτα.' -f 'VGW', $Domain) 'Red'; Finish 8 }
         Say ''
         Say 'Τι θα γίνει:'
         Say ('  - Ανεβαίνει ο Worker "{0}" ΜΟΝΟ στη δοκιμαστική διεύθυνση *.workers.dev.' -f $WorkerName)
@@ -257,6 +271,13 @@ switch ($Step) {
         Say ('  - Επαναφορά (αν χρειαστεί): npx wrangler delete --name {0}' -f $WorkerName)
         if (-not $Apply) { Say ''; Say 'Δοκιμή μόνο (χωρίς -Apply): δεν άλλαξε τίποτα.' 'Green'; Finish 0 }
         if (-not (Confirm-Approval $Phrases.preview)) { Say 'Δεν δόθηκε έγκριση: σταμάτησα χωρίς αλλαγές.' 'Yellow'; Finish 1 }
+        # Before launch the test address is on (the template has it off since F04, lessons L106).
+        $cfgPrev = [System.IO.File]::ReadAllText($configPath)
+        $cfgOn = [regex]::Replace($cfgPrev, '"workers_dev"\s*:\s*false', '"workers_dev": true')
+        if ($cfgOn -ne $cfgPrev) {
+            [System.IO.File]::WriteAllText($configPath, $cfgOn, (New-Object System.Text.UTF8Encoding($false)))
+            Copy-Item -LiteralPath $configPath -Destination $vgw -Force
+        }
         $d = Invoke-Wrangler $vgw 'deploy' -NonInteractive
         if ($d.code -ne 0) { Say 'Το ανέβασμα απέτυχε. Έξοδος:' 'Red'; Say $d.text; Finish 9 }
         $um = [regex]::Match($d.text, 'https://[A-Za-z0-9\.\-]+\.workers\.dev')
@@ -295,6 +316,8 @@ switch ($Step) {
                 ('    {{ "pattern": "{0}", "custom_domain": true }},' -f $Domain) + "`r`n" +
                 ('    {{ "pattern": "www.{0}", "custom_domain": true }}' -f $Domain) + "`r`n" + '  ]'
             $newCfg = $cfgText.Substring(0, $obs.Index) + $routes + $cfgText.Substring($obs.Index + $obs.Length)
+            # No test address stays on after launch (owner, 29 Oct 2026; security fixes F04, lessons L106).
+            $newCfg = Set-NoTestAddress $newCfg
             $before = $configPath + '.before-domain-' + $stamp
             Copy-Item -LiteralPath $configPath -Destination $before -Force
             [System.IO.File]::WriteAllText($configPath, $newCfg, (New-Object System.Text.UTF8Encoding($false)))
@@ -352,6 +375,7 @@ switch ($Step) {
         Say 'Τι θα γίνει:'
         Say ('  - Ανεβαίνει η έκδοση κώδικα {0} στο live VGW ({1}).' -f (Split-Path -Leaf $repo), $Domain)
         Say '  - Η D1, τα προϊόντα και τα domains ΔΕΝ αλλάζουν. Τα άλλα sites και το hub ΔΕΝ αλλάζουν.'
+        Say ('  - Η δοκιμαστική διεύθυνση {0}.<λογαριασμός>.workers.dev και τα preview URLs του live Worker κλείνουν, αν είναι ανοιχτά (F04): το site ανοίγει μόνο στο {1}, πίσω από τους κανόνες ασφαλείας του. Πρώτα αντίγραφο της ρύθμισης (wrangler.jsonc.before-no-test-address-<ώρα>).' -f $WorkerName, $Domain)
         Say ('  - Επαναφορά (αν χρειαστεί): Workers & Pages > {0} > Deployments > προηγούμενη έκδοση > Rollback: https://dash.cloudflare.com/?to=/:account/workers-and-pages' -f $WorkerName)
         if (-not $Apply) { Say ''; Say 'Δοκιμή μόνο (χωρίς -Apply): δεν άλλαξε τίποτα.' 'Green'; Finish 0 }
         if (-not (Confirm-Approval $Phrases.update)) { Say 'Δεν δόθηκε έγκριση: σταμάτησα χωρίς αλλαγές.' 'Yellow'; Finish 1 }
@@ -365,6 +389,19 @@ switch ($Step) {
                 Copy-Item -LiteralPath $configPath -Destination $vgw -Force
                 Say '  - Προστέθηκε η σύνδεση Workers AI (αναζήτηση σε άλλες γλώσσες).'
             }
+        }
+        # F04 (lessons L106): workers.dev and the preview URLs off in the live config, after a copy of it.
+        $cfgNow = [System.IO.File]::ReadAllText($configPath)
+        $cfgSafe = Set-NoTestAddress $cfgNow
+        if ($cfgSafe -ne $cfgNow) {
+            $beforeSafe = $configPath + '.before-no-test-address-' + $stamp
+            Copy-Item -LiteralPath $configPath -Destination $beforeSafe -Force
+            [System.IO.File]::WriteAllText($configPath, $cfgSafe, (New-Object System.Text.UTF8Encoding($false)))
+            Copy-Item -LiteralPath $configPath -Destination $vgw -Force
+            Say ('  - Δοκιμαστική διεύθυνση *.workers.dev και preview URLs: κλείνουν με αυτό το ανέβασμα. Αντίγραφο της παλιάς ρύθμισης: {0}' -f $beforeSafe) 'Green'
+            Say ('    Επαναφορά (μόνο με έγκριση): αυτό το αρχείο πίσω ως {0} και ξανά -Step update, ή Workers & Pages > {1} > Settings > Domains & Routes > workers.dev: https://dash.cloudflare.com/?to=/:account/workers-and-pages' -f $configPath, $WorkerName)
+        } else {
+            Say '  - Δοκιμαστική διεύθυνση *.workers.dev και preview URLs: ήδη κλειστές στη ρύθμιση: ΕΝΤΑΞΕΙ' 'Green'
         }
         $d = Invoke-Wrangler $vgw 'deploy' -NonInteractive
         if ($d.code -ne 0) { Say 'Το ανέβασμα απέτυχε. Το live site έμεινε όπως ήταν. Έξοδος:' 'Red'; Say $d.text; Finish 9 }

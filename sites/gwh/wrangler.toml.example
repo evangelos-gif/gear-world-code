@@ -4,6 +4,11 @@
 name = "gear-world-hub"
 main = "worker.js"
 compatibility_date = "2026-09-24"
+# No public test address on the live Hub (security fixes F04, lessons L106): without these two lines every deploy
+# switched gear-world-hub.<account>.workers.dev on again (no routes in this file). tools/gwh-hub-v2.ps1 -Step live
+# writes the same two lines into the real wrangler.toml on the PC; the test Worker gets workers_dev = true instead.
+workers_dev = false
+preview_urls = false
 
 [assets]
 directory = "public"

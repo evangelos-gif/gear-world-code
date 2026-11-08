@@ -562,6 +562,10 @@ body.has-compare-bar { padding-bottom: 76px; }
 .du-consent input { margin-top: 3px; width: 18px; height: 18px; flex: 0 0 auto; }
 .du-consent a { color: var(--link); }
 .du-hp { position: absolute; left: -10000px; width: 1px; height: 1px; overflow: hidden; }
+.du-turnstile { grid-column: 1 / -1; min-width: 0; }
+.du-turnstile:empty { display: none; }
+.du-status { grid-column: 1 / -1; margin: 0; font-size: .92rem; color: var(--ink); }
+.du-status[hidden] { display: none; }
 @media (max-width: 480px) { .deal-form { grid-template-columns: 1fr; } }
 
 /* Cookie banner and "Cookie settings" (lessons L93): Allow and Reject look exactly the same. */

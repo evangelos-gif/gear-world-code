@@ -163,37 +163,50 @@ test('empty categories are noindex and left out of the sitemap; full ones are li
   assert.equal((products.match(/<loc>/g) || []).length, 61);
 });
 
-test('a search with no results asks the Hub for English words, once, on page 1', async () => {
+test('a search with no results is translated by Workers AI, once, on page 1; the Hub only counts the daily limit', async () => {
   const calls = [];
+  const ai = [];
   const env = {
     DB: fakeD1(),
+    // The old secret is ignored now: the Hub has no translate address any more (F16, lessons L106).
     GW_INTERNAL_TOKEN: 'test-only',
-    GW_HUB: { fetch: async req => { calls.push(await req.json()); return Response.json({ candidate: 'hose' }); } }
+    GW_HUB: { fetch: async (url, init) => { calls.push([String(url), JSON.parse(init.body)]); return Response.json({ ok: true }); } },
+    AI: { run: async (model) => { ai.push(model); return { response: 'hose' }; } }
   };
   const r = await get('/search?q=' + encodeURIComponent('λάστιχο'), env);
   const html = await r.text();
-  assert.deepEqual(calls, [{ q: 'λάστιχο' }]);
+  assert.deepEqual(calls, [['https://hub.internal/internal/ai-slot', { site: 'ggw' }]], 'one place of the daily limit, nothing else');
+  assert.equal(ai.length, 1);
   assert.match(html, /Showing results for “hose”/);
   assert.match(html, /Garden Hose 30m/);
   const api = await (await get('/api/products?search=' + encodeURIComponent('λάστιχο'), env)).json();
   assert.ok(api.products.length > 0);
-  // Not on page 2, not for short words, not without the binding.
+  // Not on page 2, not for short words, not for a bot, not when the Hub says translate=0, not without the AI binding.
   calls.length = 0;
+  ai.length = 0;
   await get('/search?q=' + encodeURIComponent('λάστιχο') + '&page=2', env);
   await get('/search?q=xy', env);
-  assert.equal(calls.length, 0);
-  const plain = await (await get('/search?q=' + encodeURIComponent('λάστιχο'), { DB: fakeD1() })).text();
+  await get('/search?q=' + encodeURIComponent('λάστιχο'), env, { 'User-Agent': 'Googlebot/2.1' });
+  await get('/api/products?translate=0&search=' + encodeURIComponent('λάστιχο'), env);
+  assert.equal(calls.length + ai.length, 0);
+  const plain = await (await get('/search?q=' + encodeURIComponent('λάστιχο'), { DB: fakeD1(), GW_INTERNAL_TOKEN: 'test-only', GW_HUB: env.GW_HUB })).text();
   assert.match(plain, /No products found/);
+  assert.equal(calls.length, 0, 'without AI the Hub is never asked to translate (the old address is gone)');
 });
 
-test('the Hub answer must look like plain search words', async () => {
+test('the model answer must look like plain search words; a full day of the limit means no model call', async () => {
   const env = {
     DB: fakeD1(),
-    GW_INTERNAL_TOKEN: 'test-only',
-    GW_HUB: { fetch: async () => Response.json({ candidate: '<script>' }) }
+    GW_HUB: { fetch: async () => Response.json({ ok: true }) },
+    AI: { run: async () => ({ response: '<script>' }) }
   };
   const html = await (await get('/search?q=' + encodeURIComponent('κάτι άλλο'), env)).text();
   assert.match(html, /No products found/);
+  let asked = 0;
+  const full = { DB: fakeD1(), GW_HUB: { fetch: async () => Response.json({ ok: false, error: 'limit_day' }, { status: 429 }) }, AI: { run: async () => { asked++; return { response: 'hose' }; } } };
+  const none = await (await get('/search?q=' + encodeURIComponent('λάστιχο'), full)).text();
+  assert.match(none, /No products found/, 'the search goes on without translation');
+  assert.equal(asked, 0);
 });
 
 test('no newsletter route and no clean-up on the older database', async () => {

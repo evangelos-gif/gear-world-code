@@ -200,23 +200,32 @@ test('photo: OpenAI-style answers are read too', async () => {
 
 function assetsEnv(extra = {}) {
   const served = [];
-  const asset = new Response('<!doctype html><title>Hub</title>', { headers: { 'Content-Type': 'text/html' } });
+  const asset = () => new Response('<!doctype html><title>Hub</title>', { headers: { 'Content-Type': 'text/html' } });
   return {
-    served, asset,
-    env: { ASSETS: { fetch: async (req) => { served.push(new URL(req.url).pathname); return asset; } }, ...env(), ...extra }
+    served,
+    env: { ASSETS: { fetch: async (req) => { served.push(new URL(req.url).pathname); return asset(); } }, ...env(), ...extra }
   };
 }
 
-test('worker: on the live Hub every other request is answered exactly as before', async () => {
-  const { env: e, asset, served } = assetsEnv();
+test('worker: on the live Hub every other request is answered exactly as before (only charset and the Report-Only policy are added)', async () => {
+  const { env: e, served } = assetsEnv();
   const health = await hub.fetch(new Request(`${ORIGIN}/api/health`), e, {});
   assert.deepEqual(await health.json(), { ok: true, project: 'Gear World Hub', version: 'catalogue-links-v2' });
   const page = await hub.fetch(new Request(`${ORIGIN}/privacy/`), e, {});
-  assert.equal(page, asset, 'the static page is the very same response, no header added');
+  // The body and status are the static file's, byte for byte; the security fixes of 8/11/2026 (F11, L05, L06, L106) add
+  // charset=utf-8 and the Report-Only policy, and never a second HSTS (the zone's rule sends it, F08).
+  assert.equal(page.status, 200);
+  assert.equal(await page.text(), '<!doctype html><title>Hub</title>');
+  assert.equal(page.headers.get('Content-Type'), 'text/html; charset=utf-8');
+  assert.match(page.headers.get('Content-Security-Policy-Report-Only'), /script-src 'self' https:\/\/challenges\.cloudflare\.com/);
+  assert.equal(page.headers.get('Content-Security-Policy'), null, 'the enforced policy stays the zone\'s');
+  assert.equal(page.headers.get('Strict-Transport-Security'), null);
+  assert.equal(page.headers.get('X-Robots-Tag'), null);
   assert.deepEqual(served, ['/privacy/']);
   const www = await hub.fetch(new Request('https://www.gearworldhub.com/terms/'), e, {});
   assert.equal(www.status, 301);
-  assert.equal((await hub.fetch(new Request(`${ORIGIN}/robots.txt`), e, {})), asset, 'robots.txt is not touched on live');
+  const robots = await hub.fetch(new Request(`${ORIGIN}/robots.txt`), e, {});
+  assert.equal(await robots.text(), '<!doctype html><title>Hub</title>', 'robots.txt is not touched on live');
   const photo = await hub.fetch(post(), e, {});
   assert.equal(photo.status, 200);
   assert.equal((await photo.json()).found, true);
@@ -307,5 +316,6 @@ test('privacy page: explains the photo search and the date is updated', () => {
   assert.match(html, /deleted after 2 days/);
   // The date moved on with Gear World email step 5 (2 November 2026), Google Ads (3 November 2026, lessons L93) and
   // the clean-up after the Google Ads review (7 November 2026, lessons L103); the photo search text is unchanged.
-  assert.match(html, /Last updated: (24 October|2 November|3 November|7 November) 2026/);
+  // And Turnstile on the sign-up forms (8 November 2026, lessons L106).
+  assert.match(html, /Last updated: (24 October|2 November|3 November|7 November|8 November) 2026/);
 });

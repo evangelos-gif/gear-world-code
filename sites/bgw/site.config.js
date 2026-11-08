@@ -14,7 +14,7 @@ export default {
   lang: 'en-GB',
   locale: 'en-GB',
   currency: 'GBP',
-  assetVersion: '2026-11-08-bgw-cleanup-1',
+  assetVersion: '2026-11-08-bgw-security-1',
   promos: promosFor('BGW'),
   awinPublisherId: AWIN_PUBLISHER_ID,
   storagePrefix: 'bgw',

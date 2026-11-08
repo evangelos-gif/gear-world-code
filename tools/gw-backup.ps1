@@ -41,6 +41,8 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+# HTTPS with TLS 1.2: Windows PowerShell 5.1 may still offer only older TLS, which GitHub and Cloudflare refuse (L106).
+[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 if (-not $HomeDir) { $HomeDir = $HOME }
 if (-not $OutDir) { $OutDir = Join-Path $HomeDir 'gear-world-reports' }
 if (-not $WorkDir) { $WorkDir = Join-Path $HomeDir 'gear-world-backup-work' }

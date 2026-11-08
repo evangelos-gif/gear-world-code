@@ -200,7 +200,11 @@ function Write-Config([string]$folder, [string]$dbId, [switch]$Preview) {
     $text = $text.Replace('REPLACE_WITH_DATABASE_ID', $dbId)
     $obs = '"observability": { "enabled": true }'
     if ($text.IndexOf($obs) -lt 0) { Say 'Το πρότυπο wrangler.jsonc.example δεν έχει τη μορφή που περίμενα.' 'Red'; Finish 13 }
+    # F04 (lessons L106): the template keeps workers.dev and the preview URLs off, so the live Worker answers only on its
+    # domains, behind their security rules. Only the -preview test Worker gets a workers.dev address.
+    if ($text.IndexOf('"workers_dev": false,') -lt 0 -or $text.IndexOf('"preview_urls": false,') -lt 0) { Say 'Το πρότυπο wrangler.jsonc.example δεν έχει τη μορφή που περίμενα (workers_dev / preview_urls).' 'Red'; Finish 13 }
     if ($Preview) {
+        $text = $text.Replace('"workers_dev": false,', '"workers_dev": true,')
         $text = $text.Replace('"name": "garden-gear-world"', ('"name": "{0}"' -f $PreviewName))
         $text = $text.Replace($obs, $obs + ',' + "`r`n" + '  "vars": { "CLICK_LOG": "off" }')
         $file = Join-Path $folder 'wrangler.preview.jsonc'
@@ -214,6 +218,17 @@ function Write-Config([string]$folder, [string]$dbId, [switch]$Preview) {
     [System.IO.File]::WriteAllText($file, $text, (New-Object System.Text.UTF8Encoding($false)))
     Copy-Item -LiteralPath $file -Destination (Join-Path $WorkDir (Split-Path -Leaf $file)) -Force
     return $file
+}
+
+# A 403 from Cloudflare's own challenge (the zone's security rule on /out/ and /go/), not from the site: the header
+# "cf-mitigated: challenge", or a Cloudflare 403 with a challenge header (cf-chl-...). HEAD only: no page is read.
+function Test-CloudflareChallenge([int]$status, $headers) {
+    if ($status -ne 403 -or $null -eq $headers) { return $false }
+    if ([string]$headers['cf-mitigated'] -match '(?i)challenge') { return $true }
+    if ([string]$headers['Server'] -match '(?i)^cloudflare') {
+        foreach ($k in @($headers.AllKeys)) { if ([string]$k -match '(?i)^cf-chl') { return $true } }
+    }
+    return $false
 }
 
 function Test-Live([string]$base) {
@@ -235,10 +250,20 @@ function Test-Live([string]$base) {
             # A browser user agent: the Cloudflare bot rule blocks "bot" on /out/ (lessons L32). HEAD is never counted as a click.
             $req.UserAgent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0 Safari/537.36 GearWorldQA'
             $req.Timeout = 20000
-            $resp = $req.GetResponse()
-            $loc = [string]$resp.Headers['Location']
-            $resp.Close()
-            Say ('  Κουμπί καταστήματος: {0}' -f $(if ($loc -match '^https://www\.awin1\.com/') { 'μέσω Awin (με προμήθεια)' } else { 'ΟΧΙ μέσω Awin: ' + $loc.Substring(0, [Math]::Min(80, $loc.Length)) }))
+            $loc = ''
+            $challenge = $false
+            try {
+                $resp = $req.GetResponse()
+                $loc = [string]$resp.Headers['Location']
+                $resp.Close()
+            } catch [System.Net.WebException] {
+                # The zone's security rule on /out/ and /go/ answers a script with a Cloudflare challenge (403): the
+                # protection works and real visitors pass it. Any other error stays a problem (8/11/2026).
+                $er = $_.Exception.Response
+                if ($er -and (Test-CloudflareChallenge ([int]$er.StatusCode) $er.Headers)) { $challenge = $true; $er.Close() } else { throw }
+            }
+            if ($challenge) { Say '  Κουμπί καταστήματος: ΕΝΤΑΞΕΙ - η προστασία του Cloudflare στο /out/ ζητά έλεγχο από ρομπότ: κανονικό, οι κανονικοί επισκέπτες περνάνε' 'Cyan' }
+            else { Say ('  Κουμπί καταστήματος: {0}' -f $(if ($loc -match '^https://www\.awin1\.com/') { 'μέσω Awin (με προμήθεια)' } else { 'ΟΧΙ μέσω Awin: ' + $loc.Substring(0, [Math]::Min(80, $loc.Length)) })) }
         }
     } catch {
         $ok = $false
@@ -362,6 +387,7 @@ switch ($Step) {
             Say ('  - Ο Worker "{0}" ({1}) παίρνει την έκδοση {2}.' -f $WorkerName, $Domain, (Split-Path -Leaf $repo))
         }
         Say '  - Η D1, τα προϊόντα, οι διευθύνσεις των προϊόντων και ο router ΔΕΝ αλλάζουν. Τα άλλα sites και το hub ΔΕΝ αλλάζουν.'
+        Say ('  - Η δοκιμαστική διεύθυνση {0}.<λογαριασμός>.workers.dev και τα preview URLs του live Worker κλείνουν (F04): το site ανοίγει μόνο στο {1}, πίσω από τους κανόνες ασφαλείας του. Για να ανοίξει ξανά (μόνο με έγκριση): Workers & Pages > {0} > Settings > Domains & Routes > workers.dev: https://dash.cloudflare.com/?to=/:account/workers-and-pages' -f $WorkerName, $Domain)
         Say ('  - Επαναφορά (αν χρειαστεί, 1 λεπτό): Cloudflare > garden-gear-world > Deployments > η προηγούμενη έκδοση > Rollback: {0}' -f $DashLink)
         if ($live) { Say ('    ή στο PowerShell: npx wrangler rollback {0} --name {1}' -f $live, $WorkerName) }
         if (-not $Apply) { Say ''; Say 'Δοκιμή μόνο (χωρίς -Apply): δεν άλλαξε τίποτα.' 'Green'; Finish 0 }

@@ -1,5 +1,8 @@
 // Response helpers. Every response from the engine passes through secureHeaders() (lessons L05, L06).
 
+// The same value is in sites/*/public/_headers (static files under /assets/).
+export const HSTS = 'max-age=31536000; includeSubDomains';
+
 const CSP = [
   "default-src 'self'",
   // Google Ads (lessons L93): these addresses are only reached after the visitor allows cookies in the banner.
@@ -25,8 +28,9 @@ export const SECURITY_HEADERS = {
   // Microphone only for this site's own pages (voice search). Camera stays off until camera search exists.
   'Permissions-Policy': 'camera=(), microphone=(self), geolocation=(), payment=(), usb=()',
   'Cross-Origin-Opener-Policy': 'same-origin',
-  // Short HSTS first (lessons L06 / T23). Raise to one year after three clean weeks.
-  'Strict-Transport-Security': 'max-age=86400',
+  // HSTS (lessons L06 / T23): one day while the sites were new; one year with the subdomains since the security
+  // fixes of 8/11/2026 (F08, lessons L106). No "preload" yet: that list is hard to leave, so it is a later decision.
+  'Strict-Transport-Security': HSTS,
   'Content-Security-Policy': CSP
 };
 
@@ -85,5 +89,35 @@ export async function withEdgeCache(request, ctx, produce, env) {
   if (response.status === 200 && ctx && typeof ctx.waitUntil === 'function') {
     ctx.waitUntil(cache.put(key, response.clone()));
   }
+  return response;
+}
+
+// A longer edge cache for one public answer that changes slowly (L106: /api/stats, about 1 hour). The key is the path
+// alone, so a query string (?x=1) never skips the cache and never fills it with copies. The visitor gets exactly the
+// answer and the headers of a fresh one: the longer life is only on the copy kept in this data centre's cache.
+const KEEP_HEADER = 'X-GW-Client-Cache-Control';
+export async function withPathCache(request, ctx, keyUrl, seconds, produce, env) {
+  if (request.method !== 'GET' || (env && env.EDGE_CACHE === 'off')) return produce();
+  let cache = null;
+  try { cache = typeof caches !== 'undefined' && caches.default ? caches.default : null; } catch { cache = null; }
+  if (!cache) return produce();
+  const key = new Request(keyUrl, { method: 'GET' });
+  try {
+    const hit = await cache.match(key);
+    if (hit) {
+      const h = new Headers(hit.headers);
+      const original = h.get(KEEP_HEADER);
+      h.delete(KEEP_HEADER);
+      if (original) h.set('Cache-Control', original); else h.delete('Cache-Control');
+      return new Response(hit.body, { status: hit.status, headers: h });
+    }
+  } catch { /* the cache is only a help */ }
+  const response = await produce();
+  if (response.status !== 200) return response;
+  const copy = new Response(response.clone().body, response);
+  copy.headers.set(KEEP_HEADER, response.headers.get('Cache-Control') || '');
+  copy.headers.set('Cache-Control', `public, max-age=${seconds}`);
+  const put = cache.put(key, copy).catch(() => {});
+  if (ctx && typeof ctx.waitUntil === 'function') ctx.waitUntil(put); else await put;
   return response;
 }
