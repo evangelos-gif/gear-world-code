@@ -15,6 +15,8 @@ import { classify as sgwClassify } from '../../sites/sgw/category-rules.js';
 import { classify as zgwClassify } from '../../sites/zgw/category-rules.js';
 import * as natkina from '../../tools/import-rules/natkina.mjs';
 import * as santoro from '../../tools/import-rules/santoromilan.mjs';
+import * as luxe from '../../tools/import-rules/luxefashion.mjs';
+import * as sal from '../../tools/import-rules/sportandleisure.mjs';
 
 test('HGW home places: the head of the name says what the product is, marketing tails are cut', () => {
   const at = n => { const p = home.homePlace(n); return p ? `${p.siteCategory} / ${p.subcategory}` : null; };
@@ -197,5 +199,24 @@ test('8 Nov 2026 late: Natkina jewellery on WGW (pound feed only), Santoro Milan
   const zgw = JSON.parse(readFileSync(new URL('../../sites/zgw/sources.json', import.meta.url), 'utf8')).sources.find(s => s.advertiserId === 42915);
   assert.ok(zgw && zgw.petShop);
   assert.deepEqual(zgwClassify('Calm The Eff Down - Natural Calming Dog Treats', 'Pets', '', zgw), { ok: true, slug: 'food' });
+});
+
+test('8 Nov 2026 late, "can they go elsewhere": Luxefashion on WGW (heels, dresses, lingerie), trampolines and ride-on cars on KGW', () => {
+  const lx = name => luxe.classify({ name });
+  assert.deepEqual(lx('Block heel pumps model 226555 Solea - 39 - Black'), { site: 'wgw', siteCategory: 'Shoes', subcategory: 'Heels', name: 'Solea Block Heel Pumps - Black' });
+  assert.equal(lx('High heels model 191201 Step in style - 38 - Red').subcategory, 'Heels');
+  assert.equal(lx('Cocktail dress model 139517 awama - M - Navy').subcategory, 'Dresses');
+  assert.deepEqual(lx('Soft model 198086 Teyli - 100C - White'), { site: 'wgw', siteCategory: 'Clothing', subcategory: 'Underwear', name: 'Teyli Soft Bra - White' });
+  assert.equal(lx('Blouse model 228065 Relevance - ONE-SIZE-FITS-ALL - Red').name, 'Relevance Blouse - Red');
+  assert.equal(luxe.classify({ name: 'Boxers model 158461 Henderson - L - Black', feedCategory: 'male' }).site, 'mgw');
+  // One card per model and colour: the sizes are joined.
+  const key = n => luxe.productKey(c => (c === 'product_name' ? n : ''));
+  assert.equal(key('Padded bra model 227813 Vena - 85D - Beige'), key('Padded bra model 227813 Vena - 75D - Beige'));
+  assert.notEqual(key('Padded bra model 227813 Vena - 85D - Beige'), key('Padded bra model 227985 Vena - 95C - Black'));
+  const sl = (name, feedCategory) => sal.classify({ name, feedCategory });
+  assert.deepEqual(sl('Air King 12ft Trampoline with Enclosure', 'Trampolines > Round Trampolines'), { site: 'kgw', siteCategory: 'Sports & Outdoors', subcategory: 'Trampolines' });
+  assert.equal(sl('12V Kids Ride On Jeep', 'Kids Ride-On Electric Cars').subcategory, 'Electric Riding Vehicles');
+  assert.ok(sl('IronMan 20kg Dumbbell Set', 'Fitness Equipment > Free Weights').reject);
+  assert.ok(sl('Fitness Mad Mini Rebounder', 'Trampolines').reject);
 });
 
