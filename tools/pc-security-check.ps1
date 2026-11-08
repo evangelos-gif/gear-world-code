@@ -4,9 +4,11 @@
 
 .DESCRIPTION
   There is no apply mode. Every check only reads: cmdlets that read (Get-...), the registry, file NAMES.
-  It never starts a scan, never searches online for updates (only the local update history is read), never changes a
-  setting, a service, an account or the registry, and never opens a file of secrets: for those it lists only the
-  paths, relative to the user folder (~\...).
+  It never starts a scan, never searches online for updates (only the local update history is read), and never changes
+  a setting, a service, an account or the registry. Files that look like secrets are listed by path, relative to the
+  user folder (~\...), and NOTHING of their content is ever shown, copied or written: the tool reads at most their
+  first 4 KB in memory, only to tell an encrypted file (DPAPI) from plain text, and then forgets it. Files that live
+  only in the cloud (OneDrive) are not opened at all, so that nothing is downloaded.
 
   Checks:
     1. Microsoft Defender: service, antivirus, real-time protection, tamper protection, age of the virus definitions
@@ -21,9 +23,14 @@
     6. Disk encryption of the system drive (BitLocker / Device Encryption).
     7. Remote access: Remote Desktop (and NLA), SMBv1.
     8. Gear World: files named .dev.vars, .env, *.env or with token / secret / password in the name, up to 3 levels
-       under the user folder (node_modules and .git skipped), paths only; whether a wrangler login file exists.
+       under the user folder (node_modules and .git skipped), paths only, each one classified from its first 4 KB:
+       encrypted for this user (DPAPI), plain text that looks like a key, a report without a key, empty, other text,
+       not text, or unreadable; whether a wrangler login file exists.
     9. Backups: OneDrive (running, Desktop and Documents in OneDrive), File History, the gw-backup copy on an
-       attached drive (<drive>:\GearWorldBackup\README-RESTORE.txt), last System Restore point.
+       attached drive (<drive>:\GearWorldBackup\README-RESTORE.txt, the drive letters checked are listed), last System
+       Restore point.
+  An antivirus that is off but still registered next to an active one (not Windows Defender) gets an information line
+  with the link to uninstall it (ms-settings:appsfeatures).
 
   A check that needs administrator rights, or a cmdlet these Windows do not have, says «χρειάζεται διαχειριστή» or
   «δεν διαβάζεται» and the tool goes on. Every status is written in words too (the owner cannot tell red from green,
@@ -35,6 +42,7 @@
   -OutDir                where the report goes (default: <home>\gear-world-reports)
   -UpdateTimeoutSeconds  time limit for reading the local Windows Update history (default 30; 0 = do not read it)
   -NoClipboard           do not copy the report to the clipboard (tests)
+  -TestAntivirus         tests only: the antivirus list instead of SecurityCenter2, as "Name=on;Name=off"
 
   Report: <home>\gear-world-reports\PC_SECURITY_<yyyyMMdd-HHmmss>.txt (UTF-8, also copied to the clipboard)
   Exit code: always 0 (another code only if the script itself breaks).
@@ -43,7 +51,8 @@ param(
     [string]$HomeDir = '',
     [string]$OutDir = '',
     [int]$UpdateTimeoutSeconds = 30,
-    [switch]$NoClipboard
+    [switch]$NoClipboard,
+    [string]$TestAntivirus = ''
 )
 
 $ErrorActionPreference = 'Stop'
@@ -80,6 +89,7 @@ function MarkNA([string]$What, [string]$Why, [string]$Link = '', [string]$Advice
     $label = 'δεν διαβάζεται'
     if ($Why -eq 'admin') { $label = 'χρειάζεται διαχειριστή' }
     elseif ($Why -eq 'missing') { $label = 'δεν διαβάζεται: δεν υπάρχει σε αυτά τα Windows' }
+    elseif ($Why -eq 'cloud') { $label = 'δεν διαβάζεται: είναι μόνο στο cloud (OneDrive) και δεν το κατέβασα' }
     if (-not $Advice) {
         if ($Why -eq 'admin') { $Advice = 'Τα Windows το δείχνουν μόνο σε PowerShell ως διαχειριστής. Δεν είναι πρόβλημα του υπολογιστή.' }
         elseif ($Why -eq 'missing') { $Advice = 'Αυτά τα Windows δεν έχουν αυτόν τον έλεγχο. Δεν είναι πρόβλημα.' }
@@ -241,6 +251,98 @@ function Test-InGit([string]$File, [string]$Root) {
     return $false
 }
 
+# What kind of secret file is it? Only its first 4 KB are read, in memory, and nothing of them leaves Get-SecretKind:
+# it returns one word (dpapi, token, report, empty, text, binary, cloud, unread). The bytes are wiped before it returns.
+$PeekBytes = 4096
+# Windows DPAPI: ConvertFrom-SecureString writes this hex first, ProtectedData writes these bytes first (version 1 and
+# the DPAPI provider), and the base64 of those bytes starts with the third text.
+$DpapiHex = '01000000d08c9ddf0115d1118c7a00c04fc297eb'
+$DpapiHead = [byte[]](0x01, 0x00, 0x00, 0x00, 0xD0, 0x8C, 0x9D, 0xDF, 0x01, 0x15, 0xD1, 0x11, 0x8C, 0x7A, 0x00, 0xC0, 0x4F, 0xC2, 0x97, 0xEB)
+$DpapiB64 = 'AQAAANCMnd8BFdERjHoAwE/Cl+'
+# Looks like a key: a UUID (the Awin API key has this shape), or a run of 24+ characters from [A-Za-z0-9_-.] whose parts
+# that mix letters and digits add up to 20+ characters (a git commit or a sha256, 40 or 64 hex, does not count), or a
+# base64 run of 40+ with + or = padding. Names such as AWIN_SETUP_TOKEN_20261103_184934 or raw.githubusercontent.com
+# are not keys.
+function Test-TokenLike([string]$Text) {
+    if ($Text -match '(?<![0-9A-Za-z])[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}(?![0-9A-Za-z])') { return $true }
+    foreach ($m in [regex]::Matches($Text, '[A-Za-z0-9_\-\.]{24,}')) {
+        $mixed = 0
+        foreach ($piece in ($m.Value -split '[_\-\.]')) {
+            if ($piece.Length -lt 2) { continue }
+            if (($piece.Length -eq 40 -or $piece.Length -eq 64) -and $piece -match '^[0-9a-fA-F]+$') { continue }
+            if ($piece -match '[A-Za-z]' -and $piece -match '[0-9]') { $mixed += $piece.Length }
+        }
+        if ($mixed -ge 20) { return $true }
+    }
+    foreach ($m in [regex]::Matches($Text, '[A-Za-z0-9+/]{40,}={0,2}')) {
+        $v = $m.Value
+        if (($v.Contains('+') -or $v.EndsWith('=')) -and $v -match '[A-Za-z]' -and $v -match '[0-9]') { return $true }
+    }
+    return $false
+}
+# The first bytes as text: UTF-16 (with or without BOM, as Out-File writes it), UTF-8 (with or without BOM).
+function Get-PeekText([byte[]]$b, [int]$n) {
+    if ($n -ge 2 -and $b[0] -eq 0xFF -and $b[1] -eq 0xFE) { return [System.Text.Encoding]::Unicode.GetString($b, 2, $n - 2) }
+    if ($n -ge 2 -and $b[0] -eq 0xFE -and $b[1] -eq 0xFF) { return [System.Text.Encoding]::BigEndianUnicode.GetString($b, 2, $n - 2) }
+    if ($n -ge 3 -and $b[0] -eq 0xEF -and $b[1] -eq 0xBB -and $b[2] -eq 0xBF) { return [System.Text.Encoding]::UTF8.GetString($b, 3, $n - 3) }
+    $zeros = 0
+    for ($i = 1; $i -lt $n; $i += 2) { if ($b[$i] -eq 0) { $zeros++ } }
+    if ($n -ge 8 -and ($zeros * 4) -ge $n) { return [System.Text.Encoding]::Unicode.GetString($b, 0, $n - ($n % 2)) }
+    return [System.Text.Encoding]::UTF8.GetString($b, 0, $n)
+}
+function Get-SecretKind([string]$Path, [bool]$IsReport) {
+    $buf = $null
+    try {
+        $item = Get-Item -LiteralPath $Path -Force
+        $attr = [int64]$item.Attributes
+        # Offline (0x1000), recall on open (0x40000), recall on data access (0x400000): only in the cloud. Not opened,
+        # because reading it would download it.
+        if (($attr -band 0x1000) -ne 0 -or ($attr -band 0x40000) -ne 0 -or ($attr -band 0x400000) -ne 0) { return 'cloud' }
+        if ($item.Length -eq 0) { return 'empty' }
+        $buf = New-Object byte[] $PeekBytes
+        $n = 0
+        $fs = [System.IO.File]::OpenRead($Path)
+        try {
+            while ($n -lt $PeekBytes) {
+                $got = $fs.Read($buf, $n, $PeekBytes - $n)
+                if ($got -le 0) { break }
+                $n += $got
+            }
+        } finally { $fs.Dispose() }
+        if ($n -ge $DpapiHead.Length) {
+            $same = $true
+            for ($i = 0; $i -lt $DpapiHead.Length; $i++) { if ($buf[$i] -ne $DpapiHead[$i]) { $same = $false; break } }
+            if ($same) { return 'dpapi' }
+        }
+        $text = Get-PeekText $buf $n
+        if ($text.Trim().Length -eq 0) { return 'empty' }
+        $isDpapi = ($text.IndexOf($DpapiHex, [System.StringComparison]::OrdinalIgnoreCase) -ge 0) -or $text.Contains($DpapiB64)
+        # The encrypted parts are taken out first: a plain key next to an encrypted one still counts as a plain key.
+        $rest = [regex]::Replace($text, '(?i)' + $DpapiHex + '[0-9a-f]*', ' ')
+        $rest = [regex]::Replace($rest, [regex]::Escape($DpapiB64) + '[A-Za-z0-9+/]*={0,2}', ' ')
+        $text = $null
+        if (Test-TokenLike $rest) { return 'token' }
+        if ($isDpapi) { return 'dpapi' }
+        $odd = [regex]::Matches($rest, '[\x00-\x08\x0B\x0C\x0E-\x1F�]').Count
+        if (($odd * 10) -gt $rest.Length) { return 'binary' }
+        if ($IsReport) { return 'report' }
+        return 'text'
+    } catch {
+        return 'unread'
+    } finally {
+        if ($null -ne $buf) { [Array]::Clear($buf, 0, $buf.Length) }
+    }
+}
+# status, words, what it means and what to do
+$SecretKinds = @{
+    dpapi = @('ok', 'κρυπτογραφημένο για τον χρήστη σου (DPAPI)', 'Μόνο ο δικός σου λογαριασμός σε αυτόν τον υπολογιστή μπορεί να το ανοίξει. Δεν χρειάζεται τίποτα.')
+    token = @('warn', 'απλό κείμενο που μοιάζει με κλειδί', 'Αν το κλειδί χρησιμοποιείται ακόμα, βάλε το στα Cloudflare secrets ή στην κρυπτογραφημένη αποθήκη (DPAPI, όπως ο φάκελος gear-world-secrets). Αν δεν χρησιμοποιείται, μπορεί να σβηστεί, αλλά ρώτα πρώτα το Claude.')
+    report = @('ok', 'αναφορά χωρίς κλειδί', 'Αναφορά εργαλείου Gear World χωρίς τίποτα που να μοιάζει με κλειδί. Δεν χρειάζεται τίποτα.')
+    empty = @('ok', 'άδειο αρχείο', 'Δεν έχει τίποτα μέσα. Δεν χρειάζεται τίποτα.')
+    text = @('warn', 'απλό κείμενο χωρίς κρυπτογράφηση (δεν μοιάζει με κλειδί, μπορεί όμως να έχει κωδικό)', 'Δεν είναι κρυπτογραφημένο. Αν έχει κωδικό ή κλειδί που χρησιμοποιείται, βάλε το στα Cloudflare secrets ή στην κρυπτογραφημένη αποθήκη (DPAPI)· αν όχι, μπορεί να σβηστεί, αλλά ρώτα πρώτα το Claude.')
+    binary = @('info', 'δεν είναι απλό κείμενο ούτε DPAPI', 'Μόνο πληροφορία: αρχείο προγράμματος, όχι κλειδί σε απλό κείμενο. Αν δεν ξέρεις τι είναι, ρώτα το Claude πριν το αγγίξεις.')
+}
+
 # ---------------- facts used by several checks (read only) ----------------
 $isAdmin = $false
 try { $isAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator) } catch { $isAdmin = $false }
@@ -272,14 +374,22 @@ if ($mp -and (Get-Command Get-MpPreference -ErrorAction SilentlyContinue)) {
 $avProducts = $null
 $avWhy = ''
 try {
-    $avProducts = @(Get-CimInstance -Namespace 'root/SecurityCenter2' -ClassName 'AntivirusProduct' | ForEach-Object {
-        $state = [int64]0
-        try { $state = [int64]$_.productState } catch { }
-        $hex = '{0:X6}' -f $state
-        if ($hex.Length -gt 6) { $hex = $hex.Substring($hex.Length - 6) }
-        $rt = $hex.Substring(2, 2)
-        [pscustomobject]@{ Name = [string]$_.displayName; On = ($rt -eq '10' -or $rt -eq '11'); Defender = ([string]$_.displayName -match '(?i)defender') }
-    })
+    if ($TestAntivirus) {
+        # Tests only: "Name=on;Name=off" instead of SecurityCenter2
+        $avProducts = @($TestAntivirus -split ';' | Where-Object { $_ -match '=' } | ForEach-Object {
+            $kv = $_ -split '=', 2
+            [pscustomobject]@{ Name = $kv[0].Trim(); On = ($kv[1].Trim() -eq 'on'); Defender = ($kv[0] -match '(?i)defender') }
+        })
+    } else {
+        $avProducts = @(Get-CimInstance -Namespace 'root/SecurityCenter2' -ClassName 'AntivirusProduct' | ForEach-Object {
+            $state = [int64]0
+            try { $state = [int64]$_.productState } catch { }
+            $hex = '{0:X6}' -f $state
+            if ($hex.Length -gt 6) { $hex = $hex.Substring($hex.Length - 6) }
+            $rt = $hex.Substring(2, 2)
+            [pscustomobject]@{ Name = [string]$_.displayName; On = ($rt -eq '10' -or $rt -eq '11'); Defender = ([string]$_.displayName -match '(?i)defender') }
+        })
+    }
 } catch { $avProducts = $null; $avWhy = Get-Reason $_ }
 $others = @($avProducts | Where-Object { $_ -and -not $_.Defender })
 $otherOn = @($others | Where-Object { $_.On })
@@ -445,6 +555,13 @@ try {
         if ($activeCount -gt 1) { Mark 'warn' ('Antivirus που ξέρουν τα Windows: {0}' -f $list) 'Δύο antivirus ανοιχτά μαζί κάνουν τον υπολογιστή αργό και μπορεί να συγκρούονται. Ένα αρκεί: στείλε την αναφορά στο Claude για το ποιο να μείνει.' 'windowsdefender://threat/' 30 }
         elseif ($others.Count -eq 0) { Mark 'ok' ('Antivirus που ξέρουν τα Windows: {0}' -f $list) 'Μόνο το Microsoft Defender: σωστό, ένα antivirus αρκεί.' }
         else { Mark 'ok' ('Antivirus που ξέρουν τα Windows: {0}' -f $list) 'Ένα ανοιχτό antivirus αρκεί. Δεν χρειάζεται τίποτα.' }
+        # An antivirus that is off but still registered, next to an active one (never Windows Defender): a leftover.
+        $anyActive = $defActive -or (@($avProducts | Where-Object { $_.On }).Count -gt 0)
+        if ($anyActive) {
+            foreach ($old in @($others | Where-Object { -not $_.On })) {
+                Mark 'info' ('Παλιό antivirus: {0} (κλειστό, αλλά ακόμα γραμμένο στα Windows)' -f $old.Name) 'Ένα παλιό antivirus είναι ακόμα γραμμένο στα Windows· αν δεν το χρησιμοποιείς, μπορείς να το απεγκαταστήσεις από Ρυθμίσεις > Εφαρμογές.' 'ms-settings:appsfeatures'
+            }
+        }
     }
 } catch { MarkNA 'Antivirus που ξέρουν τα Windows' (Get-Reason $_) }
 
@@ -749,22 +866,28 @@ try {
         $found = @(Find-SecretFiles $scanRoot 3 | Sort-Object)
         if ($found.Count -eq 0) { Mark 'ok' ($label + ': κανένα') 'Δεν βρέθηκαν αρχεία με μυστικά σε απλό κείμενο. Δεν χρειάζεται τίποτα.' }
         else {
-            $lines = @()
-            $risky = 0
+            Mark 'info' ('{0}: {1} (το περιεχόμενό τους δεν εμφανίζεται ποτέ)' -f $label, $found.Count) 'Από κάθε αρχείο διάβασα μόνο την αρχή (έως 4 KB), μόνο για να ξεχωρίσω κρυπτογραφημένο από απλό κείμενο· δεν δείχνω, δεν αντιγράφω και δεν γράφω τίποτα από αυτά. Τα μυστικά των sites ανήκουν στα Cloudflare secrets (wrangler secret put) ή στην κρυπτογραφημένη αποθήκη του υπολογιστή (DPAPI): ποτέ σε GitHub, OneDrive ή email. Μην σβήσεις τίποτα μόνος σου: ρώτα πρώτα το Claude.'
+            $reportsDir = Join-Path $scanRoot 'gear-world-reports'
             foreach ($p in @($found | Select-Object -First 40)) {
                 $rel = '~\' + $p.Substring($scanRoot.Length).TrimStart('\')
                 $marks = @()
-                if (Test-InFolder $p $OneDriveRoots) { $marks += 'στο OneDrive: ανεβαίνει στο cloud' }
-                if (Test-InGit $p $scanRoot) { $marks += 'μέσα σε φάκελο Git' }
-                $line = '· ' + $rel
-                if ($marks.Count -gt 0) { $line += ' (' + ($marks -join ', ') + ')'; $risky++ }
-                $lines += $line
+                $inOdFile = Test-InFolder $p $OneDriveRoots
+                $inGit = Test-InGit $p $scanRoot
+                if ($inOdFile) { $marks += 'στο OneDrive: ανεβαίνει στο cloud' }
+                if ($inGit) { $marks += 'μέσα σε φάκελο Git' }
+                $shownName = $rel
+                if ($marks.Count -gt 0) { $shownName += ' (' + ($marks -join ', ') + ')' }
+                $kind = Get-SecretKind $p (Test-InFolder (Split-Path -Parent $p) @($reportsDir))
+                if ($kind -eq 'cloud') { MarkNA $shownName 'cloud' '' 'Για να μην κατέβει από το OneDrive, δεν το άνοιξα. Αν σε ανησυχεί, στείλε τη λίστα στο Claude.' }
+                elseif (-not $SecretKinds.ContainsKey($kind)) { MarkNA $shownName 'unread' '' 'Δεν άνοιξε (ίσως το χρησιμοποιεί άλλο πρόγραμμα ή δεν έχεις δικαίωμα). Αν σε ανησυχεί, στείλε τη λίστα στο Claude.' }
+                else {
+                    $sk = $SecretKinds[$kind]
+                    $w = 30
+                    if ($kind -eq 'token') { $w = 15; if ($inOdFile -or $inGit) { $w = 12 } }
+                    Mark $sk[0] ('{0}: «{1}»' -f $shownName, $sk[1]) $sk[2] '' $w
+                }
             }
-            if ($found.Count -gt 40) { $lines += ('· ... και άλλα {0}' -f ($found.Count - 40)) }
-            $advice = 'Τα μυστικά των sites ανήκουν στα Cloudflare secrets (wrangler secret put), όχι σε αρχεία. Τα .dev.vars χρειάζονται μόνο για δοκιμές στον υπολογιστή: ποτέ σε GitHub, OneDrive ή email. Μην τα σβήσεις μόνος σου: στείλε τη λίστα στο Claude για το επόμενο βήμα.'
-            $weight = 30
-            if ($risky -gt 0) { $weight = 15 }
-            Mark 'warn' ('{0}: {1} (μόνο τα ονόματα, το περιεχόμενο δεν διαβάστηκε)' -f $label, $found.Count) $advice '' $weight $lines
+            if ($found.Count -gt 40) { Mark 'warn' ('Άλλα {0} αρχεία με μυστικά δεν ελέγχθηκαν (εδώ μόνο τα πρώτα 40)' -f ($found.Count - 40)) 'Στείλε την αναφορά στο Claude για το επόμενο βήμα.' '' 30 }
         }
     }
 } catch { MarkNA 'Αρχεία με μυστικά στον φάκελο χρήστη' (Get-Reason $_) }
@@ -820,20 +943,24 @@ try {
 # The Gear World copy of tools/gw-backup.ps1 (README-RESTORE.txt is written at the end of every backup)
 try {
     $gwb = @()
+    $checked = @()
     foreach ($dr in [System.IO.DriveInfo]::GetDrives()) {
         $dt = [string]$dr.DriveType
         if ($dt -ne 'Fixed' -and $dt -ne 'Removable') { continue }
         $ready = $false
         try { $ready = $dr.IsReady } catch { $ready = $false }
         if (-not $ready) { continue }
+        $checked += ([string]$dr.Name).TrimEnd('\')
         $rf = Join-Path (Join-Path $dr.RootDirectory.FullName 'GearWorldBackup') 'README-RESTORE.txt'
         if (Test-Path -LiteralPath $rf -PathType Leaf) { $gwb += [pscustomobject]@{ Path = (Split-Path -Parent $rf); When = (Get-Item -LiteralPath $rf).LastWriteTime } }
     }
+    $drives = 'κανέναν (κανένας δίσκος δεν ήταν έτοιμος)'
+    if ($checked.Count -gt 0) { $drives = $checked -join ', ' }
     $best = $gwb | Sort-Object When -Descending | Select-Object -First 1
-    if (-not $best) { Mark 'warn' 'Αντίγραφο Gear World (gw-backup): δεν βρέθηκε σε συνδεδεμένο δίσκο' 'Αν ο εξωτερικός δίσκος δεν είναι συνδεδεμένος, σύνδεσέ τον και τρέξε ξανά τον έλεγχο. Αν δεν έχεις πάρει ποτέ αντίγραφο, ζήτησε από το Claude την εντολή του gw-backup.' '' 35 }
+    if (-not $best) { Mark 'warn' ('Αντίγραφο Gear World (gw-backup): δεν βρέθηκε στους δίσκους {0} (ο δίσκος του αντιγράφου μπορεί απλώς να μην είναι συνδεδεμένος)' -f $drives) 'Ο εξωτερικός δίσκος του αντιγράφου μπορεί απλώς να μην είναι συνδεδεμένος: σύνδεσέ τον και τρέξε ξανά τον έλεγχο. Αν δεν έχεις πάρει ποτέ αντίγραφο, ζήτησε από το Claude την εντολή του gw-backup.' '' 35 }
     else {
         $age = ($now - $best.When).TotalDays
-        $what = 'Αντίγραφο Gear World (gw-backup): {0}, τελευταίο {1}, πριν από {2}' -f $best.Path, $best.When.ToString('yyyy-MM-dd', $inv), (Get-DaysText $age)
+        $what = 'Αντίγραφο Gear World (gw-backup): {0}, τελευταίο {1}, πριν από {2} (έλεγξα τους δίσκους {3})' -f $best.Path, $best.When.ToString('yyyy-MM-dd', $inv), (Get-DaysText $age), $drives
         if ($age -gt 30) { Mark 'warn' $what 'Το αντίγραφο είναι παλιό. Ζήτησε από το Claude την εντολή του gw-backup, με τον δίσκο συνδεδεμένο.' '' 22 }
         else { Mark 'ok' $what 'Ο εξωτερικός δίσκος έχει πρόσφατο αντίγραφο όλου του Gear World. Κράτα τον στο σπίτι.' }
     }
@@ -905,7 +1032,7 @@ foreach ($s in $Sections) {
     }
 }
 Say ''
-Say 'Τι ΔΕΝ έκανε αυτό το εργαλείο: δεν άλλαξε καμία ρύθμιση, δεν ξεκίνησε σάρωση, δεν έψαξε online για ενημερώσεις και δεν άνοιξε κανένα αρχείο με μυστικά (μόνο τα ονόματά τους).'
+Say 'Τι ΔΕΝ έκανε αυτό το εργαλείο: δεν άλλαξε καμία ρύθμιση, δεν ξεκίνησε σάρωση και δεν έψαξε online για ενημερώσεις. Από τα αρχεία με μυστικά διάβασε μόνο την αρχή τους (έως 4 KB), μόνο για να ξεχωρίσει κρυπτογραφημένο από απλό κείμενο, και δεν έδειξε, δεν αντέγραψε και δεν έγραψε τίποτα από αυτά (όσα είναι μόνο στο cloud δεν τα άνοιξε καθόλου).'
 Say 'Στείλε αυτή την αναφορά στο Claude (Ctrl+V) για το επόμενο βήμα.'
 
 # Write: console (colours), report file (UTF-8 with BOM), clipboard. Everything goes through Hide-Private first.

@@ -4960,10 +4960,18 @@ Check (-not ($pcText -match $pcNative)) 'pc check: no reg add, sc config, net us
 # No method that writes the registry or files, installs or downloads updates, starts a Windows Update search (a scan),
 # or starts or kills a process. Its one file write is the report.
 $pcMembers = @($pcAst.FindAll({ param($x) $x -is [System.Management.Automation.Language.InvokeMemberExpressionAst] }, $true) | ForEach-Object { [string]$_.Member.Value })
-$pcDenyMembers = @('SetValue', 'DeleteValue', 'CreateSubKey', 'DeleteSubKey', 'DeleteSubKeyTree', 'OpenSubKey', 'Put', 'Delete', 'Move', 'Copy', 'Install', 'Download', 'Search', 'Commit', 'InvokeMethod', 'WriteAllBytes', 'WriteAllLines', 'AppendAllText', 'AppendAllLines', 'CreateUpdateInstaller', 'CreateUpdateDownloader', 'Kill', 'Start', 'ShellExecute', 'InvokeVerb', 'InvokeVerbEx', 'Encrypt', 'Decrypt', 'SetAccessControl')
+$pcDenyMembers = @('SetValue', 'DeleteValue', 'CreateSubKey', 'DeleteSubKey', 'DeleteSubKeyTree', 'OpenSubKey', 'Put', 'Delete', 'Move', 'Copy', 'Install', 'Download', 'Search', 'Commit', 'InvokeMethod', 'WriteAllBytes', 'WriteAllLines', 'AppendAllText', 'AppendAllLines', 'CreateUpdateInstaller', 'CreateUpdateDownloader', 'Kill', 'Start', 'ShellExecute', 'InvokeVerb', 'InvokeVerbEx', 'Encrypt', 'Decrypt', 'SetAccessControl', 'Open', 'OpenWrite', 'CreateText', 'AppendText', 'Write', 'WriteByte', 'SetLength')
 $pcDenied = @($pcMembers | Where-Object { $pcDenyMembers -contains $_ } | Sort-Object -Unique)
 Check ($pcDenied.Count -eq 0) ('pc check: no method that changes the registry, files, updates or processes ' + ($pcDenied -join ', '))
-Check ((@($pcMembers | Where-Object { $_ -eq 'WriteAllText' }).Count -eq 1) -and (@($pcMembers | Where-Object { $_ -eq 'CreateDirectory' }).Count -eq 1)) 'pc check: it writes only its report (one WriteAllText, one CreateDirectory)'
+# The only [System.IO.File] / [System.IO.Directory] calls: the report (WriteAllText, CreateDirectory) and the read-only
+# look at the start of the secret files (OpenRead), once each.
+$pcFileCalls = @($pcAst.FindAll({ param($x) $x -is [System.Management.Automation.Language.InvokeMemberExpressionAst] -and $x.Static -and $x.Expression.TypeName.FullName -match '^(System\.)?IO\.(File|Directory)$' }, $true) | ForEach-Object { $_.Expression.TypeName.FullName.Split('.')[-1] + '::' + [string]$_.Member.Value })
+Check ((($pcFileCalls | Sort-Object) -join ',') -eq 'Directory::CreateDirectory,File::OpenRead,File::WriteAllText') ('pc check: the only file calls are the report and the 4 KB look (File::OpenRead, File::WriteAllText, Directory::CreateDirectory, once each) ' + ($pcFileCalls -join ', '))
+# From the secret files it reads only the first 4 KB: one Read into a 4096-byte buffer, never a whole file.
+$pcFullReads = @($pcMembers | Where-Object { @('ReadAllText', 'ReadAllBytes', 'ReadAllLines', 'ReadLines', 'OpenText', 'ReadToEnd', 'ReadLine') -contains $_ })
+$pcFullReads += @($pcAst.FindAll({ param($x) $x -is [System.Management.Automation.Language.CommandAst] }, $true) | ForEach-Object { $_.GetCommandName() } | Where-Object { @('Get-Content', 'Get-FileHash', 'Import-Csv', 'Import-Clixml', 'Select-String') -contains $_ })
+Check ($pcFullReads.Count -eq 0 -and ($pcText -match '(?m)^\$PeekBytes = 4096\r?$') -and ($pcText -match '\.Read\(\$buf, \$n, \$PeekBytes - \$n\)') -and -not ($pcText -match 'StreamReader|IO\.FileStream')) ('pc check: from the secret files only the first 4 KB are read (no ReadAll*, Get-Content, Get-FileHash or StreamReader) ' + ($pcFullReads -join ', '))
+Check (($pcText -match 'Set-Clipboard -Value \$text\b') -and ($pcText -match 'WriteAllText\(\$file, \$text,')) 'pc check: the clipboard gets exactly the report text'
 
 if ($isWin) {
     $pcHome = Join-Path $work 'pc-home'
@@ -4980,12 +4988,37 @@ if ($isWin) {
     Write-Utf8 (Join-Path $pcHome 'a\b\c\deep-secret.txt') $pcSecret
     Write-Utf8 (Join-Path $pcHome 'proj\readme.txt') 'nothing secret here'
     Write-Utf8 (Join-Path $pcHome '.wrangler\config\default.toml') ('oauth_token = "' + $pcSecret + '"')
+    # Secret files it classifies from their first 4 KB (the names of the owner's files, 8 Nov 2026): DPAPI as
+    # ConvertFrom-SecureString text (ASCII and UTF-16) and as ProtectedData bytes, a plain key, a UUID key, a report
+    # without a key, a report with a key, an empty file. None of their content may reach the report, the console or
+    # the clipboard.
+    $pcDpapi = ConvertTo-SecureString ('dpapi-' + [guid]::NewGuid().ToString('N')) -AsPlainText -Force | ConvertFrom-SecureString
+    $pcToken = 'gw' + [guid]::NewGuid().ToString('N') + 'Q9x' + [guid]::NewGuid().ToString('N').Substring(0, 8)
+    $pcToken2 = 'Lk' + [guid]::NewGuid().ToString('N') + 'Zz4'
+    $pcUuid = [guid]::NewGuid().ToString()
+    $pcSha = [guid]::NewGuid().ToString('N') + [guid]::NewGuid().ToString('N')
+    Write-Utf8 (Join-Path $pcHome 'GearWorld_Backups\EMPTY_SECRET.txt') ''
+    Write-Utf8 (Join-Path $pcHome 'gear-world-secrets\awin-api-token.dat') $pcDpapi
+    [System.IO.File]::WriteAllText((Join-Path $pcHome 'GearWorld_Backups\GW_INTERNAL_TOKEN.protected.txt'), ($pcDpapi + "`r`n"), [System.Text.Encoding]::Unicode)
+    Add-Type -AssemblyName System.Security
+    $pcBlob = [System.Security.Cryptography.ProtectedData]::Protect([System.Text.Encoding]::UTF8.GetBytes('blob-' + [guid]::NewGuid().ToString('N')), $null, [System.Security.Cryptography.DataProtectionScope]::CurrentUser)
+    [System.IO.File]::WriteAllBytes((Join-Path $pcHome 'gear-world-secrets\cj-token.dat'), $pcBlob)
+    Write-Utf8 (Join-Path $pcHome 'construction-gear-uk\backups\cgw-admin-token.txt') ('ADMIN_TOKEN=' + $pcToken)
+    Write-Utf8 (Join-Path $pcHome 'GearWorld_Backups\GW-ML-Isolated-Test\awin.env') ('AWIN_TOKEN=' + $pcUuid)
+    Write-Utf8 (Join-Path $pcHome 'gear-world-reports\AWIN_SETUP_TOKEN_20261103_184934.txt') ((@('AWIN SETUP - token', ('Code version: gear-world-code-' + $pcSha.Substring(0, 40)), 'Current Version ID: abcd-masked-id', ('https://raw.githubusercontent.com/evangelos-gif/gear-world-code/' + $pcSha.Substring(0, 40) + '/tools/gw-run.ps1'), ('sha256 ' + $pcSha), 'AWIN_SETUP_TOKEN_20261103_184934 idx_products_group_key SERankingBacklinksBot', 'UserAccountControlSettings ConsentPromptBehaviorAdmin')) -join "`r`n")
+    Write-Utf8 (Join-Path $pcHome 'gear-world-reports\OLD_TOKEN_CHECK.txt') ('value: ' + $pcToken2)
     $pcBefore = Get-TreeHash $pcHome
     $pcWatch = [System.Diagnostics.Stopwatch]::StartNew()
-    & $exe -NoProfile -ExecutionPolicy Bypass -File $pcTool -HomeDir $pcHome -OutDir $pcOut -NoClipboard
+    # With the clipboard this time, and the console captured, to check that no content leaks there either.
+    $pcConsole = (& $exe -NoProfile -ExecutionPolicy Bypass -File $pcTool -HomeDir $pcHome -OutDir $pcOut | Out-String)
     $pcCode = $LASTEXITCODE
     $pcWatch.Stop()
     Write-Host ('    (the PC check took {0:N0} s)' -f $pcWatch.Elapsed.TotalSeconds)
+    $pcClip = ''
+    try { $pcClip = [string](Get-Clipboard -Raw) } catch { $pcClip = '' }
+    if ($pcClip.Contains('Σύνοψη:')) { Write-Host '    (the clipboard of this runner holds the report: checked too)' }
+    else { Write-Host '    (no clipboard on this runner: the clipboard text is the report text, checked above)'; $pcClip = '' }
+    if ($pcCode -ne 0) { Write-Host $pcConsole }
     Check ($pcCode -eq 0) 'pc check: exit 0'
     Check ($pcWatch.Elapsed.TotalSeconds -lt 300) 'pc check: finishes in under 5 minutes'
     $pcReports = @(Get-ChildItem -LiteralPath $pcOut -Filter 'PC_SECURITY_*.txt' -ErrorAction SilentlyContinue)
@@ -5013,6 +5046,33 @@ if ($isWin) {
     Check ($r.Contains('~\proj\.dev.vars (μέσα σε φάκελο Git)')) 'pc check: a secret file inside a Git folder is marked'
     Check (-not $r.Contains('deep-secret') -and -not $r.Contains('node_modules') -and -not $r.Contains('secret-hook')) 'pc check: nothing beyond 3 levels, nothing from node_modules or .git'
     Check (-not $r.Contains($pcSecret) -and -not $r.Contains('oauth_token')) 'pc check: never prints the content of a secret file or of the wrangler login'
+    $pcExpect = @(
+        @('🟢 ΕΝΤΑΞΕΙ', '~\gear-world-secrets\awin-api-token.dat', 'κρυπτογραφημένο για τον χρήστη σου (DPAPI)'),
+        @('🟢 ΕΝΤΑΞΕΙ', '~\gear-world-secrets\cj-token.dat', 'κρυπτογραφημένο για τον χρήστη σου (DPAPI)'),
+        @('🟢 ΕΝΤΑΞΕΙ', '~\GearWorld_Backups\GW_INTERNAL_TOKEN.protected.txt', 'κρυπτογραφημένο για τον χρήστη σου (DPAPI)'),
+        @('🟡 ΠΡΟΣΟΧΗ', '~\construction-gear-uk\backups\cgw-admin-token.txt', 'απλό κείμενο που μοιάζει με κλειδί'),
+        @('🟡 ΠΡΟΣΟΧΗ', '~\GearWorld_Backups\GW-ML-Isolated-Test\awin.env', 'απλό κείμενο που μοιάζει με κλειδί'),
+        @('🟡 ΠΡΟΣΟΧΗ', '~\gear-world-hub\.dev.vars', 'απλό κείμενο που μοιάζει με κλειδί'),
+        @('🟢 ΕΝΤΑΞΕΙ', '~\gear-world-reports\AWIN_SETUP_TOKEN_20261103_184934.txt', 'αναφορά χωρίς κλειδί'),
+        @('🟡 ΠΡΟΣΟΧΗ', '~\gear-world-reports\OLD_TOKEN_CHECK.txt', 'απλό κείμενο που μοιάζει με κλειδί'),
+        @('🟢 ΕΝΤΑΞΕΙ', '~\GearWorld_Backups\EMPTY_SECRET.txt', 'άδειο αρχείο')
+    )
+    $pcMiss = @($pcExpect | Where-Object { -not $r.Contains(('{0} | {1}: «{2}»' -f $_[0], $_[1], $_[2])) } | ForEach-Object { $_[1] })
+    foreach ($x in $pcMiss) { Write-Host ('    not classified as expected: ' + $x) -ForegroundColor Yellow }
+    Check ($pcMiss.Count -eq 0) 'pc check: secret files classified from their first 4 KB (DPAPI text ASCII and UTF-16, DPAPI bytes, plain key, UUID key, report with and without a key, empty)'
+    # No piece (8 characters) of any file content: not in the report, not on the console, not in the clipboard.
+    $pcLeaks = @()
+    foreach ($s in @($pcToken, $pcToken2, $pcUuid, $pcSecret, $pcSha, $pcDpapi.Substring(40, 48), 'd08c9ddf')) {
+        for ($k = 0; $k + 8 -le $s.Length; $k += 4) {
+            $chunk = $s.Substring($k, 8)
+            foreach ($where in @(@('report', $r), @('console', $pcConsole), @('clipboard', $pcClip))) {
+                if (([string]$where[1]).IndexOf($chunk, [System.StringComparison]::OrdinalIgnoreCase) -ge 0) { $pcLeaks += $where[0] }
+            }
+        }
+    }
+    Check ($pcLeaks.Count -eq 0) ('pc check: no part of any key, DPAPI text or report content in the report, the console or the clipboard ' + (($pcLeaks | Sort-Object -Unique) -join ', '))
+    Check ($r.Contains('διάβασε μόνο την αρχή τους (έως 4 KB)') -and $r.Contains('το περιεχόμενό τους δεν εμφανίζεται ποτέ')) 'pc check: the report says it read only the start of the secret files and shows none of it'
+    Check (($r -match '🟡 ΠΡΟΣΟΧΗ \| Αντίγραφο Gear World \(gw-backup\): δεν βρέθηκε στους δίσκους [A-Z]:') -and $r.Contains('μπορεί απλώς να μην είναι συνδεδεμένος')) 'pc check: the gw-backup check lists the drive letters it checked and says the drive may not be connected'
     Check ($r.Contains('~\.wrangler\config\default.toml: υπάρχει') -and $r.Contains('%APPDATA%\xdg.config\.wrangler\config\default.toml: δεν υπάρχει')) 'pc check: the wrangler login files only as «υπάρχει» / «δεν υπάρχει»'
     if ($pcUser.Length -ge 2) {
         Check ($r.Contains('~\' + $pcUser.Substring(0, 1) + '***-password.txt') -and $r.IndexOf($pcUser, [System.StringComparison]::OrdinalIgnoreCase) -lt 0) 'pc check: the user name is masked (first letter and ***), also inside a file name'
@@ -5022,14 +5082,16 @@ if ($isWin) {
         Check ($r.Contains('Υπολογιστής: ' + $pcComputer.Substring(0, 1) + '***') -and $r.IndexOf($pcComputer, [System.StringComparison]::OrdinalIgnoreCase) -lt 0) 'pc check: the computer name is masked'
     }
     Check ((Get-TreeHash $pcHome) -eq $pcBefore) 'pc check: the user folder is unchanged (read-only)'
-    # Through gw-run, with a user folder that does not exist and without the update history: still exit 0
+    # Through gw-run, with a user folder that does not exist, without the update history, and with a test antivirus
+    # list (an old McAfee that is off next to an active Norton): still exit 0
     $pcOut2 = Join-Path $work 'pc-out2'
-    & $exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path (Join-Path $repo 'tools') 'gw-run.ps1') -LocalRepo $repo -Tool pc-security-check -HomeDir (Join-Path $work 'pc-no-home') -OutDir $pcOut2 -UpdateTimeoutSeconds 0 -NoClipboard | Out-Null
+    & $exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path (Join-Path $repo 'tools') 'gw-run.ps1') -LocalRepo $repo -Tool pc-security-check -HomeDir (Join-Path $work 'pc-no-home') -OutDir $pcOut2 -UpdateTimeoutSeconds 0 -NoClipboard -TestAntivirus 'McAfee LiveSafe=off;Norton 360=on;Windows Defender=off' | Out-Null
     Check ($LASTEXITCODE -eq 0) 'pc check: runs through gw-run'
     $pcReports2 = @(Get-ChildItem -LiteralPath $pcOut2 -Filter 'PC_SECURITY_*.txt' -ErrorAction SilentlyContinue)
     $r2 = ''
     if ($pcReports2.Count -eq 1) { $r2 = [System.IO.File]::ReadAllText($pcReports2[0].FullName) }
     Check ($r2 -match 'Αρχεία με μυστικά[^\r\n]*«δεν διαβάζεται»') 'pc check: a user folder it cannot read is reported as «δεν διαβάζεται», not a crash'
+    Check ($r2.Contains('ℹ️ ΠΛΗΡΟΦΟΡΙΑ | Παλιό antivirus: McAfee LiveSafe (κλειστό, αλλά ακόμα γραμμένο στα Windows)') -and $r2.Contains('Άνοιξε: ms-settings:appsfeatures') -and -not $r2.Contains('Παλιό antivirus: Windows Defender')) 'pc check: an antivirus that is off next to an active one gets the uninstall link (never Windows Defender)'
 }
 
 Remove-Item -LiteralPath $work -Recurse -Force -ErrorAction SilentlyContinue
