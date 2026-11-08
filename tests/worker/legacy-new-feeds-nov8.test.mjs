@@ -90,3 +90,15 @@ test('Car Gear World: a shop category map (4x4 Predator) decides before the gene
   assert.equal(agw.mapByShop('Side Steps', null), '');
   assert.deepEqual(agw.classify('Ford Ranger Side Steps', 'Side Steps'), agw.classify('Ford Ranger Side Steps', 'Side Steps', '', { retailer: 'Tooled Up' }), 'no map: as before');
 });
+
+test('Baccus: men\'s clothes, shoes and accessories to MGW in its existing subcategories; vouchers out', async () => {
+  const b = await import('../../tools/import-rules/baccus.mjs');
+  const c = (name, awinCategory = "Men's Clothing", feedCategory = 'Clothing') => b.classify({ name, feedCategory, awinCategory });
+  assert.deepEqual(c('Ed Hardy - Laser Etched Dragon Repeat Jeans - Blue'), { site: 'mgw', siteCategory: 'Clothing', subcategory: 'Jeans' });
+  assert.equal(c('Ed Hardy - Multi-Graphic Relaxed T-Shirt - Grey').subcategory, 'T-Shirts');
+  assert.equal(c('Tommy Hilfiger - Austin Lightweight Cargo Trousers - Newsprint (Beige)', "Men's Trousers", 'Cargos & Trousers').subcategory, 'Trousers');
+  assert.deepEqual(c('HUGO - Yarrow Trainers - Light Beige', "Men's Footwear", 'Footwear'), { site: 'mgw', siteCategory: 'Shoes', subcategory: 'Trainers' });
+  assert.deepEqual(c('Goorin Bros - The Boss Trucker Cap - Grey', 'Accessories', 'Accessories'), { site: 'mgw', siteCategory: 'Bags & Accessories', subcategory: 'Hats & Caps' });
+  assert.ok(c('Gift Voucher', '', 'Gift Vouchers').reject);
+  assert.ok(b.RULES.shop.test('https://baccusstore.co.uk/products/x'));
+});
