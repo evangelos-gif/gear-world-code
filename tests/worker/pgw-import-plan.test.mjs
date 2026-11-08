@@ -110,7 +110,7 @@ test('10 categories, as the owner chose (31 Oct 2026), in the menu order of the 
 
 test('sources: the TGW shops with their filters, GamingKit and VEVOR off (L63, L79), no text of another site', () => {
   const src = JSON.parse(readFileSync('sites/pgw/sources.json', 'utf8')).sources;
-  assert.deepEqual(src.filter(s => s.approved).map(s => s.retailer), ['Joybuy', 'Back to the Office', 'PCHUB.UK', 'PcNova (IT-Supplies)', 'Plusshop UK', 'Bazta UK']);
+  assert.deepEqual(src.filter(s => s.approved).map(s => s.retailer), ['Joybuy', 'Back to the Office', 'PCHUB.UK', 'PcNova (IT-Supplies)', 'Plusshop UK', 'Bazta UK', 'AKKO']); // AKKO: 8 Nov 2026
   assert.equal(src.find(s => s.retailer === 'GamingKit').approved, false);
   assert.equal(src.find(s => s.retailer === 'VEVOR').approved, false);
   assert.equal(src.find(s => s.retailer === 'PcNova (IT-Supplies)').rulesFrom, 126641);

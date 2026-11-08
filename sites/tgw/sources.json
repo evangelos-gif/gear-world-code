@@ -824,6 +824,7 @@
       "rulesFrom": 126641,
       "stockFromQuantity": true,
       "_comment": "GamingKit (50,000 rows on 25 Oct 2026, gamingkit.co.uk): the same wholesale catalogue as PCHUB.UK, so it takes PCHUB.UK's rules (rulesFrom). Every row says in_stock = 1 but most say stock_quantity = 0: stockFromQuantity (a row is in stock only with a quantity above 0). Many rows have the made-up EAN 012345678912 and an \"Image coming soon\" picture; the report counts the same product at two shops (lessons L63). Owner, 25 Oct 2026 (lessons L64): not imported. The dry run showed all of its 4,576 products also at PCHUB.UK, every one dearer, none of its own."
-    }
+    },
+    { "advertiserId": 69178, "feedIds": [94438], "retailer": "AKKO", "currency": "GBP", "condition": "new", "approved": true }
   ]
 }
