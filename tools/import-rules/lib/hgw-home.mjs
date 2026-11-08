@@ -141,13 +141,29 @@ const GENERIC = [
 
 // Returns { siteCategory, subcategory } for a home product of HGW, or null (the shop's rules decide what to do then).
 export function homePlace(name) {
-  const n = trimTail(name);
+  const tryName = n => {
+    const head = headOf(n);
+    for (const [cat, sub, re] of PLACES) if (re.test(head)) return { siteCategory: cat, subcategory: sub };
+    for (const [cat, sub, re] of GENERIC) if (re.test(head)) return { siteCategory: cat, subcategory: sub };
+    // The words after "with" can still say it ("Malibu Set with 2 Bedside Tables" was caught above by its head).
+    for (const [cat, sub, re] of PLACES) if (re.test(n)) return { siteCategory: cat, subcategory: sub };
+    return null;
+  };
+  // The cut can come before the type when an adjective sits in front of it ("Marlow 110 cm Round Smoked Glass Top Elegant
+  // Dining Table", import of 8 Nov 2026): then the whole name decides.
+  const full = String(name || '').replace(/\s{2,}/g, ' ').trim();
+  return tryName(trimTail(full)) || tryName(full);
+}
+
+// The card name: without the marketing tail, unless the tail held the type of the product.
+export function homeName(name) {
+  const full = String(name || '').replace(/\s{2,}/g, ' ').trim();
+  const cut = trimTail(full);
+  return cut !== full && !homePlaceOf(cut) ? full : cut;
+}
+function homePlaceOf(n) {
   const head = headOf(n);
-  for (const [cat, sub, re] of PLACES) if (re.test(head)) return { siteCategory: cat, subcategory: sub };
-  for (const [cat, sub, re] of GENERIC) if (re.test(head)) return { siteCategory: cat, subcategory: sub };
-  // The words after "with" can still say it ("Malibu Set with 2 Bedside Tables" was caught above by its head).
-  for (const [cat, sub, re] of PLACES) if (re.test(n)) return { siteCategory: cat, subcategory: sub };
-  return null;
+  return PLACES.some(([, , re]) => re.test(head)) || GENERIC.some(([, , re]) => re.test(head)) || PLACES.some(([, , re]) => re.test(n));
 }
 
 export function notHome(name) {

@@ -162,3 +162,13 @@ test('Sporty Gear World: gym machines with a console or named "trainer" stay in 
   assert.equal(sgwClassify('Dickies S3 Safety Boots', 'Sports', '', null).ok, false);
   assert.equal(sgwClassify('Adidas Ultraboost Running Trainers', 'Sports', '', null).slug, 'running');
 });
+
+test('after the import of 8 Nov 2026: a type in front of the marketing words still counts ("... Elegant Dining Table")', () => {
+  assert.equal(home.homePlace('Marlow 110 cm Round Smoked Glass Top Elegant Dining Table').subcategory, 'Dining Table');
+  assert.equal(home.homeName('Marlow 110 cm Round Smoked Glass Top Elegant Dining Table'), 'Marlow 110 cm Round Smoked Glass Top Elegant Dining Table');
+  assert.equal(home.homeName('Cornwall King Bed Frame Grey Elegant and Comfortable Bedroom Furniture'), 'Cornwall King Bed Frame Grey');
+  const c = cfw.classify({ name: 'Cuba 4 Seater Cube Set Stylish Comfortable Outdoor Seating' });
+  assert.equal(c.site, 'ggw');
+  assert.equal(c.name, 'Cuba 4 Seater Cube Set');
+});
+

@@ -11,7 +11,7 @@
 // so only feed 113623 is read. Rotary airers go to HGW laundry, garden sets get their garden subcategory (furnitureSub).
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
-import { homePlace, notHome, trimTail, OUTDOOR } from './lib/hgw-home.mjs';
+import { homePlace, homeName, notHome, trimTail, OUTDOOR } from './lib/hgw-home.mjs';
 import { gardenPlace, furnitureSub, GARDEN_CATEGORIES } from './lib/garden.mjs';
 
 export const RULES = {
@@ -44,14 +44,17 @@ export function displayBrand(brand) {
 }
 
 export function classify({ name, feedCategory = '' }) {
-  const n = trimTail(name);
+  const full = String(name || '').replace(/\s{2,}/g, ' ').trim();
+  const n = homeName(full);
   if (!n) return { reject: 'no name' };
   if (notHome(n)) return { reject: 'not furniture or home (pets, sport, toys, kitchen and bathroom fittings)' };
   if (/\b(rotary airers?|airers?|washing lines?|clothes dryers?)\b/i.test(n)) return { site: 'hgw', siteCategory: 'Cleaning & Laundry', subcategory: 'Clothes Airer', name: n };
-  if (OUTDOOR.test(n)) {
-    const g = gardenPlace(n, feedCategory);
-    if (g && g.siteCategory !== GARDEN_CATEGORIES.furniture) return { site: 'ggw', ...g, name: n };
-    return { site: 'ggw', siteCategory: GARDEN_CATEGORIES.furniture, subcategory: furnitureSub(n) || 'Garden furniture', name: n };
+  // "Cuba 4 Seater Cube Set Stylish Comfortable Outdoor Seating": the tail can be the only place that says outdoor.
+  if (OUTDOOR.test(full)) {
+    const gn = trimTail(full);
+    const g = gardenPlace(full, feedCategory);
+    if (g && g.siteCategory !== GARDEN_CATEGORIES.furniture) return { site: 'ggw', ...g, name: gn };
+    return { site: 'ggw', siteCategory: GARDEN_CATEGORIES.furniture, subcategory: furnitureSub(gn) || furnitureSub(full) || 'Garden furniture', name: gn };
   }
   const h = homePlace(n);
   if (!h) return { reject: 'no furniture or home type in the name' };
