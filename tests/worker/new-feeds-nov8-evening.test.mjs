@@ -240,6 +240,8 @@ test("owner's choice for Luxefashion (8 Nov 2026): shoes, dresses, coats, knitwe
   assert.equal(natkina.field('merchant_image_url', () => ''), '');
   assert.equal(natkina.RULES.shopifyCheck, true);
   assert.equal(natkina.RULES.shopOrigin, 'https://natkina.com');
+  assert.equal(natkina.classify({ name: 'TWO-TONE OVAL SOLITAIRE EARRINGS - White Silver / White', feedCategory: 'Earrings' }).name, 'Two-Tone Oval Solitaire Earrings');
+  assert.equal(natkina.classify({ name: 'Golden Wave Band - Yellow Gold / 52', feedCategory: 'Rings' }).name, 'Golden Wave Band');
   assert.equal(sal.classify({ name: 'Bestway Tug Boat Play Pool', feedCategory: 'Garden Games > Swimming Pools' }).subcategory, 'Water Play Equipment');
   assert.equal(sal.classify({ name: 'Air League HB10 Junior Adjustable Basketball Stand', feedCategory: 'Garden Games > Basketball' }).subcategory, 'Outdoor Games');
   const sgw = JSON.parse(readFileSync(new URL('../../sites/sgw/sources.json', import.meta.url), 'utf8')).sources.find(s => s.advertiserId === 1463);
@@ -288,4 +290,40 @@ test('Natkina plan: pictures from the shop (and from "//" addresses), pound pric
   assert.match(why, /not on the shop's site any more/);
   assert.match(why, /sold out on the shop's site/);
   assert.doesNotMatch(why, /no image/);
+});
+
+// Dry run 8 Nov 2026 22:57: Sport and Leisure UK's two feeds list the same trampolines and ride-on cars under different
+// links, so KGW would have had each card twice. One card per name; the price is the lowest in-stock one of both feeds.
+test('Sport and Leisure on KGW: the same product in both feeds is one card', async () => {
+  const { mkdtempSync, writeFileSync } = await import('node:fs');
+  const { tmpdir } = await import('node:os');
+  const { join } = await import('node:path');
+  const { gzipSync } = await import('node:zlib');
+  const { planLegacyImport, joinSameName } = await import('../../tools/legacy-import-plan.mjs');
+  const HEAD = 'aw_deep_link,product_name,aw_product_id,merchant_product_id,merchant_image_url,merchant_category,search_price,merchant_name,merchant_id,currency,merchant_deep_link,brand_name,in_stock\n';
+  const row = (id, path, name, price, brand, cat) =>
+    `https://www.awin1.com/pclick.php?p=${id}&a=1&m=1463,"${name}",${id},${id},https://sportandleisureuk.com/img/${id}.jpg,${cat},${price},Sport and Leisure UK,1463,GBP,https://sportandleisureuk.com/${path},${brand},1\n`;
+  const dir = mkdtempSync(join(tmpdir(), 'sal-'));
+  writeFileSync(join(dir, 'AWIN_1463_117262.csv.gz'), gzipSync(HEAD
+    + row(1, 'products/air-king-pro-7x10', 'Air King Pro 7x10ft Rectangular Trampoline with Safety Enclosure Grey - Free Ladder & Shoe Tidy', 239.95, 'Air King Pro', 'Trampolines')
+    + row(2, 'products/bestway-6ft', 'Bestway 6ft x 20inch Fast Set Above Ground Swimming Pool', 39.95, 'Bestway', 'Garden Games > Swimming Pools')
+    + row(3, 'products/mclaren-orange', 'Kids Electric Ride On 12V McLaren GT Orange', 139.95, 'mclaren-racing', 'Kids Cars')));
+  writeFileSync(join(dir, 'AWIN_1463_37875.csv.gz'), gzipSync(HEAD
+    + row(11, 'air-king-pro-7x10ft-rectangular-trampoline.html', 'Air King Pro 7x10ft Rectangular Trampoline with Safety Enclosure Grey - Free Ladder & Shoe Tidy', 239.95, 'AirKing Pro', 'Trampolines > Rectangular Trampolines')
+    + row(12, 'bestway-6ft-fast-set.html', 'BestWay 6ft x 20inch Fast Set™ Above Ground Swimming Pool', 29.95, 'Bestway', 'Garden Games > Swimming Pools')
+    + row(13, 'mclaren-gt-orange.html', 'Kids Electric Ride On 12V McLaren GT Orange', 139.95, 'mclaren-racing', 'Kids Ride-On Electric Cars')
+    + row(14, 'mclaren-gt-white.html', 'Kids Electric Ride On 12V McLaren GT White', 139.95, 'mclaren-racing', 'Kids Ride-On Electric Cars')));
+  const out = mkdtempSync(join(tmpdir(), 'sal-out-'));
+  const r = await planLegacyImport({ archive: dir, retailer: 'sportandleisure', outDir: out, now: new Date('2026-11-08T23:10:00Z') });
+  const names = r.accepted.kgw.map(p => p.product_name).sort();
+  assert.deepEqual(names, ['Air King Pro 7x10ft Rectangular Trampoline with Safety Enclosure Grey - Free Ladder & Shoe Tidy',
+    'Bestway 6ft x 20inch Fast Set Above Ground Swimming Pool', 'Kids Electric Ride On 12V McLaren GT Orange', 'Kids Electric Ride On 12V McLaren GT White']);
+  const pool = r.accepted.kgw.find(p => p.product_name.startsWith('Bestway'));
+  assert.equal(pool.price, 29.95);
+  assert.equal(pool.merchant_product_id, 'products/bestway-6ft', 'the first feed keeps its key and link');
+  // Without the flag (other shops) nothing changes: the same name on two pages stays two cards.
+  const two = [{ page: 'https://a/1', name: 'Same Name Product', variants: 1, inStockVariants: 1, unknownStock: 0, prices: [5] },
+    { page: 'https://a/2', name: 'Same Name Product', variants: 1, inStockVariants: 1, unknownStock: 0, prices: [4] }];
+  assert.equal(joinSameName(two.map(p => ({ ...p, prices: [...p.prices] }))).length, 2);
+  assert.equal(joinSameName(two.map(p => ({ ...p, prices: [...p.prices] })), { acrossFeeds: true }).length, 1);
 });

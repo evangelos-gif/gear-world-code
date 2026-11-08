@@ -154,7 +154,9 @@ if ($big.Count -gt 0) {
     foreach ($t in $big) { Say ('  {0}  {1}' -f (Mb $t.size), $t.path) }
 }
 Say ''
-Say ('Μένουν: η έκδοση που τρέχει ({0}) και η αμέσως προηγούμενη, τα feeds σε χρήση, οι φάκελοι των sites, backups, σημεία επαναφοράς και αναφορές.' -f $KeepVersion)
+$keepText = 'η νεότερη έκδοση σε κάθε φάκελο'
+if ($KeepVersion -like 'gear-world-code*') { $keepText = ('η έκδοση που τρέχει ({0}) και η αμέσως προηγούμενη' -f $KeepVersion) }
+Say ('Μένουν: {0}, τα feeds σε χρήση, οι φάκελοι των sites, backups, σημεία επαναφοράς και αναφορές.' -f $keepText)
 $feedNow = Size-Of $Archive
 if ($feedNow -gt 0) { Say ('Τα feeds (μένουν, μαζί με το _old): {0}' -f (Mb $feedNow)) }
 if ($targets.Count -eq 0) { Say 'Δεν υπάρχει τίποτα για σβήσιμο.' 'Green'; Finish 0 }

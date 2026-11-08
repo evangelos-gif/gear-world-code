@@ -4,7 +4,8 @@
 // (feed-profile 8 Nov 2026): 346 + 267 products, GBP, shop sportandleisureuk.com, categories "Trampolines > Rectangular
 // Trampolines", "Trampolines > Round Trampolines", "Tramp Accesories", "Kids Ride-On Electric Cars", "Kids Cars"; brands
 // Air King, Big Foot, Air League. KGW already has Toys & Games > Electric Riding Vehicles and Sports & Outdoors.
-// The two feeds list the same products: one card per product page.
+// The two feeds list the same products under different links (dry run 8 Nov 2026 22:57: every trampoline and ride-on
+// car twice): joinSameNameAcrossFeeds makes one card per name.
 export const RULES = {
   key: 'sportandleisure',
   advertiserId: 1463,
@@ -14,7 +15,8 @@ export const RULES = {
   sites: ['kgw'],
   maxPrice: 1500,
   minPrice: 5,
-  keepQuery: true
+  keepQuery: true,
+  joinSameNameAcrossFeeds: true
 };
 
 export function productKey(get) {

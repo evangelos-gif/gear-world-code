@@ -63,7 +63,9 @@ const SUBS = [
 export function classify({ name, feedCategory = '' }) {
   const full = String(name || '').replace(/\s{2,}/g, ' ').trim();
   if (!full) return { reject: 'no name' };
-  const n = full.split(/\s+-\s+/)[0].trim() || full;
+  let n = full.split(/\s+-\s+/)[0].trim() || full;
+  // A few names are all capitals ("TWO-TONE OVAL SOLITAIRE EARRINGS", dry run 8 Nov 2026): shown in title case.
+  if (/[A-Z]{3}/.test(n) && n === n.toUpperCase()) n = n.toLowerCase().replace(/(^|[\s(/-])([a-z])/g, (m, a, b) => a + b.toUpperCase());
   if (/\b(watch(es)?|spray|cleaner|cleaning|gift card|gift voucher|box only|packaging)\b/i.test(n) || /watches|spray/i.test(feedCategory)) {
     return { reject: 'watch, cleaner or gift card, not jewellery' };
   }

@@ -137,13 +137,21 @@ export async function readProducts({ archive, rules }) {
 
 const hostOf = url => { try { return new URL(url).hostname.toLowerCase(); } catch { return ''; } };
 
-export function joinSameName(products) {
+// acrossFeeds (rules.RULES.joinSameNameAcrossFeeds): the same name on ANY page is one card. Sport and Leisure UK (8 Nov
+// 2026) has two feeds that list the same products under different links, with small differences in the name ("Fast
+// Set" / "Fast Set™", "Air King Pro" / "AirKing Pro" as brand): the dry run had every trampoline and ride-on car twice.
+// The card keeps the first feed's link, picture and key; the price is the lowest in-stock price of both.
+export function sameNameKey(name) {
+  return String(name || '').replace(/[™®©]/g, '').normalize('NFKD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '');
+}
+export function joinSameName(products, { acrossFeeds = false } = {}) {
   const byName = new Map();
   const out = [];
   for (const p of products) {
-    const k = `${p.page || ''}|${String(p.name || '').toLowerCase()}`;
-    const first = p.page && p.name ? byName.get(k) : null;
-    if (!first) { if (p.page && p.name) byName.set(k, p); out.push(p); continue; }
+    const k = acrossFeeds ? sameNameKey(p.name) : `${p.page || ''}|${String(p.name || '').toLowerCase()}`;
+    const ok = acrossFeeds ? k.length >= 6 : Boolean(p.page && p.name);
+    const first = ok ? byName.get(k) : null;
+    if (!first) { if (ok) byName.set(k, p); out.push(p); continue; }
     first.variants += p.variants;
     first.inStockVariants += p.inStockVariants;
     first.unknownStock += p.unknownStock;
@@ -289,7 +297,8 @@ export async function planLegacyImport({ archive, retailer, outDir, now = new Da
   const { files, rows } = read;
   // rules.RULES.joinSameName: options of one product page with the SAME name (e.g. two sizes of "Director Chair Covers")
   // become one card with the lowest in-stock price. Options with different names (colours, sets) stay separate cards.
-  const products = R.joinSameName ? joinSameName(read.products) : read.products;
+  const products = R.joinSameNameAcrossFeeds ? joinSameName(read.products, { acrossFeeds: true })
+    : (R.joinSameName ? joinSameName(read.products) : read.products);
   let shopImages = null, shopCheck = null;
   if (R.shopifyCheck) shopCheck = checkShopify(products, R, await readShopifyCatalog(R.shopOrigin, fetchImpl ? { fetchImpl, pauseMs: 0 } : {}));
   else if (R.shopifyImages) shopImages = await fillShopifyImages(products, R, fetchImpl ? { fetchImpl, pauseMs: 0 } : {});
