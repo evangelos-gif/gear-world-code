@@ -12,6 +12,9 @@ import * as macian from '../../tools/import-rules/macian.mjs';
 import * as blooms from '../../tools/import-rules/doctorblooms.mjs';
 import * as cotts from '../../tools/import-rules/cottsbury.mjs';
 import { classify as sgwClassify } from '../../sites/sgw/category-rules.js';
+import { classify as zgwClassify } from '../../sites/zgw/category-rules.js';
+import * as natkina from '../../tools/import-rules/natkina.mjs';
+import * as santoro from '../../tools/import-rules/santoromilan.mjs';
 
 test('HGW home places: the head of the name says what the product is, marketing tails are cut', () => {
   const at = n => { const p = home.homePlace(n); return p ? `${p.siteCategory} / ${p.subcategory}` : null; };
@@ -170,5 +173,29 @@ test('after the import of 8 Nov 2026: a type in front of the marketing words sti
   const c = cfw.classify({ name: 'Cuba 4 Seater Cube Set Stylish Comfortable Outdoor Seating' });
   assert.equal(c.site, 'ggw');
   assert.equal(c.name, 'Cuba 4 Seater Cube Set');
+});
+
+test('8 Nov 2026 late: Natkina jewellery on WGW (pound feed only), Santoro Milan suits on MGW, new SGW and ZGW sources', () => {
+  const nk = (name, feedCategory) => natkina.classify({ name, feedCategory });
+  assert.deepEqual(nk('Lucky Green Frog Ring - White Silver / Green / 52', 'Rings'), { site: 'wgw', siteCategory: "Women's Jewellery", subcategory: 'Rings', name: 'Lucky Green Frog Ring' });
+  assert.equal(nk('Rainbow Square Silver Tennis Bracelet - White Silver / Emerald CZ / 17.5 cms', 'Bracelets').subcategory, 'Bracelets');
+  assert.equal(nk('Multicolor Owl Silver Earrings - White Silver / Multi', 'Earrings').subcategory, 'Earrings');
+  assert.ok(nk('Jewellery Cleaning Spray', 'Spray').reject);
+  assert.deepEqual(natkina.feedFiles('/no/such/folder'), []);
+  assert.equal(natkina.displayBrand('NATKINA'), 'Natkina');
+  const sm = name => santoro.classify({ name });
+  assert.equal(sm('Diaz Blue Three Piece Suit').subcategory, 'Suits');
+  assert.equal(sm('Santoro - Leonardo Tux').subcategory, 'Suits');
+  assert.equal(sm('Bromley Sky Waistcoat').subcategory, 'Waistcoats');
+  assert.equal(sm('Marc Darcy Jenson Grey Check Suit Three Piece Suit.').name, 'Marc Darcy Jenson Grey Check Suit Three Piece Suit');
+  assert.deepEqual(sm('Navy Silk Bow Tie'), { site: 'mgw', siteCategory: 'Bags & Accessories', subcategory: 'Ties', name: 'Navy Silk Bow Tie' });
+  assert.ok(sm('Boys Navy Three Piece Suit').reject);
+  const sgw = JSON.parse(readFileSync(new URL('../../sites/sgw/sources.json', import.meta.url), 'utf8')).sources;
+  assert.ok(sgw.find(s => s.advertiserId === 1463 && s.approved && s.feedIds.includes(37875)));
+  assert.equal(sgwClassify('IronMan 20kg Vinyl Dumbbell Set', 'Fitness Equipment > Free Weights', '', sgw.find(s => s.advertiserId === 1463)).slug, 'fitness-gym');
+  assert.equal(sgwClassify('Air King 12ft Trampoline with Enclosure', 'Trampolines > Round Trampolines', '', sgw.find(s => s.advertiserId === 1463)).ok, false);
+  const zgw = JSON.parse(readFileSync(new URL('../../sites/zgw/sources.json', import.meta.url), 'utf8')).sources.find(s => s.advertiserId === 42915);
+  assert.ok(zgw && zgw.petShop);
+  assert.deepEqual(zgwClassify('Calm The Eff Down - Natural Calming Dog Treats', 'Pets', '', zgw), { ok: true, slug: 'food' });
 });
 

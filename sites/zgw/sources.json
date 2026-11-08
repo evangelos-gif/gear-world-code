@@ -6,6 +6,7 @@
     { "advertiserId": 116097, "retailer": "Bazta UK", "currency": "GBP", "condition": "new", "approved": true, "rulesFrom": 69306 },
     { "advertiserId": 30645, "feedIds": [116078], "retailer": "Coes", "currency": "GBP", "condition": "new", "approved": true, "sectionHints": false },
     { "advertiserId": 129759, "feedIds": [117341], "retailer": "Aquatics Shop UK", "currency": "GBP", "condition": "new", "approved": true, "aquatics": true },
+    { "advertiserId": 42915, "feedIds": [81975], "retailer": "Pets Calm Down", "currency": "GBP", "condition": "new", "approved": true, "petShop": true },
     { "advertiserId": 56439, "feedIds": [94548], "retailer": "Red Gorilla", "currency": "GBP", "condition": "new", "approved": false },
     { "advertiserId": 118435, "feedIds": [109014], "retailer": "VEVOR", "currency": "EUR", "condition": "new", "keepSiteNames": true, "approved": false }
   ]
