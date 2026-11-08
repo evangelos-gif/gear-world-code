@@ -19,18 +19,24 @@ test('Simply LED: bulbs and indoor fittings to HGW in its own subcategories, out
     ['Firstlight Phoenix 2-Light Flush Ceiling Light Contemporary Style in Cream', 'Ceiling Light'],
     ['Firstlight 450mm LED Picture/Mirror Wall Light 8W Contemporary Style Warm White in Brushed Steel', 'Wall Light'],
     ['Firstlight Fusion Pendant Light in Black', 'Pendant Light'],
-    ['Spa Pyxis LED Bathroom Ceiling Light IP44 Chrome', 'Ceiling Light']
+    ['Spa Pyxis LED Bathroom Ceiling Light IP44 Chrome', 'Ceiling Light'],
+    // From the dry run of 8 Nov 2026:
+    ['Firstlight Orion LED Wall Spotlight 4W with On/Off Switch Modern Style Warm White in Brushed Steel', 'Wall Light'],
+    ['Firstlight Chester Uplighter with On/Off Switch Modern Style Warm White in Black', 'Floor Lamp'],
+    ['Firstlight Koko LED Rechargeable Table 2.2W with Dimmer Control Tri-Colour CCT in Black', 'Table Lamp']
   ];
   for (const [name, sub] of hgw) assert.deepEqual(c(name), { site: 'hgw', siteCategory: 'Lighting', subcategory: sub }, name);
   const ggw = [
     ['Zink HELIX Up and Down Wall Light in Black Outdoor Lights Exterior Front Door', 'Wall lights'],
     ['Crompton GLS LED Light Bulb B22 1.5W IP65 Amber Bayonet Coloured Garden Festoon', 'String & festoon lights'],
     ['Zink LED Ground Light Stainless Steel IP67', 'Path & spike lights'],
-    ['Stanley 20W LED Floodlight with PIR Sensor', 'Floodlights & security lights']
+    ['Stanley 20W LED Floodlight with PIR Sensor', 'Floodlights & security lights'],
+    ['Zink LETO Downlight with PIR sensor in Textured Black Up and Down Light Outdoor Exterior Front Door Lights', 'Floodlights & security lights']
   ];
   for (const [name, sub] of ggw) assert.deepEqual(c(name), { site: 'ggw', siteCategory: GGW_LIGHT, subcategory: sub }, name);
   assert.deepEqual(c('Zink LED Spike Light', 'Home & Garden > Lighting > Landscape Pathway Lighting').site, 'ggw');
-  for (const name of ['LED Driver 12V 30W Constant Voltage', 'Emergency LED Bulkhead Maintained 3hr', '150W LED High Bay UFO Light', 'Christmas Star Light'])
+  assert.ok(c('Zink Rechargeable LED Portable Work Light 20W Daylight in Yellow and Black').reject, 'a work light is for Construction');
+  for (const name of ['LED Driver 12V 30W Constant Voltage', 'Culina 1 Gang Grid Kinetic Dimmable Switch Black', 'Emergency LED Bulkhead Maintained 3hr', '150W LED High Bay UFO Light', 'Christmas Star Light'])
     assert.ok(c(name).reject, name);
   assert.ok(c('Round LED Bathroom Mirror 600mm', 'Home & Garden > Decor > Mirrors').reject, 'a mirror is not a light');
   assert.ok(led.RULES.shop.test('https://www.simplyled.co.uk/products/x') && !led.RULES.shop.test('https://www.amazon.co.uk/x'));
@@ -41,6 +47,7 @@ test('Silver Cloud Beauty: pillowcases and masks are beauty tools, sets are gift
   assert.deepEqual(c('White Satin Pillowcase infused with Silver Ions'), { site: 'wgw', siteCategory: 'Beauty & Fragrances', subcategory: 'Beauty tools' });
   assert.equal(c('Heart Print Satin Pillowcase & Sleep Mask Gift Set With Silver Ions').subcategory, 'Gift sets');
   assert.equal(c('Silver Sleep Mask').subcategory, 'Beauty tools');
+  assert.equal(c('Soft Satin Pink Heatless Hair Curler Set').subcategory, 'Hair tools');
   assert.ok(c('Silver Cloud e-Gift Card').reject);
   assert.equal(silver.displayBrand('My Store'), 'Silver Cloud');
   assert.equal(silver.displayBrand('Silver Cloud'), 'Silver Cloud');
@@ -56,7 +63,7 @@ test('Al Jazeera Perfumes: scent-only names get the brand, in normal case; sampl
   assert.equal(c('ROSE OF THE DESERT', 'LUXURY COLLECTION').name, 'Luxury Collection Rose of the Desert');
   assert.equal(c('Al Jazeera Perfumes Discovery Set', 'ALJAZEERA PERFUMES').subcategory, 'Gift sets');
   assert.equal(c('Al Jazeera Perfumes Discovery Set', 'ALJAZEERA PERFUMES').name, 'Al Jazeera Perfumes Discovery Set');
-  for (const n of ['Perfume Samples', 'Gift Card £50']) assert.ok(c(n, 'ALJAZEERA PERFUMES').reject, n);
+  for (const n of ['Perfume Samples', 'Gift Card £50', 'Oryx Roses Scented Candle']) assert.ok(c(n, 'ALJAZEERA PERFUMES').reject, n);
 });
 
 test('new-engine sources: 4x4 Predator on Car Gear World, AKKO on Technology and Gaming Gear World', () => {

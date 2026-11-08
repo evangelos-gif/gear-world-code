@@ -26,7 +26,7 @@ export function productKey(get) {
 
 const words = list => new RegExp('(?<![a-z0-9])(' + list.map(w => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|') + ')(?![a-z0-9])', 'i');
 const SEASONAL = words(['christmas', 'xmas', 'santa', 'reindeer', 'snowman', 'snowflake', 'halloween', 'pumpkin', 'nativity', 'advent']);
-const COMMERCIAL = words(['high bay', 'highbay', 'emergency', 'exit sign', 'exit', 'maintained', 'non-maintained', 'corn lamp', 'troffer']);
+const COMMERCIAL = words(['work light', 'work lights', 'worklight', 'high bay', 'highbay', 'emergency', 'exit sign', 'exit', 'maintained', 'non-maintained', 'corn lamp', 'troffer']);
 const PART = words(['driver', 'drivers', 'transformer', 'switch', 'switches', 'dimmer', 'cable', 'connector', 'connectors', 'junction box', 'mounting kit',
   'bracket', 'end cap', 'end caps', 'diffuser', 'clip', 'clips', 'remote control', 'sensor head', 'replacement glass', 'lens']);
 const LIGHT = words(['light', 'lights', 'lighting', 'lamp', 'lamps', 'bulb', 'bulbs', 'downlight', 'downlights', 'spotlight', 'spotlights', 'floodlight',
@@ -39,6 +39,13 @@ const OUTSIDE = words(['outdoor', 'outdoors', 'outside', 'exterior', 'garden', '
 const INSIDE = words(['bathroom', 'shower', 'kitchen', 'cabinet', 'under cabinet', 'undercabinet', 'cupboard', 'mirror', 'picture', 'bedroom', 'ceiling',
   'pendant', 'chandelier', 'table lamp', 'floor lamp', 'desk lamp', 'downlight', 'downlights', 'flush', 'semi-flush', 'track']);
 const OUTDOOR_FEED = /in-ground|landscape|pathway|flood\s*&\s*spot|outdoor/i;
+// Words that make a light an outdoor one even with an indoor word ("Zink LETO Downlight with PIR sensor ... Outdoor Exterior
+// Front Door Lights", dry run 8 Nov 2026), unless it is for a bathroom, kitchen, cabinet or mirror.
+const STRONG_OUT = words(['outdoor', 'outdoors', 'exterior', 'garden', 'front door', 'driveway', 'patio']);
+const ROOM = words(['bathroom', 'shower', 'kitchen', 'cabinet', 'under cabinet', 'cupboard', 'mirror']);
+// A light named with its switch or dimmer ("Chester Uplighter with On/Off Switch", "Koko LED Rechargeable Table 2.2W with
+// Dimmer Control") is a light, not a part: the part words are read only before "with".
+const IS_LIGHT = /\b(lights?|lamps?|bulbs?|downlights?|spotlights?|floodlights?|uplighters?|pendants?|chandeliers?|lanterns?|table)\b/i;
 const BULB = /\b(bulbs?|gu10|gu5\.3|mr16|b22|e27|e14|b15|g9|r7s|gls|golfball|candle led|filament)\b/i;
 
 const HGW_SUBS = [
@@ -46,9 +53,9 @@ const HGW_SUBS = [
   ['Lampshade', re => /\b(lamp ?shades?|shades?)\b/i.test(re) && !/\blight\b/i.test(re)],
   ['Chandelier', re => /\bchandeliers?\b/i.test(re)],
   ['Pendant Light', re => /\bpendants?\b/i.test(re)],
-  ['Floor Lamp', re => /\bfloor lamps?\b/i.test(re)],
-  ['Table Lamp', re => /\b(table|desk|bedside) lamps?\b/i.test(re)],
-  ['Wall Light', re => /\b(wall lights?|wall lamps?|picture lights?|mirror lights?|sconces?|up and down)\b/i.test(re)],
+  ['Floor Lamp', re => /\b(floor lamps?|uplighters?)\b/i.test(re)],
+  ['Table Lamp', re => /\b(table|desk|bedside) lamps?\b/i.test(re) || /\brechargeable table\b/i.test(re)],
+  ['Wall Light', re => /\b(wall lights?|wall lamps?|wall spotlights?|picture lights?|mirror lights?|sconces?|up and down)\b/i.test(re)],
   ['Ceiling Light', () => true]
 ];
 const GGW_SUBS = [
@@ -67,8 +74,9 @@ export function classify({ name, feedCategory = '' }) {
   if (!/lighting/i.test(cat) && !LIGHT.test(n)) return { reject: 'not a light (mirror, decor or other)' };
   if (SEASONAL.test(n)) return { reject: 'Christmas or other seasonal decoration' };
   if (COMMERCIAL.test(n)) return { reject: 'commercial fitting (high bay, emergency or exit light), not for a home' };
-  if (PART.test(n) && !/\b(lights?|lamps?|bulbs?|downlights?|spotlights?|floodlights?)\b/i.test(n)) return { reject: 'part or accessory, not a light' };
-  const outside = !INSIDE.test(n) && (OUTSIDE.test(n) || OUTDOOR_FEED.test(cat));
+  const head = n.split(/\swith\s/i)[0];
+  if (PART.test(head) && !IS_LIGHT.test(head)) return { reject: 'part or accessory, not a light' };
+  const outside = (STRONG_OUT.test(n) && !ROOM.test(n)) || (!INSIDE.test(n) && (OUTSIDE.test(n) || OUTDOOR_FEED.test(cat)));
   // A bulb sold for garden festoons ("B22 1.5W IP65 Amber ... Garden Festoon") is a garden product.
   if (outside) {
     let sub = 'Outdoor lights';

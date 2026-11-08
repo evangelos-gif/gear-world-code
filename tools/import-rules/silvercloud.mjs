@@ -32,6 +32,8 @@ const NOT_PRODUCT = words(['gift card', 'gift voucher', 'e-gift', 'voucher', 'sh
 export function classify({ name }) {
   const n = String(name || '');
   if (NOT_PRODUCT.test(n)) return { reject: 'gift card or service, not a product' };
+  // "Heatless Hair Curler Set" is a hair tool, not a gift set (dry run 8 Nov 2026).
+  if (/\b(curlers?|heatless)\b/i.test(n)) return { site: 'wgw', siteCategory: 'Beauty & Fragrances', subcategory: 'Hair tools' };
   if (/\b(gift set|set)\b/i.test(n)) return { site: 'wgw', siteCategory: 'Beauty & Fragrances', subcategory: 'Gift sets' };
   if (/\b(serum|cream|moisturi[sz]er|cleanser|toner|mask)\b/i.test(n) && !/\b(sleep|eye) mask\b/i.test(n)) {
     return { site: 'wgw', siteCategory: 'Beauty & Fragrances', subcategory: 'Skincare' };

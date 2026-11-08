@@ -39,6 +39,8 @@ export function classify({ name, brand = '' }) {
   const n = String(name || '').trim();
   if (!n) return { reject: 'no name' };
   if (NOT_PRODUCT.test(n)) return { reject: 'gift card, sample or service, not a product' };
+  // "Oryx Roses Scented Candle" (dry run 8 Nov 2026): home fragrance, not a perfume.
+  if (/\b(candles?|diffusers?|reed|room spray|incense|bakhoor|bukhoor)\b/i.test(n)) return { reject: 'home fragrance (candle, diffuser, incense), not a perfume' };
   const b = displayBrand(brand);
   const scent = titleCase(n);
   // "ORYX PERFUMES" + "AMBER" -> "Oryx Perfumes Amber"; a name that already has the brand keeps it once.
