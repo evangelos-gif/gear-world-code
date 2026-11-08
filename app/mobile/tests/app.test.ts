@@ -284,6 +284,14 @@ test('seasons: UK days, Black Friday and the slides of each period, like the Hub
   assert.deepEqual(ids('2026-11-28T12:00:00Z'), ['season-black-friday', 'christmas']);
   assert.deepEqual(ids('2026-12-27T12:00:00Z'), ['winter-sales']);
   assert.deepEqual(ids('2027-03-10T12:00:00Z'), ['all-worlds'], 'outside every season: the "13 Gear Worlds" slide');
+  // The campaigns repeat every year: no new app version is needed for them (owner, 8/11/2026).
+  assert.deepEqual(ids('2027-01-10T12:00:00Z'), ['winter-sales', 'new-year-fitness'], 'sales over New Year, then the January slide');
+  assert.deepEqual(ids('2027-02-10T12:00:00Z'), ['valentines-day']);
+  assert.deepEqual(ids('2027-10-25T12:00:00Z'), ['season-halloween']);
+  assert.deepEqual(ids('2027-11-13T12:00:00Z'), ['season-christmas', 'black-friday-soon'], 'Black Friday 2027 is 26/11, so its countdown starts on 12/11');
+  assert.deepEqual(ids('2027-11-27T12:00:00Z'), ['season-black-friday', 'christmas']);
+  assert.deepEqual(ids('2028-01-10T12:00:00Z'), ['winter-sales', 'new-year-fitness']);
+  assert.deepEqual(ids('2030-12-27T12:00:00Z'), ['winter-sales']);
   const bf = seasonFor('2026-11-28')!;
   assert.deepEqual(countdownParts(bf, Date.parse('2026-11-28T00:00:00Z')), { d: 2, h: 23, m: 59 });
   assert.equal(countdownParts(bf, Date.parse('2026-12-01T00:00:00Z')), null, 'no countdown once it is over');

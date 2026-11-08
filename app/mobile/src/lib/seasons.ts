@@ -63,22 +63,33 @@ export type Campaign = {
 
 // The drawn campaign slides of the Hub. Gift buttons ("Find a gift") become "Choose a world" here, because the app
 // has no gift finder yet; their text is then the matching one ("Choose a world or search them all at once").
-export const CAMPAIGNS: Campaign[] = [
-  { id: 'halloween', start: '2026-10-20', end: '2026-10-31', art: 'halloween', eyebrow: 'halloweenEyebrow', title: 'halloweenTitle', text: 'halloweenText', cta: 'bfCta', target: 'deals' },
-  { id: 'black-friday', start: '2026-11-27', end: '2026-11-30', art: 'black-friday', eyebrow: 'bfEyebrow', title: 'bfTitle', text: 'bfText', cta: 'bfCta', target: 'deals' },
-  { id: 'black-friday-soon', start: '2026-11-13', end: '2026-11-26', art: 'black-friday-soon', eyebrow: 'soonEyebrow', title: 'soonTitle', text: 'soonText', cta: 'soonCta', target: 'newsletter' },
-  { id: 'christmas', start: '2026-11-01', end: '2026-12-24', art: 'christmas', eyebrow: 'xmasEyebrow', title: 'xmasTitle', text: 'allText', cta: 'allCta', target: 'worlds' },
-  { id: 'winter-sales', start: '2026-12-26', end: '2027-01-15', art: 'winter-sales', eyebrow: 'salesEyebrow', title: 'salesTitle', text: 'bfText', cta: 'bfCta', target: 'deals' },
-  { id: 'new-year-fitness', start: '2027-01-01', end: '2027-01-31', art: 'new-year-fitness', eyebrow: 'fitnessEyebrow', title: 'fitnessTitle', text: 'fitnessText', cta: 'fitnessCta', target: { world: 'SGW' } },
-  { id: 'valentines-day', start: '2027-02-01', end: '2027-02-14', art: 'valentines-day', eyebrow: 'valEyebrow', title: 'valTitle', text: 'allText', cta: 'allCta', target: 'worlds' }
-];
+// The dates repeat every year (Black Friday from its own date), so the banner never runs out and needs no new app
+// version for these campaigns (owner, 8/11/2026). The Hub (hub-v2.js) still writes the 2026 dates by hand.
+export function campaignsOf(year: number): Campaign[] {
+  const bf = blackFridayDay(year);
+  return [
+    { id: 'halloween', start: `${year}-10-20`, end: `${year}-10-31`, art: 'halloween', eyebrow: 'halloweenEyebrow', title: 'halloweenTitle', text: 'halloweenText', cta: 'bfCta', target: 'deals' },
+    { id: 'black-friday', start: isoUtc(year, 11, bf), end: isoUtc(year, 11, bf + 3), art: 'black-friday', eyebrow: 'bfEyebrow', title: 'bfTitle', text: 'bfText', cta: 'bfCta', target: 'deals' },
+    { id: 'black-friday-soon', start: isoUtc(year, 11, bf - 14), end: isoUtc(year, 11, bf - 1), art: 'black-friday-soon', eyebrow: 'soonEyebrow', title: 'soonTitle', text: 'soonText', cta: 'soonCta', target: 'newsletter' },
+    { id: 'christmas', start: `${year}-11-01`, end: `${year}-12-24`, art: 'christmas', eyebrow: 'xmasEyebrow', title: 'xmasTitle', text: 'allText', cta: 'allCta', target: 'worlds' },
+    { id: 'winter-sales', start: `${year}-12-26`, end: `${year + 1}-01-15`, art: 'winter-sales', eyebrow: 'salesEyebrow', title: 'salesTitle', text: 'bfText', cta: 'bfCta', target: 'deals' },
+    { id: 'new-year-fitness', start: `${year}-01-01`, end: `${year}-01-31`, art: 'new-year-fitness', eyebrow: 'fitnessEyebrow', title: 'fitnessTitle', text: 'fitnessText', cta: 'fitnessCta', target: { world: 'SGW' } },
+    { id: 'valentines-day', start: `${year}-02-01`, end: `${year}-02-14`, art: 'valentines-day', eyebrow: 'valEyebrow', title: 'valTitle', text: 'allText', cta: 'allCta', target: 'worlds' }
+  ];
+}
+
+/** This year's campaigns (their texts are the same every year). */
+export const CAMPAIGNS: Campaign[] = campaignsOf(2026);
 
 export const FALLBACK_CAMPAIGN: Campaign = {
   id: 'all-worlds', start: '', end: '', art: '', eyebrow: 'allEyebrow', title: 'allTitle', text: 'allText', cta: 'allCta', target: 'worlds'
 };
 
+/** The campaigns running on a UK day. Last year's list is included for the sales that run over New Year. */
 export function activeCampaigns(day: string): Campaign[] {
-  const list = CAMPAIGNS.filter(c => DAY.test(c.start) && DAY.test(c.end) && c.start <= day && day <= c.end);
+  const year = Number(day.slice(0, 4));
+  const list = [...campaignsOf(year - 1), ...campaignsOf(year)]
+    .filter(c => DAY.test(c.start) && DAY.test(c.end) && c.start <= day && day <= c.end);
   return list.length ? list : [FALLBACK_CAMPAIGN];
 }
 
