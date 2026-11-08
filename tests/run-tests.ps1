@@ -5255,6 +5255,216 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
     }
 }
 
+# 25. programme-finder.ps1 (Awin and CJ programmes that are live and not joined yet, READ-ONLY) against a local fake
+#     Awin + CJ server: parsing, topic filtering, masking, only GET calls, 401, report and clipboard
+if (Get-Command node -ErrorAction SilentlyContinue) {
+    Write-Host 'programme-finder.ps1 (fake Awin and CJ API)'
+    $pfTool = Join-Path (Join-Path $repo 'tools') 'programme-finder.ps1'
+    $pfDir = Join-Path $work 'pf'
+    $pfSec = Join-Path $pfDir 'secrets'
+    New-Item -ItemType Directory -Path $pfSec -Force | Out-Null
+    $pfAwin = 'AwinTest' + ([guid]::NewGuid().ToString('N').Substring(0, 16))
+    $pfOld = 'AwinOld' + ([guid]::NewGuid().ToString('N').Substring(0, 16))
+    $pfCj = 'CjTest_' + ([guid]::NewGuid().ToString('N').Substring(0, 16))
+    $pfTok = Join-Path $pfSec 'awin-api-token.dat'
+    $pfOldTok = Join-Path $pfSec 'awin-old.dat'
+    $pfCjTok = Join-Path $pfSec 'cj-token.dat'
+    [System.IO.File]::WriteAllText($pfTok, (ConvertFrom-SecureString (ConvertTo-SecureString $pfAwin -AsPlainText -Force)), [System.Text.Encoding]::ASCII)
+    [System.IO.File]::WriteAllText($pfOldTok, (ConvertFrom-SecureString (ConvertTo-SecureString $pfOld -AsPlainText -Force)), [System.Text.Encoding]::ASCII)
+    [System.IO.File]::WriteAllText($pfCjTok, (ConvertFrom-SecureString (ConvertTo-SecureString $pfCj -AsPlainText -Force)), [System.Text.Encoding]::ASCII)
+    $pfLog = Join-Path $pfDir 'requests.log'
+    $pfReady = Join-Path $pfDir 'ready.txt'
+    $pfSrv = Join-Path $pfDir 'server.js'
+    Write-Utf8 $pfSrv @'
+const http = require('http'), fs = require('fs');
+const [port, awinTok, revoked, cjTok, goodCid, log, ready] = process.argv.slice(2);
+const P = (id, name, o) => Object.assign({ id, name, status: 'Active', primaryRegion: { countryCode: 'GB', name: 'United Kingdom' }, currencyCode: 'GBP', primarySector: 'Retail', description: '', displayUrl: 'https://www.example.co.uk', validDomains: [{ domain: 'example.co.uk' }] }, o || {});
+const lists = {
+  notjoined: [
+    P(11002, 'Musclefood', { primarySector: 'Food & Drink', description: 'High protein meat boxes. 30 day cookie.', displayUrl: 'https://www.musclefood.com', validDomains: [{ domain: 'musclefood.com' }] }),
+    P(50001, 'The Village Butcher', { primarySector: 'Food & Drink' }),
+    P(50002, 'Guitar Planet UK', { primarySector: 'Music & Instruments', description: 'Guitars, pianos and DJ gear' }),
+    P(50003, 'US Steakhouse Club', { primaryRegion: { countryCode: 'US', name: 'United States' }, currencyCode: 'USD', displayUrl: 'https://steak.example.com', validDomains: [{ domain: 'steak.example.com' }] }),
+    P(50004, 'Hidden Cheese Co', { status: 'Hidden' }),
+    P(50005, 'Offline Hampers', { linkStatus: 'offline' }),
+    P(50006, 'Fresh Fish Direct', { primarySector: 'Food & Drink' }),
+    P(50009, 'Carp Tackle Direct', { primarySector: 'Sports', description: 'Fishing tackle' })
+  ],
+  joined: [P(29169, 'Hampers.co.uk', { primarySector: 'Food & Drink', displayUrl: 'https://www.hampers.co.uk' }), P(60001, 'Coes', { primarySector: 'Fashion' })],
+  pending: [P(60002, 'Deli Delights', { primarySector: 'Food & Drink' })],
+  suspended: [],
+  rejected: [P(60003, 'Cheese Board Ltd', { primarySector: 'Food & Drink' })]
+};
+const details = {
+  11002: { programmeInfo: { id: 11002, name: 'Musclefood', currencyCode: 'GBP' }, kpi: { approvalPercentage: 92.4, validationDays: 30 }, commissionRange: [{ min: 3, max: 8, type: 'percentage' }] },
+  50001: { programmeInfo: { id: 50001, name: 'The Village Butcher', currencyCode: 'GBP' }, kpi: { approvalPercentage: 70, validationDays: 45 }, commissionRange: [{ min: 2.5, max: 2.5, type: 'amount' }] },
+  50006: { programmeInfo: { id: 50006, name: 'Fresh Fish Direct', currencyCode: 'GBP' }, kpi: { approvalPercentage: 88, validationDays: 14 }, commissionRange: [{ min: 10, max: 10, type: 'percentage' }] },
+  60002: { programmeInfo: { id: 60002, name: 'Deli Delights', currencyCode: 'GBP' }, kpi: {}, commissionRange: [{ min: 5, max: 6, type: 'percentage' }] }
+};
+const ad = (id, name, rel, o) => `<advertiser><advertiser-id>${id}</advertiser-id>${o.status ? `<account-status>${o.status}</account-status>` : ''}<advertiser-name>${name}</advertiser-name><program-url>${o.url}</program-url><relationship-status>${rel}</relationship-status><network-rank>${o.rank}</network-rank><primary-category><parent>${o.parent}</parent><child>${o.child}</child></primary-category><actions><action><name>Sale</name><type>advanced sale</type><id>1</id><commission><default type="item-level">${o.rate}</default></commission></action></actions></advertiser>`;
+const xml = list => `<?xml version="1.0" encoding="UTF-8"?><cj-api><advertisers total-matched="${list.length}" records-returned="${list.length}" page-number="1">${list.join('')}</advertisers></cj-api>`;
+let tooMany = 1;
+http.createServer((q, s) => {
+  const u = new URL(q.url, 'http://x');
+  const auth = String(q.headers.authorization || '');
+  fs.appendFileSync(log, `${q.method} ${u.pathname}${u.search}\n`);
+  const send = (code, body, type) => { s.writeHead(code, { 'Content-Type': type || 'application/json' }); s.end(body); };
+  if (q.method !== 'GET') return send(405, '{}');
+  if (u.pathname.startsWith('/publishers/3057233/')) {
+    if (auth === 'Bearer ' + revoked) return send(401, JSON.stringify({ error: 'invalid token ' + revoked }));
+    if (auth !== 'Bearer ' + awinTok) return send(401, '{"error":"no"}');
+    if (u.pathname.endsWith('/programmes')) {
+      const rel = u.searchParams.get('relationship');
+      if (rel === 'pending' && tooMany-- > 0) return send(429, '{"error":"slow down"}');
+      return send(200, JSON.stringify(lists[rel] || []));
+    }
+    if (u.pathname.endsWith('/programmedetails')) {
+      const id = u.searchParams.get('advertiserId');
+      if (details[id]) return send(200, JSON.stringify(details[id]));
+      return send(404, '{"error":"not found"}');
+    }
+    return send(404, '{}');
+  }
+  if (u.pathname === '/v2/advertiser-lookup') {
+    if (auth !== 'Bearer ' + cjTok) return send(401, '<cj-api><error-message>Not Authenticated</error-message></cj-api>', 'application/xml');
+    const cid = u.searchParams.get('requestor-cid');
+    if (cid !== goodCid) return send(403, `<cj-api><error-message>requestor-cid ${cid} is not yours (token ${cjTok})</error-message></cj-api>`, 'application/xml');
+    const rel = u.searchParams.get('advertiser-ids');
+    const kw = ' ' + String(u.searchParams.get('keywords') || '') + ' ';
+    const name = String(u.searchParams.get('advertiser-name') || '');
+    let list = [];
+    if (/ocado/i.test(name) && rel === 'notjoined') list = [ad(7010, 'Ocado', 'notjoined', { url: 'https://www.ocado.com', rank: 5, parent: 'Food &amp; Drinks', child: 'Groceries', rate: '2.00%' })];
+    else if (!name && / meat /.test(kw) && rel === 'notjoined') list = [
+      ad(7001, 'Farm Butchers UK', 'notjoined', { url: 'https://www.farmbutchers.co.uk', rank: 4, parent: 'Food &amp; Drinks', child: 'Gourmet', rate: '6.00%' }),
+      ad(7002, 'Generic Mega Store', 'notjoined', { url: 'https://www.megastore.com', rank: 3, parent: 'Department Stores', child: 'General', rate: 'USD 5.00' })];
+    else if (!name && / meat /.test(kw) && rel === 'joined') list = [ad(7003, 'Cheese Hamper Co', 'joined', { status: 'Active', url: 'https://www.cheesehamper.co.uk', rank: 2, parent: 'Food &amp; Drinks', child: 'Gifts', rate: '8.00%' })];
+    return send(200, xml(list), 'application/xml');
+  }
+  send(404, 'no');
+}).listen(Number(port), '127.0.0.1', () => fs.writeFileSync(ready, 'ok'));
+'@
+    $pfSp = @{ FilePath = (Get-Command node).Source; ArgumentList = @($pfSrv, '8812', $pfAwin, $pfOld, $pfCj, '2222222', $pfLog, $pfReady); PassThru = $true }
+    if ($isWin) { $pfSp.WindowStyle = 'Hidden' }
+    $pfProc = Start-Process @pfSp
+    for ($k = 0; $k -lt 60 -and -not (Test-Path -LiteralPath $pfReady); $k++) { Start-Sleep -Milliseconds 250 }
+    $script:pfStdout = ''
+    function Run-PF([string]$Name, [string[]]$a) {
+        $o = Join-Path $pfDir $Name
+        $all = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $pfTool, '-AwinApi', 'http://127.0.0.1:8812', '-CjApi', 'http://127.0.0.1:8812', '-OutDir', $o, '-PauseMs', '0', '-RetryWaitSec', '1', '-CidFile', (Join-Path $pfSec 'no-cid.txt')) + $a
+        $script:pfStdout = (& $exe @all | Out-String)
+        return $LASTEXITCODE
+    }
+    function PF-Report([string]$Name) {
+        $f = @(Get-ChildItem -LiteralPath (Join-Path $pfDir $Name) -Filter 'PROGRAMME_FINDER_*.txt' -ErrorAction SilentlyContinue)
+        if ($f.Count -ne 1) { return '' }
+        return [System.IO.File]::ReadAllText($f[0].FullName)
+    }
+    function PF-Log { if (Test-Path -LiteralPath $pfLog) { return @([System.IO.File]::ReadAllLines($pfLog)) }; return @() }
+    function PF-Leaks([string]$t) { return ($t.Contains($pfAwin) -or $t.Contains($pfOld) -or $t.Contains($pfCj)) }
+    $pfOn = '🟢 ΕΝΕΡΓΟ – μπορείς να κάνεις αίτηση'
+    try {
+        Check (Test-Path -LiteralPath $pfReady) 'programme finder: the fake Awin and CJ server is up'
+        # Read-only by construction: no -Apply / -Approve, and every web request is a GET.
+        $tk = $null; $pe = $null
+        $pfAst = [System.Management.Automation.Language.Parser]::ParseFile($pfTool, [ref]$tk, [ref]$pe)
+        $pfParams = @($pfAst.ParamBlock.Parameters | ForEach-Object { $_.Name.VariablePath.UserPath })
+        Check (-not ($pfParams -contains 'Apply') -and -not ($pfParams -contains 'Approve')) 'programme finder: no -Apply and no -Approve (read-only tool)'
+        $pfSrc = [System.IO.File]::ReadAllText($pfTool)
+        Check (-not ($pfSrc -match '(?i)-Method\s+(?!Get\b)\w+') -and -not ($pfSrc -match '(?i)Invoke-RestMethod')) 'programme finder: the only web method is GET'
+        Check (-not ($pfSrc -match '[‘’“”]') -and -not ([System.IO.File]::ReadAllText((Join-Path (Join-Path $repo 'tools') 'programme-finder.mjs')) -match '[‘’“”]')) 'programme finder: no smart quotes'
+
+        # Run 1: food and music, a CID that fails first, a 429 on the way, 3 detail calls at most.
+        $clip = Join-Path $pfDir 'clipboard.txt'
+        $code = Run-PF 'main' @('-Topic', 'food,music', '-TokenFile', $pfTok, '-CjTokenFile', $pfCjTok, '-Cid', '1111111,2222222', '-MaxDetails', '3', '-ClipboardFile', $clip)
+        Check ($code -eq 0) 'programme finder: exit 0'
+        $files = @(Get-ChildItem -LiteralPath (Join-Path $pfDir 'main') -Filter '*.txt')
+        Check ($files.Count -eq 1 -and $files[0].Name -match '^PROGRAMME_FINDER_food-music_\d{8}-\d{6}\.txt$') 'programme finder: report PROGRAMME_FINDER_<topic>_<yyyyMMdd-HHmmss>.txt'
+        $bytes = [System.IO.File]::ReadAllBytes($files[0].FullName)
+        Check ($bytes.Length -gt 3 -and $bytes[0] -eq 0xEF -and $bytes[1] -eq 0xBB -and $bytes[2] -eq 0xBF) 'programme finder: report is UTF-8 with BOM'
+        $r = PF-Report 'main'
+        Check ((Test-Path -LiteralPath $clip) -and ([System.IO.File]::ReadAllText($clip) -eq $r)) 'programme finder: the clipboard gets exactly the report'
+        Check ($r.Contains('ΜΟΝΟ ΑΝΑΓΝΩΣΗ') -and $r.Contains('Δεν άλλαξε τίποτα: καμία αίτηση')) 'programme finder: the report says it is read-only'
+        $food = $r.Substring(0, [Math]::Max(0, $r.IndexOf('=== Θέμα: music')))
+        $music = ''
+        if ($r.IndexOf('=== Θέμα: music') -ge 0) { $music = $r.Substring($r.IndexOf('=== Θέμα: music'), $r.IndexOf('=== Τα προγράμματα του Awin') - $r.IndexOf('=== Θέμα: music')) }
+        Check ($food.Contains('Awin | Fresh Fish Direct | 50006 | Active | ' + $pfOn + ' | 10% | 88% | 14 | ')) 'programme finder: Awin row parsed (commission, approval, validation days)'
+        Check ($food.Contains('Awin | Deli Delights | 60002 | Active | 🟡 ΣΕ ΑΝΑΜΟΝΗ | 5%–6%') -and $food.Contains('Awin | Hampers.co.uk | 29169 | Active | ℹ️ ΗΔΗ ΜΕΛΟΣ')) 'programme finder: pending and joined marked in words'
+        Check ($food.Contains('| Musclefood | 11002 |') -and $food.Contains('| 30 | Food & Drink |')) 'programme finder: sector match and cookie days from the description'
+        Check ($food.Contains('The Village Butcher') -and -not $food.Contains('Guitar Planet') -and $music.Contains('Awin | Guitar Planet UK | 50002')) 'programme finder: each topic keeps only its own programmes'
+        Check (-not $r.Contains('US Steakhouse') -and -not $r.Contains('Hidden Cheese') -and -not $r.Contains('Offline Hampers') -and -not $r.Contains('Cheese Board Ltd')) 'programme finder: not GB, hidden, offline and rejected programmes are not listed'
+        Check ($food.Contains('CJ | Farm Butchers UK | 7001 | Active | UK | ' + $pfOn + ' | 4 | Sale: 6.00%') -and $food.Contains('CJ | Cheese Hamper Co | 7003 | Active | UK | ℹ️ ΗΔΗ ΜΕΛΟΣ')) 'programme finder: CJ rows parsed (relationship, network rank, commission)'
+        Check ($food.IndexOf('Farm Butchers UK') -lt $food.IndexOf('Generic Mega Store')) 'programme finder: CJ sorted by relevance'
+        Check ($r.Contains('11002 Musclefood: ' + $pfOn) -and $r.Contains('115479 (Farmison): δεν υπάρχει πια στο Awin για εσένα') -and $r.Contains('29169 Hampers.co.uk: ℹ️ ΗΔΗ ΜΕΛΟΣ')) 'programme finder: the suggested ids 11002, 115479, 29169'
+        Check ($r.Contains('CJ: Ocado (7010): ' + $pfOn) -and $r.Contains('Awin: το Ocado δεν βρέθηκε')) 'programme finder: Ocado on both networks'
+        Check (-not (PF-Leaks $r) -and -not (PF-Leaks ([System.IO.File]::ReadAllText($clip))) -and -not (PF-Leaks $script:pfStdout)) 'programme finder: no token in the report, the clipboard or the screen (also when CJ echoes it)'
+        $log = PF-Log
+        Check ($log.Count -gt 0 -and @($log | Where-Object { $_ -notmatch '^GET (/publishers/3057233/(programmes|programmedetails)|/v2/advertiser-lookup)\?' }).Count -eq 0) 'programme finder: only GET calls, only to the programme and lookup paths (no join, no apply)'
+        Check (-not (PF-Leaks ($log -join "`n"))) 'programme finder: the tokens are never in an address'
+        Check (@($log | Where-Object { $_ -match 'programmedetails\?advertiserId=\d+&relationship=(notjoined|pending)$' }).Count -eq 3) 'programme finder: detail calls capped (-MaxDetails 3)'
+        Check (@($log | Where-Object { $_ -match 'programmes\?relationship=pending$' }).Count -eq 2) 'programme finder: a 429 waits and tries once more'
+        Check (@($log | Where-Object { $_ -match 'requestor-cid=1111111' }).Count -eq 1 -and $r.Contains('CID …222')) 'programme finder: CJ tries the next CID when one is refused'
+
+        # Run 2: a revoked Awin token (401), no CJ token.
+        $n0 = (PF-Log).Count
+        $code = Run-PF 'revoked' @('-TokenFile', $pfOldTok, '-CjTokenFile', (Join-Path $pfSec 'none.dat'), '-NoClipboard')
+        $r = PF-Report 'revoked'
+        Check ($code -eq 4) 'programme finder 401: exit 4'
+        Check ($r.Contains('το Awin δεν δέχτηκε το κλειδί API (401)') -and $r.Contains('-NewToken') -and $r.Contains('awin-setup -Step token') -and $r.Contains('https://ui.awin.com/awin-api')) 'programme finder 401: says so, with -NewToken, awin-setup -Step token and the Awin page'
+        Check (-not $r.Contains('Awin | ') -and $r.Contains('115479 (Farmison): δεν ελέγχθηκε')) 'programme finder 401: no Awin rows and no guesses'
+        Check ($r.Contains('δεν υπάρχει φυλαγμένο κλειδί του CJ') -and ((PF-Log).Count - $n0) -eq 1) 'programme finder 401: stops after one Awin call; CJ skipped with the reason'
+        Check (-not (PF-Leaks $r) -and -not (PF-Leaks $script:pfStdout)) 'programme finder 401: the refused token is never shown'
+
+        # Run 3: no Awin token on this PC.
+        $n0 = (PF-Log).Count
+        $code = Run-PF 'missing' @('-TokenFile', (Join-Path $pfSec 'none.dat'), '-CjTokenFile', (Join-Path $pfSec 'none.dat'), '-NoClipboard')
+        $r = PF-Report 'missing'
+        Check ($code -eq 4 -and $r.Contains('δεν βρήκα φυλαγμένο κλειδί API του Awin') -and $r.Contains('-NewToken') -and ((PF-Log).Count - $n0) -eq 0) 'programme finder: a missing token is said clearly, no call is made'
+
+        # Run 4 and 5: -NewToken (the key is pasted on the PC; tests give it through -TokenEnv).
+        $pfNewFile = Join-Path $pfSec 'new-token.dat'
+        $env:GW_TEST_PF_TOKEN = $pfOld
+        $code = Run-PF 'newbad' @('-NewToken', '-TokenEnv', 'GW_TEST_PF_TOKEN', '-TokenFile', $pfNewFile, '-CjTokenFile', (Join-Path $pfSec 'none.dat'), '-NoClipboard')
+        Check ($code -eq 4 -and -not (Test-Path -LiteralPath $pfNewFile) -and (PF-Report 'newbad').Contains('ΔΕΝ φυλάχτηκε')) 'programme finder -NewToken: a key Awin refuses is not kept'
+        $env:GW_TEST_PF_TOKEN = $pfAwin
+        $code = Run-PF 'newgood' @('-NewToken', '-TokenEnv', 'GW_TEST_PF_TOKEN', '-TokenFile', $pfNewFile, '-CjTokenFile', (Join-Path $pfSec 'none.dat'), '-NoClipboard')
+        Remove-Item Env:\GW_TEST_PF_TOKEN -ErrorAction SilentlyContinue
+        $kept = ''
+        if (Test-Path -LiteralPath $pfNewFile) {
+            $ks = ConvertTo-SecureString ([System.IO.File]::ReadAllText($pfNewFile).Trim())
+            $kept = [System.Runtime.InteropServices.Marshal]::PtrToStringBSTR([System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($ks))
+        }
+        $r = PF-Report 'newgood'
+        Check ($code -eq 0 -and $kept -eq $pfAwin -and -not ([System.IO.File]::ReadAllText($pfNewFile)).Contains($pfAwin)) 'programme finder -NewToken: an accepted key is kept encrypted'
+        Check ($r.Contains('φυλάχτηκε κρυπτογραφημένο') -and -not (PF-Leaks $r) -and -not (PF-Leaks $script:pfStdout)) 'programme finder -NewToken: the key is never shown'
+
+        # Run 6: own words only (-Keywords), no CJ account number (CID).
+        $n0 = (PF-Log).Count
+        $code = Run-PF 'keywords' @('-Keywords', 'carp,tackle', '-TokenFile', $pfTok, '-CjTokenFile', $pfCjTok, '-NoClipboard')
+        $r = PF-Report 'keywords'
+        $kf = @(Get-ChildItem -LiteralPath (Join-Path $pfDir 'keywords') -Filter '*.txt')
+        Check ($code -eq 0 -and $kf.Count -eq 1 -and $kf[0].Name -like 'PROGRAMME_FINDER_keywords_*') 'programme finder -Keywords: its own topic and report name'
+        Check ($r.Contains('Awin | Carp Tackle Direct | 50009') -and -not $r.Contains('=== Θέμα: food')) 'programme finder -Keywords: only the given words'
+        Check ($r.Contains('λείπει ο αριθμός του λογαριασμού σου στο CJ (CID)') -and @((PF-Log) | Select-Object -Skip $n0 | Where-Object { $_ -match 'advertiser-lookup' }).Count -eq 0) 'programme finder: without a CID, CJ is skipped and the report says why'
+
+        # Run 7: an unknown topic.
+        Check ((Run-PF 'bad' @('-Topic', 'food,sausages', '-TokenFile', $pfTok, '-NoClipboard')) -eq 2 -and (PF-Report 'bad').Contains('Άγνωστο θέμα: sausages')) 'programme finder: an unknown topic stops (exit 2)'
+
+        # Run 8 (Windows): the real clipboard, when this machine has one to read back.
+        if ($isWin) {
+            $pfMarker = 'gw-programme-finder-clipboard-marker'
+            try { Set-Clipboard -Value $pfMarker } catch { }
+            $code = Run-PF 'clip' @('-Topic', 'fishing', '-TokenFile', $pfTok, '-CjTokenFile', (Join-Path $pfSec 'none.dat'))
+            $cb = $null
+            try { $cb = Get-Clipboard -Raw } catch { $cb = $null }
+            if ($cb -and $cb.Trim() -ne $pfMarker) { Check (($cb.TrimEnd() -eq (PF-Report 'clip').TrimEnd()) -and -not (PF-Leaks $cb)) 'programme finder: the real clipboard has the report, without the token' }
+            else { Write-Host '  (no clipboard to read back on this machine: the -ClipboardFile check above covers it)' }
+        }
+    } finally {
+        if ($pfProc -and -not $pfProc.HasExited) { Stop-Process -Id $pfProc.Id -Force -ErrorAction SilentlyContinue }
+        Remove-Item Env:\GW_TEST_PF_TOKEN -ErrorAction SilentlyContinue
+    }
+}
+
 Remove-Item -LiteralPath $work -Recurse -Force -ErrorAction SilentlyContinue
 
 Write-Host ''
