@@ -120,7 +120,17 @@ if ($script:secret -notmatch '^[A-Za-z0-9]{8,64}$') { Say 'Το φυλαγμέν
 
 # 2. The feed list (read-only).
 $listUrl = '{0}/datafeed/list/apikey/{1}' -f $BaseUrl.TrimEnd('/'), $script:secret
-try { $resp = Invoke-WebRequest -UseBasicParsing -Uri $listUrl -TimeoutSec 120 } catch { Say ('Το Awin δεν έδωσε τη λίστα των feeds: {0}' -f $_.Exception.Message) 'Red'; Finish 4 }
+# The list can be slow (8 Nov 2026 21:31: "The operation has timed out" after 120 seconds): up to 3 tries, 4 minutes each.
+$resp = $null
+$listErr = ''
+for ($try = 1; $try -le 3 -and -not $resp; $try++) {
+    try { $resp = Invoke-WebRequest -UseBasicParsing -Uri $listUrl -TimeoutSec 240 }
+    catch {
+        $listErr = $_.Exception.Message
+        if ($try -lt 3) { Write-Host ('Το Awin άργησε να δώσει τη λίστα ({0}). Ξαναδοκιμάζω ({1}/3)...' -f $listErr, ($try + 1)) -ForegroundColor Yellow; Start-Sleep -Seconds 20 }
+    }
+}
+if (-not $resp) { Say ('Το Awin δεν έδωσε τη λίστα των feeds μετά από 3 προσπάθειες: {0}' -f $listErr) 'Red'; Finish 4 }
 $list = @($resp.Content | ConvertFrom-Csv)
 if ($list.Count -lt 1) { Say 'Η λίστα των feeds ήρθε άδεια.' 'Red'; Finish 4 }
 function Col($row, [string]$re) { foreach ($p in $row.PSObject.Properties) { if ($p.Name -match $re) { return [string]$p.Value } }; return '' }
