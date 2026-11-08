@@ -226,7 +226,9 @@ function Build-Apk([string]$dir) {
     Say 'Το build ξεκίνησε.' 'Green'
     Say ('  Link του build: {0}' -f $link)
     Say '  Σε 10-20 λεπτά άνοιξε αυτό το link στο κινητό Android, πάτα «Install» και μετά άνοιξε το αρχείο που κατέβηκε.'
-    Say '  Το νέο APK εγκαθίσταται πάνω από το παλιό (μένουν οι ρυθμίσεις σου).'
+    Say '  Το νέο APK εγκαθίσταται πάνω από παλιό δοκιμαστικό APK (μένουν οι ρυθμίσεις σου).'
+    Say '  ΠΡΟΣΟΧΗ: αν η εφαρμογή στο κινητό είναι από το Google Play (κλειστή δοκιμή), το APK δεν μπαίνει από πάνω'
+    Say '  (άλλη υπογραφή). Μην τη σβήσεις για να το δοκιμάσεις: δοκίμασέ το σε άλλο Android ή ρώτα το Claude.'
 }
 
 # iPhone app: EAS Build (profile "production") in the Expo cloud, then EAS Submit uploads it to TestFlight
