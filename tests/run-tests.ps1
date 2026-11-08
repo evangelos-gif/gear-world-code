@@ -4767,10 +4767,17 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
     $nxWork = Join-Path $work 'nx-work'
     $nxOut = Join-Path $work 'nx-out'
     New-Item -ItemType Directory -Path $nxState, $nxBin -Force | Out-Null
+    # The answers of the fake wrangler are files (JSON with || inside: never through a batch echo).
     $nxIdx = '{"type":"index","name":"idx_products_category","tbl_name":"products","sql":"CREATE INDEX idx_products_category ON products (is_active, category_slug, price)"}'
     $nxTable = '{"type":"table","name":"products","tbl_name":"products","sql":"CREATE TABLE products (id INTEGER PRIMARY KEY, gtin TEXT)"}'
-    $nxGroup = '{"type":"index","name":"idx_products_group_key","tbl_name":"products","sql":"CREATE INDEX idx_products_group_key ON products(COALESCE(NULLIF(TRIM(gtin), ''''), ''id:'' ^|^| id))"}'
+    $nxGroup = '{"type":"index","name":"idx_products_group_key","tbl_name":"products","sql":"CREATE INDEX idx_products_group_key ON products(COALESCE(NULLIF(TRIM(gtin), ''''), ''id:'' || id))"}'
     $nxOther = '{"type":"index","name":"idx_products_group_key","tbl_name":"products","sql":"CREATE INDEX idx_products_group_key ON products(gtin)"}'
+    Write-Utf8 (Join-Path $nxState 'schema-base.json') ('[{"results":[' + $nxIdx + ',' + $nxTable + '],"success":true}]')
+    Write-Utf8 (Join-Path $nxState 'schema-done.json') ('[{"results":[' + $nxIdx + ',' + $nxGroup + ',' + $nxTable + '],"success":true}]')
+    Write-Utf8 (Join-Path $nxState 'schema-wrong.json') ('[{"results":[' + $nxIdx + ',' + $nxOther + ',' + $nxTable + '],"success":true}]')
+    Write-Utf8 (Join-Path $nxState 'verify-yes.json') ('[{"results":[' + $nxGroup + '],"success":true}]')
+    Write-Utf8 (Join-Path $nxState 'verify-no.json') '[{"results":[],"success":true}]'
+    Write-Utf8 (Join-Path $nxState 'maxid.json') '[{"results":[{"n":36211}],"success":true}]'
     $nxNpx = @(
         '@echo off',
         'echo %* >> "%GW_FAKE_STATE%\calls.log"',
@@ -4785,25 +4792,25 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         'echo Executed 1 command.',
         'exit /b 0',
         ':maxid',
-        'echo [{"results":[{"n":36211}],"success":true}]',
+        'type "%GW_FAKE_STATE%\maxid.json"',
         'exit /b 0',
         ':verify',
         'if exist "%GW_FAKE_STATE%\created.flag" goto verifyyes',
-        'echo [{"results":[],"success":true}]',
+        'type "%GW_FAKE_STATE%\verify-no.json"',
         'exit /b 0',
         ':verifyyes',
-        ('echo [{"results":[' + $nxGroup + '],"success":true}]'),
+        'type "%GW_FAKE_STATE%\verify-yes.json"',
         'exit /b 0',
         ':schema',
         'if exist "%GW_FAKE_STATE%\wrong.flag" goto schemawrong',
         'if exist "%GW_FAKE_STATE%\created.flag" goto schemadone',
-        ('echo [{"results":[' + $nxIdx + ',' + $nxTable + '],"success":true}]'),
+        'type "%GW_FAKE_STATE%\schema-base.json"',
         'exit /b 0',
         ':schemadone',
-        ('echo [{"results":[' + $nxIdx + ',' + $nxGroup + ',' + $nxTable + '],"success":true}]'),
+        'type "%GW_FAKE_STATE%\schema-done.json"',
         'exit /b 0',
         ':schemawrong',
-        ('echo [{"results":[' + $nxIdx + ',' + $nxOther + ',' + $nxTable + '],"success":true}]'),
+        'type "%GW_FAKE_STATE%\schema-wrong.json"',
         'exit /b 0'
     ) -join "`r`n"
     [System.IO.File]::WriteAllText((Join-Path $nxBin 'npx.cmd'), $nxNpx + "`r`n", [System.Text.Encoding]::ASCII)
@@ -4831,11 +4838,11 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         Check (@([regex]::Matches($c, 'ORDER BY type, name')).Count -eq 7) 'd1 index check: the schema of each of the 7 databases, once'
         $r = NXLast 'D1_NATIVE_INDEX_CHECK_*.txt'
         Check ($r.Contains('ΕΓΚΡΙΝΩ ΕΥΡΕΤΗΡΙΑ D1') -and $r.Contains($nxCreate) -and $r.Contains('idx_products_category') -and $r.Contains('npx wrangler d1 execute car-gear-world --remote --command "DROP INDEX IF EXISTS idx_products_group_key"') -and $r.Contains('-PaidPlan')) 'd1 index check: the indexes there, the phrase, the statement, the rollback and -PaidPlan (7 x 36,211 rows) in the report'
-        Remove-Item -LiteralPath $nxCalls -Force
+        Remove-Item -LiteralPath $nxCalls -Force -ErrorAction SilentlyContinue
         Check ((Run-NX @('-Apply', '-Approve', 'ΕΓΚΡΙΝΩ ΕΥΡΕΤΗΡΙΑ D1')) -eq 7 -and -not ((NXCalls) -match '--file')) 'd1 index apply above 90,000 writes without -PaidPlan: stops, nothing changes'
         Check ((Run-NX @('-Apply', '-PaidPlan', '-Approve', 'ΕΓΚΡΙΝΩ ADS FIXES')) -eq 1 -and -not ((NXCalls) -match '--file')) 'd1 index apply with the wrong phrase: nothing changes'
         Check ((Run-NX @('-Only', 'xyz')) -eq 2) 'd1 index: an unknown site in -Only is refused'
-        Remove-Item -LiteralPath $nxCalls -Force
+        Remove-Item -LiteralPath $nxCalls -Force -ErrorAction SilentlyContinue
         Check ((Run-NX @('-Only', 'agw', '-Apply', '-Approve', 'Εγκρίνω ευρετήρια D1')) -eq 0) 'd1 index apply (AGW only, phrase in small letters with accents): exit 0'
         $c = NXCalls
         $iBackup = $c.LastIndexOf('ORDER BY type, name')
@@ -4849,12 +4856,12 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         $rb = NXBackup 'agw-rollback-index-*.txt'
         Check ($rb.Count -eq 1 -and ([System.IO.File]::ReadAllText($rb[0].FullName)).Contains('npx wrangler d1 execute car-gear-world --remote --command "DROP INDEX IF EXISTS idx_products_group_key"')) 'd1 index apply: the rollback written next to the backup'
         Check ((NXLast 'D1_NATIVE_INDEX_APPLY_*.txt').Contains('ΕΤΟΙΜΟ')) 'd1 index apply: report ready'
-        Remove-Item -LiteralPath $nxCalls -Force
+        Remove-Item -LiteralPath $nxCalls -Force -ErrorAction SilentlyContinue
         Check ((Run-NX @('-Apply', '-Approve', 'ΕΓΚΡΙΝΩ ΕΥΡΕΤΗΡΙΑ D1')) -eq 0 -and -not ((NXCalls) -match '--file')) 'd1 index apply again: the index is there, nothing changes'
         Check ((NXLast 'D1_NATIVE_INDEX_APPLY_*.txt').Contains('υπάρχει ήδη')) 'd1 index apply again: says the index is already there'
         Write-Utf8 (Join-Path $nxState 'wrong.flag') 'other text'
         Check ((Run-NX @()) -eq 2) 'd1 index check: an index of that name with another text is a problem'
-        Remove-Item -LiteralPath $nxCalls -Force
+        Remove-Item -LiteralPath $nxCalls -Force -ErrorAction SilentlyContinue
         Check ((Run-NX @('-Apply', '-PaidPlan', '-Approve', 'ΕΓΚΡΙΝΩ ΕΥΡΕΤΗΡΙΑ D1')) -eq 8 -and -not ((NXCalls) -match '--file')) 'd1 index apply: never touches an index of another text'
         Remove-Item -LiteralPath (Join-Path $nxState 'wrong.flag') -Force
         & $exe -NoProfile -ExecutionPolicy Bypass -File $nxRunner -LocalRepo $repo -Tool d1-native-index -WorkDir $nxWork -OutDir $nxOut -SkipInstall -NoClipboard | Out-Null
