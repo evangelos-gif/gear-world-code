@@ -36,6 +36,9 @@ if ($env:CI -eq 'true' -and $isWin) {
 Write-Host 'Syntax and encoding'
 $byteReturnPattern = '\breturn\s+\(?\s*(\$[A-Za-z_][A-Za-z0-9_.]*\.ToArray\(\)|\[System\.IO\.File\]::ReadAllBytes\(|\$[A-Za-z_][A-Za-z0-9_.]*\.GetBytes\()'
 $psFiles = @(Get-ChildItem -LiteralPath $repo -Recurse -File -Filter '*.ps1' | Where-Object { $_.FullName -notmatch '[\\/](\.git|node_modules|\.wrangler)[\\/]' })
+# Typographic quotes (U+2018, U+2019, U+201A, U+201B, U+201C, U+201D, U+201E): PowerShell reads them as quotes, so
+# one inside a string ends it (a Greek apostrophe in ads-fixes-sites.ps1, 8 Nov 2026). Written as code points here.
+$smartQuotePattern = '[' + [char]0x2018 + [char]0x2019 + [char]0x201A + [char]0x201B + [char]0x201C + [char]0x201D + [char]0x201E + ']'
 foreach ($f in $psFiles) {
     $tokens = $null; $errors = $null
     [void][System.Management.Automation.Language.Parser]::ParseFile($f.FullName, [ref]$tokens, [ref]$errors)
@@ -48,7 +51,9 @@ foreach ($f in $psFiles) {
     # A function that returns bytes needs "return , $x": without the comma PowerShell unrolls the array (lessons L73).
     $byteReturn = [regex]::Matches([System.IO.File]::ReadAllText($f.FullName), $byteReturnPattern)
     Check ($byteReturn.Count -eq 0) ('returns byte arrays with the comma (L73): ' + $f.Name)
+    Check (-not ([System.IO.File]::ReadAllText($f.FullName) -match $smartQuotePattern)) ('no typographic quotes (PowerShell reads them as quotes): ' + $f.Name)
 }
+Check ((('a ' + [char]0x2019 + ' b') -match $smartQuotePattern) -and -not ("a ' b" -match $smartQuotePattern)) 'the typographic-quote check finds a right single quote, not a plain one'
 # (the samples are split in two, so this file does not match its own check)
 $byteReturnSample = @(('function A { return $ms.' + 'ToArray() }'), ('function B { return [System.IO.File]::' + 'ReadAllBytes($p) }'), ('function C { return $enc.' + 'GetBytes($s) }'), ('function D { return , $ms.' + 'ToArray() }'), 'function E { return ([BitConverter]::ToString($sha.ComputeHash($b))) }')
 Check ((@($byteReturnSample | Where-Object { $_ -match $byteReturnPattern }).Count -eq 3) -and -not ($byteReturnSample[3] -match $byteReturnPattern)) 'the L73 check finds a byte array returned without the comma'
@@ -4917,6 +4922,114 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         $env:PATH = $oldPath
         Remove-Item Env:\GW_FAKE_STATE -ErrorAction SilentlyContinue
     }
+}
+
+# 24. pc-security-check.ps1 (READ-ONLY security check of the Windows PC): parses, runs no command that changes anything,
+#     writes a report with the summary at the top, masks the user and computer names, lists secret files by path only
+#     (never their content), and runs through gw-run. The static checks run everywhere, the run itself on Windows.
+Write-Host 'pc-security-check.ps1'
+$pcTool = Join-Path (Join-Path $repo 'tools') 'pc-security-check.ps1'
+$pcText = [System.IO.File]::ReadAllText($pcTool)
+$pcTokens = $null
+$pcErrors = $null
+$pcAst = [System.Management.Automation.Language.Parser]::ParseFile($pcTool, [ref]$pcTokens, [ref]$pcErrors)
+Check ($pcErrors.Count -eq 0) 'pc check: parses'
+Check (-not ($pcText -match '(?i)-Apply\b|\$Apply\b|-Approve\b')) 'pc check: no -Apply or -Approve (it only reads, there is nothing to approve)'
+# Every command it runs (the AST, so comments and strings do not count): a Get-* cmdlet, a few read-only helpers, its
+# own functions, whoami /groups and manage-bde -status. Nothing dynamic (& $x), and COM only for the update history and
+# File Explorer.
+$pcFuncs = @($pcAst.FindAll({ param($x) $x -is [System.Management.Automation.Language.FunctionDefinitionAst] }, $true) | ForEach-Object { $_.Name })
+$pcAllowed = @('Test-Path', 'Join-Path', 'Split-Path', 'Where-Object', 'ForEach-Object', 'Sort-Object', 'Select-Object', 'Measure-Object', 'Write-Host', 'New-Object', 'Out-Null', 'Out-String', 'Set-Clipboard', 'whoami.exe', 'manage-bde.exe')
+$pcBad = @()
+foreach ($c in @($pcAst.FindAll({ param($x) $x -is [System.Management.Automation.Language.CommandAst] }, $true))) {
+    $name = $c.GetCommandName()
+    if (-not $name) { $pcBad += ('dynamic: ' + $c.Extent.Text); continue }
+    if (-not ($name -like 'Get-*' -or $pcAllowed -contains $name -or $pcFuncs -contains $name)) { $pcBad += $name; continue }
+    if ($name -eq 'manage-bde.exe' -and -not ($c.CommandElements.Count -ge 2 -and $c.CommandElements[1].Extent.Text -eq '-status')) { $pcBad += ('manage-bde without -status: ' + $c.Extent.Text) }
+    if ($name -eq 'whoami.exe' -and $c.Extent.Text -notmatch '^&?\s*whoami\.exe /groups /fo csv') { $pcBad += ('whoami: ' + $c.Extent.Text) }
+    if ($name -eq 'New-Object' -and $c.Extent.Text -match '-ComObject' -and $c.Extent.Text -notmatch "-ComObject '(Microsoft\.Update\.Session|Shell\.Application)'") { $pcBad += ('COM: ' + $c.Extent.Text) }
+}
+foreach ($b in $pcBad) { Write-Host ('    ' + $b) -ForegroundColor Yellow }
+Check ($pcBad.Count -eq 0) 'pc check: runs only read-only commands (Get-*, Test-Path, whoami /groups, manage-bde -status, its own functions)'
+# No write cmdlet anywhere in the file text, comments included (Set-Clipboard for the report is the one exception).
+$pcWritePattern = '(?i)(?<![\w-])((Set|New|Remove|Rename|Move|Copy|Clear|Add|Enable|Disable|Start|Stop|Restart|Suspend|Resume|Install|Uninstall|Update|Register|Unregister|Invoke|Mount|Dismount|Lock|Unlock|Initialize|Format|Reset|Repair|Grant|Revoke|Import|Export|Publish|Save|Backup|Restore|Checkpoint|Protect|Unprotect|Optimize|Send|Block|Unblock|Tee)-[a-z]+)'
+$pcWrites = @([regex]::Matches($pcText, $pcWritePattern) | ForEach-Object { $_.Groups[1].Value } | Where-Object { @('Set-Clipboard', 'New-Object') -notcontains $_ } | Sort-Object -Unique)
+Check ($pcWrites.Count -eq 0) ('pc check: no write cmdlet (Set-MpPreference, Set-ItemProperty, New-ItemProperty, Remove-*, Start-MpScan, Set-NetFirewallProfile, Enable-*, Disable-*, Start-/Stop-Service ...) ' + ($pcWrites -join ', '))
+$pcNative = '(?i)\breg(\.exe)?\s+(add|delete|import|copy|restore|load|unload|save)\b|\bsc(\.exe)?\s+(config|stop|start|delete|create|failure)\b|\bnet(\.exe)?\s+(user|localgroup|stop|start|share)\b|\b(netsh|bcdedit|vssadmin|wbadmin|schtasks|wmic|MpCmdRun|cipher|takeown|icacls)\b'
+Check (-not ($pcText -match $pcNative)) 'pc check: no reg add, sc config, net user, netsh, bcdedit, schtasks, MpCmdRun ...'
+# No method that writes the registry or files, installs or downloads updates, starts a Windows Update search (a scan),
+# or starts or kills a process. Its one file write is the report.
+$pcMembers = @($pcAst.FindAll({ param($x) $x -is [System.Management.Automation.Language.InvokeMemberExpressionAst] }, $true) | ForEach-Object { [string]$_.Member.Value })
+$pcDenyMembers = @('SetValue', 'DeleteValue', 'CreateSubKey', 'DeleteSubKey', 'DeleteSubKeyTree', 'OpenSubKey', 'Put', 'Delete', 'Move', 'Copy', 'Install', 'Download', 'Search', 'Commit', 'InvokeMethod', 'WriteAllBytes', 'WriteAllLines', 'AppendAllText', 'AppendAllLines', 'CreateUpdateInstaller', 'CreateUpdateDownloader', 'Kill', 'Start', 'ShellExecute', 'InvokeVerb', 'InvokeVerbEx', 'Encrypt', 'Decrypt', 'SetAccessControl')
+$pcDenied = @($pcMembers | Where-Object { $pcDenyMembers -contains $_ } | Sort-Object -Unique)
+Check ($pcDenied.Count -eq 0) ('pc check: no method that changes the registry, files, updates or processes ' + ($pcDenied -join ', '))
+Check ((@($pcMembers | Where-Object { $_ -eq 'WriteAllText' }).Count -eq 1) -and (@($pcMembers | Where-Object { $_ -eq 'CreateDirectory' }).Count -eq 1)) 'pc check: it writes only its report (one WriteAllText, one CreateDirectory)'
+
+if ($isWin) {
+    $pcHome = Join-Path $work 'pc-home'
+    $pcOut = Join-Path $work 'pc-out'
+    $pcSecret = 'PcSecretValue' + ('Q7z' * 5)
+    $pcUser = [string]$env:USERNAME
+    Write-Utf8 (Join-Path $pcHome 'gear-world-hub\.dev.vars') ('CLOUDFLARE_API_TOKEN=' + $pcSecret)
+    Write-Utf8 (Join-Path $pcHome 'site-a\.env') ('KEY=' + $pcSecret)
+    Write-Utf8 (Join-Path $pcHome 'Documents\notes\api-token.txt') $pcSecret
+    Write-Utf8 (Join-Path $pcHome ($pcUser + '-password.txt')) $pcSecret
+    Write-Utf8 (Join-Path $pcHome 'proj\.dev.vars') ('X=' + $pcSecret)
+    Write-Utf8 (Join-Path $pcHome 'proj\.git\secret-hook') $pcSecret
+    Write-Utf8 (Join-Path $pcHome 'proj\node_modules\pkg\token.js') $pcSecret
+    Write-Utf8 (Join-Path $pcHome 'a\b\c\deep-secret.txt') $pcSecret
+    Write-Utf8 (Join-Path $pcHome 'proj\readme.txt') 'nothing secret here'
+    Write-Utf8 (Join-Path $pcHome '.wrangler\config\default.toml') ('oauth_token = "' + $pcSecret + '"')
+    $pcBefore = Get-TreeHash $pcHome
+    $pcWatch = [System.Diagnostics.Stopwatch]::StartNew()
+    & $exe -NoProfile -ExecutionPolicy Bypass -File $pcTool -HomeDir $pcHome -OutDir $pcOut -NoClipboard
+    $pcCode = $LASTEXITCODE
+    $pcWatch.Stop()
+    Write-Host ('    (the PC check took {0:N0} s)' -f $pcWatch.Elapsed.TotalSeconds)
+    Check ($pcCode -eq 0) 'pc check: exit 0'
+    Check ($pcWatch.Elapsed.TotalSeconds -lt 300) 'pc check: finishes in under 5 minutes'
+    $pcReports = @(Get-ChildItem -LiteralPath $pcOut -Filter 'PC_SECURITY_*.txt' -ErrorAction SilentlyContinue)
+    Check ($pcReports.Count -eq 1 -and $pcReports[0].Name -match '^PC_SECURITY_\d{8}-\d{6}\.txt$') 'pc check: one report PC_SECURITY_<yyyyMMdd-HHmmss>.txt'
+    $r = ''
+    if ($pcReports.Count -ge 1) {
+        $pcBytes = [System.IO.File]::ReadAllBytes($pcReports[0].FullName)
+        Check ($pcBytes.Length -ge 3 -and $pcBytes[0] -eq 0xEF -and $pcBytes[1] -eq 0xBB -and $pcBytes[2] -eq 0xBF) 'pc check: the report is UTF-8 (with BOM)'
+        $r = [System.IO.File]::ReadAllText($pcReports[0].FullName)
+    }
+    Check ($r -match '(?m)^Σύνοψη: 🟢 ΕΝΤΑΞΕΙ \d+ · 🟡 ΠΡΟΣΟΧΗ \d+ · 🔴 ΠΡΟΒΛΗΜΑ \d+ · ⚪ ΔΕΝ ΔΙΑΒΑΣΤΗΚΕ \d+') 'pc check: the summary line with the counts, each mark also in words'
+    $iSum = $r.IndexOf('Σύνοψη:')
+    $iTop = $r.IndexOf('Τα 3 πρώτα για διόρθωση:')
+    $iFirst = $r.IndexOf('1. Microsoft Defender')
+    Check ($iSum -ge 0 -and $iTop -gt $iSum -and $iFirst -gt $iTop -and -not ($r -match '(?m)^  4\. ')) 'pc check: the summary first, then at most 3 things to fix, then the checks'
+    $pcSections = @('1. Microsoft Defender', '2. Τείχος προστασίας', '3. Windows Update', '4. Λογαριασμοί', '5. SmartScreen', '6. Κρυπτογράφηση δίσκου', '7. Απομακρυσμένη πρόσβαση', '8. Gear World', '9. Αντίγραφα ασφαλείας')
+    Check (@($pcSections | Where-Object { -not $r.Contains($_) }).Count -eq 0) 'pc check: all 9 sections are in the report'
+    $pcAlone = 0
+    foreach ($m in @(@('🟢', 'ΕΝΤΑΞΕΙ'), @('🟡', 'ΠΡΟΣΟΧΗ'), @('🔴', 'ΠΡΟΒΛΗΜΑ'), @('⚪', 'ΔΕΝ ΔΙΑΒΑΣΤΗΚΕ'))) {
+        if ([regex]::Matches($r, [regex]::Escape($m[0])).Count -ne [regex]::Matches($r, [regex]::Escape($m[0] + ' ' + $m[1])).Count) { $pcAlone++ }
+    }
+    Check ($pcAlone -eq 0) 'pc check: every colour mark is followed by its word (L35)'
+    Check ($r.Contains('Άνοιξε: ms-settings:signinoptions') -and $r.Contains('Τι ΔΕΝ έκανε αυτό το εργαλείο')) 'pc check: settings links, and the line that nothing was changed'
+    Check ($r.Contains('~\gear-world-hub\.dev.vars') -and $r.Contains('~\site-a\.env') -and $r.Contains('~\Documents\notes\api-token.txt')) 'pc check: secret files up to 3 levels, listed by path relative to the user folder'
+    Check ($r.Contains('~\proj\.dev.vars (μέσα σε φάκελο Git)')) 'pc check: a secret file inside a Git folder is marked'
+    Check (-not $r.Contains('deep-secret') -and -not $r.Contains('node_modules') -and -not $r.Contains('secret-hook')) 'pc check: nothing beyond 3 levels, nothing from node_modules or .git'
+    Check (-not $r.Contains($pcSecret) -and -not $r.Contains('oauth_token')) 'pc check: never prints the content of a secret file or of the wrangler login'
+    Check ($r.Contains('~\.wrangler\config\default.toml: υπάρχει') -and $r.Contains('%APPDATA%\xdg.config\.wrangler\config\default.toml: δεν υπάρχει')) 'pc check: the wrangler login files only as «υπάρχει» / «δεν υπάρχει»'
+    if ($pcUser.Length -ge 2) {
+        Check ($r.Contains('~\' + $pcUser.Substring(0, 1) + '***-password.txt') -and $r.IndexOf($pcUser, [System.StringComparison]::OrdinalIgnoreCase) -lt 0) 'pc check: the user name is masked (first letter and ***), also inside a file name'
+    }
+    $pcComputer = [string]$env:COMPUTERNAME
+    if ($pcComputer.Length -ge 2) {
+        Check ($r.Contains('Υπολογιστής: ' + $pcComputer.Substring(0, 1) + '***') -and $r.IndexOf($pcComputer, [System.StringComparison]::OrdinalIgnoreCase) -lt 0) 'pc check: the computer name is masked'
+    }
+    Check ((Get-TreeHash $pcHome) -eq $pcBefore) 'pc check: the user folder is unchanged (read-only)'
+    # Through gw-run, with a user folder that does not exist and without the update history: still exit 0
+    $pcOut2 = Join-Path $work 'pc-out2'
+    & $exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path (Join-Path $repo 'tools') 'gw-run.ps1') -LocalRepo $repo -Tool pc-security-check -HomeDir (Join-Path $work 'pc-no-home') -OutDir $pcOut2 -UpdateTimeoutSeconds 0 -NoClipboard | Out-Null
+    Check ($LASTEXITCODE -eq 0) 'pc check: runs through gw-run'
+    $pcReports2 = @(Get-ChildItem -LiteralPath $pcOut2 -Filter 'PC_SECURITY_*.txt' -ErrorAction SilentlyContinue)
+    $r2 = ''
+    if ($pcReports2.Count -eq 1) { $r2 = [System.IO.File]::ReadAllText($pcReports2[0].FullName) }
+    Check ($r2 -match 'Αρχεία με μυστικά[^\r\n]*«δεν διαβάζεται»') 'pc check: a user folder it cannot read is reported as «δεν διαβάζεται», not a crash'
 }
 
 Remove-Item -LiteralPath $work -Recurse -Force -ErrorAction SilentlyContinue
