@@ -5006,6 +5006,12 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
     Write-Host 'gw-security-fixes.ps1 (fake wrangler)'
     $sfTool = Join-Path (Join-Path $repo 'tools') 'gw-security-fixes.ps1'
     $sfState = Join-Path $work 'sf-state'
+    # The PC's plain-text copy of the CGW admin token (F16): a made-up value; the tool must never open it.
+    $sfHome = Join-Path $work 'sf-home'
+    $sfTokenFile = Join-Path $sfHome 'construction-gear-uk\backups\cgw-admin-token.txt'
+    $sfTokenText = 'ADMIN_TOKEN=' + ('Zq7' * 10)
+    Write-Utf8 $sfTokenFile $sfTokenText
+    $sfTokenSize = (Get-Item -LiteralPath $sfTokenFile).Length
     $sfBin = Join-Path $work 'sf-bin'
     $sfWork = Join-Path $work 'sf-work'
     $sfOut = Join-Path $work 'sf-out'
@@ -5027,16 +5033,19 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
     function SFHosts([string[]]$h) { return '[' + ((@($h) | ForEach-Object { '"' + $_ + '"' }) -join ',') + ']' }
     # Secret names before (s-), after the Turnstile step (p-) and after the clean-up (a-).
     foreach ($w in $sfWorkers) {
-        $before = @('ADMIN_TOKEN')
-        $after = @('ADMIN_TOKEN')
+        # As live (owner's audit, 8/11/2026): no Worker has ADMIN_TOKEN; admintoken.flag gives construction-gear-uk one.
+        $before = @()
+        $after = @()
         $ts = @('TURNSTILE_SITE_KEY')
         if ($w -eq 'gear-world-hub') { $before = @('MAILERLITE_API_KEY', 'PHOTO_LIMIT_SALT', 'GW_INTERNAL_TOKEN'); $after = @('MAILERLITE_API_KEY', 'PHOTO_LIMIT_SALT'); $ts = @('TURNSTILE_SECRET_KEY', 'TURNSTILE_SECRET_KEY_2', 'TURNSTILE_SITE_KEY') }
-        if ($w -eq 'garden-gear-world') { $before = @('ADMIN_TOKEN', 'TURNSTILE_SECRET_KEY', $sfMis, 'GW_INTERNAL_TOKEN') }
-        if ($w -eq 'construction-gear-uk') { $before = @('ADMIN_TOKEN', 'CGW_ADMIN_TOKEN', 'TURNSTILE_SECRET_KEY') }
-        if ($w -eq 'home-gear-world') { $before = @('ADMIN_TOKEN', 'HGW_ADMIN_TOKEN', 'SOMETHING_ELSE'); $after = @('ADMIN_TOKEN', 'SOMETHING_ELSE') }
+        if ($w -eq 'garden-gear-world') { $before = @('TURNSTILE_SECRET_KEY', $sfMis, 'GW_INTERNAL_TOKEN') }
+        if ($w -eq 'construction-gear-uk') { $before = @('CGW_ADMIN_TOKEN', 'TURNSTILE_SECRET_KEY') }
+        if ($w -eq 'home-gear-world') { $before = @('HGW_ADMIN_TOKEN', 'SOMETHING_ELSE'); $after = @('SOMETHING_ELSE') }
         Write-Utf8 (Join-Path $sfState ('s-' + $w + '.json')) (SFJson $before)
         Write-Utf8 (Join-Path $sfState ('p-' + $w + '.json')) (SFJson (@($before) + @($ts)))
         Write-Utf8 (Join-Path $sfState ('a-' + $w + '.json')) (SFJson (@($after) + @($ts)))
+        Write-Utf8 (Join-Path $sfState ('p-' + $w + '.json.admin')) (SFJson (@('ADMIN_TOKEN') + @($before) + @($ts)))
+        Write-Utf8 (Join-Path $sfState ('a-' + $w + '.json.admin')) (SFJson (@('ADMIN_TOKEN') + @($after) + @($ts)))
     }
     $sfW1 = '{"sitekey":"' + $sfSite1 + '","secret":"' + $sfSecret1 + '","name":"Gear World sign-up 1","domains":' + (SFHosts $sfW1Hosts) + ',"mode":"managed"}'
     $sfW2 = '{"sitekey":"' + $sfSite2 + '","secret":"' + $sfSecret2 + '","name":"Gear World sign-up 2","domains":' + (SFHosts $sfW2Hosts) + ',"mode":"managed"}'
@@ -5068,6 +5077,7 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         'set "GWF=%GW_FAKE_STATE%\s-%6.json"',
         'if exist "%GW_FAKE_STATE%\put.flag" set "GWF=%GW_FAKE_STATE%\p-%6.json"',
         'if exist "%GW_FAKE_STATE%\after.flag" set "GWF=%GW_FAKE_STATE%\a-%6.json"',
+        'if exist "%GW_FAKE_STATE%\admintoken.flag" if "%6"=="construction-gear-uk" if exist "%GWF%.admin" set "GWF=%GWF%.admin"',
         'if exist "%GWF%" (type "%GWF%") else (echo [])',
         'exit /b 0',
         ':secretput',
@@ -5115,7 +5125,7 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
     $sfPuts = Join-Path $sfState 'puts.log'
     $script:sfConsole = ''
     function Run-SF([string[]]$a) {
-        $all = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $sfTool, '-WorkDir', $sfWork, '-OutDir', $sfOut, '-SkipInstall', '-NoClipboard', '-NoHttpCheck') + $a
+        $all = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $sfTool, '-PcHome', $sfHome, '-WorkDir', $sfWork, '-OutDir', $sfOut, '-SkipInstall', '-NoClipboard', '-NoHttpCheck') + $a
         $o = & $exe @all | Out-String
         $c = $LASTEXITCODE
         $script:sfConsole += $o
@@ -5134,7 +5144,7 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         foreach ($d in @($sfOut, (Join-Path $sfWork 'backups'))) {
             foreach ($f in @(Get-ChildItem -LiteralPath $d -File -ErrorAction SilentlyContinue)) { $all += [System.IO.File]::ReadAllText($f.FullName) }
         }
-        return ($all.Contains($sfMis) -or $all.Contains($sfSecret1) -or $all.Contains($sfSecret2) -or $all.Contains('0x4FAKEoldGARDENsecret'))
+        return ($all.Contains($sfMis) -or $all.Contains($sfSecret1) -or $all.Contains($sfSecret2) -or $all.Contains('0x4FAKEoldGARDENsecret') -or $all.Contains('Zq7Zq7'))
     }
     $sfChanges = 'secret put|secret delete|widget create|widget delete'
     $ell = [string][char]0x2026
@@ -5145,6 +5155,7 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         Check ($r.Contains('θα σβηστεί: GW_INTERNAL_TOKEN') -and $r.Contains('θα σβηστεί: CGW_ADMIN_TOKEN') -and $r.Contains('θα σβηστεί: HGW_ADMIN_TOKEN') -and $r.Contains('ΕΓΚΡΙΝΩ TURNSTILE') -and $r.Contains('ΕΓΚΡΙΝΩ ΔΙΑΓΡΑΦΗ ΜΥΣΤΙΚΩΝ') -and $r.Contains('ΕΓΚΡΙΝΩ ΔΙΑΓΡΑΦΗ ΠΑΛΙΩΝ TURNSTILE')) 'security check: the plan with what goes and the three phrases'
         Check ($r.Contains('TURNSTILE_SECRET_KEY' + $ell + ' (το όνομα') -and -not (SFLeaks)) 'security check: the misnamed secret shows only as TURNSTILE_SECRET_KEY... (F07)'
         Check (-not ($r -match 'θα σβηστεί: (ADMIN_TOKEN|MAILERLITE_API_KEY|PHOTO_LIMIT_SALT|SOMETHING_ELSE)')) 'security check: what the code reads, and unknown names, stay'
+        Check ($r.Contains('σβήνεται και το αρχείο ~\construction-gear-uk\backups\cgw-admin-token.txt (' + $sfTokenSize + ' bytes') -and (Test-Path -LiteralPath $sfTokenFile)) 'security check: the plain-text CGW admin token file is in the plan (name and size only)'
         Check ((Run-SF @('-Step', 'old-widgets', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ ΔΙΑΓΡΑΦΗ ΠΑΛΙΩΝ TURNSTILE')) -eq 8 -and (SFCount 'widget delete') -eq 0) 'old widgets before the new ones exist: refused, nothing deleted'
         Write-Utf8 (Join-Path $sfState 'nowidgets.flag') 'x'
         Check ((Run-SF @('-Step', 'turnstile', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ TURNSTILE')) -eq 5 -and (SFCount $sfChanges) -eq 0) 'turnstile: widgets not readable (older login): stops, nothing changes'
@@ -5162,15 +5173,24 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         Check ($note.Count -eq 1 -and ([System.IO.File]::ReadAllText($note[0].FullName)).Contains('npx wrangler rollback ' + $sfVer + ' --name pets-gear-world') -and $c.IndexOf('deployments list') -lt $c.IndexOf('secret put')) 'turnstile: the live version of each Worker noted first, with the rollback'
         Check ((SFLast 'GW_SECURITY_TURNSTILE_*.txt').Contains('ΕΤΟΙΜΟ')) 'turnstile: report ready'
         Check ((Run-SF @('-Step', 'turnstile', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ TURNSTILE')) -eq 0 -and (SFCount 'widget create') -eq 2 -and (SFCount 'widget get') -eq 2 -and -not (SFLeaks)) 'turnstile again: the two widgets are found and kept (no new ones)'
-        Check ((Run-SF @('-Step', 'secrets')) -eq 0 -and (SFCount 'secret delete') -eq 0) 'secrets without -Apply: plan only'
-        Check ((Run-SF @('-Step', 'secrets', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ TURNSTILE')) -eq 1 -and (SFCount 'secret delete') -eq 0) 'secrets with the wrong phrase: nothing deleted'
+        Check ((Run-SF @('-Step', 'secrets')) -eq 0 -and (SFCount 'secret delete') -eq 0 -and (Test-Path -LiteralPath $sfTokenFile)) 'secrets without -Apply: plan only (the token file stays)'
+        Check ((SFLast 'GW_SECURITY_SECRETS_*.txt').Contains('cgw-admin-token.txt (' + $sfTokenSize + ' bytes, απλό κείμενο')) 'secrets plan: the token file with its size, never its content'
+        Check ((Run-SF @('-Step', 'secrets', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ TURNSTILE')) -eq 1 -and (SFCount 'secret delete') -eq 0 -and (Test-Path -LiteralPath $sfTokenFile)) 'secrets with the wrong phrase: nothing deleted, the file stays'
+        # A Worker with ADMIN_TOKEN (the admin token the code reads): the file may hold a working token, so it stays.
+        Write-Utf8 (Join-Path $sfState 'admintoken.flag') 'x'
         Check ((Run-SF @('-Step', 'secrets', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ ΔΙΑΓΡΑΦΗ ΜΥΣΤΙΚΩΝ')) -eq 0) 'secrets with approval: exit 0'
+        Check ((Test-Path -LiteralPath $sfTokenFile) -and (SFLast 'GW_SECURITY_SECRETS_*.txt').Contains('ΜΕΝΕΙ: οι Workers construction-gear-uk έχουν ADMIN_TOKEN')) 'secrets: a Worker with ADMIN_TOKEN keeps the token file (it may still work)'
         $c = SFText $sfCalls
         Check ((SFCount 'secret delete') -eq 7 -and $c.Contains('secret delete GW_INTERNAL_TOKEN --name gear-world-hub') -and $c.Contains('secret delete CGW_ADMIN_TOKEN --name construction-gear-uk') -and $c.Contains('secret delete TURNSTILE_SECRET_KEY --name construction-gear-uk') -and $c.Contains('secret delete HGW_ADMIN_TOKEN --name home-gear-world') -and $c.Contains('secret delete TURNSTILE_SECRET_KEY --name garden-gear-world') -and $c.Contains('secret delete ' + $sfMis + ' --name garden-gear-world')) 'secrets: the 7 unused ones go, the misnamed one too'
         Check ((SFCount 'secret delete (MAILERLITE_API_KEY|PHOTO_LIMIT_SALT|ADMIN_TOKEN|SOMETHING_ELSE|TURNSTILE_SITE_KEY|TURNSTILE_SECRET_KEY_2) ') -eq 0 -and (SFCount 'secret delete TURNSTILE_SECRET_KEY --name gear-world-hub') -eq 0) 'secrets: never one that the code reads (the Hub keeps its Turnstile keys)'
         Check (-not (SFLeaks) -and (SFLast 'GW_SECURITY_SECRETS_*.txt').Contains('TURNSTILE_SECRET_KEY' + $ell)) 'secrets: the misnamed name never on the screen, in a report or a note (F07)'
         $note = @(Get-ChildItem -LiteralPath (Join-Path $sfWork 'backups') -Filter 'secrets-before-*.txt' -ErrorAction SilentlyContinue)
         Check ($note.Count -eq 1 -and ([System.IO.File]::ReadAllText($note[0].FullName)).Contains('npx wrangler rollback ' + $sfVer + ' --name garden-gear-world') -and $c.LastIndexOf('deployments list') -lt $c.IndexOf('secret delete')) 'secrets: the names and live versions noted before the first delete'
+        Remove-Item -LiteralPath (Join-Path $sfState 'admintoken.flag') -Force
+        Check ((Run-SF @('-Step', 'secrets', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ ΔΙΑΓΡΑΦΗ ΜΥΣΤΙΚΩΝ')) -eq 0 -and -not (Test-Path -LiteralPath $sfTokenFile) -and (SFCount 'secret delete') -eq 7) 'secrets again, no Worker with ADMIN_TOKEN: the token file is deleted, no secret twice'
+        $r = SFLast 'GW_SECURITY_SECRETS_*.txt'
+        Check ($r.Contains('σβήστηκε χωρίς να ανοιχτεί: ΕΝΤΑΞΕΙ') -and $r.Contains('Το κλειδί που είχε δεν ισχύει πια πουθενά') -and -not (SFLeaks)) 'secrets: the report says the token works nowhere; its content never shown'
+        Check ((Run-SF @('-Step', 'secrets', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ ΔΙΑΓΡΑΦΗ ΜΥΣΤΙΚΩΝ')) -eq 0 -and (SFLast 'GW_SECURITY_SECRETS_*.txt').Contains('Κανένα μυστικό να σβήσω')) 'secrets a third time: nothing left, exit 0'
         Check ((Run-SF @('-Step', 'old-widgets')) -eq 0 -and (SFCount 'widget delete') -eq 0) 'old widgets without -Apply: plan only'
         $r = SFLast 'GW_SECURITY_OLD_WIDGETS_*.txt'
         Check ($r.Contains($sfOld) -and $r.Contains('ΔΕΝ σβήνεται «Shared»')) 'old widgets: the old Garden widget goes; one shared with another site stays'

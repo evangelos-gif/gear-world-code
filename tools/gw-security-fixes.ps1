@@ -20,6 +20,11 @@
                      TURNSTILE_SECRET_KEY on the 13 SITES (the Hub checks the tokens now; the Hub keeps its own), and the
                      secret whose NAME holds a Turnstile secret value (garden-gear-world): deleted without ever showing its
                      name in full. Nothing else is touched. First a note with the names and the live versions.
+                     Under the same phrase, the plain-text copy of the CGW admin token on this PC,
+                     <home>\construction-gear-uk\backups\cgw-admin-token.txt, is deleted too: never opened, read or
+                     copied (only its existence and size are checked), and only when no Worker has CGW_ADMIN_TOKEN
+                     any more and none has ADMIN_TOKEN (the only admin token the code reads), so the token it held
+                     works nowhere. If a Worker has ADMIN_TOKEN, the file may hold a working token: it stays.
   -Step old-widgets  DELETES THE OLD TURNSTILE WIDGETS of the Gear World hostnames (not the two new ones), one approval:
                      ΕΓΚΡΙΝΩ ΔΙΑΓΡΑΦΗ ΠΑΛΙΩΝ TURNSTILE. Deleting the old Garden widget also makes its secret, which was
                      pasted into a secret name, useless (F07). Only after -Step turnstile.
@@ -37,15 +42,21 @@ param(
     [string]$OutDir = '',
     [switch]$SkipInstall,
     [switch]$NoClipboard,
-    [switch]$NoHttpCheck
+    [switch]$NoHttpCheck,
+    [string]$PcHome = ''
 )
 
 $ErrorActionPreference = 'Stop'
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 $repo = Split-Path -Parent $PSScriptRoot
 $Phrases = @{ turnstile = 'ΕΓΚΡΙΝΩ TURNSTILE'; secrets = 'ΕΓΚΡΙΝΩ ΔΙΑΓΡΑΦΗ ΜΥΣΤΙΚΩΝ'; 'old-widgets' = 'ΕΓΚΡΙΝΩ ΔΙΑΓΡΑΦΗ ΠΑΛΙΩΝ TURNSTILE' }
-if (-not $WorkDir) { $WorkDir = Join-Path $HOME 'gear-world-security' }
-if (-not $OutDir) { $OutDir = Join-Path $HOME 'gear-world-reports' }
+if (-not $PcHome) { $PcHome = $HOME }
+if (-not $WorkDir) { $WorkDir = Join-Path $PcHome 'gear-world-security' }
+if (-not $OutDir) { $OutDir = Join-Path $PcHome 'gear-world-reports' }
+# F16: a plain-text copy of the unused CGW admin token on this PC (found by the PC check without showing its content).
+# This tool never opens it: only whether it is there and its size.
+$TokenFile = Join-Path (Join-Path (Join-Path $PcHome 'construction-gear-uk') 'backups') 'cgw-admin-token.txt'
+$TokenFileShown = '~\construction-gear-uk\backups\cgw-admin-token.txt'
 $stamp = Get-Date -Format 'yyyyMMdd_HHmmss'
 $DashTurnstile = 'https://dash.cloudflare.com/?to=/:account/turnstile'
 $DashWorkers = 'https://dash.cloudflare.com/?to=/:account/workers-and-pages'
@@ -323,6 +334,22 @@ function Show-Name($item) {
     return $item.name
 }
 
+# The token file as a file item (never opened), or $null when it is not there (a folder of that name does not count).
+function Get-TokenFile {
+    $f = Get-Item -LiteralPath $TokenFile -Force -ErrorAction SilentlyContinue
+    if ($null -eq $f -or $f.PSIsContainer) { return $null }
+    return $f
+}
+
+# May the token file go? Only when nothing can still accept the token it holds: no Worker keeps CGW_ADMIN_TOKEN after
+# this step (it is in the plan wherever it is) and no Worker has ADMIN_TOKEN, the only admin token the code reads.
+function Get-TokenFilePlan {
+    $f = Get-TokenFile
+    if ($null -eq $f) { return @{ there = $false; go = $false; size = 0; admin = @() } }
+    $admin = @($Workers | Where-Object { @($names[$_.name]) -contains 'ADMIN_TOKEN' } | ForEach-Object { $_.name })
+    return @{ there = $true; go = ($admin.Count -eq 0); size = [long]$f.Length; admin = $admin }
+}
+
 function Write-Note([string]$prefix, [string[]]$lines) {
     $bdir = Join-Path $WorkDir 'backups'
     if (-not (Test-Path -LiteralPath $bdir)) { New-Item -ItemType Directory -Path $bdir -Force | Out-Null }
@@ -387,6 +414,9 @@ if ($Step -eq 'check') {
     Say 'Πλάνο (κάθε βήμα με τη δική του φράση):'
     Say ('  1. -Step turnstile ({0}): 2 widgets, «{1}» με {2} και «{3}» με {4}. Το Hub παίρνει TURNSTILE_SECRET_KEY, TURNSTILE_SECRET_KEY_2, TURNSTILE_SITE_KEY· κάθε site TURNSTILE_SITE_KEY. ΠΡΙΝ από τον νέο κώδικα.' -f $Phrases.turnstile, $WidgetNames[1], ($Widget1Hosts -join ', '), $WidgetNames[2], ($Widget2Hosts -join ', '))
     Say ('  2. -Step secrets ({0}): σβήνονται {1} μυστικά που δεν διαβάζει κανένας κώδικας (μετά τον νέο κώδικα).' -f $Phrases.secrets, $toDelete)
+    $tfp = Get-TokenFilePlan
+    if ($tfp.there -and $tfp.go) { Say ('     Με την ίδια φράση σβήνεται και το αρχείο {0} ({1} bytes, απλό κείμενο· δεν ανοίγεται ποτέ).' -f $TokenFileShown, $tfp.size) }
+    elseif ($tfp.there) { Say ('     Το αρχείο {0} ({1} bytes) ΜΕΝΕΙ: οι Workers {2} έχουν ADMIN_TOKEN, άρα μπορεί να κρατά κλειδί που ισχύει. ΠΡΟΣΟΧΗ' -f $TokenFileShown, $tfp.size, ($tfp.admin -join ', ')) $Warn }
     Say ('  3. -Step old-widgets ({0}): τα παλιά widgets των Gear World domains (μετά το βήμα 1).' -f $Phrases['old-widgets'])
     Say ''
     if ($unreadable.Count -gt 0) { Say 'Αποτέλεσμα: ΠΡΟΣΟΧΗ - δεν διάβασα όλους τους Workers (δες πάνω). Δεν άλλαξε τίποτα: ξανατρέξε σε λίγο.' $Warn; Finish 6 }
@@ -527,9 +557,16 @@ if ($Step -eq 'secrets') {
     foreach ($w in $Workers) {
         foreach ($p in (Get-DeletePlan $w @($names[$w.name]))) { $all += @{ worker = $w.name; item = $p } }
     }
-    if ($all.Count -eq 0) { Say '  Τίποτα να σβήσω: ΕΝΤΑΞΕΙ' $Ok; Finish 0 }
+    $tfp = Get-TokenFilePlan
+    if ($all.Count -eq 0 -and -not $tfp.go) {
+        if ($tfp.there) { Say ('  Το αρχείο {0} ({1} bytes) ΜΕΝΕΙ: οι Workers {2} έχουν ADMIN_TOKEN, άρα μπορεί να κρατά κλειδί που ισχύει. ΠΡΟΣΟΧΗ - στείλε στο Claude αυτή την αναφορά.' -f $TokenFileShown, $tfp.size, ($tfp.admin -join ', ')) $Warn }
+        Say '  Κανένα μυστικό να σβήσω: ΕΝΤΑΞΕΙ' $Ok
+        Finish 0
+    }
     foreach ($a in $all) { Say ('  - {0}: {1}' -f $a.worker, (Show-Name $a.item)) }
-    Say '  - Μένουν: TURNSTILE_SITE_KEY και ADMIN_TOKEN σε όλα, και στο Hub TURNSTILE_SECRET_KEY, TURNSTILE_SECRET_KEY_2, MAILERLITE_API_KEY, PHOTO_LIMIT_SALT, και κάθε όνομα που δεν ξέρω.'
+    if ($tfp.go) { Say ('  - Στον υπολογιστή: το αρχείο {0} ({1} bytes, απλό κείμενο με το κλειδί admin του CGW). Δεν ανοίγεται, δεν διαβάζεται, δεν αντιγράφεται: σβήνεται μετά τα μυστικά. Δεν γυρίζει πίσω, και δεν χρειάζεται: κανένας Worker δεν θα έχει CGW_ADMIN_TOKEN, κανένας δεν έχει ADMIN_TOKEN, και ο κώδικας διαβάζει μόνο το ADMIN_TOKEN.' -f $TokenFileShown, $tfp.size) }
+    elseif ($tfp.there) { Say ('  - Το αρχείο {0} ({1} bytes) ΜΕΝΕΙ: οι Workers {2} έχουν ADMIN_TOKEN, άρα μπορεί να κρατά κλειδί που ισχύει. ΠΡΟΣΟΧΗ - στείλε στο Claude αυτή την αναφορά.' -f $TokenFileShown, $tfp.size, ($tfp.admin -join ', ')) $Warn }
+    Say '  - Μένουν (όπου υπάρχουν): TURNSTILE_SITE_KEY και ADMIN_TOKEN, και στο Hub TURNSTILE_SECRET_KEY, TURNSTILE_SECRET_KEY_2, MAILERLITE_API_KEY, PHOTO_LIMIT_SALT, και κάθε όνομα που δεν ξέρω.'
     Say '  - Κάθε σβήσιμο φτιάχνει νέα έκδοση του Worker με τον ίδιο κώδικα. Πρώτα σημείωμα με τη ζωντανή έκδοση κάθε Worker.'
     Say '  - Επαναφορά (μόνο με έγκριση): npx wrangler rollback <έκδοση πριν> --name <Worker> (η έκδοση πριν έχει ακόμα το μυστικό), ή ξανά npx wrangler secret put <όνομα> --name <Worker>. Το μυστικό με το λάθος όνομα δεν ξαναμπαίνει ποτέ.'
     if ($unreadable.Count -gt 0) { Say 'Δεν διάβασα όλους τους Workers: ΔΕΝ αλλάζω τίποτα. Ξανατρέξε σε λίγο.' $Bad; Finish 6 }
@@ -546,6 +583,7 @@ if ($Step -eq 'secrets') {
     foreach ($a in $all) { $noteLines += ('  {0}: {1}' -f $a.worker, (Show-Name $a.item)) }
     $noteLines += 'To go back (only with approval): npx wrangler rollback <version> --name <Worker>'
     foreach ($k in $versions.Keys) { $noteLines += ('  npx wrangler rollback {0} --name {1}' -f $versions[$k], $k) }
+    if ($tfp.go) { $noteLines += ('File to delete after the secrets (never opened, so its content is in no note): {0}, {1} bytes. It does not come back; the token it held works nowhere.' -f $TokenFileShown, $tfp.size) }
     $note = Write-Note 'secrets-before' $noteLines
     Say ('Σημείωμα επαναφοράς: {0}' -f $note) $Ok
     $removed = 0
@@ -575,6 +613,18 @@ if ($Step -eq 'secrets') {
         if ($null -ne $now -and @($now) -contains [string]$a.item.name) { $left += ('{0}: {1}' -f $a.worker, (Show-Name $a.item)) }
     }
     if ($left.Count -gt 0) { Say ('Υπάρχουν ακόμα: {0}. ΠΡΟΣΟΧΗ - στείλε στο Claude αυτή την αναφορά.' -f ($left -join '; ')) $Warn; Finish 10 }
+    # The token file: only its existence and size are checked again, then it is deleted (never opened).
+    if ($tfp.go) {
+        $f = Get-TokenFile
+        if ($null -eq $f) { Say ('  Το αρχείο {0} δεν υπάρχει πια: τίποτα να σβήσω.' -f $TokenFileShown) $Ok }
+        elseif ([long]$f.Length -ne $tfp.size) { Say ('  Το αρχείο {0} άλλαξε μέγεθος από το πλάνο ({1} αντί για {2} bytes): ΔΕΝ το σβήνω. ΠΡΟΣΟΧΗ - στείλε στο Claude αυτή την αναφορά.' -f $TokenFileShown, $f.Length, $tfp.size) $Warn; Finish 10 }
+        else {
+            Remove-Item -LiteralPath $TokenFile -Force -ErrorAction SilentlyContinue
+            if ($null -ne (Get-TokenFile)) { Say ('  Το αρχείο {0}: ΠΡΟΒΛΗΜΑ - δεν σβήστηκε (ανοιχτό σε άλλο πρόγραμμα;). Κλείσ'' το και ξανατρέξε αυτό το βήμα.' -f $TokenFileShown) $Bad; Finish 9 }
+            Say ('  Το αρχείο {0} ({1} bytes): σβήστηκε χωρίς να ανοιχτεί: ΕΝΤΑΞΕΙ' -f $TokenFileShown, $tfp.size) $Ok
+        }
+        Say '  Το κλειδί που είχε δεν ισχύει πια πουθενά: κανένας Worker δεν έχει CGW_ADMIN_TOKEN ή ADMIN_TOKEN, και ο κώδικας διαβάζει μόνο το ADMIN_TOKEN.' $Ok
+    }
     Say ''
     Say ('ΕΤΟΙΜΟ: σβήστηκαν {0} μυστικά που δεν χρησιμοποιούσε κανείς. Επόμενο: -Step old-widgets.' -f $removed) $Ok
     Finish 0
