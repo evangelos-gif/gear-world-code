@@ -160,10 +160,11 @@ test('every site category has rules, and the menu order matches the site', () =>
 test('sources: the first-wave shops are approved, VEVOR waits for the second wave, sport sections only (L65)', () => {
   const src = JSON.parse(readFileSync('sites/sgw/sources.json', 'utf8')).sources;
   const approved = src.filter(s => s.approved).map(s => s.retailer);
-  assert.deepEqual(approved, ['Coes', 'Joybuy', 'Plusshop UK', 'Bazta UK', 'Beyond Shakers', 'Bern Helmets']);
+  assert.deepEqual(approved, ['Coes', 'Joybuy', 'Plusshop UK', 'Bazta UK', 'Beyond Shakers', 'Bern Helmets', 'Fitness Options']);
   assert.equal(src.find(s => s.retailer === 'VEVOR').approved, false);
   for (const r of ['Coes', 'Joybuy']) assert.equal(src.find(s => s.retailer === r).sectionHints, false, r);
-  for (const s of src.filter(x => x.approved && !x.rulesFrom && !['Beyond Shakers', 'Bern Helmets'].includes(x.retailer))) assert.ok(s.allowPaths && s.allowPaths.length, s.retailer);
+  // Sport-only shops (Beyond Shakers, Bern Helmets, Fitness Options: 8 Nov 2026) need no sport sections.
+  for (const s of src.filter(x => x.approved && !x.rulesFrom && !['Beyond Shakers', 'Bern Helmets', 'Fitness Options'].includes(x.retailer))) assert.ok(s.allowPaths && s.allowPaths.length, s.retailer);
 });
 
 test('plan: two archive folders, only the sport section of a shop, kids and tools out, SQL not executed', async () => {

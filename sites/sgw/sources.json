@@ -10,6 +10,8 @@
     { "advertiserId": 116097, "retailer": "Bazta UK", "currency": "GBP", "condition": "new", "approved": true, "rulesFrom": 69306 },
     { "advertiserId": 66912, "retailer": "Beyond Shakers", "currency": "GBP", "condition": "new", "approved": true },
     { "advertiserId": 111548, "feedIds": [101261], "retailer": "Bern Helmets", "currency": "GBP", "condition": "new", "approved": true },
+    { "advertiserId": 899, "feedIds": [106051], "retailer": "Fitness Options", "currency": "GBP", "condition": "new", "approved": true,
+      "sportShop": true, "defaultSlug": "fitness-gym" },
     { "advertiserId": 118435, "feedIds": [109014], "retailer": "VEVOR", "currency": "EUR", "condition": "new", "keepSiteNames": true, "approved": false,
       "allowPaths": ["sport en buitenshuis"] }
   ]

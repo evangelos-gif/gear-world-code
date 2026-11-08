@@ -237,6 +237,10 @@ export function classify(name, feedCategory = '', paths = '', source = null) {
   // the Awin category "Fitness", and Joybuy's sub-sections are often wrong (running shoes under "Ice Screws", plan 25 Oct 2026).
   const hints = !source || source.sectionHints !== false;
   if (hints && sportFeed && (SPORT_WORDS.test(n) || GEAR_WORDS.test(n))) for (const s of SECTION_RULES) if (s.re.test(cat)) return { ok: true, slug: s.slug };
+  // A shop that sells only one sport (sources.json "sportShop": true + "defaultSlug"): its machines are often named by
+  // brand and model only ("WaterRower Original Series", "Inspire Body Lift BL1", Fitness Options, 8 Nov 2026). They come
+  // in under the shop's sport after the DENY rules, like PGW's gamingShop (lessons L106).
+  if (source && source.sportShop && source.defaultSlug && CATEGORY_SLUGS.includes(source.defaultSlug)) return { ok: true, slug: source.defaultSlug };
   return { ok: false, reason: sportFeed ? 'not matched (shop says sport)' : 'not sport' };
 }
 

@@ -15,6 +15,7 @@ The owner is a beginner on Windows PowerShell 5.1, often on a phone. Replies are
 - Every script writes a report under `$HOME\gear-world-reports\` and copies it to the clipboard.
 - Give commands as the 3-line pattern in README.md, pinned to a commit SHA (not `main`).
 - When it is safe, put as many steps as possible in ONE paste (owner's standing wish): line 3 may run several tools one after another, separated by `;`. Each change still shows its plan first and asks its own approval phrase; say in order which phrases will be asked. Never chain a step that depends on checking the result of the one before.
+- Imports of several shops (owner, 8 Nov 2026: "one approval for all, not separately"): one `legacy-import-batch.ps1` run with `-Pairs`, `-Sites` and/or `-Tgw`. First the 🟢 dry run of that same list (checked by Claude), then `-Apply`, which lists everything and asks ONE phrase, `ΕΓΚΡΙΝΩ ALL IMPORTS`; each import still takes its own restore point (lessons L106).
 - A live `update` of a site that has a test address (`*-preview` Worker) ends, in the same paste, with that site's `remove-preview` step and its own phrase, so no test Worker is left running (owner, 29 Oct 2026). Every site tool used that way must have `remove-preview`.
 - Run `tests/run-tests.ps1` locally, then wait for the `checks` workflow (windows-latest, Windows PowerShell 5.1) to pass before giving a command.
 

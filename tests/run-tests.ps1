@@ -2541,6 +2541,25 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         $bBadC = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', (Join-Path $repo 'tools\legacy-import-batch.ps1'), '-Pairs', 'none', '-Cleanups', 'viaduct-sizes:xyz', '-OutDir', $bOut, '-NoClipboard')
         & $exe @bBadC | Out-Null
         Check ($LASTEXITCODE -eq 2) 'import batch: a wrong clean-up site is refused'
+        # One phrase for the whole batch (owner, 8 Nov 2026): a wrong phrase changes nothing, not even the first pair.
+        $oOut = Join-Path $work 'batch-one-phrase-out'
+        if (Test-Path -LiteralPath $liCalls) { Remove-Item -LiteralPath $liCalls -Force }
+        & $exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $repo 'tools\legacy-import-batch.ps1') -Pairs 'joybuy:wgw,joybuy:mgw' -Apply -Approve 'ΕΓΚΡΙΝΩ JOYBUY WGW' -Archive $jArch -WorkDir $liWork -OutDir $oOut -NoClipboard | Out-Null
+        Check ($LASTEXITCODE -eq 1) 'import batch -Apply: a single shop''s phrase is not the batch phrase, exit 1'
+        Check (-not ((LiCalls) -match '--file|time-travel')) 'import batch -Apply with a wrong phrase: nothing imported'
+        $oRep = @(Get-ChildItem -LiteralPath $oOut -File -Filter 'IMPORT_BATCH_*.txt' -ErrorAction SilentlyContinue)
+        Check ($oRep.Count -eq 1 -and ([System.IO.File]::ReadAllText($oRep[0].FullName)).Contains('joybuy -> MGW')) 'import batch -Apply with a wrong phrase: the report lists what would have run'
+        # The one phrase (Latin EGKRINO accepted): each pair runs with its own approval, no second question.
+        if (Test-Path -LiteralPath $liCalls) { Remove-Item -LiteralPath $liCalls -Force }
+        & $exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $repo 'tools\legacy-import-batch.ps1') -Pairs 'joybuy:wgw' -Apply -Approve 'egkrino all imports' -Archive $jArch -WorkDir $liWork -OutDir $oOut -NoClipboard | Out-Null
+        Check ((LiCalls) -match 'd1 execute womens-gear-world --remote --file') 'import batch -Apply with ΕΓΚΡΙΝΩ ALL IMPORTS: the pair is imported without a second phrase'
+        $oRep2 = @(Get-ChildItem -LiteralPath $oOut -File -Filter 'IMPORT_BATCH_*.txt' | Sort-Object LastWriteTime)
+        Check ($oRep2.Count -ge 1 -and ([System.IO.File]::ReadAllText($oRep2[$oRep2.Count - 1].FullName)).Contains('joybuy -> WGW: exit 0')) 'import batch -Apply with the one phrase: exit 0 in the report'
+        # -Sites: new-engine sites with Awin numbers; anything else is refused before anything runs.
+        & $exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $repo 'tools\legacy-import-batch.ps1') -Pairs none -Sites 'xyz:123' -OutDir $bOut -NoClipboard | Out-Null
+        Check ($LASTEXITCODE -eq 2) 'import batch: a wrong -Sites site is refused'
+        & $exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $repo 'tools\legacy-import-batch.ps1') -Pairs none -Sites 'sgw:abc' -OutDir $bOut -NoClipboard | Out-Null
+        Check ($LASTEXITCODE -eq 2) 'import batch: -Sites needs Awin numbers'
         # A pair for Construction Gear World is accepted (legacy-import.ps1 has CGW; lessons L63): an empty archive only ends that pair.
         $cgwArch = Join-Path $work 'batch-cgw-empty-archive'
         New-Item -ItemType Directory -Path $cgwArch -Force | Out-Null
