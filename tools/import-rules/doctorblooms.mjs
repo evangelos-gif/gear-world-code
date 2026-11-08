@@ -6,6 +6,8 @@
 // brands Alien Hydroponics, Autopot, G.A.S., Dutchpro, Grotek, HydroGarden. A garden visitor compares grow tents, grow
 // lights, hydroponic kits, propagators, plant food and growing media; ducting, filters, fans, controllers and loose
 // fittings (elbows, drippers, tape) are spare parts for growers who already have a set-up, so they stay out.
+// Dry run 8 Nov 2026: "Plant Magic Old Timer Organic Bloom" is a feed (not a timer), "Athena Fade" is in "Fertiliser",
+// "CO2 Solenoid" and "LUMATEK LED DRIVER 5m EXTENSION CABLES" are parts.
 import { GARDEN_CATEGORIES } from './lib/garden.mjs';
 
 export const RULES = {
@@ -26,7 +28,8 @@ export function productKey(get) {
 
 const words = list => new RegExp('(?<![a-z0-9])(' + list.join('|') + ')(?![a-z0-9])', 'i');
 const PART = words(['ducting', 'duct', 'carbon filters?', 'filters?', 'inline fans?', 'fans?', 'mixed-flow', 'silencers?', 'controllers?', 'thermostats?',
-  'timers?', 'contactors?', 'ballasts?', 'reflectors?', 'elbows?', 'drippers?', 'dripper', 'fittings?', 'connectors?', 'joiners?', 'grommets?', 'tape',
+  'digital timers?', 'timer (?:switch|socket|box)(?:es)?', 'contactors?', 'ballasts?', 'reflectors?', 'elbows?', 'drippers?', 'dripper', 'fittings?', 'connectors?',
+  'joiners?', 'grommets?', 'tape', 'solenoids?', 'drivers?', 'extension(?: cables?)?', 'cables?', 'leads?', 'control panels?',
   'clips?', 'clamps?', 'hose', 'tubing', 'pipe', 'valves?', 'spares?', 'replacement', 'adapters?', 'ph pens?', 'ec meters?', 'meters?', 'probes?',
   'calibration', 'hangers?', 'rope ratchets?', 'yo-?yos?', 'ozone', 'odour', 'odor', 'neutraliser', 'scissors', 'trimmers?', 'gloves?', 'bags? only']);
 const SUBS = [
@@ -41,7 +44,7 @@ const SUBS = [
 ];
 const BY_FEED = [
   [/grow tent/i, 'Grow tents'], [/light|lamp|led/i, 'Grow lights'], [/grow system|hydroponic/i, 'Hydroponics'], [/propagat/i, 'Propagation'],
-  [/growing media|propagation media|substrate|coco|soil/i, 'Growing media'], [/nutrient|additive|feed/i, 'Plant feed'], [/pots?|planters?/i, 'Pots & planters']
+  [/growing media|propagation media|substrate|coco|soil/i, 'Growing media'], [/nutrient|additive|feed|fertili[sz]er/i, 'Plant feed'], [/pots?|planters?/i, 'Pots & planters']
 ];
 const PART_FEED = /ducting|carbon filter|ventilation|environment control|water pump|fans?|meters?|irrigation fittings?|spares?/i;
 
@@ -51,7 +54,8 @@ export function classify({ name, feedCategory = '' }) {
   if (/gift card|gift voucher|e-?gift/i.test(n)) return { reject: 'gift card, not a product' };
   // A grow tent kit or a hydroponic kit names its parts after "with" or "+": the head says what it is.
   const head = n.split(/\s+(?:with|w\/|incl\.?|including|plus)\s+|\s*[+|(]\s*/i)[0] || n;
-  const kit = /\b(kit|system|complete|bundle|package)\b/i.test(head);
+  // "CO2 Solenoid - CO2 Kit (Solenoid Only)": a part sold alone is not a kit.
+  const kit = /\b(kit|system|complete|bundle|package)\b/i.test(head) && !/\b\w+ only\)/i.test(n);
   if (!kit && (PART.test(head) || PART_FEED.test(feedCategory))) return { reject: 'spare part for an existing grow set-up (ducting, filter, fan, fitting)' };
   let sub = '';
   for (const [label, re] of SUBS) if (re.test(head)) { sub = label; break; }

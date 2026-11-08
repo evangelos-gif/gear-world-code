@@ -39,20 +39,35 @@ const MEN_URL = /(^|[/_-])mens?([/_-]|$)/i;
 const WOMEN = words(["women'?s", 'womens', 'ladies', 'for women']);
 const CLOTHES = [
   ['Sports Bras & Tops', words(['sports bras?', 'bras?', 'bralettes?'])],
-  ['Leggings', words(['leggings'])],
+  ['Leggings', words(['leggings', 'tights'])],
+  ['Jackets', words(['jackets?'])],
   ['Hoodies', words(['hoodies?', 'hoody', 'hooded'])],
   ['Sweatshirts', words(['sweatshirts?', 'sweaters?', 'crew ?necks?', 'jumpers?'])],
   ['Shorts', words(['shorts'])],
   ['Trousers', words(['joggers?', 'pants', 'trousers', 'sweatpants', 'track ?pants'])],
   ['T-Shirts', words(['t-?shirts?', 'tees?'])],
-  ['Tops & Blouses', words(['tops?', 'tanks?', 'tank tops?', 'camisoles?', 'camis?', 'vests?', 'long sleeve'])]
+  ['Tops & Blouses', words(['tops?', 'tanks?', 'tank tops?', 'camisoles?', 'camis?', 'vests?', 'long sleeve', 'bodysuits?', 'shrugs?'])]
 ];
-const WOMEN_ONLY = words(['sports bras?', 'bras?', 'bralettes?', 'leggings', 'camisoles?', 'camis?', 'cropped', 'crop', 'boxy']);
+const WOMEN_ONLY = words(['sports bras?', 'bras?', 'bralettes?', 'leggings', 'camisoles?', 'camis?', 'cropped', 'crop', 'boxy', 'tights', 'bodysuits?', 'shrugs?']);
+// The feed does not say men's or women's. These are the products of the shop's "All men's clothing" collection
+// (cottsbury.com/collections/all-mens-clothing, 8 Nov 2026); the dry run of 8 Nov 2026 had put them all on WGW.
+const MEN_NAMES = new Set([
+  'Essential Regular Fit Organic Cotton Jersey T-Shirt', 'V-Neck Pocket Regular Fit Organic Cotton Jersey T-Shirt',
+  'Henley Regular Fit Organic Cotton Jersey T-Shirt', 'Essential Long Sleeve Regular Fit Organic Cotton Jersey T-Shirt',
+  'Relaxed Fit Organic Cotton French Terry Jogger Shorts', 'Relaxed Fit Organic Cotton French Terry Training Shorts',
+  'Henley Long Sleeve Regular Fit Organic Cotton Jersey T-Shirt', 'Tapered Leg Full Length Organic Cotton Fleece Joggers',
+  'Henley Casual Slim Fit Organic Cotton French Terry Hoodie', 'Essential Crew Neck Regular Fit Organic Cotton Interlock Sweatshirt',
+  'Essential Crew Neck Regular Fit Organic Cotton French Terry Sweatshirt', 'Tapered Leg Full Length Organic Cotton French Terry Joggers',
+  'Tapered Fit Organic Cotton French Terry Sweatpants', 'Relaxed Fit Organic Cotton French Terry Joggers',
+  'Zip Front Slim Fit Organic Cotton Interlock Jacket', 'Unisex Rouched Ankle Full Length Organic Cotton Jersey Joggers'
+].map(x => x.toLowerCase()));
 
 export function classify({ name, url = '' }) {
   const n = String(name || '').replace(/\s{2,}/g, ' ').trim();
   if (!n) return { reject: 'no name' };
-  if (/gift card|gift voucher|e-?gift|gift wrap/i.test(n)) return { reject: 'gift card, not a product' };
+  if (/gift ?card|gift voucher|e-?gift|gift wrap/i.test(n)) return { reject: 'gift card, not a product' };
+  // "Carbon Organic Cotton Cable Knit Throw (Sample)": shop samples, not the product (dry run 8 Nov 2026).
+  if (/\(sample\)|\bsamples?\b|swatch/i.test(n)) return { reject: 'sample or swatch, not the product' };
   if (HOME.test(n)) {
     const h = homePlace(n);
     if (h && (h.siteCategory === 'Bedding & Bath' || h.siteCategory === 'Home Decor')) return { site: 'hgw', ...h };
@@ -63,7 +78,7 @@ export function classify({ name, url = '' }) {
   if (!sub) return { reject: 'not bedding, bath or clothing' };
   let path = '';
   try { path = new URL(url).pathname; } catch { path = ''; }
-  const men = !WOMEN_ONLY.test(n) && !WOMEN.test(n) && (MEN.test(n) || MEN_URL.test(path));
+  const men = MEN_NAMES.has(n.toLowerCase()) || (!WOMEN_ONLY.test(n) && !WOMEN.test(n) && (MEN.test(n) || MEN_URL.test(path)));
   if (men) {
     const mSub = sub === 'Tops & Blouses' ? 'T-Shirts' : sub;
     if (mSub === 'Sports Bras & Tops' || mSub === 'Leggings') return { reject: "women's item named men's" };

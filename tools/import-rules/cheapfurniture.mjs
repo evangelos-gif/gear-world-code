@@ -6,6 +6,11 @@
 // tail ("Cornwall King Bed Frame Grey Elegant and Comfortable Bedroom Furniture"): the card name stops before it
 // (lib/hgw-home.mjs trimTail). The two feeds list many of the same products: one card per product page (lessons L63).
 // Not home products (a dog house, a basketball hoop, kitchen cabinet doors) stay out.
+// Dry run 8 Nov 2026: the two feeds hold the same products under different addresses and prices (one card at £110, one at
+// £99.99). Feed 99953 was last refreshed by Awin on 15 May 2026 (stopped feeds, lessons L39), feed 113623 on 30 Aug 2026,
+// so only feed 113623 is read. Rotary airers go to HGW laundry, garden sets get their garden subcategory (furnitureSub).
+import { existsSync } from 'node:fs';
+import { join } from 'node:path';
 import { homePlace, notHome, trimTail, OUTDOOR } from './lib/hgw-home.mjs';
 import { gardenPlace, furnitureSub, GARDEN_CATEGORIES } from './lib/garden.mjs';
 
@@ -20,6 +25,10 @@ export const RULES = {
   minPrice: 10,
   keepQuery: true
 };
+
+export function feedFiles(archive) {
+  return ['AWIN_107998_113623.csv.gz', 'AWIN_107998_113623.csv'].map(f => join(archive, f)).filter(f => existsSync(f));
+}
 
 export function productKey(get) {
   try {
@@ -37,10 +46,11 @@ export function displayBrand(brand) {
 export function classify({ name, feedCategory = '' }) {
   const n = trimTail(name);
   if (!n) return { reject: 'no name' };
-  if (notHome(n)) return { reject: 'not furniture or home (pets, sport, toys, kitchen fitting parts)' };
+  if (notHome(n)) return { reject: 'not furniture or home (pets, sport, toys, kitchen and bathroom fittings)' };
+  if (/\b(rotary airers?|airers?|washing lines?|clothes dryers?)\b/i.test(n)) return { site: 'hgw', siteCategory: 'Cleaning & Laundry', subcategory: 'Clothes Airer', name: n };
   if (OUTDOOR.test(n)) {
     const g = gardenPlace(n, feedCategory);
-    if (g) return { site: 'ggw', ...g, name: n };
+    if (g && g.siteCategory !== GARDEN_CATEGORIES.furniture) return { site: 'ggw', ...g, name: n };
     return { site: 'ggw', siteCategory: GARDEN_CATEGORIES.furniture, subcategory: furnitureSub(n) || 'Garden furniture', name: n };
   }
   const h = homePlace(n);

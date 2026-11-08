@@ -104,3 +104,61 @@ test('Fitness Options on Sporty Gear World: a fitness-only shop, machines named 
   // Without the shop flag the same name is not sport (other shops keep the strict rules, lessons L65).
   assert.equal(sgwClassify('WaterRower Original Series', 'Rowing Fitness Machine', '', null).ok, false);
 });
+
+test('fixes after the dry run of 8 Nov 2026 evening: sets, shoe benches, Christmas, blinds, fittings out, colours, men\'s Cottsbury', () => {
+  const at = n => { const p = home.homePlace(n); return p ? `${p.siteCategory} / ${p.subcategory}` : null; };
+  for (const [n, want] of [
+    ['Chicago Oak White Bar Table & 2 Oak White Chairs', 'Furniture / Dining Set'],
+    ['Helena Glass Dining Table & 4 Grey Chairs', 'Furniture / Dining Set'],
+    ['Bolitzo Oak White Bar Table 2 Oak White Stools', 'Furniture / Dining Set'],
+    ['Carina Dining Table & Bench Set Black | Oval 200cm', 'Furniture / Dining Set'],
+    ['Winchester Shoe Storage Bench - Grey', 'Storage & Organisation / Shoe Rack'],
+    ['Tiva 5 Shelf Grey Corner Ladder Bookshelf Storage Display Unit', 'Furniture / Bookcase'],
+    ['Monte Carlo Aged Gold Bed Side Table', 'Furniture / Bedside Table'],
+    ['Liang & Eimil Hudson Sofa - Lander Shade', 'Furniture / Sofa'],
+    ['Liang & Eimil Ventus Ceiling Lamp - Brushed Antique Brass/Off White Linen Shade', 'Lighting / Ceiling Light'],
+    ['Reni Large Black Fabric Drum Shade 45cm Easy Fit', 'Lighting / Lampshade'],
+    ['Xander Brushed Gold Drinks Trolley', 'Furniture / Drinks Trolley'],
+    ['Quintessa Peial Handmade Artwork', 'Home Decor / Wall Art'],
+    ['Derwent Bronze Pedestal Column', 'Furniture / Side Table'],
+    ['Freestanding Towel Ladder White', 'Bedding & Bath / Bathroom Accessories'],
+    ['Pre-Lit Pencil Christmas Tree 6ft Green Elegant and Lifelike Holiday Decor', 'Home Decor / Christmas'],
+    ['Little Black Book 50mm Venetian Blind Black 70x160cm', 'Home Decor / Blinds']
+  ]) assert.equal(at(n), want, n);
+  for (const n of ['1375x755mm Fully Framed Bath Shower Screen White', 'Kitchen Wall Unit 300mm 18mm Cabinet Carcass Cupboard',
+    'Pro Fitness 2 Tier Weights Storage Rack', 'Sportspower Swing with Rebound Net and Basketball Hoop Kids Garden Play']) assert.ok(home.notHome(n), n);
+  assert.equal(home.notHome('Sideboard with Gold Door Handles'), false);
+  const c = name => cfw.classify({ name });
+  assert.equal(c('45m 4 Arm Rotary Airer Outdoor Washing Line Garden Dryer Heavy Duty').subcategory, 'Clothes Airer');
+  assert.equal(c('Antigua 4-Seater Dining Set Garden Patio Furniture Table Chairs').subcategory, 'Dining sets');
+  assert.equal(c('McGregor Large Walk In Greenhouse Easy Assembly Sturdy Frame').subcategory, 'Greenhouses');
+  // Only the feed Awin still refreshes (113623); the May one (99953) stays out (lessons L39).
+  assert.deepEqual(cfw.feedFiles('/no/such/folder'), []);
+  assert.equal(macian.cardName('Ludo Penny Loafer', 'https://maciancollection.com/products/ludo-penny-loafer-black-calf?variant=1'), 'Ludo Penny Loafer - Black Calf');
+  assert.equal(macian.cardName('Ada Derby Shoes', 'https://maciancollection.com/products/ada-derby-shoes'), 'Ada Derby Shoes');
+  const ct = name => cotts.classify({ name, url: 'https://cottsbury.com/products/x' });
+  assert.equal(ct('Henley Regular Fit Organic Cotton Jersey T-Shirt').site, 'mgw');
+  assert.equal(ct('Zip Front Slim Fit Organic Cotton Interlock Jacket').subcategory, 'Jackets');
+  assert.equal(ct('Organic Cotton Black Tights in Full Length. GOTS Certified & Fairtrade').subcategory, 'Leggings');
+  assert.ok(ct('Carbon Organic Cotton Cable Knit Throw (Sample)').reject);
+  assert.ok(ct('Cottsbury E-Giftcard').reject);
+  const b = (name, feedCategory) => blooms.classify({ name, feedCategory });
+  assert.equal(b('Plant Magic Old Timer Organic Bloom', 'Nutrients').subcategory, 'Plant feed');
+  assert.equal(b('Athena Fade', 'Fertiliser').subcategory, 'Plant feed');
+  assert.ok(b('CO2 Solenoid - CO2 Kit (Solenoid Only)', 'Grow System').reject);
+  assert.ok(b('LUMATEK LED DRIVER 5m EXTENSION CABLES', 'Lighting').reject);
+});
+
+test('Sporty Gear World: gym machines with a console or named "trainer" stay in Fitness & Gym, indoor bikes too', () => {
+  const src = { sportShop: true, defaultSlug: 'fitness-gym' };
+  for (const n of ['Life Fitness E1 Elliptical Cross Trainer-Go Console', 'Life Fitness C1 Upright Bike-Go Console', 'IC6 Bike',
+    'Nohrd Upright Bike-Club Sport Upright Bike', 'Tria Trainer-Tria Trainer Oak', 'Inspire FT1 Functional Trainer', 'BH Pioneer S3 Senior Treadmill']) {
+    assert.deepEqual(sgwClassify(n, 'Gym at Home', '', src), { ok: true, slug: 'fitness-gym' }, n);
+  }
+  // Upright bikes are gym machines for every shop, not Cycling.
+  assert.equal(sgwClassify('Schwinn 590U Upright Bike', 'Exercise Bikes', '', null).slug, 'fitness-gym');
+  // Still out: a games console, safety boots; running trainers stay Running.
+  assert.equal(sgwClassify('PlayStation 5 Console', '', '', null).ok, false);
+  assert.equal(sgwClassify('Dickies S3 Safety Boots', 'Sports', '', null).ok, false);
+  assert.equal(sgwClassify('Adidas Ultraboost Running Trainers', 'Sports', '', null).slug, 'running');
+});

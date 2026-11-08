@@ -23,7 +23,22 @@ export function productKey(get) {
   return cur && cur !== 'GBP' ? `${cur.toLowerCase()}-${path}` : path;
 }
 
-export function classify({ name, feedCategory = '' }) {
+// Several colours of one shoe have the same feed name ("Ludo Penny Loafer" twice, dry run 8 Nov 2026): the card name takes
+// the colour from the product address ("/products/ludo-penny-loafer-black-calf" -> "Ludo Penny Loafer - Black Calf").
+const slug = t => String(t || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+export function cardName(name, url = '') {
+  const n = String(name || '').trim();
+  let handle = '';
+  try { handle = (new URL(url).pathname.match(/\/products\/([a-z0-9-]+)/i) || [])[1] || ''; } catch { handle = ''; }
+  handle = handle.toLowerCase();
+  const base = slug(n);
+  if (!handle || !base || !handle.startsWith(base + '-')) return n;
+  const extra = handle.slice(base.length + 1).split('-').filter(w => w && !/^\d+$/.test(w));
+  if (!extra.length || extra.length > 4) return n;
+  return `${n} - ${extra.map(w => w[0].toUpperCase() + w.slice(1)).join(' ')}`;
+}
+
+export function classify({ name, feedCategory = '', url = '' }) {
   const n = String(name || '').trim();
   if (!n) return { reject: 'no name' };
   if (/gift card|gift voucher|shoe care|polish|shoe trees?|laces/i.test(n)) return { reject: 'gift card or shoe care, not shoes' };
@@ -33,5 +48,5 @@ export function classify({ name, feedCategory = '' }) {
     : /\b(sandals?|mules?|slides?)\b/i.test(n) ? 'Sandals'
       : /\b(heels?|heeled|courts?|stilettos?|pumps?|kitten)\b/i.test(n) ? 'Heels'
         : 'Shoes';
-  return { site: 'wgw', siteCategory: 'Shoes', subcategory: sub };
+  return { site: 'wgw', siteCategory: 'Shoes', subcategory: sub, name: cardName(n, url) };
 }
