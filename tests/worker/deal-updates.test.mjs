@@ -89,10 +89,16 @@ test('no consent, a bad address, another site, a bot field: nothing goes to the 
   const { calls, HUB } = fakeHub();
   const env = { DB, FX_FETCH, HUB, TURNSTILE_SITE_KEY: SITEKEY };
   assert.equal((await worker.fetch(form(site, { email: 'a@b.co', page: '/' }), env, {})).status, 400, 'no consent');
-  // No Turnstile token: refused by the site itself, nothing goes to the Hub (L07).
+  // No Turnstile token (a browser without JavaScript): refused by the site itself, nothing goes to the Hub (L07), and
+  // the answer says why (L106).
   const noToken = await worker.fetch(form(site, { email: 'a@b.co', consent: 'yes' }), env, {});
   assert.equal(noToken.status, 403);
-  assert.match(await noToken.text(), /The security check failed/);
+  const noTokenText = await noToken.text();
+  assert.match(noTokenText, /This sign-up box needs JavaScript for its security check\. Turn on JavaScript and try again\./);
+  assert.doesNotMatch(noTokenText, /Reload the page/);
+  const longToken = await worker.fetch(form(site, { email: 'a@b.co', consent: 'yes', 'cf-turnstile-response': 'x'.repeat(2049) }), env, {});
+  assert.equal(longToken.status, 403);
+  assert.match(await longToken.text(), /The security check failed\. Reload the page and try again\./);
   assert.equal(calls.length, 0);
   assert.equal((await worker.fetch(form(site, { email: 'not-an-email', consent: 'yes' }), env, {})).status, 400);
   assert.equal((await worker.fetch(form(site, { email: 'a@b.co', consent: 'yes' }, { Origin: 'https://evil.example' }), env, {})).status, 403);
@@ -164,7 +170,7 @@ test('the site script loads Turnstile only when the box is used, and the 13 site
   for (const c of codes) {
     for (const l of readdirSync(`sites/${c}/public/assets/i18n`)) {
       const d = JSON.parse(readFileSync(`sites/${c}/public/assets/i18n/${l}`, 'utf8'));
-      for (const k of ['Wait for the security check to finish, then try again.', 'The security check failed. Reload the page and try again.', 'Sign-ups are full for today. Please try again tomorrow.']) {
+      for (const k of ['Wait for the security check to finish, then try again.', 'The security check failed. Reload the page and try again.', 'Sign-ups are full for today. Please try again tomorrow.', 'This sign-up box needs JavaScript for its security check. Turn on JavaScript and try again.']) {
         assert.ok(d[k] && d[k] !== k, `${c} ${l}: ${k}`);
       }
     }

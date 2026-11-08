@@ -480,15 +480,34 @@ function Send-IndexNow {
 
 # No public test address for the live Hub (security fixes F04, lessons L106): its wrangler.toml has no routes (the domain is
 # set in Cloudflare), so without these two lines every deploy switched gear-world-hub.<account>.workers.dev on again. The
-# lines go right after the name line (top level). Returns the text unchanged when both are already false.
+# lines go right after the name line (top level, before the first [table]; at the very top when that line has another
+# form). Returns the text unchanged when both are already false. Test-HubNoTestAddress says whether the top level
+# really has both: the live step checks it after the change and stops before any deploy when it does not.
+function Get-TomlTopLevel([string]$text) {
+    $m = [regex]::Match($text, '(?m)^[ \t]*\[')
+    if ($m.Success) { return $text.Substring(0, $m.Index) }
+    return $text
+}
+function Test-HubNoTestAddress([string]$text) {
+    $top = Get-TomlTopLevel $text
+    $wd = @([regex]::Matches($top, '(?m)^workers_dev[ \t]*=.*$'))
+    $pu = @([regex]::Matches($top, '(?m)^preview_urls[ \t]*=.*$'))
+    if ($wd.Count -ne 1 -or $pu.Count -ne 1) { return $false }
+    return (($wd[0].Value -match '^workers_dev[ \t]*=[ \t]*false[ \t]*(#.*)?\r?$') -and ($pu[0].Value -match '^preview_urls[ \t]*=[ \t]*false[ \t]*(#.*)?\r?$'))
+}
 function Set-HubNoTestAddress([string]$text) {
     $nl = $(if ($text.Contains("`r`n")) { "`r`n" } else { "`n" })
-    $t = [regex]::Replace($text, '(?m)^workers_dev[ \t]*=[ \t]*true[ \t]*(?=\r?$)', 'workers_dev = false')
-    $t = [regex]::Replace($t, '(?m)^preview_urls[ \t]*=[ \t]*true[ \t]*(?=\r?$)', 'preview_urls = false')
+    $top = Get-TomlTopLevel $text
+    $rest = $text.Substring($top.Length)
+    $top = [regex]::Replace($top, '(?m)^workers_dev[ \t]*=[ \t]*true[ \t]*(?=\r?$)', 'workers_dev = false')
+    $top = [regex]::Replace($top, '(?m)^preview_urls[ \t]*=[ \t]*true[ \t]*(?=\r?$)', 'preview_urls = false')
     $anchor = '(?m)^(name[ \t]*=[ \t]*"gear-world-hub"[ \t]*)(?=\r?$)'
-    if ($t -notmatch '(?m)^preview_urls[ \t]*=') { $t = [regex]::Replace($t, $anchor, ('$1' + $nl + 'preview_urls = false')) }
-    if ($t -notmatch '(?m)^workers_dev[ \t]*=') { $t = [regex]::Replace($t, $anchor, ('$1' + $nl + 'workers_dev = false')) }
-    return $t
+    foreach ($key in @('preview_urls', 'workers_dev')) {
+        if ($top -match ('(?m)^' + $key + '[ \t]*=')) { continue }
+        if ($top -match $anchor) { $top = [regex]::Replace($top, $anchor, ('$1' + $nl + $key + ' = false')) }
+        else { $top = $key + ' = false' + $nl + $top }
+    }
+    return $top + $rest
 }
 
 # Is everything ready for the security release (L106)? The Hub's Turnstile keys (names only) and, unless -NoHttpCheck,
@@ -734,6 +753,7 @@ if ($plan.Count -eq 0) {
     Say '  4. Deploy του gearworldhub.com από τον φάκελο του Hub (με το δικό του wrangler.toml), και έλεγχος της σελίδας και του «Βρες δώρο».'
     Say '  Η D1, τα 11 sites και οι άλλοι Workers (και ο gwh-sitemap) ΔΕΝ αλλάζουν.'
     Say ('  Επαναφορά (μόνο με έγκριση): npx wrangler rollback <ζωντανή έκδοση> --name {0}, και τα αρχεία του zip πίσω στον φάκελο του Hub.' -f $HubWorker)
+    Say '  Επαναφορά όλης της έκδοσης L106: ΠΡΩΤΑ το Hub (αυτό), ΜΕΤΑ τα 13 sites: το νέο Hub δεν δέχεται εγγραφή χωρίς Turnstile, και ο παλιός κώδικας των sites δεν στέλνει.'
 }
 $readyLive = (($pcIsBaseline -or $pcIsNew) -and ($liveState -eq 'baseline' -or $liveState -eq 'new' -or ($NoHttpCheck -and $liveState -eq 'unknown')) -and $liveVersion -and $postersOn)
 # Security fixes (L106): the Hub checks Turnstile tokens from now on, so its keys must be there and the 13 sites must
@@ -853,7 +873,8 @@ $note = @(
     'To go back (only with approval), in PowerShell:',
     ('  npx wrangler rollback {0} --name {1}' -f $liveVersion, $HubWorker),
     ('  then put the files of {0} back into {1}' -f $keep, $HubDir),
-    'Or in the Cloudflare dashboard: Workers > gear-world-hub > Deployments > the version above > Rollback.'
+    'Or in the Cloudflare dashboard: Workers > gear-world-hub > Deployments > the version above > Rollback.',
+    'Going back from the whole L106 release: the Hub FIRST (this), THEN the 13 sites (the new Hub refuses sign-ups without Turnstile, the older site code sends none).'
 ) -join "`r`n"
 $noteFile = Join-Path $bdir ('gwh-before-v2-live-' + $stamp + '.txt')
 [System.IO.File]::WriteAllText($noteFile, $note, (New-Object System.Text.UTF8Encoding($false)))
@@ -864,6 +885,10 @@ Say ('Αντίγραφο ασφαλείας και οδηγίες επαναφο
 $tomlBefore = [System.IO.File]::ReadAllText($cfgPc)
 $tomlSafe = Set-HubNoTestAddress $tomlBefore
 $tomlChanged = ($tomlSafe -ne $tomlBefore)
+if (-not (Test-HubNoTestAddress $tomlSafe)) {
+    Say ('ΠΡΟΒΛΗΜΑ: δεν μπόρεσα να γράψω workers_dev = false και preview_urls = false στην αρχή του wrangler.toml του Hub ({0}): μια από αυτές τις γραμμές έχει άλλη μορφή. Χωρίς αυτές το live Hub θα άνοιγε ξανά στο *.workers.dev. ΔΕΝ άλλαξε τίποτα και δεν ανέβηκε τίποτα: στείλε στο Claude αυτή την αναφορά.' -f $cfgPc) $Bad
+    Finish 18
+}
 
 # Puts the hub folder back as it was (used only when the deploy fails).
 function Restore-Before {
@@ -908,6 +933,9 @@ if ($d.code -ne 0) {
     Finish 9
 }
 Say 'Το gearworldhub.com ανέβηκε με το νέο Hub.' $Ok
+# F04 (lessons L106): the live Hub answers only on gearworldhub.com. wrangler lists every address it published to.
+$liveWorkersDev = ($d.text -match '(?i)https://[a-z0-9-]*gear-world-hub\.[a-z0-9-]+\.workers\.dev')
+if ($liveWorkersDev) { Say 'ΠΡΟΒΛΗΜΑ: το ανέβασμα λέει ότι το live Hub απαντά ακόμα και σε διεύθυνση *.workers.dev (F04). Δες στο τέλος τι να κάνεις.' $Bad }
 
 # 4. Live checks (the edge may keep the old files for a few seconds)
 if (-not $NoHttpCheck) {
@@ -933,5 +961,11 @@ Say ''
 Say 'Για το live-baseline.txt (το ενημερώνει το Claude):'
 foreach ($rel in $plan) { Say ('  {0} | {1} | {2} | file' -f $rel, (Get-Item -LiteralPath (Local-Path $HubDir $rel)).Length, $newSha[$rel]) }
 Say ''
+if ($liveWorkersDev) {
+    Say 'ΠΡΟΣΟΧΗ: το νέο Hub είναι live στο https://gearworldhub.com, αλλά απαντά ακόμα και σε *.workers.dev, έξω από τους κανόνες ασφαλείας του domain.' $Bad
+    Say '  Κλείσ'' το: Workers & Pages > gear-world-hub > Settings > Domains & Routes > workers.dev > Disable: https://dash.cloudflare.com/?to=/:account/workers-and-pages'
+    Say '  Μετά στείλε στο Claude αυτή την αναφορά.'
+    Finish 19
+}
 Say 'ΕΤΟΙΜΟ: το νέο Hub είναι live στο https://gearworldhub.com. Αν κάτι δεν σου αρέσει: οδηγίες επαναφοράς πιο πάνω.' $Ok
 Finish 0

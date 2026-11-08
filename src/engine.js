@@ -421,7 +421,9 @@ export function createWorker(site) {
       // Turnstile (F02, lessons L07, L106): the widget's token goes to the Hub, which checks it with its secret key (it
       // knows which hostname and form the token was made for). Without a token nothing is sent.
       const token = String(data.turnstile_token || '').trim();
-      if (!token || token.length > 2048) return answer(false, 'The security check failed. Reload the page and try again.', 403);
+      // No token at all: the visitor's browser runs no JavaScript, so the check never started (L106).
+      if (!token) return answer(false, 'This sign-up box needs JavaScript for its security check. Turn on JavaScript and try again.', 403);
+      if (token.length > 2048) return answer(false, 'The security check failed. Reload the page and try again.', 403);
       let r;
       try {
         const res = await hubBinding(env).fetch(HUB_SUBSCRIBE_URL, {

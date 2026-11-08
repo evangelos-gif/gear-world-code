@@ -203,21 +203,47 @@ test('mailerlite: checks of the form: method, origin, consent, address, honeypot
   assert.equal(validEmail('a@b'), false);
 });
 
-test('mailerlite: the app (no Origin, no version) is kept as source app with the first consent text', async () => {
+test('mailerlite: the app (no Origin, no token, no version) is kept as source app on hold: never sent to MailerLite (L106)', async () => {
   const e = env();
-  await withFetch(fakeMailerLite(), async () => {
+  const ml = fakeMailerLite();
+  let mlCalls = 0;
+  const counting = async (url, init) => { if (String(url).startsWith('https://connect.mailerlite.com')) mlCalls++; return ml(url, init); };
+  await withFetch(counting, async () => {
     const c = ctx();
     const req = new Request(`${ORIGIN}/api/subscribe`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email: 'app.user@example.com', locale: 'en-GB', consent: true, website: '' })
     });
-    assert.equal((await handleSubscribe(req, e, c)).status, 200);
+    const res = await handleSubscribe(req, e, c);
+    assert.equal(res.status, 200);
+    assert.deepEqual(await res.json(), { ok: true });
     await c.done();
+    // The cron sends only 'pending' rows: the app row stays on hold.
+    assert.deepEqual(await syncPending(e), { tried: 0, synced: 0 });
   });
   const r = row(e.gear_world_registry, 'app.user@example.com');
   assert.equal(r.source, 'app');
   assert.equal(r.consent_version, OLD_CONSENT_VERSION);
-  assert.equal(r.ml_status, 'synced');
+  assert.equal(r.ml_status, 'hold');
+  assert.equal(r.status, 'active');
+  assert.equal(mlCalls, 0, 'nothing sent to MailerLite');
+});
+
+test('mailerlite: an unverified app request never changes an address that is already on the list (L106)', async () => {
+  const e = env();
+  await withFetch(fakeMailerLite(), async () => {
+    const c = ctx();
+    assert.equal((await handleSubscribe(post({ ...FORM, email: 'known@example.com', locale: 'de-DE' }), e, c)).status, 200);
+    await c.done();
+    const before = row(e.gear_world_registry, 'known@example.com');
+    assert.equal(before.ml_status, 'synced');
+    const app = new Request(`${ORIGIN}/api/subscribe`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: 'known@example.com', locale: 'fr-FR', consent: true, website: '' })
+    });
+    assert.equal((await handleSubscribe(app, e, ctx())).status, 200);
+    assert.deepEqual(row(e.gear_world_registry, 'known@example.com'), before);
+  });
 });
 
 test('mailerlite: fair use, at most HOURLY_LIMIT sign-up attempts per visitor and hour', async () => {

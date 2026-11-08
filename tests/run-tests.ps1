@@ -1382,6 +1382,19 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         $deploysBefore = ([regex]::Matches((Calls), 'wrangler deploy')).Count
         Check ((Run-Cf @('-Step', 'update', '-Apply', '-Approve', 'wrong')) -eq 1 -and ([regex]::Matches((Calls), 'wrangler deploy')).Count -eq $deploysBefore) 'zgw cloudflare update with wrong phrase: no deploy'
         Check ((Run-Cf @('-Step', 'update', '-Apply', '-Approve', 'egkrino zgw update', '-NoHttpCheck')) -eq 0 -and ([regex]::Matches((Calls), 'wrangler deploy')).Count -eq $deploysBefore + 1) 'zgw cloudflare update with approval: deploys once'
+        # As live on 8/11/2026: the PC config of ZGW had POSTERS but no HUB (no "Get deal updates", no translation limit).
+        $zFull = '"services": [{ "binding": "HUB", "service": "gear-world-hub" }, { "binding": "POSTERS", "service": "gear-world-posters" }],'
+        $zText = [System.IO.File]::ReadAllText($cfg)
+        Check ($zText.Contains($zFull)) 'zgw cloudflare: the config made from the template has HUB and POSTERS'
+        [System.IO.File]::WriteAllText($cfg, $zText.Replace($zFull, '"services": [{ "binding": "POSTERS", "service": "gear-world-posters" }],'), (New-Object System.Text.UTF8Encoding($false)))
+        Check ((Run-Cf @('-Step', 'update')) -eq 0 -and ([regex]::Matches((Calls), 'wrangler deploy')).Count -eq $deploysBefore + 1 -and -not ([System.IO.File]::ReadAllText($cfg)).Contains('gear-world-hub')) 'zgw cloudflare update without -Apply: HUB missing, nothing changes'
+        $zPlan = @(Get-ChildItem -LiteralPath $cfOut -Filter 'ZGW_CLOUDFLARE_UPDATE_*.txt' | Sort-Object LastWriteTime, Name | Select-Object -Last 1)
+        Check ($zPlan.Count -eq 1 -and ([System.IO.File]::ReadAllText($zPlan[0].FullName)).Contains('παίρνει για πρώτη φορά το «Get deal updates»')) 'zgw cloudflare update plan: petsgearworld.com gets "Get deal updates" for the first time'
+        Check ((Run-Cf @('-Step', 'update', '-Apply', '-Approve', 'egkrino zgw update', '-NoHttpCheck')) -eq 0 -and ([regex]::Matches((Calls), 'wrangler deploy')).Count -eq $deploysBefore + 2) 'zgw cloudflare update (config without HUB): deploys once'
+        $zAfter = [System.IO.File]::ReadAllText($cfg)
+        $zBind = @(Get-ChildItem -LiteralPath $cfWork -Filter 'wrangler.jsonc.before-bindings-*')
+        Check ($zAfter.Contains('{ "binding": "HUB", "service": "gear-world-hub" }') -and $zAfter.Contains('gear-world-posters') -and $zAfter -match '"workers_dev"\s*:\s*false' -and $zBind.Count -eq 1 -and -not ([System.IO.File]::ReadAllText($zBind[0].FullName)).Contains('gear-world-hub')) 'zgw cloudflare update: HUB added after a copy of the config, POSTERS and the rest kept (L106)'
+        Check ((Run-Cf @('-Step', 'update', '-Apply', '-Approve', 'egkrino zgw update', '-NoHttpCheck')) -eq 0 -and @(Get-ChildItem -LiteralPath $cfWork -Filter 'wrangler.jsonc.before-bindings-*').Count -eq 1) 'zgw cloudflare update again: HUB already there, no new copy'
         $reports = @(Get-ChildItem -LiteralPath $cfOut -Filter 'ZGW_CLOUDFLARE_*.txt' -ErrorAction SilentlyContinue)
         Check ($reports.Count -ge 6) 'zgw cloudflare: a report for every run'
     } finally {
@@ -3529,6 +3542,7 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         'if exist "%GW_FAKE_STATE%\failother.flag" goto deployfail',
         'echo Uploaded the Worker',
         'echo   https://gear-world-hub-preview.example-test.workers.dev',
+        'if exist "%GW_FAKE_STATE%\livewd.flag" echo   https://gear-world-hub.example-test.workers.dev',
         'exit /b 0',
         ':deployfail',
         'echo X [ERROR] A request to the Cloudflare API failed. Something else. [code: 10021]',
@@ -3589,6 +3603,11 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         Check ((Run-V @('-Step', 'live', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB SECURITY LIVE')) -eq 16 -and (VCount 'deploy --config') -eq 3 -and (Get-TreeHash $vHub) -eq $vHubBefore) 'hub v2 live without the Turnstile keys of the Hub: refused (exit 16), nothing changed'
         Check ((VLast).Contains('gw-security-fixes.ps1 -Step turnstile')) 'hub v2 live: the report says which step goes first'
         Remove-Item -LiteralPath (Join-Path $vState 'nots.flag') -Force
+        # A wrangler.toml whose top-level workers_dev has another form: the step stops before any change (L106).
+        Write-Utf8 (Join-Path $vHub 'wrangler.toml') $vCfg.Replace('name = "gear-world-hub"', "name = `"gear-world-hub`"`nworkers_dev = `"true`"")
+        $vTreeT = Get-TreeHash $vHub
+        Check ((Run-V @('-Step', 'live', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB SECURITY LIVE')) -eq 18 -and (VCount 'deploy --config') -eq 3 -and (Get-TreeHash $vHub) -eq $vTreeT) 'hub v2 live: workers_dev = false not certain at the top of wrangler.toml: stops before any change (exit 18)'
+        Write-Utf8 (Join-Path $vHub 'wrangler.toml') $vCfg
         Check ((Run-V @('-Step', 'live', '-Apply', '-Approve', 'egkrino hub security live')) -eq 0 -and (VCount 'deploy --config') -eq 4) 'hub v2 live with approval: deploys once'
         $c = VCalls
         Check ($c -match ('deploy --config "' + [regex]::Escape((Join-Path $vHub 'wrangler.toml')) + '"')) 'hub v2 live: deploys the hub folder with its own wrangler.toml (POSTERS kept)'
@@ -3617,9 +3636,15 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         Check ($kept.Count -ge 1 -and (VSha $kept[0].FullName) -eq $vOldIndex) 'hub v2 live: the old index.html is kept as a plain copy'
         $r = VLast
         Check ($r.Contains('public/hub-v2.js | ') -and $r.Contains('ΕΤΟΙΜΟ') -and -not $r.Contains($vVer)) 'hub v2 live: the report has the new baseline lines, not the version id'
+        # The live Hub must answer only on its domain (L106): a deploy that lists gear-world-hub.<...>.workers.dev is a problem.
+        Write-Utf8 (Join-Path $vState 'livewd.flag') 'x'
+        Check ((Run-V @('-Step', 'live', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB SECURITY LIVE')) -eq 19 -and (VCount 'deploy --config') -eq 5) 'hub v2 live: a deploy that still lists a workers.dev address of the live Hub ends as a problem (exit 19)'
+        $r = VLast
+        Check ($r.Contains('απαντά ακόμα και σε *.workers.dev') -and $r.Contains('https://dash.cloudflare.com/?to=/:account/workers-and-pages') -and -not $r.Contains('ΕΤΟΙΜΟ: το νέο Hub')) 'hub v2 live: the report says how to close workers.dev, and not READY'
+        Remove-Item -LiteralPath (Join-Path $vState 'livewd.flag') -Force
         Check ((Run-V @('-Step', 'check')) -eq 0 -and (VLast).Contains('έχει ήδη αυτή την έκδοση')) 'hub v2 check after live: the hub folder has this version'
         Write-Utf8 (Join-Path $vPub 'styles.css') 'body{}'
-        Check ((Run-V @('-Step', 'live', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB SECURITY LIVE')) -eq 7 -and (VCount 'deploy --config') -eq 4) 'hub v2 live: refused when someone else changed the hub folder'
+        Check ((Run-V @('-Step', 'live', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB SECURITY LIVE')) -eq 7 -and (VCount 'deploy --config') -eq 5) 'hub v2 live: refused when someone else changed the hub folder'
         Check ((VLast).Contains('public/styles.css')) 'hub v2: the changed file is named in the report'
         # register: Pets Gear World in the Hub's list of sites (one D1 row, restore point first)
         Check ((Run-V @('-Step', 'register')) -eq 0 -and (VCount '--file') -eq 0) 'hub register without -Apply: nothing changes'
@@ -5038,7 +5063,7 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         $after = @()
         $ts = @('TURNSTILE_SITE_KEY')
         if ($w -eq 'gear-world-hub') { $before = @('MAILERLITE_API_KEY', 'PHOTO_LIMIT_SALT', 'GW_INTERNAL_TOKEN'); $after = @('MAILERLITE_API_KEY', 'PHOTO_LIMIT_SALT'); $ts = @('TURNSTILE_SECRET_KEY', 'TURNSTILE_SECRET_KEY_2', 'TURNSTILE_SITE_KEY') }
-        if ($w -eq 'garden-gear-world') { $before = @('TURNSTILE_SECRET_KEY', $sfMis, 'GW_INTERNAL_TOKEN') }
+        if ($w -eq 'garden-gear-world') { $before = @('TURNSTILE_SECRET_KEY', $sfMis, 'GW_INTERNAL_TOKEN'); $after = @($sfMis) }
         if ($w -eq 'construction-gear-uk') { $before = @('CGW_ADMIN_TOKEN', 'TURNSTILE_SECRET_KEY') }
         if ($w -eq 'home-gear-world') { $before = @('HGW_ADMIN_TOKEN', 'SOMETHING_ELSE'); $after = @('SOMETHING_ELSE') }
         Write-Utf8 (Join-Path $sfState ('s-' + $w + '.json')) (SFJson $before)
@@ -5046,6 +5071,7 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         Write-Utf8 (Join-Path $sfState ('a-' + $w + '.json')) (SFJson (@($after) + @($ts)))
         Write-Utf8 (Join-Path $sfState ('p-' + $w + '.json.admin')) (SFJson (@('ADMIN_TOKEN') + @($before) + @($ts)))
         Write-Utf8 (Join-Path $sfState ('a-' + $w + '.json.admin')) (SFJson (@('ADMIN_TOKEN') + @($after) + @($ts)))
+        if ($w -eq 'garden-gear-world') { Write-Utf8 (Join-Path $sfState ('m-' + $w + '.json')) (SFJson @($ts)) }
     }
     $sfW1 = '{"sitekey":"' + $sfSite1 + '","secret":"' + $sfSecret1 + '","name":"Gear World sign-up 1","domains":' + (SFHosts $sfW1Hosts) + ',"mode":"managed"}'
     $sfW2 = '{"sitekey":"' + $sfSite2 + '","secret":"' + $sfSecret2 + '","name":"Gear World sign-up 2","domains":' + (SFHosts $sfW2Hosts) + ',"mode":"managed"}'
@@ -5056,9 +5082,16 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
     Write-Utf8 (Join-Path $sfState 'w2.json') $sfW2
     Write-Utf8 (Join-Path $sfState 'widgets.json') ('[' + $sfOldW + ',' + $sfMixedW + ',' + $sfOtherW + ']')
     Write-Utf8 (Join-Path $sfState 'widgets-after.json') ('[' + ($sfW1 -replace ',"secret":"[^"]*"', '') + ',' + ($sfW2 -replace ',"secret":"[^"]*"', '') + ',' + $sfOldW + ',' + $sfMixedW + ',' + $sfOtherW + ']')
+    Write-Utf8 (Join-Path $sfState 'widgets-final.json') ('[' + ($sfW1 -replace ',"secret":"[^"]*"', '') + ',' + ($sfW2 -replace ',"secret":"[^"]*"', '') + ',' + $sfMixedW + ',' + $sfOtherW + ']')
+    # The wrangler that npm ci puts in the tool's folder: the misnamed secret is deleted through it with node, never npx.
+    $sfVerDir = Join-Path (Join-Path $sfWork 'wrangler') ((Split-Path -Leaf $repo) -replace '[^A-Za-z0-9\-]', '')
+    $sfJsDir = Join-Path $sfVerDir 'node_modules\wrangler\bin'
+    Write-Utf8 (Join-Path $sfVerDir 'node_modules\wrangler\package.json') '{ "name": "wrangler", "type": "commonjs" }'
+    Write-Utf8 (Join-Path $sfJsDir 'wrangler.js') ("const fs = require('fs'), path = require('path');`nconst st = process.env.GW_FAKE_STATE, a = process.argv.slice(2);`nfs.appendFileSync(path.join(st, 'direct.log'), a.join(' ') + ' logs=' + (process.env.npm_config_logs_max || '') + ' wlogs=' + (process.env.WRANGLER_WRITE_LOGS || '') + '\n');`nif (a[0] === 'secret' && a[1] === 'delete') { fs.writeFileSync(path.join(st, 'misgone.flag'), 'x'); console.log('Success! Deleted secret ' + a[2]); process.exit(0); }`nconsole.error('unknown command'); process.exit(1);`n")
     $sfNpx = @(
         '@echo off',
         'echo %* >> "%GW_FAKE_STATE%\calls.log"',
+        '>>"%GW_FAKE_STATE%\env.log" echo logs=%npm_config_logs_max% wlogs=%WRANGLER_WRITE_LOGS%',
         'echo %* | findstr /L /C:"whoami" >nul && goto whoami',
         'echo %* | findstr /L /C:"secret list" >nul && goto secretlist',
         'echo %* | findstr /L /C:"secret put" >nul && goto secretput',
@@ -5077,6 +5110,7 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         'set "GWF=%GW_FAKE_STATE%\s-%6.json"',
         'if exist "%GW_FAKE_STATE%\put.flag" set "GWF=%GW_FAKE_STATE%\p-%6.json"',
         'if exist "%GW_FAKE_STATE%\after.flag" set "GWF=%GW_FAKE_STATE%\a-%6.json"',
+        'if exist "%GW_FAKE_STATE%\misgone.flag" if exist "%GW_FAKE_STATE%\m-%6.json" set "GWF=%GW_FAKE_STATE%\m-%6.json"',
         'if exist "%GW_FAKE_STATE%\admintoken.flag" if "%6"=="construction-gear-uk" if exist "%GWF%.admin" set "GWF=%GWF%.admin"',
         'if exist "%GWF%" (type "%GWF%") else (echo [])',
         'exit /b 0',
@@ -5096,7 +5130,11 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         'exit /b 0',
         ':widgetlist',
         'if exist "%GW_FAKE_STATE%\nowidgets.flag" goto widgetfail',
+        'if exist "%GW_FAKE_STATE%\oldgone.flag" goto widgetfinal',
         'if exist "%GW_FAKE_STATE%\created.flag" (type "%GW_FAKE_STATE%\widgets-after.json") else (type "%GW_FAKE_STATE%\widgets.json")',
+        'exit /b 0',
+        ':widgetfinal',
+        'type "%GW_FAKE_STATE%\widgets-final.json"',
         'exit /b 0',
         ':widgetfail',
         'echo X [ERROR] A request to the Cloudflare API failed. Unauthorized to access requested resource [code: 9109] 1>&2',
@@ -5114,6 +5152,7 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         'type "%GW_FAKE_STATE%\w1.json"',
         'exit /b 0',
         ':widgetdelete',
+        'echo x> "%GW_FAKE_STATE%\oldgone.flag"',
         'echo Deleted widget',
         'exit /b 0'
     ) -join "`r`n"
@@ -5173,30 +5212,43 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         Check ($note.Count -eq 1 -and ([System.IO.File]::ReadAllText($note[0].FullName)).Contains('npx wrangler rollback ' + $sfVer + ' --name pets-gear-world') -and $c.IndexOf('deployments list') -lt $c.IndexOf('secret put')) 'turnstile: the live version of each Worker noted first, with the rollback'
         Check ((SFLast 'GW_SECURITY_TURNSTILE_*.txt').Contains('ΕΤΟΙΜΟ')) 'turnstile: report ready'
         Check ((Run-SF @('-Step', 'turnstile', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ TURNSTILE')) -eq 0 -and (SFCount 'widget create') -eq 2 -and (SFCount 'widget get') -eq 2 -and -not (SFLeaks)) 'turnstile again: the two widgets are found and kept (no new ones)'
+        # Step 5 order (L106): old-widgets FIRST, then secrets. Before it, secrets keeps the misnamed one and says why.
         Check ((Run-SF @('-Step', 'secrets')) -eq 0 -and (SFCount 'secret delete') -eq 0 -and (Test-Path -LiteralPath $sfTokenFile)) 'secrets without -Apply: plan only (the token file stays)'
-        Check ((SFLast 'GW_SECURITY_SECRETS_*.txt').Contains('cgw-admin-token.txt (' + $sfTokenSize + ' bytes, απλό κείμενο')) 'secrets plan: the token file with its size, never its content'
-        Check ((Run-SF @('-Step', 'secrets', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ TURNSTILE')) -eq 1 -and (SFCount 'secret delete') -eq 0 -and (Test-Path -LiteralPath $sfTokenFile)) 'secrets with the wrong phrase: nothing deleted, the file stays'
-        # A Worker with ADMIN_TOKEN (the admin token the code reads): the file may hold a working token, so it stays.
-        Write-Utf8 (Join-Path $sfState 'admintoken.flag') 'x'
-        Check ((Run-SF @('-Step', 'secrets', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ ΔΙΑΓΡΑΦΗ ΜΥΣΤΙΚΩΝ')) -eq 0) 'secrets with approval: exit 0'
-        Check ((Test-Path -LiteralPath $sfTokenFile) -and (SFLast 'GW_SECURITY_SECRETS_*.txt').Contains('ΜΕΝΕΙ: οι Workers construction-gear-uk έχουν ADMIN_TOKEN')) 'secrets: a Worker with ADMIN_TOKEN keeps the token file (it may still work)'
-        $c = SFText $sfCalls
-        Check ((SFCount 'secret delete') -eq 7 -and $c.Contains('secret delete GW_INTERNAL_TOKEN --name gear-world-hub') -and $c.Contains('secret delete CGW_ADMIN_TOKEN --name construction-gear-uk') -and $c.Contains('secret delete TURNSTILE_SECRET_KEY --name construction-gear-uk') -and $c.Contains('secret delete HGW_ADMIN_TOKEN --name home-gear-world') -and $c.Contains('secret delete TURNSTILE_SECRET_KEY --name garden-gear-world') -and $c.Contains('secret delete ' + $sfMis + ' --name garden-gear-world')) 'secrets: the 7 unused ones go, the misnamed one too'
-        Check ((SFCount 'secret delete (MAILERLITE_API_KEY|PHOTO_LIMIT_SALT|ADMIN_TOKEN|SOMETHING_ELSE|TURNSTILE_SITE_KEY|TURNSTILE_SECRET_KEY_2) ') -eq 0 -and (SFCount 'secret delete TURNSTILE_SECRET_KEY --name gear-world-hub') -eq 0) 'secrets: never one that the code reads (the Hub keeps its Turnstile keys)'
-        Check (-not (SFLeaks) -and (SFLast 'GW_SECURITY_SECRETS_*.txt').Contains('TURNSTILE_SECRET_KEY' + $ell)) 'secrets: the misnamed name never on the screen, in a report or a note (F07)'
-        $note = @(Get-ChildItem -LiteralPath (Join-Path $sfWork 'backups') -Filter 'secrets-before-*.txt' -ErrorAction SilentlyContinue)
-        Check ($note.Count -eq 1 -and ([System.IO.File]::ReadAllText($note[0].FullName)).Contains('npx wrangler rollback ' + $sfVer + ' --name garden-gear-world') -and $c.LastIndexOf('deployments list') -lt $c.IndexOf('secret delete')) 'secrets: the names and live versions noted before the first delete'
-        Remove-Item -LiteralPath (Join-Path $sfState 'admintoken.flag') -Force
-        Check ((Run-SF @('-Step', 'secrets', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ ΔΙΑΓΡΑΦΗ ΜΥΣΤΙΚΩΝ')) -eq 0 -and -not (Test-Path -LiteralPath $sfTokenFile) -and (SFCount 'secret delete') -eq 7) 'secrets again, no Worker with ADMIN_TOKEN: the token file is deleted, no secret twice'
         $r = SFLast 'GW_SECURITY_SECRETS_*.txt'
-        Check ($r.Contains('σβήστηκε χωρίς να ανοιχτεί: ΕΝΤΑΞΕΙ') -and $r.Contains('Το κλειδί που είχε δεν ισχύει πια πουθενά') -and -not (SFLeaks)) 'secrets: the report says the token works nowhere; its content never shown'
-        Check ((Run-SF @('-Step', 'secrets', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ ΔΙΑΓΡΑΦΗ ΜΥΣΤΙΚΩΝ')) -eq 0 -and (SFLast 'GW_SECURITY_SECRETS_*.txt').Contains('Κανένα μυστικό να σβήσω')) 'secrets a third time: nothing left, exit 0'
+        Check ($r.Contains('cgw-admin-token.txt (' + $sfTokenSize + ' bytes, απλό κείμενο')) 'secrets plan: the token file with its size, never its content'
+        Check ($r.Contains('ΜΕΝΕΙ προς το παρόν') -and $r.Contains('ΠΡΩΤΑ το -Step old-widgets')) 'secrets plan before old-widgets: the misnamed secret waits until its key is dead'
         Check ((Run-SF @('-Step', 'old-widgets')) -eq 0 -and (SFCount 'widget delete') -eq 0) 'old widgets without -Apply: plan only'
         $r = SFLast 'GW_SECURITY_OLD_WIDGETS_*.txt'
         Check ($r.Contains($sfOld) -and $r.Contains('ΔΕΝ σβήνεται «Shared»')) 'old widgets: the old Garden widget goes; one shared with another site stays'
         Check ((Run-SF @('-Step', 'old-widgets', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ TURNSTILE')) -eq 1 -and (SFCount 'widget delete') -eq 0) 'old widgets with the wrong phrase: nothing deleted'
         Check ((Run-SF @('-Step', 'old-widgets', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ ΔΙΑΓΡΑΦΗ ΠΑΛΙΩΝ TURNSTILE')) -eq 0) 'old widgets with approval: exit 0'
         Check ((SFCount 'widget delete') -eq 1 -and (SFCount ('widget delete ' + $sfOld + ' --skip-confirmation')) -eq 1) 'old widgets: only the old Garden widget is deleted (not ours, not shared, not another site)'
+        Check ((SFLast 'GW_SECURITY_OLD_WIDGETS_*.txt').Contains('Επόμενο: -Step secrets')) 'old widgets: says secrets comes next'
+        Check ((Run-SF @('-Step', 'secrets', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ TURNSTILE')) -eq 1 -and (SFCount 'secret delete') -eq 0 -and (Test-Path -LiteralPath $sfTokenFile)) 'secrets with the wrong phrase: nothing deleted, the file stays'
+        # A Worker with ADMIN_TOKEN (the admin token the code reads): the file may hold a working token, so it stays.
+        # The widget shared with another site still covers gardengearworld.com: the misnamed secret still waits.
+        Write-Utf8 (Join-Path $sfState 'admintoken.flag') 'x'
+        Check ((Run-SF @('-Step', 'secrets', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ ΔΙΑΓΡΑΦΗ ΜΥΣΤΙΚΩΝ')) -eq 0) 'secrets with approval: exit 0'
+        $r = SFLast 'GW_SECURITY_SECRETS_*.txt'
+        Check ((Test-Path -LiteralPath $sfTokenFile) -and $r.Contains('ΜΕΝΕΙ: οι Workers construction-gear-uk έχουν ADMIN_TOKEN')) 'secrets: a Worker with ADMIN_TOKEN keeps the token file (it may still work)'
+        Check ($r.Contains('1 widget(s) εκτός από τα δύο νέα') -and -not (Test-Path -LiteralPath (Join-Path $sfState 'direct.log'))) 'secrets: a widget shared with another site keeps the misnamed secret waiting (its name passed nowhere)'
+        $c = SFText $sfCalls
+        Check ((SFCount 'secret delete') -eq 6 -and $c.Contains('secret delete GW_INTERNAL_TOKEN --name gear-world-hub') -and $c.Contains('secret delete CGW_ADMIN_TOKEN --name construction-gear-uk') -and $c.Contains('secret delete TURNSTILE_SECRET_KEY --name construction-gear-uk') -and $c.Contains('secret delete HGW_ADMIN_TOKEN --name home-gear-world') -and $c.Contains('secret delete TURNSTILE_SECRET_KEY --name garden-gear-world') -and $c.Contains('secret delete GW_INTERNAL_TOKEN --name garden-gear-world')) 'secrets: the 6 unused ones go'
+        Check ((SFCount 'secret delete (MAILERLITE_API_KEY|PHOTO_LIMIT_SALT|ADMIN_TOKEN|SOMETHING_ELSE|TURNSTILE_SITE_KEY|TURNSTILE_SECRET_KEY_2) ') -eq 0 -and (SFCount 'secret delete TURNSTILE_SECRET_KEY --name gear-world-hub') -eq 0) 'secrets: never one that the code reads (the Hub keeps its Turnstile keys)'
+        $note = @(Get-ChildItem -LiteralPath (Join-Path $sfWork 'backups') -Filter 'secrets-before-*.txt' -ErrorAction SilentlyContinue)
+        Check ($note.Count -eq 1 -and ([System.IO.File]::ReadAllText($note[0].FullName)).Contains('npx wrangler rollback ' + $sfVer + ' --name garden-gear-world') -and $c.LastIndexOf('deployments list') -lt $c.IndexOf('secret delete')) 'secrets: the names and live versions noted before the first delete'
+        Remove-Item -LiteralPath (Join-Path $sfState 'admintoken.flag') -Force
+        Check ((Run-SF @('-Step', 'secrets', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ ΔΙΑΓΡΑΦΗ ΜΥΣΤΙΚΩΝ')) -eq 0 -and -not (Test-Path -LiteralPath $sfTokenFile) -and (SFCount 'secret delete') -eq 6) 'secrets again, no Worker with ADMIN_TOKEN: the token file is deleted, no secret twice'
+        $r = SFLast 'GW_SECURITY_SECRETS_*.txt'
+        Check ($r.Contains('σβήστηκε χωρίς να ανοιχτεί: ΕΝΤΑΞΕΙ') -and $r.Contains('Το κλειδί που είχε δεν ισχύει πια πουθενά') -and -not (SFLeaks)) 'secrets: the report says the token works nowhere; its content never shown'
+        # The owner deleted the shared widget in the dashboard (or checked it is not the Garden one): -Manual.
+        Check ((Run-SF @('-Step', 'secrets', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ ΔΙΑΓΡΑΦΗ ΜΥΣΤΙΚΩΝ', '-Manual')) -eq 0) 'secrets -Manual: the misnamed secret goes'
+        $dl = @((SFText (Join-Path $sfState 'direct.log')) -split "`r?`n" | Where-Object { $_.Trim() })
+        Check ($dl.Count -eq 1 -and $dl[0].Trim() -eq ('secret delete ' + $sfMis + ' --name garden-gear-world logs=0 wlogs=false') -and -not (SFText $sfCalls).Contains($sfMis)) 'secrets: the misnamed name goes only to wrangler run with node (no npm, no npm or wrangler log)'
+        $el = @((SFText (Join-Path $sfState 'env.log')) -split "`r?`n" | Where-Object { $_.Trim() } | Select-Object -Unique)
+        Check ($el.Count -eq 1 -and $el[0].Trim() -eq 'logs=0 wlogs=false') 'every npx call of the tool: npm debug log and wrangler log off'
+        Check (-not (SFLeaks) -and (SFLast 'GW_SECURITY_SECRETS_*.txt').Contains('TURNSTILE_SECRET_KEY' + $ell)) 'secrets: the misnamed name never on the screen, in a report or a note (F07)'
+        Check ((Run-SF @('-Step', 'secrets', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ ΔΙΑΓΡΑΦΗ ΜΥΣΤΙΚΩΝ')) -eq 0 -and (SFLast 'GW_SECURITY_SECRETS_*.txt').Contains('Κανένα μυστικό να σβήσω')) 'secrets a final time: nothing left, exit 0'
     } finally {
         $env:PATH = $oldPath
         Remove-Item Env:\GW_FAKE_STATE -ErrorAction SilentlyContinue

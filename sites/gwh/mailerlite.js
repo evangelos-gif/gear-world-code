@@ -13,8 +13,11 @@
 // Security fixes of 8/11/2026 (F02, lessons L07, L106, security.js):
 //   - a browser (it always sends Origin) must send a Turnstile token, checked here with the secret key of widget 1,
 //     for gearworldhub.com and the form "hub-signup"; no token or a bad one: nothing is written (403);
-//   - a request without Origin and without a token is the Gear World app (it has no widget yet): it is allowed only
-//     within its own small daily limit (SUBSCRIBE_APP_DAILY_LIMIT, default 10, 0 = never);
+//   - a request without Origin and without a token is the Gear World app (it has no widget yet, and is not released):
+//     it is allowed only within its own small daily limit (SUBSCRIBE_APP_DAILY_LIMIT, default 10, 0 = never), and it is
+//     kept in the Hub D1 with ml_status 'hold', the existing state for sign-ups that go to MailerLite only with the
+//     owner's approval (email step 6): never sent from here, never by the cron. An address already on the list is not
+//     touched by such an unverified request. The app gets Turnstile later;
 //   - all sign-ups of the network (this form, the app and the 13 sites through members.js) share one daily limit
 //     (SUBSCRIBE_DAILY_LIMIT, default 50). When it is reached: 429 "limit_day", and the form says to try tomorrow.
 //   - status "active" (no double opt-in) stays for now: the owner decides about double opt-in later.
@@ -142,6 +145,14 @@ export async function handleSubscribe(request, env, ctx, { verify } = {}) {
     }
     const full = await dailySignupGate(db, now, env, { tokenless });
     if (full) return full;
+    if (tokenless) {
+      await db.prepare(`
+        INSERT INTO hub_subscribers (email, locale, marketing_consent, consent_version, source, status, ml_status, ml_attempts, ml_error)
+        VALUES (?, ?, 1, ?, ?, 'active', 'hold', 0, NULL)
+        ON CONFLICT(email) DO NOTHING
+      `).bind(email, locale, consentVersion, source).run();
+      return reply(200, { ok: true });
+    }
     await db.prepare(`
       INSERT INTO hub_subscribers (email, locale, marketing_consent, consent_version, source, status, ml_status, ml_attempts, ml_error)
       VALUES (?, ?, 1, ?, ?, 'active', 'pending', 0, NULL)

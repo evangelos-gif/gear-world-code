@@ -15,6 +15,11 @@
                      key goes to wrangler only through its standard input: never on a command line, in a file, a report or
                      on the screen. Each secret key is first checked with Cloudflare (Siteverify), so a wrong one changes
                      nothing. First a note with the live version of each Worker (for rollback). Runs BEFORE the new code.
+  Order after the new code is live (sites, then the Hub): FIRST -Step old-widgets, THEN -Step secrets, so the key
+  inside the misnamed secret's name is already dead before that name is passed to wrangler at all.
+  -Step old-widgets  DELETES THE OLD TURNSTILE WIDGETS of the Gear World hostnames (not the two new ones, not one shared
+                     with another site), one approval: ΕΓΚΡΙΝΩ ΔΙΑΓΡΑΦΗ ΠΑΛΙΩΝ TURNSTILE. Deleting the old Garden widget
+                     makes its secret, which was pasted into a secret name, useless (F07). Only after -Step turnstile.
   -Step secrets      DELETES SECRETS THAT NO CODE READS, one approval: ΕΓΚΡΙΝΩ ΔΙΑΓΡΑΦΗ ΜΥΣΤΙΚΩΝ. GW_INTERNAL_TOKEN (Hub and
                      sites; its Hub address is gone), CGW_ADMIN_TOKEN / HGW_ADMIN_TOKEN (the engine reads only ADMIN_TOKEN),
                      TURNSTILE_SECRET_KEY on the 13 SITES (the Hub checks the tokens now; the Hub keeps its own), and the
@@ -25,10 +30,11 @@
                      copied (only its existence and size are checked), and only when no Worker has CGW_ADMIN_TOKEN
                      any more and none has ADMIN_TOKEN (the only admin token the code reads), so the token it held
                      works nowhere. If a Worker has ADMIN_TOKEN, the file may hold a working token: it stays.
-  -Step old-widgets  DELETES THE OLD TURNSTILE WIDGETS of the Gear World hostnames (not the two new ones), one approval:
-                     ΕΓΚΡΙΝΩ ΔΙΑΓΡΑΦΗ ΠΑΛΙΩΝ TURNSTILE. Deleting the old Garden widget also makes its secret, which was
-                     pasted into a secret name, useless (F07). Only after -Step turnstile.
-  -Manual            (turnstile only) You make the two widgets in the dashboard and paste their sitekey and secret key here:
+                     The misnamed secret goes only when no old widget covers a Gear World domain any more (it checks the
+                     widget list; without it, -Manual says you deleted them in the dashboard yourself). Its name never goes
+                     through npm (wrangler is run with node directly) and no tool writes a log of it.
+  -Manual            turnstile: you make the two widgets in the dashboard and paste their sitekey and secret key here;
+                     secrets: you confirm that the old widgets are deleted in the dashboard:
                      https://dash.cloudflare.com/?to=/:account/turnstile
   Report: <home>\gear-world-reports\GW_SECURITY_<STEP>_<time>.txt (also copied to the clipboard)
 #>
@@ -158,7 +164,7 @@ function Confirm-Approval([string]$phrase) {
 }
 
 function New-CmdFile([string]$Folder, [string]$Arguments) {
-    $lines = @('@echo off', ('cd /d "{0}"' -f $Folder), 'set CI=true', 'set WRANGLER_SEND_METRICS=false', 'set FORCE_COLOR=0', 'set NO_COLOR=1', 'set WRANGLER_WRITE_LOGS=false', ('call npx --yes wrangler {0} 2>&1' -f $Arguments))
+    $lines = @('@echo off', ('cd /d "{0}"' -f $Folder), 'set CI=true', 'set WRANGLER_SEND_METRICS=false', 'set FORCE_COLOR=0', 'set NO_COLOR=1', 'set WRANGLER_WRITE_LOGS=false', 'set npm_config_logs_max=0', ('call npx --yes wrangler {0} 2>&1' -f $Arguments))
     $cmdFile = Join-Path ([System.IO.Path]::GetTempPath()) ('gw-sec-' + [guid]::NewGuid().ToString('N').Substring(0, 8) + '.cmd')
     [System.IO.File]::WriteAllText($cmdFile, ($lines -join "`r`n") + "`r`n", [System.Text.Encoding]::ASCII)
     return $cmdFile
@@ -166,7 +172,8 @@ function New-CmdFile([string]$Folder, [string]$Arguments) {
 
 # Runs wrangler through a temporary .cmd file (plain text output in Windows PowerShell 5.1). The .cmd holds only the
 # command: never a secret value. WRANGLER_WRITE_LOGS=false: wrangler keeps no log file of what it printed (a widget's
-# secret key, the misnamed secret's name) in <home>\.wrangler\logs. -Retry: network errors and the passing Cloudflare errors 7403 / 10000 (lessons L43).
+# secret key, the misnamed secret's name) in <home>\.wrangler\logs; npm_config_logs_max=0: npm (npx) writes no debug log
+# of its command line in <home>\.npm\_logs. -Retry: network errors and the passing Cloudflare errors 7403 / 10000 (lessons L43).
 function Invoke-Wrangler([string]$Folder, [string]$Arguments, [switch]$Retry) {
     if ($Arguments -match '[&|<>^%]') { throw 'Unsafe characters in wrangler arguments' }
     $tries = 1
@@ -205,17 +212,21 @@ function Set-WorkerSecret([string]$Folder, [string]$Worker, [string]$Name, [stri
     return @{ code = $code; text = $text }
 }
 
-# The misnamed secret holds a secret value in its NAME, so even the .cmd file must not have it: wrangler is called
-# directly, with no log file, and its output stays in memory (masked before anything is shown).
+# The misnamed secret holds a secret value in its NAME, so even the .cmd file must not have it: the wrangler of this
+# folder is run with node directly (no npm/npx, which would write its command line to <home>\.npm\_logs), with no
+# wrangler log file, and its output stays in memory (masked before anything is shown). Only without that wrangler
+# (tests with -SkipInstall) does it go through npx, then with npm's debug log off.
 function Remove-SecretDirect([string]$Folder, [string]$Worker, [string]$Name) {
-    $before = @{ CI = $env:CI; WRANGLER_SEND_METRICS = $env:WRANGLER_SEND_METRICS; FORCE_COLOR = $env:FORCE_COLOR; NO_COLOR = $env:NO_COLOR; WRANGLER_WRITE_LOGS = $env:WRANGLER_WRITE_LOGS }
+    $before = @{ CI = $env:CI; WRANGLER_SEND_METRICS = $env:WRANGLER_SEND_METRICS; FORCE_COLOR = $env:FORCE_COLOR; NO_COLOR = $env:NO_COLOR; WRANGLER_WRITE_LOGS = $env:WRANGLER_WRITE_LOGS; npm_config_logs_max = $env:npm_config_logs_max }
     $oldPref = $ErrorActionPreference
     $here = Get-Location
+    $js = Join-Path (Join-Path (Join-Path (Join-Path $Folder 'node_modules') 'wrangler') 'bin') 'wrangler.js'
     try {
-        $env:CI = 'true'; $env:WRANGLER_SEND_METRICS = 'false'; $env:FORCE_COLOR = '0'; $env:NO_COLOR = '1'; $env:WRANGLER_WRITE_LOGS = 'false'
+        $env:CI = 'true'; $env:WRANGLER_SEND_METRICS = 'false'; $env:FORCE_COLOR = '0'; $env:NO_COLOR = '1'; $env:WRANGLER_WRITE_LOGS = 'false'; $env:npm_config_logs_max = '0'
         $ErrorActionPreference = 'Continue'
         Set-Location -LiteralPath $Folder
-        $out = @(& npx.cmd --yes wrangler secret delete $Name --name $Worker 2>&1)
+        if (Test-Path -LiteralPath $js) { $out = @(& node $js secret delete $Name --name $Worker 2>&1) }
+        else { $out = @(& npx.cmd --yes wrangler secret delete $Name --name $Worker 2>&1) }
         $code = $LASTEXITCODE
     } finally {
         Set-Location -LiteralPath $here
@@ -350,6 +361,24 @@ function Get-TokenFilePlan {
     return @{ there = $true; go = ($admin.Count -eq 0); size = [long]$f.Length; admin = $admin }
 }
 
+# The widgets of the account split into ours (the two new ones), old (only Gear World hostnames: -Step old-widgets
+# deletes them) and mixed (a Gear World hostname and another site: never deleted here).
+function Split-OldWidgets($widgets) {
+    $ours = @(@($widgets) | Where-Object { $_ -and ([string]$_.name -eq $WidgetNames[1] -or [string]$_.name -eq $WidgetNames[2]) } | ForEach-Object { [string]$_.sitekey })
+    $gw = @($Widget1Hosts + $Widget2Hosts)
+    $old = @()
+    $mixed = @()
+    foreach ($wd in @($widgets)) {
+        if (-not $wd -or $ours -contains [string]$wd.sitekey) { continue }
+        $hosts = @(@($wd.domains) | ForEach-Object { ([string]$_).ToLowerInvariant() -replace '^www\.', '' })
+        $hit = @($hosts | Where-Object { $gw -contains $_ })
+        $other = @($hosts | Where-Object { $gw -notcontains $_ })
+        if ($hit.Count -gt 0 -and $other.Count -eq 0) { $old += $wd }
+        elseif ($hit.Count -gt 0) { $mixed += $wd }
+    }
+    return @{ ours = $ours; old = $old; mixed = $mixed }
+}
+
 function Write-Note([string]$prefix, [string[]]$lines) {
     $bdir = Join-Path $WorkDir 'backups'
     if (-not (Test-Path -LiteralPath $bdir)) { New-Item -ItemType Directory -Path $bdir -Force | Out-Null }
@@ -413,11 +442,12 @@ if ($Step -eq 'check') {
     Say ''
     Say 'Πλάνο (κάθε βήμα με τη δική του φράση):'
     Say ('  1. -Step turnstile ({0}): 2 widgets, «{1}» με {2} και «{3}» με {4}. Το Hub παίρνει TURNSTILE_SECRET_KEY, TURNSTILE_SECRET_KEY_2, TURNSTILE_SITE_KEY· κάθε site TURNSTILE_SITE_KEY. ΠΡΙΝ από τον νέο κώδικα.' -f $Phrases.turnstile, $WidgetNames[1], ($Widget1Hosts -join ', '), $WidgetNames[2], ($Widget2Hosts -join ', '))
-    Say ('  2. -Step secrets ({0}): σβήνονται {1} μυστικά που δεν διαβάζει κανένας κώδικας (μετά τον νέο κώδικα).' -f $Phrases.secrets, $toDelete)
+    Say ('  2. -Step old-widgets ({0}): τα παλιά widgets των Gear World domains, ΜΕΤΑ τον νέο κώδικα (sites και Hub) και ΠΡΙΝ από το βήμα 3: έτσι το κλειδί μέσα στο λάθος όνομα δεν ισχύει πια.' -f $Phrases['old-widgets'])
+    Say ('  3. -Step secrets ({0}): σβήνονται {1} μυστικά που δεν διαβάζει κανένας κώδικας.' -f $Phrases.secrets, $toDelete)
     $tfp = Get-TokenFilePlan
     if ($tfp.there -and $tfp.go) { Say ('     Με την ίδια φράση σβήνεται και το αρχείο {0} ({1} bytes, απλό κείμενο· δεν ανοίγεται ποτέ).' -f $TokenFileShown, $tfp.size) }
     elseif ($tfp.there) { Say ('     Το αρχείο {0} ({1} bytes) ΜΕΝΕΙ: οι Workers {2} έχουν ADMIN_TOKEN, άρα μπορεί να κρατά κλειδί που ισχύει. ΠΡΟΣΟΧΗ' -f $TokenFileShown, $tfp.size, ($tfp.admin -join ', ')) $Warn }
-    Say ('  3. -Step old-widgets ({0}): τα παλιά widgets των Gear World domains (μετά το βήμα 1).' -f $Phrases['old-widgets'])
+    Say '  Επαναφορά του κώδικα (αν χρειαστεί): ΠΡΩΤΑ το Hub, ΜΕΤΑ τα sites (το παλιό Hub δέχεται και τις εγγραφές του νέου κώδικα των sites).'
     Say ''
     if ($unreadable.Count -gt 0) { Say 'Αποτέλεσμα: ΠΡΟΣΟΧΗ - δεν διάβασα όλους τους Workers (δες πάνω). Δεν άλλαξε τίποτα: ξανατρέξε σε λίγο.' $Warn; Finish 6 }
     Say 'Αποτέλεσμα: ΕΝΤΑΞΕΙ - μόνο έλεγχος, δεν άλλαξε τίποτα.' $Ok
@@ -557,6 +587,28 @@ if ($Step -eq 'secrets') {
     foreach ($w in $Workers) {
         foreach ($p in (Get-DeletePlan $w @($names[$w.name]))) { $all += @{ worker = $w.name; item = $p } }
     }
+    # F07: the misnamed secret's name goes to wrangler only once the key in it is dead (-Step old-widgets first).
+    if (@($all | Where-Object { $_.item.misnamed }).Count -gt 0) {
+        $misBlocked = ''
+        $wl = Get-Widgets $wr
+        if ($null -eq $wl) { $misBlocked = 'unknown' }
+        else {
+            $sp = Split-OldWidgets $wl
+            if ((@($sp.old).Count + @($sp.mixed).Count) -gt 0) { $misBlocked = 'left' }
+        }
+        if ($misBlocked -and $Manual) {
+            Say ('  - -Manual: επιβεβαιώνεις ότι τα παλιά widgets των Gear World domains σβήστηκαν στο {0}, άρα το κλειδί μέσα στο λάθος όνομα δεν ισχύει πια.' -f $DashTurnstile) $Warn
+            $misBlocked = ''
+        }
+        if ($misBlocked -eq 'left') {
+            Say ('  - Το μυστικό με το λάθος όνομα ({0}) ΜΕΝΕΙ προς το παρόν: {1} widget(s) εκτός από τα δύο νέα καλύπτουν ακόμα Gear World domain, άρα το κλειδί μέσα στο όνομά του μπορεί να ισχύει ακόμα. ΠΡΩΤΑ το -Step old-widgets («{2}»), μετά ξανά αυτό το βήμα. (Αν μένει μόνο widget κοινό με άλλο site: σβήσ'' το στο {3}, ή, αφού βεβαιωθείς ότι δεν είναι του Garden, ξανά με -Manual.)' -f ($TurnstilePrefix + [char]0x2026), (@($sp.old).Count + @($sp.mixed).Count), $Phrases['old-widgets'], $DashTurnstile) $Warn
+        } elseif ($misBlocked -eq 'unknown') {
+            Say ('  - Το μυστικό με το λάθος όνομα ({0}) ΜΕΝΕΙ προς το παρόν: δεν διαβάζω τα Turnstile widgets με αυτή τη σύνδεση, άρα δεν ξέρω αν το κλειδί του ισχύει ακόμα. Σβήσε τα παλιά widgets στο {1} (όχι τα «{2}» και «{3}») και ξανά αυτό το βήμα με -Manual.' -f ($TurnstilePrefix + [char]0x2026), $DashTurnstile, $WidgetNames[1], $WidgetNames[2]) $Warn
+        } else {
+            Say '  - Κανένα παλιό widget δεν καλύπτει πια Gear World domain (έγινε το -Step old-widgets): το κλειδί μέσα στο λάθος όνομα δεν ισχύει πια, άρα το όνομα μπορεί να περάσει στο wrangler: ΕΝΤΑΞΕΙ' $Ok
+        }
+        if ($misBlocked) { $all = @($all | Where-Object { -not $_.item.misnamed }) }
+    }
     $tfp = Get-TokenFilePlan
     if ($all.Count -eq 0 -and -not $tfp.go) {
         if ($tfp.there) { Say ('  Το αρχείο {0} ({1} bytes) ΜΕΝΕΙ: οι Workers {2} έχουν ADMIN_TOKEN, άρα μπορεί να κρατά κλειδί που ισχύει. ΠΡΟΣΟΧΗ - στείλε στο Claude αυτή την αναφορά.' -f $TokenFileShown, $tfp.size, ($tfp.admin -join ', ')) $Warn }
@@ -626,7 +678,7 @@ if ($Step -eq 'secrets') {
         Say '  Το κλειδί που είχε δεν ισχύει πια πουθενά: κανένας Worker δεν έχει CGW_ADMIN_TOKEN ή ADMIN_TOKEN, και ο κώδικας διαβάζει μόνο το ADMIN_TOKEN.' $Ok
     }
     Say ''
-    Say ('ΕΤΟΙΜΟ: σβήστηκαν {0} μυστικά που δεν χρησιμοποιούσε κανείς. Επόμενο: -Step old-widgets.' -f $removed) $Ok
+    Say ('ΕΤΟΙΜΟ: σβήστηκαν {0} μυστικά που δεν χρησιμοποιούσε κανείς.' -f $removed) $Ok
     Finish 0
 }
 
@@ -637,24 +689,15 @@ if ($Step -eq 'old-widgets') {
         Say ('Τα Turnstile widgets δεν διαβάζονται με τη σύνδεση του wrangler. ΔΕΝ άλλαξε τίποτα. Σβήσε τα παλιά στο {0} (όχι τα «{1}» και «{2}»), ή μία φορά «npx wrangler login» και ξανά αυτό το βήμα.' -f $DashTurnstile, $WidgetNames[1], $WidgetNames[2]) $Warn
         Finish 5
     }
-    $ours = @(@($widgets) | Where-Object { $_ -and ([string]$_.name -eq $WidgetNames[1] -or [string]$_.name -eq $WidgetNames[2]) } | ForEach-Object { [string]$_.sitekey })
-    if ($ours.Count -lt 2) { Say ('Πρώτα το -Step turnstile ({0}): τα νέα widgets δεν υπάρχουν ακόμα. ΔΕΝ άλλαξε τίποτα.' -f $Phrases.turnstile) $Bad; Finish 8 }
-    $gw = @($Widget1Hosts + $Widget2Hosts)
-    $old = @()
-    $mixed = @()
-    foreach ($wd in @($widgets)) {
-        if (-not $wd -or $ours -contains [string]$wd.sitekey) { continue }
-        $hosts = @(@($wd.domains) | ForEach-Object { ([string]$_).ToLowerInvariant() -replace '^www\.', '' })
-        $hit = @($hosts | Where-Object { $gw -contains $_ })
-        $other = @($hosts | Where-Object { $gw -notcontains $_ })
-        # A widget that also serves another site is not ours to delete.
-        if ($hit.Count -gt 0 -and $other.Count -eq 0) { $old += $wd }
-        elseif ($hit.Count -gt 0) { $mixed += $wd }
-    }
+    $sp = Split-OldWidgets $widgets
+    if (@($sp.ours).Count -lt 2) { Say ('Πρώτα το -Step turnstile ({0}): τα νέα widgets δεν υπάρχουν ακόμα. ΔΕΝ άλλαξε τίποτα.' -f $Phrases.turnstile) $Bad; Finish 8 }
+    # A widget that also serves another site is not ours to delete.
+    $old = @($sp.old)
+    $mixed = @($sp.mixed)
     Say ''
     Say 'Τι θα γίνει:'
     foreach ($wd in $mixed) { Say ('  - ΔΕΝ σβήνεται «{0}» (sitekey {1}): έχει και άλλα domains ({2}). Αν δεν το χρειάζεσαι, σβήσ'' το στο {3}' -f $wd.name, $wd.sitekey, (@($wd.domains) -join ', '), $DashTurnstile) $Warn }
-    if ($old.Count -eq 0) { Say '  Κανένα παλιό widget μόνο με Gear World domains: τίποτα να σβήσω: ΕΝΤΑΞΕΙ' $Ok; Finish 0 }
+    if ($old.Count -eq 0) { Say ('  Κανένα παλιό widget μόνο με Gear World domains: τίποτα να σβήσω: ΕΝΤΑΞΕΙ. Επόμενο: -Step secrets («{0}»).' -f $Phrases.secrets) $Ok; Finish 0 }
     foreach ($wd in $old) { Say ('  - σβήνεται το παλιό widget «{0}» (sitekey {1}): {2}' -f $wd.name, $wd.sitekey, (@($wd.domains) -join ', ')) }
     Say ('  - Μένουν: «{0}» και «{1}».' -f $WidgetNames[1], $WidgetNames[2])
     Say '  - Το σβήσιμο ενός widget δεν γυρίζει πίσω: το secret key του σταματά να ισχύει (έτσι και το κλειδί που είχε μπει σε όνομα μυστικού στο Garden, F07). Κανένας κώδικας αυτής της έκδοσης δεν τα χρησιμοποιεί.'
@@ -673,6 +716,6 @@ if ($Step -eq 'old-widgets') {
         Say ('  «{0}»: σβήστηκε: ΕΝΤΑΞΕΙ' -f $wd.name) $Ok
     }
     Say ''
-    Say ('ΕΤΟΙΜΟ: σβήστηκαν {0} παλιά widgets του Gear World. Μένουν «{1}» και «{2}».' -f $old.Count, $WidgetNames[1], $WidgetNames[2]) $Ok
+    Say ('ΕΤΟΙΜΟ: σβήστηκαν {0} παλιά widgets του Gear World. Μένουν «{1}» και «{2}». Επόμενο: -Step secrets («{3}»).' -f $old.Count, $WidgetNames[1], $WidgetNames[2], $Phrases.secrets) $Ok
     Finish 0
 }

@@ -146,6 +146,24 @@ function Mask-Id([string]$id) { if ($id.Length -ge 8) { return $id.Substring(0, 
 # No public test address on the live site (security fixes F04, lessons L106): workers.dev and the version preview URLs
 # are switched off in the live config, so /out/ is reached only through the real domain and its security rules (a click
 # on workers.dev went past them and counted as a fake Awin click). Returns the config text with both set to false.
+# Lessons L106: every service binding of the template stays in the PC's config, also on a site set up before the
+# binding existed (Pets Gear World had no HUB on 8/11/2026). HUB: "Get deal updates" and the network's daily limit of
+# translations; POSTERS: the poster scans. The helpers change only that one entry, keep comments and layout, and read
+# the result back.
+$BindingHelpers = @(
+    @{ name = 'HUB'; service = 'gear-world-hub'; file = 'hub-binding.mjs'; check = 'check-hub'; add = 'add-hub' },
+    @{ name = 'POSTERS'; service = 'gear-world-posters'; file = 'poster-config.mjs'; check = 'check'; add = 'add' }
+)
+function Invoke-BindingHelper($b, [string]$mode, [string]$file) {
+    $helper = Join-Path (Join-Path $repo 'tools') $b.file
+    if (-not (Test-Path -LiteralPath $helper)) { return 'error: helper missing' }
+    $out = @(& node $helper $mode $file)
+    $code = $LASTEXITCODE
+    $text = (($out | ForEach-Object { "$_" }) -join ' ').Trim()
+    if ($code -ne 0) { return ('error ' + $text) }
+    return $text
+}
+
 function Set-NoTestAddress([string]$text) {
     $t = [regex]::Replace($text, '"workers_dev"\s*:\s*true', '"workers_dev": false')
     if ($t -notmatch '"workers_dev"\s*:') { $t = [regex]::Replace($t, '("compatibility_date"\s*:\s*"[^"]*",)', ('$1' + "`r`n" + '  "workers_dev": false,')) }
@@ -375,6 +393,17 @@ switch ($Step) {
         Say 'Τι θα γίνει:'
         Say ('  - Ανεβαίνει η έκδοση κώδικα {0} στο live VGW ({1}).' -f (Split-Path -Leaf $repo), $Domain)
         Say '  - Η D1, τα προϊόντα και τα domains ΔΕΝ αλλάζουν. Τα άλλα sites και το hub ΔΕΝ αλλάζουν.'
+        # Lessons L106: the service bindings of the template that this PC's config lacks (read only here).
+        $bindMissing = @()
+        foreach ($b in $BindingHelpers) {
+            $st = Invoke-BindingHelper $b $b.check $configPath
+            if ($st -eq 'missing') { $bindMissing += $b }
+            elseif ($st -ne 'has') { Say ('  - Η σύνδεση {0} στη ρύθμιση του υπολογιστή: ΠΡΟΒΛΗΜΑ ({1}). Δεν άλλαξε τίποτα: στείλε στο Claude αυτή την αναφορά.' -f $b.name, $st) 'Magenta'; Finish 13 }
+        }
+        foreach ($b in $bindMissing) {
+            if ($b.name -eq 'HUB') { Say ('  - Η σύνδεση HUB (gear-world-hub) λείπει από τη ρύθμιση του υπολογιστή: μπαίνει, με αντίγραφο της ρύθμισης πρώτα. Το {0} παίρνει για πρώτη φορά το «Get deal updates», και η αναζήτηση σε άλλες γλώσσες μετράει στο ημερήσιο όριο του Hub.' -f $Domain) }
+            else { Say ('  - Η σύνδεση {0} ({1}) λείπει από τη ρύθμιση του υπολογιστή: μπαίνει, με αντίγραφο της ρύθμισης πρώτα (μέτρηση των αφισών).' -f $b.name, $b.service) }
+        }
         Say ('  - Η δοκιμαστική διεύθυνση {0}.<λογαριασμός>.workers.dev και τα preview URLs του live Worker κλείνουν, αν είναι ανοιχτά (F04): το site ανοίγει μόνο στο {1}, πίσω από τους κανόνες ασφαλείας του. Πρώτα αντίγραφο της ρύθμισης (wrangler.jsonc.before-no-test-address-<ώρα>).' -f $WorkerName, $Domain)
         Say ('  - Επαναφορά (αν χρειαστεί): Workers & Pages > {0} > Deployments > προηγούμενη έκδοση > Rollback: https://dash.cloudflare.com/?to=/:account/workers-and-pages' -f $WorkerName)
         if (-not $Apply) { Say ''; Say 'Δοκιμή μόνο (χωρίς -Apply): δεν άλλαξε τίποτα.' 'Green'; Finish 0 }
@@ -389,6 +418,22 @@ switch ($Step) {
                 Copy-Item -LiteralPath $configPath -Destination $vgw -Force
                 Say '  - Προστέθηκε η σύνδεση Workers AI (αναζήτηση σε άλλες γλώσσες).'
             }
+        }
+        # Lessons L106: the missing service bindings of the template, after a copy of the config.
+        if ($bindMissing.Count -gt 0) {
+            $beforeBind = $configPath + '.before-bindings-' + $stamp
+            Copy-Item -LiteralPath $configPath -Destination $beforeBind -Force
+            foreach ($b in $bindMissing) {
+                $st = Invoke-BindingHelper $b $b.add $configPath
+                if ($st -ne 'added' -and $st -ne 'already') {
+                    Copy-Item -LiteralPath $beforeBind -Destination $configPath -Force
+                    Say ('Η σύνδεση {0} δεν μπήκε ({1}): η ρύθμιση γύρισε όπως ήταν, ΔΕΝ ανέβηκε τίποτα.' -f $b.name, $st) 'Magenta'
+                    Finish 13
+                }
+            }
+            Copy-Item -LiteralPath $configPath -Destination $vgw -Force
+            Say ('  - Μπήκαν οι συνδέσεις {0}: ΕΝΤΑΞΕΙ. Αντίγραφο της παλιάς ρύθμισης: {1}' -f ((@($bindMissing | ForEach-Object { $_.name })) -join ', '), $beforeBind) 'Cyan'
+            Say ('    Επαναφορά (μόνο με έγκριση): αυτό το αρχείο πίσω ως {0} και ξανά -Step update.' -f $configPath)
         }
         # F04 (lessons L106): workers.dev and the preview URLs off in the live config, after a copy of it.
         $cfgNow = [System.IO.File]::ReadAllText($configPath)

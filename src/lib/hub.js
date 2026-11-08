@@ -105,6 +105,9 @@ function defaultCache() {
 }
 
 // One place of the network's daily limit of model calls, counted by the Hub. false = no place (or no Hub): no model.
+// The Hub from before the security fixes has no /internal/ai-slot yet and answers 404 "not_found": while the sites
+// already run this code and the Hub not yet (between the two updates), translation goes on as before, still kept one
+// day per term in the cache. Any other answer without a place (429, 5xx, no answer) means no model.
 export async function takeAiSlot(env, site) {
   const b = env && (env.HUB || env.GW_HUB);
   if (!b || typeof b.fetch !== 'function') return false;
@@ -114,6 +117,10 @@ export async function takeAiSlot(env, site) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ site: String(site || '').toLowerCase().slice(0, 5) })
     });
+    if (r.status === 404) {
+      const old = await r.json().catch(() => null);
+      return Boolean(old && old.ok === false && old.error === 'not_found');
+    }
     if (!r.ok) return false;
     const d = await r.json();
     return Boolean(d && d.ok === true);

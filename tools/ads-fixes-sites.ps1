@@ -39,6 +39,8 @@
                 The site databases and their settings on this PC do not change. The Hub has its own step
                 (tools/gwh-hub-v2.ps1: ΕΓΚΡΙΝΩ HUB CLEANUP LIVE for L103, ΕΓΚΡΙΝΩ HUB ROBOTS LIVE for L105,
                 ΕΓΚΡΙΝΩ HUB SECURITY LIVE for L106, which goes AFTER the 13 sites).
+                Going back from L106: the Hub FIRST (tools/gwh-hub-v2.ps1 rollback note), THEN the sites, because the
+                new Hub refuses a sign-up without a Turnstile token and the older site code sends none.
                 Going back: each site tool's update with the version before (git commit cceb262 before L106;
                 12e54c0 before L105;
                 98b476d for the L103 clean-up; f4c8c35 for the L102 follow-up; c544884 before L101).
@@ -208,7 +210,8 @@ if ($Step -eq 'check') {
     Say '     (L106: το live site ανοίγει μόνο στο domain του (workers.dev και preview URLs κλειστά, με αντίγραφο του wrangler.jsonc πρώτα), Turnstile στο «Get deal updates», HSTS ενός χρόνου, καμία μέτρηση κλικ από δοκιμαστική διεύθυνση, οι μεταφράσεις της αναζήτησης κρατιούνται 1 μέρα και μετρούν σε ημερήσιο όριο, το /api/stats κρατιέται 1 ώρα)'
     Say '     ΠΡΩΤΑ τα κλειδιά Turnstile: tools/gw-security-fixes.ps1 -Step turnstile με «ΕΓΚΡΙΝΩ TURNSTILE». Χωρίς αυτά το «Get deal updates» δεν φαίνεται μέχρι να μπουν. Το Hub (gwh-hub-v2, «ΕΓΚΡΙΝΩ HUB SECURITY LIVE») ανεβαίνει ΜΕΤΑ από τα 13 sites.'
     Say '  2. έλεγχος ότι κάθε αρχική σελίδα δείχνει στο /saved/ και έχει τη νέα γραμμή στο footer, και ότι το /about/ λέει ποιος τρέχει το Gear World'
-    Say '  Οι βάσεις των sites και οι ρυθμίσεις τους στον υπολογιστή δεν αλλάζουν.'
+    Say '  Οι βάσεις των sites δεν αλλάζουν. Στη ρύθμιση του υπολογιστή μπαίνει ό,τι σύνδεση του προτύπου λείπει (HUB: το Pets Gear World, petsgearworld.com, παίρνει έτσι για πρώτη φορά το «Get deal updates»), με αντίγραφο πρώτα.'
+    Say '  Επαναφορά της έκδοσης L106 (αν χρειαστεί): ΠΡΩΤΑ το Hub (σημείωμα του gwh-hub-v2), ΜΕΤΑ τα sites: το νέο Hub δεν δέχεται εγγραφή χωρίς Turnstile, και ο παλιός κώδικας των sites δεν στέλνει.'
     Say ''
     if ($problems -gt 0) { Say 'Αποτέλεσμα: ΠΡΟΣΟΧΗ (δες τα παραπάνω). Δεν άλλαξε τίποτα.' 'Yellow'; Finish 2 }
     Say 'Αποτέλεσμα: ΕΝΤΑΞΕΙ (μόνο έλεγχος, δεν άλλαξε τίποτα)' 'Cyan'

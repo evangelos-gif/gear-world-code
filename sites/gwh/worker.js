@@ -198,7 +198,7 @@ const hubCore = {
         return Response.json({ ok: false, error: "Invalid price range." }, { status: 400 });
       }
       const priced = maxPrice !== null || minPrice !== null;
-      // GWH-AI-GUARD: no model for a bot (user agent), and a bot's search reaches the sites with translate=0 too.
+      // GWH-AI-GUARD: no model for a bot (user agent); like every Hub search, a bot's reaches the sites with translate=0.
       const botVisitor = isBotRequest(request);
       // GW_MULTILINGUAL_V1: Translate query ONCE before six-site fan-out.
       // Only non-ASCII searches invoke AI; original query remains available for display.
@@ -254,10 +254,11 @@ const hubCore = {
           await Promise.all(Array.from({ length: Math.min(6, items.length) }, lane));
           return out;
         };
-        // GWH-AI-GUARD (F03): translate=0 tells a site not to translate again (the Hub has translated the words already,
-        // or the visitor is a bot). The words as typed by a person may still be translated by the sites themselves,
-        // as before: that is the only translation of that search. The Hub says who it is, so it is not taken for a bot.
-        const querySpecialists = async (term, sitesMayTranslate) => settleAtMostSix(sites, async site => {
+        // GWH-AI-GUARD (F03, L106): every search of the Hub reaches the sites with translate=0. The Hub translates by
+        // itself (non-English words first, then the ASCII second try below), so the sites never spend the network's
+        // daily limit of model calls on a Hub search; a search on a site itself still translates there. The Hub says
+        // who it is, so it is not taken for a bot.
+        const querySpecialists = async (term) => settleAtMostSix(sites, async site => {
           const endpoint = new URL("/api/products", site.base);
           endpoint.searchParams.set("search", term);
           endpoint.searchParams.set("page", "1");
@@ -265,7 +266,7 @@ const hubCore = {
           if (country) endpoint.searchParams.set("deliver_to", country);
           if (maxPrice !== null) endpoint.searchParams.set("max", String(maxPrice));
           if (minPrice !== null) endpoint.searchParams.set("min", String(minPrice));
-          if (!sitesMayTranslate) endpoint.searchParams.set("translate", "0");
+          endpoint.searchParams.set("translate", "0");
           const controller = new AbortController();
           const timeout = setTimeout(() => controller.abort(), 4500);
           try {
@@ -283,7 +284,7 @@ const hubCore = {
         // GW_MULTILINGUAL_ASCII_FALLBACK_V2: Retry zero-result ASCII query once.
         // Only retry after ALL specialist requests have succeeded with zero products.
         // Never silently replace a matching brand, model or existing English result.
-        let settled = await querySpecialists(searchQuery, !botVisitor && searchQuery === safeQuery);
+        let settled = await querySpecialists(searchQuery);
         const emptySuccessful = settled.length > 0 && settled.every(
           item => item.status === 'fulfilled' && item.value.products.length === 0
         );
@@ -305,7 +306,7 @@ const hubCore = {
           });
           if (candidate) {
             searchQuery = candidate;
-            settled = await querySpecialists(searchQuery, false);
+            settled = await querySpecialists(searchQuery);
           }
         }
         const results = [];

@@ -253,6 +253,21 @@ test('F03 sites: one model answer per term and day (cache), no model for a bot, 
   assert.equal([...flaky.store.keys()].filter(k => k.includes(encodeURIComponent(AI_MODEL_2))).length, 1);
 });
 
+test('F03 sites between the two updates: the Hub without /internal/ai-slot (404 not_found) still lets them translate; other refusals do not', async () => {
+  const { takeAiSlot } = await import('../../src/lib/hub.js');
+  const hubAnswer = (status, body) => ({ HUB: { fetch: async () => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } }) } });
+  assert.equal(await takeAiSlot(hubAnswer(404, { ok: false, error: 'not_found' }), 'zgw'), true, 'the Hub of before (members.js answers not_found)');
+  assert.equal(await takeAiSlot(hubAnswer(404, { error: 'other' }), 'zgw'), false);
+  assert.equal(await takeAiSlot(hubAnswer(429, { ok: false, error: 'limit_day' }), 'zgw'), false, 'the day is full');
+  assert.equal(await takeAiSlot(hubAnswer(500, {}), 'zgw'), false);
+  assert.equal(await takeAiSlot(hubAnswer(200, { ok: true }), 'zgw'), true);
+  assert.equal(await takeAiSlot({}, 'zgw'), false, 'no Hub binding: no model');
+  // That is how the Hub answers an internal address it does not have (the Hub of before had only /internal/subscribe).
+  const unknown = await handleInternal(new Request('https://hub.internal/internal/not-here', { method: 'POST', body: '{}' }), { gear_world_registry: registry() }, {});
+  assert.equal(unknown.status, 404);
+  assert.deepEqual(await unknown.json(), { ok: false, error: 'not_found' });
+});
+
 test('F03 Hub ai-slot: one network counter for the sites and the Hub, TRANSLATE_DAILY_LIMIT (default 2000), only on the private address', async () => {
   assert.equal(DEFAULT_TRANSLATE_DAILY_LIMIT, 2000);
   const db = registry();
@@ -283,7 +298,7 @@ function sitesFetch(found = () => []) {
   return { asked, fn };
 }
 
-test('F03 Hub search: a translation is asked once per term and day; the sites get translate=0 when the Hub translated, and the Hub says who it is', async () => {
+test('F03 Hub search: a translation is asked once per term and day; every Hub search reaches the sites with translate=0, and the Hub says who it is', async () => {
   let calls = 0;
   const ai = { run: async () => { calls++; return { response: 'drill' }; } };
   const store = fakeCache();
@@ -301,10 +316,11 @@ test('F03 Hub search: a translation is asked once per term and day; the sites ge
     assert.ok(s.asked.length === 4 && s.asked.every(a => a.url.searchParams.get('search') === 'drill' && a.url.searchParams.get('translate') === '0'));
     assert.ok(s.asked.every(a => a.ua === HUB_USER_AGENT));
     assert.doesNotMatch(HUB_USER_AGENT, /bot|crawl|spider|preview|headless/i, 'the sites do not take the Hub for a bot');
-    // English words from a person: the sites may translate (their own first translation), so no flag.
+    // English words from a person: the Hub does its own ASCII second try, so the sites never translate a Hub search
+    // (they keep the network's daily limit of model calls for searches on the sites themselves).
     const s2 = sitesFetch(u => [{ id: 1, product_name: 'Cordless drill', price: 50 }]);
     await withFetch(s2.fn, () => hub.fetch(new Request(`${ORIGIN}/api/search?q=drill`, { headers: { 'User-Agent': PHONE } }), env, ctx()));
-    assert.ok(s2.asked.every(a => !a.url.searchParams.has('translate')));
+    assert.ok(s2.asked.length > 0 && s2.asked.every(a => a.url.searchParams.get('translate') === '0'));
     // A bot: no model at the Hub, and translate=0 for the sites.
     const s3 = sitesFetch();
     await withFetch(s3.fn, () => hub.fetch(new Request(`${ORIGIN}/api/search?q=${encodeURIComponent('τρυπάνι')}`, { headers: { 'User-Agent': 'curl/8.5' } }), env, ctx()));
@@ -489,6 +505,37 @@ test('F11 the Hub: charset=utf-8 on text, the full policy as Report-Only on HTML
 });
 
 // ---------------- F16: the old internal token is not read by any code ----------------
+
+test('F11 /api/csp-report: over 8 KB is refused before it is read (Content-Length) or once the limit is passed (stream)', async () => {
+  const { cspReport, CSP_REPORT_MAX } = await import('../../sites/gwh/security.js');
+  assert.equal(CSP_REPORT_MAX, 8192);
+  const chunks = (limit) => {
+    const state = { pulled: 0 };
+    state.body = new ReadableStream({ pull(c) { state.pulled++; if (state.pulled > limit) c.close(); else c.enqueue(new Uint8Array(4096).fill(120)); } }, { highWaterMark: 0 });
+    return state;
+  };
+  const fake = (headers, body) => ({ method: 'POST', headers: new Headers(headers), body });
+  const logged = [];
+  const warn = console.warn;
+  console.warn = (...a) => logged.push(a.join(' '));
+  try {
+    const declared = chunks(100);
+    assert.equal((await cspReport(fake({ 'content-length': String(CSP_REPORT_MAX + 1) }, declared.body))).status, 413);
+    assert.equal(declared.pulled, 0, 'not read at all');
+    const endless = chunks(1000);
+    assert.equal((await cspReport(fake({}, endless.body))).status, 413);
+    assert.equal(endless.pulled, 3, 'read only until the limit was passed');
+    const exact = chunks(2);
+    assert.equal((await cspReport(fake({}, exact.body))).status, 204, '8 KB exactly is fine');
+    assert.equal((await cspReport(fake({ 'content-length': 'abc' }, null))).status, 413);
+    const real = await cspReport(new Request(`${ORIGIN}/api/csp-report`, { method: 'POST', body: '{"csp-report":{"blocked-uri":"https://x.example","source-file":"mailto:someone@example.com"}}' }));
+    assert.equal(real.status, 204);
+    assert.equal(real.headers.get('Cache-Control'), 'no-store');
+    assert.equal((await cspReport(new Request(`${ORIGIN}/api/csp-report`))).status, 405);
+  } finally { console.warn = warn; }
+  assert.equal(logged.length, 2);
+  assert.ok(logged[1].includes('[email]') && !logged.join(' ').includes('someone@example.com'));
+});
 
 test('F16 GW_INTERNAL_TOKEN, CGW_ADMIN_TOKEN, HGW_ADMIN_TOKEN and the sites\' TURNSTILE_SECRET_KEY are read by no Worker code; the tool deletes only those', () => {
   const code = [];

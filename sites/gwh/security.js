@@ -192,11 +192,38 @@ export function withHubHeaders(response) {
 }
 
 // POST /api/csp-report: the browser's reports of the Report-Only policy go to the Worker logs (short, no cookies).
+// A real report is about 1 KB: a body over CSP_REPORT_MAX is refused (413) before it is read (Content-Length), and a
+// body without that header is read only up to the limit (the rest is never read).
+export const CSP_REPORT_MAX = 8192;
+const NO_STORE = { "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff" };
+async function readLimited(request, max) {
+  if (!request.body) return "";
+  const reader = request.body.getReader();
+  const chunks = [];
+  let size = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    size += value.byteLength;
+    if (size > max) {
+      try { await reader.cancel(); } catch (_) { /* ignore */ }
+      return null;
+    }
+    chunks.push(value);
+  }
+  const all = new Uint8Array(size);
+  let at = 0;
+  for (const c of chunks) { all.set(c, at); at += c.byteLength; }
+  return new TextDecoder().decode(all);
+}
 export async function cspReport(request) {
   if (request.method !== "POST") return new Response(null, { status: 405, headers: { Allow: "POST" } });
+  const declared = Number(request.headers.get("content-length") || "0");
+  if (!Number.isFinite(declared) || declared > CSP_REPORT_MAX) return new Response(null, { status: 413, headers: NO_STORE });
   try {
-    const text = (await request.text()).slice(0, 2000).replace(/[^\s@]+@[^\s@]+/g, "[email]");
-    console.warn("gwh csp-report", text);
+    const body = await readLimited(request, CSP_REPORT_MAX);
+    if (body === null) return new Response(null, { status: 413, headers: NO_STORE });
+    console.warn("gwh csp-report", body.slice(0, 2000).replace(/[^\s@]+@[^\s@]+/g, "[email]"));
   } catch (_) { /* ignore */ }
-  return new Response(null, { status: 204, headers: { "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff" } });
+  return new Response(null, { status: 204, headers: NO_STORE });
 }
