@@ -2571,6 +2571,10 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         Check ($LASTEXITCODE -eq 2) 'import batch: a wrong -Sites site is refused'
         & $exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $repo 'tools\legacy-import-batch.ps1') -Pairs none -Sites 'sgw:abc' -OutDir $bOut -NoClipboard | Out-Null
         Check ($LASTEXITCODE -eq 2) 'import batch: -Sites needs Awin numbers'
+        # 8 Nov 2026 (ENOSPC): with too little free disk space nothing starts, not even the dry run.
+        & $exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $repo 'tools\legacy-import-batch.ps1') -Pairs 'joybuy:wgw' -Apply -Approve 'egkrino all imports' -MinFreeMb 2000000000 -Archive $jArch -WorkDir $liWork -OutDir $bOut -NoClipboard | Out-Null
+        $bLow = @(Get-ChildItem -LiteralPath $bOut -Filter 'IMPORT_BATCH_*.txt' | Sort-Object LastWriteTime | Select-Object -Last 1)
+        Check ($LASTEXITCODE -eq 6 -and $bLow.Count -eq 1 -and ([System.IO.File]::ReadAllText($bLow[0].FullName)).Contains('pc-disk-cleanup')) 'import batch: too little free disk space stops before anything (exit 6)'
         # A pair for Construction Gear World is accepted (legacy-import.ps1 has CGW; lessons L63): an empty archive only ends that pair.
         $cgwArch = Join-Path $work 'batch-cgw-empty-archive'
         New-Item -ItemType Directory -Path $cgwArch -Force | Out-Null
@@ -4745,6 +4749,88 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         Remove-Item Env:\GW_FAKE_STATE -ErrorAction SilentlyContinue
     }
 }
+
+# 21. pc-disk-cleanup.ps1 (8 Nov 2026: "ENOSPC: no space left on device" in an import): read-only by default, one phrase,
+#     keeps the version running now and the newest other copy, the feeds in use, backups and the .txt reports.
+Write-Host 'pc-disk-cleanup.ps1'
+$dc = Join-Path $work 'disk-cleanup'
+$dcHome = Join-Path $dc 'home'
+$dcTemp = Join-Path $dc 'temp'
+$dcArch = Join-Path $dcHome 'Downloads\GW_AWIN_BULK_ARCHIVE'
+$dcOut = Join-Path $dcHome 'gear-world-reports'
+$dcNpm = Join-Path $dc 'npm-cache'
+$dcLogs = Join-Path $dc 'wrangler-logs'
+$dcSite = Join-Path $dcHome 'sporty-gear-world'
+$dcKeepVer = 'gear-world-code-' + ('1' * 40)
+$dcKeepCache = 'gear-world-code-' + ('1' * 12)
+$dcOld = (Get-Date).AddHours(-5)
+function Dc-Old([string]$p, [int]$hours) { (Get-Item -LiteralPath $p -Force).LastWriteTime = (Get-Date).AddHours(-1 * $hours) }
+foreach ($n in @('aaaaaaaaaaaa', 'bbbbbbbbbbbb', 'cccccccccccc', '111111111111')) { Write-Utf8 (Join-Path $dcTemp ('gear-world-code-' + $n + '\gear-world-code-x\tools\a.ps1')) 'x' }
+Write-Utf8 (Join-Path $dcTemp 'gear-world-code-xyz\a.txt') 'not a code copy'
+Write-Utf8 (Join-Path $dcTemp 'other-folder\a.txt') 'not ours'
+Dc-Old (Join-Path $dcTemp 'gear-world-code-111111111111') 9
+Dc-Old (Join-Path $dcTemp 'gear-world-code-aaaaaaaaaaaa') 8
+Dc-Old (Join-Path $dcTemp 'gear-world-code-bbbbbbbbbbbb') 6
+Dc-Old (Join-Path $dcTemp 'gear-world-code-cccccccccccc') 3
+foreach ($n in @('a', 'b', 'c')) { Write-Utf8 (Join-Path $dcSite ('deploy\gear-world-code-' + ($n * 40) + '\node_modules\pkg\index.js')) ('x' * 5000) }
+Write-Utf8 (Join-Path $dcSite ('deploy\' + $dcKeepVer + '\node_modules\pkg\index.js')) 'running now'
+Dc-Old (Join-Path $dcSite ('deploy\' + $dcKeepVer)) 9
+Dc-Old (Join-Path $dcSite ('deploy\gear-world-code-' + ('a' * 40))) 8
+Dc-Old (Join-Path $dcSite ('deploy\gear-world-code-' + ('b' * 40))) 6
+Dc-Old (Join-Path $dcSite ('deploy\gear-world-code-' + ('c' * 40))) 3
+Write-Utf8 (Join-Path $dcSite 'backups\sgw-d1-restore-point.txt') 'bookmark'
+Write-Utf8 (Join-Path $dcHome 'Documents\projects\deploy\gear-world-code-x\mine.txt') 'one level too deep: not ours'
+foreach ($n in @('20261108_100000', '20261108_120000', '20261108_220000')) { Write-Utf8 (Join-Path $dcArch ('_old\' + $n + '\AWIN_1.csv.gz')) 'old feed' }
+Write-Utf8 (Join-Path $dcArch 'AWIN_1.csv.gz') 'feed in use'
+Write-Utf8 (Join-Path $dcArch 'AWIN_2.csv.gz.part') 'half'
+Write-Utf8 (Join-Path $dcOut 'IMPORT_PLAN_luxe_20261108\report.txt') 'plan report'
+Write-Utf8 (Join-Path $dcOut 'IMPORT_PLAN_luxe_20261108\sql\001.sql') 'INSERT 1'
+Write-Utf8 (Join-Path $dcOut 'SGW_IMPORT_PLAN_20261108\report.txt') 'plan report'
+Write-Utf8 (Join-Path $dcOut 'SGW_IMPORT_PLAN_20261108\002.sql') 'INSERT 2'
+Write-Utf8 (Join-Path $dcOut 'TGW_IMPORT_PLAN_now\sql\003.sql') 'INSERT 3 (new plan)'
+Write-Utf8 (Join-Path $dcOut 'GW_BACKUP_HGW\db.sql') 'a backup'
+Dc-Old (Join-Path $dcOut 'IMPORT_PLAN_luxe_20261108') 5
+Dc-Old (Join-Path $dcOut 'SGW_IMPORT_PLAN_20261108') 5
+Dc-Old (Join-Path $dcOut 'GW_BACKUP_HGW') 50
+Write-Utf8 (Join-Path $dcLogs 'wrangler-old.log') 'old log'
+Write-Utf8 (Join-Path $dcLogs 'wrangler-new.log') 'new log'
+Dc-Old (Join-Path $dcLogs 'wrangler-old.log') 5
+Write-Utf8 (Join-Path $dcNpm '_cacache\index-v5\a') 'cache'
+Write-Utf8 (Join-Path $dcNpm '_npx\b\package.json') '{}'
+Write-Utf8 (Join-Path $dcNpm 'other\keep.txt') 'not ours'
+$dcArgs = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', (Join-Path $repo 'tools\pc-disk-cleanup.ps1'), '-PcHome', $dcHome, '-TempRoot', $dcTemp, '-Archive', $dcArch, '-OutDir', $dcOut, '-NpmCache', $dcNpm, '-WranglerLogs', $dcLogs, '-KeepVersion', $dcKeepVer, '-KeepCache', $dcKeepCache, '-NoClipboard')
+function Dc-Report {
+    $f = @(Get-ChildItem -LiteralPath $dcOut -Filter 'DISK_CLEANUP_*.txt' | Sort-Object LastWriteTime, Name | Select-Object -Last 1)
+    if ($f.Count -eq 0) { return '' }
+    $t = [System.IO.File]::ReadAllText($f[0].FullName)
+    Remove-Item -LiteralPath $f[0].FullName -Force
+    return $t
+}
+$dcBefore = Get-TreeHash $dc
+& $exe @dcArgs | Out-Null
+Check ($LASTEXITCODE -eq 0) 'disk cleanup read-only: exit 0'
+$r = Dc-Report
+Check ($r.Contains('Μπορούν να σβηστούν: 12 ') -and $r.Contains('ΕΓΚΡΙΝΩ DISK CLEANUP') -and $r.Contains('Μόνο ανάγνωση')) 'disk cleanup read-only: 12 items listed with the phrase'
+Check ($r.Contains('παλιές εκδόσεις στα deploy των sites: 2') -and $r.Contains('αντίγραφα κώδικα στο TEMP: 2') -and $r.Contains('παλιά feeds (_old): 2') -and $r.Contains('αρχεία SQL παλιών σχεδίων εισαγωγής: 2')) 'disk cleanup read-only: counts per kind'
+Check ((Get-TreeHash $dc) -eq $dcBefore) 'disk cleanup read-only: nothing deleted'
+& $exe @dcArgs -Apply -Approve 'ΕΓΚΡΙΝΩ DISK CLEAN' | Out-Null
+Check ($LASTEXITCODE -eq 1) 'disk cleanup with a wrong phrase: exit 1'
+[void](Dc-Report)
+Check ((Get-TreeHash $dc) -eq $dcBefore) 'disk cleanup with a wrong phrase: nothing deleted'
+& $exe @dcArgs -Apply -Approve 'egkrino disk cleanup' | Out-Null
+Check ($LASTEXITCODE -eq 0) 'disk cleanup with the phrase: exit 0'
+$r = Dc-Report
+Check ($r.Contains('ΕΤΟΙΜΟ: σβήστηκαν 12 από 12')) 'disk cleanup with the phrase: 12 of 12 deleted'
+Check (-not (Test-Path -LiteralPath (Join-Path $dcTemp 'gear-world-code-aaaaaaaaaaaa')) -and -not (Test-Path -LiteralPath (Join-Path $dcTemp 'gear-world-code-bbbbbbbbbbbb'))) 'disk cleanup: old code copies in TEMP deleted'
+Check ((Test-Path -LiteralPath (Join-Path $dcTemp 'gear-world-code-111111111111')) -and (Test-Path -LiteralPath (Join-Path $dcTemp 'gear-world-code-cccccccccccc')) -and (Test-Path -LiteralPath (Join-Path $dcTemp 'gear-world-code-xyz\a.txt')) -and (Test-Path -LiteralPath (Join-Path $dcTemp 'other-folder\a.txt'))) 'disk cleanup: the running copy, the newest other one and other folders stay'
+Check (-not (Test-Path -LiteralPath (Join-Path $dcSite ('deploy\gear-world-code-' + ('a' * 40)))) -and -not (Test-Path -LiteralPath (Join-Path $dcSite ('deploy\gear-world-code-' + ('b' * 40))))) 'disk cleanup: old deploy copies with node_modules deleted'
+Check ((Test-Path -LiteralPath (Join-Path $dcSite ('deploy\' + $dcKeepVer + '\node_modules\pkg\index.js'))) -and (Test-Path -LiteralPath (Join-Path $dcSite ('deploy\gear-world-code-' + ('c' * 40)))) -and (Test-Path -LiteralPath (Join-Path $dcSite 'backups\sgw-d1-restore-point.txt')) -and (Test-Path -LiteralPath (Join-Path $dcHome 'Documents\projects\deploy\gear-world-code-x\mine.txt'))) 'disk cleanup: the running version, the newest other one, backups and other folders stay'
+Check (-not (Test-Path -LiteralPath (Join-Path $dcArch '_old\20261108_100000')) -and -not (Test-Path -LiteralPath (Join-Path $dcArch '_old\20261108_120000')) -and (Test-Path -LiteralPath (Join-Path $dcArch '_old\20261108_220000\AWIN_1.csv.gz')) -and (Test-Path -LiteralPath (Join-Path $dcArch 'AWIN_1.csv.gz')) -and -not (Test-Path -LiteralPath (Join-Path $dcArch 'AWIN_2.csv.gz.part'))) 'disk cleanup: old feed copies and half downloads go, the newest _old and the feeds in use stay'
+Check (-not (Test-Path -LiteralPath (Join-Path $dcOut 'IMPORT_PLAN_luxe_20261108\sql')) -and -not (Test-Path -LiteralPath (Join-Path $dcOut 'SGW_IMPORT_PLAN_20261108\002.sql')) -and (Test-Path -LiteralPath (Join-Path $dcOut 'IMPORT_PLAN_luxe_20261108\report.txt')) -and (Test-Path -LiteralPath (Join-Path $dcOut 'SGW_IMPORT_PLAN_20261108\report.txt'))) 'disk cleanup: SQL of old plans deleted, their .txt reports stay'
+Check ((Test-Path -LiteralPath (Join-Path $dcOut 'TGW_IMPORT_PLAN_now\sql\003.sql')) -and (Test-Path -LiteralPath (Join-Path $dcOut 'GW_BACKUP_HGW\db.sql'))) 'disk cleanup: a new plan and backups stay'
+Check (-not (Test-Path -LiteralPath (Join-Path $dcLogs 'wrangler-old.log')) -and (Test-Path -LiteralPath (Join-Path $dcLogs 'wrangler-new.log')) -and -not (Test-Path -LiteralPath (Join-Path $dcNpm '_cacache')) -and -not (Test-Path -LiteralPath (Join-Path $dcNpm '_npx')) -and (Test-Path -LiteralPath (Join-Path $dcNpm 'other\keep.txt'))) 'disk cleanup: old wrangler logs and the npm cache go, other files stay'
+& $exe @dcArgs | Out-Null
+Check ($LASTEXITCODE -eq 0 -and (Dc-Report).Contains('Δεν υπάρχει τίποτα για σβήσιμο')) 'disk cleanup again: nothing left to delete'
 
 Remove-Item -LiteralPath $work -Recurse -Force -ErrorAction SilentlyContinue
 

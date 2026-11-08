@@ -234,9 +234,58 @@ test("owner's choice for Luxefashion (8 Nov 2026): shoes, dresses, coats, knitwe
   assert.equal(luxe.classifyAll({ name: 'Padded bra model 227813 Vena - 85D - Beige' }).subcategory, 'Underwear');
   assert.equal(natkina.field('merchant_image_url', () => 'http://cdn.example.com/a.jpg'), 'https://cdn.example.com/a.jpg');
   assert.equal(natkina.field('product_name', () => 'http://x'), 'http://x');
+  assert.equal(natkina.field('merchant_image_url', () => '//cdn.shopify.com/s/files/a.png?v=1'), 'https://cdn.shopify.com/s/files/a.png?v=1');
+  assert.equal(natkina.field('aw_image_url', () => 'natkina.com/cdn/shop/files/b.jpg'), 'https://natkina.com/cdn/shop/files/b.jpg');
+  assert.equal(natkina.field('merchant_thumb_url', () => 'https://cdn.shopify.com/c.jpg'), 'https://cdn.shopify.com/c.jpg');
+  assert.equal(natkina.field('merchant_image_url', () => ''), '');
+  assert.equal(natkina.RULES.shopifyCheck, true);
+  assert.equal(natkina.RULES.shopOrigin, 'https://natkina.com');
   assert.equal(sal.classify({ name: 'Bestway Tug Boat Play Pool', feedCategory: 'Garden Games > Swimming Pools' }).subcategory, 'Water Play Equipment');
   assert.equal(sal.classify({ name: 'Air League HB10 Junior Adjustable Basketball Stand', feedCategory: 'Garden Games > Basketball' }).subcategory, 'Outdoor Games');
   const sgw = JSON.parse(readFileSync(new URL('../../sites/sgw/sources.json', import.meta.url), 'utf8')).sources.find(s => s.advertiserId === 1463);
   assert.ok(sgw.denyPaths.includes('trampolines') && sgw.denyPaths.includes('swimming pools'));
 });
 
+
+// 8 Nov 2026 22:24: the Natkina plan left out 547 of 655 products as "no image". The fix reads natkina.com's live Shopify
+// catalogue (pictures of the shop, gone and sold-out pages out) and makes "//..." picture addresses full https ones.
+test('Natkina plan: pictures from the shop (and from "//" addresses), pound prices from the feed, sold-out pages out', async () => {
+  const { mkdtempSync, writeFileSync } = await import('node:fs');
+  const { tmpdir } = await import('node:os');
+  const { join } = await import('node:path');
+  const { gzipSync } = await import('node:zlib');
+  const { planLegacyImport } = await import('../../tools/legacy-import-plan.mjs');
+  const HEAD = 'aw_deep_link,product_name,aw_product_id,merchant_product_id,merchant_image_url,merchant_category,search_price,merchant_name,merchant_id,aw_image_url,currency,merchant_deep_link,brand_name,in_stock\n';
+  const row = (h, v, name, price, img, stock = 1) =>
+    `https://www.awin1.com/pclick.php?p=${v}&a=1&m=81625,"${name}",${v},${v},${img},Rings,${price},Natkina,81625,https://images2.productserve.com/noimage.gif,GBP,https://natkina.com/products/${h}?variant=${v},NATKINA,${stock}\n`;
+  const dir = mkdtempSync(join(tmpdir(), 'natkina-'));
+  writeFileSync(join(dir, 'AWIN_81625_118407.csv.gz'), gzipSync(HEAD
+    + row('frog-ring', 11, 'Lucky Green Frog Ring - White Silver / Green / 52', 325, '//natkina.com/cdn/shop/files/frog.jpg')
+    + row('frog-ring', 12, 'Lucky Green Frog Ring - White Silver / Green / 54', 325, '//natkina.com/cdn/shop/files/frog.jpg')
+    + row('kiss-ring', 21, 'Tender Kiss by Fall In Love Ring - White Silver / Red / 56', 90, '')
+    + row('old-ring', 31, 'Old Silver Ring - White Silver / 52', 120, '//natkina.com/cdn/shop/files/old.jpg')
+    + row('sold-ring', 41, 'Sold Silver Ring - White Silver / 52', 140, '//natkina.com/cdn/shop/files/sold.jpg')));
+  // Also the franc feed is in the folder: only the pound feed is read.
+  writeFileSync(join(dir, 'AWIN_81625_118404.csv.gz'), gzipSync(HEAD.replace('GBP', 'CHF') + row('frog-ring', 11, 'Lucky Green Frog Ring - White Silver / Green / 52', 335, '').replace(',GBP,', ',CHF,')));
+  const live = [
+    { handle: 'frog-ring', variants: [{ id: 11, sku: 'F52', available: true, featured_image: null }, { id: 12, sku: 'F54', available: true }], images: [{ src: '//cdn.shopify.com/s/files/frog-live.png?v=1', variant_ids: [] }] },
+    { handle: 'kiss-ring', variants: [{ id: 21, sku: 'K56', available: true, featured_image: { src: 'https://cdn.shopify.com/s/files/kiss-red.png' } }], images: [] },
+    { handle: 'sold-ring', variants: [{ id: 41, sku: 'S52', available: false }], images: [{ src: 'https://cdn.shopify.com/s/files/sold.png', variant_ids: [] }] }
+  ];
+  const asked = [];
+  const fetchImpl = async url => { asked.push(url); return { ok: true, json: async () => ({ products: /[?&]page=1$/.test(url) ? live : [] }) }; };
+  const out = mkdtempSync(join(tmpdir(), 'natkina-out-'));
+  const r = await planLegacyImport({ archive: dir, retailer: 'natkina', outDir: out, now: new Date('2026-11-08T23:00:00Z'), fetchImpl });
+  assert.ok(asked[0].startsWith('https://natkina.com/products.json'), 'the live catalogue of natkina.com is read');
+  const cards = Object.fromEntries(r.accepted.wgw.map(p => [p.product_name, p]));
+  assert.deepEqual(Object.keys(cards).sort(), ['Lucky Green Frog Ring', 'Tender Kiss by Fall In Love Ring']);
+  assert.equal(cards['Lucky Green Frog Ring'].image_url, 'https://cdn.shopify.com/s/files/frog-live.png?v=1');
+  assert.equal(cards['Tender Kiss by Fall In Love Ring'].image_url, 'https://cdn.shopify.com/s/files/kiss-red.png', 'a feed row with no picture gets the shop picture');
+  assert.equal(cards['Lucky Green Frog Ring'].price, 325);
+  assert.equal(cards['Lucky Green Frog Ring'].currency, 'GBP');
+  assert.equal(cards['Lucky Green Frog Ring'].subcategory, 'Rings');
+  const why = Object.keys(r.rejected).join(' | ');
+  assert.match(why, /not on the shop's site any more/);
+  assert.match(why, /sold out on the shop's site/);
+  assert.doesNotMatch(why, /no image/);
+});

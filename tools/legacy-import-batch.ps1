@@ -22,6 +22,7 @@
   -PaidPlan: the Cloudflare account is on Workers Paid (passed to TGW, PGW, SGW and BGW). Without it a TGW import that
   would write more than 90,000 rows in D1 (about 11,000 products) stops before changing anything (lessons L49).
   -Approve: the phrase given on the command line instead of typing it (tests only).
+  -MinFreeMb (default 1024): with less free disk space than this nothing starts (exit 6); first pc-disk-cleanup.ps1.
 
   Report: <home>\gear-world-reports\IMPORT_BATCH_<time>.txt (also copied to the clipboard), with every pair's
   summary and the full plan of every shop.
@@ -37,6 +38,7 @@ param(
     [switch]$PaidPlan,
     [string]$Sites = '',
     [string]$Approve = '',
+    [int]$MinFreeMb = 1024,
     [switch]$NoClipboard
 )
 
@@ -102,6 +104,19 @@ $mode = 'ΔΟΚΙΜΗ - ΜΟΝΟ ΑΝΑΓΝΩΣΗ'
 if ($Apply) { $mode = 'ΕΙΣΑΓΩΓΗ - μία φράση έγκρισης για όλα' }
 Write-Host ''
 Write-Host ('Εισαγωγές για {0} ζευγάρια και {1} νέα sites - {2}' -f $list.Count, $siteList.Count, $mode) -ForegroundColor Cyan
+
+# 8 Nov 2026: an import stopped with "ENOSPC: no space left on device". With too little free space nothing starts.
+$freeMb = -1
+try { $freeMb = [Math]::Floor((New-Object System.IO.DriveInfo([System.IO.Path]::GetPathRoot((Resolve-Path -LiteralPath $OutDir).Path))).AvailableFreeSpace / 1MB) } catch { }
+if ($MinFreeMb -gt 0 -and $freeMb -ge 0 -and $freeMb -lt $MinFreeMb) {
+    $msg = ('Ο δίσκος έχει μόνο {0} MB ελεύθερα (χρειάζονται τουλάχιστον {1} MB). Δεν ξεκίνησε τίποτα, δεν άλλαξε τίποτα. Πρώτα το καθάρισμα χώρου (εργαλείο pc-disk-cleanup).' -f $freeMb, $MinFreeMb)
+    Write-Host $msg -ForegroundColor Red
+    $file0 = Join-Path $OutDir ('IMPORT_BATCH_{0}.txt' -f $stamp)
+    $text0 = ('IMPORT BATCH {0} - {1}' -f (Get-Date -Format 'yyyy-MM-dd HH:mm'), $mode) + "`r`n" + $msg + "`r`n"
+    try { [System.IO.File]::WriteAllText($file0, $text0, (New-Object System.Text.UTF8Encoding($true))) } catch { }
+    if (-not $NoClipboard) { try { Set-Clipboard -Value $text0 } catch { } }
+    exit 6
+}
 
 if ($Apply) {
     $jobs = @()

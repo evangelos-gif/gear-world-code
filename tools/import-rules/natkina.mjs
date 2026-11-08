@@ -17,18 +17,27 @@ export const RULES = {
   sites: ['wgw'],
   maxPrice: 5000,
   minPrice: 10,
-  keepQuery: true
+  keepQuery: true,
+  // natkina.com is a Shopify shop and the pound feed was last refreshed by Awin on 20 Oct 2026 (19 days old on 8 Nov):
+  // the plan reads the shop's live catalogue (lessons L39), leaves out pages that are gone or sold out and takes the
+  // shop's current picture of each option. Prices stay the feed's pounds (the shop's own catalogue is in francs).
+  shopifyCheck: true,
+  shopOrigin: 'https://natkina.com'
 };
 
 export function feedFiles(archive) {
   return ['AWIN_81625_118407.csv.gz', 'AWIN_81625_118407.csv'].map(f => join(archive, f)).filter(f => existsSync(f));
 }
 
-// Dry run 8 Nov 2026: 547 of 655 products had "no image" - the feed gives the pictures as http:// links, and the
-// planner takes only https (the sites are https). The same picture addresses work over https.
+// Dry runs 8 Nov 2026: 547 of 655 products had "no image" even with http:// made https://. The planner takes only full
+// https addresses; a Shopify feed can give "//cdn.shopify.com/..." or "cdn.shopify.com/..." without the https: part.
+// All three forms become https:// here (the live Shopify check above then takes the shop's current picture anyway).
 export function field(c, column) {
-  const v = column(c);
-  if (/image|aw_thumb/i.test(c) && /^http:\/\//i.test(v)) return v.replace(/^http:\/\//i, 'https://');
+  const v = String(column(c) ?? '').trim();
+  if (!/image|thumb/i.test(c) || !v) return v;
+  if (/^http:\/\//i.test(v)) return v.replace(/^http:\/\//i, 'https://');
+  if (v.startsWith('//')) return 'https:' + v;
+  if (/^[a-z0-9-]+(\.[a-z0-9-]+)+\//i.test(v)) return 'https://' + v;
   return v;
 }
 
