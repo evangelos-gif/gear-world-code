@@ -24,6 +24,14 @@ export function feedFiles(archive) {
   return ['AWIN_81625_118407.csv.gz', 'AWIN_81625_118407.csv'].map(f => join(archive, f)).filter(f => existsSync(f));
 }
 
+// Dry run 8 Nov 2026: 547 of 655 products had "no image" - the feed gives the pictures as http:// links, and the
+// planner takes only https (the sites are https). The same picture addresses work over https.
+export function field(c, column) {
+  const v = column(c);
+  if (/image|aw_thumb/i.test(c) && /^http:\/\//i.test(v)) return v.replace(/^http:\/\//i, 'https://');
+  return v;
+}
+
 export function productKey(get) {
   try {
     const path = new URL(get('merchant_deep_link')).pathname.replace(/^\/+|\/+$/g, '');

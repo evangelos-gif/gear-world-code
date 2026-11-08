@@ -32,6 +32,11 @@ export function classify({ name, feedCategory = '' }) {
   if (/\b(ride[- ]?on|kids?'? (?:electric )?cars?|electric cars?|kids? jeep|kids? quad|kids? atv|kids? motorbike)\b/i.test(n) || /kids (ride-on|cars)/i.test(c)) {
     return { site: 'kgw', siteCategory: 'Toys & Games', subcategory: 'Electric Riding Vehicles' };
   }
+  // Dry run 8 Nov 2026: play pools and junior basketball stands were left out by Sporty Gear World (kids' items).
+  if (/\b(play pools?|paddling pools?|swimming pools?|pools?)\b/i.test(n) && /swimming pools|garden games/i.test(c)) {
+    return { site: 'kgw', siteCategory: 'Sports & Outdoors', subcategory: 'Water Play Equipment' };
+  }
+  if (/\b(junior|kids?)\b/i.test(n) && /\b(basketball|football goals?|goals?)\b/i.test(n)) return { site: 'kgw', siteCategory: 'Sports & Outdoors', subcategory: 'Outdoor Games' };
   // A fitness rebounder is Sporty Gear World's (L65): only garden trampolines and their parts come here.
   if (/\brebounders?\b/i.test(n)) return { reject: 'fitness rebounder (Sporty Gear World)' };
   if (/\btrampolines?\b/i.test(n) || /trampolines|tramp accesor/i.test(c)) {

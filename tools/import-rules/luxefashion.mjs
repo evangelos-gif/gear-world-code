@@ -73,21 +73,35 @@ const LINGERIE = W(['bras?', 'padded bra', 'push-?up', 'soft', 'semi-?soft', 'ba
 const NIGHT = W(['nightdress(?:es)?', 'nightgowns?', 'nightshirts?', 'pyjamas?', 'pajamas?', 'negligees?', 'chemises?', 'babydolls?', 'dressing gowns?', 'robes?', 'nightwear']);
 const BAGS = [
   ['Bags', W(['handbags?', 'bags?', 'shoppers?', 'clutch(?:es)?', 'backpacks?', 'purses?', 'wallets?'])],
-  ['Scarves', W(['scarf', 'scarves', 'shawls?', 'snoods?'])], ['Hats', W(['hats?', 'caps?', 'berets?', 'beanies?'])],
+  ['Scarves', W(['scarf', 'scarves', 'shawls?', 'snoods?', 'neckerchiefs?'])], ['Hats', W(['hats?', 'caps?', 'berets?', 'beanies?'])],
   ['Gloves', W(['gloves?', 'mittens?'])], ['Belts', W(['belts?'])], ['Accessories', W(['earrings?', 'necklaces?', 'bracelets?', 'jewellery', 'sunglasses'])]
 ];
 const CLOTHES = [
   ['Swimwear', W(['swimsuits?', 'bikinis?', 'swimming costumes?', 'tankinis?', 'swimwear'])],
-  ['Dresses', W(['dress(?:es)?', 'cocktail dress', 'long dress', 'evening dress', 'gowns?'])],
+  ['Dresses', /dress(?:es)?(?![a-z])|\bgowns?\b/i],
   ['Jackets & Coats', W(['jackets?', 'coats?', 'blazers?', 'parkas?', 'gilets?', 'vests? jacket'])],
-  ['Knitwear', W(['sweaters?', 'jumpers?', 'cardigans?', 'pullovers?', 'knit\\w*'])],
+  ['Knitwear', W(['sweaters?', 'jumpers?', 'cardigans?', 'pullovers?', 'knit\\w*', 'turtlenecks?', 'polo necks?'])],
   ['Jeans', W(['jeans'])], ['Leggings', W(['leggings'])], ['Shorts', W(['shorts'])], ['Skirts', W(['skirts?'])],
   ['Trousers', W(['trousers', 'pants', 'joggers?', 'sweatpants', 'jumpsuits?', 'overalls?'])],
   ['T-Shirts', W(['t-?shirts?', 'tees?'])], ['Tops & Blouses', W(['blouses?', 'tops?', 'shirts?', 'tunics?', 'bodysuits?', 'camisoles?', 'tank tops?'])],
   ['Hoodies', W(['hoodies?', 'hooded'])], ['Sweatshirts', W(['sweatshirts?'])], ['Activewear', W(['sports? bras?', 'sports? leggings', 'tracksuits?', 'activewear'])]
 ];
 
-export function classify({ name, feedCategory = '' }) {
+// Owner, 8 Nov 2026 (the dry run gave 27,051 cards for WGW, which has 23,389): "selected ~9,000" - shoes, dresses, coats
+// and jackets, knitwear, skirts, bags and accessories, nightwear. Lingerie, swimwear, tops, T-shirts, sweatshirts, trousers
+// and the unnamed "Clothing" stay out.
+const CHOSEN = new Set(['Shoes', 'Bags & Accessories', 'Dresses', 'Jackets & Coats', 'Jackets', 'Knitwear', 'Skirts', 'Nightwear']);
+function chosen(r) {
+  if (r.reject) return r;
+  if (r.siteCategory === 'Shoes' || r.siteCategory === 'Bags & Accessories' || CHOSEN.has(r.subcategory)) return r;
+  return { reject: `not in the chosen Luxefashion range (${r.subcategory}): owner's choice, 8 Nov 2026` };
+}
+
+export function classify(args) {
+  return chosen(classifyAll(args));
+}
+
+export function classifyAll({ name, feedCategory = '' }) {
   const p = parseName(name);
   const t = `${p.type} ${feedCategory}`;
   const card = cardName(name);

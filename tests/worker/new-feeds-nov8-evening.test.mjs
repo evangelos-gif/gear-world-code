@@ -206,9 +206,10 @@ test('8 Nov 2026 late, "can they go elsewhere": Luxefashion on WGW (heels, dress
   assert.deepEqual(lx('Block heel pumps model 226555 Solea - 39 - Black'), { site: 'wgw', siteCategory: 'Shoes', subcategory: 'Heels', name: 'Solea Block Heel Pumps - Black' });
   assert.equal(lx('High heels model 191201 Step in style - 38 - Red').subcategory, 'Heels');
   assert.equal(lx('Cocktail dress model 139517 awama - M - Navy').subcategory, 'Dresses');
-  assert.deepEqual(lx('Soft model 198086 Teyli - 100C - White'), { site: 'wgw', siteCategory: 'Clothing', subcategory: 'Underwear', name: 'Teyli Soft Bra - White' });
-  assert.equal(lx('Blouse model 228065 Relevance - ONE-SIZE-FITS-ALL - Red').name, 'Relevance Blouse - Red');
-  assert.equal(luxe.classify({ name: 'Boxers model 158461 Henderson - L - Black', feedCategory: 'male' }).site, 'mgw');
+  // classifyAll: the full sort, before the owner's choice of ranges.
+  assert.deepEqual(luxe.classifyAll({ name: 'Soft model 198086 Teyli - 100C - White' }), { site: 'wgw', siteCategory: 'Clothing', subcategory: 'Underwear', name: 'Teyli Soft Bra - White' });
+  assert.equal(luxe.classifyAll({ name: 'Blouse model 228065 Relevance - ONE-SIZE-FITS-ALL - Red' }).name, 'Relevance Blouse - Red');
+  assert.equal(luxe.classifyAll({ name: 'Boxers model 158461 Henderson - L - Black', feedCategory: 'male' }).site, 'mgw');
   // One card per model and colour: the sizes are joined.
   const key = n => luxe.productKey(c => (c === 'product_name' ? n : ''));
   assert.equal(key('Padded bra model 227813 Vena - 85D - Beige'), key('Padded bra model 227813 Vena - 75D - Beige'));
@@ -218,5 +219,24 @@ test('8 Nov 2026 late, "can they go elsewhere": Luxefashion on WGW (heels, dress
   assert.equal(sl('12V Kids Ride On Jeep', 'Kids Ride-On Electric Cars').subcategory, 'Electric Riding Vehicles');
   assert.ok(sl('IronMan 20kg Dumbbell Set', 'Fitness Equipment > Free Weights').reject);
   assert.ok(sl('Fitness Mad Mini Rebounder', 'Trampolines').reject);
+});
+
+test("owner's choice for Luxefashion (8 Nov 2026): shoes, dresses, coats, knitwear, skirts, accessories, nightwear only; Natkina https pictures; pools on KGW", () => {
+  const lx = name => luxe.classify({ name });
+  assert.equal(lx('Block heel pumps model 226555 Solea - 39 - Black').subcategory, 'Heels');
+  assert.equal(lx('Daydress model 205511 Numoco - M - Red').subcategory, 'Dresses');
+  assert.equal(lx('Turtleneck model 215301 Lakerta - S - Black').subcategory, 'Knitwear');
+  assert.equal(lx('Neckerchief model 223310 At - ONE-SIZE-FITS-ALL - Multicolor').subcategory, 'Scarves');
+  assert.equal(lx('Coat model 160011 Rue Paris - L - Brown').subcategory, 'Jackets & Coats');
+  for (const n of ['Padded bra model 227813 Vena - 85D - Beige', 'Blouse model 228065 Relevance - ONE-SIZE-FITS-ALL - Red',
+    'Swimsuit two piece model 199981 Marko - M - Pink', 'Jeans model 217001 Factory Price - 38 - Blue']) assert.ok(lx(n).reject, n);
+  // The full sort still works (for a later change of mind).
+  assert.equal(luxe.classifyAll({ name: 'Padded bra model 227813 Vena - 85D - Beige' }).subcategory, 'Underwear');
+  assert.equal(natkina.field('merchant_image_url', () => 'http://cdn.example.com/a.jpg'), 'https://cdn.example.com/a.jpg');
+  assert.equal(natkina.field('product_name', () => 'http://x'), 'http://x');
+  assert.equal(sal.classify({ name: 'Bestway Tug Boat Play Pool', feedCategory: 'Garden Games > Swimming Pools' }).subcategory, 'Water Play Equipment');
+  assert.equal(sal.classify({ name: 'Air League HB10 Junior Adjustable Basketball Stand', feedCategory: 'Garden Games > Basketball' }).subcategory, 'Outdoor Games');
+  const sgw = JSON.parse(readFileSync(new URL('../../sites/sgw/sources.json', import.meta.url), 'utf8')).sources.find(s => s.advertiserId === 1463);
+  assert.ok(sgw.denyPaths.includes('trampolines') && sgw.denyPaths.includes('swimming pools'));
 });
 
