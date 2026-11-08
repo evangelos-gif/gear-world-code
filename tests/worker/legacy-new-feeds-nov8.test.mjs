@@ -102,3 +102,25 @@ test('Baccus: men\'s clothes, shoes and accessories to MGW in its existing subca
   assert.ok(c('Gift Voucher', '', 'Gift Vouchers').reject);
   assert.ok(b.RULES.shop.test('https://baccusstore.co.uk/products/x'));
 });
+
+test('fixes of 8 Nov 2026 evening: car diffusers and headlight bulbs on AGW, AKKO keyboards on PGW, Baccus socks and trunks', async () => {
+  const agw = await import('../../sites/agw/category-rules.js');
+  const pgw = await import('../../sites/pgw/category-rules.js');
+  const b = await import('../../tools/import-rules/baccus.mjs');
+  const d = JSON.parse(readFileSync('sites/agw/sources.json', 'utf8').replace(/^﻿/, ''));
+  const pred = d.sources.find(s => s.advertiserId === 104931);
+  assert.equal(agw.classify('VW Transporter T7 25+ Gloss Black Rear Bumper Diffuser', 'Styling', '', pred).ok, true);
+  assert.equal(agw.classify('Stealth LED H7 Headlight Bulb Pair – 2800 lumens', 'LED Bulbs', '', pred).ok, true);
+  assert.equal(agw.classify('Reed Diffuser Lavender 100ml', 'Home').ok, false, 'a home diffuser stays out');
+  assert.equal(agw.classify('LED Headlight 300 lumens Rechargeable Head Torch', 'Torches').ok, false, 'a head torch stays out');
+  const ps = JSON.parse(readFileSync('sites/pgw/sources.json', 'utf8').replace(/^﻿/, '')).sources.find(s => s.retailer === 'AKKO');
+  assert.deepEqual(pgw.classify('Black & Gold 3068B Plus ISO', 'Keyboards', '', ps), { ok: true, slug: 'mice-keyboards' });
+  assert.deepEqual(pgw.classify('Verge S9 Ultra Gaming Headset', 'Keyboards', '', ps), { ok: true, slug: 'headsets' });
+  assert.equal(pgw.classify('Black & Gold 3068B Plus ISO', 'Keyboards', '', { retailer: 'Other' }).ok, false, 'other shops unchanged');
+  const c = (name, awinCategory = "Men's Clothing") => b.classify({ name, feedCategory: 'Clothing', awinCategory });
+  assert.equal(c('BOSS - Six Pack Ribbed Cotton Socks - White', 'Accessories').subcategory, 'Socks');
+  assert.equal(c('HUGO - Tripple-Pack Galaxy Cotton Trunks - Black').subcategory, 'Underwear');
+  assert.equal(c('Lyle & Scott - Skinny ML822 Sweatpant - Navy').subcategory, 'Trousers');
+  assert.equal(c('Weekend Offender - Gacha Padded Gillet - Black').subcategory, 'Jackets');
+  assert.equal(c('Lacoste - Half Zip Sweater AH1980 - Beige').subcategory, 'Knitwear');
+});

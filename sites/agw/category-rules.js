@@ -43,6 +43,11 @@ export const DENY = [
 
 // ctx: true = only with car context (step 2). notInToolShop: skipped for a tool shop's "Automotive Tools"
 // section (a "brake" product there is a brake TOOL, not a brake part).
+// Exceptions found on 8 Nov 2026 (4x4 Predator dry run): a car's rear or bumper diffuser is not a home fragrance
+// diffuser, and a car headlight bulb ("Stealth LED H7 Headlight Bulb Pair - 2800 lumens") is not a head torch.
+DENY.find(d => d.label === 'clothes, gift or home item').unless = /\b(rear|bumper)\b[^|]*\bdiffusers?\b|\bdiffusers?\b[^|]*\bbumper\b/i;
+DENY.find(d => d.label === 'head torch, not a car light').unless = /\bheadlight bulbs?\b|\b(?:h\d{1,2}|hb[34]|9005|9006)\b/i;
+
 export const RULES = [
   {
     slug: 'parts-maintenance', // gas struts first: "Roof Box Gas Strut", "Tailgate Gas Strut"
@@ -167,7 +172,7 @@ export function mapByShop(feedCategory, source) {
 export function classify(name, feedCategory = '', paths = '', source = null) {
   const n = String(name || '');
   const cat = `${String(feedCategory || '')} | ${String(paths || '')}`;
-  for (const d of DENY) if (d.re.test(n)) return { ok: false, reason: d.label };
+  for (const d of DENY) if (d.re.test(n) && !(d.unless && d.unless.test(n))) return { ok: false, reason: d.label };
   const own = mapByShop(feedCategory, source);
   if (own) return { ok: true, slug: own };
   // Spark plugs and engine oil for lawnmowers, and whole vehicles (snowmobiles) listed under "Motor Vehicles".

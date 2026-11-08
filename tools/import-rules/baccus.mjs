@@ -25,6 +25,11 @@ const CLOTHES = [
   ['Jackets', /\b(jackets?|coats?|gilets?|parkas?|bombers?|overshirts?)\b/i], ['T-Shirts', /\b(t-?shirts?|tees?|vests?|tank)\b/i], ['Shirts', /\b(shirts?|polos?)\b/i],
   ['Tracksuits', /\btracksuits?\b/i]
 ];
+// Import of 8 Nov 2026: socks and trunks had gone to accessories or plain "Clothing", sweatpants and gilets too.
+const FIRST = [
+  ['Socks', /\bsocks?\b/i], ['Underwear', /\b(trunks?|boxers?|briefs?|underwear)\b/i], ['Trousers', /\b(sweatpants?|track ?pants?)\b/i],
+  ['Jackets', /\b(gillets?|gilets?)\b/i], ['Knitwear', /\bsweaters?\b/i]
+];
 
 export function classify({ name, feedCategory = '', awinCategory = '' }) {
   const n = String(name || '');
@@ -34,6 +39,7 @@ export function classify({ name, feedCategory = '', awinCategory = '' }) {
   if (/footwear/i.test(cat) || /\b(trainers?|sneakers?|boots?|shoes?|loafers?|sliders?|sandals?)\b/i.test(n)) {
     return { site: 'mgw', siteCategory: 'Shoes', subcategory: /\b(trainers?|sneakers?)\b/i.test(n) ? 'Trainers' : 'Shoes' };
   }
+  for (const [sub, re] of FIRST) if (re.test(n)) return { site: 'mgw', siteCategory: 'Clothing', subcategory: sub };
   if (/accessor/i.test(cat) || /\b(caps?|hats?|beanies?|belts?|wallets?|bags?|scarf|scarves|gloves|sunglasses)\b/i.test(n)) {
     const sub = /\b(caps?|hats?|beanies?)\b/i.test(n) ? 'Hats & Caps' : /\bbelts?\b/i.test(n) ? 'Belts' : /\b(wallets?|bags?)\b/i.test(n) ? 'Bags' : 'Accessories';
     return { site: 'mgw', siteCategory: 'Bags & Accessories', subcategory: sub };

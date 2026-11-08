@@ -944,6 +944,6 @@
       "approved": false,
       "_comment": "VEVOR NL: racing cockpits, wheel stands and PC cases, with Dutch names: waits for an English translation first (lessons L79), as on SGW and BGW."
     },
-    { "advertiserId": 69178, "feedIds": [94438], "retailer": "AKKO", "currency": "GBP", "condition": "new", "approved": true }
+    { "advertiserId": 69178, "feedIds": [94438], "retailer": "AKKO", "currency": "GBP", "condition": "new", "approved": true, "gamingShop": true, "defaultSlug": "mice-keyboards" }
   ]
 }

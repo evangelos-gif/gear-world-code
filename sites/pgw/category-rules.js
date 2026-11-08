@@ -278,6 +278,9 @@ export function classify(name, feedCategory = '', paths = '', source = null) {
   }
   if (r.overlap) return { ok: false, reason: OVERLAP_REASON[r.overlap] || 'another Gear World site' };
   if (r.why === 'no-list') return { ok: false, reason: 'office, parts, cables or look-alike name (not gaming)' };
+  // A gaming peripherals shop (AKKO, 8 Nov 2026: "Black & Gold 3068B Plus ISO", "MOD 006 DIY Kit", mouse pads and wrist
+  // rests, all under "Keyboards") names its products by model only: sources.json gamingShop + defaultSlug.
+  if (source && source.gamingShop && source.defaultSlug && CATEGORY_SLUGS.includes(source.defaultSlug)) return { ok: true, slug: source.defaultSlug };
   return { ok: false, reason: 'not gaming' };
 }
 
