@@ -2385,6 +2385,17 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         Check ($fdLast.Contains('Όλα τα προγράμματα όπου είσαι μέλος και έχουν feed: 1') -and -not $fdLast.Contains('55555')) 'feed download -AllJoined: only joined programmes'
         Check ($fdLast.Contains('σχεδόν άδειο')) 'feed download -AllJoined: an almost empty copy is listed as missing'
         Check ((Run-Fd @('-AllJoined', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ FEED DOWNLOAD')) -eq 2) 'feed download -AllJoined -Apply without -OnlyMissing: refused'
+        # -Refresh (8 Nov 2026): a feed that is already here (a big copy) is downloaded again with -OnlyMissing; a wrong number is refused.
+        Check ((Run-Fd @('-AllJoined', '-OnlyMissing', '-Refresh', 'abc')) -eq 2) 'feed download -Refresh with a wrong number: refused'
+        $bigCopy = Join-Path $fdArch 'AWIN_30645_116078.csv.gz'
+        [System.IO.File]::WriteAllText($bigCopy, ('x' * 300000), [System.Text.Encoding]::ASCII)
+        Check ((Run-Fd @('-AllJoined', '-OnlyMissing')) -eq 0) 'feed download -OnlyMissing with a full copy here: exit 0'
+        $fdNo = [System.IO.File]::ReadAllText((@(Get-ChildItem -LiteralPath $fdOut -Filter '*.txt' | Sort-Object LastWriteTime) | Select-Object -Last 1).FullName)
+        Check ($fdNo.Contains('δεν ξανακατεβαίνει')) 'feed download -OnlyMissing: a full copy is not downloaded again'
+        Check ((Run-Fd @('-AllJoined', '-OnlyMissing', '-Refresh', '30645')) -eq 0) 'feed download -Refresh: exit 0'
+        $fdRe = [System.IO.File]::ReadAllText((@(Get-ChildItem -LiteralPath $fdOut -Filter '*.txt' | Sort-Object LastWriteTime) | Select-Object -Last 1).FullName)
+        Check ($fdRe.Contains('κατεβαίνει ξανά (-Refresh)')) 'feed download -Refresh: the copy here is downloaded again'
+        Remove-Item -LiteralPath $bigCopy -Force
     } finally {
         if ($proc -and -not $proc.HasExited) { Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue }
     }

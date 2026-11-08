@@ -2,7 +2,7 @@
 .SYNOPSIS
   Gear World - FEED PROFILE. READ-ONLY.
 .DESCRIPTION
-  For the Awin feeds on this PC downloaded in the last -Days days (default 2), or for -Advertiser '<ids>', one block per
+  For the Awin feeds on this PC downloaded in the last -Days days (default 2; -Hours for the last hours), or for -Advertiser '<ids>', one block per
   feed: the shop's web address, currency, products, in stock, prices, the shop's categories, brands and sample names.
   What is needed to write a new shop's import rules and choose its site. It changes nothing (no import, no Cloudflare,
   no D1, no file in the archive).
@@ -11,6 +11,7 @@
 param(
     [string]$Advertiser = '',
     [int]$Days = 2,
+    [int]$Hours = 0,
     [string]$Archive = '',
     [string]$OutDir = '',
     [int]$MaxRows = 0,
@@ -51,7 +52,10 @@ New-Item -ItemType Directory -Path $run -Force | Out-Null
 
 Write-Host ('Φάκελος: {0} ({1} αρχεία)' -f $Archive, (Count-Feeds $Archive))
 Write-Host 'Διαβάζω όλα τα feeds... (μπορεί να πάρει μερικά λεπτά, άφησέ το να τελειώσει)'
-$nodeArgs = @((Join-Path (Join-Path $repo 'tools') 'feed-profile.mjs'), '--archive', $Archive, '--out', $run, '--days', [string]$Days)
+# -Hours: only the feeds downloaded in the last hours (a second download the same day, 8 Nov 2026).
+$dayText = [string]$Days
+if ($Hours -gt 0) { $dayText = ([double]$Hours / 24).ToString([System.Globalization.CultureInfo]::InvariantCulture) }
+$nodeArgs = @((Join-Path (Join-Path $repo 'tools') 'feed-profile.mjs'), '--archive', $Archive, '--out', $run, '--days', $dayText)
 if ($Advertiser) { $nodeArgs += @('--advertiser', $Advertiser) }
 if ($MaxRows -gt 0) { $nodeArgs += @('--max-rows', [string]$MaxRows) }
 & node @nodeArgs

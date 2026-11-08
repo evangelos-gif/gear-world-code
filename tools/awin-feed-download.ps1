@@ -13,6 +13,8 @@
   -AllJoined: every programme you have joined that has a feed (instead of -Advertiser), with the copy on this PC.
   -OnlyMissing: only feeds with no copy here, or an almost empty copy (under 20 products). -AllJoined with -Apply
   needs -OnlyMissing, so a click never downloads every big feed at once.
+  -Refresh '<ids>': these advertisers are downloaded again even with -OnlyMissing (owner, 8 Nov 2026: the missing feeds
+  and a fresh Joybuy feed in one paste, one phrase).
 
   The Awin feed key is asked once and kept encrypted for your Windows user (DPAPI) in
   <home>\gear-world-secrets\awin-feed-key.dat. It is never written to a report, the clipboard or the repo.
@@ -22,6 +24,7 @@ param(
     [string[]]$Advertiser = @('30645'),
     [switch]$AllJoined,
     [switch]$OnlyMissing,
+    [string]$Refresh = '',
     [switch]$Apply,
     [string]$Approve = '',
     [string]$Archive = '',
@@ -94,6 +97,7 @@ Say ('Ώρα: {0}' -f (Get-Date -Format 'yyyy-MM-dd HH:mm'))
 $host1 = ([uri]$BaseUrl).Host
 if ($host1 -ne 'productdata.awin.com' -and $host1 -ne '127.0.0.1') { Say 'Μη αναμενόμενη διεύθυνση λήψης.' 'Red'; Finish 2 }
 $ids = @($Advertiser | ForEach-Object { $_ -split '[,\s]+' } | Where-Object { $_ } | ForEach-Object { if ($_ -notmatch '^\d{2,9}$') { Say ('Λάθος αριθμός καταστήματος: {0}' -f $_) 'Red'; Finish 2 }; $_ })
+$refreshIds = @($Refresh -split '[,\s]+' | Where-Object { $_ } | ForEach-Object { if ($_ -notmatch '^\d{2,9}$') { Say ('Λάθος αριθμός καταστήματος στο -Refresh: {0}' -f $_) 'Red'; Finish 2 }; $_ })
 if (-not (Test-Path -LiteralPath $Archive)) { Say ('Δεν βρήκα τον φάκελο των feeds: {0}' -f $Archive) 'Red'; Finish 2 }
 
 # 1. The feed key (asked once, kept encrypted for this Windows user).
@@ -123,7 +127,7 @@ function Col($row, [string]$re) { foreach ($p in $row.PSObject.Properties) { if 
 $joined = @($list | Where-Object { (Col $_ '(?i)membership') -match '(?i)^\s*(active|joined)\s*$' })
 Say ('Λίστα Awin: {0} feeds, {1} από προγράμματα όπου είσαι μέλος.' -f $list.Count, $joined.Count)
 if ($AllJoined) {
-    $ids = @($joined | ForEach-Object { Col $_ '(?i)^advertiser.?id$' } | Where-Object { $_ -match '^\d{2,9}$' } | Sort-Object -Unique)
+    $ids = @(@($joined | ForEach-Object { Col $_ '(?i)^advertiser.?id$' } | Where-Object { $_ -match '^\d{2,9}$' }) + $refreshIds | Sort-Object -Unique)
     Say ('Όλα τα προγράμματα όπου είσαι μέλος και έχουν feed: {0}' -f $ids.Count)
     if ($Apply -and -not $OnlyMissing) { Say 'Με -AllJoined η λήψη γίνεται μόνο μαζί με -OnlyMissing (για να μην κατέβουν όλα τα μεγάλα feeds μαζί).' 'Red'; Finish 2 }
 }
@@ -165,7 +169,8 @@ foreach ($id in $ids) {
         $region = Col $r '(?i)region'
         if ($missing -and $mem -match '(?i)^\s*(active|joined)\s*$') { $missingList.Add(('{0} {1} (feed {2}, {3}, προϊόντα {4})' -f $id, $name, $fid, $region, $cnt)) }
         Say ('{0} {1}, feed {2}: μέλος: {3} | προϊόντα στο Awin: {4} | ανανέωση Awin: {5} | αντίγραφο εδώ: {6}' -f $id, $name, $fid, $mem, $cnt, $last, $localTxt)
-        if ($OnlyMissing -and -not $missing) { Say '  υπάρχει εδώ: δεν ξανακατεβαίνει (-OnlyMissing).'; continue }
+        if ($OnlyMissing -and -not $missing -and ($refreshIds -notcontains $id)) { Say '  υπάρχει εδώ: δεν ξανακατεβαίνει (-OnlyMissing).'; continue }
+        if ($refreshIds -contains $id -and -not $missing) { Say '  κατεβαίνει ξανά (-Refresh).' }
         if ($fid -match '^\d+$' -and $mem -match '(?i)^\s*(active|joined)\s*$') { $todo.Add(@{ id = $id; fid = $fid; name = $name; local = $local; count = $cnt }) }
         elseif ($fid -match '^\d+$') { Say '  δεν κατεβαίνει: δεν είσαι ενεργό μέλος αυτού του προγράμματος.' 'Yellow' }
     }
