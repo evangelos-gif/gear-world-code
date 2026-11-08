@@ -146,10 +146,30 @@ const toolShop = cat => /(?:^|\|)\s*automotive tools\b/i.test(String(cat || ''))
 
 // name: product name; feedCategory: merchant category path (and Awin category) as one string.
 // paths: every merchant category column of the row (leaf and full path), from the import tool.
-export function classify(name, feedCategory = '', paths = '') {
+// A shop whose feed categories are clean car-accessory sections (4x4 Predator, 8 Nov 2026: "Side Steps", "Roof Rails",
+// "Integration Kits", "Floor Mats" ...) gives them in sources.json as categoryMap { "<shop category>": "<slug>" }: the
+// longest shop category that starts the feed category decides, after the DENY list. categoryDefault: the slug for the
+// shop's other sections (all its products are car accessories). The first dry run put spoilers and LED kits under
+// garage tools and left 1,124 of 2,393 rows unmatched (lessons L102).
+export function mapByShop(feedCategory, source) {
+  const map = source && source.categoryMap;
+  if (!map) return '';
+  const fc = String(feedCategory || '').trim().toLowerCase();
+  let best = '';
+  for (const k of Object.keys(map)) {
+    const key = k.toLowerCase();
+    if ((fc === key || fc.startsWith(key + ' ') || fc.startsWith(key + ' >')) && key.length > best.length) best = k;
+  }
+  const slug = best ? map[best] : (source.categoryDefault || '');
+  return CATEGORY_SLUGS.includes(slug) ? slug : '';
+}
+
+export function classify(name, feedCategory = '', paths = '', source = null) {
   const n = String(name || '');
   const cat = `${String(feedCategory || '')} | ${String(paths || '')}`;
   for (const d of DENY) if (d.re.test(n)) return { ok: false, reason: d.label };
+  const own = mapByShop(feedCategory, source);
+  if (own) return { ok: true, slug: own };
   // Spark plugs and engine oil for lawnmowers, and whole vehicles (snowmobiles) listed under "Motor Vehicles".
   if (GARDEN_FEED.test(cat)) return { ok: false, reason: 'garden or farm machine' };
   if (VEHICLE_FEED.test(cat) && !VEHICLE_FEED_OK.test(n)) return { ok: false, reason: 'a vehicle, not gear' };

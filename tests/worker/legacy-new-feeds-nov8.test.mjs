@@ -73,3 +73,20 @@ test('new-engine sources: 4x4 Predator on Car Gear World, AKKO on Technology and
   assert.ok(has('tgw', 69178, 94438, 'AKKO'));
   assert.ok(has('pgw', 69178, 94438, 'AKKO'));
 });
+
+test('Car Gear World: a shop category map (4x4 Predator) decides before the general rules; other shops are unchanged (L102)', async () => {
+  const agw = await import('../../sites/agw/category-rules.js');
+  const d = JSON.parse(readFileSync('sites/agw/sources.json', 'utf8').replace(/^﻿/, ''));
+  const src = d.sources.find(s => s.advertiserId === 104931);
+  const c = (name, cat) => agw.classify(name, cat, '', src);
+  assert.deepEqual(c('Jaecoo J7 2025+ Black Aluminium Side Steps Pair', 'Side Steps'), { ok: true, slug: 'roof-towing-exterior' });
+  assert.deepEqual(c('Ford Transit Custom MK2 23+ Gloss Black Tailgate Rear Spoiler', 'Styling'), { ok: true, slug: 'roof-towing-exterior' });
+  assert.deepEqual(c('Stealth LED VW Crafter 2017+ Twin 7" Luminous LED Integration Kit - 10,080 Lumens', 'Integration Kits'), { ok: true, slug: 'car-electronics' });
+  assert.deepEqual(c('Toyota Hilux Revo 30mm Hubcentric Wheel Spacers', 'Spacers'), { ok: true, slug: 'tyres-wheels' });
+  assert.deepEqual(c('Universal Tailgate Damper', 'Tailgate Struts'), { ok: true, slug: 'parts-maintenance' });
+  assert.deepEqual(c('Suzuki Jimny Rubber Floor Mats', 'Floor Mats'), { ok: true, slug: 'interior-comfort' });
+  assert.deepEqual(c('Defender Wading Plug Kit', 'Accessories'), { ok: true, slug: 'roof-towing-exterior' }, 'categoryDefault for the shop\'s other sections');
+  assert.equal(agw.mapByShop('Side Steps', { categoryMap: { 'Side Steps': 'no-such-slug' } }), '', 'an unknown slug is ignored');
+  assert.equal(agw.mapByShop('Side Steps', null), '');
+  assert.deepEqual(agw.classify('Ford Ranger Side Steps', 'Side Steps'), agw.classify('Ford Ranger Side Steps', 'Side Steps', '', { retailer: 'Tooled Up' }), 'no map: as before');
+});
