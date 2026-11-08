@@ -265,6 +265,13 @@ if (Get-Command node -ErrorAction SilentlyContinue) {
     Check ($minis.Count -eq 1) 'mini PC scan: report folder written'
     if ($minis.Count -ge 1) { Check ([System.IO.File]::ReadAllText((Join-Path $minis[0].FullName 'report.txt'), [System.Text.Encoding]::UTF8).Contains('Feeds που διαβάστηκαν: 1.')) 'mini PC scan: reads the archive' }
     Check ((Get-FileHash -LiteralPath $gzPath -Algorithm SHA256).Hash -eq $archHash) 'mini PC scan: Awin archive unchanged'
+    $profOut = Join-Path $work 'feed-profile-run'
+    & $exe -NoProfile -ExecutionPolicy Bypass -File $runTool -LocalRepo $repo -Tool feed-profile -Archive $arch -Days 3650 -OutDir $profOut -NoClipboard | Out-Null
+    Check ($LASTEXITCODE -eq 0) 'feed profile: exit code 0 through gw-run'
+    $profs = @(Get-ChildItem -LiteralPath $profOut -Directory -Filter 'FEED_PROFILE_*' -ErrorAction SilentlyContinue)
+    Check ($profs.Count -eq 1) 'feed profile: report folder written'
+    if ($profs.Count -ge 1) { Check ([System.IO.File]::ReadAllText((Join-Path $profs[0].FullName 'report.txt'), [System.Text.Encoding]::UTF8).Contains('Προϊόντα: ')) 'feed profile: profiles the archive feed' }
+    Check ((Get-FileHash -LiteralPath $gzPath -Algorithm SHA256).Hash -eq $archHash) 'feed profile: Awin archive unchanged'
     $travelOut = Join-Path $work 'travel-scan-run'
     & $exe -NoProfile -ExecutionPolicy Bypass -File $runTool -LocalRepo $repo -Tool travel-feed-scan -Archive $arch -OutDir $travelOut -KeyFile (Join-Path $work 'no-key.dat') -NoClipboard | Out-Null
     Check ($LASTEXITCODE -eq 0) 'travel feed scan: exit code 0 through gw-run, without a saved key'
