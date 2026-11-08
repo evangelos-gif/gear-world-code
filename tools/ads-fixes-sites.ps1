@@ -14,6 +14,10 @@
   the retailers' affiliate programmes" (not "given to their affiliate partners") and no "Shop through <site>" or "our
   retailers" in their description, "Lowest price (retailers listed)" in the Car guide (not "our shops"), and every
   retailer name inside a translated text ("View at", "Stock at", "Shop at", the codes) in its own translate="no" span.
+  D1 rows read (lessons L105): the product pages of the 7 new-layout sites read the rows of a product group through the
+  index idx_products_group_key (about 500 rows a page instead of about 62,000 on cargearworld.com), "similar products"
+  reads fewer rows on all 13 sites, and robots.txt keeps SERankingBacklinksBot out. The index goes in FIRST
+  (tools/d1-native-index.ps1, ΕΓΚΡΙΝΩ ΕΥΡΕΤΗΡΙΑ D1); without it the new code reads about as much as the old one.
 
 .DESCRIPTION
   -Step check   READ-ONLY. The 13 site tools are there? Shows the plan.
@@ -25,8 +29,8 @@
                 It stops at the first problem; sites already updated keep working. Running it again is safe.
                 The site databases and their settings on this PC do not change. The Hub has its own step
                 (tools/gwh-hub-v2.ps1, ΕΓΚΡΙΝΩ HUB CLEANUP LIVE for L103).
-                Going back: each site tool's update with the version before (git commit 98b476d for the L103
-                clean-up; f4c8c35 for the L102 follow-up; c544884 before L101).
+                Going back: each site tool's update with the version before (git commit 12e54c0 before L105;
+                98b476d for the L103 clean-up; f4c8c35 for the L102 follow-up; c544884 before L101).
   Report: <home>\gear-world-reports\ADS_FIXES_<STEP>_<time>.txt (also copied to the clipboard)
 #>
 param(
@@ -131,7 +135,10 @@ function Test-Fixes([string]$domain) {
     $okAbout = ($about -match 'class="about-lead"') -and ($about -match 'class="about-run"') -and ($about -match 'contact@gearworldhub\.com')
     $codes = Get-Page ('https://{0}/discount-codes/?gwcheck={1}' -f $domain, $stamp)
     $okL103 = ($homePage -match 'Browse by category') -and -not ($homePage -match 'Shop by category|retailer partners?|trusted retailers') -and ($homePage -match 'data-i18n="View at \{0\}"[^>]*data-i18n-keep="0"') -and -not ($codes -match 'Shop through|our retailers|affiliate partners')
-    return ($okHome -and $okAbout -and $okL103)
+    # L105: robots.txt keeps SERankingBacklinksBot out (the lines below it stay as they were).
+    $robots = Get-Page ('https://{0}/robots.txt?gwcheck={1}' -f $domain, $stamp)
+    $okL105 = ($robots -match '(?m)^User-agent: SERankingBacklinksBot\s*$') -and ($robots -match '(?m)^Disallow: /out/\s*$')
+    return ($okHome -and $okAbout -and $okL103 -and $okL105)
 }
 
 # ---------------- start ----------------
@@ -154,6 +161,8 @@ if ($Step -eq 'check') {
     Say '     («Saved list» αντί για «Gear Cart», «Sold by … (not by Gear World)», «… delivers to», «Stock at …», το /about/ και η γραμμή του footer, σε 10 γλώσσες)'
     Say '     (L102: «<κατάστημα> delivers to» και στις κάρτες, το μπάνερ των Χριστουγέννων λέει «Gifts for everyone» και φαίνεται μόνο πάνω από πραγματικές προσφορές, χωρίς «Quantity»)'
     Say '     (L103: «Browse by category», «retailers compared», «compares prices across retailers», κωδικοί «through their affiliate programmes», το όνομα του καταστήματος translate="no" στο «View at» / «Stock at»)'
+    Say '     (L105: η σελίδα προϊόντος των 7 νέων sites διαβάζει μόνο τις γραμμές της ομάδας μέσα από το idx_products_group_key, τα «Παρόμοια» διαβάζουν λιγότερα και στα 13, και το robots.txt κλείνει το SERankingBacklinksBot)'
+    Say '     ΠΡΩΤΑ το ευρετήριο στις 7 βάσεις: tools/d1-native-index.ps1 με «ΕΓΚΡΙΝΩ ΕΥΡΕΤΗΡΙΑ D1». Χωρίς αυτό ο νέος κώδικας διαβάζει περίπου όσο ο παλιός.'
     Say '  2. έλεγχος ότι κάθε αρχική σελίδα δείχνει στο /saved/ και έχει τη νέα γραμμή στο footer, και ότι το /about/ λέει ποιος τρέχει το Gear World'
     Say '  Οι βάσεις των sites και οι ρυθμίσεις τους στον υπολογιστή δεν αλλάζουν.'
     Say ''
@@ -194,7 +203,7 @@ if (-not $NoHttpCheck) {
     $notYet = @()
     foreach ($s in $Sites) { if (-not (Test-Fixes $s.domain)) { $notYet += $s.domain } }
     if ($notYet.Count -gt 0) { Say ('2. Οι αλλαγές δεν φαίνονται ακόμα σε: {0} (η cache κρατάει έως λίγα λεπτά· στείλε στο Claude αυτή την αναφορά)' -f ($notYet -join ', ')) 'Yellow' }
-    else { Say '2. Και τα 13 sites: «Saved list» στο /saved/, η γραμμή του footer, το /about/ και οι λέξεις του L103: ΕΝΤΑΞΕΙ' 'Cyan' }
+    else { Say '2. Και τα 13 sites: «Saved list» στο /saved/, η γραμμή του footer, το /about/, οι λέξεις του L103 και το robots.txt του L105: ΕΝΤΑΞΕΙ' 'Cyan' }
 }
 Say ''
 Say ('Ανέβηκαν: {0}' -f ($done -join ', '))

@@ -6,8 +6,13 @@ import { promoRetailers } from './lib/promos.js';
 
 export const SITEMAP_CHUNK = 10000;
 
+// Crawlers that are kept out of the whole site (lessons L105): SERankingBacklinksBot opened about 1,000 product pages an
+// hour on cargearworld.com (6-8 Nov 2026) and brings no visitors. Everything below them stays as it was.
+export const BLOCKED_CRAWLERS = ['SERankingBacklinksBot'];
+
 export function robotsTxt(site) {
   return [
+    ...BLOCKED_CRAWLERS.flatMap(bot => [`User-agent: ${bot}`, 'Disallow: /', '']),
     'User-agent: *',
     'Allow: /',
     'Disallow: /out/',

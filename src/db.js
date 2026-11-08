@@ -104,7 +104,13 @@ export function isLegacy() { return LAYOUT.legacy; }
 
 // One product sold by several retailers (same GTIN/EAN) is shown once, at its best offer: in stock first,
 // then the lowest price. offer_count tells the card how many retailers sell it (site.groupOffers).
-const GTIN_KEY = "COALESCE(NULLIF(TRIM(p.gtin), ''), 'id:' || p.id)";
+// GTIN_KEY is the group key on the rows named p (the new layout's table, or the older layout's view).
+export const GTIN_KEY = "COALESCE(NULLIF(TRIM(p.gtin), ''), 'id:' || p.id)";
+// The same key on the new layout's own columns (no alias). The index idx_products_group_key of the new-layout databases
+// (sites/<site>/migrations/0002_group_key_index.sql, lessons L105) is built on exactly this text, so SQLite finds the
+// rows of a group through it (without the index, "the same product at other retailers" read the whole table: AGW 36,212
+// rows on every product page, 8 Nov 2026).
+export const NATIVE_GROUP_KEY = "COALESCE(NULLIF(TRIM(gtin), ''), 'id:' || id)";
 const gk = () => LAYOUT.groupKey || GTIN_KEY;
 
 export function offerKey(product) {
@@ -126,10 +132,11 @@ function cardSql(where, order, tail = '', from = `${LAYOUT.from} p`) {
       FROM ${from} WHERE ${where}) q) p WHERE p.rn = 1 ORDER BY ${order} ${tail}`;
 }
 
-// ---- Lists that read only the rows they show (lessons L51) ----
+// ---- Lists that read only the rows they show (lessons L51, L105) ----
 // D1 bills every row a query reads (Workers Paid: 25 billion a month included, then $1 per billion). On the older
 // sites "the same product at other retailers" and "similar products" used to read the whole table or the whole
 // category for every product page (CGW: about 370,000 rows per page; the network paid about $24 on 23 Oct 2026).
+// The new-layout sites did the same until 8 Nov 2026 (AGW: about 62,000 rows per product page, L105).
 // They now find the rows next to the product through an index and return exactly the same cards. When that cannot
 // be proved for a product (rare), the old full query runs, so the page never changes.
 
@@ -137,19 +144,18 @@ function cardSql(where, order, tail = '', from = `${LAYOUT.from} p`) {
 const NEAR = 40;
 
 // The rows of the given product groups (keys made by gk()), and nothing else.
-// Older layout: the ids of those rows are found through an index and joined IN FRONT of the rows with CROSS JOIN.
-// SQLite always keeps the left side of a CROSS JOIN as the outer loop, so it reads each row by its id and never
-// the whole category or table, whatever its statistics say.
+// The ids of those rows are found through an index and joined IN FRONT of the rows with CROSS JOIN. SQLite always
+// keeps the left side of a CROSS JOIN as the outer loop, so it reads each row by its id and never the whole category
+// or table, whatever its statistics say.
 //   CGW (groupById): the import's match table product_group_offers (index on group_id), and single product ids.
 //   Other older sites: the group key on the table's own columns (L51 index idx_products_group_key).
-// New layout: the group key as a filter (the caller's category filter keeps it small).
+//   New layout: the same on its own columns (NATIVE_GROUP_KEY, L105 index idx_products_group_key). Until 8 Nov 2026
+//   the key was only a filter after the category: "similar products" read the whole category (AGW about 26,000 rows).
 // Binds: fromBinds go before the binds of the caller's WHERE, whereBinds after them.
 function groupFilter(keys) {
   const list = JSON.stringify(keys.map(String));
-  if (!LAYOUT.legacy) {
-    return { from: `${LAYOUT.from} p`, where: `${gk()} IN (SELECT value FROM json_each(?))`, fromBinds: [], whereBinds: [list] };
-  }
-  let ids = { sql: `SELECT id AS pid FROM products WHERE ${LEGACY_GROUP_KEY} IN (SELECT value FROM json_each(?))`, binds: [list] };
+  const key = LAYOUT.legacy ? LEGACY_GROUP_KEY : NATIVE_GROUP_KEY;
+  let ids = { sql: `SELECT id AS pid FROM products WHERE ${key} IN (SELECT value FROM json_each(?))`, binds: [list] };
   if (LAYOUT.groupById) {
     const singles = [], groups = [];
     for (const k of keys.map(String)) {
@@ -166,11 +172,12 @@ function groupFilter(keys) {
 }
 
 // Every active offer of the same product (same GTIN), best first. Empty unless the site groups offers.
+// Only the rows of the product's group are read, in both layouts (the same rows as the old query: the same key).
 // opts.full: the old query that reads every row (tests compare the two).
 export async function offersFor(db, product, limit = 12, opts = {}) {
   if (!LAYOUT.group || !product || offerKey(product).startsWith('id:')) return [];
   const key = offerKey(product);
-  const f = opts.full || !LAYOUT.legacy
+  const f = opts.full
     ? { from: `${LAYOUT.from} p`, where: '1', fromBinds: [], whereBinds: [] }
     : groupFilter([key]);
   const r = await db
@@ -439,8 +446,14 @@ export async function getProductForRedirect(db, id) {
 // group can come before it: the result is the full query's. Otherwise (or with opts.full) the full query runs.
 // Many products often share one price (CGW: 873 at £10.95 in one category), so all the rows read on a side can be
 // at the same distance; the id decides between them, as in the full query (lessons L51: an earlier version compared
-// distances only, so every product with 40 others at its own price ran the full query). Below the price, the rows
-// of one price are sorted by id: SQLite then reads the whole last price block of that side, never more.
+// distances only, so every product with 40 others at its own price ran the full query).
+// Below the price the full query wants the rows of one price by the LOWER id first, but the index walks them by the
+// higher id first. Sorting them in SQL read the whole last price block of that side (AGW-like data: often 1,000-2,000
+// rows, lessons L105). So the side is read backwards along the index (no sort, NEAR rows), and when it stops inside a
+// price block, that one block is read again from its lowest id (no sort, at most NEAR rows): together exactly the first
+// NEAR rows of the side in the full query's order.
+// The cards of the groups are then chosen from the plain rows of those groups (cardsOf), not with the window functions
+// of cardSql: D1 counts the rows of every window step too (AGW-like data: about 1,500 rows instead of about 450).
 // Price is NOT NULL in both layouts, so no NULL price comes first.
 export async function similarProducts(db, product, limit = 8, opts = {}) {
   if (!product.category_slug) return [];
@@ -452,11 +465,31 @@ export async function similarProducts(db, product, limit = 8, opts = {}) {
   const price = Number(product.price);
   if (opts.full || !Number.isFinite(price)) return full();
   const near = Math.max(1, Number(opts.near) || NEAR);
-  const side = (cond, dir) => db
+  const side = (cond, sideOrder, value, n) => db
     .prepare(`SELECT ${CARD_COLUMNS}, ${gk()} AS gk FROM ${LAYOUT.from} p WHERE ${where} AND ${cond}
-      ORDER BY p.price ${dir}, p.id ASC LIMIT ?`)
-    .bind(...binds, price, near);
-  const [up, down] = (await db.batch([side('p.price >= ?', 'ASC'), side('p.price < ?', 'DESC')])).map(r => r.results || []);
+      ORDER BY ${sideOrder} LIMIT ?`)
+    .bind(...binds, value, n);
+  const [up, back] = (await db.batch([
+    side('p.price >= ?', 'p.price ASC, p.id ASC', price, near),
+    side('p.price < ?', 'p.price DESC, p.id DESC', price, near)
+  ])).map(r => r.results || []);
+  // Below the price, in the full query's order: each price block of the rows read backwards, turned round (lower id
+  // first). Prices are compared as SQLite returned them (===), never re-sorted in JS.
+  if (back.some(row => typeof row.price !== 'number')) return full();
+  const blocks = [];
+  for (const row of back) {
+    const last = blocks[blocks.length - 1];
+    if (last && last[0].price === row.price) last.push(row); else blocks.push([row]);
+  }
+  let down = blocks.flatMap(b => b.reverse());
+  if (back.length >= near) {
+    // The read stopped inside its last price block: that block again, from its lowest id.
+    const cut = blocks[blocks.length - 1];
+    const keep = back.length - cut.length;
+    const block = (await side('p.price = ?', 'p.id ASC', cut[0].price, near - keep).all()).results || [];
+    if (block.length !== near - keep) return full();
+    down = [...down.slice(0, keep), ...block];
+  }
   const dist = row => Math.abs(Number(row.price) - price);
   // The full query's order: closer first, then the lower id (negative when a comes first).
   const before = (a, b) => dist(a) - dist(b) || Number(a.id) - Number(b.id);
@@ -470,12 +503,35 @@ export async function similarProducts(db, product, limit = 8, opts = {}) {
   const keys = [...new Set(read.map(r => r.gk))];
   if (!keys.length) return ends.length === 0 ? [] : full();
   const f = groupFilter(keys);
-  const r = await db
-    .prepare(cardSql(`${where} AND ${f.where}`, order, 'LIMIT ?', f.from))
-    .bind(...f.fromBinds, ...binds, ...f.whereBinds, price, limit)
-    .all();
-  const rows = r.results || [];
+  const groupRows = (await db
+    .prepare(`SELECT ${CARD_COLUMNS}, first_seen_at, gtin, ${gk()} AS gk FROM ${f.from} WHERE ${where} AND ${f.where}`)
+    .bind(...f.fromBinds, ...binds, ...f.whereBinds)
+    .all()).results || [];
+  const rows = cardsOf(groupRows, before, limit);
+  if (!rows) return full();
   return proved(rows) ? fixAll(rows) : full();
+}
+
+// The cards that cardSql() makes, from the plain rows of whole product groups: per group (gk) its best offer (in stock
+// first, then the lowest price, then the lowest id), with rr = rn = 1 and offer_count = how many different retailers
+// the group's rows have; then sorted by `order` and cut at `limit`. The same choice as the window functions, on the
+// same values. Values that JavaScript could compare differently from SQLite (not plain numbers or text) give null:
+// the caller then runs the full query.
+function cardsOf(rows, order, limit) {
+  const groups = new Map();
+  for (const row of rows) {
+    if (typeof row.gk !== 'string' || typeof row.retailer !== 'string' || typeof row.price !== 'number'
+      || typeof row.in_stock !== 'number' || typeof row.id !== 'number') return null;
+    const g = groups.get(row.gk);
+    if (g) g.push(row); else groups.set(row.gk, [row]);
+  }
+  const better = (a, b) => b.in_stock - a.in_stock || (a.price < b.price ? -1 : a.price > b.price ? 1 : 0) || a.id - b.id;
+  const cards = [];
+  for (const g of groups.values()) {
+    const best = g.reduce((x, y) => (better(y, x) < 0 ? y : x));
+    cards.push({ ...best, rr: 1, rn: 1, offer_count: new Set(g.map(r => r.retailer)).size });
+  }
+  return cards.sort(order).slice(0, limit);
 }
 
 // Order of the "newest" cards: first_seen_at DESC, id DESC. Negative when a comes first; NULL dates come last.

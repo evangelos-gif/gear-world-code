@@ -75,7 +75,7 @@
 ## Bing Webmaster Tools (31/10/2026)
 | Αρχείο | Τι άλλαξε |
 |---|---|
-| `public/robots.txt` | Το Hub έχει πια δικό του robots.txt (στο μοτίβο των sites): `Allow: /`, `Disallow: /api/`, `Sitemap: https://gearworldhub.com/sitemap.xml`. Το Cloudflare βάζει από πάνω τα δικά του Content Signals. Το sitemap το σερβίρει ακόμα ο Worker `gwh-sitemap`, που ΔΕΝ αλλάζει |
+| `public/robots.txt` | Το Hub έχει πια δικό του robots.txt (στο μοτίβο των sites): `Allow: /`, `Disallow: /api/`, `Sitemap: https://gearworldhub.com/sitemap.xml`. Από το L105 (8/11/2026) πρώτα `User-agent: SERankingBacklinksBot` με `Disallow: /`, όπως στα 13 sites. Το Cloudflare βάζει από πάνω τα δικά του Content Signals. Το sitemap το σερβίρει ακόμα ο Worker `gwh-sitemap`, που ΔΕΝ αλλάζει |
 | `public/index.html` | Τίτλος «Gear World Hub – Gear, Gifts & Deals From Every Gear World», περιγραφή 151 χαρακτήρων, νέο `?v=20261101-seo1` για το `translations.js` (μετά την κάρτα Gaming) (μάθημα L31) |
 | `public/translations.js` | Το `document.title` γράφει τον ίδιο τίτλο, και η περιγραφή είναι το νέο `metaDesc` σε 11 γλώσσες (120–160 χαρακτήρες, χωρίς αριθμό κόσμων) αντί για «heroDesc + Gear World Hub.» (≈85) |
 | `public/terms/index.html`, `public/contact/index.html` | Περιγραφές 149 και 126 χαρακτήρων |
