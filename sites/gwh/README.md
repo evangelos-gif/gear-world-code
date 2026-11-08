@@ -148,3 +148,9 @@ Live από 7/11/2026 (commit f4c8c35· το `live-baseline.txt` ενημερώ�
 | `public/styles.css` | Δεν το φορτώνει η σελίδα από τις 27/10, αλλά σερβίρεται: φεύγουν οι κανόνες `.gwh-business-*` και τα σχόλια «shop». Δεν σβήνεται, γιατί το `gwh-hub-v2.ps1` δεν σβήνει αρχεία από τον φάκελο του υπολογιστή (θα έμενε live) και τα tests των παλιών εργαλείων το περιμένουν |
 
 Το `worker.js` και η D1 δεν αλλάζουν. Πάει με το `tools/gwh-hub-v2.ps1`: `-Step preview` (`ΕΓΚΡΙΝΩ HUB CLEANUP PREVIEW`), και μετά στην ίδια επικόλληση `-Step live` (`ΕΓΚΡΙΝΩ HUB CLEANUP LIVE`) και `-Step remove-preview` (`ΕΓΚΡΙΝΩ HUB REMOVE PREVIEW`). Μετά το live ενημερώνεται το `live-baseline.txt`. Έλεγχοι: `tests/worker/ads-cleanup.test.mjs` και `tools/gwh-hub-page-check.mjs`.
+
+## robots.txt: SERankingBacklinksBot (8/11/2026, μάθημα L105)
+
+Ένα SEO bot, ο SERankingBacklinksBot, άνοιγε περίπου 1.000 σελίδες προϊόντων την ώρα στο cargearworld.com (6–8/11/2026) και δεν φέρνει επισκέπτες. Το `public/robots.txt` αρχίζει πια με `User-agent: SERankingBacklinksBot` και `Disallow: /`· από κάτω οι ίδιες γραμμές όπως ήταν. Το ίδιο και στα 13 sites (`src/seo.js`).
+
+Αλλάζει μόνο το `public/robots.txt`· το `worker.js` και η D1 δεν αλλάζουν. Η δοκιμαστική διεύθυνση απαντά πάντα στο robots.txt με το δικό της `Disallow: /`, άρα ένα preview δεν δείχνει αυτή την αλλαγή και δεν χρειάζεται (το `-Step live` δεν ζητά preview). Πάει με το `tools/gwh-hub-v2.ps1`: `-Step live` (`ΕΓΚΡΙΝΩ HUB ROBOTS LIVE`) και στην ίδια επικόλληση `-Step remove-preview` (`ΕΓΚΡΙΝΩ HUB REMOVE PREVIEW`· χωρίς δοκιμαστικό Worker λέει «δεν υπάρχει ήδη» και δεν αλλάζει τίποτα). Μετά το deploy ο έλεγχος διαβάζει το live robots.txt: τη γραμμή Sitemap και τις δύο γραμμές του SERankingBacklinksBot. Μετά το live ενημερώνεται το `live-baseline.txt`. Έλεγχοι: `tests/worker/robots.test.mjs`.

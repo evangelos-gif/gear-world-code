@@ -18,10 +18,10 @@
   -Step check    READ-ONLY. Is the hub folder on this PC still exactly the version that runs live
                  (sites/gwh/live-baseline.txt, its "# version:" line names it), and gearworldhub.com too? Cloudflare
                  login, the live version of the Worker (needed to go back), the poster counting (it goes first).
-  -Step preview  CHANGES CLOUDFLARE, one approval: ΕΓΚΡΙΝΩ HUB CLEANUP PREVIEW. The test Worker "gear-world-hub-preview" on a
+  -Step preview  CHANGES CLOUDFLARE, one approval: ΕΓΚΡΙΝΩ HUB ROBOTS PREVIEW. The test Worker "gear-world-hub-preview" on a
                  *.workers.dev address gets this version (noindex, no Google Analytics, e-mail sign-up closed, no
                  poster counting; the same D1 and Workers AI, read only). gearworldhub.com does NOT change.
-  -Step live     CHANGES THE LIVE HUB, one approval: ΕΓΚΡΙΝΩ HUB CLEANUP LIVE. Only when the hub folder on this PC and the
+  -Step live     CHANGES THE LIVE HUB, one approval: ΕΓΚΡΙΝΩ HUB ROBOTS LIVE. Only when the hub folder on this PC and the
                  live site are still the version of live-baseline.txt (or already this version) and the posters count
                  already. First a zip of the hub folder and the number of the live version (for rollback), then the
                  changed files go into the hub folder, then gearworldhub.com is deployed from it and checked. If the
@@ -70,6 +70,15 @@
   say "retailer" instead of "shop"; styles.css (not loaded by the page) loses the rules of the sponsored card. New ?v=
   for hub-v2.css, hub-v2.js and translations.js. worker.js and the D1 do not change. Phrases of this release: ΕΓΚΡΙΝΩ HUB
   CLEANUP PREVIEW, then ΕΓΚΡΙΝΩ HUB CLEANUP LIVE together with remove-preview (ΕΓΚΡΙΝΩ HUB REMOVE PREVIEW) in the same paste.
+  Live since 7/11/2026 23:50 (faf047a).
+  robots.txt (lessons L105, 8/11/2026): public/robots.txt starts with "User-agent: SERankingBacklinksBot" and "Disallow: /"
+  (an SEO crawler that opened about 1,000 product pages an hour on cargearworld.com); every other line stays as it was.
+  Only that file changes; worker.js and the D1 do not. The test address always answers robots.txt with its own
+  "Disallow: /", so a preview cannot show this change and is not needed: the live step does not ask for one. After the
+  deploy the live check reads gearworldhub.com/robots.txt: the Sitemap line and the SERankingBacklinksBot lines.
+  Phrases of this release: ΕΓΚΡΙΝΩ HUB ROBOTS LIVE together with remove-preview (ΕΓΚΡΙΝΩ HUB REMOVE PREVIEW) in the same
+  paste; remove-preview with no test Worker says it is already gone and changes nothing (ΕΓΚΡΙΝΩ HUB ROBOTS PREVIEW only
+  if a preview is wanted).
   Report: <home>\gear-world-reports\GWH_HUB_V2_<STEP>_<time>.txt (also copied to the clipboard)
 #>
 param(
@@ -91,8 +100,8 @@ $repo = Split-Path -Parent $PSScriptRoot
 $HubWorker = 'gear-world-hub'
 $PreviewName = 'gear-world-hub-preview'
 $DbName = 'gear-world-registry'
-$PhrasePreview = 'ΕΓΚΡΙΝΩ HUB CLEANUP PREVIEW'
-$PhraseLive = 'ΕΓΚΡΙΝΩ HUB CLEANUP LIVE'
+$PhrasePreview = 'ΕΓΚΡΙΝΩ HUB ROBOTS PREVIEW'
+$PhraseLive = 'ΕΓΚΡΙΝΩ HUB ROBOTS LIVE'
 $PhraseRegister = 'ΕΓΚΡΙΝΩ HUB ZGW SEARCH'
 $PhraseRemovePreview = 'ΕΓΚΡΙΝΩ HUB REMOVE PREVIEW'
 $LiveUrl = 'https://gearworldhub.com'
@@ -391,8 +400,15 @@ function Test-Site([string]$base, [bool]$isLive) {
         # robots.txt with the Sitemap line is seen on gearworldhub.com only.
         if ($rb.status -eq 200 -and $rbText -match '(?m)^Disallow: /\s*$') { Say '  robots.txt της δοκιμαστικής: κλειστή για τις μηχανές αναζήτησης: ΕΝΤΑΞΕΙ' $Ok }
         else { Say ('  robots.txt της δοκιμαστικής: ΠΡΟΣΟΧΗ - δεν λέει Disallow: / (απάντηση {0})' -f $rb.status) $Warn }
-    } elseif ($rb.status -eq 200 -and $rbText.Contains('Sitemap: https://gearworldhub.com/sitemap.xml')) { Say '  robots.txt με τη γραμμή Sitemap: ΕΝΤΑΞΕΙ' $Ok }
-    else { Say ('  robots.txt: ΠΡΟΣΟΧΗ - δεν βλέπω τη γραμμή Sitemap (απάντηση {0})' -f $rb.status) $Warn }
+    } else {
+        $rbSitemap = ($rb.status -eq 200 -and $rbText.Contains('Sitemap: https://gearworldhub.com/sitemap.xml'))
+        # L105: SERankingBacklinksBot may read nothing (its two lines, one after the other).
+        $rbBot = ($rb.status -eq 200 -and $rbText -match '(?m)^User-agent: SERankingBacklinksBot[ \t]*\r?\nDisallow: /[ \t]*\r?$')
+        if ($rbSitemap) { Say '  robots.txt με τη γραμμή Sitemap: ΕΝΤΑΞΕΙ' $Ok }
+        else { Say ('  robots.txt: ΠΡΟΣΟΧΗ - δεν βλέπω τη γραμμή Sitemap (απάντηση {0})' -f $rb.status) $Warn }
+        if ($rbBot) { Say '  robots.txt: «User-agent: SERankingBacklinksBot» με «Disallow: /» (L105): ΕΝΤΑΞΕΙ' $Ok }
+        else { Say ('  robots.txt: ΠΡΟΣΟΧΗ - δεν βλέπω το «User-agent: SERankingBacklinksBot» με «Disallow: /» (L105, απάντηση {0}). Η cache κρατάει έως λίγα λεπτά: στείλε στο Claude αυτή την αναφορά.' -f $rb.status) $Warn }
+    }
     $kf = Get-Web ($base + '/' + $IndexNowKey + '.txt?gwcheck=' + $stamp)
     $kfText = (New-Object System.Text.UTF8Encoding($false)).GetString($kf.bytes).Trim()
     if ($kf.status -eq 200 -and $kfText -eq $IndexNowKey) { Say '  Κλειδί IndexNow: ΕΝΤΑΞΕΙ' $Ok } else { Say ('  Κλειδί IndexNow: ΠΡΟΣΟΧΗ (απάντηση {0})' -f $kf.status) $Warn }

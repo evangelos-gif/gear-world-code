@@ -3535,8 +3535,8 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         Check (-not $r.Contains($vDb) -and -not $r.Contains($vVer)) 'hub v2 check: no database id or version id in the report'
         # preview
         Check ((Run-V @('-Step', 'preview')) -eq 0 -and (VCount 'deploy --config') -eq 0) 'hub v2 preview without -Apply: nothing changes'
-        Check ((Run-V @('-Step', 'preview', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB CLEANUP LIVE')) -eq 1 -and (VCount 'deploy --config') -eq 0) 'hub v2 preview with the live phrase: nothing changes'
-        Check ((Run-V @('-Step', 'preview', '-Apply', '-Approve', 'egkrino hub cleanup preview')) -eq 0 -and (VCount 'deploy --config') -eq 1) 'hub v2 preview with approval: deploys once'
+        Check ((Run-V @('-Step', 'preview', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB ROBOTS LIVE')) -eq 1 -and (VCount 'deploy --config') -eq 0) 'hub v2 preview with the live phrase: nothing changes'
+        Check ((Run-V @('-Step', 'preview', '-Apply', '-Approve', 'egkrino hub robots preview')) -eq 0 -and (VCount 'deploy --config') -eq 1) 'hub v2 preview with approval: deploys once'
         $c = VCalls
         Check ($c -match 'deploy --config "[^"]*wrangler\.preview\.toml"' -and $c -match 'secret bulk "[^"]+" --name gear-world-hub-preview') 'hub v2 preview: deploys the preview config, sets the photo secret of the test Worker'
         $cfgs = @(Get-ChildItem -LiteralPath (Join-Path $vWork 'deploy') -Recurse -Filter 'wrangler.preview.toml' -ErrorAction SilentlyContinue)
@@ -3545,21 +3545,21 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         $r = VLast
         Check ($r.Contains('https://gear-world-hub-preview.example-test.workers.dev') -and $r.Contains('?gwh-date=2026-11-28') -and -not $r.Contains($vDb)) 'hub v2 preview: report has the test address and the Black Friday link, not the database id'
         Check ((Get-TreeHash $vHub) -eq $vHubBefore) 'hub v2 preview: the hub folder on the PC is not changed'
-        Check ((Run-V @('-Step', 'preview', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB CLEANUP PREVIEW')) -eq 0 -and (VCount 'secret bulk') -eq 1) 'hub v2 preview again: the existing secret of the test Worker is kept'
+        Check ((Run-V @('-Step', 'preview', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB ROBOTS PREVIEW')) -eq 0 -and (VCount 'secret bulk') -eq 1) 'hub v2 preview again: the existing secret of the test Worker is kept'
         # live: the posters go first
         Write-Utf8 (Join-Path $vHub 'wrangler.toml') ($vCfg.Substring(0, $vCfg.IndexOf('[[services]]')))
-        Check ((Run-V @('-Step', 'live', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB CLEANUP LIVE')) -eq 8 -and (VCount 'deploy --config') -eq 2) 'hub v2 live: refused before the poster counting is on the Hub'
+        Check ((Run-V @('-Step', 'live', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB ROBOTS LIVE')) -eq 8 -and (VCount 'deploy --config') -eq 2) 'hub v2 live: refused before the poster counting is on the Hub'
         Write-Utf8 (Join-Path $vHub 'wrangler.toml') $vCfg
         Check ((Run-V @('-Step', 'live')) -eq 0 -and (VCount 'deploy --config') -eq 2 -and (Get-TreeHash $vHub) -eq $vHubBefore) 'hub v2 live without -Apply: nothing changes'
-        Check ((Run-V @('-Step', 'live', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB CLEANUP PREVIEW')) -eq 1 -and (VCount 'deploy --config') -eq 2 -and (Get-TreeHash $vHub) -eq $vHubBefore) 'hub v2 live with the preview phrase: nothing changes'
+        Check ((Run-V @('-Step', 'live', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB ROBOTS PREVIEW')) -eq 1 -and (VCount 'deploy --config') -eq 2 -and (Get-TreeHash $vHub) -eq $vHubBefore) 'hub v2 live with the preview phrase: nothing changes'
         Write-Utf8 (Join-Path $vState 'split.flag') 'split'
-        Check ((Run-V @('-Step', 'live', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB CLEANUP LIVE')) -eq 11 -and (VCount 'deploy --config') -eq 2 -and (Get-TreeHash $vHub) -eq $vHubBefore) 'hub v2 live: no single live version to go back to: stops before any change'
+        Check ((Run-V @('-Step', 'live', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB ROBOTS LIVE')) -eq 11 -and (VCount 'deploy --config') -eq 2 -and (Get-TreeHash $vHub) -eq $vHubBefore) 'hub v2 live: no single live version to go back to: stops before any change'
         Remove-Item -LiteralPath (Join-Path $vState 'split.flag') -Force
         Write-Utf8 (Join-Path $vState 'failother.flag') 'always'
-        Check ((Run-V @('-Step', 'live', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB CLEANUP LIVE')) -eq 9 -and (VCount 'deploy --config') -eq 3) 'hub v2 live: a failed deploy stops at once (exit 9), no repeat'
+        Check ((Run-V @('-Step', 'live', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB ROBOTS LIVE')) -eq 9 -and (VCount 'deploy --config') -eq 3) 'hub v2 live: a failed deploy stops at once (exit 9), no repeat'
         Check ((Get-TreeHash $vHub) -eq $vHubBefore) 'hub v2 live: after a failed deploy the hub folder is back as it was (new files removed too)'
         Remove-Item -LiteralPath (Join-Path $vState 'failother.flag') -Force
-        Check ((Run-V @('-Step', 'live', '-Apply', '-Approve', 'egkrino hub cleanup live')) -eq 0 -and (VCount 'deploy --config') -eq 4) 'hub v2 live with approval: deploys once'
+        Check ((Run-V @('-Step', 'live', '-Apply', '-Approve', 'egkrino hub robots live')) -eq 0 -and (VCount 'deploy --config') -eq 4) 'hub v2 live with approval: deploys once'
         $c = VCalls
         Check ($c -match ('deploy --config "' + [regex]::Escape((Join-Path $vHub 'wrangler.toml')) + '"')) 'hub v2 live: deploys the hub folder with its own wrangler.toml (POSTERS kept)'
         Check ($c.LastIndexOf('deployments list --name gear-world-hub') -lt $c.LastIndexOf('deploy --config')) 'hub v2 live: live version read before deploying'
@@ -3586,11 +3586,11 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         Check ($r.Contains('public/hub-v2.js | ') -and $r.Contains('ΕΤΟΙΜΟ') -and -not $r.Contains($vVer)) 'hub v2 live: the report has the new baseline lines, not the version id'
         Check ((Run-V @('-Step', 'check')) -eq 0 -and (VLast).Contains('έχει ήδη αυτή την έκδοση')) 'hub v2 check after live: the hub folder has this version'
         Write-Utf8 (Join-Path $vPub 'styles.css') 'body{}'
-        Check ((Run-V @('-Step', 'live', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB CLEANUP LIVE')) -eq 7 -and (VCount 'deploy --config') -eq 4) 'hub v2 live: refused when someone else changed the hub folder'
+        Check ((Run-V @('-Step', 'live', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB ROBOTS LIVE')) -eq 7 -and (VCount 'deploy --config') -eq 4) 'hub v2 live: refused when someone else changed the hub folder'
         Check ((VLast).Contains('public/styles.css')) 'hub v2: the changed file is named in the report'
         # register: Pets Gear World in the Hub's list of sites (one D1 row, restore point first)
         Check ((Run-V @('-Step', 'register')) -eq 0 -and (VCount '--file') -eq 0) 'hub register without -Apply: nothing changes'
-        Check ((Run-V @('-Step', 'register', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB CLEANUP LIVE')) -eq 1 -and (VCount '--file') -eq 0) 'hub register with the live phrase: nothing changes'
+        Check ((Run-V @('-Step', 'register', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB ROBOTS LIVE')) -eq 1 -and (VCount '--file') -eq 0) 'hub register with the live phrase: nothing changes'
         Check ((Run-V @('-Step', 'register', '-Apply', '-Approve', 'egkrino hub zgw search')) -eq 0 -and (VCount '--file') -eq 1) 'hub register with approval: one SQL file runs'
         $c = VCalls
         Check ($c.LastIndexOf('time-travel info gear-world-registry') -lt $c.LastIndexOf('--file') -and $c.LastIndexOf('time-travel info gear-world-registry') -ge 0) 'hub register: restore point read before the change'
@@ -3600,7 +3600,7 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         Check ((Run-V @('-Step', 'register', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB ZGW SEARCH')) -eq 0 -and (VCount '--file') -eq 1 -and (VLast).Contains('ήδη στη λίστα')) 'hub register twice: the row is there, nothing runs again'
         # remove-preview: the test Worker goes, from a new empty folder (L83)
         Check ((Run-V @('-Step', 'remove-preview')) -eq 0 -and (VCount 'delete gear-world-hub-preview') -eq 0) 'hub remove-preview without -Apply: nothing deleted'
-        Check ((Run-V @('-Step', 'remove-preview', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB CLEANUP LIVE')) -eq 1 -and (VCount 'delete gear-world-hub-preview') -eq 0) 'hub remove-preview with the live phrase: nothing deleted'
+        Check ((Run-V @('-Step', 'remove-preview', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB ROBOTS LIVE')) -eq 1 -and (VCount 'delete gear-world-hub-preview') -eq 0) 'hub remove-preview with the live phrase: nothing deleted'
         $deploysNow = VCount 'deploy --config'
         Check ((Run-V @('-Step', 'remove-preview', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB REMOVE PREVIEW')) -eq 0 -and (VCount 'delete gear-world-hub-preview') -eq 1 -and (VCount 'deploy --config') -eq $deploysNow) 'hub remove-preview with approval: deletes only the test Worker, no deploy'
         Check (-not ((VCalls) -match 'delete gear-world-hub(\s|$)')) 'hub remove-preview: the live Worker is never named'
@@ -4710,7 +4710,30 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
     $fxState = Join-Path $work 'fx-state'
     $fxTools = Join-Path $work 'fx-tools'
     $fxOut = Join-Path $fxHome 'gear-world-reports'
-    New-Item -ItemType Directory -Path $fxState, $fxTools -Force | Out-Null
+    $fxBin = Join-Path $work 'fx-bin'
+    New-Item -ItemType Directory -Path $fxState, $fxTools, $fxBin -Force | Out-Null
+    # L105: before any site, tools/d1-native-index.ps1 -Verify reads the schema of the 6 new-layout databases (fake wrangler).
+    $fxIdx = '{"type":"index","name":"idx_products_category","tbl_name":"products","sql":"CREATE INDEX idx_products_category ON products (is_active, category_slug, price)"}'
+    $fxTable = '{"type":"table","name":"products","tbl_name":"products","sql":"CREATE TABLE products (id INTEGER PRIMARY KEY, gtin TEXT)"}'
+    $fxGroup = '{"type":"index","name":"idx_products_group_key","tbl_name":"products","sql":"CREATE INDEX idx_products_group_key ON products(COALESCE(NULLIF(TRIM(gtin), ''''), ''id:'' || id))"}'
+    Write-Utf8 (Join-Path $fxState 'schema-done.json') ('[{"results":[' + $fxIdx + ',' + $fxGroup + ',' + $fxTable + '],"success":true}]')
+    Write-Utf8 (Join-Path $fxState 'schema-base.json') ('[{"results":[' + $fxIdx + ',' + $fxTable + '],"success":true}]')
+    $fxNpx = @(
+        '@echo off',
+        'echo %* >> "%GW_FAKE_STATE%\npx.log"',
+        'echo %* | findstr /L /C:"ORDER BY type, name" >nul && goto schema',
+        'echo unknown command 1>&2',
+        'exit /b 1',
+        ':schema',
+        'if exist "%GW_FAKE_STATE%\noindex.flag" goto noindex',
+        'type "%GW_FAKE_STATE%\schema-done.json"',
+        'exit /b 0',
+        ':noindex',
+        'type "%GW_FAKE_STATE%\schema-base.json"',
+        'exit /b 0'
+    ) -join "`r`n"
+    [System.IO.File]::WriteAllText((Join-Path $fxBin 'npx.cmd'), $fxNpx + "`r`n", [System.Text.Encoding]::ASCII)
+    $fxNpxLog = Join-Path $fxState 'npx.log'
     $fxFake = @(
         'param([string]$Step, [switch]$Apply, [string]$Approve, [string]$OutDir, [switch]$NoClipboard)',
         '$name = [System.IO.Path]::GetFileNameWithoutExtension($PSCommandPath)',
@@ -4723,9 +4746,11 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
     $fxNames = @('sgw-cloudflare', 'tgw-cloudflare', 'agw-cloudflare', 'vgw-cloudflare', 'bgw-cloudflare', 'pgw-cloudflare', 'zgw-cloudflare', 'cgw-engine', 'mgw-engine', 'wgw-engine', 'kgw-engine', 'hgw-engine', 'ggw-engine')
     foreach ($t in $fxNames) { [System.IO.File]::WriteAllText((Join-Path $fxTools ($t + '.ps1')), $fxFake + "`r`n", [System.Text.Encoding]::ASCII) }
     $env:GW_FAKE_STATE = $fxState
+    $fxOldPath = $env:PATH
+    $env:PATH = $fxBin + ';' + $fxOldPath
     $fxSites = Join-Path $fxState 'sites.log'
     function Run-FX([string[]]$a) {
-        $all = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $fxTool, '-PcHome', $fxHome, '-SiteToolDir', $fxTools, '-NoClipboard', '-NoHttpCheck') + $a
+        $all = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $fxTool, '-PcHome', $fxHome, '-SiteToolDir', $fxTools, '-SkipInstall', '-NoClipboard', '-NoHttpCheck') + $a
         & $exe @all | Out-Null
         return $LASTEXITCODE
     }
@@ -4736,7 +4761,19 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         return [System.IO.File]::ReadAllText($f[0].FullName)
     }
     try {
+        # L105: a database without the group-key index: the check says so, and the apply publishes NOTHING
+        Write-Utf8 (Join-Path $fxState 'noindex.flag') 'no index yet'
+        Check ((Run-FX @('-Step', 'check')) -eq 2 -and -not (Test-Path -LiteralPath $fxSites)) 'ads fixes check without the L105 index: exit 2, no site touched'
+        $r = FXLast 'ADS_FIXES_CHECK_*.txt'
+        Check ($r.Contains('d1-native-index.ps1') -and $r.Contains('ΕΓΚΡΙΝΩ ΕΥΡΕΤΗΡΙΑ D1') -and $r.Contains('ΠΕΡΙΣΣΟΤΕΡΕΣ') -and $r.Contains('ΛΕΙΠΕΙ')) 'ads fixes check without the index: says to run d1-native-index first, and which index is missing'
+        Check ((Run-FX @('-Step', 'apply', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ ADS FIXES')) -eq 14 -and -not (Test-Path -LiteralPath $fxSites)) 'ads fixes apply without the L105 index: refuses, no site published (exit 14)'
+        Check ((FXLast 'ADS_FIXES_APPLY_*.txt').Contains('ΔΕΝ ανέβηκε κανένα site')) 'ads fixes apply without the index: the report says nothing was published'
+        $nl = $(if (Test-Path -LiteralPath $fxNpxLog) { [System.IO.File]::ReadAllText($fxNpxLog) } else { '' })
+        Check (($nl -match 'car-gear-world --remote --json --command "SELECT') -and ($nl -match 'pets-gear-world') -and -not ($nl -match 'technology-gear-world') -and -not ($nl -match '--file')) 'ads fixes: the index check only reads the 6 databases that group offers (not TGW)'
+        Remove-Item -LiteralPath (Join-Path $fxState 'noindex.flag') -Force
+        Remove-Item -LiteralPath $fxNpxLog -Force -ErrorAction SilentlyContinue
         Check ((Run-FX @('-Step', 'check')) -eq 0 -and -not (Test-Path -LiteralPath $fxSites)) 'ads fixes check: exit 0, no site touched'
+        Check ((FXLast 'ADS_FIXES_CHECK_*.txt').Contains('υπάρχει με το σωστό κείμενο: ΕΝΤΑΞΕΙ')) 'ads fixes check with the index in the 6 databases: ready'
         $r = FXLast 'ADS_FIXES_CHECK_*.txt'
         Check ($r.Contains('ΕΓΚΡΙΝΩ ADS FIXES') -and $r.Contains('SGW, TGW, AGW, VGW, BGW, PGW, ZGW, CGW, MGW, WGW, KGW, HGW, GGW') -and $r.Contains('Saved list')) 'ads fixes check: the phrase, the saved list and the 13 sites in the plan'
         Check ((Run-FX @('-Step', 'apply')) -eq 0 -and -not (Test-Path -LiteralPath $fxSites)) 'ads fixes apply without -Apply: nothing changes'
@@ -4753,11 +4790,12 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         Check (@($lines | Where-Object { $_ -notmatch ' update True EGKRINO [A-Z]{3} UPDATE$' }).Count -eq 0) 'ads fixes apply: every site with its own update step and phrase'
         Check ((FXLast 'ADS_FIXES_APPLY_*.txt').Contains('ΕΤΟΙΜΟ')) 'ads fixes apply: report ready'
     } finally {
+        $env:PATH = $fxOldPath
         Remove-Item Env:\GW_FAKE_STATE -ErrorAction SilentlyContinue
     }
 }
 
-# 23. d1-native-index.ps1 (the group-key index of the 7 new-layout databases, lessons L105) with a fake wrangler (Windows only)
+# 23. d1-native-index.ps1 (the group-key index of the 6 new-layout databases that group offers, lessons L105) with a fake wrangler (Windows only)
 if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
     Write-Host 'd1-native-index.ps1 (fake wrangler)'
     $nxTool = Join-Path (Join-Path $repo 'tools') 'd1-native-index.ps1'
@@ -4834,10 +4872,17 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
     try {
         Check ((Run-NX @()) -eq 0) 'd1 index check: exit 0'
         $c = NXCalls
-        Check (-not ($c -match '--file') -and ($c -match 'car-gear-world --remote --json --command "SELECT') -and ($c -match 'technology-gear-world') -and ($c -match 'pets-gear-world')) 'd1 index check: only SELECTs, on the new-layout databases'
-        Check (@([regex]::Matches($c, 'ORDER BY type, name')).Count -eq 7) 'd1 index check: the schema of each of the 7 databases, once'
+        Check (-not ($c -match '--file') -and ($c -match 'car-gear-world --remote --json --command "SELECT') -and ($c -match 'pets-gear-world') -and -not ($c -match 'technology-gear-world')) 'd1 index check: only SELECTs, on the new-layout databases that group offers (not TGW)'
+        Check (@([regex]::Matches($c, 'ORDER BY type, name')).Count -eq 6) 'd1 index check: the schema of each of the 6 databases, once'
         $r = NXLast 'D1_NATIVE_INDEX_CHECK_*.txt'
-        Check ($r.Contains('ΕΓΚΡΙΝΩ ΕΥΡΕΤΗΡΙΑ D1') -and $r.Contains($nxCreate) -and $r.Contains('idx_products_category') -and $r.Contains('npx wrangler d1 execute car-gear-world --remote --command "DROP INDEX IF EXISTS idx_products_group_key"') -and $r.Contains('-PaidPlan')) 'd1 index check: the indexes there, the phrase, the statement, the rollback and -PaidPlan (7 x 36,211 rows) in the report'
+        Check ($r.Contains('ΕΓΚΡΙΝΩ ΕΥΡΕΤΗΡΙΑ D1') -and $r.Contains($nxCreate) -and $r.Contains('idx_products_category') -and $r.Contains('npx wrangler d1 execute car-gear-world --remote --command "DROP INDEX IF EXISTS idx_products_group_key"') -and $r.Contains('-PaidPlan')) 'd1 index check: the indexes there, the phrase, the statement, the rollback and -PaidPlan (6 x 36,211 rows) in the report'
+        $iSites = $r.IndexOf('ΠΡΩΤΑ τα 13 sites πίσω στον κώδικα πριν από το L105')
+        $iDrop = $r.IndexOf('DROP INDEX IF EXISTS idx_products_group_key')
+        Check ($iSites -ge 0 -and $iDrop -gt $iSites -and $r.Contains('-Ref 12e54c0271e20080d9ed93e54c7760cc83408285') -and $r.Contains('ΠΕΡΙΣΣΟΤΕΡΕΣ')) 'd1 index check: the rollback puts the sites back to 12e54c0 FIRST, the DROP INDEX only after'
+        Remove-Item -LiteralPath $nxCalls -Force -ErrorAction SilentlyContinue
+        Check ((Run-NX @('-Verify')) -eq 9) 'd1 index -Verify without the index: exit 9'
+        Check ((NXLast 'D1_NATIVE_INDEX_VERIFY_*.txt').Contains('Πρώτα το tools/d1-native-index.ps1') -and -not ((NXCalls) -match '--file|MAX\(id\)')) 'd1 index -Verify: only reads the schema, says what to run first'
+        Check ((Run-NX @('-Verify', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ ΕΥΡΕΤΗΡΙΑ D1')) -eq 2 -and -not ((NXCalls) -match '--file')) 'd1 index -Verify never goes with -Apply'
         Remove-Item -LiteralPath $nxCalls -Force -ErrorAction SilentlyContinue
         Check ((Run-NX @('-Apply', '-Approve', 'ΕΓΚΡΙΝΩ ΕΥΡΕΤΗΡΙΑ D1')) -eq 7 -and -not ((NXCalls) -match '--file')) 'd1 index apply above 90,000 writes without -PaidPlan: stops, nothing changes'
         Check ((Run-NX @('-Apply', '-PaidPlan', '-Approve', 'ΕΓΚΡΙΝΩ ADS FIXES')) -eq 1 -and -not ((NXCalls) -match '--file')) 'd1 index apply with the wrong phrase: nothing changes'
@@ -4854,11 +4899,13 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         $sq = NXBackup 'agw-add-index-*.sql'
         Check ($sq.Count -eq 1 -and ([System.IO.File]::ReadAllText($sq[0].FullName)).Trim() -eq $nxCreate) 'd1 index apply: the file sent is exactly the one CREATE INDEX statement (L28)'
         $rb = NXBackup 'agw-rollback-index-*.txt'
-        Check ($rb.Count -eq 1 -and ([System.IO.File]::ReadAllText($rb[0].FullName)).Contains('npx wrangler d1 execute car-gear-world --remote --command "DROP INDEX IF EXISTS idx_products_group_key"')) 'd1 index apply: the rollback written next to the backup'
+        $rbText = $(if ($rb.Count -eq 1) { [System.IO.File]::ReadAllText($rb[0].FullName) } else { '' })
+        Check ($rbText.Contains('npx wrangler d1 execute car-gear-world --remote --command "DROP INDEX IF EXISTS idx_products_group_key"') -and $rbText.IndexOf('-Ref 12e54c0271e20080d9ed93e54c7760cc83408285') -ge 0 -and $rbText.IndexOf('-Ref 12e54c0') -lt $rbText.IndexOf('DROP INDEX')) 'd1 index apply: the rollback written next to the backup, sites first, then the index'
         Check ((NXLast 'D1_NATIVE_INDEX_APPLY_*.txt').Contains('ΕΤΟΙΜΟ')) 'd1 index apply: report ready'
         Remove-Item -LiteralPath $nxCalls -Force -ErrorAction SilentlyContinue
         Check ((Run-NX @('-Apply', '-Approve', 'ΕΓΚΡΙΝΩ ΕΥΡΕΤΗΡΙΑ D1')) -eq 0 -and -not ((NXCalls) -match '--file')) 'd1 index apply again: the index is there, nothing changes'
         Check ((NXLast 'D1_NATIVE_INDEX_APPLY_*.txt').Contains('υπάρχει ήδη')) 'd1 index apply again: says the index is already there'
+        Check ((Run-NX @('-Verify')) -eq 0 -and (NXLast 'D1_NATIVE_INDEX_VERIFY_*.txt').Contains('ΕΝΤΑΞΕΙ')) 'd1 index -Verify with the index in the 6 databases: exit 0'
         Write-Utf8 (Join-Path $nxState 'wrong.flag') 'other text'
         Check ((Run-NX @()) -eq 2) 'd1 index check: an index of that name with another text is a problem'
         Remove-Item -LiteralPath $nxCalls -Force -ErrorAction SilentlyContinue

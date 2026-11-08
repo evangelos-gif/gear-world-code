@@ -342,33 +342,41 @@ function blockNewShop(code, seed) {
   }).join('\n');
 }
 
-test('L105: the index of every new-layout database is written in exactly the text of the code\'s group key', () => {
+test('L105: every new-layout site that groups offers has the index, written in exactly the text of the code\'s group key', () => {
   // The key on the rows named p is the same expression on the same columns.
   assert.equal(GTIN_KEY, NATIVE_GROUP_KEY.replace('TRIM(gtin)', 'TRIM(p.gtin)').replace("'id:' || id", "'id:' || p.id"));
-  // Every site with its own database in the new layout (a products table in 0001_init.sql) is in the list, and gets the index.
+  // Every site with its own database in the new layout (a products table in 0001_init.sql) is in the list.
   const own = readdirSync('sites').filter(d => {
     try { return /CREATE TABLE products\b/.test(read(`sites/${d}/migrations/0001_init.sql`)); } catch { return false; }
   }).sort();
   assert.deepEqual(own, [...NEW_SITES].sort());
+  const grouping = NEW_SITES.filter(s => configs[s].groupOffers);
+  assert.deepEqual(grouping, ['agw', 'vgw', 'sgw', 'bgw', 'pgw', 'zgw']);
+  const tool = read('tools/d1-native-index.ps1');
   for (const s of NEW_SITES) {
     assert.ok(!configs[s].database || configs[s].database.layout !== 'legacy', `${s}: new layout`);
+    const db = (read(`sites/${s}/wrangler.jsonc.example`).match(/"database_name":\s*"([^"]+)"/) || [])[1];
+    const listed = new RegExp(`code = '${s}'; db = '${db}'`).test(tool);
+    if (!configs[s].groupOffers) {
+      // TGW: its product pages never use the group key, so its database gets no index (it would only cost writes).
+      assert.ok(!readdirSync(`sites/${s}/migrations`).includes('0002_group_key_index.sql'), `${s}: no group-key index`);
+      assert.ok(!listed, `${s}: not in the tool`);
+      continue;
+    }
     const text = read(`sites/${s}/migrations/0002_group_key_index.sql`);
     assert.ok(text.includes(NEW_INDEX), `${s}: ${NEW_INDEX}`);
     // Only an index: the migration changes no table and no row (L28).
     const statements = text.split('\n').filter(l => l.trim() && !l.startsWith('--'));
     assert.deepEqual(statements, [NEW_INDEX], `${s}: one CREATE INDEX only`);
+    // The tool that adds it to the live databases (and checks it before every deploy) knows it.
+    assert.ok(db && listed, `${s}: ${db} in the tool`);
   }
-  // The tool that adds it to the live databases knows every one of them and sends the same statement.
-  const tool = read('tools/d1-native-index.ps1');
-  for (const s of NEW_SITES) {
-    const db = (read(`sites/${s}/wrangler.jsonc.example`).match(/"database_name":\s*"([^"]+)"/) || [])[1];
-    assert.ok(db && new RegExp(`code = '${s}'; db = '${db}'`).test(tool), `${s}: ${db} in the tool`);
-  }
+  assert.equal((tool.match(/@\{ code = '[a-z]{3}'; db = /g) || []).length, grouping.length, 'the tool lists exactly these databases');
   assert.ok(tool.includes(`'${NEW_INDEX.replace(/'/g, "''")}'`), 'the tool sends exactly the migration\'s statement');
 });
 
 // Same results as the full queries on large random data, with and without the index.
-for (const [code, seed, indexed] of [['agw', 7, true], ['vgw', 11, false], ['zgw', 13, true], ['pgw', 19, true], ['tgw', 17, true]]) {
+for (const [code, seed, indexed] of [['agw', 7, true], ['vgw', 11, false], ['zgw', 13, true], ['pgw', 19, true], ['tgw', 17, false]]) {
   test(`${code.toUpperCase()}, 900 random products${indexed ? ', L105 index' : ', no index'}: same cards and offers as the full queries, also when only 1-5 rows are read on each side`, async () => {
     const db = memD1([firstMigrationOf(code), randomNewShop(code, 900, seed), ...(indexed ? [NEW_INDEX] : [])]);
     const ids = db.sql.prepare('SELECT id FROM products WHERE is_active = 1 ORDER BY id').all().map(r => r.id).filter((_, i) => i % 3 === 0);
@@ -411,7 +419,7 @@ for (const code of ['agw', 'sgw', 'tgw']) {
 
 // With and without ANALYZE: D1 may or may not have statistics; the plans must not depend on them.
 for (const [code, analyze] of [['agw', true], ['agw', false], ['bgw', true], ['zgw', false], ['tgw', true], ['tgw', false]]) {
-  test(`${code.toUpperCase()} with the L105 index${analyze ? '' : ', no statistics'}: the product page queries never read a whole table, and find the groups through the index`, async () => {
+  test(`${code.toUpperCase()}${configs[code].groupOffers ? ' with the L105 index' : ' (no group-key index)'}${analyze ? '' : ', no statistics'}: the product page queries never read a whole table, and find the groups through the index`, async () => {
     const db = memD1([schemaOf(code), randomNewShop(code, 3000, 5), ...(analyze ? ['ANALYZE;'] : [])]);
     useLayout(configs[code]);
     const ids = db.sql.prepare('SELECT id FROM products WHERE is_active = 1 ORDER BY id').all().map(r => r.id).filter((_, i) => i % 50 === 0);

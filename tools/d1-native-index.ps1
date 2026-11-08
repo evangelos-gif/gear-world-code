@@ -1,6 +1,6 @@
 ﻿<#
 .SYNOPSIS
-  The group-key index of the 7 new-layout D1 databases (lessons L105): TGW, AGW, VGW, SGW, BGW, PGW and ZGW.
+  The group-key index of the 6 new-layout D1 databases that group offers (lessons L105): AGW, VGW, SGW, BGW, PGW, ZGW.
   Read-only unless -Apply and the typed approval phrase ΕΓΚΡΙΝΩ ΕΥΡΕΤΗΡΙΑ D1.
 
 .DESCRIPTION
@@ -9,29 +9,39 @@
   the product-group key ("the same product at other retailers" read the whole table, "similar products" the whole
   category). The new code (src/db.js, NATIVE_GROUP_KEY) reads only the rows of each group through this index:
     CREATE INDEX IF NOT EXISTS idx_products_group_key ON products(COALESCE(NULLIF(TRIM(gtin), ''), 'id:' || id));
-  (the same statement as sites/<site>/migrations/0002_group_key_index.sql). The index goes in BEFORE the new code.
+  (the same statement as sites/<site>/migrations/0002_group_key_index.sql). The index goes in BEFORE the new code:
+  WITHOUT it the new code reads MORE rows than the old one (AGW-like data: about 74,000 instead of 54,000 a page), so
+  tools/ads-fixes-sites.ps1 refuses to publish the new code while a database lacks it (it runs -Verify first).
+  TGW is not in the list: it does not group offers, its product pages never use the key (with or without the index the
+  new code reads fewer rows there than the old one), and the index would only cost writes.
 
   Without -Apply: READ-ONLY. For each database it reads the schema (sqlite_master) and the highest product id (one row),
                   and shows which indexes exist, what would be added, about how many rows D1 would write, and how to
                   go back. Changes nothing.
-  With -Apply:    CHANGES THE 7 DATABASES (only an index, never a table or a row, lessons L28), one approval:
+  With -Apply:    CHANGES THE 6 DATABASES (only an index, never a table or a row, lessons L28), one approval:
                   ΕΓΚΡΙΝΩ ΕΥΡΕΤΗΡΙΑ D1. First the schema of every database is saved to a dated file (backup), then the
                   index is added to each database that does not have it (CREATE INDEX IF NOT EXISTS: running it again
                   changes nothing), then it checks that the index is there with exactly this text.
                   Above 90,000 rows written in all it needs -PaidPlan (Cloudflare Workers Paid; Workers Free allows
                   100,000 a day for the whole account, lessons L49).
+  -Verify         READ-ONLY. Exit 0 only when every database has the index with exactly this text, otherwise exit 9
+                  (tools/ads-fixes-sites.ps1 runs this before it publishes anything).
   -Only agw,vgw   only these sites (codes, comma separated).
-  Going back: npx wrangler d1 execute <database> --remote --command "DROP INDEX IF EXISTS idx_products_group_key"
-              (the report prints it for each database). The sites keep working without the index, they only read more.
+  Going back, IN THIS ORDER: 1. first the 13 sites back to the code before L105 (tools/ads-fixes-sites.ps1 -Step apply
+              through gw-run with -Ref 12e54c0271e20080d9ed93e54c7760cc83408285 and ΕΓΚΡΙΝΩ ADS FIXES), because the new
+              code without the index reads more than the old one; 2. only then, for each database:
+              npx wrangler d1 execute <database> --remote --command "DROP INDEX IF EXISTS idx_products_group_key"
+              (the report prints both steps).
 
   Files on this PC: <home>\gear-world-d1-index\ (deploy\<version> with wrangler, backups\)
-  Report: <home>\gear-world-reports\D1_NATIVE_INDEX_<CHECK|APPLY>_<time>.txt (also copied to the clipboard)
+  Report: <home>\gear-world-reports\D1_NATIVE_INDEX_<CHECK|APPLY|VERIFY>_<time>.txt (also copied to the clipboard)
 #>
 param(
     [string]$Only = '',
     [switch]$Apply,
     [string]$Approve = '',
     [switch]$PaidPlan,
+    [switch]$Verify,
     [string]$WorkDir = '',
     [string]$OutDir = '',
     [switch]$SkipInstall,
@@ -46,6 +56,8 @@ $IndexName = 'idx_products_group_key'
 $CreateSql = 'CREATE INDEX IF NOT EXISTS idx_products_group_key ON products(COALESCE(NULLIF(TRIM(gtin), ''''), ''id:'' || id));'
 $DropSql = 'DROP INDEX IF EXISTS idx_products_group_key'
 $FreeWriteLimit = 90000
+# The sites' code before L105: going back publishes it FIRST, and only then drops the index.
+$PrevRef = '12e54c0271e20080d9ed93e54c7760cc83408285'
 if (-not $WorkDir) { $WorkDir = Join-Path $HOME 'gear-world-d1-index' }
 if (-not $OutDir) { $OutDir = Join-Path $HOME 'gear-world-reports' }
 $stamp = Get-Date -Format 'yyyyMMdd_HHmmss'
@@ -54,15 +66,15 @@ $Ok = 'Cyan'
 $Warn = 'Yellow'
 $Bad = 'Magenta'
 
-# The 7 sites with their own database in the new layout (sites/<site>/migrations). Car Gear World first: the crawler was there.
+# The new-layout sites that group offers (groupOffers in site.config.js): their product pages read the rows of a group
+# through the index. Car Gear World first: the crawler was there. TGW does not group offers (not in the list, see above).
 $Sites = @(
     @{ code = 'agw'; db = 'car-gear-world'; domain = 'cargearworld.com' },
     @{ code = 'vgw'; db = 'travel-gear-world'; domain = 'travelgearworld.com' },
     @{ code = 'sgw'; db = 'sporty-gear-world'; domain = 'sportygearworld.com' },
     @{ code = 'bgw'; db = 'biker-gear-world'; domain = 'bikergearworld.com' },
     @{ code = 'pgw'; db = 'gaming-gear-world'; domain = 'gaminggearworld.com' },
-    @{ code = 'zgw'; db = 'pets-gear-world'; domain = 'petsgearworld.com' },
-    @{ code = 'tgw'; db = 'technology-gear-world'; domain = 'technologygearworld.com' }
+    @{ code = 'zgw'; db = 'pets-gear-world'; domain = 'petsgearworld.com' }
 )
 
 $L = New-Object System.Collections.Generic.List[string]
@@ -80,6 +92,7 @@ function Finish([int]$code) {
     if (-not (Test-Path -LiteralPath $OutDir)) { New-Item -ItemType Directory -Path $OutDir -Force | Out-Null }
     $kind = 'CHECK'
     if ($Apply) { $kind = 'APPLY' }
+    if ($Verify) { $kind = 'VERIFY' }
     $file = Join-Path $OutDir ('D1_NATIVE_INDEX_{0}_{1}.txt' -f $kind, $stamp)
     $n = 2
     while (Test-Path -LiteralPath $file) { $file = Join-Path $OutDir ('D1_NATIVE_INDEX_{0}_{1}_{2}.txt' -f $kind, $stamp, $n); $n++ }
@@ -174,14 +187,30 @@ function Normalize-Sql([string]$s) {
 }
 $WantSql = Normalize-Sql $CreateSql
 
+# How to go back, in this order: first the sites' old code, only then the index (the new code reads MORE without it).
+function Get-RollbackLines($dbs) {
+    $lines = @(
+        'Επαναφορά (αν χρειαστεί), ΜΕ ΑΥΤΗ ΤΗ ΣΕΙΡΑ:',
+        ('  1. ΠΡΩΤΑ τα 13 sites πίσω στον κώδικα πριν από το L105 ({0}): tools/ads-fixes-sites.ps1 -Step apply μέσω του gw-run με -Ref {1} και «ΕΓΚΡΙΝΩ ADS FIXES».' -f $PrevRef.Substring(0, 7), $PrevRef),
+        '     Ο νέος κώδικας ΧΩΡΙΣ το ευρετήριο διαβάζει ΠΕΡΙΣΣΟΤΕΡΕΣ γραμμές από τον παλιό. Αν ο νέος κώδικας δεν ανέβηκε ακόμα, αυτό το βήμα δεν χρειάζεται.',
+        '  2. ΜΟΝΟ ΜΕΤΑ, για κάθε βάση, από τον φάκελο:',
+        ('     cd "{0}"' -f $dest)
+    )
+    foreach ($s in $dbs) { $lines += ('     npx wrangler d1 execute {0} --remote --command "{1}"' -f $s.db, $DropSql) }
+    # Lines, one by one (callers collect them with @()).
+    return $lines
+}
+
 $SchemaSql = 'SELECT type, name, tbl_name, sql FROM sqlite_master ORDER BY type, name'
 
 # ---------------- start ----------------
 $mode = 'ΜΟΝΟ ΕΛΕΓΧΟΣ (δεν αλλάζει τίποτα)'
 if ($Apply) { $mode = 'APPLY (με έγκριση)' }
+if ($Verify) { $mode = 'ΕΛΕΓΧΟΣ ΠΡΙΝ ΑΠΟ ΤΟ ΑΝΕΒΑΣΜΑ ΤΟΥ ΚΩΔΙΚΑ (μόνο ανάγνωση)' }
 Say ('D1 NATIVE INDEX (L105) - {0} - {1}' -f $mode, (Get-Date -Format 'yyyy-MM-dd HH:mm')) $Ok
 Say ('Code version: {0}' -f (Split-Path -Leaf $repo))
 if (-not (Get-Command node -ErrorAction SilentlyContinue)) { Say 'Δεν βρέθηκε το Node.js. Στείλε στο Claude αυτό το μήνυμα.' $Bad; Finish 3 }
+if ($Verify -and $Apply) { Say '-Verify μόνο διαβάζει: δεν πάει μαζί με -Apply. Δεν άλλαξε τίποτα.' $Bad; Finish 2 }
 
 $run = @($Sites)
 if ($Only) {
@@ -211,6 +240,7 @@ if (-not $SkipInstall -and -not (Test-Path -LiteralPath (Join-Path $dest 'node_m
 
 # 1. Each database: its indexes, the group-key index, the highest product id (only SELECT)
 $problems = 0
+$notReady = New-Object System.Collections.Generic.List[string]
 $todo = New-Object System.Collections.ArrayList
 $schemas = @{}
 $writes = 0
@@ -223,12 +253,13 @@ foreach ($s in $run) {
         Say ('  {0} ({1}): ΠΡΟΒΛΗΜΑ - δεν διάβασα τη βάση. Έξοδος:' -f $s.code.ToUpper(), $s.db) $Bad
         foreach ($line in @($r.text -split "`n" | Select-Object -Last 6)) { Say ('      ' + $line) }
         $problems++
+        $notReady.Add($s.code.ToUpper())
         continue
     }
     $schemas[$s.code] = $r.text
     $rows = @($r.rows)
     $table = @($rows | Where-Object { $_.type -eq 'table' -and $_.name -eq 'products' })
-    if ($table.Count -ne 1) { Say ('  {0} ({1}): ΠΡΟΒΛΗΜΑ - δεν έχει πίνακα products. Δεν την αγγίζω.' -f $s.code.ToUpper(), $s.db) $Bad; $problems++; continue }
+    if ($table.Count -ne 1) { Say ('  {0} ({1}): ΠΡΟΒΛΗΜΑ - δεν έχει πίνακα products. Δεν την αγγίζω.' -f $s.code.ToUpper(), $s.db) $Bad; $problems++; $notReady.Add($s.code.ToUpper()); continue }
     $idx = @($rows | Where-Object { $_.type -eq 'index' -and $_.tbl_name -eq 'products' -and $_.sql } | ForEach-Object { [string]$_.name })
     Say ('  {0} ({1}): ευρετήρια του products: {2}' -f $s.code.ToUpper(), $s.db, $(if ($idx.Count) { $idx -join ', ' } else { 'κανένα' }))
     $have = @($rows | Where-Object { $_.type -eq 'index' -and $_.name -eq $IndexName })
@@ -238,9 +269,12 @@ foreach ($s in $run) {
             Say ('      {0}: ΠΡΟΒΛΗΜΑ - υπάρχει με άλλο κείμενο, που ο κώδικας δεν χρησιμοποιεί: {1}' -f $IndexName, $have[0].sql) $Bad
             Say '      Δεν το αλλάζω: στείλε στο Claude αυτή την αναφορά.' $Bad
             $problems++
+            $notReady.Add($s.code.ToUpper())
         }
         continue
     }
+    $notReady.Add($s.code.ToUpper())
+    if ($Verify) { Say ('      {0}: ΛΕΙΠΕΙ' -f $IndexName) $Bad; continue }
     $mx = Select-Rows $s.db 'SELECT MAX(id) AS n FROM products'
     $n = 0
     if ($mx.ok -and $mx.rows.Count -ge 1 -and $null -ne $mx.rows[0].n) { $n = [long]$mx.rows[0].n }
@@ -248,6 +282,17 @@ foreach ($s in $run) {
     $writes += $n
     [void]$todo.Add($s)
     Say ('      {0}: λείπει: θα μπει (έως περίπου {1} εγγραφές στη D1, μία φορά)' -f $IndexName, $n) $Warn
+}
+
+if ($Verify) {
+    Say ''
+    if ($notReady.Count -gt 0) {
+        Say ('Έλεγχος ευρετηρίων: ΠΡΟΒΛΗΜΑ - το {0} λείπει ή δεν είναι σωστό σε: {1}.' -f $IndexName, ($notReady -join ', ')) $Bad
+        Say 'Πρώτα το tools/d1-native-index.ps1 με -Apply και «ΕΓΚΡΙΝΩ ΕΥΡΕΤΗΡΙΑ D1», μετά το ανέβασμα του κώδικα.' $Bad
+        Finish 9
+    }
+    Say ('Έλεγχος ευρετηρίων: το {0} υπάρχει με το σωστό κείμενο σε {1}: ΕΝΤΑΞΕΙ' -f $IndexName, (($run | ForEach-Object { $_.code.ToUpper() }) -join ', ')) $Ok
+    Finish 0
 }
 
 # 2. The plan
@@ -262,11 +307,8 @@ else {
     Say ('  c. Έλεγχος ότι το {0} υπάρχει σε κάθε βάση με ακριβώς αυτό το κείμενο.' -f $IndexName)
     Say ('  Εγγραφές στη D1: έως περίπου {0} συνολικά, μία φορά (όσα τα προϊόντα κάθε βάσης).' -f $writes)
     if ($writes -gt $FreeWriteLimit) { Say ('  Πάνω από {0}: χρειάζεται -PaidPlan (Cloudflare Workers Paid). Με Workers Free το όριο είναι 100.000 τη μέρα για όλο τον λογαριασμό (L49).' -f $FreeWriteLimit) $Warn }
-    Say '  Μετά: ανεβαίνει ο νέος κώδικας στα sites (πρώτα τα ευρετήρια, μετά ο κώδικας).'
-    Say '  Επαναφορά (αν χρειαστεί), για κάθε βάση, από τον φάκελο:'
-    Say ('    cd "{0}"' -f $dest)
-    foreach ($s in $todo) { Say ('    npx wrangler d1 execute {0} --remote --command "{1}"' -f $s.db, $DropSql) }
-    Say '    (τα sites δουλεύουν και χωρίς το ευρετήριο, απλώς διαβάζουν πάλι περισσότερες γραμμές)'
+    Say '  Μετά: ανεβαίνει ο νέος κώδικας στα sites (πρώτα τα ευρετήρια, μετά ο κώδικας· το ανέβασμα ελέγχει μόνο του ότι τα ευρετήρια υπάρχουν).'
+    foreach ($line in (Get-RollbackLines $todo)) { Say ('  ' + $line) }
 }
 
 if (-not $Apply) {
@@ -299,11 +341,8 @@ foreach ($s in $todo) {
     $m = [regex]::Match($r.text, '(?m)^\s*\[')
     [System.IO.File]::WriteAllText($file, (Hide-Ids $r.text.Substring($m.Index)), (New-Object System.Text.UTF8Encoding($false)))
     $undo = Join-Path $bdir ('{0}-rollback-index-{1}.txt' -f $s.code, $stamp)
-    $note = @(
-        ('{0} ({1}): the group-key index added on {2} (lessons L105). To go back (only with approval):' -f $s.code.ToUpper(), $s.db, (Get-Date -Format 'yyyy-MM-dd HH:mm')),
-        ('  cd "{0}"' -f $dest),
-        ('  npx wrangler d1 execute {0} --remote --command "{1}"' -f $s.db, $DropSql)
-    ) -join "`r`n"
+    $note = @(('{0} ({1}): το ευρετήριο του κλειδιού ομάδας μπήκε στις {2} (μάθημα L105). Μόνο με έγκριση:' -f $s.code.ToUpper(), $s.db, (Get-Date -Format 'yyyy-MM-dd HH:mm'))) + @(Get-RollbackLines @($s))
+    $note = $note -join "`r`n"
     [System.IO.File]::WriteAllText($undo, $note, (New-Object System.Text.UTF8Encoding($false)))
     Say ('a. {0}: αντίγραφο του σχήματος: {1}' -f $s.code.ToUpper(), $file) $Ok
 }

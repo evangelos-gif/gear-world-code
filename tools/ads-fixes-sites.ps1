@@ -14,21 +14,25 @@
   the retailers' affiliate programmes" (not "given to their affiliate partners") and no "Shop through <site>" or "our
   retailers" in their description, "Lowest price (retailers listed)" in the Car guide (not "our shops"), and every
   retailer name inside a translated text ("View at", "Stock at", "Shop at", the codes) in its own translate="no" span.
-  D1 rows read (lessons L105): the product pages of the 7 new-layout sites read the rows of a product group through the
-  index idx_products_group_key (about 500 rows a page instead of about 62,000 on cargearworld.com), "similar products"
-  reads fewer rows on all 13 sites, and robots.txt keeps SERankingBacklinksBot out. The index goes in FIRST
-  (tools/d1-native-index.ps1, ΕΓΚΡΙΝΩ ΕΥΡΕΤΗΡΙΑ D1); without it the new code reads about as much as the old one.
+  D1 rows read (lessons L105): the product pages of the 6 new-layout sites that group offers (AGW, VGW, SGW, BGW, PGW,
+  ZGW) read the rows of a product group through the index idx_products_group_key (AGW-like data, 41,120 products: about
+  530 rows a page instead of about 54,000), "similar products" reads fewer rows on all 13 sites, and robots.txt keeps
+  SERankingBacklinksBot out. The index goes in FIRST (tools/d1-native-index.ps1, ΕΓΚΡΙΝΩ ΕΥΡΕΤΗΡΙΑ D1): WITHOUT it the
+  new code reads MORE rows than the old one (about 74,000 instead of 54,000 a page), so the apply step first checks the
+  6 databases (read-only) and publishes nothing while one of them lacks it.
 
 .DESCRIPTION
   -Step check   READ-ONLY. The 13 site tools are there? Shows the plan.
   -Step apply   CHANGES THE 13 LIVE SITES, one approval: ΕΓΚΡΙΝΩ ADS FIXES. In this order:
+                  0. READ-ONLY, before anything (lessons L105): tools/d1-native-index.ps1 -Verify. If one of the 6
+                     databases lacks idx_products_group_key (or has it with another text), NOTHING is published (exit 14);
                   1. the 13 sites, each with its own update step and its usual checks (newer sites first). Each update
                      publishes this version of the engine, the site script, the icons and the dictionaries;
                   2. every home page links to /saved/ and has the new footer line, and every /about/ says who runs
                      Gear World.
                 It stops at the first problem; sites already updated keep working. Running it again is safe.
                 The site databases and their settings on this PC do not change. The Hub has its own step
-                (tools/gwh-hub-v2.ps1, ΕΓΚΡΙΝΩ HUB CLEANUP LIVE for L103).
+                (tools/gwh-hub-v2.ps1: ΕΓΚΡΙΝΩ HUB CLEANUP LIVE for L103, ΕΓΚΡΙΝΩ HUB ROBOTS LIVE for L105).
                 Going back: each site tool's update with the version before (git commit 12e54c0 before L105;
                 98b476d for the L103 clean-up; f4c8c35 for the L102 follow-up; c544884 before L101).
   Report: <home>\gear-world-reports\ADS_FIXES_<STEP>_<time>.txt (also copied to the clipboard)
@@ -41,6 +45,7 @@ param(
     [string]$PcHome = '',
     [string]$OutDir = '',
     [string]$SiteToolDir = '',
+    [switch]$SkipInstall,
     [switch]$NoClipboard,
     [switch]$NoHttpCheck
 )
@@ -116,6 +121,19 @@ function Confirm-Approval([string]$phrase) {
     return ((Normalize-Phrase $typed) -eq (Normalize-Phrase $phrase))
 }
 
+# Lessons L105: the new-layout databases need the group-key index BEFORE the new code (without it the new code reads
+# more rows than the old one). tools/d1-native-index.ps1 -Verify only reads sqlite_master (the same list of databases
+# and the same comparison of the index text as the tool that adds it): exit 0 = every database has it.
+$IndexTool = Join-Path (Join-Path $repo 'tools') 'd1-native-index.ps1'
+function Test-NativeIndexes {
+    if (-not (Test-Path -LiteralPath $IndexTool)) { return 99 }
+    $runner = (Get-Process -Id $PID).Path
+    $ia = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $IndexTool, '-Verify', '-WorkDir', (Join-Path $PcHome 'gear-world-d1-index'), '-OutDir', $OutDir, '-NoClipboard')
+    if ($SkipInstall) { $ia += '-SkipInstall' }
+    & $runner @ia | Out-Null
+    return $LASTEXITCODE
+}
+
 # Does the home page link to the saved list and carry the new footer line, and does /about/ say who runs Gear World?
 # L103: "Browse by category", no "Shop by category", "retailer partners" or "trusted retailers", the retailer name of
 # "View at" in its own translate="no" span, and no "Shop through" / "our retailers" / "affiliate partners" on the codes page.
@@ -154,6 +172,18 @@ $missingTools = @($Sites | Where-Object { -not (Test-Path -LiteralPath (Join-Pat
 if ($missingTools.Count -gt 0) { Say ('Εργαλεία sites που λείπουν: {0}' -f ($missingTools -join ', ')) 'Yellow'; $problems++ }
 else { Say ('Τα {0} εργαλεία των sites: υπάρχουν' -f $Sites.Count) }
 
+# L105: the group-key index in the 6 new-layout databases (read-only)
+$indexCode = Test-NativeIndexes
+$indexReady = ($indexCode -eq 0)
+if ($indexReady) { Say 'Ευρετήριο idx_products_group_key στις 6 βάσεις νέας μορφής (L105): υπάρχει με το σωστό κείμενο: ΕΝΤΑΞΕΙ' 'Cyan' }
+else {
+    Say ('Ευρετήριο idx_products_group_key στις 6 βάσεις νέας μορφής (L105): ΠΡΟΒΛΗΜΑ - λείπει ή δεν διαβάστηκε (κωδικός {0}):' -f $indexCode) 'Magenta'
+    $irep = @(Get-ChildItem -LiteralPath $OutDir -Filter 'D1_NATIVE_INDEX_VERIFY_*.txt' -ErrorAction SilentlyContinue | Sort-Object LastWriteTime, Name | Select-Object -Last 1)
+    if ($irep.Count -eq 1) { foreach ($line in @([System.IO.File]::ReadAllLines($irep[0].FullName) | Select-Object -Last 12)) { Say ('     ' + $line) } }
+    Say '  Πρώτα το tools/d1-native-index.ps1 με -Apply και «ΕΓΚΡΙΝΩ ΕΥΡΕΤΗΡΙΑ D1». Χωρίς το ευρετήριο ο νέος κώδικας διαβάζει ΠΕΡΙΣΣΟΤΕΡΕΣ γραμμές από τον παλιό, γι’ αυτό δεν ανεβάζω τίποτα.' 'Magenta'
+    $problems++
+}
+
 if ($Step -eq 'check') {
     Say ''
     Say ('Πλάνο του apply (φράση: {0}):' -f $Phrase)
@@ -161,8 +191,8 @@ if ($Step -eq 'check') {
     Say '     («Saved list» αντί για «Gear Cart», «Sold by … (not by Gear World)», «… delivers to», «Stock at …», το /about/ και η γραμμή του footer, σε 10 γλώσσες)'
     Say '     (L102: «<κατάστημα> delivers to» και στις κάρτες, το μπάνερ των Χριστουγέννων λέει «Gifts for everyone» και φαίνεται μόνο πάνω από πραγματικές προσφορές, χωρίς «Quantity»)'
     Say '     (L103: «Browse by category», «retailers compared», «compares prices across retailers», κωδικοί «through their affiliate programmes», το όνομα του καταστήματος translate="no" στο «View at» / «Stock at»)'
-    Say '     (L105: η σελίδα προϊόντος των 7 νέων sites διαβάζει μόνο τις γραμμές της ομάδας μέσα από το idx_products_group_key, τα «Παρόμοια» διαβάζουν λιγότερα και στα 13, και το robots.txt κλείνει το SERankingBacklinksBot)'
-    Say '     ΠΡΩΤΑ το ευρετήριο στις 7 βάσεις: tools/d1-native-index.ps1 με «ΕΓΚΡΙΝΩ ΕΥΡΕΤΗΡΙΑ D1». Χωρίς αυτό ο νέος κώδικας διαβάζει περίπου όσο ο παλιός.'
+    Say '     (L105: η σελίδα προϊόντος των 6 νέων sites με ομάδες προσφορών (AGW, VGW, SGW, BGW, PGW, ZGW) διαβάζει μόνο τις γραμμές της ομάδας μέσα από το idx_products_group_key, τα «Παρόμοια» διαβάζουν λιγότερα και στα 13, και το robots.txt κλείνει το SERankingBacklinksBot)'
+    Say '     ΠΡΩΤΑ το ευρετήριο στις 6 βάσεις: tools/d1-native-index.ps1 με «ΕΓΚΡΙΝΩ ΕΥΡΕΤΗΡΙΑ D1». Χωρίς αυτό ο νέος κώδικας διαβάζει ΠΕΡΙΣΣΟΤΕΡΕΣ γραμμές από τον παλιό (περίπου 74.000 αντί για 54.000 ανά σελίδα προϊόντος του AGW), γι’ αυτό το apply ελέγχει πρώτα τις 6 βάσεις και δεν ανεβάζει τίποτα αν λείπει κάπου.'
     Say '  2. έλεγχος ότι κάθε αρχική σελίδα δείχνει στο /saved/ και έχει τη νέα γραμμή στο footer, και ότι το /about/ λέει ποιος τρέχει το Gear World'
     Say '  Οι βάσεις των sites και οι ρυθμίσεις τους στον υπολογιστή δεν αλλάζουν.'
     Say ''
@@ -173,6 +203,7 @@ if ($Step -eq 'check') {
 
 # ================= apply =================
 if (-not $Apply) { Say ''; Say ('Χωρίς -Apply δεν αλλάζει τίποτα. Για την αλλαγή: -Step apply -Apply και η φράση {0}' -f $Phrase) 'Yellow'; Finish 0 }
+if (-not $indexReady) { Say 'ΔΕΝ ανέβηκε κανένα site: πρώτα το ευρετήριο (tools/d1-native-index.ps1, «ΕΓΚΡΙΝΩ ΕΥΡΕΤΗΡΙΑ D1»), μετά ξανά αυτό το βήμα.' 'Magenta'; Finish 14 }
 if ($problems -gt 0) { Say 'Υπάρχουν προβλήματα (δες τα παραπάνω): ΔΕΝ αλλάζω τίποτα.' 'Magenta'; Finish 8 }
 if (-not (Confirm-Approval $Phrase)) { Say 'Δεν δόθηκε η σωστή φράση. Δεν άλλαξε τίποτα.' 'Yellow'; Finish 1 }
 Say ''

@@ -287,10 +287,11 @@ test('the Hub sitemap has /about/ (owner, 7/11/2026); the tools ask this release
   const body = await sitemapBody('new');
   assert.ok(body.includes('<loc>https://gearworldhub.com/about/</loc>'));
   const hubTool = readFileSync('tools/gwh-hub-v2.ps1', 'utf8');
-  assert.ok(hubTool.includes("$PhrasePreview = 'ΕΓΚΡΙΝΩ HUB CLEANUP PREVIEW'") && hubTool.includes("$PhraseLive = 'ΕΓΚΡΙΝΩ HUB CLEANUP LIVE'"));
+  // The release after this one (L105, robots.txt) asks its own phrases.
+  assert.ok(hubTool.includes("$PhrasePreview = 'ΕΓΚΡΙΝΩ HUB ROBOTS PREVIEW'") && hubTool.includes("$PhraseLive = 'ΕΓΚΡΙΝΩ HUB ROBOTS LIVE'"));
   assert.ok(hubTool.includes("$PhraseRemovePreview = 'ΕΓΚΡΙΝΩ HUB REMOVE PREVIEW'"));
   const tests = readFileSync('tests/run-tests.ps1', 'utf8');
-  assert.ok(tests.includes("'egkrino hub cleanup preview'") && tests.includes("'egkrino hub cleanup live'") && !/HUB WORDING|hub wording/.test(tests));
+  assert.ok(tests.includes("'egkrino hub robots preview'") && tests.includes("'egkrino hub robots live'") && !/HUB WORDING|hub wording|HUB CLEANUP|hub cleanup/.test(tests));
   const sitesTool = readFileSync('tools/ads-fixes-sites.ps1', 'utf8');
   assert.ok(sitesTool.includes("$Phrase = 'ΕΓΚΡΙΝΩ ADS FIXES'"));
   assert.ok(sitesTool.includes("'Browse by category'") && sitesTool.includes('data-i18n-keep="0"'), 'the live check looks for the L103 wording');
