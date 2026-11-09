@@ -2388,7 +2388,13 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         Check (-not $nsAll.Contains($fdKey)) 'new site scan: the key is in no report or list'
         Check ((Run-Fd @('-Apply', '-Approve', 'wrong')) -eq 1) 'feed download with wrong phrase: stops'
         Write-Utf8 (Join-Path $fdArch 'AWIN_30645_116078.csv.gz') 'old copy'
+        # Leftovers (lessons L108): a feed id of 30645 that Awin no longer lists, and a file of a programme not downloaded now.
+        Write-Utf8 (Join-Path $fdArch 'AWIN_30645_99999.csv.gz') 'leftover of 15 Oct'
+        Write-Utf8 (Join-Path $fdArch 'AWIN_55555_7.csv.gz') 'not downloaded in this run'
         Check ((Run-Fd @('-Apply', '-Approve', 'egkrino feed download')) -eq 0) 'feed download with approval: exit 0'
+        $fdApplyRep = [System.IO.File]::ReadAllText((@(Get-ChildItem -LiteralPath $fdOut -Filter '*.txt' | Sort-Object LastWriteTime) | Select-Object -Last 1).FullName)
+        Check ((@(Get-ChildItem -LiteralPath (Join-Path $fdArch '_old') -Recurse -File -Filter 'AWIN_30645_99999.csv.gz').Count -eq 1) -and -not (Test-Path -LiteralPath (Join-Path $fdArch 'AWIN_30645_99999.csv.gz')) -and $fdApplyRep.Contains('AWIN_30645_99999.csv.gz')) 'feed download: a leftover feed id Awin no longer lists goes to _old and is listed (L108)'
+        Check ((Test-Path -LiteralPath (Join-Path $fdArch 'AWIN_55555_7.csv.gz')) -and (Test-Path -LiteralPath (Join-Path $fdArch 'AWIN_30645_116078.csv.gz'))) 'feed download: files of programmes not downloaded now, and current feeds, stay'
         $new = Join-Path $fdArch 'AWIN_30645_116078.csv.gz'
         $b = [System.IO.File]::ReadAllBytes($new)
         Check ($b[0] -eq 0x1f -and $b[1] -eq 0x8b) 'feed download: the new feed is in place'
@@ -2715,6 +2721,10 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
     & node -e "require('fs').writeFileSync(process.argv[2], require('zlib').gzipSync(require('fs').readFileSync(process.argv[1])))" $stCsvFile $stFeed
     $stOld = (Get-Date).AddDays(-5)
     (Get-Item -LiteralPath $stFeed).LastWriteTime = $stOld
+    # A leftover file of Tooled Up that Awin no longer lists, 24 days old (as on the owner's PC on 9 Nov, lessons L108).
+    $stLeft = Join-Path $stArch 'AWIN_496_777.csv.gz'
+    & node -e "require('fs').writeFileSync(process.argv[2], require('zlib').gzipSync(require('fs').readFileSync(process.argv[1])))" $stCsvFile $stLeft
+    (Get-Item -LiteralPath $stLeft).LastWriteTime = (Get-Date).AddDays(-24)
     # A fake Awin server for the download tool (the key is kept with DPAPI as on the owner's PC).
     $stKey = 'TestKey' + ([guid]::NewGuid().ToString('N').Substring(0, 10))
     $stKeyFile = Join-Path $stState 'key.dat'
@@ -2766,6 +2776,7 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         $b = [System.IO.File]::ReadAllBytes($stFeed)
         Check ($b[0] -eq 0x1f -and $b[1] -eq 0x8b -and ((Get-Item -LiteralPath $stFeed).LastWriteTime -gt (Get-Date).AddMinutes(-10))) 'refresh -Stale -Apply: a fresh feed downloaded first by the download tool'
         Check (@(Get-ChildItem -LiteralPath (Join-Path $stArch '_old') -Recurse -File -Filter 'AWIN_496_1001.csv.gz' -ErrorAction SilentlyContinue).Count -eq 1) 'refresh -Stale -Apply: the old feed kept in _old'
+        Check ((@(Get-ChildItem -LiteralPath (Join-Path $stArch '_old') -Recurse -File -Filter 'AWIN_496_777.csv.gz' -ErrorAction SilentlyContinue).Count -eq 1) -and -not (Test-Path -LiteralPath $stLeft)) 'refresh -Stale -Apply: the 24-day leftover Awin no longer lists is moved to _old by the download (L108)'
         $ok = $true
         foreach ($db in @('construction-gear-customers', 'home-gear-world')) {
             $iT = $c.IndexOf('time-travel info ' + $db)
@@ -2790,6 +2801,7 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         if (-not ($r -match 'CGW: φαίνονται ξανά 2')) { Write-Host '----- REFRESH -Apply report (for the failure below) -----'; Write-Host $r }
         Check ($r -match 'CGW: φαίνονται ξανά 2 προϊόντα\. Μένουν κρυμμένα: .*Γραμμές D1: διαβάστηκαν [0-9,]+, γράφτηκαν 8\.' -and $r -match 'HGW: φαίνονται ξανά 2 προϊόντα') 'refresh -Stale -Apply: the Greek summary with the rows written'
         Check ($r.Contains('555: δεν υπάρχει στη λίστα σου') -and $r.Contains('Αντίγραφα και αρχεία επαναφοράς αυτού του site:')) 'refresh -Stale -Apply: the Awin id of the links went to the download tool; the backups folder is printed before loading'
+        Check ($r.Contains('ΠΡΟΣΟΧΗ: No Feed Shop στο CGW (4 ενεργά): το Awin δεν έχει feed για εμάς (το πρόγραμμα 555 δεν είναι στη λίστα σου)') -and $r.Contains('https://ui.awin.com/merchant-profile/555') -and $r.Contains('AWIN_496_777.csv.gz')) 'refresh -Stale -Apply: a programme with no Awin feed is named plainly (GS Workwear), and the moved leftover is listed'
         # A run stopped in the middle (Ctrl+C) still leaves its report, with where the backups are (lessons L108).
         Write-Utf8 (Join-Path $stState 'slow.flag') 'x'
         $killOut = Join-Path $work 'st-kill-out'

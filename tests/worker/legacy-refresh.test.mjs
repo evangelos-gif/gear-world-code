@@ -518,7 +518,7 @@ test('L108 checker: "Price checked" is never newer than the feed\'s own newest l
   assert.ok(p.seen.every(() => true) && p.datesOk, 'the 2-day file rule still decides whether dates are written');
   if (p.stampFromFeed) assert.match(renderReport({ retailer: 'Tooled Up', site: 'cgw', feedFiles: ['x'], feedRows: 2, newest: feed.newest, p }), /η νεότερη ενημέρωση του ίδιου του feed είναι/);
   // Never later than the download, never later than now.
-  const later = planRefresh({ rows: TU, feed: { ...feed, newest: '2026-10-30 08:00:00' }, costs: CGW_COSTS, now: RUN, feedTime: DOWNLOADED });
+  const later = planRefresh({ rows: TU, feed: { ...feed, newest: '2026-10-30 08:00:00', files: feed.files.map(f => ({ ...f, newest: '2026-10-30 08:00:00' })) }, costs: CGW_COSTS, now: RUN, feedTime: DOWNLOADED });
   assert.equal(later.stamp, STAMP);
   assert.equal(later.stampFromFeed, false);
   const out = mkdtempSync(join(tmpdir(), 'refresh-honest-out-'));
@@ -550,4 +550,83 @@ test('L108 checker: a shop whose feed has another merchant_name is found by the 
   execFileSync(process.execPath, [tool, '--archive', dir, '--retailer', 'Tooled Up', '--site', 'cgw', '--rows', rowsFile, '--out', join(out, 'plan'), '--feed-file', 'AWIN_496_1001.csv.gz', '--now', '2026-10-25T12:00:00Z', '--no-hide']);
   const s = JSON.parse(readFileSync(join(out, 'plan', 'summary.json'), 'utf8'));
   assert.deepEqual([s.active, s.hides, s.noHide], [5, 0, true], 'only the shop\'s own rows; nothing hidden with --no-hide');
+});
+
+test('L108 re-run fix: a shop with fresh feeds and 24-day-old leftover files dates every row by the NEWEST file it is in', async () => {
+  // Tooled Up on 9 Nov: AWIN_496_118473 (Awin's current list, just downloaded) next to AWIN_496_19857 and AWIN_496_496
+  // (Awin no longer lists them, 24 days old). The shop's oldest file used to date (and block) the whole shop.
+  const dir = mkdtempSync(join(tmpdir(), 'refresh-leftover-'));
+  const now = Date.parse('2026-11-09T19:00:00Z');
+  const fresh = now - 2 * 3600000;
+  const old = Date.parse('2026-10-15T22:07:43Z');
+  const put = (name, text, time) => { writeFileSync(join(dir, name), gzipSync(text)); utimesSync(join(dir, name), time / 1000, time / 1000); };
+  const upd = '2026-11-10 12:00:00'; // after the download in every zone: the file time decides
+  put('AWIN_496_118473.csv.gz', HEAD
+    + line({ name: 'In both', aw: '1', mid: '1', price: 10, merchant: 'Tooled Up', adv: 496, img: 'https://x/1.jpg', status: 'In Stock', updated: upd })
+    + line({ name: 'Only fresh', aw: '2', mid: '2', price: 20, merchant: 'Tooled Up', adv: 496, img: 'https://x/2.jpg', status: 'In Stock', updated: upd }), fresh);
+  put('AWIN_496_19857.csv.gz', HEAD
+    + line({ name: 'In both (old copy)', aw: '1', mid: '1', price: 9, merchant: 'Tooled Up', adv: 496, img: 'https://x/1-old.jpg', status: 'In Stock', updated: '2026-10-15 20:00:00' })
+    + line({ name: 'Only old', aw: '3', mid: '3', price: 30, merchant: 'Tooled Up', adv: 496, img: 'https://x/3.jpg', status: 'In Stock', updated: '2026-10-15 20:00:00' }), old);
+  put('AWIN_496_496.csv.gz', HEAD + line({ name: 'Only old 2', aw: '4', mid: '4', price: 40, merchant: 'Tooled Up', adv: 496, img: 'https://x/4.jpg', status: 'In Stock', updated: '2026-10-15 20:00:00' }), old);
+  const files = (await findFeeds(dir, 'Tooled Up')).files;
+  assert.equal(files.length, 3);
+  const feed = await readFeed(files);
+  assert.equal(feed.files[0].path.endsWith('AWIN_496_118473.csv.gz'), true, 'the newest file is read first');
+  assert.equal(matchRow({ awin_product_id: '1' }, feed).price, 10, 'a product in both files takes the fresh values');
+  // Rows as the live ones: dated 6 Oct (hidden), and 20 Oct (after the old files, before the fresh one).
+  const rows = [
+    { id: 1, awin_product_id: '1', merchant_product_id: '1', price: 10, currency: 'GBP', stock_status: 'In Stock', image_url: 'https://x/1.jpg', is_active: 1, updated_at: '2026-10-06 20:49:24' },
+    { id: 2, awin_product_id: '2', merchant_product_id: '2', price: 20, currency: 'GBP', stock_status: 'In Stock', image_url: 'https://x/2.jpg', is_active: 1, updated_at: '2026-10-20 10:00:00' },
+    { id: 3, awin_product_id: '3', merchant_product_id: '3', price: 30, currency: 'GBP', stock_status: 'In Stock', image_url: 'https://x/3.jpg', is_active: 1, updated_at: '2026-10-06 20:49:24' },
+    { id: 4, awin_product_id: '4', merchant_product_id: '4', price: 41, currency: 'GBP', stock_status: 'In Stock', image_url: 'https://x/4.jpg', is_active: 1, updated_at: '2026-10-06 20:49:24' }
+  ];
+  const freshStamp = sqliteTime(fresh);
+  // The one-paste mode (-Stale): the shop is NOT skipped; rows 1 and 2 get the fresh time; rows 3 and 4 (only in the
+  // old files) get nothing, not even the price of the old file.
+  const p = planRefresh({ rows, feed, costs: HGW_COSTS, now: new Date(now), requireDates: true, noHide: true });
+  assert.equal(p.skip, '');
+  assert.equal(p.datesOk, true);
+  assert.equal(p.stamp, freshStamp);
+  assert.deepEqual(p.seen.map(s => [s.id, s.stamp]), [[1, freshStamp], [2, freshStamp]]);
+  assert.equal(p.newer, 0, 'row 2 (20 Oct) is older than its own file, not "changed after the download"');
+  assert.equal(p.changes.length, 0, 'row 4: the old file says 40, but an old file changes nothing');
+  assert.equal(p.oldOnly, 2);
+  assert.deepEqual(p.oldFiles.map(f => f.file).sort(), ['AWIN_496_19857.csv.gz', 'AWIN_496_496.csv.gz']);
+  assert.equal(p.visible.revive, 1);
+  assert.equal(p.visible.still['old-file'], 2);
+  const st = planStatements(p);
+  assert.deepEqual(st.seen.map(s => s.sql), [`UPDATE products SET updated_at = '${freshStamp}' WHERE id IN (1, 2) AND (updated_at IS NULL OR updated_at <= '2026-10-20 10:00:00');`]);
+  const report = renderReport({ retailer: 'Tooled Up', site: 'cgw', feedFiles: files.map(f => f.split(/[\\/]/).pop()), feedRows: feed.rows, newest: feed.newest, p });
+  assert.match(report, /Παλιά αρχεία feed του ίδιου καταστήματος .*AWIN_496_19857\.csv\.gz \(24\.9 ημ\.\)/);
+  assert.match(report, /2 προϊόντα βρίσκονται μόνο στα παλιά αρχεία: δεν παίρνουν ημερομηνία/);
+  // The per-pair mode: rows only in old files still get their values, without a date.
+  const pair = planRefresh({ rows, feed, costs: HGW_COSTS, now: new Date(now) });
+  assert.deepEqual(pair.changes.map(c => [c.id, c.set, c.stamp]), [[4, { price: 40 }, '']]);
+  assert.deepEqual(pair.seen.map(s => s.id), [1, 2]);
+  // Only old files (the leftovers alone): nothing in the one-paste mode, as before.
+  const onlyOld = await readFeed(files.filter(f => !/118473/.test(f)));
+  const none = planRefresh({ rows, feed: onlyOld, costs: HGW_COSTS, now: new Date(now), requireDates: true, noHide: true });
+  assert.equal(none.skip, 'old-file');
+  assert.equal(none.writes, 0);
+  // Two fresh files at different times: each row its own file time, grouped by time; the rollback per time.
+  const t2 = fresh - 3600000;
+  put('AWIN_496_496.csv.gz', HEAD + line({ name: 'Only old 2', aw: '4', mid: '4', price: 40, merchant: 'Tooled Up', adv: 496, img: 'https://x/4.jpg', status: 'In Stock', updated: upd }), t2);
+  const two = planRefresh({ rows: rows.map(r => (r.id === 4 ? { ...r, price: 40 } : r)), feed: await readFeed(files), costs: HGW_COSTS, now: new Date(now), requireDates: true, noHide: true });
+  assert.deepEqual(two.seen.map(s => [s.id, s.stamp]), [[1, freshStamp], [4, sqliteTime(t2)], [2, freshStamp]]);
+  const st2 = planStatements(two);
+  assert.equal(st2.seen.length, 2, 'one statement per time');
+  assert.ok(st2.rollback.some(s => s.sql.endsWith(`AND updated_at = '${sqliteTime(t2)}';`)) && st2.rollback.some(s => s.sql.endsWith(`AND updated_at = '${freshStamp}';`)));
+});
+
+test('L108 re-run fix: a dead feed is named (InStock UK: 1 product, last updated in May)', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'refresh-dead-'));
+  writeFileSync(join(dir, 'AWIN_2004_115403.csv.gz'), gzipSync(HEAD + line({ name: 'Last one', aw: '9', mid: '9', price: 5, merchant: 'InStock UK', adv: 2004, updated: '2026-05-15 10:00:00' })));
+  const feed = await readFeed([join(dir, 'AWIN_2004_115403.csv.gz')]);
+  const rows = Array.from({ length: 40 }, (_, i) => ({ id: i + 1, awin_product_id: `x${i}`, merchant_product_id: `y${i}`, price: 5, currency: 'GBP', stock_status: 'In Stock', image_url: '', is_active: 1, updated_at: '2026-10-29 23:14:40' }));
+  const p = planRefresh({ rows, feed, costs: CGW_COSTS, now: new Date('2026-11-09T19:00:00Z'), requireDates: true, noHide: true });
+  assert.equal(p.deadFeed, true);
+  assert.equal(p.skip, 'stale-feed');
+  const out = mkdtempSync(join(tmpdir(), 'refresh-dead-out-'));
+  const s = writePlan(out, p);
+  assert.deepEqual([s.deadFeed, s.feedRows, s.feedNewest], [true, 1, '2026-05-15 10:00:00']);
 });

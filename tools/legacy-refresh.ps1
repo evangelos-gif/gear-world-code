@@ -96,6 +96,7 @@ $script:RowsRead = @{}
 $script:RowsWritten = @{}
 $script:Schema = @{}
 $script:SiteRows = @{}
+$script:NotListed = @{}
 
 $L = New-Object System.Collections.Generic.List[string]
 # The report is written line by line as the run goes (lessons L108): a run stopped with Ctrl+C still leaves it, with
@@ -553,6 +554,16 @@ function Say-Summary($applied) {
         if (-not $siteOk.ContainsKey($site)) { $line = '{0}: η βάση δεν διαβάστηκε, δεν άλλαξε τίποτα.' -f $site.ToUpper() }
         Say $line
     }
+    # Shops whose products will leave the sites at 30 days whatever this run does (lessons L108, 9 Nov 2026).
+    foreach ($s in @($shopsAll | Where-Object { $_.noAwin })) {
+        $ids = @($s.feed.advertisers)
+        Say ('ΠΡΟΣΟΧΗ: {0} στο {1} ({2} ενεργά): το Awin δεν έχει feed για εμάς (το πρόγραμμα {3} δεν είναι στη λίστα σου). Τα προϊόντα του δεν παίρνουν ημερομηνία και φεύγουν από το site όταν φτάσουν τις 30 μέρες. Έλεγξε το πρόγραμμα στο Awin: https://ui.awin.com/merchant-profile/{4}' -f $s.name, $s.site.ToUpper(), (Fmt $s.n), ($ids -join ', '), $ids[0]) 'Yellow'
+    }
+    foreach ($s in @($shopsAll | Where-Object { $null -ne $_.plan -and $_.plan.deadFeed -and -not $_.noAwin })) {
+        $when = [string]$s.plan.feedNewest
+        if (-not $when) { $when = 'άγνωστη' }
+        Say ('ΠΡΟΣΟΧΗ: {0} στο {1} ({2} ενεργά): το feed είναι άδειο ή νεκρό ({3} προϊόντα, τελευταία ενημέρωση {4}). Τα προϊόντα του δεν παίρνουν ημερομηνία και φεύγουν από το site στις 30 μέρες.' -f $s.name, $s.site.ToUpper(), (Fmt $s.n), (Fmt $s.plan.feedRows), $when) 'Yellow'
+    }
     $fromFeed = @($shopsAll | Where-Object { $null -ne $_.plan -and -not $_.reason -and $_.plan.stampFromFeed })
     if ($fromFeed.Count -gt 0) { Say ('Σε {0} καταστήματα η ημερομηνία είναι η νεότερη ενημέρωση του ίδιου του feed, παλιότερη από τη λήψη (ποτέ νεότερη από τα στοιχεία του καταστήματος): {1}.' -f $fromFeed.Count, ((@($fromFeed | ForEach-Object { '{0} {1}' -f $_.name, $_.site.ToUpper() })) -join ', ')) }
 }
@@ -659,7 +670,7 @@ try {
             $tSel = $tSel + $nSel
             if ($nSel -le 0) { continue }
             Say ('  {0}: ενεργά {1}, πάνω από 14 μέρες {2}, πάνω από 30 μέρες (δεν φαίνονται) {3}, πάνω από {4} μέρες {5}' -f $nm, (Fmt $row.n), (Fmt $n14), (Fmt $n30), $OlderThanDays, (Fmt $nSel))
-            $shop = @{ site = $site; name = $nm; key = (Key-Of $nm); n = $row.n; d14 = $n14; d30 = $n30; dsel = $nSel; aurl = [string]$row.aurl; feed = $null; plan = $null; dir = ''; rows = $null; reason = ''; oldFile = $false; dlOnly = $false; loaded = $false; pdir = '' }
+            $shop = @{ site = $site; name = $nm; key = (Key-Of $nm); n = $row.n; d14 = $n14; d30 = $n30; dsel = $nSel; aurl = [string]$row.aurl; feed = $null; plan = $null; dir = ''; rows = $null; reason = ''; oldFile = $false; dlOnly = $false; noAwin = $false; loaded = $false; pdir = '' }
             if ($nm -match '[|<>^%~"]') { $shop.reason = 'το όνομα έχει χαρακτήρες που δεν περνούν με ασφάλεια'; $skipped += $shop; continue }
             $shopsAll += $shop
         }
@@ -705,8 +716,14 @@ try {
     if ($AwinBaseUrl) { $dlArgs += @('-BaseUrl', $AwinBaseUrl) }
     & $exe @dlArgs
     $dlCode = $LASTEXITCODE
+    # The programmes that are not in the Awin list at all (e.g. GS Workwear, 48473, on 9 Nov): no feed for us.
+    $script:NotListed = @{}
     foreach ($rep in @(Get-ChildItem -LiteralPath $dlOut -Filter 'AWIN_FEED_DOWNLOAD_*.txt' -ErrorAction SilentlyContinue)) {
-        foreach ($line in [System.IO.File]::ReadAllLines($rep.FullName, [System.Text.Encoding]::UTF8)) { Add-ReportLine ('  ' + $line) }
+        foreach ($line in [System.IO.File]::ReadAllLines($rep.FullName, [System.Text.Encoding]::UTF8)) {
+            Add-ReportLine ('  ' + $line)
+            $mm = [regex]::Match($line, '^(\d+): δεν υπάρχει στη λίστα σου')
+            if ($mm.Success) { $script:NotListed[$mm.Groups[1].Value] = $true }
+        }
     }
     if ($dlCode -ne 0) { Say ('ΠΡΟΣΟΧΗ: η λήψη των feeds τελείωσε με κωδικό {0}. Συνεχίζω μόνο με όσα feeds είναι έως 2 μερών.' -f $dlCode) 'Yellow' }
 
@@ -714,6 +731,14 @@ try {
     $feedBy = Find-Feeds 'fresh'
     Plan-All 'apply' $feedBy $false
     $final = $script:PlanOut
+    foreach ($sh in $shopsAll) {
+        if ($null -eq $sh.feed) { continue }
+        $ids = @($sh.feed.advertisers)
+        if ($ids.Count -eq 0) { continue }
+        $all = $true
+        foreach ($i in $ids) { if (-not $script:NotListed.ContainsKey([string]$i)) { $all = $false } }
+        if ($all -and $sh.reason) { $sh.noAwin = $true; $sh.reason = ('το Awin δεν έχει feed για εμάς (το πρόγραμμα {0} δεν είναι στη λίστα σου)' -f ($ids -join ', ')) }
+    }
     $go = @($final | Where-Object { -not $_.reason -and ([long]$_.plan.changes + [long]$_.plan.hides + [long]$_.plan.seen) -gt 0 })
     $nFiles = 0
     foreach ($s in $go) { $nFiles = $nFiles + @($s.plan.files).Count }

@@ -13,6 +13,9 @@
   -AllJoined: every programme you have joined that has a feed (instead of -Advertiser), with the copy on this PC.
   -OnlyMissing: only feeds with no copy here, or an almost empty copy (under 20 products). -AllJoined with -Apply
   needs -OnlyMissing, so a click never downloads every big feed at once.
+  Leftover files (lessons L108): for every advertiser downloaded in this run, its files in the folder whose feed id is
+  no longer in Awin's list (AWIN_<advertiser>_<feed>.csv(.gz)) are moved to the same _old\<time> folder and listed.
+  Nothing is ever deleted. (Tooled Up's leftover files of 15 Oct kept a refresh from dating the shop, 9 Nov 2026.)
 
   The Awin feed key is asked once and kept encrypted for your Windows user (DPAPI) in
   <home>\gear-world-secrets\awin-feed-key.dat. It is never written to a report, the clipboard or the repo.
@@ -182,6 +185,7 @@ if (-not (Confirm-Approval $Phrase)) { Say 'Δεν δόθηκε έγκριση: 
 # 3. Download, check, then swap (old copy kept).
 $oldDir = Join-Path (Join-Path $Archive '_old') $stamp
 $ok = 0
+$doneIds = @{}
 foreach ($t in $todo) {
     $url = '{0}/datafeed/download/apikey/{1}/fid/{2}/format/csv/language/any/delimiter/%2C/compression/gzip/adultcontent/1/columns/{3}/' -f $BaseUrl.TrimEnd('/'), $script:secret, $t.fid, $Columns
     $part = $t.local + '.part'
@@ -209,11 +213,28 @@ foreach ($t in $todo) {
     }
     Move-Item -LiteralPath $part -Destination $t.local -Force
     $ok++
+    $doneIds[[string]$t.id] = $true
     $was = 'καινούργιο'
     if ($oldRows -ge 0) { $was = 'πριν {0}' -f $oldRows }
     Say ('{0}: OK, {1} γραμμές ({2}).' -f $t.name, $newRows, $was) 'Green'
 }
+# 4. Leftover files of the advertisers downloaded now: feed ids Awin no longer lists go to _old too (lessons L108).
+$moved = 0
+foreach ($aid in @($doneIds.Keys)) {
+    $current = @{}
+    foreach ($r in @($list | Where-Object { (Col $_ '(?i)^advertiser.?id$') -eq $aid })) { $current[(Col $r '(?i)^feed.?id$')] = $true }
+    $pattern = '^AWIN_' + $aid + '_(\d+)\.csv(\.gz)?$'
+    foreach ($fi in @(Get-ChildItem -LiteralPath $Archive -File -ErrorAction SilentlyContinue | Where-Object { $_.Name -match $pattern })) {
+        $fid = [regex]::Match($fi.Name, $pattern).Groups[1].Value
+        if ($current.ContainsKey($fid)) { continue }
+        if (-not (Test-Path -LiteralPath $oldDir)) { New-Item -ItemType Directory -Path $oldDir -Force | Out-Null }
+        $when = $fi.LastWriteTime.ToString('yyyy-MM-dd')
+        Move-Item -LiteralPath $fi.FullName -Destination (Join-Path $oldDir $fi.Name) -Force
+        $moved++
+        Say ('{0}: το {1} ({2}) δεν είναι πια στη λίστα του Awin: μετακινήθηκε στο _old (δεν σβήστηκε).' -f $aid, $fi.Name, $when) 'Yellow'
+    }
+}
 Say ''
-Say ('ΕΤΟΙΜΟ: κατέβηκαν {0} από {1} feeds. Τα παλιά αντίγραφα: {2}' -f $ok, $todo.Count, $oldDir) 'Green'
+Say ('ΕΤΟΙΜΟ: κατέβηκαν {0} από {1} feeds. Παλιά αρχεία που το Awin δεν δίνει πια: {2}. Τα παλιά αντίγραφα: {3}' -f $ok, $todo.Count, $moved, $oldDir) 'Green'
 Say 'Τα sites δεν άλλαξαν. Επόμενο βήμα: tools/legacy-import.ps1 για το κατάστημα (δείχνει τι άλλαξε και ζητά έγκριση).'
 Finish 0
