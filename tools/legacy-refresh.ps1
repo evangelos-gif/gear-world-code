@@ -414,7 +414,7 @@ function Find-Feeds([string]$tag) {
 # Plans every shop with the remaining budget (read-only) into $script:PlanOut. $readRows: read the rows from D1 again.
 function Plan-All($tag, $feedBy, $readRows) {
     $left = $budget
-    $script:PlanOut = New-Object System.Collections.Generic.List[object]
+    $script:PlanOut = @()
     foreach ($site in $siteList) {
         if (-not $siteOk.ContainsKey($site)) { continue }
         $mine = @($shopsAll | Where-Object { $_.site -eq $site })
@@ -455,7 +455,7 @@ function Plan-All($tag, $feedBy, $readRows) {
             $left = $left - $p.summary.writes
             if ($p.summary.skip -eq 'old-file' -or $p.summary.skip -eq 'no-file-time') { $shop.reason = 'το αρχείο του feed είναι πάνω από 2 μερών (κατέβασέ το ξανά)'; $shop.oldFile = $true }
             elseif ($p.summary.skip -eq 'stale-feed') { $shop.reason = 'το feed έχει να ενημερωθεί πάνω από 30 μέρες (L39)' }
-            $script:PlanOut.Add($shop)
+            $script:PlanOut += $shop
         }
     }
 }
@@ -565,8 +565,9 @@ try {
     $d14 = $utc.AddDays(-14).ToString('yyyy-MM-dd', $inv)
     Say ('Sites: {0}' -f (($siteList | ForEach-Object { $_.ToUpper() }) -join ', '))
     Say ('Παλιά: τιμή ελεγμένη πριν από {0} («Check price and stock at the retailer», 14 μέρες) και πριν από {1} (δεν φαίνεται, 30 μέρες).' -f $d14, $d30)
-    $shopsAll = New-Object System.Collections.Generic.List[object]
-    $skipped = New-Object System.Collections.Generic.List[object]
+    # Plain arrays: Windows PowerShell 5.1 stops on @( <generic List> ) with "Argument types do not match" (L108).
+    $shopsAll = @()
+    $skipped = @()
     $siteOk = @{}
     foreach ($site in $siteList) {
         Use-Site $site
@@ -591,8 +592,8 @@ try {
             if ($n14 -le 0) { continue }
             Say ('  {0}: ενεργά {1}, πάνω από 14 μέρες {2}, πάνω από 30 μέρες (δεν φαίνονται) {3}' -f $nm, (Fmt $row.n), (Fmt $n14), (Fmt $n30))
             $shop = @{ site = $site; name = $nm; key = (Key-Of $nm); n = $row.n; d14 = $n14; d30 = $n30; feed = $null; plan = $null; dir = ''; rows = $null; reason = ''; oldFile = $false; loaded = $false; pdir = '' }
-            if ($nm -match '[|<>^%~"]') { $shop.reason = 'το όνομα έχει χαρακτήρες που δεν περνούν με ασφάλεια'; $skipped.Add($shop); continue }
-            $shopsAll.Add($shop)
+            if ($nm -match '[|<>^%~"]') { $shop.reason = 'το όνομα έχει χαρακτήρες που δεν περνούν με ασφάλεια'; $skipped += $shop; continue }
+            $shopsAll += $shop
         }
         Say ('  Σύνολο {0}: ενεργά {1}, πάνω από 14 μέρες {2}, πάνω από 30 μέρες {3}. Γραμμές D1 που διαβάστηκαν: {4}.' -f $site.ToUpper(), (Fmt $tot), (Fmt $t14), (Fmt $t30), (Fmt $r.read))
     }
@@ -607,7 +608,7 @@ try {
     # 1. Read-only: the feeds on this PC and the plan of every shop with them.
     $feedBy = Find-Feeds 'now'
     Plan-All 'plan' $feedBy $true
-    $planned = @($script:PlanOut)
+    $planned = $script:PlanOut
     $ready = @($planned | Where-Object { -not $_.reason })
     $advs = @($planned | ForEach-Object { @($_.feed.advertisers) } | Where-Object { $_ } | Sort-Object -Unique)
     $nFiles = 0
@@ -616,7 +617,7 @@ try {
     Say '===== Σχέδιο =====' 'Cyan'
     Say ('Καταστήματα με παλιά προϊόντα: {0}. Με feed σε αυτόν τον υπολογιστή: {1}. Έτοιμα τώρα (feed έως 2 μερών): {2}.' -f ($shopsAll.Count + $skipped.Count), $planned.Count, $ready.Count)
     foreach ($s in @($planned | Where-Object { $_.oldFile })) { Say ('  με -Apply κατεβαίνει πρώτα φρέσκο feed: {0} στο {1} (περίπου {2} θα φαίνονταν ξανά)' -f $s.name, $s.site.ToUpper(), (Fmt $s.plan.visible.reviveIfFresh)) }
-    foreach ($s in @($shopsAll | Where-Object { $_.reason -and -not $_.oldFile }) + @($skipped)) { Say ('  παραλείπεται: {0} στο {1}: {2}' -f $s.name, $s.site.ToUpper(), $s.reason) 'Yellow' }
+    foreach ($s in @($shopsAll | Where-Object { $_.reason -and -not $_.oldFile }) + $skipped) { Say ('  παραλείπεται: {0} στο {1}: {2}' -f $s.name, $s.site.ToUpper(), $s.reason) 'Yellow' }
     if ($advs.Count -gt 0) { Say ('Με -Apply κατεβαίνουν πρώτα φρέσκα feeds για {0} καταστήματα του Awin: {1} (μόνο αρχεία στον υπολογιστή, με το tools/awin-feed-download.ps1).' -f $advs.Count, ($advs -join ', ')) }
     Say ('Η φράση έγκρισης (ΜΙΑ για όλη την εκτέλεση: λήψη των feeds και ανανέωση όλων των καταστημάτων): {0}' -f $StalePhrase)
     Say $quietTip
@@ -642,7 +643,7 @@ try {
     # 3. The plan again with the fresh feeds (the rows already read), then the load, site by site.
     $feedBy = Find-Feeds 'fresh'
     Plan-All 'apply' $feedBy $false
-    $final = @($script:PlanOut)
+    $final = $script:PlanOut
     $go = @($final | Where-Object { -not $_.reason -and ([long]$_.plan.changes + [long]$_.plan.hides + [long]$_.plan.seen) -gt 0 })
     $nFiles = 0
     foreach ($s in $go) { $nFiles = $nFiles + @($s.plan.files).Count }
