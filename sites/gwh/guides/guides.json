@@ -1,6 +1,6 @@
 {
- "checked": "2026-11-04",
- "note": "Prices read from the product pages of the Gear World sites (GET only, never /out/). Rebuild the pages with: node tools/gwh-guides.mjs build. Re-check with: node tools/gwh-guides.mjs check.",
+ "checked": "2026-11-09",
+ "note": "Prices and the day each product was last checked come from the databases of the Gear World sites (read-only SELECTs by product id, 9 Nov 2026). Rebuild the pages with: node tools/gwh-guides.mjs build. Re-check with: node tools/gwh-guides.mjs check.",
  "guides": [
   {
    "slug": "christmas-gifts-for-him",
@@ -8,7 +8,7 @@
    "short": "For him",
    "title": "Christmas gifts for him, from £24.99 to £140",
    "metaTitle": "Christmas Gifts for Him: 12 Ideas from £24.99 | Gear World Hub",
-   "description": "Twelve Christmas gifts for him in four budgets, from a £24.99 fragrance to a leather valet box. Real prices from Men's Gear World, checked 4 Nov 2026.",
+   "description": "Twelve Christmas gifts for him in four budgets, from a fragrance to a leather valet box. Prices from Men's Gear World.",
    "intro": "Twelve gifts for him, picked from the men's products we compare, in four budgets. We have not tested these products. We picked them on brand, materials and price, and every one was in stock when we checked.",
    "tips": [
     {
@@ -24,7 +24,8 @@
      "why": "A full 100ml bottle for under £25",
      "price": 24.99,
      "retailer": "Opulensi Perfumes",
-     "image": "https://cdn.shopify.com/s/files/1/0725/8003/8975/files/Lattafa_Nebras_Elixir_100ml_EDP_bottle_front_white.jpg?v=1762284210"
+     "image": "https://cdn.shopify.com/s/files/1/0725/8003/8975/files/Lattafa_Nebras_Elixir_100ml_EDP_bottle_front_white.jpg?v=1762284210",
+     "checked": "2026-10-23"
     },
     {
      "group": "£25",
@@ -33,7 +34,8 @@
      "why": "Opens at the press of a button and folds small for a bag",
      "price": 25.0,
      "retailer": "Coes",
-     "image": "https://cdn.shopify.com/s/files/1/0247/7952/2097/files/e7416ebabb118877b53e141e7ad07c7e.png?v=1705573883"
+     "image": "https://cdn.shopify.com/s/files/1/0247/7952/2097/files/e7416ebabb118877b53e141e7ad07c7e.png?v=1705573883",
+     "checked": "2026-10-26"
     },
     {
      "group": "£25",
@@ -42,7 +44,8 @@
      "why": "Slim leather alternative to a bulky wallet",
      "price": 25.0,
      "retailer": "Coes",
-     "image": "https://cdn.shopify.com/s/files/1/0247/7952/2097/files/public_903a121c-d273-407d-a0d6-c57abfb9e075.png?v=1785940752"
+     "image": "https://cdn.shopify.com/s/files/1/0247/7952/2097/files/public_903a121c-d273-407d-a0d6-c57abfb9e075.png?v=1785940752",
+     "checked": "2026-10-26"
     },
     {
      "group": "£25",
@@ -51,7 +54,8 @@
      "why": "A simple winter hat that suits most styles",
      "price": 25.0,
      "retailer": "Coes",
-     "image": "https://cdn.shopify.com/s/files/1/0247/7952/2097/files/e613199967f1e38d3b718069483278f8.png?v=1753285904"
+     "image": "https://cdn.shopify.com/s/files/1/0247/7952/2097/files/e613199967f1e38d3b718069483278f8.png?v=1753285904",
+     "checked": "2026-10-26"
     },
     {
      "group": "Under £50",
@@ -60,7 +64,8 @@
      "why": "A small leather piece from the Australian bootmaker",
      "price": 35.0,
      "retailer": "Coes",
-     "image": "https://cdn.shopify.com/s/files/1/0247/7952/2097/files/public_e4807b7b-f6b8-4884-9d8e-0ec9ab052ebe.png?v=1787222200"
+     "image": "https://cdn.shopify.com/s/files/1/0247/7952/2097/files/public_e4807b7b-f6b8-4884-9d8e-0ec9ab052ebe.png?v=1787222200",
+     "checked": "2026-10-26"
     },
     {
      "group": "Under £50",
@@ -69,7 +74,8 @@
      "why": "Quilted winter gloves from Barbour",
      "price": 39.95,
      "retailer": "Coes",
-     "image": "https://cdn.shopify.com/s/files/1/0247/7952/2097/files/bfde145091ac0d354cb076e64d21ffb4.png?v=1721379898"
+     "image": "https://cdn.shopify.com/s/files/1/0247/7952/2097/files/bfde145091ac0d354cb076e64d21ffb4.png?v=1721379898",
+     "checked": "2026-10-26"
     },
     {
      "group": "Under £50",
@@ -78,7 +84,8 @@
      "why": "Pairs with the gloves for a two-part gift",
      "price": 39.95,
      "retailer": "Coes",
-     "image": "https://cdn.shopify.com/s/files/1/0247/7952/2097/files/5ae464822ac3a0d5173fd822c65d2db7.webp?v=1685968135"
+     "image": "https://cdn.shopify.com/s/files/1/0247/7952/2097/files/5ae464822ac3a0d5173fd822c65d2db7.webp?v=1685968135",
+     "checked": "2026-10-26"
     },
     {
      "group": "Under £100",
@@ -87,7 +94,8 @@
      "why": "An everyday bag for work or the commute",
      "price": 69.95,
      "retailer": "Coes",
-     "image": "https://cdn.shopify.com/s/files/1/0247/7952/2097/files/8e4b42e02bb589720ef3c336db13c78f.png?v=1769098414"
+     "image": "https://cdn.shopify.com/s/files/1/0247/7952/2097/files/8e4b42e02bb589720ef3c336db13c78f.png?v=1769098414",
+     "checked": "2026-10-26"
     },
     {
      "group": "Under £100",
@@ -96,7 +104,8 @@
      "why": "100% merino, smart enough for the office",
      "price": 89.95,
      "retailer": "Coes",
-     "image": "https://cdn.shopify.com/s/files/1/0247/7952/2097/files/EcommerceImages-095.png?v=1727942823"
+     "image": "https://cdn.shopify.com/s/files/1/0247/7952/2097/files/EcommerceImages-095.png?v=1727942823",
+     "checked": "2026-10-26"
     },
     {
      "group": "Under £100",
@@ -105,7 +114,8 @@
      "why": "Solid hide leather belt meant to last",
      "price": 90.0,
      "retailer": "Coes",
-     "image": "https://cdn.shopify.com/s/files/1/0247/7952/2097/files/public_3d96ba71-5323-44a6-8c66-8d8c9803d441.png?v=1787222019"
+     "image": "https://cdn.shopify.com/s/files/1/0247/7952/2097/files/public_3d96ba71-5323-44a6-8c66-8d8c9803d441.png?v=1787222019",
+     "checked": "2026-10-26"
     },
     {
      "group": "Splurge",
@@ -114,7 +124,8 @@
      "why": "Hand-sewn deerskin with a cashmere lining",
      "price": 115.0,
      "retailer": "Coes",
-     "image": "https://cdn.shopify.com/s/files/1/0247/7952/2097/files/d3bf866cf59d5db5bcf3bd0b72eebaf3.webp?v=1695632166"
+     "image": "https://cdn.shopify.com/s/files/1/0247/7952/2097/files/d3bf866cf59d5db5bcf3bd0b72eebaf3.webp?v=1695632166",
+     "checked": "2026-10-26"
     },
     {
      "group": "Splurge",
@@ -123,7 +134,8 @@
      "why": "Keeps watches, cufflinks and keys in one place",
      "price": 140.0,
      "retailer": "Coes",
-     "image": "https://cdn.shopify.com/s/files/1/0247/7952/2097/files/a4f30df769bcbb79c2c6818969062e61.png?v=1773137210"
+     "image": "https://cdn.shopify.com/s/files/1/0247/7952/2097/files/a4f30df769bcbb79c2c6818969062e61.png?v=1773137210",
+     "checked": "2026-10-26"
     }
    ]
   },
@@ -131,14 +143,14 @@
    "slug": "christmas-gifts-for-her",
    "site": "wgw",
    "short": "For her",
-   "title": "Christmas gifts for her, from £17 to £179",
+   "title": "Christmas gifts for her, from £17 to £175",
    "metaTitle": "Christmas Gifts for Her: 12 Ideas from £17 | Gear World Hub",
-   "description": "Twelve Christmas gifts for her, from a £16.99 handwarmer to a Hugo Boss watch, plus a perfume price tip. Real prices from Women's Gear World, checked 4 Nov 2026.",
+   "description": "Twelve Christmas gifts for her, from a £16.99 handwarmer to a boxed fragrance set, plus a perfume tip. Prices from Women's Gear World.",
    "intro": "Twelve gifts for her from the women's products we compare, plus one tip that can save you money on perfume. We have not tested these products. We picked them on brand, materials and price, and every one was in stock when we checked.",
    "tips": [
     {
      "label": "Compare before you buy:",
-     "html": "The same bottle can cost different amounts at different retailers. On 4 Nov, <a href=\"https://womensgearworld.com/product/armaf-club-de-nuit-untold-unisex-eau-de-parfum-105-ml-34679/\">Armaf Club De Nuit Untold 105ml</a> was £26.99 at Bazta UK and <a href=\"https://womensgearworld.com/product/armaf-club-de-nuit-untold-unisex-eau-de-parfum-105-ml-32043/\">£32.99 at Plusshop UK</a>, a £6 difference. The Lattafa gift set above was £28.99 at Bazta UK and <a href=\"https://womensgearworld.com/product/lattafa-yara-yara-candy-anniversary-gift-set-100ml-2-pcs-31827/\">£31.99 at Plusshop UK</a>. Delivery costs can change the total, so check the final price at the retailer's checkout."
+     "text": "the same perfume can cost different amounts at different retailers. When Women's Gear World lists a bottle at more than one retailer, its page shows the prices side by side. Delivery costs can change the total, so check the final price at the retailer's checkout."
     }
    ],
    "items": [
@@ -149,7 +161,8 @@
      "why": "A cosy stocking filler",
      "price": 16.99,
      "retailer": "Coes",
-     "image": "https://cdn.shopify.com/s/files/1/0247/7952/2097/files/kls869-10.jpg?v=1786444008"
+     "image": "https://cdn.shopify.com/s/files/1/0247/7952/2097/files/kls869-10.jpg?v=1786444008",
+     "checked": "2026-10-26"
     },
     {
      "group": "Under £25",
@@ -158,7 +171,8 @@
      "why": "Several pairs in one gift",
      "price": 18.5,
      "retailer": "Coes",
-     "image": "https://cdn.shopify.com/s/files/1/0247/7952/2097/files/ceaba752d24c416c05ea6aab3c61d6d2.png?v=1754048669"
+     "image": "https://cdn.shopify.com/s/files/1/0247/7952/2097/files/ceaba752d24c416c05ea6aab3c61d6d2.png?v=1754048669",
+     "checked": "2026-10-26"
     },
     {
      "group": "Under £25",
@@ -167,7 +181,8 @@
      "why": "A light scarf that adds colour to a winter coat",
      "price": 19.99,
      "retailer": "Coes",
-     "image": "https://cdn.shopify.com/s/files/1/0247/7952/2097/files/0d54c1f84439211176404f9883389307.png?v=1755175842"
+     "image": "https://cdn.shopify.com/s/files/1/0247/7952/2097/files/0d54c1f84439211176404f9883389307.png?v=1755175842",
+     "checked": "2026-10-26"
     },
     {
      "group": "Under £25",
@@ -176,7 +191,8 @@
      "why": "A warm winter extra",
      "price": 20.95,
      "retailer": "Coes",
-     "image": "https://cdn.shopify.com/s/files/1/0247/7952/2097/files/public_04e9e8cc-0352-4312-8001-d762db8586b2.png?v=1786528483"
+     "image": "https://cdn.shopify.com/s/files/1/0247/7952/2097/files/public_04e9e8cc-0352-4312-8001-d762db8586b2.png?v=1786528483",
+     "checked": "2026-10-26"
     },
     {
      "group": "Under £50",
@@ -185,7 +201,8 @@
      "why": "Two full-size perfumes, already boxed as a set",
      "price": 28.99,
      "retailer": "Bazta UK",
-     "image": "https://bazta.com/media/catalog/product/l/a/lattafa-yara-and-yara-candy-anniversary-gift-set-100ml-2pcs.png"
+     "image": "https://bazta.com/media/catalog/product/l/a/lattafa-yara-and-yara-candy-anniversary-gift-set-100ml-2pcs.png",
+     "checked": "2026-10-24"
     },
     {
      "group": "Under £50",
@@ -194,7 +211,8 @@
      "why": "Personal, if you know her birth month",
      "price": 32.99,
      "retailer": "Coes",
-     "image": "https://cdn.shopify.com/s/files/1/0247/7952/2097/files/klj6627-10.jpg?v=1786452734"
+     "image": "https://cdn.shopify.com/s/files/1/0247/7952/2097/files/klj6627-10.jpg?v=1786452734",
+     "checked": "2026-10-26"
     },
     {
      "group": "Under £50",
@@ -203,7 +221,8 @@
      "why": "A classic winter scarf",
      "price": 34.95,
      "retailer": "Coes",
-     "image": "https://cdn.shopify.com/s/files/1/0247/7952/2097/files/public_94d29ee8-56d7-445d-be62-83e9dc6b4d37.png?v=1785938649"
+     "image": "https://cdn.shopify.com/s/files/1/0247/7952/2097/files/public_94d29ee8-56d7-445d-be62-83e9dc6b4d37.png?v=1785938649",
+     "checked": "2026-10-26"
     },
     {
      "group": "Under £50",
@@ -212,7 +231,8 @@
      "why": "Gemstone beads in a simple everyday bracelet",
      "price": 40.0,
      "retailer": "Coes",
-     "image": "https://cdn.shopify.com/s/files/1/0247/7952/2097/files/7265ee3aad889042d2a55d11b4f44765.png?v=1771254994"
+     "image": "https://cdn.shopify.com/s/files/1/0247/7952/2097/files/7265ee3aad889042d2a55d11b4f44765.png?v=1771254994",
+     "checked": "2026-10-26"
     },
     {
      "group": "Under £50",
@@ -221,7 +241,8 @@
      "why": "A small leather piece she will use every day",
      "price": 45.0,
      "retailer": "Coes",
-     "image": "https://cdn.shopify.com/s/files/1/0247/7952/2097/files/public_42049587-9455-480d-a4fe-a759ea842d83.png?v=1788456313"
+     "image": "https://cdn.shopify.com/s/files/1/0247/7952/2097/files/public_42049587-9455-480d-a4fe-a759ea842d83.png?v=1788456313",
+     "checked": "2026-10-26"
     },
     {
      "group": "Under £100",
@@ -230,25 +251,28 @@
      "why": "Big enough for work, the gym or a weekend away",
      "price": 59.0,
      "retailer": "Coes",
-     "image": "https://cdn.shopify.com/s/files/1/0247/7952/2097/files/large_60b8a490-7cd1-497a-95d1-736aaa8ddca8.png?v=1791196824"
+     "image": "https://cdn.shopify.com/s/files/1/0247/7952/2097/files/large_60b8a490-7cd1-497a-95d1-736aaa8ddca8.png?v=1791196824",
+     "checked": "2026-10-26"
     },
     {
      "group": "Splurge",
-     "name": "Michael Kors MK3203 Women's Watch, 39mm",
-     "url": "https://womensgearworld.com/product/michael-kors-mk3203-women-s-watch-39mm-silver-dial-stainless-steel-1714/",
-     "why": "Silver dial with a stainless steel case",
-     "price": 159.0,
-     "retailer": "Watch Enclave",
-     "image": "https://cdn.shopify.com/s/files/1/0955/5027/5910/files/michael-kors-darci-quartz-womens-watch-mk3203-5193989.webp?v=1779096698"
+     "name": "Al Jazeera Perfumes 20th Anniversary Set",
+     "url": "https://womensgearworld.com/product/al-jazeera-perfumes-20th-anniversary-set-51896/",
+     "why": "A boxed fragrance set for a special occasion",
+     "price": 150,
+     "retailer": "Al Jazeera Perfumes",
+     "image": "https://api-uk.aljazeeraperfumes.com/storage/uploads/20th%20Anniversary%20%28Angle%201%29-1775111914.webp",
+     "checked": "2026-11-08"
     },
     {
      "group": "Splurge",
-     "name": "Hugo Boss Infinity Women's Watch, 35mm",
-     "url": "https://womensgearworld.com/product/hugo-boss-infinity-1502518-women-s-watch-35mm-blue-dial-stainless-steel-1678/",
-     "why": "Blue dial with a stainless steel case",
-     "price": 179.0,
-     "retailer": "Watch Enclave",
-     "image": "https://cdn.shopify.com/s/files/1/0955/5027/5910/files/hugo-boss-infinity-quartz-womens-watch-hb1502518-7069007.webp?v=1779098006"
+     "name": "Oryx Perfumes Oryx Rose",
+     "url": "https://womensgearworld.com/product/oryx-perfumes-oryx-rose-51921/",
+     "why": "A rose perfume from Al Jazeera Perfumes' Oryx range",
+     "price": 175,
+     "retailer": "Al Jazeera Perfumes",
+     "image": "https://api-uk.aljazeeraperfumes.com/storage/uploads/Oryx%20Rose%20Perfume%20%28Top%29-1763072922.jpg",
+     "checked": "2026-11-08"
     }
    ]
   },
@@ -258,12 +282,12 @@
    "short": "For kids",
    "title": "Christmas gifts for kids, by age, from £26 to £71",
    "metaTitle": "Christmas Gifts for Kids by Age: 12 Toys from £26 | Gear World Hub",
-   "description": "Twelve Christmas toys for kids grouped by age, from babies to older kids: LEGO, Playmobil, VTech and more. Real prices from Kids' Gear World, checked 4 Nov 2026.",
-   "intro": "Twelve toys from the Kids' Gear World range, grouped by age, for parents and family buying for children. We have not tested these toys. We picked well-known toy brands that were in stock, and for most we show the cheapest retailer we found. Always check the age label on the product page before you buy, especially for toys with small parts.",
+   "description": "Twelve Christmas toys for kids grouped by age, from babies to older kids: LEGO, Playmobil, VTech and more. Prices from Kids' Gear World.",
+   "intro": "Twelve toys from the Kids' Gear World range, grouped by age, for parents and family buying for children. We have not tested these toys. We picked well-known toy brands that were in stock. Where two retailers sell the same toy, its page on Kids' Gear World shows both prices. Always check the age label on the product page before you buy, especially for toys with small parts.",
    "tips": [
     {
      "label": "The same toy, two prices:",
-     "html": "On 4 Nov, the <a href=\"https://kidsgearworld.com/product/k-nex-kid-education-group-building-set-131-pcs-9350/\">K'NEX Kid Education Group Building Set (131 pcs)</a> was £49.35 at Bazta UK and <a href=\"https://kidsgearworld.com/product/k-nex-kid-education-group-building-set-131-pcs-6862/\">£55.75 at Plusshop UK</a>. The SmartMax set above was £25.99 at Bazta UK and <a href=\"https://kidsgearworld.com/product/smartmax-start-plus-building-set-30-pcs-6207/\">£29.99 at Plusshop UK</a>. Check delivery costs too, because they can change which retailer is cheaper overall."
+     "text": "the same toy can cost different amounts at different retailers. When Kids' Gear World lists a toy at more than one retailer, its page shows the prices side by side. Check delivery costs too, because they can change the total."
     }
    ],
    "items": [
@@ -274,7 +298,8 @@
      "why": "A play mat with toys overhead for the first months",
      "price": 33.99,
      "retailer": "Bazta UK",
-     "image": "https://bazta.com/media/catalog/product/f/i/fisher-price-simply-senses-newborn-gym.png"
+     "image": "https://bazta.com/media/catalog/product/f/i/fisher-price-simply-senses-newborn-gym.png",
+     "checked": "2026-10-24"
     },
     {
      "group": "Toddlers",
@@ -283,7 +308,8 @@
      "why": "Pretend play with a toy scanner that also teaches counting",
      "price": 30.99,
      "retailer": "Bazta UK",
-     "image": "https://bazta.com/media/catalog/product/l/e/leapfrog-count-along-basket-scanner-learning-toy-1.png"
+     "image": "https://bazta.com/media/catalog/product/l/e/leapfrog-count-along-basket-scanner-learning-toy-1.png",
+     "checked": "2026-10-24"
     },
     {
      "group": "Toddlers",
@@ -292,7 +318,8 @@
      "why": "Big DUPLO bricks made for small hands",
      "price": 33.74,
      "retailer": "Joybuy",
-     "image": "https://images1.joy-sourcing.com/da/s800x800_jfsintlpro-000-product/t1/4294967296/7274496/6109796677689/395440/6a1084d7E87226012/42b10752b5083d5e.jpg"
+     "image": "https://images1.joy-sourcing.com/da/s800x800_jfsintlpro-000-product/t1/4294967296/7274496/6109796677689/395440/6a1084d7E87226012/42b10752b5083d5e.jpg",
+     "checked": "2026-10-26"
     },
     {
      "group": "Toddlers",
@@ -301,7 +328,8 @@
      "why": "Lights and sounds, part of a range kids can add to",
      "price": 29.99,
      "retailer": "Bazta UK",
-     "image": "https://bazta.com/media/catalog/product/v/t/vtech-toot-toot-fire-station.png"
+     "image": "https://bazta.com/media/catalog/product/v/t/vtech-toot-toot-fire-station.png",
+     "checked": "2026-10-24"
     },
     {
      "group": "Pre-school",
@@ -310,7 +338,8 @@
      "why": "Magnetic rods and balls that click together",
      "price": 25.99,
      "retailer": "Bazta UK",
-     "image": "https://bazta.com/media/catalog/product/s/m/smartmax-start-plus-building-set_-_30_pcs.png"
+     "image": "https://bazta.com/media/catalog/product/s/m/smartmax-start-plus-building-set_-_30_pcs.png",
+     "checked": "2026-10-24"
     },
     {
      "group": "Pre-school",
@@ -319,7 +348,8 @@
      "why": "A big vehicle with figures for role play",
      "price": 31.29,
      "retailer": "Bazta UK",
-     "image": "https://bazta.com/media/catalog/product/p/l/playmobil-city-life-school-bus-playset-1.png"
+     "image": "https://bazta.com/media/catalog/product/p/l/playmobil-city-life-school-bus-playset-1.png",
+     "checked": "2026-10-24"
     },
     {
      "group": "Ages 6+",
@@ -328,7 +358,8 @@
      "why": "Build it, then watch it run",
      "price": 35.29,
      "retailer": "Bazta UK",
-     "image": "https://bazta.com/media/catalog/product/k/n/knex-typhoon-frenzy-roller-coaster-building-set-1.png"
+     "image": "https://bazta.com/media/catalog/product/k/n/knex-typhoon-frenzy-roller-coaster-building-set-1.png",
+     "checked": "2026-10-24"
     },
     {
      "group": "Ages 6+",
@@ -337,7 +368,8 @@
      "why": "Detailed figures for dinosaur fans",
      "price": 39.89,
      "retailer": "Bazta UK",
-     "image": "https://bazta.com/media/catalog/product/s/c/schleich-dinosaur-set-with-cave.png"
+     "image": "https://bazta.com/media/catalog/product/s/c/schleich-dinosaur-set-with-cave.png",
+     "checked": "2026-10-24"
     },
     {
      "group": "Ages 6+",
@@ -346,7 +378,8 @@
      "why": "A classic locomotive to build and display",
      "price": 63.99,
      "retailer": "Joybuy",
-     "image": "https://images1.joy-sourcing.com/da/s800x800_jfsintlpro-000-product/t1/4294967296/3670016/610981777866/324800/6a108500Ecd970af4/42b10752b5083d5e.jpg"
+     "image": "https://images1.joy-sourcing.com/da/s800x800_jfsintlpro-000-product/t1/4294967296/3670016/610981777866/324800/6a108500Ecd970af4/42b10752b5083d5e.jpg",
+     "checked": "2026-10-26"
     },
     {
      "group": "Ages 6+",
@@ -355,7 +388,8 @@
      "why": "The \"big present\" option for pirate fans",
      "price": 71.39,
      "retailer": "Bazta UK",
-     "image": "https://bazta.com/media/catalog/product/p/l/playmobil-large-pirates-with-ship-playset.png"
+     "image": "https://bazta.com/media/catalog/product/p/l/playmobil-large-pirates-with-ship-playset.png",
+     "checked": "2026-10-24"
     },
     {
      "group": "Older kids",
@@ -364,7 +398,8 @@
      "why": "A longer build for patient builders",
      "price": 33.49,
      "retailer": "Joybuy",
-     "image": "https://images1.joy-sourcing.com/da/s800x800_jfsintlpro-000-product/t1/4294967296/6422528/62073701265065/168367/6a8bd74dE459d561c/42b10752b5083d5e.png"
+     "image": "https://images1.joy-sourcing.com/da/s800x800_jfsintlpro-000-product/t1/4294967296/6422528/62073701265065/168367/6a8bd74dE459d561c/42b10752b5083d5e.png",
+     "checked": "2026-10-26"
     },
     {
      "group": "Older kids",
@@ -373,7 +408,8 @@
      "why": "Technic parts and a working tipper",
      "price": 33.74,
      "retailer": "Joybuy",
-     "image": "https://images1.joy-sourcing.com/da/s800x800_jfsintlpro-000-product/t1/4294967296/1835008/101615961167450/283751/69a2a956E843dc55e/42b10752b5083d5e.jpg"
+     "image": "https://images1.joy-sourcing.com/da/s800x800_jfsintlpro-000-product/t1/4294967296/1835008/101615961167450/283751/69a2a956E843dc55e/42b10752b5083d5e.jpg",
+     "checked": "2026-10-26"
     }
    ]
   },
@@ -381,18 +417,18 @@
    "slug": "christmas-gifts-for-diy-lovers",
    "site": "cgw",
    "short": "For DIY lovers",
-   "title": "Christmas gifts for DIY lovers and tradespeople, from £20 to £110",
+   "title": "Christmas gifts for DIY lovers and tradespeople, from £20 to £106",
    "metaTitle": "Christmas Gifts for DIY Lovers: 10 Tools from £20 | Gear World Hub",
-   "description": "Ten tool gifts for DIY lovers and tradespeople from Stanley, Bahco, Milwaukee and Makita, with two retailers compared. Prices checked 4 Nov 2026.",
-   "intro": "Ten tool gifts from Construction Gear World, where the same tool is often sold by two retailers at different prices. We have not tested these tools. We picked well-known tool brands, and for each one we show the cheapest retailer we found on 4 Nov.",
+   "description": "Ten tool gifts for DIY lovers and tradespeople from Stanley, Bahco, Milwaukee, Makita and more. Prices from Construction Gear World.",
+   "intro": "Ten tool gifts from Construction Gear World. We have not tested these tools. We picked tools from well-known brands. Where two retailers sell the same tool, its page on Construction Gear World shows both prices.",
    "tips": [
     {
      "label": "Before you buy a cordless tool:",
      "text": "check on the product page whether a battery and charger are included. Many cordless tools are sold as the tool only, which suits someone who already owns batteries of the same brand."
     },
     {
-     "label": "Biggest saving:",
-     "text": "the Milwaukee M12 impact driver was £31 cheaper at My Tool Shed than at Tooled Up on 4 Nov. Every Construction Gear World product page shows both prices side by side. Some of these tools are marked \"available to order\", which usually means delivery takes a few extra days, so order early for Christmas."
+     "label": "Compare retailers:",
+     "text": "every Construction Gear World product page shows the price at each retailer that sells the tool. Some of these tools are marked \"available to order\", which usually means delivery takes a few extra days, so order early for Christmas."
     }
    ],
    "items": [
@@ -404,92 +440,47 @@
      "price": 19.95,
      "retailer": "My Tool Shed",
      "image": "https://www.mytoolshed.co.uk/artwork/prodzoom/STA046151.jpg",
-     "offers": [
-      {
-       "retailer": "My Tool Shed",
-       "price": 19.95
-      },
-      {
-       "retailer": "Tooled Up",
-       "price": 29.95
-      }
-     ]
+     "checked": "2026-10-26"
+    },
+    {
+     "group": "Under £25",
+     "name": "Bahco 424 Professional Bevel Edge Wood Chisel 32mm",
+     "url": "https://constructiongearworld.com/product/bahco-424-professional-bevel-edge-wood-chisel-32mm-4728/",
+     "why": "A sharp, well-balanced chisel for woodwork",
+     "price": 19.95,
+     "retailer": "Tooled Up",
+     "image": "https://www.tooled-up.com/artwork/prodzoom/tbk_BAH424P32.jpg",
+     "checked": "2026-11-05"
     },
     {
      "group": "Under £50",
-     "name": "Bahco 808050 Ratchet Screwdriver + 6 Bits",
-     "url": "https://constructiongearworld.com/product/bahco-808050-ratchet-screwdriver-and-6-screwdriver-bits-3055/",
-     "why": "One handle that replaces a drawer of screwdrivers",
-     "price": 29.95,
+     "name": "Olympia Centre Cut Bolt Cutters 350mm",
+     "url": "https://constructiongearworld.com/product/olympia-centre-cut-bolt-cutters-350mm-5577/",
+     "why": "Cuts bolts, chains and padlocks on site",
+     "price": 27.95,
      "retailer": "Tooled Up",
-     "image": "https://www.tooled-up.com/artwork/prodzoom/BAH808050.jpg",
-     "offers": [
-      {
-       "retailer": "Tooled Up",
-       "price": 29.95
-      },
-      {
-       "retailer": "My Tool Shed",
-       "price": 29.95
-      }
-     ]
+     "image": "https://www.tooled-up.com/artwork/prodzoom/tbk_OLY39014.jpg",
+     "checked": "2026-11-05"
     },
     {
      "group": "Under £50",
-     "name": "Bahco BahCofit 10 Piece Colour Coded Screwdriver Set",
-     "url": "https://constructiongearworld.com/product/bahco-b219-010rb-bahcofit-10-piece-colour-coded-screwdriver-set-3607/",
-     "why": "Colour coding makes the right tip easy to find",
-     "price": 35.95,
+     "name": "Stanley Anti Vibe Brick Hammer 560g",
+     "url": "https://constructiongearworld.com/product/stanley-anti-vibe-brick-hammer-560g-60455/",
+     "why": "A brick hammer that is easier on the wrist",
+     "price": 33.95,
      "retailer": "Tooled Up",
-     "image": "https://www.tooled-up.com/artwork/prodzoom/BAHB219010RB.jpg",
-     "offers": [
-      {
-       "retailer": "Tooled Up",
-       "price": 35.95
-      },
-      {
-       "retailer": "My Tool Shed",
-       "price": 35.95
-      }
-     ]
+     "image": "https://www.tooled-up.com/artwork/prodzoom/tbk_STA154022.jpg",
+     "checked": "2026-11-05"
     },
     {
      "group": "Under £50",
-     "name": "Stanley FatMax XTREME Tape Measure Kit, 2 pieces",
-     "url": "https://constructiongearworld.com/product/stanley-2-piece-fatmax-xtreme-tape-measure-kit-13745/",
-     "why": "Two tapes, so one can live in the van",
-     "price": 39.95,
+     "name": "Fisher Satin Chrome Engineers Steel Rule 39\" / 1m",
+     "url": "https://constructiongearworld.com/product/fisher-satin-chrome-engineers-steel-rule-39-1m-65658/",
+     "why": "A 1 metre steel rule for accurate marking",
+     "price": 43.95,
      "retailer": "Tooled Up",
-     "image": "https://www.tooled-up.com/artwork/prodzoom/Stanley-STAKIT31-2-Piece-FatMax-XTREME-Tape-Measure-Kit.jpg",
-     "offers": [
-      {
-       "retailer": "Tooled Up",
-       "price": 39.95
-      },
-      {
-       "retailer": "My Tool Shed",
-       "price": 39.95
-      }
-     ]
-    },
-    {
-     "group": "Under £50",
-     "name": "Stanley 5 Piece Compact Handyman Tool Kit",
-     "url": "https://constructiongearworld.com/product/stanley-5-piece-compact-handyman-tool-kit-20529/",
-     "why": "A starter kit for a first home",
-     "price": 46.95,
-     "retailer": "Tooled Up",
-     "image": "https://www.tooled-up.com/artwork/prodzoom/Stanley-STAKIT7-5-Piece-Compact-Handyman-Kit.jpg",
-     "offers": [
-      {
-       "retailer": "Tooled Up",
-       "price": 46.95
-      },
-      {
-       "retailer": "My Tool Shed",
-       "price": 46.95
-      }
-     ]
+     "image": "https://www.tooled-up.com/artwork/prodzoom/tbk_FISC24.jpg",
+     "checked": "2026-11-05"
     },
     {
      "group": "Under £50",
@@ -499,35 +490,27 @@
      "price": 48.95,
      "retailer": "My Tool Shed",
      "image": "https://www.mytoolshed.co.uk/artwork/prodzoom/draper_64605_1.jpg",
-     "offers": [
-      {
-       "retailer": "My Tool Shed",
-       "price": 48.95
-      },
-      {
-       "retailer": "Tooled Up",
-       "price": 52.95
-      }
-     ]
+     "checked": "2026-10-26"
     },
     {
      "group": "Under £100",
-     "name": "Milwaukee LDM 30 Laser Distance Measure",
-     "url": "https://constructiongearworld.com/product/milwaukee-ldm-30-laser-distance-measure-30m-13998/",
-     "why": "Measures a room without a second person",
-     "price": 82.95,
+     "name": "Faithfull Metal Cantilever Tool Box 480mm",
+     "url": "https://constructiongearworld.com/product/faithfull-metal-cantilever-tool-box-480mm-60417/",
+     "why": "Keeps hand tools in order, trays open out",
+     "price": 58.95,
      "retailer": "Tooled Up",
-     "image": "https://www.tooled-up.com/artwork/prodzoom/LDM_30--Hero_1.jpg",
-     "offers": [
-      {
-       "retailer": "Tooled Up",
-       "price": 82.95
-      },
-      {
-       "retailer": "My Tool Shed",
-       "price": 85.95
-      }
-     ]
+     "image": "https://www.tooled-up.com/artwork/prodzoom/tbk_FAITBC519.jpg",
+     "checked": "2026-11-05"
+    },
+    {
+     "group": "Under £100",
+     "name": "Rapid R311 Heavy Duty Hammer Tacker",
+     "url": "https://constructiongearworld.com/product/rapid-r311-heavy-duty-hammer-tacker-62028/",
+     "why": "Fixes membranes, insulation and fabric fast",
+     "price": 72.95,
+     "retailer": "Tooled Up",
+     "image": "https://www.tooled-up.com/artwork/prodzoom/tbk_RPDR311.jpg",
+     "checked": "2026-11-05"
     },
     {
      "group": "Under £100",
@@ -537,16 +520,7 @@
      "price": 99.95,
      "retailer": "My Tool Shed",
      "image": "https://www.mytoolshed.co.uk/artwork/prodzoom/M12_BRAID-0--Hero_01.jpg",
-     "offers": [
-      {
-       "retailer": "My Tool Shed",
-       "price": 99.95
-      },
-      {
-       "retailer": "Tooled Up",
-       "price": 130.95
-      }
-     ]
+     "checked": "2026-10-26"
     },
     {
      "group": "Splurge",
@@ -565,26 +539,8 @@
        "retailer": "My Tool Shed",
        "price": 119.95
       }
-     ]
-    },
-    {
-     "group": "Splurge",
-     "name": "Stanley 6 Piece Measuring and Marking Professional Kit",
-     "url": "https://constructiongearworld.com/product/stanley-6-piece-measuring-and-marking-professional-kit-28519/",
-     "why": "A complete measuring set for a tradesperson",
-     "price": 109.95,
-     "retailer": "My Tool Shed",
-     "image": "https://www.mytoolshed.co.uk/artwork/prodzoom/Stanley-STAKIT4-6-Piece-Measuring-Marking-Professional-Kit.jpg",
-     "offers": [
-      {
-       "retailer": "My Tool Shed",
-       "price": 109.95
-      },
-      {
-       "retailer": "Tooled Up",
-       "price": 109.95
-      }
-     ]
+     ],
+     "checked": "2026-10-26"
     }
    ]
   },
@@ -594,12 +550,12 @@
    "short": "For travellers",
    "title": "Christmas gifts for travellers, from £15 to £175",
    "metaTitle": "Christmas Gifts for Travellers: 12 Ideas from £15 | Gear World Hub",
-   "description": "Twelve travel gifts below their previous price, from a £15.40 wash bag to Osprey and Peak Design backpacks. Real prices from Travel Gear World, checked 4 Nov 2026.",
-   "intro": "Twelve travel gifts from Travel Gear World, all currently listed below the retailer's previous price. We have not tested these products. We picked known travel brands, from a wash bag for a stocking to a cabin backpack for the frequent flyer.",
+   "description": "Twelve travel gifts from known travel brands, from a £15.40 wash bag to Osprey and Peak Design backpacks. Prices from Travel Gear World.",
+   "intro": "Twelve travel gifts from Travel Gear World. We have not tested these products. We picked known travel brands, from a wash bag for a stocking to a cabin backpack for the frequent flyer.",
    "tips": [
     {
-     "label": "About the previous prices:",
-     "text": "they are the prices the retailer shows as the earlier price on 4 Nov. Reductions can end at any time, so check the price on the retailer's page before you buy. Most of these come in other colours too."
+     "label": "About the RRP:",
+     "text": "where the retailer gives a recommended retail price (RRP), we show it next to the price. An RRP is the price the brand or the retailer recommends, not an earlier selling price. Most of these come in other colours too, so check the retailer's page before you buy."
     }
    ],
    "items": [
@@ -611,7 +567,8 @@
      "price": 15.4,
      "retailer": "Case Luggage",
      "image": "https://cdn.shopify.com/s/files/1/0925/7615/3981/files/London_Zoo_ZA1002-002_green_heritage_zoological_garden_m.jpg?v=1782911595",
-     "was": 22.0
+     "rrp": 22,
+     "checked": "2026-10-31"
     },
     {
      "group": "Under £25",
@@ -621,7 +578,8 @@
      "price": 16.0,
      "retailer": "Case Luggage",
      "image": "https://cdn.shopify.com/s/files/1/0925/7615/3981/files/sara-miller-london-phone-pouch-ditsy-floral-ditsy-floral-816854-5060388017279-67087391392125.jpg?v=1775633616",
-     "was": 40.0
+     "rrp": 40,
+     "checked": "2026-10-31"
     },
     {
      "group": "Under £25",
@@ -631,7 +589,8 @@
      "price": 20.0,
      "retailer": "Case Luggage",
      "image": "https://cdn.shopify.com/s/files/1/0925/7615/3981/files/rains-wash-bag-wash-bag-small-black-798112-5711747500450-67085836419453.jpg?v=1775635876",
-     "was": 25.0
+     "rrp": 25,
+     "checked": "2026-10-31"
     },
     {
      "group": "Under £50",
@@ -641,7 +600,8 @@
      "price": 34.0,
      "retailer": "Case Luggage",
      "image": "https://cdn.shopify.com/s/files/1/0925/7615/3981/files/joules-duffle-boat-club-natural-blue-814706-5060388017149-67087025996157.jpg?v=1775634979",
-     "was": 85.0
+     "rrp": 85,
+     "checked": "2026-10-31"
     },
     {
      "group": "Under £50",
@@ -651,7 +611,8 @@
      "price": 28.0,
      "retailer": "Case Luggage",
      "image": "https://cdn.shopify.com/s/files/1/0925/7615/3981/files/London_Zoo_ZA1001-002_green_heritage_zoological_garden_1.jpg?v=1782911595",
-     "was": 40.0
+     "rrp": 40,
+     "checked": "2026-10-31"
     },
     {
      "group": "Under £50",
@@ -661,7 +622,8 @@
      "price": 39.2,
      "retailer": "Case Luggage",
      "image": "https://cdn.shopify.com/s/files/1/0925/7615/3981/files/carl-friedrik-the-luggage-tag-in-black-black-789776-5060869620448-67085723435389.jpg?v=1775635944",
-     "was": 55.0
+     "rrp": 55,
+     "checked": "2026-10-31"
     },
     {
      "group": "Under £50",
@@ -671,7 +633,8 @@
      "price": 45.0,
      "retailer": "Case Luggage",
      "image": "https://cdn.shopify.com/s/files/1/0925/7615/3981/files/rains-backpack-msn-bag-black-793681-5711747497491-67085830652285.jpg?v=1775635898",
-     "was": 65.0
+     "rrp": 65,
+     "checked": "2026-10-31"
     },
     {
      "group": "Under £100",
@@ -681,7 +644,8 @@
      "price": 56.0,
      "retailer": "Case Luggage",
      "image": "https://cdn.shopify.com/s/files/1/0925/7615/3981/files/bric-s-2-pocket-backpack-x-travel-olive-713627-8016623887968-67084545851773.jpg?v=1775632025",
-     "was": 80.0
+     "rrp": 80,
+     "checked": "2026-10-31"
     },
     {
      "group": "Under £100",
@@ -691,7 +655,8 @@
      "price": 63.0,
      "retailer": "Case Luggage",
      "image": "https://cdn.shopify.com/s/files/1/0925/7615/3981/files/rains-weekend-bag-hilo-black-798013-5711747558406-67086084833661.jpg?v=1775638691",
-     "was": 79.0
+     "rrp": 79,
+     "checked": "2026-10-31"
     },
     {
      "group": "Under £100",
@@ -701,7 +666,8 @@
      "price": 69.3,
      "retailer": "Case Luggage",
      "image": "https://cdn.shopify.com/s/files/1/0925/7615/3981/files/Brics_BXG40203_honey_m.jpg?v=1774023585",
-     "was": 99.0
+     "rrp": 99,
+     "checked": "2026-10-31"
     },
     {
      "group": "Splurge",
@@ -711,7 +677,8 @@
      "price": 152.0,
      "retailer": "Case Luggage",
      "image": "https://cdn.shopify.com/s/files/1/0925/7615/3981/files/osprey-travel-backpack-44l-transporter-black-819480-0843820194647-67087225618813.jpg?v=1775633986",
-     "was": 190.0
+     "rrp": 190,
+     "checked": "2026-10-31"
     },
     {
      "group": "Splurge",
@@ -721,7 +688,8 @@
      "price": 175.0,
      "retailer": "Case Luggage",
      "image": "https://cdn.shopify.com/s/files/1/0925/7615/3981/files/peak-design-30l-travel-backpack-black-819534-0818373025885-67087205204349.jpg?v=1775638266",
-     "was": 219.0
+     "rrp": 219,
+     "checked": "2026-10-31"
     }
    ]
   }

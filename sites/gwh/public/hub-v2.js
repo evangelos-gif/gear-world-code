@@ -69,10 +69,11 @@
     dealsSub: ["From retailers listed on Gear World, each with its end date.", "Από καταστήματα που εμφανίζονται στο Gear World, η καθεμία με ημερομηνία λήξης.", "Von Händlern, die auf Gear World gelistet sind, jedes mit Enddatum.", "De marchands présents sur Gear World, chacune avec sa date de fin.", "Da negozi presenti su Gear World, ognuna con la sua data di fine.", "De tiendas que aparecen en Gear World, cada una con su fecha de fin.", "De lojas presentes na Gear World, cada uma com a sua data de fim.", "Van winkels die op Gear World staan, elk met een einddatum.", "Nga dyqane që shfaqen në Gear World, secila me datën e mbarimit.", "De la magazine prezente pe Gear World, fiecare cu data de încheiere.", "От магазинов, представленных на Gear World, у каждого указан срок."],
     dealCode: ["{off} off when you spend {min} or more", "{off} έκπτωση σε αγορές από {min}", "{off} Rabatt ab {min} Einkaufswert", "{off} de réduction dès {min} d'achat", "{off} di sconto su una spesa di almeno {min}", "{off} de descuento en compras desde {min}", "{off} de desconto em compras a partir de {min}", "{off} korting vanaf {min} besteding", "{off} zbritje për blerje nga {min}", "{off} reducere la cumpărături de minimum {min}", "Скидка {off} при покупке от {min}"],
     dealCodeNoMin: ["{off} off with a code", "{off} έκπτωση με κωδικό", "{off} Rabatt mit Code", "{off} de réduction avec un code", "{off} di sconto con un codice", "{off} de descuento con un código", "{off} de desconto com um código", "{off} korting met een code", "{off} zbritje me kod", "{off} reducere cu un cod", "Скидка {off} по коду"],
-    dealUpTo: ["Up to {pct}% off", "Έως {pct}% έκπτωση", "Bis zu {pct}% Rabatt", "Jusqu'à {pct} % de réduction", "Fino al {pct}% di sconto", "Hasta un {pct}% de descuento", "Até {pct}% de desconto", "Tot {pct}% korting", "Deri në {pct}% zbritje", "Până la {pct}% reducere", "Скидки до {pct}%"],
     dealWithCode: ["With a code", "Με κωδικό", "Mit Code", "Avec un code", "Con un codice", "Con un código", "Com um código", "Met een code", "Me kod", "Cu un cod", "По коду"],
     dealSale: ["Sale", "Εκπτώσεις", "Aktion", "Soldes", "Saldi", "Rebajas", "Saldos", "Uitverkoop", "Ulje", "Reduceri", "Распродажа"],
     dealUntil: ["until {date}", "έως {date}", "bis {date}", "jusqu'au {date}", "fino al {date}", "hasta el {date}", "até {date}", "t/m {date}", "deri më {date}", "până la {date}", "до {date}"],
+    // The bar above the header for a visitor outside the UK (the Worker adds it, lessons L107).
+    countryBar: ["We're adding retailers for your country. Most retailers below deliver to the UK only. Check delivery before you buy.", "Προσθέτουμε καταστήματα για τη χώρα σας. Τα περισσότερα καταστήματα πιο κάτω παραδίδουν μόνο στο Ηνωμένο Βασίλειο. Ελέγξτε την αποστολή πριν αγοράσετε.", "Wir nehmen gerade Händler für Ihr Land auf. Die meisten Händler unten liefern nur ins Vereinigte Königreich. Prüfen Sie die Lieferung vor dem Kauf.", "Nous ajoutons des marchands pour votre pays. La plupart des marchands ci-dessous ne livrent qu’au Royaume-Uni. Vérifiez la livraison avant d’acheter.", "Stiamo aggiungendo negozi per il tuo paese. La maggior parte dei negozi qui sotto spedisce solo nel Regno Unito. Controlla la consegna prima di acquistare.", "Estamos añadiendo tiendas para tu país. La mayoría de las tiendas de abajo solo envían al Reino Unido. Comprueba el envío antes de comprar.", "Estamos a adicionar lojas para o seu país. A maioria das lojas abaixo só envia para o Reino Unido. Confirme a entrega antes de comprar.", "We voegen winkels voor jouw land toe. De meeste winkels hieronder leveren alleen in het Verenigd Koninkrijk. Controleer de levering voordat je koopt.", "Po shtojmë dyqane për vendin tuaj. Shumica e dyqaneve më poshtë dërgojnë vetëm në Mbretërinë e Bashkuar. Kontrolloni dërgesën para se të blini.", "Adăugăm magazine pentru țara ta. Majoritatea magazinelor de mai jos livrează doar în Regatul Unit. Verifică livrarea înainte să cumperi.", "Мы добавляем магазины для вашей страны. Большинство магазинов ниже доставляют только в Великобританию. Проверьте доставку перед покупкой."],
     seasonAria: ["Seasonal banner", "Εποχικό μπάνερ", "Saison-Banner", "Bannière de saison", "Banner di stagione", "Banner de temporada", "Banner da época", "Seizoensbanner", "Baner sezonal", "Banner de sezon", "Сезонный баннер"],
     seasonHalloween: ["HALLOWEEN", "HALLOWEEN", "HALLOWEEN", "HALLOWEEN", "HALLOWEEN", "HALLOWEEN", "HALLOWEEN", "HALLOWEEN", "HALLOWEEN", "HALLOWEEN", "ХЭЛЛОУИН"],
     seasonBlackFriday: ["BLACK FRIDAY", "BLACK FRIDAY", "BLACK FRIDAY", "BLACK FRIDAY", "BLACK FRIDAY", "BLACK FRIDAY", "BLACK FRIDAY", "BLACK FRIDAY", "BLACK FRIDAY", "BLACK FRIDAY", "ЧЁРНАЯ ПЯТНИЦА"],
@@ -200,7 +201,8 @@
   }
 
   // Deals from hub-deals.json (made from promos/promos.js by tools/gwh-deals.mjs): only those that run today, codes
-  // first (smaller minimum spend first), then sales (bigger saving first). Every link is a retailer page of a site.
+  // first (smaller minimum spend first), then sales (as listed). A sale says "Sale" and its campaign, never a percentage
+  // or a saving (Google Ads compliance, lessons L107). Every link is a retailer page of a site.
   // The campaign name of a deal ("Halloween") once that season is over: not shown, the code itself still runs to its
   // end date (owner, 1/11/2026: the Joybuy codes of the Halloween campaign run to 31/12).
   const SEASON_WORDS = { halloween: /halloween/i, "black-friday": /black ?friday|cyber ?monday/i, christmas: /christmas|xmas/i };
@@ -217,9 +219,9 @@
     return (Array.isArray(deals) ? deals : [])
       .filter(d => d && d.id && d.retailer && DAY.test(d.start || "") && DAY.test(d.end || "") && d.start <= today && today <= d.end)
       .filter(d => /^https:\/\/[a-z0-9.-]+\/discount-codes\/[a-z0-9-]+\/$/.test(String(d.link || "")))
-      .filter(d => (d.kind === "code" ? Number(d.off) > 0 : Number(d.upTo) > 0))
+      .filter(d => (d.kind === "code" ? Number(d.off) > 0 : d.kind === "sale" && !("upTo" in d) && Boolean(d.campaign)))
       .sort((a, b) => (a.kind === b.kind ? 0 : a.kind === "code" ? -1 : 1) ||
-        (a.kind === "code" ? (Number(a.minSpend) || 0) - (Number(b.minSpend) || 0) : (Number(b.upTo) || 0) - (Number(a.upTo) || 0)));
+        (a.kind === "code" ? (Number(a.minSpend) || 0) - (Number(b.minSpend) || 0) : 0));
   }
 
   // What a campaign slide says. A deals slide (Halloween, Black Friday, the winter slide) speaks of the retailers'
@@ -586,13 +588,13 @@
     box.innerHTML = list.map(d => {
       const offer = d.kind === "code"
         ? (Number(d.minSpend) > 0 ? tx("dealCode", { off: money(d.off, d.currency), min: money(d.minSpend, d.currency) }) : tx("dealCodeNoMin", { off: money(d.off, d.currency) }))
-        : tx("dealUpTo", { pct: Number(d.upTo) });
+        : tx("dealSale");
       const worlds = (Array.isArray(d.sites) ? d.sites : []).filter(s => /^[A-Z]{3}$/.test(s)).join(" · ");
       return `
         <a class="gwh2-deal" href="${esc(d.link)}">
           <span class="gwh2-deal-top"><span class="gwh2-deal-retailer" translate="no">${esc(d.retailer)}</span><span class="gwh2-deal-end">${esc(tx("dealUntil", { date: longDate(d.end) }))}</span></span>
           <strong class="gwh2-deal-offer">${esc(offer)}</strong>
-          <span class="gwh2-deal-meta">${esc(d.kind === "code" ? tx("dealWithCode") : tx("dealSale"))}${campaignLabel(d) ? ` · ${esc(campaignLabel(d))}` : ""}</span>
+          <span class="gwh2-deal-meta">${d.kind === "code" ? esc(tx("dealWithCode")) + (campaignLabel(d) ? ` · ${esc(campaignLabel(d))}` : "") : esc(campaignLabel(d))}</span>
           <span class="gwh2-deal-worlds">${esc(worlds)}</span>
           <span class="gwh2-deal-cta">${esc(tx("dealCta"))} →</span>
         </a>`;

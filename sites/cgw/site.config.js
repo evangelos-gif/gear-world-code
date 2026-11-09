@@ -59,6 +59,8 @@ export default {
   // VEVOR (vevor.nl) delivers to the EU and the EEA, not to the UK (owner, 9 Nov 2026, lessons L107).
   deliversTo: { default: ['GB'], retailers: { Reidl: ['DE', 'AT'], VEVOR: ['EU', 'IS', 'LI', 'NO'], GRABO: ['WORLD'] } },
 
+  // Countries that see only the retailers that deliver there instead of the UK view with its bar (lessons L107); none yet.
+  strictCountries: [],
   languages: [
     { code: 'en-GB', label: 'English' },
     { code: 'el-GR', label: 'Ελληνικά' },

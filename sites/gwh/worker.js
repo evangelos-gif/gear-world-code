@@ -181,10 +181,9 @@ const hubCore = {
       const country = countryRaw || null;
       // GWH-DELIVER-TO (Google Ads compliance, lessons L107): every site lists only the retailers that deliver to the
       // visitor's country. The sites see this Worker's request, not the visitor's, so the Hub passes the country: the
-      // one asked for (?country=), else Cloudflare's country of the visitor. Unknown: nothing is sent and the sites
-      // show their UK view. The answer's country_code and the delivery registry lookup below stay as they were.
-      const cfCountry = String((request.cf && request.cf.country) || "").trim().toUpperCase();
-      const deliverTo = country || (/^[A-Z]{2}$/.test(cfCountry) && cfCountry !== "XX" && cfCountry !== "T1" ? cfCountry : "");
+      // one asked for (?country=), else Cloudflare's country of the visitor; unknown, and Google's crawlers: GB (the UK
+      // view, as on the sites). The answer's country_code and the delivery registry lookup below stay as they were.
+      const deliverTo = country || visitorCountry(request);
       // GWH-GIFT-FILTERS: the gift finder asks only some Gear Worlds (worlds=mgw,tgw) and a price range
       // (max_price, min_price). Without these parameters the search is exactly as before. Fewer worlds = fewer requests.
       const worldsRaw = String(url.searchParams.get("worlds") || "").trim().toLowerCase();
@@ -442,7 +441,8 @@ const hubCore = {
           partial: failures.length > 0,
           failed_sites: failures,
           ...(worldList.length || priced ? { filters: { worlds: sites.map(site => site.key), max_price: maxPrice, min_price: minPrice } } : {})
-        }, { headers: { "Cache-Control": "public, max-age=60" } });
+        // private (lessons L107): the results depend on the visitor's country, so no shared cache may keep them.
+        }, { headers: { "Cache-Control": "private, max-age=60" } });
       } catch (error) {
         console.error("Gear World Hub search error:", error);
         return Response.json({ ok: false, error: "Search is temporarily unavailable." }, { status: 500 });
@@ -940,6 +940,43 @@ async function seasonalMedia(request, env) {
   return new Response(head ? null : part, { status: 206, headers });
 }
 
+// GWH-COUNTRY-BAR (lessons L107, the owner's option A, 9 Nov 2026): Google's crawlers count as UK visitors. Everyone
+// else outside the UK (or with an unknown country) sees, above the header of the home page, the bar "We're adding
+// retailers for your country. Most retailers below deliver to the UK only. Check delivery before you buy." (the search
+// results below come from the sites with the same country, ?deliver_to=). It is added to each answer here, never to a
+// stored copy; hub-v2.js shows it in the visitor's language (data-gwh2="countryBar").
+export const GOOGLE_CRAWLER = /\b(Googlebot|AdsBot-Google(-Mobile)?|Google-InspectionTool|Storebot-Google|Mediapartners-Google|GoogleOther)\b/i;
+export const COUNTRY_BAR_TEXT = "We're adding retailers for your country. Most retailers below deliver to the UK only. Check delivery before you buy.";
+export function visitorCountry(request) {
+  if (GOOGLE_CRAWLER.test(String(request.headers.get("User-Agent") || ""))) return "GB";
+  const cc = String((request.cf && request.cf.country) || "").trim().toUpperCase();
+  return /^[A-Z]{2}$/.test(cc) && cc !== "XX" && cc !== "T1" ? cc : "GB";
+}
+export function needsCountryBar(request) {
+  if (request.method !== "GET") return false;
+  if (GOOGLE_CRAWLER.test(String(request.headers.get("User-Agent") || ""))) return false;
+  const cc = String((request.cf && request.cf.country) || "").trim().toUpperCase();
+  return cc !== "GB";
+}
+const COUNTRY_BAR = `<div class="gwh2-country-bar" role="note"><p class="container" data-gwh2="countryBar">${COUNTRY_BAR_TEXT.replace(/'/g, "&#39;")}</p></div>`;
+const SITE_HEADER = '<header class="site-header">';
+export async function withCountryBar(request, response) {
+  const path = new URL(request.url).pathname;
+  if ((path !== "/" && path !== "/index.html") || !needsCountryBar(request)) return response;
+  if (!response || response.status !== 200 || !response.body || !/^text\/html/i.test(String(response.headers.get("Content-Type") || ""))) return response;
+  const headers = new Headers(response.headers);
+  headers.set("Cache-Control", "private, max-age=60");
+  headers.delete("Content-Length");
+  headers.delete("ETag");
+  if (typeof HTMLRewriter === "function") {
+    const out = new HTMLRewriter().on("header.site-header", { element(e) { e.before(COUNTRY_BAR, { html: true }); } }).transform(response);
+    return new Response(out.body, { status: response.status, headers });
+  }
+  const text = await response.text();
+  const i = text.indexOf(SITE_HEADER);
+  return new Response(i < 0 ? text : text.slice(0, i) + COUNTRY_BAR + text.slice(i), { status: response.status, headers });
+}
+
 // GWH-PHOTO-SEARCH-START
 // Photo search (camera button). Every other request goes to hubCore above, unchanged.
 // On the test address (GWH_PREVIEW = "1") a few extra rules apply: see photo-search.js.
@@ -947,7 +984,7 @@ export default {
   async fetch(request, env, ctx) {
     // GWH-SECURITY (F11, lessons L05, L06, L106): every answer of the Hub gets charset=utf-8 on text and, on HTML pages,
     // the full Content-Security-Policy in Report-Only mode. HSTS stays with the zone's own rule (F08).
-    return withHubHeaders(await hubFetch(request, env, ctx));
+    return withHubHeaders(await withCountryBar(request, await hubFetch(request, env, ctx)));
   },
   // GWH-MAILERLITE: the cron (wrangler.toml [triggers], every 10 minutes) sends sign-ups that are still 'pending'.
   async scheduled(controller, env, ctx) {

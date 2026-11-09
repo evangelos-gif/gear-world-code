@@ -41,14 +41,15 @@ export function sitemapIndex(site, chunks) {
 // counts: { slug: number of products } in the UK view. A category with fewer than MIN_INDEXED_PRODUCTS (20) products
 // is "noindex" (a thin page, lessons L107; before: only an empty one), so it is left out until it has them (Search
 // Console reports sitemap pages that say noindex).
-export function sitemapStatic(site, counts = null) {
+// guides: the guides that have at least 3 products in the UK view (listedGuides); all of them when not given.
+export function sitemapStatic(site, counts = null, guides = site.guides) {
   const cats = site.categories.filter(c => !counts || Number(counts[c.slug]) >= MIN_INDEXED_PRODUCTS);
   const offers = promoRetailers(site);
   // A subcategory page marked `index: true` (TGW Mini PCs, lessons L97) is listed after its category.
   const subs = cats.flatMap(c => (Array.isArray(c.subcategories) ? c.subcategories : []).filter(s => s.index).map(s => `${categoryPath(c.slug)}?sub=${s.slug}`));
   const paths = ['/', '/deals/', ...cats.map(c => categoryPath(c.slug)), ...subs, ...infoPaths(),
     ...(offers.length ? ['/discount-codes/', ...offers.map(r => `/discount-codes/${r.slug}/`)] : []),
-    ...(site.guides && site.guides.length ? ['/guides/', ...site.guides.map(g => `/guides/${g.slug}/`)] : [])];
+    ...(guides && guides.length ? ['/guides/', ...guides.map(g => `/guides/${g.slug}/`)] : [])];
   return urlset(paths.map(p => ({ loc: `https://${site.domain}${p}` })));
 }
 

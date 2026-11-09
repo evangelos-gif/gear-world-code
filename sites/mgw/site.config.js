@@ -41,6 +41,8 @@ export default {
   // Same product (same EAN) from several retailers: one card, and a price table on its page.
   groupOffers: true,
 
+  // Countries that see only the retailers that deliver there instead of the UK view with its bar (lessons L107); none yet.
+  strictCountries: [],
   languages: [
     { code: 'en-GB', label: 'English' },
     { code: 'el-GR', label: 'Ελληνικά' },

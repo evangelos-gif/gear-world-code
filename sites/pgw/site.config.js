@@ -30,6 +30,8 @@ export default {
   convertForeignPrices: true,
   retailersFromEurope: true,
 
+  // Countries that see only the retailers that deliver there instead of the UK view with its bar (lessons L107); none yet.
+  strictCountries: [],
   languages: [
     { code: 'en-GB', label: 'English' },
     { code: 'el-GR', label: 'Ελληνικά' },

@@ -11,7 +11,8 @@ const KIND_ORDER = { code: 0, coupon: 1, sale: 2 };
 function complete(p) {
   if (p.kind === 'code') return Boolean(p.code);
   if (p.kind === 'coupon') return Number(p.off) > 0 && Number(p.minSpend) >= 0;
-  return Number(p.upTo) > 0;
+  // A sale needs its campaign name; it never carries a percentage or a saving (lessons L107).
+  return p.kind === 'sale' && Boolean(p.campaign) && p.upTo === undefined && p.extraOff === undefined;
 }
 
 // Offers that run today: started, not ended, complete enough to show. Codes first, then coupons (money off with no

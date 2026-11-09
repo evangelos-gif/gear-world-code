@@ -40,7 +40,9 @@ export function buildDeals(promos, domains) {
   for (const p of promos) {
     if (!p || !p.id || !p.retailer || !/^[a-z0-9-]{1,40}$/.test(p.slug || '')) continue;
     if (!DAY.test(p.start || '') || !DAY.test(p.end || '') || p.start > p.end) continue;
-    if (p.kind === 'code' ? !(Number(p.off) > 0) : !(Number(p.upTo) > 0)) continue;
+    // A sale goes out with its campaign name only, never a percentage or a saving (lessons L107).
+    if (p.kind !== 'code' && p.kind !== 'sale') continue;
+    if (p.kind === 'code' ? !(Number(p.off) > 0) : (!p.campaign || p.upTo !== undefined || p.extraOff !== undefined)) continue;
     const sites = (p.sites || []).filter(code => domains[code]);
     if (!sites.length) continue;
     const deal = {
@@ -49,7 +51,6 @@ export function buildDeals(promos, domains) {
       link: `https://${domains[sites[0]]}/discount-codes/${p.slug}/`
     };
     if (deal.kind === 'code') { deal.off = Number(p.off); deal.minSpend = Number(p.minSpend) || 0; }
-    else deal.upTo = Number(p.upTo);
     deals.push(deal);
   }
   return deals;

@@ -238,12 +238,12 @@ export function searchPage(site, q, p, result, usedQuery = '', facets = null) {
 // is a recommended price, not a price the product was sold at before. Only prices checked in the last 14 days.
 export function dealsPage(site, p, result, now = Date.now()) {
   const base = '/deals/';
-  const crumbs = [{ name: 'Home', path: '/' }, { name: 'Below RRP today', path: base }];
+  const crumbs = [{ name: 'Home', path: '/' }, { name: 'Below RRP', path: base }];
   const body = html`
 <div class="wrap">
   ${breadcrumbs(crumbs)}
   <header class="page-head">
-    <h1>Below RRP today</h1>
+    <h1>Below RRP</h1>
     <p class="lede">Products priced at least 5% below the RRP (recommended retail price) that the retailer lists, furthest below first. An RRP is the price the retailer or the brand recommends, not an earlier price. Every price here was checked in the last 14 days.</p>
   </header>
   ${p.page > 1 ? '' : seasonBanner(site, 'deals-list', now, result.products.length)}

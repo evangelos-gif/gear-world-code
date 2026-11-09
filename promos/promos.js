@@ -9,7 +9,8 @@
 //   awinMid   Awin advertiser id; url: landing page given by the retailer (becomes an Awin deep link)
 //   sites     site codes that show it (only sites where the retailer fits)
 //   kind      'code' (code, off, minSpend), 'coupon' (off, minSpend: money off with no code to type, the retailer's
-//             own coupon on its page) or 'sale' (upTo, and optional extraOff/extraMin/day)
+//             own coupon on its page) or 'sale' (a retailer's sale: only "Joybuy sale" and the campaign name, never a
+//             percentage or a saving we cannot check, Google Ads compliance, lessons L107)
 //   campaign  campaign name as the retailer wrote it
 //   start/end first and last day (YYYY-MM-DD, UK time); bar: emoji shown in the top bar (one per site)
 //   source    where it came from, for checking later
@@ -38,13 +39,15 @@ const JOYDAY_EMAIL = 'Awin email "Joybuy UK - Joyday campaign - Oct" to UK partn
 export const PROMOS = [
   // The four Joybuy Halloween codes (halloween, beauty, sports, tools; email of 20 Oct 2026) were removed on 9 Nov 2026:
   // a Halloween code and its top bar in November look like a stale offer (Google Ads compliance, lessons L107).
-  { ...JOYBUY, id: 'joybuy-household', kind: 'sale', campaign: 'Household & Cleaning', upTo: 60, extraOff: 5, extraMin: 20, day: 'Thursday',
+  // The Joybuy sales ran with "up to 60% off" and "£5 off £20 every Thursday" from the email; those figures were removed on
+  // 9 Nov 2026 (nobody can check them product by product, lessons L107): the cards say "Sale at Joybuy" and the campaign.
+  { ...JOYBUY, id: 'joybuy-household', kind: 'sale', campaign: 'Household & Cleaning',
     url: 'https://www.joybuy.co.uk/campaign/active/WaWN6fWUxoEaEDqiHQcjqvfmPky', sites: ['HGW'], start: '2026-10-20', end: '2026-12-31', source: JOYBUY_EMAIL },
-  { ...JOYBUY, id: 'joybuy-home-pet', kind: 'sale', campaign: 'Home & Living & Pet', upTo: 50,
+  { ...JOYBUY, id: 'joybuy-home-pet', kind: 'sale', campaign: 'Home & Living & Pet',
     url: 'https://www.joybuy.co.uk/campaign/active/8mf2xXjoDh2G5uWeA2efD3uQKxz', sites: ['HGW'], start: '2026-10-20', end: '2026-12-31', source: JOYBUY_EMAIL },
-  { ...JOYBUY, id: 'joybuy-baby', kind: 'sale', campaign: 'Baby', upTo: 60,
+  { ...JOYBUY, id: 'joybuy-baby', kind: 'sale', campaign: 'Baby',
     url: 'https://www.joybuy.co.uk/campaign/active/3ch27U9EYB1mZUfSbrzEq886jtsx', sites: ['KGW'], start: '2026-10-20', end: '2026-12-31', source: JOYBUY_EMAIL },
-  { ...JOYBUY, id: 'joybuy-hotpot', kind: 'sale', campaign: 'Hotpot & Asian Food', upTo: 20,
+  { ...JOYBUY, id: 'joybuy-hotpot', kind: 'sale', campaign: 'Hotpot & Asian Food',
     url: 'https://www.joybuy.co.uk/minihome/UK-Mini-HP-CN-Food', sites: ['HGW'], start: '2026-10-20', end: '2026-12-31', source: JOYBUY_EMAIL },
   { ...JOYBUY, id: 'joybuy-joy-day', kind: 'coupon', campaign: 'Joy Day', off: 15, minSpend: 99,
     url: 'https://www.joybuy.co.uk/campaign/active/ojYViWn7U8SqEeb4F2gE5Uw4MdW', sites: ['TGW'], start: '2026-10-26', end: '2026-10-31', source: JOYDAY_EMAIL }

@@ -21,6 +21,7 @@ import { fileURLToPath } from 'node:url';
 import vm from 'node:vm';
 import { chromium } from 'playwright';
 import { hubScriptWithSeasons } from './gwh-deals.mjs';
+import { savingClaims } from './gwh-guides.mjs';
 
 const args = process.argv.slice(2);
 const val = name => { const i = args.indexOf(`--${name}`); return i >= 0 ? args[i + 1] : ''; };
@@ -45,6 +46,8 @@ const check = (ok, name, detail = '') => results.push({ ok: Boolean(ok), name, d
 // checked with every season switched on, so the calendar, the arrows and the countdown are still checked for the day
 // the owner turns them on; the real switches are checked here and in the unit tests.
 const REAL_SEASONS = { ...HUB.seasonsOn };
+const claims = savingClaims(publicDir);
+check(claims.length === 0, 'sites/gwh/public: no "previous price", <s> or gd-save anywhere (L107)', claims.slice(0, 5).join('; '));
 check(REAL_SEASONS['black-friday'] === false && REAL_SEASONS.halloween === false, 'the real hub-v2.js: Black Friday and Halloween switched off (L107)', JSON.stringify(REAL_SEASONS));
 const ALL_SEASONS = { halloween: true, 'black-friday': true, christmas: true, 'winter-sales': true, 'new-year-fitness': true, 'valentines-day': true };
 const HUB_JS_ALL_ON = hubScriptWithSeasons(readFileSync(join(publicDir, 'hub-v2.js'), 'utf8'), ALL_SEASONS);

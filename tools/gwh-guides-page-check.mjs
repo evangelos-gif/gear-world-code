@@ -4,7 +4,7 @@
 // desktop (1366 px), and checks (lessons L21, L35):
 //   - no sideways scrolling; texts and buttons at least 12 px from the edge of the screen
 //   - the "See it on ..." buttons and the guide links under the gift finder are at least 44 px high
-//   - "Price checked <date>, may change" is on the first screen of the phone
+//   - "Prices checked <dates>, may change" (the dates of guides.json) is on the first screen of the phone
 //   - no JavaScript errors on the guide pages
 // Nothing outside this computer is opened (product photos and analytics are blocked), and nothing changes anywhere.
 // Usage: node tools/gwh-guides-page-check.mjs [--shots <dir>] [--out report.txt]
@@ -13,7 +13,7 @@ import { mkdirSync, readFileSync, writeFileSync, existsSync, statSync } from 'no
 import { join, extname, normalize } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
-import { loadData, dateLabel } from './gwh-guides.mjs';
+import { loadData, checkedText } from './gwh-guides.mjs';
 
 const args = process.argv.slice(2);
 const val = name => { const i = args.indexOf(`--${name}`); return i >= 0 ? args[i + 1] : ''; };
@@ -22,7 +22,10 @@ const outFile = val('out');
 mkdirSync(shotsDir, { recursive: true });
 const publicDir = fileURLToPath(new URL('../sites/gwh/public/', import.meta.url));
 const data = loadData();
-const checked = `Price checked ${dateLabel(data.checked)}, may change.`;
+const checkedFor = path => {
+  const g = data.guides.find(x => path === `/guides/${x.slug}/`);
+  return `Prices checked ${checkedText(g ? g.items : data.guides.flatMap(x => x.items))}, may change.`;
+};
 
 const TYPES = { '.html': 'text/html; charset=utf-8', '.css': 'text/css', '.js': 'text/javascript', '.json': 'application/json', '.jpg': 'image/jpeg', '.png': 'image/png', '.svg': 'image/svg+xml', '.webp': 'image/webp' };
 const server = createServer((req, res) => {
@@ -79,6 +82,7 @@ try {
       check(!m.sideways, `${tag}: no sideways scrolling`);
       check(m.edge.length === 0, `${tag}: texts and buttons at least 12 px from the edge`, m.edge.join('; '));
       check(m.buttons > 0 && m.small === 0, `${tag}: buttons at least 44 px high`, `${m.small} smaller of ${m.buttons}`);
+      const checked = checkedFor(path);
       check(m.checkedText.includes(checked), `${tag}: "${checked}" is on the page`);
       if (view.width < 500) check(m.checkedTop < view.height, `${tag}: the price-checked line is on the first screen`, `top ${Math.round(m.checkedTop)}`);
       check(errors.length === 0, `${tag}: no JavaScript errors`, errors.join(' | '));

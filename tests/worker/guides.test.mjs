@@ -7,7 +7,7 @@ import { readFileSync } from 'node:fs';
 import { DatabaseSync } from 'node:sqlite';
 import { createWorker } from '../../src/engine.js';
 import * as db from '../../src/db.js';
-import { guidePage, guidesIndexPage, guideProductIds, guideChanged, pencePer, guidePath } from '../../src/pages/guides.js';
+import { guidePage, guidesIndexPage, guideProductIds, guideChanged, pencePer, guidePath, listedGuides, MIN_GUIDE_PRODUCTS } from '../../src/pages/guides.js';
 import { sitemapStatic } from '../../src/seo.js';
 import { translatableTexts } from './i18n-keys.mjs';
 import wgw from '../../sites/wgw/site.config.js';
@@ -70,6 +70,9 @@ test('guides: facts only. "tested" only as "not tested"/"do not test", no scores
         }
         assert.ok(!/\b(reviewed|rated|our verdict|\d(\.\d)?\s*\/\s*10|★)/i.test(w), `${g.slug}: "${w.slice(0, 80)}"`);
         assert.ok(!/[<>]|https?:\/\//.test(w), `${g.slug}: no HTML or link inside "${w.slice(0, 60)}"`);
+        // Lessons L107: the words never quote a price, a price difference or a price per ml (the tables do, from the
+        // database), and make no "cheaper", "lowest price" or "for the money" claim that a new price could undo.
+        assert.ok(!/£|€|\d(\.\d)?p per|\d+p\b|cheaper|lowest price of|lowest-price|highest price|for the money|for less|biggest gap|budget/i.test(w.replace('Lowest price (retailers listed)', '').replace("from today's lowest price", '').replace('uses the lowest price', '')), `${g.slug}: no price in "${w.slice(0, 80)}"`);
       }
       assert.match(g.howWeChose, /^We have not tested/);
     }
@@ -198,4 +201,43 @@ test('guides: the products are read by primary key only ("+p.is_active", lessons
     await db.getGuideProducts(fake, [1, 2, 3]);
     assert.match(text, /WHERE \+p\.is_active = 1 AND p\.id IN \(\?,\?,\?\)$/, site.code);
   }
+});
+
+test('guides: a guide with fewer than 3 products shown is noindex,follow and leaves the guides list and the sitemap (L107)', async () => {
+  assert.equal(MIN_GUIDE_PRODUCTS, 3);
+  const g = cgw.guides[0];
+  const ids = guideProductIds(g);
+  // All shown: index,follow.
+  assert.match(render(cgw, g, productsFor(g)), /<meta name="robots" content="index,follow">/);
+  // Two left: noindex,follow, and not listed.
+  const two = productsFor(g, Object.fromEntries(ids.slice(2).map(id => [id, { gone: true }])));
+  assert.match(render(cgw, g, two), /<meta name="robots" content="noindex,follow">/);
+  assert.deepEqual(listedGuides(cgw, two), []);
+  assert.deepEqual(listedGuides(cgw, productsFor(g)).map(x => x.slug), [g.slug]);
+  const list = guidesIndexPage(cgw, []);
+  assert.ok(!list.includes(guidePath(g)) && /<meta name="robots" content="noindex,follow">/.test(list));
+  assert.ok(!sitemapStatic(cgw, null, []).includes('/guides/'));
+  // Through the Worker: the stale products (more than 30 days) do not count.
+  const sql = new DatabaseSync(':memory:');
+  sql.exec(readFileSync('tests/fixtures/ggw-legacy-schema.sql', 'utf8'));
+  sql.exec(readFileSync('tests/fixtures/cgw-seed.sql', 'utf8'));
+  const add = sql.prepare(`INSERT OR REPLACE INTO products (id, awin_product_id, retailer, site_category, product_name, price, currency, stock_status, affiliate_url, is_active, updated_at)
+    VALUES (?, ?, 'Tooled Up', 'Power Tools', ?, ?, 'GBP', 'In Stock', 'https://www.awin1.com/pclick.php?p=1&a=1&m=1', 1, ?)`);
+  ids.forEach((id, i) => add.run(id, String(id), `Guide product ${id}`, g.prices[id], i < 2 ? '2026-10-20 10:00:00' : '2026-09-01 10:00:00'));
+  const stmt = (text, args = []) => ({
+    bind: (...a) => stmt(text, a),
+    all: async () => ({ results: sql.prepare(text).all(...args).map(r => ({ ...r })) }),
+    first: async () => { const r = sql.prepare(text).get(...args); return r ? { ...r } : null; },
+    run: async () => ({ meta: { changes: Number(sql.prepare(text).run(...args).changes) } })
+  });
+  const env = { DB: { prepare: text => stmt(text), batch: async list => Promise.all(list.map(s => s.all())) } };
+  const worker = createWorker(cgw);
+  const get = path => worker.fetch(new Request(`https://constructiongearworld.com${path}`), env, { waitUntil: p => p });
+  assert.match(await (await get(guidePath(g))).text(), /<meta name="robots" content="noindex,follow">/);
+  assert.ok(!(await (await get('/guides/')).text()).includes(`href="${guidePath(g)}"`));
+  assert.ok(!(await (await get('/sitemap-static.xml')).text()).includes('/guides/'));
+  // Fresh again: back in the list and the sitemap.
+  sql.exec("UPDATE products SET updated_at = '2026-10-20 10:00:00'");
+  assert.ok((await (await get('/guides/')).text()).includes(`href="${guidePath(g)}"`));
+  assert.ok((await (await get('/sitemap-static.xml')).text()).includes(`/guides/${g.slug}/`));
 });

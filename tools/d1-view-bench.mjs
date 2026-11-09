@@ -6,8 +6,10 @@
 //   agw  Car Gear World (new layout): 38,051 active, Pneus.be 29,931 (98% of the tyres), VEVOR 625, all checked 3-8 Nov
 //   cgw  Construction Gear World (older layout, its 21 indexes): 85,592 active, Reidl 19,945, Vevor NL 1,474, and the
 //        rows not changed for 14 / 30 days as on 9 Nov (Tooled Up 26,534 over 30 days ...)
+//   tgw  Technology Gear World (new layout, UK shops only): 30,087 active, all checked in the last 14 days
 //
 //   node tools/d1-view-bench.mjs --site agw [--engine <folder with src/ and sites/ of another version>] [--scale 1]
+//        [--countries none,GB,BE] [--only <page>] [--detail <page>] [--cache-check]
 //
 // It prints one line per page and country: rows read. Without --engine it measures this version. Run it twice (the
 // version before L107 from `git archive`, then this one) to compare. Nothing leaves this computer; wrangler keeps the
@@ -42,6 +44,22 @@ const PROFILES = {
       'safety-winter': { 'GS Workwear': 16 }
     },
     euro: ['Pneus.be', 'VEVOR'],
+    stale: {}
+  },
+  tgw: {
+    layout: 'native',
+    migrations: 'tgw',
+    rows: {
+      'laptops-computing': { 'PCHUB.UK': 7962, 'Back to the Office': 5091, Joybuy: 569, 'PcNova (IT-Supplies)': 521, AKKO: 343 },
+      'accessories-storage': { 'PCHUB.UK': 5361, 'Back to the Office': 3027, Joybuy: 676, 'PcNova (IT-Supplies)': 212, AKKO: 1 },
+      audio: { 'PCHUB.UK': 829, Joybuy: 396, 'Back to the Office': 340, 'PcNova (IT-Supplies)': 24 },
+      'smart-home-wifi': { 'PCHUB.UK': 761, 'Back to the Office': 594, Joybuy: 97, 'PcNova (IT-Supplies)': 48 },
+      'phones-smartwatches': { 'PCHUB.UK': 432, Joybuy: 428, 'Back to the Office': 225, 'PcNova (IT-Supplies)': 15 },
+      gaming: { Joybuy: 436, 'Back to the Office': 421, 'PCHUB.UK': 171, 'PcNova (IT-Supplies)': 29, AKKO: 27 },
+      'cameras-drones': { 'PCHUB.UK': 533, Joybuy: 141, 'Back to the Office': 27, 'PcNova (IT-Supplies)': 22 },
+      'tv-home-cinema': { Joybuy: 115, 'PCHUB.UK': 106, 'Back to the Office': 104, 'PcNova (IT-Supplies)': 3 }
+    },
+    euro: [],
     stale: {}
   },
   cgw: {
@@ -111,7 +129,8 @@ function rowsOf(profile) {
 function sqlFor(profile, rows) {
   const parts = [];
   if (profile.layout === 'native') {
-    const mig = ['0001_init.sql', '0002_group_key_index.sql'].map(f => readFileSync(join(repo, 'sites', 'agw', 'migrations', f), 'utf8'));
+    const migDir = join(repo, 'sites', profile.migrations || 'agw', 'migrations');
+    const mig = (profile.migrations === 'tgw' ? ['0001_init.sql'] : ['0001_init.sql', '0002_group_key_index.sql']).map(f => readFileSync(join(migDir, f), 'utf8'));
     parts.push(...mig);
     for (let s = 0; s < rows.length; s += 150) {
       parts.push(`INSERT INTO products (id, stable_key, awin_advertiser_id, merchant_product_id, retailer, category_slug, brand, product_name, product_slug, price, was_price, currency, in_stock, image_url, affiliate_url, gtin, first_seen_at, last_seen_at, updated_at) VALUES ${rows.slice(s, s + 150).map(x =>
@@ -133,7 +152,7 @@ function sqlFor(profile, rows) {
 
 async function main() {
   const profile = PROFILES[SITE];
-  if (!profile) throw new Error(`--site ${SITE}: agw or cgw`);
+  if (!profile) throw new Error(`--site ${SITE}: agw, cgw or tgw`);
   const { getPlatformProxy } = await import(pathToFileURL(join(repo, 'node_modules', 'wrangler', 'wrangler-dist', 'cli.js')).href);
   const dir = mkdtempSync(join(tmpdir(), 'gw-bench-'));
   writeFileSync(join(dir, 'w.js'), 'export default { fetch() { return new Response("") } }');
@@ -163,23 +182,47 @@ async function main() {
     const worker = createWorker(site);
     const env = { DB, CLICK_LOG: 'off', EDGE_CACHE: 'off', FX_FETCH: async () => { throw new Error('offline'); } };
     const pick = (cond) => rows.find(cond);
-    const gbRetailer = 'Tooled Up';
-    const euRetailer = profile.layout === 'native' ? 'Pneus.be' : 'Reidl';
-    const bigCat = profile.layout === 'native' ? 'tyres-wheels' : 'hand-tools';
-    const smallCat = profile.layout === 'native' ? 'safety-winter' : 'ppe';
-    const midCat = profile.layout === 'native' ? 'garage-tools-equipment' : 'workwear';
-    const path = x => (profile.layout === 'native' ? `/product/product-${x.i}-${x.i}/` : `/product/product-${x.i}-${x.i}/`);
+    const T = SITE === 'tgw';
+    const gbRetailer = T ? 'PCHUB.UK' : 'Tooled Up';
+    const euRetailer = T ? 'Joybuy' : profile.layout === 'native' ? 'Pneus.be' : 'Reidl';
+    const bigCat = T ? 'laptops-computing' : profile.layout === 'native' ? 'tyres-wheels' : 'hand-tools';
+    const smallCat = T ? 'tv-home-cinema' : profile.layout === 'native' ? 'safety-winter' : 'ppe';
+    const midCat = T ? 'audio' : profile.layout === 'native' ? 'garage-tools-equipment' : 'workwear';
+    const path = x => `/product/product-${x.i}-${x.i}/`;
     // Products the UK view lists (checked in the last 30 days), and one from the other country's retailer.
-    const gbInBig = pick(x => x.retailer === gbRetailer && x.cat === (profile.layout === 'native' ? 'tyres-wheels' : 'Hand Tools') && x.seen > '2026-10-11');
+    const gbInBig = pick(x => x.retailer === gbRetailer && x.cat === (T ? 'laptops-computing' : profile.layout === 'native' ? 'tyres-wheels' : 'Hand Tools') && x.seen > '2026-10-11');
     const gbInMid = pick(x => x.retailer === gbRetailer && x.seen > '2026-10-11' && x.cat !== gbInBig.cat);
     const eu = pick(x => x.retailer === euRetailer && x.seen > '2026-10-11');
+    const brand = encodeURIComponent('Brand 12');
+    const shop = encodeURIComponent(gbRetailer);
     const pages = [
       ['home', '/'], [`category ${bigCat}`, `/category/${bigCat}/`], [`category ${midCat}`, `/category/${midCat}/`], [`category ${smallCat}`, `/category/${smallCat}/`],
       [`category ${bigCat} page 3`, `/category/${bigCat}/?page=3`], [`product ${gbRetailer} (${gbInBig.cat})`, path(gbInBig)], [`product ${gbRetailer} (${gbInMid.cat})`, path(gbInMid)],
       [`product ${euRetailer}`, path(eu)], ['search "brand 12"', '/search?q=brand+12'], ['deals', '/deals/'], ['sitemap.xml', '/sitemap.xml'],
-      ['sitemap-static', '/sitemap-static.xml'], ['sitemap-products-1', '/sitemap-products-1.xml'], ['/api/products (Hub)', '/api/products?search=brand+12&limit=8'], ['/api/stats', '/api/stats']
+      ['sitemap-static', '/sitemap-static.xml'], ['sitemap-products-1', '/sitemap-products-1.xml'], ['/api/products (Hub)', '/api/products?search=brand+12&limit=8'], ['/api/stats', '/api/stats'],
+      // Filters (checker of 9 Nov 2026, item 14): a brand or a retailer picked on a category or a search.
+      [`category ${bigCat} brand`, `/category/${bigCat}/?brand=${brand}`], [`category ${bigCat} retailer`, `/category/${bigCat}/?retailer=${shop}`],
+      ['search brand', `/search?q=brand&brand=${brand}`], ['search retailer', `/search?q=brand&retailer=${shop}`],
+      ['/api/products retailer', `/api/products?retailer=${shop}&limit=24`], ['/api/products brand', `/api/products?brand=${brand}&limit=24`]
     ];
+    if (opt('only', '')) pages.splice(0, pages.length, ...pages.filter(([n]) => n.includes(opt('only', ''))));
     console.log(`${SITE.toUpperCase()} ${rows.length} products, engine: ${ENGINE === repo ? 'this version' : ENGINE}`);
+    // --cache-check: the home page through an edge cache kept in memory: a UK visit (miss), then a US visit (hit, the
+    // bar "We're adding retailers for your country" added after the cache), then the UK again (hit). Rows read each.
+    if (args.includes('--cache-check')) {
+      const store = new Map();
+      globalThis.caches = { default: { match: async k => (store.has(k.url) ? store.get(k.url).clone() : undefined), put: async (k, r) => { store.set(k.url, r); } } };
+      const cenv = { ...env, EDGE_CACHE: 'on' };
+      for (const [label, cc] of [['GB (miss)', 'GB'], ['US (hit)', 'US'], ['GB (hit)', 'GB']]) {
+        const req = new Request(`https://${site.domain}/`, { headers: { 'User-Agent': 'Mozilla/5.0 bench' } });
+        Object.defineProperty(req, 'cf', { value: { country: cc } });
+        read = 0;
+        const html = await (await worker.fetch(req, cenv, { waitUntil: x => x })).text();
+        console.log(`home ${label}\t${read}\tbar: ${html.includes('class="country-bar"') ? 'yes' : 'no'}\tcache copies: ${store.size}`);
+      }
+      delete globalThis.caches;
+      return;
+    }
     console.log(['page', ...COUNTRIES].join('\t'));
     for (const [name, p] of pages) {
       const cells = [];

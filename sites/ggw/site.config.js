@@ -48,6 +48,8 @@ export default {
     advertisers: { 'Tooled Up': 496, 'My Tool Shed': 49385 }
   },
 
+  // Countries that see only the retailers that deliver there instead of the UK view with its bar (lessons L107); none yet.
+  strictCountries: [],
   languages: [
     { code: 'en-GB', label: 'English' },
     { code: 'el-GR', label: 'Ελληνικά' },

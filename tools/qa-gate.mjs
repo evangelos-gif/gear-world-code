@@ -10,6 +10,7 @@ import { join, relative, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { normalizeGtin } from '../src/lib/gtin.js';
 import { legacySlug } from '../src/db.js';
+import { savingClaims } from './gwh-guides.mjs';
 
 const args = process.argv.slice(2);
 const base = (args.find(a => /^https?:\/\//.test(a)) || 'http://127.0.0.1:8787').replace(/\/$/, '');
@@ -238,6 +239,9 @@ if (site) {
     const r = await get(p);
     check('L107', !/price drops?|previous price|Save \d+%|class="was"|class="tag-save"/i.test(r.body), `${p}: no price-drop or "was price" wording`);
   }
+  // The Hub files in this copy of the code (gift guides, deals, scripts): no "previous price", <s> or gd-save.
+  const hubClaims = savingClaims();
+  check('L107', hubClaims.length === 0, 'sites/gwh/public: no "previous price", <s> or gd-save', hubClaims.slice(0, 5).join('; '));
 }
 const search = await get('/search?q=usb');
 htmlChecks('/search?q=usb', search, { indexable: false });

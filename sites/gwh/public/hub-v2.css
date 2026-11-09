@@ -286,3 +286,7 @@ body.gwh2-dock-on{padding-bottom:84px;}
 @media (prefers-reduced-motion:reduce){
   *{scroll-behavior:auto !important;transition:none !important;animation:none !important;}
 }
+/* The bar for a visitor outside the UK (worker.js GWH-COUNTRY-BAR, lessons L107): the Hub blue with an orange edge, a
+   plain block above the header, so it never covers the header or the menu. */
+.gwh2-country-bar{background:var(--card);color:var(--text);border-bottom:3px solid var(--accent)}
+.gwh2-country-bar p{margin:0 auto;padding:8px 0;font-size:.92rem;font-weight:600;line-height:1.4;text-align:center}

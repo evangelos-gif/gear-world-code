@@ -16,8 +16,7 @@
 .gd-why { margin: 0 0 6px; color: var(--muted); font-size: 15px; line-height: 1.5; }
 .gd-price { margin: 0; color: var(--muted); font-size: 15px; }
 .gd-price strong { color: #fff; font-size: 20px; }
-.gd-price s { margin-left: 6px; color: var(--muted); }
-.gd-save { display: inline-block; margin-left: 6px; color: var(--gold); font-weight: 700; font-size: 14px; }
+.gd-rrp { display: inline-block; margin-left: 6px; color: var(--muted); font-size: 14px; }
 .gd-other { margin: 2px 0 10px; color: var(--muted); font-size: 14px; }
 .gd-btn { display: inline-flex; align-items: center; min-height: 44px; padding: 8px 16px; border: 2px solid var(--gold); border-radius: 10px; background: var(--gold); color: #08111f; font-weight: 800; font-size: 15px; text-decoration: none; }
 .gd-btn:hover, .gd-btn:focus-visible { background: #fff; border-color: #fff; color: #08111f; }

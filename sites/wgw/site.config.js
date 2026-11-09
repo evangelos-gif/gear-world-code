@@ -47,6 +47,8 @@ export default {
   // Same product (same EAN) from several retailers: one card, and a price table on its page.
   groupOffers: true,
 
+  // Countries that see only the retailers that deliver there instead of the UK view with its bar (lessons L107); none yet.
+  strictCountries: [],
   languages: [
     { code: 'en-GB', label: 'English' },
     { code: 'el-GR', label: 'Ελληνικά' },
@@ -68,7 +70,8 @@ export default {
   deliversTo: { default: ['GB'], retailers: { '100% PURE': ['EU', 'CH', 'NO'] } },
   // 100% PURE sells in euros: its prices stay in euros, with "≈ £…" next to them (lessons L25, L63).
   convertForeignPrices: true,
-  retailersFromEurope: true,
+  // Lessons L107: a UK visitor sees UK retailers only, so the texts no longer say "retailers in the UK and Europe".
+  retailersFromEurope: false,
   displayCurrencies: ['GBP', 'EUR', 'ALL', 'RON', 'RUB'],
   cart: { name: 'Saved list', maxItems: 30 },
   voiceSearch: true,

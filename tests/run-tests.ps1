@@ -3479,6 +3479,7 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         'echo %* | findstr /C:"time-travel info" >nul && goto ttinfo',
         'echo %* | findstr /C:"PRAGMA table_info" >nul && goto pragma',
         'echo %* | findstr /C:"--file" >nul && goto d1file',
+        'echo %* | findstr /C:"FROM products WHERE id IN" >nul && goto guard',
         'echo %* | findstr /C:"--command" >nul && goto d1query',
         'echo %* | findstr /C:"delete gear-world-hub-preview" >nul && goto delpreview',
         'echo %* | findstr /C:" deploy" >nul && goto deploy',
@@ -3493,6 +3494,13 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         ':d1file',
         'echo added> "%GW_FAKE_STATE%\zgw.flag"',
         'echo OK',
+        'exit /b 0',
+        ':guard',
+        'if exist "%GW_FAKE_STATE%\stale.flag" goto guardstale',
+        'type "%GW_FAKE_STATE%\products.json"',
+        'exit /b 0',
+        ':guardstale',
+        'type "%GW_FAKE_STATE%\products-stale.json"',
         'exit /b 0',
         ':d1query',
         'if exist "%GW_FAKE_STATE%\zgw.flag" goto d1yes',
@@ -3549,6 +3557,16 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         'exit /b 1'
     ) -join "`r`n"
     [System.IO.File]::WriteAllText((Join-Path $vBin 'npx.cmd'), $vNpx + "`r`n", [System.Text.Encoding]::ASCII)
+    # L107: the products of the Hub gift guides as the sites' databases answer (checked now; stale.flag: 40 days ago).
+    $vIds = @{}
+    foreach ($g in (ConvertFrom-Json ([System.IO.File]::ReadAllText((Join-Path (Join-Path $vRepo 'guides') 'guides.json'), [System.Text.Encoding]::UTF8))).guides) {
+        foreach ($it in $g.items) { $vIds[[regex]::Match($it.url, '-(\d+)/$').Groups[1].Value] = $it.price }
+    }
+    foreach ($pair in @(@('products.json', 0), @('products-stale.json', -40))) {
+        $day = (Get-Date).ToUniversalTime().AddDays($pair[1]).ToString('yyyy-MM-dd HH:mm:ss')
+        $rows = @($vIds.Keys | ForEach-Object { '{"id":' + $_ + ',"retailer":"Test Shop","price":' + ([double]$vIds[$_]).ToString([System.Globalization.CultureInfo]::InvariantCulture) + ',"stock_status":"In Stock","in_stock":1,"is_active":1,"updated_at":"' + $day + '","last_seen_at":"' + $day + '"}' })
+        Write-Utf8 (Join-Path $vState $pair[0]) ('[{"results":[' + ($rows -join ',') + '],"success":true}]')
+    }
     $oldPath = $env:PATH
     $env:PATH = $vBin + ';' + $oldPath
     $env:GW_FAKE_STATE = $vState
@@ -3582,7 +3600,8 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         $pc = $(if ($cfgs.Count) { [System.IO.File]::ReadAllText($cfgs[0].FullName) } else { '' })
         Check ($pc -match '(?m)^name = "gear-world-hub-preview"' -and $pc -notmatch '(?m)^name = "gear-world-hub"\r?$' -and $pc.Contains('workers_dev = true') -and $pc.Contains('GWH_PREVIEW = "1"') -and $pc.Contains($vDb) -and -not $pc.Contains('POSTERS')) 'hub v2 preview: separate test Worker, workers.dev, preview rules on, no poster counting'
         $r = VLast
-        Check ($r.Contains('https://gear-world-hub-preview.example-test.workers.dev') -and $r.Contains('?gwh-date=2026-11-28') -and -not $r.Contains($vDb)) 'hub v2 preview: report has the test address and the Black Friday link, not the database id'
+        Check ($r.Contains('https://gear-world-hub-preview.example-test.workers.dev') -and -not $r.Contains('?gwh-date=') -and $r.Contains('Η Black Friday είναι ΚΛΕΙΣΤΗ') -and -not $r.Contains($vDb)) 'hub v2 preview: report has the test address, no Black Friday link while it is off (L107), not the database id'
+        Check ($r.Contains('Προϊόντα των οδηγών δώρων: όλα φαίνονται κανονικά') -and (VCount 'FROM products WHERE id IN \(') -ge 5) 'hub v2 preview: every product of the gift guides read by id from its site (SELECT only) and reported (L107)'
         Check ((Get-TreeHash $vHub) -eq $vHubBefore) 'hub v2 preview: the hub folder on the PC is not changed'
         Check ((Run-V @('-Step', 'preview', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB COMPLIANCE PREVIEW')) -eq 0 -and (VCount 'secret bulk') -eq 1) 'hub v2 preview again: the existing secret of the test Worker is kept'
         # live: the posters go first
@@ -3608,6 +3627,11 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         $vTreeT = Get-TreeHash $vHub
         Check ((Run-V @('-Step', 'live', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB COMPLIANCE LIVE')) -eq 18 -and (VCount 'deploy --config') -eq 3 -and (Get-TreeHash $vHub) -eq $vTreeT) 'hub v2 live: workers_dev = false not certain at the top of wrangler.toml: stops before any change (exit 18)'
         Write-Utf8 (Join-Path $vHub 'wrangler.toml') $vCfg
+        # L107: a gift guide product whose page would show a notice (price checked 40 days ago): the live step refuses.
+        Write-Utf8 (Join-Path $vState 'stale.flag') 'old'
+        $vTreeS = Get-TreeHash $vHub
+        Check ((Run-V @('-Step', 'live', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB COMPLIANCE LIVE')) -eq 20 -and (VCount 'deploy --config') -eq 3 -and (Get-TreeHash $vHub) -eq $vTreeS -and (VLast).Contains('NOTICE ')) 'hub v2 live: refused while a gift guide links to a product that would show a notice (exit 20, L107)'
+        Remove-Item -LiteralPath (Join-Path $vState 'stale.flag') -Force
         Check ((Run-V @('-Step', 'live', '-Apply', '-Approve', 'egkrino hub compliance live')) -eq 0 -and (VCount 'deploy --config') -eq 4) 'hub v2 live with approval: deploys once'
         $c = VCalls
         Check ($c -match ('deploy --config "' + [regex]::Escape((Join-Path $vHub 'wrangler.toml')) + '"')) 'hub v2 live: deploys the hub folder with its own wrangler.toml (POSTERS kept)'
@@ -4835,7 +4859,7 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         $r = FXLast 'ADS_FIXES_CHECK_*.txt'
         Check ($r.Contains('ΕΓΚΡΙΝΩ ADS FIXES') -and $r.Contains('SGW, TGW, AGW, VGW, BGW, PGW, ZGW, CGW, MGW, WGW, KGW, HGW, GGW') -and $r.Contains('Saved list')) 'ads fixes check: the phrase, the saved list and the 13 sites in the plan'
         # L107 (Google Ads compliance): the plan says what changes, that no index or database changes, and that the Hub goes after.
-        Check ($r.Contains('L107') -and $r.Contains('Below RRP today') -and $r.Contains('Check price and stock at the retailer') -and $r.Contains('ΕΓΚΡΙΝΩ HUB COMPLIANCE LIVE') -and $r.Contains('κανένα νέο ευρετήριο')) 'ads fixes check: the L107 plan (country view, 30/14 days, RRP, Hub after the sites)'
+        Check ($r.Contains('L107') -and $r.Contains('Below RRP') -and $r.Contains('Check price and stock at the retailer') -and $r.Contains('ΕΓΚΡΙΝΩ HUB COMPLIANCE LIVE') -and $r.Contains('κανένα νέο ευρετήριο')) 'ads fixes check: the L107 plan (country view, 30/14 days, RRP, Hub after the sites)'
         Check ((Run-FX @('-Step', 'apply')) -eq 0 -and -not (Test-Path -LiteralPath $fxSites)) 'ads fixes apply without -Apply: nothing changes'
         Check ((Run-FX @('-Step', 'apply', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ GOOGLE ADS LABEL')) -eq 1 -and -not (Test-Path -LiteralPath $fxSites)) 'ads fixes apply with the wrong phrase: nothing changes'
         Write-Utf8 (Join-Path $fxState 'fail-mgw-engine.flag') 'fail'

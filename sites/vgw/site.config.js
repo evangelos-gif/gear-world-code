@@ -30,8 +30,11 @@ export default {
   // Where the retailers deliver (lessons L62, L107): every retailer not named is a UK shop; VEVOR: the Dutch shop vevor.nl
   // delivers to the EU and the EEA, not to the UK (owner, 9 Nov 2026). Visitors see only what delivers to them.
   deliversTo: { default: ['GB'], retailers: { VEVOR: ['EU', 'IS', 'LI', 'NO'] } },
-  retailersFromEurope: true,
+  // Lessons L107: a UK visitor sees UK retailers only, so the texts no longer say "retailers in the UK and Europe".
+  retailersFromEurope: false,
 
+  // Countries that see only the retailers that deliver there instead of the UK view with its bar (lessons L107); none yet.
+  strictCountries: [],
   languages: [
     { code: 'en-GB', label: 'English' },
     { code: 'el-GR', label: 'Ελληνικά' },
@@ -105,9 +108,9 @@ export default {
 
   homeTitle: 'Travel Gear World | Compare Luggage, Travel Bags, Accessories & Camping Gear',
   homeDescription:
-    'Compare prices on suitcases, cabin bags, travel backpacks, packing cubes, travel adapters and camping gear from retailers in the UK and Europe. Independent price comparison: find the deal, then buy direct.',
+    'Compare prices on suitcases, cabin bags, travel backpacks, packing cubes, travel adapters and camping gear from many retailers. Independent price comparison: find the deal, then buy direct.',
   heroTitle: 'Compare travel gear prices in one place',
-  heroText: 'Suitcases, cabin bags, backpacks, travel accessories and camping gear from retailers around the world. Find the deal, then buy direct from the retailer.',
+  heroText: 'Suitcases, cabin bags, backpacks, travel accessories and camping gear from many retailers. Find the deal, then buy direct from the retailer.',
   searchPlaceholder: 'Search cabin bags, packing cubes, travel adapters...',
   topic: 'travel gear',
   topicTitle: 'Travel Gear',

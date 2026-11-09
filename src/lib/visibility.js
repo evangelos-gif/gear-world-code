@@ -9,6 +9,12 @@
 //    come from US addresses (owner, 9 Nov 2026). A site without deliversTo shows every retailer.
 //    The countries that see the same retailers share one "group" (gb, be, at-de, eu-...), and the page cache keeps one
 //    copy per group, so one country never gets another country's page.
+//    A visitor who gets the UK view although the UK retailers do not deliver to them (an unknown country, a country with
+//    no view of its own, or a European country no retailer of the site delivers to) sees a slim bar at the top of every
+//    page: "We're adding retailers for your country..." (owner's option A, 9 Nov 2026; needsUkBar below). The engine adds
+//    it to each answer after the page cache, so it costs no D1 read and no cache copy of its own.
+//    strictCountries (site config, empty today): the owner's plan is to add retailers country by country; a country in
+//    that list gets only what delivers there (its own group, empty when nothing does) instead of the UK view and the bar.
 // B. Freshness. A product whose price was last checked more than 30 days ago is not listed (its page says so), and one
 //    checked 14-30 days ago says "Check price and stock at the retailer" instead of a stock claim, next to the real
 //    "Price checked" date. The date is last_seen_at (the older layout: updated_at, which the import changes only when
@@ -85,12 +91,14 @@ export function countryGroups(site) {
     return only.length ? { sig: `only:${only.join('|')}`, hidden: null, only } : null;
   };
   const homeRule = ruleFor(HOME_COUNTRY) || { sig: 'all', hidden: null, only: null };
+  const strict = new Set(strictCountries(site));
   const bySig = new Map();
   const home = { id: HOME_GROUP, countries: [], hidden: homeRule.hidden, only: homeRule.only };
   bySig.set(homeRule.sig, home);
   const byCountry = new Map();
-  for (const cc of OWN_VIEW_COUNTRIES) {
-    const rule = ruleFor(cc) || homeRule;
+  for (const cc of [...OWN_VIEW_COUNTRIES, ...[...strict].filter(c => !OWN_VIEW_COUNTRIES.includes(c))]) {
+    // A strict country with no retailer that delivers there: its own empty view (only: []), never the UK view.
+    const rule = ruleFor(cc) || (strict.has(cc) ? { sig: 'none', hidden: null, only: [] } : homeRule);
     let g = bySig.get(rule.sig);
     if (!g) { g = { id: '', countries: [], hidden: rule.hidden, only: rule.only }; bySig.set(rule.sig, g); }
     g.countries.push(cc);
@@ -100,6 +108,26 @@ export function countryGroups(site) {
   const out = { home, byCountry, list: [...bySig.values()] };
   if (site) groupCache.set(site, out);
   return out;
+}
+
+// The countries of a site that see only what delivers there, never the UK view (site.strictCountries, 2-letter codes).
+export function strictCountries(site) {
+  return (Array.isArray(site && site.strictCountries) ? site.strictCountries : []).filter(c => /^[A-Z]{2}$/.test(c) && c !== HOME_COUNTRY);
+}
+
+// Does this visitor get the bar "We're adding retailers for your country..."? Yes when they get the UK view and the UK
+// retailers do not deliver to their country: unknown, no view of their own, or none of the site's retailers delivers
+// there. Never for the UK (Google's crawlers count as the UK, src/engine.js), a country with its own view, a country
+// the UK retailers deliver to as well, or a strict country.
+export function needsUkBar(site, country) {
+  const cc = cleanCountry(country);
+  if (cc === HOME_COUNTRY) return false;
+  if (!cc) return true;
+  const groups = countryGroups(site);
+  const g = groups.byCountry.get(cc);
+  if (g && g !== groups.home) return false;
+  const cfg = site && site.deliversTo;
+  return !(cfg && listCovers(cfg.default, cc));
 }
 
 const DAY = 86400000;
@@ -147,6 +175,8 @@ export function visibleSql(view, alias = 'p') {
   if (view.only && view.only.length) {
     parts.push(`+${alias}.retailer IN (${view.only.map(() => '?').join(', ')})`);
     binds.push(...view.only);
+  } else if (view.only) {
+    parts.push('0'); // a strict country that no retailer delivers to: nothing
   }
   if (view.cutoff) {
     parts.push(`+${alias}.last_seen_at >= ?`);

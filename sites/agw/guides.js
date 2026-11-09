@@ -3,6 +3,8 @@
 // Prices and stock are read from the database when the page opens; `prices` is what each product cost when the
 // guide was written, so the page can say when something has changed since.
 // Whole sentences only, no link inside a sentence, so every language can translate them (lessons L24).
+// Lessons L107 (9 Nov 2026): the words never quote a price, a difference in price or a price per ml; those come only
+// from the database, in the tables and cards, so they are never out of date.
 
 export default [
   {
@@ -15,7 +17,7 @@ export default [
       8895: 31.99, 6586: 68.95, 3160: 68.95, 6787: 91.95, 3361: 91.95
     },
     lead: [
-      'Buy a battery charger if the car is parked near a mains socket and the battery runs down slowly; buy a jump starter if you need to start the car wherever it stops. A charger refills the battery over hours; a jump starter starts the engine in seconds from its own battery, but it does not recharge the car\'s battery. In the shops we compare, smart chargers start at £26.95 and jump starter packs at £31.99.'
+      'Buy a battery charger if the car is parked near a mains socket and the battery runs down slowly; buy a jump starter if you need to start the car wherever it stops. A charger refills the battery over hours; a jump starter starts the engine in seconds from its own battery, but it does not recharge the car\'s battery.'
     ],
     howWeChose: 'We have not tested these products, and we do not score them. From the 116 battery chargers and 112 jump starters we compare, we picked three of each from known brands, on facts the shops list: amps, battery types and voltage for chargers; peak amps, engine size, weight and size for jump starters; and price. Every product was in stock when we checked.',
     blocks: [
@@ -53,7 +55,7 @@ export default [
         items: [
           {
             name: 'Sealey 100HF Compact Auto Smart 1amp Battery Charger', ids: [6391, 2965],
-            pros: 'the lowest price of the six; the same price at both shops; 6 V and 12 V; lead acid, EFB and AGM/GEL (stop/start) batteries; switches to float mode so it does not overcharge.',
+            pros: '6 V and 12 V; lead acid, EFB and AGM/GEL (stop/start) batteries; switches to float mode so it does not overcharge.',
             cons: '1 A, the lowest output here: a flat 60 Ah battery needs roughly 60 hours at 1 A (battery Ah ÷ charger A); no lithium batteries listed.',
             forWho: 'keeping a car, classic or motorbike battery topped up while it is parked for weeks.',
             skip: 'anyone who needs a flat battery recharged overnight.'
@@ -61,9 +63,9 @@ export default [
           {
             name: 'Draper BC14 Smart Charger and Battery Maintainer', ids: [6500, 3074],
             pros: '4 A, four times the 100HF; 6 V and 12 V lead acid plus 12 V lithium; a winter mode down to −20 °C; a 12 V power-supply mode that keeps radio and computer settings while the battery is out.',
-            cons: '£11 more than the 100HF; 2 A less than the SBC6 for £2 less.',
+            cons: 'listed at 4 A, 2 A less than the SBC6.',
             forWho: 'a garage with different batteries, such as a car, a motorbike and a 12 V lithium battery.',
-            skip: 'anyone charging only 12 V car batteries who wants the most amps for the money (see the SBC6).'
+            skip: 'anyone charging only 12 V car batteries who wants the most amps (see the SBC6).'
           },
           {
             name: 'Sealey SBC6 Battery Charger and Maintainer', ids: [4948, 1522],
@@ -81,7 +83,7 @@ export default [
         items: [
           {
             name: 'AstroAI S8 Jump Starter', ids: [8895],
-            pros: 'the lowest-price jump starter here; 1,500 A peak; listed for petrol engines up to 6.0 L and diesel up to 3.0 L; 0.43 kg; also a power bank with two USB outputs and a torch.',
+            pros: '1,500 A peak; listed for petrol engines up to 6.0 L and diesel up to 3.0 L; 0.43 kg; also a power bank with two USB outputs and a torch.',
             cons: 'one shop only (Joybuy), so there is no second price to compare; the listing gives peak amps but not cranking amps.',
             forWho: 'a light pack for the glovebox of an average car.',
             skip: 'owners of diesel engines above 3.0 L.'
@@ -89,14 +91,14 @@ export default [
           {
             name: 'Sealey RS600 Roadstart Lithium-Ion Jump Starter', ids: [6586, 3160],
             pros: 'the lightest and smallest here, 0.36 kg and 85 × 27 × 140 mm; IP66 dust and water rating; 300 A cranking listed; a USB outlet and a torch.',
-            cons: '600 A peak, the lowest here; listed for an average 4 L petrol or 2.5 L diesel engine; £37 more than the AstroAI S8, which lists a higher peak.',
+            cons: '600 A peak, the lowest here; listed for an average 4 L petrol or 2.5 L diesel engine; the AstroAI S8 lists a higher peak.',
             forWho: 'smaller petrol and diesel cars, kept in the glovebox.',
             skip: 'owners of larger diesels and vans.'
           },
           {
             name: 'Draper GT1200 Lithium Jump Starter, Powerbank and Torch', ids: [6787, 3361],
             pros: '1,200 A peak and 600 A cranking, the highest cranking figure listed here; petrol engines up to 6 L, diesel up to 4 L; a colour LCD that shows the charge.',
-            cons: 'the highest price of the six; 489 g and 176 × 83 × 32 mm, heavier and bigger than the RS600.',
+            cons: '489 g and 176 × 83 × 32 mm, heavier and bigger than the RS600.',
             forWho: 'larger cars and light vans with a diesel engine up to 4 L.',
             skip: 'owners of small cars, where the RS600 or S8 is listed for the engine size.'
           }
@@ -106,7 +108,7 @@ export default [
         type: 'text',
         heading: 'Same product, different shops',
         paragraphs: [
-          'Five of the six products are sold by both My Tool Shed and Tooled Up, with the same barcode, and on 28 Oct the two shops had the same price for all five. The difference can be delivery, so check the final price at checkout.'
+          'Five of the six products are sold by both My Tool Shed and Tooled Up, with the same barcode, so the table shows the price at each shop. Delivery costs can change the total, so check the final price at checkout.'
         ]
       }
     ]

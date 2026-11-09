@@ -121,7 +121,8 @@ test('the Hub: product search and price comparison in all 11 languages, no shops
   // The sponsored card left on 7/11/2026 (L101); its styles go too.
   assert.ok(!/gwh-business|gwh-sponsored|sponsored card/i.test(css));
   // New ?v= for the 3 changed files (L31; -wording1 for L102, -cleanup1 for L103).
-  for (const f of ['hub-v2.css', 'translations.js']) assert.ok(index.includes(`/${f}?v=20261108-cleanup1`), f);
+  assert.ok(index.includes('/translations.js?v=20261108-cleanup1'), 'translations.js');
+  assert.ok(/\/hub-v2\.css\?v=(20261108-cleanup1|20261109-compliance\d+)/.test(index), 'hub-v2.css (a later version since L107)');
 });
 
 test('the Hub baseline is the version that runs live since the Google Ads fixes (L101), so the next release can check it', () => {

@@ -5,7 +5,7 @@ import { page, productGrid, searchForm, icon, absolute, asset, categoryImage, tr
 export function homePage(site, data) {
   const fmt = n => new Intl.NumberFormat(site.locale).format(n);
   // Each product appears once on the page (L03): products below their RRP first, then new products not already shown.
-  // "Below RRP today" (lessons L107): the feed's RRP is not a previous price, so the list never says "price drop".
+  // "Below RRP" (lessons L107): the feed's RRP is not a previous price, so the list never says "price drop".
   const deals = data.deals.slice(0, 8);
   const newest = data.newest.filter(p => !deals.some(d => d.id === p.id)).slice(0, 8);
   const hero = site.heroImage;
@@ -20,7 +20,7 @@ export function homePage(site, data) {
     ${searchForm(site, '', 'hero-search')}
     <p class="hero-actions">
       <a class="btn btn-gold" href="#cats-h">Browse by category</a>
-      ${deals.length ? html`<a class="btn btn-outline" href="/deals/">Below RRP today</a>` : ''}
+      ${deals.length ? html`<a class="btn btn-outline" href="/deals/">Below RRP</a>` : ''}
     </p>
     ${data.lastUpdated ? html`<p class="hero-facts">${tr('Prices last updated {0}.', { date: String(data.lastUpdated).slice(0, 10), text: formatDate(data.lastUpdated, site.locale) })}</p>` : ''}
   </div>
@@ -55,7 +55,7 @@ export function homePage(site, data) {
 </section>
 
 ${deals.length ? html`<section class="wrap section" aria-labelledby="deals-h">
-  <div class="section-head"><h2 id="deals-h">Below RRP today</h2><a href="/deals/" class="more-link">See all below RRP</a></div>
+  <div class="section-head"><h2 id="deals-h">Below RRP</h2><a href="/deals/" class="more-link">See all below RRP</a></div>
   ${productGrid(site, deals)}
 </section>` : ''}
 

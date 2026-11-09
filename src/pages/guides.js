@@ -2,7 +2,10 @@
 // approved in the guides doc, facts only); prices and stock come from the database when the page opens:
 // - a shop's price cell, a product's row and a product's card are hidden when it is no longer listed or in stock;
 // - "Prices checked" is the oldest price date of the products on the page;
-// - when a price or the stock differs from the day the guide was written, the page says so above the tables.
+// - when a price or the stock differs from the day the guide was written, the page says so above the tables;
+// - lessons L107: a guide shows only the products of the visitor's view, its words never quote a price (the prices
+//   are only in the tables and cards, from the database), and a guide with fewer than MIN_GUIDE_PRODUCTS products
+//   left is "noindex,follow" and is left out of the guides list and the sitemap.
 // Every text is a whole sentence with no link inside it, so the site script can translate it (lessons L24).
 // Product names, brands, shop names and prices are translate="no".
 import { html } from '../lib/html.js';
@@ -10,6 +13,7 @@ import { productPath, formatDate } from '../lib/text.js';
 import { page, breadcrumbs, breadcrumbSchema, tr, viewAt, priceTag } from './layout.js';
 
 export const GUIDES_PATH = '/guides/';
+export const MIN_GUIDE_PRODUCTS = 3;
 
 export function guidePath(guide) {
   return `${GUIDES_PATH}${guide.slug}/`;
@@ -58,6 +62,22 @@ export function pencePer(price, units) {
   const p = (Number(price) * 100) / Number(units);
   if (!Number.isFinite(p) || p <= 0) return '';
   return p < 20 ? `${p.toFixed(1)}p` : `${Math.round(p)}p`;
+}
+
+// How many of the guide's products the visitor can see now (listed, in stock, in their view).
+export function guideShownCount(guide, products) {
+  const byId = new Map((products || []).map(p => [Number(p.id), p]));
+  return guideProductIds(guide).filter(id => live(byId, id)).length;
+}
+
+// The guides worth listing (in /guides/ and the sitemap): at least MIN_GUIDE_PRODUCTS products shown.
+export function listedGuides(site, products) {
+  return (site.guides || []).filter(g => guideShownCount(g, products) >= MIN_GUIDE_PRODUCTS);
+}
+
+// Every product id of every guide of a site (one primary-key read for the list and the sitemap).
+export function allGuideProductIds(site) {
+  return [...new Set((site.guides || []).flatMap(g => guideProductIds(g)))];
 }
 
 function oldestCheck(products) {
@@ -187,13 +207,15 @@ export function guidePage(site, guide, products) {
     title: `${guide.title} | ${site.name}`,
     description: guide.description,
     path,
+    robots: shown.length >= MIN_GUIDE_PRODUCTS ? 'index,follow' : 'noindex,follow',
     ogType: 'article',
     body,
     schema: [breadcrumbSchema(site, crumbs), article]
   });
 }
 
-export function guidesIndexPage(site) {
+// guides: the guides to list (listedGuides); all of them when not given.
+export function guidesIndexPage(site, guides = site.guides) {
   const crumbs = [{ name: 'Home', path: '/' }, { name: 'Buying guides', path: GUIDES_PATH }];
   const body = html`
 <div class="wrap narrow">
@@ -201,13 +223,14 @@ export function guidesIndexPage(site) {
   <article class="prose">
     <h1>Buying guides</h1>
     <p>Our guides compare a few products on the facts the shops list and on the prices we compare. We do not test products and we do not score them.</p>
-    <ul class="guide-list">${site.guides.map(g => html`<li><h2><a href="${guidePath(g)}">${g.title}</a></h2><p>${g.description}</p></li>`)}</ul>
+    <ul class="guide-list">${guides.map(g => html`<li><h2><a href="${guidePath(g)}">${g.title}</a></h2><p>${g.description}</p></li>`)}</ul>
   </article>
 </div>`;
   return page(site, {
     title: `Buying guides | ${site.name}`,
     description: `Buying guides from ${site.name}: products compared on the facts the shops list and on price.`,
     path: GUIDES_PATH,
+    robots: guides.length ? 'index,follow' : 'noindex,follow',
     body,
     schema: [breadcrumbSchema(site, crumbs)]
   });

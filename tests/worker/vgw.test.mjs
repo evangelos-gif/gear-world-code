@@ -49,13 +49,15 @@ test('every category page works and lists products', async () => {
   }
 });
 
-test('worldwide wording: no "UK retailers" on the home or about page', async () => {
+test('wording: no "UK retailers", no "around the world" and no "UK and Europe" on the home or about page (L107)', async () => {
   const env = envOf();
   const home = await (await get('/', env)).text();
-  assert.ok(!/UK retailers/i.test(home));
-  assert.match(home, /retailers around the world/);
+  assert.ok(!/UK retailers|around the world|UK and Europe/i.test(home));
+  assert.match(home, /from many retailers\. Find the deal/);
   const about = await (await get('/about/', env)).text();
-  assert.match(about, /retailers in the UK and Europe/);
+  assert.ok(!/UK and Europe/.test(about));
+  assert.match(about, /It lists products from many retailers/);
+  assert.equal(site.retailersFromEurope, false);
 });
 
 test('a euro price stays in euros with "≈ £" for a visitor from the Netherlands; VEVOR says where it delivers (L107)', async () => {
@@ -74,7 +76,10 @@ test('a euro price stays in euros with "≈ £" for a visitor from the Netherlan
   assert.equal(uk.status, 200);
   const ukHtml = await uk.text();
   assert.match(ukHtml, /<meta name="robots" content="noindex,follow">/);
-  assert.match(ukHtml, /data-i18n="\{0\} does not deliver to \{1\}\." data-i18n-0="VEVOR" data-i18n-1="United Kingdom" data-i18n-1-country="GB" data-i18n-keep="0"/);
+  // The page is cached per country group, so it names no country; the line under it says where VEVOR delivers.
+  assert.match(ukHtml, /data-i18n="\{0\} does not deliver to your country\." data-i18n-0="VEVOR" data-i18n-keep="0"/);
+  assert.match(ukHtml, /<span translate="no">VEVOR<\/span> delivers to<\/span><\/span>: <span class="ship-names">.*<span data-country="EU">European Union<\/span>/s);
+  assert.ok(!/United Kingdom/.test(ukHtml.split('notice-box')[1].split('chip-list')[0]), 'no country named in the notice');
   assert.ok(!/href="\/out\/\d+"/.test(ukHtml) && !/€\d/.test(ukHtml), 'no button and no price');
 });
 

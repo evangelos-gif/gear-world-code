@@ -2,7 +2,7 @@
 // only prices checked in the last 30 days ("Check price and stock at the retailer" after 14). These tests cover the
 // country groups of every site, the page cache key per group, the notice page of a product the visitor may not see
 // (200, noindex, no price, no button), /out/, the sitemaps and /api/stats in the UK view, the Hub's ?deliver_to=, the
-// list "Below RRP today", thin categories, and the D1 cost: with a view every hot query keeps the query plan it has
+// list "Below RRP", thin categories, and the D1 cost: with a view every hot query keeps the query plan it has
 // without one (the extra term is a filter only), and "similar products" never walks further than without a view and
 // shows exactly the first cards of the full filtered query.
 import { test } from 'node:test';
@@ -11,8 +11,10 @@ import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import { DatabaseSync } from 'node:sqlite';
 import { createWorker } from '../../src/engine.js';
 import * as db from '../../src/db.js';
-import { countryGroups, viewFor, homeView, visibleSql, hiddenReason, needsCheck, cacheKeyUrl, cleanCountry, useClock,
-  EU_COUNTRIES, OWN_VIEW_COUNTRIES, HIDE_AFTER_DAYS, CHECK_AFTER_DAYS } from '../../src/lib/visibility.js';
+import { countryGroups, viewFor, homeView, visibleSql, hiddenReason, needsCheck, cacheKeyUrl, cleanCountry, useClock, needsUkBar,
+  strictCountries, EU_COUNTRIES, OWN_VIEW_COUNTRIES, HIDE_AFTER_DAYS, CHECK_AFTER_DAYS } from '../../src/lib/visibility.js';
+import { deliveryText, UK_BAR_TEXT } from '../../src/pages/layout.js';
+import { toString } from '../../src/lib/html.js';
 import { MIN_INDEXED_PRODUCTS } from '../../src/pages/listing.js';
 import { TEST_DAY } from './test-clock.mjs';
 
@@ -100,7 +102,7 @@ test('the page cache keeps one copy per country group (lessons L107)', () => {
   // The engine passes it to the edge cache of every cached page.
   const engine = read('src/engine.js');
   assert.match(engine, /withEdgeCache\(request, ctx, produce, env, cacheKeyUrl\(request\.url, view\)\)/);
-  assert.equal((engine.match(/\}, view\);/g) || []).length, 5, 'home, category, product, deals and guides are cached per group');
+  assert.equal((engine.match(/\}, view\);/g) || []).length, 6, 'home, category, product, deals, a guide and the guides list are cached per group');
 });
 
 // ---- The Car site with a Belgian tyre shop, in memory ----
@@ -179,21 +181,29 @@ test('AGW: an old link to a product the visitor may not see opens a notice (200,
   const html = await r.text();
   assert.match(html, /<meta name="robots" content="noindex,follow">/);
   assert.match(html, /<link rel="canonical" href="https:\/\/cargearworld\.com\/product\/tyreco-summer-205-55-r16-5-\d+\/">/);
-  assert.match(html, /<span data-i18n="\{0\} does not deliver to \{1\}\." data-i18n-0="Pneus\.be" data-i18n-1="United Kingdom" data-i18n-1-country="GB" data-i18n-keep="0"><span translate="no">Pneus\.be<\/span> does not deliver to United Kingdom\.<\/span>/);
+  // The page is cached per country group, and many countries share a group: so the notice names no country, and the
+  // line under it says where the retailer delivers.
+  assert.match(html, /<span data-i18n="\{0\} does not deliver to your country\." data-i18n-0="Pneus\.be" data-i18n-keep="0"><span translate="no">Pneus\.be<\/span> does not deliver to your country\.<\/span>/);
   assert.match(html, /<span translate="no">Pneus\.be<\/span> delivers to<\/span><\/span>: <span class="ship-names"><span data-country="BE">Belgium<\/span>/);
+  assert.ok(!/United Kingdom/.test(html.split('notice-box')[1].split('chip-list')[0]), 'no country named in the notice');
+  // A US visitor shares the UK copy: the same words.
+  const us = await (await getAgw(path, env, 'US')).text();
+  assert.equal(us.split('notice-box')[1].split('chip-list')[0], html.split('notice-box')[1].split('chip-list')[0]);
   assert.ok(!/\/out\/\d/.test(html), 'no button to the retailer');
   assert.ok(!/€\d|data-price=/.test(html.split('<main')[1].split('</main>')[0]), 'no price');
   assert.ok(!/"@type":"Product"/.test(html), 'no product markup');
-  // Unknown country: the same notice without a country name.
+  // Unknown country: the same notice.
   assert.match(await (await getAgw(path, env)).text(), /data-i18n="\{0\} does not deliver to your country\."/);
   // The Belgian visitor sees the normal page.
   const be = await (await getAgw(path, env, 'BE')).text();
   assert.match(be, /<meta name="robots" content="index,follow">/);
   assert.match(be, /href="\/out\/\d+"/);
+  assert.match(be, /<span translate="no">Pneus\.be<\/span> delivers to<\/span><\/dt><dd class="ship-dd">.*<span data-country="BE">Belgium<\/span>/s, 'the Belgian page says where Pneus.be delivers');
   // A price older than 30 days: hidden for everyone, with its own notice.
   const old = idOf(d, 'Oldco Tyre Inflator');
   const stale = await (await getAgw(`/product/oldco-tyre-inflator-${old}/`, env, 'GB')).text();
-  assert.match(stale, /data-i18n="We no longer list this product: its price was last checked more than 30 days ago\."/);
+  assert.match(stale, /data-i18n="We have no price check for this product from the last 30 days, so we don&#39;t show it\."|data-i18n="We have no price check for this product from the last 30 days, so we don't show it\."/);
+  assert.ok(!/more than 30 days ago/.test(stale), 'no claim about when it was last checked');
   assert.match(stale, /<meta name="robots" content="noindex,follow">/);
   assert.ok(!/\/out\/\d/.test(stale));
 });
@@ -225,13 +235,13 @@ test('AGW: a price checked 14-30 days ago says "Check price and stock at the ret
   assert.equal(api.products[0].stock_status, 'check_retailer');
 });
 
-test('"Below RRP today": only fresh prices (14 days), never "price drop" wording; the older layout asks nothing', async () => {
+test('"Below RRP": only fresh prices (14 days), never "price drop" wording; the older layout asks nothing', async () => {
   const d = carShop();
   const env = envOf(d);
   const home = await (await getAgw('/', env, 'GB')).text();
   assert.ok(!/price drop|Today's price|previous price|Save \d+%/i.test(home), 'no price-drop words on the home page');
   const deals = await (await getAgw('/deals/', env, 'GB')).text();
-  assert.match(deals, /<h1>Below RRP today<\/h1>/);
+  assert.match(deals, /<h1>Below RRP<\/h1>/);
   assert.match(deals, /not an earlier price\. Every price here was checked in the last 14 days\./);
   assert.ok(!/Midco Tyre Gauge/.test(deals), 'checked 20 days ago: not "today"');
   assert.ok(!/price drop|previous price/i.test(deals));
@@ -398,16 +408,17 @@ test('the old full listing without a view is unchanged: the same rows as before 
 
 test('the Hub passes its visitor\'s country to every site (?deliver_to=), and only a real 2-letter code', () => {
   const hub = read('sites/gwh/worker.js');
-  assert.match(hub, /const cfCountry = String\(\(request\.cf && request\.cf\.country\) \|\| ""\)\.trim\(\)\.toUpperCase\(\);/);
+  assert.match(hub, /const deliverTo = country \|\| visitorCountry\(request\);/);
+  assert.match(hub, /return \/\^\[A-Z\]\{2\}\$\/\.test\(cc\) && cc !== "XX" && cc !== "T1" \? cc : "GB";/, 'unknown: GB');
   assert.match(hub, /if \(deliverTo\) endpoint\.searchParams\.set\("deliver_to", deliverTo\);/);
   assert.match(read('src/engine.js'), /const asked = apiProducts \? url\.searchParams\.get\('deliver_to'\) : '';/);
 });
 
 test('the dictionaries of the 13 sites have every new text (lessons L24, L107), and none of the old price-drop words', () => {
-  const KEYS = ['RRP {0}', 'RRP', 'Check price and stock at the retailer', 'Below RRP today', 'See all below RRP', 'Furthest below RRP',
-    '{0} does not deliver to {1}.', '{0} does not deliver to your country.', 'We no longer list this product: its price was last checked more than 30 days ago.',
-    'No products below their RRP right now', 'In stock, at the joint lowest price.'];
-  const OLD = /price drops?|previous price|Save \{0\}%|Biggest saving/i;
+  const KEYS = ['RRP {0}', 'RRP', 'Check price and stock at the retailer', 'Below RRP', 'See all below RRP', 'Furthest below RRP',
+    '{0} does not deliver to your country.', "We have no price check for this product from the last 30 days, so we don't show it.",
+    'No products below their RRP right now', 'In stock, at the joint lowest price.', '{0} sale', UK_BAR_TEXT];
+  const OLD = /price drops?|previous price|Save \{0\}%|Biggest saving|^Below RRP today$|^\{0\} does not deliver to \{1\}\.$|^We no longer list this product|^Up to \{0\}% off$|up to \{1\}% off/i;
   let n = 0;
   for (const s of SITES) {
     for (const f of readdirSync(`sites/${s}/public/assets/i18n`)) {
@@ -421,4 +432,139 @@ test('the dictionaries of the 13 sites have every new text (lessons L24, L107), 
     }
   }
   assert.equal(n, 130);
+});
+
+// ---- Google's crawlers (item 8 of the checker, 9 Nov 2026) ----
+const CRAWLERS = ['Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)', 'AdsBot-Google (+http://www.google.com/adsbot.html)',
+  'Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0 Mobile Safari/537.36 (compatible; AdsBot-Google-Mobile; +http://www.google.com/mobile/adsbot.html)',
+  'Mozilla/5.0 (compatible; Google-InspectionTool/1.0;)', 'Mozilla/5.0 (X11; Linux x86_64; Storebot-Google/1.0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0 Safari/537.36',
+  'Mediapartners-Google', 'Mozilla/5.0 (compatible; GoogleOther)'];
+test('Google crawlers get the UK view (even from a Belgian address) and no bar; a fake crawler name gains nothing', async () => {
+  const d = carShop();
+  const env = envOf(d);
+  const tyres = html => (html.match(/Tyreco Summer/g) || []).length;
+  for (const ua of CRAWLERS) {
+    const r = await getAgw('/category/tyres-wheels/', env, 'BE', { 'User-Agent': ua });
+    const html = await r.text();
+    assert.equal(tyres(html), 0, `${ua.slice(0, 40)}: the UK view`);
+    assert.ok(!html.includes('class="country-bar"'), `${ua.slice(0, 40)}: no bar`);
+  }
+  // A "Googlebot" from the US (a spoofed name or the real one): the UK view, which the US gets anyway, without the bar.
+  const spoof = await (await getAgw('/', env, 'US', { 'User-Agent': 'Googlebot' })).text();
+  assert.ok(!/Tyreco|Pneus\.be/.test(spoof) && !spoof.includes('class="country-bar"'));
+  // Another crawler (or a person) from Belgium: the Belgian view.
+  assert.ok(tyres(await (await getAgw('/category/tyres-wheels/', env, 'BE', { 'User-Agent': 'Mozilla/5.0 (compatible; bingbot/2.0)' })).text()) > 0);
+});
+
+// ---- The bar for visitors outside the UK (item 15, the owner's option A, 9 Nov 2026) ----
+test('the UK bar: for the UK view outside the UK (unknown, no own view, nobody delivers), never for the UK, an own view or a crawler', () => {
+  const agw = config.agw;
+  assert.equal(needsUkBar(agw, 'GB'), false);
+  for (const cc of ['US', 'CA', 'AU', '', 'XX', 'CH']) assert.equal(needsUkBar(agw, cc), true, `AGW ${cc || 'unknown'}`);
+  for (const cc of ['BE', 'NL', 'DE', 'IE', 'NO']) assert.equal(needsUkBar(agw, cc), false, `AGW ${cc}: its own view`);
+  for (const s of ['tgw', 'hgw', 'kgw']) {
+    assert.equal(needsUkBar(config[s], 'FR'), true, `${s}: nobody delivers to France`);
+    assert.equal(needsUkBar(config[s], 'GB'), false, s);
+  }
+  assert.equal(needsUkBar(config.cgw, 'DE'), false, 'CGW Germany: Reidl, VEVOR and GRABO');
+  assert.equal(needsUkBar(config.cgw, 'US'), true, 'CGW US: only GRABO (worldwide) besides the UK shops');
+  assert.equal(UK_BAR_TEXT, "We're adding retailers for your country. Most retailers below deliver to the UK only. Check delivery before you buy.");
+});
+
+test('the UK bar is added after the page cache: one cached copy for GB and US, no D1 read on a hit, the bar only for the US', async () => {
+  const store = new Map();
+  const before = globalThis.caches;
+  globalThis.caches = { default: {
+    match: async key => (store.has(key.url) ? store.get(key.url).clone() : undefined),
+    put: async (key, res) => { store.set(key.url, res); }
+  } };
+  try {
+    const d = carShop();
+    const env = envOf(d);
+    const reads = () => d.log.length;
+    const r0 = reads();
+    const gb = await getAgw('/', env, 'GB');
+    const gbHtml = await gb.text();
+    const missReads = reads() - r0;
+    assert.ok(missReads > 0, 'the first visit reads D1');
+    assert.equal(store.size, 1, 'one copy in the cache');
+    const cachedHtml = await [...store.values()][0].clone().text();
+    assert.ok(!cachedHtml.includes('country-bar'), 'the cached copy has no bar');
+    const r1 = reads();
+    const us = await getAgw('/', env, 'US');
+    const usHtml = await us.text();
+    assert.equal(reads() - r1, 0, 'the US visit is a cache hit: no D1 read');
+    assert.equal(store.size, 1, 'no copy of its own for the bar');
+    assert.equal(cachedHtml, gbHtml, 'GB gets the cached copy as it is');
+    assert.ok(usHtml.includes(`<div class="country-bar" role="note"><p class="wrap country-row"><span data-i18n="We&#39;re adding retailers for your country.`) || usHtml.includes('<div class="country-bar" role="note">'));
+    assert.equal(usHtml.replace(/<div class="country-bar"[\s\S]*?<\/div>/, ''), cachedHtml, 'the US answer is the same copy plus the bar');
+    assert.ok(usHtml.indexOf('class="country-bar"') < usHtml.indexOf('<header class="masthead">'), 'above the header, never over the offer bar or the menu');
+    assert.match(us.headers.get('Cache-Control'), /^private/, 'a shared cache never keeps the copy with the bar');
+    assert.match(gb.headers.get('Cache-Control'), /^public/);
+    // Unknown country: the bar too; Belgium (its own view, its own copy): no bar.
+    assert.ok((await (await getAgw('/', env)).text()).includes('class="country-bar"'));
+    assert.ok(!(await (await getAgw('/', env, 'BE')).text()).includes('class="country-bar"'));
+    // Not on JSON, XML or a redirect.
+    assert.ok(!(await (await getAgw('/sitemap.xml', env, 'US')).text()).includes('country-bar'));
+  } finally {
+    if (before === undefined) delete globalThis.caches; else globalThis.caches = before;
+  }
+});
+
+test('strict countries (site.strictCountries, empty on every site today): only what delivers there, an empty view, no bar', () => {
+  for (const s of SITES) assert.deepEqual(config[s].strictCountries, [], `${s}: no strict country yet`);
+  const site = { ...config.agw, strictCountries: ['US', 'BE'] };
+  assert.deepEqual(strictCountries(site), ['US', 'BE']);
+  const us = viewFor(site, 'US', NOW);
+  assert.equal(us.group, 'us');
+  assert.deepEqual(us.only, []);
+  assert.equal(hiddenReason(us, { retailer: 'Example Motor Parts', last_seen_at: '2026-10-20 06:00:00' }), 'country');
+  assert.match(visibleSql(us).sql, /^likelihood\(0 AND /);
+  assert.equal(needsUkBar(site, 'US'), false);
+  assert.equal(viewFor(site, 'BE', NOW).group, 'be', 'a strict country with retailers: its own view as before');
+  // Without the list nothing changes.
+  assert.equal(viewFor(config.agw, 'US', NOW).group, 'gb');
+});
+
+test('where the retailers deliver, as the Belgian, Austrian/German and other EU views show it', () => {
+  const names = (site, r) => toString(deliveryText(site, r)).replace(/<[^>]+>/g, '').trim();
+  assert.equal(names(config.agw, 'Pneus.be'), 'Belgium');
+  assert.equal(names(config.cgw, 'Reidl'), 'Germany, Austria');
+  assert.equal(names(config.wgw, '100% PURE'), 'European Union, Switzerland, Norway');
+  for (const s of ['agw', 'vgw', 'cgw']) assert.equal(names(config[s], 'VEVOR'), 'European Union, Iceland, Liechtenstein, Norway', s);
+  assert.deepEqual(viewFor(config.agw, 'BE', NOW).only, ['Pneus.be', 'VEVOR']);
+  assert.deepEqual(viewFor(config.cgw, 'AT', NOW).only, ['GRABO', 'Reidl', 'VEVOR']);
+  assert.deepEqual(viewFor(config.wgw, 'DE', NOW).only, ['100% PURE']);
+  assert.deepEqual(viewFor(config.vgw, 'FR', NOW).only, ['VEVOR']);
+  // "Europe" is no longer claimed on AGW, VGW and WGW.
+  for (const s of ['agw', 'vgw', 'wgw']) assert.equal(config[s].retailersFromEurope, false, s);
+});
+
+test('a search with one brand or retailer is counted through that index (INDEXED BY), only on the newer layout (item 14)', async () => {
+  // Every newer site's migration has the two indexes the count names (checked on the 7 live databases, 9 Nov 2026).
+  for (const s of SITES.filter(n => existsSync(`sites/${n}/migrations/0001_init.sql`))) {
+    const m = read(`sites/${s}/migrations/0001_init.sql`);
+    assert.match(m, /CREATE INDEX idx_products_brand ON products \(is_active, brand\);/, s);
+    assert.match(m, /CREATE INDEX idx_products_retailer ON products \(is_active, retailer\);/, s);
+  }
+  const d = carShop();
+  const env = envOf(d);
+  for (const [q, idx] of [['brand=Tyreco', 'idx_products_brand'], ['retailer=Pneus.be', 'idx_products_retailer']]) {
+    d.log.length = 0;
+    const r = await getAgw(`/search?q=tyreco&${q}`, env, 'BE');
+    assert.equal(r.status, 200);
+    assert.match(await r.text(), /Tyreco Summer/);
+    const count = d.log.find(x => /^SELECT COUNT\(DISTINCT/.test(x.text));
+    assert.ok(count && count.text.includes(`FROM products p INDEXED BY ${idx} WHERE`), q);
+    const plan = d.sql.prepare(`EXPLAIN QUERY PLAN ${count.text}`).all(...count.args).map(x => x.detail).join(' | ');
+    assert.match(plan, new RegExp(`USING INDEX ${idx} \\(is_active=\\? AND (brand|retailer)=\\? AND rowid=\\?\\)`), plan);
+  }
+  // Without a search, or on the older layout: no INDEXED BY.
+  d.log.length = 0;
+  await getAgw('/category/tyres-wheels/?brand=Tyreco', env, 'BE');
+  assert.ok(!d.log.some(x => /INDEXED BY/.test(x.text)));
+  const mgw = createWorker(config.mgw);
+  const legacy = memD1(read('tests/fixtures/ggw-legacy-schema.sql'), read('tests/fixtures/mgw-seed.sql'));
+  await mgw.fetch(new Request('https://mensgearworld.com/search?q=watch&brand=Seiko'), { DB: legacy }, { waitUntil: p => p });
+  assert.ok(!legacy.log.some(x => /INDEXED BY/.test(x.text)));
 });

@@ -35,8 +35,11 @@ export default {
   // Pneus.be: its own Belgian site (pneus.be, read 9 Nov 2026: Luxembourg and the Netherlands have their own sites), so
   // Belgium only. VEVOR: the Dutch shop vevor.nl delivers to the EU and the EEA, not to the UK (owner, 9 Nov 2026).
   deliversTo: { default: ['GB'], retailers: { 'Pneus.be': ['BE'], VEVOR: ['EU', 'IS', 'LI', 'NO'] } },
-  retailersFromEurope: true,
+  // Lessons L107: a UK visitor sees UK retailers only, so the texts no longer say "retailers in the UK and Europe".
+  retailersFromEurope: false,
 
+  // Countries that see only the retailers that deliver there instead of the UK view with its bar (lessons L107); none yet.
+  strictCountries: [],
   languages: [
     { code: 'en-GB', label: 'English' },
     { code: 'el-GR', label: 'Ελληνικά' },
@@ -102,9 +105,9 @@ export default {
 
   homeTitle: 'Car Gear World | Compare Garage Tools, Car Parts, Car Care & Accessories',
   homeDescription:
-    'Compare prices on garage tools, car parts, tyres, car care, dash cams and car accessories from retailers in the UK and Europe. Independent price comparison: find the deal, then buy direct.',
+    'Compare prices on garage tools, car parts, tyres, car care, dash cams and car accessories from many retailers. Independent price comparison: find the deal, then buy direct.',
   heroTitle: 'Compare car gear prices in one place',
-  heroText: 'Garage tools, parts, car care, dash cams and accessories from retailers around the world. Find the deal, then buy direct from the retailer.',
+  heroText: 'Garage tools, parts, car care, dash cams and accessories from many retailers. Find the deal, then buy direct from the retailer.',
   searchPlaceholder: 'Search trolley jacks, dash cams, wiper blades...',
   topic: 'car gear',
   topicTitle: 'Car Gear',

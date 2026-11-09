@@ -19,7 +19,7 @@ const base = { retailer: 'Joybuy', slug: 'joybuy', awinMid: 123932, currency: 'G
 const live = { ...base, id: 'joybuy-live', kind: 'code', campaign: 'Halloween', code: 'halloween', off: 4, minSpend: 20, bar: '🎃', start: day(-1), end: day(5) };
 const later = { ...base, id: 'joybuy-later', kind: 'code', campaign: 'Halloween', code: 'later', off: 5, minSpend: 30, start: day(3), end: day(9) };
 const ended = { ...base, id: 'joybuy-ended', kind: 'code', campaign: 'Halloween', code: 'ended', off: 5, minSpend: 30, start: day(-9), end: day(-1) };
-const sale = { ...base, id: 'joybuy-sale', kind: 'sale', campaign: 'Baby', upTo: 60, start: day(0), end: day(0) };
+const sale = { ...base, id: 'joybuy-sale', kind: 'sale', campaign: 'Baby', start: day(0), end: day(0) };
 
 function fakeDb() {
   const rows = [];
@@ -67,7 +67,9 @@ test('bar on every page, codes page, retailer page, and the sitemap lists them',
   assert.match(page, /<meta name="robots" content="index,follow">/);
   assert.match(page, /<strong translate="no">halloween<\/strong>/);
   assert.match(page, /Valid until/);
-  assert.match(page, /Up to 60% off/);
+  // A sale says "Sale at Joybuy" and its campaign: no percentage or saving (lessons L107).
+  assert.match(page, /<span data-i18n="\{0\} sale" data-i18n-0="Joybuy" data-i18n-keep="0"><span translate="no">Joybuy<\/span> sale<\/span>/);
+  assert.ok(!/% off|up to \d|Save \d/i.test(page), 'no percentage or saving');
   assert.ok(!page.includes('ended'), 'expired code not shown');
   assert.match(page, /href="\/go\/joybuy-live" rel="sponsored nofollow/);
   assert.match(page, /data-copy="halloween"/);
@@ -112,14 +114,18 @@ test('when all offers have ended: no bar, and the codes page says so and is noin
   assert.ok(!map.includes('/discount-codes/'));
 });
 
-test('a sale with a weekly extra renders as plain translatable texts (no HTML inside a changing part)', async () => {
-  const household = { ...base, id: 'joybuy-household', kind: 'sale', campaign: 'Household & Cleaning', upTo: 60, extraOff: 5, extraMin: 20, day: 'Thursday', start: day(-1), end: day(3) };
+test('a sale shows only "Sale at <retailer>" and its campaign; one with a percentage or an extra saving is not shown (L107)', async () => {
+  const household = { ...base, id: 'joybuy-household', kind: 'sale', campaign: 'Household & Cleaning', start: day(-1), end: day(3) };
   const worker = createWorker(siteWith([household]));
   const page = await (await get(worker, '/discount-codes/joybuy/', { DB: fakeDb() })).text();
-  assert.match(page, /Up to 60% off/);
-  assert.match(page, /£5 off when you spend £20/);
-  assert.match(page, /data-i18n="every Thursday"/);
+  assert.match(page, /data-i18n="Household &amp; Cleaning"/);
+  assert.match(page, /data-i18n="\{0\} sale"/);
+  assert.ok(!/% off|when you spend|every Thursday/.test(page), 'no figure we cannot check');
   assert.ok(!/&lt;span/.test(page), 'no escaped HTML');
+  // The old shape (upTo, extraOff): not complete any more, so it never shows.
+  assert.equal(activePromos(siteWith([{ ...household, upTo: 60 }, { ...household, id: 'x', extraOff: 5, extraMin: 20 }])).length, 0);
+  // And the real promos.js has no percentage or saving on a sale.
+  for (const p of PROMOS.filter(x => x.kind === 'sale')) assert.ok(!('upTo' in p) && !('extraOff' in p), p.id);
 });
 
 test('a coupon (money off, no code to type): after the codes, before the sales, with no code box and its own /go/ link', async () => {

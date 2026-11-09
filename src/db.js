@@ -333,14 +333,29 @@ function buildFilter({ category, subcategory, subMatch, brand, retailer, maxPric
   return { sql: where.join(' AND '), binds };
 }
 
+// Lessons L107 (checker of 9 Nov 2026, item 14): a search narrowed to one brand (or one retailer) was counted from the
+// brand (retailer) index alone, probed with each id the search matched: the index holds the id, so no row was read.
+// The view's date term needs the row too, and SQLite then probes the table by id instead, which D1 counts as more rows
+// (TGW, a search with a brand: 90,261 rows instead of 60,376). INDEXED BY keeps the index probe; the row read after it
+// is not counted (TGW 271,086 rows for the page, as before the view; AGW, a retailer: 356,416 instead of 388,231). Only
+// on the newer layout, whose indexes come from its own migration (sites/<site>/migrations/0001_init.sql:
+// idx_products_brand and idx_products_retailer on every new site), and only with a view and a search.
+function countIndex(filters) {
+  if (LAYOUT.legacy || !filters || !filters.search || !filters.view) return '';
+  if (filters.brand) return ' INDEXED BY idx_products_brand';
+  if (filters.retailer) return ' INDEXED BY idx_products_retailer';
+  return '';
+}
+
 export async function listProducts(db, filters, { sort = 'featured', page = 1, perPage = 24 } = {}) {
   const f = buildFilter(filters);
   if (!f || (filters && filters.onSale && !hasRrp())) return { products: [], total: 0, page: 1, pages: 0 };
   const order = SORTS[normalizeSort(sort)];
   const offset = (page - 1) * perPage;
+  const from = `${LAYOUT.from} p${countIndex(filters)}`;
   const countSql = LAYOUT.group
-    ? `SELECT COUNT(DISTINCT ${gk()}) AS n FROM ${LAYOUT.from} p WHERE ${f.sql}`
-    : `SELECT COUNT(*) AS n FROM ${LAYOUT.from} p WHERE ${f.sql}`;
+    ? `SELECT COUNT(DISTINCT ${gk()}) AS n FROM ${from} WHERE ${f.sql}`
+    : `SELECT COUNT(*) AS n FROM ${from} WHERE ${f.sql}`;
   const [count, rows] = await db.batch([
     db.prepare(countSql).bind(...f.binds),
     db.prepare(cardSql(f.sql, order, 'LIMIT ? OFFSET ?')).bind(...f.binds, perPage, offset)
@@ -657,7 +672,7 @@ async function newestCards(db, limit, opts = {}) {
 }
 
 // opts.full: the old queries that read every row (tests compare the two). opts.view: what the visitor may see (L107).
-// "Below RRP today" (the list once called "Today's price drops"): in stock, priced at least 5% under the feed's RRP,
+// "Below RRP" (the list once called "Today's price drops"): in stock, priced at least 5% under the feed's RRP,
 // and checked in the last CHECK_AFTER_DAYS days. Not asked for on the older layout, which has no RRP.
 export async function homeData(db, categorySlugs, opts = {}) {
   const v = vis(opts.view);

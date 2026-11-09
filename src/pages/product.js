@@ -2,7 +2,6 @@
 import { html, raw } from '../lib/html.js';
 import { categoryPath, productPath, formatPrice, truncate, formatDate } from '../lib/text.js';
 import { normalizeGtin, gtinSchemaKey } from '../lib/gtin.js';
-import { COUNTRY_NAMES } from '../lib/delivery.js';
 import { page, productGrid, breadcrumbs, breadcrumbSchema, absolute, tr, keepName, viewAt, priceTag, retailerFlag, deliveryText, deliveryLine, deliversLabel, rrpTag, stockText } from './layout.js';
 
 function specsList(product) {
@@ -22,20 +21,21 @@ function specsList(product) {
   return rows;
 }
 
-// A product the visitor may not see (lessons L107): its retailer does not deliver to the visitor's country, or its price
-// was last checked more than 30 days ago. An old link still opens (200, not 404), with a clear notice, no price, no
-// button to the retailer and noindex. notice: 'country' or 'stale'; country: the visitor's country code ('' unknown).
-export function hiddenProductPage(site, product, category, notice, country = '') {
+// A product the visitor may not see (lessons L107): its retailer does not deliver to the visitor's country, or we have
+// no price check for it from the last 30 days. An old link still opens (200, not 404), with a clear notice, no price,
+// no button to the retailer and noindex. notice: 'country' or 'stale'. The page is cached per country group (many
+// countries share one copy), so it never names a country: "does not deliver to your country", next to the line that
+// says where the retailer does deliver.
+export function hiddenProductPage(site, product, category, notice) {
   const path = productPath(product);
   const crumbs = [
     { name: 'Home', path: '/' },
     ...(category ? [{ name: category.name, path: categoryPath(category.slug) }] : []),
     { name: truncate(product.product_name, 60), path, keep: true }
   ];
-  const where = country && COUNTRY_NAMES[country] ? { text: COUNTRY_NAMES[country], country } : null;
   const message = notice === 'country'
-    ? (where ? tr('{0} does not deliver to {1}.', keepName(product.retailer), where) : tr('{0} does not deliver to your country.', keepName(product.retailer)))
-    : tr('We no longer list this product: its price was last checked more than 30 days ago.');
+    ? tr('{0} does not deliver to your country.', keepName(product.retailer))
+    : tr("We have no price check for this product from the last 30 days, so we don't show it.");
   const body = html`
 <div class="wrap">
   ${breadcrumbs(crumbs)}

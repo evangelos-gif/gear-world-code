@@ -198,3 +198,63 @@ test('search: real cordless drills come before a drill brush set from another wo
   const brushes = await searchWith(productsFetch({ 'cargearworld.com': [{ id: 1, product_name: 'Drill brush set', price: 9 }, { id: 2, product_name: 'Cordless drill', price: 50 }] }), 'q=drill%20brush');
   assert.equal(brushes.data.results[0].id, 1, 'asking for the accessory finds the accessory first');
 });
+
+// Lessons L107 (checker of 9 Nov 2026, items 6, 7, 8 and 15).
+async function askAs(country, ua = 'Mozilla/5.0 test') {
+  const fake = productsFetch({});
+  const saved = globalThis.fetch;
+  globalThis.fetch = fake.fetch;
+  try {
+    const req = new Request('https://gearworldhub.com/api/search?q=watch', { headers: { 'User-Agent': ua } });
+    if (country !== undefined) Object.defineProperty(req, 'cf', { value: { country } });
+    const response = await hub.fetch(req, makeEnv(), {});
+    return { response, asked: fake.asked };
+  } finally {
+    globalThis.fetch = saved;
+  }
+}
+
+test('search: every site gets the visitor\'s country; unknown and Google\'s crawlers count as GB; the answer is private', async () => {
+  for (const [cc, want] of [['BE', 'BE'], ['US', 'US'], [undefined, 'GB'], ['XX', 'GB'], ['T1', 'GB']]) {
+    const { response, asked } = await askAs(cc);
+    assert.ok(asked.length > 0 && asked.every(u => u.searchParams.get('deliver_to') === want), `${cc}: deliver_to=${want}`);
+    assert.equal(response.headers.get('Cache-Control'), 'private, max-age=60', 'the results depend on the country: no shared cache');
+  }
+  const bot = await askAs('BE', 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)');
+  assert.ok(bot.asked.every(u => u.searchParams.get('deliver_to') === 'GB'), 'a crawler gets the UK view');
+});
+
+test('home page: the bar "We\'re adding retailers for your country" outside the UK only, added per answer', async () => {
+  const page = '<!doctype html><html><body class="gwh2"><header class="site-header"><nav>menu</nav></header><main>search</main></body></html>';
+  const env = { ...makeEnv(), ASSETS: { fetch: async () => new Response(page, { headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'public, max-age=0, must-revalidate', ETag: '"x"' } }) } };
+  const home = async (country, ua = 'Mozilla/5.0 test', path = '/') => {
+    const req = new Request(`https://gearworldhub.com${path}`, { headers: { 'User-Agent': ua } });
+    if (country !== undefined) Object.defineProperty(req, 'cf', { value: { country } });
+    return hub.fetch(req, env, { waitUntil: p => p });
+  };
+  const gb = await home('GB');
+  const gbHtml = await gb.text();
+  assert.equal(gbHtml.includes('gwh2-country-bar'), false, 'never for the UK');
+  assert.equal(gb.headers.get('ETag'), '"x"');
+  for (const cc of ['US', 'BE', undefined]) {
+    const r = await home(cc);
+    const html = await r.text();
+    assert.ok(html.includes('<div class="gwh2-country-bar" role="note"><p class="container" data-gwh2="countryBar">We&#39;re adding retailers for your country. Most retailers below deliver to the UK only. Check delivery before you buy.</p></div><header class="site-header">'), `${cc}: the bar above the header`);
+    assert.equal(html.replace(/<div class="gwh2-country-bar"[\s\S]*?<\/div>/, ''), gbHtml, 'the same page plus the bar');
+    // The live check of tools/gwh-hub-v2.ps1 takes the bar out before it compares the page (a PC outside the UK).
+    const ps1 = (await import('node:fs')).readFileSync('tools/gwh-hub-v2.ps1', 'utf8');
+    assert.equal(html.replace(new RegExp(ps1.match(/\$clean = \[regex\]::Replace\(\$clean, '([^']+)', ''\)/)[1]), ''), gbHtml);
+    assert.equal(r.headers.get('Cache-Control'), 'private, max-age=60');
+  }
+  assert.equal((await (await home('US', 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)')).text()).includes('gwh2-country-bar'), false, 'not for a crawler');
+  assert.equal((await (await home('US', 'Mozilla/5.0 test', '/about/')).text()).includes('gwh2-country-bar'), false, 'only the home page, where the search results are');
+  // The text in the 11 languages of the Hub.
+  const js = (await import('node:fs')).readFileSync('sites/gwh/public/hub-v2.js', 'utf8');
+  const line = js.match(/\n    countryBar: (\[[^\n]*\]),\n/);
+  assert.ok(line, 'countryBar in hub-v2.js');
+  const list = JSON.parse(line[1]);
+  assert.equal(list.length, 11);
+  assert.equal(list[0], "We're adding retailers for your country. Most retailers below deliver to the UK only. Check delivery before you buy.");
+  const css = js && (await import('node:fs')).readFileSync('sites/gwh/public/hub-v2.css', 'utf8');
+  assert.match(css, /\.gwh2-country-bar\{background:var\(--card\);color:var\(--text\);border-bottom:3px solid var\(--accent\)\}/);
+});

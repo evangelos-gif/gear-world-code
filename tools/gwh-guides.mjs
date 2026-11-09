@@ -4,20 +4,24 @@
 //   sites/gwh/public/guides/index.html            the list of guides
 //   sites/gwh/public/guides/<slug>/index.html     one page per guide
 // Gear World is the hero: every product links to its page on a Gear World site (never /out/ or /go/), the retailer is
-// only in the small print, prices carry "Price checked <date>, may change", and nobody claims to have tested anything.
+// only in the small print, prices carry "Prices checked <dates>, may change", and nobody claims to have tested anything.
+// Lessons L107 (Google Ads compliance, 9 Nov 2026): no struck-through "previous" price and no "N% below" or "biggest
+// saving": a feed's RRP shows as "RRP £x" (item.rrp), and the check dates are the days each product was last checked on
+// its site (item.checked, from the site's database), not one date for the whole page.
 //
 // Usage:
 //   node tools/gwh-guides.mjs build                  writes the pages from guides.json (nothing goes online)
 //   node tools/gwh-guides.mjs check [--out <file>]   READ-ONLY: opens every product page (GET) and compares price,
-//                                                    stock and previous price with guides.json
-import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
+//                                                    stock and RRP with guides.json
+import { readFileSync, writeFileSync, mkdirSync, readdirSync, statSync } from 'node:fs';
+import { join, relative, extname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const DATA_FILE = fileURLToPath(new URL('../sites/gwh/guides/guides.json', import.meta.url));
 const PUBLIC_DIR = fileURLToPath(new URL('../sites/gwh/public/', import.meta.url));
 const ORIGIN = 'https://gearworldhub.com';
 // The same versions as the rest of the Hub (lessons L31: a new ?v= whenever a file changes).
-export const ASSETS = { legalCss: '/legal/legal.css?v=20261022', guidesCss: '/guides/guides.css?v=20261104-1', legalJs: '/legal/legal.js?v=20261103', analyticsJs: '/analytics.js?v=20261103-ads2' };
+export const ASSETS = { legalCss: '/legal/legal.css?v=20261022', guidesCss: '/guides/guides.css?v=20261109-1', legalJs: '/legal/legal.js?v=20261103', analyticsJs: '/analytics.js?v=20261103-ads2' };
 
 export const SITES = {
   cgw: { name: 'Construction Gear World', domain: 'constructiongearworld.com' },
@@ -36,11 +40,37 @@ export const SITES = {
 };
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
+// Lessons L107: no "previous price", no struck-through price (<s>) and no saving badge (gd-save) anywhere in the Hub
+// files. Used by the QA gate and the Hub page check; returns "file: words" for each hit.
+export const SAVING_CLAIM = /previous price|<s>|<s\s[^>]*>|gd-save|biggest saving/i;
+export function savingClaims(dir = PUBLIC_DIR) {
+  const hits = [];
+  const walk = d => {
+    for (const name of readdirSync(d)) {
+      const file = join(d, name);
+      if (statSync(file).isDirectory()) { walk(file); continue; }
+      if (!['.html', '.js', '.json', '.css', '.txt', '.xml'].includes(extname(name))) continue;
+      const m = readFileSync(file, 'utf8').match(SAVING_CLAIM);
+      if (m) hits.push(`${relative(dir, file).replace(/\\/g, '/')}: ${m[0]}`);
+    }
+  };
+  walk(dir);
+  return hits;
+}
+
 export function loadData(file = DATA_FILE) { return JSON.parse(readFileSync(file, 'utf8')); }
 export const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 export const money = n => '£' + Number(n).toFixed(2);
 export function dateLabel(iso) { const [y, m, d] = iso.split('-').map(Number); return `${d} ${MONTHS[m - 1]} ${y}`; }
-const savePct = (now, was) => Math.round((1 - now / was) * 100);
+// "Prices checked 24 Oct 2026" or "Prices checked between 24 Oct and 26 Oct 2026": the oldest and newest day the
+// products of a guide (or of all guides) were last checked on their sites.
+export function checkedText(items) {
+  const days = items.map(it => it.checked).filter(d => /^\d{4}-\d{2}-\d{2}$/.test(d || '')).sort();
+  if (!days.length) throw new Error('every guide item needs its checked day');
+  const lo = days[0];
+  const hi = days[days.length - 1];
+  return lo === hi ? dateLabel(lo) : `between ${dateLabel(lo)} and ${dateLabel(hi)}`;
+}
 
 // The groups of a guide, in the order they first appear (budgets or ages).
 function groupsOf(items) {
@@ -59,8 +89,8 @@ function priceLine(it) {
     const other = a.price === b.price ? `Same price at ${esc(b.retailer)}` : `${money(b.price)} at ${esc(b.retailer)}`;
     return `<p class="gd-price"><strong>${money(a.price)}</strong> at ${esc(a.retailer)}</p>\n          <p class="gd-other">${other}</p>`;
   }
-  const was = it.was && it.was > it.price ? ` <s>${money(it.was)}</s> <span class="gd-save">${savePct(it.price, it.was)}% below the previous price</span>` : '';
-  return `<p class="gd-price"><strong>${money(it.price)}</strong>${was}</p>\n          <p class="gd-other">Retailer: ${esc(it.retailer)}</p>`;
+  const rrp = it.rrp && it.rrp > it.price ? ` <span class="gd-rrp">RRP ${money(it.rrp)}</span>` : '';
+  return `<p class="gd-price"><strong>${money(it.price)}</strong>${rrp}</p>\n          <p class="gd-other">Retailer: ${esc(it.retailer)}</p>`;
 }
 
 function card(it, site) {
@@ -125,7 +155,7 @@ ${body}
 export function renderGuide(data, guide) {
   const site = SITES[guide.site];
   if (!site) throw new Error(`unknown site ${guide.site}`);
-  const checked = dateLabel(data.checked);
+  const checked = checkedText(guide.items);
   const canonical = `${ORIGIN}/guides/${guide.slug}/`;
   const others = data.guides.filter(g => g.slug !== guide.slug)
     .map(g => `<li><a href="/guides/${esc(g.slug)}/">${esc(g.title)}</a></li>`).join('\n      ');
@@ -139,12 +169,12 @@ ${g.items.map(it => card(it, site)).join('\n')}
   const body = `  <article class="gd-article">
     <h1>${esc(guide.title)}</h1>
     <p class="gd-lead">${esc(guide.intro)}</p>
-    <p class="gd-checked">Price checked ${checked}, may change. Each product opens its page on ${esc(site.name)}, part of Gear World, which shows the retailer that sells it.</p>
+    <p class="gd-checked">Prices checked ${checked}, may change. Each product opens its page on ${esc(site.name)}, part of Gear World, which shows the retailer that sells it.</p>
 ${groups}
     <aside class="gd-tips" aria-label="Tips">
 ${tips}
     </aside>
-    <p class="gd-note">Prices and stock come from ${esc(site.name)} and were checked on ${checked}. They may change at any time, so check the final price on the retailer's website before you buy. Gear World may earn a commission if you buy through our sites, at no extra cost to you: see our <a href="/affiliate-disclosure/">affiliate disclosure</a>.</p>
+    <p class="gd-note">Prices and stock come from ${esc(site.name)} and were last checked ${checked}. They may change at any time, so check the final price on the retailer's website before you buy. Gear World may earn a commission if you buy through our sites, at no extra cost to you: see our <a href="/affiliate-disclosure/">affiliate disclosure</a>.</p>
     <nav class="gd-more" aria-label="More gift guides">
       <h2>More gift guides</h2>
       <ul>
@@ -162,7 +192,7 @@ ${tips}
 }
 
 export function renderIndex(data) {
-  const checked = dateLabel(data.checked);
+  const checked = checkedText(data.guides.flatMap(g => g.items));
   const canonical = `${ORIGIN}/guides/`;
   const cards = data.guides.map(g => {
     const it = g.items[0];
@@ -178,7 +208,7 @@ export function renderIndex(data) {
   const body = `  <article class="gd-article">
     <h1>Christmas gift guides</h1>
     <p class="gd-lead">Five short gift guides with real products and prices from the Gear World sites: for him, for her, for kids, for DIY lovers and for travellers. We have not tested these products; we picked them on brand, materials and price.</p>
-    <p class="gd-checked">Price checked ${checked}, may change.</p>
+    <p class="gd-checked">Prices checked ${checked}, may change.</p>
     <ul class="gd-list">
 ${cards}
     </ul>
@@ -190,7 +220,7 @@ ${cards}
   };
   return shell({
     title: 'Christmas Gift Guides: Ideas for Everyone | Gear World Hub',
-    description: 'Five Christmas gift guides from Gear World: gifts for him, for her, for kids, for DIY lovers and for travellers, with real prices checked on ' + checked + '.',
+    description: 'Five Christmas gift guides from Gear World: gifts for him, for her, for kids, for DIY lovers and for travellers, with prices from the Gear World sites.',
     canonical, crumbs: '<a href="/">Home</a> <span aria-hidden="true">/</span> <span>Gift guides</span>', body, jsonLd
   });
 }
@@ -222,14 +252,15 @@ export function readProductPage(html) {
   if (shelf) out.price = Number(shelf[1]);
   const stock = html.match(/<dd class="(ok|warn)">(In stock|Out of stock)<\/dd>/);
   if (stock) out.inStock = stock[2] === 'In stock';
-  const was = html.match(/<s class="was">\s*£\s?([0-9][0-9,]*\.[0-9]{2})/);
-  out.was = was ? Number(was[1].replace(/,/g, '')) : null;
+  // The feed's RRP ("RRP £x", lessons L107); older pages had a struck-through "was" price.
+  const rrp = html.match(/<span class="rrp"><span data-i18n="RRP \{0\}" data-i18n-0="£([0-9][0-9,]*\.[0-9]{2})"/) || html.match(/<s class="was">\s*£\s?([0-9][0-9,]*\.[0-9]{2})/);
+  out.rrp = rrp ? Number(rrp[1].replace(/,/g, '')) : null;
   return out;
 }
 
 async function check(outFile) {
   const data = loadData();
-  const lines = [`Gear World Hub gift guides - price check (read-only, GET only, never /out/) - ${new Date().toISOString()}`, `guides.json says: Price checked ${dateLabel(data.checked)}`];
+  const lines = [`Gear World Hub gift guides - price check (read-only, GET only, never /out/) - ${new Date().toISOString()}`, `guides.json says: Prices checked ${checkedText(data.guides.flatMap(g => g.items))}`];
   let problems = 0;
   for (const g of data.guides) {
     lines.push('', `== ${g.title}`);
@@ -243,7 +274,7 @@ async function check(outFile) {
       const notes = [];
       if (!p.inStock) notes.push('out of stock');
       if (p.price !== it.price) notes.push(`price ${money(it.price)} -> ${money(p.price)}`);
-      if (it.was != null && p.was !== it.was) notes.push(`previous price ${it.was == null ? '-' : money(it.was)} -> ${p.was == null ? '-' : money(p.was)}`);
+      if (it.rrp != null && p.rrp !== it.rrp) notes.push(`RRP ${money(it.rrp)} -> ${p.rrp == null ? '-' : money(p.rrp)}`);
       if (notes.length || moved) { problems++; lines.push(`CHANGED ${it.name}: ${notes.join(', ')}${moved}`); }
       else lines.push(`OK ${it.name}: ${money(p.price)}, in stock`);
       await new Promise(r => setTimeout(r, 300));

@@ -23,6 +23,8 @@ export default {
   // 11 languages, the same as Gear World Hub. Pages are written in English by the server; the site
   // script swaps the text using one small file per language (public/assets/i18n/<code>.json), loaded
   // only when a visitor picks that language (lessons L24). Product names stay as the retailer wrote them.
+  // Countries that see only the retailers that deliver there instead of the UK view with its bar (lessons L107); none yet.
+  strictCountries: [],
   languages: [
     { code: 'en-GB', label: 'English' },
     { code: 'el-GR', label: 'Ελληνικά' },

@@ -3,6 +3,8 @@
 // "tested", no scores (lessons L82). Prices and stock are read from the database when the page opens; `prices` is
 // what each product cost when the guide was written, so the page can say when something has changed since.
 // Whole sentences only, no link inside a sentence, so every language can translate them (lessons L24).
+// Lessons L107 (9 Nov 2026): the words never quote a price, a difference in price or a price per ml; those come only
+// from the database, in the tables and cards, so they are never out of date.
 
 const MAKITA_XGT = 'https://www.makitatools.com/company/press-releases/2019/makita-offers-vision-of-cordless-future-with-expanded-lxt-and-new-xgt';
 const DEWALT_FLEXVOLT = 'https://www.dewalt.ie/en-ie/product/dcb546-xj/54v-xr-flexvolt-6ah-battery';
@@ -16,7 +18,7 @@ export default [
     prices: { 875: 259.95, 29689: 259.95, 1008: 329.95, 33217: 329.95, 856: 79.95, 23577: 79.95, 1603: 99.99, 37527: 99.99, 26479: 49.95, 37328: 59.95 },
     lead: [
       'If you already own 18V batteries from one of the two brands, stay with that brand, because a battery only fits tools from its own brand.',
-      'If you are starting from zero, the DeWalt twin kit we compare was £70 cheaper on 28 Oct: the DeWalt DCK266P2 is £259.95 and the Makita DLX2180TJ is £329.95. Both are a brushless combi drill and impact driver with two 5 Ah batteries, a charger and a case.'
+      'If you are starting from zero, look at the two twin kits first: the DeWalt DCK266P2 and the Makita DLX2180TJ are both a brushless combi drill and impact driver with two 5 Ah batteries, a charger and a case. Their prices today are in the tables below.'
     ],
     howWeChose: 'We have not tested these tools, and we do not score them. We picked three like-for-like pairs from the Makita and DeWalt tools sold by Tooled Up and My Tool Shed: a twin kit, an impact driver without battery, and a spare battery. We compared them on facts the shops list (what is in the box, voltage, battery size, torque where listed) and on price. Every product was in stock when we checked.',
     blocks: [
@@ -56,17 +58,17 @@ export default [
         items: [
           {
             name: 'DeWalt DCK266P2 18V XR Brushless Combi Drill and Impact Driver Kit', ids: [875, 29689],
-            pros: '£70 less than the Makita kit with the same contents; two brushless tools, two 5 Ah batteries, a charger and a ToughSystem case; the same price at both shops.',
+            pros: 'the same contents as the Makita kit: two brushless tools, two 5 Ah batteries, a charger and a ToughSystem case.',
             cons: 'the shops do not list torque, speed or weight for the two tools in this kit.',
             forWho: 'anyone starting a cordless set from zero who wants a drill and a driver.',
             skip: 'anyone who already owns Makita LXT batteries.'
           },
           {
             name: 'Makita DLX2180TJ 18V LXT Brushless Combi Drill and Impact Driver Kit', ids: [1008, 33217],
-            pros: 'two brushless tools, two 5 Ah batteries, a charger and a case; the same price at both shops; the batteries also fit the Makita impact driver and battery below.',
-            cons: '£70 more than the DeWalt kit; the shops do not list torque, speed or weight for the two tools.',
+            pros: 'two brushless tools, two 5 Ah batteries, a charger and a case; the batteries also fit the Makita impact driver and battery below.',
+            cons: 'the shops do not list torque, speed or weight for the two tools in this kit.',
             forWho: 'anyone who has chosen the Makita LXT range, or already has LXT tools.',
-            skip: 'anyone starting from zero who wants the lowest price for a twin kit.'
+            skip: 'anyone who already owns DeWalt 18V XR batteries.'
           }
         ]
       },
@@ -77,15 +79,15 @@ export default [
         items: [
           {
             name: 'DeWalt DCF887 18V XR Brushless Impact Driver', ids: [856, 23577],
-            pros: 'the lowest price of the six; 205 Nm listed, the higher of the two drivers; the same price at both shops.',
+            pros: '205 Nm listed, the higher of the two drivers.',
             cons: 'no battery, no charger and no case.',
             forWho: 'owners of DeWalt 18V XR or FLEXVOLT batteries.',
-            skip: 'anyone with no DeWalt batteries (the twin kit is the cheaper way in).'
+            skip: 'anyone with no DeWalt batteries.'
           },
           {
             name: 'Makita DTD157 18V LXT Brushless Impact Driver', ids: [1603, 37527],
-            pros: 'brushless; 3,000 rpm and 140 Nm listed; the same price at both shops.',
-            cons: '£20 more than the DCF887, with lower listed torque (140 Nm against 205 Nm); no battery, no charger and no case.',
+            pros: 'brushless; 3,000 rpm and 140 Nm listed.',
+            cons: 'lower listed torque than the DCF887 (140 Nm against 205 Nm); no battery, no charger and no case.',
             forWho: 'owners of Makita 18V LXT batteries.',
             skip: 'anyone with no Makita batteries.'
           }
@@ -98,15 +100,15 @@ export default [
         items: [
           {
             name: 'DeWalt DCB182 18V XR 4 Ah Battery', ids: [26479],
-            pros: '£10 less than the Makita battery; fits DeWalt 18V XR tools.',
-            cons: '4 Ah, 1 Ah less than the Makita battery; about £12.49 per Ah against about £11.99; one shop only (My Tool Shed), so there is no second price to compare.',
+            pros: 'fits DeWalt 18V XR tools.',
+            cons: '4 Ah, 1 Ah less than the Makita battery; one shop only (My Tool Shed), so there is no second price to compare.',
             forWho: 'a second battery for a DeWalt 18V XR kit.',
             skip: 'anyone who wants the longest run time per battery.'
           },
           {
             name: 'Makita BL1850B 18V LXT 5 Ah Battery', ids: [37328],
-            pros: '5 Ah, the bigger of the two batteries; the lower price per Ah (about £11.99); fits Makita 18V LXT tools.',
-            cons: '£10 more than the DeWalt battery; one shop only (My Tool Shed).',
+            pros: '5 Ah, the bigger of the two batteries; fits Makita 18V LXT tools.',
+            cons: 'one shop only (My Tool Shed), so there is no second price to compare.',
             forWho: 'a second battery for a Makita LXT kit.',
             skip: 'DeWalt owners; it does not fit their tools.'
           }
@@ -116,7 +118,7 @@ export default [
         type: 'text',
         heading: 'Same product, different shops',
         paragraphs: [
-          'The four tools above are sold by both My Tool Shed and Tooled Up, with the same barcode, and on 28 Oct the two shops showed the same price for all four. The two batteries are sold by My Tool Shed only. Delivery costs can change the total, so check the final price at checkout.'
+          'The four tools above are sold by both My Tool Shed and Tooled Up, with the same barcode, so the table shows the price at each shop. The two batteries are sold by My Tool Shed only. Delivery costs can change the total, so check the final price at checkout.'
         ]
       }
     ]

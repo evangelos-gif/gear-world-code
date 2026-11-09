@@ -14,11 +14,11 @@ import { offersIndexPage, retailerOffersPage, OFFERS_PATH } from './pages/offers
 import { findPromo } from './lib/promos.js';
 import { campaignRefs } from './lib/ads.js';
 import { infoPage, infoPaths, notFoundPage, errorPage, dealUpdatesPage } from './pages/info.js';
-import { useSiteAssets, useRates } from './pages/layout.js';
+import { useSiteAssets, useRates, ukBarHtml } from './pages/layout.js';
 import { sitemapIndex, sitemapStatic, sitemapProducts, robotsTxt, SITEMAP_CHUNK } from './seo.js';
 import { posterScan } from './lib/poster-scan.js';
-import { guidePage, guidesIndexPage, findGuide, guideProductIds, GUIDES_PATH } from './pages/guides.js';
-import { viewFor, homeView, hiddenReason, needsCheck, cacheKeyUrl, now as clockNow } from './lib/visibility.js';
+import { guidePage, guidesIndexPage, findGuide, guideProductIds, listedGuides, allGuideProductIds, GUIDES_PATH } from './pages/guides.js';
+import { viewFor, homeView, hiddenReason, needsCheck, cacheKeyUrl, needsUkBar, now as clockNow } from './lib/visibility.js';
 
 // Gear World Hub keeps the one list of members; sites reach it only through a service binding (lessons L92).
 // The address is not public: requests from the internet never carry this host name.
@@ -54,7 +54,12 @@ const PER_PAGE = 24;
 // The visitor's country for the view (lessons L107): Cloudflare's request.cf.country. Gear World Hub asks /api/products
 // from its own Worker, so it passes its visitor's country as ?deliver_to=XX (only that endpoint reads it). A local test
 // Worker (localhost, the checks) may set the day with the variable GW_TODAY=YYYY-MM-DD, never the live domain.
+// Google's crawlers (Search, Ads, Merchant Center, URL inspection) count as UK visitors: the UK view, the one the
+// sitemaps list, and no "adding retailers for your country" bar. A user agent that only claims to be one of them gets
+// the same UK view as anyone, so it gains nothing.
+export const GOOGLE_CRAWLER = /\b(Googlebot|AdsBot-Google(-Mobile)?|Google-InspectionTool|Storebot-Google|Mediapartners-Google|GoogleOther)\b/i;
 function requestCountry(request, url, apiProducts = false) {
+  if (GOOGLE_CRAWLER.test(request.headers.get('user-agent') || '')) return 'GB';
   const asked = apiProducts ? url.searchParams.get('deliver_to') : '';
   return asked || (request.cf && request.cf.country) || '';
 }
@@ -171,7 +176,7 @@ export function createWorker(site) {
         // Not for this visitor (another country's retailer, or a price older than 30 days): the old link still opens,
         // with a notice, no price or button, noindex, and nothing else read (lessons L107).
         const reason = hiddenReason(view, product);
-        if (reason) return htmlResponse(hiddenProductPage(site, product, categories.get(product.category_slug), reason, view.country), { method });
+        if (reason) return htmlResponse(hiddenProductPage(site, product, categories.get(product.category_slug), reason), { method });
         const [similar, offers] = await Promise.all([db.similarProducts(env.DB, product, 8, { view }), db.offersFor(env.DB, product, 12, { view })]);
         marked(view, [product]);
         marked(view, similar);
@@ -228,8 +233,12 @@ export function createWorker(site) {
 
     // Buying guides (lessons L82): only on a site that has them (site.guides). Prices and stock come from the
     // database by product id (a few rows, primary key), so a guide never shows a price the site does not have.
+    // The list shows only the guides with at least 3 products in the visitor's view (lessons L107).
     if (site.guides && site.guides.length && path === GUIDES_PATH) {
-      return htmlResponse(guidesIndexPage(site), { method, cache: 'page' });
+      return cached(request, env, ctx, async () => {
+        const products = (await db.getGuideProducts(env.DB, allGuideProductIds(site))).filter(x => !hiddenReason(view, x));
+        return htmlResponse(guidesIndexPage(site, listedGuides(site, products)), { method });
+      }, view);
     }
     m = path.match(/^\/guides\/([a-z0-9-]{1,80})\/$/);
     if (m) {
@@ -266,7 +275,10 @@ export function createWorker(site) {
     }
     if (path === '/sitemap-static.xml') {
       const counts = await db.categoryCounts(env.DB, ukView);
-      return textResponse(sitemapStatic(site, counts), { type: 'application/xml', method });
+      const guides = site.guides && site.guides.length
+        ? listedGuides(site, (await db.getGuideProducts(env.DB, allGuideProductIds(site))).filter(x => !hiddenReason(ukView, x)))
+        : [];
+      return textResponse(sitemapStatic(site, counts, guides), { type: 'application/xml', method });
     }
     m = path.match(/^\/sitemap-products-(\d+)\.xml$/);
     if (m) {
@@ -560,6 +572,9 @@ export function createWorker(site) {
         console.error('request failed', err && err.stack ? err.stack : err);
         response = htmlResponse(errorPage(site), { status: 500, cache: 'none' });
       }
+      // The bar for a visitor outside the UK who gets the UK view (lessons L107, owner's option A): added to the answer
+      // after the page cache, never into a cached copy, so it costs no D1 read and no extra cache copy.
+      if (request.method === 'GET' && needsUkBar(site, requestCountry(request, new URL(request.url)))) response = await withUkBar(response);
       if (!preview) return response;
       const h = new Headers(response.headers);
       h.set('X-Robots-Tag', 'noindex, nofollow');
@@ -567,6 +582,25 @@ export function createWorker(site) {
     },
     scheduled
   };
+}
+
+// Puts the bar right above the page header of an HTML answer. In the Worker: HTMLRewriter, streaming, the body is never
+// read whole. Elsewhere (the Node tests): the same insertion on the text. The copy with the bar is private (a shared
+// cache must not give it to someone else); the cached copy stays without it.
+const MASTHEAD = '<header class="masthead">';
+export async function withUkBar(response) {
+  if (!response || !response.body || !/^text\/html/i.test(response.headers.get('Content-Type') || '')) return response;
+  const headers = new Headers(response.headers);
+  headers.set('Cache-Control', 'private, max-age=60');
+  headers.delete('Content-Length');
+  const bar = ukBarHtml();
+  if (typeof HTMLRewriter === 'function') {
+    const out = new HTMLRewriter().on('header.masthead', { element(e) { e.before(bar, { html: true }); } }).transform(response);
+    return new Response(out.body, { status: response.status, statusText: response.statusText, headers });
+  }
+  const text = await response.text();
+  const i = text.indexOf(MASTHEAD);
+  return new Response(i < 0 ? text : text.slice(0, i) + bar + text.slice(i), { status: response.status, statusText: response.statusText, headers });
 }
 
 // Where a /out/<id> click goes. An Awin link gets our clickref. A plain retailer address earns no commission,

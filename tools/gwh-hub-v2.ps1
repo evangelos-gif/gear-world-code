@@ -90,7 +90,14 @@
   the search shows only retailers that deliver there), hub-v2.js has the season switches of promos/promos.js (Black
   Friday and its countdown OFF until the owner turns them on; nothing switches on by its dates alone), hub-deals.json
   has no Joybuy Halloween codes, the email box says what it sends (no "prices we've checked"), and the affiliate
-  disclosure and privacy name Awin and CJ. The 13 sites go FIRST (tools/ads-fixes-sites.ps1, ΕΓΚΡΙΝΩ ADS FIXES), so
+  disclosure, privacy and cookies name Awin and CJ. Second round (checker of 9/11/2026): /api/search is private and
+  sends deliver_to=GB for an unknown country and for Google's crawlers; a visitor outside the UK sees the bar "We're
+  adding retailers for your country..." above the header of the home page (added per answer, never stored); the gift
+  guides show the real price, "RRP" and the days their prices were checked (no "previous price"), and the Joybuy sales
+  have no percentages. The preview and the live step read every product a gift guide links to from the live D1 of its
+  site (SELECT by primary key, tools/gwh-guide-guard.mjs): the report lists any that would show a notice or were checked
+  more than 14 days ago, and the live step refuses while one would show a notice.
+  The 13 sites go FIRST (tools/ads-fixes-sites.ps1, ΕΓΚΡΙΝΩ ADS FIXES), so
   every site already reads ?deliver_to when the Hub sends it. Phrases of this release: ΕΓΚΡΙΝΩ HUB COMPLIANCE PREVIEW,
   then ΕΓΚΡΙΝΩ HUB COMPLIANCE LIVE together with remove-preview (ΕΓΚΡΙΝΩ HUB REMOVE PREVIEW) in the same paste.
   Report: <home>\gear-world-reports\GWH_HUB_V2_<STEP>_<time>.txt (also copied to the clipboard)
@@ -138,29 +145,29 @@ $Bad = 'Magenta'
 
 # What each file of the change does, in the words of the report.
 $About = @{
-    'worker.js'             = 'αναζήτηση: κάθε site παίρνει τη χώρα του επισκέπτη (?deliver_to=) και δείχνει μόνο καταστήματα που παραδίδουν εκεί (L107)· η μετάφραση κρατιέται μία μέρα, ποτέ για bots, και τα sites παίρνουν translate=0 (L106)'
+    'worker.js'             = 'αναζήτηση: κάθε site παίρνει τη χώρα του επισκέπτη (?deliver_to=, GB όταν είναι άγνωστη ή crawler της Google) και δείχνει μόνο καταστήματα που παραδίδουν εκεί, η απάντηση private· εκτός ΗΒ η μπάρα «We''re adding retailers for your country» πάνω από την κεφαλίδα της αρχικής (L107)· η μετάφραση κρατιέται μία μέρα, ποτέ για bots, και τα sites παίρνουν translate=0 (L106)'
     'security.js'           = 'νέο αρχείο: έλεγχος Turnstile, ημερήσια όρια του δικτύου (εγγραφές, μεταφράσεις), headers (L106)'
     'mailerlite.js'         = 'η φόρμα του Hub θέλει το token του Turnstile· ημερήσιο όριο εγγραφών για όλο το δίκτυο, μικρό δικό της για την εφαρμογή (L106)'
     'members.js'            = 'η φόρμα «Get deal updates» των sites: το Hub ελέγχει το token του Turnstile κάθε site, ίδιο ημερήσιο όριο, ημερήσιο όριο μεταφράσεων για τα sites (/internal/ai-slot) (L106)'
     'public/email-signup.js' = 'το κουτί email λέει τι στέλνει: κωδικούς που δημοσιεύουν τα καταστήματα και νέα των sites, όχι «prices we''ve checked», 11 γλώσσες (L107)· Turnstile όταν αρχίζει η φόρμα (L106)'
     'poster-scan.js'        = 'η μέτρηση των αφισών (ίδια με αυτή που μπήκε με το POSTER STATS)'
-    'public/index.html'     = 'το κείμενο του κουτιού email χωρίς «prices we''ve checked» (L107)· η θέση του Turnstile στη φόρμα (L106)'
+    'public/index.html'     = 'το κείμενο του κουτιού email χωρίς «prices we''ve checked», νέο ?v= για hub-v2.css και hub-v2.js (L107)· η θέση του Turnstile στη φόρμα (L106)'
     'public/about/index.html' = 'νέα σελίδα /about/: «Run by Evangelos Kalogerakis, United Kingdom», ότι δεν πουλάμε, δεν παίρνουμε πληρωμές, δεν κάνουμε παραδόσεις, contact@gearworldhub.com (νέο αρχείο, L101)'
     'public/about/about.js' = 'η σελίδα /about/ στη γλώσσα που διάλεξε ο επισκέπτης, 11 γλώσσες (νέο αρχείο, L101)'
     'public/privacy/index.html' = 'τα links των sites περνούν από το Awin ή το CJ, με την πολιτική απορρήτου και των δύο· «Last updated: 9 November 2026» (L107)'
-    'public/cookies/index.html' = 'νέα γραμμή στο footer και link «About» (L101)'
+    'public/cookies/index.html' = 'τα cookies του affiliate network: «Awin, or for a few retailers CJ»· «Last updated: 9 November 2026» (L107)· νέα γραμμή στο footer και link «About» (L101)'
     'public/affiliate-disclosure/index.html' = 'τα κουμπιά των sites περνούν από ένα affiliate network: Awin, ή για λίγα καταστήματα CJ· «Last updated: 9 November 2026» (L107)'
-    'public/hub-v2.css'     = 'η κλάση του καταστήματος στις προσφορές λέγεται gwh2-deal-retailer (όχι «shop») (L103)'
-    'public/hub-v2.js'      = 'οι εποχές μόνο με τον διακόπτη τους από το promos.js: Black Friday (αντίστροφη μέτρηση και «Black Friday is coming») ΚΛΕΙΣΤΗ μέχρι να την ανοίξει ο ιδιοκτήτης, τίποτα δεν ανοίγει μόνο από ημερομηνία (L107)'
+    'public/hub-v2.css'     = 'η εμφάνιση της μπάρας για επισκέπτες εκτός ΗΒ: μπλε με πορτοκαλί γραμμή, πάνω από την κεφαλίδα (L107)· η κλάση του καταστήματος στις προσφορές λέγεται gwh2-deal-retailer (όχι «shop») (L103)'
+    'public/hub-v2.js'      = 'το κείμενο της μπάρας εκτός ΗΒ σε 11 γλώσσες· οι εκπτώσεις λένε «Sale» και την καμπάνια, χωρίς «Up to n% off» (L107)· οι εποχές μόνο με τον διακόπτη τους από το promos.js: Black Friday (αντίστροφη μέτρηση και «Black Friday is coming») ΚΛΕΙΣΤΗ μέχρι να την ανοίξει ο ιδιοκτήτης, τίποτα δεν ανοίγει μόνο από ημερομηνία (L107)'
     'public/styles.css'     = 'φεύγουν οι κανόνες της κάρτας «Sell Your Business» (.gwh-business-*) και τα σχόλια «shop» (το αρχείο δεν το φορτώνει η σελίδα· μένει για τα παλιά εργαλεία) (L103)'
     'public/contact/index.html' = '«business enquiries from retailers and affiliate networks» αντί για «partnership enquiries» (L103)'
-    'public/guides/guides.css' = 'η εμφάνιση των οδηγών δώρων (νέο αρχείο)'
-    'public/guides/index.html' = 'νέα γραμμή στο footer και link «About» (L101)'
-    'public/guides/christmas-gifts-for-him/index.html' = 'οδηγός δώρων: «which shows the retailer that sells it», «on the retailer''s website» αντί για «shop» (L103)'
-    'public/guides/christmas-gifts-for-her/index.html' = 'οδηγός δώρων: «retailer» αντί για «shop» (L103)'
-    'public/guides/christmas-gifts-for-kids/index.html' = 'οδηγός δώρων: «retailer» αντί για «shop», χωρίς «Pretend shopping» (L103)'
-    'public/guides/christmas-gifts-for-diy-lovers/index.html' = 'οδηγός δώρων: «two retailers» αντί για «two shops» (L103)'
-    'public/guides/christmas-gifts-for-travellers/index.html' = 'οδηγός δώρων: «retailer» αντί για «shop» (L103)'
+    'public/guides/guides.css' = 'η εμφάνιση των οδηγών δώρων: «RRP» αντί για διαγραμμένη τιμή και «n% below» (L107)'
+    'public/guides/index.html' = '«Prices checked between …» από τις ημερομηνίες των προϊόντων (L107)· νέα γραμμή στο footer και link «About» (L101)'
+    'public/guides/christmas-gifts-for-him/index.html' = 'οδηγός δώρων: οι ημερομηνίες ελέγχου των τιμών από τα δεδομένα (L107)· «which shows the retailer that sells it», «on the retailer''s website» αντί για «shop» (L103)'
+    'public/guides/christmas-gifts-for-her/index.html' = 'οδηγός δώρων: δύο νέα προϊόντα στη θέση των ρολογιών που δεν φαίνονται πια, οι ημερομηνίες ελέγχου από τα δεδομένα (L107)· «retailer» αντί για «shop» (L103)'
+    'public/guides/christmas-gifts-for-kids/index.html' = 'οδηγός δώρων: οι ημερομηνίες ελέγχου των τιμών από τα δεδομένα (L107)· «retailer» αντί για «shop», χωρίς «Pretend shopping» (L103)'
+    'public/guides/christmas-gifts-for-diy-lovers/index.html' = 'οδηγός δώρων: έξι νέα εργαλεία ελεγμένα στις 5/11 στη θέση αυτών που δεν φαίνονται πια, χωρίς «Biggest saving» (L107)· «two retailers» αντί για «two shops» (L103)'
+    'public/guides/christmas-gifts-for-travellers/index.html' = 'οδηγός δώρων: χωρίς διαγραμμένες τιμές και «previous price», μόνο η τιμή και «RRP £…» (L107)· «retailer» αντί για «shop» (L103)'
     'public/translations.js' = 'στα ελληνικά «από το κατάστημα» αντί για «συνεργαζόμενα καταστήματα», στα γαλλικά «couchages» αντί για «paniers», «retailer» μεταφρασμένο σε 7 γλώσσες, ονόματα κλειδιών χωρίς «shop» (L103)'
     'public/robots.txt'     = 'robots.txt του Hub: πρώτα «User-agent: SERankingBacklinksBot» με «Disallow: /» (L105), από κάτω ίδιο όπως ήταν, με τη γραμμή Sitemap: https://gearworldhub.com/sitemap.xml (το Cloudflare βάζει από πάνω τα Content Signals του)'
     'public/gearworldhub-indexnow-k7q4m9x2w5.txt' = 'το κλειδί του IndexNow (δημόσιο, έτσι δουλεύει το IndexNow)'
@@ -168,7 +175,7 @@ $About = @{
     'public/hub-bgw.jpg'    = 'η φωτογραφία της κάρτας Biker (Pexels, χωρίς μάρκες)'
     'public/hub-pgw.jpg'    = 'η φωτογραφία της κάρτας Gaming (Pexels, χωρίς μάρκες)'
     'public/hub-zgw.jpg'    = 'η φωτογραφία της κάρτας Pets (Pexels, χωρίς μάρκες)'
-    'public/hub-deals.json' = 'οι προσφορές με ημερομηνία λήξης, από το promos.js, χωρίς τους κωδικούς Halloween του Joybuy (L107)'
+    'public/hub-deals.json' = 'οι προσφορές με ημερομηνία λήξης, από το promos.js, χωρίς τους κωδικούς Halloween του Joybuy και χωρίς ποσοστά στις εκπτώσεις (L107)'
     'public/seasonal/halloween.mp4' = 'Halloween (βίντεο) για το μπάνερ των προσφορών'
     'public/seasonal/halloween.jpg' = 'Halloween (σταθερή εικόνα) για το μπάνερ των προσφορών'
     'public/seasonal/black-friday.mp4' = 'Black Friday (βίντεο) για το μπάνερ των προσφορών'
@@ -265,6 +272,43 @@ function Get-JsonArray([string]$text) {
     return , $items.ToArray()
 }
 
+# Lessons L107: every product a Hub gift guide links to, read from the live D1 of its site by primary key (one SELECT per
+# site, never a write) and judged like its page in the UK view by tools/gwh-guide-guard.mjs. Returns
+# @{ ok; notices; old; lines }: notices = products whose page would show a notice instead of the product.
+function Test-GuideProducts([string]$folder) {
+    $res = @{ ok = $true; notices = 0; old = 0; lines = @() }
+    $guard = Join-Path (Join-Path $repo 'tools') 'gwh-guide-guard.mjs'
+    $guardPlan = @(& node $guard plan)
+    if ($LASTEXITCODE -ne 0 -or $guardPlan.Count -eq 0) { $res.ok = $false; return $res }
+    foreach ($line in $guardPlan) {
+        $parts = ([string]$line).Split([char]9)
+        if ($parts.Count -ne 3 -or $parts[2] -notmatch '^SELECT [a-z_, ]+ FROM products WHERE id IN \([0-9,]+\)$') { $res.ok = $false; continue }
+        $q = Invoke-Wrangler $folder ('d1 execute {0} --remote --json --command "{1}"' -f $parts[1], $parts[2]) -Retry
+        $tmpIn = Join-Path ([System.IO.Path]::GetTempPath()) ('gw-guard-' + [guid]::NewGuid().ToString('N').Substring(0, 8) + '.json')
+        $tmpOut = $tmpIn + '.txt'
+        [System.IO.File]::WriteAllText($tmpIn, $q.text, (New-Object System.Text.UTF8Encoding($false)))
+        & node $guard judge $parts[0] $tmpIn --out $tmpOut | Out-Null
+        $found = $false
+        if (Test-Path -LiteralPath $tmpOut) {
+            foreach ($t in @([System.IO.File]::ReadAllText($tmpOut, [System.Text.Encoding]::UTF8) -split "`n")) {
+                $m = [regex]::Match($t, '^GUARD \S+ checked=\d+ notices=(\d+) old=(\d+)')
+                if ($m.Success) { $found = $true; $res.notices += [int]$m.Groups[1].Value; $res.old += [int]$m.Groups[2].Value }
+                elseif ($t.Trim()) { $res.lines += $t.Trim() }
+            }
+        }
+        Remove-Item -LiteralPath $tmpIn, $tmpOut -ErrorAction SilentlyContinue
+        if (-not $found) { $res.ok = $false; $res.lines += ('{0}: η απάντηση της βάσης δεν διαβάστηκε' -f $parts[0]) }
+    }
+    return $res
+}
+function Say-GuideProducts($g) {
+    foreach ($l in $g.lines) { Say ('  ' + $l) }
+    if (-not $g.ok) { Say 'Προϊόντα των οδηγών δώρων: ΠΡΟΒΛΗΜΑ - δεν μπόρεσα να τα διαβάσω όλα από τις βάσεις (δίκτυο;).' $Bad }
+    elseif ($g.notices -gt 0) { Say ('Προϊόντα των οδηγών δώρων: ΠΡΟΒΛΗΜΑ - {0} θα έδειχναν ειδοποίηση αντί για το προϊόν (δες NOTICE). Χρειάζεται νέο guides.json πριν το live.' -f $g.notices) $Bad }
+    elseif ($g.old -gt 0) { Say ('Προϊόντα των οδηγών δώρων: ΠΡΟΣΟΧΗ - όλα φαίνονται, αλλά {0} έχουν τιμή ελεγμένη πριν από 14+ μέρες (δες OLD): η σελίδα τους λέει «Check price and stock at the retailer».' -f $g.old) $Warn }
+    else { Say 'Προϊόντα των οδηγών δώρων: όλα φαίνονται κανονικά, με τιμή ελεγμένη τις τελευταίες 14 μέρες: ΕΝΤΑΞΕΙ' $Ok }
+}
+
 function Get-Sha([byte[]]$bytes) {
     $sha = [System.Security.Cryptography.SHA256]::Create()
     try { return ([BitConverter]::ToString($sha.ComputeHash($bytes))).Replace('-', '').ToLowerInvariant() } finally { $sha.Dispose() }
@@ -321,6 +365,7 @@ function Get-Web([string]$url) {
 
 # sha256 of a live file as the Worker sends it: 'missing' for 404, 'error' when it could not be read.
 # Cloudflare Web Analytics adds its own beacon script to HTML for some visitors (lessons L71): it is taken out first.
+# So is the bar the Worker adds for a visitor outside the UK (lessons L107), when this PC is not in the UK.
 function Get-LiveSha([string]$url, [bool]$isHtml) {
     $w = Get-Web $url
     if ($w.status -eq 404) { return 'missing' }
@@ -330,6 +375,7 @@ function Get-LiveSha([string]$url, [bool]$isHtml) {
         $enc = New-Object System.Text.UTF8Encoding($false)
         $text = $enc.GetString($bytes)
         $clean = [regex]::Replace($text, '<script[^>]*static\.cloudflareinsights\.com/beacon\.min\.js[^>]*></script>\r?\n?', '')
+        $clean = [regex]::Replace($clean, '<div class="gwh2-country-bar" role="note"><p class="container" data-gwh2="countryBar">[^<]*</p></div>', '')
         if ($clean -ne $text) { $bytes = $enc.GetBytes($clean) }
     }
     return (Get-Sha $bytes)
@@ -798,6 +844,8 @@ if ($Step -eq 'preview') {
     $dbId = ''
     if ($list) { foreach ($d in $list) { if ($d.name -eq $DbName) { $dbId = [string]$d.uuid } } }
     if (-not $dbId) { Say ('Δεν βρήκα τη D1 "{0}". Δεν αλλάζω τίποτα.' -f $DbName) $Bad; Finish 5 }
+    # L107: the products the gift guides link to, from the live D1 of their sites (SELECT only); the preview only reports.
+    Say-GuideProducts (Test-GuideProducts $deploy)
     if (-not $Apply) { Say ''; Say 'Δοκιμή μόνο (χωρίς -Apply): δεν άλλαξε τίποτα.' $Ok; Finish 0 }
     if (-not (Confirm-Approval $PhrasePreview)) { Say 'Δεν δόθηκε η έγκριση για το preview: σταμάτησα (δεν ανέβηκε τίποτα).' $Warn; Finish 1 }
     $cfg = Write-PreviewConfig $gwh $dbId
@@ -814,7 +862,10 @@ if ($Step -eq 'preview') {
         else { Say 'Μυστικό για την αναζήτηση με φωτογραφία στο preview: μπήκε (τυχαίο, δεν φαίνεται πουθενά).' $Ok }
     }
     Say ('Ανέβηκε. Δοκιμαστική διεύθυνση: {0}' -f $(if ($url) { $url } else { '(δεν τη βρήκα στην έξοδο)' })) $Ok
-    if ($url) { Say ('Για να δεις το μπάνερ της Black Friday πριν τις 27/11: {0}/?gwh-date=2026-11-28' -f $url) }
+    # The Black Friday link only while Black Friday is switched on in hub-v2.js (promos.js SEASONS_ON, lessons L107).
+    $bfOn = ([System.IO.File]::ReadAllText((Join-Path (Join-Path $gwh 'public') 'hub-v2.js')) -match '"black-friday":\s*true')
+    if ($url -and $bfOn) { Say ('Για να δεις το μπάνερ της Black Friday πριν τις 27/11: {0}/?gwh-date=2026-11-28' -f $url) }
+    elseif ($url) { Say 'Η Black Friday είναι ΚΛΕΙΣΤΗ (promos.js): η δοκιμαστική διεύθυνση δείχνει τη σελίδα όπως θα βγει live, χωρίς μπάνερ Black Friday.' }
     if ($url -and -not $NoHttpCheck) { Start-Sleep -Seconds 8; Test-Site $url $false }
     Say ''
     Say 'ΕΤΟΙΜΟ: άνοιξε τη δοκιμαστική διεύθυνση στο κινητό σου. Το live gearworldhub.com δεν άλλαξε.' $Ok
@@ -845,6 +896,10 @@ if (-not $liveVersion) {
     Say ('Δεν βρήκα τη ζωντανή έκδοση του Worker "{0}" (χρειάζεται για επαναφορά): για ασφάλεια ΔΕΝ αλλάζω τίποτα. Στείλε αυτή την αναφορά στο Claude.' -f $HubWorker) $Bad
     Finish 11
 }
+# L107: no gift guide may link to a product whose page would show a notice (live D1 of each site, SELECT only).
+$guideCheck = Test-GuideProducts $deploy
+Say-GuideProducts $guideCheck
+if (-not $guideCheck.ok -or $guideCheck.notices -gt 0) { Say 'ΔΕΝ ανεβάζω το Hub: πρώτα νέα προϊόντα στο sites/gwh/guides/guides.json (Claude), μετά ξανά αυτό το βήμα. ΔΕΝ άλλαξε τίποτα.' $Bad; Finish 20 }
 if (-not $Apply) { Say ''; Say 'Δοκιμή μόνο (χωρίς -Apply): δεν άλλαξε τίποτα.' $Ok; Finish 0 }
 if (-not (Confirm-Approval $PhraseLive)) { Say 'Δεν δόθηκε έγκριση: σταμάτησα χωρίς αλλαγές.' $Warn; Finish 1 }
 if ($null -ne $security) {

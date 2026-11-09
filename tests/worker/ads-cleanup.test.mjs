@@ -287,7 +287,8 @@ test('the Hub: styles.css (not loaded by the page) keeps no rule of the sponsore
   assert.ok(!/gwh-business|sponsor|shop/i.test(css));
   const index = readFileSync(`${PUB}/index.html`, 'utf8');
   assert.ok(!/\/styles\.css/.test(index), 'the page does not load styles.css');
-  for (const f of ['hub-v2.css', 'translations.js']) assert.ok(index.includes(`/${f}?v=20261108-cleanup1`), f);
+  assert.ok(index.includes('/translations.js?v=20261108-cleanup1'), 'translations.js');
+  assert.ok(/\/hub-v2\.css\?v=(20261108-cleanup1|20261109-compliance\d+)/.test(index), 'hub-v2.css (a later version since L107)');
   assert.ok(!/partner/i.test(index));
 });
 

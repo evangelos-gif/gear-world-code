@@ -268,6 +268,13 @@ function cartLink(site) {
   return html`<a class="cart-link" href="/saved/" data-cart-link>${icon('saved')}<span class="cart-word">Saved list</span><span class="cart-count" data-cart-count hidden>0</span></a>`;
 }
 
+// The bar for a visitor outside the UK who gets the UK view (lessons L107, owner's option A, 9 Nov 2026). It is never
+// part of a cached page: the engine puts it above the header of each answer that needs it (src/engine.js withUkBar).
+export const UK_BAR_TEXT = "We're adding retailers for your country. Most retailers below deliver to the UK only. Check delivery before you buy.";
+export function ukBarHtml() {
+  return toString(html`<div class="country-bar" role="note"><p class="wrap country-row">${tr(UK_BAR_TEXT)}</p></div>`);
+}
+
 function header(site, currentCategory, searchValue) {
   return html`<header class="masthead">
   ${promoBarHtml(site)}
