@@ -330,3 +330,56 @@ test('Sport and Leisure on KGW: only the current feed 117262, so no product twic
   assert.equal(joinSameName(two.map(p => ({ ...p, prices: [...p.prices] }))).length, 2);
   assert.equal(joinSameName(two.map(p => ({ ...p, prices: [...p.prices] })), { acrossFeeds: true }).length, 1);
 });
+
+// 9 Nov 2026: Public Desire (WGW heels), Omlet (ZGW), Olight (SGW torches) and Camping World UK (VGW camping), checked on
+// the real feeds before the import (dry runs in the chat: WGW 385, ZGW 280, SGW 27, VGW 2,317).
+test('Public Desire on WGW: heels, boots, dresses, skirts, bags and jewellery; tops, trousers and swimwear out', async () => {
+  const pd = await import('../../tools/import-rules/publicdesire.mjs');
+  const c = (name, feedCategory) => pd.classify({ name, feedCategory });
+  assert.deepEqual(c('Fillipa Nude Pu Strappy Square Toe Metal Stiletto Heels', 'High heels'), { site: 'wgw', siteCategory: 'Shoes', subcategory: 'Heels' });
+  assert.deepEqual(c('La Dolce Vita Slate Grey Rouched Kitten Heel Knee High Boots', 'Knee high boots'), { site: 'wgw', siteCategory: 'Shoes', subcategory: 'Boots' });
+  assert.equal(c('Camilla Oliver Fur Detail Kitten Heel Thong Sandals', 'Mid heels').subcategory, 'Heels');
+  assert.equal(c('Bow Back Detail Bandeau Mini Dress White', 'Dresses').subcategory, 'Dresses');
+  assert.equal(c('Fitted Tailored Blazer White', 'Outerwear & Jackets').subcategory, 'Jackets & Coats');
+  assert.deepEqual(c('Gold Plated Heart Earrings', 'Accessories'), { site: 'wgw', siteCategory: "Women's Jewellery", subcategory: 'Earrings' });
+  assert.equal(c('Sealife Inspired Cuff in Gold', 'Accessories').subcategory, 'Bracelets');
+  assert.equal(c('The Project Metallic Gold Weave Clutch Bag', 'Bags').subcategory, 'Bags');
+  for (const [n, cat] of [['Ribbed Lettuce Trim Baby Tee Co Ord Pink', 'Tops & Bralets'], ['High Waist Frayed Denim Shorts Light Blue', 'Shorts'], ['Ruched Bikini Set Black', 'Swimwear'], ['Wide Leg Trousers Black', 'Trousers']]) assert.ok(c(n, cat).reject, n);
+  assert.equal(pd.productKey(k => ({ merchant_deep_link: 'https://www.publicdesire.com/products/vela_black_jewel_detail_high_heel?variant=1' })[k]), 'products/vela_black_jewel_detail_high_heel');
+  assert.equal(pd.displayBrand('Public Desire UK'), 'Public Desire');
+});
+
+test('Omlet on ZGW: guinea pig and rabbit hutches are small pets, coops are chickens, faux fur cat beds are beds, Zippi and Fido placed', async () => {
+  const z = await import('../../sites/zgw/category-rules.js');
+  const omlet = { advertiserId: 76702, retailer: 'Omlet', petShop: true };
+  const slug = n => z.classify(n, '5017', '', omlet);
+  assert.equal(slug('Eglu Go Guinea Pig Hutch with Accessories - Leaf Green').slug, 'small-pets');
+  assert.equal(slug('Eglu Go Rabbit Hutch with 2m Run Package - Leaf Green').slug, 'small-pets');
+  assert.equal(slug('Eglu Go UP Chicken Coop - Leaf Green').slug, 'birds');
+  assert.equal(slug('Premium Faux Fur White Cat Bed with Black Hairpin Feet - Omlet Maya Donut Bed').slug, 'beds-crates');
+  assert.equal(slug('Zippi Tunnel - Twin Pack').slug, 'small-pets');
+  assert.equal(slug('Fido Studio 24 - White - Wardrobe').slug, 'beds-crates');
+  assert.equal(slug('Freestyle Cat Tipi - Secret Garden').slug, 'cats');
+  assert.equal(slug('Outdoor Cat Shelf').slug, 'cats');
+  // A faux fur coat or throw from another shop is still not a pet product.
+  assert.equal(z.classify('Faux Fur Throw Blanket Grey', 'Home > Throws', '', { retailer: 'Joybuy' }).ok, false);
+});
+
+test('engine: a numeric shop category (Omlet "5017") is not shown as a subcategory', async () => {
+  const { subcategoryOf } = await import('../../tools/tgw-import-plan.mjs');
+  assert.equal(subcategoryOf('5017'), '');
+  assert.equal(subcategoryOf('Home > Pets > Dog Beds'), 'Dog Beds');
+});
+
+test('Camping World UK on VGW: a camping shop without categories, but its clothes, baby wear and car care stay out', async () => {
+  const v = await import('../../sites/vgw/category-rules.js');
+  const src = JSON.parse(readFileSync(new URL('../../sites/vgw/sources.json', import.meta.url), 'utf8')).sources.find(s => s.advertiserId === 124426);
+  assert.equal(src.campingShop, true);
+  const c = n => v.classify(n, '', '', src);
+  assert.equal(c('Outwell Daytona Air Drive Away Awning (2026)').slug, 'camping-outdoor');
+  assert.equal(c('Go System Dynasty Compact II Stove - Black').slug, 'camping-outdoor');
+  assert.equal(c('Trangia 25 Series Non-Stick Saucepan - 1.5L').slug, 'camping-outdoor');
+  for (const n of ['Weird Fish Men\'s Carp Side Organic Artist Tee', 'Craghoppers Womens Kiwi Pro III Shorts', 'Regatta Splosh III All-In-One Suit - 6-12m Navy', 'Olpro Car Wash & Wax - 2 Litre', 'Eddie Bauer Mens Chutes Snap Mock', 'Regatta Lyle IV']) assert.equal(c(n).ok, false, n);
+  // Without the flag (another shop with no categories) an awning is still "not travel".
+  assert.equal(v.classify('Outwell Daytona Air Drive Away Awning (2026)', '', '', { retailer: 'Joybuy' }).ok, false);
+});
