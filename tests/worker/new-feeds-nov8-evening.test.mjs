@@ -383,3 +383,17 @@ test('Camping World UK on VGW: a camping shop without categories, but its clothe
   // Without the flag (another shop with no categories) an awning is still "not travel".
   assert.equal(v.classify('Outwell Daytona Air Drive Away Awning (2026)', '', '', { retailer: 'Joybuy' }).ok, false);
 });
+
+// 9 Nov 2026 20:42: the VGW import stopped before anything with "Authentication error [code: 10000]" on the restore point
+// (the TGW import a minute later worked). 18 tools already retried that Cloudflare hiccup; now all the tools with the
+// retry helper do (gwh-sitemap.ps1 is left as it is: its Worker is not changed without asking the owner).
+test('site tools: a Cloudflare "code: 10000" hiccup is retried like a network error', async () => {
+  const { readdirSync } = await import('node:fs');
+  const dir = new URL('../../tools/', import.meta.url);
+  const missing = [];
+  for (const f of readdirSync(dir).filter(x => x.endsWith('.ps1') && x !== 'gwh-sitemap.ps1')) {
+    const t = readFileSync(new URL(f, dir), 'utf8');
+    if (/\$network = \$text -match/.test(t) && !/\$network = \$text -match '[^']*code: 10000/.test(t)) missing.push(f);
+  }
+  assert.deepEqual(missing, []);
+});
