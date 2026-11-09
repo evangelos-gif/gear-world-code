@@ -301,8 +301,9 @@ function Test-GuideProducts([string]$folder) {
     }
     return $res
 }
+# (The loop variable is not $l: PowerShell names ignore case, and Say would then see it instead of the report list $L.)
 function Say-GuideProducts($g) {
-    foreach ($l in $g.lines) { Say ('  ' + $l) }
+    foreach ($guideLine in $g.lines) { Say ('  ' + $guideLine) }
     if (-not $g.ok) { Say 'Προϊόντα των οδηγών δώρων: ΠΡΟΒΛΗΜΑ - δεν μπόρεσα να τα διαβάσω όλα από τις βάσεις (δίκτυο;).' $Bad }
     elseif ($g.notices -gt 0) { Say ('Προϊόντα των οδηγών δώρων: ΠΡΟΒΛΗΜΑ - {0} θα έδειχναν ειδοποίηση αντί για το προϊόν (δες NOTICE). Χρειάζεται νέο guides.json πριν το live.' -f $g.notices) $Bad }
     elseif ($g.old -gt 0) { Say ('Προϊόντα των οδηγών δώρων: ΠΡΟΣΟΧΗ - όλα φαίνονται, αλλά {0} έχουν τιμή ελεγμένη πριν από 14+ μέρες (δες OLD): η σελίδα τους λέει «Check price and stock at the retailer».' -f $g.old) $Warn }
