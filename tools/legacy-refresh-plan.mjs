@@ -8,16 +8,23 @@
 //   - "seen" (lessons L108): an active product the feed still has, at the same price, gets the feed's time as its date
 //     (updated_at, the "Price checked" date of the site), so the site knows the feed confirmed it: the sites hide a
 //     product after 30 days and say "Check price and stock at the retailer" after 14 (src/lib/visibility.js, L107);
-//   - the date written is the time the feed FILE was downloaded (its time on this PC), never "now" and never later; a
+//   - the date written is the time the feed FILE was downloaded (its time on this PC), never "now" and never later, and
+//     never later than the feed's own newest last_updated ("Price checked" is never newer than the retailer's data); a
 //     feed file downloaded more than 2 days before the run writes no date at all (download it again first). The rows
 //     that change get the same date; a row the database changed after the download is newer than the feed: untouched;
+//   - another write between our read and our load is never overwritten: every UPDATE also asks that the row still has
+//     the date we read (updated_at not later than the newest date read for the ids of that statement; every tool that
+//     writes products sets updated_at to the time of writing), a hide also asks is_active = 1, and the rollback of a
+//     dated row asks updated_at = our date, so it never undoes a later change of someone else;
 //   - no date on a price held back by the price-jump rule, on another currency, without a feed price, on a hidden row
 //     or on a row not in the feed;
 //   - active products that are no longer in the feed are hidden (is_active = 0, nothing is deleted, no date);
 //   - hidden products stay hidden: a clean-up may have hidden them on purpose (one card per product, misfits...);
 //   - a price that changes more than 3 times up or down is not changed but listed for a person to check;
 //   - a feed whose products were last updated more than 30 days ago changes nothing (lessons L39: stale feeds);
-//   - a feed that misses more than half of the active products hides nothing (more likely a broken download);
+//   - a feed that misses more than half of the active products, or has no product at all, hides nothing (more likely a
+//     broken download); the one-paste mode (-Stale) hides nothing at all (--no-hide): a product the feed does not
+//     confirm gets no date, and the sites stop listing it after 30 days on their own;
 //   - the rows written in D1 are counted from the table's own indexes and triggers (lessons L49, L57, L108): 1 + one per
 //     index holding the column + one per statement of a trigger that fires on it (the FTS trigger of MGW, WGW, KGW, HGW
 //     and GGW fires on every UPDATE: 2 more rows each). Above the budget, the plan keeps the first changes and leaves
@@ -30,8 +37,12 @@
 //   --indexes <wrangler json of sqlite_master> --out <dir> [--max-writes 90000] [--advertiser <id>] [--now <iso date>]
 //   [--require-dates]   (the one-paste mode: a shop whose feed file is too old to write dates changes nothing)
 //   [--feed-file AWIN_<advertiser>_<feed>.csv.gz ...]   (files found by --find, instead of reading the archive again)
+//   [--no-hide]   (the one-paste mode: products not in the feed are not hidden)
+//   Rows with a retailer column (the one-paste mode reads all active rows of a site at once) are kept only for --retailer.
 // node tools/legacy-refresh-plan.mjs --find --archive <dir> --retailers-file <one name per line> --out <dir> [--now ...]
-//   writes feeds.json: the feed files of every shop (advertiser, feed id, time of the file), read-only.
+//   writes feeds.json: the feed files of every shop (advertiser, feed id, time of the file), read-only. A line may be
+//   "<name><TAB><Awin advertiser id or one affiliate link of the shop>": when no feed has the shop's name as its
+//   merchant_name, the files AWIN_<id>_*.csv(.gz) are used.
 import { createReadStream, existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { createGunzip } from 'node:zlib';
 import { basename, join, resolve } from 'node:path';
@@ -119,13 +130,33 @@ export function pickFeedFiles(paths, statFn = statSync) {
   };
 }
 
-// The feeds of many shops in one pass over the archive (the one-paste mode, lessons L108).
+// The Awin advertiser id of an affiliate link of the older sites: cread.php?awinmid=<id>&awinaffid=<us>&ued=...,
+// pclick.php?p=<product>&a=<us>&m=<id>, or an older cread.php?mid=<id>. '' for any other link (CJ, shop links).
+export function advertiserOf(url) {
+  const u = String(url || '');
+  if (!/^https?:\/\/(www\.)?awin1\.com\//i.test(u)) return '';
+  const m = /[?&]awinmid=(\d{1,9})\b/i.exec(u) || /[?&]mid=(\d{1,9})\b/i.exec(u) || (/\/pclick\.php\?/i.test(u) ? /[?&]m=(\d{1,9})\b/i.exec(u) : null);
+  return m ? m[1] : '';
+}
+
+// The feeds of many shops in one pass over the archive (the one-paste mode, lessons L108). Each entry is a name, or
+// { retailer, advertiser }: the advertiser id finds AWIN_<id>_* when no feed has the shop's name (e.g. "Watch Enclave
+// Affiliate Programme" or "100 Percent Pure", whose feeds have another merchant_name).
 export async function findFeedsFor(archive, retailers, nowMs = Date.now()) {
   const files = readdirSync(archive).filter(f => FEED_FILE.test(f)).sort();
   const names = await merchantNames(archive, files);
-  return retailers.map(retailer => {
+  return retailers.map(entry => {
+    const retailer = typeof entry === 'string' ? entry : String(entry.retailer || '');
+    // The advertiser id itself, or an affiliate link of the shop (the one-paste mode sends MIN(affiliate_url)).
+    const raw = typeof entry === 'string' ? '' : String(entry.advertiser || '').trim();
+    const hint = /^\d{1,9}$/.test(raw) ? raw : advertiserOf(raw);
     const want = keyOf(retailer);
-    const hits = files.filter(f => names[f] && keyOf(names[f]) === want).map(f => join(archive, f));
+    let hits = files.filter(f => names[f] && keyOf(names[f]) === want).map(f => join(archive, f));
+    let matchedBy = hits.length ? 'name' : '';
+    if (!hits.length && hint) {
+      hits = files.filter(f => FEED_FILE.exec(f)[1] === hint).map(f => join(archive, f));
+      matchedBy = hits.length ? 'advertiser' : '';
+    }
     const pick = pickFeedFiles(hits);
     const similar = hits.length ? [] : Object.entries(names).filter(([, n]) => n && want && keyOf(n).includes(want.split('-')[0])).map(([f, n]) => `${f}: ${n}`).slice(0, 5);
     return {
@@ -134,7 +165,9 @@ export async function findFeedsFor(archive, retailers, nowMs = Date.now()) {
         const m = FEED_FILE.exec(basename(f));
         return { file: basename(f), advertiser: m[1], feed: m[2], time: sqliteTime(pick.times[i]), ageDays: Math.round(((nowMs - pick.times[i]) / DAY) * 10) / 10 };
       }),
-      advertisers: [...new Set(pick.files.map(f => FEED_FILE.exec(basename(f))[1]))],
+      // With no feed here but a known advertiser id, the one-paste mode can still download it.
+      advertisers: hits.length ? [...new Set(pick.files.map(f => FEED_FILE.exec(basename(f))[1]))] : (hint ? [hint] : []),
+      matchedBy,
       feedTime: Number.isFinite(pick.feedTime) ? sqliteTime(pick.feedTime) : '',
       ageDays: Number.isFinite(pick.feedTime) ? Math.round(((nowMs - pick.feedTime) / DAY) * 10) / 10 : null,
       similar
@@ -220,7 +253,7 @@ function parseFeedDate(s) {
 
 // feedTime: the time (ms) the feed file was downloaded (pickFeedFiles). requireDates: the one-paste mode, where a shop
 // whose feed file is too old to date its rows changes nothing at all (it is listed and waits for a fresh download).
-export function planRefresh({ rows, feed, costs, maxWrites = 90000, now = new Date(), feedTime = NaN, requireDates = false }) {
+export function planRefresh({ rows, feed, costs, maxWrites = 90000, now = new Date(), feedTime = NaN, requireDates = false, noHide = false }) {
   const nowMs = now.getTime();
   const cost = col => (costs && costs[col]) || 1;
   const active = rows.filter(r => Number(r.is_active) === 1);
@@ -231,8 +264,11 @@ export function planRefresh({ rows, feed, costs, maxWrites = 90000, now = new Da
   const hasFileTime = Number.isFinite(fileTime) && fileTime > 0;
   const fileAgeDays = hasFileTime ? Math.max(0, daysBetween(fileTime, nowMs)) : null;
   const datesOk = hasFileTime && fileAgeDays <= FEED_FILE_MAX_DAYS;
-  // Never later than the download (and never later than now, if the PC clock put the file in the future).
-  const stamp = hasFileTime ? sqliteTime(Math.min(fileTime, nowMs)) : '';
+  // Never later than the download, never later than now (a PC clock that put the file in the future), and never later
+  // than the feed's own newest last_updated: "Price checked" is never newer than the retailer's data.
+  const stampTime = hasFileTime ? Math.min(fileTime, nowMs, Number.isFinite(newestTime) ? newestTime : Infinity) : NaN;
+  const stamp = hasFileTime ? sqliteTime(stampTime) : '';
+  const stampFromFeed = hasFileTime && Number.isFinite(newestTime) && newestTime < Math.min(fileTime, nowMs);
   const dateBlock = !hasFileTime ? 'no-file-time' : (datesOk ? '' : 'old-file');
   const skip = stale ? 'stale-feed' : (requireDates && !datesOk ? dateBlock : '');
   const { cutoff, checkFrom } = viewDays(nowMs);
@@ -244,12 +280,13 @@ export function planRefresh({ rows, feed, costs, maxWrites = 90000, now = new Da
   const currencySkip = [];
   const seenAll = [];
   const why = new Map();
+  const goneDates = {};
   let same = 0, newer = 0, noPrice = 0;
   for (const r of active) {
     const id = Number(r.id);
     const oldDate = dateText(r.updated_at);
     const f = matchRow(r, feed);
-    if (!f) { gone.push(id); why.set(id, 'gone'); continue; }
+    if (!f) { gone.push(id); goneDates[id] = oldDate; why.set(id, 'gone'); continue; }
     // The database changed this row after the feed was downloaded: the feed is older than what the site shows.
     if (stamp && oldDate && dateKey(oldDate) > stamp) { newer++; why.set(id, 'newer'); continue; }
     const set = {}, old = {};
@@ -285,9 +322,10 @@ export function planRefresh({ rows, feed, costs, maxWrites = 90000, now = new Da
     if (confirmed && (!oldDate || !stamp || dateKey(oldDate) < stamp)) { seenAll.push({ id, old: oldDate }); why.set(id, 'dated'); continue; }
     same++;
   }
-  // A feed that misses most products is more likely a broken download than a closed shop.
-  const safe = !(active.length >= 100 && gone.length > active.length * 0.5);
-  const hideAll = safe ? gone : [];
+  // A feed that misses most products, or has none, is more likely a broken download than a closed shop (lessons L108:
+  // a header-only feed of a small shop used to hide all of it). The one-paste mode never hides (noHide).
+  const safe = feed.rows > 0 && gone.length <= active.length * 0.5;
+  const hideAll = safe && !noHide ? gone : [];
   // The budget: changes first (cheap, and they fix prices and pictures), then hides, then the dates of the rows the feed
   // confirmed, oldest first (the ones the sites hide now come back first); the rest waits for the next run.
   let writes = 0;
@@ -326,13 +364,14 @@ export function planRefresh({ rows, feed, costs, maxWrites = 90000, now = new Da
     // A shop that changes nothing (stale feed, or no fresh file in the one-paste mode): that is the reason for all.
     if (skip) reason = skip;
     else if (reason === 'dated') reason = datesOk ? 'budget' : dateBlock;
-    else if (reason === 'gone') reason = !safe ? 'gone-unsafe' : (hiding.has(id) ? 'gone' : 'gone-budget');
+    else if (reason === 'gone') reason = noHide ? 'gone-kept' : (!safe ? 'gone-unsafe' : (hiding.has(id) ? 'gone' : 'gone-budget'));
     visible.still[reason] = (visible.still[reason] || 0) + 1;
   }
   const count = col => doChanges.filter(c => col in c.set).length;
   return {
     active: active.length, matched: active.length - gone.length, same, newer, noPrice, changes: doChanges, hides: doHides, seen: doSeen,
-    gone: gone.length, safe, stale, staleDays, skip, datesOk, dateBlock, stamp, fileAgeDays, cutoff, checkFrom,
+    hideDates: Object.fromEntries(doHides.map(id => [id, goneDates[id]])),
+    gone: gone.length, safe, noHide, stale, staleDays, skip, datesOk, dateBlock, stamp, stampFromFeed, fileAgeDays, cutoff, checkFrom,
     bigPrice, currencySkip, writes, left, costs, visible,
     counts: { price: count('price'), image_url: count('image_url'), stock_status: count('stock_status'),
       dated: doChanges.filter(c => c.stamp).length, undated: doChanges.filter(c => !c.stamp).length,
@@ -345,8 +384,20 @@ export function planRefresh({ rows, feed, costs, maxWrites = 90000, now = new Da
 const whereIds = ids => (ids.length === 1 ? `id = ${ids[0]}` : `id IN (${ids.join(', ')})`);
 export const idsPerStatement = rowCost => Math.max(1, Math.min(IDS_PER_STATEMENT, Math.floor(MAX_WRITES_PER_FILE / Math.max(1, rowCost))));
 
+// The guard against another write between our read and our load (lessons L108): the row must still have a date no later
+// than the newest date we read for the ids of this statement. Every tool that writes products sets updated_at to the
+// time of writing (datetime('now')), which is later than any date we read, so such a row is left alone; the lookups stay
+// by id (no extra rows read). Dates come from D1 itself, so the clock of the PC plays no part.
+export function readGuard(dates) {
+  const vals = dates.map(dateText).filter(Boolean);
+  if (!vals.length) return 'updated_at IS NULL';
+  const max = vals.reduce((a, b) => (b > a ? b : a));
+  return `(updated_at IS NULL OR updated_at <= ${sq(max)})`;
+}
+
 // One statement per group of rows that get exactly the same SET, up to idsPerStatement ids each.
-// groups: [{ set: 'col = value, ...', ids: [...], rowCost }] -> [{ sql, writes }]
+// groups: [{ set: 'col = value, ...', ids: [...], rowCost, read?: Map(id -> date read), extra?: 'is_active = 1',
+//   only?: '<date>' (rollback of a dated row: only while the row still has our date) }] -> [{ sql, writes, rows }]
 export function groupedStatements(groups) {
   const out = [];
   for (const g of groups) {
@@ -354,16 +405,24 @@ export function groupedStatements(groups) {
     const n = idsPerStatement(g.rowCost);
     for (let i = 0; i < ids.length; i += n) {
       const part = ids.slice(i, i + n);
-      out.push({ sql: `UPDATE products SET ${g.set} WHERE ${whereIds(part)};`, writes: part.length * g.rowCost, rows: part.length });
+      const where = [whereIds(part)];
+      if (g.extra) where.push(g.extra);
+      if (g.only) where.push(`updated_at = ${sq(g.only)}`);
+      else if (g.read) {
+        const missing = part.find(id => !g.read.has(id));
+        if (missing !== undefined) throw new Error(`no date read for id ${missing}`);
+        where.push(readGuard(part.map(id => g.read.get(id))));
+      }
+      out.push({ sql: `UPDATE products SET ${g.set} WHERE ${where.join(' AND ')};`, writes: part.length * g.rowCost, rows: part.length });
     }
   }
   return out;
 }
-function groupBy(items, keyFn, idFn, costFn) {
+function groupBy(items, keyFn, idFn, costFn, more = () => ({})) {
   const m = new Map();
   for (const it of items) {
     const k = keyFn(it);
-    if (!m.has(k)) m.set(k, { set: k, ids: [], rowCost: costFn(it) });
+    if (!m.has(k)) m.set(k, { set: k, ids: [], rowCost: costFn(it), ...more(it) });
     m.get(k).ids.push(idFn(it));
   }
   return [...m.values()];
@@ -372,16 +431,20 @@ const setText = obj => Object.entries(obj).map(([k, v]) => `${k} = ${sq(v)}`).jo
 
 export function planStatements(p) {
   const cost = col => (p.costs && p.costs[col]) || 1;
+  // The date read for every row (the guard); hides use the dates of the rows read too (p.hideDates).
+  const read = new Map([...p.changes.map(c => [c.id, c.oldDate]), ...p.seen.map(s => [s.id, s.old]), ...Object.entries(p.hideDates || {}).map(([id, d]) => [Number(id), d])]);
   const changeSet = c => setText({ ...c.set, ...(c.stamp ? { updated_at: c.stamp } : {}) });
-  const update = groupedStatements(groupBy(p.changes, changeSet, c => c.id, c => c.writes));
-  const hide = groupedStatements(p.hides.length ? [{ set: 'is_active = 0', ids: p.hides, rowCost: cost('is_active') }] : []);
-  const seen = groupedStatements(p.seen.length ? [{ set: `updated_at = ${sq(p.stamp)}`, ids: p.seen.map(s => s.id), rowCost: cost('updated_at') }] : []);
-  // The rollback puts back every old value (and the old date), and shows the hidden products again.
+  const update = groupedStatements(groupBy(p.changes, changeSet, c => c.id, c => c.writes, () => ({ read })));
+  const hide = groupedStatements(p.hides.length ? [{ set: 'is_active = 0', ids: p.hides, rowCost: cost('is_active'), extra: 'is_active = 1', read }] : []);
+  const seen = groupedStatements(p.seen.length ? [{ set: `updated_at = ${sq(p.stamp)}`, ids: p.seen.map(s => s.id), rowCost: cost('updated_at'), read }] : []);
+  // The rollback puts back every old value (and the old date), and shows the hidden products again, but only on rows
+  // nobody changed after us: a dated row only while it still has our date; the others only while their date is the one
+  // we read.
   const oldSet = c => setText({ ...c.old, ...(c.stamp ? { updated_at: c.oldDate || null } : {}) });
   const rollback = [
-    ...groupedStatements(groupBy(p.changes, oldSet, c => c.id, c => c.writes)),
-    ...groupedStatements(p.hides.length ? [{ set: 'is_active = 1', ids: p.hides, rowCost: cost('is_active') }] : []),
-    ...groupedStatements(groupBy(p.seen, s => setText({ updated_at: s.old || null }), s => s.id, () => cost('updated_at')))
+    ...groupedStatements(groupBy(p.changes, c => `${oldSet(c)}|${c.stamp}`, c => c.id, c => c.writes, c => ({ set: oldSet(c), ...(c.stamp ? { only: c.stamp } : { read }) }))),
+    ...groupedStatements(p.hides.length ? [{ set: 'is_active = 1', ids: p.hides, rowCost: cost('is_active'), extra: 'is_active = 0', read }] : []),
+    ...groupedStatements(groupBy(p.seen, s => setText({ updated_at: s.old || null }), s => s.id, () => cost('updated_at'), () => ({ only: p.stamp })))
   ];
   return { update, hide, seen, rollback };
 }
@@ -424,8 +487,8 @@ export function writePlan(out, p) {
   writeFileSync(join(out, 'rollback.sql'), st.rollback.map(s => s.sql).join('\n') + (st.rollback.length ? '\n' : ''));
   writeFileSync(join(out, 'hidden-ids.txt'), p.hides.join('\n') + (p.hides.length ? '\n' : ''));
   const summary = { active: p.active, matched: p.matched, same: p.same, newer: p.newer, noPrice: p.noPrice, changes: p.changes.length,
-    hides: p.hides.length, seen: p.seen.length, gone: p.gone, safe: p.safe, stale: p.stale, staleDays: p.staleDays, skip: p.skip,
-    datesOk: p.datesOk, dateBlock: p.dateBlock, stamp: p.stamp, fileAgeDays: p.fileAgeDays === null ? null : Math.round(p.fileAgeDays * 10) / 10,
+    hides: p.hides.length, seen: p.seen.length, gone: p.gone, safe: p.safe, noHide: Boolean(p.noHide), stale: p.stale, staleDays: p.staleDays, skip: p.skip,
+    datesOk: p.datesOk, dateBlock: p.dateBlock, stamp: p.stamp, stampFromFeed: Boolean(p.stampFromFeed), fileAgeDays: p.fileAgeDays === null ? null : Math.round(p.fileAgeDays * 10) / 10,
     writes: p.writes, left: p.left, counts: p.counts, costs: p.costs, visible: p.visible, bigPrice: p.bigPrice.length,
     still: Object.entries(p.visible.still).map(([reason, n]) => ({ reason, n, text: reasonText(reason) })),
     currencySkip: p.currencySkip.length, statements: files.reduce((n, f) => n + f.statements, 0), files, rollbackFiles };
@@ -435,7 +498,7 @@ export function writePlan(out, p) {
 
 const REASONS = {
   gone: 'δεν υπάρχουν πια στο feed (κρύβονται)', 'gone-budget': 'δεν υπάρχουν πια στο feed (η απόκρυψη περιμένει το όριο εγγραφών)',
-  'gone-unsafe': 'λείπουν από ένα feed που μοιάζει μισό', jump: 'τιμή που αλλάζει πάνω από 3 φορές (να ελεγχθεί)',
+  'gone-unsafe': 'λείπουν από ένα feed που μοιάζει μισό ή άδειο', 'gone-kept': 'δεν υπάρχουν πια στο feed (δεν κρύβονται εδώ· χωρίς ημερομηνία φεύγουν μόνα τους στις 30 μέρες)', jump: 'τιμή που αλλάζει πάνω από 3 φορές (να ελεγχθεί)',
   currency: 'άλλο νόμισμα στο feed', 'no-price': 'το feed δεν έχει τιμή', budget: 'όριο εγγραφών (την επόμενη φορά)',
   'old-file': 'το αρχείο του feed είναι παλιό (κατέβασέ το ξανά)', 'no-file-time': 'δεν ξέρω πότε κατέβηκε το feed',
   'stale-feed': 'το feed έχει να ενημερωθεί πάνω από 30 μέρες', newer: 'άλλαξαν μετά τη λήψη του feed', same: 'χωρίς επιβεβαίωση'
@@ -449,14 +512,16 @@ export function renderReport({ retailer, site, feedFiles, feedRows, newest, p })
   L.push(`Ενεργά προϊόντα ${retailer} στο ${site.toUpperCase()}: ${fmt(p.active)}. Βρέθηκαν στο feed: ${fmt(p.matched)} (ίδια: ${fmt(p.same)}). Δεν υπάρχουν πια στο feed: ${fmt(p.gone)}.`);
   if (p.stale) L.push(`ΠΡΟΣΟΧΗ: το feed έχει να ενημερωθεί ${p.staleDays} μέρες (πάνω από ${STALE_DAYS}). Δεν θα αλλάξει τίποτα (L39).`);
   else if (p.staleDays !== null && p.staleDays > CHECK_AFTER_DAYS) L.push(`ΠΡΟΣΟΧΗ: η νεότερη ενημέρωση προϊόντος μέσα στο feed είναι πριν από ${p.staleDays} μέρες. Το κατάστημα μάλλον δεν ανανεώνει το feed του.`);
-  if (p.stamp) L.push(`Ώρα λήψης του feed σε αυτόν τον υπολογιστή: ${p.stamp} UTC (πριν από ${Math.round(p.fileAgeDays * 10) / 10} μέρες). Αυτή η ώρα γράφεται ως «Price checked».`);
+  if (p.stamp && !p.stampFromFeed) L.push(`Ώρα λήψης του feed σε αυτόν τον υπολογιστή: ${p.stamp} UTC (πριν από ${Math.round(p.fileAgeDays * 10) / 10} μέρες). Αυτή η ώρα γράφεται ως «Price checked».`);
+  if (p.stamp && p.stampFromFeed) L.push(`Το feed κατέβηκε πριν από ${Math.round(p.fileAgeDays * 10) / 10} μέρες, αλλά η νεότερη ενημέρωση του ίδιου του feed είναι ${p.stamp} UTC: αυτή γράφεται ως «Price checked» (ποτέ νεότερη από τα στοιχεία του καταστήματος).`);
   if (!p.datesOk && !p.stale) {
     L.push(p.dateBlock === 'old-file'
       ? `ΠΡΟΣΟΧΗ: το αρχείο του feed κατέβηκε πριν από ${Math.floor(p.fileAgeDays)} μέρες (πάνω από ${FEED_FILE_MAX_DAYS}). Δεν γράφεται ΚΑΜΙΑ ημερομηνία για αυτό το κατάστημα. Κατέβασε πρώτα ξανά το feed (το κάνει μόνο του το legacy-refresh με -Stale -Apply). Με φρέσκο feed θα ξαναφαίνονταν περίπου ${fmt(p.visible.reviveIfFresh)} προϊόντα.`
       : 'ΠΡΟΣΟΧΗ: δεν ξέρω πότε κατέβηκε το feed. Δεν γράφεται καμία ημερομηνία.');
   }
   if (p.skip === 'old-file' || p.skip === 'no-file-time') L.push('Σε αυτή τη λειτουργία (-Stale) το κατάστημα ΔΕΝ αλλάζει καθόλου μέχρι να κατέβει φρέσκο feed.');
-  if (!p.safe) L.push(`ΠΡΟΣΟΧΗ: λείπουν από το feed πάνω από τα μισά ενεργά προϊόντα (${fmt(p.gone)} από ${fmt(p.active)}). Μάλλον δεν κατέβηκε ολόκληρο: ΔΕΝ θα κρυφτεί κανένα.`);
+  if (p.noHide) { if (p.gone) L.push(`${fmt(p.gone)} προϊόντα δεν υπάρχουν πια στο feed: σε αυτή τη λειτουργία δεν κρύβονται, δεν παίρνουν ημερομηνία και φεύγουν μόνα τους από το site στις ${HIDE_AFTER_DAYS} μέρες.`); }
+  else if (!p.safe) L.push(`ΠΡΟΣΟΧΗ: λείπουν από το feed πάνω από τα μισά ενεργά προϊόντα ή το feed δεν έχει κανένα (${fmt(p.gone)} από ${fmt(p.active)}). Μάλλον δεν κατέβηκε ολόκληρο: ΔΕΝ θα κρυφτεί κανένα.`);
   L.push(`Αλλαγές: τιμή ${fmt(p.counts.price)}, εικόνα ${fmt(p.counts.image_url)}, απόθεμα ${fmt(p.counts.stock_status)} (σε απόθεμα ξανά: ${fmt(p.counts.toIn)}, εξαντλήθηκαν: ${fmt(p.counts.toOut)}). Απόκρυψη: ${fmt(p.hides.length)}.`);
   if (p.datesOk) L.push(`Επιβεβαίωση από το feed (L108): ${fmt(p.seen.length)} προϊόντα χωρίς άλλη αλλαγή παίρνουν ημερομηνία ${p.stamp}, και ${fmt(p.counts.dated)} από τις αλλαγές την ίδια.`);
   if (p.newer) L.push(`${fmt(p.newer)} προϊόντα άλλαξαν στη βάση ΜΕΤΑ τη λήψη του feed: δεν αλλάζουν.`);
@@ -489,8 +554,9 @@ if (import.meta.url === pathToFileURL(process.argv[1] || '').href) {
   const now = opt('--now') ? new Date(opt('--now')) : new Date();
   mkdirSync(out, { recursive: true });
   if (args.includes('--find')) {
-    const names = readFileSync(opt('--retailers-file'), 'utf8').replace(/^﻿/, '').split(/\r?\n/).map(s => s.trim()).filter(Boolean);
-    writeFileSync(join(out, 'feeds.json'), JSON.stringify(await findFeedsFor(archive, names, now.getTime()), null, 2));
+    const lines = readFileSync(opt('--retailers-file'), 'utf8').replace(/^﻿/, '').split(/\r?\n/).filter(s => s.trim());
+    const entries = lines.map(l => { const [retailer, advertiser = ''] = l.split('\t'); return { retailer: retailer.trim(), advertiser: advertiser.trim() }; });
+    writeFileSync(join(out, 'feeds.json'), JSON.stringify(await findFeedsFor(archive, entries, now.getTime()), null, 2));
     process.exit(0);
   }
   const retailer = opt('--retailer');
@@ -507,9 +573,10 @@ if (import.meta.url === pathToFileURL(process.argv[1] || '').href) {
   const pick = pickFeedFiles(found);
   const files = pick.files;
   const feed = await readFeed(files);
-  const rows = all('--rows').flatMap(f => rowsFromWrangler(readFileSync(f, 'utf8')));
+  // Rows of a whole site (the one-paste mode reads them once, with their retailer): only this shop's rows.
+  const rows = all('--rows').flatMap(f => rowsFromWrangler(readFileSync(f, 'utf8'))).filter(r => !('retailer' in r) || String(r.retailer) === retailer);
   const costs = writeCosts(opt('--indexes') && existsSync(opt('--indexes')) ? rowsFromWrangler(readFileSync(opt('--indexes'), 'utf8')) : []);
-  const p = planRefresh({ rows, feed, costs, maxWrites, now, feedTime: pick.feedTime, requireDates: args.includes('--require-dates') });
+  const p = planRefresh({ rows, feed, costs, maxWrites, now, feedTime: pick.feedTime, requireDates: args.includes('--require-dates'), noHide: args.includes('--no-hide') });
   const summary = writePlan(out, p);
   const ages = pick.times.map(t => Math.floor((now.getTime() - t) / DAY));
   writeFileSync(join(out, 'report.txt'), renderReport({ retailer, site, feedFiles: files.map((f, i) => `${basename(f)} (αρχείο ${ages[i]} ημ.)`), feedRows: feed.rows, newest: feed.newest, p }));

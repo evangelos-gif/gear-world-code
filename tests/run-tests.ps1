@@ -2665,13 +2665,16 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
     New-Item -ItemType Directory -Path $stState, $stBin, $stArch -Force | Out-Null
     $stBookmark = '00000085-0000024c-00004c6d-' + [guid]::NewGuid().ToString('N')
     $stRows = '[{"results":[' +
-        '{"id":1,"awin_product_id":"100046875","merchant_product_id":"100005800","product_name":"Bahco Spanner","price":11.99,"currency":"GBP","stock_status":"In Stock","image_url":"https://x/a.jpg","is_active":1,"updated_at":"2026-09-01 10:00:00"},' +
-        '{"id":2,"awin_product_id":"10066565757","merchant_product_id":"100005803","product_name":"Stanley Hammer","price":20,"currency":"GBP","stock_status":"In Stock","image_url":"https://x/b.jpg","is_active":1,"updated_at":"2026-09-01 10:00:00"},' +
-        '{"id":5,"awin_product_id":"555","merchant_product_id":"555","product_name":"Gone","price":7,"currency":"GBP","stock_status":"In Stock","image_url":"https://x/5.jpg","is_active":1,"updated_at":"2026-09-01 10:00:00"}' +
+        '{"id":1,"retailer":"Tooled Up","awin_product_id":"100046875","merchant_product_id":"100005800","product_name":"Bahco Spanner","price":11.99,"currency":"GBP","stock_status":"In Stock","image_url":"https://x/a.jpg","is_active":1,"updated_at":"2026-09-01 10:00:00"},' +
+        '{"id":2,"retailer":"Tooled Up","awin_product_id":"10066565757","merchant_product_id":"100005803","product_name":"Stanley Hammer","price":20,"currency":"GBP","stock_status":"In Stock","image_url":"https://x/b.jpg","is_active":1,"updated_at":"2026-09-01 10:00:00"},' +
+        '{"id":5,"retailer":"Tooled Up","awin_product_id":"555","merchant_product_id":"555","product_name":"Gone","price":7,"currency":"GBP","stock_status":"In Stock","image_url":"https://x/5.jpg","is_active":1,"updated_at":"2026-09-01 10:00:00"},' +
+        '{"id":9,"retailer":"No Feed Shop","awin_product_id":"100046875","merchant_product_id":"100005800","product_name":"Other shop, same ids","price":1,"currency":"GBP","stock_status":"In Stock","image_url":"https://x/9.jpg","is_active":1,"updated_at":"2026-09-01 10:00:00"}' +
         '],"success":true,"meta":{"rows_read":3}}]'
     $stNpx = @(
         '@echo off',
         'echo %* >> "%GW_FAKE_STATE%\calls.log"',
+        'if exist "%GW_FAKE_STATE%\slow.flag" goto slowcheck',
+        ':afterslow',
         'echo %* | findstr /C:"time-travel info" >nul && goto ttinfo',
         'echo %* | findstr /C:"AS d30" >nul && goto stale',
         'echo %* | findstr /C:"sqlite_master" >nul && goto idx',
@@ -2684,7 +2687,7 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         ('echo The current bookmark is ' + $stBookmark),
         'exit /b 0',
         ':stale',
-        'echo [{"results":[{"retailer":"Fresh Shop","n":5,"d14":0,"d30":0},{"retailer":"Tooled Up","n":3,"d14":3,"d30":3},{"retailer":"No Feed Shop","n":4,"d14":4,"d30":2}],"success":true,"meta":{"rows_read":24}}]',
+        'echo [{"results":[{"retailer":"Fresh Shop","n":5,"d14":0,"d30":0,"dsel":0,"aurl":"https://www.awin1.com/cread.php?awinmid=1"},{"retailer":"Tooled Up","n":3,"d14":3,"d30":3,"dsel":3,"aurl":"https://www.awin1.com/cread.php?awinmid=496"},{"retailer":"No Feed Shop","n":4,"d14":4,"d30":2,"dsel":4,"aurl":"https://www.awin1.com/cread.php?awinmid=555"},{"retailer":"Weekly Shop","n":2,"d14":0,"d30":0,"dsel":2}],"success":true,"meta":{"rows_read":28}}]',
         'exit /b 0',
         ':idx',
         'echo [{"results":[{"type":"index","name":"idx_products_active_price","sql":"CREATE INDEX idx_products_active_price ON products(is_active, price)"}],"success":true,"meta":{"rows_read":5}}]',
@@ -2693,11 +2696,14 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         ('echo ' + $stRows),
         'exit /b 0',
         ':after',
-        'echo [{"results":[{"n":2}],"success":true,"meta":{"rows_read":2}}]',
+        'echo [{"results":[{"n":3}],"success":true,"meta":{"rows_read":3}}]',
         'exit /b 0',
         ':ok',
         'echo Executed 2 queries in 1.00ms (0 rows read, 4 rows written)',
-        'exit /b 0'
+        'exit /b 0',
+        ':slowcheck',
+        'echo %* | findstr /C:"--file" >nul && ping -n 40 127.0.0.1 >nul',
+        'goto afterslow'
     ) -join "`r`n"
     [System.IO.File]::WriteAllText((Join-Path $stBin 'npx.cmd'), $stNpx + "`r`n", [System.Text.Encoding]::ASCII)
     # The feed on this PC: Tooled Up, downloaded 5 days ago (too old for dates: the -Apply run downloads it first).
@@ -2740,12 +2746,17 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         Check (-not ($c -match '--file|time-travel')) 'refresh -Stale without -Apply: only reads'
         Check (([regex]::Matches($c, 'AS d30')).Count -eq 2 -and $c.Contains('construction-gear-customers') -and $c.Contains('home-gear-world') -and -not $c.Contains('mens-gear-world')) 'refresh -Stale: one grouped read per chosen site, no other site'
         Check ($c.Contains("SUM(MIN(COALESCE(updated_at, ''), ") -and -not ($c -match 'updated_at [<>]')) 'refresh -Stale: older than 14/30 days without < or > (the command goes through cmd.exe)'
+        Check ($c.Contains('AS dsel') -and $c.Contains('MIN(affiliate_url) AS aurl')) 'refresh -Stale: the 7-day selection and one link per shop in the same grouped read'
+        Check ($c.Contains('WHERE is_active = 1 AND id BETWEEN 1 AND') -and -not $c.Contains('AND is_active = 1 AND id BETWEEN')) 'refresh -Stale: one paged read of all active rows per site, no read per shop'
         Check ([math]::Abs(((Get-Item -LiteralPath $stFeed).LastWriteTime - $stOld).TotalSeconds) -lt 5) 'refresh -Stale without -Apply: no feed downloaded'
         $r = StLast
         if (-not $r.Contains('ΜΙΑ για όλη την εκτέλεση')) { Write-Host '----- REFRESH report (for the failure below) -----'; Write-Host $r }
         Check ($r.Contains('ΕΓΚΡΙΝΩ REFRESH ΠΑΛΙΑ ΠΡΟΪΟΝΤΑ') -and $r.Contains('ΜΙΑ για όλη την εκτέλεση')) 'refresh -Stale: the plan shows the one phrase'
         Check ($r.Contains('με -Apply κατεβαίνει πρώτα φρέσκο feed: Tooled Up στο CGW (περίπου 1 θα φαίνονταν ξανά)')) 'refresh -Stale: an old feed file is downloaded first, with the estimate'
-        Check ($r.Contains('παραλείπεται: No Feed Shop στο CGW: δεν βρέθηκε feed') -and -not $r.Contains('Fresh Shop στο')) 'refresh -Stale: a shop without a feed is skipped and listed; a fresh shop is not touched'
+        Check ($r.Contains('παραλείπεται: Weekly Shop στο CGW: δεν βρέθηκε feed') -and -not $r.Contains('Fresh Shop στο')) 'refresh -Stale: a shop without a feed is skipped and listed; a fresh shop is not touched'
+        Check ($r.Contains('-OlderThanDays 7') -and $r.Contains('Weekly Shop: ενεργά 2, πάνω από 14 μέρες 0, πάνω από 30 μέρες (δεν φαίνονται) 0, πάνω από 7 μέρες 2')) 'refresh -Stale: shops older than 7 days are chosen (-OlderThanDays 7)'
+        Check ($r.Contains('με -Apply κατεβαίνει πρώτη φορά το feed (Awin 555): No Feed Shop στο CGW') -and $r.Contains('Awin: 496, 555')) 'refresh -Stale: a shop with no feed here but an Awin id in its links is downloaded first'
+        Check ($r.Contains('κανένα προϊόν δεν κρύβεται')) 'refresh -Stale: the plan says nothing is hidden'
         Check ($r -match 'CGW: θα φαίνονται ξανά 0 προϊόντα \(και περίπου 1 ακόμα με φρέσκο feed\)\. Μένουν κρυμμένα: .*2 δεν βρέθηκε feed.*Γραμμές D1: διαβάστηκαν [0-9,]+') 'refresh -Stale: the Greek summary per site with the rows read'
         Check ($r.Contains('αργά το βράδυ')) 'refresh -Stale: the tip to run at a quiet time'
         Check ((Run-St @('-Stale', '-Sites', 'cgw,hgw', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ REFRESH TOOLED-UP CGW')) -eq 1) 'refresh -Stale with another phrase: stops'
@@ -2762,28 +2773,47 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
             if ($iT -lt 0 -or $iF -lt $iT) { $ok = $false }
         }
         Check $ok 'refresh -Stale -Apply: a restore point of each database before its first file'
-        Check (([regex]::Matches($c, '--remote --file')).Count -eq 6 -and ([regex]::Matches($c, 'seen-0001\.sql')).Count -eq 2) 'refresh -Stale -Apply: values, hides and dates in small files, for both sites'
+        Check (([regex]::Matches($c, '--remote --file')).Count -eq 4 -and ([regex]::Matches($c, 'seen-0001\.sql')).Count -eq 2 -and -not $c.Contains('hide-0001.sql')) 'refresh -Stale -Apply: values and dates in small files, for both sites; nothing hidden'
         $seenSql = @(Get-ChildItem -LiteralPath $stOut -Recurse -File -Filter 'seen-0001.sql' | Where-Object { $_.FullName -match '[\\/]apply[\\/]' })
         $seenText = ''
         if ($seenSql.Count -gt 0) { $seenText = [System.IO.File]::ReadAllText($seenSql[0].FullName) }
-        Check ($seenText -match "^UPDATE products SET updated_at = '\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}' WHERE id = 2;" -and -not $seenText.Contains('datetime')) 'refresh -Stale -Apply: the confirmed product gets the time of the feed file, not datetime(now)'
+        Check ($seenText -match "^UPDATE products SET updated_at = '\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}' WHERE id = 2 AND \(updated_at IS NULL OR updated_at <= '2026-09-01 10:00:00'\);" -and -not $seenText.Contains('datetime')) 'refresh -Stale -Apply: the confirmed product gets the time of the feed, only while nobody changed it after our read'
         $undo = @(Get-ChildItem -LiteralPath (Join-Path $stWork 'backups') -Filter '*-refresh-tooled-up-*-rollback.sql' -ErrorAction SilentlyContinue)
-        Check ($undo.Count -eq 2 -and ([System.IO.File]::ReadAllText($undo[0].FullName)).Contains("updated_at = '2026-09-01 10:00:00'")) 'refresh -Stale -Apply: a rollback per shop with the old dates'
+        Check ($undo.Count -eq 2 -and ([System.IO.File]::ReadAllText($undo[0].FullName)).Contains("SET updated_at = '2026-09-01 10:00:00' WHERE id = 2 AND updated_at = '")) 'refresh -Stale -Apply: a rollback per shop with the old dates, only on rows that still have our date'
         $parts = @(Get-ChildItem -LiteralPath (Join-Path $stWork 'backups') -Recurse -File -Filter 'rollback-0001.sql' -ErrorAction SilentlyContinue)
         $note = @(Get-ChildItem -LiteralPath (Join-Path $stWork 'backups') -Filter 'cgw-restore-point-before-tooled-up-refresh-*.txt' -ErrorAction SilentlyContinue)
         Check ($parts.Count -eq 2 -and $note.Count -eq 1 -and ([System.IO.File]::ReadAllText($note[0].FullName)).Contains($stBookmark) -and ([System.IO.File]::ReadAllText($note[0].FullName)).Contains('Επαναφορά')) 'refresh -Stale -Apply: rollback in small parts, the restore point and the Greek rollback'
+        $noteText = ''
+        if ($note.Count -eq 1) { $noteText = [System.IO.File]::ReadAllText($note[0].FullName) }
+        Check ($noteText.Contains('--remote --file $_.FullName --yes') -and $noteText.Contains('-rollback.sql" --yes') -and -not ($noteText -match 'time-travel restore[^\r\n]*--yes')) 'refresh: the rollback file commands answer yes; the whole-database restore still asks'
         $r = StLast
         if (-not ($r -match 'CGW: φαίνονται ξανά 2')) { Write-Host '----- REFRESH -Apply report (for the failure below) -----'; Write-Host $r }
-        Check ($r -match 'CGW: φαίνονται ξανά 2 προϊόντα\. Μένουν κρυμμένα: .*Γραμμές D1: διαβάστηκαν [0-9,]+, γράφτηκαν 12\.' -and $r -match 'HGW: φαίνονται ξανά 2 προϊόντα') 'refresh -Stale -Apply: the Greek summary with the rows written'
+        Check ($r -match 'CGW: φαίνονται ξανά 2 προϊόντα\. Μένουν κρυμμένα: .*Γραμμές D1: διαβάστηκαν [0-9,]+, γράφτηκαν 8\.' -and $r -match 'HGW: φαίνονται ξανά 2 προϊόντα') 'refresh -Stale -Apply: the Greek summary with the rows written'
+        Check ($r.Contains('555: δεν υπάρχει στη λίστα σου') -and $r.Contains('Αντίγραφα και αρχεία επαναφοράς αυτού του site:')) 'refresh -Stale -Apply: the Awin id of the links went to the download tool; the backups folder is printed before loading'
+        # A run stopped in the middle (Ctrl+C) still leaves its report, with where the backups are (lessons L108).
+        Write-Utf8 (Join-Path $stState 'slow.flag') 'x'
+        $killOut = Join-Path $work 'st-kill-out'
+        $kArgs = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', ('"' + $stTool + '"'), '-Stale', '-Sites', 'cgw', '-Apply', '-Approve', '"εγκρινω refresh παλια προιοντα"', '-Archive', ('"' + $stArch + '"'), '-WorkDir', ('"' + $stWork + '"'), '-OutDir', ('"' + $killOut + '"'), '-NoClipboard', '-PauseSeconds', '0', '-FeedKeyFile', ('"' + $stKeyFile + '"'), '-AwinBaseUrl', 'http://127.0.0.1:8798')
+        $before = ([regex]::Matches((StCalls), '--remote --file')).Count
+        $kp = Start-Process -FilePath $exe -ArgumentList $kArgs -PassThru -WindowStyle Hidden
+        $deadline = (Get-Date).AddSeconds(150)
+        while ((Get-Date) -lt $deadline -and ([regex]::Matches((StCalls), '--remote --file')).Count -le $before) { Start-Sleep -Milliseconds 500 }
+        Stop-Process -Id $kp.Id -Force -ErrorAction SilentlyContinue
+        [void]$kp.WaitForExit(15000)
+        Remove-Item -LiteralPath (Join-Path $stState 'slow.flag') -Force -ErrorAction SilentlyContinue
+        $kRep = @(Get-ChildItem -LiteralPath $killOut -Filter 'REFRESH_*.txt' -ErrorAction SilentlyContinue)
+        $kText = ''
+        if ($kRep.Count -gt 0) { $kText = [System.IO.File]::ReadAllText($kRep[0].FullName) }
+        Check ($kp.HasExited -and $kText.Contains('Αντίγραφα και αρχεία επαναφοράς αυτού του site:') -and $kText.Contains('Σημείο επαναφοράς:') -and -not $kText.Contains('Σχέδια και αρχεία:')) 'refresh -Stale: a run stopped while loading still leaves its report with the backups'
         $allText = (@(Get-ChildItem -LiteralPath $stOut -Recurse -File -Filter '*.txt') | ForEach-Object { [System.IO.File]::ReadAllText($_.FullName) }) -join ' '
         Check (-not $allText.Contains($stKey) -and -not (StCalls).Contains($stKey)) 'refresh -Stale: the Awin key is in no report, plan or wrangler call'
         # gw-run passes -Stale, -Sites and -PaidPlan to the tool, like every other argument.
         $gwOut = Join-Path $work 'st-gw-out'
-        & $exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path (Join-Path $repo 'tools') 'gw-run.ps1') -LocalRepo $repo -Tool legacy-refresh -Stale -Sites cgw -PaidPlan -Archive $stArch -WorkDir $stWork -OutDir $gwOut -NoClipboard -PauseSeconds 0 | Out-Null
+        & $exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path (Join-Path $repo 'tools') 'gw-run.ps1') -LocalRepo $repo -Tool legacy-refresh -Stale -Sites cgw -PaidPlan -OlderThanDays 10 -Archive $stArch -WorkDir $stWork -OutDir $gwOut -NoClipboard -PauseSeconds 0 | Out-Null
         $gwRep = @(Get-ChildItem -LiteralPath $gwOut -Filter 'REFRESH_*.txt' -ErrorAction SilentlyContinue)
         $gwText = ''
         if ($gwRep.Count -gt 0) { $gwText = [System.IO.File]::ReadAllText($gwRep[0].FullName) }
-        Check ($LASTEXITCODE -eq 0 -and $gwText.Contains('Όριο εγγραφών D1 για όλη την εκτέλεση: 1,000,000') -and $gwText.Contains('Sites: CGW') -and -not $gwText.Contains('HGW (')) 'gw-run -Tool legacy-refresh: passes -Stale, -Sites and -PaidPlan'
+        Check ($LASTEXITCODE -eq 0 -and $gwText.Contains('Όριο εγγραφών D1 για όλη την εκτέλεση: 1,000,000') -and $gwText.Contains('Sites: CGW') -and -not $gwText.Contains('HGW (') -and $gwText.Contains('-OlderThanDays 10')) 'gw-run -Tool legacy-refresh: passes -Stale, -Sites, -PaidPlan and -OlderThanDays'
         Check ((Run-St @('-Stale', '-Pairs', 'tooled-up:cgw')) -eq 2 -and (Run-St @('-Stale', '-Sites', 'cgw,xyz')) -eq 2 -and (Run-St @('-Sites', 'cgw', '-Pairs', 'tooled-up:cgw')) -eq 2) 'refresh: -Stale with -Pairs, a wrong site, or -Sites without -Stale are refused'
     } finally {
         $env:PATH = $oldPath

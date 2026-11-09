@@ -15,7 +15,7 @@ import { execFileSync, spawnSync } from 'node:child_process';
 import { DatabaseSync } from 'node:sqlite';
 import {
   findFeeds, findFeedsFor, pickFeedFiles, readFeed, planRefresh, writeCosts, updateTrigger, writePlan, planStatements, splitFiles,
-  groupedStatements, idsPerStatement, sqliteTime, viewDays, keyOf, matchRow, renderReport,
+  groupedStatements, idsPerStatement, sqliteTime, viewDays, keyOf, matchRow, renderReport, advertiserOf,
   FEED_FILE_MAX_DAYS, MAX_STATEMENTS_PER_FILE, MAX_WRITES_PER_FILE, IDS_PER_STATEMENT
 } from '../../tools/legacy-refresh-plan.mjs';
 import { viewFor, isShown, needsCheck, HIDE_AFTER_DAYS } from '../../src/lib/visibility.js';
@@ -73,7 +73,8 @@ test('rows written per change, from the indexes and triggers: CGW price 3, pictu
 
 const HEAD = 'aw_deep_link,product_name,aw_product_id,merchant_product_id,merchant_image_url,aw_image_url,merchant_category,search_price,merchant_name,merchant_id,currency,in_stock,stock_status,last_updated\n';
 const line = o => [o.link || 'https://www.awin1.com/pclick.php?p=1', `"${o.name}"`, o.aw, o.mid, o.img || '', o.awImg || '', 'Tools', o.price, o.merchant, o.adv, o.cur || 'GBP',
-  o.inStock ?? '1', o.status ?? '', o.updated || '2026-10-24 22:00:00'].join(',') + '\n';
+  o.inStock ?? '1', o.status ?? '', o.updated || '2026-10-25 11:00:00'].join(',') + '\n';
+// (the feed's own date has no zone and is read as the PC's time: 25 Oct 11:00 is after the download in every zone)
 
 // Feed files downloaded on the evening of 24 Oct 2026 (their time on the PC), unless a test says otherwise.
 const DOWNLOADED = Date.parse('2026-10-24T21:30:15.750Z');
@@ -208,7 +209,7 @@ test('L108: a feed file downloaded more than 2 days before the run writes no dat
   assert.equal(p.visible.revive, 0);
   assert.equal(p.visible.reviveIfFresh, 2, 'with a fresh download: 2 would come back');
   const st = planStatements(p);
-  assert.ok([...st.update, ...st.hide, ...st.seen].every(s => !/updated_at/.test(s.sql)), 'no statement writes a date');
+  assert.ok([...st.update, ...st.hide, ...st.seen].every(s => !/updated_at/.test(s.sql.split(' WHERE ')[0])), 'no statement writes a date');
   const report = renderReport({ retailer: 'Tooled Up', site: 'cgw', feedFiles: ['AWIN_496_1001.csv.gz'], feedRows: 6, newest: feed.newest, p });
   assert.match(report, /ΠΡΟΣΟΧΗ: το αρχείο του feed κατέβηκε πριν από 3 μέρες \(πάνω από 2\)\. Δεν γράφεται ΚΑΜΙΑ ημερομηνία/);
   assert.match(report, /Κατέβασε πρώτα ξανά το feed/);
@@ -279,7 +280,7 @@ test('L108 statements: equal changes in one UPDATE ... WHERE id IN (up to 500 id
   const st = planStatements(p);
   assert.equal(st.seen.length, 3);
   assert.deepEqual(st.seen.map(s => s.rows), [500, 500, 200]);
-  assert.match(st.seen[0].sql, /^UPDATE products SET updated_at = '2026-10-24 21:30:15' WHERE id IN \(1, 2, 3, .* 500\);$/);
+  assert.match(st.seen[0].sql, /^UPDATE products SET updated_at = '2026-10-24 21:30:15' WHERE id IN \(1, 2, 3, .* 500\) AND \(updated_at IS NULL OR updated_at <= '2026-09-01 10:00:00'\);$/);
   assert.equal(st.rollback.length, 3, 'the rollback groups the rows with the same old date');
   // Stock changes to the same word: one statement; price changes: one per product.
   const changes = [
@@ -287,16 +288,19 @@ test('L108 statements: equal changes in one UPDATE ... WHERE id IN (up to 500 id
     { id: 20, set: { price: 9.5 }, old: { price: 10 }, oldDate: '2026-09-02 10:00:00', stamp: STAMP, writes: 3 },
     { id: 21, set: { price: 7 }, old: { price: 8 }, oldDate: null, stamp: '', writes: 3 }
   ];
-  const s2 = planStatements({ changes, hides: [30, 31], seen: [], stamp: STAMP, costs: CGW_COSTS });
+  const s2 = planStatements({ changes, hides: [30, 31], hideDates: { 30: '2026-09-03 10:00:00', 31: null }, seen: [], stamp: STAMP, costs: CGW_COSTS });
+  // Every forward statement keeps its rows only while nobody changed them after our read (L108): the newest date read.
   assert.deepEqual(s2.update.map(s => s.sql), [
-    "UPDATE products SET stock_status = 'Out of Stock', updated_at = '2026-10-24 21:30:15' WHERE id IN (10, 11, 12);",
-    "UPDATE products SET price = 9.5, updated_at = '2026-10-24 21:30:15' WHERE id = 20;",
-    'UPDATE products SET price = 7 WHERE id = 21;'
+    "UPDATE products SET stock_status = 'Out of Stock', updated_at = '2026-10-24 21:30:15' WHERE id IN (10, 11, 12) AND (updated_at IS NULL OR updated_at <= '2026-09-01 10:00:00');",
+    "UPDATE products SET price = 9.5, updated_at = '2026-10-24 21:30:15' WHERE id = 20 AND (updated_at IS NULL OR updated_at <= '2026-09-02 10:00:00');",
+    'UPDATE products SET price = 7 WHERE id = 21 AND updated_at IS NULL;'
   ]);
-  assert.deepEqual(s2.hide.map(s => s.sql), ['UPDATE products SET is_active = 0 WHERE id IN (30, 31);'], 'a hidden row gets no date');
-  assert.ok(s2.rollback.some(s => s.sql === "UPDATE products SET price = 10, updated_at = '2026-09-02 10:00:00' WHERE id = 20;"));
-  assert.ok(s2.rollback.some(s => s.sql === 'UPDATE products SET price = 8 WHERE id = 21;'), 'no date written, none put back');
-  assert.ok(s2.rollback.some(s => s.sql === 'UPDATE products SET is_active = 1 WHERE id IN (30, 31);'));
+  assert.deepEqual(s2.hide.map(s => s.sql), ["UPDATE products SET is_active = 0 WHERE id IN (30, 31) AND is_active = 1 AND (updated_at IS NULL OR updated_at <= '2026-09-03 10:00:00');"], 'a hidden row gets no date; only rows still active and unchanged');
+  // The rollback of a dated row only while it still has our date; of the others only while unchanged since our read.
+  assert.ok(s2.rollback.some(s => s.sql === "UPDATE products SET price = 10, updated_at = '2026-09-02 10:00:00' WHERE id = 20 AND updated_at = '2026-10-24 21:30:15';"));
+  assert.ok(s2.rollback.some(s => s.sql === 'UPDATE products SET price = 8 WHERE id = 21 AND updated_at IS NULL;'), 'no date written, none put back');
+  assert.ok(s2.rollback.some(s => s.sql === "UPDATE products SET is_active = 1 WHERE id IN (30, 31) AND is_active = 0 AND (updated_at IS NULL OR updated_at <= '2026-09-03 10:00:00');"));
+  assert.throws(() => planStatements({ changes: [], hides: [40], seen: [], stamp: STAMP, costs: CGW_COSTS }), /no date read for id 40/, 'a statement without the date read is never written');
   // A hide on CGW writes 12 rows per product: at most 416 ids per statement, so one statement stays under 5,000.
   assert.equal(idsPerStatement(12), 416);
   assert.equal(idsPerStatement(1), 500);
@@ -379,7 +383,8 @@ test('one-paste mode: the feeds of many shops in one pass; .csv and .csv.gz of o
   assert.deepEqual(r[1].advertisers, ['122822']);
   assert.equal(r[2].files.length, 0);
   assert.deepEqual(r[2].similar, ['AWIN_496_1001.csv: Tooled Up', 'AWIN_496_1001.csv.gz: Tooled Up'], 'similar names are listed');
-  assert.deepEqual(r[3], { retailer: 'Nobody', files: [], advertisers: [], feedTime: '', ageDays: null, similar: [] });
+  assert.deepEqual(r[3], { retailer: 'Nobody', files: [], advertisers: [], matchedBy: '', feedTime: '', ageDays: null, similar: [] });
+  assert.equal(r[0].matchedBy, 'name');
   const two = pickFeedFiles([join(dir, 'AWIN_496_1001.csv'), join(dir, 'AWIN_496_1001.csv.gz'), join(dir, 'AWIN_122822_2002.csv.gz')]);
   assert.equal(two.files.length, 2);
   assert.equal(two.dropped.length, 1);
@@ -436,4 +441,113 @@ test('legacy-refresh.ps1: the one-paste mode, its one phrase, the download tool 
   assert.ok(/αργά το βράδυ/.test(ps), 'the tip to run at a quiet time');
   assert.ok(!/updated_at = datetime/.test(readFileSync('tools/legacy-refresh-plan.mjs', 'utf8')), 'no date of the run in the SQL');
   assert.ok(ps.charCodeAt(0) === 0xfeff && ps.includes('\r\n'), 'UTF-8 with BOM and CRLF');
+  // L108 checker: 7-day selection, no hides in -Stale, --yes on the rollback files (not on Time Travel), report as it goes.
+  assert.ok(ps.includes('[int]$OlderThanDays = 7') && ps.includes("AS dsel") && ps.includes('MIN(affiliate_url) AS aurl'));
+  assert.ok(ps.includes("$a += '--no-hide'") && ps.includes('$true $true'), '-Stale plans with --no-hide');
+  assert.ok(ps.includes('--remote --file $_.FullName --yes') && ps.includes('--remote --file "{1}" --yes') && !/time-travel restore[^\r\n']*--yes/.test(ps));
+  assert.ok(ps.includes('AppendAllText($script:ReportFile'), 'the report is written line by line');
+  assert.ok(ps.includes("WHERE is_active = 1 AND id BETWEEN {0} AND 2147483647 ORDER BY id LIMIT 5000"), 'one paged read of the site for all its shops');
+});
+
+test('L108 checker: an empty or half feed hides nothing, also for a small shop; the one-paste mode never hides', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'refresh-empty-'));
+  writeFileSync(join(dir, 'AWIN_496_1001.csv.gz'), gzipSync(HEAD));
+  utimesSync(join(dir, 'AWIN_496_1001.csv.gz'), DOWNLOADED / 1000, DOWNLOADED / 1000);
+  const empty = await readFeed([join(dir, 'AWIN_496_1001.csv.gz')]);
+  assert.equal(empty.rows, 0);
+  const small = Array.from({ length: 60 }, (_, i) => ({ id: 1 + i, awin_product_id: `a${i}`, merchant_product_id: `m${i}`, price: 5, currency: 'GBP', stock_status: 'In Stock', image_url: '', is_active: 1, updated_at: '2026-10-20 10:00:00' }));
+  const p = planRefresh({ rows: small, feed: empty, costs: CGW_COSTS, now: RUN, feedTime: DOWNLOADED });
+  assert.equal(p.safe, false);
+  assert.equal(p.hides.length, 0, 'a header-only feed hid 60 of 60 before the fix');
+  // Half of a small shop missing: still hidden (per pair); more than half: nothing.
+  const feed = await readFeed((await findFeeds(archive(), 'Tooled Up')).files);
+  const four = TU.slice(0, 4);
+  const two = [...four.slice(0, 2), { ...TU[4], id: 8 }, { ...TU[4], id: 9 }];
+  assert.equal(planRefresh({ rows: two, feed, costs: CGW_COSTS, now: RUN, feedTime: DOWNLOADED }).hides.length, 2, '2 of 4 gone: hidden');
+  const three = [TU[0], { ...TU[4], id: 7 }, { ...TU[4], id: 8 }, { ...TU[4], id: 9 }];
+  assert.equal(planRefresh({ rows: three, feed, costs: CGW_COSTS, now: RUN, feedTime: DOWNLOADED }).hides.length, 0, '3 of 4 gone: nothing hidden');
+  const kept = planRefresh({ rows: TU, feed, costs: CGW_COSTS, now: RUN, feedTime: DOWNLOADED, noHide: true });
+  assert.deepEqual([kept.hides.length, kept.gone], [0, 1]);
+  assert.equal(kept.visible.still['gone-kept'], 1, 'listed: not in the feed, no date, the sites drop it after 30 days');
+  assert.ok(planStatements(kept).hide.length === 0);
+  assert.match(renderReport({ retailer: 'Tooled Up', site: 'cgw', feedFiles: ['x'], feedRows: 6, newest: feed.newest, p: kept }), /δεν κρύβονται, δεν παίρνουν ημερομηνία/);
+});
+
+test('L108 checker: a write between our read and our load is never overwritten, and the rollback never undoes a later change (SQLite)', async () => {
+  const feed = await readFeed((await findFeeds(archive(), 'Tooled Up')).files);
+  const db = new DatabaseSync(':memory:');
+  db.exec(readFileSync('tests/fixtures/ggw-legacy-schema.sql', 'utf8'));
+  const ins = db.prepare("INSERT INTO products (id, awin_product_id, merchant_product_id, retailer, site_category, product_name, price, currency, stock_status, image_url, affiliate_url, is_active, updated_at) VALUES (?, ?, ?, 'Tooled Up', 'Tools', ?, ?, ?, ?, ?, 'x', 1, ?)");
+  for (const r of TU) ins.run(r.id, r.awin_product_id, r.merchant_product_id, r.product_name, r.price, r.currency, r.stock_status, r.image_url, r.updated_at);
+  const rows = db.prepare('SELECT * FROM products WHERE is_active = 1').all();
+  const out = mkdtempSync(join(tmpdir(), 'refresh-race-'));
+  const summary = writePlan(out, planRefresh({ rows, feed, costs: writeCosts([]), now: RUN, feedTime: DOWNLOADED }));
+  // Someone else writes rows 1, 4 and 5 after our read (any Gear World tool sets updated_at to the time of writing).
+  db.exec("UPDATE products SET price = 99.99, updated_at = '2026-10-25 11:00:00' WHERE id = 1");
+  db.exec("UPDATE products SET image_url = 'https://x/new.jpg', updated_at = '2026-10-25 11:00:00' WHERE id = 4");
+  db.exec("UPDATE products SET price = 6.5, updated_at = '2026-10-25 11:00:00' WHERE id = 5");
+  for (const f of summary.files) db.exec(readFileSync(join(out, f.name), 'utf8'));
+  const after = Object.fromEntries(db.prepare('SELECT id, price, image_url, is_active, updated_at FROM products').all().map(r => [r.id, r]));
+  assert.deepEqual([after[1].price, after[1].updated_at], [99.99, '2026-10-25 11:00:00'], 'not 12.5 with an older date');
+  assert.equal(after[4].updated_at, '2026-10-25 11:00:00', 'the later write keeps its date');
+  assert.equal(after[5].is_active, 1, 'a row changed after our read is not hidden');
+  assert.equal(after[2].updated_at, STAMP, 'the untouched rows are refreshed');
+  // Rollback after another later change of a row we dated: that row keeps the later change.
+  db.exec("UPDATE products SET price = 21, updated_at = '2026-10-25 12:00:00' WHERE id = 2");
+  db.exec(readFileSync(join(out, 'rollback.sql'), 'utf8'));
+  const back = Object.fromEntries(db.prepare('SELECT id, price, updated_at FROM products').all().map(r => [r.id, r]));
+  assert.deepEqual([back[2].price, back[2].updated_at], [21, '2026-10-25 12:00:00'], 'the rollback does not undo a later change');
+  assert.equal(back[1].price, 99.99);
+  // The statements still look rows up by id only.
+  for (const f of summary.files) for (const line of readFileSync(join(out, f.name), 'utf8').trim().split('\n')) assert.match(line, /^UPDATE products SET .* WHERE id (=|IN) /);
+});
+
+test('L108 checker: "Price checked" is never newer than the feed\'s own newest last_updated', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'refresh-honest-'));
+  const name = join(dir, 'AWIN_496_1001.csv.gz');
+  writeFileSync(name, gzipSync(HEAD
+    + line({ name: 'Bahco Spanner 10mm', aw: '100046875', mid: '100005800', price: 11.99, merchant: 'Tooled Up', adv: 496, img: 'https://www.tooled-up.com/artwork/prodzoom/a.jpg', status: 'In Stock', updated: '2026-10-24 08:00:00' })
+    + line({ name: 'Same Product', aw: '200', mid: '300', price: 5, merchant: 'Tooled Up', adv: 496, img: 'https://www.tooled-up.com/artwork/prodzoom/d.jpg', status: 'In Stock', updated: '2026-10-23 08:00:00' })));
+  utimesSync(name, DOWNLOADED / 1000, DOWNLOADED / 1000);
+  const feed = await readFeed([name]);
+  const p = planRefresh({ rows: TU, feed, costs: CGW_COSTS, now: RUN, feedTime: DOWNLOADED });
+  // The feed's dates have no zone: read as the PC's own time, like the 30-day rule (UK on the owner's PC).
+  const newest = sqliteTime(Date.parse('2026-10-24T08:00:00'));
+  assert.equal(p.stamp, newest < STAMP ? newest : STAMP);
+  assert.equal(p.stampFromFeed, newest < STAMP);
+  assert.ok(p.seen.every(() => true) && p.datesOk, 'the 2-day file rule still decides whether dates are written');
+  if (p.stampFromFeed) assert.match(renderReport({ retailer: 'Tooled Up', site: 'cgw', feedFiles: ['x'], feedRows: 2, newest: feed.newest, p }), /η νεότερη ενημέρωση του ίδιου του feed είναι/);
+  // Never later than the download, never later than now.
+  const later = planRefresh({ rows: TU, feed: { ...feed, newest: '2026-10-30 08:00:00' }, costs: CGW_COSTS, now: RUN, feedTime: DOWNLOADED });
+  assert.equal(later.stamp, STAMP);
+  assert.equal(later.stampFromFeed, false);
+  const out = mkdtempSync(join(tmpdir(), 'refresh-honest-out-'));
+  assert.equal(writePlan(out, p).stampFromFeed, p.stampFromFeed);
+});
+
+test('L108 checker: a shop whose feed has another merchant_name is found by the Awin advertiser id of its links', async () => {
+  assert.equal(advertiserOf('https://www.awin1.com/cread.php?awinmid=122382&awinaffid=3057233&ued=https%3A%2F%2Fwatchenclave.co.uk%2Fproducts%2Fx'), '122382');
+  assert.equal(advertiserOf('https://www.awin1.com/pclick.php?p=28719916185&a=3057233&m=496'), '496', 'pclick: m is the advertiser, a is us');
+  assert.equal(advertiserOf('https://www.awin1.com/cread.php?mid=13991&id=3057233&clickref=x'), '13991');
+  assert.equal(advertiserOf('https://www.anrdoezrs.net/click-123-456?url=x'), '', 'a CJ link has no Awin advertiser');
+  assert.equal(advertiserOf('https://www.awin1.com/pclick.php?p=1&a=3057233'), '');
+  const dir = archive();
+  const r = await findFeedsFor(dir, [{ retailer: 'Tooled Up Affiliate Programme', advertiser: '496' }, { retailer: 'Reidl', advertiser: '999' }, { retailer: '100 Percent Pure', advertiser: 'https://www.awin1.com/cread.php?awinmid=13991&awinaffid=3057233&ued=https%3A%2F%2Fwww.100percentpure.de%2Fx' }, 'Nobody'], RUN.getTime());
+  assert.deepEqual([r[0].matchedBy, r[0].advertisers, r[0].files.map(f => f.file)], ['advertiser', ['496'], ['AWIN_496_1001.csv.gz']]);
+  assert.deepEqual([r[1].matchedBy, r[1].advertisers], ['name', ['122822']], 'the name wins when it matches');
+  assert.deepEqual([r[2].matchedBy, r[2].advertisers, r[2].files], ['', ['13991'], []], 'no feed here: the id is kept for the download');
+  assert.deepEqual(r[3].advertisers, []);
+  // The command line takes "<name><TAB><id>" lines; a whole site's rows are filtered to the shop.
+  const out = mkdtempSync(join(tmpdir(), 'refresh-adv-'));
+  const names = join(out, 'names.txt');
+  writeFileSync(names, 'Tooled Up Affiliate Programme\thttps://www.awin1.com/pclick.php?p=28719916185&a=3057233&m=496\r\nNobody\t\r\n');
+  const tool = join(process.cwd(), 'tools', 'legacy-refresh-plan.mjs');
+  execFileSync(process.execPath, [tool, '--find', '--archive', dir, '--retailers-file', names, '--out', join(out, 'find'), '--now', '2026-10-25T12:00:00Z']);
+  const feeds = JSON.parse(readFileSync(join(out, 'find', 'feeds.json'), 'utf8'));
+  assert.deepEqual(feeds.map(f => [f.retailer, f.matchedBy, f.advertisers.join(',')]), [['Tooled Up Affiliate Programme', 'advertiser', '496'], ['Nobody', '', '']]);
+  const rowsFile = join(out, 'site-rows.json.txt');
+  writeFileSync(rowsFile, JSON.stringify([{ results: [...TU.map(r => ({ ...r, retailer: 'Tooled Up' })), { ...TU[0], id: 77, retailer: 'Other Shop' }], success: true }]));
+  execFileSync(process.execPath, [tool, '--archive', dir, '--retailer', 'Tooled Up', '--site', 'cgw', '--rows', rowsFile, '--out', join(out, 'plan'), '--feed-file', 'AWIN_496_1001.csv.gz', '--now', '2026-10-25T12:00:00Z', '--no-hide']);
+  const s = JSON.parse(readFileSync(join(out, 'plan', 'summary.json'), 'utf8'));
+  assert.deepEqual([s.active, s.hides, s.noHide], [5, 0, true], 'only the shop\'s own rows; nothing hidden with --no-hide');
 });
