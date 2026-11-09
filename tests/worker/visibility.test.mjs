@@ -479,6 +479,8 @@ test('the UK bar is added after the page cache: one cached copy for GB and US, n
     put: async (key, res) => { store.set(key.url, res); }
   } };
   try {
+    // The pages of the cache, without their spare copies (lessons L112: /__gw-spare/<path>, read only when D1 is busy).
+    const pages = () => [...store.keys()].filter(k => !k.includes('/__gw-spare/'));
     const d = carShop();
     const env = envOf(d);
     const reads = () => d.log.length;
@@ -487,14 +489,15 @@ test('the UK bar is added after the page cache: one cached copy for GB and US, n
     const gbHtml = await gb.text();
     const missReads = reads() - r0;
     assert.ok(missReads > 0, 'the first visit reads D1');
-    assert.equal(store.size, 1, 'one copy in the cache');
-    const cachedHtml = await [...store.values()][0].clone().text();
+    assert.equal(pages().length, 1, 'one copy in the cache');
+    assert.ok([...store.keys()].some(k => k.includes('/__gw-spare/')), 'and its spare copy');
+    const cachedHtml = await store.get(pages()[0]).clone().text();
     assert.ok(!cachedHtml.includes('country-bar'), 'the cached copy has no bar');
     const r1 = reads();
     const us = await getAgw('/', env, 'US');
     const usHtml = await us.text();
     assert.equal(reads() - r1, 0, 'the US visit is a cache hit: no D1 read');
-    assert.equal(store.size, 1, 'no copy of its own for the bar');
+    assert.equal(pages().length, 1, 'no copy of its own for the bar');
     assert.equal(cachedHtml, gbHtml, 'GB gets the cached copy as it is');
     assert.ok(usHtml.includes(`<div class="country-bar" role="note"><p class="wrap country-row"><span data-i18n="We&#39;re adding retailers for your country.`) || usHtml.includes('<div class="country-bar" role="note">'));
     assert.equal(usHtml.replace(/<div class="country-bar"[\s\S]*?<\/div>/, ''), cachedHtml, 'the US answer is the same copy plus the bar');

@@ -77,6 +77,25 @@ function cacheControl(kind) {
   }
 }
 
+// The database could not answer for a while (lessons L112): D1 "overloaded" (too much read in 10 seconds) or
+// "Currently processing a long-running import" (an import is running on that database), or a lost connection.
+// Not a mistake in the code: a SQL error or anything else is never hidden.
+const DB_BUSY = /overloaded|long-running import|Network connection lost|internal error|timed? ?out|object to be reset/i;
+export function isDbBusy(err) {
+  const text = String((err && (err.message || err.stack)) || err || '');
+  return /D1_ERROR/.test(text) && DB_BUSY.test(text);
+}
+
+// The spare copy of a page (lessons L112): kept for a day under its own key, and given only when the database is busy.
+// A page from a few hours ago is better than an error page. The key is on its own path, so no address a visitor can
+// open ever reads or fills it.
+export const SPARE_SECONDS = 86400;
+export function spareKeyUrl(keyUrl) {
+  const u = new URL(keyUrl);
+  u.pathname = '/__gw-spare' + u.pathname;
+  return u.toString();
+}
+
 // Edge cache for anonymous GET pages: lowers D1 reads and speeds up pages. keyUrl: the address the copy is kept under
 // (the page address plus the visitor's country group, lessons L107); the page address alone without one.
 export async function withEdgeCache(request, ctx, produce, env, keyUrl = request.url) {
@@ -86,9 +105,25 @@ export async function withEdgeCache(request, ctx, produce, env, keyUrl = request
   const key = new Request(keyUrl, { method: 'GET' });
   const hit = await cache.match(key);
   if (hit) return hit;
-  const response = await produce();
+  let response;
+  try {
+    response = await produce();
+  } catch (err) {
+    if (!isDbBusy(err)) throw err;
+    let spare = null;
+    try { spare = await cache.match(new Request(spareKeyUrl(keyUrl), { method: 'GET' })); } catch { spare = null; }
+    if (!spare) throw err;
+    console.warn('database busy, spare copy served', String((err && err.message) || err).slice(0, 160));
+    const h = new Headers(spare.headers);
+    h.set('Cache-Control', 'no-store');
+    h.set('X-GW-Spare', '1');
+    return new Response(spare.body, { status: 200, headers: h });
+  }
   if (response.status === 200 && ctx && typeof ctx.waitUntil === 'function') {
     ctx.waitUntil(cache.put(key, response.clone()));
+    const h = new Headers(response.headers);
+    h.set('Cache-Control', `public, max-age=${SPARE_SECONDS}`);
+    ctx.waitUntil(cache.put(new Request(spareKeyUrl(keyUrl), { method: 'GET' }), new Response(response.clone().body, { status: 200, headers: h })));
   }
   return response;
 }

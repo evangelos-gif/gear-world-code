@@ -35,6 +35,11 @@
   categories with fewer than 20 visible products are noindex and out of the sitemap; the product sitemaps are id ranges.
   No D1 index and no database change: the view is one more WHERE term (measured with tools/d1-view-bench.mjs: the UK view
   reads fewer rows on every page type than before).
+  Products no longer listed and a busy database (lessons L112, 9/11/2026): the old address of a product that left the
+  site still answers 404 + noindex (as Search Console expects), but shows its name, "This product is no longer listed.",
+  its category and the closest products in price, in all 10 languages. Every cached page keeps a spare copy for a day,
+  given only when D1 cannot answer ("overloaded", "long-running import"), so visitors see the page instead of the error
+  page; the sitemaps are read from D1 at most once an hour per data centre. No database change.
 
 .DESCRIPTION
   -Step check   READ-ONLY. The 13 site tools are there? Shows the plan.
@@ -53,7 +58,8 @@
                 sites with the version before (git commit 582f370).
                 Going back from L106: the Hub FIRST (tools/gwh-hub-v2.ps1 rollback note), THEN the sites, because the
                 new Hub refuses a sign-up without a Turnstile token and the older site code sends none.
-                Going back: each site tool's update with the version before (git commit 582f370 before L107;
+                Going back: each site tool's update with the version before (git commit 9445b6e before L112;
+                582f370 before L107;
                 cceb262 before L106;
                 12e54c0 before L105;
                 98b476d for the L103 clean-up; f4c8c35 for the L102 follow-up; c544884 before L101).
@@ -181,7 +187,10 @@ function Test-Fixes([string]$domain) {
     # L107: no "price drop" or "was price" wording, no Halloween code, and the money page names Awin and CJ.
     $money = Get-Page ('https://{0}/how-we-make-money/?gwcheck={1}' -f $domain, $stamp)
     $okL107 = -not ($homePage -match '(?i)price drops?|previous price|Save \d+%|class="was"|class="tag-save"|halloween') -and ($money -match 'Awin or CJ')
-    return ($okHome -and $okAbout -and $okL103 -and $okL105 -and $okL107)
+    # L112: the sitemap index answers (it is kept 1 hour per data centre now).
+    $sitemap = Get-Page ('https://{0}/sitemap.xml' -f $domain)
+    $okL112 = ($sitemap -match '<sitemapindex')
+    return ($okHome -and $okAbout -and $okL103 -and $okL105 -and $okL107 -and $okL112)
 }
 # L107: a UK visitor (this PC is in the UK) sees no product of a retailer that does not deliver to the UK. Only a hint:
 # from another country the check sees that country's view.

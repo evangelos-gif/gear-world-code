@@ -94,7 +94,9 @@ try {
     ids.length >= 2 ? `/compare/?ids=${ids.slice(0, 2).join(',')}` : '', sameCat.length === 2 ? `/compare/?ids=${sameCat.join(',')}` : '', '/compare/',
     ids.length ? `/saved/?items=${ids.join(',')}` : '', '/saved/',
     '/discount-codes/', ...[...new Set((site.promos || []).map(p => `/discount-codes/${p.slug}/`))],
-    '/about/', '/how-we-make-money/', '/contact/', '/privacy/', '/cookies/', '/terms/', '/this-page-does-not-exist/'
+    '/about/', '/how-we-make-money/', '/contact/', '/privacy/', '/cookies/', '/terms/', '/this-page-does-not-exist/',
+    // --extra /a/,/b/: more pages, e.g. the address of a product that is no longer listed (lessons L112).
+    ...String(val('extra') || '').split(',').map(x => x.trim()).filter(x => x.startsWith('/'))
   ].filter(Boolean);
 
   // With an empty dictionary every English text is "missing": that is the full list of texts on the pages.

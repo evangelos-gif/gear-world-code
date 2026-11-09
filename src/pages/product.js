@@ -68,6 +68,47 @@ export function hiddenProductPage(site, product, category, notice) {
   });
 }
 
+// A product that is no longer on the site (lessons L112). The old address answers 404 with noindex, as it should for
+// search engines, but the visitor is not left at a dead end: the product's name, a notice, its category and the
+// closest products in price from that category. No photo (the retailer's image is often gone too), no price, no button,
+// no product structured data.
+export function goneProductPage(site, product, category, similar) {
+  const crumbs = [
+    { name: 'Home', path: '/' },
+    ...(category ? [{ name: category.name, path: categoryPath(category.slug) }] : [])
+  ];
+  const body = html`
+<div class="wrap">
+  ${breadcrumbs(crumbs)}
+  <article class="prose product-gone" data-gone="1">
+    ${product.brand ? html`<p class="label-brand" translate="no">${product.brand}</p>` : ''}
+    <h1 translate="no">${product.product_name}</h1>
+    <div class="notice-box" role="status">
+      <p class="notice-text">This product is no longer listed.</p>
+      ${similar.length ? html`<p>Here are similar products from the same category, at a similar price.</p>` : ''}
+    </div>
+    <ul class="chip-list">
+      ${category ? html`<li><a href="${categoryPath(category.slug)}">${category.name}</a></li>` : ''}
+      <li><a href="/">${tr('Browse all categories')}</a></li>
+    </ul>
+  </article>
+  ${similar.length ? html`<section class="section" aria-labelledby="sim-h">
+    <h2 id="sim-h">Similar products</h2>
+    ${productGrid(site, similar)}
+  </section>` : ''}
+</div>`;
+  return page(site, {
+    title: `${truncate(product.product_name, 70)} | ${site.name}`,
+    description: truncate(`${product.product_name} is no longer listed on ${site.name}. Compare similar ${site.topic} prices.`, 158),
+    path: productPath(product),
+    canonical: null,
+    robots: 'noindex,follow',
+    currentCategory: category ? category.slug : '',
+    body,
+    schema: [breadcrumbSchema(site, crumbs)]
+  });
+}
+
 export function productPage(site, product, category, similar, offers = []) {
   const path = productPath(product);
   const price = formatPrice(product.price, product.currency || site.currency, site.locale);

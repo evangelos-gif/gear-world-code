@@ -448,6 +448,12 @@ export async function getProduct(db, id) {
   return fix(await db.prepare(`SELECT * FROM ${LAYOUT.from} p WHERE p.id = ? AND p.is_active = 1 LIMIT 1`).bind(id).first());
 }
 
+// A product that is no longer on the site (is_active = 0: the feed dropped it, or a clean-up hid it). Its old address
+// still answers 404, but with its name, its category and the closest products (lessons L112). One row by primary key.
+export async function getRemovedProduct(db, id) {
+  return fix(await db.prepare(`SELECT * FROM ${LAYOUT.from} p WHERE p.id = ? AND p.is_active = 0 LIMIT 1`).bind(id).first());
+}
+
 // A hidden card of a product that still has another card on the site (InStock sent one card per size/colour; the
 // clean-up kept one). Its old address then goes to the card that stays (301), so a link from Google keeps working.
 // Same retailer, same shop page in the Awin link (.../products%2F<page>%3Fvariant...). Older layout only.

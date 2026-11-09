@@ -5,7 +5,7 @@ import { productPath } from './lib/text.js';
 import * as db from './db.js';
 import { homePage } from './pages/home.js';
 import { categoryPage, searchPage, dealsPage, readListingParams, hasFilters } from './pages/listing.js';
-import { productPage, hiddenProductPage } from './pages/product.js';
+import { productPage, hiddenProductPage, goneProductPage } from './pages/product.js';
 import { comparePage, parseCompareIds } from './pages/compare.js';
 import { cartPage, parseCartItems, cartQuery, SAVED_PATH } from './pages/cart.js';
 import { exchangeRates } from './lib/fx.js';
@@ -37,6 +37,7 @@ export function hubReady(env) {
 // sitekey the box is not shown, because the Hub would refuse every sign-up.
 // How long one data centre keeps /api/stats (the visitor still gets the same answer and headers).
 export const STATS_CACHE_SECONDS = 3600;
+export const SITEMAP_CACHE_SECONDS = 3600;
 export const TURNSTILE_ACTION = 'deal-updates';
 export function turnstileSiteKey(env) {
   const k = String((env && env.TURNSTILE_SITE_KEY) || '').trim();
@@ -169,7 +170,16 @@ export function createWorker(site) {
         const product = await db.getProduct(env.DB, Number(m[2]));
         if (!product) {
           const alt = await db.activeVariantOf(env.DB, Number(m[2]));
-          return alt ? redirect(new URL(productPath(alt), url.origin).toString(), 301) : notFound(path, method);
+          if (alt) return redirect(new URL(productPath(alt), url.origin).toString(), 301);
+          // A product no longer on the site: still 404 + noindex for search engines (Google drops the address), but a
+          // visitor from an old search result, pin or post gets its category and the closest products in price
+          // instead of a dead end (lessons L112). Only primary-key and category+price reads.
+          const gone = await db.getRemovedProduct(env.DB, Number(m[2]));
+          if (!gone) return notFound(path, method);
+          const category = categories.get(gone.category_slug);
+          const similar = category ? await db.similarProducts(env.DB, gone, 8, { view }) : [];
+          marked(view, similar);
+          return htmlResponse(goneProductPage(site, gone, category, similar), { status: 404, cache: 'short', method });
         }
         const canonical = productPath(product);
         if (canonical !== path) return redirect(new URL(canonical, url.origin).toString(), 301);
@@ -269,24 +279,32 @@ export function createWorker(site) {
 
     if (path === '/robots.txt') return textResponse(robotsTxt(site), { method });
     // The sitemaps are the UK view for everyone (lessons L107): no product or category that the UK view hides.
+    // Every sitemap is read from D1 at most once per data centre and hour (lessons L112: four product sitemaps opened
+    // together, 10,000 rows each, made the TGW database "overloaded" for the pages of real visitors).
     if (path === '/sitemap.xml') {
-      const chunks = Math.ceil((await db.sitemapMaxId(env.DB)) / SITEMAP_CHUNK);
-      return textResponse(sitemapIndex(site, chunks), { type: 'application/xml', method });
+      return withPathCache(request, ctx, `${url.origin}/sitemap.xml`, SITEMAP_CACHE_SECONDS, async () => {
+        const chunks = Math.ceil((await db.sitemapMaxId(env.DB)) / SITEMAP_CHUNK);
+        return textResponse(sitemapIndex(site, chunks), { type: 'application/xml', method });
+      }, env);
     }
     if (path === '/sitemap-static.xml') {
-      const counts = await db.categoryCounts(env.DB, ukView);
-      const guides = site.guides && site.guides.length
-        ? listedGuides(site, (await db.getGuideProducts(env.DB, allGuideProductIds(site))).filter(x => !hiddenReason(ukView, x)))
-        : [];
-      return textResponse(sitemapStatic(site, counts, guides), { type: 'application/xml', method });
+      return withPathCache(request, ctx, `${url.origin}/sitemap-static.xml`, SITEMAP_CACHE_SECONDS, async () => {
+        const counts = await db.categoryCounts(env.DB, ukView);
+        const guides = site.guides && site.guides.length
+          ? listedGuides(site, (await db.getGuideProducts(env.DB, allGuideProductIds(site))).filter(x => !hiddenReason(ukView, x)))
+          : [];
+        return textResponse(sitemapStatic(site, counts, guides), { type: 'application/xml', method });
+      }, env);
     }
     m = path.match(/^\/sitemap-products-(\d+)\.xml$/);
     if (m) {
       const n = Number(m[1]);
-      // A sitemap the index lists answers, also when its id range has no product shown now (an empty list, not a 404).
-      const rows = n >= 1 && n <= 100000 ? await db.sitemapChunk(env.DB, n, SITEMAP_CHUNK, ukView) : [];
-      if (!rows.length && !(n >= 1 && n <= Math.ceil((await db.sitemapMaxId(env.DB)) / SITEMAP_CHUNK))) return textResponse('Not found', { status: 404, cache: 'none' });
-      return textResponse(sitemapProducts(site, rows), { type: 'application/xml', method });
+      return withPathCache(request, ctx, `${url.origin}/sitemap-products-${n}.xml`, SITEMAP_CACHE_SECONDS, async () => {
+        // A sitemap the index lists answers, also when its id range has no product shown now (an empty list, not a 404).
+        const rows = n >= 1 && n <= 100000 ? await db.sitemapChunk(env.DB, n, SITEMAP_CHUNK, ukView) : [];
+        if (!rows.length && !(n >= 1 && n <= Math.ceil((await db.sitemapMaxId(env.DB)) / SITEMAP_CHUNK))) return textResponse('Not found', { status: 404, cache: 'none' });
+        return textResponse(sitemapProducts(site, rows), { type: 'application/xml', method });
+      }, env);
     }
 
     // Product and retailer counts (the Hub and the group page read them): one D1 query per data centre and hour (L106).
