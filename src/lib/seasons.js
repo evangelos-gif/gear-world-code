@@ -6,10 +6,13 @@
 //   Black Friday from 7 days before to 4 days after Black Friday (2026: 20/11-1/12), with a countdown to the Monday
 //   after it at 23:59 UK time (2026: 30/11; November is always GMT, so 23:59 UK = 23:59 UTC)
 //   Christmas 2/12-24/12
-// Outside these days there is no banner.
+// Outside these days there is no banner. And a season shows only while promos/promos.js SEASONS_ON says true: nothing
+// switches on by its dates alone (Google Ads compliance, 9 Nov 2026, lessons L107; Black Friday stays off until the
+// owner turns it on after Google's answer).
 // The titles promise no offers (Google Ads review, lessons L101, L102): Christmas speaks of gifts, as on the Hub, and
 // Halloween and Black Friday of comparing prices. The banner shows only above a list that has something in it.
 import { ukToday } from './promos.js';
+import { SEASONS_ON } from '../../promos/promos.js';
 
 export const SEASON_MEDIA_BASE = 'https://gearworldhub.com/seasonal/';
 export const SEASON_MEDIA_VERSION = '29bd24c';
@@ -33,9 +36,10 @@ export function seasonsOf(year) {
   ];
 }
 
-export function seasonFor(now = Date.now()) {
+// on: the switches (tests pass their own). A season that is off is skipped, so another one of the same days can show.
+export function seasonFor(now = Date.now(), on = SEASONS_ON) {
   const today = ukToday(now);
-  return seasonsOf(Number(today.slice(0, 4))).find(s => s.start <= today && today <= s.end) || null;
+  return seasonsOf(Number(today.slice(0, 4))).find(s => on && on[s.id] === true && s.start <= today && today <= s.end) || null;
 }
 
 export function seasonMedia(season, ext) {

@@ -1,7 +1,7 @@
 // Compare 2-4 products side by side (lessons L23), with "Our pick" chosen by a rule that is shown on the page.
 import { html } from '../lib/html.js';
-import { productPath, formatPrice, savingPercent } from '../lib/text.js';
-import { page, breadcrumbs, tr, viewAt, priceTag, deliveryText } from './layout.js';
+import { productPath, formatPrice } from '../lib/text.js';
+import { page, breadcrumbs, tr, viewAt, priceTag, deliveryText, rrpTag, stockText } from './layout.js';
 
 export const COMPARE_MAX = 4;
 
@@ -18,17 +18,17 @@ export function parseCompareIds(url) {
   return ids;
 }
 
-const inStock = p => Number(p.in_stock) === 1;
+const inStock = p => Number(p.in_stock) === 1 && !p.checkRetailer;
 
-// Our pick: only when all products are in the same category. In stock first, then the lowest price,
-// then the bigger saving. We compare price and stock; we do not test products.
+// Our pick: only when all products are in the same category. In stock first, then the lowest price. We compare price
+// and stock; we do not test products. The feed's RRP plays no part (lessons L107: an RRP is not a saving), and a price
+// last checked 14-30 days ago (checkRetailer) makes no stock claim, so it is never "in stock" here.
 export function comparePick(products) {
   if (products.length < 2) return null;
   if (new Set(products.map(p => p.category_slug)).size !== 1) return { id: null, note: 'different-categories' };
   const ranked = [...products].sort((a, b) =>
     (inStock(b) - inStock(a)) ||
-    (Number(a.price) - Number(b.price)) ||
-    ((savingPercent(b.price, b.was_price) || 0) - (savingPercent(a.price, a.was_price) || 0)));
+    (Number(a.price) - Number(b.price)));
   const best = ranked[0];
   if (!inStock(best)) return { id: null, note: 'none-in-stock' };
   const others = products.filter(p => p.id !== best.id && inStock(p));
@@ -41,7 +41,7 @@ function pickText(site, pick) {
   if (pick.nextPrice === null) return tr('The only one of your products that is in stock.');
   const diff = pick.nextPrice - Number(pick.best.price);
   if (diff > 0) return tr('In stock and {0} cheaper than the next in-stock product you picked.', formatPrice(diff, cur, site.locale));
-  return tr('In stock, at the joint lowest price, with the bigger saving.');
+  return tr('In stock, at the joint lowest price.');
 }
 
 export function comparePage(site, products, ids) {
@@ -51,7 +51,6 @@ export function comparePage(site, products, ids) {
     return rest.length ? `/compare/?ids=${rest.join(',')}` : '/compare/';
   };
   const pick = comparePick(products);
-  const was = p => (Number(p.was_price) > Number(p.price) ? formatPrice(p.was_price, p.currency || site.currency, site.locale) : '');
   const cell = (p, content) => html`<td class="${pick && pick.id === p.id ? 'is-pick' : ''}">${content}</td>`;
   const row = (label, fn) => html`<tr><th scope="row">${label}</th>${products.map(p => cell(p, fn(p)))}</tr>`;
 
@@ -65,9 +64,9 @@ export function comparePage(site, products, ids) {
   </th>`)}</tr></thead>
   <tbody>
     ${row('Price', p => html`<strong class="compare-price">${priceTag(site, p.price, p.currency, 'compare-amount')}</strong>`)}
-    ${row('Previous price', p => (was(p) ? html`<s>${was(p)}</s> <span class="tag-save">${tr('Save {0}%', savingPercent(p.price, p.was_price))}</span>` : '—'))}
+    ${row('RRP', p => rrpTag(site, p) || '—')}
     ${row('Sold by', p => html`<span translate="no">${p.retailer}</span>`)}
-    ${row('Stock at the retailer', p => (inStock(p) ? html`<span class="ok">In stock</span>` : html`<span class="warn">Out of stock</span>`))}
+    ${row('Stock at the retailer', p => stockText(p))}
     ${site.deliversTo ? row('The retailer delivers to', p => deliveryText(site, p.retailer) || '—') : ''}
     ${row('Brand', p => html`<span translate="no">${p.brand || '—'}</span>`)}
     ${row('Category', p => categoryName(p.category_slug))}
@@ -95,7 +94,7 @@ export function comparePage(site, products, ids) {
   <p><a class="btn btn-gold" href="/#cats-h">Browse categories</a></p>` : ''}
   ${pickBox}
   ${table}
-  ${products.length >= 2 ? html`<p class="pick-rule"><strong>How we pick:</strong> only for products from the same category; products in stock first, then the lowest price, then the bigger saving. We compare price and stock from the retailers' feeds. We do not test products.</p>` : ''}
+  ${products.length >= 2 ? html`<p class="pick-rule"><strong>How we pick:</strong> only for products from the same category; products in stock first, then the lowest price. We compare price and stock from the retailers' feeds. We do not test products.</p>` : ''}
   <div data-compare-ids="${products.map(p => p.id).join(',')}" hidden></div>
 </div>`;
 

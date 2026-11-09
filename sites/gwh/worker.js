@@ -179,6 +179,12 @@ const hubCore = {
         return Response.json({ ok: false, error: "Invalid country code." }, { status: 400 });
       }
       const country = countryRaw || null;
+      // GWH-DELIVER-TO (Google Ads compliance, lessons L107): every site lists only the retailers that deliver to the
+      // visitor's country. The sites see this Worker's request, not the visitor's, so the Hub passes the country: the
+      // one asked for (?country=), else Cloudflare's country of the visitor. Unknown: nothing is sent and the sites
+      // show their UK view. The answer's country_code and the delivery registry lookup below stay as they were.
+      const cfCountry = String((request.cf && request.cf.country) || "").trim().toUpperCase();
+      const deliverTo = country || (/^[A-Z]{2}$/.test(cfCountry) && cfCountry !== "XX" && cfCountry !== "T1" ? cfCountry : "");
       // GWH-GIFT-FILTERS: the gift finder asks only some Gear Worlds (worlds=mgw,tgw) and a price range
       // (max_price, min_price). Without these parameters the search is exactly as before. Fewer worlds = fewer requests.
       const worldsRaw = String(url.searchParams.get("worlds") || "").trim().toLowerCase();
@@ -263,7 +269,7 @@ const hubCore = {
           endpoint.searchParams.set("search", term);
           endpoint.searchParams.set("page", "1");
           endpoint.searchParams.set("limit", "8");
-          if (country) endpoint.searchParams.set("deliver_to", country);
+          if (deliverTo) endpoint.searchParams.set("deliver_to", deliverTo);
           if (maxPrice !== null) endpoint.searchParams.set("max", String(maxPrice));
           if (minPrice !== null) endpoint.searchParams.set("min", String(minPrice));
           endpoint.searchParams.set("translate", "0");

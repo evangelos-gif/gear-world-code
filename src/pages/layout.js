@@ -1,6 +1,6 @@
 // Page shell and shared components. No inline styles or scripts (CSP), no site names (config only).
 import { html, raw, jsonLd, toString } from '../lib/html.js';
-import { productPath, categoryPath, formatPrice, savingPercent } from '../lib/text.js';
+import { productPath, categoryPath, formatPrice } from '../lib/text.js';
 import { promoBarHtml } from './offers.js';
 import { activePromos } from '../lib/promos.js';
 import { deliveryCountries, COUNTRY_NAMES, FLAGS, WORLDWIDE } from '../lib/delivery.js';
@@ -48,10 +48,13 @@ export function tr(key, ...args) {
     const i = m ? Number(m[1]) : -1;
     if (i < 0 || i >= args.length) return escText(part);
     const value = escText(String(txt(args[i])));
+    // A country (a notice "<retailer> does not deliver to <country>"): the site script writes its name in the visitor's
+    // language, like the delivery countries (lessons L62, L107).
     return kept.includes(i) ? `<span translate="no">${value}</span>` : value;
   }).join('');
   const attrs = args.map((a, i) => ` data-i18n-${i}="${escAttr(txt(a))}"` +
-    (a && typeof a === 'object' && a.date ? ` data-i18n-${i}-date="${escAttr(a.date)}"` : '')).join('') +
+    (a && typeof a === 'object' && a.date ? ` data-i18n-${i}-date="${escAttr(a.date)}"` : '') +
+    (a && typeof a === 'object' && a.country ? ` data-i18n-${i}-country="${escAttr(a.country)}"` : '')).join('') +
     (kept.length ? ` data-i18n-keep="${kept.join(' ')}"` : '');
   return raw(`<span data-i18n="${escAttr(key)}"${attrs}>${inner}</span>`);
 }
@@ -142,6 +145,26 @@ export function deliveryLine(site, retailer, { cls = 'label-ship', tag = 'p', ma
   return tag === 'span'
     ? html`<span class="${cls}" data-ship="${codes}">${inner}</span>`
     : html`<p class="${cls}" data-ship="${codes}">${inner}</p>`;
+}
+
+// The feed's recommended retail price, when the retailer lists one above the price: "RRP £24.99" (lessons L107). Never a
+// struck-through "was" price and never "Save n%": an RRP is not a price the product was sold at before.
+export function rrpTag(site, p) {
+  const rrp = Number(p && p.was_price);
+  if (!(rrp > Number(p && p.price))) return '';
+  const text = formatPrice(rrp, (p && p.currency) || site.currency, site.locale);
+  return text ? html`<span class="rrp">${tr('RRP {0}', keepName(text))}</span>` : '';
+}
+
+// The stock line of a product (product page, price list, compare, saved list). A price last checked 14-30 days ago
+// (row.checkRetailer, set by the engine from the visitor's view, lessons L107) makes no stock claim.
+export const CHECK_TEXT = 'Check price and stock at the retailer';
+export function stockText(p, tag = 'span', cls = '') {
+  const c = cls ? `${cls} ` : '';
+  if (p && p.checkRetailer) return tag === 'dd' ? html`<dd class="${c}check">${tr(CHECK_TEXT)}</dd>` : html`<span class="${c}check">${tr(CHECK_TEXT)}</span>`;
+  const ok = Number(p && p.in_stock) === 1;
+  const word = ok ? 'In stock' : 'Out of stock';
+  return tag === 'dd' ? html`<dd class="${c}${ok ? 'ok' : 'warn'}">${word}</dd>` : html`<span class="${c}${ok ? 'ok' : 'warn'}">${word}</span>`;
 }
 
 const CURRENCY_LABELS = { GBP: '£ GBP', EUR: '€ EUR', USD: '$ USD', ALL: 'Lek ALL', RON: 'lei RON', RUB: '₽ RUB' };
@@ -349,8 +372,7 @@ ${dealUpdates(site, path)}
 // Product card designed as an electronic shelf label.
 export function productCard(site, p, { headingLevel = 3 } = {}) {
   const href = productPath(p);
-  const was = Number(p.was_price) > Number(p.price) ? formatPrice(p.was_price, p.currency || site.currency, site.locale) : '';
-  const pct = savingPercent(p.price, p.was_price);
+  const rrp = rrpTag(site, p);
   const h = headingLevel === 2 ? 'h2' : 'h3';
   return html`<article class="label-card">
   <a class="label-photo" href="${href}" tabindex="-1" aria-hidden="true">
@@ -359,8 +381,8 @@ export function productCard(site, p, { headingLevel = 3 } = {}) {
   <div class="label-body">
     ${p.brand ? html`<p class="label-brand" translate="no">${p.brand}</p>` : ''}
     ${raw(`<${h} class="label-name" translate="no">`)}<a href="${href}">${p.product_name}</a>${raw(`</${h}>`)}
-    <p class="label-price">${priceTag(site, p.price, p.currency)}${was ? html` <s class="was">${was}</s>` : ''}${pct ? html` <span class="tag-save">${tr('Save {0}%', pct)}</span>` : ''}</p>
-    <p class="label-meta"><span class="retailer" translate="no">${p.retailer}${retailerFlag(site, p.retailer)}</span>${Number(p.offer_count) > 1 ? html`<a class="offers-link" href="${href}#prices">${tr('{0} retailers', p.offer_count)}</a>` : ''}${p.item_condition === 'refurbished' ? html`<span class="badge">Refurbished</span>` : ''}${Number(p.in_stock) === 1 ? '' : html`<span class="badge badge-out">Out of stock</span>`}</p>
+    <p class="label-price">${priceTag(site, p.price, p.currency)}${rrp ? html` ${rrp}` : ''}</p>
+    <p class="label-meta"><span class="retailer" translate="no">${p.retailer}${retailerFlag(site, p.retailer)}</span>${Number(p.offer_count) > 1 ? html`<a class="offers-link" href="${href}#prices">${tr('{0} retailers', p.offer_count)}</a>` : ''}${p.item_condition === 'refurbished' ? html`<span class="badge">Refurbished</span>` : ''}${p.checkRetailer ? html`<span class="badge badge-check">${tr(CHECK_TEXT)}</span>` : Number(p.in_stock) === 1 ? '' : html`<span class="badge badge-out">Out of stock</span>`}</p>
     ${deliveryLine(site, p.retailer)}
     <a class="btn btn-deal" href="/out/${p.id}" rel="sponsored nofollow noopener" target="_blank">${viewAt(p.retailer)}</a>
     <div class="card-actions">

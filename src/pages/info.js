@@ -14,9 +14,10 @@ function contactLink(site) {
   return site.contactEmail ? html`<a href="mailto:${site.contactEmail}">${site.contactEmail}</a>` : PLACEHOLDER;
 }
 
-// The legal texts last changed on 8 Nov 2026 (Cloudflare Turnstile on the "Get deal updates" form, security fixes
-// F02, lessons L106; before: 7 Nov 2026, who runs Gear World, L101); keep this date honest (L103).
-const UPDATED = '8 November 2026';
+// The legal texts last changed on 9 Nov 2026 (the retailer links go through Awin or CJ, Google Ads compliance, lessons
+// L107; before: 8 Nov 2026, Cloudflare Turnstile on the "Get deal updates" form, L106; 7 Nov 2026, who runs Gear World,
+// L101); keep this date honest (L103).
+const UPDATED = '9 November 2026';
 
 // Who runs the network and how to reach them, the same on every site and on the Hub (Google Ads review, 7 Nov 2026,
 // lessons L101). Owner's decision, 7 Nov 2026: "Run by Evangelos Kalogerakis, United Kingdom" and the email, no address.
@@ -38,7 +39,8 @@ const PAGES = {
 <h2>What you can compare</h2>
 <ul class="chip-list">${site.categories.map(c => html`<li><a href="${categoryPath(c.slug)}">${c.name}</a></li>`)}</ul>
 <h2>Where the prices come from</h2>
-<p>Retailers publish product feeds through the Awin affiliate network. We import those feeds, sort the products into categories and show the price, stock and condition that the retailer reports. Each product page shows the date the price was last checked. Prices can change after that, so the retailer's website always has the final price.</p>
+<p>Retailers publish product feeds through the Awin and CJ affiliate networks. We import those feeds, sort the products into categories and show the price, stock and condition that the retailer reports. Each product page shows the date the price was last checked.</p>
+<p>A product whose price has not been checked for more than 30 days is no longer listed. After 14 days we ask you to check the price and stock at the retailer. You see only the retailers that deliver to your country. Prices can change after a check, so the retailer's website always has the final price.</p>
 <h2>What we do not do</h2>
 <p>We do not sell products, take payments or handle deliveries. Orders, returns and warranties are between you and the retailer.</p>
 <h2>Part of the Gear World network</h2>
@@ -52,11 +54,11 @@ const PAGES = {
     content: html`
 <p>${tr('{0} is free to use. We earn money through affiliate links.', site.name)}</p>
 <h2>What an affiliate link is</h2>
-<p>When you select a "View at" button, you go to the retailer through the Awin affiliate network. If you then buy something, the retailer may pay us a commission. You pay the same price as you would if you went to the retailer directly.</p>
+<p>When you select a "View at" button, you go to the retailer through an affiliate network, Awin or CJ. If you then buy something, the retailer may pay us a commission. You pay the same price as you would if you went to the retailer directly.</p>
 <h2>How this affects what you see</h2>
-<p>We do not rank products by commission. The default order mixes products in stock first, and you can sort by price, newest or biggest saving at any time. A retailer cannot pay to change a price or a product's position on this site.</p>
-<h2>Price drops</h2>
-<p>We mark a price drop only when the retailer reports a previous price that is at least 5% higher than the current one. We show both prices so you can judge the saving yourself.</p>`
+<p>We do not rank products by commission. The default order mixes products in stock first, and you can sort by price, newest or furthest below RRP at any time. A retailer cannot pay to change a price or a product's position on this site.</p>
+<h2>RRP</h2>
+<p>When a retailer's feed lists a recommended retail price (RRP), we show it as "RRP" next to the price. An RRP is the price the brand or the retailer recommends, not a price the product was sold at before, so we do not present it as a saving.</p>`
   }),
 
   '/contact/': site => ({
@@ -90,7 +92,7 @@ ${site.cart || (site.languages || []).length > 1 ? html`<li><strong>Choices kept
 <h2>Cookies and tracking</h2>
 ${site.googleAds === false ? html`<p>We do not use advertising or tracking cookies. See the <a href="/cookies/">cookies page</a> for details.</p>` : html`<p>Only if you select "Allow" in the cookie banner, we use Google Ads (Google Ireland Limited) to measure which of our ads bring visitors and which visits lead to a click to a retailer. Google then sets its cookies on this site and receives details of your visit, such as the page, a click on a "View at" button, the ad click identifier and your IP address. We do not use Google for personalised advertising (remarketing). Legal basis: your consent. You can change your choice at any time with "Cookie settings" at the bottom of every page. The <a href="https://policies.google.com/privacy">Google privacy policy</a> applies to the data Google receives. If you select "Reject", or make no choice, nothing is sent to Google. See the <a href="/cookies/">cookies page</a> for details.</p>`}
 <h2>When you go to a retailer</h2>
-<p>Retailer links go through Awin. Awin and the retailer may set their own cookies to record that you came from this site. Their privacy policies apply on their websites, for example the <a href="https://www.awin.com/gb/privacy">Awin privacy policy</a>.</p>
+<p>Retailer links go through an affiliate network: Awin, or for a few retailers CJ (Commission Junction). The network and the retailer may set their own cookies to record that you came from this site. Their privacy policies apply on their websites: the <a href="https://www.awin.com/gb/privacy">Awin privacy policy</a> and the <a href="https://www.cj.com/legal/privacy">CJ privacy policy</a>.</p>
 <h2>Sharing and transfers</h2>
 <p>We do not sell personal data. Our service providers (Cloudflare${site.dealUpdates ? ', MailerLite' : ''}${site.googleAds === false ? '' : ' and, only after you allow it, Google'}) may process data outside the UK with appropriate safeguards.</p>
 <h2>How long we keep data</h2>
@@ -113,7 +115,7 @@ ${site.googleAds === false ? html`<p>${site.name} does not set advertising, anal
 <h2>Saved on your device</h2>
 <p>Your browser's local storage keeps your language, currency, compare list${site.cart ? ` and ${site.cart.name}` : ''}${site.googleAds === false ? '' : ' and your cookie choice'}, so they are still there on your next visit. This information is not a cookie, is not sent to us and is not used for tracking. Clearing your browser data removes it.${site.googleAds === false ? '' : ' Only after "Allow", the campaign name of the link you arrived from (utm_campaign, utm_source) is kept in this browser tab until you close it, so a later click to a retailer still counts for that campaign.'}</p>
 <h2>After you leave this site</h2>
-<p>When you select a "View at" button, Awin and the retailer may set cookies on their own websites to record the referral. You can manage those in your browser settings.</p>`
+<p>When you select a "View at" button, the affiliate network (Awin or CJ) and the retailer may set cookies on their own websites to record the referral. You can manage those in your browser settings.</p>`
   }),
 
   '/terms/': site => ({

@@ -204,6 +204,14 @@ p { margin: 0 0 1em; }
 @media (min-width: 700px) { .offer-row { grid-template-columns: 1.2fr 1fr .8fr auto; } .offer-price { text-align: left; } }
 .badge { padding: 0 6px; border: 1px solid var(--ink-2); border-radius: 3px; font-size: .8rem; }
 .badge-out { border-color: var(--tag); color: var(--tag); }
+/* RRP and price checks (lessons L107): the feed's RRP is a plain note next to the price, never struck through; a price
+   checked 14-30 days ago makes no stock claim; a product that the visitor's view does not list gets a notice box. */
+.rrp { display: inline-block; margin-left: 6px; font-family: var(--font-body); font-weight: 600; font-size: .85rem; opacity: .85; white-space: nowrap; }
+.badge-check { border-color: currentColor; }
+.check { font-weight: 600; }
+.notice-box { margin: 16px 0; padding: 14px 16px; border: 2px solid var(--gold); border-radius: var(--radius); }
+.notice-text { margin: 0 0 6px; font-weight: 700; }
+.notice-ship { margin: 0; font-size: .9rem; }
 
 /* Where the retailer delivers (lessons L62): the words carry the meaning, the small flag only helps the eye */
 .label-ship { margin: -6px 0 8px; font-size: .82rem; line-height: 1.35; color: var(--ink-2); }

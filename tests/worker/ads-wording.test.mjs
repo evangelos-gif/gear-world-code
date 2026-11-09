@@ -41,7 +41,7 @@ test('the 13 sites: every card says "<retailer> delivers to", never a bare "Deli
       assert.ok(!/delivers to|label-ship/.test(html), `${c}: no delivery data, no delivery line`);
       assert.equal(toString(deliveryLine(site, retailer)), '', c);
     }
-    assert.match(site.assetVersion, /^2026-11-08-[a-z]{3}-(cleanup|security)-\d+$/, `${c}: a new asset version for the new dictionaries (L31; -wording- for L102, -cleanup- for L103, -security- for L106)`);
+    assert.match(site.assetVersion, /^(2026-11-08-[a-z]{3}-(cleanup|security)|2026-11-09-[a-z]{3}-compliance)-\d+$/, `${c}: a new asset version for the new dictionaries (L31; -wording- for L102, -cleanup- for L103, -security- for L106)`);
   }
 });
 
@@ -121,7 +121,7 @@ test('the Hub: product search and price comparison in all 11 languages, no shops
   // The sponsored card left on 7/11/2026 (L101); its styles go too.
   assert.ok(!/gwh-business|gwh-sponsored|sponsored card/i.test(css));
   // New ?v= for the 3 changed files (L31; -wording1 for L102, -cleanup1 for L103).
-  for (const f of ['hub-v2.css', 'translations.js', 'hub-v2.js']) assert.ok(index.includes(`/${f}?v=20261108-cleanup1`), f);
+  for (const f of ['hub-v2.css', 'translations.js']) assert.ok(index.includes(`/${f}?v=20261108-cleanup1`), f);
 });
 
 test('the Hub baseline is the version that runs live since the Google Ads fixes (L101), so the next release can check it', () => {

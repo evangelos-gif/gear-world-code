@@ -5,7 +5,7 @@
     "en-GB": {
       eyebrow: "WEEKLY DEALS",
       title: "Get the best deals from every Gear World.",
-      description: "One email a week with prices we've checked, plus picks for Black Friday and Christmas. No spam.",
+      description: "About one email a week with discount codes that retailers publish and news from the Gear World sites. No spam.",
       emailLabel: "Email address",
       emailPlaceholder: "Your email address",
       button: "Sign up",
@@ -24,7 +24,7 @@
     "el-GR": {
       eyebrow: "ΕΒΔΟΜΑΔΙΑΙΕΣ ΠΡΟΣΦΟΡΕΣ",
       title: "Οι καλύτερες προσφορές από κάθε Gear World.",
-      description: "Ένα email την εβδομάδα με τιμές που έχουμε ελέγξει, και επιλογές για Black Friday και Χριστούγεννα. Χωρίς spam.",
+      description: "Περίπου ένα email την εβδομάδα με κωδικούς έκπτωσης που δημοσιεύουν τα καταστήματα και νέα από τα sites του Gear World. Χωρίς spam.",
       emailLabel: "Διεύθυνση email",
       emailPlaceholder: "Το email σας",
       button: "Εγγραφή",
@@ -43,7 +43,7 @@
     "de-DE": {
       eyebrow: "WÖCHENTLICHE ANGEBOTE",
       title: "Die besten Angebote aus jeder Gear World.",
-      description: "Eine E-Mail pro Woche mit geprüften Preisen, dazu Tipps für Black Friday und Weihnachten. Kein Spam.",
+      description: "Etwa eine E-Mail pro Woche mit Rabattcodes, die Händler veröffentlichen, und Neuigkeiten von den Gear World Websites. Kein Spam.",
       emailLabel: "E-Mail-Adresse",
       emailPlaceholder: "Ihre E-Mail-Adresse",
       button: "Anmelden",
@@ -62,7 +62,7 @@
     "fr-FR": {
       eyebrow: "BONS PLANS DE LA SEMAINE",
       title: "Les meilleures offres de chaque Gear World.",
-      description: "Un e-mail par semaine avec des prix vérifiés, plus notre sélection pour le Black Friday et Noël. Pas de spam.",
+      description: "Environ un e-mail par semaine avec les codes promo publiés par les marchands et les nouveautés des sites Gear World. Pas de spam.",
       emailLabel: "Adresse e-mail",
       emailPlaceholder: "Votre adresse e-mail",
       button: "S'inscrire",
@@ -81,7 +81,7 @@
     "it-IT": {
       eyebrow: "OFFERTE DELLA SETTIMANA",
       title: "Le migliori offerte da ogni Gear World.",
-      description: "Un'email a settimana con prezzi verificati, più le nostre scelte per Black Friday e Natale. Niente spam.",
+      description: "Circa un'email a settimana con i codici sconto pubblicati dai negozi e le novità dei siti Gear World. Niente spam.",
       emailLabel: "Indirizzo email",
       emailPlaceholder: "Il tuo indirizzo email",
       button: "Iscriviti",
@@ -100,7 +100,7 @@
     "es-ES": {
       eyebrow: "OFERTAS SEMANALES",
       title: "Las mejores ofertas de cada Gear World.",
-      description: "Un correo a la semana con precios comprobados, además de nuestra selección para Black Friday y Navidad. Sin spam.",
+      description: "Aproximadamente un correo a la semana con códigos de descuento que publican las tiendas y novedades de los sitios Gear World. Sin spam.",
       emailLabel: "Correo electrónico",
       emailPlaceholder: "Tu correo electrónico",
       button: "Registrarse",
@@ -119,7 +119,7 @@
     "pt-PT": {
       eyebrow: "OFERTAS DA SEMANA",
       title: "As melhores ofertas de cada Gear World.",
-      description: "Um email por semana com preços verificados, e as nossas escolhas para a Black Friday e o Natal. Sem spam.",
+      description: "Cerca de um email por semana com códigos de desconto publicados pelas lojas e novidades dos sites Gear World. Sem spam.",
       emailLabel: "Endereço de email",
       emailPlaceholder: "O seu endereço de email",
       button: "Registar",
@@ -138,7 +138,7 @@
     "nl-NL": {
       eyebrow: "WEKELIJKSE AANBIEDINGEN",
       title: "De beste aanbiedingen uit elke Gear World.",
-      description: "Eén e-mail per week met gecontroleerde prijzen, plus onze keuzes voor Black Friday en Kerstmis. Geen spam.",
+      description: "Ongeveer één e-mail per week met kortingscodes die winkels publiceren en nieuws van de Gear World-sites. Geen spam.",
       emailLabel: "E-mailadres",
       emailPlaceholder: "Uw e-mailadres",
       button: "Aanmelden",
@@ -157,7 +157,7 @@
     "sq-AL": {
       eyebrow: "OFERTAT E JAVËS",
       title: "Ofertat më të mira nga çdo Gear World.",
-      description: "Një email në javë me çmime të kontrolluara, plus zgjedhjet tona për Black Friday dhe Krishtlindje. Pa spam.",
+      description: "Rreth një email në javë me kode zbritjeje që publikojnë dyqanet dhe të reja nga faqet e Gear World. Pa spam.",
       emailLabel: "Adresa e emailit",
       emailPlaceholder: "Emaili juaj",
       button: "Regjistrohu",
@@ -176,7 +176,7 @@
     "ro-RO": {
       eyebrow: "OFERTELE SĂPTĂMÂNII",
       title: "Cele mai bune oferte din fiecare Gear World.",
-      description: "Un email pe săptămână cu prețuri verificate, plus selecțiile noastre pentru Black Friday și Crăciun. Fără spam.",
+      description: "Aproximativ un email pe săptămână cu coduri de reducere publicate de magazine și noutăți de pe site-urile Gear World. Fără spam.",
       emailLabel: "Adresă de email",
       emailPlaceholder: "Adresa dvs. de email",
       button: "Înscriere",
@@ -195,7 +195,7 @@
     "ru-RU": {
       eyebrow: "ПРЕДЛОЖЕНИЯ НЕДЕЛИ",
       title: "Лучшие предложения из каждого Gear World.",
-      description: "Одно письмо в неделю с проверенными ценами, а также подборки к Чёрной пятнице и Рождеству. Без спама.",
+      description: "Примерно одно письмо в неделю с промокодами, которые публикуют магазины, и новостями сайтов Gear World. Без спама.",
       emailLabel: "Адрес электронной почты",
       emailPlaceholder: "Ваш адрес электронной почты",
       button: "Подписаться",

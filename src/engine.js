@@ -5,7 +5,7 @@ import { productPath } from './lib/text.js';
 import * as db from './db.js';
 import { homePage } from './pages/home.js';
 import { categoryPage, searchPage, dealsPage, readListingParams, hasFilters } from './pages/listing.js';
-import { productPage } from './pages/product.js';
+import { productPage, hiddenProductPage } from './pages/product.js';
 import { comparePage, parseCompareIds } from './pages/compare.js';
 import { cartPage, parseCartItems, cartQuery, SAVED_PATH } from './pages/cart.js';
 import { exchangeRates } from './lib/fx.js';
@@ -18,6 +18,7 @@ import { useSiteAssets, useRates } from './pages/layout.js';
 import { sitemapIndex, sitemapStatic, sitemapProducts, robotsTxt, SITEMAP_CHUNK } from './seo.js';
 import { posterScan } from './lib/poster-scan.js';
 import { guidePage, guidesIndexPage, findGuide, guideProductIds, GUIDES_PATH } from './pages/guides.js';
+import { viewFor, homeView, hiddenReason, needsCheck, cacheKeyUrl, now as clockNow } from './lib/visibility.js';
 
 // Gear World Hub keeps the one list of members; sites reach it only through a service binding (lessons L92).
 // The address is not public: requests from the internet never carry this host name.
@@ -50,6 +51,24 @@ export async function clientKey(ip) {
 
 const PER_PAGE = 24;
 
+// The visitor's country for the view (lessons L107): Cloudflare's request.cf.country. Gear World Hub asks /api/products
+// from its own Worker, so it passes its visitor's country as ?deliver_to=XX (only that endpoint reads it). A local test
+// Worker (localhost, the checks) may set the day with the variable GW_TODAY=YYYY-MM-DD, never the live domain.
+function requestCountry(request, url, apiProducts = false) {
+  const asked = apiProducts ? url.searchParams.get('deliver_to') : '';
+  return asked || (request.cf && request.cf.country) || '';
+}
+function localDay(env, host) {
+  const day = String((env && env.GW_TODAY) || '');
+  const local = host === 'localhost' || host === '127.0.0.1' || host === '[::1]';
+  return local && /^\d{4}-\d{2}-\d{2}$/.test(day) ? Date.parse(`${day}T12:00:00Z`) : null;
+}
+// Marks the rows the visitor sees: checkRetailer = the price was last checked 14-30 days ago (no stock claim).
+function marked(view, rows) {
+  for (const r of rows || []) if (r) r.checkRetailer = needsCheck(view, r);
+  return rows;
+}
+
 export function createWorker(site) {
   const categories = new Map(site.categories.map(c => [c.slug, c]));
   // Older Gear World sites keep their database exactly as it is (lessons L28).
@@ -76,6 +95,10 @@ export function createWorker(site) {
     }
 
     const path = url.pathname;
+    // What this visitor may see (lessons L107): their country group, and prices checked in the last 30 days.
+    const at = localDay(env, host) ?? clockNow();
+    const view = viewFor(site, requestCountry(request, url, path === '/api/products'), at);
+    const ukView = homeView(site, at);
 
     // POST endpoints
     if (method === 'POST') {
@@ -94,6 +117,7 @@ export function createWorker(site) {
     if (path === '/' && (url.searchParams.has('highlight') || url.searchParams.has('search'))) {
       const id = Number.parseInt(url.searchParams.get('highlight') || '', 10);
       if (Number.isSafeInteger(id) && id > 0) {
+        // The product page itself says when the visitor's view does not list the product (lessons L107).
         const product = await db.getProduct(env.DB, id);
         if (product) return redirect(new URL(productPath(product), url.origin).toString(), 302);
       }
@@ -105,9 +129,11 @@ export function createWorker(site) {
       // Poster QR scans (lessons L76): counted in the background, the page does not wait for it. Not on a test address.
       posterScan(request, env, ctx, { site: site.code.toLowerCase(), domain: site.domain, off: env.CLICK_LOG === 'off' });
       return cached(request, env, ctx, async () => {
-        const data = await db.homeData(env.DB, site.categories.map(c => c.slug));
+        const data = await db.homeData(env.DB, site.categories.map(c => c.slug), { view });
+        marked(view, data.deals);
+        marked(view, data.newest);
         return htmlResponse(homePage(site, data), { method });
-      });
+      }, view);
     }
 
     let m = path.match(/^\/category\/([a-z0-9-]+)\/$/);
@@ -122,13 +148,14 @@ export function createWorker(site) {
         // A subcategory with `match` is found by words in the product name (TGW Mini PCs, lessons L97).
         const subMatch = sub && sub.match ? { words: sub.match, not: sub.exclude || [] } : null;
         const [result, facets, subCounts] = await Promise.all([
-          db.listProducts(env.DB, { ...p, category: cat.slug, subcategory: sub && !subMatch ? sub.name : '', subMatch }, { sort: p.sort, page: p.page, perPage: PER_PAGE }),
-          db.facets(env.DB, cat.slug, subMatch),
-          cat.subcategories && cat.subcategories.length ? db.subcategoryCounts(env.DB, cat.slug, cat.subcategories) : null
+          db.listProducts(env.DB, { ...p, category: cat.slug, subcategory: sub && !subMatch ? sub.name : '', subMatch, view }, { sort: p.sort, page: p.page, perPage: PER_PAGE }),
+          db.facets(env.DB, cat.slug, subMatch, view),
+          cat.subcategories && cat.subcategories.length ? db.subcategoryCounts(env.DB, cat.slug, cat.subcategories, view) : null
         ]);
         if (p.page > 1 && p.page > result.pages && !hasFilters(p)) return notFound(path, method);
+        marked(view, result.products);
         return htmlResponse(categoryPage(site, cat, p, result, facets, subCounts), { method });
-      });
+      }, view);
     }
 
     m = path.match(/^\/product\/([a-z0-9-]*)-(\d+)\/$/);
@@ -141,15 +168,22 @@ export function createWorker(site) {
         }
         const canonical = productPath(product);
         if (canonical !== path) return redirect(new URL(canonical, url.origin).toString(), 301);
-        const [similar, offers] = await Promise.all([db.similarProducts(env.DB, product, 8), db.offersFor(env.DB, product)]);
+        // Not for this visitor (another country's retailer, or a price older than 30 days): the old link still opens,
+        // with a notice, no price or button, noindex, and nothing else read (lessons L107).
+        const reason = hiddenReason(view, product);
+        if (reason) return htmlResponse(hiddenProductPage(site, product, categories.get(product.category_slug), reason, view.country), { method });
+        const [similar, offers] = await Promise.all([db.similarProducts(env.DB, product, 8, { view }), db.offersFor(env.DB, product, 12, { view })]);
+        marked(view, [product]);
+        marked(view, similar);
+        marked(view, offers);
         return htmlResponse(productPage(site, product, categories.get(product.category_slug), similar, offers), { method });
-      });
+      }, view);
     }
 
     if (path === '/compare/' || path === '/compare') {
       if (path === '/compare') return redirect(new URL('/compare/' + url.search, url.origin).toString(), 301);
       const ids = parseCompareIds(url);
-      const products = await db.getProductsByIds(env.DB, ids);
+      const products = marked(view, (await db.getProductsByIds(env.DB, ids)).filter(x => !hiddenReason(view, x)));
       return htmlResponse(comparePage(site, products, ids), { method, cache: 'short' });
     }
 
@@ -161,7 +195,7 @@ export function createWorker(site) {
     }
     if (site.cart && path === SAVED_PATH) {
       const items = parseCartItems(url, site.cart);
-      const products = await db.getProductsByIds(env.DB, items.map(x => x.id));
+      const products = marked(view, (await db.getProductsByIds(env.DB, items.map(x => x.id))).filter(x => !hiddenReason(view, x)));
       return htmlResponse(cartPage(site, products, items), { method, cache: 'short' });
     }
 
@@ -172,21 +206,24 @@ export function createWorker(site) {
       // nothing and a translation did, they are read again for the translated words.
       const [found, firstFacets] = q
         ? await Promise.all([
-          searchWithTranslation(env, { ...p, search: q }, { sort: p.sort, page: p.page, perPage: PER_PAGE }, translateOptions(request, url)),
-          db.searchFacets(env.DB, q)
+          searchWithTranslation(env, { ...p, search: q, view }, { sort: p.sort, page: p.page, perPage: PER_PAGE }, translateOptions(request, url)),
+          db.searchFacets(env.DB, q, view)
         ])
         : [{ result: { products: [], total: 0, page: 1, pages: 0 }, used: '' }, null];
-      const searchFacets = q && found.used ? await db.searchFacets(env.DB, found.used) : firstFacets;
+      const searchFacets = q && found.used ? await db.searchFacets(env.DB, found.used, view) : firstFacets;
+      marked(view, found.result.products);
       return htmlResponse(searchPage(site, q, p, found.result, found.used, searchFacets), { method, cache: 'short' });
     }
 
     if (path === '/deals/') {
       return cached(request, env, ctx, async () => {
         const p = readListingParams(url);
-        const result = await db.listProducts(env.DB, { onSale: true, inStock: true }, { sort: 'saving', page: p.page, perPage: PER_PAGE });
+        // Below their RRP, in stock, and checked in the last 14 days (lessons L107).
+        const result = await db.listProducts(env.DB, { onSale: true, inStock: true, view, fresh: true }, { sort: 'saving', page: p.page, perPage: PER_PAGE });
         if (p.page > 1 && p.page > result.pages) return notFound(path, method);
+        marked(view, result.products);
         return htmlResponse(dealsPage(site, p, result), { method });
-      });
+      }, view);
     }
 
     // Buying guides (lessons L82): only on a site that has them (site.guides). Prices and stock come from the
@@ -199,9 +236,10 @@ export function createWorker(site) {
       const guide = findGuide(site, m[1]);
       if (!guide) return notFound(path, method);
       return cached(request, env, ctx, async () => {
-        const products = await db.getGuideProducts(env.DB, guideProductIds(guide));
+        // A product the visitor may not see counts as no longer listed: the guide hides its price and button (L107).
+        const products = marked(view, (await db.getGuideProducts(env.DB, guideProductIds(guide))).filter(x => !hiddenReason(view, x)));
         return htmlResponse(guidePage(site, guide, products), { method });
-      });
+      }, view);
     }
 
     if (infoPaths().includes(path)) {
@@ -218,32 +256,34 @@ export function createWorker(site) {
     if (m) return promoOut(request, env, ctx, url, m[1]);
 
     m = path.match(/^\/out\/(\d+)\/?$/);
-    if (m) return outbound(request, env, ctx, url, Number(m[1]));
+    if (m) return outbound(request, env, ctx, url, Number(m[1]), view);
 
     if (path === '/robots.txt') return textResponse(robotsTxt(site), { method });
+    // The sitemaps are the UK view for everyone (lessons L107): no product or category that the UK view hides.
     if (path === '/sitemap.xml') {
-      const total = await db.sitemapCount(env.DB);
-      return textResponse(sitemapIndex(site, total), { type: 'application/xml', method });
+      const chunks = Math.ceil((await db.sitemapMaxId(env.DB)) / SITEMAP_CHUNK);
+      return textResponse(sitemapIndex(site, chunks), { type: 'application/xml', method });
     }
     if (path === '/sitemap-static.xml') {
-      const counts = await db.categoryCounts(env.DB);
+      const counts = await db.categoryCounts(env.DB, ukView);
       return textResponse(sitemapStatic(site, counts), { type: 'application/xml', method });
     }
     m = path.match(/^\/sitemap-products-(\d+)\.xml$/);
     if (m) {
       const n = Number(m[1]);
-      const rows = n >= 1 ? await db.sitemapChunk(env.DB, (n - 1) * SITEMAP_CHUNK, SITEMAP_CHUNK) : [];
-      if (!rows.length) return textResponse('Not found', { status: 404, cache: 'none' });
+      // A sitemap the index lists answers, also when its id range has no product shown now (an empty list, not a 404).
+      const rows = n >= 1 && n <= 100000 ? await db.sitemapChunk(env.DB, n, SITEMAP_CHUNK, ukView) : [];
+      if (!rows.length && !(n >= 1 && n <= Math.ceil((await db.sitemapMaxId(env.DB)) / SITEMAP_CHUNK))) return textResponse('Not found', { status: 404, cache: 'none' });
       return textResponse(sitemapProducts(site, rows), { type: 'application/xml', method });
     }
 
     // Product and retailer counts (the Hub and the group page read them): one D1 query per data centre and hour (L106).
     if (path === '/api/stats') {
       return withPathCache(request, ctx, `${url.origin}/api/stats`, STATS_CACHE_SECONDS,
-        async () => jsonResponse(await db.stats(env.DB), { cache: 'short' }), env);
+        async () => jsonResponse(await db.stats(env.DB, ukView), { cache: 'short' }), env);
     }
     if (path === '/api/fx') return jsonResponse(await exchangeRates(site, ctx), { cache: 'hour' });
-    if (path === '/api/products') return apiProducts(env, url, request);
+    if (path === '/api/products') return apiProducts(env, url, request, view);
     if (path === '/api/admin/clicks') return adminClicks(request, env, url);
 
     // Static assets (public/) are served by Cloudflare before the Worker runs; anything else is a 404.
@@ -274,17 +314,23 @@ export function createWorker(site) {
     return { result, used: '', tried };
   }
 
-  function cached(request, env, ctx, produce) {
-    return withEdgeCache(request, ctx, produce, env);
+  // One cached copy per page AND country group (lessons L107), so a visitor never gets another country's page.
+  function cached(request, env, ctx, produce, view) {
+    return withEdgeCache(request, ctx, produce, env, cacheKeyUrl(request.url, view));
   }
 
   function notFound(path, method) {
     return htmlResponse(notFoundPage(site, path), { status: 404, cache: 'short', method });
   }
 
-  async function outbound(request, env, ctx, url, id) {
+  async function outbound(request, env, ctx, url, id, view) {
     const product = await db.getProductForRedirect(env.DB, id);
     if (!product) return redirect('/', 302);
+    // A retailer that does not deliver to the visitor, or a price older than 30 days (lessons L107): no visit to the
+    // retailer, the product page with its notice instead.
+    if (hiddenReason(view, product)) {
+      return redirect(new URL(productPath({ ...product, product_slug: db.productSlugOf(product) }), url.origin).toString(), 302, { 'X-Robots-Tag': 'noindex, nofollow' });
+    }
     // clickref lets the Awin reports show which site and product produced a click or sale (lessons L15).
     const clickRef = `${site.code.toLowerCase()}-${id}`;
     // utm_campaign / utm_source of the visit (lessons L93) go to Awin as clickref2 / clickref3: clicks and sales per campaign.
@@ -351,13 +397,16 @@ export function createWorker(site) {
     return redirect(target.toString(), 302, { 'X-Robots-Tag': 'noindex, nofollow' });
   }
 
-  async function apiProducts(env, url, request) {
+  // view: the visitor's (the Hub passes its visitor's country as ?deliver_to=XX): only products they may see, and a
+  // price checked 14-30 days ago says stock_status "check_retailer" (no stock claim, lessons L107).
+  async function apiProducts(env, url, request, view) {
     const p = readListingParams(url);
     const limit = Math.min(60, Math.max(1, Number.parseInt(url.searchParams.get('limit') || '24', 10) || 24));
     const catParam = url.searchParams.get('category') || '';
     const cat = categories.get(catParam) || site.categories.find(c => c.name === catParam);
     const search = (url.searchParams.get('search') || url.searchParams.get('q') || '').slice(0, 80);
-    const { result, used, tried } = await searchWithTranslation(env, { ...p, category: cat ? cat.slug : '', search }, { sort: p.sort, page: p.page, perPage: limit }, translateOptions(request, url));
+    const { result, used, tried } = await searchWithTranslation(env, { ...p, category: cat ? cat.slug : '', search, view }, { sort: p.sort, page: p.page, perPage: limit }, translateOptions(request, url));
+    marked(view, result.products);
     const origin = `https://${site.domain}`;
     return jsonResponse({
       ok: true,
@@ -375,7 +424,7 @@ export function createWorker(site) {
         price: x.price,
         was_price: x.was_price,
         currency: x.currency,
-        stock_status: Number(x.in_stock) === 1 ? 'in_stock' : 'out_of_stock',
+        stock_status: x.checkRetailer ? 'check_retailer' : Number(x.in_stock) === 1 ? 'in_stock' : 'out_of_stock',
         offers: Number(x.offer_count) || 1,
         image_url: x.image_url,
         product_url: origin + productPath(x),

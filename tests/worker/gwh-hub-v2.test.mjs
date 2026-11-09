@@ -6,20 +6,24 @@ import assert from 'node:assert/strict';
 import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import vm from 'node:vm';
 import { PROMOS } from '../../promos/promos.js';
-import { buildDeals, dealsJson, siteDomains } from '../../tools/gwh-deals.mjs';
+import { buildDeals, dealsJson, siteDomains, hubScriptWithSeasons } from '../../tools/gwh-deals.mjs';
 
 const ROOT = new URL('../../sites/gwh/', import.meta.url);
 const read = (path) => readFileSync(new URL(path, ROOT), 'utf8');
 const LOCALES = ['en-GB', 'el-GR', 'de-DE', 'fr-FR', 'it-IT', 'es-ES', 'pt-PT', 'nl-NL', 'sq-AL', 'ro-RO', 'ru-RU'];
 
-function hub(locationLike) {
+// seasons: other season switches than the real ones (lessons L107: the real ones keep Black Friday off). ALL_SEASONS
+// tests the calendar itself; the real switches are tested in seasons.test.mjs and below.
+function hub(locationLike, seasons = null) {
   const window = { addEventListener() {}, dispatchEvent() {} };
   const document = { readyState: 'loading', addEventListener() {} };
   const context = { window, document, URLSearchParams, Intl, console };
   if (locationLike) context.location = locationLike;
-  vm.runInNewContext(read('public/hub-v2.js'), context);
+  const code = read('public/hub-v2.js');
+  vm.runInNewContext(seasons ? hubScriptWithSeasons(code, seasons) : code, context);
   return window.GearWorldHubV2;
 }
+const ALL_SEASONS = { halloween: true, 'black-friday': true, christmas: true, 'winter-sales': true, 'new-year-fitness': true, 'valentines-day': true };
 const at = day => Date.parse(`${day}T12:00:00Z`);
 
 test('hub v2: every text in the 11 languages of the Hub, translated, with the same {placeholders}', () => {
@@ -54,7 +58,7 @@ test('hub v2: every text in the 11 languages of the Hub, translated, with the sa
 });
 
 test('hub v2: campaigns follow their UK dates; Black Friday only 27-30 November; nothing outside the dates', () => {
-  const h = hub();
+  const h = hub(null, ALL_SEASONS);
   const ids = day => h.activeCampaigns(at(day)).map(c => c.id).join(',');
   assert.equal(ids('2026-10-28'), 'halloween');
   assert.equal(ids('2026-10-31'), 'halloween');
@@ -88,9 +92,9 @@ test('hub v2: campaigns follow their UK dates; Black Friday only 27-30 November;
 });
 
 test('hub v2: ?gwh-date= changes the slides only on the test address, never on gearworldhub.com', () => {
-  const preview = hub({ hostname: 'gear-world-hub-preview.example.workers.dev', search: '?gwh-date=2026-11-28' });
+  const preview = hub({ hostname: 'gear-world-hub-preview.example.workers.dev', search: '?gwh-date=2026-11-28' }, ALL_SEASONS);
   assert.ok(preview.activeCampaigns().some(c => c.id === 'black-friday'));
-  const live = hub({ hostname: 'gearworldhub.com', search: '?gwh-date=2026-11-28' });
+  const live = hub({ hostname: 'gearworldhub.com', search: '?gwh-date=2026-11-28' }, ALL_SEASONS);
   const today = live.ukToday();
   if (today < '2026-11-27' || today > '2026-11-30') assert.ok(!live.activeCampaigns().some(c => c.id === 'black-friday'));
   const bad = hub({ hostname: 'gear-world-hub-preview.example.workers.dev', search: '?gwh-date=<script>' });
@@ -155,7 +159,8 @@ test('hub v2: the page keeps every id and class the other scripts need, and load
   assert.match(html, /<body class="gwh2" data-gwh-compact-v2="true">/);
   assert.match(html, /<div class="hero-copy">\s*<span class="eyebrow">/);
   assert.match(html, /<link rel="stylesheet" href="\/hub-v2\.css\?v=20261108-cleanup1">/);
-  assert.match(html, /<script src="\/hub-v2\.js\?v=20261108-cleanup1" defer><\/script>/);
+  // A new ?v= with every change of the script (L31): 9/11/2026 the season switches (L107).
+  assert.match(html, /<script src="\/hub-v2\.js\?v=20261109-compliance1" defer><\/script>/);
   assert.ok(html.indexOf('/gear-world-camera.js?v=') < html.indexOf('/hub-v2.js?v='), 'hub-v2.js after the camera script');
   assert.ok(!html.includes('/styles.css'), 'the old styles.css is not loaded');
   assert.ok(!html.includes('gwh-hero.png'), 'the 2.8 MB picture is gone from the page');
@@ -203,7 +208,7 @@ test('hub v2: no red or green (L35), nothing that moves by itself, buttons at le
 });
 
 test('hub v2: the seasonal video banner of the deals follows its own yearly calendar, with a countdown for Black Friday', () => {
-  const h = hub();
+  const h = hub(null, ALL_SEASONS);
   const id = day => { const x = h.seasonFor(at(day)); return x ? x.id : ''; };
   // The owner's dates for 2026: Halloween 20/10-31/10, Black Friday 20/11-1/12 (countdown to 30/11 23:59), Christmas 1/11-24/12
   // (owner, 1/11/2026: the Christmas video from 1 November; in the Black Friday days that one shows).
@@ -256,7 +261,7 @@ test('hub v2: the seasonal files are ready for the web and are served from the H
   assert.ok(html.indexOf('id="gwh2Campaigns"') > html.indexOf('class="gwh2-top"') && html.indexOf('id="gwh2Campaigns"') < html.indexOf('id="worlds"'), 'the seasonal video is in the hero (owner, 27/10/2026)');
   assert.ok(!html.includes('id="gwh2Season"'), 'not a second time in the deals');
   // The hero: the seasonal video first in its days, then the other campaigns, without the drawn slide of the same season.
-  const h = hub();
+  const h = hub(null, ALL_SEASONS);
   const ids = day => h.heroSlides(at(day)).map(x => x.id).join(',');
   assert.equal(ids('2026-10-28'), 'season-halloween');
   assert.equal(ids('2026-11-10'), 'season-christmas');
@@ -266,6 +271,12 @@ test('hub v2: the seasonal files are ready for the web and are served from the H
   assert.equal(ids('2026-12-10'), 'season-christmas');
   assert.equal(ids('2026-12-25'), 'all-worlds');
   assert.equal(ids('2027-01-05'), 'winter-sales,new-year-fitness');
+  // With the real switches (lessons L107): Black Friday off, so no Black Friday video, countdown or slide in its days.
+  const real = hub();
+  const realIds = day => real.heroSlides(at(day)).map(x => x.id).join(',');
+  assert.equal(realIds('2026-11-15'), 'season-christmas');
+  assert.equal(realIds('2026-11-28'), 'season-christmas');
+  assert.equal(realIds('2026-12-28'), 'all-worlds', 'the winter sales need their switch too');
 });
 
 test('hub v2: the Worker answers byte ranges for the seasonal files (iPhone Safari needs 206), with a long cache', async () => {

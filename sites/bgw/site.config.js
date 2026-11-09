@@ -14,7 +14,7 @@ export default {
   lang: 'en-GB',
   locale: 'en-GB',
   currency: 'GBP',
-  assetVersion: '2026-11-08-bgw-security-1',
+  assetVersion: '2026-11-09-bgw-compliance-1',
   promos: promosFor('BGW'),
   awinPublisherId: AWIN_PUBLISHER_ID,
   storagePrefix: 'bgw',
@@ -45,7 +45,8 @@ export default {
   // Where the retailers deliver (lessons L62): every product card and product page says it. default: every retailer
   // not named in retailers (Tooled Up, My Tool Shed and Joybuy UK are UK shops). VEVOR: the Dutch shop vevor.nl, as on
   // the other Gear World sites.
-  deliversTo: { default: ['GB'], retailers: { VEVOR: ['NL'] } },
+  // VEVOR (vevor.nl) delivers to the EU and the EEA, not to the UK (owner, 9 Nov 2026, lessons L107).
+  deliversTo: { default: ['GB'], retailers: { VEVOR: ['EU', 'IS', 'LI', 'NO'] } },
 
   displayCurrencies: ['GBP', 'EUR', 'ALL', 'RON', 'RUB'],
   cart: { name: 'Saved list', maxItems: 30 },

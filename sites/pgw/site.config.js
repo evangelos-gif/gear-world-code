@@ -16,7 +16,7 @@ export default {
   lang: 'en-GB',
   locale: 'en-GB',
   currency: 'GBP',
-  assetVersion: '2026-11-08-pgw-security-1',
+  assetVersion: '2026-11-09-pgw-compliance-1',
   promos: promosFor('PGW'),
   awinPublisherId: AWIN_PUBLISHER_ID,
   storagePrefix: 'pgw',
@@ -46,7 +46,8 @@ export default {
 
   // Where the retailers deliver (lessons L62): every product card and product page says it. All the first shops (Joybuy UK,
   // Back to the Office, PCHUB.UK, PcNova, Plusshop UK, Bazta UK) are UK shops. VEVOR (second wave): the Dutch shop vevor.nl.
-  deliversTo: { default: ['GB'], retailers: { VEVOR: ['NL'] } },
+  // VEVOR (vevor.nl) delivers to the EU and the EEA, not to the UK (owner, 9 Nov 2026, lessons L107).
+  deliversTo: { default: ['GB'], retailers: { VEVOR: ['EU', 'IS', 'LI', 'NO'] } },
 
   displayCurrencies: ['GBP', 'EUR', 'ALL', 'RON', 'RUB'],
   cart: { name: 'Saved list', maxItems: 30 },

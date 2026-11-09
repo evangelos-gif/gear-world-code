@@ -138,6 +138,14 @@ export function subPath(cat, sub) {
   return `${categoryPath(cat.slug)}?sub=${sub.slug}`;
 }
 
+// A category (or an indexed subcategory page) with fewer visible products than this is "noindex,follow" and is left out
+// of the sitemap (lessons L107): a near-empty page is thin content. rows: the visible products of the category (the sum
+// of the retailers' counts in the filters), so the page and the sitemap count the same way.
+export const MIN_INDEXED_PRODUCTS = 20;
+export function facetRows(facets) {
+  return ((facets && facets.retailers) || []).reduce((t, r) => t + (Number(r.n) || 0), 0);
+}
+
 export function categoryPage(site, cat, p, result, facets, subCounts = null) {
   const base = categoryPath(cat.slug);
   const sub = p.sub ? (Array.isArray(cat.subcategories) ? cat.subcategories : []).find(s => s.slug === p.sub) : null;
@@ -148,8 +156,10 @@ export function categoryPage(site, cat, p, result, facets, subCounts = null) {
   const crumbs = [{ name: 'Home', path: '/' }, { name: cat.name, path: base }, ...(own ? [{ name: own.name, path: home }] : [])];
   const pageOf = n => (own ? pageLink(base, { sub: own.slug }, n) : pageLink(base, {}, n));
   const canonical = filtered ? home : (p.page > 1 ? pageOf(p.page) : home);
+  // Fewer than MIN_INDEXED_PRODUCTS visible products (but not empty): a thin page, noindex (the QA gate reads the mark).
+  const thin = result.products.length > 0 && facetRows(facets) < MIN_INDEXED_PRODUCTS;
   const body = html`
-<div class="wrap">
+<div class="wrap"${thin ? raw(' data-thin-category') : ''}>
   ${breadcrumbs(crumbs)}
   <header class="page-head${categoryImage(site, cat.slug) ? ' cat-banner' : ''}">
     ${categoryImage(site, cat.slug) ? html`<img class="cat-banner-img" src="${categoryImage(site, cat.slug)}" alt="" width="720" height="480" fetchpriority="high" decoding="async">` : ''}
@@ -180,7 +190,7 @@ export function categoryPage(site, cat, p, result, facets, subCounts = null) {
     description: own ? own.description || cat.description : cat.description,
     path: base,
     canonical,
-    robots: filtered || !result.products.length ? 'noindex,follow' : 'index,follow',
+    robots: filtered || !result.products.length || facetRows(facets) < MIN_INDEXED_PRODUCTS ? 'noindex,follow' : 'index,follow',
     prev: !filtered && p.page > 1 ? pageOf(p.page - 1) : null,
     next: !filtered && p.page < result.pages ? pageOf(p.page + 1) : null,
     currentCategory: cat.slug,
@@ -224,27 +234,29 @@ export function searchPage(site, q, p, result, usedQuery = '', facets = null) {
   });
 }
 
+// Products below the RRP that the retailer lists (lessons L107): never "price drops" or "previous price", because an RRP
+// is a recommended price, not a price the product was sold at before. Only prices checked in the last 14 days.
 export function dealsPage(site, p, result, now = Date.now()) {
   const base = '/deals/';
-  const crumbs = [{ name: 'Home', path: '/' }, { name: 'Price drops', path: base }];
+  const crumbs = [{ name: 'Home', path: '/' }, { name: 'Below RRP today', path: base }];
   const body = html`
 <div class="wrap">
   ${breadcrumbs(crumbs)}
   <header class="page-head">
-    <h1>Price drops</h1>
-    <p class="lede">Products that cost less now than the retailer's previous price, biggest saving first.</p>
+    <h1>Below RRP today</h1>
+    <p class="lede">Products priced at least 5% below the RRP (recommended retail price) that the retailer lists, furthest below first. An RRP is the price the retailer or the brand recommends, not an earlier price. Every price here was checked in the last 14 days.</p>
   </header>
   ${p.page > 1 ? '' : seasonBanner(site, 'deals-list', now, result.products.length)}
   <div id="deals-list"></div>
   ${resultsHeader(result)}
   ${result.products.length
     ? html`<h2 class="visually-hidden">${tr('Products')}</h2>${productGrid(site, result.products)}`
-    : html`<div class="empty"><h2>${tr('No price drops right now')}</h2><p>${tr('Prices change every day.')} <a href="/">${tr('Browse all categories')}</a></p></div>`}
+    : html`<div class="empty"><h2>${tr('No products below their RRP right now')}</h2><p>${tr('Prices change every day.')} <a href="/">${tr('Browse all categories')}</a></p></div>`}
   ${pagination(base, {}, result)}
 </div>`;
   return page(site, {
-    title: `${site.topicTitle} price drops${p.page > 1 ? ` (page ${p.page})` : ''} | ${site.name}`,
-    description: `Current price drops on ${site.topic} from retailers listed on ${site.name}.`,
+    title: `${site.topicTitle} below RRP${p.page > 1 ? ` (page ${p.page})` : ''} | ${site.name}`,
+    description: `${site.topicTitle} priced below the RRP that the retailers listed on ${site.name} give.`,
     path: base,
     canonical: p.page > 1 ? pageLink(base, {}, p.page) : base,
     robots: result.products.length ? 'index,follow' : 'noindex,follow',

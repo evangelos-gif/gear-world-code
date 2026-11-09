@@ -13,7 +13,7 @@ export default {
   lang: 'en-GB',
   locale: 'en-GB',
   currency: 'GBP',
-  assetVersion: '2026-11-08-cgw-security-1',
+  assetVersion: '2026-11-09-cgw-compliance-1',
   promos: promosFor('CGW'),
   // Buying guides (/guides/, lessons L82): words in guides.js, prices and stock live from the database.
   guides,
@@ -56,7 +56,8 @@ export default {
   // Country codes: src/lib/delivery.js. The other retailers are UK shops. Reidl: "Die Lieferung erfolgt
   // innerhalb Deutschlands und nach Österreich" (reidl.de/shop/zahlungversand, 25 Oct 2026). VEVOR: the Dutch shop vevor.nl.
   // GRABO (order.grabo.com, lessons L63): "Worldwide Shipping, fulfilled by our authorized dealers" (read 25 Oct 2026).
-  deliversTo: { default: ['GB'], retailers: { Reidl: ['DE', 'AT'], VEVOR: ['NL'], GRABO: ['WORLD'] } },
+  // VEVOR (vevor.nl) delivers to the EU and the EEA, not to the UK (owner, 9 Nov 2026, lessons L107).
+  deliversTo: { default: ['GB'], retailers: { Reidl: ['DE', 'AT'], VEVOR: ['EU', 'IS', 'LI', 'NO'], GRABO: ['WORLD'] } },
 
   languages: [
     { code: 'en-GB', label: 'English' },

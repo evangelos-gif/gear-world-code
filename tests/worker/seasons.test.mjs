@@ -6,6 +6,7 @@ import assert from 'node:assert/strict';
 import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import vm from 'node:vm';
 import { seasonFor, seasonsOf, blackFridayDay, countdownLeft, seasonMedia, SEASON_MEDIA_VERSION } from '../../src/lib/seasons.js';
+import { SEASONS_ON } from '../../promos/promos.js';
 import { seasonBanner } from '../../src/pages/season.js';
 import { offersIndexPage } from '../../src/pages/offers.js';
 import { dealsPage } from '../../src/pages/listing.js';
@@ -28,8 +29,11 @@ function hub() {
   return window.GearWorldHubV2;
 }
 
+// Every season switched on: the calendar itself. The real switches (promos/promos.js SEASONS_ON) are tested below.
+const ALL_ON = { halloween: true, 'black-friday': true, christmas: true };
+
 test('seasons: the owner\'s dates, every year by itself, the same calendar as the Hub', () => {
-  const id = day => (seasonFor(at(day)) || {}).id || '';
+  const id = day => (seasonFor(at(day), ALL_ON) || {}).id || '';
   assert.deepEqual(['2026-10-19', '2026-10-20', '2026-10-31', '2026-11-01', '2026-11-19', '2026-11-20', '2026-12-01', '2026-12-02', '2026-12-24', '2026-12-25'].map(id),
     ['', 'halloween', 'halloween', 'christmas', 'christmas', 'black-friday', 'black-friday', 'christmas', 'christmas', '']);
   assert.deepEqual([2026, 2027, 2028].map(blackFridayDay), [27, 26, 24]);
@@ -59,8 +63,30 @@ test('seasons: the files come from the Hub (one copy for all 11), and the sites 
   assert.match(csp, /default-src 'self'/, 'nothing else from outside');
 });
 
-test('seasons: the banner on the codes page and the price drops (first page), with its text in tr() and the button to the list', () => {
+// Lessons L107: nothing seasonal switches on by its dates alone. Black Friday (and its countdown) is off until the owner
+// turns it on after Google answers; Halloween is off; Christmas was already on. The Hub reads the same switches.
+test('seasons: only a season switched on in promos.js shows; Black Friday is off, so no countdown on 20-30 November', () => {
+  assert.equal(SEASONS_ON['black-friday'], false);
+  assert.equal(SEASONS_ON.halloween, false);
+  const id = day => (seasonFor(at(day)) || {}).id || '';
+  assert.deepEqual(['2026-10-25', '2026-11-20', '2026-11-28', '2026-12-01', '2026-12-10', '2026-12-26'].map(id),
+    ['', 'christmas', 'christmas', 'christmas', 'christmas', '']);
   const site = { ...tgw, promos: [] };
+  const bf = toString(seasonBanner(site, 'deals-list', Date.parse('2026-11-28T10:30:00Z'), 12));
+  assert.ok(!bf.includes('data-season-countdown') && !bf.includes('Black Friday'), 'no Black Friday banner or countdown');
+  assert.equal(seasonFor(at('2026-11-28'), {}), null, 'no switch on: no season at all');
+  assert.equal(seasonFor(at('2026-11-28'), { 'black-friday': 'yes' }), null, 'only true switches a season on');
+  const h = hub();
+  assert.deepEqual(JSON.parse(JSON.stringify(h.seasonsOn)), SEASONS_ON, 'the Hub has the same switches (tools/gwh-deals.mjs)');
+  assert.equal((h.seasonFor(at('2026-11-28')) || {}).id, 'christmas');
+  const slides = JSON.parse(JSON.stringify(h.activeCampaigns(at('2026-11-28')).map(c => c.id)));
+  assert.ok(!slides.some(x => /black-friday|halloween/.test(x)), `no Black Friday slide: ${slides}`);
+  assert.ok(!JSON.parse(JSON.stringify(h.activeCampaigns(at('2026-11-15')).map(c => c.id))).includes('black-friday-soon'), 'no "Black Friday is coming" slide');
+  assert.ok(!JSON.parse(JSON.stringify(h.activeCampaigns(at('2026-12-28')).map(c => c.id))).includes('winter-sales'), 'later seasons need their switch too');
+});
+
+test('seasons: the banner on the codes page and the price drops (first page), with its text in tr() and the button to the list', () => {
+  const site = { ...tgw, promos: [], seasonsOn: ALL_ON };
   const b = toString(seasonBanner(site, 'offers-list', at('2026-10-28'), 3));
   assert.match(b, /^<section class="season-banner season-halloween season-mirror" aria-label="Halloween"/);
   assert.ok(b.includes('<h2 class="season-title"><span data-i18n="Compare prices before you buy">Compare prices before you buy</span></h2>'));

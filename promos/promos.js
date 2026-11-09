@@ -16,20 +16,28 @@
 
 export const AWIN_PUBLISHER_ID = 3057233;
 
+// Seasons that may show at all (Google Ads compliance, 9 Nov 2026, lessons L107): nothing seasonal switches on by its
+// dates alone. A season shows only while it is true here AND today is within its days (src/lib/seasons.js on the 13
+// sites; the Hub's slides and video banner through tools/gwh-deals.mjs, which copies this list into
+// sites/gwh/public/hub-v2.js). Black Friday (its countdown and the "Black Friday is coming" slide) stays false until the
+// owner says so after Google answers the appeal: one line here, `node tools/gwh-deals.mjs`, then the sites and the Hub
+// go out with their approval phrases. Christmas was already on (the "Gifts for everyone" banner, gift guides).
+export const SEASONS_ON = {
+  halloween: false,
+  'black-friday': false,
+  christmas: true,
+  'winter-sales': false,
+  'new-year-fitness': false,
+  'valentines-day': false
+};
+
 const JOYBUY = { retailer: 'Joybuy', slug: 'joybuy', awinMid: 123932, currency: 'GBP' };
 const JOYBUY_EMAIL = 'Awin email "Joybuy UK" to UK partners, received 20 Oct 2026';
-const HALLOWEEN = 'https://www.joybuy.co.uk/campaign/active/2hGagKjWWkaR2Kxt1wwwT8LAwXWK';
 const JOYDAY_EMAIL = 'Awin email "Joybuy UK - Joyday campaign - Oct" to UK partners, received 26 Oct 2026 (approved by the owner 28 Oct 2026)';
 
 export const PROMOS = [
-  { ...JOYBUY, id: 'joybuy-halloween', kind: 'code', campaign: 'Halloween', code: 'halloween', off: 4, minSpend: 20,
-    url: HALLOWEEN, sites: ['TGW', 'MGW', 'WGW', 'HGW', 'KGW', 'SGW'], start: '2026-10-20', end: '2026-12-31', bar: '🎃', source: JOYBUY_EMAIL },
-  { ...JOYBUY, id: 'joybuy-beauty', kind: 'code', campaign: 'Halloween', code: 'beauty', off: 5, minSpend: 30,
-    url: HALLOWEEN, sites: ['TGW', 'MGW', 'WGW', 'HGW', 'KGW'], start: '2026-10-20', end: '2026-12-31', source: JOYBUY_EMAIL },
-  { ...JOYBUY, id: 'joybuy-sports', kind: 'code', campaign: 'Halloween', code: 'sports', off: 5, minSpend: 45,
-    url: HALLOWEEN, sites: ['TGW', 'MGW', 'WGW', 'HGW', 'KGW', 'SGW'], start: '2026-10-20', end: '2026-12-31', source: JOYBUY_EMAIL },
-  { ...JOYBUY, id: 'joybuy-tools', kind: 'code', campaign: 'Halloween', code: 'tools', off: 15, minSpend: 100,
-    url: HALLOWEEN, sites: ['TGW', 'MGW', 'WGW', 'HGW', 'KGW'], start: '2026-10-20', end: '2026-12-31', source: JOYBUY_EMAIL },
+  // The four Joybuy Halloween codes (halloween, beauty, sports, tools; email of 20 Oct 2026) were removed on 9 Nov 2026:
+  // a Halloween code and its top bar in November look like a stale offer (Google Ads compliance, lessons L107).
   { ...JOYBUY, id: 'joybuy-household', kind: 'sale', campaign: 'Household & Cleaning', upTo: 60, extraOff: 5, extraMin: 20, day: 'Thursday',
     url: 'https://www.joybuy.co.uk/campaign/active/WaWN6fWUxoEaEDqiHQcjqvfmPky', sites: ['HGW'], start: '2026-10-20', end: '2026-12-31', source: JOYBUY_EMAIL },
   { ...JOYBUY, id: 'joybuy-home-pet', kind: 'sale', campaign: 'Home & Living & Pet', upTo: 50,

@@ -14,7 +14,7 @@ export default {
   lang: 'en-GB',
   locale: 'en-GB',
   currency: 'GBP',
-  assetVersion: '2026-11-08-agw-security-1',
+  assetVersion: '2026-11-09-agw-compliance-1',
   promos: promosFor('AGW'),
   // Buying guides (/guides/, lessons L82): words in guides.js, prices and stock live from the database.
   guides,
@@ -30,6 +30,11 @@ export default {
   // to them, and a small flag next to the retailer name (as on Construction Gear World).
   convertForeignPrices: true,
   retailerCountries: { VEVOR: 'NL' },
+  // Where the retailers deliver (lessons L62, L107): the product cards and pages say it, and a visitor sees only the
+  // retailers that deliver to their country (src/lib/visibility.js). default: every retailer not named (UK shops).
+  // Pneus.be: its own Belgian site (pneus.be, read 9 Nov 2026: Luxembourg and the Netherlands have their own sites), so
+  // Belgium only. VEVOR: the Dutch shop vevor.nl delivers to the EU and the EEA, not to the UK (owner, 9 Nov 2026).
+  deliversTo: { default: ['GB'], retailers: { 'Pneus.be': ['BE'], VEVOR: ['EU', 'IS', 'LI', 'NO'] } },
   retailersFromEurope: true,
 
   languages: [

@@ -113,8 +113,10 @@
         var args = [];
         for (var i = 0; node.hasAttribute('data-i18n-' + i); i++) {
           var date = node.getAttribute('data-i18n-' + i + '-date');
+          var land = node.getAttribute('data-i18n-' + i + '-country');
           var arg = node.getAttribute('data-i18n-' + i);
-          args.push(date ? (formatDate(date) || arg) : formatNumberText(arg));
+          // A country ("<retailer> does not deliver to <country>", lessons L107): the browser's name of it, as for "delivers to".
+          args.push(date ? (formatDate(date) || arg) : land ? (countryName(land) || arg) : formatNumberText(arg));
         }
         if (node.hasAttribute('data-i18n-keep')) fillKept(node, t(node.getAttribute('data-i18n')), args, node.getAttribute('data-i18n-keep').split(' '));
         else node.textContent = tf(node.getAttribute('data-i18n'), args);

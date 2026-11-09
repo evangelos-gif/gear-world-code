@@ -6,6 +6,9 @@ import { DatabaseSync } from 'node:sqlite';
 import { createWorker } from '../../src/engine.js';
 import { legacySlug, fixMojibake } from '../../src/db.js';
 import { themedFiles } from '../../tools/theme-site.mjs';
+import { facetRows, MIN_INDEXED_PRODUCTS } from '../../src/pages/listing.js';
+import { facets, useLayout } from '../../src/db.js';
+import { homeView } from '../../src/lib/visibility.js';
 import site from '../../sites/mgw/site.config.js';
 
 function fakeD1() {
@@ -50,11 +53,12 @@ test('one card for a watch sold by one shop under two feed names and by a second
   assert.equal((page.match(/class="offer-retailer" translate="no">Watch Enclave</g) || []).length, 1, 'Watch Enclave listed once');
 });
 
-test('Joybuy codes show on MGW too, linked to the Joybuy page', async () => {
+test('the Joybuy Halloween codes are gone from MGW (9/11/2026, lessons L107): no top bar, no codes page', async () => {
   const env = { DB: fakeD1() };
-  assert.ok(site.promos.some(p => p.code === 'halloween'));
+  assert.ok(!site.promos.some(p => /halloween/i.test(`${p.code} ${p.campaign}`)));
   const r = await get('/discount-codes/joybuy/', env);
-  assert.equal(r.status, 200);
+  assert.equal(r.status, 404);
+  assert.ok(!/class="promo-bar/.test(await (await get('/', env)).text()));
 });
 
 test('MGW front-end files are the TGW ones (recoloured)', async () => {
@@ -78,5 +82,8 @@ test('Gifts for Him: products from the chosen categories in the price range; cou
   const home = await (await get('/', env)).text();
   assert.match(home, /Gifts for Him/);
   const page = await (await get('/category/gifts-for-him/', env)).text();
-  assert.match(page, /<meta name="robots" content="index,follow">/);
+  // Fewer than 20 products: noindex,follow and out of the sitemap (lessons L107); index,follow from 20.
+  useLayout(site);
+  const rows = facetRows(await facets(env.DB, 'gifts-for-him', null, homeView(site)));
+  assert.match(page, new RegExp(`<meta name="robots" content="${rows >= MIN_INDEXED_PRODUCTS ? 'index' : 'noindex'},follow">`));
 });

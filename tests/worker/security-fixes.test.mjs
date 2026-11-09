@@ -193,7 +193,7 @@ test('F02 the test address of the Hub uses Cloudflare\'s test keys and still wri
 test('F02 the Hub page: Turnstile loads only when the form is used, its token goes with the sign-up, new texts in 11 languages', () => {
   const page = readFileSync('sites/gwh/public/index.html', 'utf8');
   assert.match(page, /<div class="gwh-email-turnstile" id="gwhEmailTurnstile"><\/div>/);
-  assert.match(page, /\/email-signup\.js\?v=20261108-security1/);
+  assert.match(page, /\/email-signup\.js\?v=(20261108-security1|20261109-compliance1)/);
   assert.doesNotMatch(page, /challenges\.cloudflare\.com/, 'nothing of Turnstile loads with the page');
   const js = readFileSync('sites/gwh/public/email-signup.js', 'utf8');
   assert.match(js, /form\.addEventListener\("focusin", loadTurnstile\)/);

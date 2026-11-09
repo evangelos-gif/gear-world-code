@@ -7,7 +7,7 @@
 // a saved list now (no quantities, no total), and the old /cart/ addresses lead here (engine.js).
 import { html } from '../lib/html.js';
 import { productPath } from '../lib/text.js';
-import { page, breadcrumbs, tr, viewAt, priceTag, deliveryLine } from './layout.js';
+import { page, breadcrumbs, tr, viewAt, priceTag, deliveryLine, CHECK_TEXT } from './layout.js';
 
 export const SAVED_PATH = '/saved/';
 
@@ -47,7 +47,7 @@ export function cartPage(site, products, items) {
     <a class="cart-photo" href="${productPath(p)}" tabindex="-1" aria-hidden="true"><img src="${p.image_url}" alt="" width="96" height="96" loading="lazy" decoding="async" referrerpolicy="no-referrer"></a>
     <div class="cart-info">
       <p class="cart-name" translate="no"><a href="${productPath(p)}">${p.product_name}</a></p>
-      <p class="cart-meta"><span>Sold by</span> <span translate="no">${p.retailer}</span>${inStock ? '' : html` · <span class="warn">Out of stock</span>`}</p>
+      <p class="cart-meta"><span>Sold by</span> <span translate="no">${p.retailer}</span>${p.checkRetailer ? html` · <span class="check">${tr(CHECK_TEXT)}</span>` : inStock ? '' : html` · <span class="warn">Out of stock</span>`}</p>
       ${deliveryLine(site, p.retailer, { cls: 'cart-ship', max: 0 })}
       <p class="cart-price">${priceTag(site, p.price, cur)}</p>
       <div class="cart-controls">

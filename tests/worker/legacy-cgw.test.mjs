@@ -27,7 +27,12 @@ const FX_FETCH = async () => new Response(JSON.stringify([
   { base: 'GBP', quote: 'RON', rate: 5.8, date: '2026-10-20' }
 ]), { headers: { 'Content-Type': 'application/json' } });
 const worker = createWorker(site);
-const get = (path, env) => worker.fetch(new Request(`https://constructiongearworld.com${path}`, { headers: { 'User-Agent': 'Mozilla/5.0 test' } }), env, { waitUntil: p => p });
+// country: the visitor's country (request.cf, lessons L107); none = unknown, which gets the UK view.
+const get = (path, env, country = '') => {
+  const req = new Request(`https://constructiongearworld.com${path}`, { headers: { 'User-Agent': 'Mozilla/5.0 test' } });
+  if (country) Object.defineProperty(req, 'cf', { value: { country } });
+  return worker.fetch(req, env, { waitUntil: p => p });
+};
 const envOf = () => ({ DB: fakeD1(), FX_FETCH });
 const idOf = (env, name) => env.DB.sql.prepare('SELECT id FROM products WHERE product_name = ?').get(name).id;
 
@@ -51,7 +56,8 @@ test('product addresses stay the old ones: /product/<name>-<id>/', async () => {
 test('a euro price stays in euros with "≈ £" next to it, and the page says where the retailer delivers (L62)', async () => {
   const env = envOf();
   const id = idOf(env, 'Torqmaster Diamond Core Drill Bit 52mm');
-  const html = await (await get(`/product/${legacySlug('Torqmaster Diamond Core Drill Bit 52mm')}-${id}/`, env)).text();
+  // Reidl delivers to Germany and Austria only: a visitor from Germany sees it (L107).
+  const html = await (await get(`/product/${legacySlug('Torqmaster Diamond Core Drill Bit 52mm')}-${id}/`, env, 'DE')).text();
   assert.match(html, /€89\.90/);
   assert.match(html, /≈ £78\.17/);
   // Reidl delivers to Germany and Austria only (reidl.de/shop/zahlungversand): flags, then the names.
@@ -70,7 +76,9 @@ test('without rates the euro price shows on its own (no "≈")', async () => {
   const env = { DB: fakeD1(), FX_FETCH: async () => { throw new Error('offline'); } };
   // Rates already in memory from another test would be reused; this only checks the page still works.
   const id = idOf(env, 'Torqmaster Diamond Core Drill Bit 52mm');
-  const r = await w.fetch(new Request(`https://constructiongearworld.com/product/${legacySlug('Torqmaster Diamond Core Drill Bit 52mm')}-${id}/`), env, { waitUntil: p => p });
+  const req = new Request(`https://constructiongearworld.com/product/${legacySlug('Torqmaster Diamond Core Drill Bit 52mm')}-${id}/`);
+  Object.defineProperty(req, 'cf', { value: { country: 'AT' } });
+  const r = await w.fetch(req, env, { waitUntil: p => p });
   assert.equal(r.status, 200);
   assert.match(await r.text(), /€89\.90/);
 });

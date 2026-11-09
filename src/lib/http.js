@@ -77,12 +77,13 @@ function cacheControl(kind) {
   }
 }
 
-// Edge cache for anonymous GET pages: lowers D1 reads and speeds up pages.
-export async function withEdgeCache(request, ctx, produce, env) {
+// Edge cache for anonymous GET pages: lowers D1 reads and speeds up pages. keyUrl: the address the copy is kept under
+// (the page address plus the visitor's country group, lessons L107); the page address alone without one.
+export async function withEdgeCache(request, ctx, produce, env, keyUrl = request.url) {
   if (request.method !== 'GET' || typeof caches === 'undefined') return produce();
   if (env && env.EDGE_CACHE === 'off') return produce();
   const cache = caches.default;
-  const key = new Request(request.url, { method: 'GET' });
+  const key = new Request(keyUrl, { method: 'GET' });
   const hit = await cache.match(key);
   if (hit) return hit;
   const response = await produce();

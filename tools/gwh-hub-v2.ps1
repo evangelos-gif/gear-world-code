@@ -85,8 +85,14 @@
   Content-Security-Policy as Report-Only (reports to /api/csp-report); the live Hub's wrangler.toml gets workers_dev = false
   and preview_urls = false. The live step refuses until the Hub has its Turnstile keys (tools/gw-security-fixes.ps1
   -Step turnstile, ΕΓΚΡΙΝΩ TURNSTILE) and the 13 sites already send the token (tools/ads-fixes-sites.ps1, ΕΓΚΡΙΝΩ ADS FIXES).
-  Phrases of this release: ΕΓΚΡΙΝΩ HUB SECURITY PREVIEW, then ΕΓΚΡΙΝΩ HUB SECURITY LIVE together with remove-preview
-  (ΕΓΚΡΙΝΩ HUB REMOVE PREVIEW) in the same paste.
+  Phrases of that release: ΕΓΚΡΙΝΩ HUB SECURITY PREVIEW, then ΕΓΚΡΙΝΩ HUB SECURITY LIVE (live since 8/11/2026, 0577b79).
+  Google Ads compliance (lessons L107, 9/11/2026): worker.js passes the visitor's country to every site (?deliver_to=, so
+  the search shows only retailers that deliver there), hub-v2.js has the season switches of promos/promos.js (Black
+  Friday and its countdown OFF until the owner turns them on; nothing switches on by its dates alone), hub-deals.json
+  has no Joybuy Halloween codes, the email box says what it sends (no "prices we've checked"), and the affiliate
+  disclosure and privacy name Awin and CJ. The 13 sites go FIRST (tools/ads-fixes-sites.ps1, ΕΓΚΡΙΝΩ ADS FIXES), so
+  every site already reads ?deliver_to when the Hub sends it. Phrases of this release: ΕΓΚΡΙΝΩ HUB COMPLIANCE PREVIEW,
+  then ΕΓΚΡΙΝΩ HUB COMPLIANCE LIVE together with remove-preview (ΕΓΚΡΙΝΩ HUB REMOVE PREVIEW) in the same paste.
   Report: <home>\gear-world-reports\GWH_HUB_V2_<STEP>_<time>.txt (also copied to the clipboard)
 #>
 param(
@@ -108,8 +114,8 @@ $repo = Split-Path -Parent $PSScriptRoot
 $HubWorker = 'gear-world-hub'
 $PreviewName = 'gear-world-hub-preview'
 $DbName = 'gear-world-registry'
-$PhrasePreview = 'ΕΓΚΡΙΝΩ HUB SECURITY PREVIEW'
-$PhraseLive = 'ΕΓΚΡΙΝΩ HUB SECURITY LIVE'
+$PhrasePreview = 'ΕΓΚΡΙΝΩ HUB COMPLIANCE PREVIEW'
+$PhraseLive = 'ΕΓΚΡΙΝΩ HUB COMPLIANCE LIVE'
 $PhraseRegister = 'ΕΓΚΡΙΝΩ HUB ZGW SEARCH'
 $PhraseRemovePreview = 'ΕΓΚΡΙΝΩ HUB REMOVE PREVIEW'
 $LiveUrl = 'https://gearworldhub.com'
@@ -132,20 +138,20 @@ $Bad = 'Magenta'
 
 # What each file of the change does, in the words of the report.
 $About = @{
-    'worker.js'             = 'αναζήτηση: η μετάφραση κρατιέται μία μέρα, ποτέ για bots, μέσα στο ημερήσιο όριο, και τα sites παίρνουν translate=0 όταν μετέφρασε ήδη το Hub· charset=utf-8 και CSP σε Report-Only (/api/csp-report), /api/turnstile (L106)'
+    'worker.js'             = 'αναζήτηση: κάθε site παίρνει τη χώρα του επισκέπτη (?deliver_to=) και δείχνει μόνο καταστήματα που παραδίδουν εκεί (L107)· η μετάφραση κρατιέται μία μέρα, ποτέ για bots, και τα sites παίρνουν translate=0 (L106)'
     'security.js'           = 'νέο αρχείο: έλεγχος Turnstile, ημερήσια όρια του δικτύου (εγγραφές, μεταφράσεις), headers (L106)'
     'mailerlite.js'         = 'η φόρμα του Hub θέλει το token του Turnstile· ημερήσιο όριο εγγραφών για όλο το δίκτυο, μικρό δικό της για την εφαρμογή (L106)'
     'members.js'            = 'η φόρμα «Get deal updates» των sites: το Hub ελέγχει το token του Turnstile κάθε site, ίδιο ημερήσιο όριο, ημερήσιο όριο μεταφράσεων για τα sites (/internal/ai-slot) (L106)'
-    'public/email-signup.js' = 'το Turnstile φορτώνει μόνο όταν ο επισκέπτης αρχίζει να συμπληρώνει τη φόρμα· 3 νέα μηνύματα σε 11 γλώσσες (L106)'
+    'public/email-signup.js' = 'το κουτί email λέει τι στέλνει: κωδικούς που δημοσιεύουν τα καταστήματα και νέα των sites, όχι «prices we''ve checked», 11 γλώσσες (L107)· Turnstile όταν αρχίζει η φόρμα (L106)'
     'poster-scan.js'        = 'η μέτρηση των αφισών (ίδια με αυτή που μπήκε με το POSTER STATS)'
-    'public/index.html'     = 'η θέση του Turnstile στη φόρμα εγγραφής και νέο ?v= για το email-signup.js (L106)'
+    'public/index.html'     = 'το κείμενο του κουτιού email χωρίς «prices we''ve checked» (L107)· η θέση του Turnstile στη φόρμα (L106)'
     'public/about/index.html' = 'νέα σελίδα /about/: «Run by Evangelos Kalogerakis, United Kingdom», ότι δεν πουλάμε, δεν παίρνουμε πληρωμές, δεν κάνουμε παραδόσεις, contact@gearworldhub.com (νέο αρχείο, L101)'
     'public/about/about.js' = 'η σελίδα /about/ στη γλώσσα που διάλεξε ο επισκέπτης, 11 γλώσσες (νέο αρχείο, L101)'
-    'public/privacy/index.html' = 'οι φόρμες εγγραφής χρησιμοποιούν το Cloudflare Turnstile· «Last updated: 8 November 2026» (L106)'
+    'public/privacy/index.html' = 'τα links των sites περνούν από το Awin ή το CJ, με την πολιτική απορρήτου και των δύο· «Last updated: 9 November 2026» (L107)'
     'public/cookies/index.html' = 'νέα γραμμή στο footer και link «About» (L101)'
-    'public/affiliate-disclosure/index.html' = '«On the Hub»: τα links του Hub πάνε μόνο σε σελίδες των Gear World sites, χωρίς affiliate links και χωρίς πληρωμένες θέσεις (όχι πια «partner banners»)· «Last updated: 7 November 2026» (L103)'
+    'public/affiliate-disclosure/index.html' = 'τα κουμπιά των sites περνούν από ένα affiliate network: Awin, ή για λίγα καταστήματα CJ· «Last updated: 9 November 2026» (L107)'
     'public/hub-v2.css'     = 'η κλάση του καταστήματος στις προσφορές λέγεται gwh2-deal-retailer (όχι «shop») (L103)'
-    'public/hub-v2.js'      = 'οι διαφάνειες προσφορών (Halloween, Black Friday, χειμώνας) μιλούν για κωδικούς μόνο όταν τρέχει κάποιος, αλλιώς δείχνουν την εγγραφή email· «After Christmas across 13 Gear Worlds»· «Chaussures de sport» αντί για «Baskets»· το όνομα του καταστήματος translate="no" (L103)'
+    'public/hub-v2.js'      = 'οι εποχές μόνο με τον διακόπτη τους από το promos.js: Black Friday (αντίστροφη μέτρηση και «Black Friday is coming») ΚΛΕΙΣΤΗ μέχρι να την ανοίξει ο ιδιοκτήτης, τίποτα δεν ανοίγει μόνο από ημερομηνία (L107)'
     'public/styles.css'     = 'φεύγουν οι κανόνες της κάρτας «Sell Your Business» (.gwh-business-*) και τα σχόλια «shop» (το αρχείο δεν το φορτώνει η σελίδα· μένει για τα παλιά εργαλεία) (L103)'
     'public/contact/index.html' = '«business enquiries from retailers and affiliate networks» αντί για «partnership enquiries» (L103)'
     'public/guides/guides.css' = 'η εμφάνιση των οδηγών δώρων (νέο αρχείο)'
@@ -162,7 +168,7 @@ $About = @{
     'public/hub-bgw.jpg'    = 'η φωτογραφία της κάρτας Biker (Pexels, χωρίς μάρκες)'
     'public/hub-pgw.jpg'    = 'η φωτογραφία της κάρτας Gaming (Pexels, χωρίς μάρκες)'
     'public/hub-zgw.jpg'    = 'η φωτογραφία της κάρτας Pets (Pexels, χωρίς μάρκες)'
-    'public/hub-deals.json' = 'οι προσφορές με ημερομηνία λήξης, από το promos.js'
+    'public/hub-deals.json' = 'οι προσφορές με ημερομηνία λήξης, από το promos.js, χωρίς τους κωδικούς Halloween του Joybuy (L107)'
     'public/seasonal/halloween.mp4' = 'Halloween (βίντεο) για το μπάνερ των προσφορών'
     'public/seasonal/halloween.jpg' = 'Halloween (σταθερή εικόνα) για το μπάνερ των προσφορών'
     'public/seasonal/black-friday.mp4' = 'Black Friday (βίντεο) για το μπάνερ των προσφορών'
@@ -438,6 +444,14 @@ function Test-Site([string]$base, [bool]$isLive) {
     if ($ct -match 'charset=utf-8' -and $ro -match 'challenges\.cloudflare\.com') { Say '  charset=utf-8 και CSP (Report-Only) της αρχικής: ΕΝΤΑΞΕΙ' $Ok } else { Say '  charset=utf-8 / CSP Report-Only της αρχικής: ΠΡΟΣΟΧΗ - δεν τα βλέπω ακόμα (cache;)' $Warn }
     $deals = Get-Web ($base + '/hub-deals.json?gwcheck=' + $stamp)
     if ($deals.status -eq 200) { Say '  Οι προσφορές (hub-deals.json) διαβάζονται: ΕΝΤΑΞΕΙ' $Ok } else { Say ('  Οι προσφορές (hub-deals.json): ΠΡΟΒΛΗΜΑ (απάντηση {0})' -f $deals.status) $Bad }
+    # Google Ads compliance (L107): no Halloween code in the deals, Black Friday switched off in the script, the email box
+    # without "prices we've checked".
+    $dealsText = (New-Object System.Text.UTF8Encoding($false)).GetString($deals.bytes)
+    $v2 = Get-Web ($base + '/hub-v2.js?gwcheck=' + $stamp)
+    $v2Text = (New-Object System.Text.UTF8Encoding($false)).GetString($v2.bytes)
+    $l107 = ($deals.status -eq 200 -and $dealsText -notmatch '(?i)halloween') -and ($v2.status -eq 200 -and $v2Text.Contains('"black-friday":false')) -and -not $html.Contains('prices we' + [char]0x27 + 've checked')
+    if ($l107) { Say '  L107: καμία προσφορά Halloween, Black Friday κλειστή, το κουτί email χωρίς «prices we''ve checked»: ΕΝΤΑΞΕΙ' $Ok }
+    else { Say '  L107: ΠΡΟΣΟΧΗ - δεν βλέπω ακόμα όλες τις αλλαγές (προσφορές χωρίς Halloween, Black Friday κλειστή, κουτί email). Η cache κρατάει λίγα λεπτά: στείλε στο Claude αυτή την αναφορά.' $Warn }
     $s = Get-Web ($base + '/api/search?q=suitcase&worlds=vgw&max_price=100')
     try {
         $j = (New-Object System.Text.UTF8Encoding($false)).GetString($s.bytes) | ConvertFrom-Json

@@ -9,10 +9,17 @@
 import { readFileSync, writeFileSync, readdirSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { PROMOS } from '../promos/promos.js';
+import { PROMOS, SEASONS_ON } from '../promos/promos.js';
 
 const repo = fileURLToPath(new URL('..', import.meta.url));
 const OUT = join(repo, 'sites', 'gwh', 'public', 'hub-deals.json');
+// The Hub script: its SEASONS_ON line is copied from promos/promos.js (lessons L107: one switch for the sites and the Hub).
+const HUB_JS = join(repo, 'sites', 'gwh', 'public', 'hub-v2.js');
+const SEASONS_LINE = /^ {2}const SEASONS_ON = \{[^\n]*\}; \/\/ gwh-deals\.mjs$/m;
+export function hubScriptWithSeasons(text, seasons = SEASONS_ON) {
+  if (!SEASONS_LINE.test(text)) throw new Error('hub-v2.js has no SEASONS_ON line');
+  return text.replace(SEASONS_LINE, `  const SEASONS_ON = ${JSON.stringify(seasons)}; // gwh-deals.mjs`);
+}
 const DAY = /^\d{4}-\d{2}-\d{2}$/;
 
 // The domain of each Gear World, from its own site.config.js (no list of sites written by hand, lessons L01).
@@ -57,12 +64,16 @@ export function dealsJson(deals) {
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
   const text = dealsJson(buildDeals(PROMOS, await siteDomains()));
+  const hubNow = readFileSync(HUB_JS, 'utf8');
+  const hub = hubScriptWithSeasons(hubNow);
   if (process.argv.includes('--check')) {
     const now = existsSync(OUT) ? readFileSync(OUT, 'utf8') : '';
     if (now !== text) { console.error('hub-deals.json is not up to date: run node tools/gwh-deals.mjs'); process.exit(1); }
-    console.log('hub-deals.json is up to date.');
+    if (hubNow !== hub) { console.error('hub-v2.js SEASONS_ON is not promos.js SEASONS_ON: run node tools/gwh-deals.mjs'); process.exit(1); }
+    console.log('hub-deals.json and the seasons of hub-v2.js are up to date.');
   } else {
     writeFileSync(OUT, text);
-    console.log(`Wrote ${OUT}`);
+    if (hub !== hubNow) writeFileSync(HUB_JS, hub);
+    console.log(`Wrote ${OUT} and the seasons of ${HUB_JS}`);
   }
 }

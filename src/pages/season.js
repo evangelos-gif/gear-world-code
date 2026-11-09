@@ -19,8 +19,9 @@ export function countdownHtml(season, now) {
 // target: the id of the part of the page the button goes to (the codes, or the products). listed: how many codes or
 // products that list has. With none there is no banner: its button must never promise deals that are not there
 // (Google Ads review, lessons L101, L102).
+// site.seasonsOn: the season switches for this page (only the tests set it; the sites use promos/promos.js SEASONS_ON).
 export function seasonBanner(site, target, now = Date.now(), listed = 0) {
-  const season = seasonFor(now);
+  const season = seasonFor(now, site.seasonsOn || undefined);
   if (!season || !(Number(listed) > 0)) return '';
   const count = countdownHtml(season, now);
   return html`<section class="season-banner season-${season.id}${season.mirror ? ' season-mirror' : ''}" aria-label="${season.name}"

@@ -7,8 +7,11 @@
 //     changed, the router keeps writing the same way, and product ids and addresses stay the same.
 //     A read-only "view" in each query maps it to the native column names (lessons L28).
 
+// last_seen_at: the day the price was last checked (lessons L107: hidden after 30 days, "check at the retailer" after 14).
 const NATIVE_CARD_COLUMNS = `id, product_name, product_slug, brand, retailer, category_slug, price, was_price,
-  currency, in_stock, item_condition, image_url, subcategory, merchant_category`;
+  currency, in_stock, item_condition, image_url, subcategory, merchant_category, last_seen_at`;
+import { visibleSql, hiddenReason } from './lib/visibility.js';
+
 // The legacy layout also returns the old category name: Gear World Hub search shows it (lessons L22).
 let CARD_COLUMNS = NATIVE_CARD_COLUMNS;
 
@@ -102,6 +105,16 @@ function buildSource(site) {
 
 export function isLegacy() { return LAYOUT.legacy; }
 
+// The rows a visitor may see (src/lib/visibility.js, lessons L107): one more WHERE term, or nothing without a view.
+// Every function below that takes a view adds it; without one it reads exactly as before.
+function vis(view) {
+  return visibleSql(view) || { sql: '', binds: [] };
+}
+const andVis = v => (v.sql ? ` AND ${v.sql}` : '');
+// The older layout has no feed RRP (was_price is NULL in its view): a list of products below their RRP is always empty
+// there, so it is not asked for (it used to read every active row for nothing on every home page).
+export function hasRrp() { return !LAYOUT.legacy; }
+
 // One product sold by several retailers (same GTIN/EAN) is shown once, at its best offer: in stock first,
 // then the lowest price. offer_count tells the card how many retailers sell it (site.groupOffers).
 // GTIN_KEY is the group key on the rows named p (the new layout's table, or the older layout's view).
@@ -174,16 +187,18 @@ function groupFilter(keys) {
 // Every active offer of the same product (same GTIN), best first. Empty unless the site groups offers.
 // Only the rows of the product's group are read, in both layouts (the same rows as the old query: the same key).
 // opts.full: the old query that reads every row (tests compare the two).
+// opts.view: only the offers the visitor may see (the same group rows are read: the filter adds no read).
 export async function offersFor(db, product, limit = 12, opts = {}) {
   if (!LAYOUT.group || !product || offerKey(product).startsWith('id:')) return [];
   const key = offerKey(product);
   const f = opts.full
     ? { from: `${LAYOUT.from} p`, where: '1', fromBinds: [], whereBinds: [] }
     : groupFilter([key]);
+  const v = vis(opts.view);
   const r = await db
-    .prepare(`SELECT id, retailer, price, currency, in_stock, last_seen_at FROM ${f.from}
-      WHERE p.is_active = 1 AND ${f.where} AND ${gk()} = ? ORDER BY p.in_stock DESC, p.price ASC, p.id ASC LIMIT ?`)
-    .bind(...f.fromBinds, ...f.whereBinds, key, limit)
+    .prepare(`SELECT id, retailer, price, was_price, currency, in_stock, last_seen_at FROM ${f.from}
+      WHERE p.is_active = 1 AND ${f.where} AND ${gk()} = ?${andVis(v)} ORDER BY p.in_stock DESC, p.price ASC, p.id ASC LIMIT ?`)
+    .bind(...f.fromBinds, ...f.whereBinds, key, ...v.binds, limit)
     .all();
   // One line per retailer: its best offer.
   const seen = new Set();
@@ -213,12 +228,13 @@ function catWhere(slug) {
 }
 
 // Product counts of the collection pages (their products are counted in their own categories too).
-async function collectionCounts(db) {
+async function collectionCounts(db, view = null) {
   const slugs = Object.keys(LAYOUT.collections || {});
   const out = {};
+  const v = vis(view);
   await Promise.all(slugs.map(async slug => {
     const c = catWhere(slug);
-    const r = await db.prepare(`SELECT COUNT(*) AS n FROM ${LAYOUT.from} p WHERE p.is_active = 1 AND ${c.sql}`).bind(...c.binds).first();
+    const r = await db.prepare(`SELECT COUNT(*) AS n FROM ${LAYOUT.from} p WHERE p.is_active = 1 AND ${c.sql}${andVis(v)}`).bind(...c.binds, ...v.binds).first();
     out[slug] = Number((r && r.n) || 0);
   }));
   return out;
@@ -251,6 +267,7 @@ const SORTS = {
   'price-asc': 'price ASC, id ASC',
   'price-desc': 'price DESC, id ASC',
   newest: 'first_seen_at DESC, id DESC',
+  // "saving" (the address keeps its old name): the furthest below the feed's RRP first. The RRP is not a previous price.
   saving: '(CASE WHEN was_price > price THEN (was_price - price) / was_price ELSE 0 END) DESC, id ASC'
 };
 
@@ -259,7 +276,7 @@ export const SORT_OPTIONS = [
   ['price-asc', 'Price: low to high'],
   ['price-desc', 'Price: high to low'],
   ['newest', 'Newest'],
-  ['saving', 'Biggest saving']
+  ['saving', 'Furthest below RRP']
 ];
 
 export function normalizeSort(value) {
@@ -287,7 +304,9 @@ export function nameMatch(m) {
   return { sql: not.length ? `${any(words)} AND NOT ${any(not)}` : any(words), binds: [...words, ...not] };
 }
 
-function buildFilter({ category, subcategory, subMatch, brand, retailer, maxPrice, minPrice, inStock, condition, search, onSale }) {
+// view: the rows the visitor may see (lessons L107). fresh: only prices checked in the last CHECK_AFTER_DAYS days (the
+// list of products below their RRP "today" never shows an older price).
+function buildFilter({ category, subcategory, subMatch, brand, retailer, maxPrice, minPrice, inStock, condition, search, onSale, view, fresh }) {
   const where = ['p.is_active = 1'];
   const binds = [];
   if (category) { const c = catWhere(category); where.push(c.sql); binds.push(...c.binds); }
@@ -308,12 +327,15 @@ function buildFilter({ category, subcategory, subMatch, brand, retailer, maxPric
     where.push('p.id IN (SELECT rowid FROM products_fts WHERE products_fts MATCH ?)');
     binds.push(q);
   }
+  const v = vis(view);
+  if (v.sql) { where.push(v.sql); binds.push(...v.binds); }
+  if (fresh && view && view.checkFrom) { where.push('likelihood(+p.last_seen_at >= ?, 1.0)'); binds.push(view.checkFrom); }
   return { sql: where.join(' AND '), binds };
 }
 
 export async function listProducts(db, filters, { sort = 'featured', page = 1, perPage = 24 } = {}) {
   const f = buildFilter(filters);
-  if (!f) return { products: [], total: 0, page: 1, pages: 0 };
+  if (!f || (filters && filters.onSale && !hasRrp())) return { products: [], total: 0, page: 1, pages: 0 };
   const order = SORTS[normalizeSort(sort)];
   const offset = (page - 1) * perPage;
   const countSql = LAYOUT.group
@@ -329,15 +351,16 @@ export async function listProducts(db, filters, { sort = 'featured', page = 1, p
 
 // Products per subcategory of a category (only for a category whose site config lists subcategories: ZGW birds).
 // A subcategory with `match` (words in the name, TGW Mini PCs) is counted by those words, under its own name.
-export async function subcategoryCounts(db, category, subs = []) {
+export async function subcategoryCounts(db, category, subs = [], view = null) {
   const c = catWhere(category);
+  const v = vis(view);
   const byName = (subs || []).filter(s => s && s.match && nameMatch({ words: s.match, not: s.exclude }));
   const list = [db.prepare(`SELECT p.subcategory AS name, COUNT(*) AS n FROM ${LAYOUT.from} p WHERE p.is_active = 1 AND ${c.sql}
-    AND p.subcategory IS NOT NULL GROUP BY p.subcategory`).bind(...c.binds)];
+    AND p.subcategory IS NOT NULL${andVis(v)} GROUP BY p.subcategory`).bind(...c.binds, ...v.binds)];
   for (const s of byName) {
     const nm = nameMatch({ words: s.match, not: s.exclude });
-    list.push(db.prepare(`SELECT ? AS name, COUNT(*) AS n FROM ${LAYOUT.from} p WHERE p.is_active = 1 AND ${c.sql} AND ${nm.sql}`)
-      .bind(s.name, ...c.binds, ...nm.binds));
+    list.push(db.prepare(`SELECT ? AS name, COUNT(*) AS n FROM ${LAYOUT.from} p WHERE p.is_active = 1 AND ${c.sql} AND ${nm.sql}${andVis(v)}`)
+      .bind(s.name, ...c.binds, ...nm.binds, ...v.binds));
   }
   const res = await db.batch(list);
   const out = Object.fromEntries((res[0].results || []).map(x => [x.name, Number(x.n) || 0]));
@@ -346,10 +369,12 @@ export async function subcategoryCounts(db, category, subs = []) {
 }
 
 // subMatch (TGW Mini PCs): the brands, shops and prices of that subcategory only.
-export async function facets(db, category, subMatch = null) {
+export async function facets(db, category, subMatch = null, view = null) {
   const base = catWhere(category);
   const nm = subMatch ? nameMatch(subMatch) : null;
-  const c = nm ? { sql: `${base.sql} AND ${nm.sql}`, binds: [...base.binds, ...nm.binds] } : base;
+  const v = vis(view);
+  const c0 = nm ? { sql: `${base.sql} AND ${nm.sql}`, binds: [...base.binds, ...nm.binds] } : base;
+  const c = v.sql ? { sql: `${c0.sql} AND ${v.sql}`, binds: [...c0.binds, ...v.binds] } : c0;
   const [brands, retailers, price] = await db.batch([
     db.prepare(`SELECT brand AS name, COUNT(*) AS n FROM ${LAYOUT.from} p WHERE p.is_active = 1 AND ${c.sql}
       AND brand IS NOT NULL AND TRIM(brand) <> '' GROUP BY brand ORDER BY n DESC, brand LIMIT 40`).bind(...c.binds),
@@ -368,8 +393,8 @@ export async function facets(db, category, subMatch = null) {
 // The brands and shops among the products a search finds (the search words only, like facets() for a category), so the
 // search page can filter by shop and brand too. Owner, 7 Nov 2026, on TGW: "doesn't have feature to select by retailer";
 // the search already obeyed ?retailer= and ?brand=, only its page had no list to choose from (lessons L98).
-export async function searchFacets(db, search) {
-  const f = buildFilter({ search });
+export async function searchFacets(db, search, view = null) {
+  const f = buildFilter({ search, view });
   if (!f) return { brands: [], retailers: [] };
   // One query, shop and brand together. "+p.is_active" lets SQLite start from the products the search words found, not
   // from every active product: on the live TGW "wireless mouse" reads about 2,200 rows instead of 30,000 (D1 counts
@@ -424,16 +449,21 @@ export async function activeVariantOf(db, id) {
   return alt ? fix(alt) : null;
 }
 
+// The address of a row read without fix() (the older layout builds it from the saved name, as everywhere else).
+export function productSlugOf(row) {
+  return LAYOUT.legacy ? legacySlug(row && row.product_name) : (row && row.product_slug) || '';
+}
+
 export async function getProductForRedirect(db, id) {
   if (LAYOUT.legacy) {
     return db
       .prepare(`SELECT id, awin_product_id, awin_advertiser_id, retailer, brand, site_category, category_slug, product_name,
-        affiliate_url, currency FROM ${LAYOUT.from} p WHERE p.id = ? AND p.is_active = 1 LIMIT 1`)
+        product_slug, affiliate_url, currency, last_seen_at FROM ${LAYOUT.from} p WHERE p.id = ? AND p.is_active = 1 LIMIT 1`)
       .bind(id)
       .first();
   }
   return db
-    .prepare('SELECT id, awin_advertiser_id, retailer, category_slug, affiliate_url FROM products WHERE id = ? AND is_active = 1 LIMIT 1')
+    .prepare('SELECT id, awin_advertiser_id, retailer, category_slug, product_name, product_slug, affiliate_url, last_seen_at FROM products WHERE id = ? AND is_active = 1 LIMIT 1')
     .bind(id)
     .first();
 }
@@ -455,16 +485,24 @@ export async function getProductForRedirect(db, id) {
 // The cards of the groups are then chosen from the plain rows of those groups (cardsOf), not with the window functions
 // of cardSql: D1 counts the rows of every window step too (AGW-like data: about 1,500 rows instead of about 450).
 // Price is NOT NULL in both layouts, so no NULL price comes first.
+// opts.view (lessons L107): only products the visitor may see. Then the sides read exactly the same NEAR index rows as
+// without a view, and the rows the visitor may not see are left out in JavaScript (the same test as the SQL, see
+// src/lib/visibility.js): a side never walks further than without the view, whatever share of the category is hidden
+// (Car Gear World: 98% of the tyres are from a Belgian shop, so a filtered walk could read thousands of rows for 40).
+// The cards are then those that are sure to be the first ones of the full filtered query (before the last row read on
+// each side that stopped at its limit), so they may be fewer than `limit`, never different. No full query runs.
 export async function similarProducts(db, product, limit = 8, opts = {}) {
   if (!product.category_slug) return [];
   const c = catWhere(product.category_slug);
   const where = `p.is_active = 1 AND ${c.sql} AND p.id <> ? AND ${gk()} <> ?`;
   const binds = [...c.binds, product.id, offerKey(product)];
   const order = 'ABS(p.price - ?) ASC, p.id ASC';
-  const full = async () => fixAll((await db.prepare(cardSql(where, order, 'LIMIT ?')).bind(...binds, product.price, limit).all()).results);
+  const v = vis(opts.view);
+  const full = async () => fixAll((await db.prepare(cardSql(where + andVis(v), order, 'LIMIT ?')).bind(...binds, ...v.binds, product.price, limit).all()).results);
   const price = Number(product.price);
   if (opts.full || !Number.isFinite(price)) return full();
   const near = Math.max(1, Number(opts.near) || NEAR);
+  if (v.sql) return similarInView(db, { where, binds, price, near, limit, view: opts.view, v });
   const side = (cond, sideOrder, value, n) => db
     .prepare(`SELECT ${CARD_COLUMNS}, ${gk()} AS gk FROM ${LAYOUT.from} p WHERE ${where} AND ${cond}
       ORDER BY ${sideOrder} LIMIT ?`)
@@ -512,6 +550,51 @@ export async function similarProducts(db, product, limit = 8, opts = {}) {
   return proved(rows) ? fixAll(rows) : full();
 }
 
+// similarProducts() for a view: the same NEAR rows on each side as without a view (no block read again), the hidden ones
+// dropped in JavaScript, then the cards of the groups of the rows left, among the rows of those groups the visitor may
+// see. Proof, side by side: above the price the rows were read in the full query's order, so every card up to the last
+// row read (inclusive) is sure; below it the rows were read by price down and then by the HIGHER id, so rows of the last
+// price read with a lower id may still come first in the full query: only a card strictly closer than that price is
+// sure. A side that read fewer than NEAR rows read the whole side. The sure cards are a prefix of the full query's.
+async function similarInView(db, { where, binds, price, near, limit, view, v }) {
+  const side = (cond, sideOrder, value) => db
+    .prepare(`SELECT ${CARD_COLUMNS}, ${gk()} AS gk FROM ${LAYOUT.from} p WHERE ${where} AND ${cond}
+      ORDER BY ${sideOrder} LIMIT ?`)
+    .bind(...binds, value, near);
+  const [up, back] = (await db.batch([
+    side('p.price >= ?', 'p.price ASC, p.id ASC', price),
+    side('p.price < ?', 'p.price DESC, p.id DESC', price)
+  ])).map(r => r.results || []);
+  if ([...up, ...back].some(row => typeof row.price !== 'number' || typeof row.id !== 'number')) return [];
+  const dist = row => Math.abs(row.price - price);
+  const before = (a, b) => dist(a) - dist(b) || a.id - b.id;
+  const upEnd = up.length >= near ? up[up.length - 1] : null;
+  const backEnd = back.length >= near ? back[back.length - 1] : null;
+  const sure = card => (!upEnd || before(card, upEnd) <= 0) && (!backEnd || dist(card) < dist(backEnd));
+  const seen = [...up, ...back].filter(row => hiddenReason(view, row) === '');
+  if (!seen.length) return [];
+  let cards;
+  if (!LAYOUT.group) {
+    cards = seen.sort(before);
+  } else {
+    const keys = [...new Set(seen.map(r => r.gk))];
+    const f = groupFilter(keys);
+    const groupRows = (await db
+      .prepare(`SELECT ${CARD_COLUMNS}, first_seen_at, gtin, ${gk()} AS gk FROM ${f.from} WHERE ${where} AND ${f.where} AND ${v.sql}`)
+      .bind(...f.fromBinds, ...binds, ...f.whereBinds, ...v.binds)
+      .all()).results || [];
+    cards = cardsOf(groupRows, before, Infinity);
+    if (!cards) return [];
+  }
+  const out = [];
+  for (const card of cards) {
+    if (out.length >= limit || !sure(card)) break;
+    if (LAYOUT.group) out.push(card);
+    else { const { gk: _key, ...row } = card; out.push(row); }
+  }
+  return fixAll(out);
+}
+
 // The cards that cardSql() makes, from the plain rows of whole product groups: per group (gk) its best offer (in stock
 // first, then the lowest price, then the lowest id), with rr = rn = 1 and offer_count = how many different retailers
 // the group's rows have; then sorted by `order` and cut at `limit`. The same choice as the window functions, on the
@@ -550,13 +633,14 @@ function newerFirst(a, b) {
 // newer than the last one read was read, so when the last card is not older than it, the result is the full
 // query's; otherwise the full query runs. The new layout keeps its query (its first_seen_at index makes it cheap).
 async function newestCards(db, limit, opts = {}) {
-  const where = 'p.is_active = 1 AND p.in_stock = 1';
+  const v = vis(opts.view);
+  const where = `p.is_active = 1 AND p.in_stock = 1${andVis(v)}`;
   const order = 'p.first_seen_at DESC, p.id DESC';
-  const full = async () => (await db.prepare(cardSql(where, order, 'LIMIT ?')).bind(limit).all()).results || [];
+  const full = async () => (await db.prepare(cardSql(where, order, 'LIMIT ?')).bind(...v.binds, limit).all()).results || [];
   if (!LAYOUT.group || !LAYOUT.legacy || opts.full) return full();
   const near = Math.max(1, Number(opts.near) || NEAR);
   const read = (await db.prepare(`SELECT p.id, p.first_seen_at FROM ${LAYOUT.from} p WHERE ${where} ORDER BY ${order} LIMIT ?`)
-    .bind(near).all()).results || [];
+    .bind(...v.binds, near).all()).results || [];
   if (!read.length) return [];
   // Dates are text in the older layout; anything else is compared by the full query instead of guessed here.
   if (read.some(r => r.first_seen_at !== null && typeof r.first_seen_at !== 'string')) return full();
@@ -567,39 +651,48 @@ async function newestCards(db, limit, opts = {}) {
   const f = groupFilter([...new Set(keyRows.map(r => r.gk))]);
   const rows = (await db
     .prepare(cardSql(`${where} AND ${f.where}`, order, 'LIMIT ?', f.from))
-    .bind(...f.fromBinds, ...f.whereBinds, limit).all()).results || [];
+    .bind(...f.fromBinds, ...v.binds, ...f.whereBinds, limit).all()).results || [];
   const proved = rows.length >= limit ? newerFirst(rows[limit - 1], read[read.length - 1]) <= 0 : read.length < near;
   return proved ? rows : full();
 }
 
-// opts.full: the old queries that read every row (tests compare the two).
+// opts.full: the old queries that read every row (tests compare the two). opts.view: what the visitor may see (L107).
+// "Below RRP today" (the list once called "Today's price drops"): in stock, priced at least 5% under the feed's RRP,
+// and checked in the last CHECK_AFTER_DAYS days. Not asked for on the older layout, which has no RRP.
 export async function homeData(db, categorySlugs, opts = {}) {
-  const [counts, deals, retailers, updated] = await db.batch([
-    db.prepare(`SELECT category_slug AS slug, COUNT(*) AS n FROM ${LAYOUT.from} p WHERE p.is_active = 1 GROUP BY category_slug`),
-    db.prepare(cardSql(`p.is_active = 1 AND p.in_stock = 1 AND p.was_price > p.price
-      AND (p.was_price - p.price) / p.was_price BETWEEN 0.05 AND 0.9`, '(p.was_price - p.price) / p.was_price DESC, p.id ASC', 'LIMIT 11')),
-    db.prepare(`SELECT retailer AS name, COUNT(*) AS n FROM ${LAYOUT.from} p WHERE p.is_active = 1 GROUP BY retailer ORDER BY n DESC, retailer`),
-    db.prepare(`SELECT MAX(last_seen_at) AS t FROM ${LAYOUT.from} p WHERE p.is_active = 1`)
-  ]);
+  const v = vis(opts.view);
+  const fresh = opts.view && opts.view.checkFrom ? { sql: ' AND likelihood(+p.last_seen_at >= ?, 1.0)', binds: [opts.view.checkFrom] } : { sql: '', binds: [] };
+  const queries = [
+    db.prepare(`SELECT category_slug AS slug, COUNT(*) AS n FROM ${LAYOUT.from} p WHERE p.is_active = 1${andVis(v)} GROUP BY category_slug`).bind(...v.binds),
+    db.prepare(`SELECT retailer AS name, COUNT(*) AS n FROM ${LAYOUT.from} p WHERE p.is_active = 1${andVis(v)} GROUP BY retailer ORDER BY n DESC, retailer`).bind(...v.binds),
+    db.prepare(`SELECT MAX(last_seen_at) AS t FROM ${LAYOUT.from} p WHERE p.is_active = 1${andVis(v)}`).bind(...v.binds)
+  ];
+  if (hasRrp()) {
+    queries.push(db.prepare(cardSql(`p.is_active = 1 AND p.in_stock = 1 AND p.was_price > p.price
+      AND (p.was_price - p.price) / p.was_price BETWEEN 0.05 AND 0.9${andVis(v)}${fresh.sql}`, '(p.was_price - p.price) / p.was_price DESC, p.id ASC', 'LIMIT 11')).bind(...v.binds, ...fresh.binds));
+  }
+  const [counts, retailers, updated, deals] = await db.batch(queries);
   const newest = { results: await newestCards(db, 11, opts) };
   const byCat = Object.fromEntries((counts.results || []).map(r => [r.slug, Number(r.n)]));
   const totalProducts = Object.values(byCat).reduce((a, b) => a + b, 0);
-  Object.assign(byCat, await collectionCounts(db));
+  Object.assign(byCat, await collectionCounts(db, opts.view));
   const categoryCounts = Object.fromEntries(categorySlugs.map(s => [s, byCat[s] || 0]));
   return {
     categoryCounts,
     totalProducts,
-    deals: fixAll(deals.results),
+    deals: fixAll(deals ? deals.results : []),
     newest: fixAll(newest.results),
     retailers: retailers.results || [],
     lastUpdated: updated.results?.[0]?.t || ''
   };
 }
 
-export async function stats(db) {
+// view: the UK view (the Hub and the group page show these numbers to everyone).
+export async function stats(db, view = null) {
+  const v = vis(view);
   const r = await db.prepare(
-    `SELECT retailer, COUNT(*) AS n FROM ${LAYOUT.from} p WHERE p.is_active = 1 GROUP BY retailer ORDER BY retailer COLLATE NOCASE`
-  ).all();
+    `SELECT retailer, COUNT(*) AS n FROM ${LAYOUT.from} p WHERE p.is_active = 1${andVis(v)} GROUP BY retailer ORDER BY retailer COLLATE NOCASE`
+  ).bind(...v.binds).all();
   const rows = r.results || [];
   return {
     products: rows.reduce((t, x) => t + Number(x.n || 0), 0),
@@ -608,21 +701,28 @@ export async function stats(db) {
   };
 }
 
-export async function categoryCounts(db) {
-  const r = await db.prepare(`SELECT category_slug AS slug, COUNT(*) AS n FROM ${LAYOUT.from} p WHERE p.is_active = 1 GROUP BY category_slug`).all();
+export async function categoryCounts(db, view = null) {
+  const v = vis(view);
+  const r = await db.prepare(`SELECT category_slug AS slug, COUNT(*) AS n FROM ${LAYOUT.from} p WHERE p.is_active = 1${andVis(v)} GROUP BY category_slug`).bind(...v.binds).all();
   const out = Object.fromEntries((r.results || []).filter(x => x.slug).map(x => [x.slug, Number(x.n)]));
-  return Object.assign(out, await collectionCounts(db));
+  return Object.assign(out, await collectionCounts(db, view));
 }
 
-export async function sitemapCount(db) {
-  const r = await db.prepare('SELECT COUNT(*) AS n FROM products WHERE is_active = 1').first();
-  return Number(r?.n || 0);
+// The sitemaps list the products of the UK view only (lessons L107): never a product the page would hide.
+// Product sitemap n holds the products with ids (n-1)*size+1 .. n*size, so it reads at most `size` rows whatever share of
+// them is hidden (with LIMIT/OFFSET over the shown rows, the first sitemap of Construction Gear World walked 54,000 rows
+// for 10,000, and sitemap n always walked every row before it). The index lists every id range up to the highest id,
+// which is one row to read (the table's own key), not a count of every active product.
+export async function sitemapMaxId(db) {
+  const r = await db.prepare('SELECT MAX(id) AS m FROM products').first();
+  return Number(r?.m || 0);
 }
 
-export async function sitemapChunk(db, offset, limit) {
+export async function sitemapChunk(db, n, size, view = null) {
+  const v = vis(view);
   const r = await db
-    .prepare(`SELECT id, product_name, product_slug, updated_at FROM ${LAYOUT.from} p WHERE p.is_active = 1 ORDER BY p.id LIMIT ? OFFSET ?`)
-    .bind(limit, offset)
+    .prepare(`SELECT id, product_name, product_slug, updated_at FROM ${LAYOUT.from} p WHERE p.id BETWEEN ? AND ? AND p.is_active = 1${andVis(v)} ORDER BY p.id LIMIT ?`)
+    .bind((n - 1) * size + 1, n * size, ...v.binds, size)
     .all();
   return fixAll(r.results);
 }

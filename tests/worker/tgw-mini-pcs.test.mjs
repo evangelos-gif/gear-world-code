@@ -77,7 +77,8 @@ test('the Mini PCs page: only mini PCs, its own heading, title, text and an addr
   assert.match(html, /<h1>Mini PCs<\/h1>/);
   assert.match(html, /<title>Mini PCs \| Compare prices \| Technology Gear World<\/title>/);
   assert.ok(html.includes(sub.intro));
-  assert.match(html, /<meta name="robots" content="index,follow">/);
+  // 5 test products: fewer than 20, so noindex,follow (lessons L107: thin pages); its own address stays the canonical.
+  assert.match(html, /<meta name="robots" content="noindex,follow">/);
   assert.match(html, /<link rel="canonical" href="https:\/\/technologygearworld\.com\/category\/laptops-computing\/\?sub=mini-pcs">/);
   assert.match(html, /<input type="hidden" name="sub" value="mini-pcs">/, 'the filters keep the Mini PCs page');
   assert.ok(html.includes('5 products'));
@@ -93,7 +94,9 @@ test('Mini PCs with a brand filter: "noindex", canonical back to the Mini PCs pa
 });
 
 test('sitemap: the Mini PCs page after its category; translations of the new words in all 10 languages', () => {
-  const xml = sitemapStatic(site, { 'laptops-computing': 10 });
+  // 20 products or more (lessons L107: a thinner category is noindex and out of the sitemap).
+  const xml = sitemapStatic(site, { 'laptops-computing': 25 });
+  assert.ok(!sitemapStatic(site, { 'laptops-computing': 19 }).includes('/category/laptops-computing/'), 'a thin category is left out');
   assert.ok(xml.includes('<loc>https://technologygearworld.com/category/laptops-computing/?sub=mini-pcs</loc>'));
   assert.ok(!sitemapStatic(site, { audio: 3 }).includes('?sub=mini-pcs'), 'not while Laptops & Computing is empty');
   for (const lang of LANGS) {

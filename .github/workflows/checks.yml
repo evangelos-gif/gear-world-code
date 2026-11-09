@@ -38,7 +38,7 @@ jobs:
           npx wrangler d1 execute technology-gear-world --local --config sites/tgw/wrangler.jsonc --file tests/fixtures/tgw-seed.sql
       - name: Start the Worker locally
         run: |
-          npx wrangler dev --config sites/tgw/wrangler.jsonc --local --port 8787 --ip 127.0.0.1 --var EDGE_CACHE:off > dev.log 2>&1 &
+          npx wrangler dev --config sites/tgw/wrangler.jsonc --local --port 8787 --ip 127.0.0.1 --var EDGE_CACHE:off --var GW_TODAY:2026-10-21 > dev.log 2>&1 &
           for i in $(seq 1 90); do curl -sf -o /dev/null http://127.0.0.1:8787/ && break; sleep 1; done
           curl -sf -o /dev/null http://127.0.0.1:8787/
       - name: QA gate (docs/LESSONS.md)
@@ -91,7 +91,7 @@ jobs:
           npx wrangler d1 execute car-gear-world --local --config sites/agw/wrangler.jsonc --file tests/fixtures/agw-seed.sql
       - name: Start the Worker locally
         run: |
-          npx wrangler dev --config sites/agw/wrangler.jsonc --local --port 8789 --ip 127.0.0.1 --var EDGE_CACHE:off > dev.log 2>&1 &
+          npx wrangler dev --config sites/agw/wrangler.jsonc --local --port 8789 --ip 127.0.0.1 --var EDGE_CACHE:off --var GW_TODAY:2026-10-21 > dev.log 2>&1 &
           for i in $(seq 1 90); do curl -sf -o /dev/null http://127.0.0.1:8789/ && break; sleep 1; done
           curl -sf -o /dev/null http://127.0.0.1:8789/
       - name: QA gate (docs/LESSONS.md, incl. L22 for the hub)
@@ -140,7 +140,7 @@ jobs:
           npx wrangler d1 execute travel-gear-world --local --config sites/vgw/wrangler.jsonc --file tests/fixtures/vgw-seed.sql
       - name: Start the Worker locally
         run: |
-          npx wrangler dev --config sites/vgw/wrangler.jsonc --local --port 8789 --ip 127.0.0.1 --var EDGE_CACHE:off > dev.log 2>&1 &
+          npx wrangler dev --config sites/vgw/wrangler.jsonc --local --port 8789 --ip 127.0.0.1 --var EDGE_CACHE:off --var GW_TODAY:2026-10-21 > dev.log 2>&1 &
           for i in $(seq 1 90); do curl -sf -o /dev/null http://127.0.0.1:8789/ && break; sleep 1; done
           curl -sf -o /dev/null http://127.0.0.1:8789/
       - name: QA gate (docs/LESSONS.md, incl. L22 for the hub)
@@ -189,7 +189,7 @@ jobs:
           npx wrangler d1 execute sporty-gear-world --local --config sites/sgw/wrangler.jsonc --file tests/fixtures/sgw-seed.sql
       - name: Start the Worker locally
         run: |
-          npx wrangler dev --config sites/sgw/wrangler.jsonc --local --port 8789 --ip 127.0.0.1 --var EDGE_CACHE:off > dev.log 2>&1 &
+          npx wrangler dev --config sites/sgw/wrangler.jsonc --local --port 8789 --ip 127.0.0.1 --var EDGE_CACHE:off --var GW_TODAY:2026-10-21 > dev.log 2>&1 &
           for i in $(seq 1 90); do curl -sf -o /dev/null http://127.0.0.1:8789/ && break; sleep 1; done
           curl -sf -o /dev/null http://127.0.0.1:8789/
       - name: QA gate (docs/LESSONS.md, incl. L22 for the hub)
@@ -238,7 +238,7 @@ jobs:
           npx wrangler d1 execute biker-gear-world --local --config sites/bgw/wrangler.jsonc --file tests/fixtures/bgw-seed.sql
       - name: Start the Worker locally
         run: |
-          npx wrangler dev --config sites/bgw/wrangler.jsonc --local --port 8790 --ip 127.0.0.1 --var EDGE_CACHE:off > dev.log 2>&1 &
+          npx wrangler dev --config sites/bgw/wrangler.jsonc --local --port 8790 --ip 127.0.0.1 --var EDGE_CACHE:off --var GW_TODAY:2026-10-21 > dev.log 2>&1 &
           for i in $(seq 1 90); do curl -sf -o /dev/null http://127.0.0.1:8790/ && break; sleep 1; done
           curl -sf -o /dev/null http://127.0.0.1:8790/
       - name: QA gate (docs/LESSONS.md, incl. L22 for the hub)
@@ -287,7 +287,7 @@ jobs:
           npx wrangler d1 execute gaming-gear-world --local --config sites/pgw/wrangler.jsonc --file tests/fixtures/pgw-seed.sql
       - name: Start the Worker locally
         run: |
-          npx wrangler dev --config sites/pgw/wrangler.jsonc --local --port 8791 --ip 127.0.0.1 --var EDGE_CACHE:off > dev.log 2>&1 &
+          npx wrangler dev --config sites/pgw/wrangler.jsonc --local --port 8791 --ip 127.0.0.1 --var EDGE_CACHE:off --var GW_TODAY:2026-10-21 > dev.log 2>&1 &
           for i in $(seq 1 90); do curl -sf -o /dev/null http://127.0.0.1:8791/ && break; sleep 1; done
           curl -sf -o /dev/null http://127.0.0.1:8791/
       - name: QA gate (docs/LESSONS.md, incl. L22 for the hub)
@@ -336,7 +336,7 @@ jobs:
           npx wrangler d1 execute pets-gear-world --local --config sites/zgw/wrangler.jsonc --file tests/fixtures/zgw-seed.sql
       - name: Start the Worker locally
         run: |
-          npx wrangler dev --config sites/zgw/wrangler.jsonc --local --port 8792 --ip 127.0.0.1 --var EDGE_CACHE:off > dev.log 2>&1 &
+          npx wrangler dev --config sites/zgw/wrangler.jsonc --local --port 8792 --ip 127.0.0.1 --var EDGE_CACHE:off --var GW_TODAY:2026-10-21 > dev.log 2>&1 &
           for i in $(seq 1 90); do curl -sf -o /dev/null http://127.0.0.1:8792/ && break; sleep 1; done
           curl -sf -o /dev/null http://127.0.0.1:8792/
       - name: QA gate (docs/LESSONS.md, incl. L22 for the hub)
@@ -395,7 +395,7 @@ jobs:
           npx wrangler d1 execute ${{ matrix.db }} --local --config sites/${{ matrix.site }}/wrangler.jsonc --file tests/fixtures/${{ matrix.site }}-seed.sql
       - name: Start the Worker locally
         run: |
-          npx wrangler dev --config sites/${{ matrix.site }}/wrangler.jsonc --local --port 8788 --ip 127.0.0.1 --var EDGE_CACHE:off > dev.log 2>&1 &
+          npx wrangler dev --config sites/${{ matrix.site }}/wrangler.jsonc --local --port 8788 --ip 127.0.0.1 --var EDGE_CACHE:off --var GW_TODAY:2026-10-21 > dev.log 2>&1 &
           for i in $(seq 1 90); do curl -sf -o /dev/null http://127.0.0.1:8788/ && break; sleep 1; done
           curl -sf -o /dev/null http://127.0.0.1:8788/
       - name: QA gate (docs/LESSONS.md, incl. L28 and L29)

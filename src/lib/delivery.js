@@ -19,7 +19,7 @@ export const COUNTRY_NAMES = {
   BE: 'Belgium', LU: 'Luxembourg', FR: 'France', IT: 'Italy', ES: 'Spain', PT: 'Portugal', GR: 'Greece',
   CY: 'Cyprus', MT: 'Malta', PL: 'Poland', CZ: 'Czechia', SK: 'Slovakia', HU: 'Hungary', RO: 'Romania',
   BG: 'Bulgaria', HR: 'Croatia', SI: 'Slovenia', AL: 'Albania', DK: 'Denmark', SE: 'Sweden', NO: 'Norway',
-  FI: 'Finland', IS: 'Iceland', EE: 'Estonia', LV: 'Latvia', LT: 'Lithuania', US: 'United States',
+  FI: 'Finland', IS: 'Iceland', LI: 'Liechtenstein', EE: 'Estonia', LV: 'Latvia', LT: 'Lithuania', US: 'United States',
   CA: 'Canada', MX: 'Mexico', AU: 'Australia', NZ: 'New Zealand', JP: 'Japan', EU: 'European Union'
 };
 

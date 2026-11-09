@@ -150,9 +150,14 @@ let productPaths = [];
 const emptyCategories = new Set();
 for (const p of categoryPaths) {
   const r = await get(p);
-  htmlChecks(p, r, { indexable: !/data-empty-category/.test(r.body) });
+  // A thin category (fewer than 20 visible products, lessons L107) is noindex and out of the sitemap, like an empty one.
+  const thin = /data-thin-category/.test(r.body);
+  htmlChecks(p, r, { indexable: !/data-empty-category/.test(r.body) && !thin });
   const cards = all(r.body, /href="(\/product\/[^"]+\/)"/g).map(m => m[1]);
-  if (/data-empty-category/.test(r.body)) {
+  if (thin) {
+    emptyCategories.add(p);
+    check('L107', cards.length > 0 && /noindex/.test(robots(r.body)), `${p}: a thin category lists its products and is noindex`);
+  } else if (/data-empty-category/.test(r.body)) {
     // A category with no products yet: honest "coming soon", kept out of Google until it has products.
     emptyCategories.add(p);
     check('L10', cards.length === 0 && /noindex/.test(robots(r.body)), `${p}: empty category says "coming soon" and is noindex`);
@@ -161,7 +166,7 @@ for (const p of categoryPaths) {
   }
   productPaths.push(...cards.slice(0, 1));
 }
-check('L10', emptyCategories.size < categoryPaths.length || total === 0, 'at least one category has products');
+check('L10', emptyCategories.size < categoryPaths.length || total === 0 || all(home.body, /href="\/product\//g).length > 0, 'at least one category has products');
 
 // Product pages
 productPaths = [...new Set(productPaths)].slice(0, 6);
@@ -226,6 +231,14 @@ if (site) {
     check('L102', !/class="season-banner/.test(r.body) || listed, `${p}: the seasonal banner shows only above real ${p === '/deals/' ? 'price drops' : 'codes'}`);
   }
 }
+// Google Ads compliance (lessons L107): the feed's RRP is shown as "RRP £x", never as a "was" price or a saving, and
+// no page speaks of price drops (the sites keep no price history they could prove one with).
+if (site) {
+  for (const p of ['/', '/deals/', '/how-we-make-money/', ...productPaths.slice(0, 3)]) {
+    const r = await get(p);
+    check('L107', !/price drops?|previous price|Save \d+%|class="was"|class="tag-save"/i.test(r.body), `${p}: no price-drop or "was price" wording`);
+  }
+}
 const search = await get('/search?q=usb');
 htmlChecks('/search?q=usb', search, { indexable: false });
 check('L10', /noindex/.test(robots(search.body)), '/search: noindex');
@@ -251,7 +264,7 @@ for (const m of maps) {
 }
 check('L10', productUrls === total, 'sitemaps list every active product', `${productUrls} URLs, ${total} products`);
 for (const p of categoryPaths) {
-  if (emptyCategories.has(p)) check('L10', !staticUrls.includes(canonicalOrigin + p), `sitemap-static leaves out the empty category ${p} (noindex)`);
+  if (emptyCategories.has(p)) check('L10', !staticUrls.includes(canonicalOrigin + p), `sitemap-static leaves out the empty or thin category ${p} (noindex)`);
   else check('L10', staticUrls.includes(canonicalOrigin + p), `sitemap-static lists ${p}`);
 }
 

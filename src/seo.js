@@ -3,6 +3,7 @@ import { esc } from './lib/html.js';
 import { productPath, categoryPath } from './lib/text.js';
 import { infoPaths } from './pages/info.js';
 import { promoRetailers } from './lib/promos.js';
+import { MIN_INDEXED_PRODUCTS } from './pages/listing.js';
 
 export const SITEMAP_CHUNK = 10000;
 
@@ -28,8 +29,8 @@ export function robotsTxt(site) {
   ].join('\n');
 }
 
-export function sitemapIndex(site, totalProducts) {
-  const chunks = Math.max(0, Math.ceil(totalProducts / SITEMAP_CHUNK));
+// chunks: how many product sitemaps (id ranges of SITEMAP_CHUNK ids, src/db.js sitemapChunk). One may be empty.
+export function sitemapIndex(site, chunks) {
   const items = [`https://${site.domain}/sitemap-static.xml`];
   for (let i = 1; i <= chunks; i++) items.push(`https://${site.domain}/sitemap-products-${i}.xml`);
   return `<?xml version="1.0" encoding="UTF-8"?>\n<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${items
@@ -37,10 +38,11 @@ export function sitemapIndex(site, totalProducts) {
     .join('\n')}\n</sitemapindex>\n`;
 }
 
-// counts: { slug: number of products }. A category with no products yet is "noindex", so it is left out
-// until it has products (Search Console reports sitemap pages that say noindex).
+// counts: { slug: number of products } in the UK view. A category with fewer than MIN_INDEXED_PRODUCTS (20) products
+// is "noindex" (a thin page, lessons L107; before: only an empty one), so it is left out until it has them (Search
+// Console reports sitemap pages that say noindex).
 export function sitemapStatic(site, counts = null) {
-  const cats = site.categories.filter(c => !counts || Number(counts[c.slug]) > 0);
+  const cats = site.categories.filter(c => !counts || Number(counts[c.slug]) >= MIN_INDEXED_PRODUCTS);
   const offers = promoRetailers(site);
   // A subcategory page marked `index: true` (TGW Mini PCs, lessons L97) is listed after its category.
   const subs = cats.flatMap(c => (Array.isArray(c.subcategories) ? c.subcategories : []).filter(s => s.index).map(s => `${categoryPath(c.slug)}?sub=${s.slug}`));

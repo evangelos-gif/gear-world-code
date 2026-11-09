@@ -151,14 +151,17 @@ test('affiliateTarget refuses bad addresses and leaves TGW Awin links as before'
   assert.equal(t.toString(), 'https://www.awin1.com/pclick.php?p=1&a=2&m=3&clickref=tgw-1');
 });
 
-test('empty categories are noindex and left out of the sitemap; full ones are listed', async () => {
+test('empty and thin categories are noindex and left out of the sitemap; full ones are listed', async () => {
   const env = { DB: fakeD1() };
   const empty = await (await get('/category/bbq-outdoor-cooking/', env)).text();
   assert.match(empty, /<meta name="robots" content="noindex/);
   assert.match(empty, /data-empty-category/);
   const map = await (await get('/sitemap-static.xml', env)).text();
   assert.ok(!map.includes('/category/bbq-outdoor-cooking/'));
-  assert.ok(map.includes('/category/garden-tools/'));
+  // Fewer than 20 visible products: a thin page, noindex and out of the sitemap (lessons L107); 20 or more: listed.
+  const tools = env.DB.sql.prepare("SELECT COUNT(*) AS n FROM products WHERE is_active = 1 AND site_category IN (SELECT value FROM json_each(?))").get(JSON.stringify(site.database.categories['garden-tools'])).n;
+  assert.equal(map.includes('/category/garden-tools/'), tools >= 20, `garden-tools: ${tools} products`);
+  assert.match(await (await get('/category/garden-tools/', env)).text(), new RegExp(`<meta name="robots" content="${tools >= 20 ? 'index' : 'noindex'},follow">`));
   const products = await (await get('/sitemap-products-1.xml', env)).text();
   assert.equal((products.match(/<loc>/g) || []).length, 61);
 });

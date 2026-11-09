@@ -1,8 +1,9 @@
 // Product page: server-rendered, with a clear button to the retailer (lessons L20) and valid structured data (L12).
 import { html, raw } from '../lib/html.js';
-import { categoryPath, productPath, formatPrice, savingPercent, truncate, formatDate } from '../lib/text.js';
+import { categoryPath, productPath, formatPrice, truncate, formatDate } from '../lib/text.js';
 import { normalizeGtin, gtinSchemaKey } from '../lib/gtin.js';
-import { page, productGrid, breadcrumbs, breadcrumbSchema, absolute, tr, keepName, viewAt, priceTag, retailerFlag, deliveryText, deliveryLine, deliversLabel } from './layout.js';
+import { COUNTRY_NAMES } from '../lib/delivery.js';
+import { page, productGrid, breadcrumbs, breadcrumbSchema, absolute, tr, keepName, viewAt, priceTag, retailerFlag, deliveryText, deliveryLine, deliversLabel, rrpTag, stockText } from './layout.js';
 
 function specsList(product) {
   let specs = {};
@@ -21,11 +22,56 @@ function specsList(product) {
   return rows;
 }
 
+// A product the visitor may not see (lessons L107): its retailer does not deliver to the visitor's country, or its price
+// was last checked more than 30 days ago. An old link still opens (200, not 404), with a clear notice, no price, no
+// button to the retailer and noindex. notice: 'country' or 'stale'; country: the visitor's country code ('' unknown).
+export function hiddenProductPage(site, product, category, notice, country = '') {
+  const path = productPath(product);
+  const crumbs = [
+    { name: 'Home', path: '/' },
+    ...(category ? [{ name: category.name, path: categoryPath(category.slug) }] : []),
+    { name: truncate(product.product_name, 60), path, keep: true }
+  ];
+  const where = country && COUNTRY_NAMES[country] ? { text: COUNTRY_NAMES[country], country } : null;
+  const message = notice === 'country'
+    ? (where ? tr('{0} does not deliver to {1}.', keepName(product.retailer), where) : tr('{0} does not deliver to your country.', keepName(product.retailer)))
+    : tr('We no longer list this product: its price was last checked more than 30 days ago.');
+  const body = html`
+<div class="wrap">
+  ${breadcrumbs(crumbs)}
+  <article class="product product-hidden" data-hidden="${notice}">
+    <div class="product-photo">
+      <img src="${product.image_url}" alt="" width="560" height="560" decoding="async" referrerpolicy="no-referrer">
+    </div>
+    <div class="product-label">
+      ${product.brand ? html`<p class="label-brand" translate="no">${product.brand}</p>` : ''}
+      <h1 translate="no">${product.product_name}</h1>
+      <div class="notice-box" role="status">
+        <p class="notice-text">${message}</p>
+        ${notice === 'country' ? deliveryLine(site, product.retailer, { cls: 'notice-ship', max: 0 }) : ''}
+      </div>
+      <ul class="chip-list">
+        ${category ? html`<li><a href="${categoryPath(category.slug)}">${category.name}</a></li>` : ''}
+        <li><a href="/">${tr('Browse all categories')}</a></li>
+      </ul>
+    </div>
+  </article>
+</div>`;
+  return page(site, {
+    title: `${truncate(product.product_name, 70)} | ${site.name}`,
+    description: truncate(`${product.product_name}. Compare ${site.topic} prices on ${site.name}.`, 158),
+    path,
+    robots: 'noindex,follow',
+    currentCategory: category ? category.slug : '',
+    body,
+    schema: [breadcrumbSchema(site, crumbs)]
+  });
+}
+
 export function productPage(site, product, category, similar, offers = []) {
   const path = productPath(product);
   const price = formatPrice(product.price, product.currency || site.currency, site.locale);
-  const was = Number(product.was_price) > Number(product.price) ? formatPrice(product.was_price, product.currency || site.currency, site.locale) : '';
-  const pct = savingPercent(product.price, product.was_price);
+  const rrp = rrpTag(site, product);
   const inStock = Number(product.in_stock) === 1;
   const checked = formatDate(product.last_seen_at, site.locale);
   const description = truncate(product.description || '', 2500);
@@ -37,7 +83,7 @@ export function productPage(site, product, category, similar, offers = []) {
     { name: truncate(product.product_name, 60), path, keep: true }
   ];
   const metaDescription = truncate(
-    `${product.product_name}: ${price}${inStock ? '' : ' (out of stock)'} at ${product.retailer}. Compare ${site.topic} prices on ${site.name}.`,
+    `${product.product_name}: ${price}${inStock || product.checkRetailer ? '' : ' (out of stock)'} at ${product.retailer}. Compare ${site.topic} prices on ${site.name}.`,
     158
   );
   const gtin = normalizeGtin(product.gtin);
@@ -85,12 +131,11 @@ export function productPage(site, product, category, similar, offers = []) {
       ${product.brand ? html`<p class="label-brand" translate="no">${product.brand}</p>` : ''}
       <h1 translate="no">${product.product_name}</h1>
       <div class="shelf">
-        <p class="shelf-price">${priceTag(site, product.price, product.currency)}${was ? html`<s class="was">${was}</s>` : ''}</p>
-        ${pct ? html`<p class="tag-save">${tr('Save {0}% on the previous price', pct)}</p>` : ''}
+        <p class="shelf-price">${priceTag(site, product.price, product.currency)}${rrp ? html` ${rrp}` : ''}</p>
         <dl class="shelf-facts">
           <div><dt>Sold by</dt><dd><span translate="no">${product.retailer}${retailerFlag(site, product.retailer)}</span> <span class="not-us">(not by Gear World)</span></dd></div>
           ${delivers ? html`<div><dt>${deliversLabel(product.retailer)}</dt><dd class="ship-dd">${delivers}</dd></div>` : ''}
-          <div><dt>${tr('Stock at {0}', keepName(product.retailer))}</dt><dd class="${inStock ? 'ok' : 'warn'}">${inStock ? 'In stock' : 'Out of stock'}</dd></div>
+          <div><dt>${tr('Stock at {0}', keepName(product.retailer))}</dt>${stockText(product, 'dd')}</div>
           ${product.item_condition === 'refurbished' ? html`<div><dt>Condition</dt><dd>Refurbished</dd></div>` : ''}
           ${checked ? html`<div><dt>Price checked</dt><dd><time datetime="${String(product.last_seen_at).slice(0, 10)}">${checked}</time></dd></div>` : ''}
         </dl>
@@ -109,8 +154,8 @@ export function productPage(site, product, category, similar, offers = []) {
     <h2 id="prices-h">${tr('Prices at {0} retailers', offers.length)}</h2>
     <ul class="offer-list">${offers.map((o, i) => html`<li class="offer-row${Number(o.id) === Number(product.id) ? ' offer-current' : ''}">
       <span class="offer-who"><span class="offer-retailer" translate="no">${o.retailer}${retailerFlag(site, o.retailer)}</span>${deliveryLine(site, o.retailer, { cls: 'offer-ship', tag: 'span', max: 0 })}</span>
-      <span class="offer-price">${priceTag(site, o.price, o.currency)}${i === 0 && Number(o.in_stock) === 1 ? html` <span class="tag-best">${tr('Lowest price')}</span>` : ''}</span>
-      <span class="offer-stock ${Number(o.in_stock) === 1 ? 'ok' : 'warn'}">${Number(o.in_stock) === 1 ? 'In stock' : 'Out of stock'}</span>
+      <span class="offer-price">${priceTag(site, o.price, o.currency)}${i === 0 && Number(o.in_stock) === 1 && !o.checkRetailer ? html` <span class="tag-best">${tr('Lowest price')}</span>` : ''}</span>
+      ${stockText(o, 'span', 'offer-stock')}
       <a class="btn btn-deal" href="/out/${o.id}" rel="sponsored nofollow noopener" target="_blank">${viewAt(o.retailer)}</a>
     </li>`)}</ul>
     <p class="offer-note">${site.database && site.database.groupTable ? tr('The same product at each retailer, matched by its product code. Prices and stock as the retailers report them.') : tr('Same product code (EAN) at each retailer. Prices and stock as the retailers report them.')}</p>

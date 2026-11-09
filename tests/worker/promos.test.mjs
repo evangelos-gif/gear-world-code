@@ -45,7 +45,9 @@ test('the Joybuy data: every entry has an end date, an Awin advertiser id and a 
     assert.ok(p.source, `${p.id}: source of the offer`);
   }
   assert.equal(new Set(PROMOS.map(p => p.id)).size, PROMOS.length, 'ids are unique');
-  assert.deepEqual(promosFor('TGW').filter(p => p.kind === 'code').map(p => p.code), ['halloween', 'beauty', 'sports', 'tools']);
+  // The four Joybuy Halloween codes were removed on 9/11/2026 (lessons L107): no Halloween code in November.
+  assert.deepEqual(promosFor('TGW').filter(p => p.kind === 'code').map(p => p.code), []);
+  assert.ok(!PROMOS.some(p => /halloween/i.test(`${p.id} ${p.code || ''} ${p.campaign}`) || p.bar === '🎃'));
   const joy = PROMOS.find(p => p.id === 'joybuy-joy-day');
   assert.deepEqual([joy.kind, joy.off, joy.minSpend, joy.start, joy.end, joy.sites.join(), joy.code, joy.bar], ['coupon', 15, 99, '2026-10-26', '2026-10-31', 'TGW', undefined, undefined],
     'Joy Day (Awin email of 26 Oct, approved 28 Oct): TGW only, no code, no bar, until 31 Oct');

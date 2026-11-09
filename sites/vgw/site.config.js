@@ -13,7 +13,7 @@ export default {
   lang: 'en-GB',
   locale: 'en-GB',
   currency: 'GBP',
-  assetVersion: '2026-11-08-vgw-security-1',
+  assetVersion: '2026-11-09-vgw-compliance-1',
   promos: promosFor('VGW'),
   awinPublisherId: AWIN_PUBLISHER_ID,
   storagePrefix: 'vgw',
@@ -27,6 +27,9 @@ export default {
   // to them, and a small flag next to the retailer name (as on Car Gear World).
   convertForeignPrices: true,
   retailerCountries: { VEVOR: 'NL' },
+  // Where the retailers deliver (lessons L62, L107): every retailer not named is a UK shop; VEVOR: the Dutch shop vevor.nl
+  // delivers to the EU and the EEA, not to the UK (owner, 9 Nov 2026). Visitors see only what delivers to them.
+  deliversTo: { default: ['GB'], retailers: { VEVOR: ['EU', 'IS', 'LI', 'NO'] } },
   retailersFromEurope: true,
 
   languages: [

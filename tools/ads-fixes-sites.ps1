@@ -25,6 +25,16 @@
   Worker secret TURNSTILE_SITE_KEY: FIRST tools/gw-security-fixes.ps1 -Step turnstile, ΕΓΚΡΙΝΩ TURNSTILE; without the
   key the box stays hidden), HSTS for one year with the subdomains, no click logged from a test address, the search
   translations kept for one day and counted in a daily limit, and /api/stats kept 1 hour per data centre.
+  Google Ads compliance (lessons L107, 9/11/2026): a visitor sees only the retailers that deliver to their country
+  (Cloudflare's country; the UK view for the UK, unknown and non-European countries: no Pneus.be, VEVOR, Reidl or
+  100% PURE for UK visitors), one page copy per country group in the cache; a product last checked more than 30 days
+  ago is not listed and its old link opens a notice (200, noindex, no price, no button), 14-30 days says "Check price
+  and stock at the retailer"; the feed's RRP is "RRP £x" (never a "was" price or "Save n%"), "Below RRP today" instead
+  of "Today's price drops"; no Joybuy Halloween codes or top bar; no seasonal banner switches on by its dates alone
+  (Black Friday OFF until the owner switches it on); "Awin and CJ" in /about/, /how-we-make-money/, privacy and cookies;
+  categories with fewer than 20 visible products are noindex and out of the sitemap; the product sitemaps are id ranges.
+  No D1 index and no database change: the view is one more WHERE term (measured with tools/d1-view-bench.mjs: the UK view
+  reads fewer rows on every page type than before).
 
 .DESCRIPTION
   -Step check   READ-ONLY. The 13 site tools are there? Shows the plan.
@@ -38,10 +48,13 @@
                 It stops at the first problem; sites already updated keep working. Running it again is safe.
                 The site databases and their settings on this PC do not change. The Hub has its own step
                 (tools/gwh-hub-v2.ps1: ΕΓΚΡΙΝΩ HUB CLEANUP LIVE for L103, ΕΓΚΡΙΝΩ HUB ROBOTS LIVE for L105,
-                ΕΓΚΡΙΝΩ HUB SECURITY LIVE for L106, which goes AFTER the 13 sites).
+                ΕΓΚΡΙΝΩ HUB SECURITY LIVE for L106, ΕΓΚΡΙΝΩ HUB COMPLIANCE LIVE for L107, each AFTER the 13 sites).
+                Going back from L107: the Hub first (it only adds ?deliver_to=, which older site code ignores), then the
+                sites with the version before (git commit 582f370).
                 Going back from L106: the Hub FIRST (tools/gwh-hub-v2.ps1 rollback note), THEN the sites, because the
                 new Hub refuses a sign-up without a Turnstile token and the older site code sends none.
-                Going back: each site tool's update with the version before (git commit cceb262 before L106;
+                Going back: each site tool's update with the version before (git commit 582f370 before L107;
+                cceb262 before L106;
                 12e54c0 before L105;
                 98b476d for the L103 clean-up; f4c8c35 for the L102 follow-up; c544884 before L101).
   Report: <home>\gear-world-reports\ADS_FIXES_<STEP>_<time>.txt (also copied to the clipboard)
@@ -165,7 +178,18 @@ function Test-Fixes([string]$domain) {
     # L105: robots.txt keeps SERankingBacklinksBot out (the lines below it stay as they were).
     $robots = Get-Page ('https://{0}/robots.txt?gwcheck={1}' -f $domain, $stamp)
     $okL105 = ($robots -match '(?m)^User-agent: SERankingBacklinksBot\s*$') -and ($robots -match '(?m)^Disallow: /out/\s*$')
-    return ($okHome -and $okAbout -and $okL103 -and $okL105)
+    # L107: no "price drop" or "was price" wording, no Halloween code, and the money page names Awin and CJ.
+    $money = Get-Page ('https://{0}/how-we-make-money/?gwcheck={1}' -f $domain, $stamp)
+    $okL107 = -not ($homePage -match '(?i)price drops?|previous price|Save \d+%|class="was"|class="tag-save"|halloween') -and ($money -match 'Awin or CJ')
+    return ($okHome -and $okAbout -and $okL103 -and $okL105 -and $okL107)
+}
+# L107: a UK visitor (this PC is in the UK) sees no product of a retailer that does not deliver to the UK. Only a hint:
+# from another country the check sees that country's view.
+$NotForUk = @{ 'cargearworld.com' = 'Pneus\.be'; 'constructiongearworld.com' = '>Reidl<' }
+function Test-UkView([string]$domain) {
+    if (-not $NotForUk.ContainsKey($domain)) { return $true }
+    $homePage = Get-Page ('https://{0}/?gwcheck={1}-uk' -f $domain, $stamp)
+    return ($homePage -and -not ($homePage -match $NotForUk[$domain]))
 }
 # L106: the "Get deal updates" box with Turnstile is on the home page (only once the site has its TURNSTILE_SITE_KEY).
 function Test-DealTurnstile([string]$domain) {
@@ -209,6 +233,8 @@ if ($Step -eq 'check') {
     Say '     ΠΡΩΤΑ το ευρετήριο στις 6 βάσεις: tools/d1-native-index.ps1 με «ΕΓΚΡΙΝΩ ΕΥΡΕΤΗΡΙΑ D1». Χωρίς αυτό ο νέος κώδικας διαβάζει ΠΕΡΙΣΣΟΤΕΡΕΣ γραμμές από τον παλιό (περίπου 74.000 αντί για 54.000 ανά σελίδα προϊόντος του AGW)· το apply ελέγχει πρώτα τις 6 βάσεις και δεν ανεβάζει τίποτα αν λείπει κάπου.'
     Say '     (L106: το live site ανοίγει μόνο στο domain του (workers.dev και preview URLs κλειστά, με αντίγραφο του wrangler.jsonc πρώτα), Turnstile στο «Get deal updates», HSTS ενός χρόνου, καμία μέτρηση κλικ από δοκιμαστική διεύθυνση, οι μεταφράσεις της αναζήτησης κρατιούνται 1 μέρα και μετρούν σε ημερήσιο όριο, το /api/stats κρατιέται 1 ώρα)'
     Say '     ΠΡΩΤΑ τα κλειδιά Turnstile: tools/gw-security-fixes.ps1 -Step turnstile με «ΕΓΚΡΙΝΩ TURNSTILE». Χωρίς αυτά το «Get deal updates» δεν φαίνεται μέχρι να μπουν. Το Hub (gwh-hub-v2, «ΕΓΚΡΙΝΩ HUB SECURITY LIVE») ανεβαίνει ΜΕΤΑ από τα 13 sites.'
+    Say '     (L107: κάθε επισκέπτης βλέπει μόνο τα καταστήματα που παραδίδουν στη χώρα του (Ηνωμένο Βασίλειο, άγνωστη χώρα ή χώρα εκτός Ευρώπης: χωρίς Pneus.be, VEVOR, Reidl, 100% PURE), προϊόν με τιμή ελεγμένη πριν από 30+ μέρες δεν φαίνεται και το παλιό link του δείχνει ειδοποίηση (200, noindex, χωρίς τιμή και κουμπί), 14-30 μέρες: «Check price and stock at the retailer»· «RRP £…» αντί για παλιά τιμή και «Save n%», «Below RRP today» αντί για «Today''s price drops»· χωρίς τους κωδικούς Halloween του Joybuy και τη μπάρα· Black Friday ΚΛΕΙΣΤΗ μέχρι να την ανοίξεις· «Awin and CJ» στις σελίδες· κατηγορίες με λιγότερα από 20 προϊόντα noindex και εκτός sitemap)'
+    Say '     L107: κανένα νέο ευρετήριο και καμία αλλαγή στις βάσεις. Η όψη της χώρας είναι ένας ακόμα όρος στα ερωτήματα· μετρημένο με το tools/d1-view-bench.mjs, η όψη του ΗΒ διαβάζει λιγότερες γραμμές της D1 σε κάθε είδος σελίδας. Το Hub (gwh-hub-v2, «ΕΓΚΡΙΝΩ HUB COMPLIANCE LIVE») ανεβαίνει ΜΕΤΑ από τα 13 sites.'
     Say '  2. έλεγχος ότι κάθε αρχική σελίδα δείχνει στο /saved/ και έχει τη νέα γραμμή στο footer, και ότι το /about/ λέει ποιος τρέχει το Gear World'
     Say '  Οι βάσεις των sites δεν αλλάζουν. Στη ρύθμιση του υπολογιστή μπαίνει ό,τι σύνδεση του προτύπου λείπει (HUB: το Pets Gear World, petsgearworld.com, παίρνει έτσι για πρώτη φορά το «Get deal updates»), με αντίγραφο πρώτα.'
     Say '  Επαναφορά της έκδοσης L106 (αν χρειαστεί): ΠΡΩΤΑ το Hub (σημείωμα του gwh-hub-v2), ΜΕΤΑ τα sites: το νέο Hub δεν δέχεται εγγραφή χωρίς Turnstile, και ο παλιός κώδικας των sites δεν στέλνει.'
@@ -256,6 +282,10 @@ if (-not $NoHttpCheck) {
     foreach ($s in $Sites) { if (-not (Test-DealTurnstile $s.domain)) { $noBox += $s.domain } }
     if ($noBox.Count -gt 0) { Say ('   L106: το «Get deal updates» με Turnstile δεν φαίνεται ακόμα σε: {0}. ΠΡΟΣΟΧΗ: πρώτα tools/gw-security-fixes.ps1 -Step turnstile («ΕΓΚΡΙΝΩ TURNSTILE»), ή η cache κρατάει λίγα λεπτά. Το Hub (ΕΓΚΡΙΝΩ HUB SECURITY LIVE) μόνο όταν φαίνεται και στα 13.' -f ($noBox -join ', ')) 'Yellow' }
     else { Say '   L106: το «Get deal updates» με Turnstile και στα 13 sites: ΕΝΤΑΞΕΙ' 'Cyan' }
+    $ukShown = @()
+    foreach ($s in $Sites) { if (-not (Test-UkView $s.domain)) { $ukShown += $s.domain } }
+    if ($ukShown.Count -gt 0) { Say ('   L107: ΠΡΟΣΟΧΗ - η αρχική δείχνει ακόμα κατάστημα που δεν παραδίδει στο ΗΒ σε: {0} (η cache κρατάει λίγα λεπτά, ή ο έλεγχος δεν έγινε από το ΗΒ· στείλε στο Claude αυτή την αναφορά)' -f ($ukShown -join ', ')) 'Yellow' }
+    else { Say '   L107: η όψη του ΗΒ χωρίς Pneus.be και Reidl, χωρίς «price drops» και Halloween, «Awin or CJ» στο /how-we-make-money/: ΕΝΤΑΞΕΙ' 'Cyan' }
 }
 Say ''
 Say ('Ανέβηκαν: {0}' -f ($done -join ', '))

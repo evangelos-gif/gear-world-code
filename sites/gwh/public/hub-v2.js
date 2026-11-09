@@ -130,6 +130,12 @@
   // only between its first and last day (UK time). Nothing turns by itself.
   // Deals slides (href "#deals") speak of the retailers' codes only while hub-deals.json has one running today; without
   // one they show the e-mail sign-up text and button instead (campaignView, lessons L103). Add the next seasons here.
+  // Seasons that may show at all (lessons L107): nothing seasonal switches on by its dates alone. Copied from
+  // promos/promos.js SEASONS_ON by tools/gwh-deals.mjs (the tests check that both say the same); do not edit here.
+  const SEASONS_ON = {"halloween":false,"black-friday":false,"christmas":true,"winter-sales":false,"new-year-fitness":false,"valentines-day":false}; // gwh-deals.mjs
+  // The season switch of each campaign slide ("Black Friday is coming" belongs to Black Friday).
+  const CAMPAIGN_SEASON = { "black-friday-soon": "black-friday" };
+  const seasonOn = id => SEASONS_ON[CAMPAIGN_SEASON[id] || id] === true;
   const CAMPAIGNS = [
     { id: "halloween", start: "2026-10-20", end: "2026-10-31", art: "halloween", eyebrow: "halloweenEyebrow", title: "halloweenTitle", text: "halloweenText", cta: "bfCta", href: "#deals" },
     { id: "black-friday", start: "2026-11-27", end: "2026-11-30", art: "black-friday", eyebrow: "bfEyebrow", title: "bfTitle", text: "bfText", cta: "bfCta", href: "#deals" },
@@ -189,7 +195,7 @@
 
   function activeCampaigns(now) {
     const today = now === undefined && previewDay() ? previewDay() : ukToday(now);
-    const list = CAMPAIGNS.filter(c => DAY.test(c.start) && DAY.test(c.end) && c.start <= today && today <= c.end);
+    const list = CAMPAIGNS.filter(c => seasonOn(c.id) && DAY.test(c.start) && DAY.test(c.end) && c.start <= today && today <= c.end);
     return list.length ? list : [FALLBACK_CAMPAIGN];
   }
 
@@ -321,7 +327,7 @@
   }
   function seasonFor(now) {
     const today = now === undefined && previewDay() ? previewDay() : ukToday(now);
-    return seasonsOf(Number(today.slice(0, 4))).find(s => s.start <= today && today <= s.end) || null;
+    return seasonsOf(Number(today.slice(0, 4))).find(s => seasonOn(s.id) && s.start <= today && today <= s.end) || null;
   }
   // The slides of the hero: the seasonal video first (in its days), then the other running campaigns, without the
   // drawn slide of the same season (owner, 27/10/2026: "this I want in the hero").
@@ -356,7 +362,7 @@
     return false;
   }
 
-  window.GearWorldHubV2 = { heroSlides, campaignLabel, seasonFor, seasonsOf, blackFridayDay, countdownText, seasonMediaVersion: SEASON_MEDIA_VERSION, art: ART, artFor, locales: LOCALES, strings: T, sameAsEnglish: SAME_AS_ENGLISH, campaigns: CAMPAIGNS, fallbackCampaign: FALLBACK_CAMPAIGN, gifts: GIFTS, budgets: BUDGETS, popular: POPULAR, activeCampaigns, activeDeals, campaignView, hasRealDeals, giftSearchUrl, ukToday };
+  window.GearWorldHubV2 = { seasonsOn: SEASONS_ON, heroSlides, campaignLabel, seasonFor, seasonsOf, blackFridayDay, countdownText, seasonMediaVersion: SEASON_MEDIA_VERSION, art: ART, artFor, locales: LOCALES, strings: T, sameAsEnglish: SAME_AS_ENGLISH, campaigns: CAMPAIGNS, fallbackCampaign: FALLBACK_CAMPAIGN, gifts: GIFTS, budgets: BUDGETS, popular: POPULAR, activeCampaigns, activeDeals, campaignView, hasRealDeals, giftSearchUrl, ukToday };
 
   // ------------------------------------------------------------ page
   const $ = (selector, root) => (root || document).querySelector(selector);

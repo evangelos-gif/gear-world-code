@@ -4,7 +4,8 @@ import { page, productGrid, searchForm, icon, absolute, asset, categoryImage, tr
 
 export function homePage(site, data) {
   const fmt = n => new Intl.NumberFormat(site.locale).format(n);
-  // Each product appears once on the page (L03): price drops first, then new products not already shown.
+  // Each product appears once on the page (L03): products below their RRP first, then new products not already shown.
+  // "Below RRP today" (lessons L107): the feed's RRP is not a previous price, so the list never says "price drop".
   const deals = data.deals.slice(0, 8);
   const newest = data.newest.filter(p => !deals.some(d => d.id === p.id)).slice(0, 8);
   const hero = site.heroImage;
@@ -19,7 +20,7 @@ export function homePage(site, data) {
     ${searchForm(site, '', 'hero-search')}
     <p class="hero-actions">
       <a class="btn btn-gold" href="#cats-h">Browse by category</a>
-      ${deals.length ? html`<a class="btn btn-outline" href="/deals/">Today's price drops</a>` : ''}
+      ${deals.length ? html`<a class="btn btn-outline" href="/deals/">Below RRP today</a>` : ''}
     </p>
     ${data.lastUpdated ? html`<p class="hero-facts">${tr('Prices last updated {0}.', { date: String(data.lastUpdated).slice(0, 10), text: formatDate(data.lastUpdated, site.locale) })}</p>` : ''}
   </div>
@@ -54,7 +55,7 @@ export function homePage(site, data) {
 </section>
 
 ${deals.length ? html`<section class="wrap section" aria-labelledby="deals-h">
-  <div class="section-head"><h2 id="deals-h">Today's price drops</h2><a href="/deals/" class="more-link">See all price drops</a></div>
+  <div class="section-head"><h2 id="deals-h">Below RRP today</h2><a href="/deals/" class="more-link">See all below RRP</a></div>
   ${productGrid(site, deals)}
 </section>` : ''}
 
@@ -67,15 +68,15 @@ ${newest.length ? html`<section class="wrap section" aria-labelledby="new-h">
   <h2 id="how-h">${tr('How {0} works', site.name)}</h2>
   <ol class="steps">
     <li><h3>Find the product</h3><p>Search or browse by category. Every listing shows the current price and the retailer.</p></li>
-    <li><h3>Compare the deal</h3><p>Filter by brand, price and stock. Price drops are marked so you can spot a real saving.</p></li>
+    <li><h3>Compare the deal</h3><p>Filter by brand, price and stock. When a retailer lists an RRP, we show it next to the price.</p></li>
     <li><h3>Buy from the retailer</h3><p>The button takes you to the retailer's own website. You pay them directly, at their price.</p></li>
   </ol>
 </section>
 
 ${site.turnstileSiteKey ? html`<section class="wrap section" aria-labelledby="news-h">
   <div class="newsletter">
-    <h2 id="news-h">${tr('Get the best price drops by email')}</h2>
-    <p>${tr('One email a week with the biggest savings on {0}. No spam. Unsubscribe any time.', site.topic)}</p>
+    <h2 id="news-h">Get deal updates</h2>
+    <p>${tr('The best deals from {0} and the other Gear Worlds, about once a week. Free, and you can unsubscribe any time.', site.name)}</p>
     <form data-newsletter>
       <label for="news-email">${tr('Email address')}</label>
       <input id="news-email" name="email" type="email" autocomplete="email" required maxlength="254">

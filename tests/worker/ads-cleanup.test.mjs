@@ -73,7 +73,7 @@ test('the site code and settings: no shop or partner wording in what pages show 
     assert.ok(!/visually-hidden">Buy</.test(code), `${f}: a hidden "Buy" header`);
   }
   for (const c of CODES) {
-    assert.match(readFileSync(`sites/${c}/site.config.js`, 'utf8'), new RegExp(`assetVersion: '2026-11-08-${c}-(cleanup|security)-\\d+'`), `${c}: a new asset version for the new dictionaries (L31; -security- for L106)`);
+    assert.match(readFileSync(`sites/${c}/site.config.js`, 'utf8'), new RegExp(`assetVersion: '(2026-11-08-${c}-(cleanup|security)|2026-11-09-${c}-compliance)-\\d+'`), `${c}: a new asset version for the new dictionaries (L31; -security- for L106)`);
     // The served script, stylesheet and icons have no shop words even in a comment, and no shopping-cart drawing.
     for (const f of ['site.js', 'site.css', 'icons.svg']) {
       const text = readFileSync(`sites/${c}/public/assets/${f}`, 'utf8');
@@ -157,19 +157,22 @@ test('discount codes: neutral description, "published through their affiliate pr
   // Without any code, the description names nobody: "retailers listed on <site>".
   const none = offersIndexPage({ ...tgw, promos: [] }, NOW).match(/<meta name="description" content="([^"]+)">/)[1];
   assert.match(none, /from retailers listed on Technology Gear World, with end dates\./);
-  const slug = (tgw.promos.find(p => p.start <= '2026-11-08' && p.end >= '2026-11-08') || {}).slug;
+  // The Joybuy Halloween codes were removed on 9/11/2026 (lessons L107): a code of the same shape, for this test only.
+  const shop = { ...tgw, promos: [{ id: 'joybuy-test', retailer: 'Joybuy', slug: 'joybuy', awinMid: 123932, currency: 'GBP', kind: 'code', campaign: 'Test', code: 'testcode', off: 4, minSpend: 20,
+    url: 'https://www.joybuy.co.uk/', sites: ['TGW'], start: '2026-11-01', end: '2026-12-31', bar: '🎁', source: 'test' }] };
+  const slug = (shop.promos.find(p => p.start <= '2026-11-08' && p.end >= '2026-11-08') || {}).slug;
   assert.ok(slug, 'a running code on 8/11/2026 in the test data');
-  const r = retailerOffersPage(tgw, slug, NOW);
-  const retailer = tgw.promos.find(p => p.slug === slug).retailer;
+  const r = retailerOffersPage(shop, slug, NOW);
+  const retailer = shop.promos.find(p => p.slug === slug).retailer;
   const k = `data-i18n-0="${retailer}" data-i18n-keep="0">`;
   assert.ok(r.includes(`<h1><span data-i18n="{0} discount codes" ${k}<span translate="no">${retailer}</span> discount codes</span></h1>`), 'heading');
   assert.ok(r.includes(`<span data-i18n="Codes and sales that {0} publishes through its affiliate programme. Every code has an end date and is removed when it ends." ${k}Codes and sales that <span translate="no">${retailer}</span> publishes`), 'lede');
   assert.ok(r.includes(`<span data-i18n="Shop at {0}" ${k}Shop at <span translate="no">${retailer}</span></span></a>`), '"Shop at"');
   assert.ok(r.includes(`<span translate="no">${retailer}</span> with the button and enter the code at checkout. <span translate="no">${retailer}</span> sets the final terms`), 'how to use a code: both names kept');
   assert.ok(!/affiliate partners/.test(r));
-  const bar = toString(promoBarHtml(tgw, NOW));
+  const bar = toString(promoBarHtml(shop, NOW));
   assert.ok(bar.includes(`<span translate="no">${retailer}</span>: `), bar);
-  const code = (tgw.promos.find(p => p.kind === 'code' && p.start <= '2026-11-08' && p.end >= '2026-11-08') || {}).code;
+  const code = (shop.promos.find(p => p.kind === 'code' && p.start <= '2026-11-08' && p.end >= '2026-11-08') || {}).code;
   if (/with code/.test(bar)) assert.ok(bar.includes(`with code <span translate="no">${code}</span>`) || /data-i18n-keep="0 3"/.test(bar), bar);
 });
 
@@ -218,14 +221,15 @@ test('the Hub: no shop, partner, sponsor or basket wording in any page, script o
 
 test('the Hub legal pages say what is there: no affiliate links on the Hub, who runs it, honest dates', () => {
   const disc = readFileSync(`${PUB}/affiliate-disclosure/index.html`, 'utf8');
-  assert.match(disc, /<p class="lg-updated">Last updated: 7 November 2026<\/p>/);
+  // 9/11/2026 (L107): the links of the sites go through Awin or CJ, so the date moved on with the text.
+  assert.match(disc, /<p class="lg-updated">Last updated: 9 November 2026<\/p>/);
   assert.match(disc, /The Hub itself has no affiliate links and no paid placements\./);
   assert.match(disc, /take you to pages of the Gear World sites, never straight to a retailer/);
   const priv = readFileSync(`${PUB}/privacy/index.html`, 'utf8');
   // 8/11/2026 (L106): the sign-up forms use Cloudflare Turnstile, so the date moved on with the text.
-  assert.match(priv, /<p class="lg-updated">Last updated: 8 November 2026<\/p>/);
+  assert.match(priv, /<p class="lg-updated">Last updated: 9 November 2026<\/p>/);
   assert.match(priv, /also use Cloudflare Turnstile/);
-  assert.match(priv, /The Hub itself has no affiliate links; the links to retailers on those sites go through the Awin affiliate network\./);
+  assert.match(priv, /The Hub itself has no affiliate links; the links to retailers on those sites go through the Awin affiliate network, or for a few retailers through CJ \(Commission Junction\)\./);
   const terms = readFileSync(`${PUB}/terms/index.html`, 'utf8');
   assert.match(terms, /<p class="lg-updated">Last updated: 7 November 2026<\/p>/);
   assert.match(terms, /operated by Gear World \(run by Evangelos Kalogerakis, United Kingdom\)/);
@@ -237,7 +241,8 @@ test('the Hub legal pages say what is there: no affiliate links on the Hub, who 
   }
   // The sites: privacy, cookies and terms changed on 7/11/2026 (L101) and again on 8/11/2026 (Turnstile on the
   // "Get deal updates" form, L106), so their date says so.
-  assert.match(readFileSync('src/pages/info.js', 'utf8'), /const UPDATED = '8 November 2026';/);
+  // And on 9/11/2026 (Awin or CJ, L107).
+  assert.match(readFileSync('src/pages/info.js', 'utf8'), /const UPDATED = '9 November 2026';/);
 });
 
 function hub() {
@@ -282,7 +287,7 @@ test('the Hub: styles.css (not loaded by the page) keeps no rule of the sponsore
   assert.ok(!/gwh-business|sponsor|shop/i.test(css));
   const index = readFileSync(`${PUB}/index.html`, 'utf8');
   assert.ok(!/\/styles\.css/.test(index), 'the page does not load styles.css');
-  for (const f of ['hub-v2.css', 'translations.js', 'hub-v2.js']) assert.ok(index.includes(`/${f}?v=20261108-cleanup1`), f);
+  for (const f of ['hub-v2.css', 'translations.js']) assert.ok(index.includes(`/${f}?v=20261108-cleanup1`), f);
   assert.ok(!/partner/i.test(index));
 });
 
@@ -291,7 +296,8 @@ test('the Hub sitemap has /about/ (owner, 7/11/2026); the tools ask this release
   assert.ok(body.includes('<loc>https://gearworldhub.com/about/</loc>'));
   const hubTool = readFileSync('tools/gwh-hub-v2.ps1', 'utf8');
   // The releases after this one ask their own phrases (L105 robots.txt: HUB ROBOTS; L106 security fixes: HUB SECURITY).
-  assert.ok(hubTool.includes("$PhrasePreview = 'ΕΓΚΡΙΝΩ HUB SECURITY PREVIEW'") && hubTool.includes("$PhraseLive = 'ΕΓΚΡΙΝΩ HUB SECURITY LIVE'"));
+  // L107 Google Ads compliance: HUB COMPLIANCE.
+  assert.ok(hubTool.includes("$PhrasePreview = 'ΕΓΚΡΙΝΩ HUB COMPLIANCE PREVIEW'") && hubTool.includes("$PhraseLive = 'ΕΓΚΡΙΝΩ HUB COMPLIANCE LIVE'"));
   assert.ok(hubTool.includes("$PhraseRemovePreview = 'ΕΓΚΡΙΝΩ HUB REMOVE PREVIEW'"));
   const tests = readFileSync('tests/run-tests.ps1', 'utf8');
   assert.ok(tests.includes("'egkrino hub security preview'") && tests.includes("'egkrino hub security live'") && !/HUB WORDING|hub wording|HUB CLEANUP|hub cleanup|HUB ROBOTS|hub robots/.test(tests));

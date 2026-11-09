@@ -24,7 +24,12 @@ const FX_FETCH = async () => new Response(JSON.stringify([
   { base: 'GBP', quote: 'EUR', rate: 1.15, date: '2026-10-20' }
 ]), { headers: { 'Content-Type': 'application/json' } });
 const worker = createWorker(site);
-const get = (path, env) => worker.fetch(new Request(`https://cargearworld.com${path}`, { headers: { 'User-Agent': 'Mozilla/5.0 test' } }), env, { waitUntil: p => p });
+// country: the visitor's country, as Cloudflare gives it in request.cf (lessons L107); none = unknown (the UK view).
+const get = (path, env, country = '') => {
+  const req = new Request(`https://cargearworld.com${path}`, { headers: { 'User-Agent': 'Mozilla/5.0 test' } });
+  if (country) Object.defineProperty(req, 'cf', { value: { country } });
+  return worker.fetch(req, env, { waitUntil: p => p });
+};
 const envOf = () => ({ DB: fakeD1(), FX_FETCH, CLICK_LOG: 'off' });
 
 test('code AGW, 10 categories with their photos, and no other site\'s name in the config', () => {
@@ -53,14 +58,24 @@ test('worldwide wording: no "UK retailers" on the home or about page', async () 
   assert.match(about, /retailers in the UK and Europe/);
 });
 
-test('a euro price stays in euros with "≈ £" and the NL flag next to VEVOR', async () => {
+test('a euro price stays in euros with "≈ £" for a visitor from the Netherlands; VEVOR says where it delivers (L107)', async () => {
   const env = envOf();
   const row = env.DB.sql.prepare("SELECT id, product_slug FROM products WHERE retailer = 'VEVOR' AND in_stock = 1 LIMIT 1").get();
-  const html = await (await get(`/product/${row.product_slug}-${row.id}/`, env)).text();
+  const html = await (await get(`/product/${row.product_slug}-${row.id}/`, env, 'NL')).text();
   assert.match(html, /€\d/);
   assert.match(html, /≈ £\d/);
-  assert.match(html, /VEVOR <img class="flag" src="\/assets\/flags\/nl\.svg\?v=[^"]+" alt="Netherlands"/);
+  // The site says where its retailers deliver now (deliversTo): no flag next to the name, the countries instead.
+  assert.ok(!/VEVOR <img class="flag"/.test(html));
+  assert.match(html, /<span translate="no">VEVOR<\/span> delivers to<\/span><\/dt><dd class="ship-dd">.*<span data-country="EU">European Union<\/span>/s);
   assert.match(html, /"priceCurrency":"EUR"/);
+  assert.match(html, /href="\/out\/\d+"/);
+  // A UK visitor (or one from an unknown country) gets the notice: VEVOR does not deliver to the UK.
+  const uk = await get(`/product/${row.product_slug}-${row.id}/`, env, 'GB');
+  assert.equal(uk.status, 200);
+  const ukHtml = await uk.text();
+  assert.match(ukHtml, /<meta name="robots" content="noindex,follow">/);
+  assert.match(ukHtml, /data-i18n="\{0\} does not deliver to \{1\}\." data-i18n-0="VEVOR" data-i18n-1="United Kingdom" data-i18n-1-country="GB" data-i18n-keep="0"/);
+  assert.ok(!/href="\/out\/\d+"/.test(ukHtml) && !/€\d/.test(ukHtml), 'no button and no price');
 });
 
 test('the same jack (same EAN) at two retailers: one card, two prices on its page', async () => {

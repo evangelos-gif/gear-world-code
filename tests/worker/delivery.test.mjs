@@ -47,7 +47,8 @@ test('every site on the engine says where its retailers deliver, with known coun
   }
   // From the retailers' own delivery pages (25 Oct 2026).
   assert.deepEqual(deliveryCountries(cgw, 'Reidl'), ['DE', 'AT']);
-  assert.deepEqual(deliveryCountries(cgw, 'VEVOR'), ['NL']);
+  // VEVOR (vevor.nl) delivers to the EU and the EEA, not to the UK (owner, 9 Nov 2026, lessons L107).
+  assert.deepEqual(deliveryCountries(cgw, 'VEVOR'), ['EU', 'IS', 'LI', 'NO']);
   assert.deepEqual(deliveryCountries(cgw, 'Tooled Up'), ['GB']);
   assert.deepEqual(deliveryCountries(mgw, 'Wavytalk'), ['US']);
   assert.ok(!('retailerCountries' in cgw), 'CGW shows delivery countries instead of the old retailer flag');

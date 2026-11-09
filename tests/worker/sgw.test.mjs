@@ -73,9 +73,11 @@ test('cards and product pages say where the retailer delivers (lessons L62)', as
   assert.match(page, /<dt><span data-i18n="\{0\} delivers to" data-i18n-0="[^"]+" data-i18n-keep="0"><span translate="no">[^<]+<\/span> delivers to<\/span><\/dt><dd class="ship-dd">[\s\S]*?data-country="GB"/);
 });
 
-test('the Joybuy "sports" code is shown on this site, with its end date (lessons L32)', () => {
+// The Joybuy "sports" code was part of its Halloween campaign: removed on 9/11/2026 with the other Halloween codes
+// (Google Ads compliance, lessons L107). Every code that a site shows still has an end date (L32).
+test('no Joybuy Halloween code on this site any more; every code has an end date (lessons L32, L107)', () => {
   const codes = site.promos.map(p => p.code);
-  assert.ok(codes.includes('sports'));
+  assert.ok(!codes.includes('sports') && !codes.includes('halloween'));
   for (const p of site.promos) assert.match(p.end, /^\d{4}-\d{2}-\d{2}$/);
 });
 
