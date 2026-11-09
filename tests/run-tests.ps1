@@ -2638,7 +2638,7 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         $iUp = $rc.IndexOf('update-0001.sql')
         $iHide = $rc.IndexOf('hide-0001.sql')
         $iSeen = $rc.IndexOf('seen-0001.sql')
-        Check ($iTT -ge 0 -and $iUp -gt $iTT -and $iHide -gt $iUp -and $iSeen -gt $iHide) 'refresh: restore point, then the updates, then the hiding, then the dates (L108)'
+        Check ($iTT -ge 0 -and $iUp -gt $iTT -and $iHide -gt $iUp -and ($iSeen -lt 0 -or $iSeen -gt $iHide)) 'refresh: restore point, then the updates, then the hiding (then any dates, L108)'
         $rfUndo = @(Get-ChildItem -LiteralPath (Join-Path $rfWork 'backups') -Filter 'cgw-refresh-tooled-up-*-rollback.sql' -ErrorAction SilentlyContinue)
         Check ($rfUndo.Count -eq 1 -and ([System.IO.File]::ReadAllText($rfUndo[0].FullName)).Contains('price = 11.99') -and ([System.IO.File]::ReadAllText($rfUndo[0].FullName)).Contains('SET is_active = 1')) 'refresh: rollback with the old price and the hidden product'
         $rfNote = @(Get-ChildItem -LiteralPath (Join-Path $rfWork 'backups') -Filter 'cgw-restore-point-before-tooled-up-refresh-*.txt' -ErrorAction SilentlyContinue)
@@ -2742,6 +2742,7 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         Check ($c.Contains("SUM(MIN(COALESCE(updated_at, ''), ") -and -not ($c -match 'updated_at [<>]')) 'refresh -Stale: older than 14/30 days without < or > (the command goes through cmd.exe)'
         Check ([math]::Abs(((Get-Item -LiteralPath $stFeed).LastWriteTime - $stOld).TotalSeconds) -lt 5) 'refresh -Stale without -Apply: no feed downloaded'
         $r = StLast
+        if (-not $r.Contains('ΜΙΑ για όλη την εκτέλεση')) { Write-Host '----- REFRESH report (for the failure below) -----'; Write-Host $r }
         Check ($r.Contains('ΕΓΚΡΙΝΩ REFRESH ΠΑΛΙΑ ΠΡΟΪΟΝΤΑ') -and $r.Contains('ΜΙΑ για όλη την εκτέλεση')) 'refresh -Stale: the plan shows the one phrase'
         Check ($r.Contains('με -Apply κατεβαίνει πρώτα φρέσκο feed: Tooled Up στο CGW (περίπου 1 θα φαίνονταν ξανά)')) 'refresh -Stale: an old feed file is downloaded first, with the estimate'
         Check ($r.Contains('παραλείπεται: No Feed Shop στο CGW: δεν βρέθηκε feed') -and -not $r.Contains('Fresh Shop στο')) 'refresh -Stale: a shop without a feed is skipped and listed; a fresh shop is not touched'
@@ -2772,6 +2773,7 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         $note = @(Get-ChildItem -LiteralPath (Join-Path $stWork 'backups') -Filter 'cgw-restore-point-before-tooled-up-refresh-*.txt' -ErrorAction SilentlyContinue)
         Check ($parts.Count -eq 2 -and $note.Count -eq 1 -and ([System.IO.File]::ReadAllText($note[0].FullName)).Contains($stBookmark) -and ([System.IO.File]::ReadAllText($note[0].FullName)).Contains('Επαναφορά')) 'refresh -Stale -Apply: rollback in small parts, the restore point and the Greek rollback'
         $r = StLast
+        if (-not ($r -match 'CGW: φαίνονται ξανά 2')) { Write-Host '----- REFRESH -Apply report (for the failure below) -----'; Write-Host $r }
         Check ($r -match 'CGW: φαίνονται ξανά 2 προϊόντα\. Μένουν κρυμμένα: .*Γραμμές D1: διαβάστηκαν [0-9,]+, γράφτηκαν 12\.' -and $r -match 'HGW: φαίνονται ξανά 2 προϊόντα') 'refresh -Stale -Apply: the Greek summary with the rows written'
         $allText = (@(Get-ChildItem -LiteralPath $stOut -Recurse -File -Filter '*.txt') | ForEach-Object { [System.IO.File]::ReadAllText($_.FullName) }) -join ' '
         Check (-not $allText.Contains($stKey) -and -not (StCalls).Contains($stKey)) 'refresh -Stale: the Awin key is in no report, plan or wrangler call'

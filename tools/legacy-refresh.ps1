@@ -174,8 +174,9 @@ function Add-Count($table, [string]$key, [long]$n) {
     $table[$key] = [long]$table[$key] + $n
 }
 function Count-Of($table, [string]$key) {
-    if ($table.ContainsKey($key)) { return [long]$table[$key] }
-    return [long]0
+    $v = 0
+    if ($table.ContainsKey($key)) { $v = $table[$key] }
+    return $v
 }
 
 # Read-only SELECT. Returns @{ rows; text; read } or $null on error. The rows D1 read are added to the site's count.
@@ -393,6 +394,109 @@ $planRoot = Join-Path $OutDir ('REFRESH_PLAN_{0}' -f $stamp)
 New-Item -ItemType Directory -Path $planRoot -Force | Out-Null
 $exitCode = 0
 
+# The feed of every shop, in one pass over the archive (read-only).
+function Find-Feeds([string]$tag) {
+    $names = @($shopsAll | ForEach-Object { $_.name } | Sort-Object -Unique)
+    $by = @{}
+    if ($names.Count -eq 0) { return $by }
+    $nf = Join-Path $planRoot ('shops-{0}.txt' -f $tag)
+    [System.IO.File]::WriteAllText($nf, ($names -join "`r`n") + "`r`n", (New-Object System.Text.UTF8Encoding($false)))
+    $fo = Join-Path $planRoot ('feeds-{0}' -f $tag)
+    & node (Join-Path (Join-Path $repo 'tools') 'legacy-refresh-plan.mjs') --find --archive $Archive --retailers-file $nf --out $fo | Out-Null
+    $ff = Join-Path $fo 'feeds.json'
+    if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $ff)) { return $by }
+    # -InputObject, not the pipeline: Windows PowerShell 5.1 sends a JSON array down the pipeline as ONE object.
+    $parsed = ConvertFrom-Json -InputObject ([System.IO.File]::ReadAllText($ff, [System.Text.Encoding]::UTF8))
+    foreach ($x in $parsed) { $k = [string]$x.retailer; $by[$k] = $x }
+    return $by
+}
+
+# Plans every shop with the remaining budget (read-only) into $script:PlanOut. $readRows: read the rows from D1 again.
+function Plan-All($tag, $feedBy, $readRows) {
+    $left = $budget
+    $script:PlanOut = New-Object System.Collections.Generic.List[object]
+    foreach ($site in $siteList) {
+        if (-not $siteOk.ContainsKey($site)) { continue }
+        $mine = @($shopsAll | Where-Object { $_.site -eq $site })
+        if ($mine.Count -eq 0) { continue }
+        Use-Site $site
+        $schemaFile = Get-SchemaFile $site $planRoot
+        if (-not $schemaFile) { Say ('{0}: δεν μπόρεσα να διαβάσω τη δομή της βάσης. Αυτό το site δεν αλλάζει.' -f $site.ToUpper()) 'Red'; $script:exitCode = 4; continue }
+        foreach ($shop in $mine) {
+            $f = $null
+            if ($feedBy.ContainsKey($shop.name)) { $f = $feedBy[$shop.name] }
+            Say ''
+            Say ('----- {0} στο {1} -----' -f $shop.name, $site.ToUpper()) 'Cyan'
+            if ($null -eq $f -or @($f.files).Count -eq 0) {
+                $sim = ''
+                if ($null -ne $f -and @($f.similar).Count -gt 0) { $sim = ' Παρόμοια: ' + (@($f.similar) -join '; ') }
+                Say ('Δεν βρέθηκε feed με αυτό το όνομα στο {0}: παραλείπεται.{1}' -f $Archive, $sim) 'Yellow'
+                $shop.reason = 'δεν βρέθηκε feed'
+                continue
+            }
+            $shop.feed = $f
+            $shop.reason = ''
+            $needRows = $readRows
+            if ($null -eq $shop.rows) { $needRows = $true }
+            if ($needRows) {
+                $shop.dir = Join-Path $planRoot ('{0}-{1}' -f $site, $shop.key)
+                New-Item -ItemType Directory -Path $shop.dir -Force | Out-Null
+                $rf = Save-Rows (Sql-Name $shop.name) $shop.dir
+                if ($null -eq $rf) { Say 'Δεν μπόρεσα να διαβάσω τα προϊόντα του καταστήματος: παραλείπεται.' 'Red'; $shop.reason = 'δεν διαβάστηκε η βάση'; $script:exitCode = 4; continue }
+                $shop.rows = $rf
+            }
+            $pdir = Join-Path $shop.dir $tag
+            $names = @(@($f.files) | ForEach-Object { [string]$_.file })
+            $p = Invoke-Plan $site $shop.name $pdir $schemaFile $shop.rows $left '' $names $true
+            if ($p.code -ne 0 -or $null -eq $p.summary) { Say 'Το σχέδιο δεν έγινε (δες πιο πάνω): παραλείπεται.' 'Red'; $shop.reason = 'το σχέδιο δεν έγινε'; continue }
+            $shop.plan = $p.summary
+            $shop.pdir = $pdir
+            $shop.oldFile = $false
+            $left = $left - $p.summary.writes
+            if ($p.summary.skip -eq 'old-file' -or $p.summary.skip -eq 'no-file-time') { $shop.reason = 'το αρχείο του feed είναι πάνω από 2 μερών (κατέβασέ το ξανά)'; $shop.oldFile = $true }
+            elseif ($p.summary.skip -eq 'stale-feed') { $shop.reason = 'το feed έχει να ενημερωθεί πάνω από 30 μέρες (L39)' }
+            $script:PlanOut.Add($shop)
+        }
+    }
+}
+
+# The short Greek summary per site.
+function Say-Summary($applied) {
+    Say ''
+    Say '===== Σύνοψη ανά site =====' 'Cyan'
+    foreach ($site in $siteList) {
+        $mine = @($shopsAll | Where-Object { $_.site -eq $site }) + @($skipped | Where-Object { $_.site -eq $site })
+        $revive = 0
+        $estimate = 0
+        $sitePlanned = 0
+        $still = @{}
+        foreach ($s in $mine) {
+            if ($null -ne $s.plan -and -not $s.reason) {
+                $revive = $revive + $s.plan.visible.revive
+                $sitePlanned = $sitePlanned + $s.plan.writes
+                foreach ($st in @($s.plan.still)) { if ($null -ne $st -and [long]$st.n -gt 0) { Add-Count $still ([string]$st.text) ([long]$st.n) } }
+            } else {
+                if ($null -ne $s.plan) { $estimate = $estimate + $s.plan.visible.reviveIfFresh }
+                $why = $s.reason
+                if (-not $why) { $why = 'παραλείπεται' }
+                if ([long]$s.d30 -gt 0) { Add-Count $still $why ([long]$s.d30) }
+            }
+        }
+        $stillTxt = @($still.Keys | Sort-Object | ForEach-Object { '{0} {1}' -f (Fmt $still[$_]), $_ }) -join '; '
+        if (-not $stillTxt) { $stillTxt = 'κανένα' }
+        $verb = 'θα φαίνονται ξανά'
+        if ($applied) { $verb = 'φαίνονται ξανά' }
+        $line = '{0}: {1} {2} προϊόντα' -f $site.ToUpper(), $verb, (Fmt $revive)
+        if ($estimate -gt 0) { $line += (' (και περίπου {0} ακόμα με φρέσκο feed)' -f (Fmt $estimate)) }
+        $line += ('. Μένουν κρυμμένα: {0}.' -f $stillTxt)
+        $line += (' Γραμμές D1: διαβάστηκαν {0}' -f (Fmt (Count-Of $script:RowsRead $site)))
+        if ($applied) { $line += (', γράφτηκαν {0}.' -f (Fmt (Count-Of $script:RowsWritten $site))) }
+        else { $line += (', θα γραφτούν περίπου {0}.' -f (Fmt $sitePlanned)) }
+        if (-not $siteOk.ContainsKey($site)) { $line = '{0}: η βάση δεν διαβάστηκε, δεν άλλαξε τίποτα.' -f $site.ToUpper() }
+        Say $line
+    }
+}
+
 if (-not $Stale) {
     # ===== Per pair: each shop and site with its own phrase (as before L108). =====
     $n = 0
@@ -453,216 +557,130 @@ if (-not $Stale) {
     Finish $exitCode
 }
 
-# ===== -Stale: every shop of the chosen sites with products not checked for more than 14 days (lessons L108). =====
-$utc = (Get-Date).ToUniversalTime()
-$inv = [System.Globalization.CultureInfo]::InvariantCulture
-$d30 = $utc.AddDays(-30).ToString('yyyy-MM-dd', $inv)
-$d14 = $utc.AddDays(-14).ToString('yyyy-MM-dd', $inv)
-Say ('Sites: {0}' -f (($siteList | ForEach-Object { $_.ToUpper() }) -join ', '))
-Say ('Παλιά: τιμή ελεγμένη πριν από {0} («Check price and stock at the retailer», 14 μέρες) και πριν από {1} (δεν φαίνεται, 30 μέρες).' -f $d14, $d30)
-$shopsAll = New-Object System.Collections.Generic.List[object]
-$skipped = New-Object System.Collections.Generic.List[object]
-$siteOk = @{}
-foreach ($site in $siteList) {
-    Use-Site $site
-    Say ''
-    Say ('===== {0} ({1}) =====' -f $site.ToUpper(), $SiteInfo[$site].domain) 'Cyan'
-    # One read of the active rows, grouped by shop. MIN(x, day) != day is "x before day" without < or > (the command
-    # goes through cmd.exe); a missing date counts as old, as on the sites.
-    $q = "SELECT retailer, COUNT(*) AS n, SUM(MIN(COALESCE(updated_at, ''), '$d14') != '$d14') AS d14, SUM(MIN(COALESCE(updated_at, ''), '$d30') != '$d30') AS d30 FROM products WHERE is_active = 1 GROUP BY retailer"
-    $r = Select-Raw $q
-    if ($null -eq $r) { Say 'Δεν μπόρεσα να διαβάσω τη βάση (σύνδεση στο Cloudflare;). Αυτό το site δεν αλλάζει.' 'Red'; $exitCode = 4; continue }
-    $siteOk[$site] = $true
-    $tot = [long]0; $t14 = [long]0; $t30 = [long]0
-    foreach ($row in @($r.rows | Sort-Object -Property @{ Expression = { [long]$_.d30 }; Descending = $true }, @{ Expression = { [long]$_.d14 }; Descending = $true })) {
-        $nm = [string]$row.retailer
-        $n14 = [long]$row.d14
-        $n30 = [long]$row.d30
-        $tot += [long]$row.n; $t14 += $n14; $t30 += $n30
-        if ($n14 -le 0) { continue }
-        Say ('  {0}: ενεργά {1}, πάνω από 14 μέρες {2}, πάνω από 30 μέρες (δεν φαίνονται) {3}' -f $nm, (Fmt $row.n), (Fmt $n14), (Fmt $n30))
-        $shop = @{ site = $site; name = $nm; key = (Key-Of $nm); n = [long]$row.n; d14 = $n14; d30 = $n30; feed = $null; plan = $null; dir = ''; rows = $null }
-        if ($nm -match '[|<>^%~"]') { $shop.reason = 'το όνομα έχει χαρακτήρες που δεν περνούν με ασφάλεια'; $skipped.Add($shop); continue }
-        $shopsAll.Add($shop)
-    }
-    Say ('  Σύνολο {0}: ενεργά {1}, πάνω από 14 μέρες {2}, πάνω από 30 μέρες {3}. Γραμμές D1 που διαβάστηκαν: {4}.' -f $site.ToUpper(), (Fmt $tot), (Fmt $t14), (Fmt $t30), (Fmt $r.read))
-}
-
-# The feed of every shop, in one pass over the archive (read-only).
-function Find-Feeds([string]$tag) {
-    $names = @($shopsAll | ForEach-Object { $_.name } | Sort-Object -Unique)
-    $by = @{}
-    if ($names.Count -eq 0) { return $by }
-    $nf = Join-Path $planRoot ('shops-{0}.txt' -f $tag)
-    [System.IO.File]::WriteAllText($nf, ($names -join "`r`n") + "`r`n", (New-Object System.Text.UTF8Encoding($false)))
-    $fo = Join-Path $planRoot ('feeds-{0}' -f $tag)
-    & node (Join-Path (Join-Path $repo 'tools') 'legacy-refresh-plan.mjs') --find --archive $Archive --retailers-file $nf --out $fo | Out-Null
-    $ff = Join-Path $fo 'feeds.json'
-    if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $ff)) { return $by }
-    # -InputObject, not the pipeline: Windows PowerShell 5.1 sends a JSON array down the pipeline as ONE object.
-    $parsed = ConvertFrom-Json -InputObject ([System.IO.File]::ReadAllText($ff, [System.Text.Encoding]::UTF8))
-    foreach ($x in $parsed) { $by[[string]$x.retailer] = $x }
-    return $by
-}
-
-# Plans every shop with the remaining budget (read-only). $readRows: read the rows from D1 (first pass only).
-function Plan-All([string]$tag, $feedBy, [bool]$readRows) {
-    $left = [long]$budget
-    $out = New-Object System.Collections.Generic.List[object]
+try {
+    # ===== -Stale: every shop of the chosen sites with products not checked for more than 14 days (lessons L108). =====
+    $utc = (Get-Date).ToUniversalTime()
+    $inv = [System.Globalization.CultureInfo]::InvariantCulture
+    $d30 = $utc.AddDays(-30).ToString('yyyy-MM-dd', $inv)
+    $d14 = $utc.AddDays(-14).ToString('yyyy-MM-dd', $inv)
+    Say ('Sites: {0}' -f (($siteList | ForEach-Object { $_.ToUpper() }) -join ', '))
+    Say ('Παλιά: τιμή ελεγμένη πριν από {0} («Check price and stock at the retailer», 14 μέρες) και πριν από {1} (δεν φαίνεται, 30 μέρες).' -f $d14, $d30)
+    $shopsAll = New-Object System.Collections.Generic.List[object]
+    $skipped = New-Object System.Collections.Generic.List[object]
+    $siteOk = @{}
     foreach ($site in $siteList) {
-        if (-not $siteOk.ContainsKey($site)) { continue }
-        $mine = @($shopsAll | Where-Object { $_.site -eq $site })
+        Use-Site $site
+        Say ''
+        Say ('===== {0} ({1}) =====' -f $site.ToUpper(), $SiteInfo[$site].domain) 'Cyan'
+        # One read of the active rows, grouped by shop. MIN(x, day) != day is "x before day" without < or > (the command
+        # goes through cmd.exe); a missing date counts as old, as on the sites.
+        $q = "SELECT retailer, COUNT(*) AS n, SUM(MIN(COALESCE(updated_at, ''), '$d14') != '$d14') AS d14, SUM(MIN(COALESCE(updated_at, ''), '$d30') != '$d30') AS d30 FROM products WHERE is_active = 1 GROUP BY retailer"
+        $r = Select-Raw $q
+        if ($null -eq $r) { Say 'Δεν μπόρεσα να διαβάσω τη βάση (σύνδεση στο Cloudflare;). Αυτό το site δεν αλλάζει.' 'Red'; $exitCode = 4; continue }
+        $siteOk[$site] = $true
+        $tot = 0
+        $t14 = 0
+        $t30 = 0
+        foreach ($row in @($r.rows | Sort-Object -Property d30, d14 -Descending)) {
+            $nm = [string]$row.retailer
+            $n14 = 0 + $row.d14
+            $n30 = 0 + $row.d30
+            $tot = $tot + $row.n
+            $t14 = $t14 + $n14
+            $t30 = $t30 + $n30
+            if ($n14 -le 0) { continue }
+            Say ('  {0}: ενεργά {1}, πάνω από 14 μέρες {2}, πάνω από 30 μέρες (δεν φαίνονται) {3}' -f $nm, (Fmt $row.n), (Fmt $n14), (Fmt $n30))
+            $shop = @{ site = $site; name = $nm; key = (Key-Of $nm); n = $row.n; d14 = $n14; d30 = $n30; feed = $null; plan = $null; dir = ''; rows = $null; reason = ''; oldFile = $false; loaded = $false; pdir = '' }
+            if ($nm -match '[|<>^%~"]') { $shop.reason = 'το όνομα έχει χαρακτήρες που δεν περνούν με ασφάλεια'; $skipped.Add($shop); continue }
+            $shopsAll.Add($shop)
+        }
+        Say ('  Σύνολο {0}: ενεργά {1}, πάνω από 14 μέρες {2}, πάνω από 30 μέρες {3}. Γραμμές D1 που διαβάστηκαν: {4}.' -f $site.ToUpper(), (Fmt $tot), (Fmt $t14), (Fmt $t30), (Fmt $r.read))
+    }
+
+    if ($shopsAll.Count -eq 0) {
+        Say ''
+        Say 'Κανένα κατάστημα με παλιά προϊόντα: τίποτα να γίνει.' 'Green'
+        Say-Summary $false
+        Finish $exitCode
+    }
+
+    # 1. Read-only: the feeds on this PC and the plan of every shop with them.
+    $feedBy = Find-Feeds 'now'
+    Plan-All 'plan' $feedBy $true
+    $planned = @($script:PlanOut)
+    $ready = @($planned | Where-Object { -not $_.reason })
+    $advs = @($planned | ForEach-Object { @($_.feed.advertisers) } | Where-Object { $_ } | Sort-Object -Unique)
+    $nFiles = 0
+    foreach ($s in $ready) { $nFiles = $nFiles + @($s.plan.files).Count }
+    Say ''
+    Say '===== Σχέδιο =====' 'Cyan'
+    Say ('Καταστήματα με παλιά προϊόντα: {0}. Με feed σε αυτόν τον υπολογιστή: {1}. Έτοιμα τώρα (feed έως 2 μερών): {2}.' -f ($shopsAll.Count + $skipped.Count), $planned.Count, $ready.Count)
+    foreach ($s in @($planned | Where-Object { $_.oldFile })) { Say ('  με -Apply κατεβαίνει πρώτα φρέσκο feed: {0} στο {1} (περίπου {2} θα φαίνονταν ξανά)' -f $s.name, $s.site.ToUpper(), (Fmt $s.plan.visible.reviveIfFresh)) }
+    foreach ($s in @($shopsAll | Where-Object { $_.reason -and -not $_.oldFile }) + @($skipped)) { Say ('  παραλείπεται: {0} στο {1}: {2}' -f $s.name, $s.site.ToUpper(), $s.reason) 'Yellow' }
+    if ($advs.Count -gt 0) { Say ('Με -Apply κατεβαίνουν πρώτα φρέσκα feeds για {0} καταστήματα του Awin: {1} (μόνο αρχεία στον υπολογιστή, με το tools/awin-feed-download.ps1).' -f $advs.Count, ($advs -join ', ')) }
+    Say ('Η φράση έγκρισης (ΜΙΑ για όλη την εκτέλεση: λήψη των feeds και ανανέωση όλων των καταστημάτων): {0}' -f $StalePhrase)
+    Say $quietTip
+    Say-Summary $false
+    if (-not $Apply) { Say ''; Say 'Δοκιμή μόνο: δεν άλλαξε τίποτα και δεν κατέβηκε τίποτα.' 'Green'; Finish $exitCode }
+    if ($planned.Count -eq 0) { Say ''; Say 'Κανένα κατάστημα δεν έχει feed σε αυτόν τον υπολογιστή: δεν γίνεται τίποτα.' 'Yellow'; Finish $exitCode }
+    if (-not (Confirm-Approval $StalePhrase)) { Say 'Δεν δόθηκε έγκριση: δεν άλλαξε τίποτα και δεν κατέβηκε τίποτα.' 'Yellow'; Finish 1 }
+
+    # 2. Fresh feeds for just those shops (the download tool keeps the key encrypted and asks it only if it is missing).
+    Say ''
+    Say '===== Λήψη φρέσκων feeds =====' 'Cyan'
+    $dlOut = Join-Path $planRoot 'download'
+    $dlArgs = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', (Join-Path (Join-Path $repo 'tools') 'awin-feed-download.ps1'), '-Advertiser', ($advs -join ','), '-Apply', '-Approve', $DownloadPhrase, '-Archive', $Archive, '-OutDir', $dlOut, '-NoClipboard')
+    if ($FeedKeyFile) { $dlArgs += @('-KeyFile', $FeedKeyFile) }
+    if ($AwinBaseUrl) { $dlArgs += @('-BaseUrl', $AwinBaseUrl) }
+    & $exe @dlArgs
+    $dlCode = $LASTEXITCODE
+    foreach ($rep in @(Get-ChildItem -LiteralPath $dlOut -Filter 'AWIN_FEED_DOWNLOAD_*.txt' -ErrorAction SilentlyContinue)) {
+        foreach ($line in [System.IO.File]::ReadAllLines($rep.FullName, [System.Text.Encoding]::UTF8)) { $L.Add('  ' + $line) }
+    }
+    if ($dlCode -ne 0) { Say ('ΠΡΟΣΟΧΗ: η λήψη των feeds τελείωσε με κωδικό {0}. Συνεχίζω μόνο με όσα feeds είναι έως 2 μερών.' -f $dlCode) 'Yellow' }
+
+    # 3. The plan again with the fresh feeds (the rows already read), then the load, site by site.
+    $feedBy = Find-Feeds 'fresh'
+    Plan-All 'apply' $feedBy $false
+    $final = @($script:PlanOut)
+    $go = @($final | Where-Object { -not $_.reason -and ([long]$_.plan.changes + [long]$_.plan.hides + [long]$_.plan.seen) -gt 0 })
+    $nFiles = 0
+    foreach ($s in $go) { $nFiles = $nFiles + @($s.plan.files).Count }
+    Say ''
+    Say ('Φορτώνονται {0} καταστήματα σε {1} μικρά αρχεία, με παύση {2} δευτ. ανάμεσα (περίπου {3} λεπτά).' -f $go.Count, $nFiles, $PauseSeconds, [math]::Ceiling($nFiles * (10 + $PauseSeconds) / 60)) 'Cyan'
+    $stopped = $false
+    foreach ($site in $siteList) {
+        if ($stopped) { break }
+        $mine = @($go | Where-Object { $_.site -eq $site })
         if ($mine.Count -eq 0) { continue }
         Use-Site $site
-        $schemaFile = Get-SchemaFile $site $planRoot
-        if (-not $schemaFile) { Say ('{0}: δεν μπόρεσα να διαβάσω τη δομή της βάσης. Αυτό το site δεν αλλάζει.' -f $site.ToUpper()) 'Red'; $script:exitCode = 4; continue }
-        foreach ($shop in $mine) {
-            $f = $null
-            if ($feedBy.ContainsKey($shop.name)) { $f = $feedBy[$shop.name] }
-            Say ''
-            Say ('----- {0} στο {1} -----' -f $shop.name, $site.ToUpper()) 'Cyan'
-            if ($null -eq $f -or @($f.files).Count -eq 0) {
-                $sim = ''
-                if ($null -ne $f -and @($f.similar).Count -gt 0) { $sim = ' Παρόμοια: ' + (@($f.similar) -join '; ') }
-                Say ('Δεν βρέθηκε feed με αυτό το όνομα στο {0}: παραλείπεται.{1}' -f $Archive, $sim) 'Yellow'
-                $shop.reason = 'δεν βρέθηκε feed'
-                continue
-            }
-            $shop.feed = $f
-            $shop.reason = ''
-            if ($readRows -or $null -eq $shop.rows) {
-                $shop.dir = Join-Path $planRoot ('{0}-{1}' -f $site, $shop.key)
-                New-Item -ItemType Directory -Path $shop.dir -Force | Out-Null
-                $rf = Save-Rows (Sql-Name $shop.name) $shop.dir
-                if ($null -eq $rf) { Say 'Δεν μπόρεσα να διαβάσω τα προϊόντα του καταστήματος: παραλείπεται.' 'Red'; $shop.reason = 'δεν διαβάστηκε η βάση'; $script:exitCode = 4; continue }
-                $shop.rows = $rf
-            }
-            $pdir = Join-Path $shop.dir $tag
-            $names = @(@($f.files) | ForEach-Object { [string]$_.file })
-            $p = Invoke-Plan $site $shop.name $pdir $schemaFile $shop.rows $left '' $names $true
-            if ($p.code -ne 0 -or $null -eq $p.summary) { Say 'Το σχέδιο δεν έγινε (δες πιο πάνω): παραλείπεται.' 'Red'; $shop.reason = 'το σχέδιο δεν έγινε'; continue }
-            $shop.plan = $p.summary
-            $shop.pdir = $pdir
-            $shop.oldFile = $false
-            $left = $left - [long]$p.summary.writes
-            if ($p.summary.skip -eq 'old-file' -or $p.summary.skip -eq 'no-file-time') { $shop.reason = 'το αρχείο του feed είναι πάνω από 2 μερών (κατέβασέ το ξανά)'; $shop.oldFile = $true }
-            elseif ($p.summary.skip -eq 'stale-feed') { $shop.reason = 'το feed έχει να ενημερωθεί πάνω από 30 μέρες (L39)' }
-            $out.Add($shop)
-        }
-    }
-    return , $out
-}
-
-# The short Greek summary per site.
-function Say-Summary([bool]$applied) {
-    Say ''
-    Say '===== Σύνοψη ανά site =====' 'Cyan'
-    foreach ($site in $siteList) {
-        $mine = @($shopsAll | Where-Object { $_.site -eq $site }) + @($skipped | Where-Object { $_.site -eq $site })
-        $revive = [long]0; $estimate = [long]0; $planned = [long]0
-        $still = @{}
+        Say ''
+        Say ('===== Φόρτωση {0} =====' -f $site.ToUpper()) 'Cyan'
+        $bm = Get-Bookmark
+        if (-not $bm) { Say ('Δεν πήρα σημείο επαναφοράς για το {0}: ΔΕΝ άλλαξα τίποτα εκεί.' -f $site.ToUpper()) 'Red'; $exitCode = 11; foreach ($s in $mine) { $s.reason = 'δεν πάρθηκε σημείο επαναφοράς' }; continue }
         foreach ($s in $mine) {
-            if ($null -ne $s.plan -and -not $s.reason) {
-                $revive += [long]$s.plan.visible.revive
-                $planned += [long]$s.plan.writes
-                foreach ($st in @($s.plan.still)) { if ($null -ne $st -and [long]$st.n -gt 0) { Add-Count $still ([string]$st.text) ([long]$st.n) } }
-            } else {
-                if ($null -ne $s.plan) { $estimate += [long]$s.plan.visible.reviveIfFresh }
-                $why = $s.reason
-                if (-not $why) { $why = 'παραλείπεται' }
-                if ([long]$s.d30 -gt 0) { Add-Count $still $why ([long]$s.d30) }
+            Say ('----- {0} στο {1} -----' -f $s.name, $site.ToUpper()) 'Cyan'
+            $code = Invoke-Load $site $s.key $s.name $s.pdir $s.plan $bm
+            if ($code -eq 12) {
+                $s.reason = 'η φόρτωση σταμάτησε στη μέση (δες πιο πάνω)'
+                $exitCode = 12
+                $stopped = $true
+                Say 'Σταμάτησα όλη την ανανέωση (για να μη φορτωθεί άλλο αρχείο σε βάση που δυσκολεύεται). Στείλε την αναφορά στο Claude.' 'Red'
+                break
             }
+            $s.loaded = $true
+            if ($code -eq 13 -and $exitCode -eq 0) { $exitCode = 13 }
         }
-        $stillTxt = @($still.Keys | Sort-Object | ForEach-Object { '{0} {1}' -f (Fmt $still[$_]), $_ }) -join '; '
-        if (-not $stillTxt) { $stillTxt = 'κανένα' }
-        $verb = 'θα φαίνονται ξανά'
-        if ($applied) { $verb = 'φαίνονται ξανά' }
-        $line = '{0}: {1} {2} προϊόντα' -f $site.ToUpper(), $verb, (Fmt $revive)
-        if ($estimate -gt 0) { $line += (' (και περίπου {0} ακόμα με φρέσκο feed)' -f (Fmt $estimate)) }
-        $line += ('. Μένουν κρυμμένα: {0}.' -f $stillTxt)
-        $line += (' Γραμμές D1: διαβάστηκαν {0}' -f (Fmt (Count-Of $script:RowsRead $site)))
-        if ($applied) { $line += (', γράφτηκαν {0}.' -f (Fmt (Count-Of $script:RowsWritten $site))) }
-        else { $line += (', θα γραφτούν περίπου {0}.' -f (Fmt $planned)) }
-        if (-not $siteOk.ContainsKey($site)) { $line = '{0}: η βάση δεν διαβάστηκε, δεν άλλαξε τίποτα.' -f $site.ToUpper() }
-        Say $line
     }
-}
-
-if ($shopsAll.Count -eq 0) {
+    foreach ($s in $go) { if (-not $s.loaded -and -not $s.reason) { $s.reason = 'δεν φορτώθηκε (σταμάτησε η εκτέλεση)' } }
+    Say-Summary $true
     Say ''
-    Say 'Κανένα κατάστημα με παλιά προϊόντα: τίποτα να γίνει.' 'Green'
-    Say-Summary $false
+    Say ('Σχέδια και αρχεία: {0}' -f $planRoot)
     Finish $exitCode
+} catch {
+    Say ('ΣΦΑΛΜΑ: {0}' -f $_.Exception.Message) 'Red'
+    Say ([string]$_.InvocationInfo.PositionMessage)
+    Say ([string]$_.ScriptStackTrace)
+    Say 'Στείλε την αναφορά στο Claude. Ό,τι φορτώθηκε ήδη έχει σημείο και αρχείο επαναφοράς στο backups.' 'Red'
+    Finish 20
 }
-
-# 1. Read-only: the feeds on this PC and the plan of every shop with them.
-$feedBy = Find-Feeds 'now'
-$planned = Plan-All 'plan' $feedBy $true
-$ready = @($planned | Where-Object { -not $_.reason })
-$advs = @($planned | ForEach-Object { @($_.feed.advertisers) } | Where-Object { $_ } | Sort-Object -Unique)
-$nFiles = [long]0
-foreach ($s in $ready) { $nFiles += @($s.plan.files).Count }
-Say ''
-Say '===== Σχέδιο =====' 'Cyan'
-Say ('Καταστήματα με παλιά προϊόντα: {0}. Με feed σε αυτόν τον υπολογιστή: {1}. Έτοιμα τώρα (feed έως 2 μερών): {2}.' -f ($shopsAll.Count + $skipped.Count), $planned.Count, $ready.Count)
-foreach ($s in @($planned | Where-Object { $_.oldFile })) { Say ('  με -Apply κατεβαίνει πρώτα φρέσκο feed: {0} στο {1} (περίπου {2} θα φαίνονταν ξανά)' -f $s.name, $s.site.ToUpper(), (Fmt $s.plan.visible.reviveIfFresh)) }
-foreach ($s in @($shopsAll | Where-Object { $_.reason -and -not $_.oldFile }) + @($skipped)) { Say ('  παραλείπεται: {0} στο {1}: {2}' -f $s.name, $s.site.ToUpper(), $s.reason) 'Yellow' }
-if ($advs.Count -gt 0) { Say ('Με -Apply κατεβαίνουν πρώτα φρέσκα feeds για {0} καταστήματα του Awin: {1} (μόνο αρχεία στον υπολογιστή, με το tools/awin-feed-download.ps1).' -f $advs.Count, ($advs -join ', ')) }
-Say ('Η φράση έγκρισης (ΜΙΑ για όλη την εκτέλεση: λήψη των feeds και ανανέωση όλων των καταστημάτων): {0}' -f $StalePhrase)
-Say $quietTip
-Say-Summary $false
-if (-not $Apply) { Say ''; Say 'Δοκιμή μόνο: δεν άλλαξε τίποτα και δεν κατέβηκε τίποτα.' 'Green'; Finish $exitCode }
-if ($planned.Count -eq 0) { Say ''; Say 'Κανένα κατάστημα δεν έχει feed σε αυτόν τον υπολογιστή: δεν γίνεται τίποτα.' 'Yellow'; Finish $exitCode }
-if (-not (Confirm-Approval $StalePhrase)) { Say 'Δεν δόθηκε έγκριση: δεν άλλαξε τίποτα και δεν κατέβηκε τίποτα.' 'Yellow'; Finish 1 }
-
-# 2. Fresh feeds for just those shops (the download tool keeps the key encrypted and asks it only if it is missing).
-Say ''
-Say '===== Λήψη φρέσκων feeds =====' 'Cyan'
-$dlOut = Join-Path $planRoot 'download'
-$dlArgs = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', (Join-Path (Join-Path $repo 'tools') 'awin-feed-download.ps1'), '-Advertiser', ($advs -join ','), '-Apply', '-Approve', $DownloadPhrase, '-Archive', $Archive, '-OutDir', $dlOut, '-NoClipboard')
-if ($FeedKeyFile) { $dlArgs += @('-KeyFile', $FeedKeyFile) }
-if ($AwinBaseUrl) { $dlArgs += @('-BaseUrl', $AwinBaseUrl) }
-& $exe @dlArgs
-$dlCode = $LASTEXITCODE
-foreach ($rep in @(Get-ChildItem -LiteralPath $dlOut -Filter 'AWIN_FEED_DOWNLOAD_*.txt' -ErrorAction SilentlyContinue)) {
-    foreach ($line in [System.IO.File]::ReadAllLines($rep.FullName, [System.Text.Encoding]::UTF8)) { $L.Add('  ' + $line) }
-}
-if ($dlCode -ne 0) { Say ('ΠΡΟΣΟΧΗ: η λήψη των feeds τελείωσε με κωδικό {0}. Συνεχίζω μόνο με όσα feeds είναι έως 2 μερών.' -f $dlCode) 'Yellow' }
-
-# 3. The plan again with the fresh feeds (the rows already read), then the load, site by site.
-$feedBy = Find-Feeds 'fresh'
-$final = Plan-All 'apply' $feedBy $false
-$go = @($final | Where-Object { -not $_.reason -and ([long]$_.plan.changes + [long]$_.plan.hides + [long]$_.plan.seen) -gt 0 })
-$nFiles = [long]0
-foreach ($s in $go) { $nFiles += @($s.plan.files).Count }
-Say ''
-Say ('Φορτώνονται {0} καταστήματα σε {1} μικρά αρχεία, με παύση {2} δευτ. ανάμεσα (περίπου {3} λεπτά).' -f $go.Count, $nFiles, $PauseSeconds, [math]::Ceiling($nFiles * (10 + $PauseSeconds) / 60)) 'Cyan'
-$stopped = $false
-foreach ($site in $siteList) {
-    if ($stopped) { break }
-    $mine = @($go | Where-Object { $_.site -eq $site })
-    if ($mine.Count -eq 0) { continue }
-    Use-Site $site
-    Say ''
-    Say ('===== Φόρτωση {0} =====' -f $site.ToUpper()) 'Cyan'
-    $bm = Get-Bookmark
-    if (-not $bm) { Say ('Δεν πήρα σημείο επαναφοράς για το {0}: ΔΕΝ άλλαξα τίποτα εκεί.' -f $site.ToUpper()) 'Red'; $exitCode = 11; foreach ($s in $mine) { $s.reason = 'δεν πάρθηκε σημείο επαναφοράς' }; continue }
-    foreach ($s in $mine) {
-        Say ('----- {0} στο {1} -----' -f $s.name, $site.ToUpper()) 'Cyan'
-        $code = Invoke-Load $site $s.key $s.name $s.pdir $s.plan $bm
-        if ($code -eq 12) {
-            $s.reason = 'η φόρτωση σταμάτησε στη μέση (δες πιο πάνω)'
-            $exitCode = 12
-            $stopped = $true
-            Say 'Σταμάτησα όλη την ανανέωση (για να μη φορτωθεί άλλο αρχείο σε βάση που δυσκολεύεται). Στείλε την αναφορά στο Claude.' 'Red'
-            break
-        }
-        $s.loaded = $true
-        if ($code -eq 13 -and $exitCode -eq 0) { $exitCode = 13 }
-    }
-}
-foreach ($s in $go) { if (-not $s.loaded -and -not $s.reason) { $s.reason = 'δεν φορτώθηκε (σταμάτησε η εκτέλεση)' } }
-Say-Summary $true
-Say ''
-Say ('Σχέδια και αρχεία: {0}' -f $planRoot)
-Finish $exitCode
