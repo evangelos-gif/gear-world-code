@@ -467,12 +467,12 @@ foreach ($c in $copies) {
     if ($c.files.Count -gt 0) {
         $b = [double]0
         foreach ($n in $c.files) { $b += (Get-Item -LiteralPath (Join-Path $c.src $n)).Length }
-        $c.bytes = $b
+        $c['bytes'] = $b
         Say ('  {0,-40} {1,10}  ({2} feeds στα Downloads)' -f 'Downloads\<id>-*.csv.gz', (Format-Size $b), $c.files.Count)
     } else {
         $s = Get-FolderScan $c.src
-        $c.bytes = $s.bytes
-        $c.out = @($s.out)
+        $c['bytes'] = $s.bytes
+        $c['out'] = $s.out.ToArray() # index syntax: a dot assignment of an array here fails in PowerShell 5.1
         foreach ($o in $s.out) { $outAll.Add(@{ rel = (Join-Path $c.rel $o.rel); reason = $o.reason }) }
         Say ('  {0,-40} {1,10}  ({2} αρχεία)' -f $c.rel, (Format-Size $s.bytes), $s.files)
     }
