@@ -418,8 +418,11 @@ if (site && (site.promos || []).length) {
   const act = activePromos(site);
   const idx = await get('/discount-codes/');
   htmlChecks('/discount-codes/', idx, { indexable: act.length > 0 });
-  check('L32', act.length === 0 || /class="promo-bar"/.test(home.body), '/: offer bar shown while an offer runs');
-  check('L32', act.length > 0 || !/class="promo-bar"/.test(home.body), '/: no offer bar when no offer runs');
+  // The top bar shows the first running offer that has a bar emoji (src/lib/promos.js barPromo); a running sale without
+  // one has no bar (since 9/11/2026 no offer has one: the Joybuy Halloween code was the bar, lessons L107).
+  const barred = act.filter(p => p.bar);
+  check('L32', barred.length === 0 || /class="promo-bar"/.test(home.body), '/: offer bar shown while an offer with a bar runs');
+  check('L32', barred.length > 0 || !/class="promo-bar"/.test(home.body), '/: no offer bar when no offer with a bar runs');
   for (const slug of [...new Set(act.map(p => p.slug))]) {
     const path = `/discount-codes/${slug}/`;
     const r = await get(path);

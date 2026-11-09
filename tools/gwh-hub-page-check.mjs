@@ -20,6 +20,7 @@ import { join, extname, normalize } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import vm from 'node:vm';
 import { chromium } from 'playwright';
+import { hubScriptWithSeasons } from './gwh-deals.mjs';
 
 const args = process.argv.slice(2);
 const val = name => { const i = args.indexOf(`--${name}`); return i >= 0 ? args[i + 1] : ''; };
@@ -40,6 +41,14 @@ const ABOUT_TITLE = JSON.parse(readFileSync(join(publicDir, 'translations.js'), 
 const results = [];
 const check = (ok, name, detail = '') => results.push({ ok: Boolean(ok), name, detail });
 
+// The season switches (lessons L107): the real hub-v2.js keeps Black Friday off until the owner turns it on. The page is
+// checked with every season switched on, so the calendar, the arrows and the countdown are still checked for the day
+// the owner turns them on; the real switches are checked here and in the unit tests.
+const REAL_SEASONS = { ...HUB.seasonsOn };
+check(REAL_SEASONS['black-friday'] === false && REAL_SEASONS.halloween === false, 'the real hub-v2.js: Black Friday and Halloween switched off (L107)', JSON.stringify(REAL_SEASONS));
+const ALL_SEASONS = { halloween: true, 'black-friday': true, christmas: true, 'winter-sales': true, 'new-year-fitness': true, 'valentines-day': true };
+const HUB_JS_ALL_ON = hubScriptWithSeasons(readFileSync(join(publicDir, 'hub-v2.js'), 'utf8'), ALL_SEASONS);
+
 // ---------- a tiny static server for the Hub files ----------
 const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.json': 'application/json', '.png': 'image/png', '.jpg': 'image/jpeg', '.svg': 'image/svg+xml', '.mp4': 'video/mp4' };
 const asked = [];
@@ -50,7 +59,7 @@ const server = createServer((req, res) => {
   const file = normalize(join(publicDir, path));
   if (!file.startsWith(publicDir) || !existsSync(file) || !statSync(file).isFile()) { res.writeHead(404); res.end('not found'); return; }
   res.writeHead(200, { 'Content-Type': TYPES[extname(file)] || 'application/octet-stream' });
-  res.end(readFileSync(file));
+  res.end(path === '/hub-v2.js' ? HUB_JS_ALL_ON : readFileSync(file));
 });
 await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
 const base = `http://127.0.0.1:${server.address().port}`;
