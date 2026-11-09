@@ -42,12 +42,19 @@ test('guides: 5 guides, 58 products, real prices checked on one date, every prod
       if (it.rrp != null) assert.ok(it.rrp > it.price, `${it.name}: the RRP is higher`);
       assert.match(it.checked || '', /^2026-\d{2}-\d{2}$/, `${it.name}: the day it was last checked on its site`);
     }
-    // The title promises a price range: it must be true (rounded to whole pounds).
+    // The title promises a price range: it must be true. Rule (L109): whole pounds, the low end rounded DOWN and the high
+    // end rounded UP (cheapest £19.95 -> "from £19", dearest £155.95 -> "to £156"), so every product is inside it.
     const prices = g.items.map(i => i.price);
-    const nums = [...g.title.matchAll(/£([0-9.]+)/g)].map(m => Number(m[1]));
-    assert.equal(nums.length, 2, `${g.slug}: from/to in the title`);
-    assert.ok(Math.abs(nums[0] - Math.min(...prices)) <= 0.5, `${g.slug}: from ${nums[0]} = ${Math.min(...prices)}`);
-    assert.ok(Math.abs(nums[1] - Math.max(...prices)) <= 0.5, `${g.slug}: to ${nums[1]} = ${Math.max(...prices)}`);
+    const lo = Math.floor(Math.min(...prices) + 1e-9);
+    const hi = Math.ceil(Math.max(...prices) - 1e-9);
+    const nums = [...g.title.matchAll(/£([0-9.]+)/g)].map(m => m[1]);
+    assert.deepEqual(nums, [String(lo), String(hi)], `${g.slug}: "from £${lo} to £${hi}" in the title (cheapest ${Math.min(...prices)}, dearest ${Math.max(...prices)})`);
+    assert.deepEqual([...g.metaTitle.matchAll(/£([0-9.]+)/g)].map(m => m[1]), [String(lo)], `${g.slug}: "from £${lo}" in the meta title`);
+    // A card with offers shows offers[0] at the card's own price: that offer is the card's own product (same id).
+    for (const it of g.items.filter(x => x.offers)) {
+      assert.equal(it.offers[0].id, Number(it.url.match(/-(\d+)\/$/)[1]), `${it.name}: offers[0] is the product the card links to`);
+      assert.equal(it.offers[0].price, it.price, `${it.name}: offers[0] has the card's price`);
+    }
   }
 });
 
@@ -217,5 +224,28 @@ test('guides: every product checked within 14 days of the guides date, none from
       assert.ok(!/£|\d\s*%|\bsave\b|saving|price drop|previous price|\bwas\b|\bshop\b|UK retailers|cheap/i.test(it.why), `${it.name}: "${it.why}"`);
       for (const o of it.offers || []) assert.ok(Number.isInteger(o.id), `${it.name}: the offer at ${o.retailer} has its id, so the guard reads its price`);
     }
+  }
+});
+
+// L109: no saving, urgency or "shop" words in any text of the guides (Google Ads): titles, descriptions, intros, tips and
+// the visible text of every page (the list of guides too).
+const GUIDE_CLAIM = /\bsav(e|es|ed|ing|ings)\b|%\s*off\b|\bbelow\b|previous price|\bwas\s*£|price drops?\b|\bdeals?\b|black friday|order early|\bhurry|UK retailers|\bshop(s|ping)?\b/i;
+
+test('guides: no saving, urgency or "shop" words in titles, descriptions, intros, tips or page text (L109)', () => {
+  // The two sentences the checker of 9 Nov 2026 found would fail.
+  assert.match('plus one tip that can save you money on perfume', GUIDE_CLAIM);
+  assert.match('Some of these tools are marked "available to order", which usually means delivery takes a few extra days, so order early for Christmas.', GUIDE_CLAIM);
+  for (const s of ['20% off', 'Below RRP', 'was £30', 'Price drop', 'Today\'s deals', 'Hurry', 'Shop now', 'Christmas shopping', 'UK retailers', 'savings', 'Black Friday']) assert.match(s, GUIDE_CLAIM, s);
+  for (const s of ['Delivery costs can change the total', 'the retailer\'s website', 'Retailer: Tooled Up', 'RRP £22.00', 'a workshop']) assert.doesNotMatch(s, GUIDE_CLAIM, s);
+  for (const g of data.guides) {
+    const texts = [['title', g.title], ['metaTitle', g.metaTitle], ['description', g.description], ['intro', g.intro],
+      ...(g.tips || []).flatMap((t, i) => [[`tips[${i}].label`, t.label], [`tips[${i}].text`, t.text || t.html || '']]),
+      ...g.items.map((it, i) => [`items[${i}].why`, it.why])];
+    for (const [k, v] of texts) assert.doesNotMatch(String(v), GUIDE_CLAIM, `${g.slug} ${k}: "${v}"`);
+  }
+  for (const [rel, html] of Object.entries(pages)) {
+    const words = html.replace(/<script[\s\S]*?<\/script>/g, ' ').replace(/<[^>]+>/g, ' ').replace(/&amp;/g, '&').replace(/&quot;/g, '"').replace(/\s+/g, ' ');
+    const m = words.match(GUIDE_CLAIM);
+    assert.equal(m, null, `${rel}: "${m && words.slice(Math.max(0, m.index - 60), m.index + 60)}"`);
   }
 });
