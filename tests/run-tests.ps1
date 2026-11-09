@@ -2619,7 +2619,7 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
     $env:GW_FAKE_STATE = $rfState
     $rfCalls = Join-Path $rfState 'calls.log'
     function Run-Rf([string[]]$a) {
-        $all = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $rfTool, '-Archive', $rfArch, '-WorkDir', $rfWork, '-OutDir', $rfOut, '-NoClipboard') + $a
+        $all = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $rfTool, '-Archive', $rfArch, '-WorkDir', $rfWork, '-OutDir', $rfOut, '-NoClipboard', '-PauseSeconds', '0') + $a
         & $exe @all | Out-Null
         return $LASTEXITCODE
     }
@@ -2636,8 +2636,9 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         $rc = RfCalls
         $iTT = $rc.IndexOf('time-travel info construction-gear-customers')
         $iUp = $rc.IndexOf('update-0001.sql')
-        $iHide = $rc.IndexOf('hide.sql')
-        Check ($iTT -ge 0 -and $iUp -gt $iTT -and $iHide -gt $iUp) 'refresh: restore point, then the updates, then the hiding'
+        $iHide = $rc.IndexOf('hide-0001.sql')
+        $iSeen = $rc.IndexOf('seen-0001.sql')
+        Check ($iTT -ge 0 -and $iUp -gt $iTT -and $iHide -gt $iUp -and $iSeen -gt $iHide) 'refresh: restore point, then the updates, then the hiding, then the dates (L108)'
         $rfUndo = @(Get-ChildItem -LiteralPath (Join-Path $rfWork 'backups') -Filter 'cgw-refresh-tooled-up-*-rollback.sql' -ErrorAction SilentlyContinue)
         Check ($rfUndo.Count -eq 1 -and ([System.IO.File]::ReadAllText($rfUndo[0].FullName)).Contains('price = 11.99') -and ([System.IO.File]::ReadAllText($rfUndo[0].FullName)).Contains('SET is_active = 1')) 'refresh: rollback with the old price and the hidden product'
         $rfNote = @(Get-ChildItem -LiteralPath (Join-Path $rfWork 'backups') -Filter 'cgw-restore-point-before-tooled-up-refresh-*.txt' -ErrorAction SilentlyContinue)
@@ -2647,6 +2648,145 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
     } finally {
         $env:PATH = $oldPath
         Remove-Item Env:\GW_FAKE_STATE -ErrorAction SilentlyContinue
+    }
+}
+
+# 8c3. legacy-refresh.ps1 -Stale (lessons L108): one read per site, the shops with old products, fresh feeds from a fake
+# Awin server with the download tool, ONE phrase for the whole run, a restore point per database, small files, the
+# rollback, and gw-run passing -Stale, -Sites and -PaidPlan (Windows only: .cmd files and the DPAPI key)
+if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
+    Write-Host 'legacy-refresh.ps1 -Stale (fake wrangler, fake Awin server)'
+    $stTool = Join-Path (Join-Path $repo 'tools') 'legacy-refresh.ps1'
+    $stState = Join-Path $work 'st-state'
+    $stBin = Join-Path $work 'st-bin'
+    $stWork = Join-Path $work 'st-work'
+    $stOut = Join-Path $work 'st-out'
+    $stArch = Join-Path $work 'st-arch'
+    New-Item -ItemType Directory -Path $stState, $stBin, $stArch -Force | Out-Null
+    $stBookmark = '00000085-0000024c-00004c6d-' + [guid]::NewGuid().ToString('N')
+    $stRows = '[{"results":[' +
+        '{"id":1,"awin_product_id":"100046875","merchant_product_id":"100005800","product_name":"Bahco Spanner","price":11.99,"currency":"GBP","stock_status":"In Stock","image_url":"https://x/a.jpg","is_active":1,"updated_at":"2026-09-01 10:00:00"},' +
+        '{"id":2,"awin_product_id":"10066565757","merchant_product_id":"100005803","product_name":"Stanley Hammer","price":20,"currency":"GBP","stock_status":"In Stock","image_url":"https://x/b.jpg","is_active":1,"updated_at":"2026-09-01 10:00:00"},' +
+        '{"id":5,"awin_product_id":"555","merchant_product_id":"555","product_name":"Gone","price":7,"currency":"GBP","stock_status":"In Stock","image_url":"https://x/5.jpg","is_active":1,"updated_at":"2026-09-01 10:00:00"}' +
+        '],"success":true,"meta":{"rows_read":3}}]'
+    $stNpx = @(
+        '@echo off',
+        'echo %* >> "%GW_FAKE_STATE%\calls.log"',
+        'echo %* | findstr /C:"time-travel info" >nul && goto ttinfo',
+        'echo %* | findstr /C:"AS d30" >nul && goto stale',
+        'echo %* | findstr /C:"sqlite_master" >nul && goto idx',
+        'echo %* | findstr /C:"id BETWEEN" >nul && goto rows',
+        'echo %* | findstr /C:"AS n FROM products WHERE retailer" >nul && goto after',
+        'echo %* | findstr /C:"--file" >nul && goto ok',
+        'echo unknown command 1>&2',
+        'exit /b 1',
+        ':ttinfo',
+        ('echo The current bookmark is ' + $stBookmark),
+        'exit /b 0',
+        ':stale',
+        'echo [{"results":[{"retailer":"Fresh Shop","n":5,"d14":0,"d30":0},{"retailer":"Tooled Up","n":3,"d14":3,"d30":3},{"retailer":"No Feed Shop","n":4,"d14":4,"d30":2}],"success":true,"meta":{"rows_read":24}}]',
+        'exit /b 0',
+        ':idx',
+        'echo [{"results":[{"type":"index","name":"idx_products_active_price","sql":"CREATE INDEX idx_products_active_price ON products(is_active, price)"}],"success":true,"meta":{"rows_read":5}}]',
+        'exit /b 0',
+        ':rows',
+        ('echo ' + $stRows),
+        'exit /b 0',
+        ':after',
+        'echo [{"results":[{"n":2}],"success":true,"meta":{"rows_read":2}}]',
+        'exit /b 0',
+        ':ok',
+        'echo Executed 2 queries in 1.00ms (0 rows read, 4 rows written)',
+        'exit /b 0'
+    ) -join "`r`n"
+    [System.IO.File]::WriteAllText((Join-Path $stBin 'npx.cmd'), $stNpx + "`r`n", [System.Text.Encoding]::ASCII)
+    # The feed on this PC: Tooled Up, downloaded 5 days ago (too old for dates: the -Apply run downloads it first).
+    $stNow = (Get-Date).ToUniversalTime().ToString('yyyy-MM-dd HH:mm:ss')
+    $stCsvFile = Join-Path $stState 'old-feed.csv'
+    Write-Utf8 $stCsvFile ("merchant_name,aw_product_id,merchant_product_id,product_name,merchant_image_url,search_price,currency,in_stock,stock_status,last_updated`n" +
+        ('Tooled Up,100046875,100005800,Bahco Spanner,https://x/a.jpg,11.99,GBP,1,In Stock,{0}' -f $stNow) + "`n")
+    $stFeed = Join-Path $stArch 'AWIN_496_1001.csv.gz'
+    & node -e "require('fs').writeFileSync(process.argv[2], require('zlib').gzipSync(require('fs').readFileSync(process.argv[1])))" $stCsvFile $stFeed
+    $stOld = (Get-Date).AddDays(-5)
+    (Get-Item -LiteralPath $stFeed).LastWriteTime = $stOld
+    # A fake Awin server for the download tool (the key is kept with DPAPI as on the owner's PC).
+    $stKey = 'TestKey' + ([guid]::NewGuid().ToString('N').Substring(0, 10))
+    $stKeyFile = Join-Path $stState 'key.dat'
+    [System.IO.File]::WriteAllText($stKeyFile, (ConvertFrom-SecureString (ConvertTo-SecureString $stKey -AsPlainText -Force)), [System.Text.Encoding]::ASCII)
+    $stSrv = Join-Path $stState 'server.js'
+    Write-Utf8 $stSrv ("const http=require('http'),zlib=require('zlib');const key=process.argv[2],now=process.argv[3];" +
+      "const list='Advertiser ID,Advertiser Name,Membership Status,Feed ID,No of products,Last Imported\n496,Tooled Up,active,1001,2,2026-11-08\n';" +
+      "const feed=zlib.gzipSync('merchant_name,aw_product_id,merchant_product_id,product_name,merchant_image_url,search_price,currency,in_stock,stock_status,last_updated\nTooled Up,100046875,100005800,Bahco Spanner,https://x/a.jpg,12.50,GBP,1,In Stock,'+now+'\nTooled Up,10066565757,100005803,Stanley Hammer,https://x/b.jpg,20,GBP,1,In Stock,'+now+'\n');" +
+      "http.createServer((q,s)=>{if(!q.url.includes('/apikey/'+key+'/')&&!q.url.endsWith('/apikey/'+key)){s.writeHead(403);return s.end('bad key')}" +
+      "if(q.url.startsWith('/datafeed/list/')){s.writeHead(200,{'Content-Type':'text/csv'});return s.end(list)}" +
+      "if(q.url.includes('/fid/1001/')&&q.url.includes('columns/')){s.writeHead(200,{'Content-Type':'application/x-gzip'});return s.end(feed)}" +
+      "s.writeHead(404);s.end('no')}).listen(8798,'127.0.0.1');")
+    $stProc = Start-Process -FilePath (Get-Command node).Source -ArgumentList @($stSrv, $stKey, ('"' + $stNow + '"')) -PassThru -WindowStyle Hidden
+    Start-Sleep -Seconds 2
+    $oldPath = $env:PATH
+    $env:PATH = $stBin + ';' + $oldPath
+    $env:GW_FAKE_STATE = $stState
+    $stCalls = Join-Path $stState 'calls.log'
+    function Run-St([string[]]$a) {
+        $all = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $stTool, '-Archive', $stArch, '-WorkDir', $stWork, '-OutDir', $stOut, '-NoClipboard', '-PauseSeconds', '0', '-FeedKeyFile', $stKeyFile, '-AwinBaseUrl', 'http://127.0.0.1:8798') + $a
+        & $exe @all | Out-Null
+        return $LASTEXITCODE
+    }
+    function StCalls { if (Test-Path -LiteralPath $stCalls) { return [System.IO.File]::ReadAllText($stCalls) } else { return '' } }
+    function StLast { $f = @(Get-ChildItem -LiteralPath $stOut -Filter 'REFRESH_*.txt' -File -ErrorAction SilentlyContinue | Sort-Object LastWriteTime); if ($f.Count -eq 0) { return '' }; return [System.IO.File]::ReadAllText($f[$f.Count - 1].FullName) }
+    try {
+        Check ((Run-St @('-Stale', '-Sites', 'cgw,hgw')) -eq 0) 'refresh -Stale without -Apply: exit 0'
+        $c = StCalls
+        Check (-not ($c -match '--file|time-travel')) 'refresh -Stale without -Apply: only reads'
+        Check (([regex]::Matches($c, 'AS d30')).Count -eq 2 -and $c.Contains('construction-gear-customers') -and $c.Contains('home-gear-world') -and -not $c.Contains('mens-gear-world')) 'refresh -Stale: one grouped read per chosen site, no other site'
+        Check ($c.Contains("SUM(MIN(COALESCE(updated_at, ''), ") -and -not ($c -match 'updated_at [<>]')) 'refresh -Stale: older than 14/30 days without < or > (the command goes through cmd.exe)'
+        Check ([math]::Abs(((Get-Item -LiteralPath $stFeed).LastWriteTime - $stOld).TotalSeconds) -lt 5) 'refresh -Stale without -Apply: no feed downloaded'
+        $r = StLast
+        Check ($r.Contains('ΕΓΚΡΙΝΩ REFRESH ΠΑΛΙΑ ΠΡΟΪΟΝΤΑ') -and $r.Contains('ΜΙΑ για όλη την εκτέλεση')) 'refresh -Stale: the plan shows the one phrase'
+        Check ($r.Contains('με -Apply κατεβαίνει πρώτα φρέσκο feed: Tooled Up στο CGW (περίπου 1 θα φαίνονταν ξανά)')) 'refresh -Stale: an old feed file is downloaded first, with the estimate'
+        Check ($r.Contains('παραλείπεται: No Feed Shop στο CGW: δεν βρέθηκε feed') -and -not $r.Contains('Fresh Shop στο')) 'refresh -Stale: a shop without a feed is skipped and listed; a fresh shop is not touched'
+        Check ($r -match 'CGW: θα φαίνονται ξανά 0 προϊόντα \(και περίπου 1 ακόμα με φρέσκο feed\)\. Μένουν κρυμμένα: .*2 δεν βρέθηκε feed.*Γραμμές D1: διαβάστηκαν [0-9,]+') 'refresh -Stale: the Greek summary per site with the rows read'
+        Check ($r.Contains('αργά το βράδυ')) 'refresh -Stale: the tip to run at a quiet time'
+        Check ((Run-St @('-Stale', '-Sites', 'cgw,hgw', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ REFRESH TOOLED-UP CGW')) -eq 1) 'refresh -Stale with another phrase: stops'
+        Check (-not ((StCalls) -match '--file|time-travel') -and [math]::Abs(((Get-Item -LiteralPath $stFeed).LastWriteTime - $stOld).TotalSeconds) -lt 5) 'refresh -Stale with another phrase: nothing downloaded, nothing written'
+        Check ((Run-St @('-Stale', '-Sites', 'cgw,hgw', '-Apply', '-Approve', 'εγκρινω refresh παλια προιοντα')) -eq 0) 'refresh -Stale with the phrase (no accents, lower case): exit 0'
+        $c = StCalls
+        $b = [System.IO.File]::ReadAllBytes($stFeed)
+        Check ($b[0] -eq 0x1f -and $b[1] -eq 0x8b -and ((Get-Item -LiteralPath $stFeed).LastWriteTime -gt (Get-Date).AddMinutes(-10))) 'refresh -Stale -Apply: a fresh feed downloaded first by the download tool'
+        Check (@(Get-ChildItem -LiteralPath (Join-Path $stArch '_old') -Recurse -File -Filter 'AWIN_496_1001.csv.gz' -ErrorAction SilentlyContinue).Count -eq 1) 'refresh -Stale -Apply: the old feed kept in _old'
+        $ok = $true
+        foreach ($db in @('construction-gear-customers', 'home-gear-world')) {
+            $iT = $c.IndexOf('time-travel info ' + $db)
+            $iF = $c.IndexOf('d1 execute ' + $db + ' --remote --file')
+            if ($iT -lt 0 -or $iF -lt $iT) { $ok = $false }
+        }
+        Check $ok 'refresh -Stale -Apply: a restore point of each database before its first file'
+        Check (([regex]::Matches($c, '--remote --file')).Count -eq 6 -and ([regex]::Matches($c, 'seen-0001\.sql')).Count -eq 2) 'refresh -Stale -Apply: values, hides and dates in small files, for both sites'
+        $seenSql = @(Get-ChildItem -LiteralPath $stOut -Recurse -File -Filter 'seen-0001.sql' | Where-Object { $_.FullName -match '[\\/]apply[\\/]' })
+        $seenText = ''
+        if ($seenSql.Count -gt 0) { $seenText = [System.IO.File]::ReadAllText($seenSql[0].FullName) }
+        Check ($seenText -match "^UPDATE products SET updated_at = '\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}' WHERE id = 2;" -and -not $seenText.Contains('datetime')) 'refresh -Stale -Apply: the confirmed product gets the time of the feed file, not datetime(now)'
+        $undo = @(Get-ChildItem -LiteralPath (Join-Path $stWork 'backups') -Filter '*-refresh-tooled-up-*-rollback.sql' -ErrorAction SilentlyContinue)
+        Check ($undo.Count -eq 2 -and ([System.IO.File]::ReadAllText($undo[0].FullName)).Contains("updated_at = '2026-09-01 10:00:00'")) 'refresh -Stale -Apply: a rollback per shop with the old dates'
+        $parts = @(Get-ChildItem -LiteralPath (Join-Path $stWork 'backups') -Recurse -File -Filter 'rollback-0001.sql' -ErrorAction SilentlyContinue)
+        $note = @(Get-ChildItem -LiteralPath (Join-Path $stWork 'backups') -Filter 'cgw-restore-point-before-tooled-up-refresh-*.txt' -ErrorAction SilentlyContinue)
+        Check ($parts.Count -eq 2 -and $note.Count -eq 1 -and ([System.IO.File]::ReadAllText($note[0].FullName)).Contains($stBookmark) -and ([System.IO.File]::ReadAllText($note[0].FullName)).Contains('Επαναφορά')) 'refresh -Stale -Apply: rollback in small parts, the restore point and the Greek rollback'
+        $r = StLast
+        Check ($r -match 'CGW: φαίνονται ξανά 2 προϊόντα\. Μένουν κρυμμένα: .*Γραμμές D1: διαβάστηκαν [0-9,]+, γράφτηκαν 12\.' -and $r -match 'HGW: φαίνονται ξανά 2 προϊόντα') 'refresh -Stale -Apply: the Greek summary with the rows written'
+        $allText = (@(Get-ChildItem -LiteralPath $stOut -Recurse -File -Filter '*.txt') | ForEach-Object { [System.IO.File]::ReadAllText($_.FullName) }) -join ' '
+        Check (-not $allText.Contains($stKey) -and -not (StCalls).Contains($stKey)) 'refresh -Stale: the Awin key is in no report, plan or wrangler call'
+        # gw-run passes -Stale, -Sites and -PaidPlan to the tool, like every other argument.
+        $gwOut = Join-Path $work 'st-gw-out'
+        & $exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path (Join-Path $repo 'tools') 'gw-run.ps1') -LocalRepo $repo -Tool legacy-refresh -Stale -Sites cgw -PaidPlan -Archive $stArch -WorkDir $stWork -OutDir $gwOut -NoClipboard -PauseSeconds 0 | Out-Null
+        $gwRep = @(Get-ChildItem -LiteralPath $gwOut -Filter 'REFRESH_*.txt' -ErrorAction SilentlyContinue)
+        $gwText = ''
+        if ($gwRep.Count -gt 0) { $gwText = [System.IO.File]::ReadAllText($gwRep[0].FullName) }
+        Check ($LASTEXITCODE -eq 0 -and $gwText.Contains('Όριο εγγραφών D1 για όλη την εκτέλεση: 1,000,000') -and $gwText.Contains('Sites: CGW') -and -not $gwText.Contains('HGW (')) 'gw-run -Tool legacy-refresh: passes -Stale, -Sites and -PaidPlan'
+        Check ((Run-St @('-Stale', '-Pairs', 'tooled-up:cgw')) -eq 2 -and (Run-St @('-Stale', '-Sites', 'cgw,xyz')) -eq 2 -and (Run-St @('-Sites', 'cgw', '-Pairs', 'tooled-up:cgw')) -eq 2) 'refresh: -Stale with -Pairs, a wrong site, or -Sites without -Stale are refused'
+    } finally {
+        $env:PATH = $oldPath
+        Remove-Item Env:\GW_FAKE_STATE -ErrorAction SilentlyContinue
+        if ($stProc -and -not $stProc.HasExited) { Stop-Process -Id $stProc.Id -Force -ErrorAction SilentlyContinue }
     }
 }
 

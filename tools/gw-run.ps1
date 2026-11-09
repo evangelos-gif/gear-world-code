@@ -10,6 +10,9 @@
 
 .EXAMPLE
   powershell -NoProfile -ExecutionPolicy Bypass -File gw-run.ps1 -Ref <40-character commit> -Tool tgw-import-plan
+.EXAMPLE
+  powershell -NoProfile -ExecutionPolicy Bypass -File gw-run.ps1 -Ref <40-character commit> -Tool legacy-refresh -Stale -Sites cgw,hgw -PaidPlan
+  Every argument after -Ref and -Tool (switches such as -Stale and -PaidPlan too) goes to the tool unchanged.
 #>
 param(
     [string]$Ref = '',

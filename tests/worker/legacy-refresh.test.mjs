@@ -1,5 +1,8 @@
 // Refresh of retailers already on the older sites (job 2 of 25 Oct 2026, lessons L57): price, picture and stock from
 // the Awin feed, products no longer in the feed hidden, D1 writes counted from the table's own indexes.
+// Lessons L108 (9 Nov 2026): every active product the feed still confirms gets the time the feed file was downloaded as
+// its date ("seen"), so the sites (src/lib/visibility.js: hidden after 30 days, "check at the retailer" after 14) know it
+// is still sold; the rows that change get the same date; few statements in small files; triggers counted in the writes.
 // Database rows in the shape of the CGW database (Reidl: Awin product ids, stock "1"; Tooled Up: "In Stock",
 // "Available to Order", Awin 200px picture proxies; GS Workwear / InStock: "<advertiser>:<shop id>").
 import { test } from 'node:test';
@@ -10,9 +13,14 @@ import { join } from 'node:path';
 import { gzipSync } from 'node:zlib';
 import { execFileSync, spawnSync } from 'node:child_process';
 import { DatabaseSync } from 'node:sqlite';
-import { findFeeds, readFeed, planRefresh, writeCosts, writePlan, keyOf, matchRow } from '../../tools/legacy-refresh-plan.mjs';
+import {
+  findFeeds, findFeedsFor, pickFeedFiles, readFeed, planRefresh, writeCosts, updateTrigger, writePlan, planStatements, splitFiles,
+  groupedStatements, idsPerStatement, sqliteTime, viewDays, keyOf, matchRow, renderReport,
+  FEED_FILE_MAX_DAYS, MAX_STATEMENTS_PER_FILE, MAX_WRITES_PER_FILE, IDS_PER_STATEMENT
+} from '../../tools/legacy-refresh-plan.mjs';
+import { viewFor, isShown, needsCheck, HIDE_AFTER_DAYS } from '../../src/lib/visibility.js';
 
-// The CGW indexes on products (read from the live database, 25 Oct 2026).
+// The CGW indexes on products (read from the live database, 25 Oct 2026; the same on 9 Nov).
 const CGW_INDEXES = [
   'CREATE INDEX idx_products_active_brand ON products(is_active, brand)',
   'CREATE INDEX idx_products_active_brand_name ON products(is_active, brand COLLATE NOCASE, product_name COLLATE NOCASE)',
@@ -28,40 +36,79 @@ const CGW_INDEXES = [
   'CREATE INDEX idx_products_retailer_merchant_id ON products(retailer, merchant_product_id)',
   "CREATE UNIQUE INDEX ux_products_refresh_stable_key_global ON products(retailer, merchant_product_id) WHERE merchant_product_id IS NOT NULL AND TRIM(merchant_product_id) <> ''"
 ];
+const FTS_BODY = "BEGIN INSERT INTO products_fts(products_fts, rowid, product_name, brand, subcategory, retailer, merchant_category) VALUES ('delete', old.id, old.product_name, old.brand, old.subcategory, old.retailer, old.merchant_category); INSERT INTO products_fts(rowid, product_name, brand, subcategory, retailer, merchant_category) VALUES (new.id, new.product_name, new.brand, new.subcategory, new.retailer, new.merchant_category); END";
+// The triggers as the live databases have them (9 Nov 2026): CGW's fires only on the name columns, the other five on
+// every UPDATE.
+const CGW_TRIGGERS = [
+  'CREATE TRIGGER products_fts_ai AFTER INSERT ON products BEGIN INSERT INTO products_fts(rowid, product_name) VALUES (new.id, new.product_name); END',
+  `CREATE TRIGGER products_fts_au AFTER UPDATE OF product_name, brand, subcategory, retailer, merchant_category, id ON products ${FTS_BODY}`
+];
+const HGW_SCHEMA = [
+  { type: 'index', sql: 'CREATE INDEX idx_products_category\nON products(site_category)' },
+  { type: 'index', sql: 'CREATE INDEX idx_products_retailer\nON products(retailer)' },
+  { type: 'index', sql: "CREATE UNIQUE INDEX ux_products_refresh_stable_key\nON products(retailer, merchant_product_id)\nWHERE merchant_product_id IS NOT NULL\n  AND TRIM(merchant_product_id) <> ''" },
+  { type: 'index', sql: 'CREATE INDEX idx_products_active\nON products(is_active)' },
+  { type: 'trigger', sql: 'CREATE TRIGGER products_fts_ai\nAFTER INSERT ON products\nBEGIN\n  INSERT INTO products_fts(rowid, product_name) VALUES (new.id, new.product_name);\nEND' },
+  { type: 'trigger', sql: "CREATE TRIGGER products_fts_ad\nAFTER DELETE ON products\nBEGIN\n  INSERT INTO products_fts(products_fts, rowid, product_name) VALUES ('delete', old.id, old.product_name);\nEND" },
+  { type: 'trigger', sql: `CREATE TRIGGER products_fts_au\nAFTER UPDATE ON products\n${FTS_BODY.replace(/; /g, ';\n\n  ')}` },
+  { type: 'index', sql: 'CREATE INDEX idx_products_active_category_price_id ON products(is_active, site_category, price, id)' },
+  { type: 'index', sql: "CREATE INDEX idx_products_group_key ON products(COALESCE(NULLIF(TRIM(COALESCE(NULLIF(TRIM(ean), ''), json_extract(specs_json, '$.gtin'))), ''), 'id:' || id))" },
+  { type: 'index', sql: 'CREATE INDEX idx_products_active_created ON products(is_active, created_at)' },
+  { type: 'index', name: 'sqlite_autoindex_products_1', sql: null }
+];
 
-test('rows written per change, from the CGW indexes: price 3, picture 1, stock 1, hide 12 (measured with the wrangler local D1)', () => {
-  assert.deepEqual(writeCosts([...CGW_INDEXES.map(sql => ({ sql })), { name: 'sqlite_autoindex_products_1', sql: null }]), { price: 3, image_url: 1, stock_status: 1, is_active: 12 });
-  assert.deepEqual(writeCosts([]), { price: 1, image_url: 1, stock_status: 1, is_active: 1 });
+test('rows written per change, from the indexes and triggers: CGW price 3, picture 1, stock 1, date 1, hide 12; HGW 4, 3, 3, 3, 6 (measured with the wrangler local D1)', () => {
+  assert.deepEqual(writeCosts([...CGW_INDEXES.map(sql => ({ type: 'index', sql })), ...CGW_TRIGGERS.map(sql => ({ type: 'trigger', sql })), { name: 'sqlite_autoindex_products_1', sql: null }]),
+    { price: 3, image_url: 1, stock_status: 1, is_active: 12, updated_at: 1 });
+  // MGW, WGW, KGW, HGW and GGW: the FTS trigger rewrites the search entry on every UPDATE (2 statements).
+  assert.deepEqual(writeCosts(HGW_SCHEMA), { price: 4, image_url: 3, stock_status: 3, is_active: 6, updated_at: 3 });
+  assert.deepEqual(writeCosts([]), { price: 1, image_url: 1, stock_status: 1, is_active: 1, updated_at: 1 });
+  assert.deepEqual(updateTrigger(CGW_TRIGGERS[1]), { cols: ['product_name', 'brand', 'subcategory', 'retailer', 'merchant_category', 'id'], statements: 2 });
+  assert.deepEqual(updateTrigger(HGW_SCHEMA[6].sql), { cols: null, statements: 2 }, "'delete' is a value, not a statement");
+  assert.equal(updateTrigger(CGW_TRIGGERS[0]), null, 'an INSERT trigger costs nothing on UPDATE');
+  assert.equal(updateTrigger('CREATE TRIGGER x AFTER UPDATE ON products_fts BEGIN DELETE FROM y; END'), null, 'another table');
+  // No index of the six live databases holds updated_at (9 Nov 2026): a date costs the row and the trigger only.
+  assert.ok(![...CGW_INDEXES, ...HGW_SCHEMA.map(r => r.sql || '')].some(s => /updated_at/.test(s)));
 });
 
 const HEAD = 'aw_deep_link,product_name,aw_product_id,merchant_product_id,merchant_image_url,aw_image_url,merchant_category,search_price,merchant_name,merchant_id,currency,in_stock,stock_status,last_updated\n';
 const line = o => [o.link || 'https://www.awin1.com/pclick.php?p=1', `"${o.name}"`, o.aw, o.mid, o.img || '', o.awImg || '', 'Tools', o.price, o.merchant, o.adv, o.cur || 'GBP',
   o.inStock ?? '1', o.status ?? '', o.updated || '2026-10-24 22:00:00'].join(',') + '\n';
 
-function archive() {
+// Feed files downloaded on the evening of 24 Oct 2026 (their time on the PC), unless a test says otherwise.
+const DOWNLOADED = Date.parse('2026-10-24T21:30:15.750Z');
+function archive(downloaded = DOWNLOADED) {
   const dir = mkdtempSync(join(tmpdir(), 'refresh-feeds-'));
-  writeFileSync(join(dir, 'AWIN_496_1001.csv.gz'), gzipSync(HEAD
+  const put = (name, text) => { writeFileSync(join(dir, name), gzipSync(text)); utimesSync(join(dir, name), downloaded / 1000, downloaded / 1000); };
+  put('AWIN_496_1001.csv.gz', HEAD
     + line({ name: 'Bahco Spanner 10mm', aw: '100046875', mid: '100005800', price: 12.5, merchant: 'Tooled Up', adv: 496, img: 'https://www.tooled-up.com/artwork/prodzoom/a.jpg', status: 'In Stock' })
     + line({ name: 'Stanley Hammer', aw: '10066565757', mid: '100005803', price: 20, merchant: 'Tooled Up', adv: 496, awImg: 'https://images2.productserve.com/?w=200&h=200&bg=white&trim=5&t=letterbox&url=ssl%3Awww.tooled-up.com%2Fartwork%2Fprodzoom%2Fb.jpg', inStock: '0', status: 'Out of Stock' })
     + line({ name: 'Makita Drill', aw: '10310084311', mid: '100645949', price: 900, merchant: 'Tooled Up', adv: 496, img: 'https://www.tooled-up.com/artwork/prodzoom/c.jpg', status: 'Available to Order' })
-    + line({ name: 'Same Product', aw: '200', mid: '300', price: 5, merchant: 'Tooled Up', adv: 496, img: 'https://www.tooled-up.com/artwork/prodzoom/d.jpg', status: 'In Stock' })));
-  writeFileSync(join(dir, 'AWIN_122822_2002.csv.gz'), gzipSync(HEAD
+    + line({ name: 'Same Product', aw: '200', mid: '300', price: 5, merchant: 'Tooled Up', adv: 496, img: 'https://www.tooled-up.com/artwork/prodzoom/d.jpg', status: 'In Stock' })
+    + line({ name: 'Hidden By A Clean-up', aw: '666', mid: '666', price: 3, merchant: 'Tooled Up', adv: 496, img: 'https://x/6.jpg', status: 'In Stock' })
+    + line({ name: 'No Price', aw: '777', mid: '777', price: '', merchant: 'Tooled Up', adv: 496, img: 'https://x/7.jpg', status: 'In Stock' }));
+  put('AWIN_122822_2002.csv.gz', HEAD
     + line({ name: 'Reidl Saw', aw: '44606347019', mid: '101915', price: 30, merchant: 'Reidl', adv: 122822, cur: 'EUR', img: 'https://rdlcdn.de/s/100009.jpg?class=czl', inStock: '0' })
-    + line({ name: 'Reidl Old', aw: '44606347020', mid: '101916', price: 9.99, merchant: 'Reidl', adv: 122822, cur: 'GBP', img: 'https://rdlcdn.de/s/100010.jpg', inStock: '1' })));
-  writeFileSync(join(dir, 'AWIN_48473_3003.csv.gz'), gzipSync(HEAD
-    + line({ name: 'Bodywarmer', aw: '777', mid: '2786-2786-bodywarmer', price: 25, merchant: 'GS Workwear', adv: 48473, img: 'https://gs/1.jpg', inStock: 'yes' })));
+    + line({ name: 'Reidl Old', aw: '44606347020', mid: '101916', price: 9.99, merchant: 'Reidl', adv: 122822, cur: 'GBP', img: 'https://rdlcdn.de/s/100010.jpg', inStock: '1' }));
+  put('AWIN_48473_3003.csv.gz', HEAD
+    + line({ name: 'Bodywarmer', aw: '777', mid: '2786-2786-bodywarmer', price: 25, merchant: 'GS Workwear', adv: 48473, img: 'https://gs/1.jpg', inStock: 'yes' }));
   return dir;
 }
 
+// Dates as the live rows have them (SQLite datetime('now'), UTC). On 25 Oct 2026 the sites hide rows checked before
+// 25 Sep and say "check at the retailer" before 11 Oct.
 const TU = [
-  { id: 1, awin_product_id: '100046875', merchant_product_id: '100005800', product_name: 'Bahco Spanner 10mm', price: 11.99, currency: 'GBP', stock_status: 'In Stock', image_url: 'https://www.tooled-up.com/artwork/prodzoom/a.jpg', is_active: 1 },
+  { id: 1, awin_product_id: '100046875', merchant_product_id: '100005800', product_name: 'Bahco Spanner 10mm', price: 11.99, currency: 'GBP', stock_status: 'In Stock', image_url: 'https://www.tooled-up.com/artwork/prodzoom/a.jpg', is_active: 1, updated_at: '2026-09-20 19:00:00' },
   { id: 2, awin_product_id: '10066565757', merchant_product_id: '100005803', product_name: 'Stanley Hammer', price: 20, currency: 'GBP', stock_status: 'Available to Order',
-    image_url: 'https://images2.productserve.com/?w=200&h=200&bg=white&trim=5&t=letterbox&url=ssl%3Awww.tooled-up.com%2Fartwork%2Fprodzoom%2Fb.jpg', is_active: 1 },
-  { id: 3, awin_product_id: '10310084311', merchant_product_id: '100645949', product_name: 'Makita Drill', price: 99, currency: 'GBP', stock_status: 'Available to Order', image_url: 'https://www.tooled-up.com/artwork/prodzoom/c.jpg', is_active: 1 },
-  { id: 4, awin_product_id: '999', merchant_product_id: '300', product_name: 'Same Product (found by the shop id)', price: 5, currency: 'GBP', stock_status: 'in_stock', image_url: 'https://www.tooled-up.com/artwork/prodzoom/d.jpg', is_active: 1 },
-  { id: 5, awin_product_id: '555', merchant_product_id: '555', product_name: 'Gone From Feed', price: 7, currency: 'GBP', stock_status: 'In Stock', image_url: 'https://x/5.jpg', is_active: 1 }
+    image_url: 'https://images2.productserve.com/?w=200&h=200&bg=white&trim=5&t=letterbox&url=ssl%3Awww.tooled-up.com%2Fartwork%2Fprodzoom%2Fb.jpg', is_active: 1, updated_at: '2026-10-06 20:49:24' },
+  { id: 3, awin_product_id: '10310084311', merchant_product_id: '100645949', product_name: 'Makita Drill', price: 99, currency: 'GBP', stock_status: 'Available to Order', image_url: 'https://www.tooled-up.com/artwork/prodzoom/c.jpg', is_active: 1, updated_at: '2026-09-01 10:00:00' },
+  { id: 4, awin_product_id: '999', merchant_product_id: '300', product_name: 'Same Product (found by the shop id)', price: 5, currency: 'GBP', stock_status: 'in_stock', image_url: 'https://www.tooled-up.com/artwork/prodzoom/d.jpg', is_active: 1, updated_at: '2026-09-02 10:00:00' },
+  { id: 5, awin_product_id: '555', merchant_product_id: '555', product_name: 'Gone From Feed', price: 7, currency: 'GBP', stock_status: 'In Stock', image_url: 'https://x/5.jpg', is_active: 1, updated_at: '2026-09-03 10:00:00' }
 ];
-const CGW_COSTS = { price: 3, image_url: 1, stock_status: 1, is_active: 12 };
+const CGW_COSTS = { price: 3, image_url: 1, stock_status: 1, is_active: 12, updated_at: 1 };
+const HGW_COSTS = { price: 4, image_url: 3, stock_status: 3, is_active: 6, updated_at: 3 };
+const RUN = new Date('2026-10-25T12:00:00Z');
+const STAMP = '2026-10-24 21:30:15';
 
 test('the feed of a shop is found by its merchant_name; names compare as keys', async () => {
   const dir = archive();
@@ -78,53 +125,193 @@ test('Tooled Up on CGW: only values that differ change; the shop id finds a prod
   const dir = archive();
   const feed = await readFeed((await findFeeds(dir, 'Tooled Up')).files);
   assert.equal(matchRow(TU[3], feed).aw, '200', 'found by merchant_product_id when the Awin id changed');
-  const p = planRefresh({ rows: TU, feed, costs: CGW_COSTS, now: new Date('2026-10-25T12:00:00Z') });
+  const p = planRefresh({ rows: TU, feed, costs: CGW_COSTS, now: RUN, feedTime: DOWNLOADED });
   const by = Object.fromEntries(p.changes.map(c => [c.id, c.set]));
   assert.deepEqual(by[1], { price: 12.5 }, 'price only');
   assert.deepEqual(by[2], { image_url: 'https://www.tooled-up.com/artwork/prodzoom/b.jpg', stock_status: 'Out of Stock' }, 'full picture instead of the 200px proxy; sold out in the shop\'s own words');
   assert.equal(by[3], undefined, '99 -> 900 is a jump: not changed');
   assert.deepEqual(p.bigPrice.map(b => [b.id, b.from, b.to]), [[3, 99, 900]]);
-  assert.equal(by[4], undefined, 'in_stock and "In Stock" are the same for the site: nothing to write');
+  assert.equal(by[4], undefined, 'in_stock and "In Stock" are the same for the site: no value to write');
+  assert.deepEqual(p.seen.map(s => s.id), [4], 'but the feed confirms it: it gets the date');
   assert.deepEqual(p.hides, [5]);
-  assert.equal(p.writes, 3 + 1 + 12, 'price 3, picture+stock 1, hide 12');
-  assert.equal(p.same, 2);
+  assert.equal(p.writes, 3 + 1 + 12 + 1, 'price 3, picture+stock 1, hide 12, date 1');
+  assert.equal(p.same, 1, 'only the price jump is left as it is');
 });
 
 test('Reidl: stock "1" -> "0" in the shop\'s own convention; another currency in the feed keeps the price; GS Workwear ids "<advertiser>:<shop id>"', async () => {
   const dir = archive();
   const feed = await readFeed((await findFeeds(dir, 'Reidl')).files);
   const rows = [
-    { id: 10, awin_product_id: '44606347019', merchant_product_id: '101915', product_name: 'Reidl Saw', price: 28, currency: 'EUR', stock_status: '1', image_url: 'https://rdlcdn.de/s/100009.jpg?class=czl', is_active: 1 },
-    { id: 11, awin_product_id: '44606347020', merchant_product_id: '101916', product_name: 'Reidl Old', price: 8, currency: 'EUR', stock_status: '1', image_url: 'https://rdlcdn.de/s/100010.jpg', is_active: 1 }
+    { id: 10, awin_product_id: '44606347019', merchant_product_id: '101915', product_name: 'Reidl Saw', price: 28, currency: 'EUR', stock_status: '1', image_url: 'https://rdlcdn.de/s/100009.jpg?class=czl', is_active: 1, updated_at: '2026-10-06 22:37:57' },
+    { id: 11, awin_product_id: '44606347020', merchant_product_id: '101916', product_name: 'Reidl Old', price: 8, currency: 'EUR', stock_status: '1', image_url: 'https://rdlcdn.de/s/100010.jpg', is_active: 1, updated_at: '2026-10-06 22:37:57' }
   ];
-  const p = planRefresh({ rows, feed, costs: CGW_COSTS, now: new Date('2026-10-25T12:00:00Z') });
+  const p = planRefresh({ rows, feed, costs: CGW_COSTS, now: RUN, feedTime: DOWNLOADED });
   const by = Object.fromEntries(p.changes.map(c => [c.id, c.set]));
   assert.deepEqual(by[10], { price: 30, stock_status: '0' });
   assert.equal(by[11], undefined, 'GBP in the feed, EUR on the site: the price is not changed');
   assert.equal(p.currencySkip.length, 1);
+  assert.equal(p.seen.length, 0, 'and the price is not confirmed: no date');
   const gs = await readFeed((await findFeeds(dir, 'GS Workwear')).files);
-  const g = planRefresh({ rows: [{ id: 20, awin_product_id: '48473:2786-2786-bodywarmer', merchant_product_id: null, price: 20, currency: 'GBP', stock_status: 'in stock', image_url: 'https://gs/1.jpg', is_active: 1 }],
-    feed: gs, costs: CGW_COSTS, now: new Date('2026-10-25T12:00:00Z') });
-  assert.deepEqual(g.changes.map(c => c.set), [{ price: 25 }]);
+  const g = planRefresh({ rows: [{ id: 20, awin_product_id: '48473:2786-2786-bodywarmer', merchant_product_id: null, price: 20, currency: 'GBP', stock_status: 'in stock', image_url: 'https://gs/1.jpg', is_active: 1, updated_at: '2026-10-21 22:06:22' }],
+    feed: gs, costs: CGW_COSTS, now: RUN, feedTime: DOWNLOADED });
+  assert.deepEqual(g.changes.map(c => [c.set, c.stamp]), [[{ price: 25 }, STAMP]]);
   assert.equal(g.hides.length, 0);
 });
 
-test('safety: a stale feed changes nothing; a feed missing most products hides nothing; the write budget leaves the rest for the next run', async () => {
+test('L108 seen: the date is the time the feed file was downloaded (SQLite UTC text), never now; hidden, gone, jump, currency and price-less rows get none', async () => {
   const dir = archive();
-  const feed = await readFeed((await findFeeds(dir, 'Tooled Up')).files);
-  const stale = planRefresh({ rows: TU, feed, costs: CGW_COSTS, now: new Date('2026-12-30T12:00:00Z') });
-  assert.equal(stale.stale, true);
-  assert.equal(stale.changes.length + stale.hides.length, 0);
-  const many = Array.from({ length: 150 }, (_, i) => ({ id: 1000 + i, awin_product_id: `x${i}`, merchant_product_id: `y${i}`, price: 1, currency: 'GBP', stock_status: '1', image_url: '', is_active: 1 }));
-  const broken = planRefresh({ rows: [...TU, ...many], feed, costs: CGW_COSTS, now: new Date('2026-10-25T12:00:00Z') });
-  assert.equal(broken.safe, false);
-  assert.equal(broken.hides.length, 0);
-  const small = planRefresh({ rows: TU, feed, costs: CGW_COSTS, maxWrites: 4, now: new Date('2026-10-25T12:00:00Z') });
-  assert.equal(small.writes, 4);
-  assert.deepEqual([small.changes.length, small.hides.length, small.left.changes, small.left.hides], [2, 0, 0, 1]);
+  const files = (await findFeeds(dir, 'Tooled Up')).files;
+  const pick = pickFeedFiles(files);
+  assert.equal(pick.feedTime, Math.floor(DOWNLOADED / 1000) * 1000 + (pick.feedTime % 1000), 'the file time of the PC');
+  assert.equal(sqliteTime(pick.feedTime), STAMP, 'whole seconds, rounded down: never later than the download');
+  assert.match(sqliteTime(Date.now()), /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/, 'the text the older layout keeps (datetime(\'now\'))');
+  const feed = await readFeed(files);
+  const rows = [...TU,
+    { id: 6, awin_product_id: '666', merchant_product_id: '666', product_name: 'Hidden By A Clean-up', price: 3, currency: 'GBP', stock_status: 'In Stock', image_url: 'https://x/6.jpg', is_active: 0, updated_at: '2026-09-01 10:00:00' },
+    { id: 7, awin_product_id: '777', merchant_product_id: '777', product_name: 'No Price', price: 4, currency: 'GBP', stock_status: 'In Stock', image_url: 'https://x/7.jpg', is_active: 1, updated_at: '2026-09-01 10:00:00' }];
+  const p = planRefresh({ rows, feed, costs: CGW_COSTS, now: RUN, feedTime: pick.feedTime });
+  assert.equal(p.stamp, STAMP);
+  assert.ok(p.stamp < sqliteTime(RUN.getTime()), 'not the time of the run');
+  assert.deepEqual(p.seen.map(s => s.id), [4], 'only the confirmed row without another change');
+  assert.deepEqual(p.changes.map(c => [c.id, c.stamp]), [[1, STAMP], [2, STAMP]], 'the rows that change get the same date');
+  const dated = new Set([...p.seen.map(s => s.id), ...p.changes.filter(c => c.stamp).map(c => c.id)]);
+  for (const id of [3, 5, 6, 7]) assert.ok(!dated.has(id), `row ${id}: no date (jump, gone, hidden, no feed price)`);
+  // What the visitors see on 25 Oct: rows 1, 3, 4, 5, 7 are hidden today (before 25 Sep); 1 and 4 come back.
+  assert.deepEqual(viewDays(RUN.getTime()), { cutoff: '2026-09-25', checkFrom: '2026-10-11' });
+  assert.equal(p.visible.hiddenNow, 5);
+  assert.equal(p.visible.revive, 2);
+  assert.equal(p.visible.checkNow, 1, 'row 2 (6 Oct) says "check at the retailer"');
+  assert.equal(p.visible.uncheck, 1, 'and shows its stock again');
+  assert.deepEqual(p.visible.still, { jump: 1, gone: 1, 'no-price': 1 });
+  // The sites' own test (src/lib/visibility.js) on the rows after the plan: shown, no "check at the retailer".
+  const view = viewFor(null, 'GB', RUN.getTime());
+  for (const id of dated) {
+    assert.ok(isShown(view, { retailer: 'Tooled Up', last_seen_at: p.stamp }), `row ${id} is shown`);
+    assert.ok(!needsCheck(view, { last_seen_at: p.stamp }));
+  }
+  assert.ok(!isShown(view, { retailer: 'Tooled Up', last_seen_at: rows[2].updated_at }), 'the price jump stays hidden');
 });
 
-test('the SQL on a copy of the CGW table: values change by id, the gone product is hidden, the rollback puts everything back', async () => {
+test('L108: a feed file downloaded more than 2 days before the run writes no date (and says so in Greek); -Stale changes nothing for it', async () => {
+  const old = Date.parse('2026-10-22T11:00:00Z');
+  const dir = archive(old);
+  const files = (await findFeeds(dir, 'Tooled Up')).files;
+  const pick = pickFeedFiles(files);
+  const feed = await readFeed(files);
+  const p = planRefresh({ rows: TU, feed, costs: CGW_COSTS, now: RUN, feedTime: pick.feedTime });
+  assert.ok(p.fileAgeDays > FEED_FILE_MAX_DAYS);
+  assert.equal(p.datesOk, false);
+  assert.equal(p.dateBlock, 'old-file');
+  assert.equal(p.seen.length, 0);
+  assert.deepEqual(p.changes.map(c => c.stamp), ['', ''], 'values still change (per-pair mode), but without a date');
+  assert.equal(p.writes, 3 + 1 + 12);
+  assert.equal(p.visible.revive, 0);
+  assert.equal(p.visible.reviveIfFresh, 2, 'with a fresh download: 2 would come back');
+  const st = planStatements(p);
+  assert.ok([...st.update, ...st.hide, ...st.seen].every(s => !/updated_at/.test(s.sql)), 'no statement writes a date');
+  const report = renderReport({ retailer: 'Tooled Up', site: 'cgw', feedFiles: ['AWIN_496_1001.csv.gz'], feedRows: 6, newest: feed.newest, p });
+  assert.match(report, /ΠΡΟΣΟΧΗ: το αρχείο του feed κατέβηκε πριν από 3 μέρες \(πάνω από 2\)\. Δεν γράφεται ΚΑΜΙΑ ημερομηνία/);
+  assert.match(report, /Κατέβασε πρώτα ξανά το feed/);
+  // Exactly 2 days old: still fresh enough.
+  const edge = planRefresh({ rows: TU, feed, costs: CGW_COSTS, now: new Date(old + 2 * 86400000), feedTime: old });
+  assert.equal(edge.datesOk, true);
+  // The one-paste mode: the shop waits for a fresh feed, nothing at all is written.
+  const one = planRefresh({ rows: TU, feed, costs: CGW_COSTS, now: RUN, feedTime: pick.feedTime, requireDates: true });
+  assert.equal(one.skip, 'old-file');
+  assert.equal(one.changes.length + one.hides.length + one.seen.length + one.writes, 0);
+  assert.deepEqual(one.visible.still, { 'old-file': 4 });
+  // No file time at all: no date.
+  assert.equal(planRefresh({ rows: TU, feed, costs: CGW_COSTS, now: RUN }).seen.length, 0);
+});
+
+test('L39 kept: a feed whose own products were last updated more than 30 days ago changes nothing, even when just downloaded', async () => {
+  const dir = archive(Date.parse('2026-12-29T20:00:00Z'));
+  const files = (await findFeeds(dir, 'Tooled Up')).files;
+  const feed = await readFeed(files);
+  const p = planRefresh({ rows: TU, feed, costs: CGW_COSTS, now: new Date('2026-12-30T12:00:00Z'), feedTime: pickFeedFiles(files).feedTime });
+  assert.equal(p.stale, true);
+  assert.equal(p.datesOk, true, 'the file itself is fresh');
+  assert.equal(p.skip, 'stale-feed');
+  assert.equal(p.changes.length + p.hides.length + p.seen.length + p.writes, 0);
+  assert.equal(p.visible.reviveIfFresh, 0);
+});
+
+test('L108: a row the database changed after the download is newer than the feed and is not touched', async () => {
+  const dir = archive();
+  const feed = await readFeed((await findFeeds(dir, 'Tooled Up')).files);
+  const rows = TU.map(r => (r.id === 1 || r.id === 4 ? { ...r, updated_at: '2026-10-25 08:00:00' } : r));
+  const p = planRefresh({ rows, feed, costs: CGW_COSTS, now: RUN, feedTime: DOWNLOADED });
+  assert.equal(p.newer, 2);
+  assert.ok(!p.changes.some(c => c.id === 1) && !p.seen.some(s => s.id === 4));
+  // The same row checked at exactly the download time is not written again (D1 bills an unchanged value too).
+  const again = planRefresh({ rows: TU.map(r => (r.id === 4 ? { ...r, updated_at: STAMP } : r)), feed, costs: CGW_COSTS, now: RUN, feedTime: DOWNLOADED });
+  assert.ok(!again.seen.some(s => s.id === 4));
+  // An ISO date compares as the same moment.
+  const iso = planRefresh({ rows: TU.map(r => (r.id === 4 ? { ...r, updated_at: '2026-10-24T21:30:15.000Z' } : r)), feed, costs: CGW_COSTS, now: RUN, feedTime: DOWNLOADED });
+  assert.ok(!iso.seen.some(s => s.id === 4) && iso.newer === 0);
+});
+
+test('safety: a feed missing most products hides nothing; the write budget: changes, then hides, then dates oldest first; the rest for the next run', async () => {
+  const dir = archive();
+  const feed = await readFeed((await findFeeds(dir, 'Tooled Up')).files);
+  const many = Array.from({ length: 150 }, (_, i) => ({ id: 1000 + i, awin_product_id: `x${i}`, merchant_product_id: `y${i}`, price: 1, currency: 'GBP', stock_status: '1', image_url: '', is_active: 1, updated_at: '2026-10-01 10:00:00' }));
+  const broken = planRefresh({ rows: [...TU, ...many], feed, costs: CGW_COSTS, now: RUN, feedTime: DOWNLOADED });
+  assert.equal(broken.safe, false);
+  assert.equal(broken.hides.length, 0);
+  assert.equal(broken.visible.still['gone-unsafe'], 1, 'the gone row of 3 Sep stays active (and hidden by its date)');
+  const small = planRefresh({ rows: TU, feed, costs: CGW_COSTS, maxWrites: 4, now: RUN, feedTime: DOWNLOADED });
+  assert.equal(small.writes, 4);
+  assert.deepEqual([small.changes.length, small.hides.length, small.seen.length, small.left.changes, small.left.hides, small.left.seen], [2, 0, 0, 0, 1, 1]);
+  // Dates: the oldest first (the rows the sites hide come back first).
+  const rows = Array.from({ length: 5 }, (_, i) => ({ id: 50 + i, awin_product_id: '200', merchant_product_id: '300', price: 5, currency: 'GBP', stock_status: 'In Stock', image_url: 'https://www.tooled-up.com/artwork/prodzoom/d.jpg', is_active: 1, updated_at: `2026-10-0${5 - i} 10:00:00` }));
+  const dates = planRefresh({ rows, feed, costs: HGW_COSTS, maxWrites: 9, now: RUN, feedTime: DOWNLOADED });
+  assert.deepEqual(dates.seen.map(s => s.id), [54, 53, 52], 'three rows of 3 writes each (HGW: the FTS trigger)');
+  assert.equal(dates.writes, 9);
+  assert.equal(dates.left.seen, 2);
+});
+
+test('L108 statements: equal changes in one UPDATE ... WHERE id IN (up to 500 ids), grouped by the same date; files of at most 50 statements and 5,000 rows written', () => {
+  assert.equal(IDS_PER_STATEMENT, 500);
+  assert.equal(MAX_STATEMENTS_PER_FILE, 50);
+  assert.equal(MAX_WRITES_PER_FILE, 5000);
+  const seen = Array.from({ length: 1200 }, (_, i) => ({ id: 1 + i, old: '2026-09-01 10:00:00' }));
+  const p = { changes: [], hides: [], seen, stamp: STAMP, costs: CGW_COSTS };
+  const st = planStatements(p);
+  assert.equal(st.seen.length, 3);
+  assert.deepEqual(st.seen.map(s => s.rows), [500, 500, 200]);
+  assert.match(st.seen[0].sql, /^UPDATE products SET updated_at = '2026-10-24 21:30:15' WHERE id IN \(1, 2, 3, .* 500\);$/);
+  assert.equal(st.rollback.length, 3, 'the rollback groups the rows with the same old date');
+  // Stock changes to the same word: one statement; price changes: one per product.
+  const changes = [
+    ...Array.from({ length: 3 }, (_, i) => ({ id: 10 + i, set: { stock_status: 'Out of Stock' }, old: { stock_status: 'In Stock' }, oldDate: '2026-09-01 10:00:00', stamp: STAMP, writes: 1 })),
+    { id: 20, set: { price: 9.5 }, old: { price: 10 }, oldDate: '2026-09-02 10:00:00', stamp: STAMP, writes: 3 },
+    { id: 21, set: { price: 7 }, old: { price: 8 }, oldDate: null, stamp: '', writes: 3 }
+  ];
+  const s2 = planStatements({ changes, hides: [30, 31], seen: [], stamp: STAMP, costs: CGW_COSTS });
+  assert.deepEqual(s2.update.map(s => s.sql), [
+    "UPDATE products SET stock_status = 'Out of Stock', updated_at = '2026-10-24 21:30:15' WHERE id IN (10, 11, 12);",
+    "UPDATE products SET price = 9.5, updated_at = '2026-10-24 21:30:15' WHERE id = 20;",
+    'UPDATE products SET price = 7 WHERE id = 21;'
+  ]);
+  assert.deepEqual(s2.hide.map(s => s.sql), ['UPDATE products SET is_active = 0 WHERE id IN (30, 31);'], 'a hidden row gets no date');
+  assert.ok(s2.rollback.some(s => s.sql === "UPDATE products SET price = 10, updated_at = '2026-09-02 10:00:00' WHERE id = 20;"));
+  assert.ok(s2.rollback.some(s => s.sql === 'UPDATE products SET price = 8 WHERE id = 21;'), 'no date written, none put back');
+  assert.ok(s2.rollback.some(s => s.sql === 'UPDATE products SET is_active = 1 WHERE id IN (30, 31);'));
+  // A hide on CGW writes 12 rows per product: at most 416 ids per statement, so one statement stays under 5,000.
+  assert.equal(idsPerStatement(12), 416);
+  assert.equal(idsPerStatement(1), 500);
+  const hides = groupedStatements([{ set: 'is_active = 0', ids: Array.from({ length: 1000 }, (_, i) => i + 1), rowCost: 12 }]);
+  assert.deepEqual(hides.map(h => h.rows), [416, 416, 168]);
+  // Files: 120 single price changes -> 50 + 50 + 20 statements; 24 date statements of 500 rows -> 10 + 10 + 4.
+  const prices = Array.from({ length: 120 }, (_, i) => ({ sql: `UPDATE products SET price = ${i} WHERE id = ${i};`, writes: 3 }));
+  assert.deepEqual(splitFiles(prices).map(f => f.statements.length), [50, 50, 20]);
+  const dates = groupedStatements([{ set: "updated_at = 'x'", ids: Array.from({ length: 12000 }, (_, i) => i + 1), rowCost: 1 }]);
+  const files = splitFiles(dates);
+  assert.deepEqual(files.map(f => [f.statements.length, f.writes]), [[10, 5000], [10, 5000], [4, 2000]]);
+  for (const f of [...splitFiles(prices), ...files, ...splitFiles(hides)]) assert.ok(f.statements.length <= 50 && f.writes <= 5000);
+});
+
+test('the SQL on a copy of the CGW table: values and dates change by id, the gone product is hidden, the rollback puts everything back', async () => {
   const dir = archive();
   const feed = await readFeed((await findFeeds(dir, 'Tooled Up')).files);
   const db = new DatabaseSync(':memory:');
@@ -133,38 +320,120 @@ test('the SQL on a copy of the CGW table: values change by id, the gone product 
     currency TEXT DEFAULT 'GBP', stock_status TEXT, merchant_category TEXT, image_url TEXT, affiliate_url TEXT NOT NULL DEFAULT 'x', ean TEXT,
     is_active INTEGER NOT NULL DEFAULT 1, created_at TEXT DEFAULT CURRENT_TIMESTAMP, updated_at TEXT DEFAULT CURRENT_TIMESTAMP, specs_json TEXT, product_slug TEXT);`);
   for (const s of CGW_INDEXES) db.exec(s + ';');
-  const ins = db.prepare('INSERT INTO products (id, awin_product_id, merchant_product_id, retailer, product_name, price, currency, stock_status, image_url, is_active) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
-  for (const r of TU) ins.run(r.id, r.awin_product_id, r.merchant_product_id, 'Tooled Up', r.product_name, r.price, r.currency, r.stock_status, r.image_url, 1);
-  ins.run(6, '666', '666', 'Tooled Up', 'Hidden by a clean-up', 3, 'GBP', 'In Stock', 'https://x/6.jpg', 0);
-  const before = db.prepare('SELECT id, price, image_url, stock_status, is_active FROM products ORDER BY id').all();
+  const ins = db.prepare('INSERT INTO products (id, awin_product_id, merchant_product_id, retailer, product_name, price, currency, stock_status, image_url, is_active, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
+  for (const r of TU) ins.run(r.id, r.awin_product_id, r.merchant_product_id, 'Tooled Up', r.product_name, r.price, r.currency, r.stock_status, r.image_url, 1, r.updated_at);
+  ins.run(6, '666', '666', 'Tooled Up', 'Hidden by a clean-up', 3, 'GBP', 'In Stock', 'https://x/6.jpg', 0, '2026-09-01 10:00:00');
+  const before = db.prepare('SELECT id, price, image_url, stock_status, is_active, updated_at FROM products ORDER BY id').all();
   const rows = db.prepare('SELECT * FROM products WHERE is_active = 1').all();
   const out = mkdtempSync(join(tmpdir(), 'refresh-out-'));
-  writePlan(out, planRefresh({ rows, feed, costs: CGW_COSTS, now: new Date('2026-10-25T12:00:00Z') }));
-  for (const f of readdirSync(out).filter(f => /^update-\d+\.sql$/.test(f)).sort()) db.exec(readFileSync(join(out, f), 'utf8'));
-  db.exec(readFileSync(join(out, 'hide.sql'), 'utf8'));
-  const after = Object.fromEntries(db.prepare('SELECT id, price, stock_status, is_active FROM products').all().map(r => [r.id, r]));
+  const summary = writePlan(out, planRefresh({ rows, feed, costs: CGW_COSTS, now: RUN, feedTime: DOWNLOADED }));
+  assert.deepEqual(summary.files.map(f => f.name), ['update-0001.sql', 'hide-0001.sql', 'seen-0001.sql'], 'run order: values, hides, dates');
+  for (const f of summary.files) db.exec(readFileSync(join(out, f.name), 'utf8'));
+  const after = Object.fromEntries(db.prepare('SELECT id, price, stock_status, is_active, updated_at FROM products').all().map(r => [r.id, r]));
   assert.equal(after[1].price, 12.5);
+  assert.equal(after[1].updated_at, STAMP, 'a change gets the feed time, not datetime(\'now\')');
   assert.equal(after[2].stock_status, 'Out of Stock');
+  assert.equal(after[4].updated_at, STAMP, 'seen: confirmed by the feed');
+  assert.equal(after[3].updated_at, '2026-09-01 10:00:00', 'the price jump keeps its old date');
   assert.equal(after[5].is_active, 0, 'gone from the feed: hidden');
+  assert.equal(after[5].updated_at, '2026-09-03 10:00:00', 'and no date');
   assert.equal(after[6].is_active, 0, 'hidden before: stays hidden');
+  assert.equal(after[6].updated_at, '2026-09-01 10:00:00', 'and gets no date');
   db.exec(readFileSync(join(out, 'rollback.sql'), 'utf8'));
-  assert.deepEqual(db.prepare('SELECT id, price, image_url, stock_status, is_active FROM products ORDER BY id').all(), before, 'rollback: exactly as before');
+  assert.deepEqual(db.prepare('SELECT id, price, image_url, stock_status, is_active, updated_at FROM products ORDER BY id').all(), before, 'rollback: exactly as before, dates too');
+  // The split rollback files give the same result.
+  for (const f of summary.files) db.exec(readFileSync(join(out, f.name), 'utf8'));
+  for (const f of summary.rollbackFiles) db.exec(readFileSync(join(out, f), 'utf8'));
+  assert.deepEqual(db.prepare('SELECT id, price, image_url, stock_status, is_active, updated_at FROM products ORDER BY id').all(), before);
 });
 
-test('command line: report and counts from wrangler output files; no feed found -> exit 3 with the names of similar feeds', () => {
+test('the SQL on the older layout with its FTS trigger (tests/fixtures/ggw-legacy-schema.sql): search still finds the products, rollback exact', async () => {
+  const dir = archive();
+  const feed = await readFeed((await findFeeds(dir, 'Tooled Up')).files);
+  const db = new DatabaseSync(':memory:');
+  db.exec(readFileSync('tests/fixtures/ggw-legacy-schema.sql', 'utf8'));
+  const ins = db.prepare("INSERT INTO products (id, awin_product_id, merchant_product_id, retailer, site_category, product_name, price, currency, stock_status, image_url, affiliate_url, is_active, updated_at) VALUES (?, ?, ?, 'Tooled Up', 'Garden Tools', ?, ?, ?, ?, ?, 'x', 1, ?)");
+  for (const r of TU) ins.run(r.id, r.awin_product_id, r.merchant_product_id, r.product_name, r.price, r.currency, r.stock_status, r.image_url, r.updated_at);
+  const schema = db.prepare("SELECT type, name, sql FROM sqlite_master WHERE tbl_name = 'products' AND type IN ('index', 'trigger')").all();
+  const costs = writeCosts(schema);
+  assert.equal(costs.updated_at, 3, 'the fixture has the FTS trigger on every UPDATE, like MGW, WGW, KGW, HGW and GGW');
+  const before = db.prepare('SELECT id, price, image_url, stock_status, is_active, updated_at FROM products ORDER BY id').all();
+  const out = mkdtempSync(join(tmpdir(), 'refresh-fts-'));
+  const summary = writePlan(out, planRefresh({ rows: db.prepare('SELECT * FROM products WHERE is_active = 1').all(), feed, costs, now: RUN, feedTime: DOWNLOADED }));
+  for (const f of summary.files) db.exec(readFileSync(join(out, f.name), 'utf8'));
+  assert.equal(db.prepare("SELECT updated_at AS d FROM products WHERE id = 4").get().d, STAMP);
+  assert.equal(db.prepare("SELECT COUNT(*) AS n FROM products_fts WHERE products_fts MATCH 'spanner'").get().n, 1, 'the search index is intact');
+  db.exec(readFileSync(join(out, 'rollback.sql'), 'utf8'));
+  assert.deepEqual(db.prepare('SELECT id, price, image_url, stock_status, is_active, updated_at FROM products ORDER BY id').all(), before);
+});
+
+test('one-paste mode: the feeds of many shops in one pass; .csv and .csv.gz of one feed count once (the newer); times and advertisers', async () => {
+  const dir = archive();
+  const older = Date.parse('2026-10-20T09:00:00Z');
+  writeFileSync(join(dir, 'AWIN_496_1001.csv'), HEAD + line({ name: 'Old copy', aw: '1', mid: '1', price: 1, merchant: 'Tooled Up', adv: 496 }));
+  utimesSync(join(dir, 'AWIN_496_1001.csv'), older / 1000, older / 1000);
+  const r = await findFeedsFor(dir, ['Tooled Up', 'Reidl', 'Tooled Down', 'Nobody'], RUN.getTime());
+  assert.deepEqual(r[0].files.map(f => [f.file, f.advertiser, f.feed, f.time]), [['AWIN_496_1001.csv.gz', '496', '1001', STAMP]], 'the newer copy only');
+  assert.deepEqual(r[0].advertisers, ['496']);
+  assert.equal(r[0].ageDays, 0.6);
+  assert.deepEqual(r[1].advertisers, ['122822']);
+  assert.equal(r[2].files.length, 0);
+  assert.deepEqual(r[2].similar, ['AWIN_496_1001.csv: Tooled Up', 'AWIN_496_1001.csv.gz: Tooled Up'], 'similar names are listed');
+  assert.deepEqual(r[3], { retailer: 'Nobody', files: [], advertisers: [], feedTime: '', ageDays: null, similar: [] });
+  const two = pickFeedFiles([join(dir, 'AWIN_496_1001.csv'), join(dir, 'AWIN_496_1001.csv.gz'), join(dir, 'AWIN_122822_2002.csv.gz')]);
+  assert.equal(two.files.length, 2);
+  assert.equal(two.dropped.length, 1);
+});
+
+test('command line: report and counts from wrangler output files; no feed found -> exit 3 with the names of similar feeds; --find; --require-dates', () => {
   const dir = archive();
   const out = mkdtempSync(join(tmpdir(), 'refresh-cli-'));
   const rowsFile = join(out, 'rows-001.json.txt');
   writeFileSync(rowsFile, 'some wrangler text\n' + JSON.stringify([{ results: TU, success: true }]));
   const idxFile = join(out, 'indexes.json.txt');
-  writeFileSync(idxFile, JSON.stringify([{ results: CGW_INDEXES.map((sql, i) => ({ name: `i${i}`, sql })), success: true }]));
+  writeFileSync(idxFile, JSON.stringify([{ results: [...CGW_INDEXES.map((sql, i) => ({ type: 'index', name: `i${i}`, sql })), ...CGW_TRIGGERS.map((sql, i) => ({ type: 'trigger', name: `t${i}`, sql }))], success: true }]));
   const tool = join(process.cwd(), 'tools', 'legacy-refresh-plan.mjs');
   execFileSync(process.execPath, [tool, '--archive', dir, '--retailer', 'Tooled Up', '--site', 'cgw', '--rows', rowsFile, '--indexes', idxFile, '--out', out, '--now', '2026-10-25T12:00:00Z']);
-  assert.equal(readFileSync(join(out, 'counts.txt'), 'utf8').trim(), '2 1 16 0 1 5');
+  // changes hides writes stale safe active seen revive datesOk files
+  assert.equal(readFileSync(join(out, 'counts.txt'), 'utf8').trim(), '2 1 17 0 1 5 1 2 1 3');
   const report = readFileSync(join(out, 'report.txt'), 'utf8');
   assert.match(report, /ΠΡΟΣΟΧΗ: 1 τιμές αλλάζουν πάνω από 3 φορές/);
   assert.match(report, /απόκρυψη 12/);
+  assert.match(report, /Ώρα λήψης του feed σε αυτόν τον υπολογιστή: 2026-10-24 21:30:15 UTC/);
+  assert.match(report, /Θα φαίνονται ξανά: 2\./);
+  const summary = JSON.parse(readFileSync(join(out, 'summary.json'), 'utf8'));
+  assert.equal(summary.stamp, STAMP);
+  assert.deepEqual(summary.files.map(f => f.name), ['update-0001.sql', 'hide-0001.sql', 'seen-0001.sql']);
   const miss = spawnSync(process.execPath, [tool, '--archive', dir, '--retailer', 'Tooled', '--rows', rowsFile, '--out', join(out, 'x')]);
   assert.equal(miss.status, 3);
   assert.match(readFileSync(join(out, 'x', 'report.txt'), 'utf8'), /Παρόμοια: AWIN_496_1001\.csv\.gz: Tooled Up/);
+  // The one-paste mode with a feed file of 3 days: nothing at all.
+  const late = join(out, 'late');
+  execFileSync(process.execPath, [tool, '--archive', dir, '--retailer', 'Tooled Up', '--site', 'cgw', '--rows', rowsFile, '--indexes', idxFile, '--out', late, '--now', '2026-10-27T22:00:00Z', '--require-dates']);
+  assert.equal(readFileSync(join(late, 'counts.txt'), 'utf8').trim(), '0 0 0 0 1 5 0 0 0 0');
+  assert.match(readFileSync(join(late, 'report.txt'), 'utf8'), /ΔΕΝ αλλάζει καθόλου μέχρι να κατέβει φρέσκο feed/);
+  const names = join(out, 'names.txt');
+  writeFileSync(names, '﻿Tooled Up\r\nReidl\r\n');
+  execFileSync(process.execPath, [tool, '--find', '--archive', dir, '--retailers-file', names, '--out', join(out, 'find'), '--now', '2026-10-25T12:00:00Z']);
+  const feeds = JSON.parse(readFileSync(join(out, 'find', 'feeds.json'), 'utf8'));
+  assert.deepEqual(feeds.map(f => [f.retailer, f.advertisers.join(','), f.feedTime]), [['Tooled Up', '496', STAMP], ['Reidl', '122822', STAMP]]);
+});
+
+test('the dates of the sites and of the plan are the same days (src/lib/visibility.js)', () => {
+  const at = Date.parse('2026-11-09T12:00:00Z');
+  const v = viewFor(null, 'GB', at);
+  assert.deepEqual(viewDays(at), { cutoff: v.cutoff, checkFrom: v.checkFrom });
+  assert.equal(HIDE_AFTER_DAYS, 30);
+});
+
+test('legacy-refresh.ps1: the one-paste mode, its one phrase, the download tool and small files with pauses (lessons L108)', () => {
+  const ps = readFileSync('tools/legacy-refresh.ps1', 'utf8');
+  assert.ok(ps.includes("$StalePhrase = 'ΕΓΚΡΙΝΩ REFRESH ΠΑΛΙΑ ΠΡΟΪΟΝΤΑ'"), 'the one phrase, defined in the tool');
+  assert.ok(ps.includes("'ΕΓΚΡΙΝΩ REFRESH {0} {1}'"), 'the per-pair phrases stay');
+  assert.ok(ps.includes('awin-feed-download.ps1'), 'fresh feeds with the existing download tool');
+  assert.ok(ps.includes('[switch]$Stale') && ps.includes('[string]$Sites') && ps.includes('[switch]$PaidPlan'));
+  assert.ok(ps.includes('Start-Sleep -Seconds $PauseSeconds'), 'a pause between the files');
+  assert.ok(/αργά το βράδυ/.test(ps), 'the tip to run at a quiet time');
+  assert.ok(!/updated_at = datetime/.test(readFileSync('tools/legacy-refresh-plan.mjs', 'utf8')), 'no date of the run in the SQL');
+  assert.ok(ps.charCodeAt(0) === 0xfeff && ps.includes('\r\n'), 'UTF-8 with BOM and CRLF');
 });
