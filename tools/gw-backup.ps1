@@ -420,7 +420,9 @@ if (-not $SkipDatabases) {
         $r = Invoke-Wrangler $WorkDir 'd1 list --json'
         $j = Get-JsonText $r.text
         $list = $null
-        if ($r.code -eq 0 -and $j) { try { $list = @($j | ConvertFrom-Json) } catch { $list = $null } }
+        # Windows PowerShell 5.1 gives the whole JSON array as ONE object: unroll it, or several databases become one
+        # name "a b c" and are all skipped (L113).
+        if ($r.code -eq 0 -and $j) { try { $parsed = $j | ConvertFrom-Json; $list = @($parsed | ForEach-Object { $_ }) } catch { $list = $null } }
         if ($null -eq $list) {
             if ($r.text -match '(?i)not authenticated|wrangler login|not logged in|oauth') { Say 'ΠΡΟΒΛΗΜΑ: το wrangler δεν είναι συνδεδεμένο στο Cloudflare. Στείλε αυτή την αναφορά στο Claude.' 'Red' }
             else { Say 'ΠΡΟΒΛΗΜΑ: δεν μπόρεσα να διαβάσω τις βάσεις από το Cloudflare. Στείλε αυτή την αναφορά στο Claude.' 'Red' }
