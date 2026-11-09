@@ -5,12 +5,17 @@
 // not switched off, from a retailer that delivers to the UK, and with a price check from the last 30 days (otherwise
 // its page shows a notice instead of the product). One whose price check is older than 14 days says "Check price and
 // stock at the retailer" on its page: reported, so guides.json can get a newer product before it turns into a notice.
+// Lessons L109 (9 Nov 2026): the price in guides.json must be the price the site shows. A guide that says £105.95 for a
+// product whose page says £155.95 is a price we cannot back up (Google Ads), so a PRICE line stops the live step too,
+// like a NOTICE. An offer of the same product at another retailer ("Same price at ...") is checked as well when
+// guides.json gives its id.
 //
 // Usage:
 //   node tools/gwh-guide-guard.mjs plan                  lines "<site>\t<database name>\t<SELECT ...>", one per site
 //   node tools/gwh-guide-guard.mjs judge <site> <file> [--out <report>]   <file>: the output of wrangler d1 execute
 //                                                        --json for that SELECT; prints the findings (or writes them to
-//                                                        <report>), last line "GUARD <site> checked=<n> notices=<n> old=<n>"
+//                                                        <report>), last line
+//                                                        "GUARD <site> checked=<n> notices=<n> old=<n> prices=<n>"
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { loadData, SITES, money } from './gwh-guides.mjs';
@@ -29,7 +34,13 @@ export function linkedIds(data = loadData()) {
       const code = CODE_OF[u.hostname];
       const m = u.pathname.match(/-(\d+)\/$/);
       if (!code || !m) throw new Error(`not a Gear World product page: ${it.url}`);
-      (out[code] = out[code] || []).push({ id: Number(m[1]), name: it.name, price: Number(it.price), guide: g.slug });
+      const id = Number(m[1]);
+      (out[code] = out[code] || []).push({ id, name: it.name, price: Number(it.price), guide: g.slug });
+      // The other retailers of the same product that the card names (offers), when guides.json gives their id.
+      for (const o of it.offers || []) {
+        if (o.id == null || Number(o.id) === id) continue;
+        out[code].push({ id: Number(o.id), name: `${it.name} at ${o.retailer}`, price: Number(o.price), guide: g.slug });
+      }
     }
   }
   return out;
@@ -95,9 +106,10 @@ export async function judge(code, text, at = Date.now(), data = loadData()) {
   const lines = [];
   let notices = 0;
   let old = 0;
+  let prices = 0;
   if (!rows) {
     lines.push(`${code}: NOTICE - the database answer could not be read, so no product of this site is confirmed`);
-    return { lines, notices: items.length, old: 0, checked: 0, text: [...lines, `GUARD ${code} checked=0 notices=${items.length} old=0`].join('\n') };
+    return { lines, notices: items.length, old: 0, prices: 0, checked: 0, text: [...lines, `GUARD ${code} checked=0 notices=${items.length} old=0 prices=0`].join('\n') };
   }
   const view = homeView(site, at);
   const byId = new Map(rows.map(r => [Number(r.id), asShown(site, r)]));
@@ -115,10 +127,11 @@ export async function judge(code, text, at = Date.now(), data = loadData()) {
     }
     if (why) { notices++; lines.push(`NOTICE ${tag}: ${why}`); continue; }
     if (needsCheck(view, p)) { old++; lines.push(`OLD    ${tag}: price checked ${String(p.last_seen_at).slice(0, 10)}, more than 14 days ago`); }
-    if (Math.abs(Number(p.price) - it.price) >= 0.005) lines.push(`PRICE  ${tag}: ${money(it.price)} in guides.json, ${money(p.price)} on the site`);
+    // L109: another price than the site shows stops the live step (tools/gwh-hub-v2.ps1, exit 20), like a notice.
+    if (!(Math.abs(Number(p.price) - it.price) < 0.005)) { prices++; lines.push(`PRICE  ${tag}: ${money(it.price)} in guides.json, ${money(p.price)} on the site`); }
   }
-  lines.push(`GUARD ${code} checked=${items.length} notices=${notices} old=${old}`);
-  return { lines, notices, old, checked: items.length, text: lines.join('\n') };
+  lines.push(`GUARD ${code} checked=${items.length} notices=${notices} old=${old} prices=${prices}`);
+  return { lines, notices, old, prices, checked: items.length, text: lines.join('\n') };
 }
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {

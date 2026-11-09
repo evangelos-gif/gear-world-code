@@ -297,11 +297,12 @@ test('the Hub sitemap has /about/ (owner, 7/11/2026); the tools ask this release
   assert.ok(body.includes('<loc>https://gearworldhub.com/about/</loc>'));
   const hubTool = readFileSync('tools/gwh-hub-v2.ps1', 'utf8');
   // The releases after this one ask their own phrases (L105 robots.txt: HUB ROBOTS; L106 security fixes: HUB SECURITY).
-  // L107 Google Ads compliance: HUB COMPLIANCE.
-  assert.ok(hubTool.includes("$PhrasePreview = 'ΕΓΚΡΙΝΩ HUB COMPLIANCE PREVIEW'") && hubTool.includes("$PhraseLive = 'ΕΓΚΡΙΝΩ HUB COMPLIANCE LIVE'"));
+  // L107 Google Ads compliance: HUB COMPLIANCE (live 9/11/2026). L109 gift guide prices: HUB GUIDE PRICES.
+  assert.ok(hubTool.includes("$PhrasePreview = 'ΕΓΚΡΙΝΩ HUB GUIDE PRICES PREVIEW'") && hubTool.includes("$PhraseLive = 'ΕΓΚΡΙΝΩ HUB GUIDE PRICES LIVE'"));
+  assert.ok(!/\$Phrase(Preview|Live) = 'ΕΓΚΡΙΝΩ HUB (COMPLIANCE|SECURITY|ROBOTS|CLEANUP|WORDING|ADS|GUIDES|REGISTRY) /.test(hubTool), 'no phrase of an earlier release');
   assert.ok(hubTool.includes("$PhraseRemovePreview = 'ΕΓΚΡΙΝΩ HUB REMOVE PREVIEW'"));
   const tests = readFileSync('tests/run-tests.ps1', 'utf8');
-  assert.ok(tests.includes("'egkrino hub compliance preview'") && tests.includes("'egkrino hub compliance live'") && !/HUB WORDING|hub wording|HUB CLEANUP|hub cleanup|HUB ROBOTS|hub robots|hub security (preview|live)/.test(tests));
+  assert.ok(tests.includes("'egkrino hub guide prices preview'") && tests.includes("'egkrino hub guide prices live'") && !/HUB WORDING|hub wording|HUB CLEANUP|hub cleanup|HUB ROBOTS|hub robots|hub security (preview|live)|hub compliance (preview|live)/.test(tests));
   const sitesTool = readFileSync('tools/ads-fixes-sites.ps1', 'utf8');
   assert.ok(sitesTool.includes("$Phrase = 'ΕΓΚΡΙΝΩ ADS FIXES'"));
   assert.ok(sitesTool.includes("'Browse by category'") && sitesTool.includes('data-i18n-keep="0"'), 'the live check looks for the L103 wording');

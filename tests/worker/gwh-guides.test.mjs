@@ -148,7 +148,8 @@ test('guides: the live guard plans one SELECT by id per site and finds every pro
   let r = await judge('wgw', answer(items.map(it => row(it))), at);
   assert.equal(r.notices, 0);
   assert.equal(r.old, 0);
-  assert.match(r.text, /GUARD wgw checked=12 notices=0 old=0$/);
+  assert.equal(r.prices, 0);
+  assert.match(r.text, /GUARD wgw checked=12 notices=0 old=0 prices=0$/);
   r = await judge('wgw', answer([
     row(items[0], { updated_at: '2026-10-01 10:00:00' }),          // no price check for 30 days
     row(items[1], { retailer: '100 Percent Pure' }),               // shown as "100% PURE": does not deliver to the UK
@@ -160,6 +161,8 @@ test('guides: the live guard plans one SELECT by id per site and finds every pro
   ]), at);
   assert.equal(r.notices, 5);
   assert.equal(r.old, 1);
+  assert.equal(r.prices, 1, 'another price is counted (L109: the live step refuses on it)');
+  assert.match(r.text, /GUARD wgw checked=12 notices=5 old=1 prices=1$/);
   assert.match(r.text, /NOTICE wgw \d+ .*no price check for 30 days/);
   assert.match(r.text, /NOTICE wgw \d+ .*100% PURE does not deliver to the UK/);
   assert.match(r.text, /NOTICE wgw \d+ .*switched off/);
@@ -169,4 +172,50 @@ test('guides: the live guard plans one SELECT by id per site and finds every pro
   assert.match(r.text, /PRICE  wgw \d+ /);
   // An answer that is not JSON: nothing confirmed, every product counts as a notice.
   assert.equal((await judge('wgw', 'X [ERROR] something', at)).notices, 12);
+});
+
+test('guides: the guard counts a PRICE as the preview of 9 Nov 2026 found it, also for another retailer of the card (L109)', async () => {
+  const { judge, linkedIds } = await import('../../tools/gwh-guide-guard.mjs');
+  const at = Date.parse('2026-11-09T20:28:00Z');
+  const answer = rows => JSON.stringify([{ results: rows, success: true }]);
+  const row = (id, retailer, price, extra = {}) => ({ id, retailer, price, stock_status: 'In Stock', is_active: 1, updated_at: '2026-11-09 19:48:36', ...extra });
+  // The DIY guide before L109: the Makita at £105.95 (and £119.95 at My Tool Shed), while the site said £155.95 at both.
+  const makita = 'https://constructiongearworld.com/product/makita-mr009g-40v-max-xgt-cordless-dab-radio-and-work-light-lantern-no-batteries-no-battery-charger-1685/';
+  const diy = { guides: [{ slug: 'christmas-gifts-for-diy-lovers', items: [{ url: makita, name: 'Makita MR009G', price: 105.95, offers: [{ retailer: 'Tooled Up', price: 105.95, id: 1685 }, { retailer: 'My Tool Shed', price: 119.95, id: 37787 }] }] }] };
+  assert.deepEqual(linkedIds(diy).cgw.map(i => i.id), [1685, 37787], 'the offer at the other retailer is read by its id, the card\'s own id once');
+  let r = await judge('cgw', answer([row(1685, 'Tooled Up', 155.95), row(37787, 'My Tool Shed', 155.95)]), at, diy);
+  assert.equal(r.notices, 0);
+  assert.equal(r.prices, 2);
+  assert.match(r.text, /PRICE  cgw 1685 .*£105\.95 in guides\.json, £155\.95 on the site/);
+  assert.match(r.text, /PRICE  cgw 37787 .*at My Tool Shed: £119\.95 in guides\.json, £155\.95 on the site/);
+  assert.match(r.text, /GUARD cgw checked=2 notices=0 old=0 prices=2$/);
+  // The two LEGO sets of the kids' guide (KGW, older layout, "Joybuy UK" shown as Joybuy).
+  const kids = { guides: [{ slug: 'christmas-gifts-for-kids', items: [
+    { url: 'https://kidsgearworld.com/product/lego-city-vintage-steam-train-60511-4589/', name: 'LEGO City Vintage Steam Train 60511', price: 63.99 },
+    { url: 'https://kidsgearworld.com/product/lego-technic-tipping-dump-truck-42203-5164/', name: 'LEGO Technic Tipping Dump Truck 42203', price: 33.74 }
+  ] }] };
+  r = await judge('kgw', answer([row(4589, 'Joybuy UK', 79.99, { stock_status: 'in stock' }), row(5164, 'Joybuy UK', 44.99, { stock_status: 'in stock' })]), at, kids);
+  assert.equal(r.notices, 0);
+  assert.equal(r.prices, 2);
+  assert.match(r.text, /£63\.99 in guides\.json, £79\.99 on the site/);
+  assert.match(r.text, /£33\.74 in guides\.json, £44\.99 on the site/);
+  // A price the database does not give (null) is never taken as the same price.
+  r = await judge('kgw', answer([row(4589, 'Joybuy UK', null, { stock_status: 'in stock' }), row(5164, 'Joybuy UK', 33.74, { stock_status: 'in stock' })]), at, kids);
+  assert.equal(r.prices, 1);
+});
+
+test('guides: every product checked within 14 days of the guides date, none from a retailer whose rows no longer refresh, a factual "why" (L109)', () => {
+  const day = 86400000;
+  // 9 Nov 2026: the legacy feed refresh gives these retailers no new date (Coes: no new price check since 26 Oct;
+  // GS Workwear: not refreshed yet), so their products show "Check price and stock at the retailer" and then a notice.
+  const notRefreshed = ['Bazta UK', 'Plusshop UK', 'InStock UK', 'Red Gorilla', 'Red Gorilla International', 'GRABO', 'Cronjager', 'GS Workwear', 'Coes'];
+  for (const g of data.guides) {
+    for (const it of g.items) {
+      const age = (Date.parse(data.checked) - Date.parse(it.checked)) / day;
+      assert.ok(age >= 0 && age <= 14, `${it.name}: checked ${it.checked}, ${age} days before ${data.checked}`);
+      for (const r of [it.retailer, ...(it.offers || []).map(o => o.retailer)]) assert.ok(!notRefreshed.includes(r), `${it.name}: ${r}`);
+      assert.ok(!/£|\d\s*%|\bsave\b|saving|price drop|previous price|\bwas\b|\bshop\b|UK retailers|cheap/i.test(it.why), `${it.name}: "${it.why}"`);
+      for (const o of it.offers || []) assert.ok(Number.isInteger(o.id), `${it.name}: the offer at ${o.retailer} has its id, so the guard reads its price`);
+    }
+  }
 });

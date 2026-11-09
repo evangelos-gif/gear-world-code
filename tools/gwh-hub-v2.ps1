@@ -18,10 +18,10 @@
   -Step check    READ-ONLY. Is the hub folder on this PC still exactly the version that runs live
                  (sites/gwh/live-baseline.txt, its "# version:" line names it), and gearworldhub.com too? Cloudflare
                  login, the live version of the Worker (needed to go back), the poster counting (it goes first).
-  -Step preview  CHANGES CLOUDFLARE, one approval: ΕΓΚΡΙΝΩ HUB ROBOTS PREVIEW. The test Worker "gear-world-hub-preview" on a
+  -Step preview  CHANGES CLOUDFLARE, one approval: ΕΓΚΡΙΝΩ HUB GUIDE PRICES PREVIEW. The test Worker "gear-world-hub-preview" on a
                  *.workers.dev address gets this version (noindex, no Google Analytics, e-mail sign-up closed, no
                  poster counting; the same D1 and Workers AI, read only). gearworldhub.com does NOT change.
-  -Step live     CHANGES THE LIVE HUB, one approval: ΕΓΚΡΙΝΩ HUB ROBOTS LIVE. Only when the hub folder on this PC and the
+  -Step live     CHANGES THE LIVE HUB, one approval: ΕΓΚΡΙΝΩ HUB GUIDE PRICES LIVE. Only when the hub folder on this PC and the
                  live site are still the version of live-baseline.txt (or already this version) and the posters count
                  already. First a zip of the hub folder and the number of the live version (for rollback), then the
                  changed files go into the hub folder, then gearworldhub.com is deployed from it and checked. If the
@@ -98,8 +98,17 @@
   site (SELECT by primary key, tools/gwh-guide-guard.mjs): the report lists any that would show a notice or were checked
   more than 14 days ago, and the live step refuses while one would show a notice.
   The 13 sites go FIRST (tools/ads-fixes-sites.ps1, ΕΓΚΡΙΝΩ ADS FIXES), so
-  every site already reads ?deliver_to when the Hub sends it. Phrases of this release: ΕΓΚΡΙΝΩ HUB COMPLIANCE PREVIEW,
-  then ΕΓΚΡΙΝΩ HUB COMPLIANCE LIVE together with remove-preview (ΕΓΚΡΙΝΩ HUB REMOVE PREVIEW) in the same paste.
+  every site already reads ?deliver_to when the Hub sends it. Phrases of that release: ΕΓΚΡΙΝΩ HUB COMPLIANCE PREVIEW,
+  then ΕΓΚΡΙΝΩ HUB COMPLIANCE LIVE together with remove-preview (ΕΓΚΡΙΝΩ HUB REMOVE PREVIEW) in the same paste
+  (live since 09/11/2026 20:35, fb9953f).
+  Gift guide prices (lessons L109, 9/11/2026): only the gift guides change (public/guides/index.html and the 5 guide
+  pages, made by tools/gwh-guides.mjs from sites/gwh/guides/guides.json). Every price is the price its site shows,
+  with the day it was checked; the products of Coes, Bazta UK and the older Joybuy rows (no new price check since
+  24-26 Oct, so "Check price and stock at the retailer" and later a notice) are replaced by similar products of the
+  same site checked on 8-9 Nov. worker.js, the other pages and the D1 do not change. The guard now stops the live step
+  on a PRICE line too (another price in guides.json than on the site, exit 20), like a NOTICE; OLD stays a warning.
+  Phrases of this release: ΕΓΚΡΙΝΩ HUB GUIDE PRICES PREVIEW, then ΕΓΚΡΙΝΩ HUB GUIDE PRICES LIVE together with
+  remove-preview (ΕΓΚΡΙΝΩ HUB REMOVE PREVIEW) in the same paste.
   Report: <home>\gear-world-reports\GWH_HUB_V2_<STEP>_<time>.txt (also copied to the clipboard)
 #>
 param(
@@ -121,8 +130,8 @@ $repo = Split-Path -Parent $PSScriptRoot
 $HubWorker = 'gear-world-hub'
 $PreviewName = 'gear-world-hub-preview'
 $DbName = 'gear-world-registry'
-$PhrasePreview = 'ΕΓΚΡΙΝΩ HUB COMPLIANCE PREVIEW'
-$PhraseLive = 'ΕΓΚΡΙΝΩ HUB COMPLIANCE LIVE'
+$PhrasePreview = 'ΕΓΚΡΙΝΩ HUB GUIDE PRICES PREVIEW'
+$PhraseLive = 'ΕΓΚΡΙΝΩ HUB GUIDE PRICES LIVE'
 $PhraseRegister = 'ΕΓΚΡΙΝΩ HUB ZGW SEARCH'
 $PhraseRemovePreview = 'ΕΓΚΡΙΝΩ HUB REMOVE PREVIEW'
 $LiveUrl = 'https://gearworldhub.com'
@@ -162,12 +171,12 @@ $About = @{
     'public/styles.css'     = 'φεύγουν οι κανόνες της κάρτας «Sell Your Business» (.gwh-business-*) και τα σχόλια «shop» (το αρχείο δεν το φορτώνει η σελίδα· μένει για τα παλιά εργαλεία) (L103)'
     'public/contact/index.html' = '«business enquiries from retailers and affiliate networks» αντί για «partnership enquiries» (L103)'
     'public/guides/guides.css' = 'η εμφάνιση των οδηγών δώρων: «RRP» αντί για διαγραμμένη τιμή και «n% below» (L107)'
-    'public/guides/index.html' = '«Prices checked between …» από τις ημερομηνίες των προϊόντων (L107)· νέα γραμμή στο footer και link «About» (L101)'
-    'public/guides/christmas-gifts-for-him/index.html' = 'οδηγός δώρων: οι ημερομηνίες ελέγχου των τιμών από τα δεδομένα (L107)· «which shows the retailer that sells it», «on the retailer''s website» αντί για «shop» (L103)'
-    'public/guides/christmas-gifts-for-her/index.html' = 'οδηγός δώρων: δύο νέα προϊόντα στη θέση των ρολογιών που δεν φαίνονται πια, οι ημερομηνίες ελέγχου από τα δεδομένα (L107)· «retailer» αντί για «shop» (L103)'
-    'public/guides/christmas-gifts-for-kids/index.html' = 'οδηγός δώρων: οι ημερομηνίες ελέγχου των τιμών από τα δεδομένα (L107)· «retailer» αντί για «shop», χωρίς «Pretend shopping» (L103)'
-    'public/guides/christmas-gifts-for-diy-lovers/index.html' = 'οδηγός δώρων: έξι νέα εργαλεία ελεγμένα στις 5/11 στη θέση αυτών που δεν φαίνονται πια, χωρίς «Biggest saving» (L107)· «two retailers» αντί για «two shops» (L103)'
-    'public/guides/christmas-gifts-for-travellers/index.html' = 'οδηγός δώρων: χωρίς διαγραμμένες τιμές και «previous price», μόνο η τιμή και «RRP £…» (L107)· «retailer» αντί για «shop» (L103)'
+    'public/guides/index.html' = 'οι οδηγοί δώρων: «Prices checked between 31 Oct 2026 and 9 Nov 2026» και οι νέοι τίτλοι με το σωστό εύρος τιμών (L109)'
+    'public/guides/christmas-gifts-for-him/index.html' = 'οδηγός δώρων για εκείνον: 11 νέα προϊόντα ελεγμένα 8-9/11 στη θέση των Coes (χωρίς έλεγχο τιμής από 26/10), τιμές ίδιες με του Men''s Gear World (L109)'
+    'public/guides/christmas-gifts-for-her/index.html' = 'οδηγός δώρων για εκείνη: 10 νέα προϊόντα ελεγμένα 9/11 στη θέση των Coes και του Bazta UK, τιμές ίδιες με του Women''s Gear World (L109)'
+    'public/guides/christmas-gifts-for-kids/index.html' = 'οδηγός δώρων για παιδιά: 10 νέα παιχνίδια ελεγμένα 9/11 στη θέση των Bazta UK και των παλιών Joybuy, οι 2 LEGO με τη σωστή τιμή (£79.99, £44.99) (L109)'
+    'public/guides/christmas-gifts-for-diy-lovers/index.html' = 'οδηγός δώρων για μάστορες: το Makita με τη σωστή τιμή (£155.95 και στα δύο καταστήματα), νέο σετ σκαρπέλων Stanley, όλα ελεγμένα 9/11 (L109)'
+    'public/guides/christmas-gifts-for-travellers/index.html' = 'οδηγός δώρων για ταξιδιώτες: ίδια προϊόντα και τιμές, μόνο οι νέοι τίτλοι των άλλων οδηγών στο «More gift guides» (L109)'
     'public/translations.js' = 'στα ελληνικά «από το κατάστημα» αντί για «συνεργαζόμενα καταστήματα», στα γαλλικά «couchages» αντί για «paniers», «retailer» μεταφρασμένο σε 7 γλώσσες, ονόματα κλειδιών χωρίς «shop» (L103)'
     'public/robots.txt'     = 'robots.txt του Hub: πρώτα «User-agent: SERankingBacklinksBot» με «Disallow: /» (L105), από κάτω ίδιο όπως ήταν, με τη γραμμή Sitemap: https://gearworldhub.com/sitemap.xml (το Cloudflare βάζει από πάνω τα Content Signals του)'
     'public/gearworldhub-indexnow-k7q4m9x2w5.txt' = 'το κλειδί του IndexNow (δημόσιο, έτσι δουλεύει το IndexNow)'
@@ -274,9 +283,10 @@ function Get-JsonArray([string]$text) {
 
 # Lessons L107: every product a Hub gift guide links to, read from the live D1 of its site by primary key (one SELECT per
 # site, never a write) and judged like its page in the UK view by tools/gwh-guide-guard.mjs. Returns
-# @{ ok; notices; old; lines }: notices = products whose page would show a notice instead of the product.
+# @{ ok; notices; old; prices; lines }: notices = products whose page would show a notice instead of the product;
+# prices = products whose price in guides.json is not the price their site shows (lessons L109).
 function Test-GuideProducts([string]$folder) {
-    $res = @{ ok = $true; notices = 0; old = 0; lines = @() }
+    $res = @{ ok = $true; notices = 0; old = 0; prices = 0; lines = @() }
     $guard = Join-Path (Join-Path $repo 'tools') 'gwh-guide-guard.mjs'
     $guardPlan = @(& node $guard plan)
     if ($LASTEXITCODE -ne 0 -or $guardPlan.Count -eq 0) { $res.ok = $false; return $res }
@@ -291,8 +301,8 @@ function Test-GuideProducts([string]$folder) {
         $found = $false
         if (Test-Path -LiteralPath $tmpOut) {
             foreach ($t in @([System.IO.File]::ReadAllText($tmpOut, [System.Text.Encoding]::UTF8) -split "`n")) {
-                $m = [regex]::Match($t, '^GUARD \S+ checked=\d+ notices=(\d+) old=(\d+)')
-                if ($m.Success) { $found = $true; $res.notices += [int]$m.Groups[1].Value; $res.old += [int]$m.Groups[2].Value }
+                $m = [regex]::Match($t, '^GUARD \S+ checked=\d+ notices=(\d+) old=(\d+) prices=(\d+)')
+                if ($m.Success) { $found = $true; $res.notices += [int]$m.Groups[1].Value; $res.old += [int]$m.Groups[2].Value; $res.prices += [int]$m.Groups[3].Value }
                 elseif ($t.Trim()) { $res.lines += $t.Trim() }
             }
         }
@@ -305,9 +315,13 @@ function Test-GuideProducts([string]$folder) {
 function Say-GuideProducts($g) {
     foreach ($guideLine in $g.lines) { Say ('  ' + $guideLine) }
     if (-not $g.ok) { Say 'Προϊόντα των οδηγών δώρων: ΠΡΟΒΛΗΜΑ - δεν μπόρεσα να τα διαβάσω όλα από τις βάσεις (δίκτυο;).' $Bad }
-    elseif ($g.notices -gt 0) { Say ('Προϊόντα των οδηγών δώρων: ΠΡΟΒΛΗΜΑ - {0} θα έδειχναν ειδοποίηση αντί για το προϊόν (δες NOTICE). Χρειάζεται νέο guides.json πριν το live.' -f $g.notices) $Bad }
-    elseif ($g.old -gt 0) { Say ('Προϊόντα των οδηγών δώρων: ΠΡΟΣΟΧΗ - όλα φαίνονται, αλλά {0} έχουν τιμή ελεγμένη πριν από 14+ μέρες (δες OLD): η σελίδα τους λέει «Check price and stock at the retailer».' -f $g.old) $Warn }
-    else { Say 'Προϊόντα των οδηγών δώρων: όλα φαίνονται κανονικά, με τιμή ελεγμένη τις τελευταίες 14 μέρες: ΕΝΤΑΞΕΙ' $Ok }
+    else {
+        if ($g.notices -gt 0) { Say ('Προϊόντα των οδηγών δώρων: ΠΡΟΒΛΗΜΑ - {0} θα έδειχναν ειδοποίηση αντί για το προϊόν (δες NOTICE). Χρειάζεται νέο guides.json πριν το live.' -f $g.notices) $Bad }
+        # L109: a guide price that is not the price of the site is a price we cannot back up (Google Ads).
+        if ($g.prices -gt 0) { Say ('Τιμές των οδηγών δώρων: ΠΡΟΒΛΗΜΑ - {0} προϊόντα έχουν στον οδηγό άλλη τιμή από αυτή που δείχνει τώρα το site τους (δες PRICE). Χρειάζεται νέο guides.json πριν το live.' -f $g.prices) $Bad }
+        if ($g.notices -eq 0 -and $g.old -gt 0) { Say ('Προϊόντα των οδηγών δώρων: ΠΡΟΣΟΧΗ - όλα φαίνονται, αλλά {0} έχουν τιμή ελεγμένη πριν από 14+ μέρες (δες OLD): η σελίδα τους λέει «Check price and stock at the retailer».' -f $g.old) $Warn }
+        if ($g.notices -eq 0 -and $g.prices -eq 0 -and $g.old -eq 0) { Say 'Προϊόντα των οδηγών δώρων: όλα φαίνονται κανονικά, με την τιμή του site και τιμή ελεγμένη τις τελευταίες 14 μέρες: ΕΝΤΑΞΕΙ' $Ok }
+    }
 }
 
 function Get-Sha([byte[]]$bytes) {
@@ -901,6 +915,8 @@ if (-not $liveVersion) {
 $guideCheck = Test-GuideProducts $deploy
 Say-GuideProducts $guideCheck
 if (-not $guideCheck.ok -or $guideCheck.notices -gt 0) { Say 'ΔΕΝ ανεβάζω το Hub: πρώτα νέα προϊόντα στο sites/gwh/guides/guides.json (Claude), μετά ξανά αυτό το βήμα. ΔΕΝ άλλαξε τίποτα.' $Bad; Finish 20 }
+# L109: a gift guide price that is not the price its site shows stops the live step too (OLD stays a warning).
+if ($guideCheck.prices -gt 0) { Say 'ΔΕΝ ανεβάζω το Hub: οι τιμές κάποιων οδηγών δώρων δεν είναι ίδιες με τις τιμές των sites (δες PRICE). Τίποτα δεν ανέβηκε live και τίποτα δεν άλλαξε. Στείλε αυτή την αναφορά στο Claude: θα ενημερώσει τις τιμές των οδηγών και θα σου δώσει νέα εντολή.' $Bad; Finish 20 }
 if (-not $Apply) { Say ''; Say 'Δοκιμή μόνο (χωρίς -Apply): δεν άλλαξε τίποτα.' $Ok; Finish 0 }
 if (-not (Confirm-Approval $PhraseLive)) { Say 'Δεν δόθηκε έγκριση: σταμάτησα χωρίς αλλαγές.' $Warn; Finish 1 }
 if ($null -ne $security) {

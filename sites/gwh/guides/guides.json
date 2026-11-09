@@ -1,19 +1,19 @@
 {
  "checked": "2026-11-09",
- "note": "Prices and the day each product was last checked come from the databases of the Gear World sites (read-only SELECTs by product id, 9 Nov 2026). Rebuild the pages with: node tools/gwh-guides.mjs build. Re-check with: node tools/gwh-guides.mjs check.",
+ "note": "Prices and the day each product was last checked come from the databases of the Gear World sites (read-only SELECTs by product id, 9 Nov 2026; Coes, Bazta UK and the older Joybuy rows replaced, lessons L109). Rebuild the pages with: node tools/gwh-guides.mjs build. Re-check with: node tools/gwh-guides.mjs check.",
  "guides": [
   {
    "slug": "christmas-gifts-for-him",
    "site": "mgw",
    "short": "For him",
-   "title": "Christmas gifts for him, from £24.99 to £140",
-   "metaTitle": "Christmas Gifts for Him: 12 Ideas from £24.99 | Gear World Hub",
-   "description": "Twelve Christmas gifts for him in four budgets, from a fragrance to a leather valet box. Prices from Men's Gear World.",
+   "title": "Christmas gifts for him, from £23 to £126",
+   "metaTitle": "Christmas Gifts for Him: 12 Ideas from £23 | Gear World Hub",
+   "description": "Twelve Christmas gifts for him in four budgets, from a beard trimmer to an Emporio Armani watch. Prices from Men's Gear World.",
    "intro": "Twelve gifts for him, picked from the men's products we compare, in four budgets. We have not tested these products. We picked them on brand, materials and price, and every one was in stock when we checked.",
    "tips": [
     {
      "label": "Quick tip:",
-     "text": "not sure of his size? The umbrella, card holder, keyring and valet box need no size at all."
+     "text": "not sure of his size? The card holder, multi-tool, scarf, backpack and fragrances need no size at all."
     }
    ],
    "items": [
@@ -21,121 +21,121 @@
      "group": "Under £25",
      "name": "Lattafa Nebras Elixir 100ml EDP",
      "url": "https://mensgearworld.com/product/lattafa-nebras-elixir-100ml-edp-unisex-45551/",
-     "why": "A full 100ml bottle for under £25",
+     "why": "A full 100ml eau de parfum, sold as unisex",
      "price": 24.99,
      "retailer": "Opulensi Perfumes",
      "image": "https://cdn.shopify.com/s/files/1/0725/8003/8975/files/Lattafa_Nebras_Elixir_100ml_EDP_bottle_front_white.jpg?v=1762284210",
-     "checked": "2026-10-23"
+     "checked": "2026-11-09"
     },
     {
-     "group": "£25",
-     "name": "Fulton Magnum-1 Auto Folding Umbrella",
-     "url": "https://mensgearworld.com/product/fulton-magnum-1-auto-folding-umbrella-in-black-33914/",
-     "why": "Opens at the press of a button and folds small for a bag",
-     "price": 25.0,
-     "retailer": "Coes",
-     "image": "https://cdn.shopify.com/s/files/1/0247/7952/2097/files/e7416ebabb118877b53e141e7ad07c7e.png?v=1705573883",
-     "checked": "2026-10-26"
+     "group": "Under £25",
+     "name": "Calvin Klein Bold Card Holder, Black",
+     "url": "https://mensgearworld.com/product/calvin-klein-men-s-black-bold-card-holder-ultra-slim-rfid-blocking-minimalist-wallet-for-cards-cash-31982/",
+     "why": "A slim card holder with RFID blocking",
+     "price": 24.76,
+     "retailer": "Joybuy",
+     "image": "https://images1.joy-sourcing.com/da/s800x800_jfsintlpro-000-product/t1/4294967296/7929856/6207370605021/629060/6a59db25Eae2c5f97/42b10752b5083d5e.jpg",
+     "checked": "2026-11-09"
     },
     {
-     "group": "£25",
-     "name": "Gianni Conti Leather Card Holder",
-     "url": "https://mensgearworld.com/product/gianni-conti-men-s-leather-card-holder-34086/",
-     "why": "Slim leather alternative to a bulky wallet",
-     "price": 25.0,
-     "retailer": "Coes",
-     "image": "https://cdn.shopify.com/s/files/1/0247/7952/2097/files/public_903a121c-d273-407d-a0d6-c57abfb9e075.png?v=1785940752",
-     "checked": "2026-10-26"
-    },
-    {
-     "group": "£25",
-     "name": "Peregrine Porter Ribbed Beanie",
-     "url": "https://mensgearworld.com/product/peregrine-porter-ribbed-beanie-35256/",
-     "why": "A simple winter hat that suits most styles",
-     "price": 25.0,
-     "retailer": "Coes",
-     "image": "https://cdn.shopify.com/s/files/1/0247/7952/2097/files/e613199967f1e38d3b718069483278f8.png?v=1753285904",
-     "checked": "2026-10-26"
+     "group": "Under £25",
+     "name": "Wahl Lithium Elite Cordless Beard Trimmer Kit",
+     "url": "https://mensgearworld.com/product/wahl-lithium-elite-cordless-beard-trimmer-kit-precision-grooming-rechargeable-3026318-silver-47744/",
+     "why": "A rechargeable trimmer kit for beards and stubble",
+     "price": 23.03,
+     "retailer": "Joybuy",
+     "image": "https://images1.joy-sourcing.com/da/s800x800_jfsintlpro-000-product/t1/4294967296/7012352/61097966366651/561826/6a3b9518E6ad8199e/42b10752b5083d5e.png",
+     "checked": "2026-11-09"
     },
     {
      "group": "Under £50",
-     "name": "R. M. Williams Plaited Keyring",
-     "url": "https://mensgearworld.com/product/plaited-keyring-35270/",
-     "why": "A small leather piece from the Australian bootmaker",
-     "price": 35.0,
-     "retailer": "Coes",
-     "image": "https://cdn.shopify.com/s/files/1/0247/7952/2097/files/public_e4807b7b-f6b8-4884-9d8e-0ec9ab052ebe.png?v=1787222200",
-     "checked": "2026-10-26"
+     "name": "Stanley 14-in-1 Folding Locking Multi Tool",
+     "url": "https://mensgearworld.com/product/stanley-14-in-1-folding-locking-multi-tool-32304/",
+     "why": "Fourteen tools that fold into one handle",
+     "price": 25.99,
+     "retailer": "Back to the Office",
+     "image": "https://cdn.shopify.com/s/files/1/0607/0190/0965/files/135cfc92cc7e9b8003bbfa296c152bff.jpg?v=1780800396",
+     "checked": "2026-11-09"
     },
     {
      "group": "Under £50",
-     "name": "Barbour Banff Quilted Gloves",
-     "url": "https://mensgearworld.com/product/barbour-banff-quilted-gloves-32658/",
-     "why": "Quilted winter gloves from Barbour",
-     "price": 39.95,
-     "retailer": "Coes",
-     "image": "https://cdn.shopify.com/s/files/1/0247/7952/2097/files/bfde145091ac0d354cb076e64d21ffb4.png?v=1721379898",
-     "checked": "2026-10-26"
+     "name": "BOSS Fati Wool Beanie, Navy",
+     "url": "https://mensgearworld.com/product/boss-fati-wool-beanie-navy-55246/",
+     "why": "A wool beanie that suits most styles",
+     "price": 29.5,
+     "retailer": "Baccus",
+     "image": "https://www.baccusstore.co.uk/wp-content/uploads/2026/08/hbeu50495306_404_200.webp",
+     "checked": "2026-11-08"
     },
     {
      "group": "Under £50",
-     "name": "Barbour Merino Cashmere Tartan Scarf",
-     "url": "https://mensgearworld.com/product/barbour-merino-cashmere-tartan-scarf-in-classic-tartan-32852/",
-     "why": "Pairs with the gloves for a two-part gift",
-     "price": 39.95,
-     "retailer": "Coes",
-     "image": "https://cdn.shopify.com/s/files/1/0247/7952/2097/files/5ae464822ac3a0d5173fd822c65d2db7.webp?v=1685968135",
-     "checked": "2026-10-26"
+     "name": "Olight Oclip Pro Clip-On Light, Black",
+     "url": "https://mensgearworld.com/product/olight-oclip-pro-multifunctional-edc-black-flashlight-for-camping-hiking-everyday-carry-compact-clip-on-design-31122/",
+     "why": "A small light that clips to a pocket or bag",
+     "price": 39.99,
+     "retailer": "Joybuy",
+     "image": "https://images1.joy-sourcing.com/da/s800x800_jfsintlpro-000-product/t1/4294967296/2359296/620737056927/87841/69ccc04fEd93ae41e/42b10752b5083d5e.jpg",
+     "checked": "2026-11-09"
+    },
+    {
+     "group": "Under £50",
+     "name": "Weekend Offender Check Scarf",
+     "url": "https://mensgearworld.com/product/weekend-offender-nurmagomedov-check-scarf-mid-house-check-55071/",
+     "why": "Pairs with the beanie for a two-part gift",
+     "price": 45.0,
+     "retailer": "Baccus",
+     "image": "https://www.baccusstore.co.uk/wp-content/uploads/2026/10/ACSS2412-NURMAGOMEDOV-MID_HOUSE_CHECK-3152_3c31b71a-fac4-4be8-a458-98b887f69dba.webp",
+     "checked": "2026-11-08"
     },
     {
      "group": "Under £100",
-     "name": "Barbour Cascade City Backpack",
-     "url": "https://mensgearworld.com/product/barbour-cascade-city-backpack-32692/",
+     "name": "BOSS Joris Leather Belt, Brown",
+     "url": "https://mensgearworld.com/product/boss-joris-leather-belt-brown-55244/",
+     "why": "A leather belt for everyday wear",
+     "price": 52.0,
+     "retailer": "Baccus",
+     "image": "https://www.baccusstore.co.uk/wp-content/uploads/2026/08/af20500321df4e03b07332b2f97ba817-scaled-1.webp",
+     "checked": "2026-11-08"
+    },
+    {
+     "group": "Under £100",
+     "name": "Calvin Klein Nylon Round Backpack, Black",
+     "url": "https://mensgearworld.com/product/calvin-klein-unisex-nylon-round-backpack-black-durable-water-resistant-daypack-for-commuting-and-travel-30128/",
      "why": "An everyday bag for work or the commute",
-     "price": 69.95,
-     "retailer": "Coes",
-     "image": "https://cdn.shopify.com/s/files/1/0247/7952/2097/files/8e4b42e02bb589720ef3c336db13c78f.png?v=1769098414",
-     "checked": "2026-10-26"
+     "price": 71.0,
+     "retailer": "Joybuy",
+     "image": "https://images1.joy-sourcing.com/da/s800x800_jfsintlpro-000-product/t1/4294967296/7733248/6207371617508/905592/6a59f010E71c74293/42b10752b5083d5e.png",
+     "checked": "2026-11-09"
     },
     {
      "group": "Under £100",
-     "name": "William David Merino 1/4 Zip Jumper",
-     "url": "https://mensgearworld.com/product/william-david-100-merino-1-4-zip-knit-jumper-36588/",
-     "why": "100% merino, smart enough for the office",
-     "price": 89.95,
-     "retailer": "Coes",
-     "image": "https://cdn.shopify.com/s/files/1/0247/7952/2097/files/EcommerceImages-095.png?v=1727942823",
-     "checked": "2026-10-26"
-    },
-    {
-     "group": "Under £100",
-     "name": "R. M. Williams Drover Solid Hide Belt",
-     "url": "https://mensgearworld.com/product/r-m-williams-drover-3-piece-solid-hide-belt-35855/",
-     "why": "Solid hide leather belt meant to last",
-     "price": 90.0,
-     "retailer": "Coes",
-     "image": "https://cdn.shopify.com/s/files/1/0247/7952/2097/files/public_3d96ba71-5323-44a6-8c66-8d8c9803d441.png?v=1787222019",
-     "checked": "2026-10-26"
+     "name": "Tom Ford Black Orchid Eau de Parfum 50ml",
+     "url": "https://mensgearworld.com/product/tom-ford-black-orchid-eau-de-parfum-50-ml-unisex-luxury-perfume-for-men-and-women-iconic-fragrance-31011/",
+     "why": "A Tom Ford eau de parfum, sold as unisex",
+     "price": 85.9,
+     "retailer": "Joybuy",
+     "image": "https://images1.joy-sourcing.com/da/s800x800_jfsintlpro-000-product/t1/4294967296/2818048/61098360375708/506046/692586f9E48cf153f/42b10752b5083d5e.png",
+     "checked": "2026-11-09"
     },
     {
      "group": "Splurge",
-     "name": "Dents Chalford Cashmere-Lined Deerskin Gloves",
-     "url": "https://mensgearworld.com/product/dents-chalford-handsewn-three-point-cashmere-lined-deerskin-gloves-33296/",
-     "why": "Hand-sewn deerskin with a cashmere lining",
-     "price": 115.0,
-     "retailer": "Coes",
-     "image": "https://cdn.shopify.com/s/files/1/0247/7952/2097/files/d3bf866cf59d5db5bcf3bd0b72eebaf3.webp?v=1695632166",
-     "checked": "2026-10-26"
+     "name": "HUGO San Cedric Wool Jumper, Navy",
+     "url": "https://mensgearworld.com/product/hugo-san-cedric-wool-jumper-navy-55173/",
+     "why": "A wool jumper, smart enough for the office",
+     "price": 119.0,
+     "retailer": "Baccus",
+     "image": "https://www.baccusstore.co.uk/wp-content/uploads/2026/08/2e5908bc564e4171826fc85fab98c54d-scaled-1.webp",
+     "checked": "2026-11-08"
     },
     {
      "group": "Splurge",
-     "name": "Loake Large Valet Box",
-     "url": "https://mensgearworld.com/product/loake-large-valet-box-34759/",
-     "why": "Keeps watches, cufflinks and keys in one place",
-     "price": 140.0,
-     "retailer": "Coes",
-     "image": "https://cdn.shopify.com/s/files/1/0247/7952/2097/files/a4f30df769bcbb79c2c6818969062e61.png?v=1773137210",
-     "checked": "2026-10-26"
+     "name": "Emporio Armani AR2411 Renato Watch, Black",
+     "url": "https://mensgearworld.com/product/emporio-armani-ar2411-men-s-renato-watch-black-204/",
+     "why": "A black watch from the Emporio Armani Renato range",
+     "price": 126.0,
+     "retailer": "WATCH & WATCH",
+     "image": "https://cdn.shopify.com/s/files/1/0812/4465/1839/files/emporio-armani-ar2411-mens-renato-watch-black-909097.jpg",
+     "checked": "2026-11-09"
     }
    ]
   },
@@ -143,9 +143,9 @@
    "slug": "christmas-gifts-for-her",
    "site": "wgw",
    "short": "For her",
-   "title": "Christmas gifts for her, from £17 to £175",
-   "metaTitle": "Christmas Gifts for Her: 12 Ideas from £17 | Gear World Hub",
-   "description": "Twelve Christmas gifts for her, from a £16.99 handwarmer to a boxed fragrance set, plus a perfume tip. Prices from Women's Gear World.",
+   "title": "Christmas gifts for her, from £15 to £175",
+   "metaTitle": "Christmas Gifts for Her: 12 Ideas from £15 | Gear World Hub",
+   "description": "Twelve Christmas gifts for her, from an Olaplex hair set to an Oryx rose perfume, plus a perfume tip. Prices from Women's Gear World.",
    "intro": "Twelve gifts for her from the women's products we compare, plus one tip that can save you money on perfume. We have not tested these products. We picked them on brand, materials and price, and every one was in stock when we checked.",
    "tips": [
     {
@@ -156,103 +156,103 @@
    "items": [
     {
      "group": "Under £25",
-     "name": "Katie Loxton Cable Knit Handwarmer",
-     "url": "https://womensgearworld.com/product/katie-loxton-cable-knit-handwarmer-24378/",
-     "why": "A cosy stocking filler",
-     "price": 16.99,
-     "retailer": "Coes",
-     "image": "https://cdn.shopify.com/s/files/1/0247/7952/2097/files/kls869-10.jpg?v=1786444008",
-     "checked": "2026-10-26"
+     "name": "Olaplex Healthy Hair Discovery Set",
+     "url": "https://womensgearworld.com/product/olaplex-healthy-hair-discovery-set-132-5-ml-42578/",
+     "why": "A small set to try the Olaplex hair care range",
+     "price": 15.0,
+     "retailer": "Joybuy",
+     "image": "https://images1.joy-sourcing.com/da/s800x800_jfsintlpro-000-product/t1/4294967296/3735552/62073701298469/100498/6a8d6761Ea026e85f/42b10752b5083d5e.png",
+     "checked": "2026-11-09"
     },
     {
      "group": "Under £25",
-     "name": "White Stuff Mel Multipack Earrings",
-     "url": "https://womensgearworld.com/product/white-stuff-mel-multipack-earrings-25886/",
-     "why": "Several pairs in one gift",
-     "price": 18.5,
-     "retailer": "Coes",
-     "image": "https://cdn.shopify.com/s/files/1/0247/7952/2097/files/ceaba752d24c416c05ea6aab3c61d6d2.png?v=1754048669",
-     "checked": "2026-10-26"
+     "name": "Philip Jones Seven Pack of Solitaire Earrings",
+     "url": "https://womensgearworld.com/product/seven-pack-of-solitaire-earrings-created-with-zircondia-crystals-21785/",
+     "why": "Seven pairs of earrings in one gift",
+     "price": 19.0,
+     "retailer": "Philip Jones Jewellery",
+     "image": "https://cdn.shopify.com/s/files/1/2171/6275/files/seven-pack-of-solitaire-earrings-created-with-zircondia-crystals-390370.png?v=1741753152",
+     "checked": "2026-11-09"
     },
     {
      "group": "Under £25",
-     "name": "Katie Loxton Animal Print Foil Scarf",
-     "url": "https://womensgearworld.com/product/katie-loxton-abstract-animal-printed-foil-scarf-24364/",
-     "why": "A light scarf that adds colour to a winter coat",
-     "price": 19.99,
-     "retailer": "Coes",
-     "image": "https://cdn.shopify.com/s/files/1/0247/7952/2097/files/0d54c1f84439211176404f9883389307.png?v=1755175842",
-     "checked": "2026-10-26"
+     "name": "Ghost Sweetheart Eau de Parfum 30ml Gift Set",
+     "url": "https://womensgearworld.com/product/ghost-sweetheart-eau-de-parfum-30ml-gift-set-28505/",
+     "why": "A fragrance already boxed as a gift",
+     "price": 21.9,
+     "retailer": "Joybuy",
+     "image": "https://images1.joy-sourcing.com/da/s800x800_jfsintlpro-000-product/t1/4294967296/2555904/610979664331/144798/69522399E510a1010/42b10752b5083d5e.jpg",
+     "checked": "2026-11-09"
     },
     {
      "group": "Under £25",
-     "name": "Rino & Pelle Mirko Earmuffs",
-     "url": "https://womensgearworld.com/product/rino-pelle-mirko-earmuffs-25188/",
-     "why": "A warm winter extra",
-     "price": 20.95,
-     "retailer": "Coes",
-     "image": "https://cdn.shopify.com/s/files/1/0247/7952/2097/files/public_04e9e8cc-0352-4312-8001-d762db8586b2.png?v=1786528483",
-     "checked": "2026-10-26"
+     "name": "Lattafa Yara Eau de Parfum 100ml",
+     "url": "https://womensgearworld.com/product/yara-eau-de-parfum-100ml-by-lattafa-30852/",
+     "why": "A full 100ml bottle of eau de parfum",
+     "price": 22.99,
+     "retailer": "Opulensi Perfumes",
+     "image": "https://cdn.shopify.com/s/files/1/0725/8003/8975/products/yarabottle100mlmain.jpg?v=1725593367",
+     "checked": "2026-11-09"
     },
     {
      "group": "Under £50",
-     "name": "Lattafa Yara & Yara Candy Gift Set (2 x 100ml)",
-     "url": "https://womensgearworld.com/product/lattafa-yara-yara-candy-anniversary-gift-set-100ml-2-pcs-35074/",
-     "why": "Two full-size perfumes, already boxed as a set",
-     "price": 28.99,
-     "retailer": "Bazta UK",
-     "image": "https://bazta.com/media/catalog/product/l/a/lattafa-yara-and-yara-candy-anniversary-gift-set-100ml-2pcs.png",
-     "checked": "2026-10-24"
+     "name": "Philip Jones Aurora Borealis Heart Set, Sterling Silver",
+     "url": "https://womensgearworld.com/product/sterling-silver-aurora-borealis-heart-set-created-with-zircondia-crystals-21992/",
+     "why": "A heart jewellery set in sterling silver",
+     "price": 30.0,
+     "retailer": "Philip Jones Jewellery",
+     "image": "https://cdn.shopify.com/s/files/1/2171/6275/products/sterling-silver-aurora-borealis-heart-set-created-with-zircondia-crystals-638330.jpg?v=1741752092",
+     "checked": "2026-11-09"
     },
     {
      "group": "Under £50",
-     "name": "Katie Loxton Birthstone Necklace",
-     "url": "https://womensgearworld.com/product/katie-loxton-birthstone-necklace-24375/",
-     "why": "Personal, if you know her birth month",
-     "price": 32.99,
-     "retailer": "Coes",
-     "image": "https://cdn.shopify.com/s/files/1/0247/7952/2097/files/klj6627-10.jpg?v=1786452734",
-     "checked": "2026-10-26"
-    },
-    {
-     "group": "Under £50",
-     "name": "Barbour Blair Tartan Scarf",
-     "url": "https://womensgearworld.com/product/barbour-blair-tartan-scarf-23491/",
-     "why": "A classic winter scarf",
-     "price": 34.95,
-     "retailer": "Coes",
-     "image": "https://cdn.shopify.com/s/files/1/0247/7952/2097/files/public_94d29ee8-56d7-445d-be62-83e9dc6b4d37.png?v=1785938649",
-     "checked": "2026-10-26"
-    },
-    {
-     "group": "Under £50",
-     "name": "Estella Bartlett 10mm Gemstone Bracelet",
-     "url": "https://womensgearworld.com/product/estella-bartlett-10mm-gemstone-bracelet-23850/",
-     "why": "Gemstone beads in a simple everyday bracelet",
-     "price": 40.0,
-     "retailer": "Coes",
-     "image": "https://cdn.shopify.com/s/files/1/0247/7952/2097/files/7265ee3aad889042d2a55d11b4f44765.png?v=1771254994",
-     "checked": "2026-10-26"
-    },
-    {
-     "group": "Under £50",
-     "name": "Fairfax & Favor Leather Card Holder",
-     "url": "https://womensgearworld.com/product/fairfax-favor-signature-card-holder-leather-24019/",
+     "name": "Calvin Klein Leather Emblem Card Holder, Black",
+     "url": "https://womensgearworld.com/product/calvin-klein-women-s-leather-rfid-emblem-cardholder-sleek-black-design-for-secure-minimalist-style-20674/",
      "why": "A small leather piece she will use every day",
+     "price": 35.19,
+     "retailer": "Joybuy",
+     "image": "https://images1.joy-sourcing.com/da/s800x800_jfsintlpro-000-product/t1/4294967296/7536640/61097966612680/315692/6a59e745Eda86095e/42b10752b5083d5e.jpg",
+     "checked": "2026-11-09"
+    },
+    {
+     "group": "Under £50",
+     "name": "Natkina Geometry Half Hoop Earrings",
+     "url": "https://womensgearworld.com/product/geometry-half-hoop-earrings-64842/",
+     "why": "Simple hoops for everyday wear",
+     "price": 39.0,
+     "retailer": "Natkina",
+     "image": "https://cdn.shopify.com/s/files/1/0423/1764/3937/files/geometry-half-hoop-earrings-409153.jpg?v=1716821230",
+     "checked": "2026-11-09"
+    },
+    {
+     "group": "Under £50",
+     "name": "Angel Barocco Pink Crystal & Freshwater Pearl Bracelet",
+     "url": "https://womensgearworld.com/product/pink-crystal-freshwater-pearl-bracelet-47173/",
+     "why": "Freshwater pearls and pink crystals in one bracelet",
      "price": 45.0,
-     "retailer": "Coes",
-     "image": "https://cdn.shopify.com/s/files/1/0247/7952/2097/files/public_42049587-9455-480d-a4fe-a759ea842d83.png?v=1788456313",
-     "checked": "2026-10-26"
+     "retailer": "Angel Barocco",
+     "image": "https://cdn.shopify.com/s/files/1/0659/8642/9155/files/Pink_Crystal___Freshwater_Pearl_bracelet.webp?v=1774225504",
+     "checked": "2026-11-09"
     },
     {
      "group": "Under £100",
-     "name": "Holland Cooper Essential Tote Bag",
-     "url": "https://womensgearworld.com/product/holland-cooper-essential-tote-bag-24208/",
+     "name": "Christian Louboutin Eau de Parfum Intense Miniatures, 3 x 9ml",
+     "url": "https://womensgearworld.com/product/christian-louboutin-clb-giftset-fragrance-edp-intense-miniature-3x9ml-29523/",
+     "why": "Three small fragrances, boxed as a set",
+     "price": 54.52,
+     "retailer": "Joybuy",
+     "image": "https://images1.joy-sourcing.com/da/s800x800_jfsintlpro-000-product/t1/4294967296/3080192/101615961208112/522069/69ae654dEb15f4e63/42b10752b5083d5e.png",
+     "checked": "2026-11-09"
+    },
+    {
+     "group": "Under £100",
+     "name": "Calvin Klein Foil Logo Tote Bag, Tannin",
+     "url": "https://womensgearworld.com/product/calvin-klein-women-s-tote-bag-with-foil-logo-in-tannin-stylish-and-spacious-handbag-for-everyday-use-20216/",
      "why": "Big enough for work, the gym or a weekend away",
-     "price": 59.0,
-     "retailer": "Coes",
-     "image": "https://cdn.shopify.com/s/files/1/0247/7952/2097/files/large_60b8a490-7cd1-497a-95d1-736aaa8ddca8.png?v=1791196824",
-     "checked": "2026-10-26"
+     "price": 69.65,
+     "retailer": "Joybuy",
+     "image": "https://images1.joy-sourcing.com/da/s800x800_jfsintlpro-000-product/t1/4294967296/5832704/6207371870275/200747/6a66d6ddE57e49efa/42b10752b5083d5e.jpg",
+     "checked": "2026-11-09"
     },
     {
      "group": "Splurge",
@@ -280,9 +280,9 @@
    "slug": "christmas-gifts-for-kids",
    "site": "kgw",
    "short": "For kids",
-   "title": "Christmas gifts for kids, by age, from £26 to £71",
-   "metaTitle": "Christmas Gifts for Kids by Age: 12 Toys from £26 | Gear World Hub",
-   "description": "Twelve Christmas toys for kids grouped by age, from babies to older kids: LEGO, Playmobil, VTech and more. Prices from Kids' Gear World.",
+   "title": "Christmas gifts for kids, by age, from £20 to £80",
+   "metaTitle": "Christmas Gifts for Kids by Age: 12 Toys from £20 | Gear World Hub",
+   "description": "Twelve Christmas toys for kids grouped by age, from babies to older kids: LEGO, Playmobil, K'NEX, COBI and more. Prices from Kids' Gear World.",
    "intro": "Twelve toys from the Kids' Gear World range, grouped by age, for parents and family buying for children. We have not tested these toys. We picked well-known toy brands that were in stock. Where two retailers sell the same toy, its page on Kids' Gear World shows both prices. Always check the age label on the product page before you buy, especially for toys with small parts.",
    "tips": [
     {
@@ -293,123 +293,123 @@
    "items": [
     {
      "group": "Babies",
-     "name": "Fisher-Price Simply Senses Newborn Gym",
-     "url": "https://kidsgearworld.com/product/fisher-price-simply-senses-newborn-gym-8988/",
-     "why": "A play mat with toys overhead for the first months",
-     "price": 33.99,
-     "retailer": "Bazta UK",
-     "image": "https://bazta.com/media/catalog/product/f/i/fisher-price-simply-senses-newborn-gym.png",
-     "checked": "2026-10-24"
-    },
-    {
-     "group": "Toddlers",
-     "name": "LeapFrog Count-Along Basket & Scanner",
-     "url": "https://kidsgearworld.com/product/leapfrog-count-along-basket-scanner-learning-toy-9829/",
-     "why": "Pretend play with a toy scanner that also teaches counting",
-     "price": 30.99,
-     "retailer": "Bazta UK",
-     "image": "https://bazta.com/media/catalog/product/l/e/leapfrog-count-along-basket-scanner-learning-toy-1.png",
-     "checked": "2026-10-24"
-    },
-    {
-     "group": "Toddlers",
-     "name": "LEGO DUPLO Town Animal Building Game 10472",
-     "url": "https://kidsgearworld.com/product/lego-duplo-town-animal-building-game-10472-educational-construction-building-set-for-toddlers-and-preschool-kids-4707/",
-     "why": "Big DUPLO bricks made for small hands",
-     "price": 33.74,
-     "retailer": "Joybuy",
-     "image": "https://images1.joy-sourcing.com/da/s800x800_jfsintlpro-000-product/t1/4294967296/7274496/6109796677689/395440/6a1084d7E87226012/42b10752b5083d5e.jpg",
-     "checked": "2026-10-26"
-    },
-    {
-     "group": "Toddlers",
-     "name": "VTech Toot-Toot Fire Station Playset",
-     "url": "https://kidsgearworld.com/product/vtech-toot-toot-fire-station-playset-9418/",
-     "why": "Lights and sounds, part of a range kids can add to",
+     "name": "Tikiri Gerald the Giraffe Teething Toy",
+     "url": "https://kidsgearworld.com/product/tikiri-baby-toddler-activity-toy-gerald-the-giraffe-organic-teething-and-play-companion-for-infants-and-toddlers-4950/",
+     "why": "A teether and play toy for the first months",
      "price": 29.99,
-     "retailer": "Bazta UK",
-     "image": "https://bazta.com/media/catalog/product/v/t/vtech-toot-toot-fire-station.png",
-     "checked": "2026-10-24"
+     "retailer": "Joybuy",
+     "image": "https://images1.joy-sourcing.com/da/s800x800_jfsintlpro-000-product/t1/4294967296/4259840/6109817738967/196392/693bab04E5f0f4274/42b10752b5083d5e.jpg",
+     "checked": "2026-11-09"
+    },
+    {
+     "group": "Toddlers",
+     "name": "Bluey My First Guitar",
+     "url": "https://kidsgearworld.com/product/bluey-my-first-guitar-learning-development-toy-educational-music-toy-for-kids-and-toddlers-inspired-by-the-show-4089/",
+     "why": "A first music toy for Bluey fans",
+     "price": 20.49,
+     "retailer": "Joybuy",
+     "image": "https://images1.joy-sourcing.com/da/s800x800_jfsintlpro-000-product/t1/4294967296/8323072/61097966153740/589088/699ddfd4E9bef31dc/42b10752b5083d5e.jpg",
+     "checked": "2026-11-09"
+    },
+    {
+     "group": "Toddlers",
+     "name": "The Very Hungry Caterpillar Wooden Pull Along Toy",
+     "url": "https://kidsgearworld.com/product/vhc-brands-baby-toddler-activity-toy-the-very-hungry-caterpillar-wooden-pull-along-toy-for-kids-development-4962/",
+     "why": "A wooden pull-along toy for new walkers",
+     "price": 22.97,
+     "retailer": "Joybuy",
+     "image": "https://images1.joy-sourcing.com/da/s800x800_jfsintlpro-000-product/t1/4294967296/4653056/10161432272212240/466608/68b6a0f2E3b9960fa/42b10752b5083d5e.png",
+     "checked": "2026-11-09"
+    },
+    {
+     "group": "Toddlers",
+     "name": "LEGO DUPLO Alphabet Truck",
+     "url": "https://kidsgearworld.com/product/lego-duplo-alphabet-truck-building-set-fun-abc-learning-toy-for-toddlers-with-letters-blocks-for-creative-play-4187/",
+     "why": "Big DUPLO bricks with letters, made for small hands",
+     "price": 34.99,
+     "retailer": "Joybuy",
+     "image": "https://images1.joy-sourcing.com/da/s800x800_jfsintlpro-000-product/t1/4294967296/4915200/101615961218627/325265/69b06ef9E7539c004/42b10752b5083d5e.jpg",
+     "checked": "2026-11-09"
     },
     {
      "group": "Pre-school",
-     "name": "SmartMax Start Plus Building Set, 30 pcs",
-     "url": "https://kidsgearworld.com/product/smartmax-start-plus-building-set-30-pcs-9125/",
-     "why": "Magnetic rods and balls that click together",
+     "name": "Peppa Pig Three Little Piggies Caravan Playset",
+     "url": "https://kidsgearworld.com/product/peppa-pig-three-little-piggies-caravan-playset-pre-school-toy-for-toddlers-and-babies-based-on-the-popular-tv-show-5256/",
+     "why": "A small playset for Peppa Pig fans",
+     "price": 24.99,
+     "retailer": "Joybuy",
+     "image": "https://images1.joy-sourcing.com/da/s800x800_jfsintlpro-000-product/t1/4294967296/3080192/6109836050681/242812/6a9951f6E6d1ee6e8/42b10752b5083d5e.jpg",
+     "checked": "2026-11-09"
+    },
+    {
+     "group": "Pre-school",
+     "name": "Playmobil City Action Police Cruiser",
+     "url": "https://kidsgearworld.com/product/playmobil-city-action-police-cruiser-toy-car-with-figure-for-thematic-action-figures-playsets-for-kids-5202/",
+     "why": "A police car with a figure for role play",
      "price": 25.99,
-     "retailer": "Bazta UK",
-     "image": "https://bazta.com/media/catalog/product/s/m/smartmax-start-plus-building-set_-_30_pcs.png",
-     "checked": "2026-10-24"
-    },
-    {
-     "group": "Pre-school",
-     "name": "Playmobil City Life School Bus Playset",
-     "url": "https://kidsgearworld.com/product/playmobil-city-life-school-bus-playset-9390/",
-     "why": "A big vehicle with figures for role play",
-     "price": 31.29,
-     "retailer": "Bazta UK",
-     "image": "https://bazta.com/media/catalog/product/p/l/playmobil-city-life-school-bus-playset-1.png",
-     "checked": "2026-10-24"
+     "retailer": "Joybuy",
+     "image": "https://images1.joy-sourcing.com/da/s800x800_jfsintlpro-000-product/t1/4294967296/6619136/10161432272028477/373756/6886eb4dEfff64166/42b10752b5083d5e.jpg",
+     "checked": "2026-11-09"
     },
     {
      "group": "Ages 6+",
-     "name": "K'NEX Typhoon Frenzy Roller Coaster",
-     "url": "https://kidsgearworld.com/product/k-nex-typhoon-frenzy-roller-coaster-building-set-9263/",
-     "why": "Build it, then watch it run",
-     "price": 35.29,
-     "retailer": "Bazta UK",
-     "image": "https://bazta.com/media/catalog/product/k/n/knex-typhoon-frenzy-roller-coaster-building-set-1.png",
-     "checked": "2026-10-24"
+     "name": "Hasbro Cluedo Classic Board Game",
+     "url": "https://kidsgearworld.com/product/hasbro-cluedo-classic-board-game-solve-the-mystery-with-detective-skills-for-family-game-night-fun-ages-8-and-up-4086/",
+     "why": "A family mystery game, for ages 8 and up",
+     "price": 24.99,
+     "retailer": "Joybuy",
+     "image": "https://images1.joy-sourcing.com/da/s800x800_jfsintlpro-000-product/t1/4294967296/4784128/6109836040104/297269/6a98e5e8E0dac04fa/42b10752b5083d5e.jpg",
+     "checked": "2026-11-09"
     },
     {
      "group": "Ages 6+",
-     "name": "Schleich Dinosaur Set with Cave",
-     "url": "https://kidsgearworld.com/product/schleich-dinosaur-set-with-cave-9077/",
-     "why": "Detailed figures for dinosaur fans",
-     "price": 39.89,
-     "retailer": "Bazta UK",
-     "image": "https://bazta.com/media/catalog/product/s/c/schleich-dinosaur-set-with-cave.png",
-     "checked": "2026-10-24"
+     "name": "K'NEX Creation Zone, 50 Models",
+     "url": "https://kidsgearworld.com/product/k-nex-building-set-creation-zone-with-50-models-for-kids-stem-educational-construction-toy-for-endless-creative-play-4548/",
+     "why": "Build one model, then take it apart for the next",
+     "price": 34.99,
+     "retailer": "Joybuy",
+     "image": "https://images1.joy-sourcing.com/da/s800x800_jfsintlpro-000-product/t1/4294967296/2818048/61098360141984/257706/69946532Efa46f0ad/42b10752b5083d5e.jpg",
+     "checked": "2026-11-09"
+    },
+    {
+     "group": "Ages 6+",
+     "name": "LEGO Star Wars AT-AT 75440",
+     "url": "https://kidsgearworld.com/product/lego-star-wars-at-at-building-set-75440-iconic-imperial-walker-vehicle-model-kit-for-kids-and-collectors-4890/",
+     "why": "An Imperial walker to build, for Star Wars fans",
+     "price": 59.99,
+     "retailer": "Joybuy",
+     "image": "https://images1.joy-sourcing.com/da/s800x800_jfsintlpro-000-product/t1/4294967296/7733248/6109817218837/212514/69b07067Ee6acac9f/42b10752b5083d5e.jpg",
+     "checked": "2026-11-09"
     },
     {
      "group": "Ages 6+",
      "name": "LEGO City Vintage Steam Train 60511",
      "url": "https://kidsgearworld.com/product/lego-city-vintage-steam-train-building-set-60511-creative-toy-for-kids-collectors-with-classic-locomotive-4589/",
-     "why": "A classic locomotive to build and display",
-     "price": 63.99,
+     "why": "The \"big present\" option: a classic locomotive to build and display",
+     "price": 79.99,
      "retailer": "Joybuy",
      "image": "https://images1.joy-sourcing.com/da/s800x800_jfsintlpro-000-product/t1/4294967296/3670016/610981777866/324800/6a108500Ecd970af4/42b10752b5083d5e.jpg",
-     "checked": "2026-10-26"
-    },
-    {
-     "group": "Ages 6+",
-     "name": "Playmobil Large Pirates Ship with Crew",
-     "url": "https://kidsgearworld.com/product/playmobil-large-pirates-ship-with-crew-playset-9404/",
-     "why": "The \"big present\" option for pirate fans",
-     "price": 71.39,
-     "retailer": "Bazta UK",
-     "image": "https://bazta.com/media/catalog/product/p/l/playmobil-large-pirates-with-ship-playset.png",
-     "checked": "2026-10-24"
+     "checked": "2026-11-09"
     },
     {
      "group": "Older kids",
-     "name": "COBI R.M.S. Titanic 1:700, 600 pieces",
-     "url": "https://kidsgearworld.com/product/cobi-r-m-s-titanic-1-700-scale-600-piece-brick-building-set-for-adults-and-kids-collectible-ship-model-4275/",
+     "name": "COBI Boeing 737-8 1:110, 340 pieces",
+     "url": "https://kidsgearworld.com/product/cobi-1-110-scale-boeing-737-8-building-set-340-piece-brick-model-aircraft-collectible-toy-for-adults-kids-4869/",
      "why": "A longer build for patient builders",
-     "price": 33.49,
+     "price": 39.99,
      "retailer": "Joybuy",
-     "image": "https://images1.joy-sourcing.com/da/s800x800_jfsintlpro-000-product/t1/4294967296/6422528/62073701265065/168367/6a8bd74dE459d561c/42b10752b5083d5e.png",
-     "checked": "2026-10-26"
+     "image": "https://images1.joy-sourcing.com/da/s800x800_jfsintlpro-000-product/t1/4294967296/2490368/61098171275127/57158/6a8bec4cEa29b2eef/42b10752b5083d5e.png",
+     "checked": "2026-11-09"
     },
     {
      "group": "Older kids",
      "name": "LEGO Technic Tipping Dump Truck 42203",
      "url": "https://kidsgearworld.com/product/lego-technic-tipping-dump-truck-42203-building-set-for-kids-adults-remote-controlled-toy-construction-vehicle-5164/",
      "why": "Technic parts and a working tipper",
-     "price": 33.74,
+     "price": 44.99,
      "retailer": "Joybuy",
      "image": "https://images1.joy-sourcing.com/da/s800x800_jfsintlpro-000-product/t1/4294967296/1835008/101615961167450/283751/69a2a956E843dc55e/42b10752b5083d5e.jpg",
-     "checked": "2026-10-26"
+     "checked": "2026-11-09"
     }
    ]
   },
@@ -417,9 +417,9 @@
    "slug": "christmas-gifts-for-diy-lovers",
    "site": "cgw",
    "short": "For DIY lovers",
-   "title": "Christmas gifts for DIY lovers and tradespeople, from £20 to £106",
+   "title": "Christmas gifts for DIY lovers and tradespeople, from £20 to £156",
    "metaTitle": "Christmas Gifts for DIY Lovers: 10 Tools from £20 | Gear World Hub",
-   "description": "Ten tool gifts for DIY lovers and tradespeople from Stanley, Bahco, Milwaukee, Makita and more. Prices from Construction Gear World.",
+   "description": "Ten tool gifts for DIY lovers and tradespeople from Stanley, Draper, Milwaukee, Makita and more. Prices from Construction Gear World.",
    "intro": "Ten tool gifts from Construction Gear World. We have not tested these tools. We picked tools from well-known brands. Where two retailers sell the same tool, its page on Construction Gear World shows both prices.",
    "tips": [
     {
@@ -440,17 +440,17 @@
      "price": 19.95,
      "retailer": "My Tool Shed",
      "image": "https://www.mytoolshed.co.uk/artwork/prodzoom/STA046151.jpg",
-     "checked": "2026-10-26"
+     "checked": "2026-11-09"
     },
     {
      "group": "Under £25",
-     "name": "Bahco 424 Professional Bevel Edge Wood Chisel 32mm",
-     "url": "https://constructiongearworld.com/product/bahco-424-professional-bevel-edge-wood-chisel-32mm-4728/",
-     "why": "A sharp, well-balanced chisel for woodwork",
+     "name": "Stanley 5002 Bevel Edge Wood Chisel Set, 4 pieces",
+     "url": "https://constructiongearworld.com/product/stanley-4-piece-5002-bevel-edge-wood-chisel-set-3165/",
+     "why": "Four bevel edge wood chisels in one set",
      "price": 19.95,
      "retailer": "Tooled Up",
-     "image": "https://www.tooled-up.com/artwork/prodzoom/tbk_BAH424P32.jpg",
-     "checked": "2026-11-05"
+     "image": "https://www.tooled-up.com/artwork/prodzoom/tbk_STA016129.jpg",
+     "checked": "2026-11-09"
     },
     {
      "group": "Under £50",
@@ -460,7 +460,7 @@
      "price": 27.95,
      "retailer": "Tooled Up",
      "image": "https://www.tooled-up.com/artwork/prodzoom/tbk_OLY39014.jpg",
-     "checked": "2026-11-05"
+     "checked": "2026-11-09"
     },
     {
      "group": "Under £50",
@@ -470,7 +470,7 @@
      "price": 33.95,
      "retailer": "Tooled Up",
      "image": "https://www.tooled-up.com/artwork/prodzoom/tbk_STA154022.jpg",
-     "checked": "2026-11-05"
+     "checked": "2026-11-09"
     },
     {
      "group": "Under £50",
@@ -480,7 +480,7 @@
      "price": 43.95,
      "retailer": "Tooled Up",
      "image": "https://www.tooled-up.com/artwork/prodzoom/tbk_FISC24.jpg",
-     "checked": "2026-11-05"
+     "checked": "2026-11-09"
     },
     {
      "group": "Under £50",
@@ -490,7 +490,7 @@
      "price": 48.95,
      "retailer": "My Tool Shed",
      "image": "https://www.mytoolshed.co.uk/artwork/prodzoom/draper_64605_1.jpg",
-     "checked": "2026-10-26"
+     "checked": "2026-11-09"
     },
     {
      "group": "Under £100",
@@ -500,7 +500,7 @@
      "price": 58.95,
      "retailer": "Tooled Up",
      "image": "https://www.tooled-up.com/artwork/prodzoom/tbk_FAITBC519.jpg",
-     "checked": "2026-11-05"
+     "checked": "2026-11-09"
     },
     {
      "group": "Under £100",
@@ -510,7 +510,7 @@
      "price": 72.95,
      "retailer": "Tooled Up",
      "image": "https://www.tooled-up.com/artwork/prodzoom/tbk_RPDR311.jpg",
-     "checked": "2026-11-05"
+     "checked": "2026-11-09"
     },
     {
      "group": "Under £100",
@@ -520,27 +520,29 @@
      "price": 99.95,
      "retailer": "My Tool Shed",
      "image": "https://www.mytoolshed.co.uk/artwork/prodzoom/M12_BRAID-0--Hero_01.jpg",
-     "checked": "2026-10-26"
+     "checked": "2026-11-09"
     },
     {
      "group": "Splurge",
      "name": "Makita MR009G 40v DAB Radio and Work Light",
      "url": "https://constructiongearworld.com/product/makita-mr009g-40v-max-xgt-cordless-dab-radio-and-work-light-lantern-no-batteries-no-battery-charger-1685/",
      "why": "Radio and site light in one",
-     "price": 105.95,
+     "price": 155.95,
      "retailer": "Tooled Up",
      "image": "https://www.tooled-up.com/artwork/prodzoom/makita_MR009GZ_C2L0.jpg",
      "offers": [
       {
        "retailer": "Tooled Up",
-       "price": 105.95
+       "price": 155.95,
+       "id": 1685
       },
       {
        "retailer": "My Tool Shed",
-       "price": 119.95
+       "price": 155.95,
+       "id": 37787
       }
      ],
-     "checked": "2026-10-26"
+     "checked": "2026-11-09"
     }
    ]
   },

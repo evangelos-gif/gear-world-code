@@ -3497,10 +3497,14 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         'exit /b 0',
         ':guard',
         'if exist "%GW_FAKE_STATE%\stale.flag" goto guardstale',
+        'if exist "%GW_FAKE_STATE%\price.flag" goto guardprice',
         'type "%GW_FAKE_STATE%\products.json"',
         'exit /b 0',
         ':guardstale',
         'type "%GW_FAKE_STATE%\products-stale.json"',
+        'exit /b 0',
+        ':guardprice',
+        'type "%GW_FAKE_STATE%\products-price.json"',
         'exit /b 0',
         ':d1query',
         'if exist "%GW_FAKE_STATE%\zgw.flag" goto d1yes',
@@ -3558,13 +3562,18 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
     ) -join "`r`n"
     [System.IO.File]::WriteAllText((Join-Path $vBin 'npx.cmd'), $vNpx + "`r`n", [System.Text.Encoding]::ASCII)
     # L107: the products of the Hub gift guides as the sites' databases answer (checked now; stale.flag: 40 days ago).
+    # L109: the other retailers a card names (offers with an id) are read too; price.flag: one product at another price.
     $vIds = @{}
     foreach ($g in (ConvertFrom-Json ([System.IO.File]::ReadAllText((Join-Path (Join-Path $vRepo 'guides') 'guides.json'), [System.Text.Encoding]::UTF8))).guides) {
-        foreach ($it in $g.items) { $vIds[[regex]::Match($it.url, '-(\d+)/$').Groups[1].Value] = $it.price }
+        foreach ($it in $g.items) {
+            $vIds[[regex]::Match($it.url, '-(\d+)/$').Groups[1].Value] = $it.price
+            foreach ($o in @($it.offers)) { if ($null -ne $o -and $null -ne $o.id) { $vIds[[string]$o.id] = $o.price } }
+        }
     }
-    foreach ($pair in @(@('products.json', 0), @('products-stale.json', -40))) {
+    $vFirst = @($vIds.Keys | Sort-Object)[0]
+    foreach ($pair in @(@('products.json', 0, 0), @('products-stale.json', -40, 0), @('products-price.json', 0, 10))) {
         $day = (Get-Date).ToUniversalTime().AddDays($pair[1]).ToString('yyyy-MM-dd HH:mm:ss')
-        $rows = @($vIds.Keys | ForEach-Object { '{"id":' + $_ + ',"retailer":"Test Shop","price":' + ([double]$vIds[$_]).ToString([System.Globalization.CultureInfo]::InvariantCulture) + ',"stock_status":"In Stock","in_stock":1,"is_active":1,"updated_at":"' + $day + '","last_seen_at":"' + $day + '"}' })
+        $rows = @($vIds.Keys | ForEach-Object { $vp = [double]$vIds[$_]; if ($_ -eq $vFirst) { $vp = $vp + $pair[2] }; '{"id":' + $_ + ',"retailer":"Test Shop","price":' + $vp.ToString([System.Globalization.CultureInfo]::InvariantCulture) + ',"stock_status":"In Stock","in_stock":1,"is_active":1,"updated_at":"' + $day + '","last_seen_at":"' + $day + '"}' })
         Write-Utf8 (Join-Path $vState $pair[0]) ('[{"results":[' + ($rows -join ',') + '],"success":true}]')
     }
     $oldPath = $env:PATH
@@ -3592,8 +3601,8 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         Check (-not $r.Contains($vDb) -and -not $r.Contains($vVer)) 'hub v2 check: no database id or version id in the report'
         # preview
         Check ((Run-V @('-Step', 'preview')) -eq 0 -and (VCount 'deploy --config') -eq 0) 'hub v2 preview without -Apply: nothing changes'
-        Check ((Run-V @('-Step', 'preview', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB COMPLIANCE LIVE')) -eq 1 -and (VCount 'deploy --config') -eq 0) 'hub v2 preview with the live phrase: nothing changes'
-        Check ((Run-V @('-Step', 'preview', '-Apply', '-Approve', 'egkrino hub compliance preview')) -eq 0 -and (VCount 'deploy --config') -eq 1) 'hub v2 preview with approval: deploys once'
+        Check ((Run-V @('-Step', 'preview', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB GUIDE PRICES LIVE')) -eq 1 -and (VCount 'deploy --config') -eq 0) 'hub v2 preview with the live phrase: nothing changes'
+        Check ((Run-V @('-Step', 'preview', '-Apply', '-Approve', 'egkrino hub guide prices preview')) -eq 0 -and (VCount 'deploy --config') -eq 1) 'hub v2 preview with approval: deploys once'
         $c = VCalls
         Check ($c -match 'deploy --config "[^"]*wrangler\.preview\.toml"' -and $c -match 'secret bulk "[^"]+" --name gear-world-hub-preview') 'hub v2 preview: deploys the preview config, sets the photo secret of the test Worker'
         $cfgs = @(Get-ChildItem -LiteralPath (Join-Path $vWork 'deploy') -Recurse -Filter 'wrangler.preview.toml' -ErrorAction SilentlyContinue)
@@ -3603,36 +3612,45 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         Check ($r.Contains('https://gear-world-hub-preview.example-test.workers.dev') -and -not $r.Contains('?gwh-date=') -and $r.Contains('Η Black Friday είναι ΚΛΕΙΣΤΗ') -and -not $r.Contains($vDb)) 'hub v2 preview: report has the test address, no Black Friday link while it is off (L107), not the database id'
         Check ($r.Contains('Προϊόντα των οδηγών δώρων: όλα φαίνονται κανονικά') -and (VCount 'FROM products WHERE id IN \(') -ge 5) 'hub v2 preview: every product of the gift guides read by id from its site (SELECT only) and reported (L107)'
         Check ((Get-TreeHash $vHub) -eq $vHubBefore) 'hub v2 preview: the hub folder on the PC is not changed'
-        Check ((Run-V @('-Step', 'preview', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB COMPLIANCE PREVIEW')) -eq 0 -and (VCount 'secret bulk') -eq 1) 'hub v2 preview again: the existing secret of the test Worker is kept'
+        Check ((Run-V @('-Step', 'preview', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB GUIDE PRICES PREVIEW')) -eq 0 -and (VCount 'secret bulk') -eq 1) 'hub v2 preview again: the existing secret of the test Worker is kept'
         # live: the posters go first
         Write-Utf8 (Join-Path $vHub 'wrangler.toml') ($vCfg.Substring(0, $vCfg.IndexOf('[[services]]')))
-        Check ((Run-V @('-Step', 'live', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB COMPLIANCE LIVE')) -eq 8 -and (VCount 'deploy --config') -eq 2) 'hub v2 live: refused before the poster counting is on the Hub'
+        Check ((Run-V @('-Step', 'live', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB GUIDE PRICES LIVE')) -eq 8 -and (VCount 'deploy --config') -eq 2) 'hub v2 live: refused before the poster counting is on the Hub'
         Write-Utf8 (Join-Path $vHub 'wrangler.toml') $vCfg
         Check ((Run-V @('-Step', 'live')) -eq 0 -and (VCount 'deploy --config') -eq 2 -and (Get-TreeHash $vHub) -eq $vHubBefore) 'hub v2 live without -Apply: nothing changes'
-        Check ((Run-V @('-Step', 'live', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB COMPLIANCE PREVIEW')) -eq 1 -and (VCount 'deploy --config') -eq 2 -and (Get-TreeHash $vHub) -eq $vHubBefore) 'hub v2 live with the preview phrase: nothing changes'
+        Check ((Run-V @('-Step', 'live', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB GUIDE PRICES PREVIEW')) -eq 1 -and (VCount 'deploy --config') -eq 2 -and (Get-TreeHash $vHub) -eq $vHubBefore) 'hub v2 live with the preview phrase: nothing changes'
         Write-Utf8 (Join-Path $vState 'split.flag') 'split'
-        Check ((Run-V @('-Step', 'live', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB COMPLIANCE LIVE')) -eq 11 -and (VCount 'deploy --config') -eq 2 -and (Get-TreeHash $vHub) -eq $vHubBefore) 'hub v2 live: no single live version to go back to: stops before any change'
+        Check ((Run-V @('-Step', 'live', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB GUIDE PRICES LIVE')) -eq 11 -and (VCount 'deploy --config') -eq 2 -and (Get-TreeHash $vHub) -eq $vHubBefore) 'hub v2 live: no single live version to go back to: stops before any change'
         Remove-Item -LiteralPath (Join-Path $vState 'split.flag') -Force
         Write-Utf8 (Join-Path $vState 'failother.flag') 'always'
-        Check ((Run-V @('-Step', 'live', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB COMPLIANCE LIVE')) -eq 9 -and (VCount 'deploy --config') -eq 3) 'hub v2 live: a failed deploy stops at once (exit 9), no repeat'
+        Check ((Run-V @('-Step', 'live', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB GUIDE PRICES LIVE')) -eq 9 -and (VCount 'deploy --config') -eq 3) 'hub v2 live: a failed deploy stops at once (exit 9), no repeat'
         Check ((Get-TreeHash $vHub) -eq $vHubBefore) 'hub v2 live: after a failed deploy the hub folder is back as it was (new files removed too)'
         Remove-Item -LiteralPath (Join-Path $vState 'failother.flag') -Force
         # Security fixes (L106): without the Hub's Turnstile keys the live step refuses, after the phrase, before any change.
         Write-Utf8 (Join-Path $vState 'nots.flag') 'no keys'
-        Check ((Run-V @('-Step', 'live', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB COMPLIANCE LIVE')) -eq 16 -and (VCount 'deploy --config') -eq 3 -and (Get-TreeHash $vHub) -eq $vHubBefore) 'hub v2 live without the Turnstile keys of the Hub: refused (exit 16), nothing changed'
+        Check ((Run-V @('-Step', 'live', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB GUIDE PRICES LIVE')) -eq 16 -and (VCount 'deploy --config') -eq 3 -and (Get-TreeHash $vHub) -eq $vHubBefore) 'hub v2 live without the Turnstile keys of the Hub: refused (exit 16), nothing changed'
         Check ((VLast).Contains('gw-security-fixes.ps1 -Step turnstile')) 'hub v2 live: the report says which step goes first'
         Remove-Item -LiteralPath (Join-Path $vState 'nots.flag') -Force
         # A wrangler.toml whose top-level workers_dev has another form: the step stops before any change (L106).
         Write-Utf8 (Join-Path $vHub 'wrangler.toml') $vCfg.Replace('name = "gear-world-hub"', "name = `"gear-world-hub`"`nworkers_dev = `"true`"")
         $vTreeT = Get-TreeHash $vHub
-        Check ((Run-V @('-Step', 'live', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB COMPLIANCE LIVE')) -eq 18 -and (VCount 'deploy --config') -eq 3 -and (Get-TreeHash $vHub) -eq $vTreeT) 'hub v2 live: workers_dev = false not certain at the top of wrangler.toml: stops before any change (exit 18)'
+        Check ((Run-V @('-Step', 'live', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB GUIDE PRICES LIVE')) -eq 18 -and (VCount 'deploy --config') -eq 3 -and (Get-TreeHash $vHub) -eq $vTreeT) 'hub v2 live: workers_dev = false not certain at the top of wrangler.toml: stops before any change (exit 18)'
         Write-Utf8 (Join-Path $vHub 'wrangler.toml') $vCfg
         # L107: a gift guide product whose page would show a notice (price checked 40 days ago): the live step refuses.
         Write-Utf8 (Join-Path $vState 'stale.flag') 'old'
         $vTreeS = Get-TreeHash $vHub
-        Check ((Run-V @('-Step', 'live', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB COMPLIANCE LIVE')) -eq 20 -and (VCount 'deploy --config') -eq 3 -and (Get-TreeHash $vHub) -eq $vTreeS -and (VLast).Contains('NOTICE ')) 'hub v2 live: refused while a gift guide links to a product that would show a notice (exit 20, L107)'
+        Check ((Run-V @('-Step', 'live', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB GUIDE PRICES LIVE')) -eq 20 -and (VCount 'deploy --config') -eq 3 -and (Get-TreeHash $vHub) -eq $vTreeS -and (VLast).Contains('NOTICE ')) 'hub v2 live: refused while a gift guide links to a product that would show a notice (exit 20, L107)'
         Remove-Item -LiteralPath (Join-Path $vState 'stale.flag') -Force
-        Check ((Run-V @('-Step', 'live', '-Apply', '-Approve', 'egkrino hub compliance live')) -eq 0 -and (VCount 'deploy --config') -eq 4) 'hub v2 live with approval: deploys once'
+        # L109: a gift guide price that is not the price its site shows (PRICE): the preview only reports it, the live step
+        # refuses (exit 20) before any change, and the report says in Greek that nothing went live.
+        Write-Utf8 (Join-Path $vState 'price.flag') 'price'
+        Check ((Run-V @('-Step', 'preview')) -eq 0 -and (VLast).Contains('PRICE ') -and (VLast).Contains('Τιμές των οδηγών δώρων: ΠΡΟΒΛΗΜΑ') -and (VCount 'deploy --config') -eq 3) 'hub v2 preview: a gift guide price that is not the price of its site is reported (L109)'
+        $vTreeP = Get-TreeHash $vHub
+        Check ((Run-V @('-Step', 'live', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB GUIDE PRICES LIVE')) -eq 20 -and (VCount 'deploy --config') -eq 3 -and (Get-TreeHash $vHub) -eq $vTreeP) 'hub v2 live: refused while a gift guide price is not the price of its site (exit 20, L109)'
+        $r = VLast
+        Check ($r.Contains('PRICE ') -and -not $r.Contains('NOTICE ') -and $r.Contains('Τίποτα δεν ανέβηκε live') -and $r.Contains('θα ενημερώσει τις τιμές των οδηγών') -and -not $r.Contains('ΕΤΟΙΜΟ')) 'hub v2 live: the report says in Greek that nothing went live and Claude will update the guide prices (L109)'
+        Remove-Item -LiteralPath (Join-Path $vState 'price.flag') -Force
+        Check ((Run-V @('-Step', 'live', '-Apply', '-Approve', 'egkrino hub guide prices live')) -eq 0 -and (VCount 'deploy --config') -eq 4) 'hub v2 live with approval: deploys once'
         $c = VCalls
         Check ($c -match ('deploy --config "' + [regex]::Escape((Join-Path $vHub 'wrangler.toml')) + '"')) 'hub v2 live: deploys the hub folder with its own wrangler.toml (POSTERS kept)'
         Check ($c.LastIndexOf('deployments list --name gear-world-hub') -lt $c.LastIndexOf('deploy --config')) 'hub v2 live: live version read before deploying'
@@ -3662,17 +3680,17 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         Check ($r.Contains('public/hub-v2.js | ') -and $r.Contains('ΕΤΟΙΜΟ') -and -not $r.Contains($vVer)) 'hub v2 live: the report has the new baseline lines, not the version id'
         # The live Hub must answer only on its domain (L106): a deploy that lists gear-world-hub.<...>.workers.dev is a problem.
         Write-Utf8 (Join-Path $vState 'livewd.flag') 'x'
-        Check ((Run-V @('-Step', 'live', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB COMPLIANCE LIVE')) -eq 19 -and (VCount 'deploy --config') -eq 5) 'hub v2 live: a deploy that still lists a workers.dev address of the live Hub ends as a problem (exit 19)'
+        Check ((Run-V @('-Step', 'live', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB GUIDE PRICES LIVE')) -eq 19 -and (VCount 'deploy --config') -eq 5) 'hub v2 live: a deploy that still lists a workers.dev address of the live Hub ends as a problem (exit 19)'
         $r = VLast
         Check ($r.Contains('απαντά ακόμα και σε *.workers.dev') -and $r.Contains('https://dash.cloudflare.com/?to=/:account/workers-and-pages') -and -not $r.Contains('ΕΤΟΙΜΟ: το νέο Hub')) 'hub v2 live: the report says how to close workers.dev, and not READY'
         Remove-Item -LiteralPath (Join-Path $vState 'livewd.flag') -Force
         Check ((Run-V @('-Step', 'check')) -eq 0 -and (VLast).Contains('έχει ήδη αυτή την έκδοση')) 'hub v2 check after live: the hub folder has this version'
         Write-Utf8 (Join-Path $vPub 'styles.css') 'body{}'
-        Check ((Run-V @('-Step', 'live', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB COMPLIANCE LIVE')) -eq 7 -and (VCount 'deploy --config') -eq 5) 'hub v2 live: refused when someone else changed the hub folder'
+        Check ((Run-V @('-Step', 'live', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB GUIDE PRICES LIVE')) -eq 7 -and (VCount 'deploy --config') -eq 5) 'hub v2 live: refused when someone else changed the hub folder'
         Check ((VLast).Contains('public/styles.css')) 'hub v2: the changed file is named in the report'
         # register: Pets Gear World in the Hub's list of sites (one D1 row, restore point first)
         Check ((Run-V @('-Step', 'register')) -eq 0 -and (VCount '--file') -eq 0) 'hub register without -Apply: nothing changes'
-        Check ((Run-V @('-Step', 'register', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB COMPLIANCE LIVE')) -eq 1 -and (VCount '--file') -eq 0) 'hub register with the live phrase: nothing changes'
+        Check ((Run-V @('-Step', 'register', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB GUIDE PRICES LIVE')) -eq 1 -and (VCount '--file') -eq 0) 'hub register with the live phrase: nothing changes'
         Check ((Run-V @('-Step', 'register', '-Apply', '-Approve', 'egkrino hub zgw search')) -eq 0 -and (VCount '--file') -eq 1) 'hub register with approval: one SQL file runs'
         $c = VCalls
         Check ($c.LastIndexOf('time-travel info gear-world-registry') -lt $c.LastIndexOf('--file') -and $c.LastIndexOf('time-travel info gear-world-registry') -ge 0) 'hub register: restore point read before the change'
@@ -3682,7 +3700,7 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         Check ((Run-V @('-Step', 'register', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB ZGW SEARCH')) -eq 0 -and (VCount '--file') -eq 1 -and (VLast).Contains('ήδη στη λίστα')) 'hub register twice: the row is there, nothing runs again'
         # remove-preview: the test Worker goes, from a new empty folder (L83)
         Check ((Run-V @('-Step', 'remove-preview')) -eq 0 -and (VCount 'delete gear-world-hub-preview') -eq 0) 'hub remove-preview without -Apply: nothing deleted'
-        Check ((Run-V @('-Step', 'remove-preview', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB COMPLIANCE LIVE')) -eq 1 -and (VCount 'delete gear-world-hub-preview') -eq 0) 'hub remove-preview with the live phrase: nothing deleted'
+        Check ((Run-V @('-Step', 'remove-preview', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB GUIDE PRICES LIVE')) -eq 1 -and (VCount 'delete gear-world-hub-preview') -eq 0) 'hub remove-preview with the live phrase: nothing deleted'
         $deploysNow = VCount 'deploy --config'
         Check ((Run-V @('-Step', 'remove-preview', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB REMOVE PREVIEW')) -eq 0 -and (VCount 'delete gear-world-hub-preview') -eq 1 -and (VCount 'deploy --config') -eq $deploysNow) 'hub remove-preview with approval: deletes only the test Worker, no deploy'
         Check (-not ((VCalls) -match 'delete gear-world-hub(\s|$)')) 'hub remove-preview: the live Worker is never named'
@@ -5296,7 +5314,9 @@ if (Get-Command node -ErrorAction SilentlyContinue) {
     $l107Tools = @('ads-fixes-sites.ps1', 'gwh-hub-v2.ps1') | ForEach-Object { [System.IO.File]::ReadAllText((Join-Path (Join-Path $repo 'tools') $_)) }
     $curly = ([string][char]0x2018) + ([string][char]0x2019) + ([string][char]0x201C) + ([string][char]0x201D)
     Check (@($l107Tools | Where-Object { $_.IndexOfAny($curly.ToCharArray()) -ge 0 }).Count -eq 0) 'L107: the two deploy tools have no curly quotes (Windows PowerShell 5.1 reads them as quotes)'
-    Check ($l107Tools[1].Contains("`$PhraseLive = 'ΕΓΚΡΙΝΩ HUB COMPLIANCE LIVE'") -and $l107Tools[0].Contains('ΕΓΚΡΙΝΩ HUB COMPLIANCE LIVE')) 'L107: the Hub asks ΕΓΚΡΙΝΩ HUB COMPLIANCE LIVE and the sites tool names it'
+    Check ($l107Tools[1].Contains('then ΕΓΚΡΙΝΩ HUB COMPLIANCE LIVE together with remove-preview') -and $l107Tools[0].Contains('ΕΓΚΡΙΝΩ HUB COMPLIANCE LIVE')) 'L107: the Hub tool names ΕΓΚΡΙΝΩ HUB COMPLIANCE LIVE (live since 9/11/2026) and the sites tool names it'
+    # L109 (gift guide prices): the Hub asks its own new phrases, never one of an earlier release.
+    Check ($l107Tools[1].Contains("`$PhrasePreview = 'ΕΓΚΡΙΝΩ HUB GUIDE PRICES PREVIEW'") -and $l107Tools[1].Contains("`$PhraseLive = 'ΕΓΚΡΙΝΩ HUB GUIDE PRICES LIVE'")) 'L109: the Hub asks ΕΓΚΡΙΝΩ HUB GUIDE PRICES PREVIEW and LIVE'
 }
 
 Remove-Item -LiteralPath $work -Recurse -Force -ErrorAction SilentlyContinue
