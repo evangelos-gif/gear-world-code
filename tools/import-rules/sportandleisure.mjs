@@ -4,8 +4,17 @@
 // (feed-profile 8 Nov 2026): 346 + 267 products, GBP, shop sportandleisureuk.com, categories "Trampolines > Rectangular
 // Trampolines", "Trampolines > Round Trampolines", "Tramp Accesories", "Kids Ride-On Electric Cars", "Kids Cars"; brands
 // Air King, Big Foot, Air League. KGW already has Toys & Games > Electric Riding Vehicles and Sports & Outdoors.
-// The two feeds list the same products under different links (dry run 8 Nov 2026 22:57: every trampoline and ride-on
-// car twice): joinSameNameAcrossFeeds makes one card per name.
+// The two feeds list the same products under different links and slightly different names (dry run 8 Nov 2026 22:57:
+// every trampoline and ride-on car twice; "Air King 16ft Trampoline & Enclosure ..." / "... with Enclosure - ..."),
+// and 28 products have two prices (Big Foot 9x14ft £349.95 / £359.95). Feed 117262 is the shop's current one (its links
+// are the shop's /product/ pages, its ids the shop's SKUs, every product has a price); 37875 is the older one (root
+// links, numeric ids, 22 products without a price, massage items the shop no longer lists). Only 117262 is read
+// (checked 9 Nov 2026 on the staged feeds: 92 cards from both feeds, of which many near-duplicates).
+import { existsSync } from 'node:fs';
+import { join } from 'node:path';
+export function feedFiles(archive) {
+  return ['AWIN_1463_117262.csv.gz', 'AWIN_1463_117262.csv'].map(f => join(archive, f)).filter(f => existsSync(f));
+}
 export const RULES = {
   key: 'sportandleisure',
   advertiserId: 1463,

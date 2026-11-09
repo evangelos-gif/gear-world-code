@@ -193,7 +193,8 @@ test('8 Nov 2026 late: Natkina jewellery on WGW (pound feed only), Santoro Milan
   assert.deepEqual(sm('Navy Silk Bow Tie'), { site: 'mgw', siteCategory: 'Bags & Accessories', subcategory: 'Ties', name: 'Navy Silk Bow Tie' });
   assert.ok(sm('Boys Navy Three Piece Suit').reject);
   const sgw = JSON.parse(readFileSync(new URL('../../sites/sgw/sources.json', import.meta.url), 'utf8')).sources;
-  assert.ok(sgw.find(s => s.advertiserId === 1463 && s.approved && s.feedIds.includes(37875)));
+  // 9 Nov 2026: only the shop's current feed 117262 (37875 is the older copy of the same products, near-duplicates).
+  assert.deepEqual(sgw.find(s => s.advertiserId === 1463 && s.approved).feedIds, [117262]);
   assert.equal(sgwClassify('IronMan 20kg Vinyl Dumbbell Set', 'Fitness Equipment > Free Weights', '', sgw.find(s => s.advertiserId === 1463)).slug, 'fitness-gym');
   assert.equal(sgwClassify('Air King 12ft Trampoline with Enclosure', 'Trampolines > Round Trampolines', '', sgw.find(s => s.advertiserId === 1463)).ok, false);
   const zgw = JSON.parse(readFileSync(new URL('../../sites/zgw/sources.json', import.meta.url), 'utf8')).sources.find(s => s.advertiserId === 42915);
@@ -293,8 +294,9 @@ test('Natkina plan: pictures from the shop (and from "//" addresses), pound pric
 });
 
 // Dry run 8 Nov 2026 22:57: Sport and Leisure UK's two feeds list the same trampolines and ride-on cars under different
-// links, so KGW would have had each card twice. One card per name; the price is the lowest in-stock one of both feeds.
-test('Sport and Leisure on KGW: the same product in both feeds is one card', async () => {
+// links (and slightly different names and prices), so KGW would have had each card twice. Only the shop's current feed
+// 117262 is read (checked 9 Nov 2026 on the real feeds: 54 cards, no duplicates).
+test('Sport and Leisure on KGW: only the current feed 117262, so no product twice', async () => {
   const { mkdtempSync, writeFileSync } = await import('node:fs');
   const { tmpdir } = await import('node:os');
   const { join } = await import('node:path');
@@ -315,12 +317,13 @@ test('Sport and Leisure on KGW: the same product in both feeds is one card', asy
     + row(14, 'mclaren-gt-white.html', 'Kids Electric Ride On 12V McLaren GT White', 139.95, 'mclaren-racing', 'Kids Ride-On Electric Cars')));
   const out = mkdtempSync(join(tmpdir(), 'sal-out-'));
   const r = await planLegacyImport({ archive: dir, retailer: 'sportandleisure', outDir: out, now: new Date('2026-11-08T23:10:00Z') });
+  assert.deepEqual(r.files.map(f => f.replace(/^.*[\\/]/, '')), ['AWIN_1463_117262.csv.gz']);
   const names = r.accepted.kgw.map(p => p.product_name).sort();
   assert.deepEqual(names, ['Air King Pro 7x10ft Rectangular Trampoline with Safety Enclosure Grey - Free Ladder & Shoe Tidy',
-    'Bestway 6ft x 20inch Fast Set Above Ground Swimming Pool', 'Kids Electric Ride On 12V McLaren GT Orange', 'Kids Electric Ride On 12V McLaren GT White']);
+    'Bestway 6ft x 20inch Fast Set Above Ground Swimming Pool', 'Kids Electric Ride On 12V McLaren GT Orange']);
   const pool = r.accepted.kgw.find(p => p.product_name.startsWith('Bestway'));
-  assert.equal(pool.price, 29.95);
-  assert.equal(pool.merchant_product_id, 'products/bestway-6ft', 'the first feed keeps its key and link');
+  assert.equal(pool.price, 39.95, 'the price of the current feed, not the older copy');
+  assert.equal(pool.merchant_product_id, 'products/bestway-6ft');
   // Without the flag (other shops) nothing changes: the same name on two pages stays two cards.
   const two = [{ page: 'https://a/1', name: 'Same Name Product', variants: 1, inStockVariants: 1, unknownStock: 0, prices: [5] },
     { page: 'https://a/2', name: 'Same Name Product', variants: 1, inStockVariants: 1, unknownStock: 0, prices: [4] }];
