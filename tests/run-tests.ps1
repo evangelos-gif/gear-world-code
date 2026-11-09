@@ -2970,7 +2970,9 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
     }
 }
 
-# gw-backup.ps1 with a fake home, a fake drive folder and a fake wrangler (Windows only: runs .cmd files and robocopy)
+# gw-backup.ps1 with a fake home, a fake drive folder and a fake wrangler (Windows only: runs .cmd files and robocopy).
+# Lessons L113: no keys or customer e-mails on the drive, WITHOUT ROWID tables in pages, never a question, stops at once
+# when something is missing, a failing table does not stop the rest, the last line is ΤΕΛΟΣ BACKUP.
 if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
     Write-Host 'gw-backup.ps1 (fake home and wrangler)'
     $bTool = Join-Path (Join-Path $repo 'tools') 'gw-backup.ps1'
@@ -2979,32 +2981,72 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
     $bState = Join-Path $work 'bk-state'
     $bBin = Join-Path $work 'bk-bin'
     New-Item -ItemType Directory -Path $bState, $bBin -Force | Out-Null
-    Write-Utf8 (Join-Path $bHome 'gear-world-hub\worker.js') 'export default {}'
+    Write-Utf8 (Join-Path $bHome 'gear-world-hub\worker.js') "export default {}`nconst CONTACT = 'contact@gearworldhub.com';`n"
     Write-Utf8 (Join-Path $bHome 'gear-world-hub\.dev.vars') 'X=1'
+    Write-Utf8 (Join-Path $bHome 'gear-world-hub\.env.local') 'Y=2'
     Write-Utf8 (Join-Path $bHome 'gear-world-hub\node_modules\pkg\index.js') '// package'
+    Write-Utf8 (Join-Path $bHome 'gear-world-hub\old-deploy.ps1') ("`$env:CLOUDFLARE_API_TOKEN = '" + $fakeSecret + "'`n")
+    Write-Utf8 (Join-Path $bHome 'gear-world-hub\registry-export.sql') "INSERT INTO hub_subscribers VALUES ('a1@shop-test.invalid');`nINSERT INTO hub_subscribers VALUES ('b2@shop-test.invalid');`nINSERT INTO hub_subscribers VALUES ('c3@shop-test.invalid');`n"
+    Write-Utf8 (Join-Path $bHome 'gear-world-hub\notes.sql') "SELECT 1; -- contact@gearworldhub.com, help@example.com`n"
+    Write-Utf8 (Join-Path $bHome 'gear-world-secrets\awin-feed-key.dat') 'encrypted for this Windows user'
     Write-Utf8 (Join-Path $bHome 'construction-gear-world-engine\backups\note.txt') 'bookmark'
     Write-Utf8 (Join-Path $bHome 'sporty-gear-world\wrangler.jsonc') '{}'
     Write-Utf8 (Join-Path $bHome 'Documents\private.txt') 'not gear world'
     Write-Utf8 (Join-Path $bHome 'Downloads\GW_AWIN_BULK_ARCHIVE\AWIN_1_2.csv.gz') 'feed'
     Write-Utf8 (Join-Path $bHome 'Downloads\48473-retail-en_GB.csv.gz') 'google feed'
     Write-Utf8 (Join-Path $bHome 'Downloads\holiday.jpg') 'photo'
+    # A warning before the JSON (L113), 3 databases: test-db (rowid, search, customer tables), prices-db (WITHOUT ROWID),
+    # broken-db (one table fails). "noauth" in the state folder = wrangler not logged in.
     $bNpx = @(
         '@echo off',
         'echo %* >> "%GW_FAKE_STATE%\calls.log"',
+        'if exist "%GW_FAKE_STATE%\noauth" goto noauth',
         'echo %* | findstr /C:"d1 list" >nul && goto d1list',
+        'echo %* | findstr /C:"sqlite_master" >nul && echo %* | findstr /C:"prices-db" >nul && goto schemaprices',
+        'echo %* | findstr /C:"sqlite_master" >nul && echo %* | findstr /C:"broken-db" >nul && goto schemabroken',
         'echo %* | findstr /C:"sqlite_master" >nul && goto schema',
+        'echo %* | findstr /C:"FROM bad" >nul && goto fail',
         'echo %* | findstr /C:"MIN(rowid)" >nul && goto range',
+        'echo %* | findstr /C:"COUNT(" >nul && goto count',
+        'echo %* | findstr /C:"OFFSET 0" >nul && goto page1',
+        'echo %* | findstr /C:"OFFSET 3" >nul && goto page2',
+        'echo %* | findstr /C:"OFFSET" >nul && goto pageempty',
         'echo %* | findstr /C:"BETWEEN" >nul && goto rows',
         'echo unknown command 1>&2',
         'exit /b 1',
+        ':noauth',
+        'echo You are not authenticated. Please run wrangler login.',
+        'exit /b 1',
+        ':fail',
+        'echo D1_ERROR no such table 1>&2',
+        'exit /b 1',
         ':d1list',
-        'echo [{"uuid":"x","name":"test-db"}]',
+        'echo [WARNING] a warning printed before the JSON',
+        'echo [{"name":"test-db","file_size":1000},{"name":"prices-db","file_size":1000},{"name":"broken-db","file_size":1000}]',
         'exit /b 0',
         ':schema',
-        'echo [{"results":[{"type":"table","name":"products","tbl_name":"products","sql":"CREATE TABLE products (id INTEGER PRIMARY KEY, name TEXT)"},{"type":"table","name":"products_fts","tbl_name":"products_fts","sql":"CREATE VIRTUAL TABLE products_fts USING fts5(name)"},{"type":"table","name":"products_fts_data","tbl_name":"products_fts_data","sql":"CREATE TABLE products_fts_data(id INTEGER PRIMARY KEY, block BLOB)"}],"success":true}]',
+        'echo [{"results":[{"type":"table","name":"products","tbl_name":"products","sql":"CREATE TABLE products (id INTEGER PRIMARY KEY, name TEXT)"},{"type":"table","name":"products_fts","tbl_name":"products_fts","sql":"CREATE VIRTUAL TABLE products_fts USING fts5(name)"},{"type":"table","name":"products_fts_data","tbl_name":"products_fts_data","sql":"CREATE TABLE products_fts_data(id INTEGER PRIMARY KEY, block BLOB)"},{"type":"table","name":"newsletter","tbl_name":"newsletter","sql":"CREATE TABLE newsletter (id INTEGER PRIMARY KEY, email TEXT)"},{"type":"table","name":"signups","tbl_name":"signups","sql":"CREATE TABLE signups (id INTEGER PRIMARY KEY, email TEXT NOT NULL)"}],"success":true}]',
+        'exit /b 0',
+        ':schemaprices',
+        'echo [{"results":[{"type":"table","name":"price_log","tbl_name":"price_log","sql":"CREATE TABLE price_log (site TEXT NOT NULL, pkey TEXT NOT NULL, day TEXT NOT NULL, price REAL NOT NULL, PRIMARY KEY (site, pkey, day)) WITHOUT ROWID"}],"success":true}]',
+        'exit /b 0',
+        ':schemabroken',
+        'echo [{"results":[{"type":"table","name":"bad","tbl_name":"bad","sql":"CREATE TABLE bad (id INTEGER PRIMARY KEY)"},{"type":"table","name":"items","tbl_name":"items","sql":"CREATE TABLE items (id INTEGER PRIMARY KEY, name TEXT)"}],"success":true}]',
         'exit /b 0',
         ':range',
         'echo [{"results":[{"a":1,"b":5,"n":5}],"success":true}]',
+        'exit /b 0',
+        ':count',
+        'echo [{"results":[{"n":5}],"success":true}]',
+        'exit /b 0',
+        ':page1',
+        'echo [{"results":[{"site":"cgw","pkey":"a","day":"2026-11-01","price":1},{"site":"cgw","pkey":"b","day":"2026-11-01","price":2},{"site":"cgw","pkey":"c","day":"2026-11-01","price":3}],"success":true}]',
+        'exit /b 0',
+        ':page2',
+        'echo [{"results":[{"site":"cgw","pkey":"d","day":"2026-11-01","price":4},{"site":"cgw","pkey":"e","day":"2026-11-01","price":5}],"success":true}]',
+        'exit /b 0',
+        ':pageempty',
+        'echo [{"results":[],"success":true}]',
         'exit /b 0',
         ':rows',
         'echo [{"results":[{"_rowid":1,"id":1,"name":"Drill"}],"success":true}]',
@@ -3015,31 +3057,70 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
     $env:PATH = $bBin + ';' + $oldPath
     $env:GW_FAKE_STATE = $bState
     function Run-B([string[]]$a) {
-        $all = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $bTool, '-Target', $bTarget, '-HomeDir', $bHome, '-AllowSystemDrive', '-SkipGitHub', '-PageRows', '3', '-NoClipboard') + $a
+        $all = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $bTool, '-Target', $bTarget, '-HomeDir', $bHome, '-AllowSystemDrive', '-SkipGitHub', '-SkipNetworkCheck', '-PageRows', '3', '-NoClipboard') + $a
         & $exe @all | Out-Null
         return $LASTEXITCODE
     }
+    function Get-BReport {
+        $rep = @(Get-ChildItem -LiteralPath (Join-Path $bHome 'gear-world-reports') -Filter 'GW_BACKUP_*.txt' -ErrorAction SilentlyContinue | Sort-Object LastWriteTime | Select-Object -Last 1)
+        if ($rep.Count) { return [System.IO.File]::ReadAllText($rep[0].FullName) }
+        return ''
+    }
     try {
         $drive = ([string]$env:SystemDrive).TrimEnd(':').ToUpper()
-        Check ((Run-B @()) -eq 0 -and -not (Test-Path -LiteralPath $bTarget)) 'backup without -Apply: writes nothing'
-        $rep = @(Get-ChildItem -LiteralPath (Join-Path $bHome 'gear-world-reports') -Filter 'GW_BACKUP_*.txt' | Select-Object -Last 1)
-        $rt = $(if ($rep.Count) { [System.IO.File]::ReadAllText($rep[0].FullName) } else { '' })
-        Check ($rt.Contains('gear-world-hub') -and $rt.Contains('test-db') -and $rt.Contains('ΕΓΚΡΙΝΩ BACKUP ' + $drive) -and -not $rt.Contains('Documents')) 'backup plan: Gear World folders and databases, not other folders'
+        $ok = 'ΕΓΚΡΙΝΩ BACKUP ' + $drive
+        Check ((Run-B @()) -eq 0 -and -not (Test-Path -LiteralPath $bTarget)) 'backup check without -Apply: exit 0, writes nothing'
+        $rt = Get-BReport
+        Check ($rt.Contains('gear-world-hub') -and $rt.Contains('test-db') -and $rt.Contains($ok) -and -not $rt.Contains('Documents')) 'backup plan: Gear World folders and databases, not other folders'
+        Check ($rt.Contains('old-deploy.ps1') -and $rt.Contains('registry-export.sql') -and $rt.Contains('.dev.vars') -and $rt.Contains('.env.local') -and $rt.Contains('gear-world-secrets') -and -not $rt.Contains('notes.sql') -and -not $rt.Contains($fakeSecret) -and -not $rt.Contains('shop-test.invalid')) 'backup check: files with keys or customer e-mails listed as left out, by path only (L113)'
+        Check ($rt.Contains('Σύνδεση wrangler: ΕΝΤΑΞΕΙ') -and $rt.Contains('ΤΕΛΟΣ ΕΛΕΓΧΟΥ BACKUP')) 'backup check: wrangler login checked past a warning, last line written'
+        Check ((Run-B @('-Apply')) -eq 1 -and -not (Test-Path -LiteralPath $bTarget) -and (Get-BReport).Contains('-Approve')) 'backup -Apply without -Approve: stops at once without asking, writes nothing (L113)'
         Check ((Run-B @('-Apply', '-Approve', 'ΕΓΚΡΙΝΩ BACKUP Q')) -eq 1 -and -not (Test-Path -LiteralPath $bTarget)) 'backup with the wrong phrase: writes nothing'
-        Check ((Run-B @('-Apply', '-Approve', ('egkrino backup ' + $drive))) -eq 0) 'backup with approval: exit 0'
+        Write-Utf8 (Join-Path $bState 'noauth') 'x'
+        $code = Run-B @('-Apply', '-Approve', $ok)
+        Remove-Item -LiteralPath (Join-Path $bState 'noauth') -Force
+        $rt = Get-BReport
+        Check ($code -eq 4 -and -not (Test-Path -LiteralPath $bTarget) -and $rt.Contains('wrangler') -and $rt.TrimEnd().EndsWith('ΤΕΛΟΣ BACKUP')) 'backup with wrangler not logged in: stops at once (exit 4), writes nothing, last line ΤΕΛΟΣ BACKUP'
+        & $exe -NoProfile -ExecutionPolicy Bypass -File $bTool -Target $bTarget -HomeDir $bHome -AllowSystemDrive -SkipGitHub -NoClipboard -NetworkUrls 'https://gw-backup-test.invalid/' -Apply -Approve $ok | Out-Null
+        Check ($LASTEXITCODE -eq 5 -and -not (Test-Path -LiteralPath $bTarget)) 'backup with no network: stops at once (exit 5), writes nothing'
+        $noDrive = @('Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z') | Where-Object { -not (Test-Path -LiteralPath ($_ + ':\')) } | Select-Object -First 1
+        if ($noDrive) {
+            & $exe -NoProfile -ExecutionPolicy Bypass -File $bTool -Target ($noDrive + ':\GearWorldBackup') -HomeDir $bHome -SkipGitHub -SkipNetworkCheck -NoClipboard -Apply -Approve ('ΕΓΚΡΙΝΩ BACKUP ' + $noDrive) | Out-Null
+            Check ($LASTEXITCODE -eq 2 -and (Get-BReport).Contains('GWBackup')) 'backup with the drive not connected: stops at once (exit 2)'
+        }
+        # Old copies from an earlier backup: keys, the secrets folder, an export with e-mails, customer-table pages.
         $f = Join-Path $bTarget 'files'
-        Check ((Test-Path -LiteralPath (Join-Path $f 'gear-world-hub\worker.js')) -and (Test-Path -LiteralPath (Join-Path $f 'gear-world-hub\.dev.vars')) -and (Test-Path -LiteralPath (Join-Path $f 'construction-gear-world-engine\backups\note.txt'))) 'backup: Gear World folders copied'
-        Check (Test-Path -LiteralPath (Join-Path $f 'sporty-gear-world\wrangler.jsonc')) 'backup: a new site folder (sporty-gear-world) is copied too'
+        Write-Utf8 (Join-Path $f 'gear-world-hub\.dev.vars') 'OLD=1'
+        Write-Utf8 (Join-Path $f 'gear-world-hub\registry-export.sql') 'old export'
+        Write-Utf8 (Join-Path $f 'gear-world-secrets\awin-feed-key.dat') 'old'
+        Write-Utf8 (Join-Path $bTarget 'd1\broken-db\schema.sql') "CREATE TABLE items (id INTEGER PRIMARY KEY, name TEXT);`r`nCREATE TABLE signups (id INTEGER PRIMARY KEY, email TEXT NOT NULL);`r`n"
+        Write-Utf8 (Join-Path $bTarget 'd1\broken-db\items-0001.json') '[{"results":[{"_rowid":1,"id":1,"name":"Old"}]}]'
+        Write-Utf8 (Join-Path $bTarget 'd1\broken-db\signups-0001.json') '[{"results":[]}]'
+        Write-Utf8 (Join-Path $bTarget 'd1\test-db\newsletter-0001.json') '[{"results":[]}]'
+        Check ((Run-B @()) -eq 0 -and (Test-Path -LiteralPath (Join-Path $f 'gear-world-hub\.dev.vars')) -and (Get-BReport).Contains('παλιά αντίγραφα')) 'backup check: old copies of keys and customers on the drive reported, not removed'
+        $code = Run-B @('-Apply', '-Approve', ('egkrino backup ' + $drive))
+        $rt = Get-BReport
+        Check ($code -eq 12 -and $rt.Contains('broken-db.bad') -and $rt.TrimEnd().EndsWith('ΤΕΛΟΣ BACKUP')) 'backup with approval and one failing table: goes on to the end (exit 12, ΤΕΛΟΣ BACKUP)'
+        Check ($rt.Contains('ξύπνιος') -and $rt.Contains('κανονικό ύπνο')) 'backup: PC kept awake while it runs, back to normal at the end'
+        Check ((Test-Path -LiteralPath (Join-Path $f 'gear-world-hub\worker.js')) -and (Test-Path -LiteralPath (Join-Path $f 'gear-world-hub\notes.sql')) -and (Test-Path -LiteralPath (Join-Path $f 'construction-gear-world-engine\backups\note.txt')) -and (Test-Path -LiteralPath (Join-Path $f 'sporty-gear-world\wrangler.jsonc'))) 'backup: Gear World folders copied (a new site folder too)'
         Check (-not (Test-Path -LiteralPath (Join-Path $f 'gear-world-hub\node_modules')) -and -not (Test-Path -LiteralPath (Join-Path $f 'Documents'))) 'backup: node_modules and other folders skipped'
         Check ((Test-Path -LiteralPath (Join-Path $f 'Downloads\GW_AWIN_BULK_ARCHIVE\AWIN_1_2.csv.gz')) -and (Test-Path -LiteralPath (Join-Path $f 'Downloads\48473-retail-en_GB.csv.gz')) -and -not (Test-Path -LiteralPath (Join-Path $f 'Downloads\holiday.jpg'))) 'backup: Awin feeds copied, other downloads not'
+        Check (-not (Test-Path -LiteralPath (Join-Path $f 'gear-world-hub\.dev.vars')) -and -not (Test-Path -LiteralPath (Join-Path $f 'gear-world-hub\.env.local')) -and -not (Test-Path -LiteralPath (Join-Path $f 'gear-world-hub\old-deploy.ps1')) -and -not (Test-Path -LiteralPath (Join-Path $f 'gear-world-hub\registry-export.sql')) -and -not (Test-Path -LiteralPath (Join-Path $f 'gear-world-secrets'))) 'backup: no keys, secrets folder or customer e-mails on the drive, old copies removed (L113)'
         $d = Join-Path $bTarget 'd1\test-db'
-        Check ((Test-Path -LiteralPath (Join-Path $d 'products-0001.json')) -and (Test-Path -LiteralPath (Join-Path $d 'products-0002.json')) -and -not (Test-Path -LiteralPath (Join-Path $d 'products_fts_data-0001.json'))) 'backup: table rows in pages, search index tables skipped'
+        $tt = ''
+        if (Test-Path -LiteralPath (Join-Path $d 'tables.txt')) { $tt = [System.IO.File]::ReadAllText((Join-Path $d 'tables.txt')) }
+        Check ((Test-Path -LiteralPath (Join-Path $d 'products-0001.json')) -and (Test-Path -LiteralPath (Join-Path $d 'products-0002.json')) -and -not (Test-Path -LiteralPath (Join-Path $d 'products_fts_data-0001.json'))) 'backup: table rows in pages, search index not copied'
+        Check (-not (Test-Path -LiteralPath (Join-Path $d 'newsletter-0001.json')) -and -not (Test-Path -LiteralPath (Join-Path $d 'signups-0001.json')) -and $tt.Contains('newsletter  5  0') -and $tt.Contains('signups  5  0')) 'backup: customer tables (by name or e-mail column) only as a count (L113)'
         Check (([System.IO.File]::ReadAllText((Join-Path $d 'schema.sql'))).Contains('CREATE VIRTUAL TABLE products_fts')) 'backup: schema has every table'
+        $p = Join-Path $bTarget 'd1\prices-db'
         $calls = [System.IO.File]::ReadAllText((Join-Path $bState 'calls.log'))
+        Check ((Test-Path -LiteralPath (Join-Path $p 'price_log-0001.json')) -and (Test-Path -LiteralPath (Join-Path $p 'price_log-0002.json')) -and -not (Test-Path -LiteralPath (Join-Path $p 'price_log-0003.json')) -and $calls.Contains('ORDER BY site, pkey, day LIMIT 3 OFFSET 3')) 'backup: WITHOUT ROWID table read in key-order pages (L113)'
+        $bd = Join-Path $bTarget 'd1\broken-db'
+        Check ((Test-Path -LiteralPath (Join-Path $bd 'items-0001.json')) -and ([System.IO.File]::ReadAllText((Join-Path $bd 'items-0001.json'))).Contains('Old') -and -not (Test-Path -LiteralPath (Join-Path $bd 'signups-0001.json')) -and (Test-Path -LiteralPath (Join-Path $bTarget 'd1\broken-db.incomplete\items-0001.json'))) 'backup: a database with a failing table keeps its old copy (without customers), the new one is .incomplete'
         Check (-not ($calls -match '(?i)INSERT|UPDATE|DELETE|DROP|deploy|time-travel restore')) 'backup: databases only read'
-        Check (Test-Path -LiteralPath (Join-Path $bTarget 'README-RESTORE.txt')) 'backup: restore instructions written'
+        Check ((Test-Path -LiteralPath (Join-Path $bTarget 'README-RESTORE.txt')) -and ([System.IO.File]::ReadAllText((Join-Path $bTarget 'README-RESTORE.txt'))).Contains('wrangler secret put')) 'backup: restore instructions, with how keys come back'
         Remove-Item -LiteralPath (Join-Path $bHome 'gear-world-hub\worker.js')
-        Check ((Run-B @('-Apply', '-Approve', ('ΕΓΚΡΙΝΩ BACKUP ' + $drive), '-SkipDatabases')) -eq 0 -and (Test-Path -LiteralPath (Join-Path $f 'gear-world-hub\worker.js'))) 'backup again: a file deleted on the PC stays on the drive'
+        Check ((Run-B @('-Apply', '-Approve', $ok, '-SkipDatabases')) -eq 0 -and (Test-Path -LiteralPath (Join-Path $f 'gear-world-hub\worker.js'))) 'backup again: a file deleted on the PC stays on the drive'
     } finally {
         $env:PATH = $oldPath
         Remove-Item Env:\GW_FAKE_STATE -ErrorAction SilentlyContinue
