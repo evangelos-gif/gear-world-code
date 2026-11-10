@@ -1,5 +1,7 @@
 #!/usr/bin/env node
 // Gear World Hub - the deals of the home page (sites/gwh/public/hub-deals.json), made from promos/promos.js.
+// Every deal also gets "hide_in" (lessons L114, L115): the countries whose visitors the sites would not show the code;
+// the Hub Worker (sites/gwh/deals-view.js) leaves those deals out for them.
 // The Hub shows only what the retailers or Awin gave us (lessons L32): every deal keeps its end date, and its button
 // goes to the retailer page of a Gear World site (/discount-codes/<slug>/), where the code and the /go/ link are.
 // The Hub never shows the code itself and never links to /go/ or /out/.
@@ -10,6 +12,7 @@ import { readFileSync, writeFileSync, readdirSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { PROMOS, SEASONS_ON } from '../promos/promos.js';
+import { viewFor, homeView, retailerInView, OWN_VIEW_COUNTRIES, HOME_COUNTRY, strictCountries } from '../src/lib/visibility.js';
 
 const repo = fileURLToPath(new URL('..', import.meta.url));
 const OUT = join(repo, 'sites', 'gwh', 'public', 'hub-deals.json');
@@ -35,7 +38,36 @@ export async function siteDomains() {
   return out;
 }
 
-export function buildDeals(promos, domains) {
+// Every site config by its code (the same files as siteDomains).
+export async function siteConfigs() {
+  const out = {};
+  const dir = join(repo, 'sites');
+  for (const name of readdirSync(dir).sort()) {
+    const file = join(dir, name, 'site.config.js');
+    if (!existsSync(file)) continue;
+    const site = (await import(pathToFileURL(file).href)).default;
+    if (site && /^[A-Z]{3}$/.test(site.code || '')) out[site.code] = site;
+  }
+  return out;
+}
+
+// Lessons L114, L115: the countries where the Hub must NOT show a deal, because at least one of the sites it names does
+// not show that retailer's code there. The sites' own rules (src/lib/visibility.js): a code shows when its retailer is in
+// the visitor's view (retailerInView); every European country (and a site's strict country) has its view, every other
+// or unknown country gets the UK view ("GB" in the list then means: hidden for them too, sites/gwh/deals-view.js).
+export function hiddenCountries(retailer, siteList) {
+  const out = new Set();
+  for (const site of siteList) {
+    if (!site) continue;
+    if (!retailerInView(homeView(site), retailer)) out.add(HOME_COUNTRY);
+    for (const cc of [...OWN_VIEW_COUNTRIES, ...strictCountries(site)]) {
+      if (!retailerInView(viewFor(site, cc), retailer)) out.add(cc);
+    }
+  }
+  return [...out].sort();
+}
+
+export function buildDeals(promos, domains, configs = null) {
   const deals = [];
   for (const p of promos) {
     if (!p || !p.id || !p.retailer || !/^[a-z0-9-]{1,40}$/.test(p.slug || '')) continue;
@@ -51,6 +83,7 @@ export function buildDeals(promos, domains) {
       link: `https://${domains[sites[0]]}/discount-codes/${p.slug}/`
     };
     if (deal.kind === 'code') { deal.off = Number(p.off); deal.minSpend = Number(p.minSpend) || 0; }
+    if (configs) deal.hide_in = hiddenCountries(p.retailer, sites.map(code => configs[code]));
     deals.push(deal);
   }
   return deals;
@@ -64,7 +97,7 @@ export function dealsJson(deals) {
 }
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
-  const text = dealsJson(buildDeals(PROMOS, await siteDomains()));
+  const text = dealsJson(buildDeals(PROMOS, await siteDomains(), await siteConfigs()));
   const hubNow = readFileSync(HUB_JS, 'utf8');
   const hub = hubScriptWithSeasons(hubNow);
   if (process.argv.includes('--check')) {

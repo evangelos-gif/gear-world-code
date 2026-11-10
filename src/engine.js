@@ -13,6 +13,7 @@ import { translationsFor } from './lib/hub.js';
 import { offersIndexPage, retailerOffersPage, OFFERS_PATH } from './pages/offers.js';
 import { findPromo, promoViewSite } from './lib/promos.js';
 import { campaignRefs } from './lib/ads.js';
+import { gtinForms } from './lib/gtin.js';
 import { infoPage, infoPaths, notFoundPage, errorPage, dealUpdatesPage } from './pages/info.js';
 import { useSiteAssets, useRates, ukBarHtml } from './pages/layout.js';
 import { sitemapIndex, sitemapStatic, sitemapProducts, robotsTxt, SITEMAP_CHUNK } from './seo.js';
@@ -421,6 +422,9 @@ export function createWorker(site) {
   // view: the visitor's (the Hub passes its visitor's country as ?deliver_to=XX): only products they may see, and a
   // price checked 14-30 days ago says stock_status "check_retailer" (no stock claim, lessons L107).
   async function apiProducts(env, url, request, view) {
+    // Barcode search (lessons L115): ?gtin=<code> (or ?barcode=) is an exact GTIN lookup through an index, never a
+    // word search; the other filters do not apply. The same JSON, the visitor's (or the Hub's ?deliver_to=) view.
+    if (url.searchParams.has('gtin') || url.searchParams.has('barcode')) return apiBarcode(env, url, view);
     const p = readListingParams(url);
     const limit = Math.min(60, Math.max(1, Number.parseInt(url.searchParams.get('limit') || '24', 10) || 24));
     const catParam = url.searchParams.get('category') || '';
@@ -433,25 +437,52 @@ export function createWorker(site) {
       ok: true,
       // Search in other languages: the English words used, and every translation tried (helps to see why a word finds nothing).
       ...(tried.length ? { search_used: used, search_tried: tried } : {}),
-      products: result.products.map(x => ({
-        id: x.id,
-        product_name: x.product_name,
-        brand: x.brand,
-        retailer: x.retailer,
-        site_category: x.site_category || (categories.get(x.category_slug) || {}).name || x.category_slug,
-        category_slug: x.category_slug,
-        subcategory: x.subcategory || '',
-        merchant_category: x.merchant_category || '',
-        price: x.price,
-        was_price: x.was_price,
-        currency: x.currency,
-        stock_status: x.checkRetailer ? 'check_retailer' : Number(x.in_stock) === 1 ? 'in_stock' : 'out_of_stock',
-        offers: Number(x.offer_count) || 1,
-        image_url: x.image_url,
-        product_url: origin + productPath(x),
-        affiliate_url: `${origin}/out/${x.id}`
-      })),
+      products: result.products.map(x => apiProduct(x, origin)),
       pagination: { page: result.page, limit, total: result.total, has_more: result.page < result.pages }
+    }, { cache: 'short' });
+  }
+
+  // One product of /api/products (the fields Gear World Hub and the app read, lessons L22).
+  function apiProduct(x, origin) {
+    return {
+      id: x.id,
+      product_name: x.product_name,
+      brand: x.brand,
+      retailer: x.retailer,
+      site_category: x.site_category || (categories.get(x.category_slug) || {}).name || x.category_slug,
+      category_slug: x.category_slug,
+      subcategory: x.subcategory || '',
+      merchant_category: x.merchant_category || '',
+      price: x.price,
+      was_price: x.was_price,
+      currency: x.currency,
+      stock_status: x.checkRetailer ? 'check_retailer' : Number(x.in_stock) === 1 ? 'in_stock' : 'out_of_stock',
+      offers: Number(x.offer_count) || 1,
+      image_url: x.image_url,
+      product_url: origin + productPath(x),
+      affiliate_url: `${origin}/out/${x.id}`
+    };
+  }
+
+  // /api/products?gtin=<code> (lessons L115). A code that is not a valid EAN-8, UPC-A, EAN-13 or GTIN-14 (GS1 check
+  // digit) is a 400 before any D1 read. The answer says which GTIN it looked for (gtin, 14 digits in gtin14), so the Hub
+  // can tell a barcode answer from the plain list an older version of this code would send for the same address.
+  async function apiBarcode(env, url, view) {
+    const raw = url.searchParams.has('gtin') ? url.searchParams.get('gtin') : url.searchParams.get('barcode');
+    const code = gtinForms(raw);
+    if (!code) {
+      return jsonResponse({ ok: false, error: 'Invalid barcode: send the 8, 12, 13 or 14 digits of an EAN, UPC or GTIN.' }, { status: 400 });
+    }
+    const limit = Math.min(db.GTIN_LIMIT, Math.max(1, Number.parseInt(url.searchParams.get('limit') || String(db.GTIN_LIMIT), 10) || db.GTIN_LIMIT));
+    const result = await db.productsByGtin(env.DB, code.forms, { view, limit });
+    marked(view, result.products);
+    const origin = `https://${site.domain}`;
+    return jsonResponse({
+      ok: true,
+      gtin: code.gtin,
+      gtin14: code.gtin14,
+      products: result.products.map(x => apiProduct(x, origin)),
+      pagination: { page: 1, limit, total: result.total, has_more: result.total > result.products.length }
     }, { cache: 'short' });
   }
 

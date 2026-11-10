@@ -13,7 +13,8 @@
       ],
       "start": "2026-10-20",
       "end": "2026-12-31",
-      "link": "https://homegearworld.com/discount-codes/joybuy/"
+      "link": "https://homegearworld.com/discount-codes/joybuy/",
+      "hide_in": []
     },
     {
       "id": "joybuy-home-pet",
@@ -27,7 +28,8 @@
       ],
       "start": "2026-10-20",
       "end": "2026-12-31",
-      "link": "https://homegearworld.com/discount-codes/joybuy/"
+      "link": "https://homegearworld.com/discount-codes/joybuy/",
+      "hide_in": []
     },
     {
       "id": "joybuy-baby",
@@ -41,7 +43,8 @@
       ],
       "start": "2026-10-20",
       "end": "2026-12-31",
-      "link": "https://kidsgearworld.com/discount-codes/joybuy/"
+      "link": "https://kidsgearworld.com/discount-codes/joybuy/",
+      "hide_in": []
     },
     {
       "id": "joybuy-hotpot",
@@ -55,7 +58,8 @@
       ],
       "start": "2026-10-20",
       "end": "2026-12-31",
-      "link": "https://homegearworld.com/discount-codes/joybuy/"
+      "link": "https://homegearworld.com/discount-codes/joybuy/",
+      "hide_in": []
     },
     {
       "id": "tooled-up-claimfifty",
@@ -74,7 +78,40 @@
       "end": "2026-12-06",
       "link": "https://constructiongearworld.com/discount-codes/tooled-up/",
       "off": 50,
-      "minSpend": 500
+      "minSpend": 500,
+      "hide_in": [
+        "AT",
+        "BE",
+        "BG",
+        "CH",
+        "CY",
+        "CZ",
+        "DE",
+        "DK",
+        "EE",
+        "ES",
+        "FI",
+        "FR",
+        "GR",
+        "HR",
+        "HU",
+        "IE",
+        "IS",
+        "IT",
+        "LI",
+        "LT",
+        "LU",
+        "LV",
+        "MT",
+        "NL",
+        "NO",
+        "PL",
+        "PT",
+        "RO",
+        "SE",
+        "SI",
+        "SK"
+      ]
     },
     {
       "id": "tooled-up-claimsevfy",
@@ -93,7 +130,40 @@
       "end": "2026-12-06",
       "link": "https://constructiongearworld.com/discount-codes/tooled-up/",
       "off": 75,
-      "minSpend": 750
+      "minSpend": 750,
+      "hide_in": [
+        "AT",
+        "BE",
+        "BG",
+        "CH",
+        "CY",
+        "CZ",
+        "DE",
+        "DK",
+        "EE",
+        "ES",
+        "FI",
+        "FR",
+        "GR",
+        "HR",
+        "HU",
+        "IE",
+        "IS",
+        "IT",
+        "LI",
+        "LT",
+        "LU",
+        "LV",
+        "MT",
+        "NL",
+        "NO",
+        "PL",
+        "PT",
+        "RO",
+        "SE",
+        "SI",
+        "SK"
+      ]
     },
     {
       "id": "my-tool-shed-claimfifty",
@@ -110,7 +180,40 @@
       "end": "2026-12-06",
       "link": "https://constructiongearworld.com/discount-codes/my-tool-shed/",
       "off": 50,
-      "minSpend": 500
+      "minSpend": 500,
+      "hide_in": [
+        "AT",
+        "BE",
+        "BG",
+        "CH",
+        "CY",
+        "CZ",
+        "DE",
+        "DK",
+        "EE",
+        "ES",
+        "FI",
+        "FR",
+        "GR",
+        "HR",
+        "HU",
+        "IE",
+        "IS",
+        "IT",
+        "LI",
+        "LT",
+        "LU",
+        "LV",
+        "MT",
+        "NL",
+        "NO",
+        "PL",
+        "PT",
+        "RO",
+        "SE",
+        "SI",
+        "SK"
+      ]
     },
     {
       "id": "my-tool-shed-claimsevfy",
@@ -127,7 +230,40 @@
       "end": "2026-12-06",
       "link": "https://constructiongearworld.com/discount-codes/my-tool-shed/",
       "off": 75,
-      "minSpend": 750
+      "minSpend": 750,
+      "hide_in": [
+        "AT",
+        "BE",
+        "BG",
+        "CH",
+        "CY",
+        "CZ",
+        "DE",
+        "DK",
+        "EE",
+        "ES",
+        "FI",
+        "FR",
+        "GR",
+        "HR",
+        "HU",
+        "IE",
+        "IS",
+        "IT",
+        "LI",
+        "LT",
+        "LU",
+        "LV",
+        "MT",
+        "NL",
+        "NO",
+        "PL",
+        "PT",
+        "RO",
+        "SE",
+        "SI",
+        "SK"
+      ]
     }
   ]
 }

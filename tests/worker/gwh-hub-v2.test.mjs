@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import vm from 'node:vm';
 import { PROMOS } from '../../promos/promos.js';
-import { buildDeals, dealsJson, siteDomains, hubScriptWithSeasons } from '../../tools/gwh-deals.mjs';
+import { buildDeals, dealsJson, siteDomains, siteConfigs, hubScriptWithSeasons } from '../../tools/gwh-deals.mjs';
 
 const ROOT = new URL('../../sites/gwh/', import.meta.url);
 const read = (path) => readFileSync(new URL(path, ROOT), 'utf8');
@@ -124,7 +124,7 @@ test('hub v2: the gift finder asks only Gear Worlds that exist, with a price, an
 test('hub v2: deals come from promos.js (hub-deals.json is up to date), keep the end date, link to a site page only', async () => {
   const domains = await siteDomains();
   assert.equal(Object.keys(domains).length, 13, 'the 13 Gear Worlds (ZGW the newest; its Hub card comes with the Hub step)');
-  const want = dealsJson(buildDeals(PROMOS, domains));
+  const want = dealsJson(buildDeals(PROMOS, domains, await siteConfigs()));
   assert.equal(read('public/hub-deals.json'), want, 'run: node tools/gwh-deals.mjs');
   const { deals } = JSON.parse(want);
   assert.ok(deals.length > 0);

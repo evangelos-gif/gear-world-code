@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Barcode search | Gear World Hub</title>
+<meta name="description" content="Find a product by its barcode (EAN, UPC or GTIN) on every Gear World site.">
+<link rel="canonical" href="https://gearworldhub.com/barcode/">
+<meta name="robots" content="noindex,follow">
+<link rel="stylesheet" href="/legal/legal.css?v=20261022">
+<link rel="stylesheet" href="/barcode/barcode.css?v=20261110-l115">
+</head>
+<body>
+<!-- Barcode search (lessons L115, 10/11/2026): the numbers under a barcode, looked up exactly on every Gear World through
+     /api/barcode (the same answer the Gear World app gets). Translated by barcode.js in the Hub's 11 languages. -->
+<header class="lg-header">
+  <div class="lg-wrap"><a class="lg-brand" href="/">Gear <span>World</span> Hub</a></div>
+</header>
+<main class="lg-wrap lg-main">
+  <nav class="lg-crumbs" aria-label="Breadcrumb"><a href="/" data-bc="home">Home</a> <span aria-hidden="true">/</span> <span data-bc="crumb">Barcode search</span></nav>
+  <h1 data-bc="title">Barcode search</h1>
+  <p class="bc-lead" data-bc="lead">Type the numbers under a barcode (EAN, UPC or GTIN) to find that exact product on every Gear World.</p>
+  <form class="bc-form" id="bcForm" action="/barcode/" method="get" role="search">
+    <label for="bcCode" data-bc="label">Barcode number</label>
+    <div class="bc-row">
+      <input id="bcCode" name="code" type="text" inputmode="numeric" autocomplete="off" maxlength="20" pattern="[0-9 \-]{8,20}" translate="no">
+      <button class="lg-button" type="submit" data-bc="search">Search</button>
+    </div>
+  </form>
+  <p class="bc-note" id="bcNote" role="note" hidden></p>
+  <div class="bc-status" id="bcStatus" role="status" aria-live="polite"></div>
+  <div class="bc-results" id="bcResults"></div>
+  <noscript><p data-bc="noscript">Barcode search needs JavaScript.</p></noscript>
+</main>
+<footer class="lg-footer">
+  <div class="lg-wrap">
+    <nav class="lg-legal" aria-label="Legal">
+      <a href="/about/">About</a>
+      <a href="/privacy/">Privacy</a>
+      <a href="/cookies/">Cookies</a>
+      <a href="/terms/">Terms</a>
+      <a href="/affiliate-disclosure/">Affiliate disclosure</a>
+      <a href="/contact/">Contact</a>
+    </nav>
+    <p><a href="mailto:contact@gearworldhub.com">contact@gearworldhub.com</a></p>
+    <p>&copy; <span id="lgYear">2026</span> Gear World · Run by Evangelos Kalogerakis, United Kingdom · We don't sell products: we link to retailers and may earn a commission.</p>
+  </div>
+</footer>
+<script src="/legal/legal.js?v=20261103" defer></script>
+<script src="/barcode/barcode.js?v=20261110-l115" defer></script>
+</body>
+</html>

@@ -50,3 +50,6 @@ guides/christmas-gifts-for-her/index.html
 guides/christmas-gifts-for-kids/index.html
 guides/christmas-gifts-for-diy-lovers/index.html
 guides/christmas-gifts-for-travellers/index.html
+barcode/index.html
+barcode/barcode.js
+barcode/barcode.css

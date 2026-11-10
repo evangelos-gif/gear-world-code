@@ -9,7 +9,14 @@
 //   tgw  Technology Gear World (new layout, UK shops only): 30,087 active, all checked in the last 14 days
 //
 //   node tools/d1-view-bench.mjs --site agw [--engine <folder with src/ and sites/ of another version>] [--scale 1]
-//        [--countries none,GB,BE] [--only <page>] [--detail <page>] [--cache-check]
+//        [--countries none,GB,BE] [--only <page>] [--detail <page>] [--cache-check] [--gtin]
+//
+// --gtin (lessons L115): the barcode lookups /api/products?gtin=<code> instead of the pages, first with the index of the
+// lookup (agw: idx_products_group_key of L105; tgw: idx_products_gtin, sites/tgw/migrations/0002_gtin_index.sql; cgw:
+// idx_products_group_key on LEGACY_GROUP_KEY, as tools/d1-gtin-index.ps1 adds it), then again after DROP INDEX: the same
+// answers, and the rows read without it. Three synthetic rows get one valid EAN-13 (two UK retailers and the other
+// country's retailer), two get the same UPC-A as 12 and as 13 digits. It also prints the query plans and the rows that
+// D1 writes for CREATE INDEX on this data (the estimate of the index tool).
 //
 // It prints one line per page and country: rows read. Without --engine it measures this version. Run it twice (the
 // version before L107 from `git archive`, then this one) to compare. Nothing leaves this computer; wrangler keeps the
@@ -78,7 +85,10 @@ const PROFILES = {
       'Joybuy UK': [0.398, 0], 'Back to the Office': [0.829, 0], 'Nebo Tools': [0.99, 0], 'Red Gorilla International': [0.944, 0], GRABO: [0, 1] }
   }
 };
-// The indexes of the live Construction database (sqlite_master, 9 Nov 2026), on the older layout's table.
+// The indexes of the live Construction database (sqlite_master, 9 Nov 2026), on the older layout's table. One correction
+// (10 Nov 2026, lessons L115): the live CGW database has NO idx_products_group_key (its pages group offers through
+// product_group_offers and never use it); tools/d1-gtin-index.ps1 adds it for the barcode lookup. It stays in this list:
+// no CGW page uses it, so the page numbers do not change, and --gtin measures the lookup with it and after DROP INDEX.
 const CGW_INDEXES = [
   'CREATE INDEX idx_products_active_category ON products(is_active, site_category)',
   'CREATE INDEX idx_products_active_price ON products(is_active, price)',
@@ -130,7 +140,8 @@ function sqlFor(profile, rows) {
   const parts = [];
   if (profile.layout === 'native') {
     const migDir = join(repo, 'sites', profile.migrations || 'agw', 'migrations');
-    const mig = (profile.migrations === 'tgw' ? ['0001_init.sql'] : ['0001_init.sql', '0002_group_key_index.sql']).map(f => readFileSync(join(migDir, f), 'utf8'));
+    // TGW: its GTIN index of L115 (no group-key index, L105); the other new-layout sites: the group-key index of L105.
+    const mig = (profile.migrations === 'tgw' ? ['0001_init.sql', '0002_gtin_index.sql'] : ['0001_init.sql', '0002_group_key_index.sql']).map(f => readFileSync(join(migDir, f), 'utf8'));
     parts.push(...mig);
     for (let s = 0; s < rows.length; s += 150) {
       parts.push(`INSERT INTO products (id, stable_key, awin_advertiser_id, merchant_product_id, retailer, category_slug, brand, product_name, product_slug, price, was_price, currency, in_stock, image_url, affiliate_url, gtin, first_seen_at, last_seen_at, updated_at) VALUES ${rows.slice(s, s + 150).map(x =>
@@ -207,6 +218,10 @@ async function main() {
     ];
     if (opt('only', '')) pages.splice(0, pages.length, ...pages.filter(([n]) => n.includes(opt('only', ''))));
     console.log(`${SITE.toUpperCase()} ${rows.length} products, engine: ${ENGINE === repo ? 'this version' : ENGINE}`);
+    if (args.includes('--gtin')) {
+      await gtinBench({ raw, DB, worker, env, site, profile, rows, gbInBig, gbInMid, eu, reset: () => { read = 0; }, total: () => read, setLog: l => { log = l; } });
+      return;
+    }
     // --cache-check: the home page through an edge cache kept in memory: a UK visit (miss), then a US visit (hit, the
     // bar "We're adding retailers for your country" added after the cache), then the UK again (hit). Rows read each.
     if (args.includes('--cache-check')) {
@@ -242,6 +257,79 @@ async function main() {
     await proxy.dispose();
     rmSync(dir, { recursive: true, force: true });
   }
+}
+
+// Lessons L115: the barcode lookups, with and without the index they use.
+async function gtinBench({ raw, DB, worker, env, site, profile, rows, gbInBig, gbInMid, eu, reset, total, setLog }) {
+  const legacy = profile.layout === 'legacy';
+  const col = legacy ? 'ean' : 'gtin';
+  const index = SITE === 'tgw' ? 'idx_products_gtin' : 'idx_products_group_key';
+  const createSql = SITE === 'tgw' ? 'CREATE INDEX IF NOT EXISTS idx_products_gtin ON products(gtin)'
+    : legacy ? CGW_INDEXES.find(x => x.includes('idx_products_group_key')).replace('CREATE INDEX', 'CREATE INDEX IF NOT EXISTS')
+      : "CREATE INDEX IF NOT EXISTS idx_products_group_key ON products(COALESCE(NULLIF(TRIM(gtin), ''), 'id:' || id))";
+  const other = rows.find(x => x.retailer === gbInMid.retailer && x.i !== gbInMid.i && x.i !== gbInBig.i && x.seen > '2026-10-11');
+  const upcRow = rows.find(x => x.retailer === gbInBig.retailer && x.i > gbInBig.i + 10 && x.seen > '2026-10-11');
+  const set = async (id, value) => raw.exec(`UPDATE products SET ${col} = '${value}' WHERE id = ${id}`);
+  await set(gbInBig.i, '5012345678900');
+  await set(other.i, '5012345678900');
+  await set(eu.i, '5012345678900');
+  await set(upcRow.i, '036000291452');
+  await set(gbInMid.i, '0036000291452');
+  const lookups = [
+    ['EAN-13 found (3 rows)', '/api/products?gtin=5012345678900'],
+    ['UPC-A 12 (stored as 12 and 13)', '/api/products?gtin=036000291452'],
+    ['GTIN-14 of the same UPC', '/api/products?gtin=00036000291452'],
+    ['valid, not on the site', '/api/products?gtin=4006381333931'],
+    ['invalid (400)', '/api/products?gtin=123']
+  ];
+  const measure = async (label) => {
+    console.log(`--- ${label}`);
+    console.log(['lookup', ...COUNTRIES, 'cards (GB)'].join('\t'));
+    const answers = {};
+    for (const [name, p] of lookups) {
+      const cells = [];
+      for (const cc of COUNTRIES) {
+        const req = new Request(`https://${site.domain}${p}`, { headers: { 'User-Agent': 'Mozilla/5.0 bench' } });
+        if (cc !== 'none') Object.defineProperty(req, 'cf', { value: { country: cc } });
+        reset();
+        const res = await worker.fetch(req, env, { waitUntil: x => x });
+        const text = await res.text();
+        cells.push(`${total()}${res.status === 200 ? '' : ` (${res.status})`}`);
+        if (cc === 'GB') answers[name] = text;
+      }
+      let cards = '';
+      try { cards = String(JSON.parse(answers[name] || '{}').products?.length ?? ''); } catch { cards = ''; }
+      console.log([name, ...cells, cards].join('\t'));
+    }
+    return answers;
+  };
+  const plans = async () => {
+    const log = [];
+    setLog(log);
+    await worker.fetch(new Request(`https://${site.domain}/api/products?gtin=5012345678900`, { headers: { 'User-Agent': 'Mozilla/5.0 bench' } }), env, { waitUntil: x => x });
+    setLog(null);
+    console.log(log.join('\n'));
+  };
+  const withIndex = await measure(`with ${index}`);
+  // The query plans of the lookup (the D1 of wrangler is SQLite: EXPLAIN QUERY PLAN of the two statements of a lookup).
+  const db = await import(pathToFileURL(join(ENGINE, 'src', 'db.js')).href);
+  db.useLayout(site);
+  const forms = JSON.stringify(['05012345678900', '5012345678900']);
+  const from = `(SELECT id AS pid FROM products WHERE ${db.gtinLookupKey()} IN (SELECT value FROM json_each(?))) pick CROSS JOIN products p`;
+  for (const text of [`SELECT COUNT(*) AS n FROM ${from} WHERE p.id = pick.pid AND p.is_active = 1`]) {
+    const r = await raw.prepare(`EXPLAIN QUERY PLAN ${text}`).bind(forms).all();
+    console.log('plan with the index:', (r.results || []).map(x => x.detail).join(' | '));
+  }
+  await plans();
+  await raw.prepare(`DROP INDEX IF EXISTS ${index}`).run();
+  const without = await measure(`WITHOUT ${index} (DROP INDEX)`);
+  // Another text than the first EXPLAIN (the local D1 keeps prepared statements by their text).
+  const r2 = await raw.prepare(`EXPLAIN QUERY PLAN SELECT COUNT(*) AS n FROM ${from} WHERE p.id = pick.pid AND p.is_active = 1 AND 1 = 1`).bind(forms).all();
+  console.log('plan without the index:', (r2.results || []).map(x => x.detail).join(' | '));
+  const same = Object.keys(withIndex).every(k => withIndex[k] === without[k]);
+  console.log(`same answers with and without the index: ${same ? 'yes' : 'NO'}`);
+  const made = await raw.prepare(createSql).run();
+  console.log(`CREATE INDEX on ${rows.length} rows: rows_written ${made.meta && made.meta.rows_written}, rows_read ${made.meta && made.meta.rows_read}`);
 }
 
 await main();

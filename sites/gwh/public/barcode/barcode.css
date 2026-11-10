@@ -1,0 +1,25 @@
+/* Gear World Hub - /barcode/ (lessons L115). The colours of legal.css: light text on dark blue, amber links and buttons
+   (no red or green, lessons L35). Phone first: one column, buttons at least 44 px high (lessons L21). */
+.bc-lead { color: var(--muted); max-width: 640px; }
+.bc-form { margin: 18px 0 8px; }
+.bc-form label { display: block; font-weight: 700; margin-bottom: 6px; }
+.bc-row { display: flex; flex-wrap: wrap; gap: 10px; }
+.bc-row input { flex: 1 1 220px; min-width: 0; min-height: 44px; padding: 8px 12px; border-radius: 10px; border: 2px solid var(--border); background: var(--card); color: var(--text); font: inherit; letter-spacing: 1px; }
+.bc-row input:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
+.bc-note { border-left: 4px solid var(--gold); background: var(--card); padding: 10px 14px; border-radius: 8px; color: var(--muted); }
+.bc-status { margin: 14px 0; color: var(--muted); min-height: 1.6em; }
+.bc-results { display: grid; gap: 12px; }
+.bc-card { display: grid; grid-template-columns: 88px 1fr; gap: 12px; align-items: start; background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 12px; }
+.bc-card img, .bc-noimg { width: 88px; height: 88px; object-fit: contain; background: #fff; border-radius: 8px; }
+.bc-noimg { display: flex; align-items: center; justify-content: center; color: #08111f; font-size: 13px; text-align: center; }
+.bc-world { color: var(--gold); font-size: 13px; font-weight: 700; letter-spacing: .4px; }
+.bc-name { color: #fff; font-weight: 700; margin: 2px 0 4px; overflow-wrap: anywhere; }
+.bc-meta { color: var(--muted); font-size: 15px; }
+.bc-price { color: #fff; font-size: 20px; font-weight: 800; margin: 6px 0; }
+.bc-stock { color: var(--muted); font-size: 14px; }
+.bc-view { display: inline-flex; align-items: center; min-height: 44px; margin-top: 8px; padding: 8px 16px; border-radius: 10px; background: var(--gold); color: #08111f; font-weight: 700; text-decoration: none; }
+.bc-view:hover, .bc-view:focus-visible { background: #fff; color: #08111f; }
+@media (max-width: 420px) {
+  .bc-card { grid-template-columns: 64px 1fr; }
+  .bc-card img, .bc-noimg { width: 64px; height: 64px; }
+}

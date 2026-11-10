@@ -107,8 +107,20 @@
   24-26 Oct, so "Check price and stock at the retailer" and later a notice) are replaced by similar products of the
   same site checked on 8-9 Nov. worker.js, the other pages and the D1 do not change. The guard now stops the live step
   on a PRICE line too (another price in guides.json than on the site, exit 20), like a NOTICE; OLD stays a warning.
-  Phrases of this release: ΕΓΚΡΙΝΩ HUB GUIDE PRICES PREVIEW, then ΕΓΚΡΙΝΩ HUB GUIDE PRICES LIVE together with
-  remove-preview (ΕΓΚΡΙΝΩ HUB REMOVE PREVIEW) in the same paste.
+  Phrases of that release: ΕΓΚΡΙΝΩ HUB GUIDE PRICES PREVIEW, then ΕΓΚΡΙΝΩ HUB GUIDE PRICES LIVE together with
+  remove-preview (ΕΓΚΡΙΝΩ HUB REMOVE PREVIEW) in the same paste (live 9/11/2026 21:46, 79a296d).
+  Barcode search (lessons L115, 10/11/2026): worker.js, the new barcode.js and deals-view.js, the new page /barcode/
+  (public/barcode/index.html, barcode.js, barcode.css, 11 languages) and public/hub-deals.json. GET /api/barcode?code=
+  <EAN/UPC/GTIN>&country=XX asks every site of the Hub's list /api/products?gtin= (at most 6 at a time, 4.5 s each, the
+  visitor's country as deliver_to, translate=0, no model call) and merges the answers like /api/search; 400 for a code
+  that is not a GTIN. The Gear World app's "Scan barcode" uses it. /hub-deals.json now follows the visitor's country like
+  the codes on the sites (L114): the UK-only Tooled Up and My Tool Shed codes are not shown to visitors from Germany,
+  Belgium or any other European country with a view of its own; unknown, non-European countries and Google's crawlers
+  see the UK list (?country=GB gives the file byte for byte, the live checks ask it). The 13 sites go FIRST
+  (tools/d1-gtin-index.ps1 ΕΓΚΡΙΝΩ ΕΥΡΕΤΗΡΙΑ BARCODE, then tools/ads-fixes-sites.ps1 ΕΓΚΡΙΝΩ ADS FIXES): the live step
+  refuses (exit 21) while a site does not answer /api/products?gtin=1 with 400 (the new code). Phrases of this release:
+  ΕΓΚΡΙΝΩ HUB BARCODE PREVIEW (optional), ΕΓΚΡΙΝΩ HUB BARCODE LIVE together with remove-preview (ΕΓΚΡΙΝΩ HUB REMOVE
+  PREVIEW) in the same paste. Going back: the Hub first (rollback note), then the sites.
   Report: <home>\gear-world-reports\GWH_HUB_V2_<STEP>_<time>.txt (also copied to the clipboard)
 #>
 param(
@@ -130,8 +142,8 @@ $repo = Split-Path -Parent $PSScriptRoot
 $HubWorker = 'gear-world-hub'
 $PreviewName = 'gear-world-hub-preview'
 $DbName = 'gear-world-registry'
-$PhrasePreview = 'ΕΓΚΡΙΝΩ HUB GUIDE PRICES PREVIEW'
-$PhraseLive = 'ΕΓΚΡΙΝΩ HUB GUIDE PRICES LIVE'
+$PhrasePreview = 'ΕΓΚΡΙΝΩ HUB BARCODE PREVIEW'
+$PhraseLive = 'ΕΓΚΡΙΝΩ HUB BARCODE LIVE'
 $PhraseRegister = 'ΕΓΚΡΙΝΩ HUB ZGW SEARCH'
 $PhraseRemovePreview = 'ΕΓΚΡΙΝΩ HUB REMOVE PREVIEW'
 $LiveUrl = 'https://gearworldhub.com'
@@ -154,7 +166,12 @@ $Bad = 'Magenta'
 
 # What each file of the change does, in the words of the report.
 $About = @{
-    'worker.js'             = 'αναζήτηση: κάθε site παίρνει τη χώρα του επισκέπτη (?deliver_to=, GB όταν είναι άγνωστη ή crawler της Google) και δείχνει μόνο καταστήματα που παραδίδουν εκεί, η απάντηση private· εκτός ΗΒ η μπάρα «We''re adding retailers for your country» πάνω από την κεφαλίδα της αρχικής (L107)· η μετάφραση κρατιέται μία μέρα, ποτέ για bots, και τα sites παίρνουν translate=0 (L106)'
+    'barcode.js'            = 'νέο αρχείο: η αναζήτηση barcode /api/barcode?code= σε όλα τα sites (ακριβές EAN/UPC/GTIN, η χώρα του επισκέπτη, χωρίς μοντέλο), για το «Scan barcode» της εφαρμογής και τη σελίδα /barcode/ (L115)'
+    'deals-view.js'         = 'νέο αρχείο: το /hub-deals.json ακολουθεί τη χώρα του επισκέπτη, όπως οι κωδικοί στα sites: οι κωδικοί μόνο για το ΗΒ (Tooled Up, My Tool Shed) δεν φαίνονται από Γερμανία, Βέλγιο και την υπόλοιπη Ευρώπη (L114, L115)'
+    'public/barcode/index.html' = 'νέα σελίδα /barcode/: γράφεις τους αριθμούς ενός barcode και βλέπεις το ίδιο προϊόν σε όλα τα Gear Worlds (noindex) (L115)'
+    'public/barcode/barcode.js' = 'η σελίδα /barcode/ σε 11 γλώσσες: έλεγχος του κωδικού, αποτελέσματα από το /api/barcode, κουμπί «View at <κατάστημα>» προς τη σελίδα του προϊόντος στο site του (L115)'
+    'public/barcode/barcode.css' = 'η εμφάνιση της σελίδας /barcode/ (χρώματα των νομικών σελίδων, κουμπιά 44 px) (L115)'
+    'worker.js'             = 'L115: νέο /api/barcode (barcode.js) και το /hub-deals.json ανά χώρα (deals-view.js)· αναζήτηση: κάθε site παίρνει τη χώρα του επισκέπτη (?deliver_to=, GB όταν είναι άγνωστη ή crawler της Google) και δείχνει μόνο καταστήματα που παραδίδουν εκεί, η απάντηση private· εκτός ΗΒ η μπάρα «We''re adding retailers for your country» πάνω από την κεφαλίδα της αρχικής (L107)· η μετάφραση κρατιέται μία μέρα, ποτέ για bots, και τα sites παίρνουν translate=0 (L106)'
     'security.js'           = 'νέο αρχείο: έλεγχος Turnstile, ημερήσια όρια του δικτύου (εγγραφές, μεταφράσεις), headers (L106)'
     'mailerlite.js'         = 'η φόρμα του Hub θέλει το token του Turnstile· ημερήσιο όριο εγγραφών για όλο το δίκτυο, μικρό δικό της για την εφαρμογή (L106)'
     'members.js'            = 'η φόρμα «Get deal updates» των sites: το Hub ελέγχει το token του Turnstile κάθε site, ίδιο ημερήσιο όριο, ημερήσιο όριο μεταφράσεων για τα sites (/internal/ai-slot) (L106)'
@@ -184,7 +201,7 @@ $About = @{
     'public/hub-bgw.jpg'    = 'η φωτογραφία της κάρτας Biker (Pexels, χωρίς μάρκες)'
     'public/hub-pgw.jpg'    = 'η φωτογραφία της κάρτας Gaming (Pexels, χωρίς μάρκες)'
     'public/hub-zgw.jpg'    = 'η φωτογραφία της κάρτας Pets (Pexels, χωρίς μάρκες)'
-    'public/hub-deals.json' = 'οι προσφορές με ημερομηνία λήξης, από το promos.js, χωρίς τους κωδικούς Halloween του Joybuy και χωρίς ποσοστά στις εκπτώσεις (L107)'
+    'public/hub-deals.json' = 'οι προσφορές με ημερομηνία λήξης, από το promos.js, χωρίς τους κωδικούς Halloween του Joybuy και χωρίς ποσοστά στις εκπτώσεις (L107)· οι 4 κωδικοί του Tooled Up και του My Tool Shed (L114) με τις χώρες όπου δεν φαίνονται (hide_in, L115)'
     'public/seasonal/halloween.mp4' = 'Halloween (βίντεο) για το μπάνερ των προσφορών'
     'public/seasonal/halloween.jpg' = 'Halloween (σταθερή εικόνα) για το μπάνερ των προσφορών'
     'public/seasonal/black-friday.mp4' = 'Black Friday (βίντεο) για το μπάνερ των προσφορών'
@@ -382,6 +399,8 @@ function Get-Web([string]$url) {
 # Cloudflare Web Analytics adds its own beacon script to HTML for some visitors (lessons L71): it is taken out first.
 # So is the bar the Worker adds for a visitor outside the UK (lessons L107), when this PC is not in the UK.
 function Get-LiveSha([string]$url, [bool]$isHtml) {
+    # L115: /hub-deals.json follows the visitor's country; ?country=GB is the file byte for byte (also from abroad).
+    if ($url -match '/hub-deals\.json\?') { $url = $url + '&country=GB' }
     $w = Get-Web $url
     if ($w.status -eq 404) { return 'missing' }
     if ($w.status -ne 200) { return 'error' }
@@ -513,6 +532,30 @@ function Test-Site([string]$base, [bool]$isLive) {
     $l107 = ($deals.status -eq 200 -and $dealsText -notmatch '(?i)halloween') -and ($v2.status -eq 200 -and $v2Text.Contains('"black-friday":false')) -and -not $html.Contains('prices we' + [char]0x27 + 've checked')
     if ($l107) { Say '  L107: καμία προσφορά Halloween, Black Friday κλειστή, το κουτί email χωρίς «prices we''ve checked»: ΕΝΤΑΞΕΙ' $Ok }
     else { Say '  L107: ΠΡΟΣΟΧΗ - δεν βλέπω ακόμα όλες τις αλλαγές (προσφορές χωρίς Halloween, Black Friday κλειστή, κουτί email). Η cache κρατάει λίγα λεπτά: στείλε στο Claude αυτή την αναφορά.' $Warn }
+    # L115: the barcode search (an invalid code is a 400 before any site is asked; a valid one asks all of them), the
+    # page /barcode/, and the deals of a visitor from Germany without the codes the sites hide there.
+    $bad = Get-Web ($base + '/api/barcode?code=1')
+    $badText = (New-Object System.Text.UTF8Encoding($false)).GetString($bad.bytes)
+    if ($bad.status -eq 400 -and $badText -match '"ok":false') { Say '  /api/barcode με λάθος κωδικό: 400, κανένα site δεν ρωτήθηκε: ΕΝΤΑΞΕΙ' $Ok } else { Say ('  /api/barcode με λάθος κωδικό: ΠΡΟΒΛΗΜΑ (απάντηση {0})' -f $bad.status) $Bad }
+    $bc = Get-Web ($base + '/api/barcode?code=4006381333931&country=GB')
+    try {
+        $bj = (New-Object System.Text.UTF8Encoding($false)).GetString($bc.bytes) | ConvertFrom-Json
+        $failed = @($bj.failed_sites)
+        if ($bc.status -eq 200 -and $bj.ok -and $bj.code -eq '4006381333931' -and $failed.Count -eq 0) { Say ('  /api/barcode (4006381333931): απάντησαν όλα τα sites, {0} αποτελέσματα: ΕΝΤΑΞΕΙ' -f $bj.count) $Ok }
+        elseif ($bc.status -eq 200 -and $bj.ok) { Say ('  /api/barcode: ΠΡΟΣΟΧΗ - δεν απάντησαν (ή έχουν ακόμα τον παλιό κώδικα): {0}' -f ($failed -join ', ')) $Warn }
+        else { Say ('  /api/barcode: ΠΡΟΒΛΗΜΑ (απάντηση {0})' -f $bc.status) $Bad }
+    } catch { Say ('  /api/barcode: ΠΡΟΒΛΗΜΑ - η απάντηση δεν διαβάστηκε ({0})' -f $bc.status) $Bad }
+    $bp = Get-Web ($base + '/barcode/?code=4006381333931&gwcheck=' + $stamp)
+    $bpText = (New-Object System.Text.UTF8Encoding($false)).GetString($bp.bytes)
+    if ($bp.status -eq 200 -and $bpText.Contains('/barcode/barcode.js?v=') -and $bpText.Contains('noindex')) { Say '  Η σελίδα /barcode/ ανοίγει (noindex): ΕΝΤΑΞΕΙ' $Ok } else { Say ('  Η σελίδα /barcode/: ΠΡΟΒΛΗΜΑ (απάντηση {0})' -f $bp.status) $Bad }
+    try {
+        $want = (ConvertFrom-Json ([System.IO.File]::ReadAllText((Join-Path (Join-Path $gwhRepo 'public') 'hub-deals.json'), [System.Text.Encoding]::UTF8))).deals
+        $wantDe = @($want | Where-Object { @($_.hide_in) -notcontains 'DE' } | ForEach-Object { [string]$_.id })
+        $de = Get-Web ($base + '/hub-deals.json?country=DE&gwcheck=' + $stamp)
+        $gotDe = @(((New-Object System.Text.UTF8Encoding($false)).GetString($de.bytes) | ConvertFrom-Json).deals | ForEach-Object { [string]$_.id })
+        if ($de.status -eq 200 -and ($gotDe -join ',') -eq ($wantDe -join ',')) { Say ('  Οι προσφορές για επισκέπτη από τη Γερμανία: {0} από τις {1}, χωρίς τους κωδικούς που κρύβουν τα sites εκεί (L115): ΕΝΤΑΞΕΙ' -f $gotDe.Count, @($want).Count) $Ok }
+        else { Say ('  Οι προσφορές για επισκέπτη από τη Γερμανία: ΠΡΟΣΟΧΗ - περίμενα {0}, βλέπω {1} (cache;)' -f ($wantDe -join ','), ($gotDe -join ',')) $Warn }
+    } catch { Say '  Οι προσφορές ανά χώρα: ΠΡΟΣΟΧΗ - ο έλεγχος δεν ολοκληρώθηκε' $Warn }
     $s = Get-Web ($base + '/api/search?q=suitcase&worlds=vgw&max_price=100')
     try {
         $j = (New-Object System.Text.UTF8Encoding($false)).GetString($s.bytes) | ConvertFrom-Json
@@ -607,6 +650,19 @@ function Get-SecurityReadiness([string]$folder) {
     return $state
 }
 
+# L115: does every site already answer /api/products?gtin=1 as the new code does (400, no D1 read)? The older code sends
+# its plain list (200), and the new Hub would then ask a site that cannot look up a barcode. Read-only GETs.
+function Get-BarcodeReadiness {
+    $notReady = @()
+    [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+    foreach ($sd in $SiteDomains) {
+        $w = Get-Web ('https://' + $sd + '/api/products?gtin=1&gwcheck=' + $stamp)
+        $t = (New-Object System.Text.UTF8Encoding($false)).GetString($w.bytes)
+        if ($w.status -ne 400 -or $t -notmatch 'Invalid barcode') { $notReady += $sd }
+    }
+    return $notReady
+}
+
 # ---------------- start ----------------
 Say ('GWH HUB V2 («Συνδυασμός») - step: {0} - {1} - {2}' -f $Step, $(if ($Apply) { 'APPLY (με έγκριση)' } else { 'ΜΟΝΟ ΕΛΕΓΧΟΣ (δεν αλλάζει τίποτα)' }), (Get-Date -Format 'yyyy-MM-dd HH:mm')) $Ok
 Say ('Code version: {0}' -f (Split-Path -Leaf $repo))
@@ -634,7 +690,7 @@ $baseSha = @{}
 foreach ($b in $baseline) { $baseSha[$b.path] = $b.sha }
 
 $gwhRepo = Join-Path (Join-Path $repo 'sites') 'gwh'
-$newFiles = @('worker.js', 'photo-search.js', 'poster-scan.js', 'mailerlite.js', 'members.js', 'security.js')
+$newFiles = @('worker.js', 'photo-search.js', 'poster-scan.js', 'mailerlite.js', 'members.js', 'security.js', 'barcode.js', 'deals-view.js')
 $pubRepo = Join-Path $gwhRepo 'public'
 foreach ($f in @(Get-ChildItem -LiteralPath $pubRepo -Recurse -File | Sort-Object FullName)) {
     $newFiles += ('public/' + $f.FullName.Substring($pubRepo.Length).TrimStart('\', '/').Replace('\', '/'))
@@ -845,6 +901,15 @@ if (($Step -eq 'check' -or $Step -eq 'live') -and $plan -contains 'security.js')
     $readyLive = ($readyLive -and $security.secretsOk -and $security.notReady.Count -eq 0)
 }
 
+# L115: the sites first (asked in check and live only, never changes anything).
+$barcodeNotReady = @()
+if (($Step -eq 'check' -or $Step -eq 'live') -and $plan -contains 'barcode.js' -and -not $NoHttpCheck) {
+    $barcodeNotReady = @(Get-BarcodeReadiness)
+    if ($barcodeNotReady.Count -eq 0) { Say ('Τα {0} sites απαντούν στην αναζήτηση barcode (/api/products?gtin=): ΕΝΤΑΞΕΙ' -f $SiteDomains.Count) $Ok }
+    else { Say ('Τα sites που ΔΕΝ έχουν ακόμα την αναζήτηση barcode: {0}. ΠΡΟΒΛΗΜΑ - πρώτα το tools/d1-gtin-index.ps1 («ΕΓΚΡΙΝΩ ΕΥΡΕΤΗΡΙΑ BARCODE») και το tools/ads-fixes-sites.ps1 -Step apply («ΕΓΚΡΙΝΩ ADS FIXES»).' -f ($barcodeNotReady -join ', ')) $Bad }
+    $readyLive = ($readyLive -and $barcodeNotReady.Count -eq 0)
+}
+
 if ($Step -eq 'check') {
     Say ''
     if ($readyLive) { Say 'Αποτέλεσμα: ΕΝΤΑΞΕΙ - έτοιμο για το preview και για το live. Μόνο έλεγχος: δεν άλλαξε τίποτα.' $Ok }
@@ -919,6 +984,7 @@ if (-not $guideCheck.ok -or $guideCheck.notices -gt 0) { Say 'ΔΕΝ ανεβά�
 if ($guideCheck.prices -gt 0) { Say 'ΔΕΝ ανεβάζω το Hub: οι τιμές κάποιων οδηγών δώρων δεν είναι ίδιες με τις τιμές των sites (δες PRICE). Τίποτα δεν ανέβηκε live και τίποτα δεν άλλαξε. Στείλε αυτή την αναφορά στο Claude: θα ενημερώσει τις τιμές των οδηγών και θα σου δώσει νέα εντολή.' $Bad; Finish 20 }
 if (-not $Apply) { Say ''; Say 'Δοκιμή μόνο (χωρίς -Apply): δεν άλλαξε τίποτα.' $Ok; Finish 0 }
 if (-not (Confirm-Approval $PhraseLive)) { Say 'Δεν δόθηκε έγκριση: σταμάτησα χωρίς αλλαγές.' $Warn; Finish 1 }
+if ($barcodeNotReady.Count -gt 0) { Say ('Τα sites {0} δεν έχουν ακόμα την αναζήτηση barcode: πρώτα τα 13 sites (tools/d1-gtin-index.ps1, μετά tools/ads-fixes-sites.ps1 -Step apply), μετά το Hub. ΔΕΝ άλλαξε τίποτα.' -f ($barcodeNotReady -join ', ')) $Bad; Finish 21 }
 if ($null -ne $security) {
     if (-not $security.secretsOk) { Say 'Το Hub δεν έχει ακόμα τα κλειδιά Turnstile: πρώτα το tools/gw-security-fixes.ps1 -Step turnstile («ΕΓΚΡΙΝΩ TURNSTILE»). ΔΕΝ άλλαξε τίποτα.' $Bad; Finish 16 }
     if ($security.notReady.Count -gt 0) { Say ('Τα sites {0} δεν στέλνουν ακόμα το token του Turnstile: πρώτα το tools/ads-fixes-sites.ps1 -Step apply («ΕΓΚΡΙΝΩ ADS FIXES»), αλλιώς οι εγγραφές τους θα απορρίπτονταν. ΔΕΝ άλλαξε τίποτα.' -f ($security.notReady -join ', ')) $Bad; Finish 17 }
@@ -929,7 +995,7 @@ $bdir = Join-Path $WorkDir 'backups'
 if (-not (Test-Path -LiteralPath $bdir)) { New-Item -ItemType Directory -Path $bdir -Force | Out-Null }
 $tmpCopy = Join-Path ([System.IO.Path]::GetTempPath()) ('gwh-before-v2-' + $stamp)
 New-Item -ItemType Directory -Path $tmpCopy -Force | Out-Null
-foreach ($n in @('worker.js', 'wrangler.toml', 'photo-search.js', 'poster-scan.js', 'mailerlite.js', 'members.js', 'security.js')) {
+foreach ($n in @('worker.js', 'wrangler.toml', 'photo-search.js', 'poster-scan.js', 'mailerlite.js', 'members.js', 'security.js', 'barcode.js', 'deals-view.js')) {
     $src = Join-Path $HubDir $n
     if (Test-Path -LiteralPath $src) { Copy-Item -LiteralPath $src -Destination $tmpCopy -Force }
 }

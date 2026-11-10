@@ -428,6 +428,47 @@ export async function searchFacets(db, search, view = null) {
   return { brands: sum('brand').slice(0, 40), retailers: sum('retailer') };
 }
 
+// ---- Barcode search (lessons L115) ----
+// The Gear World app scans a barcode and asks every site through the Hub: /api/products?gtin=<code>. Exact match only
+// (no FTS): the rows whose GTIN is one of the text forms of the code (src/lib/gtin.js gtinForms), found through an
+// index on exactly the expression below, with the ids in front (CROSS JOIN, like groupFilter), so a lookup reads only
+// the index entries of those forms and the rows they point to, whatever the size of the table:
+//   older layout (CGW, MGW, WGW, KGW, HGW, GGW): LEGACY_GROUP_KEY, the ean column or the gtin in specs_json (no active
+//     row of the 6 databases has its GTIN only in specs_json on 10 Nov 2026, but the index exists anyway: MGW, WGW,
+//     KGW, HGW and GGW have idx_products_group_key on this text since L51; CGW gets it from tools/d1-gtin-index.ps1);
+//   new layout that groups offers (AGW, VGW, SGW, BGW, PGW, ZGW): NATIVE_GROUP_KEY, idx_products_group_key of L105;
+//   new layout without groups (TGW): the gtin column itself, idx_products_gtin (sites/tgw/migrations/0002_gtin_index.sql,
+//     tools/d1-gtin-index.ps1). The new-layout import keeps only valid GTINs, digits only (normalizeGtin).
+// A row without a GTIN has the key 'id:<id>' in the first two, which is never one of the digit forms.
+// Without the index the same query still answers the same rows, it only reads the whole table (tests check both).
+export const PLAIN_GTIN_KEY = 'gtin';
+export function gtinLookupKey() {
+  if (LAYOUT.legacy) return LEGACY_GROUP_KEY;
+  return LAYOUT.group ? NATIVE_GROUP_KEY : PLAIN_GTIN_KEY;
+}
+export const GTIN_LIMIT = 20;
+
+// The cards of one barcode (one per product group on a site that groups offers, like every list), in stock first, then
+// the lowest price. view: the visitor's view (lessons L107), as in search. forms: gtinForms(code).forms.
+export async function productsByGtin(db, forms, { view = null, limit = GTIN_LIMIT } = {}) {
+  const list = (Array.isArray(forms) ? forms : []).map(String).filter(f => /^\d{1,14}$/.test(f)).slice(0, 14);
+  const n = Math.min(GTIN_LIMIT, Math.max(1, Number(limit) || GTIN_LIMIT));
+  if (!list.length) return { products: [], total: 0, page: 1, pages: 0 };
+  const from = `(SELECT id AS pid FROM products WHERE ${gtinLookupKey()} IN (SELECT value FROM json_each(?))) pick CROSS JOIN ${LAYOUT.from} p`;
+  const v = vis(view);
+  const where = `p.id = pick.pid AND p.is_active = 1${andVis(v)}`;
+  const countSql = LAYOUT.group
+    ? `SELECT COUNT(DISTINCT ${gk()}) AS n FROM ${from} WHERE ${where}`
+    : `SELECT COUNT(*) AS n FROM ${from} WHERE ${where}`;
+  const binds = [JSON.stringify(list), ...v.binds];
+  const [count, rows] = await db.batch([
+    db.prepare(countSql).bind(...binds),
+    db.prepare(cardSql(where, 'p.in_stock DESC, p.price ASC, p.id ASC', 'LIMIT ?', from)).bind(...binds, n)
+  ]);
+  const total = Number(count.results?.[0]?.n || 0);
+  return { products: fixAll(rows.results), total, page: 1, pages: total ? Math.ceil(total / n) : 0 };
+}
+
 // Up to 4 active products, in the order asked (compare page).
 export async function getProductsByIds(db, ids) {
   if (!ids.length) return [];
