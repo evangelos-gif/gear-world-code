@@ -6,7 +6,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 
 import { useI18n, type TextKey } from '@/i18n';
 import { formatDay } from '@/lib/format';
-import { countdownParts, heroSlides, type Slide, type Target } from '@/lib/seasons';
+import { countdownParts, heroSlides, type SeasonsOn, type Slide, type Target } from '@/lib/seasons';
 import { HUB_URL } from '@/lib/api';
 import { C, R, S } from '@/theme';
 import { TEXT_ON_PICTURE } from './image-shade';
@@ -27,8 +27,8 @@ const PANEL: Record<string, [string, string]> = {
 const DEFAULT_PANEL: [string, string] = ['#08111F', '#1B2E4A'];
 
 /** The campaign slides at the top of the home screen. Nothing moves by itself: the arrows change the slide. */
-export function SeasonBanner({ hasDeals, dealsLoaded, onTarget }: {
-  hasDeals: boolean; dealsLoaded: boolean; onTarget: (target: Target) => void;
+export function SeasonBanner({ hasDeals, dealsLoaded, seasonsOn, onTarget }: {
+  hasDeals: boolean; dealsLoaded: boolean; seasonsOn: SeasonsOn; onTarget: (target: Target) => void;
 }) {
   const { t, locale } = useI18n();
   const [now, setNow] = useState(() => Date.now());
@@ -40,7 +40,10 @@ export function SeasonBanner({ hasDeals, dealsLoaded, onTarget }: {
     return () => clearTimeout(timer);
   }, [now]);
 
-  const slides = useMemo(() => heroSlides(now), [now]);
+  const slides = useMemo(() => heroSlides(now, seasonsOn), [now, seasonsOn]);
+  // Like the Hub (campaignView, lessons L103): a slide about deals speaks of them only when the list has loaded and a
+  // deal runs today; otherwise, and while the list is loading, it shows the e-mail sign-up text and button.
+  const realDeals = dealsLoaded && hasDeals;
   const i = index < slides.length ? index : 0;
   const slide: Slide = slides[i];
   const many = slides.length > 1;
@@ -64,16 +67,17 @@ export function SeasonBanner({ hasDeals, dealsLoaded, onTarget }: {
       target = 'worlds';
     } else {
       // To the deals, or to the e-mail sign-up when no deal runs (as on the Hub).
-      cta = hasDeals || !dealsLoaded ? t('bfCta') : t('soonCta');
-      target = hasDeals || !dealsLoaded ? 'deals' : 'newsletter';
+      cta = realDeals ? t('bfCta') : t('soonCta');
+      target = realDeals ? 'deals' : 'newsletter';
     }
   } else {
     const c = slide.campaign;
     eyebrow = t(c.eyebrow as TextKey);
     title = t(c.title as TextKey);
-    body = t(c.text as TextKey);
-    cta = t(c.cta as TextKey);
-    target = c.target === 'deals' && dealsLoaded && !hasDeals ? 'newsletter' : c.target;
+    const signUp = c.target === 'deals' && !realDeals;
+    body = t((signUp ? 'soonText' : c.text) as TextKey);
+    cta = t((signUp ? 'soonCta' : c.cta) as TextKey);
+    target = signUp ? 'newsletter' : c.target;
   }
 
   const panel = slide.kind === 'campaign' ? (PANEL[slide.campaign.art] ?? DEFAULT_PANEL) : DEFAULT_PANEL;

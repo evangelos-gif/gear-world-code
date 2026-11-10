@@ -31,7 +31,7 @@ export function Footer() {
   return (
     <View style={s.footer}>
       <LegalLinks />
-      <Pressable accessibilityRole="link" onPress={() => router.push('/settings')} style={s.link}>
+      <Pressable accessibilityRole="link" onPress={() => router.navigate('/settings')} style={s.link}>
         <Txt v="small" style={s.linkText}>{`${t('settings')} · ${t('about')}`}</Txt>
       </Pressable>
       <Txt v="small">© {new Date().getFullYear()} {t('footerRights')}</Txt>

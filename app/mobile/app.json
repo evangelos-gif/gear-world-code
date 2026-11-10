@@ -57,8 +57,17 @@
         "expo-image-picker",
         {
           "photosPermission": "Gear World uses a photo only when you choose one, to find similar products. The photo is made smaller on your phone, sent once to search and not saved.",
-          "cameraPermission": "Gear World uses the camera only when you tap the camera button, to take a photo of a product and search for it. The photo is not saved.",
+          "cameraPermission": "Gear World uses the camera only when you open the barcode scanner or tap the camera button: to read a product's barcode on your phone, or to take a photo of a product and search for it. The photo is not saved.",
           "microphonePermission": "Gear World uses the microphone only when you tap the microphone button, to turn what you say into a product search. The app does not keep any recordings."
+        }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Gear World uses the camera only when you open the barcode scanner or tap the camera button: to read a product's barcode on your phone, or to take a photo of a product and search for it. The photo is not saved.",
+          "microphonePermission": "Gear World uses the microphone only when you tap the microphone button, to turn what you say into a product search. The app does not keep any recordings.",
+          "recordAudioAndroid": false,
+          "barcodeScannerEnabled": true
         }
       ],
       "expo-image",

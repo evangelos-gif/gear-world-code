@@ -9,8 +9,17 @@ import { useI18n } from '@/i18n';
 import { C, R, S } from '@/theme';
 import { Txt } from './ui';
 
-export function StockLine({ inStock, size = 'small' }: { inStock: boolean | null; size?: 'small' | 'body' }) {
+export function StockLine({ inStock, checkRetailer, size = 'small' }: { inStock: boolean | null; checkRetailer?: boolean; size?: 'small' | 'body' }) {
   const { t } = useI18n();
+  // A price checked 14-30 days ago makes no stock claim (lessons L107).
+  if (checkRetailer) {
+    return (
+      <View style={s.stock}>
+        <Ionicons name="help-circle-outline" size={size === 'small' ? 16 : 20} color={C.blue} />
+        <Txt v={size === 'small' ? 'small' : 'body'} style={s.flex}>{t('checkRetailer')}</Txt>
+      </View>
+    );
+  }
   if (inStock === null) return null;
   // Icon + words, never colour alone.
   return (
@@ -33,14 +42,14 @@ export function ProductCard({ product, showWorld }: { product: Product; showWorl
       <View style={s.imageBox}>
         {product.image ? (
           <Image source={{ uri: product.image }} style={s.image} contentFit="contain" transition={150} recyclingKey={product.key} />
-        ) : <Ionicons name="storefront-outline" size={36} color={C.faint} />}
+        ) : <Ionicons name="pricetag-outline" size={36} color={C.faint} />}
       </View>
       <View style={s.body}>
         {showWorld ? <Txt style={s.world} numberOfLines={1}>{product.worldKey}</Txt> : null}
         <Txt style={s.name} numberOfLines={3}>{product.name}</Txt>
         {price ? <Txt style={s.price}>{price}</Txt> : null}
         {product.retailer ? <Txt v="small" numberOfLines={1}>{product.retailer}</Txt> : null}
-        <StockLine inStock={product.inStock} />
+        <StockLine inStock={product.inStock} checkRetailer={product.checkRetailer} />
       </View>
     </Pressable>
   );
@@ -55,5 +64,6 @@ const s = StyleSheet.create({
   world: { color: C.gold, fontSize: 12, fontWeight: '800', letterSpacing: 1 },
   name: { fontSize: 14, lineHeight: 19, fontWeight: '600' },
   price: { fontSize: 18, fontWeight: '800', color: C.text, marginTop: 2 },
-  stock: { flexDirection: 'row', alignItems: 'center', gap: 4 }
+  stock: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  flex: { flex: 1 }
 });

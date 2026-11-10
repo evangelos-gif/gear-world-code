@@ -5,14 +5,21 @@ import { readFileSync } from 'node:fs';
 
 import { LOCALES, pickLocale, fill, lookup } from '../src/i18n/core.ts';
 import { APP_STRINGS, APP_KEYS } from '../src/i18n/app-strings.ts';
-import { parseRegistry, parseSearch, parseSiteProduct, worldProductsUrl, safeBase, safeHttps, outUrl, isValidEmail, FALLBACK_WORLDS } from '../src/lib/api.ts';
+import {
+  parseRegistry, parseSearch, parseSiteProduct, parseHubResult, worldProductsUrl, safeBase, safeHttps, outUrl, isValidEmail, FALLBACK_WORLDS,
+  checkedDay, barcodeUrl, productsByIdUrl, pickAsked
+} from '../src/lib/api.ts';
+import { FEATURE_KEYS, FEATURE_STRINGS } from '../src/i18n/feature-strings.ts';
+import { cleanCode, hasValidCheckDigit, upcEToA, gtinForms, PRODUCT_BARCODES } from '../src/lib/barcode.ts';
+import { toSaved, addSaved, removeSaved, mergeFresh, idsByWorld, parseSaved, imageFileName, MAX_SAVED } from '../src/lib/saved.ts';
 import { formatPrice } from '../src/lib/format.ts';
 import {
   parsePhotoAnswer, photoErrorMessage, shrinkSize, base64ToBytes, isJpeg, searchPlan, isBrand, mergeResults, photoResults,
   orderByBest, countByWorld, photoWords, encodePhotoParam, decodePhotoParam, PHOTO_MAX_BYTES
 } from '../src/lib/photo.ts';
 import {
-  ukDay, blackFridayDay, heroSlides, countdownParts, seasonFor, parseDeals, activeDeals, campaignLabel, CAMPAIGNS, FALLBACK_CAMPAIGN, seasonsOf
+  ukDay, blackFridayDay, heroSlides, countdownParts, seasonFor, parseDeals, activeDeals, campaignLabel, CAMPAIGNS, FALLBACK_CAMPAIGN, seasonsOf,
+  SEASONS_ON_DEFAULT, parseSeasonsOn, seasonOn
 } from '../src/lib/seasons.ts';
 import { apiSlug, categoriesFor } from '../src/lib/site-categories.ts';
 
@@ -167,9 +174,17 @@ test('screens: Android draws no grey band over the bottom of the app', () => {
   const nav = app.plugins.find((p: unknown) => Array.isArray(p) && p[0] === 'expo-navigation-bar');
   assert.ok(nav, 'navigation bar plugin configured');
   assert.equal(nav[1].enforceContrast, false);
-  for (const f of ['index.tsx', 'search.tsx', 'settings.tsx', 'world/[key].tsx']) {
+  // Screens opened over the tabs end their list above the phone's buttons themselves.
+  for (const f of ['search.tsx', 'world/[key].tsx', 'barcode.tsx']) {
     const src = readFileSync(new URL(`../src/app/${f}`, import.meta.url), 'utf8');
     assert.match(src, /useSafeAreaInsets\(\)\.bottom/, `${f} ends its list above the phone's buttons`);
+  }
+  // The tab screens sit above the tab bar, which keeps clear of the phone's buttons on its own (version 1.0.1).
+  const tabs = readFileSync(new URL('../src/app/(tabs)/_layout.tsx', import.meta.url), 'utf8');
+  assert.match(tabs, /from 'expo-router\/js-tabs'/);
+  for (const name of ['index', 'scan', 'saved', 'settings']) {
+    assert.match(tabs, new RegExp(`Tabs\\.Screen name="${name}"`), `tab ${name}`);
+    readFileSync(new URL(`../src/app/(tabs)/${name}.tsx`, import.meta.url), 'utf8');
   }
 });
 
@@ -278,7 +293,9 @@ test('seasons: UK days, Black Friday and the slides of each period, like the Hub
   assert.equal(ukDay(Date.parse('2026-03-29T23:30:00Z')), '2026-03-30', 'BST starts on the last Sunday of March');
   assert.equal(blackFridayDay(2026), 27);
   assert.equal(blackFridayDay(2027), 26);
-  const ids = (iso: string) => heroSlides(Date.parse(iso)).map(x => x.id);
+  // With every season switched on, the dates say when each one may show (the same windows as the Hub).
+  const ALL_ON = Object.fromEntries(Object.keys(SEASONS_ON_DEFAULT).map(k => [k, true]));
+  const ids = (iso: string) => heroSlides(Date.parse(iso), ALL_ON).map(x => x.id);
   assert.deepEqual(ids('2026-11-04T12:00:00Z'), ['season-christmas']);
   assert.deepEqual(ids('2026-11-15T12:00:00Z'), ['season-christmas', 'black-friday-soon'], 'from 13/11 the Black Friday countdown slide, no offers promised');
   assert.deepEqual(ids('2026-11-28T12:00:00Z'), ['season-black-friday', 'christmas']);
@@ -301,12 +318,36 @@ test('seasons: UK days, Black Friday and the slides of each period, like the Hub
   assert.ok(!/offer/i.test(SEASON['en-GB'][xmas.title]));
 });
 
+test('seasons: nothing switches on by its dates alone, like the Hub (lessons L107)', () => {
+  // The Hub's switches on 9/11/2026: only Christmas; Black Friday stays closed until the owner opens it.
+  assert.deepEqual(SEASONS_ON_DEFAULT, {
+    halloween: false, 'black-friday': false, christmas: true, 'winter-sales': false, 'new-year-fitness': false, 'valentines-day': false
+  });
+  const ids = (iso: string, on = SEASONS_ON_DEFAULT) => heroSlides(Date.parse(iso), on).map(x => x.id);
+  assert.deepEqual(ids('2026-11-15T12:00:00Z'), ['season-christmas'], 'no "Black Friday is coming" while Black Friday is closed');
+  assert.deepEqual(ids('2026-11-21T12:00:00Z'), ['season-christmas'], 'no countdown picture either');
+  assert.deepEqual(ids('2026-11-28T12:00:00Z'), ['season-christmas'], 'on Black Friday itself only the Christmas picture');
+  assert.deepEqual(ids('2026-12-27T12:00:00Z'), ['all-worlds'], 'the winter slide waits for its switch');
+  assert.deepEqual(ids('2027-10-25T12:00:00Z'), ['all-worlds'], 'Halloween waits for its switch');
+  // The owner opens Black Friday on the Hub: the same file brings the switch, no new app version.
+  const open = parseSeasonsOn({ seasons_on: { ...SEASONS_ON_DEFAULT, 'black-friday': true } });
+  assert.equal(seasonOn(open, 'black-friday-soon'), true, '"Black Friday is coming" belongs to Black Friday');
+  assert.deepEqual(ids('2026-11-15T12:00:00Z', open), ['season-christmas', 'black-friday-soon']);
+  assert.deepEqual(ids('2026-11-28T12:00:00Z', open), ['season-black-friday', 'christmas']);
+  // Only true switches on; anything else, unknown names or a broken file keep the app's own copy.
+  assert.equal(parseSeasonsOn({ seasons_on: { 'black-friday': 'yes', christmas: true } })['black-friday'], false);
+  assert.equal(parseSeasonsOn({ seasons_on: { christmas: true, extra: true } }).extra, undefined);
+  assert.deepEqual(parseSeasonsOn({ deals: [] }), SEASONS_ON_DEFAULT);
+  assert.deepEqual(parseSeasonsOn(null), SEASONS_ON_DEFAULT);
+  assert.deepEqual(parseSeasonsOn({ seasons_on: ['x'] }), SEASONS_ON_DEFAULT);
+});
+
 test('seasons: every campaign text exists in all 11 languages, with the same placeholders', () => {
   const keys = new Set<string>();
   for (const c of [...CAMPAIGNS, FALLBACK_CAMPAIGN]) [c.eyebrow, c.title, c.text, c.cta].forEach(k => keys.add(k));
   for (const s2 of seasonsOf(2026)) [s2.name, s2.title].forEach(k => keys.add(k));
   for (const k of ['countdown', 'countdownHours', 'bfCta', 'soonCta', 'allCta', 'prev', 'next', 'slideAria', 'seasonAria', 'navDeals',
-    'dealsTitle', 'dealsSub', 'dealCode', 'dealCodeNoMin', 'dealUpTo', 'dealWithCode', 'dealSale', 'dealUntil', 'dealCta']) keys.add(k);
+    'dealsTitle', 'dealsSub', 'dealCode', 'dealCodeNoMin', 'dealWithCode', 'dealSale', 'dealUntil', 'dealCta', 'soonText']) keys.add(k);
   for (const l of LOCALES) {
     for (const k of keys) {
       const v = SEASON[l.code]?.[k];
@@ -324,12 +365,16 @@ test('deals: only checked site links, only running deals, codes first, old seaso
     { id: 'c', retailer: 'SGS', kind: 'sale', campaign: 'Black Friday', currency: 'GBP', sites: ['CGW'], start: '2026-11-02', end: '2026-11-30', link: 'https://constructiongearworld.com/discount-codes/sgs/', upTo: 25 },
     { id: 'd', retailer: 'Old', kind: 'code', start: '2026-09-01', end: '2026-10-01', link: 'https://cgw.example.com/discount-codes/old/', off: 3 },
     { id: 'e', retailer: 'Bad', kind: 'code', start: '2026-10-01', end: '2026-12-31', link: 'https://constructiongearworld.com/go/123', off: 3 },
-    { id: 'f', retailer: 'Zero', kind: 'sale', start: '2026-10-01', end: '2026-12-31', link: 'https://constructiongearworld.com/discount-codes/zero/', upTo: 0 }
+    { id: 'f', retailer: 'Zero', kind: 'sale', start: '2026-10-01', end: '2026-12-31', link: 'https://constructiongearworld.com/discount-codes/zero/', upTo: 0 },
+    { id: 'g', retailer: 'Joybuy', kind: 'sale', campaign: 'Household & Cleaning', currency: 'GBP', sites: ['HGW'], start: '2026-10-20', end: '2026-12-31', link: 'https://homegearworld.com/discount-codes/joybuy/' }
   ] };
   const deals = parseDeals(raw);
-  assert.deepEqual(deals.map(d => d.id), ['a', 'b', 'c', 'd', 'f'], 'a /go/ link is never taken');
+  assert.deepEqual(deals.map(d => d.id), ['a', 'b', 'c', 'd', 'f', 'g'], 'a /go/ link is never taken');
   assert.deepEqual(deals[0].sites, ['TGW', 'MGW']);
-  assert.deepEqual(activeDeals(deals, '2026-11-04').map(d => d.id), ['b', 'a', 'c'], 'codes by smaller minimum spend, then sales; old and empty deals out');
+  // Like the Hub (lessons L107): a sale needs its name and shows no percentage; one that still says "up to N%" is left out.
+  assert.deepEqual(activeDeals(deals, '2026-11-04').map(d => d.id), ['b', 'a', 'g'], 'codes by smaller minimum spend, then named sales');
+  const dealsSrc = readFileSync(new URL('../src/components/deals.tsx', import.meta.url), 'utf8');
+  assert.ok(!/dealUpTo|upTo|%/.test(dealsSrc), 'the deals card never shows a percentage');
   assert.equal(campaignLabel(deals[0], '2026-11-04'), '', 'Halloween is over: the name is not shown, the code still runs');
   assert.equal(campaignLabel(deals[2], '2026-11-04'), 'Black Friday');
   assert.deepEqual(parseDeals(null), []);
@@ -368,8 +413,128 @@ test('texts: the app never sounds like a shop (no shop, cart or basket) and says
   for (const l of LOCALES) {
     assert.ok(!/shop/i.test(SEASONS[l.code].allTitle) && !/shop/i.test(HUB[l.code].shopInterest), `${l.code}: no shop words`);
   }
-  const settings = readFileSync(new URL('../src/app/settings.tsx', import.meta.url), 'utf8');
+  const settings = readFileSync(new URL('../src/app/(tabs)/settings.tsx', import.meta.url), 'utf8');
   assert.match(settings, /t\('runBy', \{ name: LEGAL\.operator \}\)/);
   const api = readFileSync(new URL('../src/lib/api.ts', import.meta.url), 'utf8');
   assert.match(api, /operator: 'Evangelos Kalogerakis, United Kingdom'/);
+});
+
+// ---------- version 1.0.1 (10/11/2026): the app's own features after Apple's 4.2.2 review ----------
+
+test('barcode: EAN, UPC-A, UPC-E and GTIN-14 give the forms a feed may use; anything else is refused', () => {
+  assert.equal(cleanCode(' 5012-3456 7890 0 '), '5012345678900');
+  assert.equal(hasValidCheckDigit('088381695817'), true, 'UPC-A of the Makita M9400 on Construction Gear World');
+  assert.equal(hasValidCheckDigit('088381695818'), false);
+  assert.equal(hasValidCheckDigit('96385074'), true, 'EAN-8');
+  assert.deepEqual(gtinForms('088381695817'), ['088381695817', '0088381695817', '00088381695817']);
+  // The iPhone reports a UPC-A as EAN-13 with a leading 0: the same product.
+  assert.deepEqual(gtinForms('0088381695817', 'org.gs1.EAN-13'), ['0088381695817', '088381695817', '00088381695817']);
+  assert.deepEqual(gtinForms('5012345678900'), ['5012345678900', '05012345678900']);
+  assert.deepEqual(gtinForms('00088381695817'), ['00088381695817', '0088381695817', '088381695817']);
+  assert.equal(upcEToA('04252614'), '042100005264', 'UPC-E written out as UPC-A');
+  assert.deepEqual(gtinForms('04252614', 'upc_e'), ['042100005264', '0042100005264', '00042100005264']);
+  assert.deepEqual(gtinForms('12345'), []);
+  assert.deepEqual(gtinForms('https://example.com'), []);
+  assert.deepEqual(gtinForms('5012345678901'), [], 'a wrong check digit is never sent');
+  assert.deepEqual([...PRODUCT_BARCODES], ['ean13', 'ean8', 'upc_a', 'upc_e'], 'only product barcodes, no QR codes that open links');
+  assert.equal(barcodeUrl(gtinForms('088381695817')), 'https://gearworldhub.com/api/ean?code=088381695817');
+});
+
+test('products: the check day, "check at the retailer" and the RRP come from the sites as they say them', () => {
+  const world = { key: 'CGW', name: 'Construction Gear World', base: 'https://constructiongearworld.com' };
+  const p = parseSiteProduct({ id: 1047, product_name: 'Makita M9400', price: 157.95, was_price: 199.99, stock_status: 'check_retailer', price_checked: '2026-11-08T03:12:00Z' }, world)!;
+  assert.equal(p.checkRetailer, true);
+  assert.equal(p.inStock, null, 'no stock claim for a price checked 14-30 days ago (lessons L107)');
+  assert.equal(p.checked, '2026-11-08');
+  assert.equal(p.wasPrice, 199.99);
+  assert.equal(checkedDay('2026-11-08', '2026-11-10'), '2026-11-08');
+  assert.equal(checkedDay('2026-12-01', '2026-11-10'), null, 'never a day in the future');
+  assert.equal(checkedDay('yesterday'), null);
+  const h = parseHubResult({ site: 'cgw', site_url: 'constructiongearworld.com', id: 5, product_name: 'X', stock_status: 'in_stock', last_seen_at: '2026-11-09 06:00:00' })!;
+  assert.equal(h.checked, '2026-11-09');
+  assert.equal(h.inStock, true);
+  assert.equal(h.checkRetailer, false);
+  // Saved products: one request per world for exactly their ids; an answer with other products is not trusted.
+  assert.equal(productsByIdUrl(world, ['1047', 'x', '12']), 'https://constructiongearworld.com/api/products?ids=1047%2C12&limit=2');
+  const a = parseSiteProduct({ id: 1047, product_name: 'A' }, world)!;
+  const b = parseSiteProduct({ id: 9, product_name: 'B' }, world)!;
+  assert.deepEqual(pickAsked([a], ['1047', '12']), { found: [a], listed: true });
+  assert.deepEqual(pickAsked([a, b], ['1047', '12']), { found: [a], listed: false }, 'a site without ids= answers with other products');
+  // The product screen says who sells it and never crosses out a price.
+  const screen = readFileSync(new URL('../src/app/product.tsx', import.meta.url), 'utf8');
+  for (const k of ['soldBy', 'stockAt', 'priceChecked', 'rrp', 'checkRetailer', 'saveBtn', 'share']) assert.match(screen, new RegExp(`t\\('${k}'`), k);
+  assert.ok(!/line-through|<s>|wasPrice > product\.price \? formatPrice\(product\.wasPrice[^)]*\) : '';\s*\n\s*.*was/.test(screen), 'no crossed-out "was" price');
+});
+
+test('saved: kept on the phone, newest first, refreshed per world, broken data dropped', () => {
+  const world = { key: 'CGW', name: 'Construction Gear World', base: 'https://constructiongearworld.com' };
+  const p1 = parseSiteProduct({ id: 1, product_name: 'One', price: 10, image_url: 'https://img.example.com/a.JPEG?x=1' }, world)!;
+  const p2 = parseSiteProduct({ id: 2, product_name: 'Two', price: 20 }, world)!;
+  let list = addSaved([], toSaved(p1, '2026-11-10'));
+  list = addSaved(list, toSaved(p2, '2026-11-10'));
+  list = addSaved(list, toSaved(p1, '2026-11-11'));
+  assert.deepEqual(list.map(x => x.key), ['CGW:1', 'CGW:2'], 'newest first, no duplicates');
+  assert.deepEqual(idsByWorld(list), { CGW: ['1', '2'] });
+  const fresh = parseSiteProduct({ id: 1, product_name: 'One', price: 9.5, stock_status: 'in_stock', price_checked: '2026-11-09' }, world)!;
+  const merged = mergeFresh(list, 'CGW', [fresh], true, '2026-11-12');
+  assert.equal(merged[0].price, 9.5);
+  assert.equal(merged[0].checked, '2026-11-09');
+  assert.equal(merged[1].notListed, true, 'the site answered for exactly these ids and no longer lists it');
+  assert.equal(mergeFresh(list, 'CGW', [fresh], false, '2026-11-12')[1].notListed, false, 'an answer that cannot be trusted marks nothing');
+  assert.deepEqual(removeSaved(merged, 'CGW:2').map(x => x.key), ['CGW:1']);
+  const back = parseSaved(JSON.stringify([...merged, { key: 'BAD', id: '3', worldKey: 'CGW', base: 'https://x' }, { key: 'CGW:4', id: '4', worldKey: 'CGW', base: 'http://x' }]));
+  assert.deepEqual(back.map(x => x.key), ['CGW:1', 'CGW:2'], 'only well-formed https items come back');
+  assert.equal(back[0].price, 9.5);
+  assert.deepEqual(parseSaved('not json'), []);
+  assert.deepEqual(parseSaved(null), []);
+  assert.equal(imageFileName(list[0]), 'cgw-1.jpg');
+  let many: ReturnType<typeof addSaved> = [];
+  for (let i = 0; i < MAX_SAVED + 5; i++) many = addSaved(many, toSaved({ ...p2, id: String(i), key: `CGW:${i}` }, '2026-11-10'));
+  assert.equal(many.length, MAX_SAVED);
+});
+
+test('texts: the 1.0.1 texts exist in all 11 languages, with the same placeholders', () => {
+  for (const l of LOCALES) {
+    for (const k of FEATURE_KEYS) {
+      const v = FEATURE_STRINGS[l.code]?.[k];
+      assert.ok(typeof v === 'string' && v.trim(), `${l.code}.${k}`);
+      assert.deepEqual((v.match(/\{\w+\}/g) ?? []).sort(), (FEATURE_STRINGS['en-GB'][k].match(/\{\w+\}/g) ?? []).sort(), `${l.code}.${k} placeholders`);
+    }
+    assert.equal(Object.keys(FEATURE_STRINGS[l.code]).length, FEATURE_KEYS.length, `${l.code}: no extra keys`);
+  }
+});
+
+test('texts: no shop, partner, cart or "our retailers" words in any of the 11 languages (lessons L101-L103)', () => {
+  const SEASONS = JSON.parse(readFileSync(new URL('../src/i18n/season-strings.json', import.meta.url), 'utf8'));
+  // The words the Hub and the sites removed (tests/worker/ads-cleanup.test.mjs), in every language. "партнёрские ссылки"
+  // is the Russian term for affiliate links, as the Hub keeps "партнёрская сеть" for affiliate network.
+  const BAD = /\bshops?\b|shopping|\bpartners?\b|partnership|sponsor|\bcart\b|basket|checkout|our retailers|Gear World retailers|trusted|Boxing Day and January sales|price drop|\bSave \d|Partnerhändler|vertrauenswürdig|einkaufen|unsere Händler|Warenkorb|συνεργαζόμεν|αξιόπιστ|Αγορές ανά|καλάθι|καταστήματά μας|tiendas? asociadas?|de confianza|Compra por|nuestras tiendas|carrito|partenaires?|de confiance|Acheter par|nos marchands|boutique|paniers?|negozi? partner|affidabil|Acquista per|nostri negozi|carrello|partnerwinkels?|betrouwba|Winkelen|onze winkels|winkelwagen|lojas? parceiras?|de confiança|Compre por|nossas lojas|carrinho|partener|de încredere|Cumpără pe|magazinele noastre|магазин(ов)?-партн|надёжн|Покупки по категориям|наши магазины|корзин|dyqane? partner|partnerëve|besueshm|Bli sipas|dyqanet tona|shport/i;
+  for (const [name, dicts] of [['app', APP_STRINGS], ['features', FEATURE_STRINGS], ['hub', HUB], ['seasons', SEASONS]] as const) {
+    for (const l of LOCALES) {
+      for (const [k, v] of Object.entries((dicts as Record<string, Record<string, unknown>>)[l.code] ?? {})) {
+        const s = typeof v === 'string' ? v : JSON.stringify(v);
+        assert.ok(!BAD.test(s), `${name} ${l.code}.${k}: ${s}`);
+      }
+    }
+  }
+  // The retailer is named in each language, as the Hub does, never left as the English word (lessons L103).
+  for (const l of LOCALES.filter(x => !['en-GB', 'nl-NL', 'de-DE'].includes(x.code))) {
+    assert.ok(!/\bretailer/i.test(String(HUB[l.code].disclosure)), `${l.code} disclosure names the retailer in its own language`);
+  }
+  for (const l of LOCALES) assert.match(String(HUB[l.code].footerRights), /Evangelos Kalogerakis/, `${l.code}: the footer says who runs Gear World`);
+});
+
+test('camera: one clear reason for the camera (barcode and photo), no sound recorded by the scanner', () => {
+  const app = JSON.parse(readFileSync(new URL('../app.json', import.meta.url), 'utf8')).expo;
+  const camera = app.plugins.find((p: unknown) => Array.isArray(p) && p[0] === 'expo-camera');
+  const picker = app.plugins.find((p: unknown) => Array.isArray(p) && p[0] === 'expo-image-picker');
+  assert.ok(camera, 'expo-camera configured');
+  assert.match(camera[1].cameraPermission, /barcode/);
+  assert.equal(camera[1].cameraPermission, picker[1].cameraPermission, 'the same reason, whichever plugin writes it last');
+  assert.equal(camera[1].recordAudioAndroid, false);
+  assert.equal(camera[1].barcodeScannerEnabled, true);
+  assert.equal(camera[1].microphonePermission, picker[1].microphonePermission, 'voice search keeps its microphone reason');
+  const scan = readFileSync(new URL('../src/app/(tabs)/scan.tsx', import.meta.url), 'utf8');
+  assert.match(scan, /useFocusEffect/, 'the camera runs only while the scan tab is on screen');
+  assert.match(scan, /barcodeTypes: \[\.\.\.PRODUCT_BARCODES\]/);
 });

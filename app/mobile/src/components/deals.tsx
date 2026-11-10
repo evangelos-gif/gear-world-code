@@ -26,9 +26,10 @@ export function Deals({ deals, day, compact }: { deals: Deal[]; day: string; com
             ? (d.minSpend > 0
               ? t('dealCode', { off: formatMoney(d.off, d.currency, locale), min: formatMoney(d.minSpend, d.currency, locale) })
               : t('dealCodeNoMin', { off: formatMoney(d.off, d.currency, locale) }))
-            : t('dealUpTo', { pct: d.upTo });
+            : t('dealSale');
           const label = campaignLabel(d, day);
-          const meta = `${d.kind === 'code' ? t('dealWithCode') : t('dealSale')}${label ? ` · ${label}` : ''}`;
+          // Like the Hub: a code says "With a code" and its campaign; a sale says only its own name (never a percentage).
+          const meta = d.kind === 'code' ? `${t('dealWithCode')}${label ? ` · ${label}` : ''}` : label;
           return (
             <Pressable key={d.id} accessibilityRole="link" accessibilityLabel={`${d.retailer}. ${offer}. ${t('dealUntil', { date: formatDay(d.end, locale) })}`}
               accessibilityHint={t('opensBrowser')} onPress={() => openInBrowser(d.link)}
@@ -38,7 +39,7 @@ export function Deals({ deals, day, compact }: { deals: Deal[]; day: string; com
                 <Txt v="small" style={s.end}>{t('dealUntil', { date: formatDay(d.end, locale) })}</Txt>
               </View>
               <Txt style={s.offer}>{offer}</Txt>
-              <Txt v="small" style={s.meta}>{meta}</Txt>
+              {meta ? <Txt v="small" style={s.meta}>{meta}</Txt> : null}
               {d.sites.length ? <Txt v="small" style={s.worlds}>{d.sites.join(' · ')}</Txt> : null}
               <View style={s.ctaRow}>
                 <Txt style={s.cta}>{t('dealCta')}</Txt>
@@ -82,7 +83,7 @@ function CompactDeals({ deals, day }: { deals: Deal[]; day: string }) {
 }
 
 function offerText(d: Deal, t: ReturnType<typeof useI18n>['t'], locale: string): string {
-  if (d.kind !== 'code') return t('dealUpTo', { pct: d.upTo });
+  if (d.kind !== 'code') return d.campaign ? `${t('dealSale')} · ${d.campaign}` : t('dealSale');
   return d.minSpend > 0
     ? t('dealCode', { off: formatMoney(d.off, d.currency, locale), min: formatMoney(d.minSpend, d.currency, locale) })
     : t('dealCodeNoMin', { off: formatMoney(d.off, d.currency, locale) });

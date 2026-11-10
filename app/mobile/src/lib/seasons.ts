@@ -53,8 +53,9 @@ export function seasonsOf(year: number): Season[] {
   ];
 }
 
-export function seasonFor(day: string): Season | null {
-  return seasonsOf(Number(day.slice(0, 4))).find(s => s.start <= day && day <= s.end) ?? null;
+/** The season picture of a UK day: the first season in its dates that is switched on (all of them when no switches are given). */
+export function seasonFor(day: string, on?: Record<string, boolean>): Season | null {
+  return seasonsOf(Number(day.slice(0, 4))).find(s => s.start <= day && day <= s.end && (!on || on[s.id] === true)) ?? null;
 }
 
 export type Campaign = {
@@ -85,11 +86,40 @@ export const FALLBACK_CAMPAIGN: Campaign = {
   id: 'all-worlds', start: '', end: '', art: '', eyebrow: 'allEyebrow', title: 'allTitle', text: 'allText', cta: 'allCta', target: 'worlds'
 };
 
+// ---------- season switches (lessons L107): nothing seasonal switches on by its dates alone ----------
+
+export type SeasonsOn = Record<string, boolean>;
+
+/**
+ * The same switches as the Hub (promos/promos.js SEASONS_ON, copied into hub-v2.js): on 9/11/2026 only Christmas is on,
+ * and Black Friday stays off until the owner opens it. A date only says when a switched-on season may show.
+ */
+export const SEASONS_ON_DEFAULT: SeasonsOn = {
+  halloween: false, 'black-friday': false, christmas: true, 'winter-sales': false, 'new-year-fitness': false, 'valentines-day': false
+};
+
+/** "Black Friday is coming" belongs to Black Friday, like on the Hub. */
+const CAMPAIGN_SEASON: Record<string, string> = { 'black-friday-soon': 'black-friday' };
+
+export const seasonOn = (on: SeasonsOn, id: string) => on[CAMPAIGN_SEASON[id] || id] === true;
+
+/**
+ * The switches the Hub publishes with its deals (hub-deals.json "seasons_on"), so a season opens in the app the moment
+ * the owner opens it on the Hub, without a new app version. Unknown names and non-true values never switch anything on.
+ */
+export function parseSeasonsOn(data: unknown): SeasonsOn {
+  const raw = (data as { seasons_on?: unknown } | null)?.seasons_on;
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return SEASONS_ON_DEFAULT;
+  const out: SeasonsOn = {};
+  for (const id of Object.keys(SEASONS_ON_DEFAULT)) out[id] = (raw as Record<string, unknown>)[id] === true;
+  return out;
+}
+
 /** The campaigns running on a UK day. Last year's list is included for the sales that run over New Year. */
-export function activeCampaigns(day: string): Campaign[] {
+export function activeCampaigns(day: string, on: SeasonsOn = SEASONS_ON_DEFAULT): Campaign[] {
   const year = Number(day.slice(0, 4));
   const list = [...campaignsOf(year - 1), ...campaignsOf(year)]
-    .filter(c => DAY.test(c.start) && DAY.test(c.end) && c.start <= day && day <= c.end);
+    .filter(c => DAY.test(c.start) && DAY.test(c.end) && c.start <= day && day <= c.end && seasonOn(on, c.id));
   return list.length ? list : [FALLBACK_CAMPAIGN];
 }
 
@@ -100,10 +130,10 @@ const SEASON_REPLACES: Record<Season['id'], string[]> = {
   halloween: ['halloween'], 'black-friday': ['black-friday', 'black-friday-soon'], christmas: ['christmas']
 };
 
-export function heroSlides(ms: number): Slide[] {
+export function heroSlides(ms: number, on: SeasonsOn = SEASONS_ON_DEFAULT): Slide[] {
   const day = ukDay(ms);
-  const season = seasonFor(day);
-  const list = activeCampaigns(day);
+  const season = seasonFor(day, on);
+  const list = activeCampaigns(day, on);
   const toSlide = (c: Campaign): Slide => ({ kind: 'campaign', id: c.id, campaign: c });
   if (!season) return list.map(toSlide);
   const rest = list.filter(c => c !== FALLBACK_CAMPAIGN && !SEASON_REPLACES[season.id].includes(c.id));
@@ -149,13 +179,16 @@ export function parseDeals(data: unknown): Deal[] {
   return out;
 }
 
-/** The deals that run today: codes first (smaller minimum spend first), then sales (bigger saving first). */
+/**
+ * The deals that run today, like the Hub: codes first (smaller minimum spend first), then sales. A sale needs a name
+ * and never shows a percentage: one that still carries "upTo" is left out (lessons L107: no "Save N%").
+ */
 export function activeDeals(deals: Deal[], day: string): Deal[] {
   return deals
     .filter(d => d.start <= day && day <= d.end)
-    .filter(d => (d.kind === 'code' ? d.off > 0 : d.upTo > 0))
+    .filter(d => (d.kind === 'code' ? d.off > 0 : d.upTo === 0 && Boolean(d.campaign)))
     .sort((a, b) => (a.kind === b.kind ? 0 : a.kind === 'code' ? -1 : 1) ||
-      (a.kind === 'code' ? a.minSpend - b.minSpend : b.upTo - a.upTo));
+      (a.kind === 'code' ? a.minSpend - b.minSpend : 0));
 }
 
 const SEASON_WORDS: Partial<Record<Season['id'], RegExp>> = {

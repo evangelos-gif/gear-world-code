@@ -1,9 +1,9 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import Constants from 'expo-constants';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { TopBar, Txt } from '@/components/ui';
+import { Txt } from '@/components/ui';
 import { useI18n } from '@/i18n';
 import { LOCALES } from '@/i18n/core';
 import { HUB_URL, LEGAL } from '@/lib/api';
@@ -25,15 +25,14 @@ function Row({ label, icon, onPress, selected }: { label: string; icon?: 'chevro
 
 export default function Settings() {
   const { t, locale, setLocale } = useI18n();
-  // Android draws the app behind its own buttons at the bottom: the list ends above them (owner, 4/11/2026).
-  const bottom = useSafeAreaInsets().bottom;
+  // A tab: the tab bar sits above the phone's own buttons, so the list needs no extra space at the bottom.
   const version = Constants.expoConfig?.version ?? '1.0.0';
 
   return (
     <SafeAreaView style={s.safe} edges={['top', 'left', 'right']}>
-      <TopBar title={t('settings')} />
-      <ScrollView contentContainerStyle={[s.scroll, { paddingBottom: S.xxl + bottom }]}>
+      <ScrollView contentContainerStyle={s.scroll}>
         <View style={s.inner}>
+          <Txt v="title">{t('settings')}</Txt>
           <Txt v="h2">{t('languageLabel')}</Txt>
           <View style={s.card} accessibilityRole="radiogroup">
             {LOCALES.map(l => <Row key={l.code} label={l.name} selected={locale === l.code} onPress={() => setLocale(l.code)} />)}

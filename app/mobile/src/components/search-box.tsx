@@ -14,10 +14,14 @@ import { Txt } from './ui';
 const openPhotoResults = (answer: PhotoAnswer) =>
   router.push({ pathname: '/search', params: { q: answer.query, photo: encodePhotoParam(answer) } });
 
-/** Search field, camera (photo search), microphone (voice search in the app's language) and Search button. */
-export function SearchBox({ initial = '', placeholder, onSearch, onPhoto = openPhotoResults, autoFocus }: {
+/**
+ * Search field, camera (photo search), microphone (voice search in the app's language) and Search button.
+ * With `onScan` (the first screen, version 1.0.1) the app's own ways to search are three big buttons under the field:
+ * scan a barcode, search by photo and search by voice, so they are seen before anything else.
+ */
+export function SearchBox({ initial = '', placeholder, onSearch, onPhoto = openPhotoResults, onScan, autoFocus }: {
   initial?: string; placeholder?: string; onSearch: (q: string) => void; onPhoto?: (answer: PhotoAnswer) => void;
-  autoFocus?: boolean;
+  onScan?: () => void; autoFocus?: boolean;
 }) {
   const { t, locale } = useI18n();
   const [q, setQ] = useState(initial);
@@ -61,8 +65,34 @@ export function SearchBox({ initial = '', placeholder, onSearch, onPhoto = openP
         </Pressable>
       </View>
 
+      {onScan ? (
+        <View style={s.tiles}>
+          <Pressable accessibilityRole="button" accessibilityLabel={t('scanBarcode')} onPress={onScan}
+            style={({ pressed }) => [s.tile, pressed && s.pressed]}>
+            <Ionicons name="barcode-outline" size={30} color={C.gold} />
+            <Txt style={s.tileText} numberOfLines={2}>{t('scanBarcode')}</Txt>
+          </Pressable>
+          {photo.supported ? (
+            <Pressable accessibilityRole="button" accessibilityLabel={t('searchByPhoto')} accessibilityState={{ busy: photo.busy, disabled: photo.busy }}
+              disabled={photo.busy} onPress={() => { voice.clearMessage(); photo.start(); }}
+              style={({ pressed }) => [s.tile, pressed && s.pressed]}>
+              {photo.busy ? <ActivityIndicator color={C.gold} /> : <Ionicons name="camera-outline" size={30} color={C.gold} />}
+              <Txt style={s.tileText} numberOfLines={2}>{t('searchByPhoto')}</Txt>
+            </Pressable>
+          ) : null}
+          {voice.supported ? (
+            <Pressable accessibilityRole="button" accessibilityLabel={voice.listening ? t('voiceStop') : t('searchByVoice')}
+              accessibilityState={{ busy: voice.listening }} onPress={() => { photo.clearMessage(); voice.toggle(); }}
+              style={({ pressed }) => [s.tile, voice.listening && s.toolOn, pressed && s.pressed]}>
+              <Ionicons name={voice.listening ? 'stop' : 'mic-outline'} size={30} color={voice.listening ? C.onGold : C.gold} />
+              <Txt style={[s.tileText, voice.listening && s.toolTextOn]} numberOfLines={2}>{voice.listening ? t('voiceStop') : t('searchByVoice')}</Txt>
+            </Pressable>
+          ) : null}
+        </View>
+      ) : null}
+
       {/* Camera and microphone under the field, each with its name (owner, 4/11/2026: the field was too narrow). */}
-      {photo.supported || voice.supported ? (
+      {!onScan && (photo.supported || voice.supported) ? (
         <View style={s.tools}>
           {photo.supported ? (
             <Pressable accessibilityRole="button" accessibilityLabel={t('photoStart')} accessibilityState={{ busy: photo.busy, disabled: photo.busy }}
@@ -137,6 +167,9 @@ const s = StyleSheet.create({
   rowListening: { borderColor: C.gold, borderWidth: 2 },
   input: { flex: 1, color: C.text, fontSize: 16, paddingVertical: S.md, minWidth: 0 },
   tools: { flexDirection: 'row', gap: S.sm },
+  tiles: { flexDirection: 'row', gap: S.sm },
+  tile: { flex: 1, minHeight: 92, borderRadius: R.md, borderWidth: 1, borderColor: C.gold, backgroundColor: C.card, alignItems: 'center', justifyContent: 'center', gap: S.xs, padding: S.sm },
+  tileText: { color: C.text, fontWeight: '800', fontSize: 14, textAlign: 'center' },
   tool: { flex: 1, minHeight: 46, borderRadius: R.pill, borderWidth: 1, borderColor: C.gold, backgroundColor: C.card, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.sm, paddingHorizontal: S.md },
   toolOn: { backgroundColor: C.gold },
   toolText: { color: C.text, fontWeight: '700', fontSize: 15, flexShrink: 1 },

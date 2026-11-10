@@ -26,9 +26,14 @@ export type Product = {
   retailer: string;
   category: string;
   price: number | null;
+  /** The retailer's RRP from the feed: shown only as "RRP £X", never as a crossed-out old price (lessons L107). */
   wasPrice: number | null;
   currency: string;
   inStock: boolean | null;
+  /** The price was checked 14-30 days ago: no stock claim, "Check price and stock at the retailer" (lessons L107). */
+  checkRetailer: boolean;
+  /** The day the site last checked this price (YYYY-MM-DD), or null when the site does not say. */
+  checked: string | null;
   image: string;
   productUrl: string;
   outUrl: string;
@@ -75,6 +80,13 @@ const num = (v: unknown): number | null => {
   return Number.isFinite(n) && n > 0 ? n : null;
 };
 const str = (v: unknown): string => (v === null || v === undefined ? '' : String(v)).trim();
+const checkRetailer = (v: unknown): boolean => str(v).toLowerCase() === 'check_retailer';
+/** A day (YYYY-MM-DD) from the site's "price_checked" (or "last_seen_at"), or null. Never a day in the future. */
+export function checkedDay(v: unknown, today = new Date().toISOString().slice(0, 10)): string | null {
+  const m = /^(\d{4}-\d{2}-\d{2})/.exec(str(v));
+  if (!m || Number.isNaN(Date.parse(`${m[1]}T00:00:00Z`))) return null;
+  return m[1] <= today ? m[1] : null;
+}
 const stock = (v: unknown): boolean | null => {
   const s = str(v).toLowerCase();
   if (s === 'in_stock' || s === 'instock' || s === 'in stock') return true;
@@ -173,6 +185,8 @@ export function parseHubResult(r: Record<string, unknown>): Product | null {
     wasPrice: null,
     currency: str(r.currency) || 'GBP',
     inStock: stock(r.stock_status),
+    checkRetailer: checkRetailer(r.stock_status),
+    checked: checkedDay(r.price_checked ?? r.last_seen_at),
     image: safeHttps(r.image_url) ?? '',
     productUrl: safeHttps(r.product_url) ?? base,
     outUrl: outUrl(base, id)
@@ -190,6 +204,23 @@ export function parseSearch(data: HubSearchResponse): SearchResult {
 export async function searchAll(query: string): Promise<SearchResult> {
   const q = query.trim().slice(0, 80);
   return parseSearch(await fetchJson<HubSearchResponse>(`${HUB_URL}/api/search?q=${encodeURIComponent(q)}`, {}, 20000));
+}
+
+// ---------- Barcode: the Hub looks for one product (EAN/UPC) in every Gear World ----------
+
+/**
+ * The Hub's barcode search (gearworldhub.com/api/ean). The Hub asks every site through its index of product codes and
+ * tries the 12, 13 and 14-digit forms of the same code itself; the app sends the first form (a UPC-E already written
+ * out as UPC-A, see barcode.ts). Answers like the Hub search, so the same parser reads it.
+ */
+export function barcodeUrl(forms: string[]): string {
+  const code = forms.find(f => /^\d{8,14}$/.test(f)) ?? '';
+  return `${HUB_URL}/api/ean?code=${encodeURIComponent(code)}`;
+}
+
+export async function lookupBarcode(forms: string[]): Promise<SearchResult> {
+  if (!forms.length) throw new ApiError('invalid_code');
+  return parseSearch(await fetchJson<HubSearchResponse>(barcodeUrl(forms), {}, 20000));
 }
 
 // ---------- Deals: the Hub's list of retailer offers (new deals appear without a new app version) ----------
@@ -254,6 +285,8 @@ export function parseSiteProduct(p: Record<string, unknown>, world: Pick<World, 
     wasPrice: num(p.was_price),
     currency: str(p.currency) || 'GBP',
     inStock: stock(p.stock_status),
+    checkRetailer: checkRetailer(p.stock_status),
+    checked: checkedDay(p.price_checked ?? p.last_seen_at),
     image: safeHttps(p.image_url) ?? '',
     productUrl: safeHttps(p.product_url) ?? world.base,
     outUrl: outUrl(world.base, id)
@@ -277,6 +310,30 @@ export async function worldProducts(world: World, opts: Parameters<typeof worldP
   const products = (data.products ?? []).map(p => parseSiteProduct(p, world)).filter((p): p is Product => p !== null);
   const pg = data.pagination;
   return { products, total: pg?.total ?? products.length, hasMore: Boolean(pg?.has_more), page: pg?.page ?? 1 };
+}
+
+// ---------- Saved products: the newest price of a few products of one world ----------
+
+export function productsByIdUrl(world: Pick<World, 'base'>, ids: string[]): string {
+  const clean = ids.map(id => String(id).trim()).filter(id => /^\d{1,12}$/.test(id)).slice(0, 60);
+  return `${world.base}/api/products?ids=${encodeURIComponent(clean.join(','))}&limit=${Math.max(1, clean.length)}`;
+}
+
+/**
+ * The asked products as the site has them now. `listed` says whether the answer can be trusted for "no longer listed":
+ * a site that does not know `ids=` yet answers with other products, and then nothing is marked as gone.
+ */
+export function pickAsked(products: Product[], ids: string[]): { found: Product[]; listed: boolean } {
+  const asked = new Set(ids.map(String));
+  const listed = products.every(p => asked.has(p.id));
+  return { found: products.filter(p => asked.has(p.id)), listed };
+}
+
+export async function productsById(world: Pick<World, 'key' | 'name' | 'base'>, ids: string[]): Promise<{ found: Product[]; listed: boolean }> {
+  const data = await fetchJson<SiteProductsResponse>(productsByIdUrl(world, ids), {}, 15000);
+  if (!data || data.ok !== true) throw new ApiError('Products failed');
+  const products = (data.products ?? []).map(p => parseSiteProduct(p, world)).filter((p): p is Product => p !== null);
+  return pickAsked(products, ids);
 }
 
 // ---------- Newsletter (same endpoint and consent as the Hub page) ----------

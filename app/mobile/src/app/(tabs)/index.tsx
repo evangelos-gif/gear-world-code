@@ -3,7 +3,7 @@ import { Image } from 'expo-image';
 import { router } from 'expo-router';
 import { useRef } from 'react';
 import { RefreshControl, ScrollView, StyleSheet, View, type ScrollViewInstance } from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Deals } from '@/components/deals';
 import { Footer } from '@/components/footer';
@@ -23,13 +23,12 @@ import { C, MAX_WIDTH, R, S } from '@/theme';
 export default function Home() {
   const { t, list } = useI18n();
   const { worlds, loading, refresh, find } = useWorlds();
-  // Android draws the app behind its own buttons at the bottom: the list ends above them (owner, 4/11/2026).
-  const bottom = useSafeAreaInsets().bottom;
+  // The tab bar sits above the phone's own buttons (Android and iPhone), so the list needs no extra space at the bottom.
   const steps = list('steps');
   const scroll = useRef<ScrollViewInstance>(null);
   const places = useRef<Record<string, number>>({});
   // The Hub's deals: read when the app starts, and again when the person pulls down to refresh.
-  const { deals, loaded: dealsLoaded, reload: loadDeals } = useDeals();
+  const { deals, seasonsOn, loaded: dealsLoaded, reload: loadDeals } = useDeals();
 
   const today = ukDay(Date.now());
   const shownDeals = activeDeals(deals, today).slice(0, DEALS_SHOWN);
@@ -51,7 +50,7 @@ export default function Home() {
       </View>
       <ScrollView
         ref={scroll}
-        contentContainerStyle={[s.scroll, { paddingBottom: S.xxl + bottom }]}
+        contentContainerStyle={s.scroll}
         keyboardShouldPersistTaps="handled"
         refreshControl={<RefreshControl refreshing={loading} onRefresh={() => { refresh(); loadDeals(); }} tintColor={C.gold} colors={[C.gold]} />}>
         <View style={s.inner}>
@@ -59,10 +58,10 @@ export default function Home() {
             <Txt v="eyebrow">{t('heroEyebrow')}</Txt>
             <Txt v="title">{t('heroTitle1')} <Txt v="title" style={s.gold}>{t('heroTitle2')}</Txt></Txt>
             <Txt v="muted">{t('heroDesc')}</Txt>
-            <SearchBox onSearch={q => router.push({ pathname: '/search', params: { q } })} />
+            <SearchBox onSearch={q => router.push({ pathname: '/search', params: { q } })} onScan={() => router.navigate('/scan')} />
           </View>
 
-          <SeasonBanner hasDeals={shownDeals.length > 0} dealsLoaded={dealsLoaded} onTarget={goTo} />
+          <SeasonBanner hasDeals={shownDeals.length > 0} dealsLoaded={dealsLoaded} seasonsOn={seasonsOn} onTarget={goTo} />
 
           {shownDeals.length ? (
             <View style={s.section} onLayout={remember('deals')}>
