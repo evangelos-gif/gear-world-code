@@ -3010,7 +3010,7 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
     Add-Type -AssemblyName System.IO.Compression.FileSystem
     Write-Utf8 (Join-Path $work 'bk-zipsrc\members.csv') "email`ng1@shop-test.invalid`nh2@shop-test.invalid`ni3@shop-test.invalid`n"
     [System.IO.Compression.ZipFile]::CreateFromDirectory((Join-Path $work 'bk-zipsrc'), (Join-Path $bHome 'gear-world-hub\members-export.zip'))
-    for ($k = 1; $k -le 205; $k++) { Write-Utf8 (Join-Path $bHome ('gear-world-keys\k{0:D3}.ps1' -f $k)) ("`$apiKey = '" + ('Zz9' * 8) + "'`n") }
+    for ($k = 1; $k -le 420; $k++) { Write-Utf8 (Join-Path $bHome ('gear-world-keys\deploy-key-script-{0:D3}.ps1' -f $k)) ("`$apiKey = '" + ('Zz9' * 8) + "'`n") }
     Write-Utf8 (Join-Path $bHome 'gear-world-keys\readme.txt') 'how the old keys were made'
     # A warning before the JSON (L113), 3 databases: test-db (rowid, search, customer tables), prices-db (WITHOUT ROWID),
     # broken-db (one table fails). "noauth" in the state folder = wrangler not logged in.
@@ -3095,7 +3095,7 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         Check ($rt.Contains('gear-world-hub') -and $rt.Contains('test-db') -and $rt.Contains($ok) -and -not $rt.Contains('Documents')) 'backup plan: Gear World folders and databases, not other folders'
         Check ($rt.Contains('old-deploy.ps1') -and $rt.Contains('registry-export.sql') -and $rt.Contains('.dev.vars') -and $rt.Contains('.env.local') -and $rt.Contains('gear-world-secrets') -and -not $rt.Contains('notes.sql') -and -not $rt.Contains($fakeSecret) -and -not $rt.Contains('shop-test.invalid')) 'backup check: files with keys or customer e-mails listed as left out, by path only (L113)'
         Check ($rt.Contains('Σύνδεση wrangler: ΕΝΤΑΞΕΙ') -and $rt.Contains('ΤΕΛΟΣ ΕΛΕΓΧΟΥ BACKUP')) 'backup check: wrangler login checked past a warning, last line written'
-        Check ($rt.Contains('big-export.sql') -and $rt.Contains('old-list.csv.gz') -and $rt.Contains('members-export.zip') -and $rt.Contains('old.7z')) 'backup check: e-mails found past the first 4 MB, inside .gz and .zip; .7z left out (L113)'
+        Check ($rt.Contains('big-export.sql  (έχει emails)') -and $rt.Contains('old-list.csv.gz  (έχει emails)') -and $rt.Contains('members-export.zip  (έχει emails)') -and $rt.Contains('old.7z  (αρχείο .7z')) 'backup check: e-mails found past the first 1 MB pieces, inside .gz and .zip; .7z left out (L113)'
         Check ($rt.Contains('feeds-list.txt') -and $rt.Contains('push.cmd') -and $rt.Contains('remote.txt') -and -not $rt.Contains('site.config.js') -and -not $rt.Contains(('ab12' * 8))) 'backup check: Awin feed key, GitHub token and password in a link found; a public sitekey is not a key (L113)'
         Check ((Run-B @('-ScanMaxMB', '1')) -eq 0 -and (Get-BReport).Contains('big-export.sql  (πάνω από 1 MB')) 'backup check: a file over -ScanMaxMB stays out (L113)'
         Check ((Run-B @('-Apply')) -eq 1 -and -not (Test-Path -LiteralPath $bTarget) -and (Get-BReport).Contains('-Approve')) 'backup -Apply without -Approve: stops at once without asking, writes nothing (L113)'
@@ -3123,13 +3123,20 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         Write-Utf8 (Join-Path $bTarget 'd1\test-db\newsletter-0001.json') '[{"results":[]}]'
         Write-Utf8 (Join-Path $f 'gear-world-hub\gone-list.csv') "x1@shop-test.invalid`nx2@shop-test.invalid`nx3@shop-test.invalid`n"
         Write-Utf8 (Join-Path $f 'gear-world-hub\gone-notes.txt') 'old notes'
+        # A file open in another program (locked) cannot be checked now: its old copy on the drive must stay (L113).
+        Write-Utf8 (Join-Path $bHome 'gear-world-hub\locked-notes.txt') 'new notes'
+        Write-Utf8 (Join-Path $f 'gear-world-hub\locked-notes.txt') 'old locked copy'
         Check ((Run-B @()) -eq 0 -and (Test-Path -LiteralPath (Join-Path $f 'gear-world-hub\.dev.vars')) -and (Get-BReport).Contains('παλιά αντίγραφα')) 'backup check: old copies of keys and customers on the drive reported, not removed'
-        $code = Run-B @('-Apply', '-Approve', ('egkrino backup ' + $drive))
+        $lock = [System.IO.File]::Open((Join-Path $bHome 'gear-world-hub\locked-notes.txt'), 'Open', 'Read', 'None')
+        try { $code = Run-B @('-Apply', '-Approve', ('egkrino backup ' + $drive)) } finally { $lock.Close() }
         $rt = Get-BReport
         Check ($code -eq 12 -and $rt.Contains('broken-db.bad') -and $rt.TrimEnd().EndsWith('ΤΕΛΟΣ BACKUP')) 'backup with approval and one failing table: goes on to the end (exit 12, ΤΕΛΟΣ BACKUP)'
         Check ($rt.Contains('broken-db.grow: δεν έφτασα στο τέλος')) 'backup: a WITHOUT ROWID table that does not end is a problem, not a silent cut (L113)'
         Check ((-not (Test-Path -LiteralPath (Join-Path $f 'gear-world-hub\gone-list.csv'))) -and (Test-Path -LiteralPath (Join-Path $f 'gear-world-hub\gone-notes.txt'))) 'backup: an old drive file no longer on the PC is read: e-mails removed, notes kept (L113)'
-        Check ((@(Get-ChildItem -LiteralPath (Join-Path $f 'gear-world-keys') -Filter '*.ps1' -File -ErrorAction SilentlyContinue).Count -eq 0) -and (Test-Path -LiteralPath (Join-Path $f 'gear-world-keys\readme.txt'))) 'backup: 205 key files left out (names only for robocopy), the readme copied (L113)'
+        Check ((@(Get-ChildItem -LiteralPath (Join-Path $f 'gear-world-keys') -Filter '*.ps1' -File -ErrorAction SilentlyContinue).Count -eq 0) -and (Test-Path -LiteralPath (Join-Path $f 'gear-world-keys\readme.txt'))) 'backup: 420 key files left out, the readme copied (L113)'
+        Check ($rt.Contains('αρχεία έξω, άρα μένουν έξω και όσα έχουν το ίδιο όνομα')) 'backup: too many paths for robocopy: names only, and the report says so (L113)'
+        Check ($rt.Contains('locked-notes.txt  (δεν διαβάστηκε') -and $rt.Contains('το παλιό τους αντίγραφο στον δίσκο μένει') -and (Test-Path -LiteralPath (Join-Path $f 'gear-world-hub\locked-notes.txt')) -and ([System.IO.File]::ReadAllText((Join-Path $f 'gear-world-hub\locked-notes.txt'))).Contains('old locked copy')) 'backup: a locked file is not copied, and its old copy on the drive is kept (L113)'
+        Check (@(Get-ChildItem -LiteralPath (Join-Path $bHome 'gear-world-reports') -Filter 'GW_LEFT_OUT_*.txt' -ErrorAction SilentlyContinue).Count -gt 0) 'backup: the whole left-out list written to a file on the PC'
         Check (-not (Test-Path -LiteralPath (Join-Path $f 'gear-world-import\big-export.sql')) -and -not (Test-Path -LiteralPath (Join-Path $f 'gear-world-hub\old-list.csv.gz')) -and -not (Test-Path -LiteralPath (Join-Path $f 'gear-world-hub\members-export.zip')) -and -not (Test-Path -LiteralPath (Join-Path $f 'gear-world-hub\old.7z')) -and (Test-Path -LiteralPath (Join-Path $f 'gear-world-hub\site.config.js'))) 'backup: big export, .gz, .zip and .7z not on the drive; the config with a sitekey is (L113)'
         Check ($rt.Contains('ξύπνιος') -and $rt.Contains('κανονικό ύπνο')) 'backup: PC kept awake while it runs, back to normal at the end'
         Check ((Test-Path -LiteralPath (Join-Path $f 'gear-world-hub\worker.js')) -and (Test-Path -LiteralPath (Join-Path $f 'gear-world-hub\notes.sql')) -and (Test-Path -LiteralPath (Join-Path $f 'construction-gear-world-engine\backups\note.txt')) -and (Test-Path -LiteralPath (Join-Path $f 'sporty-gear-world\wrangler.jsonc'))) 'backup: Gear World folders copied (a new site folder too)'

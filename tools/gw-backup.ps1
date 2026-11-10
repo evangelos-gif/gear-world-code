@@ -22,7 +22,7 @@
   NOT on the drive (the drive is not encrypted): .dev.vars, .env, key files (*.pem, *.key ...), the folder
   gear-world-secrets, any file with a key or token in it, any file with several e-mail addresses that are not ours
   (text files, .gz, .zip/.xlsx/.docx and SQLite files are read; .7z/.rar cannot be read and stay out), files over
-  -ScanMaxMB (200 MB) that could not be read through, locked files, and the rows of customer tables (hub_subscribers,
+  -ScanMaxMB (200 MB; read in 1 MB pieces) that could not be read through, locked files, and the rows of customer tables (hub_subscribers,
   customers, newsletter, reward_*, any table with an e-mail or IP column, rate counters): for those only the number of
   rows. The report lists every file left out, by path only. Old copies of such files from an earlier backup are
   removed from the drive (also when the file is no longer on the PC). The keys live as Cloudflare secrets, the
@@ -76,13 +76,14 @@ $ScanExt = @('', '.sql', '.csv', '.tsv', '.json', '.jsonl', '.ndjson', '.txt', '
 # a private key block, a Bearer token or a JWT. The begin marker is split so the repo's own secret scan does not match it.
 # Both have a 5-second limit per file, so one odd file can never hold the backup up.
 $RxLimit = [TimeSpan]::FromSeconds(5)
-$RxNone = [System.Text.RegularExpressions.RegexOptions]::None
+$RxNone = [System.Text.RegularExpressions.RegexOptions]::Compiled # compiled: much faster on .NET Framework
 $SecretRx = [System.Text.RegularExpressions.Regex]::new(('(?i)(-----BEGIN ' + '[A-Z ]*PRIVATE KEY-----' + '|\b(?![A-Za-z0-9_]*site_?key\b)[A-Za-z0-9_]*(?:key|token|secret|password|passwd|pwd)\b["'']?\s*[:=]\s*["'']?(?=[A-Za-z_\-+/]*[0-9])(?=[0-9_\-+/]*[A-Za-z])[A-Za-z0-9_\-+/=]{20,}' + '|/api' + 'key/[A-Za-z0-9]{16,}' + '|\bgh[pousr]_[A-Za-z0-9]{30,}' + '|\bgithub' + '_pat_[A-Za-z0-9_]{40,}' + '|://[^\s/:@]+:[^\s/@]{8,}@' + '|\bBearer\s+(?=[A-Za-z_\-\.]*[0-9])[A-Za-z0-9_\-\.]{20,}' + '|\beyJ[A-Za-z0-9_\-]{10,}\.eyJ[A-Za-z0-9_\-]{10,}\.)'), $RxNone, $RxLimit)
 # An address starts only where a run of address characters starts (the lookbehind keeps the search linear).
 $EmailRx = [System.Text.RegularExpressions.Regex]::new('(?<![A-Za-z0-9._%+\-])[A-Za-z0-9._%+\-]+@(?:[A-Za-z0-9\-]+\.)+[A-Za-z]{2,24}\b', $RxNone, $RxLimit)
 # Addresses that are not customers: our domains, examples, services; and file names such as logo@2x.png.
 $NotCustomerRx = '(?i)(@|\.)(gearworldhub\.com|gearworldgroup\.com|[a-z]*gearworld\.com|example\.(com|org|net)|users\.noreply\.github\.com|anthropic\.com|cloudflare\.com|w3\.org)$|^(no-?reply|noreply)@|\.(png|jpe?g|gif|svg|webp|avif|ico|js|mjs|css|map|json|html?)$'
 $EmailLimit = 3 # a file with this many different customer-like addresses stays out
+$ScanBuf = New-Object char[] 1048576 # one buffer for every file read
 $ArchiveOut = @('.7z', '.rar', '.tgz', '.tar') # cannot be read here: they stay out
 $ZipExt = @('.zip', '.xlsx', '.xlsm', '.docx')
 # Tables whose rows never go to the drive, only their number (lessons L113): customers, sign-ups, rewards, users,
@@ -148,18 +149,20 @@ function Finish([int]$code) {
     if ($script:Finishing) { exit $code }
     $script:Finishing = $true
     if ($script:Awake) { [void](Set-Awake $false); Say 'Ο υπολογιστής γύρισε στον κανονικό ύπνο.' }
-    [void](Set-QuickEdit $true)
+    if ($null -ne $script:ConsoleMode) { [void](Set-QuickEdit $true) }
     if ($Apply) { Say 'ΤΕΛΟΣ BACKUP' 'Cyan'; Set-Title 'GW BACKUP - ΤΕΛΟΣ' }
     else { Say 'ΤΕΛΟΣ ΕΛΕΓΧΟΥ BACKUP (δεν γράφτηκε τίποτα στον δίσκο)' 'Cyan' }
     $file = Join-Path $OutDir ('GW_BACKUP_{0}.txt' -f $stamp)
     $text = $L -join "`r`n"
+    $written = $false
     try {
         if (-not (Test-Path -LiteralPath $OutDir)) { New-Item -ItemType Directory -Path $OutDir -Force | Out-Null }
         [System.IO.File]::WriteAllText($file, $text, (New-Object System.Text.UTF8Encoding($true)))
+        $written = $true
     } catch { Write-Host ('Η αναφορά δεν γράφτηκε στο {0}: {1}' -f $file, $_.Exception.Message) -ForegroundColor Red }
     if (-not $NoClipboard) { try { Set-Clipboard -Value $text } catch { } }
     Write-Host ''
-    Write-Host ('Η αναφορά γράφτηκε: {0}' -f $file)
+    if ($written) { Write-Host ('Η αναφορά γράφτηκε: {0}' -f $file) }
     if (-not $NoClipboard) { Write-Host 'Αντιγράφηκε στο πρόχειρο. Πήγαινε στη συζήτηση με το Claude και πάτα Ctrl+V.' -ForegroundColor Green }
     exit $code
 }
@@ -183,10 +186,10 @@ function Test-SecretName([string]$name) {
     foreach ($p in $SecretNames) { if ($name -like $p) { return $true } }
     return $false
 }
-# Reads text in 4 MB pieces (the last 512 characters again at the start of the next piece, so nothing is missed at an
+# Reads text in 1 MB pieces (the last 512 characters again at the start of the next piece, so nothing is missed at an
 # edge) and returns 'key', 'emails' or ''. A regex that runs out of time throws: the caller makes it 'slow'.
 function Test-TextReader([System.IO.TextReader]$reader) {
-    $buf = New-Object char[] 4194304
+    $buf = $ScanBuf
     $tail = ''
     $seen = @{}
     while ($true) {
@@ -392,12 +395,17 @@ function Backup-Table([string]$db, [string]$t, [string]$sql, [string]$dir) {
         if ($null -eq $c -or $c.Count -eq 0) { return @{ ok = $false; mode = 'σελίδες με κλειδί'; rows = -1; pages = 0 } }
         $n = [long]$c[0].n
         $order = Get-OrderBy $sql
-        $ok = $true; $page = 0; $done = $false; $read = [long]0
+        $ok = $true; $page = 0; $done = $false; $read = [long]0; $fails = 0
         $max = [long][Math]::Ceiling($n / $PageRows) * 2 + 10
         for ($i = 0; $i -lt $max; $i++) {
             $x = Invoke-Wrangler $WorkDir ('d1 execute {0} --remote --json --command "SELECT * FROM {1}{2} LIMIT {3} OFFSET {4}"' -f $db, $t, $order, $PageRows, ($i * [long]$PageRows))
             $j = Get-JsonText $x.text
-            if ($x.code -ne 0 -or -not $j) { $ok = $false; Say ('  ΠΡΟΒΛΗΜΑ: {0}.{1} σελίδα {2}' -f $db, $t, ($i + 1)) 'Red'; continue }
+            if ($x.code -ne 0 -or -not $j) {
+                $ok = $false; $fails++; Say ('  ΠΡΟΒΛΗΜΑ: {0}.{1} σελίδα {2}' -f $db, $t, ($i + 1)) 'Red'
+                if ($fails -ge 3) { Say ('  ΠΡΟΒΛΗΜΑ: {0}.{1}: 3 σελίδες στη σειρά απέτυχαν, ο πίνακας σταμάτησε' -f $db, $t) 'Red'; $done = $true; break }
+                continue
+            }
+            $fails = 0
             $got = -1
             try { $got = @(($j | ConvertFrom-Json)[0].results).Count } catch { $got = -1 }
             if ($got -lt 0) { $ok = $false; Say ('  ΠΡΟΒΛΗΜΑ: {0}.{1} σελίδα {2} δεν διαβάστηκε' -f $db, $t, ($i + 1)) 'Red'; continue }
@@ -415,7 +423,7 @@ function Backup-Table([string]$db, [string]$t, [string]$sql, [string]$dir) {
     $range = Select-Rows $db ('SELECT MIN(rowid) AS a, MAX(rowid) AS b, COUNT(*) AS n FROM {0}' -f $t)
     if ($null -eq $range -or $range.Count -eq 0) { return @{ ok = $false; mode = 'σελίδες με rowid'; rows = -1; pages = 0 } }
     $n = [long]$range[0].n
-    $ok = $true; $page = 0
+    $ok = $true; $page = 0; $fails = 0
     if ($n -gt 0) {
         $lo = [long]$range[0].a; $hi = [long]$range[0].b
         for ($s = $lo; $s -le $hi; $s += $PageRows) {
@@ -423,7 +431,12 @@ function Backup-Table([string]$db, [string]$t, [string]$sql, [string]$dir) {
             $e = $s + $PageRows - 1
             $x = Invoke-Wrangler $WorkDir ('d1 execute {0} --remote --json --command "SELECT rowid AS _rowid, * FROM {1} WHERE rowid BETWEEN {2} AND {3}"' -f $db, $t, $s, $e)
             $j = Get-JsonText $x.text
-            if ($x.code -ne 0 -or -not $j) { $ok = $false; Say ('  ΠΡΟΒΛΗΜΑ: {0}.{1} σελίδα {2}' -f $db, $t, $page) 'Red'; continue }
+            if ($x.code -ne 0 -or -not $j) {
+                $ok = $false; $fails++; Say ('  ΠΡΟΒΛΗΜΑ: {0}.{1} σελίδα {2}' -f $db, $t, $page) 'Red'
+                if ($fails -ge 3) { Say ('  ΠΡΟΒΛΗΜΑ: {0}.{1}: 3 σελίδες στη σειρά απέτυχαν, ο πίνακας σταμάτησε' -f $db, $t) 'Red'; break }
+                continue
+            }
+            $fails = 0
             [System.IO.File]::WriteAllText((Join-Path $dir ('{0}-{1:D4}.json' -f $t, $page)), $j, $enc)
         }
     }
@@ -450,7 +463,8 @@ function Clear-DriveSensitive([bool]$Remove, $flaggedRel) {
             if ($f.FullName.StartsWith($feedsOnDrive + '\', [System.StringComparison]::OrdinalIgnoreCase)) { continue }
             $pc = Join-Path $HomeDir $f.FullName.Substring($files.Length).TrimStart('\', '/')
             if (Test-Path -LiteralPath $pc) { continue }
-            $why = Get-SensitiveReason $f.FullName
+            $why = ''
+            try { $why = Get-SensitiveReason $f.FullName } catch { $why = 'unreadable' }
             if ($why -eq 'key' -or $why -eq 'emails') { Add-Found $f.FullName }
             elseif ($why) { $script:DriveUnchecked++ }
         }
@@ -624,10 +638,24 @@ if (@(Get-ChildItem -LiteralPath $HomeDir -Directory -Force -ErrorAction Silentl
 $why = @{ name = 'αρχείο κλειδιών'; key = 'έχει κλειδί/token'; emails = 'έχει emails'; slow = 'δεν ελέγχθηκε εγκαίρως'; unreadable = 'δεν διαβάστηκε (ανοιχτό ή κλειδωμένο)'; archive = 'αρχείο .7z/.rar ή zip μέσα σε zip, δεν διαβάζεται'; big = ('πάνω από {0} MB, δεν ελέγχθηκε' -f $ScanMaxMB) }
 $shown = 0
 foreach ($o in $outAll) {
-    if ($shown -ge 60) { Say ('  ... και {0} ακόμα' -f ($outAll.Count - $shown)); break }
+    if ($shown -ge 60) { Say ('  ... και {0} ακόμα (όλη η λίστα στο αρχείο παρακάτω)' -f ($outAll.Count - $shown)); break }
     Say ('  {0}  ({1})' -f $o.rel, $why[$o.reason]); $shown++
 }
-$flaggedRel = @($outAll | ForEach-Object { $_.rel })
+if ($outAll.Count -gt 0) {
+    # The whole list, on this PC only (paths, never contents).
+    $outList = Join-Path $OutDir ('GW_LEFT_OUT_{0}.txt' -f $stamp)
+    try {
+        if (-not (Test-Path -LiteralPath $OutDir)) { New-Item -ItemType Directory -Path $OutDir -Force | Out-Null }
+        [System.IO.File]::WriteAllText($outList, ((@($outAll | ForEach-Object { '{0}  ({1})' -f $_.rel, $why[$_.reason] }) -join "`r`n") + "`r`n"), (New-Object System.Text.UTF8Encoding($true)))
+        Say ('  Όλη η λίστα: {0}' -f $outList)
+    } catch { }
+}
+# A file that could not be checked now (locked, or the check ran out of time) keeps its old copy on the drive: it was
+# checked or copied before, and deleting it would only lose the backup (lessons L113).
+$keepOld = @('unreadable', 'slow')
+$flaggedRel = @($outAll | Where-Object { $keepOld -notcontains $_.reason } | ForEach-Object { $_.rel })
+$keptOld = @($outAll | Where-Object { $keepOld -contains $_.reason }).Count
+if ($keptOld -gt 0) { Say ('  {0} από αυτά δεν διαβάστηκαν τώρα (κλειδωμένα ή αργά): το παλιό τους αντίγραφο στον δίσκο μένει.' -f $keptOld) 'Yellow' }
 $old = Clear-DriveSensitive $false $flaggedRel
 if ($old.found -gt 0) { Say ('  Στον δίσκο υπάρχουν {0} παλιά αντίγραφα τέτοιων αρχείων ή πινάκων πελατών: με -Apply σβήνονται από τον δίσκο.' -f $old.found) 'Yellow' }
 if ($script:DriveUnchecked -gt 0) { Say ('  Στον δίσκο υπάρχουν {0} παλιά αρχεία που δεν είναι πια στον υπολογιστή και δεν διαβάστηκαν (μεγάλα ή κλειδωμένα): μένουν όπως είναι.' -f $script:DriveUnchecked) 'Yellow' }
@@ -697,12 +725,15 @@ foreach ($c in $copies) {
         $outDirs = @($c.out | Where-Object { $_.dir } | ForEach-Object { $_.path })
         $outFiles = @($c.out | Where-Object { -not $_.dir } | ForEach-Object { $_.path })
         if ($c.files.Count -gt 0) { $a += $c.files } else { $a += @('/E', '/XD') + $SkipDirs + $outDirs }
-        # Full paths keep the exclusion exact. With very many, the command line would be too long (32K): then the file
-        # names only (a file of the same name elsewhere in this folder stays out too, which is safe) (lessons L113).
-        $xf = $outFiles
-        if ($outFiles.Count -gt 200) { $xf = @($outFiles | ForEach-Object { [System.IO.Path]::GetFileName($_) } | Sort-Object -Unique) }
-        $xf = @($SecretNames) + $xf
+        # Full paths keep the exclusion exact. If the command line would be too long (32K), the file names only: a file
+        # of the same name elsewhere in this folder then stays out too, which is safe, and the report says so (L113).
+        $xf = @($SecretNames) + $outFiles
         $len = (($a + $xf) | ForEach-Object { ([string]$_).Length + 3 } | Measure-Object -Sum).Sum
+        if ($len -gt 28000) {
+            $xf = @($SecretNames) + @($outFiles | ForEach-Object { [System.IO.Path]::GetFileName($_) } | Sort-Object -Unique)
+            $len = (($a + $xf) | ForEach-Object { ([string]$_).Length + 3 } | Measure-Object -Sum).Sum
+            Say ('  {0}: {1} αρχεία έξω, άρα μένουν έξω και όσα έχουν το ίδιο όνομα σε αυτόν τον φάκελο' -f $c.rel, $outFiles.Count) 'Yellow'
+        }
         if ($len -gt 30000) { throw ('πάρα πολλά αρχεία μένουν έξω ({0}): ο φάκελος δεν αντιγράφηκε' -f $outFiles.Count) }
         $a += @('/XF') + $xf
         $a += @('/R:1', '/W:1', '/XJ', '/NP', '/NFL', '/NDL', '/NJH', '/NJS')
@@ -711,8 +742,10 @@ foreach ($c in $copies) {
         if ($rc -ge 8) { $problems++; Say ('  ΠΡΟΒΛΗΜΑ στο {0} (robocopy {1})' -f $c.src, $rc) 'Red' }
         else { Say ('  OK  {0}' -f $c.dst) }
     } catch { $problems++; Say ('  ΠΡΟΒΛΗΜΑ στο {0}: {1}' -f $c.src, $_.Exception.Message) 'Red' }
-    # Safety net, always: what the scan found must not be on the drive, even if robocopy took it.
+    # Safety net, always: what the scan found must not be on the drive, even if robocopy took it. Not for what could not
+    # be checked now: its old copy stays (see above).
     foreach ($o in $c.out) {
+        if ($keepOld -contains $o.reason) { continue }
         try {
             $p = Join-Path $c.dst $o.rel
             if (Test-Path -LiteralPath $p) { Remove-Item -LiteralPath $p -Recurse -Force }
