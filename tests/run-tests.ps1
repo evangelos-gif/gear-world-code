@@ -549,6 +549,8 @@ if ($isWin) {
         'echo %* >> "%GW_FAKE_STATE%\calls.log"',
         'echo %* | findstr /C:"whoami" >nul && goto whoami',
         'echo %* | findstr /C:"status --non-interactive" >nul && goto snap',
+        'echo %* | findstr /C:"build:list --platform ios --status finished" >nul && goto iosdone',
+        'echo %* | findstr /C:"submit --platform ios --id" >nul && goto iossubmit',
         'echo %* | findstr /C:"build --platform android --profile preview" >nul && goto build',
         'echo %* | findstr /C:"build --platform ios --profile production --auto-submit" >nul && goto ios',
         'echo %* | findstr /C:"build:list --platform ios" >nul && goto ioslist',
@@ -556,6 +558,12 @@ if ($isWin) {
         'echo %* | findstr /C:"build --platform android --profile production" >nul && goto aab',
         'echo unknown command 1>&2',
         'exit /b 1',
+        ':iosdone',
+        ('echo [{"id":"' + $fakeIosId + '","platform":"IOS","status":"FINISHED","appVersion":"1.0.1","appBuildVersion":"5"}]'),
+        'exit /b 0',
+        ':iossubmit',
+        'echo Submitted to TestFlight',
+        'exit /b 0',
         ':snap',
         'echo Recent builds: iOS 1.0.1 (5) in queue',
         'exit /b 0',
@@ -614,6 +622,13 @@ if ($isWin) {
         if ($stRep.Count -eq 1) { $stText = [System.IO.File]::ReadAllText($stRep[0].FullName) }
         Check ($stText.Contains('builds/' + $fakeIosId) -and $stText.Contains('IN_QUEUE') -and $stText.Contains('in queue')) 'app status: report has the iPhone build, its state and the Expo summary'
         Check (((AdCalls) -match 'build:list --platform ios') -and ((AdCalls) -match 'status --non-interactive') -and -not ((AdCalls) -match 'build --platform|submit')) 'app status: read-only, starts and sends nothing'
+        [System.IO.File]::WriteAllText($adCalls, '')
+        Check ((Run-Ad @('-SubmitIos', '-IosApprove', 'wrong')) -eq 1 -and -not ((AdCalls) -match 'submit --platform')) 'iPhone resend wrong phrase: nothing sent'
+        Check ((Run-Ad @('-SubmitIos', '-IosApprove', 'ΕΓΚΡΙΝΩ GEAR WORLD IOS TESTFLIGHT')) -eq 0) 'iPhone resend with approval: exit 0'
+        Check (((AdCalls) -match ('submit --platform ios --id ' + $fakeIosId + ' --profile production --wait')) -and -not ((AdCalls) -match 'build --platform')) 'iPhone resend: the ready build goes to TestFlight again, nothing is rebuilt'
+        Check (-not ((AdCalls) -match 'submit --platform ios[^\r\n]*--non-interactive')) 'iPhone resend: interactive, so the Apple sign-in happens in the window'
+        $srRep = @(Get-ChildItem -LiteralPath $adOut -Filter 'GW_APP_DEV_*.txt' | Sort-Object LastWriteTime | Select-Object -Last 1)
+        Check ($srRep.Count -eq 1 -and ([System.IO.File]::ReadAllText($srRep[0].FullName)).Contains('1.0.1 (5)') -and ([System.IO.File]::ReadAllText($srRep[0].FullName)).Contains('TestFlight')) 'iPhone resend: report names the build and TestFlight'
 
         # 9c. Google Play file (AAB): built, waited for, and only then downloaded (never sent to Google Play)
         $playDir = Join-Path (Join-Path $work 'gear-world-app') 'play'

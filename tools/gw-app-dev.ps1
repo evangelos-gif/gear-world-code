@@ -17,6 +17,9 @@
   -StartOnly starts the app server again from the existing folder (nothing is copied or installed).
   -Status (READ-ONLY) shows the latest iPhone builds in the Expo cloud (waiting, building, ready or failed) and the
     latest uploads to the stores. It starts, sends and changes nothing; it needs no approval phrase.
+  -SubmitIos with the phrase ΕΓΚΡΙΝΩ GEAR WORLD IOS TESTFLIGHT (-IosApprove) sends the latest READY iPhone build again
+    to TestFlight (for example after Apple answered the first upload with a server error). Nothing is rebuilt and
+    nothing becomes public. It may ask in this window for the Apple account sign-in and the 2FA code.
   -BuildApk with the phrase ΕΓΚΡΙΝΩ GEAR WORLD APP BUILD (-BuildApprove) starts a test APK build in the Expo cloud
     (EAS Build, profile "preview", account in app.json) and reports the link to install it on the phone.
     Nothing is sent to Google Play or the App Store. Works together with -Apply (fresh copy first) or on its own.
@@ -37,6 +40,7 @@ param(
     [switch]$InstallNode,
     [switch]$StartOnly,
     [switch]$Status,
+    [switch]$SubmitIos,
     [switch]$BuildApk,
     [string]$BuildApprove = '',
     [switch]$BuildIos,
@@ -214,6 +218,66 @@ function Show-Status([string]$dir) {
             if ($clean) { Say ('  ' + $clean) }
         }
     }
+}
+
+# Sends the latest finished iPhone build to TestFlight again (no new build). Asks for the iPhone phrase first.
+function Submit-Ios([string]$dir) {
+    Say ''
+    Say 'iPhone: νέα αποστολή του έτοιμου build στο TestFlight (χωρίς νέο build).' 'Cyan'
+    $proj = Get-EasProject $dir
+    $owner = $proj.owner; $slug = $proj.slug
+    $notLoggedIn = $false
+    $list = ''
+    Push-Location -LiteralPath $dir
+    try {
+        $env:EAS_NO_VCS = '1'
+        $env:EAS_PROJECT_ROOT = $dir
+        $env:EXPO_NO_TELEMETRY = '1'
+        $who = & npx.cmd --yes eas-cli@latest whoami
+        if ($LASTEXITCODE -ne 0) { $notLoggedIn = $true }
+        else { $list = (& npx.cmd --yes eas-cli@latest build:list --platform ios --status finished --limit 1 --json --non-interactive | Out-String).Trim() }
+    } finally {
+        Pop-Location
+        Remove-Item Env:\EAS_NO_VCS, Env:\EAS_PROJECT_ROOT -ErrorAction SilentlyContinue
+    }
+    if ($notLoggedIn) {
+        Say 'Δεν είσαι συνδεδεμένος στο Expo σε αυτόν τον υπολογιστή. Στείλε αυτή την αναφορά στο Claude.' 'Red'
+        Finish 4
+    }
+    $build = $null
+    try { foreach ($b in ($list | ConvertFrom-Json)) { if ($b.id) { $build = $b; break } } } catch { $build = $null }
+    if (-not $build) { Say 'Δεν βρήκα έτοιμο iPhone build στο Expo. Στείλε αυτή την αναφορά στο Claude.' 'Red'; Finish 2 }
+    $id = [string]$build.id
+    if ($id -notmatch '^[0-9a-fA-F-]{36}$') { Say 'Ο αριθμός του build δεν είναι σωστός. Στείλε αυτή την αναφορά στο Claude.' 'Red'; Finish 2 }
+    $ver = ('{0} ({1})' -f [string]$build.appVersion, [string]$build.appBuildVersion)
+    Say ('  Build που θα σταλεί: {0}' -f $ver)
+    Say ('  Link: https://expo.dev/accounts/{0}/projects/{1}/builds/{2}' -f $owner, $slug, $id)
+    Say '  Πηγαίνει μόνο στο TestFlight (ιδιωτικό). ΔΕΝ γίνεται δημόσιο και ΔΕΝ στέλνεται για έλεγχο στην Apple.'
+    if (-not (Confirm-Approval $IosPhrase $IosApprove)) { Say 'Δεν δόθηκε έγκριση: σταμάτησα χωρίς αλλαγές.' 'Yellow'; Finish 1 }
+    Say ('Έγκριση: {0}' -f $IosPhrase) 'Green'
+    Say '  Αν ρωτήσει για τον λογαριασμό Apple: Y, το email του Apple Account, ο κωδικός και ο κωδικός 6 ψηφίων, μόνο σε αυτό το παράθυρο.'
+    Say '  Η αποστολή παίρνει συνήθως 5-15 λεπτά. Άφησε το παράθυρο ανοιχτό μέχρι να τελειώσει.'
+    Push-Location -LiteralPath $dir
+    try {
+        $env:EAS_NO_VCS = '1'
+        $env:EAS_PROJECT_ROOT = $dir
+        $env:EXPO_NO_TELEMETRY = '1'
+        Write-Host ''
+        & npx.cmd --yes eas-cli@latest submit --platform ios --id $id --profile production --wait
+        $code = $LASTEXITCODE
+    } finally {
+        Pop-Location
+        Remove-Item Env:\EAS_NO_VCS, Env:\EAS_PROJECT_ROOT -ErrorAction SilentlyContinue
+    }
+    Say ''
+    if ($code -ne 0) {
+        Say ('Η αποστολή στο TestFlight δεν πέτυχε (κωδικός {0}). Στείλε την αναφορά και μια φωτογραφία της οθόνης στο Claude.' -f $code) 'Red'
+        Say ('  Λίστα αποστολών: https://expo.dev/accounts/{0}/projects/{1}/submissions' -f $owner, $slug)
+        Finish 9
+    }
+    Say ('Το iPhone build {0} στάλθηκε στο TestFlight.' -f $ver) 'Green'
+    Say '  Σε 10-30 λεπτά φαίνεται στο App Store Connect: https://appstoreconnect.apple.com/apps  ->  Gear World  ->  TestFlight.'
+    Say '  Η Apple στέλνει και email όταν ολοκληρωθεί η επεξεργασία.'
 }
 
 function Start-Expo([string]$dir) {
@@ -535,7 +599,7 @@ function Confirm-Builds {
     return $true
 }
 
-Say ('GEAR WORLD APP DEV - {0} - {1}' -f $(if ($Apply -or $InstallNode -or $BuildApk -or $BuildIos -or $BuildAab) { 'APPLY (με έγκριση)' } elseif ($StartOnly) { 'ΕΚΚΙΝΗΣΗ' } elseif ($Status) { 'ΚΑΤΑΣΤΑΣΗ (μόνο ανάγνωση)' } else { 'ΜΟΝΟ ΕΛΕΓΧΟΣ' }), (Get-Date -Format 'yyyy-MM-dd HH:mm'))
+Say ('GEAR WORLD APP DEV - {0} - {1}' -f $(if ($Apply -or $InstallNode -or $BuildApk -or $BuildIos -or $BuildAab -or $SubmitIos) { 'APPLY (με έγκριση)' } elseif ($StartOnly) { 'ΕΚΚΙΝΗΣΗ' } elseif ($Status) { 'ΚΑΤΑΣΤΑΣΗ (μόνο ανάγνωση)' } else { 'ΜΟΝΟ ΕΛΕΓΧΟΣ' }), (Get-Date -Format 'yyyy-MM-dd HH:mm'))
 Say ('Code version: {0}' -f (Split-Path -Leaf $repo))
 
 # 1. Node.js
@@ -571,6 +635,13 @@ if ($Status) {
     if (-not (Test-Path -LiteralPath (Join-Path $Target 'app.json'))) { Say 'Η εφαρμογή δεν έχει στηθεί ακόμα σε αυτόν τον υπολογιστή. Τρέξε πρώτα την εντολή με -Apply.' 'Red'; Finish 2 }
     if (-not $node.ok) { Say 'Πρώτα χρειάζεται νεότερο Node.js.' 'Red'; Finish 3 }
     Show-Status $Target
+    Finish 0
+}
+
+if ($SubmitIos) {
+    if (-not (Test-Path -LiteralPath (Join-Path $Target 'app.json'))) { Say 'Η εφαρμογή δεν έχει στηθεί ακόμα σε αυτόν τον υπολογιστή. Τρέξε πρώτα την εντολή με -Apply.' 'Red'; Finish 2 }
+    if (-not $node.ok) { Say 'Πρώτα χρειάζεται νεότερο Node.js.' 'Red'; Finish 3 }
+    Submit-Ios $Target
     Finish 0
 }
 
