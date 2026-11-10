@@ -38,10 +38,13 @@ test('only offers that run today are shown; codes first; the last day still coun
   assert.deepEqual(activePromos(siteWith([{ ...live, end: '' }])), [], 'an offer without an end date is never shown');
 });
 
-test('the Joybuy data: every entry has an end date, an Awin advertiser id and a known landing page', () => {
+test('the promos data: every entry has an end date, an Awin advertiser id and a known landing page', () => {
+  // Each retailer's own site, the landing page its email gave (lessons L32; Tooled Up and My Tool Shed since L114).
+  const HOMES = { Joybuy: /^https:\/\/www\.joybuy\.co\.uk\//, 'Tooled Up': /^https:\/\/www\.tooled-up\.com\//, 'My Tool Shed': /^https:\/\/www\.mytoolshed\.co\.uk\// };
   for (const p of PROMOS) {
     assert.match(p.end, /^\d{4}-\d{2}-\d{2}$/, p.id);
-    assert.ok(p.awinMid > 0 && /^https:\/\/www\.joybuy\.co\.uk\//.test(p.url), p.id);
+    assert.ok(HOMES[p.retailer], `${p.id}: a retailer with a known landing page`);
+    assert.ok(p.awinMid > 0 && HOMES[p.retailer].test(p.url), p.id);
     assert.ok(p.source, `${p.id}: source of the offer`);
   }
   assert.equal(new Set(PROMOS.map(p => p.id)).size, PROMOS.length, 'ids are unique');

@@ -36,6 +36,23 @@ const JOYBUY = { retailer: 'Joybuy', slug: 'joybuy', awinMid: 123932, currency: 
 const JOYBUY_EMAIL = 'Awin email "Joybuy UK" to UK partners, received 20 Oct 2026';
 const JOYDAY_EMAIL = 'Awin email "Joybuy UK - Joyday campaign - Oct" to UK partners, received 26 Oct 2026 (approved by the owner 28 Oct 2026)';
 
+// Tooled Up and My Tool Shed: their own Black Friday voucher codes (owner's decision «Γ1», 10 Nov 2026, lessons L114).
+// Only the retailers' codes show, as the retailer's campaign in the small print of the code card: no Gear World
+// "Black Friday" banner, countdown or slide (SEASONS_ON['black-friday'] above stays false) and no top bar.
+// Both emails say the same: the campaign runs from 9:30am Monday 9 November 2026 until midnight Sunday 6 December 2026
+// (UK time), while stocks last; CLAIMFIFTY £50 off orders of £500 or more and CLAIMSEVFY £75 off orders of £750 or more,
+// valid 9 Nov - 6 Dec; one voucher code per order, entered at checkout; prices and availability may change. "Coming
+// soon: 15% off selected Einhell tools" is not live yet, so it is not here.
+// Sites: only where the retailer has products in the UK view (live /api/stats retailer_names, 10 Nov 2026: Tooled Up on
+// CGW, GGW, AGW, BGW; My Tool Shed on CGW and GGW). Both are UK retailers (deliversTo default GB on those sites).
+const TOOLED_UP = { retailer: 'Tooled Up', slug: 'tooled-up', awinMid: 496, currency: 'GBP', sites: ['CGW', 'GGW', 'AGW', 'BGW'],
+  url: 'https://www.tooled-up.com/black-friday-offers-while-stocks-last/landing/336/',
+  source: 'Awin email "Tooled Up (496): Black Friday 2026 Is Live: Four Weekly Drops", received 9 Nov 2026 (owner\'s decision «Γ1», 10 Nov 2026)' };
+const MY_TOOL_SHED = { retailer: 'My Tool Shed', slug: 'my-tool-shed', awinMid: 49385, currency: 'GBP', sites: ['CGW', 'GGW'],
+  url: 'https://www.mytoolshed.co.uk/black-friday-offers-while-stocks-last/landing/336/',
+  source: 'Awin email "My Tool Shed (49385): Black Friday 2026 Is Live: Four Weekly Drops", received 9 Nov 2026 (owner\'s decision «Γ1», 10 Nov 2026)' };
+const BLACK_FRIDAY_2026 = { kind: 'code', campaign: 'Black Friday', start: '2026-11-09', end: '2026-12-06' };
+
 export const PROMOS = [
   // The four Joybuy Halloween codes (halloween, beauty, sports, tools; email of 20 Oct 2026) were removed on 9 Nov 2026:
   // a Halloween code and its top bar in November look like a stale offer (Google Ads compliance, lessons L107).
@@ -50,7 +67,12 @@ export const PROMOS = [
   { ...JOYBUY, id: 'joybuy-hotpot', kind: 'sale', campaign: 'Hotpot & Asian Food',
     url: 'https://www.joybuy.co.uk/minihome/UK-Mini-HP-CN-Food', sites: ['HGW'], start: '2026-10-20', end: '2026-12-31', source: JOYBUY_EMAIL },
   { ...JOYBUY, id: 'joybuy-joy-day', kind: 'coupon', campaign: 'Joy Day', off: 15, minSpend: 99,
-    url: 'https://www.joybuy.co.uk/campaign/active/ojYViWn7U8SqEeb4F2gE5Uw4MdW', sites: ['TGW'], start: '2026-10-26', end: '2026-10-31', source: JOYDAY_EMAIL }
+    url: 'https://www.joybuy.co.uk/campaign/active/ojYViWn7U8SqEeb4F2gE5Uw4MdW', sites: ['TGW'], start: '2026-10-26', end: '2026-10-31', source: JOYDAY_EMAIL },
+  // The retailers' own Black Friday codes (lessons L114): 9 Nov - 6 Dec 2026, no bar.
+  { ...TOOLED_UP, ...BLACK_FRIDAY_2026, id: 'tooled-up-claimfifty', code: 'CLAIMFIFTY', off: 50, minSpend: 500 },
+  { ...TOOLED_UP, ...BLACK_FRIDAY_2026, id: 'tooled-up-claimsevfy', code: 'CLAIMSEVFY', off: 75, minSpend: 750 },
+  { ...MY_TOOL_SHED, ...BLACK_FRIDAY_2026, id: 'my-tool-shed-claimfifty', code: 'CLAIMFIFTY', off: 50, minSpend: 500 },
+  { ...MY_TOOL_SHED, ...BLACK_FRIDAY_2026, id: 'my-tool-shed-claimsevfy', code: 'CLAIMSEVFY', off: 75, minSpend: 750 }
 ];
 
 export function promosFor(siteCode) {

@@ -56,6 +56,78 @@
       "start": "2026-10-20",
       "end": "2026-12-31",
       "link": "https://homegearworld.com/discount-codes/joybuy/"
+    },
+    {
+      "id": "tooled-up-claimfifty",
+      "retailer": "Tooled Up",
+      "slug": "tooled-up",
+      "kind": "code",
+      "campaign": "Black Friday",
+      "currency": "GBP",
+      "sites": [
+        "CGW",
+        "GGW",
+        "AGW",
+        "BGW"
+      ],
+      "start": "2026-11-09",
+      "end": "2026-12-06",
+      "link": "https://constructiongearworld.com/discount-codes/tooled-up/",
+      "off": 50,
+      "minSpend": 500
+    },
+    {
+      "id": "tooled-up-claimsevfy",
+      "retailer": "Tooled Up",
+      "slug": "tooled-up",
+      "kind": "code",
+      "campaign": "Black Friday",
+      "currency": "GBP",
+      "sites": [
+        "CGW",
+        "GGW",
+        "AGW",
+        "BGW"
+      ],
+      "start": "2026-11-09",
+      "end": "2026-12-06",
+      "link": "https://constructiongearworld.com/discount-codes/tooled-up/",
+      "off": 75,
+      "minSpend": 750
+    },
+    {
+      "id": "my-tool-shed-claimfifty",
+      "retailer": "My Tool Shed",
+      "slug": "my-tool-shed",
+      "kind": "code",
+      "campaign": "Black Friday",
+      "currency": "GBP",
+      "sites": [
+        "CGW",
+        "GGW"
+      ],
+      "start": "2026-11-09",
+      "end": "2026-12-06",
+      "link": "https://constructiongearworld.com/discount-codes/my-tool-shed/",
+      "off": 50,
+      "minSpend": 500
+    },
+    {
+      "id": "my-tool-shed-claimsevfy",
+      "retailer": "My Tool Shed",
+      "slug": "my-tool-shed",
+      "kind": "code",
+      "campaign": "Black Friday",
+      "currency": "GBP",
+      "sites": [
+        "CGW",
+        "GGW"
+      ],
+      "start": "2026-11-09",
+      "end": "2026-12-06",
+      "link": "https://constructiongearworld.com/discount-codes/my-tool-shed/",
+      "off": 75,
+      "minSpend": 750
     }
   ]
 }
