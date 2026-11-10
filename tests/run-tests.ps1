@@ -3218,7 +3218,7 @@ if ($isWin) {
         & $exe -NoProfile -ExecutionPolicy Bypass -File $wTool -HomeDir $wHome -SkipPosterStats -BackupCheck -NoClipboard | Out-Null
         $code2 = $LASTEXITCODE
         $wr2 = Get-WReport
-        Check ($code2 -ne 0 -and $wr2.Contains('=== 6.') -and $wr2.Contains('gw-backup (έλεγχος) exit ' + $code2) -and $wr2.Contains('ΤΕΛΟΣ BACKUP') -and $wr2.TrimEnd().EndsWith('ΤΕΛΟΣ ΕΛΕΓΧΟΥ') -and -not $wr2.Contains($wSecret)) 'wrangler check -BackupCheck: the backup check (no -Apply) runs and its report is added (L114)'
+        Check ($code2 -ne 0 -and $wr2.Contains('=== 6.') -and $wr2.Contains('gw-backup (έλεγχος) exit ' + $code2) -and $wr2.Contains('ΤΕΛΟΣ ΕΛΕΓΧΟΥ BACKUP') -and $wr2.TrimEnd().EndsWith('ΤΕΛΟΣ ΕΛΕΓΧΟΥ') -and -not $wr2.Contains($wSecret)) 'wrangler check -BackupCheck: the backup check (no -Apply) runs and its report is added (L114)'
         Check ((Get-WFiles) -eq $wBefore) 'wrangler check: no file changed outside the reports folder'
     } finally {
         $env:PATH = $oldPath

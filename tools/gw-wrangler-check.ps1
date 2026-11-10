@@ -65,7 +65,7 @@ if ($SkipPosterStats) {
     $run = Join-Path $PSScriptRoot 'gw-run.ps1'
     & $exe -NoProfile -ExecutionPolicy Bypass -File $run -Ref $WranglerRef -Tool poster-stats -NoClipboard
     Say ('poster-stats exit {0}' -f $LASTEXITCODE)
-    $ps = Get-Newest (Join-Path $HOME 'gear-world-reports') 'POSTER_STATS_*.txt' $t1
+    $ps = @(Get-Newest (Join-Path $HOME 'gear-world-reports') 'POSTER_STATS_*.txt' $t1)
     if ($ps.Count) { $L.Add((Get-Content -LiteralPath $ps[0].FullName -Raw -Encoding UTF8).TrimEnd()) } else { Say 'ΔΕΝ γράφτηκε αναφορά poster-stats' 'Yellow' }
 }
 
@@ -124,7 +124,7 @@ if ($BackupCheck) {
     & $exe -NoProfile -ExecutionPolicy Bypass -File $bk -HomeDir $HomeDir -OutDir $OutDir -NoClipboard
     $bx = $LASTEXITCODE
     Say ('gw-backup (έλεγχος) exit {0}' -f $bx)
-    $br = Get-Newest $OutDir 'GW_BACKUP_*.txt' $t2
+    $br = @(Get-Newest $OutDir 'GW_BACKUP_*.txt' $t2)
     if ($br.Count) { $L.Add((Get-Content -LiteralPath $br[0].FullName -Raw -Encoding UTF8).TrimEnd()) } else { Say 'ΔΕΝ γράφτηκε αναφορά backup' 'Yellow' }
 }
 
