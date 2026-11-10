@@ -11,14 +11,14 @@ import { cartPage, parseCartItems, cartQuery, SAVED_PATH } from './pages/cart.js
 import { exchangeRates } from './lib/fx.js';
 import { translationsFor } from './lib/hub.js';
 import { offersIndexPage, retailerOffersPage, OFFERS_PATH } from './pages/offers.js';
-import { findPromo } from './lib/promos.js';
+import { findPromo, promoViewSite } from './lib/promos.js';
 import { campaignRefs } from './lib/ads.js';
 import { infoPage, infoPaths, notFoundPage, errorPage, dealUpdatesPage } from './pages/info.js';
 import { useSiteAssets, useRates, ukBarHtml } from './pages/layout.js';
 import { sitemapIndex, sitemapStatic, sitemapProducts, robotsTxt, SITEMAP_CHUNK } from './seo.js';
 import { posterScan } from './lib/poster-scan.js';
 import { guidePage, guidesIndexPage, findGuide, guideProductIds, listedGuides, allGuideProductIds, GUIDES_PATH } from './pages/guides.js';
-import { viewFor, homeView, hiddenReason, needsCheck, cacheKeyUrl, needsUkBar, now as clockNow } from './lib/visibility.js';
+import { viewFor, homeView, hiddenReason, needsCheck, cacheKeyUrl, needsUkBar, retailerInView, now as clockNow } from './lib/visibility.js';
 
 // Gear World Hub keeps the one list of members; sites reach it only through a service binding (lessons L92).
 // The address is not public: requests from the internet never carry this host name.
@@ -104,10 +104,15 @@ export function createWorker(site) {
     const at = localDay(env, host) ?? clockNow();
     const view = viewFor(site, requestCountry(request, url, path === '/api/products'), at);
     const ukView = homeView(site, at);
+    // The pages of this answer: the site with the visitor's view, so the discount codes, their footer link, the top bar
+    // and the seasonal banner above the codes follow the same retailers as the products (lessons L114). A copy for this
+    // request only: the shared config is read by other requests at the same time. Cached pages keep one copy per view
+    // group (cacheKeyUrl), so a code never shows in another group's copy.
+    const shown = promoViewSite(site, view);
 
     // POST endpoints
     if (method === 'POST') {
-      if (path === '/api/newsletter' && (hubReady(env) || !db.isLegacy())) return newsletter(request, env, url);
+      if (path === '/api/newsletter' && (hubReady(env) || !db.isLegacy())) return newsletter(request, env, url, shown);
       if (path === '/api/csp-report') return cspReport(request);
       return textResponse('Not found', { status: 404, cache: 'none' });
     }
@@ -137,14 +142,14 @@ export function createWorker(site) {
         const data = await db.homeData(env.DB, site.categories.map(c => c.slug), { view });
         marked(view, data.deals);
         marked(view, data.newest);
-        return htmlResponse(homePage(site, data), { method });
+        return htmlResponse(homePage(shown, data), { method });
       }, view);
     }
 
     let m = path.match(/^\/category\/([a-z0-9-]+)\/$/);
     if (m) {
       const cat = categories.get(m[1]);
-      if (!cat) return notFound(path, method);
+      if (!cat) return notFound(path, method, shown);
       return cached(request, env, ctx, async () => {
         const p = readListingParams(url);
         // ?sub= only for a subcategory the site config lists for this category (ZGW birds); anything else is ignored.
@@ -157,9 +162,9 @@ export function createWorker(site) {
           db.facets(env.DB, cat.slug, subMatch, view),
           cat.subcategories && cat.subcategories.length ? db.subcategoryCounts(env.DB, cat.slug, cat.subcategories, view) : null
         ]);
-        if (p.page > 1 && p.page > result.pages && !hasFilters(p)) return notFound(path, method);
+        if (p.page > 1 && p.page > result.pages && !hasFilters(p)) return notFound(path, method, shown);
         marked(view, result.products);
-        return htmlResponse(categoryPage(site, cat, p, result, facets, subCounts), { method });
+        return htmlResponse(categoryPage(shown, cat, p, result, facets, subCounts), { method });
       }, view);
     }
 
@@ -169,19 +174,19 @@ export function createWorker(site) {
         const product = await db.getProduct(env.DB, Number(m[2]));
         if (!product) {
           const alt = await db.activeVariantOf(env.DB, Number(m[2]));
-          return alt ? redirect(new URL(productPath(alt), url.origin).toString(), 301) : notFound(path, method);
+          return alt ? redirect(new URL(productPath(alt), url.origin).toString(), 301) : notFound(path, method, shown);
         }
         const canonical = productPath(product);
         if (canonical !== path) return redirect(new URL(canonical, url.origin).toString(), 301);
         // Not for this visitor (another country's retailer, or a price older than 30 days): the old link still opens,
         // with a notice, no price or button, noindex, and nothing else read (lessons L107).
         const reason = hiddenReason(view, product);
-        if (reason) return htmlResponse(hiddenProductPage(site, product, categories.get(product.category_slug), reason), { method });
+        if (reason) return htmlResponse(hiddenProductPage(shown, product, categories.get(product.category_slug), reason), { method });
         const [similar, offers] = await Promise.all([db.similarProducts(env.DB, product, 8, { view }), db.offersFor(env.DB, product, 12, { view })]);
         marked(view, [product]);
         marked(view, similar);
         marked(view, offers);
-        return htmlResponse(productPage(site, product, categories.get(product.category_slug), similar, offers), { method });
+        return htmlResponse(productPage(shown, product, categories.get(product.category_slug), similar, offers), { method });
       }, view);
     }
 
@@ -189,7 +194,7 @@ export function createWorker(site) {
       if (path === '/compare') return redirect(new URL('/compare/' + url.search, url.origin).toString(), 301);
       const ids = parseCompareIds(url);
       const products = marked(view, (await db.getProductsByIds(env.DB, ids)).filter(x => !hiddenReason(view, x)));
-      return htmlResponse(comparePage(site, products, ids), { method, cache: 'short' });
+      return htmlResponse(comparePage(shown, products, ids), { method, cache: 'short' });
     }
 
     // The saved list (lessons L101). The older "Gear Cart" addresses (/cart/, also in bookmarks and old pages in a
@@ -201,7 +206,7 @@ export function createWorker(site) {
     if (site.cart && path === SAVED_PATH) {
       const items = parseCartItems(url, site.cart);
       const products = marked(view, (await db.getProductsByIds(env.DB, items.map(x => x.id))).filter(x => !hiddenReason(view, x)));
-      return htmlResponse(cartPage(site, products, items), { method, cache: 'short' });
+      return htmlResponse(cartPage(shown, products, items), { method, cache: 'short' });
     }
 
     if (path === '/search') {
@@ -217,7 +222,7 @@ export function createWorker(site) {
         : [{ result: { products: [], total: 0, page: 1, pages: 0 }, used: '' }, null];
       const searchFacets = q && found.used ? await db.searchFacets(env.DB, found.used, view) : firstFacets;
       marked(view, found.result.products);
-      return htmlResponse(searchPage(site, q, p, found.result, found.used, searchFacets), { method, cache: 'short' });
+      return htmlResponse(searchPage(shown, q, p, found.result, found.used, searchFacets), { method, cache: 'short' });
     }
 
     if (path === '/deals/') {
@@ -225,9 +230,9 @@ export function createWorker(site) {
         const p = readListingParams(url);
         // Below their RRP, in stock, and checked in the last 14 days (lessons L107).
         const result = await db.listProducts(env.DB, { onSale: true, inStock: true, view, fresh: true }, { sort: 'saving', page: p.page, perPage: PER_PAGE });
-        if (p.page > 1 && p.page > result.pages) return notFound(path, method);
+        if (p.page > 1 && p.page > result.pages) return notFound(path, method, shown);
         marked(view, result.products);
-        return htmlResponse(dealsPage(site, p, result), { method });
+        return htmlResponse(dealsPage(shown, p, result), { method });
       }, view);
     }
 
@@ -237,32 +242,32 @@ export function createWorker(site) {
     if (site.guides && site.guides.length && path === GUIDES_PATH) {
       return cached(request, env, ctx, async () => {
         const products = (await db.getGuideProducts(env.DB, allGuideProductIds(site))).filter(x => !hiddenReason(view, x));
-        return htmlResponse(guidesIndexPage(site, listedGuides(site, products)), { method });
+        return htmlResponse(guidesIndexPage(shown, listedGuides(site, products)), { method });
       }, view);
     }
     m = path.match(/^\/guides\/([a-z0-9-]{1,80})\/$/);
     if (m) {
       const guide = findGuide(site, m[1]);
-      if (!guide) return notFound(path, method);
+      if (!guide) return notFound(path, method, shown);
       return cached(request, env, ctx, async () => {
         // A product the visitor may not see counts as no longer listed: the guide hides its price and button (L107).
         const products = marked(view, (await db.getGuideProducts(env.DB, guideProductIds(guide))).filter(x => !hiddenReason(view, x)));
-        return htmlResponse(guidePage(site, guide, products), { method });
+        return htmlResponse(guidePage(shown, guide, products), { method });
       }, view);
     }
 
     if (infoPaths().includes(path)) {
-      return htmlResponse(infoPage(site, path), { method, cache: 'page' });
+      return htmlResponse(infoPage(shown, path), { method, cache: 'page' });
     }
 
-    if (path === OFFERS_PATH) return htmlResponse(offersIndexPage(site), { method, cache: 'page' });
+    if (path === OFFERS_PATH) return htmlResponse(offersIndexPage(shown), { method, cache: 'page' });
     m = path.match(/^\/discount-codes\/([a-z0-9-]{1,40})\/$/);
     if (m) {
-      const html = retailerOffersPage(site, m[1]);
-      return html ? htmlResponse(html, { method, cache: 'page' }) : notFound(path, method);
+      const html = retailerOffersPage(shown, m[1]);
+      return html ? htmlResponse(html, { method, cache: 'page' }) : notFound(path, method, shown);
     }
     m = path.match(/^\/go\/([a-z0-9-]{1,60})\/?$/);
-    if (m) return promoOut(request, env, ctx, url, m[1]);
+    if (m) return promoOut(request, env, ctx, url, m[1], view, shown);
 
     m = path.match(/^\/out\/(\d+)\/?$/);
     if (m) return outbound(request, env, ctx, url, Number(m[1]), view);
@@ -278,7 +283,8 @@ export function createWorker(site) {
       const guides = site.guides && site.guides.length
         ? listedGuides(site, (await db.getGuideProducts(env.DB, allGuideProductIds(site))).filter(x => !hiddenReason(ukView, x)))
         : [];
-      return textResponse(sitemapStatic(site, counts, guides), { type: 'application/xml', method });
+      // The codes pages in the sitemap: the UK view, like everything else in it (lessons L114).
+      return textResponse(sitemapStatic(promoViewSite(site, ukView), counts, guides), { type: 'application/xml', method });
     }
     m = path.match(/^\/sitemap-products-(\d+)\.xml$/);
     if (m) {
@@ -300,7 +306,7 @@ export function createWorker(site) {
 
     // Static assets (public/) are served by Cloudflare before the Worker runs; anything else is a 404.
     if (env.ASSETS && /^\/(assets\/|favicon\.ico$)/.test(path)) return env.ASSETS.fetch(request);
-    return notFound(path, method);
+    return notFound(path, method, shown);
   }
 
   // When a model may translate a search (src/lib/hub.js, F03, lessons L106): never for a bot, and never when the Hub
@@ -331,8 +337,8 @@ export function createWorker(site) {
     return withEdgeCache(request, ctx, produce, env, cacheKeyUrl(request.url, view));
   }
 
-  function notFound(path, method) {
-    return htmlResponse(notFoundPage(site, path), { status: 404, cache: 'short', method });
+  function notFound(path, method, pageSite = site) {
+    return htmlResponse(notFoundPage(pageSite, path), { status: 404, cache: 'short', method });
   }
 
   async function outbound(request, env, ctx, url, id, view) {
@@ -377,9 +383,12 @@ export function createWorker(site) {
   }
 
   // /go/<promo id>: a discount code or sale goes to the retailer as an Awin deep link with our clickref.
-  async function promoOut(request, env, ctx, url, id) {
+  // A code whose retailer is not in the visitor's view goes to its codes page (which then shows no code), never to the
+  // retailer, like /out/ for a product the visitor may not see (lessons L107, L114). No click is recorded.
+  async function promoOut(request, env, ctx, url, id, view = null, pageSite = site) {
     const promo = findPromo(site, id);
-    if (!promo) return notFound(url.pathname, request.method);
+    if (!promo) return notFound(url.pathname, request.method, pageSite);
+    if (!retailerInView(view, promo.retailer)) return redirect(new URL(`${OFFERS_PATH}${promo.slug}/`, url.origin).toString(), 302, { 'X-Robots-Tag': 'noindex, nofollow' });
     const clickRef = `${site.code.toLowerCase()}-promo-${promo.id}`.slice(0, 50);
     const awin = { publisherId: site.awinPublisherId, advertisers: { [promo.retailer]: promo.awinMid } };
     const target = affiliateTarget(promo.url, promo.retailer, awin, clickRef, campaignRefs(url));
@@ -449,11 +458,11 @@ export function createWorker(site) {
   // Sign-up for deal updates. With the service binding HUB (lessons L92) the address goes to the one member list of
   // Gear World Hub, for every site, older ones included (their own databases do not change, L28). Without it, newer
   // sites keep their own newsletter table as before. Works as a plain form post (an HTML answer) or as JSON.
-  async function newsletter(request, env, url) {
+  async function newsletter(request, env, url, pageSite = site) {
     const ctype = (request.headers.get('content-type') || '').toLowerCase();
     const isForm = ctype.includes('application/x-www-form-urlencoded') || ctype.includes('multipart/form-data');
     const answer = (ok, message, status) => (isForm
-      ? htmlResponse(dealUpdatesPage(site, ok, message), { status, cache: 'none' })
+      ? htmlResponse(dealUpdatesPage(pageSite, ok, message), { status, cache: 'none' })
       : jsonResponse(ok ? { ok: true, message } : { ok: false, error: message }, { status }));
     const origin = request.headers.get('origin');
     if (origin && origin !== url.origin) return answer(false, 'This form only works on this website.', 403);
@@ -570,7 +579,10 @@ export function createWorker(site) {
         response = await handle(request, env, ctx);
       } catch (err) {
         console.error('request failed', err && err.stack ? err.stack : err);
-        response = htmlResponse(errorPage(site), { status: 500, cache: 'none' });
+        // The error page lists the codes of the visitor's view too (lessons L114).
+        let pageSite = site;
+        try { pageSite = promoViewSite(site, viewFor(site, requestCountry(request, new URL(request.url)))); } catch { pageSite = site; }
+        response = htmlResponse(errorPage(pageSite), { status: 500, cache: 'none' });
       }
       // The bar for a visitor outside the UK who gets the UK view (lessons L107, owner's option A): added to the answer
       // after the page cache, never into a cached copy, so it costs no D1 read and no extra cache copy.

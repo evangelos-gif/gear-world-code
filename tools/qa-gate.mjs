@@ -419,7 +419,10 @@ if (site && site.awin && site.awin.advertisers) {
 // Discount codes (lessons L32): only while an offer runs; every button goes through /go/ to Awin.
 if (site && (site.promos || []).length) {
   const { activePromos } = await import(pathToFileURL(resolve('src/lib/promos.js')).href);
-  const act = activePromos(site);
+  const { homeView } = await import(pathToFileURL(resolve('src/lib/visibility.js')).href);
+  // A code shows only to a visitor whose view lists its retailer (lessons L114). This checker asks without a country
+  // (or from outside Europe, like the crawlers and reviewers): the UK view.
+  const act = activePromos(site, Date.now(), homeView(site));
   const idx = await get('/discount-codes/');
   htmlChecks('/discount-codes/', idx, { indexable: act.length > 0 });
   // The top bar shows the first running offer that has a bar emoji (src/lib/promos.js barPromo); a running sale without
@@ -436,8 +439,10 @@ if (site && (site.promos || []).length) {
     check('L32', (r.body.match(/Valid until/g) || []).length >= act.filter(p => p.slug === slug).length, `${path}: every offer shows its end date`);
     check('L32', !/awin1\.com/.test(r.body), `${path}: buttons go through /go/, never straight to Awin`);
     // Lessons L103: the retailer name (and the code in the offer bar) stays untranslated wherever the language puts it.
-    const shopAt = all(r.body, /<span data-i18n="Shop at \{0\}"([^>]*)>Shop at <span translate="no">[^<]+<\/span><\/span>/g);
-    check('L103', shopAt.length >= act.filter(x => x.slug === slug).length && shopAt.every(m => /data-i18n-keep="0"/.test(m[1])), `${path}: "Shop at <retailer>" keeps the retailer name untranslated`);
+    // The button of a code card is "View at <retailer>", never "Shop at" (owner's rule, stricter than L103: lessons L114).
+    const viewAtBtn = all(r.body, /<a class="btn btn-deal" href="\/go\/[a-z0-9-]+"[^>]*><span data-i18n="View at \{0\}"([^>]*)>View at <span translate="no">[^<]+<\/span><\/span><\/a>/g);
+    check('L103', viewAtBtn.length >= act.filter(x => x.slug === slug).length && viewAtBtn.every(m => /data-i18n-keep="0"/.test(m[1])), `${path}: "View at <retailer>" keeps the retailer name untranslated`);
+    check('L114', !/Shop at|data-i18n="Shop at/.test(r.body), `${path}: no "Shop at" on the code cards`);
     check('L103', /<h1><span data-i18n="\{0\} discount codes" data-i18n-0="[^"]+" data-i18n-keep="0"><span translate="no">[^<]+<\/span> discount codes<\/span><\/h1>/.test(r.body), `${path}: the heading keeps the retailer name untranslated`);
     check('L32', staticUrls.includes(canonicalOrigin + path), `sitemap-static lists ${path}`);
     for (const p of act.filter(x => x.slug === slug).slice(0, 2)) {

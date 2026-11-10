@@ -201,6 +201,16 @@ export function isShown(view, row) {
   return hiddenReason(view, row) === '';
 }
 
+// Is a retailer in this view, by its delivery countries only (no date)? The discount codes follow the same rule as the
+// products: a code shows only to a visitor whose view lists its retailer (lessons L114). No view: every retailer.
+export function retailerInView(view, retailer) {
+  if (!view) return true;
+  const r = typeof retailer === 'string' ? retailer : String(retailer ?? '');
+  if (view.hidden && view.hidden.includes(r)) return false;
+  if (view.only && !view.only.includes(r)) return false;
+  return true;
+}
+
 // Checked 14-30 days ago: no stock claim, "Check price and stock at the retailer" (the price check date stays).
 export function needsCheck(view, row) {
   if (!view || !view.checkFrom || !row) return false;
