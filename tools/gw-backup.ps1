@@ -25,7 +25,8 @@
   -ScanMaxMB (200 MB; read in 1 MB pieces) that could not be read through, locked files, and the rows of customer tables (hub_subscribers,
   customers, newsletter, reward_*, any table with an e-mail or IP column, rate counters): for those only the number of
   rows. The report lists every file left out, by path only. Old copies of such files from an earlier backup are
-  removed from the drive (also when the file is no longer on the PC). The keys live as Cloudflare secrets, the
+  removed from the drive (also when the file is no longer on the PC); a file that is locked or too slow to check now
+  keeps its old copy, unless that old copy itself has a key or e-mails. The keys live as Cloudflare secrets, the
   customers in D1 and MailerLite. The Awin feeds are copied without reading them (they are product data).
   While it runs the PC is kept awake and the screen on (SetThreadExecutionState, no power setting is changed), and a
   click in the window does not pause it; at the end both are normal again.
@@ -76,10 +77,10 @@ $ScanExt = @('', '.sql', '.csv', '.tsv', '.json', '.jsonl', '.ndjson', '.txt', '
 # a private key block, a Bearer token or a JWT. The begin marker is split so the repo's own secret scan does not match it.
 # Both have a 5-second limit per file, so one odd file can never hold the backup up.
 $RxLimit = [TimeSpan]::FromSeconds(5)
-$RxNone = [System.Text.RegularExpressions.RegexOptions]::Compiled # compiled: much faster on .NET Framework
-$SecretRx = [System.Text.RegularExpressions.Regex]::new(('(?i)(-----BEGIN ' + '[A-Z ]*PRIVATE KEY-----' + '|\b(?![A-Za-z0-9_]*site_?key\b)[A-Za-z0-9_]*(?:key|token|secret|password|passwd|pwd)\b["'']?\s*[:=]\s*["'']?(?=[A-Za-z_\-+/]*[0-9])(?=[0-9_\-+/]*[A-Za-z])[A-Za-z0-9_\-+/=]{20,}' + '|/api' + 'key/[A-Za-z0-9]{16,}' + '|\bgh[pousr]_[A-Za-z0-9]{30,}' + '|\bgithub' + '_pat_[A-Za-z0-9_]{40,}' + '|://[^\s/:@]+:[^\s/@]{8,}@' + '|\bBearer\s+(?=[A-Za-z_\-\.]*[0-9])[A-Za-z0-9_\-\.]{20,}' + '|\beyJ[A-Za-z0-9_\-]{10,}\.eyJ[A-Za-z0-9_\-]{10,}\.)'), $RxNone, $RxLimit)
+$RxOpts = [System.Text.RegularExpressions.RegexOptions]::Compiled # compiled: much faster on .NET Framework
+$SecretRx = [System.Text.RegularExpressions.Regex]::new(('(?i)(-----BEGIN ' + '[A-Z ]*PRIVATE KEY-----' + '|\b(?![A-Za-z0-9_]*site_?key\b)[A-Za-z0-9_]*(?:key|token|secret|password|passwd|pwd)\b["'']?\s*[:=]\s*["'']?(?=[A-Za-z_\-+/]*[0-9])(?=[0-9_\-+/]*[A-Za-z])[A-Za-z0-9_\-+/=]{20,}' + '|/api' + 'key/[A-Za-z0-9]{16,}' + '|\bgh[pousr]_[A-Za-z0-9]{30,}' + '|\bgithub' + '_pat_[A-Za-z0-9_]{40,}' + '|://[^\s/:@]+:[^\s/@]{8,}@' + '|\bBearer\s+(?=[A-Za-z_\-\.]*[0-9])[A-Za-z0-9_\-\.]{20,}' + '|\beyJ[A-Za-z0-9_\-]{10,}\.eyJ[A-Za-z0-9_\-]{10,}\.)'), $RxOpts, $RxLimit)
 # An address starts only where a run of address characters starts (the lookbehind keeps the search linear).
-$EmailRx = [System.Text.RegularExpressions.Regex]::new('(?<![A-Za-z0-9._%+\-])[A-Za-z0-9._%+\-]+@(?:[A-Za-z0-9\-]+\.)+[A-Za-z]{2,24}\b', $RxNone, $RxLimit)
+$EmailRx = [System.Text.RegularExpressions.Regex]::new('(?<![A-Za-z0-9._%+\-])[A-Za-z0-9._%+\-]+@(?:[A-Za-z0-9\-]+\.)+[A-Za-z]{2,24}\b', $RxOpts, $RxLimit)
 # Addresses that are not customers: our domains, examples, services; and file names such as logo@2x.png.
 $NotCustomerRx = '(?i)(@|\.)(gearworldhub\.com|gearworldgroup\.com|[a-z]*gearworld\.com|example\.(com|org|net)|users\.noreply\.github\.com|anthropic\.com|cloudflare\.com|w3\.org)$|^(no-?reply|noreply)@|\.(png|jpe?g|gif|svg|webp|avif|ico|js|mjs|css|map|json|html?)$'
 $EmailLimit = 3 # a file with this many different customer-like addresses stays out
@@ -642,19 +643,28 @@ foreach ($o in $outAll) {
     Say ('  {0}  ({1})' -f $o.rel, $why[$o.reason]); $shown++
 }
 if ($outAll.Count -gt 0) {
-    # The whole list, on this PC only (paths, never contents).
+    # The whole list (paths, never contents). It sits in gear-world-reports, which is copied to the drive too: paths only.
     $outList = Join-Path $OutDir ('GW_LEFT_OUT_{0}.txt' -f $stamp)
     try {
         if (-not (Test-Path -LiteralPath $OutDir)) { New-Item -ItemType Directory -Path $OutDir -Force | Out-Null }
         [System.IO.File]::WriteAllText($outList, ((@($outAll | ForEach-Object { '{0}  ({1})' -f $_.rel, $why[$_.reason] }) -join "`r`n") + "`r`n"), (New-Object System.Text.UTF8Encoding($true)))
         Say ('  Όλη η λίστα: {0}' -f $outList)
-    } catch { }
+    } catch { Say ('  Η πλήρης λίστα δεν γράφτηκε σε αρχείο: {0}' -f $_.Exception.Message) 'Yellow' }
 }
-# A file that could not be checked now (locked, or the check ran out of time) keeps its old copy on the drive: it was
-# checked or copied before, and deleting it would only lose the backup (lessons L113).
+# A file that could not be checked now (locked, or the check ran out of time) keeps its old copy on the drive, so the
+# backup is not lost. The old copy itself is read: if it has a key or e-mails (an earlier backup did not check), it
+# goes like the others (lessons L113).
 $keepOld = @('unreadable', 'slow')
-$flaggedRel = @($outAll | Where-Object { $keepOld -notcontains $_.reason } | ForEach-Object { $_.rel })
-$keptOld = @($outAll | Where-Object { $keepOld -contains $_.reason }).Count
+$flaggedList = New-Object System.Collections.Generic.List[string]
+$keptOld = 0
+foreach ($o in $outAll) {
+    if ($keepOld -notcontains $o.reason) { $flaggedList.Add($o.rel); continue }
+    $dc = Join-Path (Join-Path $Target 'files') $o.rel
+    $dr = ''
+    if (Test-Path -LiteralPath $dc -PathType Leaf) { try { $dr = Get-SensitiveReason $dc } catch { $dr = 'unreadable' } }
+    if ($dr -eq 'key' -or $dr -eq 'emails') { $flaggedList.Add($o.rel) } else { $keptOld++ }
+}
+$flaggedRel = @($flaggedList)
 if ($keptOld -gt 0) { Say ('  {0} από αυτά δεν διαβάστηκαν τώρα (κλειδωμένα ή αργά): το παλιό τους αντίγραφο στον δίσκο μένει.' -f $keptOld) 'Yellow' }
 $old = Clear-DriveSensitive $false $flaggedRel
 if ($old.found -gt 0) { Say ('  Στον δίσκο υπάρχουν {0} παλιά αντίγραφα τέτοιων αρχείων ή πινάκων πελατών: με -Apply σβήνονται από τον δίσκο.' -f $old.found) 'Yellow' }
@@ -745,7 +755,7 @@ foreach ($c in $copies) {
     # Safety net, always: what the scan found must not be on the drive, even if robocopy took it. Not for what could not
     # be checked now: its old copy stays (see above).
     foreach ($o in $c.out) {
-        if ($keepOld -contains $o.reason) { continue }
+        if (($keepOld -contains $o.reason) -and ($flaggedRel -notcontains (Join-Path $c.rel $o.rel))) { continue }
         try {
             $p = Join-Path $c.dst $o.rel
             if (Test-Path -LiteralPath $p) { Remove-Item -LiteralPath $p -Recurse -Force }
