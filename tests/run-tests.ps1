@@ -528,7 +528,7 @@ function Run-Ad([string[]]$a) {
 Check ((Run-Ad @()) -eq 0 -and -not (Test-Path -LiteralPath $adTarget)) 'app dev check: nothing written'
 Check ((Run-Ad @('-Apply', '-Approve', 'yes')) -eq 1 -and -not (Test-Path -LiteralPath $adTarget)) 'app dev wrong phrase: nothing written'
 Check ((Run-Ad @('-Apply', '-Approve', 'EGKRINO GEAR WORLD APP SETUP')) -eq 0) 'app dev with approval: exit 0'
-Check ((Test-Path -LiteralPath (Join-Path $adTarget 'package.json')) -and (Test-Path -LiteralPath (Join-Path $adTarget 'package-lock.json')) -and (Test-Path -LiteralPath (Join-Path $adTarget 'src\app\index.tsx')) -and -not (Test-Path -LiteralPath (Join-Path $adTarget 'node_modules'))) 'app dev: app code copied, without node_modules'
+Check ((Test-Path -LiteralPath (Join-Path $adTarget 'package.json')) -and (Test-Path -LiteralPath (Join-Path $adTarget 'package-lock.json')) -and (Test-Path -LiteralPath (Join-Path $adTarget 'src\app\(tabs)\index.tsx')) -and -not (Test-Path -LiteralPath (Join-Path $adTarget 'node_modules'))) 'app dev: app code copied, without node_modules'
 $adJson = Join-Path $adTarget 'app.json'
 [System.IO.File]::WriteAllText($adJson, ([System.IO.File]::ReadAllText($adJson)).Replace('"slug": "gear-world",', '"slug": "gear-world", "extra": { "eas": { "projectId": "test-project-id-123" } },'))
 Check ((Run-Ad @('-Apply', '-Approve', 'ΕΓΚΡΙΝΩ GEAR WORLD APP SETUP')) -eq 0 -and @(Get-ChildItem -LiteralPath (Join-Path (Join-Path $work 'gear-world-app') 'backups') -Directory -Filter 'mobile-*' -ErrorAction SilentlyContinue).Count -eq 1) 'app dev: existing folder moved to backup first'
