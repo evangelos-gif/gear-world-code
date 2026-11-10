@@ -10,6 +10,10 @@ import { useVoiceSearch } from '@/lib/use-voice-search';
 import { C, R, S } from '@/theme';
 import { Txt } from './ui';
 
+// Only for the store screenshots (app/brand-src/store_shots.py renders the web build): the web has no camera or voice
+// module, so this build flag draws their buttons as they look on a phone. Phone builds never set it.
+const STORE_SHOTS = process.env.EXPO_PUBLIC_STORE_SHOTS === '1';
+
 /** Opens the search screen with what the photo showed (the screen then searches all Gear Worlds). */
 const openPhotoResults = (answer: PhotoAnswer) =>
   router.push({ pathname: '/search', params: { q: answer.query, photo: encodePhotoParam(answer) } });
@@ -65,9 +69,9 @@ export function SearchBox({ initial = '', placeholder, onSearch, onPhoto = openP
         </Pressable>
       </View>
 
-      {tiles && (photo.supported || voice.supported) ? (
+      {tiles && (photo.supported || voice.supported || STORE_SHOTS) ? (
         <View style={s.tiles}>
-          {photo.supported ? (
+          {photo.supported || STORE_SHOTS ? (
             <Pressable accessibilityRole="button" accessibilityLabel={t('searchByPhoto')} accessibilityState={{ busy: photo.busy, disabled: photo.busy }}
               disabled={photo.busy} onPress={() => { voice.clearMessage(); photo.start(); }}
               style={({ pressed }) => [s.tile, pressed && s.pressed]}>
@@ -75,7 +79,7 @@ export function SearchBox({ initial = '', placeholder, onSearch, onPhoto = openP
               <Txt style={s.tileText} numberOfLines={2}>{t('searchByPhoto')}</Txt>
             </Pressable>
           ) : null}
-          {voice.supported ? (
+          {voice.supported || STORE_SHOTS ? (
             <Pressable accessibilityRole="button" accessibilityLabel={voice.listening ? t('voiceStop') : t('searchByVoice')}
               accessibilityState={{ busy: voice.listening }} onPress={() => { photo.clearMessage(); voice.toggle(); }}
               style={({ pressed }) => [s.tile, voice.listening && s.toolOn, pressed && s.pressed]}>

@@ -9,7 +9,7 @@ Gear World
 One search, every Gear World
 
 ## Promotional text
-Find products and compare prices from many retailers across 13 Gear Worlds. Search by typing, with your voice or with a photo, then buy on the retailer's website.
+Find products and compare prices from many retailers across 13 Gear Worlds. Search by typing, voice or photo, and save products to open them even offline.
 
 ## Keywords
 deals,prices,compare,tools,fashion,kids,home,garden,tech,car,travel,sport,motorbike,gaming,pets
@@ -30,7 +30,10 @@ THIS WEEK'S DEALS
 See the retailers' current offers, each with its end date. A deal opens the retailer's page on a Gear World website, where you see the offer and its terms.
 
 YOU BUY ON THE RETAILER'S WEBSITE
-Each product shows the price, stock and retailer. Tap "View at" and the retailer's website opens in your browser, where you complete your purchase on the retailer's own terms. Gear World takes no payments and sells nothing itself.
+Each product shows the price, who sells it and the stock at that retailer. Tap "View at" and the retailer's website opens in your browser, where you complete your purchase on the retailer's own terms. Gear World takes no payments and sells nothing itself.
+
+SAVE PRODUCTS, EVEN OFFLINE
+Tap Save on any product to keep it in the Saved tab, with its photo and price. Saved products open on your phone even without an internet connection.
 
 SEARCH WITH A PHOTO
 Seen something you like? Take a photo or pick one from your gallery, and Gear World finds similar products across every world. Your photo is only used to find products and is not saved.
@@ -59,19 +62,29 @@ Website: https://gearworldhub.com
 2026 Evangelos Kalogerakis
 
 ## App Review notes
-Gear World is the free mobile app of gearworldhub.com, the hub of the Gear World network of specialist websites that list products from retailers (tools and workwear, men, women, kids, home, garden, technology, car, travel, sport, motorbike, gaming and pets).
+Gear World 1.0.1: what changed after the review of 1.0.0 (Guideline 4.2.2)
 
-No account or sign-in is needed.
+Gear World is a free price-comparison app, run by Evangelos Kalogerakis, United Kingdom (contact@gearworldhub.com). It sells nothing and has no checkout or in-app purchases: people compare products from many retailers across 13 Gear Worlds, then buy on the retailer's own website.
 
-How to review:
-1. On the home screen, type a product (for example "backpack") and tap Search, or tap the microphone button and say it. The app asks for microphone and speech recognition permission only at that moment. Apple's speech recognition turns the speech into text; the app keeps no audio.
-2. Or tap the camera button, then "Take a photo" or "Choose from gallery". The app asks for camera permission only at that moment (the gallery uses the system photo picker). The photo is made smaller on the phone (max 1024 px JPEG, without location data), sent once to gearworldhub.com to name the product, and not stored. The words found go into the search box, and the products of the best-matching world come first.
-3. Results come from all Gear World sites at once and can be filtered by world.
-4. Tap a world (for example Technology) to browse its categories and sort by price.
-5. Open a product and tap "View at <retailer>". The retailer's website opens in Safari through an Awin affiliate link, and the purchase happens on the retailer's website. The app sells nothing itself and has no in-app purchases.
-6. The language button at the top of the home screen offers 11 languages. Settings (link at the bottom of the home screen) has the legal pages (privacy, terms, affiliate disclosure, contact).
-7. The home screen also shows the current season (for example Christmas or Black Friday) and this week's deals from the retailers. A deal opens its retailer page on a Gear World website in Safari; the app shows no codes itself.
+Version 1.0.1 adds features that work in the app itself:
 
-The affiliate disclosure is shown on the home screen and on every product page. There are no ads, no tracking and no analytics. The optional newsletter sign-up sends only the email address, with explicit consent, to gearworldhub.com.
+1. Saved products that open offline. Tap "+ Save" on any product. The Saved tab keeps the product, its photo and its price on the iPhone, and opens with no internet connection (for example in Airplane Mode).
+
+2. Search by photo and search by voice, as two big buttons on the first screen. A photo is taken with the camera or chosen from the gallery, made smaller on the iPhone, sent once to find the product, and not stored. Voice search uses Apple's speech recognition; the app keeps no audio.
+
+3. A native tab bar (Home, Saved, Settings) and native screens throughout. The app does not show our websites in a web view. Each product page says who sells it ("not by Gear World"), the stock at that retailer and the retailer's RRP where it gives one, and has a Share button for the iOS share sheet. Only "View at <retailer>" leaves the app: it opens the retailer's page in Safari through an affiliate link (Awin or CJ).
+
+How to review (no sign-in needed):
+1. Open the app. The first screen shows the search field and the "Search by photo" and "Search by voice" buttons.
+2. Tap "Search by voice" and say "cordless drill", or type it and tap Search. Results come from all 13 Gear Worlds and can be filtered by world.
+3. Open a product and tap "+ Save".
+4. Turn on Airplane Mode and open the Saved tab. The saved product opens with its photo and price.
+5. Turn off Airplane Mode. Tap "Search by photo", allow the camera and take a photo of any product.
+6. Settings shows the 11 languages, who runs the app, the privacy policy and the affiliate disclosure.
+
+The app is made for iPhone; it is not an iPad app. Prices come from retailers and can change. There are no ads, no tracking and no analytics.
+
+Privacy policy: https://gearworldhub.com/privacy/
+Affiliate disclosure: https://gearworldhub.com/affiliate-disclosure/
 
 Screenshots: `ios-screenshots/gear-world-ios-en-*.jpg` (1206 x 2622, iPhone).

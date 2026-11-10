@@ -513,3 +513,11 @@ test('no barcode scanner in 1.0.1 (owner, 10/11/2026): no camera package, no sca
   assert.ok(!/name="scan"/.test(tabs));
   for (const l of LOCALES) assert.ok(!Object.keys(FEATURE_STRINGS[l.code]).some(k => /^scan|barcode/i.test(k)), `${l.code}: no scanner texts`);
 });
+
+test('store screenshots: the photo and voice buttons are drawn only in the screenshot build, never in a phone build', () => {
+  const box = readFileSync(new URL('../src/components/search-box.tsx', import.meta.url), 'utf8');
+  assert.match(box, /process\.env\.EXPO_PUBLIC_STORE_SHOTS === '1'/);
+  for (const f of ['../eas.json', '../app.json', '../package.json']) {
+    assert.ok(!readFileSync(new URL(f, import.meta.url), 'utf8').includes('STORE_SHOTS'), `${f} never sets the screenshot flag`);
+  }
+});

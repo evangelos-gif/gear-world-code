@@ -6,7 +6,7 @@ Gear World
 ## Short description (69/80)
 Find products and compare prices from many retailers with one search.
 
-## Full description (2181/4000)
+## Full description (2385/4000)
 Gear World helps you find products and compare prices from many retailers across the 13 Gear World websites, with one search. Gear World sells nothing itself: when you find what you want, you buy it on the retailer's own website.
 
 ONE SEARCH, EVERY WORLD
@@ -22,7 +22,10 @@ THIS WEEK'S DEALS
 See the retailers' current offers, each with its end date. A deal opens the retailer's page on a Gear World website, where you see the offer and its terms.
 
 YOU BUY ON THE RETAILER'S WEBSITE
-Each product shows the price, stock and retailer. Tap "View at" and the retailer's website opens in your browser, where you complete your purchase on the retailer's own terms. Gear World takes no payments and sells nothing itself.
+Each product shows the price, who sells it and the stock at that retailer. Tap "View at" and the retailer's website opens in your browser, where you complete your purchase on the retailer's own terms. Gear World takes no payments and sells nothing itself.
+
+SAVE PRODUCTS, EVEN OFFLINE
+Tap Save on any product to keep it in the Saved tab, with its photo and price. Saved products open on your phone even without an internet connection.
 
 SEARCH WITH A PHOTO
 Seen something you like? Take a photo or pick one from your gallery, and Gear World finds similar products across every world. Your photo is only used to find products and is not saved.
