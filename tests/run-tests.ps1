@@ -548,6 +548,7 @@ if ($isWin) {
         '@echo off',
         'echo %* >> "%GW_FAKE_STATE%\calls.log"',
         'echo %* | findstr /C:"whoami" >nul && goto whoami',
+        'echo %* | findstr /C:"status --non-interactive" >nul && goto snap',
         'echo %* | findstr /C:"build --platform android --profile preview" >nul && goto build',
         'echo %* | findstr /C:"build --platform ios --profile production --auto-submit" >nul && goto ios',
         'echo %* | findstr /C:"build:list --platform ios" >nul && goto ioslist',
@@ -555,6 +556,9 @@ if ($isWin) {
         'echo %* | findstr /C:"build --platform android --profile production" >nul && goto aab',
         'echo unknown command 1>&2',
         'exit /b 1',
+        ':snap',
+        'echo Recent builds: iOS 1.0.1 (5) in queue',
+        'exit /b 0',
         ':whoami',
         'if defined GW_FAKE_NOLOGIN exit /b 1',
         'echo gearworld',
@@ -603,6 +607,13 @@ if ($isWin) {
         Check (-not ((AdCalls) -match 'platform ios[^\r\n]*--non-interactive --no-wait')) 'iPhone build: interactive, so the Apple sign-in happens in the window'
         $iosRep = @(Get-ChildItem -LiteralPath $adOut -Filter 'GW_APP_DEV_*.txt' | Sort-Object LastWriteTime | Select-Object -Last 1)
         Check ($iosRep.Count -eq 1 -and ([System.IO.File]::ReadAllText($iosRep[0].FullName)).Contains('builds/' + $fakeIosId) -and ([System.IO.File]::ReadAllText($iosRep[0].FullName)).Contains('TestFlight')) 'iPhone build: report has the build link and the TestFlight steps'
+        [System.IO.File]::WriteAllText($adCalls, '')
+        Check ((Run-Ad @('-Status')) -eq 0) 'app status: exit 0, no phrase needed'
+        $stRep = @(Get-ChildItem -LiteralPath $adOut -Filter 'GW_APP_DEV_*.txt' | Sort-Object LastWriteTime | Select-Object -Last 1)
+        $stText = ''
+        if ($stRep.Count -eq 1) { $stText = [System.IO.File]::ReadAllText($stRep[0].FullName) }
+        Check ($stText.Contains('builds/' + $fakeIosId) -and $stText.Contains('IN_QUEUE') -and $stText.Contains('in queue')) 'app status: report has the iPhone build, its state and the Expo summary'
+        Check (((AdCalls) -match 'build:list --platform ios') -and ((AdCalls) -match 'status --non-interactive') -and -not ((AdCalls) -match 'build --platform|submit')) 'app status: read-only, starts and sends nothing'
 
         # 9c. Google Play file (AAB): built, waited for, and only then downloaded (never sent to Google Play)
         $playDir = Join-Path (Join-Path $work 'gear-world-app') 'play'

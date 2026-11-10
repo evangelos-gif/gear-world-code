@@ -15,6 +15,8 @@
 
   -InstallNode with the phrase ΕΓΚΡΙΝΩ NODE LTS installs the current Node.js LTS with winget (only if Node.js is too old).
   -StartOnly starts the app server again from the existing folder (nothing is copied or installed).
+  -Status (READ-ONLY) shows the latest iPhone builds in the Expo cloud (waiting, building, ready or failed) and the
+    latest uploads to the stores. It starts, sends and changes nothing; it needs no approval phrase.
   -BuildApk with the phrase ΕΓΚΡΙΝΩ GEAR WORLD APP BUILD (-BuildApprove) starts a test APK build in the Expo cloud
     (EAS Build, profile "preview", account in app.json) and reports the link to install it on the phone.
     Nothing is sent to Google Play or the App Store. Works together with -Apply (fresh copy first) or on its own.
@@ -34,6 +36,7 @@ param(
     [string]$Approve = '',
     [switch]$InstallNode,
     [switch]$StartOnly,
+    [switch]$Status,
     [switch]$BuildApk,
     [string]$BuildApprove = '',
     [switch]$BuildIos,
@@ -137,6 +140,80 @@ function Copy-App([string]$from, [string]$to) {
         $n++
     }
     return $n
+}
+
+# READ-ONLY: the latest iPhone builds in the Expo cloud and the latest store uploads. Starts, sends and changes nothing.
+function Show-Status([string]$dir) {
+    Say ''
+    Say 'Κατάσταση στο Expo (μόνο ανάγνωση: δεν ξεκινά, δεν στέλνει και δεν αλλάζει τίποτα).' 'Cyan'
+    $proj = Get-EasProject $dir
+    $owner = $proj.owner; $slug = $proj.slug
+    try { [Console]::OutputEncoding = [System.Text.Encoding]::UTF8 } catch { }
+    $notLoggedIn = $false
+    $list = ''
+    $snap = ''
+    Push-Location -LiteralPath $dir
+    try {
+        $env:EAS_NO_VCS = '1'
+        $env:EAS_PROJECT_ROOT = $dir
+        $env:EXPO_NO_TELEMETRY = '1'
+        $env:NO_COLOR = '1'
+        $who = & npx.cmd --yes eas-cli@latest whoami
+        if ($LASTEXITCODE -ne 0) {
+            $notLoggedIn = $true
+        } else {
+            Say ('  Συνδεδεμένος στο Expo ως: {0}' -f (($who | Out-String).Trim() -split "`r?`n")[0])
+            $list = (& npx.cmd --yes eas-cli@latest build:list --platform ios --limit 3 --json --non-interactive | Out-String).Trim()
+            try { $snap = (& npx.cmd --yes eas-cli@latest status --non-interactive --limit 3 | Out-String).Trim() } catch { $snap = '' }
+        }
+    } finally {
+        Pop-Location
+        Remove-Item Env:\EAS_NO_VCS, Env:\EAS_PROJECT_ROOT, Env:\NO_COLOR -ErrorAction SilentlyContinue
+    }
+    if ($notLoggedIn) {
+        Say 'Δεν είσαι συνδεδεμένος στο Expo σε αυτόν τον υπολογιστή. Στείλε αυτή την αναφορά στο Claude.' 'Red'
+        Finish 4
+    }
+    Say ''
+    Say 'Τελευταία iPhone builds:'
+    $n = 0
+    try {
+        foreach ($b in ($list | ConvertFrom-Json)) {
+            if (-not $b.id) { continue }
+            $n++
+            $ver = ''
+            if ($b.appVersion) { $ver = [string]$b.appVersion }
+            if ($b.appBuildVersion) { $ver = ('{0} ({1})' -f $ver, [string]$b.appBuildVersion) }
+            $st = [string]$b.status
+            $text = $st
+            if ($st -eq 'NEW' -or $st -eq 'IN_QUEUE') {
+                $text = 'ΠΕΡΙΜΕΝΕΙ σε ουρά στο Expo'
+                if ($b.queuePosition) { $text += (', θέση {0}' -f [string]$b.queuePosition) }
+                if ($b.estimatedWaitTimeLeftSeconds) { $text += (', περίπου {0} λεπτά ακόμα' -f [math]::Ceiling([double]$b.estimatedWaitTimeLeftSeconds / 60)) }
+            } elseif ($st -eq 'IN_PROGRESS') {
+                $text = 'ΧΤΙΖΕΤΑΙ τώρα (συνήθως 15-30 λεπτά)'
+            } elseif ($st -eq 'FINISHED') {
+                $text = 'ΕΤΟΙΜΟ: ανεβαίνει μόνο του στο TestFlight (στο App Store Connect φαίνεται σε 10-30 λεπτά)'
+            } elseif ($st -eq 'ERRORED') {
+                $text = 'ΑΠΕΤΥΧΕ'
+                if ($b.error -and $b.error.message) { $text += (': {0}' -f [string]$b.error.message) }
+            } elseif ($st -eq 'CANCELED') {
+                $text = 'ΑΚΥΡΩΘΗΚΕ'
+            }
+            Say ('  {0}  {1}  [{2}]' -f $ver, $text, $st) $(if ($st -eq 'ERRORED') { 'Red' } elseif ($st -eq 'FINISHED') { 'Green' } else { 'Yellow' })
+            if ($b.createdAt) { Say ('    Ξεκίνησε: {0}' -f [string]$b.createdAt) }
+            Say ('    Link: https://expo.dev/accounts/{0}/projects/{1}/builds/{2}' -f $owner, $slug, [string]$b.id)
+        }
+    } catch { }
+    if ($n -eq 0) { Say '  (δεν βρέθηκαν builds ή δεν διαβάστηκε η απάντηση του Expo)' 'Yellow' }
+    if ($snap) {
+        Say ''
+        Say 'Σύνοψη του Expo (builds και αποστολές στα stores):'
+        foreach ($line in ($snap -split "`r?`n")) {
+            $clean = ($line -replace '\x1b\[[0-9;]*[A-Za-z]', '').TrimEnd()
+            if ($clean) { Say ('  ' + $clean) }
+        }
+    }
 }
 
 function Start-Expo([string]$dir) {
@@ -458,7 +535,7 @@ function Confirm-Builds {
     return $true
 }
 
-Say ('GEAR WORLD APP DEV - {0} - {1}' -f $(if ($Apply -or $InstallNode -or $BuildApk -or $BuildIos -or $BuildAab) { 'APPLY (με έγκριση)' } elseif ($StartOnly) { 'ΕΚΚΙΝΗΣΗ' } else { 'ΜΟΝΟ ΕΛΕΓΧΟΣ' }), (Get-Date -Format 'yyyy-MM-dd HH:mm'))
+Say ('GEAR WORLD APP DEV - {0} - {1}' -f $(if ($Apply -or $InstallNode -or $BuildApk -or $BuildIos -or $BuildAab) { 'APPLY (με έγκριση)' } elseif ($StartOnly) { 'ΕΚΚΙΝΗΣΗ' } elseif ($Status) { 'ΚΑΤΑΣΤΑΣΗ (μόνο ανάγνωση)' } else { 'ΜΟΝΟ ΕΛΕΓΧΟΣ' }), (Get-Date -Format 'yyyy-MM-dd HH:mm'))
 Say ('Code version: {0}' -f (Split-Path -Leaf $repo))
 
 # 1. Node.js
@@ -488,6 +565,13 @@ if ($StartOnly) {
     if ($NoStart) { Finish 0 }
     Start-Expo $Target
     exit 0
+}
+
+if ($Status) {
+    if (-not (Test-Path -LiteralPath (Join-Path $Target 'app.json'))) { Say 'Η εφαρμογή δεν έχει στηθεί ακόμα σε αυτόν τον υπολογιστή. Τρέξε πρώτα την εντολή με -Apply.' 'Red'; Finish 2 }
+    if (-not $node.ok) { Say 'Πρώτα χρειάζεται νεότερο Node.js.' 'Red'; Finish 3 }
+    Show-Status $Target
+    Finish 0
 }
 
 if (($BuildApk -or $BuildIos -or $BuildAab) -and -not $Apply) {
