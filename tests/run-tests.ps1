@@ -3178,6 +3178,53 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
     }
 }
 
+# gw-wrangler-check.ps1 (lessons L114) with a fake home and a fake npx/npm (Windows only: runs .cmd files): read-only,
+# versions found, token words in the wrangler logs counted but never shown, and -BackupCheck adds the backup check.
+if ($isWin) {
+    Write-Host 'gw-wrangler-check.ps1 (fake home and npx)'
+    $wTool = Join-Path (Join-Path $repo 'tools') 'gw-wrangler-check.ps1'
+    $wHome = Join-Path $work 'wc-home'
+    $wBin = Join-Path $work 'wc-bin'
+    $wReports = Join-Path $wHome 'gear-world-reports'
+    $wRef = 'ef67a8f007241b50f2a624b13082707605dcf9e2'
+    New-Item -ItemType Directory -Path $wBin -Force | Out-Null
+    Write-Utf8 (Join-Path $wHome ('gear-world-posters\deploy\gear-world-code-' + $wRef + '\node_modules\wrangler\package.json')) '{"name":"wrangler","version":"4.158.0"}'
+    Write-Utf8 (Join-Path $wHome 'gear-world-hub\node_modules\wrangler\package.json') '{"name":"wrangler","version":"4.148.0"}'
+    Write-Utf8 (Join-Path $wHome 'gear-world-import\notes.txt') 'notes'
+    $wSecret = 'zz' + 'LOGSECRET' + 'zz'
+    Write-Utf8 (Join-Path $wHome '.wrangler\logs\wrangler-1.log') ('oauth_token = "' + $wSecret + '"')
+    Write-Utf8 (Join-Path $wHome '.wrangler\logs\wrangler-2.log') 'nothing here'
+    $wNpx = @('@echo off', 'echo %* | findstr /C:"--version" >nul && goto ver', 'echo Not logged in.', 'exit /b 1', ':ver', 'echo 4.158.0', 'exit /b 0') -join "`r`n"
+    [System.IO.File]::WriteAllText((Join-Path $wBin 'npx.cmd'), $wNpx + "`r`n", [System.Text.Encoding]::ASCII)
+    [System.IO.File]::WriteAllText((Join-Path $wBin 'npm.cmd'), "@echo off`r`necho (empty)`r`nexit /b 1`r`n", [System.Text.Encoding]::ASCII)
+    function Get-WFiles { return (@(Get-ChildItem -LiteralPath $wHome -Recurse -File -Force | Where-Object { -not $_.FullName.StartsWith($wReports, [System.StringComparison]::OrdinalIgnoreCase) } | Sort-Object FullName | ForEach-Object { $_.FullName + '|' + $_.Length + '|' + $_.LastWriteTimeUtc.Ticks }) -join "`n") }
+    function Get-WReport {
+        $r = @(Get-ChildItem -LiteralPath $wReports -Filter 'GW_WRANGLER_CHECK_*.txt' -ErrorAction SilentlyContinue | Sort-Object LastWriteTime | Select-Object -Last 1)
+        if ($r.Count) { return [System.IO.File]::ReadAllText($r[0].FullName) }
+        return ''
+    }
+    $wBefore = Get-WFiles
+    $oldPath = $env:PATH
+    $env:PATH = $wBin + ';' + $oldPath
+    try {
+        & $exe -NoProfile -ExecutionPolicy Bypass -File $wTool -HomeDir $wHome -WranglerRef 'abc' -SkipPosterStats -NoClipboard | Out-Null
+        Check ($LASTEXITCODE -eq 2 -and -not (Test-Path -LiteralPath $wReports)) 'wrangler check: a wrong -WranglerRef stops at once (exit 2)'
+        & $exe -NoProfile -ExecutionPolicy Bypass -File $wTool -HomeDir $wHome -SkipPosterStats -NoClipboard | Out-Null
+        $code = $LASTEXITCODE
+        $wr = Get-WReport
+        Check ($code -eq 0 -and $wr.Contains('package.json version: 4.158.0') -and $wr.Contains('wrangler --version: 4.158.0') -and $wr.Contains('gear-world-hub: 4.148.0') -and $wr.Contains('gear-world-import: δικό του wrangler δεν έχει') -and $wr.Contains('παραλείφθηκε') -and $wr.TrimEnd().EndsWith('ΤΕΛΟΣ ΕΛΕΓΧΟΥ')) 'wrangler check: versions in the deploy folder and the Gear World folders, last line ΤΕΛΟΣ ΕΛΕΓΧΟΥ (L114)'
+        Check ($wr.Contains('2 αρχεία') -and $wr.Contains('1 με λέξη token') -and -not $wr.Contains($wSecret)) 'wrangler check: token words in the wrangler logs counted, never shown (L114)'
+        Start-Sleep -Seconds 1
+        & $exe -NoProfile -ExecutionPolicy Bypass -File $wTool -HomeDir $wHome -SkipPosterStats -BackupCheck -NoClipboard | Out-Null
+        $code2 = $LASTEXITCODE
+        $wr2 = Get-WReport
+        Check ($code2 -ne 0 -and $wr2.Contains('=== 6.') -and $wr2.Contains('gw-backup (έλεγχος) exit ' + $code2) -and $wr2.Contains('ΤΕΛΟΣ BACKUP') -and $wr2.TrimEnd().EndsWith('ΤΕΛΟΣ ΕΛΕΓΧΟΥ') -and -not $wr2.Contains($wSecret)) 'wrangler check -BackupCheck: the backup check (no -Apply) runs and its report is added (L114)'
+        Check ((Get-WFiles) -eq $wBefore) 'wrangler check: no file changed outside the reports folder'
+    } finally {
+        $env:PATH = $oldPath
+    }
+}
+
 # 10. gwh-code-export.ps1 (Hub code into the repo) on a fake hub folder: read-only, secrets/IDs/emails masked, exact text blocks
 Write-Host 'gwh-code-export.ps1'
 $hx = Join-Path $repo 'tools/gwh-code-export.ps1'
