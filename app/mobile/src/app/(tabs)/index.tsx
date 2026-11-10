@@ -58,7 +58,7 @@ export default function Home() {
             <Txt v="eyebrow">{t('heroEyebrow')}</Txt>
             <Txt v="title">{t('heroTitle1')} <Txt v="title" style={s.gold}>{t('heroTitle2')}</Txt></Txt>
             <Txt v="muted">{t('heroDesc')}</Txt>
-            <SearchBox onSearch={q => router.push({ pathname: '/search', params: { q } })} onScan={() => router.navigate('/scan')} />
+            <SearchBox onSearch={q => router.push({ pathname: '/search', params: { q } })} tiles />
           </View>
 
           <SeasonBanner hasDeals={shownDeals.length > 0} dealsLoaded={dealsLoaded} seasonsOn={seasonsOn} onTarget={goTo} />

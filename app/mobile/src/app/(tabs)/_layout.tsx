@@ -8,7 +8,7 @@ import { C } from '@/theme';
 
 type IconName = keyof typeof Ionicons.glyphMap;
 
-// The app's own tab bar (version 1.0.1): Home, the barcode scanner, saved products and settings. Each tab has its icon
+// The app's own tab bar (version 1.0.1): Home, saved products and settings (no barcode scanner: owner, 10/11/2026). Each tab has its icon
 // AND its name, never colour alone (owner is colour-blind, lessons L35). The bar sits above the phone's own buttons.
 export default function TabsLayout() {
   const { t } = useI18n();
@@ -27,7 +27,6 @@ export default function TabsLayout() {
         sceneStyle: { backgroundColor: C.bg }
       }}>
       <Tabs.Screen name="index" options={{ title: t('tabHome'), tabBarIcon: icon('home-outline', 'home') }} />
-      <Tabs.Screen name="scan" options={{ title: t('tabScan'), tabBarIcon: icon('barcode-outline', 'barcode') }} />
       <Tabs.Screen name="saved" options={{
         title: t('tabSaved'), tabBarIcon: icon('bookmark-outline', 'bookmark'),
         tabBarBadge: items.length ? items.length : undefined,

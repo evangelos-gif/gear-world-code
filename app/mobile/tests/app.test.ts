@@ -7,10 +7,9 @@ import { LOCALES, pickLocale, fill, lookup } from '../src/i18n/core.ts';
 import { APP_STRINGS, APP_KEYS } from '../src/i18n/app-strings.ts';
 import {
   parseRegistry, parseSearch, parseSiteProduct, parseHubResult, worldProductsUrl, safeBase, safeHttps, outUrl, isValidEmail, FALLBACK_WORLDS,
-  checkedDay, barcodeUrl, productsByIdUrl, pickAsked
+  checkedDay, productsByIdUrl, pickAsked
 } from '../src/lib/api.ts';
 import { FEATURE_KEYS, FEATURE_STRINGS } from '../src/i18n/feature-strings.ts';
-import { cleanCode, hasValidCheckDigit, upcEToA, gtinForms, PRODUCT_BARCODES } from '../src/lib/barcode.ts';
 import { toSaved, addSaved, removeSaved, mergeFresh, idsByWorld, parseSaved, imageFileName, MAX_SAVED } from '../src/lib/saved.ts';
 import { formatPrice } from '../src/lib/format.ts';
 import {
@@ -175,14 +174,14 @@ test('screens: Android draws no grey band over the bottom of the app', () => {
   assert.ok(nav, 'navigation bar plugin configured');
   assert.equal(nav[1].enforceContrast, false);
   // Screens opened over the tabs end their list above the phone's buttons themselves.
-  for (const f of ['search.tsx', 'world/[key].tsx', 'barcode.tsx']) {
+  for (const f of ['search.tsx', 'world/[key].tsx']) {
     const src = readFileSync(new URL(`../src/app/${f}`, import.meta.url), 'utf8');
     assert.match(src, /useSafeAreaInsets\(\)\.bottom/, `${f} ends its list above the phone's buttons`);
   }
   // The tab screens sit above the tab bar, which keeps clear of the phone's buttons on its own (version 1.0.1).
   const tabs = readFileSync(new URL('../src/app/(tabs)/_layout.tsx', import.meta.url), 'utf8');
   assert.match(tabs, /from 'expo-router\/js-tabs'/);
-  for (const name of ['index', 'scan', 'saved', 'settings']) {
+  for (const name of ['index', 'saved', 'settings']) {
     assert.match(tabs, new RegExp(`Tabs\\.Screen name="${name}"`), `tab ${name}`);
     readFileSync(new URL(`../src/app/(tabs)/${name}.tsx`, import.meta.url), 'utf8');
   }
@@ -421,25 +420,6 @@ test('texts: the app never sounds like a shop (no shop, cart or basket) and says
 
 // ---------- version 1.0.1 (10/11/2026): the app's own features after Apple's 4.2.2 review ----------
 
-test('barcode: EAN, UPC-A, UPC-E and GTIN-14 give the forms a feed may use; anything else is refused', () => {
-  assert.equal(cleanCode(' 5012-3456 7890 0 '), '5012345678900');
-  assert.equal(hasValidCheckDigit('088381695817'), true, 'UPC-A of the Makita M9400 on Construction Gear World');
-  assert.equal(hasValidCheckDigit('088381695818'), false);
-  assert.equal(hasValidCheckDigit('96385074'), true, 'EAN-8');
-  assert.deepEqual(gtinForms('088381695817'), ['088381695817', '0088381695817', '00088381695817']);
-  // The iPhone reports a UPC-A as EAN-13 with a leading 0: the same product.
-  assert.deepEqual(gtinForms('0088381695817', 'org.gs1.EAN-13'), ['0088381695817', '088381695817', '00088381695817']);
-  assert.deepEqual(gtinForms('5012345678900'), ['5012345678900', '05012345678900']);
-  assert.deepEqual(gtinForms('00088381695817'), ['00088381695817', '0088381695817', '088381695817']);
-  assert.equal(upcEToA('04252614'), '042100005264', 'UPC-E written out as UPC-A');
-  assert.deepEqual(gtinForms('04252614', 'upc_e'), ['042100005264', '0042100005264', '00042100005264']);
-  assert.deepEqual(gtinForms('12345'), []);
-  assert.deepEqual(gtinForms('https://example.com'), []);
-  assert.deepEqual(gtinForms('5012345678901'), [], 'a wrong check digit is never sent');
-  assert.deepEqual([...PRODUCT_BARCODES], ['ean13', 'ean8', 'upc_a', 'upc_e'], 'only product barcodes, no QR codes that open links');
-  assert.equal(barcodeUrl(gtinForms('088381695817')), 'https://gearworldhub.com/api/ean?code=088381695817');
-});
-
 test('products: the check day, "check at the retailer" and the RRP come from the sites as they say them', () => {
   const world = { key: 'CGW', name: 'Construction Gear World', base: 'https://constructiongearworld.com' };
   const p = parseSiteProduct({ id: 1047, product_name: 'Makita M9400', price: 157.95, was_price: 199.99, stock_status: 'check_retailer', price_checked: '2026-11-08T03:12:00Z' }, world)!;
@@ -524,17 +504,12 @@ test('texts: no shop, partner, cart or "our retailers" words in any of the 11 la
   for (const l of LOCALES) assert.match(String(HUB[l.code].footerRights), /Evangelos Kalogerakis/, `${l.code}: the footer says who runs Gear World`);
 });
 
-test('camera: one clear reason for the camera (barcode and photo), no sound recorded by the scanner', () => {
+test('no barcode scanner in 1.0.1 (owner, 10/11/2026): no camera package, no scan screen, no scan words', () => {
   const app = JSON.parse(readFileSync(new URL('../app.json', import.meta.url), 'utf8')).expo;
-  const camera = app.plugins.find((p: unknown) => Array.isArray(p) && p[0] === 'expo-camera');
-  const picker = app.plugins.find((p: unknown) => Array.isArray(p) && p[0] === 'expo-image-picker');
-  assert.ok(camera, 'expo-camera configured');
-  assert.match(camera[1].cameraPermission, /barcode/);
-  assert.equal(camera[1].cameraPermission, picker[1].cameraPermission, 'the same reason, whichever plugin writes it last');
-  assert.equal(camera[1].recordAudioAndroid, false);
-  assert.equal(camera[1].barcodeScannerEnabled, true);
-  assert.equal(camera[1].microphonePermission, picker[1].microphonePermission, 'voice search keeps its microphone reason');
-  const scan = readFileSync(new URL('../src/app/(tabs)/scan.tsx', import.meta.url), 'utf8');
-  assert.match(scan, /useFocusEffect/, 'the camera runs only while the scan tab is on screen');
-  assert.match(scan, /barcodeTypes: \[\.\.\.PRODUCT_BARCODES\]/);
+  const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
+  assert.equal(app.plugins.find((p: unknown) => Array.isArray(p) && p[0] === 'expo-camera'), undefined);
+  assert.equal(pkg.dependencies['expo-camera'], undefined);
+  const tabs = readFileSync(new URL('../src/app/(tabs)/_layout.tsx', import.meta.url), 'utf8');
+  assert.ok(!/name="scan"/.test(tabs));
+  for (const l of LOCALES) assert.ok(!Object.keys(FEATURE_STRINGS[l.code]).some(k => /^scan|barcode/i.test(k)), `${l.code}: no scanner texts`);
 });

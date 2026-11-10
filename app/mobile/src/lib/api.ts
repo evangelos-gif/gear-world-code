@@ -206,23 +206,6 @@ export async function searchAll(query: string): Promise<SearchResult> {
   return parseSearch(await fetchJson<HubSearchResponse>(`${HUB_URL}/api/search?q=${encodeURIComponent(q)}`, {}, 20000));
 }
 
-// ---------- Barcode: the Hub looks for one product (EAN/UPC) in every Gear World ----------
-
-/**
- * The Hub's barcode search (gearworldhub.com/api/ean). The Hub asks every site through its index of product codes and
- * tries the 12, 13 and 14-digit forms of the same code itself; the app sends the first form (a UPC-E already written
- * out as UPC-A, see barcode.ts). Answers like the Hub search, so the same parser reads it.
- */
-export function barcodeUrl(forms: string[]): string {
-  const code = forms.find(f => /^\d{8,14}$/.test(f)) ?? '';
-  return `${HUB_URL}/api/ean?code=${encodeURIComponent(code)}`;
-}
-
-export async function lookupBarcode(forms: string[]): Promise<SearchResult> {
-  if (!forms.length) throw new ApiError('invalid_code');
-  return parseSearch(await fetchJson<HubSearchResponse>(barcodeUrl(forms), {}, 20000));
-}
-
 // ---------- Deals: the Hub's list of retailer offers (new deals appear without a new app version) ----------
 
 /** The Hub's deals file as it came; `parseDeals` (seasons.ts) checks it. */

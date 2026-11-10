@@ -16,12 +16,12 @@ const openPhotoResults = (answer: PhotoAnswer) =>
 
 /**
  * Search field, camera (photo search), microphone (voice search in the app's language) and Search button.
- * With `onScan` (the first screen, version 1.0.1) the app's own ways to search are three big buttons under the field:
- * scan a barcode, search by photo and search by voice, so they are seen before anything else.
+ * With `tiles` (the first screen, version 1.0.1) search by photo and search by voice are two big buttons under the
+ * field, so they are seen before anything else.
  */
-export function SearchBox({ initial = '', placeholder, onSearch, onPhoto = openPhotoResults, onScan, autoFocus }: {
+export function SearchBox({ initial = '', placeholder, onSearch, onPhoto = openPhotoResults, tiles, autoFocus }: {
   initial?: string; placeholder?: string; onSearch: (q: string) => void; onPhoto?: (answer: PhotoAnswer) => void;
-  onScan?: () => void; autoFocus?: boolean;
+  tiles?: boolean; autoFocus?: boolean;
 }) {
   const { t, locale } = useI18n();
   const [q, setQ] = useState(initial);
@@ -65,13 +65,8 @@ export function SearchBox({ initial = '', placeholder, onSearch, onPhoto = openP
         </Pressable>
       </View>
 
-      {onScan ? (
+      {tiles && (photo.supported || voice.supported) ? (
         <View style={s.tiles}>
-          <Pressable accessibilityRole="button" accessibilityLabel={t('scanBarcode')} onPress={onScan}
-            style={({ pressed }) => [s.tile, pressed && s.pressed]}>
-            <Ionicons name="barcode-outline" size={30} color={C.gold} />
-            <Txt style={s.tileText} numberOfLines={2}>{t('scanBarcode')}</Txt>
-          </Pressable>
           {photo.supported ? (
             <Pressable accessibilityRole="button" accessibilityLabel={t('searchByPhoto')} accessibilityState={{ busy: photo.busy, disabled: photo.busy }}
               disabled={photo.busy} onPress={() => { voice.clearMessage(); photo.start(); }}
@@ -92,7 +87,7 @@ export function SearchBox({ initial = '', placeholder, onSearch, onPhoto = openP
       ) : null}
 
       {/* Camera and microphone under the field, each with its name (owner, 4/11/2026: the field was too narrow). */}
-      {!onScan && (photo.supported || voice.supported) ? (
+      {!tiles && (photo.supported || voice.supported) ? (
         <View style={s.tools}>
           {photo.supported ? (
             <Pressable accessibilityRole="button" accessibilityLabel={t('photoStart')} accessibilityState={{ busy: photo.busy, disabled: photo.busy }}
