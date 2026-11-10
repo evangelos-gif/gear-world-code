@@ -59,6 +59,7 @@ if ($PageRows -lt 1) { $PageRows = 3000 }
 $stamp = Get-Date -Format 'yyyyMMdd_HHmmss'
 $Owner = 'evangelos-gif'
 $Repos = @('gear-world-code', 'gearworld-media')
+$WranglerVersion = '4.158.0'
 $SkipDirs = @('node_modules', '.wrangler', '.cache', '.npm')
 # Never on the drive (lessons L113): files with these names, and these folders of the user folder.
 $SecretNames = @('.dev.vars', '.dev.vars.*', '.env', '.env.*', '*.pem', '*.key', '*.pfx', '*.p12', '*.kdbx', '.npmrc')
@@ -194,11 +195,12 @@ function Test-Https([string]$url) {
     }
 }
 
-# Runs wrangler through a temporary .cmd file, so output is plain text in Windows PowerShell 5.1.
+# Runs wrangler through a temporary .cmd file, so output is plain text in Windows PowerShell 5.1. The version is fixed
+# (L113): a bare 'npx wrangler' takes whatever npm offers that day.
 function Invoke-Wrangler([string]$Folder, [string]$Arguments) {
     if ($Arguments -match '[&|<>^%]') { throw 'Unsafe characters in wrangler arguments' }
     $tmp = [System.IO.Path]::GetTempPath()
-    $lines = @('@echo off', ('cd /d "{0}"' -f $Folder), 'set CI=true', 'set WRANGLER_SEND_METRICS=false', 'set FORCE_COLOR=0', 'set NO_COLOR=1', ('call npx --yes wrangler {0} 2>&1' -f $Arguments))
+    $lines = @('@echo off', ('cd /d "{0}"' -f $Folder), 'set CI=true', 'set WRANGLER_SEND_METRICS=false', 'set FORCE_COLOR=0', 'set NO_COLOR=1', ('call npx --yes wrangler@{0} {1} 2>&1' -f $WranglerVersion, $Arguments))
     $result = $null
     for ($try = 1; $try -le 3; $try++) {
         $cmdFile = Join-Path $tmp ('gw-wrangler-' + [guid]::NewGuid().ToString('N').Substring(0, 8) + '.cmd')
