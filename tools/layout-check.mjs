@@ -1,10 +1,12 @@
 #!/usr/bin/env node
 // Gear World layout check. READ-ONLY: opens pages in a real browser (Chromium) and checks the layout
-// on a phone (390 px) and a desktop (1366 px). Catches what the HTML-only QA gate cannot see:
+// on a phone (390 px), a small phone (360 px) and a desktop (1366 px). Catches what the HTML-only QA gate cannot see:
 //   - the page scrolls sideways (horizontal overflow)
 //   - text or buttons touching the screen edge (missing 16 px gutter)
 //   - buttons smaller than 44 px (hard to tap)
 //   - JavaScript errors and failed requests for the site's own files
+//   - the discount codes bar (lessons L115): between the masthead row and the menu, full width, its words not cut off,
+//     and only on a page whose footer links to the codes
 // Saves a screenshot of every page so a person can look at them.
 //
 // Usage: node tools/layout-check.mjs <baseUrl> [--shots <dir>] [--out report.txt] [--lang de-DE] [--currency RUB]
@@ -30,6 +32,8 @@ const check = (ok, name, detail = '') => results.push({ ok: Boolean(ok), name, d
 
 const viewports = [
   { name: 'phone', width: 390, height: 844, isMobile: true, hasTouch: true, deviceScaleFactor: 2 },
+  // A small phone (lessons L115): the same checks, except the first-screen rule of L30, which is measured at 390 px.
+  { name: 'phone-360', width: 360, height: 780, isMobile: true, hasTouch: true, deviceScaleFactor: 2 },
   { name: 'desktop', width: 1366, height: 900, isMobile: false, hasTouch: false, deviceScaleFactor: 1 }
 ];
 
@@ -156,7 +160,7 @@ try {
           }
           return null;
         };
-        for (const el of document.querySelectorAll('.btn, button, .cart-link, .catbar a, .chip-list a')) {
+        for (const el of document.querySelectorAll('.btn, button, .cart-link, .catbar a, .chip-list a, .codes-bar')) {
           if (!visible(el) || inScroller(el)) continue;
           if (el.scrollWidth > el.clientWidth + 1) { clipped.push(`${describe(el)} ${el.scrollWidth}>${el.clientWidth}`); continue; }
           const box = clipBox(el);
@@ -166,7 +170,26 @@ try {
             if (r.left < b.left - 1 || r.right > b.right + 1) clipped.push(`${describe(el)} sticks out of its box`);
           }
         }
-        return { scrollsSideways, scrollWidth: document.documentElement.scrollWidth, vw, edge, small, clipped, hasMain: !!document.querySelector('main') };
+        // The discount codes bar (lessons L115): right after the masthead row and right before the menu, in the page and
+        // on the screen, as wide as the screen, at least 24 px tall (one link across the whole bar), and there exactly when
+        // the footer links to the codes.
+        const bar = document.querySelector('.codes-bar');
+        const footerCodes = !!document.querySelector('.site-footer a[href="/discount-codes/"]');
+        let codes = { present: !!bar, footerCodes, problems: [] };
+        if (bar) {
+          const row = document.querySelector('.masthead-row');
+          const cat = document.querySelector('.catbar');
+          const rb = bar.getBoundingClientRect();
+          if (document.querySelectorAll('.codes-bar').length !== 1) codes.problems.push('more than one bar');
+          if (!row || bar.previousElementSibling !== row) codes.problems.push('not right after the masthead row');
+          if (!cat || bar.nextElementSibling !== cat) codes.problems.push('not right before the menu');
+          if (row && rb.top < row.getBoundingClientRect().bottom - 1) codes.problems.push('overlaps the masthead row');
+          if (cat && rb.bottom > cat.getBoundingClientRect().top + 1) codes.problems.push('overlaps the menu');
+          if (Math.abs(rb.width - vw) > 1 || rb.left > 0.5) codes.problems.push(`not full width (${Math.round(rb.width)}px)`);
+          if (rb.height < 24) codes.problems.push(`only ${Math.round(rb.height)}px tall`);
+          if (bar.getAttribute('href') !== '/discount-codes/' || bar.querySelector('a, button')) codes.problems.push('not one link to /discount-codes/');
+        }
+        return { scrollsSideways, scrollWidth: document.documentElement.scrollWidth, vw, edge, small, clipped, codes, hasMain: !!document.querySelector('main') };
       }, { GUTTER, MIN_TAP });
 
       // Lessons L30: on a phone, the home page shows the search box and "Browse by category" on the first
@@ -178,6 +201,8 @@ try {
         });
         check(fold.search <= 620 && fold.shop <= 620, `${label}: search box and "Browse by category" on the first screen`, `search ends at ${fold.search}px, button at ${fold.shop}px (max 620)`);
       }
+      check(m.codes.present === m.codes.footerCodes, `${label}: the discount codes bar shows exactly when the footer links to the codes (L115)`, `bar ${m.codes.present}, footer link ${m.codes.footerCodes}`);
+      if (m.codes.present) check(m.codes.problems.length === 0, `${label}: the discount codes bar sits between the masthead row and the menu (L115)`, m.codes.problems.join(' | '));
       check(m.hasMain, `${label}: page has <main>`);
       check(!m.scrollsSideways, `${label}: no sideways scrolling`, `scrollWidth ${m.scrollWidth} > ${m.vw}`);
       check(m.edge.length === 0, `${label}: content keeps the ${GUTTER}px gutter`, m.edge.slice(0, 5).join(' | '));

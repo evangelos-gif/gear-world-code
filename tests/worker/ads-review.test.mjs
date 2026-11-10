@@ -46,7 +46,7 @@ test('the 13 sites: "Saved list" in the config, a new asset version, the bookmar
     assert.deepEqual(s.cart, { name: 'Saved list', maxItems: 30 }, c);
     // 2026-11-08-<code>-saved-N for L101, -wording-N for the follow-up of L102, -cleanup-N for L103 (a new version
     // each time, L31).
-    assert.match(s.assetVersion, /^(2026-11-08-[a-z]{3}-(saved|wording|cleanup|security)|2026-11-09-[a-z]{3}-compliance)-\d+$/, c);
+    assert.match(s.assetVersion, /^(2026-11-08-[a-z]{3}-(saved|wording|cleanup|security)|2026-11-09-[a-z]{3}-compliance|2026-11-10-[a-z]{3}-codes)-\d+$/, c);
     const icons = readFileSync(`sites/${c}/public/assets/icons.svg`, 'utf8');
     assert.match(icons, /<symbol id="saved" /, c);
     const js = readFileSync(`sites/${c}/public/assets/site.js`, 'utf8');

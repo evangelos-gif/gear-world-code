@@ -456,6 +456,29 @@ if (site && (site.promos || []).length) {
   }
 }
 
+// The discount codes bar (lessons L115, owner's decision of 10 Nov 2026): one link to /discount-codes/ between the
+// masthead row and the menu, exactly when the footer links to the codes (the same codes of the same view: this checker
+// asks without a country, so the UK view), with neutral words only (no retailer, campaign, saving or shop words).
+if (site) {
+  const { activePromos } = await import(pathToFileURL(resolve('src/lib/promos.js')).href);
+  const { homeView } = await import(pathToFileURL(resolve('src/lib/visibility.js')).href);
+  const running = activePromos(site, Date.now(), homeView(site));
+  const FOOTER_CODES = '<li><a href="/discount-codes/">Discount codes</a></li>';
+  const BAR = /<\/div>\s*<a class="codes-bar" href="\/discount-codes\/">([\s\S]*?)<\/a>\s*<nav class="catbar"/;
+  for (const [path, res] of [['/', home], ['/about/', await get('/about/')], ['/this-page-does-not-exist/', await get('/this-page-does-not-exist/')]]) {
+    const bar = res.body.match(BAR);
+    const any = (res.body.match(/class="codes-bar"/g) || []).length;
+    check('L115', running.length ? Boolean(bar) && any === 1 : any === 0, `${path}: ${running.length ? 'the codes bar between the masthead row and the menu' : 'no codes bar (no code runs)'}`, `${running.length} running, ${any} bar(s)`);
+    check('L115', Boolean(bar) === res.body.includes(FOOTER_CODES), `${path}: the codes bar shows exactly when the footer links to the codes`);
+    if (bar) {
+      const words = bar[1].replace(/<[^>]*>/g, ' ') + ' ' + [...bar[1].matchAll(/data-i18n="([^"]*)"/g)].map(m => m[1]).join(' ');
+      const bad = words.match(/shop|cart|basket|buy now|UK retailers|save \d|\d+ ?%|price drop|was £|partner|official|trusted|black ?friday|deals?\b/i);
+      const names = running.map(p => p.retailer).concat(running.map(p => p.code || '')).filter(n => n && words.includes(n));
+      check('L115', !bad && !names.length, `${path}: the codes bar has neutral words only (no retailer, code, campaign or shop word)`, (bad ? bad[0] : '') + names.join(', '));
+    }
+  }
+}
+
 // Launch readiness
 if (opt('prelaunch') && site) {
   for (const k of ['contactEmail', 'operatorName']) check('L17', Boolean(site[k]), `config: ${k} is filled in`);
