@@ -167,7 +167,9 @@ test('discount codes: neutral description, "published through their affiliate pr
   const k = `data-i18n-0="${retailer}" data-i18n-keep="0">`;
   assert.ok(r.includes(`<h1><span data-i18n="{0} discount codes" ${k}<span translate="no">${retailer}</span> discount codes</span></h1>`), 'heading');
   assert.ok(r.includes(`<span data-i18n="Codes and sales that {0} publishes through its affiliate programme. Every code has an end date and is removed when it ends." ${k}Codes and sales that <span translate="no">${retailer}</span> publishes`), 'lede');
-  assert.ok(r.includes(`<span data-i18n="Shop at {0}" ${k}Shop at <span translate="no">${retailer}</span></span></a>`), '"Shop at"');
+  // The card button: "View at <retailer>", never "Shop at" (owner's rule, stricter than L103: lessons L114).
+  assert.ok(r.includes(`<span data-i18n="View at {0}" ${k}View at <span translate="no">${retailer}</span></span></a>`), '"View at"');
+  assert.ok(!/Shop at/.test(r), 'no "Shop at"');
   assert.ok(r.includes(`<span translate="no">${retailer}</span> with the button and enter the code at checkout. <span translate="no">${retailer}</span> sets the final terms`), 'how to use a code: both names kept');
   assert.ok(!/affiliate partners/.test(r));
   const bar = toString(promoBarHtml(shop, NOW));

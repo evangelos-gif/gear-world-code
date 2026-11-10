@@ -22,6 +22,8 @@ function offerText(p) {
   return tr('{0} sale', keepName(p.retailer));
 }
 
+// The button says "View at <retailer>", as on every product (owner's rule, stricter than L103: never the word "shop"
+// in our texts, lessons L114).
 function promoCard(p) {
   return html`<li class="promo-card${p.kind === 'code' ? ' promo-code-card' : ''}">
   <p class="promo-campaign">${tr(p.campaign)}</p>
@@ -30,7 +32,7 @@ function promoCard(p) {
   <p class="promo-valid">${tr('Valid until {0}', ukDate(p.end))}</p>
   <p class="promo-actions">
     ${p.kind === 'code' ? html`<button type="button" class="btn btn-outline btn-copy" data-copy="${p.code}" hidden>${tr('Copy code')}</button>` : ''}
-    <a class="btn btn-deal" href="/go/${p.id}" rel="sponsored nofollow noopener" target="_blank">${tr('Shop at {0}', keepName(p.retailer))}</a>
+    <a class="btn btn-deal" href="/go/${p.id}" rel="sponsored nofollow noopener" target="_blank">${tr('View at {0}', keepName(p.retailer))}</a>
   </p>
 </li>`;
 }
