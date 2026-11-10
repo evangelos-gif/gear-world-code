@@ -12,7 +12,7 @@ export default {
   lang: 'en-GB',
   locale: 'en-GB',
   currency: 'GBP',
-  assetVersion: '2026-11-09-tgw-compliance-1',
+  assetVersion: '2026-11-10-tgw-codes-1',
   // Key prefix for what a visitor's browser remembers (compare list, cart, language, currency).
   // Discount codes and sales from retailers (promos/promos.js, lessons L32), with the Awin publisher id
   // used for their links. The id is public: it is part of every Awin link.

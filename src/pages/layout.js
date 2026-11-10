@@ -181,6 +181,10 @@ export function page(site, opts) {
   } = opts;
   const year = new Date().getUTCFullYear();
   const image = ogImage || absolute(site, asset(site, 'og-image.png'));
+  // The codes of this visitor's view, read once: the bar under the masthead and the footer link show on the same
+  // condition (lessons L115). <body data-codes> lets a phone keep the hero search on the first screen (L30).
+  const promos = activePromos(site);
+  const bar = codesBarFor(promos);
   const doc = html`<!doctype html>
 <html lang="${site.lang}" data-store="${site.storagePrefix || site.code.toLowerCase()}" data-v="${site.assetVersion}" data-currency="${site.currency}">
 <head>
@@ -210,13 +214,13 @@ ${adsHead(site)}
 ${site.cloudflareAnalyticsToken ? html`<script defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon="${JSON.stringify({ token: site.cloudflareAnalyticsToken })}"></script>` : ''}
 ${schema.map(s => jsonLd(s))}
 </head>
-<body class="${bodyClass}">
+<body class="${bodyClass}"${bar ? raw(' data-codes') : ''}>
 <a class="skip" href="#main">Skip to content</a>
-${header(site, currentCategory, searchValue)}
+${header(site, currentCategory, searchValue, bar)}
 <main id="main">
 ${body}
 </main>
-${footer(site, year, path)}
+${footer(site, year, path, promos.length > 0)}
 ${consentBanner(site)}
 </body>
 </html>`;
@@ -275,7 +279,30 @@ export function ukBarHtml() {
   return toString(html`<div class="country-bar" role="note"><p class="wrap country-row">${tr(UK_BAR_TEXT)}</p></div>`);
 }
 
-function header(site, currentCategory, searchValue) {
+// The discount codes bar (owner's decision, 10 Nov 2026, lessons L115): a thin bar between the masthead row and the menu,
+// one link to /discount-codes/ with a tag icon and how many codes run. It shows exactly when the footer link "Discount
+// codes" shows: the same activePromos(site), so the same visitor's view (site.promoView, lessons L107, L114) and no D1
+// read (the codes live in the site config). It is part of the page HTML, so a cached page keeps it in the copy of its
+// own view group (cacheKeyUrl) and it works without JavaScript. Neutral words only: no retailer, no campaign name (no
+// "Black Friday"), no saving; a code is a "code", a sale or coupon (no code to type) an "offer".
+export function codesCountText(promos) {
+  const codes = promos.filter(p => p.kind === 'code').length;
+  const offers = promos.length - codes;
+  if (!offers) return codes === 1 ? tr('1 active code') : tr('{0} active codes', codes);
+  if (!codes) return offers === 1 ? tr('1 active offer') : tr('{0} active offers', offers);
+  return tr('{0} active codes and offers', promos.length);
+}
+export function codesBar(site, now = Date.now()) {
+  return codesBarFor(activePromos(site, now));
+}
+function codesBarFor(promos) {
+  if (!promos.length) return '';
+  return html`<a class="codes-bar" href="/discount-codes/">
+    <span class="wrap codes-row">${icon('tag', 'icon codes-icon')}<span class="codes-word">Discount codes</span> <span class="codes-count">${codesCountText(promos)}</span>${icon('chevron', 'icon codes-chevron')}</span>
+  </a>`;
+}
+
+function header(site, currentCategory, searchValue, codes = '') {
   return html`<header class="masthead">
   ${promoBarHtml(site)}
   ${prefsBar(site)}
@@ -287,6 +314,7 @@ function header(site, currentCategory, searchValue) {
     ${cartLink(site)}
     ${searchForm(site, searchValue, 'masthead-search')}
   </div>
+  ${codes}
   <nav class="catbar" aria-label="Categories">
     <ul class="wrap catbar-list">
       ${site.categories.map(c => html`<li><a href="${categoryPath(c.slug)}"${c.slug === currentCategory ? raw(' aria-current="page"') : ''}>${c.nav || c.name}</a></li>${
@@ -339,7 +367,7 @@ function dealUpdates(site, path) {
 </section>`;
 }
 
-function footer(site, year, path = '/') {
+function footer(site, year, path = '/', hasCodes = activePromos(site).length > 0) {
   return html`<footer class="site-footer">
 ${dealUpdates(site, path)}
   <div class="wrap footer-grid">
@@ -350,7 +378,7 @@ ${dealUpdates(site, path)}
     <section>
       <h2>About this site</h2>
       <ul>
-        ${activePromos(site).length ? html`<li><a href="/discount-codes/">Discount codes</a></li>` : ''}
+        ${hasCodes ? html`<li><a href="/discount-codes/">Discount codes</a></li>` : ''}
         ${site.guides && site.guides.length ? html`<li><a href="/guides/">Buying guides</a></li>` : ''}
         <li><a href="/about/">About us</a></li>
         <li><a href="/how-we-make-money/">How we make money</a></li>

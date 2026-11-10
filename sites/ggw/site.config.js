@@ -12,7 +12,7 @@ export default {
   lang: 'en-GB',
   locale: 'en-GB',
   currency: 'GBP',
-  assetVersion: '2026-11-09-ggw-compliance-1',
+  assetVersion: '2026-11-10-ggw-codes-1',
   // Discount codes and sales from retailers (promos/promos.js, lessons L32), with the Awin publisher id
   // used for their links. The id is public: it is part of every Awin link.
   promos: promosFor('GGW'),
