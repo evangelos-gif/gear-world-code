@@ -12,7 +12,7 @@ import { PROMOS, SEASONS_ON, promosFor } from '../../promos/promos.js';
 import { activePromos } from '../../src/lib/promos.js';
 import { seasonFor } from '../../src/lib/seasons.js';
 import { deliveryCountries } from '../../src/lib/delivery.js';
-import { listCovers } from '../../src/lib/visibility.js';
+import { listCovers, viewFor } from '../../src/lib/visibility.js';
 import { offersIndexPage, retailerOffersPage, promoBarHtml } from '../../src/pages/offers.js';
 import { createWorker } from '../../src/engine.js';
 import { toString } from '../../src/lib/html.js';
@@ -165,8 +165,10 @@ test('L114: the code cards say nothing of our own: no saving, percentage, "deals
       // What a visitor reads (the text, the data-i18n keys and the attributes a screen reader says), not class names.
       const words = [cards.replace(/<[^>]*>/g, ' '), ...[...cards.matchAll(/(?:data-i18n|aria-label|title)="([^"]*)"/g)].map(m => m[1])].join(' ');
       assert.ok(!BAD_EN.test(words), `${code} ${slug}: "${(words.match(BAD_EN) || [])[0]}"`);
-      // The retailer name stays untranslated in "Shop at" (the button of every code card, lessons L103), the heading and the note.
-      assert.equal((cards.match(new RegExp(`<span data-i18n="Shop at \\{0\\}" data-i18n-0="${retailer}" data-i18n-keep="0">Shop at <span translate="no">${retailer}</span></span>`, 'g')) || []).length, 2, `${code} ${slug}: Shop at`);
+      // The button of every code card is "View at <retailer>" (owner's rule, stricter than L103: never "shop"), with the
+      // retailer name untranslated, as in the heading and the note.
+      assert.equal((cards.match(new RegExp(`<span data-i18n="View at \\{0\\}" data-i18n-0="${retailer}" data-i18n-keep="0">View at <span translate="no">${retailer}</span></span></a>`, 'g')) || []).length, 2, `${code} ${slug}: View at`);
+      assert.ok(!/shop/i.test(words.replace(new RegExp(retailer, 'g'), '')), `${code} ${slug}: no "shop" word`);
       assert.ok(page.includes(`<h1><span data-i18n="{0} discount codes" data-i18n-0="${retailer}" data-i18n-keep="0"><span translate="no">${retailer}</span> discount codes</span></h1>`), `${code} ${slug}: h1`);
       assert.ok(cards.includes(`open <span translate="no">${retailer}</span> with the button and enter the code at checkout. <span translate="no">${retailer}</span> sets the final terms`), `${code} ${slug}: the note`);
     }
@@ -174,7 +176,7 @@ test('L114: the code cards say nothing of our own: no saving, percentage, "deals
 });
 
 test('L114: every text of the code cards is in every dictionary of the 4 sites, without partner, official, trusted or basket words', () => {
-  const KEYS = ['Black Friday', 'Code', 'Copy code', '{0} off when you spend {1}', 'Valid until {0}', 'Shop at {0}', 'Discount codes',
+  const KEYS = ['Black Friday', 'Code', 'Copy code', '{0} off when you spend {1}', 'Valid until {0}', 'View at {0}', 'Discount codes',
     '{0} discount codes', 'Discount codes and offers', 'No codes right now', 'Check back soon. In the meantime, compare prices in the categories.',
     'Codes and sales that retailers publish through their affiliate programmes. Every code has an end date and is removed when it ends.',
     'Codes and sales that {0} publishes through its affiliate programme. Every code has an end date and is removed when it ends.',
@@ -246,4 +248,142 @@ test('L114: the Hub (hub-deals.json) lists the four codes without the code itsel
   assert.deepEqual(running('2026-11-20'), [...BF_IDS].sort());
   assert.deepEqual(running('2026-11-08'), []);
   assert.deepEqual(running('2026-12-07'), []);
+});
+
+// ---------- The owner's rules of 10 Nov 2026 on top of L103 and L107 (lessons L114) ----------
+
+test('L114: no code card on any of the 13 sites says "Shop at": the button is "View at <retailer>", the name untranslated', async () => {
+  const sites = await allSites();
+  const day = at('2026-11-20');
+  const running = p => ({ ...p, start: '2026-11-01', end: '2026-12-31' });
+  const sample = { id: 'joybuy-sample', retailer: 'Joybuy', slug: 'joybuy', awinMid: 123932, currency: 'GBP', kind: 'code', campaign: 'Black Friday', code: 'SAMPLE10',
+    off: 10, minSpend: 50, url: 'https://www.joybuy.co.uk/', sites: [], start: '2026-11-01', end: '2026-12-31' };
+  let cards = 0;
+  for (const [code, config] of Object.entries(sites)) {
+    // The site's own codes and sales (made to run on the day), and one code of every kind for the sites without any.
+    const site = { ...config, promos: config.promos.length ? config.promos.map(running) : [sample, { ...sample, id: 'joybuy-sample-sale', kind: 'sale', code: undefined, campaign: 'Baby' }] };
+    const pages = [offersIndexPage(site, day), ...[...new Set(site.promos.map(p => p.slug))].map(s => retailerOffersPage(site, s, day))];
+    for (const page of pages) {
+      assert.ok(!/Shop at|data-i18n="Shop at/.test(page), `${code}: "Shop at" on a code card`);
+      const buttons = [...page.matchAll(/<a class="btn btn-deal" href="\/go\/[a-z0-9-]+" rel="sponsored nofollow noopener" target="_blank">([\s\S]*?)<\/a>/g)].map(m => m[1]);
+      assert.ok(buttons.length > 0, `${code}: code cards`);
+      for (const b of buttons) assert.match(b, /^<span data-i18n="View at \{0\}" data-i18n-0="[^"]+" data-i18n-keep="0">View at <span translate="no">[^<]+<\/span><\/span>$/, `${code}: ${b}`);
+      cards += buttons.length;
+    }
+  }
+  assert.ok(cards >= 13, `${cards} buttons`);
+  // The page code itself: no "Shop at" left anywhere in src/.
+  for (const f of ['src/pages/offers.js', 'src/pages/layout.js', 'src/engine.js']) {
+    assert.ok(!/'Shop at/.test(readFileSync(f, 'utf8')), `${f}: no 'Shop at' text`);
+  }
+});
+
+// The codes follow the visitor's view, like the products (lessons L107, L114). The engine reads the real clock for the
+// codes, so the test copies run around today.
+const UK_DAY = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/London', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
+const dayFrom = n => { const d = new Date(`${UK_DAY}T12:00:00Z`); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
+const runningToday = site => ({ ...site, promos: site.promos.map(p => ({ ...p, start: dayFrom(-1), end: dayFrom(5) })) });
+const FOOTER_LINK = '<li><a href="/discount-codes/">Discount codes</a></li>';
+function memoryDb() {
+  const rows = [];
+  const stmt = (sql, args = []) => ({ bind: (...a) => stmt(sql, a), run: async () => { rows.push({ sql, args }); return { meta: {} }; }, first: async () => null, all: async () => ({ results: [] }) });
+  return { rows, prepare: sql => stmt(sql), batch: async l => Promise.all(l.map(s => s.all())) };
+}
+function visitor(site) {
+  const worker = createWorker(site);
+  return (path, env, country = '', headers = {}) => {
+    const req = new Request(`https://${site.domain}${path}`, { headers: { 'User-Agent': 'Mozilla/5.0 test', ...headers } });
+    if (country) Object.defineProperty(req, 'cf', { value: { country } });
+    return worker.fetch(req, env, { waitUntil: p => p });
+  };
+}
+
+test('L114: the views of the codes: CGW Germany sees none (no footer link either); the UK, unknown and US visitors and Google see them', async () => {
+  const sites = await allSites();
+  const now = at('2026-11-20');
+  const ids = (site, country) => activePromos(site, now, viewFor(site, country, now)).filter(p => BF_IDS.includes(p.id)).map(p => p.id).sort();
+  // CGW: Germany has a view of its own (Reidl, VEVOR, GRABO): Tooled Up and My Tool Shed (UK only) are not in it.
+  assert.deepEqual(ids(sites.CGW, 'DE'), []);
+  for (const cc of ['GB', '', 'US', 'XX']) assert.deepEqual(ids(sites.CGW, cc), [...BF_IDS].sort(), `CGW ${cc || 'unknown'}`);
+  // AGW: Belgium (Pneus.be, VEVOR) and Germany (VEVOR): no Tooled Up code.
+  assert.deepEqual(ids(sites.AGW, 'BE'), []);
+  assert.deepEqual(ids(sites.AGW, 'DE'), []);
+  assert.deepEqual(ids(sites.AGW, 'GB'), ['tooled-up-claimfifty', 'tooled-up-claimsevfy']);
+  // GGW and BGW have no retailer for Germany: a German visitor gets the UK view with its bar, products and codes alike.
+  assert.deepEqual(ids(sites.GGW, 'DE'), [...BF_IDS].sort());
+  // Without a view (tools, tests) every code shows; the sitemap gets the UK view.
+  assert.deepEqual(activePromos(sites.CGW, now).filter(p => BF_IDS.includes(p.id)).length, 4);
+
+  const cgw = runningToday(sites.CGW);
+  const get = visitor(cgw);
+  const env = { DB: memoryDb(), CLICK_LOG: 'off' };
+  // Germany: the codes pages behave as when no code runs, and no page has the footer link.
+  const deIndex = await (await get('/discount-codes/', env, 'DE')).text();
+  assert.match(deIndex, /No codes right now/);
+  assert.match(deIndex, /<meta name="robots" content="noindex,follow">/);
+  assert.ok(!/CLAIMFIFTY|CLAIMSEVFY|Tooled Up|My Tool Shed|season-banner/.test(deIndex), 'no code, retailer or banner for Germany');
+  const deRetailer = await get('/discount-codes/tooled-up/', env, 'DE');
+  assert.equal(deRetailer.status, 200);
+  const deRetailerHtml = await deRetailer.text();
+  assert.match(deRetailerHtml, /No codes right now/);
+  assert.match(deRetailerHtml, /noindex,follow/);
+  assert.ok(!/CLAIMFIFTY|CLAIMSEVFY/.test(deRetailerHtml));
+  for (const path of ['/about/', '/discount-codes/', '/this-page-does-not-exist/']) {
+    assert.ok(!(await (await get(path, env, 'DE')).text()).includes(FOOTER_LINK), `DE ${path}: no footer link`);
+  }
+  // /go/ of a code not in the visitor's view: to its codes page, never to the retailer, no click.
+  const logged = { DB: memoryDb() };
+  const deGo = await get('/go/tooled-up-claimfifty', logged, 'DE');
+  assert.equal(deGo.status, 302);
+  assert.equal(deGo.headers.get('location'), `https://${cgw.domain}/discount-codes/tooled-up/`);
+  assert.equal(logged.DB.rows.length, 0, 'no click recorded');
+  // The UK, an unknown country, the US and Google's crawler (the UK view): the codes, the footer link, /go/ to Awin.
+  for (const [cc, headers] of [['GB', {}], ['', {}], ['US', {}], ['DE', { 'User-Agent': 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)' }]]) {
+    const tag = headers['User-Agent'] ? 'Googlebot' : cc || 'unknown';
+    const index = await (await get('/discount-codes/', env, cc, headers)).text();
+    for (const c of ['CLAIMFIFTY', 'CLAIMSEVFY']) assert.ok(index.includes(`<strong translate="no">${c}</strong>`), `${tag}: ${c}`);
+    assert.match(index, /<meta name="robots" content="index,follow">/, tag);
+    assert.ok(index.includes(FOOTER_LINK), `${tag}: footer link`);
+    assert.ok((await (await get('/about/', env, cc, headers)).text()).includes(FOOTER_LINK), `${tag}: footer link on /about/`);
+    const go = await get('/go/my-tool-shed-claimsevfy', env, cc, headers);
+    assert.equal(go.status, 302, tag);
+    assert.equal(new URL(go.headers.get('location')).hostname, 'www.awin1.com', tag);
+  }
+  // The sitemap is the UK view, whoever asks.
+  for (const cc of ['DE', 'GB']) {
+    const map = await (await get('/sitemap-static.xml', env, cc)).text();
+    assert.ok(map.includes(`https://${cgw.domain}/discount-codes/tooled-up/`) && map.includes(`https://${cgw.domain}/discount-codes/my-tool-shed/`), `sitemap asked from ${cc}`);
+  }
+  // The shared config never carries a visitor's view (each answer gets its own copy).
+  assert.ok(!('promoView' in cgw) && !('promoView' in sites.CGW));
+});
+
+test('L114: cached pages keep one copy per view group, so the codes and their footer link never reach another group', async () => {
+  const sites = await allSites();
+  const cgw = runningToday(sites.CGW);
+  const get = visitor(cgw);
+  const store = new Map();
+  const before = globalThis.caches;
+  globalThis.caches = { default: {
+    match: async key => (store.has(key.url) ? store.get(key.url).clone() : undefined),
+    put: async (key, res) => { store.set(key.url, res); }
+  } };
+  try {
+    const env = { DB: memoryDb(), CLICK_LOG: 'off' };
+    const gb = await (await get('/', env, 'GB')).text();
+    const de = await (await get('/', env, 'DE')).text();
+    const keys = [...store.keys()].sort();
+    const deGroup = viewFor(cgw, 'DE').group;
+    assert.deepEqual(keys, [`https://${cgw.domain}/?gw-view=${deGroup}`, `https://${cgw.domain}/?gw-view=gb`].sort(), 'one copy per group');
+    assert.ok(gb.includes(FOOTER_LINK), 'the UK copy links to the codes');
+    assert.ok(!de.includes(FOOTER_LINK), 'the German copy does not');
+    // Later visits get their own group's copy: an unknown country and the US get the UK one, Germany its own.
+    assert.ok((await (await get('/', env, '')).text()).includes(FOOTER_LINK));
+    assert.ok((await (await get('/', env, 'US')).text()).includes(FOOTER_LINK));
+    assert.ok(!(await (await get('/', env, 'DE')).text()).includes(FOOTER_LINK));
+    assert.equal(store.size, 2, 'no other copy');
+    assert.ok(!(await store.get(`https://${cgw.domain}/?gw-view=${deGroup}`).clone().text()).includes(FOOTER_LINK));
+  } finally {
+    if (before === undefined) delete globalThis.caches; else globalThis.caches = before;
+  }
 });
