@@ -3130,6 +3130,11 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         # A locked file whose old drive copy (from an earlier backup that did not check) has e-mails: that copy goes.
         Write-Utf8 (Join-Path $bHome 'gear-world-hub\locked-list.csv') 'new list'
         Write-Utf8 (Join-Path $f 'gear-world-hub\locked-list.csv') "y1@shop-test.invalid`ny2@shop-test.invalid`ny3@shop-test.invalid`n"
+        # A zip that cannot be opened (on the PC and its old drive copy): the old copy cannot be checked, so it goes.
+        Write-Utf8 (Join-Path $bHome 'gear-world-hub\broken-pack.zip') 'not a zip'
+        Write-Utf8 (Join-Path $f 'gear-world-hub\broken-pack.zip') 'not a zip either'
+        # Old drive files no longer on the PC that cannot be checked (.7z): they go too.
+        Write-Utf8 (Join-Path $f 'gear-world-hub\gone-pack.7z') 'old archive'
         Check ((Run-B @()) -eq 0 -and (Test-Path -LiteralPath (Join-Path $f 'gear-world-hub\.dev.vars')) -and (Get-BReport).Contains('παλιά αντίγραφα')) 'backup check: old copies of keys and customers on the drive reported, not removed'
         $lock = [System.IO.File]::Open((Join-Path $bHome 'gear-world-hub\locked-notes.txt'), 'Open', 'Read', 'None')
         $lock2 = [System.IO.File]::Open((Join-Path $bHome 'gear-world-hub\locked-list.csv'), 'Open', 'Read', 'None')
@@ -3140,8 +3145,9 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         Check ((-not (Test-Path -LiteralPath (Join-Path $f 'gear-world-hub\gone-list.csv'))) -and (Test-Path -LiteralPath (Join-Path $f 'gear-world-hub\gone-notes.txt'))) 'backup: an old drive file no longer on the PC is read: e-mails removed, notes kept (L113)'
         Check ((@(Get-ChildItem -LiteralPath (Join-Path $f 'gear-world-keys') -Filter '*.ps1' -File -ErrorAction SilentlyContinue).Count -eq 0) -and (Test-Path -LiteralPath (Join-Path $f 'gear-world-keys\readme.txt'))) 'backup: 420 key files left out, the readme copied (L113)'
         Check ($rt.Contains('αρχεία έξω, άρα μένουν έξω και όσα έχουν το ίδιο όνομα') -and -not (Test-Path -LiteralPath (Join-Path $f 'gear-world-keys\sub\deploy-key-script-001.ps1'))) 'backup: too many paths for robocopy: names only (a file of the same name elsewhere stays out too), and the report says so (L113)'
-        Check ($rt.Contains('locked-notes.txt  (δεν διαβάστηκε') -and $rt.Contains('το παλιό τους αντίγραφο στον δίσκο μένει') -and (Test-Path -LiteralPath (Join-Path $f 'gear-world-hub\locked-notes.txt')) -and ([System.IO.File]::ReadAllText((Join-Path $f 'gear-world-hub\locked-notes.txt'))).Contains('old locked copy') -and -not $rt.Contains('ΠΡΟΒΛΗΜΑ στο ' + (Join-Path $bHome 'gear-world-hub'))) 'backup: a locked file is left out (not a copy error), and its old copy on the drive is kept (L113)'
+        Check ($rt.Contains('locked-notes.txt  (δεν διαβάστηκε') -and $rt.Contains('το παλιό τους αντίγραφο στον δίσκο μένει') -and (Test-Path -LiteralPath (Join-Path $f 'gear-world-hub\locked-notes.txt')) -and ([System.IO.File]::ReadAllText((Join-Path $f 'gear-world-hub\locked-notes.txt'))).Contains('old locked copy') -and -not $rt.Contains('gear-world-hub (robocopy')) 'backup: a locked file is left out (not a copy error), and its old clean copy on the drive is kept (L113)'
         Check (-not (Test-Path -LiteralPath (Join-Path $f 'gear-world-hub\locked-list.csv'))) 'backup: a locked file whose old drive copy has e-mails: that copy is removed (L113)'
+        Check (-not (Test-Path -LiteralPath (Join-Path $f 'gear-world-hub\broken-pack.zip')) -and -not (Test-Path -LiteralPath (Join-Path $f 'gear-world-hub\gone-pack.7z'))) 'backup: old drive copies that cannot be checked (broken zip, .7z no longer on the PC) are removed (L113)'
         $lo = @(Get-ChildItem -LiteralPath (Join-Path $bHome 'gear-world-reports') -Filter 'GW_LEFT_OUT_*.txt' -ErrorAction SilentlyContinue | Sort-Object LastWriteTime | Select-Object -Last 1)
         $lt = ''; if ($lo.Count) { $lt = [System.IO.File]::ReadAllText($lo[0].FullName) }
         Check ($lt.Contains('deploy-key-script-420.ps1') -and $lt.Contains('locked-notes.txt') -and -not $lt.Contains($fakeSecret) -and -not $lt.Contains('shop-test.invalid')) 'backup: the whole left-out list (past the 60 shown) written to a file, paths only'

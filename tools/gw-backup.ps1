@@ -26,7 +26,7 @@
   customers, newsletter, reward_*, any table with an e-mail or IP column, rate counters): for those only the number of
   rows. The report lists every file left out, by path only. Old copies of such files from an earlier backup are
   removed from the drive (also when the file is no longer on the PC); a file that is locked or too slow to check now
-  keeps its old copy, unless that old copy itself has a key or e-mails. The keys live as Cloudflare secrets, the
+  keeps its old copy only if that old copy reads clean (no key, no e-mails, and it could be checked). The keys live as Cloudflare secrets, the
   customers in D1 and MailerLite. The Awin feeds are copied without reading them (they are product data).
   While it runs the PC is kept awake and the screen on (SetThreadExecutionState, no power setting is changed), and a
   click in the window does not pause it; at the end both are normal again.
@@ -445,10 +445,8 @@ function Backup-Table([string]$db, [string]$t, [string]$sql, [string]$dir) {
 }
 # Old copies on the drive that must not stay there (lessons L113): secret files, the secrets folder, the files the scan
 # found, and customer-table pages in d1\. Counts them, and with -Remove deletes them. Never touches anything else.
-$script:DriveUnchecked = 0
 function Clear-DriveSensitive([bool]$Remove, $flaggedRel) {
-    $script:DriveUnchecked = 0
-    $found = New-Object System.Collections.Generic.List[string]
+        $found = New-Object System.Collections.Generic.List[string]
     $keys = @{}
     function Add-Found([string]$p) { $k = $p.ToLowerInvariant(); if (-not $keys.ContainsKey($k)) { $keys[$k] = $true; $found.Add($p) } }
     $files = Join-Path $Target 'files'
@@ -464,10 +462,11 @@ function Clear-DriveSensitive([bool]$Remove, $flaggedRel) {
             if ($f.FullName.StartsWith($feedsOnDrive + '\', [System.StringComparison]::OrdinalIgnoreCase)) { continue }
             $pc = Join-Path $HomeDir $f.FullName.Substring($files.Length).TrimStart('\', '/')
             if (Test-Path -LiteralPath $pc) { continue }
+            # Anything that cannot be checked (.7z/.rar, over -ScanMaxMB, too slow, unreadable) goes too: the backup of
+            # 3/11 checked nothing, so if in doubt, out (lessons L113).
             $why = ''
             try { $why = Get-SensitiveReason $f.FullName } catch { $why = 'unreadable' }
-            if ($why -eq 'key' -or $why -eq 'emails') { Add-Found $f.FullName }
-            elseif ($why) { $script:DriveUnchecked++ }
+            if ($why) { Add-Found $f.FullName }
         }
         foreach ($rel in $flaggedRel) {
             $p = Join-Path $files $rel
@@ -652,23 +651,33 @@ if ($outAll.Count -gt 0) {
     } catch { Say ('  Η πλήρης λίστα δεν γράφτηκε σε αρχείο: {0}' -f $_.Exception.Message) 'Yellow' }
 }
 # A file that could not be checked now (locked, or the check ran out of time) keeps its old copy on the drive, so the
-# backup is not lost. The old copy itself is read: if it has a key or e-mails (an earlier backup did not check), it
-# goes like the others (lessons L113).
+# backup is not lost, but only if that old copy itself reads clean: the backup of 3/11 checked nothing, so an old copy
+# with a key or e-mails, or one that cannot be checked either, goes like the others. For a folder that cannot be read
+# now, every old file in it is read the same way (lessons L113).
 $keepOld = @('unreadable', 'slow')
 $flaggedList = New-Object System.Collections.Generic.List[string]
 $keptOld = 0
 foreach ($o in $outAll) {
     if ($keepOld -notcontains $o.reason) { $flaggedList.Add($o.rel); continue }
     $dc = Join-Path (Join-Path $Target 'files') $o.rel
-    $dr = ''
-    if (Test-Path -LiteralPath $dc -PathType Leaf) { try { $dr = Get-SensitiveReason $dc } catch { $dr = 'unreadable' } }
-    if ($dr -eq 'key' -or $dr -eq 'emails') { $flaggedList.Add($o.rel) } else { $keptOld++ }
+    if (Test-Path -LiteralPath $dc -PathType Container) {
+        $dcFull = (Get-Item -LiteralPath $dc -Force).FullName
+        foreach ($df in @(Get-ChildItem -LiteralPath $dc -Recurse -File -Force -ErrorAction SilentlyContinue)) {
+            $dr = ''
+            try { $dr = Get-SensitiveReason $df.FullName } catch { $dr = 'unreadable' }
+            if ($dr) { $flaggedList.Add((Join-Path $o.rel $df.FullName.Substring($dcFull.Length).TrimStart('\', '/'))) }
+        }
+        $keptOld++
+    } elseif (Test-Path -LiteralPath $dc -PathType Leaf) {
+        $dr = ''
+        try { $dr = Get-SensitiveReason $dc } catch { $dr = 'unreadable' }
+        if ($dr) { $flaggedList.Add($o.rel) } else { $keptOld++ }
+    }
 }
 $flaggedRel = @($flaggedList)
-if ($keptOld -gt 0) { Say ('  {0} από αυτά δεν διαβάστηκαν τώρα (κλειδωμένα ή αργά): το παλιό τους αντίγραφο στον δίσκο μένει.' -f $keptOld) 'Yellow' }
+if ($keptOld -gt 0) { Say ('  {0} από αυτά δεν διαβάστηκαν τώρα (κλειδωμένα ή αργά): το παλιό τους αντίγραφο στον δίσκο ελέγχθηκε, είναι καθαρό και μένει.' -f $keptOld) 'Yellow' }
 $old = Clear-DriveSensitive $false $flaggedRel
 if ($old.found -gt 0) { Say ('  Στον δίσκο υπάρχουν {0} παλιά αντίγραφα τέτοιων αρχείων ή πινάκων πελατών: με -Apply σβήνονται από τον δίσκο.' -f $old.found) 'Yellow' }
-if ($script:DriveUnchecked -gt 0) { Say ('  Στον δίσκο υπάρχουν {0} παλιά αρχεία που δεν είναι πια στον υπολογιστή και δεν διαβάστηκαν (μεγάλα ή κλειδωμένα): μένουν όπως είναι.' -f $script:DriveUnchecked) 'Yellow' }
 
 # 5. GitHub (public repos, read-only).
 $branches = @{}
