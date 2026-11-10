@@ -446,7 +446,7 @@ function Backup-Table([string]$db, [string]$t, [string]$sql, [string]$dir) {
 # Old copies on the drive that must not stay there (lessons L113): secret files, the secrets folder, the files the scan
 # found, and customer-table pages in d1\. Counts them, and with -Remove deletes them. Never touches anything else.
 function Clear-DriveSensitive([bool]$Remove, $flaggedRel) {
-        $found = New-Object System.Collections.Generic.List[string]
+    $found = New-Object System.Collections.Generic.List[string]
     $keys = @{}
     function Add-Found([string]$p) { $k = $p.ToLowerInvariant(); if (-not $keys.ContainsKey($k)) { $keys[$k] = $true; $found.Add($p) } }
     $files = Join-Path $Target 'files'
@@ -662,12 +662,13 @@ foreach ($o in $outAll) {
     $dc = Join-Path (Join-Path $Target 'files') $o.rel
     if (Test-Path -LiteralPath $dc -PathType Container) {
         $dcFull = (Get-Item -LiteralPath $dc -Force).FullName
+        $clean = 0
         foreach ($df in @(Get-ChildItem -LiteralPath $dc -Recurse -File -Force -ErrorAction SilentlyContinue)) {
             $dr = ''
             try { $dr = Get-SensitiveReason $df.FullName } catch { $dr = 'unreadable' }
-            if ($dr) { $flaggedList.Add((Join-Path $o.rel $df.FullName.Substring($dcFull.Length).TrimStart('\', '/'))) }
+            if ($dr) { $flaggedList.Add((Join-Path $o.rel $df.FullName.Substring($dcFull.Length).TrimStart('\', '/'))) } else { $clean++ }
         }
-        $keptOld++
+        if ($clean -gt 0) { $keptOld++ }
     } elseif (Test-Path -LiteralPath $dc -PathType Leaf) {
         $dr = ''
         try { $dr = Get-SensitiveReason $dc } catch { $dr = 'unreadable' }
