@@ -20,13 +20,18 @@
                order with LIMIT/OFFSET pages. READ-ONLY for Cloudflare: only SELECT.
     README-RESTORE.txt  how to get everything back.
   NOT on the drive (the drive is not encrypted): .dev.vars, .env, key files (*.pem, *.key ...), the folder
-  gear-world-secrets, any text file with a key or token in it, any text file with several e-mail addresses that are
-  not ours, and the rows of customer tables (hub_subscribers, customers, newsletter, reward_*, any table with an e-mail
-  or IP column, rate counters): for those only the number of rows. Old copies of such files from an earlier backup are
-  removed from the drive. The keys live as Cloudflare secrets, the customers in D1 and MailerLite.
-  While it runs the PC is kept awake (SetThreadExecutionState, no power setting is changed); at the end it is normal.
+  gear-world-secrets, any file with a key or token in it, any file with several e-mail addresses that are not ours
+  (text files, .gz, .zip/.xlsx/.docx and SQLite files are read; .7z/.rar cannot be read and stay out), files over
+  -ScanMaxMB (200 MB) that could not be read through, locked files, and the rows of customer tables (hub_subscribers,
+  customers, newsletter, reward_*, any table with an e-mail or IP column, rate counters): for those only the number of
+  rows. The report lists every file left out, by path only. Old copies of such files from an earlier backup are
+  removed from the drive (also when the file is no longer on the PC). The keys live as Cloudflare secrets, the
+  customers in D1 and MailerLite. The Awin feeds are copied without reading them (they are product data).
+  While it runs the PC is kept awake and the screen on (SetThreadExecutionState, no power setting is changed), and a
+  click in the window does not pause it; at the end both are normal again.
   It first checks the drive, the space, the network and the wrangler login, and stops at once if one is missing.
-  A table that fails is noted and the backup goes on. The last line is ΤΕΛΟΣ BACKUP.
+  A table that fails is noted and the backup goes on. Anything unexpected still ends with the report. The last line
+  is ΤΕΛΟΣ BACKUP.
 
   Report: <home>\gear-world-reports\GW_BACKUP_<time>.txt (also copied to the clipboard)
 #>
@@ -42,7 +47,7 @@ param(
     [string]$WorkDir = '',
     [string]$OutDir = '',
     [int]$PageRows = 3000,
-    [int]$ScanMaxMB = 10,
+    [int]$ScanMaxMB = 200,
     [string[]]$NetworkUrls = @(),
     [switch]$SkipNetworkCheck,
     [switch]$NoClipboard
@@ -64,19 +69,22 @@ $SkipDirs = @('node_modules', '.wrangler', '.cache', '.npm')
 # Never on the drive (lessons L113): files with these names, and these folders of the user folder.
 $SecretNames = @('.dev.vars', '.dev.vars.*', '.env', '.env.*', '*.pem', '*.key', '*.pfx', '*.p12', '*.kdbx', '.npmrc')
 $SecretDirs = @('gear-world-secrets')
-# Text files read to find keys and customer e-mails (up to -ScanMaxMB each).
-$ScanExt = @('', '.sql', '.csv', '.tsv', '.json', '.jsonl', '.ndjson', '.txt', '.log', '.xml', '.ini', '.cfg', '.conf', '.toml', '.jsonc', '.yaml', '.yml', '.ps1', '.psm1', '.bat', '.cmd', '.js', '.mjs', '.cjs', '.ts', '.py', '.md', '.html', '.htm', '.bak', '.old', '.vars', '.env')
+# Files read to find keys and customer e-mails (up to -ScanMaxMB each; bigger ones stay out, lessons L113). SQLite files
+# keep text as UTF-8, so they are read the same way; .gz, .zip, .xlsx and .docx are read inside.
+$ScanExt = @('', '.sql', '.csv', '.tsv', '.json', '.jsonl', '.ndjson', '.txt', '.log', '.xml', '.ini', '.cfg', '.conf', '.toml', '.jsonc', '.yaml', '.yml', '.ps1', '.psm1', '.bat', '.cmd', '.js', '.mjs', '.cjs', '.ts', '.py', '.md', '.html', '.htm', '.bak', '.old', '.vars', '.env', '.db', '.sqlite', '.sqlite3', '.dump')
 # A key or token written as a value (a name like ..._KEY, ...TOKEN, SECRET, PASSWORD, then 20+ letters AND digits),
 # a private key block, a Bearer token or a JWT. The begin marker is split so the repo's own secret scan does not match it.
 # Both have a 5-second limit per file, so one odd file can never hold the backup up.
 $RxLimit = [TimeSpan]::FromSeconds(5)
 $RxNone = [System.Text.RegularExpressions.RegexOptions]::None
-$SecretRx = [System.Text.RegularExpressions.Regex]::new(('(?i)(-----BEGIN ' + '[A-Z ]*PRIVATE KEY-----' + '|\b[A-Za-z0-9_]*(?:key|token|secret|password|passwd|pwd)\b["'']?\s*[:=]\s*["'']?(?=[A-Za-z_\-]*[0-9])(?=[0-9_\-]*[A-Za-z])[A-Za-z0-9_\-]{20,}' + '|\bBearer\s+(?=[A-Za-z_\-\.]*[0-9])[A-Za-z0-9_\-\.]{20,}' + '|\beyJ[A-Za-z0-9_\-]{10,}\.eyJ[A-Za-z0-9_\-]{10,}\.)'), $RxNone, $RxLimit)
+$SecretRx = [System.Text.RegularExpressions.Regex]::new(('(?i)(-----BEGIN ' + '[A-Z ]*PRIVATE KEY-----' + '|\b(?![A-Za-z0-9_]*site_?key\b)[A-Za-z0-9_]*(?:key|token|secret|password|passwd|pwd)\b["'']?\s*[:=]\s*["'']?(?=[A-Za-z_\-+/]*[0-9])(?=[0-9_\-+/]*[A-Za-z])[A-Za-z0-9_\-+/=]{20,}' + '|/api' + 'key/[A-Za-z0-9]{16,}' + '|\bgh[pousr]_[A-Za-z0-9]{30,}' + '|\bgithub' + '_pat_[A-Za-z0-9_]{40,}' + '|://[^\s/:@]+:[^\s/@]{8,}@' + '|\bBearer\s+(?=[A-Za-z_\-\.]*[0-9])[A-Za-z0-9_\-\.]{20,}' + '|\beyJ[A-Za-z0-9_\-]{10,}\.eyJ[A-Za-z0-9_\-]{10,}\.)'), $RxNone, $RxLimit)
 # An address starts only where a run of address characters starts (the lookbehind keeps the search linear).
 $EmailRx = [System.Text.RegularExpressions.Regex]::new('(?<![A-Za-z0-9._%+\-])[A-Za-z0-9._%+\-]+@(?:[A-Za-z0-9\-]+\.)+[A-Za-z]{2,24}\b', $RxNone, $RxLimit)
 # Addresses that are not customers: our domains, examples, services; and file names such as logo@2x.png.
 $NotCustomerRx = '(?i)(@|\.)(gearworldhub\.com|gearworldgroup\.com|[a-z]*gearworld\.com|example\.(com|org|net)|users\.noreply\.github\.com|anthropic\.com|cloudflare\.com|w3\.org)$|^(no-?reply|noreply)@|\.(png|jpe?g|gif|svg|webp|avif|ico|js|mjs|css|map|json|html?)$'
 $EmailLimit = 3 # a file with this many different customer-like addresses stays out
+$ArchiveOut = @('.7z', '.rar', '.tgz', '.tar') # cannot be read here: they stay out
+$ZipExt = @('.zip', '.xlsx', '.xlsm', '.docx')
 # Tables whose rows never go to the drive, only their number (lessons L113): customers, sign-ups, rewards, users,
 # visitor counters, and any table with an e-mail, IP or phone column.
 $CountOnlyNameRx = '(?i)^(hub_subscribers|subscribers?|customers?|newsletter\w*|members?|users?|rewards?\w*|\w+_(subscribers?|members?|customers?|users?)|rate_limits?|member_rate|\w+_usage)$'
@@ -84,37 +92,79 @@ $PersonalColRx = '(?i)[(,]\s*["`\[]?(e_?mail\w*|ip|ip_?addr\w*|client_ip|remote_
 
 $L = New-Object System.Collections.Generic.List[string]
 $script:Awake = $false
+$script:ConsoleMode = $null
+$script:Finishing = $false
 function Say([string]$text, [string]$color = '') {
     $L.Add($text)
     if ($color) { Write-Host $text -ForegroundColor $color } else { Write-Host $text }
 }
-# Keeps the PC awake while this script runs (no power setting changes; it ends with the script anyway).
-function Set-Awake([bool]$on) {
+# Windows (kernel32): keep the PC awake, and stop a click in the window from pausing the run (Quick Edit). No setting
+# is saved: both end with this script and this window (lessons L113).
+function Initialize-Native {
+    if ('GwBackupPower.Native' -as [type]) { return $true }
     try {
-        if (-not ('GwBackupPower.Native' -as [type])) {
-            Add-Type -Namespace GwBackupPower -Name Native -MemberDefinition '[System.Runtime.InteropServices.DllImport("kernel32.dll")] public static extern uint SetThreadExecutionState(uint esFlags);'
-        }
-        # ES_CONTINUOUS (0x80000000) + ES_SYSTEM_REQUIRED (0x1) to stay awake; ES_CONTINUOUS alone back to normal.
-        if ($on) { [void][GwBackupPower.Native]::SetThreadExecutionState([uint32]2147483649); $script:Awake = $true }
-        else { [void][GwBackupPower.Native]::SetThreadExecutionState([uint32]2147483648); $script:Awake = $false }
+        $sig = '[System.Runtime.InteropServices.DllImport("kernel32.dll")] public static extern uint SetThreadExecutionState(uint esFlags);' +
+            ' [System.Runtime.InteropServices.DllImport("kernel32.dll")] public static extern System.IntPtr GetStdHandle(int nStdHandle);' +
+            ' [System.Runtime.InteropServices.DllImport("kernel32.dll")] public static extern bool GetConsoleMode(System.IntPtr hConsoleHandle, out uint lpMode);' +
+            ' [System.Runtime.InteropServices.DllImport("kernel32.dll")] public static extern bool SetConsoleMode(System.IntPtr hConsoleHandle, uint dwMode);'
+        Add-Type -Namespace GwBackupPower -Name Native -MemberDefinition $sig
         return $true
+    } catch { return $false }
+}
+function Set-Awake([bool]$on) {
+    if (-not (Initialize-Native)) { return $false }
+    try {
+        # ES_CONTINUOUS (0x80000000) + ES_SYSTEM_REQUIRED (0x1) + ES_DISPLAY_REQUIRED (0x2): no sleep and the screen stays
+        # on (a laptop with Modern Standby can sleep when only the screen goes off). ES_CONTINUOUS alone: back to normal.
+        if ($on) {
+            [void][GwBackupPower.Native]::SetThreadExecutionState([uint32]2147483651)
+            $script:Awake = $true
+            return $true
+        }
+        [void][GwBackupPower.Native]::SetThreadExecutionState([uint32]2147483648)
+        $script:Awake = $false
+        return $true
+    } catch { return $false }
+}
+# Quick Edit off for this window while the backup runs (a click or a selection would pause it); back as it was at the end.
+function Set-QuickEdit([bool]$on) {
+    try {
+        if (-not (Initialize-Native)) { return $false }
+        $h = [GwBackupPower.Native]::GetStdHandle(-10)
+        if ($on) {
+            if ($null -ne $script:ConsoleMode) { [void][GwBackupPower.Native]::SetConsoleMode($h, [uint32]$script:ConsoleMode); $script:ConsoleMode = $null }
+            return $true
+        }
+        $mode = [uint32]0
+        if (-not [GwBackupPower.Native]::GetConsoleMode($h, [ref]$mode)) { return $false }
+        if (($mode -band 0x40) -eq 0) { return $true }
+        $new = [uint32](($mode -bor 0x80) - 0x40) # ENABLE_EXTENDED_FLAGS on, ENABLE_QUICK_EDIT_MODE off
+        if ([GwBackupPower.Native]::SetConsoleMode($h, $new)) { $script:ConsoleMode = $mode; return $true }
+        return $false
     } catch { return $false }
 }
 function Set-Title([string]$t) { try { $Host.UI.RawUI.WindowTitle = $t } catch { } }
 function Finish([int]$code) {
+    if ($script:Finishing) { exit $code }
+    $script:Finishing = $true
     if ($script:Awake) { [void](Set-Awake $false); Say 'Ο υπολογιστής γύρισε στον κανονικό ύπνο.' }
+    [void](Set-QuickEdit $true)
     if ($Apply) { Say 'ΤΕΛΟΣ BACKUP' 'Cyan'; Set-Title 'GW BACKUP - ΤΕΛΟΣ' }
     else { Say 'ΤΕΛΟΣ ΕΛΕΓΧΟΥ BACKUP (δεν γράφτηκε τίποτα στον δίσκο)' 'Cyan' }
-    if (-not (Test-Path -LiteralPath $OutDir)) { New-Item -ItemType Directory -Path $OutDir -Force | Out-Null }
     $file = Join-Path $OutDir ('GW_BACKUP_{0}.txt' -f $stamp)
     $text = $L -join "`r`n"
-    [System.IO.File]::WriteAllText($file, $text, (New-Object System.Text.UTF8Encoding($true)))
+    try {
+        if (-not (Test-Path -LiteralPath $OutDir)) { New-Item -ItemType Directory -Path $OutDir -Force | Out-Null }
+        [System.IO.File]::WriteAllText($file, $text, (New-Object System.Text.UTF8Encoding($true)))
+    } catch { Write-Host ('Η αναφορά δεν γράφτηκε στο {0}: {1}' -f $file, $_.Exception.Message) -ForegroundColor Red }
     if (-not $NoClipboard) { try { Set-Clipboard -Value $text } catch { } }
     Write-Host ''
     Write-Host ('Η αναφορά γράφτηκε: {0}' -f $file)
     if (-not $NoClipboard) { Write-Host 'Αντιγράφηκε στο πρόχειρο. Πήγαινε στη συζήτηση με το Claude και πάτα Ctrl+V.' -ForegroundColor Green }
     exit $code
 }
+# Anything unexpected still ends with the report, the clipboard and the last line, never a silent stop (lessons L113).
+trap { Say ('ΠΡΟΒΛΗΜΑ: η εντολή σταμάτησε απρόσμενα: {0}' -f $_.Exception.Message) 'Red'; Finish 13 }
 function Normalize-Phrase([string]$s) {
     $d = ([string]$s).Normalize([System.Text.NormalizationForm]::FormD)
     $sb = New-Object System.Text.StringBuilder
@@ -133,50 +183,112 @@ function Test-SecretName([string]$name) {
     foreach ($p in $SecretNames) { if ($name -like $p) { return $true } }
     return $false
 }
-# Why a text file must stay off the drive: 'key', 'emails' or '' (lessons L113).
-function Get-SensitiveReason([string]$path) {
-    $text = ''
-    try { $text = [System.IO.File]::ReadAllText($path) } catch { return '' }
-    try {
+# Reads text in 4 MB pieces (the last 512 characters again at the start of the next piece, so nothing is missed at an
+# edge) and returns 'key', 'emails' or ''. A regex that runs out of time throws: the caller makes it 'slow'.
+function Test-TextReader([System.IO.TextReader]$reader) {
+    $buf = New-Object char[] 4194304
+    $tail = ''
+    $seen = @{}
+    while ($true) {
+        $n = $reader.ReadBlock($buf, 0, $buf.Length)
+        if ($n -le 0) { break }
+        $text = $tail + [string]::new($buf, 0, $n)
         if ($SecretRx.IsMatch($text)) { return 'key' }
-        $seen = @{}
         $m = $EmailRx.Match($text)
         while ($m.Success) {
             $a = $m.Value.ToLowerInvariant()
             if (-not ($a -match $NotCustomerRx)) { $seen[$a] = $true; if ($seen.Count -ge $EmailLimit) { return 'emails' } }
             $m = $m.NextMatch()
         }
-    } catch { return 'slow' } # could not be checked in time: it stays out, to be safe
+        if ($text.Length -gt 512) { $tail = $text.Substring($text.Length - 512) } else { $tail = $text }
+        if ($n -lt $buf.Length) { break }
+    }
     return ''
 }
-# Size of a folder without node_modules and the other skipped folders, and the files that must stay out.
-function Get-FolderScan([string]$dir) {
+function Test-Scannable([string]$name) {
+    $ext = [System.IO.Path]::GetExtension($name).ToLowerInvariant()
+    if ($ext -eq '.gz') { $ext = [System.IO.Path]::GetExtension([System.IO.Path]::GetFileNameWithoutExtension($name)).ToLowerInvariant() }
+    return ($ScanExt -contains $ext)
+}
+# Why a file must stay off the drive: 'key', 'emails', 'slow', 'unreadable', 'archive', 'big' or '' (lessons L113).
+# The file is opened so that a program writing to it does not stop the read; if it cannot be opened it stays out.
+function Get-SensitiveReason([string]$path) {
+    $ext = [System.IO.Path]::GetExtension($path).ToLowerInvariant()
+    if ($ArchiveOut -contains $ext) { return 'archive' }
+    $isZip = $ZipExt -contains $ext
+    $isGz = ($ext -eq '.gz')
+    if ($isGz -and ($ArchiveOut -contains [System.IO.Path]::GetExtension([System.IO.Path]::GetFileNameWithoutExtension($path)).ToLowerInvariant())) { return 'archive' } # .tar.gz
+    if (-not $isZip -and -not (Test-Scannable ([System.IO.Path]::GetFileName($path)))) { return '' }
+    $fi = New-Object System.IO.FileInfo($path)
+    if ($fi.Length -eq 0) { return '' }
+    if ($fi.Length -gt ([long]$ScanMaxMB * 1MB)) { return 'big' }
+    $fs = $null
+    try { $fs = New-Object System.IO.FileStream($path, [System.IO.FileMode]::Open, [System.IO.FileAccess]::Read, ([System.IO.FileShare]::ReadWrite -bor [System.IO.FileShare]::Delete)) } catch { return 'unreadable' }
+    try {
+        if ($isZip) {
+            Add-Type -AssemblyName System.IO.Compression
+            $zip = New-Object System.IO.Compression.ZipArchive($fs, [System.IO.Compression.ZipArchiveMode]::Read)
+            try {
+                foreach ($entry in $zip.Entries) {
+                    $ee = [System.IO.Path]::GetExtension($entry.Name).ToLowerInvariant()
+                    if (($ArchiveOut -contains $ee) -or ($ZipExt -contains $ee) -or $ee -eq '.gz') { return 'archive' } # an archive inside
+                    if (-not (Test-Scannable $entry.Name) -or $entry.Length -eq 0) { continue }
+                    if ($entry.Length -gt ([long]$ScanMaxMB * 1MB)) { return 'big' }
+                    $r = New-Object System.IO.StreamReader($entry.Open())
+                    try { $x = Test-TextReader $r } finally { $r.Dispose() }
+                    if ($x) { return $x }
+                }
+            } finally { $zip.Dispose() }
+            return ''
+        }
+        $stream = $fs
+        if ($isGz) { $stream = New-Object System.IO.Compression.GZipStream($fs, [System.IO.Compression.CompressionMode]::Decompress) }
+        $reader = New-Object System.IO.StreamReader($stream)
+        try { return (Test-TextReader $reader) } finally { $reader.Dispose() }
+    } catch {
+        # Could not be checked (in time): it stays out, to be safe. PowerShell wraps the .NET error, so look inside.
+        $ex = $_.Exception
+        while ($ex) { if ($ex -is [System.Text.RegularExpressions.RegexMatchTimeoutException]) { return 'slow' }; $ex = $ex.InnerException }
+        return 'unreadable'
+    } finally {
+        if ($fs) { $fs.Dispose() }
+    }
+}
+# Size of a folder without node_modules and the other skipped folders, and the files that must stay out. Without
+# $content only the names are checked (the Awin feeds: product data). A file or folder that cannot be read stays out.
+function Get-FolderScan([string]$dir, [bool]$content = $true) {
     $total = [double]0; $count = 0
     $out = New-Object System.Collections.Generic.List[object]
-    $maxBytes = [long]$ScanMaxMB * 1MB
     $stack = New-Object System.Collections.Stack
     $stack.Push($dir)
     while ($stack.Count -gt 0) {
         $d = $stack.Pop()
-        try {
-            foreach ($f in [System.IO.Directory]::GetFiles($d)) {
-                try {
-                    $fi = New-Object System.IO.FileInfo($f)
-                    $reason = ''
-                    if (Test-SecretName $fi.Name) { $reason = 'name' }
-                    elseif (($ScanExt -contains $fi.Extension.ToLowerInvariant()) -and $fi.Length -le $maxBytes -and $fi.Length -gt 0) { $reason = Get-SensitiveReason $f }
-                    if ($reason) { $out.Add(@{ path = $f; rel = $f.Substring($dir.Length).TrimStart('\', '/'); reason = $reason }) }
-                    else { $total += $fi.Length; $count++ }
-                } catch { }
-            }
-            foreach ($s in [System.IO.Directory]::GetDirectories($d)) {
-                $name = [System.IO.Path]::GetFileName($s)
-                if ($SkipDirs -contains $name) { continue }
+        $rel = $d.Substring($dir.Length).TrimStart('\', '/')
+        $files = $null
+        try { $files = [System.IO.Directory]::GetFiles($d) } catch { if ($rel) { $out.Add(@{ path = $d; rel = $rel; reason = 'unreadable'; dir = $true }) }; continue }
+        foreach ($f in $files) {
+            $reason = ''
+            $len = [long]0
+            try {
+                $fi = New-Object System.IO.FileInfo($f)
+                $len = $fi.Length
+                if (Test-SecretName $fi.Name) { $reason = 'name' }
+                elseif ($content) { $reason = Get-SensitiveReason $f }
+            } catch { $reason = 'unreadable' }
+            if ($reason) { $out.Add(@{ path = $f; rel = $f.Substring($dir.Length).TrimStart('\', '/'); reason = $reason; dir = $false }) }
+            else { $total += $len; $count++ }
+        }
+        $subs = @()
+        try { $subs = [System.IO.Directory]::GetDirectories($d) } catch { }
+        foreach ($s in $subs) {
+            $name = [System.IO.Path]::GetFileName($s)
+            if ($SkipDirs -contains $name) { continue }
+            try {
                 $attr = [System.IO.File]::GetAttributes($s)
                 if (($attr -band [System.IO.FileAttributes]::ReparsePoint) -ne 0) { continue }
-                $stack.Push($s)
-            }
-        } catch { }
+            } catch { $out.Add(@{ path = $s; rel = $s.Substring($dir.Length).TrimStart('\', '/'); reason = 'unreadable'; dir = $true }); continue }
+            $stack.Push($s)
+        }
     }
     return @{ bytes = $total; files = $count; out = $out }
 }
@@ -213,7 +325,7 @@ function Invoke-Wrangler([string]$Folder, [string]$Arguments) {
         }
         $text = (($out | ForEach-Object { "$_" }) -join "`n") -replace '\x1b\[[0-9;]*m', ''
         $result = @{ code = $code; text = $text }
-        $network = $text -match '(?i)fetch failed|connectivity issue|ECONNRESET|ETIMEDOUT|EAI_AGAIN|ENOTFOUND|socket hang up'
+        $network = $text -match '(?i)fetch failed|connectivity issue|ECONNRESET|ETIMEDOUT|EAI_AGAIN|ENOTFOUND|socket hang up|\b429\b|\b503\b|Too Many Requests|Service Unavailable|temporarily unavailable|overloaded|try again later|\b10000\b'
         if ($code -eq 0 -or -not $network -or $try -eq 3) { break }
         Start-Sleep -Seconds (5 * $try)
     }
@@ -273,22 +385,29 @@ function Backup-Table([string]$db, [string]$t, [string]$sql, [string]$dir) {
     }
     $enc = New-Object System.Text.UTF8Encoding($false)
     if ($sql -match '(?i)\bWITHOUT\s+ROWID\b') {
-        # No rowid: pages in key order. New rows written meanwhile (price log every 15 minutes) can only repeat a row
-        # at a page edge, never skip one, because these tables only get new rows (lessons L113).
+        # No rowid: pages in key order, until a page comes back empty. A row added meanwhile (price log every 15
+        # minutes) can only repeat a row at a page edge; a row removed meanwhile could make one be missed, so the rows
+        # read are counted: fewer than the table had at the start = a problem, and the old copy is kept (lessons L113).
         $c = Select-Rows $db ('SELECT COUNT(*) AS n FROM {0}' -f $t)
         if ($null -eq $c -or $c.Count -eq 0) { return @{ ok = $false; mode = 'σελίδες με κλειδί'; rows = -1; pages = 0 } }
         $n = [long]$c[0].n
         $order = Get-OrderBy $sql
-        $ok = $true; $page = 0
-        $max = [long][Math]::Ceiling($n / $PageRows) + 1
+        $ok = $true; $page = 0; $done = $false; $read = [long]0
+        $max = [long][Math]::Ceiling($n / $PageRows) * 2 + 10
         for ($i = 0; $i -lt $max; $i++) {
             $x = Invoke-Wrangler $WorkDir ('d1 execute {0} --remote --json --command "SELECT * FROM {1}{2} LIMIT {3} OFFSET {4}"' -f $db, $t, $order, $PageRows, ($i * [long]$PageRows))
             $j = Get-JsonText $x.text
             if ($x.code -ne 0 -or -not $j) { $ok = $false; Say ('  ΠΡΟΒΛΗΜΑ: {0}.{1} σελίδα {2}' -f $db, $t, ($i + 1)) 'Red'; continue }
-            if ($j -match '"results"\s*:\s*\[\s*\]') { break }
+            $got = -1
+            try { $got = @(($j | ConvertFrom-Json)[0].results).Count } catch { $got = -1 }
+            if ($got -lt 0) { $ok = $false; Say ('  ΠΡΟΒΛΗΜΑ: {0}.{1} σελίδα {2} δεν διαβάστηκε' -f $db, $t, ($i + 1)) 'Red'; continue }
+            if ($got -eq 0) { $done = $true; break }
+            $read += $got
             $page++
             [System.IO.File]::WriteAllText((Join-Path $dir ('{0}-{1:D4}.json' -f $t, $page)), $j, $enc)
         }
+        if (-not $done) { $ok = $false; Say ('  ΠΡΟΒΛΗΜΑ: {0}.{1}: δεν έφτασα στο τέλος του πίνακα μετά από {2} σελίδες' -f $db, $t, $max) 'Red' }
+        elseif ($read -lt $n) { $ok = $false; Say ('  ΠΡΟΒΛΗΜΑ: {0}.{1}: διάβασα {2} γραμμές από {3}' -f $db, $t, $read, $n) 'Red' }
         $mode = 'σελίδες με κλειδί'
         if (-not $order) { $mode = 'σελίδες χωρίς σειρά κλειδιού' }
         return @{ ok = $ok; mode = $mode; rows = $n; pages = $page }
@@ -312,7 +431,9 @@ function Backup-Table([string]$db, [string]$t, [string]$sql, [string]$dir) {
 }
 # Old copies on the drive that must not stay there (lessons L113): secret files, the secrets folder, the files the scan
 # found, and customer-table pages in d1\. Counts them, and with -Remove deletes them. Never touches anything else.
+$script:DriveUnchecked = 0
 function Clear-DriveSensitive([bool]$Remove, $flaggedRel) {
+    $script:DriveUnchecked = 0
     $found = New-Object System.Collections.Generic.List[string]
     $keys = @{}
     function Add-Found([string]$p) { $k = $p.ToLowerInvariant(); if (-not $keys.ContainsKey($k)) { $keys[$k] = $true; $found.Add($p) } }
@@ -322,8 +443,16 @@ function Clear-DriveSensitive([bool]$Remove, $flaggedRel) {
             $p = Join-Path $files $sd
             if (Test-Path -LiteralPath $p) { Add-Found $p }
         }
+        $feedsOnDrive = Join-Path $files 'Downloads'
         foreach ($f in @(Get-ChildItem -LiteralPath $files -Recurse -File -Force -ErrorAction SilentlyContinue)) {
-            if (Test-SecretName $f.Name) { Add-Found $f.FullName }
+            if (Test-SecretName $f.Name) { Add-Found $f.FullName; continue }
+            # A file whose original is no longer on the PC is read here (the feeds in Downloads are product data).
+            if ($f.FullName.StartsWith($feedsOnDrive + '\', [System.StringComparison]::OrdinalIgnoreCase)) { continue }
+            $pc = Join-Path $HomeDir $f.FullName.Substring($files.Length).TrimStart('\', '/')
+            if (Test-Path -LiteralPath $pc) { continue }
+            $why = Get-SensitiveReason $f.FullName
+            if ($why -eq 'key' -or $why -eq 'emails') { Add-Found $f.FullName }
+            elseif ($why) { $script:DriveUnchecked++ }
         }
         foreach ($rel in $flaggedRel) {
             $p = Join-Path $files $rel
@@ -335,7 +464,7 @@ function Clear-DriveSensitive([bool]$Remove, $flaggedRel) {
         foreach ($dbDir in @(Get-ChildItem -LiteralPath $d1 -Directory -ErrorAction SilentlyContinue)) {
             $schema = ''
             $sf = Join-Path $dbDir.FullName 'schema.sql'
-            if (Test-Path -LiteralPath $sf) { $schema = [System.IO.File]::ReadAllText($sf) }
+            if (Test-Path -LiteralPath $sf) { try { $schema = [System.IO.File]::ReadAllText($sf) } catch { $schema = '' } }
             foreach ($f in @(Get-ChildItem -LiteralPath $dbDir.FullName -File -Filter '*.json' -ErrorAction SilentlyContinue)) {
                 $m = [regex]::Match($f.Name, '^([A-Za-z_][A-Za-z0-9_]*)-\d{4}\.json$')
                 if (-not $m.Success) { continue }
@@ -369,6 +498,10 @@ $blockers = New-Object System.Collections.Generic.List[string]
 if ($Apply) {
     if (-not $Approve) { Say ('Λείπει η φράση: η εντολή θέλει -Approve ''{0}''. Δεν άλλαξε τίποτα.' -f $phrase) 'Red'; Finish 1 }
     if ((Normalize-Phrase $Approve) -ne (Normalize-Phrase $phrase)) { Say ('Λάθος φράση έγκρισης (χρειάζεται: {0}). Δεν άλλαξε τίποτα.' -f $phrase) 'Red'; Finish 1 }
+    # From the first minute: the checks and the reading of the folders can take a while (lessons L113).
+    if (Set-Awake $true) { Say 'Ο υπολογιστής μένει ξύπνιος και η οθόνη ανοιχτή όσο τρέχει το backup (χωρίς αλλαγή ρυθμίσεων). Αν είναι laptop, άφησε το καπάκι ανοιχτό και το καλώδιο στην πρίζα.' }
+    else { Say 'ΠΡΟΣΟΧΗ: δεν μπόρεσα να κρατήσω τον υπολογιστή ξύπνιο. Αν κοιμηθεί, το backup συνεχίζει όταν ξυπνήσει.' 'Yellow' }
+    if (Set-QuickEdit $false) { Say 'Ένα κλικ μέσα στο παράθυρο δεν σταματά πια το backup.' }
 }
 
 # 1. The drive.
@@ -470,11 +603,12 @@ if ($copies.Count -eq 0) { Say '  Δεν βρέθηκαν φάκελοι του 
 foreach ($c in $copies) {
     if ($c.files.Count -gt 0) {
         $b = [double]0
-        foreach ($n in $c.files) { $b += (Get-Item -LiteralPath (Join-Path $c.src $n)).Length }
+        foreach ($n in $c.files) { $it = Get-Item -LiteralPath (Join-Path $c.src $n) -ErrorAction SilentlyContinue; if ($it) { $b += $it.Length } }
         $c['bytes'] = $b
         Say ('  {0,-40} {1,10}  ({2} feeds στα Downloads)' -f 'Downloads\<id>-*.csv.gz', (Format-Size $b), $c.files.Count)
     } else {
-        $s = Get-FolderScan $c.src
+        Write-Host ('  ... διαβάζω {0} (μπορεί να πάρει μερικά λεπτά, μην κλείσεις το παράθυρο)' -f $c.rel)
+        $s = Get-FolderScan $c.src ($c.kind -ne 'feeds') # the Awin feeds are product data: only their names are checked
         $c['bytes'] = $s.bytes
         $c['out'] = $s.out.ToArray() # index syntax: a dot assignment of an array here fails in PowerShell 5.1
         foreach ($o in $s.out) { $outAll.Add(@{ rel = (Join-Path $c.rel $o.rel); reason = $o.reason }) }
@@ -487,7 +621,7 @@ Say ''
 Say ('== Μένουν ΕΞΩ από τον δίσκο: {0} αρχεία με κλειδιά ή emails πελατών ==' -f $outAll.Count)
 Say '  (μένουν μόνο στον υπολογιστή· τα κλειδιά είναι και στο Cloudflare, οι πελάτες στη D1 και στο MailerLite)'
 if (@(Get-ChildItem -LiteralPath $HomeDir -Directory -Force -ErrorAction SilentlyContinue | Where-Object { $SecretDirs -contains $_.Name }).Count -gt 0) { Say '  φάκελος gear-world-secrets (κρυπτογραφημένα κλειδιά, δουλεύουν μόνο σε αυτόν τον υπολογιστή)' }
-$why = @{ name = 'αρχείο κλειδιών'; key = 'έχει κλειδί/token'; emails = 'έχει emails'; slow = 'δεν ελέγχθηκε εγκαίρως' }
+$why = @{ name = 'αρχείο κλειδιών'; key = 'έχει κλειδί/token'; emails = 'έχει emails'; slow = 'δεν ελέγχθηκε εγκαίρως'; unreadable = 'δεν διαβάστηκε (ανοιχτό ή κλειδωμένο)'; archive = 'αρχείο .7z/.rar ή zip μέσα σε zip, δεν διαβάζεται'; big = ('πάνω από {0} MB, δεν ελέγχθηκε' -f $ScanMaxMB) }
 $shown = 0
 foreach ($o in $outAll) {
     if ($shown -ge 60) { Say ('  ... και {0} ακόμα' -f ($outAll.Count - $shown)); break }
@@ -496,6 +630,7 @@ foreach ($o in $outAll) {
 $flaggedRel = @($outAll | ForEach-Object { $_.rel })
 $old = Clear-DriveSensitive $false $flaggedRel
 if ($old.found -gt 0) { Say ('  Στον δίσκο υπάρχουν {0} παλιά αντίγραφα τέτοιων αρχείων ή πινάκων πελατών: με -Apply σβήνονται από τον δίσκο.' -f $old.found) 'Yellow' }
+if ($script:DriveUnchecked -gt 0) { Say ('  Στον δίσκο υπάρχουν {0} παλιά αρχεία που δεν είναι πια στον υπολογιστή και δεν διαβάστηκαν (μεγάλα ή κλειδωμένα): μένουν όπως είναι.' -f $script:DriveUnchecked) 'Yellow' }
 
 # 5. GitHub (public repos, read-only).
 $branches = @{}
@@ -528,7 +663,7 @@ if (-not $Apply) {
     Say 'Τι θα γίνει με -Apply (τρέχει μόνο του, χωρίς ερωτήσεις):'
     Say ('  - Αντιγραφή στο {0}: μόνο όσα άλλαξαν. Κλειδιά και emails πελατών μένουν έξω.' -f $Target)
     Say '  - Zip κάθε κλάδου του GitHub που άλλαξε, και αντίγραφο κάθε βάσης D1 (μόνο SELECT, σε σελίδες).'
-    Say '  - Ο υπολογιστής μένει ξύπνιος μέχρι το τέλος, χωρίς αλλαγή ρυθμίσεων.'
+    Say '  - Ο υπολογιστής μένει ξύπνιος και η οθόνη ανοιχτή μέχρι το τέλος, χωρίς αλλαγή ρυθμίσεων· ένα κλικ στο παράθυρο δεν το σταματά.'
     Say '  - Καμία αλλαγή σε site, βάση, Worker ή GitHub.'
     Say ''
     if ($blockers.Count -gt 0) {
@@ -542,7 +677,6 @@ if (-not $Apply) {
 }
 
 # ---------------- from here on: -Apply with the right phrase, all checks passed ----------------
-if (Set-Awake $true) { Say ''; Say 'Ο υπολογιστής μένει ξύπνιος όσο τρέχει το backup (χωρίς αλλαγή ρυθμίσεων). Αν είναι laptop, άφησε το καπάκι ανοιχτό.' }
 $problems = 0
 if (-not (Test-Path -LiteralPath $Target)) { New-Item -ItemType Directory -Path $Target -Force | Out-Null }
 
@@ -560,20 +694,30 @@ foreach ($c in $copies) {
     try {
         if (-not (Test-Path -LiteralPath $c.dst)) { New-Item -ItemType Directory -Path $c.dst -Force | Out-Null }
         $a = @($c.src, $c.dst)
-        if ($c.files.Count -gt 0) { $a += $c.files } else { $a += @('/E', '/XD') + $SkipDirs }
-        $xf = @($SecretNames) + @($c.out | ForEach-Object { $_.path })
+        $outDirs = @($c.out | Where-Object { $_.dir } | ForEach-Object { $_.path })
+        $outFiles = @($c.out | Where-Object { -not $_.dir } | ForEach-Object { $_.path })
+        if ($c.files.Count -gt 0) { $a += $c.files } else { $a += @('/E', '/XD') + $SkipDirs + $outDirs }
+        # Full paths keep the exclusion exact. With very many, the command line would be too long (32K): then the file
+        # names only (a file of the same name elsewhere in this folder stays out too, which is safe) (lessons L113).
+        $xf = $outFiles
+        if ($outFiles.Count -gt 200) { $xf = @($outFiles | ForEach-Object { [System.IO.Path]::GetFileName($_) } | Sort-Object -Unique) }
+        $xf = @($SecretNames) + $xf
+        $len = (($a + $xf) | ForEach-Object { ([string]$_).Length + 3 } | Measure-Object -Sum).Sum
+        if ($len -gt 30000) { throw ('πάρα πολλά αρχεία μένουν έξω ({0}): ο φάκελος δεν αντιγράφηκε' -f $outFiles.Count) }
         $a += @('/XF') + $xf
         $a += @('/R:1', '/W:1', '/XJ', '/NP', '/NFL', '/NDL', '/NJH', '/NJS')
         & robocopy @a | Out-Null
         $rc = $LASTEXITCODE
         if ($rc -ge 8) { $problems++; Say ('  ΠΡΟΒΛΗΜΑ στο {0} (robocopy {1})' -f $c.src, $rc) 'Red' }
         else { Say ('  OK  {0}' -f $c.dst) }
-        # Safety net: a file the scan found must not be on the drive, even if robocopy took it.
-        foreach ($o in $c.out) {
-            $p = Join-Path $c.dst $o.rel
-            if (Test-Path -LiteralPath $p) { Remove-Item -LiteralPath $p -Force }
-        }
     } catch { $problems++; Say ('  ΠΡΟΒΛΗΜΑ στο {0}: {1}' -f $c.src, $_.Exception.Message) 'Red' }
+    # Safety net, always: what the scan found must not be on the drive, even if robocopy took it.
+    foreach ($o in $c.out) {
+        try {
+            $p = Join-Path $c.dst $o.rel
+            if (Test-Path -LiteralPath $p) { Remove-Item -LiteralPath $p -Recurse -Force }
+        } catch { $problems++; Say ('  ΠΡΟΒΛΗΜΑ: δεν σβήστηκε από τον δίσκο: {0}' -f $o.rel) 'Red' }
+    }
 }
 
 # 9. GitHub zips (a branch whose commit did not change is not downloaded again).
@@ -615,7 +759,7 @@ if ($dbs.Count -gt 0) {
     Say ''
     Say '== Βάσεις D1 ==' 'Cyan'
     $d1Root = Join-Path $Target 'd1'
-    if (-not (Test-Path -LiteralPath $d1Root)) { New-Item -ItemType Directory -Path $d1Root -Force | Out-Null }
+    try { if (-not (Test-Path -LiteralPath $d1Root)) { New-Item -ItemType Directory -Path $d1Root -Force | Out-Null } } catch { $problems++; Say ('  ΠΡΟΒΛΗΜΑ: {0}' -f $_.Exception.Message) 'Red' }
     foreach ($left in @(Get-ChildItem -LiteralPath $d1Root -Directory -Filter '_new_*' -ErrorAction SilentlyContinue)) { try { Remove-Item -LiteralPath $left.FullName -Recurse -Force } catch { } }
     foreach ($db in $dbs) {
         $final = Join-Path $d1Root $db
@@ -707,7 +851,7 @@ try {
     [System.IO.File]::WriteAllText((Join-Path $Target 'README-RESTORE.txt'), $readme + "`r`n", (New-Object System.Text.UTF8Encoding($true)))
 } catch { $problems++; Say ('  ΠΡΟΒΛΗΜΑ: README-RESTORE.txt: {0}' -f $_.Exception.Message) 'Red' }
 $logDir = Join-Path $Target 'logs'
-if (-not (Test-Path -LiteralPath $logDir)) { New-Item -ItemType Directory -Path $logDir -Force | Out-Null }
+try { if (-not (Test-Path -LiteralPath $logDir)) { New-Item -ItemType Directory -Path $logDir -Force | Out-Null } } catch { }
 
 Say ''
 if ($problems -gt 0) {

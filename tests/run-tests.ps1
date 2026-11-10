@@ -2995,6 +2995,23 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
     Write-Utf8 (Join-Path $bHome 'Downloads\GW_AWIN_BULK_ARCHIVE\AWIN_1_2.csv.gz') 'feed'
     Write-Utf8 (Join-Path $bHome 'Downloads\48473-retail-en_GB.csv.gz') 'google feed'
     Write-Utf8 (Join-Path $bHome 'Downloads\holiday.jpg') 'photo'
+    # Review 10/11 (L113): a 5 MB export read in pieces, more key formats, a public sitekey, archives, many key files.
+    Write-Utf8 (Join-Path $bHome 'gear-world-import\big-export.sql') ((('x' * 1023) + "`n") * 5120 + "INSERT INTO t VALUES ('d4@shop-test.invalid');`nINSERT INTO t VALUES ('e5@shop-test.invalid');`nINSERT INTO t VALUES ('f6@shop-test.invalid');`n")
+    Write-Utf8 (Join-Path $bHome 'gear-world-import\feeds-list.txt') ('https://productdata.awin.com/datafeed/download/api' + 'key/' + ('ab12' * 8) + '/language/en/fid/1/')
+    Write-Utf8 (Join-Path $bHome 'gear-world-import\push.cmd') ('set GH=' + 'gh' + 'p_' + ('A1b2' * 9))
+    Write-Utf8 (Join-Path $bHome 'gear-world-import\remote.txt') ('https://user:' + ('pw12' * 3) + '@example.org/repo.git')
+    Write-Utf8 (Join-Path $bHome 'gear-world-hub\site.config.js') ("export default { turnstileSiteKey: '0x4AAAAAAA" + 'B1c2D3e4F5g6H7' + "' };`n")
+    Write-Utf8 (Join-Path $bHome 'gear-world-hub\old.7z') 'not readable here'
+    $gzPath = Join-Path $bHome 'gear-world-hub\old-list.csv.gz'
+    $gzFile = [System.IO.File]::Create($gzPath)
+    $gz = New-Object System.IO.Compression.GZipStream($gzFile, [System.IO.Compression.CompressionMode]::Compress)
+    $gzBytes = [System.Text.Encoding]::UTF8.GetBytes("email`na7@shop-test.invalid`nb8@shop-test.invalid`nc9@shop-test.invalid`n")
+    $gz.Write($gzBytes, 0, $gzBytes.Length); $gz.Dispose(); $gzFile.Dispose()
+    Add-Type -AssemblyName System.IO.Compression.FileSystem
+    Write-Utf8 (Join-Path $work 'bk-zipsrc\members.csv') "email`ng1@shop-test.invalid`nh2@shop-test.invalid`ni3@shop-test.invalid`n"
+    [System.IO.Compression.ZipFile]::CreateFromDirectory((Join-Path $work 'bk-zipsrc'), (Join-Path $bHome 'gear-world-hub\members-export.zip'))
+    for ($k = 1; $k -le 205; $k++) { Write-Utf8 (Join-Path $bHome ('gear-world-keys\k{0:D3}.ps1' -f $k)) ("`$apiKey = '" + ('Zz9' * 8) + "'`n") }
+    Write-Utf8 (Join-Path $bHome 'gear-world-keys\readme.txt') 'how the old keys were made'
     # A warning before the JSON (L113), 3 databases: test-db (rowid, search, customer tables), prices-db (WITHOUT ROWID),
     # broken-db (one table fails). "noauth" in the state folder = wrangler not logged in.
     $bNpx = @(
@@ -3008,6 +3025,7 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         'echo %* | findstr /C:"FROM bad" >nul && goto fail',
         'echo %* | findstr /C:"MIN(rowid)" >nul && goto range',
         'echo %* | findstr /C:"COUNT(" >nul && goto count',
+        'echo %* | findstr /C:"FROM grow" >nul && echo %* | findstr /C:"OFFSET" >nul && goto growpage',
         'echo %* | findstr /C:"OFFSET 0" >nul && goto page1',
         'echo %* | findstr /C:"OFFSET 3" >nul && goto page2',
         'echo %* | findstr /C:"OFFSET" >nul && goto pageempty',
@@ -3031,7 +3049,7 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         'echo [{"results":[{"type":"table","name":"price_log","tbl_name":"price_log","sql":"CREATE TABLE price_log (site TEXT NOT NULL, pkey TEXT NOT NULL, day TEXT NOT NULL, price REAL NOT NULL, PRIMARY KEY (site, pkey, day)) WITHOUT ROWID"}],"success":true}]',
         'exit /b 0',
         ':schemabroken',
-        'echo [{"results":[{"type":"table","name":"bad","tbl_name":"bad","sql":"CREATE TABLE bad (id INTEGER PRIMARY KEY)"},{"type":"table","name":"items","tbl_name":"items","sql":"CREATE TABLE items (id INTEGER PRIMARY KEY, name TEXT)"}],"success":true}]',
+        'echo [{"results":[{"type":"table","name":"bad","tbl_name":"bad","sql":"CREATE TABLE bad (id INTEGER PRIMARY KEY)"},{"type":"table","name":"items","tbl_name":"items","sql":"CREATE TABLE items (id INTEGER PRIMARY KEY, name TEXT)"},{"type":"table","name":"grow","tbl_name":"grow","sql":"CREATE TABLE grow (k TEXT PRIMARY KEY, v TEXT) WITHOUT ROWID"}],"success":true}]',
         'exit /b 0',
         ':range',
         'echo [{"results":[{"a":1,"b":5,"n":5}],"success":true}]',
@@ -3044,6 +3062,9 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         'exit /b 0',
         ':page2',
         'echo [{"results":[{"site":"cgw","pkey":"d","day":"2026-11-01","price":4},{"site":"cgw","pkey":"e","day":"2026-11-01","price":5}],"success":true}]',
+        'exit /b 0',
+        ':growpage',
+        'echo [{"results":[{"k":"a","v":"1"}],"success":true}]',
         'exit /b 0',
         ':pageempty',
         'echo [{"results":[],"success":true}]',
@@ -3074,6 +3095,9 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         Check ($rt.Contains('gear-world-hub') -and $rt.Contains('test-db') -and $rt.Contains($ok) -and -not $rt.Contains('Documents')) 'backup plan: Gear World folders and databases, not other folders'
         Check ($rt.Contains('old-deploy.ps1') -and $rt.Contains('registry-export.sql') -and $rt.Contains('.dev.vars') -and $rt.Contains('.env.local') -and $rt.Contains('gear-world-secrets') -and -not $rt.Contains('notes.sql') -and -not $rt.Contains($fakeSecret) -and -not $rt.Contains('shop-test.invalid')) 'backup check: files with keys or customer e-mails listed as left out, by path only (L113)'
         Check ($rt.Contains('Σύνδεση wrangler: ΕΝΤΑΞΕΙ') -and $rt.Contains('ΤΕΛΟΣ ΕΛΕΓΧΟΥ BACKUP')) 'backup check: wrangler login checked past a warning, last line written'
+        Check ($rt.Contains('big-export.sql') -and $rt.Contains('old-list.csv.gz') -and $rt.Contains('members-export.zip') -and $rt.Contains('old.7z')) 'backup check: e-mails found past the first 4 MB, inside .gz and .zip; .7z left out (L113)'
+        Check ($rt.Contains('feeds-list.txt') -and $rt.Contains('push.cmd') -and $rt.Contains('remote.txt') -and -not $rt.Contains('site.config.js') -and -not $rt.Contains(('ab12' * 8))) 'backup check: Awin feed key, GitHub token and password in a link found; a public sitekey is not a key (L113)'
+        Check ((Run-B @('-ScanMaxMB', '1')) -eq 0 -and (Get-BReport).Contains('big-export.sql  (πάνω από 1 MB')) 'backup check: a file over -ScanMaxMB stays out (L113)'
         Check ((Run-B @('-Apply')) -eq 1 -and -not (Test-Path -LiteralPath $bTarget) -and (Get-BReport).Contains('-Approve')) 'backup -Apply without -Approve: stops at once without asking, writes nothing (L113)'
         Check ((Run-B @('-Apply', '-Approve', 'ΕΓΚΡΙΝΩ BACKUP Q')) -eq 1 -and -not (Test-Path -LiteralPath $bTarget)) 'backup with the wrong phrase: writes nothing'
         Write-Utf8 (Join-Path $bState 'noauth') 'x'
@@ -3097,10 +3121,16 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         Write-Utf8 (Join-Path $bTarget 'd1\broken-db\items-0001.json') '[{"results":[{"_rowid":1,"id":1,"name":"Old"}]}]'
         Write-Utf8 (Join-Path $bTarget 'd1\broken-db\signups-0001.json') '[{"results":[]}]'
         Write-Utf8 (Join-Path $bTarget 'd1\test-db\newsletter-0001.json') '[{"results":[]}]'
+        Write-Utf8 (Join-Path $f 'gear-world-hub\gone-list.csv') "x1@shop-test.invalid`nx2@shop-test.invalid`nx3@shop-test.invalid`n"
+        Write-Utf8 (Join-Path $f 'gear-world-hub\gone-notes.txt') 'old notes'
         Check ((Run-B @()) -eq 0 -and (Test-Path -LiteralPath (Join-Path $f 'gear-world-hub\.dev.vars')) -and (Get-BReport).Contains('παλιά αντίγραφα')) 'backup check: old copies of keys and customers on the drive reported, not removed'
         $code = Run-B @('-Apply', '-Approve', ('egkrino backup ' + $drive))
         $rt = Get-BReport
         Check ($code -eq 12 -and $rt.Contains('broken-db.bad') -and $rt.TrimEnd().EndsWith('ΤΕΛΟΣ BACKUP')) 'backup with approval and one failing table: goes on to the end (exit 12, ΤΕΛΟΣ BACKUP)'
+        Check ($rt.Contains('broken-db.grow: δεν έφτασα στο τέλος')) 'backup: a WITHOUT ROWID table that does not end is a problem, not a silent cut (L113)'
+        Check ((-not (Test-Path -LiteralPath (Join-Path $f 'gear-world-hub\gone-list.csv'))) -and (Test-Path -LiteralPath (Join-Path $f 'gear-world-hub\gone-notes.txt'))) 'backup: an old drive file no longer on the PC is read: e-mails removed, notes kept (L113)'
+        Check ((@(Get-ChildItem -LiteralPath (Join-Path $f 'gear-world-keys') -Filter '*.ps1' -File -ErrorAction SilentlyContinue).Count -eq 0) -and (Test-Path -LiteralPath (Join-Path $f 'gear-world-keys\readme.txt'))) 'backup: 205 key files left out (names only for robocopy), the readme copied (L113)'
+        Check (-not (Test-Path -LiteralPath (Join-Path $f 'gear-world-import\big-export.sql')) -and -not (Test-Path -LiteralPath (Join-Path $f 'gear-world-hub\old-list.csv.gz')) -and -not (Test-Path -LiteralPath (Join-Path $f 'gear-world-hub\members-export.zip')) -and -not (Test-Path -LiteralPath (Join-Path $f 'gear-world-hub\old.7z')) -and (Test-Path -LiteralPath (Join-Path $f 'gear-world-hub\site.config.js'))) 'backup: big export, .gz, .zip and .7z not on the drive; the config with a sitekey is (L113)'
         Check ($rt.Contains('ξύπνιος') -and $rt.Contains('κανονικό ύπνο')) 'backup: PC kept awake while it runs, back to normal at the end'
         Check ((Test-Path -LiteralPath (Join-Path $f 'gear-world-hub\worker.js')) -and (Test-Path -LiteralPath (Join-Path $f 'gear-world-hub\notes.sql')) -and (Test-Path -LiteralPath (Join-Path $f 'construction-gear-world-engine\backups\note.txt')) -and (Test-Path -LiteralPath (Join-Path $f 'sporty-gear-world\wrangler.jsonc'))) 'backup: Gear World folders copied (a new site folder too)'
         Check (-not (Test-Path -LiteralPath (Join-Path $f 'gear-world-hub\node_modules')) -and -not (Test-Path -LiteralPath (Join-Path $f 'Documents'))) 'backup: node_modules and other folders skipped'
