@@ -50,6 +50,7 @@ param(
     [int]$PageRows = 3000,
     [int]$ScanMaxMB = 200,
     [int]$FileBudgetSec = 60,
+    [string]$Chat = '4 · Sites & Κώδικας',
     [int]$ProgressSec = 30,
     [string[]]$NetworkUrls = @(),
     [switch]$SkipNetworkCheck,
@@ -169,7 +170,8 @@ function Finish([int]$code) {
     if (-not $NoClipboard) { try { Set-Clipboard -Value $text } catch { } }
     Write-Host ''
     if ($written) { Write-Host ('Η αναφορά γράφτηκε: {0}' -f $file) }
-    if (-not $NoClipboard) { Write-Host 'Αντιγράφηκε στο πρόχειρο. Πήγαινε στη συζήτηση με το Claude και πάτα Ctrl+V.' -ForegroundColor Green }
+    # The chat that gave the command is named (owner, 11/11/2026, lessons L116).
+    if (-not $NoClipboard) { Write-Host ('Αντιγράφηκε στο πρόχειρο. Πήγαινε στη συζήτηση με το Claude «{0}» και πάτα Ctrl+V.' -f $Chat) -ForegroundColor Green }
     exit $code
 }
 # Anything unexpected still ends with the report, the clipboard and the last line, never a silent stop (lessons L113).

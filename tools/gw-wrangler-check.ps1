@@ -23,7 +23,8 @@ param(
     [switch]$SkipPosterStats,
     [string]$HomeDir = '',
     [string]$OutDir = '',
-    [switch]$NoClipboard
+    [switch]$NoClipboard,
+    [string]$Chat = '4 · Sites & Κώδικας'
 )
 
 $ErrorActionPreference = 'Continue'
@@ -180,7 +181,8 @@ try {
 } catch { Write-Host ('Η αναφορά δεν γράφτηκε: {0}' -f $_.Exception.Message) -ForegroundColor Red }
 if ($written) { Write-Host ('Η αναφορά γράφτηκε: {0}' -f $file) }
 if (-not $NoClipboard) {
-    try { Set-Clipboard -Value $text; Write-Host 'Αντιγράφηκε στο πρόχειρο: πάτα Ctrl+V στη συνομιλία του Claude.' -ForegroundColor Green } catch { }
+    # The chat that gave the command is named (owner, 11/11/2026, lessons L116).
+    try { Set-Clipboard -Value $text; Write-Host ('Αντιγράφηκε στο πρόχειρο. Πήγαινε στη συζήτηση με το Claude «{0}» και πάτα Ctrl+V.' -f $Chat) -ForegroundColor Green } catch { }
 }
 if ($null -ne $bx -and $bx -ne 0) { exit $bx }
 exit 0

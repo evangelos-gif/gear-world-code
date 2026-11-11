@@ -3229,6 +3229,12 @@ if ($isWin) {
     }
 }
 
+# Lessons L116: the last line names the chat that gave the command.
+foreach ($cn in @('gw-backup.ps1', 'gw-wrangler-check.ps1')) {
+    $ct = [System.IO.File]::ReadAllText((Join-Path (Join-Path $repo 'tools') $cn))
+    Check ($ct.Contains("[string]`$Chat = '4 · Sites & Κώδικας'") -and $ct.Contains('Πήγαινε στη συζήτηση με το Claude «{0}» και πάτα Ctrl+V.') -and -not $ct.Contains('Πήγαινε στη συζήτηση με το Claude και πάτα')) ($cn + ': the clipboard line names the chat «4 · Sites & Κώδικας» (-Chat) (L116)')
+}
+
 # 10. gwh-code-export.ps1 (Hub code into the repo) on a fake hub folder: read-only, secrets/IDs/emails masked, exact text blocks
 Write-Host 'gwh-code-export.ps1'
 $hx = Join-Path $repo 'tools/gwh-code-export.ps1'
