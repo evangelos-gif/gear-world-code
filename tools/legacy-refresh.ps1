@@ -713,7 +713,7 @@ try {
     $dlOut = Join-Path $planRoot 'download'
     $dlArgs = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', (Join-Path (Join-Path $repo 'tools') 'awin-feed-download.ps1'), '-Advertiser', ($advs -join ','), '-Apply', '-Approve', $DownloadPhrase, '-Archive', $Archive, '-OutDir', $dlOut, '-NoClipboard')
     if ($FeedKeyFile) { $dlArgs += @('-KeyFile', $FeedKeyFile) }
-    if ($AwinBaseUrl) { $dlArgs += @('-BaseUrl', $AwinBaseUrl) }
+    if ($AwinBaseUrl) { $dlArgs += @('-BaseUrl', $AwinBaseUrl, '-ListBaseUrl', $AwinBaseUrl) }
     & $exe @dlArgs
     $dlCode = $LASTEXITCODE
     # The programmes that are not in the Awin list at all (e.g. GS Workwear, 48473, on 9 Nov): no feed for us.

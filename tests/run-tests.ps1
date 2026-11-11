@@ -2358,7 +2358,13 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
     Write-Utf8 $srv ("const http=require('http'),zlib=require('zlib');const key=process.argv[2];" +
       "const list='Advertiser ID,Advertiser Name,Membership Status,Feed ID,No of products,Last Imported\n30645,Coes,active,116078,2,2026-10-20\n55555,Other,not joined,1,9,2026-10-20\n';" +
       "const feed=zlib.gzipSync('aw_product_id,product_name,merchant_deep_link,search_price\n1,A Jacket,https://www.coes.co.uk/products/a,10\n2,B Shirt,https://www.coes.co.uk/products/b,20\n');" +
-      "http.createServer((q,s)=>{if(!q.url.includes('/apikey/'+key+'/')&&!q.url.endsWith('/apikey/'+key)){s.writeHead(403);return s.end('bad key')}" +
+      "const glist='Advertiser ID,Advertiser Name,Primary Region,Membership Status,Datafeed Format,Feed ID,Feed Name,Language,Vertical,Last Imported,Last Checked,No of products,URL\n" +
+      "48473,GS Workwear,GB,active,Google,0,Default,en_GB,retail,2026-11-11,2026-11-11,2,http://127.0.0.1:8799/productdata-darwin-download/publisher/3057233/'+key+'/1/48473-retail-en_GB.csv\n" +
+      "77777,Elsewhere,GB,active,Google,0,Default,en_GB,retail,2026-11-11,2026-11-11,2,https://example.com/77777.csv\n';" +
+      "const gfeed='id,title,link,image_link,availability,price\nw1,Portwest Ear Protector - Yellow,https://www.gsworkwear.com/products/a,https://cdn.gs/a.jpg,in stock,3.69 GBP\nw2,Portwest Ear Protector - Red,https://www.gsworkwear.com/products/b,https://cdn.gs/b.jpg,in stock,3.69 GBP\n';" +
+      "http.createServer((q,s)=>{if(!q.url.includes('/apikey/'+key+'/')&&!q.url.endsWith('/apikey/'+key)&&!q.url.includes('/'+key+'/1/')){s.writeHead(403);return s.end('bad key')}" +
+      "if(q.url.endsWith('/1/feedList')){s.writeHead(200,{'Content-Type':'text/csv'});return s.end(glist)}" +
+      "if(q.url.endsWith('/1/48473-retail-en_GB.csv')){s.writeHead(200,{'Content-Type':'text/csv'});return s.end(gfeed)}" +
       "if(q.url.startsWith('/datafeed/list/')){s.writeHead(200,{'Content-Type':'text/csv'});return s.end(list)}" +
       "if(q.url.includes('/fid/116078/')&&q.url.includes('columns/')){s.writeHead(200,{'Content-Type':'application/x-gzip'});return s.end(feed)}" +
       "s.writeHead(404);s.end('no')}).listen(8799,'127.0.0.1');")
@@ -2406,6 +2412,23 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         Check ($fdLast.Contains('Όλα τα προγράμματα όπου είσαι μέλος και έχουν feed: 1') -and -not $fdLast.Contains('55555')) 'feed download -AllJoined: only joined programmes'
         Check ($fdLast.Contains('σχεδόν άδειο')) 'feed download -AllJoined: an almost empty copy is listed as missing'
         Check ((Run-Fd @('-AllJoined', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ FEED DOWNLOAD')) -eq 2) 'feed download -AllJoined -Apply without -OnlyMissing: refused'
+        # Lessons L114: a programme only in Awin's newer list, in Google format (GS Workwear, 48473), with an old copy in Downloads.
+        $gsOld = Join-Path $fdDir '48473-retail-en_GB.csv.gz'
+        Write-Utf8 $gsOld 'old google copy in Downloads'
+        Check ((Run-Fd @('-Advertiser', '48473,77777,66666')) -eq 0) 'feed download (Google format) without -Apply: exit 0'
+        $gRep = [System.IO.File]::ReadAllText((@(Get-ChildItem -LiteralPath $fdOut -Filter '*.txt' | Sort-Object LastWriteTime) | Select-Object -Last 1).FullName)
+        if (-not $gRep.Contains('μορφή Google, 48473-retail-en_GB.csv.gz')) { Write-Host '----- feed download report (for the failure below) -----'; Write-Host $gRep }
+        Check ($gRep.Contains('μορφή Google, 48473-retail-en_GB.csv.gz') -and $gRep.Contains('(φάκελος fd)')) 'feed download: a Google-format feed is found in the newer list, with its copy in Downloads'
+        Check ($gRep.Contains('το link λήψης δεν είναι του Awin') -and $gRep.Contains('66666: δεν υπάρχει στη λίστα σου')) 'feed download: a link outside Awin is not used; a programme in neither list is named'
+        Check (-not $gRep.Contains($fdKey) -and -not (Test-Path -LiteralPath (Join-Path $fdArch '48473-retail-en_GB.csv.gz'))) 'feed download (Google format) without -Apply: no key in the report, nothing downloaded'
+        Check ((Run-Fd @('-Advertiser', '48473', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ FEED DOWNLOAD')) -eq 0) 'feed download (Google format) with approval: exit 0'
+        $gNew = Join-Path $fdArch '48473-retail-en_GB.csv.gz'
+        $gb = [byte[]]@(0, 0)
+        if (Test-Path -LiteralPath $gNew) { $gb = [System.IO.File]::ReadAllBytes($gNew) }
+        Check ($gb[0] -eq 0x1f -and $gb[1] -eq 0x8b) 'feed download (Google format): the plain CSV answer is saved compressed in the feed folder'
+        Check (-not (Test-Path -LiteralPath $gsOld) -and @(Get-ChildItem -LiteralPath (Join-Path $fdArch '_old') -Recurse -File -Filter 'Downloads_48473-retail-en_GB.csv.gz').Count -eq 1) 'feed download (Google format): the old copy in Downloads goes to _old, nothing deleted'
+        $all = (@(Get-ChildItem -LiteralPath $fdOut -Filter '*.txt') | ForEach-Object { [System.IO.File]::ReadAllText($_.FullName) }) -join ' '
+        Check (-not $all.Contains($fdKey)) 'feed download (Google format): the key is in no report'
     } finally {
         if ($proc -and -not $proc.HasExited) { Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue }
     }

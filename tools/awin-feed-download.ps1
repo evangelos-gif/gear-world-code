@@ -16,6 +16,12 @@
   Leftover files (lessons L108): for every advertiser downloaded in this run, its files in the folder whose feed id is
   no longer in Awin's list (AWIN_<advertiser>_<feed>.csv(.gz)) are moved to the same _old\<time> folder and listed.
   Nothing is ever deleted. (Tooled Up's leftover files of 15 Oct kept a refresh from dating the shop, 9 Nov 2026.)
+  Feeds in Google format ("Enhanced", lessons L114): a programme that is not in the usual list (GS Workwear, 48473) is
+  looked up in Awin's newer list (ui.awin.com/productdata-darwin-download/publisher/<id>/<key>/1/feedList), which gives
+  each feed's own download link (only an ui.awin.com or productdata.awin.com link is used). It is saved in the feed
+  folder as <advertiser>-<vertical>-<language>.csv.gz (e.g. 48473-retail-en_GB.csv.gz, the name of the October copy in
+  Downloads); a plain CSV answer is compressed here; the header must have title or product_name; the same half rule;
+  every older copy (feed folder or Downloads) goes to _old\<time>\ first.
 
   The Awin feed key is asked once and kept encrypted for your Windows user (DPAPI) in
   <home>\gear-world-secrets\awin-feed-key.dat. It is never written to a report, the clipboard or the repo.
@@ -30,6 +36,8 @@ param(
     [string]$Archive = '',
     [string]$KeyFile = '',
     [string]$BaseUrl = 'https://productdata.awin.com',
+    [string]$ListBaseUrl = 'https://ui.awin.com',
+    [string]$PublisherId = '3057233',
     [string]$OutDir = '',
     [switch]$NoClipboard
 )
@@ -94,6 +102,9 @@ Say ('Λήψη feeds του Awin - {0}' -f $mode) 'Cyan'
 Say ('Ώρα: {0}' -f (Get-Date -Format 'yyyy-MM-dd HH:mm'))
 $host1 = ([uri]$BaseUrl).Host
 if ($host1 -ne 'productdata.awin.com' -and $host1 -ne '127.0.0.1') { Say 'Μη αναμενόμενη διεύθυνση λήψης.' 'Red'; Finish 2 }
+$host2 = ([uri]$ListBaseUrl).Host
+if ($host2 -ne 'ui.awin.com' -and $host2 -ne '127.0.0.1') { Say 'Μη αναμενόμενη διεύθυνση για τη λίστα των feeds σε μορφή Google.' 'Red'; Finish 2 }
+if ($PublisherId -notmatch '^\d{4,9}$') { Say 'Λάθος αριθμός publisher του Awin.' 'Red'; Finish 2 }
 $ids = @($Advertiser | ForEach-Object { $_ -split '[,\s]+' } | Where-Object { $_ } | ForEach-Object { if ($_ -notmatch '^\d{2,9}$') { Say ('Λάθος αριθμός καταστήματος: {0}' -f $_) 'Red'; Finish 2 }; $_ })
 if (-not (Test-Path -LiteralPath $Archive)) { Say ('Δεν βρήκα τον φάκελο των feeds: {0}' -f $Archive) 'Red'; Finish 2 }
 
@@ -141,10 +152,11 @@ function Local-Rows([string]$path) {
 $missingList = New-Object System.Collections.Generic.List[string]
 
 $todo = New-Object System.Collections.Generic.List[object]
+$notClassic = New-Object System.Collections.Generic.List[string]
 foreach ($id in $ids) {
     $rows = @($list | Where-Object { (Col $_ '(?i)^advertiser.?id$') -eq $id })
+    if ($rows.Count -eq 0) { $notClassic.Add($id); continue }
     Say ''
-    if ($rows.Count -eq 0) { Say ('{0}: δεν υπάρχει στη λίστα σου (δεν είσαι μέλος ή δεν έχει feed).' -f $id) 'Yellow'; continue }
     foreach ($r in $rows) {
         $fid = Col $r '(?i)^feed.?id$'
         $name = Col $r '(?i)^advertiser.?name$'
@@ -171,6 +183,51 @@ foreach ($id in $ids) {
         elseif ($fid -match '^\d+$') { Say '  δεν κατεβαίνει: δεν είσαι ενεργό μέλος αυτού του προγράμματος.' 'Yellow' }
     }
 }
+# 2b. Feeds in Google format ("Enhanced", lessons L114): not in the usual list above. Awin's newer list has them, each
+# with its own download link. Saved as <advertiser>-<vertical>-<language>.csv.gz in the feed folder.
+if ($notClassic.Count -gt 0) {
+    $gList = @()
+    $gUrl = '{0}/productdata-darwin-download/publisher/{1}/{2}/1/feedList' -f $ListBaseUrl.TrimEnd('/'), $PublisherId, $script:secret
+    try {
+        $gResp = Invoke-WebRequest -UseBasicParsing -Uri $gUrl -TimeoutSec 120
+        $gText = $gResp.Content
+        if ($gText -is [byte[]]) { $gText = [System.Text.Encoding]::UTF8.GetString($gText) }
+        $gText = ([string]$gText).TrimStart([char]0xFEFF)
+        $gList = @($gText | ConvertFrom-Csv)
+        Say ''
+        Say ('Λίστα Awin για feeds σε μορφή Google: {0} feeds.' -f $gList.Count)
+    } catch { Say ''; Say ('Η λίστα του Awin για feeds σε μορφή Google δεν ήρθε: {0}' -f $_.Exception.Message) 'Yellow' }
+    foreach ($id in $notClassic) {
+        $gRows = @($gList | Where-Object { ((Col $_ '(?i)^advertiser.?id$') -eq $id) -and ((Col $_ '(?i)format') -match '(?i)google|enhanced') })
+        Say ''
+        if ($gRows.Count -eq 0) { Say ('{0}: δεν υπάρχει στη λίστα σου (δεν είσαι μέλος ή δεν έχει feed).' -f $id) 'Yellow'; continue }
+        foreach ($r in $gRows) {
+            $name = Col $r '(?i)^advertiser.?name$'
+            $mem = Col $r '(?i)membership'
+            $fid = Col $r '(?i)^feed.?id$'
+            $cnt = Col $r '(?i)(no|number).?of.?products|products'
+            $last = Col $r '(?i)last.?imported'
+            $lang = (Col $r '(?i)^language$').Trim()
+            if ($lang -notmatch '^[A-Za-z]{2}(_[A-Za-z]{2})?$') { $lang = 'en_GB' }
+            $vert = (Col $r '(?i)^vertical$').Trim().ToLowerInvariant()
+            if ($vert -notmatch '^[a-z]{2,20}$') { $vert = 'retail' }
+            $gName = '{0}-{1}-{2}.csv.gz' -f $id, $vert, $lang
+            $local = Join-Path $Archive $gName
+            $copies = @(@($local, (Join-Path (Split-Path -Parent $Archive) $gName)) | Where-Object { Test-Path -LiteralPath $_ })
+            $localTxt = 'δεν υπάρχει'
+            if ($copies.Count -gt 0) {
+                $ci = Get-Item -LiteralPath $copies[0]
+                $localTxt = '{0} (φάκελος {1})' -f $ci.LastWriteTime.ToString('yyyy-MM-dd HH:mm'), (Split-Path -Leaf (Split-Path -Parent $ci.FullName))
+            }
+            $u = (Col $r '(?i)^url$').Trim()
+            Say ('{0} {1}, feed {2} (μορφή Google, {3}): μέλος: {4} | προϊόντα στο Awin: {5} | ανανέωση Awin: {6} | αντίγραφο εδώ: {7}' -f $id, $name, $fid, $gName, $mem, $cnt, $last, $localTxt)
+            if (($u -notmatch '^https://(ui|productdata)\.awin\.com/') -and ($u -notmatch '^http://127\.0\.0\.1:\d+/')) { Say '  δεν κατεβαίνει: το link λήψης δεν είναι του Awin (ui.awin.com ή productdata.awin.com).' 'Yellow'; continue }
+            if ($OnlyMissing -and $copies.Count -gt 0) { Say '  υπάρχει εδώ: δεν ξανακατεβαίνει (-OnlyMissing).'; continue }
+            if ($mem -match '(?i)^\s*(active|joined)\s*$') { $todo.Add(@{ id = $id; fid = $fid; name = $name; local = $local; count = $cnt; url = $u; google = $true; copies = $copies }) }
+            else { Say '  δεν κατεβαίνει: δεν είσαι ενεργό μέλος αυτού του προγράμματος.' 'Yellow' }
+        }
+    }
+}
 Say ''
 if ($missingList.Count -gt 0) {
     Say ('Λείπουν από αυτόν τον υπολογιστή (ή είναι σχεδόν άδεια): {0} feeds' -f $missingList.Count) 'Yellow'
@@ -188,18 +245,28 @@ $ok = 0
 $doneIds = @{}
 foreach ($t in $todo) {
     $url = '{0}/datafeed/download/apikey/{1}/fid/{2}/format/csv/language/any/delimiter/%2C/compression/gzip/adultcontent/1/columns/{3}/' -f $BaseUrl.TrimEnd('/'), $script:secret, $t.fid, $Columns
+    if ($t.google) { $url = $t.url }
     $part = $t.local + '.part'
     Write-Host ('Κατεβάζω {0} (feed {1})...' -f $t.name, $t.fid)
     try { Invoke-WebRequest -UseBasicParsing -Uri $url -OutFile $part -TimeoutSec 1800 } catch { Say ('{0}: η λήψη απέτυχε: {1}' -f $t.name, $_.Exception.Message) 'Red'; Remove-Item -LiteralPath $part -ErrorAction SilentlyContinue; continue }
-    $bytes = New-Object byte[] 2
-    $fs = [System.IO.File]::OpenRead($part); [void]$fs.Read($bytes, 0, 2); $fs.Close()
-    if ($bytes[0] -ne 0x1f -or $bytes[1] -ne 0x8b) { Say ('{0}: δεν ήρθε συμπιεσμένο feed (ίσως μήνυμα λάθους από το Awin). Κράτησα το παλιό.' -f $t.name) 'Red'; Remove-Item -LiteralPath $part; continue }
-    $chk = @(& node -e "const z=require('zlib'),fs=require('fs');let t=z.gunzipSync(fs.readFileSync(process.argv[1])).toString('utf8');const h=t.split('\n',1)[0].toLowerCase();let n=0;for(const l of t.split('\n'))if(l.trim())n++;console.log((h.includes('product_name')?'ok':'bad')+' '+Math.max(0,n-1))" $part)
-    $cp = ([string]($chk -join ' ')).Trim() -split '\s+'
-    if ($cp[0] -ne 'ok') { Say ('{0}: το αρχείο δεν έχει στήλη product_name. Κράτησα το παλιό.' -f $t.name) 'Red'; Remove-Item -LiteralPath $part; continue }
+    if ($t.google) {
+        # Google format (L114): gzip or plain CSV (plain is compressed here); the header must have title or product_name.
+        $chk = @(& node -e "const z=require('zlib'),fs=require('fs');const p=process.argv[1];const b=fs.readFileSync(p);const gz=(b[0]===0x1f)?(b[1]===0x8b):false;let t='';try{t=gz?z.gunzipSync(b).toString('utf8'):b.toString('utf8')}catch(e){console.log('bad 0');process.exit(0)}const h=t.split('\n',1)[0].toLowerCase();let n=0;for(const l of t.split('\n'))if(l.trim())n++;const ok=h.includes(',')?(h.includes('title')?true:h.includes('product_name')):false;if(ok)if(!gz)fs.writeFileSync(p,z.gzipSync(Buffer.from(t,'utf8')));console.log((ok?'ok':'bad')+' '+Math.max(0,n-1))" $part)
+        $cp = ([string]($chk -join ' ')).Trim() -split '\s+'
+        if ($cp[0] -ne 'ok') { Say ('{0}: δεν ήρθε feed σε μορφή CSV με στήλη title (ίσως μήνυμα λάθους από το Awin). Κράτησα το παλιό.' -f $t.name) 'Red'; Remove-Item -LiteralPath $part; continue }
+    } else {
+        $bytes = New-Object byte[] 2
+        $fs = [System.IO.File]::OpenRead($part); [void]$fs.Read($bytes, 0, 2); $fs.Close()
+        if ($bytes[0] -ne 0x1f -or $bytes[1] -ne 0x8b) { Say ('{0}: δεν ήρθε συμπιεσμένο feed (ίσως μήνυμα λάθους από το Awin). Κράτησα το παλιό.' -f $t.name) 'Red'; Remove-Item -LiteralPath $part; continue }
+        $chk = @(& node -e "const z=require('zlib'),fs=require('fs');let t=z.gunzipSync(fs.readFileSync(process.argv[1])).toString('utf8');const h=t.split('\n',1)[0].toLowerCase();let n=0;for(const l of t.split('\n'))if(l.trim())n++;console.log((h.includes('product_name')?'ok':'bad')+' '+Math.max(0,n-1))" $part)
+        $cp = ([string]($chk -join ' ')).Trim() -split '\s+'
+        if ($cp[0] -ne 'ok') { Say ('{0}: το αρχείο δεν έχει στήλη product_name. Κράτησα το παλιό.' -f $t.name) 'Red'; Remove-Item -LiteralPath $part; continue }
+    }
     $newRows = [int]$cp[1]
     $oldRows = -1
-    if (Test-Path -LiteralPath $t.local) {
+    if ($t.google) {
+        if (@($t.copies).Count -gt 0) { $oldRows = Local-Rows ([string]@($t.copies)[0]) }
+    } elseif (Test-Path -LiteralPath $t.local) {
         $oc = @(& node -e "const z=require('zlib'),fs=require('fs');let n=0;for(const l of z.gunzipSync(fs.readFileSync(process.argv[1])).toString('utf8').split('\n'))if(l.trim())n++;console.log(Math.max(0,n-1))" $t.local)
         $oldRows = [int](([string]($oc -join '')).Trim())
     }
@@ -207,7 +274,16 @@ foreach ($t in $todo) {
         Say ('{0}: ήρθαν {1} γραμμές, ενώ το παλιό είχε {2}. Μάλλον κάτι πήγε στραβά, κράτησα το παλιό (το νέο έμεινε ως .part για έλεγχο).' -f $t.name, $newRows, $oldRows) 'Yellow'
         continue
     }
-    if (Test-Path -LiteralPath $t.local) {
+    if ($t.google) {
+        # Every older copy, in the feed folder or in Downloads (a copy in Downloads keeps the prefix Downloads_ in _old).
+        foreach ($cpy in @($t.copies)) {
+            if (-not (Test-Path -LiteralPath $cpy)) { continue }
+            if (-not (Test-Path -LiteralPath $oldDir)) { New-Item -ItemType Directory -Path $oldDir -Force | Out-Null }
+            $leaf = Split-Path -Leaf $cpy
+            if ((Split-Path -Parent $cpy) -ne (Split-Path -Parent $t.local)) { $leaf = 'Downloads_' + $leaf }
+            Move-Item -LiteralPath $cpy -Destination (Join-Path $oldDir $leaf) -Force
+        }
+    } elseif (Test-Path -LiteralPath $t.local) {
         if (-not (Test-Path -LiteralPath $oldDir)) { New-Item -ItemType Directory -Path $oldDir -Force | Out-Null }
         Move-Item -LiteralPath $t.local -Destination (Join-Path $oldDir (Split-Path -Leaf $t.local)) -Force
     }

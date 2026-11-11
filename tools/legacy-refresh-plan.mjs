@@ -45,13 +45,14 @@
 //   merchant_name, the files AWIN_<id>_*.csv(.gz) are used.
 import { createReadStream, existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { createGunzip } from 'node:zlib';
-import { basename, join, resolve } from 'node:path';
+import { basename, dirname, join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { readCsvRecords, parsePrice } from './tgw-import-plan.mjs';
 import { stockFlag, pickImage } from './legacy-import-plan.mjs';
 import { rowsFromWrangler } from './cleanup-rules/tidy.mjs';
 import { IN_STOCK_WORDS } from '../src/db.js';
 import { HIDE_AFTER_DAYS, CHECK_AFTER_DAYS } from '../src/lib/visibility.js';
+import * as gsworkwear from './import-rules/gsworkwear.mjs';
 
 export const STALE_DAYS = 30;
 export const PRICE_JUMP = 3;
@@ -80,20 +81,53 @@ const dateText = v => (v === null || v === undefined ? '' : String(v));
 const dateKey = v => dateText(v).replace('T', ' ').slice(0, 19);
 
 const FEED_FILE = /^AWIN_(\d+)_(\d+)\.csv(\.gz)?$/i;
+// Awin's feeds in Google format ("Enhanced" feeds, e.g. GS Workwear, 48473): <advertiser>-<vertical>-<locale>.csv(.gz),
+// e.g. 48473-retail-en_GB.csv.gz (lessons L34, L114). They are not in Awin's usual feed list; tools/awin-feed-download.ps1
+// saves them in the archive, and an older copy may still be in Downloads (the folder above the archive).
+const GOOGLE_FILE = /^(\d{2,9})-([A-Za-z0-9_-]+)\.csv(\.gz)?$/i;
+export const isFeedFile = name => FEED_FILE.test(name) || GOOGLE_FILE.test(name);
+// { advertiser, feed } of a feed file name ('' when it is not one).
+export function feedFileParts(name) {
+  const m = FEED_FILE.exec(name);
+  if (m) return { advertiser: m[1], feed: m[2] };
+  const g = GOOGLE_FILE.exec(name);
+  return g ? { advertiser: g[1], feed: g[2] } : { advertiser: '', feed: '' };
+}
+// The feed files of the archive, and the Google-format ones of the folder above it (Downloads) that the archive does not
+// have: name -> full path.
+export function listFeedFiles(archive) {
+  const out = new Map();
+  const read = dir => { try { return readdirSync(dir); } catch { return []; } };
+  for (const f of read(archive).filter(isFeedFile).sort()) out.set(f, join(archive, f));
+  // Downloads: only for an advertiser the archive has no file of (an old copy never joins a fresh feed of the shop).
+  const inArchive = new Set([...out.keys()].map(f => feedFileParts(f).advertiser));
+  for (const f of read(dirname(archive)).filter(n => GOOGLE_FILE.test(n)).sort()) {
+    if (!out.has(f) && !inArchive.has(feedFileParts(f).advertiser)) out.set(f, join(dirname(archive), f));
+  }
+  return out;
+}
+// A file name of feeds.json (the one-paste mode): in the archive, or else in the folder above it.
+export function resolveFeedFile(archive, name) {
+  const b = basename(name);
+  if (!isFeedFile(b)) return '';
+  for (const p of [join(archive, b), join(dirname(archive), b)]) if (existsSync(p)) return p;
+  return '';
+}
 
 // The Awin feed files of one retailer: AWIN_<advertiser>_<feed>.csv(.gz) whose merchant_name is the retailer's name on the
 // site (or the advertiser id given). Reads only the first rows of each file.
 export async function findFeeds(archive, retailer, advertiser = '') {
-  const files = readdirSync(archive).filter(f => FEED_FILE.test(f)).sort();
-  if (advertiser) return { files: files.filter(f => f.split('_')[1] === String(advertiser)).map(f => join(archive, f)), names: {} };
+  const all = listFeedFiles(archive);
+  const files = [...all.keys()];
+  if (advertiser) return { files: files.filter(f => feedFileParts(f).advertiser === String(advertiser)).map(f => all.get(f)), names: {} };
   const want = keyOf(retailer);
-  const names = await merchantNames(archive, files);
-  return { files: files.filter(f => names[f] && keyOf(names[f]) === want).map(f => join(archive, f)), names };
+  const names = await merchantNames(archive, files, all);
+  return { files: files.filter(f => names[f] && keyOf(names[f]) === want).map(f => all.get(f)), names };
 }
 
-export async function merchantNames(archive, files) {
+export async function merchantNames(archive, files, paths = null) {
   const names = {};
-  for (const f of files) names[f] = await firstMerchantName(join(archive, f));
+  for (const f of files) names[f] = await firstMerchantName(paths && paths.get(f) ? paths.get(f) : join(archive, f));
   return names;
 }
 
@@ -143,18 +177,19 @@ export function advertiserOf(url) {
 // { retailer, advertiser }: the advertiser id finds AWIN_<id>_* when no feed has the shop's name (e.g. "Watch Enclave
 // Affiliate Programme" or "100 Percent Pure", whose feeds have another merchant_name).
 export async function findFeedsFor(archive, retailers, nowMs = Date.now()) {
-  const files = readdirSync(archive).filter(f => FEED_FILE.test(f)).sort();
-  const names = await merchantNames(archive, files);
+  const all = listFeedFiles(archive);
+  const files = [...all.keys()];
+  const names = await merchantNames(archive, files, all);
   return retailers.map(entry => {
     const retailer = typeof entry === 'string' ? entry : String(entry.retailer || '');
     // The advertiser id itself, or an affiliate link of the shop (the one-paste mode sends MIN(affiliate_url)).
     const raw = typeof entry === 'string' ? '' : String(entry.advertiser || '').trim();
     const hint = /^\d{1,9}$/.test(raw) ? raw : advertiserOf(raw);
     const want = keyOf(retailer);
-    let hits = files.filter(f => names[f] && keyOf(names[f]) === want).map(f => join(archive, f));
+    let hits = files.filter(f => names[f] && keyOf(names[f]) === want).map(f => all.get(f));
     let matchedBy = hits.length ? 'name' : '';
     if (!hits.length && hint) {
-      hits = files.filter(f => FEED_FILE.exec(f)[1] === hint).map(f => join(archive, f));
+      hits = files.filter(f => feedFileParts(f).advertiser === hint).map(f => all.get(f));
       matchedBy = hits.length ? 'advertiser' : '';
     }
     const pick = pickFeedFiles(hits);
@@ -162,11 +197,11 @@ export async function findFeedsFor(archive, retailers, nowMs = Date.now()) {
     return {
       retailer,
       files: pick.files.map((f, i) => {
-        const m = FEED_FILE.exec(basename(f));
-        return { file: basename(f), advertiser: m[1], feed: m[2], time: sqliteTime(pick.times[i]), ageDays: Math.round(((nowMs - pick.times[i]) / DAY) * 10) / 10 };
+        const m = feedFileParts(basename(f));
+        return { file: basename(f), advertiser: m.advertiser, feed: m.feed, time: sqliteTime(pick.times[i]), ageDays: Math.round(((nowMs - pick.times[i]) / DAY) * 10) / 10 };
       }),
       // With no feed here but a known advertiser id, the one-paste mode can still download it.
-      advertisers: hits.length ? [...new Set(pick.files.map(f => FEED_FILE.exec(basename(f))[1]))] : (hint ? [hint] : []),
+      advertisers: hits.length ? [...new Set(pick.files.map(f => feedFileParts(basename(f)).advertiser))] : (hint ? [hint] : []),
       matchedBy,
       feedTime: Number.isFinite(pick.feedTime) ? sqliteTime(pick.feedTime) : '',
       ageDays: Number.isFinite(pick.feedTime) ? Math.round(((nowMs - pick.feedTime) / DAY) * 10) / 10 : null,
@@ -210,6 +245,12 @@ function betterRow(a, b, currency) {
   return a;
 }
 
+// The import rules of the shops whose Google-format feed was imported as one card per product (lessons L34): the
+// database id is "<advertiser>:<productKey>", so a refresh finds the product by the same key, at its best row.
+const GROUP_RULES = new Map([[String(gsworkwear.RULES.advertiserId), gsworkwear]]);
+// A feed file in Google format: its header has title and link, and not the Awin product_name.
+export const isGoogleHeader = h => h.includes('title') && (h.includes('link') || h.includes('id')) && !h.includes('product_name');
+
 // One entry per feed row, found by Awin product id, by the shop's own product id and by its product page (L113). Files are read newest first: a
 // product in several files (a fresh feed and an old copy that Awin no longer lists) takes the values and the time of
 // the NEWEST file it is in (lessons L108: Tooled Up's leftover files of 15 Oct used to date the whole shop). Every entry
@@ -218,6 +259,9 @@ export async function readFeed(paths, timeOf = p => statSync(p).mtimeMs, { curre
   const byAw = new Map();
   const byMid = new Map();
   const byLink = new Map();
+  // Google-format feeds of a shop with import rules (GS Workwear): every size and colour of one product, by its key.
+  const byGroup = new Map();
+  let google = false;
   let rows = 0, newest = '';
   const key = x => (Number.isFinite(x.t) ? x.t : -Infinity);
   const order = paths.map(p => ({ p, t: Number(timeOf(p)) })).sort((a, b) => (key(b) - key(a)) || (a.p < b.p ? -1 : 1));
@@ -228,11 +272,19 @@ export async function readFeed(paths, timeOf = p => statSync(p).mtimeMs, { curre
     files.push(info);
     const raw = createReadStream(f);
     const stream = /\.gz$/i.test(f) ? raw.pipe(createGunzip()) : raw;
-    let h = null;
+    let h = null, isGoogle = false, rules = null;
     for await (const rec of readCsvRecords(stream)) {
-      if (!h) { h = rec.map(x => String(x).trim().toLowerCase().replace(/^﻿/, '')); continue; }
+      if (!h) {
+        h = rec.map(x => String(x).trim().toLowerCase().replace(/^﻿/, ''));
+        isGoogle = isGoogleHeader(h);
+        if (isGoogle) { google = true; rules = GROUP_RULES.get(feedFileParts(basename(f)).advertiser) || null; }
+        continue;
+      }
       if (rec.length < 3) continue;
-      const get = c => { const i = h.indexOf(c); return i >= 0 ? String(rec[i] ?? '').trim() : ''; };
+      const column = c => { const i = h.indexOf(c); return i >= 0 ? String(rec[i] ?? '').trim() : ''; };
+      // Google columns read under the Awin names (title -> product_name, sale_price/price "4.99 GBP" -> search_price,
+      // availability -> stock_quantity, image_link, link -> merchant_deep_link, id -> merchant_product_id), as the import did.
+      const get = isGoogle ? (c => String(gsworkwear.field(c, column) ?? '').trim()) : column;
       rows++;
       const qty = get('stock_quantity');
       let inStock = stockFlag(get('in_stock'));
@@ -250,9 +302,13 @@ export async function readFeed(paths, timeOf = p => statSync(p).mtimeMs, { curre
       if (p.mid && !byMid.has(p.mid)) byMid.set(p.mid, p);
       const lk = linkKey(get('merchant_deep_link')) || linkKey(get('aw_deep_link'));
       if (lk) { const had = byLink.get(lk); byLink.set(lk, had ? betterRow(had, p, currency) : p); }
+      if (rules) {
+        const gk = rules.productKey(get);
+        if (gk) { const had = byGroup.get(gk); byGroup.set(gk, had ? betterRow(had, p, currency) : p); }
+      }
     }
   }
-  return { byAw, byMid, byLink, rows, newest, files };
+  return { byAw, byMid, byLink, byGroup, google, rows, newest, files };
 }
 
 // The feed row of a database row: the Awin product id, "<advertiser>:<shop id>", the shop's own product id, or the
@@ -261,6 +317,8 @@ export function matchRow(row, feed) {
   const id = String(row.awin_product_id || '');
   if (feed.byAw.has(id)) return feed.byAw.get(id);
   const colon = id.indexOf(':');
+  // "<advertiser>:<productKey>" of a shop imported as one card per product (GS Workwear): its best size and colour.
+  if (colon > 0 && feed.byGroup && feed.byGroup.has(id.slice(colon + 1))) return feed.byGroup.get(id.slice(colon + 1));
   if (colon > 0 && feed.byMid.has(id.slice(colon + 1))) return feed.byMid.get(id.slice(colon + 1));
   const mid = String(row.merchant_product_id || '');
   if (mid && feed.byMid.has(mid)) return feed.byMid.get(mid);
@@ -644,7 +702,7 @@ if (import.meta.url === pathToFileURL(process.argv[1] || '').href) {
   const site = opt('--site') || 'site';
   const maxWrites = Number(opt('--max-writes') || 90000);
   // --feed-file <name>: the files the one-paste mode already found (feeds.json), so the archive is not read again.
-  const given = all('--feed-file').filter(f => FEED_FILE.test(basename(f))).map(f => join(archive, basename(f))).filter(f => existsSync(f));
+  const given = all('--feed-file').map(f => resolveFeedFile(archive, f)).filter(Boolean);
   const { files: found, names } = given.length ? { files: given, names: {} } : await findFeeds(archive, retailer, opt('--advertiser'));
   if (!found.length) {
     const similar = Object.entries(names).filter(([, n]) => n && keyOf(n).includes(keyOf(retailer).split('-')[0])).map(([f, n]) => `${f}: ${n}`);

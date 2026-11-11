@@ -7,7 +7,7 @@
 // "Available to Order", Awin 200px picture proxies; GS Workwear / InStock: "<advertiser>:<shop id>").
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, writeFileSync, readFileSync, readdirSync, utimesSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, readdirSync, utimesSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { gzipSync } from 'node:zlib';
@@ -16,7 +16,7 @@ import { DatabaseSync } from 'node:sqlite';
 import {
   findFeeds, findFeedsFor, pickFeedFiles, readFeed, planRefresh, writeCosts, updateTrigger, writePlan, planStatements, splitFiles,
   groupedStatements, idsPerStatement, sqliteTime, viewDays, keyOf, matchRow, renderReport, advertiserOf, linkKey,
-  FEED_FILE_MAX_DAYS, MAX_STATEMENTS_PER_FILE, MAX_WRITES_PER_FILE, IDS_PER_STATEMENT
+  listFeedFiles, resolveFeedFile, feedFileParts, FEED_FILE_MAX_DAYS, MAX_STATEMENTS_PER_FILE, MAX_WRITES_PER_FILE, IDS_PER_STATEMENT
 } from '../../tools/legacy-refresh-plan.mjs';
 import { viewFor, isShown, needsCheck, HIDE_AFTER_DAYS } from '../../src/lib/visibility.js';
 
@@ -691,4 +691,72 @@ test('Coes, Plusshop, GRABO and Cronjager: rows with old ids are found by their 
   assert.equal(cr.currencySkip.length, 0);
 
   assert.equal(matchRow({ awin_product_id: 'x', merchant_product_id: 'y' }, coes), null, 'a row without a link still matches nothing');
+});
+
+// Lessons L114 (11 Nov 2026): GS Workwear (Awin 48473) has only an Awin feed in Google format ("Enhanced"), not in Awin's
+// usual feed list, saved as 48473-retail-en_GB.csv.gz (in the archive after a download, or the October copy in
+// Downloads). Its 14,575 CGW products were imported one card per product (all sizes and colours, at the lowest price in
+// stock) with the id "48473:<brand + name without colour and size>", and its page is the page of ONE colour: the refresh
+// must find the product by the same key, else it dates nothing and the products leave the site on 20 Nov.
+const GHEAD = 'id,title,description,link,image_link,availability,price,sale_price,brand,gtin,item_group_id,aw_deep_link\n';
+const grow = o => [o.id, `"${o.title}"`, '"x"', o.link, o.img || 'https://cdn.gs/i.jpg', o.av || 'in stock', o.price, o.sale || '', 'Portwest', '5036108', '',
+  cread(o.link)].join(',') + '\n';
+const GS = 'https://www.gsworkwear.com/products/';
+
+test('L114 GS Workwear: the Google-format feed is found in the archive or in Downloads, and read under the Awin names', async () => {
+  const root = mkdtempSync(join(tmpdir(), 'gw-l114-'));
+  const dir = join(root, 'GW_AWIN_BULK_ARCHIVE');
+  mkdirSync(dir);
+  const feed = GHEAD
+    + grow({ id: 'pw40-y', title: 'Portwest Classic Ear Protector - Yellow', link: GS + 'portwest-classic-ear-protector-yellow-one-size-pw40', price: '4.99 GBP', sale: '3.69 GBP', img: 'https://cdn.gs/y.jpg' })
+    + grow({ id: 'pw40-r', title: 'Portwest Classic Ear Protector - Red', link: GS + 'portwest-classic-ear-protector-red-one-size-pw40', price: '3.19 GBP', av: 'out of stock' })
+    + grow({ id: 'pw40-b', title: 'Portwest Classic Ear Protector - Blue', link: GS + 'portwest-classic-ear-protector-blue-one-size-pw40', price: '3.99 GBP' })
+    + grow({ id: 'hv20', title: 'Portwest Wet Floor Warning Sign - Yellow / One Size', link: GS + 'portwest-wet-floor-warning-sign-yellow-one-size-hv20', price: '5.99 GBP' });
+  writeFileSync(join(root, '48473-retail-en_GB.csv.gz'), gzipSync(feed));
+  // A random download of the user is not a feed; an AWIN_ file of another shop is.
+  writeFileSync(join(root, 'invoice-2026.csv'), 'a,b\n1,2\n');
+  writeFileSync(join(dir, 'AWIN_496_1001.csv.gz'), gzipSync(HEAD2 + row2({ link: 'https://www.tooled-up.com/p/1', name: 'Drill', aw: '1', mid: 'd1', price: 50, merchant: 'Tooled Up', adv: 496 })));
+
+  assert.deepEqual(feedFileParts('48473-retail-en_GB.csv.gz'), { advertiser: '48473', feed: 'retail-en_GB' });
+  assert.deepEqual([...listFeedFiles(dir).keys()], ['AWIN_496_1001.csv.gz', '48473-retail-en_GB.csv.gz'], 'the archive, then the Google feed in Downloads');
+  assert.equal(resolveFeedFile(dir, '48473-retail-en_GB.csv.gz'), join(root, '48473-retail-en_GB.csv.gz'));
+  assert.equal(resolveFeedFile(dir, 'invoice-2026.csv'), '', 'not a feed name');
+
+  const found = await findFeedsFor(dir, [{ retailer: 'GS Workwear', advertiser: cread(GS + 'x').replace('awinmid=1', 'awinmid=48473') }], Date.now());
+  assert.deepEqual([found[0].matchedBy, found[0].advertisers, found[0].files.map(f => [f.file, f.feed])],
+    ['advertiser', ['48473'], [['48473-retail-en_GB.csv.gz', 'retail-en_GB']]], 'found by the Awin id of its links');
+
+  const gs = await readFeed((await findFeeds(dir, '', '48473')).files);
+  assert.equal(gs.google, true);
+  assert.equal(gs.rows, 4);
+  const ear = matchRow({ awin_product_id: '48473:portwest-portwest-classic-ear-protector', merchant_product_id: 'portwest-portwest-classic-ear-protector',
+    affiliate_url: cread(GS + 'portwest-classic-ear-protector-blue-one-size-pw40') }, gs);
+  assert.deepEqual([ear.mid, ear.price, ear.currency, ear.inStock, ear.image], ['pw40-y', 3.69, 'GBP', true, 'https://cdn.gs/y.jpg'],
+    'all colours are one product: the lowest price IN STOCK (sale price 3.69; red 3.19 is sold out), not the colour of its page');
+  const sign = matchRow({ awin_product_id: '48473:portwest-portwest-wet-floor-warning-sign', merchant_product_id: 'x', affiliate_url: '' }, gs);
+  assert.equal(sign.price, 5.99, '"- Yellow / One Size" is cut off the name, as in the import');
+
+  // A copy in Downloads is not used when the archive has a file of the same advertiser (after a download).
+  writeFileSync(join(dir, '48473-retail-en_GB.csv.gz'), gzipSync(feed));
+  assert.deepEqual([...listFeedFiles(dir).values()].filter(p => p.includes('48473')), [join(dir, '48473-retail-en_GB.csv.gz')]);
+});
+
+test('L114 GS Workwear: the one-paste plan dates the products the Google feed confirms, by --feed-file name', async () => {
+  const root = mkdtempSync(join(tmpdir(), 'gw-l114p-'));
+  const dir = join(root, 'GW_AWIN_BULK_ARCHIVE');
+  mkdirSync(dir);
+  writeFileSync(join(root, '48473-retail-en_GB.csv.gz'), gzipSync(GHEAD
+    + grow({ id: 'pw40-y', title: 'Portwest Classic Ear Protector - Yellow', link: GS + 'portwest-classic-ear-protector-yellow-one-size-pw40', price: '3.69 GBP' })
+    + grow({ id: 'hv20', title: 'Portwest Wet Floor Warning Sign - Yellow / One Size', link: GS + 'portwest-wet-floor-warning-sign-yellow-one-size-hv20', price: '6.49 GBP' })));
+  const out = mkdtempSync(join(tmpdir(), 'gw-l114p-out-'));
+  const rowsFile = join(out, 'rows.json.txt');
+  const r = (id, key, price) => ({ id, retailer: 'GS Workwear', awin_product_id: `48473:${key}`, merchant_product_id: key, price, currency: 'GBP', stock_status: 'in stock',
+    image_url: 'https://cdn.gs/i.jpg', affiliate_url: cread(GS + key), is_active: 1, updated_at: '2026-10-21 18:00:00' });
+  writeFileSync(rowsFile, JSON.stringify([{ results: [r(1, 'portwest-portwest-classic-ear-protector', 3.69), r(2, 'portwest-portwest-wet-floor-warning-sign', 5.99), r(3, 'portwest-gone', 9)], success: true }]));
+  const tool = join(process.cwd(), 'tools', 'legacy-refresh-plan.mjs');
+  execFileSync(process.execPath, [tool, '--archive', dir, '--retailer', 'GS Workwear', '--site', 'cgw', '--rows', rowsFile, '--out', join(out, 'plan'),
+    '--feed-file', '48473-retail-en_GB.csv.gz', '--require-dates', '--no-hide']);
+  const s = JSON.parse(readFileSync(join(out, 'plan', 'summary.json'), 'utf8'));
+  assert.deepEqual([s.active, s.changes, s.seen, s.hides], [3, 1, 1, 0], 'the sign changes price, the ear protector is confirmed, the third is not in the feed and is not hidden');
+  assert.match(readFileSync(join(out, 'plan', 'report.txt'), 'utf8'), /48473-retail-en_GB\.csv\.gz \(αρχείο 0 ημ\.\)/);
 });
