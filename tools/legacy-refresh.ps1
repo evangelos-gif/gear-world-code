@@ -235,7 +235,7 @@ foreach ($pair in $list) {
     $last = 0
     $failed = $false
     for ($page = 1; $page -le 200; $page++) {
-        $sql = ('SELECT id, awin_product_id, merchant_product_id, product_name, price, currency, stock_status, image_url, is_active FROM products WHERE retailer = {0} AND is_active = 1 AND id BETWEEN {1} AND 2147483647 ORDER BY id LIMIT 5000' -f $sqlName, ($last + 1))
+        $sql = ('SELECT id, awin_product_id, merchant_product_id, product_name, price, currency, stock_status, image_url, affiliate_url, is_active FROM products WHERE retailer = {0} AND is_active = 1 AND id BETWEEN {1} AND 2147483647 ORDER BY id LIMIT 5000' -f $sqlName, ($last + 1))
         $r = Select-Raw $sql
         if ($null -eq $r) { $failed = $true; break }
         $f = Join-Path $dir ('rows-{0:D3}.json.txt' -f $page)
