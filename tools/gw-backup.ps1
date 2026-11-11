@@ -65,7 +65,7 @@ if (-not $OutDir) { $OutDir = Join-Path $HomeDir 'gear-world-reports' }
 if (-not $WorkDir) { $WorkDir = Join-Path $HomeDir 'gear-world-backup-work' }
 if ($PageRows -lt 1) { $PageRows = 3000 }
 if ($FileBudgetSec -lt 0) { $FileBudgetSec = 60 }
-if ($ProgressSec -lt 1) { $ProgressSec = 30 }
+if ($ProgressSec -lt 0) { $ProgressSec = 30 } # 0 = a line for every file (tests)
 $script:FileDeadline = [DateTime]::MaxValue
 $stamp = Get-Date -Format 'yyyyMMdd_HHmmss'
 $Owner = 'evangelos-gif'
@@ -244,6 +244,7 @@ function Get-SensitiveReason([string]$path) {
             $zip = New-Object System.IO.Compression.ZipArchive($fs, [System.IO.Compression.ZipArchiveMode]::Read)
             try {
                 foreach ($entry in $zip.Entries) {
+                    if ([DateTime]::UtcNow -gt $script:FileDeadline) { return 'slow' } # many entries: the same time budget (L115)
                     $ee = [System.IO.Path]::GetExtension($entry.Name).ToLowerInvariant()
                     if (($ArchiveOut -contains $ee) -or ($ZipExt -contains $ee) -or $ee -eq '.gz') { return 'archive' } # an archive inside
                     if (-not (Test-Scannable $entry.Name) -or $entry.Length -eq 0) { continue }
@@ -475,7 +476,15 @@ function Clear-DriveSensitive([bool]$Remove, $flaggedRel) {
             if (Test-Path -LiteralPath $p) { Add-Found $p }
         }
         $feedsOnDrive = Join-Path $files 'Downloads'
+        $clock = [System.Diagnostics.Stopwatch]::StartNew()
+        $next = [long]$ProgressSec * 1000
+        $seenFiles = 0
         foreach ($f in @(Get-ChildItem -LiteralPath $files -Recurse -File -Force -ErrorAction SilentlyContinue)) {
+            $seenFiles++
+            if ($clock.ElapsedMilliseconds -ge $next) {
+                Write-Host ('      ... δίσκος: {0} λεπτά, {1} αρχεία · τώρα: {2}' -f [int][Math]::Floor($clock.Elapsed.TotalMinutes), $seenFiles, $f.FullName.Substring($files.Length).TrimStart('\', '/'))
+                $next = $clock.ElapsedMilliseconds + ([long]$ProgressSec * 1000)
+            }
             if (Test-SecretName $f.Name) { Add-Found $f.FullName; continue }
             # A file whose original is no longer on the PC is read here (the feeds in Downloads are product data).
             if ($f.FullName.StartsWith($feedsOnDrive + '\', [System.StringComparison]::OrdinalIgnoreCase)) { continue }

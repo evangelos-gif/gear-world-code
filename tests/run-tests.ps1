@@ -3101,6 +3101,8 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         Check ((Run-B @('-ScanMaxMB', '1')) -eq 0 -and (Get-BReport).Contains('big-export.sql  (πάνω από 1 MB')) 'backup check: a file over -ScanMaxMB stays out (L113)'
         Check ($rt.Contains('ξύπνιος') -and $rt.Contains('κανονικό ύπνο')) 'backup check: the PC is kept awake in the check too, back to normal at the end (L115)'
         Check ((Run-B @('-FileBudgetSec', '0')) -eq 0 -and (Get-BReport).Contains('big-export.sql  (δεν ελέγχθηκε εγκαίρως)')) 'backup check: a file that takes longer than -FileBudgetSec stays out as slow, the check goes on (L115)'
+        $po = (& $exe @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $bTool, '-Target', $bTarget, '-HomeDir', $bHome, '-AllowSystemDrive', '-SkipGitHub', '-SkipNetworkCheck', '-SkipDatabases', '-NoClipboard', '-ProgressSec', '0') | Out-String)
+        Check ($LASTEXITCODE -eq 0 -and $po -match '\.\.\. 0 \S+, \d+ ') 'backup check: a progress line inside a folder (here for every file) does not break the check (L115)'
         Check ((Run-B @('-Apply')) -eq 1 -and -not (Test-Path -LiteralPath $bTarget) -and (Get-BReport).Contains('-Approve')) 'backup -Apply without -Approve: stops at once without asking, writes nothing (L113)'
         Check ((Run-B @('-Apply', '-Approve', 'ΕΓΚΡΙΝΩ BACKUP Q')) -eq 1 -and -not (Test-Path -LiteralPath $bTarget)) 'backup with the wrong phrase: writes nothing'
         Write-Utf8 (Join-Path $bState 'noauth') 'x'
@@ -3214,7 +3216,7 @@ if ($isWin) {
         & $exe -NoProfile -ExecutionPolicy Bypass -File $wTool -HomeDir $wHome -SkipPosterStats -NoClipboard | Out-Null
         $code = $LASTEXITCODE
         $wr = Get-WReport
-        Check ($code -eq 0 -and $wr.Contains('package.json version: 4.158.0') -and $wr.Contains('wrangler --version: 4.158.0') -and $wr.Contains('gear-world-hub: 4.148.0') -and $wr.Contains('gear-world-import: δικό του wrangler δεν έχει') -and $wr.Contains('παραλείφθηκε') -and $wr.TrimEnd().EndsWith('ΤΕΛΟΣ ΕΛΕΓΧΟΥ')) 'wrangler check: versions in the deploy folder and the Gear World folders, last line ΤΕΛΟΣ ΕΛΕΓΧΟΥ (L114)'
+        Check ($code -eq 0 -and $wr.Contains('package.json version: 4.158.0') -and $wr.Contains('wrangler --version: 4.158.0') -and $wr.Contains('gear-world-hub: 4.148.0') -and $wr.Contains('gear-world-import: δικό του wrangler δεν έχει') -and $wr.Contains('παραλείφθηκε') -and $wr.Contains('ξύπνιος') -and $wr.Contains('κανονικό ύπνο') -and $wr.TrimEnd().EndsWith('ΤΕΛΟΣ ΕΛΕΓΧΟΥ')) 'wrangler check: versions in the deploy folder and the Gear World folders, last line ΤΕΛΟΣ ΕΛΕΓΧΟΥ (L114)'
         Check ($wr.Contains('2 αρχεία') -and $wr.Contains('1 με λέξη token') -and -not $wr.Contains($wSecret)) 'wrangler check: token words in the wrangler logs counted, never shown (L114)'
         Start-Sleep -Seconds 1
         & $exe -NoProfile -ExecutionPolicy Bypass -File $wTool -HomeDir $wHome -SkipPosterStats -BackupCheck -NoClipboard | Out-Null

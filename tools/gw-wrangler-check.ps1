@@ -45,6 +45,42 @@ function Short([string]$p) {
 function Get-Version([string]$packageJson) {
     try { return [string]((Get-Content -LiteralPath $packageJson -Raw -Encoding UTF8 | ConvertFrom-Json).version) } catch { return '?' }
 }
+# Keep the PC awake and stop a click from pausing the window while this runs (lessons L115); both back at the end.
+$script:Awake = $false
+$script:ConsoleMode = $null
+function Initialize-Native {
+    if ('GwCheckPower.Native' -as [type]) { return $true }
+    try {
+        $sig = '[System.Runtime.InteropServices.DllImport("kernel32.dll")] public static extern uint SetThreadExecutionState(uint esFlags);' +
+            ' [System.Runtime.InteropServices.DllImport("kernel32.dll")] public static extern System.IntPtr GetStdHandle(int nStdHandle);' +
+            ' [System.Runtime.InteropServices.DllImport("kernel32.dll")] public static extern bool GetConsoleMode(System.IntPtr hConsoleHandle, out uint lpMode);' +
+            ' [System.Runtime.InteropServices.DllImport("kernel32.dll")] public static extern bool SetConsoleMode(System.IntPtr hConsoleHandle, uint dwMode);'
+        Add-Type -Namespace GwCheckPower -Name Native -MemberDefinition $sig
+        return $true
+    } catch { return $false }
+}
+function Set-Awake([bool]$on) {
+    if (-not (Initialize-Native)) { return $false }
+    try {
+        if ($on) { [void][GwCheckPower.Native]::SetThreadExecutionState([uint32]2147483651); $script:Awake = $true; return $true }
+        [void][GwCheckPower.Native]::SetThreadExecutionState([uint32]2147483648); $script:Awake = $false; return $true
+    } catch { return $false }
+}
+function Set-QuickEdit([bool]$on) {
+    try {
+        if (-not (Initialize-Native)) { return $false }
+        $h = [GwCheckPower.Native]::GetStdHandle(-10)
+        if ($on) {
+            if ($null -ne $script:ConsoleMode) { [void][GwCheckPower.Native]::SetConsoleMode($h, [uint32]$script:ConsoleMode); $script:ConsoleMode = $null }
+            return $true
+        }
+        $mode = [uint32]0
+        if (-not [GwCheckPower.Native]::GetConsoleMode($h, [ref]$mode)) { return $false }
+        if (($mode -band 0x40) -eq 0) { return $true }
+        if ([GwCheckPower.Native]::SetConsoleMode($h, [uint32](($mode -bor 0x80) - 0x40))) { $script:ConsoleMode = $mode; return $true }
+        return $false
+    } catch { return $false }
+}
 function Get-Newest([string]$dir, [string]$filter, [datetime]$after) {
     return @(Get-ChildItem -LiteralPath $dir -Filter $filter -File -ErrorAction SilentlyContinue | Where-Object { $_.LastWriteTime -ge $after } | Sort-Object LastWriteTime | Select-Object -Last 1)
 }
@@ -55,6 +91,8 @@ if ($WranglerRef -notmatch '^[0-9a-f]{40}$') {
 }
 
 Say ('GW WRANGLER CHECK (MONO ANAGNOSI / READ-ONLY) {0}  wrangler ref {1}' -f $t0.ToString('yyyy-MM-dd HH:mm'), $WranglerRef.Substring(0, 7)) 'Cyan'
+if (Set-Awake $true) { Say 'Ο υπολογιστής μένει ξύπνιος όσο τρέχει (χωρίς αλλαγή ρυθμίσεων).' } else { Say 'ΠΡΟΣΟΧΗ: δεν μπόρεσα να κρατήσω τον υπολογιστή ξύπνιο. Αν κοιμηθεί, συνεχίζει όταν ξυπνήσει.' 'Yellow' }
+[void](Set-QuickEdit $false)
 
 # 1. poster-stats with the wrangler of the branch (it installs it in its own deploy folder).
 Say '=== 1. poster-stats (wrangler του κλάδου) ==='
@@ -128,6 +166,8 @@ if ($BackupCheck) {
     if ($br.Count) { $L.Add((Get-Content -LiteralPath $br[0].FullName -Raw -Encoding UTF8).TrimEnd()) } else { Say 'ΔΕΝ γράφτηκε αναφορά backup' 'Yellow' }
 }
 
+if ($script:Awake) { [void](Set-Awake $false); Say 'Ο υπολογιστής γύρισε στον κανονικό ύπνο.' }
+if ($null -ne $script:ConsoleMode) { [void](Set-QuickEdit $true) }
 Say ''
 Say 'ΤΕΛΟΣ ΕΛΕΓΧΟΥ' 'Green'
 $text = ($L -join "`r`n") + "`r`n"
