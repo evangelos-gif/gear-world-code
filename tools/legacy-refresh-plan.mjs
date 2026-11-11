@@ -38,6 +38,7 @@
 //   [--require-dates]   (the one-paste mode: a shop whose feed file is too old to write dates changes nothing)
 //   [--feed-file AWIN_<advertiser>_<feed>.csv.gz ...]   (files found by --find, instead of reading the archive again)
 //   [--no-hide]   (the one-paste mode: products not in the feed are not hidden)
+//   [--accept-jumps]   (-AcceptJumps: a price that jumps more than 3 times, up to 10, is taken as the new price)
 //   Rows with a retailer column (the one-paste mode reads all active rows of a site at once) are kept only for --retailer.
 // node tools/legacy-refresh-plan.mjs --find --archive <dir> --retailers-file <one name per line> --out <dir> [--now ...]
 //   writes feeds.json: the feed files of every shop (advertiser, feed id, time of the file), read-only. A line may be
@@ -56,6 +57,9 @@ import * as gsworkwear from './import-rules/gsworkwear.mjs';
 
 export const STALE_DAYS = 30;
 export const PRICE_JUMP = 3;
+// -AcceptJumps (a shop the owner checked, e.g. Coes at the end of a 70% sale, 11 Nov 2026): a jump up to this many times
+// is taken as the new price; a bigger one is still held back.
+export const ACCEPT_JUMP_MAX = 10;
 // A feed file downloaded more than this many days before the run writes no date (lessons L108).
 export const FEED_FILE_MAX_DAYS = 2;
 export const IDS_PER_STATEMENT = 500;
@@ -362,7 +366,7 @@ function parseFeedDate(s) {
 
 // feedTime: the time (ms) the feed file was downloaded (pickFeedFiles). requireDates: the one-paste mode, where a shop
 // whose feed file is too old to date its rows changes nothing at all (it is listed and waits for a fresh download).
-export function planRefresh({ rows, feed, costs, maxWrites = 90000, now = new Date(), feedTime = NaN, requireDates = false, noHide = false }) {
+export function planRefresh({ rows, feed, costs, maxWrites = 90000, now = new Date(), feedTime = NaN, requireDates = false, noHide = false, acceptJumps = false }) {
   const nowMs = now.getTime();
   const cost = col => (costs && costs[col]) || 1;
   const active = rows.filter(r => Number(r.is_active) === 1);
@@ -397,6 +401,7 @@ export function planRefresh({ rows, feed, costs, maxWrites = 90000, now = new Da
   const changes = [];
   const gone = [];
   const bigPrice = [];
+  const acceptedJumps = [];
   const currencySkip = [];
   const seenAll = [];
   const why = new Map();
@@ -422,8 +427,13 @@ export function planRefresh({ rows, feed, costs, maxWrites = 90000, now = new Da
       const oldPrice = Number(r.price);
       if (f.currency && f.currency !== curCurrency) { currencySkip.push({ id, from: curCurrency, to: f.currency }); price = 'currency'; }
       else if (Math.abs(f.price - oldPrice) >= 0.005) {
-        if (oldPrice > 0 && (f.price > oldPrice * PRICE_JUMP || f.price < oldPrice / PRICE_JUMP)) { bigPrice.push({ id, name: r.product_name || r.awin_product_id, from: oldPrice, to: f.price }); price = 'jump'; }
-        else { set.price = f.price; old.price = oldPrice; price = 'changed'; }
+        const jump = oldPrice > 0 && (f.price > oldPrice * PRICE_JUMP || f.price < oldPrice / PRICE_JUMP);
+        const takeJump = jump && acceptJumps && f.price <= oldPrice * ACCEPT_JUMP_MAX && f.price >= oldPrice / ACCEPT_JUMP_MAX;
+        if (jump && !takeJump) { bigPrice.push({ id, name: r.product_name || r.awin_product_id, from: oldPrice, to: f.price }); price = 'jump'; }
+        else {
+          if (takeJump) acceptedJumps.push({ id, name: r.product_name || r.awin_product_id, from: oldPrice, to: f.price });
+          set.price = f.price; old.price = oldPrice; price = 'changed';
+        }
       } else price = 'same';
     }
     // The feed confirms the price only when it has one, in the site's currency, and it is the price the site will show.
@@ -504,7 +514,7 @@ export function planRefresh({ rows, feed, costs, maxWrites = 90000, now = new Da
     oldOnly, oldFiles, feedRows: feed.rows, feedNewest: feed.newest || '',
     // The feed gives nothing to work with: not updated for 30 days, empty, or nearly none of the shop's products.
     deadFeed: stale || feed.rows === 0 || (active.length >= 20 && active.length - gone.length <= active.length * 0.05),
-    bigPrice, currencySkip, writes, left, costs, visible,
+    bigPrice, acceptedJumps, currencySkip, writes, left, costs, visible,
     counts: { price: count('price'), image_url: count('image_url'), stock_status: count('stock_status'),
       dated: doChanges.filter(c => c.stamp).length, undated: doChanges.filter(c => !c.stamp).length,
       toOut: doChanges.filter(c => 'stock_status' in c.set && !inStockText(c.set.stock_status)).length,
@@ -623,7 +633,7 @@ export function writePlan(out, p) {
     hides: p.hides.length, seen: p.seen.length, gone: p.gone, safe: p.safe, noHide: Boolean(p.noHide), stale: p.stale, staleDays: p.staleDays, skip: p.skip,
     datesOk: p.datesOk, dateBlock: p.dateBlock, stamp: p.stamp, stampFromFeed: Boolean(p.stampFromFeed), cappedRows: p.cappedRows || 0,
     oldOnly: p.oldOnly || 0, oldFiles: p.oldFiles || [], feedRows: p.feedRows ?? null, feedNewest: p.feedNewest || '', deadFeed: Boolean(p.deadFeed), fileAgeDays: p.fileAgeDays === null ? null : Math.round(p.fileAgeDays * 10) / 10,
-    writes: p.writes, left: p.left, counts: p.counts, costs: p.costs, visible: p.visible, bigPrice: p.bigPrice.length,
+    writes: p.writes, left: p.left, counts: p.counts, costs: p.costs, visible: p.visible, bigPrice: p.bigPrice.length, acceptedJumps: (p.acceptedJumps || []).length,
     still: Object.entries(p.visible.still).map(([reason, n]) => ({ reason, n, text: reasonText(reason) })),
     currencySkip: p.currencySkip.length, statements: files.reduce((n, f) => n + f.statements, 0), files, rollbackFiles };
   writeFileSync(join(out, 'summary.json'), JSON.stringify(summary, null, 2));
@@ -675,6 +685,10 @@ export function renderReport({ retailer, site, feedFiles, feedRows, newest, p })
     L.push(`ΠΡΟΣΟΧΗ: ${fmt(p.bigPrice.length)} τιμές αλλάζουν πάνω από ${PRICE_JUMP} φορές. ΔΕΝ αλλάζουν και δεν παίρνουν ημερομηνία· να ελεγχθούν:`);
     for (const b of p.bigPrice.slice(0, 15)) L.push(`   - ${String(b.name).slice(0, 90)}: ${b.from} -> ${b.to}`);
   }
+  if (p.acceptedJumps && p.acceptedJumps.length) {
+    L.push(`Δεκτές με -AcceptJumps: ${fmt(p.acceptedJumps.length)} τιμές που αλλάζουν πάνω από ${PRICE_JUMP} φορές (έως ${ACCEPT_JUMP_MAX}) αλλάζουν κανονικά και παίρνουν ημερομηνία:`);
+    for (const b of p.acceptedJumps.slice(0, 15)) L.push(`   - ${String(b.name).slice(0, 90)}: ${b.from} -> ${b.to}`);
+  }
   if (p.currencySkip.length) L.push(`ΠΡΟΣΟΧΗ: ${fmt(p.currencySkip.length)} προϊόντα έχουν άλλο νόμισμα στο feed (${p.currencySkip[0].from} -> ${p.currencySkip[0].to}). Η τιμή τους δεν αλλάζει και δεν παίρνουν ημερομηνία.`);
   const samples = p.changes.filter(c => 'price' in c.set).slice(0, 8);
   if (samples.length) {
@@ -720,7 +734,7 @@ if (import.meta.url === pathToFileURL(process.argv[1] || '').href) {
   const currency = Object.entries(curCount).sort((a, b) => b[1] - a[1])[0]?.[0] || 'GBP';
   const feed = await readFeed(files, undefined, { currency });
   const costs = writeCosts(opt('--indexes') && existsSync(opt('--indexes')) ? rowsFromWrangler(readFileSync(opt('--indexes'), 'utf8')) : []);
-  const p = planRefresh({ rows, feed, costs, maxWrites, now, feedTime: pick.feedTime, requireDates: args.includes('--require-dates'), noHide: args.includes('--no-hide') });
+  const p = planRefresh({ rows, feed, costs, maxWrites, now, feedTime: pick.feedTime, requireDates: args.includes('--require-dates'), noHide: args.includes('--no-hide'), acceptJumps: args.includes('--accept-jumps') });
   const summary = writePlan(out, p);
   const ages = pick.times.map(t => Math.floor((now.getTime() - t) / DAY));
   writeFileSync(join(out, 'report.txt'), renderReport({ retailer, site, feedFiles: files.map((f, i) => `${basename(f)} (αρχείο ${ages[i]} ημ.)`), feedRows: feed.rows, newest: feed.newest, p }));

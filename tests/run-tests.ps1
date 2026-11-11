@@ -2797,6 +2797,13 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         $r = StLast
         Check ($r.Contains('Μόνο τα καταστήματα: weekly-shop (-OnlyShops)') -and $r.Contains('Weekly Shop: ενεργά 2') -and -not $r.Contains('Tooled Up: ενεργά') -and -not $r.Contains('No Feed Shop στο')) 'refresh -Stale -OnlyShops: only the shop named'
         Check ((Run-St @('-Pairs', 'tooled-up:cgw', '-OnlyShops', 'weekly-shop')) -eq 2) 'refresh: -OnlyShops only with -Stale'
+        # -AcceptJumps: only with -Stale and -OnlyShops naming the same shop; the run then asks its own phrase.
+        Check ((Run-St @('-Stale', '-Sites', 'cgw,hgw', '-AcceptJumps', 'tooled-up')) -eq 2) 'refresh: -AcceptJumps without -OnlyShops is refused'
+        Check ((Run-St @('-Stale', '-Sites', 'cgw,hgw', '-OnlyShops', 'weekly-shop', '-AcceptJumps', 'tooled-up')) -eq 2) 'refresh: -AcceptJumps for a shop not in -OnlyShops is refused'
+        Check ((Run-St @('-Stale', '-Sites', 'cgw,hgw', '-OnlyShops', 'Tooled Up', '-AcceptJumps', 'tooled-up')) -eq 0) 'refresh -AcceptJumps without -Apply: exit 0'
+        $r = StLast
+        Check ($r.Contains('γίνονται δεκτές για: tooled-up (-AcceptJumps)') -and $r.Contains('ΕΓΚΡΙΝΩ ΝΕΕΣ ΤΙΜΕΣ TOOLED-UP') -and -not $r.Contains('Weekly Shop: ενεργά')) 'refresh -AcceptJumps: named in the plan, with its own phrase'
+        Check ((Run-St @('-Stale', '-Sites', 'cgw,hgw', '-OnlyShops', 'tooled-up', '-AcceptJumps', 'tooled-up', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ REFRESH ΠΑΛΙΑ ΠΡΟΪΟΝΤΑ')) -eq 1 -and -not ((StCalls) -match '--file|time-travel')) 'refresh -AcceptJumps: the usual phrase is not enough, nothing written'
         Check ((Run-St @('-Stale', '-Sites', 'cgw,hgw', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ REFRESH TOOLED-UP CGW')) -eq 1) 'refresh -Stale with another phrase: stops'
         Check (-not ((StCalls) -match '--file|time-travel') -and [math]::Abs(((Get-Item -LiteralPath $stFeed).LastWriteTime - $stOld).TotalSeconds) -lt 5) 'refresh -Stale with another phrase: nothing downloaded, nothing written'
         Check ((Run-St @('-Stale', '-Sites', 'cgw,hgw', '-Apply', '-Approve', 'εγκρινω refresh παλια προιοντα')) -eq 0) 'refresh -Stale with the phrase (no accents, lower case): exit 0'

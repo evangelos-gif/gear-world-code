@@ -16,7 +16,7 @@ import { DatabaseSync } from 'node:sqlite';
 import {
   findFeeds, findFeedsFor, pickFeedFiles, readFeed, planRefresh, writeCosts, updateTrigger, writePlan, planStatements, splitFiles,
   groupedStatements, idsPerStatement, sqliteTime, viewDays, keyOf, matchRow, renderReport, advertiserOf, linkKey,
-  listFeedFiles, resolveFeedFile, feedFileParts, FEED_FILE_MAX_DAYS, MAX_STATEMENTS_PER_FILE, MAX_WRITES_PER_FILE, IDS_PER_STATEMENT
+  listFeedFiles, resolveFeedFile, feedFileParts, ACCEPT_JUMP_MAX, FEED_FILE_MAX_DAYS, MAX_STATEMENTS_PER_FILE, MAX_WRITES_PER_FILE, IDS_PER_STATEMENT
 } from '../../tools/legacy-refresh-plan.mjs';
 import { viewFor, isShown, needsCheck, HIDE_AFTER_DAYS } from '../../src/lib/visibility.js';
 
@@ -759,4 +759,27 @@ test('L114 GS Workwear: the one-paste plan dates the products the Google feed co
   const s = JSON.parse(readFileSync(join(out, 'plan', 'summary.json'), 'utf8'));
   assert.deepEqual([s.active, s.changes, s.seen, s.hides], [3, 1, 1, 0], 'the sign changes price, the ear protector is confirmed, the third is not in the feed and is not hidden');
   assert.match(readFileSync(join(out, 'plan', 'report.txt'), 'utf8'), /48473-retail-en_GB\.csv\.gz \(αρχείο 0 ημ\.\)/);
+});
+
+// 11 Nov 2026: 243 Coes clothes went from their 70% sale price back to full price (26.99 -> 89.95, x3.33). The 3-times rule
+// held them back, so they would leave the sites on 25 Nov. The owner chose to take the new prices of a shop he checked
+// (-AcceptJumps coes, its own phrase): up to 10 times is taken and dated, a bigger jump is still held back.
+test('-AcceptJumps: a checked shop takes its new prices up to 10 times; bigger jumps and other shops are still held back', () => {
+  const now = new Date('2026-11-12T18:00:00Z');
+  const t = Date.parse('2026-11-12T17:00:00Z');
+  const fr = (price) => ({ aw: '', mid: '', price, currency: 'GBP', inStock: true, stockText: '1', image: 'https://x/i.jpg', fi: 0 });
+  const feed = { byAw: new Map([['a', fr(89.95)], ['b', fr(500)], ['c', fr(16)]]), byMid: new Map(), byLink: new Map(), rows: 3, newest: '', files: [{ path: 'AWIN_30645_116078.csv.gz', t, newest: '' }] };
+  const row = (id, aw, price) => ({ id, awin_product_id: aw, price, currency: 'GBP', stock_status: 'in stock', image_url: 'https://x/i.jpg', is_active: 1, updated_at: '2026-10-26 10:00:00', product_name: `P${id}` });
+  const rows = [row(1, 'a', 26.99), row(2, 'b', 9.99), row(3, 'c', 15)];
+  const held = planRefresh({ rows, feed, costs: CGW_COSTS, now, requireDates: true, noHide: true });
+  assert.deepEqual([held.bigPrice.map(b => b.id), held.acceptedJumps.length, held.changes.map(c => c.id)], [[1, 2], 0, [3]], 'without it: the 3-times rule as before');
+  const took = planRefresh({ rows, feed, costs: CGW_COSTS, now, requireDates: true, noHide: true, acceptJumps: true });
+  assert.equal(ACCEPT_JUMP_MAX, 10);
+  assert.deepEqual(took.acceptedJumps.map(b => [b.id, b.from, b.to]), [[1, 26.99, 89.95]], 'x3.33 is taken');
+  assert.deepEqual(took.bigPrice.map(b => b.id), [2], 'x50 is still held back');
+  const c1 = took.changes.find(c => c.id === 1);
+  assert.deepEqual([c1.set, Boolean(c1.stamp)], [{ price: 89.95 }, true], 'the new price, with the date of the feed');
+  const report = renderReport({ retailer: 'Coes', site: 'mgw', feedFiles: ['AWIN_30645_116078.csv.gz'], feedRows: 3, newest: '', p: took });
+  assert.match(report, /Δεκτές με -AcceptJumps: 1 τιμές που αλλάζουν πάνω από 3 φορές \(έως 10\)/);
+  assert.match(report, /ΠΡΟΣΟΧΗ: 1 τιμές αλλάζουν πάνω από 3 φορές/);
 });

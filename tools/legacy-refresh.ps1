@@ -25,6 +25,9 @@
   skipped and listed; it never stops the run.
   -OnlyShops "gs-workwear" (with -Stale): only these shops (names or their keys, separated by commas), e.g. one shop that
   could not be refreshed in the weekly run, without downloading and dating every other shop again (L114).
+  -AcceptJumps "coes" (with -Stale and -OnlyShops): for these shops a price that changed more than 3 times, up to 10,
+  is taken as the new price and dated (a shop the owner checked: Coes back to full price after a 70% sale, 11 Nov
+  2026). The phrase of the run is then ΕΓΚΡΙΝΩ ΝΕΕΣ ΤΙΜΕΣ <SHOP KEYS>, not the usual one.
 
   Without -Apply: READ-ONLY. Reads the site database (the shop's active products, the table's indexes and triggers)
   and the feed, and shows what WOULD change: prices, pictures and stock that differ, products no longer in the feed,
@@ -56,6 +59,7 @@ param(
     [switch]$Stale,
     [string]$Sites = '',
     [string]$OnlyShops = '',
+    [string]$AcceptJumps = '',
     [switch]$Apply,
     [string]$Approve = '',
     [string]$Archive = '',
@@ -286,13 +290,14 @@ function Get-SiteRows([string]$site) {
 }
 
 # The plan (read-only, tools/legacy-refresh-plan.mjs). Prints its report. Returns @{ code; summary }.
-function Invoke-Plan([string]$site, [string]$name, [string]$dir, [string]$schemaFile, $rowFiles, [long]$maxW, [string]$adv, $feedFiles, [bool]$requireDates, [bool]$noHide) {
+function Invoke-Plan([string]$site, [string]$name, [string]$dir, [string]$schemaFile, $rowFiles, [long]$maxW, [string]$adv, $feedFiles, [bool]$requireDates, [bool]$noHide, [bool]$takeJumps = $false) {
     if (-not (Test-Path -LiteralPath $dir)) { New-Item -ItemType Directory -Path $dir -Force | Out-Null }
     $a = @((Join-Path (Join-Path $repo 'tools') 'legacy-refresh-plan.mjs'), '--archive', $Archive, '--retailer', $name, '--site', $site, '--indexes', $schemaFile, '--out', $dir, '--max-writes', [string]$maxW)
     if ($adv) { $a += @('--advertiser', $adv) }
     foreach ($ff in @($feedFiles)) { if ($ff) { $a += @('--feed-file', [string]$ff) } }
     if ($requireDates) { $a += '--require-dates' }
     if ($noHide) { $a += '--no-hide' }
+    if ($takeJumps) { $a += '--accept-jumps' }
     foreach ($f in @($rowFiles)) { $a += @('--rows', $f) }
     & node @a | Out-Null
     $code = $LASTEXITCODE
@@ -394,6 +399,13 @@ if ($Sites -and -not $Stale) { Say '-Sites μόνο μαζί με -Stale.' 'Red'
 if ($Advertiser -and $Stale) { Say '-Advertiser μόνο με -Pairs.' 'Red'; Finish 2 }
 if ($OnlyShops -and -not $Stale) { Say '-OnlyShops μόνο μαζί με -Stale.' 'Red'; Finish 2 }
 $shopWant = @($OnlyShops -split ',' | ForEach-Object { Key-Of ([string]$_) } | Where-Object { $_ })
+$jumpWant = @($AcceptJumps -split ',' | ForEach-Object { Key-Of ([string]$_) } | Where-Object { $_ })
+if ($jumpWant.Count -gt 0) {
+    if (-not $Stale -or $shopWant.Count -eq 0) { Say '-AcceptJumps μόνο μαζί με -Stale και -OnlyShops.' 'Red'; Finish 2 }
+    foreach ($j in $jumpWant) { if (-not ($shopWant -contains $j)) { Say ('-AcceptJumps: το {0} πρέπει να είναι και στο -OnlyShops.' -f $j) 'Red'; Finish 2 } }
+    # Its own phrase: the usual one never takes a price that jumps.
+    $StalePhrase = 'ΕΓΚΡΙΝΩ ΝΕΕΣ ΤΙΜΕΣ ' + (@($jumpWant | ForEach-Object { $_.ToUpperInvariant() }) -join ' ')
+}
 
 $list = @()
 $siteList = @()
@@ -511,7 +523,7 @@ function Plan-All($tag, $feedBy, $readRows) {
             }
             $pdir = Join-Path $shop.dir $tag
             $names = @(@($f.files) | ForEach-Object { [string]$_.file })
-            $p = Invoke-Plan $site $shop.name $pdir $schemaFile $shop.rows $left '' $names $true $true
+            $p = Invoke-Plan $site $shop.name $pdir $schemaFile $shop.rows $left '' $names $true $true ($jumpWant -contains $shop.key)
             if ($p.code -ne 0 -or $null -eq $p.summary) { Say 'Το σχέδιο δεν έγινε (δες πιο πάνω): παραλείπεται.' 'Red'; $shop.reason = 'το σχέδιο δεν έγινε'; continue }
             $shop.plan = $p.summary
             $shop.pdir = $pdir
@@ -646,6 +658,7 @@ try {
     Say ('Επιλογή: καταστήματα με ενεργά προϊόντα ελεγμένα πριν από {0} (πάνω από {1} μέρες, -OlderThanDays {1}), ώστε μια ανανέωση κάθε εβδομάδα να τα κρατά κάτω από τις 14.' -f $dSel, $OlderThanDays)
     Say ('Η αναφορά γράφεται συνέχεια εδώ (μένει και αν σταματήσει η εκτέλεση): {0}' -f $script:ReportFile)
     if ($shopWant.Count -gt 0) { Say ('Μόνο τα καταστήματα: {0} (-OnlyShops). Τα άλλα δεν αλλάζουν και δεν κατεβαίνουν.' -f ($shopWant -join ', ')) }
+    if ($jumpWant.Count -gt 0) { Say ('Νέες τιμές πάνω από 3 φορές (έως 10) γίνονται δεκτές για: {0} (-AcceptJumps). Πάνω από 10 φορές μένουν όπως είναι.' -f ($jumpWant -join ', ')) 'Yellow' }
     # Plain arrays: Windows PowerShell 5.1 stops on @( <generic List> ) with "Argument types do not match" (L108).
     $shopsAll = @()
     $skipped = @()
