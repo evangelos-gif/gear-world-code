@@ -49,6 +49,8 @@ param(
     [string]$OutDir = '',
     [int]$PageRows = 3000,
     [int]$ScanMaxMB = 200,
+    [int]$FileBudgetSec = 60,
+    [int]$ProgressSec = 30,
     [string[]]$NetworkUrls = @(),
     [switch]$SkipNetworkCheck,
     [switch]$NoClipboard
@@ -62,6 +64,9 @@ if (-not $HomeDir) { $HomeDir = $HOME }
 if (-not $OutDir) { $OutDir = Join-Path $HomeDir 'gear-world-reports' }
 if (-not $WorkDir) { $WorkDir = Join-Path $HomeDir 'gear-world-backup-work' }
 if ($PageRows -lt 1) { $PageRows = 3000 }
+if ($FileBudgetSec -lt 0) { $FileBudgetSec = 60 }
+if ($ProgressSec -lt 1) { $ProgressSec = 30 }
+$script:FileDeadline = [DateTime]::MaxValue
 $stamp = Get-Date -Format 'yyyyMMdd_HHmmss'
 $Owner = 'evangelos-gif'
 $Repos = @('gear-world-code', 'gearworld-media')
@@ -198,14 +203,18 @@ function Test-TextReader([System.IO.TextReader]$reader) {
         if ($n -le 0) { break }
         $text = $tail + [string]::new($buf, 0, $n)
         if ($SecretRx.IsMatch($text)) { return 'key' }
-        $m = $EmailRx.Match($text)
-        while ($m.Success) {
-            $a = $m.Value.ToLowerInvariant()
-            if (-not ($a -match $NotCustomerRx)) { $seen[$a] = $true; if ($seen.Count -ge $EmailLimit) { return 'emails' } }
-            $m = $m.NextMatch()
+        if ($text.IndexOf([char]'@') -ge 0) { # no @, no address: skip the e-mail search
+            $m = $EmailRx.Match($text)
+            while ($m.Success) {
+                $a = $m.Value.ToLowerInvariant()
+                if (-not ($a -match $NotCustomerRx)) { $seen[$a] = $true; if ($seen.Count -ge $EmailLimit) { return 'emails' } }
+                $m = $m.NextMatch()
+            }
         }
         if ($text.Length -gt 512) { $tail = $text.Substring($text.Length - 512) } else { $tail = $text }
         if ($n -lt $buf.Length) { break }
+        # One file never holds the check up for long (-FileBudgetSec, lessons L115): it stays out as 'slow'.
+        if ([DateTime]::UtcNow -gt $script:FileDeadline) { return 'slow' }
     }
     return ''
 }
@@ -217,6 +226,7 @@ function Test-Scannable([string]$name) {
 # Why a file must stay off the drive: 'key', 'emails', 'slow', 'unreadable', 'archive', 'big' or '' (lessons L113).
 # The file is opened so that a program writing to it does not stop the read; if it cannot be opened it stays out.
 function Get-SensitiveReason([string]$path) {
+    $script:FileDeadline = [DateTime]::UtcNow.AddSeconds($FileBudgetSec)
     $ext = [System.IO.Path]::GetExtension($path).ToLowerInvariant()
     if ($ArchiveOut -contains $ext) { return 'archive' }
     $isZip = $ZipExt -contains $ext
@@ -263,6 +273,10 @@ function Get-SensitiveReason([string]$path) {
 function Get-FolderScan([string]$dir, [bool]$content = $true) {
     $total = [double]0; $count = 0
     $out = New-Object System.Collections.Generic.List[object]
+    # A line at least every -ProgressSec seconds, so a long folder shows that it moves (lessons L115).
+    $clock = [System.Diagnostics.Stopwatch]::StartNew()
+    $next = [long]$ProgressSec * 1000
+    $seenFiles = 0
     $stack = New-Object System.Collections.Stack
     $stack.Push($dir)
     while ($stack.Count -gt 0) {
@@ -271,6 +285,11 @@ function Get-FolderScan([string]$dir, [bool]$content = $true) {
         $files = $null
         try { $files = [System.IO.Directory]::GetFiles($d) } catch { if ($rel) { $out.Add(@{ path = $d; rel = $rel; reason = 'unreadable'; dir = $true }) }; continue }
         foreach ($f in $files) {
+            $seenFiles++
+            if ($clock.ElapsedMilliseconds -ge $next) {
+                Write-Host ('      ... {0} λεπτά, {1} αρχεία, {2} · τώρα: {3}' -f [int][Math]::Floor($clock.Elapsed.TotalMinutes), $seenFiles, (Format-Size $total), $f.Substring($dir.Length).TrimStart('\', '/'))
+                $next = $clock.ElapsedMilliseconds + ([long]$ProgressSec * 1000)
+            }
             $reason = ''
             $len = [long]0
             try {
@@ -512,11 +531,12 @@ $blockers = New-Object System.Collections.Generic.List[string]
 if ($Apply) {
     if (-not $Approve) { Say ('Λείπει η φράση: η εντολή θέλει -Approve ''{0}''. Δεν άλλαξε τίποτα.' -f $phrase) 'Red'; Finish 1 }
     if ((Normalize-Phrase $Approve) -ne (Normalize-Phrase $phrase)) { Say ('Λάθος φράση έγκρισης (χρειάζεται: {0}). Δεν άλλαξε τίποτα.' -f $phrase) 'Red'; Finish 1 }
-    # From the first minute: the checks and the reading of the folders can take a while (lessons L113).
-    if (Set-Awake $true) { Say 'Ο υπολογιστής μένει ξύπνιος και η οθόνη ανοιχτή όσο τρέχει το backup (χωρίς αλλαγή ρυθμίσεων). Αν είναι laptop, άφησε το καπάκι ανοιχτό και το καλώδιο στην πρίζα.' }
-    else { Say 'ΠΡΟΣΟΧΗ: δεν μπόρεσα να κρατήσω τον υπολογιστή ξύπνιο. Αν κοιμηθεί, το backup συνεχίζει όταν ξυπνήσει.' 'Yellow' }
-    if (Set-QuickEdit $false) { Say 'Ένα κλικ μέσα στο παράθυρο δεν σταματά πια το backup.' }
 }
+# From the first minute, in the check too: reading the folders can take a while, and on 10/11 the check stood still all
+# night because the PC slept (lessons L113, L115). Nothing in the settings changes; Finish puts both back.
+if (Set-Awake $true) { Say 'Ο υπολογιστής μένει ξύπνιος και η οθόνη ανοιχτή όσο τρέχει (χωρίς αλλαγή ρυθμίσεων). Αν είναι laptop, άφησε το καπάκι ανοιχτό και το καλώδιο στην πρίζα.' }
+else { Say 'ΠΡΟΣΟΧΗ: δεν μπόρεσα να κρατήσω τον υπολογιστή ξύπνιο. Αν κοιμηθεί, συνεχίζει όταν ξυπνήσει.' 'Yellow' }
+if (Set-QuickEdit $false) { Say 'Ένα κλικ μέσα στο παράθυρο δεν το σταματά πια.' }
 
 # 1. The drive.
 $qual = Split-Path -Qualifier $Target

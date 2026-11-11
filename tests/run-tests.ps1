@@ -3099,6 +3099,8 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         Check ($rt.Contains('big-export.sql  (έχει emails)') -and $rt.Contains('old-list.csv.gz  (έχει emails)') -and $rt.Contains('members-export.zip  (έχει emails)') -and $rt.Contains('old.7z  (αρχείο .7z')) 'backup check: e-mails found past the first 1 MB pieces, inside .gz and .zip; .7z left out (L113)'
         Check ($rt.Contains('feeds-list.txt') -and $rt.Contains('push.cmd') -and $rt.Contains('remote.txt') -and -not $rt.Contains('site.config.js') -and -not $rt.Contains(('ab12' * 8))) 'backup check: Awin feed key, GitHub token and password in a link found; a public sitekey is not a key (L113)'
         Check ((Run-B @('-ScanMaxMB', '1')) -eq 0 -and (Get-BReport).Contains('big-export.sql  (πάνω από 1 MB')) 'backup check: a file over -ScanMaxMB stays out (L113)'
+        Check ($rt.Contains('ξύπνιος') -and $rt.Contains('κανονικό ύπνο')) 'backup check: the PC is kept awake in the check too, back to normal at the end (L115)'
+        Check ((Run-B @('-FileBudgetSec', '0')) -eq 0 -and (Get-BReport).Contains('big-export.sql  (δεν ελέγχθηκε εγκαίρως)')) 'backup check: a file that takes longer than -FileBudgetSec stays out as slow, the check goes on (L115)'
         Check ((Run-B @('-Apply')) -eq 1 -and -not (Test-Path -LiteralPath $bTarget) -and (Get-BReport).Contains('-Approve')) 'backup -Apply without -Approve: stops at once without asking, writes nothing (L113)'
         Check ((Run-B @('-Apply', '-Approve', 'ΕΓΚΡΙΝΩ BACKUP Q')) -eq 1 -and -not (Test-Path -LiteralPath $bTarget)) 'backup with the wrong phrase: writes nothing'
         Write-Utf8 (Join-Path $bState 'noauth') 'x'
