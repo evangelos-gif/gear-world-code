@@ -2372,7 +2372,7 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
     $proc = Start-Process -FilePath $node -ArgumentList @($srv, $fdKey) -PassThru -WindowStyle Hidden
     Start-Sleep -Seconds 2
     function Run-Fd([string[]]$a) {
-        $all = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', (Join-Path (Join-Path $repo 'tools') 'awin-feed-download.ps1'), '-Archive', $fdArch, '-KeyFile', $fdKeyFile, '-BaseUrl', 'http://127.0.0.1:8799', '-OutDir', $fdOut, '-NoClipboard') + $a
+        $all = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', (Join-Path (Join-Path $repo 'tools') 'awin-feed-download.ps1'), '-Archive', $fdArch, '-KeyFile', $fdKeyFile, '-BaseUrl', 'http://127.0.0.1:8799', '-ListBaseUrl', 'http://127.0.0.1:8799', '-OutDir', $fdOut, '-NoClipboard') + $a
         & $exe @all | Out-Null
         return $LASTEXITCODE
     }
