@@ -2792,6 +2792,11 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         Check ($r.Contains('κανένα προϊόν δεν κρύβεται')) 'refresh -Stale: the plan says nothing is hidden'
         Check ($r -match 'CGW: θα φαίνονται ξανά 0 προϊόντα \(και περίπου 1 ακόμα με φρέσκο feed\)\. Μένουν κρυμμένα: .*2 δεν βρέθηκε feed.*Γραμμές D1: διαβάστηκαν [0-9,]+') 'refresh -Stale: the Greek summary per site with the rows read'
         Check ($r.Contains('αργά το βράδυ')) 'refresh -Stale: the tip to run at a quiet time'
+        # -OnlyShops (L114): only the shops named (by key), the others are not listed, planned or downloaded.
+        Check ((Run-St @('-Stale', '-Sites', 'cgw,hgw', '-OnlyShops', 'weekly-shop')) -eq 0) 'refresh -Stale -OnlyShops without -Apply: exit 0'
+        $r = StLast
+        Check ($r.Contains('Μόνο τα καταστήματα: weekly-shop (-OnlyShops)') -and $r.Contains('Weekly Shop: ενεργά 2') -and -not $r.Contains('Tooled Up: ενεργά') -and -not $r.Contains('No Feed Shop στο')) 'refresh -Stale -OnlyShops: only the shop named'
+        Check ((Run-St @('-Pairs', 'tooled-up:cgw', '-OnlyShops', 'weekly-shop')) -eq 2) 'refresh: -OnlyShops only with -Stale'
         Check ((Run-St @('-Stale', '-Sites', 'cgw,hgw', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ REFRESH TOOLED-UP CGW')) -eq 1) 'refresh -Stale with another phrase: stops'
         Check (-not ((StCalls) -match '--file|time-travel') -and [math]::Abs(((Get-Item -LiteralPath $stFeed).LastWriteTime - $stOld).TotalSeconds) -lt 5) 'refresh -Stale with another phrase: nothing downloaded, nothing written'
         Check ((Run-St @('-Stale', '-Sites', 'cgw,hgw', '-Apply', '-Approve', 'εγκρινω refresh παλια προιοντα')) -eq 0) 'refresh -Stale with the phrase (no accents, lower case): exit 0'

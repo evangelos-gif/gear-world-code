@@ -23,6 +23,8 @@
   the Awin feed key encrypted for your Windows user and asks for it only if it is missing; the key is never shown or
   written anywhere), then the refresh of every shop. A shop whose feed is not found, not downloaded or too old is
   skipped and listed; it never stops the run.
+  -OnlyShops "gs-workwear" (with -Stale): only these shops (names or their keys, separated by commas), e.g. one shop that
+  could not be refreshed in the weekly run, without downloading and dating every other shop again (L114).
 
   Without -Apply: READ-ONLY. Reads the site database (the shop's active products, the table's indexes and triggers)
   and the feed, and shows what WOULD change: prices, pictures and stock that differ, products no longer in the feed,
@@ -53,6 +55,7 @@ param(
     [string]$Pairs = '',
     [switch]$Stale,
     [string]$Sites = '',
+    [string]$OnlyShops = '',
     [switch]$Apply,
     [string]$Approve = '',
     [string]$Archive = '',
@@ -389,6 +392,8 @@ if ($Stale -and $Pairs) { Say 'Δώσε ή -Pairs ή -Stale, όχι και τα 
 if (-not $Stale -and -not $Pairs) { Say 'Δώσε -Pairs "κατάστημα:site" ή -Stale (όλα τα καταστήματα με παλιά προϊόντα).' 'Red'; Finish 2 }
 if ($Sites -and -not $Stale) { Say '-Sites μόνο μαζί με -Stale.' 'Red'; Finish 2 }
 if ($Advertiser -and $Stale) { Say '-Advertiser μόνο με -Pairs.' 'Red'; Finish 2 }
+if ($OnlyShops -and -not $Stale) { Say '-OnlyShops μόνο μαζί με -Stale.' 'Red'; Finish 2 }
+$shopWant = @($OnlyShops -split ',' | ForEach-Object { Key-Of ([string]$_) } | Where-Object { $_ })
 
 $list = @()
 $siteList = @()
@@ -640,6 +645,7 @@ try {
     Say ('Παλιά: τιμή ελεγμένη πριν από {0} («Check price and stock at the retailer», 14 μέρες) και πριν από {1} (δεν φαίνεται, 30 μέρες).' -f $d14, $d30)
     Say ('Επιλογή: καταστήματα με ενεργά προϊόντα ελεγμένα πριν από {0} (πάνω από {1} μέρες, -OlderThanDays {1}), ώστε μια ανανέωση κάθε εβδομάδα να τα κρατά κάτω από τις 14.' -f $dSel, $OlderThanDays)
     Say ('Η αναφορά γράφεται συνέχεια εδώ (μένει και αν σταματήσει η εκτέλεση): {0}' -f $script:ReportFile)
+    if ($shopWant.Count -gt 0) { Say ('Μόνο τα καταστήματα: {0} (-OnlyShops). Τα άλλα δεν αλλάζουν και δεν κατεβαίνουν.' -f ($shopWant -join ', ')) }
     # Plain arrays: Windows PowerShell 5.1 stops on @( <generic List> ) with "Argument types do not match" (L108).
     $shopsAll = @()
     $skipped = @()
@@ -669,6 +675,7 @@ try {
             $t30 = $t30 + $n30
             $tSel = $tSel + $nSel
             if ($nSel -le 0) { continue }
+            if ($shopWant.Count -gt 0 -and -not ($shopWant -contains (Key-Of $nm))) { continue }
             Say ('  {0}: ενεργά {1}, πάνω από 14 μέρες {2}, πάνω από 30 μέρες (δεν φαίνονται) {3}, πάνω από {4} μέρες {5}' -f $nm, (Fmt $row.n), (Fmt $n14), (Fmt $n30), $OlderThanDays, (Fmt $nSel))
             $shop = @{ site = $site; name = $nm; key = (Key-Of $nm); n = $row.n; d14 = $n14; d30 = $n30; dsel = $nSel; aurl = [string]$row.aurl; feed = $null; plan = $null; dir = ''; rows = $null; reason = ''; oldFile = $false; dlOnly = $false; noAwin = $false; loaded = $false; pdir = '' }
             if ($nm -match '[|<>^%~"]') { $shop.reason = 'το όνομα έχει χαρακτήρες που δεν περνούν με ασφάλεια'; $skipped += $shop; continue }
