@@ -175,13 +175,49 @@ export async function findFeedsFor(archive, retailers, nowMs = Date.now()) {
   });
 }
 
-// One entry per feed row, found by Awin product id and by the shop's own product id. Files are read newest first: a
+// The product page of a link, as "host/path" in lower case: no "www.", no query, no trailing slash. An Awin tracking link
+// (cread.php ... ued=..., awclick.php ... p=...) gives the shop page inside it. Coes, Cronjager, Plusshop, Bazta and GRABO
+// rows were imported with ids the feed no longer uses (an old Shopify variant id, or the page name), but the page is the
+// same (feed check of 11 Nov 2026, lessons L113), so the page is the last way a row finds its feed row.
+export function linkKey(url) {
+  let s = String(url || '').trim();
+  if (!s) return '';
+  for (let i = 0; i < 2; i++) {
+    let u;
+    try { u = new URL(s); } catch { return ''; }
+    if (/(^|\.)awin1\.com$/i.test(u.hostname)) {
+      const inner = u.searchParams.get('ued') || u.searchParams.get('p') || '';
+      if (!/^https?:\/\//i.test(inner)) return '';
+      s = inner;
+      continue;
+    }
+    const host = u.hostname.toLowerCase().replace(/^www\./, '');
+    let path = u.pathname;
+    try { path = decodeURIComponent(path); } catch { /* keep it as it is */ }
+    path = path.toLowerCase().replace(/\/+$/, '');
+    return host + path;
+  }
+  return '';
+}
+
+// Which of two feed rows of the same product page a row uses: the site's currency first, then the newest file (L108),
+// then in stock, then the lowest price (one card per product, at its lowest price: owner's rule). Ties keep the first.
+function betterRow(a, b, currency) {
+  const rank = p => [p.currency && p.currency !== currency ? 1 : 0, Number(p.fi) || 0, p.inStock === true ? 0 : 1,
+    Number.isFinite(p.price) && p.price > 0 ? p.price : Infinity];
+  const x = rank(a), y = rank(b);
+  for (let i = 0; i < x.length; i++) if (x[i] !== y[i]) return x[i] < y[i] ? a : b;
+  return a;
+}
+
+// One entry per feed row, found by Awin product id, by the shop's own product id and by its product page (L113). Files are read newest first: a
 // product in several files (a fresh feed and an old copy that Awin no longer lists) takes the values and the time of
 // the NEWEST file it is in (lessons L108: Tooled Up's leftover files of 15 Oct used to date the whole shop). Every entry
 // keeps the index of its file (fi); files[fi] = { path, t: time of the file on this PC, newest: its newest last_updated }.
-export async function readFeed(paths, timeOf = p => statSync(p).mtimeMs) {
+export async function readFeed(paths, timeOf = p => statSync(p).mtimeMs, { currency = 'GBP' } = {}) {
   const byAw = new Map();
   const byMid = new Map();
+  const byLink = new Map();
   let rows = 0, newest = '';
   const key = x => (Number.isFinite(x.t) ? x.t : -Infinity);
   const order = paths.map(p => ({ p, t: Number(timeOf(p)) })).sort((a, b) => (key(b) - key(a)) || (a.p < b.p ? -1 : 1));
@@ -212,12 +248,15 @@ export async function readFeed(paths, timeOf = p => statSync(p).mtimeMs) {
       if (upd && upd > info.newest) info.newest = upd;
       if (p.aw && !byAw.has(p.aw)) byAw.set(p.aw, p);
       if (p.mid && !byMid.has(p.mid)) byMid.set(p.mid, p);
+      const lk = linkKey(get('merchant_deep_link')) || linkKey(get('aw_deep_link'));
+      if (lk) { const had = byLink.get(lk); byLink.set(lk, had ? betterRow(had, p, currency) : p); }
     }
   }
-  return { byAw, byMid, rows, newest, files };
+  return { byAw, byMid, byLink, rows, newest, files };
 }
 
-// The feed row of a database row: the Awin product id, "<advertiser>:<shop id>", or the shop's own product id.
+// The feed row of a database row: the Awin product id, "<advertiser>:<shop id>", the shop's own product id, or the
+// product page of its link (lessons L113).
 export function matchRow(row, feed) {
   const id = String(row.awin_product_id || '');
   if (feed.byAw.has(id)) return feed.byAw.get(id);
@@ -225,6 +264,8 @@ export function matchRow(row, feed) {
   if (colon > 0 && feed.byMid.has(id.slice(colon + 1))) return feed.byMid.get(id.slice(colon + 1));
   const mid = String(row.merchant_product_id || '');
   if (mid && feed.byMid.has(mid)) return feed.byMid.get(mid);
+  const lk = linkKey(row.affiliate_url);
+  if (lk && feed.byLink && feed.byLink.has(lk)) return feed.byLink.get(lk);
   return null;
 }
 
@@ -612,9 +653,14 @@ if (import.meta.url === pathToFileURL(process.argv[1] || '').href) {
   }
   const pick = pickFeedFiles(found);
   const files = pick.files;
-  const feed = await readFeed(files);
   // Rows of a whole site (the one-paste mode reads them once, with their retailer): only this shop's rows.
   const rows = all('--rows').flatMap(f => rowsFromWrangler(readFileSync(f, 'utf8'))).filter(r => !('retailer' in r) || String(r.retailer) === retailer);
+  // The site's own currency for this shop (most of its rows): a shop with one feed per currency (Cronjager) is matched
+  // by its page to the feed row in that currency (L113).
+  const curCount = {};
+  for (const r of rows) { const c = String(r.currency || 'GBP').toUpperCase(); curCount[c] = (curCount[c] || 0) + 1; }
+  const currency = Object.entries(curCount).sort((a, b) => b[1] - a[1])[0]?.[0] || 'GBP';
+  const feed = await readFeed(files, undefined, { currency });
   const costs = writeCosts(opt('--indexes') && existsSync(opt('--indexes')) ? rowsFromWrangler(readFileSync(opt('--indexes'), 'utf8')) : []);
   const p = planRefresh({ rows, feed, costs, maxWrites, now, feedTime: pick.feedTime, requireDates: args.includes('--require-dates'), noHide: args.includes('--no-hide') });
   const summary = writePlan(out, p);

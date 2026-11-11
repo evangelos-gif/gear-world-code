@@ -247,7 +247,7 @@ function Save-Rows([string]$sqlName, [string]$dir) {
     $files = @()
     $last = 0
     for ($page = 1; $page -le 200; $page++) {
-        $sql = ('SELECT id, awin_product_id, merchant_product_id, product_name, price, currency, stock_status, image_url, is_active, updated_at FROM products WHERE retailer = {0} AND is_active = 1 AND id BETWEEN {1} AND 2147483647 ORDER BY id LIMIT 5000' -f $sqlName, ($last + 1))
+        $sql = ('SELECT id, awin_product_id, merchant_product_id, product_name, price, currency, stock_status, image_url, affiliate_url, is_active, updated_at FROM products WHERE retailer = {0} AND is_active = 1 AND id BETWEEN {1} AND 2147483647 ORDER BY id LIMIT 5000' -f $sqlName, ($last + 1))
         $r = Select-Raw $sql
         if ($null -eq $r) { return $null }
         $f = Join-Path $dir ('rows-{0:D3}.json.txt' -f $page)
@@ -269,7 +269,7 @@ function Get-SiteRows([string]$site) {
     $files = @()
     $last = 0
     for ($page = 1; $page -le 400; $page++) {
-        $sql = ('SELECT id, retailer, awin_product_id, merchant_product_id, product_name, price, currency, stock_status, image_url, is_active, updated_at FROM products WHERE is_active = 1 AND id BETWEEN {0} AND 2147483647 ORDER BY id LIMIT 5000' -f ($last + 1))
+        $sql = ('SELECT id, retailer, awin_product_id, merchant_product_id, product_name, price, currency, stock_status, image_url, affiliate_url, is_active, updated_at FROM products WHERE is_active = 1 AND id BETWEEN {0} AND 2147483647 ORDER BY id LIMIT 5000' -f ($last + 1))
         $r = Select-Raw $sql
         if ($null -eq $r) { return $null }
         $f = Join-Path $dir ('rows-{0:D3}.json.txt' -f $page)

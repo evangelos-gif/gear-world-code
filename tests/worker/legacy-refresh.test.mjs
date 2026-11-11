@@ -15,7 +15,7 @@ import { execFileSync, spawnSync } from 'node:child_process';
 import { DatabaseSync } from 'node:sqlite';
 import {
   findFeeds, findFeedsFor, pickFeedFiles, readFeed, planRefresh, writeCosts, updateTrigger, writePlan, planStatements, splitFiles,
-  groupedStatements, idsPerStatement, sqliteTime, viewDays, keyOf, matchRow, renderReport, advertiserOf,
+  groupedStatements, idsPerStatement, sqliteTime, viewDays, keyOf, matchRow, renderReport, advertiserOf, linkKey,
   FEED_FILE_MAX_DAYS, MAX_STATEMENTS_PER_FILE, MAX_WRITES_PER_FILE, IDS_PER_STATEMENT
 } from '../../tools/legacy-refresh-plan.mjs';
 import { viewFor, isShown, needsCheck, HIDE_AFTER_DAYS } from '../../src/lib/visibility.js';
@@ -629,4 +629,66 @@ test('L108 re-run fix: a dead feed is named (InStock UK: 1 product, last updated
   const out = mkdtempSync(join(tmpdir(), 'refresh-dead-out-'));
   const s = writePlan(out, p);
   assert.deepEqual([s.deadFeed, s.feedRows, s.feedNewest], [true, 1, '2026-05-15 10:00:00']);
+});
+
+// Feed check of 11 Nov 2026 (lessons L113): the rows of Coes, Cronjager, Plusshop, Bazta and GRABO on the older sites carry
+// ids the feed no longer uses ("30645:4606175510577", the page name "armaf-men-s-club-de-nuit-edt-105ml"...), so the
+// refresh found 0 of them. The product page in their link is the same in the feed: it is the last way to match.
+const HEAD2 = 'aw_deep_link,merchant_deep_link,product_name,aw_product_id,merchant_product_id,merchant_image_url,search_price,merchant_name,merchant_id,currency,in_stock,last_updated\n';
+const row2 = o => [o.aw_link || '', o.link, `"${o.name}"`, o.aw, o.mid, o.img || 'https://x/i.jpg', o.price, o.merchant, o.adv, o.cur || 'GBP', o.inStock ?? '1', '2026-11-11 10:00:00'].join(',') + '\n';
+const cread = page => `https://www.awin1.com/cread.php?awinmid=1&awinaffid=3057233&ued=${encodeURIComponent(page)}`;
+
+test('linkKey: the shop page of a link or of an Awin tracking link, without www, query or last slash', () => {
+  assert.equal(linkKey('https://www.coes.co.uk/products/fusion-walk-socks-for-men-in-charcoal?variant=31908117217329'), 'coes.co.uk/products/fusion-walk-socks-for-men-in-charcoal');
+  assert.equal(linkKey(cread('https://www.coes.co.uk/products/fusion-walk-socks-for-men-in-charcoal')), 'coes.co.uk/products/fusion-walk-socks-for-men-in-charcoal');
+  assert.equal(linkKey('https://order.grabo.com/product/1500mm-wired-cable-for-grabo-high-flow/'), linkKey(cread('https://order.grabo.com/product/1500mm-wired-cable-for-grabo-high-flow/')));
+  assert.equal(linkKey('https://www.awin1.com/awclick.php?mid=6343&id=3057233&p=https%3A%2F%2Fuk.plusshop.com%2FArmaf-X'), 'uk.plusshop.com/armaf-x');
+  assert.equal(linkKey('https://www.awin1.com/pclick.php?p=1'), '', 'a tracking link without a page inside gives nothing');
+  assert.equal(linkKey(''), '');
+  assert.equal(linkKey('not a link'), '');
+});
+
+test('Coes, Plusshop, GRABO and Cronjager: rows with old ids are found by their page; the site currency, stock and lowest price pick the feed row', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'refresh-links-'));
+  writeFileSync(join(dir, 'AWIN_30645_116078.csv.gz'), gzipSync(HEAD2
+    + row2({ link: 'https://www.coes.co.uk/products/fusion-walk-socks-for-men-in-charcoal?variant=31908117217329', name: '1000 Mile Fusion Walk Socks in Charcoal - L', aw: '45112394659', mid: '31908117217329', price: 18, merchant: 'Coes', adv: 30645 })
+    + row2({ link: 'https://www.coes.co.uk/products/fusion-walk-socks-for-men-in-charcoal?variant=31908117217330', name: '1000 Mile Fusion Walk Socks in Charcoal - M', aw: '45112394660', mid: '31908117217330', price: 16, merchant: 'Coes', adv: 30645 })
+    + row2({ link: 'https://www.coes.co.uk/products/fusion-walk-socks-for-men-in-charcoal?variant=31908117217331', name: '1000 Mile Fusion Walk Socks in Charcoal - S', aw: '45112394661', mid: '31908117217331', price: 12, merchant: 'Coes', adv: 30645, inStock: '0' })));
+  writeFileSync(join(dir, 'AWIN_69306_111951.csv.gz'), gzipSync(HEAD2
+    + row2({ link: 'https://uk.plusshop.com/armaf-men-s-club-de-nuit-edt-105ml', name: "Armaf Men's Club De Nuit EDT - 105ml", aw: '43224584865', mid: '52238', price: 29.99, merchant: 'Plusshop UK', adv: 69306 })));
+  writeFileSync(join(dir, 'AWIN_129497_118332.csv.gz'), gzipSync(HEAD2
+    + row2({ aw_link: cread('https://order.grabo.com/product/1500mm-wired-cable-for-grabo-high-flow/'), link: '', name: '1500mm Wired Cable', aw: '46235517292', mid: 'GHF-WR-1500', price: 24, merchant: 'GRABO', adv: 129497 })));
+  writeFileSync(join(dir, 'AWIN_98661_115331.csv.gz'), gzipSync(HEAD2
+    + row2({ link: 'https://cronjager.com/products/11cm-glazed-bonsai-pot-cascade-11cm-x-15cm-blue?variant=60255067898201&om=8616&currency=CAD', name: 'Bonsai Pot', aw: '46473435419', mid: '60255067898201', price: 19, cur: 'CAD', merchant: 'Cronjager', adv: 98661 })));
+  writeFileSync(join(dir, 'AWIN_98661_115332.csv.gz'), gzipSync(HEAD2
+    + row2({ link: 'https://cronjager.com/products/11cm-glazed-bonsai-pot-cascade-11cm-x-15cm-blue?variant=60255067898201&om=8616&currency=GBP', name: 'Bonsai Pot', aw: '46473435420', mid: '60255067898201', price: 10.5, cur: 'GBP', merchant: 'Cronjager', adv: 98661 })));
+  const now = new Date('2026-11-11T18:00:00Z');
+
+  const coes = await readFeed((await findFeeds(dir, 'Coes')).files);
+  const c = planRefresh({ rows: [
+    { id: 1, awin_product_id: '30645:4606175510577', merchant_product_id: '4606175510577', price: 18, currency: 'GBP', stock_status: 'in stock', image_url: 'https://x/i.jpg',
+      affiliate_url: cread('https://www.coes.co.uk/products/fusion-walk-socks-for-men-in-charcoal'), is_active: 1 },
+    { id: 2, awin_product_id: '30645:1', merchant_product_id: '1', price: 9, currency: 'GBP', stock_status: 'in stock', image_url: 'https://x/i.jpg',
+      affiliate_url: cread('https://www.coes.co.uk/products/a-product-that-left'), is_active: 1 }
+  ], feed: coes, costs: CGW_COSTS, now });
+  assert.equal(c.matched, 1, 'the socks are found by their page');
+  assert.deepEqual(c.changes.map(x => [x.id, x.set]), [[1, { price: 16 }]], 'the cheapest size in stock (12 is sold out)');
+  assert.deepEqual(c.hides, [2], 'a page no longer in the feed is hidden as before');
+
+  const plus = await readFeed((await findFeeds(dir, 'Plusshop UK')).files);
+  const pl = { id: 3, awin_product_id: '69306:armaf-men-s-club-de-nuit-edt-105ml', merchant_product_id: 'armaf-men-s-club-de-nuit-edt-105ml', price: 31, currency: 'GBP', stock_status: 'in stock',
+    image_url: 'https://x/i.jpg', affiliate_url: cread('https://uk.plusshop.com/armaf-men-s-club-de-nuit-edt-105ml'), is_active: 1 };
+  assert.equal(matchRow(pl, plus).mid, '52238');
+
+  const grabo = await readFeed((await findFeeds(dir, 'GRABO')).files);
+  assert.equal(matchRow({ awin_product_id: '129497:1500mm-wired-cable-for-grabo-high-flow', merchant_product_id: '1500mm-wired-cable-for-grabo-high-flow',
+    affiliate_url: cread('https://order.grabo.com/product/1500mm-wired-cable-for-grabo-high-flow/') }, grabo).mid, 'GHF-WR-1500', 'the page from the Awin link when the feed has no merchant_deep_link');
+
+  const cron = await readFeed((await findFeeds(dir, 'Cronjager')).files, undefined, { currency: 'GBP' });
+  const cr = planRefresh({ rows: [{ id: 4, awin_product_id: '98661:16685485687129', merchant_product_id: '16685485687129', price: 9.99, currency: 'GBP', stock_status: 'in stock',
+    image_url: 'https://x/i.jpg', affiliate_url: cread('https://cronjager.com/products/11cm-glazed-bonsai-pot-cascade-11cm-x-15cm-blue'), is_active: 1 }], feed: cron, costs: CGW_COSTS, now });
+  assert.deepEqual(cr.changes.map(x => x.set), [{ price: 10.5 }], 'the GBP feed row, not the CAD one');
+  assert.equal(cr.currencySkip.length, 0);
+
+  assert.equal(matchRow({ awin_product_id: 'x', merchant_product_id: 'y' }, coes), null, 'a row without a link still matches nothing');
 });
