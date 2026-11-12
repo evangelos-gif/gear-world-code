@@ -31,8 +31,10 @@
   While it runs the PC is kept awake and the screen on (SetThreadExecutionState, no power setting is changed), and a
   click in the window does not pause it; at the end both are normal again.
   It first checks the drive, the space, the network and the wrangler login, and stops at once if one is missing.
-  A table that fails is noted and the backup goes on. Anything unexpected still ends with the report. The last line
-  is ΤΕΛΟΣ BACKUP.
+  A table that fails is noted and the backup goes on. Anything unexpected still ends with the report, and so does
+  Ctrl+C (exit 15, «ΔΙΑΚΟΠΗ»). Every part prints its start time and progress; the report ends with how many minutes
+  each part took («Χρόνοι:»). Order: files, databases, then GitHub (the code is on GitHub anyway). The last line
+  is ΤΕΛΟΣ BACKUP. For a clean start in a new folder: -Target D:\GearWorldBackup-<date> (lessons L117).
 
   Report: <home>\gear-world-reports\GW_BACKUP_<time>.txt (also copied to the clipboard)
 #>
@@ -102,6 +104,11 @@ $L = New-Object System.Collections.Generic.List[string]
 $script:Awake = $false
 $script:ConsoleMode = $null
 $script:Finishing = $false
+# How long each part took, in the report (lessons L117): on 11-12/11 a backup ran all night and nobody could tell where.
+$script:Times = New-Object System.Collections.Generic.List[string]
+$script:PhaseName = ''
+$script:PhaseStart = $null
+$script:NextBeat = [DateTime]::MinValue
 function Say([string]$text, [string]$color = '') {
     $L.Add($text)
     if ($color) { Write-Host $text -ForegroundColor $color } else { Write-Host $text }
@@ -152,12 +159,36 @@ function Set-QuickEdit([bool]$on) {
     } catch { return $false }
 }
 function Set-Title([string]$t) { try { $Host.UI.RawUI.WindowTitle = $t } catch { } }
+function End-Phase {
+    if ($null -eq $script:PhaseStart) { return }
+    $script:Times.Add(('{0}: {1} λεπτά' -f $script:PhaseName, [int][Math]::Round(((Get-Date) - $script:PhaseStart).TotalMinutes)))
+    $script:PhaseStart = $null
+}
+function Start-Phase([string]$name) {
+    End-Phase
+    $script:PhaseName = $name
+    $script:PhaseStart = Get-Date
+    Say ''
+    Say ('== {0} ({1}) ==' -f $name, $script:PhaseStart.ToString('HH:mm')) 'Cyan'
+}
+# A progress line at most every -ProgressSec seconds, on the screen only (lessons L115, L117).
+function Beat([string]$msg) {
+    if ([DateTime]::UtcNow -lt $script:NextBeat) { return }
+    Write-Host ('      ... {0}  ({1})' -f $msg, (Get-Date -Format 'HH:mm'))
+    $script:NextBeat = [DateTime]::UtcNow.AddSeconds($ProgressSec)
+}
 function Finish([int]$code) {
     if ($script:Finishing) { exit $code }
     $script:Finishing = $true
+    End-Phase
+    if ($code -eq 15) { Say 'ΔΙΑΚΟΠΗ: σταμάτησε πριν τελειώσει (Ctrl+C). Ό,τι γράφτηκε μέχρι εδώ μένει στον δίσκο.' 'Yellow' }
+    if ($script:Times.Count -gt 0) { Say ('Χρόνοι: {0}' -f ($script:Times -join ' · ')) }
     if ($script:Awake) { [void](Set-Awake $false); Say 'Ο υπολογιστής γύρισε στον κανονικό ύπνο.' }
     if ($null -ne $script:ConsoleMode) { [void](Set-QuickEdit $true) }
-    if ($Apply) { Say 'ΤΕΛΟΣ BACKUP' 'Cyan'; Set-Title 'GW BACKUP - ΤΕΛΟΣ' }
+    if ($Apply) {
+        Say 'ΤΕΛΟΣ BACKUP' 'Cyan'
+        if ($code -eq 15) { Set-Title 'GW BACKUP - ΔΙΑΚΟΠΗ' } else { Set-Title 'GW BACKUP - ΤΕΛΟΣ' }
+    }
     else { Say 'ΤΕΛΟΣ ΕΛΕΓΧΟΥ BACKUP (δεν γράφτηκε τίποτα στον δίσκο)' 'Cyan' }
     $file = Join-Path $OutDir ('GW_BACKUP_{0}.txt' -f $stamp)
     $text = $L -join "`r`n"
@@ -421,6 +452,7 @@ function Backup-Table([string]$db, [string]$t, [string]$sql, [string]$dir) {
         $ok = $true; $page = 0; $done = $false; $read = [long]0; $fails = 0
         $max = [long][Math]::Ceiling($n / $PageRows) * 2 + 10
         for ($i = 0; $i -lt $max; $i++) {
+            Beat ('{0}.{1}: σελίδα {2} από περίπου {3}' -f $db, $t, ($i + 1), [long][Math]::Ceiling($n / $PageRows))
             $x = Invoke-Wrangler $WorkDir ('d1 execute {0} --remote --json --command "SELECT * FROM {1}{2} LIMIT {3} OFFSET {4}"' -f $db, $t, $order, $PageRows, ($i * [long]$PageRows))
             $j = Get-JsonText $x.text
             if ($x.code -ne 0 -or -not $j) {
@@ -451,6 +483,7 @@ function Backup-Table([string]$db, [string]$t, [string]$sql, [string]$dir) {
         $lo = [long]$range[0].a; $hi = [long]$range[0].b
         for ($s = $lo; $s -le $hi; $s += $PageRows) {
             $page++
+            Beat ('{0}.{1}: σελίδα {2} από {3}' -f $db, $t, $page, [long][Math]::Ceiling(($hi - $lo + 1) / $PageRows))
             $e = $s + $PageRows - 1
             $x = Invoke-Wrangler $WorkDir ('d1 execute {0} --remote --json --command "SELECT rowid AS _rowid, * FROM {1} WHERE rowid BETWEEN {2} AND {3}"' -f $db, $t, $s, $e)
             $j = Get-JsonText $x.text
@@ -538,411 +571,426 @@ Say ('Ώρα: {0}' -f (Get-Date -Format 'yyyy-MM-dd HH:mm'))
 $phrase = 'ΕΓΚΡΙΝΩ BACKUP {0}' -f ((Split-Path -Qualifier $Target).TrimEnd(':').ToUpper())
 $blockers = New-Object System.Collections.Generic.List[string]
 
-# 0. The approval comes only from -Approve: this script never asks a question and never waits (lessons L113).
-if ($Apply) {
-    if (-not $Approve) { Say ('Λείπει η φράση: η εντολή θέλει -Approve ''{0}''. Δεν άλλαξε τίποτα.' -f $phrase) 'Red'; Finish 1 }
-    if ((Normalize-Phrase $Approve) -ne (Normalize-Phrase $phrase)) { Say ('Λάθος φράση έγκρισης (χρειάζεται: {0}). Δεν άλλαξε τίποτα.' -f $phrase) 'Red'; Finish 1 }
-}
-# From the first minute, in the check too: reading the folders can take a while, and on 10/11 the check stood still all
-# night because the PC slept (lessons L113, L115). Nothing in the settings changes; Finish puts both back.
-if (Set-Awake $true) { Say 'Ο υπολογιστής μένει ξύπνιος και η οθόνη ανοιχτή όσο τρέχει (χωρίς αλλαγή ρυθμίσεων). Αν είναι laptop, άφησε το καπάκι ανοιχτό και το καλώδιο στην πρίζα.' }
-else { Say 'ΠΡΟΣΟΧΗ: δεν μπόρεσα να κρατήσω τον υπολογιστή ξύπνιο. Αν κοιμηθεί, συνεχίζει όταν ξυπνήσει.' 'Yellow' }
-if (Set-QuickEdit $false) { Say 'Ένα κλικ μέσα στο παράθυρο δεν το σταματά πια.' }
-
-# 1. The drive.
-$qual = Split-Path -Qualifier $Target
-$letter = $qual.TrimEnd(':').ToUpper()
-$sysLetter = ([string]$env:SystemDrive).TrimEnd(':').ToUpper()
-if (-not (Test-Path -LiteralPath ($qual + '\'))) {
-    Say ('ΠΡΟΒΛΗΜΑ: δεν βρίσκω τον δίσκο {0}:. Σύνδεσε τον εξωτερικό δίσκο (GWBackup) και ξανατρέξε την εντολή. Δεν άλλαξε τίποτα.' -f $letter) 'Red'
-    Finish 2
-}
-if ($letter -eq $sysLetter -and -not $AllowSystemDrive) {
-    Say ('ΠΡΟΒΛΗΜΑ: ο {0}: είναι ο δίσκος των Windows, όχι εξωτερικός. Δεν άλλαξε τίποτα.' -f $letter) 'Red'
-    Finish 2
-}
-$di = New-Object System.IO.DriveInfo($letter)
-$label = ''
-try { $label = $di.VolumeLabel } catch { }
-$free = [double]$di.AvailableFreeSpace
-Say ('Δίσκος {0}: "{1}" ({2}), ελεύθερα {3} από {4}' -f $letter, $label, $di.DriveType, (Format-Size $free), (Format-Size ([double]$di.TotalSize)))
-Say ('Φάκελος αντιγράφου: {0}' -f $Target)
-
-# 2. Network (only what the backup uses), at most 15 seconds per address.
-if (-not $SkipNetworkCheck) {
-    $urls = @($NetworkUrls)
-    if ($urls.Count -eq 0) {
-        if (-not $SkipDatabases) { $urls += 'https://api.cloudflare.com/client/v4/' }
-        if (-not $SkipGitHub) { $urls += 'https://api.github.com/' }
-    }
-    foreach ($u in $urls) {
-        if (Test-Https $u) { Say ('Δίκτυο: ΕΝΤΑΞΕΙ ({0})' -f ([Uri]$u).Host) }
-        else {
-            Say ('ΠΡΟΒΛΗΜΑ: δεν υπάρχει σύνδεση με το {0}. Έλεγξε το internet και ξανατρέξε την εντολή.' -f ([Uri]$u).Host) 'Red'
-            if ($Apply) { Say 'Σταμάτησα πριν γράψω οτιδήποτε.'; Finish 5 }
-            $blockers.Add('δίκτυο')
-        }
-    }
-}
-
-# 3. Databases: Node.js and the wrangler login (the list of databases is read here).
-$dbs = @()
-$dbBytes = [double]0
-if (-not $SkipDatabases) {
-    Say ''
-    Say '== Βάσεις Cloudflare D1 (μόνο ανάγνωση) =='
-    if (-not (Get-Command node -ErrorAction SilentlyContinue)) {
-        Say 'ΠΡΟΒΛΗΜΑ: δεν βρέθηκε το Node.js, που χρειάζεται το wrangler για τις βάσεις.' 'Red'
-        if ($Apply) { Say 'Σταμάτησα πριν γράψω οτιδήποτε.'; Finish 6 }
-        $blockers.Add('Node.js')
-    } else {
-        if (-not (Test-Path -LiteralPath $WorkDir)) { New-Item -ItemType Directory -Path $WorkDir -Force | Out-Null }
-        $r = Invoke-Wrangler $WorkDir 'd1 list --json'
-        $j = Get-JsonText $r.text
-        $list = $null
-        # Windows PowerShell 5.1 gives the whole JSON array as ONE object: unroll it, or several databases become one
-        # name "a b c" and are all skipped (L113).
-        if ($r.code -eq 0 -and $j) { try { $parsed = $j | ConvertFrom-Json; $list = @($parsed | ForEach-Object { $_ }) } catch { $list = $null } }
-        if ($null -eq $list) {
-            if ($r.text -match '(?i)not authenticated|wrangler login|not logged in|oauth') { Say 'ΠΡΟΒΛΗΜΑ: το wrangler δεν είναι συνδεδεμένο στο Cloudflare. Στείλε αυτή την αναφορά στο Claude.' 'Red' }
-            else { Say 'ΠΡΟΒΛΗΜΑ: δεν μπόρεσα να διαβάσω τις βάσεις από το Cloudflare. Στείλε αυτή την αναφορά στο Claude.' 'Red' }
-            if ($Apply) { Say 'Σταμάτησα πριν γράψω οτιδήποτε.'; Finish 4 }
-            $blockers.Add('σύνδεση wrangler')
-        } else {
-            Say 'Σύνδεση wrangler: ΕΝΤΑΞΕΙ'
-            foreach ($x in $list) {
-                if ([string]$x.name -match '^[a-z0-9\-]{2,60}$') {
-                    $dbs += [string]$x.name
-                    try { if ($x.file_size) { $dbBytes += [double]$x.file_size } } catch { }
-                }
-            }
-            Say ('  {0} βάσεις: {1}' -f $dbs.Count, ($dbs -join ', '))
-            Say '  Οι γραμμές τους διαβάζονται με SELECT, σε σελίδες. Πίνακες πελατών: μόνο το πλήθος τους.'
-        }
-    }
-}
-
-# 4. What would be copied from this PC, and what stays out.
-$copies = @()
-# Every site folder: the old names, plus any '<name>-gear-world...' folder, so a new site (e.g. sporty-gear-world)
-# is backed up without changing this script. The secrets folder never.
-$namePattern = '^(gear-world|gearworld|construction-gear|constraction-gear|mens-gear|womens-gear|kids-gear|home-gear|garden-gear|technology-gear|car-gear|travel-gear|gaming-gear)|^[a-z]+-gear-world'
-foreach ($d in @(Get-ChildItem -LiteralPath $HomeDir -Directory -Force -ErrorAction SilentlyContinue | Sort-Object Name)) {
-    if ($d.Name -notmatch $namePattern) { continue }
-    if ($d.FullName -eq $WorkDir) { continue }
-    if ($SecretDirs -contains $d.Name) { continue }
-    $copies += @{ src = $d.FullName; dst = (Join-Path (Join-Path $Target 'files') $d.Name); rel = $d.Name; kind = 'folder'; files = @(); out = @() }
-}
-$downloads = Join-Path $HomeDir 'Downloads'
-if (-not $SkipFeeds) {
-    $arch = Join-Path $downloads 'GW_AWIN_BULK_ARCHIVE'
-    if (Test-Path -LiteralPath $arch) { $copies += @{ src = $arch; dst = (Join-Path (Join-Path (Join-Path $Target 'files') 'Downloads') 'GW_AWIN_BULK_ARCHIVE'); rel = 'Downloads\GW_AWIN_BULK_ARCHIVE'; kind = 'feeds'; files = @(); out = @() } }
-    $loose = @(Get-ChildItem -LiteralPath $downloads -File -ErrorAction SilentlyContinue | Where-Object { $_.Name -match '^\d+-.+\.csv(\.gz)?$' } | ForEach-Object { $_.Name })
-    if ($loose.Count -gt 0) { $copies += @{ src = $downloads; dst = (Join-Path (Join-Path $Target 'files') 'Downloads'); rel = 'Downloads'; kind = 'loose feeds'; files = $loose; out = @() } }
-}
-$need = [double]0
-$outAll = New-Object System.Collections.Generic.List[object]
-Say ''
-Say '== Από αυτόν τον υπολογιστή =='
-if ($copies.Count -eq 0) { Say '  Δεν βρέθηκαν φάκελοι του Gear World.' 'Yellow' }
-foreach ($c in $copies) {
-    if ($c.files.Count -gt 0) {
-        $b = [double]0
-        foreach ($n in $c.files) { $it = Get-Item -LiteralPath (Join-Path $c.src $n) -ErrorAction SilentlyContinue; if ($it) { $b += $it.Length } }
-        $c['bytes'] = $b
-        Say ('  {0,-40} {1,10}  ({2} feeds στα Downloads)' -f 'Downloads\<id>-*.csv.gz', (Format-Size $b), $c.files.Count)
-    } else {
-        Write-Host ('  ... διαβάζω {0} (μπορεί να πάρει μερικά λεπτά, μην κλείσεις το παράθυρο)' -f $c.rel)
-        $s = Get-FolderScan $c.src ($c.kind -ne 'feeds') # the Awin feeds are product data: only their names are checked
-        $c['bytes'] = $s.bytes
-        $c['out'] = $s.out.ToArray() # index syntax: a dot assignment of an array here fails in PowerShell 5.1
-        foreach ($o in $s.out) { $outAll.Add(@{ rel = (Join-Path $c.rel $o.rel); reason = $o.reason }) }
-        Say ('  {0,-40} {1,10}  ({2} αρχεία)' -f $c.rel, (Format-Size $s.bytes), $s.files)
-    }
-    $need += $c.bytes
-}
-Say ('  Σύνολο: {0} (χωρίς node_modules και .wrangler). Μόνο όσα άλλαξαν αντιγράφονται ξανά.' -f (Format-Size $need))
-Say ''
-Say ('== Μένουν ΕΞΩ από τον δίσκο: {0} αρχεία με κλειδιά ή emails πελατών ==' -f $outAll.Count)
-Say '  (μένουν μόνο στον υπολογιστή· τα κλειδιά είναι και στο Cloudflare, οι πελάτες στη D1 και στο MailerLite)'
-if (@(Get-ChildItem -LiteralPath $HomeDir -Directory -Force -ErrorAction SilentlyContinue | Where-Object { $SecretDirs -contains $_.Name }).Count -gt 0) { Say '  φάκελος gear-world-secrets (κρυπτογραφημένα κλειδιά, δουλεύουν μόνο σε αυτόν τον υπολογιστή)' }
-$why = @{ name = 'αρχείο κλειδιών'; key = 'έχει κλειδί/token'; emails = 'έχει emails'; slow = 'δεν ελέγχθηκε εγκαίρως'; unreadable = 'δεν διαβάστηκε (ανοιχτό ή κλειδωμένο)'; archive = 'αρχείο .7z/.rar ή zip μέσα σε zip, δεν διαβάζεται'; big = ('πάνω από {0} MB, δεν ελέγχθηκε' -f $ScanMaxMB) }
-$shown = 0
-foreach ($o in $outAll) {
-    if ($shown -ge 60) { Say ('  ... και {0} ακόμα (όλη η λίστα στο αρχείο παρακάτω)' -f ($outAll.Count - $shown)); break }
-    Say ('  {0}  ({1})' -f $o.rel, $why[$o.reason]); $shown++
-}
-if ($outAll.Count -gt 0) {
-    # The whole list (paths, never contents). It sits in gear-world-reports, which is copied to the drive too: paths only.
-    $outList = Join-Path $OutDir ('GW_LEFT_OUT_{0}.txt' -f $stamp)
-    try {
-        if (-not (Test-Path -LiteralPath $OutDir)) { New-Item -ItemType Directory -Path $OutDir -Force | Out-Null }
-        [System.IO.File]::WriteAllText($outList, ((@($outAll | ForEach-Object { '{0}  ({1})' -f $_.rel, $why[$_.reason] }) -join "`r`n") + "`r`n"), (New-Object System.Text.UTF8Encoding($true)))
-        Say ('  Όλη η λίστα: {0}' -f $outList)
-    } catch { Say ('  Η πλήρης λίστα δεν γράφτηκε σε αρχείο: {0}' -f $_.Exception.Message) 'Yellow' }
-}
-# A file that could not be checked now (locked, or the check ran out of time) keeps its old copy on the drive, so the
-# backup is not lost, but only if that old copy itself reads clean: the backup of 3/11 checked nothing, so an old copy
-# with a key or e-mails, or one that cannot be checked either, goes like the others. For a folder that cannot be read
-# now, every old file in it is read the same way (lessons L113).
-$keepOld = @('unreadable', 'slow')
-$flaggedList = New-Object System.Collections.Generic.List[string]
-$keptOld = 0
-foreach ($o in $outAll) {
-    if ($keepOld -notcontains $o.reason) { $flaggedList.Add($o.rel); continue }
-    $dc = Join-Path (Join-Path $Target 'files') $o.rel
-    if (Test-Path -LiteralPath $dc -PathType Container) {
-        $dcFull = (Get-Item -LiteralPath $dc -Force).FullName
-        $clean = 0
-        foreach ($df in @(Get-ChildItem -LiteralPath $dc -Recurse -File -Force -ErrorAction SilentlyContinue)) {
-            $dr = ''
-            try { $dr = Get-SensitiveReason $df.FullName } catch { $dr = 'unreadable' }
-            if ($dr) { $flaggedList.Add((Join-Path $o.rel $df.FullName.Substring($dcFull.Length).TrimStart('\', '/'))) } else { $clean++ }
-        }
-        if ($clean -gt 0) { $keptOld++ }
-    } elseif (Test-Path -LiteralPath $dc -PathType Leaf) {
-        $dr = ''
-        try { $dr = Get-SensitiveReason $dc } catch { $dr = 'unreadable' }
-        if ($dr) { $flaggedList.Add($o.rel) } else { $keptOld++ }
-    }
-}
-$flaggedRel = @($flaggedList)
-if ($keptOld -gt 0) { Say ('  {0} από αυτά δεν διαβάστηκαν τώρα (κλειδωμένα ή αργά): το παλιό τους αντίγραφο στον δίσκο ελέγχθηκε, είναι καθαρό και μένει.' -f $keptOld) 'Yellow' }
-$old = Clear-DriveSensitive $false $flaggedRel
-if ($old.found -gt 0) { Say ('  Στον δίσκο υπάρχουν {0} παλιά αντίγραφα τέτοιων αρχείων ή πινάκων πελατών: με -Apply σβήνονται από τον δίσκο.' -f $old.found) 'Yellow' }
-
-# 5. GitHub (public repos, read-only).
-$branches = @{}
-if (-not $SkipGitHub) {
-    Say ''
-    Say '== GitHub (μόνο ανάγνωση) =='
-    foreach ($r in $Repos) {
-        try {
-            $list = @(Invoke-RestMethod -UseBasicParsing -TimeoutSec 60 -Uri ('https://api.github.com/repos/{0}/{1}/branches?per_page=100' -f $Owner, $r) -Headers @{ 'User-Agent' = 'gear-world-backup' })
-            $branches[$r] = $list
-            Say ('  {0}: {1} κλάδοι' -f $r, $list.Count)
-        } catch {
-            Say ('  {0}: δεν μπόρεσα να διαβάσω τους κλάδους ({1})' -f $r, $_.Exception.Message) 'Yellow'
-        }
-    }
-}
-
-# 6. Space: files + about twice the database size as JSON + 1 GB for the GitHub zips.
-$needAll = $need + (2 * $dbBytes) + 1GB
-Say ''
-$fits = $needAll -lt ($free * 0.95)
-if ($fits) { Say ('Χώρος: ΕΝΤΑΞΕΙ (χρειάζονται έως {0}, ελεύθερα {1}).' -f (Format-Size $needAll), (Format-Size $free)) }
-else {
-    Say ('ΠΡΟΒΛΗΜΑ: ΔΕΝ χωράει: χρειάζονται έως {0}, ο δίσκος έχει {1} ελεύθερα.' -f (Format-Size $needAll), (Format-Size $free)) 'Red'
-    if ($Apply) { Say 'Σταμάτησα πριν γράψω οτιδήποτε.'; Finish 3 }
-    $blockers.Add('χώρος')
-}
-if (-not $Apply) {
-    Say ''
-    Say 'Τι θα γίνει με -Apply (τρέχει μόνο του, χωρίς ερωτήσεις):'
-    Say ('  - Αντιγραφή στο {0}: μόνο όσα άλλαξαν. Κλειδιά και emails πελατών μένουν έξω.' -f $Target)
-    Say '  - Zip κάθε κλάδου του GitHub που άλλαξε, και αντίγραφο κάθε βάσης D1 (μόνο SELECT, σε σελίδες).'
-    Say '  - Ο υπολογιστής μένει ξύπνιος και η οθόνη ανοιχτή μέχρι το τέλος, χωρίς αλλαγή ρυθμίσεων· ένα κλικ στο παράθυρο δεν το σταματά.'
-    Say '  - Καμία αλλαγή σε site, βάση, Worker ή GitHub.'
-    Say ''
-    if ($blockers.Count -gt 0) {
-        Say ('ΠΡΟΒΛΗΜΑ: {0}. Με -Apply θα σταματούσε αμέσως, πριν γράψει οτιδήποτε.' -f ($blockers -join ', ')) 'Red'
-        Say ('Η φράση έγκρισης: {0}' -f $phrase)
-        Finish 7
-    }
-    Say 'ΕΝΤΑΞΕΙ: όλα έτοιμα για το backup. Δεν γράφτηκε τίποτα στον δίσκο.' 'Green'
-    Say ('Η φράση έγκρισης: {0}' -f $phrase)
-    Finish 0
-}
-
-# ---------------- from here on: -Apply with the right phrase, all checks passed ----------------
-$problems = 0
-if (-not (Test-Path -LiteralPath $Target)) { New-Item -ItemType Directory -Path $Target -Force | Out-Null }
-
-# 7. Old copies of keys and customer data off the drive.
-Say ''
-Say '== Καθάρισμα παλιών αντιγράφων με κλειδιά ή πελάτες ==' 'Cyan'
-$cl = Clear-DriveSensitive $true $flaggedRel
-Say ('  Σβήστηκαν {0} από {1}.' -f $cl.removed, $cl.found)
-if ($cl.removed -lt $cl.found) { $problems++ }
-
-# 8. Copy (robocopy: only new or changed files). Key files and the files the scan found are left out.
-Say ''
-Say '== Αντιγραφή αρχείων ==' 'Cyan'
-foreach ($c in $copies) {
-    try {
-        if (-not (Test-Path -LiteralPath $c.dst)) { New-Item -ItemType Directory -Path $c.dst -Force | Out-Null }
-        $a = @($c.src, $c.dst)
-        $outDirs = @($c.out | Where-Object { $_.dir } | ForEach-Object { $_.path })
-        $outFiles = @($c.out | Where-Object { -not $_.dir } | ForEach-Object { $_.path })
-        if ($c.files.Count -gt 0) { $a += $c.files } else { $a += @('/E', '/XD') + $SkipDirs + $outDirs }
-        # Full paths keep the exclusion exact. If the command line would be too long (32K), the file names only: a file
-        # of the same name elsewhere in this folder then stays out too, which is safe, and the report says so (L113).
-        $xf = @($SecretNames) + $outFiles
-        $len = (($a + $xf) | ForEach-Object { ([string]$_).Length + 3 } | Measure-Object -Sum).Sum
-        if ($len -gt 28000) {
-            $xf = @($SecretNames) + @($outFiles | ForEach-Object { [System.IO.Path]::GetFileName($_) } | Sort-Object -Unique)
-            $len = (($a + $xf) | ForEach-Object { ([string]$_).Length + 3 } | Measure-Object -Sum).Sum
-            Say ('  {0}: {1} αρχεία έξω, άρα μένουν έξω και όσα έχουν το ίδιο όνομα σε αυτόν τον φάκελο' -f $c.rel, $outFiles.Count) 'Yellow'
-        }
-        if ($len -gt 30000) { throw ('πάρα πολλά αρχεία μένουν έξω ({0}): ο φάκελος δεν αντιγράφηκε' -f $outFiles.Count) }
-        $a += @('/XF') + $xf
-        $a += @('/R:1', '/W:1', '/XJ', '/NP', '/NFL', '/NDL', '/NJH', '/NJS')
-        & robocopy @a | Out-Null
-        $rc = $LASTEXITCODE
-        if ($rc -ge 8) { $problems++; Say ('  ΠΡΟΒΛΗΜΑ στο {0} (robocopy {1})' -f $c.src, $rc) 'Red' }
-        else { Say ('  OK  {0}' -f $c.dst) }
-    } catch { $problems++; Say ('  ΠΡΟΒΛΗΜΑ στο {0}: {1}' -f $c.src, $_.Exception.Message) 'Red' }
-    # Safety net, always: what the scan found must not be on the drive, even if robocopy took it. Not for what could not
-    # be checked now: its old copy stays (see above).
-    foreach ($o in $c.out) {
-        if (($keepOld -contains $o.reason) -and ($flaggedRel -notcontains (Join-Path $c.rel $o.rel))) { continue }
-        try {
-            $p = Join-Path $c.dst $o.rel
-            if (Test-Path -LiteralPath $p) { Remove-Item -LiteralPath $p -Recurse -Force }
-        } catch { $problems++; Say ('  ΠΡΟΒΛΗΜΑ: δεν σβήστηκε από τον δίσκο: {0}' -f $o.rel) 'Red' }
-    }
-}
-
-# 9. GitHub zips (a branch whose commit did not change is not downloaded again).
-if (-not $SkipGitHub) {
-    Say ''
-    Say '== GitHub ==' 'Cyan'
-    foreach ($r in $branches.Keys) {
-        try {
-            $dir = Join-Path (Join-Path $Target 'github') $r
-            if (-not (Test-Path -LiteralPath $dir)) { New-Item -ItemType Directory -Path $dir -Force | Out-Null }
-            $known = @{}
-            $mf = Join-Path $dir 'branches.txt'
-            if (Test-Path -LiteralPath $mf) {
-                foreach ($line in [System.IO.File]::ReadAllLines($mf)) { $p = $line -split '\s+'; if ($p.Count -ge 2) { $known[$p[0]] = $p[1] } }
-            }
-            $manifest = New-Object System.Collections.Generic.List[string]
-            $same = 0
-            foreach ($b in $branches[$r]) {
-                $name = [string]$b.name
-                $sha = [string]$b.commit.sha
-                $file = Join-Path $dir (($name -replace '[^A-Za-z0-9._-]', '_') + '.zip')
-                if ($known[$name] -eq $sha -and (Test-Path -LiteralPath $file) -and (Get-Item -LiteralPath $file).Length -gt 0) { $manifest.Add(('{0}  {1}' -f $name, $sha)); $same++; continue }
-                try {
-                    Invoke-WebRequest -UseBasicParsing -TimeoutSec 600 -OutFile $file -Uri ('https://codeload.github.com/{0}/{1}/zip/refs/heads/{2}' -f $Owner, $r, $name)
-                    $manifest.Add(('{0}  {1}' -f $name, $sha))
-                } catch {
-                    $problems++; Say ('  ΠΡΟΒΛΗΜΑ: {0} {1}' -f $r, $name) 'Red'
-                }
-            }
-            [System.IO.File]::WriteAllText($mf, (($manifest -join "`r`n") + "`r`n"), (New-Object System.Text.UTF8Encoding($false)))
-            Say ('  OK  {0}: {1} κλάδοι ({2} ίδιοι με πριν)' -f $r, $manifest.Count, $same)
-        } catch { $problems++; Say ('  ΠΡΟΒΛΗΜΑ στο GitHub {0}: {1}' -f $r, $_.Exception.Message) 'Red' }
-    }
-}
-
-# 10. Databases: schema + tables.txt + rows as JSON pages (SELECT only). A database is written to _new_<name> first and
-# replaces the old copy only when every table worked; otherwise the old copy stays and the new one is <name>.incomplete.
-if ($dbs.Count -gt 0) {
-    Say ''
-    Say '== Βάσεις D1 ==' 'Cyan'
-    $d1Root = Join-Path $Target 'd1'
-    try { if (-not (Test-Path -LiteralPath $d1Root)) { New-Item -ItemType Directory -Path $d1Root -Force | Out-Null } } catch { $problems++; Say ('  ΠΡΟΒΛΗΜΑ: {0}' -f $_.Exception.Message) 'Red' }
-    foreach ($left in @(Get-ChildItem -LiteralPath $d1Root -Directory -Filter '_new_*' -ErrorAction SilentlyContinue)) { try { Remove-Item -LiteralPath $left.FullName -Recurse -Force } catch { } }
-    foreach ($db in $dbs) {
-        $final = Join-Path $d1Root $db
-        $tmp = Join-Path $d1Root ('_new_' + $db)
-        $dbProblems = 0
-        $rowsTotal = 0; $tables = 0; $countOnly = 0
-        try {
-            New-Item -ItemType Directory -Path $tmp -Force | Out-Null
-            $objs = Select-Rows $db 'SELECT type, name, tbl_name, sql FROM sqlite_master WHERE sql IS NOT NULL ORDER BY type DESC, name'
-            if ($null -eq $objs) { throw 'δεν διάβασα το σχήμα της βάσης' }
-            $schema = New-Object System.Text.StringBuilder
-            $virtual = @()
-            foreach ($o in $objs) {
-                [void]$schema.AppendLine(([string]$o.sql).Trim() + ';')
-                if ([string]$o.sql -match '^\s*CREATE\s+VIRTUAL\s+TABLE') { $virtual += [string]$o.name }
-            }
-            [System.IO.File]::WriteAllText((Join-Path $tmp 'schema.sql'), $schema.ToString(), (New-Object System.Text.UTF8Encoding($false)))
-            $manifest = New-Object System.Collections.Generic.List[string]
-            $manifest.Add('table  rows  pages  how')
-            foreach ($o in $objs) {
-                if ([string]$o.type -ne 'table') { continue }
-                $t = [string]$o.name
-                if ($t -notmatch '^[A-Za-z_][A-Za-z0-9_]*$' -or $t -like 'sqlite_*' -or $t -like '_cf_*') { continue }
-                if ($virtual -contains $t) { continue }
-                $shadow = $false
-                foreach ($v in $virtual) { if ($t.StartsWith($v + '_')) { $shadow = $true } }
-                if ($shadow) { continue } # the search index is rebuilt from the table itself
-                $res = $null
-                try { $res = Backup-Table $db $t ([string]$o.sql) $tmp } catch { $res = @{ ok = $false; mode = $_.Exception.Message; rows = -1; pages = 0 } }
-                $manifest.Add(('{0}  {1}  {2}  {3}' -f $t, $res.rows, $res.pages, $res.mode))
-                if (-not $res.ok) { $dbProblems++; Say ('  ΠΡΟΒΛΗΜΑ: {0}.{1} ({2})' -f $db, $t, $res.mode) 'Red'; continue }
-                if ($res.pages -eq 0 -and $res.mode -like 'μόνο πλήθος*') { $countOnly++ }
-                $rowsTotal += $res.rows; $tables++
-            }
-            [System.IO.File]::WriteAllText((Join-Path $tmp 'tables.txt'), (($manifest -join "`r`n") + "`r`n"), (New-Object System.Text.UTF8Encoding($false)))
-        } catch {
-            $dbProblems++; Say ('  ΠΡΟΒΛΗΜΑ: {0}: {1}' -f $db, $_.Exception.Message) 'Red'
-        }
-        try {
-            if ($dbProblems -eq 0) {
-                if (Test-Path -LiteralPath $final) { Remove-Item -LiteralPath $final -Recurse -Force }
-                [System.IO.Directory]::Move($tmp, $final)
-                Say ('  OK  {0}: {1} πίνακες, {2} γραμμές ({3} πίνακες μόνο με πλήθος)' -f $db, $tables, $rowsTotal, $countOnly)
-            } else {
-                $inc = $final + '.incomplete'
-                if (Test-Path -LiteralPath $inc) { Remove-Item -LiteralPath $inc -Recurse -Force }
-                if (Test-Path -LiteralPath $tmp) { [System.IO.Directory]::Move($tmp, $inc) }
-                Say ('  {0}: {1} πρόβλημα(τα). Το προηγούμενο αντίγραφο της βάσης μένει, το νέο είναι στο {2}.incomplete' -f $db, $dbProblems, $db) 'Yellow'
-            }
-        } catch { $dbProblems++; Say ('  ΠΡΟΒΛΗΜΑ: {0}: {1}' -f $db, $_.Exception.Message) 'Red' }
-        $problems += $dbProblems
-    }
-}
-
-# 11. How to restore.
-$readme = @(
-    'GEAR WORLD - ΑΝΤΙΓΡΑΦΟ ΑΣΦΑΛΕΙΑΣ / BACKUP',
-    ('Τελευταία ενημέρωση / last run: {0}' -f (Get-Date -Format 'yyyy-MM-dd HH:mm')),
-    '',
-    'ΤΙ ΕΧΕΙ ΜΕΣΑ',
-    '  files\    οι φάκελοι του Gear World από τον φάκελο χρήστη (C:\Users\<όνομα>\) και τα feeds του Awin (Downloads)',
-    '  github\   zip κάθε κλάδου του κώδικα (gear-world-code) και των εικόνων (gearworld-media), branches.txt = commit',
-    '  d1\       κάθε βάση των sites: schema.sql (πίνακες), tables.txt (γραμμές κάθε πίνακα) και <πίνακας>-0001.json ...',
-    '',
-    'ΤΙ ΔΕΝ ΕΧΕΙ (ο δίσκος δεν είναι κρυπτογραφημένος)',
-    '  - Κλειδιά και κωδικούς: .dev.vars, .env, αρχεία κλειδιών, τον φάκελο gear-world-secrets, και κάθε αρχείο με κλειδί μέσα.',
-    '  - Emails πελατών: οι γραμμές των hub_subscribers, newsletter, customers, reward_* και κάθε πίνακα με email ή IP.',
-    '    Για αυτούς το tables.txt γράφει μόνο πόσες γραμμές είχαν.',
-    '',
-    'ΠΩΣ ΞΑΝΑΣΤΗΝΟΝΤΑΙ ΚΛΕΙΔΙΑ ΚΑΙ ΠΕΛΑΤΕΣ',
-    '  - Τα κλειδιά (Awin, MailerLite, Turnstile κ.ά.) είναι secrets των Workers στο Cloudflare: τα sites τα έχουν ήδη',
-    '    και δεν χάνονται με τον υπολογιστή. Όταν χρειαστεί νέο: φτιάχνεται στον πάροχο και περνά με εντολή του Claude',
-    '    μέσα στο PowerShell (wrangler secret put), ποτέ σε chat. Το κλειδί feeds του Awin το ζητά ξανά το εργαλείο',
-    '    awin-feed-download την πρώτη φορά σε νέο υπολογιστή.',
-    '  - Οι πελάτες ζουν στις βάσεις D1 του Cloudflare και στο MailerLite. Για χαλασμένη βάση: Cloudflare D1 Time Travel',
-    '    (επαναφορά έως 30 ημέρες πίσω), με φράση έγκρισης.',
-    '',
-    'ΑΝ ΧΑΛΑΣΕΙ Ο ΥΠΟΛΟΓΙΣΤΗΣ',
-    '  1. Σε νέο υπολογιστή: εγκατάστησε Node.js (LTS) από https://nodejs.org',
-    '  2. Αντέγραψε τα περιεχόμενα του files\ στον φάκελο χρήστη (C:\Users\<όνομα>\), και το files\Downloads\ στα Downloads.',
-    '  3. Στο PowerShell: npx wrangler login (σύνδεση στο Cloudflare ξανά, ο κωδικός δεν αντιγράφεται).',
-    '  4. Ο κώδικας είναι και στο GitHub (evangelos-gif/gear-world-code). Τα zip εδώ είναι για την περίπτωση που λείπει.',
-    '  5. Οι βάσεις: τα sites ζουν στο Cloudflare και δεν χάνονται με τον υπολογιστή. Το d1\ είναι για την περίπτωση',
-    '     που χαλάσει μια βάση: πες στο Claude «επαναφορά βάσης από το backup» και δείξε του αυτόν τον φάκελο.',
-    '',
-    'Φύλαξε τον δίσκο στο σπίτι: έχει τον κώδικα και τις ρυθμίσεις των sites.'
-) -join "`r`n"
+# Everything below runs inside try/finally: Ctrl+C still writes the report, with how far it got (lessons L117).
 try {
-    [System.IO.File]::WriteAllText((Join-Path $Target 'README-RESTORE.txt'), $readme + "`r`n", (New-Object System.Text.UTF8Encoding($true)))
-} catch { $problems++; Say ('  ΠΡΟΒΛΗΜΑ: README-RESTORE.txt: {0}' -f $_.Exception.Message) 'Red' }
-$logDir = Join-Path $Target 'logs'
-try { if (-not (Test-Path -LiteralPath $logDir)) { New-Item -ItemType Directory -Path $logDir -Force | Out-Null } } catch { }
+    # 0. The approval comes only from -Approve: this script never asks a question and never waits (lessons L113).
+    if ($Apply) {
+        if (-not $Approve) { Say ('Λείπει η φράση: η εντολή θέλει -Approve ''{0}''. Δεν άλλαξε τίποτα.' -f $phrase) 'Red'; Finish 1 }
+        if ((Normalize-Phrase $Approve) -ne (Normalize-Phrase $phrase)) { Say ('Λάθος φράση έγκρισης (χρειάζεται: {0}). Δεν άλλαξε τίποτα.' -f $phrase) 'Red'; Finish 1 }
+    }
+    # From the first minute, in the check too: reading the folders can take a while, and on 10/11 the check stood still all
+    # night because the PC slept (lessons L113, L115). Nothing in the settings changes; Finish puts both back.
+    if (Set-Awake $true) { Say 'Ο υπολογιστής μένει ξύπνιος και η οθόνη ανοιχτή όσο τρέχει (χωρίς αλλαγή ρυθμίσεων). Αν είναι laptop, άφησε το καπάκι ανοιχτό και το καλώδιο στην πρίζα.' }
+    else { Say 'ΠΡΟΣΟΧΗ: δεν μπόρεσα να κρατήσω τον υπολογιστή ξύπνιο. Αν κοιμηθεί, συνεχίζει όταν ξυπνήσει.' 'Yellow' }
+    if (Set-QuickEdit $false) { Say 'Ένα κλικ μέσα στο παράθυρο δεν το σταματά πια.' }
 
-Say ''
-if ($problems -gt 0) {
-    Say ('ΤΕΛΟΣ ΜΕ {0} ΠΡΟΒΛΗΜΑΤΑ: τα υπόλοιπα αντιγράφηκαν. Στείλε την αναφορά στο Claude.' -f $problems) 'Yellow'
+    # 1. The drive.
+    $qual = Split-Path -Qualifier $Target
+    $letter = $qual.TrimEnd(':').ToUpper()
+    $sysLetter = ([string]$env:SystemDrive).TrimEnd(':').ToUpper()
+    if (-not (Test-Path -LiteralPath ($qual + '\'))) {
+        Say ('ΠΡΟΒΛΗΜΑ: δεν βρίσκω τον δίσκο {0}:. Σύνδεσε τον εξωτερικό δίσκο (GWBackup) και ξανατρέξε την εντολή. Δεν άλλαξε τίποτα.' -f $letter) 'Red'
+        Finish 2
+    }
+    if ($letter -eq $sysLetter -and -not $AllowSystemDrive) {
+        Say ('ΠΡΟΒΛΗΜΑ: ο {0}: είναι ο δίσκος των Windows, όχι εξωτερικός. Δεν άλλαξε τίποτα.' -f $letter) 'Red'
+        Finish 2
+    }
+    $di = New-Object System.IO.DriveInfo($letter)
+    $label = ''
+    try { $label = $di.VolumeLabel } catch { }
+    $free = [double]$di.AvailableFreeSpace
+    Say ('Δίσκος {0}: "{1}" ({2}), ελεύθερα {3} από {4}' -f $letter, $label, $di.DriveType, (Format-Size $free), (Format-Size ([double]$di.TotalSize)))
+    Say ('Φάκελος αντιγράφου: {0}' -f $Target)
+
+    # 2. Network (only what the backup uses), at most 15 seconds per address.
+    if (-not $SkipNetworkCheck) {
+        $urls = @($NetworkUrls)
+        if ($urls.Count -eq 0) {
+            if (-not $SkipDatabases) { $urls += 'https://api.cloudflare.com/client/v4/' }
+            if (-not $SkipGitHub) { $urls += 'https://api.github.com/' }
+        }
+        foreach ($u in $urls) {
+            if (Test-Https $u) { Say ('Δίκτυο: ΕΝΤΑΞΕΙ ({0})' -f ([Uri]$u).Host) }
+            else {
+                Say ('ΠΡΟΒΛΗΜΑ: δεν υπάρχει σύνδεση με το {0}. Έλεγξε το internet και ξανατρέξε την εντολή.' -f ([Uri]$u).Host) 'Red'
+                if ($Apply) { Say 'Σταμάτησα πριν γράψω οτιδήποτε.'; Finish 5 }
+                $blockers.Add('δίκτυο')
+            }
+        }
+    }
+
+    # 3. Databases: Node.js and the wrangler login (the list of databases is read here).
+    $dbs = @()
+    $dbBytes = [double]0
+    if (-not $SkipDatabases) {
+        Say ''
+        Say '== Βάσεις Cloudflare D1 (μόνο ανάγνωση) =='
+        if (-not (Get-Command node -ErrorAction SilentlyContinue)) {
+            Say 'ΠΡΟΒΛΗΜΑ: δεν βρέθηκε το Node.js, που χρειάζεται το wrangler για τις βάσεις.' 'Red'
+            if ($Apply) { Say 'Σταμάτησα πριν γράψω οτιδήποτε.'; Finish 6 }
+            $blockers.Add('Node.js')
+        } else {
+            if (-not (Test-Path -LiteralPath $WorkDir)) { New-Item -ItemType Directory -Path $WorkDir -Force | Out-Null }
+            $r = Invoke-Wrangler $WorkDir 'd1 list --json'
+            $j = Get-JsonText $r.text
+            $list = $null
+            # Windows PowerShell 5.1 gives the whole JSON array as ONE object: unroll it, or several databases become one
+            # name "a b c" and are all skipped (L113).
+            if ($r.code -eq 0 -and $j) { try { $parsed = $j | ConvertFrom-Json; $list = @($parsed | ForEach-Object { $_ }) } catch { $list = $null } }
+            if ($null -eq $list) {
+                if ($r.text -match '(?i)not authenticated|wrangler login|not logged in|oauth') { Say 'ΠΡΟΒΛΗΜΑ: το wrangler δεν είναι συνδεδεμένο στο Cloudflare. Στείλε αυτή την αναφορά στο Claude.' 'Red' }
+                else { Say 'ΠΡΟΒΛΗΜΑ: δεν μπόρεσα να διαβάσω τις βάσεις από το Cloudflare. Στείλε αυτή την αναφορά στο Claude.' 'Red' }
+                if ($Apply) { Say 'Σταμάτησα πριν γράψω οτιδήποτε.'; Finish 4 }
+                $blockers.Add('σύνδεση wrangler')
+            } else {
+                Say 'Σύνδεση wrangler: ΕΝΤΑΞΕΙ'
+                foreach ($x in $list) {
+                    if ([string]$x.name -match '^[a-z0-9\-]{2,60}$') {
+                        $dbs += [string]$x.name
+                        try { if ($x.file_size) { $dbBytes += [double]$x.file_size } } catch { }
+                    }
+                }
+                Say ('  {0} βάσεις: {1}' -f $dbs.Count, ($dbs -join ', '))
+                Say '  Οι γραμμές τους διαβάζονται με SELECT, σε σελίδες. Πίνακες πελατών: μόνο το πλήθος τους.'
+            }
+        }
+    }
+
+    # 4. What would be copied from this PC, and what stays out.
+    $copies = @()
+    # Every site folder: the old names, plus any '<name>-gear-world...' folder, so a new site (e.g. sporty-gear-world)
+    # is backed up without changing this script. The secrets folder never.
+    $namePattern = '^(gear-world|gearworld|construction-gear|constraction-gear|mens-gear|womens-gear|kids-gear|home-gear|garden-gear|technology-gear|car-gear|travel-gear|gaming-gear)|^[a-z]+-gear-world'
+    foreach ($d in @(Get-ChildItem -LiteralPath $HomeDir -Directory -Force -ErrorAction SilentlyContinue | Sort-Object Name)) {
+        if ($d.Name -notmatch $namePattern) { continue }
+        if ($d.FullName -eq $WorkDir) { continue }
+        if ($SecretDirs -contains $d.Name) { continue }
+        $copies += @{ src = $d.FullName; dst = (Join-Path (Join-Path $Target 'files') $d.Name); rel = $d.Name; kind = 'folder'; files = @(); out = @() }
+    }
+    $downloads = Join-Path $HomeDir 'Downloads'
+    if (-not $SkipFeeds) {
+        $arch = Join-Path $downloads 'GW_AWIN_BULK_ARCHIVE'
+        if (Test-Path -LiteralPath $arch) { $copies += @{ src = $arch; dst = (Join-Path (Join-Path (Join-Path $Target 'files') 'Downloads') 'GW_AWIN_BULK_ARCHIVE'); rel = 'Downloads\GW_AWIN_BULK_ARCHIVE'; kind = 'feeds'; files = @(); out = @() } }
+        $loose = @(Get-ChildItem -LiteralPath $downloads -File -ErrorAction SilentlyContinue | Where-Object { $_.Name -match '^\d+-.+\.csv(\.gz)?$' } | ForEach-Object { $_.Name })
+        if ($loose.Count -gt 0) { $copies += @{ src = $downloads; dst = (Join-Path (Join-Path $Target 'files') 'Downloads'); rel = 'Downloads'; kind = 'loose feeds'; files = $loose; out = @() } }
+    }
+    $need = [double]0
+    $outAll = New-Object System.Collections.Generic.List[object]
+    Start-Phase 'Από αυτόν τον υπολογιστή'
+    if ($copies.Count -eq 0) { Say '  Δεν βρέθηκαν φάκελοι του Gear World.' 'Yellow' }
+    foreach ($c in $copies) {
+        if ($c.files.Count -gt 0) {
+            $b = [double]0
+            foreach ($n in $c.files) { $it = Get-Item -LiteralPath (Join-Path $c.src $n) -ErrorAction SilentlyContinue; if ($it) { $b += $it.Length } }
+            $c['bytes'] = $b
+            Say ('  {0,-40} {1,10}  ({2} feeds στα Downloads)' -f 'Downloads\<id>-*.csv.gz', (Format-Size $b), $c.files.Count)
+        } else {
+            Write-Host ('  ... διαβάζω {0} (μπορεί να πάρει μερικά λεπτά, μην κλείσεις το παράθυρο)' -f $c.rel)
+            $s = Get-FolderScan $c.src ($c.kind -ne 'feeds') # the Awin feeds are product data: only their names are checked
+            $c['bytes'] = $s.bytes
+            $c['out'] = $s.out.ToArray() # index syntax: a dot assignment of an array here fails in PowerShell 5.1
+            foreach ($o in $s.out) { $outAll.Add(@{ rel = (Join-Path $c.rel $o.rel); reason = $o.reason }) }
+            Say ('  {0,-40} {1,10}  ({2} αρχεία)' -f $c.rel, (Format-Size $s.bytes), $s.files)
+        }
+        $need += $c.bytes
+    }
+    Say ('  Σύνολο: {0} (χωρίς node_modules και .wrangler). Μόνο όσα άλλαξαν αντιγράφονται ξανά.' -f (Format-Size $need))
+    Say ''
+    Say ('== Μένουν ΕΞΩ από τον δίσκο: {0} αρχεία με κλειδιά ή emails πελατών ==' -f $outAll.Count)
+    Say '  (μένουν μόνο στον υπολογιστή· τα κλειδιά είναι και στο Cloudflare, οι πελάτες στη D1 και στο MailerLite)'
+    if (@(Get-ChildItem -LiteralPath $HomeDir -Directory -Force -ErrorAction SilentlyContinue | Where-Object { $SecretDirs -contains $_.Name }).Count -gt 0) { Say '  φάκελος gear-world-secrets (κρυπτογραφημένα κλειδιά, δουλεύουν μόνο σε αυτόν τον υπολογιστή)' }
+    $why = @{ name = 'αρχείο κλειδιών'; key = 'έχει κλειδί/token'; emails = 'έχει emails'; slow = 'δεν ελέγχθηκε εγκαίρως'; unreadable = 'δεν διαβάστηκε (ανοιχτό ή κλειδωμένο)'; archive = 'αρχείο .7z/.rar ή zip μέσα σε zip, δεν διαβάζεται'; big = ('πάνω από {0} MB, δεν ελέγχθηκε' -f $ScanMaxMB) }
+    $shown = 0
+    foreach ($o in $outAll) {
+        if ($shown -ge 60) { Say ('  ... και {0} ακόμα (όλη η λίστα στο αρχείο παρακάτω)' -f ($outAll.Count - $shown)); break }
+        Say ('  {0}  ({1})' -f $o.rel, $why[$o.reason]); $shown++
+    }
+    if ($outAll.Count -gt 0) {
+        # The whole list (paths, never contents). It sits in gear-world-reports, which is copied to the drive too: paths only.
+        $outList = Join-Path $OutDir ('GW_LEFT_OUT_{0}.txt' -f $stamp)
+        try {
+            if (-not (Test-Path -LiteralPath $OutDir)) { New-Item -ItemType Directory -Path $OutDir -Force | Out-Null }
+            [System.IO.File]::WriteAllText($outList, ((@($outAll | ForEach-Object { '{0}  ({1})' -f $_.rel, $why[$_.reason] }) -join "`r`n") + "`r`n"), (New-Object System.Text.UTF8Encoding($true)))
+            Say ('  Όλη η λίστα: {0}' -f $outList)
+        } catch { Say ('  Η πλήρης λίστα δεν γράφτηκε σε αρχείο: {0}' -f $_.Exception.Message) 'Yellow' }
+    }
+    # A file that could not be checked now (locked, or the check ran out of time) keeps its old copy on the drive, so the
+    # backup is not lost, but only if that old copy itself reads clean: the backup of 3/11 checked nothing, so an old copy
+    # with a key or e-mails, or one that cannot be checked either, goes like the others. For a folder that cannot be read
+    # now, every old file in it is read the same way (lessons L113).
+    $keepOld = @('unreadable', 'slow')
+    $flaggedList = New-Object System.Collections.Generic.List[string]
+    $keptOld = 0
+    foreach ($o in $outAll) {
+        if ($keepOld -notcontains $o.reason) { $flaggedList.Add($o.rel); continue }
+        $dc = Join-Path (Join-Path $Target 'files') $o.rel
+        if (Test-Path -LiteralPath $dc -PathType Container) {
+            $dcFull = (Get-Item -LiteralPath $dc -Force).FullName
+            $clean = 0
+            foreach ($df in @(Get-ChildItem -LiteralPath $dc -Recurse -File -Force -ErrorAction SilentlyContinue)) {
+                $dr = ''
+                try { $dr = Get-SensitiveReason $df.FullName } catch { $dr = 'unreadable' }
+                if ($dr) { $flaggedList.Add((Join-Path $o.rel $df.FullName.Substring($dcFull.Length).TrimStart('\', '/'))) } else { $clean++ }
+            }
+            if ($clean -gt 0) { $keptOld++ }
+        } elseif (Test-Path -LiteralPath $dc -PathType Leaf) {
+            $dr = ''
+            try { $dr = Get-SensitiveReason $dc } catch { $dr = 'unreadable' }
+            if ($dr) { $flaggedList.Add($o.rel) } else { $keptOld++ }
+        }
+    }
+    $flaggedRel = @($flaggedList)
+    if ($keptOld -gt 0) { Say ('  {0} από αυτά δεν διαβάστηκαν τώρα (κλειδωμένα ή αργά): το παλιό τους αντίγραφο στον δίσκο ελέγχθηκε, είναι καθαρό και μένει.' -f $keptOld) 'Yellow' }
+    $old = Clear-DriveSensitive $false $flaggedRel
+    if ($old.found -gt 0) { Say ('  Στον δίσκο υπάρχουν {0} παλιά αντίγραφα τέτοιων αρχείων ή πινάκων πελατών: με -Apply σβήνονται από τον δίσκο.' -f $old.found) 'Yellow' }
+
+    # 5. GitHub (public repos, read-only).
+    $branches = @{}
+    if (-not $SkipGitHub) {
+        Say ''
+        Say '== GitHub (μόνο ανάγνωση) =='
+        foreach ($r in $Repos) {
+            try {
+                $list = @(Invoke-RestMethod -UseBasicParsing -TimeoutSec 60 -Uri ('https://api.github.com/repos/{0}/{1}/branches?per_page=100' -f $Owner, $r) -Headers @{ 'User-Agent' = 'gear-world-backup' })
+                $branches[$r] = $list
+                Say ('  {0}: {1} κλάδοι' -f $r, $list.Count)
+            } catch {
+                Say ('  {0}: δεν μπόρεσα να διαβάσω τους κλάδους ({1})' -f $r, $_.Exception.Message) 'Yellow'
+            }
+        }
+    }
+
+    # 6. Space: files + about twice the database size as JSON + 1 GB for the GitHub zips.
+    $needAll = $need + (2 * $dbBytes) + 1GB
+    Say ''
+    $fits = $needAll -lt ($free * 0.95)
+    if ($fits) { Say ('Χώρος: ΕΝΤΑΞΕΙ (χρειάζονται έως {0}, ελεύθερα {1}).' -f (Format-Size $needAll), (Format-Size $free)) }
+    else {
+        Say ('ΠΡΟΒΛΗΜΑ: ΔΕΝ χωράει: χρειάζονται έως {0}, ο δίσκος έχει {1} ελεύθερα.' -f (Format-Size $needAll), (Format-Size $free)) 'Red'
+        if ($Apply) { Say 'Σταμάτησα πριν γράψω οτιδήποτε.'; Finish 3 }
+        $blockers.Add('χώρος')
+    }
+    if (-not $Apply) {
+        Say ''
+        Say 'Τι θα γίνει με -Apply (τρέχει μόνο του, χωρίς ερωτήσεις):'
+        Say ('  - Αντιγραφή στο {0}: μόνο όσα άλλαξαν. Κλειδιά και emails πελατών μένουν έξω.' -f $Target)
+        Say '  - Zip κάθε κλάδου του GitHub που άλλαξε, και αντίγραφο κάθε βάσης D1 (μόνο SELECT, σε σελίδες).'
+        Say '  - Ο υπολογιστής μένει ξύπνιος και η οθόνη ανοιχτή μέχρι το τέλος, χωρίς αλλαγή ρυθμίσεων· ένα κλικ στο παράθυρο δεν το σταματά.'
+        Say '  - Καμία αλλαγή σε site, βάση, Worker ή GitHub.'
+        Say ''
+        if ($blockers.Count -gt 0) {
+            Say ('ΠΡΟΒΛΗΜΑ: {0}. Με -Apply θα σταματούσε αμέσως, πριν γράψει οτιδήποτε.' -f ($blockers -join ', ')) 'Red'
+            Say ('Η φράση έγκρισης: {0}' -f $phrase)
+            Finish 7
+        }
+        Say 'ΕΝΤΑΞΕΙ: όλα έτοιμα για το backup. Δεν γράφτηκε τίποτα στον δίσκο.' 'Green'
+        Say ('Η φράση έγκρισης: {0}' -f $phrase)
+        Finish 0
+    }
+
+    # ---------------- from here on: -Apply with the right phrase, all checks passed ----------------
+    $problems = 0
+    if (-not (Test-Path -LiteralPath $Target)) { New-Item -ItemType Directory -Path $Target -Force | Out-Null }
+
+    # 7. Old copies of keys and customer data off the drive.
+    Start-Phase 'Καθάρισμα παλιών αντιγράφων με κλειδιά ή πελάτες'
+    $cl = Clear-DriveSensitive $true $flaggedRel
+    Say ('  Σβήστηκαν {0} από {1}.' -f $cl.removed, $cl.found)
+    if ($cl.removed -lt $cl.found) { $problems++ }
+
+    # 8. Copy (robocopy: only new or changed files). Key files and the files the scan found are left out.
+    Start-Phase 'Αντιγραφή αρχείων'
+    foreach ($c in $copies) {
+        try {
+            if (-not (Test-Path -LiteralPath $c.dst)) { New-Item -ItemType Directory -Path $c.dst -Force | Out-Null }
+            $a = @($c.src, $c.dst)
+            $outDirs = @($c.out | Where-Object { $_.dir } | ForEach-Object { $_.path })
+            $outFiles = @($c.out | Where-Object { -not $_.dir } | ForEach-Object { $_.path })
+            if ($c.files.Count -gt 0) { $a += $c.files } else { $a += @('/E', '/XD') + $SkipDirs + $outDirs }
+            # Full paths keep the exclusion exact. If the command line would be too long (32K), the file names only: a file
+            # of the same name elsewhere in this folder then stays out too, which is safe, and the report says so (L113).
+            $xf = @($SecretNames) + $outFiles
+            $len = (($a + $xf) | ForEach-Object { ([string]$_).Length + 3 } | Measure-Object -Sum).Sum
+            if ($len -gt 28000) {
+                $xf = @($SecretNames) + @($outFiles | ForEach-Object { [System.IO.Path]::GetFileName($_) } | Sort-Object -Unique)
+                $len = (($a + $xf) | ForEach-Object { ([string]$_).Length + 3 } | Measure-Object -Sum).Sum
+                Say ('  {0}: {1} αρχεία έξω, άρα μένουν έξω και όσα έχουν το ίδιο όνομα σε αυτόν τον φάκελο' -f $c.rel, $outFiles.Count) 'Yellow'
+            }
+            if ($len -gt 30000) { throw ('πάρα πολλά αρχεία μένουν έξω ({0}): ο φάκελος δεν αντιγράφηκε' -f $outFiles.Count) }
+            $a += @('/XF') + $xf
+            $a += @('/R:1', '/W:1', '/XJ', '/NP', '/NFL', '/NDL', '/NJH', '/NJS')
+            Write-Host ('  ... αντιγράφω {0} ({1}), από {2}' -f $c.rel, (Format-Size $c.bytes), (Get-Date -Format 'HH:mm'))
+            $t0c = Get-Date
+            & robocopy @a | Out-Null
+            $rc = $LASTEXITCODE
+            $mins = [int][Math]::Round(((Get-Date) - $t0c).TotalMinutes)
+            if ($rc -ge 8) { $problems++; Say ('  ΠΡΟΒΛΗΜΑ στο {0} (robocopy {1})' -f $c.src, $rc) 'Red' }
+            else { Say ('  OK  {0}  ({1} λεπτά)' -f $c.dst, $mins) }
+        } catch { $problems++; Say ('  ΠΡΟΒΛΗΜΑ στο {0}: {1}' -f $c.src, $_.Exception.Message) 'Red' }
+        # Safety net, always: what the scan found must not be on the drive, even if robocopy took it. Not for what could not
+        # be checked now: its old copy stays (see above).
+        foreach ($o in $c.out) {
+            if (($keepOld -contains $o.reason) -and ($flaggedRel -notcontains (Join-Path $c.rel $o.rel))) { continue }
+            try {
+                $p = Join-Path $c.dst $o.rel
+                if (Test-Path -LiteralPath $p) { Remove-Item -LiteralPath $p -Recurse -Force }
+            } catch { $problems++; Say ('  ΠΡΟΒΛΗΜΑ: δεν σβήστηκε από τον δίσκο: {0}' -f $o.rel) 'Red' }
+        }
+    }
+
+    # 9. Databases: schema + tables.txt + rows as JSON pages (SELECT only). A database is written to _new_<name> first and
+    # replaces the old copy only when every table worked; otherwise the old copy stays and the new one is <name>.incomplete.
+    if ($dbs.Count -gt 0) {
+        Start-Phase 'Βάσεις D1'
+        $d1Root = Join-Path $Target 'd1'
+        try { if (-not (Test-Path -LiteralPath $d1Root)) { New-Item -ItemType Directory -Path $d1Root -Force | Out-Null } } catch { $problems++; Say ('  ΠΡΟΒΛΗΜΑ: {0}' -f $_.Exception.Message) 'Red' }
+        foreach ($left in @(Get-ChildItem -LiteralPath $d1Root -Directory -Filter '_new_*' -ErrorAction SilentlyContinue)) { try { Remove-Item -LiteralPath $left.FullName -Recurse -Force } catch { } }
+        $di = 0
+        foreach ($db in $dbs) {
+            $di++
+            Write-Host ('  ... βάση {0} ({1} από {2}), από {3}' -f $db, $di, @($dbs).Count, (Get-Date -Format 'HH:mm'))
+            $final = Join-Path $d1Root $db
+            $tmp = Join-Path $d1Root ('_new_' + $db)
+            $dbProblems = 0
+            $rowsTotal = 0; $tables = 0; $countOnly = 0
+            try {
+                New-Item -ItemType Directory -Path $tmp -Force | Out-Null
+                $objs = Select-Rows $db 'SELECT type, name, tbl_name, sql FROM sqlite_master WHERE sql IS NOT NULL ORDER BY type DESC, name'
+                if ($null -eq $objs) { throw 'δεν διάβασα το σχήμα της βάσης' }
+                $schema = New-Object System.Text.StringBuilder
+                $virtual = @()
+                foreach ($o in $objs) {
+                    [void]$schema.AppendLine(([string]$o.sql).Trim() + ';')
+                    if ([string]$o.sql -match '^\s*CREATE\s+VIRTUAL\s+TABLE') { $virtual += [string]$o.name }
+                }
+                [System.IO.File]::WriteAllText((Join-Path $tmp 'schema.sql'), $schema.ToString(), (New-Object System.Text.UTF8Encoding($false)))
+                $manifest = New-Object System.Collections.Generic.List[string]
+                $manifest.Add('table  rows  pages  how')
+                foreach ($o in $objs) {
+                    if ([string]$o.type -ne 'table') { continue }
+                    $t = [string]$o.name
+                    if ($t -notmatch '^[A-Za-z_][A-Za-z0-9_]*$' -or $t -like 'sqlite_*' -or $t -like '_cf_*') { continue }
+                    if ($virtual -contains $t) { continue }
+                    $shadow = $false
+                    foreach ($v in $virtual) { if ($t.StartsWith($v + '_')) { $shadow = $true } }
+                    if ($shadow) { continue } # the search index is rebuilt from the table itself
+                    $res = $null
+                    try { $res = Backup-Table $db $t ([string]$o.sql) $tmp } catch { $res = @{ ok = $false; mode = $_.Exception.Message; rows = -1; pages = 0 } }
+                    $manifest.Add(('{0}  {1}  {2}  {3}' -f $t, $res.rows, $res.pages, $res.mode))
+                    if (-not $res.ok) { $dbProblems++; Say ('  ΠΡΟΒΛΗΜΑ: {0}.{1} ({2})' -f $db, $t, $res.mode) 'Red'; continue }
+                    if ($res.pages -eq 0 -and $res.mode -like 'μόνο πλήθος*') { $countOnly++ }
+                    $rowsTotal += $res.rows; $tables++
+                }
+                [System.IO.File]::WriteAllText((Join-Path $tmp 'tables.txt'), (($manifest -join "`r`n") + "`r`n"), (New-Object System.Text.UTF8Encoding($false)))
+            } catch {
+                $dbProblems++; Say ('  ΠΡΟΒΛΗΜΑ: {0}: {1}' -f $db, $_.Exception.Message) 'Red'
+            }
+            try {
+                if ($dbProblems -eq 0) {
+                    if (Test-Path -LiteralPath $final) { Remove-Item -LiteralPath $final -Recurse -Force }
+                    [System.IO.Directory]::Move($tmp, $final)
+                    Say ('  OK  {0}: {1} πίνακες, {2} γραμμές ({3} πίνακες μόνο με πλήθος)' -f $db, $tables, $rowsTotal, $countOnly)
+                } else {
+                    $inc = $final + '.incomplete'
+                    if (Test-Path -LiteralPath $inc) { Remove-Item -LiteralPath $inc -Recurse -Force }
+                    if (Test-Path -LiteralPath $tmp) { [System.IO.Directory]::Move($tmp, $inc) }
+                    Say ('  {0}: {1} πρόβλημα(τα). Το προηγούμενο αντίγραφο της βάσης μένει, το νέο είναι στο {2}.incomplete' -f $db, $dbProblems, $db) 'Yellow'
+                }
+            } catch { $dbProblems++; Say ('  ΠΡΟΒΛΗΜΑ: {0}: {1}' -f $db, $_.Exception.Message) 'Red' }
+            $problems += $dbProblems
+        }
+    }
+
+    # 10. GitHub zips (a branch whose commit did not change is not downloaded again). Last: the code is on GitHub anyway,
+    # so if the night runs out, the files and the databases are already on the drive (lessons L117).
+    if (-not $SkipGitHub) {
+        Start-Phase 'GitHub'
+        foreach ($r in $branches.Keys) {
+            try {
+                $dir = Join-Path (Join-Path $Target 'github') $r
+                if (-not (Test-Path -LiteralPath $dir)) { New-Item -ItemType Directory -Path $dir -Force | Out-Null }
+                $known = @{}
+                $mf = Join-Path $dir 'branches.txt'
+                if (Test-Path -LiteralPath $mf) {
+                    foreach ($line in [System.IO.File]::ReadAllLines($mf)) { $p = $line -split '\s+'; if ($p.Count -ge 2) { $known[$p[0]] = $p[1] } }
+                }
+                $manifest = New-Object System.Collections.Generic.List[string]
+                $same = 0
+                $bi = 0
+                foreach ($b in $branches[$r]) {
+                    $bi++
+                    Beat ('{0}: κλάδος {1} από {2}' -f $r, $bi, @($branches[$r]).Count)
+                    $name = [string]$b.name
+                    $sha = [string]$b.commit.sha
+                    $file = Join-Path $dir (($name -replace '[^A-Za-z0-9._-]', '_') + '.zip')
+                    if ($known[$name] -eq $sha -and (Test-Path -LiteralPath $file) -and (Get-Item -LiteralPath $file).Length -gt 0) { $manifest.Add(('{0}  {1}' -f $name, $sha)); $same++; continue }
+                    try {
+                        Invoke-WebRequest -UseBasicParsing -TimeoutSec 600 -OutFile $file -Uri ('https://codeload.github.com/{0}/{1}/zip/refs/heads/{2}' -f $Owner, $r, $name)
+                        $manifest.Add(('{0}  {1}' -f $name, $sha))
+                    } catch {
+                        $problems++; Say ('  ΠΡΟΒΛΗΜΑ: {0} {1}' -f $r, $name) 'Red'
+                    }
+                }
+                [System.IO.File]::WriteAllText($mf, (($manifest -join "`r`n") + "`r`n"), (New-Object System.Text.UTF8Encoding($false)))
+                Say ('  OK  {0}: {1} κλάδοι ({2} ίδιοι με πριν)' -f $r, $manifest.Count, $same)
+            } catch { $problems++; Say ('  ΠΡΟΒΛΗΜΑ στο GitHub {0}: {1}' -f $r, $_.Exception.Message) 'Red' }
+        }
+    }
+
+    # 11. How to restore.
+    $readme = @(
+        'GEAR WORLD - ΑΝΤΙΓΡΑΦΟ ΑΣΦΑΛΕΙΑΣ / BACKUP',
+        ('Τελευταία ενημέρωση / last run: {0}' -f (Get-Date -Format 'yyyy-MM-dd HH:mm')),
+        '',
+        'ΤΙ ΕΧΕΙ ΜΕΣΑ',
+        '  files\    οι φάκελοι του Gear World από τον φάκελο χρήστη (C:\Users\<όνομα>\) και τα feeds του Awin (Downloads)',
+        '  github\   zip κάθε κλάδου του κώδικα (gear-world-code) και των εικόνων (gearworld-media), branches.txt = commit',
+        '  d1\       κάθε βάση των sites: schema.sql (πίνακες), tables.txt (γραμμές κάθε πίνακα) και <πίνακας>-0001.json ...',
+        '',
+        'ΤΙ ΔΕΝ ΕΧΕΙ (ο δίσκος δεν είναι κρυπτογραφημένος)',
+        '  - Κλειδιά και κωδικούς: .dev.vars, .env, αρχεία κλειδιών, τον φάκελο gear-world-secrets, και κάθε αρχείο με κλειδί μέσα.',
+        '  - Emails πελατών: οι γραμμές των hub_subscribers, newsletter, customers, reward_* και κάθε πίνακα με email ή IP.',
+        '    Για αυτούς το tables.txt γράφει μόνο πόσες γραμμές είχαν.',
+        '',
+        'ΠΩΣ ΞΑΝΑΣΤΗΝΟΝΤΑΙ ΚΛΕΙΔΙΑ ΚΑΙ ΠΕΛΑΤΕΣ',
+        '  - Τα κλειδιά (Awin, MailerLite, Turnstile κ.ά.) είναι secrets των Workers στο Cloudflare: τα sites τα έχουν ήδη',
+        '    και δεν χάνονται με τον υπολογιστή. Όταν χρειαστεί νέο: φτιάχνεται στον πάροχο και περνά με εντολή του Claude',
+        '    μέσα στο PowerShell (wrangler secret put), ποτέ σε chat. Το κλειδί feeds του Awin το ζητά ξανά το εργαλείο',
+        '    awin-feed-download την πρώτη φορά σε νέο υπολογιστή.',
+        '  - Οι πελάτες ζουν στις βάσεις D1 του Cloudflare και στο MailerLite. Για χαλασμένη βάση: Cloudflare D1 Time Travel',
+        '    (επαναφορά έως 30 ημέρες πίσω), με φράση έγκρισης.',
+        '',
+        'ΑΝ ΧΑΛΑΣΕΙ Ο ΥΠΟΛΟΓΙΣΤΗΣ',
+        '  1. Σε νέο υπολογιστή: εγκατάστησε Node.js (LTS) από https://nodejs.org',
+        '  2. Αντέγραψε τα περιεχόμενα του files\ στον φάκελο χρήστη (C:\Users\<όνομα>\), και το files\Downloads\ στα Downloads.',
+        '  3. Στο PowerShell: npx wrangler login (σύνδεση στο Cloudflare ξανά, ο κωδικός δεν αντιγράφεται).',
+        '  4. Ο κώδικας είναι και στο GitHub (evangelos-gif/gear-world-code). Τα zip εδώ είναι για την περίπτωση που λείπει.',
+        '  5. Οι βάσεις: τα sites ζουν στο Cloudflare και δεν χάνονται με τον υπολογιστή. Το d1\ είναι για την περίπτωση',
+        '     που χαλάσει μια βάση: πες στο Claude «επαναφορά βάσης από το backup» και δείξε του αυτόν τον φάκελο.',
+        '',
+        'Φύλαξε τον δίσκο στο σπίτι: έχει τον κώδικα και τις ρυθμίσεις των sites.'
+    ) -join "`r`n"
+    try {
+        [System.IO.File]::WriteAllText((Join-Path $Target 'README-RESTORE.txt'), $readme + "`r`n", (New-Object System.Text.UTF8Encoding($true)))
+    } catch { $problems++; Say ('  ΠΡΟΒΛΗΜΑ: README-RESTORE.txt: {0}' -f $_.Exception.Message) 'Red' }
+    $logDir = Join-Path $Target 'logs'
+    try { if (-not (Test-Path -LiteralPath $logDir)) { New-Item -ItemType Directory -Path $logDir -Force | Out-Null } } catch { }
+
+    Say ''
+    if ($problems -gt 0) {
+        Say ('ΤΕΛΟΣ ΜΕ {0} ΠΡΟΒΛΗΜΑΤΑ: τα υπόλοιπα αντιγράφηκαν. Στείλε την αναφορά στο Claude.' -f $problems) 'Yellow'
+        try { [System.IO.File]::WriteAllText((Join-Path $logDir ('GW_BACKUP_{0}.txt' -f $stamp)), ($L -join "`r`n"), (New-Object System.Text.UTF8Encoding($true))) } catch { }
+        Finish 12
+    }
+    Say ('ΕΤΟΙΜΟ: όλο το Gear World είναι στο {0}. Οδηγίες επαναφοράς: {1}' -f $Target, (Join-Path $Target 'README-RESTORE.txt')) 'Green'
     try { [System.IO.File]::WriteAllText((Join-Path $logDir ('GW_BACKUP_{0}.txt' -f $stamp)), ($L -join "`r`n"), (New-Object System.Text.UTF8Encoding($true))) } catch { }
-    Finish 12
+    Finish 0
+} catch {
+    # An unexpected error: the same as the trap (Ctrl+C and exit never come here).
+    Say ('ΠΡΟΒΛΗΜΑ: η εντολή σταμάτησε απρόσμενα: {0}' -f $_.Exception.Message) 'Red'
+    Finish 13
+} finally {
+    # Only Ctrl+C gets here without a Finish: the report is still written, with how far it got.
+    if (-not $script:Finishing) { Finish 15 }
 }
-Say ('ΕΤΟΙΜΟ: όλο το Gear World είναι στο {0}. Οδηγίες επαναφοράς: {1}' -f $Target, (Join-Path $Target 'README-RESTORE.txt')) 'Green'
-try { [System.IO.File]::WriteAllText((Join-Path $logDir ('GW_BACKUP_{0}.txt' -f $stamp)), ($L -join "`r`n"), (New-Object System.Text.UTF8Encoding($true))) } catch { }
-Finish 0

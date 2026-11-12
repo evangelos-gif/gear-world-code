@@ -3146,6 +3146,7 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         $rt = Get-BReport
         Check ($code -eq 12 -and $rt.Contains('broken-db.bad') -and $rt.TrimEnd().EndsWith('ΤΕΛΟΣ BACKUP')) 'backup with approval and one failing table: goes on to the end (exit 12, ΤΕΛΟΣ BACKUP)'
         Check ($rt.Contains('broken-db.grow: δεν έφτασα στο τέλος')) 'backup: a WITHOUT ROWID table that does not end is a problem, not a silent cut (L113)'
+        Check ($rt.Contains('Χρόνοι: ') -and $rt.Contains('Από αυτόν τον υπολογιστή: ') -and $rt.Contains('Αντιγραφή αρχείων: ') -and $rt.Contains('Βάσεις D1: ') -and $rt.Contains('== Βάσεις D1 (')) 'backup: how long each part took is in the report (L117)'
         Check ((-not (Test-Path -LiteralPath (Join-Path $f 'gear-world-hub\gone-list.csv'))) -and (Test-Path -LiteralPath (Join-Path $f 'gear-world-hub\gone-notes.txt'))) 'backup: an old drive file no longer on the PC is read: e-mails removed, notes kept (L113)'
         Check ((@(Get-ChildItem -LiteralPath (Join-Path $f 'gear-world-keys') -Filter '*.ps1' -File -ErrorAction SilentlyContinue).Count -eq 0) -and (Test-Path -LiteralPath (Join-Path $f 'gear-world-keys\readme.txt'))) 'backup: 420 key files left out, the readme copied (L113)'
         Check ($rt.Contains('αρχεία έξω, άρα μένουν έξω και όσα έχουν το ίδιο όνομα') -and -not (Test-Path -LiteralPath (Join-Path $f 'gear-world-keys\sub\deploy-key-script-001.ps1'))) 'backup: too many paths for robocopy: names only (a file of the same name elsewhere stays out too), and the report says so (L113)'
