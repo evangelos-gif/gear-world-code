@@ -32,7 +32,7 @@
   click in the window does not pause it; at the end both are normal again.
   It first checks the drive, the space, the network and the wrangler login, and stops at once if one is missing.
   A table that fails is noted and the backup goes on. Anything unexpected still ends with the report, and so does
-  Ctrl+C (exit 15, «ΔΙΑΚΟΠΗ»). Every part prints its start time and progress; the report ends with how many minutes
+  Ctrl+C («ΔΙΑΚΟΠΗ»: the report file is written, gw-last-report puts it on the clipboard). Every part prints its start time and progress; the report ends with how many minutes
   each part took («Χρόνοι:»). Order: files, databases, then GitHub (the code is on GitHub anyway). The last line
   is ΤΕΛΟΣ BACKUP. For a clean start in a new folder: -Target D:\GearWorldBackup-<date> (lessons L117).
 
@@ -171,6 +171,24 @@ function Start-Phase([string]$name) {
     Say ''
     Say ('== {0} ({1}) ==' -f $name, $script:PhaseStart.ToString('HH:mm')) 'Cyan'
 }
+# After Ctrl+C PowerShell is stopping: cmdlets (Write-Host, Get-Date, Set-Clipboard, New-Object ...) may fail there, so
+# this uses .NET calls only. It writes the report file (gw-last-report puts it back on the clipboard) (lessons L117).
+function Write-Interrupted {
+    $script:Finishing = $true
+    try {
+        if ($null -ne $script:PhaseStart) { $script:Times.Add(('{0}: {1} λεπτά' -f $script:PhaseName, [int][Math]::Round(([DateTime]::Now - $script:PhaseStart).TotalMinutes))) }
+        $L.Add('ΔΙΑΚΟΠΗ: σταμάτησε πριν τελειώσει (Ctrl+C). Ό,τι γράφτηκε μέχρι εδώ μένει στον δίσκο.')
+        if ($script:Times.Count -gt 0) { $L.Add('Χρόνοι: ' + ($script:Times -join ' · ')) }
+        if ($Apply) { $L.Add('ΤΕΛΟΣ BACKUP') } else { $L.Add('ΤΕΛΟΣ ΕΛΕΓΧΟΥ BACKUP (δεν γράφτηκε τίποτα στον δίσκο)') }
+        if (-not [System.IO.Directory]::Exists($OutDir)) { [void][System.IO.Directory]::CreateDirectory($OutDir) }
+        $file = [System.IO.Path]::Combine($OutDir, ('GW_BACKUP_{0}.txt' -f $stamp))
+        [System.IO.File]::WriteAllText($file, ($L -join "`r`n"), [System.Text.UTF8Encoding]::new($true))
+        [Console]::WriteLine('Η αναφορά γράφτηκε: ' + $file)
+    } catch { }
+    try { if ($script:Awake) { [void][GwBackupPower.Native]::SetThreadExecutionState([uint32]2147483648) } } catch { }
+    try { if ($null -ne $script:ConsoleMode) { [void][GwBackupPower.Native]::SetConsoleMode([GwBackupPower.Native]::GetStdHandle(-10), [uint32]$script:ConsoleMode) } } catch { }
+    try { if ($Apply) { $Host.UI.RawUI.WindowTitle = 'GW BACKUP - ΔΙΑΚΟΠΗ' } } catch { }
+}
 # A progress line at most every -ProgressSec seconds, on the screen only (lessons L115, L117).
 function Beat([string]$msg) {
     if ([DateTime]::UtcNow -lt $script:NextBeat) { return }
@@ -181,13 +199,12 @@ function Finish([int]$code) {
     if ($script:Finishing) { exit $code }
     $script:Finishing = $true
     End-Phase
-    if ($code -eq 15) { Say 'ΔΙΑΚΟΠΗ: σταμάτησε πριν τελειώσει (Ctrl+C). Ό,τι γράφτηκε μέχρι εδώ μένει στον δίσκο.' 'Yellow' }
     if ($script:Times.Count -gt 0) { Say ('Χρόνοι: {0}' -f ($script:Times -join ' · ')) }
     if ($script:Awake) { [void](Set-Awake $false); Say 'Ο υπολογιστής γύρισε στον κανονικό ύπνο.' }
     if ($null -ne $script:ConsoleMode) { [void](Set-QuickEdit $true) }
     if ($Apply) {
         Say 'ΤΕΛΟΣ BACKUP' 'Cyan'
-        if ($code -eq 15) { Set-Title 'GW BACKUP - ΔΙΑΚΟΠΗ' } else { Set-Title 'GW BACKUP - ΤΕΛΟΣ' }
+        Set-Title 'GW BACKUP - ΤΕΛΟΣ'
     }
     else { Say 'ΤΕΛΟΣ ΕΛΕΓΧΟΥ BACKUP (δεν γράφτηκε τίποτα στον δίσκο)' 'Cyan' }
     $file = Join-Path $OutDir ('GW_BACKUP_{0}.txt' -f $stamp)
@@ -992,5 +1009,5 @@ try {
     Finish 13
 } finally {
     # Only Ctrl+C gets here without a Finish: the report is still written, with how far it got.
-    if (-not $script:Finishing) { Finish 15 }
+    if (-not $script:Finishing) { Write-Interrupted }
 }
