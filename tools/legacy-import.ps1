@@ -34,7 +34,8 @@ $ErrorActionPreference = 'Stop'
 $repo = Split-Path -Parent $PSScriptRoot
 $Retailer = $Retailer.ToLower()
 $SiteInfo = @{
-    cgw = @{ db = 'construction-gear-customers'; domain = 'constructiongearworld.com'; work = 'construction-gear-world-engine'; key = 'awin' }
+    # CGW has BOTH unique keys (awin_product_id and (retailer, merchant id)): the plan names both (lessons L119).
+    cgw = @{ db = 'construction-gear-customers'; domain = 'constructiongearworld.com'; work = 'construction-gear-world-engine'; key = 'stable' }
     mgw = @{ db = 'mens-gear-world'; domain = 'mensgearworld.com'; work = 'mens-gear-world-engine'; key = 'awin' }
     wgw = @{ db = 'womens-gear-world'; domain = 'womensgearworld.com'; work = 'womens-gear-world-engine'; key = 'awin' }
     kgw = @{ db = 'kids-gear-world'; domain = 'kidsgearworld.com'; work = 'kids-gear-world-engine'; key = 'stable' }
@@ -192,15 +193,16 @@ Say ('Σχέδιο: {0} προϊόντα {1} για το {2}, σε {3} αρχε�
 foreach ($p in $sp.byCategory.PSObject.Properties) { Say ('  {0,-26} {1}' -f $p.Name, $p.Value) }
 
 # 3. The site database now (read-only).
-# The unique key the plan's SQL uses must exist: awin_product_id UNIQUE (CGW, MGW, WGW), or the (retailer, merchant id)
-# index for every retailer (KGW, HGW, GGW). (No > or < here: the wrangler call refuses them.)
+# The unique key the plan's SQL uses must exist: awin_product_id UNIQUE (MGW, WGW), or the (retailer, merchant id)
+# index for every retailer (KGW, HGW, GGW; on CGW it is called ux_products_refresh_stable_key_global and CGW has both,
+# lessons L119). (No > or < here: the wrangler call refuses them.)
 if ($SiteInfo[$Site].key -eq 'stable') {
-    $layout = Select-Rows "SELECT COUNT(*) AS n FROM sqlite_master WHERE name = 'ux_products_refresh_stable_key' AND instr(sql, 'products(retailer, merchant_product_id)') BETWEEN 1 AND 1000000 AND instr(sql, 'retailer IN') = 0"
+    $layout = Select-Rows "SELECT COUNT(*) AS n FROM sqlite_master WHERE name LIKE 'ux_products_refresh_stable_key%' AND instr(sql, 'products(retailer, merchant_product_id)') BETWEEN 1 AND 1000000 AND instr(sql, 'retailer IN') = 0"
 } else {
     $layout = Select-Rows "SELECT COUNT(*) AS n FROM sqlite_master WHERE name = 'products' AND instr(sql, 'awin_product_id TEXT NOT NULL UNIQUE') BETWEEN 1 AND 1000000"
 }
 if ($null -eq $layout) { Say 'Δεν μπόρεσα να διαβάσω τη βάση (σύνδεση στο Cloudflare;). Δεν άλλαξε τίποτα.' 'Red'; Finish 4 }
-if ([int]$layout[0].n -ne 1) { Say 'Ο πίνακας products δεν έχει τη μορφή που περιμένω. Σταματώ χωρίς αλλαγές.' 'Red'; Finish 5 }
+if ([int]$layout[0].n -lt 1) { Say 'Ο πίνακας products δεν έχει τη μορφή που περιμένω. Σταματώ χωρίς αλλαγές.' 'Red'; Finish 5 }
 $before = Select-Rows ("SELECT COUNT(*) AS n, SUM(is_active) AS active FROM products WHERE retailer = '{0}'" -f $RetailerName)
 $total = Select-Rows 'SELECT COUNT(*) AS n FROM products WHERE is_active = 1'
 if ($null -eq $before -or $null -eq $total) { Say 'Δεν μπόρεσα να διαβάσω τη βάση. Δεν άλλαξε τίποτα.' 'Red'; Finish 4 }
@@ -209,7 +211,7 @@ Say ('Βάση {0}: {1} ενεργά προϊόντα συνολικά, {2} απ
 
 # What the database has for this retailer, compared with the plan (read-only). Products no longer in the plan
 # (sold out in every size, or gone from the shop) are hidden after loading; nothing is deleted.
-$cur = Invoke-Wrangler $WorkDir ("d1 execute {0} --remote --json --command `"SELECT id, awin_product_id, is_active, site_category, subcategory FROM products WHERE retailer = '{1}'`"" -f $DbName, $RetailerName) -Retry
+$cur = Invoke-Wrangler $WorkDir ("d1 execute {0} --remote --json --command `"SELECT id, awin_product_id, is_active, site_category, subcategory, merchant_product_id FROM products WHERE retailer = '{1}'`"" -f $DbName, $RetailerName) -Retry
 if ($cur.code -ne 0 -or $cur.text.IndexOf('[') -lt 0) { Say 'Δεν μπόρεσα να διαβάσω τα προϊόντα του καταστήματος. Δεν άλλαξε τίποτα.' 'Red'; Say $cur.text; Finish 4 }
 $diffDir = Join-Path $planDir ('diff-' + $Site)
 New-Item -ItemType Directory -Path $diffDir -Force | Out-Null

@@ -20,7 +20,12 @@ const ROWS_PER_FILE = 1000;
 // KGW, HGW and GGW keep products with no UNIQUE on awin_product_id: there the unique key is (retailer, merchant_product_id)
 // for a non-empty merchant id (index ux_products_refresh_stable_key, checked on the live databases 21 Oct 2026).
 // MGW and WGW have awin_product_id UNIQUE. The SQL must name the key the table really has.
-export const STABLE_KEY_SITES = new Set(['kgw', 'hgw', 'ggw']);
+// CGW has BOTH (awin_product_id UNIQUE and ux_products_refresh_stable_key_global on (retailer, merchant_product_id), checked
+// 12 Nov 2026): Tooled Up's plumbing tools stopped with "UNIQUE constraint failed: products.retailer,
+// products.merchant_product_id", because 346 of them were already there under other Awin ids (lessons L119). There the SQL
+// names both keys, so a product already on the site is updated whichever key it matches.
+export const STABLE_KEY_SITES = new Set(['kgw', 'hgw', 'ggw', 'cgw']);
+export const AWIN_UNIQUE_TOO = new Set(['cgw']);
 
 // Prices in the plan are in the shop's own currency (dry run of 25 Oct 2026: GRABO's US dollars and 100% PURE's euros were
 // printed with "£", lessons L63).
@@ -415,7 +420,9 @@ export function insertSql(items, stamp, opts = {}) {
   }
   const update = sets.join(', ');
   const target = stable ? "(retailer, merchant_product_id) WHERE merchant_product_id IS NOT NULL AND TRIM(merchant_product_id) <> ''" : '(awin_product_id)';
-  return `INSERT INTO products (${COLS.join(', ')}) VALUES\n${values.join(',\n')}\nON CONFLICT${target} DO UPDATE SET ${update};\n`;
+  // A site with both keys (CGW): a second upsert clause for the Awin id (SQLite 3.35+, several ON CONFLICT clauses).
+  const second = stable && AWIN_UNIQUE_TOO.has(String(opts.site || '')) ? ` ON CONFLICT(awin_product_id) DO UPDATE SET ${update}` : '';
+  return `INSERT INTO products (${COLS.join(', ')}) VALUES\n${values.join(',\n')}\nON CONFLICT${target} DO UPDATE SET ${update}${second};\n`;
 }
 
 // One or more INSERT statements for these rows, each under MAX_STATEMENT_BYTES (a batch over it is split in two halves).
@@ -442,6 +449,9 @@ function writeSql(dir, items, R, site, now) {
   }
   // The products this run keeps on the site (a refresh hides the retailer's other products: sold out or gone).
   writeFileSync(join(dir, 'ids.txt'), items.map(p => p.awin_product_id).join('\n') + (items.length ? '\n' : ''));
+  // The shop's own id of each product: on a site keyed by (retailer, merchant id) the comparison with the database matches
+  // products that are already there under another Awin id (CGW, lessons L119).
+  writeFileSync(join(dir, 'keys.json'), JSON.stringify(items.map(p => [p.awin_product_id, p.merchant_product_id])));
   // The products with their planned place, for the comparison with the database (subcategory names, L56).
   writeFileSync(join(dir, 'places.json'), JSON.stringify({ replace, places: items.map(p => [p.awin_product_id, p.site_category, p.subcategory]) }));
   return out;

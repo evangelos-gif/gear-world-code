@@ -57,7 +57,8 @@ export function classify({ name, url = '' }) {
   if (!n) return { reject: 'no name' };
   if (/gift ?card|gutschein|voucher/i.test(n)) return { reject: 'gift card' };
   // Shoe care, laces and socks are not shoes; the shop sells shoes only, but keep the sites clean.
-  if (/\b(socks?|laces?|shoe cleaner|cleaning kit|insoles?)\b/i.test(n)) return { reject: 'not a shoe' };
+  // "Laces" (a pair of spare laces) is not a shoe, but "Nike Wmns Dunk Low Lace Pack" is (dry run of 12 Nov 2026).
+  if (/\b(socks?|shoe ?laces|laces|shoe cleaner|cleaning kit|insoles?)\b/i.test(n)) return { reject: 'not a shoe' };
   const page = pageOf(url);
   const text = `${n} ${page.replace(/[-_/]+/g, ' ')}`;
   const site = KIDS.test(text) ? 'kgw' : (WOMEN.test(text) ? 'wgw' : 'mgw');

@@ -175,3 +175,35 @@ test('import SQL: one picture per card, and no statement over 90 KB (House of Sn
   for (const st of statements) assert.ok(Buffer.byteLength(st, 'utf8') <= MAX_STATEMENT_BYTES);
   assert.equal((sql.match(/'1:\d+'/g) || []).length, 80, 'every row is still there');
 });
+
+test('CGW has two unique keys: the SQL names both, and the comparison finds products already there by the shop id (L119)', async () => {
+  const { insertSql, STABLE_KEY_SITES } = await import('../../tools/legacy-import-plan.mjs');
+  const { diff, subcategoryCheck } = await import('../../tools/legacy-import-diff.mjs');
+  assert.ok(STABLE_KEY_SITES.has('cgw'));
+  const row = { awin_product_id: '496:804', merchant_product_id: '804', retailer: 'Tooled Up', site_category: 'Hand Tools', subcategory: 'Plumbing Tools',
+    brand: 'Bailey', product_name: 'Drain Rod Set', feed_product_name: 'Drain Rod Set', price: 59.95, currency: 'GBP', stock_status: 'in stock',
+    merchant_category: 'Drain Rod Sets', image_url: 'https://x/y.jpg', affiliate_url: 'https://www.awin1.com/cread.php?x', ean: null };
+  const cgw = insertSql([row], '2026-11-13 17:00:00', { site: 'cgw', keepCategory: true, replace: ['Hand Tools'] });
+  assert.match(cgw, /ON CONFLICT\(retailer, merchant_product_id\) WHERE merchant_product_id IS NOT NULL AND TRIM\(merchant_product_id\) <> '' DO UPDATE SET .* ON CONFLICT\(awin_product_id\) DO UPDATE SET /s);
+  assert.ok(!/ON CONFLICT\(awin_product_id\)/.test(insertSql([row], 'x', { site: 'kgw' })), 'KGW has no Awin-id key');
+  assert.ok(!/merchant_product_id\) WHERE/.test(insertSql([row], 'x', { site: 'mgw' })), 'MGW keeps the Awin-id key only');
+  // Database rows: 804 is there under the old Awin id (active), 815 hidden, 999 is another Tooled Up product.
+  const rows = [
+    { id: 1, awin_product_id: '35964602088', merchant_product_id: '804', is_active: 1, site_category: 'Hand Tools', subcategory: 'Hand Tools' },
+    { id: 2, awin_product_id: '25710410849', merchant_product_id: '815', is_active: 0, site_category: 'Hand Tools', subcategory: 'Plungers' },
+    { id: 3, awin_product_id: '11111', merchant_product_id: '999', is_active: 1, site_category: 'Power Tools', subcategory: 'Power Tools' }];
+  const keys = [['496:804', '804'], ['496:815', '815'], ['496:900', '900']];
+  const d = diff(['496:804', '496:815', '496:900'], rows, keys);
+  assert.deepEqual([d.added, d.updated, d.back, d.gone], [1, 1, 1, [3]]);
+  assert.deepEqual(d.addedIds, ['496:900']);
+  const places = keys.map(([k]) => [k, 'Hand Tools', 'Plumbing Tools']);
+  const sc = subcategoryCheck(places, rows, ['Hand Tools', 'Plungers'], [], keys);
+  assert.equal(sc.recat.length, 2, 'both old places are moved, with a rollback');
+  assert.match(sc.rollback, /SET site_category = 'Hand Tools', subcategory = 'Hand Tools'.*WHERE id = 1;/);
+  const tup = await import('../../tools/import-rules/tooledup-plumbing.mjs');
+  assert.equal(tup.RULES.keepCategory, true);
+  assert.ok(tup.RULES.replaceSubcategories.cgw.includes('Site Equipment'));
+  const hos = await import('../../tools/import-rules/houseofsneakers.mjs');
+  assert.equal(hos.classify({ name: 'Nike Wmns Dunk Low Lace Pack - Soft Pearl', url: 'https://house-of-sneakers.de/products/x' }).site, 'wgw');
+  assert.ok(hos.classify({ name: 'Replacement Laces White', url: 'https://house-of-sneakers.de/products/y' }).reject);
+});
