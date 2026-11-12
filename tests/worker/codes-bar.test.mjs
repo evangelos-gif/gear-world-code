@@ -417,6 +417,8 @@ test('L30, L115: a phone keeps the hero search and "Browse by category" on the f
     assert.match(phone, /\.country-row \{ padding-top: 5px; padding-bottom: 5px; font-size: \.82rem; line-height: 1\.3; \}/, `${dir}: slim country bar`);
     assert.match(phone, /html:not\(:lang\(en\)\) \.hero h1 \{ font-size: 1\.7rem; line-height: 1\.1; \}/, `${dir}: long languages`);
     assert.match(phone, /@media \(max-width: 380px\) \{\n {2}\.brand-name \{ font-size: 1\.04rem; \}[\s\S]*?html:not\(:lang\(en\)\) \.hero h1 \{ font-size: 1\.5rem; \}/, `${dir}: 360 px`);
+    // At 360 px the categories of the footer are one column: two columns of long Russian words moved the page sideways.
+    assert.match(phone, /@media \(max-width: 380px\) \{[^}]*\}[\s\S]*?\.footer-grid section:first-child ul \{ columns: 1; \}\n\}/, `${dir}: footer list at 360 px`);
     // Nothing of the hero is hidden on a phone: the search box, the button and the words stay.
     assert.ok(!/\.hero[^{]*\{[^}]*display: none/.test(phone) && !/\.hero-search[^{]*\{[^}]*(display: none|visibility: hidden)/.test(css), `${dir}: nothing hidden`);
   }

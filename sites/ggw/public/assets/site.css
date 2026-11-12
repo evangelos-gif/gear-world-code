@@ -576,6 +576,9 @@ body.has-compare-bar { padding-bottom: 76px; }
   .codes-count { padding: 0 6px; }
   html:not(:lang(en)) .hero h1 { font-size: 1.5rem; }
   html:not(:lang(en)) .hero .eyebrow { letter-spacing: .03em; }
+  /* The categories of the footer in one column: two columns of long words (Russian "Электроинструмент") were wider
+     than the screen, and the page moved sideways (lessons L21, L116). */
+  .footer-grid section:first-child ul { columns: 1; }
 }
 
 /* Seasonal banner on the deals pages (src/pages/season.js): a muted video loop (or its still picture) with the text
