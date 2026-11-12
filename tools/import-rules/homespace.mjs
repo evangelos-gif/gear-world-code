@@ -5,7 +5,7 @@
 // Hill Interiors, Gordon John, Catherine Lansfield, Cath Kidston, Country Living ...). Over half the rows have no Google
 // category, so the name decides; names are "<product> - <size> / <colour>".
 //  - One card per product page, at the lowest in-stock price; the card name is what all options share.
-//  - Soft toys and baby comforters go to KGW Toys & Games > Soft Toys. Enamel pins, keyrings, cufflink boxes and hip
+//  - Soft toys and baby comforters go to KGW Toys & Games > Stuffed Animals & Cuddly Toys (the site's own name, L56). Enamel pins, keyrings, cufflink boxes and hip
 //    flasks are gifts, not home gear: left out.
 import { googleFeedFiles, googleField, stripOption } from './lib/google-feed.mjs';
 
@@ -55,7 +55,7 @@ const PLACES = [
   ['hgw', 'Home Decor', 'Rug', W(['rugs?', 'runner rug', 'door ?mats?'])],
   ['hgw', 'Home Decor', 'Cushion', W(['cushions?', 'cushion covers?'])],
   ['hgw', 'Home Decor', 'Throw', W(['throws?', 'blankets?', 'fleece throw'])],
-  ['kgw', 'Toys & Games', 'Soft Toys', W(['teddy', 'teddy bear', 'plush', 'soft toy', 'comforter', 'cuddly'])],
+  ['kgw', 'Toys & Games', 'Stuffed Animals & Cuddly Toys', W(['teddy', 'teddy bear', 'plush', 'soft toy', 'comforter', 'cuddly'])],
   ['hgw', 'Home Decor', 'Clock', W(['clocks?', 'alarm clock', 'mantel clock', 'wall clock'])],
   ['hgw', 'Home Decor', 'Mirror', W(['mirrors?'])],
   ['hgw', 'Home Decor', 'Wall Art', W(['wall art', '(?:art|framed|wall|canvas) prints?', 'posters?', 'canvas', 'plaques?', 'signs?', 'hanging heart'])],

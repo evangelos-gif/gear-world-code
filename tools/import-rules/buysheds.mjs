@@ -29,7 +29,7 @@ const PLACES = [
   [FURN, 'Chairs & benches', /bench|chairs?/i, /\b(bench|chair)\b/i],
   [FURN, 'Tables', /tables/i, /\b(picnic table|table)\b/i],
   ['Plants, Growing & Garden Care', 'Pots & planters', /planter|raised bed|grow your own/i, /\b(planter|raised bed|grow bed)\b/i],
-  ['Plants, Growing & Garden Care', 'Composters', /composter/i, /\bcompost(er)?\b/i],
+  ['Garden Tools', 'Composters', /composter/i, /\bcompost(er)?\b/i],
   ['Outdoor Lighting & Garden Electrical', 'Solar lights', /solar/i, /\bsolar\b.*\b(light|lighting|kit)\b/i],
   [BUILD, 'Greenhouses', /greenhouse|cold frame/i, /\b(greenhouse|cold frame|growhouse|lean.to)\b/i],
   [BUILD, 'Garages & workshops', /garage|workshop/i, /\b(garage|workshop)\b/i],

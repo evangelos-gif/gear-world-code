@@ -132,7 +132,7 @@ test('Homespace Direct, Extreme Comfort and Pixie Dixie: home textiles and decor
   assert.equal(h('Milestones Sandalwood Candle').subcategory, 'Home Fragrance');
   assert.equal(h('Laurel Leaf Spray').reject, 'no clear place on Home Gear World', 'artificial foliage, not a room spray');
   assert.equal(h('Teddy Bear Fleece Duvet Cover Set').site, 'hgw', 'teddy-print bedding is bedding');
-  assert.deepEqual(h('Benny The Plush Long Leg Teddy Bear 30cm'), { site: 'kgw', siteCategory: 'Toys & Games', subcategory: 'Soft Toys' });
+  assert.deepEqual(h('Benny The Plush Long Leg Teddy Bear 30cm'), { site: 'kgw', siteCategory: 'Toys & Games', subcategory: 'Stuffed Animals & Cuddly Toys' });
   assert.ok(h('Harvey Makin Classic Hip Flask 5.5oz').reject);
   assert.ok(h('Amalfi Collection Outdoor Bistro Table With Glass Top').reject);
   assert.equal(home.classify({ name: 'Broken Stripe Beige', feedCategory: 'Home & Garden > Decor > Rugs' }).subcategory, 'Rug');
@@ -144,4 +144,9 @@ test('Homespace Direct, Extreme Comfort and Pixie Dixie: home textiles and decor
   assert.equal(ec.classify({ name: 'Space Saving Ultimate Storage Black Ottoman Bed', feedCategory: '' }).subcategory, 'Bed Frame');
   assert.equal(pd.classify({ name: 'Animal Sleepsuit' }).subcategory, 'Baby & Toddler Sleepwear');
   assert.equal(pd.classify({ name: 'Unicorn Nightdress' }).subcategory, 'Nightwear & Loungewear');
+});
+
+test('new shops use the subcategory names the sites already have (dry run of 12 Nov 2026, lessons L56)', () => {
+  assert.deepEqual(sheds.classify({ name: 'Forest Compact Composter 330L', feedCategory: 'Composters' }), { site: 'ggw', siteCategory: 'Garden Tools', subcategory: 'Composters' });
+  assert.equal(home.classify({ name: 'Otto The Plush Lilac Octopus 30 cm', feedCategory: '' }).subcategory, 'Stuffed Animals & Cuddly Toys');
 });
