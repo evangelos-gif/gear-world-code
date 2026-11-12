@@ -12,24 +12,39 @@ import { DatabaseSync } from 'node:sqlite';
 import { pathToFileURL } from 'node:url';
 import { createWorker } from '../../src/engine.js';
 import { activePromos, ukToday } from '../../src/lib/promos.js';
-import { viewFor } from '../../src/lib/visibility.js';
-import { codesBar, codesCountText } from '../../src/pages/layout.js';
+import { viewFor, countryGroups, OWN_VIEW_COUNTRIES } from '../../src/lib/visibility.js';
+import { codesBar, codesBarFor, codesCountText } from '../../src/pages/layout.js';
 import { toString } from '../../src/lib/html.js';
 
 const LANGS = ['de-DE', 'el-GR', 'es-ES', 'fr-FR', 'it-IT', 'nl-NL', 'pt-PT', 'ro-RO', 'ru-RU', 'sq-AL'];
 const KEYS = ['Discount codes', '1 active code', '{0} active codes', '1 active offer', '{0} active offers', '{0} active codes and offers'];
 const FOOTER_LINK = '<li><a href="/discount-codes/">Discount codes</a></li>';
-// The bar, right after the masthead row and right before the menu.
-const BAR = /<\/div>\n {2}<a class="codes-bar" href="\/discount-codes\/">([\s\S]*?)<\/a>\n {2}<nav class="catbar" aria-label="Categories">/;
+// The bar, right after the masthead row and right before the menu. On /discount-codes/ itself it also says
+// aria-current="page" (a screen reader hears that it is the page they are on); everywhere else it does not.
+const BAR = /<\/div>\n {2}<a class="codes-bar" href="\/discount-codes\/"(?: aria-current="page")?>([\s\S]*?)<\/a>\n {2}<nav class="catbar" aria-label="Categories">/;
 const GOOGLEBOT = 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)';
-// The visitors of the check: [name, request.cf.country, user agent]. Google's crawlers get the UK view (src/engine.js).
-const VIEWS = [['GB', 'GB', ''], ['DE', 'DE', ''], ['BE', 'BE', ''], ['US', 'US', ''], ['unknown', '', ''], ['Googlebot', 'DE', GOOGLEBOT]];
-// Who sees the bar: the codes of CGW, AGW and BGW are UK retailers (Tooled Up, My Tool Shed); Germany and Belgium have
-// views of their own there (Reidl, VEVOR, GRABO, Pneus.be), without them. GGW, HGW and KGW have UK retailers only, so
-// every country gets the UK view, with its codes (Joybuy on HGW and KGW, lessons L114).
-const ALL = { GB: true, DE: true, BE: true, US: true, unknown: true, Googlebot: true };
-const UK_ONLY = { GB: true, DE: false, BE: false, US: true, unknown: true, Googlebot: true };
-const SHOWN = { CGW: UK_ONLY, AGW: UK_ONLY, BGW: UK_ONLY, GGW: ALL, HGW: ALL, KGW: ALL };
+// The visitors of the check: [name, request.cf.country, user agent]. Every European country that can have a view of its
+// own (lessons L107: the 27 EU countries, Iceland, Liechtenstein, Norway, Switzerland and the UK), then the US, an unknown
+// country and Google's crawler (from Germany). Google's crawlers get the UK view (src/engine.js).
+const EUROPE = ['AT', 'BE', 'BG', 'CY', 'CZ', 'DE', 'DK', 'EE', 'ES', 'FI', 'FR', 'GR', 'HR', 'HU', 'IE', 'IT', 'LT', 'LU', 'LV',
+  'MT', 'NL', 'PL', 'PT', 'RO', 'SE', 'SI', 'SK', 'IS', 'LI', 'NO', 'CH', 'GB'];
+const VIEWS = [...EUROPE.map(c => [c, c, '']), ['US', 'US', ''], ['unknown', '', ''], ['Googlebot', 'DE', GOOGLEBOT]];
+// Who sees the bar. The codes of CGW, AGW and BGW are of retailers that deliver to the UK only (Tooled Up, My Tool
+// Shed). Every country group with a view of its own there (lessons L107) shows only the retailers that deliver to it, so
+// it gets 0 codes and no bar:
+//   CGW: every European country but the UK: AT and DE (Reidl, VEVOR, GRABO), CH (GRABO), and BE, NL, FR, IE, the rest of
+//        the EU, IS, LI and NO (VEVOR, GRABO);
+//   AGW: BE (Pneus.be, VEVOR), and NL, FR, IE, AT, DE, the rest of the EU, IS, LI and NO (VEVOR);
+//   BGW: the 27 EU countries, IS, LI and NO (VEVOR).
+// Switzerland shares the UK view on AGW and BGW (no Swiss-only retailer there), so it sees their codes. The UK view (the
+// UK, the US, an unknown country, Google's crawlers) always has the codes. GGW, HGW and KGW have no view but the UK one,
+// so every country gets it, with its codes (Joybuy on HGW and KGW, lessons L114).
+const UK_VIEW = ['GB', 'US', 'unknown', 'Googlebot'];
+const seeing = also => Object.fromEntries(VIEWS.map(([name]) => [name, also === 'all' || UK_VIEW.includes(name) || also.includes(name)]));
+const SHOWN = { CGW: seeing([]), AGW: seeing(['CH']), BGW: seeing(['CH']), GGW: seeing('all'), HGW: seeing('all'), KGW: seeing('all') };
+// How many view groups each site has (the UK one included): CGW gb, at-de, ch and one for the rest of Europe; AGW gb (with
+// CH), be and one for the rest; BGW gb (with CH) and one for the EU, IS, LI, NO; GGW, HGW, KGW only the UK view.
+const GROUPS = { CGW: 4, AGW: 3, BGW: 2, GGW: 1, HGW: 1, KGW: 1 };
 // What the bar says in the UK view while the codes of the config run (promos/promos.js, 10 Nov 2026).
 const WORDS = {
   CGW: ['{0} active codes', '4'], GGW: ['{0} active codes', '4'], AGW: ['{0} active codes', '2'], BGW: ['{0} active codes', '2'],
@@ -88,7 +103,29 @@ function visitor(site) {
 }
 const barOf = html => (html.match(BAR) || [])[1] || '';
 
-test('L115: the bar shows exactly when the footer link shows, per view (GB, DE, BE, US, unknown, Googlebot), on the 6 sites with codes', async () => {
+test('L115: every view group of the sites with codes: the UK view has the codes, each group with a view of its own (DE, BE, NL, FR, IE, AT, CH...) none', async () => {
+  // The list of the check is the engine's list of countries that can have a view of their own.
+  assert.deepEqual([...EUROPE].sort(), [...OWN_VIEW_COUNTRIES].sort(), 'the European countries of the check');
+  const sites = await allSites();
+  for (const [code, want] of Object.entries(SHOWN)) {
+    const site = runningToday(sites[code].site);
+    const { home, list } = countryGroups(site);
+    assert.equal(list.length, GROUPS[code], `${code}: view groups ${list.map(g => g.id).join(', ')}`);
+    for (const g of list) {
+      const codes = activePromos(site, Date.now(), viewFor(site, g.countries[0] || 'GB')).length;
+      // The UK group has the codes; every other group (a view of its own) has none, and none of its countries sees the bar.
+      assert.equal(codes > 0, g === home, `${code} ${g.id}: ${codes} codes`);
+      for (const c of g.countries) assert.equal(want[c], g === home, `${code} ${g.id} ${c}: expected ${g === home ? 'the bar' : 'no bar'}`);
+    }
+    // By name, on the three sites with views of their own: Germany, Belgium, the Netherlands, France, Ireland and Austria
+    // are never in the UK view there, so they never see the UK-only codes.
+    if (GROUPS[code] > 1) {
+      for (const c of ['DE', 'BE', 'NL', 'FR', 'IE', 'AT']) assert.ok(viewFor(site, c).group !== home.id && !want[c], `${code} ${c}: a view of its own, no codes`);
+    }
+  }
+});
+
+test('L115: the bar shows exactly when the footer link shows, per view (all 32 European countries, US, unknown, Googlebot), on the 6 sites with codes', async () => {
   const sites = await allSites();
   for (const [code, want] of Object.entries(SHOWN)) {
     const site = runningToday(sites[code].site);
@@ -165,6 +202,33 @@ test('L115: the bar sits between the masthead row and the menu: one plain link t
   }
   // The site script does not touch the bar: it works without JavaScript (the language only swaps its words, L24).
   for (const { dir } of Object.values(await allSites())) assert.ok(!/codes-/.test(readFileSync(`sites/${dir}/public/assets/site.js`, 'utf8')), dir);
+});
+
+test('L115: on /discount-codes/ the bar says aria-current="page" and stays a visible link; nowhere else', async () => {
+  const sites = await allSites();
+  for (const code of Object.keys(SHOWN)) {
+    const site = runningToday(sites[code].site);
+    const get = visitor(site);
+    const env = { DB: memoryDb(), CLICK_LOG: 'off', FX_FETCH };
+    const slug = site.promos[0].slug;
+    for (const path of ['/discount-codes/', '/discount-codes/?utm_source=poster', '/', '/about/', `/discount-codes/${slug}/`, '/this-page-does-not-exist/']) {
+      const { status, html } = await get(path, env, 'GB');
+      const here = path.split('?')[0] === '/discount-codes/';
+      assert.ok(barOf(html), `${code} ${path}: the bar (${status})`);
+      const tag = (html.match(/<a class="codes-bar"[^>]*>/) || [''])[0];
+      assert.equal(tag, `<a class="codes-bar" href="/discount-codes/"${here ? ' aria-current="page"' : ''}>`, `${code} ${path}: ${tag}`);
+      // Still a link that works and shows: an href, nothing hidden, the same words as on every page.
+      assert.ok(!/hidden|aria-hidden|tabindex|aria-disabled/.test(tag), `${code} ${path}: visible and clickable`);
+      assert.equal((html.match(/aria-current="page"/g) || []).length - (html.match(/<span aria-current="page"/g) || []).length, here ? 1 : 0, `${code} ${path}: one current link at most`);
+    }
+  }
+  // The stylesheet keeps the bar on screen on the codes page too, and marks it like the current menu link (a line under
+  // it, not a colour alone).
+  for (const { dir } of Object.values(sites)) {
+    const css = readFileSync(`sites/${dir}/public/assets/site.css`, 'utf8');
+    assert.ok(!/\.codes-bar\[aria-current[^{]*\{[^}]*(display: none|visibility: hidden|pointer-events: none)/.test(css), `${dir}: the current bar stays visible and clickable`);
+    assert.match(css, /\.codes-bar\[aria-current="page"\] \{[^}]*box-shadow: inset 0 -3px 0 var\(--gold\);/, `${dir}: the current bar is underlined like the current menu link`);
+  }
 });
 
 test('L115: the count says codes, offers or both; never a retailer, a code, a campaign or a saving', async () => {
@@ -322,11 +386,38 @@ test('L115: colours from each site\'s palette (text 7:1, icon 3:1, nothing fixed
     assert.ok(ratio(v('link'), v('panel')) >= 3, `${dir}: tag, arrow and underline ${ratio(v('link'), v('panel')).toFixed(2)}:1`);
     // The words carry the meaning: no red or green pair in the bar (the owner cannot tell them apart, lessons L35).
     assert.match(readFileSync(`sites/${dir}/public/assets/icons.svg`, 'utf8'), /<symbol id="tag" viewBox="0 0 24 24" fill="none" stroke="currentColor"/, `${dir}: the tag icon`);
-    // New stylesheet and icons: a new asset version (lessons L31), the same on every site.
-    assert.match(site.assetVersion, new RegExp(`^2026-11-10-${dir}-codes-\\d+$`), `${dir}: asset version`);
+    // New stylesheet (12 Nov 2026: the compact phone hero and aria-current): a new asset version (lessons L31), the same
+    // on every site.
+    assert.match(site.assetVersion, new RegExp(`^2026-11-12-${dir}-codes-2$`), `${dir}: asset version`);
   }
   const layout = readFileSync('tools/layout-check.mjs', 'utf8');
   assert.match(layout, /\{ name: 'phone-360', width: 360,/);
   assert.match(layout, /the discount codes bar sits between the masthead row and the menu \(L115\)/);
   assert.match(readFileSync('tools/qa-gate.mjs', 'utf8'), /check\('L115'/);
+});
+
+test('L30, L115: a phone keeps the hero search and "Browse by category" on the first screen in every language, with both bars', async () => {
+  // The browser check (tools/layout-check.mjs, every site job of the checks): 390 px and 360 px, English and the 10 other
+  // languages, the country bar and the codes bar added when the page has none, 620 px at most.
+  const layout = readFileSync('tools/layout-check.mjs', 'utf8');
+  assert.match(layout, /const FIRST_SCREEN = 620;/);
+  assert.match(layout, /const LANGUAGES = \['en-GB', 'de-DE', 'el-GR', 'es-ES', 'fr-FR', 'it-IT', 'nl-NL', 'pt-PT', 'ro-RO', 'ru-RU', 'sq-AL'\];/);
+  assert.match(layout, /for \(const vp of viewports\.filter\(v => v\.isMobile\)\)/, 'both phone sizes');
+  assert.match(layout, /search box and "Browse by category" on the first screen \(L30, L115\)/);
+  // The bars it adds are the engine's own HTML, with the longest words of the codes bar.
+  assert.match(layout, /import \{ ukBarHtml, codesBarFor \} from '\.\.\/src\/pages\/layout\.js';/);
+  assert.equal(toString(codesBarFor([{ kind: 'code' }, { kind: 'code' }, { kind: 'sale' }, { kind: 'coupon' }])).match(/data-i18n="([^"]*)"/)[1], '{0} active codes and offers');
+  // The stylesheet: on a phone the title uses the full width and the country bar fewer lines; every language but English
+  // gets a slightly smaller title (smaller again at 360 px), and the longest site name keeps the Saved list on its row.
+  const sites = await allSites();
+  for (const { dir } of Object.values(sites)) {
+    const css = readFileSync(`sites/${dir}/public/assets/site.css`, 'utf8');
+    const phone = css.slice(css.indexOf('@media (max-width: 699px) {\n  .prefs-row'));
+    assert.match(phone, /\.hero h1 \{ max-width: none; font-size: 1\.9rem; margin-bottom: 0; \}/, `${dir}: full-width title`);
+    assert.match(phone, /\.country-row \{ padding-top: 5px; padding-bottom: 5px; font-size: \.82rem; line-height: 1\.3; \}/, `${dir}: slim country bar`);
+    assert.match(phone, /html:not\(:lang\(en\)\) \.hero h1 \{ font-size: 1\.7rem; line-height: 1\.1; \}/, `${dir}: long languages`);
+    assert.match(phone, /@media \(max-width: 380px\) \{\n {2}\.brand-name \{ font-size: 1\.04rem; \}[\s\S]*?html:not\(:lang\(en\)\) \.hero h1 \{ font-size: 1\.5rem; \}/, `${dir}: 360 px`);
+    // Nothing of the hero is hidden on a phone: the search box, the button and the words stay.
+    assert.ok(!/\.hero[^{]*\{[^}]*display: none/.test(phone) && !/\.hero-search[^{]*\{[^}]*(display: none|visibility: hidden)/.test(css), `${dir}: nothing hidden`);
+  }
 });

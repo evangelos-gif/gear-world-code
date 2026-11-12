@@ -73,7 +73,7 @@ test('the site code and settings: no shop or partner wording in what pages show 
     assert.ok(!/visually-hidden">Buy</.test(code), `${f}: a hidden "Buy" header`);
   }
   for (const c of CODES) {
-    assert.match(readFileSync(`sites/${c}/site.config.js`, 'utf8'), new RegExp(`assetVersion: '(2026-11-08-${c}-(cleanup|security)|2026-11-09-${c}-compliance|2026-11-10-${c}-codes)-\\d+'`), `${c}: a new asset version for the new dictionaries (L31; -security- for L106, -codes- for L115)`);
+    assert.match(readFileSync(`sites/${c}/site.config.js`, 'utf8'), new RegExp(`assetVersion: '(2026-11-08-${c}-(cleanup|security)|2026-11-09-${c}-compliance|2026-11-1[02]-${c}-codes)-\\d+'`), `${c}: a new asset version for the new dictionaries (L31; -security- for L106, -codes- for L115)`);
     // The served script, stylesheet and icons have no shop words even in a comment, and no shopping-cart drawing.
     for (const f of ['site.js', 'site.css', 'icons.svg']) {
       const text = readFileSync(`sites/${c}/public/assets/${f}`, 'utf8');

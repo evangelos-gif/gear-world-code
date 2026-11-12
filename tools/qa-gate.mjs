@@ -477,6 +477,14 @@ if (site) {
       check('L115', !bad && !names.length, `${path}: the codes bar has neutral words only (no retailer, code, campaign or shop word)`, (bad ? bad[0] : '') + names.join(', '));
     }
   }
+  // On /discount-codes/ itself the bar says aria-current="page" (a screen reader hears it is the page they are on) and
+  // stays the same visible link; on every other page it does not.
+  if (running.length) {
+    const codesPage = await get('/discount-codes/');
+    const tagOf = body => (body.match(/<a class="codes-bar"[^>]*>/) || [''])[0];
+    check('L115', tagOf(codesPage.body) === '<a class="codes-bar" href="/discount-codes/" aria-current="page">' && tagOf(home.body) === '<a class="codes-bar" href="/discount-codes/">',
+      '/discount-codes/: the codes bar says aria-current="page" there, and not on the home page', `${tagOf(codesPage.body)} | ${tagOf(home.body)}`);
+  }
 }
 
 // Launch readiness

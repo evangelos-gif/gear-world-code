@@ -7,14 +7,21 @@
 //   - JavaScript errors and failed requests for the site's own files
 //   - the discount codes bar (lessons L115): between the masthead row and the menu, full width, its words not cut off,
 //     and only on a page whose footer links to the codes
+//   - the first screen of the home page on a phone (lessons L30, L115): the search box and "Browse by category" end
+//     within 620 px at 390 px and at 360 px, in English and the 10 other languages, in the worst case: the country bar
+//     (lessons L107) and the discount codes bar both showing. A page without one of them gets it added for this
+//     measurement (the same HTML as the engine's, src/pages/layout.js), so every site is measured the same way, with or
+//     without running codes and whatever country the local Worker thinks the visitor is in.
 // Saves a screenshot of every page so a person can look at them.
 //
 // Usage: node tools/layout-check.mjs <baseUrl> [--shots <dir>] [--out report.txt] [--lang de-DE] [--currency RUB]
 //   --lang / --currency open every page as a visitor who chose that language and currency (lessons L24, L25):
-//   longer words and "≈" prices must still fit.
+//   longer words and "≈" prices must still fit. The first-screen check in every language runs only without --lang.
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { chromium } from 'playwright';
+import { ukBarHtml, codesBarFor } from '../src/pages/layout.js';
+import { toString } from '../src/lib/html.js';
 
 const args = process.argv.slice(2);
 const base = (args.find(a => /^https?:\/\//.test(a)) || 'http://127.0.0.1:8787').replace(/\/$/, '');
@@ -28,14 +35,38 @@ mkdirSync(shotsDir, { recursive: true });
 const GUTTER = 12; // px: the design uses 16 px; 12 leaves room for borders
 const MIN_TAP = 44;
 const results = [];
+const firstScreen = []; // the numbers of the first-screen pass, for the report
 const check = (ok, name, detail = '') => results.push({ ok: Boolean(ok), name, detail });
 
 const viewports = [
   { name: 'phone', width: 390, height: 844, isMobile: true, hasTouch: true, deviceScaleFactor: 2 },
-  // A small phone (lessons L115): the same checks, except the first-screen rule of L30, which is measured at 390 px.
+  // A small phone (lessons L115): the same checks; its first screen is measured in the pass for every language below.
   { name: 'phone-360', width: 360, height: 780, isMobile: true, hasTouch: true, deviceScaleFactor: 2 },
   { name: 'desktop', width: 1366, height: 900, isMobile: false, hasTouch: false, deviceScaleFactor: 1 }
 ];
+// Lessons L30: what a phone shows before any scrolling. 620 px leaves room for the phone's own browser bars.
+const FIRST_SCREEN = 620;
+// English and the 10 languages of the dictionaries (lessons L24).
+const LANGUAGES = ['en-GB', 'de-DE', 'el-GR', 'es-ES', 'fr-FR', 'it-IT', 'nl-NL', 'pt-PT', 'ro-RO', 'ru-RU', 'sq-AL'];
+// The worst case of the first screen (lessons L115): the country bar (L107) and the codes bar with its longest words
+// ("4 active codes and offers"), added to a home page that has neither, exactly as the engine writes them.
+const WORST_COUNTRY_BAR = ukBarHtml();
+const WORST_CODES_BAR = toString(codesBarFor([{ kind: 'code' }, { kind: 'code' }, { kind: 'sale' }, { kind: 'coupon' }]));
+function worstCase(page) {
+  const added = { country: false, codes: false };
+  let h = page;
+  if (!h.includes('class="country-bar"')) {
+    h = h.replace('<header class="masthead">', `${WORST_COUNTRY_BAR}<header class="masthead">`);
+    added.country = true;
+  }
+  if (!h.includes('class="codes-bar"')) {
+    const v = encodeURIComponent((h.match(/<html[^>]* data-v="([^"]*)"/) || [])[1] || '');
+    const bar = WORST_CODES_BAR.replace(/\/assets\/icons\.svg(\?v=[^#"]*)?#/g, `/assets/icons.svg?v=${v}#`);
+    h = h.replace(/(<\/div>\s*)(<nav class="catbar")/, `$1${bar}\n  $2`).replace(/<body class="([^"]*)">/, '<body class="$1" data-codes>');
+    added.codes = true;
+  }
+  return { html: h, added };
+}
 
 const browser = await chromium.launch();
 try {
@@ -197,9 +228,9 @@ try {
       if (vp.name === 'phone' && name === 'home') {
         const fold = await page.evaluate(() => {
           const b = sel => { const el = document.querySelector(sel); return el ? Math.round(el.getBoundingClientRect().bottom + window.scrollY) : 99999; };
-          return { search: b('.hero-search'), shop: b('.hero-actions .btn') };
+          return { search: b('.hero-search'), browse: b('.hero-actions .btn') };
         });
-        check(fold.search <= 620 && fold.shop <= 620, `${label}: search box and "Browse by category" on the first screen`, `search ends at ${fold.search}px, button at ${fold.shop}px (max 620)`);
+        check(fold.search <= FIRST_SCREEN && fold.browse <= FIRST_SCREEN, `${label}: search box and "Browse by category" on the first screen`, `search ends at ${fold.search}px, button at ${fold.browse}px (max ${FIRST_SCREEN})`);
       }
       check(m.codes.present === m.codes.footerCodes, `${label}: the discount codes bar shows exactly when the footer links to the codes (L115)`, `bar ${m.codes.present}, footer link ${m.codes.footerCodes}`);
       if (m.codes.present) check(m.codes.problems.length === 0, `${label}: the discount codes bar sits between the masthead row and the menu (L115)`, m.codes.problems.join(' | '));
@@ -223,6 +254,53 @@ try {
     }
     await context.close();
   }
+
+  // Lessons L30 and L115: the first screen of the home page on a phone, in every language, in the worst case (the
+  // country bar and the codes bar both showing). Only in the run without --lang (that run already has every language).
+  if (!prefLang) {
+    for (const vp of viewports.filter(v => v.isMobile)) {
+      const context = await browser.newContext({
+        viewport: { width: vp.width, height: vp.height },
+        isMobile: vp.isMobile, hasTouch: vp.hasTouch, deviceScaleFactor: vp.deviceScaleFactor,
+        reducedMotion: 'reduce'
+      });
+      let added = { country: false, codes: false };
+      await context.route(base + '/', async route => {
+        const res = await route.fetch();
+        const worst = worstCase(await res.text());
+        added = worst.added;
+        const headers = { ...res.headers() };
+        delete headers['content-length'];
+        await route.fulfill({ status: res.status(), headers, body: worst.html });
+      });
+      const page = await context.newPage();
+      const numbers = [];
+      for (const lang of LANGUAGES) {
+        // The site script reads the language from the browser's storage; the key prefix is on <html data-store>.
+        await page.goto(base + '/', { waitUntil: 'domcontentloaded' });
+        await page.evaluate(l => { try { localStorage.setItem((document.documentElement.getAttribute('data-store') || 'gw') + '-lang', l); } catch (e) { /* ignore */ } }, lang);
+        await page.goto(base + '/', { waitUntil: 'networkidle' });
+        await page.waitForSelector('html[data-ready]', { timeout: 10000 }).catch(() => {});
+        const fold = await page.evaluate(() => {
+          const b = sel => { const el = document.querySelector(sel); return el ? Math.round(el.getBoundingClientRect().bottom + window.scrollY) : 99999; };
+          return {
+            lang: document.documentElement.lang,
+            bars: !!document.querySelector('.country-bar') && document.querySelectorAll('.codes-bar').length === 1 && document.body.hasAttribute('data-codes'),
+            search: b('.hero-search'), browse: b('.hero-actions .btn'), sideways: document.documentElement.scrollWidth > document.documentElement.clientWidth + 1
+          };
+        });
+        const label = `${vp.name} / in ${lang}, with the country bar${added.country ? ' (added)' : ''} and the codes bar${added.codes ? ' (added)' : ''}`;
+        check(fold.lang === lang, `${label}: page is in ${lang}`, fold.lang);
+        check(fold.bars, `${label}: both bars on the page`);
+        check(fold.search <= FIRST_SCREEN && fold.browse <= FIRST_SCREEN, `${label}: search box and "Browse by category" on the first screen (L30, L115)`, `search ends at ${fold.search}px, button at ${fold.browse}px (max ${FIRST_SCREEN})`);
+        check(!fold.sideways, `${label}: no sideways scrolling`);
+        numbers.push(`${lang} ${fold.browse}`);
+        if (lang === 'el-GR' || lang === 'ru-RU') await page.screenshot({ path: join(shotsDir, `${vp.name}-home-first-screen-${lang}.png`) });
+      }
+      firstScreen.push(`${vp.name} (${vp.width} px), "Browse by category" ends at: ${numbers.join(', ')}`);
+      await context.close();
+    }
+  }
 } finally {
   await browser.close();
 }
@@ -231,6 +309,7 @@ const failedChecks = results.filter(r => !r.ok);
 const lines = [`Layout check | Base: ${base} | Checks: ${results.length} | Passed: ${results.length - failedChecks.length} | Failed: ${failedChecks.length}`, ''];
 for (const r of failedChecks) lines.push(`FAIL ${r.name}${r.detail ? ' -> ' + r.detail : ''}`);
 if (!failedChecks.length) lines.push('All layout checks passed.');
+if (firstScreen.length) lines.push('', 'First screen of the home page, worst case (L30, L115):', ...firstScreen);
 lines.push('', `Screenshots: ${shotsDir}`);
 const report = lines.join('\n');
 console.log(report);
