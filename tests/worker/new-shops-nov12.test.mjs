@@ -150,3 +150,14 @@ test('new shops use the subcategory names the sites already have (dry run of 12 
   assert.deepEqual(sheds.classify({ name: 'Forest Compact Composter 330L', feedCategory: 'Composters' }), { site: 'ggw', siteCategory: 'Garden Tools', subcategory: 'Composters' });
   assert.equal(home.classify({ name: 'Otto The Plush Lilac Octopus 30 cm', feedCategory: '' }).subcategory, 'Stuffed Animals & Cuddly Toys');
 });
+
+test('Tooled Up plumbing tools: Construction Gear World Hand Tools, add-only, the plumbing feed only', async () => {
+  const tup = await import('../../tools/import-rules/tooledup-plumbing.mjs');
+  assert.deepEqual(tup.classify({ name: 'Monument Autocut Copper Pipe Cutter', feedCategory: 'Pipe Cutters' }), { site: 'cgw', siteCategory: 'Hand Tools', subcategory: 'Plumbing Tools' });
+  assert.equal(tup.classify({ name: 'Monument Olive Puller', feedCategory: 'Olive Removing Tools' }).subcategory, 'Plumbing Tools');
+  assert.ok(tup.classify({ name: 'Tooled Up Gift Card', feedCategory: '' }).reject);
+  assert.equal(tup.RULES.addOnly, true, 'the other 36,000 Tooled Up products on CGW must stay');
+  const dir = mkdtempSync(join(tmpdir(), 'gw-tup-'));
+  for (const id of [118685, 118686, 89987]) writeFileSync(join(dir, `AWIN_496_${id}.csv.gz`), '');
+  assert.deepEqual(tup.feedFiles(dir), [join(dir, 'AWIN_496_118685.csv.gz')]);
+});
