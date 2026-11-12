@@ -3235,6 +3235,22 @@ foreach ($cn in @('gw-backup.ps1', 'gw-wrangler-check.ps1')) {
     Check ($ct.Contains("[string]`$Chat = '4 · Sites & Κώδικας'") -and $ct.Contains('Πήγαινε στη συζήτηση με το Claude «{0}» και πάτα Ctrl+V.') -and -not $ct.Contains('Πήγαινε στη συζήτηση με το Claude και πάτα')) ($cn + ': the clipboard line names the chat «4 · Sites & Κώδικας» (-Chat) (L116)')
 }
 
+# gw-last-report.ps1: the newest report of a tool back on the clipboard, read-only.
+Write-Host 'gw-last-report.ps1'
+$lHome = Join-Path $work 'lr-home'
+$lTool = Join-Path (Join-Path $repo 'tools') 'gw-last-report.ps1'
+$lRep = Join-Path $lHome 'gear-world-reports'
+foreach ($lf in @(@('GW_BACKUP_20261111_220000.txt', '2026-11-11 22:00'), @('GW_BACKUP_20261112_020000.txt', '2026-11-12 02:00'), @('GW_BACKUPX_20261112_030000.txt', '2026-11-12 03:00'), @('GW_LEFT_OUT_20261112_040000.txt', '2026-11-12 04:00'))) {
+    Write-Utf8 (Join-Path $lRep $lf[0]) ("report " + $lf[0] + "`nΤΕΛΟΣ BACKUP`n")
+    (Get-Item -LiteralPath (Join-Path $lRep $lf[0])).LastWriteTime = [datetime]::ParseExact($lf[1], 'yyyy-MM-dd HH:mm', $null)
+}
+$lo = (& $exe -NoProfile -ExecutionPolicy Bypass -File $lTool -HomeDir $lHome -NoClipboard | Out-String)
+Check ($LASTEXITCODE -eq 0 -and $lo.Contains('GW_BACKUP_20261112_020000.txt') -and -not $lo.Contains('GW_BACKUPX_') -and -not $lo.Contains('GW_LEFT_OUT_')) 'last report: the newest backup report is found, never another tool''s report'
+& $exe -NoProfile -ExecutionPolicy Bypass -File $lTool -HomeDir $lHome -Name 'bad name!' -NoClipboard | Out-Null
+Check ($LASTEXITCODE -eq 2) 'last report: a wrong -Name stops at once (exit 2)'
+& $exe -NoProfile -ExecutionPolicy Bypass -File $lTool -HomeDir (Join-Path $work 'lr-empty') -NoClipboard | Out-Null
+Check ($LASTEXITCODE -eq 3) 'last report: no report found says so (exit 3)'
+
 # 10. gwh-code-export.ps1 (Hub code into the repo) on a fake hub folder: read-only, secrets/IDs/emails masked, exact text blocks
 Write-Host 'gwh-code-export.ps1'
 $hx = Join-Path $repo 'tools/gwh-code-export.ps1'
