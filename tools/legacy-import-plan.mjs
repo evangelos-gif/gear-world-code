@@ -12,7 +12,10 @@ import { readCsvRecords, cleanText, parsePrice } from './tgw-import-plan.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const AWIN_PUBLISHER_ID = 3057233;
-const ROWS_PER_INSERT = 80;   // keeps every statement well under the D1 limit of 100 KB
+const ROWS_PER_INSERT = 80;   // at most 80 rows per statement ...
+// ... and never more than 90 KB: D1 refuses a statement over 100 KB ("statement too long: SQLITE_TOOBIG", House of
+// Sneakers on MGW, 12 Nov 2026: 80 rows with long picture lists made 104 KB). A batch that is too big is split in two.
+export const MAX_STATEMENT_BYTES = 90000;
 const ROWS_PER_FILE = 1000;
 // KGW, HGW and GGW keep products with no UNIQUE on awin_product_id: there the unique key is (retailer, merchant_product_id)
 // for a non-empty merchant id (index ux_products_refresh_stable_key, checked on the live databases 21 Oct 2026).
@@ -63,6 +66,10 @@ const IMAGE_COLUMNS = ['merchant_image_url', 'large_image', 'alternate_image', '
   'merchant_thumb_url', 'aw_image_url', 'aw_thumb_url', 'image_link'];
 export function realImage(raw) {
   let u = String(raw || '').trim();
+  // House of Sneakers puts ALL its pictures in one column, joined by commas ("...00_png.png?v=1,https://...01_jpg.jpg?v=2"):
+  // the card takes the first one (import of 12 Nov 2026: 9 links in one image_url, lessons L117).
+  const list = u.split(/,(?=\s*https?:\/\/)/);
+  if (list.length > 1) u = list[0].trim();
   if (!u) return '';
   let parsed;
   try { parsed = new URL(u); } catch { return ''; }
@@ -411,6 +418,14 @@ export function insertSql(items, stamp, opts = {}) {
   return `INSERT INTO products (${COLS.join(', ')}) VALUES\n${values.join(',\n')}\nON CONFLICT${target} DO UPDATE SET ${update};\n`;
 }
 
+// One or more INSERT statements for these rows, each under MAX_STATEMENT_BYTES (a batch over it is split in two halves).
+export function insertSqlLimited(items, stamp, opts = {}, maxBytes = MAX_STATEMENT_BYTES) {
+  const sql = insertSql(items, stamp, opts);
+  if (items.length <= 1 || Buffer.byteLength(sql, 'utf8') <= maxBytes) return sql;
+  const half = Math.ceil(items.length / 2);
+  return insertSqlLimited(items.slice(0, half), stamp, opts, maxBytes) + insertSqlLimited(items.slice(half), stamp, opts, maxBytes);
+}
+
 function writeSql(dir, items, R, site, now) {
   mkdirSync(dir, { recursive: true });
   const replace = (R.keepCategory && R.replaceSubcategories && R.replaceSubcategories[site]) || [];
@@ -420,7 +435,7 @@ function writeSql(dir, items, R, site, now) {
     const part = items.slice(i, i + ROWS_PER_FILE);
     let sql = `-- PLAN ONLY. NOT EXECUTED. ${R.retailer} (Awin ${R.advertiserId}) -> ${site.toUpperCase()}, part ${n}, ${part.length} products, ${stamp} UTC.\n` +
       '-- Adds new products and updates the same products on a later run (same awin_product_id). Deletes nothing.\n';
-    for (let j = 0; j < part.length; j += ROWS_PER_INSERT) sql += insertSql(part.slice(j, j + ROWS_PER_INSERT), stamp, { site, keepCategory: R.keepCategory, replace, keepNames: Boolean(R.keepSiteNames) });
+    for (let j = 0; j < part.length; j += ROWS_PER_INSERT) sql += insertSqlLimited(part.slice(j, j + ROWS_PER_INSERT), stamp, { site, keepCategory: R.keepCategory, replace, keepNames: Boolean(R.keepSiteNames) });
     const file = join(dir, String(n).padStart(4, '0') + '.sql');
     writeFileSync(file, sql);
     out.push(file);

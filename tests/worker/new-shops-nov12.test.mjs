@@ -161,3 +161,17 @@ test('Tooled Up plumbing tools: Construction Gear World Hand Tools, add-only, th
   for (const id of [118685, 118686, 89987]) writeFileSync(join(dir, `AWIN_496_${id}.csv.gz`), '');
   assert.deepEqual(tup.feedFiles(dir), [join(dir, 'AWIN_496_118685.csv.gz')]);
 });
+
+test('import SQL: one picture per card, and no statement over 90 KB (House of Sneakers on MGW, 12 Nov 2026)', async () => {
+  const { realImage, insertSqlLimited, MAX_STATEMENT_BYTES } = await import('../../tools/legacy-import-plan.mjs');
+  assert.equal(realImage('https://cdn.shopify.com/a/00_png.png?v=1,https://cdn.shopify.com/a/01_jpg.jpg?v=2,https://cdn.shopify.com/a/02.jpg'), 'https://cdn.shopify.com/a/00_png.png?v=1');
+  assert.equal(realImage('https://cdn.shopify.com/a/x.jpg?w=1,2'), 'https://cdn.shopify.com/a/x.jpg?w=1,2', 'a comma inside one link stays');
+  const row = i => ({ awin_product_id: `1:${i}`, merchant_product_id: String(i), retailer: 'Shop', site_category: 'Shoes', subcategory: 'Trainers', brand: 'B',
+    product_name: 'N', feed_product_name: 'N', price: 10, currency: 'GBP', stock_status: 'in stock', merchant_category: null,
+    image_url: 'https://cdn.example/' + 'x'.repeat(1500), affiliate_url: 'https://www.awin1.com/cread.php?x', ean: null });
+  const sql = insertSqlLimited(Array.from({ length: 80 }, (_, i) => row(i)), '2026-11-12 21:00:00', { site: 'mgw' });
+  const statements = sql.split(/;\n/).filter(x => x.trim());
+  assert.ok(statements.length > 1, 'split into several statements');
+  for (const st of statements) assert.ok(Buffer.byteLength(st, 'utf8') <= MAX_STATEMENT_BYTES);
+  assert.equal((sql.match(/'1:\d+'/g) || []).length, 80, 'every row is still there');
+});
