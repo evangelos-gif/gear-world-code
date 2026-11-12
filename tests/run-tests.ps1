@@ -3105,6 +3105,9 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         Check ($LASTEXITCODE -eq 0 -and $po -match '\.\.\. 0 \S+, \d+ ') 'backup check: a progress line inside a folder (here for every file) does not break the check (L115)'
         Check ((Run-B @('-Apply')) -eq 1 -and -not (Test-Path -LiteralPath $bTarget) -and (Get-BReport).Contains('-Approve')) 'backup -Apply without -Approve: stops at once without asking, writes nothing (L113)'
         Check ((Run-B @('-Apply', '-Approve', 'ΕΓΚΡΙΝΩ BACKUP Q')) -eq 1 -and -not (Test-Path -LiteralPath $bTarget)) 'backup with the wrong phrase: writes nothing'
+        $ic = Run-B @('-Apply', '-Approve', ('egkrino backup ' + $drive), '-TestInterrupt')
+        $ir = Get-BReport
+        Check ($ic -eq 15 -and $ir.Contains('ΔΙΑΚΟΠΗ') -and $ir.Contains('Χρόνοι: ') -and $ir.TrimEnd().EndsWith('ΤΕΛΟΣ BACKUP') -and -not (Test-Path -LiteralPath $bTarget)) 'backup: Ctrl+C still writes the report (.NET only), ending with ΤΕΛΟΣ BACKUP (L117)'
         Write-Utf8 (Join-Path $bState 'noauth') 'x'
         $code = Run-B @('-Apply', '-Approve', $ok)
         Remove-Item -LiteralPath (Join-Path $bState 'noauth') -Force

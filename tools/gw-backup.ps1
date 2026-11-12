@@ -56,7 +56,8 @@ param(
     [int]$ProgressSec = 30,
     [string[]]$NetworkUrls = @(),
     [switch]$SkipNetworkCheck,
-    [switch]$NoClipboard
+    [switch]$NoClipboard,
+    [switch]$TestInterrupt # tests only: behaves as if Ctrl+C was pressed right after the checks
 )
 
 $ErrorActionPreference = 'Stop'
@@ -807,6 +808,7 @@ try {
     }
 
     # ---------------- from here on: -Apply with the right phrase, all checks passed ----------------
+    if ($TestInterrupt) { Write-Interrupted; exit 15 }
     $problems = 0
     if (-not (Test-Path -LiteralPath $Target)) { New-Item -ItemType Directory -Path $Target -Force | Out-Null }
 
