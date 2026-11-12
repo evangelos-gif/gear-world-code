@@ -12,7 +12,7 @@ export default {
   lang: 'en-GB',
   locale: 'en-GB',
   currency: 'GBP',
-  assetVersion: '2026-11-10-mgw-codes-1',
+  assetVersion: '2026-11-12-mgw-codes-2',
   promos: promosFor('MGW'),
   awinPublisherId: AWIN_PUBLISHER_ID,
   storagePrefix: 'mgw',

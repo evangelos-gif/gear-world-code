@@ -13,7 +13,7 @@ export default {
   lang: 'en-GB',
   locale: 'en-GB',
   currency: 'GBP',
-  assetVersion: '2026-11-10-kgw-codes-1',
+  assetVersion: '2026-11-12-kgw-codes-2',
   promos: promosFor('KGW'),
   awinPublisherId: AWIN_PUBLISHER_ID,
   storagePrefix: 'kgw',

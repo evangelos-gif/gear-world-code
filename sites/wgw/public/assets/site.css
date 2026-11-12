@@ -510,6 +510,8 @@ body.has-compare-bar { padding-bottom: 76px; }
 .codes-bar { display: block; background: var(--panel); color: var(--text); text-decoration: none; border-top: 1px solid var(--line); }
 .codes-bar:hover { color: var(--text); }
 .codes-bar:focus-visible { outline-offset: -3px; }
+/* On /discount-codes/ itself (aria-current="page"): a line under the bar, like the current link of the menu. */
+.codes-bar[aria-current="page"] { box-shadow: inset 0 -3px 0 var(--gold); }
 .codes-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 4px 10px; min-height: 40px; margin: 0 auto; padding-top: 6px; padding-bottom: 6px; font-size: .95rem; font-weight: 600; line-height: 1.3; text-align: center; }
 .codes-row .icon { flex: none; width: 18px; height: 18px; color: var(--link); }
 .codes-row .codes-chevron { width: 16px; height: 16px; }
@@ -554,11 +556,26 @@ body.has-compare-bar { padding-bottom: 76px; }
   .hub-link { font-size: .88rem; padding: 0 12px; white-space: nowrap; }
   .hero-inner { display: flex; flex-direction: column; padding-top: 18px; padding-bottom: 22px; }
   .hero .eyebrow { margin-bottom: 8px; font-size: .72rem; letter-spacing: .12em; }
-  .hero h1 { font-size: 1.9rem; margin-bottom: 0; }
+  .hero h1 { max-width: none; font-size: 1.9rem; margin-bottom: 0; }
   .hero-search { order: 1; margin: 14px 0 12px; }
   .hero-actions { order: 2; margin-bottom: 14px; }
   .hero .lede { order: 3; margin-bottom: 8px; font-size: .98rem; }
   .hero-facts { order: 4; }
+  /* The country bar (lessons L107) takes fewer lines: its words are long in every language. */
+  .country-row { padding-top: 5px; padding-bottom: 5px; font-size: .82rem; line-height: 1.3; }
+  /* Every language but English is longer (Greek, Russian, German, Dutch...; lessons L24): a slightly smaller title, so
+     the search box and "Browse by category" stay on the first screen with both bars (lessons L30, L115). */
+  html:not(:lang(en)) .hero h1 { font-size: 1.7rem; line-height: 1.1; }
+  html:not(:lang(en)) .hero .eyebrow { letter-spacing: .06em; }
+}
+/* A small phone (360 px): the longest site name and the Saved list button stay on one row, the codes bar is a little
+   tighter, and the title of a long language a little smaller again (lessons L30, L115). */
+@media (max-width: 380px) {
+  .brand-name { font-size: 1.04rem; }
+  .codes-row { gap: 2px 6px; }
+  .codes-count { padding: 0 6px; }
+  html:not(:lang(en)) .hero h1 { font-size: 1.5rem; }
+  html:not(:lang(en)) .hero .eyebrow { letter-spacing: .03em; }
 }
 
 /* Seasonal banner on the deals pages (src/pages/season.js): a muted video loop (or its still picture) with the text

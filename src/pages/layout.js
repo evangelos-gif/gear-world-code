@@ -184,7 +184,7 @@ export function page(site, opts) {
   // The codes of this visitor's view, read once: the bar under the masthead and the footer link show on the same
   // condition (lessons L115). <body data-codes> lets a phone keep the hero search on the first screen (L30).
   const promos = activePromos(site);
-  const bar = codesBarFor(promos);
+  const bar = codesBarFor(promos, path === CODES_PATH);
   const doc = html`<!doctype html>
 <html lang="${site.lang}" data-store="${site.storagePrefix || site.code.toLowerCase()}" data-v="${site.assetVersion}" data-currency="${site.currency}">
 <head>
@@ -285,6 +285,8 @@ export function ukBarHtml() {
 // read (the codes live in the site config). It is part of the page HTML, so a cached page keeps it in the copy of its
 // own view group (cacheKeyUrl) and it works without JavaScript. Neutral words only: no retailer, no campaign name (no
 // "Black Friday"), no saving; a code is a "code", a sale or coupon (no code to type) an "offer".
+// On the codes page itself the bar says so to a screen reader (aria-current="page"), and stays a visible link.
+const CODES_PATH = '/discount-codes/';
 export function codesCountText(promos) {
   const codes = promos.filter(p => p.kind === 'code').length;
   const offers = promos.length - codes;
@@ -292,12 +294,13 @@ export function codesCountText(promos) {
   if (!codes) return offers === 1 ? tr('1 active offer') : tr('{0} active offers', offers);
   return tr('{0} active codes and offers', promos.length);
 }
-export function codesBar(site, now = Date.now()) {
-  return codesBarFor(activePromos(site, now));
+export function codesBar(site, now = Date.now(), current = false) {
+  return codesBarFor(activePromos(site, now), current);
 }
-function codesBarFor(promos) {
+// The bar for a given list of codes (tools/layout-check.mjs adds it to a page without one, to measure the worst case).
+export function codesBarFor(promos, current = false) {
   if (!promos.length) return '';
-  return html`<a class="codes-bar" href="/discount-codes/">
+  return html`<a class="codes-bar" href="${CODES_PATH}"${current ? raw(' aria-current="page"') : ''}>
     <span class="wrap codes-row">${icon('tag', 'icon codes-icon')}<span class="codes-word">Discount codes</span> <span class="codes-count">${codesCountText(promos)}</span>${icon('chevron', 'icon codes-chevron')}</span>
   </a>`;
 }
