@@ -126,13 +126,33 @@ export async function readProducts({ archive, rules }) {
       // Two feeds of one shop can list the same product, only one with categories (100% PURE, 25 Oct 2026, lessons L63).
       if (!g.feedCategory) g.feedCategory = cleanText(get('merchant_category'));
       if (!g.awinCategory) g.awinCategory = cleanText(get('category_name'));
+      if (rules.RULES.commonVariantName && (g.names ||= new Set()).size < 200) g.names.add(cleanText(get('product_name')));
       g.variants++;
       if (qty === null || !Number.isFinite(qty)) g.unknownStock++;
       else if (qty > 0) g.inStockVariants++;
       if (Number.isFinite(price) && price > 0 && (qty === null || !Number.isFinite(qty) || qty > 0)) g.prices.push(price);
     }
   }
-  return { files, rows, products: [...groups.values()] };
+  const products = [...groups.values()];
+  // rules.RULES.commonVariantName (lessons L117): Shopify and Google feeds write each option as "<product> - <option>"
+  // ("Animal Sleepsuit - 0-3mths / Animal / White", "Colorado 2.0 P726503 Icon Mens Black Boots - 8"): the card takes the
+  // words that ALL options of the page share, so it never shows the first option's size or colour as the product name.
+  if (rules.RULES.commonVariantName) for (const g of products) { if (g.names && g.names.size > 1) g.name = commonVariantName([...g.names]) || g.name; delete g.names; }
+  return { files, rows, products };
+}
+
+// The words at the start that every option name shares, without a dangling " -", "/", "," or "(" at the end.
+export function commonVariantName(names) {
+  const lists = names.map(n => String(n || '').trim().split(/\s+/).filter(Boolean)).filter(l => l.length);
+  if (!lists.length) return '';
+  const out = [];
+  for (let i = 0; i < lists[0].length; i++) {
+    const w = lists[0][i];
+    if (lists.every(l => l[i] === w)) out.push(w); else break;
+  }
+  let s = out.join(' ');
+  for (let prev = ''; prev !== s;) { prev = s; s = s.replace(/\s*(?:[-–/,(|:+&]|\bwith|\band|\bin)$/i, '').trim(); }
+  return s.split(/\s+/).length >= 2 || s.length >= 6 ? s : '';
 }
 
 const hostOf = url => { try { return new URL(url).hostname.toLowerCase(); } catch { return ''; } };
