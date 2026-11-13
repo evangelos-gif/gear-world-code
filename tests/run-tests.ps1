@@ -4020,7 +4020,7 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         Check ((Run-V @('-Step', 'live', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB MITGO LIVE', '-MitgoCode', $vMitgo, '-AfterPreview')) -eq 0 -and (VCount 'deploy --config') -eq ($vDeploys + 2)) 'L119: live -AfterPreview after a clean preview: deploys once'
         $c = VCalls
         $vLiveBulk = [regex]::Matches($c, '(?m)^.*secret bulk "[^"]+" --name gear-world-hub\s*$')
-        Check ($vLiveBulk.Count -eq 1 -and $vLiveBulk[0].Index -lt $c.LastIndexOf('deploy --config') -and $vLiveBulk[0].Index -gt $c.LastIndexOf('deployments list --name gear-world-hub')) 'L119: the code goes into the live Worker once, after the live version is read and before the deploy'
+        Check ($vLiveBulk.Count -eq 2 -and $vLiveBulk[1].Index -lt $c.LastIndexOf('deploy --config') -and $vLiveBulk[1].Index -gt $c.LastIndexOf('deployments list --name gear-world-hub')) 'L119: the code goes into the live Worker (2 tries: the failed one above and this one), after the live version is read and before the deploy'
         $vSec = [System.IO.File]::ReadAllText($vSecrets)
         Check (([regex]::Matches($vSec, [regex]::Escape('{"MITGO_VERIFICATION":"' + $vMitgo + '"}'))).Count -eq 2) 'L119: the same secret on the live Worker'
         $r = VLast

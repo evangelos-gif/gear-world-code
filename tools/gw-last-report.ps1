@@ -1,4 +1,4 @@
-﻿﻿<#
+﻿<#
 .SYNOPSIS
   Gear World: puts the newest report of a tool back on the clipboard (read-only).
 
