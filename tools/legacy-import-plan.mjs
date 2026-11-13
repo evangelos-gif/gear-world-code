@@ -149,7 +149,11 @@ export async function readProducts({ archive, rules }) {
   // rules.RULES.commonVariantName (lessons L117): Shopify and Google feeds write each option as "<product> - <option>"
   // ("Animal Sleepsuit - 0-3mths / Animal / White", "Colorado 2.0 P726503 Icon Mens Black Boots - 8"): the card takes the
   // words that ALL options of the page share, so it never shows the first option's size or colour as the product name.
-  if (rules.RULES.commonVariantName) for (const g of products) { if (g.names && g.names.size > 1) g.name = commonVariantName([...g.names]) || g.name; delete g.names; }
+  // A shop's rules can find the shared name themselves (rules.commonName, e.g. Otra's short frame names "Kent - Black").
+  if (rules.RULES.commonVariantName) for (const g of products) {
+    if (g.names && g.names.size > 1) g.name = (typeof rules.commonName === 'function' ? rules.commonName([...g.names]) : '') || commonVariantName([...g.names]) || g.name;
+    delete g.names;
+  }
   return { files, rows, products };
 }
 
@@ -480,7 +484,9 @@ function renderPlan({ R, files, rows, products, accepted, rejected, sqlFiles, no
       const subList = Object.entries(subs).sort((a, b) => b[1].length - a[1].length);
       // One category with several subcategories (e.g. Joybuy beauty): samples from every subcategory, not 20 from the largest.
       const picks = subList.length > 1 ? subList.flatMap(([, l]) => spread(l, Math.max(3, Math.min(8, Math.ceil(48 / subList.length))))) : spread(all, 20);
-      for (const p of picks) L.push(`   - ${p.product_name} | ${p.brand || '-'} | ${m(p.price)} | ${p.subcategory} | ${p.variants} option(s)`);
+      // The shop's own name too when the card name differs from it, so the dry run shows what the rules did (13 Nov 2026).
+      const feedName = p => (p.feed_product_name && p.feed_product_name.toLowerCase() !== String(p.product_name).toLowerCase()) ? ` [feed: ${String(p.feed_product_name).slice(0, 70)}]` : '';
+      for (const p of picks) L.push(`   - ${p.product_name} | ${p.brand || '-'} | ${m(p.price)} | ${p.subcategory} | ${p.variants} option(s)${feedName(p)}`);
     }
     const doubtful = list.filter(p => p.doubt);
     if (doubtful.length) {
