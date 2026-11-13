@@ -130,7 +130,11 @@ if ($full) {
     $section = ''
     foreach ($line in ($full.text -split "`r?`n")) {
         if ($line.StartsWith('== ')) { $section = $line; continue }
-        if ($line.Contains('ΠΡΟΒΛΗΜΑ') -and -not $section.StartsWith('== GitHub')) { $badLines++ }
+        if ($section.StartsWith('== GitHub')) { continue }
+        # Every problem line starts with ΠΡΟΒΛΗΜΑ (the summary «ΤΕΛΟΣ ΜΕ N ΠΡΟΒΛΗΜΑΤΑ» does not); a clean-up that did not
+        # remove everything prints «Σβήστηκαν X από Y» with X < Y.
+        if ($line -match '^\s*ΠΡΟΒΛΗΜΑ') { $badLines++; continue }
+        if ($line -match '^\s*Σβήστηκαν (\d+) από (\d+)' -and [int]$Matches[1] -lt [int]$Matches[2]) { $badLines++ }
     }
 }
 # Offline copies of the code: if the old backup has GitHub zips of a repo, the new one must have them too.

@@ -3280,7 +3280,7 @@ if ($isWin) {
     Write-Utf8 (Join-Path $rNew 'files\gear-world-hub\new.txt') 'new copy'
     Write-Utf8 (Join-Path $rNew 'd1\test-db\schema.sql') 'CREATE TABLE t (a);'
     # Like the real 12/11 log: problems only in the GitHub part.
-    Write-Utf8 (Join-Path $rNew 'logs\GW_BACKUP_20261112_223400.txt') ("== Αντιγραφή αρχείων ==`n  OK  x`n`n== GitHub ==`n  ΠΡΟΒΛΗΜΑ: gearworld-media a b`n`n== Βάσεις D1 ==`n  OK  test-db`n")
+    Write-Utf8 (Join-Path $rNew 'logs\GW_BACKUP_20261112_223400.txt') ("== Καθάρισμα παλιών αντιγράφων με κλειδιά ή πελάτες ==`n  Σβήστηκαν 0 από 0.`n`n== Αντιγραφή αρχείων ==`n  OK  x`n`n== GitHub ==`n  ΠΡΟΒΛΗΜΑ: gearworld-media a b`n  OK  gearworld-media: 0 κλάδοι`n`n== Βάσεις D1 ==`n  OK  test-db`n`nΤΕΛΟΣ ΜΕ 2 ΠΡΟΒΛΗΜΑΤΑ: τα υπόλοιπα αντιγράφηκαν.`n")
     Write-Utf8 (Join-Path $rOld 'github\gear-world-code\main.zip') 'old zip'
     function Run-R([string[]]$extra) {
         $all = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $rTool, '-HomeDir', $rHome, '-AllowSystemDrive', '-NoClipboard') + $extra
@@ -3299,6 +3299,17 @@ if ($isWin) {
     Check ((Run-R @('-Old', $rOld, '-Keep', $rNew)) -eq 3 -and (Get-RReport).Contains('γραμμές ΠΡΟΒΛΗΜΑ')) 'remove old backup: a newest full run with a copy problem means not complete (exit 3)'
     Remove-Item -LiteralPath (Join-Path $rNew 'logs\GW_BACKUP_20261113_090000.txt') -Force
     Check ((Run-R @('-Old', 'GearWorldBackup', '-Keep', $rNew)) -eq 2) 'remove old backup: a path that is not a full D:\... path is refused (exit 2)'
+    Check ((Run-R @('-Old', ($rOld + '%USERNAME%'), '-Keep', $rNew)) -eq 2 -and (Test-Path -LiteralPath $rOld)) 'remove old backup: a path with % is refused (exit 2)'
+    $rLink = Join-Path $rBase 'GearWorldBackup-link'
+    & cmd /c ('mklink /J "{0}" "{1}" >nul 2>nul' -f $rLink, $rNew)
+    if (Test-Path -LiteralPath $rLink) {
+        Check ((Run-R @('-Old', $rOld, '-Keep', $rLink)) -eq 2 -and (Test-Path -LiteralPath $rOld)) 'remove old backup: a junction as -Keep is refused (exit 2)'
+        & cmd /c ('rmdir "{0}"' -f $rLink)
+    }
+    Write-Utf8 (Join-Path $rOld 'logs\GW_BACKUP_20991231_235900.txt') 'a newer report in the old folder'
+    (Get-Item -LiteralPath (Join-Path $rOld 'logs\GW_BACKUP_20991231_235900.txt')).LastWriteTime = (Get-Date).AddDays(1)
+    Check ((Run-R @('-Old', $rOld, '-Keep', $rNew)) -eq 3 -and (Get-RReport).Contains('νεότερη αναφορά')) 'remove old backup: refused when the old folder has a newer report (mixed up?) (exit 3)'
+    Remove-Item -LiteralPath (Join-Path $rOld 'logs') -Recurse -Force
     Check ((Run-R @('-Old', $rOld, '-Keep', $rNew)) -eq 0 -and (Test-Path -LiteralPath (Join-Path $rOld 'files\gear-world-hub\old.txt')) -and (Get-RReport).Contains('Μόνο έλεγχος') -and (Get-RReport).TrimEnd().EndsWith('ΤΕΛΟΣ ΣΒΗΣΙΜΑΤΟΣ')) 'remove old backup: without -Apply only shows what would go, deletes nothing'
     Check ((Run-R @('-Old', $rOld, '-Keep', $rNew, '-Apply')) -eq 1 -and (Test-Path -LiteralPath $rOld)) 'remove old backup: -Apply without the phrase deletes nothing (exit 1)'
     Check ((Run-R @('-Old', $rOld, '-Keep', $rNew, '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ BACKUP D')) -eq 1 -and (Test-Path -LiteralPath $rOld)) 'remove old backup: the wrong phrase deletes nothing'

@@ -777,7 +777,8 @@ try {
     }
     $flaggedRel = @($flaggedList)
     if ($keptOld -gt 0) { Say ('  {0} από αυτά δεν διαβάστηκαν τώρα (κλειδωμένα ή αργά): το παλιό τους αντίγραφο στον δίσκο ελέγχθηκε, είναι καθαρό και μένει.' -f $keptOld) 'Yellow' }
-    $old = Clear-DriveSensitive $false $flaggedRel
+    $old = @{ found = 0; removed = 0 }
+    if (-not $OnlyGitHub) { $old = Clear-DriveSensitive $false $flaggedRel } # GitHub only: the drive is not touched
     if ($old.found -gt 0) { Say ('  Στον δίσκο υπάρχουν {0} παλιά αντίγραφα τέτοιων αρχείων ή πινάκων πελατών: με -Apply σβήνονται από τον δίσκο.' -f $old.found) 'Yellow' }
 
     # 5. GitHub (public repos, read-only).
