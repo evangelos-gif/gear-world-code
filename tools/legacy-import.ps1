@@ -70,6 +70,13 @@ function Finish([int]$code) {
     if (-not $NoClipboard) { Write-Host 'Αντιγράφηκε στο πρόχειρο. Πήγαινε στη συζήτηση με το Claude και πάτα Ctrl+V.' -ForegroundColor Green }
     exit $code
 }
+# Any unexpected error (13 Nov 2026: a refused wrangler command stopped the CGW dry run with exit 1 and no report)
+# still writes the report, with what was done up to then (lessons L120).
+trap {
+    Say ('Απρόβλεπτο σφάλμα: {0}' -f $_.Exception.Message) 'Red'
+    Say 'Σταμάτησα εδώ. Ό,τι γράφει πιο πάνω έγινε, τίποτα μετά. Στείλε την αναφορά στο Claude.' 'Red'
+    Finish 9
+}
 
 # Normalise an approval phrase: no accents, upper case, single spaces; Latin "EGKRINO" also accepted.
 function Normalize-Phrase([string]$s) {
@@ -195,9 +202,9 @@ foreach ($p in $sp.byCategory.PSObject.Properties) { Say ('  {0,-26} {1}' -f $p.
 # 3. The site database now (read-only).
 # The unique key the plan's SQL uses must exist: awin_product_id UNIQUE (MGW, WGW), or the (retailer, merchant id)
 # index for every retailer (KGW, HGW, GGW; on CGW it is called ux_products_refresh_stable_key_global and CGW has both,
-# lessons L119). (No > or < here: the wrangler call refuses them.)
+# lessons L119). (No > < % & | ^ here: the wrangler call refuses them; a LIKE '...%' stopped the CGW dry run, L120.)
 if ($SiteInfo[$Site].key -eq 'stable') {
-    $layout = Select-Rows "SELECT COUNT(*) AS n FROM sqlite_master WHERE name LIKE 'ux_products_refresh_stable_key%' AND instr(sql, 'products(retailer, merchant_product_id)') BETWEEN 1 AND 1000000 AND instr(sql, 'retailer IN') = 0"
+    $layout = Select-Rows "SELECT COUNT(*) AS n FROM sqlite_master WHERE instr(name, 'ux_products_refresh_stable_key') = 1 AND instr(sql, 'products(retailer, merchant_product_id)') BETWEEN 1 AND 1000000 AND instr(sql, 'retailer IN') = 0"
 } else {
     $layout = Select-Rows "SELECT COUNT(*) AS n FROM sqlite_master WHERE name = 'products' AND instr(sql, 'awin_product_id TEXT NOT NULL UNIQUE') BETWEEN 1 AND 1000000"
 }
