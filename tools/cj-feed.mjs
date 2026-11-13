@@ -109,7 +109,7 @@ const FALLBACK_PRODUCT = {
       { name: 'linkCode', args: ['pid'], object: true }]),
   sub: { price: ['amount', 'currency'], salePrice: ['amount', 'currency'], googleProductCategory: ['id', 'name'], linkCode: ['clickUrl'] }
 };
-const WANT = ['id', 'title', 'description', 'brand', 'link', 'imageLink', 'additionalImageLink', 'availability', 'gtin', 'mpn', 'advertiserId', 'advertiserName',
+const WANT = ['id', 'adId', 'catalogId', 'title', 'description', 'brand', 'link', 'imageLink', 'additionalImageLink', 'availability', 'gtin', 'mpn', 'advertiserId', 'advertiserName',
   'productType', 'itemGroupId', 'lastUpdated', 'price', 'salePrice', 'googleProductCategory', 'linkCode'];
 const SUB_WANT = { price: ['amount', 'currency'], salePrice: ['amount', 'currency'], googleProductCategory: ['name'], linkCode: ['clickUrl'], imageLink: ['url', 'link'], additionalImageLink: ['url', 'link'] };
 
@@ -203,9 +203,14 @@ export function splitPoint(lo, hi) {
 // holds what came, and the report says how many are missing).
 export async function fetchAll({ shape, cid, pid, advertiser, token, api, fetchImpl, pauseMs = 1000, log = () => {}, page = PAGE, cap = OFFSET_CAP }) {
   const qname = (shape && shape.qname) || 'shoppingProducts';
+  // One row per product AND catalogue: a shop with a catalogue per country (Haglofs: the same product id in the GB, NL,
+  // DE ... catalogues, in pounds and euros) keeps every country, so the rules can pick the one in the site's currency.
+  // Only the very same row (same id, catalogue and currency, e.g. at a band edge) is kept once (13 Nov 2026, L129).
   const seen = new Map();
   let extraRows = 0;
-  const add = list => { for (const p of list) { const k = p && p.id !== undefined && p.id !== null && p.id !== '' ? String(p.id) : `#${seen.size + ++extraRows}`; if (!seen.has(k)) seen.set(k, p); } };
+  const keyOf = p => (p && p.id !== undefined && p.id !== null && p.id !== ''
+    ? [p.id, p.adId ?? p.catalogId ?? '', cur(p.salePrice, p.price)].map(x => String(x ?? '')).join('|') : `#${seen.size + ++extraRows}`);
+  const add = list => { for (const p of list) { const k = keyOf(p); if (!seen.has(k)) seen.set(k, p); } };
   const products = () => [...seen.values()];
   const pause = async () => { if (pauseMs) await sleep(pauseMs); };
   const ask = async (limit, offset, extra) => {

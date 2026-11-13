@@ -356,3 +356,23 @@ test('L129: without price arguments the first 10,000 are written (not nothing), 
   assert.deepEqual(readdirSync(out), ['CJ_5175167.csv.gz.part']);
   assert.ok(!cj.calls.some(c => /offset: 10000/.test(c.q)), 'never asks past the cap');
 });
+
+test('L129: one product id in several country catalogues (Haglofs GB/NL/DE) keeps every catalogue, the very same row once', async () => {
+  // Second download of 13 Nov 2026: Haglofs gave 17,906 of 72,031 because rows were kept once per product id, and the
+  // same id is in every country catalogue (GBP and EUR): mostly the EUR copy stayed, the GB one went.
+  const rows = [];
+  for (let i = 1; i <= 60; i++) {
+    rows.push(product(i, { adId: 'GB', price: { amount: 20 + i, currency: 'GBP' } }));
+    rows.push(product(i, { adId: 'NL', price: { amount: 25 + i, currency: 'EUR' } }));
+    rows.push(product(i, { adId: 'DE', price: { amount: 25 + i, currency: 'EUR' } }));
+  }
+  const cj = fakeCj({ products: rows, cap: 50 });
+  const shape = { qname: 'shoppingProducts', args: ['companyId', 'partnerIds', 'limit', 'offset', 'lowPrice', 'highPrice'], argTypes: {}, outer: ['totalCount'],
+    fields: [{ name: 'id', args: [] }, { name: 'adId', args: [] }, { name: 'price', args: [], object: true }], sub: { price: ['amount', 'currency'] } };
+  const r = await fetchAll({ shape, cid: '7806395', advertiser: '5531758', token: TOKEN, api: API, fetchImpl: cj.fetchImpl, pauseMs: 0, page: 10, cap: 50 });
+  assert.equal(r.ok, true, r.error);
+  assert.equal(r.products.length, 180, 'all three catalogues of every product');
+  assert.equal(r.products.filter(p => p.price.currency === 'GBP').length, 60, 'every GB row');
+  assert.equal(r.capped, false);
+  assert.match(productQuery({ shape: { ...shape, fields: shape.fields.concat([{ name: 'catalogId', args: [] }]) }, cid: '1', advertiser: '2' }), /resultList \{ id adId catalogId /);
+});
