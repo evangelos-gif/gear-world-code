@@ -46,3 +46,28 @@ test('Otra Eyewear: a whole plan from a Google feed, the colours of one frame on
   assert.deepEqual(r.accepted.wgw.map(p => [p.product_name, p.price]), [['Hazel Sunglasses', 65]]);
   assert.equal(r.rejected['out of stock in every size'].length, 1);
 });
+
+import * as sb from '../../tools/import-rules/silverbene.mjs';
+
+test('Silverbene: silver jewellery by the name to WGW (men\'s to MGW), jewellery-making parts and boxes left out', () => {
+  const c = name => sb.classify({ name });
+  assert.deepEqual(c('Fine 3.70ct 100% Genuine Purple Amethyst Sterling Silver Double Layer Necklace'), { site: 'wgw', siteCategory: "Women's Jewellery", subcategory: 'Necklaces' });
+  assert.equal(c('Tenderness 5.0ct Luxury Accessory Natural Red Garnet Sterling Silver Flower Ring').subcategory, 'Rings');
+  assert.equal(c('0.8ct Natural Red Garnet Sterling Silver Blooming Flower Black Studs Earrings').subcategory, 'Earrings');
+  assert.equal(c('Vintage Black CZ 925 Sterling Silver Adjustable Chain Ring').subcategory, 'Rings');
+  assert.equal(c('Simple Elliptical Pyramid 925 Sterling Silver Dangling Earrings').subcategory, 'Earrings');
+  assert.equal(c('White/Black Enamel SLR Camera 925 Silver Pendant').subcategory, 'Necklaces');
+  assert.equal(c('925 Sterling Silver Box Chain Necklace').subcategory, 'Necklaces');
+  assert.equal(c('Wire Wrapped 925 Sterling Silver Ring').subcategory, 'Rings');
+  assert.equal(c('Sterling Silver Tennis Bracelet').subcategory, 'Bracelets');
+  assert.equal(c('Opal Necklace and Earrings Set Sterling Silver').subcategory, 'Jewellery');
+  assert.equal(c('925 Sterling Silver Nose Ring').subcategory, 'Jewellery');
+  assert.deepEqual(c("Men's 925 Sterling Silver Signet Ring"), { site: 'mgw', siteCategory: "Men's Jewellery", subcategory: 'Rings' });
+  assert.equal(c('Female Heart 925 Silver Ring').site, 'wgw');
+  assert.ok(c('925 Sterling Silver Lobster Clasp Findings').reject);
+  assert.ok(c('925 Sterling Silver Jump Rings 50pcs').reject);
+  assert.ok(c('Sterling Silver Spacer Beads').reject);
+  assert.ok(c('Velvet Jewelry Box').reject);
+  assert.equal(sb.displayBrand(''), 'Silverbene');
+  assert.ok(sb.RULES.shop.test('https://silverbene.com/sterling-silver-rings/p-123.html'));
+});
