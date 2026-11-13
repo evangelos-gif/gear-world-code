@@ -87,7 +87,7 @@ $ScanExt = @('', '.sql', '.csv', '.tsv', '.json', '.jsonl', '.ndjson', '.txt', '
 # Both have a 5-second limit per file, so one odd file can never hold the backup up.
 $RxLimit = [TimeSpan]::FromSeconds(5)
 $RxOpts = [System.Text.RegularExpressions.RegexOptions]::Compiled # compiled: much faster on .NET Framework
-$SecretRx = [System.Text.RegularExpressions.Regex]::new(('(?i)(-----BEGIN ' + '[A-Z ]*PRIVATE KEY-----' + '|\b(?![A-Za-z0-9_]*site_?key\b)[A-Za-z0-9_]*(?:key|token|secret|password|passwd|pwd)\b["'']?\s*[:=]\s*["'']?(?=[A-Za-z_\-+/]*[0-9])(?=[0-9_\-+/]*[A-Za-z])[A-Za-z0-9_\-+/=]{20,}' + '|/api' + 'key/[A-Za-z0-9]{16,}' + '|\bgh[pousr]_[A-Za-z0-9]{30,}' + '|\bgithub' + '_pat_[A-Za-z0-9_]{40,}' + '|://[^\s/:@]+:[^\s/@]{8,}@' + '|\bBearer\s+(?=[A-Za-z_\-\.]*[0-9])[A-Za-z0-9_\-\.]{20,}' + '|\beyJ[A-Za-z0-9_\-]{10,}\.eyJ[A-Za-z0-9_\-]{10,}\.)'), $RxOpts, $RxLimit)
+$SecretRx = [System.Text.RegularExpressions.Regex]::new(('(?i)(-----BEGIN ' + '[A-Z ]*PRIVATE KEY-----' + '|\b(?![A-Za-z0-9_]*site_?key\b)[A-Za-z0-9_]*(?:key|token|secret|password|passwd|pwd)\b["'']?\s*[:=]\s*["'']?(?![123]x0{20,}A[A-Z]\b)(?=[A-Za-z_\-+/]*[0-9])(?=[0-9_\-+/]*[A-Za-z])[A-Za-z0-9_\-+/=]{20,}' + '|/api' + 'key/[A-Za-z0-9]{16,}' + '|\bgh[pousr]_[A-Za-z0-9]{30,}' + '|\bgithub' + '_pat_[A-Za-z0-9_]{40,}' + '|://[^\s/:@]+:[^\s/@]{8,}@' + '|\bBearer\s+(?=[A-Za-z_\-\.]*[0-9])[A-Za-z0-9_\-\.]{20,}' + '|\beyJ[A-Za-z0-9_\-]{10,}\.eyJ[A-Za-z0-9_\-]{10,}\.)'), $RxOpts, $RxLimit)
 # An address starts only where a run of address characters starts (the lookbehind keeps the search linear).
 $EmailRx = [System.Text.RegularExpressions.Regex]::new('(?<![A-Za-z0-9._%+\-])[A-Za-z0-9._%+\-]+@(?:[A-Za-z0-9\-]+\.)+[A-Za-z]{2,24}\b', $RxOpts, $RxLimit)
 # Addresses that are not customers: our domains, examples, services; and file names such as logo@2x.png.
@@ -770,8 +770,16 @@ try {
         Say '== GitHub (μόνο ανάγνωση) =='
         foreach ($r in $Repos) {
             try {
-                $list = @(Invoke-RestMethod -UseBasicParsing -TimeoutSec 60 -Uri ('https://api.github.com/repos/{0}/{1}/branches?per_page=100' -f $Owner, $r) -Headers @{ 'User-Agent' = 'gear-world-backup' })
-                $branches[$r] = $list
+                # Windows PowerShell 5.1 gives a JSON array back as ONE object: unrolled here. On 12/11 the list was
+                # "1 κλάδοι" and no zip was made (lessons L118). Up to 5 pages of 100.
+                $list = New-Object System.Collections.Generic.List[object]
+                for ($pg = 1; $pg -le 5; $pg++) {
+                    $resp = Invoke-RestMethod -UseBasicParsing -TimeoutSec 60 -Uri ('https://api.github.com/repos/{0}/{1}/branches?per_page=100&page={2}' -f $Owner, $r, $pg) -Headers @{ 'User-Agent' = 'gear-world-backup' }
+                    $items = @($resp | ForEach-Object { $_ })
+                    foreach ($it in $items) { if ($it.name -and ([string]$it.name) -match '^[A-Za-z0-9._/\-]+$') { $list.Add($it) } }
+                    if ($items.Count -lt 100) { break }
+                }
+                $branches[$r] = $list.ToArray()
                 Say ('  {0}: {1} κλάδοι' -f $r, $list.Count)
             } catch {
                 Say ('  {0}: δεν μπόρεσα να διαβάσω τους κλάδους ({1})' -f $r, $_.Exception.Message) 'Yellow'

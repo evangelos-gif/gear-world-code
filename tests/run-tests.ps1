@@ -3001,6 +3001,8 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
     Write-Utf8 (Join-Path $bHome 'gear-world-import\push.cmd') ('set GH=' + 'gh' + 'p_' + ('A1b2' * 9))
     Write-Utf8 (Join-Path $bHome 'gear-world-import\remote.txt') ('https://user:' + ('pw12' * 3) + '@example.org/repo.git')
     Write-Utf8 (Join-Path $bHome 'gear-world-hub\site.config.js') ("export default { turnstileSiteKey: '0x4AAAAAAA" + 'B1c2D3e4F5g6H7' + "' };`n")
+    # Cloudflare's published Turnstile test secret (always passes): not a key (lessons L118).
+    Write-Utf8 (Join-Path $bHome 'gear-world-hub\security.js') ('const TEST_SECRET_KEY = "1x' + ('0' * 31) + 'AA";' + "`n")
     Write-Utf8 (Join-Path $bHome 'gear-world-hub\old.7z') 'not readable here'
     $gzPath = Join-Path $bHome 'gear-world-hub\old-list.csv.gz'
     $gzFile = [System.IO.File]::Create($gzPath)
@@ -3097,7 +3099,7 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         Check ($rt.Contains('old-deploy.ps1') -and $rt.Contains('registry-export.sql') -and $rt.Contains('.dev.vars') -and $rt.Contains('.env.local') -and $rt.Contains('gear-world-secrets') -and -not $rt.Contains('notes.sql') -and -not $rt.Contains($fakeSecret) -and -not $rt.Contains('shop-test.invalid')) 'backup check: files with keys or customer e-mails listed as left out, by path only (L113)'
         Check ($rt.Contains('Σύνδεση wrangler: ΕΝΤΑΞΕΙ') -and $rt.Contains('ΤΕΛΟΣ ΕΛΕΓΧΟΥ BACKUP')) 'backup check: wrangler login checked past a warning, last line written'
         Check ($rt.Contains('big-export.sql  (έχει emails)') -and $rt.Contains('old-list.csv.gz  (έχει emails)') -and $rt.Contains('members-export.zip  (έχει emails)') -and $rt.Contains('old.7z  (αρχείο .7z')) 'backup check: e-mails found past the first 1 MB pieces, inside .gz and .zip; .7z left out (L113)'
-        Check ($rt.Contains('feeds-list.txt') -and $rt.Contains('push.cmd') -and $rt.Contains('remote.txt') -and -not $rt.Contains('site.config.js') -and -not $rt.Contains(('ab12' * 8))) 'backup check: Awin feed key, GitHub token and password in a link found; a public sitekey is not a key (L113)'
+        Check ($rt.Contains('feeds-list.txt') -and $rt.Contains('push.cmd') -and $rt.Contains('remote.txt') -and -not $rt.Contains('site.config.js') -and -not $rt.Contains('security.js') -and -not $rt.Contains(('ab12' * 8))) 'backup check: Awin feed key, GitHub token and password in a link found; a public sitekey and the Turnstile test secret are not keys (L113, L118)'
         Check ((Run-B @('-ScanMaxMB', '1')) -eq 0 -and (Get-BReport).Contains('big-export.sql  (πάνω από 1 MB')) 'backup check: a file over -ScanMaxMB stays out (L113)'
         Check ($rt.Contains('ξύπνιος') -and $rt.Contains('κανονικό ύπνο')) 'backup check: the PC is kept awake in the check too, back to normal at the end (L115)'
         Check ((Run-B @('-FileBudgetSec', '0')) -eq 0 -and (Get-BReport).Contains('big-export.sql  (δεν ελέγχθηκε εγκαίρως)')) 'backup check: a file that takes longer than -FileBudgetSec stays out as slow, the check goes on (L115)'
@@ -3254,6 +3256,43 @@ Check ($LASTEXITCODE -eq 0 -and $lo.Contains('GW_BACKUP_20261112_020000.txt') -a
 Check ($LASTEXITCODE -eq 2) 'last report: a wrong -Name stops at once (exit 2)'
 & $exe -NoProfile -ExecutionPolicy Bypass -File $lTool -HomeDir (Join-Path $work 'lr-empty') -NoClipboard | Out-Null
 Check ($LASTEXITCODE -eq 3) 'last report: no report found says so (exit 3)'
+
+# Lessons L118: the GitHub branch list is unrolled (Windows PowerShell 5.1 gives a JSON array back as one object).
+$gbt = [System.IO.File]::ReadAllText((Join-Path (Join-Path $repo 'tools') 'gw-backup.ps1'))
+Check ($gbt.Contains('$items = @($resp | ForEach-Object { $_ })') -and $gbt.Contains('branches?per_page=100&page={2}') -and -not $gbt.Contains('$list = @(Invoke-RestMethod')) 'gw-backup: the GitHub branch list is unrolled and paged (L118)'
+
+# gw-backup-remove-old.ps1 (lessons L117): deletes the old backup folder only after a complete new one, with the phrase.
+if ($isWin) {
+    Write-Host 'gw-backup-remove-old.ps1'
+    $rTool = Join-Path (Join-Path $repo 'tools') 'gw-backup-remove-old.ps1'
+    $rBase = Join-Path $work 'rm-drive'
+    $rOld = Join-Path $rBase 'GearWorldBackup'
+    $rNew = Join-Path $rBase 'GearWorldBackup-2026-11-12'
+    $rHome = Join-Path $work 'rm-home'
+    function New-ROld {
+        Write-Utf8 (Join-Path $rOld 'files\gear-world-hub\old.txt') 'old copy'
+        Write-Utf8 (Join-Path $rOld 'd1\test-db\schema.sql') 'CREATE TABLE t (a);'
+    }
+    New-ROld
+    Write-Utf8 (Join-Path $rNew 'files\gear-world-hub\new.txt') 'new copy'
+    Write-Utf8 (Join-Path $rNew 'd1\test-db\schema.sql') 'CREATE TABLE t (a);'
+    Write-Utf8 (Join-Path $rNew 'logs\GW_BACKUP_20261112_223400.txt') 'report'
+    function Run-R([string[]]$extra) {
+        $all = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $rTool, '-HomeDir', $rHome, '-AllowSystemDrive', '-NoClipboard') + $extra
+        & $exe @all | Out-Null
+        return $LASTEXITCODE
+    }
+    function Get-RReport { $r = @(Get-ChildItem -LiteralPath (Join-Path $rHome 'gear-world-reports') -Filter 'GW_BACKUP_REMOVE_OLD_*.txt' -ErrorAction SilentlyContinue | Sort-Object LastWriteTime | Select-Object -Last 1); if ($r.Count) { return [System.IO.File]::ReadAllText($r[0].FullName) }; return '' }
+    Check ((Run-R @('-Old', $rOld, '-Keep', $rNew)) -eq 3 -and (Test-Path -LiteralPath $rOld) -and (Get-RReport).Contains('README-RESTORE.txt')) 'remove old backup: a new backup without README-RESTORE.txt is not complete, nothing deleted (exit 3)'
+    Write-Utf8 (Join-Path $rNew 'README-RESTORE.txt') 'how to restore'
+    Check ((Run-R @('-Old', $rOld, '-Keep', $rNew)) -eq 0 -and (Test-Path -LiteralPath (Join-Path $rOld 'files\gear-world-hub\old.txt')) -and (Get-RReport).Contains('Μόνο έλεγχος') -and (Get-RReport).TrimEnd().EndsWith('ΤΕΛΟΣ ΣΒΗΣΙΜΑΤΟΣ')) 'remove old backup: without -Apply only shows what would go, deletes nothing'
+    Check ((Run-R @('-Old', $rOld, '-Keep', $rNew, '-Apply')) -eq 1 -and (Test-Path -LiteralPath $rOld)) 'remove old backup: -Apply without the phrase deletes nothing (exit 1)'
+    Check ((Run-R @('-Old', $rOld, '-Keep', $rNew, '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ BACKUP D')) -eq 1 -and (Test-Path -LiteralPath $rOld)) 'remove old backup: the wrong phrase deletes nothing'
+    Check ((Run-R @('-Old', $rNew, '-Keep', $rNew, '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ ΣΒΗΣΙΜΟ ΠΑΛΙΟΥ BACKUP')) -eq 2 -and (Test-Path -LiteralPath $rNew)) 'remove old backup: the same folder twice is refused (exit 2)'
+    Write-Utf8 (Join-Path $rBase 'Photos\files\x.txt') 'not a backup'
+    Check ((Run-R @('-Old', (Join-Path $rBase 'Photos'), '-Keep', $rNew, '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ ΣΒΗΣΙΜΟ ΠΑΛΙΟΥ BACKUP')) -eq 2 -and (Test-Path -LiteralPath (Join-Path $rBase 'Photos\files\x.txt'))) 'remove old backup: only folders named GearWorldBackup* are deleted (exit 2)'
+    Check ((Run-R @('-Old', $rOld, '-Keep', $rNew, '-Apply', '-Approve', 'egkrino ΣΒΗΣΙΜΟ ΠΑΛΙΟΥ BACKUP')) -eq 0 -and -not (Test-Path -LiteralPath $rOld) -and (Test-Path -LiteralPath (Join-Path $rNew 'files\gear-world-hub\new.txt')) -and (Get-RReport).Contains('σβήστηκε')) 'remove old backup: with the phrase the old folder goes, the new one stays'
+}
 
 # 10. gwh-code-export.ps1 (Hub code into the repo) on a fake hub folder: read-only, secrets/IDs/emails masked, exact text blocks
 Write-Host 'gwh-code-export.ps1'
