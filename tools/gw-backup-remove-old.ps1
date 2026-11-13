@@ -9,9 +9,10 @@
 
   It refuses (exit 2) unless: -Old and -Keep are different folders on the same drive, that drive is not the Windows
   drive, neither is the drive itself or inside the other, both names start with GearWorldBackup, and -Old looks like a
-  backup (files\, d1\ or README-RESTORE.txt). It refuses (exit 3) unless -Keep is a complete backup: README-RESTORE.txt
-  (written at the very end of gw-backup), at least one folder in files\ and in d1\, a report in logs\, and no half
-  written database (d1\_new_*).
+  backup (files\, d1\ or README-RESTORE.txt), neither is a junction or symlink, and the paths are plain D:\... ones.
+  It refuses (exit 3) unless -Keep is a complete backup: README-RESTORE.txt, at least one folder in files\ and in d1\,
+  no half written or failed database (d1\_new_*, d1\*.incomplete), a report of a full run in logs\ with no ΠΡΟΒΛΗΜΑ
+  outside its GitHub part, the GitHub zips of every repo the old folder has zips of, and no newer report in -Old.
 
   Nothing on the PC, the sites, the databases or Cloudflare is touched. There is no way back for the deleted folder:
   the backup from then on is -Keep. Report in <home>\gear-world-reports\GW_BACKUP_REMOVE_OLD_<time>.txt, copied to
@@ -84,7 +85,8 @@ Say ('Ώρα: {0}' -f (Get-Date -Format 'yyyy-MM-dd HH:mm'))
 
 # 1. The two folders and the drive.
 if (-not $Keep) { Stop-Refuse 'λείπει το -Keep (ο νέος φάκελος του backup που μένει).' }
-if (-not [System.IO.Path]::IsPathRooted($Old) -or -not [System.IO.Path]::IsPathRooted($Keep)) { Stop-Refuse 'οι φάκελοι πρέπει να είναι πλήρεις διαδρομές (π.χ. D:\GearWorldBackup).' }
+if ($Old -notmatch '^[A-Za-z]:\\' -or $Keep -notmatch '^[A-Za-z]:\\') { Stop-Refuse 'οι φάκελοι πρέπει να είναι πλήρεις διαδρομές σε δίσκο (π.χ. D:\GearWorldBackup).' }
+if (($Old + $Keep) -match '[%!"*?<>|]') { Stop-Refuse 'η διαδρομή έχει χαρακτήρες που δεν δέχομαι (% ! " * ? < > |).' }
 $oldFull = Get-Full $Old
 $keepFull = Get-Full $Keep
 $oldRoot = [System.IO.Path]::GetPathRoot($oldFull).TrimEnd('\', '/')
@@ -99,6 +101,11 @@ $sysRoot = ([string]$env:SystemDrive).TrimEnd('\', '/')
 if ($oldRoot -ieq $sysRoot -and -not $AllowSystemDrive) { Stop-Refuse ('ο {0} είναι ο δίσκος των Windows, όχι ο εξωτερικός.' -f $oldRoot) }
 if (-not ([System.IO.Path]::GetFileName($oldFull) -like 'GearWorldBackup*') -or -not ([System.IO.Path]::GetFileName($keepFull) -like 'GearWorldBackup*')) { Stop-Refuse 'σβήνω μόνο φακέλους backup του Gear World (το όνομα αρχίζει με GearWorldBackup).' }
 if (-not (Test-Path -LiteralPath $oldFull -PathType Container)) { Say ('Ο παλιός φάκελος {0} δεν υπάρχει: δεν έχει τίποτα να σβηστεί.' -f $oldFull) 'Yellow'; Finish 0 }
+foreach ($pp in @($oldFull, $keepFull)) {
+    if (Test-Path -LiteralPath $pp) {
+        if (((Get-Item -LiteralPath $pp -Force).Attributes -band [System.IO.FileAttributes]::ReparsePoint) -ne 0) { Stop-Refuse ('ο {0} είναι σύνδεσμος (junction/symlink), όχι κανονικός φάκελος.' -f $pp) }
+    }
+}
 $looksBackup = (Test-Path -LiteralPath (Join-Path $oldFull 'files')) -or (Test-Path -LiteralPath (Join-Path $oldFull 'd1')) -or (Test-Path -LiteralPath (Join-Path $oldFull 'README-RESTORE.txt'))
 if (-not $looksBackup) { Stop-Refuse 'ο παλιός φάκελος δεν μοιάζει με backup (δεν έχει files, d1 ή README-RESTORE.txt).' }
 
@@ -108,12 +115,40 @@ if (-not (Test-Path -LiteralPath (Join-Path $keepFull 'README-RESTORE.txt'))) { 
 $nFiles = @(Get-ChildItem -LiteralPath (Join-Path $keepFull 'files') -Directory -ErrorAction SilentlyContinue).Count
 $dbDirs = @(Get-ChildItem -LiteralPath (Join-Path $keepFull 'd1') -Directory -ErrorAction SilentlyContinue)
 $nDb = @($dbDirs | Where-Object { $_.Name -notlike '_new_*' }).Count
-$half = @($dbDirs | Where-Object { $_.Name -like '_new_*' }).Count
-$nLogs = @(Get-ChildItem -LiteralPath (Join-Path $keepFull 'logs') -Filter 'GW_BACKUP_*.txt' -File -ErrorAction SilentlyContinue).Count
+$half = @($dbDirs | Where-Object { $_.Name -like '_new_*' -or $_.Name -like '*.incomplete' }).Count
+$logs = @(Get-ChildItem -LiteralPath (Join-Path $keepFull 'logs') -Filter 'GW_BACKUP_*.txt' -File -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending)
+$nLogs = $logs.Count
+# The newest FULL run (with the copy and the databases; a GitHub-only run does not count): no ΠΡΟΒΛΗΜΑ outside its
+# GitHub part (the code is on GitHub anyway). README-RESTORE.txt alone is written even after problems (review 13/11).
+$full = $null
+foreach ($lg in $logs) {
+    $tx = [System.IO.File]::ReadAllText($lg.FullName)
+    if ($tx.Contains('== Αντιγραφή αρχείων') -and $tx.Contains('== Βάσεις D1')) { $full = @{ file = $lg; text = $tx }; break }
+}
+$badLines = 0
+if ($full) {
+    $section = ''
+    foreach ($line in ($full.text -split "`r?`n")) {
+        if ($line.StartsWith('== ')) { $section = $line; continue }
+        if ($line.Contains('ΠΡΟΒΛΗΜΑ') -and -not $section.StartsWith('== GitHub')) { $badLines++ }
+    }
+}
+# Offline copies of the code: if the old backup has GitHub zips of a repo, the new one must have them too.
+$zipsMissing = New-Object System.Collections.Generic.List[string]
+foreach ($gd in @(Get-ChildItem -LiteralPath (Join-Path $oldFull 'github') -Directory -ErrorAction SilentlyContinue)) {
+    if (@(Get-ChildItem -LiteralPath $gd.FullName -Filter '*.zip' -File -ErrorAction SilentlyContinue).Count -eq 0) { continue }
+    if (@(Get-ChildItem -LiteralPath (Join-Path (Join-Path $keepFull 'github') $gd.Name) -Filter '*.zip' -File -ErrorAction SilentlyContinue).Count -eq 0) { $zipsMissing.Add($gd.Name) }
+}
+# The one that stays must be the newer one.
+$oldLog = @(Get-ChildItem -LiteralPath (Join-Path $oldFull 'logs') -Filter 'GW_BACKUP_*.txt' -File -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending | Select-Object -First 1)
 if ($nFiles -lt 1) { $missing.Add('φάκελοι στο files') }
 if ($nDb -lt 1) { $missing.Add('βάσεις στο d1') }
-if ($half -gt 0) { $missing.Add(('{0} βάσεις γραμμένες μισές (d1\_new_*)' -f $half)) }
+if ($half -gt 0) { $missing.Add(('{0} βάσεις γραμμένες μισές ή με πρόβλημα (d1\_new_*, *.incomplete)' -f $half)) }
 if ($nLogs -lt 1) { $missing.Add('αναφορά στο logs') }
+elseif (-not $full) { $missing.Add('αναφορά ολόκληρου backup (με αντιγραφή αρχείων και βάσεις) στο logs') }
+elseif ($badLines -gt 0) { $missing.Add(('{0} γραμμές ΠΡΟΒΛΗΜΑ στην αναφορά {1} (έξω από το GitHub)' -f $badLines, $full.file.Name)) }
+if ($zipsMissing.Count -gt 0) { $missing.Add(('τα zip του GitHub για {0} (ο παλιός φάκελος τα έχει)' -f ($zipsMissing -join ', '))) }
+if ($oldLog.Count -gt 0 -and $logs.Count -gt 0 -and $oldLog[0].LastWriteTime -gt $logs[0].LastWriteTime) { $missing.Add('νεότερη ημερομηνία: ο «παλιός» φάκελος έχει νεότερη αναφορά από τον «νέο» (μήπως μπερδεύτηκαν;)') }
 Say ('Νέο backup: {0} φάκελοι στο files, {1} βάσεις στο d1, {2} αναφορές στο logs' -f $nFiles, $nDb, $nLogs)
 if ($missing.Count -gt 0) {
     Say ('ΠΡΟΒΛΗΜΑ: το νέο backup δεν είναι ολόκληρο (λείπει: {0}). Δεν σβήστηκε τίποτα.' -f ($missing -join ', ')) 'Red'
@@ -140,7 +175,7 @@ if ((Normalize-Phrase $Approve) -ne (Normalize-Phrase $phrase)) { Say ('Λάθο
 # 4. Delete (rd is much faster than Remove-Item for tens of thousands of files).
 Say ('Σβήνω τον {0} ...' -f $oldFull)
 $t0 = Get-Date
-& cmd /c ('rd /s /q "{0}" >nul 2>nul' -f $oldFull) # errors stay inside cmd: no PowerShell error records
+& cmd /d /c ('rd /s /q "{0}" >nul 2>nul' -f $oldFull) # errors stay inside cmd: no PowerShell error records
 if (Test-Path -LiteralPath $oldFull) {
     $left = @(Get-ChildItem -LiteralPath $oldFull -Recurse -File -Force -ErrorAction SilentlyContinue).Count
     Say ('ΠΡΟΒΛΗΜΑ: έμειναν {0} αρχεία στον {1} (ανοιχτά ή κλειδωμένα). Κλείσε ό,τι είναι ανοιχτό από τον δίσκο και ξανατρέξε την ίδια εντολή.' -f $left, $oldFull) 'Red'

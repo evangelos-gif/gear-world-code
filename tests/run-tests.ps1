@@ -3182,6 +3182,9 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         Check ((Test-Path -LiteralPath (Join-Path $bTarget 'README-RESTORE.txt')) -and ([System.IO.File]::ReadAllText((Join-Path $bTarget 'README-RESTORE.txt'))).Contains('wrangler secret put')) 'backup: restore instructions, with how keys come back'
         Remove-Item -LiteralPath (Join-Path $bHome 'gear-world-hub\worker.js')
         Check ((Run-B @('-Apply', '-Approve', $ok, '-SkipDatabases')) -eq 0 -and (Test-Path -LiteralPath (Join-Path $f 'gear-world-hub\worker.js'))) 'backup again: a file deleted on the PC stays on the drive'
+        $gc = Run-B @('-Apply', '-Approve', $ok, '-OnlyGitHub')
+        $gr = Get-BReport
+        Check ($gc -eq 0 -and $gr.Contains('Μόνο GitHub') -and -not $gr.Contains('== Αντιγραφή αρχείων') -and -not $gr.Contains('== Βάσεις D1 (') -and -not $gr.Contains('== Καθάρισμα')) 'backup -OnlyGitHub: no folders, no cleaning, no databases (L118)'
     } finally {
         $env:PATH = $oldPath
         Remove-Item Env:\GW_FAKE_STATE -ErrorAction SilentlyContinue
@@ -3276,7 +3279,9 @@ if ($isWin) {
     New-ROld
     Write-Utf8 (Join-Path $rNew 'files\gear-world-hub\new.txt') 'new copy'
     Write-Utf8 (Join-Path $rNew 'd1\test-db\schema.sql') 'CREATE TABLE t (a);'
-    Write-Utf8 (Join-Path $rNew 'logs\GW_BACKUP_20261112_223400.txt') 'report'
+    # Like the real 12/11 log: problems only in the GitHub part.
+    Write-Utf8 (Join-Path $rNew 'logs\GW_BACKUP_20261112_223400.txt') ("== Αντιγραφή αρχείων ==`n  OK  x`n`n== GitHub ==`n  ΠΡΟΒΛΗΜΑ: gearworld-media a b`n`n== Βάσεις D1 ==`n  OK  test-db`n")
+    Write-Utf8 (Join-Path $rOld 'github\gear-world-code\main.zip') 'old zip'
     function Run-R([string[]]$extra) {
         $all = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $rTool, '-HomeDir', $rHome, '-AllowSystemDrive', '-NoClipboard') + $extra
         & $exe @all | Out-Null
@@ -3285,6 +3290,15 @@ if ($isWin) {
     function Get-RReport { $r = @(Get-ChildItem -LiteralPath (Join-Path $rHome 'gear-world-reports') -Filter 'GW_BACKUP_REMOVE_OLD_*.txt' -ErrorAction SilentlyContinue | Sort-Object LastWriteTime | Select-Object -Last 1); if ($r.Count) { return [System.IO.File]::ReadAllText($r[0].FullName) }; return '' }
     Check ((Run-R @('-Old', $rOld, '-Keep', $rNew)) -eq 3 -and (Test-Path -LiteralPath $rOld) -and (Get-RReport).Contains('README-RESTORE.txt')) 'remove old backup: a new backup without README-RESTORE.txt is not complete, nothing deleted (exit 3)'
     Write-Utf8 (Join-Path $rNew 'README-RESTORE.txt') 'how to restore'
+    Check ((Run-R @('-Old', $rOld, '-Keep', $rNew)) -eq 3 -and (Get-RReport).Contains('zip του GitHub για gear-world-code')) 'remove old backup: refused while only the old folder has the GitHub zips of a repo (exit 3)'
+    Write-Utf8 (Join-Path $rNew 'github\gear-world-code\main.zip') 'new zip'
+    New-Item -ItemType Directory -Path (Join-Path $rNew 'd1\test-db.incomplete') -Force | Out-Null
+    Check ((Run-R @('-Old', $rOld, '-Keep', $rNew)) -eq 3 -and (Test-Path -LiteralPath $rOld)) 'remove old backup: a database that failed (d1\*.incomplete) means not complete (exit 3)'
+    Remove-Item -LiteralPath (Join-Path $rNew 'd1\test-db.incomplete') -Recurse -Force
+    Write-Utf8 (Join-Path $rNew 'logs\GW_BACKUP_20261113_090000.txt') ("== Αντιγραφή αρχείων ==`n  ΠΡΟΒΛΗΜΑ στο C:\x (robocopy 8)`n`n== Βάσεις D1 ==`n  OK  test-db`n")
+    Check ((Run-R @('-Old', $rOld, '-Keep', $rNew)) -eq 3 -and (Get-RReport).Contains('γραμμές ΠΡΟΒΛΗΜΑ')) 'remove old backup: a newest full run with a copy problem means not complete (exit 3)'
+    Remove-Item -LiteralPath (Join-Path $rNew 'logs\GW_BACKUP_20261113_090000.txt') -Force
+    Check ((Run-R @('-Old', 'GearWorldBackup', '-Keep', $rNew)) -eq 2) 'remove old backup: a path that is not a full D:\... path is refused (exit 2)'
     Check ((Run-R @('-Old', $rOld, '-Keep', $rNew)) -eq 0 -and (Test-Path -LiteralPath (Join-Path $rOld 'files\gear-world-hub\old.txt')) -and (Get-RReport).Contains('Μόνο έλεγχος') -and (Get-RReport).TrimEnd().EndsWith('ΤΕΛΟΣ ΣΒΗΣΙΜΑΤΟΣ')) 'remove old backup: without -Apply only shows what would go, deletes nothing'
     Check ((Run-R @('-Old', $rOld, '-Keep', $rNew, '-Apply')) -eq 1 -and (Test-Path -LiteralPath $rOld)) 'remove old backup: -Apply without the phrase deletes nothing (exit 1)'
     Check ((Run-R @('-Old', $rOld, '-Keep', $rNew, '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ BACKUP D')) -eq 1 -and (Test-Path -LiteralPath $rOld)) 'remove old backup: the wrong phrase deletes nothing'

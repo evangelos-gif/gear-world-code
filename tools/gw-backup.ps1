@@ -44,6 +44,7 @@ param(
     [string]$Approve = '',
     [switch]$SkipFeeds,
     [switch]$SkipDatabases,
+    [switch]$OnlyGitHub, # only the GitHub zips: no folders, feeds or databases (e.g. after the L118 fix)
     [switch]$SkipGitHub,
     [switch]$AllowSystemDrive,
     [string]$HomeDir = '',
@@ -68,6 +69,7 @@ if (-not $HomeDir) { $HomeDir = $HOME }
 if (-not $OutDir) { $OutDir = Join-Path $HomeDir 'gear-world-reports' }
 if (-not $WorkDir) { $WorkDir = Join-Path $HomeDir 'gear-world-backup-work' }
 if ($PageRows -lt 1) { $PageRows = 3000 }
+if ($OnlyGitHub) { $SkipDatabases = $true; $SkipFeeds = $true }
 if ($FileBudgetSec -lt 0) { $FileBudgetSec = 60 }
 if ($ProgressSec -lt 0) { $ProgressSec = 30 } # 0 = a line for every file (tests)
 $script:FileDeadline = [DateTime]::MaxValue
@@ -87,7 +89,7 @@ $ScanExt = @('', '.sql', '.csv', '.tsv', '.json', '.jsonl', '.ndjson', '.txt', '
 # Both have a 5-second limit per file, so one odd file can never hold the backup up.
 $RxLimit = [TimeSpan]::FromSeconds(5)
 $RxOpts = [System.Text.RegularExpressions.RegexOptions]::Compiled # compiled: much faster on .NET Framework
-$SecretRx = [System.Text.RegularExpressions.Regex]::new(('(?i)(-----BEGIN ' + '[A-Z ]*PRIVATE KEY-----' + '|\b(?![A-Za-z0-9_]*site_?key\b)[A-Za-z0-9_]*(?:key|token|secret|password|passwd|pwd)\b["'']?\s*[:=]\s*["'']?(?![123]x0{20,}A[A-Z]\b)(?=[A-Za-z_\-+/]*[0-9])(?=[0-9_\-+/]*[A-Za-z])[A-Za-z0-9_\-+/=]{20,}' + '|/api' + 'key/[A-Za-z0-9]{16,}' + '|\bgh[pousr]_[A-Za-z0-9]{30,}' + '|\bgithub' + '_pat_[A-Za-z0-9_]{40,}' + '|://[^\s/:@]+:[^\s/@]{8,}@' + '|\bBearer\s+(?=[A-Za-z_\-\.]*[0-9])[A-Za-z0-9_\-\.]{20,}' + '|\beyJ[A-Za-z0-9_\-]{10,}\.eyJ[A-Za-z0-9_\-]{10,}\.)'), $RxOpts, $RxLimit)
+$SecretRx = [System.Text.RegularExpressions.Regex]::new(('(?i)(-----BEGIN ' + '[A-Z ]*PRIVATE KEY-----' + '|\b(?![A-Za-z0-9_]*site_?key\b)[A-Za-z0-9_]*(?:key|token|secret|password|passwd|pwd)\b["'']?\s*[:=]\s*["'']?(?![123]x0{20,}A[A-Z](?![A-Za-z0-9_\-+/=]))(?=[A-Za-z_\-+/]*[0-9])(?=[0-9_\-+/]*[A-Za-z])[A-Za-z0-9_\-+/=]{20,}' + '|/api' + 'key/[A-Za-z0-9]{16,}' + '|\bgh[pousr]_[A-Za-z0-9]{30,}' + '|\bgithub' + '_pat_[A-Za-z0-9_]{40,}' + '|://[^\s/:@]+:[^\s/@]{8,}@' + '|\bBearer\s+(?=[A-Za-z_\-\.]*[0-9])[A-Za-z0-9_\-\.]{20,}' + '|\beyJ[A-Za-z0-9_\-]{10,}\.eyJ[A-Za-z0-9_\-]{10,}\.)'), $RxOpts, $RxLimit)
 # An address starts only where a run of address characters starts (the lookbehind keeps the search linear).
 $EmailRx = [System.Text.RegularExpressions.Regex]::new('(?<![A-Za-z0-9._%+\-])[A-Za-z0-9._%+\-]+@(?:[A-Za-z0-9\-]+\.)+[A-Za-z]{2,24}\b', $RxOpts, $RxLimit)
 # Addresses that are not customers: our domains, examples, services; and file names such as logo@2x.png.
@@ -189,6 +191,19 @@ function Write-Interrupted {
     try { if ($script:Awake) { [void][GwBackupPower.Native]::SetThreadExecutionState([uint32]2147483648) } } catch { }
     try { if ($null -ne $script:ConsoleMode) { [void][GwBackupPower.Native]::SetConsoleMode([GwBackupPower.Native]::GetStdHandle(-10), [uint32]$script:ConsoleMode) } } catch { }
     try { if ($Apply) { $Host.UI.RawUI.WindowTitle = 'GW BACKUP - ΔΙΑΚΟΠΗ' } } catch { }
+}
+# The branches of a repo. Windows PowerShell 5.1 gives a JSON array back as ONE object: unrolled here. On 12/11 the list
+# was "1 κλάδοι" and no zip was made (lessons L118). Up to 5 pages of 100; a name that is not a plain branch name is
+# skipped. Throws when GitHub does not answer.
+function Get-Branches([string]$r) {
+    $list = New-Object System.Collections.Generic.List[object]
+    for ($pg = 1; $pg -le 5; $pg++) {
+        $resp = Invoke-RestMethod -UseBasicParsing -TimeoutSec 60 -Uri ('https://api.github.com/repos/{0}/{1}/branches?per_page=100&page={2}' -f $Owner, $r, $pg) -Headers @{ 'User-Agent' = 'gear-world-backup' }
+        $items = @($resp | ForEach-Object { $_ })
+        foreach ($it in $items) { if ($it.name -and ([string]$it.name) -match '^[A-Za-z0-9._/\-]+$') { $list.Add($it) } }
+        if ($items.Count -lt 100) { break }
+    }
+    return ,($list.ToArray())
 }
 # A progress line at most every -ProgressSec seconds, on the screen only (lessons L115, L117).
 function Beat([string]$msg) {
@@ -693,10 +708,12 @@ try {
         $loose = @(Get-ChildItem -LiteralPath $downloads -File -ErrorAction SilentlyContinue | Where-Object { $_.Name -match '^\d+-.+\.csv(\.gz)?$' } | ForEach-Object { $_.Name })
         if ($loose.Count -gt 0) { $copies += @{ src = $downloads; dst = (Join-Path (Join-Path $Target 'files') 'Downloads'); rel = 'Downloads'; kind = 'loose feeds'; files = $loose; out = @() } }
     }
+    if ($OnlyGitHub) { $copies = @() }
     $need = [double]0
     $outAll = New-Object System.Collections.Generic.List[object]
     Start-Phase 'Από αυτόν τον υπολογιστή'
-    if ($copies.Count -eq 0) { Say '  Δεν βρέθηκαν φάκελοι του Gear World.' 'Yellow' }
+    if ($OnlyGitHub) { Say '  Μόνο GitHub: φάκελοι, feeds και βάσεις δεν αντιγράφονται αυτή τη φορά.' }
+    elseif ($copies.Count -eq 0) { Say '  Δεν βρέθηκαν φάκελοι του Gear World.' 'Yellow' }
     foreach ($c in $copies) {
         if ($c.files.Count -gt 0) {
             $b = [double]0
@@ -770,16 +787,8 @@ try {
         Say '== GitHub (μόνο ανάγνωση) =='
         foreach ($r in $Repos) {
             try {
-                # Windows PowerShell 5.1 gives a JSON array back as ONE object: unrolled here. On 12/11 the list was
-                # "1 κλάδοι" and no zip was made (lessons L118). Up to 5 pages of 100.
-                $list = New-Object System.Collections.Generic.List[object]
-                for ($pg = 1; $pg -le 5; $pg++) {
-                    $resp = Invoke-RestMethod -UseBasicParsing -TimeoutSec 60 -Uri ('https://api.github.com/repos/{0}/{1}/branches?per_page=100&page={2}' -f $Owner, $r, $pg) -Headers @{ 'User-Agent' = 'gear-world-backup' }
-                    $items = @($resp | ForEach-Object { $_ })
-                    foreach ($it in $items) { if ($it.name -and ([string]$it.name) -match '^[A-Za-z0-9._/\-]+$') { $list.Add($it) } }
-                    if ($items.Count -lt 100) { break }
-                }
-                $branches[$r] = $list.ToArray()
+                $list = Get-Branches $r
+                $branches[$r] = $list
                 Say ('  {0}: {1} κλάδοι' -f $r, $list.Count)
             } catch {
                 Say ('  {0}: δεν μπόρεσα να διαβάσω τους κλάδους ({1})' -f $r, $_.Exception.Message) 'Yellow'
@@ -821,13 +830,15 @@ try {
     if (-not (Test-Path -LiteralPath $Target)) { New-Item -ItemType Directory -Path $Target -Force | Out-Null }
 
     # 7. Old copies of keys and customer data off the drive.
-    Start-Phase 'Καθάρισμα παλιών αντιγράφων με κλειδιά ή πελάτες'
-    $cl = Clear-DriveSensitive $true $flaggedRel
-    Say ('  Σβήστηκαν {0} από {1}.' -f $cl.removed, $cl.found)
-    if ($cl.removed -lt $cl.found) { $problems++ }
+    if (-not $OnlyGitHub) {
+        Start-Phase 'Καθάρισμα παλιών αντιγράφων με κλειδιά ή πελάτες'
+        $cl = Clear-DriveSensitive $true $flaggedRel
+        Say ('  Σβήστηκαν {0} από {1}.' -f $cl.removed, $cl.found)
+        if ($cl.removed -lt $cl.found) { $problems++ }
+    }
 
     # 8. Copy (robocopy: only new or changed files). Key files and the files the scan found are left out.
-    Start-Phase 'Αντιγραφή αρχείων'
+    if (-not $OnlyGitHub) { Start-Phase 'Αντιγραφή αρχείων' }
     foreach ($c in $copies) {
         try {
             if (-not (Test-Path -LiteralPath $c.dst)) { New-Item -ItemType Directory -Path $c.dst -Force | Out-Null }
@@ -933,7 +944,10 @@ try {
     # so if the night runs out, the files and the databases are already on the drive (lessons L117).
     if (-not $SkipGitHub) {
         Start-Phase 'GitHub'
-        foreach ($r in $branches.Keys) {
+        foreach ($r in $Repos) {
+            # Read again now: the plan was hours ago and a branch may be gone (lessons L118).
+            try { $branches[$r] = Get-Branches $r } catch { $problems++; Say ('  ΠΡΟΒΛΗΜΑ: το GitHub δεν έδωσε τους κλάδους του {0} ({1})' -f $r, $_.Exception.Message) 'Red'; continue }
+            if (@($branches[$r]).Count -eq 0) { $problems++; Say ('  ΠΡΟΒΛΗΜΑ: {0}: 0 κλάδοι (το branches.txt δεν άλλαξε)' -f $r) 'Red'; continue }
             try {
                 $dir = Join-Path (Join-Path $Target 'github') $r
                 if (-not (Test-Path -LiteralPath $dir)) { New-Item -ItemType Directory -Path $dir -Force | Out-Null }
