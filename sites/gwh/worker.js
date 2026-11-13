@@ -977,6 +977,34 @@ export async function withCountryBar(request, response) {
   return new Response(i < 0 ? text : text.slice(0, i) + COUNTRY_BAR + text.slice(i), { status: response.status, headers });
 }
 
+// GWH-SITE-VERIFICATION (owner, 13 Nov 2026, lessons L119): Mitgo checks that gearworldhub.com is ours by the tag
+// <meta name="mitgo-verification" content="<code>"> between <head> and </head> of the home page. The code has the form of
+// a UUID, and UUIDs never go into the repo (CLAUDE.md), so it is the Worker secret MITGO_VERIFICATION (set by
+// tools/gwh-hub-v2.ps1 -MitgoCode) and the tag is added here to each answer of the home page, never to a stored copy.
+// Without the secret, or with a value of another form, the page is exactly the file.
+export const MITGO_CODE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+export function verificationTag(env) {
+  const code = String((env && env.MITGO_VERIFICATION) || "").trim().toLowerCase();
+  return MITGO_CODE.test(code) ? `<meta name="mitgo-verification" content="${code}">` : "";
+}
+export async function withSiteVerification(request, env, response) {
+  const tag = verificationTag(env);
+  if (!tag || request.method !== "GET") return response;
+  const path = new URL(request.url).pathname;
+  if (path !== "/" && path !== "/index.html") return response;
+  if (!response || response.status !== 200 || !response.body || !/^text\/html/i.test(String(response.headers.get("Content-Type") || ""))) return response;
+  const headers = new Headers(response.headers);
+  headers.delete("Content-Length");
+  headers.delete("ETag");
+  if (typeof HTMLRewriter === "function") {
+    const out = new HTMLRewriter().on("head", { element(e) { e.append(tag, { html: true }); } }).transform(response);
+    return new Response(out.body, { status: response.status, headers });
+  }
+  const text = await response.text();
+  const i = text.indexOf("</head>");
+  return new Response(i < 0 ? text : text.slice(0, i) + tag + text.slice(i), { status: response.status, headers });
+}
+
 // GWH-PHOTO-SEARCH-START
 // Photo search (camera button). Every other request goes to hubCore above, unchanged.
 // On the test address (GWH_PREVIEW = "1") a few extra rules apply: see photo-search.js.
@@ -984,7 +1012,8 @@ export default {
   async fetch(request, env, ctx) {
     // GWH-SECURITY (F11, lessons L05, L06, L106): every answer of the Hub gets charset=utf-8 on text and, on HTML pages,
     // the full Content-Security-Policy in Report-Only mode. HSTS stays with the zone's own rule (F08).
-    return withHubHeaders(await withCountryBar(request, await hubFetch(request, env, ctx)));
+    // GWH-SITE-VERIFICATION (L119): the Mitgo tag in the <head> of the home page when its secret is set.
+    return withHubHeaders(await withSiteVerification(request, env, await withCountryBar(request, await hubFetch(request, env, ctx))));
   },
   // GWH-MAILERLITE: the cron (wrangler.toml [triggers], every 10 minutes) sends sign-ups that are still 'pending'.
   async scheduled(controller, env, ctx) {

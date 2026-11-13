@@ -189,6 +189,10 @@ function Get-LiveSha([string]$url, [bool]$isHtml) {
         $enc = New-Object System.Text.UTF8Encoding($false)
         $text = $enc.GetString($bytes)
         $clean = [regex]::Replace($text, '<script[^>]*static\.cloudflareinsights\.com/beacon\.min\.js[^>]*></script>\r?\n?', '')
+        # What the Hub Worker adds to each answer, never in the file (L107, L119): the bar for a visitor outside the UK and
+        # the Mitgo verification tag of the home page.
+        $clean = [regex]::Replace($clean, '<div class="gwh2-country-bar" role="note"><p class="container" data-gwh2="countryBar">[^<]*</p></div>', '')
+        $clean = [regex]::Replace($clean, '<meta name="mitgo-verification" content="[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}">', '')
         if ($clean -ne $text) { $bytes = $enc.GetBytes($clean) }
     }
     return (Get-Sha $bytes)

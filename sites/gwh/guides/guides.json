@@ -1,13 +1,13 @@
 {
- "checked": "2026-11-09",
- "note": "Prices and the day each product was last checked come from the databases of the Gear World sites (read-only SELECTs by product id, 9 Nov 2026; Coes, Bazta UK and the older Joybuy rows replaced, lessons L109). Rebuild the pages with: node tools/gwh-guides.mjs build. Re-check with: node tools/gwh-guides.mjs check.",
+ "checked": "2026-11-13",
+ "note": "Prices and the day each product was last checked come from the databases of the Gear World sites (read-only SELECTs by product id, 13 Nov 2026; Coes, Bazta UK and the older Joybuy rows replaced on 9 Nov, lessons L109). Rebuild the pages with: node tools/gwh-guides.mjs build. Re-check with: node tools/gwh-guides.mjs check.",
  "guides": [
   {
    "slug": "christmas-gifts-for-him",
    "site": "mgw",
    "short": "For him",
-   "title": "Christmas gifts for him, from £23 to £126",
-   "metaTitle": "Christmas Gifts for Him: 12 Ideas from £23 | Gear World Hub",
+   "title": "Christmas gifts for him, from £21 to £126",
+   "metaTitle": "Christmas Gifts for Him: 12 Ideas from £21 | Gear World Hub",
    "description": "Twelve Christmas gifts for him in four budgets, from a beard trimmer to an Emporio Armani watch. Prices from Men's Gear World.",
    "intro": "Twelve gifts for him, picked from the men's products we compare, in four budgets. We have not tested these products. We picked them on brand, materials and price, and every one was in stock when we checked.",
    "tips": [
@@ -35,17 +35,17 @@
      "price": 24.76,
      "retailer": "Joybuy",
      "image": "https://images1.joy-sourcing.com/da/s800x800_jfsintlpro-000-product/t1/4294967296/7929856/6207370605021/629060/6a59db25Eae2c5f97/42b10752b5083d5e.jpg",
-     "checked": "2026-11-09"
+     "checked": "2026-11-11"
     },
     {
      "group": "Under £25",
      "name": "Wahl Lithium Elite Cordless Beard Trimmer Kit",
      "url": "https://mensgearworld.com/product/wahl-lithium-elite-cordless-beard-trimmer-kit-precision-grooming-rechargeable-3026318-silver-47744/",
      "why": "A rechargeable trimmer kit for beards and stubble",
-     "price": 23.03,
+     "price": 21.88,
      "retailer": "Joybuy",
      "image": "https://images1.joy-sourcing.com/da/s800x800_jfsintlpro-000-product/t1/4294967296/7012352/61097966366651/561826/6a3b9518E6ad8199e/42b10752b5083d5e.png",
-     "checked": "2026-11-09"
+     "checked": "2026-11-11"
     },
     {
      "group": "Under £50",
@@ -75,7 +75,7 @@
      "price": 39.99,
      "retailer": "Joybuy",
      "image": "https://images1.joy-sourcing.com/da/s800x800_jfsintlpro-000-product/t1/4294967296/2359296/620737056927/87841/69ccc04fEd93ae41e/42b10752b5083d5e.jpg",
-     "checked": "2026-11-09"
+     "checked": "2026-11-11"
     },
     {
      "group": "Under £50",
@@ -102,10 +102,10 @@
      "name": "Calvin Klein Nylon Round Backpack, Black",
      "url": "https://mensgearworld.com/product/calvin-klein-unisex-nylon-round-backpack-black-durable-water-resistant-daypack-for-commuting-and-travel-30128/",
      "why": "An everyday bag for work or the commute",
-     "price": 71.0,
+     "price": 64.78,
      "retailer": "Joybuy",
      "image": "https://images1.joy-sourcing.com/da/s800x800_jfsintlpro-000-product/t1/4294967296/7733248/6207371617508/905592/6a59f010E71c74293/42b10752b5083d5e.png",
-     "checked": "2026-11-09"
+     "checked": "2026-11-11"
     },
     {
      "group": "Under £100",
@@ -115,7 +115,7 @@
      "price": 85.9,
      "retailer": "Joybuy",
      "image": "https://images1.joy-sourcing.com/da/s800x800_jfsintlpro-000-product/t1/4294967296/2818048/61098360375708/506046/692586f9E48cf153f/42b10752b5083d5e.png",
-     "checked": "2026-11-09"
+     "checked": "2026-11-11"
     },
     {
      "group": "Splurge",
@@ -143,8 +143,8 @@
    "slug": "christmas-gifts-for-her",
    "site": "wgw",
    "short": "For her",
-   "title": "Christmas gifts for her, from £15 to £175",
-   "metaTitle": "Christmas Gifts for Her: 12 Ideas from £15 | Gear World Hub",
+   "title": "Christmas gifts for her, from £12 to £175",
+   "metaTitle": "Christmas Gifts for Her: 12 Ideas from £12 | Gear World Hub",
    "description": "Twelve Christmas gifts for her, from an Olaplex hair set to an Oryx rose perfume, plus a perfume tip. Prices from Women's Gear World.",
    "intro": "Twelve gifts for her from the women's products we compare, plus one tip for comparing perfume prices between retailers. We have not tested these products. We picked them on brand, materials and price, and every one was in stock when we checked.",
    "tips": [
@@ -159,10 +159,10 @@
      "name": "Olaplex Healthy Hair Discovery Set",
      "url": "https://womensgearworld.com/product/olaplex-healthy-hair-discovery-set-132-5-ml-42578/",
      "why": "A small set to try the Olaplex hair care range",
-     "price": 15.0,
+     "price": 12.5,
      "retailer": "Joybuy",
      "image": "https://images1.joy-sourcing.com/da/s800x800_jfsintlpro-000-product/t1/4294967296/3735552/62073701298469/100498/6a8d6761Ea026e85f/42b10752b5083d5e.png",
-     "checked": "2026-11-09"
+     "checked": "2026-11-11"
     },
     {
      "group": "Under £25",
@@ -212,7 +212,7 @@
      "price": 35.19,
      "retailer": "Joybuy",
      "image": "https://images1.joy-sourcing.com/da/s800x800_jfsintlpro-000-product/t1/4294967296/7536640/61097966612680/315692/6a59e745Eda86095e/42b10752b5083d5e.jpg",
-     "checked": "2026-11-09"
+     "checked": "2026-11-11"
     },
     {
      "group": "Under £50",
@@ -232,17 +232,17 @@
      "price": 45.0,
      "retailer": "Angel Barocco",
      "image": "https://cdn.shopify.com/s/files/1/0659/8642/9155/files/Pink_Crystal___Freshwater_Pearl_bracelet.webp?v=1774225504",
-     "checked": "2026-11-09"
+     "checked": "2026-11-11"
     },
     {
      "group": "Under £100",
      "name": "Christian Louboutin Eau de Parfum Intense Miniatures, 3 x 9ml",
      "url": "https://womensgearworld.com/product/christian-louboutin-clb-giftset-fragrance-edp-intense-miniature-3x9ml-29523/",
      "why": "Three small fragrances, boxed as a set",
-     "price": 54.52,
+     "price": 60.5,
      "retailer": "Joybuy",
      "image": "https://images1.joy-sourcing.com/da/s800x800_jfsintlpro-000-product/t1/4294967296/3080192/101615961208112/522069/69ae654dEb15f4e63/42b10752b5083d5e.png",
-     "checked": "2026-11-09"
+     "checked": "2026-11-11"
     },
     {
      "group": "Under £100",
@@ -252,7 +252,7 @@
      "price": 69.65,
      "retailer": "Joybuy",
      "image": "https://images1.joy-sourcing.com/da/s800x800_jfsintlpro-000-product/t1/4294967296/5832704/6207371870275/200747/6a66d6ddE57e49efa/42b10752b5083d5e.jpg",
-     "checked": "2026-11-09"
+     "checked": "2026-11-11"
     },
     {
      "group": "Splurge",
@@ -299,7 +299,7 @@
      "price": 29.99,
      "retailer": "Joybuy",
      "image": "https://images1.joy-sourcing.com/da/s800x800_jfsintlpro-000-product/t1/4294967296/4259840/6109817738967/196392/693bab04E5f0f4274/42b10752b5083d5e.jpg",
-     "checked": "2026-11-09"
+     "checked": "2026-11-11"
     },
     {
      "group": "Toddlers",
@@ -309,7 +309,7 @@
      "price": 20.49,
      "retailer": "Joybuy",
      "image": "https://images1.joy-sourcing.com/da/s800x800_jfsintlpro-000-product/t1/4294967296/8323072/61097966153740/589088/699ddfd4E9bef31dc/42b10752b5083d5e.jpg",
-     "checked": "2026-11-09"
+     "checked": "2026-11-11"
     },
     {
      "group": "Toddlers",
@@ -319,17 +319,17 @@
      "price": 22.97,
      "retailer": "Joybuy",
      "image": "https://images1.joy-sourcing.com/da/s800x800_jfsintlpro-000-product/t1/4294967296/4653056/10161432272212240/466608/68b6a0f2E3b9960fa/42b10752b5083d5e.png",
-     "checked": "2026-11-09"
+     "checked": "2026-11-11"
     },
     {
      "group": "Toddlers",
      "name": "LEGO DUPLO Alphabet Truck",
      "url": "https://kidsgearworld.com/product/lego-duplo-alphabet-truck-building-set-fun-abc-learning-toy-for-toddlers-with-letters-blocks-for-creative-play-4187/",
      "why": "Big DUPLO bricks with letters, made for small hands",
-     "price": 34.99,
+     "price": 26.24,
      "retailer": "Joybuy",
      "image": "https://images1.joy-sourcing.com/da/s800x800_jfsintlpro-000-product/t1/4294967296/4915200/101615961218627/325265/69b06ef9E7539c004/42b10752b5083d5e.jpg",
-     "checked": "2026-11-09"
+     "checked": "2026-11-11"
     },
     {
      "group": "Pre-school",
@@ -339,7 +339,7 @@
      "price": 24.99,
      "retailer": "Joybuy",
      "image": "https://images1.joy-sourcing.com/da/s800x800_jfsintlpro-000-product/t1/4294967296/3080192/6109836050681/242812/6a9951f6E6d1ee6e8/42b10752b5083d5e.jpg",
-     "checked": "2026-11-09"
+     "checked": "2026-11-11"
     },
     {
      "group": "Pre-school",
@@ -349,7 +349,7 @@
      "price": 25.99,
      "retailer": "Joybuy",
      "image": "https://images1.joy-sourcing.com/da/s800x800_jfsintlpro-000-product/t1/4294967296/6619136/10161432272028477/373756/6886eb4dEfff64166/42b10752b5083d5e.jpg",
-     "checked": "2026-11-09"
+     "checked": "2026-11-11"
     },
     {
      "group": "Ages 6+",
@@ -359,17 +359,17 @@
      "price": 24.99,
      "retailer": "Joybuy",
      "image": "https://images1.joy-sourcing.com/da/s800x800_jfsintlpro-000-product/t1/4294967296/4784128/6109836040104/297269/6a98e5e8E0dac04fa/42b10752b5083d5e.jpg",
-     "checked": "2026-11-09"
+     "checked": "2026-11-11"
     },
     {
      "group": "Ages 6+",
      "name": "K'NEX Creation Zone, 50 Models",
      "url": "https://kidsgearworld.com/product/k-nex-building-set-creation-zone-with-50-models-for-kids-stem-educational-construction-toy-for-endless-creative-play-4548/",
      "why": "Build one model, then take it apart for the next",
-     "price": 34.99,
+     "price": 24.49,
      "retailer": "Joybuy",
      "image": "https://images1.joy-sourcing.com/da/s800x800_jfsintlpro-000-product/t1/4294967296/2818048/61098360141984/257706/69946532Efa46f0ad/42b10752b5083d5e.jpg",
-     "checked": "2026-11-09"
+     "checked": "2026-11-11"
     },
     {
      "group": "Ages 6+",
@@ -379,7 +379,7 @@
      "price": 59.99,
      "retailer": "Joybuy",
      "image": "https://images1.joy-sourcing.com/da/s800x800_jfsintlpro-000-product/t1/4294967296/7733248/6109817218837/212514/69b07067Ee6acac9f/42b10752b5083d5e.jpg",
-     "checked": "2026-11-09"
+     "checked": "2026-11-11"
     },
     {
      "group": "Ages 6+",
@@ -389,27 +389,27 @@
      "price": 79.99,
      "retailer": "Joybuy",
      "image": "https://images1.joy-sourcing.com/da/s800x800_jfsintlpro-000-product/t1/4294967296/3670016/610981777866/324800/6a108500Ecd970af4/42b10752b5083d5e.jpg",
-     "checked": "2026-11-09"
+     "checked": "2026-11-11"
     },
     {
      "group": "Older kids",
      "name": "COBI Boeing 737-8 1:110, 340 pieces",
      "url": "https://kidsgearworld.com/product/cobi-1-110-scale-boeing-737-8-building-set-340-piece-brick-model-aircraft-collectible-toy-for-adults-kids-4869/",
      "why": "A longer build for patient builders",
-     "price": 39.99,
+     "price": 26.79,
      "retailer": "Joybuy",
      "image": "https://images1.joy-sourcing.com/da/s800x800_jfsintlpro-000-product/t1/4294967296/2490368/61098171275127/57158/6a8bec4cEa29b2eef/42b10752b5083d5e.png",
-     "checked": "2026-11-09"
+     "checked": "2026-11-11"
     },
     {
      "group": "Older kids",
      "name": "LEGO Technic Tipping Dump Truck 42203",
      "url": "https://kidsgearworld.com/product/lego-technic-tipping-dump-truck-42203-building-set-for-kids-adults-remote-controlled-toy-construction-vehicle-5164/",
      "why": "Technic parts and a working tipper",
-     "price": 44.99,
+     "price": 32.5,
      "retailer": "Joybuy",
      "image": "https://images1.joy-sourcing.com/da/s800x800_jfsintlpro-000-product/t1/4294967296/1835008/101615961167450/283751/69a2a956E843dc55e/42b10752b5083d5e.jpg",
-     "checked": "2026-11-09"
+     "checked": "2026-11-11"
     }
    ]
   },
@@ -440,7 +440,7 @@
      "price": 19.95,
      "retailer": "My Tool Shed",
      "image": "https://www.mytoolshed.co.uk/artwork/prodzoom/STA046151.jpg",
-     "checked": "2026-11-09"
+     "checked": "2026-11-11"
     },
     {
      "group": "Under £25",
@@ -450,7 +450,7 @@
      "price": 19.95,
      "retailer": "Tooled Up",
      "image": "https://www.tooled-up.com/artwork/prodzoom/tbk_STA016129.jpg",
-     "checked": "2026-11-09"
+     "checked": "2026-11-11"
     },
     {
      "group": "Under £50",
@@ -460,7 +460,7 @@
      "price": 27.95,
      "retailer": "Tooled Up",
      "image": "https://www.tooled-up.com/artwork/prodzoom/tbk_OLY39014.jpg",
-     "checked": "2026-11-09"
+     "checked": "2026-11-11"
     },
     {
      "group": "Under £50",
@@ -470,7 +470,7 @@
      "price": 33.95,
      "retailer": "Tooled Up",
      "image": "https://www.tooled-up.com/artwork/prodzoom/tbk_STA154022.jpg",
-     "checked": "2026-11-09"
+     "checked": "2026-11-11"
     },
     {
      "group": "Under £50",
@@ -480,7 +480,7 @@
      "price": 43.95,
      "retailer": "Tooled Up",
      "image": "https://www.tooled-up.com/artwork/prodzoom/tbk_FISC24.jpg",
-     "checked": "2026-11-09"
+     "checked": "2026-11-11"
     },
     {
      "group": "Under £50",
@@ -490,7 +490,7 @@
      "price": 48.95,
      "retailer": "My Tool Shed",
      "image": "https://www.mytoolshed.co.uk/artwork/prodzoom/draper_64605_1.jpg",
-     "checked": "2026-11-09"
+     "checked": "2026-11-11"
     },
     {
      "group": "Under £100",
@@ -500,7 +500,7 @@
      "price": 58.95,
      "retailer": "Tooled Up",
      "image": "https://www.tooled-up.com/artwork/prodzoom/tbk_FAITBC519.jpg",
-     "checked": "2026-11-09"
+     "checked": "2026-11-11"
     },
     {
      "group": "Under £100",
@@ -510,7 +510,7 @@
      "price": 72.95,
      "retailer": "Tooled Up",
      "image": "https://www.tooled-up.com/artwork/prodzoom/tbk_RPDR311.jpg",
-     "checked": "2026-11-09"
+     "checked": "2026-11-11"
     },
     {
      "group": "Under £100",
@@ -520,7 +520,7 @@
      "price": 99.95,
      "retailer": "My Tool Shed",
      "image": "https://www.mytoolshed.co.uk/artwork/prodzoom/M12_BRAID-0--Hero_01.jpg",
-     "checked": "2026-11-09"
+     "checked": "2026-11-11"
     },
     {
      "group": "Splurge",
@@ -542,7 +542,7 @@
        "id": 37787
       }
      ],
-     "checked": "2026-11-09"
+     "checked": "2026-11-11"
     }
    ]
   },
@@ -570,7 +570,7 @@
      "retailer": "Case Luggage",
      "image": "https://cdn.shopify.com/s/files/1/0925/7615/3981/files/London_Zoo_ZA1002-002_green_heritage_zoological_garden_m.jpg?v=1782911595",
      "rrp": 22,
-     "checked": "2026-10-31"
+     "checked": "2026-11-10"
     },
     {
      "group": "Under £25",
@@ -581,7 +581,7 @@
      "retailer": "Case Luggage",
      "image": "https://cdn.shopify.com/s/files/1/0925/7615/3981/files/sara-miller-london-phone-pouch-ditsy-floral-ditsy-floral-816854-5060388017279-67087391392125.jpg?v=1775633616",
      "rrp": 40,
-     "checked": "2026-10-31"
+     "checked": "2026-11-10"
     },
     {
      "group": "Under £25",
@@ -592,7 +592,7 @@
      "retailer": "Case Luggage",
      "image": "https://cdn.shopify.com/s/files/1/0925/7615/3981/files/rains-wash-bag-wash-bag-small-black-798112-5711747500450-67085836419453.jpg?v=1775635876",
      "rrp": 25,
-     "checked": "2026-10-31"
+     "checked": "2026-11-10"
     },
     {
      "group": "Under £50",
@@ -603,7 +603,7 @@
      "retailer": "Case Luggage",
      "image": "https://cdn.shopify.com/s/files/1/0925/7615/3981/files/joules-duffle-boat-club-natural-blue-814706-5060388017149-67087025996157.jpg?v=1775634979",
      "rrp": 85,
-     "checked": "2026-10-31"
+     "checked": "2026-11-10"
     },
     {
      "group": "Under £50",
@@ -614,7 +614,7 @@
      "retailer": "Case Luggage",
      "image": "https://cdn.shopify.com/s/files/1/0925/7615/3981/files/London_Zoo_ZA1001-002_green_heritage_zoological_garden_1.jpg?v=1782911595",
      "rrp": 40,
-     "checked": "2026-10-31"
+     "checked": "2026-11-10"
     },
     {
      "group": "Under £50",
@@ -625,7 +625,7 @@
      "retailer": "Case Luggage",
      "image": "https://cdn.shopify.com/s/files/1/0925/7615/3981/files/carl-friedrik-the-luggage-tag-in-black-black-789776-5060869620448-67085723435389.jpg?v=1775635944",
      "rrp": 55,
-     "checked": "2026-10-31"
+     "checked": "2026-11-10"
     },
     {
      "group": "Under £50",
@@ -636,7 +636,7 @@
      "retailer": "Case Luggage",
      "image": "https://cdn.shopify.com/s/files/1/0925/7615/3981/files/rains-backpack-msn-bag-black-793681-5711747497491-67085830652285.jpg?v=1775635898",
      "rrp": 65,
-     "checked": "2026-10-31"
+     "checked": "2026-11-10"
     },
     {
      "group": "Under £100",
@@ -647,7 +647,7 @@
      "retailer": "Case Luggage",
      "image": "https://cdn.shopify.com/s/files/1/0925/7615/3981/files/bric-s-2-pocket-backpack-x-travel-olive-713627-8016623887968-67084545851773.jpg?v=1775632025",
      "rrp": 80,
-     "checked": "2026-10-31"
+     "checked": "2026-11-10"
     },
     {
      "group": "Under £100",
@@ -658,7 +658,7 @@
      "retailer": "Case Luggage",
      "image": "https://cdn.shopify.com/s/files/1/0925/7615/3981/files/rains-weekend-bag-hilo-black-798013-5711747558406-67086084833661.jpg?v=1775638691",
      "rrp": 79,
-     "checked": "2026-10-31"
+     "checked": "2026-11-10"
     },
     {
      "group": "Under £100",
@@ -669,7 +669,7 @@
      "retailer": "Case Luggage",
      "image": "https://cdn.shopify.com/s/files/1/0925/7615/3981/files/Brics_BXG40203_honey_m.jpg?v=1774023585",
      "rrp": 99,
-     "checked": "2026-10-31"
+     "checked": "2026-11-10"
     },
     {
      "group": "Splurge",
@@ -680,7 +680,7 @@
      "retailer": "Case Luggage",
      "image": "https://cdn.shopify.com/s/files/1/0925/7615/3981/files/osprey-travel-backpack-44l-transporter-black-819480-0843820194647-67087225618813.jpg?v=1775633986",
      "rrp": 190,
-     "checked": "2026-10-31"
+     "checked": "2026-11-10"
     },
     {
      "group": "Splurge",
@@ -691,7 +691,7 @@
      "retailer": "Case Luggage",
      "image": "https://cdn.shopify.com/s/files/1/0925/7615/3981/files/peak-design-30l-travel-backpack-black-819534-0818373025885-67087205204349.jpg?v=1775638266",
      "rrp": 219,
-     "checked": "2026-10-31"
+     "checked": "2026-11-10"
     }
    ]
   }

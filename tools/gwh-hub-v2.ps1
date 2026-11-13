@@ -107,8 +107,19 @@
   24-26 Oct, so "Check price and stock at the retailer" and later a notice) are replaced by similar products of the
   same site checked on 8-9 Nov. worker.js, the other pages and the D1 do not change. The guard now stops the live step
   on a PRICE line too (another price in guides.json than on the site, exit 20), like a NOTICE; OLD stays a warning.
-  Phrases of this release: ΕΓΚΡΙΝΩ HUB GUIDE PRICES PREVIEW, then ΕΓΚΡΙΝΩ HUB GUIDE PRICES LIVE together with
-  remove-preview (ΕΓΚΡΙΝΩ HUB REMOVE PREVIEW) in the same paste.
+  Phrases of that release: ΕΓΚΡΙΝΩ HUB GUIDE PRICES PREVIEW, then ΕΓΚΡΙΝΩ HUB GUIDE PRICES LIVE together with
+  remove-preview (ΕΓΚΡΙΝΩ HUB REMOVE PREVIEW) in the same paste (live since 09/11/2026 21:46).
+  Mitgo verification and guide prices (lessons L119, 13/11/2026): worker.js adds <meta name="mitgo-verification"
+  content="<code>"> at the end of the <head> of the home page while the Worker secret MITGO_VERIFICATION has a code of
+  that form. The code has the form of a UUID, so it is never in the repo: -MitgoCode '<code>' sets it, on the test Worker
+  in the preview step and on gear-world-hub in the live step, right before the deploy (it stays for later deploys).
+  The gift guides get the prices their sites showed on 13/11 (8 Joybuy products had other prices) and the day each
+  product was last checked there. -AfterPreview (live step): goes on only when the newest preview report is of this code
+  version, from the last 2 hours, ended ΕΤΟΙΜΟ and has no ΠΡΟΒΛΗΜΑ, so preview, live and remove-preview can be in one
+  paste. Phrases of this release, in this order: ΕΓΚΡΙΝΩ HUB MITGO PREVIEW, ΕΓΚΡΙΝΩ HUB MITGO LIVE, ΕΓΚΡΙΝΩ HUB REMOVE
+  PREVIEW.
+  Exit codes added by L119: 21 the -MitgoCode has another form, 22 the code did not go into the live Worker (nothing went
+  live), 23 -AfterPreview without a clean preview report of this version (nothing changed).
   Report: <home>\gear-world-reports\GWH_HUB_V2_<STEP>_<time>.txt (also copied to the clipboard)
 #>
 param(
@@ -122,7 +133,9 @@ param(
     [string]$OutDir = '',
     [switch]$SkipInstall,
     [switch]$NoClipboard,
-    [switch]$NoHttpCheck
+    [switch]$NoHttpCheck,
+    [string]$MitgoCode = '',
+    [switch]$AfterPreview
 )
 
 $ErrorActionPreference = 'Stop'
@@ -130,8 +143,8 @@ $repo = Split-Path -Parent $PSScriptRoot
 $HubWorker = 'gear-world-hub'
 $PreviewName = 'gear-world-hub-preview'
 $DbName = 'gear-world-registry'
-$PhrasePreview = 'ΕΓΚΡΙΝΩ HUB GUIDE PRICES PREVIEW'
-$PhraseLive = 'ΕΓΚΡΙΝΩ HUB GUIDE PRICES LIVE'
+$PhrasePreview = 'ΕΓΚΡΙΝΩ HUB MITGO PREVIEW'
+$PhraseLive = 'ΕΓΚΡΙΝΩ HUB MITGO LIVE'
 $PhraseRegister = 'ΕΓΚΡΙΝΩ HUB ZGW SEARCH'
 $PhraseRemovePreview = 'ΕΓΚΡΙΝΩ HUB REMOVE PREVIEW'
 $LiveUrl = 'https://gearworldhub.com'
@@ -154,7 +167,7 @@ $Bad = 'Magenta'
 
 # What each file of the change does, in the words of the report.
 $About = @{
-    'worker.js'             = 'αναζήτηση: κάθε site παίρνει τη χώρα του επισκέπτη (?deliver_to=, GB όταν είναι άγνωστη ή crawler της Google) και δείχνει μόνο καταστήματα που παραδίδουν εκεί, η απάντηση private· εκτός ΗΒ η μπάρα «We''re adding retailers for your country» πάνω από την κεφαλίδα της αρχικής (L107)· η μετάφραση κρατιέται μία μέρα, ποτέ για bots, και τα sites παίρνουν translate=0 (L106)'
+    'worker.js'             = 'η ετικέτα επαλήθευσης του Mitgo (<meta name="mitgo-verification" content="...">) στο τέλος του <head> της αρχικής, μόνο όταν ο Worker έχει το μυστικό MITGO_VERIFICATION· ο κωδικός δεν μπαίνει ποτέ στο GitHub (L119). Όλα τα άλλα όπως είναι live'
     'security.js'           = 'νέο αρχείο: έλεγχος Turnstile, ημερήσια όρια του δικτύου (εγγραφές, μεταφράσεις), headers (L106)'
     'mailerlite.js'         = 'η φόρμα του Hub θέλει το token του Turnstile· ημερήσιο όριο εγγραφών για όλο το δίκτυο, μικρό δικό της για την εφαρμογή (L106)'
     'members.js'            = 'η φόρμα «Get deal updates» των sites: το Hub ελέγχει το token του Turnstile κάθε site, ίδιο ημερήσιο όριο, ημερήσιο όριο μεταφράσεων για τα sites (/internal/ai-slot) (L106)'
@@ -171,12 +184,12 @@ $About = @{
     'public/styles.css'     = 'φεύγουν οι κανόνες της κάρτας «Sell Your Business» (.gwh-business-*) και τα σχόλια «shop» (το αρχείο δεν το φορτώνει η σελίδα· μένει για τα παλιά εργαλεία) (L103)'
     'public/contact/index.html' = '«business enquiries from retailers and affiliate networks» αντί για «partnership enquiries» (L103)'
     'public/guides/guides.css' = 'η εμφάνιση των οδηγών δώρων: «RRP» αντί για διαγραμμένη τιμή και «n% below» (L107)'
-    'public/guides/index.html' = 'οι οδηγοί δώρων: «Prices checked between 31 Oct 2026 and 9 Nov 2026» και οι νέοι τίτλοι με το σωστό εύρος τιμών (L109)'
-    'public/guides/christmas-gifts-for-him/index.html' = 'οδηγός δώρων για εκείνον: 11 νέα προϊόντα ελεγμένα 8-9/11 στη θέση των Coes (χωρίς έλεγχο τιμής από 26/10), τιμές ίδιες με του Men''s Gear World (L109)'
-    'public/guides/christmas-gifts-for-her/index.html' = 'οδηγός δώρων για εκείνη: 10 νέα προϊόντα ελεγμένα 9/11 στη θέση των Coes και του Bazta UK, τιμές ίδιες με του Women''s Gear World (L109)'
-    'public/guides/christmas-gifts-for-kids/index.html' = 'οδηγός δώρων για παιδιά: 10 νέα παιχνίδια ελεγμένα 9/11 στη θέση των Bazta UK και των παλιών Joybuy, οι 2 LEGO με τη σωστή τιμή (£79.99, £44.99) (L109)'
-    'public/guides/christmas-gifts-for-diy-lovers/index.html' = 'οδηγός δώρων για μάστορες: το Makita με τη σωστή τιμή (£155.95 και στα δύο καταστήματα), νέο σετ σκαρπέλων Stanley, όλα ελεγμένα 9/11 (L109)'
-    'public/guides/christmas-gifts-for-travellers/index.html' = 'οδηγός δώρων για ταξιδιώτες: ίδια προϊόντα και τιμές, μόνο οι νέοι τίτλοι των άλλων οδηγών στο «More gift guides» (L109)'
+    'public/guides/index.html' = 'οι οδηγοί δώρων: «Prices checked between 8 Nov 2026 and 11 Nov 2026», «for him, from £21», «for her, from £12» (L119)'
+    'public/guides/christmas-gifts-for-him/index.html' = 'οδηγός δώρων για εκείνον: Wahl £21.88 (ήταν £23.03), σακίδιο Calvin Klein £64.78 (ήταν £71.00), όπως τα δείχνει το Men''s Gear World στις 13/11· νέες ημερομηνίες ελέγχου (L119)'
+    'public/guides/christmas-gifts-for-her/index.html' = 'οδηγός δώρων για εκείνη: Olaplex £12.50 (ήταν £15.00), Christian Louboutin £60.50 (ήταν £54.52), όπως τα δείχνει το Women''s Gear World στις 13/11· νέες ημερομηνίες ελέγχου (L119)'
+    'public/guides/christmas-gifts-for-kids/index.html' = 'οδηγός δώρων για παιδιά: LEGO DUPLO £26.24, K''NEX £24.49, COBI £26.79, LEGO Technic £32.50, όπως τα δείχνει το Kids'' Gear World στις 13/11· νέες ημερομηνίες ελέγχου (L119)'
+    'public/guides/christmas-gifts-for-diy-lovers/index.html' = 'οδηγός δώρων για μάστορες: ίδιες τιμές, ελεγμένες 11/11, και οι νέοι τίτλοι των άλλων οδηγών στο «More gift guides» (L119)'
+    'public/guides/christmas-gifts-for-travellers/index.html' = 'οδηγός δώρων για ταξιδιώτες: ίδιες τιμές, ελεγμένες 10/11, και οι νέοι τίτλοι των άλλων οδηγών στο «More gift guides» (L119)'
     'public/translations.js' = 'στα ελληνικά «από το κατάστημα» αντί για «συνεργαζόμενα καταστήματα», στα γαλλικά «couchages» αντί για «paniers», «retailer» μεταφρασμένο σε 7 γλώσσες, ονόματα κλειδιών χωρίς «shop» (L103)'
     'public/robots.txt'     = 'robots.txt του Hub: πρώτα «User-agent: SERankingBacklinksBot» με «Disallow: /» (L105), από κάτω ίδιο όπως ήταν, με τη γραμμή Sitemap: https://gearworldhub.com/sitemap.xml (το Cloudflare βάζει από πάνω τα Content Signals του)'
     'public/gearworldhub-indexnow-k7q4m9x2w5.txt' = 'το κλειδί του IndexNow (δημόσιο, έτσι δουλεύει το IndexNow)'
@@ -391,6 +404,8 @@ function Get-LiveSha([string]$url, [bool]$isHtml) {
         $text = $enc.GetString($bytes)
         $clean = [regex]::Replace($text, '<script[^>]*static\.cloudflareinsights\.com/beacon\.min\.js[^>]*></script>\r?\n?', '')
         $clean = [regex]::Replace($clean, '<div class="gwh2-country-bar" role="note"><p class="container" data-gwh2="countryBar">[^<]*</p></div>', '')
+        # The Mitgo verification tag the Worker adds to the <head> of the home page (L119): its code is a Worker secret.
+        $clean = [regex]::Replace($clean, '<meta name="mitgo-verification" content="[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}">', '')
         if ($clean -ne $text) { $bytes = $enc.GetBytes($clean) }
     }
     return (Get-Sha $bytes)
@@ -462,6 +477,39 @@ function Set-PreviewSecret([string]$folder) {
     }
 }
 
+# L119: one Worker secret given in this run (the Mitgo code), through a temporary file that is deleted at once. The value
+# is never shown, kept or written into a report (Hide-Ids masks codes of this form too).
+function Set-WorkerSecret([string]$folder, [string]$worker, [string]$name, [string]$value) {
+    $secretFile = Join-Path ([System.IO.Path]::GetTempPath()) ('gw-hubv2-secret-' + [guid]::NewGuid().ToString('N').Substring(0, 8) + '.json')
+    [System.IO.File]::WriteAllText($secretFile, ('{{"{0}":"{1}"}}' -f $name, $value), (New-Object System.Text.UTF8Encoding($false)))
+    try {
+        return (Invoke-Wrangler $folder ('secret bulk "{0}" --name {1}' -f $secretFile, $worker))
+    } finally {
+        Remove-Item -LiteralPath $secretFile -Force -ErrorAction SilentlyContinue
+    }
+}
+
+# L119: preview, live and remove-preview in one paste. With -AfterPreview the live step goes on only when the newest
+# preview report (GWH_HUB_V2_PREVIEW_*.txt) is of this code version, from the last 2 hours, ended ΕΤΟΙΜΟ and has no
+# ΠΡΟΒΛΗΜΑ line: a preview that failed, was refused or found a problem stops the live step before any change.
+function Test-PreviewReport {
+    $last = @(Get-ChildItem -LiteralPath $OutDir -Filter 'GWH_HUB_V2_PREVIEW_*.txt' -File -ErrorAction SilentlyContinue | Sort-Object LastWriteTime, Name | Select-Object -Last 1)
+    if ($last.Count -eq 0) { Say 'Δεν βρήκα αναφορά του preview (-AfterPreview): ΔΕΝ ανεβάζω το Hub, δεν άλλαξε τίποτα. Στείλε στο Claude αυτή την αναφορά.' $Bad; return $false }
+    $r = $last[0]
+    $text = [System.IO.File]::ReadAllText($r.FullName, [System.Text.Encoding]::UTF8)
+    $why = @()
+    if (((Get-Date) - $r.LastWriteTime).TotalMinutes -gt 120) { $why += 'είναι πιο παλιά από 2 ώρες' }
+    if (-not $text.Contains('Code version: ' + (Split-Path -Leaf $repo))) { $why += 'είναι άλλης έκδοσης του κώδικα' }
+    if (-not $text.Contains('ΕΤΟΙΜΟ: άνοιξε τη δοκιμαστική διεύθυνση')) { $why += 'δεν τελείωσε με ΕΤΟΙΜΟ' }
+    if ($text.Contains('ΠΡΟΒΛΗΜΑ')) { $why += 'λέει ΠΡΟΒΛΗΜΑ' }
+    if ($why.Count -gt 0) {
+        Say ('Η αναφορά του preview {0} {1}: ΔΕΝ ανεβάζω το Hub, δεν άλλαξε τίποτα. Στείλε στο Claude αυτή την αναφορά.' -f $r.Name, ($why -join ', ')) $Bad
+        return $false
+    }
+    Say ('Preview αυτής της έκδοσης ({0}): ΕΤΟΙΜΟ, χωρίς ΠΡΟΒΛΗΜΑ: ΕΝΤΑΞΕΙ' -f $r.Name) $Ok
+    return $true
+}
+
 # The new page and the new search, on the test address or on gearworldhub.com after the deploy.
 function Test-Site([string]$base, [bool]$isLive) {
     [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
@@ -477,6 +525,18 @@ function Test-Site([string]$base, [bool]$isLive) {
     }
     $titleOk = $html.Contains('<title>Gear World Hub ' + [char]0x2013 + ' Gear, Gifts &amp; Deals From Every Gear World</title>')
     if ($titleOk) { Say '  Νέος τίτλος της αρχικής: ΕΝΤΑΞΕΙ' $Ok } else { Say '  Νέος τίτλος της αρχικής: ΠΡΟΣΟΧΗ - δεν τον βλέπω ακόμα (cache;)' $Warn }
+    # L119: the Mitgo tag right before </head> of the home page (a new secret takes a few seconds to reach every answer).
+    $mitgoRx = '<meta name="mitgo-verification" content="([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})"></head>'
+    $mt = [regex]::Match($html, $mitgoRx)
+    if ($MitgoCode) {
+        for ($i = 1; $i -le 3 -and -not ($mt.Success -and $mt.Groups[1].Value -eq $MitgoCode); $i++) {
+            Start-Sleep -Seconds 10
+            $again = Get-Web ($base + '/?gwcheck=' + $stamp + '-m' + $i)
+            $mt = [regex]::Match((New-Object System.Text.UTF8Encoding($false)).GetString($again.bytes), $mitgoRx)
+        }
+        if ($mt.Success -and $mt.Groups[1].Value -eq $MitgoCode) { Say '  Ετικέτα επαλήθευσης Mitgo στο <head> της αρχικής, με τον κωδικό σου: ΕΝΤΑΞΕΙ' $Ok }
+        else { Say '  Ετικέτα επαλήθευσης Mitgo: ΠΡΟΒΛΗΜΑ - δεν τη βλέπω με τον κωδικό σου στο <head> της αρχικής.' $Bad }
+    } elseif ($mt.Success) { Say '  Ετικέτα επαλήθευσης Mitgo στο <head> της αρχικής: υπάρχει (μυστικό MITGO_VERIFICATION του Worker): ΕΝΤΑΞΕΙ' $Ok }
     $rb = Get-Web ($base + '/robots.txt?gwcheck=' + $stamp)
     $rbText = (New-Object System.Text.UTF8Encoding($false)).GetString($rb.bytes)
     if (-not $isLive) {
@@ -610,6 +670,12 @@ function Get-SecurityReadiness([string]$folder) {
 # ---------------- start ----------------
 Say ('GWH HUB V2 («Συνδυασμός») - step: {0} - {1} - {2}' -f $Step, $(if ($Apply) { 'APPLY (με έγκριση)' } else { 'ΜΟΝΟ ΕΛΕΓΧΟΣ (δεν αλλάζει τίποτα)' }), (Get-Date -Format 'yyyy-MM-dd HH:mm')) $Ok
 Say ('Code version: {0}' -f (Split-Path -Leaf $repo))
+# L119: the Mitgo code as Mitgo gives it (a paste may add spaces or capitals); nothing of another form becomes a secret.
+$MitgoCode = ([string]$MitgoCode).Trim().ToLowerInvariant()
+if ($MitgoCode -and $MitgoCode -notmatch '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$') {
+    Say 'Ο κωδικός του Mitgo (-MitgoCode) δεν έχει τη μορφή που δίνει το Mitgo (8-4-4-4-12 ψηφία και γράμματα a-f): ΔΕΝ άλλαξε τίποτα. Στείλε στο Claude αυτή την αναφορά.' $Bad
+    Finish 21
+}
 if (-not (Get-Command node -ErrorAction SilentlyContinue)) { Say 'Δεν βρέθηκε το Node.js. Στείλε στο Claude αυτό το μήνυμα.' $Bad; Finish 3 }
 
 if ($Step -eq 'indexnow') {
@@ -813,6 +879,7 @@ if ($Step -eq 'remove-preview') {
 Say ''
 Say ('Preview (φράση {0}): ο δοκιμαστικός Worker "{1}" σε διεύθυνση *.workers.dev παίρνει αυτή την έκδοση.' -f $PhrasePreview, $PreviewName)
 Say '  noindex, χωρίς Google Analytics, η εγγραφή email κλειστή, χωρίς μέτρηση αφισών. Το live gearworldhub.com ΔΕΝ αλλάζει.'
+if ($MitgoCode) { Say '  Ο κωδικός του Mitgo μπαίνει και στον δοκιμαστικό Worker, για να φανεί εκεί πρώτα η ετικέτα.' }
 Say ('  Επαναφορά (μόνο με έγκριση): npx wrangler delete --name {0}' -f $PreviewName)
 if ($plan.Count -eq 0) {
     Say 'Αυτή η έκδοση του κώδικα είναι ήδη η live έκδοση (live-baseline.txt): για το live δεν έχει τίποτα να αλλάξει.' $Ok
@@ -825,9 +892,12 @@ if ($plan.Count -eq 0) {
         Say ('     - {0}: {1}' -f $rel, $what)
     }
     Say '  3. Στο wrangler.toml του Hub: workers_dev = false και preview_urls = false (κλείνει η δοκιμαστική διεύθυνση gear-world-hub.<λογαριασμός>.workers.dev του live Hub, F04). Το παλιό wrangler.toml μένει στο zip και στα αρχεία επαναφοράς.'
-    Say '  4. Deploy του gearworldhub.com από τον φάκελο του Hub (με το δικό του wrangler.toml), και έλεγχος της σελίδας και του «Βρες δώρο».'
+    if ($MitgoCode) { Say ('  4. Ο κωδικός επαλήθευσης του Mitgo γίνεται το μυστικό MITGO_VERIFICATION του Worker "{0}" (ποτέ στο GitHub ή σε αναφορά)· ο νέος κώδικας βάζει την ετικέτα <meta name="mitgo-verification"> στο <head> της αρχικής.' -f $HubWorker) }
+    Say ('  {0}. Deploy του gearworldhub.com από τον φάκελο του Hub (με το δικό του wrangler.toml), και έλεγχος της σελίδας και του «Βρες δώρο».' -f $(if ($MitgoCode) { 5 } else { 4 }))
+    if ($AfterPreview) { Say '  Με -AfterPreview: το live γίνεται μόνο αν το preview αυτής της έκδοσης, τις τελευταίες 2 ώρες, τελείωσε ΕΤΟΙΜΟ χωρίς ΠΡΟΒΛΗΜΑ.' }
     Say '  Η D1, τα 11 sites και οι άλλοι Workers (και ο gwh-sitemap) ΔΕΝ αλλάζουν.'
     Say ('  Επαναφορά (μόνο με έγκριση): npx wrangler rollback <ζωντανή έκδοση> --name {0}, και τα αρχεία του zip πίσω στον φάκελο του Hub.' -f $HubWorker)
+    if ($MitgoCode) { Say ('  Αφαίρεση της ετικέτας Mitgo (μόνο με έγκριση): npx wrangler secret delete MITGO_VERIFICATION --name {0}' -f $HubWorker) }
     Say '  Επαναφορά όλης της έκδοσης L106: ΠΡΩΤΑ το Hub (αυτό), ΜΕΤΑ τα 13 sites: το νέο Hub δεν δέχεται εγγραφή χωρίς Turnstile, και ο παλιός κώδικας των sites δεν στέλνει.'
 }
 $readyLive = (($pcIsBaseline -or $pcIsNew) -and ($liveState -eq 'baseline' -or $liveState -eq 'new' -or ($NoHttpCheck -and $liveState -eq 'unknown')) -and $liveVersion -and $postersOn)
@@ -876,6 +946,12 @@ if ($Step -eq 'preview') {
         if ($s.code -ne 0) { Say 'Το μυστικό του preview δεν μπήκε: η αναζήτηση με φωτογραφία εκεί θα απαντά "not ready". Τα υπόλοιπα δουλεύουν.' $Warn }
         else { Say 'Μυστικό για την αναζήτηση με φωτογραφία στο preview: μπήκε (τυχαίο, δεν φαίνεται πουθενά).' $Ok }
     }
+    # L119: the Mitgo code on the test Worker too, so the tag is seen there first.
+    if ($MitgoCode) {
+        $ms = Set-WorkerSecret $gwh $PreviewName 'MITGO_VERIFICATION' $MitgoCode
+        if ($ms.code -ne 0) { Say 'Ο κωδικός του Mitgo στο preview: ΠΡΟΒΛΗΜΑ - δεν μπήκε, άρα το live με -AfterPreview δεν θα γίνει. Στείλε στο Claude αυτή την αναφορά.' $Bad }
+        else { Say 'Ο κωδικός επαλήθευσης του Mitgo μπήκε στο preview (μυστικό MITGO_VERIFICATION του δοκιμαστικού Worker, δεν φαίνεται πουθενά).' $Ok }
+    }
     Say ('Ανέβηκε. Δοκιμαστική διεύθυνση: {0}' -f $(if ($url) { $url } else { '(δεν τη βρήκα στην έξοδο)' })) $Ok
     # The Black Friday link only while Black Friday is switched on in hub-v2.js (promos.js SEASONS_ON, lessons L107).
     $bfOn = ([System.IO.File]::ReadAllText((Join-Path (Join-Path $gwh 'public') 'hub-v2.js')) -match '"black-friday":\s*true')
@@ -917,6 +993,8 @@ Say-GuideProducts $guideCheck
 if (-not $guideCheck.ok -or $guideCheck.notices -gt 0) { Say 'ΔΕΝ ανεβάζω το Hub: πρώτα νέα προϊόντα στο sites/gwh/guides/guides.json (Claude), μετά ξανά αυτό το βήμα. ΔΕΝ άλλαξε τίποτα.' $Bad; Finish 20 }
 # L109: a gift guide price that is not the price its site shows stops the live step too (OLD stays a warning).
 if ($guideCheck.prices -gt 0) { Say 'ΔΕΝ ανεβάζω το Hub: οι τιμές κάποιων οδηγών δώρων δεν είναι ίδιες με τις τιμές των sites (δες PRICE). Τίποτα δεν ανέβηκε live και τίποτα δεν άλλαξε. Στείλε αυτή την αναφορά στο Claude: θα ενημερώσει τις τιμές των οδηγών και θα σου δώσει νέα εντολή.' $Bad; Finish 20 }
+# L119: preview, live and remove-preview in one paste: the live step goes on only after a clean preview of this version.
+if ($AfterPreview -and -not (Test-PreviewReport)) { Finish 23 }
 if (-not $Apply) { Say ''; Say 'Δοκιμή μόνο (χωρίς -Apply): δεν άλλαξε τίποτα.' $Ok; Finish 0 }
 if (-not (Confirm-Approval $PhraseLive)) { Say 'Δεν δόθηκε έγκριση: σταμάτησα χωρίς αλλαγές.' $Warn; Finish 1 }
 if ($null -ne $security) {
@@ -962,6 +1040,7 @@ $note = @(
     'Or in the Cloudflare dashboard: Workers > gear-world-hub > Deployments > the version above > Rollback.',
     'Going back from the whole L106 release: the Hub FIRST (this), THEN the 13 sites (the new Hub refuses sign-ups without Turnstile, the older site code sends none).'
 ) -join "`r`n"
+if ($MitgoCode) { $note += "`r`n" + ('The Mitgo tag (L119) is the Worker secret MITGO_VERIFICATION. To take it away (only with approval): npx wrangler secret delete MITGO_VERIFICATION --name {0}' -f $HubWorker) }
 $noteFile = Join-Path $bdir ('gwh-before-v2-live-' + $stamp + '.txt')
 [System.IO.File]::WriteAllText($noteFile, $note, (New-Object System.Text.UTF8Encoding($false)))
 Say ('Αντίγραφο ασφαλείας και οδηγίες επαναφοράς: {0}' -f $noteFile) $Ok
@@ -1009,6 +1088,19 @@ if ($bad.Count -gt 0) {
     Finish 10
 }
 Say ('Νέα αρχεία στον φάκελο του Hub: {0}' -f ($plan -join ', ')) $Ok
+
+# L119: the Mitgo code becomes the Worker secret MITGO_VERIFICATION right before the deploy (a new version of the code that
+# runs now, which does not read it), so the new code shows the tag from its first answer; later deploys keep it.
+if ($MitgoCode) {
+    $ms = Set-WorkerSecret $gwh $HubWorker 'MITGO_VERIFICATION' $MitgoCode
+    if ($ms.code -ne 0) {
+        Restore-Before
+        Say 'Ο κωδικός του Mitgo δεν μπήκε στον Worker του Hub: τα παλιά αρχεία γύρισαν στον φάκελο του Hub, ΔΕΝ ανέβηκε τίποτα. Έξοδος:' $Bad
+        Say $ms.text
+        Finish 22
+    }
+    Say ('Ο κωδικός επαλήθευσης του Mitgo μπήκε στον Worker "{0}" (μυστικό MITGO_VERIFICATION, δεν φαίνεται πουθενά).' -f $HubWorker) $Ok
+}
 
 # 3. Deploy the live Hub from its folder, with the wrangler version of this repo version
 $d = Invoke-Deploy $gwh $cfgPc

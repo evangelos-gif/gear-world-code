@@ -258,3 +258,49 @@ test('home page: the bar "We\'re adding retailers for your country" outside the 
   const css = js && (await import('node:fs')).readFileSync('sites/gwh/public/hub-v2.css', 'utf8');
   assert.match(css, /\.gwh2-country-bar\{background:var\(--card\);color:var\(--text\);border-bottom:3px solid var\(--accent\)\}/);
 });
+
+// Lessons L119 (owner, 13 Nov 2026): the Mitgo verification tag. The code is a Worker secret, never in the repo, so the
+// test builds a code of the same form at run time (the test runner refuses UUIDs written in files).
+test('home page: the Mitgo tag in the <head> only with its secret, only on the home page, the same page plus the tag', async () => {
+  const code = ['a1b2c3d4', 'e5f6', 'a7b8', 'c9d0', 'e1f2a3b4c5d6'].join('-');
+  const tag = `<meta name="mitgo-verification" content="${code}">`;
+  const page = '<!doctype html><html><head><meta charset="utf-8"><title>Hub</title></head><body class="gwh2"><header class="site-header"><nav>menu</nav></header><main>search</main></body></html>';
+  const assets = { fetch: async () => new Response(page, { headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'public, max-age=0, must-revalidate', ETag: '"x"' } }) };
+  const ask = async (secret, path = '/', country = 'GB', method = 'GET') => {
+    const env = { ...makeEnv(), ASSETS: assets };
+    if (secret !== undefined) env.MITGO_VERIFICATION = secret;
+    const req = new Request(`https://gearworldhub.com${path}`, { method, headers: { 'User-Agent': 'Mozilla/5.0 test' } });
+    Object.defineProperty(req, 'cf', { value: { country } });
+    return hub.fetch(req, env, { waitUntil: p => p });
+  };
+  const plain = await ask(undefined);
+  const plainHtml = await plain.text();
+  assert.equal(plainHtml.includes('mitgo-verification'), false, 'no secret: no tag');
+  assert.equal(plain.headers.get('ETag'), '"x"', 'no secret: the page is the file, untouched');
+  for (const path of ['/', '/index.html']) {
+    const r = await ask(code, path);
+    const html = await r.text();
+    assert.ok(html.includes(tag + '</head>'), `${path}: the tag at the end of the <head>`);
+    assert.equal(html.split('mitgo-verification').length, 2, `${path}: once`);
+    assert.equal(html.replace(tag, ''), plainHtml, `${path}: the same page plus the tag`);
+    assert.equal(r.headers.get('ETag'), null, 'another body than the file: no ETag of the file');
+  }
+  // Upper case or spaces from a paste are fine; anything else is never written into the page.
+  assert.ok((await (await ask(' ' + code.toUpperCase() + ' ')).text()).includes(tag));
+  for (const bad of ['', 'x', code + '"><script>alert(1)</script>', code.slice(0, -1), code.replace(/-/g, '')]) {
+    assert.equal((await (await ask(bad)).text()), plainHtml, `not a code: ${JSON.stringify(bad).slice(0, 30)}`);
+  }
+  assert.equal((await (await ask(code, '/about/')).text()).includes('mitgo-verification'), false, 'only the home page');
+  assert.equal((await (await ask(code, '/', 'GB', 'HEAD')).text()).includes('mitgo-verification'), false, 'GET only');
+  // Outside the UK both are added: the country bar above the header and the tag in the <head>.
+  const us = await (await ask(code, '/', 'US')).text();
+  assert.ok(us.includes(tag + '</head>') && us.includes('<div class="gwh2-country-bar"'));
+  // The live checks of the tools take both out before they compare the page with the file (L107, L119).
+  const fs = await import('node:fs');
+  for (const tool of ['gwh-hub-v2.ps1', 'gwh-mailerlite.ps1', 'gwh-photo.ps1', 'gwh-search-labels.ps1', 'poster-setup.ps1']) {
+    const ps1 = fs.readFileSync(`tools/${tool}`, 'utf8');
+    const rules = [...ps1.matchAll(/\$clean = \[regex\]::Replace\(\$clean, '([^']+)', ''\)/g)].map(m => new RegExp(m[1], 'g'));
+    assert.equal(rules.length, 2, `${tool}: the country bar and the Mitgo tag are taken out`);
+    assert.equal(rules.reduce((s, rx) => s.replace(rx, ''), us), plainHtml, `${tool}: the US page without them is the file`);
+  }
+});
