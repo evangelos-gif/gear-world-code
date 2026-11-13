@@ -45,7 +45,9 @@ if (-not $KeyFile) { $KeyFile = Join-Path (Join-Path $HOME 'gear-world-secrets')
 $stamp = Get-Date -Format 'yyyyMMdd_HHmmss'
 $Phrase = 'ΕΓΚΡΙΝΩ FEED DOWNLOAD'
 # The columns the import tools read. A column a retailer does not fill simply comes back empty.
-$Columns = 'data_feed_id,merchant_id,merchant_name,aw_product_id,aw_deep_link,aw_image_url,aw_thumb_url,category_id,category_name,brand_id,brand_name,merchant_product_id,merchant_category,ean,product_GTIN,mpn,product_name,description,merchant_deep_link,merchant_image_url,large_image,search_price,store_price,rrp_price,currency,delivery_cost,in_stock,stock_quantity,stock_status,condition,colour,size,fashion_size,fashion_suitable_for,parent_product_id,product_type,keywords,last_updated'
+# merchant_product_category_path: the shop's full folder path ("Automotive Tools > Trolley Jacks"). The Car Gear World rules
+# need it to tell a tool shop's car section; without it a refresh left out most Tooled Up car tools (3 Nov 2026, L127).
+$Columns = 'data_feed_id,merchant_id,merchant_name,aw_product_id,aw_deep_link,aw_image_url,aw_thumb_url,category_id,category_name,brand_id,brand_name,merchant_product_id,merchant_category,ean,product_GTIN,mpn,product_name,description,merchant_deep_link,merchant_image_url,large_image,search_price,store_price,rrp_price,currency,delivery_cost,in_stock,stock_quantity,stock_status,condition,colour,size,fashion_size,fashion_suitable_for,parent_product_id,product_type,keywords,last_updated,merchant_product_category_path,merchant_product_second_category,merchant_product_third_category'
 
 $L = New-Object System.Collections.Generic.List[string]
 $script:secret = ''

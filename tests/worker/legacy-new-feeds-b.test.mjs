@@ -15,6 +15,7 @@ import * as viaduct from '../../tools/import-rules/viaduct.mjs';
 import * as viaductWomen from '../../tools/import-rules/viaduct-women.mjs';
 import * as shakers from '../../tools/import-rules/beyondshakers.mjs';
 import * as sizes from '../../tools/cleanup-rules/viaduct-sizes.mjs';
+import * as watchDups from '../../tools/cleanup-rules/watch-enclave-duplicates.mjs';
 
 const place = r => (r.reject ? `REJECT ${r.reject}` : `${r.site} | ${r.siteCategory} | ${r.subcategory}`);
 const ps = (name, leaf, path, awin = '', brand = '') => place(plusshop.classify({ name, feedCategory: leaf, awinCategory: awin ? `${path} || ${awin}` : path, brand }));
@@ -452,4 +453,26 @@ test('Beyond Shakers: shakers and bottles to HGW Kitchen & Dining with a name th
   // A name that already says "Beyond" gets no second "Beyond Shakers" (dry run of 23 Oct 2026).
   assert.equal(shakers.classify({ name: 'Brushed Steel Beyond Stainless Steel Protein Shaker', shopType: 'Shaker' }).name, 'Brushed Steel Beyond Stainless Steel Protein Shaker');
   assert.equal(shakers.classify({ name: 'Lilac Beyond Water Bottle 1L Capacity', shopType: 'Bottle' }).name, 'Lilac Beyond Water Bottle 1L Capacity');
+});
+
+test('L84: watch-enclave-duplicates hides the old second card of a watch only when the refreshed Watch Enclave card is active', () => {
+  const db = new DatabaseSync(':memory:');
+  db.exec(`CREATE TABLE products (id INTEGER PRIMARY KEY AUTOINCREMENT, awin_product_id TEXT NOT NULL UNIQUE, merchant_product_id TEXT, retailer TEXT NOT NULL,
+    site_category TEXT, product_name TEXT, is_active INTEGER DEFAULT 1, updated_at TEXT)`);
+  const add = db.prepare('INSERT INTO products (awin_product_id, merchant_product_id, retailer, site_category, product_name, is_active) VALUES (?, ?, ?, ?, ?, ?)');
+  add.run('122382:111', '111', 'Watch Enclave Affiliate Programme', 'Watches', 'Emporio Armani Renato AR2434 â€“ 43mm', 1);
+  add.run('122382:222', '222', 'Watch Enclave Affiliate Programme', 'Watches', 'Only here', 1);
+  add.run('122382:333', '333', 'Watch Enclave Affiliate Programme', 'Watches', 'Already hidden', 0);
+  for (const f of ['summarySql', 'samplesSql', 'idsSql', 'keptSql']) assert.doesNotMatch(watchDups[f](), /[%<>&|^]/, f);
+  add.run('43276243639', '111', 'Watch Enclave', 'Watches', 'Emporio Armani Renato AR2434 – 43mm', 1);
+  // Fewer than 30 refreshed cards on the site: nothing to hide.
+  assert.deepEqual(db.prepare(watchDups.idsSql()).all(), []);
+  for (let i = 0; i < 30; i++) add.run(`4327624${i}`, `9${i}`, 'Watch Enclave', 'Watches', `Watch ${i}`, 1);
+  add.run('43276240000', '222', 'Watch Enclave', 'Watches', 'Gone from the feed', 0);
+  const ids = db.prepare(watchDups.idsSql()).all().map(r => r.id);
+  assert.deepEqual(ids, [1]);
+  db.exec(watchDups.updateSql(ids, false));
+  assert.equal(db.prepare("SELECT COUNT(*) AS n FROM products WHERE is_active = 1 AND retailer = 'Watch Enclave Affiliate Programme'").get().n, 1);
+  db.exec(watchDups.updateSql(ids, true));
+  assert.equal(db.prepare("SELECT COUNT(*) AS n FROM products WHERE is_active = 1 AND retailer = 'Watch Enclave Affiliate Programme'").get().n, 2);
 });

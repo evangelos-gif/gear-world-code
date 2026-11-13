@@ -10,7 +10,8 @@ import { join } from 'node:path';
 import { gzipSync } from 'node:zlib';
 import { execFileSync, spawnSync } from 'node:child_process';
 import { DatabaseSync } from 'node:sqlite';
-import { findFeeds, readFeed, planRefresh, writeCosts, writePlan, keyOf, matchRow } from '../../tools/legacy-refresh-plan.mjs';
+import { findFeeds, readFeed, planRefresh, writeCosts, writePlan, keyOf, matchRow, newestFirst, renderReport, linkHost, shopOriginOf, feedFromShopify, readShopCurrency, productHandle, sampleShopProducts, renderSampleReport, sampleReason, slowShopCheck, renderSlowLines, slimShopProduct } from '../../tools/legacy-refresh-plan.mjs';
+import { readShopifyCatalog } from '../../tools/legacy-import-plan.mjs';
 
 // The CGW indexes on products (read from the live database, 25 Oct 2026).
 const CGW_INDEXES = [
@@ -32,6 +33,29 @@ const CGW_INDEXES = [
 test('rows written per change, from the CGW indexes: price 3, picture 1, stock 1, hide 12 (measured with the wrangler local D1)', () => {
   assert.deepEqual(writeCosts([...CGW_INDEXES.map(sql => ({ sql })), { name: 'sqlite_autoindex_products_1', sql: null }]), { price: 3, image_url: 1, stock_status: 1, is_active: 12 });
   assert.deepEqual(writeCosts([]), { price: 1, image_url: 1, stock_status: 1, is_active: 1 });
+});
+
+// L59: the search-index trigger. On CGW it fires only for name, brand, subcategory, retailer, category and id: no cost for a
+// refresh. On MGW (and WGW, KGW, HGW, GGW) it fires on ANY update. Measured on the MGW layout with the wrangler local D1,
+// 26 Oct 2026: price 4, stock 3, hide 6 rows written per product (the index-only count said 2, 1 and 4).
+const CGW_FTS_AU = 'CREATE TRIGGER products_fts_au AFTER UPDATE OF product_name, brand, subcategory, retailer, merchant_category, id ON products BEGIN INSERT INTO products_fts(products_fts, rowid, product_name) VALUES (\'delete\', old.id, old.product_name); END';
+const MGW_FTS_AU = 'CREATE TRIGGER products_fts_au\nAFTER UPDATE ON products\nBEGIN\n  INSERT INTO products_fts(products_fts, rowid, product_name) VALUES(\'delete\', old.id, old.product_name);\nEND';
+const MGW_INDEXES = [
+  'CREATE INDEX idx_products_category\nON products(site_category)',
+  'CREATE INDEX idx_products_retailer\nON products(retailer)',
+  'CREATE INDEX idx_products_merchant_id\nON products(retailer, merchant_product_id)',
+  'CREATE INDEX idx_products_active\nON products(is_active)',
+  "CREATE UNIQUE INDEX ux_products_refresh_stable_key\nON products(retailer, merchant_product_id)\nWHERE retailer IN ('Stan Ray UK', 'Stattics', 'Watch Enclave', 'WATCH & WATCH')",
+  'CREATE INDEX idx_products_active_category_price_id ON products(is_active, site_category, price, id)',
+  "CREATE INDEX idx_products_group_key ON products(COALESCE(NULLIF(TRIM(COALESCE(NULLIF(TRIM(ean), ''), json_extract(specs_json, '$.gtin'))), ''), 'id:' || id))",
+  'CREATE INDEX idx_products_active_created ON products(is_active, created_at)'
+];
+
+test('L59: rows written count the search-index trigger: CGW unchanged, MGW layout price 4, stock 3, hide 6 (measured)', () => {
+  const insertTrigger = 'CREATE TRIGGER products_fts_ai AFTER INSERT ON products BEGIN INSERT INTO products_fts(rowid) VALUES (new.id); END';
+  assert.deepEqual(writeCosts([...CGW_INDEXES, CGW_FTS_AU, insertTrigger].map(sql => ({ sql }))), { price: 3, image_url: 1, stock_status: 1, is_active: 12 });
+  assert.deepEqual(writeCosts([...MGW_INDEXES, MGW_FTS_AU, insertTrigger].map(sql => ({ type: 'x', sql }))), { price: 4, image_url: 3, stock_status: 3, is_active: 6 });
+  assert.deepEqual(writeCosts(MGW_INDEXES.map(sql => ({ sql }))), { price: 2, image_url: 1, stock_status: 1, is_active: 4 }, 'without the trigger: indexes only');
 });
 
 const HEAD = 'aw_deep_link,product_name,aw_product_id,merchant_product_id,merchant_image_url,aw_image_url,merchant_category,search_price,merchant_name,merchant_id,currency,in_stock,stock_status,last_updated\n';
@@ -160,11 +184,266 @@ test('command line: report and counts from wrangler output files; no feed found 
   writeFileSync(idxFile, JSON.stringify([{ results: CGW_INDEXES.map((sql, i) => ({ name: `i${i}`, sql })), success: true }]));
   const tool = join(process.cwd(), 'tools', 'legacy-refresh-plan.mjs');
   execFileSync(process.execPath, [tool, '--archive', dir, '--retailer', 'Tooled Up', '--site', 'cgw', '--rows', rowsFile, '--indexes', idxFile, '--out', out, '--now', '2026-10-25T12:00:00Z']);
-  assert.equal(readFileSync(join(out, 'counts.txt'), 'utf8').trim(), '2 1 16 0 1 5');
+  assert.equal(readFileSync(join(out, 'counts.txt'), 'utf8').trim(), '2 1 16 0 1 5 0');
   const report = readFileSync(join(out, 'report.txt'), 'utf8');
   assert.match(report, /ΠΡΟΣΟΧΗ: 1 τιμές αλλάζουν πάνω από 3 φορές/);
   assert.match(report, /απόκρυψη 12/);
   const miss = spawnSync(process.execPath, [tool, '--archive', dir, '--retailer', 'Tooled', '--rows', rowsFile, '--out', join(out, 'x')]);
   assert.equal(miss.status, 3);
   assert.match(readFileSync(join(out, 'x', 'report.txt'), 'utf8'), /Παρόμοια: AWIN_496_1001\.csv\.gz: Tooled Up/);
+});
+
+// L58 (26 Oct 2026, dry run of Reidl and Tooled Up on CGW): Tooled Up came in files of 1 and of 10 days, and the older
+// file was read first by its name; neither feed had an update date, so the 30-day check (L39) never ran; the report
+// showed names as 'Schl├â┬╝ssel'. The site keeps such names saved twice as UTF-8 ('SchlÃ¼ssel') and shows them right.
+test('L58: the newest file wins; a feed without dates is judged by its newest file; stock in the feed is counted; names read right', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'refresh-l58-'));
+  const head = 'product_name,aw_product_id,merchant_product_id,merchant_image_url,search_price,merchant_name,currency,in_stock\n';
+  const oldFile = join(dir, 'AWIN_496_19857.csv.gz');
+  const newFile = join(dir, 'AWIN_496_89987.csv.gz');
+  writeFileSync(oldFile, gzipSync(head + 'Gedore Spanner,100046875,100005800,https://www.tooled-up.com/artwork/prodzoom/a.jpg,11.00,Tooled Up,GBP,1\n'
+    + 'Old File Only,200,300,https://www.tooled-up.com/artwork/prodzoom/d.jpg,5,Tooled Up,GBP,0\n'));
+  writeFileSync(newFile, gzipSync(head + 'Gedore Spanner,100046875,100005800,https://www.tooled-up.com/artwork/prodzoom/a.jpg,12.50,Tooled Up,GBP,1\n'));
+  const day = 86400000;
+  const now = Date.now();
+  utimesSync(oldFile, new Date(now - 10 * day), new Date(now - 10 * day));
+  utimesSync(newFile, new Date(now - 1 * day - 3600000), new Date(now - 1 * day - 3600000));
+  assert.deepEqual(newestFirst([oldFile, newFile]), [newFile, oldFile], 'by date, not by name');
+  const feed = await readFeed((await findFeeds(dir, 'Tooled Up')).files);
+  assert.equal(feed.byAw.get('100046875').price, 12.5, 'the row of the newer file');
+  assert.equal(feed.newest, '');
+  const rows = [
+    { id: 1, awin_product_id: '100046875', merchant_product_id: '100005800', product_name: 'Gedore Ring-Maulschl\u00c3\u00bcssel 10mm', price: 11.99, currency: 'GBP', stock_status: 'In Stock', image_url: 'https://www.tooled-up.com/artwork/prodzoom/a.jpg', is_active: 1 },
+    { id: 2, awin_product_id: '200', merchant_product_id: '300', product_name: 'Old File Only', price: 5, currency: 'GBP', stock_status: 'In Stock', image_url: 'https://www.tooled-up.com/artwork/prodzoom/d.jpg', is_active: 1 }
+  ];
+  const p = planRefresh({ rows, feed, costs: CGW_COSTS, now: new Date(now) });
+  assert.equal(p.staleFrom, 'file');
+  assert.equal(p.staleDays, 1);
+  assert.equal(p.stale, false);
+  assert.deepEqual(Object.fromEntries(p.changes.map(c => [c.id, c.set])), { 1: { price: 12.5 }, 2: { stock_status: '0' } });
+  assert.deepEqual(p.feedStock, { in: 1, out: 1, unknown: 0 });
+  const report = renderReport({ retailer: 'Tooled Up', site: 'cgw', feedFiles: ['a'], feedRows: feed.rows, newest: feed.newest, p });
+  assert.match(report, /Ring-Maulschl\u00fcssel 10mm: 11\.99 -> 12\.5/, 'the name as the site shows it');
+  assert.match(report, /ο έλεγχος παλιού feed \(L39\) έγινε με το νεότερο αρχείο του \(1 ημ\.\)/);
+  assert.match(report, /Απόθεμα στο feed για τα 2 που βρέθηκαν: σε απόθεμα 1, εξαντλημένα 1, χωρίς στοιχείο 0\./);
+  const old = planRefresh({ rows, feed, costs: CGW_COSTS, now: new Date(now + 40 * day) });
+  assert.equal(old.stale, true, 'newest file 41 days old: nothing changes');
+  assert.equal(old.changes.length + old.hides.length, 0);
+  assert.match(renderReport({ retailer: 'Tooled Up', site: 'cgw', feedFiles: ['a'], feedRows: feed.rows, newest: '', p: old }), /ΠΡΟΣΟΧΗ: το νεότερο αρχείο του feed είναι 41 ημερών/);
+});
+
+// L60 (job 3, 26 Oct 2026): the Awin feeds of Red Gorilla (CGW), Wavytalk (MGW) and Gardenista (HGW) were not refreshed
+// after 15 May 2026, but the shops' own Shopify sites were live. Checked on the live sites that day: Gardenista and Red
+// Gorilla prices were the same; Wavytalk is a US store (USD) and the UK-plug options on MGW were sold out.
+test('L60: the shop address comes from the products\' links', () => {
+  const cread = u => `https://www.awin1.com/cread.php?awinmid=37292&awinaffid=3057233&ued=${encodeURIComponent(u)}`;
+  assert.equal(linkHost(cread('https://gardenistauk.com/products/cccd1vahinee?variant=37737710846101')), 'gardenistauk.com');
+  assert.equal(linkHost('https://www.awin1.com/pclick.php?p=45361363125&a=3057233&m=128533'), '', 'pclick carries no shop address');
+  assert.equal(linkHost('http://shop.example/x'), '', 'https only');
+  const rows = [1, 2, 3, 4, 5].map(i => ({ affiliate_url: cread(`https://www.redgorilla.red/products/p${i}?variant=${i}`) }));
+  assert.equal(shopOriginOf(rows), 'https://www.redgorilla.red');
+  assert.equal(shopOriginOf([...rows, ...[6, 7].map(() => ({ affiliate_url: cread('https://other.example/products/x') }))]), '', 'under 4 in 5 on one shop: none');
+});
+
+function fakeShop(products, currency) {
+  return async url => {
+    const u = new URL(url);
+    if (u.pathname === '/meta.json') return { ok: true, json: async () => ({ currency, domain: u.hostname }) };
+    if (u.pathname === '/products.json') return { ok: true, json: async () => ({ products: u.searchParams.get('page') === '1' ? products : [] }) };
+    return { ok: false, json: async () => ({}) };
+  };
+}
+const SHOP = [
+  { handle: 'cushion', images: [{ src: 'https://cdn.shopify.com/s/files/1/x/cushion.jpg?v=2' }],
+    variants: [{ id: 101, sku: 'C-1', price: '12.99', available: true, featured_image: null }, { id: 102, sku: 'C-2', price: '14.99', available: true, featured_image: null }] },
+  { handle: 'cover', images: [{ src: 'https://cdn.shopify.com/s/files/1/x/cover-new.jpg?v=9' }],
+    variants: [{ id: 201, sku: 'V-1', price: '29.99', available: false, featured_image: null }, { id: 202, sku: 'V-2', price: '7.99', available: true, featured_image: { src: 'https://cdn.shopify.com/s/files/1/x/cover-b.jpg?v=3' } }] }
+];
+
+test('L60: from the shop\'s live catalogue: same price kept, new price set, sold out and gone hidden, deleted picture replaced', async () => {
+  const fetchImpl = fakeShop(SHOP, 'GBP');
+  const catalog = await readShopifyCatalog('https://gardenistauk.com', { fetchImpl, pauseMs: 0 });
+  const currency = await readShopCurrency('https://gardenistauk.com', { fetchImpl });
+  assert.equal(currency, 'GBP');
+  const feed = feedFromShopify(catalog, currency, new Date('2026-10-26T22:00:00Z'));
+  const pic = 'https://cdn.shopify.com/s/files/1/x/cushion.jpg?v=1';
+  const rows = [
+    { id: 1, awin_product_id: '37292:101', merchant_product_id: '101', product_name: 'Cushion A', price: 12.99, currency: 'GBP', stock_status: 'in stock', image_url: pic, is_active: 1 },
+    { id: 2, awin_product_id: '37292:102', merchant_product_id: '102', product_name: 'Cushion B', price: 12.99, currency: 'GBP', stock_status: 'in stock', image_url: pic, is_active: 1 },
+    { id: 3, awin_product_id: '37292:201', merchant_product_id: '201', product_name: 'Cover set', price: 29.99, currency: 'GBP', stock_status: 'in stock', image_url: 'https://cdn.shopify.com/s/files/1/x/cover-new.jpg', is_active: 1 },
+    { id: 4, awin_product_id: '37292:202', merchant_product_id: '202', product_name: 'Cover B', price: 7.99, currency: 'GBP', stock_status: 'in stock', image_url: 'https://cdn.shopify.com/s/files/1/x/deleted.jpg', is_active: 1 },
+    { id: 5, awin_product_id: '37292:999', merchant_product_id: '999', product_name: 'Gone', price: 5, currency: 'GBP', stock_status: 'in stock', image_url: pic, is_active: 1 },
+    { id: 6, awin_product_id: '54965443821954', merchant_product_id: 'V-1', product_name: 'By SKU, sold out', price: 29.99, currency: 'GBP', stock_status: 'in stock', image_url: pic, is_active: 1 }
+  ];
+  const p = planRefresh({ rows, feed, costs: { price: 4, image_url: 3, stock_status: 3, is_active: 6 }, now: new Date('2026-10-26T22:00:00Z') });
+  const by = Object.fromEntries(p.changes.map(c => [c.id, c.set]));
+  assert.equal(by[1], undefined, 'same price; the picture is still one of the product\'s pictures (other ?v=): nothing');
+  assert.deepEqual(by[2], { price: 14.99 });
+  assert.deepEqual(by[4], { image_url: 'https://cdn.shopify.com/s/files/1/x/cover-b.jpg?v=3' }, 'deleted picture -> the option\'s own picture');
+  assert.deepEqual(p.hides.sort(), [3, 5, 6], 'sold out (by id and by SKU) and gone are hidden');
+  assert.equal(p.soldOut, 2);
+  assert.equal(p.stale, false);
+  const report = renderReport({ retailer: 'Gardenista', site: 'hgw', feedFiles: [], feedRows: feed.rows, newest: feed.newest, p, shop: { origin: 'https://gardenistauk.com', currency } });
+  assert.match(report, /Πηγή: ο ζωντανός κατάλογος του καταστήματος https:\/\/gardenistauk\.com \(4 επιλογές, νόμισμα GBP\)/);
+  assert.match(report, /Εξαντλημένα στο κατάστημα: 2/);
+  assert.match(report, /Δεν υπάρχουν πια στο κατάστημα: 1\./);
+});
+
+test('L60: a shop in another currency (Wavytalk, USD) changes no price; an unknown currency changes no price either', async () => {
+  const catalog = await readShopifyCatalog('https://wavytalk.com', { fetchImpl: fakeShop(SHOP, 'USD'), pauseMs: 0 });
+  const rows = [{ id: 2, awin_product_id: '102', merchant_product_id: '102', product_name: 'Steamlift', price: 9.99, currency: 'GBP', stock_status: 'In Stock', image_url: 'https://cdn.shopify.com/s/files/1/x/cushion.jpg', is_active: 1 }];
+  const usd = planRefresh({ rows, feed: feedFromShopify(catalog, 'USD'), costs: { price: 4, image_url: 3, stock_status: 3, is_active: 6 } });
+  assert.equal(usd.changes.length, 0);
+  assert.equal(usd.currencySkip.length, 1);
+  const unknown = planRefresh({ rows, feed: feedFromShopify(catalog, ''), costs: { price: 4, image_url: 3, stock_status: 3, is_active: 6 } });
+  assert.equal(unknown.changes.length, 0, 'no currency read: no price change');
+  assert.equal(await readShopCurrency('https://wavytalk.com', { fetchImpl: async () => { throw new Error('offline'); } }), '');
+});
+
+test('L80: a catalogue too big to read whole (InStock) is sampled product by product: same, new price, sold out, gone', async () => {
+  const awin = h => `https://www.awin1.com/cread.php?awinmid=122444&awinaffid=3057233&ued=${encodeURIComponent(`https://instock.net/products/${h}`)}`;
+  assert.deepEqual(productHandle(awin('0-5mm-drill-bit?variant=77')), { handle: '0-5mm-drill-bit', variant: '77' });
+  assert.equal(productHandle('https://www.awin1.com/cread.php?awinmid=1&awinaffid=3057233&ued='), null);
+  const rows = [
+    { id: 1, awin_product_id: '122444:11', product_name: 'Same Price Lamp', price: 20, currency: 'GBP', is_active: 1, affiliate_url: awin('same-lamp') },
+    { id: 2, awin_product_id: '122444:21', product_name: 'New Price Kettle', price: 30, currency: 'GBP', is_active: 1, affiliate_url: awin('kettle?variant=21') },
+    { id: 3, awin_product_id: '122444:31', product_name: 'Sold Out Fan', price: 15, currency: 'GBP', is_active: 1, affiliate_url: awin('fan') },
+    { id: 4, awin_product_id: '122444:41', product_name: 'Gone Rug', price: 50, currency: 'GBP', is_active: 1, affiliate_url: awin('rug') },
+    { id: 5, awin_product_id: '122444:51', product_name: 'Hidden Chair', price: 50, currency: 'GBP', is_active: 0, affiliate_url: awin('chair') }
+  ];
+  const shop = {
+    'same-lamp': { variants: [{ id: 11, price: 2000, available: true }] },
+    kettle: { variants: [{ id: 20, price: 1000, available: true }, { id: 21, price: 3499, available: true }] },
+    fan: { variants: [{ id: 31, price: 1500, available: false }] }
+  };
+  const asked = [];
+  const fetchImpl = async url => {
+    asked.push(url);
+    const h = /\/products\/([^/]+)\.js$/.exec(url)[1];
+    if (!shop[h]) return { ok: false, status: 404, json: async () => ({}) };
+    return { ok: true, status: 200, json: async () => shop[h] };
+  };
+  const st = await sampleShopProducts(rows, 'https://instock.net', { n: 10, fetchImpl, pauseMs: 0, currency: 'GBP' });
+  assert.equal(st.active, 4, 'hidden products are not sampled');
+  assert.equal(asked.length, 4);
+  assert.ok(asked.every(u => /^https:\/\/instock\.net\/products\/[a-z-]+\.js$/.test(u)), 'only the shop\'s own product pages, never an Awin link');
+  assert.deepEqual([st.checked, st.same, st.changed, st.soldOut, st.gone], [4, 1, 1, 1, 1]);
+  assert.match(st.examples.changed[0], /New Price Kettle: 30 -> 34\.99/, 'the option in the link decides the price');
+  const report = renderSampleReport({ retailer: 'InStock UK', site: 'hgw', origin: 'https://instock.net', currency: 'GBP', st, limitNote: 'πάνω από 10.000 προϊόντα' });
+  assert.match(report, /Ίδια τιμή: 1 \(25%\) · άλλη τιμή: 1 \(25%\) · εξαντλημένα: 1 \(25%\) · δεν υπάρχουν πια: 1 \(25%\)/);
+  assert.match(report, /Δείγμα μόνο: δεν άλλαξε τίποτα/);
+  // Another currency: no price comparison.
+  const st2 = await sampleShopProducts(rows, 'https://instock.net', { n: 10, fetchImpl, pauseMs: 0, currency: 'USD' });
+  assert.equal(st2.same + st2.changed, 0);
+  assert.equal(st2.otherCurrency, 2);
+});
+
+test('L80: the sample waits and asks again once when the shop says 429 (slow down)', async () => {
+  const awin = h => `https://www.awin1.com/cread.php?awinmid=122444&awinaffid=3057233&ued=${encodeURIComponent(`https://instock.net/products/${h}`)}`;
+  const rows = [{ id: 1, awin_product_id: '122444:11', product_name: 'Lamp', price: 20, currency: 'GBP', is_active: 1, affiliate_url: awin('lamp') }];
+  let calls = 0;
+  const fetchImpl = async () => { calls++; return calls === 1 ? { ok: false, status: 429, json: async () => ({}) } : { ok: true, status: 200, json: async () => ({ variants: [{ id: 11, price: 2000, available: true }] }) }; };
+  const st = await sampleShopProducts(rows, 'https://instock.net', { n: 5, fetchImpl, pauseMs: 0, currency: 'GBP' });
+  assert.equal(calls, 2);
+  assert.deepEqual([st.checked, st.same, st.failed], [1, 1, 0]);
+});
+
+test('L80: a catalogue read that stops part-way falls back to a sample; one that fails on page 1 does not', () => {
+  const msg = n => `Could not read the shop's live catalogue (https://instock.net/products.json?limit=250&page=${n}). Nothing was changed; try again later.`;
+  assert.match(sampleReason(msg(25)), /σελίδα 25/);
+  assert.equal(sampleReason(msg(1)), null);
+  assert.match(sampleReason('...more than 10000 products: too big for this check...'), /10\.000/);
+  assert.match(sampleReason(msg(1), true), /SampleShops/);
+});
+
+test('27 Oct 2026: still 429 after the wait, three in a row, stops the sample and says so', async () => {
+  const awin = h => `https://www.awin1.com/cread.php?awinmid=122444&awinaffid=3057233&ued=${encodeURIComponent(`https://instock.net/products/${h}`)}`;
+  const rows = Array.from({ length: 10 }, (_, i) => ({ id: i + 1, awin_product_id: `122444:${i}`, product_name: `Item ${i}`, price: 5, currency: 'GBP', is_active: 1, affiliate_url: awin(`item-${i}`) }));
+  let calls = 0;
+  const fetchImpl = async () => { calls++; return { ok: false, status: 429, json: async () => ({}) }; };
+  const st = await sampleShopProducts(rows, 'https://instock.net', { n: 10, fetchImpl, pauseMs: 0, currency: 'GBP' });
+  assert.equal(st.throttled, true);
+  assert.equal(st.failed, 3);
+  assert.equal(calls, 6);
+  const text = renderSampleReport({ retailer: 'InStock UK', site: 'hgw', origin: 'https://instock.net', currency: 'GBP', st, limitNote: 'x' });
+  assert.match(text, /HTTP 429/);
+  assert.match(text, /δεν ελέγχθηκε ολόκληρος/);
+});
+
+test('27 Oct 2026: the catalogue reader names the HTTP status, so 429 (slow down) is told from a shop that is down', async () => {
+  const slow = async () => ({ ok: false, status: 429, json: async () => ({}) });
+  await assert.rejects(readShopifyCatalog('https://gardenistauk.com', { fetchImpl: slow, pauseMs: 0 }), /page=1, HTTP 429\)/);
+  const gone = async () => { throw new Error('offline'); };
+  await assert.rejects(readShopifyCatalog('https://gardenistauk.com', { fetchImpl: gone, pauseMs: 0 }), /page=1\)\. Nothing was changed/);
+});
+
+// L81: the slow full check (InStock, 16,587 products, 28 Oct 2026).
+const instockRow = (id, handle, vid, price, extra = {}) => ({
+  id, awin_product_id: `122444:${vid}`, merchant_product_id: String(vid), product_name: `Item ${id}`, price, currency: 'GBP', is_active: 1,
+  stock_status: 'in stock', image_url: `https://cdn.shopify.com/${handle}.jpg`,
+  affiliate_url: `https://www.awin1.com/cread.php?awinmid=122444&awinaffid=3057233&ued=${encodeURIComponent(`https://instock.net/products/${handle}?variant=${vid}`)}`, ...extra });
+const jsProduct = (handle, vid, pence, available = true) => ({ handle, images: [`//cdn.shopify.com/${handle}.jpg`], variants: [{ id: vid, sku: '', price: pence, available, featured_image: null }] });
+
+test('L81: the slow check asks each product once, remembers the answers, and the plan touches only what answered', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'slow-'));
+  const memoryFile = join(dir, 'shop-memory', 'instock.net.jsonl');
+  const rows = [instockRow(1, 'hammer', 11, 26), instockRow(2, 'socks', 22, 9.99), instockRow(3, 'gone-table', 33, 120), instockRow(4, 'silent', 44, 5),
+    instockRow(5, 'hammer', 12, 26), { ...instockRow(6, 'x', 66, 1), affiliate_url: 'https://www.awin1.com/pclick.php?p=1' }];
+  // The shop's pictures are https://cdn...; the rows keep the same picture so only price and stock count here.
+  for (const r of rows) r.image_url = String(r.image_url);
+  const asked = [];
+  const fetchImpl = async url => {
+    const h = /products\/([^.]+)\.js/.exec(url)[1];
+    asked.push(h);
+    if (h === 'hammer') return { ok: true, status: 200, json: async () => ({ handle: h, images: ['//cdn.shopify.com/hammer.jpg'], variants: [{ id: 11, sku: '', price: 2800, available: true }, { id: 12, sku: '', price: 2600, available: true }] }) };
+    if (h === 'socks') return { ok: true, status: 200, json: async () => jsProduct(h, 22, 999, false) };
+    if (h === 'gone-table') return { ok: false, status: 404, json: async () => ({}) };
+    throw new Error('timeout');
+  };
+  const now = new Date('2026-10-28T20:00:00Z');
+  const one = await slowShopCheck(rows, 'https://instock.net', { memoryFile, now, fetchImpl, pauseMs: 0, clock: () => now.getTime() });
+  assert.deepEqual(asked.sort(), ['gone-table', 'hammer', 'silent', 'socks']);
+  assert.deepEqual([one.st.active, one.st.handles, one.st.asked, one.st.noAnswer, one.st.noHandle], [6, 4, 4, 1, 1]);
+  assert.deepEqual(one.checkedRows.map(r => r.id).sort(), [1, 2, 3, 5]);
+  const feed = feedFromShopify(one.catalog, 'GBP', now);
+  const p = planRefresh({ rows: one.checkedRows, feed, costs: writeCosts([]), now });
+  assert.deepEqual(p.changes.map(c => [c.id, c.set.price]), [[1, 28]]);
+  assert.deepEqual(p.hides.sort(), [2, 3]);
+  assert.equal(p.same, 1);
+  assert.match(renderSlowLines(one.st, 'InStock UK', 'cgw', one.checkedRows.length).join('\n'), /δεν ζητά φράση/);
+
+  // Same command again within 48 hours: nothing is asked again except the product that did not answer... which is remembered too.
+  asked.length = 0;
+  const two = await slowShopCheck(rows, 'https://instock.net', { memoryFile, now: new Date(now.getTime() + 20 * 3600000), fetchImpl, pauseMs: 0 });
+  assert.deepEqual([asked.length, two.st.asked, two.st.fromMemory], [0, 0, 4]);
+  assert.doesNotMatch(renderSlowLines(two.st, 'InStock UK', 'cgw', two.checkedRows.length).join('\n'), /δεν ζητά φράση/);
+  // After 48 hours the memory is too old: everything is asked again.
+  const three = await slowShopCheck(rows, 'https://instock.net', { memoryFile, now: new Date(now.getTime() + 49 * 3600000), fetchImpl, pauseMs: 0 });
+  assert.equal(three.st.asked, 4);
+  assert.equal(slimShopProduct({ variants: [{ id: 1, price: 2051, available: true }], images: [{ src: '//a.jpg' }] }).variants[0].price, '20.51');
+});
+
+test('L81: three "slow down" answers stop the slow check, and the next site of the run does not ask for 30 minutes', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'slow-'));
+  const memoryFile = join(dir, 'instock.net.jsonl');
+  const rows = Array.from({ length: 8 }, (_, i) => instockRow(i + 1, `item-${i}`, 100 + i, 5));
+  let calls = 0;
+  const slow = async () => { calls++; return { ok: false, status: 429, json: async () => ({}) }; };
+  const now = new Date('2026-10-28T20:00:00Z');
+  const one = await slowShopCheck(rows, 'https://instock.net', { memoryFile, now, fetchImpl: slow, pauseMs: 0, clock: () => now.getTime() });
+  assert.deepEqual([one.st.throttled, one.st.left, calls, one.checkedRows.length], [true, 6, 6, 0]);
+  assert.match(renderSlowLines(one.st, 'InStock UK', 'hgw', 0).join('\n'), /HTTP 429/);
+  calls = 0;
+  const two = await slowShopCheck(rows, 'https://instock.net', { memoryFile, now: new Date(), fetchImpl: slow, pauseMs: 0 });
+  assert.deepEqual([two.st.throttled, calls], [true, 0]);
+});
+
+test('-AcceptJumps: a price that changes more than 3 times changes too, and is still listed', () => {
+  const now = new Date('2026-10-28T20:00:00Z');
+  const rows = [instockRow(1, 'cushion-cover', 7, 7.99)];
+  const feed = feedFromShopify(new Map([['cushion-cover', slimShopProduct(jsProduct('cushion-cover', 7, 2999))]]), 'GBP', now);
+  const held = planRefresh({ rows, feed, costs: writeCosts([]), now });
+  assert.deepEqual([held.changes.length, held.bigPrice.length], [0, 1]);
+  const taken = planRefresh({ rows, feed, costs: writeCosts([]), now, acceptJumps: true });
+  assert.deepEqual([taken.changes.map(c => c.set.price), taken.bigPrice.length], [[29.99], 1]);
 });
