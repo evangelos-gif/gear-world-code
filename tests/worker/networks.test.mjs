@@ -55,31 +55,64 @@ test('Daisycon: products found in the answer and turned into feed rows (Awin nam
   assert.equal(row.merchant_product_id, 'LR-1');
   assert.equal(dc.toFeedRow(found[0].product, { programId: 16029, program: found[0].program, mediaId: '1' }).aw_deep_link, '', 'not our media id');
   assert.equal(dc.toFeedRow(dcProduct(3, { in_stock: false }), { mediaId: '447289' }).in_stock, '0');
-  const u = new URL(dc.feedUrl({ mediaId: 447289, programId: 16029, standardId: 3 }));
-  assert.equal(u.hostname, 'daisycon.io');
-  assert.equal(u.searchParams.get('media_id'), '447289');
-  assert.equal(u.searchParams.get('type'), 'JSON');
 });
 
-test('Daisycon: the probe tries the standards until one gives products; the download writes every page', async () => {
-  const f = fakeFetch(u => {
-    const s = u.searchParams.get('standard_id');
-    if (s !== '3') return { status: 400, body: { error: 'standard not available for this program' } };
-    const page = Number(u.searchParams.get('page'));
-    const per = Number(u.searchParams.get('per_page'));
-    if (per === 2) return { body: dcAnswer([dcProduct(1), dcProduct(2)]) };
-    const n = page === 1 ? per : 3;
-    return { body: dcAnswer(Array.from({ length: n }, (_, i) => dcProduct((page - 1) * per + i + 1))) };
+test('Daisycon: sign-in with PKCE, the feed picked from the API (English first), our media and locale in its address', () => {
+  const k = dc.pkce();
+  assert.ok(k.verifier.length >= 43 && !/[+/=]/.test(k.verifier));
+  const u = new URL(dc.authorizeUrl({ client: 'abc123', challenge: k.challenge, state: k.state }));
+  assert.equal(u.origin, 'https://login.daisycon.com');
+  assert.equal(u.searchParams.get('redirect_uri'), 'https://login.daisycon.com/oauth/cli');
+  assert.equal(u.searchParams.get('code_challenge_method'), 'S256');
+  const feeds = [{ id: 1, url: 'https://daisycon.io/datafeed/?media_id=#MEDIA_ID#&program_id=16029&standard_id=2&language_code=nl&locale_id=#LOCALE_ID#', language_code: 'nl', locale_ids: [1], products: 900 },
+    { id: 2, url: 'https://daisycon.io/datafeed/?media_id=#MEDIA_ID#&program_id=16029&standard_id=2&language_code=en&locale_id=#LOCALE_ID#', language_code: 'en', locale_ids: [6, 1], products: 800 }];
+  assert.equal(dc.pickFeed(feeds).id, 2);
+  const a = new URL(dc.feedAddress(dc.pickFeed(feeds), { mediaId: 447289, page: 3, perPage: 500 }));
+  assert.equal(a.searchParams.get('media_id'), '447289');
+  assert.equal(a.searchParams.get('locale_id'), '6');
+  assert.equal(a.searchParams.get('type'), 'JSON');
+  assert.equal(a.searchParams.get('page'), '3');
+  assert.equal(dc.pickFeed([{ id: 3 }]), null, 'a feed without an address is not used');
+});
+
+// A fake Daisycon: the sign-in, the API and the feed, on one address.
+function fakeDaisycon({ refresh = 'R1', products = 3, rotate = 'R2' } = {}) {
+  return fakeFetch(u => {
+    if (u.pathname === '/oauth/access-token') return { body: { access_token: 'A1', refresh_token: rotate, expires_in: 3600 } };
+    if (u.pathname === '/publishers') return { body: [{ id: 777 }] };
+    if (u.pathname === '/publishers/777/productfeeds.v2/program') {
+      const pid = u.searchParams.get('program_id');
+      if (pid !== '16029') return { body: [] };
+      return { body: [{ id: 5, url: 'https://daisycon.io/datafeed/?media_id=#MEDIA_ID#&program_id=16029&standard_id=2&language_code=en&locale_id=#LOCALE_ID#', language_code: 'en', locale_ids: [6], currency_code: 'EUR', products }] };
+    }
+    if (u.hostname === 'daisycon.io') {
+      if (u.searchParams.get('media_id') !== '447289' || u.searchParams.get('locale_id') !== '6') return { status: 400, body: { error: 'Missing the following parameters: locale_id' } };
+      const per = Number(u.searchParams.get('per_page'));
+      const page = Number(u.searchParams.get('page'));
+      const n = per === 2 ? 2 : (page === 1 ? Math.min(per, products) : Math.max(0, products - per));
+      return { body: dcAnswer(Array.from({ length: n }, (_, i) => dcProduct((page - 1) * per + i + 1))) };
+    }
+    return { status: 404, body: 'not found' };
   });
-  const P = await dc.probe({ mediaId: '447289', programs: ['16029'], standards: [1, 2, 3, 4], fetchImpl: f, pauseMs: 0 });
-  assert.equal(P[0].ok, true);
-  assert.equal(P[0].standard, 3);
-  assert.equal(P[0].tried, 3);
-  assert.match(P[0].firstAnswer, /HTTP 400/);
-  assert.equal(P[0].samples[0].tracking, 'ds1.nl');
-  assert.ok(P[0].keys.includes('title'));
+}
+
+test('Daisycon: probe and download through the API, the new sign-in key handed back, other programmes reported', async () => {
+  const f = fakeDaisycon({ products: dc.PER_PAGE + 3 });
+  const env = { GW_DC_CLIENT: 'abc123', GW_DC_SECRET: 's3cret', GW_DC_REFRESH: 'R1' };
+  const P = await dc.main(['--mode', 'probe', '--media', '447289', '--programs', '16029,22318', '--pause', '0'], f, env);
+  assert.equal(P.ok, true);
+  assert.equal(P.newRefresh, 'R2');
+  assert.equal(P.programs[0].ok, true);
+  assert.equal(P.programs[0].language, 'en');
+  assert.equal(P.programs[0].samples[0].tracking, 'ds1.nl');
+  assert.equal(P.programs[1].ok, false);
+  assert.match(P.programs[1].error, /no product feed/);
+  const tokenCall = f.calls.find(c => c.includes('/oauth/access-token'));
+  assert.ok(tokenCall);
   const out = mkdtempSync(join(tmpdir(), 'gw-dc-'));
-  const A = await dc.download({ mediaId: '447289', programId: '16029', standardId: 3, out, fetchImpl: f, pauseMs: 0 });
+  const D = await dc.main(['--mode', 'download', '--media', '447289', '--programs', '16029', '--out', out, '--pause', '0'], f, env);
+  assert.equal(D.ok, true);
+  const A = D.programs[0];
   assert.equal(A.ok, true);
   assert.equal(A.got, dc.PER_PAGE + 3);
   assert.equal(A.withTracking, A.got);
@@ -87,10 +120,12 @@ test('Daisycon: the probe tries the standards until one gives products; the down
   const text = gunzipSync(readFileSync(A.file)).toString('utf8');
   assert.ok(text.split('\n')[0].includes('aw_deep_link'));
   assert.equal(text.trim().split('\n').length, A.got + 1);
-  const S = await dc.main(['--mode', 'download', '--media', '447289', '--programs', '16029', '--out', out], f);
-  assert.equal(S.programs[0].error, 'no standard (probe first)');
-  assert.equal((await dc.main(['--mode', 'probe', '--media', 'x', '--programs', '1'], f)).error, 'wrong media id');
-  assert.equal((await dc.main(['--mode', 'probe', '--media', '447289', '--programs', '16029', '--base', 'https://evil.example/'], f)).error, 'unexpected feed address');
+  assert.equal((await dc.main(['--mode', 'probe', '--media', 'x', '--programs', '1'], f, env)).error, 'wrong media id');
+  assert.equal((await dc.main(['--mode', 'probe', '--media', '447289', '--programs', '16029', '--base', 'https://evil.example'], f, env)).error, 'unexpected Daisycon address');
+  const bad = fakeFetch(u => u.pathname === '/oauth/access-token' ? { status: 400, body: { error: 'invalid_grant' } } : { body: [] });
+  const B = await dc.main(['--mode', 'probe', '--media', '447289', '--programs', '16029'], bad, env);
+  assert.equal(B.signIn, true);
+  assert.match(B.error, /invalid_grant/);
 });
 
 const HDR = 'HDR|1606623|Cotton On UK|11/13/2026 06:00:00';
@@ -173,10 +208,9 @@ test('the import planner finds RAKUTEN_ and DAISYCON_ files and keeps their trac
   assert.deepEqual(feedPaths({ archive, rules: { RULES: { network: 'rakuten', advertiserId: 1606623 } } }), [join(archive, 'RAKUTEN_1606623.csv.gz')]);
   assert.deepEqual(feedPaths({ archive, rules: { RULES: { advertiserId: 16029 } } }), [join(archive, 'AWIN_16029_1.csv.gz')]);
   const out = mkdtempSync(join(tmpdir(), 'gw-net2-'));
-  const A = await dc.download({ mediaId: '447289', programId: '16029', standardId: 3, out, pauseMs: 0,
-    fetchImpl: fakeFetch(() => ({ body: dcAnswer([dcProduct(1), dcProduct(2)]) })) });
+  const D = await dc.download({ access: 'A1', mediaId: '447289', programs: ['16029'], out, pauseMs: 0, services: 'https://services.daisycon.com', fetchImpl: fakeDaisycon({ products: 2 }) });
   const archive2 = mkdtempSync(join(tmpdir(), 'gw-net3-'));
-  writeFileSync(join(archive2, 'DAISYCON_16029.csv.gz'), readFileSync(A.file));
+  writeFileSync(join(archive2, 'DAISYCON_16029.csv.gz'), readFileSync(D.programs[0].file));
   const R = await readProducts({ archive: archive2, rules: { RULES: { network: 'daisycon', advertiserId: 16029 } } });
   assert.equal(R.products.length, 2);
   assert.ok(isDaisyconLink(R.products[0].tracked, '447289'));

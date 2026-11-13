@@ -1,30 +1,57 @@
 // Daisycon product feeds (13 Nov 2026, lessons L128). Daisycon accepted Gear World for many European shops (Superdry EU,
-// La Redoute NL/DE, Petit Bateau, My Little Darling Shop UK ...). Each approved programme has a product feed at
-//   https://daisycon.io/datafeed/?media_id=<our media>&program_id=<programme>&standard_id=<n>&language_code=en&type=JSON...
-// No key: the media id in the address is ours (the same one is in every Daisycon link of ours, "wi=").
-// The feed's "standard" (the field set of the shop's product type) differs per programme and is not in the approval
-// emails, so the read-only probe tries the standards one by one (one product per request) and keeps the first that
-// answers with products. The download writes DAISYCON_<programme>.csv.gz with the Awin column names and the Daisycon
-// tracking link in aw_deep_link, like CJ (lessons L86), so tools/legacy-import.ps1 imports it like any other feed.
+// La Redoute NL/DE, Petit Bateau, My Little Darling Shop UK ...).
+// First try (13 Nov 2026): guessing each feed's address (daisycon.io/datafeed with a "standard" and a "locale") gave
+// "Missing the following parameters: locale_id" and then "Too many requests" for every programme. Now the feeds come from
+// Daisycon's own API, as its documentation says: the owner creates an API app once (Tools -> Daisycon API, redirect URI
+// https://login.daisycon.com/oauth/cli), signs in once in the browser (OAuth with PKCE) and pastes the code it shows;
+// the API then lists every feed of a programme with its ready address (#MEDIA_ID# = our media).
+// The download writes DAISYCON_<programme>.csv.gz with the Awin column names and the Daisycon tracking link in
+// aw_deep_link, like CJ (lessons L86), so tools/legacy-import.ps1 imports it like any other feed.
+// Secrets (client secret, refresh token, code) come only through environment variables from the PowerShell tool, which
+// keeps them encrypted (DPAPI) and never writes them to a report.
 // Command line (used by tools/daisycon-feed-download.ps1):
-//   node tools/daisycon-feed.mjs --mode probe|download --media <id> --programs 16029,22318 [--standards 1,2,...] --out <dir>
+//   node tools/daisycon-feed.mjs --mode auth-url --client <client id>
+//   node tools/daisycon-feed.mjs --mode auth-token          (GW_DC_CLIENT, GW_DC_SECRET, GW_DC_CODE, GW_DC_VERIFIER)
+//   node tools/daisycon-feed.mjs --mode probe|download --media <id> --programs 16029,22318 [--out <dir>]
+//                                                          (GW_DC_CLIENT, GW_DC_SECRET, GW_DC_REFRESH)
 import { createWriteStream } from 'node:fs';
 import { createGzip } from 'node:zlib';
+import { createHash, randomBytes } from 'node:crypto';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { FEED_COLUMNS, csvLine, isDaisyconLink, pageInLink } from './network-links.mjs';
 
-export const FEED_HOST = 'daisycon.io';
+export const LOGIN = 'https://login.daisycon.com';
+export const SERVICES = 'https://services.daisycon.com';
+export const REDIRECT = 'https://login.daisycon.com/oauth/cli';
 export const PER_PAGE = 500;
 export const MAX_PAGES = 200;            // 100,000 products for one programme at most
-export const DEFAULT_STANDARDS = Array.from({ length: 60 }, (_, i) => i + 1);
+export const API_PAUSE_MS = 1400;        // Daisycon's API allows 50 requests a minute
 
-export function feedUrl({ base = `https://${FEED_HOST}/datafeed/`, mediaId, programId, standardId, languageCode = 'en', page = 1, perPage = PER_PAGE }) {
-  const q = new URLSearchParams({
-    media_id: String(mediaId), program_id: String(programId), standard_id: String(standardId), language_code: languageCode,
-    type: 'JSON', html_transform: 'none', rawdata: 'false', encoding: 'utf8', general: 'false', page: String(page), per_page: String(perPage)
-  });
-  return `${base}?${q}`;
+const b64url = buf => Buffer.from(buf).toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+export function pkce() {
+  const verifier = b64url(randomBytes(32));
+  return { verifier, challenge: b64url(createHash('sha256').update(verifier).digest()), state: b64url(randomBytes(12)) };
+}
+export function authorizeUrl({ client, challenge, state, login = LOGIN }) {
+  const q = new URLSearchParams({ response_type: 'code', client_id: client, redirect_uri: REDIRECT, code_challenge: challenge, code_challenge_method: 'S256', state });
+  return `${login}/oauth/authorize?${q}`;
+}
+
+// Only Daisycon gets the keys (or the tests' local fake server).
+const okHost = (u, hosts) => { try { const h = new URL(u).hostname; return hosts.includes(h) || h === '127.0.0.1'; } catch { return false; } };
+
+export async function tokenRequest({ login = LOGIN, fetchImpl = fetch, ...fields }) {
+  if (!okHost(login, ['login.daisycon.com'])) return { error: 'unexpected login address' };
+  const body = new URLSearchParams(Object.fromEntries(Object.entries(fields).filter(([, v]) => v)));
+  let res;
+  try { res = await fetchImpl(`${login}/oauth/access-token`, { method: 'POST', headers: { 'content-type': 'application/x-www-form-urlencoded' }, body: body.toString() }); }
+  catch (e) { return { error: String(e && e.message || e) }; }
+  const text = await res.text();
+  let j = null;
+  try { j = JSON.parse(text); } catch { /* not JSON */ }
+  if (res.status !== 200 || !j || !j.access_token) return { error: `HTTP ${res.status} ${(j && (j.error_description || j.error || j.message)) || text.slice(0, 200)}` };
+  return { access: j.access_token, refresh: j.refresh_token || fields.refresh_token || '', expiresIn: j.expires_in };
 }
 
 const isObj = v => v && typeof v === 'object' && !Array.isArray(v);
@@ -102,67 +129,92 @@ export function toFeedRow(raw, { programId, program, mediaId } = {}) {
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
-async function getJson(url, fetchImpl) {
-  let res;
-  try { res = await fetchImpl(url, { headers: { accept: 'application/json' } }); } catch (e) { return { status: 0, error: String(e && e.message || e) }; }
-  const text = await res.text();
-  let json = null;
-  try { json = JSON.parse(text); } catch { /* not JSON */ }
-  return { status: res.status, json, text: json ? '' : text.slice(0, 300) };
+// GET with a wait on "Too many requests" (429): Retry-After, else 60 s, at most 3 times. Nothing is hammered.
+async function getJson(url, { fetchImpl = fetch, token = '', waitMs = 60000 } = {}) {
+  for (let attempt = 1; ; attempt++) {
+    let res;
+    try { res = await fetchImpl(url, { headers: { accept: 'application/json', ...(token ? { authorization: `Bearer ${token}` } : {}) } }); }
+    catch (e) { return { status: 0, error: String(e && e.message || e) }; }
+    if (res.status === 429 && attempt < 3) {
+      const ra = Number(res.headers && typeof res.headers.get === 'function' ? res.headers.get('retry-after') : NaN);
+      await sleep(Number.isFinite(ra) && ra > 0 ? Math.min(ra * 1000, 120000) : waitMs);
+      continue;
+    }
+    const text = await res.text();
+    let json = null;
+    try { json = JSON.parse(text); } catch { /* not JSON */ }
+    return { status: res.status, json, text: json ? '' : text.slice(0, 300), total: res.headers && typeof res.headers.get === 'function' ? res.headers.get('x-total-count') : null };
+  }
 }
 
-// Read-only: which standard gives products for each programme, with two samples. Nothing is written.
-export async function probe({ mediaId, programs, standards = DEFAULT_STANDARDS, base, fetchImpl = fetch, pauseMs = 200 }) {
+const listOf = j => Array.isArray(j) ? j : (j && Array.isArray(j.results) ? j.results : (j && Array.isArray(j.data) ? j.data : []));
+
+// The feed of a programme the import should use: English first, then the one with the most products.
+export function pickFeed(feeds) {
+  const ok = feeds.filter(f => f && f.url);
+  ok.sort((a, b) => (String(b.language_code || '').toLowerCase() === 'en') - (String(a.language_code || '').toLowerCase() === 'en') || (Number(b.products) || 0) - (Number(a.products) || 0));
+  return ok[0] || null;
+}
+
+// The ready address of a feed: our media id (and the feed's first locale) in its placeholders, JSON, one page.
+export function feedAddress(feed, { mediaId, page = 1, perPage = PER_PAGE }) {
+  const locale = Array.isArray(feed.locale_ids) && feed.locale_ids.length ? feed.locale_ids[0] : (feed.locale_id || '');
+  const u = new URL(String(feed.url).replace(/#MEDIA_ID#/g, String(mediaId)).replace(/#LOCALE_ID#/g, String(locale)));
+  if (!u.searchParams.get('media_id') && !u.searchParams.get('filter_id')) u.searchParams.set('media_id', String(mediaId));
+  if (!u.searchParams.get('locale_id') && locale) u.searchParams.set('locale_id', String(locale));
+  for (const [k, v] of Object.entries({ type: 'JSON', html_transform: 'none', rawdata: 'false', encoding: 'utf8', general: 'false', page: String(page), per_page: String(perPage) })) u.searchParams.set(k, v);
+  return u.toString();
+}
+
+// The API part: who we are on Daisycon, and each programme's feeds.
+async function apiFeeds({ access, programs, services, fetchImpl, pauseMs }) {
+  const pub = await getJson(`${services}/publishers`, { fetchImpl, token: access });
+  const pubs = listOf(pub.json);
+  if (pub.status !== 200 || !pubs.length) return { error: `publishers: HTTP ${pub.status} ${pub.text || JSON.stringify(pub.json || '').slice(0, 200)}` };
+  const publisher = pubs[0].id;
   const out = [];
   for (const programId of programs) {
-    const P = { program: String(programId), ok: false, standard: null, tried: 0, firstAnswer: '', samples: [], keys: [] };
-    for (const s of standards) {
-      P.tried++;
-      const r = await getJson(feedUrl({ base, mediaId, programId, standardId: s, page: 1, perPage: 2 }), fetchImpl);
-      const found = r.json ? findProducts(r.json) : [];
-      if (!P.firstAnswer) P.firstAnswer = `HTTP ${r.status}${r.error ? ` ${r.error}` : ''}${r.text ? ` ${r.text}` : ''}${r.json && !found.length ? ` ${JSON.stringify(r.json).slice(0, 300)}` : ''}`;
-      if (found.length) {
-        P.ok = true; P.standard = s;
-        P.name = String((found[0].program && (found[0].program.name || found[0].program.program_name)) || '');
-        P.keys = Object.keys(flatten(found[0].product)).slice(0, 60);
-        P.samples = found.slice(0, 2).map(x => { const row = toFeedRow(x.product, { programId, program: x.program, mediaId }); return {
-          name: row.product_name, price: row.search_price, currency: row.currency, stock: row.in_stock || row.stock_status, category: row.merchant_category,
-          image: /^https:\/\//.test(row.merchant_image_url) ? 'yes' : (row.merchant_image_url ? 'not https' : 'no'), page: row.merchant_deep_link,
-          tracking: row.aw_deep_link ? new URL(row.aw_deep_link).host : 'NONE' }; });
-        break;
-      }
-      if (r.status === 0 || r.status >= 500) break;   // the feed server itself has a problem: do not hammer it
-      if (pauseMs) await sleep(pauseMs);
-    }
-    out.push(P);
+    if (pauseMs) await sleep(pauseMs);
+    const r = await getJson(`${services}/publishers/${publisher}/productfeeds.v2/program?program_id=${programId}&page=1&per_page=100`, { fetchImpl, token: access });
+    const feeds = r.status === 200 ? listOf(r.json) : [];
+    out.push({ program: String(programId), status: r.status, error: r.status === 200 ? '' : `HTTP ${r.status} ${r.text || JSON.stringify(r.json || '').slice(0, 200)}`,
+      feeds: feeds.map(f => ({ id: f.id, url: f.url, standard_id: f.standard_id, language_code: f.language_code, locale_ids: f.locale_ids, currency_code: f.currency_code, products: f.products, name: f.name || f.program_name || '' })) });
   }
-  return out;
+  return { publisher: String(publisher), programs: out };
 }
 
-// Every product of one programme, page by page, written to <out>/DAISYCON_<programme>.csv.gz.part.
-export async function download({ mediaId, programId, standardId, out, base, fetchImpl = fetch, pauseMs = 500 }) {
-  const A = { program: String(programId), ok: false, got: 0, withTracking: 0, currencies: [], file: join(out, `DAISYCON_${programId}.csv.gz.part`), name: '' };
-  const rows = [];
-  for (let page = 1; page <= MAX_PAGES; page++) {
-    const r = await getJson(feedUrl({ base, mediaId, programId, standardId, page, perPage: PER_PAGE }), fetchImpl);
-    if (!r.json) { A.error = `HTTP ${r.status} ${r.error || r.text || ''}`.trim(); return A; }
-    const found = findProducts(r.json);
-    for (const x of found) {
-      const row = toFeedRow(x.product, { programId, program: x.program, mediaId });
-      if (!A.name) A.name = row.merchant_name;
-      rows.push(row);
-    }
-    if (found.length < PER_PAGE) break;
-    if (page === MAX_PAGES) A.capped = true;
+// Read-only: each programme's feeds and two samples of the chosen one. Nothing is written.
+export async function probe({ access, mediaId, programs, services = SERVICES, fetchImpl = fetch, pauseMs = API_PAUSE_MS }) {
+  const A = await apiFeeds({ access, programs, services, fetchImpl, pauseMs });
+  if (A.error) return { error: A.error };
+  const result = [];
+  for (const p of A.programs) {
+    const P = { program: p.program, ok: false, feeds: p.feeds.length, error: p.error, samples: [], keys: [] };
+    const f = pickFeed(p.feeds);
+    if (!f) { if (!P.error) P.error = 'no product feed for this programme'; result.push(P); continue; }
+    Object.assign(P, { feedId: f.id, language: f.language_code, currency: f.currency_code, products: f.products, standard: f.standard_id });
+    const url = feedAddress(f, { mediaId, page: 1, perPage: 2 });
+    if (!okHost(url, ['daisycon.io'])) { P.error = 'the feed address is not on daisycon.io'; result.push(P); continue; }
+    const r = await getJson(url, { fetchImpl });
+    const found = r.json ? findProducts(r.json) : [];
+    if (!found.length) { P.error = `feed: HTTP ${r.status} ${r.text || JSON.stringify(r.json || '').slice(0, 200)}`; result.push(P); continue; }
+    P.ok = true;
+    P.name = String((found[0].program && (found[0].program.name || found[0].program.program_name)) || f.name || '');
+    P.keys = Object.keys(flatten(found[0].product)).slice(0, 60);
+    P.samples = found.slice(0, 2).map(x => { const row = toFeedRow(x.product, { programId: p.program, program: x.program, mediaId }); return {
+      name: row.product_name, price: row.search_price, currency: row.currency || f.currency_code || '', stock: row.in_stock || row.stock_status, category: row.merchant_category,
+      image: /^https:\/\//.test(row.merchant_image_url) ? 'yes' : (row.merchant_image_url ? 'not https' : 'no'), page: row.merchant_deep_link,
+      tracking: row.aw_deep_link ? new URL(row.aw_deep_link).host : 'NONE' }; });
+    result.push(P);
     if (pauseMs) await sleep(pauseMs);
   }
-  A.got = rows.length;
-  A.withTracking = rows.filter(x => x.aw_deep_link).length;
-  A.currencies = [...new Set(rows.map(x => x.currency).filter(Boolean))];
-  if (!rows.length) { A.error = 'no products'; return A; }
+  return { publisher: A.publisher, programs: result };
+}
+
+async function writeRows(file, rows) {
   await new Promise((resolve, reject) => {
     const gz = createGzip();
-    const ws = createWriteStream(A.file);
+    const ws = createWriteStream(file);
     gz.pipe(ws);
     ws.on('finish', resolve);
     ws.on('error', reject);
@@ -170,41 +222,79 @@ export async function download({ mediaId, programId, standardId, out, base, fetc
     for (const row of rows) gz.write(csvLine(FEED_COLUMNS.map(c => row[c])));
     gz.end();
   });
-  A.ok = true;
-  return A;
+}
+
+// Every product of each programme's chosen feed, page by page, to <out>/DAISYCON_<programme>.csv.gz.part.
+export async function download({ access, mediaId, programs, out, services = SERVICES, fetchImpl = fetch, pauseMs = API_PAUSE_MS }) {
+  const A = await apiFeeds({ access, programs, services, fetchImpl, pauseMs });
+  if (A.error) return { error: A.error };
+  const result = [];
+  for (const p of A.programs) {
+    const D = { program: p.program, ok: false, got: 0, withTracking: 0, currencies: [], file: join(out, `DAISYCON_${p.program}.csv.gz.part`), name: '' };
+    const f = pickFeed(p.feeds);
+    if (!f) { D.error = p.error || 'no product feed for this programme'; result.push(D); continue; }
+    const rows = [];
+    for (let page = 1; page <= MAX_PAGES; page++) {
+      const url = feedAddress(f, { mediaId, page, perPage: PER_PAGE });
+      if (!okHost(url, ['daisycon.io'])) { D.error = 'the feed address is not on daisycon.io'; break; }
+      const r = await getJson(url, { fetchImpl });
+      if (!r.json) { D.error = `HTTP ${r.status} ${r.error || r.text || ''}`.trim(); break; }
+      const found = findProducts(r.json);
+      for (const x of found) {
+        const row = toFeedRow(x.product, { programId: p.program, program: x.program, mediaId });
+        if (!row.currency && f.currency_code) row.currency = String(f.currency_code).toUpperCase();
+        if (!D.name) D.name = row.merchant_name || f.name || '';
+        rows.push(row);
+      }
+      if (found.length < PER_PAGE) break;
+      if (page === MAX_PAGES) D.capped = true;
+      if (pauseMs) await sleep(Math.min(pauseMs, 1000));
+    }
+    D.got = rows.length;
+    D.withTracking = rows.filter(x => x.aw_deep_link).length;
+    D.currencies = [...new Set(rows.map(x => x.currency).filter(Boolean))];
+    if (!D.error && !rows.length) D.error = 'no products';
+    if (!D.error) { await writeRows(D.file, rows); D.ok = true; }
+    result.push(D);
+  }
+  return { publisher: A.publisher, programs: result };
 }
 
 const arg = (argv, name) => { const i = argv.indexOf(`--${name}`); return i >= 0 ? argv[i + 1] : undefined; };
 
-export async function main(argv = process.argv.slice(2), fetchImpl = fetch) {
+export async function main(argv = process.argv.slice(2), fetchImpl = fetch, env = process.env) {
   const mode = arg(argv, 'mode');
+  const base = arg(argv, 'base');   // the tests' local fake server only
+  if (base && !/^http:\/\/127\.0\.0\.1:\d+$/.test(base)) return { ok: false, error: 'unexpected Daisycon address' };
+  const login = base || LOGIN;
+  const services = base || SERVICES;
+  if (mode === 'auth-url') {
+    const client = String(arg(argv, 'client') || '');
+    if (!/^[A-Za-z0-9._-]{4,100}$/.test(client)) return { ok: false, error: 'wrong client id' };
+    const k = pkce();
+    return { ok: true, url: authorizeUrl({ client, challenge: k.challenge, state: k.state, login }), verifier: k.verifier, state: k.state };
+  }
+  if (mode === 'auth-token') {
+    const t = await tokenRequest({ login, fetchImpl, grant_type: 'authorization_code', code: env.GW_DC_CODE || '', client_id: env.GW_DC_CLIENT || '',
+      client_secret: env.GW_DC_SECRET || '', redirect_uri: REDIRECT, code_verifier: env.GW_DC_VERIFIER || '' });
+    return t.error ? { ok: false, error: t.error } : { ok: true, refresh: t.refresh };
+  }
   const mediaId = String(arg(argv, 'media') || '');
   const programs = String(arg(argv, 'programs') || '').split(/[,\s]+/).filter(Boolean);
-  const base = arg(argv, 'base');   // the tests' local fake server only
-  const S = { mode, ok: false, media: mediaId, programs: [] };
-  if (!/^\d{3,10}$/.test(mediaId)) { S.error = 'wrong media id'; return S; }
-  if (!programs.length || programs.some(p => !/^\d{2,8}(:\d{1,3})?$/.test(p))) { S.error = 'wrong programme ids'; return S; }
-  if (base && !/^http:\/\/127\.0\.0\.1:\d+\//.test(base)) { S.error = 'unexpected feed address'; return S; }
-  if (mode === 'probe') {
-    const st = arg(argv, 'standards');
-    const standards = st ? st.split(',').map(Number).filter(n => Number.isInteger(n) && n > 0) : DEFAULT_STANDARDS;
-    S.programs = await probe({ mediaId, programs, standards, base, fetchImpl, pauseMs: Number(arg(argv, 'pause') ?? 200) });
-    S.ok = true;
-    return S;
-  }
-  if (mode === 'download') {
+  if (!/^\d{3,10}$/.test(mediaId)) return { ok: false, error: 'wrong media id' };
+  if (!programs.length || programs.some(p => !/^\d{2,8}$/.test(p))) return { ok: false, error: 'wrong programme ids' };
+  if (!['probe', 'download'].includes(mode)) return { ok: false, error: 'mode must be auth-url, auth-token, probe or download' };
+  const t = await tokenRequest({ login, fetchImpl, grant_type: 'refresh_token', refresh_token: env.GW_DC_REFRESH || '', client_id: env.GW_DC_CLIENT || '', client_secret: env.GW_DC_SECRET || '' });
+  if (t.error) return { ok: false, error: `sign-in: ${t.error}`, signIn: true };
+  const S = { ok: false, mode, media: mediaId, newRefresh: t.refresh && t.refresh !== env.GW_DC_REFRESH ? t.refresh : '' };
+  const pause = Number(arg(argv, 'pause') ?? API_PAUSE_MS);
+  if (mode === 'probe') Object.assign(S, await probe({ access: t.access, mediaId, programs, services, fetchImpl, pauseMs: pause }));
+  else {
     const out = arg(argv, 'out');
-    if (!out) { S.error = 'no output folder'; return S; }
-    // "16029:3,22318:3" = programme:standard, from the probe.
-    for (const p of programs) {
-      const [programId, standardId] = p.includes(':') ? p.split(':') : [p, ''];
-      if (!standardId) { S.programs.push({ program: programId, ok: false, error: 'no standard (probe first)' }); continue; }
-      S.programs.push(await download({ mediaId, programId, standardId, out, base, fetchImpl, pauseMs: Number(arg(argv, 'pause') ?? 500) }));
-    }
-    S.ok = true;
-    return S;
+    if (!out) return { ...S, error: 'no output folder' };
+    Object.assign(S, await download({ access: t.access, mediaId, programs, out, services, fetchImpl, pauseMs: pause }));
   }
-  S.error = 'mode must be probe or download';
+  S.ok = !S.error;
   return S;
 }
 

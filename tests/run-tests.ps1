@@ -2797,46 +2797,71 @@ http.createServer((q, s) => {
     }
 }
 
-# 8c6. daisycon-feed-download.ps1 (Daisycon product feeds, lessons L128) with a fake Daisycon feed server
-if (Get-Command node -ErrorAction SilentlyContinue) {
-    Write-Host 'daisycon-feed-download.ps1 (fake Daisycon feed server)'
+# 8c6. daisycon-feed-download.ps1 (Daisycon product feeds through its API, lessons L128) with a fake Daisycon (Windows only: DPAPI)
+if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
+    Write-Host 'daisycon-feed-download.ps1 (fake Daisycon sign-in, API and feed)'
     $dcDir = Join-Path $work 'dc'
     $dcArch = Join-Path $dcDir 'archive'
     $dcOut = Join-Path $dcDir 'out'
     New-Item -ItemType Directory -Path $dcArch, $dcOut -Force | Out-Null
+    $dcRefresh = 'dcRefresh' + ([guid]::NewGuid().ToString('N').Substring(0, 16))
+    $dcSecretFile = Join-Path $dcDir 'daisycon-oauth.dat'
+    $dcJson = (New-Object PSObject -Property @{ client = 'gwclient1'; secret = 'dcSecretValue1'; refresh = $dcRefresh }) | ConvertTo-Json -Compress
+    [System.IO.File]::WriteAllText($dcSecretFile, (ConvertFrom-SecureString (ConvertTo-SecureString $dcJson -AsPlainText -Force)), [System.Text.Encoding]::ASCII)
     $dcSrv = Join-Path $dcDir 'server.js'
     Write-Utf8 $dcSrv @'
 const http = require('http');
+const refresh = process.argv[2];
+let current = refresh;
 const p = i => ({ product_info: { title: 'Wollen trui ' + i, link: 'https://ds1.nl/c/?si=16029&li=1&wi=447289&dl=https%3A%2F%2Fwww.laredoute.nl%2Fp' + i, price: '39.99',
   images: [{ location: 'https://img.laredoute.nl/' + i + '.jpg' }], in_stock: true, sku: 'LR-' + i } });
 http.createServer((q, s) => {
-  const u = new URL(q.url, 'http://127.0.0.1');
-  if (u.searchParams.get('media_id') !== '447289') { s.writeHead(403); return s.end('{"error":"media"}'); }
-  if (u.searchParams.get('standard_id') !== '2') { s.writeHead(400, { 'Content-Type': 'application/json' }); return s.end('{"error":"standard not available"}'); }
-  const n = Number(u.searchParams.get('per_page')) === 2 ? 2 : 3;
-  s.writeHead(200, { 'Content-Type': 'application/json' });
-  s.end(JSON.stringify({ datafeed: { programs: [{ program_info: { id: 16029, name: 'La Redoute NL', currency: 'EUR' }, products: Array.from({ length: n }, (_, i) => p(i + 1)) }] } }));
+  let b = ''; q.on('data', c => b += c); q.on('end', () => {
+    const u = new URL(q.url, 'http://127.0.0.1:8798');
+    const send = (code, x) => { s.writeHead(code, { 'Content-Type': 'application/json' }); s.end(JSON.stringify(x)); };
+    if (u.pathname === '/oauth/access-token') {
+      const f = new URLSearchParams(b);
+      if (f.get('grant_type') !== 'refresh_token' || f.get('refresh_token') !== current || f.get('client_id') !== 'gwclient1') return send(400, { error: 'invalid_grant' });
+      current = 'rotated' + Date.now();
+      return send(200, { access_token: 'acc1', refresh_token: current, expires_in: 3600 });
+    }
+    if (q.headers.authorization !== 'Bearer acc1' && u.pathname.startsWith('/publishers')) return send(401, { error: 'unauthorized' });
+    if (u.pathname === '/publishers') return send(200, [{ id: 777 }]);
+    if (u.pathname === '/publishers/777/productfeeds.v2/program') {
+      if (u.searchParams.get('program_id') !== '16029') return send(200, []);
+      return send(200, [{ id: 5, url: 'http://127.0.0.1:8798/datafeed/?media_id=#MEDIA_ID#&program_id=16029&standard_id=2&language_code=en&locale_id=#LOCALE_ID#', language_code: 'en', locale_ids: [6], currency_code: 'EUR', products: 3 }]);
+    }
+    if (u.pathname === '/datafeed/') {
+      if (u.searchParams.get('media_id') !== '447289' || u.searchParams.get('locale_id') !== '6') return send(400, { error: 'Missing the following parameters: locale_id' });
+      const n = Number(u.searchParams.get('per_page')) === 2 ? 2 : 3;
+      return send(200, { datafeed: { programs: [{ program_info: { id: 16029, name: 'La Redoute NL', currency: 'EUR' }, products: Array.from({ length: n }, (_, i) => p(i + 1)) }] } });
+    }
+    send(404, { error: 'not found' });
+  });
 }).listen(8798, '127.0.0.1');
 '@
-    $dcProc = Start-Process -FilePath (Get-Command node).Source -ArgumentList @($dcSrv) -PassThru -WindowStyle Hidden
+    $dcProc = Start-Process -FilePath (Get-Command node).Source -ArgumentList @($dcSrv, $dcRefresh) -PassThru -WindowStyle Hidden
     Start-Sleep -Seconds 2
     try {
         $dcTool = Join-Path (Join-Path $repo 'tools') 'daisycon-feed-download.ps1'
-        $dcArgs = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $dcTool, '-Program', '16029', '-Standards', '1,2,3', '-Base', 'http://127.0.0.1:8798/datafeed/',
+        $dcArgs = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $dcTool, '-Program', '16029,22318', '-Base', 'http://127.0.0.1:8798', '-SecretFile', $dcSecretFile,
             '-Archive', $dcArch, '-PauseMs', '0', '-OutDir', $dcOut, '-NoClipboard')
+        $dcBefore = [System.IO.File]::ReadAllText($dcSecretFile)
         & $exe @dcArgs | Out-Null
         Check ($LASTEXITCODE -eq 0) 'daisycon-feed-download: read-only run, exit 0'
         $dcRep = [System.IO.File]::ReadAllText((@(Get-ChildItem -LiteralPath $dcOut -Filter 'DAISYCON_FEED_DOWNLOAD_*.txt')[0]).FullName)
-        Check ($dcRep.Contains('16029 La Redoute NL: feed standard 2') -and $dcRep.Contains('link Daisycon: ds1.nl')) 'daisycon-feed-download: finds the feed standard and shows samples with the Daisycon link'
+        Check ($dcRep.Contains('16029 La Redoute NL') -and $dcRep.Contains('link Daisycon: ds1.nl') -and $dcRep.Contains('22318: δεν βγήκε feed')) 'daisycon-feed-download: feeds from the API, samples with the Daisycon link, a programme without a feed reported'
         Check (@(Get-ChildItem -LiteralPath $dcArch -File).Count -eq 0) 'daisycon-feed-download: read-only writes no feed'
+        Check ([System.IO.File]::ReadAllText($dcSecretFile) -ne $dcBefore) 'daisycon-feed-download: the renewed sign-in is saved (encrypted)'
         & $exe @($dcArgs + @('-Apply', '-Approve', 'wrong phrase')) | Out-Null
         Check ($LASTEXITCODE -eq 1 -and @(Get-ChildItem -LiteralPath $dcArch -File).Count -eq 0) 'daisycon-feed-download: a wrong phrase changes nothing'
         & $exe @($dcArgs + @('-Apply', '-Approve', 'ΕΓΚΡΙΝΩ DAISYCON FEED DOWNLOAD')) | Out-Null
         Check ($LASTEXITCODE -eq 0 -and (Test-Path -LiteralPath (Join-Path $dcArch 'DAISYCON_16029.csv.gz'))) 'daisycon-feed-download: with the phrase the feed is saved as DAISYCON_16029.csv.gz'
         $dcAll = (@(Get-ChildItem -LiteralPath $dcOut -Filter 'DAISYCON_FEED_DOWNLOAD_*.txt') | ForEach-Object { [System.IO.File]::ReadAllText($_.FullName) }) -join "`n"
         Check ($dcAll.Contains('OK, 3 προϊόντα') -and $dcAll.Contains('με link του Daisycon: 3') -and $dcAll.Contains('νόμισμα: EUR')) 'daisycon-feed-download: report counts the products and their Daisycon links'
-        & $exe -NoProfile -ExecutionPolicy Bypass -File $dcTool -Program '16029' -Base 'https://evil.example/' -Archive $dcArch -OutDir $dcOut -NoClipboard | Out-Null
-        Check ($LASTEXITCODE -eq 2) 'daisycon-feed-download: refuses a feed address that is not Daisycon or the local test server'
+        Check (-not $dcAll.Contains($dcRefresh) -and -not $dcAll.Contains('dcSecretValue1') -and -not $dcAll.Contains('rotated')) 'daisycon-feed-download: no key or sign-in in any report'
+        & $exe -NoProfile -ExecutionPolicy Bypass -File $dcTool -Program '16029' -Base 'https://evil.example' -SecretFile $dcSecretFile -Archive $dcArch -OutDir $dcOut -NoClipboard | Out-Null
+        Check ($LASTEXITCODE -eq 2) 'daisycon-feed-download: refuses an address that is not Daisycon or the local test server'
     } finally {
         if ($dcProc -and -not $dcProc.HasExited) { Stop-Process -Id $dcProc.Id -Force -ErrorAction SilentlyContinue }
     }

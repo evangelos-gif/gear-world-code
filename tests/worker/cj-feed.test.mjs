@@ -247,3 +247,37 @@ test('L96: the feed list stops at CJ\'s own total, and says when the page cap cu
   assert.equal(T.feedsCapped, true, 'the report can warn that the list was cut');
   assert.equal(T.feedsApiTotal, null);
 });
+
+// L128 (13 Nov 2026): the feed list stops at 10,000 of CJ's 16,617 feeds, so five shops that accepted us that day were
+// not in it. -Joined asks CJ's Advertiser Lookup API which shops accepted us, then looks at each like "probe".
+import { parseLookup, LOOKUP_API } from '../../tools/cj-feed.mjs';
+
+test('L128: joined mode lists the shops that accepted us (Advertiser Lookup) and probes each one, read-only', async () => {
+  const cj = fakeCj({ products: [product(1), product(2)] });
+  const lookups = [];
+  const xml = `<?xml version="1.0"?><cj-api><advertisers total-matched="2" records-returned="2" page-number="1">
+<advertiser><advertiser-id>5175167</advertiser-id><advertiser-name>XPLORA UK</advertiser-name><account-status>Active</account-status><relationship-status>joined</relationship-status><primary-category><parent>Electronics</parent><child>Kids</child></primary-category></advertiser>
+<advertiser><advertiser-id>4297609</advertiser-id><advertiser-name>Click &amp; Grow</advertiser-name><account-status>Active</account-status><relationship-status>joined</relationship-status></advertiser>
+</advertisers></cj-api>`;
+  const fetchImpl = async (url, init) => {
+    if (String(url).startsWith('http://127.0.0.1:9/lookup')) {
+      lookups.push({ url: String(url), auth: init.headers.authorization });
+      const cid = new URL(url).searchParams.get('requestor-cid');
+      if (cid !== '7806395') return { status: 401, text: async () => '<error>Not authorized</error>' };
+      return { status: 200, text: async () => xml };
+    }
+    return cj.fetchImpl(url, init);
+  };
+  const S = await run({ mode: 'joined', cids: ['8114224', '7806395'], pid: '101917444', advertisers: ['5175167'], token: TOKEN, api: API, fetchImpl, pauseMs: 0, lookupApi: 'http://127.0.0.1:9/lookup' });
+  assert.equal(S.error, undefined);
+  assert.deepEqual(S.joined.map(a => [a.id, a.name]), [['5175167', 'XPLORA UK'], ['4297609', 'Click & Grow']]);
+  assert.equal(S.joinedTried[0].cid, '8114224');
+  assert.ok(lookups.every(l => l.auth === `Bearer ${TOKEN}`) && lookups.some(l => l.url.includes('advertiser-ids=joined')));
+  assert.deepEqual(S.advertisers.map(a => a.advertiser), ['5175167', '4297609']);
+  assert.equal(S.cid, '7806395');
+  assert.ok(!JSON.stringify(S).includes(TOKEN));
+  const away = await run({ mode: 'joined', cids: ['7806395'], pid: '1', advertisers: ['5175167'], token: TOKEN, api: API, fetchImpl, pauseMs: 0, lookupApi: 'https://evil.example.com/lookup' });
+  assert.equal(away.error, 'unexpected lookup address');
+  assert.equal(parseLookup('<cj-api><advertisers total-matched="0"></advertisers></cj-api>').total, 0);
+  assert.equal(new URL(LOOKUP_API).hostname, 'advertiser-lookup.api.cj.com');
+});

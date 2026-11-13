@@ -10,6 +10,8 @@
   Without -Apply: READ-ONLY. Shows which CJ account id works, the feeds of the advertisers that accepted you, how many
   products each chosen advertiser (-Advertiser, CJ advertiser ids, default 5175167 = XPLORA UK) has, and 5 sample
   products with their price, stock and CJ tracking link. Nothing is saved.
+  -Joined (READ-ONLY, lessons L128): the shops that accepted you, from CJ's Advertiser Lookup API (the feed list stops at
+  10,000 feeds), each with its product count and samples, as without -Apply. Nothing is downloaded.
   -ListFeeds (READ-ONLY, lessons L96): lists EVERY product feed the CJ API knows, also of shops that have not accepted
   you yet, in one currency (-Currency GBP, or ALL), biggest first, with the shop number, name, products, language and
   last update. The shops given with -Advertiser are marked as yours. Nothing is downloaded and nothing changes.
@@ -26,6 +28,8 @@ param(
     [string[]]$Advertiser = @('5175167'),
     [switch]$Apply,
     [switch]$ListFeeds,
+    [switch]$Joined,
+    [string]$LookupApi = 'https://advertiser-lookup.api.cj.com/v2/advertiser-lookup',
     [string]$Currency = 'GBP',
     [string]$Approve = '',
     [string]$Archive = '',
@@ -95,7 +99,7 @@ function Invoke-CjFeed([string]$mode, [string]$out) {
     $oldEnc = $null
     try { $oldEnc = [Console]::OutputEncoding; [Console]::OutputEncoding = New-Object System.Text.UTF8Encoding($false) } catch { }
     try {
-        $o = @(& node (Join-Path (Join-Path $repo 'tools') 'cj-feed.mjs') --mode $mode --cid $Cid --pid $PropertyId --advertisers ($ids -join ',') --out $out --api $Api --pause $PauseMs)
+        $o = @(& node (Join-Path (Join-Path $repo 'tools') 'cj-feed.mjs') --mode $mode --cid $Cid --pid $PropertyId --advertisers ($ids -join ',') --out $out --api $Api --pause $PauseMs --lookup $LookupApi)
     } finally {
         $env:GW_CJ_TOKEN = $null
         if ($oldEnc) { try { [Console]::OutputEncoding = $oldEnc } catch { } }
@@ -124,6 +128,8 @@ Say ('Λήψη καταλόγων του CJ - {0}' -f $mode) 'Cyan'
 Say ('Ώρα: {0}' -f (Get-Date -Format 'yyyy-MM-dd HH:mm'))
 $apiHost = ([uri]$Api).Host
 if ($apiHost -ne 'ads.api.cj.com' -and $apiHost -ne '127.0.0.1') { Say 'Μη αναμενόμενη διεύθυνση του CJ.' 'Red'; Finish 2 }
+$lookupHost = ([uri]$LookupApi).Host
+if ($lookupHost -ne 'advertiser-lookup.api.cj.com' -and $lookupHost -ne '127.0.0.1') { Say 'Μη αναμενόμενη διεύθυνση του CJ (lookup).' 'Red'; Finish 2 }
 $ids = @($Advertiser | ForEach-Object { $_ -split '[,\s]+' } | Where-Object { $_ } | ForEach-Object { if ($_ -notmatch '^\d{3,12}$') { Say ('Λάθος αριθμός καταστήματος CJ: {0}' -f $_) 'Red'; Finish 2 }; $_ })
 if ($ids.Count -lt 1) { Say 'Δεν δόθηκε κατάστημα του CJ.' 'Red'; Finish 2 }
 if ($Cid -notmatch '^[\d,\s]+$' -or $PropertyId -notmatch '^\d{3,12}$') { Say 'Λάθος CID ή PID.' 'Red'; Finish 2 }
@@ -203,8 +209,22 @@ if ($ListFeeds) {
     Finish 0
 }
 
-# 2. Read-only look (always first).
-$S = Invoke-CjFeed 'probe' '-'
+# 2. Read-only look (always first). -Joined: first the shops that accepted you (lessons L128).
+$probeMode = 'probe'
+if ($Joined) {
+    if ($Apply) { Say 'Το -Joined είναι μόνο ανάγνωση: τρέξε το χωρίς -Apply.' 'Red'; Finish 2 }
+    $probeMode = 'joined'
+}
+$S = Invoke-CjFeed $probeMode '-'
+if ($Joined -and $null -ne $S) {
+    foreach ($t in @($S.joinedTried)) { if ($t) { Say ('  CID {0}: η λίστα δεν ήρθε: {1}' -f $t.cid, $t.error) 'Yellow' } }
+    if (-not $S.error) {
+        $jl = @($S.joined | Where-Object { $_ })
+        Say ('Καταστήματα του CJ που σε έχουν δεχτεί: {0}' -f $jl.Count) 'Cyan'
+        foreach ($j in $jl) { Say ('  {0} {1} | {2} | {3}' -f $j.id, $j.name, $j.status, $j.category) }
+        if ($jl.Count -eq 0) { Say 'Κανένα κατάστημα δεν βρέθηκε.' 'Yellow'; Finish 0 }
+    }
+}
 if ($null -eq $S) { Finish 4 }
 if ($S.error) { Say ('Το CJ δεν απάντησε σωστά: {0}' -f $S.error) 'Red'; Show-Summary $S; Say 'Αν γράφει 401 ή Unauthorized: το κλειδί είναι λάθος ή έληξε. Σβήσε το αρχείο του κλειδιού και ξανατρέξε.'; Say $TokenFile; Finish 4 }
 Show-Summary $S
@@ -225,6 +245,11 @@ foreach ($a in @($S.advertisers)) {
 }
 Say ''
 if ($good.Count -eq 0) { Say 'Δεν υπάρχει κατάλογος για λήψη.' 'Yellow'; Finish 0 }
+if ($Joined) {
+    Say ('Καταστήματα με προϊόντα στο CJ (για -Advertiser): {0}' -f ($good -join ','))
+    Say 'Μόνο ανάγνωση: δεν κατέβηκε τίποτα.' 'Green'
+    Finish 0
+}
 Say ('Με -Apply: λήψη {0} καταλόγων στο {1} (CJ_<αριθμός>.csv.gz). Το παλιό αντίγραφο πάει πρώτα στο _old\{2}. Τα sites δεν αλλάζουν.' -f $good.Count, $Archive, $stamp)
 if (-not $Apply) { Say 'Μόνο ανάγνωση (χωρίς -Apply): δεν κατέβηκε τίποτα.' 'Green'; Say ('Η φράση έγκρισης: {0}' -f $Phrase); Finish 0 }
 if (-not (Confirm-Approval $Phrase)) { Say 'Δεν δόθηκε έγκριση: σταμάτησα χωρίς αλλαγές.' 'Yellow'; Finish 1 }

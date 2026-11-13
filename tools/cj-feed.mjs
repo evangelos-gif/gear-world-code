@@ -205,13 +205,63 @@ export async function writeFeed(file, products) {
 }
 
 // The whole run. Returns a summary object (printed as JSON by the command line).
-export async function run({ mode, cids, pid, advertisers, out, token, api = CJ_API, fetchImpl = fetch, pauseMs = 1000 }) {
+// The advertisers that accepted us (13 Nov 2026, lessons L128): CJ's Advertiser Lookup API with the same token. The feed
+// list stops at 10,000 of CJ's 16,617 feeds, so five of the fourteen shops that accepted us that day were not in it.
+export const LOOKUP_API = 'https://advertiser-lookup.api.cj.com/v2/advertiser-lookup';
+const xmlTag = (s, t) => { const m = new RegExp(`<${t}>([\\s\\S]*?)</${t}>`, 'i').exec(s); return m ? m[1].replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, '$1').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;|&apos;/g, "'").trim() : ''; };
+export function parseLookup(xml) {
+  const text = String(xml || '');
+  const head = /<advertisers\s([^>]*)>/i.exec(text);
+  const attr = n => { const m = head && new RegExp(`${n}="(\\d+)"`).exec(head[1]); return m ? Number(m[1]) : null; };
+  const advertisers = [];
+  for (const m of text.matchAll(/<advertiser>([\s\S]*?)<\/advertiser>/gi)) {
+    const b = m[1];
+    advertisers.push({ id: xmlTag(b, 'advertiser-id'), name: xmlTag(b, 'advertiser-name'), relationship: xmlTag(b, 'relationship-status'),
+      status: xmlTag(b, 'account-status'), category: [xmlTag(b, 'parent'), xmlTag(b, 'child')].filter(Boolean).join(' > '), url: xmlTag(b, 'program-url') });
+  }
+  return { total: attr('total-matched'), returned: attr('records-returned'), page: attr('page-number'), advertisers };
+}
+export async function joinedAdvertisers({ token, cids, lookupApi = LOOKUP_API, fetchImpl = fetch, pauseMs = 1000 }) {
+  const tried = [];
+  for (const cid of cids) {
+    const all = [];
+    let ok = true;
+    for (let page = 1; page <= 50; page++) {
+      const u = `${lookupApi}?requestor-cid=${encodeURIComponent(cid)}&advertiser-ids=joined&records-per-page=100&page-number=${page}`;
+      let res;
+      try { res = await fetchImpl(u, { headers: { authorization: `Bearer ${token}` } }); } catch (e) { tried.push({ cid, error: String(e && e.message || e) }); ok = false; break; }
+      const text = await res.text();
+      if (res.status !== 200) { tried.push({ cid, error: `HTTP ${res.status}: ${text.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 200)}` }); ok = false; break; }
+      const r = parseLookup(text);
+      all.push(...r.advertisers);
+      if (!r.advertisers.length || r.advertisers.length < 100 || (r.total !== null && all.length >= r.total)) break;
+      if (pauseMs) await sleep(pauseMs);
+    }
+    if (ok) return { cid, tried, advertisers: all.filter(a => /^\d{3,12}$/.test(a.id) && (!a.relationship || /^joined$/i.test(a.relationship))) };
+  }
+  return { cid: '', tried, advertisers: [] };
+}
+
+export async function run({ mode, cids, pid, advertisers, out, token, api = CJ_API, fetchImpl = fetch, pauseMs = 1000, lookupApi = LOOKUP_API }) {
   const mask = makeMask(token);
   const S = { mode, ok: false, api: new URL(api).host, cid: '', cidTried: [], pid: String(pid || ''), queries: [], fields: [], feeds: null, feedsError: '', advertisers: [] };
   if (!token || token.length < 10) { S.error = 'no CJ token'; return S; }
   // The token goes only to CJ (or to the local fake server of the tests).
   const h = new URL(api).hostname;
   if (h !== 'ads.api.cj.com' && h !== '127.0.0.1') { S.error = 'unexpected API address'; return S; }
+  // Mode "joined": the shops that accepted us, then the same read-only look as "probe" at each of them.
+  if (mode === 'joined') {
+    const lh = new URL(lookupApi).hostname;
+    if (lh !== 'advertiser-lookup.api.cj.com' && lh !== '127.0.0.1') { S.error = 'unexpected lookup address'; return S; }
+    const J = await joinedAdvertisers({ token, cids, lookupApi, fetchImpl, pauseMs });
+    S.joinedTried = J.tried.map(t => ({ cid: t.cid, error: mask(t.error) }));
+    if (!J.cid) { S.error = 'the CJ advertiser lookup did not answer for any CID'; return S; }
+    S.joined = J.advertisers;
+    if (!J.advertisers.length) { S.ok = true; return S; }
+    advertisers = J.advertisers.map(a => a.id);
+    cids = [J.cid, ...cids.filter(c => c !== J.cid)];
+    mode = 'probe';
+  }
   const d = await describe({ token, api, fetchImpl });
   let shape = null;
   if (d.ok) {
@@ -301,8 +351,8 @@ if (import.meta.url === pathToFileURL(process.argv[1] || '').href) {
   const mask = makeMask(token);
   const list = s => s.split(/[,\s]+/).filter(x => /^\d{3,12}$/.test(x));
   try {
-    const S = await run({ mode: ['download', 'list'].includes(opt('--mode')) ? opt('--mode') : 'probe', cids: list(opt('--cid')), pid: opt('--pid'), advertisers: list(opt('--advertisers')),
-      out: opt('--out'), token, api: opt('--api') || CJ_API, pauseMs: Number(opt('--pause') || 1000) });
+    const S = await run({ mode: ['download', 'list', 'joined'].includes(opt('--mode')) ? opt('--mode') : 'probe', cids: list(opt('--cid')), pid: opt('--pid'), advertisers: list(opt('--advertisers')),
+      out: opt('--out'), token, api: opt('--api') || CJ_API, pauseMs: Number(opt('--pause') || 1000), lookupApi: opt('--lookup') || LOOKUP_API });
     process.stdout.write(mask(JSON.stringify(S)) + '\n');
   } catch (e) {
     process.stdout.write(mask(JSON.stringify({ ok: false, error: String(e && e.stack ? e.stack : e).slice(0, 800) })) + '\n');
