@@ -6,7 +6,7 @@ import { mkdtempSync, readFileSync, writeFileSync, readdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { gunzipSync } from 'node:zlib';
-import { run, toFeedRow, productQuery, isCjLink, makeMask, COLUMNS, FEED_MAX_PAGES } from '../../tools/cj-feed.mjs';
+import { run, toFeedRow, productQuery, isCjLink, makeMask, COLUMNS, FEED_MAX_PAGES, fetchAll, splitPoint, priceLiteral, OFFSET_CAP } from '../../tools/cj-feed.mjs';
 import { planLegacyImport } from '../../tools/legacy-import-plan.mjs';
 import { classify, RULES } from '../../tools/import-rules/xplora.mjs';
 import { planMembership, renderMembershipReport } from '../../tools/awin-membership-plan.mjs';
@@ -43,8 +43,9 @@ const product = (i, over = {}) => ({
   linkCode: { clickUrl: `https://www.anrdoezrs.net/click-101917444-15678?url=https%3A%2F%2Fxplora.co.uk%2Fproducts%2Fx6play-${i}` }, ...over
 });
 
-// A fake CJ API: introspection, a CID that it refuses, products paged by offset.
-function fakeCj({ products, goodCid = '7806395' }) {
+// A fake CJ API: introspection, a CID that it refuses, products paged by offset. cap: CJ's "Cannot page past 10,000
+// records" (offset + limit); lowPrice/highPrice filter the products when the query has them (lessons L129).
+function fakeCj({ products, goodCid = '7806395', cap = Infinity, schema = SCHEMA }) {
   const calls = [];
   const fetchImpl = async (url, init) => {
     const body = JSON.parse(init.body);
@@ -52,7 +53,7 @@ function fakeCj({ products, goodCid = '7806395' }) {
     calls.push({ url, q, auth: init.headers.authorization });
     const json = x => ({ status: 200, text: async () => JSON.stringify(x) });
     if (init.headers.authorization !== `Bearer ${TOKEN}`) return { status: 401, text: async () => '{"errors":[{"message":"Unauthorized"}]}' };
-    if (q.includes('__schema')) return json({ data: { __schema: SCHEMA } });
+    if (q.includes('__schema')) return json({ data: { __schema: schema } });
     const ty = /__type\(name: "(\w+)"\)/.exec(q);
     if (ty) return json({ data: { __type: TYPES[ty[1]] ? { fields: TYPES[ty[1]] } : null } });
     const cid = (/companyId: "(\d+)"/.exec(q) || [])[1];
@@ -61,7 +62,11 @@ function fakeCj({ products, goodCid = '7806395' }) {
       { advertiserId: '3773223', advertiserName: 'SHEIN', feedName: 'FR', productCount: '9', currency: 'EUR' }] } } });
     const limit = Number((/limit: (\d+)/.exec(q) || [])[1] || 1000);
     const offset = Number((/offset: (\d+)/.exec(q) || [])[1] || 0);
-    return json({ data: { shoppingProducts: { totalCount: products.length, count: Math.min(limit, products.length - offset), resultList: products.slice(offset, offset + limit) } } });
+    if (offset + limit > cap) return { status: 400, text: async () => JSON.stringify({ errors: [{ message: `Cannot page past ${cap} records. The limit and offset parameters may not add up to be greater than ${cap}.` }] }) };
+    const lo = /lowPrice: ([\d.]+)/.exec(q);
+    const hi = /highPrice: ([\d.]+)/.exec(q);
+    const list = products.filter(p => (!lo || p.price.amount >= Number(lo[1])) && (!hi || p.price.amount <= Number(hi[1])));
+    return json({ data: { shoppingProducts: { totalCount: list.length, count: Math.max(0, Math.min(limit, list.length - offset)), resultList: list.slice(offset, offset + limit) } } });
   };
   return { fetchImpl, calls };
 }
@@ -280,4 +285,74 @@ test('L128: joined mode lists the shops that accepted us (Advertiser Lookup) and
   assert.equal(away.error, 'unexpected lookup address');
   assert.equal(parseLookup('<cj-api><advertisers total-matched="0"></advertisers></cj-api>').total, 0);
   assert.equal(new URL(LOOKUP_API).hostname, 'advertiser-lookup.api.cj.com');
+});
+
+// L129 (13 Nov 2026): Jeulia 21,905, Haglofs 72,031 and Dream Pairs 58,629 products stopped at CJ's "Cannot page past
+// 10,000 records". Each search has its own 10,000, so a bigger catalogue is read in price bands under the cap.
+const PRICED = { queryType: { fields: SCHEMA.queryType.fields.map(f => f.name !== 'shoppingProducts' ? f
+  : { ...f, args: f.args.concat([{ name: 'lowPrice', type: t('Float', 'SCALAR') }, { name: 'highPrice', type: t('Float', 'SCALAR') }]) }) } };
+const shapeOf = async schema => {
+  const cj = fakeCj({ products: [product(1)], schema });
+  const S = await run({ mode: 'probe', cids: ['7806395'], pid: '101917444', advertisers: ['5175167'], token: TOKEN, api: API, fetchImpl: cj.fetchImpl, pauseMs: 0 });
+  return S;
+};
+
+test('L129: split points never fall on a real price; price literals follow the argument type', () => {
+  assert.equal(splitPoint(0, 1e8), 10000.005);
+  assert.equal(splitPoint(0, 100.005), 10.005);
+  assert.equal(splitPoint(20, 30), 25.005);
+  for (const [lo, hi] of [[0, 1e8], [0, 10.005], [12.345, 13], [99.995, 100.005]]) { const m = splitPoint(lo, hi); assert.ok(m > lo && m < hi, `${lo}-${hi}: ${m}`); }
+  assert.equal(priceLiteral(10.005, 'Float'), '10.005');
+  assert.equal(priceLiteral(10.005, 'String'), '"10.005"');
+  assert.equal(OFFSET_CAP, 10000);
+});
+
+test('L129: the summary shows the product search arguments and whether price bands are possible', async () => {
+  const S = await shapeOf(PRICED);
+  assert.ok(S.productArgs.includes('lowPrice:Float') && S.productArgs.includes('highPrice:Float'), JSON.stringify(S.productArgs));
+  assert.equal(S.priceBands, true);
+  assert.equal((await shapeOf(SCHEMA)).priceBands, false);
+});
+
+test('L129: above the cap the catalogue is read in price bands, every product once, no page past the cap', async () => {
+  // 180 products, 40 of them at exactly 30.00 and many at round prices; the fake cap is 50 per search.
+  const many = Array.from({ length: 180 }, (_, i) => product(i + 1, { price: { amount: i < 40 ? 30 : [5, 9.99, 10, 49.5, 100, 250, 999.99, 1500][i % 8] + (i % 3), currency: 'USD' } }));
+  const cj = fakeCj({ products: many, cap: 50 });
+  const shape = { qname: 'shoppingProducts', args: ['companyId', 'partnerIds', 'limit', 'offset', 'lowPrice', 'highPrice'], argTypes: { lowPrice: 'Float', highPrice: 'Float' },
+    outer: ['totalCount', 'count'], fields: [{ name: 'id', args: [] }, { name: 'title', args: [] }, { name: 'price', args: [], object: true }], sub: { price: ['amount', 'currency'] } };
+  const r = await fetchAll({ shape, cid: '7806395', pid: '101917444', advertiser: '5175167', token: TOKEN, api: API, fetchImpl: cj.fetchImpl, pauseMs: 0, page: 10, cap: 50 });
+  assert.equal(r.ok, true, r.error);
+  assert.equal(r.split, 'price');
+  assert.equal(r.products.length, 180, 'every product, each once');
+  assert.equal(new Set(r.products.map(p => p.id)).size, 180);
+  assert.equal(r.capped, false);
+  assert.ok(r.bands >= 4, `bands: ${r.bands}`);
+  assert.ok(cj.calls.every(c => { const l = Number((/limit: (\d+)/.exec(c.q) || [])[1] || 0); const o = Number((/offset: (\d+)/.exec(c.q) || [])[1] || 0); return o + l <= 50; }), 'no request pages past the cap');
+  assert.ok(cj.calls.some(c => /lowPrice: \d/.test(c.q) && /highPrice: \d/.test(c.q)));
+});
+
+test('L129: one price with more products than the cap: what fits comes, marked capped', async () => {
+  const many = Array.from({ length: 70 }, (_, i) => product(i + 1, { price: { amount: 30, currency: 'USD' } }));
+  const cj = fakeCj({ products: many, cap: 50 });
+  const shape = { qname: 'shoppingProducts', args: ['companyId', 'partnerIds', 'limit', 'offset', 'lowPrice', 'highPrice'], argTypes: {}, outer: ['totalCount'], fields: [{ name: 'id', args: [] }, { name: 'price', args: [], object: true }], sub: { price: ['amount', 'currency'] } };
+  const r = await fetchAll({ shape, cid: '7806395', advertiser: '5175167', token: TOKEN, api: API, fetchImpl: cj.fetchImpl, pauseMs: 0, page: 10, cap: 50 });
+  assert.equal(r.ok, true, r.error);
+  assert.equal(r.products.length, 50);
+  assert.equal(r.capped, true);
+});
+
+test('L129: without price arguments the first 10,000 are written (not nothing), marked capped, through run()', async () => {
+  const many = Array.from({ length: OFFSET_CAP + 50 }, (_, i) => product(i + 1));
+  const cj = fakeCj({ products: many, cap: OFFSET_CAP });
+  const out = mkdtempSync(join(tmpdir(), 'cj-'));
+  const S = await run({ mode: 'download', cids: ['7806395'], pid: '101917444', advertisers: ['5175167'], out, token: TOKEN, api: API, fetchImpl: cj.fetchImpl, pauseMs: 0 });
+  assert.equal(S.ok, true, JSON.stringify(S).slice(0, 400));
+  assert.equal(S.priceBands, false);
+  const A = S.advertisers[0];
+  assert.equal(A.total, OFFSET_CAP + 50);
+  assert.equal(A.got, OFFSET_CAP);
+  assert.equal(A.capped, true);
+  assert.equal(A.split, 'none');
+  assert.deepEqual(readdirSync(out), ['CJ_5175167.csv.gz.part']);
+  assert.ok(!cj.calls.some(c => /offset: 10000/.test(c.q)), 'never asks past the cap');
 });

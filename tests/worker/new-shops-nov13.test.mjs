@@ -102,3 +102,21 @@ test('Silverbene: the last kind of jewellery in the name decides (dry run of 13 
   assert.equal(sb.displayName('Fashion n CZ Jumping Double Dolphin 925 Sterling Silver Necklace'), 'Fashion CZ Jumping Double Dolphin 925 Sterling Silver Necklace');
   assert.equal(sb.displayName('Fashion nable Simple Star 925 Sterling Sliver Pedant'), 'Fashionable Simple Star 925 Sterling Silver Pendant');
 });
+
+// L129: after the first import of 13 Nov 2026: a bare "Men" is men's (not "Women/Men" or "Ring/Men Couples"), a clasp
+// before the kind of jewellery is part of the design, and Otra writes a colour once.
+test('L129: Silverbene bare "Men" goes to MGW, "Clasp Bracelet" stays, parts stay out; Otra writes a colour once', () => {
+  const c = name => sb.classify({ name });
+  assert.equal(c('Vintage Buddhism Devil 925 Sterling Silver Men Pendant').site, 'mgw');
+  assert.equal(c('Vintage Personality Carved Thai Silver 925 Sterling Silver Blessing Bracelet Men').site, 'mgw');
+  assert.equal(c('Vintage Men Domineering Fist Adjustable Carved 925 Sterling Silver Ring').subcategory, 'Jewellery', 'MGW rings under Jewellery');
+  assert.equal(c('White CZ 925 Sterling Silver Studs Earrings Women/Men (5mm)').site, 'wgw');
+  assert.equal(c('NEW Fashion Tree Solid 925 Sterling Silver Promise Ring/Men Couples').site, 'wgw');
+  assert.equal(c('Elegant 925 Sterling Silver Love Heart White Clasp Bracelet Women').subcategory, 'Bracelets');
+  assert.equal(c('Sweet Two Hollow Ring Clasp 925 Silver Adjustable Ring').subcategory, 'Rings');
+  assert.ok(c('925 Sterling Silver Lobster Clasp Findings').reject);
+  assert.ok(c('925 Sterling Silver Toggle Clasp for Bracelet').reject);
+  assert.ok(c('Sterling Silver Clasp').reject);
+  assert.equal(otra.cardName('Alba - Black - Black', 'sunglasses'), 'Alba Sunglasses (Black)');
+  assert.equal(otra.cardName('Deja - Silver/ Rose', 'sunglasses'), 'Deja Sunglasses (Silver/ Rose)');
+});

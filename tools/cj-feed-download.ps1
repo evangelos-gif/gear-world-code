@@ -114,6 +114,10 @@ function Show-Summary($S) {
     if ($S.describeError) { Say ('  Η περιγραφή του API δεν ήρθε ({0}): χρησιμοποιήθηκε η σταθερή λίστα πεδίων.' -f $S.describeError) 'Yellow' }
     if (@($S.queries).Count) { Say ('  Ερωτήματα προϊόντων του API: {0}' -f (@($S.queries) -join ', ')) }
     if (@($S.fields).Count) { Say ('  Πεδία προϊόντος: {0}' -f (@($S.fields) -join ', ')) }
+    if (@($S.productArgs).Count) {
+        Say ('  Φίλτρα της αναζήτησης προϊόντων: {0}' -f (@($S.productArgs) -join ', '))
+        if ($S.priceBands) { Say '  Κατάλογοι πάνω από 10.000 προϊόντα: διαβάζονται σε ζώνες τιμής (το CJ δίνει έως 10.000 ανά αναζήτηση).' } else { Say '  🟡 ΠΡΟΣΟΧΗ: το CJ δεν έχει φίλτρο τιμής: από κατάλογο πάνω από 10.000 προϊόντα έρχονται μόνο τα πρώτα 10.000.' 'Yellow' }
+    }
     if ($S.feedsError) { Say ('  Η λίστα feeds δεν ήρθε: {0}' -f $S.feedsError) 'Yellow' }
     if ($null -ne $S.feeds) {
         Say ('Feeds των καταστημάτων που ζήτησες: {0} (το CJ έδωσε {1} feeds συνολικά, και από καταστήματα που δεν σε έχουν δεχτεί)' -f @($S.feeds).Count, $S.feedsTotal)
@@ -256,7 +260,7 @@ if (-not (Confirm-Approval $Phrase)) { Say 'Δεν δόθηκε έγκριση: 
 
 # 3. Download (to .part), check, then swap (old copy kept).
 $ids = @($good)
-Write-Host 'Κατεβάζω από το CJ (1.000 προϊόντα ανά αίτημα)...'
+Write-Host 'Κατεβάζω από το CJ (1.000 προϊόντα ανά αίτημα, οι κατάλογοι πάνω από 10.000 σε ζώνες τιμής: μπορεί να πάρει αρκετά λεπτά)...'
 $D = Invoke-CjFeed 'download' $Archive
 if ($null -eq $D) { Finish 4 }
 if ($D.error) { Say ('Το CJ δεν απάντησε σωστά: {0}' -f $D.error) 'Red'; Finish 4 }
@@ -289,6 +293,8 @@ foreach ($a in @($D.advertisers)) {
     $was = 'καινούργιο'
     if ($oldRows -ge 0) { $was = 'πριν {0}' -f $oldRows }
     Say ('{0} {1}: OK, {2} προϊόντα ({3}), με link του CJ: {4}, νόμισμα: {5}. Αρχείο: {6}' -f $a.advertiser, $a.name, $newRows, $was, $a.withTracking, (@($a.currencies) -join ', '), $final) 'Green'
+    if ($a.split -eq 'price') { Say ('  Ο κατάλογος έχει πάνω από 10.000 προϊόντα: ήρθε σε {0} ζώνες τιμής (lessons L129).' -f $a.bands) }
+    if ($a.capped) { Say ('  🟡 ΠΡΟΣΟΧΗ: ήρθαν {0} από τα {1} προϊόντα του CJ (το CJ δίνει έως 10.000 ανά αναζήτηση). Τα υπόλοιπα λείπουν από το αρχείο.' -f $newRows, $a.total) 'Yellow' }
 }
 Say ''
 Say ('ΕΤΟΙΜΟ: κατέβηκαν {0} από {1} καταλόγους. Τα παλιά αντίγραφα (αν υπήρχαν): {2}' -f $ok, @($D.advertisers).Count, $oldDir) 'Green'

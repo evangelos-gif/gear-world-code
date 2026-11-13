@@ -25,6 +25,12 @@ export const PAGE = 1000;           // CJ gives at most 1,000 products per reque
 export const MAX_PRODUCTS = 50000;  // a sane ceiling for one advertiser
 export const FEED_PAGE = 500;      // feeds per request of the feed list (first run: exactly 500 came back)
 export const FEED_MAX_PAGES = 200; // most pages of the feed list (100,000 feeds); CJ's totalCount usually stops it sooner
+// CJ answers "Cannot page past 10,000 records. The limit and offset parameters may not add up to be greater than 10,000"
+// (13 Nov 2026: Jeulia 21,905, Haglofs 72,031 and Dream Pairs 58,629 products stopped there, lessons L129). Every search
+// has its own 10,000, so a bigger catalogue is read in price bands (lowPrice/highPrice), each one under the cap.
+export const OFFSET_CAP = 10000;
+export const PRICE_TOP = 100000000;  // the top of the first price band (covers yen and won prices too)
+const MAX_COUNT_CALLS = 400;         // most band-size questions for one shop (a safety stop)
 
 // The columns the import tools read (same names as tools/awin-feed-download.ps1 asks Awin for).
 export const COLUMNS = ['data_feed_id', 'merchant_id', 'merchant_name', 'aw_product_id', 'aw_deep_link', 'brand_name', 'merchant_product_id',
@@ -69,7 +75,7 @@ const TYPE_REF = 'name kind ofType { name kind ofType { name kind ofType { name 
 // The API describes itself (GraphQL introspection). With it the tool asks only for fields that exist, so a renamed or
 // missing field gives a clear report line instead of a failed download. Without it, a fixed field list is used.
 export async function describe({ token, api, fetchImpl }) {
-  const root = await gql({ token, api, fetchImpl, query: `{ __schema { queryType { fields { name args { name } type { ${TYPE_REF} } } } } }` });
+  const root = await gql({ token, api, fetchImpl, query: `{ __schema { queryType { fields { name args { name type { ${TYPE_REF} } } type { ${TYPE_REF} } } } } }` });
   if (root.errors || !root.data || !root.data.__schema) return { ok: false, error: errText(root.errors) || 'no schema' };
   const queries = root.data.__schema.queryType.fields;
   const cache = new Map();
@@ -90,7 +96,7 @@ export async function describe({ token, api, fetchImpl }) {
     const fields = await typeFields(item);
     const sub = {};
     for (const f of fields) { const t = named(f.type); if (t.kind === 'OBJECT' || t.kind === 'INTERFACE') sub[f.name] = (await typeFields(t.name)).map(x => x.name); }
-    return { args: q.args.map(a => a.name), outer: outer.map(f => f.name), item, fields: fields.map(f => ({ name: f.name, args: (f.args || []).map(a => a.name), object: Boolean(sub[f.name]), list: isList(f.type) })), sub };
+    return { args: q.args.map(a => a.name), argTypes: Object.fromEntries(q.args.map(a => [a.name, named(a.type).name || ''])), outer: outer.map(f => f.name), item, fields: fields.map(f => ({ name: f.name, args: (f.args || []).map(a => a.name), object: Boolean(sub[f.name]), list: isList(f.type) })), sub };
   };
   return { ok: true, queries: queries.map(q => q.name), shoppingProducts: await shape('shoppingProducts'), products: await shape('products'), shoppingProductFeeds: await shape('shoppingProductFeeds') };
 }
@@ -107,14 +113,24 @@ const WANT = ['id', 'title', 'description', 'brand', 'link', 'imageLink', 'addit
   'productType', 'itemGroupId', 'lastUpdated', 'price', 'salePrice', 'googleProductCategory', 'linkCode'];
 const SUB_WANT = { price: ['amount', 'currency'], salePrice: ['amount', 'currency'], googleProductCategory: ['name'], linkCode: ['clickUrl'], imageLink: ['url', 'link'], additionalImageLink: ['url', 'link'] };
 
+// A price for a filter argument: a number, or a quoted text when the API declares the argument as text (String/ID).
+export function priceLiteral(v, type = '') {
+  const n = String(Math.round(Number(v) * 1000) / 1000);
+  return /^(String|ID)$/.test(String(type || '')) ? `"${n}"` : n;
+}
+
 // The product query, built from the fields the API really has. pid: the CJ property (website) id for the tracking links.
-export function productQuery({ shape, cid, pid, advertiser, limit = PAGE, offset = 0 }) {
+// extra: { lowPrice, highPrice } for one price band (only when the API has those arguments).
+export function productQuery({ shape, cid, pid, advertiser, limit = PAGE, offset = 0, extra = null }) {
   const s = shape || FALLBACK_PRODUCT;
   const qname = s.qname || 'shoppingProducts';
   const args = [`companyId: "${String(cid).replace(/\D/g, '')}"`];
   if (s.args.includes('partnerIds')) args.push(`partnerIds: ["${String(advertiser).replace(/\D/g, '')}"]`);
   if (s.args.includes('limit')) args.push(`limit: ${limit}`);
   if (s.args.includes('offset')) args.push(`offset: ${offset}`);
+  for (const k of ['lowPrice', 'highPrice']) {
+    if (extra && extra[k] !== undefined && extra[k] !== null && s.args.includes(k)) args.push(`${k}: ${priceLiteral(extra[k], (s.argTypes || {})[k])}`);
+  }
   const sel = [];
   for (const name of WANT) {
     const f = s.fields.find(x => x.name === name);
@@ -172,23 +188,82 @@ async function pickCid({ cids, token, api, fetchImpl, shape, pid, advertiser }) 
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
-// Every product of one advertiser, page by page.
-export async function fetchAll({ shape, cid, pid, advertiser, token, api, fetchImpl, pauseMs = 1000, log = () => {} }) {
+// Where a price band is cut in two: never on a real price (prices have 2 decimals, the cut is at x.xx5), so it does not
+// matter whether CJ counts the band edges in or out. Wide bands are cut in the middle of their range of magnitudes.
+export function splitPoint(lo, hi) {
+  const base = Math.max(lo, 1);
+  let m = hi / base > 8 ? Math.sqrt(base * hi) : (lo + hi) / 2;
+  m = Math.floor(m * 100) / 100 + 0.005;
+  if (!(m > lo && m < hi)) m = (lo + hi) / 2;
+  return Math.round(m * 1000) / 1000;
+}
+
+// Every product of one advertiser, page by page; above 10,000 products in price bands (lessons L129).
+// Returns { ok, products, total, capped, bands, split, error }. capped: CJ's cap still cut something (the file then
+// holds what came, and the report says how many are missing).
+export async function fetchAll({ shape, cid, pid, advertiser, token, api, fetchImpl, pauseMs = 1000, log = () => {}, page = PAGE, cap = OFFSET_CAP }) {
   const qname = (shape && shape.qname) || 'shoppingProducts';
-  const out = [];
-  let total = null;
-  for (let offset = 0; offset < MAX_PRODUCTS; offset += PAGE) {
-    const r = await gql({ token, api, fetchImpl, query: productQuery({ shape, cid, pid, advertiser, offset }) });
-    if (r.errors || !r.data || !r.data[qname]) return { ok: false, products: out, total, error: errText(r.errors) || 'empty answer' };
+  const seen = new Map();
+  let extraRows = 0;
+  const add = list => { for (const p of list) { const k = p && p.id !== undefined && p.id !== null && p.id !== '' ? String(p.id) : `#${seen.size + ++extraRows}`; if (!seen.has(k)) seen.set(k, p); } };
+  const products = () => [...seen.values()];
+  const pause = async () => { if (pauseMs) await sleep(pauseMs); };
+  const ask = async (limit, offset, extra) => {
+    const r = await gql({ token, api, fetchImpl, query: productQuery({ shape, cid, pid, advertiser, limit, offset, extra }) });
+    if (r.errors || !r.data || !r.data[qname]) return { ok: false, error: errText(r.errors) || 'empty answer' };
     const block = r.data[qname];
-    if (total === null && Number.isFinite(Number(block.totalCount))) total = Number(block.totalCount);
-    const list = Array.isArray(block.resultList) ? block.resultList : [];
-    out.push(...list);
-    log(`${advertiser}: ${out.length}${total !== null ? ` / ${total}` : ''}`);
-    if (list.length < PAGE || (total !== null && out.length >= total)) break;
-    if (pauseMs) await sleep(pauseMs);
+    const t = block.totalCount === null || block.totalCount === undefined || block.totalCount === '' ? NaN : Number(block.totalCount);
+    return { ok: true, total: Number.isFinite(t) ? t : null, list: Array.isArray(block.resultList) ? block.resultList : [] };
+  };
+  // One search (all products, or one price band), up to CJ's cap.
+  const pages = async (extra, label) => {
+    let total = null;
+    let n = 0;
+    for (let offset = 0; offset < Math.min(cap, MAX_PRODUCTS); offset += page) {
+      const limit = Math.min(page, cap - offset);
+      const r = await ask(limit, offset, extra);
+      if (!r.ok) return r;
+      if (total === null) total = r.total;
+      add(r.list);
+      n += r.list.length;
+      log(`${advertiser}${label}: ${n}${total !== null ? ` / ${total}` : ''}`);
+      if (r.list.length < limit || (total !== null && n >= total)) return { ok: true, total, n, cut: false };
+      await pause();
+    }
+    return { ok: true, total, n, cut: total === null || n < total };
+  };
+  const first = await ask(1, 0, null);
+  if (!first.ok) return { ok: false, products: [], total: null, error: first.error };
+  const total = first.total;
+  const canSplit = Boolean(shape && ['lowPrice', 'highPrice'].every(a => (shape.args || []).includes(a)));
+  if (total === null || total <= cap || !canSplit) {
+    await pause();
+    const r = await pages(null, '');
+    if (!r.ok) return { ok: false, products: products(), total, error: r.error };
+    const capped = Boolean(r.cut && (total === null || seen.size < total));
+    return { ok: true, products: products(), total: total ?? r.total, capped, bands: 1, split: total !== null && total > cap ? 'none' : '' };
   }
-  return { ok: true, products: out, total };
+  // Price bands: [lo, hi] is cut in two until each band has at most `cap` products.
+  const stack = [[0, PRICE_TOP]];
+  let bands = 0;
+  let calls = 0;
+  let capped = false;
+  while (stack.length) {
+    const [lo, hi] = stack.pop();
+    if (++calls > MAX_COUNT_CALLS) { capped = true; break; }
+    await pause();
+    const c = await ask(1, 0, { lowPrice: lo, highPrice: hi });
+    if (!c.ok) return { ok: false, products: products(), total, error: c.error };
+    if (c.total === 0) continue;
+    if (c.total !== null && c.total > cap && hi - lo >= 0.02) { const m = splitPoint(lo, hi); stack.push([m, hi], [lo, m]); continue; }
+    await pause();
+    const r = await pages({ lowPrice: lo, highPrice: hi }, ` (${lo}-${hi})`);
+    if (!r.ok) return { ok: false, products: products(), total, error: r.error };
+    bands++;
+    if (r.cut) capped = true;
+  }
+  if (seen.size < total) capped = true;
+  return { ok: true, products: products(), total, capped, bands, split: 'price' };
 }
 
 export async function writeFeed(file, products) {
@@ -267,7 +342,12 @@ export async function run({ mode, cids, pid, advertisers, out, token, api = CJ_A
   if (d.ok) {
     S.queries = d.queries.filter(q => /product|feed/i.test(q));
     const s = d.shoppingProducts || d.products;
-    if (s) { shape = { ...s, qname: d.shoppingProducts ? 'shoppingProducts' : 'products' }; S.fields = s.fields.map(f => f.name + (f.args.length ? `(${f.args.join(',')})` : '')); }
+    if (s) {
+      shape = { ...s, qname: d.shoppingProducts ? 'shoppingProducts' : 'products' };
+      S.fields = s.fields.map(f => f.name + (f.args.length ? `(${f.args.join(',')})` : ''));
+      S.productArgs = s.args.map(a => (s.argTypes && s.argTypes[a] ? `${a}:${s.argTypes[a]}` : a));
+      S.priceBands = ['lowPrice', 'highPrice'].every(a => s.args.includes(a));
+    }
   } else S.describeError = mask(d.error);
   if (d.ok && !shape) { S.error = 'the CJ API has no product query (shoppingProducts / products)'; return S; }
   const first = advertisers[0];
@@ -327,6 +407,9 @@ export async function run({ mode, cids, pid, advertisers, out, token, api = CJ_A
       const r = await fetchAll({ shape, cid: S.cid, pid, advertiser: adv, token, api, fetchImpl, pauseMs });
       A.total = r.total;
       A.got = r.products.length;
+      A.capped = Boolean(r.capped);
+      A.bands = r.bands || 0;
+      A.split = r.split || '';
       if (!r.ok) { A.error = mask(r.error); S.advertisers.push(A); continue; }
       const rows = r.products.map(toFeedRow);
       A.withTracking = rows.filter(x => x.aw_deep_link).length;

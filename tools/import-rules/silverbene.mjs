@@ -34,14 +34,18 @@ export function displayName(name) {
 const W = list => new RegExp('(?<![a-z0-9])(' + list.join('|') + ')(?![a-z0-9])', 'i');
 const G = re => new RegExp(re.source, 'gi');
 // Parts for making jewellery: left out whatever else the name says.
-const PARTS = W(['findings?', 'clasps?', 'jump rings?', 'split rings?', 'bead caps?', 'spacer beads?', 'loose beads?', 'ear ?wires?', 'earring hooks?',
+const PARTS = W(['findings?', '(?:lobster|spring ring|toggle|magnetic|bayonet) clasps?', 'clasps? (?:for|only)', 'jump rings?', 'split rings?', 'bead caps?', 'spacer beads?', 'loose beads?', 'ear ?wires?', 'earring hooks?',
   'earring backs?', 'ear nuts?', 'jewel(?:le)?ry making', 'by the (?:meter|metre|foot|feet)']);
 const TOOLS = W(['tools?', 'gauges?', 'sizers?', 'pliers', 'polishing cloth', 'cleaner', 'gift card']);
 // Left out only when they are the last thing the name names ("Silver Ring Box"), not in "Gift Box ... Studs Earrings" or
 // "Bead Flower ... Promise Ring" (dry run of 13 Nov 2026).
-const WEAK = W(['beads?', 'bails?', 'crimps?', 'stoppers?', 'blanks?', 'spacers?', 'connectors?', 'jewel(?:le)?ry box(?:es)?', 'gift box(?:es)?', 'ring box(?:es)?',
+const WEAK = W(['clasps?', 'beads?', 'bails?', 'crimps?', 'stoppers?', 'blanks?', 'spacers?', 'connectors?', 'jewel(?:le)?ry box(?:es)?', 'gift box(?:es)?', 'ring box(?:es)?',
   'storage box(?:es)?', 'box(?:es)?$', 'pouch(?:es)?', 'display stands?']);
 const MEN = W(["men'?s", 'mens', 'for men', 'male', 'masculine']);
+// A bare "Men" ("Skull Pendant Men", "Men Chain Necklace") is men's too, but not "Women/Men" or "Promise Ring/Men Couples"
+// (first import, 13 Nov 2026: 2-3 men's pendants and bracelets had gone to WGW).
+const BARE_MEN = W(['men']);
+const isMen = n => MEN.test(n) || (BARE_MEN.test(n) && !/women|couples?|unisex/i.test(n));
 const SPECIAL = W(['nose', 'belly', 'navel', 'tongue', 'septum', 'cartilage', 'piercing', 'body jewel(?:le)?ry', 'toe rings?', 'jewel(?:le)?ry sets?', 'diy',
   '(?:necklace|earrings?|ring|bracelet)s? (?:and|&) (?:necklace|earrings?|ring|bracelet)s?']);
 const KINDS = [
@@ -82,6 +86,6 @@ export function classify({ name }) {
   // Body jewellery, sets and charms for charm bracelets (DIY) are "Jewellery".
   const sub = SPECIAL.test(n) ? 'Jewellery' : kind.label;
   // Men's Gear World has no Rings or Earrings subcategory: those go under its "Jewellery" (L56).
-  if (MEN.test(n)) return { site: 'mgw', siteCategory: "Men's Jewellery", subcategory: sub === 'Rings' || sub === 'Earrings' ? 'Jewellery' : sub };
+  if (isMen(n)) return { site: 'mgw', siteCategory: "Men's Jewellery", subcategory: sub === 'Rings' || sub === 'Earrings' ? 'Jewellery' : sub };
   return { site: 'wgw', siteCategory: "Women's Jewellery", subcategory: sub };
 }

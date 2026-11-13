@@ -69,7 +69,9 @@ export function cardName(name, kind) {
   let n = model;
   if (blue) n += ' Blue Light Glasses';
   else if (kind === 'sunglasses') n += (polar && !/polari/i.test(n) ? ' Polarised' : '') + (/sunglass/i.test(n) ? '' : ' Sunglasses');
-  return extra.length ? `${n} (${extra.join(', ')})` : n;
+  // "Alba - Black - Black" (frame and lens both black) -> "(Black)", not "(Black, Black)" (first import, 13 Nov 2026).
+  const ex = extra.filter((x, i) => extra.findIndex(y => y.toLowerCase() === x.toLowerCase()) === i);
+  return ex.length ? `${n} (${ex.join(', ')})` : n;
 }
 
 // The parts of the title that all colours of one frame share ("Kent - Black / Smoke", "Kent - Tort / Brown" -> "Kent"):
