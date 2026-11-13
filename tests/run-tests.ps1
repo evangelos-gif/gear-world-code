@@ -3259,6 +3259,28 @@ Check ($LASTEXITCODE -eq 0 -and $lo.Contains('GW_BACKUP_20261112_020000.txt') -a
 Check ($LASTEXITCODE -eq 2) 'last report: a wrong -Name stops at once (exit 2)'
 & $exe -NoProfile -ExecutionPolicy Bypass -File $lTool -HomeDir (Join-Path $work 'lr-empty') -NoClipboard | Out-Null
 Check ($LASTEXITCODE -eq 3) 'last report: no report found says so (exit 3)'
+# L119: the preview, live and remove-preview reports of one paste, in that order, only from this run (-SinceMinutes).
+$lNow = Get-Date
+foreach ($lf in @(@('GWH_HUB_V2_PREVIEW_20261109_210000.txt', -5000), @('GWH_HUB_V2_PREVIEW_20261113_200000.txt', -30), @('GWH_HUB_V2_LIVE_20261113_200500.txt', -25), @('GWH_HUB_V2_REMOVE-PREVIEW_20261113_200600.txt', -24), @('GWH_HUB_V2_CHECK_20261113_200700.txt', -23))) {
+    Write-Utf8 (Join-Path $lRep $lf[0]) ("report " + $lf[0] + "`nΤΕΛΟΣ`n")
+    (Get-Item -LiteralPath (Join-Path $lRep $lf[0])).LastWriteTime = $lNow.AddMinutes($lf[1])
+}
+$lSave = Join-Path $work 'lr-three.txt'
+$lo = (& $exe -NoProfile -ExecutionPolicy Bypass -File $lTool -HomeDir $lHome -Name 'GWH_HUB_V2_PREVIEW,GWH_HUB_V2_LIVE,GWH_HUB_V2_REMOVE-PREVIEW' -SinceMinutes 180 -NoClipboard -SaveTo $lSave | Out-String)
+$lt = $(if (Test-Path -LiteralPath $lSave) { [System.IO.File]::ReadAllText($lSave) } else { '' })
+$lA = $lt.IndexOf('===== GWH_HUB_V2_PREVIEW_20261113_200000.txt')
+$lB = $lt.IndexOf('===== GWH_HUB_V2_LIVE_20261113_200500.txt')
+$lC = $lt.IndexOf('===== GWH_HUB_V2_REMOVE-PREVIEW_20261113_200600.txt')
+Check ($LASTEXITCODE -eq 0 -and $lA -ge 0 -and $lA -lt $lB -and $lB -lt $lC -and $lt.Contains('report GWH_HUB_V2_LIVE_20261113_200500.txt')) 'last report: three names give the three newest reports, in the order asked (L119)'
+Check (-not $lt.Contains('20261109') -and -not $lt.Contains('GWH_HUB_V2_CHECK_') -and -not $lt.Contains('ΔΕΝ βρέθηκε')) 'last report: an older report of the same tool and the reports of other steps stay out'
+Remove-Item -LiteralPath $lSave -Force -ErrorAction SilentlyContinue
+& $exe -NoProfile -ExecutionPolicy Bypass -File $lTool -HomeDir $lHome -Name 'GWH_HUB_V2_PREVIEW,GWH_HUB_V2_LIVE' -SinceMinutes 10 -NoClipboard -SaveTo $lSave | Out-Null
+Check ($LASTEXITCODE -eq 3 -and -not (Test-Path -LiteralPath $lSave)) 'last report: with -SinceMinutes only reports of this run count; none gives exit 3'
+& $exe -NoProfile -ExecutionPolicy Bypass -File $lTool -HomeDir $lHome -Name 'GWH_HUB_V2_LIVE,GWH_HUB_V2_INDEXNOW' -NoClipboard -SaveTo $lSave | Out-Null
+$lt = $(if (Test-Path -LiteralPath $lSave) { [System.IO.File]::ReadAllText($lSave) } else { '' })
+Check ($LASTEXITCODE -eq 0 -and $lt.Contains('===== GWH_HUB_V2_LIVE_') -and $lt.Contains('ΔΕΝ βρέθηκε αναφορά: GWH_HUB_V2_INDEXNOW')) 'last report: a name without a report is named on the clipboard, the others are still there'
+& $exe -NoProfile -ExecutionPolicy Bypass -File $lTool -HomeDir $lHome -Name 'GWH_HUB_V2_LIVE,bad name!' -NoClipboard | Out-Null
+Check ($LASTEXITCODE -eq 2) 'last report: one wrong name in the list stops at once (exit 2)'
 
 # Lessons L118: the GitHub branch list is unrolled (Windows PowerShell 5.1 gives a JSON array back as one object).
 $gbt = [System.IO.File]::ReadAllText((Join-Path (Join-Path $repo 'tools') 'gw-backup.ps1'))
