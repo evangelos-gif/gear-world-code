@@ -45,8 +45,11 @@ const product = (i, over = {}) => ({
 
 // A fake CJ API: introspection, a CID that it refuses, products paged by offset. cap: CJ's "Cannot page past 10,000
 // records" (offset + limit); lowPrice/highPrice filter the products when the query has them (lessons L129).
-function fakeCj({ products, goodCid = '7806395', cap = Infinity, schema = SCHEMA }) {
+// unstable: pages after the first overlap the one before (as CJ's do: some products twice, others never). busy: the first
+// N product searches answer 429 "Too Many Requests".
+function fakeCj({ products, goodCid = '7806395', cap = Infinity, schema = SCHEMA, unstable = false, busy = 0 }) {
   const calls = [];
+  let busyLeft = busy;
   const fetchImpl = async (url, init) => {
     const body = JSON.parse(init.body);
     const q = body.query;
@@ -62,11 +65,13 @@ function fakeCj({ products, goodCid = '7806395', cap = Infinity, schema = SCHEMA
       { advertiserId: '3773223', advertiserName: 'SHEIN', feedName: 'FR', productCount: '9', currency: 'EUR' }] } } });
     const limit = Number((/limit: (\d+)/.exec(q) || [])[1] || 1000);
     const offset = Number((/offset: (\d+)/.exec(q) || [])[1] || 0);
+    if (busyLeft > 0 && !q.includes('__')) { busyLeft--; return { status: 429, text: async () => '{"errors":[{"message":"Too Many Requests"}]}' }; }
     if (offset + limit > cap) return { status: 400, text: async () => JSON.stringify({ errors: [{ message: `Cannot page past ${cap} records. The limit and offset parameters may not add up to be greater than ${cap}.` }] }) };
     const lo = /lowPrice: ([\d.]+)/.exec(q);
     const hi = /highPrice: ([\d.]+)/.exec(q);
     const list = products.filter(p => (!lo || p.price.amount >= Number(lo[1])) && (!hi || p.price.amount <= Number(hi[1])));
-    return json({ data: { shoppingProducts: { totalCount: list.length, count: Math.max(0, Math.min(limit, list.length - offset)), resultList: list.slice(offset, offset + limit) } } });
+    const from = unstable && offset > 0 ? offset - 3 : offset;
+    return json({ data: { shoppingProducts: { totalCount: list.length, count: Math.max(0, Math.min(limit, list.length - offset)), resultList: list.slice(from, from + limit) } } });
   };
   return { fetchImpl, calls };
 }
@@ -375,4 +380,22 @@ test('L129: one product id in several country catalogues (Haglofs GB/NL/DE) keep
   assert.equal(r.products.filter(p => p.price.currency === 'GBP').length, 60, 'every GB row');
   assert.equal(r.capped, false);
   assert.match(productQuery({ shape: { ...shape, fields: shape.fields.concat([{ name: 'catalogId', args: [] }]) }, cid: '1', advertiser: '2' }), /resultList \{ id adId catalogId /);
+});
+
+test('L129: CJ pages are not stable, so every search fits in one page (offset 0): all products, each once; waits on 429', async () => {
+  // Third download of 13 Nov 2026: Diecast 8,975 rows = 7,248 products (1,727 twice, as many never), Jeulia 18,437 then 18,124.
+  const many = Array.from({ length: 120 }, (_, i) => product(i + 1, { price: { amount: 3 + i * 1.37, currency: 'USD' } }));
+  const shape = { qname: 'shoppingProducts', args: ['companyId', 'partnerIds', 'limit', 'offset', 'lowPrice', 'highPrice'], argTypes: {}, outer: ['totalCount'],
+    fields: [{ name: 'id', args: [] }, { name: 'price', args: [], object: true }], sub: { price: ['amount', 'currency'] } };
+  const old = fakeCj({ products: many, cap: 200, unstable: true });
+  const before = await fetchAll({ shape: { ...shape, args: ['companyId', 'partnerIds', 'limit', 'offset'] }, cid: '7806395', advertiser: '2357926', token: TOKEN, api: API, fetchImpl: old.fetchImpl, pauseMs: 0, page: 10, cap: 200 });
+  assert.ok(before.products.length < 120, 'paging an unstable list loses products (what happened before)');
+  assert.equal(before.capped, true, 'and the report says so');
+  const cj = fakeCj({ products: many, cap: 50, unstable: true, busy: 2 });
+  const r = await fetchAll({ shape, cid: '7806395', advertiser: '2357926', token: TOKEN, api: API, fetchImpl: cj.fetchImpl, pauseMs: 0, page: 10, cap: 50, retryWaitMs: 0 });
+  assert.equal(r.ok, true, r.error);
+  assert.equal(r.products.length, 120);
+  assert.equal(new Set(r.products.map(p => p.id)).size, 120);
+  assert.equal(r.capped, false);
+  assert.ok(!cj.calls.some(c => /offset: [1-9]/.test(c.q)), 'no search needs a second page');
 });

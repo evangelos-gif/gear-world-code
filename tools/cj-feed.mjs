@@ -30,7 +30,12 @@ export const FEED_MAX_PAGES = 200; // most pages of the feed list (100,000 feeds
 // has its own 10,000, so a bigger catalogue is read in price bands (lowPrice/highPrice), each one under the cap.
 export const OFFSET_CAP = 10000;
 export const PRICE_TOP = 100000000;  // the top of the first price band (covers yen and won prices too)
-const MAX_COUNT_CALLS = 400;         // most band-size questions for one shop (a safety stop)
+const MAX_COUNT_CALLS = 3000;        // most band-size questions for one shop (a safety stop)
+// CJ's pages are not stable: the same search asked with offset 0, 1000, 2000 ... gives some products twice and others
+// never (third download of 13 Nov 2026: Diecast 8,975 rows but 7,248 different products, Kärcher 1,044 rows / 1,016;
+// Jeulia gave 18,437 and then 18,124). So every search is made small enough to come back in ONE page (offset 0), by
+// price bands, and offsets are used only where that is impossible (no price filter, or more than a page at one price).
+export const RETRY_WAIT_MS = 60000;  // a "too many requests" answer: wait, then ask again (at most 3 times)
 
 // The columns the import tools read (same names as tools/awin-feed-download.ps1 asks Awin for).
 export const COLUMNS = ['data_feed_id', 'merchant_id', 'merchant_name', 'aw_product_id', 'aw_deep_link', 'brand_name', 'merchant_product_id',
@@ -201,7 +206,7 @@ export function splitPoint(lo, hi) {
 // Every product of one advertiser, page by page; above 10,000 products in price bands (lessons L129).
 // Returns { ok, products, total, capped, bands, split, error }. capped: CJ's cap still cut something (the file then
 // holds what came, and the report says how many are missing).
-export async function fetchAll({ shape, cid, pid, advertiser, token, api, fetchImpl, pauseMs = 1000, log = () => {}, page = PAGE, cap = OFFSET_CAP }) {
+export async function fetchAll({ shape, cid, pid, advertiser, token, api, fetchImpl, pauseMs = 1000, log = () => {}, page = PAGE, cap = OFFSET_CAP, retryWaitMs = RETRY_WAIT_MS }) {
   const qname = (shape && shape.qname) || 'shoppingProducts';
   // One row per product AND catalogue: a shop with a catalogue per country (Haglofs: the same product id in the GB, NL,
   // DE ... catalogues, in pounds and euros) keeps every country, so the rules can pick the one in the site's currency.
@@ -214,7 +219,14 @@ export async function fetchAll({ shape, cid, pid, advertiser, token, api, fetchI
   const products = () => [...seen.values()];
   const pause = async () => { if (pauseMs) await sleep(pauseMs); };
   const ask = async (limit, offset, extra) => {
-    const r = await gql({ token, api, fetchImpl, query: productQuery({ shape, cid, pid, advertiser, limit, offset, extra }) });
+    let r;
+    for (let attempt = 1; ; attempt++) {
+      r = await gql({ token, api, fetchImpl, query: productQuery({ shape, cid, pid, advertiser, limit, offset, extra }) });
+      const busy = r.status === 429 || /too many requests|rate limit/i.test(errText(r.errors));
+      if (!busy || attempt > 3) break;
+      log(`${advertiser}: CJ is busy, waiting ${Math.round(retryWaitMs * attempt / 1000)} s`);
+      if (retryWaitMs) await sleep(retryWaitMs * attempt);
+    }
     if (r.errors || !r.data || !r.data[qname]) return { ok: false, error: errText(r.errors) || 'empty answer' };
     const block = r.data[qname];
     const t = block.totalCount === null || block.totalCount === undefined || block.totalCount === '' ? NaN : Number(block.totalCount);
@@ -241,14 +253,14 @@ export async function fetchAll({ shape, cid, pid, advertiser, token, api, fetchI
   if (!first.ok) return { ok: false, products: [], total: null, error: first.error };
   const total = first.total;
   const canSplit = Boolean(shape && ['lowPrice', 'highPrice'].every(a => (shape.args || []).includes(a)));
-  if (total === null || total <= cap || !canSplit) {
+  if (total === null || total <= page || !canSplit) {
     await pause();
     const r = await pages(null, '');
     if (!r.ok) return { ok: false, products: products(), total, error: r.error };
-    const capped = Boolean(r.cut && (total === null || seen.size < total));
-    return { ok: true, products: products(), total: total ?? r.total, capped, bands: 1, split: total !== null && total > cap ? 'none' : '' };
+    const capped = Boolean((r.cut || total !== null) && seen.size < (total ?? r.total ?? 0));
+    return { ok: true, products: products(), total: total ?? r.total, capped, bands: 1, split: total !== null && total > page ? 'none' : '' };
   }
-  // Price bands: [lo, hi] is cut in two until each band has at most `cap` products.
+  // Price bands: [lo, hi] is cut in two until each band fits in one page (offset 0 only, see above).
   const stack = [[0, PRICE_TOP]];
   let bands = 0;
   let calls = 0;
@@ -260,7 +272,7 @@ export async function fetchAll({ shape, cid, pid, advertiser, token, api, fetchI
     const c = await ask(1, 0, { lowPrice: lo, highPrice: hi });
     if (!c.ok) return { ok: false, products: products(), total, error: c.error };
     if (c.total === 0) continue;
-    if (c.total !== null && c.total > cap && hi - lo >= 0.02) { const m = splitPoint(lo, hi); stack.push([m, hi], [lo, m]); continue; }
+    if (c.total !== null && c.total > page && hi - lo >= 0.02) { const m = splitPoint(lo, hi); stack.push([m, hi], [lo, m]); continue; }
     await pause();
     const r = await pages({ lowPrice: lo, highPrice: hi }, ` (${lo}-${hi})`);
     if (!r.ok) return { ok: false, products: products(), total, error: r.error };
