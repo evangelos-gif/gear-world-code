@@ -3341,6 +3341,101 @@ if ($isWin) {
     Check ((Run-R @('-Old', $rOld, '-Keep', $rNew, '-Apply', '-Approve', 'egkrino ΣΒΗΣΙΜΟ ΠΑΛΙΟΥ BACKUP')) -eq 0 -and -not (Test-Path -LiteralPath $rOld) -and (Test-Path -LiteralPath (Join-Path $rNew 'files\gear-world-hub\new.txt')) -and (Get-RReport).Contains('σβήστηκε')) 'remove old backup: with the phrase the old folder goes, the new one stays'
 }
 
+# gw-cloudflare-export.ps1 (lessons L120): the Cloudflare settings of every domain on the backup drive. Reads Cloudflare
+# only (GET), with a read-only token kept encrypted on the PC (never in a report, never on the drive).
+$cft = [System.IO.File]::ReadAllText((Join-Path (Join-Path $repo 'tools') 'gw-cloudflare-export.ps1'))
+Check (-not ($cft -match '(?i)-Method\s+(Post|Put|Patch|Delete)') -and -not $cft.Contains('Invoke-RestMethod') -and ([regex]::Matches($cft, 'Invoke-WebRequest ')).Count -eq ([regex]::Matches($cft, 'Invoke-WebRequest -UseBasicParsing -Method Get ')).Count) 'cloudflare export: every request to Cloudflare is a GET (L120)'
+Check ($gbt.Contains("'gear-world-secrets'")) 'cloudflare export: the backup leaves gear-world-secrets (where the token is kept) out (L120)'
+if ($isWin) {
+    Write-Host 'gw-cloudflare-export.ps1'
+    $cTool = Join-Path (Join-Path $repo 'tools') 'gw-cloudflare-export.ps1'
+    $cHome = Join-Path $work 'cf-home'
+    $cApi = Join-Path $work 'cf-api'
+    $cClip = Join-Path $work 'cf-clip.txt'
+    $cTarget = Join-Path (Join-Path $work 'cf-drive') 'GearWorldBackup-2026-11-12'
+    $cToken = 'cfReadOnly' + ('A' * 20) + 'x9_-Zq01'
+    $cTokFile = Join-Path (Join-Path $cHome 'gear-world-secrets') 'cloudflare-read.token'
+    $cPhrase = 'ΕΓΚΡΙΝΩ BACKUP ' + (Split-Path -Qualifier $cTarget).TrimEnd(':').ToUpper()
+    function CfFake([string]$name, [string]$text) { Write-Utf8 (Join-Path $cApi ($name + '.txt')) $text }
+    CfFake 'user_tokens_verify' '{"success":true,"result":{"id":"t1","status":"active"}}'
+    CfFake 'accounts_per_page_50' '{"success":true,"result":[{"id":"acc1","name":"Gear World"}],"result_info":{"page":1,"total_pages":1}}'
+    CfFake 'zones_per_page_50_page_1' '{"success":true,"result":[{"id":"zone2","name":"second-gear.com"},{"id":"zone1","name":"example-gear.com"}],"result_info":{"page":1,"total_pages":1}}'
+    CfFake 'accounts_acc1_workers_domains' '{"success":true,"result":[{"hostname":"example-gear.com","service":"example-worker"}]}'
+    CfFake 'accounts_acc1_workers_scripts' '{"success":true,"result":[{"id":"example-worker"}]}'
+    CfFake 'accounts_acc1_d1_database_per_page_100_page_1' '{"success":true,"result":[{"name":"example-db"}],"result_info":{"page":1,"total_pages":1}}'
+    CfFake 'zones_zone1_dns_records_per_page_500_page_1' '{"success":true,"result":[{"name":"example-gear.com","type":"A"},{"name":"www.example-gear.com","type":"CNAME"}],"result_info":{"page":1,"total_pages":2}}'
+    CfFake 'zones_zone1_dns_records_per_page_500_page_2' '{"success":true,"result":[{"name":"example-gear.com","type":"MX"}],"result_info":{"page":2,"total_pages":2}}'
+    $cBind = ";; Ζώνη example-gear.com`nexample-gear.com.`t300`tIN`tA`t192.0.2.1`n"
+    CfFake 'zones_zone1_dns_records_export' $cBind
+    CfFake 'zones_zone1_settings' '{"success":true,"result":[{"id":"ssl","value":"strict"},{"id":"min_tls_version","value":"1.2"}]}'
+    CfFake 'zones_zone1_dnssec' '{"success":true,"result":{"status":"active"}}'
+    CfFake 'zones_zone1_rulesets' '{"success":true,"result":[{"id":"rs1","kind":"zone","phase":"http_ratelimit"},{"id":"rs2","kind":"managed","phase":"http_request_firewall_managed"},{"id":"rs3","kind":"zone","phase":"http_request_firewall_custom"}]}'
+    CfFake 'zones_zone1_rulesets_rs1' '{"success":true,"result":{"phase":"http_ratelimit","rules":[{"description":"Όριο αναζήτησης"}]}}'
+    CfFake 'zones_zone1_rulesets_rs3' '{"success":true,"result":{"phase":"http_request_firewall_custom","rules":[{"description":"Bots on /out/"},{"description":"Skip"}]}}'
+    CfFake 'zones_zone1_workers_routes' '{"success":true,"result":[]}'
+    CfFake 'zones_zone2_dns_records_per_page_500_page_1' '{"success":true,"result":[{"name":"second-gear.com","type":"A"}],"result_info":{"page":1,"total_pages":1}}'
+    CfFake 'zones_zone2_dns_records_export' "second-gear.com.`t300`tIN`tA`t192.0.2.2`n"
+    CfFake 'zones_zone2_settings' '{"success":true,"result":[{"id":"ssl","value":"strict"}]}'
+    CfFake 'zones_zone2_dnssec' '#403'
+    CfFake 'zones_zone2_rulesets' '{"success":true,"result":[]}'
+    CfFake 'zones_zone2_workers_routes' '{"success":true,"result":[{"pattern":"second-gear.com/sitemap.xml"}]}'
+    function Run-C([string[]]$extra) {
+        $all = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $cTool, '-HomeDir', $cHome, '-FakeApiDir', $cApi, '-ClipboardFile', $cClip, '-NoClipboard', '-AllowSystemDrive') + $extra
+        & $exe @all | Out-Null
+        return $LASTEXITCODE
+    }
+    function Get-CReport([string]$st) { $r = @(Get-ChildItem -LiteralPath (Join-Path $cHome 'gear-world-reports') -Filter ('GW_CLOUDFLARE_' + $st + '_*.txt') -ErrorAction SilentlyContinue | Sort-Object LastWriteTime, Name | Select-Object -Last 1); if ($r.Count) { return [System.IO.File]::ReadAllText($r[0].FullName) }; return '' }
+    # The token: only what is copied while it waits counts; it is saved encrypted and leaves the clipboard.
+    Check ((Run-C @('-Step', 'token')) -eq 3 -and (Get-CReport 'TOKEN').Contains('Δεν υπάρχει ακόμα κλειδί') -and -not (Test-Path -LiteralPath $cTokFile)) 'cloudflare export: token check without a token says so (exit 3), nothing saved'
+    Check ((Run-C @('-Step', 'token', '-Apply')) -eq 1 -and -not (Test-Path -LiteralPath $cTokFile)) 'cloudflare export: token -Apply without the phrase saves nothing (exit 1)'
+    Write-Utf8 $cClip $cToken
+    Check ((Run-C @('-Step', 'token', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ ΚΛΕΙΔΙ ΑΝΑΓΝΩΣΗΣ CLOUDFLARE', '-WaitSec', '3')) -eq 3 -and -not (Test-Path -LiteralPath $cTokFile)) 'cloudflare export: a token already on the clipboard before the wait is not taken (exit 3)'
+    Write-Utf8 $cClip 'powershell -NoProfile -ExecutionPolicy Bypass -File x.ps1'
+    $cJob = Start-Job -ScriptBlock { param($f, $t) Start-Sleep -Seconds 5; [System.IO.File]::WriteAllText($f, $t) } -ArgumentList $cClip, $cToken
+    $cCode = Run-C @('-Step', 'token', '-Apply', '-Approve', 'egkrino ΚΛΕΙΔΙ ΑΝΑΓΝΩΣΗΣ CLOUDFLARE', '-WaitSec', '40')
+    $null = Wait-Job $cJob -Timeout 60; Remove-Job $cJob -Force
+    $cRep = Get-CReport 'TOKEN'
+    Check ($cCode -eq 0 -and (Test-Path -LiteralPath $cTokFile) -and $cRep.Contains('σώθηκε κρυπτογραφημένο') -and $cRep.Contains('domains: 2')) 'cloudflare export: the token copied while it waits is checked and saved (exit 0)'
+    Check (-not ([System.IO.File]::ReadAllText($cTokFile)).Contains($cToken) -and -not $cRep.Contains($cToken) -and ([System.IO.File]::ReadAllText($cClip)).Trim() -eq '') 'cloudflare export: the token is encrypted on the PC, never in the report, and leaves the clipboard'
+    $cTokHash = (Get-FileHash -LiteralPath $cTokFile).Hash
+    Check ((Run-C @('-Step', 'token', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ ΚΛΕΙΔΙ ΑΝΑΓΝΩΣΗΣ CLOUDFLARE')) -eq 0 -and (Get-CReport 'TOKEN').Contains('υπάρχει ήδη') -and (Get-FileHash -LiteralPath $cTokFile).Hash -eq $cTokHash) 'cloudflare export: a saved token that works is kept'
+    $cUuid = (@('a1b2c3d4', 'e5f6', 'a7b8', 'c9d0', 'e1f2a3b4c5d6') -join '-')
+    Write-Utf8 $cClip 'something else'
+    $cJob = Start-Job -ScriptBlock { param($f, $t) Start-Sleep -Seconds 4; [System.IO.File]::WriteAllText($f, $t) } -ArgumentList $cClip, $cUuid
+    $cCode = Run-C @('-Step', 'token', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ ΚΛΕΙΔΙ ΑΝΑΓΝΩΣΗΣ CLOUDFLARE', '-Replace', '-WaitSec', '12')
+    $null = Wait-Job $cJob -Timeout 60; Remove-Job $cJob -Force
+    Check ($cCode -eq 3 -and (Get-FileHash -LiteralPath $cTokFile).Hash -eq $cTokHash) 'cloudflare export: a UUID on the clipboard (an Awin key has that form) is never taken; the saved token stays'
+    # check and export
+    Check ((Run-C @('-Step', 'check')) -eq 0 -and (Get-CReport 'CHECK').Contains('domains: 2 (example-gear.com, second-gear.com)') -and -not (Test-Path -LiteralPath (Join-Path $cTarget 'cloudflare'))) 'cloudflare export: check lists the domains and writes nothing'
+    Check ((Run-C @('-Step', 'export')) -eq 2) 'cloudflare export: export without -Target stops (exit 2)'
+    New-Item -ItemType Directory -Path $cTarget -Force | Out-Null
+    Check ((Run-C @('-Step', 'export', '-Target', $cTarget, '-Apply', '-Approve', $cPhrase)) -eq 2 -and -not (Test-Path -LiteralPath (Join-Path $cTarget 'cloudflare'))) 'cloudflare export: a folder that is not a backup (no README-RESTORE.txt) is refused (exit 2)'
+    Write-Utf8 (Join-Path $cTarget 'README-RESTORE.txt') 'how to restore'
+    $cPhotos = Join-Path (Join-Path $work 'cf-drive') 'Photos'
+    Write-Utf8 (Join-Path $cPhotos 'README-RESTORE.txt') 'x'
+    Check ((Run-C @('-Step', 'export', '-Target', $cPhotos, '-Apply', '-Approve', $cPhrase)) -eq 2 -and -not (Test-Path -LiteralPath (Join-Path $cPhotos 'cloudflare'))) 'cloudflare export: only a folder named GearWorldBackup* is written (exit 2)'
+    Check ((Run-C @('-Step', 'export', '-Target', $cTarget)) -eq 0 -and -not (Test-Path -LiteralPath (Join-Path $cTarget 'cloudflare'))) 'cloudflare export: without -Apply it only shows what it would write'
+    Check ((Run-C @('-Step', 'export', '-Target', $cTarget, '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ ΚΛΕΙΔΙ ΑΝΑΓΝΩΣΗΣ CLOUDFLARE')) -eq 1 -and -not (Test-Path -LiteralPath (Join-Path $cTarget 'cloudflare'))) 'cloudflare export: the wrong phrase writes nothing (exit 1)'
+    Check ((Run-C @('-Step', 'export', '-Target', $cTarget, '-Apply', '-Approve', $cPhrase)) -eq 0) 'cloudflare export: export with the backup phrase (exit 0)'
+    $cOut = @(Get-ChildItem -LiteralPath (Join-Path $cTarget 'cloudflare') -Directory | Sort-Object Name | Select-Object -Last 1)[0].FullName
+    $cZ1 = Join-Path $cOut 'example-gear.com'
+    Check (([System.IO.File]::ReadAllText((Join-Path $cZ1 'dns.bind'))) -eq $cBind -and (Test-Path -LiteralPath (Join-Path $cZ1 'dns-1.json')) -and (Test-Path -LiteralPath (Join-Path $cZ1 'dns-2.json'))) 'cloudflare export: the DNS zone file exactly as Cloudflare sent it (UTF-8), and every page of records'
+    Check ((Test-Path -LiteralPath (Join-Path $cZ1 'rulesets\http_ratelimit.json')) -and (Test-Path -LiteralPath (Join-Path $cZ1 'rulesets\http_request_firewall_custom.json')) -and -not (Test-Path -LiteralPath (Join-Path $cZ1 'rulesets\http_request_firewall_managed.json')) -and ([System.IO.File]::ReadAllText((Join-Path $cZ1 'rulesets\http_ratelimit.json'))).Contains('Όριο αναζήτησης')) 'cloudflare export: the zone''s own rules per phase (Cloudflare''s managed sets only named)'
+    Check ((Test-Path -LiteralPath (Join-Path $cOut 'second-gear.com\settings.json')) -and (Test-Path -LiteralPath (Join-Path $cOut '_account\workers-domains.json')) -and (Test-Path -LiteralPath (Join-Path $cOut 'README-CLOUDFLARE.txt')) -and (Test-Path -LiteralPath (Join-Path $cOut 'summary.txt'))) 'cloudflare export: settings, Worker domains, how to restore and a summary are written'
+    $cRep = Get-CReport 'EXPORT'
+    Check ($cRep.Contains('example-gear.com: DNS 3, ρυθμίσεις 2, DNSSEC active, κανόνες 3') -and $cRep.Contains('ΠΡΟΣΟΧΗ: DNSSEC') -and $cRep.Contains('ΤΕΛΟΣ ΑΝΤΙΓΡΑΦΟΥ CLOUDFLARE') -and -not $cRep.Contains('zone1') -and -not $cRep.Contains('acc1')) 'cloudflare export: the report has domains and counts, no IDs'
+    $cLeak = @(Get-ChildItem -LiteralPath $cTarget -Recurse -File | Where-Object { ([System.IO.File]::ReadAllText($_.FullName)).Contains($cToken) })
+    Check ($cLeak.Count -eq 0) 'cloudflare export: the token is in no file on the drive'
+    CfFake 'zones_zone2_settings' '#500'
+    Check ((Run-C @('-Step', 'export', '-Target', $cTarget, '-Apply', '-Approve', $cPhrase)) -eq 12 -and (Get-CReport 'EXPORT').Contains('ΠΡΟΒΛΗΜΑ: ρυθμίσεις')) 'cloudflare export: a needed part that cannot be read is a problem (exit 12), the rest is written'
+    CfFake 'zones_zone2_settings' '{"success":true,"result":[{"id":"ssl","value":"strict"}]}'
+    CfFake 'user_tokens_verify' '{"success":true,"result":{"id":"t1","status":"disabled"}}'
+    Check ((Run-C @('-Step', 'export', '-Target', $cTarget, '-Apply', '-Approve', $cPhrase)) -eq 3 -and (Get-CReport 'EXPORT').Contains('δεν δουλεύει')) 'cloudflare export: a token that no longer works stops before writing (exit 3)'
+    CfFake 'user_tokens_verify' '#000'
+    Check ((Run-C @('-Step', 'check')) -eq 4) 'cloudflare export: no answer from Cloudflare (exit 4)'
+    CfFake 'user_tokens_verify' '{"success":true,"result":{"id":"t1","status":"active"}}'
+}
+
 # 10. gwh-code-export.ps1 (Hub code into the repo) on a fake hub folder: read-only, secrets/IDs/emails masked, exact text blocks
 Write-Host 'gwh-code-export.ps1'
 $hx = Join-Path $repo 'tools/gwh-code-export.ps1'
