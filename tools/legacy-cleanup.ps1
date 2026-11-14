@@ -9,6 +9,10 @@
   -Rules noimage (any site): products shown without a picture (empty, not https, or Awin's noimage placeholder).
   -Rules viaduct-sizes (MGW, WGW): the old Viaduct Clothing cards, one per size, once the new one-per-product cards are there.
   -Rules trade (CGW): puzzles, toys, supplements, baby and phone items from the general shops (InStock, Joybuy).
+  -Rules watch-enclave-duplicates (MGW, WGW): the old "Watch Enclave Affiliate Programme" cards that show again a watch the
+  refreshed "Watch Enclave" cards already show (lessons L84).
+  -Rules nolink (any site): products whose Awin link opens no product page ("cread.php" without "ued=http"), e.g. the
+  Juicy Couture UK cards on KGW and HGW (lessons L96). The report names each shop it would touch.
 
   Without -Apply: READ-ONLY. Counts what WOULD be hidden, per reason and category, with samples. Changes nothing.
   With -Apply and the approval phrase (ΕΓΚΡΙΝΩ <RULES> CLEANUP <SITE>, e.g. ΕΓΚΡΙΝΩ INSTOCK CLEANUP MGW):
@@ -85,6 +89,8 @@ function Confirm-Approval([string]$phrase) {
         Write-Host ''
         Write-Host ('Για να συνεχίσω, γράψε ακριβώς: {0}' -f $phrase) -ForegroundColor Yellow
         Write-Host '(ή πάτα Enter για να σταματήσω χωρίς αλλαγές)'
+        # Lines left over from the paste (an empty last line) would answer the prompt by themselves (8 Nov 2026).
+        try { $Host.UI.RawUI.FlushInputBuffer() } catch { }
         $typed = Read-Host 'Έγκριση'
     }
     return ((Normalize-Phrase $typed) -eq (Normalize-Phrase $phrase))

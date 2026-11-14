@@ -94,6 +94,8 @@ function Confirm-Approval([string]$phrase) {
         Write-Host ''
         Write-Host ('Για να συνεχίσω, γράψε ακριβώς: {0}' -f $phrase) -ForegroundColor Yellow
         Write-Host '(ή πάτα Enter για να σταματήσω χωρίς αλλαγές)'
+        # Lines left over from the paste (an empty last line) would answer the prompt by themselves (8 Nov 2026).
+        try { $Host.UI.RawUI.FlushInputBuffer() } catch { }
         $given = @(Read-Host 'Έγκριση')
     }
     foreach ($g in $given) { if ((Normalize-Phrase $g) -eq (Normalize-Phrase $phrase)) { return $true } }
@@ -118,7 +120,7 @@ function Invoke-Wrangler([string]$Folder, [string]$Arguments, [switch]$Retry) {
         }
         $text = (($out | ForEach-Object { "$_" }) -join "`n") -replace '\x1b\[[0-9;]*m', ''
         $result = @{ code = $code; text = $text }
-        $network = $text -match '(?i)fetch failed|connectivity issue|ECONNRESET|ETIMEDOUT|EAI_AGAIN|ENOTFOUND|socket hang up'
+        $network = $text -match '(?i)fetch failed|connectivity issue|ECONNRESET|ETIMEDOUT|EAI_AGAIN|ENOTFOUND|socket hang up|code: 7403|code: 10000|Not currently importing anything'
         if ($code -eq 0 -or -not $network -or $try -eq $tries) { break }
         Say ('Πρόβλημα δικτύου με το Cloudflare. Ξαναδοκιμάζω σε {0} δευτερόλεπτα...' -f (5 * $try)) 'Yellow'
         Start-Sleep -Seconds (5 * $try)

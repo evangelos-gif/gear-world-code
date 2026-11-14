@@ -54,7 +54,7 @@ export const NO = words(['hush puppies', 'caterpillar', 'cat (?:boots?|footwear|
   'watch dogs', 'snoop dogg', 'sea dog', 'mad dog', 'black cat fireworks?', 'copycat', 'cat in the hat', 'fishing', 'fish fingers', 'pet (?:bottles?|plastic|film|strapping|preforms?)', 'petg',
   'rpet', 'recycled pet', 'puppy (?:love|fat)', 'rat traps?', 'mouse traps?', 'rodent', 'rodenticide', 'poison', 'pest control', 'fly (?:sprays?|traps?|killers?)', 'ant (?:killers?|bait)', 'wasp',
   'slug (?:pellets?|killers?)', 'weed ?killers?', 'live (?:animals?|fish|insects?|food|crickets|mealworms|locusts)', 'prescription', 'pom-?v', 'vet prescription', 'insurance', 'gift cards?', 'vouchers?',
-  'snakes and ladders', 'king kong', 'richmond (?:and |& )?finch', 'umbrellas?', 'master kong', 'master series', 'pp\\+pet', 'pet material', 'rabbit fur', '(?:faux|artificial) (?:rabbit )?fur', 'hot water bottles?', 'plant terrariums?', 'propagation',
+  'snakes and ladders', 'king kong', 'richmond (?:and |& )?finch', 'umbrellas?', 'master kong', 'master series', 'pp\\+pet', 'pet material', 'rabbit fur', '(?:faux|artificial) (?:rabbit )?fur(?!.*\\b(?:cat|dog|pet|puppy|kitten) (?:beds?|blankets?|cushions?|baskets?)\\b)', 'hot water bottles?', 'plant terrariums?', 'propagation',
   'borescopes?', 'inspection cameras?', 'air fryers?', 'puzzle post', 'loafers?', 'donkey kong', 'hong kong', 'cat\\.\\s?[5-8]a?e?', 'uni-?cat', 'paper/pet', '\\(pet\\)', 'pet-?filter', 'polyethylene terephthalate',
   'parrot (?:anafi|bebop|disco|drones?|pf\\d+)', 'drones?', 'traps?', 'gas struts?', 'saw ?horses?', 'log horses?', 'crazy horse', 'pony dance', 'big pony', 'hyundai pony', 'ponytails?', 'hand (?:soap|wash)', 'palmolive',
   'bottle openers?', 'corkscrews?', 'cufflinks?', 'lapel pins?', 'tetra ?pak', 'flexi ?hoses?', 'turtle beach', 'cobra (?:golf|clubs?)', 'jaguar', 'puma', 'lynx (?:africa|body|deodorant)', 'mustang', 'red bull', 'tiger (?:balm|sheds?)', 'shark (?:vacuum|steam|flexstyle|hair)', 'snake ?(?:plants?|skin|print)',
@@ -71,7 +71,7 @@ export const CATEGORIES = [
     sure: words(['(?:dog|cat|pet|puppy|kitten) (?:beds?|baskets?|cushions?|mattress(?:es)?|sofas?|blankets?|caves?|igloos?|crates?|cages?|kennels?|houses?|pens?|playpens?|gates?|steps|stairs|ramps? for (?:beds?|sofas?))',
       '(?:dog|puppy) (?:crate|kennel) (?:covers?|mats?|beds?)', 'calming (?:dog |cat |pet )?beds?', 'orthopaedic (?:dog |pet )?beds?', 'donut (?:dog |cat |pet )?beds?', 'dog crate furniture', 'pet playpens?', 'puppy (?:pens?|play ?pens?)',
       'whelping (?:box|pens?)', 'pet (?:doors?|gates?)', 'dog (?:flaps?|doors?)', 'dog (?:runs?|fences?|fencing)', 'outdoor (?:dog |cat |pet )?(?:kennels?|houses?|runs?|enclosures?|pens?)',
-      'pet (?:enclosures?|fences?|fencing|runs?)', 'catios?', 'cat (?:enclosures?|runs?|fences?|fencing)']),
+      'pet (?:enclosures?|fences?|fencing|runs?)', 'catios?', 'cat (?:enclosures?|runs?|fences?|fencing)', 'fido', 'topology']),
     ctx: words(['beds?', 'baskets?', 'cushions?', 'mattress(?:es)?', 'blankets?', 'crates?', 'kennels?', 'playpens?', 'gates?', 'houses?', 'enclosures?']),
     type: words(['beds?(?! (?:linen|sheets?|frames?|throws?|spreads?))', 'baskets?', 'crates?', 'kennels?', 'playpens?', 'pet gates?', 'dog houses?', 'cat houses?', 'enclosures?', 'catios?'])
   },
@@ -103,7 +103,7 @@ export const CATEGORIES = [
   },
   {
     key: 'cats', label: 'Cat trees, litter & scratchers',
-    sure: words(['cat (?:trees?|towers?|condos?|scratchers?|scratching (?:posts?|boards?|pads?|mats?)|litter(?: trays?| boxes?| mats?| scoops?| bags?| liners?)?|flaps?|shelves|hammocks?|activity centres?|climbing)', 'scratching posts?',
+    sure: words(['cat (?:trees?|towers?|condos?|scratchers?|scratching (?:posts?|boards?|pads?|mats?)|litter(?: trays?| boxes?| mats?| scoops?| bags?| liners?)?|flaps?|shel(?:f|ves)|tipis?|hammocks?|activity centres?|climbing)', 'freestyle', 'scratching posts?',
       'kitten (?:litter|trees?)', 'litter (?:trays?|boxes?|mats?|scoops?|liners?)', 'self[- ]cleaning litter', 'clumping (?:cat )?litter', 'catsan', "world'?s best cat litter", 'cats best', 'sureflap', 'microchip cat flaps?', 'catit']),
     ctx: words(['trees?', 'towers?', 'condos?', 'scratchers?', 'scratching', 'litter', 'flaps?', 'hammocks?']),
     type: words(['cat trees?', 'cat towers?', 'scratch(?:ers?|ing posts?)', 'litter(?! pickers?)', 'cat flaps?'])
@@ -136,7 +136,7 @@ export const CATEGORIES = [
     sure: words(['(?:rabbit|guinea pig|hamster|gerbil|ferret|chinchilla|degu|rat|mouse|small animal) (?:hutch(?:es)?|cages?|runs?|houses?|bedding|hides?|wheels?|bottles?|tunnels?|igloos?|hay racks?)', 'rabbit (?:hutch(?:es)?|runs?)', 'hutch(?:es)?',
       'guinea pig', 'hamster', 'small animal', 'aquariums?', 'fish ?tanks?', 'aquarium (?:filters?|heaters?|lights?|gravel|plants?|decorations?|pumps?)',
       'water conditioners? (?:for )?(?:aquariums?|fish)', 'tetra', 'fluval', 'juwel', 'vivariums?', 'terrariums?', 'reptile (?:heat|uv|lamps?|bulbs?|mats?|hides?|substrates?|tanks?)', 'heat mats? for reptiles', 'exo terra', 'zoo med',
-      'tortoise (?:tables?|houses?|food)', 'pond (?:fish|food)', 'koi (?:food|pellets?)', 'burgess', 'oxbow']),
+      'tortoise (?:tables?|houses?|food)', 'pond (?:fish|food)', 'koi (?:food|pellets?)', 'burgess', 'oxbow', 'zippi']),
     ctx: words(['hutch(?:es)?', 'cages?', 'runs?', 'bedding', 'wheels?', 'filters?', 'heaters?', 'substrates?', 'gravel', 'tanks?']),
     type: words(['hutch(?:es)?', 'aquariums?', 'fish ?tanks?', 'vivariums?', 'terrariums?'])
   }
@@ -160,7 +160,7 @@ export const BIRDS = {
 };
 // Not a bird product: dog and cat words, and cat and dog food brands ("Whiskas 1+ Poultry Feasts" is cat food; Richmond & Finch
 // phone cases were in Birds on the test site, 1 Nov 2026).
-const NOT_BIRD = words(['dogs?', 'cats?', 'pupp(?:y|ies)', 'kittens?', 'for dogs', 'for cats', 'feasts?', 'whiskas', 'felix', 'sheba', 'gourmet', 'pedigree', 'cesar', 'winalot', 'bakers', 'iams', 'purina',
+const NOT_BIRD = words(['dogs?', 'cats?', 'pupp(?:y|ies)', 'kittens?', 'guinea pigs?', 'rabbits?', 'hamsters?', 'gerbils?', 'chinchillas?', 'ferrets?', 'hutch(?:es)?', 'for dogs', 'for cats', 'feasts?', 'whiskas', 'felix', 'sheba', 'gourmet', 'pedigree', 'cesar', 'winalot', 'bakers', 'iams', 'purina',
   'royal canin', "hill'?s", 'harringtons', "butcher'?s", 'dreamies', 'webbox', 'encore', 'applaws', "lily'?s kitchen", 'james wellbeloved', 'barking heads', 'meowing heads', 'forthglade', 'arden grange', 'chappie', 'misfits', 'wagg']);
 export function birdSub(text) {
   for (const [name, re] of BIRDS.subs) if (re.test(text)) return name;

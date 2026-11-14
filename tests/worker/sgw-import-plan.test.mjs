@@ -160,10 +160,19 @@ test('every site category has rules, and the menu order matches the site', () =>
 test('sources: the first-wave shops are approved, VEVOR waits for the second wave, sport sections only (L65)', () => {
   const src = JSON.parse(readFileSync('sites/sgw/sources.json', 'utf8')).sources;
   const approved = src.filter(s => s.approved).map(s => s.retailer);
-  assert.deepEqual(approved, ['Coes', 'Joybuy', 'Plusshop UK', 'Bazta UK', 'Beyond Shakers', 'Bern Helmets']);
+  assert.deepEqual(approved, ['Coes', 'Joybuy', 'Plusshop UK', 'Bazta UK', 'Beyond Shakers', 'Bern Helmets', 'Fitness Options', 'Sport and Leisure UK', 'aZengear', 'Olight UK']);
   assert.equal(src.find(s => s.retailer === 'VEVOR').approved, false);
   for (const r of ['Coes', 'Joybuy']) assert.equal(src.find(s => s.retailer === r).sectionHints, false, r);
-  for (const s of src.filter(x => x.approved && !x.rulesFrom && !['Beyond Shakers', 'Bern Helmets'].includes(x.retailer))) assert.ok(s.allowPaths && s.allowPaths.length, s.retailer);
+  // Sport-only shops (Beyond Shakers, Bern Helmets, Fitness Options: 8 Nov 2026) need no sport sections.
+  // Sport and Leisure UK and aZengear (8 Nov 2026): sport shops whose whole feed is sport or fitness; the DENY rules keep
+  // their trampolines, kids' cars and pool covers out.
+  for (const s of src.filter(x => x.approved && !x.rulesFrom && !['Beyond Shakers', 'Bern Helmets', 'Fitness Options', 'Sport and Leisure UK', 'aZengear'].includes(x.retailer))) assert.ok(s.allowPaths && s.allowPaths.length, s.retailer);
+  // Olight UK (9 Nov 2026): only its torch sections; weapon lights, sights, rail mounts, pens and promotions out.
+  const olight = src.find(s => s.retailer === 'Olight UK');
+  assert.deepEqual(olight.allowPaths, ['EDC torches', 'Tactical torches', 'keyring torches', 'search torches', 'Camping light']);
+  const deny = new RegExp(olight.denyNames.join('|'), 'i');
+  for (const n of ['Osight 3 MOA with Magnetic Charging Cover', 'PL X Dual Beam Light 1200 Lumens', "O'pen Mini 2 Versatile Bolt-action Pen", 'UP TO 40% OFF-New User Exclusive', 'M-LOK Rail Mount', 'Olight i3T Clip Black']) assert.match(n, deny, n);
+  for (const n of ['Baton 4 Powerful EDC Torch 1300 Lumens', 'Oclip Clip Light with White and Red Light', 'Perun 3 High-Performance Head Torch with White & Red Light']) assert.doesNotMatch(n, deny, n);
 });
 
 test('plan: two archive folders, only the sport section of a shop, kids and tools out, SQL not executed', async () => {

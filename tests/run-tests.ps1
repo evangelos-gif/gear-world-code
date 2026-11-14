@@ -52,6 +52,13 @@ foreach ($f in $psFiles) {
 # (the samples are split in two, so this file does not match its own check)
 $byteReturnSample = @(('function A { return $ms.' + 'ToArray() }'), ('function B { return [System.IO.File]::' + 'ReadAllBytes($p) }'), ('function C { return $enc.' + 'GetBytes($s) }'), ('function D { return , $ms.' + 'ToArray() }'), 'function E { return ([BitConverter]::ToString($sha.ComputeHash($b))) }')
 Check ((@($byteReturnSample | Where-Object { $_ -match $byteReturnPattern }).Count -eq 3) -and -not ($byteReturnSample[3] -match $byteReturnPattern)) 'the L73 check finds a byte array returned without the comma'
+# L58: a tool that reads database rows through wrangler (--json) reads its output as UTF-8, not with the console code page.
+foreach ($f in @($psFiles | Where-Object { $_.Name -like 'legacy-*.ps1' -and $_.DirectoryName -match '[\\/]tools$' })) {
+    $t = [System.IO.File]::ReadAllText($f.FullName)
+    if ($t.Contains('--json') -and $t.Contains('& $cmdFile')) {
+        Check ($t.Contains('[Console]::OutputEncoding = New-Object System.Text.UTF8Encoding($false)')) ('reads wrangler output as UTF-8 (L58): ' + $f.Name)
+    }
+}
 
 # 2. No secrets or Cloudflare IDs committed
 Write-Host 'Secret scan'
@@ -258,6 +265,20 @@ if (Get-Command node -ErrorAction SilentlyContinue) {
     Check ($cars.Count -eq 1) 'car feed scan: report folder written'
     if ($cars.Count -ge 1) { Check ([System.IO.File]::ReadAllText((Join-Path $cars[0].FullName 'report.txt')).Contains('Retailers in the archive: 1')) 'car feed scan: reads the archive' }
     Check ((Get-FileHash -LiteralPath $gzPath -Algorithm SHA256).Hash -eq $archHash) 'car feed scan: Awin archive unchanged'
+    $miniOut = Join-Path $work 'mini-pc-scan-run'
+    & $exe -NoProfile -ExecutionPolicy Bypass -File $runTool -LocalRepo $repo -Tool mini-pc-scan -Archive $arch -OutDir $miniOut -NoClipboard | Out-Null
+    Check ($LASTEXITCODE -eq 0) 'mini PC scan (L97): exit code 0 through gw-run'
+    $minis = @(Get-ChildItem -LiteralPath $miniOut -Directory -Filter 'MINI_PC_SCAN_*' -ErrorAction SilentlyContinue)
+    Check ($minis.Count -eq 1) 'mini PC scan: report folder written'
+    if ($minis.Count -ge 1) { Check ([System.IO.File]::ReadAllText((Join-Path $minis[0].FullName 'report.txt'), [System.Text.Encoding]::UTF8).Contains('Feeds που διαβάστηκαν: 1.')) 'mini PC scan: reads the archive' }
+    Check ((Get-FileHash -LiteralPath $gzPath -Algorithm SHA256).Hash -eq $archHash) 'mini PC scan: Awin archive unchanged'
+    $profOut = Join-Path $work 'feed-profile-run'
+    & $exe -NoProfile -ExecutionPolicy Bypass -File $runTool -LocalRepo $repo -Tool feed-profile -Archive $arch -Days 3650 -OutDir $profOut -NoClipboard | Out-Null
+    Check ($LASTEXITCODE -eq 0) 'feed profile: exit code 0 through gw-run'
+    $profs = @(Get-ChildItem -LiteralPath $profOut -Directory -Filter 'FEED_PROFILE_*' -ErrorAction SilentlyContinue)
+    Check ($profs.Count -eq 1) 'feed profile: report folder written'
+    if ($profs.Count -ge 1) { Check ([System.IO.File]::ReadAllText((Join-Path $profs[0].FullName 'report.txt'), [System.Text.Encoding]::UTF8).Contains('Προϊόντα: ')) 'feed profile: profiles the archive feed' }
+    Check ((Get-FileHash -LiteralPath $gzPath -Algorithm SHA256).Hash -eq $archHash) 'feed profile: Awin archive unchanged'
     $travelOut = Join-Path $work 'travel-scan-run'
     & $exe -NoProfile -ExecutionPolicy Bypass -File $runTool -LocalRepo $repo -Tool travel-feed-scan -Archive $arch -OutDir $travelOut -KeyFile (Join-Path $work 'no-key.dat') -NoClipboard | Out-Null
     Check ($LASTEXITCODE -eq 0) 'travel feed scan: exit code 0 through gw-run, without a saved key'
@@ -2360,7 +2381,7 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
       "const feed=zlib.gzipSync('aw_product_id,product_name,merchant_deep_link,search_price\n1,A Jacket,https://www.coes.co.uk/products/a,10\n2,B Shirt,https://www.coes.co.uk/products/b,20\n');" +
       "http.createServer((q,s)=>{if(!q.url.includes('/apikey/'+key+'/')&&!q.url.endsWith('/apikey/'+key)){s.writeHead(403);return s.end('bad key')}" +
       "if(q.url.startsWith('/datafeed/list/')){s.writeHead(200,{'Content-Type':'text/csv'});return s.end(list)}" +
-      "if(q.url.includes('/fid/116078/')&&q.url.includes('columns/')){s.writeHead(200,{'Content-Type':'application/x-gzip'});return s.end(feed)}" +
+      "if(q.url.includes('/fid/116078/')&&q.url.includes('columns/')&&q.url.includes('merchant_product_category_path')){s.writeHead(200,{'Content-Type':'application/x-gzip'});return s.end(feed)}" +
       "s.writeHead(404);s.end('no')}).listen(8799,'127.0.0.1');")
     $node = (Get-Command node).Source
     $proc = Start-Process -FilePath $node -ArgumentList @($srv, $fdKey) -PassThru -WindowStyle Hidden
@@ -2400,6 +2421,17 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         Check ($fdLast.Contains('Όλα τα προγράμματα όπου είσαι μέλος και έχουν feed: 1') -and -not $fdLast.Contains('55555')) 'feed download -AllJoined: only joined programmes'
         Check ($fdLast.Contains('σχεδόν άδειο')) 'feed download -AllJoined: an almost empty copy is listed as missing'
         Check ((Run-Fd @('-AllJoined', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ FEED DOWNLOAD')) -eq 2) 'feed download -AllJoined -Apply without -OnlyMissing: refused'
+        # -Refresh (8 Nov 2026): a feed that is already here (a big copy) is downloaded again with -OnlyMissing; a wrong number is refused.
+        Check ((Run-Fd @('-AllJoined', '-OnlyMissing', '-Refresh', 'abc')) -eq 2) 'feed download -Refresh with a wrong number: refused'
+        $bigCopy = Join-Path $fdArch 'AWIN_30645_116078.csv.gz'
+        [System.IO.File]::WriteAllText($bigCopy, ('x' * 300000), [System.Text.Encoding]::ASCII)
+        Check ((Run-Fd @('-AllJoined', '-OnlyMissing')) -eq 0) 'feed download -OnlyMissing with a full copy here: exit 0'
+        $fdNo = [System.IO.File]::ReadAllText((@(Get-ChildItem -LiteralPath $fdOut -Filter '*.txt' | Sort-Object LastWriteTime) | Select-Object -Last 1).FullName)
+        Check ($fdNo.Contains('δεν ξανακατεβαίνει')) 'feed download -OnlyMissing: a full copy is not downloaded again'
+        Check ((Run-Fd @('-AllJoined', '-OnlyMissing', '-Refresh', '30645')) -eq 0) 'feed download -Refresh: exit 0'
+        $fdRe = [System.IO.File]::ReadAllText((@(Get-ChildItem -LiteralPath $fdOut -Filter '*.txt' | Sort-Object LastWriteTime) | Select-Object -Last 1).FullName)
+        Check ($fdRe.Contains('κατεβαίνει ξανά (-Refresh)')) 'feed download -Refresh: the copy here is downloaded again'
+        Remove-Item -LiteralPath $bigCopy -Force
     } finally {
         if ($proc -and -not $proc.HasExited) { Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue }
     }
@@ -2556,6 +2588,29 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         $bBadC = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', (Join-Path $repo 'tools\legacy-import-batch.ps1'), '-Pairs', 'none', '-Cleanups', 'viaduct-sizes:xyz', '-OutDir', $bOut, '-NoClipboard')
         & $exe @bBadC | Out-Null
         Check ($LASTEXITCODE -eq 2) 'import batch: a wrong clean-up site is refused'
+        # One phrase for the whole batch (owner, 8 Nov 2026): a wrong phrase changes nothing, not even the first pair.
+        $oOut = Join-Path $work 'batch-one-phrase-out'
+        if (Test-Path -LiteralPath $liCalls) { Remove-Item -LiteralPath $liCalls -Force }
+        & $exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $repo 'tools\legacy-import-batch.ps1') -Pairs 'joybuy:wgw,joybuy:mgw' -Apply -Approve 'ΕΓΚΡΙΝΩ JOYBUY WGW' -Archive $jArch -WorkDir $liWork -OutDir $oOut -NoClipboard | Out-Null
+        Check ($LASTEXITCODE -eq 1) 'import batch -Apply: a single shop''s phrase is not the batch phrase, exit 1'
+        Check (-not ((LiCalls) -match '--file|time-travel')) 'import batch -Apply with a wrong phrase: nothing imported'
+        $oRep = @(Get-ChildItem -LiteralPath $oOut -File -Filter 'IMPORT_BATCH_*.txt' -ErrorAction SilentlyContinue)
+        Check ($oRep.Count -eq 1 -and ([System.IO.File]::ReadAllText($oRep[0].FullName)).Contains('joybuy -> MGW')) 'import batch -Apply with a wrong phrase: the report lists what would have run'
+        # The one phrase (Latin EGKRINO accepted): each pair runs with its own approval, no second question.
+        if (Test-Path -LiteralPath $liCalls) { Remove-Item -LiteralPath $liCalls -Force }
+        & $exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $repo 'tools\legacy-import-batch.ps1') -Pairs 'joybuy:wgw' -Apply -Approve 'egkrino all imports' -Archive $jArch -WorkDir $liWork -OutDir $oOut -NoClipboard | Out-Null
+        Check ((LiCalls) -match 'd1 execute womens-gear-world --remote --file') 'import batch -Apply with ΕΓΚΡΙΝΩ ALL IMPORTS: the pair is imported without a second phrase'
+        $oRep2 = @(Get-ChildItem -LiteralPath $oOut -File -Filter 'IMPORT_BATCH_*.txt' | Sort-Object LastWriteTime)
+        Check ($oRep2.Count -ge 1 -and ([System.IO.File]::ReadAllText($oRep2[$oRep2.Count - 1].FullName)).Contains('joybuy -> WGW: exit 0')) 'import batch -Apply with the one phrase: exit 0 in the report'
+        # -Sites: new-engine sites with Awin numbers; anything else is refused before anything runs.
+        & $exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $repo 'tools\legacy-import-batch.ps1') -Pairs none -Sites 'xyz:123' -OutDir $bOut -NoClipboard | Out-Null
+        Check ($LASTEXITCODE -eq 2) 'import batch: a wrong -Sites site is refused'
+        & $exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $repo 'tools\legacy-import-batch.ps1') -Pairs none -Sites 'sgw:abc' -OutDir $bOut -NoClipboard | Out-Null
+        Check ($LASTEXITCODE -eq 2) 'import batch: -Sites needs Awin numbers'
+        # 8 Nov 2026 (ENOSPC): with too little free disk space nothing starts, not even the dry run.
+        & $exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $repo 'tools\legacy-import-batch.ps1') -Pairs 'joybuy:wgw' -Apply -Approve 'egkrino all imports' -MinFreeMb 2000000000 -Archive $jArch -WorkDir $liWork -OutDir $bOut -NoClipboard | Out-Null
+        $bLow = @(Get-ChildItem -LiteralPath $bOut -Filter 'IMPORT_BATCH_*.txt' | Sort-Object LastWriteTime | Select-Object -Last 1)
+        Check ($LASTEXITCODE -eq 6 -and $bLow.Count -eq 1 -and ([System.IO.File]::ReadAllText($bLow[0].FullName)).Contains('pc-disk-cleanup')) 'import batch: too little free disk space stops before anything (exit 6)'
         # A pair for Construction Gear World is accepted (legacy-import.ps1 has CGW; lessons L63): an empty archive only ends that pair.
         $cgwArch = Join-Path $work 'batch-cgw-empty-archive'
         New-Item -ItemType Directory -Path $cgwArch -Force | Out-Null
@@ -2601,7 +2656,7 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         'echo [{"results":[{"name":"idx_products_active_price","sql":"CREATE INDEX idx_products_active_price ON products(is_active, price)"},{"name":"idx_products_active_id","sql":"CREATE INDEX idx_products_active_id ON products(is_active, id)"}],"success":true}]',
         'exit /b 0',
         ':rows',
-        'echo [{"results":[{"id":1,"awin_product_id":"100046875","merchant_product_id":"100005800","product_name":"Bahco Spanner","price":11.99,"currency":"GBP","stock_status":"In Stock","image_url":"https://x/a.jpg","is_active":1},{"id":5,"awin_product_id":"555","merchant_product_id":"555","product_name":"Gone","price":7,"currency":"GBP","stock_status":"In Stock","image_url":"https://x/5.jpg","is_active":1}],"success":true}]',
+        'type "%GW_FAKE_STATE%\rows.json"',
         'exit /b 0',
         ':after',
         'echo [{"results":[{"n":1}],"success":true}]',
@@ -2614,6 +2669,9 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
     $rfCsv = "merchant_name,aw_product_id,merchant_product_id,product_name,merchant_image_url,search_price,currency,in_stock,stock_status,last_updated`n" +
         ('Tooled Up,100046875,100005800,Bahco Spanner,https://x/a.jpg,12.50,GBP,1,In Stock,{0}' -f (Get-Date -Format 'yyyy-MM-dd HH:mm:ss')) + "`n"
     [System.IO.File]::WriteAllText((Join-Path $rfArch 'AWIN_496_1001.csv'), $rfCsv, (New-Object System.Text.UTF8Encoding($false)))
+    # wrangler writes UTF-8 (L58): 'Bahco Schl<u umlaut>ssel' must reach the plan as it is, not as the console code page's 'Schl├╝ssel'.
+    $rfName = 'Bahco Schl' + [string][char]0x00FC + 'ssel'
+    [System.IO.File]::WriteAllText((Join-Path $rfState 'rows.json'), ('[{"results":[{"id":1,"awin_product_id":"100046875","merchant_product_id":"100005800","product_name":"NAME","price":11.99,"currency":"GBP","stock_status":"In Stock","image_url":"https://x/a.jpg","is_active":1},{"id":5,"awin_product_id":"555","merchant_product_id":"555","product_name":"Gone","price":7,"currency":"GBP","stock_status":"In Stock","image_url":"https://x/5.jpg","is_active":1}],"success":true}]').Replace('NAME', $rfName), (New-Object System.Text.UTF8Encoding($false)))
     $oldPath = $env:PATH
     $env:PATH = $rfBin + ';' + $oldPath
     $env:GW_FAKE_STATE = $rfState
@@ -2630,6 +2688,7 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         Check ((RfCalls) -match 'construction-gear-customers') 'refresh: reads the CGW database'
         $rfRep = @(Get-ChildItem -LiteralPath $rfOut -Filter 'REFRESH_*.txt' -ErrorAction SilentlyContinue)
         Check ($rfRep.Count -eq 1 -and ([System.IO.File]::ReadAllText($rfRep[0].FullName)).Contains('ΕΓΚΡΙΝΩ REFRESH TOOLED-UP CGW')) 'refresh: report with the plan and the approval phrase'
+        Check ($rfRep.Count -eq 1 -and ([System.IO.File]::ReadAllText($rfRep[0].FullName)).Contains($rfName + ': 11.99 -> 12.5')) 'refresh: names read as UTF-8 from wrangler (L58)'
         Check ((Run-Rf @('-Pairs', 'tooled-up:cgw', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ REFRESH TOOLED-UP MGW')) -eq 1) 'refresh with the wrong phrase: stops'
         Check (-not ((RfCalls) -match '--file')) 'refresh with the wrong phrase: changes nothing'
         Check ((Run-Rf @('-Pairs', 'tooled-up:cgw', '-Apply', '-Approve', 'egkrino refresh tooled-up cgw')) -eq 0) 'refresh with approval (Latin form): exit 0'
@@ -2640,13 +2699,262 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         Check ($iTT -ge 0 -and $iUp -gt $iTT -and $iHide -gt $iUp) 'refresh: restore point, then the updates, then the hiding'
         $rfUndo = @(Get-ChildItem -LiteralPath (Join-Path $rfWork 'backups') -Filter 'cgw-refresh-tooled-up-*-rollback.sql' -ErrorAction SilentlyContinue)
         Check ($rfUndo.Count -eq 1 -and ([System.IO.File]::ReadAllText($rfUndo[0].FullName)).Contains('price = 11.99') -and ([System.IO.File]::ReadAllText($rfUndo[0].FullName)).Contains('SET is_active = 1')) 'refresh: rollback with the old price and the hidden product'
+        # L81: the shops named in -SlowShops / -AcceptJumps must be in -Pairs; the slow check needs -FromShop. Nothing is read or changed.
+        Check ((Run-Rf @('-Pairs', 'tooled-up:cgw', '-FromShop', '-SlowShops', 'instock-uk')) -eq 2) 'refresh -SlowShops with a shop not in -Pairs: stops'
+        Check ((Run-Rf @('-Pairs', 'tooled-up:cgw', '-SlowShops', 'tooled-up')) -eq 2) 'refresh -SlowShops without -FromShop: stops'
+        Check ((Run-Rf @('-Pairs', 'tooled-up:cgw', '-AcceptJumps', 'reidl')) -eq 2) 'refresh -AcceptJumps with a shop not in -Pairs: stops'
+        Check ((Run-Rf @('-Pairs', 'tooled-up:cgw', '-FromShop', '-SampleShops', 'tooled-up', '-SlowShops', 'tooled-up')) -eq 2) 'refresh: a shop in both -SampleShops and -SlowShops: stops'
+        Check ((Run-Rf @('-Pairs', 'tooled-up:cgw', '-FromShop', '-FeedShops', 'reidl')) -eq 2) 'refresh -FeedShops with a shop not in -Pairs: stops'
+        $rfBefore = @(Get-ChildItem -LiteralPath $rfOut -Filter 'REFRESH_*.txt').Count
+        Check ((Run-Rf @('-Pairs', 'tooled-up:cgw', '-FromShop', '-FeedShops', 'tooled-up')) -eq 0) 'refresh -FromShop -FeedShops: exit 0 without the network'
+        $rfNew = @(Get-ChildItem -LiteralPath $rfOut -Filter 'REFRESH_*.txt' | Sort-Object LastWriteTime | Select-Object -Last 1)
+        Check (@(Get-ChildItem -LiteralPath $rfOut -Filter 'REFRESH_*.txt').Count -eq ($rfBefore + 1) -and ([System.IO.File]::ReadAllText($rfNew[0].FullName)).Contains($rfName + ': 11.99 -> 12.5')) 'refresh -FeedShops: that shop is planned from its Awin feed'
         $rfNote = @(Get-ChildItem -LiteralPath (Join-Path $rfWork 'backups') -Filter 'cgw-restore-point-before-tooled-up-refresh-*.txt' -ErrorAction SilentlyContinue)
         Check ($rfNote.Count -eq 1 -and ([System.IO.File]::ReadAllText($rfNote[0].FullName)).Contains($rfBookmark)) 'refresh: restore point written with the bookmark'
         Check ((Run-Rf @('-Pairs', 'nobody:cgw')) -eq 5) 'refresh: a shop not on the site is reported'
         Check ((Run-Rf @('-Pairs', 'tooled up:cgw')) -eq 2) 'refresh: a wrong pair is refused'
+        # L60: -FromShop reads the shop address from the products' links; without one it stops and changes nothing.
+        $fileCallsBefore = ([regex]::Matches((RfCalls), '--file')).Count
+        Check ((Run-Rf @('-Pairs', 'tooled-up:cgw', '-FromShop', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ REFRESH TOOLED-UP CGW')) -eq 10) 'refresh -FromShop without a shop address in the links: stops (exit 10)'
+        Check (([regex]::Matches((RfCalls), '--file')).Count -eq $fileCallsBefore) 'refresh -FromShop without a shop address: changes nothing'
+        Check ((RfCalls) -match 'is_active, affiliate_url FROM products') 'refresh -FromShop: reads the product links'
+        $rfLast = @(Get-ChildItem -LiteralPath $rfOut -Filter 'REFRESH_*.txt' | Sort-Object LastWriteTime)
+        Check (([System.IO.File]::ReadAllText($rfLast[$rfLast.Count - 1].FullName)).Contains('Δεν βρήκα τη διεύθυνση του καταστήματος')) 'refresh -FromShop: says why it stopped'
     } finally {
         $env:PATH = $oldPath
         Remove-Item Env:\GW_FAKE_STATE -ErrorAction SilentlyContinue
+    }
+}
+
+# 8c4. reports-to-clipboard.ps1 (one paste, several tools, one Ctrl+V; lessons L122)
+Write-Host 'reports-to-clipboard.ps1'
+$rcTool = Join-Path (Join-Path $repo 'tools') 'reports-to-clipboard.ps1'
+$rcOut = Join-Path $work 'rc-out'
+New-Item -ItemType Directory -Path (Join-Path $rcOut 'REFRESH_PLAN_x') -Force | Out-Null
+$rcOld = Join-Path $rcOut 'IMPORT_OLD_CGW_20261001_100000.txt'
+[System.IO.File]::WriteAllText($rcOld, 'old report', (New-Object System.Text.UTF8Encoding($true)))
+(Get-Item -LiteralPath $rcOld).LastWriteTime = (Get-Date).AddDays(-2)
+$rcSince = (Get-Date).AddMinutes(-1).ToString('yyyyMMddHHmmss')
+[System.IO.File]::WriteAllText((Join-Path $rcOut 'IMPORT_SGS-CONSTRUCTION_CGW_x.txt'), 'first report Ω', (New-Object System.Text.UTF8Encoding($true)))
+[System.IO.File]::WriteAllText((Join-Path $rcOut 'REFRESH_x.txt'), 'second report', (New-Object System.Text.UTF8Encoding($true)))
+[System.IO.File]::WriteAllText((Join-Path (Join-Path $rcOut 'REFRESH_PLAN_x') 'report.txt'), 'inner plan file', (New-Object System.Text.UTF8Encoding($true)))
+New-Item -ItemType Directory -Path (Join-Path $rcOut 'IMPORT_PLAN_sgs-construction_x') -Force | Out-Null
+[System.IO.File]::WriteAllText((Join-Path (Join-Path $rcOut 'IMPORT_PLAN_sgs-construction_x') 'report.txt'), 'import plan samples', (New-Object System.Text.UTF8Encoding($true)))
+# Clear, different times (two files written in the same instant would have no order).
+(Get-Item -LiteralPath (Join-Path $rcOut 'IMPORT_SGS-CONSTRUCTION_CGW_x.txt')).LastWriteTime = (Get-Date).AddSeconds(-30)
+(Get-Item -LiteralPath (Join-Path (Join-Path $rcOut 'IMPORT_PLAN_sgs-construction_x') 'report.txt')).LastWriteTime = (Get-Date).AddSeconds(-25)
+(Get-Item -LiteralPath (Join-Path $rcOut 'REFRESH_x.txt')).LastWriteTime = (Get-Date).AddSeconds(-20)
+New-Item -ItemType Directory -Path (Join-Path $rcOut 'AGW_IMPORT_PLAN_x'), (Join-Path $rcOut 'AWIN_FEED_SAMPLE_31711_x') -Force | Out-Null
+[System.IO.File]::WriteAllText((Join-Path (Join-Path $rcOut 'AGW_IMPORT_PLAN_x') 'report.txt'), 'agw plan text', (New-Object System.Text.UTF8Encoding($true)))
+[System.IO.File]::WriteAllText((Join-Path (Join-Path $rcOut 'AWIN_FEED_SAMPLE_31711_x') 'report.txt'), 'feed sample text', (New-Object System.Text.UTF8Encoding($true)))
+& $exe -NoProfile -ExecutionPolicy Bypass -File $rcTool -Since $rcSince -OutDir $rcOut -NoClipboard | Out-Null
+Check ($LASTEXITCODE -eq 0) 'reports-to-clipboard: exit 0'
+$rcAll = @(Get-ChildItem -LiteralPath $rcOut -File -Filter 'REPORTS_*.txt')
+$rcText = ''
+if ($rcAll.Count -eq 1) { $rcText = [System.IO.File]::ReadAllText($rcAll[0].FullName, [System.Text.Encoding]::UTF8) }
+Check ($rcText.Contains('first report ' + [string][char]0x03A9) -and $rcText.Contains('second report')) 'reports-to-clipboard: joins the reports of this paste (UTF-8 kept)'
+Check ($rcText.IndexOf('first report') -lt $rcText.IndexOf('second report')) 'reports-to-clipboard: oldest first'
+Check (-not $rcText.Contains('old report') -and -not $rcText.Contains('inner plan file')) 'reports-to-clipboard: leaves out older reports and refresh plan folders'
+Check ($rcText.Contains('import plan samples') -and $rcText.Contains('IMPORT_PLAN_sgs-construction_x\report.txt')) 'reports-to-clipboard: adds the full import plan of the same paste (L14 samples)'
+Check ($rcText.Contains('agw plan text') -and $rcText.Contains('feed sample text')) 'reports-to-clipboard: adds the AGW plan and the Awin feed sample of the same paste'
+& $exe -NoProfile -ExecutionPolicy Bypass -File $rcTool -Since 'yesterday' -OutDir $rcOut -NoClipboard | Out-Null
+Check ($LASTEXITCODE -eq 2) 'reports-to-clipboard: a wrong -Since stops'
+
+# 8c5. cj-feed-download.ps1 (CJ Affiliate catalogues, lessons L86) with a fake CJ API (Windows only: DPAPI token file)
+if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
+    Write-Host 'cj-feed-download.ps1 (fake CJ API)'
+    $cjDir = Join-Path $work 'cj'
+    $cjArch = Join-Path $cjDir 'archive'
+    $cjOut = Join-Path $cjDir 'out'
+    New-Item -ItemType Directory -Path $cjArch, $cjOut -Force | Out-Null
+    $cjToken = 'cjToken' + ([guid]::NewGuid().ToString('N').Substring(0, 16))
+    $cjTokenFile = Join-Path $cjDir 'cj-token.dat'
+    [System.IO.File]::WriteAllText($cjTokenFile, (ConvertFrom-SecureString (ConvertTo-SecureString $cjToken -AsPlainText -Force)), [System.Text.Encoding]::ASCII)
+    $cjSrv = Join-Path $cjDir 'server.js'
+    Write-Utf8 $cjSrv @'
+const http = require('http');
+const token = process.argv[2];
+const p = i => ({ id: 'XP-' + i, title: 'Xplora X6Play Kids Smartwatch ' + i, brand: 'Xplora', link: 'https://xplora.co.uk/products/x6play-' + i,
+  imageLink: 'https://cdn.shopify.com/x' + i + '.png', availability: 'in stock', advertiserId: '5175167', advertiserName: 'XPLORA UK',
+  price: { amount: 149.99, currency: 'GBP' }, salePrice: { amount: 129.99, currency: 'GBP' }, linkCode: { clickUrl: 'https://www.anrdoezrs.net/click-101917444-1?u=' + i } });
+http.createServer((q, s) => {
+  let b = ''; q.on('data', c => b += c); q.on('end', () => {
+    const send = x => { s.writeHead(200, { 'Content-Type': 'application/json' }); s.end(JSON.stringify(x)); };
+    if (q.headers.authorization !== 'Bearer ' + token) { s.writeHead(401); return s.end('{"errors":[{"message":"Unauthorized"}]}'); }
+    const query = JSON.parse(b).query;
+    if (query.includes('__schema') || query.includes('__type')) return send({ errors: [{ message: 'introspection is off' }] });
+    if (!query.includes('companyId: "7806395"')) return send({ errors: [{ message: 'Not authorized for this company' }] });
+    send({ data: { shoppingProducts: { totalCount: 2, count: 2, resultList: [p(1), p(2)] } } });
+  });
+}).listen(8799, '127.0.0.1');
+'@
+    $cjProc = Start-Process -FilePath (Get-Command node).Source -ArgumentList @($cjSrv, $cjToken) -PassThru -WindowStyle Hidden
+    Start-Sleep -Seconds 2
+    try {
+        $cjTool = Join-Path (Join-Path $repo 'tools') 'cj-feed-download.ps1'
+        $cjArgs = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $cjTool, '-TokenFile', $cjTokenFile, '-Archive', $cjArch, '-Api', 'http://127.0.0.1:8799/query',
+            '-Cid', '8114224,7806395', '-PauseMs', '0', '-OutDir', $cjOut, '-NoClipboard')
+        & $exe @cjArgs | Out-Null
+        Check ($LASTEXITCODE -eq 0) 'cj-feed-download: read-only run, exit 0'
+        $cjRep = [System.IO.File]::ReadAllText((@(Get-ChildItem -LiteralPath $cjOut -Filter 'CJ_FEED_DOWNLOAD_*.txt')[0]).FullName)
+        Check ($cjRep.Contains('(CID) που δούλεψε: 7806395') -and $cjRep.Contains('CID 8114224 δεν δούλεψε')) 'cj-feed-download: finds the CJ account id that works'
+        Check ($cjRep.Contains('5175167: προϊόντα στο CJ: 2') -and $cjRep.Contains('link CJ: www.anrdoezrs.net')) 'cj-feed-download: products and samples with the CJ link'
+        Check (@(Get-ChildItem -LiteralPath $cjArch -File).Count -eq 0) 'cj-feed-download: read-only writes no feed'
+        & $exe @($cjArgs + @('-Apply', '-Approve', 'wrong phrase')) | Out-Null
+        Check ($LASTEXITCODE -eq 1 -and @(Get-ChildItem -LiteralPath $cjArch -File).Count -eq 0) 'cj-feed-download: a wrong phrase changes nothing'
+        & $exe @($cjArgs + @('-Apply', '-Approve', ('ΕΓΚΡΙΝΩ CJ FEED DOWNLOAD'))) | Out-Null
+        Check ($LASTEXITCODE -eq 0 -and (Test-Path -LiteralPath (Join-Path $cjArch 'CJ_5175167.csv.gz'))) 'cj-feed-download: with the phrase the feed is saved as CJ_5175167.csv.gz'
+        $cjAll = (@(Get-ChildItem -LiteralPath $cjOut -Filter 'CJ_FEED_DOWNLOAD_*.txt') | ForEach-Object { [System.IO.File]::ReadAllText($_.FullName) }) -join "`n"
+        Check ($cjAll.Contains('OK, 2 προϊόντα') -and $cjAll.Contains('με link του CJ: 2')) 'cj-feed-download: report counts the products and their CJ links'
+        Check (-not $cjAll.Contains($cjToken)) 'cj-feed-download: the token is in no report'
+        # L96: -ListFeeds is read-only (with -Apply it refuses); this fake API has no feed list, so the report says so.
+        $cjFiles = @(Get-ChildItem -LiteralPath $cjArch -File).Count
+        & $exe @($cjArgs + @('-ListFeeds', '-Apply')) | Out-Null
+        Check ($LASTEXITCODE -eq 2 -and @(Get-ChildItem -LiteralPath $cjArch -File).Count -eq $cjFiles) 'cj-feed-download: -ListFeeds with -Apply refuses and changes nothing'
+        Remove-Item -LiteralPath (Join-Path $cjOut '*') -Force -ErrorAction SilentlyContinue
+        & $exe @($cjArgs + @('-ListFeeds')) | Out-Null
+        $cjList = (@(Get-ChildItem -LiteralPath $cjOut -Filter 'CJ_FEED_DOWNLOAD_*.txt') | ForEach-Object { [System.IO.File]::ReadAllText($_.FullName) }) -join "`n"
+        Check ($LASTEXITCODE -eq 0 -and $cjList.Contains('Η λίστα feeds δεν ήρθε') -and $cjList.Contains('Μόνο ανάγνωση: δεν κατέβηκε τίποτα') -and @(Get-ChildItem -LiteralPath $cjArch -File).Count -eq $cjFiles) 'cj-feed-download: -ListFeeds is read-only and says when the feed list is missing'
+        $cjPlanOut = Join-Path $cjDir 'plan'
+        & $exe -NoProfile -ExecutionPolicy Bypass -File $runTool -LocalRepo $repo -Tool legacy-import-plan -Retailer 'xplora' -Archive $cjArch -OutDir $cjPlanOut -NoClipboard | Out-Null
+        $cjPlan = @(Get-ChildItem -LiteralPath $cjPlanOut -Recurse -Filter 'report.txt')
+        $cjPlanText = ''
+        if ($cjPlan.Count -eq 1) { $cjPlanText = [System.IO.File]::ReadAllText($cjPlan[0].FullName) }
+        Check ($cjPlanText.Contains('XPLORA UK - CJ 5175167') -and $cjPlanText.Contains('2 would be imported')) 'cj-feed-download: the import plan reads the CJ feed'
+    } finally {
+        if ($cjProc -and -not $cjProc.HasExited) { Stop-Process -Id $cjProc.Id -Force -ErrorAction SilentlyContinue }
+    }
+}
+
+# 8c6. daisycon-feed-download.ps1 (Daisycon product feeds through its API, lessons L128) with a fake Daisycon (Windows only: DPAPI)
+if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
+    Write-Host 'daisycon-feed-download.ps1 (fake Daisycon sign-in, API and feed)'
+    $dcDir = Join-Path $work 'dc'
+    $dcArch = Join-Path $dcDir 'archive'
+    $dcOut = Join-Path $dcDir 'out'
+    New-Item -ItemType Directory -Path $dcArch, $dcOut -Force | Out-Null
+    $dcRefresh = 'dcRefresh' + ([guid]::NewGuid().ToString('N').Substring(0, 16))
+    $dcSecretFile = Join-Path $dcDir 'daisycon-oauth.dat'
+    $dcJson = (New-Object PSObject -Property @{ client = 'gwclient1'; secret = 'dcSecretValue1'; refresh = $dcRefresh }) | ConvertTo-Json -Compress
+    [System.IO.File]::WriteAllText($dcSecretFile, (ConvertFrom-SecureString (ConvertTo-SecureString $dcJson -AsPlainText -Force)), [System.Text.Encoding]::ASCII)
+    $dcSrv = Join-Path $dcDir 'server.js'
+    Write-Utf8 $dcSrv @'
+const http = require('http');
+const refresh = process.argv[2];
+let current = refresh;
+const p = i => ({ product_info: { title: 'Wollen trui ' + i, link: 'https://ds1.nl/c/?si=16029&li=1&wi=447289&dl=https%3A%2F%2Fwww.laredoute.nl%2Fp' + i, price: '39.99',
+  images: [{ location: 'https://img.laredoute.nl/' + i + '.jpg' }], in_stock: true, sku: 'LR-' + i } });
+http.createServer((q, s) => {
+  let b = ''; q.on('data', c => b += c); q.on('end', () => {
+    const u = new URL(q.url, 'http://127.0.0.1:8798');
+    const send = (code, x) => { s.writeHead(code, { 'Content-Type': 'application/json' }); s.end(JSON.stringify(x)); };
+    if (u.pathname === '/oauth/access-token') {
+      const f = new URLSearchParams(b);
+      if (f.get('grant_type') !== 'refresh_token' || f.get('refresh_token') !== current || f.get('client_id') !== 'gwclient1') return send(400, { error: 'invalid_grant' });
+      current = 'rotated' + Date.now();
+      return send(200, { access_token: 'acc1', refresh_token: current, expires_in: 3600 });
+    }
+    if (q.headers.authorization !== 'Bearer acc1' && u.pathname.startsWith('/publishers')) return send(401, { error: 'unauthorized' });
+    if (u.pathname === '/publishers') return send(200, [{ id: 777 }]);
+    if (u.pathname === '/publishers/777/productfeeds.v2/program') {
+      if (u.searchParams.get('program_id') !== '16029') return send(200, []);
+      return send(200, [{ id: 5, url: 'http://127.0.0.1:8798/datafeed/?media_id=#MEDIA_ID#&program_id=16029&standard_id=2&language_code=en&locale_id=#LOCALE_ID#', language_code: 'en', locale_ids: [6], currency_code: 'EUR', products: 3 }]);
+    }
+    if (u.pathname === '/datafeed/') {
+      if (u.searchParams.get('media_id') !== '447289' || u.searchParams.get('locale_id') !== '6') return send(400, { error: 'Missing the following parameters: locale_id' });
+      const n = Number(u.searchParams.get('per_page')) === 2 ? 2 : 3;
+      return send(200, { datafeed: { programs: [{ program_info: { id: 16029, name: 'La Redoute NL', currency: 'EUR' }, products: Array.from({ length: n }, (_, i) => p(i + 1)) }] } });
+    }
+    send(404, { error: 'not found' });
+  });
+}).listen(8798, '127.0.0.1');
+'@
+    $dcProc = Start-Process -FilePath (Get-Command node).Source -ArgumentList @($dcSrv, $dcRefresh) -PassThru -WindowStyle Hidden
+    Start-Sleep -Seconds 2
+    try {
+        $dcTool = Join-Path (Join-Path $repo 'tools') 'daisycon-feed-download.ps1'
+        $dcArgs = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $dcTool, '-Program', '16029,22318', '-Base', 'http://127.0.0.1:8798', '-SecretFile', $dcSecretFile,
+            '-Archive', $dcArch, '-PauseMs', '0', '-OutDir', $dcOut, '-NoClipboard')
+        $dcBefore = [System.IO.File]::ReadAllText($dcSecretFile)
+        & $exe @dcArgs | Out-Null
+        Check ($LASTEXITCODE -eq 0) 'daisycon-feed-download: read-only run, exit 0'
+        $dcRep = [System.IO.File]::ReadAllText((@(Get-ChildItem -LiteralPath $dcOut -Filter 'DAISYCON_FEED_DOWNLOAD_*.txt')[0]).FullName)
+        Check ($dcRep.Contains('16029 La Redoute NL') -and $dcRep.Contains('link Daisycon: ds1.nl') -and $dcRep.Contains('22318: δεν βγήκε feed')) 'daisycon-feed-download: feeds from the API, samples with the Daisycon link, a programme without a feed reported'
+        Check (@(Get-ChildItem -LiteralPath $dcArch -File).Count -eq 0) 'daisycon-feed-download: read-only writes no feed'
+        Check ([System.IO.File]::ReadAllText($dcSecretFile) -ne $dcBefore) 'daisycon-feed-download: the renewed sign-in is saved (encrypted)'
+        & $exe @($dcArgs + @('-Apply', '-Approve', 'wrong phrase')) | Out-Null
+        Check ($LASTEXITCODE -eq 1 -and @(Get-ChildItem -LiteralPath $dcArch -File).Count -eq 0) 'daisycon-feed-download: a wrong phrase changes nothing'
+        & $exe @($dcArgs + @('-Apply', '-Approve', 'ΕΓΚΡΙΝΩ DAISYCON FEED DOWNLOAD')) | Out-Null
+        Check ($LASTEXITCODE -eq 0 -and (Test-Path -LiteralPath (Join-Path $dcArch 'DAISYCON_16029.csv.gz'))) 'daisycon-feed-download: with the phrase the feed is saved as DAISYCON_16029.csv.gz'
+        $dcAll = (@(Get-ChildItem -LiteralPath $dcOut -Filter 'DAISYCON_FEED_DOWNLOAD_*.txt') | ForEach-Object { [System.IO.File]::ReadAllText($_.FullName) }) -join "`n"
+        Check ($dcAll.Contains('OK, 3 προϊόντα') -and $dcAll.Contains('με link του Daisycon: 3') -and $dcAll.Contains('νόμισμα: EUR')) 'daisycon-feed-download: report counts the products and their Daisycon links'
+        Check (-not $dcAll.Contains($dcRefresh) -and -not $dcAll.Contains('dcSecretValue1') -and -not $dcAll.Contains('rotated')) 'daisycon-feed-download: no key or sign-in in any report'
+        & $exe -NoProfile -ExecutionPolicy Bypass -File $dcTool -Program '16029' -Base 'https://evil.example' -SecretFile $dcSecretFile -Archive $dcArch -OutDir $dcOut -NoClipboard | Out-Null
+        Check ($LASTEXITCODE -eq 2) 'daisycon-feed-download: refuses an address that is not Daisycon or the local test server'
+    } finally {
+        if ($dcProc -and -not $dcProc.HasExited) { Stop-Process -Id $dcProc.Id -Force -ErrorAction SilentlyContinue }
+    }
+}
+
+# 8c3. awin-membership-check.ps1 (which Awin programmes still pay, lessons L61): fake wrangler and fake Awin server (Windows only)
+if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
+    Write-Host 'awin-membership-check.ps1 (fake wrangler, fake Awin server)'
+    $amDir = Join-Path $work 'am'
+    $amBin = Join-Path $amDir 'bin'
+    $amOut = Join-Path $amDir 'out'
+    New-Item -ItemType Directory -Path $amBin -Force | Out-Null
+    $amKey = 'TestKey' + ([guid]::NewGuid().ToString('N').Substring(0, 10))
+    $amKeyFile = Join-Path $amDir 'key.dat'
+    [System.IO.File]::WriteAllText($amKeyFile, (ConvertFrom-SecureString (ConvertTo-SecureString $amKey -AsPlainText -Force)), [System.Text.Encoding]::ASCII)
+    $amRows = '[{"results":[{"retailer":"Coes","n":10,"link":"https://www.awin1.com/cread.php?awinmid=30645&awinaffid=3057233&ued=https%3A%2F%2Fwww.coes.co.uk%2Fa","bad":0},' +
+        '{"retailer":"Finediam","n":5,"link":"https://www.awin1.com/cread.php?awinmid=125248&awinaffid=3057233&ued=https%3A%2F%2Ffinediam.com%2Fa","bad":0},' +
+        '{"retailer":"Juicy Couture UK","n":3,"link":"https://www.awin1.com/cread.php?awinmid=19471&awinaffid=3057233&ued=%26utm_source%3Daw","bad":3},' +
+        '{"retailer":"Tooled Up","n":7,"link":"https://www.tooled-up.com/x/?Referrer=affwin","bad":0}],"success":true}]'
+    [System.IO.File]::WriteAllText((Join-Path $amDir 'rows.json'), $amRows, (New-Object System.Text.UTF8Encoding($false)))
+    $amNpx = @(
+        '@echo off',
+        'echo %* >> "%GW_FAKE_STATE%\calls.log"',
+        'echo %* | findstr /C:"GROUP BY retailer" >nul && goto rows',
+        'echo unknown command 1>&2',
+        'exit /b 1',
+        ':rows',
+        'type "%GW_FAKE_STATE%\rows.json"',
+        'exit /b 0'
+    ) -join "`r`n"
+    [System.IO.File]::WriteAllText((Join-Path $amBin 'npx.cmd'), $amNpx + "`r`n", [System.Text.Encoding]::ASCII)
+    $today = Get-Date -Format 'yyyy-MM-dd'
+    $amSrv = Join-Path $amDir 'server.js'
+    Write-Utf8 $amSrv ("const http=require('http');const key=process.argv[2];const today=process.argv[3];" +
+      "const list='Advertiser ID,Advertiser Name,Primary Region,Membership Status,Feed ID,Last Imported,No of products,URL\n'+" +
+      "'30645,Coes,GB,active,116078,'+today+' 06:00:00,2,https://productdata.awin.com/datafeed/download/apikey/'+key+'/fid/116078/\n'+" +
+      "'125248,Finediam,GB,not joined,9,'+today+' 06:00:00,9,https://productdata.awin.com/datafeed/download/apikey/'+key+'/fid/9/\n';" +
+      "http.createServer((q,s)=>{if(!q.url.endsWith('/apikey/'+key)){s.writeHead(403);return s.end('bad key')}" +
+      "if(q.url.startsWith('/datafeed/list/')){s.writeHead(200,{'Content-Type':'text/csv'});return s.end(list)}" +
+      "s.writeHead(404);s.end('no')}).listen(8798,'127.0.0.1');")
+    $amProc = Start-Process -FilePath (Get-Command node).Source -ArgumentList @($amSrv, $amKey, $today) -PassThru -WindowStyle Hidden
+    Start-Sleep -Seconds 2
+    $oldPath = $env:PATH
+    $env:PATH = $amBin + ';' + $oldPath
+    $env:GW_FAKE_STATE = $amDir
+    try {
+        $all = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', (Join-Path (Join-Path $repo 'tools') 'awin-membership-check.ps1'), '-Sites', 'mgw', '-KeyFile', $amKeyFile,
+            '-BaseUrl', 'http://127.0.0.1:8798', '-WorkDir', $amDir, '-OutDir', $amOut, '-NoClipboard')
+        & $exe @all | Out-Null
+        Check ($LASTEXITCODE -eq 0) 'membership check: exit 0'
+        $amRep = [System.IO.File]::ReadAllText((@(Get-ChildItem -LiteralPath $amOut -Filter 'AWIN_MEMBERSHIP_*.txt')[0]).FullName)
+        Check ($amRep.Contains('ΕΝΤΑΞΕΙ: Coes (Awin 30645)')) 'membership check: a member with a fresh feed is fine'
+        Check ($amRep.Contains('ΠΡΟΒΛΗΜΑ: Finediam (Awin 125248)') -and $amRep.Contains('δεν είσαι μέλος')) 'membership check: not a member is a problem'
+        # L121: not in the feed list, but the owner saw "Joined" on its Awin page (tools/awin-known-members.json): fine, links still counted.
+        Check ($amRep.Contains('ΕΝΤΑΞΕΙ: Juicy Couture UK (Awin 19471)') -and $amRep.Contains('«Joined» στη σελίδα του Awin') -and $amRep.Contains('3 links χωρίς διεύθυνση προϊόντος')) 'membership check: a confirmed member without a feed, and broken links'
+        Check ($amRep.Contains('MGW: Tooled Up (7)')) 'membership check: a plain shop link is listed'
+        Check ($amRep.Contains('merchant-profile/125248')) 'membership check: the Awin page of a programme to check'
+        $amList = [System.IO.File]::ReadAllText((@(Get-ChildItem -LiteralPath $amOut -Recurse -Filter 'awin-list.csv')[0]).FullName)
+        Check (-not $amRep.Contains($amKey) -and -not $amList.Contains($amKey) -and -not $amList.Contains('apikey')) 'membership check: the key is in no file'
+        Check (-not ([System.IO.File]::ReadAllText((Join-Path $amDir 'calls.log')) -match '--file|UPDATE|DELETE|INSERT')) 'membership check: only reads'
+    } finally {
+        $env:PATH = $oldPath
+        Remove-Item Env:\GW_FAKE_STATE -ErrorAction SilentlyContinue
+        if ($amProc -and -not $amProc.HasExited) { Stop-Process -Id $amProc.Id -Force -ErrorAction SilentlyContinue }
     }
 }
 
@@ -5377,6 +5685,87 @@ foreach ($t in $bTools) {
 }
 Check ($phraseMiss.Count -eq 0) ('L131: the real tools ask exactly the phrases the batch passes them ' + ($phraseMiss -join ', '))
 Remove-Item -LiteralPath $bw -Recurse -Force -ErrorAction SilentlyContinue
+# 21. pc-disk-cleanup.ps1 (8 Nov 2026: "ENOSPC: no space left on device" in an import): read-only by default, one phrase,
+#     keeps the version running now and the newest other copy, the feeds in use, backups and the .txt reports.
+Write-Host 'pc-disk-cleanup.ps1'
+$dc = Join-Path $work 'disk-cleanup'
+$dcHome = Join-Path $dc 'home'
+$dcTemp = Join-Path $dc 'temp'
+$dcArch = Join-Path $dcHome 'Downloads\GW_AWIN_BULK_ARCHIVE'
+$dcOut = Join-Path $dcHome 'gear-world-reports'
+$dcNpm = Join-Path $dc 'npm-cache'
+$dcLogs = Join-Path $dc 'wrangler-logs'
+$dcSite = Join-Path $dcHome 'sporty-gear-world'
+$dcKeepVer = 'gear-world-code-' + ('1' * 40)
+$dcKeepCache = 'gear-world-code-' + ('1' * 12)
+$dcOld = (Get-Date).AddHours(-5)
+function Dc-Old([string]$p, [int]$hours) { (Get-Item -LiteralPath $p -Force).LastWriteTime = (Get-Date).AddHours(-1 * $hours) }
+foreach ($n in @('aaaaaaaaaaaa', 'bbbbbbbbbbbb', 'cccccccccccc', '111111111111')) { Write-Utf8 (Join-Path $dcTemp ('gear-world-code-' + $n + '\gear-world-code-x\tools\a.ps1')) 'x' }
+Write-Utf8 (Join-Path $dcTemp 'gear-world-code-xyz\a.txt') 'not a code copy'
+Write-Utf8 (Join-Path $dcTemp 'other-folder\a.txt') 'not ours'
+Dc-Old (Join-Path $dcTemp 'gear-world-code-111111111111') 9
+Dc-Old (Join-Path $dcTemp 'gear-world-code-aaaaaaaaaaaa') 8
+Dc-Old (Join-Path $dcTemp 'gear-world-code-bbbbbbbbbbbb') 6
+Dc-Old (Join-Path $dcTemp 'gear-world-code-cccccccccccc') 3
+foreach ($n in @('a', 'b', 'c')) { Write-Utf8 (Join-Path $dcSite ('deploy\gear-world-code-' + ($n * 40) + '\node_modules\pkg\index.js')) ('x' * 5000) }
+Write-Utf8 (Join-Path $dcSite ('deploy\' + $dcKeepVer + '\node_modules\pkg\index.js')) 'running now'
+Dc-Old (Join-Path $dcSite ('deploy\' + $dcKeepVer)) 9
+Dc-Old (Join-Path $dcSite ('deploy\gear-world-code-' + ('a' * 40))) 8
+Dc-Old (Join-Path $dcSite ('deploy\gear-world-code-' + ('b' * 40))) 6
+Dc-Old (Join-Path $dcSite ('deploy\gear-world-code-' + ('c' * 40))) 3
+Write-Utf8 (Join-Path $dcSite 'backups\sgw-d1-restore-point.txt') 'bookmark'
+Write-Utf8 (Join-Path $dcHome 'Documents\projects\deploy\gear-world-code-x\mine.txt') 'one level too deep: not ours'
+foreach ($n in @('20261108_100000', '20261108_120000', '20261108_220000')) { Write-Utf8 (Join-Path $dcArch ('_old\' + $n + '\AWIN_1.csv.gz')) 'old feed' }
+Write-Utf8 (Join-Path $dcArch 'AWIN_1.csv.gz') 'feed in use'
+Write-Utf8 (Join-Path $dcArch 'AWIN_2.csv.gz.part') 'half'
+Write-Utf8 (Join-Path $dcOut 'IMPORT_PLAN_luxe_20261108\report.txt') 'plan report'
+Write-Utf8 (Join-Path $dcOut 'IMPORT_PLAN_luxe_20261108\sql\001.sql') 'INSERT 1'
+Write-Utf8 (Join-Path $dcOut 'SGW_IMPORT_PLAN_20261108\report.txt') 'plan report'
+Write-Utf8 (Join-Path $dcOut 'SGW_IMPORT_PLAN_20261108\002.sql') 'INSERT 2'
+Write-Utf8 (Join-Path $dcOut 'TGW_IMPORT_PLAN_now\sql\003.sql') 'INSERT 3 (new plan)'
+Write-Utf8 (Join-Path $dcOut 'GW_BACKUP_HGW\db.sql') 'a backup'
+Dc-Old (Join-Path $dcOut 'IMPORT_PLAN_luxe_20261108') 5
+Dc-Old (Join-Path $dcOut 'SGW_IMPORT_PLAN_20261108') 5
+Dc-Old (Join-Path $dcOut 'GW_BACKUP_HGW') 50
+Write-Utf8 (Join-Path $dcLogs 'wrangler-old.log') 'old log'
+Write-Utf8 (Join-Path $dcLogs 'wrangler-new.log') 'new log'
+Dc-Old (Join-Path $dcLogs 'wrangler-old.log') 5
+Write-Utf8 (Join-Path $dcNpm '_cacache\index-v5\a') 'cache'
+Write-Utf8 (Join-Path $dcNpm '_npx\b\package.json') '{}'
+Write-Utf8 (Join-Path $dcNpm 'other\keep.txt') 'not ours'
+$dcArgs = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', (Join-Path $repo 'tools\pc-disk-cleanup.ps1'), '-PcHome', $dcHome, '-TempRoot', $dcTemp, '-Archive', $dcArch, '-OutDir', $dcOut, '-NpmCache', $dcNpm, '-WranglerLogs', $dcLogs, '-KeepVersion', $dcKeepVer, '-KeepCache', $dcKeepCache, '-NoClipboard')
+function Dc-Report {
+    $f = @(Get-ChildItem -LiteralPath $dcOut -Filter 'DISK_CLEANUP_*.txt' | Sort-Object LastWriteTime, Name | Select-Object -Last 1)
+    if ($f.Count -eq 0) { return '' }
+    $t = [System.IO.File]::ReadAllText($f[0].FullName)
+    Remove-Item -LiteralPath $f[0].FullName -Force
+    return $t
+}
+$dcBefore = Get-TreeHash $dc
+& $exe @dcArgs | Out-Null
+Check ($LASTEXITCODE -eq 0) 'disk cleanup read-only: exit 0'
+$r = Dc-Report
+Check ($r.Contains('Μπορούν να σβηστούν: 12 ') -and $r.Contains('ΕΓΚΡΙΝΩ DISK CLEANUP') -and $r.Contains('Μόνο ανάγνωση')) 'disk cleanup read-only: 12 items listed with the phrase'
+Check ($r.Contains('παλιές εκδόσεις στα deploy των sites: 2') -and $r.Contains('αντίγραφα κώδικα στο TEMP: 2') -and $r.Contains('παλιά feeds (_old): 2') -and $r.Contains('αρχεία SQL παλιών σχεδίων εισαγωγής: 2')) 'disk cleanup read-only: counts per kind'
+Check ((Get-TreeHash $dc) -eq $dcBefore) 'disk cleanup read-only: nothing deleted'
+& $exe @dcArgs -Apply -Approve 'ΕΓΚΡΙΝΩ DISK CLEAN' | Out-Null
+Check ($LASTEXITCODE -eq 1) 'disk cleanup with a wrong phrase: exit 1'
+[void](Dc-Report)
+Check ((Get-TreeHash $dc) -eq $dcBefore) 'disk cleanup with a wrong phrase: nothing deleted'
+& $exe @dcArgs -Apply -Approve 'egkrino disk cleanup' | Out-Null
+Check ($LASTEXITCODE -eq 0) 'disk cleanup with the phrase: exit 0'
+$r = Dc-Report
+Check ($r.Contains('ΕΤΟΙΜΟ: σβήστηκαν 12 από 12')) 'disk cleanup with the phrase: 12 of 12 deleted'
+Check (-not (Test-Path -LiteralPath (Join-Path $dcTemp 'gear-world-code-aaaaaaaaaaaa')) -and -not (Test-Path -LiteralPath (Join-Path $dcTemp 'gear-world-code-bbbbbbbbbbbb'))) 'disk cleanup: old code copies in TEMP deleted'
+Check ((Test-Path -LiteralPath (Join-Path $dcTemp 'gear-world-code-111111111111')) -and (Test-Path -LiteralPath (Join-Path $dcTemp 'gear-world-code-cccccccccccc')) -and (Test-Path -LiteralPath (Join-Path $dcTemp 'gear-world-code-xyz\a.txt')) -and (Test-Path -LiteralPath (Join-Path $dcTemp 'other-folder\a.txt'))) 'disk cleanup: the running copy, the newest other one and other folders stay'
+Check (-not (Test-Path -LiteralPath (Join-Path $dcSite ('deploy\gear-world-code-' + ('a' * 40)))) -and -not (Test-Path -LiteralPath (Join-Path $dcSite ('deploy\gear-world-code-' + ('b' * 40))))) 'disk cleanup: old deploy copies with node_modules deleted'
+Check ((Test-Path -LiteralPath (Join-Path $dcSite ('deploy\' + $dcKeepVer + '\node_modules\pkg\index.js'))) -and (Test-Path -LiteralPath (Join-Path $dcSite ('deploy\gear-world-code-' + ('c' * 40)))) -and (Test-Path -LiteralPath (Join-Path $dcSite 'backups\sgw-d1-restore-point.txt')) -and (Test-Path -LiteralPath (Join-Path $dcHome 'Documents\projects\deploy\gear-world-code-x\mine.txt'))) 'disk cleanup: the running version, the newest other one, backups and other folders stay'
+Check (-not (Test-Path -LiteralPath (Join-Path $dcArch '_old\20261108_100000')) -and -not (Test-Path -LiteralPath (Join-Path $dcArch '_old\20261108_120000')) -and (Test-Path -LiteralPath (Join-Path $dcArch '_old\20261108_220000\AWIN_1.csv.gz')) -and (Test-Path -LiteralPath (Join-Path $dcArch 'AWIN_1.csv.gz')) -and -not (Test-Path -LiteralPath (Join-Path $dcArch 'AWIN_2.csv.gz.part'))) 'disk cleanup: old feed copies and half downloads go, the newest _old and the feeds in use stay'
+Check (-not (Test-Path -LiteralPath (Join-Path $dcOut 'IMPORT_PLAN_luxe_20261108\sql')) -and -not (Test-Path -LiteralPath (Join-Path $dcOut 'SGW_IMPORT_PLAN_20261108\002.sql')) -and (Test-Path -LiteralPath (Join-Path $dcOut 'IMPORT_PLAN_luxe_20261108\report.txt')) -and (Test-Path -LiteralPath (Join-Path $dcOut 'SGW_IMPORT_PLAN_20261108\report.txt'))) 'disk cleanup: SQL of old plans deleted, their .txt reports stay'
+Check ((Test-Path -LiteralPath (Join-Path $dcOut 'TGW_IMPORT_PLAN_now\sql\003.sql')) -and (Test-Path -LiteralPath (Join-Path $dcOut 'GW_BACKUP_HGW\db.sql'))) 'disk cleanup: a new plan and backups stay'
+Check (-not (Test-Path -LiteralPath (Join-Path $dcLogs 'wrangler-old.log')) -and (Test-Path -LiteralPath (Join-Path $dcLogs 'wrangler-new.log')) -and -not (Test-Path -LiteralPath (Join-Path $dcNpm '_cacache')) -and -not (Test-Path -LiteralPath (Join-Path $dcNpm '_npx')) -and (Test-Path -LiteralPath (Join-Path $dcNpm 'other\keep.txt'))) 'disk cleanup: old wrangler logs and the npm cache go, other files stay'
+& $exe @dcArgs | Out-Null
+Check ($LASTEXITCODE -eq 0 -and (Dc-Report).Contains('Δεν υπάρχει τίποτα για σβήσιμο')) 'disk cleanup again: nothing left to delete'
 
 Remove-Item -LiteralPath $work -Recurse -Force -ErrorAction SilentlyContinue
 

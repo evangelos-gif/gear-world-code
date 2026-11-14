@@ -14,16 +14,32 @@ import { pathToFileURL } from 'node:url';
 import { rowsFromWrangler } from './cleanup-rules/tidy.mjs';
 import { updateSql } from './cleanup-rules/instock.mjs';
 
-export function diff(planIds, rows) {
+// keys (optional): [[awin_product_id, merchant_product_id]] of the plan (keys.json). A database row that has another Awin id
+// but the same shop id (merchant_product_id) is the same product: on CGW the import updates it (lessons L119).
+export function planRowMatcher(planIds, keys = []) {
+  const byMerchant = new Map();
+  for (const [awin, mid] of keys || []) if (mid !== null && mid !== undefined && String(mid).trim()) byMerchant.set(String(mid).trim(), String(awin));
   const plan = new Set(planIds);
+  // The plan id a database row stands for, or '' when the plan does not have it.
+  return r => {
+    const key = String(r.awin_product_id);
+    if (plan.has(key)) return key;
+    const mid = r.merchant_product_id === null || r.merchant_product_id === undefined ? '' : String(r.merchant_product_id).trim();
+    const viaMerchant = mid ? byMerchant.get(mid) : '';
+    return viaMerchant && plan.has(viaMerchant) ? viaMerchant : '';
+  };
+}
+
+export function diff(planIds, rows, keys = []) {
+  const plan = new Set(planIds);
+  const match = planRowMatcher(planIds, keys);
   const seen = new Set();
   const gone = [];
   let updated = 0, back = 0;
   for (const r of rows) {
-    const key = String(r.awin_product_id);
-    seen.add(key);
+    const key = match(r);
     const active = Number(r.is_active) === 1;
-    if (plan.has(key)) { if (active) updated++; else back++; }
+    if (key) { seen.add(key); if (active) updated++; else back++; }
     else if (active) gone.push(Number(r.id));
   }
   const addedIds = [...plan].filter(k => !seen.has(k));
@@ -40,8 +56,10 @@ const sq = v => (v === null || v === undefined) ? 'NULL' : `'${String(v).replace
 // earlier plan wrote that the site does not use; siteSubs: the site's active (site_category, subcategory) pairs.
 // recat = products already on the site that get the plan's place (rollback puts back their old one);
 // newSubs = where the products of this import would end up in a subcategory the site does not have yet.
-export function subcategoryCheck(places, rows, replace = [], siteSubs = []) {
-  const byKey = new Map(rows.map(r => [String(r.awin_product_id), r]));
+export function subcategoryCheck(places, rows, replace = [], siteSubs = [], keys = []) {
+  const match = planRowMatcher(places.map(p => String(p[0])), keys);
+  const byKey = new Map();
+  for (const r of rows) { const k = match(r); if (k && !byKey.has(k)) byKey.set(k, r); }
   const rep = new Set(replace);
   const recat = [];
   const landing = {};
@@ -76,13 +94,15 @@ if (import.meta.url === pathToFileURL(process.argv[1] || '').href) {
   const [idsFile, dbFile, out, subsFile] = process.argv.slice(2);
   const planIds = readFileSync(idsFile, 'utf8').split('\n').map(s => s.trim()).filter(Boolean);
   const rows = rowsFromWrangler(readFileSync(dbFile, 'utf8'));
-  const d = diff(planIds, rows);
+  const keysFile = join(dirname(idsFile), 'keys.json');
+  const keys = existsSync(keysFile) ? JSON.parse(readFileSync(keysFile, 'utf8')) : [];
+  const d = diff(planIds, rows, keys);
   const placesFile = join(dirname(idsFile), 'places.json');
   let sc = { recat: [], newSubs: [], rollback: '' };
   if (existsSync(placesFile)) {
     const pl = JSON.parse(readFileSync(placesFile, 'utf8'));
     const siteSubs = subsFile && existsSync(subsFile) ? rowsFromWrangler(readFileSync(subsFile, 'utf8')) : [];
-    sc = subcategoryCheck(pl.places || [], rows, pl.replace || [], siteSubs);
+    sc = subcategoryCheck(pl.places || [], rows, pl.replace || [], siteSubs, keys);
   }
   mkdirSync(out, { recursive: true });
   writeFileSync(join(out, 'gone-ids.txt'), d.gone.join('\n') + (d.gone.length ? '\n' : ''));

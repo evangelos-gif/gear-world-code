@@ -113,13 +113,25 @@ export function topCategory(feedCategory) {
 // Things in a camping section that are not camping gear (Joybuy "Camping Tools" also holds kebab skewers).
 const CAMPING_SECTION_NO = words(['skewers?', 'kebab', 'grill (?:baskets?|pans?|tools?|gloves)', 'bbq (?:tools?|skewers?|gloves|tool set)', 'knife', 'knives', 'axes?', 'hatchets?', 'saws?', 'fishing', 'golf', 'cycling', 'ski', 'snowboard', 'skateboard', 'helmets?', 'shoes', 'boots(?<!hiking boots|walking boots)']);
 
+// A camping shop without categories (source.campingShop) also sells clothes, baby wear and car care: only its unmatched
+// products that are none of these are read as camping gear (Camping World UK dry run, 9 Nov 2026: tees, shorts, hats,
+// "All-In-One Suit - 6-12m", car wash).
+const CAMPING_SHOP_NO = words(['t-?shirts?', 'tees?', 'shorts', 'pants?', 'trousers', 'joggers', 'leggings', 'jeans', 'mocks?', 'hood(?:ie|y)s?', 'fleeces?', 'jackets?',
+  'coats?', 'vests?', 'gilets?', 'hats?', 'caps?', 'beanies?', 'gloves?', 'mitts?', 'socks?', 'tops?', 'shirts?', 'polos?', 'dress(?:es)?', 'skirts?', 'suits?', 'robes?', 'pullovers?',
+  'jumpers?', 'sweaters?', 'sweatshirts?', 'cardigans?', 'boots?', 'shoes?', 'trainers?', 'sandals?', 'slippers?', 'scarf', 'scarves', 'snoods?', 'bras?', 'briefs', 'boxers?',
+  'mens', "men'?s", 'womens', "women'?s", 'ladies', 'kids', 'baby', 'babies', 'toddlers?', 'infants?', '\\d+-\\d+ ?m(?:onths?)?', 'wash (?:&|and) wax', 'car (?:wash|wax|polish|shampoo)', 'shield kit', 'wax', 'polish',
+  'eddie bauer', 'sherpa', 'weird fish', 'tentree', 'craghoppers', 'trespass', 'jack wolfskin', 'overtrousers', 'base ?layers?', 'body ?warmers?', 'wellingtons?', 'knee ?pads?',
+  'squeakers?', 'wicking', 'tanks?', 'trs', 'regatta(?!.*(?:picnic|bbq|tents?|chairs?|tables?|sleeping|bags?|packs?|cool))']);
+
 // name: product name; feedCategory: merchant category path (and Awin category) as one string.
 // paths: every merchant category column of the row (leaf and full path), from the import tool.
-export function classify(name, feedCategory = '', paths = '') {
+// source.campingShop (sites/vgw/sources.json): a camping shop whose feed has no categories (Camping World UK, 9 Nov 2026:
+// 6,137 products, all "(no category)"): its products are read as if they were in a camping section.
+export function classify(name, feedCategory = '', paths = '', source = null) {
   const n = String(name || '');
   const cat = `${String(feedCategory || '')} | ${String(paths || '')}`;
   for (const d of DENY) if (d.re.test(n)) return { ok: false, reason: d.label };
-  const campingFeed = CAMPING_FEED.test(cat);
+  const campingFeed = CAMPING_FEED.test(cat) || Boolean(source && source.campingShop);
   const ctx = campingFeed || LUGGAGE_FEED.test(cat) || TRAVEL_WORDS.test(n);
   for (const r of RULES) {
     if (r.ctx && !ctx) continue;
@@ -128,7 +140,7 @@ export function classify(name, feedCategory = '', paths = '') {
   // A shop's own luggage section: a "koffer" there is a suitcase (gun, tool and instrument cases are denied above).
   if (LUGGAGE_FEED.test(cat) && /koffers?(?![a-z])/i.test(n)) return { ok: true, slug: 'luggage-suitcases' };
   // A real camping section of the shop: the product is camping gear, unless it is clearly something else.
-  if (campingFeed && !CAMPING_SECTION_NO.test(n)) return { ok: true, slug: 'camping-outdoor' };
+  if (campingFeed && !CAMPING_SECTION_NO.test(n) && !(source && source.campingShop && CAMPING_SHOP_NO.test(n))) return { ok: true, slug: 'camping-outdoor' };
   return { ok: false, reason: campingFeed ? 'not matched (shop says camping)' : 'not travel' };
 }
 

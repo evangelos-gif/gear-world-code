@@ -22,6 +22,26 @@
   100,000 a day, lessons L49); what is left waits for the next run. -PaidPlan: Workers Paid, up to 1,000,000 per run.
   It changes ONLY the products of these shops in these sites' databases. No code, no other shop, no deploy.
 
+  -FromShop (job 3, lessons L60): for shops whose Awin feed stopped (Red Gorilla, Wavytalk, Gardenista: not refreshed since
+  15 May 2026) the source is the shop's own live Shopify catalogue instead of the feed (read-only GETs to the shop; its
+  address comes from the products' links). Products gone from the shop or sold out there are hidden; a price changes only
+  when the shop sells in the site's currency. Same approval phrase. Example: -Pairs "gardenista:hgw" -FromShop
+  A shop with more than 10,000 products (InStock, L80) is not read whole: -Sample N (default 100) of the site's own
+  products are looked up one by one on the shop, and the report shows how many have the same price, another price, are
+  sold out or gone. Nothing changes from a sample. The same happens when the shop stops answering part-way through its
+  catalogue. -SampleShops "instock-uk" sends the shops named there straight to the sample (no full catalogue read: reading
+  InStock's catalogue made Shopify answer HTTP 429, "slow down", to this PC for every Shopify shop, 27 Oct 2026); the
+  other pairs of the same run are refreshed as usual. On 429 the sample waits, asks once more, and stops after 3 in a row.
+  -SlowShops "instock-uk" (L81): the full check for such a shop, product by product (/products/<handle>.js, about one a
+  second; InStock: 16,587 products on 5 sites, about 4-5 hours). The answers are kept for 48 hours in
+  <home>\gear-world-reports\shop-memory (one file per shop, shared by the sites), so a stopped or interrupted run goes on
+  where it stopped. A run that asked the shop does not ask for approval (it may have run for hours, unattended): the same
+  command again within 48 hours takes the answers from memory, shows the plan and asks each site's phrase. Products that
+  did not answer stay as they are. Windows is kept awake while it runs.
+  -AcceptJumps "gardenista": that shop's prices that change more than 3 times change too (the owner checked them).
+  -FeedShops "my-tool-shed": with -FromShop, these shops are refreshed from their Awin feed as without -FromShop, so one
+  run (one report) can mix both kinds of shop.
+
   Rollback (printed): the rollback file puts back the old values and shows the hidden products again; or the restore point.
   Report: <home>\gear-world-reports\REFRESH_<time>.txt (also copied to the clipboard)
 #>
@@ -35,6 +55,12 @@ param(
     [string]$OutDir = '',
     [int]$MaxWrites = 90000,
     [switch]$PaidPlan,
+    [switch]$FromShop,
+    [int]$Sample = 100,
+    [string]$SampleShops = '',
+    [string]$SlowShops = '',
+    [string]$AcceptJumps = '',
+    [string]$FeedShops = '',
     [switch]$NoClipboard
 )
 
@@ -92,6 +118,8 @@ function Confirm-Approval([string]$phrase) {
         Write-Host ''
         Write-Host ('Για να συνεχίσω, γράψε ακριβώς: {0}' -f $phrase) -ForegroundColor Yellow
         Write-Host '(ή πάτα Enter για να το παραλείψω χωρίς αλλαγές)'
+        # Lines left over from the paste (an empty last line) would answer the prompt by themselves (8 Nov 2026).
+        try { $Host.UI.RawUI.FlushInputBuffer() } catch { }
         $typed = Read-Host 'Έγκριση'
     }
     return ((Normalize-Phrase $typed) -eq (Normalize-Phrase $phrase))
@@ -109,11 +137,16 @@ function Invoke-Wrangler([string]$Arguments, [switch]$Retry) {
     for ($try = 1; $try -le $tries; $try++) {
         $cmdFile = Join-Path $tmp ('gw-wrangler-' + [guid]::NewGuid().ToString('N').Substring(0, 8) + '.cmd')
         [System.IO.File]::WriteAllText($cmdFile, ($lines -join "`r`n") + "`r`n", [System.Text.Encoding]::ASCII)
+        # wrangler writes UTF-8; Windows PowerShell would read it with the console code page (850, 737...): names came
+        # out as 'Schl├â┬╝ssel' (26 Oct 2026, lessons L58), and any other text would reach the plan and its rollback wrong.
+        $oldEnc = $null
+        try { $oldEnc = [Console]::OutputEncoding; [Console]::OutputEncoding = New-Object System.Text.UTF8Encoding($false) } catch { }
         try {
             $out = @(& $cmdFile)
             $code = $LASTEXITCODE
         } finally {
             Remove-Item -LiteralPath $cmdFile -ErrorAction SilentlyContinue
+            if ($oldEnc) { try { [Console]::OutputEncoding = $oldEnc } catch { } }
         }
         $text = (($out | ForEach-Object { "$_" }) -join "`n") -replace '\x1b\[[0-9;]*m', ''
         $result = @{ code = $code; text = $text }
@@ -166,6 +199,41 @@ foreach ($p in ($Pairs -split ',')) {
 if ($list.Count -lt 1) { Say 'Δεν δόθηκε κανένα ζευγάρι κατάστημα:site.' 'Red'; Finish 2 }
 if ($Advertiser -and ($list.Count -ne 1 -or $Advertiser -notmatch '^\d{1,9}$')) { Say '-Advertiser μόνο με ΕΝΑ ζευγάρι και μόνο αριθμός.' 'Red'; Finish 2 }
 if (-not (Get-Command node -ErrorAction SilentlyContinue)) { Say 'Δεν βρέθηκε το Node.js.' 'Red'; Finish 3 }
+$shopKeys = @($list | ForEach-Object { ($_ -split ':')[0] })
+# The shops named in -SampleShops, -SlowShops or -AcceptJumps: each must be one of the -Pairs.
+function Shop-List([string]$value, [string]$label) {
+    $keys = @()
+    foreach ($s in ($value -split ',')) {
+        $k = Key-Of $s
+        if (-not $k) { continue }
+        if ($shopKeys -notcontains $k) { Say ('{0}: το «{1}» δεν είναι στα -Pairs.' -f $label, $s) 'Red'; Finish 2 }
+        $keys += $k
+    }
+    return ,$keys
+}
+$sampleKeys = Shop-List $SampleShops '-SampleShops'
+$slowKeys = Shop-List $SlowShops '-SlowShops'
+$jumpKeys = Shop-List $AcceptJumps '-AcceptJumps'
+$feedKeys = Shop-List $FeedShops '-FeedShops'
+if ((($sampleKeys.Count + $slowKeys.Count + $feedKeys.Count) -gt 0) -and -not $FromShop) { Say '-SampleShops, -SlowShops και -FeedShops μόνο μαζί με -FromShop.' 'Red'; Finish 2 }
+foreach ($k in $feedKeys) {
+    if (($sampleKeys -contains $k) -or ($slowKeys -contains $k)) { Say ('Το {0} είναι στα -FeedShops και σε -SampleShops ή -SlowShops: διάλεξε ένα.' -f $k) 'Red'; Finish 2 }
+    Say ('Το {0} ανανεώνεται από το feed του Awin, όχι από το κατάστημα.' -f $k)
+}
+foreach ($k in $sampleKeys) {
+    if ($slowKeys -contains $k) { Say ('Το {0} είναι και στα -SampleShops και στα -SlowShops: διάλεξε ένα.' -f $k) 'Red'; Finish 2 }
+    Say ('Μόνο δείγμα για το {0} (χωρίς ανάγνωση όλου του καταλόγου, L80).' -f $k)
+}
+foreach ($k in $slowKeys) { Say ('Αργός πλήρης έλεγχος για το {0}: ένα-ένα, περίπου 1 προϊόν το δευτερόλεπτο (L81).' -f $k) }
+foreach ($k in $jumpKeys) { Say ('Οι τιμές του {0} που αλλάζουν πάνω από 3 φορές ΑΛΛΑΖΟΥΝ κι αυτές (-AcceptJumps).' -f $k) 'Yellow' }
+if ($slowKeys.Count -gt 0) {
+    # Hours of checking: keep Windows awake while this window runs (ES_CONTINUOUS | ES_SYSTEM_REQUIRED). A closed laptop lid still sleeps.
+    try {
+        Add-Type -Namespace GearWorld -Name Power -MemberDefinition '[DllImport("kernel32.dll")] public static extern uint SetThreadExecutionState(uint esFlags);' -ErrorAction Stop
+        [void][GearWorld.Power]::SetThreadExecutionState([uint32]2147483649)
+        Say 'Ο υπολογιστής δεν θα πέσει σε αναστολή όσο τρέχει (αν είναι laptop: στο ρεύμα, με ανοιχτό καπάκι).'
+    } catch { }
+}
 
 # The Awin archive on this PC (found automatically).
 function Count-Feeds([string]$dir) {
@@ -185,8 +253,10 @@ if (-not $Archive) {
         $Archive = $best
     }
 }
-if (-not $Archive -or -not (Test-Path -LiteralPath $Archive)) { Say 'Δεν βρήκα τον φάκελο με τα feeds του Awin.' 'Red'; Finish 2 }
-Say ('Feeds: {0}' -f $Archive)
+if (((-not $FromShop) -or $feedKeys.Count -gt 0) -and (-not $Archive -or -not (Test-Path -LiteralPath $Archive))) { Say 'Δεν βρήκα τον φάκελο με τα feeds του Awin.' 'Red'; Finish 2 }
+if (-not $Archive) { $Archive = $HOME }
+if ($FromShop) { Say 'Πηγή: ο ζωντανός κατάλογος κάθε καταστήματος (όχι τα feeds του Awin, L60).' }
+if ((-not $FromShop) -or $feedKeys.Count -gt 0) { Say ('Feeds: {0}' -f $Archive) }
 Say ('Όριο εγγραφών D1 για όλη την εκτέλεση: {0}' -f $budget)
 
 $planRoot = Join-Path $OutDir ('REFRESH_PLAN_{0}' -f $stamp)
@@ -222,10 +292,10 @@ foreach ($pair in $list) {
     if ($name -match '[|<>^%~"]') { Say ('Το όνομα «{0}» έχει χαρακτήρες που δεν περνούν με ασφάλεια. Σταματώ για αυτό το κατάστημα.' -f $name) 'Red'; $exitCode = 5; continue }
     $sqlName = Sql-Name $name
 
-    # 2. Indexes (for the rows D1 writes) and the shop's active products, 5,000 at a time (read-only).
+    # 2. Indexes and triggers (for the rows D1 writes, L57/L59) and the shop's active products, 5,000 at a time (read-only).
     $dir = Join-Path $planRoot ('{0}-{1}' -f $site, $key)
     New-Item -ItemType Directory -Path $dir -Force | Out-Null
-    $idx = Select-Raw "SELECT name, sql FROM sqlite_master WHERE type = 'index' AND tbl_name = 'products'"
+    $idx = Select-Raw "SELECT type, name, sql FROM sqlite_master WHERE type IN ('index', 'trigger') AND tbl_name = 'products'"
     if ($null -eq $idx) { Say 'Δεν μπόρεσα να διαβάσω τη δομή της βάσης. Δεν άλλαξε τίποτα.' 'Red'; $exitCode = 4; continue }
     $idxFile = Join-Path $dir 'indexes.json.txt'
     [System.IO.File]::WriteAllText($idxFile, $idx.text, (New-Object System.Text.UTF8Encoding($false)))
@@ -233,7 +303,9 @@ foreach ($pair in $list) {
     $last = 0
     $failed = $false
     for ($page = 1; $page -le 200; $page++) {
-        $sql = ('SELECT id, awin_product_id, merchant_product_id, product_name, price, currency, stock_status, image_url, is_active FROM products WHERE retailer = {0} AND is_active = 1 AND id BETWEEN {1} AND 2147483647 ORDER BY id LIMIT 5000' -f $sqlName, ($last + 1))
+        $cols = 'id, awin_product_id, merchant_product_id, product_name, price, currency, stock_status, image_url, is_active'
+        if ($FromShop) { $cols = $cols + ', affiliate_url' }
+        $sql = ('SELECT {2} FROM products WHERE retailer = {0} AND is_active = 1 AND id BETWEEN {1} AND 2147483647 ORDER BY id LIMIT 5000' -f $sqlName, ($last + 1), $cols)
         $r = Select-Raw $sql
         if ($null -eq $r) { $failed = $true; break }
         $f = Join-Path $dir ('rows-{0:D3}.json.txt' -f $page)
@@ -247,19 +319,29 @@ foreach ($pair in $list) {
     # 3. The plan (read-only).
     $a = @((Join-Path (Join-Path $repo 'tools') 'legacy-refresh-plan.mjs'), '--archive', $Archive, '--retailer', $name, '--site', $site, '--indexes', $idxFile, '--out', $dir, '--max-writes', [string]$budget)
     if ($Advertiser) { $a += @('--advertiser', $Advertiser) }
+    if ($FromShop -and ($feedKeys -notcontains $key)) { $a += @('--from-shop', '--sample', [string]$Sample) }
+    if ($FromShop -and ($sampleKeys -contains $key)) { $a += @('--sample-only') }
+    if ($FromShop -and ($slowKeys -contains $key)) { $a += @('--slow', '--memory', (Join-Path $OutDir 'shop-memory')) }
+    if ($jumpKeys -contains $key) { $a += @('--accept-jumps') }
     foreach ($f in $rowFiles) { $a += @('--rows', $f) }
     & node @a
     $planCode = $LASTEXITCODE
     $reportFile = Join-Path $dir 'report.txt'
     if (Test-Path -LiteralPath $reportFile) { foreach ($line in [System.IO.File]::ReadAllLines($reportFile, [System.Text.Encoding]::UTF8)) { if ($line -match '^ΠΡΟΣΟΧΗ') { Say $line 'Yellow' } else { Say $line } } }
+    # 5 = the shop's catalogue was not read whole (too big, stopped answering part-way, or -SampleShops): only a sample
+    # was checked (L80). Nothing can change from it.
+    if ($planCode -eq 5) { Say 'Μόνο δείγμα (ο κατάλογος δεν διαβάστηκε ολόκληρος, ο λόγος πιο πάνω): δεν άλλαξε τίποτα.' 'Yellow'; continue }
     if ($planCode -ne 0) { Say 'Το σχέδιο δεν έγινε (δες πιο πάνω). Δεν άλλαξε τίποτα.' 'Red'; if ($exitCode -eq 0) { $exitCode = 10 }; continue }
     $c = ([System.IO.File]::ReadAllText((Join-Path $dir 'counts.txt'))).Trim() -split '\s+'
     $nChanges = [int]$c[0]; $nHides = [int]$c[1]; $writes = [int]$c[2]; $stale = ($c[3] -eq '1'); $activeBefore = [int]$c[5]
+    $live = ($c.Count -gt 6 -and $c[6] -eq '1')
     $phrase = 'ΕΓΚΡΙΝΩ REFRESH {0} {1}' -f $key.ToUpper(), $site.ToUpper()
     if ($stale -or ($nChanges + $nHides) -eq 0) {
         if (-not $stale) { Say 'Τίποτα να αλλάξει.' 'Green' }
         continue
     }
+    # The slow check asked the shop in this run (hours, maybe unattended): no approval now; the next run applies from memory (L81).
+    if ($live) { Say ('Πρόβα: δεν άλλαξε τίποτα. Ξανατρέξε την ίδια εντολή μέσα σε 48 ώρες για να ζητήσει τη φράση {0}.' -f $phrase) 'Green'; continue }
     if (-not $Apply) { Say ('Δοκιμή μόνο: δεν άλλαξε τίποτα. Η φράση έγκρισης: {0}' -f $phrase) 'Green'; continue }
     if (-not (Confirm-Approval $phrase)) { Say 'Δεν δόθηκε έγκριση: δεν άλλαξε τίποτα σε αυτό το κατάστημα.' 'Yellow'; if ($exitCode -eq 0) { $exitCode = 1 }; continue }
 

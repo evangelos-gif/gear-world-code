@@ -43,6 +43,11 @@ export const DENY = [
 
 // ctx: true = only with car context (step 2). notInToolShop: skipped for a tool shop's "Automotive Tools"
 // section (a "brake" product there is a brake TOOL, not a brake part).
+// Exceptions found on 8 Nov 2026 (4x4 Predator dry run): a car's rear or bumper diffuser is not a home fragrance
+// diffuser, and a car headlight bulb ("Stealth LED H7 Headlight Bulb Pair - 2800 lumens") is not a head torch.
+DENY.find(d => d.label === 'clothes, gift or home item').unless = /\b(rear|bumper)\b[^|]*\bdiffusers?\b|\bdiffusers?\b[^|]*\bbumper\b/i;
+DENY.find(d => d.label === 'head torch, not a car light').unless = /\bheadlight bulbs?\b|\b(?:h\d{1,2}|hb[34]|9005|9006)\b/i;
+
 export const RULES = [
   {
     slug: 'parts-maintenance', // gas struts first: "Roof Box Gas Strut", "Tailgate Gas Strut"
@@ -146,10 +151,30 @@ const toolShop = cat => /(?:^|\|)\s*automotive tools\b/i.test(String(cat || ''))
 
 // name: product name; feedCategory: merchant category path (and Awin category) as one string.
 // paths: every merchant category column of the row (leaf and full path), from the import tool.
-export function classify(name, feedCategory = '', paths = '') {
+// A shop whose feed categories are clean car-accessory sections (4x4 Predator, 8 Nov 2026: "Side Steps", "Roof Rails",
+// "Integration Kits", "Floor Mats" ...) gives them in sources.json as categoryMap { "<shop category>": "<slug>" }: the
+// longest shop category that starts the feed category decides, after the DENY list. categoryDefault: the slug for the
+// shop's other sections (all its products are car accessories). The first dry run put spoilers and LED kits under
+// garage tools and left 1,124 of 2,393 rows unmatched (lessons L102).
+export function mapByShop(feedCategory, source) {
+  const map = source && source.categoryMap;
+  if (!map) return '';
+  const fc = String(feedCategory || '').trim().toLowerCase();
+  let best = '';
+  for (const k of Object.keys(map)) {
+    const key = k.toLowerCase();
+    if ((fc === key || fc.startsWith(key + ' ') || fc.startsWith(key + ' >')) && key.length > best.length) best = k;
+  }
+  const slug = best ? map[best] : (source.categoryDefault || '');
+  return CATEGORY_SLUGS.includes(slug) ? slug : '';
+}
+
+export function classify(name, feedCategory = '', paths = '', source = null) {
   const n = String(name || '');
   const cat = `${String(feedCategory || '')} | ${String(paths || '')}`;
-  for (const d of DENY) if (d.re.test(n)) return { ok: false, reason: d.label };
+  for (const d of DENY) if (d.re.test(n) && !(d.unless && d.unless.test(n))) return { ok: false, reason: d.label };
+  const own = mapByShop(feedCategory, source);
+  if (own) return { ok: true, slug: own };
   // Spark plugs and engine oil for lawnmowers, and whole vehicles (snowmobiles) listed under "Motor Vehicles".
   if (GARDEN_FEED.test(cat)) return { ok: false, reason: 'garden or farm machine' };
   if (VEHICLE_FEED.test(cat) && !VEHICLE_FEED_OK.test(n)) return { ok: false, reason: 'a vehicle, not gear' };

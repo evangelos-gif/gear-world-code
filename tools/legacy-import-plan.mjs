@@ -9,15 +9,24 @@ import { createGunzip } from 'node:zlib';
 import { basename, join, resolve, dirname } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { readCsvRecords, cleanText, parsePrice } from './tgw-import-plan.mjs';
+import { networkOf } from './network-links.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const AWIN_PUBLISHER_ID = 3057233;
-const ROWS_PER_INSERT = 80;   // keeps every statement well under the D1 limit of 100 KB
+const ROWS_PER_INSERT = 80;   // at most 80 rows per statement ...
+// ... and never more than 90 KB: D1 refuses a statement over 100 KB ("statement too long: SQLITE_TOOBIG", House of
+// Sneakers on MGW, 12 Nov 2026: 80 rows with long picture lists made 104 KB). A batch that is too big is split in two.
+export const MAX_STATEMENT_BYTES = 90000;
 const ROWS_PER_FILE = 1000;
 // KGW, HGW and GGW keep products with no UNIQUE on awin_product_id: there the unique key is (retailer, merchant_product_id)
 // for a non-empty merchant id (index ux_products_refresh_stable_key, checked on the live databases 21 Oct 2026).
 // MGW and WGW have awin_product_id UNIQUE. The SQL must name the key the table really has.
-export const STABLE_KEY_SITES = new Set(['kgw', 'hgw', 'ggw']);
+// CGW has BOTH (awin_product_id UNIQUE and ux_products_refresh_stable_key_global on (retailer, merchant_product_id), checked
+// 12 Nov 2026): Tooled Up's plumbing tools stopped with "UNIQUE constraint failed: products.retailer,
+// products.merchant_product_id", because 346 of them were already there under other Awin ids (lessons L119). There the SQL
+// names both keys, so a product already on the site is updated whichever key it matches.
+export const STABLE_KEY_SITES = new Set(['kgw', 'hgw', 'ggw', 'cgw']);
+export const AWIN_UNIQUE_TOO = new Set(['cgw']);
 
 // Prices in the plan are in the shop's own currency (dry run of 25 Oct 2026: GRABO's US dollars and 100% PURE's euros were
 // printed with "£", lessons L63).
@@ -63,6 +72,10 @@ const IMAGE_COLUMNS = ['merchant_image_url', 'large_image', 'alternate_image', '
   'merchant_thumb_url', 'aw_image_url', 'aw_thumb_url', 'image_link'];
 export function realImage(raw) {
   let u = String(raw || '').trim();
+  // House of Sneakers puts ALL its pictures in one column, joined by commas ("...00_png.png?v=1,https://...01_jpg.jpg?v=2"):
+  // the card takes the first one (import of 12 Nov 2026: 9 links in one image_url, lessons L117).
+  const list = u.split(/,(?=\s*https?:\/\/)/);
+  if (list.length > 1) u = list[0].trim();
   if (!u) return '';
   let parsed;
   try { parsed = new URL(u); } catch { return ''; }
@@ -85,9 +98,14 @@ export function pickImage(get) {
 // Read the feed and join the rows of one product (one row per size) into one product.
 // A shop's rules may say where its feed is (rules.feedFiles: full paths, e.g. a Google-format feed saved in Downloads)
 // and how its columns map to the Awin names used below (rules.field). Without them: AWIN_<id>_<feed>.csv(.gz) in the archive.
+// A shop of another network (rules.RULES.network 'cj', 'rakuten' or 'daisycon', lessons L86, L128): <NETWORK>_<advertiser>.csv(.gz),
+// written by that network's download tool (tools/network-links.mjs).
 export function feedPaths({ archive, rules }) {
   if (typeof rules.feedFiles === 'function') return rules.feedFiles(archive).filter(f => existsSync(f)).sort();
-  return readdirSync(archive).filter(f => new RegExp(`^AWIN_${rules.RULES.advertiserId}_\\d+\\.csv(\\.gz)?$`, 'i').test(f)).sort().map(f => join(archive, f));
+  const net = networkOf(rules);
+  const name = net ? new RegExp(`^${net.file}_${rules.RULES.advertiserId}\\.csv(\\.gz)?$`, 'i')
+    : new RegExp(`^AWIN_${rules.RULES.advertiserId}_\\d+\\.csv(\\.gz)?$`, 'i');
+  return readdirSync(archive).filter(f => name.test(f)).sort().map(f => join(archive, f));
 }
 
 export async function readProducts({ archive, rules }) {
@@ -119,31 +137,67 @@ export async function readProducts({ archive, rules }) {
       if (!g) {
         g = { key, name: cleanText(get('product_name')), brand: cleanText(get('brand_name')), feedCategory: cleanText(get('merchant_category')),
           awinCategory: cleanText(get('category_name')),
-          link, page, image: pickImage(get), firstVariant: get('merchant_product_id'),
+          link, page, image: pickImage(get), firstVariant: get('merchant_product_id'), tracked: get('aw_deep_link'),
           variants: 0, inStockVariants: 0, unknownStock: 0, prices: [], currency: get('currency').toUpperCase(), ean: get('ean') || get('product_gtin') };
         groups.set(key, g);
       }
       // Two feeds of one shop can list the same product, only one with categories (100% PURE, 25 Oct 2026, lessons L63).
       if (!g.feedCategory) g.feedCategory = cleanText(get('merchant_category'));
       if (!g.awinCategory) g.awinCategory = cleanText(get('category_name'));
+      if (rules.RULES.commonVariantName && (g.names ||= new Set()).size < 200) g.names.add(cleanText(get('product_name')));
       g.variants++;
       if (qty === null || !Number.isFinite(qty)) g.unknownStock++;
       else if (qty > 0) g.inStockVariants++;
       if (Number.isFinite(price) && price > 0 && (qty === null || !Number.isFinite(qty) || qty > 0)) g.prices.push(price);
     }
   }
-  return { files, rows, products: [...groups.values()] };
+  const products = [...groups.values()];
+  // rules.RULES.commonVariantName (lessons L117): Shopify and Google feeds write each option as "<product> - <option>"
+  // ("Animal Sleepsuit - 0-3mths / Animal / White", "Colorado 2.0 P726503 Icon Mens Black Boots - 8"): the card takes the
+  // words that ALL options of the page share, so it never shows the first option's size or colour as the product name.
+  // A shop's rules can find the shared name themselves (rules.commonName, e.g. Otra's short frame names "Kent - Black").
+  if (rules.RULES.commonVariantName) for (const g of products) {
+    if (g.names && g.names.size > 1) g.name = (typeof rules.commonName === 'function' ? rules.commonName([...g.names]) : '') || commonVariantName([...g.names]) || g.name;
+    delete g.names;
+  }
+  return { files, rows, products };
 }
+
+// The words at the start that every option name shares, without a dangling " -", "/", "," or "(" at the end.
+export function commonVariantName(names) {
+  const lists = names.map(n => String(n || '').trim().split(/\s+/).filter(Boolean)).filter(l => l.length);
+  if (!lists.length) return '';
+  const out = [];
+  for (let i = 0; i < lists[0].length; i++) {
+    const w = lists[0][i];
+    if (lists.every(l => l[i] === w)) out.push(w); else break;
+  }
+  let s = out.join(' ');
+  for (let prev = ''; prev !== s;) { prev = s; s = s.replace(/\s*(?:[-–/,(|:+&]|\bwith|\band|\bin)$/i, '').trim(); }
+  return s.split(/\s+/).length >= 2 || s.length >= 6 ? s : '';
+}
+
+// A CJ link as https (CJ answers on both).
+const httpsLink = u => String(u || '').replace(/^http:\/\//i, 'https://');
+const NETWORK_LABEL = { cj: 'CJ', rakuten: 'Rakuten', daisycon: 'Daisycon' };
 
 const hostOf = url => { try { return new URL(url).hostname.toLowerCase(); } catch { return ''; } };
 
-export function joinSameName(products) {
+// acrossFeeds (rules.RULES.joinSameNameAcrossFeeds): the same name on ANY page is one card. Sport and Leisure UK (8 Nov
+// 2026) has two feeds that list the same products under different links, with small differences in the name ("Fast
+// Set" / "Fast Set™", "Air King Pro" / "AirKing Pro" as brand): the dry run had every trampoline and ride-on car twice.
+// The card keeps the first feed's link, picture and key; the price is the lowest in-stock price of both.
+export function sameNameKey(name) {
+  return String(name || '').replace(/[™®©]/g, '').normalize('NFKD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '');
+}
+export function joinSameName(products, { acrossFeeds = false } = {}) {
   const byName = new Map();
   const out = [];
   for (const p of products) {
-    const k = `${p.page || ''}|${String(p.name || '').toLowerCase()}`;
-    const first = p.page && p.name ? byName.get(k) : null;
-    if (!first) { if (p.page && p.name) byName.set(k, p); out.push(p); continue; }
+    const k = acrossFeeds ? sameNameKey(p.name) : `${p.page || ''}|${String(p.name || '').toLowerCase()}`;
+    const ok = acrossFeeds ? k.length >= 6 : Boolean(p.page && p.name);
+    const first = ok ? byName.get(k) : null;
+    if (!first) { if (ok) byName.set(k, p); out.push(p); continue; }
     first.variants += p.variants;
     first.inStockVariants += p.inStockVariants;
     first.unknownStock += p.unknownStock;
@@ -210,15 +264,17 @@ export async function readShopifyCatalog(origin, { fetchImpl = globalThis.fetch,
   for (let page = 1; page <= maxPages; page++) {
     if (page > 1 && pauseMs) await sleep(pauseMs);
     const url = `${base}/products.json?limit=250&page=${page}`;
-    let data = null;
+    let data = null, status = 0;
     for (let attempt = 1; attempt <= 3 && !data; attempt++) {
       if (attempt > 1 && pauseMs) await sleep(pauseMs * 5);
       try {
         const res = await fetchImpl(url, { headers: { accept: 'application/json', 'user-agent': 'GearWorldImportPlan/1.0' }, signal: AbortSignal.timeout(20000) });
+        status = (res && res.status) || 0;
         if (res && res.ok) { const d = await res.json(); if (d && Array.isArray(d.products)) data = d; }
       } catch { data = null; }
     }
-    if (!data) throw new Error(`Could not read the shop's live catalogue (${url}). Nothing was changed; try again later.`);
+    // The HTTP status tells "slow down" (429, Shopify answers it for every shop to the same PC) from "down" (5xx).
+    if (!data) throw new Error(`Could not read the shop's live catalogue (${url}${status ? `, HTTP ${status}` : ''}). Nothing was changed; try again later.`);
     for (const p of data.products) if (p && p.handle) byHandle.set(String(p.handle).toLowerCase(), p);
     if (data.products.length < 250) break;
     if (page === maxPages) throw new Error(`The shop's live catalogue (${base}) has more than ${maxPages * 250} products: too big for this check. Nothing was changed.`);
@@ -285,11 +341,13 @@ export function checkShopify(products, R, catalog) {
 export async function planLegacyImport({ archive, retailer, outDir, now = new Date(), fetchImpl }) {
   const rules = await loadRules(retailer);
   const R = rules.RULES;
+  const NET = networkOf(rules);
   const read = await readProducts({ archive, rules });
   const { files, rows } = read;
   // rules.RULES.joinSameName: options of one product page with the SAME name (e.g. two sizes of "Director Chair Covers")
   // become one card with the lowest in-stock price. Options with different names (colours, sets) stay separate cards.
-  const products = R.joinSameName ? joinSameName(read.products) : read.products;
+  const products = R.joinSameNameAcrossFeeds ? joinSameName(read.products, { acrossFeeds: true })
+    : (R.joinSameName ? joinSameName(read.products) : read.products);
   let shopImages = null, shopCheck = null;
   if (R.shopifyCheck) shopCheck = checkShopify(products, R, await readShopifyCatalog(R.shopOrigin, fetchImpl ? { fetchImpl, pauseMs: 0 } : {}));
   else if (R.shopifyImages) shopImages = await fillShopifyImages(products, R, fetchImpl ? { fetchImpl, pauseMs: 0 } : {});
@@ -298,6 +356,9 @@ export async function planLegacyImport({ archive, retailer, outDir, now = new Da
   const accepted = Object.fromEntries(R.sites.map(s => [s, []]));
   const rejected = {};
   const reject = (p, why) => { (rejected[why] ||= []).push(p); };
+  // One card per product number and site: the sites have a unique key on (retailer, merchant_product_id) (CGW too), and
+  // one SGS product came in both feeds with two different links (import of 29 Oct 2026 stopped at file 0002, L85).
+  const takenIds = new Set();
   for (const p of products) {
     if (!p.name) { reject(p, 'no product name'); continue; }
     if (p.shopCheck === 'gone') { reject(p, "not on the shop's site any more (page not found)"); continue; }
@@ -311,6 +372,8 @@ export async function planLegacyImport({ archive, retailer, outDir, now = new Da
     if (!/^https:\/\//i.test(p.image || '')) { reject(p, 'no image'); continue; }
     if (!R.shop.test(p.link || '')) { reject(p, `link is not the shop's own page (${hostOf(p.link) || 'no link'})`); continue; }
     if (p.currency && p.currency !== R.currency) { reject(p, `currency ${p.currency}, expected ${R.currency}`); continue; }
+    // CJ, Rakuten, Daisycon: the product's own tracking link earns the commission; without one the click would not pay (L86, L128).
+    if (NET && !NET.isLink(p.tracked)) { reject(p, `no ${NET.label} tracking link (the click would not pay)`); continue; }
     const c = rules.classify({ name: p.name, feedCategory: p.feedCategory, awinCategory: p.awinCategory, url: p.link, brand: p.brand,
       shopType: p.shopType || '', shopTags: p.shopTags || [] });
     if (c.reject) { reject(p, c.reject); continue; }
@@ -319,19 +382,24 @@ export async function planLegacyImport({ archive, retailer, outDir, now = new Da
     const name = c.name || (rules.displayName ? rules.displayName(p.name) : p.name);
     const hit = markerHit(name, markers[c.site]);
     if (hit) { reject(p, `name has text that belongs to another site ("${hit}")`); continue; }
+    // On KGW/HGW/GGW the merchant id is the unique key, so it must be the same on every run: the product key
+    // (e.g. the Shopify handle), not the first size of the feed.
+    const merchantId = STABLE_KEY_SITES.has(c.site)
+      ? (p.key.startsWith('http') ? (p.key.replace(/^https?:\/\/[^/]+\/products\//i, '').replace(/^https?:.*/i, '') || p.firstVariant) : p.key)
+      : (p.key.startsWith('http') ? p.firstVariant : p.key);
+    const taken = `${c.site}|${String(merchantId || '').trim()}`;
+    if (String(merchantId || '').trim() && takenIds.has(taken)) { reject(p, 'the same product number twice in the feeds (another link): kept once'); continue; }
+    takenIds.add(taken);
     accepted[c.site].push({
-      awin_product_id: `${R.advertiserId}:${p.key.replace(/^https?:\/\/[^/]+\/products\//i, '')}`,
-      // On KGW/HGW/GGW the merchant id is the unique key, so it must be the same on every run: the product key
-      // (e.g. the Shopify handle), not the first size of the feed.
-      merchant_product_id: STABLE_KEY_SITES.has(c.site)
-        ? (p.key.startsWith('http') ? (p.key.replace(/^https?:\/\/[^/]+\/products\//i, '').replace(/^https?:.*/i, '') || p.firstVariant) : p.key)
-        : (p.key.startsWith('http') ? p.firstVariant : p.key),
+      awin_product_id: `${NET ? NET.idPrefix : ''}${R.advertiserId}:${p.key.replace(/^https?:\/\/[^/]+\/products\//i, '')}`,
+      merchant_product_id: merchantId,
       // rules.displayBrand: the brand as the site shows it ("100% PURE® - Purity Cosmetics Inc." -> "100% PURE").
       retailer: R.retailer, site_category: c.siteCategory, subcategory: c.subcategory,
       brand: (rules.displayBrand ? rules.displayBrand(p.brand) : p.brand) || null,
       product_name: name, feed_product_name: p.name, price, currency: R.currency, stock_status: 'in stock',
       merchant_category: p.feedCategory || null, image_url: p.image,
-      affiliate_url: `https://www.awin1.com/cread.php?awinmid=${R.advertiserId}&awinaffid=${AWIN_PUBLISHER_ID}&ued=${encodeURIComponent(R.keepQuery ? (p.link || p.page) : (p.page || p.link))}`,
+      affiliate_url: NET ? httpsLink(p.tracked)
+        : `https://www.awin1.com/cread.php?awinmid=${R.advertiserId}&awinaffid=${AWIN_PUBLISHER_ID}&ued=${encodeURIComponent(R.keepQuery ? (p.link || p.page) : (p.page || p.link))}`,
       ean: /^\d{8,14}$/.test(p.ean || '') ? p.ean : null, variants: p.variants,
       // Placed only because of the feed category (no clear word in the name): listed in the report for checking.
       doubt: Boolean(c.doubt)
@@ -379,7 +447,17 @@ export function insertSql(items, stamp, opts = {}) {
   }
   const update = sets.join(', ');
   const target = stable ? "(retailer, merchant_product_id) WHERE merchant_product_id IS NOT NULL AND TRIM(merchant_product_id) <> ''" : '(awin_product_id)';
-  return `INSERT INTO products (${COLS.join(', ')}) VALUES\n${values.join(',\n')}\nON CONFLICT${target} DO UPDATE SET ${update};\n`;
+  // A site with both keys (CGW): a second upsert clause for the Awin id (SQLite 3.35+, several ON CONFLICT clauses).
+  const second = stable && AWIN_UNIQUE_TOO.has(String(opts.site || '')) ? ` ON CONFLICT(awin_product_id) DO UPDATE SET ${update}` : '';
+  return `INSERT INTO products (${COLS.join(', ')}) VALUES\n${values.join(',\n')}\nON CONFLICT${target} DO UPDATE SET ${update}${second};\n`;
+}
+
+// One or more INSERT statements for these rows, each under MAX_STATEMENT_BYTES (a batch over it is split in two halves).
+export function insertSqlLimited(items, stamp, opts = {}, maxBytes = MAX_STATEMENT_BYTES) {
+  const sql = insertSql(items, stamp, opts);
+  if (items.length <= 1 || Buffer.byteLength(sql, 'utf8') <= maxBytes) return sql;
+  const half = Math.ceil(items.length / 2);
+  return insertSqlLimited(items.slice(0, half), stamp, opts, maxBytes) + insertSqlLimited(items.slice(half), stamp, opts, maxBytes);
 }
 
 function writeSql(dir, items, R, site, now) {
@@ -391,13 +469,16 @@ function writeSql(dir, items, R, site, now) {
     const part = items.slice(i, i + ROWS_PER_FILE);
     let sql = `-- PLAN ONLY. NOT EXECUTED. ${R.retailer} (Awin ${R.advertiserId}) -> ${site.toUpperCase()}, part ${n}, ${part.length} products, ${stamp} UTC.\n` +
       '-- Adds new products and updates the same products on a later run (same awin_product_id). Deletes nothing.\n';
-    for (let j = 0; j < part.length; j += ROWS_PER_INSERT) sql += insertSql(part.slice(j, j + ROWS_PER_INSERT), stamp, { site, keepCategory: R.keepCategory, replace, keepNames: Boolean(R.keepSiteNames) });
+    for (let j = 0; j < part.length; j += ROWS_PER_INSERT) sql += insertSqlLimited(part.slice(j, j + ROWS_PER_INSERT), stamp, { site, keepCategory: R.keepCategory, replace, keepNames: Boolean(R.keepSiteNames) });
     const file = join(dir, String(n).padStart(4, '0') + '.sql');
     writeFileSync(file, sql);
     out.push(file);
   }
   // The products this run keeps on the site (a refresh hides the retailer's other products: sold out or gone).
   writeFileSync(join(dir, 'ids.txt'), items.map(p => p.awin_product_id).join('\n') + (items.length ? '\n' : ''));
+  // The shop's own id of each product: on a site keyed by (retailer, merchant id) the comparison with the database matches
+  // products that are already there under another Awin id (CGW, lessons L119).
+  writeFileSync(join(dir, 'keys.json'), JSON.stringify(items.map(p => [p.awin_product_id, p.merchant_product_id])));
   // The products with their planned place, for the comparison with the database (subcategory names, L56).
   writeFileSync(join(dir, 'places.json'), JSON.stringify({ replace, places: items.map(p => [p.awin_product_id, p.site_category, p.subcategory]) }));
   return out;
@@ -406,7 +487,7 @@ function writeSql(dir, items, R, site, now) {
 function renderPlan({ R, files, rows, products, accepted, rejected, sqlFiles, now, shopImages, shopCheck }) {
   const fmt = n => new Intl.NumberFormat('en-GB').format(n);
   const total = Object.values(accepted).reduce((a, l) => a + l.length, 0);
-  const L = [`IMPORT PLAN (read-only, nothing executed) ${R.retailer} - Awin ${R.advertiserId} - ${now.toISOString().slice(0, 16).replace('T', ' ')} UTC`,
+  const L = [`IMPORT PLAN (read-only, nothing executed) ${R.retailer} - ${R.network && NETWORK_LABEL[R.network] ? NETWORK_LABEL[R.network] : 'Awin'} ${R.advertiserId} - ${now.toISOString().slice(0, 16).replace('T', ' ')} UTC`,
     `Feed files: ${files.join(', ') || 'none found'}`,
     `Feed rows: ${fmt(rows)} (one row per size) -> ${fmt(products.length)} products -> ${fmt(total)} would be imported, ${fmt(products.length - total)} left out`,
     ...(shopImages ? [`Pictures from the shop's product pages (the feed has none): ${fmt(shopImages.filled)} products (${fmt(shopImages.asked)} pages read)`] : []),
@@ -426,7 +507,9 @@ function renderPlan({ R, files, rows, products, accepted, rejected, sqlFiles, no
       const subList = Object.entries(subs).sort((a, b) => b[1].length - a[1].length);
       // One category with several subcategories (e.g. Joybuy beauty): samples from every subcategory, not 20 from the largest.
       const picks = subList.length > 1 ? subList.flatMap(([, l]) => spread(l, Math.max(3, Math.min(8, Math.ceil(48 / subList.length))))) : spread(all, 20);
-      for (const p of picks) L.push(`   - ${p.product_name} | ${p.brand || '-'} | ${m(p.price)} | ${p.subcategory} | ${p.variants} option(s)`);
+      // The shop's own name too when the card name differs from it, so the dry run shows what the rules did (13 Nov 2026).
+      const feedName = p => (p.feed_product_name && p.feed_product_name.toLowerCase() !== String(p.product_name).toLowerCase()) ? ` [feed: ${String(p.feed_product_name).slice(0, 70)}]` : '';
+      for (const p of picks) L.push(`   - ${p.product_name} | ${p.brand || '-'} | ${m(p.price)} | ${p.subcategory} | ${p.variants} option(s)${feedName(p)}`);
     }
     const doubtful = list.filter(p => p.doubt);
     if (doubtful.length) {

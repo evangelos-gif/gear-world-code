@@ -183,7 +183,7 @@ test('every site category has rules, and the menu order matches the site', () =>
 test('sources: the first-wave shops are approved, VEVOR waits for the second wave, motorbike sections only (L65)', () => {
   const src = JSON.parse(readFileSync('sites/bgw/sources.json', 'utf8')).sources;
   const approved = src.filter(s => s.approved).map(s => s.retailer);
-  assert.deepEqual(approved, ['Tooled Up', 'My Tool Shed', 'Joybuy', 'Webbs Motorcycles', 'SGS Engineering', 'Plusshop UK', 'Bazta UK']);
+  assert.deepEqual(approved, ['Tooled Up', 'My Tool Shed', 'Joybuy', 'Webbs Motorcycles', 'SGS Engineering', 'Plusshop UK', 'Bazta UK', 'iHoverboard']); // iHoverboard: 14 Nov 2026 (L131)
   assert.equal(src.find(s => s.retailer === 'Webbs Motorcycles').motoShop, true);
   const vevor = src.find(s => s.retailer === 'VEVOR');
   assert.equal(vevor.approved, false);

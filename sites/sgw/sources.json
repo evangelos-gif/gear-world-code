@@ -10,6 +10,12 @@
     { "advertiserId": 116097, "retailer": "Bazta UK", "currency": "GBP", "condition": "new", "approved": true, "rulesFrom": 69306 },
     { "advertiserId": 66912, "retailer": "Beyond Shakers", "currency": "GBP", "condition": "new", "approved": true },
     { "advertiserId": 111548, "feedIds": [101261], "retailer": "Bern Helmets", "currency": "GBP", "condition": "new", "approved": true },
+    { "advertiserId": 899, "feedIds": [106051], "retailer": "Fitness Options", "currency": "GBP", "condition": "new", "approved": true,
+      "sportShop": true, "defaultSlug": "fitness-gym" },
+    { "advertiserId": 1463, "feedIds": [117262], "retailer": "Sport and Leisure UK", "currency": "GBP", "condition": "new", "approved": true,
+      "denyPaths": ["trampolines", "trampoline accessories", "tramp accesories", "kids ride-on electric cars", "kids cars", "swimming pools", "air loungers", "tents", "massage equipment"] },
+    { "advertiserId": 54025, "feedIds": [85854], "retailer": "aZengear", "currency": "GBP", "condition": "new", "approved": true },
+    { "advertiserId": 19285, "feedIds": [41979], "retailer": "Olight UK", "currency": "GBP", "condition": "new", "approved": true, "sportShop": true, "defaultSlug": "hiking-climbing-winter", "allowPaths": ["EDC torches", "Tactical torches", "keyring torches", "search torches", "Camping light"], "denyNames": ["osight", "optic", "picatinny", "m-lok", "\\brail", "\\bsight", "\\bpl[- ]", "o'pen", "pencil", "\\bclip (?:black|blue)\\b", "(?:blue|mini|pocket) clip", "headband", "% off", "clearance", "hatchet", "charger"] },
     { "advertiserId": 118435, "feedIds": [109014], "retailer": "VEVOR", "currency": "EUR", "condition": "new", "keepSiteNames": true, "approved": false,
       "allowPaths": ["sport en buitenshuis"] }
   ]

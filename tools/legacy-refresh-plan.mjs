@@ -8,21 +8,29 @@
 //   - active products that are no longer in the feed are hidden (is_active = 0, nothing is deleted);
 //   - hidden products stay hidden: a clean-up may have hidden them on purpose (one card per product, misfits...);
 //   - a price that changes more than 3 times up or down is not changed but listed for a person to check;
-//   - a feed whose products were last updated more than 30 days ago changes nothing (lessons L39: stale feeds);
+//   - a feed whose products were last updated more than 30 days ago changes nothing (lessons L39: stale feeds); a feed
+//     without that date (Reidl, Tooled Up) is judged by the date of its newest file on this PC;
 //   - a feed that misses more than half of the active products hides nothing (more likely a broken download);
-//   - the rows written in D1 are counted from the table's own indexes (lessons L49, L57): 1 + one per index holding the
-//     column. Above the budget, the plan keeps the first changes and leaves the rest for the next run.
+//   - the rows written in D1 are counted from the table's own indexes and triggers (lessons L49, L57, L59): 1 + one per
+//     index holding the column + 2 per update trigger firing on it. Above the budget, the plan keeps the first changes
+//     and leaves the rest for the next run.
+//
+//
+// --from-shop (job 3, lessons L60): for a shop whose Awin feed stopped (Red Gorilla, Wavytalk and Gardenista since 15 May
+// 2026) the source is the shop's own live Shopify catalogue (/products.json, read-only GETs; the shop address comes from the
+// products' links). There a product sold out on the shop is hidden too (as at import, L39), and a price changes only when
+// the shop sells in the currency of the site (/meta.json).
 //
 // node tools/legacy-refresh-plan.mjs --archive <dir> --retailer "<name on the site>" --rows <wrangler json> [--rows ...]
-//   --indexes <wrangler json of sqlite_master> --out <dir> [--max-writes 90000] [--advertiser <id>] [--now <iso date>]
-import { createReadStream, existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
+//   --indexes <wrangler json of sqlite_master> --out <dir> [--max-writes 90000] [--advertiser <id>] [--now <iso date>] [--from-shop]
+import { appendFileSync, createReadStream, existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { createGunzip } from 'node:zlib';
 import { basename, join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { readCsvRecords, parsePrice } from './tgw-import-plan.mjs';
-import { stockFlag, pickImage } from './legacy-import-plan.mjs';
+import { stockFlag, pickImage, realImage, readShopifyCatalog } from './legacy-import-plan.mjs';
 import { rowsFromWrangler } from './cleanup-rules/tidy.mjs';
-import { IN_STOCK_WORDS } from '../src/db.js';
+import { IN_STOCK_WORDS, fixMojibake } from '../src/db.js';
 
 export const STALE_DAYS = 30;
 export const PRICE_JUMP = 3;
@@ -62,17 +70,23 @@ async function firstMerchantName(path) {
   return '';
 }
 
-// One entry per feed row, found by Awin product id and by the shop's own product id.
+// One entry per feed row, found by Awin product id and by the shop's own product id. The newest file is read first, so
+// when a product is in two files (Tooled Up: files of 1 and of 10 days, 26 Oct 2026) the fresher row wins (L58).
+export function newestFirst(paths, mtime = f => statSync(f).mtimeMs) {
+  return paths.map(f => ({ f, t: mtime(f) })).sort((a, b) => (b.t - a.t) || (a.f < b.f ? -1 : a.f > b.f ? 1 : 0)).map(x => x.f);
+}
+
 export async function readFeed(paths) {
   const byAw = new Map();
   const byMid = new Map();
-  let rows = 0, newest = '';
-  for (const f of paths) {
+  let rows = 0, newest = '', newestFile = 0;
+  for (const f of newestFirst(paths)) {
+    newestFile = Math.max(newestFile, statSync(f).mtimeMs);
     const raw = createReadStream(f);
     const stream = /\.gz$/i.test(f) ? raw.pipe(createGunzip()) : raw;
     let h = null;
     for await (const rec of readCsvRecords(stream)) {
-      if (!h) { h = rec.map(x => String(x).trim().toLowerCase().replace(/^﻿/, '')); continue; }
+      if (!h) { h = rec.map(x => String(x).trim().toLowerCase().replace(/^\uFEFF/, '')); continue; }
       if (rec.length < 3) continue;
       const get = c => { const i = h.indexOf(c); return i >= 0 ? String(rec[i] ?? '').trim() : ''; };
       rows++;
@@ -91,7 +105,7 @@ export async function readFeed(paths) {
       if (p.mid && !byMid.has(p.mid)) byMid.set(p.mid, p);
     }
   }
-  return { byAw, byMid, rows, newest };
+  return { byAw, byMid, rows, newest, newestFile };
 }
 
 // The feed row of a database row: the Awin product id, "<advertiser>:<shop id>", or the shop's own product id.
@@ -106,11 +120,235 @@ export function matchRow(row, feed) {
 }
 
 // Rows written per changed column: 1 for the row, plus 1 for every index that holds the column (measured on the CGW
-// layout with the wrangler local D1, 25 Oct 2026: price 3, picture 1, stock 1, hide 12 = 1 + 11 indexes on is_active).
-export function writeCosts(indexRows) {
-  const sqls = indexRows.map(r => String(r.sql || '')).filter(Boolean);
-  const per = col => 1 + sqls.filter(s => new RegExp(`\\b${col}\\b`, 'i').test(s.replace(/^[^(]*\(/, ''))).length;
+// layout with the wrangler local D1, 25 Oct 2026: price 3, picture 1, stock 1, hide 12 = 1 + 11 indexes on is_active),
+// plus 2 for every UPDATE trigger that fires on the column (lessons L59: on MGW, WGW, KGW, HGW and GGW the search index
+// trigger fires on ANY update and rewrites the product's search entry; measured on the MGW layout, 26 Oct 2026:
+// price 4, stock 3, hide 6). The CGW trigger fires only for name, brand, subcategory, retailer and category: +0.
+export function writeCosts(rows) {
+  const sqls = rows.map(r => String(r.sql || '')).filter(Boolean);
+  const triggers = sqls.filter(s => /^\s*CREATE\s+TRIGGER\b/i.test(s));
+  const indexes = sqls.filter(s => !/^\s*CREATE\s+TRIGGER\b/i.test(s));
+  const onUpdate = triggers.map(s => /\bAFTER\s+UPDATE\b(?:\s+OF\s+([\s\S]*?))?\s+ON\s+["'`]?products\b/i.exec(s)).filter(Boolean)
+    .map(m => (m[1] ? m[1].split(',').map(c => c.trim().replace(/["'`]/g, '').toLowerCase()) : null));
+  const per = col => 1 + indexes.filter(s => new RegExp(`\\b${col}\\b`, 'i').test(s.replace(/^[^(]*\(/, ''))).length
+    + 2 * onUpdate.filter(cols => cols === null || cols.includes(col)).length;
   return { price: per('price'), image_url: per('image_url'), stock_status: per('stock_status'), is_active: per('is_active') };
+}
+
+// The shop's own address from the products' links (Awin cread.php ?ued=..., or the plain shop link): the most common host,
+// used by at least 4 in 5 products. Empty when there is none (e.g. pclick.php links carry no shop address).
+export function linkHost(url) {
+  let u;
+  try { u = new URL(String(url || '')); } catch { return ''; }
+  if (/(^|\.)awin1\.com$/i.test(u.hostname)) {
+    const inner = u.searchParams.get('ued') || '';
+    if (!inner) return '';
+    try { u = new URL(inner); } catch { return ''; }
+  }
+  return u.protocol === 'https:' ? u.hostname.toLowerCase() : '';
+}
+export function shopOriginOf(rows) {
+  const count = new Map();
+  for (const r of rows) { const h = linkHost(r.affiliate_url); if (h) count.set(h, (count.get(h) || 0) + 1); }
+  let best = '', n = 0;
+  for (const [h, c] of count) if (c > n) { best = h; n = c; }
+  return best && n >= rows.length * 0.8 ? `https://${best}` : '';
+}
+
+// The currency the shop sells in (Shopify /meta.json). Empty when it cannot be read: then no price changes.
+export async function readShopCurrency(origin, { fetchImpl = globalThis.fetch } = {}) {
+  try {
+    const res = await fetchImpl(`${origin}/meta.json`, { headers: { accept: 'application/json', 'user-agent': 'GearWorldRefresh/1.0' }, signal: AbortSignal.timeout(20000) });
+    if (!res || !res.ok) return '';
+    const d = await res.json();
+    return /^[A-Z]{3}$/.test(String(d && d.currency || '').toUpperCase()) ? String(d.currency).toUpperCase() : '';
+  } catch { return ''; }
+}
+
+// A shop whose live catalogue is too big to read whole (InStock, 27 Oct 2026: more than 10,000 products, lessons L80):
+// a random sample of the SITE's own products is looked up one by one (/products/<handle>.js, read-only GETs), to show how
+// far out of date they are. Nothing is changed from a sample; the owner decides what to do with the numbers.
+export function productHandle(url) {
+  let u;
+  try { u = new URL(String(url || '')); } catch { return null; }
+  if (/(^|\.)awin1\.com$/i.test(u.hostname)) {
+    const inner = u.searchParams.get('ued') || '';
+    try { u = new URL(inner); } catch { return null; }
+  }
+  const m = /\/products\/([^/?#]+)/i.exec(u.pathname);
+  if (!m) return null;
+  let handle;
+  try { handle = decodeURIComponent(m[1]).toLowerCase(); } catch { return null; }
+  return { handle, variant: u.searchParams.get('variant') || '' };
+}
+
+// When the full catalogue can't be read, why a sample is taken instead (L80), or null: a shop that fails on its very
+// first page is down, and a sample would only fail too.
+export function sampleReason(message, sampleOnly = false) {
+  if (sampleOnly) return 'μόνο δείγμα, -SampleShops';
+  if (/too big for this check/.test(message)) return 'πάνω από 10.000 προϊόντα';
+  const page = /[?&]page=(\d+)/.exec(message);
+  if (page && Number(page[1]) > 1) return `σταμάτησε να απαντά στη σελίδα ${page[1]} του καταλόγου`;
+  return null;
+}
+
+export async function sampleShopProducts(rows, origin, { n = 100, fetchImpl = globalThis.fetch, pauseMs = 1000, seed = 80, currency = '' } = {}) {
+  const live = rows.filter(r => Number(r.is_active) === 1);
+  const list = live.map(r => ({ r, h: productHandle(r.affiliate_url) })).filter(x => x.h);
+  let a = seed >>> 0;
+  const rnd = () => { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+  for (let i = list.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [list[i], list[j]] = [list[j], list[i]]; }
+  const st = { active: live.length, withHandle: list.length, checked: 0, same: 0, changed: 0, soldOut: 0, gone: 0, failed: 0, otherCurrency: 0,
+    throttled: false, examples: { changed: [], soldOut: [], gone: [] } };
+  let slowDowns = 0;
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
+  const name = r => String(r.product_name || r.awin_product_id || '').slice(0, 80);
+  for (const x of list.slice(0, n)) {
+    if (pauseMs && (st.checked + st.failed)) await sleep(pauseMs);
+    let res;
+    const url = `${origin}/products/${encodeURIComponent(x.h.handle)}.js`;
+    const get = () => fetchImpl(url, { headers: { accept: 'application/json', 'user-agent': 'GearWorldRefresh/1.0' }, signal: AbortSignal.timeout(20000) });
+    try {
+      res = await get();
+      // The shop asks us to slow down (instock.net stopped answering after 24 catalogue pages, 27 Oct 2026): wait, try once more.
+      if (res && res.status === 429) { if (pauseMs) await sleep(Math.max(5000, pauseMs * 8)); res = await get(); }
+    } catch { st.failed++; continue; }
+    // Still "slow down" three times in a row: stop, so that Shopify does not block this PC for longer (27 Oct 2026).
+    if (res && res.status === 429) { st.failed++; if (++slowDowns >= 3) { st.throttled = true; break; } continue; }
+    slowDowns = 0;
+    if (res && res.status === 404) { st.checked++; st.gone++; if (st.examples.gone.length < 8) st.examples.gone.push(name(x.r)); continue; }
+    let p = null;
+    try { if (res && res.ok) p = await res.json(); } catch { p = null; }
+    if (!p || !Array.isArray(p.variants)) { st.failed++; continue; }
+    st.checked++;
+    const mid = String(x.r.merchant_product_id || '').trim();
+    const own = String(x.r.awin_product_id || '').split(':').pop();
+    const v = p.variants.find(v => String(v.id) === x.h.variant) || p.variants.find(v => String(v.id) === own || (mid && String(v.sku || '').trim() === mid)) || null;
+    const open = v ? (v.available === true ? [v] : []) : p.variants.filter(v => v.available === true);
+    if (!open.length) { st.soldOut++; if (st.examples.soldOut.length < 8) st.examples.soldOut.push(name(x.r)); continue; }
+    const rowCurrency = String(x.r.currency || 'GBP').toUpperCase();
+    if (!currency || currency !== rowCurrency) { st.otherCurrency++; continue; }
+    // Shopify's .js gives prices in pence.
+    const price = Math.min(...open.map(v => Number(v.price) / 100).filter(Number.isFinite));
+    const old = Number(x.r.price);
+    if (Number.isFinite(price) && Math.abs(price - old) < 0.005) st.same++;
+    else { st.changed++; if (st.examples.changed.length < 8) st.examples.changed.push(`${name(x.r)}: ${old} -> ${price}`); }
+  }
+  return st;
+}
+
+// The slow full check (L81): every active product of the site looked up on the shop one by one (/products/<handle>.js,
+// about one a second, the pace at which the 200-product InStock sample of 28 Oct 2026 met no "slow down"). Answers are
+// kept in a memory file per shop for 48 hours, shared by the sites, so an interrupted or stopped run goes on where it
+// stopped and a second run can apply the plan without asking the shop again. Products that did not answer are left out
+// of the plan (untouched); a product the shop answers 404 for is gone. Read-only on the shop.
+export const SLOW_MEMORY_HOURS = 48;
+export function slimShopProduct(p) {
+  const src = i => (i && typeof i === 'object' ? i.src : i) || null;
+  return {
+    variants: (p.variants || []).map(v => ({ id: v.id, sku: v.sku || '', price: Number.isFinite(Number(v.price)) ? (Number(v.price) / 100).toFixed(2) : '',
+      available: typeof v.available === 'boolean' ? v.available : null, featured_image: src(v.featured_image) })),
+    images: (p.images || []).slice(0, 12).map(src).filter(Boolean)
+  };
+}
+export async function slowShopCheck(rows, origin, { memoryFile = '', now = new Date(), fetchImpl = globalThis.fetch, pauseMs = 1000, log = () => {}, clock = () => Date.now() } = {}) {
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
+  const live = rows.filter(r => Number(r.is_active) === 1);
+  const handles = new Set();
+  let noHandle = 0;
+  for (const r of live) { const h = productHandle(r.affiliate_url); if (h) handles.add(h.handle); else noHandle++; }
+  const memory = new Map();
+  if (memoryFile && existsSync(memoryFile)) {
+    for (const line of readFileSync(memoryFile, 'utf8').split('\n')) {
+      let e = null;
+      try { e = JSON.parse(line); } catch { continue; }
+      const age = now.getTime() - Date.parse(e && e.t);
+      if (e && e.h && age >= -3600000 && age <= SLOW_MEMORY_HOURS * 3600000) memory.set(e.h, e);
+    }
+  }
+  const st = { active: live.length, handles: handles.size, noHandle, fromMemory: 0, asked: 0, noAnswer: 0, left: 0, throttled: false };
+  const catalog = new Map(), answered = new Set();
+  const use = e => { if (e.s === 200 && e.p) { answered.add(e.h); catalog.set(e.h, e.p); } else if (e.s === 404) answered.add(e.h); else st.noAnswer++; };
+  const todo = [];
+  for (const h of handles) { const e = memory.get(h); if (e) { st.fromMemory++; use(e); } else todo.push(h); }
+  // Shopify said "slow down" to this PC less than 30 minutes ago (another site of the same run): no asking now.
+  const pauseFile = memoryFile ? memoryFile.replace(/\.jsonl$/, '') + '.paused' : '';
+  if (pauseFile && existsSync(pauseFile) && now.getTime() - statSync(pauseFile).mtimeMs < 30 * 60000) { st.throttled = true; st.left = todo.length; todo.length = 0; }
+  if (memoryFile) mkdirSync(resolve(memoryFile, '..'), { recursive: true });
+  let slowDowns = 0, last = 0;
+  for (let i = 0; i < todo.length; i++) {
+    const wait = pauseMs - (clock() - last);
+    if (last && pauseMs && wait > 0) await sleep(wait);
+    last = clock();
+    const h = todo[i];
+    const url = `${origin}/products/${encodeURIComponent(h)}.js`;
+    const get = () => fetchImpl(url, { headers: { accept: 'application/json', 'user-agent': 'GearWorldRefresh/1.0' }, signal: AbortSignal.timeout(20000) });
+    let res = null;
+    try {
+      res = await get();
+      if (res && res.status === 429) { if (pauseMs) await sleep(Math.max(5000, pauseMs * 8)); res = await get(); }
+    } catch { res = null; }
+    if (res && res.status === 429) {
+      if (++slowDowns >= 3) { st.throttled = true; st.left = todo.length - i; if (pauseFile) writeFileSync(pauseFile, new Date(clock()).toISOString()); break; }
+      continue;
+    }
+    slowDowns = 0;
+    const t = new Date(clock()).toISOString();
+    let e = { h, t, s: 0 };
+    if (res && res.status === 404) e = { h, t, s: 404 };
+    else if (res && res.ok) { let p = null; try { p = await res.json(); } catch { p = null; } if (p && Array.isArray(p.variants)) e = { h, t, s: 200, p: slimShopProduct(p) }; }
+    st.asked++;
+    use(e);
+    if (memoryFile) appendFileSync(memoryFile, JSON.stringify(e) + '\n');
+    if ((i + 1) % 250 === 0) log(`   έλεγχος ${i + 1} από ${todo.length}...`);
+  }
+  const checkedRows = live.filter(r => { const h = productHandle(r.affiliate_url); return h && answered.has(h.handle); });
+  return { catalog, checkedRows, st };
+}
+export function renderSlowLines(st, retailer, site, checked) {
+  const fmt = n => new Intl.NumberFormat('en-GB').format(n);
+  const L = [`Αργός πλήρης έλεγχος ένα-ένα (L81): ${fmt(st.active)} ενεργά ${retailer} στο ${site.toUpperCase()}, ${fmt(st.handles)} διαφορετικά προϊόντα του καταστήματος. Ρωτήθηκαν τώρα: ${fmt(st.asked)} · από τη μνήμη (${SLOW_MEMORY_HOURS} ώρες): ${fmt(st.fromMemory)} · δεν απάντησαν: ${fmt(st.noAnswer)}${st.noHandle ? ` · χωρίς διεύθυνση προϊόντος: ${fmt(st.noHandle)}` : ''}.`,
+    `Το σχέδιο αφορά τα ${fmt(checked)} ενεργά που ελέγχθηκαν· όσα δεν ελέγχθηκαν μένουν όπως είναι.`];
+  if (st.throttled) L.push(`ΠΡΟΣΟΧΗ: το Shopify ζήτησε παύση (HTTP 429) και σταμάτησα· έμειναν ${fmt(st.left)}. Ξανατρέξε την ίδια εντολή σε μία ώρα: συνεχίζει από εκεί που σταμάτησε.`);
+  if (st.asked) L.push('Ο έλεγχος έγινε τώρα: αυτή η εκτέλεση δεν ζητά φράση έγκρισης. Ξανατρέξε την ίδια εντολή μέσα σε 48 ώρες: παίρνει τις απαντήσεις από τη μνήμη (γρήγορα) και τότε ζητά τη φράση.');
+  return L;
+}
+
+export function renderSampleReport({ retailer, site, origin, currency, st, limitNote }) {
+  const pct = k => (st.checked ? Math.round((100 * st[k]) / st.checked) : 0);
+  const L = [];
+  L.push(`Ο κατάλογος του ${origin} δεν ελέγχθηκε ολόκληρος (${limitNote}). Έλεγξα ένα τυχαίο δείγμα από τα προϊόντα ${retailer} του ${site.toUpperCase()}, ένα-ένα, μόνο με ανάγνωση (L80).`);
+  L.push(`Ενεργά στο site: ${st.active} (με διεύθυνση προϊόντος: ${st.withHandle}). Ελέγχθηκαν: ${st.checked}${st.failed ? ` (δεν απάντησαν: ${st.failed})` : ''}. Νόμισμα καταστήματος: ${currency || 'άγνωστο'}.`);
+  L.push(`Ίδια τιμή: ${st.same} (${pct('same')}%) · άλλη τιμή: ${st.changed} (${pct('changed')}%) · εξαντλημένα: ${st.soldOut} (${pct('soldOut')}%) · δεν υπάρχουν πια: ${st.gone} (${pct('gone')}%)${st.otherCurrency ? ` · άλλο νόμισμα: ${st.otherCurrency}` : ''}.`);
+  for (const [k, label] of [['changed', 'Άλλη τιμή (στο site -> στο κατάστημα)'], ['soldOut', 'Εξαντλημένα'], ['gone', 'Δεν υπάρχουν πια']]) {
+    if (!st.examples[k].length) continue;
+    L.push(`${label}:`);
+    for (const e of st.examples[k]) L.push(`   - ${e}`);
+  }
+  if (st.throttled) L.push('ΠΡΟΣΟΧΗ: το κατάστημα ζήτησε παύση (HTTP 429) τρεις φορές στη σειρά και σταμάτησα, για να μη μπλοκάρει το PC για περισσότερο. Το δείγμα είναι μικρότερο· ξαναδοκίμασε σε μία ώρα.');
+  L.push('Δείγμα μόνο: δεν άλλαξε τίποτα, και από δείγμα δεν αλλάζει τίποτα.');
+  return L.join('\n') + '\n';
+}
+
+// The live catalogue in the shape of a feed: one entry per option (variant), found by its id and by its SKU.
+const picKey = u => String(u || '').split('?')[0].toLowerCase();
+export function feedFromShopify(catalog, currency, now = new Date()) {
+  const byAw = new Map(), byMid = new Map();
+  let rows = 0;
+  const abs = u => (String(u || '').startsWith('//') ? 'https:' + u : String(u || ''));
+  for (const p of catalog.values()) {
+    const images = (p.images || []).map(i => realImage(abs(i && typeof i === 'object' ? i.src : i))).filter(Boolean);
+    for (const v of p.variants || []) {
+      rows++;
+      const own = v.featured_image ? realImage(abs(typeof v.featured_image === 'object' ? v.featured_image.src : v.featured_image)) : '';
+      const e = { aw: String(v.id), mid: String(v.sku || '').trim(), price: currency ? parsePrice(String(v.price ?? '')) : NaN, currency: currency || '',
+        inStock: typeof v.available === 'boolean' ? v.available : null, stockText: '', image: own || images[0] || '', images };
+      byAw.set(e.aw, e);
+      byMid.set(e.aw, e);
+      if (e.mid && !byMid.has(e.mid)) byMid.set(e.mid, e);
+    }
+  }
+  return { byAw, byMid, rows, newest: now.toISOString().slice(0, 19).replace('T', ' '), newestFile: 0, shop: true };
 }
 
 const daysBetween = (a, b) => (b - a) / 86400000;
@@ -119,31 +357,44 @@ function parseFeedDate(s) {
   return Number.isFinite(t) ? t : NaN;
 }
 
-export function planRefresh({ rows, feed, costs, maxWrites = 90000, now = new Date() }) {
+export function planRefresh({ rows, feed, costs, maxWrites = 90000, now = new Date(), acceptJumps = false }) {
   const active = rows.filter(r => Number(r.is_active) === 1);
+  // The products' own update date; without it, the date of the newest feed file on this PC (L39, L58).
   const newestTime = feed.newest ? parseFeedDate(feed.newest) : NaN;
-  const staleDays = Number.isFinite(newestTime) ? Math.floor(daysBetween(newestTime, now.getTime())) : null;
+  const fileTime = Number(feed.newestFile) > 0 ? Number(feed.newestFile) : NaN;
+  const staleFrom = Number.isFinite(newestTime) ? 'products' : (Number.isFinite(fileTime) ? 'file' : '');
+  const staleDays = staleFrom ? Math.floor(daysBetween(staleFrom === 'products' ? newestTime : fileTime, now.getTime())) : null;
   const stale = staleDays !== null && staleDays > STALE_DAYS;
   const changes = [];
   const gone = [];
+  const soldOut = [];
   const bigPrice = [];
   const currencySkip = [];
   let same = 0;
+  const feedStock = { in: 0, out: 0, unknown: 0 };
   for (const r of active) {
     const f = matchRow(r, feed);
     if (!f) { gone.push(Number(r.id)); continue; }
+    feedStock[f.inStock === true ? 'in' : (f.inStock === false ? 'out' : 'unknown')]++;
+    // The shop's own catalogue (L60): sold out on the shop -> hidden, as at import (L39); there is no feed to bring it back.
+    if (feed.shop && f.inStock === false) { soldOut.push(Number(r.id)); continue; }
     const set = {}, old = {};
     if (Number.isFinite(f.price) && f.price > 0) {
       const curCurrency = String(r.currency || 'GBP').toUpperCase();
       const oldPrice = Number(r.price);
       if (f.currency && f.currency !== curCurrency) currencySkip.push({ id: Number(r.id), from: curCurrency, to: f.currency });
       else if (Math.abs(f.price - oldPrice) >= 0.005) {
-        if (oldPrice > 0 && (f.price > oldPrice * PRICE_JUMP || f.price < oldPrice / PRICE_JUMP)) bigPrice.push({ id: Number(r.id), name: r.product_name || r.awin_product_id, from: oldPrice, to: f.price });
-        else { set.price = f.price; old.price = oldPrice; }
+        const big = oldPrice > 0 && (f.price > oldPrice * PRICE_JUMP || f.price < oldPrice / PRICE_JUMP);
+        if (big) bigPrice.push({ id: Number(r.id), name: r.product_name || r.awin_product_id, from: oldPrice, to: f.price });
+        // -AcceptJumps "<shop>": the owner checked these on the shop and wants them (Gardenista cushion covers, 28 Oct 2026).
+        if (!big || acceptJumps) { set.price = f.price; old.price = oldPrice; }
       }
     }
     // A picture only when the feed has a real one and it is another picture (an Awin 200px proxy becomes the full image, L38).
-    if (f.image && f.image !== String(r.image_url || '')) { set.image_url = f.image; old.image_url = r.image_url ?? null; }
+    // From the shop's catalogue only when the saved picture is no longer one of the product's pictures (deleted, L39).
+    const curPic = String(r.image_url || '');
+    const keepPic = Array.isArray(f.images) && f.images.some(u => picKey(u) === picKey(curPic));
+    if (f.image && f.image !== curPic && !keepPic) { set.image_url = f.image; old.image_url = r.image_url ?? null; }
     if (f.inStock !== null && f.inStock !== inStockText(r.stock_status)) {
       // The shop's own word when the site reads it the same way, else the engine's plain words.
       let text = String(f.stockText || '').trim();
@@ -156,7 +407,7 @@ export function planRefresh({ rows, feed, costs, maxWrites = 90000, now = new Da
   }
   // A feed that misses most products is more likely a broken download than a closed shop.
   const safe = !(active.length >= 100 && gone.length > active.length * 0.5);
-  const hideAll = safe ? gone : [];
+  const hideAll = [...(safe ? gone : []), ...soldOut];
   // The budget: changes first (cheap, and they fix prices and pictures), then hides; the rest waits for the next run.
   let writes = 0;
   const doChanges = [], doHides = [];
@@ -167,8 +418,8 @@ export function planRefresh({ rows, feed, costs, maxWrites = 90000, now = new Da
   const left = { changes: stale ? 0 : changes.length - doChanges.length, hides: stale ? 0 : hideAll.length - doHides.length };
   const count = col => doChanges.filter(c => col in c.set).length;
   return {
-    active: active.length, matched: active.length - gone.length, same, changes: doChanges, hides: doHides, gone: gone.length, safe, stale, staleDays,
-    bigPrice, currencySkip, writes, left, costs,
+    active: active.length, matched: active.length - gone.length, same, changes: doChanges, hides: doHides, gone: gone.length, soldOut: soldOut.length, safe, stale, staleDays,
+    staleFrom, feedStock, bigPrice, acceptJumps, currencySkip, writes, left, costs,
     counts: { price: count('price'), image_url: count('image_url'), stock_status: count('stock_status'),
       toOut: doChanges.filter(c => 'stock_status' in c.set && !inStockText(c.set.stock_status)).length,
       toIn: doChanges.filter(c => 'stock_status' in c.set && inStockText(c.set.stock_status)).length }
@@ -201,32 +452,41 @@ export function writePlan(out, p) {
   writeFileSync(join(out, 'hide.sql'), p.hides.length ? idsSql(p.hides, false).join('\n') + '\n' : '');
   writeFileSync(join(out, 'rollback.sql'), [...p.changes.map(rollbackStatement), ...idsSql(p.hides, true)].join('\n') + '\n');
   writeFileSync(join(out, 'hidden-ids.txt'), p.hides.join('\n') + (p.hides.length ? '\n' : ''));
-  const summary = { active: p.active, matched: p.matched, same: p.same, changes: p.changes.length, hides: p.hides.length, gone: p.gone, safe: p.safe,
-    stale: p.stale, staleDays: p.staleDays, writes: p.writes, left: p.left, counts: p.counts, costs: p.costs, bigPrice: p.bigPrice.length,
+  const summary = { active: p.active, matched: p.matched, same: p.same, changes: p.changes.length, hides: p.hides.length, gone: p.gone, soldOut: p.soldOut || 0, safe: p.safe,
+    stale: p.stale, staleDays: p.staleDays, staleFrom: p.staleFrom, feedStock: p.feedStock, writes: p.writes, left: p.left, counts: p.counts, costs: p.costs, bigPrice: p.bigPrice.length,
     currencySkip: p.currencySkip.length, updateFiles: files };
   writeFileSync(join(out, 'summary.json'), JSON.stringify(summary, null, 2));
   return summary;
 }
 
-export function renderReport({ retailer, site, feedFiles, feedRows, newest, p }) {
+export function renderReport({ retailer, site, feedFiles, feedRows, newest, p, shop = null }) {
   const fmt = n => new Intl.NumberFormat('en-GB').format(n);
   const L = [];
-  L.push(`Feed: ${feedFiles.join(', ')} (${fmt(feedRows)} γραμμές${newest ? `, νεότερη ενημέρωση προϊόντος ${newest}` : ''})`);
-  L.push(`Ενεργά προϊόντα ${retailer} στο ${site.toUpperCase()}: ${fmt(p.active)}. Βρέθηκαν στο feed: ${fmt(p.matched)} (ίδια: ${fmt(p.same)}). Δεν υπάρχουν πια στο feed: ${fmt(p.gone)}.`);
-  if (p.stale) L.push(`ΠΡΟΣΟΧΗ: το feed έχει να ενημερωθεί ${p.staleDays} μέρες (πάνω από ${STALE_DAYS}). Δεν θα αλλάξει τίποτα (L39).`);
+  if (shop) L.push(`Πηγή: ο ζωντανός κατάλογος του καταστήματος ${shop.origin} (${fmt(feedRows)} επιλογές, νόμισμα ${shop.currency || 'άγνωστο'}), όχι το feed του Awin (L60).`);
+  else L.push(`Feed: ${feedFiles.join(', ')} (${fmt(feedRows)} γραμμές${newest ? `, νεότερη ενημέρωση προϊόντος ${newest}` : ''})`);
+  const where = shop ? 'στο κατάστημα' : 'στο feed';
+  L.push(`Ενεργά προϊόντα ${retailer} στο ${site.toUpperCase()}: ${fmt(p.active)}. Βρέθηκαν ${where}: ${fmt(p.matched)} (ίδια: ${fmt(p.same)}). Δεν υπάρχουν πια ${where}: ${fmt(p.gone)}.`);
+  if (shop) L.push(`Εξαντλημένα στο κατάστημα: ${fmt(p.soldOut || 0)} (κρύβονται, όπως στην εισαγωγή, L39).`);
+  if (shop && !shop.currency) L.push('ΠΡΟΣΟΧΗ: δεν διάβασα το νόμισμα του καταστήματος· οι τιμές δεν αλλάζουν.');
+  if (!shop && !newest && p.staleFrom === 'file') L.push(`Το feed δεν γράφει πότε ενημερώθηκε κάθε προϊόν: ο έλεγχος παλιού feed (L39) έγινε με το νεότερο αρχείο του (${p.staleDays} ημ.).`);
+  if (p.stale && p.staleFrom === 'file') L.push(`ΠΡΟΣΟΧΗ: το νεότερο αρχείο του feed είναι ${p.staleDays} ημερών (πάνω από ${STALE_DAYS}). Δεν θα αλλάξει τίποτα (L39). Χρειάζεται νεότερο feed (εργαλείο awin-feed-download).`);
+  else if (p.stale) L.push(`ΠΡΟΣΟΧΗ: το feed έχει να ενημερωθεί ${p.staleDays} μέρες (πάνω από ${STALE_DAYS}). Δεν θα αλλάξει τίποτα (L39).`);
   if (!p.safe) L.push(`ΠΡΟΣΟΧΗ: λείπουν από το feed πάνω από τα μισά ενεργά προϊόντα (${fmt(p.gone)} από ${fmt(p.active)}). Μάλλον δεν κατέβηκε ολόκληρο: ΔΕΝ θα κρυφτεί κανένα.`);
+  if (!shop && p.feedStock && p.matched) L.push(`Απόθεμα στο feed για τα ${fmt(p.matched)} που βρέθηκαν: σε απόθεμα ${fmt(p.feedStock.in)}, εξαντλημένα ${fmt(p.feedStock.out)}, χωρίς στοιχείο ${fmt(p.feedStock.unknown)}.`);
   L.push(`Αλλαγές: τιμή ${fmt(p.counts.price)}, εικόνα ${fmt(p.counts.image_url)}, απόθεμα ${fmt(p.counts.stock_status)} (σε απόθεμα ξανά: ${fmt(p.counts.toIn)}, εξαντλήθηκαν: ${fmt(p.counts.toOut)}). Απόκρυψη: ${fmt(p.hides.length)}.`);
   L.push(`Εγγραφές D1: περίπου ${fmt(p.writes)} (ανά προϊόν: τιμή ${p.costs.price}, εικόνα ${p.costs.image_url}, απόθεμα ${p.costs.stock_status}, απόκρυψη ${p.costs.is_active}).`);
   if (p.left.changes || p.left.hides) L.push(`Όριο εγγραφών: ${fmt(p.left.changes)} αλλαγές και ${fmt(p.left.hides)} αποκρύψεις μένουν για την επόμενη εκτέλεση (κάθε εκτέλεση ξαναϋπολογίζει μόνο όσα διαφέρουν).`);
   if (p.bigPrice.length) {
-    L.push(`ΠΡΟΣΟΧΗ: ${fmt(p.bigPrice.length)} τιμές αλλάζουν πάνω από ${PRICE_JUMP} φορές. ΔΕΝ αλλάζουν· να ελεγχθούν:`);
-    for (const b of p.bigPrice.slice(0, 15)) L.push(`   - ${String(b.name).slice(0, 90)}: ${b.from} -> ${b.to}`);
+    L.push(p.acceptJumps
+      ? `ΠΡΟΣΟΧΗ: ${fmt(p.bigPrice.length)} τιμές αλλάζουν πάνω από ${PRICE_JUMP} φορές και ΑΛΛΑΖΟΥΝ (-AcceptJumps):`
+      : `ΠΡΟΣΟΧΗ: ${fmt(p.bigPrice.length)} τιμές αλλάζουν πάνω από ${PRICE_JUMP} φορές. ΔΕΝ αλλάζουν· να ελεγχθούν:`);
+    for (const b of p.bigPrice.slice(0, 15)) L.push(`   - ${String(fixMojibake(b.name)).slice(0, 90)}: ${b.from} -> ${b.to}`);
   }
-  if (p.currencySkip.length) L.push(`ΠΡΟΣΟΧΗ: ${fmt(p.currencySkip.length)} προϊόντα έχουν άλλο νόμισμα στο feed (${p.currencySkip[0].from} -> ${p.currencySkip[0].to}). Η τιμή τους δεν αλλάζει.`);
+  if (p.currencySkip.length) L.push(`ΠΡΟΣΟΧΗ: ${fmt(p.currencySkip.length)} προϊόντα έχουν άλλο νόμισμα ${where} (${p.currencySkip[0].from} -> ${p.currencySkip[0].to}). Η τιμή τους δεν αλλάζει.`);
   const samples = p.changes.filter(c => 'price' in c.set).slice(0, 8);
   if (samples.length) {
     L.push('Δείγματα αλλαγών τιμής:');
-    for (const c of samples) L.push(`   - ${String(c.name).slice(0, 80)}: ${c.old.price} -> ${c.set.price}`);
+    for (const c of samples) L.push(`   - ${String(fixMojibake(c.name)).slice(0, 80)}: ${c.old.price} -> ${c.set.price}`);
   }
   return L.join('\n') + '\n';
 }
@@ -242,18 +502,70 @@ if (import.meta.url === pathToFileURL(process.argv[1] || '').href) {
   const now = opt('--now') ? new Date(opt('--now')) : new Date();
   const maxWrites = Number(opt('--max-writes') || 90000);
   mkdirSync(out, { recursive: true });
-  const { files, names } = await findFeeds(archive, retailer, opt('--advertiser'));
-  if (!files.length) {
-    const similar = Object.entries(names).filter(([, n]) => n && keyOf(n).includes(keyOf(retailer).split('-')[0])).map(([f, n]) => `${f}: ${n}`);
-    writeFileSync(join(out, 'report.txt'), `Δεν βρέθηκε feed με merchant_name "${retailer}" στο ${archive}.${similar.length ? `\nΠαρόμοια: ${similar.join('; ')}` : ''}\n`);
-    process.exit(3);
-  }
-  const feed = await readFeed(files);
   const rows = all('--rows').flatMap(f => rowsFromWrangler(readFileSync(f, 'utf8')));
   const costs = writeCosts(opt('--indexes') && existsSync(opt('--indexes')) ? rowsFromWrangler(readFileSync(opt('--indexes'), 'utf8')) : []);
-  const p = planRefresh({ rows, feed, costs, maxWrites, now });
-  const summary = writePlan(out, p);
-  const ages = files.map(f => Math.floor((now.getTime() - statSync(f).mtimeMs) / 86400000));
-  writeFileSync(join(out, 'report.txt'), renderReport({ retailer, site, feedFiles: files.map(f => `${basename(f)} (αρχείο ${ages[files.indexOf(f)]} ημ.)`), feedRows: feed.rows, newest: feed.newest, p }));
-  writeFileSync(join(out, 'counts.txt'), `${summary.changes} ${summary.hides} ${summary.writes} ${summary.stale ? 1 : 0} ${summary.safe ? 1 : 0} ${summary.active}\n`);
+  const acceptJumps = args.includes('--accept-jumps');
+  // live = 1: the slow check asked the shop in this very run, so no approval is asked (L81): the next run applies from memory.
+  const finish = (feed, report, use = rows, live = 0) => {
+    const p = planRefresh({ rows: use, feed, costs, maxWrites, now, acceptJumps });
+    const summary = writePlan(out, p);
+    const activeAll = rows.filter(r => Number(r.is_active) === 1).length;
+    writeFileSync(join(out, 'report.txt'), report(p));
+    writeFileSync(join(out, 'counts.txt'), `${summary.changes} ${summary.hides} ${summary.writes} ${summary.stale ? 1 : 0} ${summary.safe ? 1 : 0} ${activeAll} ${live}\n`);
+  };
+  if (args.includes('--from-shop')) {
+    // The shop's own live catalogue (L60). Read-only GETs; any failure changes nothing.
+    const origin = shopOriginOf(rows.filter(r => Number(r.is_active) === 1));
+    if (!origin) {
+      writeFileSync(join(out, 'report.txt'), 'Δεν βρήκα τη διεύθυνση του καταστήματος στα links των προϊόντων. Δεν άλλαξε τίποτα.\n');
+      process.exit(3);
+    }
+    if (args.includes('--slow')) {
+      const currency = await readShopCurrency(origin);
+      const memoryFile = join(resolve(opt('--memory') || join(out, '..')), `${new URL(origin).hostname}.jsonl`);
+      const { catalog, checkedRows, st } = await slowShopCheck(rows, origin, { memoryFile, now, log: m => console.log(m) });
+      const lines = renderSlowLines(st, retailer, site, checkedRows.length);
+      if (!checkedRows.length) {
+        writeFileSync(join(out, 'report.txt'), [...lines, 'Δεν ελέγχθηκε κανένα προϊόν: δεν άλλαξε τίποτα.'].join('\n') + '\n');
+        process.exit(4);
+      }
+      const feed = feedFromShopify(catalog, currency, now);
+      finish(feed, p => lines.join('\n') + '\n' + renderReport({ retailer, site, feedFiles: [origin], feedRows: feed.rows, newest: feed.newest, p, shop: { origin, currency } }),
+        checkedRows, st.asked ? 1 : 0);
+      process.exit(0);
+    }
+    let catalog;
+    const sampleOnly = args.includes('--sample-only');
+    try {
+      if (sampleOnly) throw new Error('sample only: too big for this check');
+      catalog = await readShopifyCatalog(origin);
+    } catch (e) {
+      // Too big to read whole, or it stopped answering part-way (instock.net at page 25, 27 Oct 2026), or -SampleShops (L80):
+      // a sample of the site's own products instead, read-only, and no plan.
+      const why = sampleReason(e.message, sampleOnly);
+      if (why) {
+        const currency = await readShopCurrency(origin);
+        const st = await sampleShopProducts(rows, origin, { n: Number(opt('--sample') || 100), currency });
+        writeFileSync(join(out, 'report.txt'), renderSampleReport({ retailer, site, origin, currency, st,
+          limitNote: why }));
+        process.exit(5);
+      }
+      const slow = /HTTP 429/.test(e.message) ? '\nΠΡΟΣΟΧΗ: το Shopify ζητά παύση (HTTP 429: πολλές αναγνώσεις από αυτό το PC σε λίγο χρόνο, και ισχύει για όλα τα καταστήματα Shopify). Ξαναδοκίμασε σε μία ώρα.' : '';
+      writeFileSync(join(out, 'report.txt'), `Δεν διάβασα τον κατάλογο του καταστήματος ${origin}: ${e.message}${slow}\n`);
+      process.exit(4);
+    }
+    const currency = await readShopCurrency(origin);
+    const feed = feedFromShopify(catalog, currency, now);
+    finish(feed, p => renderReport({ retailer, site, feedFiles: [origin], feedRows: feed.rows, newest: feed.newest, p, shop: { origin, currency } }));
+  } else {
+    const { files, names } = await findFeeds(archive, retailer, opt('--advertiser'));
+    if (!files.length) {
+      const similar = Object.entries(names).filter(([, n]) => n && keyOf(n).includes(keyOf(retailer).split('-')[0])).map(([f, n]) => `${f}: ${n}`);
+      writeFileSync(join(out, 'report.txt'), `Δεν βρέθηκε feed με merchant_name "${retailer}" στο ${archive}.${similar.length ? `\nΠαρόμοια: ${similar.join('; ')}` : ''}\n`);
+      process.exit(3);
+    }
+    const feed = await readFeed(files);
+    const ages = files.map(f => Math.floor((now.getTime() - statSync(f).mtimeMs) / 86400000));
+    finish(feed, p => renderReport({ retailer, site, feedFiles: files.map((f, i) => `${basename(f)} (αρχείο ${ages[i]} ημ.)`), feedRows: feed.rows, newest: feed.newest, p }));
+  }
 }

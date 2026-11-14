@@ -58,7 +58,8 @@ test('11 categories (birds with subcategories and horse and riding, owner 1 Nov 
 test('sources: Joybuy, Plusshop, Bazta, Coes and Aquatics Shop UK; Red Gorilla and VEVOR off; no text of another site', () => {
   const text = readFileSync('sites/zgw/sources.json', 'utf8');
   const src = JSON.parse(text).sources;
-  assert.deepEqual(src.filter(s => s.approved).map(s => s.retailer), ['Joybuy', 'Plusshop UK', 'Bazta UK', 'Coes', 'Aquatics Shop UK']);
+  assert.deepEqual(src.filter(s => s.approved).map(s => s.retailer), ['Joybuy', 'Plusshop UK', 'Bazta UK', 'Coes', 'Aquatics Shop UK', 'Pets Calm Down', 'Omlet']);
+  assert.equal(src.find(s => s.retailer === 'Omlet').petShop, true);
   assert.equal(src.find(s => s.retailer === 'Aquatics Shop UK').aquatics, true, 'its live fish stay out (L90)');
   assert.equal(src.find(s => s.retailer === 'Bazta UK').rulesFrom, 69306);
   assert.equal(src.find(s => s.retailer === 'Red Gorilla').approved, false);

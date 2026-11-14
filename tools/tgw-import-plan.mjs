@@ -291,10 +291,11 @@ export function cutToWord(name) {
   return s || String(name || '').trim();
 }
 
-function subcategoryOf(merchantCategory) {
+// Omlet (ZGW, 9 Nov 2026) gives Google category numbers ("5017") as its categories: a number is not a subcategory name.
+export function subcategoryOf(merchantCategory) {
   const parts = String(merchantCategory || '').split(/\s*(?:>|\/|\|)\s*/).map(s => s.trim()).filter(Boolean);
   const last = parts[parts.length - 1] || '';
-  return last.length <= 60 ? last : '';
+  return last.length <= 60 && !/^\d+$/.test(last) ? last : '';
 }
 
 const sq = v => (v === null || v === undefined || v === '' ? 'NULL' : typeof v === 'number' ? String(v) : `'${String(v).replace(/'/g, "''")}'`);

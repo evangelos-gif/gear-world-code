@@ -13,6 +13,8 @@
   -AllJoined: every programme you have joined that has a feed (instead of -Advertiser), with the copy on this PC.
   -OnlyMissing: only feeds with no copy here, or an almost empty copy (under 20 products). -AllJoined with -Apply
   needs -OnlyMissing, so a click never downloads every big feed at once.
+  -Refresh '<ids>': these advertisers are downloaded again even with -OnlyMissing (owner, 8 Nov 2026: the missing feeds
+  and a fresh Joybuy feed in one paste, one phrase).
 
   The Awin feed key is asked once and kept encrypted for your Windows user (DPAPI) in
   <home>\gear-world-secrets\awin-feed-key.dat. It is never written to a report, the clipboard or the repo.
@@ -22,6 +24,7 @@ param(
     [string[]]$Advertiser = @('30645'),
     [switch]$AllJoined,
     [switch]$OnlyMissing,
+    [string]$Refresh = '',
     [switch]$Apply,
     [string]$Approve = '',
     [string]$Archive = '',
@@ -42,7 +45,9 @@ if (-not $KeyFile) { $KeyFile = Join-Path (Join-Path $HOME 'gear-world-secrets')
 $stamp = Get-Date -Format 'yyyyMMdd_HHmmss'
 $Phrase = 'ΕΓΚΡΙΝΩ FEED DOWNLOAD'
 # The columns the import tools read. A column a retailer does not fill simply comes back empty.
-$Columns = 'data_feed_id,merchant_id,merchant_name,aw_product_id,aw_deep_link,aw_image_url,aw_thumb_url,category_id,category_name,brand_id,brand_name,merchant_product_id,merchant_category,ean,product_GTIN,mpn,product_name,description,merchant_deep_link,merchant_image_url,large_image,search_price,store_price,rrp_price,currency,delivery_cost,in_stock,stock_quantity,stock_status,condition,colour,size,fashion_size,fashion_suitable_for,parent_product_id,product_type,keywords,last_updated'
+# merchant_product_category_path: the shop's full folder path ("Automotive Tools > Trolley Jacks"). The Car Gear World rules
+# need it to tell a tool shop's car section; without it a refresh left out most Tooled Up car tools (3 Nov 2026, L127).
+$Columns = 'data_feed_id,merchant_id,merchant_name,aw_product_id,aw_deep_link,aw_image_url,aw_thumb_url,category_id,category_name,brand_id,brand_name,merchant_product_id,merchant_category,ean,product_GTIN,mpn,product_name,description,merchant_deep_link,merchant_image_url,large_image,search_price,store_price,rrp_price,currency,delivery_cost,in_stock,stock_quantity,stock_status,condition,colour,size,fashion_size,fashion_suitable_for,parent_product_id,product_type,keywords,last_updated,merchant_product_category_path,merchant_product_second_category,merchant_product_third_category'
 
 $L = New-Object System.Collections.Generic.List[string]
 $script:secret = ''
@@ -79,6 +84,8 @@ function Confirm-Approval([string]$phrase) {
         Write-Host ''
         Write-Host ('Για να συνεχίσω, γράψε ακριβώς: {0}' -f $phrase) -ForegroundColor Yellow
         Write-Host '(ή πάτα Enter για να σταματήσω χωρίς αλλαγές)'
+        # Lines left over from the paste (an empty last line) would answer the prompt by themselves (8 Nov 2026).
+        try { $Host.UI.RawUI.FlushInputBuffer() } catch { }
         $typed = Read-Host 'Έγκριση'
     }
     return ((Normalize-Phrase $typed) -eq (Normalize-Phrase $phrase))
@@ -92,6 +99,7 @@ Say ('Ώρα: {0}' -f (Get-Date -Format 'yyyy-MM-dd HH:mm'))
 $host1 = ([uri]$BaseUrl).Host
 if ($host1 -ne 'productdata.awin.com' -and $host1 -ne '127.0.0.1') { Say 'Μη αναμενόμενη διεύθυνση λήψης.' 'Red'; Finish 2 }
 $ids = @($Advertiser | ForEach-Object { $_ -split '[,\s]+' } | Where-Object { $_ } | ForEach-Object { if ($_ -notmatch '^\d{2,9}$') { Say ('Λάθος αριθμός καταστήματος: {0}' -f $_) 'Red'; Finish 2 }; $_ })
+$refreshIds = @($Refresh -split '[,\s]+' | Where-Object { $_ } | ForEach-Object { if ($_ -notmatch '^\d{2,9}$') { Say ('Λάθος αριθμός καταστήματος στο -Refresh: {0}' -f $_) 'Red'; Finish 2 }; $_ })
 if (-not (Test-Path -LiteralPath $Archive)) { Say ('Δεν βρήκα τον φάκελο των feeds: {0}' -f $Archive) 'Red'; Finish 2 }
 
 # 1. The feed key (asked once, kept encrypted for this Windows user).
@@ -114,14 +122,24 @@ if ($script:secret -notmatch '^[A-Za-z0-9]{8,64}$') { Say 'Το φυλαγμέν
 
 # 2. The feed list (read-only).
 $listUrl = '{0}/datafeed/list/apikey/{1}' -f $BaseUrl.TrimEnd('/'), $script:secret
-try { $resp = Invoke-WebRequest -UseBasicParsing -Uri $listUrl -TimeoutSec 120 } catch { Say ('Το Awin δεν έδωσε τη λίστα των feeds: {0}' -f $_.Exception.Message) 'Red'; Finish 4 }
+# The list can be slow (8 Nov 2026 21:31: "The operation has timed out" after 120 seconds): up to 3 tries, 4 minutes each.
+$resp = $null
+$listErr = ''
+for ($try = 1; $try -le 3 -and -not $resp; $try++) {
+    try { $resp = Invoke-WebRequest -UseBasicParsing -Uri $listUrl -TimeoutSec 240 }
+    catch {
+        $listErr = $_.Exception.Message
+        if ($try -lt 3) { Write-Host ('Το Awin άργησε να δώσει τη λίστα ({0}). Ξαναδοκιμάζω ({1}/3)...' -f $listErr, ($try + 1)) -ForegroundColor Yellow; Start-Sleep -Seconds 20 }
+    }
+}
+if (-not $resp) { Say ('Το Awin δεν έδωσε τη λίστα των feeds μετά από 3 προσπάθειες: {0}' -f $listErr) 'Red'; Finish 4 }
 $list = @($resp.Content | ConvertFrom-Csv)
 if ($list.Count -lt 1) { Say 'Η λίστα των feeds ήρθε άδεια.' 'Red'; Finish 4 }
 function Col($row, [string]$re) { foreach ($p in $row.PSObject.Properties) { if ($p.Name -match $re) { return [string]$p.Value } }; return '' }
 $joined = @($list | Where-Object { (Col $_ '(?i)membership') -match '(?i)^\s*(active|joined)\s*$' })
 Say ('Λίστα Awin: {0} feeds, {1} από προγράμματα όπου είσαι μέλος.' -f $list.Count, $joined.Count)
 if ($AllJoined) {
-    $ids = @($joined | ForEach-Object { Col $_ '(?i)^advertiser.?id$' } | Where-Object { $_ -match '^\d{2,9}$' } | Sort-Object -Unique)
+    $ids = @(@($joined | ForEach-Object { Col $_ '(?i)^advertiser.?id$' } | Where-Object { $_ -match '^\d{2,9}$' }) + $refreshIds | Sort-Object -Unique)
     Say ('Όλα τα προγράμματα όπου είσαι μέλος και έχουν feed: {0}' -f $ids.Count)
     if ($Apply -and -not $OnlyMissing) { Say 'Με -AllJoined η λήψη γίνεται μόνο μαζί με -OnlyMissing (για να μην κατέβουν όλα τα μεγάλα feeds μαζί).' 'Red'; Finish 2 }
 }
@@ -163,7 +181,8 @@ foreach ($id in $ids) {
         $region = Col $r '(?i)region'
         if ($missing -and $mem -match '(?i)^\s*(active|joined)\s*$') { $missingList.Add(('{0} {1} (feed {2}, {3}, προϊόντα {4})' -f $id, $name, $fid, $region, $cnt)) }
         Say ('{0} {1}, feed {2}: μέλος: {3} | προϊόντα στο Awin: {4} | ανανέωση Awin: {5} | αντίγραφο εδώ: {6}' -f $id, $name, $fid, $mem, $cnt, $last, $localTxt)
-        if ($OnlyMissing -and -not $missing) { Say '  υπάρχει εδώ: δεν ξανακατεβαίνει (-OnlyMissing).'; continue }
+        if ($OnlyMissing -and -not $missing -and ($refreshIds -notcontains $id)) { Say '  υπάρχει εδώ: δεν ξανακατεβαίνει (-OnlyMissing).'; continue }
+        if ($refreshIds -contains $id -and -not $missing) { Say '  κατεβαίνει ξανά (-Refresh).' }
         if ($fid -match '^\d+$' -and $mem -match '(?i)^\s*(active|joined)\s*$') { $todo.Add(@{ id = $id; fid = $fid; name = $name; local = $local; count = $cnt }) }
         elseif ($fid -match '^\d+$') { Say '  δεν κατεβαίνει: δεν είσαι ενεργό μέλος αυτού του προγράμματος.' 'Yellow' }
     }
