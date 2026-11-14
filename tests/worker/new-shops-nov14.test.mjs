@@ -100,3 +100,17 @@ test('L133: Needs No Label (massive import of 14 Nov) on WGW: sizes off the name
   assert.equal(nn.RULES.retailer, 'Needs No Label');
   assert.match('Needs No Label', /^[A-Za-z0-9 .\-]{2,40}$/, 'wrangler-safe shop name (L63)');
 });
+
+test('L133: MASON New York (ships to about 200 countries, the UK too) on WGW: one card per page even with "™" in the handle, charm bracelets are bracelets, bundle sets are "Jewellery"', async () => {
+  const m = await import('../../tools/import-rules/masonnewyork.mjs');
+  const link = 'https://masonnewyork.com/products/diamond-ring-2-1-carat-band-mason-tennis%E2%84%A2?variant=1';
+  const get = c => (c === 'merchant_deep_link' ? link : c === 'merchant_product_id' ? '42' : '');
+  assert.equal(m.productKey(get), 'products/diamond-ring-2-1-carat-band-mason-tennis%e2%84%a2');
+  const c = name => m.classify({ name }).subcategory;
+  assert.equal(c('1 Carat Diamond Adjustable Charm Bracelet - MASON TENNIS™'), 'Bracelets');
+  assert.equal(c('Diamond Necklace Earrings Bundle Set - Teardrop Pear'), 'Jewellery');
+  assert.equal(c('1 Carat Diamond Stud Earrings - Weekend Meetup'), 'Earrings');
+  assert.equal(c('0.82 Carat Diamond Butterfly Pendant Necklace'), 'Necklaces');
+  assert.equal(c('2.1 Carat Diamond Band Ring - MASON TENNIS™'), 'Rings');
+  assert.equal(m.RULES.currency, 'USD');
+});
