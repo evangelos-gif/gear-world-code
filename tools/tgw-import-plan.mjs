@@ -613,8 +613,12 @@ export async function planImport({ archive, sourcesFile, outDir, now = new Date(
   const notUkHint = rules.notUkHint || (() => '');
   const currencies = QUALITY.currencies || [QUALITY.currency];
   const onlyIds = only && only.length ? new Set(only.map(Number)) : null;
-  const sources = resolveSources(JSON.parse(readFileSync(sourcesFile, 'utf8')).sources)
+  // "paused": a shop that is approved but must not be imported now (the reason is the value; lessons L146: the AGW tyres
+  // made one category too heavy for D1). It is never read, not even with --only, and its products are left as they are.
+  const allSources = resolveSources(JSON.parse(readFileSync(sourcesFile, 'utf8')).sources)
     .filter(s => s.approved && (!onlyIds || onlyIds.has(Number(s.advertiserId))));
+  const paused = allSources.filter(s => s.paused);
+  const sources = allSources.filter(s => !s.paused);
   const runStamp = now.toISOString().replace('T', ' ').slice(0, 19);
   const archives = archiveList(archive);
   // Only a retailer whose feed was found and read gets its missing products hidden by 9999-finish.sql.
@@ -892,6 +896,7 @@ export async function planImport({ archive, sourcesFile, outDir, now = new Date(
   L.push('== Feeds ==');
   L.push(...feedInfo);
   for (const r of notRead) L.push(`${r}: its feed was not found (or is empty), so its products on the site are left exactly as they are.`);
+  for (const r of paused) L.push(`${r.retailer}: PAUSED (${r.paused}), not read; its products on the site are left exactly as they are.`);
   for (const s of sources.filter(x => x.keepSiteNames)) L.push(`${s.retailer}: names and descriptions of products already on the site are kept (translated into English, lessons L79). A new product comes in with the feed's own text, to be translated.`);
   L.push('');
   L.push(`== Result: ${stats.accepted} of ${stats.rows} rows would be imported (${pct(stats.accepted, stats.rows)}) ==`);
