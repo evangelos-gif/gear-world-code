@@ -5319,6 +5319,60 @@ if (Get-Command node -ErrorAction SilentlyContinue) {
     Check ($l107Tools[1].Contains("`$PhrasePreview = 'ΕΓΚΡΙΝΩ HUB GUIDE PRICES PREVIEW'") -and $l107Tools[1].Contains("`$PhraseLive = 'ΕΓΚΡΙΝΩ HUB GUIDE PRICES LIVE'")) 'L109: the Hub asks ΕΓΚΡΙΝΩ HUB GUIDE PRICES PREVIEW and LIVE'
 }
 
+# L131: sites-update-all.ps1 - the 13 sites and the Group with ONE approval (owner, 14 Nov 2026). Fake site tools record
+# what they are asked; the real tools must ask exactly the phrases the batch passes them.
+Write-Host 'sites-update-all.ps1'
+$batch = Join-Path (Join-Path $repo 'tools') 'sites-update-all.ps1'
+$bw = Join-Path ([System.IO.Path]::GetTempPath()) ('gw-batch-' + [guid]::NewGuid().ToString('N').Substring(0, 8))
+$fakeDir = Join-Path $bw 'tools'
+$bOut = Join-Path $bw 'out'
+$bLog = Join-Path $bw 'log.txt'
+$bTools = @('cgw-engine', 'ggw-engine', 'hgw-engine', 'kgw-engine', 'agw-cloudflare', 'bgw-cloudflare', 'mgw-engine', 'wgw-engine', 'tgw-cloudflare', 'vgw-cloudflare', 'sgw-cloudflare', 'pgw-cloudflare', 'zgw-cloudflare', 'group-site')
+foreach ($t in $bTools) {
+    $fake = "param([string]`$Step = 'check', [switch]`$Apply, [string]`$Approve = '', [string]`$OutDir = '', [switch]`$NoClipboard)`r`n" +
+        "Add-Content -LiteralPath `$env:GW_FAKE_LOG -Value ('$t|' + `$Step + '|' + `$Approve + '|' + `$Apply.IsPresent + '|' + `$NoClipboard.IsPresent + '|' + (`$OutDir -ne '')) -Encoding UTF8`r`n" +
+        "if (`$env:GW_FAKE_FAIL -eq ('$t ' + `$Step)) { exit 3 }`r`nexit 0`r`n"
+    Write-Utf8 (Join-Path $fakeDir ($t + '.ps1')) $fake
+}
+$env:GW_FAKE_LOG = $bLog
+$env:GW_FAKE_FAIL = ''
+$bLines = { if (Test-Path -LiteralPath $bLog) { @([System.IO.File]::ReadAllLines($bLog) | Where-Object { $_ }) } else { @() } }
+& $exe -NoProfile -ExecutionPolicy Bypass -File $batch -Step check -ToolDir $fakeDir -OutDir $bOut -NoClipboard | Out-Null
+Check ($LASTEXITCODE -eq 0 -and (& $bLines).Count -eq 0) 'L131: check shows the plan and runs no site tool'
+& $exe -NoProfile -ExecutionPolicy Bypass -File $batch -Step apply -ToolDir $fakeDir -OutDir $bOut -NoClipboard -Approve 'EGKRINO ALL UPDATES' | Out-Null
+Check ($LASTEXITCODE -eq 0 -and (& $bLines).Count -eq 0) 'L131: apply without -Apply changes nothing'
+& $exe -NoProfile -ExecutionPolicy Bypass -File $batch -Step apply -Apply -ToolDir $fakeDir -OutDir $bOut -NoClipboard -Approve 'EGKRINO CGW UPDATE' | Out-Null
+Check ($LASTEXITCODE -eq 1 -and (& $bLines).Count -eq 0) 'L131: a wrong phrase stops before any site'
+& $exe -NoProfile -ExecutionPolicy Bypass -File $batch -Step apply -Apply -ToolDir $fakeDir -OutDir $bOut -NoClipboard -Approve 'egkrino all   updates' | Out-Null
+$runs = & $bLines
+Check ($LASTEXITCODE -eq 0 -and $runs.Count -eq 20) ('L131: one phrase (case and spaces free) runs all 20 steps, ran ' + $runs.Count)
+Check ($runs.Count -eq 20 -and $runs[0] -eq 'cgw-engine|update|EGKRINO CGW UPDATE|True|True|True' -and $runs[1] -eq 'cgw-engine|remove-preview|EGKRINO CGW REMOVE PREVIEW|True|True|True') 'L131: each site tool gets its own step, -Apply, its own phrase, -NoClipboard and -OutDir'
+Check ($runs.Count -eq 20 -and $runs[19] -eq 'group-site|update|EGKRINO GROUP UPDATE|True|True|True') 'L131: the Group page goes last'
+Check (@($runs | Where-Object { $_ -match '\|(update|remove-preview)\|' }).Count -eq 20) 'L131: only update and remove-preview steps'
+$order = ($runs | ForEach-Object { ($_ -split '\|')[0] + ' ' + ($_ -split '\|')[1] }) -join ','
+Check ($order -eq 'cgw-engine update,cgw-engine remove-preview,ggw-engine update,ggw-engine remove-preview,hgw-engine update,hgw-engine remove-preview,kgw-engine update,kgw-engine remove-preview,agw-cloudflare update,bgw-cloudflare update,mgw-engine update,mgw-engine remove-preview,wgw-engine update,wgw-engine remove-preview,tgw-cloudflare update,vgw-cloudflare update,sgw-cloudflare update,pgw-cloudflare update,zgw-cloudflare update,group-site update') 'L131: the order of the paste of 13/11, every engine site with its remove-preview'
+Remove-Item -LiteralPath $bLog -Force
+$env:GW_FAKE_FAIL = 'agw-cloudflare update'
+& $exe -NoProfile -ExecutionPolicy Bypass -File $batch -Step apply -Apply -ToolDir $fakeDir -OutDir $bOut -NoClipboard -Approve 'EGKRINO ALL UPDATES' | Out-Null
+$runs = & $bLines
+Check ($LASTEXITCODE -eq 12 -and $runs.Count -eq 9 -and $runs[8].StartsWith('agw-cloudflare|update')) 'L131: a failing step stops the rest (exit 12)'
+$bRep = @(Get-ChildItem -LiteralPath $bOut -Filter 'SITES_UPDATE_ALL_APPLY_*.txt' | Sort-Object LastWriteTime | Select-Object -Last 1)
+Check ($bRep.Count -eq 1 -and ([System.IO.File]::ReadAllText($bRep[0].FullName)).Contains('AGW update')) 'L131: the report says where it stopped'
+$env:GW_FAKE_FAIL = ''
+$env:GW_FAKE_LOG = ''
+& $exe -NoProfile -ExecutionPolicy Bypass -File $batch -Step check -OutDir $bOut -NoClipboard | Out-Null
+Check ($LASTEXITCODE -eq 0) 'L131: every real site tool is in this version'
+$phraseMiss = @()
+foreach ($t in $bTools) {
+    $text = [System.IO.File]::ReadAllText((Join-Path (Join-Path $repo 'tools') ($t + '.ps1')))
+    $code = ($t -split '-')[0].ToUpper()
+    if ($t -eq 'group-site') { $code = 'GROUP' }
+    if (-not $text.Contains("'ΕΓΚΡΙΝΩ $code UPDATE'")) { $phraseMiss += "$t update" }
+    if ($t -like '*-engine' -and -not $text.Contains("'ΕΓΚΡΙΝΩ $code REMOVE PREVIEW'")) { $phraseMiss += "$t remove-preview" }
+}
+Check ($phraseMiss.Count -eq 0) ('L131: the real tools ask exactly the phrases the batch passes them ' + ($phraseMiss -join ', '))
+Remove-Item -LiteralPath $bw -Recurse -Force -ErrorAction SilentlyContinue
+
 Remove-Item -LiteralPath $work -Recurse -Force -ErrorAction SilentlyContinue
 
 Write-Host ''

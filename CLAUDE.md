@@ -16,6 +16,7 @@ The owner is a beginner on Windows PowerShell 5.1, often on a phone. Replies are
 - Give commands as the 3-line pattern in README.md, pinned to a commit SHA (not `main`).
 - When it is safe, put as many steps as possible in ONE paste (owner's standing wish): line 3 may run several tools one after another, separated by `;`. Each change still shows its plan first and asks its own approval phrase; say in order which phrases will be asked. Never chain a step that depends on checking the result of the one before.
 - A live `update` of a site that has a test address (`*-preview` Worker) ends, in the same paste, with that site's `remove-preview` step and its own phrase, so no test Worker is left running (owner, 29 Oct 2026). Every site tool used that way must have `remove-preview`.
+- Updating the 13 sites and the Group page together: `tools/sites-update-all.ps1 -Step apply -Apply`, ONE phrase «ΕΓΚΡΙΝΩ ALL UPDATES» for all of them (owner, 14 Nov 2026, L131). It runs each site tool's own update (and remove-preview) one by one with that tool's phrase and stops at the first failure.
 - Run `tests/run-tests.ps1` locally, then wait for the `checks` workflow (windows-latest, Windows PowerShell 5.1) to pass before giving a command.
 
 ## Never commit
