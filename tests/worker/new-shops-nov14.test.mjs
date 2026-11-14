@@ -260,3 +260,17 @@ test('Winter Boots on KGW: Coes winter boots and wellies move there (add-only, s
   assert.equal(d.classify({ name: 'DREAM PAIRS Warm Fuzzy House Slippers', feedCategory: 'Slippers' }).subcategory, 'Slippers', 'WGW has "Slippers"');
   assert.equal(d.classify({ name: 'DREAM PAIRS Dakota Western Cowboy Boots', feedCategory: 'Mid-Calf Boots' }).subcategory, 'Boots', 'women\'s boots stay "Boots" on WGW');
 });
+
+test('Winter Boots on KGW is a row above Shoes (?sub=winter-boots) in every language, with a new asset version (L31, L143)', async () => {
+  const kgw = await siteConfig('kgw');
+  const shoes = kgw.categories.find(c => c.slug === 'shoes');
+  assert.deepEqual(shoes.subcategories, [{ slug: 'winter-boots', name: 'Winter Boots' }]);
+  assert.equal(kgw.assetVersion, '2026-11-14-kgw-boots-1');
+  const { readFileSync, readdirSync } = await import('node:fs');
+  const langs = readdirSync('sites/kgw/public/assets/i18n').filter(f => f.endsWith('.json'));
+  assert.equal(langs.length, 10);
+  for (const f of langs) {
+    const d = JSON.parse(readFileSync(`sites/kgw/public/assets/i18n/${f}`, 'utf8'));
+    for (const k of ['All', 'Winter Boots']) assert.ok(d[k] && d[k] !== k, `${f}: "${k}"`);
+  }
+});

@@ -13,7 +13,7 @@ export default {
   lang: 'en-GB',
   locale: 'en-GB',
   currency: 'GBP',
-  assetVersion: '2026-11-12-kgw-codes-2',
+  assetVersion: '2026-11-14-kgw-boots-1',
   promos: promosFor('KGW'),
   awinPublisherId: AWIN_PUBLISHER_ID,
   storagePrefix: 'kgw',
@@ -158,7 +158,10 @@ export default {
     {
       slug: 'shoes', name: 'Shoes', nav: 'Shoes', short: 'shoes', icon: 'home',
       intro: 'Trainers, school shoes, boots, sandals and slippers.',
-      description: "Compare prices on kids' trainers, school shoes, boots, sandals and slippers across retailers."
+      description: "Compare prices on kids' trainers, school shoes, boots, sandals and slippers across retailers.",
+      // Children's winter boots and wellies (Manager, plan of 14 Nov 2026 17:10, lessons L143): a row "All | Winter Boots"
+      // above the products, ?sub=winter-boots. Not a page of its own for search engines (17 in the UK view, fewer than 20).
+      subcategories: [{ slug: 'winter-boots', name: 'Winter Boots' }]
     },
     {
       slug: 'gifts-for-kids', name: 'Gifts for Kids', nav: 'Gifts', short: 'gifts', icon: 'home',
