@@ -123,15 +123,18 @@ function htmlChecks(path, res, { expectStatus = 200, indexable = true } = {}) {
 
 // ---------- run ----------
 const stats = await get('/api/stats');
+// total: the UK view (/api/stats products, what the sitemaps list). shown: what this checker sees, asking without a
+// country: since lessons L151 the "all" view of every country that is not open, every fresh product (all_products).
 let total = 0;
-try { total = JSON.parse(stats.body).products || 0; } catch { /* old sites */ }
+let shown = 0;
+try { const s = JSON.parse(stats.body); total = s.products || 0; shown = s.all_products || total; } catch { /* old sites */ }
 check('L09', stats.status === 200, '/api/stats answers', `status ${stats.status}`);
 
 // Home
 const home = await get('/');
 htmlChecks('/', home);
-const fmtTotal = new Intl.NumberFormat('en-GB').format(total);
-check('L09', total === 0 || home.body.includes(fmtTotal), '/: real product count is in the HTML (not filled in later by JavaScript)', `expected ${fmtTotal}`);
+const fmtShown = new Intl.NumberFormat('en-GB').format(shown);
+check('L09', shown === 0 || home.body.includes(fmtShown), '/: real product count is in the HTML (not filled in later by JavaScript)', `expected ${fmtShown} (the all view, L151)`);
 check('L09', !/>\s*0\s*(products|PRODUCTS)/.test(home.body) || total === 0, '/: no "0 products" placeholder');
 // "<retailer> delivers to" (lessons L62, L101, L102): the card says who delivers, with the retailer name untranslated.
 const SHIP_WORD = /<span class="ship-word"><span data-i18n="\{0\} delivers to" data-i18n-0="[^"]+" data-i18n-keep="0"><span translate="no">[^<]+<\/span> delivers to<\/span><\/span>:/;
