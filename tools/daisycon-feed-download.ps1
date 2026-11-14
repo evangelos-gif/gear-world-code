@@ -125,15 +125,8 @@ if (-not (Test-Path -LiteralPath $Archive)) { Say ('Δεν βρήκα τον φ�
 if (-not (Get-Command node -ErrorAction SilentlyContinue)) { Say 'Δεν βρήκα το Node.js σε αυτόν τον υπολογιστή.' 'Red'; Finish 2 }
 Say ('Media (το site σου στο Daisycon): {0} | προγράμματα: {1}' -f $MediaId, ($ids -join ', '))
 
-# 1. The app's keys and the sign-in (once; kept encrypted for this Windows user).
-if (-not (Test-Path -LiteralPath $SecretFile)) {
-    Write-Host ''
-    Write-Host 'Μία φορά: τα στοιχεία της εφαρμογής (app) που έφτιαξες στο Daisycon (Tools -> Daisycon API).' -ForegroundColor Yellow
-    $client = (Read-Host 'Client ID').Trim()
-    if ($client -notmatch '^[A-Za-z0-9._-]{4,100}$') { Say 'Δεν δόθηκε σωστό Client ID. Σταμάτησα.' 'Yellow'; Finish 1 }
-    $secS = Read-Host 'Client secret (δεν θα φαίνεται καθώς το επικολλάς· σκέτο Enter αν δεν έχει)' -AsSecureString
-    $secret = [System.Runtime.InteropServices.Marshal]::PtrToStringBSTR([System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($secS))
-    if ($secret) { $script:secrets.Add($secret) }
+# The sign-in in the browser (PKCE): the Daisycon page shows a code, the owner pastes it here. Returns the new sign-in key.
+function Start-BrowserSignIn([string]$client, [string]$secret) {
     $U = Invoke-Daisycon @('--mode', 'auth-url', '--client', $client)
     if ($null -eq $U -or -not $U.ok) { Say 'Δεν έγινε η διεύθυνση σύνδεσης.' 'Red'; Finish 3 }
     $script:secrets.Add([string]$U.verifier)
@@ -150,7 +143,20 @@ if (-not (Test-Path -LiteralPath $SecretFile)) {
     Clear-DcEnv
     if ($null -eq $T -or -not $T.ok) { $why = ''; if ($T) { $why = [string]$T.error }; Say ('Η σύνδεση με το Daisycon δεν έγινε: {0}' -f $why) 'Red'; Say 'Ξανατρέξε την ίδια εντολή για νέα προσπάθεια.'; Finish 3 }
     $script:secrets.Add([string]$T.refresh)
-    Save-Secret (New-Object PSObject -Property @{ client = $client; secret = $secret; refresh = [string]$T.refresh })
+    return [string]$T.refresh
+}
+
+# 1. The app's keys and the sign-in (once; kept encrypted for this Windows user).
+if (-not (Test-Path -LiteralPath $SecretFile)) {
+    Write-Host ''
+    Write-Host 'Μία φορά: τα στοιχεία της εφαρμογής (app) που έφτιαξες στο Daisycon (Tools -> Daisycon API).' -ForegroundColor Yellow
+    $client = (Read-Host 'Client ID').Trim()
+    if ($client -notmatch '^[A-Za-z0-9._-]{4,100}$') { Say 'Δεν δόθηκε σωστό Client ID. Σταμάτησα.' 'Yellow'; Finish 1 }
+    $secS = Read-Host 'Client secret (δεν θα φαίνεται καθώς το επικολλάς· σκέτο Enter αν δεν έχει)' -AsSecureString
+    $secret = [System.Runtime.InteropServices.Marshal]::PtrToStringBSTR([System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($secS))
+    if ($secret) { $script:secrets.Add($secret) }
+    $refresh = Start-BrowserSignIn $client $secret
+    Save-Secret (New-Object PSObject -Property @{ client = $client; secret = $secret; refresh = $refresh })
     Say ('Η σύνδεση με το Daisycon έγινε και φυλάχτηκε κρυπτογραφημένη: {0}' -f $SecretFile) 'Green'
 }
 try {
@@ -159,15 +165,24 @@ try {
 } catch { Say 'Δεν μπόρεσα να διαβάσω τη φυλαγμένη σύνδεση. Σβήσε το αρχείο της και ξανατρέξε για νέα σύνδεση.' 'Red'; Say $SecretFile; Finish 3 }
 foreach ($x in @([string]$C.secret, [string]$C.refresh)) { if ($x) { $script:secrets.Add($x) } }
 function Invoke-WithSignIn([string[]]$a) {
-    $env:GW_DC_CLIENT = [string]$C.client; $env:GW_DC_SECRET = [string]$C.secret; $env:GW_DC_REFRESH = [string]$C.refresh
-    try { $R = Invoke-Daisycon $a } finally { Clear-DcEnv }
-    if ($R -and $R.newRefresh) {
-        $script:secrets.Add([string]$R.newRefresh)
-        $C.refresh = [string]$R.newRefresh
+    for ($try = 1; $try -le 2; $try++) {
+        $env:GW_DC_CLIENT = [string]$C.client; $env:GW_DC_SECRET = [string]$C.secret; $env:GW_DC_REFRESH = [string]$C.refresh
+        try { $R = Invoke-Daisycon $a } finally { Clear-DcEnv }
+        if ($R -and $R.newRefresh) {
+            $script:secrets.Add([string]$R.newRefresh)
+            $C.refresh = [string]$R.newRefresh
+            Save-Secret $C
+        }
+        if (-not ($R -and $R.signIn)) { return $R }
+        if ($try -ge 2) { Say ('Το Daisycon δεν δέχτηκε ούτε τη νέα σύνδεση: {0}' -f $R.error) 'Red'; Say 'Στείλε την αναφορά στο Claude.'; Finish 3 }
+        # The saved sign-in no longer works (Daisycon gives a new key at each sign-in; an earlier run that stopped
+        # half-way may have lost it, lessons L145): one new sign-in in the browser, the app's keys stay as they are.
+        Say ('Η φυλαγμένη σύνδεση με το Daisycon δεν ισχύει πια ({0}).' -f $R.error) 'Yellow'
+        Say 'Συνδέσου ξανά μία φορά στον browser. Τα στοιχεία της εφαρμογής (Client ID και secret) τα κρατάω: χρειάζεται μόνο ο νέος κωδικός.' 'Yellow'
+        $C.refresh = Start-BrowserSignIn ([string]$C.client) ([string]$C.secret)
         Save-Secret $C
+        Say 'Η νέα σύνδεση φυλάχτηκε κρυπτογραφημένη. Συνεχίζω.' 'Green'
     }
-    if ($R -and $R.signIn) { Say ('Το Daisycon δεν δέχτηκε τη φυλαγμένη σύνδεση: {0}' -f $R.error) 'Red'; Say 'Σβήσε το αρχείο της σύνδεσης και ξανατρέξε για νέα σύνδεση:'; Say $SecretFile; Finish 3 }
-    return $R
 }
 
 # 2. Read-only look: each programme's feeds and samples.
@@ -179,7 +194,9 @@ $good = New-Object System.Collections.Generic.List[string]
 foreach ($p in @($S.programs)) {
     Say ''
     if (-not $p.ok) { Say ('{0}: δεν βγήκε feed: {1} (feeds στο Daisycon: {2})' -f $p.program, $p.error, $p.feeds) 'Yellow'; continue }
-    Say ('{0} {1}: feeds {2} | διάλεξα γλώσσα {3}, νόμισμα {4}, προϊόντα {5}' -f $p.program, $p.name, $p.feeds, $p.language, $p.currency, $p.products)
+    $sub = 'άγνωστο'
+    if ($p.subscribed -eq $true) { $sub = 'ναι' } elseif ($p.subscribed -eq $false) { $sub = 'ΟΧΙ' }
+    Say ('{0} {1}: feeds {2} | διάλεξα γλώσσα {3}, νόμισμα {4}, προϊόντα {5} | το media σου γραμμένο στο feed: {6}' -f $p.program, $p.name, $p.feeds, $p.language, $p.currency, $p.products, $sub)
     Say ('  Πεδία: {0}' -f (@($p.keys) -join ', '))
     $i = 0
     foreach ($x in @($p.samples)) {

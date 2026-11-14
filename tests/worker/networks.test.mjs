@@ -128,6 +128,74 @@ test('Daisycon: probe and download through the API, the new sign-in key handed b
   assert.match(B.error, /invalid_grant/);
 });
 
+// First real run (14 Nov 2026, lessons L145): "Invalid URL" from one feed address stopped the whole look of 71 programmes
+// right after the sign-in, and the renewed sign-in key was lost with it.
+test('Daisycon: an odd feed address is completed or reported for its programme only, and the new sign-in key always comes back', async () => {
+  assert.equal(dc.feedUrlOf('//daisycon.io/datafeed/?x=1'), 'https://daisycon.io/datafeed/?x=1');
+  assert.equal(dc.feedUrlOf('daisycon.io/datafeed/?x=1'), 'https://daisycon.io/datafeed/?x=1');
+  assert.equal(dc.feedUrlOf('/datafeed/?x=1'), 'https://daisycon.io/datafeed/?x=1');
+  assert.equal(dc.feedUrlOf({ json: 'https://daisycon.io/datafeed/?type=json' }), 'https://daisycon.io/datafeed/?type=json');
+  for (const bad of ['', null, undefined, {}, '[object Object]', 'mailto:x@y.z', 'http://']) assert.equal(dc.feedUrlOf(bad), null, String(bad));
+  assert.match(dc.addressShape({ a: 1 }), /^object: \{"a":1\}/);
+  assert.equal(dc.addressShape('https://daisycon.io/?k=' + 'a'.repeat(40)), 'https://daisycon.io/?k=***');
+  const a = new URL(dc.feedAddress({ url: 'https://daisycon.io/datafeed/?media_id=#MEDIA_ID#&subid=#SUBID#&language_code=#LANGUAGE_CODE#&locale_id=#LOCALE_ID#&program_id=16029', language_code: 'en', locale_ids: [6] }, { mediaId: 447289 }));
+  assert.equal(a.hash, '', 'no placeholder left to cut the address');
+  assert.equal(a.searchParams.get('program_id'), '16029');
+  assert.equal(a.searchParams.get('language_code'), 'en');
+  assert.equal(a.searchParams.get('subid'), '');
+  assert.equal(dc.feedAddress({ url: {} }, { mediaId: 447289 }), '');
+
+  const env = { GW_DC_CLIENT: 'abc123', GW_DC_SECRET: 's3cret', GW_DC_REFRESH: 'R1' };
+  const good = 'https://daisycon.io/datafeed/?media_id=#MEDIA_ID#&program_id=16029&standard_id=2&language_code=en&locale_id=#LOCALE_ID#';
+  const f = fakeFetch(u => {
+    if (u.pathname === '/oauth/access-token') return { body: { access_token: 'A1', refresh_token: 'R2' } };
+    if (u.pathname === '/publishers') return { body: [{ id: 777 }] };
+    if (u.pathname === '/publishers/777/productfeeds.v2/program') {
+      const pid = u.searchParams.get('program_id');
+      assert.equal(u.searchParams.get('placeholder_media_id'), '447289');
+      if (pid === '11111') return { body: [{ id: 9, url: '[object Object]', language_code: 'en', locale_ids: [6], products: 5 }] };
+      if (pid === '22222') return { body: [{ id: 8, url: '//daisycon.io/datafeed/?media_id=#MEDIA_ID#&program_id=22222&locale_id=#LOCALE_ID#', language_code: 'en', locale_ids: [6], products: 5, subscribed_media_ids: [447289] }] };
+      return { body: [{ id: 5, url: good, language_code: 'en', locale_ids: [6], currency_code: 'EUR', products: 3, subscribed_media_ids: [1] }] };
+    }
+    if (u.hostname === 'daisycon.io') return { body: dcAnswer([dcProduct(1), dcProduct(2)]) };
+    return { status: 404, body: 'not found' };
+  });
+  const P = await dc.main(['--mode', 'probe', '--media', '447289', '--programs', '11111,22222,16029', '--pause', '0'], f, env);
+  assert.equal(P.ok, true);
+  assert.equal(P.newRefresh, 'R2');
+  assert.deepEqual(P.programs.map(x => x.ok), [false, true, true]);
+  assert.match(P.programs[0].error, /could not be read: \[object Object\]/);
+  assert.equal(P.programs[1].subscribed, true);
+  assert.equal(P.programs[2].subscribed, false);
+  const out = mkdtempSync(join(tmpdir(), 'gw-dc-'));
+  const D = await dc.main(['--mode', 'download', '--media', '447289', '--programs', '11111,16029', '--out', out, '--pause', '0'], f, env);
+  assert.deepEqual(D.programs.map(x => x.ok), [false, true]);
+  assert.match(D.programs[0].error, /could not be read/);
+
+  // A programme whose answer breaks mid-way is reported, the others still go on.
+  const breaking = async url => {
+    const u = new URL(url);
+    if (u.pathname === '/oauth/access-token') return { status: 200, text: async () => JSON.stringify({ access_token: 'A1', refresh_token: 'R3' }) };
+    if (u.pathname === '/publishers') return { status: 200, text: async () => JSON.stringify([{ id: 777 }]) };
+    if (u.pathname.endsWith('/program')) return { status: 200, text: async () => JSON.stringify([{ id: 5, url: good.replace('16029', u.searchParams.get('program_id')), language_code: 'en', locale_ids: [6], products: 3 }]) };
+    if (u.searchParams.get('program_id') === '33333') return { status: 200, text: async () => { throw new Error('socket hang up'); } };
+    return { status: 200, text: async () => JSON.stringify(dcAnswer([dcProduct(1)])) };
+  };
+  const Q = await dc.main(['--mode', 'probe', '--media', '447289', '--programs', '33333,16029', '--pause', '0'], breaking, env);
+  assert.equal(Q.newRefresh, 'R3');
+  assert.deepEqual(Q.programs.map(x => x.ok), [false, true]);
+  assert.match(Q.programs[0].error, /unexpected: socket hang up/);
+
+  // Even when the whole look breaks, the renewed sign-in key is handed back (else the saved one no longer works).
+  const allBreak = async url => new URL(url).pathname === '/oauth/access-token'
+    ? { status: 200, text: async () => JSON.stringify({ access_token: 'A1', refresh_token: 'R4' }) }
+    : { status: 200, text: async () => { throw new TypeError('Invalid URL'); } };
+  const Z = await dc.main(['--mode', 'probe', '--media', '447289', '--programs', '16029', '--pause', '0'], allBreak, env);
+  assert.equal(Z.ok, false);
+  assert.equal(Z.newRefresh, 'R4');
+  assert.match(Z.error, /unexpected: Invalid URL/);
+});
+
 const HDR = 'HDR|1606623|Cotton On UK|11/13/2026 06:00:00';
 const rkLine = (i, o = {}) => {
   const r = { product_id: `${i}`, name: `Classic Crew Tee ${i}`, sku: `CO-${i}`, primary_category: 'Mens', secondary_category: 'Tops~~T-Shirts', product_url: RK_LINK,
