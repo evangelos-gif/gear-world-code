@@ -53,7 +53,8 @@ function sub(n, c, site) {
   const t = n + ' | ' + c;
   if (W(['slippers?']).test(t)) return 'Slippers';
   if (W(['sandals?', 'slides?', 'flip ?flops?']).test(t)) return site === 'kgw' ? 'Shoes' : 'Sandals';
-  if (W(['boots?', 'booties']).test(t)) return site === 'kgw' ? 'Shoes' : 'Boots';
+  // KGW: children's boots are "Winter Boots" (Manager, plan of 14 Nov 2026 17:10), next to Coes and Camping World.
+  if (W(['boots?', 'booties']).test(t)) return site === 'kgw' ? 'Winter Boots' : 'Boots';
   if (W(['sneakers?', 'trainers?', 'running', 'walking shoes?', 'athletic', 'tennis shoes?']).test(t)) return 'Trainers';
   if (site === 'wgw' && W(['heels?', 'pumps?', 'stilettos?', 'wedges?', 'platform heels?']).test(t)) return 'Heels';
   return 'Shoes';

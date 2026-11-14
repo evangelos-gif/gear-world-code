@@ -230,3 +230,31 @@ test('L142: SwitchBot (European shop only), Click & Grow, Kincmo, AlorAir, Mosai
     if (r.RULES.network === 'cj') assert.equal(networkOf(r).label, 'CJ', name);
   }
 });
+
+// ---- Children's winter boots on KGW (Manager, plan of 14 Nov 2026 17:10): Shoes > Winter Boots ----
+test('Winter Boots on KGW: Coes winter boots and wellies move there (add-only, same key), sports boots stay; Camping World UK children\'s boots; Dream Pairs children\'s boots', async () => {
+  const c = await rulesOf('coes-kids-winter');
+  assert.equal(c.RULES.addOnly, true, 'the rest of Coes on KGW stays as it is');
+  assert.equal(c.RULES.retailer, 'Coes');
+  const cc = (name, brand = '') => c.classify({ name, brand });
+  for (const n of ['Olang BMX Front Zip Winter Boot for Boys in Nero', 'Olang Patty Girls Winter Boots for Kids in Black', 'Dunlop JR Wellington Boots for Kids in Black',
+    'Dunlop Kids 16247 Wellington Boots']) assert.deepEqual(cc(n), { site: 'kgw', siteCategory: 'Shoes', subcategory: 'Winter Boots' }, n);
+  for (const n of ['Adidas Predator Club Firm/Multi-Ground Kids Boots', 'Canterbury Stampede GB Team SG Rugby Boots Kids', 'New Balance Furion Dispatch V7 Junior Boot',
+    'Adidas Rugby Junior SG Boots', 'Grays Raid 2.0 Junior Hockey Astros', 'Adidas Runfalcon 5 Shoes for Kids', 'Hunter Womens Original Tall Wellington Boots']) assert.ok(cc(n).reject, n);
+  // The same key as coes-kids (KGW's unique key is the shop's product id): the plan updates the 4 rows already on KGW.
+  assert.ok(!('productKey' in c), 'no own key: the planner key of coes-kids');
+  const w = await rulesOf('campingworld-kids');
+  assert.equal(w.RULES.retailer, 'Camping World UK');
+  assert.equal(w.RULES.addOnly, true);
+  const link = 'https://www.campingworld.co.uk/en/gb/Olang-Zaza-Kids-Snow-Boots/m-6096.aspx';
+  assert.equal(w.productKey(col => (col === 'merchant_deep_link' ? link : '')), 'en/gb/olang-zaza-kids-snow-boots/m-6096.aspx');
+  const wc = name => w.classify({ name });
+  for (const n of ['Olang Zaza Kids Snow Boots', 'VW Freedom PVC Girls Wellington Boots', 'Wild Tribe Kids T-Rex Dinosaur Wellington Boots', 'Hi Tec Boys Blackout Mid Boots',
+    'Regatta Kids Vendeavour Waterproof Walking Boots']) assert.deepEqual(wc(n), { site: 'kgw', siteCategory: 'Shoes', subcategory: 'Winter Boots' }, n);
+  for (const n of ['Regatta Mens Samaris Walking Boots', 'Wild Tribe Kids Sandals', 'Kids Boot Socks', 'Outwell Tent']) assert.ok(wc(n).reject, n);
+  assert.equal(w.displayName('Hi Tec Kids Blackout Mid Boots'), 'Hi-Tec Kids Blackout Mid Boots');
+  const d = await rulesOf('dreampairs');
+  assert.deepEqual(d.classify({ name: 'DREAM PAIRS Kids Waterproof Winter Snow Boots', feedCategory: 'Kids Boots' }), { site: 'kgw', siteCategory: 'Shoes', subcategory: 'Winter Boots' });
+  assert.equal(d.classify({ name: 'DREAM PAIRS Girls Rainbow Ombre Hook and Loop Sneakers', feedCategory: 'Kids Sneakers' }).subcategory, 'Trainers');
+  assert.equal(d.classify({ name: 'DREAM PAIRS Dakota Western Cowboy Boots', feedCategory: 'Mid-Calf Boots' }).subcategory, 'Boots', 'women\'s boots stay "Boots" on WGW');
+});
