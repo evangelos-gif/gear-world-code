@@ -48,9 +48,10 @@ function place(women, n, cat) {
     return { siteCategory: 'Shoes', subcategory: W(['boots?', 'mid']).test(n) ? 'Boots' : W(['sandals?']).test(n) ? 'Sandals' : W(['trail', 'running']).test(n) ? 'Trainers' : 'Shoes' };
   if (/backpack|daypack|bags|duffel/i.test(cat) || W(['backpacks?', 'daypack', 'bags?', 'duffel', 'duffle', 'hip ?pack', 'waist ?pack', 'running belt', 'pack \\d+', 'raincover', 'rain cover']).test(n)
     || (!garment && /\b\d{1,2}(?:,\d)?\s?L\b/.test(n))) return { ...acc, subcategory: 'Bags' };
-  if (W(['wallets?']).test(n)) return { ...acc, subcategory: 'Wallets' };
-  if (W(['key ?rings?', 'keyrings?']).test(n)) return { ...acc, subcategory: 'Keyrings' };
-  if (W(['packing cubes?', 'pouch', 'wash ?bag']).test(n)) return { ...acc, subcategory: 'Travel Accessories' };
+  // The sites' own subcategory names (lessons L56, dry run of 14 Nov 2026: Wallets, Keyrings and Travel Accessories were new).
+  if (W(['wallets?']).test(n)) return { ...acc, subcategory: women ? 'Accessories' : 'Wallets & Purses' };
+  if (W(['key ?rings?', 'keyrings?']).test(n)) return women ? { ...acc, subcategory: 'Accessories' } : { siteCategory: 'Everyday Carry / EDC', subcategory: 'Everyday Carry / EDC' };
+  if (W(['packing cubes?', 'pouch', 'wash ?bag']).test(n)) return { ...acc, subcategory: 'Accessories' };
   if (W(['slippers?']).test(n)) return { siteCategory: 'Shoes', subcategory: 'Shoes' };
   if (W(['multitube', 'tube', 'bandana', 'scarf', 'neck ?warmer']).test(n)) return { ...acc, subcategory: 'Hats' };
   if (/beanies|hats|caps/i.test(cat) || W(['beanie', 'caps?', 'hats?', 'headband', 'neck ?gaiter', 'balaclava', 'buff']).test(n)) return { ...acc, subcategory: 'Hats' };

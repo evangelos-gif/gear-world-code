@@ -29,7 +29,7 @@ test('L131: ANCHOR & CREW names lose the size and gift-wrap options; jewellery, 
   assert.equal(c('Pink Maisie Silver and Freshwater Shell SKINNY Bracelet M - 21cm/No Gift Wrapping').site, 'wgw');
   assert.equal(c('Athletic Grey Explorer Print Organic Cotton T-Shirt (Womens) 10 - 35"/36"/No Gift Wrapping').site, 'wgw');
   assert.deepEqual(c('Octopus Another Good Day Organic Cotton Sweatshirt L/No Gift Wrapping'), { site: 'mgw', siteCategory: 'Clothing', subcategory: 'Sweatshirts' });
-  assert.equal(c('Samson Everyday Carry Silver Keyring No Gift Wrapping').subcategory, 'Keyrings');
+  assert.deepEqual(c('Samson Everyday Carry Silver Keyring No Gift Wrapping'), { site: 'mgw', siteCategory: 'Everyday Carry / EDC', subcategory: 'Everyday Carry / EDC' }, 'MGW has no Keyrings place (L56)');
   assert.equal(c('GUSTATORY Coffee Bag Silver Bead No Gift Wrapping').siteCategory, "Men's Jewellery", 'a charm bead, not a bag');
   for (const n of ['Sunset Party Archival Giclée Paper A3 Wall Print', 'Grey Reykjavik Medium Hardcover Notebook', 'Small Graphite Black Standen Leather and Rope Phone Case', 'Handmade Candle Co. Sea Spice Scented Soy Wax Candle (180ml)'])
     assert.ok(c(n).reject, n);
@@ -55,14 +55,14 @@ test('L131: Haglöfs is a CJ shop; only British rows (haglofs.com/en/, pounds) a
 
 test('L131: TORRO on MGW: leather accessories in, device cases (also "wallet cases") out for Technology Gear World', () => {
   const c = name => tr.classify({ name });
-  assert.equal(c('Trifold Leather Wallet (with RFID Protection) - Black').subcategory, 'Wallets');
+  assert.equal(c('Trifold Leather Wallet (with RFID Protection) - Black').subcategory, 'Wallets & Purses', "MGW's own name (L56)");
   assert.ok(c('iPhone 17 2-in-1 Leather Wallet Case (with Detachable Cover & MagSafe Charging)').reject);
   assert.ok(c('Kindle Paperwhite & Kindle Colorsoft Leather Case (2024/2025) - Navy Blue').reject);
   assert.equal(c('Leather Weekend Duffle Bag - Black').subcategory, 'Bags');
-  assert.equal(c('Leather Passport Holder & Travel Document Organiser - Black').subcategory, 'Travel Accessories');
-  assert.equal(c('Leather AirTag Keyring - Tan').subcategory, 'Keyrings');
-  assert.deepEqual(c('Leather Apple Watch & Watch Ultra Strap - Small'), { site: 'mgw', siteCategory: 'Watches', subcategory: 'Watch Straps' });
-  assert.equal(c('Leather Golf Tee Holder for Golf Bags - Navy Blue').siteCategory, 'Gifts for Him');
+  assert.equal(c('Leather Passport Holder & Travel Document Organiser - Black').subcategory, 'Accessories');
+  assert.equal(c('Leather AirTag Keyring - Tan').siteCategory, 'Everyday Carry / EDC');
+  assert.deepEqual(c('Leather Apple Watch & Watch Ultra Strap - Small'), { site: 'mgw', siteCategory: 'Bags & Accessories', subcategory: 'Accessories' });
+  assert.equal(c('Leather Golf Tee Holder for Golf Bags - Navy Blue').subcategory, 'Accessories');
   assert.ok(c('Large Leather Desk Mat (80x40cm) - Black').reject);
   assert.equal(tr.displayName('Slim Leather Card Holder with 5 Card Slots - Black with Red Detail'), 'Slim Leather Card Holder with 5 Card Slots');
 });

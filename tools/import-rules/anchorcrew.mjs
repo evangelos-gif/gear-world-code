@@ -9,7 +9,7 @@
 //    Zoey ...) -> WGW Women's Jewellery. SKINNY is a thinner bracelet, not a women's one (Arthur, Edward, William ...).
 //  - T-shirts, hoodies and sweatshirts -> MGW Clothing; "(Womens)" ones -> WGW Clothing ("Explorer Print T-Shirt" is a
 //    printed T-shirt, not an art print).
-//  - Keyrings, briefcases, eyewear straps -> MGW Bags & Accessories.
+//  - Keyrings -> MGW Everyday Carry / EDC; briefcases and eyewear straps -> MGW Bags & Accessories (the site's own names, L56).
 //  - Out: phone cases (Technology Gear World), wall prints, notebooks, journals, candles, gift cards and gift boxes.
 export const RULES = {
   key: 'anchorcrew',
@@ -58,7 +58,7 @@ export function classify({ name, feedCategory = '' }) {
   const women = /\(Womens\)|\bWomens\b|\bLadies\b/i.test(raw) || WOMEN_LINE.test(n);
   if (W(['phone cases?', 'cases?']).test(n)) return { reject: 'phone case (Technology Gear World)' };
   if (OUT.test(n) || /prints : edits/i.test(feedCategory)) return { reject: 'wall print, notebook, candle, gift card or gift box' };
-  if (W(['keyrings?', 'key rings?']).test(n)) return { site: 'mgw', siteCategory: 'Bags & Accessories', subcategory: 'Keyrings' };
+  if (W(['keyrings?', 'key rings?']).test(n)) return { site: 'mgw', siteCategory: 'Everyday Carry / EDC', subcategory: 'Everyday Carry / EDC' };
   if (W(['eyewear straps?', 'glasses straps?']).test(n)) return { site: 'mgw', siteCategory: 'Bags & Accessories', subcategory: 'Sunglasses' };
   if (W(['briefcases?', 'bags?', 'totes?', 'backpacks?']).test(n) && !W(['beads?', 'charms?']).test(n)) return { site: women ? 'wgw' : 'mgw', siteCategory: 'Bags & Accessories', subcategory: 'Bags' };
   if (JEWEL.test(n)) {
