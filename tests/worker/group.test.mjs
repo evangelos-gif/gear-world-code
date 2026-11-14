@@ -249,13 +249,14 @@ test('L151: the products of the biggest retailer per country (one retailer acros
   assert.equal(countryState(site, big, 'DE').kind, 'all');
   // On the page: every country of the list with its state, the rule in words, the country page too.
   const page = groupPage(site, stats, 'GB');
-  assert.match(page, /A country opens when at least 30,000 products from at least 4 retailers deliver there and no retailer has more than half of them\./);
-  assert.match(page, /<span class="cn">Belgium<\/span>[\s\S]*?<span class="cstate">Shows all with delivery badge<\/span><span class="cmiss">To open: 28,922 more products, 1 more retailer, one retailer has 93% \(max 50%\)<\/span>/);
-  assert.match(page, /<span class="cn">United Kingdom<\/span>[\s\S]*?<span class="cstate open">Open<\/span><\/a>/);
-  assert.equal((page.match(/<span class="cstate/g) || []).length, COUNTRY_CODES.length, 'a state for every country of the list');
+  // L154 (owner, 14 Nov 2026): the rule stays in countryState (the Manager's morning check), never on the public page,
+  // where "To open: ..." read as "closed". One true line for every country instead.
+  assert.match(page, /<p class="rule">New retailers are added every week\.<\/p>/);
+  assert.ok(!/To open|Shows all with delivery badge|cstate|cmiss|A country opens|>Open</.test(page), 'no open-country wording on the page');
+  assert.match(page, /<span class="cn">Belgium<\/span>\s*<span class="cnum">1,078 products deliver here<\/span>\s*<span class="cnum">3 retailers<\/span>\s*<span class="tag">More coming<\/span>/);
   const bePage = countryPage(site, stats, 'BE');
-  assert.match(bePage, /<p class="lede">Shows all products, each with where its retailer delivers\. To open: 28,922 more products, 1 more retailer, one retailer has 93% \(max 50%\)\.<\/p>/);
-  assert.match(countryPage(site, stats, 'GB'), /<p class="lede">Open: shows only what delivers here\.<\/p>/);
+  assert.match(bePage, /<p class="lede">Every product shows where its retailer delivers\. New retailers are added every week\.<\/p>/);
+  assert.ok(!/To open|Shows all|A country opens|Open:/.test(bePage + countryPage(site, stats, 'GB')), 'L154: no open-country wording on a country page');
   // The Group's own numbers come from the sites every hour: a new key for the cached numbers with "top".
   assert.match(readFileSync('src/group.js', 'utf8'), /__stats-cache-3/);
 });
@@ -286,8 +287,9 @@ test('L152: the world map and the close-up of Europe: shapes from the repo, blue
   // the worldwide retailer (48 products, m1); orange around the coming countries.
   for (const words of ['30,000 products or more', '10,000 to 29,999 products', '1,000 to 9,999 products', 'Fewer than 1,000 products', 'No products yet',
     'Coming: retailers approved, products being added']) assert.ok(map.includes(`</span>${words}</li>`), words);
-  assert.match(map, /<a href="\/countries\/be\/" tabindex="-1"><title>Belgium: 1,078 products from 3 retailers\. Shows all products, each with where its retailer delivers\. To open: 28,922 more products, 1 more retailer, one retailer has 93% \(max 50%\)\. More retailers coming: approved, products being added\.<\/title><path class="m2 mp mc" d="/);
-  assert.match(map, /<a href="\/countries\/gb\/" tabindex="-1"><title>United Kingdom: 858 products from 6 retailers\. Open: shows only what delivers here\.<\/title><path class="m1 mp" d="/);
+  assert.match(map, /<a href="\/countries\/be\/" tabindex="-1"><title>Belgium: 1,078 products from 3 retailers\. More retailers coming: approved, products being added\.<\/title><path class="m2 mp mc" d="/);
+  assert.match(map, /<a href="\/countries\/gb\/" tabindex="-1"><title>United Kingdom: 858 products from 6 retailers\.<\/title><path class="m1 mp" d="/);
+  assert.ok(!/Open:|To open|Shows all/.test(map), 'L154: the map titles do not say open or closed');
   assert.match(map, /<path class="m1" d="[^"]+"><title>Brazil: every other country, 48 products from a retailer that delivers worldwide\.<\/title><\/path>/);
   const big = { ...stats, countries: { ...stats.countries, GB: { ...stats.countries.GB, products: 30000 }, DE: { ...stats.countries.DE, products: 12000 }, FR: { ...stats.countries.FR, products: 0, retailers: 0 } }, worldwide: { products: 0, retailers: 0 } };
   const bigMap = groupPage(site, big, 'GB');

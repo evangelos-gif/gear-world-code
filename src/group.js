@@ -250,13 +250,15 @@ const countryPath = cc => `/countries/${cc.toLowerCase()}/`;
 const hasNumbers = stats => Boolean(stats && stats.countries && stats.sitesCounted > 0);
 const coming = (site, cc) => Array.isArray(site.coming) && site.coming.includes(cc);
 const COMING_TEXT = 'More retailers coming: approved, products being added';
-const nums = c => html`${fmt(c.products)} products</span>
+// Above the countries and on each country's page (owner's choice A, 14 Nov 2026, L154): true for every country, unlike
+// "More coming", which stays only where a retailer has really approved us.
+const GROWING_TEXT = 'New retailers are added every week.';
+const nums = c => html`${fmt(c.products)} products deliver here</span>
   <span class="cnum">${fmt(c.retailers)} ${c.retailers === 1 ? 'retailer' : 'retailers'}`;
 
 // The open-country rule (lessons L151, src/lib/open-countries.js), per country, in words: what a visitor from there
 // sees on the sites today, and what is missing before the country can open. The list of open countries changes only
 // with the update of all the sites (tools/sites-update-all.ps1), never from these numbers by themselves.
-const RULE_TEXT = `A country opens when at least ${fmt(OPEN_RULE.products)} products from at least ${OPEN_RULE.retailers} retailers deliver there and no retailer has more than half of them. A visitor from an open country sees only what delivers there; from every other country, all the products, each with where its retailer delivers.`;
 export function countryState(site, stats, cc) {
   const c = (stats && stats.countries && stats.countries[cc]) || { products: 0, retailers: 0, top: 0 };
   const check = openCheck(c);
@@ -295,10 +297,10 @@ function worldMap(site, stats) {
   const cs = stats.countries || {};
   const w = stats.worldwide || { products: 0, retailers: 0 };
   const listed = new Set(COUNTRY_CODES);
+  // The public words are what delivers where, never the open-country rule ("To open: ..." read as "closed" to a
+  // visitor, owner 14 Nov 2026, L154): the rule's numbers go to the Manager's morning check (countryState).
   const titleOf = cc => {
-    const s = countryState(site, stats, cc);
-    return [`${countryName(cc)}: ${productWords(cs[cc] || { products: 0 })}.`, `${s.status}.`, s.missing ? `${s.missing}.` : '',
-      coming(site, cc) ? `${COMING_TEXT}.` : ''].filter(Boolean).join(' ');
+    return [`${countryName(cc)}: ${productWords(cs[cc] || { products: 0 })}.`, coming(site, cc) ? `${COMING_TEXT}.` : ''].filter(Boolean).join(' ');
   };
   const other = w.products ? `every other country, ${fmt(w.products)} products from ${w.retailers === 1 ? 'a retailer that delivers' : 'retailers that deliver'} worldwide` : 'no products yet';
   const cls = cc => [shade(listed.has(cc) ? (cs[cc] || { products: 0 }).products : w.products), listed.has(cc) ? 'mp' : '', coming(site, cc) ? 'mc' : ''].filter(Boolean).join(' ');
@@ -324,10 +326,9 @@ function countryList(site, stats, current = '') {
 ${CONTINENTS.map(([name, list]) => html`<h3 class="continent">${name}</h3>
 <ul class="countries">${list.map(cc => {
     const c = cs[cc] || { products: 0, retailers: 0 };
-    const s = countryState(site, stats, cc);
     return html`<li${cc === current ? html` class="here"` : ''}><a href="${countryPath(cc)}"${cc === current ? html` aria-current="page"` : ''}><span class="cn">${countryName(cc)}</span>
   <span class="cnum">${c.products ? nums(c) : coming(site, cc) ? 'Coming soon' : 'No retailers yet'}</span>
-  <span class="cstate${s.kind === 'open' ? ' open' : ''}">${s.short}</span>${s.missing ? html`<span class="cmiss">${s.missing}</span>` : ''}${coming(site, cc) ? html`<span class="tag">More coming</span>` : ''}</a></li>`;
+${coming(site, cc) ? html`<span class="tag">More coming</span>` : ''}</a></li>`;
   })}</ul>`)}
 ${stats.worldwide && stats.worldwide.products ? html`<p class="worldwide">Every other country: ${fmt(stats.worldwide.products)} products from ${fmt(stats.worldwide.retailers)} ${stats.worldwide.retailers === 1 ? 'retailer that delivers' : 'retailers that deliver'} worldwide. A visitor from there sees all the products, each with where its retailer delivers.</p>` : ''}
 <p class="note">Updated about every hour from the sites' own numbers. A product counts in every country its retailer delivers to.</p>`;
@@ -373,7 +374,7 @@ export function groupPage(site, stats, country = '') {
 
 ${hasNumbers(stats) ? html`<section class="wrap section" id="countries" aria-labelledby="countries-h">
   <h2 id="countries-h">Where the retailers deliver</h2>
-  <p class="rule">${RULE_TEXT}</p>
+  <p class="rule">${GROWING_TEXT}</p>
   ${worldMap(site, stats)}
   ${countryList(site, stats)}
 </section>` : ''}
@@ -430,7 +431,6 @@ ${hasNumbers(stats) ? html`<section class="wrap section" id="countries" aria-lab
 // for search engines (noindex, follow) and not in the sitemap; the home page links to it.
 export function countryPage(site, stats, cc) {
   const c = (stats.countries && stats.countries[cc]) || { products: 0, retailers: 0, sites: [] };
-  const state = countryState(site, stats, cc);
   if (!hasNumbers(stats)) {
     return shell(site, { title: `Gear World in ${inName(cc)} | ${site.name}`, description: `Products from the Gear World sites whose retailers deliver to ${inName(cc)}.`,
       path: countryPath(cc), robots: 'noindex, follow',
@@ -445,8 +445,7 @@ export function countryPage(site, stats, cc) {
     ${c.retailers ? html`<li>${fmt(c.retailers)} ${c.retailers === 1 ? 'retailer' : 'retailers'}</li>` : ''}
     ${coming(site, cc) ? html`<li class="tag-li">${COMING_TEXT}</li>` : ''}
   </ul>
-  <p class="lede">${state.status}.${state.missing ? ` ${state.missing}.` : ''}</p>
-  <p class="note">${RULE_TEXT}</p>
+  <p class="lede">Every product shows where its retailer delivers. ${GROWING_TEXT}</p>
 </div></section>
 ${c.sites && c.sites.length ? html`<section class="wrap section" aria-labelledby="by-site-h">
   <h2 id="by-site-h">By site</h2>
