@@ -42,3 +42,23 @@ test('which files: the recent ones by default, or exactly the advertisers asked 
   assert.deepEqual(chooseFiles(dir, { advertisers: ['1'] }), ['AWIN_1_10.csv.gz']);
   assert.ok(statSync(join(dir, 'AWIN_1_10.csv.gz')).mtimeMs < Date.now() - 86400000);
 });
+
+test('L133: CJ, Daisycon and Rakuten catalogues are profiled too; -Advertiser with -AlsoHours = the shops asked for and everything just downloaded', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'feed-prof-'));
+  const cjHead = 'data_feed_id,merchant_id,merchant_name,aw_deep_link,product_name,merchant_deep_link,search_price,currency,in_stock,merchant_category';
+  writeFileSync(join(dir, 'CJ_5531758.csv.gz'), gzipSync([cjHead,
+    'cj,5531758,Haglofs,https://www.anrdoezrs.net/links/1/type/dlg/x,Korp Mid Jacket Men,https://www.haglofs.com/en/gb/korp,65.00,GBP,in stock,Jackets'].join('\n') + '\n'));
+  for (const f of ['AWIN_1_10.csv.gz', 'AWIN_2_20.csv.gz', 'DAISYCON_16029.csv.gz', 'RAKUTEN_388061.csv.gz', '120435-retail-en_GB.csv.gz', 'CJ_x.csv.gz']) writeFileSync(join(dir, f), 'x');
+  const old = (Date.now() - 10 * 86400000) / 1000;
+  for (const f of ['AWIN_1_10.csv.gz', 'RAKUTEN_388061.csv.gz']) utimesSync(join(dir, f), old, old);
+  assert.deepEqual(chooseFiles(dir, { days: 2 }), ['AWIN_2_20.csv.gz', 'CJ_5531758.csv.gz', 'DAISYCON_16029.csv.gz']);
+  assert.deepEqual(chooseFiles(dir, { advertisers: ['388061'] }), ['RAKUTEN_388061.csv.gz']);
+  assert.deepEqual(chooseFiles(dir, { advertisers: ['1', '388061'], alsoDays: 0.25 }),
+    ['AWIN_1_10.csv.gz', 'AWIN_2_20.csv.gz', 'CJ_5531758.csv.gz', 'DAISYCON_16029.csv.gz', 'RAKUTEN_388061.csv.gz']);
+  const p = await profileFile(join(dir, 'CJ_5531758.csv.gz'));
+  assert.equal(p.network, 'CJ');
+  assert.deepEqual(p.hosts, { 'haglofs.com': 1 }, 'the shop page, not the CJ tracking host');
+  const text = render({ profiles: [p], archive: dir, advertisers: ['5531758'], alsoDays: 0.25 });
+  assert.match(text, /=== Haglofs \(CJ 5531758\)/);
+  assert.match(text, /Καταστήματα: 5531758 και ό,τι κατέβηκε τις τελευταίες 6 ώρες \(1 feeds\)/);
+});

@@ -1,5 +1,5 @@
 // Gear World - FEED PROFILE (owner, 8 Nov 2026: "feed download and import, all in one go"). READ-ONLY.
-// For the Awin feeds on this PC that were downloaded recently (or the advertisers given), one block per feed with what is
+// For the feeds on this PC (Awin, CJ, Daisycon, Rakuten) that were downloaded recently (or the advertisers given), one block per feed with what is
 // needed to write a shop's import rules (tools/import-rules, lessons L14) and to choose its site: the shop's web address,
 // currency, how many products and in stock, prices, the shop's own categories, brands, sample names, "was" prices and
 // images. It changes nothing: no import, no Cloudflare, no D1, no file in the archive.
@@ -41,19 +41,31 @@ function hostOf(link) {
   } catch { return ''; }
 }
 
-export function chooseFiles(archive, { advertisers = [], days = 2, now = Date.now() } = {}) {
+// Feed files of every network the download tools write (lessons L133): AWIN_<shop>_<feed>, CJ_<shop>, DAISYCON_<programme>,
+// RAKUTEN_<MID> (the last three have the Awin column names). -Advertiser '<ids>' picks shops; with alsoDays the feeds
+// downloaded in the last days come too, so one report has the shops asked for and everything just downloaded.
+const FEED_FILE = /^(?:AWIN_(\d+)_(\d+)|(CJ|DAISYCON|RAKUTEN)_(\d+))\.csv(?:\.gz)?$/i;
+const NETWORK = { CJ: 'CJ', DAISYCON: 'Daisycon', RAKUTEN: 'Rakuten' };
+export function feedOf(name) {
+  const m = String(name).match(FEED_FILE);
+  if (!m) return null;
+  return m[1] ? { network: 'Awin', advertiserId: Number(m[1]), feedId: Number(m[2]) }
+    : { network: NETWORK[m[3].toUpperCase()], advertiserId: Number(m[4]), feedId: null };
+}
+export function chooseFiles(archive, { advertisers = [], days = 2, alsoDays = 0, now = Date.now() } = {}) {
   const ads = new Set(advertisers.map(String));
-  return readdirSync(archive).filter(f => /^AWIN_\d+_\d+\.csv(\.gz)?$/i.test(f)).filter(f => {
-    const adv = f.match(/^AWIN_(\d+)_/i)[1];
-    if (ads.size) return ads.has(adv);
-    return now - statSync(join(archive, f)).mtimeMs <= days * 86400000;
+  const recent = (f, d) => now - statSync(join(archive, f)).mtimeMs <= d * 86400000;
+  return readdirSync(archive).filter(f => feedOf(f)).filter(f => {
+    const adv = String(feedOf(f).advertiserId);
+    if (ads.size) return ads.has(adv) || (alsoDays > 0 && recent(f, alsoDays));
+    return recent(f, days);
   }).sort();
 }
 
 export async function profileFile(file, { maxRows = Infinity } = {}) {
   const name = file.split(/[\\/]/).pop();
-  const [, adv, feed] = name.match(/^AWIN_(\d+)_(\d+)/i);
-  const p = { advertiserId: Number(adv), feedId: Number(feed), merchant: '', rows: 0, inStock: 0, priced: 0, withWas: 0, withImage: 0,
+  const f = feedOf(name) || { network: 'Awin', advertiserId: 0, feedId: 0 };
+  const p = { network: f.network, advertiserId: f.advertiserId, feedId: f.feedId, merchant: '', rows: 0, inStock: 0, priced: 0, withWas: 0, withImage: 0,
     prices: [], currencies: {}, hosts: {}, categories: {}, brands: {}, languages: {}, samples: [], error: '',
     ageHours: Math.round((Date.now() - statSync(file).mtimeMs) / 3600000) };
   try {
@@ -85,19 +97,20 @@ export async function profileFile(file, { maxRows = Infinity } = {}) {
   return p;
 }
 
-export function render({ profiles, archive, generated = new Date(), days, advertisers }) {
+export function render({ profiles, archive, generated = new Date(), days, advertisers, alsoDays = 0 }) {
   const lines = [
     'Gear World - FEED PROFILE (μόνο ανάγνωση)',
     `Ώρα: ${generated.toISOString().slice(0, 16).replace('T', ' ')} UTC`,
     `Φάκελος: ${archive}`,
-    advertisers && advertisers.length ? `Καταστήματα: ${advertisers.join(', ')}` : `Feeds που άλλαξαν τις τελευταίες ${days} μέρες: ${profiles.length}`,
+    advertisers && advertisers.length ? `Καταστήματα: ${advertisers.join(', ')}${alsoDays > 0 ? ` και ό,τι κατέβηκε τις τελευταίες ${Math.round(alsoDays * 24)} ώρες` : ''} (${profiles.length} feeds)` : `Feeds που άλλαξαν τις τελευταίες ${days} μέρες: ${profiles.length}`,
     ''
   ];
   if (!profiles.length) lines.push('Δεν βρέθηκε κανένα feed. Αν μόλις έγινε λήψη, δες την αναφορά της λήψης.');
   for (const p of profiles) {
     const pr = p.prices;
     const med = pr.length ? pr[Math.floor(pr.length / 2)] : 0;
-    lines.push(`=== ${p.merchant || '?'} (Awin ${p.advertiserId}, feed ${p.feedId}) | αρχείο ${p.ageHours} ωρών`);
+    const where = (p.network || 'Awin') === 'Awin' ? `Awin ${p.advertiserId}, feed ${p.feedId}` : `${p.network} ${p.advertiserId}`;
+    lines.push(`=== ${p.merchant || '?'} (${where}) | αρχείο ${p.ageHours} ωρών`);
     if (p.error) { lines.push(`  Δεν διαβάστηκε: ${p.error}`, ''); continue; }
     lines.push(`  Προϊόντα: ${p.rows} | σε απόθεμα: ${p.inStock} | με τιμή: ${p.priced} | με «πριν» τιμή: ${p.withWas} | με εικόνα: ${p.withImage}`);
     if (pr.length) lines.push(`  Τιμές: από ${pr[0].toFixed(2)} | μέση ${med.toFixed(2)} | έως ${pr[pr.length - 1].toFixed(2)}`);
@@ -121,11 +134,12 @@ async function main() {
   mkdirSync(out, { recursive: true });
   const advertisers = (val('advertiser') || '').split(/[\s,;]+/).filter(x => /^\d+$/.test(x));
   const days = Number(val('days')) || 2;
-  const files = chooseFiles(archive, { advertisers, days });
+  const alsoDays = Number(val('also-days')) || 0;
+  const files = chooseFiles(archive, { advertisers, days, alsoDays });
   const profiles = [];
   for (const f of files) { process.stdout.write(`\r${f}`.padEnd(70)); profiles.push(await profileFile(join(archive, f), { maxRows: Number(val('max-rows')) || Infinity })); }
   process.stdout.write('\n');
-  writeFileSync(join(out, 'report.txt'), render({ profiles, archive, days, advertisers }));
+  writeFileSync(join(out, 'report.txt'), render({ profiles, archive, days, advertisers, alsoDays }));
   console.log(`Report: ${join(out, 'report.txt')}`);
 }
 

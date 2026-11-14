@@ -2,16 +2,18 @@
 .SYNOPSIS
   Gear World - FEED PROFILE. READ-ONLY.
 .DESCRIPTION
-  For the Awin feeds on this PC downloaded in the last -Days days (default 2; -Hours for the last hours), or for -Advertiser '<ids>', one block per
+  For the feeds on this PC (Awin, and the CJ, Daisycon and Rakuten catalogues) downloaded in the last -Days days (default 2; -Hours for the last hours), or for -Advertiser '<ids>', one block per
   feed: the shop's web address, currency, products, in stock, prices, the shop's categories, brands and sample names.
   What is needed to write a new shop's import rules and choose its site. It changes nothing (no import, no Cloudflare,
   no D1, no file in the archive).
+  -AlsoHours <n> with -Advertiser: the shops asked for AND every feed downloaded in the last n hours, in one report.
   Output: <home>\gear-world-reports\FEED_PROFILE_<time>\report.txt (also copied to the clipboard)
 #>
 param(
     [string]$Advertiser = '',
     [int]$Days = 2,
     [int]$Hours = 0,
+    [int]$AlsoHours = 0,
     [string]$Archive = '',
     [string]$OutDir = '',
     [int]$MaxRows = 0,
@@ -57,6 +59,8 @@ $dayText = [string]$Days
 if ($Hours -gt 0) { $dayText = ([double]$Hours / 24).ToString([System.Globalization.CultureInfo]::InvariantCulture) }
 $nodeArgs = @((Join-Path (Join-Path $repo 'tools') 'feed-profile.mjs'), '--archive', $Archive, '--out', $run, '--days', $dayText)
 if ($Advertiser) { $nodeArgs += @('--advertiser', $Advertiser) }
+# -AlsoHours with -Advertiser: also every feed downloaded in the last hours (massive import of 14 Nov 2026, L133).
+if ($AlsoHours -gt 0) { $nodeArgs += @('--also-days', ([double]$AlsoHours / 24).ToString([System.Globalization.CultureInfo]::InvariantCulture)) }
 if ($MaxRows -gt 0) { $nodeArgs += @('--max-rows', [string]$MaxRows) }
 & node @nodeArgs
 $code = $LASTEXITCODE
