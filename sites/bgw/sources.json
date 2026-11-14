@@ -13,6 +13,8 @@
     { "advertiserId": 69306, "retailer": "Plusshop UK", "currency": "GBP", "condition": "new", "approved": true,
       "allowPaths": ["bikes & scooters", "car & bike"] },
     { "advertiserId": 116097, "retailer": "Bazta UK", "currency": "GBP", "condition": "new", "approved": true, "rulesFrom": 69306 },
+    { "advertiserId": 35810, "feedIds": [89588], "retailer": "iHoverboard", "currency": "GBP", "condition": "new", "approved": true,
+      "_comment": "iHoverboard (joined 13 Nov 2026, ihoverboard.co.uk): 89 rows, all electric scooters (iScooter), shop category 'Cycling'. They go to Electric Scooters, whose page already says that in the UK a private e-scooter may only be ridden on private land." },
     { "advertiserId": 118435, "feedIds": [109014], "retailer": "VEVOR", "currency": "EUR", "condition": "new", "keepSiteNames": true, "approved": false }
   ]
 }
