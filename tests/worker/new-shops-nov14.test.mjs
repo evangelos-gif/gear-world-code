@@ -1,4 +1,4 @@
-// New shops of 14 Nov 2026 (lessons L140): ANCHOR & CREW (Awin 131192, MGW/WGW), Haglöfs (CJ 5531758, MGW/WGW, the
+// New shops of 14 Nov 2026 (lessons L140, L132, L133, L141, L142): ANCHOR & CREW (Awin 131192, MGW/WGW), Haglöfs (CJ 5531758, MGW/WGW, the
 // British catalogue only) and TORRO (Awin 24751, MGW; its device cases wait for Technology Gear World).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -115,4 +115,118 @@ test('L133: MASON New York (ships to about 200 countries, the UK too) on WGW: on
   assert.equal(c('0.45 Carat Diamond Chain Pendant Necklace - MASON TENNIS™'), 'Necklaces');
   assert.equal(c('2.1 Carat Diamond Band Ring - MASON TENNIS™'), 'Rings');
   assert.equal(m.RULES.currency, 'USD');
+});
+
+// ---- Massive import round 2b (14 Nov 2026): 11 shops on WGW, MGW, KGW, HGW and GGW; lessons L141 (the US view), L142 ----
+const SHOP_RULES = ['jeulia', 'dreampairs', 'maceoo', 'kaiyababy', 'diecast', 'clickandgrow', 'kincmo', 'switchbot', 'foreo', 'aloraircrawlspace', 'mosaic'];
+const rulesOf = async k => import(`../../tools/import-rules/${k}.mjs`);
+const siteConfig = async s => (await import(`../../sites/${s}/site.config.js`)).default;
+
+test('L141: each round 2b shop is in deliversTo of every site it goes to, with the countries of its shipping page (US, or EU for FOREO and SwitchBot)', async () => {
+  const want = { foreo: ['EU'], switchbot: ['EU'] };
+  for (const k of SHOP_RULES) {
+    const { RULES } = await rulesOf(k);
+    assert.match(RULES.retailer, /^[A-Za-z0-9 .\-]{2,40}$/, `${k}: wrangler-safe shop name (L63)`);
+    for (const s of RULES.sites) {
+      const cfg = await siteConfig(s);
+      assert.deepEqual(cfg.deliversTo.retailers[RULES.retailer], want[k] || ['US'], `${k} on ${s}: "${RULES.retailer}"`);
+    }
+  }
+  // Round 2a: MASON New York and Needs No Label ship to the UK and the US: both views.
+  const wgw = await siteConfig('wgw');
+  assert.deepEqual(wgw.deliversTo.retailers['MASON New York'], ['GB', 'US']);
+  assert.deepEqual(wgw.deliversTo.retailers['Needs No Label'], ['GB', 'US']);
+  assert.deepEqual(wgw.foreignCurrencies, ['USD'], 'MASON New York prices in dollars get "≈ £"');
+});
+
+test('L142: Dream Pairs: "Cowboy Boots" are not boys\' boots, the name wins over a kids section, T-shirts and belts are not shoes, the brand leaves the name', async () => {
+  const d = await rulesOf('dreampairs');
+  const c = (name, cat) => d.classify({ name, feedCategory: cat });
+  assert.deepEqual(c('DREAM PAIRS Dakota Western Cowboy Boots', 'Mid-Calf Boots'), { site: 'wgw', siteCategory: 'Shoes', subcategory: 'Boots' });
+  assert.deepEqual(c('BRUNO MARC Men s Cowboy Square Toe Western Boots', 'Boots'), { site: 'mgw', siteCategory: 'Shoes', subcategory: 'Boots' });
+  assert.equal(c('DREAM PAIRS Boys Camouflage Western Cowboy Boots', 'Kids Boots').site, 'kgw');
+  assert.equal(c("DREAM PAIRS Women's Inner Zipper Chelsea Boots", 'Kids Boots').site, 'wgw');
+  assert.equal(c('DREAM PAIRS Kids Soccer Cleats for Boys Girls', 'Kids Soccer Shoes').site, 'kgw');
+  assert.equal(c('DREAM PAIRS Low Heel Pointed Toe Pumps', 'Pumps').subcategory, 'Heels');
+  assert.equal(c('BRUNO MARC Men s Breathable Casual Sneakers', 'OTHERS').subcategory, 'Trainers', 'a shoe in "OTHERS" stays');
+  assert.equal(c('NORTIV 8 Men s DualStride Armadillo FieldLite Mid WaterproofPRO', 'Hiking').site, 'mgw', 'a boot named without the word');
+  for (const [n, cat] of [['BRUNO MARC Men s Ultra Soft Breathable Classic Crew Neck T Shirt', 'ACCESSORIES'], ['BRUNO MARC Men s Genuine Leather Casual Dress Belt', 'Belts'],
+    ['BRUNO MARC Men s Compact Pop Up Wallet', 'Wallets'], ['DREAM PAIRS Sustainable Knitted Tote Bag', 'Bags']]) assert.ok(c(n, cat).reject, n);
+  assert.equal(d.displayName('BRUNO MARC Men s Cowboy Square Toe Western Boots'), "Men's Cowboy Square Toe Western Boots");
+  assert.equal(d.displayName('DREAM PAIRS Kid s Square Toe Boots'), "Kid's Square Toe Boots");
+  for (const u of ['https://www.dreampairs.com/products/a', 'https://www.brunomarc.com/products/a', 'https://nortiv8shoes.com/products/a']) assert.ok(d.RULES.shop.test(u), u);
+});
+
+test('L142: Jeulia, Maceoo, Kaiya Baby: ring sets are rings, men\'s bands go to MGW, crewneck T-shirts are T-shirts, no embroidery service or old feed row', async () => {
+  const j = await rulesOf('jeulia');
+  assert.equal(j.classify({ name: 'Jeulia Halo Pear Cut Engagement Eternity Ring Set 3PC Sterling Silver', feedCategory: 'Jewelry Sets' }).subcategory, 'Rings');
+  assert.deepEqual(j.classify({ name: "Jeulia Walnut Stainless Steel Men's Band", feedCategory: 'Alloy Rings' }), { site: 'mgw', siteCategory: "Men's Jewellery", subcategory: 'Jewellery' });
+  assert.equal(j.displayName('Jeulia Custom Infinite Heart Necklace'), 'Custom Infinite Heart Necklace');
+  const m = await rulesOf('maceoo');
+  const mc = (name, cat) => m.classify({ name, feedCategory: cat }).subcategory;
+  assert.equal(mc("Maceoo - Men's Skull Disco Graphic Crewneck T-Shirt - White", 'Athleisure'), 'T-Shirts');
+  assert.equal(mc("Men's Monogram Graphic Crewneck Sweater - Black", 'Athleisure'), 'Sweatshirts');
+  assert.equal(mc('Einstein Scale Grey Long Sleeve Dress Shirt', 'Dress Shirt LS'), 'Shirts');
+  assert.equal(mc('Lion Geo Red Swim Shorts', 'Swim'), 'Shorts');
+  const k = await rulesOf('kaiyababy');
+  assert.ok(k.classify({ name: 'embroidery-service' }).reject);
+  assert.ok(k.classify({ name: 'Organic Cotton Front Opening Zip Up Swaddle 0.5 TOG - Cameo Pink-3-6M - 3-6 Months / 0.5 TOG' }).reject);
+  assert.equal(k.classify({ name: 'Warm Sleep Suit Sack 3-in-1 2.5 TOG - Organic Cotton & Camel Wool - Pea Green' }).subcategory, 'Baby & Toddler Sleepwear');
+  assert.equal(k.classify({ name: 'ClimaCuddle® Swaddle 2-in-1 0.5 TOG - Merino Wool & Rayon From Bamboo - Dusty Pink' }).subcategory, 'Swaddling Blankets');
+});
+
+test('L142: Diecast Models Wholesale: a car "with Driver Figure" and a car "by American Diorama" are cars, "Cobra Jet" is no aircraft, "Railway Express" no train', async () => {
+  const d = await rulesOf('diecast');
+  const c = (name, cat = '') => d.classify({ name, feedCategory: cat }).subcategory;
+  assert.equal(c('Can-Am Defender XMR Silver Metallic and Black with Driver Figure 1/32 Diecast Model by BRP Models', '1 > 32|UTV & SUV'), 'Toy Cars');
+  assert.equal(c('US Army Vehicle WWII Desert Sand 1/18 Diecast Model Car by American Diorama', 'Military'), 'Toy Cars');
+  assert.equal(c('Hazmat Crew Figurine VI for 1/18 Scale Models by American Diorama', 'Accessories|Figures & Figurine'), 'Action & Toy Figures');
+  assert.equal(c('Grand Prix Paddock Diorama "Team Orange" with LED Lights for 1/64 Scale Models by American Diorama', 'Accessories'), 'Toys & Games');
+  assert.equal(c('1968 Ford Mustang CJ Cobra Jet White 1/18 Diecast Model Car by Maisto', 'Ford|Mustang'), 'Toy Cars');
+  assert.equal(c('Boeing 777F Commercial Aircraft "Lufthansa Cargo" White with Blue Tail', 'Civilian'), 'Toy Aeroplanes');
+  assert.equal(c('1948 Dodge B-1B Pickup Truck Green "Railway Express Agency" 1/87 (HO) Scale Diecast Model Car by Oxford Diecast', 'Dodge|Pickup'), 'Toy Lorries & Construction Vehicles');
+  assert.equal(c('Progress Rail 100th Anniversary Train Set 1/87 (HO) Diecast Models by Diecast Masters'), 'Toy Trains & Train Sets');
+  assert.equal(c('Oliver 1755 Tractor with FWA ROPS and Canopy Green with Light Green Canopy "Classic Series" 1/16 Diecast Model by SpecCast', 'Agriculture & Farming'), 'Toy Lorries & Construction Vehicles');
+});
+
+test('L142: FOREO: the FAQ™ line stays (LED masks are tools, its serums skincare), ESPADA™ is no "pad", a peach-coloured LUNA™ is no hair removal; cables and cases out', async () => {
+  const f = await rulesOf('foreo');
+  const c = name => f.classify({ name });
+  assert.equal(c('FAQ™ 101-Amethyst').subcategory, 'Beauty tools');
+  assert.equal(c('FAQ™ Red Light Peptide Serum').subcategory, 'Skincare');
+  assert.equal(c('ESPADA™ 2 plus Lavender').subcategory, 'Beauty tools');
+  assert.equal(c('LUNA™ 4 go Peach Perfect').subcategory, 'Beauty tools');
+  assert.equal(c('PEACH™ 2 Mint').subcategory, 'Hair removal');
+  assert.equal(c('KIWI™ derma Bundle').subcategory, 'Gift sets');
+  for (const n of ['PEACH™ 2 power cable with 4 plug adaptors', 'FAQ™ 200 Travel Case', 'issa™ baby Replacement Brush Head Kiwi Green Panda']) assert.ok(c(n).reject, n);
+});
+
+test('L142: SwitchBot (European shop only), Click & Grow, Kincmo, AlorAir, Mosaic: each product in the site\'s own section names', async () => {
+  const s = await rulesOf('switchbot');
+  const row = (link, currency) => c => ({ merchant_deep_link: link, currency, product_name: 'SwitchBot Hub 2' })[c] ?? '';
+  assert.equal(s.field('product_name', row('https://us.switch-bot.com/products/hub-2', 'USD')), '', 'a US row gives no columns');
+  assert.equal(s.field('product_name', row('https://eu.switch-bot.com/products/hub-2', 'EUR')), 'SwitchBot Hub 2');
+  const sc = name => s.classify({ name }).subcategory;
+  assert.equal(sc('SwitchBot RGBICWW Floor Lamp'), 'Smart Home Accessories', 'a lamp is no bulb');
+  assert.equal(sc('SwitchBot Color Bulb'), 'Smart Bulb');
+  assert.equal(sc('SwitchBot Smart Radiator Thermostat Matter Combo'), 'Smart Thermostat');
+  assert.equal(sc('SwitchBot Mini Robot Vacuum K10+ Pro'), 'Vacuum Cleaner');
+  const g = await rulesOf('clickandgrow');
+  assert.equal(g.classify({ name: 'Thyme Plant Pods 30-pack' }).subcategory, 'Seeds & bulbs');
+  assert.equal(g.classify({ name: 'The Smart Garden 9 Lamp' }).subcategory, 'Grow lights');
+  assert.equal(g.classify({ name: 'The Smart Garden 27' }).subcategory, 'Hydroponics');
+  assert.equal(g.displayBrand(), 'Click & Grow');
+  const k = await rulesOf('kincmo');
+  assert.ok(k.classify({ name: 'Shipping Protection', feedCategory: 'shipping-protection' }).reject);
+  assert.equal(k.classify({ name: 'Kincmo No Drill Cordless Roller Shades 100% Blackout - Classic' }).subcategory, 'Blinds');
+  const a = await rulesOf('aloraircrawlspace');
+  assert.ok(a.classify({ name: 'AlorAir Wholesale Packs Sentinel HD55 (pack of 5)' }).reject);
+  assert.equal(a.classify({ name: 'AlorAir 220PPD Crawl Space Dehumidifier with Pump and Drain Hose | Sentinel HDi100 (White)' }).subcategory, 'Dehumidifier');
+  const mo = await rulesOf('mosaic');
+  assert.equal(mo.classify({ name: 'Minky Dot Duvet Cover' }).subcategory, 'Bed Linen');
+  assert.deepEqual(mo.classify({ name: 'Lavender Minky Weighted Blanket' }), { site: 'hgw', siteCategory: 'Home Decor', subcategory: 'Throw' });
+  for (const name of SHOP_RULES) {
+    const r = await rulesOf(name);
+    if (r.RULES.network === 'cj') assert.equal(networkOf(r).label, 'CJ', name);
+  }
 });

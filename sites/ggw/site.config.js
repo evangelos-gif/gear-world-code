@@ -65,8 +65,9 @@ export default {
   ],
   // Where the retailers deliver (lessons L62): every product card and product page says it, so a visitor from
   // any country sees at once whether they can order. default: every retailer not named in retailers.
-  // Country codes: src/lib/delivery.js. All the retailers here are UK shops.
-  deliversTo: { default: ['GB'] },
+  // Country codes: src/lib/delivery.js. The retailers not named are UK shops.
+  // US: shops whose shipping page (read 13-14 Nov 2026, L62) ships within the United States only; the US view (L141).
+  deliversTo: { default: ['GB'], retailers: { 'Click and Grow': ['US'] } },
   displayCurrencies: ['GBP', 'EUR', 'ALL', 'RON', 'RUB'],
   cart: { name: 'Saved list', maxItems: 30 },
   voiceSearch: true,

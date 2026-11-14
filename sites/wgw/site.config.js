@@ -67,9 +67,17 @@ export default {
   // Country codes: src/lib/delivery.js. The other retailers are UK shops. 100% PURE (100percentpure.de, lessons L63)
   // delivers to Germany and nearly all of the EU, Switzerland and Norway, not to the UK (100percentpure.de/Versand-Lieferung,
   // read 25 Oct 2026). The key is the name visitors see (after retailerNames).
-  deliversTo: { default: ['GB'], retailers: { '100% PURE': ['EU', 'CH', 'NO'] } },
-  // 100% PURE sells in euros: its prices stay in euros, with "≈ £…" next to them (lessons L25, L63).
+  // Massive import round 2b (14 Nov 2026, lessons L107): European shops, each with the countries of its own shipping page (L62).
+  // US: shops whose shipping page (read 13-14 Nov 2026, L62) ships within the United States only; the US view (L141).
+  // MASON New York (about 200 countries) and Needs No Label (the UK, 10 EU countries, Norway, the US, Canada, Australia,
+  // New Zealand) ship to the UK and the US: both views. Needs No Label's EU countries are not listed yet (one more page copy
+  // per country group, L107); its cards say the UK and the US.
+  deliversTo: { default: ['GB'], retailers: { '100% PURE': ['EU', 'CH', 'NO'], FOREO: ['EU'], Jeulia: ['US'], 'Dream Pairs': ['US'],
+    'MASON New York': ['GB', 'US'], 'Needs No Label': ['GB', 'US'] } },
+  // 100% PURE sells in euros: its prices stay in euros, with "≈ £…" next to them (lessons L25, L63). MASON New York sells
+  // in US dollars and is in the UK view: foreignCurrencies fetches that rate too ("≈ £…", as GRABO on CGW).
   convertForeignPrices: true,
+  foreignCurrencies: ['USD'],
   // Lessons L107: a UK visitor sees UK retailers only, so the texts no longer say "retailers in the UK and Europe".
   retailersFromEurope: false,
   displayCurrencies: ['GBP', 'EUR', 'ALL', 'RON', 'RUB'],

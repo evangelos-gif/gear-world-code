@@ -3,10 +3,13 @@
 //
 // A. Delivery country. A visitor sees only the retailers that deliver to their country (Cloudflare request.cf.country).
 //    The countries of each retailer are the site config's deliversTo (src/lib/delivery.js): `default` for every retailer
-//    that is not named, `retailers` for the others. Only European countries (the EU, Iceland, Liechtenstein, Norway,
-//    Switzerland and the UK) can have a view of their own; every other or unknown country, and a European country where
-//    no retailer of the site delivers, gets the UK view: the sites are for UK buyers, and crawlers and reviewers often
-//    come from US addresses (owner, 9 Nov 2026). A site without deliversTo shows every retailer.
+//    that is not named, `retailers` for the others. The European countries (the EU, Iceland, Liechtenstein, Norway,
+//    Switzerland and the UK) and the United States can have a view of their own; every other or unknown country, and one
+//    of those where no retailer of the site delivers, gets the UK view: the sites are for UK buyers (owner, 9 Nov 2026).
+//    The United States since 14 Nov 2026 (owner's choice in the massive import: a US visitor sees what ships to the US,
+//    lessons L141): shops that ship only within the US (Wavytalk, Jeulia, ALZOO ...) were in no view at all. Google's crawlers
+//    still get the UK view (src/engine.js), so the sitemaps, Search and Merchant Center see what they saw before.
+//    A site without deliversTo shows every retailer.
 //    The countries that see the same retailers share one "group" (gb, be, at-de, eu-...), and the page cache keeps one
 //    copy per group, so one country never gets another country's page.
 //    A visitor who gets the UK view although the UK retailers do not deliver to them (an unknown country, a country with
@@ -37,8 +40,8 @@ export const EU_COUNTRIES = ['AT', 'BE', 'BG', 'CY', 'CZ', 'DE', 'DK', 'EE', 'ES
   'LT', 'LU', 'LV', 'MT', 'NL', 'PL', 'PT', 'RO', 'SE', 'SI', 'SK'];
 // The European Economic Area outside the EU.
 export const EEA_ONLY = ['IS', 'LI', 'NO'];
-// The countries that can have a view of their own. Everywhere else: the UK view.
-export const OWN_VIEW_COUNTRIES = [...EU_COUNTRIES, ...EEA_ONLY, 'CH', 'GB'];
+// The countries that can have a view of their own. Everywhere else: the UK view. US: owner, 14 Nov 2026 (L141).
+export const OWN_VIEW_COUNTRIES = [...EU_COUNTRIES, ...EEA_ONLY, 'CH', 'GB', 'US'];
 export const HOME_COUNTRY = 'GB';
 export const HOME_GROUP = 'gb';
 

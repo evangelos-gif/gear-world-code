@@ -34,7 +34,8 @@ export default {
   // retailers that deliver to their country (src/lib/visibility.js). default: every retailer not named (UK shops).
   // Pneus.be: its own Belgian site (pneus.be, read 9 Nov 2026: Luxembourg and the Netherlands have their own sites), so
   // Belgium only. VEVOR: the Dutch shop vevor.nl delivers to the EU and the EEA, not to the UK (owner, 9 Nov 2026).
-  deliversTo: { default: ['GB'], retailers: { 'Pneus.be': ['BE'], VEVOR: ['EU', 'IS', 'LI', 'NO'] } },
+  // Massive import round 2b (14 Nov 2026, lessons L107): European shops, each with the countries of its own shipping page (L62).
+  deliversTo: { default: ['GB'], retailers: { 'Pneus.be': ['BE'], VEVOR: ['EU', 'IS', 'LI', 'NO'], Ottocast: ['DE', 'FR', 'NL', 'BE', 'AT', 'CH', 'ES', 'IT', 'PT', 'GR', 'PL', 'CZ', 'SK', 'HU', 'SE', 'FI', 'DK', 'NO', 'EE', 'LV', 'LT', 'HR', 'SI', 'BG', 'RO'] } },
   // Lessons L107: a UK visitor sees UK retailers only, so the texts no longer say "retailers in the UK and Europe".
   retailersFromEurope: false,
 

@@ -61,7 +61,8 @@ export default {
   // Country codes: src/lib/delivery.js. All the retailers here are UK shops except Wavytalk:
   // wavytalk.com sells in US dollars and ships within the United States; only a few products go abroad
   // (wavytalk.com/policies/shipping-policy, 25 Oct 2026).
-  deliversTo: { default: ['GB'], retailers: { Wavytalk: ['US'] } },
+  // US: shops whose shipping page (read 13-14 Nov 2026, L62) ships within the United States only; the US view (L141).
+  deliversTo: { default: ['GB'], retailers: { Wavytalk: ['US'], Jeulia: ['US'], 'Dream Pairs': ['US'], Maceoo: ['US'] } },
   displayCurrencies: ['GBP', 'EUR', 'ALL', 'RON', 'RUB'],
   cart: { name: 'Saved list', maxItems: 30 },
   voiceSearch: true,

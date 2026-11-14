@@ -298,13 +298,15 @@ function visitor(site) {
   };
 }
 
-test('L114: the views of the codes: CGW Germany sees none (no footer link either); the UK, unknown and US visitors and Google see them', async () => {
+test('L114: the views of the codes: CGW Germany and the US see none (no footer link either); the UK, unknown visitors and Google see them', async () => {
   const sites = await allSites();
   const now = at('2026-11-20');
   const ids = (site, country) => activePromos(site, now, viewFor(site, country, now)).filter(p => BF_IDS.includes(p.id)).map(p => p.id).sort();
   // CGW: Germany has a view of its own (Reidl, VEVOR, GRABO): Tooled Up and My Tool Shed (UK only) are not in it.
   assert.deepEqual(ids(sites.CGW, 'DE'), []);
-  for (const cc of ['GB', '', 'US', 'XX']) assert.deepEqual(ids(sites.CGW, cc), [...BF_IDS].sort(), `CGW ${cc || 'unknown'}`);
+  // The US has a view of its own since 14 Nov 2026 (L141): GRABO only, so no UK code either.
+  assert.deepEqual(ids(sites.CGW, 'US'), []);
+  for (const cc of ['GB', '', 'CA', 'XX']) assert.deepEqual(ids(sites.CGW, cc), [...BF_IDS].sort(), `CGW ${cc || 'unknown'}`);
   // AGW: Belgium (Pneus.be, VEVOR) and Germany (VEVOR): no Tooled Up code.
   assert.deepEqual(ids(sites.AGW, 'BE'), []);
   assert.deepEqual(ids(sites.AGW, 'DE'), []);
@@ -337,8 +339,10 @@ test('L114: the views of the codes: CGW Germany sees none (no footer link either
   assert.equal(deGo.status, 302);
   assert.equal(deGo.headers.get('location'), `https://${cgw.domain}/discount-codes/tooled-up/`);
   assert.equal(logged.DB.rows.length, 0, 'no click recorded');
-  // The UK, an unknown country, the US and Google's crawler (the UK view): the codes, the footer link, /go/ to Awin.
-  for (const [cc, headers] of [['GB', {}], ['', {}], ['US', {}], ['DE', { 'User-Agent': 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)' }]]) {
+  // The UK, an unknown country, Canada and Google's crawler, also from the US (the UK view): the codes, the footer link,
+  // /go/ to Awin.
+  const BOT = { 'User-Agent': 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)' };
+  for (const [cc, headers] of [['GB', {}], ['', {}], ['CA', {}], ['DE', BOT], ['US', BOT]]) {
     const tag = headers['User-Agent'] ? 'Googlebot' : cc || 'unknown';
     const index = await (await get('/discount-codes/', env, cc, headers)).text();
     for (const c of ['CLAIMFIFTY', 'CLAIMSEVFY']) assert.ok(index.includes(`<strong translate="no">${c}</strong>`), `${tag}: ${c}`);
@@ -377,12 +381,16 @@ test('L114: cached pages keep one copy per view group, so the codes and their fo
     assert.deepEqual(keys, [`https://${cgw.domain}/?gw-view=${deGroup}`, `https://${cgw.domain}/?gw-view=gb`].sort(), 'one copy per group');
     assert.ok(gb.includes(FOOTER_LINK), 'the UK copy links to the codes');
     assert.ok(!de.includes(FOOTER_LINK), 'the German copy does not');
-    // Later visits get their own group's copy: an unknown country and the US get the UK one, Germany its own.
+    // Later visits get their own group's copy: an unknown country and Canada get the UK one, Germany its own.
     assert.ok((await (await get('/', env, '')).text()).includes(FOOTER_LINK));
-    assert.ok((await (await get('/', env, 'US')).text()).includes(FOOTER_LINK));
+    assert.ok((await (await get('/', env, 'CA')).text()).includes(FOOTER_LINK));
     assert.ok(!(await (await get('/', env, 'DE')).text()).includes(FOOTER_LINK));
     assert.equal(store.size, 2, 'no other copy');
     assert.ok(!(await store.get(`https://${cgw.domain}/?gw-view=${deGroup}`).clone().text()).includes(FOOTER_LINK));
+    // The US (L141): its own copy (GRABO, with Switzerland), without the codes of the UK shops.
+    const usGroup = viewFor(cgw, 'US').group;
+    assert.ok(!(await (await get('/', env, 'US')).text()).includes(FOOTER_LINK));
+    assert.ok(store.has(`https://${cgw.domain}/?gw-view=${usGroup}`) && store.size === 3, 'one more copy, for the US group');
   } finally {
     if (before === undefined) delete globalThis.caches; else globalThis.caches = before;
   }
