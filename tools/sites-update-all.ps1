@@ -28,7 +28,7 @@ $ErrorActionPreference = 'Stop'
 $Phrase = 'ΕΓΚΡΙΝΩ ALL UPDATES'
 if (-not $OutDir) { $OutDir = Join-Path $HOME 'gear-world-reports' }
 if (-not $ToolDir) { $ToolDir = $PSScriptRoot }
-$stamp = Get-Date -Format 'yyyyMMdd_HHmmss'
+$stamp = Get-Date -Format 'yyyyMMdd_HHmmss_fff'
 
 # The steps, in order. code: the letters of the site's own phrase ("ΕΓΚΡΙΝΩ <code> UPDATE").
 $Steps = @(
@@ -62,6 +62,7 @@ function Finish([int]$code) {
     if (-not $NoClipboard) { try { Set-Clipboard -Value $text } catch { } }
     Write-Host ''
     Write-Host ('Η αναφορά γράφτηκε: {0}' -f $file)
+    if (-not $NoClipboard) { Write-Host 'Αντιγράφηκε στο πρόχειρο. Πήγαινε στη συζήτηση με το Claude «1 · Gear World Manager» και πάτα Ctrl+V.' -ForegroundColor Green }
     exit $code
 }
 
@@ -101,7 +102,7 @@ $n = 0
 $missing = @()
 foreach ($s in $Steps) {
     $n++
-    $what = 'ανεβαίνει η νέα έκδοση (πρώτα αντίγραφο ασφαλείας)'
+    $what = 'ανεβαίνει η νέα έκδοση (η προηγούμενη μένει για επαναφορά)'
     if ($s.step -eq 'remove-preview') { $what = 'σβήνεται η δοκιμαστική διεύθυνση (*-preview), αν υπάρχει' }
     if ($s.code -eq 'GROUP') { $what = 'ανεβαίνει η σελίδα gearworldgroup.com (τελευταία, μετά τα 13 sites)' }
     Say ('  {0,2}. {1,-6} {2}' -f $n, $s.code, $what)
@@ -131,13 +132,19 @@ foreach ($s in $Steps) {
     Say ''
     Say ('===== {0}/{1}: {2} =====' -f $n, $Steps.Count, $label) 'Cyan'
     $a = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $tool, '-Step', $s.step, '-Apply', '-Approve', (Step-Phrase $s), '-OutDir', $OutDir, '-NoClipboard')
+    $started = Get-Date
     & $exe @a
     $code = $LASTEXITCODE
     if ($code -ne 0) {
         Say ''
         Say ('ΠΡΟΒΛΗΜΑ στο {0} (κωδικός {1}). Σταμάτησα εδώ: τα επόμενα βήματα ΔΕΝ έτρεξαν.' -f $label, $code) 'Magenta'
         Say ('Έγιναν ήδη: {0}' -f $(if ($done.Count) { $done -join ', ' } else { 'κανένα' }))
-        Say 'Η αναφορά του εργαλείου που σταμάτησε είναι στον ίδιο φάκελο. Στείλε στο Claude αυτή την αναφορά.'
+        # The end of the failing tool's own report, so this report says why (nothing to look for by hand).
+        $rep = @(Get-ChildItem -LiteralPath $OutDir -File -ErrorAction SilentlyContinue | Where-Object { $_.LastWriteTime -ge $started.AddSeconds(-1) -and $_.Name -notlike 'SITES_UPDATE_ALL_*' } | Sort-Object LastWriteTime | Select-Object -Last 1)
+        if ($rep.Count -eq 1) {
+            Say ('Το τέλος της αναφοράς του ({0}):' -f $rep[0].Name)
+            foreach ($line in @([System.IO.File]::ReadAllLines($rep[0].FullName) | Select-Object -Last 15)) { Say ('     ' + $line) }
+        }
         Finish 12
     }
     $done.Add($label)

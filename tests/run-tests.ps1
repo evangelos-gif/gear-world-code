@@ -5351,15 +5351,20 @@ Check ($runs.Count -eq 20 -and $runs[19] -eq 'group-site|update|EGKRINO GROUP UP
 Check (@($runs | Where-Object { $_ -match '\|(update|remove-preview)\|' }).Count -eq 20) 'L131: only update and remove-preview steps'
 $order = ($runs | ForEach-Object { ($_ -split '\|')[0] + ' ' + ($_ -split '\|')[1] }) -join ','
 Check ($order -eq 'cgw-engine update,cgw-engine remove-preview,ggw-engine update,ggw-engine remove-preview,hgw-engine update,hgw-engine remove-preview,kgw-engine update,kgw-engine remove-preview,agw-cloudflare update,bgw-cloudflare update,mgw-engine update,mgw-engine remove-preview,wgw-engine update,wgw-engine remove-preview,tgw-cloudflare update,vgw-cloudflare update,sgw-cloudflare update,pgw-cloudflare update,zgw-cloudflare update,group-site update') 'L131: the order of the paste of 13/11, every engine site with its remove-preview'
-Remove-Item -LiteralPath $bLog -Force
+Remove-Item -LiteralPath $bLog -Force -ErrorAction SilentlyContinue
 $env:GW_FAKE_FAIL = 'agw-cloudflare update'
 & $exe -NoProfile -ExecutionPolicy Bypass -File $batch -Step apply -Apply -ToolDir $fakeDir -OutDir $bOut -NoClipboard -Approve 'EGKRINO ALL UPDATES' | Out-Null
 $runs = & $bLines
 Check ($LASTEXITCODE -eq 12 -and $runs.Count -eq 9 -and $runs[8].StartsWith('agw-cloudflare|update')) 'L131: a failing step stops the rest (exit 12)'
 $bRep = @(Get-ChildItem -LiteralPath $bOut -Filter 'SITES_UPDATE_ALL_APPLY_*.txt' | Sort-Object LastWriteTime | Select-Object -Last 1)
-Check ($bRep.Count -eq 1 -and ([System.IO.File]::ReadAllText($bRep[0].FullName)).Contains('AGW update')) 'L131: the report says where it stopped'
+$bText = ''
+if ($bRep.Count -eq 1) { $bText = [System.IO.File]::ReadAllText($bRep[0].FullName) }
+Check ($bText.Contains('ΠΡΟΒΛΗΜΑ στο AGW update') -and $bText.Contains('CGW update, CGW remove-preview, GGW update') -and $bText.Contains('KGW remove-preview')) 'L131: the report says where it stopped and which 8 steps already ran'
 $env:GW_FAKE_FAIL = ''
 $env:GW_FAKE_LOG = ''
+Remove-Item -LiteralPath (Join-Path $fakeDir 'zgw-cloudflare.ps1') -Force
+& $exe -NoProfile -ExecutionPolicy Bypass -File $batch -Step apply -Apply -ToolDir $fakeDir -OutDir $bOut -NoClipboard -Approve 'EGKRINO ALL UPDATES' | Out-Null
+Check ($LASTEXITCODE -eq 8) 'L131: a missing site tool stops everything before the phrase (exit 8)'
 & $exe -NoProfile -ExecutionPolicy Bypass -File $batch -Step check -OutDir $bOut -NoClipboard | Out-Null
 Check ($LASTEXITCODE -eq 0) 'L131: every real site tool is in this version'
 $phraseMiss = @()
