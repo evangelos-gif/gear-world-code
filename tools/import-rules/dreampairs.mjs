@@ -51,7 +51,8 @@ const OTHER_SECTION = /^(?:accessories|others|belts|wallets|bags)$/i;
 
 function sub(n, c, site) {
   const t = n + ' | ' + c;
-  if (W(['slippers?']).test(t)) return 'Slippers';
+  // KGW has no "Slippers" (dry run of 14 Nov 2026, L56): its slippers are in "Shoes" (InStock), so these too.
+  if (W(['slippers?']).test(t)) return site === 'kgw' ? 'Shoes' : 'Slippers';
   if (W(['sandals?', 'slides?', 'flip ?flops?']).test(t)) return site === 'kgw' ? 'Shoes' : 'Sandals';
   // KGW: children's boots are "Winter Boots" (Manager, plan of 14 Nov 2026 17:10), next to Coes and Camping World.
   if (W(['boots?', 'booties']).test(t)) return site === 'kgw' ? 'Winter Boots' : 'Boots';

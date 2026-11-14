@@ -256,5 +256,7 @@ test('Winter Boots on KGW: Coes winter boots and wellies move there (add-only, s
   const d = await rulesOf('dreampairs');
   assert.deepEqual(d.classify({ name: 'DREAM PAIRS Kids Waterproof Winter Snow Boots', feedCategory: 'Kids Boots' }), { site: 'kgw', siteCategory: 'Shoes', subcategory: 'Winter Boots' });
   assert.equal(d.classify({ name: 'DREAM PAIRS Girls Rainbow Ombre Hook and Loop Sneakers', feedCategory: 'Kids Sneakers' }).subcategory, 'Trainers');
+  assert.equal(d.classify({ name: 'DREAM PAIRS Kids Cozy Fuzzy House Slippers', feedCategory: 'Kids Slippers' }).subcategory, 'Shoes', 'KGW has no "Slippers" (L56)');
+  assert.equal(d.classify({ name: 'DREAM PAIRS Warm Fuzzy House Slippers', feedCategory: 'Slippers' }).subcategory, 'Slippers', 'WGW has "Slippers"');
   assert.equal(d.classify({ name: 'DREAM PAIRS Dakota Western Cowboy Boots', feedCategory: 'Mid-Calf Boots' }).subcategory, 'Boots', 'women\'s boots stay "Boots" on WGW');
 });
