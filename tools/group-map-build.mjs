@@ -4,7 +4,7 @@
 //
 // Source: Natural Earth (public domain) through world-atlas 2.0.2 (countries-110m; countries-50m only for the place of
 // the small countries the 110m file leaves out, such as Malta and Liechtenstein, drawn as dots). Projection: Equal
-// Earth, 2000 wide, without Antarctica, whole units, each path as short as SVG allows (relative moves, no repeated
+// Earth, 4000 wide, without Antarctica, whole units, each path as short as SVG allows (relative moves, no repeated
 // points), so the page stays light.
 //
 // The packages are not part of the repo. To build again (only when the map itself must change):
@@ -26,7 +26,8 @@ const load = async name => import(pathToFileURL(req.resolve(name)).href);
 const { feature } = await load('topojson-client');
 const { geoEqualEarth, geoPath, geoCentroid } = await load('d3-geo');
 const iso = (await load('i18n-iso-countries')).default;
-const { COUNTRY_CODES } = await import(pathToFileURL(join(dirname(fileURLToPath(import.meta.url)), '..', 'src', 'group.js')).href);
+// The listed countries from their own file, not from src/group.js, which needs the map this tool builds.
+const { COUNTRY_CODES } = await import(pathToFileURL(join(dirname(fileURLToPath(import.meta.url)), '..', 'src', 'group-countries.js')).href);
 
 const topo = name => JSON.parse(readFileSync(req.resolve(`world-atlas/${name}`), 'utf8'));
 const t110 = topo('countries-110m.json');

@@ -185,14 +185,16 @@ export function viewFor(site, country, at = now()) {
 // Gear World Hub's search (/api/products?deliver_to=, src/engine.js) keeps the views of before L151 until its cards say
 // where each retailer delivers (it then asks with &badges=1): the UK, the US and an open or strict country as on the
 // site; a European country only what delivers there; every other country, or one no retailer of the site delivers to,
-// the UK view. So the Hub never lists a product without saying where it delivers.
+// the UK view with the Hub's own bar, as before L151. So the Hub lists no more than it did before L151.
 const HUB_VIEW_COUNTRIES = [...EU_COUNTRIES, ...EEA_ONLY, 'CH'];
 export function hubViewFor(site, country, at = now()) {
   const cc = cleanCountry(country);
   const v = viewFor(site, cc, at);
   const groups = countryGroups(site);
   const own = groups.byCountry.get(cc);
-  if (cc === HOME_COUNTRY || (own && own !== groups.all)) return v;
+  // A country with a view of its own keeps it, also when that view is the all group (a site whose default retailers
+  // deliver everywhere: then "all" is exactly what delivers there, US-only shops included, lessons L141).
+  if (cc === HOME_COUNTRY || own) return v;
   const rule = HUB_VIEW_COUNTRIES.includes(cc) ? deliveryRule(site, cc) : null;
   if (!rule) return { ...homeView(site, at), country: cc };
   return { ...v, group: `hub-${cc.toLowerCase()}`, hidden: rule.hidden, only: rule.only, everyRetailer: false };

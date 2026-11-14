@@ -186,6 +186,13 @@ test('L151: the Hub\'s search keeps the views of before L151 (hubViewFor) until 
   for (const cc of ['DE', 'CA', 'GB']) assert.equal(h(config.agw, cc).everyRetailer, false, cc);
   // A strict (later: open) country: as on the site.
   assert.deepEqual(h({ ...config.agw, strictCountries: ['BE'] }, 'BE').only, ['Ottocast', 'Pneus.be', 'VEVOR']);
+  // A site whose default retailers deliver everywhere, with a US-only shop: the US view is the all group there, and the
+  // Hub keeps it (the US shop stays in, lessons L141; independent review of 14 Nov 2026).
+  const world = { ...config.tgw, deliversTo: { default: ['WORLD'], retailers: { Wavytalk: ['US'] } } };
+  assert.equal(viewFor(world, 'US', NOW).group, 'all');
+  assert.equal(h(world, 'US').hidden, null);
+  assert.equal(h(world, 'US').only, null);
+  assert.deepEqual(h(world, 'GB').hidden, ['Wavytalk']);
   // The engine uses it only for /api/products with ?deliver_to= and without &badges=1.
   assert.match(read('src/engine.js'), /const hubAsk = path === '\/api\/products' && Boolean\(url\.searchParams\.get\('deliver_to'\)\) && url\.searchParams\.get\('badges'\) !== '1';/);
 });

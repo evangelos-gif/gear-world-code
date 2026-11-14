@@ -245,7 +245,7 @@ test('L151: the products of the biggest retailer per country (one retailer acros
   assert.equal(countryState(site, stats, 'CH').missing, 'To open: 29,952 more products, 3 more retailers, one retailer has 100% (max 50%)');
   // A country that meets the rule but is not on the list yet: it says so, it does not open by itself.
   const big = { countries: { DE: { products: 40000, retailers: 5, top: 12000 } } };
-  assert.equal(countryState(site, big, 'DE').missing, 'Meets the rule: opens with the next update of the sites');
+  assert.equal(countryState(site, big, 'DE').missing, 'Meets the rule: can open in a future update of all the sites');
   assert.equal(countryState(site, big, 'DE').kind, 'all');
   // On the page: every country of the list with its state, the rule in words, the country page too.
   const page = groupPage(site, stats, 'GB');
@@ -312,8 +312,19 @@ test('L152: the world map and the close-up of Europe: shapes from the repo, blue
   }
   for (const c of ['m0', 'm1', 'm2', 'm3', 'm4']) {
     const fill = (block.match(new RegExp(`\\.gmap-svg \\.${c} \\{ fill: (#[0-9a-f]{6}); \\}`)) || [])[1];
-    assert.ok(fill && block.includes(`.sw.${c} { background: ${fill}; }`), `${c}: the same colour on the map and in the legend`);
+    assert.ok(fill && block.includes(`.sw.${c} { background: ${fill};`), `${c}: the same colour on the map and in the legend`);
   }
   assert.match(block, /vector-effect: non-scaling-stroke/);
+  // Grey and the blues apart by lightness too, not only by colour (the owner's colour vision; review of 14 Nov 2026):
+  // a contrast of at least 1.5 between each step, grey < the first blue < ... < the last.
+  const lum = hex => {
+    const f = c => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4);
+    const [r, g, b] = [1, 3, 5].map(i => f(parseInt(hex.slice(i, i + 2), 16) / 255));
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  };
+  const fills = ['m0', 'm1', 'm2', 'm3', 'm4'].map(c => block.match(new RegExp(`\\.gmap-svg \\.${c} \\{ fill: (#[0-9a-f]{6}); \\}`))[1]);
+  for (let i = 1; i < fills.length; i++) assert.ok((lum(fills[i]) + 0.05) / (lum(fills[i - 1]) + 0.05) >= 1.5, `${fills[i - 1]} -> ${fills[i]}: lighter by 1.5 or more`);
+  // Orange wins over the grey outline of a coming country with no products yet.
+  assert.ok(block.indexOf('.gmap-svg path.mc, .gmap-svg circle.mc {') > block.indexOf('.gmap-svg path.m0, .gmap-svg circle.m0 {'));
   assert.notEqual(site.assetVersion, '2026-11-14-group-9', 'a new asset version for the new CSS');
 });

@@ -1,24 +1,16 @@
 // Company page for retailers and affiliate networks: who runs the sites, which sites, how we promote.
 // One page, no cookies, no database. Live product counts come from each site's public /api/stats.
-import { html, toString } from './lib/html.js';
+import { html, raw, toString } from './lib/html.js';
 import { htmlResponse, textResponse, redirect } from './lib/http.js';
 import { COUNTRY_NAMES, WORLDWIDE } from './lib/delivery.js';
 import { listCovers, cleanCountry } from './lib/visibility.js';
 import { OPEN_COUNTRIES, OPEN_RULE, openCheck } from './lib/open-countries.js';
 import { MAP_SIZE, MAP_EUROPE, MAP_SHAPES, MAP_DOTS } from './group-map.js';
+import { CONTINENTS, COUNTRY_CODES } from './group-countries.js';
+
+export { CONTINENTS, COUNTRY_CODES };
 
 const STATS_TTL = 3600;
-
-// Where the group page shows countries (lessons L130): every country the sites' deliversTo can name (src/lib/delivery.js),
-// by continent. A retailer that delivers worldwide counts in every country, and also on the "worldwide" line.
-export const CONTINENTS = [
-  ['Europe', ['GB', 'IE', 'FR', 'DE', 'AT', 'CH', 'NL', 'BE', 'LU', 'IT', 'ES', 'PT', 'GR', 'CY', 'MT', 'PL', 'CZ', 'SK', 'HU',
-    'RO', 'BG', 'HR', 'SI', 'AL', 'DK', 'SE', 'NO', 'FI', 'IS', 'LI', 'EE', 'LV', 'LT']],
-  ['North America', ['US', 'CA', 'MX']],
-  ['Asia', ['JP']],
-  ['Oceania', ['AU', 'NZ']]
-];
-export const COUNTRY_CODES = CONTINENTS.flatMap(([, list]) => list);
 
 const retailerKey = n => String(n).replace(/\s+UK$/i, '').trim().toLowerCase();
 
@@ -101,7 +93,9 @@ async function cachedStats(site, ctx) {
   return stats;
 }
 
-const fmt = n => new Intl.NumberFormat('en-GB').format(n);
+// One formatter for the whole Worker (the home page formats a few hundred numbers and names per visit).
+const NUMBER_FORMAT = new Intl.NumberFormat('en-GB');
+const fmt = n => NUMBER_FORMAT.format(n);
 const asset = (site, p) => `/assets/${p}?v=${encodeURIComponent(site.assetVersion)}`;
 
 // Legal pages (lessons L17). They describe this company page only: one page, no forms, no cookies of its own.
@@ -240,9 +234,15 @@ export function legalPage(site, path) {
 const THE = ['GB', 'US', 'NL'];
 const inName = cc => (THE.includes(cc) ? `the ${countryName(cc)}` : countryName(cc));
 
+const NAMES = new Map();
+let regionNames = null;
 export function countryName(cc) {
   if (COUNTRY_NAMES[cc] && cc !== 'EU') return COUNTRY_NAMES[cc];
-  try { return new Intl.DisplayNames(['en-GB'], { type: 'region' }).of(cc) || cc; } catch { return cc; }
+  if (NAMES.has(cc)) return NAMES.get(cc);
+  let name = cc;
+  try { regionNames = regionNames || new Intl.DisplayNames(['en-GB'], { type: 'region' }); name = regionNames.of(cc) || cc; } catch { name = cc; }
+  NAMES.set(cc, name);
+  return name;
 }
 
 const countryPath = cc => `/countries/${cc.toLowerCase()}/`;
@@ -265,7 +265,8 @@ export function countryState(site, stats, cc) {
   const us = cc === 'US';
   const status = us ? 'Shows what ships to the US, on the sites that have it' : 'Shows all products, each with where its retailer delivers';
   const short = us ? 'Own view: what ships to the US' : 'Shows all with delivery badge';
-  if (check.meets) return { kind: us ? 'us' : 'all', check, status, short, missing: 'Meets the rule: opens with the next update of the sites' };
+  // The list of open countries is written by hand: a country that meets the rule opens only with an update of the sites.
+  if (check.meets) return { kind: us ? 'us' : 'all', check, status, short, missing: 'Meets the rule: can open in a future update of all the sites' };
   const m = check.missing;
   const parts = [
     m.products ? `${fmt(m.products)} more ${m.products === 1 ? 'product' : 'products'}` : '',
@@ -302,9 +303,10 @@ function worldMap(site, stats) {
   const other = w.products ? `every other country, ${fmt(w.products)} products from ${w.retailers === 1 ? 'a retailer that delivers' : 'retailers that deliver'} worldwide` : 'no products yet';
   const cls = cc => [shade(listed.has(cc) ? (cs[cc] || { products: 0 }).products : w.products), listed.has(cc) ? 'mp' : '', coming(site, cc) ? 'mc' : ''].filter(Boolean).join(' ');
   const draw = (europe, r) => html`${MAP_SHAPES.filter(s => !europe || s[2]).map(([cc, d]) => {
-    if (listed.has(cc)) return html`<a href="${countryPath(cc)}" tabindex="-1"><title>${titleOf(cc)}</title><path class="${cls(cc)}" d="${d}"/></a>`;
-    if (cc) return html`<path class="${cls(cc)}" d="${d}"><title>${countryName(cc)}: ${other}.</title></path>`;
-    return html`<path class="${cls(cc)}" d="${d}"/>`;
+    // d: the repo's own drawing (src/group-map.js, only path letters and numbers, tests/worker/group.test.mjs): as it is.
+    if (listed.has(cc)) return html`<a href="${countryPath(cc)}" tabindex="-1"><title>${titleOf(cc)}</title><path class="${cls(cc)}" d="${raw(d)}"/></a>`;
+    if (cc) return html`<path class="${cls(cc)}" d="${raw(d)}"><title>${countryName(cc)}: ${other}.</title></path>`;
+    return html`<path class="${cls(cc)}" d="${raw(d)}"/>`;
   })}${MAP_DOTS.map(([cc, x, y]) => html`<a href="${countryPath(cc)}" tabindex="-1"><title>${titleOf(cc)}</title><circle class="${cls(cc)}" cx="${x}" cy="${y}" r="${r}"/></a>`)}`;
   return html`<figure class="gmap">
   <svg class="gmap-svg" viewBox="0 0 ${MAP_SIZE[0]} ${MAP_SIZE[1]}" aria-hidden="true" focusable="false">${draw(false, 14)}</svg>
