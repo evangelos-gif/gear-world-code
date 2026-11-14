@@ -72,7 +72,11 @@ export default {
   // MASON New York (about 200 countries) and Needs No Label (the UK, 10 EU countries, Norway, the US, Canada, Australia,
   // New Zealand) ship to the UK and the US: both views. Needs No Label's EU countries are not listed yet (one more page copy
   // per country group, L107); its cards say the UK and the US.
-  deliversTo: { default: ['GB'], retailers: { '100% PURE': ['EU', 'CH', 'NO'], FOREO: ['EU'], Jeulia: ['US'], 'Dream Pairs': ['US'],
+  // Ireland: Bazta IE and Plusshop IE (ie.bazta.com, ie.plusshop.com, read 14 Nov 2026: "only delivered to addresses in
+  // Ireland"; round 2c, L144).
+  // Uhrcenter (uhrcenter.de ships to the UK, the EU and more, not the US; read 14 Nov 2026): its names are German, so only
+  // where German is spoken (round 2c, L144).
+  deliversTo: { default: ['GB'], retailers: { 'Bazta IE': ['IE'], 'Plusshop IE': ['IE'], Uhrcenter: ['DE', 'AT', 'CH', 'LI', 'LU'], '100% PURE': ['EU', 'CH', 'NO'], FOREO: ['EU'], Jeulia: ['US'], 'Dream Pairs': ['US'],
     'MASON New York': ['GB', 'US'], 'Needs No Label': ['GB', 'US'] } },
   // 100% PURE sells in euros: its prices stay in euros, with "≈ £…" next to them (lessons L25, L63). MASON New York sells
   // in US dollars and is in the UK view: foreignCurrencies fetches that rate too ("≈ £…", as GRABO on CGW).

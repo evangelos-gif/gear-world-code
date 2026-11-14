@@ -41,8 +41,14 @@ export default {
 
   // Where the retailers deliver (lessons L62): every product card and product page says it, so a visitor from
   // any country sees at once whether they can order. default: every retailer not named in retailers.
-  // Country codes: src/lib/delivery.js. All the retailers here are UK shops.
-  deliversTo: { default: ['GB'] },
+  // Country codes: src/lib/delivery.js. The retailers not named are UK shops.
+  // Massive import round 2c (14 Nov 2026, lessons L144), each with the countries of its own shipping page (L62):
+  // Back to the Office IE (backtotheoffice.ie: Ireland, and Northern Ireland, which is in the UK view with the UK shop);
+  // MonsGeek (monsgeek.eu, read 14 Nov 2026: from China to the UK, the US, Switzerland, Iceland, Norway and the EU except
+  // Malta, from Germany to most of the EU; Liechtenstein is in neither list).
+  deliversTo: { default: ['GB'], retailers: { 'Back to the Office IE': ['IE'], MonsGeek: ['GB', 'US', 'CH', 'IS', 'NO', 'AT', 'BE', 'BG', 'HR', 'CY', 'CZ', 'DK', 'EE', 'FI', 'FR', 'DE', 'GR', 'HU', 'IE', 'IT', 'LV', 'LT', 'LU', 'NL', 'PL', 'PT', 'RO', 'SK', 'SI', 'ES', 'SE'] } },
+  // A retailer that sells in euros (the two above) keeps its euro prices, with "≈ £…" next to them.
+  convertForeignPrices: true,
 
   // 5 display currencies, the same as the other Gear World sites. Retailers charge in GBP, so the GBP
   // price always stays on the page and the converted price is shown next to it as "≈" (lessons L25).

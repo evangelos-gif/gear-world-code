@@ -41,19 +41,21 @@ const VIEWS = [...OWN_VIEW.map(c => [c, c, '']), ['CA', 'CA', ''], ['unknown', '
 //        (Ottocast, VEVOR), and CY, IE, LU, MT, IS, LI (VEVOR); massive import round 2b, 14 Nov 2026;
 //   BGW: the 27 EU countries, IS, LI and NO (VEVOR);
 //   GGW: the US (Click and Grow); HGW: the 27 EU countries (SwitchBot) and the US (Kincmo, AlorAir, Mosaic Weighted
-//        Blankets); KGW: the US (Dream Pairs, Kaiya Baby, Diecast Models Wholesale).
+//        Blankets); KGW: the US (Dream Pairs, Kaiya Baby, Diecast Models Wholesale);
+//   round 2c (14 Nov 2026, lessons L144): Ireland on GGW, HGW and KGW (Bazta IE, Plusshop IE), and Spain, Italy and
+//        Poland on AGW (Neumaticos.es, Pneumatici.it, Tanie-Opony.pl, with Ottocast and VEVOR).
 // The UK view (the UK, a country with no view of its own on that site, Canada, an unknown country, Google's crawlers
 // from anywhere) always has the codes: the US on AGW and BGW (nobody there ships to the US), Switzerland on BGW, GGW, HGW
 // and KGW, Iceland, Liechtenstein and Norway on HGW, every European country on GGW and KGW.
 const UK_VIEW = ['GB', 'CA', 'unknown', 'Googlebot', 'Googlebot US'];
 const seeing = (also, except = []) => Object.fromEntries(VIEWS.map(([name]) => [name,
   !except.includes(name) && (also === 'all' || UK_VIEW.includes(name) || also.includes(name))]));
-const SHOWN = { CGW: seeing([]), AGW: seeing(['US']), BGW: seeing(['CH', 'US']), GGW: seeing('all', ['US']), HGW: seeing(['CH', 'IS', 'LI', 'NO']),
-  KGW: seeing('all', ['US']) };
+const SHOWN = { CGW: seeing([]), AGW: seeing(['US']), BGW: seeing(['CH', 'US']), GGW: seeing('all', ['US', 'IE']), HGW: seeing(['CH', 'IS', 'LI', 'NO']),
+  KGW: seeing('all', ['US', 'IE']) };
 // How many view groups each site has (the UK one included): CGW gb, at-de, ch-us and one for the rest of Europe; AGW gb
-// (with the US), be, ch and two for the rest; BGW gb (with CH and the US) and one for the EU, IS, LI, NO; GGW and KGW gb
-// and us; HGW gb, one for the EU and us.
-const GROUPS = { CGW: 4, AGW: 5, BGW: 2, GGW: 2, HGW: 3, KGW: 2 };
+// (with the US), be, es, it, pl, ch and two for the rest; BGW gb (with CH and the US) and one for the EU, IS, LI, NO;
+// GGW and KGW gb, us and ie; HGW gb, one for the EU, ie and us.
+const GROUPS = { CGW: 4, AGW: 8, BGW: 2, GGW: 3, HGW: 4, KGW: 3 };
 // What the bar says in the UK view while the codes of the config run (promos/promos.js, 10 Nov 2026).
 const WORDS = {
   CGW: ['{0} active codes', '4'], GGW: ['{0} active codes', '4'], AGW: ['{0} active codes', '2'], BGW: ['{0} active codes', '2'],

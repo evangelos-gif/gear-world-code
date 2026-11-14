@@ -49,7 +49,9 @@ export default {
   // Where the retailers deliver (lessons L62): every product card and product page says it. All the first shops (Joybuy UK,
   // Back to the Office, PCHUB.UK, PcNova, Plusshop UK, Bazta UK) are UK shops. VEVOR (second wave): the Dutch shop vevor.nl.
   // VEVOR (vevor.nl) delivers to the EU and the EEA, not to the UK (owner, 9 Nov 2026, lessons L107).
-  deliversTo: { default: ['GB'], retailers: { VEVOR: ['EU', 'IS', 'LI', 'NO'] } },
+  // Round 2c (14 Nov 2026, lessons L144): Back to the Office IE (Ireland only) and MonsGeek (monsgeek.eu: the UK, the US,
+  // Switzerland, Iceland, Norway and the EU except Malta), each from its own shipping page (L62).
+  deliversTo: { default: ['GB'], retailers: { VEVOR: ['EU', 'IS', 'LI', 'NO'], 'Back to the Office IE': ['IE'], MonsGeek: ['GB', 'US', 'CH', 'IS', 'NO', 'AT', 'BE', 'BG', 'HR', 'CY', 'CZ', 'DK', 'EE', 'FI', 'FR', 'DE', 'GR', 'HU', 'IE', 'IT', 'LV', 'LT', 'LU', 'NL', 'PL', 'PT', 'RO', 'SK', 'SI', 'ES', 'SE'] } },
 
   displayCurrencies: ['GBP', 'EUR', 'ALL', 'RON', 'RUB'],
   cart: { name: 'Saved list', maxItems: 30 },

@@ -277,6 +277,31 @@ export function firstHttpsImage(rec, map) {
   return '';
 }
 
+// "tyreNames" (massive import round 2c, 14 Nov 2026, lessons L144): the tyre shops of the Pneus.be network (Neumaticos ES,
+// Pneumatici IT, Tanie-Opony PL) give only the model as the name ("Alenza 001 RFT") and the size as the description
+// ("275/45 R20 110Y"). The site name is brand + model + size, as Pneus.be's on AGW: "Bridgestone Alenza 001 RFT 275/45 R20
+// 110Y". Only car and van tyres: the size must be metric or flotation with a radial "R" ("185 R14 102/100R",
+// "31x10.50 R15 109S"); motorbike, scooter and quad tyres ("80/100 D17 53S", "150/80 B16 71H", "20x11.00 D9 38N") and old
+// markings ("185/70 VR13 86V", also motorbike) are left out, and so are the wheels, whose names are a bare code ("RC27").
+// A car or van tyre is 125, 135 ... 355 mm wide (the width ends in 5); a radial motorbike tyre is 110, 120 ... 240
+// ("Continental ContiRoadAttack 3 120/70 ZR18 59W", first plan of 14 Nov 2026).
+const TYRE_SIZE = /^(?:\d{2}5(?:\/\d{2,3})?|\d{2}x\d{1,2}(?:[.,]\d{1,2})?)\s+Z?R\s?\d{2}(?:[.,]5)?C?(?:\s|$)/i;
+// "HANKOOK", "MICHELIN" -> "Hankook", "Michelin"; short capitals stay ("BKT").
+export function tyreBrand(brand) {
+  const b = String(brand || '').trim();
+  return /^[A-Z][A-Z0-9 \-]{3,}$/.test(b) ? b.toLowerCase().replace(/(^|[\s\-])([a-z])/g, (m, s, c) => s + c.toUpperCase()) : b;
+}
+export function tyreProduct(model, brand, description, merchantCategory) {
+  if (!/^tyres?$/i.test(String(merchantCategory || '').trim())) return { ok: false, reason: 'tyre shop: not a tyre (a wheel with only a code as its name)' };
+  const size = String(description || '').replace(/\s+/g, ' ').trim();
+  if (!TYRE_SIZE.test(size)) return { ok: false, reason: 'tyre shop: not a car or van tyre size (motorbike, scooter, quad or old marking)' };
+  const b = tyreBrand(brand);
+  let m = String(model || '').replace(/\s+/g, ' ').trim();
+  if (!m) return { ok: false, reason: 'no product name' };
+  if (b && m.toLowerCase().startsWith(b.toLowerCase() + ' ')) m = m.slice(b.length + 1);
+  return { ok: true, name: [b, m, m.includes(size) ? '' : size].filter(Boolean).join(' '), brand: b };
+}
+
 // A feed that cuts every name at a fixed length (PCHUB.UK: 70 characters, "... Gigabit Ethernet Wir"): the cut last word,
 // then any dangling separator, small word or unclosed bracket, are taken off.
 export function cutToWord(name) {
@@ -664,8 +689,14 @@ export async function planImport({ archive, sourcesFile, outDir, now = new Date(
         }
         const merchantCategory = cleanText(pick(rec, map.merchantCategory));
         const awinCategory = cleanText(pick(rec, map.awinCategory));
-        const brand = cleanText(pick(rec, map.brand));
+        let brand = cleanText(pick(rec, map.brand));
         const price = parsePrice(pick(rec, map.price));
+        if (source.tyreNames) {
+          const tyre = tyreProduct(name, brand, cleanText(pick(rec, map.description)), merchantCategory);
+          if (!tyre.ok) { reject(tyre.reason, `${truncate(name, 60)} ${truncate(cleanText(pick(rec, map.description)), 30)} | ${merchantCategory}`); continue; }
+          name = tyre.name;
+          brand = tyre.brand;
+        }
         const short = `${truncate(name, 90)} | ${Number.isFinite(price) ? price.toFixed(2) : '?'} | ${truncate(merchantCategory || awinCategory, 50)}`;
 
         if (!name) { reject('no product name', short); continue; }
@@ -978,7 +1009,7 @@ if (process.argv[1] && pathToFileURL(resolve(process.argv[1])).href === import.m
   const outDir = val('out');
   const sourcesFile = val('sources') || join(here, '..', 'sites', 'tgw', 'sources.json');
   if (!archive || !outDir) {
-    console.error('usage: node tools/tgw-import-plan.mjs --archive <dir> --out <dir> [--sources <file>]');
+    console.error('usage: node tools/tgw-import-plan.mjs --archive <dir> --out <dir> [--sources <file>] [--only 129295,113754]');
     process.exit(2);
   }
   if (existsSync(join(outDir, 'report.txt'))) {
@@ -986,7 +1017,10 @@ if (process.argv[1] && pathToFileURL(resolve(process.argv[1])).href === import.m
     process.exit(2);
   }
   mkdirSync(outDir, { recursive: true });
-  const { stats, sqlFiles } = await planImport({ archive, sourcesFile, outDir });
+  // --only (round 2c, 14 Nov 2026, lessons L144): just these shops, so a new shop does not re-import the others from older
+  // feeds (their rows would get today's "Price checked" date, L107).
+  const only = val('only') ? val('only').split(',').map(x => x.trim()).filter(Boolean) : null;
+  const { stats, sqlFiles } = await planImport({ archive, sourcesFile, outDir, only });
   console.log(`rows ${stats.rows} | would import ${stats.accepted} | SQL files ${sqlFiles.length} (not executed)`);
   console.log(`report: ${join(outDir, 'report.txt')}`);
 }

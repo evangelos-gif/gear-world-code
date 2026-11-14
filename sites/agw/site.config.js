@@ -29,13 +29,18 @@ export default {
   // Retailers from other countries are welcome: their prices stay in their own currency, with "≈ £…" next
   // to them, and a small flag next to the retailer name (as on Construction Gear World).
   convertForeignPrices: true,
+  // Rates for the shops outside the visitor's display currencies: Ottocast (US dollars), Tanie-Opony.pl (zloty), so their
+  // prices get "≈ £…" too (lessons L63, L144).
+  foreignCurrencies: ['USD', 'PLN'],
   retailerCountries: { VEVOR: 'NL' },
   // Where the retailers deliver (lessons L62, L107): the product cards and pages say it, and a visitor sees only the
   // retailers that deliver to their country (src/lib/visibility.js). default: every retailer not named (UK shops).
   // Pneus.be: its own Belgian site (pneus.be, read 9 Nov 2026: Luxembourg and the Netherlands have their own sites), so
   // Belgium only. VEVOR: the Dutch shop vevor.nl delivers to the EU and the EEA, not to the UK (owner, 9 Nov 2026).
   // Massive import round 2b (14 Nov 2026, lessons L107): European shops, each with the countries of its own shipping page (L62).
-  deliversTo: { default: ['GB'], retailers: { 'Pneus.be': ['BE'], VEVOR: ['EU', 'IS', 'LI', 'NO'], Ottocast: ['DE', 'FR', 'NL', 'BE', 'AT', 'CH', 'ES', 'IT', 'PT', 'GR', 'PL', 'CZ', 'SK', 'HU', 'SE', 'FI', 'DK', 'NO', 'EE', 'LV', 'LT', 'HR', 'SI', 'BG', 'RO'] } },
+  // Round 2c (14 Nov 2026, L144): the other tyre sites of the Pneus.be network, each for its own country (neumaticos.es: its
+  // sellers deliver in Spain, Portugal has its own site pneus.com.pt; pneumatici.it Italy; tanie-opony.pl Poland).
+  deliversTo: { default: ['GB'], retailers: { 'Pneus.be': ['BE'], 'Neumaticos.es': ['ES'], 'Pneumatici.it': ['IT'], 'Tanie-Opony.pl': ['PL'], VEVOR: ['EU', 'IS', 'LI', 'NO'], Ottocast: ['DE', 'FR', 'NL', 'BE', 'AT', 'CH', 'ES', 'IT', 'PT', 'GR', 'PL', 'CZ', 'SK', 'HU', 'SE', 'FI', 'DK', 'NO', 'EE', 'LV', 'LT', 'HR', 'SI', 'BG', 'RO'] } },
   // Lessons L107: a UK visitor sees UK retailers only, so the texts no longer say "retailers in the UK and Europe".
   retailersFromEurope: false,
 

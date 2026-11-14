@@ -12,7 +12,8 @@
 
   -Cleanups 'viaduct-sizes:mgw,viaduct-sizes:wgw': after the pairs, these clean-ups (legacy-cleanup.ps1). Without -Apply
   read-only; with -Apply they are covered by the one phrase. Their reports go into the same batch report.
-  -Sites 'agw:104931,pgw:69178+113754,sgw:19475': the new-engine sites (AGW, PGW, SGW, VGW, BGW, ZGW) with the Awin
+  -Sites 'agw:104931,pgw:69178+113754,sgw:19475': the new-engine sites (AGW, PGW, SGW, VGW, BGW, ZGW, and TGW since
+  14 Nov 2026, lessons L144: only the new shops, not a re-import of the others from older feeds) with the Awin
   advertisers to import there (several joined with +). Each runs <site>-cloudflare.ps1 -Step import -Only <advertisers>:
   without -Apply its plan only, with -Apply its import (Time Travel restore point first), covered by the one phrase.
   -Pairs none: no legacy imports, only the clean-ups, -Sites and/or TGW.
@@ -79,14 +80,14 @@ $siteList = @()
 foreach ($e in ($Sites -split ',')) {
     $t = $e.Trim().ToLower()
     if (-not $t) { continue }
-    if ($t -notmatch '^(agw|pgw|sgw|vgw|bgw|zgw):[0-9]{2,9}(\+[0-9]{2,9})*$') {
+    if ($t -notmatch '^(agw|pgw|sgw|vgw|bgw|zgw|tgw):[0-9]{2,9}(\+[0-9]{2,9})*$') {
         Write-Host ('Λάθος site:καταστήματα στο -Sites: {0} (π.χ. agw:104931 ή pgw:69178+113754)' -f $e) -ForegroundColor Red
         exit 2
     }
     $parts = $t -split ':'
     $siteList += New-Object PSObject -Property @{ site = $parts[0]; only = ($parts[1] -replace '\+', ',') }
 }
-$paidSites = @('pgw', 'sgw', 'bgw')
+$paidSites = @('pgw', 'sgw', 'bgw', 'tgw')
 
 # One phrase for the whole batch (owner, 8 Nov 2026). Accents, case and Latin "EGKRINO" do not matter.
 $AllPhrase = 'ΕΓΚΡΙΝΩ ALL IMPORTS'
