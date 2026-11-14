@@ -81,3 +81,22 @@ test('L132: dry run of 14 Nov on MGW: a charm named after a bag is jewellery, go
   assert.equal(h('LO Packing cubes').subcategory, 'Accessories');
   assert.equal(hg.classify({ name: 'Lava 30', feedCategory: 'Hiking backpacks' }).subcategory, 'Bags');
 });
+
+test('L133: Needs No Label (massive import of 14 Nov) on WGW: sizes off the name, Miss Cecilia jewellery from "General Clothing", tops, trousers and jumpsuits out', async () => {
+  const nn = await import('../../tools/import-rules/needsnolabel.mjs');
+  assert.equal(nn.displayName('Blue Animal Smock Waisted Midi Dress | Size: 12'), 'Blue Animal Smock Waisted Midi Dress');
+  assert.equal(nn.displayName('Multicoloured Floral Ruched Top | Clothing Size: 8'), 'Multicoloured Floral Ruched Top');
+  assert.equal(nn.displayBrand('Needs no label'), 'Needs No Label');
+  assert.equal(nn.displayBrand('Miss Cecilia'), 'Miss Cecilia');
+  const c = (name, cat) => nn.classify({ name, feedCategory: cat });
+  const W = "Clothing & Accessories > Women's Clothing > ";
+  assert.deepEqual(c('Green Animal Chiffon Maxi Dress | Size: 6', W + "Women's Dresses & Skirts"), { site: 'wgw', siteCategory: 'Clothing', subcategory: 'Dresses' });
+  assert.equal(c('Pink Animal Satin Midi Skirt | Size: 6', W + "Women's Dresses & Skirts").subcategory, 'Skirts');
+  assert.equal(c('Cream Soft Belted Jacket | Size: XS', W + "Women's Tops").subcategory, 'Jackets & Coats');
+  assert.deepEqual(c('Drift Hoop Earrings', 'Clothing & Accessories > General Clothing'), { site: 'wgw', siteCategory: "Women's Jewellery", subcategory: 'Earrings' });
+  assert.equal(c('Arc Cuff Bangle', 'Clothing & Accessories > General Clothing').subcategory, 'Bracelets');
+  assert.equal(c('Black Asymmetric Feather Cuff Dress | Size: 8', W + "Women's Dresses & Skirts").subcategory, 'Dresses');
+  for (const n of ['White Puff Sleeve Blouse | Size: 16', 'Black Sequin Jersey Jumpsuit | Size: 8', 'Linen Stripe Co-ord Trousers | Size: M', 'Black Floral Relaxed Co-ord Shorts | Size: 8']) assert.ok(c(n, W + "Women's Tops").reject, n);
+  assert.equal(nn.RULES.retailer, 'Needs No Label');
+  assert.match('Needs No Label', /^[A-Za-z0-9 .\-]{2,40}$/, 'wrangler-safe shop name (L63)');
+});
