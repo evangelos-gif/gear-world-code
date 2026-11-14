@@ -163,14 +163,20 @@ try {
       check(worlds.length === 13 && worlds.every(w => /^https:\/\/[a-z]+gearworld\.com\/$/.test(w.href)), `${tag}: 13 Gear World cards with their sites (BGW and PGW since 31/10/2026, ZGW since 1/11/2026)`, worlds.map(w => w.world).join(','));
       if (locale === 'el-GR') check(worlds[0].title === 'Εργαλεία & ρούχα εργασίας' || /[Α-Ωα-ω]/.test(worlds[0].title), `${tag}: world titles in Greek`, worlds[0].title);
 
-      // deals: from hub-deals.json, to site pages only
-      await page.locator('.gwh2-deal').first().waitFor({ state: 'attached', timeout: 5000 }).catch(() => {});
-      const deals = await page.$$eval('.gwh2-deal', els => els.map(e => ({ href: e.getAttribute('href'), end: e.querySelector('.gwh2-deal-end').textContent })));
+      // deals: from hub-deals.json, to site pages only (the list the script fills; the «Featured pick» card of L121 is
+      // a card of the same look outside it)
+      await page.locator('#gwh2Deals .gwh2-deal').first().waitFor({ state: 'attached', timeout: 5000 }).catch(() => {});
+      const deals = await page.$$eval('#gwh2Deals .gwh2-deal', els => els.map(e => ({ href: e.getAttribute('href'), end: e.querySelector('.gwh2-deal-end').textContent })));
       check(deals.length >= 1 && deals.length <= 4, `${tag}: deals shown (at most 4)`, String(deals.length));
       check(deals.every(d => /^https:\/\/[a-z]+gearworld\.com\/discount-codes\/[a-z0-9-]+\/$/.test(d.href)), `${tag}: every deal links to a site page, never /go/ or /out/`, deals.map(d => d.href).join(' '));
       check(deals.every(d => d.end && d.end.length > 3), `${tag}: every deal shows its end date`, deals.map(d => d.end).join(' | '));
       const allLinks = await page.$$eval('a[href]', els => els.map(e => e.getAttribute('href')));
       check(!allLinks.some(h => /\/(go|out)\//.test(h)), `${tag}: no /go/ or /out/ link on the page`);
+      // Lessons L121: ONE Sovrn Commerce link, visible, sponsored and nofollow, never the Sovrn script. Read from the
+      // page only: never opened (Sovrn counts only the clicks of visitors).
+      const sovrn = await page.$$eval('a[href^="https://sovrn.co/"]', els => els.map(e => ({ rel: e.getAttribute('rel'), target: e.getAttribute('target'), shown: e.getClientRects().length > 0 && getComputedStyle(e).visibility !== 'hidden' })));
+      const sovrnScript = await page.$$eval('script[src]', els => els.some(e => /sovrn|viglink/i.test(e.getAttribute('src'))));
+      check(sovrn.length === 1 && sovrn[0].rel === 'sponsored nofollow noopener' && sovrn[0].target === '_blank' && sovrn[0].shown && !sovrnScript, `${tag}: one visible Sovrn link, sponsored nofollow, no Sovrn script (L121)`, JSON.stringify(sovrn));
 
       // Google Ads review (7/11/2026, lessons L101): no sponsored card, "About" opens /about/, the footer says who
       // runs Gear World and that it sells nothing (in the page's language).
@@ -195,7 +201,7 @@ try {
       // "paniers" and "Baskets" are gone), and the retailer of every deal stays untranslated.
       const l103 = words.body.match(/\bpartners?\b|sponsor|συνεργαζόμεν|\bpaniers?\b|\bBaskets\b|shopping|Boxing Day and January sales/i);
       check(!l103, `${tag}: no partner, sponsor or basket words on the page (L103)`, l103 ? l103[0] : '');
-      const dealNames = await page.$$eval('.gwh2-deal-retailer', els => els.map(e => e.getAttribute('translate')));
+      const dealNames = await page.$$eval('#gwh2Deals .gwh2-deal-retailer', els => els.map(e => e.getAttribute('translate')));
       check(dealNames.length >= 1 && dealNames.every(t => t === 'no') && !(await page.$('.gwh2-deal-shop')), `${tag}: the retailer of every deal is translate="no" (L103)`, dealNames.join(','));
 
       if (full) {
