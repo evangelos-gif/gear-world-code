@@ -70,7 +70,9 @@ const base = `http://127.0.0.1:${server.address().port}`;
 // ---------- fixed test answers ----------
 const product = (site, id, price, name) => ({
   id, product_id: id, site, site_name: site.toUpperCase(), site_url: `https://${site}.example.invalid`, product_name: name,
-  brand: 'Test Brand', retailer: 'Test Shop', price, currency: 'GBP', image_url: '', product_url: `https://${site}.example.invalid/?search=x&highlight=${id}`
+  brand: 'Test Brand', retailer: 'Test Shop', price, currency: 'GBP', image_url: '', product_url: `https://${site}.example.invalid/?search=x&highlight=${id}`,
+  // Lessons L153: where the retailer delivers, as /api/search passes it on from the site.
+  delivers_to: ['GB', 'IE', 'FR', 'DE']
 });
 const searchAnswer = url => {
   const q = url.searchParams.get('q') || '';
@@ -215,6 +217,14 @@ try {
         check(last && last.searchParams.get('q') === 'perfume' && last.searchParams.get('worlds') === 'wgw' && last.searchParams.get('max_price') === '25', `${tag}: gift finder asks only WGW, up to £25`, last ? last.search : 'no request');
         const gifts = await page.$$eval('#gwh2GiftResults .gwh-search-item', els => els.length);
         check(gifts === 1, `${tag}: gift ideas within the price`, `${gifts} shown`);
+        // L153: every card says where its retailer delivers, the retailer name untranslated, 3 countries then "+1".
+        const ship = await page.$$eval('#gwh2GiftResults .gwh-search-item', els => els.map(e => {
+          const s = e.querySelector('.gwh-search-ship');
+          const name = s && s.querySelector('[translate="no"]');
+          return s ? { text: s.textContent.trim(), name: name ? name.textContent : '', codes: s.getAttribute('data-ship') } : null;
+        }));
+        check(ship.length > 0 && ship.every(s => s && s.name === 'Test Shop' && s.codes === 'GB IE FR DE' && /\+1$/.test(s.text) && s.text.includes('Test Shop')),
+          `${tag}: every gift card says "<retailer> delivers to: ..." (L153)`, JSON.stringify(ship[0] || null));
         await page.click('[data-gwh2-budget="3"]');
         await page.waitForTimeout(300);
         const any = searches[searches.length - 1];

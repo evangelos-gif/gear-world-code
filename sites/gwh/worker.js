@@ -269,6 +269,10 @@ const hubCore = {
           endpoint.searchParams.set("page", "1");
           endpoint.searchParams.set("limit", "8");
           if (deliverTo) endpoint.searchParams.set("deliver_to", deliverTo);
+          // GWH-DELIVERY-BADGES (lessons L151, L153): every card of the Hub says where its retailer delivers (delivers_to
+          // below), so the Hub asks for the site's own view of the country: since L151 a country that is not open sees
+          // all the products there. A site of before L151 ignores badges=1 and answers as before.
+          endpoint.searchParams.set("badges", "1");
           if (maxPrice !== null) endpoint.searchParams.set("max", String(maxPrice));
           if (minPrice !== null) endpoint.searchParams.set("min", String(minPrice));
           endpoint.searchParams.set("translate", "0");
@@ -349,6 +353,7 @@ const hubCore = {
               currency: product.currency || null,
               stock_status: product.stock_status || "",
               image_url: product.image_url || "",
+              delivers_to: deliveryCodes(product.delivers_to),
               country_code: country,
               delivery_status: "UNKNOWN",
               product_url: `${site.base}/?search=${encodeURIComponent(searchQuery)}&highlight=${encodeURIComponent(String(product.id))}`,
@@ -947,6 +952,19 @@ async function seasonalMedia(request, env) {
 // stored copy; hub-v2.js shows it in the visitor's language (data-gwh2="countryBar").
 export const GOOGLE_CRAWLER = /\b(Googlebot|AdsBot-Google(-Mobile)?|Google-InspectionTool|Storebot-Google|Mediapartners-Google|GoogleOther)\b/i;
 export const COUNTRY_BAR_TEXT = "We're adding retailers for your country. Most retailers below deliver to the UK only. Check delivery before you buy.";
+// GWH-DELIVERY-BADGES: where a product's retailer delivers, as its site says it (/api/products delivers_to, lessons L151):
+// 2-letter codes, "EU" or "WORLD", at most 40; anything else is dropped. Empty when the site does not say it.
+export function deliveryCodes(value) {
+  if (!Array.isArray(value)) return [];
+  const out = [];
+  for (const v of value) {
+    const c = String(v || "").trim().toUpperCase();
+    if ((/^[A-Z]{2}$/.test(c) || c === "WORLD") && !out.includes(c)) out.push(c);
+    if (out.length >= 40) break;
+  }
+  return out.includes("WORLD") ? ["WORLD"] : out;
+}
+
 export function visitorCountry(request) {
   if (GOOGLE_CRAWLER.test(String(request.headers.get("User-Agent") || ""))) return "GB";
   const cc = String((request.cf && request.cf.country) || "").trim().toUpperCase();

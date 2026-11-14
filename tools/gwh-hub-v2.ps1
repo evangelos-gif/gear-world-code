@@ -128,8 +128,16 @@
   exactly as Impact gives it (single quotes, value=), after the Mitgo tag at the end of the <head> of the home page, while
   the Worker secret IMPACT_VERIFICATION has a code of that form. A UUID, so never in the repo: -ImpactCode '<code>' sets
   it on the test Worker (preview) and on gear-world-hub right before the deploy (live); it stays for later deploys. The
-  Mitgo tag stays as it is. Phrases of this release, in this order: ΕΓΚΡΙΝΩ HUB IMPACT PREVIEW, ΕΓΚΡΙΝΩ HUB IMPACT LIVE,
-  ΕΓΚΡΙΝΩ HUB REMOVE PREVIEW (one paste, live with -AfterPreview). Exit codes 21 and 22 as for -MitgoCode.
+  Mitgo tag stays as it is. Phrases of that release, in this order: ΕΓΚΡΙΝΩ HUB IMPACT PREVIEW, ΕΓΚΡΙΝΩ HUB IMPACT LIVE,
+  ΕΓΚΡΙΝΩ HUB REMOVE PREVIEW (one paste, live with -AfterPreview; live since 14/11/2026 18:48). Exit codes 21 and 22 as
+  for -MitgoCode. -ImpactCode is not needed again: the secret stays for later deploys.
+  Delivery badges (lessons L153, 14/11/2026, after the open-country rule of the sites, L151): every product card of the
+  Hub (search, gift finder, photo search) says "<retailer> delivers to: <countries>", from the delivery countries each
+  site gives (/api/products delivers_to), the retailer name untranslated, the country names in the visitor's language.
+  worker.js asks every site with badges=1, so a visitor from a country that is not open sees all the products there, as
+  on the sites; a site of before L151 ignores it and answers as before (no line on its cards). New ?v= for the 4 changed
+  scripts in index.html. Phrases of this release, in this order: ΕΓΚΡΙΝΩ HUB BADGES PREVIEW, ΕΓΚΡΙΝΩ HUB BADGES LIVE,
+  ΕΓΚΡΙΝΩ HUB REMOVE PREVIEW (one paste, live with -AfterPreview).
   Exit codes added by L119: 21 the -MitgoCode has another form, 22 the code did not go into the live Worker (nothing went
   live), 23 -AfterPreview without a clean preview report of this version (nothing changed).
   Report: <home>\gear-world-reports\GWH_HUB_V2_<STEP>_<time>.txt (also copied to the clipboard)
@@ -156,8 +164,8 @@ $repo = Split-Path -Parent $PSScriptRoot
 $HubWorker = 'gear-world-hub'
 $PreviewName = 'gear-world-hub-preview'
 $DbName = 'gear-world-registry'
-$PhrasePreview = 'ΕΓΚΡΙΝΩ HUB IMPACT PREVIEW'
-$PhraseLive = 'ΕΓΚΡΙΝΩ HUB IMPACT LIVE'
+$PhrasePreview = 'ΕΓΚΡΙΝΩ HUB BADGES PREVIEW'
+$PhraseLive = 'ΕΓΚΡΙΝΩ HUB BADGES LIVE'
 $PhraseRegister = 'ΕΓΚΡΙΝΩ HUB ZGW SEARCH'
 $PhraseRemovePreview = 'ΕΓΚΡΙΝΩ HUB REMOVE PREVIEW'
 $LiveUrl = 'https://gearworldhub.com'
@@ -180,20 +188,22 @@ $Bad = 'Magenta'
 
 # What each file of the change does, in the words of the report.
 $About = @{
-    'worker.js'             = 'η ετικέτα επαλήθευσης του Impact (<meta name=''impact-site-verification'' value=''...''>, όπως τη δίνει το Impact) στο τέλος του <head> της αρχικής, μετά την ετικέτα του Mitgo, μόνο όταν ο Worker έχει το μυστικό IMPACT_VERIFICATION· ο κωδικός δεν μπαίνει ποτέ στο GitHub (L150). Η ετικέτα του Mitgo μένει ίδια· όλα τα άλλα όπως είναι live'
+    'worker.js' = 'η αναζήτηση ζητά από κάθε site badges=1 και κρατά τις χώρες παράδοσης κάθε προϊόντος (delivers_to): ο επισκέπτης από χώρα που δεν είναι ανοιχτή βλέπει όλα τα προϊόντα, όπως στα sites (L151, L153)· οι ετικέτες Mitgo και Impact μένουν ίδιες· όλα τα άλλα όπως είναι live'
     'security.js'           = 'νέο αρχείο: έλεγχος Turnstile, ημερήσια όρια του δικτύου (εγγραφές, μεταφράσεις), headers (L106)'
     'mailerlite.js'         = 'η φόρμα του Hub θέλει το token του Turnstile· ημερήσιο όριο εγγραφών για όλο το δίκτυο, μικρό δικό της για την εφαρμογή (L106)'
     'members.js'            = 'η φόρμα «Get deal updates» των sites: το Hub ελέγχει το token του Turnstile κάθε site, ίδιο ημερήσιο όριο, ημερήσιο όριο μεταφράσεων για τα sites (/internal/ai-slot) (L106)'
     'public/email-signup.js' = 'το κουτί email λέει τι στέλνει: κωδικούς που δημοσιεύουν τα καταστήματα και νέα των sites, όχι «prices we''ve checked», 11 γλώσσες (L107)· Turnstile όταν αρχίζει η φόρμα (L106)'
     'poster-scan.js'        = 'η μέτρηση των αφισών (ίδια με αυτή που μπήκε με το POSTER STATS)'
-    'public/index.html'     = 'μία κάρτα «Featured pick» με ΕΝΑ link του Sovrn Commerce (μπότες STRAUSS e.s. S3 Okomu mid, engelbert-strauss.co.uk), rel="sponsored nofollow noopener", «Affiliate link» και η σημείωση για την προμήθεια· χωρίς το script του Sovrn (L121). Όλα τα άλλα όπως είναι live'
+    'public/index.html' = 'νέο ?v= για τα 4 αρχεία που άλλαξαν (translations.js, app.js, gear-world-camera.js, hub-v2.js), για να μην μείνει παλιό αντίγραφο στον browser (L31, L153)· όλα τα άλλα όπως είναι live'
     'public/about/index.html' = 'νέα σελίδα /about/: «Run by Evangelos Kalogerakis, United Kingdom», ότι δεν πουλάμε, δεν παίρνουμε πληρωμές, δεν κάνουμε παραδόσεις, contact@gearworldhub.com (νέο αρχείο, L101)'
     'public/about/about.js' = 'η σελίδα /about/ στη γλώσσα που διάλεξε ο επισκέπτης, 11 γλώσσες (νέο αρχείο, L101)'
     'public/privacy/index.html' = 'τα links των sites περνούν από το Awin ή το CJ, με την πολιτική απορρήτου και των δύο· «Last updated: 9 November 2026» (L107)'
     'public/cookies/index.html' = 'τα cookies του affiliate network: «Awin, or for a few retailers CJ»· «Last updated: 9 November 2026» (L107)· νέα γραμμή στο footer και link «About» (L101)'
     'public/affiliate-disclosure/index.html' = 'τα κουμπιά των sites περνούν από ένα affiliate network: Awin, ή για λίγα καταστήματα CJ· «Last updated: 9 November 2026» (L107)'
     'public/hub-v2.css'     = 'η εμφάνιση της μπάρας για επισκέπτες εκτός ΗΒ: μπλε με πορτοκαλί γραμμή, πάνω από την κεφαλίδα (L107)· η κλάση του καταστήματος στις προσφορές λέγεται gwh2-deal-retailer (όχι «shop») (L103)'
-    'public/hub-v2.js'      = 'το κείμενο της μπάρας εκτός ΗΒ σε 11 γλώσσες· οι εκπτώσεις λένε «Sale» και την καμπάνια, χωρίς «Up to n% off» (L107)· οι εποχές μόνο με τον διακόπτη τους από το promos.js: Black Friday (αντίστροφη μέτρηση και «Black Friday is coming») ΚΛΕΙΣΤΗ μέχρι να την ανοίξει ο ιδιοκτήτης, τίποτα δεν ανοίγει μόνο από ημερομηνία (L107)'
+    'public/hub-v2.js' = 'κάθε κάρτα του «Βρες δώρο» λέει «<κατάστημα> delivers to: …» (L153)'
+    'public/gear-world-camera.js' = 'κάθε κάρτα της αναζήτησης με φωτογραφία λέει «<κατάστημα> delivers to: …» (L153)'
+    'public/app.js' = 'κάθε κάρτα της αναζήτησης λέει «<κατάστημα> delivers to: …» κάτω από το κατάστημα (L153)'
     'public/styles.css'     = 'φεύγουν οι κανόνες της κάρτας «Sell Your Business» (.gwh-business-*) και τα σχόλια «shop» (το αρχείο δεν το φορτώνει η σελίδα· μένει για τα παλιά εργαλεία) (L103)'
     'public/contact/index.html' = '«business enquiries from retailers and affiliate networks» αντί για «partnership enquiries» (L103)'
     'public/guides/guides.css' = 'η εμφάνιση των οδηγών δώρων: «RRP» αντί για διαγραμμένη τιμή και «n% below» (L107)'
@@ -203,7 +213,7 @@ $About = @{
     'public/guides/christmas-gifts-for-kids/index.html' = 'οδηγός δώρων για παιδιά: LEGO DUPLO £26.24, K''NEX £24.49, COBI £26.79, LEGO Technic £32.50, όπως τα δείχνει το Kids'' Gear World στις 13/11· νέες ημερομηνίες ελέγχου (L119)'
     'public/guides/christmas-gifts-for-diy-lovers/index.html' = 'οδηγός δώρων για μάστορες: ίδιες τιμές, ελεγμένες 11/11, και οι νέοι τίτλοι των άλλων οδηγών στο «More gift guides» (L119)'
     'public/guides/christmas-gifts-for-travellers/index.html' = 'οδηγός δώρων για ταξιδιώτες: ίδιες τιμές, ελεγμένες 10/11, και οι νέοι τίτλοι των άλλων οδηγών στο «More gift guides» (L119)'
-    'public/translations.js' = 'στα ελληνικά «από το κατάστημα» αντί για «συνεργαζόμενα καταστήματα», στα γαλλικά «couchages» αντί για «paniers», «retailer» μεταφρασμένο σε 7 γλώσσες, ονόματα κλειδιών χωρίς «shop» (L103)'
+    'public/translations.js' = 'οι λέξεις «<κατάστημα> delivers to» και «Worldwide» σε 11 γλώσσες και η γραμμή παράδοσης κάθε κάρτας (το όνομα του καταστήματος αμετάφραστο, οι χώρες στη γλώσσα του επισκέπτη, έως 3 και «+n») (L153)'
     'public/robots.txt'     = 'robots.txt του Hub: πρώτα «User-agent: SERankingBacklinksBot» με «Disallow: /» (L105), από κάτω ίδιο όπως ήταν, με τη γραμμή Sitemap: https://gearworldhub.com/sitemap.xml (το Cloudflare βάζει από πάνω τα Content Signals του)'
     'public/gearworldhub-indexnow-k7q4m9x2w5.txt' = 'το κλειδί του IndexNow (δημόσιο, έτσι δουλεύει το IndexNow)'
     'public/terms/index.html' = '«operated by Gear World (run by Evangelos Kalogerakis, United Kingdom)», «Last updated: 7 November 2026» (L103)'
@@ -614,6 +624,10 @@ function Test-Site([string]$base, [bool]$isLive) {
         $filtersOk = ($j.ok -and $j.filters -and (@($j.filters.worlds) -join ',') -eq 'vgw' -and [double]$j.filters.max_price -eq 100)
         if ($filtersOk -and ($sitesSeen.Count -eq 0 -or ($sitesSeen -join ',') -eq 'vgw') -and $tooDear.Count -eq 0) {
             Say ('  «Βρες δώρο» (Travel, έως £100, "suitcase"): {0} προϊόντα, μόνο από VGW και μέχρι £100: ΕΝΤΑΞΕΙ' -f $items.Count) $Ok
+            # L153: how many of them say where their retailer delivers (delivers_to from the site, since its update of L151).
+            $withShip = @($items | Where-Object { @($_.delivers_to | Where-Object { $_ }).Count -gt 0 })
+            if ($items.Count -gt 0 -and $withShip.Count -eq $items.Count) { Say ('  Γραμμή «<κατάστημα> delivers to» (L153): και τα {0} προϊόντα έχουν χώρες παράδοσης: ΕΝΤΑΞΕΙ' -f $items.Count) $Ok }
+            elseif ($items.Count -gt 0) { Say ('  Γραμμή «<κατάστημα> delivers to» (L153): {0} από {1} προϊόντα έχουν χώρες παράδοσης (το VGW δεν έχει ακόμα την έκδοση L151;)' -f $withShip.Count, $items.Count) $Warn }
         } else {
             Say ('  «Βρες δώρο»: ΠΡΟΒΛΗΜΑ - φίλτρα {0}, sites {1}, ακριβότερα από £100: {2}' -f $filtersOk, ($sitesSeen -join ','), $tooDear.Count) $Bad
         }

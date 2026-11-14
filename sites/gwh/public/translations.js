@@ -172,6 +172,9 @@
     searchFailed: ["Search failed","Η αναζήτηση απέτυχε","Suche fehlgeschlagen","Échec de la recherche","Ricerca non riuscita","La búsqueda ha fallado","A pesquisa falhou","Zoeken mislukt","Kërkimi dështoi","Căutarea a eșuat","Ошибка поиска"],
     noProductsFor: ["No products found for \"{query}\".","Δεν βρέθηκαν προϊόντα για \"{query}\".","Keine Produkte für \"{query}\" gefunden.","Aucun produit trouvé pour \"{query}\".","Nessun prodotto trovato per \"{query}\".","No se encontraron productos para \"{query}\".","Não foram encontrados produtos para \"{query}\".","Geen producten gevonden voor \"{query}\".","Nuk u gjetën produkte për \"{query}\".","Nu s-au găsit produse pentru \"{query}\".","Товары по запросу \"{query}\" не найдены."],
     noProductsAcross: ["No products found across the live Gear Worlds.","Δεν βρέθηκαν προϊόντα στα live Gear Worlds.","Keine Produkte in den aktiven Gear Worlds gefunden.","Aucun produit trouvé dans les Gear Worlds actifs.","Nessun prodotto trovato nei Gear Worlds live.","No se encontraron productos en los Gear Worlds activos.","Não foram encontrados produtos nos Gear Worlds ativos.","Geen producten gevonden in de live Gear Worlds.","Nuk u gjetën produkte në Gear Worlds live.","Nu s-au găsit produse în Gear Worlds live.","В активных Gear Worlds товары не найдены."],
+    // GWH-DELIVERY-BADGES (lessons L153): the words of the sites' own dictionaries ("{0} delivers to", "Worldwide").
+    deliversTo: ["{retailer} delivers to","Το {retailer} παραδίδει σε","{retailer} liefert nach","{retailer} livre vers","{retailer} spedisce in","{retailer} envía a","{retailer} envia para","{retailer} levert naar","{retailer} dërgon në","{retailer} livrează în","{retailer} доставляет в"],
+    worldwide: ["Worldwide","Παγκοσμίως","Weltweit","Monde entier","Tutto il mondo","Todo el mundo","Todo o mundo","Wereldwijd","Mbarë botën","Toată lumea","По всему миру"],
     productsFound: ["{count} products found across {worlds} active Gear World sites.","Βρέθηκαν {count} προϊόντα σε {worlds} ενεργά Gear World sites.","{count} Produkte auf {worlds} aktiven Gear World Sites gefunden.","{count} produits trouvés sur {worlds} sites Gear World actifs.","Trovati {count} prodotti su {worlds} siti Gear World attivi.","Se encontraron {count} productos en {worlds} sitios Gear World activos.","Foram encontrados {count} produtos em {worlds} sites Gear World ativos.","{count} producten gevonden op {worlds} actieve Gear World-sites.","U gjetën {count} produkte në {worlds} faqe aktive Gear World.","Au fost găsite {count} produse pe {worlds} site-uri Gear World active.","Найдено {count} товаров на {worlds} активных сайтах Gear World."]
   };
 
@@ -483,6 +486,34 @@
 
   window.GWH_t = tr;
   window.GWH_getLocale = () => currentLocale;
+
+  // GWH-DELIVERY-BADGES (lessons L151, L153): "<retailer> delivers to: <countries>" under every product card of the
+  // search, the gift finder and the photo search, from the site's own delivery countries (delivers_to of /api/search).
+  // The retailer name stays untranslated (translate="no"); the country names come from the browser in the visitor's
+  // language (Intl.DisplayNames), at most 3, then "+n". Nothing when the site did not say where the retailer delivers.
+  const escHtml = s => String(s === null || s === undefined ? "" : s)
+    .replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+  const EN_REGIONS = { GB: "United Kingdom", EU: "European Union", US: "United States" };
+  function regionName(code) {
+    try {
+      const n = new Intl.DisplayNames([currentLocale, "en-GB"], { type: "region" }).of(code);
+      if (n && n !== code) return n;
+    } catch (_) { /* a browser without Intl.DisplayNames */ }
+    return EN_REGIONS[code] || code;
+  }
+  function deliveryHtml(product) {
+    const codes = Array.isArray(product && product.delivers_to)
+      ? product.delivers_to.map(String).filter(c => /^(?:[A-Z]{2}|WORLD)$/.test(c))
+      : [];
+    const retailer = String((product && product.retailer) || "").trim();
+    if (!codes.length || !retailer) return "";
+    const world = codes.includes("WORLD");
+    const names = world ? [tr("worldwide")] : codes.slice(0, 3).map(regionName);
+    const more = world ? 0 : codes.length - 3;
+    const label = escHtml(tr("deliversTo")).replace("{retailer}", `<span translate="no">${escHtml(retailer)}</span>`);
+    return `<div class="gwh-search-ship" data-ship="${escHtml(world ? "WORLD" : codes.join(" "))}">${label}: ${names.map(escHtml).join(", ")}${more > 0 ? ` +${more}` : ""}</div>`;
+  }
+  window.GWH_deliveryHtml = deliveryHtml;
   window.GWH_applyLanguage = applyLanguage;
 
   const selector = document.getElementById("gwhLanguage");

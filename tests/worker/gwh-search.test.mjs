@@ -335,3 +335,52 @@ test('home page: the Mitgo tag in the <head> only with its secret, only on the h
     assert.equal(rules.reduce((s, rx) => s.replace(rx, ''), us), plainHtml, `${tool}: the US page without them is the file`);
   }
 });
+
+// Lessons L153 (14 Nov 2026): every card of the Hub says where its retailer delivers. The Hub asks each site with
+// badges=1 (since L151 a country that is not open sees all the products there) and passes on delivers_to, cleaned.
+test('L153: the Hub asks with badges=1 and passes on where each retailer delivers; the three card renderers show it', async () => {
+  const { deliveryCodes } = await import('../../sites/gwh/worker.js');
+  const { readFileSync } = await import('node:fs');
+  const fake = productsFetch({
+    'constructiongearworld.com': [{ id: 1, product_name: 'Cordless drill', retailer: 'Tooled Up', price: 50, delivers_to: ['GB'] },
+      { id: 2, product_name: 'Cordless drill set', retailer: 'GRABO', price: 60, delivers_to: ['WORLD', 'GB'] }],
+    'cargearworld.com': [{ id: 3, product_name: 'Cordless drill pump', retailer: 'VEVOR', price: 70, delivers_to: ['EU', 'is', 'LI', 'NO', '<b>', 7] },
+      { id: 4, product_name: 'Cordless drill old', retailer: 'Old site', price: 80 }]
+  });
+  const { data } = await searchWith(fake, 'q=cordless%20drill');
+  assert.ok(fake.asked.length > 0 && fake.asked.every(u => u.searchParams.get('badges') === '1'), 'every site is asked with badges=1');
+  const by = Object.fromEntries(data.results.map(r => [r.id, r.delivers_to]));
+  assert.deepEqual(by[1], ['GB']);
+  assert.deepEqual(by[2], ['WORLD'], 'worldwide says it all');
+  assert.deepEqual(by[3], ['EU', 'IS', 'LI', 'NO'], 'codes cleaned, anything else dropped');
+  assert.deepEqual(by[4], [], 'a site of before L151 says nothing: no line on the card');
+  assert.deepEqual(deliveryCodes(Array.from({ length: 60 }, (_, i) => String.fromCharCode(65 + (i % 26)) + String.fromCharCode(65 + Math.floor(i / 26)))).length, 40);
+  // The cards: the search (app.js), the gift finder (hub-v2.js) and the photo search (gear-world-camera.js) all add the
+  // line from translations.js, which keeps the retailer name untranslated and has the words in the 11 languages.
+  const pub = f => readFileSync(`sites/gwh/public/${f}`, 'utf8');
+  assert.match(pub('app.js'), /\$\{window\.GWH_deliveryHtml \? window\.GWH_deliveryHtml\(product\) : ""\}/);
+  assert.match(pub('hub-v2.js'), /<div class="gwh-search-meta">\$\{meta\}<\/div>\$\{window\.GWH_deliveryHtml \? window\.GWH_deliveryHtml\(p\) : ""\}/);
+  assert.match(pub('gear-world-camera.js'), /<div class="gwh-search-meta">\$\{meta\}<\/div>\$\{window\.GWH_deliveryHtml \? window\.GWH_deliveryHtml\(product\) : ""\}/);
+  const tr = pub('translations.js');
+  assert.match(tr, /window\.GWH_deliveryHtml = deliveryHtml;/);
+  for (const key of ['deliversTo', 'worldwide']) {
+    const m = tr.match(new RegExp(`\\n    ${key}: (\\[[^\\n]+\\]),\\n`));
+    assert.ok(m, key);
+    const list = JSON.parse(m[1]);
+    assert.equal(list.length, 11, `${key}: 11 languages`);
+    if (key === 'deliversTo') assert.ok(list.every(s => s.includes('{retailer}')), 'every language names the retailer');
+  }
+  // The helper itself, in a page-like sandbox: the retailer untranslated and escaped, 3 names then +n, worldwide.
+  const { runInNewContext } = await import('node:vm');
+  const store = new Map();
+  const win = { addEventListener() {}, dispatchEvent() {} };
+  const ctx = { window: win, localStorage: { getItem: k => store.get(k) || null, setItem: (k, v) => store.set(k, v) },
+    document: { documentElement: {}, querySelector: () => null, querySelectorAll: () => [], getElementById: () => null, addEventListener() {}, readyState: 'complete' },
+    CustomEvent: class { constructor(n, o) { this.type = n; this.detail = o && o.detail; } }, Intl, setTimeout };
+  runInNewContext(tr, ctx);
+  const line = win.GWH_deliveryHtml({ retailer: 'Tooled <Up>', delivers_to: ['GB', 'IE', 'FR', 'DE'] });
+  assert.match(line, /^<div class="gwh-search-ship" data-ship="GB IE FR DE"><span translate="no">Tooled &lt;Up&gt;<\/span> delivers to: United Kingdom, Ireland, France \+1<\/div>$/);
+  assert.match(win.GWH_deliveryHtml({ retailer: 'GRABO', delivers_to: ['WORLD'] }), /delivers to: Worldwide<\/div>$/);
+  assert.equal(win.GWH_deliveryHtml({ retailer: 'Old', delivers_to: [] }), '');
+  assert.equal(win.GWH_deliveryHtml({ retailer: '', delivers_to: ['GB'] }), '');
+});

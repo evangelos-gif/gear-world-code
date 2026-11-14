@@ -287,7 +287,7 @@ test('the Hub: styles.css (not loaded by the page) keeps no rule of the sponsore
   assert.ok(!/gwh-business|sponsor|shop/i.test(css));
   const index = readFileSync(`${PUB}/index.html`, 'utf8');
   assert.ok(!/\/styles\.css/.test(index), 'the page does not load styles.css');
-  assert.ok(index.includes('/translations.js?v=20261108-cleanup1'), 'translations.js');
+  assert.ok(/\/translations\.js\?v=(20261108-cleanup1|20261114-badges\d+)/.test(index), 'translations.js (a later version since L153)');
   assert.ok(/\/hub-v2\.css\?v=(20261108-cleanup1|20261109-compliance\d+)/.test(index), 'hub-v2.css (a later version since L107)');
   assert.ok(!/partner/i.test(index));
 });
@@ -301,11 +301,12 @@ test('the Hub sitemap has /about/ (owner, 7/11/2026); the tools ask this release
   // L119 Mitgo verification and guide prices of 13/11/2026: HUB MITGO.
   // L121 Sovrn Commerce link of 14/11/2026: HUB SOVRN (L119 HUB MITGO live 13/11/2026).
   // L150 Impact verification of 14/11/2026: HUB IMPACT (L121 HUB SOVRN live 14/11/2026 16:50).
-  assert.ok(hubTool.includes("$PhrasePreview = 'ΕΓΚΡΙΝΩ HUB IMPACT PREVIEW'") && hubTool.includes("$PhraseLive = 'ΕΓΚΡΙΝΩ HUB IMPACT LIVE'"));
-  assert.ok(!/\$Phrase(Preview|Live) = 'ΕΓΚΡΙΝΩ HUB (COMPLIANCE|SECURITY|ROBOTS|CLEANUP|WORDING|ADS|GUIDES|GUIDE PRICES|MITGO|SOVRN|REGISTRY) /.test(hubTool), 'no phrase of an earlier release');
+  // L153 delivery badges of 14/11/2026: HUB BADGES (L150 HUB IMPACT live 14/11/2026 18:48).
+  assert.ok(hubTool.includes("$PhrasePreview = 'ΕΓΚΡΙΝΩ HUB BADGES PREVIEW'") && hubTool.includes("$PhraseLive = 'ΕΓΚΡΙΝΩ HUB BADGES LIVE'"));
+  assert.ok(!/\$Phrase(Preview|Live) = 'ΕΓΚΡΙΝΩ HUB (COMPLIANCE|SECURITY|ROBOTS|CLEANUP|WORDING|ADS|GUIDES|GUIDE PRICES|MITGO|SOVRN|IMPACT|REGISTRY) /.test(hubTool), 'no phrase of an earlier release');
   assert.ok(hubTool.includes("$PhraseRemovePreview = 'ΕΓΚΡΙΝΩ HUB REMOVE PREVIEW'"));
   const tests = readFileSync('tests/run-tests.ps1', 'utf8');
-  assert.ok(tests.includes("'egkrino hub impact preview'") && tests.includes("'egkrino hub impact live'") && !/HUB WORDING|hub wording|HUB CLEANUP|hub cleanup|HUB ROBOTS|hub robots|hub security (preview|live)|hub compliance (preview|live)|hub guide prices (preview|live)|hub mitgo (preview|live)|hub sovrn (preview|live)/.test(tests));
+  assert.ok(tests.includes("'egkrino hub badges preview'") && tests.includes("'egkrino hub badges live'") && !/HUB WORDING|hub wording|HUB CLEANUP|hub cleanup|HUB ROBOTS|hub robots|hub security (preview|live)|hub compliance (preview|live)|hub guide prices (preview|live)|hub mitgo (preview|live)|hub sovrn (preview|live)|hub impact (preview|live)/.test(tests));
   const sitesTool = readFileSync('tools/ads-fixes-sites.ps1', 'utf8');
   assert.ok(sitesTool.includes("$Phrase = 'ΕΓΚΡΙΝΩ ADS FIXES'"));
   assert.ok(sitesTool.includes("'Browse by category'") && sitesTool.includes('data-i18n-keep="0"'), 'the live check looks for the L103 wording');

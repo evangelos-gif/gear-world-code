@@ -643,7 +643,7 @@
     return `
       <a class="gwh-search-item" href="${esc(url)}">
         ${img}
-        <div class="gwh-search-details"><span class="gwh-search-source">${esc(code)}</span><div class="gwh-search-name">${esc(p.product_name)}</div><div class="gwh-search-meta">${meta}</div></div>
+        <div class="gwh-search-details"><span class="gwh-search-source">${esc(code)}</span><div class="gwh-search-name">${esc(p.product_name)}</div><div class="gwh-search-meta">${meta}</div>${window.GWH_deliveryHtml ? window.GWH_deliveryHtml(p) : ""}</div>
         <div class="gwh-search-price">${esc(money(p.price, p.currency))}<span class="gwh-search-view">${esc(view)} →</span></div>
       </a>`;
   }

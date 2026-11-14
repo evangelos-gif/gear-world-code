@@ -178,6 +178,16 @@ searchStyle.textContent = `
     line-height:1.35;
   }
 
+  /* GWH-DELIVERY-BADGES (lessons L153): "<retailer> delivers to: ..." under the retailer. */
+  .gwh-search-ship{
+    margin-top:3px;
+
+    color:#475467;
+
+    font-size:12px;
+    line-height:1.35;
+  }
+
   .gwh-search-price{
     min-width:95px;
 
@@ -442,6 +452,8 @@ searchForm.addEventListener("submit", async (event) => {
             <div class="gwh-search-meta">
               ${brandRetailer}
             </div>
+
+            ${window.GWH_deliveryHtml ? window.GWH_deliveryHtml(product) : ""}
 
           </div>
 
