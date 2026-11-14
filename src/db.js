@@ -11,6 +11,7 @@
 const NATIVE_CARD_COLUMNS = `id, product_name, product_slug, brand, retailer, category_slug, price, was_price,
   currency, in_stock, item_condition, image_url, subcategory, merchant_category, last_seen_at`;
 import { visibleSql, hiddenReason } from './lib/visibility.js';
+import { deliveryCountries } from './lib/delivery.js';
 
 // The legacy layout also returns the old category name: Gear World Hub search shows it (lessons L22).
 let CARD_COLUMNS = NATIVE_CARD_COLUMNS;
@@ -703,16 +704,26 @@ export async function homeData(db, categorySlugs, opts = {}) {
 }
 
 // view: the UK view (the Hub and the group page show these numbers to everyone).
-export async function stats(db, view = null) {
-  const v = vis(view);
+// One query for the whole site (lessons L106, L130): every active row is counted per retailer, with how many of them are
+// fresh (price checked in the last HIDE_AFTER_DAYS days). The UK numbers (products, retailers, retailer_names) are the
+// fresh rows of the retailers the UK view shows, exactly as before; all_products and delivery add every fresh row of every
+// retailer, with the countries the retailer delivers to (site.deliversTo), so the group page can show each country.
+// The rows read are the same as before: the old query walked every active row too and filtered them afterwards.
+export async function stats(db, view = null, site = null) {
+  const cutoff = view && view.cutoff ? view.cutoff : '';
+  const fresh = cutoff ? 'SUM(CASE WHEN p.last_seen_at >= ? THEN 1 ELSE 0 END)' : 'COUNT(*)';
   const r = await db.prepare(
-    `SELECT retailer, COUNT(*) AS n FROM ${LAYOUT.from} p WHERE p.is_active = 1${andVis(v)} GROUP BY retailer ORDER BY retailer COLLATE NOCASE`
-  ).bind(...v.binds).all();
-  const rows = r.results || [];
+    `SELECT retailer, ${fresh} AS fresh FROM ${LAYOUT.from} p WHERE p.is_active = 1 GROUP BY retailer ORDER BY retailer COLLATE NOCASE`
+  ).bind(...(cutoff ? [cutoff] : [])).all();
+  const rows = (r.results || []).map(x => ({ name: String(x.retailer ?? ''), fresh: Number(x.fresh || 0) })).filter(x => x.fresh > 0);
+  const inUk = name => !view || ((!view.hidden || !view.hidden.includes(name)) && (!view.only || view.only.includes(name)));
+  const uk = rows.filter(x => inUk(x.name));
   return {
-    products: rows.reduce((t, x) => t + Number(x.n || 0), 0),
-    retailers: rows.length,
-    retailer_names: rows.map(x => String(x.retailer))
+    products: uk.reduce((t, x) => t + x.fresh, 0),
+    retailers: uk.length,
+    retailer_names: uk.map(x => x.name),
+    all_products: rows.reduce((t, x) => t + x.fresh, 0),
+    delivery: rows.map(x => ({ retailer: x.name, products: x.fresh, countries: deliveryCountries(site, x.name) }))
   };
 }
 

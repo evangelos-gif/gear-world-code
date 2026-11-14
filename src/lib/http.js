@@ -73,6 +73,8 @@ function cacheControl(kind) {
     case 'page': return 'public, max-age=60, s-maxage=300';
     case 'hour': return 'public, max-age=3600';
     case 'short': return 'public, max-age=60';
+    // A page that depends on who asks (the group page's "your country" box): never kept by a shared cache.
+    case 'private': return 'private, max-age=60';
     default: return 'no-store';
   }
 }

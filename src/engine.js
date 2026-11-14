@@ -298,7 +298,7 @@ export function createWorker(site) {
     // Product and retailer counts (the Hub and the group page read them): one D1 query per data centre and hour (L106).
     if (path === '/api/stats') {
       return withPathCache(request, ctx, `${url.origin}/api/stats`, STATS_CACHE_SECONDS,
-        async () => jsonResponse(await db.stats(env.DB, ukView), { cache: 'short' }), env);
+        async () => jsonResponse(await db.stats(env.DB, ukView, site), { cache: 'short' }), env);
     }
     if (path === '/api/fx') return jsonResponse(await exchangeRates(site, ctx), { cache: 'hour' });
     if (path === '/api/products') return apiProducts(env, url, request, view);

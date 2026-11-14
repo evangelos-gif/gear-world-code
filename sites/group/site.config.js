@@ -10,7 +10,13 @@ export default {
   // Shown on the page. Must be an address that receives mail (gearworldgroup.com uses Google Workspace).
   contactEmail: 'evangelos@gearworldgroup.com',
   awinPublisherId: 3057233,
-  assetVersion: '2026-11-01-group-8',
+  assetVersion: '2026-11-14-group-9',
+  // Countries where affiliate programmes have approved us but their products are not on the sites yet (lessons L130):
+  // the countries list says "More coming" next to them. Only countries with a real approval; the retailers chat
+  // ("3 · Retailers & Feeds") keeps it up to date with the retailer list. 14 Nov 2026: Rakuten PREMIUM BANDAI USA and
+  // CJ TikTok Shop US (US); Lunzo (DE, AT, PL, CZ, RO, HU); Uhrcenter (DE); Lapert (CZ); Laboratoire Laurent (FR);
+  // Pneumatici IT (IT); Neumaticos (ES); 4kidsonly and Daisycon (NL); iRepairshop BE (BE).
+  coming: ['US', 'DE', 'AT', 'PL', 'CZ', 'RO', 'HU', 'FR', 'IT', 'ES', 'NL', 'BE'],
   hub: { name: 'Gear World Hub', url: 'https://gearworldhub.com/', text: 'One search across every Gear World site, in 11 languages.' },
   // stats: true = the site answers /api/stats; its live product count is added up on the page.
   sites: [

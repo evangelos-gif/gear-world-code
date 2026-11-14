@@ -2,10 +2,28 @@
 // One page, no cookies, no database. Live product counts come from each site's public /api/stats.
 import { html, toString } from './lib/html.js';
 import { htmlResponse, textResponse, redirect } from './lib/http.js';
+import { COUNTRY_NAMES, WORLDWIDE } from './lib/delivery.js';
+import { listCovers, cleanCountry } from './lib/visibility.js';
 
 const STATS_TTL = 3600;
 
+// Where the group page shows countries (lessons L130): every country the sites' deliversTo can name (src/lib/delivery.js),
+// by continent. A retailer that delivers worldwide counts in every country, and also on the "worldwide" line.
+export const CONTINENTS = [
+  ['Europe', ['GB', 'IE', 'FR', 'DE', 'AT', 'CH', 'NL', 'BE', 'LU', 'IT', 'ES', 'PT', 'GR', 'CY', 'MT', 'PL', 'CZ', 'SK', 'HU',
+    'RO', 'BG', 'HR', 'SI', 'AL', 'DK', 'SE', 'NO', 'FI', 'IS', 'LI', 'EE', 'LV', 'LT']],
+  ['North America', ['US', 'CA', 'MX']],
+  ['Asia', ['JP']],
+  ['Oceania', ['AU', 'NZ']]
+];
+export const COUNTRY_CODES = CONTINENTS.flatMap(([, list]) => list);
+
+const retailerKey = n => String(n).replace(/\s+UK$/i, '').trim().toLowerCase();
+
 // Adds up the sites' /api/stats. A site that does not answer within 4 seconds is left out of the sum.
+// products: every listed product (all countries); ukProducts: the UK view; countries: per country the products, the
+// retailers and each site's share, from the retailers' delivery countries. A site that still answers the older
+// /api/stats (no "delivery") counts its UK numbers for the UK only.
 export async function networkStats(site, fetcher = fetch) {
   const results = await Promise.all(site.sites.filter(s => s.stats).map(async s => {
     try {
@@ -17,19 +35,53 @@ export async function networkStats(site, fetcher = fetch) {
       const d = await r.json();
       const products = Number(d && d.products);
       if (!Number.isFinite(products) || products <= 0) return null;
-      return { products, names: Array.isArray(d.retailer_names) ? d.retailer_names.map(String) : [] };
+      const names = Array.isArray(d.retailer_names) ? d.retailer_names.map(String) : [];
+      const delivery = Array.isArray(d.delivery)
+        ? d.delivery.map(x => ({ retailer: String(x && x.retailer || ''), products: Math.max(0, Number(x && x.products) || 0),
+          countries: Array.isArray(x && x.countries) ? x.countries.map(String) : [] })).filter(x => x.retailer && x.products > 0)
+        : names.length ? [{ retailer: names[0], products, countries: ['GB'], names }] : [];
+      const all = Number(d.all_products);
+      return { site: s, products, all: Number.isFinite(all) && all >= products ? all : products, names, delivery };
     } catch {
       return null;
     }
   }));
   const ok = results.filter(Boolean);
-  const names = new Set(ok.flatMap(x => x.names.map(n => n.replace(/\s+UK$/i, '').trim().toLowerCase())));
-  return { products: ok.reduce((t, x) => t + x.products, 0), retailers: names.size, sitesCounted: ok.length };
+  const allNames = new Set();
+  const ukNames = new Set();
+  const countries = Object.fromEntries(COUNTRY_CODES.map(cc => [cc, { products: 0, retailers: new Set(), sites: [] }]));
+  const worldwide = { products: 0, retailers: new Set() };
+  for (const r of ok) {
+    for (const n of r.names) ukNames.add(retailerKey(n));
+    const perCountry = {};
+    for (const x of r.delivery) {
+      const keys = (x.names || [x.retailer]).map(retailerKey);
+      keys.forEach(k => allNames.add(k));
+      if (x.countries.includes(WORLDWIDE)) { worldwide.products += x.products; keys.forEach(k => worldwide.retailers.add(k)); }
+      for (const cc of COUNTRY_CODES) {
+        if (!listCovers(x.countries, cc)) continue;
+        countries[cc].products += x.products;
+        keys.forEach(k => countries[cc].retailers.add(k));
+        perCountry[cc] = (perCountry[cc] || 0) + x.products;
+      }
+    }
+    for (const [cc, n] of Object.entries(perCountry)) countries[cc].sites.push([r.site.name, r.site.url, n]);
+  }
+  const plain = Object.fromEntries(Object.entries(countries).map(([cc, c]) => [cc, { products: c.products, retailers: c.retailers.size,
+    sites: c.sites.sort((a, b) => b[2] - a[2]) }]));
+  return {
+    products: ok.reduce((t, x) => t + x.all, 0),
+    ukProducts: ok.reduce((t, x) => t + x.products, 0),
+    retailers: allNames.size || ukNames.size,
+    sitesCounted: ok.length,
+    countries: plain,
+    worldwide: { products: worldwide.products, retailers: worldwide.retailers.size }
+  };
 }
 
 async function cachedStats(site, ctx) {
   const cache = typeof caches !== 'undefined' ? caches.default : null;
-  const key = new Request(`https://${site.domain}/__stats-cache`);
+  const key = new Request(`https://${site.domain}/__stats-cache-2`); // -2: the numbers per country (L130)
   if (cache) {
     const hit = await cache.match(key);
     if (hit) return hit.json();
@@ -129,7 +181,7 @@ export function legalPaths() {
 }
 
 // The same header and footer on every page; the footer always links to the legal pages (L17).
-function shell(site, { title, description, path, body }) {
+function shell(site, { title, description, path, body, robots = '' }) {
   const year = new Date().getUTCFullYear();
   return toString(html`<!doctype html>
 <html lang="en-GB">
@@ -139,6 +191,7 @@ function shell(site, { title, description, path, body }) {
 <title>${title}</title>
 <meta name="description" content="${description}">
 <link rel="canonical" href="https://${site.domain}${path}">
+${robots ? html`<meta name="robots" content="${robots}">` : ''}
 <meta property="og:title" content="${site.name}">
 <meta property="og:description" content="Independent product search and price-comparison sites. Each product shows the retailer that sells it and where that retailer delivers.">
 <meta property="og:url" content="https://${site.domain}${path}">
@@ -176,9 +229,58 @@ export function legalPage(site, path) {
   });
 }
 
-export function groupPage(site, stats) {
+// The name of a country in English: the delivery list's own name, else the browser's (Intl), else the code.
+const THE = ['GB', 'US', 'NL'];
+const inName = cc => (THE.includes(cc) ? `the ${countryName(cc)}` : countryName(cc));
+
+export function countryName(cc) {
+  if (COUNTRY_NAMES[cc] && cc !== 'EU') return COUNTRY_NAMES[cc];
+  try { return new Intl.DisplayNames(['en-GB'], { type: 'region' }).of(cc) || cc; } catch { return cc; }
+}
+
+const countryPath = cc => `/countries/${cc.toLowerCase()}/`;
+const coming = (site, cc) => Array.isArray(site.coming) && site.coming.includes(cc);
+const COMING_TEXT = 'More retailers coming: approved, products being added';
+const nums = c => html`${fmt(c.products)} products</span>
+  <span class="cnum">${fmt(c.retailers)} ${c.retailers === 1 ? 'retailer' : 'retailers'}`;
+
+// "Where the retailers deliver": every continent and its countries, each a link to the country's own page.
+function countryList(site, stats, current = '') {
+  const cs = stats.countries || {};
+  return html`
+${CONTINENTS.map(([name, list]) => html`<h3 class="continent">${name}</h3>
+<ul class="countries">${list.map(cc => {
+    const c = cs[cc] || { products: 0, retailers: 0 };
+    return html`<li${cc === current ? html` class="here"` : ''}><a href="${countryPath(cc)}"${cc === current ? html` aria-current="page"` : ''}><span class="cn">${countryName(cc)}</span>
+  <span class="cnum">${c.products ? nums(c) : coming(site, cc) ? 'Coming soon' : 'No retailers yet'}</span>${coming(site, cc) ? html`<span class="tag">More coming</span>` : ''}</a></li>`;
+  })}</ul>`)}
+${stats.worldwide && stats.worldwide.products ? html`<p class="worldwide">Every other country: ${fmt(stats.worldwide.products)} products from ${fmt(stats.worldwide.retailers)} ${stats.worldwide.retailers === 1 ? 'retailer that delivers' : 'retailers that deliver'} worldwide.</p>` : ''}
+<p class="note">Updated every hour from the sites' own numbers. A product counts in every country its retailer delivers to.</p>`;
+}
+
+// The visitor's own country (Cloudflare), at the top of the home page. Added per request: the home page is never kept
+// by a shared cache (cache 'private').
+function yourCountry(site, stats, country) {
+  const cc = cleanCountry(country);
+  if (!cc) return '';
+  const c = stats.countries && stats.countries[cc];
+  if (!c) {
+    const w = stats.worldwide || { products: 0, retailers: 0 };
+    return html`<aside class="yours" aria-label="Your country"><p><strong>Visiting from ${countryName(cc)}?</strong>
+${w.products ? `${fmt(w.products)} products from retailers that deliver worldwide.` : ''}</p>
+<p><a href="#countries">See where the retailers deliver</a></p></aside>`;
+  }
+  return html`<aside class="yours" aria-label="Your country"><p><strong>From ${inName(cc)}?</strong>
+${c.products ? `${fmt(c.products)} products from ${fmt(c.retailers)} ${c.retailers === 1 ? 'retailer delivers' : 'retailers deliver'} to ${inName(cc)}.` : ''}
+${coming(site, cc) ? COMING_TEXT + '.' : ''}</p>
+<p class="yours-links"><a href="${countryPath(cc)}">See ${inName(cc)}</a> <a href="#countries">See other countries</a></p></aside>`;
+}
+
+export function groupPage(site, stats, country = '') {
+  const uk = stats.countries && stats.countries.GB ? stats.ukProducts : 0;
   const facts = [
     stats.products ? `${fmt(stats.products)} products listed` : '',
+    uk && uk !== stats.products ? `${fmt(uk)} deliver to the UK` : '',
     stats.retailers ? `${fmt(stats.retailers)}+ retailers` : '',
     `${site.sites.length} themed sites and a search hub`,
     '11 languages'
@@ -190,7 +292,13 @@ export function groupPage(site, stats) {
   <p class="lede">Each product shows the retailer that sells it and where that retailer delivers.</p>
   <p class="lede">${site.name} runs ${site.sites.length} themed price comparison sites and a shared search hub. We list retailers' products from their affiliate product feeds, so shoppers can compare prices in one place and then buy direct from the retailer.</p>
   <ul class="facts">${facts.map(f => html`<li>${f}</li>`)}</ul>
+  ${stats.countries ? yourCountry(site, stats, country) : ''}
 </div></section>
+
+${stats.countries ? html`<section class="wrap section" id="countries" aria-labelledby="countries-h">
+  <h2 id="countries-h">Where the retailers deliver</h2>
+  ${countryList(site, stats)}
+</section>` : ''}
 
 <section class="wrap section" aria-labelledby="sites-h">
   <h2 id="sites-h">Our sites</h2>
@@ -240,6 +348,38 @@ export function groupPage(site, stats) {
   });
 }
 
+// One country's page (L130): what delivers there, from which sites, and every other country. Numbers only, so it is not
+// for search engines (noindex, follow) and not in the sitemap; the home page links to it.
+export function countryPage(site, stats, cc) {
+  const c = (stats.countries && stats.countries[cc]) || { products: 0, retailers: 0, sites: [] };
+  const name = countryName(cc);
+  const body = html`
+<section class="hero hero-small"><div class="wrap">
+  <p class="eyebrow"><a href="/#countries">Where the retailers deliver</a></p>
+  <h1>Gear World in ${inName(cc)}</h1>
+  <ul class="facts">
+    <li>${c.products ? `${fmt(c.products)} products deliver to ${inName(cc)}` : coming(site, cc) ? 'Coming soon' : 'No retailers deliver here yet'}</li>
+    ${c.retailers ? html`<li>${fmt(c.retailers)} ${c.retailers === 1 ? 'retailer' : 'retailers'}</li>` : ''}
+    ${coming(site, cc) ? html`<li class="tag-li">${COMING_TEXT}</li>` : ''}
+  </ul>
+</div></section>
+${c.sites && c.sites.length ? html`<section class="wrap section" aria-labelledby="by-site-h">
+  <h2 id="by-site-h">By site</h2>
+  <ul class="by-site">${c.sites.map(([n, url, k]) => html`<li><a href="${url}">${n}</a><span>${fmt(k)} products</span></li>`)}</ul>
+</section>` : ''}
+<section class="wrap section" id="countries" aria-labelledby="countries-h">
+  <h2 id="countries-h">Other countries</h2>
+  ${countryList(site, stats, cc)}
+</section>`;
+  return shell(site, {
+    title: `Gear World in ${name} | ${site.name}`,
+    description: `Products from the Gear World sites whose retailers deliver to ${inName(cc)}.`,
+    path: countryPath(cc),
+    robots: 'noindex, follow',
+    body
+  });
+}
+
 export function createGroupWorker(site) {
   return {
     async fetch(request, env, ctx) {
@@ -258,10 +398,24 @@ export function createGroupWorker(site) {
       }
       if (url.pathname === '/' || url.pathname === '/index.html') {
         const stats = await cachedStats(site, ctx);
-        const res = htmlResponse(groupPage(site, stats), { method: request.method, cache: 'page' });
+        // The "your country" box depends on who asks: never kept by a shared cache (L130).
+        const country = request.cf && request.cf.country;
+        const res = htmlResponse(groupPage(site, stats, country), { method: request.method, cache: 'private' });
         if (preview) res.headers.set('X-Robots-Tag', 'noindex, nofollow');
         return res;
       }
+      // A country's page: /countries/de/ (small letters, with the final slash); an unknown country goes to the list.
+      const cm = url.pathname.match(/^\/countries\/([A-Za-z]{2})\/?$/);
+      if (cm) {
+        const cc = cm[1].toUpperCase();
+        if (!COUNTRY_CODES.includes(cc)) return redirect(`https://${site.domain}/#countries`, 302);
+        if (url.pathname !== countryPath(cc)) { url.pathname = countryPath(cc); return redirect(url.toString(), 301); }
+        const stats = await cachedStats(site, ctx);
+        const res = htmlResponse(countryPage(site, stats, cc), { method: request.method, cache: 'page' });
+        res.headers.set('X-Robots-Tag', preview ? 'noindex, nofollow' : 'noindex, follow');
+        return res;
+      }
+      if (url.pathname === '/countries/' || url.pathname === '/countries') return redirect(`https://${site.domain}/#countries`, 302);
       // Legal pages; the address without the final slash goes to the one with it.
       if (!url.pathname.endsWith('/') && LEGAL[`${url.pathname}/`]) {
         url.pathname = `${url.pathname}/`;

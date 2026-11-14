@@ -272,6 +272,17 @@ test('sitemaps and /api/stats: the UK view for everyone; categories with fewer t
   }
   const stats = await (await getAgw('/api/stats', env, 'BE')).json();
   assert.ok(!stats.retailer_names.includes('Pneus.be') && !stats.retailer_names.includes('VEVOR'));
+  // L130: the UK number is the sitemap's (the UK view), and every fresh product of every retailer is there too, each
+  // retailer with the countries it delivers to, for the group page's countries.
+  assert.equal(stats.products, total, 'the UK count is the UK view');
+  const fresh = d.sql.prepare('SELECT COUNT(*) AS n FROM products WHERE is_active = 1 AND last_seen_at >= ?').get(viewFor(config.agw, 'GB', NOW).cutoff).n;
+  assert.equal(stats.all_products, fresh, 'all countries: every fresh product');
+  assert.ok(stats.all_products > stats.products, 'the test data has products that do not deliver to the UK');
+  const by = Object.fromEntries(stats.delivery.map(x => [x.retailer, x]));
+  assert.deepEqual(by['Pneus.be'].countries, ['BE']);
+  assert.deepEqual(by.VEVOR.countries, ['EU', 'IS', 'LI', 'NO']);
+  assert.equal(stats.delivery.reduce((t, x) => t + x.products, 0), stats.all_products);
+  for (const x of stats.delivery) if (x.retailer !== 'Pneus.be' && x.retailer !== 'VEVOR') assert.deepEqual(x.countries, ['GB'], x.retailer);
   // A thin category page: noindex,follow.
   const thin = config.agw.categories.find(c => (counts[c.slug] || 0) > 0 && counts[c.slug] < MIN_INDEXED_PRODUCTS);
   assert.ok(thin, 'a thin category in the test data');
