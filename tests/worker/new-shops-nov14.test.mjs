@@ -111,6 +111,8 @@ test('L133: MASON New York (ships to about 200 countries, the UK too) on WGW: on
   assert.equal(c('Diamond Necklace Earrings Bundle Set - Teardrop Pear'), 'Jewellery');
   assert.equal(c('1 Carat Diamond Stud Earrings - Weekend Meetup'), 'Earrings');
   assert.equal(c('0.82 Carat Diamond Butterfly Pendant Necklace'), 'Necklaces');
+  assert.equal(c('4.2 Carat Diamond Adjustable Chain Bracelet'), 'Bracelets');
+  assert.equal(c('0.45 Carat Diamond Chain Pendant Necklace - MASON TENNIS™'), 'Necklaces');
   assert.equal(c('2.1 Carat Diamond Band Ring - MASON TENNIS™'), 'Rings');
   assert.equal(m.RULES.currency, 'USD');
 });

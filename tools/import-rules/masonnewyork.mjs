@@ -39,8 +39,9 @@ export function classify({ name }) {
   // A set (earrings and necklace together) is "Jewellery"; a charm bracelet is a bracelet, a lone charm "Jewellery".
   if (W(['sets?', 'bundles?', 'brooch(?:es)?']).test(n)) return { site, siteCategory, subcategory: 'Jewellery' };
   if (W(['earrings?', 'studs?', 'hoops?', 'huggies?']).test(n)) return { site, siteCategory, subcategory: 'Earrings' };
+  // "4.2 Carat Diamond Adjustable Chain Bracelet" is a bracelet (dry run 14 Nov 2026: it went to Necklaces by "Chain").
+  if (W(['bracelets?', 'bangles?', 'cuffs?', 'anklets?']).test(n) && !W(['necklaces?', 'pendants?']).test(n)) return { site, siteCategory, subcategory: 'Bracelets' };
   if (W(['necklaces?', 'pendants?', 'chokers?', 'chains?']).test(n)) return { site, siteCategory, subcategory: 'Necklaces' };
-  if (W(['bracelets?', 'bangles?', 'cuffs?', 'anklets?']).test(n)) return { site, siteCategory, subcategory: 'Bracelets' };
   if (W(['rings?', 'bands?']).test(n)) return { site, siteCategory, subcategory: 'Rings' };
   return { site, siteCategory, subcategory: 'Jewellery' };
 }
