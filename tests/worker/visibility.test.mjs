@@ -535,6 +535,15 @@ test('L141: a US visitor sees what ships to the US (own cached copy, no bar); Go
   const ca = await (await get('/category/tyres-wheels/', env, 'CA')).text();
   assert.equal(tyres(ca), 0);
   assert.ok(ca.includes('class="country-bar"'));
+  // A local test Worker (wrangler dev, the checks): Miniflare's made-up request.cf says "US"; it counts as unknown,
+  // the UK view with the bar, as before (CI of 14 Nov 2026: the QA gate of WGW saw an empty US view).
+  const localReq = new Request('http://127.0.0.1:8788/category/tyres-wheels/', { headers: { 'User-Agent': 'Mozilla/5.0 test' } });
+  Object.defineProperty(localReq, 'cf', { value: { country: 'US' } });
+  const local = await (await worker.fetch(localReq, env, { waitUntil: p => p })).text();
+  assert.equal(tyres(local), 0, 'local: the UK view');
+  assert.ok(local.includes('class="country-bar"'), 'local: the bar, as for an unknown country');
+  const localApi = new Request('http://127.0.0.1:8788/api/products?search=tyreco&limit=60&deliver_to=US');
+  assert.equal((await (await worker.fetch(localApi, env, { waitUntil: p => p })).json()).products.length, 30, 'local: ?deliver_to= still counts');
 });
 
 // ---- The bar for visitors outside the UK (item 15, the owner's option A, 9 Nov 2026) ----

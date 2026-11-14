@@ -58,10 +58,16 @@ const PER_PAGE = 24;
 // sitemaps list, and no "adding retailers for your country" bar. A user agent that only claims to be one of them gets
 // the same UK view as anyone, so it gains nothing.
 export const GOOGLE_CRAWLER = /\b(Googlebot|AdsBot-Google(-Mobile)?|Google-InspectionTool|Storebot-Google|Mediapartners-Google|GoogleOther)\b/i;
+// A local test Worker (wrangler dev on localhost, the checks) gets a made-up request.cf from Miniflare, with country
+// "US": it counts as an unknown country (the UK view with its bar), as it did before the US had a view of its own
+// (lessons L141). Only ?deliver_to= of /api/products and the crawler rule apply there.
+const LOCAL_HOSTS = new Set(['localhost', '127.0.0.1', '[::1]']);
 function requestCountry(request, url, apiProducts = false) {
   if (GOOGLE_CRAWLER.test(request.headers.get('user-agent') || '')) return 'GB';
   const asked = apiProducts ? url.searchParams.get('deliver_to') : '';
-  return asked || (request.cf && request.cf.country) || '';
+  if (asked) return asked;
+  if (LOCAL_HOSTS.has(String(url.hostname || '').toLowerCase())) return '';
+  return (request.cf && request.cf.country) || '';
 }
 function localDay(env, host) {
   const day = String((env && env.GW_TODAY) || '');
