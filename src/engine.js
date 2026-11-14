@@ -297,7 +297,8 @@ export function createWorker(site) {
 
     // Product and retailer counts (the Hub and the group page read them): one D1 query per data centre and hour (L106).
     if (path === '/api/stats') {
-      return withPathCache(request, ctx, `${url.origin}/api/stats`, STATS_CACHE_SECONDS,
+      // The cache key names the answer's shape (L130: delivery per retailer), so a copy of the older shape is not used.
+      return withPathCache(request, ctx, `${url.origin}/api/stats?shape=2`, STATS_CACHE_SECONDS,
         async () => jsonResponse(await db.stats(env.DB, ukView, site), { cache: 'short' }), env);
     }
     if (path === '/api/fx') return jsonResponse(await exchangeRates(site, ctx), { cache: 'hour' });

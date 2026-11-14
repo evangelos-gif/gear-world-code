@@ -436,8 +436,8 @@ test('/api/stats: kept 1 hour per data centre under its path only; the visitor g
     const first = await get('/api/stats');
     const firstBody = await first.text();
     assert.equal(reads, 2);
-    assert.deepEqual([...kept.keys()], [`https://${site.domain}/api/stats`]);
-    assert.equal(new Headers(kept.get(`https://${site.domain}/api/stats`).headers).get('Cache-Control'), 'public, max-age=3600');
+    assert.deepEqual([...kept.keys()], [`https://${site.domain}/api/stats?shape=2`], 'L130: the key names the shape');
+    assert.equal(new Headers(kept.get(`https://${site.domain}/api/stats?shape=2`).headers).get('Cache-Control'), 'public, max-age=3600');
     for (const path of ['/api/stats', '/api/stats?x=1', '/api/stats?nocache=2']) {
       const r = await get(path);
       assert.equal(await r.text(), plainBody, path);
