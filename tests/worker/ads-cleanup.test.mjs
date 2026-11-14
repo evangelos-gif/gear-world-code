@@ -299,11 +299,12 @@ test('the Hub sitemap has /about/ (owner, 7/11/2026); the tools ask this release
   // The releases after this one ask their own phrases (L105 robots.txt: HUB ROBOTS; L106 security fixes: HUB SECURITY).
   // L107 Google Ads compliance: HUB COMPLIANCE (live 9/11/2026). L109 gift guide prices: HUB GUIDE PRICES (live 9/11/2026).
   // L119 Mitgo verification and guide prices of 13/11/2026: HUB MITGO.
-  assert.ok(hubTool.includes("$PhrasePreview = 'ΕΓΚΡΙΝΩ HUB MITGO PREVIEW'") && hubTool.includes("$PhraseLive = 'ΕΓΚΡΙΝΩ HUB MITGO LIVE'"));
-  assert.ok(!/\$Phrase(Preview|Live) = 'ΕΓΚΡΙΝΩ HUB (COMPLIANCE|SECURITY|ROBOTS|CLEANUP|WORDING|ADS|GUIDES|GUIDE PRICES|REGISTRY) /.test(hubTool), 'no phrase of an earlier release');
+  // L121 Sovrn Commerce link of 14/11/2026: HUB SOVRN (L119 HUB MITGO live 13/11/2026).
+  assert.ok(hubTool.includes("$PhrasePreview = 'ΕΓΚΡΙΝΩ HUB SOVRN PREVIEW'") && hubTool.includes("$PhraseLive = 'ΕΓΚΡΙΝΩ HUB SOVRN LIVE'"));
+  assert.ok(!/\$Phrase(Preview|Live) = 'ΕΓΚΡΙΝΩ HUB (COMPLIANCE|SECURITY|ROBOTS|CLEANUP|WORDING|ADS|GUIDES|GUIDE PRICES|MITGO|REGISTRY) /.test(hubTool), 'no phrase of an earlier release');
   assert.ok(hubTool.includes("$PhraseRemovePreview = 'ΕΓΚΡΙΝΩ HUB REMOVE PREVIEW'"));
   const tests = readFileSync('tests/run-tests.ps1', 'utf8');
-  assert.ok(tests.includes("'egkrino hub mitgo preview'") && tests.includes("'egkrino hub mitgo live'") && !/HUB WORDING|hub wording|HUB CLEANUP|hub cleanup|HUB ROBOTS|hub robots|hub security (preview|live)|hub compliance (preview|live)|hub guide prices (preview|live)/.test(tests));
+  assert.ok(tests.includes("'egkrino hub sovrn preview'") && tests.includes("'egkrino hub sovrn live'") && !/HUB WORDING|hub wording|HUB CLEANUP|hub cleanup|HUB ROBOTS|hub robots|hub security (preview|live)|hub compliance (preview|live)|hub guide prices (preview|live)|hub mitgo (preview|live)/.test(tests));
   const sitesTool = readFileSync('tools/ads-fixes-sites.ps1', 'utf8');
   assert.ok(sitesTool.includes("$Phrase = 'ΕΓΚΡΙΝΩ ADS FIXES'"));
   assert.ok(sitesTool.includes("'Browse by category'") && sitesTool.includes('data-i18n-keep="0"'), 'the live check looks for the L103 wording');

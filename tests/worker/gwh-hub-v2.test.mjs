@@ -326,3 +326,25 @@ test('hub v2: the Worker answers byte ranges for the seasonal files (iPhone Safa
   assert.equal((await get('/seasonal/missing.mp4')).status, 404);
   assert.equal((await get('/seasonal/halloween.mp4', {}, 'POST')).status !== 206, true, 'only GET and HEAD');
 });
+
+// Lessons L121 (owner, 14/11/2026): ONE product link of Sovrn Commerce on the home page, for the approval of
+// gearworldhub.com there. A plain link marked like the product links of the sites; never the Sovrn script, which would
+// rewrite links (Awin and CJ too). Nobody opens the link: Sovrn counts only real clicks of visitors.
+test('home page: one Sovrn Commerce link, marked like the product links of the sites, no Sovrn script (L121)', () => {
+  const html = read('public/index.html');
+  const links = html.match(/<a [^>]*href="https:\/\/sovrn\.co\/[^"]+"[^>]*>/g) || [];
+  assert.equal(links.length, 1, 'only this one link');
+  assert.ok(links[0].includes('href="https://sovrn.co/o4ablp8"'));
+  assert.ok(links[0].includes('rel="sponsored nofollow noopener"') && links[0].includes('target="_blank"'), 'sponsored, nofollow, new tab');
+  assert.ok(!/<script[^>]+(sovrn|viglink)|commerce\.sovrn|viglink/i.test(html), 'no Sovrn script');
+  const start = html.indexOf('<section class="gwh2-section" id="featured"');
+  const end = html.indexOf('</section>', start);
+  assert.ok(start > html.indexOf('id="gifts"') && start < html.indexOf('id="deals"'), 'between the gift finder and the deals, not in a part the scripts fill');
+  const card = html.slice(start, end);
+  assert.ok(card.includes('Affiliate link') && card.includes('We may earn a commission') && card.includes('<a href="/affiliate-disclosure/">How this works</a>'));
+  assert.ok(card.includes('sold by engelbert-strauss.co.uk, not by Gear World') && card.includes('STRAUSS e.s. S3 safety boots Okomu mid'));
+  assert.ok(!/shop|cart\b|buy now|UK retailers|£/i.test(card), 'no shop words and no price (a price would need its daily check)');
+  for (const f of ['worker.js', 'photo-search.js', 'security.js', 'public/hub-v2.js', 'public/app.js']) {
+    assert.ok(!/sovrn|viglink/i.test(read(f)), `${f}: no Sovrn code`);
+  }
+});

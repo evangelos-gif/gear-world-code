@@ -116,8 +116,14 @@
   The gift guides get the prices their sites showed on 13/11 (8 Joybuy products had other prices) and the day each
   product was last checked there. -AfterPreview (live step): goes on only when the newest preview report is of this code
   version, from the last 2 hours, ended ΕΤΟΙΜΟ and has no ΠΡΟΒΛΗΜΑ, so preview, live and remove-preview can be in one
-  paste. Phrases of this release, in this order: ΕΓΚΡΙΝΩ HUB MITGO PREVIEW, ΕΓΚΡΙΝΩ HUB MITGO LIVE, ΕΓΚΡΙΝΩ HUB REMOVE
-  PREVIEW.
+  paste. Phrases of that release, in this order: ΕΓΚΡΙΝΩ HUB MITGO PREVIEW, ΕΓΚΡΙΝΩ HUB MITGO LIVE, ΕΓΚΡΙΝΩ HUB REMOVE
+  PREVIEW (live since 13/11/2026 22:50).
+  Sovrn Commerce (lessons L121, 14/11/2026): the home page gets ONE product link of Sovrn Commerce, for the approval of
+  gearworldhub.com there: a «Featured pick» card (STRAUSS e.s. S3 safety boots Okomu mid, engelbert-strauss.co.uk) with
+  rel="sponsored nofollow noopener", the words «Affiliate link» and the commission note like the product links of the
+  sites. No Sovrn script (it would rewrite links, Awin and CJ too). The checks here count the link and its rel, and never
+  open it: Sovrn counts only real clicks of visitors. Phrases of this release, in this order: ΕΓΚΡΙΝΩ HUB SOVRN PREVIEW,
+  ΕΓΚΡΙΝΩ HUB SOVRN LIVE, ΕΓΚΡΙΝΩ HUB REMOVE PREVIEW (one paste, live with -AfterPreview).
   Exit codes added by L119: 21 the -MitgoCode has another form, 22 the code did not go into the live Worker (nothing went
   live), 23 -AfterPreview without a clean preview report of this version (nothing changed).
   Report: <home>\gear-world-reports\GWH_HUB_V2_<STEP>_<time>.txt (also copied to the clipboard)
@@ -143,8 +149,8 @@ $repo = Split-Path -Parent $PSScriptRoot
 $HubWorker = 'gear-world-hub'
 $PreviewName = 'gear-world-hub-preview'
 $DbName = 'gear-world-registry'
-$PhrasePreview = 'ΕΓΚΡΙΝΩ HUB MITGO PREVIEW'
-$PhraseLive = 'ΕΓΚΡΙΝΩ HUB MITGO LIVE'
+$PhrasePreview = 'ΕΓΚΡΙΝΩ HUB SOVRN PREVIEW'
+$PhraseLive = 'ΕΓΚΡΙΝΩ HUB SOVRN LIVE'
 $PhraseRegister = 'ΕΓΚΡΙΝΩ HUB ZGW SEARCH'
 $PhraseRemovePreview = 'ΕΓΚΡΙΝΩ HUB REMOVE PREVIEW'
 $LiveUrl = 'https://gearworldhub.com'
@@ -173,7 +179,7 @@ $About = @{
     'members.js'            = 'η φόρμα «Get deal updates» των sites: το Hub ελέγχει το token του Turnstile κάθε site, ίδιο ημερήσιο όριο, ημερήσιο όριο μεταφράσεων για τα sites (/internal/ai-slot) (L106)'
     'public/email-signup.js' = 'το κουτί email λέει τι στέλνει: κωδικούς που δημοσιεύουν τα καταστήματα και νέα των sites, όχι «prices we''ve checked», 11 γλώσσες (L107)· Turnstile όταν αρχίζει η φόρμα (L106)'
     'poster-scan.js'        = 'η μέτρηση των αφισών (ίδια με αυτή που μπήκε με το POSTER STATS)'
-    'public/index.html'     = 'το κείμενο του κουτιού email χωρίς «prices we''ve checked», νέο ?v= για hub-v2.css και hub-v2.js (L107)· η θέση του Turnstile στη φόρμα (L106)'
+    'public/index.html'     = 'μία κάρτα «Featured pick» με ΕΝΑ link του Sovrn Commerce (μπότες STRAUSS e.s. S3 Okomu mid, engelbert-strauss.co.uk), rel="sponsored nofollow noopener", «Affiliate link» και η σημείωση για την προμήθεια· χωρίς το script του Sovrn (L121). Όλα τα άλλα όπως είναι live'
     'public/about/index.html' = 'νέα σελίδα /about/: «Run by Evangelos Kalogerakis, United Kingdom», ότι δεν πουλάμε, δεν παίρνουμε πληρωμές, δεν κάνουμε παραδόσεις, contact@gearworldhub.com (νέο αρχείο, L101)'
     'public/about/about.js' = 'η σελίδα /about/ στη γλώσσα που διάλεξε ο επισκέπτης, 11 γλώσσες (νέο αρχείο, L101)'
     'public/privacy/index.html' = 'τα links των sites περνούν από το Awin ή το CJ, με την πολιτική απορρήτου και των δύο· «Last updated: 9 November 2026» (L107)'
@@ -525,6 +531,11 @@ function Test-Site([string]$base, [bool]$isLive) {
     }
     $titleOk = $html.Contains('<title>Gear World Hub ' + [char]0x2013 + ' Gear, Gifts &amp; Deals From Every Gear World</title>')
     if ($titleOk) { Say '  Νέος τίτλος της αρχικής: ΕΝΤΑΞΕΙ' $Ok } else { Say '  Νέος τίτλος της αρχικής: ΠΡΟΣΟΧΗ - δεν τον βλέπω ακόμα (cache;)' $Warn }
+    # L121: the one Sovrn Commerce link of the home page, counted and never opened (Sovrn counts only visitors' clicks).
+    $sovrn = [regex]::Matches($html, '<a [^>]*href="https://sovrn\.co/[^"]+"[^>]*>')
+    $sovrnScript = [regex]::IsMatch($html, '(?i)<script[^>]+(sovrn|viglink)')
+    if ($sovrn.Count -eq 1 -and $sovrn[0].Value.Contains('rel="sponsored nofollow noopener"') -and -not $sovrnScript) { Say '  Link του Sovrn στην αρχική: 1, με rel="sponsored nofollow noopener", χωρίς script του Sovrn (δεν ανοίχτηκε): ΕΝΤΑΞΕΙ' $Ok }
+    elseif ($sovrn.Count -gt 0 -or $sovrnScript) { Say ('  Link του Sovrn στην αρχική: ΠΡΟΒΛΗΜΑ - {0} links, script του Sovrn: {1}.' -f $sovrn.Count, $sovrnScript) $Bad }
     # L119: the Mitgo tag right before </head> of the home page (a new secret takes a few seconds to reach every answer).
     $mitgoRx = '<meta name="mitgo-verification" content="([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})"></head>'
     $mt = [regex]::Match($html, $mitgoRx)
