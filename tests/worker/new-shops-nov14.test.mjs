@@ -66,3 +66,18 @@ test('L131: TORRO on MGW: leather accessories in, device cases (also "wallet cas
   assert.ok(c('Large Leather Desk Mat (80x40cm) - Black').reject);
   assert.equal(tr.displayName('Slim Leather Card Holder with 5 Card Slots - Black with Red Detail'), 'Slim Leather Card Holder with 5 Card Slots');
 });
+
+test('L132: dry run of 14 Nov on MGW: a charm named after a bag is jewellery, golf book covers are golf, every packing cube goes together', () => {
+  const ac1 = ac.classify({ name: 'Midnight Black GUSTATORY Coffee Bag Silver and Braided Leather Bracelet S - 19cm' });
+  assert.deepEqual(ac1, { site: 'mgw', siteCategory: "Men's Jewellery", subcategory: 'Bracelets' });
+  assert.equal(ac.classify({ name: 'GUSTATORY Coffee Bag Silver Necklace Pendant' }).subcategory, 'Necklaces');
+  assert.equal(ac.classify({ name: 'Small Graphite Black Rufford Leather and Rope Briefcase' }).subcategory, 'Bags');
+  const t = name => tr.classify({ name, feedCategory: 'Sporting Goods > Outdoor Recreation > Golf > Golf Accessories' });
+  assert.deepEqual(t('Leather Golf Scorecard Holder and Yardage Book Cover'), { site: 'mgw', siteCategory: 'Bags & Accessories', subcategory: 'Accessories' });
+  assert.ok(tr.classify({ name: 'Galaxy Tab A9 Leather Case - Black with Red Detail', feedCategory: '' }).reject, 'device cases still wait for TGW');
+  assert.ok(tr.classify({ name: 'Leather Laptop Sleeve with Zip (13”–16”) - Black', feedCategory: 'Electronics > Electronics Accessories > Computer Accessories > Laptop Sleeves' }).reject);
+  const h = name => hg.classify({ name, feedCategory: 'Packing cubes' });
+  assert.equal(h('Packing cube 12L').subcategory, 'Accessories');
+  assert.equal(h('LO Packing cubes').subcategory, 'Accessories');
+  assert.equal(hg.classify({ name: 'Lava 30', feedCategory: 'Hiking backpacks' }).subcategory, 'Bags');
+});

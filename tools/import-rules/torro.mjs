@@ -32,9 +32,10 @@ export function classify({ name, feedCategory = '' }) {
   const n = displayName(name);
   if (!n) return { reject: 'no name' };
   const acc = { site: 'mgw', siteCategory: 'Bags & Accessories' };
+  // Golf first: "Leather Golf Scorecard Holder and Yardage Book Cover" is not a device cover (dry run 14 Nov 2026, L132).
+  if (W(['golf']).test(n)) return { ...acc, subcategory: 'Accessories' };
   // "iPhone 17 Leather Wallet Case" is a phone case (first plan, 14 Nov 2026: 8 went to Wallets).
   if (DEVICE.test(n) && W(['cases?', 'covers?', 'screen protectors?', 'sleeves?', 'folios?']).test(n)) return { reject: 'case or screen protector for a device (Technology Gear World next)' };
-  if (W(['golf']).test(n)) return { ...acc, subcategory: 'Accessories' };
   if (W(['watch straps?', 'watch bands?', 'strap']).test(n) && /watch/i.test(n)) return { ...acc, subcategory: 'Accessories' };
   if (W(['keyrings?', 'key rings?', 'keychains?', 'key holders?']).test(n)) return { site: 'mgw', siteCategory: 'Everyday Carry / EDC', subcategory: 'Everyday Carry / EDC' };
   if (W(['passport', 'travel wallet', 'travel document']).test(n)) return { ...acc, subcategory: 'Accessories' };

@@ -60,7 +60,8 @@ export function classify({ name, feedCategory = '' }) {
   if (OUT.test(n) || /prints : edits/i.test(feedCategory)) return { reject: 'wall print, notebook, candle, gift card or gift box' };
   if (W(['keyrings?', 'key rings?']).test(n)) return { site: 'mgw', siteCategory: 'Everyday Carry / EDC', subcategory: 'Everyday Carry / EDC' };
   if (W(['eyewear straps?', 'glasses straps?']).test(n)) return { site: 'mgw', siteCategory: 'Bags & Accessories', subcategory: 'Sunglasses' };
-  if (W(['briefcases?', 'bags?', 'totes?', 'backpacks?']).test(n) && !W(['beads?', 'charms?']).test(n)) return { site: women ? 'wgw' : 'mgw', siteCategory: 'Bags & Accessories', subcategory: 'Bags' };
+  // "GUSTATORY Coffee Bag Silver ... Bracelet" and "... Coffee Bag Silver Necklace Pendant" are jewellery (dry run 14 Nov 2026, L132).
+  if (W(['briefcases?', 'bags?', 'totes?', 'backpacks?']).test(n) && !JEWEL.test(n)) return { site: women ? 'wgw' : 'mgw', siteCategory: 'Bags & Accessories', subcategory: 'Bags' };
   if (JEWEL.test(n)) {
     const sub = W(['bracelets?', 'bangles?']).test(n) ? 'Bracelets' : W(['necklaces?', 'pendants?', 'chains?']).test(n) ? 'Necklaces'
       : women && W(['rings?']).test(n) ? 'Rings' : women && W(['earrings?']).test(n) ? 'Earrings' : 'Jewellery';
