@@ -289,6 +289,7 @@ function Get-LiveSha([string]$url, [bool]$isHtml) {
         # the Mitgo verification tag of the home page.
         $clean = [regex]::Replace($clean, '<div class="gwh2-country-bar" role="note"><p class="container" data-gwh2="countryBar">[^<]*</p></div>', '')
         $clean = [regex]::Replace($clean, '<meta name="mitgo-verification" content="[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}">', '')
+        $clean = [regex]::Replace($clean, "<meta name='impact-site-verification' value='[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'>", '')
         if ($clean -ne $text) { $bytes = $enc.GetBytes($clean) }
     }
     return (Get-Sha $bytes)

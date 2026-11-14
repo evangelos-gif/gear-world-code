@@ -259,6 +259,37 @@ test('home page: the bar "We\'re adding retailers for your country" outside the 
   assert.match(css, /\.gwh2-country-bar\{background:var\(--card\);color:var\(--text\);border-bottom:3px solid var\(--accent\)\}/);
 });
 
+// Lessons L150 (owner, 14 Nov 2026): the Impact tag, exactly as Impact gives it, after the Mitgo tag; both from secrets.
+test('home page: the Impact tag after the Mitgo tag, exactly as Impact gives it, only with its secret (L150)', async () => {
+  const mitgo = ['a1b2c3d4', 'e5f6', 'a7b8', 'c9d0', 'e1f2a3b4c5d6'].join('-');
+  const impact = ['0a1b2c3d', '4e5f', '6a7b', '8c9d', '0e1f2a3b4c5d'].join('-');
+  const page = '<!doctype html><html><head><meta charset="utf-8"><title>Hub</title></head><body class="gwh2"><header class="site-header"><nav>menu</nav></header><main>search</main></body></html>';
+  const assets = { fetch: async () => new Response(page, { headers: { 'Content-Type': 'text/html; charset=utf-8', ETag: '"x"' } }) };
+  const ask = async (env, path = '/', country = 'GB') => {
+    const req = new Request(`https://gearworldhub.com${path}`, { headers: { 'User-Agent': 'Mozilla/5.0 test' } });
+    Object.defineProperty(req, 'cf', { value: { country } });
+    return (await hub.fetch(req, { ...makeEnv(), ASSETS: assets, ...env }, { waitUntil: p => p })).text();
+  };
+  const both = await ask({ MITGO_VERIFICATION: mitgo, IMPACT_VERIFICATION: ' ' + impact.toUpperCase() });
+  assert.ok(both.includes(`<meta name="mitgo-verification" content="${mitgo}"><meta name='impact-site-verification' value='${impact}'></head>`), 'Mitgo, then Impact, right before </head>');
+  assert.equal(both.split('impact-site-verification').length, 2, 'once');
+  const only = await ask({ IMPACT_VERIFICATION: impact });
+  assert.ok(only.includes(`<meta name='impact-site-verification' value='${impact}'></head>`) && !only.includes('mitgo'), 'Impact alone');
+  for (const bad of ['', 'x', impact + "'><script>alert(1)</script>", impact.replace(/-/g, '')]) {
+    assert.equal((await ask({ IMPACT_VERIFICATION: bad })).includes('impact-site-verification'), false, `not a code: ${bad.slice(0, 20)}`);
+  }
+  assert.equal((await ask({ IMPACT_VERIFICATION: impact }, '/about/')).includes('impact-site-verification'), false, 'only the home page');
+  // The live checks of the 5 tools take all of it out (with the country bar outside the UK) and find the file again.
+  const fs = await import('node:fs');
+  const us = await ask({ MITGO_VERIFICATION: mitgo, IMPACT_VERIFICATION: impact }, '/', 'US');
+  const plain = await ask({});
+  for (const tool of ['gwh-hub-v2.ps1', 'gwh-mailerlite.ps1', 'gwh-photo.ps1', 'gwh-search-labels.ps1', 'poster-setup.ps1']) {
+    const ps1 = fs.readFileSync(`tools/${tool}`, 'utf8');
+    const rules = [...ps1.matchAll(/\$clean = \[regex\]::Replace\(\$clean, (?:'([^']+)'|"([^"]+)"), ''\)/g)].map(m => new RegExp(m[1] || m[2], 'g'));
+    assert.equal(rules.reduce((s, rx) => s.replace(rx, ''), us), plain, `${tool}: the US page without the bar and both tags is the file`);
+  }
+});
+
 // Lessons L119 (owner, 13 Nov 2026): the Mitgo verification tag. The code is a Worker secret, never in the repo, so the
 // test builds a code of the same form at run time (the test runner refuses UUIDs written in files).
 test('home page: the Mitgo tag in the <head> only with its secret, only on the home page, the same page plus the tag', async () => {
@@ -299,8 +330,8 @@ test('home page: the Mitgo tag in the <head> only with its secret, only on the h
   const fs = await import('node:fs');
   for (const tool of ['gwh-hub-v2.ps1', 'gwh-mailerlite.ps1', 'gwh-photo.ps1', 'gwh-search-labels.ps1', 'poster-setup.ps1']) {
     const ps1 = fs.readFileSync(`tools/${tool}`, 'utf8');
-    const rules = [...ps1.matchAll(/\$clean = \[regex\]::Replace\(\$clean, '([^']+)', ''\)/g)].map(m => new RegExp(m[1], 'g'));
-    assert.equal(rules.length, 2, `${tool}: the country bar and the Mitgo tag are taken out`);
+    const rules = [...ps1.matchAll(/\$clean = \[regex\]::Replace\(\$clean, (?:'([^']+)'|"([^"]+)"), ''\)/g)].map(m => new RegExp(m[1] || m[2], 'g'));
+    assert.equal(rules.length, 3, `${tool}: the country bar, the Mitgo tag and the Impact tag (L150) are taken out`);
     assert.equal(rules.reduce((s, rx) => s.replace(rx, ''), us), plainHtml, `${tool}: the US page without them is the file`);
   }
 });

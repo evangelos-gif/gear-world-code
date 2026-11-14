@@ -122,8 +122,14 @@
   gearworldhub.com there: a «Featured pick» card (STRAUSS e.s. S3 safety boots Okomu mid, engelbert-strauss.co.uk) with
   rel="sponsored nofollow noopener", the words «Affiliate link» and the commission note like the product links of the
   sites. No Sovrn script (it would rewrite links, Awin and CJ too). The checks here count the link and its rel, and never
-  open it: Sovrn counts only real clicks of visitors. Phrases of this release, in this order: ΕΓΚΡΙΝΩ HUB SOVRN PREVIEW,
-  ΕΓΚΡΙΝΩ HUB SOVRN LIVE, ΕΓΚΡΙΝΩ HUB REMOVE PREVIEW (one paste, live with -AfterPreview).
+  open it: Sovrn counts only real clicks of visitors. Phrases of that release, in this order: ΕΓΚΡΙΝΩ HUB SOVRN PREVIEW,
+  ΕΓΚΡΙΝΩ HUB SOVRN LIVE, ΕΓΚΡΙΝΩ HUB REMOVE PREVIEW (live since 14/11/2026 16:50).
+  Impact verification (lessons L150, 14/11/2026): worker.js adds <meta name='impact-site-verification' value='<code>'>,
+  exactly as Impact gives it (single quotes, value=), after the Mitgo tag at the end of the <head> of the home page, while
+  the Worker secret IMPACT_VERIFICATION has a code of that form. A UUID, so never in the repo: -ImpactCode '<code>' sets
+  it on the test Worker (preview) and on gear-world-hub right before the deploy (live); it stays for later deploys. The
+  Mitgo tag stays as it is. Phrases of this release, in this order: ΕΓΚΡΙΝΩ HUB IMPACT PREVIEW, ΕΓΚΡΙΝΩ HUB IMPACT LIVE,
+  ΕΓΚΡΙΝΩ HUB REMOVE PREVIEW (one paste, live with -AfterPreview). Exit codes 21 and 22 as for -MitgoCode.
   Exit codes added by L119: 21 the -MitgoCode has another form, 22 the code did not go into the live Worker (nothing went
   live), 23 -AfterPreview without a clean preview report of this version (nothing changed).
   Report: <home>\gear-world-reports\GWH_HUB_V2_<STEP>_<time>.txt (also copied to the clipboard)
@@ -141,6 +147,7 @@ param(
     [switch]$NoClipboard,
     [switch]$NoHttpCheck,
     [string]$MitgoCode = '',
+    [string]$ImpactCode = '',
     [switch]$AfterPreview
 )
 
@@ -149,8 +156,8 @@ $repo = Split-Path -Parent $PSScriptRoot
 $HubWorker = 'gear-world-hub'
 $PreviewName = 'gear-world-hub-preview'
 $DbName = 'gear-world-registry'
-$PhrasePreview = 'ΕΓΚΡΙΝΩ HUB SOVRN PREVIEW'
-$PhraseLive = 'ΕΓΚΡΙΝΩ HUB SOVRN LIVE'
+$PhrasePreview = 'ΕΓΚΡΙΝΩ HUB IMPACT PREVIEW'
+$PhraseLive = 'ΕΓΚΡΙΝΩ HUB IMPACT LIVE'
 $PhraseRegister = 'ΕΓΚΡΙΝΩ HUB ZGW SEARCH'
 $PhraseRemovePreview = 'ΕΓΚΡΙΝΩ HUB REMOVE PREVIEW'
 $LiveUrl = 'https://gearworldhub.com'
@@ -173,7 +180,7 @@ $Bad = 'Magenta'
 
 # What each file of the change does, in the words of the report.
 $About = @{
-    'worker.js'             = 'η ετικέτα επαλήθευσης του Mitgo (<meta name="mitgo-verification" content="...">) στο τέλος του <head> της αρχικής, μόνο όταν ο Worker έχει το μυστικό MITGO_VERIFICATION· ο κωδικός δεν μπαίνει ποτέ στο GitHub (L119). Όλα τα άλλα όπως είναι live'
+    'worker.js'             = 'η ετικέτα επαλήθευσης του Impact (<meta name=''impact-site-verification'' value=''...''>, όπως τη δίνει το Impact) στο τέλος του <head> της αρχικής, μετά την ετικέτα του Mitgo, μόνο όταν ο Worker έχει το μυστικό IMPACT_VERIFICATION· ο κωδικός δεν μπαίνει ποτέ στο GitHub (L150). Η ετικέτα του Mitgo μένει ίδια· όλα τα άλλα όπως είναι live'
     'security.js'           = 'νέο αρχείο: έλεγχος Turnstile, ημερήσια όρια του δικτύου (εγγραφές, μεταφράσεις), headers (L106)'
     'mailerlite.js'         = 'η φόρμα του Hub θέλει το token του Turnstile· ημερήσιο όριο εγγραφών για όλο το δίκτυο, μικρό δικό της για την εφαρμογή (L106)'
     'members.js'            = 'η φόρμα «Get deal updates» των sites: το Hub ελέγχει το token του Turnstile κάθε site, ίδιο ημερήσιο όριο, ημερήσιο όριο μεταφράσεων για τα sites (/internal/ai-slot) (L106)'
@@ -412,6 +419,7 @@ function Get-LiveSha([string]$url, [bool]$isHtml) {
         $clean = [regex]::Replace($clean, '<div class="gwh2-country-bar" role="note"><p class="container" data-gwh2="countryBar">[^<]*</p></div>', '')
         # The Mitgo verification tag the Worker adds to the <head> of the home page (L119): its code is a Worker secret.
         $clean = [regex]::Replace($clean, '<meta name="mitgo-verification" content="[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}">', '')
+        $clean = [regex]::Replace($clean, "<meta name='impact-site-verification' value='[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'>", '')
         if ($clean -ne $text) { $bytes = $enc.GetBytes($clean) }
     }
     return (Get-Sha $bytes)
@@ -537,7 +545,8 @@ function Test-Site([string]$base, [bool]$isLive) {
     if ($sovrn.Count -eq 1 -and $sovrn[0].Value.Contains('rel="sponsored nofollow noopener"') -and -not $sovrnScript) { Say '  Link του Sovrn στην αρχική: 1, με rel="sponsored nofollow noopener", χωρίς script του Sovrn (δεν ανοίχτηκε): ΕΝΤΑΞΕΙ' $Ok }
     elseif ($sovrn.Count -gt 0 -or $sovrnScript) { Say ('  Link του Sovrn στην αρχική: ΠΡΟΒΛΗΜΑ - {0} links, script του Sovrn: {1}.' -f $sovrn.Count, $sovrnScript) $Bad }
     # L119: the Mitgo tag right before </head> of the home page (a new secret takes a few seconds to reach every answer).
-    $mitgoRx = '<meta name="mitgo-verification" content="([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})"></head>'
+    # (L150: the Impact tag, when there is one, comes after it and right before </head>.)
+    $mitgoRx = '<meta name="mitgo-verification" content="([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})">(?:<meta name=''impact-site-verification'' value=''[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}''>)?</head>'
     $mt = [regex]::Match($html, $mitgoRx)
     if ($MitgoCode) {
         for ($i = 1; $i -le 3 -and -not ($mt.Success -and $mt.Groups[1].Value -eq $MitgoCode); $i++) {
@@ -548,6 +557,18 @@ function Test-Site([string]$base, [bool]$isLive) {
         if ($mt.Success -and $mt.Groups[1].Value -eq $MitgoCode) { Say '  Ετικέτα επαλήθευσης Mitgo στο <head> της αρχικής, με τον κωδικό σου: ΕΝΤΑΞΕΙ' $Ok }
         else { Say '  Ετικέτα επαλήθευσης Mitgo: ΠΡΟΒΛΗΜΑ - δεν τη βλέπω με τον κωδικό σου στο <head> της αρχικής.' $Bad }
     } elseif ($mt.Success) { Say '  Ετικέτα επαλήθευσης Mitgo στο <head> της αρχικής: υπάρχει (μυστικό MITGO_VERIFICATION του Worker): ΕΝΤΑΞΕΙ' $Ok }
+    # L150: the Impact tag, exactly as Impact gives it, right before </head>.
+    $impactRx = '<meta name=''impact-site-verification'' value=''([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})''></head>'
+    $it = [regex]::Match($html, $impactRx)
+    if ($ImpactCode) {
+        for ($i = 1; $i -le 3 -and -not ($it.Success -and $it.Groups[1].Value -eq $ImpactCode); $i++) {
+            Start-Sleep -Seconds 10
+            $again = Get-Web ($base + '/?gwcheck=' + $stamp + '-i' + $i)
+            $it = [regex]::Match((New-Object System.Text.UTF8Encoding($false)).GetString($again.bytes), $impactRx)
+        }
+        if ($it.Success -and $it.Groups[1].Value -eq $ImpactCode) { Say '  Ετικέτα επαλήθευσης Impact στο <head> της αρχικής, με τον κωδικό σου: ΕΝΤΑΞΕΙ' $Ok }
+        else { Say '  Ετικέτα επαλήθευσης Impact: ΠΡΟΒΛΗΜΑ - δεν τη βλέπω με τον κωδικό σου στο <head> της αρχικής.' $Bad }
+    } elseif ($it.Success) { Say '  Ετικέτα επαλήθευσης Impact στο <head> της αρχικής: υπάρχει (μυστικό IMPACT_VERIFICATION του Worker): ΕΝΤΑΞΕΙ' $Ok }
     $rb = Get-Web ($base + '/robots.txt?gwcheck=' + $stamp)
     $rbText = (New-Object System.Text.UTF8Encoding($false)).GetString($rb.bytes)
     if (-not $isLive) {
@@ -683,6 +704,11 @@ Say ('GWH HUB V2 («Συνδυασμός») - step: {0} - {1} - {2}' -f $Step, $
 Say ('Code version: {0}' -f (Split-Path -Leaf $repo))
 # L119: the Mitgo code as Mitgo gives it (a paste may add spaces or capitals); nothing of another form becomes a secret.
 $MitgoCode = ([string]$MitgoCode).Trim().ToLowerInvariant()
+$ImpactCode = ([string]$ImpactCode).Trim().ToLowerInvariant()
+if ($ImpactCode -and $ImpactCode -notmatch '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$') {
+    Say 'Ο κωδικός του Impact (-ImpactCode) δεν έχει τη μορφή που δίνει το Impact (8-4-4-4-12 ψηφία και γράμματα a-f): ΔΕΝ άλλαξε τίποτα. Στείλε στο Claude αυτή την αναφορά.' $Bad
+    Finish 21
+}
 if ($MitgoCode -and $MitgoCode -notmatch '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$') {
     Say 'Ο κωδικός του Mitgo (-MitgoCode) δεν έχει τη μορφή που δίνει το Mitgo (8-4-4-4-12 ψηφία και γράμματα a-f): ΔΕΝ άλλαξε τίποτα. Στείλε στο Claude αυτή την αναφορά.' $Bad
     Finish 21
@@ -891,6 +917,7 @@ Say ''
 Say ('Preview (φράση {0}): ο δοκιμαστικός Worker "{1}" σε διεύθυνση *.workers.dev παίρνει αυτή την έκδοση.' -f $PhrasePreview, $PreviewName)
 Say '  noindex, χωρίς Google Analytics, η εγγραφή email κλειστή, χωρίς μέτρηση αφισών. Το live gearworldhub.com ΔΕΝ αλλάζει.'
 if ($MitgoCode) { Say '  Ο κωδικός του Mitgo μπαίνει και στον δοκιμαστικό Worker, για να φανεί εκεί πρώτα η ετικέτα.' }
+if ($ImpactCode) { Say '  Ο κωδικός του Impact μπαίνει και στον δοκιμαστικό Worker, για να φανεί εκεί πρώτα η ετικέτα.' }
 Say ('  Επαναφορά (μόνο με έγκριση): npx wrangler delete --name {0}' -f $PreviewName)
 if ($plan.Count -eq 0) {
     Say 'Αυτή η έκδοση του κώδικα είναι ήδη η live έκδοση (live-baseline.txt): για το live δεν έχει τίποτα να αλλάξει.' $Ok
@@ -904,11 +931,13 @@ if ($plan.Count -eq 0) {
     }
     Say '  3. Στο wrangler.toml του Hub: workers_dev = false και preview_urls = false (κλείνει η δοκιμαστική διεύθυνση gear-world-hub.<λογαριασμός>.workers.dev του live Hub, F04). Το παλιό wrangler.toml μένει στο zip και στα αρχεία επαναφοράς.'
     if ($MitgoCode) { Say ('  4. Ο κωδικός επαλήθευσης του Mitgo γίνεται το μυστικό MITGO_VERIFICATION του Worker "{0}" (ποτέ στο GitHub ή σε αναφορά)· ο νέος κώδικας βάζει την ετικέτα <meta name="mitgo-verification"> στο <head> της αρχικής.' -f $HubWorker) }
-    Say ('  {0}. Deploy του gearworldhub.com από τον φάκελο του Hub (με το δικό του wrangler.toml), και έλεγχος της σελίδας και του «Βρες δώρο».' -f $(if ($MitgoCode) { 5 } else { 4 }))
+    if ($ImpactCode) { Say ('  4. Ο κωδικός επαλήθευσης του Impact γίνεται το μυστικό IMPACT_VERIFICATION του Worker "{0}" (ποτέ στο GitHub ή σε αναφορά)· ο νέος κώδικας βάζει την ετικέτα <meta name=''impact-site-verification''> στο <head> της αρχικής, μετά του Mitgo.' -f $HubWorker) }
+    Say ('  {0}. Deploy του gearworldhub.com από τον φάκελο του Hub (με το δικό του wrangler.toml), και έλεγχος της σελίδας και του «Βρες δώρο».' -f $(if ($MitgoCode -or $ImpactCode) { 5 } else { 4 }))
     if ($AfterPreview) { Say '  Με -AfterPreview: το live γίνεται μόνο αν το preview αυτής της έκδοσης, τις τελευταίες 2 ώρες, τελείωσε ΕΤΟΙΜΟ χωρίς ΠΡΟΒΛΗΜΑ.' }
     Say '  Η D1, τα 11 sites και οι άλλοι Workers (και ο gwh-sitemap) ΔΕΝ αλλάζουν.'
     Say ('  Επαναφορά (μόνο με έγκριση): npx wrangler rollback <ζωντανή έκδοση> --name {0}, και τα αρχεία του zip πίσω στον φάκελο του Hub.' -f $HubWorker)
     if ($MitgoCode) { Say ('  Αφαίρεση της ετικέτας Mitgo (μόνο με έγκριση): npx wrangler secret delete MITGO_VERIFICATION --name {0}' -f $HubWorker) }
+    if ($ImpactCode) { Say ('  Αφαίρεση της ετικέτας Impact (μόνο με έγκριση): npx wrangler secret delete IMPACT_VERIFICATION --name {0}' -f $HubWorker) }
     Say '  Επαναφορά όλης της έκδοσης L106: ΠΡΩΤΑ το Hub (αυτό), ΜΕΤΑ τα 13 sites: το νέο Hub δεν δέχεται εγγραφή χωρίς Turnstile, και ο παλιός κώδικας των sites δεν στέλνει.'
 }
 $readyLive = (($pcIsBaseline -or $pcIsNew) -and ($liveState -eq 'baseline' -or $liveState -eq 'new' -or ($NoHttpCheck -and $liveState -eq 'unknown')) -and $liveVersion -and $postersOn)
@@ -962,6 +991,12 @@ if ($Step -eq 'preview') {
         $ms = Set-WorkerSecret $gwh $PreviewName 'MITGO_VERIFICATION' $MitgoCode
         if ($ms.code -ne 0) { Say 'Ο κωδικός του Mitgo στο preview: ΠΡΟΒΛΗΜΑ - δεν μπήκε, άρα το live με -AfterPreview δεν θα γίνει. Στείλε στο Claude αυτή την αναφορά.' $Bad }
         else { Say 'Ο κωδικός επαλήθευσης του Mitgo μπήκε στο preview (μυστικό MITGO_VERIFICATION του δοκιμαστικού Worker, δεν φαίνεται πουθενά).' $Ok }
+    }
+    # L150: the Impact code on the test Worker too.
+    if ($ImpactCode) {
+        $is = Set-WorkerSecret $gwh $PreviewName 'IMPACT_VERIFICATION' $ImpactCode
+        if ($is.code -ne 0) { Say 'Ο κωδικός του Impact στο preview: ΠΡΟΒΛΗΜΑ - δεν μπήκε, άρα το live με -AfterPreview δεν θα γίνει. Στείλε στο Claude αυτή την αναφορά.' $Bad }
+        else { Say 'Ο κωδικός επαλήθευσης του Impact μπήκε στο preview (μυστικό IMPACT_VERIFICATION του δοκιμαστικού Worker, δεν φαίνεται πουθενά).' $Ok }
     }
     Say ('Ανέβηκε. Δοκιμαστική διεύθυνση: {0}' -f $(if ($url) { $url } else { '(δεν τη βρήκα στην έξοδο)' })) $Ok
     # The Black Friday link only while Black Friday is switched on in hub-v2.js (promos.js SEASONS_ON, lessons L107).
@@ -1051,6 +1086,7 @@ $note = @(
     'Or in the Cloudflare dashboard: Workers > gear-world-hub > Deployments > the version above > Rollback.',
     'Going back from the whole L106 release: the Hub FIRST (this), THEN the 13 sites (the new Hub refuses sign-ups without Turnstile, the older site code sends none).'
 ) -join "`r`n"
+if ($ImpactCode) { $note += "`r`n" + ('The Impact tag (L150) is the Worker secret IMPACT_VERIFICATION. To take it away (only with approval): npx wrangler secret delete IMPACT_VERIFICATION --name {0}' -f $HubWorker) }
 if ($MitgoCode) { $note += "`r`n" + ('The Mitgo tag (L119) is the Worker secret MITGO_VERIFICATION. To take it away (only with approval): npx wrangler secret delete MITGO_VERIFICATION --name {0}' -f $HubWorker) }
 $noteFile = Join-Path $bdir ('gwh-before-v2-live-' + $stamp + '.txt')
 [System.IO.File]::WriteAllText($noteFile, $note, (New-Object System.Text.UTF8Encoding($false)))
@@ -1111,6 +1147,17 @@ if ($MitgoCode) {
         Finish 22
     }
     Say ('Ο κωδικός επαλήθευσης του Mitgo μπήκε στον Worker "{0}" (μυστικό MITGO_VERIFICATION, δεν φαίνεται πουθενά).' -f $HubWorker) $Ok
+}
+# L150: the Impact code becomes the Worker secret IMPACT_VERIFICATION the same way, right before the deploy.
+if ($ImpactCode) {
+    $is = Set-WorkerSecret $gwh $HubWorker 'IMPACT_VERIFICATION' $ImpactCode
+    if ($is.code -ne 0) {
+        Restore-Before
+        Say 'Ο κωδικός του Impact δεν μπήκε στον Worker του Hub: τα παλιά αρχεία γύρισαν στον φάκελο του Hub, ΔΕΝ ανέβηκε τίποτα. Έξοδος:' $Bad
+        Say $is.text
+        Finish 22
+    }
+    Say ('Ο κωδικός επαλήθευσης του Impact μπήκε στον Worker "{0}" (μυστικό IMPACT_VERIFICATION, δεν φαίνεται πουθενά).' -f $HubWorker) $Ok
 }
 
 # 3. Deploy the live Hub from its folder, with the wrangler version of this repo version

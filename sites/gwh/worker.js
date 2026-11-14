@@ -983,9 +983,13 @@ export async function withCountryBar(request, response) {
 // tools/gwh-hub-v2.ps1 -MitgoCode) and the tag is added here to each answer of the home page, never to a stored copy.
 // Without the secret, or with a value of another form, the page is exactly the file.
 export const MITGO_CODE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+// Impact (owner, 14 Nov 2026, lessons L150): <meta name='impact-site-verification' value='<code>'>, exactly as Impact gives
+// it (single quotes, value=), after the Mitgo tag; the code is the Worker secret IMPACT_VERIFICATION, for the same reason.
 export function verificationTag(env) {
   const code = String((env && env.MITGO_VERIFICATION) || "").trim().toLowerCase();
-  return MITGO_CODE.test(code) ? `<meta name="mitgo-verification" content="${code}">` : "";
+  const impact = String((env && env.IMPACT_VERIFICATION) || "").trim().toLowerCase();
+  return (MITGO_CODE.test(code) ? `<meta name="mitgo-verification" content="${code}">` : "") +
+    (MITGO_CODE.test(impact) ? `<meta name='impact-site-verification' value='${impact}'>` : "");
 }
 export async function withSiteVerification(request, env, response) {
   const tag = verificationTag(env);
