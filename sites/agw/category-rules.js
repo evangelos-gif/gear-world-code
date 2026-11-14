@@ -122,7 +122,8 @@ export const CATEGORY_SLUGS = ['garage-tools-equipment', 'diagnostics-battery', 
 // Minimum quality for any product to be imported (L14). Prices in pounds or euros (euro prices get "≈ £").
 export const QUALITY = {
   // USD: Ottocast, a shop outside the UK (massive import round 2b, 14 Nov 2026), seen only where it delivers (L107).
-  currencies: ['GBP', 'EUR', 'USD'],
+  // PLN: Tanie-Opony.pl, tyres for Poland (round 2c, L144).
+  currencies: ['GBP', 'EUR', 'USD', 'PLN'],
   minPrice: 1,
   maxPrice: 6000,
   requireImage: true,

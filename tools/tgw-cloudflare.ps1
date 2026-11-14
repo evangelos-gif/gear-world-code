@@ -12,6 +12,7 @@
                  Approval phrase: ΕΓΚΡΙΝΩ TGW PREVIEW
   -Step import   CHANGES THE TGW DATABASE. Backs up the TGW database first, then loads the products from the
                  Awin feed (the same plan as tgw-import-plan). Approval phrase: ΕΓΚΡΙΝΩ TGW IMPORT
+                 -Only 129295,113754 (lessons L144): only these Awin shops; the others stay exactly as they are.
                  It writes about 8 rows in D1 per product: above 90,000 it needs -PaidPlan (Cloudflare Workers Paid),
                  because Workers Free allows 100,000 a day for the whole account (lessons L49).
   -Step domain   CHANGES CLOUDFLARE (LAUNCH). Connects technologygearworld.com and www to the TGW Worker as
@@ -37,7 +38,8 @@ param(
     [switch]$SkipInstall,
     [switch]$NoClipboard,
     [switch]$NoHttpCheck,
-    [switch]$PaidPlan
+    [switch]$PaidPlan,
+    [string]$Only = ''
 )
 
 $ErrorActionPreference = 'Stop'
@@ -486,7 +488,10 @@ switch ($Step) {
         $planDir = Join-Path $OutDir ('TGW_IMPORT_PLAN_' + $stamp)
         $k = 2
         while (Test-Path -LiteralPath $planDir) { $planDir = Join-Path $OutDir ('TGW_IMPORT_PLAN_{0}_{1}' -f $stamp, $k); $k++ }
-        & node (Join-Path (Join-Path $repo 'tools') 'tgw-import-plan.mjs') --archive $Archive --out $planDir | Out-Null
+        if ($Only -and $Only -notmatch '^[0-9]+(,[0-9]+)*$') { Say 'Λάθος -Only (μόνο αριθμοί Awin, χωρισμένοι με κόμμα).' 'Red'; Finish 2 }
+        $planArgs = @((Join-Path (Join-Path $repo 'tools') 'tgw-import-plan.mjs'), '--archive', $Archive, '--out', $planDir)
+        if ($Only) { $planArgs += @('--only', $Only); Say ('Μόνο τα καταστήματα Awin: {0}' -f $Only) }
+        & node @planArgs | Out-Null
         if ($LASTEXITCODE -ne 0) { Say 'Το σχέδιο import απέτυχε.' 'Red'; Finish 10 }
         $sqlDir = Join-Path $planDir 'sql'
         $files = @(Get-ChildItem -LiteralPath $sqlDir -Filter '*.sql' | Sort-Object Name)

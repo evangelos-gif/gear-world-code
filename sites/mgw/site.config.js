@@ -62,7 +62,11 @@ export default {
   // wavytalk.com sells in US dollars and ships within the United States; only a few products go abroad
   // (wavytalk.com/policies/shipping-policy, 25 Oct 2026).
   // US: shops whose shipping page (read 13-14 Nov 2026, L62) ships within the United States only; the US view (L141).
-  deliversTo: { default: ['GB'], retailers: { Wavytalk: ['US'], Jeulia: ['US'], 'Dream Pairs': ['US'], Maceoo: ['US'] } },
+  // Ireland: Bazta IE and Plusshop IE (ie.bazta.com, ie.plusshop.com, read 14 Nov 2026: "only delivered to addresses in
+  // Ireland"; round 2c, L144).
+  // Uhrcenter (uhrcenter.de ships to the UK, the EU and more, not the US; read 14 Nov 2026): its names are German, so only
+  // where German is spoken (round 2c, L144).
+  deliversTo: { default: ['GB'], retailers: { 'Bazta IE': ['IE'], 'Plusshop IE': ['IE'], Uhrcenter: ['DE', 'AT', 'CH', 'LI', 'LU'], Wavytalk: ['US'], Jeulia: ['US'], 'Dream Pairs': ['US'], Maceoo: ['US'] } },
   displayCurrencies: ['GBP', 'EUR', 'ALL', 'RON', 'RUB'],
   cart: { name: 'Saved list', maxItems: 30 },
   voiceSearch: true,

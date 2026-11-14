@@ -825,6 +825,8 @@
       "stockFromQuantity": true,
       "_comment": "GamingKit (50,000 rows on 25 Oct 2026, gamingkit.co.uk): the same wholesale catalogue as PCHUB.UK, so it takes PCHUB.UK's rules (rulesFrom). Every row says in_stock = 1 but most say stock_quantity = 0: stockFromQuantity (a row is in stock only with a quantity above 0). Many rows have the made-up EAN 012345678912 and an \"Image coming soon\" picture; the report counts the same product at two shops (lessons L63). Owner, 25 Oct 2026 (lessons L64): not imported. The dry run showed all of its 4,576 products also at PCHUB.UK, every one dearer, none of its own."
     },
-    { "advertiserId": 69178, "feedIds": [94438], "retailer": "AKKO", "currency": "GBP", "condition": "new", "approved": true }
+    { "advertiserId": 69178, "feedIds": [94438], "retailer": "AKKO", "currency": "GBP", "condition": "new", "approved": true },
+    { "advertiserId": 129295, "feedIds": [116822], "retailer": "Back to the Office IE", "currency": "EUR", "condition": "new", "approved": true, "rulesFrom": 61655, "_comment": "Round 2c (14 Nov 2026, lessons L144): the Irish shop of Back to the Office (backtotheoffice.ie, euros, Ireland only), the same catalogue as the UK shop, so the same brands and names rules (rulesFrom). Only what is in stock (10,500 of 39,859 rows)."},
+    { "advertiserId": 113754, "feedIds": [100736], "retailer": "MonsGeek", "currency": "EUR", "condition": "new", "approved": true, "denyNames": ["\\bgift ?cards?\\b"], "_comment": "Round 2c (L144): MonsGeek keyboards (monsgeek.eu, euros), the sister brand of AKKO; ships to the UK, the US and Europe (site config)." }
   ]
 }

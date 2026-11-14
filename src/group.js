@@ -250,7 +250,7 @@ const countryPath = cc => `/countries/${cc.toLowerCase()}/`;
 const hasNumbers = stats => Boolean(stats && stats.countries && stats.sitesCounted > 0);
 const coming = (site, cc) => Array.isArray(site.coming) && site.coming.includes(cc);
 const COMING_TEXT = 'More retailers coming: approved, products being added';
-// Above the countries and on each country's page (owner's choice A, 14 Nov 2026, L154): true for every country, unlike
+// Above the countries and on each country's page (owner's choice A, 14 Nov 2026, L155): true for every country, unlike
 // "More coming", which stays only where a retailer has really approved us.
 const GROWING_TEXT = 'New retailers are added every week.';
 const nums = c => html`${fmt(c.products)} products deliver here</span>
@@ -298,7 +298,7 @@ function worldMap(site, stats) {
   const w = stats.worldwide || { products: 0, retailers: 0 };
   const listed = new Set(COUNTRY_CODES);
   // The public words are what delivers where, never the open-country rule ("To open: ..." read as "closed" to a
-  // visitor, owner 14 Nov 2026, L154): the rule's numbers go to the Manager's morning check (countryState).
+  // visitor, owner 14 Nov 2026, L155): the rule's numbers go to the Manager's morning check (countryState).
   const titleOf = cc => {
     return [`${countryName(cc)}: ${productWords(cs[cc] || { products: 0 })}.`, coming(site, cc) ? `${COMING_TEXT}.` : ''].filter(Boolean).join(' ');
   };

@@ -153,7 +153,7 @@ test('import plan: accepts clean tech rows, rejects with reasons, writes SQL tha
     ['https://example.com/x', 'Ring Video Doorbell 4', '6', 'JB-6', 'https://img.example/6.jpg', '', '', 'Smart Home', '99', '', 'GBP', 'Ring', '1', '', ''],
     [link(7), 'Nextbase Dash Cam 622GW', '7', 'JB-7', '', 'https://images2.productserve.com/7.jpg', '', 'Car Electronics', '199', '', 'GBP', 'Nextbase', '1', '', ''],
     [link(8), 'Lenovo IdeaPad 15.6" Laptop 16GB RAM', '8', 'JB-1', 'https://img.example/1.jpg', '', '', 'Computers > Laptops', '499.99', '', 'GBP', 'Lenovo', '1', '', ''],
-    [link(9), 'Samsung 55 inch QLED TV', '9', 'JB-9', 'https://img.example/9.jpg', '', '', 'TV', '549', '', 'EUR', 'Samsung', '1', '', ''],
+    [link(9), 'Samsung 55 inch QLED TV', '9', 'JB-9', 'https://img.example/9.jpg', '', '', 'TV', '549', '', 'USD', 'Samsung', '1', '', ''],
     [link(10), "O'Neill's 2TB External Hard Drive", '10', 'JB-10', 'https://img.example/10.jpg', '', 'Has; semicolons', 'Storage', '79.5', '', 'GBP', '', '1', '', '']
   ];
   const csv = [csvLine(header), ...rows.map(csvLine)].join('\n') + '\n';
@@ -176,7 +176,8 @@ test('import plan: accepts clean tech rows, rejects with reasons, writes SQL tha
   assert.equal(stats.rejected['out of stock'], 1);
   assert.equal(stats.rejected['link is not an Awin link'], 1);
   assert.equal(stats.rejected['duplicate product id'], 1);
-  assert.equal(stats.rejected['currency EUR'], 1);
+  // TGW takes euros since round 2c (Back to the Office IE, MonsGeek; lessons L144), not dollars.
+  assert.equal(stats.rejected['currency USD'], 1);
 
   const laptop = products.find(p => p.merchant_product_id === 'JB-1');
   assert.equal(laptop.stable_key, '123932:JB-1');

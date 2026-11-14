@@ -110,7 +110,8 @@ test('10 categories, as the owner chose (31 Oct 2026), in the menu order of the 
 
 test('sources: the TGW shops with their filters, GamingKit on since it joined (L131), VEVOR off (L63, L79), no text of another site', () => {
   const src = JSON.parse(readFileSync('sites/pgw/sources.json', 'utf8')).sources;
-  assert.deepEqual(src.filter(s => s.approved).map(s => s.retailer), ['Joybuy', 'Back to the Office', 'PCHUB.UK', 'PcNova (IT-Supplies)', 'GamingKit', 'Plusshop UK', 'Bazta UK', 'AKKO']); // AKKO: 8 Nov 2026, GamingKit: 14 Nov 2026
+  assert.deepEqual(src.filter(s => s.approved).map(s => s.retailer), ['Joybuy', 'Back to the Office', 'PCHUB.UK', 'PcNova (IT-Supplies)', 'GamingKit', 'Plusshop UK', 'Bazta UK', 'AKKO', 'Back to the Office IE', 'MonsGeek']); // AKKO: 8 Nov 2026, GamingKit: 14 Nov 2026, round 2c: 14 Nov 2026 (L144)
+  assert.equal(src.find(s => s.retailer === 'Back to the Office IE').rulesFrom, 61655, 'the Irish shop takes the UK shop\'s rules');
   assert.equal(src.find(s => s.retailer === 'GamingKit').rulesFrom, 126641, 'GamingKit takes the PCHUB.UK rules');
   assert.equal(src.find(s => s.retailer === 'GamingKit').stockFromQuantity, true);
   assert.equal(src.find(s => s.retailer === 'VEVOR').approved, false);

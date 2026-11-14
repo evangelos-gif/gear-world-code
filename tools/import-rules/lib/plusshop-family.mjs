@@ -22,19 +22,48 @@ import {
 
 const words = list => new RegExp('(?<![a-z0-9])(' + list.map(w => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|') + ')(?![a-z0-9])', 'i');
 
-export function makeRules({ key, advertiserId, retailer, host }) {
+// The Irish shops (Bazta IE, Plusshop IE: euros, ie.<host>, Ireland only; massive import round 2c, 14 Nov 2026, lessons
+// L144) take the same rules with their own currency and address.
+export function makeRules({ key, advertiserId, retailer, host, currency = 'GBP', country = '' }) {
+  const h = host.replace(/\./g, '\\.');
   return {
     key,
     advertiserId,
     retailer,
-    currency: 'GBP',
-    shop: new RegExp(`^https:\\/\\/(uk\\.)?${host.replace(/\./g, '\\.')}\\/`, 'i'),
+    currency,
+    shop: country ? new RegExp(`^https:\\/\\/${country}\\.${h}\\/`, 'i') : new RegExp(`^https:\\/\\/(uk\\.)?${h}\\/`, 'i'),
     sites: ['wgw', 'mgw', 'hgw', 'kgw', 'ggw'],
     maxPrice: 1500,
     // A 29p Christmas card or a 42p phone cover is not worth a card on the site.
     minPrice: 1
   };
 }
+
+// Plusshop's feeds of 14 Nov 2026 (lessons L144) carry broken characters: "Radox Bath Soak â 500 ml" (the dash lost two of
+// its three bytes), "Menâs", "KâNEX", "LâOrÃ©al", "NonâBio", "250â¯ml", "M2 BeautÃ©". The site shows the real
+// signs: "Radox Bath Soak – 500 ml", "Men’s", "K’NEX", "L’Oréal", "Non-Bio", "250 ml", "M2 Beauté", and "Pan - Ã 28" ->
+// "Pan - Ø 28", "2âinâ1" -> "2-in-1", "Shimmer ân Sparkle" -> "Shimmer ’n Sparkle". A sign that cannot be told ("Ãclaire",
+// "Badeâe") stays as it is.
+export function fixMojibake(text) {
+  let t = String(text || '');
+  t = t.replace(/[\u00c2-\u00df][\u0080-\u00bf]/g, m => {
+    const d = Buffer.from([m.charCodeAt(0), m.charCodeAt(1)]).toString('utf8');
+    return d.length === 1 && d !== '\ufffd' ? d : m;
+  });
+  t = t.replace(/\u00e2\u00a6/g, '…').replace(/\u00e2\u00af/g, ' ').replace(/\u00e2\u00b3/g, '″').replace(/\u00e2\u00a2/g, '•');
+  t = t.replace(/\u00c3(?=\s?\d)/g, 'Ø').replace(/\s\u00c3\s/g, ' à ');
+  t = t.replace(/(\d)\u00e2(?=[a-z])/g, '$1-').replace(/([a-z])\u00e2(?=\d)/g, '$1-').replace(/(^|\s)\u00e2(?=n\b)/g, '$1’');
+  t = t.replace(/(\d)\u00e2(?=\d)/g, '$1–').replace(/([A-Za-z])\u00e2(?=s\b)/g, '$1’');
+  t = t.replace(/\b([A-Za-z])\u00e2(?=[A-Za-z])/g, '$1’');
+  t = t.replace(/([a-z])\u00e2(?=(?:s|t|ll|re|ve|d|m)\b)/g, '$1’');
+  t = t.replace(/([A-Za-z])\u00e2(?=[A-Z])/g, '$1-');
+  t = t.replace(/\s*\u00e2\s+/g, ' – ');
+  return t.replace(/\s{2,}/g, ' ').trim();
+}
+// What is left of a broken sign after fixMojibake: "Ã" before a capital or a letter of another script, "â" stuck to letters.
+const BROKEN = /\u00c3[A-Za-z\s]|[A-Za-z]\u00e2[A-Za-z]|(^|\s)\u00e2[A-Za-z]/;
+export const displayName = name => fixMojibake(name);
+export const displayBrand = brand => fixMojibake(brand);
 
 // The shop address without "?gsnp": the same product in two feeds is one product.
 export function productKey(get) {
@@ -48,6 +77,8 @@ export function productKey(get) {
 
 // The full category path goes to the rules through the Awin category (it is not stored on the site).
 export function field(c, column) {
+  // Names and brands are mended as they are read, so the rules and the shown name see the same text (lessons L144).
+  if (c === 'product_name' || c === 'brand_name') return fixMojibake(column(c));
   if (c === 'category_name') return [column('merchant_product_category_path'), column('category_name')].filter(Boolean).join(' || ');
   return column(c);
 }
@@ -503,6 +534,8 @@ export function classify({ name, feedCategory = '', awinCategory = '', brand = '
   const awin = String(awinCategory || '').split(' || ')[1] || '';
   const all = `${p} > ${leaf} > ${awin}`;
   if (CJK.test(n)) return { reject: 'name not in English' };
+  // A broken sign that fixMojibake could not tell ("Lattafa Ãclaire", "Badeâe"): left out rather than shown wrong (L144).
+  if (BROKEN.test(n)) return { reject: 'name with broken characters' };
   if (ADULT_PATH.test(all) || ADULT_NAME.test(n) || ADULT_BRAND.test(String(brand || '').trim()) || /Adult Toys/i.test(awin)) return { reject: 'adult product' };
   if (/(^|\s)Pet accessories(\s|$)/i.test(p)) return { reject: 'pet product' };
   if (CAR.test(p) || CAR_NAME.test(n) || (/^Car Accessories$/i.test(awin) && /\bcar\b/i.test(n))) return { reject: 'car or bike product (not on these sites)' };
