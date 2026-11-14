@@ -3,6 +3,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { networkStats, groupPage, legalPage, legalPaths, createGroupWorker } from '../../src/group.js';
 import site from '../../sites/group/site.config.js';
+import { readFileSync } from 'node:fs';
 
 const fakeFetch = answers => async url => {
   const host = new URL(url).hostname;
@@ -143,7 +144,7 @@ test('L130: the home page shows all products and the UK, every country as a link
   assert.match(page, /Every other country: 48 products from 1 retailer that delivers worldwide\./);
   assert.ok((page.match(/<span class="tag">More coming<\/span>/g) || []).length === site.coming.length, 'one tag per coming country');
   assert.match(groupPage(site, stats, 'GB'), /858 products from 6 retailers deliver to the United Kingdom\./);
-  assert.match(groupPage(site, stats, 'BR'), /Visiting from Brazil\?<\/strong>\s*48 products from retailers that deliver worldwide\./);
+  assert.match(groupPage(site, stats, 'BR'), /Visiting from Brazil\?<\/strong>\s*48 products from a retailer that delivers worldwide\./);
   assert.ok(!/class="yours"/.test(groupPage(site, stats, '')), 'no box without a country');
   assert.ok(!/class="yours"/.test(groupPage(site, stats, 'XX')), 'no box for an unknown country');
   assert.ok(!/<style|style="|<script/.test(page), 'no inline styles or scripts');
@@ -192,4 +193,20 @@ test('L130 worker: /countries/<cc>/ pages, capital letters and no slash redirect
   } finally {
     globalThis.fetch = real;
   }
+});
+
+test('L130 review: no numbers (every site down) means no countries, no box, no zeros; one retailer still "deliver"; the CSS has no "our retailers"', async () => {
+  const empty = await networkStats(site, fakeFetch({}));
+  assert.equal(empty.sitesCounted, 0);
+  const page = groupPage(site, empty, 'GB');
+  assert.ok(!/id="countries"|class="yours"|No retailers yet/.test(page), 'no countries section and no box without numbers');
+  const cp = countryPage(site, empty, 'DE');
+  assert.match(cp, /The numbers are being updated/);
+  assert.ok(!/No retailers deliver here yet|Coming soon/.test(cp), 'no untrue zeros');
+  const one = await networkStats(site, fakeFetch({ 'cargearworld.com': { products: 5, retailer_names: ['A'], all_products: 1005,
+    delivery: [{ retailer: 'A', products: 5, countries: ['GB'] }, { retailer: 'B', products: 1000, countries: ['AL'] }] } }));
+  assert.match(groupPage(site, one, 'AL'), /1,000 products from 1 retailer deliver to Albania\./);
+  assert.match(countryPage(site, one, 'GB'), /<title>Gear World in the United Kingdom \| Gear World Group<\/title>/);
+  assert.ok(!/class="yours"/.test(groupPage(site, one, 'ZZ')), 'no box for a code without a real name');
+  assert.ok(!/our retailers/i.test(readFileSync('sites/group/public/assets/group.css', 'utf8')), 'L103 in the stylesheet too');
 });

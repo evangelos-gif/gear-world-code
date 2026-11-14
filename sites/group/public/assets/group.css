@@ -50,7 +50,7 @@ p { margin: 0 0 1em; }
 .prose ul { padding-left: 1.2em; }
 .prose li { margin-bottom: .5em; }
 .updated { color: var(--text-2); }
-/* Where our retailers deliver (lessons L130). Blue and amber only, every state also in words (the owner's colour vision). */
+/* Where the retailers deliver (lessons L130). Blue and amber only, every state also in words (the owner's colour vision). */
 .hero-small { padding: 36px 0 28px; }
 .eyebrow a { color: var(--gold); }
 .yours { margin: 22px 0 0; padding: 14px 16px; max-width: 70ch; background: #0f2747; border: 1px solid var(--link); border-radius: 10px; }

@@ -239,6 +239,8 @@ export function countryName(cc) {
 }
 
 const countryPath = cc => `/countries/${cc.toLowerCase()}/`;
+// The countries are shown only when at least one site answered: never a page of zeros ("No retailers yet") that is not true.
+const hasNumbers = stats => Boolean(stats && stats.countries && stats.sitesCounted > 0);
 const coming = (site, cc) => Array.isArray(site.coming) && site.coming.includes(cc);
 const COMING_TEXT = 'More retailers coming: approved, products being added';
 const nums = c => html`${fmt(c.products)} products</span>
@@ -255,7 +257,7 @@ ${CONTINENTS.map(([name, list]) => html`<h3 class="continent">${name}</h3>
   <span class="cnum">${c.products ? nums(c) : coming(site, cc) ? 'Coming soon' : 'No retailers yet'}</span>${coming(site, cc) ? html`<span class="tag">More coming</span>` : ''}</a></li>`;
   })}</ul>`)}
 ${stats.worldwide && stats.worldwide.products ? html`<p class="worldwide">Every other country: ${fmt(stats.worldwide.products)} products from ${fmt(stats.worldwide.retailers)} ${stats.worldwide.retailers === 1 ? 'retailer that delivers' : 'retailers that deliver'} worldwide.</p>` : ''}
-<p class="note">Updated every hour from the sites' own numbers. A product counts in every country its retailer delivers to.</p>`;
+<p class="note">Updated about every hour from the sites' own numbers. A product counts in every country its retailer delivers to.</p>`;
 }
 
 // The visitor's own country (Cloudflare), at the top of the home page. Added per request: the home page is never kept
@@ -264,14 +266,15 @@ function yourCountry(site, stats, country) {
   const cc = cleanCountry(country);
   if (!cc) return '';
   const c = stats.countries && stats.countries[cc];
+  if (!c && (countryName(cc) === cc || /unknown/i.test(countryName(cc)))) return '';
   if (!c) {
     const w = stats.worldwide || { products: 0, retailers: 0 };
     return html`<aside class="yours" aria-label="Your country"><p><strong>Visiting from ${countryName(cc)}?</strong>
-${w.products ? `${fmt(w.products)} products from retailers that deliver worldwide.` : ''}</p>
+${w.products ? `${fmt(w.products)} products from ${w.retailers === 1 ? 'a retailer that delivers' : 'retailers that deliver'} worldwide.` : ''}</p>
 <p><a href="#countries">See where the retailers deliver</a></p></aside>`;
   }
   return html`<aside class="yours" aria-label="Your country"><p><strong>From ${inName(cc)}?</strong>
-${c.products ? `${fmt(c.products)} products from ${fmt(c.retailers)} ${c.retailers === 1 ? 'retailer delivers' : 'retailers deliver'} to ${inName(cc)}.` : ''}
+${c.products ? `${fmt(c.products)} products from ${fmt(c.retailers)} ${c.retailers === 1 ? 'retailer' : 'retailers'} deliver to ${inName(cc)}.` : ''}
 ${coming(site, cc) ? COMING_TEXT + '.' : ''}</p>
 <p class="yours-links"><a href="${countryPath(cc)}">See ${inName(cc)}</a> <a href="#countries">See other countries</a></p></aside>`;
 }
@@ -292,10 +295,10 @@ export function groupPage(site, stats, country = '') {
   <p class="lede">Each product shows the retailer that sells it and where that retailer delivers.</p>
   <p class="lede">${site.name} runs ${site.sites.length} themed price comparison sites and a shared search hub. We list retailers' products from their affiliate product feeds, so shoppers can compare prices in one place and then buy direct from the retailer.</p>
   <ul class="facts">${facts.map(f => html`<li>${f}</li>`)}</ul>
-  ${stats.countries ? yourCountry(site, stats, country) : ''}
+  ${hasNumbers(stats) ? yourCountry(site, stats, country) : ''}
 </div></section>
 
-${stats.countries ? html`<section class="wrap section" id="countries" aria-labelledby="countries-h">
+${hasNumbers(stats) ? html`<section class="wrap section" id="countries" aria-labelledby="countries-h">
   <h2 id="countries-h">Where the retailers deliver</h2>
   ${countryList(site, stats)}
 </section>` : ''}
@@ -352,7 +355,11 @@ ${stats.countries ? html`<section class="wrap section" id="countries" aria-label
 // for search engines (noindex, follow) and not in the sitemap; the home page links to it.
 export function countryPage(site, stats, cc) {
   const c = (stats.countries && stats.countries[cc]) || { products: 0, retailers: 0, sites: [] };
-  const name = countryName(cc);
+  if (!hasNumbers(stats)) {
+    return shell(site, { title: `Gear World in ${inName(cc)} | ${site.name}`, description: `Products from the Gear World sites whose retailers deliver to ${inName(cc)}.`,
+      path: countryPath(cc), robots: 'noindex, follow',
+      body: html`<section class="wrap section prose"><h1>Gear World in ${inName(cc)}</h1><p>The numbers are being updated. Please look again in a few minutes.</p><p><a href="/">Back to ${site.name}</a></p></section>` });
+  }
   const body = html`
 <section class="hero hero-small"><div class="wrap">
   <p class="eyebrow"><a href="/#countries">Where the retailers deliver</a></p>
@@ -372,7 +379,7 @@ ${c.sites && c.sites.length ? html`<section class="wrap section" aria-labelledby
   ${countryList(site, stats, cc)}
 </section>`;
   return shell(site, {
-    title: `Gear World in ${name} | ${site.name}`,
+    title: `Gear World in ${inName(cc)} | ${site.name}`,
     description: `Products from the Gear World sites whose retailers deliver to ${inName(cc)}.`,
     path: countryPath(cc),
     robots: 'noindex, follow',
