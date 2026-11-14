@@ -1,6 +1,6 @@
 // Discount codes pages and the offer bar (lessons L32). Data: site.promos (promos/promos.js).
 import { html, raw } from '../lib/html.js';
-import { page, tr, keepName, breadcrumbs, breadcrumbSchema } from './layout.js';
+import { page, tr, keepName, breadcrumbs, breadcrumbSchema, deliveryLine } from './layout.js';
 import { activePromos, barPromo, promoRetailers } from '../lib/promos.js';
 import { seasonBanner } from './season.js';
 
@@ -23,12 +23,15 @@ function offerText(p) {
 }
 
 // The button says "View at <retailer>", as on every product (owner's rule, stricter than L103: never the word "shop"
-// in our texts, lessons L114).
-function promoCard(p) {
+// in our texts, lessons L114). In the all view (a country that is not open, lessons L151) the card says where the
+// retailer delivers, as the product cards do.
+function promoCard(p, site) {
+  const view = site && site.promoView;
   return html`<li class="promo-card${p.kind === 'code' ? ' promo-code-card' : ''}">
   <p class="promo-campaign">${tr(p.campaign)}</p>
   ${p.kind === 'code' ? html`<p class="promo-code"><span class="promo-code-label">${tr('Code')}</span> <strong translate="no">${p.code}</strong></p>` : ''}
   <p class="promo-offer">${offerText(p)}</p>
+  ${view && view.everyRetailer ? deliveryLine(site, p.retailer, { cls: 'notice-ship', max: 0 }) : ''}
   <p class="promo-valid">${tr('Valid until {0}', ukDate(p.end))}</p>
   <p class="promo-actions">
     ${p.kind === 'code' ? html`<button type="button" class="btn btn-outline btn-copy" data-copy="${p.code}" hidden>${tr('Copy code')}</button>` : ''}
@@ -37,13 +40,13 @@ function promoCard(p) {
 </li>`;
 }
 
-function retailerBlock(promos, headingTag) {
+function retailerBlock(promos, headingTag, site) {
   const codes = promos.filter(p => p.kind === 'code');
   const sales = promos.filter(p => p.kind !== 'code');
   const h = headingTag;
   return html`
-  ${codes.length ? html`${raw(`<${h}>`)}${tr('Discount codes')}${raw(`</${h}>`)}<ul class="promo-list">${codes.map(promoCard)}</ul>` : ''}
-  ${sales.length ? html`${raw(`<${h}>`)}${tr('Sales and campaigns')}${raw(`</${h}>`)}<ul class="promo-list">${sales.map(promoCard)}</ul>` : ''}`;
+  ${codes.length ? html`${raw(`<${h}>`)}${tr('Discount codes')}${raw(`</${h}>`)}<ul class="promo-list">${codes.map(p => promoCard(p, site))}</ul>` : ''}
+  ${sales.length ? html`${raw(`<${h}>`)}${tr('Sales and campaigns')}${raw(`</${h}>`)}<ul class="promo-list">${sales.map(p => promoCard(p, site))}</ul>` : ''}`;
 }
 
 function howTo(retailer) {
@@ -65,7 +68,7 @@ export function offersIndexPage(site, now = Date.now()) {
   <div id="offers-list"></div>
   ${retailers.length ? retailers.map(r => html`<section class="section" aria-labelledby="r-${r.slug}">
     <h2 id="r-${r.slug}" translate="no"><a href="${OFFERS_PATH}${r.slug}/">${r.name}</a></h2>
-    ${retailerBlock(promos.filter(p => p.slug === r.slug), 'h3')}
+    ${retailerBlock(promos.filter(p => p.slug === r.slug), 'h3', site)}
     ${howTo(r.name)}
   </section>`) : html`<div class="empty"><h2>${tr('No codes right now')}</h2><p>${tr('Check back soon. In the meantime, compare prices in the categories.')}</p></div>`}
 </div>`;
@@ -96,7 +99,7 @@ export function retailerOffersPage(site, slug, now = Date.now()) {
     <h1>${tr('{0} discount codes', keepName(retailer))}</h1>
     <p class="lede">${tr('Codes and sales that {0} publishes through its affiliate programme. Every code has an end date and is removed when it ends.', keepName(retailer))}</p>
   </header>
-  ${promos.length ? html`${retailerBlock(promos, 'h2')}${howTo(retailer)}`
+  ${promos.length ? html`${retailerBlock(promos, 'h2', site)}${howTo(retailer)}`
     : html`<div class="empty"><h2>${tr('No codes right now')}</h2><p>${tr('Check back soon. In the meantime, compare prices in the categories.')}</p></div>`}
 </div>`;
   const codes = promos.filter(p => p.kind === 'code');

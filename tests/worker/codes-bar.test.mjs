@@ -2,7 +2,8 @@
 // codes". Every page now has a thin bar between the masthead row (brand, Saved list, search) and the menu (nav.catbar):
 // one link to /discount-codes/ with a tag icon and the number of running codes ("4 active codes", "1 active code"; a
 // sale or a coupon with no code to type is an "offer"). It shows exactly when the footer link shows, for the same view
-// of the visitor (lessons L107, L114): a code of a retailer that does not deliver to the visitor never counts. No
+// of the visitor (lessons L107, L114): a code of a retailer that is not in the visitor's view never counts (since L151 the
+// all view of every country that is not open has every retailer, with where each delivers). No
 // retailer is the hero, no campaign name ("Black Friday"), no saving and no shop words, in any language. The bar is part
 // of the page HTML (cached per view group, no D1 read, no JavaScript needed).
 import { test } from 'node:test';
@@ -23,37 +24,26 @@ const FOOTER_LINK = '<li><a href="/discount-codes/">Discount codes</a></li>';
 // aria-current="page" (a screen reader hears that it is the page they are on); everywhere else it does not.
 const BAR = /<\/div>\n {2}<a class="codes-bar" href="\/discount-codes\/"(?: aria-current="page")?>([\s\S]*?)<\/a>\n {2}<nav class="catbar" aria-label="Categories">/;
 const GOOGLEBOT = 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)';
-// The visitors of the check: [name, request.cf.country, user agent]. Every country that can have a view of its own
-// (lessons L107: the 27 EU countries, Iceland, Liechtenstein, Norway, Switzerland and the UK; L141: the US since 14 Nov
-// 2026), then Canada (never a view of its own), an unknown country and Google's crawler (from Germany and from the US).
-// Google's crawlers get the UK view (src/engine.js).
+// The visitors of the check: [name, request.cf.country, user agent]. The 32 European countries (until L151 each could
+// have a view of its own), the US (a view of its own since 14 Nov 2026, lessons L141), Canada, an unknown country and
+// Google's crawler (from Germany and from the US). Google's crawlers get the UK view (src/engine.js).
 const EUROPE = ['AT', 'BE', 'BG', 'CY', 'CZ', 'DE', 'DK', 'EE', 'ES', 'FI', 'FR', 'GR', 'HR', 'HU', 'IE', 'IT', 'LT', 'LU', 'LV',
   'MT', 'NL', 'PL', 'PT', 'RO', 'SE', 'SI', 'SK', 'IS', 'LI', 'NO', 'CH', 'GB'];
-const OWN_VIEW = [...EUROPE, 'US'];
-const VIEWS = [...OWN_VIEW.map(c => [c, c, '']), ['CA', 'CA', ''], ['unknown', '', ''], ['Googlebot', 'DE', GOOGLEBOT],
+// The countries with a view of their own since L151 (14 Nov 2026): the open countries (today the UK) and the US.
+const OWN_VIEW = ['GB', 'US'];
+const VIEWS = [...[...EUROPE, 'US'].map(c => [c, c, '']), ['CA', 'CA', ''], ['unknown', '', ''], ['Googlebot', 'DE', GOOGLEBOT],
   ['Googlebot US', 'US', GOOGLEBOT]];
 // Who sees the bar. The codes of CGW, AGW and BGW are of retailers that deliver to the UK only (Tooled Up, My Tool
-// Shed), those of GGW, HGW and KGW too (Joybuy and the other UK shops, lessons L114). Every country group with a view of
-// its own (lessons L107, L141) shows only the retailers that deliver to it, so it gets 0 codes and no bar:
-//   CGW: every European country but the UK: AT and DE (Reidl, VEVOR, GRABO), CH and the US together (GRABO), and BE, NL,
-//        FR, IE, the rest of the EU, IS, LI and NO (VEVOR, GRABO);
-//   AGW: BE (Ottocast, Pneus.be, VEVOR), CH (Ottocast), NL, FR, AT, DE and the other countries Ottocast ships to
-//        (Ottocast, VEVOR), and CY, IE, LU, MT, IS, LI (VEVOR); massive import round 2b, 14 Nov 2026;
-//   BGW: the 27 EU countries, IS, LI and NO (VEVOR);
-//   GGW: the US (Click and Grow); HGW: the 27 EU countries (SwitchBot) and the US (Kincmo, AlorAir, Mosaic Weighted
-//        Blankets); KGW: the US (Dream Pairs, Kaiya Baby, Diecast Models Wholesale).
-// The UK view (the UK, a country with no view of its own on that site, Canada, an unknown country, Google's crawlers
-// from anywhere) always has the codes: the US on AGW and BGW (nobody there ships to the US), Switzerland on BGW, GGW, HGW
-// and KGW, Iceland, Liechtenstein and Norway on HGW, every European country on GGW and KGW.
-const UK_VIEW = ['GB', 'CA', 'unknown', 'Googlebot', 'Googlebot US'];
-const seeing = (also, except = []) => Object.fromEntries(VIEWS.map(([name]) => [name,
-  !except.includes(name) && (also === 'all' || UK_VIEW.includes(name) || also.includes(name))]));
-const SHOWN = { CGW: seeing([]), AGW: seeing(['US']), BGW: seeing(['CH', 'US']), GGW: seeing('all', ['US']), HGW: seeing(['CH', 'IS', 'LI', 'NO']),
-  KGW: seeing('all', ['US']) };
-// How many view groups each site has (the UK one included): CGW gb, at-de, ch-us and one for the rest of Europe; AGW gb
-// (with the US), be, ch and two for the rest; BGW gb (with CH and the US) and one for the EU, IS, LI, NO; GGW and KGW gb
-// and us; HGW gb, one for the EU and us.
-const GROUPS = { CGW: 4, AGW: 5, BGW: 2, GGW: 2, HGW: 3, KGW: 2 };
+// Shed), those of GGW, HGW and KGW too (Joybuy and the other UK shops, lessons L114).
+//   The UK view (the UK, Google's crawlers from anywhere, the US where nobody ships there: AGW, BGW) has them.
+//   The all view (every other country and an unknown one, lessons L151) has every retailer, so them too; each code card
+//   says where its retailer delivers.
+//   The US view (L141: CGW GRABO, GGW Click and Grow, HGW Kincmo, AlorAir, Mosaic Weighted Blankets, KGW Dream Pairs,
+//   Kaiya Baby, Diecast Models Wholesale) has none of them: no bar.
+const seeing = (except = []) => Object.fromEntries(VIEWS.map(([name]) => [name, !except.includes(name)]));
+const SHOWN = { CGW: seeing(['US']), AGW: seeing(), BGW: seeing(), GGW: seeing(['US']), HGW: seeing(['US']), KGW: seeing(['US']) };
+// How many view groups each site has: gb, all, and us where a retailer ships to the US.
+const GROUPS = { CGW: 3, AGW: 2, BGW: 2, GGW: 3, HGW: 3, KGW: 3 };
 // What the bar says in the UK view while the codes of the config run (promos/promos.js, 10 Nov 2026).
 const WORDS = {
   CGW: ['{0} active codes', '4'], GGW: ['{0} active codes', '4'], AGW: ['{0} active codes', '2'], BGW: ['{0} active codes', '2'],
@@ -112,25 +102,23 @@ function visitor(site) {
 }
 const barOf = html => (html.match(BAR) || [])[1] || '';
 
-test('L115: every view group of the sites with codes: the UK view has the codes, each group with a view of its own (DE, BE, NL, FR, IE, AT, CH...) none', async () => {
-  // The list of the check is the engine's list of countries that can have a view of their own.
+test('L115, L151: every view group of the sites with codes: the UK view and the all view have the codes, the US view (L141) none', async () => {
+  // The list of the check is the engine's list of countries with a view of their own.
   assert.deepEqual([...OWN_VIEW].sort(), [...OWN_VIEW_COUNTRIES].sort(), 'the countries of the check');
   const sites = await allSites();
   for (const [code, want] of Object.entries(SHOWN)) {
     const site = runningToday(sites[code].site);
-    const { home, list } = countryGroups(site);
+    const { home, all, list } = countryGroups(site);
     assert.equal(list.length, GROUPS[code], `${code}: view groups ${list.map(g => g.id).join(', ')}`);
+    assert.notEqual(all, home, `${code}: the all view is a copy of its own (the UK view hides some retailers)`);
     for (const g of list) {
-      const codes = activePromos(site, Date.now(), viewFor(site, g.countries[0] || 'GB')).length;
-      // The UK group has the codes; every other group (a view of its own) has none, and none of its countries sees the bar.
-      assert.equal(codes > 0, g === home, `${code} ${g.id}: ${codes} codes`);
-      for (const c of g.countries) assert.equal(want[c], g === home, `${code} ${g.id} ${c}: expected ${g === home ? 'the bar' : 'no bar'}`);
+      const codes = activePromos(site, Date.now(), viewFor(site, g === all ? 'CA' : g.countries[0])).length;
+      const has = g === home || g === all;
+      assert.equal(codes > 0, has, `${code} ${g.id}: ${codes} codes`);
+      for (const c of g.countries) assert.equal(want[c], has, `${code} ${g.id} ${c}: expected ${has ? 'the bar' : 'no bar'}`);
     }
-    // By name, on the four sites with European views of their own: Germany, Belgium, the Netherlands, France, Ireland and
-    // Austria are never in the UK view there, so they never see the UK-only codes.
-    if (['CGW', 'AGW', 'BGW', 'HGW'].includes(code)) {
-      for (const c of ['DE', 'BE', 'NL', 'FR', 'IE', 'AT']) assert.ok(viewFor(site, c).group !== home.id && !want[c], `${code} ${c}: a view of its own, no codes`);
-    }
+    // By name: Germany, Belgium, the Netherlands, France, Ireland and Austria are in the all view (L151), with the codes.
+    for (const c of ['DE', 'BE', 'NL', 'FR', 'IE', 'AT', 'CH']) assert.ok(viewFor(site, c).group === all.id && want[c], `${code} ${c}: the all view, the codes`);
     // The US (lessons L141): a view of its own where a retailer ships there (CGW GRABO, the US shops of GGW, HGW, KGW).
     const usOwn = ['CGW', 'GGW', 'HGW', 'KGW'].includes(code);
     assert.equal(viewFor(site, 'US').group !== home.id, usOwn, `${code} US: ${usOwn ? 'a view of its own' : 'the UK view'}`);
@@ -312,7 +300,7 @@ test('L115: every text of the bar is in the 130 dictionaries, with no shop, part
   }
 });
 
-test('L115: cached pages keep the bar in the copy of their own view group only (home, category, product, deals, guide)', async () => {
+test('L115, L151: cached pages keep the bar in the copy of their own view group only (home, category, product, deals, guide)', async () => {
   const sites = await allSites();
   const { dir, site: config } = sites.CGW;
   const cgw = runningToday(config);
@@ -331,25 +319,28 @@ test('L115: cached pages keep the bar in the copy of their own view group only (
     // A buying guide (its words in sites/cgw/guides.js; the test products are not in it, so it shows as no longer listed).
     const guide = `/guides/${cgw.guides[0].slug}/`;
     assert.ok(category && product && cgw.guides[0].slug, 'pages to check');
-    const de = viewFor(cgw, 'DE').group;
+    const us = viewFor(cgw, 'US').group;
     for (const path of ['/', category, product, '/deals/', '/guides/', guide]) {
       const gb = await get(path, env, 'GB');
       assert.equal(gb.status, 200, path);
-      const germany = await get(path, env, 'DE');
-      assert.equal(germany.status, 200, `${path} DE`);
+      const usa = await get(path, env, 'US');
+      assert.equal(usa.status, 200, `${path} US`);
       assert.ok(barOf(gb.html), `${path}: the UK copy has the bar`);
-      assert.ok(!/codes-bar/.test(germany.html), `${path}: the German copy has none`);
+      assert.ok(!/codes-bar/.test(usa.html), `${path}: the US copy (GRABO only, L141) has none`);
       const key = `https://${cgw.domain}${path}`;
       const sep = path.includes('?') ? '&' : '?';
-      assert.ok(store.has(`${key}${sep}gw-view=gb`) && store.has(`${key}${sep}gw-view=${de}`), `${path}: one copy per group`);
+      assert.ok(store.has(`${key}${sep}gw-view=gb`) && store.has(`${key}${sep}gw-view=${us}`), `${path}: one copy per group`);
       assert.ok(barOf(await store.get(`${key}${sep}gw-view=gb`).clone().text()), `${path}: the bar is in the cached UK copy`);
-      assert.ok(!/codes-bar/.test(await store.get(`${key}${sep}gw-view=${de}`).clone().text()), `${path}: and not in the German one`);
-      // Later visits get their own group's copy: Canada, an unknown country and Google's crawler (from Germany or the US)
-      // the UK one; Belgium (its own group: VEVOR, GRABO) and the US (GRABO, lessons L141) one without the bar.
-      const size = store.size;
-      for (const [country, ua] of [['CA', ''], ['', ''], ['DE', GOOGLEBOT], ['US', GOOGLEBOT]]) assert.ok(barOf((await get(path, env, country, ua)).html), `${path} ${country || 'unknown'}${ua ? ' Googlebot' : ''}`);
+      assert.ok(!/codes-bar/.test(await store.get(`${key}${sep}gw-view=${us}`).clone().text()), `${path}: and not in the US one`);
+      // Google's crawler (from Germany or the US): the UK copy, no other.
+      let size = store.size;
+      for (const country of ['DE', 'US']) assert.ok(barOf((await get(path, env, country, GOOGLEBOT)).html), `${path} ${country} Googlebot`);
       assert.equal(store.size, size, `${path}: no other copy for the UK view`);
-      for (const cc of ['BE', 'US']) assert.ok(!/codes-bar/.test((await get(path, env, cc)).html), `${path} ${cc}`);
+      // The all view (L151): Germany, Belgium, Canada and an unknown country share one more copy, with the bar.
+      for (const country of ['DE', 'BE', 'CA', '']) assert.ok(barOf((await get(path, env, country)).html), `${path} ${country || 'unknown'}`);
+      assert.equal(store.size, size + 1, `${path}: one copy for the all view`);
+      assert.ok(barOf(await store.get(`${key}${sep}gw-view=all`).clone().text()), `${path}: the bar is in the cached all copy`);
+      assert.ok(!/codes-bar/.test((await get(path, env, 'US')).html), `${path} US`);
     }
   } finally {
     if (before === undefined) delete globalThis.caches; else globalThis.caches = before;

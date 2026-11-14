@@ -4,6 +4,8 @@ import { html, toString } from './lib/html.js';
 import { htmlResponse, textResponse, redirect } from './lib/http.js';
 import { COUNTRY_NAMES, WORLDWIDE } from './lib/delivery.js';
 import { listCovers, cleanCountry } from './lib/visibility.js';
+import { OPEN_COUNTRIES, OPEN_RULE, openCheck } from './lib/open-countries.js';
+import { MAP_SIZE, MAP_EUROPE, MAP_SHAPES, MAP_DOTS } from './group-map.js';
 
 const STATS_TTL = 3600;
 
@@ -22,8 +24,9 @@ const retailerKey = n => String(n).replace(/\s+UK$/i, '').trim().toLowerCase();
 
 // Adds up the sites' /api/stats. A site that does not answer within 4 seconds is left out of the sum.
 // products: every listed product (all countries); ukProducts: the UK view; countries: per country the products, the
-// retailers and each site's share, from the retailers' delivery countries. A site that still answers the older
-// /api/stats (no "delivery") counts its UK numbers for the UK only.
+// retailers, the products of the retailer with the most (top, for the open-country rule, lessons L151) and each site's
+// share, from the retailers' delivery countries. A site that still answers the older /api/stats (no "delivery") counts
+// its UK numbers for the UK only.
 export async function networkStats(site, fetcher = fetch) {
   const results = await Promise.all(site.sites.filter(s => s.stats).map(async s => {
     try {
@@ -49,7 +52,7 @@ export async function networkStats(site, fetcher = fetch) {
   const ok = results.filter(Boolean);
   const allNames = new Set();
   const ukNames = new Set();
-  const countries = Object.fromEntries(COUNTRY_CODES.map(cc => [cc, { products: 0, retailers: new Set(), sites: [] }]));
+  const countries = Object.fromEntries(COUNTRY_CODES.map(cc => [cc, { products: 0, retailers: new Set(), byRetailer: new Map(), sites: [] }]));
   const worldwide = { products: 0, retailers: new Set() };
   for (const r of ok) {
     for (const n of r.names) ukNames.add(retailerKey(n));
@@ -62,13 +65,17 @@ export async function networkStats(site, fetcher = fetch) {
         if (!listCovers(x.countries, cc)) continue;
         countries[cc].products += x.products;
         keys.forEach(k => countries[cc].retailers.add(k));
+        // The same retailer on several sites is one retailer (its products added up); a site on the older /api/stats
+        // gives its UK number under its first retailer.
+        const k = keys[0];
+        countries[cc].byRetailer.set(k, (countries[cc].byRetailer.get(k) || 0) + x.products);
         perCountry[cc] = (perCountry[cc] || 0) + x.products;
       }
     }
     for (const [cc, n] of Object.entries(perCountry)) countries[cc].sites.push([r.site.name, r.site.url, n]);
   }
   const plain = Object.fromEntries(Object.entries(countries).map(([cc, c]) => [cc, { products: c.products, retailers: c.retailers.size,
-    sites: c.sites.sort((a, b) => b[2] - a[2]) }]));
+    top: Math.max(0, ...c.byRetailer.values()), sites: c.sites.sort((a, b) => b[2] - a[2]) }]));
   return {
     products: ok.reduce((t, x) => t + x.all, 0),
     ukProducts: ok.reduce((t, x) => t + x.products, 0),
@@ -81,7 +88,7 @@ export async function networkStats(site, fetcher = fetch) {
 
 async function cachedStats(site, ctx) {
   const cache = typeof caches !== 'undefined' ? caches.default : null;
-  const key = new Request(`https://${site.domain}/__stats-cache-2`); // -2: the numbers per country (L130)
+  const key = new Request(`https://${site.domain}/__stats-cache-3`); // -2: the numbers per country (L130); -3: top (L151)
   if (cache) {
     const hit = await cache.match(key);
     if (hit) return hit.json();
@@ -246,6 +253,68 @@ const COMING_TEXT = 'More retailers coming: approved, products being added';
 const nums = c => html`${fmt(c.products)} products</span>
   <span class="cnum">${fmt(c.retailers)} ${c.retailers === 1 ? 'retailer' : 'retailers'}`;
 
+// The open-country rule (lessons L151, src/lib/open-countries.js), per country, in words: what a visitor from there
+// sees on the sites today, and what is missing before the country can open. The list of open countries changes only
+// with the update of all the sites (tools/sites-update-all.ps1), never from these numbers by themselves.
+const RULE_TEXT = `A country opens when at least ${fmt(OPEN_RULE.products)} products from at least ${OPEN_RULE.retailers} retailers deliver there and no retailer has more than half of them. A visitor from an open country sees only what delivers there; from every other country, all the products, each with where its retailer delivers.`;
+export function countryState(site, stats, cc) {
+  const c = (stats && stats.countries && stats.countries[cc]) || { products: 0, retailers: 0, top: 0 };
+  const check = openCheck(c);
+  if (OPEN_COUNTRIES.includes(cc)) return { kind: 'open', check, status: 'Open: shows only what delivers here', short: 'Open', missing: '' };
+  // The US keep their own view of 14 Nov 2026 (lessons L141): what ships there, on a site that has such a retailer.
+  const us = cc === 'US';
+  const status = us ? 'Shows what ships to the US, on the sites that have it' : 'Shows all products, each with where its retailer delivers';
+  const short = us ? 'Own view: what ships to the US' : 'Shows all with delivery badge';
+  if (check.meets) return { kind: us ? 'us' : 'all', check, status, short, missing: 'Meets the rule: opens with the next update of the sites' };
+  const m = check.missing;
+  const parts = [
+    m.products ? `${fmt(m.products)} more ${m.products === 1 ? 'product' : 'products'}` : '',
+    m.retailers ? `${m.retailers} more ${m.retailers === 1 ? 'retailer' : 'retailers'}` : '',
+    m.share ? `one retailer has ${Math.ceil(check.share * 100)}% (max ${Math.round(OPEN_RULE.share * 100)}%)` : ''
+  ].filter(Boolean);
+  return { kind: us ? 'us' : 'all', check, status, short, missing: `To open: ${parts.join(', ')}` };
+}
+
+// Blue shades by the number of products (the last one is the rule's 30,000), grey for none, orange around a country
+// where retailers are coming. Every colour is also said in words (the legend, each country's title and the list below).
+const SHADES = [[OPEN_RULE.products, 'm4'], [10000, 'm3'], [1000, 'm2'], [1, 'm1']];
+const shade = n => (SHADES.find(([min]) => n >= min) || [0, 'm0'])[1];
+const LEGEND = [
+  ['m4', `${fmt(OPEN_RULE.products)} products or more`], ['m3', `${fmt(10000)} to ${fmt(OPEN_RULE.products - 1)} products`],
+  ['m2', `${fmt(1000)} to ${fmt(9999)} products`], ['m1', 'Fewer than 1,000 products'], ['m0', 'No products yet'],
+  ['mc', 'Coming: retailers approved, products being added']
+];
+const productWords = c => (c.products ? `${fmt(c.products)} products from ${fmt(c.retailers)} ${c.retailers === 1 ? 'retailer' : 'retailers'}` : 'no products yet');
+
+// The world map above the list (lessons L152), and a close-up of Europe (most listed countries are there; on a phone
+// the world map alone is too small to tap them): the shapes of src/group-map.js, drawn on the server, no script, no
+// style attribute (CSP), no file from another site. A listed country is a link to its page; the list below says the
+// same in words, so the maps are hidden from screen readers and their links from the Tab key.
+function worldMap(site, stats) {
+  const cs = stats.countries || {};
+  const w = stats.worldwide || { products: 0, retailers: 0 };
+  const listed = new Set(COUNTRY_CODES);
+  const titleOf = cc => {
+    const s = countryState(site, stats, cc);
+    return [`${countryName(cc)}: ${productWords(cs[cc] || { products: 0 })}.`, `${s.status}.`, s.missing ? `${s.missing}.` : '',
+      coming(site, cc) ? `${COMING_TEXT}.` : ''].filter(Boolean).join(' ');
+  };
+  const other = w.products ? `every other country, ${fmt(w.products)} products from ${w.retailers === 1 ? 'a retailer that delivers' : 'retailers that deliver'} worldwide` : 'no products yet';
+  const cls = cc => [shade(listed.has(cc) ? (cs[cc] || { products: 0 }).products : w.products), listed.has(cc) ? 'mp' : '', coming(site, cc) ? 'mc' : ''].filter(Boolean).join(' ');
+  const draw = (europe, r) => html`${MAP_SHAPES.filter(s => !europe || s[2]).map(([cc, d]) => {
+    if (listed.has(cc)) return html`<a href="${countryPath(cc)}" tabindex="-1"><title>${titleOf(cc)}</title><path class="${cls(cc)}" d="${d}"/></a>`;
+    if (cc) return html`<path class="${cls(cc)}" d="${d}"><title>${countryName(cc)}: ${other}.</title></path>`;
+    return html`<path class="${cls(cc)}" d="${d}"/>`;
+  })}${MAP_DOTS.map(([cc, x, y]) => html`<a href="${countryPath(cc)}" tabindex="-1"><title>${titleOf(cc)}</title><circle class="${cls(cc)}" cx="${x}" cy="${y}" r="${r}"/></a>`)}`;
+  return html`<figure class="gmap">
+  <svg class="gmap-svg" viewBox="0 0 ${MAP_SIZE[0]} ${MAP_SIZE[1]}" aria-hidden="true" focusable="false">${draw(false, 14)}</svg>
+  <p class="gmap-h" aria-hidden="true">Europe, closer</p>
+  <svg class="gmap-svg gmap-europe" viewBox="${MAP_EUROPE.join(' ')}" aria-hidden="true" focusable="false">${draw(true, 6)}</svg>
+  <figcaption><ul class="legend">${LEGEND.map(([c, words]) => html`<li><span class="sw ${c}"></span>${words}</li>`)}</ul>
+  <p class="note">Select a country on the map, or in the list below, to see its numbers by site.</p></figcaption>
+</figure>`;
+}
+
 // "Where the retailers deliver": every continent and its countries, each a link to the country's own page.
 function countryList(site, stats, current = '') {
   const cs = stats.countries || {};
@@ -253,10 +322,12 @@ function countryList(site, stats, current = '') {
 ${CONTINENTS.map(([name, list]) => html`<h3 class="continent">${name}</h3>
 <ul class="countries">${list.map(cc => {
     const c = cs[cc] || { products: 0, retailers: 0 };
+    const s = countryState(site, stats, cc);
     return html`<li${cc === current ? html` class="here"` : ''}><a href="${countryPath(cc)}"${cc === current ? html` aria-current="page"` : ''}><span class="cn">${countryName(cc)}</span>
-  <span class="cnum">${c.products ? nums(c) : coming(site, cc) ? 'Coming soon' : 'No retailers yet'}</span>${coming(site, cc) ? html`<span class="tag">More coming</span>` : ''}</a></li>`;
+  <span class="cnum">${c.products ? nums(c) : coming(site, cc) ? 'Coming soon' : 'No retailers yet'}</span>
+  <span class="cstate${s.kind === 'open' ? ' open' : ''}">${s.short}</span>${s.missing ? html`<span class="cmiss">${s.missing}</span>` : ''}${coming(site, cc) ? html`<span class="tag">More coming</span>` : ''}</a></li>`;
   })}</ul>`)}
-${stats.worldwide && stats.worldwide.products ? html`<p class="worldwide">Every other country: ${fmt(stats.worldwide.products)} products from ${fmt(stats.worldwide.retailers)} ${stats.worldwide.retailers === 1 ? 'retailer that delivers' : 'retailers that deliver'} worldwide.</p>` : ''}
+${stats.worldwide && stats.worldwide.products ? html`<p class="worldwide">Every other country: ${fmt(stats.worldwide.products)} products from ${fmt(stats.worldwide.retailers)} ${stats.worldwide.retailers === 1 ? 'retailer that delivers' : 'retailers that deliver'} worldwide. A visitor from there sees all the products, each with where its retailer delivers.</p>` : ''}
 <p class="note">Updated about every hour from the sites' own numbers. A product counts in every country its retailer delivers to.</p>`;
 }
 
@@ -300,6 +371,8 @@ export function groupPage(site, stats, country = '') {
 
 ${hasNumbers(stats) ? html`<section class="wrap section" id="countries" aria-labelledby="countries-h">
   <h2 id="countries-h">Where the retailers deliver</h2>
+  <p class="rule">${RULE_TEXT}</p>
+  ${worldMap(site, stats)}
   ${countryList(site, stats)}
 </section>` : ''}
 
@@ -355,6 +428,7 @@ ${hasNumbers(stats) ? html`<section class="wrap section" id="countries" aria-lab
 // for search engines (noindex, follow) and not in the sitemap; the home page links to it.
 export function countryPage(site, stats, cc) {
   const c = (stats.countries && stats.countries[cc]) || { products: 0, retailers: 0, sites: [] };
+  const state = countryState(site, stats, cc);
   if (!hasNumbers(stats)) {
     return shell(site, { title: `Gear World in ${inName(cc)} | ${site.name}`, description: `Products from the Gear World sites whose retailers deliver to ${inName(cc)}.`,
       path: countryPath(cc), robots: 'noindex, follow',
@@ -369,6 +443,8 @@ export function countryPage(site, stats, cc) {
     ${c.retailers ? html`<li>${fmt(c.retailers)} ${c.retailers === 1 ? 'retailer' : 'retailers'}</li>` : ''}
     ${coming(site, cc) ? html`<li class="tag-li">${COMING_TEXT}</li>` : ''}
   </ul>
+  <p class="lede">${state.status}.${state.missing ? ` ${state.missing}.` : ''}</p>
+  <p class="note">${RULE_TEXT}</p>
 </div></section>
 ${c.sites && c.sites.length ? html`<section class="wrap section" aria-labelledby="by-site-h">
   <h2 id="by-site-h">By site</h2>

@@ -18,7 +18,8 @@ import { useSiteAssets, useRates, ukBarHtml } from './pages/layout.js';
 import { sitemapIndex, sitemapStatic, sitemapProducts, robotsTxt, SITEMAP_CHUNK } from './seo.js';
 import { posterScan } from './lib/poster-scan.js';
 import { guidePage, guidesIndexPage, findGuide, guideProductIds, listedGuides, allGuideProductIds, GUIDES_PATH } from './pages/guides.js';
-import { viewFor, homeView, hiddenReason, needsCheck, cacheKeyUrl, needsUkBar, retailerInView, now as clockNow } from './lib/visibility.js';
+import { viewFor, hubViewFor, homeView, hiddenReason, needsCheck, cacheKeyUrl, needsUkBar, retailerInView, now as clockNow } from './lib/visibility.js';
+import { deliveryCountries } from './lib/delivery.js';
 
 // Gear World Hub keeps the one list of members; sites reach it only through a service binding (lessons L92).
 // The address is not public: requests from the internet never carry this host name.
@@ -59,8 +60,8 @@ const PER_PAGE = 24;
 // the same UK view as anyone, so it gains nothing.
 export const GOOGLE_CRAWLER = /\b(Googlebot|AdsBot-Google(-Mobile)?|Google-InspectionTool|Storebot-Google|Mediapartners-Google|GoogleOther)\b/i;
 // A local test Worker (wrangler dev on localhost, the checks) gets a made-up request.cf from Miniflare, with country
-// "US": it counts as an unknown country (the UK view with its bar), as it did before the US had a view of its own
-// (lessons L141). Only ?deliver_to= of /api/products and the crawler rule apply there.
+// "US": it counts as an unknown country (since L151 the all view with its bar), not as the US view of lessons L141.
+// Only ?deliver_to= of /api/products and the crawler rule apply there.
 const LOCAL_HOSTS = new Set(['localhost', '127.0.0.1', '[::1]']);
 function requestCountry(request, url, apiProducts = false) {
   if (GOOGLE_CRAWLER.test(request.headers.get('user-agent') || '')) return 'GB';
@@ -108,7 +109,10 @@ export function createWorker(site) {
     const path = url.pathname;
     // What this visitor may see (lessons L107): their country group, and prices checked in the last 30 days.
     const at = localDay(env, host) ?? clockNow();
-    const view = viewFor(site, requestCountry(request, url, path === '/api/products'), at);
+    // Gear World Hub (?deliver_to= without &badges=1): the views of before L151 until its cards say where each retailer
+    // delivers (src/lib/visibility.js hubViewFor).
+    const hubAsk = path === '/api/products' && Boolean(url.searchParams.get('deliver_to')) && url.searchParams.get('badges') !== '1';
+    const view = (hubAsk ? hubViewFor : viewFor)(site, requestCountry(request, url, path === '/api/products'), at);
     const ukView = homeView(site, at);
     // The pages of this answer: the site with the visitor's view, so the discount codes, their footer link, the top bar
     // and the seasonal banner above the codes follow the same retailers as the products (lessons L114). A copy for this
@@ -455,6 +459,8 @@ export function createWorker(site) {
         stock_status: x.checkRetailer ? 'check_retailer' : Number(x.in_stock) === 1 ? 'in_stock' : 'out_of_stock',
         offers: Number(x.offer_count) || 1,
         image_url: x.image_url,
+        // Where the retailer delivers (lessons L151): country codes, 'EU' or 'WORLD', as the site's own cards say it.
+        delivers_to: deliveryCountries(site, x.retailer),
         product_url: origin + productPath(x),
         affiliate_url: `${origin}/out/${x.id}`
       })),
@@ -591,8 +597,8 @@ export function createWorker(site) {
         try { pageSite = promoViewSite(site, viewFor(site, requestCountry(request, new URL(request.url)))); } catch { pageSite = site; }
         response = htmlResponse(errorPage(pageSite), { status: 500, cache: 'none' });
       }
-      // The bar for a visitor outside the UK who gets the UK view (lessons L107, owner's option A): added to the answer
-      // after the page cache, never into a cached copy, so it costs no D1 read and no extra cache copy.
+      // The bar for a visitor outside the UK who gets the UK view or the all view (lessons L107, owner's option A; L151):
+      // added to the answer after the page cache, never into a cached copy, so it costs no D1 read and no extra cache copy.
       if (request.method === 'GET' && needsUkBar(site, requestCountry(request, new URL(request.url)))) response = await withUkBar(response);
       if (!preview) return response;
       const h = new Headers(response.headers);
