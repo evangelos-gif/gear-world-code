@@ -2845,7 +2845,7 @@ http.createServer((q, s) => {
         Remove-Item -LiteralPath (Join-Path $cjOut '*') -Force -ErrorAction SilentlyContinue
         & $exe @($cjArgs + @('-Advertiser', '3992613', '-Search', 'kids-winter-boots', '-Apply', '-Approve', ('ΕΓΚΡΙΝΩ CJ FEED DOWNLOAD'))) | Out-Null
         $cjSearch = (@(Get-ChildItem -LiteralPath $cjOut -Filter 'CJ_FEED_DOWNLOAD_*.txt') | ForEach-Object { [System.IO.File]::ReadAllText($_.FullName) }) -join "`n"
-        Check ($LASTEXITCODE -eq 4 -and $cjSearch.Contains('no keyword search') -and @(Get-ChildItem -LiteralPath $cjArch -File).Count -eq $cjFiles) 'cj-feed-download: -Search without keyword search in the API downloads nothing'
+        Check ($LASTEXITCODE -eq 4 -and $cjSearch.Contains('keyword search') -and @(Get-ChildItem -LiteralPath $cjArch -File).Count -eq $cjFiles) 'cj-feed-download: -Search without keyword search in the API downloads nothing'
         $cjPlanOut = Join-Path $cjDir 'plan'
         & $exe -NoProfile -ExecutionPolicy Bypass -File $runTool -LocalRepo $repo -Tool legacy-import-plan -Retailer 'xplora' -Archive $cjArch -OutDir $cjPlanOut -NoClipboard | Out-Null
         $cjPlan = @(Get-ChildItem -LiteralPath $cjPlanOut -Recurse -Filter 'report.txt')

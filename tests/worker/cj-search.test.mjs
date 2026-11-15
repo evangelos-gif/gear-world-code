@@ -30,7 +30,7 @@ const TYPES = {
 };
 
 const item = (i, title, currency = 'GBP', over = {}) => ({
-  id: String(400000000 + i), title, brand: '', link: `http://www.dhgate.com/product/item-${i}/${400000000 + i}.html`, imageLink: `https://img.dhgate.com/${i}.jpg`,
+  id: String(400000000 + i), title, brand: '', link: `https://uk.dhgate.com/product/${title.toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 40)}/${400000000 + i}.html`, imageLink: `https://img.dhgate.com/${i}.jpg`,
   availability: 'in stock', advertiserId: '3992613', advertiserName: 'DHgate', itemGroupId: '', targetCountry: currency === 'GBP' ? 'GB' : 'US',
   serviceableAreas: currency === 'GBP' ? ['GB'] : ['US'], shipsFromCountry: 'CN', ageGroup: 'kids', gender: 'unisex',
   price: { amount: 10 + i, currency }, linkCode: { clickUrl: `https://www.jdoqocy.com/click-101917444-1?url=${i}` },
@@ -39,13 +39,15 @@ const item = (i, title, currency = 'GBP', over = {}) => ({
 
 // A fake CJ like the real one (DHgate looks of 15 Nov 2026): keywords = ANY of the words, "+" and quotes ignored;
 // currency, serviceableAreas and Google category (id or name) filter; price bands.
-function fakeCj({ products, args = ARGS, total = null }) {
+function fakeCj({ products, args = ARGS, total = null, busySchema = 0 }) {
   const calls = [];
+  let busyLeft = busySchema;
   const fetchImpl = async (url, init) => {
     const q = JSON.parse(init.body).query;
     calls.push(q);
     const json = x => ({ status: 200, text: async () => JSON.stringify(x) });
     if (init.headers.authorization !== `Bearer ${TOKEN}`) return { status: 401, text: async () => '{"errors":[{"message":"Unauthorized"}]}' };
+    if (q.includes('__schema') && busyLeft > 0) { busyLeft--; return { status: 429, text: async () => '{"errors":[{"message":"Too Many Requests"}]}' }; }
     if (q.includes('__schema')) return json({ data: { __schema: schemaWith(args) } });
     const ty = /__type\(name: "(\w+)"\)/.exec(q);
     if (ty) return json({ data: { __type: TYPES[ty[1]] ? { fields: TYPES[ty[1]] } : null } });
@@ -191,6 +193,15 @@ test('L161: DHgate on Kids\' Gear World: only children\'s winter boots from the 
   assert.match(why('Kids Boots Leather Chelsea Ankle Boots'), /not a snow/);
   assert.match(why('Kids Snow Suit Winter Warm'), /not a boot/);
   assert.match(R.classify({ name: 'Kids Snow Boots Warm', info: { target: 'US', areas: 'US' } }).reject, /UK/);
+  // Third DHgate look (15 Nov 2026): HTML codes, UGG-style copies, adult boots and a re-used listing.
+  assert.match(why('Men&#039;s Winter Snow Boots Kids Fleece Lined'), /grown-ups/);
+  assert.match(why('Kids Tasman Slipper Snow Boots Plush'), /brand/);
+  assert.match(why('Girls Ultra Mini Platform Snow Boots Warm'), /brand/);
+  assert.match(why('Kids Plush Snow Slippers Boots Warm'), /not a child/);
+  const page = slug => R.classify({ name: 'Toddler Snow Boots Winter Warm Boy Girl Children', url: `https://uk.dhgate.com/product/${slug}/409610975.html`, info: { target: 'GB', areas: 'JP, GB, US' } });
+  assert.match(page('lexington-chronograph-gold-tone-black-dial').reject, /re-used listing/);
+  assert.equal(page('trendy-snow-boots-shoes-boots-winter').subcategory, 'Winter Boots');
+  assert.equal(R.displayName('Girl&#039;s Snow Boots &amp; Mittens'), "Girl's Snow Boots & Mittens");
   assert.equal(R.productKey(() => 'http://www.dhgate.com/product/kids-snow-boots/402230757.html'), 'dhgate-402230757');
   assert.deepEqual(R.feedFiles('/x').map(f => f.replace(/\\/g, '/')), ['/x/CJ_3992613_kids-winter-boots.csv.gz']);
   assert.equal(R.displayBrand('Shenzhen Happy Shoes Store'), 'DHgate');
@@ -220,4 +231,13 @@ test('L161: a keyword with nothing in shoes falls back to every category', async
   const S = await run({ ...base, mode: 'probe', fetchImpl: fakeCj({ products: items }).fetchImpl, search: 'kids-winter-boots' });
   const w = S.advertisers[0].searches.find(x => x.keyword === 'wellies');
   assert.deepEqual([w.tries.map(x => x.total), w.form, w.used], [[0, 0, 1], 'every category', 1]);
+});
+
+test('L161: a busy CJ (429) is asked again, so a download right after the look still finds the keyword search', async () => {
+  const out = mkdtempSync(join(tmpdir(), 'gw-cjs-'));
+  const S = await run({ ...base, mode: 'download', out, fetchImpl: fakeCj({ products: CATALOGUE, busySchema: 2 }).fetchImpl, search: 'kids-winter-boots', retryWaitMs: 0 });
+  assert.equal(S.error, undefined, S.error);
+  assert.equal(S.advertisers[0].ok, true);
+  const T = await run({ ...base, mode: 'download', out: mkdtempSync(join(tmpdir(), 'gw-cjs-')), fetchImpl: fakeCj({ products: CATALOGUE, busySchema: 9 }).fetchImpl, search: 'kids-winter-boots', retryWaitMs: 0 });
+  assert.match(T.error, /did not describe itself .*run it again/);
 });

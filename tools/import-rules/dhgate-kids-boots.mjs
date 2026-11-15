@@ -44,8 +44,8 @@ export const BOOTS = W(['boots?', 'booties', 'bootie', 'wellies', 'welly', 'well
 export const WINTER = W(['snow', 'winter', 'warm', 'warmth', 'fur', 'furry', 'faux fur', 'plush', 'fleece', 'fleece-?lined', 'thermal', 'insulated', 'lined',
   'cotton', 'waterproof', 'water-?proof', 'rain', 'wellies', 'welly', 'wellingtons?', 'puddle', 'cold', 'thick', 'velvet', 'wool', 'woolen', 'woollen']);
 // For grown-ups (a family listing "men women kids" is not a child's boot) or not for people.
-const ADULT = W(["women'?s", 'womens', 'woman', 'ladies', 'lady', "men'?s", 'mens', 'man', 'adults?', 'unisex adult', 'couples?', 'parent-?child', 'family']);
-const NOT_A_BOOT = W(['dolls?', 'doll shoes', 'reborn', 'barbie', 'pets?', 'dogs?', 'puppy', 'puppies', 'cats?', 'horse', 'covers?', 'shoe covers?', 'boot covers?',
+const ADULT = W(["women'?s", 'womens', 'women', 'woman', 'womans', 'ladies', 'lady', "men'?s", 'mens', 'men', 'man', 'mans', 'adults?', 'unisex adult', 'couples?', 'parent-?child', 'family']);
+const NOT_A_BOOT = W(['slippers?', 'slides?', 'motorcycle', 'work boots?', 'safety', 'steel toe', 'military', 'tactical', 'dolls?', 'doll shoes', 'reborn', 'barbie', 'pets?', 'dogs?', 'puppy', 'puppies', 'cats?', 'horse', 'covers?', 'shoe covers?', 'boot covers?',
   'socks?', 'leg warmers?', 'boot cuffs?', 'insoles?', 'laces?', 'shoelaces?', 'charms?', 'keychains?', 'key ?rings?', 'pendants?', 'necklaces?', 'earrings?',
   'stickers?', 'decals?', 'ornaments?', 'stockings?', 'christmas stocking', 'gift bags?', 'candy', 'mold', 'mould', 'cake', 'cookie', 'planter', 'vase',
   'brush', 'cleaner', 'dryer', 'tray', 'rack', 'stand', 'organizer', 'patterns?', 'crochet', 'knitting pattern', 'ski boots?', 'snowboard', 'ice skates?',
@@ -59,6 +59,7 @@ export const BRANDS = W(['ugg', 'uggs', 'australia boots?', 'timberland', 'timbe
   'tommy hilfiger', 'calvin klein', 'ralph lauren', 'michael kors', 'kate spade', 'coach', 'gucci', 'louis vuitton', 'lv', 'chanel', 'dior', 'prada', 'fendi',
   'versace', 'burberry', 'balenciaga', 'hermes', 'moncler', 'canada goose', 'stone island', 'givenchy', 'valentino', 'ysl', 'saint laurent', 'bottega', 'celine',
   'off-?white', 'supreme', 'bape', 'stussy', 'golden goose', 'alexander mcqueen', 'mcqueen', 'ferragamo', 'loewe', 'miu miu', 'jimmy choo', 'christian louboutin',
+  'tasman', 'tazz', 'ultra ?mini', 'australian', 'lexington',
   'disney', 'frozen', 'elsa', 'olaf', 'mickey', 'minnie', 'marvel', 'spider-?man', 'spiderman', 'avengers', 'batman', 'superman', 'paw patrol', 'peppa',
   'peppa pig', 'bluey', 'cocomelon', 'hello kitty', 'kuromi', 'my melody', 'sanrio', 'pokemon', 'pikachu', 'sonic', 'mario', 'minecraft', 'roblox', 'barbie',
   'lol', 'lilo', 'cars', 'lightning mcqueen', 'unicorn academy', 'harry potter', 'star wars', 'transformers', 'lego', 'pj masks', 'gabby',
@@ -70,7 +71,7 @@ const COPY = W(['replica', 'aaa', '1:1', 'top quality', 'original box', 'with bo
 const NOISE = /\b(?:hot sale|new arrival|newest|new|fashion|free shipping|free ship|drop ?shipping|wholesale|high quality|best quality|cheap|top sale|2\d{3})\b/gi;
 
 export function displayName(name) {
-  let n = String(name || '').replace(NOISE, ' ').replace(/[!?]+/g, ' ').replace(/\s*[,;|]+\s*/g, ', ').replace(/\s{2,}/g, ' ').replace(/^[\s,.-]+|[\s,.-]+$/g, '');
+  let n = unescape(name).replace(NOISE, ' ').replace(/[!?]+/g, ' ').replace(/\s*[,;|]+\s*/g, ', ').replace(/\s{2,}/g, ' ').replace(/^[\s,.-]+|[\s,.-]+$/g, '');
   if (n.length > 100) { n = n.slice(0, 100); n = n.slice(0, Math.max(n.lastIndexOf(' '), 60)).replace(/[\s,.-]+$/, ''); }
   return n.charAt(0).toUpperCase() + n.slice(1);
 }
@@ -85,12 +86,23 @@ const sendsToUk = info => {
   return /(?:^|[^A-Z])(GB|UK)(?:[^A-Z]|$)/.test(where);
 };
 
-export function classify({ name, brand = '', feedCategory = '', info = null }) {
-  const n = String(name || '');
+// DHgate titles keep HTML codes ("Men&#039;s"): read them as the letters they stand for.
+export const unescape = t => String(t || '').replace(/&#0*39;|&apos;/gi, "'").replace(/&quot;/gi, '"').replace(/&amp;/gi, '&').replace(/&#(\d{2,4});/g, (_, d) => String.fromCharCode(Number(d)));
+// A DHgate page whose address is about something else (third look, 15 Nov 2026: "Toddler Snow Boot" on the page
+// ".../lexington-chronograph-gold-tone-black-dial/409610975.html") is a re-used listing: it stays out.
+const PAGE_WORDS = /boot|snow|shoe|welli|winter|warm|kid|child|toddler|baby|girl|boy|rain|fur|plush|fleece|cotton|bootie/i;
+export function pageMatches(url) {
+  const m = /\/product\/([^/]+)\/\d+\.html/i.exec(String(url || ''));
+  return !m || PAGE_WORDS.test(m[1]);
+}
+
+export function classify({ name, brand = '', feedCategory = '', info = null, url = '' }) {
+  const n = unescape(name);
   const t = `${n} | ${brand}`;
   if (BRANDS.test(t)) return { reject: 'a famous brand or character name on a marketplace (likely a copy)' };
   if (COPY.test(n)) return { reject: 'seller words for a copy of a branded product' };
   if (!sendsToUk(info)) return { reject: 'not sold or sent to the UK' };
+  if (!pageMatches(url)) return { reject: 'the page address is about another product (a re-used listing)' };
   if (LOT.test(n)) return { reject: 'several pairs or a seller lot, not one pair' };
   if (NOT_A_BOOT.test(n)) return { reject: 'not a child\'s winter boot (accessory, doll, pet, sports or fashion boot)' };
   if (!BOOTS.test(n)) return { reject: 'not a boot' };

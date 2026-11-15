@@ -107,6 +107,19 @@ export async function gql({ query, token, api = CJ_API, fetchImpl = fetch }) {
   return { status: res.status, data: body.data || null, errors };
 }
 
+// The same call, asked again when CJ says it is busy (429, "too many requests"): at most 3 more times, waiting longer
+// each time. Third DHgate look (15 Nov 2026): after the read-only look's 50 questions, the download's first question
+// (the API description) was refused, and the run stopped with "no keyword search" (lessons L161).
+export async function gqlBusy({ waitMs = RETRY_WAIT_MS, ...a }) {
+  let r;
+  for (let attempt = 1; ; attempt++) {
+    r = await gql(a);
+    const busy = r.status === 429 || /too many requests|rate limit/i.test(errText(r.errors));
+    if (!busy || attempt > 3) return r;
+    if (waitMs) await sleep(waitMs * attempt);
+  }
+}
+
 const errText = errors => (errors || []).map(e => String(e && e.message ? e.message : e)).join(' | ').slice(0, 500);
 const named = t => { let x = t; while (x && !x.name && x.ofType) x = x.ofType; return x || {}; };
 const isList = t => { let x = t; while (x) { if (x.kind === 'LIST') return true; x = x.ofType; } return false; };
@@ -114,15 +127,15 @@ const TYPE_REF = 'name kind ofType { name kind ofType { name kind ofType { name 
 
 // The API describes itself (GraphQL introspection). With it the tool asks only for fields that exist, so a renamed or
 // missing field gives a clear report line instead of a failed download. Without it, a fixed field list is used.
-export async function describe({ token, api, fetchImpl }) {
-  const root = await gql({ token, api, fetchImpl, query: `{ __schema { queryType { fields { name args { name type { ${TYPE_REF} } } type { ${TYPE_REF} } } } } }` });
+export async function describe({ token, api, fetchImpl, waitMs = RETRY_WAIT_MS }) {
+  const root = await gqlBusy({ waitMs, token, api, fetchImpl, query: `{ __schema { queryType { fields { name args { name type { ${TYPE_REF} } } type { ${TYPE_REF} } } } } }` });
   if (root.errors || !root.data || !root.data.__schema) return { ok: false, error: errText(root.errors) || 'no schema' };
   const queries = root.data.__schema.queryType.fields;
   const cache = new Map();
   const typeFields = async name => {
     if (!name) return [];
     if (cache.has(name)) return cache.get(name);
-    const r = await gql({ token, api, fetchImpl, query: `{ __type(name: "${name.replace(/[^A-Za-z0-9_]/g, '')}") { fields { name args { name } type { ${TYPE_REF} } } } }` });
+    const r = await gqlBusy({ waitMs, token, api, fetchImpl, query: `{ __type(name: "${name.replace(/[^A-Za-z0-9_]/g, '')}") { fields { name args { name } type { ${TYPE_REF} } } } }` });
     const f = (r.data && r.data.__type && r.data.__type.fields) || [];
     cache.set(name, f);
     return f;
@@ -223,10 +236,10 @@ export function toFeedRow(p) {
 export const csvLine = vals => vals.map(v => `"${String(v ?? '').replace(/\r?\n/g, ' ').replace(/"/g, '""')}"`).join(',') + '\n';
 
 // Which CJ account id (CID) the token accepts: the first candidate whose product query has no error.
-async function pickCid({ cids, token, api, fetchImpl, shape, pid, advertiser }) {
+async function pickCid({ cids, token, api, fetchImpl, shape, pid, advertiser, waitMs = RETRY_WAIT_MS }) {
   const tried = [];
   for (const cid of cids) {
-    const r = await gql({ token, api, fetchImpl, query: productQuery({ shape, cid, pid, advertiser, limit: 1 }) });
+    const r = await gqlBusy({ waitMs, token, api, fetchImpl, query: productQuery({ shape, cid, pid, advertiser, limit: 1 }) });
     if (!r.errors && r.data) return { cid, tried };
     tried.push({ cid, error: errText(r.errors) });
   }
@@ -383,10 +396,10 @@ export async function joinedAdvertisers({ token, cids, lookupApi = LOOKUP_API, f
 // One advertiser, one search (L161). probe: for each keyword how many products CJ finds in any currency, in the search's
 // currency in each keyword form, which form is used, and 5 samples. download: every product of every keyword (in its
 // form) in the search's currency, each once, in CJ_<advertiser>_<search>.csv.gz.part.
-async function searchOne({ A, SR, S, shape, pid, adv, token, api, fetchImpl, pauseMs, out, mode, mask, searchMax }) {
+async function searchOne({ A, SR, S, shape, pid, adv, token, api, fetchImpl, pauseMs, out, mode, mask, searchMax, waitMs }) {
   const qname = (shape && shape.qname) || 'shoppingProducts';
   const count = async extra => {
-    const r = await gql({ token, api, fetchImpl, query: productQuery({ shape, cid: S.cid, pid, advertiser: adv, limit: 1, extra }) });
+    const r = await gqlBusy({ waitMs, token, api, fetchImpl, query: productQuery({ shape, cid: S.cid, pid, advertiser: adv, limit: 1, extra }) });
     if (pauseMs) await sleep(pauseMs);
     if (r.errors || !r.data || !r.data[qname]) return { error: mask(errText(r.errors) || 'empty answer') };
     const t = Number(r.data[qname].totalCount);
@@ -397,10 +410,11 @@ async function searchOne({ A, SR, S, shape, pid, adv, token, api, fetchImpl, pau
   // The narrowing of one keyword (SR.narrow, in order; only filters the API has): { tries: [{label, total}], chosen, filters, total }.
   const narrow = (SR.narrow && SR.narrow.length ? SR.narrow : [{ label: 'every category' }])
     .filter(n => Object.keys(n).filter(k => k !== 'label').every(k => shape.args.includes(k)));
-  const choose = async kw => {
+  const choose = async (kw, firstOnly = false) => {
     const tries = [];
     let chosen = null;
     for (const n of narrow) {
+      if (chosen && firstOnly) break;
       const { label, ...extra } = n;
       const filters = { keywords: kw, currency: cur, ...extra };
       const c = await count(filters);
@@ -429,7 +443,7 @@ async function searchOne({ A, SR, S, shape, pid, adv, token, api, fetchImpl, pau
     A.total = A.searches.reduce((n, x) => n + (x.used || 0), 0);
     const ex = sampleExtra || anyExtra;
     if (ex) {
-      const r = await gql({ token, api, fetchImpl, query: productQuery({ shape, cid: S.cid, pid, advertiser: adv, limit: 20, extra: ex, more: SEARCH_WANT }) });
+      const r = await gqlBusy({ waitMs, token, api, fetchImpl, query: productQuery({ shape, cid: S.cid, pid, advertiser: adv, limit: 20, extra: ex, more: SEARCH_WANT }) });
       const list = (r.data && r.data[qname] && r.data[qname].resultList) || [];
       A.sampleQuery = Object.entries(ex).map(([k, v]) => `${k}=${v}`).join(' | ');
       A.samples = list.map(toFeedRow).map(x => ({ name: x.product_name, brand: x.brand_name, price: x.search_price, currency: x.currency, stock: x.stock_status,
@@ -442,10 +456,10 @@ async function searchOne({ A, SR, S, shape, pid, adv, token, api, fetchImpl, pau
   const seen = new Map();
   let failed = '';
   for (const kw of SR.keywords) {
-    const ch = await choose(kw);
+    const ch = await choose(kw, true);
     if (ch.error) { failed = ch.error; break; }
     if (!ch.filters) { const big = Math.max(0, ...ch.tries.map(t => t.total || 0)); A.searches.push({ keyword: kw, form: '', total: big, got: 0, added: 0, tooBroad: big > 0, capped: false, error: '' }); continue; }
-    const r = await fetchAll({ shape, cid: S.cid, pid, advertiser: adv, token, api, fetchImpl, pauseMs, filters: ch.filters, more: SEARCH_WANT, maxTotal: searchMax });
+    const r = await fetchAll({ shape, cid: S.cid, pid, advertiser: adv, token, api, fetchImpl, pauseMs, filters: ch.filters, more: SEARCH_WANT, maxTotal: searchMax, retryWaitMs: waitMs });
     let added = 0;
     for (const p of r.products) {
       const k = [p.id ?? '', p.adId ?? p.catalogId ?? '', JSON.stringify(p.price || '')].map(String).join('|');
@@ -470,7 +484,7 @@ async function searchOne({ A, SR, S, shape, pid, adv, token, api, fetchImpl, pau
   A.ok = true;
 }
 
-export async function run({ mode, cids, pid, advertisers, out, token, api = CJ_API, fetchImpl = fetch, pauseMs = 1000, lookupApi = LOOKUP_API, search = '', searchMax = SEARCH_MAX }) {
+export async function run({ mode, cids, pid, advertisers, out, token, api = CJ_API, fetchImpl = fetch, pauseMs = 1000, lookupApi = LOOKUP_API, search = '', searchMax = SEARCH_MAX, retryWaitMs = RETRY_WAIT_MS }) {
   const mask = makeMask(token);
   const S = { mode, ok: false, api: new URL(api).host, cid: '', cidTried: [], pid: String(pid || ''), queries: [], fields: [], feeds: null, feedsError: '', advertisers: [] };
   if (!token || token.length < 10) { S.error = 'no CJ token'; return S; }
@@ -494,7 +508,7 @@ export async function run({ mode, cids, pid, advertisers, out, token, api = CJ_A
     cids = [J.cid, ...cids.filter(c => c !== J.cid)];
     mode = 'probe';
   }
-  const d = await describe({ token, api, fetchImpl });
+  const d = await describe({ token, api, fetchImpl, waitMs: retryWaitMs });
   let shape = null;
   if (d.ok) {
     S.queries = d.queries.filter(q => /product|feed/i.test(q));
@@ -508,10 +522,10 @@ export async function run({ mode, cids, pid, advertisers, out, token, api = CJ_A
   } else S.describeError = mask(d.error);
   if (d.ok && !shape) { S.error = 'the CJ API has no product query (shoppingProducts / products)'; return S; }
   // Without the keywords argument a "search" would read the WHOLE catalogue (DHgate: 6 million products): stop instead.
-  if (SR && !(shape && shape.args.includes('keywords'))) { S.error = 'the CJ API has no keyword search (keywords)'; return S; }
+  if (SR && !(shape && shape.args.includes('keywords'))) { S.error = d.ok ? 'the CJ API has no keyword search (keywords)' : `the CJ API did not describe itself (${mask(d.error)}), so the keyword search cannot be checked: run it again in a few minutes`; return S; }
   if (SR && SR.currency && !shape.args.includes('currency')) { S.error = 'the CJ API has no currency filter (currency)'; return S; }
   const first = advertisers[0];
-  const c = await pickCid({ cids, token, api, fetchImpl, shape, pid, advertiser: first });
+  const c = await pickCid({ cids, token, api, fetchImpl, shape, pid, advertiser: first, waitMs: retryWaitMs });
   S.cidTried = c.tried.map(t => ({ cid: t.cid, error: mask(t.error) }));
   if (!c.cid) { S.error = 'no CJ account id (CID) worked with this token'; return S; }
   S.cid = c.cid;
@@ -554,7 +568,7 @@ export async function run({ mode, cids, pid, advertisers, out, token, api = CJ_A
   if (mode === 'list') { S.ok = S.feeds !== null; if (!S.ok && !S.feedsError) S.feedsError = 'the CJ API has no feed list (shoppingProductFeeds)'; return S; }
   for (const adv of advertisers) {
     const A = { advertiser: adv, ok: false };
-    if (SR) { await searchOne({ A, SR, S, shape, pid, adv, token, api, fetchImpl, pauseMs, out, mode, mask, searchMax }); S.advertisers.push(A); continue; }
+    if (SR) { await searchOne({ A, SR, S, shape, pid, adv, token, api, fetchImpl, pauseMs, out, mode, mask, searchMax, waitMs: retryWaitMs }); S.advertisers.push(A); continue; }
     if (mode === 'probe') {
       const r = await gql({ token, api, fetchImpl, query: productQuery({ shape, cid: S.cid, pid, advertiser: adv, limit: 5 }) });
       const qname = (shape && shape.qname) || 'shoppingProducts';
