@@ -278,10 +278,10 @@ test('Winter Boots on KGW is a row above Shoes (?sub=winter-boots) in every lang
   const kgw = await siteConfig('kgw');
   const shoes = kgw.categories.find(c => c.slug === 'shoes');
   assert.deepEqual(shoes.subcategories, [{ slug: 'winter-boots', name: 'Winter Boots' }]);
-  assert.equal(kgw.assetVersion, '2026-11-14-kgw-boots-1');
+  assert.match(kgw.assetVersion, /^2026-11-1[45]-kgw-(boots|pl)-1$/, 'a new asset version (and the Polish one of L162 after it)');
   const { readFileSync, readdirSync } = await import('node:fs');
   const langs = readdirSync('sites/kgw/public/assets/i18n').filter(f => f.endsWith('.json'));
-  assert.equal(langs.length, 10);
+  assert.equal(langs.length, 11, '10 languages and Polish (L162)');
   for (const f of langs) {
     const d = JSON.parse(readFileSync(`sites/kgw/public/assets/i18n/${f}`, 'utf8'));
     for (const k of ['All', 'Winter Boots']) assert.ok(d[k] && d[k] !== k, `${f}: "${k}"`);

@@ -23,15 +23,15 @@ import group from '../../sites/group/site.config.js';
 import { sitemapBody } from '../../tools/gwh-sitemap.mjs';
 
 const CODES = ['agw', 'bgw', 'cgw', 'ggw', 'hgw', 'kgw', 'mgw', 'pgw', 'sgw', 'tgw', 'vgw', 'wgw', 'zgw'];
-const LANGS = ['de-DE', 'el-GR', 'es-ES', 'fr-FR', 'it-IT', 'nl-NL', 'pt-PT', 'ro-RO', 'ru-RU', 'sq-AL'];
+const LANGS = ['de-DE', 'el-GR', 'es-ES', 'fr-FR', 'it-IT', 'nl-NL', 'pl-PL', 'pt-PT', 'ro-RO', 'ru-RU', 'sq-AL']; // pl-PL: lessons L162
 const NOW = Date.parse('2026-11-08T12:00:00Z');
 
 // English words of a shop that sells, ships or takes payment, or that claims a partnership.
 const SHOP_EN = /\b(Shop by category|retailer partners?|affiliate partners|trusted retailers|our shops|our stores?|our retailers|our partners|Shop through|partner (banners|links|shops)|partnership|add to (cart|basket|bag)|buy now|order now|free (delivery|shipping)|we (deliver|ship)\b|Gear World retailers|UK (shoppers|retailers)|Pretend shopping)\b/i;
 // The same, as the 10 languages of the sites said it before L103 (and "trusted" in each language).
-const SHOP_LANGS = /Partnerhändler|Affiliate-Partnern|vertrauenswürdig|Nach Kategorie einkaufen|unsere Händler|συνεργαζόμεν|στους συνεργάτες|αξιόπιστ|Αγορές ανά κατηγορία|στα καταστήματά μας|tiendas? asociadas?|de confianza|Compra por categoría|nuestras tiendas|marchands? partenaires?|partenaires affiliés|de confiance|Acheter par catégorie|nos marchands|negozi? partner|partner affiliati|affidabil|Acquista per categoria|nei nostri negozi|partnerwinkels?|affiliatepartners|betrouwba|Winkelen per categorie|onze winkels|lojas? parceiras?|de confiança|Compre por categoria|as nossas lojas|magazine? partener|partenerilor|de încredere|Cumpără pe categorii|magazinele noastre|магазин(ов)?-партн|своим партн|надёжн|Покупки по категориям|наши магазины|dyqane? partner|partnerëve|besueshm|Bli sipas kategorisë|dyqanet tona/;
+const SHOP_LANGS = /Partnerhändler|Affiliate-Partnern|vertrauenswürdig|Nach Kategorie einkaufen|unsere Händler|συνεργαζόμεν|στους συνεργάτες|αξιόπιστ|Αγορές ανά κατηγορία|στα καταστήματά μας|tiendas? asociadas?|de confianza|Compra por categoría|nuestras tiendas|marchands? partenaires?|partenaires affiliés|de confiance|Acheter par catégorie|nos marchands|negozi? partner|partner affiliati|affidabil|Acquista per categoria|nei nostri negozi|partnerwinkels?|affiliatepartners|betrouwba|Winkelen per categorie|onze winkels|lojas? parceiras?|de confiança|Compre por categoria|as nossas lojas|magazine? partener|partenerilor|de încredere|Cumpără pe categorii|magazinele noastre|магазин(ов)?-партн|своим партн|надёжн|Покупки по категориям|наши магазины|dyqane? partner|partnerëve|besueshm|Bli sipas kategorisë|dyqanet tona|partnersk|partnerz|partnerów|zaufan|Kupuj według kategorii|nasz(e|ych|ymi|ym) sklep/;
 
-test('the 130 dictionaries: the neutral texts in every language, and no shop, partner or "trusted" word left', () => {
+test('the 143 dictionaries: the neutral texts in every language, and no shop, partner or "trusted" word left', () => {
   const NEW = ['Browse by category', 'retailer compared', 'retailers compared', '{0} compares prices across retailers.', 'Retailer link',
     'Codes and sales that retailers publish through their affiliate programmes. Every code has an end date and is removed when it ends.',
     'Codes and sales that {0} publishes through its affiliate programme. Every code has an end date and is removed when it ends.'];
@@ -60,7 +60,7 @@ test('the 130 dictionaries: the neutral texts in every language, and no shop, pa
       files++;
     }
   }
-  assert.equal(files, 130);
+  assert.equal(files, 143);
 });
 
 test('the site code and settings: no shop or partner wording in what pages show (comments aside)', () => {
@@ -73,7 +73,7 @@ test('the site code and settings: no shop or partner wording in what pages show 
     assert.ok(!/visually-hidden">Buy</.test(code), `${f}: a hidden "Buy" header`);
   }
   for (const c of CODES) {
-    assert.match(readFileSync(`sites/${c}/site.config.js`, 'utf8'), new RegExp(`assetVersion: '(2026-11-08-${c}-(cleanup|security)|2026-11-09-${c}-compliance|2026-11-1[02]-${c}-codes|2026-11-14-${c}-boots)-\\d+'`), `${c}: a new asset version for the new dictionaries (L31; -security- for L106, -codes- for L115)`);
+    assert.match(readFileSync(`sites/${c}/site.config.js`, 'utf8'), new RegExp(`assetVersion: '(2026-11-08-${c}-(cleanup|security)|2026-11-09-${c}-compliance|2026-11-1[02]-${c}-codes|2026-11-14-${c}-boots|2026-11-15-${c}-pl)-\\d+'`), `${c}: a new asset version for the new dictionaries (L31; -security- for L106, -codes- for L115)`);
     // The served script, stylesheet and icons have no shop words even in a comment, and no shopping-cart drawing.
     for (const f of ['site.js', 'site.css', 'icons.svg']) {
       const text = readFileSync(`sites/${c}/public/assets/${f}`, 'utf8');
@@ -243,8 +243,8 @@ test('the Hub legal pages say what is there: no affiliate links on the Hub, who 
   }
   // The sites: privacy, cookies and terms changed on 7/11/2026 (L101) and again on 8/11/2026 (Turnstile on the
   // "Get deal updates" form, L106), so their date says so.
-  // And on 9/11/2026 (Awin or CJ, L107).
-  assert.match(readFileSync('src/pages/info.js', 'utf8'), /const UPDATED = '9 November 2026';/);
+  // And on 9/11/2026 (Awin or CJ, L107), and on 15/11/2026 (the cookie gw_for of the Group's country links, L160).
+  assert.match(readFileSync('src/pages/info.js', 'utf8'), /const UPDATED = '15 November 2026';/);
 });
 
 function hub() {

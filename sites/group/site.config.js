@@ -10,7 +10,7 @@ export default {
   // Shown on the page. Must be an address that receives mail (gearworldgroup.com uses Google Workspace).
   contactEmail: 'evangelos@gearworldgroup.com',
   awinPublisherId: 3057233,
-  assetVersion: '2026-11-14-group-10',
+  assetVersion: '2026-11-15-group-11',
   // Countries where affiliate programmes have approved us but their products are not on the sites yet (lessons L130):
   // the countries list says "More coming" next to them. Only countries with a real approval; the retailers chat
   // ("3 · Retailers & Feeds") keeps it up to date with the retailer list. 14 Nov 2026: Rakuten PREMIUM BANDAI USA and

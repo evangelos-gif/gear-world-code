@@ -17,7 +17,7 @@ function contactLink(site) {
 // The legal texts last changed on 9 Nov 2026 (the retailer links go through Awin or CJ, Google Ads compliance, lessons
 // L107; before: 8 Nov 2026, Cloudflare Turnstile on the "Get deal updates" form, L106; 7 Nov 2026, who runs Gear World,
 // L101); keep this date honest (L103).
-const UPDATED = '9 November 2026';
+const UPDATED = '15 November 2026';
 
 // Who runs the network and how to reach them, the same on every site and on the Hub (Google Ads review, 7 Nov 2026,
 // lessons L101). Owner's decision, 7 Nov 2026: "Run by Evangelos Kalogerakis, United Kingdom" and the email, no address.
@@ -112,6 +112,7 @@ ${site.googleAds === false ? html`<p>${site.name} does not set advertising, anal
 <p>The Google tag measures which of our ads bring visitors and when a visit leads to a click on a "View at" button or a discount code. It does not show you personalised ads (remarketing is off). Cookies: <code>_gcl_au</code>, and <code>_gcl_aw</code> or similar <code>_gcl_</code> cookies when you came from a Google ad, each kept up to 90 days. Selecting "Reject" later removes them from this site. The <a href="https://policies.google.com/privacy">Google privacy policy</a> applies.</p>`}
 <h2>Strictly necessary</h2>
 <p>Our hosting provider Cloudflare may set short-lived security cookies to protect the site from bots. ${site.dealUpdates ? 'If you use the "Get deal updates" form, Cloudflare Turnstile checks that you are a person. ' : 'If you use the newsletter form, Cloudflare Turnstile checks that you are a person. '}These are needed for the site to work safely and do not track you across sites.</p>
+<p>If you open this site from a country page of Gear World Group, the cookie <code>gw_for</code> keeps that country (two letters, nothing else) for one day, so every page shows only the products that deliver there. "Show what delivers to my country" at the top of the page removes it.</p>
 <h2>Saved on your device</h2>
 <p>Your browser's local storage keeps your language, currency, compare list${site.cart ? ` and ${site.cart.name}` : ''}${site.googleAds === false ? '' : ' and your cookie choice'}, so they are still there on your next visit. This information is not a cookie, is not sent to us and is not used for tracking. Clearing your browser data removes it.${site.googleAds === false ? '' : ' Only after "Allow", the campaign name of the link you arrived from (utm_campaign, utm_source) is kept in this browser tab until you close it, so a later click to a retailer still counts for that campaign.'}</p>
 <h2>After you leave this site</h2>

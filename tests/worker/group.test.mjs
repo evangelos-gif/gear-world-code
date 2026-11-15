@@ -159,7 +159,8 @@ test('L130: a country page: its numbers, each site, every other country; noindex
   assert.match(page, /1,078 products deliver to Belgium/);
   assert.match(page, /<meta name="robots" content="noindex, follow">/);
   assert.match(page, /<link rel="canonical" href="https:\/\/gearworldgroup.com\/countries\/be\/">/);
-  assert.match(page, /<a href="https:\/\/cargearworld.com\/">Car Gear World<\/a><span>1,030 products<\/span>/);
+  // Since L160 each site opens in this country's view (?for=be).
+  assert.match(page, /<a href="https:\/\/cargearworld.com\/\?for=be">Car Gear World<\/a><span>1,030 products<\/span>/);
   assert.match(page, /<li class="here"><a href="\/countries\/be\/" aria-current="page">/);
   assert.match(page, /href="\/countries\/us\/"/);
   assert.match(countryPage(site, stats, 'GB'), /<h1>Gear World in the United Kingdom<\/h1>/);
@@ -212,7 +213,7 @@ test('L130 review: no numbers (every site down) means no countries, no box, no z
 });
 
 // ---- Lessons L151 and L152: the open-country rule per country, and the world map ----
-import { countryState } from '../../src/group.js';
+import { countryState, browseLink } from '../../src/group.js';
 import { MAP_SIZE, MAP_EUROPE, MAP_SHAPES, MAP_DOTS } from '../../src/group-map.js';
 import { OPEN_COUNTRIES } from '../../src/lib/open-countries.js';
 
@@ -259,7 +260,7 @@ test('L151: the products of the biggest retailer per country (one retailer acros
   assert.match(bePage, /<p class="lede">Every product shows where its retailer delivers\. New retailers are added every week\.<\/p>/);
   assert.ok(!/To open|Shows all|A country opens|Open:/.test(bePage + countryPage(site, stats, 'GB')), 'L155: no open-country wording on a country page');
   // The Group's own numbers come from the sites every hour: a new key for the cached numbers with "top".
-  assert.match(readFileSync('src/group.js', 'utf8'), /__stats-cache-3/);
+  assert.match(readFileSync('src/group.js', 'utf8'), /__stats-cache-4/);
 });
 
 test('L152: the world map and the close-up of Europe: shapes from the repo, blue by products, orange "coming", a link per listed country, all in words', async () => {
@@ -330,4 +331,24 @@ test('L152: the world map and the close-up of Europe: shapes from the repo, blue
   // Orange wins over the grey outline of a coming country with no products yet.
   assert.ok(block.indexOf('.gmap-svg path.mc, .gmap-svg circle.mc {') > block.indexOf('.gmap-svg path.m0, .gmap-svg circle.m0 {'));
   assert.notEqual(site.assetVersion, '2026-11-14-group-9', 'a new asset version for the new CSS');
+});
+
+// ---- Owner, 15 Nov 2026 (lessons L160): a country page that a network can open to check its market ----
+test('L160: a country page lists the retailers that deliver there and opens each site in that country\'s view', async () => {
+  const stats = await networkStats(site, fakeFetch(NEW_STATS));
+  assert.deepEqual(stats.countries.BE.list, [['Pneus.be', 1000], ['GRABO', 48], ['VEVOR', 30]]);
+  assert.deepEqual(stats.countries.DE.list, [['GRABO', 48], ['VEVOR', 30], ['Reidl', 20]]);
+  assert.deepEqual(stats.countries.GB.list.map(x => x[0]), ['Halfords', 'Toolstation', 'Joybuy', 'GRABO', 'PCHUB'],
+    'the older /api/stats of Pets Gear World adds to the numbers, not to the list of names');
+  const page = countryPage(site, stats, 'BE');
+  assert.match(page, /<p class="note">Open a site to see only the products that deliver to Belgium\.<\/p>/);
+  assert.match(page, /<a href="https:\/\/cargearworld\.com\/\?for=be">Car Gear World<\/a><span>1,030 products<\/span>/);
+  assert.match(page, /<a href="https:\/\/constructiongearworld\.com\/\?for=be">Construction Gear World<\/a>/);
+  assert.ok(!/href="https:\/\/cargearworld\.com\/"/.test(page.split('id="by-site-h"')[1].split('</section>')[0]), 'no plain link to the UK view');
+  assert.match(page, /<h2 id="retailers-h">Retailers that deliver to Belgium<\/h2>/);
+  assert.match(page, /<li><span class="rn">Pneus\.be<\/span><span>1,000 products<\/span><\/li>/);
+  assert.equal(browseLink('https://cargearworld.com/', 'GR'), 'https://cargearworld.com/?for=gr');
+  // A country no retailer delivers to: no list, no links.
+  const none = countryPage(site, stats, 'IS');
+  assert.ok(!none.includes('retailers-h') || stats.countries.IS.list.length > 0);
 });

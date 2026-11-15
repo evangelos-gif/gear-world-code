@@ -17,7 +17,7 @@ import { viewFor, countryGroups, OWN_VIEW_COUNTRIES } from '../../src/lib/visibi
 import { codesBar, codesBarFor, codesCountText } from '../../src/pages/layout.js';
 import { toString } from '../../src/lib/html.js';
 
-const LANGS = ['de-DE', 'el-GR', 'es-ES', 'fr-FR', 'it-IT', 'nl-NL', 'pt-PT', 'ro-RO', 'ru-RU', 'sq-AL'];
+const LANGS = ['de-DE', 'el-GR', 'es-ES', 'fr-FR', 'it-IT', 'nl-NL', 'pl-PL', 'pt-PT', 'ro-RO', 'ru-RU', 'sq-AL']; // pl-PL: lessons L162
 const KEYS = ['Discount codes', '1 active code', '{0} active codes', '1 active offer', '{0} active offers', '{0} active codes and offers'];
 const FOOTER_LINK = '<li><a href="/discount-codes/">Discount codes</a></li>';
 // The bar, right after the masthead row and right before the menu. On /discount-codes/ itself it also says
@@ -259,7 +259,7 @@ test('L115: the count says codes, offers or both; never a retailer, a code, a ca
   }
 });
 
-test('L115: every text of the bar is in the 130 dictionaries, with no shop, partner, saving or Black Friday words in any language', async () => {
+test('L115: every text of the bar is in the 143 dictionaries, with no shop, partner, saving or Black Friday words in any language', async () => {
   const BAD = new RegExp([
     'shop', 'cart', 'basket', 'buy', 'retailer', 'partner', 'official', 'trusted', 'black ?friday', 'deal', 'sale\\b', 'save', 'drop', '%', '£',
     'geschäft', 'laden', 'kauf', 'warenkorb', 'händler', 'offiziell', 'vertrauens', 'rabatt ?%',
@@ -290,7 +290,7 @@ test('L115: every text of the bar is in the 130 dictionaries, with no shop, part
       n++;
     }
   }
-  assert.equal(n, 130);
+  assert.equal(n, 143);
   // The same words on every site (one bar for the whole network).
   for (const lang of LANGS) {
     const ref = JSON.parse(readFileSync(`sites/tgw/public/assets/i18n/${lang}.json`, 'utf8'));
@@ -393,7 +393,7 @@ test('L115: colours from each site\'s palette (text 7:1, icon 3:1, nothing fixed
     assert.match(readFileSync(`sites/${dir}/public/assets/icons.svg`, 'utf8'), /<symbol id="tag" viewBox="0 0 24 24" fill="none" stroke="currentColor"/, `${dir}: the tag icon`);
     // New stylesheet (12 Nov 2026: the compact phone hero and aria-current): a new asset version (lessons L31), the same
     // on every site; KGW one later for its new words (Winter Boots, 14 Nov 2026, L143).
-    assert.match(site.assetVersion, new RegExp(`^(2026-11-12-${dir}-codes-2|2026-11-14-${dir}-boots-1)$`), `${dir}: asset version`);
+    assert.match(site.assetVersion, new RegExp(`^(2026-11-12-${dir}-codes-2|2026-11-14-${dir}-boots-1|2026-11-15-${dir}-pl-1)$`), `${dir}: asset version`);
   }
   const layout = readFileSync('tools/layout-check.mjs', 'utf8');
   assert.match(layout, /\{ name: 'phone-360', width: 360,/);

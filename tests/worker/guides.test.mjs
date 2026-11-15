@@ -16,7 +16,7 @@ import cgw from '../../sites/cgw/site.config.js';
 import tgw from '../../sites/tgw/site.config.js';
 
 const SITES = { wgw, agw, cgw };
-const LANGS = ['el-GR', 'de-DE', 'fr-FR', 'it-IT', 'es-ES', 'pt-PT', 'nl-NL', 'sq-AL', 'ro-RO', 'ru-RU'];
+const LANGS = ['el-GR', 'de-DE', 'fr-FR', 'it-IT', 'es-ES', 'pt-PT', 'nl-NL', 'pl-PL', 'sq-AL', 'ro-RO', 'ru-RU']; // pl-PL: lessons L162
 
 // Products as the database would give them, at the price each guide was written with, all in stock.
 function productsFor(guide, change = {}) {

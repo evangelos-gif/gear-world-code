@@ -14,7 +14,7 @@ export default {
   lang: 'en-GB',
   locale: 'en-GB',
   currency: 'GBP',
-  assetVersion: '2026-11-12-bgw-codes-2',
+  assetVersion: '2026-11-15-bgw-pl-1',
   promos: promosFor('BGW'),
   awinPublisherId: AWIN_PUBLISHER_ID,
   storagePrefix: 'bgw',
@@ -39,6 +39,7 @@ export default {
     { code: 'es-ES', label: 'Español' },
     { code: 'pt-PT', label: 'Português' },
     { code: 'nl-NL', label: 'Nederlands' },
+    { code: 'pl-PL', label: 'Polski' },
     { code: 'sq-AL', label: 'Shqip' },
     { code: 'ro-RO', label: 'Română' },
     { code: 'ru-RU', label: 'Русский' }
@@ -53,7 +54,7 @@ export default {
   deliversTo: { default: ['GB'], retailers: { 'AliExpress PL': ['PL'], VEVOR: ['EU', 'IS', 'LI', 'NO'] } },
 
   foreignCurrencies: ['PLN'],
-  displayCurrencies: ['GBP', 'EUR', 'ALL', 'RON', 'RUB'],
+  displayCurrencies: ['GBP', 'EUR', 'PLN', 'ALL', 'RON', 'RUB'],
   cart: { name: 'Saved list', maxItems: 30 },
   voiceSearch: true,
 

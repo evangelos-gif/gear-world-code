@@ -38,7 +38,7 @@ test('exchange rates: a failed request gives ok:false, so pages show pounds only
   assert.deepEqual(d.rates, {});
   _resetForTests();
   const working = async url => {
-    assert.match(url, /base=GBP&quotes=EUR,ALL,RON,RUB,PLN$/, 'PLN for AliExpress PL (L157)');
+    assert.match(url, /base=GBP&quotes=EUR,PLN,ALL,RON,RUB$/, 'PLN for AliExpress PL (L157), and a display currency (L162)');
     return { ok: true, json: async () => [{ base: 'GBP', quote: 'EUR', rate: 1.2, date: '2026-10-19' }] };
   };
   const ok = await exchangeRates(site, null, working);
@@ -55,10 +55,10 @@ test('tr(): English text in the HTML, key and parts in attributes, everything es
   assert.equal(toString(priceTag(site, 35.9, 'gbp')), '<span class="price" data-price="35.90" data-currency="GBP">£35.90</span>');
 });
 
-test('site config: 11 languages like the hub, 5 currencies, a dictionary file for every language', () => {
+test('site config: the 11 languages of the hub and Polish (L162), 6 currencies, a dictionary file for every language', () => {
   const codes = site.languages.map(l => l.code);
-  assert.deepEqual(codes, ['en-GB', 'el-GR', 'de-DE', 'fr-FR', 'it-IT', 'es-ES', 'pt-PT', 'nl-NL', 'sq-AL', 'ro-RO', 'ru-RU']);
-  assert.deepEqual(site.displayCurrencies, ['GBP', 'EUR', 'ALL', 'RON', 'RUB']);
+  assert.deepEqual(codes, ['en-GB', 'el-GR', 'de-DE', 'fr-FR', 'it-IT', 'es-ES', 'pt-PT', 'nl-NL', 'pl-PL', 'sq-AL', 'ro-RO', 'ru-RU']);
+  assert.deepEqual(site.displayCurrencies, ['GBP', 'EUR', 'PLN', 'ALL', 'RON', 'RUB']);
   assert.equal(site.displayCurrencies[0], site.currency);
   const en = new Set(Object.keys(JSON.parse(readFileSync('sites/tgw/public/assets/i18n/el-GR.json', 'utf8'))));
   for (const c of codes.filter(c => c !== 'en-GB')) {

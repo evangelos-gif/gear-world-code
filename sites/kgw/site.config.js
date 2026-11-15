@@ -13,7 +13,7 @@ export default {
   lang: 'en-GB',
   locale: 'en-GB',
   currency: 'GBP',
-  assetVersion: '2026-11-14-kgw-boots-1',
+  assetVersion: '2026-11-15-kgw-pl-1',
   promos: promosFor('KGW'),
   awinPublisherId: AWIN_PUBLISHER_ID,
   storagePrefix: 'kgw',
@@ -53,6 +53,7 @@ export default {
     { code: 'es-ES', label: 'Español' },
     { code: 'pt-PT', label: 'Português' },
     { code: 'nl-NL', label: 'Nederlands' },
+    { code: 'pl-PL', label: 'Polski' },
     { code: 'sq-AL', label: 'Shqip' },
     { code: 'ro-RO', label: 'Română' },
     { code: 'ru-RU', label: 'Русский' }
@@ -67,7 +68,7 @@ export default {
   // shows it (owner, 15 Nov 2026, lessons L157); its prices get "≈ £…" (foreignCurrencies PLN).
   deliversTo: { default: ['GB'], retailers: { 'AliExpress PL': ['PL'], 'Bazta IE': ['IE'], 'Plusshop IE': ['IE'], 'Dream Pairs': ['US'], 'Kaiya Baby': ['US'], 'Diecast Models Wholesale': ['US'] } },
   foreignCurrencies: ['PLN'],
-  displayCurrencies: ['GBP', 'EUR', 'ALL', 'RON', 'RUB'],
+  displayCurrencies: ['GBP', 'EUR', 'PLN', 'ALL', 'RON', 'RUB'],
   cart: { name: 'Saved list', maxItems: 30 },
   voiceSearch: true,
 

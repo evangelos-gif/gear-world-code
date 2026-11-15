@@ -73,6 +73,8 @@ p { margin: 0 0 1em; }
 .by-site li { display: flex; justify-content: space-between; gap: 16px; padding: 10px 0; border-bottom: 1px solid var(--line); }
 .by-site a { font-weight: 600; }
 .by-site span { color: var(--text-2); white-space: nowrap; }
+/* The retailers of a country (lessons L160): the name reads like the site names above it. */
+.by-site .rn { color: var(--text); font-weight: 600; white-space: normal; }
 /* The open-country rule (lessons L151) and the world map (L152): blue shades by the number of products, grey for none,
    orange around a country where retailers are coming; every state is also in words (legend, titles, the list). */
 .rule { color: #dbe3ee; max-width: 80ch; }

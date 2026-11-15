@@ -12,7 +12,7 @@ import { DatabaseSync } from 'node:sqlite';
 import { createWorker, QA_BOT, QA_COUNTRY_HEADER } from '../../src/engine.js';
 import * as db from '../../src/db.js';
 import { countryGroups, viewFor, homeView, visibleSql, hiddenReason, needsCheck, cacheKeyUrl, cleanCountry, useClock, needsUkBar,
-  strictCountries, EU_COUNTRIES, OWN_VIEW_COUNTRIES, HIDE_AFTER_DAYS, CHECK_AFTER_DAYS, retailerInView, hubViewFor } from '../../src/lib/visibility.js';
+  strictCountries, EU_COUNTRIES, OWN_VIEW_COUNTRIES, HIDE_AFTER_DAYS, CHECK_AFTER_DAYS, retailerInView, hubViewFor, browseView } from '../../src/lib/visibility.js';
 import { OPEN_COUNTRIES, OPEN_RULE, openCheck } from '../../src/lib/open-countries.js';
 import { deliveryCountries } from '../../src/lib/delivery.js';
 import { deliveryText, UK_BAR_TEXT } from '../../src/pages/layout.js';
@@ -598,7 +598,7 @@ test('the dictionaries of the 13 sites have every new text (lessons L24, L107), 
       n++;
     }
   }
-  assert.equal(n, 130);
+  assert.equal(n, 143); // 13 sites x 11 languages (pl-PL since L162)
 });
 
 // ---- Google's crawlers (item 8 of the checker, 9 Nov 2026) ----
@@ -883,4 +883,101 @@ test('a search with one brand or retailer is counted through that index (INDEXED
   const legacy = memD1(read('tests/fixtures/ggw-legacy-schema.sql'), read('tests/fixtures/mgw-seed.sql'));
   await mgw.fetch(new Request('https://mensgearworld.com/search?q=watch&brand=Seiko'), { DB: legacy }, { waitUntil: p => p });
   assert.ok(!legacy.log.some(x => /INDEXED BY/.test(x.text)));
+});
+
+// ---- Browsing a site as one country from the Group's country pages (owner, 15 Nov 2026, lessons L160) ----
+// "When I press a country, show what that country sells; the site links should not take you to the UK" — and a link a
+// network (Linkwise for Greece) can open to check its market. ?for=<cc> redirects with a cookie; with the cookie every
+// page and the site's own /api/products show only what delivers there, with a bar and a way back.
+test('L160: ?for=<cc> from the Group: a cookie, then only what delivers there on every page and in the API, with a bar', async () => {
+  const worker = createWorker(config.agw);
+  const BROWSER = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36';
+  const GOOGLE = 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)';
+  const get = (path, env, country, headers = {}) => {
+    const req = new Request(`https://cargearworld.com${path}`, { headers: { 'User-Agent': BROWSER, ...headers } });
+    if (country) Object.defineProperty(req, 'cf', { value: { country } });
+    return worker.fetch(req, env, { waitUntil: p => p });
+  };
+  const store = new Map();
+  const before = globalThis.caches;
+  globalThis.caches = { default: {
+    match: async key => (store.has(key.url) ? store.get(key.url).clone() : undefined),
+    put: async (key, res) => { if (!key.url.includes('gw-stale=1')) store.set(key.url, res); }
+  } };
+  try {
+    const d = carShop();
+    const env = envOf(d);
+    const tyres = h => (h.match(/Tyreco Summer/g) || []).length;
+    const ukShops = h => /Example Motor Parts|Sample Garage Supplies/.test(h.split('<main')[1]);
+    // The link of the Group: a redirect to the same page without ?for=, with the cookie (this site, one day, nothing else).
+    const go = await get('/category/tyres-wheels/?for=be&sort=price', env, 'GB');
+    assert.equal(go.status, 302);
+    assert.equal(go.headers.get('Location'), 'https://cargearworld.com/category/tyres-wheels/?sort=price');
+    assert.equal(go.headers.get('Set-Cookie'), 'gw_for=BE; Path=/; Max-Age=86400; Secure; HttpOnly; SameSite=Lax');
+    assert.equal(go.headers.get('Cache-Control'), 'no-store');
+    // A UK visitor with the cookie: Belgium's products only (the Belgian tyres, no UK-only shop), the bar, a way back.
+    const be = await get('/category/tyres-wheels/', env, 'GB', { Cookie: 'other=1; gw_for=BE' });
+    assert.equal(be.status, 200);
+    const beHtml = await be.text();
+    assert.ok(tyres(beHtml) > 0 && !ukShops(beHtml), 'only what delivers to Belgium');
+    assert.match(beHtml, /<div class="country-bar browse-bar" role="note">.*You are seeing only the products that deliver to Belgium\..*<a href="\/category\/tyres-wheels\/\?for=off" rel="nofollow">/s);
+    assert.ok(beHtml.indexOf('browse-bar') < beHtml.indexOf('<header class="masthead">'), 'the bar above the header');
+    assert.ok(!beHtml.includes(UK_BAR_TEXT), 'not the UK bar');
+    assert.equal(be.headers.get('Cache-Control'), 'private, no-cache');
+    assert.match(be.headers.get('Vary') || '', /Cookie/);
+    // Its own cached copy (the Belgian group), never the UK one; the cached copy has no bar.
+    const beKey = cacheKeyUrl('https://cargearworld.com/category/tyres-wheels/', browseView(config.agw, 'BE', NOW));
+    assert.ok(store.has(beKey) && /gw-view=be/.test(beKey));
+    assert.ok(!(await store.get(beKey).clone().text()).includes('browse-bar'));
+    // The same visitor without the cookie: the UK page, as before, which tells the browser it depends on the cookie.
+    const uk = await get('/category/tyres-wheels/', env, 'GB');
+    const ukHtml = await uk.text();
+    assert.ok(tyres(ukHtml) === 0 && ukShops(ukHtml) && !ukHtml.includes('browse-bar'));
+    assert.match(uk.headers.get('Vary') || '', /Cookie/);
+    // A visitor from Belgium itself without the cookie: the all view of L151, with its bar (nothing changes for them).
+    const beVisitor = await (await get('/category/tyres-wheels/', env, 'BE')).text();
+    assert.ok(tyres(beVisitor) > 0 && ukShops(beVisitor) && beVisitor.includes(UK_BAR_TEXT));
+    // The site's own search and filters (/api/products) follow the cookie too; the Hub's ?deliver_to= comes first.
+    const api = async (path, headers) => (await (await get(path, env, 'GB', headers)).json()).products;
+    const beApi = await api('/api/products?search=tyre&limit=60', { Cookie: 'gw_for=BE' });
+    assert.ok(beApi.length > 0 && beApi.every(p => p.retailer !== 'Example Motor Parts' && p.retailer !== 'Sample Garage Supplies'));
+    assert.deepEqual((await api('/api/products?search=tyre&limit=60&deliver_to=GB', { Cookie: 'gw_for=BE' })).map(p => p.id),
+      (await api('/api/products?search=tyre&limit=60&deliver_to=GB')).map(p => p.id), 'the Hub: ?deliver_to= first');
+    // "Show what delivers to my country": the cookie goes; an unknown code does the same.
+    for (const v of ['off', 'xyz', '']) {
+      const off = await get(`/category/tyres-wheels/?for=${v}`, env, 'GB', { Cookie: 'gw_for=BE' });
+      assert.equal(off.status, 302, v);
+      assert.equal(off.headers.get('Location'), 'https://cargearworld.com/category/tyres-wheels/');
+      assert.equal(off.headers.get('Set-Cookie'), 'gw_for=; Path=/; Max-Age=0; Secure; HttpOnly; SameSite=Lax');
+    }
+    // Google never browses as a country: ?for= only redirects it (no cookie), and a cookie changes nothing.
+    const g = await get('/category/tyres-wheels/?for=be', env, 'US', { 'User-Agent': GOOGLE });
+    assert.equal(g.status, 302);
+    assert.equal(g.headers.get('Set-Cookie'), null);
+    const gHtml = await (await get('/category/tyres-wheels/', env, 'US', { 'User-Agent': GOOGLE, Cookie: 'gw_for=BE' })).text();
+    assert.ok(tyres(gHtml) === 0 && !gHtml.includes('browse-bar'), 'Google: the UK view');
+    // Only a two-letter country in the cookie counts; anything else is ignored.
+    const odd = await (await get('/category/tyres-wheels/', env, 'GB', { Cookie: 'gw_for=BEL; xgw_for=BE' })).text();
+    assert.equal(tyres(odd), 0);
+    // The UK itself from the Group: the UK view (the same rows as any UK visitor), with the bar saying so.
+    const gb = await (await get('/category/tyres-wheels/', env, 'US', { Cookie: 'gw_for=GB' })).text();
+    assert.ok(tyres(gb) === 0 && ukShops(gb) && gb.includes('deliver to United Kingdom'));
+  } finally {
+    globalThis.caches = before;
+  }
+});
+
+test('L160: browseView: only the retailers that deliver to that country, open or not; the UK view for the UK', () => {
+  const be = browseView(config.agw, 'BE', NOW);
+  assert.equal(be.browse, 'BE');
+  assert.deepEqual(be.only, ['Ottocast', 'Pneus.be', 'VEVOR'].filter(r => retailerInView(be, r)));
+  assert.ok(!retailerInView(be, 'Example Motor Parts'));
+  assert.equal(viewFor(config.agw, 'BE', NOW).group, 'all', 'a visitor from Belgium still gets the all view (L151)');
+  assert.equal(browseView(config.agw, 'GB', NOW).group, viewFor(config.agw, 'GB', NOW).group);
+  assert.equal(browseView(config.agw, 'BE', NOW).group, browseView(config.agw, 'BE', NOW).group, 'stable');
+  assert.deepEqual(browseView(config.agw, 'US', NOW).only, [], 'nobody on AGW ships to the US: an empty view, not the UK one');
+});
+
+test('L160: the cookies page names gw_for', () => {
+  assert.match(readFileSync('src/pages/info.js', 'utf8'), /the cookie <code>gw_for<\/code> keeps that country \(two letters, nothing else\) for one day/);
 });
