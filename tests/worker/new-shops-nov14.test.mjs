@@ -139,7 +139,7 @@ test('L141: each round 2b shop is in deliversTo of every site it goes to, with t
   assert.deepEqual(wgw.foreignCurrencies, ['USD'], 'MASON New York prices in dollars get "≈ £"');
 });
 
-test('L142: Dream Pairs: "Cowboy Boots" are not boys\' boots, the name wins over a kids section, T-shirts and belts are not shoes, the brand leaves the name', async () => {
+test('L142: Dream Pairs: "Cowboy Boots" are not boys\' boots, the name wins over a kids section, T-shirts and belts go to MGW clothing and accessories, the brand leaves the name', async () => {
   const d = await rulesOf('dreampairs');
   const c = (name, cat) => d.classify({ name, feedCategory: cat });
   assert.deepEqual(c('DREAM PAIRS Dakota Western Cowboy Boots', 'Mid-Calf Boots'), { site: 'wgw', siteCategory: 'Shoes', subcategory: 'Boots' });
@@ -150,8 +150,21 @@ test('L142: Dream Pairs: "Cowboy Boots" are not boys\' boots, the name wins over
   assert.equal(c('DREAM PAIRS Low Heel Pointed Toe Pumps', 'Pumps').subcategory, 'Heels');
   assert.equal(c('BRUNO MARC Men s Breathable Casual Sneakers', 'OTHERS').subcategory, 'Trainers', 'a shoe in "OTHERS" stays');
   assert.equal(c('NORTIV 8 Men s DualStride Armadillo FieldLite Mid WaterproofPRO', 'Hiking').site, 'mgw', 'a boot named without the word');
-  for (const [n, cat] of [['BRUNO MARC Men s Ultra Soft Breathable Classic Crew Neck T Shirt', 'ACCESSORIES'], ['BRUNO MARC Men s Genuine Leather Casual Dress Belt', 'Belts'],
-    ['BRUNO MARC Men s Compact Pop Up Wallet', 'Wallets'], ['DREAM PAIRS Sustainable Knitted Tote Bag', 'Bags']]) assert.ok(c(n, cat).reject, n);
+  // The whole catalogue (owner, 15 Nov 2026): the clothes, belts and wallets go to MGW and the tote bag to WGW, in places they already have.
+  for (const [n, cat, want] of [
+    ['BRUNO MARC Men s Ultra Soft Breathable Classic Crew Neck T Shirt', 'ACCESSORIES', ['mgw', 'Clothing', 'T-Shirts']],
+    ['BRUNO MARC Men s Classic Soft Polo Shirt Business Casual', 'ACCESSORIES', ['mgw', 'Clothing', 'Shirts']],
+    ['BRUNO MARC Men s Classic Straight Leg Washed Denim Jeans', 'ACCESSORIES', ['mgw', 'Clothing', 'Jeans']],
+    ['BRUNO MARC Men s Soft Casual Shorts With Elastic Band And Drawstring', 'ACCESSORIES', ['mgw', 'Clothing', 'Shorts']],
+    ['BRUNO MARC Men s Relaxed Boxy Fit Fleece Hoodie', 'ACCESSORIES', ['mgw', 'Clothing', 'Hoodies']],
+    ['BRUNO MARC Men s Soft Smart Casual 4 Way Stretch Pants', 'ACCESSORIES', ['mgw', 'Clothing', 'Trousers']],
+    ['BRUNO MARC Men s Cotton Crew Athletic Dress Socks', 'OTHERS', ['mgw', 'Clothing', 'Socks']],
+    ['BRUNO MARC Men s Genuine Leather Casual Dress Belt', 'Belts', ['mgw', 'Bags & Accessories', 'Belts']],
+    ['BRUNO MARC Men s Compact Pop Up Wallet', 'Wallets', ['mgw', 'Bags & Accessories', 'Wallets & Purses']],
+    ['DREAM PAIRS Sustainable Knitted Tote Bag', 'Bags', ['wgw', 'Bags & Accessories', 'Bags']]
+  ]) assert.deepEqual(c(n, cat), { site: want[0], siteCategory: want[1], subcategory: want[2] }, n);
+  assert.ok(c('DREAM PAIRS Knit Beanie Hat', 'ACCESSORIES').reject, 'no place for a women\'s hat from this shop');
+  assert.ok(c('DREAM PAIRS Gift Card', 'OTHERS').reject);
   assert.equal(d.displayName('BRUNO MARC Men s Cowboy Square Toe Western Boots'), "Men's Cowboy Square Toe Western Boots");
   assert.equal(d.displayName('DREAM PAIRS Kid s Square Toe Boots'), "Kid's Square Toe Boots");
   for (const u of ['https://www.dreampairs.com/products/a', 'https://www.brunomarc.com/products/a', 'https://nortiv8shoes.com/products/a']) assert.ok(d.RULES.shop.test(u), u);

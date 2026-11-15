@@ -14,7 +14,8 @@ export const RULES = {
   shop: /^https:\/\/(www\.)?(dreampairs|brunomarc|nortiv8|allswifit|allswift)[a-z]*\.com\//i,
   sites: ['wgw', 'mgw', 'kgw'],
   maxPrice: 400,
-  minPrice: 10
+  // $9.99 Bruno Marc socks are the only row under $10 (15 Nov 2026), and the owner wants the whole catalogue.
+  minPrice: 5
 };
 
 export function productKey(get) {
@@ -41,13 +42,36 @@ const W = list => new RegExp('(?<![a-z0-9])(' + list.join('|') + ')(?![a-z0-9])'
 // Whole words only: "Western Cowboy Boots" are not boys' boots (local check of 14 Nov 2026: 149 cowboy boots, women's and
 // Bruno Marc men's among them, went to KGW by "boy").
 const KIDS = W(['kids?', "kid's", 'boys?', "boy's", "boys'", 'girls?', "girl's", "girls'", 'toddlers?', 'little kids?', 'big kids?', 'children', "children's", 'youth']);
-// Shoes only: the feed also has Bruno Marc T-shirts, polo shirts, belts, socks and wallets and a tote bag (sections "OTHERS",
-// "ACCESSORIES", "Belts", "Wallets", "Bags"). A shoe there keeps its place ("Breathable Casual Sneakers" in "OTHERS"), and so
+// Not shoes: the feed also has Bruno Marc T-shirts, polo shirts, belts, socks and wallets and a tote bag (sections "OTHERS",
+// "ACCESSORIES", "Belts", "Wallets", "Bags"); since 15 Nov 2026 they get their own places (notShoe below). A shoe there keeps its place ("Breathable Casual Sneakers" in "OTHERS"), and so
 // does a boot named without the word ("DualStride ... Mid WaterproofPRO" in "Hiking").
 const FOOTWEAR = W(['shoes?', 'boots?', 'booties', 'sneakers?', 'trainers?', 'sandals?', 'slides?', 'flip ?flops?', 'slippers?', 'loafers?',
   'oxfords?', 'pumps?', 'heels?', 'wedges?', 'mules?', 'flats?', 'clogs?', 'moccasins?', 'derby', 'brogues?', 'espadrilles?', 'mary ?janes?', 'slip-?ons?', 'cleats?']);
 const NOT_FOOTWEAR = W(['belts?', 'wallets?', 't ?-?shirts?', 'shirts?', 'polo', 'tees?', 'socks?', 'bags?', 'totes?', 'hats?', 'caps?', 'jackets?', 'hoodies?', 'pants', 'shorts']);
 const OTHER_SECTION = /^(?:accessories|others|belts|wallets|bags)$/i;
+// The whole catalogue (owner, 15 Nov 2026: "get all the catalogue"; the 14 Nov plan left out 12 of 1,952): Bruno Marc's
+// T-shirts, polo shirts, a fleece hoodie, jeans, shorts, trousers, socks, belts and wallets go to Men's Gear World and the Dream Pairs tote
+// bag to Women's, in places both sites already have (MGW Clothing and Bags & Accessories, WGW Bags & Accessories > Bags, L56).
+// Polo before T-shirt: "Classic Soft Polo Shirt" is a shirt.
+const MEN_WEAR = [
+  [W(['polo', 'polo shirts?']), 'Clothing', 'Shirts'],
+  [W(['t ?-?shirts?', 'tees?']), 'Clothing', 'T-Shirts'],
+  [W(['hoodies?', 'sweatshirts?']), 'Clothing', 'Hoodies'],
+  [W(['jackets?']), 'Clothing', 'Jackets'],
+  [W(['shirts?']), 'Clothing', 'Shirts'],
+  [W(['jeans']), 'Clothing', 'Jeans'],
+  [W(['shorts']), 'Clothing', 'Shorts'],
+  [W(['pants', 'trousers', 'chinos']), 'Clothing', 'Trousers'],
+  [W(['socks?']), 'Clothing', 'Socks'],
+  [W(['belts?']), 'Bags & Accessories', 'Belts'],
+  [W(['wallets?']), 'Bags & Accessories', 'Wallets & Purses']
+];
+function notShoe(raw, n) {
+  const men = /^\s*bruno marc/i.test(raw) || (/\bmen'?s\b|\bmens\b/i.test(n) && !/women/i.test(n));
+  if (men) for (const [re, cat, subcat] of MEN_WEAR) if (re.test(n)) return { site: 'mgw', siteCategory: cat, subcategory: subcat };
+  if (!men && W(['bags?', 'totes?']).test(n)) return { site: 'wgw', siteCategory: 'Bags & Accessories', subcategory: 'Bags' };
+  return { reject: 'not footwear, and no place for it on the sites' };
+}
 
 function sub(n, c, site) {
   const t = n + ' | ' + c;
@@ -66,7 +90,7 @@ export function classify({ name, feedCategory = '' }) {
   const c = String(feedCategory || '');
   if (!n) return { reject: 'no name' };
   if (/gift card|shipping protection|insurance|insoles? only|shoe care|\bshoe ?laces?\b/i.test(n)) return { reject: 'gift card, protection or shoe care' };
-  if (!FOOTWEAR.test(n) && (NOT_FOOTWEAR.test(n) || OTHER_SECTION.test(c.trim()))) return { reject: 'not footwear (T-shirts, belts, socks, wallets, bags)' };
+  if (!FOOTWEAR.test(n) && (NOT_FOOTWEAR.test(n) || OTHER_SECTION.test(c.trim()))) return notShoe(String(name || ''), n);
   // "Women's Inner Zipper Chelsea Boots" in "Kids Boots" is a women's boot: the name wins over the section.
   if (KIDS.test(n) || (KIDS.test(c) && !/\b(?:wo)?men'?s?\b/i.test(n))) return { site: 'kgw', siteCategory: 'Shoes', subcategory: sub(n, c, 'kgw') };
   if (/\bmen'?s\b|\bmens\b|\bfor men\b/i.test(n) && !/women/i.test(n)) return { site: 'mgw', siteCategory: 'Shoes', subcategory: sub(n, c, 'mgw') };
