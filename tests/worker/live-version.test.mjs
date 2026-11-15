@@ -47,7 +47,11 @@ test('L156: every site tool deploy writes its version, and checks the live one b
     assert.ok(text.includes("'live-guard.ps1')"), `${f}: loads tools/lib/live-guard.ps1`);
     assert.ok(text.includes('Assert-GwLiveGuard @($Domain) $repo'), `${f}: checks the live version before its update`);
     for (const line of text.split('\n')) {
-      if (/Invoke-Wrangler/.test(line) && /'deploy[ ']/.test(line)) assert.ok(line.includes('$GwVersionVar'), `${f}: ${line.trim()}`);
+      if (/Invoke-Wrangler/.test(line) && /'deploy[ ']/.test(line)) {
+        assert.ok(line.includes('$GwVersionVar'), `${f}: ${line.trim()}`);
+        // A backslash before a quote inside a PowerShell '...' string stays a backslash: wrangler would get a broken path.
+        assert.ok(!line.includes('\\"'), `${f}: no backslash before a quote: ${line.trim()}`);
+      }
     }
   }
   const all = readFileSync('tools/sites-update-all.ps1', 'utf8');

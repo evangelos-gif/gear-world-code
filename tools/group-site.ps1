@@ -205,7 +205,7 @@ switch ($Step) {
         if (-not $Apply) { Say ''; Say 'Δοκιμή μόνο (χωρίς -Apply): δεν άλλαξε τίποτα.' 'Green'; Finish 0 }
         if (-not (Confirm-Approval $Phrases[$Step])) { Say 'Δεν δόθηκε έγκριση: σταμάτησα χωρίς αλλαγές.' 'Yellow'; Finish 1 }
         $cfg = Write-Config $grp
-        $d = Invoke-Wrangler $grp (('deploy --config \"{0}\"' -f $cfg) + $GwVersionVar) -NonInteractive
+        $d = Invoke-Wrangler $grp (('deploy --config "{0}"' -f $cfg) + $GwVersionVar) -NonInteractive
         if ($d.code -ne 0) { Say 'Το ανέβασμα απέτυχε. Τίποτα άλλο δεν άλλαξε. Έξοδος:' 'Red'; Say $d.text; Finish 9 }
         Say ('Ανέβηκε στο {0}.' -f $Domain) 'Green'
         if (-not $NoHttpCheck) {

@@ -346,7 +346,7 @@ switch ($Step) {
         if (-not $Apply) { Say ''; Say 'Δοκιμή μόνο (χωρίς -Apply): δεν άλλαξε τίποτα.' 'Green'; Finish 0 }
         if (-not (Confirm-Approval $Phrases.preview)) { Say 'Δεν δόθηκε έγκριση: σταμάτησα χωρίς αλλαγές.' 'Yellow'; Finish 1 }
         $cfg = Write-Config $kgw $db.id -Preview
-        $d = Invoke-Wrangler $kgw (('deploy --config \"{0}\"' -f $cfg) + $GwVersionVar) -NonInteractive
+        $d = Invoke-Wrangler $kgw (('deploy --config "{0}"' -f $cfg) + $GwVersionVar) -NonInteractive
         if ($d.code -ne 0) { Say 'Το ανέβασμα απέτυχε. Τίποτα δεν άλλαξε στο live site. Έξοδος:' 'Red'; Say $d.text; Finish 9 }
         $um = [regex]::Match($d.text, 'https://[A-Za-z0-9\.\-]+\.workers\.dev')
         $url = $(if ($um.Success) { $um.Value } else { '' })
@@ -428,7 +428,7 @@ switch ($Step) {
         [System.IO.File]::WriteAllText($noteFile, ($note -join "`r`n"), (New-Object System.Text.UTF8Encoding($false)))
         Say ('Σημείωμα επαναφοράς: {0}' -f $noteFile) 'Green'
         $cfg = Write-Config $kgw $db.id
-        $d = Invoke-Wrangler $kgw (('deploy --config \"{0}\"' -f $cfg) + $GwVersionVar) -NonInteractive
+        $d = Invoke-Wrangler $kgw (('deploy --config "{0}"' -f $cfg) + $GwVersionVar) -NonInteractive
         if ($d.code -ne 0) { Say 'Το ανέβασμα απέτυχε. Το live site έμεινε όπως ήταν. Έξοδος:' 'Red'; Say $d.text; Finish 9 }
         Say ('Ανέβηκε στο {0}.' -f $Domain) 'Green'
         if (-not $NoHttpCheck) { Start-Sleep -Seconds 5; [void](Test-Live ('https://' + $Domain)) }
