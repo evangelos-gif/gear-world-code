@@ -63,7 +63,10 @@ export default {
   // US: shops whose shipping page (read 13-14 Nov 2026, L62) ships within the United States only; the US view (L141).
   // Ireland: Bazta IE and Plusshop IE (ie.bazta.com, ie.plusshop.com, read 14 Nov 2026: "only delivered to addresses in
   // Ireland"; round 2c, L144).
-  deliversTo: { default: ['GB'], retailers: { 'Bazta IE': ['IE'], 'Plusshop IE': ['IE'], SwitchBot: ['EU'], Kincmo: ['US'], AlorAir: ['US'], 'Mosaic Weighted Blankets': ['US'] } },
+  // HOME-TEX (home-tex.com, Daisycon, euros; "Fast delivery" read 15 Nov 2026): the 19 countries below; "We do not ship
+  // to Greenland, Iceland, the UK, and the Faroe Islands"; Denmark, Norway and Sweden have shops of their own (round 3, L147).
+  deliversTo: { default: ['GB'], retailers: { 'Bazta IE': ['IE'], 'Plusshop IE': ['IE'], SwitchBot: ['EU'], Kincmo: ['US'], AlorAir: ['US'], 'Mosaic Weighted Blankets': ['US'],
+    'HOME-TEX': ['AT', 'BE', 'BG', 'CH', 'CZ', 'DE', 'EE', 'ES', 'FI', 'FR', 'HU', 'IT', 'LT', 'LU', 'LV', 'NL', 'PL', 'RO', 'SK'] } },
   displayCurrencies: ['GBP', 'EUR', 'ALL', 'RON', 'RUB'],
   cart: { name: 'Saved list', maxItems: 30 },
   voiceSearch: true,

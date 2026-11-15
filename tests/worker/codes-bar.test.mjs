@@ -50,12 +50,12 @@ const VIEWS = [...OWN_VIEW.map(c => [c, c, '']), ['CA', 'CA', ''], ['unknown', '
 const UK_VIEW = ['GB', 'CA', 'unknown', 'Googlebot', 'Googlebot US'];
 const seeing = (also, except = []) => Object.fromEntries(VIEWS.map(([name]) => [name,
   !except.includes(name) && (also === 'all' || UK_VIEW.includes(name) || also.includes(name))]));
-const SHOWN = { CGW: seeing([]), AGW: seeing(['US']), BGW: seeing(['CH', 'US']), GGW: seeing('all', ['US', 'IE']), HGW: seeing(['CH', 'IS', 'LI', 'NO']),
+const SHOWN = { CGW: seeing([]), AGW: seeing(['US']), BGW: seeing(['CH', 'US']), GGW: seeing('all', ['US', 'IE']), HGW: seeing(['IS', 'LI', 'NO']),
   KGW: seeing('all', ['US', 'IE']) };
 // How many view groups each site has (the UK one included): CGW gb, at-de, ch-us and one for the rest of Europe; AGW gb
 // (with the US), be, es, it, pl, ch and two for the rest; BGW gb (with CH and the US) and one for the EU, IS, LI, NO;
-// GGW and KGW gb, us and ie; HGW gb, one for the EU, ie and us.
-const GROUPS = { CGW: 4, AGW: 8, BGW: 2, GGW: 3, HGW: 4, KGW: 3 };
+// GGW and KGW gb, us and ie; HGW gb, ie, us, ch (HOME-TEX only) and two for the EU (with and without HOME-TEX, round 3).
+const GROUPS = { CGW: 4, AGW: 8, BGW: 2, GGW: 3, HGW: 6, KGW: 3 };
 // What the bar says in the UK view while the codes of the config run (promos/promos.js, 10 Nov 2026).
 const WORDS = {
   CGW: ['{0} active codes', '4'], GGW: ['{0} active codes', '4'], AGW: ['{0} active codes', '2'], BGW: ['{0} active codes', '2'],

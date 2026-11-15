@@ -82,10 +82,20 @@ test('country groups: the owner\'s delivery data (9 Nov 2026); the UK view for t
   // The US view (owner, 14 Nov 2026, lessons L141): what ships to the US, nothing else. Before it, Wavytalk was never shown.
   assert.deepEqual(viewFor(config.wgw, 'US', NOW).only, ['Dream Pairs', 'Jeulia', 'MASON New York', 'Needs No Label']);
   assert.deepEqual(viewFor(config.mgw, 'US', NOW).only, ['Dream Pairs', 'Jeulia', 'Maceoo', 'Wavytalk']);
-  assert.deepEqual(viewFor(config.mgw, 'GB', NOW).hidden, ['Bazta IE', 'Dream Pairs', 'Jeulia', 'Maceoo', 'Plusshop IE', 'Uhrcenter', 'Wavytalk']);
+  assert.deepEqual(viewFor(config.mgw, 'GB', NOW).hidden, ['Bazta IE', 'Dream Pairs', 'Invicta Stores', 'Jeulia', 'Maceoo', 'Plusshop IE', 'Uhrcenter', 'Wavytalk']);
+  // Round 3 (15 Nov 2026, L147): Invicta Stores in Europe but Spain and Portugal, not in the UK view (customs on delivery);
+  // HOME-TEX in its 19 countries, never the UK.
+  assert.deepEqual(viewFor(config.mgw, 'DE', NOW).only, ['Invicta Stores', 'Uhrcenter']);
+  assert.deepEqual(viewFor(config.mgw, 'FR', NOW).only, ['Invicta Stores']);
+  assert.deepEqual(viewFor(config.mgw, 'IE', NOW).only, ['Bazta IE', 'Invicta Stores', 'Plusshop IE']);
+  for (const cc of ['ES', 'PT', 'US', 'GB']) assert.ok(!(viewFor(config.mgw, cc, NOW).only || []).includes('Invicta Stores'), `MGW ${cc}: no Invicta Stores`);
+  assert.deepEqual(viewFor(config.hgw, 'DE', NOW).only, ['HOME-TEX', 'SwitchBot']);
+  assert.deepEqual(viewFor(config.hgw, 'CH', NOW).only, ['HOME-TEX']);
+  assert.deepEqual(viewFor(config.hgw, 'SE', NOW).only, ['SwitchBot'], 'HOME-TEX has a Swedish shop of its own');
+  assert.ok(viewFor(config.hgw, 'GB', NOW).hidden.includes('HOME-TEX'));
   assert.deepEqual(viewFor(config.kgw, 'US', NOW).only, ['Diecast Models Wholesale', 'Dream Pairs', 'Kaiya Baby']);
   assert.deepEqual(viewFor(config.hgw, 'US', NOW).only, ['AlorAir', 'Kincmo', 'Mosaic Weighted Blankets']);
-  assert.deepEqual(viewFor(config.hgw, 'FR', NOW).only, ['SwitchBot']);
+  assert.deepEqual(viewFor(config.hgw, 'FR', NOW).only, ['HOME-TEX', 'SwitchBot']);
   assert.deepEqual(viewFor(config.ggw, 'US', NOW).only, ['Click and Grow']);
   assert.deepEqual(viewFor(config.zgw, 'US', NOW).only, ['ALZOO']);
   assert.deepEqual(viewFor(config.cgw, 'US', NOW).only, ['GRABO']);
@@ -136,8 +146,8 @@ test('freshness: hidden after 30 days, "Check price and stock at the retailer" a
   assert.equal(needsCheck(v, row('2026-10-25 23:00:00')), true);
   assert.equal(needsCheck(v, row('2026-10-26 00:00:01')), false);
   const sql = visibleSql(v);
-  assert.equal(sql.sql, 'likelihood(+p.retailer NOT IN (?, ?, ?, ?, ?, ?, ?) AND +p.last_seen_at >= ?, 1.0)');
-  assert.deepEqual(sql.binds, ['Bazta IE', 'Dream Pairs', 'Jeulia', 'Maceoo', 'Plusshop IE', 'Uhrcenter', 'Wavytalk', '2026-10-10']);
+  assert.equal(sql.sql, 'likelihood(+p.retailer NOT IN (?, ?, ?, ?, ?, ?, ?, ?) AND +p.last_seen_at >= ?, 1.0)');
+  assert.deepEqual(sql.binds, ['Bazta IE', 'Dream Pairs', 'Invicta Stores', 'Jeulia', 'Maceoo', 'Plusshop IE', 'Uhrcenter', 'Wavytalk', '2026-10-10']);
   assert.equal(visibleSql(viewFor(config.agw, 'BE', NOW)).sql, 'likelihood(+p.retailer IN (?, ?, ?) AND +p.last_seen_at >= ?, 1.0)');
   assert.equal(visibleSql(null), null);
 });
