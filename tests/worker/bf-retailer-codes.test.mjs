@@ -385,7 +385,7 @@ test('L114, L151: cached pages keep one copy per view group (gb, all, us), so th
     assert.equal(store.size, 3, 'no other copy');
     // Germany and Austria (L165: Reidl's feed is in German): the all view plus Reidl, one copy of their own, with the codes.
     for (const cc of ['DE', 'AT']) assert.ok((await (await get('/', env, cc)).text()).includes(FOOTER_LINK), cc);
-    assert.equal(viewFor(cgw, 'DE').group, 'at-de');
+    assert.equal(viewFor(cgw, 'DE').group, 'lang-at-de');
     assert.equal(store.size, 4, 'one more copy, for Germany and Austria');
     assert.ok((await store.get(`https://${cgw.domain}/?gw-view=all`).clone().text()).includes(FOOTER_LINK));
     assert.ok(!(await store.get(`https://${cgw.domain}/?gw-view=${usGroup}`).clone().text()).includes(FOOTER_LINK));

@@ -38,7 +38,7 @@ const demo = {
 
 test('L165: the countries of each feed language, and the countries a retailer is shown in', () => {
   assert.deepEqual(FEED_LANGUAGES.de, ['DE', 'AT', 'CH', 'LI', 'LU']);
-  assert.deepEqual(FEED_LANGUAGES.fr, ['FR', 'BE', 'LU', 'CH']);
+  assert.deepEqual(FEED_LANGUAGES.fr, ['FR', 'BE', 'LU', 'CH', 'CA']);
   assert.deepEqual(FEED_LANGUAGES.nl, ['NL', 'BE']);
   assert.deepEqual(FEED_LANGUAGES.pl, ['PL']);
   for (const [code, list] of Object.entries(FEED_LANGUAGES)) {
@@ -50,7 +50,7 @@ test('L165: the countries of each feed language, and the countries a retailer is
   assert.equal(feedLanguage(demo, 'Anyone'), '');
   // The EU code stands for its countries (Switzerland is not one); WORLD for all of them.
   assert.deepEqual(shownCountries(demo, 'Fr EU'), ['FR', 'BE', 'LU']);
-  assert.deepEqual(shownCountries(demo, 'Fr World'), ['FR', 'BE', 'LU', 'CH']);
+  assert.deepEqual(shownCountries(demo, 'Fr World'), ['FR', 'BE', 'LU', 'CH', 'CA']);
   assert.deepEqual(shownCountries(demo, 'De Mix'), ['DE'], 'not France or Poland: German is not spoken there');
   assert.deepEqual(shownCountries(demo, 'De UK'), ['DE'], 'never the UK, even when it delivers there');
   assert.deepEqual(shownCountries(demo, 'It Shop'), ['IT', 'CH']);
@@ -65,11 +65,14 @@ test('L165: the countries of each feed language, and the countries a retailer is
 });
 
 test('L165: the config check names a wrong feed language, one without its own countries, one shown nowhere', () => {
-  const bad = { deliversTo: { default: ['GB'], retailers: { A: ['DE'], C: ['PL'] }, languages: { A: 'xx', B: 'de', C: 'de' } } };
+  const bad = { deliversTo: { default: ['GB'], retailers: { A: ['DE'], C: ['PL'], D: ['DE'] }, languages: { A: 'xx', B: 'de', C: 'de', D: 'DE' } } };
+  assert.equal(feedLanguage(bad, 'D'), '', 'written in capitals: not a feed language, as the check says');
+  assert.deepEqual(shownCountries(bad, 'D'), []);
   assert.deepEqual(deliveryConfigProblems(bad), [
     'A: unknown feed language "xx"',
     "B: a feed language needs the retailer's own countries in deliversTo.retailers",
-    'C: none of its countries speaks "de", so it is shown nowhere'
+    'C: none of its countries speaks "de", so it is shown nowhere',
+    'D: unknown feed language "DE"'
   ]);
   assert.deepEqual(shownCountries(bad, 'A'), [], 'an unknown language: shown nowhere');
   assert.deepEqual(shownCountries(bad, 'B'), [], 'the default (UK) does not speak German');
@@ -87,8 +90,11 @@ test('L165: a feed in another language: only the countries that speak it, never 
   for (const n of ['Fr EU', 'Fr World', 'De Mix', 'De UK', 'It Shop', 'Us Only']) {
     assert.equal(shows('GB', n), false, `GB: not ${n}`);
     assert.equal(retailerInView(homeView(demo, NOW), n), false, `sitemaps and /api/stats: not ${n}`);
-    for (const cc of ['GR', 'ES', 'CA', '']) assert.equal(shows(cc, n), false, `${cc || 'unknown'}: not ${n}`);
+    for (const cc of ['GR', 'ES', 'AU', '']) assert.equal(shows(cc, n), false, `${cc || 'unknown'}: not ${n}`);
   }
+  // Canada speaks French too: the worldwide French feed only.
+  assert.equal(shows('CA', 'Fr World'), true);
+  assert.equal(shows('CA', 'Fr EU'), false);
   assert.equal(shows('GB', 'Uk Us'), true);
   assert.equal(shows('GR', 'Uk Us'), true, 'a shop for the UK and the US stays in the all view');
   // France: both French feeds; Belgium and Luxembourg the same; Switzerland the worldwide French one and the Italian one.
@@ -116,7 +122,7 @@ test('L165: a feed in another language: only the countries that speak it, never 
   // The groups: gb, all (Poland too here), us, and one per set of countries with feeds in their language.
   const groups = countryGroups(demo);
   assert.deepEqual(groups.list.map(g => [g.id, g.countries.join(',')]), [['gb', 'GB'], ['all', 'PL'], ['us', 'US'],
-    ['be-fr-lu', 'BE,FR,LU'], ['ch', 'CH'], ['de', 'DE'], ['it', 'IT']]);
+    ['lang-be-fr-lu', 'BE,FR,LU'], ['lang-ca', 'CA'], ['lang-ch', 'CH'], ['lang-de', 'DE'], ['lang-it', 'IT']]);
   assert.ok(!groups.byCountry.has('FR'), 'not a view of its own for the Hub (hubViewFor)');
   assert.notEqual(cacheKeyUrl('https://demo.example/', v('FR')), cacheKeyUrl('https://demo.example/', v('GR')));
   // The all view leaves out every feed with a language and the US-only shop.
@@ -129,6 +135,25 @@ test('L165: a feed in another language: only the countries that speak it, never 
   // The Group's country pages (browseView, L160): what that country sees, the same rule.
   assert.deepEqual(browseView(demo, 'FR', NOW).only, ['Fr EU', 'Fr World']);
   assert.deepEqual(browseView(demo, 'AT', NOW).only, [], 'nobody for Austria');
+});
+
+test('L165: one cached copy never holds two different views: the language groups, the browse views (L160), the others', () => {
+  const COUNTRIES = ['GB', 'US', 'PL', 'DE', 'AT', 'CH', 'LI', 'LU', 'FR', 'BE', 'NL', 'IT', 'ES', 'PT', 'IE', 'GR', 'CY', 'MT', 'SE', 'DK',
+    'FI', 'NO', 'IS', 'CZ', 'SK', 'HU', 'RO', 'BG', 'HR', 'SI', 'EE', 'LV', 'LT', 'AL', 'CA', 'MX', 'AU', 'JP', ''];
+  const sig = v => JSON.stringify([v.hidden, v.only]);
+  for (const site of [...SITES.map(s => config[s]), demo, { ...demo, deliversTo: { default: ['GB'], retailers: { Solo: ['PT'] }, languages: { Solo: 'pt' } } }]) {
+    const seen = new Map();
+    for (const cc of COUNTRIES) {
+      for (const v of [viewFor(site, cc, NOW), browseView(site, cc, NOW), hubViewFor(site, cc, NOW)]) {
+        if (seen.has(v.group)) assert.equal(seen.get(v.group), sig(v), `${site.domain || site.name}: "${v.group}" holds two views (${cc})`);
+        else seen.set(v.group, sig(v));
+      }
+    }
+  }
+  // The single-country language group of the last site and the browse view of the same country.
+  const solo = { ...demo, deliversTo: { default: ['GB'], retailers: { Solo: ['PT'] }, languages: { Solo: 'pt' } } };
+  assert.equal(viewFor(solo, 'PT', NOW).group, 'lang-pt');
+  assert.equal(browseView(solo, 'PT', NOW).group, 'pt');
 });
 
 test('L165: the hidden reason of a feed in another language is "language", not "country"; the US-only shop stays "country"', () => {
@@ -183,6 +208,11 @@ test('L165: the Group counts a feed in another language only where it is shown; 
     }
   }
   assert.equal(files, 143);
+  // One wording per language on all 13 sites.
+  for (const f of readdirSync('sites/tgw/public/assets/i18n')) {
+    const words = new Set(SITES.map(s => { const d = JSON.parse(read(`sites/${s}/public/assets/i18n/${f}`)); return `${d[para]}|${d[KEY]}`; }));
+    assert.equal(words.size, 1, `${f}: the same About paragraph and notice on every site`);
+  }
 });
 
 // ---- The pages, on AGW (VEVOR's Dutch feed) ----

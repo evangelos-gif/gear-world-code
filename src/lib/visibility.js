@@ -98,8 +98,9 @@ function groupId(codes) {
   return `eu-${(h >>> 0).toString(16).padStart(8, '0').slice(0, 6)}`;
 }
 
-// The country groups of a site: { home: group, all: group, byCountry: Map(code -> group), list: [group] }.
-// group = { id, countries, hidden: [names] (NOT IN) or null, only: [names] (IN) or null }.
+// The country groups of a site: { home: group, all: group, byCountry: Map(code -> group), byLanguage: Map(code -> group),
+// list: [group] }. group = { id, countries, hidden: [names] (NOT IN) or null, only: [names] (IN) or null, language: true
+// for the all view plus the feeds in a country's language (L165) }.
 // all (L151): the view of every country without a view of its own, every retailer; on a site whose UK view hides no
 // retailer it is the UK group itself (one cached copy, as before).
 // The retailers of a site that deliver to one country: { sig, hidden: [names] (NOT IN) or null, only: [names] (IN) or
@@ -177,7 +178,10 @@ export function countryGroups(site) {
     g.countries.push(cc);
     byLanguage.set(cc, g);
   }
-  for (const g of bySig.values()) if (g !== home && g !== all) g.id = groupId(g.countries);
+  // A language group's id has a prefix of its own: the browse view of one country (browseView, the Group's country
+  // pages, L160) is named by groupId of that country too, and the two must never share a cached copy (independent
+  // review, 15 Nov 2026: a language group of Germany alone and ?for=DE were both "de").
+  for (const g of bySig.values()) if (g !== home && g !== all) g.id = g.language ? `lang-${groupId(g.countries)}` : groupId(g.countries);
   const list = [...bySig.values()].filter(g => g === home || g === all || g.countries.length);
   const out = { home, all, byCountry, byLanguage, list };
   if (site) groupCache.set(site, out);
@@ -248,8 +252,8 @@ export function hubViewFor(site, country, at = now()) {
   const v = viewFor(site, cc, at);
   const groups = countryGroups(site);
   const own = groups.byCountry.get(cc);
-  // A country with a view of its own keeps it, also when that view is the all group (a site whose default retailers
-  // deliver everywhere: then "all" is exactly what delivers there, US-only shops included, lessons L141).
+  // A country with a view of its own keeps it (the US: what ships there, US-only shops included, lessons L141; since
+  // L165 the all view leaves those shops out, so the US always has a group of its own where one of them is listed).
   if (cc === HOME_COUNTRY || own) return v;
   const rule = HUB_VIEW_COUNTRIES.includes(cc) ? deliveryRule(site, cc) : null;
   if (!rule) return { ...homeView(site, at), country: cc };

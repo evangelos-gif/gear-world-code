@@ -56,7 +56,7 @@ test('country groups (L151): the UK sees only what delivers there, the US its ow
   // The Netherlands and Belgium (L165): the all view plus VEVOR's Dutch feed, one copy for both. Belgium is still not open
   // (Pneus.be has 92% of what delivers there, 14 Nov 2026).
   for (const cc of ['NL', 'BE']) {
-    assert.equal(g(cc).group, 'be-nl', `${cc}: the all view with the Dutch feed`);
+    assert.equal(g(cc).group, 'lang-be-nl', `${cc}: the all view with the Dutch feed`);
     assert.deepEqual(g(cc).hidden, ['AliExpress PL', 'Tanie-Opony.pl'], cc);
     assert.equal(g(cc).everyRetailer, true, cc);
   }
@@ -70,7 +70,7 @@ test('country groups (L151): the UK sees only what delivers there, the US its ow
   assert.deepEqual(c('GB').hidden, ['AliExpress PL', 'Reidl', 'VEVOR']);
   for (const cc of ['FR', 'CH']) assert.equal(c(cc).group, 'all', `CGW ${cc}`);
   // Reidl's feed is in German (L165): Germany and Austria see the all view plus Reidl; the others never see it.
-  for (const cc of ['DE', 'AT']) assert.equal(c(cc).group, 'at-de', `CGW ${cc}`);
+  for (const cc of ['DE', 'AT']) assert.equal(c(cc).group, 'lang-at-de', `CGW ${cc}`);
   assert.ok(c('FR').hidden.includes('Reidl') && !c('DE').hidden.includes('Reidl'));
   // Women's: 100% PURE to the EU, Switzerland and Norway, FOREO to the EU; Jeulia and Dream Pairs to the US only; MASON
   // New York and Needs No Label to the UK and the US (round 2b, 14 Nov 2026).
@@ -136,16 +136,15 @@ test('country groups (L151): the UK sees only what delivers there, the US its ow
   for (const cc of ['IE', 'FR', 'MT', 'CA', '']) assert.equal(t(cc).group, 'all', `TGW ${cc}: the all view`);
   for (const s of ['kgw', 'ggw', 'vgw', 'bgw', 'pgw', 'mgw', 'tgw']) assert.equal(viewFor(config[s], 'FR', NOW).group, 'all', `${s}: France sees all the products`);
   // ZGW (L165): its only shop that does not deliver to the UK, ALZOO, ships only to the US, so the all view is the UK
-  // view (one copy, as before L151): France sees every retailer that can deliver to it.
+  // view (one copy, as SGW): France sees the UK retailers (with the bar and each card's delivery line), never ALZOO.
   assert.equal(viewFor(config.zgw, 'FR', NOW).group, 'gb');
   assert.equal(countryGroups(config.zgw).all, countryGroups(config.zgw).home);
-  // Few groups per site (one page copy each in the cache): the UK, all, the US, Poland (L157), and one for the countries
-  // that speak the language of a feed (L165).
+  // Few groups per site (one page copy each in the cache): the UK, all, the US, Poland (L157), and one per set of
+  // countries that speak the language of a feed (L165), named lang-...
   for (const s of SITES) {
     const groups = countryGroups(config[s]).list;
     const list = groups.map(x => x.id);
-    assert.ok(list.length <= 5 && list[0] === 'gb' && groups.every(x => x.language || ['gb', 'all', 'us', 'pl', 'pl-us'].includes(x.id)), `${s}: ${list}`);
-    assert.ok(groups.filter(x => x.language).length <= 1, `${s}: ${list}`);
+    assert.ok(list.length <= 8 && list[0] === 'gb' && groups.every(x => (x.language ? /^lang-/.test(x.id) : ['gb', 'all', 'us', 'pl', 'pl-us'].includes(x.id))), `${s}: ${list}`);
   }
   assert.deepEqual(OWN_VIEW_COUNTRIES, ['GB', 'PL', 'US']);
   assert.deepEqual(OPEN_COUNTRIES, ['GB', 'PL']);
@@ -180,7 +179,7 @@ test('the page cache keeps one copy per country group (lessons L107)', () => {
   const gb = viewFor(config.agw, 'US', NOW);
   assert.equal(cacheKeyUrl('https://cargearworld.com/category/tyres-wheels/?page=2', be), 'https://cargearworld.com/category/tyres-wheels/?page=2&gw-view=all');
   // Belgium and the Netherlands (L165, VEVOR's Dutch feed): a copy of their own.
-  assert.equal(cacheKeyUrl('https://cargearworld.com/', viewFor(config.agw, 'BE', NOW)), 'https://cargearworld.com/?gw-view=be-nl');
+  assert.equal(cacheKeyUrl('https://cargearworld.com/', viewFor(config.agw, 'BE', NOW)), 'https://cargearworld.com/?gw-view=lang-be-nl');
   assert.equal(cacheKeyUrl('https://cargearworld.com/', gb), 'https://cargearworld.com/?gw-view=gb');
   assert.notEqual(cacheKeyUrl('https://cargearworld.com/', be), cacheKeyUrl('https://cargearworld.com/', gb));
   // The engine passes it to the edge cache of every cached page.
@@ -1005,7 +1004,7 @@ test('L160: browseView: only the retailers that deliver to that country, open or
   assert.equal(be.browse, 'BE');
   assert.deepEqual(be.only, ['Ottocast', 'Pneus.be', 'VEVOR'].filter(r => retailerInView(be, r)));
   assert.ok(!retailerInView(be, 'Example Motor Parts'));
-  assert.equal(viewFor(config.agw, 'BE', NOW).group, 'be-nl', 'a visitor from Belgium still gets the all view (L151), with the Dutch feed (L165)');
+  assert.equal(viewFor(config.agw, 'BE', NOW).group, 'lang-be-nl', 'a visitor from Belgium still gets the all view (L151), with the Dutch feed (L165)');
   assert.equal(browseView(config.agw, 'GB', NOW).group, viewFor(config.agw, 'GB', NOW).group);
   assert.equal(browseView(config.agw, 'BE', NOW).group, browseView(config.agw, 'BE', NOW).group, 'stable');
   assert.deepEqual(browseView(config.agw, 'US', NOW).only, [], 'nobody on AGW ships to the US: an empty view, not the UK one');

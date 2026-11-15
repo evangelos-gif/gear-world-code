@@ -78,7 +78,7 @@ export function deliveryConfigProblems(site) {
 // The countries are those where the language is an official language of the whole country or of a large part of it.
 export const FEED_LANGUAGES = {
   de: ['DE', 'AT', 'CH', 'LI', 'LU'],
-  fr: ['FR', 'BE', 'LU', 'CH'],
+  fr: ['FR', 'BE', 'LU', 'CH', 'CA'],
   nl: ['NL', 'BE'],
   es: ['ES', 'MX'],
   it: ['IT', 'CH'],
@@ -108,7 +108,8 @@ export const FEED_LANGUAGES = {
 export function feedLanguage(site, retailer) {
   const langs = site && site.deliversTo && site.deliversTo.languages;
   const name = String(retailer || '');
-  const code = own(langs, name) ? String(langs[name] || '').trim().toLowerCase() : '';
+  // Exactly as written, small letters (deliveryConfigProblems names any other spelling).
+  const code = own(langs, name) ? String(langs[name] || '') : '';
   return own(FEED_LANGUAGES, code) ? code : '';
 }
 
