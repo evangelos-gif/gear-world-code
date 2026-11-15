@@ -48,8 +48,11 @@ export default {
   // not named in retailers (Tooled Up, My Tool Shed and Joybuy UK are UK shops). VEVOR: the Dutch shop vevor.nl, as on
   // the other Gear World sites.
   // VEVOR (vevor.nl) delivers to the EU and the EEA, not to the UK (owner, 9 Nov 2026, lessons L107).
-  deliversTo: { default: ['GB'], retailers: { VEVOR: ['EU', 'IS', 'LI', 'NO'] } },
+  // AliExpress PL (Awin 12044, Polish names, prices in zloty): Poland only, so only the Poland view shows it (owner,
+  // 15 Nov 2026, lessons L157, round 2); its prices get "≈ £…" (foreignCurrencies PLN).
+  deliversTo: { default: ['GB'], retailers: { 'AliExpress PL': ['PL'], VEVOR: ['EU', 'IS', 'LI', 'NO'] } },
 
+  foreignCurrencies: ['PLN'],
   displayCurrencies: ['GBP', 'EUR', 'ALL', 'RON', 'RUB'],
   cart: { name: 'Saved list', maxItems: 30 },
   voiceSearch: true,

@@ -253,7 +253,7 @@ export function classifyGaming(name, shopCat = '', opts = {}) {
 export const CATEGORY_SLUGS = CATEGORIES.map(k => k.key);
 
 export const QUALITY = {
-  currencies: ['GBP', 'EUR'],
+  currencies: ['GBP', 'EUR', 'PLN'],
   minPrice: 1,
   maxPrice: 8000,
   requireImage: true,

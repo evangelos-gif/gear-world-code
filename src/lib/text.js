@@ -1,7 +1,8 @@
 // Text helpers shared by pages, sitemap and the import tool.
 
 export function slugify(value) {
-  return String(value ?? '')
+  // "ł" has no accent to drop (Polish names of AliExpress PL, L157): "łódź" -> "lodz", not "odz".
+  return String(value ?? '').replace(/ł/g, 'l').replace(/Ł/g, 'L')
     .normalize('NFKD')
     .replace(/[̀-ͯ]/g, '')
     .toLowerCase()

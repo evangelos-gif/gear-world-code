@@ -38,7 +38,7 @@ test('exchange rates: a failed request gives ok:false, so pages show pounds only
   assert.deepEqual(d.rates, {});
   _resetForTests();
   const working = async url => {
-    assert.match(url, /base=GBP&quotes=EUR,ALL,RON,RUB$/);
+    assert.match(url, /base=GBP&quotes=EUR,ALL,RON,RUB,PLN$/, 'PLN for AliExpress PL (L157)');
     return { ok: true, json: async () => [{ base: 'GBP', quote: 'EUR', rate: 1.2, date: '2026-10-19' }] };
   };
   const ok = await exchangeRates(site, null, working);

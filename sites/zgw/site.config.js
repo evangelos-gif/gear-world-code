@@ -51,8 +51,11 @@ export default {
   // (international visitors, as on the other sites).
   // ALZOO (Awin 124906, alzoo.com, massive import round 2b, 14 Nov 2026): US dollars, ships within the United States only
   // (its shipping page, read 13 Nov 2026, L62); the US view (L141).
-  deliversTo: { default: ['GB'], retailers: { ALZOO: ['US'] } },
+  // AliExpress PL (Awin 12044, Polish names, prices in zloty): Poland only, so only the Poland view shows it (owner,
+  // 15 Nov 2026, lessons L157, round 2); its prices get "≈ £…" (foreignCurrencies PLN).
+  deliversTo: { default: ['GB'], retailers: { 'AliExpress PL': ['PL'], ALZOO: ['US'] } },
 
+  foreignCurrencies: ['PLN'],
   displayCurrencies: ['GBP', 'EUR', 'ALL', 'RON', 'RUB'],
   cart: { name: 'Saved list', maxItems: 30 },
   voiceSearch: true,

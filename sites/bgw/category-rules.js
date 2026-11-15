@@ -207,7 +207,7 @@ export const CATEGORY_SLUGS = ['helmets', 'jackets-trousers', 'boots-gloves', 'p
 // Minimum quality for any product to be imported (L14). Prices in pounds or euros (euro prices get "≈ £").
 // An electric motorbike can cost a few thousand pounds.
 export const QUALITY = {
-  currencies: ['GBP', 'EUR'],
+  currencies: ['GBP', 'EUR', 'PLN'],
   minPrice: 1,
   maxPrice: 8000,
   requireImage: true,

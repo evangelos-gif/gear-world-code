@@ -48,8 +48,11 @@ export default {
   // not named in retailers. All the first-wave retailers are UK shops (Coes, Joybuy UK, Plusshop UK, Bazta UK and
   // Beyond Shakers, the same as on the other Gear World sites). A retailer from another country is added to retailers,
   // from its own delivery page, before its first import.
-  deliversTo: { default: ['GB'] },
+  // AliExpress PL (Awin 12044, Polish names, prices in zloty): Poland only, so only the Poland view shows it (owner,
+  // 15 Nov 2026, lessons L157, round 2); its prices get "≈ £…" (foreignCurrencies PLN).
+  deliversTo: { default: ['GB'], retailers: { 'AliExpress PL': ['PL'] } },
 
+  foreignCurrencies: ['PLN'],
   displayCurrencies: ['GBP', 'EUR', 'ALL', 'RON', 'RUB'],
   cart: { name: 'Saved list', maxItems: 30 },
   voiceSearch: true,

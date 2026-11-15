@@ -52,15 +52,16 @@ test('ZGW rules leave out children\'s toys, people\'s clothing, vacuums and look
 test('11 categories (birds with subcategories and horse and riding, owner 1 Nov 2026), prices in pounds (US dollars for ALZOO, L141)', () => {
   assert.deepEqual(CATEGORY_SLUGS, ['beds-crates', 'walking', 'toys', 'food', 'cats', 'grooming', 'feeding', 'travel', 'small-pets', 'birds', 'horse']);
   // ALZOO sells in US dollars and ships within the US only: only the US view shows it (site.config.js deliversTo).
-  assert.deepEqual(QUALITY.currencies, ['GBP', 'USD']);
-  assert.deepEqual(site.deliversTo.retailers, { ALZOO: ['US'] });
+  // AliExpress PL (L157 round 2): zloty, Poland only.
+  assert.deepEqual(QUALITY.currencies, ['GBP', 'USD', 'PLN']);
+  assert.deepEqual(site.deliversTo.retailers, { 'AliExpress PL': ['PL'], ALZOO: ['US'] });
   assert.deepEqual(CATEGORY_SLUGS, site.categories.map(c => c.slug), 'the same order as the site menu');
 });
 
 test('sources: Joybuy, Plusshop, Bazta, Coes and Aquatics Shop UK; Red Gorilla and VEVOR off; no text of another site', () => {
   const text = readFileSync('sites/zgw/sources.json', 'utf8');
   const src = JSON.parse(text).sources;
-  assert.deepEqual(src.filter(s => s.approved).map(s => s.retailer), ['Joybuy', 'Plusshop UK', 'Bazta UK', 'Coes', 'Aquatics Shop UK', 'Pets Calm Down', 'Omlet', 'ALZOO']);
+  assert.deepEqual(src.filter(s => s.approved).map(s => s.retailer), ['Joybuy', 'Plusshop UK', 'Bazta UK', 'Coes', 'Aquatics Shop UK', 'Pets Calm Down', 'Omlet', 'ALZOO', 'AliExpress PL']);
   assert.deepEqual(src.find(s => s.retailer === 'ALZOO'), { advertiserId: 124906, feedIds: [113935], retailer: 'ALZOO', currency: 'USD', condition: 'new', approved: true, petShop: true });
   assert.equal(src.find(s => s.retailer === 'Omlet').petShop, true);
   assert.equal(src.find(s => s.retailer === 'Aquatics Shop UK').aquatics, true, 'its live fish stay out (L90)');

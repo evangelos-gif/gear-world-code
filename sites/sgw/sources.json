@@ -17,6 +17,7 @@
     { "advertiserId": 54025, "feedIds": [85854], "retailer": "aZengear", "currency": "GBP", "condition": "new", "approved": true },
     { "advertiserId": 19285, "feedIds": [41979], "retailer": "Olight UK", "currency": "GBP", "condition": "new", "approved": true, "sportShop": true, "defaultSlug": "hiking-climbing-winter", "allowPaths": ["EDC torches", "Tactical torches", "keyring torches", "search torches", "Camping light"], "denyNames": ["osight", "optic", "picatinny", "m-lok", "\\brail", "\\bsight", "\\bpl[- ]", "o'pen", "pencil", "\\bclip (?:black|blue)\\b", "(?:blue|mini|pocket) clip", "headband", "% off", "clearance", "hatchet", "charger"] },
     { "advertiserId": 118435, "feedIds": [109014], "retailer": "VEVOR", "currency": "EUR", "condition": "new", "keepSiteNames": true, "approved": false,
-      "allowPaths": ["sport en buitenshuis"] }
+      "allowPaths": ["sport en buitenshuis"] },
+    { "advertiserId": 12044, "feedIds": [101519], "retailer": "AliExpress PL", "currency": "PLN", "condition": "new", "approved": true, "sections": "aliexpress-pl", "joinVariants": true }
   ]
 }

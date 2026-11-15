@@ -97,7 +97,7 @@ export const CATEGORY_SLUGS = ['luggage-suitcases', 'travel-bags-backpacks', 'tr
 
 // Minimum quality for any product to be imported (L14). Prices in pounds or euros (euro prices get "≈ £").
 export const QUALITY = {
-  currencies: ['GBP', 'EUR'],
+  currencies: ['GBP', 'EUR', 'PLN'],
   minPrice: 1,
   maxPrice: 3000,
   requireImage: true,
