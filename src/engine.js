@@ -694,7 +694,7 @@ export async function withUkBar(response, barHtml = null) {
 // Lessons L160: an answer while browsing as one country is that visitor's only (never kept by a shared cache, and the
 // browser asks again), and every page says that it depends on the cookie, so a browser does not reuse a copy from before.
 function withBrowseHeaders(response) {
-  if (!response) return response;
+  if (!response || response.status !== 200 || !/^(text\/html|application\/json)/i.test(response.headers.get('Content-Type') || '')) return response;
   const headers = new Headers(response.headers);
   headers.set('Cache-Control', 'private, no-cache');
   headers.append('Vary', 'Cookie');
