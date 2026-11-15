@@ -224,9 +224,15 @@ test('L159: memo() keeps counts, filters and the census (the Worker\'s cache); a
     assert.equal(fast.log.length, n, 'filters kept');
     await db.facets(fast, 'ev-charging', null, gb);
     assert.ok(fast.log.length > n, 'another category: read');
+    // Subcategory counts (TGW Mini PCs, ZGW birds): kept too, the same answer.
+    const subs = [{ slug: 'x', name: 'Summer' }, { slug: 'm', name: 'Drills', match: ['drill'] }];
+    const s1 = plain(await db.subcategoryCounts(fast, 'tyres-wheels', subs, gb));
+    const m = fast.log.length;
+    assert.deepEqual(plain(await db.subcategoryCounts(fast, 'tyres-wheels', subs, gb)), s1);
+    assert.equal(fast.log.length, m, 'subcategory counts kept');
     // Keys: the site's own address under /__gw-memo/ (no page has it), a hash of the question, the version; lifetimes.
     const keys = [...store.keys()];
-    assert.ok(keys.every(k => new RegExp(`^https://cargearworld\\.com/__gw-memo/(census|count|facets)/[0-9a-f]{32}\\?v=${MEMO_VERSION}$`).test(k)), keys.join(' '));
+    assert.ok(keys.every(k => new RegExp(`^https://cargearworld\\.com/__gw-memo/(census|count|facets|subcats)/[0-9a-f]{32}\\?v=${MEMO_VERSION}$`).test(k)), keys.join(' '));
     const life = name => store.get(keys.find(k => k.includes(`/__gw-memo/${name}/`))).headers['cache-control'];
     assert.equal(life('census'), 'public, max-age=3600');
     assert.equal(life('count'), 'public, max-age=900');
