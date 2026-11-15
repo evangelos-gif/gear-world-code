@@ -51,6 +51,22 @@ test('L157: AliExpress PL rules: the Polish shop only, one card per item, sectio
   assert.deepEqual(c('Dragon Ball Z Son Goku Figurka', 'Zabawki i hobby , Figurki akcji i zabawki , Figurki'), { site: 'kgw', siteCategory: 'Toys & Games', subcategory: 'Action & Toy Figures' });
   assert.deepEqual(c('Szlifierka kątowa 125 mm', 'Narzędzia wspomagające , Kosze , Szlifierki kątowe'), { site: 'cgw', siteCategory: 'Power Tools', subcategory: 'Power Tools' });
   assert.deepEqual(c('Lampa solarna ogrodowa', 'Światła i oświetlenie , Oświetlenie zewnętrzne , Lampy solarne'), { site: 'ggw', siteCategory: 'Outdoor Lighting & Garden Electrical', subcategory: 'Solar lights' });
+  // Owner, 15 Nov 2026 ("put in whatever else it contains"): the groups that had no place get one; copies, smoking and
+  // unsafe things stay out.
+  assert.deepEqual(c('Zestaw do haftu krzyżykowego', 'Dom i ogród , Sztuka, rzemiosło i szycie , rękodzieło z igłą'), { site: 'hgw', siteCategory: 'Home Decor', subcategory: 'Craft & Sewing' });
+  assert.deepEqual(c('Zestaw różowych balonów urodzinowych', 'Dom i ogród , Artykuły świąteczne i imprezowe , Wydarzenia i imprezy'), { site: 'kgw', siteCategory: 'Toys & Games', subcategory: 'Balloon Kits' });
+  assert.deepEqual(c('Girlanda urodzinowa złota', 'Dom i ogród , Artykuły świąteczne i imprezowe , Wydarzenia i imprezy'), { site: 'hgw', siteCategory: 'Home Decor', subcategory: 'Party Decorations' });
+  assert.match(c('Zestaw klocków 3093 elementów', 'Dom i ogród , Artykuły świąteczne i imprezowe , Wydarzenia i imprezy').reject, /brick sets/);
+  assert.deepEqual(c('Przenośny mini grzejnik wentylatorowy 1000W', 'Sprzęt AGD , Sprzęt AGD , Grzejniki i ogrzewacze'), { site: 'hgw', siteCategory: 'Home Appliances', subcategory: 'Heater' });
+  assert.match(c('Generator ozonu 60000 mg', 'Sprzęt AGD , Sprzęt AGD , Sprzęt AGD').reject, /ozone/);
+  assert.deepEqual(c('Kompresor elektryczny 8 bar', 'Przemysł i biznes , Sprężarki powietrza, pneumatyka i hydraulika , Sprężarki powietrza'), { site: 'cgw', siteCategory: 'Site Equipment', subcategory: 'Industrial Equipment' });
+  assert.deepEqual(c('Parasol męski automatyczny', 'Dom i ogród , Artykuły gospodarstwa domowego , Sprzęt przeciwdeszczowy'), { site: 'mgw', siteCategory: 'Bags & Accessories', subcategory: 'Umbrellas' });
+  assert.match(c('Plandeka srebrna 2 x 3 m', 'Dom i ogród , Artykuły gospodarstwa domowego , Sprzęt przeciwdeszczowy').reject, /tarps/);
+  assert.match(c('Zapalniczka w kształcie serca', 'Dom i ogród , Artykuły gospodarstwa domowego , Zapalniczki i akcesoria do palenia').reject, /lighters/);
+  assert.deepEqual(c('Dziecięcy strój baletowy dla dziewczynek', 'Nowości i specjalne zastosowanie , Ubrania do tańca i na scenę , Balet'), { site: 'kgw', siteCategory: 'Clothing', subcategory: 'Dancewear' });
+  assert.match(c('Film LOKI przebranie męskie', 'Nowości i specjalne zastosowanie , Kostiumy Cosplay , Kostiumy Cosplay IP').reject, /cosplay/);
+  assert.deepEqual(c('Peruka syntetyczna blond', 'Przedłużenia i peruki , Włosy syntetyczne , Syntetyczne peruki'), { site: 'wgw', siteCategory: 'Beauty & Fragrances', subcategory: 'Wigs & Hair Extensions' });
+  assert.deepEqual(c('Lampa LED do uprawy roślin 240W', 'Światła i oświetlenie , Oświetlenie profesjonalne , Lampy do upraw roślin i akcesoria'), { site: 'ggw', siteCategory: 'Plants, Growing & Garden Care', subcategory: 'Grow lights' });
   // Round 2: the newer engines' sections wait, named in the report.
   assert.match(c('Kamera cofania', 'Motoryzacja oraz części i akcesoria motoryzacyjne , Elektronika samochodowa , Kamery').reject, /round 2: Car Gear World/);
   assert.match(c('Etui na telefon', 'Akcesoria do telefonów i telekomunikacji , Etui i pokrowce na telefony komórkowe , Etui').reject, /round 2: Technology Gear World/);
@@ -96,6 +112,11 @@ test('L157 round 2: the Polish sections go to the newer sites, each to its own c
   assert.equal(s('AGW', 'Łyżki do opon zestaw 3 szt', W).sub, 'Wheel Accessories', 'tyre levers are not tyres');
   assert.match(s('TGW', 'Felgi aluminiowe 17 cali', W).reason, /section of AGW/);
   assert.match(s('AGW', '5/10 szt. 14mm Aluminiowa naklejka z logo na kluczyk samochodowy do VW', W).reason, /logo/);
+  assert.equal(s('TGW', 'Płytka rozwojowa ESP32-S3', 'Podzespoły elektroniczne , Podzespoły elektroniczne , Układy scalone i mikroprocesory').sub, 'Electronics & Maker Parts');
+  assert.equal(s('TGW', 'Nowa bateria BP4K do Xiaomi Poco F1', 'Telefony i telekomunikacja , Części do telefonów mobilnych , Baterie do telefonów komórkowych').sub, 'Phone Parts & Batteries');
+  assert.match(s('TGW', 'Radio Baofeng UV-9R', 'Telefony i telekomunikacja , Akcesoria i części do krótkofalówek , Części').reason, /licences/);
+  assert.equal(s('BGW', 'Zimowe rękawice motocyklowe wodoodporne', 'Sprzęty i akcesoria motocyklowe , Sprzęt motocyklowy , Sprzęt do skuterów śnieżnych').sub, 'Winter Gloves');
+  assert.equal(s('SGW', 'Teleskop refraktorowy 70 mm', 'Sport i rozrywka , Kamping i wędrówki , Obserwacje astronomiczne').sub, 'Telescopes & Binoculars');
   assert.equal(s('AGW', '1 X Nowy Pokrowiec na Koło Zapasowe w Stylu Off-Road', W).sub, 'Wheel Accessories');
   assert.equal(s('TGW', 'Słuchawki Bluetooth', 'Elektronika użytkowa , Przenośny sprzęt Audio i wideo , Słuchawki douszne i nauszne').sub, 'Headphones & Earbuds');
   assert.equal(s('PGW', 'Pad do PS5', 'Elektronika użytkowa , Gry i akcesoria , Gamepady').slug, 'controllers');

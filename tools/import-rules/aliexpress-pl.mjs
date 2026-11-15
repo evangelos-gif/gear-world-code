@@ -109,8 +109,10 @@ const SECTIONS = [
   [/^Dom i ogród > Produkty dla zwierząt/i, () => LATER('Pets Gear World')],
 
   // Women's Gear World: jewellery, beauty, accessories, underwear, watches.
-  [/^Biżuteria i akcesoria > Tworzenie biżuterii/i, () => OUT('jewellery making supplies')],
-  [/^Biżuteria i akcesoria > .* > (Koraliki|Beads|Breloczki)/i, () => OUT('beads and key rings, not jewellery')],
+  // Owner, 15 Nov 2026 ("put in whatever else it contains"): jewellery making, beads and key rings have a place too.
+  [/^Biżuteria i akcesoria > Tworzenie biżuterii/i, () => R('wgw', "Women's Jewellery", 'Jewellery Making & Beads')],
+  [/^Biżuteria i akcesoria > .* > Breloczki/i, () => R('wgw', 'Bags & Accessories', 'Key Rings')],
+  [/^Biżuteria i akcesoria > .* > (Koraliki|Beads)/i, () => R('wgw', "Women's Jewellery", 'Jewellery Making & Beads')],
   [/^Biżuteria i akcesoria/i, (p, n) => {
     const men = MEN.test(n) && !WOMEN.test(n);
     if (/Kolczyki/i.test(p)) return men ? R('mgw', "Men's Jewellery", 'Jewellery') : R('wgw', "Women's Jewellery", 'Earrings');
@@ -132,6 +134,7 @@ const SECTIONS = [
   [/^Uroda i zdrowie > Kąpiel i Prysznic/i, () => R('wgw', 'Beauty & Fragrances', 'Bath & body')],
   [/^Uroda i zdrowie > Perfumy/i, (p, n) => (MEN.test(n) && !WOMEN.test(n) ? R('mgw', 'Grooming & Fragrances', 'Fragrance') : R('wgw', 'Beauty & Fragrances', 'Fragrance'))],
   [/^Uroda i zdrowie/i, () => OUT('beauty section without a place on Women\'s Gear World')],
+  [/^Przedłużenia i peruki/i, () => R('wgw', 'Beauty & Fragrances', 'Wigs & Hair Extensions')],
   [/^Akcesoria odzieżowe > Okulary i akcesoria > (Okulary przeciwsłoneczne|Modne okulary)/i, (p, n) => (MEN.test(n) && !WOMEN.test(n) ? R('mgw', 'Bags & Accessories', 'Sunglasses') : R('wgw', 'Bags & Accessories', 'Sunglasses'))],
   [/^Akcesoria odzieżowe > Okulary/i, () => OUT('reading glasses, lenses and frames (medical)')],
   [/^Akcesoria odzieżowe > .*/i, (p, n) => (/^maska|maska na twarz|maski/i.test(n) ? OUT('masks') : null)],
@@ -187,7 +190,10 @@ const SECTIONS = [
   [/^Meble > Meble dla dzieci/i, () => R('kgw', 'Bedroom & Home', 'Bedroom & Home')],
   [/^Artykuły biurowe i szkolne > Akcesoria i organizery/i, () => R('hgw', 'Storage & Organisation', 'Drawer Organizer')],
   [/^Artykuły biurowe i szkolne/i, () => R('kgw', 'School & Backpacks', 'Stationery & Art Supplies')],
-  [/^Nowości i specjalne zastosowanie/i, () => OUT('costumes and stage wear')],
+  // Children's dance and ballet wear goes to Kids' Gear World; cosplay of film and anime characters (copies) and grown-up
+  // costumes stay out.
+  [/^Nowości i specjalne zastosowanie > Ubrania do tańca/i, (p, n) => (/dzie(?:ci|cię|wcz)|dziewczyn|chłopi|junior/i.test(n) ? R('kgw', 'Clothing', 'Dancewear') : OUT('grown-up dance and stage wear'))],
+  [/^Nowości i specjalne zastosowanie/i, () => OUT('cosplay and costumes (film and anime characters, often copies)')],
 
   // Home Gear World.
   [/^Dom i ogród > Kuchnia, jadalnia i bar > Grill/i, () => R('ggw', 'BBQ & Outdoor Cooking', 'BBQ accessories')],
@@ -225,11 +231,26 @@ const SECTIONS = [
   [/^Dom i ogród > Artykuły gospodarstwa domowego > (Chemikalia|Jednorazowe)/i, () => R('hgw', 'Cleaning & Laundry', 'Cleaning Products')],
   [/^Dom i ogród > Artykuły gospodarstwa domowego > Produkty do prania/i, () => R('hgw', 'Cleaning & Laundry', 'Ironing & Clothes Care')],
   [/^Dom i ogród > Artykuły gospodarstwa domowego > Pokrowce/i, () => R('hgw', 'Storage & Organisation', 'Storage Box')],
-  [/^Dom i ogród > Artykuły gospodarstwa domowego/i, () => OUT('lighters, warmers, umbrellas and thermometers')],
+  [/^Dom i ogród > Artykuły gospodarstwa domowego > Zapalniczki/i, () => OUT('lighters and smoking accessories')],
+  [/^Dom i ogród > Artykuły gospodarstwa domowego > Produkty grzewcze/i, () => R('hgw', 'Bedding & Bath', 'Electric Blankets & Warmers')],
+  [/^Dom i ogród > Artykuły gospodarstwa domowego > Sprzęt przeciwdeszczowy/i, (p, n) => {
+    const men = (MEN.test(n) || /mężczy|męsk/i.test(n)) && !WOMEN.test(n);
+    if (/parasol/i.test(n)) return men ? R('mgw', 'Bags & Accessories', 'Umbrellas') : R('wgw', 'Bags & Accessories', 'Umbrellas');
+    if (/płaszcz|kurtk|peleryn|ponczo|poncho|kombinezon/i.test(n)) return men ? R('mgw', 'Clothing', 'Raincoats') : R('wgw', 'Clothing', 'Raincoats');
+    return OUT('tarps and other rain covers');
+  }],
+  [/^Dom i ogród > Artykuły gospodarstwa domowego > Termometry/i, () => R('hgw', 'Home Appliances', 'Thermometers & Weather Stations')],
+  [/^Dom i ogród > Artykuły gospodarstwa domowego > Ochrona przed/i, () => R('hgw', 'Cleaning & Laundry', 'Moth & Damp Protection')],
+  [/^Dom i ogród > Artykuły gospodarstwa domowego > Produkty chłodzące/i, () => R('hgw', 'Home Appliances', 'Fan')],
+  [/^Dom i ogród > Artykuły gospodarstwa domowego/i, () => OUT('household section without a place on the sites')],
   [/^Dom i ogród > Artykuły świąteczne i imprezowe > Boże Narodzenie/i, () => R('hgw', 'Home Decor', 'Christmas')],
   [/^Dom i ogród > Artykuły świąteczne i imprezowe > Sztuczne dekoracje/i, () => R('hgw', 'Home Decor', 'Ornament')],
-  [/^Dom i ogród > Artykuły świąteczne/i, () => OUT('party supplies')],
-  [/^Dom i ogród > Sztuka, rzemiosło i szycie/i, () => OUT('craft and sewing supplies')],
+  [/^Dom i ogród > Artykuły świąteczne i imprezowe > Pakiety upominków/i, () => R('hgw', 'Home Decor', 'Christmas')],
+  // Party things: balloons to Kids' Gear World, the rest as party decorations on Home Gear World. Brick sets in this
+  // section are copies of licensed sets ("3093 elementów"), so they stay out.
+  [/^Dom i ogród > Artykuły świąteczne/i, (p, n) => byName(n, [[/klock|element[a-ząćęłńóśźż]* do budowy|\d{3,5} element/i, OUT('brick sets (often copies of licensed sets)')],
+    [/balon/i, R('kgw', 'Toys & Games', 'Balloon Kits')]], R('hgw', 'Home Decor', 'Party Decorations'))],
+  [/^Dom i ogród > Sztuka, rzemiosło i szycie/i, () => R('hgw', 'Home Decor', 'Craft & Sewing')],
   [/^Dom i ogród > Artykuły ogrodnicze > Zasłona/i, () => R('ggw', 'Garden Furniture & Outdoor Living', 'Parasols, gazebos & shade')],
   [/^Dom i ogród > Artykuły ogrodnicze > Podlewanie/i, () => R('ggw', 'Watering & Irrigation', 'Irrigation Systems')],
   [/^Dom i ogród > Artykuły ogrodnicze > Wsparcie i pielęgnacja/i, () => R('ggw', 'Plants, Growing & Garden Care', 'Growing')],
@@ -241,7 +262,12 @@ const SECTIONS = [
   [/^Dom i ogród > Artykuły ogrodnicze > Artykuły do .*wózków/i, () => R('ggw', 'Garden Tools', 'Wheelbarrows')],
   [/^Dom i ogród > Artykuły ogrodnicze > Ogrodnictwo wewnętrzne/i, () => R('ggw', 'Plants, Growing & Garden Care', 'Hydroponics')],
   [/^Dom i ogród > Artykuły ogrodnicze > Akcesoria do ogrodu/i, () => R('ggw', 'Garden Tools', 'Other Garden Accessories')],
-  [/^Dom i ogród > Artykuły ogrodnicze/i, () => OUT('garden ornaments, pest control, bee keeping, letter boxes, hot tubs')],
+  [/^Dom i ogród > Artykuły ogrodnicze > Dekoracje/i, () => R('ggw', 'Garden Furniture & Outdoor Living', 'Garden ornaments')],
+  [/^Dom i ogród > Artykuły ogrodnicze > Produkty do zwalczania szkodników/i, () => R('ggw', 'Plants, Growing & Garden Care', 'Pest control')],
+  [/^Dom i ogród > Artykuły ogrodnicze > Skrzynki pocztowe/i, (p, n) => (/skrzynk/i.test(n) ? R('ggw', 'Garden Buildings, Fencing & Storage', 'Letter boxes') : OUT('not a letter box'))],
+  [/^Dom i ogród > Artykuły ogrodnicze > Sprzęt stawowy/i, () => R('ggw', 'Watering & Irrigation', 'Ponds & water features')],
+  [/^Dom i ogród > Artykuły ogrodnicze > Zewnętrzne wanny/i, (p, n) => (/wann|jacuzzi|spa\b/i.test(n) ? R('ggw', 'Garden Furniture & Outdoor Living', 'Hot tubs & accessories') : OUT('not a hot tub part'))],
+  [/^Dom i ogród > Artykuły ogrodnicze/i, () => OUT('bee keeping chemicals and other garden supplies')],
   [/^Dom i ogród/i, () => OUT('home section without a place on Home Gear World')],
   [/^Światła i oświetlenie > Oświetlenie wewnętrzne/i, (p, n) => indoorLight(p, n)],
   [/^Światła i oświetlenie > (Oświetlenie LED|Żarówki)/i, () => R('hgw', 'Lighting', 'Light Bulb')],
@@ -254,7 +280,11 @@ const SECTIONS = [
   [/^Światła i oświetlenie > Oświetlenie zewnętrzne > Lampy na komary/i, () => OUT('insect lamps')],
   [/^Światła i oświetlenie > Oświetlenie zewnętrzne/i, () => R('ggw', 'Outdoor Lighting & Garden Electrical', 'Outdoor lights')],
   [/^Światła i oświetlenie > Oświetlenie przenośne/i, () => R('cgw', 'Site Equipment', 'Lighting')],
-  [/^Światła i oświetlenie/i, () => OUT('stage, shop and spare lighting parts')],
+  [/^Światła i oświetlenie > Oświetlenie komercyjne > Efekty świetlne/i, () => R('hgw', 'Lighting', 'Party & Projector Lights')],
+  [/^Światła i oświetlenie > Oświetlenie profesjonalne > Lampy do upraw/i, () => R('ggw', 'Plants, Growing & Garden Care', 'Grow lights')],
+  [/^Światła i oświetlenie > Akcesoria oświetleniowe/i, () => R('hgw', 'Lighting', 'Lighting Accessories')],
+  [/^Światła i oświetlenie > Nowość Oświetlenie/i, () => R('hgw', 'Lighting', 'Table Lamp')],
+  [/^Światła i oświetlenie/i, () => OUT('shop and spare lighting parts, UV curing lamps')],
   [/^Sprzęt AGD > Sprzęt do czyszczenia > Odkurzacze parowe/i, () => R('hgw', 'Cleaning & Laundry', 'Steam Cleaner')],
   [/^Sprzęt AGD > Sprzęt do czyszczenia > Elektryczne mopy/i, () => R('hgw', 'Cleaning & Laundry', 'Mop')],
   [/^Sprzęt AGD > Sprzęt do czyszczenia > Środek/i, () => R('hgw', 'Cleaning & Laundry', 'Cleaning Products')],
@@ -272,7 +302,12 @@ const SECTIONS = [
   [/^Sprzęt AGD > Sprzęt AGD > Czajniki/i, () => R('hgw', 'Home Appliances', 'Kettle')],
   [/^Sprzęt AGD > Sprzęt AGD > Klimatyzatory/i, (p, n) => byName(n, [[/osuszacz/i, R('hgw', 'Home Appliances', 'Dehumidifier')], [/oczyszczacz/i, R('hgw', 'Home Appliances', 'Air Purifier')],
     [/wentylator/i, R('hgw', 'Home Appliances', 'Fan')]], R('hgw', 'Home Appliances', 'Air Conditioner'))],
-  [/^Sprzęt AGD/i, () => OUT('heaters, spare parts and other appliances without a place on Home Gear World')],
+  [/^Sprzęt AGD > Sprzęt AGD > Grzejniki/i, (p, n) => byName(n, [[/prasownik|żelazk/i, R('hgw', 'Cleaning & Laundry', 'Ironing & Clothes Care')]], R('hgw', 'Home Appliances', 'Heater'))],
+  [/^Sprzęt AGD > Sprzęt AGD > Urządzenia do uzdatniania wody/i, () => R('hgw', 'Kitchen & Dining', 'Water Filters')],
+  [/^Sprzęt AGD > Sprzęt AGD/i, (p, n) => (/ozon/i.test(n) ? OUT('ozone generators (not safe at home)') : R('hgw', 'Home Appliances', 'Small Appliances'))],
+  [/^Sprzęt AGD > Urządzenia do pielęgnacji osobistej > (Elektryczna szczoteczka|Główki szczoteczek)/i, () => R('hgw', 'Bedding & Bath', 'Electric Toothbrushes')],
+  [/^Sprzęt AGD > Urządzenia do pielęgnacji osobistej/i, () => R('wgw', 'Beauty & Fragrances', 'Beauty tools')],
+  [/^Sprzęt AGD/i, () => OUT('appliance spare parts')],
   [/^Meble > Meble domowe/i, (p, n) => byName(n, FURNITURE, OUT('furniture type not clear from the name'))],
   [/^Meble > Meble biurowe > (Krzesła|Fotele)/i, () => R('hgw', 'Home Office', 'Office Chair')],
   [/^Meble > Meble biurowe/i, () => R('hgw', 'Home Office', 'Computer Desk')],
@@ -286,13 +321,15 @@ const SECTIONS = [
   [/^Ulepszanie domu > System inteligencji domowej/i, (p, n) => byName(n, SMART, R('hgw', 'Smart Home', 'Smart Home Accessories'))],
   [/^Ulepszanie domu > Wyposażenie łazienkowe/i, () => R('hgw', 'Bedding & Bath', 'Bathroom Accessories')],
   [/^Ulepszanie domu > Ogrzewanie, chłodzenie/i, (p, n) => byName(n, [[/wentylator/i, R('hgw', 'Home Appliances', 'Fan')], [/osuszacz/i, R('hgw', 'Home Appliances', 'Dehumidifier')],
-    [/oczyszczacz/i, R('hgw', 'Home Appliances', 'Air Purifier')]], OUT('heating and ventilation parts'))],
+    [/oczyszczacz/i, R('hgw', 'Home Appliances', 'Air Purifier')], [/kominek|biokominek|piec/i, R('hgw', 'Home Decor', 'Fireplaces')],
+    [/ogrzewan|grzej|folia grzewcza|mata grzewcza/i, R('hgw', 'Home Appliances', 'Heater')]], OUT('heating and ventilation parts'))],
   [/^Ulepszanie domu > Wyposażenie kuchenne/i, () => R('cgw', 'Hand Tools', 'Plumbing Tools')],
   [/^Bezpieczeństwo i ochrona > Nadzór wideo/i, () => R('hgw', 'Smart Home', 'Security Camera')],
   [/^Bezpieczeństwo i ochrona > Automatyka dostępu/i, (p, n) => (/dzwonek|domofon/i.test(n) ? R('hgw', 'Smart Home', 'Video Doorbell') : R('hgw', 'Smart Home', 'Smart Lock'))],
   [/^Bezpieczeństwo i ochrona/i, () => R('cgw', 'PPE', 'PPE')],
 
   // Construction Gear World: tools and building.
+  [/^Przemysł i biznes/i, () => R('cgw', 'Site Equipment', 'Industrial Equipment')],
   [/^Ulepszanie domu > Wyposażenie elektryczne/i, () => R('cgw', 'Site Equipment', 'Site Equipment')],
   [/^Ulepszanie domu > Hydraulika/i, () => R('cgw', 'Hand Tools', 'Plumbing Tools')],
   [/^Ulepszanie domu > Akcesoria malarskie/i, () => R('cgw', 'Hand Tools', 'Painting & Decorating')],

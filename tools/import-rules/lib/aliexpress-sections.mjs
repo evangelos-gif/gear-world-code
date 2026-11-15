@@ -92,7 +92,8 @@ const SECTIONS = [
   // Helmets protect a life: only with the European test mark in the name (ECE 22.05 / 22.06).
   [/^Sprzęty i akcesoria motocyklowe > Sprzęt motocyklowy > Kaski/i, 'BGW', (p, n) => (/\bECE\b|22[.,]0[56]/i.test(n) ? ['helmets', 'Helmets'] : 'helmet without the ECE test mark in its name')],
   [/^Sprzęty i akcesoria motocyklowe > Sprzęt motocyklowy > Odzież/i, 'BGW', 'jackets-trousers', 'Motorcycle Clothing'],
-  [/^Sprzęty i akcesoria motocyklowe > Sprzęt motocyklowy > Sprzęt do skuterów śnieżnych/i, 'BGW', 'snowmobile gear'],
+  // Snowmobile gear is winter riding gear (gloves, suits): owner, 15 Nov 2026, "put in whatever else it contains".
+  [/^Sprzęty i akcesoria motocyklowe > Sprzęt motocyklowy > Sprzęt do skuterów śnieżnych/i, 'BGW', (p, n) => (/rękawic/i.test(n) ? ['boots-gloves', 'Winter Gloves'] : /but|obuwi/i.test(n) ? ['boots-gloves', 'Winter Boots'] : ['jackets-trousers', 'Winter Riding Clothing'])],
   [/^Sprzęty i akcesoria motocyklowe > Sprzęt motocyklowy/i, 'BGW', 'parts-maintenance', 'Motorcycle Parts'],
   [/^Sprzęty i akcesoria motocyklowe > Motocykle i ATV > Elektryczny rower na dwóch kołach/i, 'BGW', 'electric-scooters', 'Electric Scooters'],
   [/^Sprzęty i akcesoria motocyklowe > Motocykle i ATV > Części i akcesoria elektrycznych motocykli/i, 'BGW', 'electric-motorbikes', 'Electric Motorbike Parts'],
@@ -140,7 +141,8 @@ const SECTIONS = [
   [/^Akcesoria do telefonów i telekomunikacji/i, 'TGW', 'phones-smartwatches', 'Phone Accessories'],
   [/^Telefony i telekomunikacja > Telefony mobilne/i, 'TGW', 'phones-smartwatches', 'Mobile Phones'],
   [/^Telefony i telekomunikacja > krótkofalówka/i, 'TGW', 'phones-smartwatches', 'Walkie Talkies'],
-  [/^Telefony i telekomunikacja/i, 'TGW', 'phone repair parts, refurbished phones and telecom equipment'],
+  [/^Telefony i telekomunikacja > Części do telefonów/i, 'TGW', 'phones-smartwatches', 'Phone Parts & Batteries'],
+  [/^Telefony i telekomunikacja/i, 'TGW', 'refurbished phones, radio and telecom equipment (licences)'],
   [/^Komputer i biuro > Akcesoria komputerowe/i, 'TGW', 'laptops-computing', 'Computer Accessories'],
   [/^Komputer i biuro > Drukarki 3D/i, 'TGW', 'laptops-computing', '3D Printing'],
   [/^Komputer i biuro > Tablety/i, 'TGW', 'laptops-computing', 'Tablets'],
@@ -153,7 +155,7 @@ const SECTIONS = [
   [/^Komputer i biuro > Laptopy/i, 'TGW', 'laptops-computing', 'Laptops'],
   [/^Komputer i biuro > Komputery stacjonarne/i, 'TGW', 'laptops-computing', 'Desktops'],
   [/^Komputer i biuro/i, 'TGW', 'crypto miners and industrial computers'],
-  [/^Podzespoły elektroniczne/i, 'TGW', 'electronic components, not consumer products'],
+  [/^Podzespoły elektroniczne/i, 'TGW', 'laptops-computing', 'Electronics & Maker Parts'],
 
   // ---- Sporty Gear World ----
   [/^Sport i rozrywka > Polowanie/i, 'SGW', 'hunting'],
@@ -164,7 +166,7 @@ const SECTIONS = [
   [/^Sport i rozrywka > Jazda na rowerze > (Akcesoria rowerowe|Sprzęt do jazdy)/i, 'SGW', 'cycling', 'Bike Accessories'],
   [/^Sport i rozrywka > Jazda na rowerze/i, 'SGW', 'cycling', 'Bike Parts'],
   [/^Sport i rozrywka > Wędkowanie/i, 'SGW', 'golf-skate-more', 'Fishing'],
-  [/^Sport i rozrywka > Kamping i wędrówki > (Obserwacje astronomiczne|Teleskop)/i, 'SGW', 'telescopes'],
+  [/^Sport i rozrywka > Kamping i wędrówki > (Obserwacje astronomiczne|Teleskop)/i, 'SGW', 'hiking-climbing-winter', 'Telescopes & Binoculars'],
   [/^Sport i rozrywka > Kamping i wędrówki > Bezpieczeństwo i przetrwanie/i, 'SGW', 'first aid, tourniquets and survival kits (medical)'],
   [/^Sport i rozrywka > Kamping i wędrówki > Namioty/i, 'SGW', 'hiking-climbing-winter', 'Tents'],
   [/^Sport i rozrywka > Kamping i wędrówki/i, 'SGW', 'hiking-climbing-winter', 'Camping & Hiking'],
