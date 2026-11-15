@@ -280,6 +280,18 @@ export function ukBarHtml() {
   return toString(html`<div class="country-bar" role="note"><p class="wrap country-row">${tr(UK_BAR_TEXT)}</p></div>`);
 }
 
+// The bar while browsing as one country from the Group's country page (lessons L160): which country, and a link back
+// to the visitor's own view (?for=off removes the cookie). The country name follows the visitor's language, like the
+// delivery lines. Never part of a cached page (src/engine.js puts it on each answer).
+export const BROWSE_BAR_TEXT = 'You are seeing only the products that deliver to {0}.';
+export const BROWSE_BAR_LINK = 'Show what delivers to my country';
+export function browseBarHtml(country, path = '/') {
+  const cc = String(country || '').toUpperCase();
+  const name = COUNTRY_NAMES[cc] || cc;
+  const back = `${/^\/[^?#]*$/.test(path) ? path : '/'}?for=off`;
+  return toString(html`<div class="country-bar browse-bar" role="note"><p class="wrap country-row">${tr(BROWSE_BAR_TEXT, { text: name, country: cc })} <a href="${back}" rel="nofollow">${tr(BROWSE_BAR_LINK)}</a></p></div>`);
+}
+
 // The discount codes bar (owner's decision, 10 Nov 2026, lessons L115): a thin bar between the masthead row and the menu,
 // one link to /discount-codes/ with a tag icon and how many codes run. It shows exactly when the footer link "Discount
 // codes" shows: the same activePromos(site), so the same visitor's view (site.promoView, lessons L107, L114) and no D1

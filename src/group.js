@@ -14,6 +14,7 @@ export { CONTINENTS, COUNTRY_CODES };
 const STATS_TTL = 3600;
 
 const retailerKey = n => String(n).replace(/\s+UK$/i, '').trim().toLowerCase();
+const RETAILER_LIST_MAX = 200;
 
 // Adds up the sites' /api/stats. A site that does not answer within 4 seconds is left out of the sum.
 // products: every listed product (all countries); ukProducts: the UK view; countries: per country the products, the
@@ -45,7 +46,7 @@ export async function networkStats(site, fetcher = fetch) {
   const ok = results.filter(Boolean);
   const allNames = new Set();
   const ukNames = new Set();
-  const countries = Object.fromEntries(COUNTRY_CODES.map(cc => [cc, { products: 0, retailers: new Set(), byRetailer: new Map(), sites: [] }]));
+  const countries = Object.fromEntries(COUNTRY_CODES.map(cc => [cc, { products: 0, retailers: new Set(), byRetailer: new Map(), names: new Map(), sites: [] }]));
   const worldwide = { products: 0, retailers: new Set() };
   for (const r of ok) {
     for (const n of r.names) ukNames.add(retailerKey(n));
@@ -62,13 +63,18 @@ export async function networkStats(site, fetcher = fetch) {
         // gives its UK number under its first retailer.
         const k = keys[0];
         countries[cc].byRetailer.set(k, (countries[cc].byRetailer.get(k) || 0) + x.products);
+        // The name as the site writes it, for the country page's list (lessons L160); not from the older /api/stats.
+        if (!x.names && !countries[cc].names.has(k)) countries[cc].names.set(k, x.retailer.replace(/\s+UK$/i, '').trim());
         perCountry[cc] = (perCountry[cc] || 0) + x.products;
       }
     }
     for (const [cc, n] of Object.entries(perCountry)) countries[cc].sites.push([r.site.name, r.site.url, n]);
   }
   const plain = Object.fromEntries(Object.entries(countries).map(([cc, c]) => [cc, { products: c.products, retailers: c.retailers.size,
-    top: Math.max(0, ...c.byRetailer.values()), sites: c.sites.sort((a, b) => b[2] - a[2]) }]));
+    top: Math.max(0, ...c.byRetailer.values()), sites: c.sites.sort((a, b) => b[2] - a[2]),
+    // Which retailers deliver there, most products first (lessons L160: a network checks its own market).
+    list: [...c.names.entries()].map(([k, n]) => [n, c.byRetailer.get(k) || 0]).filter(x => x[1] > 0)
+      .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).slice(0, RETAILER_LIST_MAX) }]));
   return {
     products: ok.reduce((t, x) => t + x.all, 0),
     ukProducts: ok.reduce((t, x) => t + x.products, 0),
@@ -81,7 +87,8 @@ export async function networkStats(site, fetcher = fetch) {
 
 async function cachedStats(site, ctx) {
   const cache = typeof caches !== 'undefined' ? caches.default : null;
-  const key = new Request(`https://${site.domain}/__stats-cache-3`); // -2: the numbers per country (L130); -3: top (L151)
+  // -2: the numbers per country (L130); -3: top (L151); -4: the retailers of each country (L160)
+  const key = new Request(`https://${site.domain}/__stats-cache-4`);
   if (cache) {
     const hit = await cache.match(key);
     if (hit) return hit.json();
@@ -430,6 +437,14 @@ ${hasNumbers(stats) ? html`<section class="wrap section" id="countries" aria-lab
 
 // One country's page (L130): what delivers there, from which sites, and every other country. Numbers only, so it is not
 // for search engines (noindex, follow) and not in the sitemap; the home page links to it.
+// A site's address for one country (owner, 15 Nov 2026, lessons L160): the site shows only what delivers there, with
+// a bar that says so (?for=<cc>, src/engine.js). Only the Group links this way.
+export function browseLink(url, cc) {
+  const u = new URL(url);
+  u.searchParams.set('for', String(cc).toLowerCase());
+  return u.toString();
+}
+
 export function countryPage(site, stats, cc) {
   const c = (stats.countries && stats.countries[cc]) || { products: 0, retailers: 0, sites: [] };
   if (!hasNumbers(stats)) {
@@ -450,7 +465,12 @@ export function countryPage(site, stats, cc) {
 </div></section>
 ${c.sites && c.sites.length ? html`<section class="wrap section" aria-labelledby="by-site-h">
   <h2 id="by-site-h">By site</h2>
-  <ul class="by-site">${c.sites.map(([n, url, k]) => html`<li><a href="${url}">${n}</a><span>${fmt(k)} products</span></li>`)}</ul>
+  <p class="note">Open a site to see only the products that deliver to ${inName(cc)}.</p>
+  <ul class="by-site">${c.sites.map(([n, url, k]) => html`<li><a href="${browseLink(url, cc)}">${n}</a><span>${fmt(k)} products</span></li>`)}</ul>
+</section>` : ''}
+${c.list && c.list.length ? html`<section class="wrap section" aria-labelledby="retailers-h">
+  <h2 id="retailers-h">Retailers that deliver to ${inName(cc)}</h2>
+  <ul class="by-site">${c.list.map(([n, k]) => html`<li><span class="rn">${n}</span><span>${fmt(k)} ${k === 1 ? 'product' : 'products'}</span></li>`)}</ul>
 </section>` : ''}
 <section class="wrap section" id="countries" aria-labelledby="countries-h">
   <h2 id="countries-h">Other countries</h2>

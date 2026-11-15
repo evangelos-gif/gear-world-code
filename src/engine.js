@@ -16,11 +16,11 @@ import { offersIndexPage, retailerOffersPage, OFFERS_PATH } from './pages/offers
 import { findPromo, promoViewSite } from './lib/promos.js';
 import { campaignRefs } from './lib/ads.js';
 import { infoPage, infoPaths, notFoundPage, errorPage, dealUpdatesPage } from './pages/info.js';
-import { useSiteAssets, useRates, ukBarHtml } from './pages/layout.js';
+import { useSiteAssets, useRates, ukBarHtml, browseBarHtml } from './pages/layout.js';
 import { sitemapIndex, sitemapStatic, sitemapProducts, robotsTxt, SITEMAP_CHUNK } from './seo.js';
 import { posterScan } from './lib/poster-scan.js';
 import { guidePage, guidesIndexPage, findGuide, guideProductIds, listedGuides, allGuideProductIds, GUIDES_PATH } from './pages/guides.js';
-import { viewFor, hubViewFor, homeView, hiddenReason, needsCheck, cacheKeyUrl, needsUkBar, retailerInView, cleanCountry, now as clockNow } from './lib/visibility.js';
+import { viewFor, hubViewFor, browseView, homeView, hiddenReason, needsCheck, cacheKeyUrl, needsUkBar, retailerInView, cleanCountry, now as clockNow } from './lib/visibility.js';
 import { deliveryCountries } from './lib/delivery.js';
 
 // Gear World Hub keeps the one list of members; sites reach it only through a service binding (lessons L92).
@@ -85,6 +85,33 @@ function requestCountry(request, url, apiProducts = false) {
   if (LOCAL_HOSTS.has(String(url.hostname || '').toLowerCase())) return '';
   return (request.cf && request.cf.country) || '';
 }
+// Browsing as one country from the Group's country pages (owner, 15 Nov 2026, lessons L160). A link
+// https://<site>/?for=de answers with a redirect to the same page without ?for= and a cookie gw_for=DE (one day, this
+// site only, no tracking: it holds the country and nothing else). With the cookie every page and /api/products shows only
+// what delivers to that country (src/lib/visibility.js browseView), with a bar on top that says so and links to
+// ?for=off, which removes the cookie. Google's crawlers never browse that way (no cookie, and ?for= only redirects them),
+// so Search keeps the UK view. The Hub's ?deliver_to= of /api/products comes first.
+export const BROWSE_PARAM = 'for';
+export const BROWSE_COOKIE = 'gw_for';
+const BROWSE_SECONDS = 86400;
+function browseCountry(request) {
+  if (GOOGLE_CRAWLER.test(request.headers.get('user-agent') || '')) return '';
+  const m = /(?:^|;\s*)gw_for=([A-Za-z]{2})(?=;|$)/.exec(request.headers.get('cookie') || '');
+  return m ? cleanCountry(m[1]) : '';
+}
+function browseRedirect(request, url) {
+  const asked = String(url.searchParams.get(BROWSE_PARAM) || '').trim();
+  const cc = cleanCountry(asked);
+  const clean = new URL(url.toString());
+  clean.searchParams.delete(BROWSE_PARAM);
+  const res = redirect(clean.toString(), 302);
+  if (!GOOGLE_CRAWLER.test(request.headers.get('user-agent') || '')) {
+    res.headers.append('Set-Cookie', cc
+      ? `${BROWSE_COOKIE}=${cc}; Path=/; Max-Age=${BROWSE_SECONDS}; Secure; HttpOnly; SameSite=Lax`
+      : `${BROWSE_COOKIE}=; Path=/; Max-Age=0; Secure; HttpOnly; SameSite=Lax`);
+  }
+  return res;
+}
 function localDay(env, host) {
   const day = String((env && env.GW_TODAY) || '');
   const local = host === 'localhost' || host === '127.0.0.1' || host === '[::1]';
@@ -124,12 +151,16 @@ export function createWorker(site) {
     const path = url.pathname;
     // Which code version is live, for the deploy tools' check (lessons L156). Before anything that reads the database.
     if (path === '/api/version' && method !== 'POST') return versionResponse(env);
+    // A link from the Group's country page (?for=<cc>) or "Show what delivers to my country" (?for=off), lessons L160.
+    if (method !== 'POST' && url.searchParams.has(BROWSE_PARAM)) return browseRedirect(request, url);
     // What this visitor may see (lessons L107): their country group, and prices checked in the last 30 days.
     const at = localDay(env, host) ?? clockNow();
     // Gear World Hub (?deliver_to= without &badges=1): the views of before L151 until its cards say where each retailer
     // delivers (src/lib/visibility.js hubViewFor).
     const hubAsk = path === '/api/products' && Boolean(url.searchParams.get('deliver_to')) && url.searchParams.get('badges') !== '1';
-    const view = (hubAsk ? hubViewFor : viewFor)(site, requestCountry(request, url, path === '/api/products'), at);
+    const browsing = hubAsk || (path === '/api/products' && url.searchParams.get('deliver_to')) ? '' : browseCountry(request);
+    const view = browsing ? browseView(site, browsing, at)
+      : (hubAsk ? hubViewFor : viewFor)(site, requestCountry(request, url, path === '/api/products'), at);
     const ukView = homeView(site, at);
     // The pages of this answer: the site with the visitor's view, so the discount codes, their footer link, the top bar
     // and the seasonal banner above the codes follow the same retailers as the products (lessons L114). A copy for this
@@ -622,7 +653,16 @@ export function createWorker(site) {
       }
       // The bar for a visitor outside the UK who gets the UK view or the all view (lessons L107, owner's option A; L151):
       // added to the answer after the page cache, never into a cached copy, so it costs no D1 read and no extra cache copy.
-      if (request.method === 'GET' && needsUkBar(site, requestCountry(request, new URL(request.url)))) response = await withUkBar(response);
+      const browsing = browseCountry(request);
+      if (request.method === 'GET' && browsing && !new URL(request.url).searchParams.get('deliver_to')) {
+        // Browsing as one country (L160): its own bar instead of the UK bar, and the answer is this visitor's only.
+        response = await withUkBar(response, browseBarHtml(browsing, new URL(request.url).pathname));
+        response = withBrowseHeaders(response);
+      } else {
+        if (request.method === 'GET' && needsUkBar(site, requestCountry(request, new URL(request.url)))) response = await withUkBar(response);
+        // A page kept by the browser must not come back after the visitor starts or stops browsing as a country (L160).
+        if (request.method === 'GET') response = withVaryCookie(response);
+      }
       if (!preview) return response;
       const h = new Headers(response.headers);
       h.set('X-Robots-Tag', 'noindex, nofollow');
@@ -636,12 +676,12 @@ export function createWorker(site) {
 // read whole. Elsewhere (the Node tests): the same insertion on the text. The copy with the bar is private (a shared
 // cache must not give it to someone else); the cached copy stays without it.
 const MASTHEAD = '<header class="masthead">';
-export async function withUkBar(response) {
+export async function withUkBar(response, barHtml = null) {
   if (!response || !response.body || !/^text\/html/i.test(response.headers.get('Content-Type') || '')) return response;
   const headers = new Headers(response.headers);
   headers.set('Cache-Control', 'private, max-age=60');
   headers.delete('Content-Length');
-  const bar = ukBarHtml();
+  const bar = barHtml || ukBarHtml();
   if (typeof HTMLRewriter === 'function') {
     const out = new HTMLRewriter().on('header.masthead', { element(e) { e.before(bar, { html: true }); } }).transform(response);
     return new Response(out.body, { status: response.status, statusText: response.statusText, headers });
@@ -649,6 +689,22 @@ export async function withUkBar(response) {
   const text = await response.text();
   const i = text.indexOf(MASTHEAD);
   return new Response(i < 0 ? text : text.slice(0, i) + bar + text.slice(i), { status: response.status, statusText: response.statusText, headers });
+}
+
+// Lessons L160: an answer while browsing as one country is that visitor's only (never kept by a shared cache, and the
+// browser asks again), and every page says that it depends on the cookie, so a browser does not reuse a copy from before.
+function withBrowseHeaders(response) {
+  if (!response) return response;
+  const headers = new Headers(response.headers);
+  headers.set('Cache-Control', 'private, no-cache');
+  headers.append('Vary', 'Cookie');
+  return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
+}
+function withVaryCookie(response) {
+  if (!response || response.status !== 200 || !/^(text\/html|application\/json)/i.test(response.headers.get('Content-Type') || '')) return response;
+  const headers = new Headers(response.headers);
+  headers.append('Vary', 'Cookie');
+  return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
 }
 
 // Where a /out/<id> click goes. An Awin link gets our clickref. A plain retailer address earns no commission,

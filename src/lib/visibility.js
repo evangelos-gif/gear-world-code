@@ -279,6 +279,22 @@ export function needsCheck(view, row) {
   return !(typeof row.last_seen_at === 'string' && row.last_seen_at >= view.checkFrom);
 }
 
+// Browsing a site as one country (owner, 15 Nov 2026, lessons L160: "when I press a country, show what that country
+// sells", and a link a network can open to check its market, e.g. Linkwise for Greece). Only what delivers to that
+// country, whatever the visitor's own country and whether the country is open or not: the numbers of the Group's country
+// page. Reached only from the Group's country pages (?for=<cc>, kept in a cookie by src/engine.js until "Show what
+// delivers to my country"). The UK: the UK view. One copy of the site per country, kept, so the groups are worked out once.
+const browseSites = new WeakMap();
+export function browseView(site, country, at = now()) {
+  const cc = cleanCountry(country);
+  if (!cc || cc === HOME_COUNTRY) return { ...viewFor(site, cc || HOME_COUNTRY, at), browse: cc || HOME_COUNTRY };
+  let bySite = browseSites.get(site);
+  if (!bySite) { bySite = new Map(); browseSites.set(site, bySite); }
+  let strict = bySite.get(cc);
+  if (!strict) { strict = { ...site, strictCountries: [...strictCountries(site), cc] }; bySite.set(cc, strict); }
+  return { ...viewFor(strict, cc, at), browse: cc };
+}
+
 // The cache key of a page for a view: the page address plus the group (one copy per country group).
 // Tracking and cache-busting additions that no page reads share one cached copy (lessons L159): on 14 Nov 2026 checks
 // added ?v=<time> to every request to Car Gear World, so each of them built its page from D1 again.
