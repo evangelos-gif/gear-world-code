@@ -500,11 +500,11 @@ for (const [code, schema] of [['agw', agwSchema], ['cgw', read('tests/fixtures/g
         for (const q of viewed) if (plans.has(q.shape)) assert.equal(q.plan, plans.get(q.shape), `${cc}: ${q.shape.slice(0, 120)}`);
         continue;
       }
-      assert.equal(viewed.length, plain.length, `${cc}: the same queries`);
-      viewed.forEach((q, i) => {
-        if (q.shape !== plain[i].shape) return; // a query written for the view (sitemap count): checked by the benchmark
-        assert.equal(q.plan, plain[i].plan, `${cc}: ${q.shape.slice(0, 120)}`);
-      });
+      // L159: in fast mode a list the view leaves empty skips its cards query, so a view may run fewer queries; every query
+      // it runs keeps the plan of the same query without the view.
+      const plans = new Map(plain.map(q => [q.shape, q.plan]));
+      assert.ok(viewed.length <= plain.length && viewed.length >= plain.length - 2, `${cc}: the same queries (${viewed.length}, ${plain.length})`);
+      for (const q of viewed) if (plans.has(q.shape)) assert.equal(q.plan, plans.get(q.shape), `${cc}: ${q.shape.slice(0, 120)}`);
     }
   });
 }
@@ -686,7 +686,7 @@ test('L158: GearWorldQA-bot with X-GW-QA-Country gets that country\'s view (page
   const before = globalThis.caches;
   globalThis.caches = { default: {
     match: async key => (store.has(key.url) ? store.get(key.url).clone() : undefined),
-    put: async (key, res) => { store.set(key.url, res); }
+    put: async (key, res) => { if (!key.url.includes('gw-stale=1')) store.set(key.url, res); } // L159: day-long copies apart
   } };
   try {
     const d = carShop();
@@ -778,7 +778,7 @@ test('the UK bar is added after the page cache: one cached copy for GB and US, n
   const before = globalThis.caches;
   globalThis.caches = { default: {
     match: async key => (store.has(key.url) ? store.get(key.url).clone() : undefined),
-    put: async (key, res) => { store.set(key.url, res); }
+    put: async (key, res) => { if (!key.url.includes('gw-stale=1')) store.set(key.url, res); } // L159: day-long copies apart
   } };
   try {
     const d = carShop();
@@ -875,7 +875,8 @@ test('a search with one brand or retailer is counted through that index (INDEXED
   // Without a search, or on the older layout: no INDEXED BY.
   d.log.length = 0;
   await getAgw('/category/tyres-wheels/?brand=Tyreco', env, 'BE');
-  assert.ok(!d.log.some(x => /INDEXED BY/.test(x.text)));
+  // (The indexes of L159 that walk a category in its sort's order are named on category pages: not these two.)
+  assert.ok(!d.log.some(x => /INDEXED BY idx_products_(brand|retailer)\b/.test(x.text)));
   const mgw = createWorker(config.mgw);
   const legacy = memD1(read('tests/fixtures/ggw-legacy-schema.sql'), read('tests/fixtures/mgw-seed.sql'));
   await mgw.fetch(new Request('https://mensgearworld.com/search?q=watch&brand=Seiko'), { DB: legacy }, { waitUntil: p => p });

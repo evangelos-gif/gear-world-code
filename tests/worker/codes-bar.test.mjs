@@ -310,7 +310,7 @@ test('L115, L151: cached pages keep the bar in the copy of their own view group 
   const before = globalThis.caches;
   globalThis.caches = { default: {
     match: async key => (store.has(key.url) ? store.get(key.url).clone() : undefined),
-    put: async (key, res) => { store.set(key.url, res); }
+    put: async (key, res) => { if (!key.url.includes('gw-stale=1')) store.set(key.url, res); } // L159: day-long copies apart
   } };
   try {
     const env = { DB: seededDb(dir, cgw), CLICK_LOG: 'off', FX_FETCH };

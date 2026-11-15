@@ -1,5 +1,6 @@
 // Gear World shared Worker engine. A site's worker.js does: export default createWorker(siteConfig).
-import { htmlResponse, jsonResponse, textResponse, redirect, withEdgeCache, withPathCache, secureHeaders } from './lib/http.js';
+import { htmlResponse, jsonResponse, textResponse, redirect, withEdgeCache, withPathCache, secureHeaders, isDbBusy } from './lib/http.js';
+import { edgeMemo, memoAllowed } from './lib/memo.js';
 import { versionResponse } from './lib/version.js';
 import { verifyTurnstile, rateLimit, isBot, safeEqual } from './lib/security.js';
 import { productPath } from './lib/text.js';
@@ -597,6 +598,8 @@ export function createWorker(site) {
         return textResponse('User-agent: *\nDisallow: /\n', { cache: 'none', method: request.method });
       }
       db.useLayout(site);
+      // Counts, filters and the census kept for a while in this data centre's cache (lessons L159); never in the tests.
+      db.useMemo(memoAllowed(env) ? edgeMemo(site.domain, caches.default) : null);
       useSiteAssets(site);
       // Sites with prices in more than one currency (CGW: Reidl and Vevor NL in euros) show "≈ £…" next to them,
       // from the same shared rates as /api/fx. No rates: the price shows in its own currency only.
@@ -611,7 +614,11 @@ export function createWorker(site) {
         // The error page lists the codes of the visitor's view too (lessons L114).
         let pageSite = site;
         try { pageSite = promoViewSite(site, viewFor(site, requestCountry(request, new URL(request.url)))); } catch { pageSite = site; }
-        response = htmlResponse(errorPage(pageSite), { status: 500, cache: 'none' });
+        // A busy database (an import running on it, or overloaded: lessons L159) passes in seconds or minutes: 503 with
+        // Retry-After, which tells browsers and crawlers to come back, instead of 500.
+        const busy = isDbBusy(err);
+        response = htmlResponse(errorPage(pageSite), { status: busy ? 503 : 500, cache: 'none' });
+        if (busy) response.headers.set('Retry-After', '60');
       }
       // The bar for a visitor outside the UK who gets the UK view or the all view (lessons L107, owner's option A; L151):
       // added to the answer after the page cache, never into a cached copy, so it costs no D1 read and no extra cache copy.

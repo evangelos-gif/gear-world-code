@@ -146,6 +146,115 @@ function cardSql(where, order, tail = '', from = `${LAYOUT.from} p`) {
       FROM ${from} WHERE ${where}) q) p WHERE p.rn = 1 ORDER BY ${order} ${tail}`;
 }
 
+// ---- Big categories: lists that read only the cards they show (lessons L159) ----
+// On 14 Nov 2026 Car Gear World got 92,535 tyres (one category of 123,142 rows) and its D1 answered "overloaded": cardSql()
+// numbers every row of the whole filtered set (window functions) before it keeps 24 cards, and the counts, the filters and
+// the home page read every row of the category or the table (local test, 1,000,000 rows: home page 10-13 s, a tyre page
+// 1-3 s). With the indexes of migration 0003 (FAST_INDEX_SQL, every new-layout database) the same cards come from rows
+// read in the page's own order: a row is a card when no other row of its group (same GTIN, the same filters) is a better
+// offer (in stock first, then the lower price, then the lower id), and offer_count counts the group's retailers, both
+// through the group-key index (a few rows each). Exactly the cards and the order of cardSql(); a page of a 300,000-row
+// category reads tens of rows instead of all of them. Without those indexes (an older database, or before the migration)
+// every query stays as it was: fastMode() looks once in a while.
+export const FAST_INDEX_SQL = [
+  'CREATE INDEX IF NOT EXISTS idx_products_cat_featured ON products (is_active, category_slug, in_stock DESC, ((id * 1103515245 + 12345) % 2147483647));',
+  'CREATE INDEX IF NOT EXISTS idx_products_cat_newest ON products (is_active, category_slug, first_seen_at);',
+  'CREATE INDEX IF NOT EXISTS idx_products_cat_saving ON products (is_active, category_slug, (CASE WHEN was_price > price THEN (was_price - price) / was_price ELSE 0 END) DESC);',
+  'CREATE INDEX IF NOT EXISTS idx_products_deals ON products (is_active, ((was_price - price) / was_price) DESC);',
+  'CREATE INDEX IF NOT EXISTS idx_products_cat_cover ON products (is_active, category_slug, retailer, last_seen_at, in_stock, brand, price, gtin);'
+];
+export const FAST_INDEXES = FAST_INDEX_SQL.map(s => s.match(/EXISTS (\w+)/)[1]);
+// The index that walks a category in each sort's own order (SORTS): its rows come out in exactly that order.
+const SORT_INDEX = {
+  featured: 'idx_products_cat_featured',
+  'price-asc': 'idx_products_category',
+  'price-desc': 'idx_products_category',
+  newest: 'idx_products_cat_newest',
+  saving: 'idx_products_cat_saving'
+};
+const FAST_RECHECK_MS = 10 * 60 * 1000;
+const fastSeen = new WeakMap();
+// True when this database has every index of migration 0003 (and, on a site that groups offers, the group-key index of
+// L105). Asked again every 10 minutes per database binding, so the migration takes effect without a deploy.
+export async function fastMode(db) {
+  if (LAYOUT.legacy || !db || typeof db !== 'object') return false;
+  const seen = fastSeen.get(db);
+  if (seen && seen.until > Date.now()) return seen.ok;
+  const need = LAYOUT.group ? [...FAST_INDEXES, 'idx_products_group_key'] : FAST_INDEXES;
+  let ok = false;
+  try {
+    const r = await db.prepare(`SELECT COUNT(*) AS n FROM sqlite_master WHERE type = 'index' AND name IN (${need.map(() => '?').join(', ')})`)
+      .bind(...need).first();
+    ok = Number(r && r.n) === need.length;
+  } catch { ok = false; }
+  fastSeen.set(db, { ok, until: Date.now() + FAST_RECHECK_MS });
+  return ok;
+}
+// A fast-mode query that fails because an index of migration 0003 has gone (dropped to go back, lessons L159): fast mode
+// off for this database until the next look, and the same question again the old way. Dropping the indexes never breaks
+// a page, even in the minutes before fastMode() looks again.
+async function noIndexRetry(db, err, again) {
+  if (!/no such index/i.test(String((err && err.message) || err))) throw err;
+  fastSeen.set(db, { ok: false, until: Date.now() + FAST_RECHECK_MS });
+  return again();
+}
+
+// The group key of the rows named a (the new layout's own columns: NATIVE_GROUP_KEY, so idx_products_group_key finds it).
+const gkOf = a => `COALESCE(NULLIF(TRIM(${a}.gtin), ''), 'id:' || ${a}.id)`;
+// The same WHERE on the rows named o (the other offers of a row's group): every "p." of the SQL this file builds becomes
+// "o." (column names only: the values are always binds).
+export const asOther = sql => String(sql).replace(/(^|[^A-Za-z0-9_.])p\./g, '$1o.');
+// cardSql() without numbering the whole set (new layout, fast mode). Binds: the WHERE's binds three times (offer_count,
+// the rows, the better-offer test), then the binds of the ORDER BY and the tail. hint: ' INDEXED BY <index>' or ''.
+function streamCardSql(where, order, tail = '', hint = '') {
+  const same = `FROM products o INDEXED BY idx_products_group_key WHERE ${gkOf('o')} = ${gkOf('p')} AND ${asOther(where)}`;
+  const better = '(o.in_stock > p.in_stock OR (o.in_stock = p.in_stock AND (o.price < p.price OR (o.price = p.price AND o.id < p.id))))';
+  return `SELECT ${CARD_COLUMNS}, first_seen_at, gtin, ${gkOf('p')} AS gk, 1 AS rr, 1 AS rn,
+      (SELECT COUNT(DISTINCT o.retailer) ${same}) AS offer_count
+    FROM products p${hint} WHERE ${where} AND NOT EXISTS (SELECT 1 ${same} AND ${better})
+    ORDER BY ${order} ${tail}`;
+}
+// The cards of a WHERE, as a statement: cardSql() (window functions), or streamCardSql() when `stream` (fast mode on a site
+// that groups offers). tailBinds: the binds after the WHERE's (ORDER BY and LIMIT/OFFSET).
+function cardStatement(db, stream, where, binds, order, tail, tailBinds = [], hint = '') {
+  if (!stream) return db.prepare(cardSql(where, order, tail)).bind(...binds, ...tailBinds);
+  return db.prepare(streamCardSql(where, order, tail, hint)).bind(...binds, ...binds, ...binds, ...tailBinds);
+}
+
+// Numbers that change only when an import runs (counts, filters, the site's census) are kept for a while by the engine
+// (src/engine.js, in the Worker's cache): memo(name, args, seconds, compute). Without one (tests, local checks) every call
+// reads D1, as before.
+let MEMO = null;
+export function useMemo(fn) { MEMO = typeof fn === 'function' ? fn : null; }
+const memo = (name, args, seconds, compute) => (MEMO ? MEMO(name, args, seconds, compute) : compute());
+const COUNT_SECONDS = 15 * 60;
+const CENSUS_SECONDS = 60 * 60;
+const viewKey = view => (view ? `${view.group || ''}|${view.cutoff || ''}|${view.checkFrom || ''}` : '');
+
+// One read of the covering index for the whole site (fast mode): the active rows per category and retailer, how many of
+// them were checked on or after `cutoff`, and the newest check. The home page's counts, its retailers and its date, the
+// category counts and /api/stats come from it for any view (a view hides retailers and rows older than its cutoff, and
+// nothing else), so the home page no longer reads every active row three times per view and per data centre.
+async function census(db, cutoff) {
+  return memo('census', { cutoff: cutoff || '' }, CENSUS_SECONDS, async () => {
+    const r = await db.prepare(`SELECT category_slug AS c, retailer AS r, COUNT(*) AS n,
+        SUM(CASE WHEN last_seen_at >= ? THEN 1 ELSE 0 END) AS fresh, MAX(last_seen_at) AS t
+      FROM products INDEXED BY idx_products_cat_cover WHERE is_active = 1 GROUP BY category_slug, retailer`).bind(cutoff || '').all();
+    return (r.results || []).map(x => ({ c: x.c, r: x.r, n: Number(x.n) || 0, fresh: Number(x.fresh) || 0, t: x.t ?? null }));
+  });
+}
+// The census rows a view shows, each with its count for that view (no view: every active row).
+function censusFor(rows, view) {
+  const out = [];
+  for (const x of rows) {
+    const n = view ? (view.cutoff ? x.fresh : x.n) : x.n;
+    if (n > 0 && (!view || hiddenReason({ ...view, cutoff: '' }, { retailer: x.r }) === '')) out.push({ ...x, count: n });
+  }
+  return out;
+}
+// Text in SQLite's own order (BINARY: by bytes, which for these names is the order of their characters).
+const binary = (a, b) => (a < b ? -1 : a > b ? 1 : 0);
+
 // ---- Lists that read only the rows they show (lessons L51, L105) ----
 // D1 bills every row a query reads (Workers Paid: 25 billion a month included, then $1 per billion). On the older
 // sites "the same product at other retailers" and "similar products" used to read the whole table or the whole
@@ -353,6 +462,10 @@ export async function listProducts(db, filters, { sort = 'featured', page = 1, p
   if (!f || (filters && filters.onSale && !hasRrp())) return { products: [], total: 0, page: 1, pages: 0 };
   const order = SORTS[normalizeSort(sort)];
   const offset = (page - 1) * perPage;
+  if (await fastMode(db)) {
+    try { return await listFast(db, filters, f, normalizeSort(sort), order, page, perPage, offset); }
+    catch (err) { return noIndexRetry(db, err, () => listProducts(db, filters, { sort, page, perPage })); }
+  }
   const from = `${LAYOUT.from} p${countIndex(filters)}`;
   const countSql = LAYOUT.group
     ? `SELECT COUNT(DISTINCT ${gk()}) AS n FROM ${from} WHERE ${f.sql}`
@@ -363,6 +476,37 @@ export async function listProducts(db, filters, { sort = 'featured', page = 1, p
   ]);
   const total = Number(count.results?.[0]?.n || 0);
   return { products: fixAll(rows.results), total, page, pages: Math.ceil(total / perPage) };
+}
+
+// listProducts() in fast mode (lessons L159). The count (cards and rows) is kept for a while (memo). Then the cheaper of two
+// ways to the same cards: walking the category in the sort's own index (SORT_INDEX), which reads about
+// (offset + perPage) x (rows of the category / rows that match) rows, or numbering the matching rows (cardSql), which
+// reads every matching row. A page of a big category takes the walk; a filter that leaves few rows (a rare brand, a narrow
+// price range, a deep page of them) or a search or a collection takes the numbering, now on a small set.
+async function listFast(db, filters, f, sortName, order, page, perPage, offset) {
+  const counted = await memo('count', { sql: f.sql, binds: f.binds, group: LAYOUT.group }, COUNT_SECONDS, async () => {
+    const r = await db.prepare(`SELECT ${LAYOUT.group ? `COUNT(DISTINCT ${gk()})` : 'COUNT(*)'} AS n, COUNT(*) AS rows
+      FROM ${LAYOUT.from} p${countIndex(filters)} WHERE ${f.sql}`).bind(...f.binds).first();
+    return { n: Number((r && r.n) || 0), rows: Number((r && r.rows) || 0) };
+  });
+  const total = counted.n;
+  const out = rows => ({ products: fixAll(rows), total, page, pages: Math.ceil(total / perPage) });
+  if (!total || offset >= total) return out([]);
+  const plainCat = Boolean(filters.category) && !filters.search && !(LAYOUT.collections && LAYOUT.collections[filters.category]);
+  let walk = Infinity;
+  if (plainCat) {
+    const catRows = (await census(db, filters.view && filters.view.cutoff)).filter(x => x.c === filters.category).reduce((t, x) => t + x.n, 0);
+    walk = ((offset + perPage) * Math.max(catRows, counted.rows)) / Math.max(1, counted.rows);
+  }
+  const hint = ` INDEXED BY ${SORT_INDEX[sortName]}`;
+  if (walk <= 2 * counted.rows) {
+    const stmt = LAYOUT.group
+      ? cardStatement(db, true, f.sql, f.binds, order, 'LIMIT ? OFFSET ?', [perPage, offset], hint)
+      : db.prepare(`SELECT ${CARD_COLUMNS} FROM products p${hint} WHERE ${f.sql} ORDER BY ${order} LIMIT ? OFFSET ?`).bind(...f.binds, perPage, offset);
+    return out((await stmt.all()).results);
+  }
+  const rows = await db.prepare(cardSql(f.sql, order, 'LIMIT ? OFFSET ?')).bind(...f.binds, perPage, offset).all();
+  return out(rows.results);
 }
 
 // Products per subcategory of a category (only for a category whose site config lists subcategories: ZGW birds).
@@ -385,18 +529,28 @@ export async function subcategoryCounts(db, category, subs = [], view = null) {
 }
 
 // subMatch (TGW Mini PCs): the brands, shops and prices of that subcategory only.
+// Fast mode (L159): the same three queries on the covering index of the category (no row of the table is read unless
+// subMatch needs the name), kept for a while (memo). Without the hint SQLite chose the brand index for the brands and read
+// the rows of every brand of the site (local test, 1,000,000 rows: 2.2 s).
 export async function facets(db, category, subMatch = null, view = null) {
+  if (!(await fastMode(db))) return facetsRead(db, category, subMatch, view, '');
+  const plain = !(LAYOUT.collections && LAYOUT.collections[category]);
+  const args = { category, subMatch, view: view ? { hidden: view.hidden || null, only: view.only || null, cutoff: view.cutoff || '' } : null };
+  try { return await memo('facets', args, COUNT_SECONDS, () => facetsRead(db, category, subMatch, view, plain ? ' INDEXED BY idx_products_cat_cover' : '')); }
+  catch (err) { return noIndexRetry(db, err, () => facets(db, category, subMatch, view)); }
+}
+async function facetsRead(db, category, subMatch, view, hint) {
   const base = catWhere(category);
   const nm = subMatch ? nameMatch(subMatch) : null;
   const v = vis(view);
   const c0 = nm ? { sql: `${base.sql} AND ${nm.sql}`, binds: [...base.binds, ...nm.binds] } : base;
   const c = v.sql ? { sql: `${c0.sql} AND ${v.sql}`, binds: [...c0.binds, ...v.binds] } : c0;
   const [brands, retailers, price] = await db.batch([
-    db.prepare(`SELECT brand AS name, COUNT(*) AS n FROM ${LAYOUT.from} p WHERE p.is_active = 1 AND ${c.sql}
+    db.prepare(`SELECT brand AS name, COUNT(*) AS n FROM ${LAYOUT.from} p${hint} WHERE p.is_active = 1 AND ${c.sql}
       AND brand IS NOT NULL AND TRIM(brand) <> '' GROUP BY brand ORDER BY n DESC, brand LIMIT 40`).bind(...c.binds),
-    db.prepare(`SELECT retailer AS name, COUNT(*) AS n FROM ${LAYOUT.from} p WHERE p.is_active = 1 AND ${c.sql}
+    db.prepare(`SELECT retailer AS name, COUNT(*) AS n FROM ${LAYOUT.from} p${hint} WHERE p.is_active = 1 AND ${c.sql}
       GROUP BY retailer ORDER BY n DESC, retailer`).bind(...c.binds),
-    db.prepare(`SELECT MIN(price) AS lo, MAX(price) AS hi FROM ${LAYOUT.from} p WHERE p.is_active = 1 AND ${c.sql}`).bind(...c.binds)
+    db.prepare(`SELECT MIN(price) AS lo, MAX(price) AS hi FROM ${LAYOUT.from} p${hint} WHERE p.is_active = 1 AND ${c.sql}`).bind(...c.binds)
   ]);
   return {
     brands: brands.results || [],
@@ -678,6 +832,10 @@ async function newestCards(db, limit, opts = {}) {
 export async function homeData(db, categorySlugs, opts = {}) {
   const v = vis(opts.view);
   const fresh = opts.view && opts.view.checkFrom ? { sql: ' AND likelihood(+p.last_seen_at >= ?, 1.0)', binds: [opts.view.checkFrom] } : { sql: '', binds: [] };
+  if (!opts.full && await fastMode(db)) {
+    try { return await homeFast(db, categorySlugs, opts, v, fresh); }
+    catch (err) { return noIndexRetry(db, err, () => homeData(db, categorySlugs, opts)); }
+  }
   const queries = [
     db.prepare(`SELECT category_slug AS slug, COUNT(*) AS n FROM ${LAYOUT.from} p WHERE p.is_active = 1${andVis(v)} GROUP BY category_slug`).bind(...v.binds),
     db.prepare(`SELECT retailer AS name, COUNT(*) AS n FROM ${LAYOUT.from} p WHERE p.is_active = 1${andVis(v)} GROUP BY retailer ORDER BY n DESC, retailer`).bind(...v.binds),
@@ -703,6 +861,43 @@ export async function homeData(db, categorySlugs, opts = {}) {
   };
 }
 
+// homeData() in fast mode (lessons L159): the counts, the retailers and the date from the census (one read of the covering
+// index per hour and data centre, for every view), "Below RRP" walking idx_products_deals (the saving's own order) and the
+// newest cards walking idx_products_active_seen, each until its 11 cards. The same answer as homeData() reading every row.
+async function homeFast(db, categorySlugs, opts, v, fresh) {
+  const view = opts.view || null;
+  const rows = censusFor(await census(db, view && view.cutoff), view);
+  const byCat = {};
+  const byRetailer = new Map();
+  let lastUpdated = '';
+  for (const x of rows) {
+    byCat[x.c] = (byCat[x.c] || 0) + x.count;
+    byRetailer.set(x.r, (byRetailer.get(x.r) || 0) + x.count);
+    if (typeof x.t === 'string' && x.t > lastUpdated) lastUpdated = x.t;
+  }
+  const retailers = [...byRetailer].map(([name, n]) => ({ name, n })).sort((a, b) => b.n - a.n || binary(a.name, b.name));
+  const card = (where, binds, order, hint) => (LAYOUT.group
+    ? cardStatement(db, true, where, binds, order, 'LIMIT 11', [], hint)
+    : db.prepare(`SELECT ${CARD_COLUMNS} FROM products p${hint} WHERE ${where} ORDER BY ${order} LIMIT 11`).bind(...binds));
+  const list = [card(`p.is_active = 1 AND p.in_stock = 1${andVis(v)}`, v.binds, 'p.first_seen_at DESC, p.id DESC', ' INDEXED BY idx_products_active_seen')];
+  if (hasRrp()) {
+    list.push(card(`p.is_active = 1 AND p.in_stock = 1 AND p.was_price > p.price
+      AND (p.was_price - p.price) / p.was_price BETWEEN 0.05 AND 0.9${andVis(v)}${fresh.sql}`, [...v.binds, ...fresh.binds],
+    '(p.was_price - p.price) / p.was_price DESC, p.id ASC', ' INDEXED BY idx_products_deals'));
+  }
+  const [newest, deals] = await db.batch(list);
+  const totalProducts = Object.values(byCat).reduce((a, b) => a + b, 0);
+  Object.assign(byCat, await collectionCounts(db, view));
+  return {
+    categoryCounts: Object.fromEntries(categorySlugs.map(s => [s, byCat[s] || 0])),
+    totalProducts,
+    deals: fixAll(deals ? deals.results : []),
+    newest: fixAll(newest.results),
+    retailers,
+    lastUpdated
+  };
+}
+
 // view: the UK view (the Hub and the group page show these numbers to everyone).
 // One query for the whole site (lessons L106, L130): every active row is counted per retailer, with how many of them are
 // fresh (price checked in the last HIDE_AFTER_DAYS days). The UK numbers (products, retailers, retailer_names) are the
@@ -711,11 +906,23 @@ export async function homeData(db, categorySlugs, opts = {}) {
 // The rows read are the same as before: the old query walked every active row too and filtered them afterwards.
 export async function stats(db, view = null, site = null) {
   const cutoff = view && view.cutoff ? view.cutoff : '';
-  const fresh = cutoff ? 'SUM(CASE WHEN p.last_seen_at >= ? THEN 1 ELSE 0 END)' : 'COUNT(*)';
-  const r = await db.prepare(
-    `SELECT retailer, ${fresh} AS fresh FROM ${LAYOUT.from} p WHERE p.is_active = 1 GROUP BY retailer ORDER BY retailer COLLATE NOCASE`
-  ).bind(...(cutoff ? [cutoff] : [])).all();
-  const rows = (r.results || []).map(x => ({ name: String(x.retailer ?? ''), fresh: Number(x.fresh || 0) })).filter(x => x.fresh > 0);
+  let rows;
+  if (await fastMode(db)) {
+    // Fast mode (L159): the same numbers from the census, in the same order (retailer COLLATE NOCASE).
+    let all;
+    try { all = await census(db, cutoff); } catch (err) { return noIndexRetry(db, err, () => stats(db, view, site)); }
+    const by = new Map();
+    for (const x of all) by.set(x.r, (by.get(x.r) || 0) + (cutoff ? x.fresh : x.n));
+    const nocase = s => s.replace(/[A-Z]/g, ch => ch.toLowerCase());
+    rows = [...by].map(([name, fresh]) => ({ name: String(name ?? ''), fresh })).filter(x => x.fresh > 0)
+      .sort((a, b) => binary(nocase(a.name), nocase(b.name)));
+  } else {
+    const fresh = cutoff ? 'SUM(CASE WHEN p.last_seen_at >= ? THEN 1 ELSE 0 END)' : 'COUNT(*)';
+    const r = await db.prepare(
+      `SELECT retailer, ${fresh} AS fresh FROM ${LAYOUT.from} p WHERE p.is_active = 1 GROUP BY retailer ORDER BY retailer COLLATE NOCASE`
+    ).bind(...(cutoff ? [cutoff] : [])).all();
+    rows = (r.results || []).map(x => ({ name: String(x.retailer ?? ''), fresh: Number(x.fresh || 0) })).filter(x => x.fresh > 0);
+  }
   const inUk = name => !view || ((!view.hidden || !view.hidden.includes(name)) && (!view.only || view.only.includes(name)));
   const uk = rows.filter(x => inUk(x.name));
   return {
@@ -728,6 +935,13 @@ export async function stats(db, view = null, site = null) {
 }
 
 export async function categoryCounts(db, view = null) {
+  if (await fastMode(db)) {
+    let all;
+    try { all = await census(db, view && view.cutoff); } catch (err) { return noIndexRetry(db, err, () => categoryCounts(db, view)); }
+    const out = {};
+    for (const x of censusFor(all, view)) if (x.c) out[x.c] = (out[x.c] || 0) + x.count;
+    return Object.assign(out, await collectionCounts(db, view));
+  }
   const v = vis(view);
   const r = await db.prepare(`SELECT category_slug AS slug, COUNT(*) AS n FROM ${LAYOUT.from} p WHERE p.is_active = 1${andVis(v)} GROUP BY category_slug`).bind(...v.binds).all();
   const out = Object.fromEntries((r.results || []).filter(x => x.slug).map(x => [x.slug, Number(x.n)]));

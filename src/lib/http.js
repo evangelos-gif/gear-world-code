@@ -81,6 +81,22 @@ function cacheControl(kind) {
 
 // Edge cache for anonymous GET pages: lowers D1 reads and speeds up pages. keyUrl: the address the copy is kept under
 // (the page address plus the visitor's country group, lessons L107); the page address alone without one.
+//
+// A busy database (lessons L159): an import running on it ("D1_ERROR: Currently processing a long-running import", KGW
+// 15 Nov 2026 12:39) or too much work at once ("D1 DB is overloaded", AGW 14 Nov 2026). Both pass in seconds or minutes.
+// Next to each 5-minute copy a day-long copy is kept (?gw-stale=1 in its key); while the database is busy the page answers
+// with that copy (no-store, X-GW-Stale: 1). Without one the error goes on to the engine, which answers 503 with
+// Retry-After instead of 500 (isDbBusy).
+export function isDbBusy(err) {
+  const text = String((err && (err.message || err)) || '');
+  return /\bD1\b|D1_ERROR/.test(text) && /overloaded|long-running import|too many|queued|timed? ?out|connection lost|reset|unavailable|try again/i.test(text);
+}
+export const STALE_SECONDS = 86400;
+export function staleKeyUrl(keyUrl) {
+  const u = new URL(String(keyUrl));
+  u.searchParams.set('gw-stale', '1');
+  return u.toString();
+}
 export async function withEdgeCache(request, ctx, produce, env, keyUrl = request.url) {
   if (request.method !== 'GET' || typeof caches === 'undefined') return produce();
   if (env && env.EDGE_CACHE === 'off') return produce();
@@ -88,9 +104,26 @@ export async function withEdgeCache(request, ctx, produce, env, keyUrl = request
   const key = new Request(keyUrl, { method: 'GET' });
   const hit = await cache.match(key);
   if (hit) return hit;
-  const response = await produce();
+  const staleKey = new Request(staleKeyUrl(keyUrl), { method: 'GET' });
+  let response;
+  try {
+    response = await produce();
+  } catch (err) {
+    if (!isDbBusy(err)) throw err;
+    let old = null;
+    try { old = await cache.match(staleKey); } catch { old = null; }
+    if (!old) throw err;
+    const h = new Headers(old.headers);
+    h.set('Cache-Control', 'no-store');
+    h.set('X-GW-Stale', '1');
+    return new Response(old.body, { status: 200, headers: h });
+  }
   if (response.status === 200 && ctx && typeof ctx.waitUntil === 'function') {
     ctx.waitUntil(cache.put(key, response.clone()));
+    const copy = response.clone();
+    const h = new Headers(copy.headers);
+    h.set('Cache-Control', `public, max-age=${STALE_SECONDS}`);
+    ctx.waitUntil(cache.put(staleKey, new Response(copy.body, { status: 200, headers: h })));
   }
   return response;
 }

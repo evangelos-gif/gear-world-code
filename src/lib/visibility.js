@@ -280,8 +280,12 @@ export function needsCheck(view, row) {
 }
 
 // The cache key of a page for a view: the page address plus the group (one copy per country group).
+// Tracking and cache-busting additions that no page reads share one cached copy (lessons L159): on 14 Nov 2026 checks
+// added ?v=<time> to every request to Car Gear World, so each of them built its page from D1 again.
+export const NOISE_PARAMS = /^(utm_[a-z0-9_]*|gclid|gbraid|wbraid|dclid|fbclid|msclkid|ttclid|twclid|yclid|igshid|srsltid|mc_cid|mc_eid|_ga|_gl|v|cb|nocache|_)$/i;
 export function cacheKeyUrl(url, view) {
   const u = new URL(String(url));
+  for (const k of [...new Set(u.searchParams.keys())]) if (NOISE_PARAMS.test(k)) u.searchParams.delete(k);
   if (view && view.group) u.searchParams.set('gw-view', view.group);
   return u.toString();
 }
