@@ -20,6 +20,12 @@
   A download with less than half the products of the old copy is NOT used. The sites do not change: the import is a
   separate step with its own approval.
 
+  -Search <name> (lessons L161): only the products that CJ's keyword search finds for one of the searches written in
+  tools/cj-feed.mjs (SEARCHES, e.g. kids-winter-boots: kids' snow and winter boots and wellies), in that search's
+  currency (GBP). Without -Apply it shows, for every keyword, how many products CJ finds in any currency, in pounds and with
+  delivery to the UK, and 5 samples. With -Apply it saves them as CJ_<advertiser>_<search>.csv.gz, never in place of a
+  whole catalogue. A shop with more than 300,000 products (DHgate: 6 million) can be read only with -Search.
+
   The CJ token is asked once and kept encrypted for your Windows user (DPAPI) in
   <home>\gear-world-secrets\cj-token.dat. It is never written to a report, the clipboard or the repo.
   Report: <home>\gear-world-reports\CJ_FEED_DOWNLOAD_<time>.txt (copied to the clipboard)
@@ -31,6 +37,7 @@ param(
     [switch]$Joined,
     [string]$LookupApi = 'https://advertiser-lookup.api.cj.com/v2/advertiser-lookup',
     [string]$Currency = 'GBP',
+    [string]$Search = '',
     [string]$Approve = '',
     [string]$Archive = '',
     [string]$TokenFile = '',
@@ -99,7 +106,9 @@ function Invoke-CjFeed([string]$mode, [string]$out) {
     $oldEnc = $null
     try { $oldEnc = [Console]::OutputEncoding; [Console]::OutputEncoding = New-Object System.Text.UTF8Encoding($false) } catch { }
     try {
-        $o = @(& node (Join-Path (Join-Path $repo 'tools') 'cj-feed.mjs') --mode $mode --cid $Cid --pid $PropertyId --advertisers ($ids -join ',') --out $out --api $Api --pause $PauseMs --lookup $LookupApi)
+        $nodeArgs = @((Join-Path (Join-Path $repo 'tools') 'cj-feed.mjs'), '--mode', $mode, '--cid', $Cid, '--pid', $PropertyId, '--advertisers', ($ids -join ','), '--out', $out, '--api', $Api, '--pause', [string]$PauseMs, '--lookup', $LookupApi)
+        if ($Search) { $nodeArgs += @('--search', $Search) }
+        $o = @(& node @nodeArgs)
     } finally {
         $env:GW_CJ_TOKEN = $null
         if ($oldEnc) { try { [Console]::OutputEncoding = $oldEnc } catch { } }
@@ -137,6 +146,9 @@ if ($lookupHost -ne 'advertiser-lookup.api.cj.com' -and $lookupHost -ne '127.0.0
 $ids = @($Advertiser | ForEach-Object { $_ -split '[,\s]+' } | Where-Object { $_ } | ForEach-Object { if ($_ -notmatch '^\d{3,12}$') { Say ('Λάθος αριθμός καταστήματος CJ: {0}' -f $_) 'Red'; Finish 2 }; $_ })
 if ($ids.Count -lt 1) { Say 'Δεν δόθηκε κατάστημα του CJ.' 'Red'; Finish 2 }
 if ($Cid -notmatch '^[\d,\s]+$' -or $PropertyId -notmatch '^\d{3,12}$') { Say 'Λάθος CID ή PID.' 'Red'; Finish 2 }
+if ($Search -and $Search -notmatch '^[a-z0-9-]{3,40}$') { Say ('Λάθος όνομα αναζήτησης: {0} (π.χ. kids-winter-boots)' -f $Search) 'Red'; Finish 2 }
+if ($Search -and ($ListFeeds -or $Joined)) { Say 'Το -Search δεν πάει μαζί με -ListFeeds ή -Joined.' 'Red'; Finish 2 }
+if ($Search) { Say ('Αναζήτηση: {0} (μόνο τα προϊόντα που βρίσκει η αναζήτηση του CJ, όχι όλος ο κατάλογος)' -f $Search) 'Cyan' }
 if (-not (Test-Path -LiteralPath $Archive)) { Say ('Δεν βρήκα τον φάκελο των feeds: {0}' -f $Archive) 'Red'; Finish 2 }
 if (-not (Get-Command node -ErrorAction SilentlyContinue)) { Say 'Δεν βρήκα το Node.js σε αυτόν τον υπολογιστή.' 'Red'; Finish 2 }
 
@@ -236,13 +248,26 @@ $good = New-Object System.Collections.Generic.List[string]
 foreach ($a in @($S.advertisers)) {
     Say ''
     if (-not $a.ok) { Say ('{0}: 🔴 ΠΡΟΒΛΗΜΑ: {1}' -f $a.advertiser, $a.error) 'Red'; continue }
-    Say ('{0}: προϊόντα στο CJ: {1}' -f $a.advertiser, $a.total)
+    if ($null -ne $a.searches) {
+        Say ('{0}: αναζήτηση «{1}» ({2} λέξεις-κλειδιά), σε {3}:' -f $a.advertiser, $S.searchLabel, @($a.searches).Count, $S.searchCurrency)
+        foreach ($k in @($a.searches)) {
+            $area = 'δεν φαίνεται'
+            if ($null -ne $k.inArea) { $area = [string]$k.inArea }
+            $broad = ''
+            if ($k.tooBroad) { $broad = ' | 🟡 πολύ γενική, μένει έξω' }
+            Say ('  «{0}»: όλα τα νομίσματα {1} | σε {2}: {3} | με παράδοση στο UK: {4}{5}' -f $k.keyword, $k.all, $S.searchCurrency, $k.inCurrency, $area, $broad)
+        }
+        Say ('  Σύνολο σε {0} (μαζί και διπλά ανάμεσα στις λέξεις): {1}' -f $S.searchCurrency, $a.total)
+    } else {
+        Say ('{0}: προϊόντα στο CJ: {1}' -f $a.advertiser, $a.total)
+    }
     if (-not $a.total) { Say '  Δεν έχει προϊόντα στον κατάλογο του CJ (ή δεν σε έχει δεχτεί ακόμα). Δεν κατεβαίνει.' 'Yellow'; continue }
     $i = 0
     foreach ($p in @($a.samples)) {
         $i++
         Say ('  Δείγμα {0}: {1} | {2} {3} | απόθεμα: {4} | κατηγορία: {5} | εικόνα: {6} | link CJ: {7}' -f $i, $p.name, $p.price, $p.currency, $p.stock, $p.category, $p.image, $p.tracking)
         Say ('     σελίδα: {0}' -f $p.page)
+        if ($null -ne $a.searches) { Say ('     λέξη: {0} | χώρα πώλησης: {1} | παράδοση σε: {2} | αποστολή από: {3} | ηλικία: {4}' -f $p.keyword, $p.target, $p.areas, $p.shipsFrom, $p.age) }
     }
     if (@($a.samples | Where-Object { $_.tracking -eq 'NONE' }).Count -gt 0) { Say '  🟡 ΠΡΟΣΟΧΗ: κάποια δείγματα δεν έχουν link του CJ. Αυτά δεν θα μπουν στα sites (δεν πληρώνουν).' 'Yellow' }
     $good.Add([string]$a.advertiser)
@@ -254,7 +279,9 @@ if ($Joined) {
     Say 'Μόνο ανάγνωση: δεν κατέβηκε τίποτα.' 'Green'
     Finish 0
 }
-Say ('Με -Apply: λήψη {0} καταλόγων στο {1} (CJ_<αριθμός>.csv.gz). Το παλιό αντίγραφο πάει πρώτα στο _old\{2}. Τα sites δεν αλλάζουν.' -f $good.Count, $Archive, $stamp)
+$suffix = ''
+if ($Search) { $suffix = '_' + $Search }
+Say ('Με -Apply: λήψη {0} καταλόγων στο {1} (CJ_<αριθμός>{3}.csv.gz). Το παλιό αντίγραφο πάει πρώτα στο _old\{2}. Τα sites δεν αλλάζουν.' -f $good.Count, $Archive, $stamp, $suffix)
 if (-not $Apply) { Say 'Μόνο ανάγνωση (χωρίς -Apply): δεν κατέβηκε τίποτα.' 'Green'; Say ('Η φράση έγκρισης: {0}' -f $Phrase); Finish 0 }
 if (-not (Confirm-Approval $Phrase)) { Say 'Δεν δόθηκε έγκριση: σταμάτησα χωρίς αλλαγές.' 'Yellow'; Finish 1 }
 
@@ -272,7 +299,13 @@ function Count-Rows([string]$path) {
     return (([string]($oc -join ' ')).Trim() -split '\s+')
 }
 foreach ($a in @($D.advertisers)) {
-    $final = Join-Path $Archive ('CJ_{0}.csv.gz' -f $a.advertiser)
+    $final = Join-Path $Archive ('CJ_{0}{1}.csv.gz' -f $a.advertiser, $suffix)
+    foreach ($k in @($a.searches)) {
+        if (-not $k) { continue }
+        $note = ''
+        if ($k.tooBroad) { $note = ' | 🟡 πολύ γενική ({0} προϊόντα), έμεινε έξω' -f $k.total } elseif ($k.capped) { $note = ' | 🟡 δεν ήρθαν όλα' } elseif ($k.error) { $note = ' | 🔴 ' + $k.error }
+        Say ('  «{0}»: βρέθηκαν {1}, ήρθαν {2}, νέα (όχι διπλά) {3}{4}' -f $k.keyword, $k.total, $k.got, $k.added, $note)
+    }
     if (-not $a.ok) { Say ('{0}: 🔴 ΠΡΟΒΛΗΜΑ: {1} (ήρθαν {2} από {3}). Κράτησα το παλιό.' -f $a.advertiser, $a.error, $a.got, $a.total) 'Red'; if ($a.file) { Remove-Item -LiteralPath $a.file -ErrorAction SilentlyContinue }; continue }
     $part = [string]$a.file
     $cp = Count-Rows $part

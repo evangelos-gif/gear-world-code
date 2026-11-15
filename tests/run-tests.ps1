@@ -2838,6 +2838,14 @@ http.createServer((q, s) => {
         & $exe @($cjArgs + @('-ListFeeds')) | Out-Null
         $cjList = (@(Get-ChildItem -LiteralPath $cjOut -Filter 'CJ_FEED_DOWNLOAD_*.txt') | ForEach-Object { [System.IO.File]::ReadAllText($_.FullName) }) -join "`n"
         Check ($LASTEXITCODE -eq 0 -and $cjList.Contains('Η λίστα feeds δεν ήρθε') -and $cjList.Contains('Μόνο ανάγνωση: δεν κατέβηκε τίποτα') -and @(Get-ChildItem -LiteralPath $cjArch -File).Count -eq $cjFiles) 'cj-feed-download: -ListFeeds is read-only and says when the feed list is missing'
+        # L161: -Search reads only what CJ's keyword search finds; without a keyword argument in the API it reads nothing.
+        $cjFiles = @(Get-ChildItem -LiteralPath $cjArch -File).Count
+        & $exe @($cjArgs + @('-Search', 'Bad Name!')) | Out-Null
+        Check ($LASTEXITCODE -eq 2) 'cj-feed-download: a wrong search name stops (exit 2)'
+        Remove-Item -LiteralPath (Join-Path $cjOut '*') -Force -ErrorAction SilentlyContinue
+        & $exe @($cjArgs + @('-Advertiser', '3992613', '-Search', 'kids-winter-boots', '-Apply', '-Approve', ('ΕΓΚΡΙΝΩ CJ FEED DOWNLOAD'))) | Out-Null
+        $cjSearch = (@(Get-ChildItem -LiteralPath $cjOut -Filter 'CJ_FEED_DOWNLOAD_*.txt') | ForEach-Object { [System.IO.File]::ReadAllText($_.FullName) }) -join "`n"
+        Check ($LASTEXITCODE -eq 4 -and $cjSearch.Contains('no keyword search') -and @(Get-ChildItem -LiteralPath $cjArch -File).Count -eq $cjFiles) 'cj-feed-download: -Search without keyword search in the API downloads nothing'
         $cjPlanOut = Join-Path $cjDir 'plan'
         & $exe -NoProfile -ExecutionPolicy Bypass -File $runTool -LocalRepo $repo -Tool legacy-import-plan -Retailer 'xplora' -Archive $cjArch -OutDir $cjPlanOut -NoClipboard | Out-Null
         $cjPlan = @(Get-ChildItem -LiteralPath $cjPlanOut -Recurse -Filter 'report.txt')

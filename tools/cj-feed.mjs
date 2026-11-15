@@ -14,7 +14,11 @@
 // process). It is never printed: every message goes through mask().
 // Nothing here writes to stderr: in Windows PowerShell 5.1 with ErrorActionPreference Stop, a stderr line stops the tool.
 //
-// Usage: node tools/cj-feed.mjs --mode probe|download --cid 7806395,8114224 --pid 101917444 --advertisers 5175167 [--out <dir>]
+// Usage: node tools/cj-feed.mjs --mode probe|download --cid 7806395,8114224 --pid 101917444 --advertisers 5175167 [--out <dir>] [--search <name>]
+//
+// --search (15 Nov 2026, lessons L161): instead of the whole catalogue, only the products that CJ's keyword search finds
+// for one of the SEARCHES below (e.g. DHgate's 6 million products: only kids' winter boots), in the search's currency.
+// The file is then CJ_<advertiser>_<search>.csv.gz, so it never takes the place of a whole-catalogue file.
 import { createWriteStream, mkdirSync } from 'node:fs';
 import { createGzip } from 'node:zlib';
 import { join } from 'node:path';
@@ -36,6 +40,28 @@ const MAX_COUNT_CALLS = 3000;        // most band-size questions for one shop (a
 // Jeulia gave 18,437 and then 18,124). So every search is made small enough to come back in ONE page (offset 0), by
 // price bands, and offsets are used only where that is impossible (no price filter, or more than a page at one price).
 export const RETRY_WAIT_MS = 60000;  // a "too many requests" answer: wait, then ask again (at most 3 times)
+
+// Keyword searches (15 Nov 2026, lessons L161). Each keyword is ONE CJ search (its own 10,000 cap and price bands); the
+// products of all of them go in one file, each product once. currency: only products priced in it (the Manager's rule for
+// the UK view: a real pound price, not a converted one). A keyword that finds more than SEARCH_MAX products is too broad
+// (CJ may read the words as "any of them"): it is left out and the report says so.
+export const SEARCH_MAX = 20000;
+// A whole-catalogue download of a bigger shop is refused (DHgate has 6 million products): only a search can read it.
+export const WHOLE_MAX = 300000;
+export const SEARCHES = {
+  'kids-winter-boots': {
+    label: "kids' winter boots",
+    currency: 'GBP',
+    area: 'GB',
+    keywords: ['kids snow boots', 'children snow boots', 'boys snow boots', 'girls snow boots', 'toddler snow boots', 'baby snow boots',
+      'kids winter boots', 'children winter boots', 'boys winter boots', 'girls winter boots', 'toddler winter boots', 'kids rain boots', 'kids wellies']
+  }
+};
+// More fields for a search: where the product is sold and sent from, and for whom (the import rules check them).
+export const SEARCH_WANT = ['targetCountry', 'serviceableAreas', 'shipsFromCountry', 'ageGroup', 'gender'];
+export const SEARCH_COLUMNS = ['target_country', 'serviceable_areas', 'ships_from', 'age_group', 'gender', 'search_keyword'];
+// A text argument of the product search (keywords, currency, serviceableAreas), safely quoted.
+const textArg = v => JSON.stringify(String(v ?? '').replace(/[\u0000-\u001f]/g, ' ').slice(0, 200));
 
 // The columns the import tools read (same names as tools/awin-feed-download.ps1 asks Awin for).
 export const COLUMNS = ['data_feed_id', 'merchant_id', 'merchant_name', 'aw_product_id', 'aw_deep_link', 'brand_name', 'merchant_product_id',
@@ -126,7 +152,8 @@ export function priceLiteral(v, type = '') {
 
 // The product query, built from the fields the API really has. pid: the CJ property (website) id for the tracking links.
 // extra: { lowPrice, highPrice } for one price band (only when the API has those arguments).
-export function productQuery({ shape, cid, pid, advertiser, limit = PAGE, offset = 0, extra = null }) {
+// extra may also hold keywords, currency and serviceableAreas (a keyword search, L161); more: extra fields to select.
+export function productQuery({ shape, cid, pid, advertiser, limit = PAGE, offset = 0, extra = null, more = [] }) {
   const s = shape || FALLBACK_PRODUCT;
   const qname = s.qname || 'shoppingProducts';
   const args = [`companyId: "${String(cid).replace(/\D/g, '')}"`];
@@ -136,8 +163,11 @@ export function productQuery({ shape, cid, pid, advertiser, limit = PAGE, offset
   for (const k of ['lowPrice', 'highPrice']) {
     if (extra && extra[k] !== undefined && extra[k] !== null && s.args.includes(k)) args.push(`${k}: ${priceLiteral(extra[k], (s.argTypes || {})[k])}`);
   }
+  for (const k of ['keywords', 'currency', 'serviceableAreas']) {
+    if (extra && extra[k] && s.args.includes(k)) args.push(`${k}: ${textArg(extra[k])}`);
+  }
   const sel = [];
-  for (const name of WANT) {
+  for (const name of WANT.concat((more || []).filter(x => !WANT.includes(x)))) {
     const f = s.fields.find(x => x.name === name);
     if (!f) continue;
     if (name === 'linkCode') { if (pid && f.args.includes('pid')) sel.push(`linkCode(pid: "${String(pid).replace(/\D/g, '')}") { clickUrl }`); continue; }
@@ -157,6 +187,7 @@ const money = m => { if (m === null || m === undefined) return NaN; if (typeof m
 const cur = (...ms) => { for (const m of ms) if (m && typeof m === 'object' && m.currency) return String(m.currency).toUpperCase(); return ''; };
 const img = v => { if (!v) return ''; if (Array.isArray(v)) return img(v[0]); if (typeof v === 'object') return String(v.url || v.link || ''); return String(v); };
 const flat = v => Array.isArray(v) ? v.filter(Boolean).join(' > ') : String(v ?? '');
+const words = v => Array.isArray(v) ? v.map(x => (x && typeof x === 'object' ? Object.values(x).join(':') : String(x ?? ''))).filter(Boolean).join(' ') : (v && typeof v === 'object' ? Object.values(v).join(':') : String(v ?? ''));
 
 // One CJ product as one feed row (Awin column names). The sale price wins when it is lower than the normal price.
 export function toFeedRow(p) {
@@ -174,7 +205,9 @@ export function toFeedRow(p) {
     product_name: String(p.title ?? ''), description: String(p.description ?? '').slice(0, 2000), merchant_deep_link: String(p.link ?? ''),
     merchant_image_url: img(p.imageLink), large_image: img(p.additionalImageLink),
     search_price: Number.isFinite(search) ? String(search) : '', store_price: Number.isFinite(price) ? String(price) : '', rrp_price: Number.isFinite(price) ? String(price) : '',
-    currency: cur(p.salePrice, p.price), in_stock: inStock, stock_status: av, parent_product_id: String(p.itemGroupId ?? ''), last_updated: String(p.lastUpdated ?? '')
+    currency: cur(p.salePrice, p.price), in_stock: inStock, stock_status: av, parent_product_id: String(p.itemGroupId ?? ''), last_updated: String(p.lastUpdated ?? ''),
+    target_country: words(p.targetCountry), serviceable_areas: words(p.serviceableAreas), ships_from: words(p.shipsFromCountry), age_group: words(p.ageGroup),
+    gender: words(p.gender), search_keyword: String(p._keyword ?? '')
   };
 }
 
@@ -206,7 +239,10 @@ export function splitPoint(lo, hi) {
 // Every product of one advertiser, page by page; above 10,000 products in price bands (lessons L129).
 // Returns { ok, products, total, capped, bands, split, error }. capped: CJ's cap still cut something (the file then
 // holds what came, and the report says how many are missing).
-export async function fetchAll({ shape, cid, pid, advertiser, token, api, fetchImpl, pauseMs = 1000, log = () => {}, page = PAGE, cap = OFFSET_CAP, retryWaitMs = RETRY_WAIT_MS }) {
+// filters: the same keyword/currency filters on every request of this search (L161); more: extra fields; maxTotal: a search
+// that finds more products is not read at all (tooBroad).
+export async function fetchAll({ shape, cid, pid, advertiser, token, api, fetchImpl, pauseMs = 1000, log = () => {}, page = PAGE, cap = OFFSET_CAP, retryWaitMs = RETRY_WAIT_MS,
+  filters = null, more = [], maxTotal = Infinity }) {
   const qname = (shape && shape.qname) || 'shoppingProducts';
   // One row per product AND catalogue: a shop with a catalogue per country (Haglofs: the same product id in the GB, NL,
   // DE ... catalogues, in pounds and euros) keeps every country, so the rules can pick the one in the site's currency.
@@ -221,7 +257,7 @@ export async function fetchAll({ shape, cid, pid, advertiser, token, api, fetchI
   const ask = async (limit, offset, extra) => {
     let r;
     for (let attempt = 1; ; attempt++) {
-      r = await gql({ token, api, fetchImpl, query: productQuery({ shape, cid, pid, advertiser, limit, offset, extra }) });
+      r = await gql({ token, api, fetchImpl, query: productQuery({ shape, cid, pid, advertiser, limit, offset, extra: { ...(filters || {}), ...(extra || {}) }, more }) });
       const busy = r.status === 429 || /too many requests|rate limit/i.test(errText(r.errors));
       if (!busy || attempt > 3) break;
       log(`${advertiser}: CJ is busy, waiting ${Math.round(retryWaitMs * attempt / 1000)} s`);
@@ -252,6 +288,7 @@ export async function fetchAll({ shape, cid, pid, advertiser, token, api, fetchI
   const first = await ask(1, 0, null);
   if (!first.ok) return { ok: false, products: [], total: null, error: first.error };
   const total = first.total;
+  if (total !== null && total > maxTotal) return { ok: false, tooBroad: true, products: [], total, error: `too broad: ${total} products` };
   const canSplit = Boolean(shape && ['lowPrice', 'highPrice'].every(a => (shape.args || []).includes(a)));
   if (total === null || total <= page || !canSplit) {
     await pause();
@@ -283,15 +320,15 @@ export async function fetchAll({ shape, cid, pid, advertiser, token, api, fetchI
   return { ok: true, products: products(), total, capped, bands, split: 'price' };
 }
 
-export async function writeFeed(file, products) {
+export async function writeFeed(file, products, columns = COLUMNS) {
   await new Promise((resolve, reject) => {
     const gz = createGzip();
     const ws = createWriteStream(file);
     gz.pipe(ws);
     ws.on('finish', resolve);
     ws.on('error', reject);
-    gz.write(csvLine(COLUMNS));
-    for (const p of products) { const row = toFeedRow(p); gz.write(csvLine(COLUMNS.map(c => row[c]))); }
+    gz.write(csvLine(columns));
+    for (const p of products) { const row = toFeedRow(p); gz.write(csvLine(columns.map(c => row[c]))); }
     gz.end();
   });
 }
@@ -334,10 +371,79 @@ export async function joinedAdvertisers({ token, cids, lookupApi = LOOKUP_API, f
   return { cid: '', tried, advertisers: [] };
 }
 
-export async function run({ mode, cids, pid, advertisers, out, token, api = CJ_API, fetchImpl = fetch, pauseMs = 1000, lookupApi = LOOKUP_API }) {
+// One advertiser, one search (L161). probe: for each keyword how many products CJ finds in any currency, in the search's
+// currency and (when the API can tell) with delivery to the search's country, and 5 samples. download: every product of
+// every keyword in the search's currency, each once, in CJ_<advertiser>_<search>.csv.gz.part.
+async function searchOne({ A, SR, S, shape, pid, adv, token, api, fetchImpl, pauseMs, out, mode, mask, searchMax }) {
+  const qname = (shape && shape.qname) || 'shoppingProducts';
+  const count = async extra => {
+    const r = await gql({ token, api, fetchImpl, query: productQuery({ shape, cid: S.cid, pid, advertiser: adv, limit: 1, extra }) });
+    if (pauseMs) await sleep(pauseMs);
+    if (r.errors || !r.data || !r.data[qname]) return { error: mask(errText(r.errors) || 'empty answer') };
+    const t = Number(r.data[qname].totalCount);
+    return { total: Number.isFinite(t) ? t : null };
+  };
+  const cur = SR.currency || '';
+  const areaArg = SR.area && shape.args.includes('serviceableAreas') ? SR.area : '';
+  A.searches = [];
+  if (mode === 'probe') {
+    let sampleExtra = null;
+    for (const kw of SR.keywords) {
+      const all = await count({ keywords: kw });
+      if (all.error) { A.error = all.error; return; }
+      const inCur = cur ? await count({ keywords: kw, currency: cur }) : all;
+      if (inCur.error) { A.error = inCur.error; return; }
+      const inArea = areaArg && inCur.total ? await count({ keywords: kw, currency: cur, serviceableAreas: areaArg }) : { total: null };
+      A.searches.push({ keyword: kw, all: all.total, inCurrency: inCur.total, inArea: inArea.error ? null : inArea.total, tooBroad: (inCur.total || 0) > searchMax });
+      if (!sampleExtra && inCur.total && inCur.total <= searchMax) sampleExtra = { keywords: kw, currency: cur };
+    }
+    A.total = A.searches.filter(x => !x.tooBroad).reduce((n, x) => n + (x.inCurrency || 0), 0);
+    if (sampleExtra) {
+      const r = await gql({ token, api, fetchImpl, query: productQuery({ shape, cid: S.cid, pid, advertiser: adv, limit: 5, extra: sampleExtra, more: SEARCH_WANT }) });
+      const list = (r.data && r.data[qname] && r.data[qname].resultList) || [];
+      A.samples = list.map(toFeedRow).map(x => ({ name: x.product_name, brand: x.brand_name, price: x.search_price, currency: x.currency, stock: x.stock_status,
+        category: x.merchant_category, page: x.merchant_deep_link, image: x.merchant_image_url ? 'yes' : 'no', tracking: x.aw_deep_link ? new URL(x.aw_deep_link).host : 'NONE',
+        group: x.parent_product_id, target: x.target_country, areas: x.serviceable_areas, shipsFrom: x.ships_from, age: x.age_group, keyword: sampleExtra.keywords }));
+    } else A.samples = [];
+    A.ok = true;
+    return;
+  }
+  const seen = new Map();
+  let failed = '';
+  for (const kw of SR.keywords) {
+    const r = await fetchAll({ shape, cid: S.cid, pid, advertiser: adv, token, api, fetchImpl, pauseMs, filters: { keywords: kw, currency: cur }, more: SEARCH_WANT, maxTotal: searchMax });
+    let added = 0;
+    for (const p of r.products) {
+      const k = [p.id ?? '', p.adId ?? p.catalogId ?? '', JSON.stringify(p.price || '')].map(String).join('|');
+      if (!seen.has(k)) { seen.set(k, { ...p, _keyword: kw }); added++; }
+    }
+    A.searches.push({ keyword: kw, total: r.total, got: r.products.length, added, capped: Boolean(r.capped), tooBroad: Boolean(r.tooBroad), error: r.ok || r.tooBroad ? '' : mask(r.error) });
+    if (!r.ok && !r.tooBroad) { failed = mask(r.error); break; }
+  }
+  const products = [...seen.values()];
+  A.total = A.searches.reduce((n, x) => n + (x.tooBroad ? 0 : (x.total || 0)), 0);
+  A.got = products.length;
+  A.capped = A.searches.some(x => x.capped);
+  if (failed) { A.error = failed; return; }
+  const rows = products.map(toFeedRow);
+  A.withTracking = rows.filter(x => x.aw_deep_link).length;
+  A.currencies = [...new Set(rows.map(x => x.currency).filter(Boolean))];
+  A.name = (rows.find(x => x.merchant_name) || {}).merchant_name || '';
+  if (!rows.length) { A.error = 'no products'; return; }
+  mkdirSync(out, { recursive: true });
+  A.file = join(out, `CJ_${adv}_${S.search}.csv.gz.part`);
+  await writeFeed(A.file, products, COLUMNS.concat(SEARCH_COLUMNS));
+  A.ok = true;
+}
+
+export async function run({ mode, cids, pid, advertisers, out, token, api = CJ_API, fetchImpl = fetch, pauseMs = 1000, lookupApi = LOOKUP_API, search = '', searchMax = SEARCH_MAX }) {
   const mask = makeMask(token);
   const S = { mode, ok: false, api: new URL(api).host, cid: '', cidTried: [], pid: String(pid || ''), queries: [], fields: [], feeds: null, feedsError: '', advertisers: [] };
   if (!token || token.length < 10) { S.error = 'no CJ token'; return S; }
+  const SR = search ? (Object.prototype.hasOwnProperty.call(SEARCHES, search) ? SEARCHES[search] : null) : null;
+  if (search && !SR) { S.error = `unknown search: ${String(search).slice(0, 40)}`; return S; }
+  if (SR) { S.search = search; S.searchLabel = SR.label; S.searchCurrency = SR.currency || ''; S.keywords = SR.keywords.slice(); }
+  if (SR && (mode === 'list' || mode === 'joined')) { S.error = 'a search works only with probe or download'; return S; }
   // The token goes only to CJ (or to the local fake server of the tests).
   const h = new URL(api).hostname;
   if (h !== 'ads.api.cj.com' && h !== '127.0.0.1') { S.error = 'unexpected API address'; return S; }
@@ -367,6 +473,9 @@ export async function run({ mode, cids, pid, advertisers, out, token, api = CJ_A
     }
   } else S.describeError = mask(d.error);
   if (d.ok && !shape) { S.error = 'the CJ API has no product query (shoppingProducts / products)'; return S; }
+  // Without the keywords argument a "search" would read the WHOLE catalogue (DHgate: 6 million products): stop instead.
+  if (SR && !(shape && shape.args.includes('keywords'))) { S.error = 'the CJ API has no keyword search (keywords)'; return S; }
+  if (SR && SR.currency && !shape.args.includes('currency')) { S.error = 'the CJ API has no currency filter (currency)'; return S; }
   const first = advertisers[0];
   const c = await pickCid({ cids, token, api, fetchImpl, shape, pid, advertiser: first });
   S.cidTried = c.tried.map(t => ({ cid: t.cid, error: mask(t.error) }));
@@ -411,6 +520,7 @@ export async function run({ mode, cids, pid, advertisers, out, token, api = CJ_A
   if (mode === 'list') { S.ok = S.feeds !== null; if (!S.ok && !S.feedsError) S.feedsError = 'the CJ API has no feed list (shoppingProductFeeds)'; return S; }
   for (const adv of advertisers) {
     const A = { advertiser: adv, ok: false };
+    if (SR) { await searchOne({ A, SR, S, shape, pid, adv, token, api, fetchImpl, pauseMs, out, mode, mask, searchMax }); S.advertisers.push(A); continue; }
     if (mode === 'probe') {
       const r = await gql({ token, api, fetchImpl, query: productQuery({ shape, cid: S.cid, pid, advertiser: adv, limit: 5 }) });
       const qname = (shape && shape.qname) || 'shoppingProducts';
@@ -421,7 +531,8 @@ export async function run({ mode, cids, pid, advertisers, out, token, api = CJ_A
       A.samples = (block.resultList || []).map(toFeedRow).map(x => ({ name: x.product_name, brand: x.brand_name, price: x.search_price, currency: x.currency, stock: x.stock_status,
         category: x.merchant_category, page: x.merchant_deep_link, image: x.merchant_image_url ? 'yes' : 'no', tracking: x.aw_deep_link ? new URL(x.aw_deep_link).host : 'NONE', group: x.parent_product_id }));
     } else {
-      const r = await fetchAll({ shape, cid: S.cid, pid, advertiser: adv, token, api, fetchImpl, pauseMs });
+      const r = await fetchAll({ shape, cid: S.cid, pid, advertiser: adv, token, api, fetchImpl, pauseMs, maxTotal: WHOLE_MAX });
+      if (r.tooBroad) r.error = `the whole catalogue is too big (${r.total} products): only a search (-Search) can read it`;
       A.total = r.total;
       A.got = r.products.length;
       A.capped = Boolean(r.capped);
@@ -452,7 +563,8 @@ if (import.meta.url === pathToFileURL(process.argv[1] || '').href) {
   const list = s => s.split(/[,\s]+/).filter(x => /^\d{3,12}$/.test(x));
   try {
     const S = await run({ mode: ['download', 'list', 'joined'].includes(opt('--mode')) ? opt('--mode') : 'probe', cids: list(opt('--cid')), pid: opt('--pid'), advertisers: list(opt('--advertisers')),
-      out: opt('--out'), token, api: opt('--api') || CJ_API, pauseMs: Number(opt('--pause') || 1000), lookupApi: opt('--lookup') || LOOKUP_API });
+      out: opt('--out'), token, api: opt('--api') || CJ_API, pauseMs: Number(opt('--pause') || 1000), lookupApi: opt('--lookup') || LOOKUP_API,
+      search: opt('--search') });
     process.stdout.write(mask(JSON.stringify(S)) + '\n');
   } catch (e) {
     process.stdout.write(mask(JSON.stringify({ ok: false, error: String(e && e.stack ? e.stack : e).slice(0, 800) })) + '\n');
