@@ -71,16 +71,19 @@ test('a euro price stays in euros with "≈ £" for a visitor from the Netherlan
   assert.match(html, /<span translate="no">VEVOR<\/span> delivers to<\/span><\/dt><dd class="ship-dd">.*<span data-country="EU">European Union<\/span>/s);
   assert.match(html, /"priceCurrency":"EUR"/);
   assert.match(html, /href="\/out\/\d+"/);
-  // A UK visitor (or one from an unknown country) gets the notice: VEVOR does not deliver to the UK.
-  const uk = await get(`/product/${row.product_slug}-${row.id}/`, env, 'GB');
-  assert.equal(uk.status, 200);
-  const ukHtml = await uk.text();
-  assert.match(ukHtml, /<meta name="robots" content="noindex,follow">/);
-  // The page is cached per country group, so it names no country; the line under it says where VEVOR delivers.
-  assert.match(ukHtml, /data-i18n="\{0\} does not deliver to your country\." data-i18n-0="VEVOR" data-i18n-keep="0"/);
-  assert.match(ukHtml, /<span translate="no">VEVOR<\/span> delivers to<\/span><\/span>: <span class="ship-names">.*<span data-country="EU">European Union<\/span>/s);
-  assert.ok(!/United Kingdom/.test(ukHtml.split('notice-box')[1].split('chip-list')[0]), 'no country named in the notice');
-  assert.ok(!/href="\/out\/\d+"/.test(ukHtml) && !/€\d/.test(ukHtml), 'no button and no price');
+  // A UK visitor (or one from an unknown country, or Germany) gets the notice. VEVOR's feed on AGW is in Dutch (lessons
+  // L164): the notice says so and names the Netherlands and Belgium, never "does not deliver" (it delivers to Germany).
+  for (const cc of ['GB', 'DE']) {
+    const uk = await get(`/product/${row.product_slug}-${row.id}/`, env, cc);
+    assert.equal(uk.status, 200);
+    const ukHtml = await uk.text();
+    assert.match(ukHtml, /<meta name="robots" content="noindex,follow">/);
+    assert.match(ukHtml, /data-i18n="\{0\} describes this product in a language other than English, so we show it only to visitors from these countries:" data-i18n-0="VEVOR" data-i18n-keep="0"/, cc);
+    assert.ok(!/does not deliver to your country/.test(ukHtml), cc);
+    assert.match(ukHtml, /<p class="notice-ship" data-ship="NL BE">.*<span data-country="NL">Netherlands<\/span>, <span data-country="BE">Belgium<\/span>/s, cc);
+    assert.ok(!/United Kingdom/.test(ukHtml.split('notice-box')[1].split('chip-list')[0]), 'no other country named in the notice');
+    assert.ok(!/href="\/out\/\d+"/.test(ukHtml) && !/€\d/.test(ukHtml), 'no button and no price');
+  }
 });
 
 test('the same jack (same EAN) at two retailers: one card, two prices on its page', async () => {

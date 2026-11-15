@@ -18,6 +18,9 @@
 //   - Every other country sees ALL the products, each with "<retailer> delivers to ..." (src/pages/layout.js
 //     deliveryLine), and the bar "We're adding retailers for your country ...". The United States keep the view of their
 //     own of 14 Nov 2026 (lessons L141): what ships to the US. Google's crawlers keep the UK view (src/engine.js).
+//   - Since 15 Nov 2026 (owner, lessons L164) "all" leaves out the shops that ship only to the US (seen only by visitors
+//     from the US), and a feed in another language (deliversTo.languages) is seen only in the countries that speak it.
+//     The Group counts such a feed only in those countries (src/lib/delivery.js shownCountries).
 export const OPEN_COUNTRIES = ['GB', 'PL'];
 
 export const OPEN_RULE = { products: 30000, retailers: 4, share: 0.5 };

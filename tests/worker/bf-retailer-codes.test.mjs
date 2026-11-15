@@ -380,9 +380,13 @@ test('L114, L151: cached pages keep one copy per view group (gb, all, us), so th
     assert.deepEqual(keys, [`https://${cgw.domain}/?gw-view=${usGroup}`, `https://${cgw.domain}/?gw-view=gb`].sort(), 'one copy per group');
     assert.ok(gb.includes(FOOTER_LINK), 'the UK copy links to the codes');
     assert.ok(!us.includes(FOOTER_LINK), 'the US copy (L141: GRABO only) does not');
-    // The all view (L151): Germany, an unknown country and Canada share one more copy, which has the codes.
-    for (const cc of ['DE', '', 'CA']) assert.ok((await (await get('/', env, cc)).text()).includes(FOOTER_LINK), cc || 'unknown');
+    // The all view (L151): France, an unknown country and Canada share one more copy, which has the codes.
+    for (const cc of ['FR', '', 'CA']) assert.ok((await (await get('/', env, cc)).text()).includes(FOOTER_LINK), cc || 'unknown');
     assert.equal(store.size, 3, 'no other copy');
+    // Germany and Austria (L164: Reidl's feed is in German): the all view plus Reidl, one copy of their own, with the codes.
+    for (const cc of ['DE', 'AT']) assert.ok((await (await get('/', env, cc)).text()).includes(FOOTER_LINK), cc);
+    assert.equal(viewFor(cgw, 'DE').group, 'at-de');
+    assert.equal(store.size, 4, 'one more copy, for Germany and Austria');
     assert.ok((await store.get(`https://${cgw.domain}/?gw-view=all`).clone().text()).includes(FOOTER_LINK));
     assert.ok(!(await store.get(`https://${cgw.domain}/?gw-view=${usGroup}`).clone().text()).includes(FOOTER_LINK));
     assert.ok(!(await (await get('/', env, 'US')).text()).includes(FOOTER_LINK));
