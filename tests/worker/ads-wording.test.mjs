@@ -41,7 +41,7 @@ test('the 13 sites: every card says "<retailer> delivers to", never a bare "Deli
       assert.ok(!/delivers to|label-ship/.test(html), `${c}: no delivery data, no delivery line`);
       assert.equal(toString(deliveryLine(site, retailer)), '', c);
     }
-    assert.match(site.assetVersion, /^(2026-11-08-[a-z]{3}-(cleanup|security)|2026-11-09-[a-z]{3}-compliance|2026-11-1[02]-[a-z]{3}-codes|2026-11-14-[a-z]{3}-boots)-\d+$/, `${c}: a new asset version for the new dictionaries (L31; -wording- for L102, -cleanup- for L103, -security- for L106, -codes- for L115)`);
+    assert.match(site.assetVersion, /^(2026-11-08-[a-z]{3}-(cleanup|security)|2026-11-09-[a-z]{3}-compliance|2026-11-1[02]-[a-z]{3}-codes|2026-11-14-[a-z]{3}-boots|2026-11-15-[a-z]{3}-pl)-\d+$/, `${c}: a new asset version for the new dictionaries (L31; -wording- for L102, -cleanup- for L103, -security- for L106, -codes- for L115)`);
   }
 });
 
@@ -53,7 +53,7 @@ test('the site script keeps the retailer name in translate="no" when it translat
   for (const c of CODES) assert.equal(readFileSync(`sites/${c}/public/assets/site.js`, 'utf8'), js, `${c}: the same site.js (tools/theme-site.mjs)`);
 });
 
-test('the 130 dictionaries: the new texts, and no "Quantity", seasonal "offers" or bare "Delivers to" / "Stock" left', () => {
+test('the 143 dictionaries: the new texts, and no "Quantity", seasonal "offers" or bare "Delivers to" / "Stock" left', () => {
   const NEW = ['Gifts for everyone', 'Compare prices before you buy', 'Stock at the retailer', 'Sold by', '{0} delivers to'];
   const GONE = ['Quantity', 'Christmas offers', 'Black Friday offers', 'Halloween offers', 'Seasonal offers', 'Delivers to', 'Stock'];
   let files = 0;
@@ -68,7 +68,7 @@ test('the 130 dictionaries: the new texts, and no "Quantity", seasonal "offers" 
       files++;
     }
   }
-  assert.equal(files, 130);
+  assert.equal(files, 143);
   // Nothing on the sites asks for "Quantity" any more (the saved list has none, L101).
   for (const f of ['src/pages/cart.js', 'src/pages/layout.js', 'src/pages/compare.js', 'sites/tgw/public/assets/site.js']) {
     assert.ok(!/Quantity/.test(readFileSync(f, 'utf8')), `${f}: no "Quantity"`);

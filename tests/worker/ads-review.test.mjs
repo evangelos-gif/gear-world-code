@@ -14,14 +14,14 @@ const NEW_KEYS = ['Saved list', '+ Save', '✓ Saved', 'Saved to your list.', 'Y
   '{0} delivers to', 'Stock at {0}', 'Contact:', 'Run by Evangelos Kalogerakis, United Kingdom',
   "We don't sell products: we link to retailers and may earn a commission.",
   'Gear World is a network of independent product search and price-comparison sites from the same publisher. We do not sell products, take payments or handle deliveries. Every product links to the retailer that sells it, and we may earn a commission through the Awin and CJ affiliate networks.'];
-// The words of a shop's basket, in the 10 languages of the sites: none may be in the texts of the saved list.
-const CART_WORDS = /Warenkorb|καλάθι|Καλάθι|carrito|panier|carrello|winkelwagen|carrinho|coș|Coș|корзин|shport/;
+// The words of a shop's basket, in the 11 languages of the sites (Polish since L162): none may be in the texts of the saved list.
+const CART_WORDS = /Warenkorb|καλάθι|Καλάθι|carrito|panier|carrello|winkelwagen|carrinho|coș|Coș|корзин|shport|koszyk/i;
 
 test('every dictionary of the 13 sites has the new words, and no basket word is left', () => {
   for (const c of CODES) {
     const dir = `sites/${c}/public/assets/i18n`;
     const files = readdirSync(dir);
-    assert.equal(files.length, 10, c);
+    assert.equal(files.length, 11, c);
     for (const f of files) {
       const d = JSON.parse(readFileSync(`${dir}/${f}`, 'utf8'));
       for (const k of NEW_KEYS) assert.ok(d[k] && d[k].trim(), `${c}/${f}: ${k}`);
@@ -46,7 +46,7 @@ test('the 13 sites: "Saved list" in the config, a new asset version, the bookmar
     assert.deepEqual(s.cart, { name: 'Saved list', maxItems: 30 }, c);
     // 2026-11-08-<code>-saved-N for L101, -wording-N for the follow-up of L102, -cleanup-N for L103 (a new version
     // each time, L31).
-    assert.match(s.assetVersion, /^(2026-11-08-[a-z]{3}-(saved|wording|cleanup|security)|2026-11-09-[a-z]{3}-compliance|2026-11-1[02]-[a-z]{3}-codes|2026-11-14-[a-z]{3}-boots)-\d+$/, c);
+    assert.match(s.assetVersion, /^(2026-11-08-[a-z]{3}-(saved|wording|cleanup|security)|2026-11-09-[a-z]{3}-compliance|2026-11-1[02]-[a-z]{3}-codes|2026-11-14-[a-z]{3}-boots|2026-11-15-[a-z]{3}-pl)-\d+$/, c);
     const icons = readFileSync(`sites/${c}/public/assets/icons.svg`, 'utf8');
     assert.match(icons, /<symbol id="saved" /, c);
     const js = readFileSync(`sites/${c}/public/assets/site.js`, 'utf8');

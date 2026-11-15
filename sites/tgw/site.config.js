@@ -12,7 +12,7 @@ export default {
   lang: 'en-GB',
   locale: 'en-GB',
   currency: 'GBP',
-  assetVersion: '2026-11-12-tgw-codes-2',
+  assetVersion: '2026-11-15-tgw-pl-1',
   // Key prefix for what a visitor's browser remembers (compare list, cart, language, currency).
   // Discount codes and sales from retailers (promos/promos.js, lessons L32), with the Awin publisher id
   // used for their links. The id is public: it is part of every Awin link.
@@ -20,7 +20,7 @@ export default {
   awinPublisherId: AWIN_PUBLISHER_ID,
   storagePrefix: 'tgw',
 
-  // 11 languages, the same as Gear World Hub. Pages are written in English by the server; the site
+  // 12 languages: the 11 of Gear World Hub and Polish (lessons L162). Pages are written in English by the server; the site
   // script swaps the text using one small file per language (public/assets/i18n/<code>.json), loaded
   // only when a visitor picks that language (lessons L24). Product names stay as the retailer wrote them.
   // Countries that see only the retailers that deliver there instead of the UK view with its bar (lessons L107); none yet.
@@ -34,6 +34,7 @@ export default {
     { code: 'es-ES', label: 'Español' },
     { code: 'pt-PT', label: 'Português' },
     { code: 'nl-NL', label: 'Nederlands' },
+    { code: 'pl-PL', label: 'Polski' },
     { code: 'sq-AL', label: 'Shqip' },
     { code: 'ro-RO', label: 'Română' },
     { code: 'ru-RU', label: 'Русский' }
@@ -55,7 +56,7 @@ export default {
   // 5 display currencies, the same as the other Gear World sites. Retailers charge in GBP, so the GBP
   // price always stays on the page and the converted price is shown next to it as "≈" (lessons L25).
   foreignCurrencies: ['PLN'],
-  displayCurrencies: ['GBP', 'EUR', 'ALL', 'RON', 'RUB'],
+  displayCurrencies: ['GBP', 'EUR', 'PLN', 'ALL', 'RON', 'RUB'],
 
   // Saved list (the Gear Cart until 7 Nov 2026, lessons L101): a list kept in the visitor's browser. Every buy button goes through /out/<id> (lessons L26).
   cart: { name: 'Saved list', maxItems: 30 },

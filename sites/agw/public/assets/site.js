@@ -138,11 +138,26 @@
     for (var i = 0; i < notes.length; i++) notes[i].hidden = false;
   }
 
-  function loadLanguage() {
-    var wanted = read('lang', BASE_LANG);
+  function knownLang(code) {
     var select = document.querySelector('select[data-pref="lang"]');
-    var known = select ? Array.prototype.some.call(select.options, function (o) { return o.value === wanted; }) : false;
-    if (!known || wanted === BASE_LANG) return Promise.resolve();
+    return select ? Array.prototype.some.call(select.options, function (o) { return o.value === code; }) : false;
+  }
+  // Lessons L162: a language in the address (?lang=pl-PL, the links of ads and posts) is kept like a choice in the menu.
+  // Without a choice of their own, a visitor from a country with its own language on the site gets that language: the
+  // Worker names it on the page (data-country-lang, Poland only), never in a cached copy. Google reads English, as before.
+  function wantedLanguage() {
+    var asked = '';
+    try { asked = new URLSearchParams(window.location.search).get('lang') || ''; } catch (e) { asked = ''; }
+    if (asked && knownLang(asked)) { write('lang', asked); return asked; }
+    var own = read('lang', '');
+    if (own) return own;
+    var byCountry = root.getAttribute('data-country-lang') || '';
+    return byCountry && knownLang(byCountry) ? byCountry : BASE_LANG;
+  }
+
+  function loadLanguage() {
+    var wanted = wantedLanguage();
+    if (!knownLang(wanted) || wanted === BASE_LANG) return Promise.resolve();
     return fetch('/assets/i18n/' + wanted + '.json?v=' + encodeURIComponent(VERSION))
       .then(function (r) { if (!r.ok) throw new Error('i18n ' + r.status); return r.json(); })
       .then(function (d) { lang = wanted; dict = d; applyLanguage(); })

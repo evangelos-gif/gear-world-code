@@ -598,7 +598,7 @@ test('the dictionaries of the 13 sites have every new text (lessons L24, L107), 
       n++;
     }
   }
-  assert.equal(n, 130);
+  assert.equal(n, 143); // 13 sites x 11 languages (pl-PL since L162)
 });
 
 // ---- Google's crawlers (item 8 of the checker, 9 Nov 2026) ----

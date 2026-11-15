@@ -651,6 +651,9 @@ export function createWorker(site) {
         response = htmlResponse(errorPage(pageSite), { status: busy ? 503 : 500, cache: 'none' });
         if (busy) response.headers.set('Retry-After', '60');
       }
+      // A visitor from Poland gets the site in Polish unless they chose a language (lessons L162): the page names it,
+      // after the page cache. Google's crawlers count as the UK (English, as before).
+      if (request.method === 'GET') response = await withCountryLanguage(response, countryLanguage(site, requestCountry(request, new URL(request.url))));
       // The bar for a visitor outside the UK who gets the UK view or the all view (lessons L107, owner's option A; L151):
       // added to the answer after the page cache, never into a cached copy, so it costs no D1 read and no extra cache copy.
       const browsing = browseCountry(request);
@@ -689,6 +692,30 @@ export async function withUkBar(response, barHtml = null) {
   const text = await response.text();
   const i = text.indexOf(MASTHEAD);
   return new Response(i < 0 ? text : text.slice(0, i) + bar + text.slice(i), { status: response.status, statusText: response.statusText, headers });
+}
+
+// Lessons L162 (Manager, 15 Nov 2026: Poland is open and the first country outside the UK to be promoted): a country
+// whose language the site has, and that the visitor gets without a choice of their own. Only Poland: every other
+// country reads English until they pick a language (or open a link with ?lang=).
+export const COUNTRY_LANGUAGES = { PL: 'pl-PL' };
+export function countryLanguage(site, country) {
+  const code = COUNTRY_LANGUAGES[String(country || '').toUpperCase()] || '';
+  return code && (site.languages || []).some(l => l.code === code) ? code : '';
+}
+// <html data-country-lang="pl-PL">: the site script reads it only when the visitor has no language of their own (menu or
+// ?lang=). Added to the answer, never to the cached copy (one copy per view group for every visitor), so that answer is
+// private, like the one with the UK bar. In the Worker: HTMLRewriter; in the Node tests: the same on the text.
+export async function withCountryLanguage(response, code) {
+  if (!code || !response || !response.body || !/^text\/html/i.test(response.headers.get('Content-Type') || '')) return response;
+  const headers = new Headers(response.headers);
+  headers.set('Cache-Control', 'private, max-age=60');
+  headers.delete('Content-Length');
+  if (typeof HTMLRewriter === 'function') {
+    const out = new HTMLRewriter().on('html', { element(e) { e.setAttribute('data-country-lang', code); } }).transform(response);
+    return new Response(out.body, { status: response.status, statusText: response.statusText, headers });
+  }
+  const text = await response.text();
+  return new Response(text.replace(/<html\b/i, `<html data-country-lang="${code}"`), { status: response.status, statusText: response.statusText, headers });
 }
 
 // Lessons L160: an answer while browsing as one country is that visitor's only (never kept by a shared cache, and the

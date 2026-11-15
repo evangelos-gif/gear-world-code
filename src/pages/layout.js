@@ -167,7 +167,7 @@ export function stockText(p, tag = 'span', cls = '') {
   return tag === 'dd' ? html`<dd class="${c}${ok ? 'ok' : 'warn'}">${word}</dd>` : html`<span class="${c}${ok ? 'ok' : 'warn'}">${word}</span>`;
 }
 
-const CURRENCY_LABELS = { GBP: '£ GBP', EUR: '€ EUR', USD: '$ USD', ALL: 'Lek ALL', RON: 'lei RON', RUB: '₽ RUB' };
+const CURRENCY_LABELS = { GBP: '£ GBP', EUR: '€ EUR', USD: '$ USD', PLN: 'zł PLN', ALL: 'Lek ALL', RON: 'lei RON', RUB: '₽ RUB' };
 
 export function absolute(site, path) {
   return `https://${site.domain}${path}`;

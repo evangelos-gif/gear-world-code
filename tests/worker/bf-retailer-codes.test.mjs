@@ -18,7 +18,7 @@ import { createWorker } from '../../src/engine.js';
 import { toString } from '../../src/lib/html.js';
 
 const at = (day, time = '12:00:00') => Date.parse(`${day}T${time}Z`);
-const LANGS = ['de-DE', 'el-GR', 'es-ES', 'fr-FR', 'it-IT', 'nl-NL', 'pt-PT', 'ro-RO', 'ru-RU', 'sq-AL'];
+const LANGS = ['de-DE', 'el-GR', 'es-ES', 'fr-FR', 'it-IT', 'nl-NL', 'pl-PL', 'pt-PT', 'ro-RO', 'ru-RU', 'sq-AL']; // pl-PL: lessons L162
 const BF_IDS = ['tooled-up-claimfifty', 'tooled-up-claimsevfy', 'my-tool-shed-claimfifty', 'my-tool-shed-claimsevfy'];
 // Which site shows which of the four (the retailer has products there, and it delivers to the UK).
 const WANT = {

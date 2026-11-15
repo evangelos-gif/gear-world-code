@@ -16,7 +16,7 @@ export default {
   lang: 'en-GB',
   locale: 'en-GB',
   currency: 'GBP',
-  assetVersion: '2026-11-12-pgw-codes-2',
+  assetVersion: '2026-11-15-pgw-pl-1',
   promos: promosFor('PGW'),
   awinPublisherId: AWIN_PUBLISHER_ID,
   storagePrefix: 'pgw',
@@ -41,6 +41,7 @@ export default {
     { code: 'es-ES', label: 'Español' },
     { code: 'pt-PT', label: 'Português' },
     { code: 'nl-NL', label: 'Nederlands' },
+    { code: 'pl-PL', label: 'Polski' },
     { code: 'sq-AL', label: 'Shqip' },
     { code: 'ro-RO', label: 'Română' },
     { code: 'ru-RU', label: 'Русский' }
@@ -56,7 +57,7 @@ export default {
   deliversTo: { default: ['GB'], retailers: { 'AliExpress PL': ['PL'], VEVOR: ['EU', 'IS', 'LI', 'NO'], 'Back to the Office IE': ['IE'], MonsGeek: ['GB', 'US', 'CH', 'IS', 'NO', 'AT', 'BE', 'BG', 'HR', 'CY', 'CZ', 'DK', 'EE', 'FI', 'FR', 'DE', 'GR', 'HU', 'IE', 'IT', 'LV', 'LT', 'LU', 'NL', 'PL', 'PT', 'RO', 'SK', 'SI', 'ES', 'SE'] } },
 
   foreignCurrencies: ['PLN'],
-  displayCurrencies: ['GBP', 'EUR', 'ALL', 'RON', 'RUB'],
+  displayCurrencies: ['GBP', 'EUR', 'PLN', 'ALL', 'RON', 'RUB'],
   cart: { name: 'Saved list', maxItems: 30 },
   voiceSearch: true,
 

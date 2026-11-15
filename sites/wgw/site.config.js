@@ -13,7 +13,7 @@ export default {
   lang: 'en-GB',
   locale: 'en-GB',
   currency: 'GBP',
-  assetVersion: '2026-11-12-wgw-codes-2',
+  assetVersion: '2026-11-15-wgw-pl-1',
   promos: promosFor('WGW'),
   // Buying guides (/guides/, lessons L82): words in guides.js, prices and stock live from the database.
   guides,
@@ -58,6 +58,7 @@ export default {
     { code: 'es-ES', label: 'Español' },
     { code: 'pt-PT', label: 'Português' },
     { code: 'nl-NL', label: 'Nederlands' },
+    { code: 'pl-PL', label: 'Polski' },
     { code: 'sq-AL', label: 'Shqip' },
     { code: 'ro-RO', label: 'Română' },
     { code: 'ru-RU', label: 'Русский' }
@@ -89,7 +90,7 @@ export default {
   foreignCurrencies: ['USD', 'PLN'],
   // Lessons L107: a UK visitor sees UK retailers only, so the texts no longer say "retailers in the UK and Europe".
   retailersFromEurope: false,
-  displayCurrencies: ['GBP', 'EUR', 'ALL', 'RON', 'RUB'],
+  displayCurrencies: ['GBP', 'EUR', 'PLN', 'ALL', 'RON', 'RUB'],
   cart: { name: 'Saved list', maxItems: 30 },
   voiceSearch: true,
 
