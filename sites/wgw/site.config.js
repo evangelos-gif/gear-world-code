@@ -83,7 +83,9 @@ export default {
   // shows it (owner, 15 Nov 2026, lessons L157); its prices get "≈ £…" (foreignCurrencies PLN).
   deliversTo: { default: ['GB'], retailers: { 'AliExpress PL': ['PL'], 'Bazta IE': ['IE'], 'Plusshop IE': ['IE'], Uhrcenter: ['DE', 'AT', 'CH', 'LI', 'LU'], '100% PURE': ['EU', 'CH', 'NO'], FOREO: ['EU'], Jeulia: ['US'], 'Dream Pairs': ['US'],
     'Invicta Stores': ['AT', 'BE', 'BG', 'CY', 'CZ', 'DE', 'DK', 'EE', 'FI', 'FR', 'GR', 'HR', 'HU', 'IE', 'IT', 'LT', 'LU', 'LV', 'MT', 'NL', 'PL', 'RO', 'SE', 'SI', 'SK', 'CH', 'NO', 'IS'],
-    'MASON New York': ['GB', 'US'], 'Needs No Label': ['GB', 'US'] } },
+    'MASON New York': ['GB', 'US'], 'Needs No Label': ['GB', 'US'],
+    // Mass import round 2 (15 Nov 2026, lessons L164): US shops and TEMU's US feed only to the US; Xpluswear (euros) only to the EU.
+    TEMU: ['US'], 'Dima Eyewear': ['US'], 'Grey State': ['US'], Kixies: ['US'], Xpluswear: ['EU'] } },
   // 100% PURE sells in euros: its prices stay in euros, with "≈ £…" next to them (lessons L25, L63). MASON New York sells
   // in US dollars and is in the UK view: foreignCurrencies fetches that rate too ("≈ £…", as GRABO on CGW).
   convertForeignPrices: true,

@@ -76,7 +76,7 @@ export const BRANDS = W(['ugg', 'uggs', 'australia boots?', 'timberland', 'timbe
   'lol', 'lilo', 'cars', 'lightning mcqueen', 'unicorn academy', 'harry potter', 'star wars', 'transformers', 'lego', 'pj masks', 'gabby',
   'hey duggee', 'thomas the tank', 'moana', 'encanto', 'toy story', 'buzz lightyear', 'baby shark']);
 // Words sellers use for copies of branded goods.
-const COPY = W(['luxury', 'replica', 'aaa', '1:1', 'top quality', 'original box', 'with box', 'with original box', 'designer', 'luxury brand', 'luxury designer', 'brand logo',
+export const COPY = W(['luxury', 'replica', 'aaa', '1:1', 'top quality', 'original box', 'with box', 'with original box', 'designer', 'luxury brand', 'luxury designer', 'brand logo',
   'famous brand', 'mirror quality', 'inspired', 'dupe', 'authentic']);
 // Words to take out of a card name: shop talk, not what the boot is.
 const NOISE = /\b(?:hot sale|new arrival|newest|new|fashion|free shipping|free ship|drop ?shipping|wholesale|high quality|best quality|cheap|top sale|2\d{3})\b/gi;
