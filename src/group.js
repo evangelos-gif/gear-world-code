@@ -2,6 +2,7 @@
 // One page, no cookies, no database. Live product counts come from each site's public /api/stats.
 import { html, raw, toString } from './lib/html.js';
 import { htmlResponse, textResponse, redirect } from './lib/http.js';
+import { versionResponse } from './lib/version.js';
 import { COUNTRY_NAMES, WORLDWIDE } from './lib/delivery.js';
 import { listCovers, cleanCountry } from './lib/visibility.js';
 import { OPEN_COUNTRIES, OPEN_RULE, openCheck } from './lib/open-countries.js';
@@ -474,6 +475,8 @@ export function createGroupWorker(site) {
       }
       if (request.method !== 'GET' && request.method !== 'HEAD') return textResponse('Method not allowed', { status: 405, cache: 'none' });
       const preview = url.hostname !== site.domain && !['localhost', '127.0.0.1'].includes(url.hostname);
+      // Which code version is live, for the deploy tools' check (lessons L156).
+      if (url.pathname === '/api/version') return versionResponse(env);
       if (url.pathname === '/robots.txt') {
         return textResponse(preview ? 'User-agent: *\nDisallow: /\n' : `User-agent: *\nAllow: /\n\nSitemap: https://${site.domain}/sitemap.xml\n`, { method: request.method });
       }

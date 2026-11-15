@@ -44,6 +44,9 @@ param(
 
 $ErrorActionPreference = 'Stop'
 $repo = Split-Path -Parent $PSScriptRoot
+# Lessons L156: the live-version guard (refuses a version that lacks the live one) and the version every deploy writes.
+. (Join-Path (Join-Path (Join-Path $repo 'tools') 'lib') 'live-guard.ps1')
+$GwVersionVar = Get-GwVersionVar $repo
 $DbName = 'technology-gear-world'
 $WorkerName = 'technology-gear-world'
 $Phrases = @{ d1 = 'ΕΓΚΡΙΝΩ TGW D1'; preview = 'ΕΓΚΡΙΝΩ TGW PREVIEW'; import = 'ΕΓΚΡΙΝΩ TGW IMPORT'; domain = 'ΕΓΚΡΙΝΩ TGW DOMAIN'; update = 'ΕΓΚΡΙΝΩ TGW UPDATE' }
@@ -305,7 +308,7 @@ switch ($Step) {
             [System.IO.File]::WriteAllText($configPath, $cfgOn, (New-Object System.Text.UTF8Encoding($false)))
             Copy-Item -LiteralPath $configPath -Destination $tgw -Force
         }
-        $d = Invoke-Wrangler $tgw 'deploy' -NonInteractive
+        $d = Invoke-Wrangler $tgw ('deploy' + $GwVersionVar) -NonInteractive
         if ($d.code -ne 0) { Say 'Το ανέβασμα απέτυχε. Έξοδος:' 'Red'; Say $d.text; Finish 9 }
         $um = [regex]::Match($d.text, 'https://[A-Za-z0-9\.\-]+\.workers\.dev')
         $url = $(if ($um.Success) { $um.Value } else { '' })
@@ -351,7 +354,7 @@ switch ($Step) {
             Say ('Αντίγραφο της παλιάς ρύθμισης: {0}' -f $before) 'Green'
         }
         Copy-Item -LiteralPath $configPath -Destination $tgw -Force
-        $d = Invoke-Wrangler $tgw 'deploy' -NonInteractive
+        $d = Invoke-Wrangler $tgw ('deploy' + $GwVersionVar) -NonInteractive
         if ($d.code -ne 0) {
             Say 'Το ανέβασμα απέτυχε. Το site στο domain ΔΕΝ ενεργοποιήθηκε. Έξοδος:' 'Red'
             Say $d.text
@@ -415,6 +418,8 @@ switch ($Step) {
         }
         Say ('  - Η δοκιμαστική διεύθυνση {0}.<λογαριασμός>.workers.dev και τα preview URLs του live Worker κλείνουν, αν είναι ανοιχτά (F04): το site ανοίγει μόνο στο {1}, πίσω από τους κανόνες ασφαλείας του. Πρώτα αντίγραφο της ρύθμισης (wrangler.jsonc.before-no-test-address-<ώρα>).' -f $WorkerName, $Domain)
         Say ('  - Επαναφορά (αν χρειαστεί): Workers & Pages > {0} > Deployments > προηγούμενη έκδοση > Rollback: https://dash.cloudflare.com/?to=/:account/workers-and-pages' -f $WorkerName)
+        # Lessons L156: never a version that lacks the live one (the Group map went twice that way, 14-15 Nov 2026).
+        Assert-GwLiveGuard @($Domain) $repo
         if (-not $Apply) { Say ''; Say 'Δοκιμή μόνο (χωρίς -Apply): δεν άλλαξε τίποτα.' 'Green'; Finish 0 }
         if (-not (Confirm-Approval $Phrases.update)) { Say 'Δεν δόθηκε έγκριση: σταμάτησα χωρίς αλλαγές.' 'Yellow'; Finish 1 }
         # Search in other languages needs the Workers AI binding; configs made before it was added get it here.
@@ -457,7 +462,7 @@ switch ($Step) {
         } else {
             Say '  - Δοκιμαστική διεύθυνση *.workers.dev και preview URLs: ήδη κλειστές στη ρύθμιση: ΕΝΤΑΞΕΙ' 'Green'
         }
-        $d = Invoke-Wrangler $tgw 'deploy' -NonInteractive
+        $d = Invoke-Wrangler $tgw ('deploy' + $GwVersionVar) -NonInteractive
         if ($d.code -ne 0) { Say 'Το ανέβασμα απέτυχε. Το live site έμεινε όπως ήταν. Έξοδος:' 'Red'; Say $d.text; Finish 9 }
         Say 'Ανέβηκε.' 'Green'
         if ($NoHttpCheck) { Finish 0 }

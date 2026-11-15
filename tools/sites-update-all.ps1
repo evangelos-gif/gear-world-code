@@ -12,6 +12,8 @@
                 numbers, so it goes last, lessons L130). A test address (*-preview Worker) never stays behind.
                 If one step fails, nothing after it runs and the report says which sites were already updated.
   Only "update" and "remove-preview" steps are run: never a database, import, domain or switch step.
+  First, read-only (lessons L156): every site and the Group must have their live version inside this one (GET
+  https://<site>/api/version, then GitHub). If one would lose live work, nothing is deployed (exit 13).
   Without -Apply nothing changes. Report: <home>\gear-world-reports\SITES_UPDATE_ALL_<step>_<time>.txt
 #>
 param(
@@ -47,6 +49,14 @@ $Steps = @(
     @{ tool = 'zgw-cloudflare'; step = 'update'; code = 'ZGW' },
     @{ tool = 'group-site'; step = 'update'; code = 'GROUP' }
 )
+# The live address of each step's site, for the version check (lessons L156).
+$Domains = @{
+    CGW = 'constructiongearworld.com'; GGW = 'gardengearworld.com'; HGW = 'homegearworld.com'; KGW = 'kidsgearworld.com'
+    AGW = 'cargearworld.com'; BGW = 'bikergearworld.com'; MGW = 'mensgearworld.com'; WGW = 'womensgearworld.com'
+    TGW = 'technologygearworld.com'; VGW = 'travelgearworld.com'; SGW = 'sportygearworld.com'; PGW = 'gaminggearworld.com'
+    ZGW = 'petsgearworld.com'; GROUP = 'gearworldgroup.com'
+}
+. (Join-Path (Join-Path $PSScriptRoot 'lib') 'live-guard.ps1')
 
 $L = New-Object System.Collections.Generic.List[string]
 function Say([string]$text, [string]$color = '') {
@@ -111,6 +121,20 @@ foreach ($s in $Steps) {
 Say ''
 if ($missing.Count -gt 0) { Say ('ΠΡΟΒΛΗΜΑ: λείπουν εργαλεία σε αυτή την έκδοση: {0}. Δεν αλλάζω τίποτα.' -f (($missing | Select-Object -Unique) -join ', ')) 'Magenta'; Finish 8 }
 Say 'Και τα 14 εργαλεία υπάρχουν: ΕΝΤΑΞΕΙ' 'Cyan'
+
+# Lessons L156 (owner, 15 Nov 2026: "so that the map never goes again"): before anything, every site and the Group must
+# have their live version inside this one. One site that would lose live work stops all of them: nothing is deployed.
+Say ''
+Say 'Έλεγχος έκδοσης (L156): έχει η νέα έκδοση μέσα αυτή που είναι live, σε κάθε site;'
+$guardDomains = @($Steps | Where-Object { $_.step -eq 'update' } | ForEach-Object { $Domains[$_.code] })
+$guard = Test-GwLiveGuard $guardDomains (Get-GwCommit (Split-Path -Parent $PSScriptRoot))
+foreach ($line in $guard.lines) { if ($line -match 'ΣΤΟΠ') { Say $line 'Magenta' } else { Say $line } }
+if (-not $guard.ok) {
+    Say ''
+    Say 'ΣΤΑΜΑΤΗΣΑ ΧΩΡΙΣ ΑΛΛΑΓΕΣ: δεν ανέβηκε κανένα site. Στείλε αυτή την αναφορά στο Claude «1 · Gear World Manager»: χρειάζεται μια έκδοση που έχει μέσα και τη live.' 'Magenta'
+    Finish 13
+}
+Say 'Έλεγχος έκδοσης: ΕΝΤΑΞΕΙ σε όλα.' 'Cyan'
 
 if ($Step -eq 'check' -or -not $Apply) {
     Say ''

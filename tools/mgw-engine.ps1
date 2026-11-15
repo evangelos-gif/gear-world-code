@@ -44,6 +44,9 @@ param(
 
 $ErrorActionPreference = 'Stop'
 $repo = Split-Path -Parent $PSScriptRoot
+# Lessons L156: the live-version guard (refuses a version that lacks the live one) and the version every deploy writes.
+. (Join-Path (Join-Path (Join-Path $repo 'tools') 'lib') 'live-guard.ps1')
+$GwVersionVar = Get-GwVersionVar $repo
 $DbName = 'mens-gear-world'
 $WorkerName = 'mens-gear-world'
 $PreviewName = 'mens-gear-world-preview'
@@ -343,7 +346,7 @@ switch ($Step) {
         if (-not $Apply) { Say ''; Say 'Δοκιμή μόνο (χωρίς -Apply): δεν άλλαξε τίποτα.' 'Green'; Finish 0 }
         if (-not (Confirm-Approval $Phrases.preview)) { Say 'Δεν δόθηκε έγκριση: σταμάτησα χωρίς αλλαγές.' 'Yellow'; Finish 1 }
         $cfg = Write-Config $mgw $db.id -Preview
-        $d = Invoke-Wrangler $mgw ('deploy --config "{0}"' -f $cfg) -NonInteractive
+        $d = Invoke-Wrangler $mgw (('deploy --config \"{0}\"' -f $cfg) + $GwVersionVar) -NonInteractive
         if ($d.code -ne 0) { Say 'Το ανέβασμα απέτυχε. Τίποτα δεν άλλαξε στο live site. Έξοδος:' 'Red'; Say $d.text; Finish 9 }
         $um = [regex]::Match($d.text, 'https://[A-Za-z0-9\.\-]+\.workers\.dev')
         $url = $(if ($um.Success) { $um.Value } else { '' })
@@ -392,6 +395,8 @@ switch ($Step) {
         Say ('  - Η δοκιμαστική διεύθυνση {0}.<λογαριασμός>.workers.dev και τα preview URLs του live Worker κλείνουν (F04): το site ανοίγει μόνο στο {1}, πίσω από τους κανόνες ασφαλείας του. Για να ανοίξει ξανά (μόνο με έγκριση): Workers & Pages > {0} > Settings > Domains & Routes > workers.dev: https://dash.cloudflare.com/?to=/:account/workers-and-pages' -f $WorkerName, $Domain)
         Say ('  - Επαναφορά (αν χρειαστεί, 1 λεπτό): Cloudflare > mens-gear-world > Deployments > η προηγούμενη έκδοση > Rollback: {0}' -f $DashLink)
         if ($live) { Say ('    ή στο PowerShell: npx wrangler rollback {0} --name {1}' -f $live, $WorkerName) }
+        # Lessons L156: never a version that lacks the live one (the Group map went twice that way, 14-15 Nov 2026).
+        if ($Step -eq 'update') { Assert-GwLiveGuard @($Domain) $repo }
         if (-not $Apply) { Say ''; Say 'Δοκιμή μόνο (χωρίς -Apply): δεν άλλαξε τίποτα.' 'Green'; Finish 0 }
         if (-not (Confirm-Approval $phrase)) { Say 'Δεν δόθηκε έγκριση: σταμάτησα χωρίς αλλαγές.' 'Yellow'; Finish 1 }
         $bdir = Join-Path $WorkDir 'backups'
@@ -423,7 +428,7 @@ switch ($Step) {
         [System.IO.File]::WriteAllText($noteFile, ($note -join "`r`n"), (New-Object System.Text.UTF8Encoding($false)))
         Say ('Σημείωμα επαναφοράς: {0}' -f $noteFile) 'Green'
         $cfg = Write-Config $mgw $db.id
-        $d = Invoke-Wrangler $mgw ('deploy --config "{0}"' -f $cfg) -NonInteractive
+        $d = Invoke-Wrangler $mgw (('deploy --config \"{0}\"' -f $cfg) + $GwVersionVar) -NonInteractive
         if ($d.code -ne 0) { Say 'Το ανέβασμα απέτυχε. Το live site έμεινε όπως ήταν. Έξοδος:' 'Red'; Say $d.text; Finish 9 }
         Say ('Ανέβηκε στο {0}.' -f $Domain) 'Green'
         if (-not $NoHttpCheck) { Start-Sleep -Seconds 5; [void](Test-Live ('https://' + $Domain)) }

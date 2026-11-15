@@ -1,5 +1,6 @@
 // Gear World shared Worker engine. A site's worker.js does: export default createWorker(siteConfig).
 import { htmlResponse, jsonResponse, textResponse, redirect, withEdgeCache, withPathCache, secureHeaders } from './lib/http.js';
+import { versionResponse } from './lib/version.js';
 import { verifyTurnstile, rateLimit, isBot, safeEqual } from './lib/security.js';
 import { productPath } from './lib/text.js';
 import * as db from './db.js';
@@ -107,6 +108,8 @@ export function createWorker(site) {
     }
 
     const path = url.pathname;
+    // Which code version is live, for the deploy tools' check (lessons L156). Before anything that reads the database.
+    if (path === '/api/version' && method !== 'POST') return versionResponse(env);
     // What this visitor may see (lessons L107): their country group, and prices checked in the last 30 days.
     const at = localDay(env, host) ?? clockNow();
     // Gear World Hub (?deliver_to= without &badges=1): the views of before L151 until its cards say where each retailer

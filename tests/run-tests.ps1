@@ -28,6 +28,11 @@ function Get-TreeHash([string]$Dir) {
 }
 
 Write-Host ('PowerShell ' + $PSVersionTable.PSVersion + ' on ' + [System.Environment]::OSVersion.VersionString)
+# L156: the live-version guard asks the live sites and GitHub. Here the tests answer for them (no network): every test
+# that is not about the guard sees a live version that the new one contains.
+$env:GW_GUARD_TEST_COMMIT = ('ab' * 20)
+$env:GW_GUARD_TEST_LIVE = '*=none'
+$env:GW_GUARD_TEST_COMPARE = 'ahead'
 if ($env:CI -eq 'true' -and $isWin) {
     Check ($PSVersionTable.PSVersion.Major -eq 5) 'CI runs on Windows PowerShell 5.1'
 }
@@ -603,6 +608,24 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         $deploysBefore = ([regex]::Matches((Calls), 'wrangler deploy')).Count
         Check ((Run-Cf @('-Step', 'update', '-Apply', '-Approve', 'wrong')) -eq 1 -and ([regex]::Matches((Calls), 'wrangler deploy')).Count -eq $deploysBefore) 'cloudflare update with wrong phrase: no deploy'
         Check ((Run-Cf @('-Step', 'update', '-Apply', '-Approve', 'egkrino tgw update', '-NoHttpCheck')) -eq 0 -and ([regex]::Matches((Calls), 'wrangler deploy')).Count -eq $deploysBefore + 1) 'cloudflare update with approval: deploys once'
+        Check ((Calls) -match ('wrangler deploy --var GW_COMMIT:' + ('ab' * 20))) 'L156: the deploy writes its version into the Worker (--var GW_COMMIT)'
+        # L156: a version that does not contain the live one is refused before the phrase is used: nothing is deployed.
+        $gBefore = ([regex]::Matches((Calls), 'wrangler deploy')).Count
+        $env:GW_GUARD_TEST_COMPARE = 'diverged'
+        Check ((Run-Cf @('-Step', 'update', '-Apply', '-Approve', 'egkrino tgw update', '-NoHttpCheck')) -eq 13 -and ([regex]::Matches((Calls), 'wrangler deploy')).Count -eq $gBefore) 'L156: an update from a branch without the live version: refused (13), no deploy'
+        $env:GW_GUARD_TEST_COMPARE = 'behind'
+        Check ((Run-Cf @('-Step', 'update', '-Apply', '-Approve', 'egkrino tgw update', '-NoHttpCheck')) -eq 13 -and ([regex]::Matches((Calls), 'wrangler deploy')).Count -eq $gBefore) 'L156: an older version than the live one: refused (13), no deploy'
+        $env:GW_GUARD_TEST_COMPARE = 'error'
+        Check ((Run-Cf @('-Step', 'update', '-Apply', '-Approve', 'egkrino tgw update', '-NoHttpCheck')) -eq 13 -and ([regex]::Matches((Calls), 'wrangler deploy')).Count -eq $gBefore) 'L156: GitHub does not answer: refused (13), no deploy'
+        $env:GW_GUARD_TEST_COMPARE = 'ahead'
+        $env:GW_GUARD_TEST_LIVE = 'technologygearworld.com=error'
+        Check ((Run-Cf @('-Step', 'update', '-Apply', '-Approve', 'egkrino tgw update', '-NoHttpCheck')) -eq 13 -and ([regex]::Matches((Calls), 'wrangler deploy')).Count -eq $gBefore) 'L156: the live version cannot be read: refused (13), no deploy'
+        $env:GW_GUARD_TEST_LIVE = 'technologygearworld.com=' + ('ab' * 20)
+        $env:GW_GUARD_TEST_COMPARE = 'diverged'
+        Check ((Run-Cf @('-Step', 'update', '-Apply', '-Approve', 'egkrino tgw update', '-NoHttpCheck')) -eq 0 -and ([regex]::Matches((Calls), 'wrangler deploy')).Count -eq $gBefore + 1) 'L156: the same version as the live one again: allowed (GitHub not asked)'
+        $env:GW_GUARD_TEST_LIVE = '*=none'
+        $env:GW_GUARD_TEST_COMPARE = 'ahead'
+        $deploysBefore = ([regex]::Matches((Calls), 'wrangler deploy')).Count
         # F04 (lessons L106): the live config ends with workers.dev and the preview URLs off. A config from before (on) is
         # changed by the update step, after a copy of it; a preview on a live site is refused (it would publish live).
         $cfgT = Join-Path $cfWork 'wrangler.jsonc'
@@ -5659,6 +5682,28 @@ Check ($runs.Count -eq 20 -and $runs[19] -eq 'group-site|update|EGKRINO GROUP UP
 Check (@($runs | Where-Object { $_ -match '\|(update|remove-preview)\|' }).Count -eq 20) 'L131: only update and remove-preview steps'
 $order = ($runs | ForEach-Object { ($_ -split '\|')[0] + ' ' + ($_ -split '\|')[1] }) -join ','
 Check ($order -eq 'cgw-engine update,cgw-engine remove-preview,ggw-engine update,ggw-engine remove-preview,hgw-engine update,hgw-engine remove-preview,kgw-engine update,kgw-engine remove-preview,agw-cloudflare update,bgw-cloudflare update,mgw-engine update,mgw-engine remove-preview,wgw-engine update,wgw-engine remove-preview,tgw-cloudflare update,vgw-cloudflare update,sgw-cloudflare update,pgw-cloudflare update,zgw-cloudflare update,group-site update') 'L131: the order of the paste of 13/11, every engine site with its remove-preview'
+# L156: one site whose live version is not inside the new one stops ALL of them, before the phrase: no site tool runs.
+Remove-Item -LiteralPath $bLog -Force -ErrorAction SilentlyContinue
+$env:GW_GUARD_TEST_LIVE = ('*=none;gearworldgroup.com=' + ('cd' * 20))
+$env:GW_GUARD_TEST_COMPARE = 'diverged'
+& $exe -NoProfile -ExecutionPolicy Bypass -File $batch -Step apply -Apply -ToolDir $fakeDir -OutDir $bOut -NoClipboard -Approve 'EGKRINO ALL UPDATES' | Out-Null
+Check ($LASTEXITCODE -eq 13 -and (& $bLines).Count -eq 0) 'L156: ALL UPDATES from a version without the live Group: refused (13), no site touched'
+$gRep = @(Get-ChildItem -LiteralPath $bOut -Filter 'SITES_UPDATE_ALL_APPLY_*.txt' | Sort-Object LastWriteTime | Select-Object -Last 1)
+$gText = ''
+if ($gRep.Count -eq 1) { $gText = [System.IO.File]::ReadAllText($gRep[0].FullName) }
+Check ($gText.Contains('gearworldgroup.com: ΣΤΟΠ') -and $gText.Contains('ΔΕΝ έχει μέσα') -and $gText.Contains('1 · Gear World Manager')) 'L156: the report names the site and says who to send it to'
+& $exe -NoProfile -ExecutionPolicy Bypass -File $batch -Step check -ToolDir $fakeDir -OutDir $bOut -NoClipboard | Out-Null
+Check ($LASTEXITCODE -eq 13 -and (& $bLines).Count -eq 0) 'L156: the read-only check shows the same stop'
+$env:GW_GUARD_TEST_LIVE = 'cargearworld.com=error;*=none'
+$env:GW_GUARD_TEST_COMPARE = 'ahead'
+& $exe -NoProfile -ExecutionPolicy Bypass -File $batch -Step apply -Apply -ToolDir $fakeDir -OutDir $bOut -NoClipboard -Approve 'EGKRINO ALL UPDATES' | Out-Null
+Check ($LASTEXITCODE -eq 13 -and (& $bLines).Count -eq 0) 'L156: one site that does not answer: refused (13), no site touched'
+$env:GW_GUARD_TEST_COMMIT = 'not-a-commit'
+& $exe -NoProfile -ExecutionPolicy Bypass -File $batch -Step apply -Apply -ToolDir $fakeDir -OutDir $bOut -NoClipboard -Approve 'EGKRINO ALL UPDATES' | Out-Null
+Check ($LASTEXITCODE -eq 13 -and (& $bLines).Count -eq 0) 'L156: a version without a known commit (not run through gw-run.ps1 -Ref): refused (13)'
+$env:GW_GUARD_TEST_COMMIT = ('ab' * 20)
+$env:GW_GUARD_TEST_LIVE = '*=none'
+$env:GW_GUARD_TEST_COMPARE = 'ahead'
 Remove-Item -LiteralPath $bLog -Force -ErrorAction SilentlyContinue
 $env:GW_FAKE_FAIL = 'agw-cloudflare update'
 & $exe -NoProfile -ExecutionPolicy Bypass -File $batch -Step apply -Apply -ToolDir $fakeDir -OutDir $bOut -NoClipboard -Approve 'EGKRINO ALL UPDATES' | Out-Null
@@ -5684,6 +5729,17 @@ foreach ($t in $bTools) {
     if ($t -like '*-engine' -and -not $text.Contains("'ΕΓΚΡΙΝΩ $code REMOVE PREVIEW'")) { $phraseMiss += "$t remove-preview" }
 }
 Check ($phraseMiss.Count -eq 0) ('L131: the real tools ask exactly the phrases the batch passes them ' + ($phraseMiss -join ', '))
+# L156: every one of the 14 tools checks the live version before its live update, and every deploy writes its version.
+$guardMiss = @()
+foreach ($t in $bTools) {
+    $text = [System.IO.File]::ReadAllText((Join-Path (Join-Path $repo 'tools') ($t + '.ps1')))
+    if (-not $text.Contains("'live-guard.ps1')")) { $guardMiss += "$t loads the guard" }
+    if (-not $text.Contains('Assert-GwLiveGuard @($Domain) $repo')) { $guardMiss += "$t checks before update" }
+    foreach ($line in ($text -split "`n")) {
+        if ($line -match 'Invoke-Wrangler' -and $line -match "'deploy[ ']" -and -not $line.Contains('$GwVersionVar')) { $guardMiss += "$t deploy without its version" }
+    }
+}
+Check ($guardMiss.Count -eq 0) ('L156: all 14 site tools check the live version and write their own ' + ($guardMiss -join ', '))
 Remove-Item -LiteralPath $bw -Recurse -Force -ErrorAction SilentlyContinue
 # 21. pc-disk-cleanup.ps1 (8 Nov 2026: "ENOSPC: no space left on device" in an import): read-only by default, one phrase,
 #     keeps the version running now and the newest other copy, the feeds in use, backups and the .txt reports.

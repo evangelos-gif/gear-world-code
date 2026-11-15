@@ -28,6 +28,9 @@ param(
 
 $ErrorActionPreference = 'Stop'
 $repo = Split-Path -Parent $PSScriptRoot
+# Lessons L156: the live-version guard (refuses a version that lacks the live one) and the version every deploy writes.
+. (Join-Path (Join-Path (Join-Path $repo 'tools') 'lib') 'live-guard.ps1')
+$GwVersionVar = Get-GwVersionVar $repo
 $WorkerName = 'gear-world-group'
 $Domain = 'gearworldgroup.com'
 $Phrases = @{ launch = 'ΕΓΚΡΙΝΩ GROUP SITE'; update = 'ΕΓΚΡΙΝΩ GROUP UPDATE' }
@@ -197,10 +200,12 @@ switch ($Step) {
         Say '  - Τα Gear World sites, το hub και οι βάσεις ΔΕΝ αλλάζουν.'
         if ($live) { Say ('  - Επαναφορά: Rollback στο {0} ή: npx wrangler rollback {1} --name {2}' -f $DashLink, $live, $WorkerName) }
         else { Say ('  - Επαναφορά: npx wrangler delete --name {0} (σβήνει τη σελίδα· το email δεν επηρεάζεται)' -f $WorkerName) }
+        # Lessons L156: never a version that lacks the live one (the Group map went twice that way, 14-15 Nov 2026).
+        if ($Step -eq 'update') { Assert-GwLiveGuard @($Domain) $repo }
         if (-not $Apply) { Say ''; Say 'Δοκιμή μόνο (χωρίς -Apply): δεν άλλαξε τίποτα.' 'Green'; Finish 0 }
         if (-not (Confirm-Approval $Phrases[$Step])) { Say 'Δεν δόθηκε έγκριση: σταμάτησα χωρίς αλλαγές.' 'Yellow'; Finish 1 }
         $cfg = Write-Config $grp
-        $d = Invoke-Wrangler $grp ('deploy --config "{0}"' -f $cfg) -NonInteractive
+        $d = Invoke-Wrangler $grp (('deploy --config \"{0}\"' -f $cfg) + $GwVersionVar) -NonInteractive
         if ($d.code -ne 0) { Say 'Το ανέβασμα απέτυχε. Τίποτα άλλο δεν άλλαξε. Έξοδος:' 'Red'; Say $d.text; Finish 9 }
         Say ('Ανέβηκε στο {0}.' -f $Domain) 'Green'
         if (-not $NoHttpCheck) {
