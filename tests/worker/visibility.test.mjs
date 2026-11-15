@@ -31,7 +31,7 @@ test('country groups (L151): the UK sees only what delivers there, the US its ow
   // Ottocast (massive import round 2b, 14 Nov 2026): the European countries of its shipping page, not the UK.
   const OTTOCAST = ['DE', 'FR', 'NL', 'BE', 'AT', 'CH', 'ES', 'IT', 'PT', 'GR', 'PL', 'CZ', 'SK', 'HU', 'SE', 'FI', 'DK', 'NO', 'EE', 'LV', 'LT', 'HR', 'SI', 'BG', 'RO'];
   // Round 2c (14 Nov 2026, L144): the tyre sites of the Pneus.be network, each for its own country.
-  // VEVOR's feed on AGW is in Dutch (L164): seen only in the Netherlands and Belgium.
+  // VEVOR's feed on AGW is in Dutch (L165): seen only in the Netherlands and Belgium.
   assert.deepEqual(agw.deliversTo, { default: ['GB'], retailers: { 'AliExpress PL': ['PL'], 'Pneus.be': ['BE'], 'Neumaticos.es': ['ES'], 'Pneumatici.it': ['IT'], 'Tanie-Opony.pl': ['PL'], VEVOR: ['EU', 'IS', 'LI', 'NO'], Ottocast: OTTOCAST }, languages: { VEVOR: 'nl' } });
   assert.deepEqual(config.vgw.deliversTo.retailers, { 'AliExpress PL': ['PL'], VEVOR: ['EU', 'IS', 'LI', 'NO'] });
   for (const s of ['cgw', 'bgw', 'pgw']) assert.deepEqual(config[s].deliversTo.retailers.VEVOR, ['EU', 'IS', 'LI', 'NO'], s);
@@ -46,14 +46,14 @@ test('country groups (L151): the UK sees only what delivers there, the US its ow
   // No retailer of AGW ships to the US, so the US gets the UK view there (L141).
   assert.equal(g('US').group, 'gb');
   // Every other country, and an unknown one (lessons L151): ALL the products, one copy ("all") for all of them, but the
-  // Dutch feed of VEVOR (L164). The EU, Switzerland, Canada ...
+  // Dutch feed of VEVOR (L165). The EU, Switzerland, Canada ...
   for (const cc of ['DE', 'IE', 'CH', 'NO', 'IS', ...EU_COUNTRIES.filter(c => !['PL', 'NL', 'BE'].includes(c)), 'CA', 'AU', 'JP', '', 'XX', 'T1', 'gbr', null, undefined]) {
     assert.equal(g(cc).group, 'all', `${cc}: the all view`);
-    assert.deepEqual(g(cc).hidden, ['AliExpress PL', 'Tanie-Opony.pl', 'VEVOR'], `${cc}: the Poland-only shops (L157) and the Dutch feed (L164) hidden`);
+    assert.deepEqual(g(cc).hidden, ['AliExpress PL', 'Tanie-Opony.pl', 'VEVOR'], `${cc}: the Poland-only shops (L157) and the Dutch feed (L165) hidden`);
     assert.equal(g(cc).only, null, `${cc}: every retailer`);
     assert.equal(g(cc).everyRetailer, true, cc);
   }
-  // The Netherlands and Belgium (L164): the all view plus VEVOR's Dutch feed, one copy for both. Belgium is still not open
+  // The Netherlands and Belgium (L165): the all view plus VEVOR's Dutch feed, one copy for both. Belgium is still not open
   // (Pneus.be has 92% of what delivers there, 14 Nov 2026).
   for (const cc of ['NL', 'BE']) {
     assert.equal(g(cc).group, 'be-nl', `${cc}: the all view with the Dutch feed`);
@@ -64,26 +64,27 @@ test('country groups (L151): the UK sees only what delivers there, the US its ow
   // (L157): only what delivers there.
   for (const cc of ['ES', 'IT']) assert.equal(g(cc).group, 'all', `${cc}: the all view`);
   assert.equal(g('PL').group, 'pl');
-  assert.deepEqual(g('PL').only, ['AliExpress PL', 'Ottocast', 'Tanie-Opony.pl'], 'Poland: not the Dutch feed of VEVOR (L164)');
+  assert.deepEqual(g('PL').only, ['AliExpress PL', 'Ottocast', 'Tanie-Opony.pl'], 'Poland: not the Dutch feed of VEVOR (L165)');
   // Construction: Reidl to Germany and Austria; VEVOR the EEA; GRABO worldwide.
   const c = cc => viewFor(config.cgw, cc, NOW);
   assert.deepEqual(c('GB').hidden, ['AliExpress PL', 'Reidl', 'VEVOR']);
   for (const cc of ['FR', 'CH']) assert.equal(c(cc).group, 'all', `CGW ${cc}`);
-  // Reidl's feed is in German (L164): Germany and Austria see the all view plus Reidl; the others never see it.
+  // Reidl's feed is in German (L165): Germany and Austria see the all view plus Reidl; the others never see it.
   for (const cc of ['DE', 'AT']) assert.equal(c(cc).group, 'at-de', `CGW ${cc}`);
   assert.ok(c('FR').hidden.includes('Reidl') && !c('DE').hidden.includes('Reidl'));
   // Women's: 100% PURE to the EU, Switzerland and Norway, FOREO to the EU; Jeulia and Dream Pairs to the US only; MASON
   // New York and Needs No Label to the UK and the US (round 2b, 14 Nov 2026).
-  assert.deepEqual(viewFor(config.wgw, 'GB', NOW).hidden, ['100% PURE', 'AliExpress PL', 'Bazta IE', 'Dream Pairs', 'FOREO', 'Invicta Stores', 'Jeulia', 'Plusshop IE', 'Uhrcenter']);
-  // Uhrcenter's feed is in German (L164): Switzerland, one of its German-speaking countries, sees it; France does not.
+  // Round 2 of the mass import (15 Nov 2026, L164): TEMU, Dima Eyewear, Grey State and Kixies to the US, Xpluswear to the EU.
+  assert.deepEqual(viewFor(config.wgw, 'GB', NOW).hidden, ['100% PURE', 'AliExpress PL', 'Bazta IE', 'Dima Eyewear', 'Dream Pairs', 'FOREO', 'Grey State', 'Invicta Stores', 'Jeulia', 'Kixies', 'Plusshop IE', 'TEMU', 'Uhrcenter', 'Xpluswear']);
+  // Uhrcenter's feed is in German (L165): Switzerland, one of its German-speaking countries, sees it; France does not.
   assert.equal(viewFor(config.wgw, 'CH', NOW).group, viewFor(config.wgw, 'DE', NOW).group);
   assert.notEqual(viewFor(config.wgw, 'CH', NOW).group, 'all');
   assert.equal(viewFor(config.wgw, 'FR', NOW).group, 'all');
   assert.equal(viewFor(config.wgw, 'DE', NOW).only, null);
   // The US view (owner, 14 Nov 2026, lessons L141): what ships to the US, nothing else. Before it, Wavytalk was never shown.
-  assert.deepEqual(viewFor(config.wgw, 'US', NOW).only, ['Dream Pairs', 'Jeulia', 'MASON New York', 'Needs No Label']);
-  assert.deepEqual(viewFor(config.mgw, 'US', NOW).only, ['Dream Pairs', 'Jeulia', 'Maceoo', 'Wavytalk']);
-  assert.deepEqual(viewFor(config.mgw, 'GB', NOW).hidden, ['AliExpress PL', 'Bazta IE', 'Dream Pairs', 'Invicta Stores', 'Jeulia', 'Maceoo', 'Plusshop IE', 'Uhrcenter', 'Wavytalk']);
+  assert.deepEqual(viewFor(config.wgw, 'US', NOW).only, ['Dima Eyewear', 'Dream Pairs', 'Grey State', 'Jeulia', 'Kixies', 'MASON New York', 'Needs No Label', 'TEMU']);
+  assert.deepEqual(viewFor(config.mgw, 'US', NOW).only, ['Dream Pairs', 'Jeulia', 'Maceoo', 'TEMU', 'Wavytalk']);
+  assert.deepEqual(viewFor(config.mgw, 'GB', NOW).hidden, ['AliExpress PL', 'Bazta IE', 'Dream Pairs', 'Invicta Stores', 'Jeulia', 'Maceoo', 'Plusshop IE', 'TEMU', 'Uhrcenter', 'Wavytalk']);
   // Round 3 (15 Nov 2026, L147): Invicta Stores ships to Europe but Spain and Portugal, and is kept out of the UK view
   // (customs on delivery); HOME-TEX ships to 19 countries, never the UK. The all view (L151) has both, with their badge.
   assert.ok(viewFor(config.hgw, 'GB', NOW).hidden.includes('HOME-TEX'));
@@ -96,10 +97,10 @@ test('country groups (L151): the UK sees only what delivers there, the US its ow
   const ht = deliveryCountries(config.hgw, 'HOME-TEX');
   assert.equal(ht.length, 19);
   for (const cc of ['GB', 'IE', 'DK', 'SE', 'NO']) assert.ok(!ht.includes(cc), `HOME-TEX: not ${cc}`);
-  assert.deepEqual(viewFor(config.kgw, 'US', NOW).only, ['Diecast Models Wholesale', 'Dream Pairs', 'Kaiya Baby']);
-  assert.deepEqual(viewFor(config.hgw, 'US', NOW).only, ['AlorAir', 'Kincmo', 'Mosaic Weighted Blankets']);
+  assert.deepEqual(viewFor(config.kgw, 'US', NOW).only, ['Diecast Models Wholesale', 'Dream Pairs', 'Kaiya Baby', 'TEMU', 'UPPER']);
+  assert.deepEqual(viewFor(config.hgw, 'US', NOW).only, ['Airdog', 'AlorAir', 'Imarku', 'Kincmo', 'LOOMY Home', 'Mosaic Weighted Blankets', 'Rowabi', 'Super Area Rugs', 'TEMU']);
   assert.equal(viewFor(config.hgw, 'FR', NOW).group, 'all');
-  assert.deepEqual(viewFor(config.ggw, 'US', NOW).only, ['Click and Grow']);
+  assert.deepEqual(viewFor(config.ggw, 'US', NOW).only, ['Click and Grow', 'TEMU']);
   assert.deepEqual(viewFor(config.zgw, 'US', NOW).only, ['ALZOO']);
   assert.deepEqual(viewFor(config.cgw, 'US', NOW).only, ['GRABO']);
   assert.equal(viewFor(config.cgw, 'US', NOW).group, 'us', 'CGW: the US sees GRABO (until L151 it shared the copy of Switzerland)');
@@ -134,12 +135,12 @@ test('country groups (L151): the UK sees only what delivers there, the US its ow
   assert.deepEqual(t('US').only, ['MonsGeek']);
   for (const cc of ['IE', 'FR', 'MT', 'CA', '']) assert.equal(t(cc).group, 'all', `TGW ${cc}: the all view`);
   for (const s of ['kgw', 'ggw', 'vgw', 'bgw', 'pgw', 'mgw', 'tgw']) assert.equal(viewFor(config[s], 'FR', NOW).group, 'all', `${s}: France sees all the products`);
-  // ZGW (L164): its only shop that does not deliver to the UK, ALZOO, ships only to the US, so the all view is the UK
+  // ZGW (L165): its only shop that does not deliver to the UK, ALZOO, ships only to the US, so the all view is the UK
   // view (one copy, as before L151): France sees every retailer that can deliver to it.
   assert.equal(viewFor(config.zgw, 'FR', NOW).group, 'gb');
   assert.equal(countryGroups(config.zgw).all, countryGroups(config.zgw).home);
   // Few groups per site (one page copy each in the cache): the UK, all, the US, Poland (L157), and one for the countries
-  // that speak the language of a feed (L164).
+  // that speak the language of a feed (L165).
   for (const s of SITES) {
     const groups = countryGroups(config[s]).list;
     const list = groups.map(x => x.id);
@@ -166,8 +167,8 @@ test('freshness: hidden after 30 days, "Check price and stock at the retailer" a
   assert.equal(needsCheck(v, row('2026-10-25 23:00:00')), true);
   assert.equal(needsCheck(v, row('2026-10-26 00:00:01')), false);
   const sql = visibleSql(v);
-  assert.equal(sql.sql, 'likelihood(+p.retailer NOT IN (?, ?, ?, ?, ?, ?, ?, ?, ?) AND +p.last_seen_at >= ?, 1.0)');
-  assert.deepEqual(sql.binds, ['AliExpress PL', 'Bazta IE', 'Dream Pairs', 'Invicta Stores', 'Jeulia', 'Maceoo', 'Plusshop IE', 'Uhrcenter', 'Wavytalk', '2026-10-10']);
+  assert.equal(sql.sql, 'likelihood(+p.retailer NOT IN (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) AND +p.last_seen_at >= ?, 1.0)');
+  assert.deepEqual(sql.binds, ['AliExpress PL', 'Bazta IE', 'Dream Pairs', 'Invicta Stores', 'Jeulia', 'Maceoo', 'Plusshop IE', 'TEMU', 'Uhrcenter', 'Wavytalk', '2026-10-10']);
   assert.equal(visibleSql(viewFor(config.agw, 'BE', NOW)).sql, 'likelihood(+p.retailer NOT IN (?, ?) AND +p.last_seen_at >= ?, 1.0)', 'the all view: without the Poland-only shops (L157)');
   assert.equal(visibleSql(viewFor(config.tgw, 'BE', NOW)).sql, 'likelihood(+p.retailer NOT IN (?) AND +p.last_seen_at >= ?, 1.0)', 'the all view: without AliExpress PL (L157)');
   assert.equal(visibleSql(viewFor({ ...config.agw, strictCountries: ['BE'] }, 'BE', NOW)).sql, 'likelihood(+p.retailer IN (?, ?, ?) AND +p.last_seen_at >= ?, 1.0)', 'a country with a view of its own: IN');
@@ -178,7 +179,7 @@ test('the page cache keeps one copy per country group (lessons L107)', () => {
   const be = viewFor(config.agw, 'FR', NOW);
   const gb = viewFor(config.agw, 'US', NOW);
   assert.equal(cacheKeyUrl('https://cargearworld.com/category/tyres-wheels/?page=2', be), 'https://cargearworld.com/category/tyres-wheels/?page=2&gw-view=all');
-  // Belgium and the Netherlands (L164, VEVOR's Dutch feed): a copy of their own.
+  // Belgium and the Netherlands (L165, VEVOR's Dutch feed): a copy of their own.
   assert.equal(cacheKeyUrl('https://cargearworld.com/', viewFor(config.agw, 'BE', NOW)), 'https://cargearworld.com/?gw-view=be-nl');
   assert.equal(cacheKeyUrl('https://cargearworld.com/', gb), 'https://cargearworld.com/?gw-view=gb');
   assert.notEqual(cacheKeyUrl('https://cargearworld.com/', be), cacheKeyUrl('https://cargearworld.com/', gb));
@@ -228,7 +229,7 @@ test('L151: a country opens with 30,000 fresh products from 4 retailers, none ab
 
 test('L151: the Hub\'s search keeps the views of before L151 (hubViewFor) until its cards say where each retailer delivers', () => {
   const h = (site, cc) => hubViewFor(site, cc, NOW);
-  // VEVOR's feed on AGW is in Dutch (L164): the Hub lists it only for the Netherlands and Belgium.
+  // VEVOR's feed on AGW is in Dutch (L165): the Hub lists it only for the Netherlands and Belgium.
   assert.deepEqual(h(config.agw, 'DE').only, ['Ottocast']);
   assert.deepEqual(h(config.agw, 'BE').only, ['Ottocast', 'Pneus.be', 'VEVOR']);
   assert.deepEqual(h(config.agw, 'NL').only, ['Ottocast', 'VEVOR']);
@@ -245,7 +246,7 @@ test('L151: the Hub\'s search keeps the views of before L151 (hubViewFor) until 
   // A strict (later: open) country: as on the site.
   assert.deepEqual(h({ ...config.agw, strictCountries: ['BE'] }, 'BE').only, ['Ottocast', 'Pneus.be', 'VEVOR']);
   // A site whose default retailers deliver everywhere, with a US-only shop: the US view is every retailer there, and the
-  // Hub keeps it (the US shop stays in, lessons L141; independent review of 14 Nov 2026). Since L164 the all view leaves
+  // Hub keeps it (the US shop stays in, lessons L141; independent review of 14 Nov 2026). Since L165 the all view leaves
   // the US-only shop out, so the US has a copy of its own.
   const world = { ...config.tgw, deliversTo: { default: ['WORLD'], retailers: { Wavytalk: ['US'] } } };
   assert.equal(viewFor(world, 'US', NOW).group, 'us');
@@ -454,7 +455,7 @@ test('sitemaps and /api/stats: the UK view for everyone; categories with fewer t
   assert.ok(stats.all_products > stats.products, 'the test data has products that do not deliver to the UK');
   const by = Object.fromEntries(stats.delivery.map(x => [x.retailer, x]));
   assert.deepEqual(by['Pneus.be'].countries, ['BE']);
-  // VEVOR's feed on AGW is in Dutch (L164): the Group counts it only where its visitors see it.
+  // VEVOR's feed on AGW is in Dutch (L165): the Group counts it only where its visitors see it.
   assert.deepEqual(by.VEVOR.countries, ['NL', 'BE']);
   assert.equal(stats.delivery.reduce((t, x) => t + x.products, 0), stats.all_products);
   for (const x of stats.delivery) if (x.retailer !== 'Pneus.be' && x.retailer !== 'VEVOR') assert.deepEqual(x.countries, ['GB'], x.retailer);
@@ -873,7 +874,7 @@ test('where the retailers deliver, as every card of the all view says it (L151)'
     assert.equal(v.group, 'all', `${s} ${cc}`);
     for (const n of names) assert.equal(retailerInView(v, n), true, `${s} ${cc}: ${n}`);
   }
-  // L164: not the feeds in another language (AGW VEVOR in Dutch, CGW Reidl and WGW Uhrcenter in German) nor the shops
+  // L165: not the feeds in another language (AGW VEVOR in Dutch, CGW Reidl and WGW Uhrcenter in German) nor the shops
   // that ship only to the US (WGW Jeulia); the countries that speak the language see those feeds, with the same line.
   for (const [s, n] of [['agw', 'VEVOR'], ['cgw', 'Reidl'], ['wgw', 'Uhrcenter'], ['wgw', 'Jeulia']]) assert.equal(retailerInView(viewFor(config[s], 'FR', NOW), n), false, `${s} FR: ${n}`);
   for (const [s, cc, n] of [['agw', 'BE', 'VEVOR'], ['cgw', 'AT', 'Reidl'], ['wgw', 'DE', 'Uhrcenter'], ['wgw', 'US', 'Jeulia']]) assert.equal(retailerInView(viewFor(config[s], cc, NOW), n), true, `${s} ${cc}: ${n}`);
@@ -1004,7 +1005,7 @@ test('L160: browseView: only the retailers that deliver to that country, open or
   assert.equal(be.browse, 'BE');
   assert.deepEqual(be.only, ['Ottocast', 'Pneus.be', 'VEVOR'].filter(r => retailerInView(be, r)));
   assert.ok(!retailerInView(be, 'Example Motor Parts'));
-  assert.equal(viewFor(config.agw, 'BE', NOW).group, 'be-nl', 'a visitor from Belgium still gets the all view (L151), with the Dutch feed (L164)');
+  assert.equal(viewFor(config.agw, 'BE', NOW).group, 'be-nl', 'a visitor from Belgium still gets the all view (L151), with the Dutch feed (L165)');
   assert.equal(browseView(config.agw, 'GB', NOW).group, viewFor(config.agw, 'GB', NOW).group);
   assert.equal(browseView(config.agw, 'BE', NOW).group, browseView(config.agw, 'BE', NOW).group, 'stable');
   assert.deepEqual(browseView(config.agw, 'US', NOW).only, [], 'nobody on AGW ships to the US: an empty view, not the UK one');

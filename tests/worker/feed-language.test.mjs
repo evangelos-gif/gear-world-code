@@ -1,4 +1,4 @@
-// Lessons L164 (owner, 15 Nov 2026): the shops whose feed is in French, Dutch or German (Zadig&Voltaire, Petit Bateau,
+// Lessons L165 (owner, 15 Nov 2026): the shops whose feed is in French, Dutch or German (Zadig&Voltaire, Petit Bateau,
 // Teufel, Koffer.de, PUMA) waited, because the sites could not show them only in the countries of their language; and
 // the shops that ship only to the US (TEMU US) are seen only by visitors from the US ("Only in the USA").
 // A feed language is written in the site config (deliversTo.languages). Such a retailer is shown only to visitors from a
@@ -36,7 +36,7 @@ const demo = {
   }
 };
 
-test('L164: the countries of each feed language, and the countries a retailer is shown in', () => {
+test('L165: the countries of each feed language, and the countries a retailer is shown in', () => {
   assert.deepEqual(FEED_LANGUAGES.de, ['DE', 'AT', 'CH', 'LI', 'LU']);
   assert.deepEqual(FEED_LANGUAGES.fr, ['FR', 'BE', 'LU', 'CH']);
   assert.deepEqual(FEED_LANGUAGES.nl, ['NL', 'BE']);
@@ -64,7 +64,7 @@ test('L164: the countries of each feed language, and the countries a retailer is
   assert.deepEqual(shownCountries(config.vgw, 'VEVOR'), ['EU', 'IS', 'LI', 'NO'], 'VGW: VEVOR in English, where it delivers');
 });
 
-test('L164: the config check names a wrong feed language, one without its own countries, one shown nowhere', () => {
+test('L165: the config check names a wrong feed language, one without its own countries, one shown nowhere', () => {
   const bad = { deliversTo: { default: ['GB'], retailers: { A: ['DE'], C: ['PL'] }, languages: { A: 'xx', B: 'de', C: 'de' } } };
   assert.deepEqual(deliveryConfigProblems(bad), [
     'A: unknown feed language "xx"',
@@ -81,7 +81,7 @@ test('L164: the config check names a wrong feed language, one without its own co
   assert.deepEqual(all.sort(), ['agw VEVOR nl', 'cgw Reidl de', 'mgw Uhrcenter de', 'wgw Uhrcenter de']);
 });
 
-test('L164: a feed in another language: only the countries that speak it, never the UK, the all view or Google', () => {
+test('L165: a feed in another language: only the countries that speak it, never the UK, the all view or Google', () => {
   const v = cc => viewFor(demo, cc, NOW);
   const shows = (cc, name) => retailerInView(v(cc), name);
   for (const n of ['Fr EU', 'Fr World', 'De Mix', 'De UK', 'It Shop', 'Us Only']) {
@@ -131,7 +131,7 @@ test('L164: a feed in another language: only the countries that speak it, never 
   assert.deepEqual(browseView(demo, 'AT', NOW).only, [], 'nobody for Austria');
 });
 
-test('L164: the hidden reason of a feed in another language is "language", not "country"; the US-only shop stays "country"', () => {
+test('L165: the hidden reason of a feed in another language is "language", not "country"; the US-only shop stays "country"', () => {
   const row = retailer => ({ retailer, last_seen_at: `${TEST_DAY} 06:00:00` });
   assert.equal(hiddenReason(viewFor(demo, 'GB', NOW), row('Fr EU')), 'language');
   assert.equal(hiddenReason(viewFor(demo, 'GR', NOW), row('Fr EU')), 'language');
@@ -143,7 +143,7 @@ test('L164: the hidden reason of a feed in another language is "language", not "
   assert.equal(viewFor(config.tgw, 'GB', NOW).languages, null, 'a site without feed languages');
 });
 
-test('L164: the shops that ship only to the US are seen only from the US (owner: "Only in the USA")', () => {
+test('L165: the shops that ship only to the US are seen only from the US (owner: "Only in the USA")', () => {
   assert.deepEqual(LOCAL_ONLY_COUNTRIES, ['PL', 'US']);
   let count = 0;
   for (const s of SITES) {
@@ -165,7 +165,7 @@ test('L164: the shops that ship only to the US are seen only from the US (owner:
   assert.equal(retailerInView(viewFor(config.wgw, 'FR', NOW), 'Jeulia'), false);
 });
 
-test('L164: the Group counts a feed in another language only where it is shown; the About page says the rule', () => {
+test('L165: the Group counts a feed in another language only where it is shown; the About page says the rule', () => {
   assert.match(read('src/db.js'), /countries: shownCountries\(site, x\.name\)/);
   const about = read('src/pages/info.js');
   assert.ok(about.includes('A product described in a language other than English is shown only in the countries where that language is spoken.'));
@@ -214,7 +214,7 @@ const getAgw = (path, env, country = '', ua = 'Mozilla/5.0 test') => {
 };
 const envOf = d => ({ DB: d, CLICK_LOG: 'off', FX_FETCH: async () => { throw new Error('offline'); } });
 
-test('L164: AGW pages: the Netherlands and Belgium see VEVOR\'s Dutch feed; Germany, Greece, the UK and Google never', async () => {
+test('L165: AGW pages: the Netherlands and Belgium see VEVOR\'s Dutch feed; Germany, Greece, the UK and Google never', async () => {
   const d = vevorShop();
   const env = envOf(d);
   const krik = html => (html.split('<main')[1] || '').match(/VEVOR hydraulische krik/g) || [];

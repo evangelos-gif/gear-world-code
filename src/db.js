@@ -941,7 +941,7 @@ export async function stats(db, view = null, site = null) {
     retailers: uk.length,
     retailer_names: uk.map(x => x.name),
     all_products: rows.reduce((t, x) => t + x.fresh, 0),
-    // The countries whose visitors see the retailer (a feed in another language only where it is spoken, lessons L164).
+    // The countries whose visitors see the retailer (a feed in another language only where it is spoken, lessons L165).
     delivery: rows.map(x => ({ retailer: x.name, products: x.fresh, countries: shownCountries(site, x.name) }))
   };
 }

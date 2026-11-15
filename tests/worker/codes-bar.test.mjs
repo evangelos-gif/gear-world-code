@@ -44,7 +44,7 @@ const VIEWS = [...[...EUROPE, 'US'].map(c => [c, c, '']), ['CA', 'CA', ''], ['un
 const seeing = (except = []) => Object.fromEntries(VIEWS.map(([name]) => [name, !except.includes(name)]));
 const SHOWN = { CGW: seeing(['US', 'PL']), AGW: seeing(['PL']), BGW: seeing(['PL']), GGW: seeing(['US', 'PL']), HGW: seeing(['US', 'PL']), KGW: seeing(['US', 'PL']) };
 // How many view groups each site has: gb, all, pl, and us where a retailer ships to the US; and one for the countries
-// that speak the language of a feed (L164: CGW Reidl in German for DE and AT, AGW VEVOR in Dutch for NL and BE).
+// that speak the language of a feed (L165: CGW Reidl in German for DE and AT, AGW VEVOR in Dutch for NL and BE).
 const GROUPS = { CGW: 5, AGW: 4, BGW: 3, GGW: 4, HGW: 4, KGW: 4 };
 // What the bar says in the UK view while the codes of the config run (promos/promos.js, 10 Nov 2026).
 const WORDS = {
@@ -120,7 +120,7 @@ test('L115, L151: every view group of the sites with codes: the UK view and the 
       for (const c of g.countries) assert.equal(want[c], has, `${code} ${g.id} ${c}: expected ${has ? 'the bar' : 'no bar'}`);
     }
     // By name: Germany, Belgium, the Netherlands, France, Ireland and Austria are in the all view (L151), or in the all
-    // view plus the feeds in their language (L164), with the codes.
+    // view plus the feeds in their language (L165), with the codes.
     const allLike = [all.id, ...list.filter(g => g.language).map(g => g.id)];
     for (const c of ['DE', 'BE', 'NL', 'FR', 'IE', 'AT', 'CH']) assert.ok(allLike.includes(viewFor(site, c).group) && want[c], `${code} ${c}: the all view, the codes`);
     // The US (lessons L141): a view of its own where a retailer ships there (CGW GRABO, the US shops of GGW, HGW, KGW).
@@ -343,7 +343,7 @@ test('L115, L151: cached pages keep the bar in the copy of their own view group 
       // The all view (L151): France, Belgium, Canada and an unknown country share one more copy, with the bar.
       for (const country of ['FR', 'BE', 'CA', '']) assert.ok(barOf((await get(path, env, country)).html), `${path} ${country || 'unknown'}`);
       assert.equal(store.size, size + 1, `${path}: one copy for the all view`);
-      // Germany and Austria (L164, Reidl in German): one more copy, the all view plus Reidl, with the bar.
+      // Germany and Austria (L165, Reidl in German): one more copy, the all view plus Reidl, with the bar.
       for (const country of ['DE', 'AT']) assert.ok(barOf((await get(path, env, country)).html), `${path} ${country}`);
       assert.equal(store.size, size + 2, `${path}: one copy for Germany and Austria`);
       assert.ok(barOf(await store.get(`${key}${sep}gw-view=all`).clone().text()), `${path}: the bar is in the cached all copy`);

@@ -67,9 +67,10 @@ test('L144 tyres: each shop for its own country, prices in its own currency, rat
   ];
   writeFileSync(join(archive, 'AWIN_11552_22139.csv.gz'), gzipSync(Buffer.from(head + rows.map(r => r.join(',')).join('\n') + '\n')));
   const sourcesFile = join(dir, 'sources.json');
-  // L146: the three tyre shops are paused on the real site; a paused shop is never read, not even with --only.
-  for (const id of [11552, 12716, 82555]) assert.match(src.find(x => x.advertiserId === id).paused, /^L146:/);
-  writeFileSync(sourcesFile, JSON.stringify({ sources: src.filter(x => x.advertiserId === 11552) }));
+  // L146: a paused shop is never read, not even with --only. The three tyre shops were paused from 14 Nov 2026 until the
+  // big-category fix went live (L159, 15 Nov 2026): on the real site they are open again.
+  for (const id of [11552, 12716, 82555]) assert.equal(src.find(x => x.advertiserId === id).paused, undefined);
+  writeFileSync(sourcesFile, JSON.stringify({ sources: src.filter(x => x.advertiserId === 11552).map(x => ({ ...x, paused: 'L146: test' })) }));
   const held = await planImport({ archive, sourcesFile, outDir: join(dir, 'held'), rules: AGW_RULES, label: 'AGW', only: ['11552'], now: new Date('2026-11-14T19:00:00Z') });
   assert.equal(held.stats.rows, 0, 'a paused shop is not read');
   assert.match(readFileSync(join(dir, 'held', 'report.txt'), 'utf8'), /Neumaticos\.es: PAUSED \(L146:/);

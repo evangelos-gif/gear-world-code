@@ -66,8 +66,10 @@ export default {
   // Ireland"; round 2c, L144).
   // AliExpress PL (Awin 12044, pl.aliexpress.com, Polish names, prices in zloty): Poland only, so only the Poland view
   // shows it (owner, 15 Nov 2026, lessons L157); its prices get "≈ £…" (foreignCurrencies PLN).
-  deliversTo: { default: ['GB'], retailers: { 'AliExpress PL': ['PL'], 'Bazta IE': ['IE'], 'Plusshop IE': ['IE'], 'Dream Pairs': ['US'], 'Kaiya Baby': ['US'], 'Diecast Models Wholesale': ['US'] } },
-  foreignCurrencies: ['PLN'],
+  deliversTo: { default: ['GB'], retailers: { 'AliExpress PL': ['PL'], 'Bazta IE': ['IE'], 'Plusshop IE': ['IE'], 'Dream Pairs': ['US'], 'Kaiya Baby': ['US'], 'Diecast Models Wholesale': ['US'],
+    // Mass import round 2 (15 Nov 2026, lessons L164): TEMU's US feed and UPPER only to the US, in dollars.
+    TEMU: ['US'], UPPER: ['US'] } },
+  foreignCurrencies: ['USD', 'PLN'],
   displayCurrencies: ['GBP', 'EUR', 'PLN', 'ALL', 'RON', 'RUB'],
   cart: { name: 'Saved list', maxItems: 30 },
   voiceSearch: true,

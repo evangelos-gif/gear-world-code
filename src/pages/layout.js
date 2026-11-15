@@ -147,7 +147,7 @@ export function deliveryLine(site, retailer, { cls = 'label-ship', tag = 'p', ma
     : html`<p class="${cls}" data-ship="${codes}">${inner}</p>`;
 }
 
-// The countries whose visitors see a retailer with a feed in another language than English (lessons L164), for the
+// The countries whose visitors see a retailer with a feed in another language than English (lessons L165), for the
 // notice of its products everywhere else: the flags and names as in deliveryLine, under the notice that says why.
 export function shownLine(site, retailer) {
   const list = shownCountries(site, retailer);

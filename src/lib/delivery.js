@@ -69,7 +69,7 @@ export function deliveryConfigProblems(site) {
   return problems;
 }
 
-// Feeds written in another language than English (owner, 15 Nov 2026, lessons L164: "the shops whose feed is in
+// Feeds written in another language than English (owner, 15 Nov 2026, lessons L165: "the shops whose feed is in
 // French, Dutch or German are seen only in the countries of their language"). A retailer named in deliversTo.languages
 //   deliversTo: { default: ['GB'], retailers: { Reidl: ['DE', 'AT'] }, languages: { Reidl: 'de' } }
 // is shown only to visitors from a country it delivers to AND where that language is spoken (src/lib/visibility.js):

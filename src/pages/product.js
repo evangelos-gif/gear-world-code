@@ -33,7 +33,7 @@ export function hiddenProductPage(site, product, category, notice) {
     ...(category ? [{ name: category.name, path: categoryPath(category.slug) }] : []),
     { name: truncate(product.product_name, 60), path, keep: true }
   ];
-  // A feed in another language (lessons L164): the retailer may deliver to the visitor's country, so the notice says why
+  // A feed in another language (lessons L165): the retailer may deliver to the visitor's country, so the notice says why
   // instead, and the line under it names the countries whose visitors see it.
   const message = notice === 'country'
     ? tr('{0} does not deliver to your country.', keepName(product.retailer))

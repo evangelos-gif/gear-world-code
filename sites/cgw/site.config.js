@@ -59,7 +59,7 @@ export default {
   // VEVOR (vevor.nl) delivers to the EU and the EEA, not to the UK (owner, 9 Nov 2026, lessons L107).
   // AliExpress PL (Awin 12044, pl.aliexpress.com, Polish names, prices in zloty): Poland only, so only the Poland view
   // shows it (owner, 15 Nov 2026, lessons L157); its prices get "≈ £…" (foreignCurrencies PLN).
-  // Reidl's feed is in German: only visitors from Germany and Austria see it (lessons L164).
+  // Reidl's feed is in German: only visitors from Germany and Austria see it (lessons L165).
   deliversTo: { default: ['GB'], retailers: { 'AliExpress PL': ['PL'], Reidl: ['DE', 'AT'], VEVOR: ['EU', 'IS', 'LI', 'NO'], GRABO: ['WORLD'] }, languages: { Reidl: 'de' } },
 
   // Countries that see only the retailers that deliver there instead of the UK view with its bar (lessons L107); none yet.

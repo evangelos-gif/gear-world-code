@@ -3,17 +3,35 @@
 // samochodowa , DVR do samochodu"), because its site rules read English names only. sources.json: "sections":
 // "aliexpress-pl". Each site takes only its own sections, in its own categories (slugs) with an English subcategory; the
 // sections of the older six sites are round 1 (tools/import-rules/aliexpress-pl.mjs).
-// Wheels and tyres stay out: no tyre import until chat 4's fix of the heavy category (L146).
+// Wheels and tyres: kept out until chat 4's fix of the heavy category (L146); since the fix is live and the AGW tyre
+// shops are in (15 Nov 2026, L159), they go to Tyres & Wheels like the tyre shops (owner: "AliExpress after the tyres").
 import { NEVER, displayName } from '../aliexpress-pl.mjs';
 
 const ok = (slug, sub) => ({ ok: true, slug, sub });
+
+// The Polish shop's "Koła, opony i części" (wheels, tyres and parts): the sub by the name. "tyres" is the sub of the tyre
+// shops' cards (lower case, as they have it), so all tyres of a size list together.
+export function wheelPart(n) {
+  const t = String(n || '').toLowerCase();
+  // Car makers' logo stickers and badges ("naklejka z logo ... do VW"): a trademark, not a wheel part.
+  if (/naklej[a-ząćęłńóśźż]* z logo|emblemat|\blogo\b/.test(t)) return 'car makers\' logo stickers and badges';
+  if (/pokrowiec|torba/.test(t)) return ['tyres-wheels', 'Wheel Accessories'];
+  if (/\bopon[aeyiy]?\b|\bopony\b/.test(t) && !/(?:łyżk|wentyl|naprawa|łatk|pompk|kompresor|manometr|ciśnieniomierz)/.test(t)) return ['tyres-wheels', 'tyres'];
+  if (/tpms|czujnik[a-ząćęłńóśźż]* ciśnienia|czujnik[a-ząćęłńóśźż]* tpms/.test(t)) return ['tyres-wheels', 'TPMS Sensors'];
+  if (/kołpak|nakład[a-ząćęłńóśźż]* na piast|dekiel|osłon[a-ząćęłńóśźż]* piasty|zaślepk/.test(t)) return ['tyres-wheels', 'Wheel Trims & Centre Caps'];
+  if (/śrub|nakręt|szpilk|zabezpieczen[a-ząćęłńóśźż]* kół/.test(t)) return ['tyres-wheels', 'Wheel Nuts & Bolts'];
+  if (/dystans|adapter[a-ząćęłńóśźż]* kół/.test(t)) return ['tyres-wheels', 'Spacers'];
+  if (/łańcuch[a-ząćęłńóśźż]* śnieg|łańcuchy|skarpet[a-ząćęłńóśźż]* na koła/.test(t)) return ['tyres-wheels', 'Snow Chains & Socks'];
+  if (/felg|obręcz|koło zapasowe|\bkoła\b/.test(t)) return ['tyres-wheels', 'Wheels'];
+  return ['tyres-wheels', 'Wheel Accessories'];
+}
 const no = reason => ({ ok: false, reason });
 
 // [section regex on "<first> > <second> > <third>", site, slug, sub] or [regex, site, reason] for a section left out.
 // First match wins. A function in place of the slug gets (path, name) and returns [slug, sub] or a reason string.
 const SECTIONS = [
   // ---- Car Gear World ----
-  [/^Motoryzacja[^>]*> Części eksploatacyjne i zamienne > Koła, opony/i, 'AGW', 'wheels and tyres wait for the fix of the heavy tyre category (L146)'],
+  [/^Motoryzacja[^>]*> Części eksploatacyjne i zamienne > Koła, opony/i, 'AGW', (path, n) => wheelPart(n)],
   [/^Motoryzacja[^>]*> (Części i akcesoria do pojazdów kempingowych|Inne części)/i, 'AGW', 'camper, lorry and boat parts'],
   [/^Motoryzacja[^>]*> Elektronika samochodowa > (Zestaw rozruchowy|Kabel rozruchowy)/i, 'AGW', 'diagnostics-battery', 'Jump Starters'],
   [/^Motoryzacja[^>]*> Elektronika samochodowa > Tester alkoholu/i, 'AGW', 'breathalysers (a safety device, not checked)'],
@@ -74,7 +92,8 @@ const SECTIONS = [
   // Helmets protect a life: only with the European test mark in the name (ECE 22.05 / 22.06).
   [/^Sprzęty i akcesoria motocyklowe > Sprzęt motocyklowy > Kaski/i, 'BGW', (p, n) => (/\bECE\b|22[.,]0[56]/i.test(n) ? ['helmets', 'Helmets'] : 'helmet without the ECE test mark in its name')],
   [/^Sprzęty i akcesoria motocyklowe > Sprzęt motocyklowy > Odzież/i, 'BGW', 'jackets-trousers', 'Motorcycle Clothing'],
-  [/^Sprzęty i akcesoria motocyklowe > Sprzęt motocyklowy > Sprzęt do skuterów śnieżnych/i, 'BGW', 'snowmobile gear'],
+  // Snowmobile gear is winter riding gear (gloves, suits): owner, 15 Nov 2026, "put in whatever else it contains".
+  [/^Sprzęty i akcesoria motocyklowe > Sprzęt motocyklowy > Sprzęt do skuterów śnieżnych/i, 'BGW', (p, n) => (/rękawic/i.test(n) ? ['boots-gloves', 'Winter Gloves'] : /but|obuwi/i.test(n) ? ['boots-gloves', 'Winter Boots'] : ['jackets-trousers', 'Winter Riding Clothing'])],
   [/^Sprzęty i akcesoria motocyklowe > Sprzęt motocyklowy/i, 'BGW', 'parts-maintenance', 'Motorcycle Parts'],
   [/^Sprzęty i akcesoria motocyklowe > Motocykle i ATV > Elektryczny rower na dwóch kołach/i, 'BGW', 'electric-scooters', 'Electric Scooters'],
   [/^Sprzęty i akcesoria motocyklowe > Motocykle i ATV > Części i akcesoria elektrycznych motocykli/i, 'BGW', 'electric-motorbikes', 'Electric Motorbike Parts'],
@@ -122,7 +141,8 @@ const SECTIONS = [
   [/^Akcesoria do telefonów i telekomunikacji/i, 'TGW', 'phones-smartwatches', 'Phone Accessories'],
   [/^Telefony i telekomunikacja > Telefony mobilne/i, 'TGW', 'phones-smartwatches', 'Mobile Phones'],
   [/^Telefony i telekomunikacja > krótkofalówka/i, 'TGW', 'phones-smartwatches', 'Walkie Talkies'],
-  [/^Telefony i telekomunikacja/i, 'TGW', 'phone repair parts, refurbished phones and telecom equipment'],
+  [/^Telefony i telekomunikacja > Części do telefonów/i, 'TGW', 'phones-smartwatches', 'Phone Parts & Batteries'],
+  [/^Telefony i telekomunikacja/i, 'TGW', 'refurbished phones, radio and telecom equipment (licences)'],
   [/^Komputer i biuro > Akcesoria komputerowe/i, 'TGW', 'laptops-computing', 'Computer Accessories'],
   [/^Komputer i biuro > Drukarki 3D/i, 'TGW', 'laptops-computing', '3D Printing'],
   [/^Komputer i biuro > Tablety/i, 'TGW', 'laptops-computing', 'Tablets'],
@@ -135,7 +155,7 @@ const SECTIONS = [
   [/^Komputer i biuro > Laptopy/i, 'TGW', 'laptops-computing', 'Laptops'],
   [/^Komputer i biuro > Komputery stacjonarne/i, 'TGW', 'laptops-computing', 'Desktops'],
   [/^Komputer i biuro/i, 'TGW', 'crypto miners and industrial computers'],
-  [/^Podzespoły elektroniczne/i, 'TGW', 'electronic components, not consumer products'],
+  [/^Podzespoły elektroniczne/i, 'TGW', 'laptops-computing', 'Electronics & Maker Parts'],
 
   // ---- Sporty Gear World ----
   [/^Sport i rozrywka > Polowanie/i, 'SGW', 'hunting'],
@@ -146,7 +166,7 @@ const SECTIONS = [
   [/^Sport i rozrywka > Jazda na rowerze > (Akcesoria rowerowe|Sprzęt do jazdy)/i, 'SGW', 'cycling', 'Bike Accessories'],
   [/^Sport i rozrywka > Jazda na rowerze/i, 'SGW', 'cycling', 'Bike Parts'],
   [/^Sport i rozrywka > Wędkowanie/i, 'SGW', 'golf-skate-more', 'Fishing'],
-  [/^Sport i rozrywka > Kamping i wędrówki > (Obserwacje astronomiczne|Teleskop)/i, 'SGW', 'telescopes'],
+  [/^Sport i rozrywka > Kamping i wędrówki > (Obserwacje astronomiczne|Teleskop)/i, 'SGW', 'hiking-climbing-winter', 'Telescopes & Binoculars'],
   [/^Sport i rozrywka > Kamping i wędrówki > Bezpieczeństwo i przetrwanie/i, 'SGW', 'first aid, tourniquets and survival kits (medical)'],
   [/^Sport i rozrywka > Kamping i wędrówki > Namioty/i, 'SGW', 'hiking-climbing-winter', 'Tents'],
   [/^Sport i rozrywka > Kamping i wędrówki/i, 'SGW', 'hiking-climbing-winter', 'Camping & Hiking'],

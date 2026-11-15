@@ -81,10 +81,12 @@ export default {
   // view because the shop is "not responsible for any customs duties or taxes" outside the EU (round 3, L147).
   // AliExpress PL (Awin 12044, pl.aliexpress.com, Polish names, prices in zloty): Poland only, so only the Poland view
   // shows it (owner, 15 Nov 2026, lessons L157); its prices get "≈ £…" (foreignCurrencies PLN).
-  // Uhrcenter's feed is in German: only visitors from the German-speaking countries it delivers to see it (lessons L164).
+  // Uhrcenter's feed is in German: only visitors from the German-speaking countries it delivers to see it (lessons L165).
   deliversTo: { default: ['GB'], retailers: { 'AliExpress PL': ['PL'], 'Bazta IE': ['IE'], 'Plusshop IE': ['IE'], Uhrcenter: ['DE', 'AT', 'CH', 'LI', 'LU'], '100% PURE': ['EU', 'CH', 'NO'], FOREO: ['EU'], Jeulia: ['US'], 'Dream Pairs': ['US'],
     'Invicta Stores': ['AT', 'BE', 'BG', 'CY', 'CZ', 'DE', 'DK', 'EE', 'FI', 'FR', 'GR', 'HR', 'HU', 'IE', 'IT', 'LT', 'LU', 'LV', 'MT', 'NL', 'PL', 'RO', 'SE', 'SI', 'SK', 'CH', 'NO', 'IS'],
-    'MASON New York': ['GB', 'US'], 'Needs No Label': ['GB', 'US'] }, languages: { Uhrcenter: 'de' } },
+    'MASON New York': ['GB', 'US'], 'Needs No Label': ['GB', 'US'],
+    // Mass import round 2 (15 Nov 2026, lessons L164): US shops and TEMU's US feed only to the US; Xpluswear (euros) only to the EU.
+    TEMU: ['US'], 'Dima Eyewear': ['US'], 'Grey State': ['US'], Kixies: ['US'], Xpluswear: ['EU'] }, languages: { Uhrcenter: 'de' } },
   // 100% PURE sells in euros: its prices stay in euros, with "≈ £…" next to them (lessons L25, L63). MASON New York sells
   // in US dollars and is in the UK view: foreignCurrencies fetches that rate too ("≈ £…", as GRABO on CGW).
   convertForeignPrices: true,

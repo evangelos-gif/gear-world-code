@@ -72,7 +72,7 @@ test('a euro price stays in euros with "≈ £" for a visitor from the Netherlan
   assert.match(html, /"priceCurrency":"EUR"/);
   assert.match(html, /href="\/out\/\d+"/);
   // A UK visitor (or one from an unknown country, or Germany) gets the notice. VEVOR's feed on AGW is in Dutch (lessons
-  // L164): the notice says so and names the Netherlands and Belgium, never "does not deliver" (it delivers to Germany).
+  // L165): the notice says so and names the Netherlands and Belgium, never "does not deliver" (it delivers to Germany).
   for (const cc of ['GB', 'DE']) {
     const uk = await get(`/product/${row.product_slug}-${row.id}/`, env, cc);
     assert.equal(uk.status, 200);

@@ -10,7 +10,7 @@
 //    - Every other country, and an unknown one, sees ALL the products ("all" view), each card, product page and code
 //      card with "<retailer> delivers to ..." (src/pages/layout.js deliveryLine), and the bar below. Until L151 every
 //      European country had a view of its own (only what delivered there) and the rest the UK view.
-//    - Since 15 Nov 2026 (owner, lessons L164) the all view leaves out the shops that ship only to the US, and a feed in
+//    - Since 15 Nov 2026 (owner, lessons L165) the all view leaves out the shops that ship only to the US, and a feed in
 //      another language than English (deliversTo.languages) is shown only in the countries that speak it and that its
 //      retailer delivers to: a visitor from Germany sees the all view plus the German feeds, one from Greece no German.
 //    Google's crawlers get the UK view (src/engine.js), so the sitemaps, Search and Merchant Center see what they saw
@@ -75,7 +75,7 @@ export function listCovers(list, cc) {
 }
 
 // Is a retailer shown to a visitor from cc? It delivers there, and a feed in another language than English is shown only
-// where that language is spoken (src/lib/delivery.js shownCountries, lessons L164).
+// where that language is spoken (src/lib/delivery.js shownCountries, lessons L165).
 function retailerCovers(site, retailer, cc) {
   return hasLanguage(site, retailer)
     ? shownCountries(site, retailer).includes(cc)
@@ -84,7 +84,7 @@ function retailerCovers(site, retailer, cc) {
 const hasLanguage = (site, name) => Boolean(site && site.deliversTo && site.deliversTo.languages) &&
   Object.prototype.hasOwnProperty.call(site.deliversTo.languages, name);
 
-// The retailers of a site with a feed language (deliversTo.languages, L164).
+// The retailers of a site with a feed language (deliversTo.languages, L165).
 export function languageRetailers(site) {
   const langs = site && site.deliversTo && site.deliversTo.languages;
   return langs ? Object.keys(langs).sort() : [];
@@ -118,10 +118,10 @@ function deliveryRule(site, cc) {
 
 // Retailers seen only in the views of the countries they deliver to, never in the all view:
 //  - every country of the retailer is an open country other than the UK (owner, 15 Nov 2026, lessons L157: AliExpress
-//    PL, Polish names, prices in zloty), or the United States (owner, 15 Nov 2026, lessons L164: "only in the USA", the
+//    PL, Polish names, prices in zloty), or the United States (owner, 15 Nov 2026, lessons L165: "only in the USA", the
 //    shops that ship only there, in dollars, such as TEMU US), so a visitor from Germany or Greece never gets Polish
 //    names or a shop that cannot deliver to them;
-//  - a feed in another language than English (deliversTo.languages, L164): only where that language is spoken.
+//  - a feed in another language than English (deliversTo.languages, L165): only where that language is spoken.
 // The UK view hides them anyway (none of them delivers to the UK, or the UK does not speak the language).
 export const LOCAL_ONLY_COUNTRIES = [...OPEN_COUNTRIES.filter(c => c !== HOME_COUNTRY), 'US'];
 export function localOnlyRetailers(site) {
@@ -144,7 +144,7 @@ export function countryGroups(site) {
   const home = { id: HOME_GROUP, countries: [], hidden: homeRule.hidden, only: homeRule.only };
   bySig.set(homeRule.sig, home);
   // Every retailer: the same rows as the UK view when that view hides none (sig 'not:'). Without the retailers that
-  // deliver only to an open country other than the UK (L157) or only to the US, and the feeds in another language (L164).
+  // deliver only to an open country other than the UK (L157) or only to the US, and the feeds in another language (L165).
   const local = localOnlyRetailers(site);
   const allRule = { sig: `not:${local.join('|')}`, hidden: local.length ? local : null, only: null };
   let all = bySig.get(allRule.sig);
@@ -162,7 +162,7 @@ export function countryGroups(site) {
     g.countries.push(cc);
     byCountry.set(cc, g);
   }
-  // A country without a view of its own where a retailer with a feed language is shown (L164: Reidl in German for
+  // A country without a view of its own where a retailer with a feed language is shown (L165: Reidl in German for
   // Germany and Austria): the all view plus those retailers, one copy per set of countries that see the same ones. Not
   // in byCountry, so Gear World Hub's search keeps what delivers there (hubViewFor) and the bar stays as in the all view.
   const byLanguage = new Map();
@@ -221,7 +221,7 @@ export function viewFor(site, country, at = now()) {
   const cc = cleanCountry(country);
   const groups = countryGroups(site);
   // The UK and Google's crawlers: the UK view; the US and an open or strict country: theirs; a country that speaks the
-  // language of a feed it gets: the all view with that feed (L164); everyone else: all (L151).
+  // language of a feed it gets: the all view with that feed (L165); everyone else: all (L151).
   const g = cc === HOME_COUNTRY ? groups.home : (cc && (groups.byCountry.get(cc) || groups.byLanguage.get(cc))) || groups.all;
   return {
     group: g.id,
@@ -230,7 +230,7 @@ export function viewFor(site, country, at = now()) {
     only: g.only,
     // The all view of a site whose UK view hides some retailers: the code cards say where their retailer delivers too.
     everyRetailer: (g === groups.all && g !== groups.home) || Boolean(g.language),
-    // The retailers with a feed in another language (L164): a product of theirs that this view hides gets the notice
+    // The retailers with a feed in another language (L165): a product of theirs that this view hides gets the notice
     // "described in a language other than English", not "does not deliver to your country" (it may well deliver here).
     languages: languageRetailers(site).length ? languageRetailers(site) : null,
     cutoff: isoDay(at - HIDE_AFTER_DAYS * DAY),
@@ -286,7 +286,7 @@ export function visibleSql(view, alias = 'p') {
 }
 
 // The same test in JavaScript, on a row that was read: '' (shown), 'country' (the retailer does not deliver to the
-// visitor's country), 'language' (a feed in another language, shown only where it is spoken, L164) or 'stale' (not
+// visitor's country), 'language' (a feed in another language, shown only where it is spoken, L165) or 'stale' (not
 // checked for more than HIDE_AFTER_DAYS). Text compares as in SQLite (ASCII dates); a missing date counts as stale,
 // like NULL in SQL.
 export function hiddenReason(view, row) {

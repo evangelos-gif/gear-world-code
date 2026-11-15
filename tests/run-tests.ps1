@@ -2838,6 +2838,14 @@ http.createServer((q, s) => {
         & $exe @($cjArgs + @('-ListFeeds')) | Out-Null
         $cjList = (@(Get-ChildItem -LiteralPath $cjOut -Filter 'CJ_FEED_DOWNLOAD_*.txt') | ForEach-Object { [System.IO.File]::ReadAllText($_.FullName) }) -join "`n"
         Check ($LASTEXITCODE -eq 0 -and $cjList.Contains('Η λίστα feeds δεν ήρθε') -and $cjList.Contains('Μόνο ανάγνωση: δεν κατέβηκε τίποτα') -and @(Get-ChildItem -LiteralPath $cjArch -File).Count -eq $cjFiles) 'cj-feed-download: -ListFeeds is read-only and says when the feed list is missing'
+        # L161: -Search reads only what CJ's keyword search finds; without a keyword argument in the API it reads nothing.
+        $cjFiles = @(Get-ChildItem -LiteralPath $cjArch -File).Count
+        & $exe @($cjArgs + @('-Search', 'Bad Name!')) | Out-Null
+        Check ($LASTEXITCODE -eq 2) 'cj-feed-download: a wrong search name stops (exit 2)'
+        Remove-Item -LiteralPath (Join-Path $cjOut '*') -Force -ErrorAction SilentlyContinue
+        & $exe @($cjArgs + @('-Advertiser', '3992613', '-Search', 'kids-winter-boots', '-Apply', '-Approve', ('ΕΓΚΡΙΝΩ CJ FEED DOWNLOAD'))) | Out-Null
+        $cjSearch = (@(Get-ChildItem -LiteralPath $cjOut -Filter 'CJ_FEED_DOWNLOAD_*.txt') | ForEach-Object { [System.IO.File]::ReadAllText($_.FullName) }) -join "`n"
+        Check ($LASTEXITCODE -eq 4 -and $cjSearch.Contains('keyword search') -and @(Get-ChildItem -LiteralPath $cjArch -File).Count -eq $cjFiles) 'cj-feed-download: -Search without keyword search in the API downloads nothing'
         $cjPlanOut = Join-Path $cjDir 'plan'
         & $exe -NoProfile -ExecutionPolicy Bypass -File $runTool -LocalRepo $repo -Tool legacy-import-plan -Retailer 'xplora' -Archive $cjArch -OutDir $cjPlanOut -NoClipboard | Out-Null
         $cjPlan = @(Get-ChildItem -LiteralPath $cjPlanOut -Recurse -Filter 'report.txt')
@@ -2912,6 +2920,19 @@ http.createServer((q, s) => {
         $dcAll = (@(Get-ChildItem -LiteralPath $dcOut -Filter 'DAISYCON_FEED_DOWNLOAD_*.txt') | ForEach-Object { [System.IO.File]::ReadAllText($_.FullName) }) -join "`n"
         Check ($dcAll.Contains('OK, 3 προϊόντα') -and $dcAll.Contains('με link του Daisycon: 3') -and $dcAll.Contains('νόμισμα: EUR')) 'daisycon-feed-download: report counts the products and their Daisycon links'
         Check (-not $dcAll.Contains($dcRefresh) -and -not $dcAll.Contains('dcSecretValue1') -and -not $dcAll.Contains('rotated')) 'daisycon-feed-download: no key or sign-in in any report'
+        # Lessons L163 (TEMU INT): every feed listed, -Country keeps only a feed for that country, -MaxProducts stops a big one.
+        Get-ChildItem -LiteralPath $dcOut -Filter 'DAISYCON_FEED_DOWNLOAD_*.txt' | Remove-Item -Force
+        & $exe @($dcArgs + @('-Country', 'GB', '-Currency', 'GBP')) | Out-Null
+        $dcGb = (@(Get-ChildItem -LiteralPath $dcOut -Filter 'DAISYCON_FEED_DOWNLOAD_*.txt') | ForEach-Object { [System.IO.File]::ReadAllText($_.FullName) }) -join "`n"
+        Check ($LASTEXITCODE -eq 0 -and $dcGb.Contains('feed 5: γλώσσα en, νόμισμα EUR, προϊόντα 3') -and $dcGb.Contains('no product feed for GB') -and $dcGb.Contains('χώρα GB | νόμισμα GBP')) 'daisycon-feed-download: every feed listed, -Country GB leaves out a feed that does not serve the UK'
+        Get-ChildItem -LiteralPath $dcOut -Filter 'DAISYCON_FEED_DOWNLOAD_*.txt' | Remove-Item -Force
+        & $exe @($dcArgs + @('-MaxProducts', '2')) | Out-Null
+        $dcMax = (@(Get-ChildItem -LiteralPath $dcOut -Filter 'DAISYCON_FEED_DOWNLOAD_*.txt') | ForEach-Object { [System.IO.File]::ReadAllText($_.FullName) }) -join "`n"
+        Check ($LASTEXITCODE -eq 0 -and $dcMax.Contains('πάνω από το όριο 2')) 'daisycon-feed-download: a feed over -MaxProducts is listed but not downloaded'
+        & $exe @($dcArgs + @('-Country', 'GBR')) | Out-Null
+        Check ($LASTEXITCODE -eq 2) 'daisycon-feed-download: a wrong country is refused'
+        & $exe @($dcArgs + @('-Country', 'GB,US', '-Currency', 'GBP')) | Out-Null
+        Check ($LASTEXITCODE -eq 2) 'daisycon-feed-download: several countries take each their own currency (no -Currency)'
         & $exe -NoProfile -ExecutionPolicy Bypass -File $dcTool -Program '16029' -Base 'https://evil.example' -SecretFile $dcSecretFile -Archive $dcArch -OutDir $dcOut -NoClipboard | Out-Null
         Check ($LASTEXITCODE -eq 2) 'daisycon-feed-download: refuses an address that is not Daisycon or the local test server'
     } finally {
