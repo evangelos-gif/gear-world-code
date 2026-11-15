@@ -60,7 +60,7 @@ test('country groups (L151): the UK sees only what delivers there, the US its ow
   for (const cc of ['DE', 'AT', 'FR', 'CH']) assert.equal(c(cc).group, 'all', `CGW ${cc}`);
   // Women's: 100% PURE to the EU, Switzerland and Norway, FOREO to the EU; Jeulia and Dream Pairs to the US only; MASON
   // New York and Needs No Label to the UK and the US (round 2b, 14 Nov 2026).
-  assert.deepEqual(viewFor(config.wgw, 'GB', NOW).hidden, ['100% PURE', 'Bazta IE', 'Dream Pairs', 'FOREO', 'Jeulia', 'Plusshop IE', 'Uhrcenter']);
+  assert.deepEqual(viewFor(config.wgw, 'GB', NOW).hidden, ['100% PURE', 'Bazta IE', 'Dream Pairs', 'FOREO', 'Invicta Stores', 'Jeulia', 'Plusshop IE', 'Uhrcenter']);
   assert.equal(viewFor(config.wgw, 'CH', NOW).group, 'all');
   assert.equal(viewFor(config.wgw, 'DE', NOW).only, null);
   // The US view (owner, 14 Nov 2026, lessons L141): what ships to the US, nothing else. Before it, Wavytalk was never shown.
@@ -70,6 +70,8 @@ test('country groups (L151): the UK sees only what delivers there, the US its ow
   // Round 3 (15 Nov 2026, L147): Invicta Stores ships to Europe but Spain and Portugal, and is kept out of the UK view
   // (customs on delivery); HOME-TEX ships to 19 countries, never the UK. The all view (L151) has both, with their badge.
   assert.ok(viewFor(config.hgw, 'GB', NOW).hidden.includes('HOME-TEX'));
+  assert.ok(viewFor(config.wgw, 'GB', NOW).hidden.includes('Invicta Stores'));
+  assert.deepEqual(deliveryCountries(config.wgw, 'Invicta Stores'), deliveryCountries(config.mgw, 'Invicta Stores'));
   for (const cc of ['DE', 'FR', 'IE', 'ES']) assert.equal(viewFor(config.mgw, cc, NOW).group, 'all', `MGW ${cc}`);
   const inv = deliveryCountries(config.mgw, 'Invicta Stores');
   for (const cc of ['GB', 'ES', 'PT', 'US']) assert.ok(!inv.includes(cc), `Invicta Stores: not ${cc}`);

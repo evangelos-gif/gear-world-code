@@ -15,7 +15,7 @@ import { csvLine } from '../../tools/network-links.mjs';
 const link = (si, dl) => `https://bdt9.net/c/?si=${si}&li=1&wi=447289&pid=abc&dl=${encodeURIComponent(dl)}&ws=`;
 const col = row => c => String(row[c] ?? '');
 
-test('L147 Invicta Stores: men\'s and unisex watches on MGW, the page from the link path, accessories and women\'s out', () => {
+test('L147 Invicta Stores: men\'s and unisex watches on MGW, women\'s on WGW, the page from the link path, accessories out', () => {
   const row = { aw_deep_link: link(18836, 'collections/bolt/invicta-bolt-46037-mens-quartz-watch-50mm/'), dc_gender: 'male', merchant_deep_link: '' };
   assert.equal(invicta.field('merchant_deep_link', col(row)), 'https://www.invictastores.eu/collections/bolt/invicta-bolt-46037-mens-quartz-watch-50mm/');
   assert.ok(invicta.RULES.shop.test(invicta.field('merchant_deep_link', col(row))));
@@ -26,7 +26,8 @@ test('L147 Invicta Stores: men\'s and unisex watches on MGW, the page from the l
   const c = (name, g) => invicta.classify({ name, awinCategory: g });
   assert.deepEqual(c("Invicta Pro Diver - SCUBA 22227 Men's Watch - Quartz Movement - Stainless Steel with Gold Dial - 50 mm", 'male'), { site: 'mgw', siteCategory: 'Watches', subcategory: "Men's Watches" });
   assert.deepEqual(c('Invicta Specialty 49959 Unisex Watch - Quartz Movement - Stainless Steel with Black Dial -', 'unisex'), { site: 'mgw', siteCategory: 'Watches', subcategory: 'Unisex Watches' });
-  assert.match(c("Invicta Angel 24667 Women's Watch - Quartz Movement - Stainless Steel with Silver Dial - 40 mm", 'female').reject, /^women's watch/);
+  assert.deepEqual(c("Invicta Angel 24667 Women's Watch - Quartz Movement - Stainless Steel with Silver Dial - 40 mm", 'female'), { site: 'wgw', siteCategory: 'Watches', subcategory: 'Watches' });
+  assert.deepEqual(invicta.RULES.sites, ['mgw', 'wgw']);
   for (const n of ['Invicta Watch Box IPM547X-SIL', 'Invicta Watch Box Yellow - 3 Slot DC3YEL', 'Invicta Pro Diver Wall Clock 70040', 'Invicta Sunglasses IEW053-01', 'Invicta Racing Aluminum Bottle', 'Invicta Travelcase Grey']) {
     assert.equal(c(n, '').reject, 'not a watch (accessory)', n);
   }

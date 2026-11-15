@@ -1,5 +1,5 @@
 // Import rules for Invicta Stores Europe (Daisycon programme 18836 "Invicta Watch Europe", invictastores.eu, euros) on
-// Men's Gear World (massive import round 3, 15 Nov 2026, lessons L145, L147). Feed facts (15 Nov 2026 download): 2,530
+// Men's and Women's Gear World (massive import round 3, 15 Nov 2026, lessons L145, L147). Feed facts (15 Nov 2026 download): 2,530
 // products in English, updated daily, Daisycon "gender_target" male 1,708 / female 671 / unisex 44 / none 107; names such
 // as "Invicta Bolt 46037 Men's Watch - Quartz Movement - Stainless Steel with Black Dial - 50 mm"; brands Invicta,
 // TechnoMarine, Montres Prestige. A real page checked by hand (15 Nov 2026): the feed's price (EUR 149) is the shop's.
@@ -7,8 +7,8 @@
 // United States; the shop is "not responsible for any customs duties or taxes" outside the EU. So the site configs show it
 // in the EU, Swiss, Norwegian and Icelandic views only, not in the UK one (a UK buyer could pay import VAT and duty on
 // delivery, lessons L147).
-//  - men's and unisex watches -> MGW Watches > Men's Watches / Unisex Watches; women's watches stay out until Women's
-//    Gear World has room for one more country view (it has the 8 the tests allow, lessons L147);
+//  - men's and unisex watches -> MGW Watches > Men's Watches / Unisex Watches; women's watches -> WGW Watches (first held
+//    back for the 8-view limit; the live view rules since L151 have no per-country groups, so they go in too);
 //  - sunglasses, caps, boxes, gift packaging, clocks, cards, bottles, cleaners and other accessories are left out.
 import { daisyconField, pageKey } from './lib/daisycon-shop.mjs';
 
@@ -19,7 +19,7 @@ export const RULES = {
   retailer: 'Invicta Stores',
   currency: 'EUR',
   shop: /^https:\/\/(www\.)?invictastores\.eu\//i,
-  sites: ['mgw'],
+  sites: ['mgw', 'wgw'],
   maxPrice: 5000,
   minPrice: 20
 };
@@ -64,7 +64,7 @@ export function classify({ name, awinCategory = '' }) {
   const gender = String(awinCategory || '').toLowerCase();
   const women = gender === 'female' || /\bwomen'?s\b|\bladies\b/i.test(n);
   const men = gender === 'male' || /\bmen'?s\b/i.test(n);
-  if (women && !men) return { reject: "women's watch: not on Women's Gear World yet (no room for one more country view, L147)" };
+  if (women && !men) return { site: 'wgw', siteCategory: 'Watches', subcategory: 'Watches' };
   if (men) return { site: 'mgw', siteCategory: 'Watches', subcategory: "Men's Watches" };
   return { site: 'mgw', siteCategory: 'Watches', subcategory: 'Unisex Watches' };
 }

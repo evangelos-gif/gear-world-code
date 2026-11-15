@@ -76,7 +76,10 @@ export default {
   // Ireland"; round 2c, L144).
   // Uhrcenter (uhrcenter.de ships to the UK, the EU and more, not the US; read 14 Nov 2026): its names are German, so only
   // where German is spoken (round 2c, L144).
+  // Invicta Stores (invictastores.eu, Daisycon, euros; read 15 Nov 2026): Europe but Spain and Portugal; kept out of the UK
+  // view because the shop is "not responsible for any customs duties or taxes" outside the EU (round 3, L147).
   deliversTo: { default: ['GB'], retailers: { 'Bazta IE': ['IE'], 'Plusshop IE': ['IE'], Uhrcenter: ['DE', 'AT', 'CH', 'LI', 'LU'], '100% PURE': ['EU', 'CH', 'NO'], FOREO: ['EU'], Jeulia: ['US'], 'Dream Pairs': ['US'],
+    'Invicta Stores': ['AT', 'BE', 'BG', 'CY', 'CZ', 'DE', 'DK', 'EE', 'FI', 'FR', 'GR', 'HR', 'HU', 'IE', 'IT', 'LT', 'LU', 'LV', 'MT', 'NL', 'PL', 'RO', 'SE', 'SI', 'SK', 'CH', 'NO', 'IS'],
     'MASON New York': ['GB', 'US'], 'Needs No Label': ['GB', 'US'] } },
   // 100% PURE sells in euros: its prices stay in euros, with "≈ £…" next to them (lessons L25, L63). MASON New York sells
   // in US dollars and is in the UK view: foreignCurrencies fetches that rate too ("≈ £…", as GRABO on CGW).
