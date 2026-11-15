@@ -34,7 +34,8 @@ const dcProduct = (i, extra = {}) => ({ product_info: { title: `Wollen trui ${i}
 
 function fakeFetch(handler) {
   const calls = [];
-  const f = async url => { calls.push(String(url)); const r = handler(new URL(url)); return { status: r.status || 200, text: async () => typeof r.body === 'string' ? r.body : JSON.stringify(r.body) }; };
+  const f = async url => { calls.push(String(url)); const r = handler(new URL(url)); const h = r.headers || {};
+    return { status: r.status || 200, headers: { get: k => h[k.toLowerCase()] ?? null }, text: async () => typeof r.body === 'string' ? r.body : JSON.stringify(r.body) }; };
   f.calls = calls;
   return f;
 }
@@ -67,11 +68,12 @@ test('Daisycon: sign-in with PKCE, the feed picked from the API (English first),
   const feeds = [{ id: 1, url: 'https://daisycon.io/datafeed/?media_id=#MEDIA_ID#&program_id=16029&standard_id=2&language_code=nl&locale_id=#LOCALE_ID#', language_code: 'nl', locale_ids: [1], products: 900 },
     { id: 2, url: 'https://daisycon.io/datafeed/?media_id=#MEDIA_ID#&program_id=16029&standard_id=2&language_code=en&locale_id=#LOCALE_ID#', language_code: 'en', locale_ids: [6, 1], products: 800 }];
   assert.equal(dc.pickFeed(feeds).id, 2);
-  const a = new URL(dc.feedAddress(dc.pickFeed(feeds), { mediaId: 447289, page: 3, perPage: 500 }));
+  const a = new URL(dc.feedAddress(dc.pickFeed(feeds), { mediaId: 447289, records: 500 }));
   assert.equal(a.searchParams.get('media_id'), '447289');
   assert.equal(a.searchParams.get('locale_id'), '6');
   assert.equal(a.searchParams.get('type'), 'JSON');
-  assert.equal(a.searchParams.get('page'), '3');
+  assert.equal(a.searchParams.get('records'), '500', 'Daisycon pages with "records" and X-Next-Url');
+  assert.equal(a.searchParams.get('page'), null);
   assert.equal(dc.pickFeed([{ id: 3 }]), null, 'a feed without an address is not used');
 });
 
@@ -80,6 +82,8 @@ function fakeDaisycon({ refresh = 'R1', products = 3, rotate = 'R2' } = {}) {
   return fakeFetch(u => {
     if (u.pathname === '/oauth/access-token') return { body: { access_token: 'A1', refresh_token: rotate, expires_in: 3600 } };
     if (u.pathname === '/publishers') return { body: [{ id: 777 }] };
+    if (u.pathname === '/publishers/777/programs') return { body: [{ id: 16029, url: 'https://www.laredoute.nl/', supply_locale_ids: [1, 6] }] };
+    if (u.pathname === '/locales') return { body: [{ id: '1', country_code: 'NL' }, { id: '6', country_code: 'BE' }] };
     if (u.pathname === '/publishers/777/productfeeds.v2/program') {
       const pid = u.searchParams.get('program_id');
       if (pid !== '16029') return { body: [] };
@@ -87,10 +91,13 @@ function fakeDaisycon({ refresh = 'R1', products = 3, rotate = 'R2' } = {}) {
     }
     if (u.hostname === 'daisycon.io') {
       if (u.searchParams.get('media_id') !== '447289' || u.searchParams.get('locale_id') !== '6') return { status: 400, body: { error: 'Missing the following parameters: locale_id' } };
-      const per = Number(u.searchParams.get('per_page'));
-      const page = Number(u.searchParams.get('page'));
-      const n = per === 2 ? 2 : (page === 1 ? Math.min(per, products) : Math.max(0, products - per));
-      return { body: dcAnswer(Array.from({ length: n }, (_, i) => dcProduct((page - 1) * per + i + 1))) };
+      // Like Daisycon: "records" products, the next ones at the X-Next-Url address; "page" and "per_page" mean nothing.
+      const per = Number(u.searchParams.get('records')) || products;
+      const from = Number(u.searchParams.get('offset_test') || 0);
+      const n = Math.min(per, products - from);
+      const headers = { 'x-total-count': String(products) };
+      if (from + n < products) { const next = new URL(u); next.searchParams.set('offset_test', String(from + n)); headers['x-next-url'] = next.toString(); }
+      return { headers, body: dcAnswer(Array.from({ length: n }, (_, i) => dcProduct(from + i + 1))) };
     }
     return { status: 404, body: 'not found' };
   });
@@ -105,6 +112,9 @@ test('Daisycon: probe and download through the API, the new sign-in key handed b
   assert.equal(P.programs[0].ok, true);
   assert.equal(P.programs[0].language, 'en');
   assert.equal(P.programs[0].samples[0].tracking, 'ds1.nl');
+  assert.equal(P.programs[0].shopUrl, 'https://www.laredoute.nl/');
+  assert.deepEqual(P.programs[0].ships, ['NL', 'BE']);
+  assert.ok(f.calls.some(c => /\/datafeed\/.*records=2/.test(c)), 'the look asks for 2 products only');
   assert.equal(P.programs[1].ok, false);
   assert.match(P.programs[1].error, /no product feed/);
   const tokenCall = f.calls.find(c => c.includes('/oauth/access-token'));
@@ -115,7 +125,9 @@ test('Daisycon: probe and download through the API, the new sign-in key handed b
   const A = D.programs[0];
   assert.equal(A.ok, true);
   assert.equal(A.got, dc.PER_PAGE + 3);
+  assert.equal(A.total, dc.PER_PAGE + 3);
   assert.equal(A.withTracking, A.got);
+  assert.equal(A.withPage, A.got);
   assert.deepEqual(A.currencies, ['EUR']);
   const text = gunzipSync(readFileSync(A.file)).toString('utf8');
   assert.ok(text.split('\n')[0].includes('aw_deep_link'));
@@ -126,6 +138,40 @@ test('Daisycon: probe and download through the API, the new sign-in key handed b
   const B = await dc.main(['--mode', 'probe', '--media', '447289', '--programs', '16029'], bad, env);
   assert.equal(B.signIn, true);
   assert.match(B.error, /invalid_grant/);
+});
+
+// First real download (14 Nov 2026, lessons L145): Daisycon ignored "page" and sent the whole feed 200 times; its links
+// carry the shop page as a bare path (dl=...html).
+test('Daisycon: a feed that repeats itself stops with an error, the shop page comes from the link path and the shop address', async () => {
+  const link = 'https://fr135.net/c/?si=15514&li=1673121&wi=447289&pid=0a71b186&dl=foco-myst-corner-right-1200_2012r57203.html&ws=';
+  assert.equal(dc.pageFromDl(link, 'https://www.bioethanol-fireplace.co.uk'), 'https://www.bioethanol-fireplace.co.uk/foco-myst-corner-right-1200_2012r57203.html');
+  assert.equal(dc.pageFromDl(link, 'https://www.shop.example/en-gb/'), 'https://www.shop.example/en-gb/foco-myst-corner-right-1200_2012r57203.html');
+  assert.equal(dc.pageFromDl(link.replace('dl=foco', 'dl=%2Ffoco'), 'https://www.shop.example/en-gb/'), 'https://www.shop.example/foco-myst-corner-right-1200_2012r57203.html');
+  assert.equal(dc.pageFromDl(link, ''), '', 'no shop address, no page');
+  assert.equal(dc.pageFromDl(link.replace(/dl=[^&]*/, 'dl=%2F%2Fevil.example%2Fx'), 'https://www.shop.example/'), '', 'never another host');
+  const row = dc.toFeedRow({ product_info: { title: 'Foco Myst', link, price: '3299', sku: '57203' } }, { programId: 15514, mediaId: '447289', shopUrl: 'https://www.bioethanol-fireplace.co.uk/' });
+  assert.equal(row.merchant_deep_link, 'https://www.bioethanol-fireplace.co.uk/foco-myst-corner-right-1200_2012r57203.html');
+  assert.equal(row.aw_deep_link, link);
+  assert.equal(dc.nextPage('https://daisycon.io/datafeed/?x=2', 'https://daisycon.io/datafeed/?x=1'), 'https://daisycon.io/datafeed/?x=2');
+  assert.equal(dc.nextPage('/datafeed/?x=2', 'https://daisycon.io/datafeed/?x=1'), 'https://daisycon.io/datafeed/?x=2');
+  assert.equal(dc.nextPage('https://evil.example/?x=2', 'https://daisycon.io/datafeed/?x=1'), '');
+
+  const env = { GW_DC_CLIENT: 'abc123', GW_DC_SECRET: 's3cret', GW_DC_REFRESH: 'R1' };
+  const feedUrl = 'https://daisycon.io/datafeed/?media_id=#MEDIA_ID#&program_id=15514&locale_id=#LOCALE_ID#';
+  const repeating = fakeFetch(u => {
+    if (u.pathname === '/oauth/access-token') return { body: { access_token: 'A1', refresh_token: 'R2' } };
+    if (u.pathname === '/publishers') return { body: [{ id: 777 }] };
+    if (u.pathname === '/publishers/777/programs') return { body: [{ id: 15514, url: 'https://www.bioethanol-fireplace.co.uk' }] };
+    if (u.pathname === '/publishers/777/productfeeds.v2/program') return { body: [{ id: 1, url: feedUrl, language_code: 'en', locale_ids: [4], products: 3 }] };
+    if (u.hostname === 'daisycon.io') return { headers: { 'x-next-url': u.toString() + '&again=1' }, body: dcAnswer([dcProduct(1), dcProduct(2), dcProduct(3)]) };
+    return { status: 404, body: 'not found' };
+  });
+  const out = mkdtempSync(join(tmpdir(), 'gw-dc-'));
+  const D = await dc.main(['--mode', 'download', '--media', '447289', '--programs', '15514', '--out', out, '--pause', '0'], repeating, env);
+  assert.equal(D.programs[0].ok, false);
+  assert.match(D.programs[0].error, /only products already read/);
+  assert.equal(D.programs[0].got, 3, 'each product once');
+  assert.ok(repeating.calls.filter(c => c.includes('daisycon.io')).length <= 2, 'stopped at the second page');
 });
 
 // First real run (14 Nov 2026, lessons L145): "Invalid URL" from one feed address stopped the whole look of 71 programmes

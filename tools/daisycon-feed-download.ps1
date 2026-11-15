@@ -197,6 +197,9 @@ foreach ($p in @($S.programs)) {
     $sub = 'άγνωστο'
     if ($p.subscribed -eq $true) { $sub = 'ναι' } elseif ($p.subscribed -eq $false) { $sub = 'ΟΧΙ' }
     Say ('{0} {1}: feeds {2} | διάλεξα γλώσσα {3}, νόμισμα {4}, προϊόντα {5} | το media σου γραμμένο στο feed: {6}' -f $p.program, $p.name, $p.feeds, $p.language, $p.currency, $p.products, $sub)
+    $ships = 'άγνωστο'
+    if (@($p.ships).Count -gt 0) { $ships = (@($p.ships) -join ', ') }
+    Say ('  Κατάστημα: {0} | στέλνει σε (κατά το Daisycon): {1}' -f $p.shopUrl, $ships)
     Say ('  Πεδία: {0}' -f (@($p.keys) -join ', '))
     $i = 0
     foreach ($x in @($p.samples)) {
@@ -214,7 +217,12 @@ if (-not $Apply) { Say 'Μόνο ανάγνωση (χωρίς -Apply): δεν κ
 if (-not (Confirm-Approval $Phrase)) { Say 'Δεν δόθηκε έγκριση: σταμάτησα χωρίς αλλαγές.' 'Yellow'; Finish 1 }
 
 # 3. Download (to .part), check, then swap (old copy kept).
-Write-Host 'Κατεβάζω από το Daisycon (500 προϊόντα ανά αίτημα)...'
+# A .part file is this tool's own unfinished download (the 14 Nov 2026 run left a 92 MB one, lessons L145): cleared first.
+foreach ($old in @(Get-ChildItem -LiteralPath $Archive -Filter 'DAISYCON_*.csv.gz.part' -File -ErrorAction SilentlyContinue)) {
+    Remove-Item -LiteralPath $old.FullName -Force -ErrorAction SilentlyContinue
+    Say ('Έσβησα ένα μισοτελειωμένο αρχείο από προηγούμενη λήψη: {0}' -f $old.Name)
+}
+Write-Host 'Κατεβάζω από το Daisycon (1000 προϊόντα ανά αίτημα)...'
 $D = Invoke-WithSignIn @('--mode', 'download', '--media', $MediaId, '--programs', ($good -join ','), '--out', $Archive, '--pause', [string]$PauseMs)
 if ($null -eq $D) { Finish 4 }
 if ($D.error) { Say ('Πρόβλημα: {0}' -f $D.error) 'Red'; Finish 4 }
@@ -243,7 +251,9 @@ foreach ($a in @($D.programs)) {
     if ($oldRows -ge 0) { $was = 'πριν {0}' -f $oldRows }
     $cap = ''
     if ($a.capped) { $cap = ' (ΠΡΟΣΟΧΗ: σταμάτησε στο όριο σελίδων)' }
-    Say ('{0} {1}: OK, {2} προϊόντα ({3}){4}, με link του Daisycon: {5}, νόμισμα: {6}. Αρχείο: {7}' -f $a.program, $a.name, $newRows, $was, $cap, $a.withTracking, (@($a.currencies) -join ', '), $final) 'Green'
+    $tot = ''
+    if ($null -ne $a.total) { $tot = ' (το Daisycon λέει {0})' -f $a.total }
+    Say ('{0} {1}: OK, {2} προϊόντα{3} ({4}){5}, με link του Daisycon: {6}, με σελίδα καταστήματος: {7}, νόμισμα: {8}. Αρχείο: {9}' -f $a.program, $a.name, $newRows, $tot, $was, $cap, $a.withTracking, $a.withPage, (@($a.currencies) -join ', '), $final) 'Green'
 }
 Say ''
 Say ('ΕΤΟΙΜΟ: κατέβηκαν {0} από {1} feeds. Τα παλιά αντίγραφα (αν υπήρχαν): {2}' -f $ok, @($D.programs).Count, $oldDir) 'Green'

@@ -24,8 +24,11 @@ import { FEED_COLUMNS, csvLine, isDaisyconLink, pageInLink } from './network-lin
 export const LOGIN = 'https://login.daisycon.com';
 export const SERVICES = 'https://services.daisycon.com';
 export const REDIRECT = 'https://login.daisycon.com/oauth/cli';
-export const PER_PAGE = 500;
-export const MAX_PAGES = 200;            // 100,000 products for one programme at most
+// Daisycon pages a feed with "records" and the X-Next-Url answer header ("Paginating product feeds"); "page" and
+// "per_page" are not feed parameters: the first real download (14 Nov 2026, lessons L145) got the whole feed again on
+// every page, 200 times over (430,400 rows for 2,152 products), and the next programme ran Node out of memory.
+export const PER_PAGE = 1000;            // products per request ("records")
+export const MAX_PAGES = 2000;           // a guard only: a page with nothing new, or too many products, stops sooner
 export const API_PAUSE_MS = 1400;        // Daisycon's API allows 50 requests a minute
 
 const b64url = buf => Buffer.from(buf).toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
@@ -98,7 +101,7 @@ const imageOf = (f, raw) => {
 };
 
 // One Daisycon product as one feed row (Awin column names): price is the price today, the old price is the shop's "was".
-export function toFeedRow(raw, { programId, program, mediaId } = {}) {
+export function toFeedRow(raw, { programId, program, mediaId, shopUrl = '' } = {}) {
   const f = flatten(raw);
   const link = String(first(f, ['link', 'deeplink', 'tracking_link', 'url_tracking', 'affiliate_link']));
   const price = num(first(f, ['price', 'price_new', 'sale_price', 'selling_price', 'price_sale']));
@@ -108,7 +111,7 @@ export function toFeedRow(raw, { programId, program, mediaId } = {}) {
     : /^(false|0|no|n|out ?of ?stock|sold ?out|niet op voorraad|nicht verf)/.test(stockRaw) ? '0' : '';
   const category = [first(f, ['category_path']), first(f, ['category', 'category_name', 'main_category']), first(f, ['sub_category', 'subcategory'])]
     .map(x => String(x || '').trim()).filter(Boolean).filter((x, i, a) => a.indexOf(x) === i).join(' > ');
-  const page = pageInLink(link) || String(first(f, ['product_link', 'product_url', 'url', 'landing_page']) || '');
+  const page = pageInLink(link) || pageFromDl(link, shopUrl) || String(first(f, ['product_link', 'product_url', 'url', 'landing_page']) || '');
   return {
     data_feed_id: 'daisycon', merchant_id: String(programId ?? ''), merchant_name: String((program && (program.name || program.program_name)) || ''),
     aw_product_id: String(first(f, ['daisycon_unique_id', 'unique_id', 'id', 'product_id', 'sku']) || ''),
@@ -127,6 +130,20 @@ export function toFeedRow(raw, { programId, program, mediaId } = {}) {
   };
 }
 
+// Daisycon's links carry the shop page as a path only ("dl=foco-myst-corner-right-1200_2012r57203.html"): the page is
+// the programme's own address (from the API) and that path, put together as Daisycon does. '' when it cannot be told.
+export function pageFromDl(link, shopUrl) {
+  let dl = '';
+  try { dl = new URL(String(link || '')).searchParams.get('dl') || ''; } catch { return ''; }
+  dl = dl.trim();
+  if (!dl || /^[a-z][a-z0-9+.-]*:/i.test(dl) || dl.startsWith('//')) return '';
+  let base;
+  try { base = new URL(String(shopUrl || '')); } catch { return ''; }
+  if (!/^https?:$/.test(base.protocol)) return '';
+  const whole = dl.startsWith('/') ? base.origin + dl : base.href.replace(/[?#].*$/, '').replace(/\/?$/, '/') + dl;
+  try { const u = new URL(whole); return u.host === base.host ? u.toString() : ''; } catch { return ''; }
+}
+
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
 // GET with a wait on "Too many requests" (429): Retry-After, else 60 s, at most 3 times. Nothing is hammered.
@@ -143,7 +160,8 @@ async function getJson(url, { fetchImpl = fetch, token = '', waitMs = 60000 } = 
     const text = await res.text();
     let json = null;
     try { json = JSON.parse(text); } catch { /* not JSON */ }
-    return { status: res.status, json, text: json ? '' : text.slice(0, 300), total: res.headers && typeof res.headers.get === 'function' ? res.headers.get('x-total-count') : null };
+    const header = k => (res.headers && typeof res.headers.get === 'function' ? res.headers.get(k) : null);
+    return { status: res.status, json, text: json ? '' : text.slice(0, 300), total: header('x-total-count'), next: header('x-next-url') || '' };
   }
 }
 
@@ -178,9 +196,9 @@ export function addressShape(raw) {
 }
 
 // The ready address of a feed: our media id (and the feed's first locale and language) in its placeholders, the other
-// placeholders (#SUBID# ...) emptied (a "#" left in would cut the rest of the address off), JSON, one page.
-// '' when the API's address cannot be read.
-export function feedAddress(feed, { mediaId, page = 1, perPage = PER_PAGE }) {
+// placeholders (#SUBID# ...) emptied (a "#" left in would cut the rest of the address off), JSON, the first
+// <records> products (the next ones come from the X-Next-Url header). '' when the API's address cannot be read.
+export function feedAddress(feed, { mediaId, records = PER_PAGE }) {
   const locale = Array.isArray(feed.locale_ids) && feed.locale_ids.length ? feed.locale_ids[0] : (feed.locale_id || '');
   const whole = feedUrlOf(feed.url);
   if (!whole) return '';
@@ -190,8 +208,15 @@ export function feedAddress(feed, { mediaId, page = 1, perPage = PER_PAGE }) {
   try { u = new URL(filled); } catch { return ''; }
   if (!u.searchParams.get('media_id') && !u.searchParams.get('filter_id')) u.searchParams.set('media_id', String(mediaId));
   if (!u.searchParams.get('locale_id') && locale) u.searchParams.set('locale_id', String(locale));
-  for (const [k, v] of Object.entries({ type: 'JSON', html_transform: 'none', rawdata: 'false', encoding: 'utf8', general: 'false', page: String(page), per_page: String(perPage) })) u.searchParams.set(k, v);
+  for (const k of ['page', 'per_page']) u.searchParams.delete(k);
+  for (const [k, v] of Object.entries({ type: 'JSON', html_transform: 'none', rawdata: 'false', encoding: 'utf8', general: 'false', records: String(records) })) u.searchParams.set(k, v);
   return u.toString();
+}
+
+// The next page from Daisycon's X-Next-Url header: only on daisycon.io (or the tests' local server). '' otherwise.
+export function nextPage(next, current) {
+  if (!next) return '';
+  try { const u = new URL(String(next), current); return /^https?:$/.test(u.protocol) && okHost(u.toString(), ['daisycon.io']) ? u.toString() : ''; } catch { return ''; }
 }
 
 // The API part: who we are on Daisycon, and each programme's feeds.
@@ -200,13 +225,25 @@ async function apiFeeds({ access, mediaId = '', programs, services, fetchImpl, p
   const pubs = listOf(pub.json);
   if (pub.status !== 200 || !pubs.length) return { error: `publishers: HTTP ${pub.status} ${pub.text || JSON.stringify(pub.json || '').slice(0, 200)}` };
   const publisher = pubs[0].id;
+  // Each programme's shop address (to make the product pages) and the countries it supplies, one request for all.
+  const info = {};
+  const locales = {};
+  if (pauseMs) await sleep(pauseMs);
+  const pr = await getJson(`${services}/publishers/${publisher}/programs?program_id=${programs.join(',')}&per_page=1000`, { fetchImpl, token: access });
+  for (const x of listOf(pr.json).filter(isObj)) info[String(x.id)] = x;
+  if (pauseMs) await sleep(pauseMs);
+  const lr = await getJson(`${services}/locales?per_page=1000`, { fetchImpl, token: access });
+  for (const x of listOf(lr.json).filter(isObj)) if (x.id !== undefined) locales[String(x.id)] = String(x.country_code || x.code || '').toUpperCase();
+  const countries = ids => Array.isArray(ids) ? [...new Set(ids.map(i => locales[String(i)] || `#${i}`))] : [];
   const out = [];
   for (const programId of programs) {
     if (pauseMs) await sleep(pauseMs);
     const media = /^\d{3,10}$/.test(String(mediaId)) ? `&placeholder_media_id=${mediaId}` : '';
     const r = await getJson(`${services}/publishers/${publisher}/productfeeds.v2/program?program_id=${programId}${media}&page=1&per_page=100`, { fetchImpl, token: access });
     const feeds = r.status === 200 ? listOf(r.json) : [];
+    const I = info[String(programId)] || {};
     out.push({ program: String(programId), status: r.status, error: r.status === 200 ? '' : `HTTP ${r.status} ${r.text || JSON.stringify(r.json || '').slice(0, 200)}`,
+      shopUrl: String(I.url || I.display_url || ''), ships: countries(I.supply_locale_ids), programName: String(I.name || ''),
       feeds: feeds.filter(isObj).map(f => ({ id: f.id, url: f.url, standard_id: f.standard_id, language_code: f.language_code, locale_ids: f.locale_ids, currency_code: f.currency_code, products: f.products,
         name: f.name || f.program_name || '', subscribed: Array.isArray(f.subscribed_media_ids) ? f.subscribed_media_ids.map(String).includes(String(mediaId)) : null })) });
   }
@@ -232,8 +269,8 @@ export async function probe({ access, mediaId, programs, services = SERVICES, fe
 async function probeOne(P, p, { mediaId, fetchImpl }) {
   const f = pickFeed(p.feeds);
   if (!f) { if (!P.error) P.error = 'no product feed for this programme'; return; }
-  Object.assign(P, { feedId: f.id, language: f.language_code, currency: f.currency_code, products: f.products, standard: f.standard_id, subscribed: f.subscribed });
-  const url = feedAddress(f, { mediaId, page: 1, perPage: 2 });
+  Object.assign(P, { feedId: f.id, language: f.language_code, currency: f.currency_code, products: f.products, standard: f.standard_id, subscribed: f.subscribed, shopUrl: p.shopUrl, ships: p.ships });
+  const url = feedAddress(f, { mediaId, records: 2 });
   if (!url) { P.error = `the feed address from the API could not be read: ${addressShape(f.url)}`; return; }
   if (!okHost(url, ['daisycon.io'])) { P.error = `the feed address is not on daisycon.io: ${addressShape(url)}`; return; }
   const r = await getJson(url, { fetchImpl });
@@ -242,7 +279,7 @@ async function probeOne(P, p, { mediaId, fetchImpl }) {
   P.ok = true;
   P.name = String((found[0].program && (found[0].program.name || found[0].program.program_name)) || f.name || '');
   P.keys = Object.keys(flatten(found[0].product)).slice(0, 60);
-  P.samples = found.slice(0, 2).map(x => { const row = toFeedRow(x.product, { programId: p.program, program: x.program, mediaId }); return {
+  P.samples = found.slice(0, 2).map(x => { const row = toFeedRow(x.product, { programId: p.program, program: x.program, mediaId, shopUrl: p.shopUrl }); return {
     name: row.product_name, price: row.search_price, currency: row.currency || f.currency_code || '', stock: row.in_stock || row.stock_status, category: row.merchant_category,
     image: /^https:\/\//.test(row.merchant_image_url) ? 'yes' : (row.merchant_image_url ? 'not https' : 'no'), page: row.merchant_deep_link,
     tracking: hostOf(row.aw_deep_link) || 'NONE' }; });
@@ -250,17 +287,19 @@ async function probeOne(P, p, { mediaId, fetchImpl }) {
 
 const hostOf = u => { try { return u ? new URL(u).host : ''; } catch { return ''; } };
 
-async function writeRows(file, rows) {
-  await new Promise((resolve, reject) => {
-    const gz = createGzip();
-    const ws = createWriteStream(file);
-    gz.pipe(ws);
-    ws.on('finish', resolve);
-    ws.on('error', reject);
-    gz.write(csvLine(FEED_COLUMNS));
-    for (const row of rows) gz.write(csvLine(FEED_COLUMNS.map(c => row[c])));
-    gz.end();
-  });
+// The feed file, written as the pages come (only the ids seen stay in memory).
+function openRows(file) {
+  const gz = createGzip();
+  const ws = createWriteStream(file);
+  gz.pipe(ws);
+  const done = new Promise((resolve, reject) => { ws.on('finish', resolve); ws.on('error', reject); gz.on('error', reject); });
+  done.catch(() => { /* reported by close() */ });
+  gz.write(csvLine(FEED_COLUMNS));
+  return {
+    write: row => gz.write(csvLine(FEED_COLUMNS.map(c => row[c]))),
+    drain: () => (gz.writableNeedDrain ? new Promise(r => gz.once('drain', r)) : Promise.resolve()),
+    close: () => { gz.end(); return done; }
+  };
 }
 
 // Every product of each programme's chosen feed, page by page, to <out>/DAISYCON_<programme>.csv.gz.part.
@@ -269,7 +308,7 @@ export async function download({ access, mediaId, programs, out, services = SERV
   if (A.error) return { error: A.error };
   const result = [];
   for (const p of A.programs) {
-    const D = { program: p.program, ok: false, got: 0, withTracking: 0, currencies: [], file: join(out, `DAISYCON_${p.program}.csv.gz.part`), name: '' };
+    const D = { program: p.program, ok: false, got: 0, withTracking: 0, withPage: 0, currencies: [], file: join(out, `DAISYCON_${p.program}.csv.gz.part`), name: '', shopUrl: p.shopUrl, ships: p.ships };
     try { await downloadOne(D, p, { mediaId, fetchImpl, pauseMs }); }
     catch (e) { D.ok = false; D.error = `unexpected: ${String(e && e.message || e).slice(0, 200)}`; }
     result.push(D);
@@ -280,31 +319,55 @@ export async function download({ access, mediaId, programs, out, services = SERV
 async function downloadOne(D, p, { mediaId, fetchImpl, pauseMs }) {
   const f = pickFeed(p.feeds);
   if (!f) { D.error = p.error || 'no product feed for this programme'; return; }
-  const rows = [];
-  for (let page = 1; page <= MAX_PAGES; page++) {
-    const url = feedAddress(f, { mediaId, page, perPage: PER_PAGE });
-    if (!url) { D.error = `the feed address from the API could not be read: ${addressShape(f.url)}`; break; }
-    if (!okHost(url, ['daisycon.io'])) { D.error = `the feed address is not on daisycon.io: ${addressShape(url)}`; break; }
-    const r = await getJson(url, { fetchImpl });
-    if (!r.json) { D.error = `HTTP ${r.status} ${r.error || r.text || ''}`.trim(); break; }
-    const found = findProducts(r.json);
-    for (const x of found) {
-      const row = toFeedRow(x.product, { programId: p.program, program: x.program, mediaId });
-      if (!row.currency && f.currency_code) row.currency = String(f.currency_code).toUpperCase();
-      if (!D.name) D.name = row.merchant_name || f.name || '';
-      rows.push(row);
+  let url = feedAddress(f, { mediaId, records: PER_PAGE });
+  if (!url) { D.error = `the feed address from the API could not be read: ${addressShape(f.url)}`; return; }
+  if (!okHost(url, ['daisycon.io'])) { D.error = `the feed address is not on daisycon.io: ${addressShape(url)}`; return; }
+  const seen = new Set();
+  const currencies = new Set();
+  const out = openRows(D.file);
+  try {
+    for (let page = 1; url; page++) {
+      if (page > MAX_PAGES) { D.capped = true; break; }
+      const r = await getJson(url, { fetchImpl });
+      if (!r.json) { D.error = `HTTP ${r.status} ${r.error || r.text || ''}`.trim(); break; }
+      if (D.total === undefined && r.total !== null && r.total !== undefined && r.total !== '') D.total = Number(r.total);
+      const found = findProducts(r.json);
+      let fresh = 0;
+      for (const x of found) {
+        const row = toFeedRow(x.product, { programId: p.program, program: x.program, mediaId, shopUrl: p.shopUrl });
+        const id = row.aw_product_id || row.merchant_product_id || row.aw_deep_link || row.product_name;
+        if (seen.has(id)) continue;
+        seen.add(id);
+        fresh++;
+        if (!row.currency && f.currency_code) row.currency = String(f.currency_code).toUpperCase();
+        if (!D.name) D.name = row.merchant_name || f.name || '';
+        out.write(row);
+        D.got++;
+        if (row.aw_deep_link) D.withTracking++;
+        if (row.merchant_deep_link) D.withPage++;
+        if (row.currency) currencies.add(row.currency);
+      }
+      await out.drain();
+      // Never the same products again and again (lessons L145): a page with nothing new, or more products than the
+      // feed says it has, stops this programme with an error and its file is not used.
+      if (found.length && !fresh) { D.error = `page ${page} gave only products already read (the feed does not move on)`; break; }
+      const limit = Math.max(Number(D.total) || 0, Number(f.products) || 0);
+      if (limit && D.got > limit * 1.2 + 100) { D.error = `more products (${D.got}) than the feed says it has (${limit})`; break; }
+      const next = nextPage(r.next, url);
+      if (r.next && !next) { D.error = `the next page address is not on daisycon.io: ${addressShape(r.next)}`; break; }
+      url = next;
+      if (url && pauseMs) await sleep(Math.min(pauseMs, 1000));
     }
-    if (found.length < PER_PAGE) break;
-    if (page === MAX_PAGES) D.capped = true;
-    if (pauseMs) await sleep(Math.min(pauseMs, 1000));
+  } finally {
+    await out.close();
   }
-  D.got = rows.length;
-  D.withTracking = rows.filter(x => x.aw_deep_link).length;
-  D.currencies = [...new Set(rows.map(x => x.currency).filter(Boolean))];
-  if (!D.error && !rows.length) D.error = 'no products';
-  if (!D.error) { await writeRows(D.file, rows); D.ok = true; }
+  D.currencies = [...currencies];
+  if (!D.error && !D.got) D.error = 'no products';
+  if (!D.error) D.ok = true;
 }
 
+// The renewed sign-in key of this run, for the crash answer below.
+let renewed = '';
 const arg = (argv, name) => { const i = argv.indexOf(`--${name}`); return i >= 0 ? argv[i + 1] : undefined; };
 
 export async function main(argv = process.argv.slice(2), fetchImpl = fetch, env = process.env) {
@@ -332,6 +395,7 @@ export async function main(argv = process.argv.slice(2), fetchImpl = fetch, env 
   const t = await tokenRequest({ login, fetchImpl, grant_type: 'refresh_token', refresh_token: env.GW_DC_REFRESH || '', client_id: env.GW_DC_CLIENT || '', client_secret: env.GW_DC_SECRET || '' });
   if (t.error) return { ok: false, error: `sign-in: ${t.error}`, signIn: true };
   const S = { ok: false, mode, media: mediaId, newRefresh: t.refresh && t.refresh !== env.GW_DC_REFRESH ? t.refresh : '' };
+  renewed = S.newRefresh;
   const pause = Number(arg(argv, 'pause') ?? API_PAUSE_MS);
   // The renewed sign-in must reach the PowerShell tool whatever happens next: Daisycon gives a new key at each sign-in
   // and the old one stops working (first real run, 14 Nov 2026: an error here lost it, lessons L145).
@@ -348,5 +412,7 @@ export async function main(argv = process.argv.slice(2), fetchImpl = fetch, env 
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1] || '').href) {
+  // A crash still answers the PowerShell tool in one JSON line (14 Nov 2026 it got nothing at all, lessons L145).
+  process.on('uncaughtException', e => { console.log(JSON.stringify({ ok: false, error: `crash: ${String(e && e.message || e).slice(0, 300)}`, newRefresh: renewed })); process.exit(1); });
   main().then(S => { console.log(JSON.stringify(S)); }, e => { console.log(JSON.stringify({ ok: false, error: String(e && e.message || e).slice(0, 300) })); });
 }
