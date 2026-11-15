@@ -947,6 +947,6 @@
     { "advertiserId": 69178, "feedIds": [94438], "retailer": "AKKO", "currency": "GBP", "condition": "new", "approved": true, "gamingShop": true, "defaultSlug": "mice-keyboards" },
     { "advertiserId": 129295, "feedIds": [116822], "retailer": "Back to the Office IE", "currency": "EUR", "condition": "new", "approved": true, "rulesFrom": 61655, "_comment": "Round 2c (L144): the Irish shop of Back to the Office, the same rules as the UK shop on PGW (rulesFrom)." },
     { "advertiserId": 113754, "feedIds": [100736], "retailer": "MonsGeek", "currency": "EUR", "condition": "new", "approved": true, "denyNames": ["\\bgift ?cards?\\b"], "gamingShop": true, "defaultSlug": "mice-keyboards", "_comment": "Round 2c (L144): MonsGeek keyboards, like AKKO on PGW." },
-    { "advertiserId": 12044, "feedIds": [101519], "retailer": "AliExpress PL", "currency": "PLN", "condition": "new", "approved": true, "sections": "aliexpress-pl", "joinVariants": true }
+    { "advertiserId": 12044, "feedIds": [101519], "retailer": "AliExpress PL", "currency": "PLN", "condition": "new", "approved": true, "sections": "aliexpress-pl", "joinVariants": true, "minPrice": 10 }
   ]
 }
