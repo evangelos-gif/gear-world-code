@@ -128,6 +128,7 @@ test('Daisycon: probe and download through the API, the new sign-in key handed b
   assert.equal(A.total, dc.PER_PAGE + 3);
   assert.equal(A.withTracking, A.got);
   assert.equal(A.withPage, A.got);
+  assert.equal(A.newest, '2026-11-13', 'the newest product update, to see a feed that stopped changing');
   assert.deepEqual(A.currencies, ['EUR']);
   const text = gunzipSync(readFileSync(A.file)).toString('utf8');
   assert.ok(text.split('\n')[0].includes('aw_deep_link'));

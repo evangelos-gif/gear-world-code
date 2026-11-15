@@ -253,7 +253,7 @@ foreach ($a in @($D.programs)) {
     if ($a.capped) { $cap = ' (ΠΡΟΣΟΧΗ: σταμάτησε στο όριο σελίδων)' }
     $tot = ''
     if ($null -ne $a.total) { $tot = ' (το Daisycon λέει {0})' -f $a.total }
-    Say ('{0} {1}: OK, {2} προϊόντα{3} ({4}){5}, με link του Daisycon: {6}, με σελίδα καταστήματος: {7}, νόμισμα: {8}. Αρχείο: {9}' -f $a.program, $a.name, $newRows, $tot, $was, $cap, $a.withTracking, $a.withPage, (@($a.currencies) -join ', '), $final) 'Green'
+    Say ('{0} {1}: OK, {2} προϊόντα{3} ({4}){5}, με link του Daisycon: {6}, με σελίδα καταστήματος: {7}, νόμισμα: {8}, νεότερη αλλαγή προϊόντος: {9}. Αρχείο: {10}' -f $a.program, $a.name, $newRows, $tot, $was, $cap, $a.withTracking, $a.withPage, (@($a.currencies) -join ', '), $a.newest, $final) 'Green'
 }
 Say ''
 Say ('ΕΤΟΙΜΟ: κατέβηκαν {0} από {1} feeds. Τα παλιά αντίγραφα (αν υπήρχαν): {2}' -f $ok, @($D.programs).Count, $oldDir) 'Green'

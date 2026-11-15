@@ -346,6 +346,9 @@ async function downloadOne(D, p, { mediaId, fetchImpl, pauseMs }) {
         if (row.aw_deep_link) D.withTracking++;
         if (row.merchant_deep_link) D.withPage++;
         if (row.currency) currencies.add(row.currency);
+        // The newest update in the feed: a feed whose products all stopped changing months ago has old prices and stock
+        // (Bioethanol-fireplace UK, 14 Nov 2026: every product last updated 31 Jul 2026, lessons L60, L145).
+        if (/^\d{4}-\d{2}-\d{2}/.test(row.last_updated) && row.last_updated > (D.newest || '')) D.newest = row.last_updated.slice(0, 10);
       }
       await out.drain();
       // Never the same products again and again (lessons L145): a page with nothing new, or more products than the
