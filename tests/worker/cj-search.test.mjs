@@ -12,7 +12,7 @@ import { run, productQuery, SEARCHES, SEARCH_COLUMNS, SEARCH_MAX, WHOLE_MAX, COL
 const TOKEN = 'cjTestToken_' + 'search987654';
 const API = 'http://127.0.0.1:9/query';
 const t = (name, kind, ofType = null) => ({ name, kind, ofType });
-const ARGS = ['companyId', 'partnerIds', 'limit', 'offset', 'lowPrice', 'highPrice', 'keywords', 'currency', 'serviceableAreas'];
+const ARGS = ['companyId', 'partnerIds', 'limit', 'offset', 'lowPrice', 'highPrice', 'keywords', 'currency', 'serviceableAreas', 'googleProductCategoryIds', 'googleProductCategoryNames'];
 const schemaWith = args => ({ queryType: { fields: [
   { name: 'shoppingProducts', args: args.map(name => ({ name, type: t(/Price$/.test(name) ? 'Float' : name === 'limit' || name === 'offset' ? 'Int' : 'String', 'SCALAR') })), type: t('ShoppingProducts', 'OBJECT') }
 ] } });
@@ -22,7 +22,9 @@ const TYPES = {
   ShoppingProduct: ['id', 'title', 'brand', 'link', 'imageLink', 'availability', 'advertiserId', 'advertiserName', 'itemGroupId', 'targetCountry', 'shipsFromCountry', 'ageGroup', 'gender']
     .map(name => ({ name, args: [], type: t('String', 'SCALAR') }))
     .concat([{ name: 'serviceableAreas', args: [], type: t(null, 'LIST', t('String', 'SCALAR')) },
-      { name: 'price', args: [], type: t('Price', 'OBJECT') }, { name: 'linkCode', args: [{ name: 'pid' }], type: t('LinkCode', 'OBJECT') }]),
+      { name: 'price', args: [], type: t('Price', 'OBJECT') }, { name: 'linkCode', args: [{ name: 'pid' }], type: t('LinkCode', 'OBJECT') },
+      { name: 'googleProductCategory', args: [], type: t('Gpc', 'OBJECT') }]),
+  Gpc: [{ name: 'id', type: t('ID', 'SCALAR') }, { name: 'name', type: t('String', 'SCALAR') }],
   Price: [{ name: 'amount', type: t('Float', 'SCALAR') }, { name: 'currency', type: t('String', 'SCALAR') }],
   LinkCode: [{ name: 'clickUrl', type: t('String', 'SCALAR') }]
 };
@@ -31,12 +33,13 @@ const item = (i, title, currency = 'GBP', over = {}) => ({
   id: String(400000000 + i), title, brand: '', link: `http://www.dhgate.com/product/item-${i}/${400000000 + i}.html`, imageLink: `https://img.dhgate.com/${i}.jpg`,
   availability: 'in stock', advertiserId: '3992613', advertiserName: 'DHgate', itemGroupId: '', targetCountry: currency === 'GBP' ? 'GB' : 'US',
   serviceableAreas: currency === 'GBP' ? ['GB'] : ['US'], shipsFromCountry: 'CN', ageGroup: 'kids', gender: 'unisex',
-  price: { amount: 10 + i, currency }, linkCode: { clickUrl: `https://www.jdoqocy.com/click-101917444-1?url=${i}` }, ...over
+  price: { amount: 10 + i, currency }, linkCode: { clickUrl: `https://www.jdoqocy.com/click-101917444-1?url=${i}` },
+  googleProductCategory: { id: '187', name: 'Apparel & Accessories > Shoes' }, ...over
 });
 
-// A fake CJ like the real one (first DHgate look, 15 Nov 2026): plain keywords = ANY of the words, "+a +b" = every word,
-// "\"a b\"" = the phrase; currency and serviceableAreas filter; price bands.
-function fakeCj({ products, args = ARGS, total = null, plus = true }) {
+// A fake CJ like the real one (DHgate looks of 15 Nov 2026): keywords = ANY of the words, "+" and quotes ignored;
+// currency, serviceableAreas and Google category (id or name) filter; price bands.
+function fakeCj({ products, args = ARGS, total = null }) {
   const calls = [];
   const fetchImpl = async (url, init) => {
     const q = JSON.parse(init.body).query;
@@ -49,18 +52,12 @@ function fakeCj({ products, args = ARGS, total = null, plus = true }) {
     const str = k => { const m = new RegExp(`${k}: "((?:[^"\\\\]|\\\\.)*)"`).exec(q); return m ? JSON.parse(`"${m[1]}"`) : ''; };
     const num = k => { const m = new RegExp(`${k}: ([\\d.]+)`).exec(q); return m ? Number(m[1]) : null; };
     const kw = str('keywords'), cur = str('currency'), area = str('serviceableAreas'), lo = num('lowPrice'), hi = num('highPrice');
+    const gid = str('googleProductCategoryIds'), gname = str('googleProductCategoryNames');
     const limit = num('limit') ?? 1000, offset = num('offset') ?? 0;
     const t = p => ` ${p.title.toLowerCase()} `;
     const hasWord = (p, w) => t(p).includes(` ${w} `);
-    const match = p => {
-      if (!kw) return true;
-      const k = kw.toLowerCase().trim();
-      if (/^".*"$/.test(k)) return t(p).includes(` ${k.slice(1, -1)} `);
-      const words = k.split(/\s+/);
-      if (words.every(w => w.startsWith('+'))) return plus ? words.every(w => hasWord(p, w.slice(1))) : words.some(w => hasWord(p, w.slice(1)));
-      return words.some(w => hasWord(p, w));
-    };
-    const list = products.filter(p => match(p)
+    const match = p => !kw || kw.toLowerCase().replace(/["+]/g, ' ').trim().split(/\s+/).some(w => hasWord(p, w));
+    const list = products.filter(p => match(p) && (!gid || p.googleProductCategory.id === gid) && (!gname || p.googleProductCategory.name === gname)
       && (!cur || p.price.currency === cur) && (!area || p.serviceableAreas.includes(area))
       && (lo === null || p.price.amount >= lo) && (hi === null || p.price.amount <= hi));
     const n = total !== null && !kw ? total : list.length;
@@ -76,15 +73,17 @@ const CATALOGUE = [
   item(4, 'Toddler Winter Boots Baby First Walkers'),
   item(5, 'Kids Rain Boots Wellies Frog Print'),
   item(6, 'Glass Bongs Water Pipe', 'GBP'),
-  item(7, 'Children Snow Boots Kids Winter Warm')
+  item(7, 'Children Snow Boots Kids Winter Warm'),
+  item(8, 'Snow Globe Christmas Decoration', 'GBP', { googleProductCategory: { id: '696', name: 'Home & Garden > Decor' } })
 ];
 const base = { cids: ['7806395'], pid: '101917444', advertisers: ['3992613'], token: TOKEN, api: API, pauseMs: 0 };
 
 test('L161: the search is written down, in pounds, and its file columns say where each product is sold and why it came', () => {
   const s = SEARCHES['kids-winter-boots'];
   assert.equal(s.currency, 'GBP');
-  assert.ok(s.keywords.includes('kids snow boots') && s.keywords.includes('kids wellies'));
-  assert.ok(s.keywords.every(k => /^[a-z ]{5,40}$/.test(k)), 'plain words only');
+  assert.ok(s.keywords.includes('snow') && s.keywords.includes('wellies'));
+  assert.ok(s.keywords.every(k => /^[a-z]{3,20}$/.test(k)), 'one word each: CJ reads several words as any of them');
+  assert.deepEqual(s.narrow.map(n => n.googleProductCategoryIds || n.googleProductCategoryNames || ''), ['187', 'Apparel & Accessories > Shoes', ''], 'shoes first, then every category');
   for (const c of ['target_country', 'serviceable_areas', 'ships_from', 'age_group', 'search_keyword']) assert.ok(SEARCH_COLUMNS.includes(c), c);
   assert.ok(SEARCH_MAX <= 20000 && WHOLE_MAX < 6000000);
 });
@@ -108,14 +107,15 @@ test('L161: the read-only look counts each keyword in any currency, in pounds an
   assert.equal(S.search, 'kids-winter-boots');
   const A = S.advertisers[0];
   assert.equal(A.ok, true, A.error);
-  const kids = A.searches.find(x => x.keyword === 'kids snow boots');
-  // Any word: 6 (5 in pounds, item 3 is in dollars); every word in pounds: items 1 and 7; the phrase: item 1.
-  assert.deepEqual([kids.all, kids.inCurrency, kids.every, kids.phrase], [6, 5, 2, 1]);
-  assert.deepEqual([kids.form, kids.query, kids.used, kids.inArea], ['every word', '+kids +snow +boots', 2, 2], 'the narrowest form that finds something');
-  const wellies = A.searches.find(x => x.keyword === 'kids wellies');
-  assert.deepEqual([wellies.every, wellies.used], [1, 1]);
+  const snow = A.searches.find(x => x.keyword === 'snow');
+  // Any currency: items 1, 2, 3, 7 and the snow globe; in pounds and in shoes: 1, 2, 7; in every category the globe too.
+  assert.equal(snow.all, 5);
+  assert.deepEqual(snow.tries.map(x => x.total), [3, 3, 4]);
+  assert.deepEqual([snow.form, snow.used, snow.inArea], ['Shoes (Google 187)', 3, 3], 'the first narrowing that finds something');
+  assert.deepEqual([A.searches.find(x => x.keyword === 'wellies').used, A.searches.find(x => x.keyword === 'snowboots').form], [1, '']);
   assert.ok(A.total >= 5);
-  assert.ok(A.samples.length >= 1 && A.samples.every(x => x.currency === 'GBP' && x.target === 'GB' && x.areas === 'GB' && x.keyword === '+kids +snow +boots'));
+  assert.match(A.sampleQuery, /keywords=snow \| currency=GBP \| googleProductCategoryIds=187/);
+  assert.ok(A.samples.length === 3 && A.samples.every(x => x.currency === 'GBP' && x.target === 'GB' && x.areas === 'GB' && x.gpc === 'Apparel & Accessories > Shoes'));
   assert.equal(readdirSync(out).length, 0, 'the look writes nothing');
   const asks = cj.calls.filter(q => q.includes('shoppingProducts('));
   assert.match(asks[0], /limit: 1[,)]/, 'only the account check (one product) has no keywords');
@@ -135,11 +135,12 @@ test('L161: the download keeps only pound products of the keywords, each once, i
   assert.deepEqual(ids.sort(), ['400000001', '400000002', '400000004', '400000005', '400000007'], 'no dollars, no bongs, no product twice');
   assert.equal(A.got, 5);
   assert.ok(text.slice(1).every(l => l.includes('"GBP"')));
-  assert.ok(text.some(l => l.includes('"+kids +snow +boots"')), 'the search that found it');
-  assert.equal(A.searches.find(x => x.keyword === 'kids snow boots').form, 'every word');
+  assert.ok(text.some(l => l.endsWith('"snow"')), 'the keyword that found it');
+  assert.equal(A.searches.find(x => x.keyword === 'snow').form, 'Shoes (Google 187)');
   const asks = cj.calls.filter(q => q.includes('shoppingProducts('));
   assert.match(asks[0], /limit: 1[,)]/, 'only the account check (one product) has no keywords');
   assert.ok(asks.slice(1).every(q => q.includes('keywords: "') && q.includes('currency: "GBP"')));
+  assert.ok(!asks.some(q => q.includes('lowPrice') && !q.includes('keywords')), 'no price band without the search');
   assert.ok(!JSON.stringify(S).includes(TOKEN));
 });
 
@@ -148,9 +149,9 @@ test('L161: a keyword that finds too much is left out; an unknown search, or an 
   const cj = fakeCj({ products: many });
   const out = mkdtempSync(join(tmpdir(), 'gw-cjs-'));
   const S = await run({ ...base, mode: 'download', out, fetchImpl: cj.fetchImpl, search: 'kids-winter-boots', searchMax: 20 });
-  const kids = S.advertisers[0].searches.find(x => x.keyword === 'kids snow boots');
-  assert.equal(kids.tooBroad, true);
-  assert.equal(kids.got, 0);
+  const snow = S.advertisers[0].searches.find(x => x.keyword === 'snow');
+  assert.equal(snow.tooBroad, true);
+  assert.equal(snow.got, 0);
   assert.equal(S.advertisers[0].error, 'no products');
   assert.equal(readdirSync(out).length, 0);
   for (const bad of ['nope', '__proto__', 'constructor']) {
@@ -214,11 +215,9 @@ test('L161: DHgate on Kids\' Gear World: only children\'s winter boots from the 
   assert.match(reasons, /tracking link/);
 });
 
-test('L161: when CJ ignores "+", the phrase is used; when nothing fits, the keyword is left out', async () => {
-  const many = Array.from({ length: 12 }, (_, i) => item(200 + i, i < 3 ? `Kids Snow Boots Style ${i}` : `Kids Shoes Model ${i}`));
-  const S = await run({ ...base, mode: 'probe', fetchImpl: fakeCj({ products: many, plus: false }).fetchImpl, search: 'kids-winter-boots', searchMax: 5 });
-  const kids = S.advertisers[0].searches.find(x => x.keyword === 'kids snow boots');
-  assert.deepEqual([kids.every, kids.phrase, kids.form, kids.used], [12, 3, 'phrase', 3]);
-  const winter = S.advertisers[0].searches.find(x => x.keyword === 'kids winter boots');
-  assert.deepEqual([winter.form, winter.used, winter.tooBroad], ['', 0, true]);
+test('L161: a keyword with nothing in shoes falls back to every category', async () => {
+  const items = [item(300, 'Wellies Kids Frog', 'GBP', { googleProductCategory: { id: '1604', name: 'Apparel & Accessories > Clothing' } })];
+  const S = await run({ ...base, mode: 'probe', fetchImpl: fakeCj({ products: items }).fetchImpl, search: 'kids-winter-boots' });
+  const w = S.advertisers[0].searches.find(x => x.keyword === 'wellies');
+  assert.deepEqual([w.tries.map(x => x.total), w.form, w.used], [[0, 0, 1], 'every category', 1]);
 });

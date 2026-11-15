@@ -250,26 +250,30 @@ foreach ($a in @($S.advertisers)) {
     if (-not $a.ok) { Say ('{0}: 🔴 ΠΡΟΒΛΗΜΑ: {1}' -f $a.advertiser, $a.error) 'Red'; continue }
     if ($null -ne $a.searches) {
         Say ('{0}: αναζήτηση «{1}» ({2} λέξεις-κλειδιά), σε {3}:' -f $a.advertiser, $S.searchLabel, @($a.searches).Count, $S.searchCurrency)
-        Say ('  (σε {0}: «κάθε λέξη» = όλες οι λέξεις μέσα, «φράση» = ακριβώς έτσι, «οποιαδήποτε» = έστω μία λέξη. Μπαίνει η στενότερη που βρίσκει κάτι, έως 20.000)' -f $S.searchCurrency)
+        Say ('  (σε {0}, κάθε λέξη πρώτα μόνο στα παπούτσια και μετά σε όλες τις κατηγορίες: μπαίνει το πρώτο που βρίσκει κάτι, έως 20.000)' -f $S.searchCurrency)
         foreach ($k in @($a.searches)) {
             $area = 'δεν φαίνεται'
             if ($null -ne $k.inArea) { $area = [string]$k.inArea }
-            $use = '🟡 ΠΡΟΣΟΧΗ: καμία μορφή, μένει έξω'
+            $tries = @($k.tries | ForEach-Object { '{0}: {1}' -f $_.label, $_.total }) -join ' | '
+            $use = '🟡 ΠΡΟΣΟΧΗ: τίποτα κάτω από 20.000, μένει έξω'
             if ($k.form) { $use = 'μπαίνει: {0} = {1}' -f $k.form, $k.used }
-            Say ('  «{0}»: όλα τα νομίσματα {1} | κάθε λέξη {2} | φράση {3} | οποιαδήποτε {4} | {5} | με παράδοση στο UK: {6}' -f $k.keyword, $k.all, $k.every, $k.phrase, $k.inCurrency, $use, $area)
+            Say ('  «{0}»: όλα τα νομίσματα {1} | {2} | {3} | με παράδοση στο UK: {4}' -f $k.keyword, $k.all, $tries, $use, $area)
         }
         Say ('  Σύνολο σε {0} (μαζί και διπλά ανάμεσα στις λέξεις): {1}' -f $S.searchCurrency, $a.total)
     } else {
         Say ('{0}: προϊόντα στο CJ: {1}' -f $a.advertiser, $a.total)
     }
-    if (-not $a.total) { Say '  Δεν έχει προϊόντα στον κατάλογο του CJ (ή δεν σε έχει δεχτεί ακόμα). Δεν κατεβαίνει.' 'Yellow'; continue }
+    if (-not $a.total -and $null -eq $a.searches) { Say '  Δεν έχει προϊόντα στον κατάλογο του CJ (ή δεν σε έχει δεχτεί ακόμα). Δεν κατεβαίνει.' 'Yellow'; continue }
+    if ($a.sampleQuery) { Say ('  Δείγματα από: {0}' -f $a.sampleQuery) }
     $i = 0
     foreach ($p in @($a.samples)) {
+        if (-not $p) { continue }
         $i++
         Say ('  Δείγμα {0}: {1} | {2} {3} | απόθεμα: {4} | κατηγορία: {5} | εικόνα: {6} | link CJ: {7}' -f $i, $p.name, $p.price, $p.currency, $p.stock, $p.category, $p.image, $p.tracking)
         Say ('     σελίδα: {0}' -f $p.page)
-        if ($null -ne $a.searches) { Say ('     λέξη: {0} | χώρα πώλησης: {1} | παράδοση σε: {2} | αποστολή από: {3} | ηλικία: {4}' -f $p.keyword, $p.target, $p.areas, $p.shipsFrom, $p.age) }
+        if ($null -ne $a.searches) { Say ('     Google: {0} | χώρα πώλησης: {1} | παράδοση σε: {2} | αποστολή από: {3} | ηλικία: {4}' -f $p.gpc, $p.target, $p.areas, $p.shipsFrom, $p.age) }
     }
+    if (-not $a.total) { Say '  Καμία αναζήτηση δεν βρήκε προϊόντα κάτω από το όριο. Δεν κατεβαίνει.' 'Yellow'; continue }
     if (@($a.samples | Where-Object { $_.tracking -eq 'NONE' }).Count -gt 0) { Say '  🟡 ΠΡΟΣΟΧΗ: κάποια δείγματα δεν έχουν link του CJ. Αυτά δεν θα μπουν στα sites (δεν πληρώνουν).' 'Yellow' }
     $good.Add([string]$a.advertiser)
 }
