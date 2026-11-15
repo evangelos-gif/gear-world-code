@@ -2920,6 +2920,17 @@ http.createServer((q, s) => {
         $dcAll = (@(Get-ChildItem -LiteralPath $dcOut -Filter 'DAISYCON_FEED_DOWNLOAD_*.txt') | ForEach-Object { [System.IO.File]::ReadAllText($_.FullName) }) -join "`n"
         Check ($dcAll.Contains('OK, 3 προϊόντα') -and $dcAll.Contains('με link του Daisycon: 3') -and $dcAll.Contains('νόμισμα: EUR')) 'daisycon-feed-download: report counts the products and their Daisycon links'
         Check (-not $dcAll.Contains($dcRefresh) -and -not $dcAll.Contains('dcSecretValue1') -and -not $dcAll.Contains('rotated')) 'daisycon-feed-download: no key or sign-in in any report'
+        # Lessons L163 (TEMU INT): every feed listed, -Country keeps only a feed for that country, -MaxProducts stops a big one.
+        Get-ChildItem -LiteralPath $dcOut -Filter 'DAISYCON_FEED_DOWNLOAD_*.txt' | Remove-Item -Force
+        & $exe @($dcArgs + @('-Country', 'GB', '-Currency', 'GBP')) | Out-Null
+        $dcGb = (@(Get-ChildItem -LiteralPath $dcOut -Filter 'DAISYCON_FEED_DOWNLOAD_*.txt') | ForEach-Object { [System.IO.File]::ReadAllText($_.FullName) }) -join "`n"
+        Check ($LASTEXITCODE -eq 0 -and $dcGb.Contains('feed 5: γλώσσα en, νόμισμα EUR, προϊόντα 3') -and $dcGb.Contains('no product feed for GB') -and $dcGb.Contains('χώρα GB | νόμισμα GBP')) 'daisycon-feed-download: every feed listed, -Country GB leaves out a feed that does not serve the UK'
+        Get-ChildItem -LiteralPath $dcOut -Filter 'DAISYCON_FEED_DOWNLOAD_*.txt' | Remove-Item -Force
+        & $exe @($dcArgs + @('-MaxProducts', '2')) | Out-Null
+        $dcMax = (@(Get-ChildItem -LiteralPath $dcOut -Filter 'DAISYCON_FEED_DOWNLOAD_*.txt') | ForEach-Object { [System.IO.File]::ReadAllText($_.FullName) }) -join "`n"
+        Check ($LASTEXITCODE -eq 0 -and $dcMax.Contains('πάνω από το όριο 2')) 'daisycon-feed-download: a feed over -MaxProducts is listed but not downloaded'
+        & $exe @($dcArgs + @('-Country', 'GBR')) | Out-Null
+        Check ($LASTEXITCODE -eq 2) 'daisycon-feed-download: a wrong country is refused'
         & $exe -NoProfile -ExecutionPolicy Bypass -File $dcTool -Program '16029' -Base 'https://evil.example' -SecretFile $dcSecretFile -Archive $dcArch -OutDir $dcOut -NoClipboard | Out-Null
         Check ($LASTEXITCODE -eq 2) 'daisycon-feed-download: refuses an address that is not Daisycon or the local test server'
     } finally {

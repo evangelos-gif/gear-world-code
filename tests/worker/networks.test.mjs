@@ -338,3 +338,51 @@ test('the import planner finds RAKUTEN_ and DAISYCON_ files and keeps their trac
   assert.ok(isDaisyconLink(R.products[0].tracked, '447289'));
   assert.equal(R.products[0].currency, 'EUR');
 });
+
+// TEMU INT (15 Nov 2026, lessons L163): a shop with a feed per country and currency. The owner wants only what the
+// sites can show to UK visitors, so the UK feed in pounds, with the UK locale in the address, and a size limit.
+test('Daisycon: --country and --currency pick the UK feed in pounds, every feed is listed, -MaxProducts stops a big feed', async () => {
+  const us = { id: 11, url: 'https://daisycon.io/datafeed/?media_id=#MEDIA_ID#&program_id=18371&locale_id=#LOCALE_ID#', language_code: 'en', locale_ids: [9], countries: ['US'], currency_code: 'USD', products: 900000 };
+  const uk = { id: 12, url: 'https://daisycon.io/datafeed/?media_id=#MEDIA_ID#&program_id=18371&locale_id=#LOCALE_ID#', language_code: 'en', locale_ids: [4, 3], countries: ['IE', 'GB'], currency_code: 'GBP', products: 1200 };
+  const de = { id: 13, url: 'https://daisycon.io/datafeed/?media_id=#MEDIA_ID#&program_id=18371&locale_id=#LOCALE_ID#', language_code: 'de', locale_ids: [5], countries: ['DE'], currency_code: 'EUR', products: 5000 };
+  assert.equal(dc.pickFeed([us, uk, de]).id, 11, 'without a choice: English first, then the most products (as before)');
+  const g = dc.pickFeed([us, uk, de], { country: 'GB', currency: 'GBP' });
+  assert.equal(g.id, 12);
+  assert.deepEqual(g.locale_ids, [3, 4], 'the UK locale goes first, so it is the one in the address');
+  assert.equal(new URL(dc.feedAddress(g, { mediaId: 447289 })).searchParams.get('locale_id'), '3');
+  assert.equal(dc.pickFeed([us, de], { country: 'GB' }), null, 'no feed for the UK: nothing, never another country');
+  assert.equal(dc.pickFeed([us, { ...uk, currency_code: 'EUR', countries: ['GB'], locale_ids: [3] }, { ...uk, id: 14, countries: ['GB'], locale_ids: [3] }], { country: 'GB', currency: 'GBP' }).id, 14, 'pounds first');
+  assert.deepEqual(dc.feedSummary([us, uk]).map(f => `${f.id} ${f.currency} ${f.countries.join('+')}`), ['11 USD US', '12 GBP IE+GB']);
+
+  const fake = fakeFetch(u => {
+    if (u.pathname === '/oauth/access-token') return { body: { access_token: 'A1', refresh_token: 'R2', expires_in: 3600 } };
+    if (u.pathname === '/publishers') return { body: [{ id: 777 }] };
+    if (u.pathname === '/locales') return { body: [{ id: '3', country_code: 'GB' }, { id: '4', country_code: 'IE' }, { id: '9', country_code: 'US' }] };
+    if (u.pathname === '/publishers/777/programs/18371') return { body: { id: 18371, url: 'https://www.temu.com/', supply_locale_ids: [3, 4, 9] } };
+    if (u.pathname === '/publishers/777/productfeeds.v2/program') return { body: [{ ...us, countries: undefined }, { ...uk, countries: undefined, products: 3 }] };
+    if (u.hostname === 'daisycon.io') {
+      if (u.searchParams.get('locale_id') !== '3') return { status: 400, body: { error: 'wrong locale' } };
+      return { headers: { 'x-total-count': '3' }, body: dcAnswer([dcProduct(1), dcProduct(2), dcProduct(3)]) };
+    }
+    return { status: 404, body: 'not found' };
+  });
+  const env = { GW_DC_CLIENT: 'abc123', GW_DC_SECRET: 's3cret', GW_DC_REFRESH: 'R1' };
+  const P = await dc.main(['--mode', 'probe', '--media', '447289', '--programs', '18371', '--pause', '0', '--country', 'gb', '--currency', 'gbp'], fake, env);
+  assert.equal(P.ok, true);
+  assert.equal(P.programs[0].ok, true);
+  assert.equal(P.programs[0].currency, 'GBP');
+  assert.equal(P.programs[0].feedId, 12);
+  assert.deepEqual(P.programs[0].allFeeds.map(f => f.countries.join('+')), ['US', 'IE+GB'], 'the countries come from the locales');
+  const out = mkdtempSync(join(tmpdir(), 'gw-dc-temu-'));
+  const D = await dc.main(['--mode', 'download', '--media', '447289', '--programs', '18371', '--out', out, '--pause', '0', '--country', 'GB', '--currency', 'GBP', '--max-products', '100'], fake, env);
+  assert.equal(D.programs[0].ok, true);
+  assert.equal(D.programs[0].got, 3);
+  assert.equal(D.programs[0].feedCurrency, 'GBP');
+  const T = await dc.main(['--mode', 'download', '--media', '447289', '--programs', '18371', '--out', out, '--pause', '0', '--max-products', '100'], fake, env);
+  assert.equal(T.programs[0].ok, false, 'without a country the US feed (900,000) is chosen, and it is too big');
+  assert.equal(T.programs[0].tooBig, true);
+  assert.match(T.programs[0].error, /more than the 100 allowed/);
+  assert.ok(!fake.calls.some(c => c.includes('locale_id=9')), 'the big feed is never read');
+  assert.equal((await dc.main(['--mode', 'probe', '--media', '447289', '--programs', '18371', '--country', 'GBR'], fake, env)).error, 'wrong country (two letters, e.g. GB)');
+  assert.equal((await dc.main(['--mode', 'probe', '--media', '447289', '--programs', '18371', '--currency', '££'], fake, env)).newRefresh, 'R2', 'a wrong option still hands back the new sign-in key');
+});

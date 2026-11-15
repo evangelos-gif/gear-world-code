@@ -13,6 +13,7 @@
 //   node tools/daisycon-feed.mjs --mode auth-url --client <client id>
 //   node tools/daisycon-feed.mjs --mode auth-token          (GW_DC_CLIENT, GW_DC_SECRET, GW_DC_CODE, GW_DC_VERIFIER)
 //   node tools/daisycon-feed.mjs --mode probe|download --media <id> --programs 16029,22318 [--out <dir>]
+//                                [--country GB] [--currency GBP] [--max-products 300000]
 //                                                          (GW_DC_CLIENT, GW_DC_SECRET, GW_DC_REFRESH)
 import { createWriteStream } from 'node:fs';
 import { createGzip } from 'node:zlib';
@@ -183,11 +184,28 @@ async function getJson(url, { fetchImpl = fetch, token = '', waitMs = 60000 } = 
 const listOf = j => Array.isArray(j) ? j : (j && Array.isArray(j.results) ? j.results : (j && Array.isArray(j.data) ? j.data : []));
 
 // The feed of a programme the import should use: English first, then the one with the most products.
-export function pickFeed(feeds) {
-  const ok = feeds.filter(f => f && f.url);
-  ok.sort((a, b) => (String(b.language_code || '').toLowerCase() === 'en') - (String(a.language_code || '').toLowerCase() === 'en') || (Number(b.products) || 0) - (Number(a.products) || 0));
-  return ok[0] || null;
+// The feed to use: with a country (--country GB) only a feed that serves that country (its locale then goes in the
+// address), with a currency (--currency GBP) that currency first; then English, then the most products.
+// A shop with a feed per country and currency (TEMU INT, 15 Nov 2026: the owner wants only what our sites can show
+// to UK visitors) must not get the biggest feed, which may be in dollars for another country (lessons L163).
+export function pickFeed(feeds, { currency = '', country = '' } = {}) {
+  let ok = feeds.filter(f => f && f.url);
+  const cc = String(country || '').toUpperCase();
+  const cur = String(currency || '').toUpperCase();
+  if (cc) ok = ok.filter(f => Array.isArray(f.countries) && f.countries.includes(cc));
+  const isCur = f => cur && String(f.currency_code || '').toUpperCase() === cur;
+  const isEn = f => String(f.language_code || '').toLowerCase() === 'en';
+  ok.sort((a, b) => (isCur(b) - isCur(a)) || (isEn(b) - isEn(a)) || (Number(b.products) || 0) - (Number(a.products) || 0));
+  const f = ok[0] || null;
+  if (!f || !cc) return f;
+  const i = f.countries.indexOf(cc);
+  const locale = Array.isArray(f.locale_ids) && i >= 0 ? f.locale_ids[i] : undefined;
+  return locale === undefined ? f : { ...f, locale_ids: [locale, ...f.locale_ids.filter(x => x !== locale)] };
 }
+
+// Every feed of a programme in one line each, for the report.
+export const feedSummary = feeds => feeds.filter(isObj).map(f => ({ id: f.id, language: f.language_code || '', currency: String(f.currency_code || '').toUpperCase(),
+  products: f.products, countries: Array.isArray(f.countries) ? f.countries : [] }));
 
 // A feed's address as the API gives it, made whole (first real run, 14 Nov 2026: "Invalid URL" stopped the whole look
 // after the sign-in, lessons L145): an address without "https:" ("//daisycon.io/...", "daisycon.io/...") or only a
@@ -264,20 +282,20 @@ async function apiFeeds({ access, mediaId = '', programs, services, fetchImpl, p
     const { I, error: infoError } = await programInfo(programId);
     out.push({ infoError: [infoError, localeError].filter(Boolean).join('; '), program: String(programId), status: r.status, error: r.status === 200 ? '' : `HTTP ${r.status} ${r.text || JSON.stringify(r.json || '').slice(0, 200)}`,
       shopUrl: String(I.url || I.display_url || ''), ships: countries(I.supply_locale_ids), programName: String(I.name || ''),
-      feeds: feeds.filter(isObj).map(f => ({ id: f.id, url: f.url, standard_id: f.standard_id, language_code: f.language_code, locale_ids: f.locale_ids, currency_code: f.currency_code, products: f.products,
+      feeds: feeds.filter(isObj).map(f => ({ id: f.id, url: f.url, standard_id: f.standard_id, language_code: f.language_code, locale_ids: f.locale_ids, countries: countries(f.locale_ids), currency_code: f.currency_code, products: f.products,
         name: f.name || f.program_name || '', subscribed: Array.isArray(f.subscribed_media_ids) ? f.subscribed_media_ids.map(String).includes(String(mediaId)) : null })) });
   }
   return { publisher: String(publisher), programs: out };
 }
 
 // Read-only: each programme's feeds and two samples of the chosen one. Nothing is written.
-export async function probe({ access, mediaId, programs, services = SERVICES, fetchImpl = fetch, pauseMs = API_PAUSE_MS }) {
+export async function probe({ access, mediaId, programs, services = SERVICES, fetchImpl = fetch, pauseMs = API_PAUSE_MS, currency = '', country = '' }) {
   const A = await apiFeeds({ access, mediaId, programs, services, fetchImpl, pauseMs });
   if (A.error) return { error: A.error };
   const result = [];
   for (const p of A.programs) {
-    const P = { program: p.program, ok: false, feeds: p.feeds.length, error: p.error, samples: [], keys: [] };
-    try { await probeOne(P, p, { mediaId, fetchImpl }); }
+    const P = { program: p.program, ok: false, feeds: p.feeds.length, allFeeds: feedSummary(p.feeds), error: p.error, samples: [], keys: [] };
+    try { await probeOne(P, p, { mediaId, fetchImpl, currency, country }); }
     catch (e) { P.ok = false; P.error = `unexpected: ${String(e && e.message || e).slice(0, 200)}`; }
     result.push(P);
     if (P.ok && pauseMs) await sleep(pauseMs);
@@ -286,9 +304,9 @@ export async function probe({ access, mediaId, programs, services = SERVICES, fe
 }
 
 // One programme's look; a problem stays with that programme (the others are still looked at).
-async function probeOne(P, p, { mediaId, fetchImpl }) {
-  const f = pickFeed(p.feeds);
-  if (!f) { if (!P.error) P.error = 'no product feed for this programme'; return; }
+async function probeOne(P, p, { mediaId, fetchImpl, currency = '', country = '' }) {
+  const f = pickFeed(p.feeds, { currency, country });
+  if (!f) { if (!P.error) P.error = country && p.feeds.some(x => x && x.url) ? `no product feed for ${String(country).toUpperCase()}` : 'no product feed for this programme'; return; }
   Object.assign(P, { feedId: f.id, language: f.language_code, currency: f.currency_code, products: f.products, standard: f.standard_id, subscribed: f.subscribed, shopUrl: p.shopUrl, ships: p.ships, infoError: p.infoError });
   const url = feedAddress(f, { mediaId, records: 2 });
   if (!url) { P.error = `the feed address from the API could not be read: ${addressShape(f.url)}`; return; }
@@ -326,22 +344,25 @@ function openRows(file) {
 }
 
 // Every product of each programme's chosen feed, page by page, to <out>/DAISYCON_<programme>.csv.gz.part.
-export async function download({ access, mediaId, programs, out, services = SERVICES, fetchImpl = fetch, pauseMs = API_PAUSE_MS }) {
+export async function download({ access, mediaId, programs, out, services = SERVICES, fetchImpl = fetch, pauseMs = API_PAUSE_MS, currency = '', country = '', maxProducts = 0 }) {
   const A = await apiFeeds({ access, mediaId, programs, services, fetchImpl, pauseMs });
   if (A.error) return { error: A.error };
   const result = [];
   for (const p of A.programs) {
     const D = { program: p.program, ok: false, got: 0, withTracking: 0, withPage: 0, currencies: [], file: join(out, `DAISYCON_${p.program}.csv.gz.part`), name: '', shopUrl: p.shopUrl, ships: p.ships };
-    try { await downloadOne(D, p, { mediaId, fetchImpl, pauseMs }); }
+    try { await downloadOne(D, p, { mediaId, fetchImpl, pauseMs, currency, country, maxProducts }); }
     catch (e) { D.ok = false; D.error = `unexpected: ${String(e && e.message || e).slice(0, 200)}`; }
     result.push(D);
   }
   return { publisher: A.publisher, programs: result };
 }
 
-async function downloadOne(D, p, { mediaId, fetchImpl, pauseMs }) {
-  const f = pickFeed(p.feeds);
-  if (!f) { D.error = p.error || 'no product feed for this programme'; return; }
+async function downloadOne(D, p, { mediaId, fetchImpl, pauseMs, currency = '', country = '', maxProducts = 0 }) {
+  const f = pickFeed(p.feeds, { currency, country });
+  if (!f) { D.error = p.error || (country && p.feeds.some(x => x && x.url) ? `no product feed for ${String(country).toUpperCase()}` : 'no product feed for this programme'); return; }
+  Object.assign(D, { feedId: f.id, language: f.language_code || '', feedCurrency: String(f.currency_code || '').toUpperCase(), country: String(country || '').toUpperCase() });
+  // A feed bigger than the owner allowed (-MaxProducts) is not downloaded at all (lessons L163).
+  if (maxProducts > 0 && Number(f.products) > maxProducts) { D.error = `the feed has ${f.products} products, more than the ${maxProducts} allowed (-MaxProducts): not downloaded`; D.tooBig = true; return; }
   let url = feedAddress(f, { mediaId, records: PER_PAGE });
   if (!url) { D.error = `the feed address from the API could not be read: ${addressShape(f.url)}`; return; }
   if (!okHost(url, ['daisycon.io'])) { D.error = `the feed address is not on daisycon.io: ${addressShape(url)}`; return; }
@@ -379,6 +400,7 @@ async function downloadOne(D, p, { mediaId, fetchImpl, pauseMs }) {
       if (found.length && !fresh) { D.error = `page ${page} gave only products already read (the feed does not move on)`; break; }
       const limit = Math.max(Number(D.total) || 0, Number(f.products) || 0);
       if (limit && D.got > limit * 1.2 + 100) { D.error = `more products (${D.got}) than the feed says it has (${limit})`; break; }
+      if (maxProducts > 0 && D.got > maxProducts) { D.error = `more than the ${maxProducts} products allowed (-MaxProducts): not used`; D.tooBig = true; break; }
       const next = nextPage(r.next, url);
       if (r.next && !next) { D.error = `the next page address is not on daisycon.io: ${addressShape(r.next)}`; break; }
       url = next;
@@ -423,14 +445,20 @@ export async function main(argv = process.argv.slice(2), fetchImpl = fetch, env 
   const S = { ok: false, mode, media: mediaId, newRefresh: t.refresh && t.refresh !== env.GW_DC_REFRESH ? t.refresh : '' };
   renewed = S.newRefresh;
   const pause = Number(arg(argv, 'pause') ?? API_PAUSE_MS);
+  const currency = String(arg(argv, 'currency') || '').toUpperCase();
+  const country = String(arg(argv, 'country') || '').toUpperCase();
+  const maxProducts = Number(arg(argv, 'max-products') || 0);
+  if (currency && !/^[A-Z]{3}$/.test(currency)) return { ...S, ok: false, error: 'wrong currency (three letters, e.g. GBP)' };
+  if (country && !/^[A-Z]{2}$/.test(country)) return { ...S, ok: false, error: 'wrong country (two letters, e.g. GB)' };
+  if (!Number.isInteger(maxProducts) || maxProducts < 0) return { ...S, ok: false, error: 'wrong --max-products' };
   // The renewed sign-in must reach the PowerShell tool whatever happens next: Daisycon gives a new key at each sign-in
   // and the old one stops working (first real run, 14 Nov 2026: an error here lost it, lessons L145).
   try {
-    if (mode === 'probe') Object.assign(S, await probe({ access: t.access, mediaId, programs, services, fetchImpl, pauseMs: pause }));
+    if (mode === 'probe') Object.assign(S, await probe({ access: t.access, mediaId, programs, services, fetchImpl, pauseMs: pause, currency, country }));
     else {
       const out = arg(argv, 'out');
       if (!out) return { ...S, error: 'no output folder' };
-      Object.assign(S, await download({ access: t.access, mediaId, programs, out, services, fetchImpl, pauseMs: pause }));
+      Object.assign(S, await download({ access: t.access, mediaId, programs, out, services, fetchImpl, pauseMs: pause, currency, country, maxProducts }));
     }
   } catch (e) { S.error = `unexpected: ${String(e && e.message || e).slice(0, 200)}`; }
   S.ok = !S.error;

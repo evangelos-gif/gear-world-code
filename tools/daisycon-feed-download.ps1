@@ -17,11 +17,17 @@
   With -Apply and the approval phrase ΕΓΚΡΙΝΩ DAISYCON FEED DOWNLOAD: downloads every product, checks the file, moves the
   old copy to <folder>\_old\<time>\ and only then puts the new one in its place. A download with less than half the
   products of the old copy is NOT used. The sites do not change: the import is a separate step with its own approval.
+  -Country GB / -Currency GBP (lessons L163): for a shop with a feed per country and currency (TEMU INT), only the feed that
+  serves that country, in that currency first, with that country's locale in its address. Every feed of each programme
+  is listed in the report. -MaxProducts <n>: a feed with more products than that is listed but not downloaded.
   Report: <home>\gear-world-reports\DAISYCON_FEED_DOWNLOAD_<time>.txt (copied to the clipboard)
 #>
 param(
     [Parameter(Mandatory = $true)][string[]]$Program,
     [string]$MediaId = '447289',
+    [string]$Country = '',
+    [string]$Currency = '',
+    [int]$MaxProducts = 0,
     [switch]$Apply,
     [string]$Approve = '',
     [string]$Archive = '',
@@ -121,9 +127,22 @@ if ($MediaId -notmatch '^\d{3,10}$') { Say 'Λάθος αριθμός media το
 if ($Base -and $Base -notmatch '^http://127\.0\.0\.1:\d+$') { Say 'Μη αναμενόμενη διεύθυνση του Daisycon.' 'Red'; Finish 2 }
 $ids = @($Program | ForEach-Object { $_ -split '[,\s]+' } | Where-Object { $_ } | ForEach-Object { if ($_ -notmatch '^\d{2,8}$') { Say ('Λάθος αριθμός προγράμματος του Daisycon: {0}' -f $_) 'Red'; Finish 2 }; $_ } | Select-Object -Unique)
 if ($ids.Count -lt 1) { Say 'Δεν δόθηκε πρόγραμμα του Daisycon.' 'Red'; Finish 2 }
+$Country = ([string]$Country).Trim().ToUpperInvariant()
+$Currency = ([string]$Currency).Trim().ToUpperInvariant()
+if ($Country -and $Country -notmatch '^[A-Z]{2}$') { Say 'Λάθος χώρα (δύο γράμματα, π.χ. GB).' 'Red'; Finish 2 }
+if ($Currency -and $Currency -notmatch '^[A-Z]{3}$') { Say 'Λάθος νόμισμα (τρία γράμματα, π.χ. GBP).' 'Red'; Finish 2 }
+if ($MaxProducts -lt 0) { Say 'Λάθος -MaxProducts.' 'Red'; Finish 2 }
+$pick = @()
+if ($Country) { $pick += @('--country', $Country) }
+if ($Currency) { $pick += @('--currency', $Currency) }
 if (-not (Test-Path -LiteralPath $Archive)) { Say ('Δεν βρήκα τον φάκελο των feeds: {0}' -f $Archive) 'Red'; Finish 2 }
 if (-not (Get-Command node -ErrorAction SilentlyContinue)) { Say 'Δεν βρήκα το Node.js σε αυτόν τον υπολογιστή.' 'Red'; Finish 2 }
 Say ('Media (το site σου στο Daisycon): {0} | προγράμματα: {1}' -f $MediaId, ($ids -join ', '))
+if ($Country -or $Currency -or $MaxProducts -gt 0) {
+    $lim = 'χωρίς όριο'
+    if ($MaxProducts -gt 0) { $lim = 'έως {0} προϊόντα' -f $MaxProducts }
+    Say ('Επιλογή feed: χώρα {0} | νόμισμα {1} | {2}' -f $(if ($Country) { $Country } else { 'όποια' }), $(if ($Currency) { $Currency } else { 'όποιο' }), $lim)
+}
 
 # The sign-in in the browser (PKCE): the Daisycon page shows a code, the owner pastes it here. Returns the new sign-in key.
 function Start-BrowserSignIn([string]$client, [string]$secret) {
@@ -187,12 +206,17 @@ function Invoke-WithSignIn([string[]]$a) {
 
 # 2. Read-only look: each programme's feeds and samples.
 Write-Host 'Ρωτάω το Daisycon για τα feeds κάθε προγράμματος (περίπου 2 δευτερόλεπτα ανά πρόγραμμα)...'
-$S = Invoke-WithSignIn @('--mode', 'probe', '--media', $MediaId, '--programs', ($ids -join ','), '--pause', [string]$PauseMs)
+$S = Invoke-WithSignIn (@('--mode', 'probe', '--media', $MediaId, '--programs', ($ids -join ','), '--pause', [string]$PauseMs) + $pick)
 if ($null -eq $S) { Finish 4 }
 if ($S.error) { Say ('Πρόβλημα: {0}' -f $S.error) 'Red'; Finish 4 }
 $good = New-Object System.Collections.Generic.List[string]
 foreach ($p in @($S.programs)) {
     Say ''
+    # Every feed of the programme (lessons L163): language, currency, products and the countries it serves.
+    foreach ($af in @($p.allFeeds)) {
+        if ($null -eq $af) { continue }
+        Say ('  feed {0}: γλώσσα {1}, νόμισμα {2}, προϊόντα {3}, χώρες: {4}' -f $af.id, $af.language, $af.currency, $af.products, (@($af.countries) -join ' '))
+    }
     if (-not $p.ok) { Say ('{0}: δεν βγήκε feed: {1} (feeds στο Daisycon: {2})' -f $p.program, $p.error, $p.feeds) 'Yellow'; continue }
     $sub = 'άγνωστο'
     if ($p.subscribed -eq $true) { $sub = 'ναι' } elseif ($p.subscribed -eq $false) { $sub = 'ΟΧΙ' }
@@ -209,6 +233,9 @@ foreach ($p in @($S.programs)) {
         Say ('     σελίδα: {0}' -f $x.page)
     }
     if (@($p.samples | Where-Object { $_.tracking -eq 'NONE' }).Count -gt 0) { Say '  🟡 ΠΡΟΣΟΧΗ: κάποια δείγματα δεν έχουν link του Daisycon με το media σου. Αυτά δεν θα μπουν στα sites (δεν πληρώνουν).' 'Yellow' }
+    $np = 0
+    [void][int]::TryParse([string]$p.products, [ref]$np)
+    if ($MaxProducts -gt 0 -and $np -gt $MaxProducts) { Say ('  🟡 ΠΡΟΣΟΧΗ: {0} προϊόντα, πάνω από το όριο {1} (-MaxProducts): δεν κατεβαίνει.' -f $np, $MaxProducts) 'Yellow'; continue }
     $good.Add([string]$p.program)
 }
 Say ''
@@ -224,7 +251,7 @@ foreach ($old in @(Get-ChildItem -LiteralPath $Archive -Filter 'DAISYCON_*.csv.g
     Say ('Έσβησα ένα μισοτελειωμένο αρχείο από προηγούμενη λήψη: {0}' -f $old.Name)
 }
 Write-Host 'Κατεβάζω από το Daisycon (1000 προϊόντα ανά αίτημα)...'
-$D = Invoke-WithSignIn @('--mode', 'download', '--media', $MediaId, '--programs', ($good -join ','), '--out', $Archive, '--pause', [string]$PauseMs)
+$D = Invoke-WithSignIn (@('--mode', 'download', '--media', $MediaId, '--programs', ($good -join ','), '--out', $Archive, '--pause', [string]$PauseMs, '--max-products', [string]$MaxProducts) + $pick)
 if ($null -eq $D) { Finish 4 }
 if ($D.error) { Say ('Πρόβλημα: {0}' -f $D.error) 'Red'; Finish 4 }
 $oldDir = Join-Path (Join-Path $Archive '_old') $stamp
