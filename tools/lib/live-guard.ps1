@@ -58,7 +58,12 @@ function Get-GwLiveCommit([string]$Domain) {
     for ($try = 1; $try -le 2; $try++) {
         try {
             $r = Invoke-WebRequest -UseBasicParsing -Uri $url -UserAgent $script:GwGuardUserAgent -TimeoutSec 20
-            $j = $r.Content | ConvertFrom-Json
+            # Code older than this guard has no /api/version: a 404, or (the Group) a redirect to a page. No JSON means
+            # "does not say its version yet", and then the base version is checked instead.
+            $type = [string]$r.Headers['Content-Type']
+            if ($type -notmatch 'json') { return @{ ok = $true; commit = ''; error = '' } }
+            $j = $null
+            try { $j = $r.Content | ConvertFrom-Json } catch { $j = $null }
             $c = ''
             if ($j -and $j.commit) { $c = [string]$j.commit }
             if ($c -and $c -notmatch '^[0-9a-f]{40}$') { return @{ ok = $false; commit = ''; error = 'strange answer' } }
