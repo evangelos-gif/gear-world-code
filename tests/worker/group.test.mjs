@@ -231,7 +231,8 @@ test('L151: the products of the biggest retailer per country (one retailer acros
   assert.equal(two.countries.GB.retailers, 2);
   assert.equal(two.countries.FR.top, 0);
   // The states.
-  assert.deepEqual(OPEN_COUNTRIES, ['GB']);
+  assert.deepEqual(OPEN_COUNTRIES, ['GB', 'PL']);
+  assert.equal(countryState(site, stats, 'PL').kind, 'open', 'Poland: opened by the owner ahead of the rule (L157)');
   const gb = countryState(site, stats, 'GB');
   assert.equal(gb.kind, 'open');
   assert.equal(gb.short, 'Open');

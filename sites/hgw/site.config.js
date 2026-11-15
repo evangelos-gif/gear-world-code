@@ -65,8 +65,11 @@ export default {
   // Ireland"; round 2c, L144).
   // HOME-TEX (home-tex.com, Daisycon, euros; "Fast delivery" read 15 Nov 2026): the 19 countries below; "We do not ship
   // to Greenland, Iceland, the UK, and the Faroe Islands"; Denmark, Norway and Sweden have shops of their own (round 3, L147).
-  deliversTo: { default: ['GB'], retailers: { 'Bazta IE': ['IE'], 'Plusshop IE': ['IE'], SwitchBot: ['EU'], Kincmo: ['US'], AlorAir: ['US'], 'Mosaic Weighted Blankets': ['US'],
+  // AliExpress PL (Awin 12044, pl.aliexpress.com, Polish names, prices in zloty): Poland only, so only the Poland view
+  // shows it (owner, 15 Nov 2026, lessons L157); its prices get "≈ £…" (foreignCurrencies PLN).
+  deliversTo: { default: ['GB'], retailers: { 'AliExpress PL': ['PL'], 'Bazta IE': ['IE'], 'Plusshop IE': ['IE'], SwitchBot: ['EU'], Kincmo: ['US'], AlorAir: ['US'], 'Mosaic Weighted Blankets': ['US'],
     'HOME-TEX': ['AT', 'BE', 'BG', 'CH', 'CZ', 'DE', 'EE', 'ES', 'FI', 'FR', 'HU', 'IT', 'LT', 'LU', 'LV', 'NL', 'PL', 'RO', 'SK'] } },
+  foreignCurrencies: ['PLN'],
   displayCurrencies: ['GBP', 'EUR', 'ALL', 'RON', 'RUB'],
   cart: { name: 'Saved list', maxItems: 30 },
   voiceSearch: true,

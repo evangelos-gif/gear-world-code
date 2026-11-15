@@ -136,7 +136,7 @@ test('L141: each round 2b shop is in deliversTo of every site it goes to, with t
   const wgw = await siteConfig('wgw');
   assert.deepEqual(wgw.deliversTo.retailers['MASON New York'], ['GB', 'US']);
   assert.deepEqual(wgw.deliversTo.retailers['Needs No Label'], ['GB', 'US']);
-  assert.deepEqual(wgw.foreignCurrencies, ['USD'], 'MASON New York prices in dollars get "≈ £"');
+  assert.deepEqual(wgw.foreignCurrencies, ['USD', 'PLN'], 'MASON New York prices in dollars get "≈ £", AliExpress PL\'s zloty too (L157)');
 });
 
 test('L142: Dream Pairs: "Cowboy Boots" are not boys\' boots, the name wins over a kids section, T-shirts and belts go to MGW clothing and accessories, the brand leaves the name', async () => {

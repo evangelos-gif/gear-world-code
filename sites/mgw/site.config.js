@@ -69,8 +69,11 @@ export default {
   // Invicta Stores (invictastores.eu, Daisycon, euros; "Delivery Time" read 15 Nov 2026): most of Europe, not Spain,
   // Portugal or the US. It ships to the UK too, but says it is "not responsible for any customs duties or taxes" outside
   // the EU, so a UK buyer could pay import VAT and duty on delivery: not in the UK view (round 3, L147).
-  deliversTo: { default: ['GB'], retailers: { 'Bazta IE': ['IE'], 'Plusshop IE': ['IE'], Uhrcenter: ['DE', 'AT', 'CH', 'LI', 'LU'], Wavytalk: ['US'], Jeulia: ['US'], 'Dream Pairs': ['US'], Maceoo: ['US'],
+  // AliExpress PL (Awin 12044, pl.aliexpress.com, Polish names, prices in zloty): Poland only, so only the Poland view
+  // shows it (owner, 15 Nov 2026, lessons L157); its prices get "≈ £…" (foreignCurrencies PLN).
+  deliversTo: { default: ['GB'], retailers: { 'AliExpress PL': ['PL'], 'Bazta IE': ['IE'], 'Plusshop IE': ['IE'], Uhrcenter: ['DE', 'AT', 'CH', 'LI', 'LU'], Wavytalk: ['US'], Jeulia: ['US'], 'Dream Pairs': ['US'], Maceoo: ['US'],
     'Invicta Stores': ['AT', 'BE', 'BG', 'CY', 'CZ', 'DE', 'DK', 'EE', 'FI', 'FR', 'GR', 'HR', 'HU', 'IE', 'IT', 'LT', 'LU', 'LV', 'MT', 'NL', 'PL', 'RO', 'SE', 'SI', 'SK', 'CH', 'NO', 'IS'] } },
+  foreignCurrencies: ['PLN'],
   displayCurrencies: ['GBP', 'EUR', 'ALL', 'RON', 'RUB'],
   cart: { name: 'Saved list', maxItems: 30 },
   voiceSearch: true,

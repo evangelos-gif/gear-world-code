@@ -102,6 +102,19 @@ function deliveryRule(site, cc) {
   return only.length ? { sig: `only:${only.join('|')}`, hidden: null, only } : null;
 }
 
+// Retailers seen only in the views of the open countries they deliver to (owner, 15 Nov 2026, lessons L157): every
+// country of the retailer is an open country other than the UK (AliExpress PL: Polish names, prices in zloty). The all
+// view leaves them out, so a visitor from Germany or Greece never gets Polish names; the UK view hides them anyway.
+export function localOnlyRetailers(site) {
+  const cfg = site && site.deliversTo;
+  if (!cfg) return [];
+  const away = OPEN_COUNTRIES.filter(c => c !== HOME_COUNTRY);
+  return Object.keys(cfg.retailers || {}).sort().filter(n => {
+    const list = deliveryCountries(site, n);
+    return list.length > 0 && list.every(c => away.includes(c));
+  });
+}
+
 const groupCache = new WeakMap();
 export function countryGroups(site) {
   if (site && groupCache.has(site)) return groupCache.get(site);
@@ -111,15 +124,20 @@ export function countryGroups(site) {
   const bySig = new Map();
   const home = { id: HOME_GROUP, countries: [], hidden: homeRule.hidden, only: homeRule.only };
   bySig.set(homeRule.sig, home);
-  // Every retailer: the same rows as the UK view when that view hides none (sig 'not:').
-  const allRule = { sig: 'not:', hidden: null, only: null };
+  // Every retailer: the same rows as the UK view when that view hides none (sig 'not:'). Without the retailers that
+  // deliver only to an open country other than the UK (L157).
+  const local = localOnlyRetailers(site);
+  const allRule = { sig: `not:${local.join('|')}`, hidden: local.length ? local : null, only: null };
   let all = bySig.get(allRule.sig);
-  if (!all) { all = { id: ALL_GROUP, countries: [], hidden: null, only: null }; bySig.set(allRule.sig, all); }
+  if (!all) { all = { id: ALL_GROUP, countries: [], hidden: allRule.hidden, only: null }; bySig.set(allRule.sig, all); }
   const byCountry = new Map();
   for (const cc of [...OWN_VIEW_COUNTRIES, ...[...strict].filter(c => !OWN_VIEW_COUNTRIES.includes(c))]) {
     // An open or strict country with no retailer that delivers there: its own empty view (only: []), never the UK view.
     // The US with no retailer that ships there: the UK view, with the bar (L141).
-    const rule = ruleFor(cc) || (strict.has(cc) ? { sig: 'none', hidden: null, only: [] } : homeRule);
+    // An open country other than the UK with no retailer of the site that delivers there (Poland on a site without
+    // AliExpress PL, L157): the all view, not an empty page.
+    const openAway = OPEN_COUNTRIES.includes(cc) && cc !== HOME_COUNTRY && !strictCountries(site).includes(cc);
+    const rule = ruleFor(cc) || (openAway ? allRule : strict.has(cc) ? { sig: 'none', hidden: null, only: [] } : homeRule);
     let g = bySig.get(rule.sig);
     if (!g) { g = { id: '', countries: [], hidden: rule.hidden, only: rule.only }; bySig.set(rule.sig, g); }
     g.countries.push(cc);

@@ -157,9 +157,9 @@ test('where they deliver, and the euro and dollar prices get "≈ £"', () => {
   assert.deepEqual(deliveryCountries(wgw, 'Coes'), ['GB']);
   assert.deepEqual(deliveryCountries(cgw, 'GRABO'), ['WORLD']);
   assert.equal(wgw.convertForeignPrices, true);
-  assert.deepEqual(rateQuotes(cgw), ['EUR', 'ALL', 'RON', 'RUB', 'USD'], 'GRABO sells in US dollars');
+  assert.deepEqual(rateQuotes(cgw), ['EUR', 'ALL', 'RON', 'RUB', 'USD', 'PLN'], 'GRABO sells in US dollars, AliExpress PL in zloty (L157)');
   // MASON New York sells in US dollars and is in the UK view (massive import, 14 Nov 2026, L141).
-  assert.deepEqual(rateQuotes(wgw), ['EUR', 'ALL', 'RON', 'RUB', 'USD']);
+  assert.deepEqual(rateQuotes(wgw), ['EUR', 'ALL', 'RON', 'RUB', 'USD', 'PLN']);
   assert.ok(!('extraCss' in cgw), 'the "≈ £" style is in the shared stylesheet now');
 });
 

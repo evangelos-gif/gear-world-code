@@ -69,7 +69,10 @@ export default {
   // US: shops whose shipping page (read 13-14 Nov 2026, L62) ships within the United States only; the US view (L141).
   // Ireland: Bazta IE and Plusshop IE (ie.bazta.com, ie.plusshop.com, read 14 Nov 2026: "only delivered to addresses in
   // Ireland"; round 2c, L144).
-  deliversTo: { default: ['GB'], retailers: { 'Bazta IE': ['IE'], 'Plusshop IE': ['IE'], 'Click and Grow': ['US'] } },
+  // AliExpress PL (Awin 12044, pl.aliexpress.com, Polish names, prices in zloty): Poland only, so only the Poland view
+  // shows it (owner, 15 Nov 2026, lessons L157); its prices get "≈ £…" (foreignCurrencies PLN).
+  deliversTo: { default: ['GB'], retailers: { 'AliExpress PL': ['PL'], 'Bazta IE': ['IE'], 'Plusshop IE': ['IE'], 'Click and Grow': ['US'] } },
+  foreignCurrencies: ['PLN'],
   displayCurrencies: ['GBP', 'EUR', 'ALL', 'RON', 'RUB'],
   cart: { name: 'Saved list', maxItems: 30 },
   voiceSearch: true,

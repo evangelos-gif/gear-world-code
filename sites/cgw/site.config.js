@@ -48,7 +48,7 @@ export default {
   // Two retailers sell in euros from other countries and GRABO in US dollars: their prices stay in their currency,
   // with "≈ £…" next to them. foreignCurrencies: rates fetched for that, besides the visitor's display currencies.
   convertForeignPrices: true,
-  foreignCurrencies: ['USD'],
+  foreignCurrencies: ['USD', 'PLN'],
   retailersFromEurope: true,
 
   // Where the retailers deliver (lessons L62): every product card and product page says it, so a visitor from
@@ -57,7 +57,9 @@ export default {
   // innerhalb Deutschlands und nach Österreich" (reidl.de/shop/zahlungversand, 25 Oct 2026). VEVOR: the Dutch shop vevor.nl.
   // GRABO (order.grabo.com, lessons L63): "Worldwide Shipping, fulfilled by our authorized dealers" (read 25 Oct 2026).
   // VEVOR (vevor.nl) delivers to the EU and the EEA, not to the UK (owner, 9 Nov 2026, lessons L107).
-  deliversTo: { default: ['GB'], retailers: { Reidl: ['DE', 'AT'], VEVOR: ['EU', 'IS', 'LI', 'NO'], GRABO: ['WORLD'] } },
+  // AliExpress PL (Awin 12044, pl.aliexpress.com, Polish names, prices in zloty): Poland only, so only the Poland view
+  // shows it (owner, 15 Nov 2026, lessons L157); its prices get "≈ £…" (foreignCurrencies PLN).
+  deliversTo: { default: ['GB'], retailers: { 'AliExpress PL': ['PL'], Reidl: ['DE', 'AT'], VEVOR: ['EU', 'IS', 'LI', 'NO'], GRABO: ['WORLD'] } },
 
   // Countries that see only the retailers that deliver there instead of the UK view with its bar (lessons L107); none yet.
   strictCountries: [],

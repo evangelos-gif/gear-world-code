@@ -30,7 +30,8 @@ const GOOGLEBOT = 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.co
 const EUROPE = ['AT', 'BE', 'BG', 'CY', 'CZ', 'DE', 'DK', 'EE', 'ES', 'FI', 'FR', 'GR', 'HR', 'HU', 'IE', 'IT', 'LT', 'LU', 'LV',
   'MT', 'NL', 'PL', 'PT', 'RO', 'SE', 'SI', 'SK', 'IS', 'LI', 'NO', 'CH', 'GB'];
 // The countries with a view of their own since L151 (14 Nov 2026): the open countries (today the UK) and the US.
-const OWN_VIEW = ['GB', 'US'];
+// Poland has a view of its own since 15 Nov 2026 (L157): only what delivers there, so no UK codes.
+const OWN_VIEW = ['GB', 'PL', 'US'];
 const VIEWS = [...[...EUROPE, 'US'].map(c => [c, c, '']), ['CA', 'CA', ''], ['unknown', '', ''], ['Googlebot', 'DE', GOOGLEBOT],
   ['Googlebot US', 'US', GOOGLEBOT]];
 // Who sees the bar. The codes of CGW, AGW and BGW are of retailers that deliver to the UK only (Tooled Up, My Tool
@@ -41,9 +42,9 @@ const VIEWS = [...[...EUROPE, 'US'].map(c => [c, c, '']), ['CA', 'CA', ''], ['un
 //   The US view (L141: CGW GRABO, GGW Click and Grow, HGW Kincmo, AlorAir, Mosaic Weighted Blankets, KGW Dream Pairs,
 //   Kaiya Baby, Diecast Models Wholesale) has none of them: no bar.
 const seeing = (except = []) => Object.fromEntries(VIEWS.map(([name]) => [name, !except.includes(name)]));
-const SHOWN = { CGW: seeing(['US']), AGW: seeing(), BGW: seeing(), GGW: seeing(['US']), HGW: seeing(['US']), KGW: seeing(['US']) };
+const SHOWN = { CGW: seeing(['US', 'PL']), AGW: seeing(['PL']), BGW: seeing(['PL']), GGW: seeing(['US', 'PL']), HGW: seeing(['US', 'PL']), KGW: seeing(['US', 'PL']) };
 // How many view groups each site has: gb, all, and us where a retailer ships to the US.
-const GROUPS = { CGW: 3, AGW: 2, BGW: 2, GGW: 3, HGW: 3, KGW: 3 };
+const GROUPS = { CGW: 4, AGW: 3, BGW: 3, GGW: 4, HGW: 4, KGW: 4 };
 // What the bar says in the UK view while the codes of the config run (promos/promos.js, 10 Nov 2026).
 const WORDS = {
   CGW: ['{0} active codes', '4'], GGW: ['{0} active codes', '4'], AGW: ['{0} active codes', '2'], BGW: ['{0} active codes', '2'],

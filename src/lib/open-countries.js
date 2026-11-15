@@ -7,12 +7,18 @@
 //
 // OPEN_COUNTRIES is the list the sites use, written here by hand: a country that meets the rule on the Group page is
 // added only with the update of all the sites (tools/sites-update-all.ps1, «ΕΓΚΡΙΝΩ ALL UPDATES»), never by itself.
-// Today only the UK. Belgium waits: Pneus.be has 92% of what delivers there (14 Nov 2026).
+// Today the UK and Poland. Belgium waits: Pneus.be has 92% of what delivers there (14 Nov 2026).
+// Poland (owner, 15 Nov 2026, lessons L157: "we can get round the rule, since it has so many different products and
+// categories, open Poland"): opened before the rule, with AliExpress PL (about 28,000 different products in over 40
+// categories, Polish names, prices in zloty). A retailer that delivers ONLY to open countries other than the UK
+// (AliExpress PL) is seen only in their views, never in the all view (src/lib/visibility.js localOnlyRetailers), so a
+// visitor from Germany or Greece does not get Polish names. A site where no retailer delivers to Poland gives a visitor
+// from Poland the all view, not an empty page.
 //   - An open country sees ONLY what delivers there (src/lib/visibility.js).
 //   - Every other country sees ALL the products, each with "<retailer> delivers to ..." (src/pages/layout.js
 //     deliveryLine), and the bar "We're adding retailers for your country ...". The United States keep the view of their
 //     own of 14 Nov 2026 (lessons L141): what ships to the US. Google's crawlers keep the UK view (src/engine.js).
-export const OPEN_COUNTRIES = ['GB'];
+export const OPEN_COUNTRIES = ['GB', 'PL'];
 
 export const OPEN_RULE = { products: 30000, retailers: 4, share: 0.5 };
 
