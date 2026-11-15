@@ -200,6 +200,7 @@ foreach ($p in @($S.programs)) {
     $ships = 'άγνωστο'
     if (@($p.ships).Count -gt 0) { $ships = (@($p.ships) -join ', ') }
     Say ('  Κατάστημα: {0} | στέλνει σε (κατά το Daisycon): {1}' -f $p.shopUrl, $ships)
+    if ($p.infoError) { Say ('  (στοιχεία προγράμματος: {0})' -f $p.infoError) 'Yellow' }
     Say ('  Πεδία: {0}' -f (@($p.keys) -join ', '))
     $i = 0
     foreach ($x in @($p.samples)) {

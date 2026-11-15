@@ -132,11 +132,21 @@ export function toFeedRow(raw, { programId, program, mediaId, shopUrl = '' } = {
 
 // Daisycon's links carry the shop page as a path only ("dl=foco-myst-corner-right-1200_2012r57203.html"): the page is
 // the programme's own address (from the API) and that path, put together as Daisycon does. '' when it cannot be told.
+// Some programmes send the click on through another network: then the path is that network's link (Rakuten
+// "link?...&murl=<page>" for Giuseppe Zanotti, Impact "c/...?u=<page>" for Eufy and Ubisoft) and the page is inside it.
 export function pageFromDl(link, shopUrl) {
   let dl = '';
   try { dl = new URL(String(link || '')).searchParams.get('dl') || ''; } catch { return ''; }
   dl = dl.trim();
-  if (!dl || /^[a-z][a-z0-9+.-]*:/i.test(dl) || dl.startsWith('//')) return '';
+  if (!dl) return '';
+  try {
+    const inner = new URL(dl, 'https://inner.invalid/');
+    for (const k of ['murl', 'u', 'url', 'ued']) {
+      const v = inner.searchParams.get(k);
+      if (v && /^https?:\/\//i.test(v)) { try { return new URL(v).toString(); } catch { /* not a page */ } }
+    }
+  } catch { /* not a path */ }
+  if (/^[a-z][a-z0-9+.-]*:/i.test(dl) || dl.startsWith('//')) return '';
   let base;
   try { base = new URL(String(shopUrl || '')); } catch { return ''; }
   if (!/^https?:$/.test(base.protocol)) return '';
@@ -225,24 +235,29 @@ async function apiFeeds({ access, mediaId = '', programs, services, fetchImpl, p
   const pubs = listOf(pub.json);
   if (pub.status !== 200 || !pubs.length) return { error: `publishers: HTTP ${pub.status} ${pub.text || JSON.stringify(pub.json || '').slice(0, 200)}` };
   const publisher = pubs[0].id;
-  // Each programme's shop address (to make the product pages) and the countries it supplies, one request for all.
-  const info = {};
+  // Each programme's shop address (to make the product pages) and the countries it supplies (a list of several
+  // programme ids gave nothing on 15 Nov 2026, so one request per programme).
   const locales = {};
-  if (pauseMs) await sleep(pauseMs);
-  const pr = await getJson(`${services}/publishers/${publisher}/programs?program_id=${programs.join(',')}&per_page=1000`, { fetchImpl, token: access });
-  for (const x of listOf(pr.json).filter(isObj)) info[String(x.id)] = x;
   if (pauseMs) await sleep(pauseMs);
   const lr = await getJson(`${services}/locales?per_page=1000`, { fetchImpl, token: access });
   for (const x of listOf(lr.json).filter(isObj)) if (x.id !== undefined) locales[String(x.id)] = String(x.country_code || x.code || '').toUpperCase();
+  const localeError = lr.status === 200 ? '' : `locales: HTTP ${lr.status}`;
   const countries = ids => Array.isArray(ids) ? [...new Set(ids.map(i => locales[String(i)] || `#${i}`))] : [];
+  const programInfo = async programId => {
+    if (pauseMs) await sleep(pauseMs);
+    const r = await getJson(`${services}/publishers/${publisher}/programs/${programId}`, { fetchImpl, token: access });
+    const j = r.json;
+    const x = Array.isArray(j) ? j.find(isObj) : (isObj(j) && (j.id !== undefined || j.url) ? j : listOf(j).find(isObj));
+    return { I: x || {}, error: r.status === 200 && x ? '' : `programme details: HTTP ${r.status} ${r.text || ''}`.trim() };
+  };
   const out = [];
   for (const programId of programs) {
     if (pauseMs) await sleep(pauseMs);
     const media = /^\d{3,10}$/.test(String(mediaId)) ? `&placeholder_media_id=${mediaId}` : '';
     const r = await getJson(`${services}/publishers/${publisher}/productfeeds.v2/program?program_id=${programId}${media}&page=1&per_page=100`, { fetchImpl, token: access });
     const feeds = r.status === 200 ? listOf(r.json) : [];
-    const I = info[String(programId)] || {};
-    out.push({ program: String(programId), status: r.status, error: r.status === 200 ? '' : `HTTP ${r.status} ${r.text || JSON.stringify(r.json || '').slice(0, 200)}`,
+    const { I, error: infoError } = await programInfo(programId);
+    out.push({ infoError: [infoError, localeError].filter(Boolean).join('; '), program: String(programId), status: r.status, error: r.status === 200 ? '' : `HTTP ${r.status} ${r.text || JSON.stringify(r.json || '').slice(0, 200)}`,
       shopUrl: String(I.url || I.display_url || ''), ships: countries(I.supply_locale_ids), programName: String(I.name || ''),
       feeds: feeds.filter(isObj).map(f => ({ id: f.id, url: f.url, standard_id: f.standard_id, language_code: f.language_code, locale_ids: f.locale_ids, currency_code: f.currency_code, products: f.products,
         name: f.name || f.program_name || '', subscribed: Array.isArray(f.subscribed_media_ids) ? f.subscribed_media_ids.map(String).includes(String(mediaId)) : null })) });
@@ -269,7 +284,7 @@ export async function probe({ access, mediaId, programs, services = SERVICES, fe
 async function probeOne(P, p, { mediaId, fetchImpl }) {
   const f = pickFeed(p.feeds);
   if (!f) { if (!P.error) P.error = 'no product feed for this programme'; return; }
-  Object.assign(P, { feedId: f.id, language: f.language_code, currency: f.currency_code, products: f.products, standard: f.standard_id, subscribed: f.subscribed, shopUrl: p.shopUrl, ships: p.ships });
+  Object.assign(P, { feedId: f.id, language: f.language_code, currency: f.currency_code, products: f.products, standard: f.standard_id, subscribed: f.subscribed, shopUrl: p.shopUrl, ships: p.ships, infoError: p.infoError });
   const url = feedAddress(f, { mediaId, records: 2 });
   if (!url) { P.error = `the feed address from the API could not be read: ${addressShape(f.url)}`; return; }
   if (!okHost(url, ['daisycon.io'])) { P.error = `the feed address is not on daisycon.io: ${addressShape(url)}`; return; }

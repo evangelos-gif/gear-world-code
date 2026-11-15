@@ -82,7 +82,7 @@ function fakeDaisycon({ refresh = 'R1', products = 3, rotate = 'R2' } = {}) {
   return fakeFetch(u => {
     if (u.pathname === '/oauth/access-token') return { body: { access_token: 'A1', refresh_token: rotate, expires_in: 3600 } };
     if (u.pathname === '/publishers') return { body: [{ id: 777 }] };
-    if (u.pathname === '/publishers/777/programs') return { body: [{ id: 16029, url: 'https://www.laredoute.nl/', supply_locale_ids: [1, 6] }] };
+    if (u.pathname === '/publishers/777/programs/16029') return { body: { id: 16029, url: 'https://www.laredoute.nl/', supply_locale_ids: [1, 6] } };
     if (u.pathname === '/locales') return { body: [{ id: '1', country_code: 'NL' }, { id: '6', country_code: 'BE' }] };
     if (u.pathname === '/publishers/777/productfeeds.v2/program') {
       const pid = u.searchParams.get('program_id');
@@ -149,6 +149,12 @@ test('Daisycon: a feed that repeats itself stops with an error, the shop page co
   assert.equal(dc.pageFromDl(link, 'https://www.shop.example/en-gb/'), 'https://www.shop.example/en-gb/foco-myst-corner-right-1200_2012r57203.html');
   assert.equal(dc.pageFromDl(link.replace('dl=foco', 'dl=%2Ffoco'), 'https://www.shop.example/en-gb/'), 'https://www.shop.example/foco-myst-corner-right-1200_2012r57203.html');
   assert.equal(dc.pageFromDl(link, ''), '', 'no shop address, no page');
+  // Programmes that send the click on through Rakuten or Impact: the page is inside that link.
+  const viaRakuten = 'https://rkn3.net/c/?si=15019&li=1&wi=447289&dl=' + encodeURIComponent('link?id=p5Zs8TJlngw&offerid=759858.43&type=15&murl=' + encodeURIComponent('https://www.giuseppezanotti.com/fr-fr/products/frankie-sneakers-ru50000003'));
+  assert.equal(dc.pageFromDl(viaRakuten, ''), 'https://www.giuseppezanotti.com/fr-fr/products/frankie-sneakers-ru50000003');
+  const viaImpact = 'https://bdt9.net/c/?si=18489&li=1&wi=447289&dl=' + encodeURIComponent('c/1418078/2187919/26372?prodsku=T29C7121&u=' + encodeURIComponent('https://eu.eufy.com/products/t29c7121?variant=43198849482904') + '&intsrc=CATF_19945&subId1=%BDCI%&sharedId=%MEDIA_ID%');
+  assert.equal(dc.pageFromDl(viaImpact, ''), 'https://eu.eufy.com/products/t29c7121?variant=43198849482904');
+  assert.equal(dc.pageFromDl(link.replace(/dl=[^&]*/, 'dl=' + encodeURIComponent('products/sleepbuddy?variant=5473')), 'https://www.shop.example'), 'https://www.shop.example/products/sleepbuddy?variant=5473');
   assert.equal(dc.pageFromDl(link.replace(/dl=[^&]*/, 'dl=%2F%2Fevil.example%2Fx'), 'https://www.shop.example/'), '', 'never another host');
   const row = dc.toFeedRow({ product_info: { title: 'Foco Myst', link, price: '3299', sku: '57203' } }, { programId: 15514, mediaId: '447289', shopUrl: 'https://www.bioethanol-fireplace.co.uk/' });
   assert.equal(row.merchant_deep_link, 'https://www.bioethanol-fireplace.co.uk/foco-myst-corner-right-1200_2012r57203.html');
@@ -162,7 +168,7 @@ test('Daisycon: a feed that repeats itself stops with an error, the shop page co
   const repeating = fakeFetch(u => {
     if (u.pathname === '/oauth/access-token') return { body: { access_token: 'A1', refresh_token: 'R2' } };
     if (u.pathname === '/publishers') return { body: [{ id: 777 }] };
-    if (u.pathname === '/publishers/777/programs') return { body: [{ id: 15514, url: 'https://www.bioethanol-fireplace.co.uk' }] };
+    if (u.pathname === '/publishers/777/programs/15514') return { body: { id: 15514, url: 'https://www.bioethanol-fireplace.co.uk' } };
     if (u.pathname === '/publishers/777/productfeeds.v2/program') return { body: [{ id: 1, url: feedUrl, language_code: 'en', locale_ids: [4], products: 3 }] };
     if (u.hostname === 'daisycon.io') return { headers: { 'x-next-url': u.toString() + '&again=1' }, body: dcAnswer([dcProduct(1), dcProduct(2), dcProduct(3)]) };
     return { status: 404, body: 'not found' };
