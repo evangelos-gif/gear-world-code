@@ -138,7 +138,9 @@ export async function readProducts({ archive, rules }) {
         g = { key, name: cleanText(get('product_name')), brand: cleanText(get('brand_name')), feedCategory: cleanText(get('merchant_category')),
           awinCategory: cleanText(get('category_name')),
           link, page, image: pickImage(get), firstVariant: get('merchant_product_id'), tracked: get('aw_deep_link'),
-          variants: 0, inStockVariants: 0, unknownStock: 0, prices: [], currency: get('currency').toUpperCase(), ean: get('ean') || get('product_gtin') };
+          variants: 0, inStockVariants: 0, unknownStock: 0, prices: [], currency: get('currency').toUpperCase(), ean: get('ean') || get('product_gtin'),
+          // rules.rowInfo (lessons L161): more columns for the rules, e.g. where a CJ search product is sold and sent.
+          info: typeof rules.rowInfo === 'function' ? rules.rowInfo(get) : null };
         groups.set(key, g);
       }
       // Two feeds of one shop can list the same product, only one with categories (100% PURE, 25 Oct 2026, lessons L63).
@@ -375,7 +377,7 @@ export async function planLegacyImport({ archive, retailer, outDir, now = new Da
     // CJ, Rakuten, Daisycon: the product's own tracking link earns the commission; without one the click would not pay (L86, L128).
     if (NET && !NET.isLink(p.tracked)) { reject(p, `no ${NET.label} tracking link (the click would not pay)`); continue; }
     const c = rules.classify({ name: p.name, feedCategory: p.feedCategory, awinCategory: p.awinCategory, url: p.link, brand: p.brand,
-      shopType: p.shopType || '', shopTags: p.shopTags || [] });
+      shopType: p.shopType || '', shopTags: p.shopTags || [], info: p.info || null });
     if (c.reject) { reject(p, c.reject); continue; }
     if (!accepted[c.site]) { reject(p, `site ${c.site} is not in the plan`); continue; }
     // The rules may give a better card name (e.g. a shaker called only "Pink" in the feed).

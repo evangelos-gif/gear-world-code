@@ -157,3 +157,44 @@ test('L161: a whole download of a catalogue with millions of products is refused
   assert.equal(readdirSync(out).length, 0);
   assert.ok(cj.calls.filter(q => q.includes('shoppingProducts(')).length <= 2, 'stops after counting');
 });
+
+test('L161: DHgate on Kids\' Gear World: only children\'s winter boots from the search file, no brands, no copies, in pounds', async () => {
+  const { planLegacyImport } = await import('../../tools/legacy-import-plan.mjs');
+  const R = await import('../../tools/import-rules/dhgate-kids-boots.mjs');
+  const ok = n => R.classify({ name: n, info: { target: 'GB', areas: 'GB' } });
+  for (const n of ['Kids Snow Boots Winter Warm Plush Boys Girls Waterproof Non-slip', 'Girls Princess Snow Boots Faux Fur Pom Pom', 'Children Rain Boots Wellies Cartoon Dinosaur',
+    'Baby Winter Booties Toddler First Walkers Warm Cotton']) assert.deepEqual(ok(n), { site: 'kgw', siteCategory: 'Shoes', subcategory: 'Winter Boots' }, n);
+  const why = n => ok(n).reject || '';
+  assert.match(why('UGG Style Kids Snow Boots'), /brand/);
+  assert.match(why('Frozen Elsa Girls Winter Boots'), /brand or character/);
+  assert.match(why('Kids Timberland Winter Boots Waterproof'), /brand/);
+  assert.match(why('Kids Snow Boots With Box Top Quality'), /copy/);
+  assert.match(why('Men Women Kids Snow Boots Family'), /grown-ups/);
+  assert.match(why('10 Pairs Kids Snow Boots Wholesale'), /lot/);
+  assert.match(why('Doll Snow Boots for 18 inch Dolls'), /not a child/);
+  assert.match(why('Kids Boots Leather Chelsea Ankle Boots'), /not a snow/);
+  assert.match(why('Kids Snow Suit Winter Warm'), /not a boot/);
+  assert.match(R.classify({ name: 'Kids Snow Boots Warm', info: { target: 'US', areas: 'US' } }).reject, /UK/);
+  assert.equal(R.productKey(() => 'http://www.dhgate.com/product/kids-snow-boots/402230757.html'), 'dhgate-402230757');
+  assert.deepEqual(R.feedFiles('/x').map(f => f.replace(/\\/g, '/')), ['/x/CJ_3992613_kids-winter-boots.csv.gz']);
+  assert.equal(R.displayBrand('Shenzhen Happy Shoes Store'), 'DHgate');
+  assert.equal(R.displayName('2025 Hot Sale New Kids Snow Boots!! Free Shipping'), 'Kids Snow Boots');
+
+  const products = [item(1, 'Kids Snow Boots Winter Warm Plush Boys Girls'), item(2, 'Girls Snow Boots Waterproof Faux Fur'), item(3, 'Kids Snow Boots UGG Style Winter'),
+    item(4, 'Kids Snow Boots Children Thermal', 'USD'), item(5, 'Kids Snow Boots Shoe Covers Waterproof'), item(7, 'Kids Snow Boots Winter Toddler', 'GBP', { linkCode: null })];
+  const archive = mkdtempSync(join(tmpdir(), 'gw-dh-'));
+  const S = await run({ ...base, mode: 'download', out: archive, fetchImpl: fakeCj({ products }).fetchImpl, search: 'kids-winter-boots' });
+  assert.equal(S.advertisers[0].ok, true, S.advertisers[0].error);
+  const { renameSync, writeFileSync } = await import('node:fs');
+  renameSync(join(archive, 'CJ_3992613_kids-winter-boots.csv.gz.part'), join(archive, R.SEARCH_FILE));
+  writeFileSync(join(archive, 'CJ_3992613.csv.gz'), '');
+  const out = mkdtempSync(join(tmpdir(), 'gw-dhplan-'));
+  const r = await planLegacyImport({ archive, retailer: 'dhgate-kids-boots', outDir: out, now: new Date('2026-11-15T15:00:00Z') });
+  assert.deepEqual(r.files, [R.SEARCH_FILE], 'never a whole-catalogue file');
+  assert.deepEqual(r.accepted.kgw.map(p => p.product_name).sort(), ['Girls Snow Boots Waterproof Faux Fur', 'Kids Snow Boots Winter Warm Plush Boys Girls']);
+  assert.ok(r.accepted.kgw.every(p => p.currency === 'GBP' && p.subcategory === 'Winter Boots' && p.brand === 'DHgate' && /jdoqocy\.com/.test(p.affiliate_url)));
+  const reasons = Object.keys(r.rejected).join(' | ');
+  assert.match(reasons, /brand/);
+  assert.match(reasons, /not a child/);
+  assert.match(reasons, /tracking link/);
+});
