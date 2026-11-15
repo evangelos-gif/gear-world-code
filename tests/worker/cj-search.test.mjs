@@ -34,8 +34,9 @@ const item = (i, title, currency = 'GBP', over = {}) => ({
   price: { amount: 10 + i, currency }, linkCode: { clickUrl: `https://www.jdoqocy.com/click-101917444-1?url=${i}` }, ...over
 });
 
-// A fake CJ: keywords = every word in the title (the strict reading), currency and serviceableAreas filter, price bands.
-function fakeCj({ products, args = ARGS, total = null }) {
+// A fake CJ like the real one (first DHgate look, 15 Nov 2026): plain keywords = ANY of the words, "+a +b" = every word,
+// "\"a b\"" = the phrase; currency and serviceableAreas filter; price bands.
+function fakeCj({ products, args = ARGS, total = null, plus = true }) {
   const calls = [];
   const fetchImpl = async (url, init) => {
     const q = JSON.parse(init.body).query;
@@ -49,7 +50,17 @@ function fakeCj({ products, args = ARGS, total = null }) {
     const num = k => { const m = new RegExp(`${k}: ([\\d.]+)`).exec(q); return m ? Number(m[1]) : null; };
     const kw = str('keywords'), cur = str('currency'), area = str('serviceableAreas'), lo = num('lowPrice'), hi = num('highPrice');
     const limit = num('limit') ?? 1000, offset = num('offset') ?? 0;
-    const list = products.filter(p => (!kw || kw.toLowerCase().split(/\s+/).every(w => p.title.toLowerCase().includes(w)))
+    const t = p => ` ${p.title.toLowerCase()} `;
+    const hasWord = (p, w) => t(p).includes(` ${w} `);
+    const match = p => {
+      if (!kw) return true;
+      const k = kw.toLowerCase().trim();
+      if (/^".*"$/.test(k)) return t(p).includes(` ${k.slice(1, -1)} `);
+      const words = k.split(/\s+/);
+      if (words.every(w => w.startsWith('+'))) return plus ? words.every(w => hasWord(p, w.slice(1))) : words.some(w => hasWord(p, w.slice(1)));
+      return words.some(w => hasWord(p, w));
+    };
+    const list = products.filter(p => match(p)
       && (!cur || p.price.currency === cur) && (!area || p.serviceableAreas.includes(area))
       && (lo === null || p.price.amount >= lo) && (hi === null || p.price.amount <= hi));
     const n = total !== null && !kw ? total : list.length;
@@ -98,10 +109,13 @@ test('L161: the read-only look counts each keyword in any currency, in pounds an
   const A = S.advertisers[0];
   assert.equal(A.ok, true, A.error);
   const kids = A.searches.find(x => x.keyword === 'kids snow boots');
-  assert.deepEqual([kids.all, kids.inCurrency, kids.inArea], [3, 2, 2], 'item 3 is in dollars');
-  assert.equal(A.searches.find(x => x.keyword === 'kids wellies').inCurrency, 1);
+  // Any word: 6 (5 in pounds, item 3 is in dollars); every word in pounds: items 1 and 7; the phrase: item 1.
+  assert.deepEqual([kids.all, kids.inCurrency, kids.every, kids.phrase], [6, 5, 2, 1]);
+  assert.deepEqual([kids.form, kids.query, kids.used, kids.inArea], ['every word', '+kids +snow +boots', 2, 2], 'the narrowest form that finds something');
+  const wellies = A.searches.find(x => x.keyword === 'kids wellies');
+  assert.deepEqual([wellies.every, wellies.used], [1, 1]);
   assert.ok(A.total >= 5);
-  assert.ok(A.samples.length >= 1 && A.samples.every(x => x.currency === 'GBP' && x.target === 'GB' && x.areas === 'GB' && x.keyword === 'kids snow boots'));
+  assert.ok(A.samples.length >= 1 && A.samples.every(x => x.currency === 'GBP' && x.target === 'GB' && x.areas === 'GB' && x.keyword === '+kids +snow +boots'));
   assert.equal(readdirSync(out).length, 0, 'the look writes nothing');
   const asks = cj.calls.filter(q => q.includes('shoppingProducts('));
   assert.match(asks[0], /limit: 1[,)]/, 'only the account check (one product) has no keywords');
@@ -121,7 +135,8 @@ test('L161: the download keeps only pound products of the keywords, each once, i
   assert.deepEqual(ids.sort(), ['400000001', '400000002', '400000004', '400000005', '400000007'], 'no dollars, no bongs, no product twice');
   assert.equal(A.got, 5);
   assert.ok(text.slice(1).every(l => l.includes('"GBP"')));
-  assert.ok(text[1].includes('"kids snow boots"') || text.some(l => l.includes('"kids snow boots"')), 'the keyword that found it');
+  assert.ok(text.some(l => l.includes('"+kids +snow +boots"')), 'the search that found it');
+  assert.equal(A.searches.find(x => x.keyword === 'kids snow boots').form, 'every word');
   const asks = cj.calls.filter(q => q.includes('shoppingProducts('));
   assert.match(asks[0], /limit: 1[,)]/, 'only the account check (one product) has no keywords');
   assert.ok(asks.slice(1).every(q => q.includes('keywords: "') && q.includes('currency: "GBP"')));
@@ -197,4 +212,13 @@ test('L161: DHgate on Kids\' Gear World: only children\'s winter boots from the 
   assert.match(reasons, /brand/);
   assert.match(reasons, /not a child/);
   assert.match(reasons, /tracking link/);
+});
+
+test('L161: when CJ ignores "+", the phrase is used; when nothing fits, the keyword is left out', async () => {
+  const many = Array.from({ length: 12 }, (_, i) => item(200 + i, i < 3 ? `Kids Snow Boots Style ${i}` : `Kids Shoes Model ${i}`));
+  const S = await run({ ...base, mode: 'probe', fetchImpl: fakeCj({ products: many, plus: false }).fetchImpl, search: 'kids-winter-boots', searchMax: 5 });
+  const kids = S.advertisers[0].searches.find(x => x.keyword === 'kids snow boots');
+  assert.deepEqual([kids.every, kids.phrase, kids.form, kids.used], [12, 3, 'phrase', 3]);
+  const winter = S.advertisers[0].searches.find(x => x.keyword === 'kids winter boots');
+  assert.deepEqual([winter.form, winter.used, winter.tooBroad], ['', 0, true]);
 });

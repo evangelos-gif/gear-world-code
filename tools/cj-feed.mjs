@@ -371,9 +371,19 @@ export async function joinedAdvertisers({ token, cids, lookupApi = LOOKUP_API, f
   return { cid: '', tried, advertisers: [] };
 }
 
+// How a keyword is written to CJ (first DHgate look, 15 Nov 2026): plain words are read as "ANY of them" ("kids snow
+// boots" found 294,972 products, "kids wellies" 195,245). So each keyword is also tried with every word required
+// ("+kids +snow +boots") and as one phrase ("\"kids snow boots\""), and the narrowest form that still finds something
+// and stays under SEARCH_MAX is used: every word first, then the phrase, then plain words.
+export const KEYWORD_FORMS = [
+  { form: 'every', label: 'every word', make: kw => kw.trim().split(/\s+/).map(w => `+${w}`).join(' ') },
+  { form: 'phrase', label: 'phrase', make: kw => `"${kw.trim()}"` },
+  { form: 'any', label: 'any word', make: kw => kw.trim() }
+];
+
 // One advertiser, one search (L161). probe: for each keyword how many products CJ finds in any currency, in the search's
-// currency and (when the API can tell) with delivery to the search's country, and 5 samples. download: every product of
-// every keyword in the search's currency, each once, in CJ_<advertiser>_<search>.csv.gz.part.
+// currency in each keyword form, which form is used, and 5 samples. download: every product of every keyword (in its
+// form) in the search's currency, each once, in CJ_<advertiser>_<search>.csv.gz.part.
 async function searchOne({ A, SR, S, shape, pid, adv, token, api, fetchImpl, pauseMs, out, mode, mask, searchMax }) {
   const qname = (shape && shape.qname) || 'shoppingProducts';
   const count = async extra => {
@@ -385,25 +395,41 @@ async function searchOne({ A, SR, S, shape, pid, adv, token, api, fetchImpl, pau
   };
   const cur = SR.currency || '';
   const areaArg = SR.area && shape.args.includes('serviceableAreas') ? SR.area : '';
+  // The form of one keyword: { forms: {every, phrase, any}, chosen, query, total } or { error }.
+  const choose = async kw => {
+    const forms = {};
+    let chosen = null;
+    for (const f of KEYWORD_FORMS) {
+      const c = await count({ keywords: f.make(kw), currency: cur });
+      if (c.error) return { error: c.error };
+      forms[f.form] = c.total;
+      if (!chosen && c.total && c.total <= searchMax) chosen = f;
+    }
+    return { forms, chosen: chosen ? chosen.form : '', label: chosen ? chosen.label : '', query: chosen ? chosen.make(kw) : '', total: chosen ? forms[chosen.form] : 0 };
+  };
   A.searches = [];
   if (mode === 'probe') {
     let sampleExtra = null;
+    let anyExtra = null;
     for (const kw of SR.keywords) {
       const all = await count({ keywords: kw });
       if (all.error) { A.error = all.error; return; }
-      const inCur = cur ? await count({ keywords: kw, currency: cur }) : all;
-      if (inCur.error) { A.error = inCur.error; return; }
-      const inArea = areaArg && inCur.total ? await count({ keywords: kw, currency: cur, serviceableAreas: areaArg }) : { total: null };
-      A.searches.push({ keyword: kw, all: all.total, inCurrency: inCur.total, inArea: inArea.error ? null : inArea.total, tooBroad: (inCur.total || 0) > searchMax });
-      if (!sampleExtra && inCur.total && inCur.total <= searchMax) sampleExtra = { keywords: kw, currency: cur };
+      const ch = await choose(kw);
+      if (ch.error) { A.error = ch.error; return; }
+      const inArea = areaArg && ch.query ? await count({ keywords: ch.query, currency: cur, serviceableAreas: areaArg }) : { total: null };
+      A.searches.push({ keyword: kw, all: all.total, inCurrency: ch.forms.any, every: ch.forms.every, phrase: ch.forms.phrase, form: ch.label, query: ch.query,
+        used: ch.total, inArea: inArea.error ? null : inArea.total, tooBroad: !ch.query && (ch.forms.any || 0) > 0 });
+      if (!sampleExtra && ch.query) sampleExtra = { keywords: ch.query, currency: cur };
+      if (!anyExtra && ch.forms.any) anyExtra = { keywords: kw, currency: cur };
     }
-    A.total = A.searches.filter(x => !x.tooBroad).reduce((n, x) => n + (x.inCurrency || 0), 0);
-    if (sampleExtra) {
-      const r = await gql({ token, api, fetchImpl, query: productQuery({ shape, cid: S.cid, pid, advertiser: adv, limit: 5, extra: sampleExtra, more: SEARCH_WANT }) });
+    A.total = A.searches.reduce((n, x) => n + (x.used || 0), 0);
+    const ex = sampleExtra || anyExtra;
+    if (ex) {
+      const r = await gql({ token, api, fetchImpl, query: productQuery({ shape, cid: S.cid, pid, advertiser: adv, limit: 5, extra: ex, more: SEARCH_WANT }) });
       const list = (r.data && r.data[qname] && r.data[qname].resultList) || [];
       A.samples = list.map(toFeedRow).map(x => ({ name: x.product_name, brand: x.brand_name, price: x.search_price, currency: x.currency, stock: x.stock_status,
         category: x.merchant_category, page: x.merchant_deep_link, image: x.merchant_image_url ? 'yes' : 'no', tracking: x.aw_deep_link ? new URL(x.aw_deep_link).host : 'NONE',
-        group: x.parent_product_id, target: x.target_country, areas: x.serviceable_areas, shipsFrom: x.ships_from, age: x.age_group, keyword: sampleExtra.keywords }));
+        group: x.parent_product_id, target: x.target_country, areas: x.serviceable_areas, shipsFrom: x.ships_from, age: x.age_group, keyword: ex.keywords }));
     } else A.samples = [];
     A.ok = true;
     return;
@@ -411,13 +437,16 @@ async function searchOne({ A, SR, S, shape, pid, adv, token, api, fetchImpl, pau
   const seen = new Map();
   let failed = '';
   for (const kw of SR.keywords) {
-    const r = await fetchAll({ shape, cid: S.cid, pid, advertiser: adv, token, api, fetchImpl, pauseMs, filters: { keywords: kw, currency: cur }, more: SEARCH_WANT, maxTotal: searchMax });
+    const ch = await choose(kw);
+    if (ch.error) { failed = ch.error; break; }
+    if (!ch.query) { A.searches.push({ keyword: kw, form: '', total: ch.forms.any, got: 0, added: 0, tooBroad: (ch.forms.any || 0) > 0, capped: false, error: '' }); continue; }
+    const r = await fetchAll({ shape, cid: S.cid, pid, advertiser: adv, token, api, fetchImpl, pauseMs, filters: { keywords: ch.query, currency: cur }, more: SEARCH_WANT, maxTotal: searchMax });
     let added = 0;
     for (const p of r.products) {
       const k = [p.id ?? '', p.adId ?? p.catalogId ?? '', JSON.stringify(p.price || '')].map(String).join('|');
-      if (!seen.has(k)) { seen.set(k, { ...p, _keyword: kw }); added++; }
+      if (!seen.has(k)) { seen.set(k, { ...p, _keyword: ch.query }); added++; }
     }
-    A.searches.push({ keyword: kw, total: r.total, got: r.products.length, added, capped: Boolean(r.capped), tooBroad: Boolean(r.tooBroad), error: r.ok || r.tooBroad ? '' : mask(r.error) });
+    A.searches.push({ keyword: kw, form: ch.label, query: ch.query, total: r.total, got: r.products.length, added, capped: Boolean(r.capped), tooBroad: Boolean(r.tooBroad), error: r.ok || r.tooBroad ? '' : mask(r.error) });
     if (!r.ok && !r.tooBroad) { failed = mask(r.error); break; }
   }
   const products = [...seen.values()];

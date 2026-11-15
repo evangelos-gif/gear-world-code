@@ -250,12 +250,13 @@ foreach ($a in @($S.advertisers)) {
     if (-not $a.ok) { Say ('{0}: 🔴 ΠΡΟΒΛΗΜΑ: {1}' -f $a.advertiser, $a.error) 'Red'; continue }
     if ($null -ne $a.searches) {
         Say ('{0}: αναζήτηση «{1}» ({2} λέξεις-κλειδιά), σε {3}:' -f $a.advertiser, $S.searchLabel, @($a.searches).Count, $S.searchCurrency)
+        Say ('  (σε {0}: «κάθε λέξη» = όλες οι λέξεις μέσα, «φράση» = ακριβώς έτσι, «οποιαδήποτε» = έστω μία λέξη. Μπαίνει η στενότερη που βρίσκει κάτι, έως 20.000)' -f $S.searchCurrency)
         foreach ($k in @($a.searches)) {
             $area = 'δεν φαίνεται'
             if ($null -ne $k.inArea) { $area = [string]$k.inArea }
-            $broad = ''
-            if ($k.tooBroad) { $broad = ' | 🟡 πολύ γενική, μένει έξω' }
-            Say ('  «{0}»: όλα τα νομίσματα {1} | σε {2}: {3} | με παράδοση στο UK: {4}{5}' -f $k.keyword, $k.all, $S.searchCurrency, $k.inCurrency, $area, $broad)
+            $use = '🟡 ΠΡΟΣΟΧΗ: καμία μορφή, μένει έξω'
+            if ($k.form) { $use = 'μπαίνει: {0} = {1}' -f $k.form, $k.used }
+            Say ('  «{0}»: όλα τα νομίσματα {1} | κάθε λέξη {2} | φράση {3} | οποιαδήποτε {4} | {5} | με παράδοση στο UK: {6}' -f $k.keyword, $k.all, $k.every, $k.phrase, $k.inCurrency, $use, $area)
         }
         Say ('  Σύνολο σε {0} (μαζί και διπλά ανάμεσα στις λέξεις): {1}' -f $S.searchCurrency, $a.total)
     } else {
@@ -303,8 +304,8 @@ foreach ($a in @($D.advertisers)) {
     foreach ($k in @($a.searches)) {
         if (-not $k) { continue }
         $note = ''
-        if ($k.tooBroad) { $note = ' | 🟡 πολύ γενική ({0} προϊόντα), έμεινε έξω' -f $k.total } elseif ($k.capped) { $note = ' | 🟡 δεν ήρθαν όλα' } elseif ($k.error) { $note = ' | 🔴 ' + $k.error }
-        Say ('  «{0}»: βρέθηκαν {1}, ήρθαν {2}, νέα (όχι διπλά) {3}{4}' -f $k.keyword, $k.total, $k.got, $k.added, $note)
+        if ($k.tooBroad) { $note = ' | 🟡 ΠΡΟΣΟΧΗ: πολύ γενική ({0} προϊόντα), έμεινε έξω' -f $k.total } elseif ($k.capped) { $note = ' | 🟡 ΠΡΟΣΟΧΗ: δεν ήρθαν όλα' } elseif ($k.error) { $note = ' | 🔴 ΠΡΟΒΛΗΜΑ: ' + $k.error }
+        Say ('  «{0}» ({5}): βρέθηκαν {1}, ήρθαν {2}, νέα (όχι διπλά) {3}{4}' -f $k.keyword, $k.total, $k.got, $k.added, $note, $k.form)
     }
     if (-not $a.ok) { Say ('{0}: 🔴 ΠΡΟΒΛΗΜΑ: {1} (ήρθαν {2} από {3}). Κράτησα το παλιό.' -f $a.advertiser, $a.error, $a.got, $a.total) 'Red'; if ($a.file) { Remove-Item -LiteralPath $a.file -ErrorAction SilentlyContinue }; continue }
     $part = [string]$a.file
