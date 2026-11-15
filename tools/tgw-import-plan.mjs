@@ -737,6 +737,8 @@ export async function planImport({ archive, sourcesFile, outDir, now = new Date(
         if (cls.name) name = cls.name;
         if (!Number.isFinite(price) || price <= 0) { reject('no price', short); continue; }
         if (price < QUALITY.minPrice || price > QUALITY.maxPrice) { reject('price out of range', short); continue; }
+        // A shop's own lowest price, in its currency (AliExpress PL: zl 10, about GBP 2, as round 1; below that single screws and stickers, L157).
+        if (source.minPrice && price < source.minPrice) { reject(`price under ${source.minPrice} ${source.currency || ''}`.trim(), short); continue; }
         // After the second import (24 Oct 2026, lessons L53): Back to the Office priced "Western Digital WD80EFPX internal hard drive
         // 8 TB" at 838.99 (usually about 200) and a 22 TB disk at 5,761.99. Such a price is an error: visitors would think the site
         // overcharges. A hard disk dearer than 60 per TB (and than 150) is left out.

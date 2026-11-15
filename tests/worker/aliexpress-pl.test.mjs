@@ -110,7 +110,7 @@ test('L157 round 2: the Polish sections go to the newer sites, each to its own c
 test('L157 round 2: the seven newer sites list AliExpress PL from the Polish feed, Poland only, zloty allowed', async () => {
   for (const s of ['agw', 'tgw', 'sgw', 'bgw', 'pgw', 'zgw', 'vgw']) {
     const src = JSON.parse(readFileSync(`sites/${s}/sources.json`, 'utf8')).sources.find(x => x.retailer === 'AliExpress PL');
-    assert.deepEqual(src, { advertiserId: 12044, feedIds: [101519], retailer: 'AliExpress PL', currency: 'PLN', condition: 'new', approved: true, sections: 'aliexpress-pl', joinVariants: true }, s);
+    assert.deepEqual(src, { advertiserId: 12044, feedIds: [101519], retailer: 'AliExpress PL', currency: 'PLN', condition: 'new', approved: true, sections: 'aliexpress-pl', joinVariants: true, minPrice: 10 }, s);
     const cfg = await site(s);
     assert.deepEqual(cfg.deliversTo.retailers['AliExpress PL'], ['PL'], s);
     assert.ok(cfg.foreignCurrencies.includes('PLN'), s);
@@ -131,11 +131,12 @@ test('L157 round 2: "joinVariants" makes one card per AliExpress product, at its
   writeFileSync(join(a, 'AWIN_12044_101519.csv.gz'), gzipSync(head
     + `${link(1)},Kamera samochodowa DVR 4K,1,12000000000001,1005000000000001,https://img.example/1.jpg,${cat},129.99,PLN,1\n`
     + `${link(2)},Kamera samochodowa DVR 4K,2,12000000000002,1005000000000001,https://img.example/1.jpg,${cat},99.50,PLN,1\n`
-    + `${link(3)},Kamera samochodowa DVR 4K,3,12000000000003,1005000000000001,https://img.example/1.jpg,${cat},89.00,PLN,0\n`));
+    + `${link(3)},Kamera samochodowa DVR 4K,3,12000000000003,1005000000000001,https://img.example/1.jpg,${cat},89.00,PLN,0\n`
+    + `${link(4)},Naklejka na kamerę,4,12000000000004,1005000000000002,https://img.example/2.jpg,${cat},4.99,PLN,1\n`));
   const sources = join(dir, 'sources.json');
-  writeFileSync(sources, JSON.stringify({ sources: [{ advertiserId: 12044, feedIds: [101519], retailer: 'AliExpress PL', currency: 'PLN', condition: 'new', approved: true, sections: 'aliexpress-pl', joinVariants: true }] }));
+  writeFileSync(sources, JSON.stringify({ sources: [{ advertiserId: 12044, feedIds: [101519], retailer: 'AliExpress PL', currency: 'PLN', condition: 'new', approved: true, sections: 'aliexpress-pl', joinVariants: true, minPrice: 10 }] }));
   const { stats, products } = await planAgwImport({ archive: a, sourcesFile: sources, outDir: join(dir, 'out'), now: new Date('2026-11-15T12:00:00Z') });
-  assert.equal(stats.accepted, 1, 'three colours, one card');
+  assert.equal(stats.accepted, 1, 'three colours, one card; the zl 4.99 sticker under the shop\'s lowest price');
   assert.equal(products[0].merchant_product_id, '1005000000000001');
   assert.equal(products[0].price, 99.5, 'the cheapest variant in stock');
   assert.equal(products[0].currency, 'PLN');
