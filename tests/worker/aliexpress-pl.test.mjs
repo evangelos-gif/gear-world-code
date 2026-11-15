@@ -87,7 +87,16 @@ test('L157 round 2: the Polish sections go to the newer sites, each to its own c
   const s = (site, n, cat) => aliexpressSection(site, n, cat);
   const CAR = 'Motoryzacja oraz części i akcesoria motoryzacyjne';
   assert.deepEqual(s('AGW', 'Kamera samochodowa DVR 4K', `${CAR} , Elektronika samochodowa , DVR do samochodu`), { ok: true, slug: 'car-electronics', sub: 'Dash Cams', name: 'Kamera samochodowa DVR 4K' });
-  assert.match(s('AGW', 'Felgi aluminiowe 17 cali', `${CAR} , Części eksploatacyjne i zamienne , Koła, opony i części`).reason, /tyre/, 'no wheels or tyres until the fix (L146)');
+  // Since the fix of the heavy tyre category (L159) and the tyre shops' import (15 Nov 2026): wheels and tyres too.
+  const W = `${CAR} , Części eksploatacyjne i zamienne , Koła, opony i części`;
+  assert.deepEqual([s('AGW', 'Opona zimowa Ceat WINTER DRIVE 205/60 R16 96 H', W).slug, s('AGW', 'Opona zimowa Ceat WINTER DRIVE 205/60 R16 96 H', W).sub], ['tyres-wheels', 'tyres']);
+  assert.equal(s('AGW', '4 sztuki czujników TPMS 433 MHz do Hyundai', W).sub, 'TPMS Sensors');
+  assert.equal(s('AGW', '4 sztuki nakładek na piasty kół samochodowych 60 mm', W).sub, 'Wheel Trims & Centre Caps');
+  assert.equal(s('AGW', 'Felgi aluminiowe 17 cali', W).sub, 'Wheels');
+  assert.equal(s('AGW', 'Łyżki do opon zestaw 3 szt', W).sub, 'Wheel Accessories', 'tyre levers are not tyres');
+  assert.match(s('TGW', 'Felgi aluminiowe 17 cali', W).reason, /section of AGW/);
+  assert.match(s('AGW', '5/10 szt. 14mm Aluminiowa naklejka z logo na kluczyk samochodowy do VW', W).reason, /logo/);
+  assert.equal(s('AGW', '1 X Nowy Pokrowiec na Koło Zapasowe w Stylu Off-Road', W).sub, 'Wheel Accessories');
   assert.equal(s('TGW', 'Słuchawki Bluetooth', 'Elektronika użytkowa , Przenośny sprzęt Audio i wideo , Słuchawki douszne i nauszne').sub, 'Headphones & Earbuds');
   assert.equal(s('PGW', 'Pad do PS5', 'Elektronika użytkowa , Gry i akcesoria , Gamepady').slug, 'controllers');
   assert.match(s('TGW', 'Pad do PS5', 'Elektronika użytkowa , Gry i akcesoria , Gamepady').reason, /section of PGW/, 'each section has one site');

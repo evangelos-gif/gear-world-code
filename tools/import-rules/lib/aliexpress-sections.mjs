@@ -3,17 +3,35 @@
 // samochodowa , DVR do samochodu"), because its site rules read English names only. sources.json: "sections":
 // "aliexpress-pl". Each site takes only its own sections, in its own categories (slugs) with an English subcategory; the
 // sections of the older six sites are round 1 (tools/import-rules/aliexpress-pl.mjs).
-// Wheels and tyres stay out: no tyre import until chat 4's fix of the heavy category (L146).
+// Wheels and tyres: kept out until chat 4's fix of the heavy category (L146); since the fix is live and the AGW tyre
+// shops are in (15 Nov 2026, L159), they go to Tyres & Wheels like the tyre shops (owner: "AliExpress after the tyres").
 import { NEVER, displayName } from '../aliexpress-pl.mjs';
 
 const ok = (slug, sub) => ({ ok: true, slug, sub });
+
+// The Polish shop's "Koła, opony i części" (wheels, tyres and parts): the sub by the name. "tyres" is the sub of the tyre
+// shops' cards (lower case, as they have it), so all tyres of a size list together.
+export function wheelPart(n) {
+  const t = String(n || '').toLowerCase();
+  // Car makers' logo stickers and badges ("naklejka z logo ... do VW"): a trademark, not a wheel part.
+  if (/naklej[a-ząćęłńóśźż]* z logo|emblemat|\blogo\b/.test(t)) return 'car makers\' logo stickers and badges';
+  if (/pokrowiec|torba/.test(t)) return ['tyres-wheels', 'Wheel Accessories'];
+  if (/\bopon[aeyiy]?\b|\bopony\b/.test(t) && !/(?:łyżk|wentyl|naprawa|łatk|pompk|kompresor|manometr|ciśnieniomierz)/.test(t)) return ['tyres-wheels', 'tyres'];
+  if (/tpms|czujnik[a-ząćęłńóśźż]* ciśnienia|czujnik[a-ząćęłńóśźż]* tpms/.test(t)) return ['tyres-wheels', 'TPMS Sensors'];
+  if (/kołpak|nakład[a-ząćęłńóśźż]* na piast|dekiel|osłon[a-ząćęłńóśźż]* piasty|zaślepk/.test(t)) return ['tyres-wheels', 'Wheel Trims & Centre Caps'];
+  if (/śrub|nakręt|szpilk|zabezpieczen[a-ząćęłńóśźż]* kół/.test(t)) return ['tyres-wheels', 'Wheel Nuts & Bolts'];
+  if (/dystans|adapter[a-ząćęłńóśźż]* kół/.test(t)) return ['tyres-wheels', 'Spacers'];
+  if (/łańcuch[a-ząćęłńóśźż]* śnieg|łańcuchy|skarpet[a-ząćęłńóśźż]* na koła/.test(t)) return ['tyres-wheels', 'Snow Chains & Socks'];
+  if (/felg|obręcz|koło zapasowe|\bkoła\b/.test(t)) return ['tyres-wheels', 'Wheels'];
+  return ['tyres-wheels', 'Wheel Accessories'];
+}
 const no = reason => ({ ok: false, reason });
 
 // [section regex on "<first> > <second> > <third>", site, slug, sub] or [regex, site, reason] for a section left out.
 // First match wins. A function in place of the slug gets (path, name) and returns [slug, sub] or a reason string.
 const SECTIONS = [
   // ---- Car Gear World ----
-  [/^Motoryzacja[^>]*> Części eksploatacyjne i zamienne > Koła, opony/i, 'AGW', 'wheels and tyres wait for the fix of the heavy tyre category (L146)'],
+  [/^Motoryzacja[^>]*> Części eksploatacyjne i zamienne > Koła, opony/i, 'AGW', (path, n) => wheelPart(n)],
   [/^Motoryzacja[^>]*> (Części i akcesoria do pojazdów kempingowych|Inne części)/i, 'AGW', 'camper, lorry and boat parts'],
   [/^Motoryzacja[^>]*> Elektronika samochodowa > (Zestaw rozruchowy|Kabel rozruchowy)/i, 'AGW', 'diagnostics-battery', 'Jump Starters'],
   [/^Motoryzacja[^>]*> Elektronika samochodowa > Tester alkoholu/i, 'AGW', 'breathalysers (a safety device, not checked)'],
