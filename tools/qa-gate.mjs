@@ -123,15 +123,18 @@ function htmlChecks(path, res, { expectStatus = 200, indexable = true } = {}) {
 
 // ---------- run ----------
 const stats = await get('/api/stats');
+// total: the UK view (/api/stats products, what the sitemaps list). shown: what this checker sees, asking without a
+// country: since lessons L151 the "all" view of every country that is not open, every fresh product (all_products).
 let total = 0;
-try { total = JSON.parse(stats.body).products || 0; } catch { /* old sites */ }
+let shown = 0;
+try { const s = JSON.parse(stats.body); total = s.products || 0; shown = s.all_products || total; } catch { /* old sites */ }
 check('L09', stats.status === 200, '/api/stats answers', `status ${stats.status}`);
 
 // Home
 const home = await get('/');
 htmlChecks('/', home);
-const fmtTotal = new Intl.NumberFormat('en-GB').format(total);
-check('L09', total === 0 || home.body.includes(fmtTotal), '/: real product count is in the HTML (not filled in later by JavaScript)', `expected ${fmtTotal}`);
+const fmtShown = new Intl.NumberFormat('en-GB').format(shown);
+check('L09', shown === 0 || home.body.includes(fmtShown), '/: real product count is in the HTML (not filled in later by JavaScript)', `expected ${fmtShown} (the all view, L151)`);
 check('L09', !/>\s*0\s*(products|PRODUCTS)/.test(home.body) || total === 0, '/: no "0 products" placeholder');
 // "<retailer> delivers to" (lessons L62, L101, L102): the card says who delivers, with the retailer name untranslated.
 const SHIP_WORD = /<span class="ship-word"><span data-i18n="\{0\} delivers to" data-i18n-0="[^"]+" data-i18n-keep="0"><span translate="no">[^<]+<\/span> delivers to<\/span><\/span>:/;
@@ -419,10 +422,10 @@ if (site && site.awin && site.awin.advertisers) {
 // Discount codes (lessons L32): only while an offer runs; every button goes through /go/ to Awin.
 if (site && (site.promos || []).length) {
   const { activePromos } = await import(pathToFileURL(resolve('src/lib/promos.js')).href);
-  const { homeView } = await import(pathToFileURL(resolve('src/lib/visibility.js')).href);
-  // A code shows only to a visitor whose view lists its retailer (lessons L114). This checker asks without a country
-  // (or from outside Europe, like the crawlers and reviewers): the UK view.
-  const act = activePromos(site, Date.now(), homeView(site));
+  const { viewFor } = await import(pathToFileURL(resolve('src/lib/visibility.js')).href);
+  // A code shows only to a visitor whose view lists its retailer (lessons L114). This checker asks without a country:
+  // since lessons L151 the all view (every retailer), which is the UK view on a site whose UK view hides none.
+  const act = activePromos(site, Date.now(), viewFor(site, ''));
   const idx = await get('/discount-codes/');
   htmlChecks('/discount-codes/', idx, { indexable: act.length > 0 });
   // The top bar shows the first running offer that has a bar emoji (src/lib/promos.js barPromo); a running sale without
@@ -458,11 +461,11 @@ if (site && (site.promos || []).length) {
 
 // The discount codes bar (lessons L115, owner's decision of 10 Nov 2026): one link to /discount-codes/ between the
 // masthead row and the menu, exactly when the footer links to the codes (the same codes of the same view: this checker
-// asks without a country, so the UK view), with neutral words only (no retailer, campaign, saving or shop words).
+// asks without a country, so since L151 the all view), with neutral words only (no retailer, campaign, saving or shop words).
 if (site) {
   const { activePromos } = await import(pathToFileURL(resolve('src/lib/promos.js')).href);
-  const { homeView } = await import(pathToFileURL(resolve('src/lib/visibility.js')).href);
-  const running = activePromos(site, Date.now(), homeView(site));
+  const { viewFor } = await import(pathToFileURL(resolve('src/lib/visibility.js')).href);
+  const running = activePromos(site, Date.now(), viewFor(site, ''));
   const FOOTER_CODES = '<li><a href="/discount-codes/">Discount codes</a></li>';
   const BAR = /<\/div>\s*<a class="codes-bar" href="\/discount-codes\/">([\s\S]*?)<\/a>\s*<nav class="catbar"/;
   for (const [path, res] of [['/', home], ['/about/', await get('/about/')], ['/this-page-does-not-exist/', await get('/this-page-does-not-exist/')]]) {

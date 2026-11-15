@@ -73,3 +73,32 @@ p { margin: 0 0 1em; }
 .by-site li { display: flex; justify-content: space-between; gap: 16px; padding: 10px 0; border-bottom: 1px solid var(--line); }
 .by-site a { font-weight: 600; }
 .by-site span { color: var(--text-2); white-space: nowrap; }
+/* The open-country rule (lessons L151) and the world map (L152): blue shades by the number of products, grey for none,
+   orange around a country where retailers are coming; every state is also in words (legend, titles, the list). */
+.rule { color: #dbe3ee; max-width: 80ch; }
+.gmap { margin: 18px 0 8px; }
+.gmap-svg { display: block; width: 100%; height: auto; background: var(--deep); border: 1px solid var(--line); border-radius: 10px; }
+.gmap-svg path, .gmap-svg circle { stroke: var(--deep); stroke-width: .6px; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
+.gmap-svg .m0 { fill: #2a2e35; }
+.gmap-svg path.m0, .gmap-svg circle.m0 { stroke: #4a5160; }
+.gmap-svg .m1 { fill: #2a5a92; }
+.gmap-svg .m2 { fill: #3a86cc; }
+.gmap-svg .m3 { fill: #7cc0f4; }
+.gmap-svg .m4 { fill: #cfeaff; }
+.gmap-svg path.mc, .gmap-svg circle.mc { stroke: #ff9a3c; stroke-width: 2px; }
+.gmap-svg .mp { cursor: pointer; }
+.gmap-h { margin: 14px 0 6px; color: var(--text-2); font-size: .9rem; font-weight: 600; }
+.gmap-europe { max-width: 760px; }
+.gmap-svg a:hover path, .gmap-svg a:hover circle { stroke: #fff; stroke-width: 2.5px; }
+.legend { list-style: none; margin: 10px 0 4px; padding: 0; display: flex; flex-wrap: wrap; gap: 6px 18px; color: var(--text-2); font-size: .9rem; }
+.legend li { display: inline-flex; align-items: center; gap: 8px; }
+.sw { display: inline-block; width: 20px; height: 13px; border: 1px solid var(--line); border-radius: 3px; }
+.sw.m0 { background: #2a2e35; border-color: #4a5160; }
+.sw.m1 { background: #2a5a92; }
+.sw.m2 { background: #3a86cc; }
+.sw.m3 { background: #7cc0f4; }
+.sw.m4 { background: #cfeaff; }
+.sw.mc { background: transparent; border: 2px solid #ff9a3c; }
+.cstate { color: var(--text); font-size: .88rem; }
+.cstate.open { color: #cfeaff; font-weight: 700; }
+.cmiss { color: var(--text-2); font-size: .84rem; }

@@ -298,20 +298,16 @@ function visitor(site) {
   };
 }
 
-test('L114: the views of the codes: CGW Germany and the US see none (no footer link either); the UK, unknown visitors and Google see them', async () => {
+test('L114, L151: the views of the codes: the CGW US view sees none (no footer link either); the UK, the all view and Google see them', async () => {
   const sites = await allSites();
   const now = at('2026-11-20');
   const ids = (site, country) => activePromos(site, now, viewFor(site, country, now)).filter(p => BF_IDS.includes(p.id)).map(p => p.id).sort();
-  // CGW: Germany has a view of its own (Reidl, VEVOR, GRABO): Tooled Up and My Tool Shed (UK only) are not in it.
-  assert.deepEqual(ids(sites.CGW, 'DE'), []);
-  // The US has a view of its own since 14 Nov 2026 (L141): GRABO only, so no UK code either.
+  // The US has a view of its own since 14 Nov 2026 (L141): GRABO only, so no UK code.
   assert.deepEqual(ids(sites.CGW, 'US'), []);
-  for (const cc of ['GB', '', 'CA', 'XX']) assert.deepEqual(ids(sites.CGW, cc), [...BF_IDS].sort(), `CGW ${cc || 'unknown'}`);
-  // AGW: Belgium (Pneus.be, VEVOR) and Germany (VEVOR): no Tooled Up code.
-  assert.deepEqual(ids(sites.AGW, 'BE'), []);
-  assert.deepEqual(ids(sites.AGW, 'DE'), []);
-  assert.deepEqual(ids(sites.AGW, 'GB'), ['tooled-up-claimfifty', 'tooled-up-claimsevfy']);
-  // GGW and BGW have no retailer for Germany: a German visitor gets the UK view with its bar, products and codes alike.
+  // Every country that is not open sees all the products since L151, so the codes too (each card says where its
+  // retailer delivers); until L151 Germany had a view of its own (Reidl, VEVOR, GRABO) without them.
+  for (const cc of ['GB', 'DE', '', 'CA', 'XX']) assert.deepEqual(ids(sites.CGW, cc), [...BF_IDS].sort(), `CGW ${cc || 'unknown'}`);
+  for (const cc of ['GB', 'BE', 'DE']) assert.deepEqual(ids(sites.AGW, cc), ['tooled-up-claimfifty', 'tooled-up-claimsevfy'], `AGW ${cc}`);
   assert.deepEqual(ids(sites.GGW, 'DE'), [...BF_IDS].sort());
   // Without a view (tools, tests) every code shows; the sitemap gets the UK view.
   assert.deepEqual(activePromos(sites.CGW, now).filter(p => BF_IDS.includes(p.id)).length, 4);
@@ -319,33 +315,36 @@ test('L114: the views of the codes: CGW Germany and the US see none (no footer l
   const cgw = runningToday(sites.CGW);
   const get = visitor(cgw);
   const env = { DB: memoryDb(), CLICK_LOG: 'off' };
-  // Germany: the codes pages behave as when no code runs, and no page has the footer link.
-  const deIndex = await (await get('/discount-codes/', env, 'DE')).text();
-  assert.match(deIndex, /No codes right now/);
-  assert.match(deIndex, /<meta name="robots" content="noindex,follow">/);
-  assert.ok(!/CLAIMFIFTY|CLAIMSEVFY|Tooled Up|My Tool Shed|season-banner/.test(deIndex), 'no code, retailer or banner for Germany');
-  const deRetailer = await get('/discount-codes/tooled-up/', env, 'DE');
-  assert.equal(deRetailer.status, 200);
-  const deRetailerHtml = await deRetailer.text();
-  assert.match(deRetailerHtml, /No codes right now/);
-  assert.match(deRetailerHtml, /noindex,follow/);
-  assert.ok(!/CLAIMFIFTY|CLAIMSEVFY/.test(deRetailerHtml));
+  // The US (its own view): the codes pages behave as when no code runs, and no page has the footer link.
+  const usIndex = await (await get('/discount-codes/', env, 'US')).text();
+  assert.match(usIndex, /No codes right now/);
+  assert.match(usIndex, /<meta name="robots" content="noindex,follow">/);
+  assert.ok(!/CLAIMFIFTY|CLAIMSEVFY|Tooled Up|My Tool Shed|season-banner/.test(usIndex), 'no code, retailer or banner for the US view');
+  const usRetailer = await get('/discount-codes/tooled-up/', env, 'US');
+  assert.equal(usRetailer.status, 200);
+  const usRetailerHtml = await usRetailer.text();
+  assert.match(usRetailerHtml, /No codes right now/);
+  assert.match(usRetailerHtml, /noindex,follow/);
+  assert.ok(!/CLAIMFIFTY|CLAIMSEVFY/.test(usRetailerHtml));
   for (const path of ['/about/', '/discount-codes/', '/this-page-does-not-exist/']) {
-    assert.ok(!(await (await get(path, env, 'DE')).text()).includes(FOOTER_LINK), `DE ${path}: no footer link`);
+    assert.ok(!(await (await get(path, env, 'US')).text()).includes(FOOTER_LINK), `US ${path}: no footer link`);
   }
   // /go/ of a code not in the visitor's view: to its codes page, never to the retailer, no click.
   const logged = { DB: memoryDb() };
-  const deGo = await get('/go/tooled-up-claimfifty', logged, 'DE');
-  assert.equal(deGo.status, 302);
-  assert.equal(deGo.headers.get('location'), `https://${cgw.domain}/discount-codes/tooled-up/`);
+  const usGo = await get('/go/tooled-up-claimfifty', logged, 'US');
+  assert.equal(usGo.status, 302);
+  assert.equal(usGo.headers.get('location'), `https://${cgw.domain}/discount-codes/tooled-up/`);
   assert.equal(logged.DB.rows.length, 0, 'no click recorded');
-  // The UK, an unknown country, Canada and Google's crawler, also from the US (the UK view): the codes, the footer link,
-  // /go/ to Awin.
+  // The UK, the all view (Germany, an unknown country, Canada) and Google's crawler, also from the US (the UK view): the
+  // codes, the footer link, /go/ to Awin. In the all view every code card says where its retailer delivers (L151).
   const BOT = { 'User-Agent': 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)' };
-  for (const [cc, headers] of [['GB', {}], ['', {}], ['CA', {}], ['DE', BOT], ['US', BOT]]) {
+  for (const [cc, headers] of [['GB', {}], ['DE', {}], ['', {}], ['CA', {}], ['DE', BOT], ['US', BOT]]) {
     const tag = headers['User-Agent'] ? 'Googlebot' : cc || 'unknown';
     const index = await (await get('/discount-codes/', env, cc, headers)).text();
     for (const c of ['CLAIMFIFTY', 'CLAIMSEVFY']) assert.ok(index.includes(`<strong translate="no">${c}</strong>`), `${tag}: ${c}`);
+    const all = !headers['User-Agent'] && cc !== 'GB';
+    const cards = (index.match(/<li class="promo-card/g) || []).length;
+    assert.equal((index.match(/<p class="notice-ship" data-ship="GB">/g) || []).length, all ? cards : 0, `${tag}: ${all ? 'every' : 'no'} code card says where it delivers`);
     assert.match(index, /<meta name="robots" content="index,follow">/, tag);
     assert.ok(index.includes(FOOTER_LINK), `${tag}: footer link`);
     assert.ok((await (await get('/about/', env, cc, headers)).text()).includes(FOOTER_LINK), `${tag}: footer link on /about/`);
@@ -362,7 +361,7 @@ test('L114: the views of the codes: CGW Germany and the US see none (no footer l
   assert.ok(!('promoView' in cgw) && !('promoView' in sites.CGW));
 });
 
-test('L114: cached pages keep one copy per view group, so the codes and their footer link never reach another group', async () => {
+test('L114, L151: cached pages keep one copy per view group (gb, all, us), so the codes and their footer link never reach another group', async () => {
   const sites = await allSites();
   const cgw = runningToday(sites.CGW);
   const get = visitor(cgw);
@@ -375,22 +374,18 @@ test('L114: cached pages keep one copy per view group, so the codes and their fo
   try {
     const env = { DB: memoryDb(), CLICK_LOG: 'off' };
     const gb = await (await get('/', env, 'GB')).text();
-    const de = await (await get('/', env, 'DE')).text();
+    const us = await (await get('/', env, 'US')).text();
     const keys = [...store.keys()].sort();
-    const deGroup = viewFor(cgw, 'DE').group;
-    assert.deepEqual(keys, [`https://${cgw.domain}/?gw-view=${deGroup}`, `https://${cgw.domain}/?gw-view=gb`].sort(), 'one copy per group');
-    assert.ok(gb.includes(FOOTER_LINK), 'the UK copy links to the codes');
-    assert.ok(!de.includes(FOOTER_LINK), 'the German copy does not');
-    // Later visits get their own group's copy: an unknown country and Canada get the UK one, Germany its own.
-    assert.ok((await (await get('/', env, '')).text()).includes(FOOTER_LINK));
-    assert.ok((await (await get('/', env, 'CA')).text()).includes(FOOTER_LINK));
-    assert.ok(!(await (await get('/', env, 'DE')).text()).includes(FOOTER_LINK));
-    assert.equal(store.size, 2, 'no other copy');
-    assert.ok(!(await store.get(`https://${cgw.domain}/?gw-view=${deGroup}`).clone().text()).includes(FOOTER_LINK));
-    // The US (L141): its own copy (GRABO, with Switzerland), without the codes of the UK shops.
     const usGroup = viewFor(cgw, 'US').group;
+    assert.deepEqual(keys, [`https://${cgw.domain}/?gw-view=${usGroup}`, `https://${cgw.domain}/?gw-view=gb`].sort(), 'one copy per group');
+    assert.ok(gb.includes(FOOTER_LINK), 'the UK copy links to the codes');
+    assert.ok(!us.includes(FOOTER_LINK), 'the US copy (L141: GRABO only) does not');
+    // The all view (L151): Germany, an unknown country and Canada share one more copy, which has the codes.
+    for (const cc of ['DE', '', 'CA']) assert.ok((await (await get('/', env, cc)).text()).includes(FOOTER_LINK), cc || 'unknown');
+    assert.equal(store.size, 3, 'no other copy');
+    assert.ok((await store.get(`https://${cgw.domain}/?gw-view=all`).clone().text()).includes(FOOTER_LINK));
+    assert.ok(!(await store.get(`https://${cgw.domain}/?gw-view=${usGroup}`).clone().text()).includes(FOOTER_LINK));
     assert.ok(!(await (await get('/', env, 'US')).text()).includes(FOOTER_LINK));
-    assert.ok(store.has(`https://${cgw.domain}/?gw-view=${usGroup}`) && store.size === 3, 'one more copy, for the US group');
   } finally {
     if (before === undefined) delete globalThis.caches; else globalThis.caches = before;
   }

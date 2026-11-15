@@ -210,3 +210,123 @@ test('L130 review: no numbers (every site down) means no countries, no box, no z
   assert.ok(!/class="yours"/.test(groupPage(site, one, 'ZZ')), 'no box for a code without a real name');
   assert.ok(!/our retailers/i.test(readFileSync('sites/group/public/assets/group.css', 'utf8')), 'L103 in the stylesheet too');
 });
+
+// ---- Lessons L151 and L152: the open-country rule per country, and the world map ----
+import { countryState } from '../../src/group.js';
+import { MAP_SIZE, MAP_EUROPE, MAP_SHAPES, MAP_DOTS } from '../../src/group-map.js';
+import { OPEN_COUNTRIES } from '../../src/lib/open-countries.js';
+
+test('L151: the products of the biggest retailer per country (one retailer across sites), and each country\'s state in words', async () => {
+  const stats = await networkStats(site, fakeFetch(NEW_STATS));
+  assert.equal(stats.countries.BE.top, 1000, 'Belgium: Pneus.be');
+  assert.equal(stats.countries.DE.top, 48, 'Germany: GRABO, more than VEVOR and Reidl');
+  assert.equal(stats.countries.GB.top, 500, 'the UK: Halfords');
+  // The same retailer on two sites is one retailer, its products added up.
+  const two = await networkStats(site, fakeFetch({
+    'technologygearworld.com': { products: 30, retailer_names: ['Joybuy'], all_products: 30, delivery: [{ retailer: 'Joybuy', products: 30, countries: ['GB'] }] },
+    'homegearworld.com': { products: 50, retailer_names: ['Joybuy UK', 'Dunelm'], all_products: 50,
+      delivery: [{ retailer: 'Joybuy UK', products: 25, countries: ['GB'] }, { retailer: 'Dunelm', products: 25, countries: ['GB'] }] }
+  }));
+  assert.equal(two.countries.GB.top, 55, 'Joybuy 30 + Joybuy UK 25');
+  assert.equal(two.countries.GB.retailers, 2);
+  assert.equal(two.countries.FR.top, 0);
+  // The states.
+  assert.deepEqual(OPEN_COUNTRIES, ['GB']);
+  const gb = countryState(site, stats, 'GB');
+  assert.equal(gb.kind, 'open');
+  assert.equal(gb.short, 'Open');
+  assert.equal(gb.missing, '', 'an open country has nothing missing, even below the numbers (the list decides)');
+  const be = countryState(site, stats, 'BE');
+  assert.equal(be.kind, 'all');
+  assert.equal(be.short, 'Shows all with delivery badge');
+  assert.equal(be.missing, 'To open: 28,922 more products, 1 more retailer, one retailer has 93% (max 50%)');
+  assert.equal(countryState(site, stats, 'US').kind, 'us');
+  assert.equal(countryState(site, stats, 'US').short, 'Own view: what ships to the US');
+  assert.equal(countryState(site, stats, 'CH').missing, 'To open: 29,952 more products, 3 more retailers, one retailer has 100% (max 50%)');
+  // A country that meets the rule but is not on the list yet: it says so, it does not open by itself.
+  const big = { countries: { DE: { products: 40000, retailers: 5, top: 12000 } } };
+  assert.equal(countryState(site, big, 'DE').missing, 'Meets the rule: can open in a future update of all the sites');
+  assert.equal(countryState(site, big, 'DE').kind, 'all');
+  // On the page: every country of the list with its state, the rule in words, the country page too.
+  const page = groupPage(site, stats, 'GB');
+  // L155 (owner, 14 Nov 2026): the rule stays in countryState (the Manager's morning check), never on the public page,
+  // where "To open: ..." read as "closed". One true line for every country instead.
+  assert.match(page, /<p class="rule">New retailers are added every week\.<\/p>/);
+  assert.ok(!/To open|Shows all with delivery badge|cstate|cmiss|A country opens|>Open</.test(page), 'no open-country wording on the page');
+  assert.match(page, /<span class="cn">Belgium<\/span>\s*<span class="cnum">1,078 products deliver here<\/span>\s*<span class="cnum">3 retailers<\/span>\s*<span class="tag">More coming<\/span>/);
+  const bePage = countryPage(site, stats, 'BE');
+  assert.match(bePage, /<p class="lede">Every product shows where its retailer delivers\. New retailers are added every week\.<\/p>/);
+  assert.ok(!/To open|Shows all|A country opens|Open:/.test(bePage + countryPage(site, stats, 'GB')), 'L155: no open-country wording on a country page');
+  // The Group's own numbers come from the sites every hour: a new key for the cached numbers with "top".
+  assert.match(readFileSync('src/group.js', 'utf8'), /__stats-cache-3/);
+});
+
+test('L152: the world map and the close-up of Europe: shapes from the repo, blue by products, orange "coming", a link per listed country, all in words', async () => {
+  // The drawing: every listed country has a shape or a dot, nothing but path letters and numbers, small enough.
+  const codes = new Set([...MAP_SHAPES.map(s => s[0]), ...MAP_DOTS.map(d => d[0])]);
+  for (const cc of COUNTRY_CODES) assert.ok(codes.has(cc), `${cc} on the map`);
+  for (const [cc, d, eu] of MAP_SHAPES) {
+    assert.match(cc, /^([A-Z]{2})?$/);
+    assert.match(d, /^(M-?\d+,-?\d+l[-\d, ]+z)+$/, `${cc}: a plain path`);
+    assert.ok(eu === 0 || eu === 1);
+  }
+  assert.ok(!MAP_SHAPES.some(s => s[0] === 'AQ'), 'no Antarctica');
+  assert.ok(readFileSync('src/group-map.js', 'utf8').length < 60000, 'the drawing stays light');
+  assert.deepEqual(MAP_SIZE.length, 2);
+  assert.equal(MAP_EUROPE.length, 4);
+  for (const cc of ['GB', 'DE', 'BE', 'IS', 'CY', 'NO', 'PT']) assert.ok(MAP_SHAPES.some(s => s[0] === cc && s[2] === 1) || MAP_DOTS.some(d => d[0] === cc), `${cc} on the close-up`);
+  assert.ok(!MAP_SHAPES.some(s => s[0] === 'US' && s[2] === 1), 'not the US');
+  const stats = await networkStats(site, fakeFetch(NEW_STATS));
+  const page = groupPage(site, stats, 'GB');
+  const map = page.slice(page.indexOf('<figure class="gmap">'), page.indexOf('</figure>'));
+  assert.ok(map && page.indexOf('<figure class="gmap">') < page.indexOf('<h3 class="continent">'), 'above the list');
+  assert.equal((map.match(/<svg class="gmap-svg[^"]*" viewBox="[\d ]+" aria-hidden="true" focusable="false">/g) || []).length, 2, 'the world and Europe');
+  assert.ok(!/<script|style=|https?:\/\/|<image|<use/.test(map), 'no script, no style attribute, no file from anywhere (CSP)');
+  for (const cc of COUNTRY_CODES) assert.ok(map.includes(`<a href="/countries/${cc.toLowerCase()}/" tabindex="-1"><title>${countryName(cc)}: `), `${cc}: a link with its words`);
+  // Words for each colour, and the colour from the numbers: the UK 858 (m1), Belgium 1,078 (m2), and every other country
+  // the worldwide retailer (48 products, m1); orange around the coming countries.
+  for (const words of ['30,000 products or more', '10,000 to 29,999 products', '1,000 to 9,999 products', 'Fewer than 1,000 products', 'No products yet',
+    'Coming: retailers approved, products being added']) assert.ok(map.includes(`</span>${words}</li>`), words);
+  assert.match(map, /<a href="\/countries\/be\/" tabindex="-1"><title>Belgium: 1,078 products from 3 retailers\. More retailers coming: approved, products being added\.<\/title><path class="m2 mp mc" d="/);
+  assert.match(map, /<a href="\/countries\/gb\/" tabindex="-1"><title>United Kingdom: 858 products from 6 retailers\.<\/title><path class="m1 mp" d="/);
+  assert.ok(!/Open:|To open|Shows all/.test(map), 'L155: the map titles do not say open or closed');
+  assert.match(map, /<path class="m1" d="[^"]+"><title>Brazil: every other country, 48 products from a retailer that delivers worldwide\.<\/title><\/path>/);
+  const big = { ...stats, countries: { ...stats.countries, GB: { ...stats.countries.GB, products: 30000 }, DE: { ...stats.countries.DE, products: 12000 }, FR: { ...stats.countries.FR, products: 0, retailers: 0 } }, worldwide: { products: 0, retailers: 0 } };
+  const bigMap = groupPage(site, big, 'GB');
+  assert.match(bigMap, /<title>United Kingdom: 30,000 products[^<]*<\/title><path class="m4 mp"/);
+  assert.match(bigMap, /<title>Germany: 12,000 products[^<]*<\/title><path class="m3 mp mc"/);
+  assert.match(bigMap, /<title>France: no products yet\.[^<]*<\/title><path class="m0 mp mc"/);
+  assert.match(bigMap, /<path class="m0" d="[^"]+"><title>Brazil: no products yet\.<\/title>/);
+  for (const cc of site.coming) assert.match(map, new RegExp(`<a href="/countries/${cc.toLowerCase()}/" tabindex="-1"><title>[^<]+</title><(path|circle) class="m\\d mp mc"`), `${cc}: orange`);
+  // Colours: blue, orange and grey only (the owner's colour vision), each colour of the map also a legend swatch.
+  const css = readFileSync('sites/group/public/assets/group.css', 'utf8');
+  const block = css.slice(css.indexOf('/* The open-country rule'));
+  const hue = hex => {
+    const [r, g, b] = [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16) / 255);
+    const max = Math.max(r, g, b), min = Math.min(r, g, b), d = max - min;
+    if (d < 0.12) return 'grey';
+    const h = max === r ? ((g - b) / d) % 6 : max === g ? (b - r) / d + 2 : (r - g) / d + 4;
+    return (h * 60 + 360) % 360;
+  };
+  for (const hex of block.match(/#[0-9a-fA-F]{6}\b/g)) {
+    const h = hue(hex);
+    assert.ok(h === 'grey' || (h >= 195 && h <= 225) || (h >= 20 && h <= 40), `${hex}: blue, orange or grey (${h})`);
+  }
+  for (const c of ['m0', 'm1', 'm2', 'm3', 'm4']) {
+    const fill = (block.match(new RegExp(`\\.gmap-svg \\.${c} \\{ fill: (#[0-9a-f]{6}); \\}`)) || [])[1];
+    assert.ok(fill && block.includes(`.sw.${c} { background: ${fill};`), `${c}: the same colour on the map and in the legend`);
+  }
+  assert.match(block, /vector-effect: non-scaling-stroke/);
+  // Grey and the blues apart by lightness too, not only by colour (the owner's colour vision; review of 14 Nov 2026):
+  // a contrast of at least 1.5 between each step, grey < the first blue < ... < the last.
+  const lum = hex => {
+    const f = c => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4);
+    const [r, g, b] = [1, 3, 5].map(i => f(parseInt(hex.slice(i, i + 2), 16) / 255));
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  };
+  const fills = ['m0', 'm1', 'm2', 'm3', 'm4'].map(c => block.match(new RegExp(`\\.gmap-svg \\.${c} \\{ fill: (#[0-9a-f]{6}); \\}`))[1]);
+  for (let i = 1; i < fills.length; i++) assert.ok((lum(fills[i]) + 0.05) / (lum(fills[i - 1]) + 0.05) >= 1.5, `${fills[i - 1]} -> ${fills[i]}: lighter by 1.5 or more`);
+  // Orange wins over the grey outline of a coming country with no products yet.
+  assert.ok(block.indexOf('.gmap-svg path.mc, .gmap-svg circle.mc {') > block.indexOf('.gmap-svg path.m0, .gmap-svg circle.m0 {'));
+  assert.notEqual(site.assetVersion, '2026-11-14-group-9', 'a new asset version for the new CSS');
+});
