@@ -511,7 +511,18 @@ async function listFast(db, filters, f, sortName, order, page, perPage, offset) 
 
 // Products per subcategory of a category (only for a category whose site config lists subcategories: ZGW birds).
 // A subcategory with `match` (words in the name, TGW Mini PCs) is counted by those words, under its own name.
+// Fast mode (L159): kept for a while (memo) like the other counts. The words of a subcategory (TGW Mini PCs) are found in
+// every name of the category: on the live TGW about 65,000 rows and 200 ms of D1 for every page of Laptops & Computing.
 export async function subcategoryCounts(db, category, subs = [], view = null) {
+  if (!(await fastMode(db))) return subcategoryRead(db, category, subs, view);
+  const args = {
+    category,
+    subs: (subs || []).map(x => [x && x.name, (x && x.match) || null, (x && x.exclude) || null]),
+    view: view ? { hidden: view.hidden || null, only: view.only || null, cutoff: view.cutoff || '' } : null
+  };
+  return memo('subcats', args, COUNT_SECONDS, () => subcategoryRead(db, category, subs, view));
+}
+async function subcategoryRead(db, category, subs, view) {
   const c = catWhere(category);
   const v = vis(view);
   const byName = (subs || []).filter(s => s && s.match && nameMatch({ words: s.match, not: s.exclude }));
