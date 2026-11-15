@@ -407,6 +407,16 @@ export async function planLegacyImport({ archive, retailer, outDir, now = new Da
       doubt: Boolean(c.doubt)
     });
   }
+  // rules.RULES.sameNameCheapest (lessons L161): a marketplace (DHgate) lists the same product from several sellers under
+  // the same name, at different prices. Only the cheapest stays, with ITS OWN link and picture (not joined into one card,
+  // which would show one seller's price with another seller's link). The others are left out with this reason.
+  if (R.sameNameCheapest) for (const s of R.sites) {
+    const best = new Map();
+    for (const p of accepted[s]) { const k = sameNameKey(p.product_name); const b = best.get(k); if (!b || p.price < b.price) best.set(k, p); }
+    const keep = new Set(best.values());
+    for (const p of accepted[s]) if (!keep.has(p)) reject({ name: p.feed_product_name, feedCategory: p.merchant_category, price: p.price }, 'same name from another seller at a higher price (the cheapest is kept)');
+    accepted[s] = accepted[s].filter(p => keep.has(p));
+  }
   mkdirSync(outDir, { recursive: true });
   const sqlFiles = {};
   for (const s of R.sites) sqlFiles[s] = writeSql(join(outDir, 'sql', s), accepted[s], R, s, now);

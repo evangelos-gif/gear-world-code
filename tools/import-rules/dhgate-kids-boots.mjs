@@ -18,7 +18,9 @@ export const RULES = {
   sites: ['kgw'],
   // A pair of children's boots: under £5 is a sample or a doll's shoe, over £120 is not a child's boot from a marketplace.
   maxPrice: 120,
-  minPrice: 5
+  minPrice: 5,
+  // The same boot from several sellers under one name: only the cheapest card (L161).
+  sameNameCheapest: true
 };
 
 // Only the search file, never a whole DHgate catalogue.
@@ -28,6 +30,14 @@ export function feedFiles(archive) { return [join(archive, SEARCH_FILE)]; }
 export function productKey(get) {
   const m = /\/(\d{6,12})\.html(?:[?#]|$)/i.exec(String(get('merchant_deep_link') || ''));
   return m ? `dhgate-${m[1]}` : '';
+}
+
+// DHgate's pictures come as http://www.dhresource.com/... (fourth look, 15 Nov 2026: 16,780 of 19,264 left out as "no
+// image"); the same address works over https (checked: 200, image/jpeg), and the sites show only https pictures.
+export function field(c, column) {
+  const v = column(c);
+  if (/image/.test(c)) return String(v || '').replace(/^http:\/\/((?:[a-z0-9-]+\.)*dhresource\.com\/)/i, 'https://$1');
+  return v;
 }
 
 // Where the product is sold and sent (columns of the search file).
@@ -45,27 +55,28 @@ export const WINTER = W(['snow', 'winter', 'warm', 'warmth', 'fur', 'furry', 'fa
   'cotton', 'waterproof', 'water-?proof', 'rain', 'wellies', 'welly', 'wellingtons?', 'puddle', 'cold', 'thick', 'velvet', 'wool', 'woolen', 'woollen']);
 // For grown-ups (a family listing "men women kids" is not a child's boot) or not for people.
 const ADULT = W(["women'?s", 'womens', 'women', 'woman', 'womans', 'ladies', 'lady', "men'?s", 'mens', 'men', 'man', 'mans', 'adults?', 'unisex adult', 'couples?', 'parent-?child', 'family']);
-const NOT_A_BOOT = W(['slippers?', 'slides?', 'motorcycle', 'work boots?', 'safety', 'steel toe', 'military', 'tactical', 'dolls?', 'doll shoes', 'reborn', 'barbie', 'pets?', 'dogs?', 'puppy', 'puppies', 'cats?', 'horse', 'covers?', 'shoe covers?', 'boot covers?',
+const NOT_A_BOOT = W(['punk', 'gothic', 'knight', 'catwalk', 'over ?knee', 'over-the-knee', 'thigh', 'stiletto', 'slippers?', 'slides?', 'motorcycle', 'work boots?', 'safety', 'steel toe', 'military', 'tactical', 'dolls?', 'doll shoes', 'reborn', 'barbie', 'pets?', 'dogs?', 'puppy', 'puppies', 'cats?', 'horse', 'covers?', 'shoe covers?', 'boot covers?',
   'socks?', 'leg warmers?', 'boot cuffs?', 'insoles?', 'laces?', 'shoelaces?', 'charms?', 'keychains?', 'key ?rings?', 'pendants?', 'necklaces?', 'earrings?',
   'stickers?', 'decals?', 'ornaments?', 'stockings?', 'christmas stocking', 'gift bags?', 'candy', 'mold', 'mould', 'cake', 'cookie', 'planter', 'vase',
   'brush', 'cleaner', 'dryer', 'tray', 'rack', 'stand', 'organizer', 'patterns?', 'crochet', 'knitting pattern', 'ski boots?', 'snowboard', 'ice skates?',
-  'roller', 'football', 'soccer', 'cleats?', 'riding', 'equestrian', 'cowboy', 'cowgirl', 'heels?', 'high heels?', 'platform', 'stiletto', 'martin boots?']);
+  'roller', 'football', 'soccer', 'cleats?', 'riding', 'equestrian', 'cowboys?', 'cowgirls?', 'heels?', 'high heels?', 'platform', 'stiletto', 'martin boots?']);
 // Several pairs (a seller's lot) or a sample: not one child's pair at one price.
 const LOT = W(['lots?', '\\d+ ?pairs?', '\\d+ ?pcs', 'wholesale ?lot', 'bulk', 'samples?', 'dropship', 'drop ?shipping', 'customi[sz]ed logo', 'oem', 'odm']);
 // Famous brands and licensed characters: on a marketplace these are copies (Manager, 15 Nov 2026). Whole words.
-export const BRANDS = W(['ugg', 'uggs', 'australia boots?', 'timberland', 'timberlands', 'the north face', 'north face', 'tnf', 'columbia', 'sorel', 'hunter', 'kamik',
+export const BRANDS = W(['ugg', 'uggs', 'australia boots?', 'timberland', 'timberlands', 'the north face', 'north face', 'thenorthface', 'northface', 'tnf', 'lowmel', 'low mel', 'columbia', 'sorel', 'hunter', 'kamik',
   'moon ?boots?', 'bearpaw', 'emu', 'merrell', 'salomon', 'keen', 'geox', 'clarks', 'start-?rite', 'kickers', 'dr\\.? ?martens?', 'doc martens?', 'nike', 'jordan',
   'air ?max', 'adidas', 'yeezy', 'puma', 'reebok', 'new balance', 'asics', 'skechers', 'crocs', 'converse', 'vans', 'fila', 'champion', 'under armour', 'lacoste',
   'tommy hilfiger', 'calvin klein', 'ralph lauren', 'michael kors', 'kate spade', 'coach', 'gucci', 'louis vuitton', 'lv', 'chanel', 'dior', 'prada', 'fendi',
   'versace', 'burberry', 'balenciaga', 'hermes', 'moncler', 'canada goose', 'stone island', 'givenchy', 'valentino', 'ysl', 'saint laurent', 'bottega', 'celine',
   'off-?white', 'supreme', 'bape', 'stussy', 'golden goose', 'alexander mcqueen', 'mcqueen', 'ferragamo', 'loewe', 'miu miu', 'jimmy choo', 'christian louboutin',
-  'tasman', 'tazz', 'ultra ?mini', 'australian', 'lexington',
+  'tasman', 'tazz', 'ultra ?mini', 'australian', 'australia', 'aus', 'lexington', 'bailey', 'bailey bows?', 'classic button', 'mini classic', 'classic mini',
+  'sheepskin', 'chestnut', 'martin', 'martins', 'u\\d{4}', '5825', '5815', '5854', '5281', '1873',
   'disney', 'frozen', 'elsa', 'olaf', 'mickey', 'minnie', 'marvel', 'spider-?man', 'spiderman', 'avengers', 'batman', 'superman', 'paw patrol', 'peppa',
   'peppa pig', 'bluey', 'cocomelon', 'hello kitty', 'kuromi', 'my melody', 'sanrio', 'pokemon', 'pikachu', 'sonic', 'mario', 'minecraft', 'roblox', 'barbie',
   'lol', 'lilo', 'cars', 'lightning mcqueen', 'unicorn academy', 'harry potter', 'star wars', 'transformers', 'lego', 'pj masks', 'gabby',
   'hey duggee', 'thomas the tank', 'moana', 'encanto', 'toy story', 'buzz lightyear', 'baby shark']);
 // Words sellers use for copies of branded goods.
-const COPY = W(['replica', 'aaa', '1:1', 'top quality', 'original box', 'with box', 'with original box', 'designer', 'luxury brand', 'luxury designer', 'brand logo',
+const COPY = W(['luxury', 'replica', 'aaa', '1:1', 'top quality', 'original box', 'with box', 'with original box', 'designer', 'luxury brand', 'luxury designer', 'brand logo',
   'famous brand', 'mirror quality', 'inspired', 'dupe', 'authentic']);
 // Words to take out of a card name: shop talk, not what the boot is.
 const NOISE = /\b(?:hot sale|new arrival|newest|new|fashion|free shipping|free ship|drop ?shipping|wholesale|high quality|best quality|cheap|top sale|2\d{3})\b/gi;
@@ -90,7 +101,7 @@ const sendsToUk = info => {
 export const unescape = t => String(t || '').replace(/&#0*39;|&apos;/gi, "'").replace(/&quot;/gi, '"').replace(/&amp;/gi, '&').replace(/&#(\d{2,4});/g, (_, d) => String.fromCharCode(Number(d)));
 // A DHgate page whose address is about something else (third look, 15 Nov 2026: "Toddler Snow Boot" on the page
 // ".../lexington-chronograph-gold-tone-black-dial/409610975.html") is a re-used listing: it stays out.
-const PAGE_WORDS = /boot|snow|shoe|welli|winter|warm|kid|child|toddler|baby|girl|boy|rain|fur|plush|fleece|cotton|bootie/i;
+const PAGE_WORDS = /boot|snow|shoe|welli|winter|warm|kid|child|toddler|baby|girl|boy|rain|fur|plush|fleece/i;
 export function pageMatches(url) {
   const m = /\/product\/([^/]+)\/\d+\.html/i.exec(String(url || ''));
   return !m || PAGE_WORDS.test(m[1]);

@@ -202,12 +202,21 @@ test('L161: DHgate on Kids\' Gear World: only children\'s winter boots from the 
   assert.match(page('lexington-chronograph-gold-tone-black-dial').reject, /re-used listing/);
   assert.equal(page('trendy-snow-boots-shoes-boots-winter').subcategory, 'Winter Boots');
   assert.equal(R.displayName('Girl&#039;s Snow Boots &amp; Mittens'), "Girl's Snow Boots & Mittens");
+  // Fourth look (the real file, 19,264 rows): UGG-style names, Dr Martens-style names, North Face written as one word.
+  for (const n of ['Kids Bailey 2 Bows Boots Toddlers Snow Boots Winter Girls', 'Australia Classic Girls Bows Snow Booties Baby', 'Kids Sheepskin Fur Snow Boots Chestnut Winter',
+    'Children Boots Kids Leather Martin Waterproof Warm Winter', '7Color ARM Top TheNorthFace Kids Snow Boots Winter', 'Classic Cozy children kids Low mel Snow Boot Plush Fleece',
+    'Hot luxury Kids Snow Boots Plush Winter']) assert.ok(why(n), n);
+  assert.match(why('Girls Western Cowgirls Vintage Winter Boots Kids'), /not a child/);
+  assert.equal(R.field('merchant_image_url', () => 'http://www.dhresource.com/f2/albu/g8/x.jpg'), 'https://www.dhresource.com/f2/albu/g8/x.jpg', 'pictures over https');
+  assert.equal(R.field('product_name', () => 'http://x'), 'http://x');
+  assert.equal(R.RULES.sameNameCheapest, true);
   assert.equal(R.productKey(() => 'http://www.dhgate.com/product/kids-snow-boots/402230757.html'), 'dhgate-402230757');
   assert.deepEqual(R.feedFiles('/x').map(f => f.replace(/\\/g, '/')), ['/x/CJ_3992613_kids-winter-boots.csv.gz']);
   assert.equal(R.displayBrand('Shenzhen Happy Shoes Store'), 'DHgate');
   assert.equal(R.displayName('2025 Hot Sale New Kids Snow Boots!! Free Shipping'), 'Kids Snow Boots');
 
-  const products = [item(1, 'Kids Snow Boots Winter Warm Plush Boys Girls'), item(2, 'Girls Snow Boots Waterproof Faux Fur'), item(3, 'Kids Snow Boots UGG Style Winter'),
+  const products = [item(1, 'Kids Snow Boots Winter Warm Plush Boys Girls'), item(2, 'Girls Snow Boots Waterproof Faux Fur', 'GBP', { imageLink: 'http://www.dhresource.com/f2/2.jpg' }),
+    item(9, 'Girls Snow Boots Waterproof Faux Fur', 'GBP', { price: { amount: 30, currency: 'GBP' } }), item(3, 'Kids Snow Boots UGG Style Winter'),
     item(4, 'Kids Snow Boots Children Thermal', 'USD'), item(5, 'Kids Snow Boots Shoe Covers Waterproof'), item(7, 'Kids Snow Boots Winter Toddler', 'GBP', { linkCode: null })];
   const archive = mkdtempSync(join(tmpdir(), 'gw-dh-'));
   const S = await run({ ...base, mode: 'download', out: archive, fetchImpl: fakeCj({ products }).fetchImpl, search: 'kids-winter-boots' });
@@ -220,6 +229,9 @@ test('L161: DHgate on Kids\' Gear World: only children\'s winter boots from the 
   assert.deepEqual(r.files, [R.SEARCH_FILE], 'never a whole-catalogue file');
   assert.deepEqual(r.accepted.kgw.map(p => p.product_name).sort(), ['Girls Snow Boots Waterproof Faux Fur', 'Kids Snow Boots Winter Warm Plush Boys Girls']);
   assert.ok(r.accepted.kgw.every(p => p.currency === 'GBP' && p.subcategory === 'Winter Boots' && p.brand === 'DHgate' && /jdoqocy\.com/.test(p.affiliate_url)));
+  const girls = r.accepted.kgw.find(p => p.product_name.startsWith('Girls'));
+  assert.deepEqual([girls.price, girls.image_url, /400000002/.test(girls.affiliate_url) || /url=2/.test(girls.affiliate_url)], [12, 'https://www.dhresource.com/f2/2.jpg', true], 'the cheaper seller, with its own link and an https picture');
+  assert.equal(r.rejected['same name from another seller at a higher price (the cheapest is kept)'].length, 1);
   const reasons = Object.keys(r.rejected).join(' | ');
   assert.match(reasons, /brand/);
   assert.match(reasons, /not a child/);
