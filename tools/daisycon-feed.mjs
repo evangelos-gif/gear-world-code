@@ -126,7 +126,12 @@ export function toFeedRow(raw, { programId, program, mediaId, shopUrl = '' } = {
     store_price: Number.isFinite(price) ? String(price) : '', rrp_price: Number.isFinite(old) ? String(old) : '',
     currency: String(first(f, ['currency', 'currency_code']) || (program && (program.currency || program.currency_code)) || '').toUpperCase(),
     in_stock: inStock, stock_status: stockRaw, parent_product_id: String(first(f, ['parent_id', 'group_id', 'item_group_id', 'model_id']) || ''),
-    last_updated: String(first(f, ['last_modified', 'update_date', 'modified']) || '')
+    last_updated: String(first(f, ['last_modified', 'update_date', 'modified']) || ''),
+    // Daisycon's own fields the rules need (who it is for, colour, size, delivery), after the Awin columns.
+    dc_gender: String(first(f, ['gender_target', 'gender']) || ''), dc_colour: String(first(f, ['color_primary', 'colour', 'color']) || ''),
+    dc_size: String(first(f, ['size', 'size_description']) || ''), dc_delivery: String(first(f, ['delivery_time', 'delivery_description']) || ''),
+    dc_shipping: String(first(f, ['price_shipping']) ?? ''), dc_google_category: String(first(f, ['google_category_path']) || ''),
+    dc_condition: String(first(f, ['condition']) || '')
   };
 }
 
@@ -302,6 +307,9 @@ async function probeOne(P, p, { mediaId, fetchImpl }) {
 
 const hostOf = u => { try { return u ? new URL(u).host : ''; } catch { return ''; } };
 
+// The Awin columns, then Daisycon's own (the import reads columns by name, so the extra ones do no harm).
+export const DC_COLUMNS = [...FEED_COLUMNS, 'dc_gender', 'dc_colour', 'dc_size', 'dc_delivery', 'dc_shipping', 'dc_google_category', 'dc_condition'];
+
 // The feed file, written as the pages come (only the ids seen stay in memory).
 function openRows(file) {
   const gz = createGzip();
@@ -309,9 +317,9 @@ function openRows(file) {
   gz.pipe(ws);
   const done = new Promise((resolve, reject) => { ws.on('finish', resolve); ws.on('error', reject); gz.on('error', reject); });
   done.catch(() => { /* reported by close() */ });
-  gz.write(csvLine(FEED_COLUMNS));
+  gz.write(csvLine(DC_COLUMNS));
   return {
-    write: row => gz.write(csvLine(FEED_COLUMNS.map(c => row[c]))),
+    write: row => gz.write(csvLine(DC_COLUMNS.map(c => row[c]))),
     drain: () => (gz.writableNeedDrain ? new Promise(r => gz.once('drain', r)) : Promise.resolve()),
     close: () => { gz.end(); return done; }
   };

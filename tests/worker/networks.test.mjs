@@ -132,6 +132,7 @@ test('Daisycon: probe and download through the API, the new sign-in key handed b
   assert.deepEqual(A.currencies, ['EUR']);
   const text = gunzipSync(readFileSync(A.file)).toString('utf8');
   assert.ok(text.split('\n')[0].includes('aw_deep_link'));
+  assert.ok(text.split('\n')[0].endsWith('"dc_gender","dc_colour","dc_size","dc_delivery","dc_shipping","dc_google_category","dc_condition"'), 'Daisycon fields after the Awin columns');
   assert.equal(text.trim().split('\n').length, A.got + 1);
   assert.equal((await dc.main(['--mode', 'probe', '--media', 'x', '--programs', '1'], f, env)).error, 'wrong media id');
   assert.equal((await dc.main(['--mode', 'probe', '--media', '447289', '--programs', '16029', '--base', 'https://evil.example'], f, env)).error, 'unexpected Daisycon address');
