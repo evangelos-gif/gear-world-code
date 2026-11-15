@@ -2931,6 +2931,8 @@ http.createServer((q, s) => {
         Check ($LASTEXITCODE -eq 0 -and $dcMax.Contains('πάνω από το όριο 2')) 'daisycon-feed-download: a feed over -MaxProducts is listed but not downloaded'
         & $exe @($dcArgs + @('-Country', 'GBR')) | Out-Null
         Check ($LASTEXITCODE -eq 2) 'daisycon-feed-download: a wrong country is refused'
+        & $exe @($dcArgs + @('-Country', 'GB,US', '-Currency', 'GBP')) | Out-Null
+        Check ($LASTEXITCODE -eq 2) 'daisycon-feed-download: several countries take each their own currency (no -Currency)'
         & $exe -NoProfile -ExecutionPolicy Bypass -File $dcTool -Program '16029' -Base 'https://evil.example' -SecretFile $dcSecretFile -Archive $dcArch -OutDir $dcOut -NoClipboard | Out-Null
         Check ($LASTEXITCODE -eq 2) 'daisycon-feed-download: refuses an address that is not Daisycon or the local test server'
     } finally {

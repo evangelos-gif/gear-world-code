@@ -383,6 +383,33 @@ test('Daisycon: --country and --currency pick the UK feed in pounds, every feed 
   assert.equal(T.programs[0].tooBig, true);
   assert.match(T.programs[0].error, /more than the 100 allowed/);
   assert.ok(!fake.calls.some(c => c.includes('locale_id=9')), 'the big feed is never read');
-  assert.equal((await dc.main(['--mode', 'probe', '--media', '447289', '--programs', '18371', '--country', 'GBR'], fake, env)).error, 'wrong country (two letters, e.g. GB)');
+  assert.equal((await dc.main(['--mode', 'probe', '--media', '447289', '--programs', '18371', '--country', 'GBR'], fake, env)).error, 'wrong country (two letters, e.g. GB, or a list GB,US,PL)');
   assert.equal((await dc.main(['--mode', 'probe', '--media', '447289', '--programs', '18371', '--currency', '££'], fake, env)).newRefresh, 'R2', 'a wrong option still hands back the new sign-in key');
+});
+
+// Owner, 15 Nov 2026 ("to strengthen the USA and Poland"): several countries in one run, each feed in its own money,
+// one file per country (lessons L163).
+test('Daisycon: --country GB,US,PL gives one file per country in its own currency; a country without a feed is only reported', async () => {
+  assert.deepEqual(dc.countryChoices('gb, us,PL'), [{ country: 'GB', currency: 'GBP' }, { country: 'US', currency: 'USD' }, { country: 'PL', currency: 'PLN' }]);
+  assert.deepEqual(dc.countryChoices(''), [{ country: '', currency: '' }]);
+  const feed = (id, loc, cur) => ({ id, url: `https://daisycon.io/datafeed/?media_id=#MEDIA_ID#&program_id=18371&locale_id=#LOCALE_ID#`, language_code: 'en', locale_ids: [loc], currency_code: cur, products: 2 });
+  const fake = fakeFetch(u => {
+    if (u.pathname === '/oauth/access-token') return { body: { access_token: 'A1', refresh_token: 'R2', expires_in: 3600 } };
+    if (u.pathname === '/publishers') return { body: [{ id: 777 }] };
+    if (u.pathname === '/locales') return { body: [{ id: '3', country_code: 'GB' }, { id: '9', country_code: 'US' }] };
+    if (u.pathname === '/publishers/777/programs/18371') return { body: { id: 18371, url: 'https://www.temu.com/' } };
+    if (u.pathname === '/publishers/777/productfeeds.v2/program') return { body: [feed(1, 3, 'GBP'), feed(2, 9, 'USD')] };
+    if (u.hostname === 'daisycon.io') return { headers: { 'x-total-count': '2' }, body: dcAnswer([dcProduct(u.searchParams.get('locale_id') * 10 + 1), dcProduct(u.searchParams.get('locale_id') * 10 + 2)]) };
+    return { status: 404, body: 'not found' };
+  });
+  const env = { GW_DC_CLIENT: 'abc123', GW_DC_SECRET: 's3cret', GW_DC_REFRESH: 'R1' };
+  const out = mkdtempSync(join(tmpdir(), 'gw-dc-multi-'));
+  const D = await dc.main(['--mode', 'download', '--media', '447289', '--programs', '18371', '--out', out, '--pause', '0', '--country', 'GB,US,PL'], fake, env);
+  assert.equal(D.ok, true);
+  assert.deepEqual(D.programs.map(a => `${a.country} ${a.ok} ${a.feedCurrency || '-'} ${a.file.split(/[\\/]/).pop()}`),
+    ['GB true GBP DAISYCON_18371_GB.csv.gz.part', 'US true USD DAISYCON_18371_US.csv.gz.part', 'PL false - DAISYCON_18371_PL.csv.gz.part']);
+  assert.equal(D.programs[2].noFeed, true, 'Poland has no feed here: reported, not an error of the run');
+  const P = await dc.main(['--mode', 'probe', '--media', '447289', '--programs', '18371', '--pause', '0', '--country', 'GB,PL'], fake, env);
+  assert.deepEqual(P.programs.map(x => `${x.country} ${x.ok} ${x.noFeed || false}`), ['GB true false', 'PL false true']);
+  assert.equal((await dc.main(['--mode', 'probe', '--media', '447289', '--programs', '18371', '--country', 'GB,USA'], fake, env)).error, 'wrong country (two letters, e.g. GB, or a list GB,US,PL)');
 });

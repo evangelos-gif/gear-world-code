@@ -18,8 +18,10 @@
   old copy to <folder>\_old\<time>\ and only then puts the new one in its place. A download with less than half the
   products of the old copy is NOT used. The sites do not change: the import is a separate step with its own approval.
   -Country GB / -Currency GBP (lessons L163): for a shop with a feed per country and currency (TEMU INT), only the feed that
-  serves that country, in that currency first, with that country's locale in its address. Every feed of each programme
-  is listed in the report. -MaxProducts <n>: a feed with more products than that is listed but not downloaded.
+  serves that country, in that currency first, with that country's locale in its address. Several countries at once
+  (-Country 'GB,US,PL', each in its own currency, no -Currency then): one file per country, DAISYCON_<programme>_<country>.csv.gz.
+  Every feed of each programme is listed in the report. -MaxProducts <n>: a feed with more products than that is listed but
+  not downloaded.
   Report: <home>\gear-world-reports\DAISYCON_FEED_DOWNLOAD_<time>.txt (copied to the clipboard)
 #>
 param(
@@ -127,9 +129,11 @@ if ($MediaId -notmatch '^\d{3,10}$') { Say 'Λάθος αριθμός media το
 if ($Base -and $Base -notmatch '^http://127\.0\.0\.1:\d+$') { Say 'Μη αναμενόμενη διεύθυνση του Daisycon.' 'Red'; Finish 2 }
 $ids = @($Program | ForEach-Object { $_ -split '[,\s]+' } | Where-Object { $_ } | ForEach-Object { if ($_ -notmatch '^\d{2,8}$') { Say ('Λάθος αριθμός προγράμματος του Daisycon: {0}' -f $_) 'Red'; Finish 2 }; $_ } | Select-Object -Unique)
 if ($ids.Count -lt 1) { Say 'Δεν δόθηκε πρόγραμμα του Daisycon.' 'Red'; Finish 2 }
-$Country = ([string]$Country).Trim().ToUpperInvariant()
+$cl = @(([string]$Country).ToUpperInvariant() -split '[,\s]+' | Where-Object { $_ } | Select-Object -Unique)
+$Country = ($cl -join ',')
 $Currency = ([string]$Currency).Trim().ToUpperInvariant()
-if ($Country -and $Country -notmatch '^[A-Z]{2}$') { Say 'Λάθος χώρα (δύο γράμματα, π.χ. GB).' 'Red'; Finish 2 }
+if (@($cl | Where-Object { $_ -notmatch '^[A-Z]{2}$' }).Count -gt 0) { Say 'Λάθος χώρα (δύο γράμματα, π.χ. GB, ή λίστα GB,US,PL).' 'Red'; Finish 2 }
+if ($cl.Count -gt 1 -and $Currency) { Say 'Με πολλές χώρες κάθε χώρα παίρνει το δικό της νόμισμα: χωρίς -Currency.' 'Red'; Finish 2 }
 if ($Currency -and $Currency -notmatch '^[A-Z]{3}$') { Say 'Λάθος νόμισμα (τρία γράμματα, π.χ. GBP).' 'Red'; Finish 2 }
 if ($MaxProducts -lt 0) { Say 'Λάθος -MaxProducts.' 'Red'; Finish 2 }
 $pick = @()
@@ -141,7 +145,7 @@ Say ('Media (το site σου στο Daisycon): {0} | προγράμματα: {1
 if ($Country -or $Currency -or $MaxProducts -gt 0) {
     $lim = 'χωρίς όριο'
     if ($MaxProducts -gt 0) { $lim = 'έως {0} προϊόντα' -f $MaxProducts }
-    Say ('Επιλογή feed: χώρα {0} | νόμισμα {1} | {2}' -f $(if ($Country) { $Country } else { 'όποια' }), $(if ($Currency) { $Currency } else { 'όποιο' }), $lim)
+    Say ('Επιλογή feed: χώρα {0} | νόμισμα {1} | {2}' -f $(if ($Country) { $Country } else { 'όποια' }), $(if ($Currency) { $Currency } elseif ($cl.Count -gt 1) { 'της κάθε χώρας' } else { 'όποιο' }), $lim)
 }
 
 # The sign-in in the browser (PKCE): the Daisycon page shows a code, the owner pastes it here. Returns the new sign-in key.
@@ -210,17 +214,23 @@ $S = Invoke-WithSignIn (@('--mode', 'probe', '--media', $MediaId, '--programs', 
 if ($null -eq $S) { Finish 4 }
 if ($S.error) { Say ('Πρόβλημα: {0}' -f $S.error) 'Red'; Finish 4 }
 $good = New-Object System.Collections.Generic.List[string]
+$listed = @{}
 foreach ($p in @($S.programs)) {
     Say ''
-    # Every feed of the programme (lessons L163): language, currency, products and the countries it serves.
-    foreach ($af in @($p.allFeeds)) {
-        if ($null -eq $af) { continue }
-        Say ('  feed {0}: γλώσσα {1}, νόμισμα {2}, προϊόντα {3}, χώρες: {4}' -f $af.id, $af.language, $af.currency, $af.products, (@($af.countries) -join ' '))
+    # Every feed of the programme, once (lessons L163): language, currency, products and the countries it serves.
+    if (-not $listed.ContainsKey([string]$p.program)) {
+        $listed[[string]$p.program] = 1
+        foreach ($af in @($p.allFeeds)) {
+            if ($null -eq $af) { continue }
+            Say ('  feed {0}: γλώσσα {1}, νόμισμα {2}, προϊόντα {3}, χώρες: {4}' -f $af.id, $af.language, $af.currency, $af.products, (@($af.countries) -join ' '))
+        }
     }
-    if (-not $p.ok) { Say ('{0}: δεν βγήκε feed: {1} (feeds στο Daisycon: {2})' -f $p.program, $p.error, $p.feeds) 'Yellow'; continue }
+    $cc = ''
+    if ($p.country) { $cc = ' [{0}]' -f $p.country }
+    if (-not $p.ok) { Say ('{0}{1}: δεν βγήκε feed: {2} (feeds στο Daisycon: {3})' -f $p.program, $cc, $p.error, $p.feeds) 'Yellow'; continue }
     $sub = 'άγνωστο'
     if ($p.subscribed -eq $true) { $sub = 'ναι' } elseif ($p.subscribed -eq $false) { $sub = 'ΟΧΙ' }
-    Say ('{0} {1}: feeds {2} | διάλεξα γλώσσα {3}, νόμισμα {4}, προϊόντα {5} | το media σου γραμμένο στο feed: {6}' -f $p.program, $p.name, $p.feeds, $p.language, $p.currency, $p.products, $sub)
+    Say ('{0} {1}{7}: feeds {2} | διάλεξα γλώσσα {3}, νόμισμα {4}, προϊόντα {5} | το media σου γραμμένο στο feed: {6}' -f $p.program, $p.name, $p.feeds, $p.language, $p.currency, $p.products, $sub, $cc)
     $ships = 'άγνωστο'
     if (@($p.ships).Count -gt 0) { $ships = (@($p.ships) -join ', ') }
     Say ('  Κατάστημα: {0} | στέλνει σε (κατά το Daisycon): {1}' -f $p.shopUrl, $ships)
@@ -236,7 +246,7 @@ foreach ($p in @($S.programs)) {
     $np = 0
     [void][int]::TryParse([string]$p.products, [ref]$np)
     if ($MaxProducts -gt 0 -and $np -gt $MaxProducts) { Say ('  🟡 ΠΡΟΣΟΧΗ: {0} προϊόντα, πάνω από το όριο {1} (-MaxProducts): δεν κατεβαίνει.' -f $np, $MaxProducts) 'Yellow'; continue }
-    $good.Add([string]$p.program)
+    if (-not $good.Contains([string]$p.program)) { $good.Add([string]$p.program) }
 }
 Say ''
 if ($good.Count -eq 0) { Say 'Κανένα πρόγραμμα δεν έδωσε feed. Δεν κατέβηκε τίποτα.' 'Yellow'; Finish 0 }
@@ -257,7 +267,10 @@ if ($D.error) { Say ('Πρόβλημα: {0}' -f $D.error) 'Red'; Finish 4 }
 $oldDir = Join-Path (Join-Path $Archive '_old') $stamp
 $ok = 0
 foreach ($a in @($D.programs)) {
-    $final = Join-Path $Archive ('DAISYCON_{0}.csv.gz' -f $a.program)
+    $tail = ''
+    if ($a.country) { $tail = '_' + [string]$a.country }
+    $final = Join-Path $Archive ('DAISYCON_{0}{1}.csv.gz' -f $a.program, $tail)
+    if (-not $a.ok -and ($a.noFeed -or $a.tooBig)) { Say ('{0}{1}: δεν κατέβηκε: {2}' -f $a.program, $tail, $a.error) 'Yellow'; if ($a.file -and (Test-Path -LiteralPath $a.file)) { Remove-Item -LiteralPath $a.file -ErrorAction SilentlyContinue }; continue }
     if (-not $a.ok) { Say ('{0}: 🔴 ΠΡΟΒΛΗΜΑ: {1} (ήρθαν {2}). Κράτησα το παλιό.' -f $a.program, $a.error, $a.got) 'Red'; if ($a.file -and (Test-Path -LiteralPath $a.file)) { Remove-Item -LiteralPath $a.file -ErrorAction SilentlyContinue }; continue }
     $part = [string]$a.file
     $cp = Count-Rows $part

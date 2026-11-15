@@ -13,7 +13,7 @@
 //   node tools/daisycon-feed.mjs --mode auth-url --client <client id>
 //   node tools/daisycon-feed.mjs --mode auth-token          (GW_DC_CLIENT, GW_DC_SECRET, GW_DC_CODE, GW_DC_VERIFIER)
 //   node tools/daisycon-feed.mjs --mode probe|download --media <id> --programs 16029,22318 [--out <dir>]
-//                                [--country GB] [--currency GBP] [--max-products 300000]
+//                                [--country GB | GB,US,PL] [--currency GBP] [--max-products 300000]
 //                                                          (GW_DC_CLIENT, GW_DC_SECRET, GW_DC_REFRESH)
 import { createWriteStream } from 'node:fs';
 import { createGzip } from 'node:zlib';
@@ -203,6 +203,17 @@ export function pickFeed(feeds, { currency = '', country = '' } = {}) {
   return locale === undefined ? f : { ...f, locale_ids: [locale, ...f.locale_ids.filter(x => x !== locale)] };
 }
 
+// The usual currency of a country, used when several countries are asked at once (--country GB,US,PL; owner,
+// 15 Nov 2026: "to strengthen the USA and Poland"): each country's feed in its own money.
+export const COUNTRY_CURRENCY = { GB: 'GBP', US: 'USD', PL: 'PLN', IE: 'EUR', DE: 'EUR', FR: 'EUR', NL: 'EUR', BE: 'EUR', ES: 'EUR', IT: 'EUR', AT: 'EUR',
+  PT: 'EUR', FI: 'EUR', CA: 'CAD', AU: 'AUD', CH: 'CHF', SE: 'SEK', DK: 'DKK', NO: 'NOK', CZ: 'CZK', HU: 'HUF', RO: 'RON' };
+// The countries asked for ('' = no choice, the feed as before), each with its currency.
+export function countryChoices(country = '', currency = '') {
+  const list = [...new Set(String(country || '').toUpperCase().split(/[,\s]+/).filter(Boolean))];
+  if (!list.length) return [{ country: '', currency: String(currency || '').toUpperCase() }];
+  return list.map(cc => ({ country: cc, currency: String(currency || '').toUpperCase() || COUNTRY_CURRENCY[cc] || '' }));
+}
+
 // Every feed of a programme in one line each, for the report.
 export const feedSummary = feeds => feeds.filter(isObj).map(f => ({ id: f.id, language: f.language_code || '', currency: String(f.currency_code || '').toUpperCase(),
   products: f.products, countries: Array.isArray(f.countries) ? f.countries : [] }));
@@ -294,11 +305,14 @@ export async function probe({ access, mediaId, programs, services = SERVICES, fe
   if (A.error) return { error: A.error };
   const result = [];
   for (const p of A.programs) {
-    const P = { program: p.program, ok: false, feeds: p.feeds.length, allFeeds: feedSummary(p.feeds), error: p.error, samples: [], keys: [] };
-    try { await probeOne(P, p, { mediaId, fetchImpl, currency, country }); }
-    catch (e) { P.ok = false; P.error = `unexpected: ${String(e && e.message || e).slice(0, 200)}`; }
-    result.push(P);
-    if (P.ok && pauseMs) await sleep(pauseMs);
+    for (const c of countryChoices(country, currency)) {
+      const P = { program: p.program, country: c.country, ok: false, feeds: p.feeds.length, allFeeds: feedSummary(p.feeds), error: p.error, samples: [], keys: [] };
+      try { await probeOne(P, p, { mediaId, fetchImpl, currency: c.currency, country: c.country }); }
+      catch (e) { P.ok = false; P.error = `unexpected: ${String(e && e.message || e).slice(0, 200)}`; }
+      if (!P.ok && c.country && /^no product feed for /.test(P.error || '')) P.noFeed = true;
+      result.push(P);
+      if (P.ok && pauseMs) await sleep(pauseMs);
+    }
   }
   return { publisher: A.publisher, programs: result };
 }
@@ -343,16 +357,21 @@ function openRows(file) {
   };
 }
 
-// Every product of each programme's chosen feed, page by page, to <out>/DAISYCON_<programme>.csv.gz.part.
+// Every product of each programme's chosen feed, page by page, to <out>/DAISYCON_<programme>.csv.gz.part
+// (with countries: one file per country, DAISYCON_<programme>_<country>.csv.gz.part, lessons L163).
 export async function download({ access, mediaId, programs, out, services = SERVICES, fetchImpl = fetch, pauseMs = API_PAUSE_MS, currency = '', country = '', maxProducts = 0 }) {
   const A = await apiFeeds({ access, mediaId, programs, services, fetchImpl, pauseMs });
   if (A.error) return { error: A.error };
   const result = [];
   for (const p of A.programs) {
-    const D = { program: p.program, ok: false, got: 0, withTracking: 0, withPage: 0, currencies: [], file: join(out, `DAISYCON_${p.program}.csv.gz.part`), name: '', shopUrl: p.shopUrl, ships: p.ships };
-    try { await downloadOne(D, p, { mediaId, fetchImpl, pauseMs, currency, country, maxProducts }); }
-    catch (e) { D.ok = false; D.error = `unexpected: ${String(e && e.message || e).slice(0, 200)}`; }
-    result.push(D);
+    for (const c of countryChoices(country, currency)) {
+      const tail = c.country ? `_${c.country}` : '';
+      const D = { program: p.program, country: c.country, ok: false, got: 0, withTracking: 0, withPage: 0, currencies: [], file: join(out, `DAISYCON_${p.program}${tail}.csv.gz.part`), name: '', shopUrl: p.shopUrl, ships: p.ships };
+      try { await downloadOne(D, p, { mediaId, fetchImpl, pauseMs, currency: c.currency, country: c.country, maxProducts }); }
+      catch (e) { D.ok = false; D.error = `unexpected: ${String(e && e.message || e).slice(0, 200)}`; }
+      if (!D.ok && c.country && /^no product feed for /.test(D.error || '')) D.noFeed = true;
+      result.push(D);
+    }
   }
   return { publisher: A.publisher, programs: result };
 }
@@ -449,7 +468,7 @@ export async function main(argv = process.argv.slice(2), fetchImpl = fetch, env 
   const country = String(arg(argv, 'country') || '').toUpperCase();
   const maxProducts = Number(arg(argv, 'max-products') || 0);
   if (currency && !/^[A-Z]{3}$/.test(currency)) return { ...S, ok: false, error: 'wrong currency (three letters, e.g. GBP)' };
-  if (country && !/^[A-Z]{2}$/.test(country)) return { ...S, ok: false, error: 'wrong country (two letters, e.g. GB)' };
+  if (country && !country.split(',').every(c => /^[A-Z]{2}$/.test(c))) return { ...S, ok: false, error: 'wrong country (two letters, e.g. GB, or a list GB,US,PL)' };
   if (!Number.isInteger(maxProducts) || maxProducts < 0) return { ...S, ok: false, error: 'wrong --max-products' };
   // The renewed sign-in must reach the PowerShell tool whatever happens next: Daisycon gives a new key at each sign-in
   // and the old one stops working (first real run, 14 Nov 2026: an error here lost it, lessons L145).
