@@ -19,7 +19,7 @@ import { useSiteAssets, useRates, ukBarHtml } from './pages/layout.js';
 import { sitemapIndex, sitemapStatic, sitemapProducts, robotsTxt, SITEMAP_CHUNK } from './seo.js';
 import { posterScan } from './lib/poster-scan.js';
 import { guidePage, guidesIndexPage, findGuide, guideProductIds, listedGuides, allGuideProductIds, GUIDES_PATH } from './pages/guides.js';
-import { viewFor, hubViewFor, homeView, hiddenReason, needsCheck, cacheKeyUrl, needsUkBar, retailerInView, now as clockNow } from './lib/visibility.js';
+import { viewFor, hubViewFor, homeView, hiddenReason, needsCheck, cacheKeyUrl, needsUkBar, retailerInView, cleanCountry, now as clockNow } from './lib/visibility.js';
 import { deliveryCountries } from './lib/delivery.js';
 
 // Gear World Hub keeps the one list of members; sites reach it only through a service binding (lessons L92).
@@ -64,10 +64,23 @@ export const GOOGLE_CRAWLER = /\b(Googlebot|AdsBot-Google(-Mobile)?|Google-Inspe
 // "US": it counts as an unknown country (since L151 the all view with its bar), not as the US view of lessons L141.
 // Only ?deliver_to= of /api/products and the crawler rule apply there.
 const LOCAL_HOSTS = new Set(['localhost', '127.0.0.1', '[::1]']);
+// The network's own read-only checks (lessons L158, chat 2, 15 Nov 2026): they run in the cloud, where the address is
+// in the US or unknown, so they saw the US or the all view ("does not deliver to your country", 0 products) instead of
+// the page a UK visitor gets. A request named GearWorldQA-bot that also sends the header X-GW-QA-Country: GB (or any
+// other 2-letter code) gets that country's view, pages and /api/products alike. Not a secret: the checks run in the
+// cloud chats, where no key may be kept, and the view it opens is the public page of that country (a UK visitor sees
+// it anyway). Not in the address either, so no link, no copy in Google and no cache entry of its own: the page cache
+// keeps one copy per view group, the same one a visitor of that country gets. Without the header, or with any other
+// name, nothing changes. ?deliver_to= of /api/products still comes first.
+export const QA_BOT = /^GearWorldQA-bot\//;
+export const QA_COUNTRY_HEADER = 'X-GW-QA-Country';
 function requestCountry(request, url, apiProducts = false) {
-  if (GOOGLE_CRAWLER.test(request.headers.get('user-agent') || '')) return 'GB';
+  const ua = request.headers.get('user-agent') || '';
+  if (GOOGLE_CRAWLER.test(ua)) return 'GB';
   const asked = apiProducts ? url.searchParams.get('deliver_to') : '';
   if (asked) return asked;
+  const qa = QA_BOT.test(ua) ? cleanCountry(request.headers.get(QA_COUNTRY_HEADER)) : '';
+  if (qa) return qa;
   if (LOCAL_HOSTS.has(String(url.hostname || '').toLowerCase())) return '';
   return (request.cf && request.cf.country) || '';
 }

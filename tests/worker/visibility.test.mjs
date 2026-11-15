@@ -9,7 +9,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import { DatabaseSync } from 'node:sqlite';
-import { createWorker } from '../../src/engine.js';
+import { createWorker, QA_BOT, QA_COUNTRY_HEADER } from '../../src/engine.js';
 import * as db from '../../src/db.js';
 import { countryGroups, viewFor, homeView, visibleSql, hiddenReason, needsCheck, cacheKeyUrl, cleanCountry, useClock, needsUkBar,
   strictCountries, EU_COUNTRIES, OWN_VIEW_COUNTRIES, HIDE_AFTER_DAYS, CHECK_AFTER_DAYS, retailerInView, hubViewFor } from '../../src/lib/visibility.js';
@@ -667,6 +667,82 @@ test('L141: a US visitor sees what ships to the US (own cached copy, no bar); Go
   assert.ok(local.includes('class="country-bar"'), 'local: the bar, as for an unknown country');
   const localApi = new Request('http://127.0.0.1:8788/api/products?search=tyreco&limit=60&deliver_to=US');
   assert.equal((await (await worker.fetch(localApi, env, { waitUntil: p => p })).json()).products.length, 30, 'local: ?deliver_to= still counts');
+});
+
+// ---- The network's own checks from the cloud (chat 2, 15 Nov 2026, lessons L158) ----
+// Price and stock checks run in the cloud, where the address is in the US: on a site with a US view they saw only what
+// ships to the US. With the name GearWorldQA-bot and the header X-GW-QA-Country they ask the view of one country.
+test('L158: GearWorldQA-bot with X-GW-QA-Country gets that country\'s view (pages and API); any other visitor and the cache: no change', async () => {
+  const usSite = { ...config.agw, deliversTo: { ...config.agw.deliversTo, retailers: { ...config.agw.deliversTo.retailers, 'Pneus.be': ['BE', 'US'] } } };
+  const worker = createWorker(usSite);
+  const QA = 'GearWorldQA-bot/1.0 (+read-only check)';
+  const BROWSER = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36';
+  const get = (path, env, country, headers = {}) => {
+    const req = new Request(`https://cargearworld.com${path}`, { headers: { 'User-Agent': BROWSER, ...headers } });
+    if (country) Object.defineProperty(req, 'cf', { value: { country } });
+    return worker.fetch(req, env, { waitUntil: p => p });
+  };
+  const store = new Map();
+  const before = globalThis.caches;
+  globalThis.caches = { default: {
+    match: async key => (store.has(key.url) ? store.get(key.url).clone() : undefined),
+    put: async (key, res) => { store.set(key.url, res); }
+  } };
+  try {
+    const d = carShop();
+    const env = envOf(d);
+    const tyres = html => (html.match(/Tyreco Summer/g) || []).length;
+    const ukShops = html => /Example Motor Parts|Sample Garage Supplies/.test(html.split('<main')[1]);
+    const page = async (country, headers) => (await get('/category/tyres-wheels/', env, country, headers)).text();
+    const ukPage = await page('GB');
+    assert.equal(tyres(ukPage), 0);
+    assert.ok(ukShops(ukPage));
+    // The check from a US address, as today: the US view.
+    const plain = await page('US', { 'User-Agent': QA });
+    assert.ok(tyres(plain) > 0 && !ukShops(plain), 'the name alone: the US view, as before');
+    // With the header: exactly the UK page, the same cached copy a UK visitor gets (no D1 read, no copy of its own).
+    const reads = d.log.length;
+    const keys = store.size;
+    for (const cc of ['GB', 'gb', ' GB ']) {
+      const html = await page('US', { 'User-Agent': QA, [QA_COUNTRY_HEADER]: cc });
+      assert.equal(html, ukPage, `X-GW-QA-Country "${cc}": the UK page`);
+      assert.ok(!html.includes('class="country-bar"'), 'no bar');
+    }
+    assert.equal(d.log.length, reads, 'served from the UK copy');
+    assert.equal(store.size, keys, 'no cache copy of its own');
+    assert.ok(store.has(cacheKeyUrl('https://cargearworld.com/category/tyres-wheels/', viewFor(usSite, 'GB', NOW))));
+    // Another country on purpose: Belgium from a UK address, the all view with the bar.
+    const be = await page('GB', { 'User-Agent': QA, [QA_COUNTRY_HEADER]: 'BE' });
+    assert.ok(tyres(be) > 0 && ukShops(be) && be.includes('class="country-bar"'), 'X-GW-QA-Country BE: the all view');
+    // Nobody else: a browser, another bot, a name that only contains it, or a code that is not a country.
+    const us = await page('US');
+    for (const [headers, what] of [[{ [QA_COUNTRY_HEADER]: 'GB' }, 'a browser with the header'],
+      [{ 'User-Agent': 'Mozilla/5.0 (compatible; bingbot/2.0)', [QA_COUNTRY_HEADER]: 'GB' }, 'another bot'],
+      [{ 'User-Agent': `Mozilla/5.0 ${QA}`, [QA_COUNTRY_HEADER]: 'GB' }, 'a name that only contains GearWorldQA-bot'],
+      [{ 'User-Agent': QA, [QA_COUNTRY_HEADER]: 'GBR' }, 'GBR'], [{ 'User-Agent': QA, [QA_COUNTRY_HEADER]: 'XX' }, 'XX'],
+      [{ 'User-Agent': QA, [QA_COUNTRY_HEADER]: '' }, 'an empty header'], [{ 'User-Agent': QA, 'X-GW-Country': 'GB' }, 'another header']]) {
+      const html = await page('US', headers);
+      assert.ok(tyres(html) > 0 && !ukShops(html), `${what}: the US view, as before`);
+      if (headers['User-Agent'] !== QA) assert.equal(html, us, `${what}: the same page as any US visitor`);
+    }
+    // A normal US visitor after the checks: still the US view (its own copy), never the UK copy the check read.
+    assert.ok(tyres(await page('US')) > 0);
+    // /api/products: the header gives the same answer as from the UK; ?deliver_to= (the Hub) still comes first.
+    const api = async (path, country, headers) => (await (await get(path, env, country, headers)).json()).products.map(p => p.id).sort();
+    const path = '/api/products?search=tyre&limit=60';
+    const ukApi = await api(path, 'GB');
+    assert.ok(ukApi.length > 0);
+    assert.deepEqual(await api(path, 'US', { 'User-Agent': QA, [QA_COUNTRY_HEADER]: 'GB' }), ukApi, 'API with the header: the UK answer');
+    assert.notDeepEqual(await api(path, 'US', { 'User-Agent': QA }), ukApi, 'API without it: the US answer, as before');
+    assert.deepEqual(await api(`${path}&deliver_to=US`, 'GB', { 'User-Agent': QA, [QA_COUNTRY_HEADER]: 'GB' }), await api(`${path}&deliver_to=US`, 'GB'),
+      '?deliver_to= first');
+    // Google's crawlers keep the UK view whatever the header says.
+    assert.equal(tyres(await page('US', { 'User-Agent': 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)', [QA_COUNTRY_HEADER]: 'BE' })), 0);
+    assert.equal(QA_COUNTRY_HEADER, 'X-GW-QA-Country');
+    assert.ok(QA_BOT.test(QA));
+  } finally {
+    if (before === undefined) delete globalThis.caches; else globalThis.caches = before;
+  }
 });
 
 // ---- The bar for visitors outside the UK (item 15, the owner's option A, 9 Nov 2026) ----
