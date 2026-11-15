@@ -17,6 +17,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import * as TGW_RULES from '../sites/tgw/category-rules.js';
 import { normalizeGtin } from '../src/lib/gtin.js';
 import { slugify, truncate } from '../src/lib/text.js';
+import { aliexpressSection } from './import-rules/lib/aliexpress-sections.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const SQL_ROWS_PER_FILE = 400;
@@ -194,6 +195,9 @@ const COLUMNS = {
   images: ['large_image', 'merchant_image_url', 'alternate_image', 'aw_image_url', 'merchant_thumb_url'],
   link: ['aw_deep_link'],
   merchantProductId: ['merchant_product_id', 'aw_product_id'],
+  // "joinVariants" (AliExpress PL, L157): every colour and size is a row with its own merchant_product_id; the card is the
+  // product (parent_product_id), at its cheapest variant.
+  parentProductId: ['parent_product_id'],
   awinProductId: ['aw_product_id'],
   gtin: ['ean', 'product_gtin', 'upc', 'isbn'],
   mpn: ['mpn', 'model_number'],
@@ -724,9 +728,13 @@ export async function planImport({ archive, sourcesFile, outDir, now = new Date(
         // Third argument: every merchant category column (leaf and full path). Fourth: the shop's sources.json entry
         // (SGW reads its "sectionHints"). TGW's rules ignore both.
         const categoryPaths = map.merchantCategory.map(i => cleanText(rec[i])).filter(Boolean).join(' | ');
-        const cls = loose ? classify(name, '', '', source)
-          : classify(name, `${merchantCategory || awinCategory} ${merchantCategory ? awinCategory : ''}`.trim(), categoryPaths, source);
+        // "sections": "aliexpress-pl" (owner, 15 Nov 2026, L157): the Polish shop's own sections place the product, with an
+        // English subcategory and a shortened name (tools/import-rules/lib/aliexpress-sections.mjs); the site rules read English.
+        const cls = source.sections === 'aliexpress-pl' ? aliexpressSection(label, name, merchantCategory)
+          : loose ? classify(name, '', '', source)
+            : classify(name, `${merchantCategory || awinCategory} ${merchantCategory ? awinCategory : ''}`.trim(), categoryPaths, source);
         if (!cls.ok) { reject(cls.reason, cls.reason.startsWith('not for UK') ? `${short}  [${notUkHint(name)}]` : short); continue; }
+        if (cls.name) name = cls.name;
         if (!Number.isFinite(price) || price <= 0) { reject('no price', short); continue; }
         if (price < QUALITY.minPrice || price > QUALITY.maxPrice) { reject('price out of range', short); continue; }
         // After the second import (24 Oct 2026, lessons L53): Back to the Office priced "Western Digital WD80EFPX internal hard drive
@@ -756,12 +764,12 @@ export async function planImport({ archive, sourcesFile, outDir, now = new Date(
         let host = '';
         try { host = new URL(link).hostname.toLowerCase(); } catch { /* invalid */ }
         if (!QUALITY.affiliateHosts.includes(host)) { reject('link is not an Awin link', short); continue; }
-        const merchantProductId = pick(rec, map.merchantProductId);
+        const merchantProductId = (source.joinVariants && pick(rec, map.parentProductId)) || pick(rec, map.merchantProductId);
         if (!merchantProductId) { reject('no product id', short); continue; }
         const stableKey = `${source.advertiserId}:${merchantProductId}`;
         if (seenKeys.has(stableKey)) {
           // Google format: the other sizes and colours of a product already taken (the cheapest stays)
-          if (google && googleSeen.has(stableKey)) { const had = googleSeen.get(stableKey); if (price < had.price) had.price = price; stats.sizesJoined = (stats.sizesJoined || 0) + 1; continue; }
+          if ((google || source.joinVariants) && googleSeen.has(stableKey)) { const had = googleSeen.get(stableKey); if (price < had.price) had.price = price; stats.sizesJoined = (stats.sizesJoined || 0) + 1; continue; }
           reject('duplicate product id', short); continue;
         }
         seenKeys.add(stableKey);
@@ -811,7 +819,7 @@ export async function planImport({ archive, sourcesFile, outDir, now = new Date(
           last_seen_at: runStamp
         };
         candidates.push({ p, short, loose, feedCategory: merchantCategory || awinCategory || '-', qtyZero: quantity === '0' });
-        if (google) googleSeen.set(stableKey, p);
+        if (google || source.joinVariants) googleSeen.set(stableKey, p);
       }
       feedInfo.push(`  rows read: ${rows}`);
       sourceRows += rows;

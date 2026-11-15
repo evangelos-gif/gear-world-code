@@ -213,7 +213,7 @@ export const CATEGORY_SLUGS = ['fitness-gym', 'running', 'cycling', 'football-te
 
 // Minimum quality for any product to be imported (L14). Prices in pounds or euros (euro prices get "≈ £").
 export const QUALITY = {
-  currencies: ['GBP', 'EUR'],
+  currencies: ['GBP', 'EUR', 'PLN'],
   minPrice: 1,
   maxPrice: 6000,
   requireImage: true,

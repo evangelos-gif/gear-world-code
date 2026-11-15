@@ -10,6 +10,7 @@
     { "advertiserId": 76702, "feedIds": [95311], "retailer": "Omlet", "currency": "GBP", "condition": "new", "approved": true, "petShop": true },
     { "advertiserId": 56439, "feedIds": [94548], "retailer": "Red Gorilla", "currency": "GBP", "condition": "new", "approved": false },
     { "advertiserId": 118435, "feedIds": [109014], "retailer": "VEVOR", "currency": "EUR", "condition": "new", "keepSiteNames": true, "approved": false },
-    { "advertiserId": 124906, "feedIds": [113935], "retailer": "ALZOO", "currency": "USD", "condition": "new", "approved": true, "petShop": true }
+    { "advertiserId": 124906, "feedIds": [113935], "retailer": "ALZOO", "currency": "USD", "condition": "new", "approved": true, "petShop": true },
+    { "advertiserId": 12044, "feedIds": [101519], "retailer": "AliExpress PL", "currency": "PLN", "condition": "new", "approved": true, "sections": "aliexpress-pl", "joinVariants": true }
   ]
 }

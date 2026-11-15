@@ -350,7 +350,7 @@ export const CATEGORY_SLUGS = CATEGORIES.map(k => k.key);
 // A UK site: prices in pounds (the Dutch VEVOR feed in euros stays out). US dollars for ALZOO, which only US visitors
 // see (massive import round 2b, 14 Nov 2026, lessons L107, L141).
 export const QUALITY = {
-  currencies: ['GBP', 'USD'],
+  currencies: ['GBP', 'USD', 'PLN'],
   minPrice: 1,
   maxPrice: 3000,
   requireImage: true,

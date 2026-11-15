@@ -29,7 +29,9 @@ export default {
   retailerCountries: { VEVOR: 'NL' },
   // Where the retailers deliver (lessons L62, L107): every retailer not named is a UK shop; VEVOR: the Dutch shop vevor.nl
   // delivers to the EU and the EEA, not to the UK (owner, 9 Nov 2026). Visitors see only what delivers to them.
-  deliversTo: { default: ['GB'], retailers: { VEVOR: ['EU', 'IS', 'LI', 'NO'] } },
+  // AliExpress PL (Awin 12044, Polish names, prices in zloty): Poland only, so only the Poland view shows it (owner,
+  // 15 Nov 2026, lessons L157, round 2); its prices get "≈ £…" (foreignCurrencies PLN).
+  deliversTo: { default: ['GB'], retailers: { 'AliExpress PL': ['PL'], VEVOR: ['EU', 'IS', 'LI', 'NO'] } },
   // Lessons L107: a UK visitor sees UK retailers only, so the texts no longer say "retailers in the UK and Europe".
   retailersFromEurope: false,
 
@@ -48,6 +50,7 @@ export default {
     { code: 'ro-RO', label: 'Română' },
     { code: 'ru-RU', label: 'Русский' }
   ],
+  foreignCurrencies: ['PLN'],
   displayCurrencies: ['GBP', 'EUR', 'ALL', 'RON', 'RUB'],
   cart: { name: 'Saved list', maxItems: 30 },
   voiceSearch: true,
