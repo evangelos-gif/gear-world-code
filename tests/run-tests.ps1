@@ -2940,6 +2940,81 @@ http.createServer((q, s) => {
     }
 }
 
+# 8c7. bol-feed-download.ps1 (bol.com Marketing Catalog API, lessons L154) with a fake bol.com (Windows only: DPAPI)
+if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
+    Write-Host 'bol-feed-download.ps1 (keys in DPAPI, one token per run, one search)'
+    $bolDir = Join-Path $work 'bol'
+    $bolOut = Join-Path $bolDir 'out'
+    New-Item -ItemType Directory -Path $bolOut -Force | Out-Null
+    $bolSecretFile = Join-Path $bolDir 'bol-api.dat'
+    $bolId = 'gwBolClient' + ([guid]::NewGuid().ToString('N').Substring(0, 8))
+    $bolSecret = 'gwBolSecret' + ([guid]::NewGuid().ToString('N').Substring(0, 16))
+    $bolBasic = [Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes($bolId + ':' + $bolSecret))
+    $bolSrv = Join-Path $bolDir 'server.js'
+    Write-Utf8 $bolSrv @'
+const http = require('http');
+const want = 'Basic ' + process.argv[2];
+let tokens = 0;
+http.createServer((q, s) => {
+  const u = new URL(q.url, 'http://127.0.0.1:8797');
+  const send = (code, x) => { s.writeHead(code, { 'Content-Type': 'application/json' }); s.end(JSON.stringify(x)); };
+  if (u.pathname === '/token') {
+    tokens++;
+    if (q.method !== 'POST' || u.searchParams.get('grant_type') !== 'client_credentials' || q.headers.accept !== 'application/json' || q.headers['content-length'] !== '0') return send(400, { error: 'bad request' });
+    if (q.headers.authorization !== want) return send(401, { error: 'invalid_client' });
+    return send(200, { access_token: 'bolTokenValue' + tokens + 'x', token_type: 'Bearer', expires_in: 299, scope: 'catalog' });
+  }
+  if (u.pathname === '/tokens-asked') return send(200, { tokens });
+  if (u.pathname === '/marketing/catalog/v1/products/search') {
+    if (!/^Bearer bolTokenValue\d+x$/.test(q.headers.authorization || '')) return send(401, { title: 'Unauthorized' });
+    if (q.headers['accept-language'] !== 'nl' || u.searchParams.get('country-code') !== 'NL' || u.searchParams.get('search-term') !== 'Strauss werkschoenen' || u.searchParams.get('include-offer') !== 'true') return send(400, { title: 'Bad request' });
+    return send(200, { page: 1, totalResults: 42, results: [{ ean: '8712345678901', title: 'STRAUSS werkschoenen S3 Okomu', offer: { price: 129.99 } }] });
+  }
+  send(404, { title: 'Not found' });
+}).listen(8797, '127.0.0.1');
+'@
+    $bolProc = Start-Process -FilePath (Get-Command node).Source -ArgumentList @($bolSrv, $bolBasic) -PassThru -WindowStyle Hidden
+    Start-Sleep -Seconds 2
+    try {
+        $bolTool = Join-Path (Join-Path $repo 'tools') 'bol-feed-download.ps1'
+        $bolBase = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $bolTool, '-SecretFile', $bolSecretFile, '-LoginBase', 'http://127.0.0.1:8797', '-ApiBase', 'http://127.0.0.1:8797', '-OutDir', $bolOut, '-NoClipboard')
+        $bolLast = { [System.IO.File]::ReadAllText((@(Get-ChildItem -LiteralPath $bolOut -Filter 'BOL_FEED_*.txt' | Sort-Object LastWriteTime, Name)[-1]).FullName) }
+        $bolAsked = { [int]((Invoke-WebRequest -UseBasicParsing -Uri 'http://127.0.0.1:8797/tokens-asked').Content | ConvertFrom-Json).tokens }
+        & $exe @($bolBase + @('-Step', 'keys')) | Out-Null
+        Check ($LASTEXITCODE -eq 0 -and -not (Test-Path -LiteralPath $bolSecretFile)) 'bol-feed-download keys: without -Apply only the plan, no file'
+        $env:GW_BOL_TEST_KEYS = $bolId + '|' + $bolSecret
+        & $exe @($bolBase + @('-Step', 'keys', '-Apply', '-Approve', 'wrong phrase')) | Out-Null
+        Check ($LASTEXITCODE -eq 1 -and -not (Test-Path -LiteralPath $bolSecretFile)) 'bol-feed-download keys: a wrong phrase saves nothing'
+        & $exe @($bolBase + @('-Step', 'keys', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ BOL KEYS')) | Out-Null
+        $bolKeysRep = & $bolLast
+        Check ($LASTEXITCODE -eq 0 -and (Test-Path -LiteralPath $bolSecretFile) -and $bolKeysRep.Contains('φυλάχτηκαν κρυπτογραφημένα')) 'bol-feed-download keys: with the phrase the keys are saved (DPAPI)'
+        $bolFileText = [System.IO.File]::ReadAllText($bolSecretFile)
+        Check (-not $bolFileText.Contains($bolSecret) -and -not $bolFileText.Contains($bolId) -and -not $bolKeysRep.Contains($bolSecret) -and -not $bolKeysRep.Contains($bolId)) 'bol-feed-download keys: neither key in the file in clear, nor in the report'
+        Check ((& $bolAsked) -eq 0) 'bol-feed-download keys: no token asked in the keys step'
+        & $exe @($bolBase + @('-Step', 'check')) | Out-Null
+        $bolCheckRep = & $bolLast
+        Check ($LASTEXITCODE -eq 0 -and $bolCheckRep.Contains('βρέθηκαν 42 προϊόντα') -and $bolCheckRep.Contains('Πρώτο: STRAUSS werkschoenen S3 Okomu - ') -and $bolCheckRep.Contains('129.99')) 'bol-feed-download check: how many and the first name and price'
+        Check ((& $bolAsked) -eq 1) 'bol-feed-download check: ONE token for the run'
+        Check (-not $bolCheckRep.Contains('bolTokenValue') -and -not $bolCheckRep.Contains($bolSecret) -and -not $bolCheckRep.Contains($bolId) -and -not $bolCheckRep.Contains($bolBasic)) 'bol-feed-download check: no key, Basic header or token in the report'
+        & $exe @($bolBase + @('-Step', 'keys', '-Apply', '-Approve', 'egkrino bol keys')) | Out-Null
+        Check ($LASTEXITCODE -eq 0 -and @(Get-ChildItem -LiteralPath $bolDir -Filter 'bol-api.dat.old-*').Count -eq 1) 'bol-feed-download keys: new keys keep the old file as .old-<time> first'
+        $env:GW_BOL_TEST_KEYS = 'wrongClient1|wrongSecret1234'
+        $bolBad = Join-Path $bolDir 'bol-bad.dat'
+        $bolBadArgs = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $bolTool, '-SecretFile', $bolBad, '-LoginBase', 'http://127.0.0.1:8797', '-ApiBase', 'http://127.0.0.1:8797', '-OutDir', $bolOut, '-NoClipboard')
+        & $exe @($bolBadArgs + @('-Step', 'keys', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ BOL KEYS')) | Out-Null
+        & $exe @($bolBadArgs + @('-Step', 'check')) | Out-Null
+        Check ($LASTEXITCODE -eq 3 -and (& $bolAsked) -eq 2) 'bol-feed-download check: keys that bol.com refuses stop at once (exit 3), one token asked'
+        $env:GW_BOL_TEST_KEYS = $null
+        & $exe -NoProfile -ExecutionPolicy Bypass -File $bolTool -Step check -SecretFile $bolSecretFile -LoginBase 'https://evil.example' -OutDir $bolOut -NoClipboard | Out-Null
+        Check ($LASTEXITCODE -eq 2 -and (& $bolAsked) -eq 2) 'bol-feed-download: the keys go only to login.bol.com and api.bol.com'
+        & $exe -NoProfile -ExecutionPolicy Bypass -File $bolTool -Step check -SecretFile (Join-Path $bolDir 'none.dat') -LoginBase 'http://127.0.0.1:8797' -ApiBase 'http://127.0.0.1:8797' -OutDir $bolOut -NoClipboard | Out-Null
+        Check ($LASTEXITCODE -eq 3 -and (& $bolAsked) -eq 2) 'bol-feed-download check: without saved keys it asks for none (run keys first)'
+    } finally {
+        $env:GW_BOL_TEST_KEYS = $null
+        if ($bolProc -and -not $bolProc.HasExited) { Stop-Process -Id $bolProc.Id -Force -ErrorAction SilentlyContinue }
+    }
+}
+
 # 8c3. awin-membership-check.ps1 (which Awin programmes still pay, lessons L61): fake wrangler and fake Awin server (Windows only)
 if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
     Write-Host 'awin-membership-check.ps1 (fake wrangler, fake Awin server)'
