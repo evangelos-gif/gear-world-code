@@ -2624,16 +2624,17 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         ('echo The current bookmark is ' + $rfBookmark),
         'exit /b 0',
         ':shops',
-        'echo [{"results":[{"retailer":"Tooled Up","n":2},{"retailer":"Reidl","n":5}],"success":true}]',
+        'echo [{"results":[{"retailer":"Tooled Up","n":5},{"retailer":"Reidl","n":5}],"success":true}]',
         'exit /b 0',
         ':idx',
         'echo [{"results":[{"name":"idx_products_active_price","sql":"CREATE INDEX idx_products_active_price ON products(is_active, price)"},{"name":"idx_products_active_id","sql":"CREATE INDEX idx_products_active_id ON products(is_active, id)"}],"success":true}]',
         'exit /b 0',
         ':rows',
-        'echo [{"results":[{"id":1,"awin_product_id":"100046875","merchant_product_id":"100005800","product_name":"Bahco Spanner","price":11.99,"currency":"GBP","stock_status":"In Stock","image_url":"https://x/a.jpg","is_active":1},{"id":5,"awin_product_id":"555","merchant_product_id":"555","product_name":"Gone","price":7,"currency":"GBP","stock_status":"In Stock","image_url":"https://x/5.jpg","is_active":1}],"success":true}]',
+        # 5 active, 4 in the feed (80%: the gone one is hidden, lessons L168; with 1 of 2 nothing would be).
+        'echo [{"results":[{"id":1,"awin_product_id":"100046875","merchant_product_id":"100005800","product_name":"Bahco Spanner","price":11.99,"currency":"GBP","stock_status":"In Stock","image_url":"https://x/a.jpg","is_active":1},{"id":2,"awin_product_id":"102","merchant_product_id":"202","product_name":"Hammer","price":5,"currency":"GBP","stock_status":"In Stock","image_url":"https://x/2.jpg","is_active":1},{"id":3,"awin_product_id":"103","merchant_product_id":"203","product_name":"Saw","price":6,"currency":"GBP","stock_status":"In Stock","image_url":"https://x/3.jpg","is_active":1},{"id":4,"awin_product_id":"104","merchant_product_id":"204","product_name":"Level","price":8,"currency":"GBP","stock_status":"In Stock","image_url":"https://x/4.jpg","is_active":1},{"id":5,"awin_product_id":"555","merchant_product_id":"555","product_name":"Gone","price":7,"currency":"GBP","stock_status":"In Stock","image_url":"https://x/5.jpg","is_active":1}],"success":true}]',
         'exit /b 0',
         ':after',
-        'echo [{"results":[{"n":1}],"success":true}]',
+        'echo [{"results":[{"n":4}],"success":true}]',
         'exit /b 0',
         ':ok',
         'echo OK',
@@ -2641,7 +2642,10 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
     ) -join "`r`n"
     [System.IO.File]::WriteAllText((Join-Path $rfBin 'npx.cmd'), $rfNpx + "`r`n", [System.Text.Encoding]::ASCII)
     $rfCsv = "merchant_name,aw_product_id,merchant_product_id,product_name,merchant_image_url,search_price,currency,in_stock,stock_status,last_updated`n" +
-        ('Tooled Up,100046875,100005800,Bahco Spanner,https://x/a.jpg,12.50,GBP,1,In Stock,{0}' -f (Get-Date -Format 'yyyy-MM-dd HH:mm:ss')) + "`n"
+        ('Tooled Up,100046875,100005800,Bahco Spanner,https://x/a.jpg,12.50,GBP,1,In Stock,{0}' -f (Get-Date -Format 'yyyy-MM-dd HH:mm:ss')) + "`n" +
+        ('Tooled Up,102,202,Hammer,https://x/2.jpg,5,GBP,1,In Stock,{0}' -f (Get-Date -Format 'yyyy-MM-dd HH:mm:ss')) + "`n" +
+        ('Tooled Up,103,203,Saw,https://x/3.jpg,6,GBP,1,In Stock,{0}' -f (Get-Date -Format 'yyyy-MM-dd HH:mm:ss')) + "`n" +
+        ('Tooled Up,104,204,Level,https://x/4.jpg,8,GBP,1,In Stock,{0}' -f (Get-Date -Format 'yyyy-MM-dd HH:mm:ss')) + "`n"
     [System.IO.File]::WriteAllText((Join-Path $rfArch 'AWIN_496_1001.csv'), $rfCsv, (New-Object System.Text.UTF8Encoding($false)))
     $oldPath = $env:PATH
     $env:PATH = $rfBin + ';' + $oldPath

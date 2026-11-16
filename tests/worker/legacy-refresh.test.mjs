@@ -495,7 +495,7 @@ test('L168: the weekly refresh hides a product that left the shop\'s feed by its
   assert.deepEqual([p.hides.length, p.visible.goneNow, p.visible.still.gone], [0, 1, 1], 'not is_active = 0; the already hidden one is counted, not written');
   assert.equal(p.writes, p.changes.reduce((n, c) => n + c.writes, 0) + 3 + p.seen.length * 3, 'a hide by date costs a date (HGW: 3 rows)');
   const report = renderReport({ retailer: 'Tooled Up', site: 'hgw', feedFiles: ['x'], feedRows: 6, newest: feed.newest, p });
-  assert.match(report, /2 προϊόντα δεν υπάρχουν πια στο feed: 1 που φαίνονται σήμερα κρύβονται τώρα από το site \(L168, δεν σβήνονται\)· τα άλλα 1 ήταν ήδη κρυμμένα\. Αν το κατάστημα τα ξαναβάλει στο feed, ξαναφαίνονται μόνα τους/);
+  assert.match(report, /2 προϊόντα δεν υπάρχουν πια στο feed: 1 που φαίνονται σήμερα κρύβονται τώρα από το site \(L168, δεν σβήνονται\)· τα άλλα 1 ήταν ήδη κρυμμένα\. Αν το κατάστημα τα ξαναβάλει στο feed, ξαναφαίνονται μόνα τους στην επόμενη ανανέωση που επιβεβαιώνει την τιμή τους/);
   assert.match(report, /Απόκρυψη: 1 \(έφυγαν από το feed\)/);
   const st = planStatements(p);
   assert.deepEqual(st.gone.map(x => x.sql), [`UPDATE products SET updated_at = '${GONE_DATE}' WHERE id = 5 AND is_active = 1 AND (updated_at IS NULL OR updated_at <= '2026-10-20 10:00:00');`]);
@@ -506,6 +506,15 @@ test('L168: the weekly refresh hides a product that left the shop\'s feed by its
   // A feed file older than 2 days (the one-paste mode changes nothing on such a shop): no hide either.
   const late = planRefresh({ rows, feed, costs: HGW_COSTS, now: new Date('2026-10-28T12:00:00Z'), requireDates: true, hideByDate: true });
   assert.deepEqual([late.skip, late.goneDated.length], ['old-file', 0]);
+
+  // Rows already hidden (GONE_DATE from earlier weeks, or older than 30 days) do not count against the 80%: they never
+  // match the feed again and would pile up until the shop hid nothing (independent check, 16 Nov 2026).
+  const shownOk = [7, 8, 9, 10, 11, 12].map(id => ({ ...TU[3], id, awin_product_id: '200', merchant_product_id: `s${id}`, updated_at: '2026-10-20 10:00:00' }));
+  const earlier = [20, 21, 22, 23, 24, 25, 26].map(id => ({ ...TU[4], id, awin_product_id: `g${id}`, merchant_product_id: `g${id}`, updated_at: GONE_DATE }));
+  const piled = planRefresh({ rows: [...shownOk, shown, ...earlier], feed, costs: HGW_COSTS, now: RUN, requireDates: true, hideByDate: true });
+  assert.deepEqual([piled.safe, piled.cover, piled.goneDated.map(g => g.id)], [true, { of: 7, inFeed: 6, shownOnly: true }, [5]], '6 of 7 shown are in the feed: the new gone row is hidden; the 7 older ones are not written again');
+  const fewShown = planRefresh({ rows: [...shownOk.slice(0, 3), shown, ...earlier], feed, costs: HGW_COSTS, now: RUN, requireDates: true, hideByDate: true });
+  assert.deepEqual([fewShown.cover.shownOnly, fewShown.safe], [false, false], 'fewer than 5 shown: counted on all active (3 of 11): nothing hidden');
 
   // On a copy of the table: the row stays active and the sites stop listing it at once; the rollback gives it back.
   const db = new DatabaseSync(':memory:');

@@ -20,8 +20,8 @@
   per shop what WOULD change, with how many products would be shown again. A product that left the shop's feed is
   hidden at once by its date (lessons L168, owner 16 Nov 2026): it gets the date 2000-01-01, so the sites stop listing
   it (it is not deleted and stays active), and when the shop lists it again the next run dates it and it comes back by
-  itself. Only when the fresh feed has at least 80% of the shop's active products: with less (half a download, new feed
-  ids) nothing is hidden and those products leave the sites at 30 days on their own. With -Apply ONE phrase for the whole run,
+  itself once its price is confirmed. Only when the fresh feed has at least 80% of the shop's products the sites still
+  show (all active ones when fewer than 5 are shown): with less (half a download, new feed ids) nothing is hidden and those products leave the sites at 30 days on their own. With -Apply ONE phrase for the whole run,
   ΕΓΚΡΙΝΩ REFRESH ΠΑΛΙΑ ΠΡΟΪΟΝΤΑ: first fresh feeds for just those shops with tools/awin-feed-download.ps1 (it keeps
   the Awin feed key encrypted for your Windows user and asks for it only if it is missing; the key is never shown or
   written anywhere), then the refresh of every shop. A shop whose feed is not found, not downloaded or too old is
@@ -729,7 +729,7 @@ try {
     foreach ($s in @($planned | Where-Object { $_.oldFile })) { Say ('  με -Apply κατεβαίνει πρώτα φρέσκο feed: {0} στο {1} (περίπου {2} θα φαίνονταν ξανά)' -f $s.name, $s.site.ToUpper(), (Fmt $s.plan.visible.reviveIfFresh)) }
     foreach ($s in @($shopsAll | Where-Object { $_.dlOnly })) { Say ('  με -Apply κατεβαίνει πρώτη φορά το feed (Awin {0}): {1} στο {2}' -f (@($s.feed.advertisers) -join ', '), $s.name, $s.site.ToUpper()) }
     foreach ($s in @($shopsAll | Where-Object { $_.reason -and -not $_.oldFile -and -not $_.dlOnly }) + $skipped) { Say ('  παραλείπεται: {0} στο {1}: {2}' -f $s.name, $s.site.ToUpper(), $s.reason) 'Yellow' }
-    Say 'Προϊόντα που έφυγαν από το feed του καταστήματος κρύβονται αμέσως από τα sites (L168, δεν σβήνονται), μόνο όταν το φρέσκο feed έχει τουλάχιστον το 80% των ενεργών του· αν το κατάστημα τα ξαναβάλει στο feed, ξαναφαίνονται μόνα τους. Με λιγότερο από 80% δεν κρύβεται κανένα και όσα λείπουν φεύγουν μόνα τους στις 30 μέρες.'
+    Say 'Προϊόντα που έφυγαν από το feed του καταστήματος κρύβονται αμέσως από τα sites (L168, δεν σβήνονται), μόνο όταν το φρέσκο feed έχει τουλάχιστον το 80% των ενεργών του· αν το κατάστημα τα ξαναβάλει στο feed, ξαναφαίνονται μόνα τους μόλις επιβεβαιωθεί η τιμή τους. Το 80% μετριέται στα προϊόντα που φαίνονται σήμερα. Με λιγότερο από 80% δεν κρύβεται κανένα και όσα λείπουν φεύγουν μόνα τους στις 30 μέρες.'
     if ($advs.Count -gt 0) { Say ('Με -Apply κατεβαίνουν πρώτα φρέσκα feeds για {0} καταστήματα του Awin: {1} (μόνο αρχεία στον υπολογιστή, με το tools/awin-feed-download.ps1).' -f $advs.Count, ($advs -join ', ')) }
     Say ('Η φράση έγκρισης (ΜΙΑ για όλη την εκτέλεση: λήψη των feeds και ανανέωση όλων των καταστημάτων): {0}' -f $StalePhrase)
     Say $quietTip

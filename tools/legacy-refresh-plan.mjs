@@ -74,6 +74,9 @@ export const MIN_MATCH_NUM = 4;
 export const MIN_MATCH_DEN = 5;
 export const GONE_DATE = '2000-01-01 00:00:00';
 export const feedCoversShop = (active, gone, feedRows) => feedRows > 0 && (active - gone) * MIN_MATCH_DEN >= active * MIN_MATCH_NUM;
+// The 80% is counted on the products the sites still show (a GONE_DATE row or one older than 30 days never matches the
+// feed again and would pile up until no shop hides anything); with fewer than this many shown, on all active products.
+export const MIN_SHOWN_FOR_COVER = 5;
 export const IDS_PER_STATEMENT = 500;
 export const MAX_STATEMENTS_PER_FILE = 50;
 export const MAX_WRITES_PER_FILE = 5000;
@@ -475,7 +478,11 @@ export function planRefresh({ rows, feed, costs, maxWrites = 90000, now = new Da
   // A feed that misses more than 1 in 5 of the shop's products, or has none, is more likely a broken download (or new
   // feed ids) than a shop that sold them: nothing is hidden (lessons L108: a header-only feed of a small shop used to
   // hide all of it; L168: at least 80%). The one-paste mode hides by date (hideByDate), only rows the sites still show.
-  const safe = feedCoversShop(active.length, gone.length, feed.rows);
+  const goneIds = new Set(gone);
+  const shownNow = active.filter(r => !isHidden(dateText(r.updated_at)));
+  const base = shownNow.length >= MIN_SHOWN_FOR_COVER ? shownNow : active;
+  const cover = { of: base.length, inFeed: base.filter(r => !goneIds.has(Number(r.id))).length, shownOnly: base === shownNow };
+  const safe = feedCoversShop(cover.of, cover.of - cover.inFeed, feed.rows);
   const hideAll = safe && !noHide && !hideByDate ? gone : [];
   const goneAll = safe && hideByDate && !noHide ? gone.filter(id => !isHidden(goneDates[id])) : [];
   // The budget: changes first (cheap, and they fix prices and pictures), then hides, then the dates of the rows the feed
@@ -528,7 +535,7 @@ export function planRefresh({ rows, feed, costs, maxWrites = 90000, now = new Da
     active: active.length, matched: active.length - gone.length, same, newer, noPrice, changes: doChanges, hides: doHides, seen: doSeen,
     goneDated: doGone.map(id => ({ id, old: goneDates[id] })),
     hideDates: Object.fromEntries(doHides.map(id => [id, goneDates[id]])),
-    gone: gone.length, safe, noHide, hideByDate, stale, staleDays, skip, datesOk, dateBlock, stamp, stampFromFeed: cappedRows > 0, cappedRows,
+    gone: gone.length, safe, cover, noHide, hideByDate, stale, staleDays, skip, datesOk, dateBlock, stamp, stampFromFeed: cappedRows > 0, cappedRows,
     stampCapped: Boolean(freshest && freshest.capped), fileAgeDays, cutoff, checkFrom,
     oldOnly, oldFiles, feedRows: feed.rows, feedNewest: feed.newest || '',
     // The feed gives nothing to work with: not updated for 30 days, empty, or nearly none of the shop's products.
@@ -655,7 +662,7 @@ export function writePlan(out, p) {
   writeFileSync(join(out, 'rollback.sql'), st.rollback.map(s => s.sql).join('\n') + (st.rollback.length ? '\n' : ''));
   writeFileSync(join(out, 'hidden-ids.txt'), p.hides.join('\n') + (p.hides.length ? '\n' : ''));
   const summary = { active: p.active, matched: p.matched, same: p.same, newer: p.newer, noPrice: p.noPrice, changes: p.changes.length,
-    hides: p.hides.length, goneDated: (p.goneDated || []).length, seen: p.seen.length, gone: p.gone, safe: p.safe, noHide: Boolean(p.noHide), hideByDate: Boolean(p.hideByDate), stale: p.stale, staleDays: p.staleDays, skip: p.skip,
+    hides: p.hides.length, goneDated: (p.goneDated || []).length, seen: p.seen.length, gone: p.gone, safe: p.safe, cover: p.cover || null, noHide: Boolean(p.noHide), hideByDate: Boolean(p.hideByDate), stale: p.stale, staleDays: p.staleDays, skip: p.skip,
     datesOk: p.datesOk, dateBlock: p.dateBlock, stamp: p.stamp, stampFromFeed: Boolean(p.stampFromFeed), cappedRows: p.cappedRows || 0,
     oldOnly: p.oldOnly || 0, oldFiles: p.oldFiles || [], feedRows: p.feedRows ?? null, feedNewest: p.feedNewest || '', deadFeed: Boolean(p.deadFeed), fileAgeDays: p.fileAgeDays === null ? null : Math.round(p.fileAgeDays * 10) / 10,
     writes: p.writes, left: p.left, counts: p.counts, costs: p.costs, visible: p.visible, bigPrice: p.bigPrice.length, acceptedJumps: (p.acceptedJumps || []).length,
@@ -696,8 +703,8 @@ export function renderReport({ retailer, site, feedFiles, feedRows, newest, p })
   if (p.skip === 'old-file' || p.skip === 'no-file-time') L.push('Σε αυτή τη λειτουργία (-Stale) το κατάστημα ΔΕΝ αλλάζει καθόλου μέχρι να κατέβει φρέσκο feed.');
   const goneN = (p.goneDated || []).length;
   if (p.noHide) { if (p.gone) L.push(`${fmt(p.gone)} προϊόντα δεν υπάρχουν πια στο feed: σε αυτή τη λειτουργία δεν κρύβονται, δεν παίρνουν ημερομηνία και φεύγουν μόνα τους από το site στις ${HIDE_AFTER_DAYS} μέρες.`); }
-  else if (p.gone && !p.safe && !p.skip) L.push(`ΠΡΟΣΟΧΗ: το feed έχει μόνο ${fmt(p.matched)} από τα ${fmt(p.active)} ενεργά προϊόντα (λιγότερα από το 80%) ή κανένα. Μάλλον δεν κατέβηκε ολόκληρο ή άλλαξαν οι κωδικοί του: ΔΕΝ θα κρυφτεί κανένα (L168). Όσα λείπουν δεν παίρνουν ημερομηνία και φεύγουν μόνα τους από το site στις ${HIDE_AFTER_DAYS} μέρες.`);
-  else if (p.gone && p.hideByDate && !p.skip) L.push(`${fmt(p.gone)} προϊόντα δεν υπάρχουν πια στο feed: ${fmt(goneN)} που φαίνονται σήμερα κρύβονται τώρα από το site (L168, δεν σβήνονται)${p.gone > goneN && !(p.left && p.left.gone) ? `· τα άλλα ${fmt(p.gone - goneN)} ήταν ήδη κρυμμένα` : ''}. Αν το κατάστημα τα ξαναβάλει στο feed, ξαναφαίνονται μόνα τους στην επόμενη ανανέωση.`);
+  else if (p.gone && !p.safe && !p.skip) L.push(`ΠΡΟΣΟΧΗ: το feed έχει μόνο ${fmt(p.cover ? p.cover.inFeed : p.matched)} από τα ${fmt(p.cover ? p.cover.of : p.active)} ${p.cover && p.cover.shownOnly ? 'προϊόντα που φαίνονται σήμερα' : 'ενεργά προϊόντα'} (λιγότερα από το 80%) ή κανένα. Μάλλον δεν κατέβηκε ολόκληρο ή άλλαξαν οι κωδικοί του: ΔΕΝ θα κρυφτεί κανένα (L168). Όσα λείπουν δεν παίρνουν ημερομηνία και φεύγουν μόνα τους από το site στις ${HIDE_AFTER_DAYS} μέρες.`);
+  else if (p.gone && p.hideByDate && !p.skip) L.push(`${fmt(p.gone)} προϊόντα δεν υπάρχουν πια στο feed: ${fmt(goneN)} που φαίνονται σήμερα κρύβονται τώρα από το site (L168, δεν σβήνονται)${p.gone > goneN && !(p.left && p.left.gone) ? `· τα άλλα ${fmt(p.gone - goneN)} ήταν ήδη κρυμμένα` : ''}. Αν το κατάστημα τα ξαναβάλει στο feed, ξαναφαίνονται μόνα τους στην επόμενη ανανέωση που επιβεβαιώνει την τιμή τους.`);
   L.push(`Αλλαγές: τιμή ${fmt(p.counts.price)}, εικόνα ${fmt(p.counts.image_url)}, απόθεμα ${fmt(p.counts.stock_status)} (σε απόθεμα ξανά: ${fmt(p.counts.toIn)}, εξαντλήθηκαν: ${fmt(p.counts.toOut)}). Απόκρυψη: ${fmt(p.hides.length + goneN)}${p.hideByDate ? ' (έφυγαν από το feed)' : ''}.`);
   if (p.datesOk) L.push(`Επιβεβαίωση από το feed (L108): ${fmt(p.seen.length)} προϊόντα χωρίς άλλη αλλαγή παίρνουν ημερομηνία ${p.stamp}, και ${fmt(p.counts.dated)} από τις αλλαγές την ίδια.`);
   if (p.newer) L.push(`${fmt(p.newer)} προϊόντα άλλαξαν στη βάση ΜΕΤΑ τη λήψη του feed: δεν αλλάζουν.`);
