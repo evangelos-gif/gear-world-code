@@ -138,17 +138,19 @@
   on the sites; a site of before L151 ignores it and answers as before (no line on its cards). New ?v= for the 4 changed
   scripts in index.html. Phrases of this release, in this order: ΕΓΚΡΙΝΩ HUB BADGES PREVIEW, ΕΓΚΡΙΝΩ HUB BADGES LIVE,
   ΕΓΚΡΙΝΩ HUB REMOVE PREVIEW (one paste, live with -AfterPreview).
-  Retailers (owner's option B, lessons L166, 16/11/2026): a new section of the Hub instead of a new site. /retailers/ lists
+  Stores (owner's option B, lessons L166, 16/11/2026): a new section of the Hub instead of a new site. /stores/ lists
   big retailers (Joybuy, AliExpress PL, Tooled Up, PCHUB.UK, GS Workwear, Back to the Office, My Tool Shed, DHgate) by the
-  country they deliver to, and /retailers/<slug>/ shows, per retailer, where it delivers, its codes and sales with their
+  country they deliver to, and /stores/<slug>/ shows, per retailer, where it delivers, its codes and sales with their
   end dates, and the Gear World sites that list its products (each site's search filtered by the retailer, ?for=pl for a
-  retailer that delivers only to Poland). Made by tools/gwh-retailers.mjs from sites/gwh/retailers/retailers.json, like the
+  retailer that delivers only to Poland). Made by tools/gwh-stores.mjs from sites/gwh/stores/stores.json, like the
   gift guides; links only to Gear World pages (never /out/, /go/ or a retailer), so the Hub has no new affiliate link.
-  The home page gets a 14th card «Retailers» after the 13 worlds (own classes, so the 13 world cards stay as they are;
-  texts in 11 languages in hub-v2.js; the picture hub-retailers.jpg is the photos of 4 world cards). The banner place on
+  The home page gets a 14th card «Stores» after the 13 worlds (own classes, so the 13 world cards stay as they are;
+  texts in 11 languages in hub-v2.js; the picture hub-stores.jpg is the photos of 4 world cards). The banner place on
   a retailer page stays empty until a banner is checked. worker.js, translations.js, the D1 and gwh-sitemap do not change.
-  Phrases of this release, in this order: ΕΓΚΡΙΝΩ HUB RETAILERS PREVIEW, ΕΓΚΡΙΝΩ HUB RETAILERS LIVE, ΕΓΚΡΙΝΩ HUB REMOVE
-  PREVIEW (one paste, live with -AfterPreview). The live check opens /retailers/ and the 8 retailer pages.
+  Phrases of this release, in this order: ΕΓΚΡΙΝΩ HUB STORES PREVIEW, ΕΓΚΡΙΝΩ HUB STORES LIVE, ΕΓΚΡΙΝΩ HUB REMOVE
+  PREVIEW (one paste, live with -AfterPreview). The live check opens /stores/ and the 8 store pages. The preview
+  reports and the live step refuses (exit 24) while a code or sale of stores.json has ended on the UK day
+  (node tools/gwh-stores.mjs validate): the titles and counts of the pages would still name it.
   Exit codes added by L119: 21 the -MitgoCode has another form, 22 the code did not go into the live Worker (nothing went
   live), 23 -AfterPreview without a clean preview report of this version (nothing changed).
   Report: <home>\gear-world-reports\GWH_HUB_V2_<STEP>_<time>.txt (also copied to the clipboard)
@@ -175,8 +177,8 @@ $repo = Split-Path -Parent $PSScriptRoot
 $HubWorker = 'gear-world-hub'
 $PreviewName = 'gear-world-hub-preview'
 $DbName = 'gear-world-registry'
-$PhrasePreview = 'ΕΓΚΡΙΝΩ HUB RETAILERS PREVIEW'
-$PhraseLive = 'ΕΓΚΡΙΝΩ HUB RETAILERS LIVE'
+$PhrasePreview = 'ΕΓΚΡΙΝΩ HUB STORES PREVIEW'
+$PhraseLive = 'ΕΓΚΡΙΝΩ HUB STORES LIVE'
 $PhraseRegister = 'ΕΓΚΡΙΝΩ HUB ZGW SEARCH'
 $PhraseRemovePreview = 'ΕΓΚΡΙΝΩ HUB REMOVE PREVIEW'
 $LiveUrl = 'https://gearworldhub.com'
@@ -205,26 +207,26 @@ $About = @{
     'members.js'            = 'η φόρμα «Get deal updates» των sites: το Hub ελέγχει το token του Turnstile κάθε site, ίδιο ημερήσιο όριο, ημερήσιο όριο μεταφράσεων για τα sites (/internal/ai-slot) (L106)'
     'public/email-signup.js' = 'το κουτί email λέει τι στέλνει: κωδικούς που δημοσιεύουν τα καταστήματα και νέα των sites, όχι «prices we''ve checked», 11 γλώσσες (L107)· Turnstile όταν αρχίζει η φόρμα (L106)'
     'poster-scan.js'        = 'η μέτρηση των αφισών (ίδια με αυτή που μπήκε με το POSTER STATS)'
-    'public/index.html' = 'νέα κάρτα «Retailers» μετά τους 13 κόσμους, προς το /retailers/ (L166)· νέο ?v= για hub-v2.css και hub-v2.js (L31)· όλα τα άλλα όπως είναι live'
+    'public/index.html' = 'νέα κάρτα «Stores» μετά τους 13 κόσμους, προς το /stores/ (L166)· νέο ?v= για hub-v2.css και hub-v2.js (L31)· όλα τα άλλα όπως είναι live'
     'public/about/index.html' = 'νέα σελίδα /about/: «Run by Evangelos Kalogerakis, United Kingdom», ότι δεν πουλάμε, δεν παίρνουμε πληρωμές, δεν κάνουμε παραδόσεις, contact@gearworldhub.com (νέο αρχείο, L101)'
     'public/about/about.js' = 'η σελίδα /about/ στη γλώσσα που διάλεξε ο επισκέπτης, 11 γλώσσες (νέο αρχείο, L101)'
     'public/privacy/index.html' = 'τα links των sites περνούν από το Awin ή το CJ, με την πολιτική απορρήτου και των δύο· «Last updated: 9 November 2026» (L107)'
     'public/cookies/index.html' = 'τα cookies του affiliate network: «Awin, or for a few retailers CJ»· «Last updated: 9 November 2026» (L107)· νέα γραμμή στο footer και link «About» (L101)'
     'public/affiliate-disclosure/index.html' = 'τα κουμπιά των sites περνούν από ένα affiliate network: Awin, ή για λίγα καταστήματα CJ· «Last updated: 9 November 2026» (L107)'
-    'public/hub-v2.css'     = 'η κάρτα «Retailers» με την ίδια εμφάνιση με τους κόσμους και χρυσό περίγραμμα· στο κινητό 14 κάρτες, 2 ανά σειρά (L166)'
-    'public/hub-v2.js' = 'τα κείμενα της κάρτας «Retailers» σε 11 γλώσσες (L166)· όλα τα άλλα όπως είναι live'
-    'public/hub-retailers.jpg' = 'η φωτογραφία της κάρτας «Retailers»: οι φωτογραφίες 4 κόσμων μαζί (Pexels, ήδη στο Hub)'
-    'public/retailers/index.html' = 'νέα σελίδα /retailers/: τα μεγάλα καταστήματα ανά χώρα παράδοσης (L166)'
-    'public/retailers/retailers.css' = 'η εμφάνιση των σελίδων /retailers/ (νέο αρχείο, L166)'
-    'public/retailers/retailers.js' = 'κρύβει μόνο του κωδικό, έκπτωση ή μπάνερ που έληξε (νέο αρχείο, L166)'
-    'public/retailers/joybuy/index.html' = 'σελίδα Joybuy: UK, 4 εκπτώσεις έως 31/12, 12 sites (L166)'
-    'public/retailers/aliexpress-pl/index.html' = 'σελίδα AliExpress PL: μόνο Πολωνία, 12 sites με ?for=pl (L166)'
-    'public/retailers/tooled-up/index.html' = 'σελίδα Tooled Up: UK, κωδικοί CLAIMFIFTY και CLAIMSEVFY έως 6/12, 4 sites (L166)'
-    'public/retailers/pchub-uk/index.html' = 'σελίδα PCHUB.UK: UK, 2 sites (L166)'
-    'public/retailers/gs-workwear/index.html' = 'σελίδα GS Workwear: UK, 2 sites (L166)'
-    'public/retailers/back-to-the-office/index.html' = 'σελίδα Back to the Office: UK, 6 sites (L166)'
-    'public/retailers/my-tool-shed/index.html' = 'σελίδα My Tool Shed: UK, κωδικοί CLAIMFIFTY και CLAIMSEVFY έως 6/12, 2 sites (L166)'
-    'public/retailers/dhgate/index.html' = 'σελίδα DHgate: UK, παιδικές μπότες στο Kids (L166)'
+    'public/hub-v2.css'     = 'η κάρτα «Stores» με την ίδια εμφάνιση με τους κόσμους και χρυσό περίγραμμα· στο κινητό 14 κάρτες, 2 ανά σειρά (L166)'
+    'public/hub-v2.js' = 'τα κείμενα της κάρτας «Stores» σε 11 γλώσσες (L166)· όλα τα άλλα όπως είναι live'
+    'public/hub-stores.jpg' = 'η φωτογραφία της κάρτας «Stores»: οι φωτογραφίες 4 κόσμων μαζί (Pexels, ήδη στο Hub)'
+    'public/stores/index.html' = 'νέα σελίδα /stores/: τα μεγάλα καταστήματα ανά χώρα παράδοσης (L166)'
+    'public/stores/stores.css' = 'η εμφάνιση των σελίδων /stores/ (νέο αρχείο, L166)'
+    'public/stores/stores.js' = 'κρύβει μόνο του κωδικό, έκπτωση ή μπάνερ που έληξε (νέο αρχείο, L166)'
+    'public/stores/joybuy/index.html' = 'σελίδα Joybuy: UK, 4 εκπτώσεις έως 31/12, 12 sites (L166)'
+    'public/stores/aliexpress-pl/index.html' = 'σελίδα AliExpress PL: μόνο Πολωνία, 12 sites με ?for=pl (L166)'
+    'public/stores/tooled-up/index.html' = 'σελίδα Tooled Up: UK, κωδικοί CLAIMFIFTY και CLAIMSEVFY έως 6/12, 4 sites (L166)'
+    'public/stores/pchub-uk/index.html' = 'σελίδα PCHUB.UK: UK, 2 sites (L166)'
+    'public/stores/gs-workwear/index.html' = 'σελίδα GS Workwear: UK, 2 sites (L166)'
+    'public/stores/back-to-the-office/index.html' = 'σελίδα Back to the Office: UK, 6 sites (L166)'
+    'public/stores/my-tool-shed/index.html' = 'σελίδα My Tool Shed: UK, κωδικοί CLAIMFIFTY και CLAIMSEVFY έως 6/12, 2 sites (L166)'
+    'public/stores/dhgate/index.html' = 'σελίδα DHgate: UK, παιδικές μπότες στο Kids (L166)'
     'public/gear-world-camera.js' = 'κάθε κάρτα της αναζήτησης με φωτογραφία λέει «<κατάστημα> delivers to: …» (L153)'
     'public/app.js' = 'κάθε κάρτα της αναζήτησης λέει «<κατάστημα> delivers to: …» κάτω από το κατάστημα (L153)'
     'public/styles.css'     = 'φεύγουν οι κανόνες της κάρτας «Sell Your Business» (.gwh-business-*) και τα σχόλια «shop» (το αρχείο δεν το φορτώνει η σελίδα· μένει για τα παλιά εργαλεία) (L103)'
@@ -381,6 +383,24 @@ function Say-GuideProducts($g) {
         if ($g.notices -eq 0 -and $g.old -gt 0) { Say ('Προϊόντα των οδηγών δώρων: ΠΡΟΣΟΧΗ - όλα φαίνονται, αλλά {0} έχουν τιμή ελεγμένη πριν από 14+ μέρες (δες OLD): η σελίδα τους λέει «Check price and stock at the retailer».' -f $g.old) $Warn }
         if ($g.notices -eq 0 -and $g.prices -eq 0 -and $g.old -eq 0) { Say 'Προϊόντα των οδηγών δώρων: όλα φαίνονται κανονικά, με την τιμή του site και τιμή ελεγμένη τις τελευταίες 14 μέρες: ΕΝΤΑΞΕΙ' $Ok }
     }
+}
+
+# Lessons L166: the Stores pages name codes and sales in their titles and counts. On the UK day after an offer ends
+# they would still name it, so the live step refuses until stores.json and the pages are built again (Claude).
+# Offline (node tools/gwh-stores.mjs validate): reads only the repo. Returns @{ ok; lines }.
+function Test-Stores {
+    $res = @{ ok = $true; lines = @() }
+    $tool = Join-Path (Join-Path $repo 'tools') 'gwh-stores.mjs'
+    if (-not (Test-Path -LiteralPath $tool)) { return $res }
+    $out = @(& node $tool validate 2>&1 | ForEach-Object { [string]$_ })
+    $res.lines = $out
+    if ($LASTEXITCODE -ne 0) { $res.ok = $false }
+    return $res
+}
+function Say-Stores($r) {
+    if ($r.ok) { Say 'Σελίδες Stores: κανένας κωδικός ή καμία έκπτωση δεν έληξε (σημερινή ημέρα UK): ΕΝΤΑΞΕΙ' $Ok; return }
+    Say 'Σελίδες Stores: ΠΡΟΒΛΗΜΑ - κάποιος κωδικός ή κάποια έκπτωση έληξε και οι σελίδες θα την ανέφεραν ακόμα:' $Bad
+    foreach ($line in $r.lines) { Say ('  ' + $line) }
 }
 
 function Get-Sha([byte[]]$bytes) {
@@ -577,19 +597,19 @@ function Test-Site([string]$base, [bool]$isLive) {
     $sovrnScript = [regex]::IsMatch($html, '(?i)<script[^>]+(sovrn|viglink)')
     if ($sovrn.Count -eq 1 -and $sovrn[0].Value.Contains('rel="sponsored nofollow noopener"') -and -not $sovrnScript) { Say '  Link του Sovrn στην αρχική: 1, με rel="sponsored nofollow noopener", χωρίς script του Sovrn (δεν ανοίχτηκε): ΕΝΤΑΞΕΙ' $Ok }
     elseif ($sovrn.Count -gt 0 -or $sovrnScript) { Say ('  Link του Sovrn στην αρχική: ΠΡΟΒΛΗΜΑ - {0} links, script του Sovrn: {1}.' -f $sovrn.Count, $sovrnScript) $Bad }
-    # L166: the Retailers card of the home page and the /retailers/ pages (made by tools/gwh-retailers.mjs).
-    $rcard = $html.Contains('href="/retailers/" data-world="RETAILERS"')
-    $rlist = Get-Web ($base + '/retailers/?gwcheck=' + $stamp)
+    # L166: the Stores card of the home page and the /stores/ pages (made by tools/gwh-stores.mjs).
+    $rcard = $html.Contains('href="/stores/" data-world="STORES"')
+    $rlist = Get-Web ($base + '/stores/?gwcheck=' + $stamp)
     $rlistHtml = (New-Object System.Text.UTF8Encoding($false)).GetString($rlist.bytes)
-    $rslugs = @([regex]::Matches($rlistHtml, 'href="/retailers/([a-z0-9-]+)/"') | ForEach-Object { $_.Groups[1].Value } | Sort-Object -Unique)
+    $rslugs = @([regex]::Matches($rlistHtml, 'href="/stores/([a-z0-9-]+)/"') | ForEach-Object { $_.Groups[1].Value } | Sort-Object -Unique)
     $rbad = @()
     foreach ($rs in $rslugs) {
-        $rp = Get-Web ($base + '/retailers/' + $rs + '/?gwcheck=' + $stamp)
+        $rp = Get-Web ($base + '/stores/' + $rs + '/?gwcheck=' + $stamp)
         $rpHtml = (New-Object System.Text.UTF8Encoding($false)).GetString($rp.bytes)
-        if ($rp.status -ne 200 -or -not $rpHtml.Contains('<link rel="canonical" href="https://gearworldhub.com/retailers/' + $rs + '/">') -or $rpHtml -match '/(out|go)/') { $rbad += $rs }
+        if ($rp.status -ne 200 -or -not $rpHtml.Contains('<link rel="canonical" href="https://gearworldhub.com/stores/' + $rs + '/">') -or $rpHtml -match '/(out|go)/') { $rbad += $rs }
     }
-    if ($rcard -and $rlist.status -eq 200 -and $rslugs.Count -ge 1 -and $rbad.Count -eq 0) { Say ('  Κάρτα «Retailers» στην αρχική και {0} σελίδες καταστημάτων στο /retailers/ (L166): ΕΝΤΑΞΕΙ' -f $rslugs.Count) $Ok }
-    else { Say ('  Σελίδες /retailers/ (L166): ΠΡΟΒΛΗΜΑ - κάρτα: {0}, λίστα: απάντηση {1}, σελίδες: {2}, με πρόβλημα: {3}' -f $rcard, $rlist.status, $rslugs.Count, ($rbad -join ', ')) $Bad }
+    if ($rcard -and $rlist.status -eq 200 -and $rslugs.Count -ge 1 -and $rbad.Count -eq 0) { Say ('  Κάρτα «Stores» στην αρχική και {0} σελίδες καταστημάτων στο /stores/ (L166): ΕΝΤΑΞΕΙ' -f $rslugs.Count) $Ok }
+    else { Say ('  Σελίδες /stores/ (L166): ΠΡΟΒΛΗΜΑ - κάρτα: {0}, λίστα: απάντηση {1}, σελίδες: {2}, με πρόβλημα: {3}' -f $rcard, $rlist.status, $rslugs.Count, ($rbad -join ', ')) $Bad }
     # L119: the Mitgo tag right before </head> of the home page (a new secret takes a few seconds to reach every answer).
     # (L150: the Impact tag, when there is one, comes after it and right before </head>.)
     $mitgoRx = '<meta name="mitgo-verification" content="([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})">(?:<meta name=''impact-site-verification'' value=''[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}''>)?</head>'
@@ -1021,6 +1041,7 @@ if ($Step -eq 'preview') {
     if (-not $dbId) { Say ('Δεν βρήκα τη D1 "{0}". Δεν αλλάζω τίποτα.' -f $DbName) $Bad; Finish 5 }
     # L107: the products the gift guides link to, from the live D1 of their sites (SELECT only); the preview only reports.
     Say-GuideProducts (Test-GuideProducts $deploy)
+    Say-Stores (Test-Stores)
     if (-not $Apply) { Say ''; Say 'Δοκιμή μόνο (χωρίς -Apply): δεν άλλαξε τίποτα.' $Ok; Finish 0 }
     if (-not (Confirm-Approval $PhrasePreview)) { Say 'Δεν δόθηκε η έγκριση για το preview: σταμάτησα (δεν ανέβηκε τίποτα).' $Warn; Finish 1 }
     $cfg = Write-PreviewConfig $gwh $dbId
@@ -1089,6 +1110,10 @@ Say-GuideProducts $guideCheck
 if (-not $guideCheck.ok -or $guideCheck.notices -gt 0) { Say 'ΔΕΝ ανεβάζω το Hub: πρώτα νέα προϊόντα στο sites/gwh/guides/guides.json (Claude), μετά ξανά αυτό το βήμα. ΔΕΝ άλλαξε τίποτα.' $Bad; Finish 20 }
 # L109: a gift guide price that is not the price its site shows stops the live step too (OLD stays a warning).
 if ($guideCheck.prices -gt 0) { Say 'ΔΕΝ ανεβάζω το Hub: οι τιμές κάποιων οδηγών δώρων δεν είναι ίδιες με τις τιμές των sites (δες PRICE). Τίποτα δεν ανέβηκε live και τίποτα δεν άλλαξε. Στείλε αυτή την αναφορά στο Claude: θα ενημερώσει τις τιμές των οδηγών και θα σου δώσει νέα εντολή.' $Bad; Finish 20 }
+# L166: no Stores page may name a code or sale that has ended (UK day).
+$storesCheck = Test-Stores
+Say-Stores $storesCheck
+if (-not $storesCheck.ok) { Say 'ΔΕΝ ανεβάζω το Hub: πρώτα νέες σελίδες Stores χωρίς όσα έληξαν (Claude: stores.json και node tools/gwh-stores.mjs build). Τίποτα δεν ανέβηκε live και τίποτα δεν άλλαξε.' $Bad; Finish 24 }
 # L119: preview, live and remove-preview in one paste: the live step goes on only after a clean preview of this version.
 if ($AfterPreview -and -not (Test-PreviewReport)) { Finish 23 }
 if (-not $Apply) { Say ''; Say 'Δοκιμή μόνο (χωρίς -Apply): δεν άλλαξε τίποτα.' $Ok; Finish 0 }

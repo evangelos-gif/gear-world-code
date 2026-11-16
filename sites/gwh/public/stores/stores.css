@@ -1,4 +1,4 @@
-/* Gear World Hub - Retailers (16/11/2026, lessons L166). On top of /legal/legal.css and /guides/guides.css: the same
+/* Gear World Hub - Stores (16/11/2026, lessons L166). On top of /legal/legal.css and /guides/guides.css: the same
    navy and gold, no red or green for information (lessons L35), 44 px buttons on the phone (L21). */
 .rt-item { grid-template-columns: 1fr; }
 .rt-meta { margin: 0 0 10px; color: #fff; font-size: 14px; font-weight: 700; }

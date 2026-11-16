@@ -1,4 +1,4 @@
-/* Gear World Hub - Retailers (16/11/2026, lessons L166). A code, sale or banner whose last day has passed is hidden at
+/* Gear World Hub - Stores (16/11/2026, lessons L166). A code, sale or banner whose last day has passed is hidden at
    once (the day in the UK), even before the pages are built again; when no code or sale is left, the page says so. */
 (function () {
   var today;

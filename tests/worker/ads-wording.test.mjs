@@ -122,7 +122,7 @@ test('the Hub: product search and price comparison in all 11 languages, no shops
   assert.ok(!/gwh-business|gwh-sponsored|sponsored card/i.test(css));
   // New ?v= for the 3 changed files (L31; -wording1 for L102, -cleanup1 for L103).
   assert.ok(/\/translations\.js\?v=(20261108-cleanup1|20261114-badges\d+)/.test(index), 'translations.js (a later version since L153)');
-  assert.ok(/\/hub-v2\.css\?v=(20261108-cleanup1|20261109-compliance\d+|20261116-retailers\d+)/.test(index), 'hub-v2.css (a later version since L107; L166 the Retailers card)');
+  assert.ok(/\/hub-v2\.css\?v=(20261108-cleanup1|20261109-compliance\d+|20261116-stores\d+)/.test(index), 'hub-v2.css (a later version since L107; L166 the Stores card)');
 });
 
 test('the Hub baseline is the version that runs live since the Google Ads fixes (L101), so the next release can check it', () => {
