@@ -284,6 +284,33 @@ if (Get-Command node -ErrorAction SilentlyContinue) {
     Check ($profs.Count -eq 1) 'feed profile: report folder written'
     if ($profs.Count -ge 1) { Check ([System.IO.File]::ReadAllText((Join-Path $profs[0].FullName 'report.txt'), [System.Text.Encoding]::UTF8).Contains('Προϊόντα: ')) 'feed profile: profiles the archive feed' }
     Check ((Get-FileHash -LiteralPath $gzPath -Algorithm SHA256).Hash -eq $archHash) 'feed profile: Awin archive unchanged'
+    # Chat 9 (16 Nov 2026): -Network Daisycon reads the files per country (DAISYCON_<programme>_<country>, L163) and only
+    # that network; gw-run -Chat '<name>' ends with the line naming the chat (owner, 11 Nov 2026), and is not passed to the tool.
+    $dcArch = Join-Path $work 'daisycon-arch'
+    New-Item -ItemType Directory -Path $dcArch -Force | Out-Null
+    foreach ($dcName in @('DAISYCON_14965_DE.csv.gz', 'AWIN_14965_1.csv.gz')) {
+        $dcCsv = "merchant_name,product_name,search_price,currency,in_stock,merchant_category,merchant_deep_link,last_updated`n" +
+            ("{0},Vintage Logo Hoodie,59.99,EUR,1,Hoodies,https://www.superdry.de/p/1,2026-11-15 22:10:00`n" -f $dcName.Substring(0, 5))
+        $dcFs = [System.IO.File]::Create((Join-Path $dcArch $dcName))
+        $dcGz = New-Object System.IO.Compression.GZipStream($dcFs, [System.IO.Compression.CompressionMode]::Compress)
+        $dcBytes = [System.Text.Encoding]::UTF8.GetBytes($dcCsv)
+        $dcGz.Write($dcBytes, 0, $dcBytes.Length); $dcGz.Close(); $dcFs.Close()
+    }
+    $dcOut = Join-Path $work 'feed-profile-daisycon'
+    $chatText = (& $exe -NoProfile -ExecutionPolicy Bypass -File $runTool -LocalRepo $repo -Tool feed-profile -Archive $dcArch -Days 3650 -Network Daisycon -OutDir $dcOut -NoClipboard -Chat '9 · Retailers & Feeds B' | Out-String)
+    Check ($LASTEXITCODE -eq 0) 'feed profile -Network Daisycon: exit code 0 through gw-run with -Chat'
+    Check ($chatText.Contains('Retailers & Feeds B')) 'gw-run -Chat: the last line names the chat'
+    $dcProfs = @(Get-ChildItem -LiteralPath $dcOut -Directory -Filter 'FEED_PROFILE_*' -ErrorAction SilentlyContinue)
+    Check ($dcProfs.Count -eq 1) 'feed profile -Network Daisycon: report folder written (-Chat did not reach the tool)'
+    if ($dcProfs.Count -ge 1) {
+        $dcRep = [System.IO.File]::ReadAllText((Join-Path $dcProfs[0].FullName 'report.txt'), [System.Text.Encoding]::UTF8)
+        Check ($dcRep.Contains('(Daisycon 14965 DE)')) 'feed profile: reads the Daisycon file per country (L163)'
+        Check (-not $dcRep.Contains('(Awin 14965')) 'feed profile -Network Daisycon: not the Awin shop with the same number'
+        Check ($dcRep.Contains('2026-11-15')) 'feed profile: shows the newest product change (L147)'
+    }
+    $badText = (& $exe -NoProfile -ExecutionPolicy Bypass -File $runTool -LocalRepo $repo -Tool feed-profile -Archive $dcArch -Days 3650 -Network Daisy -OutDir $dcOut -NoClipboard -Chat '9 · Retailers & Feeds B' | Out-String)
+    Check ($LASTEXITCODE -eq 2) 'feed profile: an unknown -Network stops with exit code 2 (never an empty report)'
+    Check ($badText.Contains('Retailers & Feeds B')) 'gw-run -Chat: names the chat after a stop too'
     $travelOut = Join-Path $work 'travel-scan-run'
     & $exe -NoProfile -ExecutionPolicy Bypass -File $runTool -LocalRepo $repo -Tool travel-feed-scan -Archive $arch -OutDir $travelOut -KeyFile (Join-Path $work 'no-key.dat') -NoClipboard | Out-Null
     Check ($LASTEXITCODE -eq 0) 'travel feed scan: exit code 0 through gw-run, without a saved key'

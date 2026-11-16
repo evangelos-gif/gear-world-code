@@ -7,6 +7,8 @@
   The version is a full commit SHA, so the code that runs is exactly the code that passed the automatic checks.
   The download goes to %TEMP% and is reused next time. Nothing else on the PC is changed by this runner.
   Any extra arguments are passed to the tool.
+  -Chat '<chat name>': after the tool, one line says which Claude chat the report on the clipboard goes to
+  (owner, 11 Nov 2026: every command ends with that line; chat 9 on 16 Nov 2026). Without -Chat nothing changes.
 
 .EXAMPLE
   powershell -NoProfile -ExecutionPolicy Bypass -File gw-run.ps1 -Ref <40-character commit> -Tool tgw-import-plan
@@ -63,7 +65,25 @@ if (-not (Test-Path -LiteralPath $toolPath)) {
     exit 2
 }
 
+# -Chat '<name>' is read here and not passed to the tool (it is not a declared parameter, so every other argument
+# reaches the tool exactly as before).
+$Chat = ''
+$rest = New-Object System.Collections.Generic.List[object]
+$all = @($args)
+for ($i = 0; $i -lt $all.Count; $i++) {
+    if (([string]$all[$i]) -ieq '-Chat' -and ($i + 1) -lt $all.Count) { $Chat = [string]$all[$i + 1]; $i++; continue }
+    $rest.Add($all[$i])
+}
 $exe = (Get-Process -Id $PID).Path
-$toolArgs = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $toolPath) + @($args)
+$toolArgs = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $toolPath) + @($rest.ToArray())
 & $exe @toolArgs
-exit $LASTEXITCODE
+$code = $LASTEXITCODE
+if ($Chat) {
+    $chatName = ($Chat -replace '[\r\n]', ' ').Trim()
+    if ($code -eq 0) {
+        Write-Host ('Αντιγράφηκε στο πρόχειρο. Πήγαινε στη συζήτηση με το Claude «{0}» και πάτα Ctrl+V.' -f $chatName) -ForegroundColor Green
+    } else {
+        Write-Host ('Το εργαλείο σταμάτησε (κωδικός {0}). Πήγαινε στη συζήτηση με το Claude «{1}» και στείλε ό,τι γράφει η οθόνη (ή Ctrl+V).' -f $code, $chatName) -ForegroundColor Yellow
+    }
+}
+exit $code

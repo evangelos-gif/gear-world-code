@@ -5,7 +5,7 @@ import { mkdtempSync, writeFileSync, readFileSync, statSync, utimesSync } from '
 import { gzipSync } from 'node:zlib';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { chooseFiles, profileFile, render } from '../../tools/feed-profile.mjs';
+import { chooseFiles, feedOf, parseNetworks, profileFile, render } from '../../tools/feed-profile.mjs';
 
 const HEAD = 'merchant_name,product_name,brand_name,search_price,rrp_price,currency,in_stock,merchant_category,aw_deep_link,merchant_image_url,language';
 const link = p => `"https://www.awin1.com/pclick.php?p=1&a=0&m=1&ued=https%3A%2F%2Fwww.silvercloud.example%2F${p}"`;
@@ -61,4 +61,33 @@ test('L133: CJ, Daisycon and Rakuten catalogues are profiled too; -Advertiser wi
   const text = render({ profiles: [p], archive: dir, advertisers: ['5531758'], alsoDays: 0.25 });
   assert.match(text, /=== Haglofs \(CJ 5531758\)/);
   assert.match(text, /Καταστήματα: 5531758 και ό,τι κατέβηκε τις τελευταίες 6 ώρες \(1 feeds\)/);
+});
+
+test('chat 9, 16 Nov 2026: files per country (DAISYCON_<id>_<CC>, L163) and per search (CJ_<id>_<search>, L161) are profiled; -Network picks one network even when two ids are the same number', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'feed-prof-'));
+  const dcHead = 'merchant_name,product_name,brand_name,search_price,currency,in_stock,merchant_category,merchant_deep_link,aw_deep_link,last_updated,language';
+  writeFileSync(join(dir, 'DAISYCON_14965_DE.csv.gz'), gzipSync([dcHead,
+    'Superdry DE,Vintage Logo Hoodie,Superdry,59.99,EUR,1,Hoodies,https://www.superdry.de/p/1,https://lt45.net/c/?si=14965&dl=p%2F1,2026-11-15 22:10:00,de',
+    'Superdry DE,Cargo Hose,Superdry,69.99,EUR,1,Hosen,https://www.superdry.de/p/2,https://lt45.net/c/?si=14965&dl=p%2F2,2026-10-01 09:00:00,de'].join('\n') + '\n'));
+  for (const f of ['DAISYCON_14965_NL.csv.gz', 'DAISYCON_20164_GB.csv.gz', 'DAISYCON_12502.csv.gz', 'AWIN_12502_777.csv.gz', 'CJ_3992613_kids-winter-boots.csv.gz', 'DAISYCON_1_x y.csv.gz', 'DAISYCON_14965_DE.csv.gz.part']) writeFileSync(join(dir, f), 'x');
+  assert.deepEqual(feedOf('DAISYCON_14965_de.csv.gz'), { network: 'Daisycon', advertiserId: 14965, feedId: null, part: 'DE' });
+  assert.deepEqual(feedOf('CJ_3992613_kids-winter-boots.csv.gz'), { network: 'CJ', advertiserId: 3992613, feedId: null, part: 'kids-winter-boots' });
+  assert.equal(feedOf('DAISYCON_14965_DE.csv.gz.part'), null, 'a half download is never read');
+  assert.deepEqual(chooseFiles(dir, { days: 1 }), ['AWIN_12502_777.csv.gz', 'CJ_3992613_kids-winter-boots.csv.gz', 'DAISYCON_12502.csv.gz',
+    'DAISYCON_14965_DE.csv.gz', 'DAISYCON_14965_NL.csv.gz', 'DAISYCON_20164_GB.csv.gz']);
+  assert.deepEqual(chooseFiles(dir, { days: 1, networks: ['Daisycon'] }), ['DAISYCON_12502.csv.gz', 'DAISYCON_14965_DE.csv.gz', 'DAISYCON_14965_NL.csv.gz', 'DAISYCON_20164_GB.csv.gz']);
+  assert.deepEqual(chooseFiles(dir, { advertisers: ['12502'], networks: ['Daisycon'] }), ['DAISYCON_12502.csv.gz'], 'not the Awin shop with the same number');
+  assert.deepEqual(parseNetworks('daisycon'), ['Daisycon']);
+  assert.deepEqual(parseNetworks(' CJ, Daisycon;cj '), ['CJ', 'Daisycon']);
+  assert.deepEqual(parseNetworks(''), []);
+  assert.equal(parseNetworks('Daisy'), null, 'an unknown name stops the tool instead of an empty report');
+  const p = await profileFile(join(dir, 'DAISYCON_14965_DE.csv.gz'));
+  assert.equal(p.part, 'DE');
+  assert.equal(p.newest, '2026-11-15');
+  const text = render({ profiles: [p], archive: dir, days: 1, networks: ['Daisycon'], generated: new Date('2026-11-16T21:00:00Z') });
+  assert.match(text, /Δίκτυα: μόνο Daisycon/);
+  assert.match(text, /=== Superdry DE \(Daisycon 14965 DE\)/);
+  assert.match(text, /Νεότερη αλλαγή προϊόντος: 2026-11-15\n/);
+  const stale = render({ profiles: [{ ...p, newest: '2026-07-31' }], archive: dir, days: 1, generated: new Date('2026-11-16T21:00:00Z') });
+  assert.match(stale, /Νεότερη αλλαγή προϊόντος: 2026-07-31 \(πάνω από 14 μέρες, L147/);
 });
