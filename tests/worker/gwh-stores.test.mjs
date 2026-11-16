@@ -158,7 +158,8 @@ test('L166: the home page has the Stores card after the 13 worlds, in 11 languag
     if (key === 'storesDesc') assert.ok(arr.every(s => s.startsWith('Joybuy, Tooled Up, PCHUB.UK') && !/AliExpress/.test(s)), 'the card names UK retailers only');
   }
   const css = readFileSync(`${PUB}/hub-v2.css`, 'utf8');
-  assert.ok(!css.includes('[data-world="ZGW"]{grid-column:1 / -1;}'), '14 cards: none alone on the phone');
+  assert.ok(css.includes('.gwh-quick-worlds > [data-world="ZGW"],.gwh-quick-worlds > [data-world="STORES"]{grid-column:1 / -1;}'), 'on the phone Pets and Stores take a whole row each (the Greek title fits)');
+  assert.ok(css.includes('.gwh-quick-worlds > [data-world="ZGW"],.gwh-quick-worlds > [data-world="STORES"]{grid-column:auto;}'), 'from 760 px they are cards like the others');
   assert.match(css, /\.gwh-image-world,\.gwh2-stores-card\{display:flex;/);
   assert.ok(existsSync(`${PUB}/hub-stores.jpg`) && readFileSync(`${PUB}/hub-stores.jpg`).length < 90000);
 });
