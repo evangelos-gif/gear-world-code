@@ -3,7 +3,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { DatabaseSync } from 'node:sqlite';
-import { rowsSql, fixedName, plan } from '../../tools/cleanup-rules/fixnames.mjs';
+import { rowsSql, fixedName, plan, demojibake } from '../../tools/cleanup-rules/fixnames.mjs';
 
 const ROWS = [
   { id: 1, retailer: 'InStock UK', product_name: 'Acme KIDSÔÇÖ Helmet', feed_product_name: 'Acme KIDS’ Helmet - Matt Grey / XS ( 46-50cm)' },
@@ -24,12 +24,27 @@ test('broken names go back to the feed name without size/colour; unsafe ones are
     [1, 'Acme KIDS’ Helmet'],
     [2, 'Acme Kids Shirt – Coming 2026 T-Shirt'],
     [3, 'Acme Banz® Sunglasses - Toddler 2'],
-    [4, 'Acme Pyjama Set â€“ Pale Purple'],
-    [5, 'Acme Ring â€“ PavÃ© Design']
+    // 16 Nov 2026 (L167): the feed's own double UTF-8 is read again too.
+    [4, 'Acme Pyjama Set – Pale Purple'],
+    [5, 'Acme Ring – Pavé Design']
   ]);
   assert.deepEqual(p.skip.map(s => s.id), [6]);
   assert.equal(p.hide.length, 0);
   assert.equal(fixedName({ retailer: 'Joybuy UK', product_name: 'Acme Tee ÔÇô Red', feed_product_name: 'Acme Tee – Red' }), 'Acme Tee – Red');
+});
+
+test('L167 (chat 9, 16 Nov 2026): double UTF-8 from the feed (Reidl on CGW) is read again letter by letter; real Â/â/Ã are never touched', () => {
+  const rows = [
+    { id: 11, retailer: 'Reidl', product_name: 'ABUS SchlÃ¼sselkasten 787 GrÃ¶ÃŸe M', feed_product_name: 'ABUS SchlÃ¼sselkasten 787 GrÃ¶ÃŸe M' },
+    { id: 12, retailer: 'Reidl', product_name: 'Wiha Bitsatz Â® 32-tlg. â€“ Tradeâ„¢', feed_product_name: '' },
+    { id: 13, retailer: 'Joybuy UK', product_name: 'SÃO PAULO Tee', feed_product_name: 'SÃO PAULO Tee' },
+    { id: 14, retailer: 'Joybuy UK', product_name: 'Moule à pâte crêpes', feed_product_name: 'Moule à pâte crêpes' }
+  ];
+  const p = plan(rows);
+  assert.deepEqual(p.rename.map(r => [r.id, r.to]), [[11, 'ABUS Schlüsselkasten 787 Größe M'], [12, 'Wiha Bitsatz ® 32-tlg. – Trade™']]);
+  assert.deepEqual(p.skip.map(s => s.id), [], 'a name with nothing to read again is not listed at all');
+  assert.equal(demojibake('SÃO PAULO'), '', 'Ã then a plain letter is real text');
+  assert.equal(demojibake('pâte'), '');
 });
 
 test('the query finds the broken names, is ASCII and read-only', () => {
