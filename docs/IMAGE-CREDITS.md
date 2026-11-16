@@ -177,3 +177,4 @@
 | cat-small-pets.webp | https://www.pexels.com/photo/cute-guinea-pig-resting-on-straw-bedding-33091471/ |
 | cat-birds.webp | https://www.pexels.com/photo/budgerigar-parrot-in-a-cage-22813870/ |
 | cat-horse.webp | https://www.pexels.com/photo/horse-saddles-and-horses-in-rustic-outdoor-setting-37309071/ |
+| sites/gwh/public/hub-retailers.jpg (κάρτα «Retailers» στο hub, 16/11/2026) | οι 4 φωτογραφίες των καρτών hub-wgw.jpg, hub-tgw.jpg, hub-zgw.jpg και hub-cgw.jpg μαζί (ίδιες πηγές Pexels με αυτές) |

@@ -50,3 +50,15 @@ guides/christmas-gifts-for-her/index.html
 guides/christmas-gifts-for-kids/index.html
 guides/christmas-gifts-for-diy-lovers/index.html
 guides/christmas-gifts-for-travellers/index.html
+hub-retailers.jpg
+retailers/index.html
+retailers/retailers.css
+retailers/retailers.js
+retailers/joybuy/index.html
+retailers/aliexpress-pl/index.html
+retailers/tooled-up/index.html
+retailers/pchub-uk/index.html
+retailers/gs-workwear/index.html
+retailers/back-to-the-office/index.html
+retailers/my-tool-shed/index.html
+retailers/dhgate/index.html

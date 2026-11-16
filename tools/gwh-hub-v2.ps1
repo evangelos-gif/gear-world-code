@@ -138,6 +138,17 @@
   on the sites; a site of before L151 ignores it and answers as before (no line on its cards). New ?v= for the 4 changed
   scripts in index.html. Phrases of this release, in this order: ΕΓΚΡΙΝΩ HUB BADGES PREVIEW, ΕΓΚΡΙΝΩ HUB BADGES LIVE,
   ΕΓΚΡΙΝΩ HUB REMOVE PREVIEW (one paste, live with -AfterPreview).
+  Retailers (owner's option B, lessons L166, 16/11/2026): a new section of the Hub instead of a new site. /retailers/ lists
+  big retailers (Joybuy, AliExpress PL, Tooled Up, PCHUB.UK, GS Workwear, Back to the Office, My Tool Shed, DHgate) by the
+  country they deliver to, and /retailers/<slug>/ shows, per retailer, where it delivers, its codes and sales with their
+  end dates, and the Gear World sites that list its products (each site's search filtered by the retailer, ?for=pl for a
+  retailer that delivers only to Poland). Made by tools/gwh-retailers.mjs from sites/gwh/retailers/retailers.json, like the
+  gift guides; links only to Gear World pages (never /out/, /go/ or a retailer), so the Hub has no new affiliate link.
+  The home page gets a 14th card «Retailers» after the 13 worlds (own classes, so the 13 world cards stay as they are;
+  texts in 11 languages in hub-v2.js; the picture hub-retailers.jpg is the photos of 4 world cards). The banner place on
+  a retailer page stays empty until a banner is checked. worker.js, translations.js, the D1 and gwh-sitemap do not change.
+  Phrases of this release, in this order: ΕΓΚΡΙΝΩ HUB RETAILERS PREVIEW, ΕΓΚΡΙΝΩ HUB RETAILERS LIVE, ΕΓΚΡΙΝΩ HUB REMOVE
+  PREVIEW (one paste, live with -AfterPreview). The live check opens /retailers/ and the 8 retailer pages.
   Exit codes added by L119: 21 the -MitgoCode has another form, 22 the code did not go into the live Worker (nothing went
   live), 23 -AfterPreview without a clean preview report of this version (nothing changed).
   Report: <home>\gear-world-reports\GWH_HUB_V2_<STEP>_<time>.txt (also copied to the clipboard)
@@ -164,8 +175,8 @@ $repo = Split-Path -Parent $PSScriptRoot
 $HubWorker = 'gear-world-hub'
 $PreviewName = 'gear-world-hub-preview'
 $DbName = 'gear-world-registry'
-$PhrasePreview = 'ΕΓΚΡΙΝΩ HUB BADGES PREVIEW'
-$PhraseLive = 'ΕΓΚΡΙΝΩ HUB BADGES LIVE'
+$PhrasePreview = 'ΕΓΚΡΙΝΩ HUB RETAILERS PREVIEW'
+$PhraseLive = 'ΕΓΚΡΙΝΩ HUB RETAILERS LIVE'
 $PhraseRegister = 'ΕΓΚΡΙΝΩ HUB ZGW SEARCH'
 $PhraseRemovePreview = 'ΕΓΚΡΙΝΩ HUB REMOVE PREVIEW'
 $LiveUrl = 'https://gearworldhub.com'
@@ -194,14 +205,26 @@ $About = @{
     'members.js'            = 'η φόρμα «Get deal updates» των sites: το Hub ελέγχει το token του Turnstile κάθε site, ίδιο ημερήσιο όριο, ημερήσιο όριο μεταφράσεων για τα sites (/internal/ai-slot) (L106)'
     'public/email-signup.js' = 'το κουτί email λέει τι στέλνει: κωδικούς που δημοσιεύουν τα καταστήματα και νέα των sites, όχι «prices we''ve checked», 11 γλώσσες (L107)· Turnstile όταν αρχίζει η φόρμα (L106)'
     'poster-scan.js'        = 'η μέτρηση των αφισών (ίδια με αυτή που μπήκε με το POSTER STATS)'
-    'public/index.html' = 'νέο ?v= για τα 4 αρχεία που άλλαξαν (translations.js, app.js, gear-world-camera.js, hub-v2.js), για να μην μείνει παλιό αντίγραφο στον browser (L31, L153)· όλα τα άλλα όπως είναι live'
+    'public/index.html' = 'νέα κάρτα «Retailers» μετά τους 13 κόσμους, προς το /retailers/ (L166)· νέο ?v= για hub-v2.css και hub-v2.js (L31)· όλα τα άλλα όπως είναι live'
     'public/about/index.html' = 'νέα σελίδα /about/: «Run by Evangelos Kalogerakis, United Kingdom», ότι δεν πουλάμε, δεν παίρνουμε πληρωμές, δεν κάνουμε παραδόσεις, contact@gearworldhub.com (νέο αρχείο, L101)'
     'public/about/about.js' = 'η σελίδα /about/ στη γλώσσα που διάλεξε ο επισκέπτης, 11 γλώσσες (νέο αρχείο, L101)'
     'public/privacy/index.html' = 'τα links των sites περνούν από το Awin ή το CJ, με την πολιτική απορρήτου και των δύο· «Last updated: 9 November 2026» (L107)'
     'public/cookies/index.html' = 'τα cookies του affiliate network: «Awin, or for a few retailers CJ»· «Last updated: 9 November 2026» (L107)· νέα γραμμή στο footer και link «About» (L101)'
     'public/affiliate-disclosure/index.html' = 'τα κουμπιά των sites περνούν από ένα affiliate network: Awin, ή για λίγα καταστήματα CJ· «Last updated: 9 November 2026» (L107)'
-    'public/hub-v2.css'     = 'η εμφάνιση της μπάρας για επισκέπτες εκτός ΗΒ: μπλε με πορτοκαλί γραμμή, πάνω από την κεφαλίδα (L107)· η κλάση του καταστήματος στις προσφορές λέγεται gwh2-deal-retailer (όχι «shop») (L103)'
-    'public/hub-v2.js' = 'κάθε κάρτα του «Βρες δώρο» λέει «<κατάστημα> delivers to: …» (L153)'
+    'public/hub-v2.css'     = 'η κάρτα «Retailers» με την ίδια εμφάνιση με τους κόσμους και χρυσό περίγραμμα· στο κινητό 14 κάρτες, 2 ανά σειρά (L166)'
+    'public/hub-v2.js' = 'τα κείμενα της κάρτας «Retailers» σε 11 γλώσσες (L166)· όλα τα άλλα όπως είναι live'
+    'public/hub-retailers.jpg' = 'η φωτογραφία της κάρτας «Retailers»: οι φωτογραφίες 4 κόσμων μαζί (Pexels, ήδη στο Hub)'
+    'public/retailers/index.html' = 'νέα σελίδα /retailers/: τα μεγάλα καταστήματα ανά χώρα παράδοσης (L166)'
+    'public/retailers/retailers.css' = 'η εμφάνιση των σελίδων /retailers/ (νέο αρχείο, L166)'
+    'public/retailers/retailers.js' = 'κρύβει μόνο του κωδικό, έκπτωση ή μπάνερ που έληξε (νέο αρχείο, L166)'
+    'public/retailers/joybuy/index.html' = 'σελίδα Joybuy: UK, 4 εκπτώσεις έως 31/12, 12 sites (L166)'
+    'public/retailers/aliexpress-pl/index.html' = 'σελίδα AliExpress PL: μόνο Πολωνία, 12 sites με ?for=pl (L166)'
+    'public/retailers/tooled-up/index.html' = 'σελίδα Tooled Up: UK, κωδικοί CLAIMFIFTY και CLAIMSEVFY έως 6/12, 4 sites (L166)'
+    'public/retailers/pchub-uk/index.html' = 'σελίδα PCHUB.UK: UK, 2 sites (L166)'
+    'public/retailers/gs-workwear/index.html' = 'σελίδα GS Workwear: UK, 2 sites (L166)'
+    'public/retailers/back-to-the-office/index.html' = 'σελίδα Back to the Office: UK, 6 sites (L166)'
+    'public/retailers/my-tool-shed/index.html' = 'σελίδα My Tool Shed: UK, κωδικοί CLAIMFIFTY και CLAIMSEVFY έως 6/12, 2 sites (L166)'
+    'public/retailers/dhgate/index.html' = 'σελίδα DHgate: UK, παιδικές μπότες στο Kids (L166)'
     'public/gear-world-camera.js' = 'κάθε κάρτα της αναζήτησης με φωτογραφία λέει «<κατάστημα> delivers to: …» (L153)'
     'public/app.js' = 'κάθε κάρτα της αναζήτησης λέει «<κατάστημα> delivers to: …» κάτω από το κατάστημα (L153)'
     'public/styles.css'     = 'φεύγουν οι κανόνες της κάρτας «Sell Your Business» (.gwh-business-*) και τα σχόλια «shop» (το αρχείο δεν το φορτώνει η σελίδα· μένει για τα παλιά εργαλεία) (L103)'
@@ -554,6 +577,19 @@ function Test-Site([string]$base, [bool]$isLive) {
     $sovrnScript = [regex]::IsMatch($html, '(?i)<script[^>]+(sovrn|viglink)')
     if ($sovrn.Count -eq 1 -and $sovrn[0].Value.Contains('rel="sponsored nofollow noopener"') -and -not $sovrnScript) { Say '  Link του Sovrn στην αρχική: 1, με rel="sponsored nofollow noopener", χωρίς script του Sovrn (δεν ανοίχτηκε): ΕΝΤΑΞΕΙ' $Ok }
     elseif ($sovrn.Count -gt 0 -or $sovrnScript) { Say ('  Link του Sovrn στην αρχική: ΠΡΟΒΛΗΜΑ - {0} links, script του Sovrn: {1}.' -f $sovrn.Count, $sovrnScript) $Bad }
+    # L166: the Retailers card of the home page and the /retailers/ pages (made by tools/gwh-retailers.mjs).
+    $rcard = $html.Contains('href="/retailers/" data-world="RETAILERS"')
+    $rlist = Get-Web ($base + '/retailers/?gwcheck=' + $stamp)
+    $rlistHtml = (New-Object System.Text.UTF8Encoding($false)).GetString($rlist.bytes)
+    $rslugs = @([regex]::Matches($rlistHtml, 'href="/retailers/([a-z0-9-]+)/"') | ForEach-Object { $_.Groups[1].Value } | Sort-Object -Unique)
+    $rbad = @()
+    foreach ($rs in $rslugs) {
+        $rp = Get-Web ($base + '/retailers/' + $rs + '/?gwcheck=' + $stamp)
+        $rpHtml = (New-Object System.Text.UTF8Encoding($false)).GetString($rp.bytes)
+        if ($rp.status -ne 200 -or -not $rpHtml.Contains('<link rel="canonical" href="https://gearworldhub.com/retailers/' + $rs + '/">') -or $rpHtml -match '/(out|go)/') { $rbad += $rs }
+    }
+    if ($rcard -and $rlist.status -eq 200 -and $rslugs.Count -ge 1 -and $rbad.Count -eq 0) { Say ('  Κάρτα «Retailers» στην αρχική και {0} σελίδες καταστημάτων στο /retailers/ (L166): ΕΝΤΑΞΕΙ' -f $rslugs.Count) $Ok }
+    else { Say ('  Σελίδες /retailers/ (L166): ΠΡΟΒΛΗΜΑ - κάρτα: {0}, λίστα: απάντηση {1}, σελίδες: {2}, με πρόβλημα: {3}' -f $rcard, $rlist.status, $rslugs.Count, ($rbad -join ', ')) $Bad }
     # L119: the Mitgo tag right before </head> of the home page (a new secret takes a few seconds to reach every answer).
     # (L150: the Impact tag, when there is one, comes after it and right before </head>.)
     $mitgoRx = '<meta name="mitgo-verification" content="([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})">(?:<meta name=''impact-site-verification'' value=''[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}''>)?</head>'

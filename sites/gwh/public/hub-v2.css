@@ -128,14 +128,15 @@ svg.gwh2-art{stroke:none;} /* the drawn pictures: no outline from the icon style
 /* the 13 worlds (texts come from translations.js, by the order of the cards). Phones: 2 per row, the 13th (Pets) on a row of its own;
    wide screens: as many as fit. */
 .gwh-quick-worlds{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;}
-.gwh-quick-worlds > [data-world="ZGW"]{grid-column:1 / -1;}
-.gwh-image-world{display:flex;align-items:center;gap:10px;min-height:72px;padding:8px;border:1px solid transparent;border-radius:14px;background:var(--card);text-decoration:none;}
-.gwh-image-world:hover{background:var(--card-hover);border-color:rgba(255,180,0,.45);}
+/* 13 worlds and the Retailers card (L166): 14 cards, 2 per row on the phone, none alone. */
+.gwh-image-world,.gwh2-retailers-card{display:flex;align-items:center;gap:10px;min-height:72px;padding:8px;border:1px solid transparent;border-radius:14px;background:var(--card);text-decoration:none;}
+.gwh-image-world:hover,.gwh2-retailers-card:hover{background:var(--card-hover);border-color:rgba(255,180,0,.45);}
 .gwh2-world-img{flex:0 0 auto;width:56px;height:56px;border-radius:10px;object-fit:cover;background:#0f1b2c;}
 .gwh2-world-text{display:flex;flex-direction:column;min-width:0;}
-.gwh-image-world-code{color:var(--accent);font-size:11px;font-weight:800;letter-spacing:.08em;}
-.gwh-image-world-title{font-size:15px;line-height:1.2;font-weight:800;overflow-wrap:anywhere;}
-.gwh-image-world-description,.gwh-image-world-cta{display:none;}
+.gwh-image-world-code,.gwh2-rc-code{color:var(--accent);font-size:11px;font-weight:800;letter-spacing:.08em;}
+.gwh-image-world-title,.gwh2-rc-title{font-size:15px;line-height:1.2;font-weight:800;overflow-wrap:anywhere;}
+.gwh-image-world-description,.gwh-image-world-cta,.gwh2-rc-desc,.gwh2-rc-cta{display:none;}
+.gwh2-retailers-card{border-color:rgba(255,180,0,.45);}
 
 /* gift finder */
 .gwh2-gift-box{display:flex;flex-direction:column;gap:16px;padding:20px 18px;border-radius:20px;background:var(--card);}
@@ -244,13 +245,12 @@ body.gwh2-dock-on{padding-bottom:84px;}
   .gwh2-photo{grid-column:1 / -1;justify-self:start;padding:0 20px;}
   .gwh2-art{height:180px;}
   .gwh-quick-worlds{grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:14px;}
-  .gwh-quick-worlds > [data-world="ZGW"]{grid-column:auto;}
-  .gwh-image-world{flex-direction:column;align-items:stretch;gap:0;padding:0;overflow:hidden;border-radius:16px;}
+  .gwh-image-world,.gwh2-retailers-card{flex-direction:column;align-items:stretch;gap:0;padding:0;overflow:hidden;border-radius:16px;}
   .gwh2-world-img{width:100%;height:120px;border-radius:0;}
   .gwh2-world-text{padding:12px 14px 14px;gap:2px;}
-  .gwh-image-world-title{font-size:17px;}
-  .gwh-image-world-description{display:block;color:var(--soft);font-size:13px;line-height:1.4;}
-  .gwh-image-world-cta{display:block;margin-top:6px;color:var(--accent);font-size:13px;font-weight:800;}
+  .gwh-image-world-title,.gwh2-rc-title{font-size:17px;}
+  .gwh-image-world-description,.gwh2-rc-desc{display:block;color:var(--soft);font-size:13px;line-height:1.4;}
+  .gwh-image-world-cta,.gwh2-rc-cta{display:block;margin-top:6px;color:var(--accent);font-size:13px;font-weight:800;}
   .gwh2-deals{grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:16px;}
   .gwh2-slide-video{min-height:400px;}
   .gwh2-season-text{padding:24px 26px;}

@@ -164,3 +164,15 @@ Live από 7/11/2026 (commit f4c8c35· το `live-baseline.txt` ενημερώ�
 - **Μόνο στο domain (F04).** `workers_dev = false` και `preview_urls = false` στο `wrangler.toml` (χωρίς routes στο αρχείο, το wrangler ξανάνοιγε το workers.dev σε κάθε deploy). Μόνο ο `gear-world-hub-preview` έχει workers.dev.
 
 Σειρά: `tools/gw-security-fixes.ps1 -Step turnstile` (κλειδιά), `-Step preview` του `gwh-hub-v2.ps1` (`ΕΓΚΡΙΝΩ HUB SECURITY PREVIEW`), τα 13 sites (`ads-fixes-sites.ps1 -Step apply`), μετά το Hub (`ΕΓΚΡΙΝΩ HUB SECURITY LIVE`) και στην ίδια επικόλληση `-Step remove-preview`. Το live του Hub σταματά αν λείπουν τα κλειδιά (exit 16) ή αν τα sites δεν έχουν ακόμα το νέο «Get deal updates» (exit 17), γιατί το νέο Hub δεν δέχεται εγγραφή site χωρίς token, και αν δεν βεβαιώνει `workers_dev = false` / `preview_urls = false` (exit 18)· αν το ανέβασμα δείχνει ακόμα `*.workers.dev`, τελειώνει ως ΠΡΟΒΛΗΜΑ (exit 19). Επαναφορά: ΠΡΩΤΑ το Hub, ΜΕΤΑ τα sites. Μετά: `gw-security-fixes.ps1 -Step old-widgets`, ΜΕΤΑ `-Step secrets`. Έλεγχοι: `tests/worker/security-fixes.test.mjs`.
+
+## Retailers (16/11/2026, επιλογή Β του ιδιοκτήτη, μάθημα L166)
+Αντί για νέο site με «μεγάλα καταστήματα», μια ενότητα μέσα στο Hub.
+| Αρχείο | Τι είναι |
+|---|---|
+| `retailers/retailers.json` | Τα καταστήματα: όνομα, τι πουλάει, πού παραδίδει, τα sites με τα προϊόντα του (με τη σειρά του πλήθους, 16/11/2026, όχι κάτω από 20), κωδικοί και εκπτώσεις όπως τις δείχνουν οι σελίδες `/discount-codes/` των sites, με ημερομηνία λήξης, και θέση για μπάνερ (κενή) |
+| `public/retailers/index.html` και `public/retailers/<slug>/index.html` | Οι σελίδες, από το `tools/gwh-retailers.mjs build`. Links μόνο σε σελίδες Gear World· ποτέ `/out/`, `/go/` ή το κατάστημα, άρα το Hub δεν έχει δικό του affiliate link (L103) |
+| `public/retailers/retailers.css`, `public/retailers/retailers.js` | Εμφάνιση, και απόκρυψη κωδικού, έκπτωσης ή μπάνερ που έληξε (ημέρα UK) |
+| `public/index.html`, `public/hub-v2.css`, `public/hub-v2.js`, `public/hub-retailers.jpg` | Η κάρτα «Retailers» μετά τους 13 κόσμους, με δικές της κλάσεις (οι 13 κάρτες κόσμων μένουν 13), κείμενα σε 11 γλώσσες |
+
+Μπάνερ: μόνο εικόνα στο `public/retailers/banners/`, ελεγμένη από τον Manager (χωρίς ποσοστά, παλιές τιμές ή κωδικούς που έληξαν), με «Ad», ημερομηνία λήξης και link σε σελίδα Gear World· μπαίνει και στο `public-allowlist.txt`. Ο Worker `gwh-sitemap` δεν άλλαξε: οι σελίδες βρίσκονται από την κάρτα της αρχικής.
+Πάει live με το `tools/gwh-hub-v2.ps1`: `ΕΓΚΡΙΝΩ HUB RETAILERS PREVIEW`, `ΕΓΚΡΙΝΩ HUB RETAILERS LIVE` (`-AfterPreview`), `ΕΓΚΡΙΝΩ HUB REMOVE PREVIEW`, σε μία επικόλληση.
