@@ -184,7 +184,10 @@ export function classify({ name, brand = '', feedCategory = '' }) {
     return { site: 'wgw', siteCategory: "Women's Jewellery", subcategory: pick(n, JEWELLERY, "Women's Jewellery") };
   }
   if (site === 'kgw' && !/\b(girls?|boys?|kids?|child|children|toddlers?|baby|teen)\b/i.test(n)) return { reject: 'not said to be for children' };
-  const sub = pick(n, list || [], fallback);
+  // The kind word in the short card name first ("Women's Spring Autumn V-neck Sweater | ... Med-length Skirt Set" is a
+  // sweater), then in the whole name (first dry run, 15 Nov 2026).
+  let sub = pick(displayName(n), list || [], null) || pick(n, list || [], fallback);
+  if (site === 'mgw' && sub === 'Heels') sub = 'Shoes';
   if (!sub) return { reject: 'an accessory our sites do not list (keyrings, fans, headbands ...)' };
   return { site, siteCategory: category, subcategory: sub };
 }

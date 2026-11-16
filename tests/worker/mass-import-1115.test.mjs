@@ -61,6 +61,8 @@ test('TEMU US: our groups only, no brands, characters, merchandise, adult items 
   assert.equal(c('Solar Garden Lantern With Hummingbird', 'Patio, Lawn & Garden|Outdoor Lighting|Landscape Lighting'), 'ggw Outdoor Lighting & Garden Electrical > Solar lights', 'a solar light keeps its battery');
   assert.equal(c('Stainless Steel Men\'s Ring, Simple Band', 'Apparel & Accessories|Jewelry|Rings'), 'mgw Men\'s Jewellery > Rings');
   assert.equal(c('Women\'s Pearl Drop Earrings', 'Apparel & Accessories|Jewelry|Earrings'), 'wgw Women\'s Jewellery > Earrings');
+  assert.equal(c("Women's Spring | Autumn V-neck Sweater | New Sleeveless Base Sweater, Med-length Solid Skirt Set", W), 'wgw Clothing > Knitwear', 'the short name decides, not a word far in the long name');
+  assert.equal(c("Men's Business Dress Shoes With Low Heel", 'Clothing, Shoes & Jewelry|Men|Shoes|Oxfords'), 'mgw Shoes > Shoes', 'no "Heels" on the men\'s site');
   assert.match(c('Women\'s UGG Style Snow Boots', 'Clothing, Shoes & Jewelry|Women|Shoes|Boots'), /famous brand/);
   assert.match(c('Stitch Cartoon Hoodie For Women', W), /out:/);
   assert.match(c('Women\'s Black R&b Tour Graphic T-shirt, Concert Merchandise', W), /merchandise/);
