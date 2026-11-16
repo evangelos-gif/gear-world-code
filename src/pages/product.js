@@ -2,7 +2,7 @@
 import { html, raw } from '../lib/html.js';
 import { categoryPath, productPath, formatPrice, truncate, formatDate } from '../lib/text.js';
 import { normalizeGtin, gtinSchemaKey } from '../lib/gtin.js';
-import { page, productGrid, breadcrumbs, breadcrumbSchema, absolute, tr, keepName, viewAt, priceTag, retailerFlag, deliveryText, deliveryLine, deliversLabel, rrpTag, stockText } from './layout.js';
+import { page, productGrid, breadcrumbs, breadcrumbSchema, absolute, tr, keepName, viewAt, priceTag, retailerFlag, deliveryText, deliveryLine, shownLine, deliversLabel, rrpTag, stockText } from './layout.js';
 
 function specsList(product) {
   let specs = {};
@@ -33,9 +33,13 @@ export function hiddenProductPage(site, product, category, notice) {
     ...(category ? [{ name: category.name, path: categoryPath(category.slug) }] : []),
     { name: truncate(product.product_name, 60), path, keep: true }
   ];
+  // A feed in another language (lessons L165): the retailer may deliver to the visitor's country, so the notice says why
+  // instead, and the line under it names the countries whose visitors see it.
   const message = notice === 'country'
     ? tr('{0} does not deliver to your country.', keepName(product.retailer))
-    : tr("We have no price check for this product from the last 30 days, so we don't show it.");
+    : notice === 'language'
+      ? tr('{0} describes this product in a language other than English, so we show it only to visitors from these countries:', keepName(product.retailer))
+      : tr("We have no price check for this product from the last 30 days, so we don't show it.");
   const body = html`
 <div class="wrap">
   ${breadcrumbs(crumbs)}
@@ -48,7 +52,7 @@ export function hiddenProductPage(site, product, category, notice) {
       <h1 translate="no">${product.product_name}</h1>
       <div class="notice-box" role="status">
         <p class="notice-text">${message}</p>
-        ${notice === 'country' ? deliveryLine(site, product.retailer, { cls: 'notice-ship', max: 0 }) : ''}
+        ${notice === 'country' ? deliveryLine(site, product.retailer, { cls: 'notice-ship', max: 0 }) : notice === 'language' ? shownLine(site, product.retailer) : ''}
       </div>
       <ul class="chip-list">
         ${category ? html`<li><a href="${categoryPath(category.slug)}">${category.name}</a></li>` : ''}

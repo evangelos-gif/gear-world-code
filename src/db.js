@@ -11,7 +11,7 @@
 const NATIVE_CARD_COLUMNS = `id, product_name, product_slug, brand, retailer, category_slug, price, was_price,
   currency, in_stock, item_condition, image_url, subcategory, merchant_category, last_seen_at`;
 import { visibleSql, hiddenReason } from './lib/visibility.js';
-import { deliveryCountries } from './lib/delivery.js';
+import { shownCountries } from './lib/delivery.js';
 
 // The legacy layout also returns the old category name: Gear World Hub search shows it (lessons L22).
 let CARD_COLUMNS = NATIVE_CARD_COLUMNS;
@@ -941,7 +941,8 @@ export async function stats(db, view = null, site = null) {
     retailers: uk.length,
     retailer_names: uk.map(x => x.name),
     all_products: rows.reduce((t, x) => t + x.fresh, 0),
-    delivery: rows.map(x => ({ retailer: x.name, products: x.fresh, countries: deliveryCountries(site, x.name) }))
+    // The countries whose visitors see the retailer (a feed in another language only where it is spoken, lessons L165).
+    delivery: rows.map(x => ({ retailer: x.name, products: x.fresh, countries: shownCountries(site, x.name) }))
   };
 }
 

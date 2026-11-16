@@ -43,8 +43,9 @@ const VIEWS = [...[...EUROPE, 'US'].map(c => [c, c, '']), ['CA', 'CA', ''], ['un
 //   Kaiya Baby, Diecast Models Wholesale) has none of them: no bar.
 const seeing = (except = []) => Object.fromEntries(VIEWS.map(([name]) => [name, !except.includes(name)]));
 const SHOWN = { CGW: seeing(['US', 'PL']), AGW: seeing(['PL']), BGW: seeing(['PL']), GGW: seeing(['US', 'PL']), HGW: seeing(['US', 'PL']), KGW: seeing(['US', 'PL']) };
-// How many view groups each site has: gb, all, and us where a retailer ships to the US.
-const GROUPS = { CGW: 4, AGW: 3, BGW: 3, GGW: 4, HGW: 4, KGW: 4 };
+// How many view groups each site has: gb, all, pl, and us where a retailer ships to the US; and one for the countries
+// that speak the language of a feed (L165: CGW Reidl in German for DE and AT, AGW VEVOR in Dutch for NL and BE).
+const GROUPS = { CGW: 5, AGW: 4, BGW: 3, GGW: 4, HGW: 4, KGW: 4 };
 // What the bar says in the UK view while the codes of the config run (promos/promos.js, 10 Nov 2026).
 const WORDS = {
   CGW: ['{0} active codes', '4'], GGW: ['{0} active codes', '4'], AGW: ['{0} active codes', '2'], BGW: ['{0} active codes', '2'],
@@ -114,12 +115,14 @@ test('L115, L151: every view group of the sites with codes: the UK view and the 
     assert.notEqual(all, home, `${code}: the all view is a copy of its own (the UK view hides some retailers)`);
     for (const g of list) {
       const codes = activePromos(site, Date.now(), viewFor(site, g === all ? 'CA' : g.countries[0])).length;
-      const has = g === home || g === all;
+      const has = g === home || g === all || Boolean(g.language);
       assert.equal(codes > 0, has, `${code} ${g.id}: ${codes} codes`);
       for (const c of g.countries) assert.equal(want[c], has, `${code} ${g.id} ${c}: expected ${has ? 'the bar' : 'no bar'}`);
     }
-    // By name: Germany, Belgium, the Netherlands, France, Ireland and Austria are in the all view (L151), with the codes.
-    for (const c of ['DE', 'BE', 'NL', 'FR', 'IE', 'AT', 'CH']) assert.ok(viewFor(site, c).group === all.id && want[c], `${code} ${c}: the all view, the codes`);
+    // By name: Germany, Belgium, the Netherlands, France, Ireland and Austria are in the all view (L151), or in the all
+    // view plus the feeds in their language (L165), with the codes.
+    const allLike = [all.id, ...list.filter(g => g.language).map(g => g.id)];
+    for (const c of ['DE', 'BE', 'NL', 'FR', 'IE', 'AT', 'CH']) assert.ok(allLike.includes(viewFor(site, c).group) && want[c], `${code} ${c}: the all view, the codes`);
     // The US (lessons L141): a view of its own where a retailer ships there (CGW GRABO, the US shops of GGW, HGW, KGW).
     const usOwn = ['CGW', 'GGW', 'HGW', 'KGW'].includes(code);
     assert.equal(viewFor(site, 'US').group !== home.id, usOwn, `${code} US: ${usOwn ? 'a view of its own' : 'the UK view'}`);
@@ -337,9 +340,12 @@ test('L115, L151: cached pages keep the bar in the copy of their own view group 
       let size = store.size;
       for (const country of ['DE', 'US']) assert.ok(barOf((await get(path, env, country, GOOGLEBOT)).html), `${path} ${country} Googlebot`);
       assert.equal(store.size, size, `${path}: no other copy for the UK view`);
-      // The all view (L151): Germany, Belgium, Canada and an unknown country share one more copy, with the bar.
-      for (const country of ['DE', 'BE', 'CA', '']) assert.ok(barOf((await get(path, env, country)).html), `${path} ${country || 'unknown'}`);
+      // The all view (L151): France, Belgium, Canada and an unknown country share one more copy, with the bar.
+      for (const country of ['FR', 'BE', 'CA', '']) assert.ok(barOf((await get(path, env, country)).html), `${path} ${country || 'unknown'}`);
       assert.equal(store.size, size + 1, `${path}: one copy for the all view`);
+      // Germany and Austria (L165, Reidl in German): one more copy, the all view plus Reidl, with the bar.
+      for (const country of ['DE', 'AT']) assert.ok(barOf((await get(path, env, country)).html), `${path} ${country}`);
+      assert.equal(store.size, size + 2, `${path}: one copy for Germany and Austria`);
       assert.ok(barOf(await store.get(`${key}${sep}gw-view=all`).clone().text()), `${path}: the bar is in the cached all copy`);
       assert.ok(!/codes-bar/.test((await get(path, env, 'US')).html), `${path} US`);
     }
@@ -393,7 +399,7 @@ test('L115: colours from each site\'s palette (text 7:1, icon 3:1, nothing fixed
     assert.match(readFileSync(`sites/${dir}/public/assets/icons.svg`, 'utf8'), /<symbol id="tag" viewBox="0 0 24 24" fill="none" stroke="currentColor"/, `${dir}: the tag icon`);
     // New stylesheet (12 Nov 2026: the compact phone hero and aria-current): a new asset version (lessons L31), the same
     // on every site; KGW one later for its new words (Winter Boots, 14 Nov 2026, L143).
-    assert.match(site.assetVersion, new RegExp(`^(2026-11-12-${dir}-codes-2|2026-11-14-${dir}-boots-1|2026-11-15-${dir}-pl-1)$`), `${dir}: asset version`);
+    assert.match(site.assetVersion, new RegExp(`^(2026-11-12-${dir}-codes-2|2026-11-14-${dir}-boots-1|2026-11-15-${dir}-pl-1|2026-11-16-${dir}-lang-1)$`), `${dir}: asset version`);
   }
   const layout = readFileSync('tools/layout-check.mjs', 'utf8');
   assert.match(layout, /\{ name: 'phone-360', width: 360,/);

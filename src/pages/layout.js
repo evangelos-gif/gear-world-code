@@ -3,7 +3,7 @@ import { html, raw, jsonLd, toString } from '../lib/html.js';
 import { productPath, categoryPath, formatPrice } from '../lib/text.js';
 import { promoBarHtml } from './offers.js';
 import { activePromos } from '../lib/promos.js';
-import { deliveryCountries, COUNTRY_NAMES, FLAGS, WORLDWIDE } from '../lib/delivery.js';
+import { deliveryCountries, shownCountries, COUNTRY_NAMES, FLAGS, WORLDWIDE } from '../lib/delivery.js';
 import { GOOGLE_ADS_ID, OUTBOUND_LABEL, GEAR_WORLD_DOMAINS } from '../lib/ads.js';
 
 // Files under /assets/ are cached for a year, so every link to them carries ?v=<assetVersion> (lessons L31).
@@ -145,6 +145,15 @@ export function deliveryLine(site, retailer, { cls = 'label-ship', tag = 'p', ma
   return tag === 'span'
     ? html`<span class="${cls}" data-ship="${codes}">${inner}</span>`
     : html`<p class="${cls}" data-ship="${codes}">${inner}</p>`;
+}
+
+// The countries whose visitors see a retailer with a feed in another language than English (lessons L165), for the
+// notice of its products everywhere else: the flags and names as in deliveryLine, under the notice that says why.
+export function shownLine(site, retailer) {
+  const list = shownCountries(site, retailer);
+  if (!list.length) return '';
+  const withFlag = list.filter(c => FLAGS.includes(c));
+  return html`<p class="notice-ship" data-ship="${list.join(' ')}">${withFlag.length ? html`<span class="ship-flags">${withFlag.map(c => html`<img class="flag" src="${asset(site, `flags/${c.toLowerCase()}.svg`)}" alt="" width="18" height="12">`)}</span> ` : ''}<span class="ship-names">${list.map((c, i) => html`${i ? ', ' : ''}<span data-country="${c}">${COUNTRY_NAMES[c]}</span>`)}</span></p>`;
 }
 
 // The feed's recommended retail price, when the retailer lists one above the price: "RRP £24.99" (lessons L107). Never a

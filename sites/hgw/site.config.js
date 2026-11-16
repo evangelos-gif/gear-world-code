@@ -12,7 +12,7 @@ export default {
   lang: 'en-GB',
   locale: 'en-GB',
   currency: 'GBP',
-  assetVersion: '2026-11-15-hgw-pl-1',
+  assetVersion: '2026-11-16-hgw-lang-1',
   promos: promosFor('HGW'),
   awinPublisherId: AWIN_PUBLISHER_ID,
   storagePrefix: 'hgw',
