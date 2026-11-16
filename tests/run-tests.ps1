@@ -2789,7 +2789,7 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         Check ($r.Contains('παραλείπεται: Weekly Shop στο CGW: δεν βρέθηκε feed') -and -not $r.Contains('Fresh Shop στο')) 'refresh -Stale: a shop without a feed is skipped and listed; a fresh shop is not touched'
         Check ($r.Contains('-OlderThanDays 7') -and $r.Contains('Weekly Shop: ενεργά 2, πάνω από 14 μέρες 0, πάνω από 30 μέρες (δεν φαίνονται) 0, πάνω από 7 μέρες 2')) 'refresh -Stale: shops older than 7 days are chosen (-OlderThanDays 7)'
         Check ($r.Contains('με -Apply κατεβαίνει πρώτη φορά το feed (Awin 555): No Feed Shop στο CGW') -and $r.Contains('Awin: 496, 555')) 'refresh -Stale: a shop with no feed here but an Awin id in its links is downloaded first'
-        Check ($r.Contains('κανένα προϊόν δεν κρύβεται')) 'refresh -Stale: the plan says nothing is hidden'
+        Check ($r.Contains('κρύβονται αμέσως από τα sites (L168, δεν σβήνονται), μόνο όταν το φρέσκο feed έχει τουλάχιστον το 80%')) 'refresh -Stale: the plan states the L168 rule (gone products hidden by date, only with 80% of the shop in the feed)'
         Check ($r -match 'CGW: θα φαίνονται ξανά 0 προϊόντα \(και περίπου 1 ακόμα με φρέσκο feed\)\. Μένουν κρυμμένα: .*2 δεν βρέθηκε feed.*Γραμμές D1: διαβάστηκαν [0-9,]+') 'refresh -Stale: the Greek summary per site with the rows read'
         Check ($r.Contains('αργά το βράδυ')) 'refresh -Stale: the tip to run at a quiet time'
         # -OnlyShops (L114): only the shops named (by key), the others are not listed, planned or downloaded.
@@ -2835,6 +2835,7 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         $r = StLast
         if (-not ($r -match 'CGW: φαίνονται ξανά 2')) { Write-Host '----- REFRESH -Apply report (for the failure below) -----'; Write-Host $r }
         Check ($r -match 'CGW: φαίνονται ξανά 2 προϊόντα\. Μένουν κρυμμένα: .*Γραμμές D1: διαβάστηκαν [0-9,]+, γράφτηκαν 8\.' -and $r -match 'HGW: φαίνονται ξανά 2 προϊόντα') 'refresh -Stale -Apply: the Greek summary with the rows written'
+        Check ($r.Contains('το feed έχει μόνο 2 από τα 3 ενεργά προϊόντα (λιγότερα από το 80%)') -and $r.Contains('ΔΕΝ θα κρυφτεί κανένα (L168)') -and -not $r.Contains('Κρύφτηκαν τώρα')) 'refresh -Stale -Apply: Tooled Up has 2 of 3 in the fresh feed (less than 80%): nothing hidden, said plainly (L168)'
         Check ($r.Contains('555: δεν υπάρχει στη λίστα σου') -and $r.Contains('Αντίγραφα και αρχεία επαναφοράς αυτού του site:')) 'refresh -Stale -Apply: the Awin id of the links went to the download tool; the backups folder is printed before loading'
         Check ($r.Contains('ΠΡΟΣΟΧΗ: No Feed Shop στο CGW (4 ενεργά): το Awin δεν έχει feed για εμάς (το πρόγραμμα 555 δεν είναι στη λίστα σου)') -and $r.Contains('https://ui.awin.com/merchant-profile/555') -and $r.Contains('AWIN_496_777.csv.gz')) 'refresh -Stale -Apply: a programme with no Awin feed is named plainly (GS Workwear), and the moved leftover is listed'
         # A run stopped in the middle (Ctrl+C) still leaves its report, with where the backups are (lessons L108).

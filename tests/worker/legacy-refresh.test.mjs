@@ -16,7 +16,7 @@ import { DatabaseSync } from 'node:sqlite';
 import {
   findFeeds, findFeedsFor, pickFeedFiles, readFeed, planRefresh, writeCosts, updateTrigger, writePlan, planStatements, splitFiles,
   groupedStatements, idsPerStatement, sqliteTime, viewDays, keyOf, matchRow, renderReport, advertiserOf, linkKey,
-  listFeedFiles, resolveFeedFile, feedFileParts, ACCEPT_JUMP_MAX, FEED_FILE_MAX_DAYS, MAX_STATEMENTS_PER_FILE, MAX_WRITES_PER_FILE, IDS_PER_STATEMENT
+  listFeedFiles, resolveFeedFile, feedFileParts, GONE_DATE, feedCoversShop, ACCEPT_JUMP_MAX, FEED_FILE_MAX_DAYS, MAX_STATEMENTS_PER_FILE, MAX_WRITES_PER_FILE, IDS_PER_STATEMENT
 } from '../../tools/legacy-refresh-plan.mjs';
 import { viewFor, isShown, needsCheck, HIDE_AFTER_DAYS } from '../../src/lib/visibility.js';
 
@@ -443,13 +443,13 @@ test('legacy-refresh.ps1: the one-paste mode, its one phrase, the download tool 
   assert.ok(ps.charCodeAt(0) === 0xfeff && ps.includes('\r\n'), 'UTF-8 with BOM and CRLF');
   // L108 checker: 7-day selection, no hides in -Stale, --yes on the rollback files (not on Time Travel), report as it goes.
   assert.ok(ps.includes('[int]$OlderThanDays = 7') && ps.includes("AS dsel") && ps.includes('MIN(affiliate_url) AS aurl'));
-  assert.ok(ps.includes("$a += '--no-hide'") && ps.includes('$true $true'), '-Stale plans with --no-hide');
+  assert.ok(ps.includes("$a += '--hide-by-date'") && ps.includes("$names $true $false ($jumpWant -contains $shop.key) $true"), '-Stale plans with --hide-by-date (L168), not --no-hide');
   assert.ok(ps.includes('--remote --file $_.FullName --yes') && ps.includes('--remote --file "{1}" --yes') && !/time-travel restore[^\r\n']*--yes/.test(ps));
   assert.ok(ps.includes('AppendAllText($script:ReportFile'), 'the report is written line by line');
   assert.ok(ps.includes("WHERE is_active = 1 AND id BETWEEN {0} AND 2147483647 ORDER BY id LIMIT 5000"), 'one paged read of the site for all its shops');
 });
 
-test('L108 checker: an empty or half feed hides nothing, also for a small shop; the one-paste mode never hides', async () => {
+test('L108/L168: an empty feed, or one with less than 80% of the shop, hides nothing, also for a small shop; --no-hide never hides', async () => {
   const dir = mkdtempSync(join(tmpdir(), 'refresh-empty-'));
   writeFileSync(join(dir, 'AWIN_496_1001.csv.gz'), gzipSync(HEAD));
   utimesSync(join(dir, 'AWIN_496_1001.csv.gz'), DOWNLOADED / 1000, DOWNLOADED / 1000);
@@ -459,11 +459,14 @@ test('L108 checker: an empty or half feed hides nothing, also for a small shop; 
   const p = planRefresh({ rows: small, feed: empty, costs: CGW_COSTS, now: RUN, feedTime: DOWNLOADED });
   assert.equal(p.safe, false);
   assert.equal(p.hides.length, 0, 'a header-only feed hid 60 of 60 before the fix');
-  // Half of a small shop missing: still hidden (per pair); more than half: nothing.
+  // L168 (owner, 16 Nov 2026): hidden only when the feed has at least 80% of the shop (1 of 5 gone: hidden; 2 of 4: not).
   const feed = await readFeed((await findFeeds(archive(), 'Tooled Up')).files);
+  assert.deepEqual(planRefresh({ rows: TU, feed, costs: CGW_COSTS, now: RUN, feedTime: DOWNLOADED }).hides, [5], '1 of 5 gone: 80% left, hidden');
   const four = TU.slice(0, 4);
   const two = [...four.slice(0, 2), { ...TU[4], id: 8 }, { ...TU[4], id: 9 }];
-  assert.equal(planRefresh({ rows: two, feed, costs: CGW_COSTS, now: RUN, feedTime: DOWNLOADED }).hides.length, 2, '2 of 4 gone: hidden');
+  const half = planRefresh({ rows: two, feed, costs: CGW_COSTS, now: RUN, feedTime: DOWNLOADED });
+  assert.deepEqual([half.hides.length, half.safe], [0, false], '2 of 4 gone (50% left): nothing hidden (before L168: both hidden)');
+  assert.match(renderReport({ retailer: 'Tooled Up', site: 'cgw', feedFiles: ['x'], feedRows: 6, newest: feed.newest, p: half }), /μόνο 2 από τα 4 ενεργά προϊόντα \(λιγότερα από το 80%\)[^\n]*ΔΕΝ θα κρυφτεί κανένα \(L168\)/);
   const three = [TU[0], { ...TU[4], id: 7 }, { ...TU[4], id: 8 }, { ...TU[4], id: 9 }];
   assert.equal(planRefresh({ rows: three, feed, costs: CGW_COSTS, now: RUN, feedTime: DOWNLOADED }).hides.length, 0, '3 of 4 gone: nothing hidden');
   const kept = planRefresh({ rows: TU, feed, costs: CGW_COSTS, now: RUN, feedTime: DOWNLOADED, noHide: true });
@@ -471,6 +474,59 @@ test('L108 checker: an empty or half feed hides nothing, also for a small shop; 
   assert.equal(kept.visible.still['gone-kept'], 1, 'listed: not in the feed, no date, the sites drop it after 30 days');
   assert.ok(planStatements(kept).hide.length === 0);
   assert.match(renderReport({ retailer: 'Tooled Up', site: 'cgw', feedFiles: ['x'], feedRows: 6, newest: feed.newest, p: kept }), /δεν κρύβονται, δεν παίρνουν ημερομηνία/);
+});
+
+test('L168: the weekly refresh hides a product that left the shop\'s feed by its date, only with 80% of the shop in the feed; it comes back when the shop lists it again (SQLite)', async () => {
+  // Cheap Furniture Warehouse on HGW (16 Nov 2026): a clothes rail sold out and gone from the shop and its feed was still
+  // listed, with a broken picture, until the 30-day rule. The weekly refresh (one-paste mode) now hides it at once.
+  const feed = await readFeed((await findFeeds(archive(), 'Tooled Up')).files);
+  // Rows 1-4 are in the feed; 5 is gone and shown today (checked 20 Oct); 6 is gone and already hidden by the sites
+  // (checked 1 Sep: no write needed); 4 of 6 in the feed is less than 80%, so first a fifth row in the feed (id 7).
+  const shown = { ...TU[4], updated_at: '2026-10-20 10:00:00' };
+  const old = { ...TU[4], id: 6, awin_product_id: '556', merchant_product_id: '556', updated_at: '2026-09-01 10:00:00' };
+  const fewRows = [...TU.slice(0, 4), shown, old];
+  const few = planRefresh({ rows: fewRows, feed, costs: HGW_COSTS, now: RUN, requireDates: true, hideByDate: true });
+  assert.deepEqual([few.safe, few.goneDated.length, few.hides.length], [false, 0, 0], '4 of 6 in the feed (67%): nothing hidden');
+  assert.equal(few.visible.still['gone-unsafe'], 1, 'the old gone row stays (and leaves at 30 days as before)');
+  const rows = [...fewRows, ...[7, 8, 9, 10].map(id => ({ ...TU[3], id, awin_product_id: '200', merchant_product_id: `m${id}` }))];
+  const p = planRefresh({ rows, feed, costs: HGW_COSTS, now: RUN, requireDates: true, hideByDate: true });
+  assert.equal(p.safe, true, '8 of 10 in the feed: 80%');
+  assert.deepEqual(p.goneDated, [{ id: 5, old: '2026-10-20 10:00:00' }], 'only the gone row the sites still show');
+  assert.deepEqual([p.hides.length, p.visible.goneNow, p.visible.still.gone], [0, 1, 1], 'not is_active = 0; the already hidden one is counted, not written');
+  assert.equal(p.writes, p.changes.reduce((n, c) => n + c.writes, 0) + 3 + p.seen.length * 3, 'a hide by date costs a date (HGW: 3 rows)');
+  const report = renderReport({ retailer: 'Tooled Up', site: 'hgw', feedFiles: ['x'], feedRows: 6, newest: feed.newest, p });
+  assert.match(report, /2 προϊόντα δεν υπάρχουν πια στο feed: 1 που φαίνονται σήμερα κρύβονται τώρα από το site \(L168, δεν σβήνονται\)· τα άλλα 1 ήταν ήδη κρυμμένα\. Αν το κατάστημα τα ξαναβάλει στο feed, ξαναφαίνονται μόνα τους/);
+  assert.match(report, /Απόκρυψη: 1 \(έφυγαν από το feed\)/);
+  const st = planStatements(p);
+  assert.deepEqual(st.gone.map(x => x.sql), [`UPDATE products SET updated_at = '${GONE_DATE}' WHERE id = 5 AND is_active = 1 AND (updated_at IS NULL OR updated_at <= '2026-10-20 10:00:00');`]);
+  assert.ok(st.rollback.some(x => x.sql === `UPDATE products SET updated_at = '2026-10-20 10:00:00' WHERE id = 5 AND updated_at = '${GONE_DATE}';`), 'the rollback gives the old date back, only while the row still has ours');
+  // Per pair (no --hide-by-date) the same rows are hidden as before, by is_active, and --no-hide still hides nothing.
+  assert.deepEqual(planRefresh({ rows, feed, costs: HGW_COSTS, now: RUN, feedTime: DOWNLOADED }).hides, [5, 6]);
+  assert.equal(planRefresh({ rows, feed, costs: HGW_COSTS, now: RUN, requireDates: true, noHide: true, hideByDate: true }).goneDated.length, 0);
+  // A feed file older than 2 days (the one-paste mode changes nothing on such a shop): no hide either.
+  const late = planRefresh({ rows, feed, costs: HGW_COSTS, now: new Date('2026-10-28T12:00:00Z'), requireDates: true, hideByDate: true });
+  assert.deepEqual([late.skip, late.goneDated.length], ['old-file', 0]);
+
+  // On a copy of the table: the row stays active and the sites stop listing it at once; the rollback gives it back.
+  const db = new DatabaseSync(':memory:');
+  db.exec(readFileSync('tests/fixtures/ggw-legacy-schema.sql', 'utf8'));
+  const ins = db.prepare("INSERT INTO products (id, awin_product_id, merchant_product_id, retailer, site_category, product_name, price, currency, stock_status, image_url, affiliate_url, is_active, updated_at) VALUES (?, ?, ?, 'Tooled Up', 'Tools', ?, ?, ?, ?, ?, 'x', 1, ?)");
+  for (const r of rows) ins.run(r.id, r.awin_product_id, r.merchant_product_id, r.product_name, r.price, r.currency, r.stock_status, r.image_url, r.updated_at);
+  const out = mkdtempSync(join(tmpdir(), 'refresh-gone-'));
+  const summary = writePlan(out, p);
+  assert.deepEqual([summary.goneDated, summary.hideByDate, summary.files.some(f => /^gone-0001\.sql$/.test(f.name))], [1, true, true]);
+  for (const f of summary.files) db.exec(readFileSync(join(out, f.name), 'utf8'));
+  const five = db.prepare('SELECT is_active, updated_at FROM products WHERE id = 5').get();
+  assert.deepEqual([five.is_active, five.updated_at], [1, GONE_DATE]);
+  assert.equal(isShown(viewFor(null, 'GB', RUN.getTime()), { retailer: 'Tooled Up', last_seen_at: five.updated_at }), false, 'the sites no longer list it');
+  assert.equal(db.prepare('SELECT updated_at FROM products WHERE id = 6').get().updated_at, '2026-09-01 10:00:00', 'the already hidden row is not written');
+  // The shop lists it again: the next weekly run dates it and it is shown again (no clean-up hid it: it is still active).
+  const back = [...db.prepare('SELECT * FROM products WHERE is_active = 1').all()].map(r => (r.id === 5 ? { ...r, awin_product_id: '200', price: 5 } : r));
+  const again = planRefresh({ rows: back, feed, costs: HGW_COSTS, now: RUN, requireDates: true, hideByDate: true });
+  const datedAgain = [...again.seen.map(x => [x.id, x.old]), ...again.changes.filter(c => c.stamp).map(c => [c.id, c.oldDate])];
+  assert.ok(datedAgain.some(([id, d]) => id === 5 && d === GONE_DATE) && again.visible.revive >= 1, 'dated again: back on the site');
+  db.exec(readFileSync(join(out, 'rollback.sql'), 'utf8'));
+  assert.equal(db.prepare('SELECT updated_at FROM products WHERE id = 5').get().updated_at, '2026-10-20 10:00:00', 'the rollback gives the old date back');
 });
 
 test('L108 checker: a write between our read and our load is never overwritten, and the rollback never undoes a later change (SQLite)', async () => {
@@ -673,7 +729,7 @@ test('Coes, Plusshop, GRABO and Cronjager: rows with old ids are found by their 
   ], feed: coes, costs: CGW_COSTS, now });
   assert.equal(c.matched, 1, 'the socks are found by their page');
   assert.deepEqual(c.changes.map(x => [x.id, x.set]), [[1, { price: 16 }]], 'the cheapest size in stock (12 is sold out)');
-  assert.deepEqual(c.hides, [2], 'a page no longer in the feed is hidden as before');
+  assert.deepEqual([c.gone, c.hides.length], [1, 0], 'a page no longer in the feed: 1 of 2 left is less than 80%, so nothing is hidden (L168)');
 
   const plus = await readFeed((await findFeeds(dir, 'Plusshop UK')).files);
   const pl = { id: 3, awin_product_id: '69306:armaf-men-s-club-de-nuit-edt-105ml', merchant_product_id: 'armaf-men-s-club-de-nuit-edt-105ml', price: 31, currency: 'GBP', stock_status: 'in stock',

@@ -17,8 +17,11 @@
   everything under the 14-day "Check price and stock at the retailer"). Read-only part: one read per site of the active
   products grouped by shop (with how many are older than 7, 14 and 30 days), one paged read of the site's active rows
   for all its shops, the feed of each shop in the archive (by its name, or by the Awin advertiser id of its links), and
-  per shop what WOULD change, with how many products would be shown again. -Stale never hides a product: one the feed
-  does not confirm gets no date, and the sites stop listing it after 30 days on their own. With -Apply ONE phrase for the whole run,
+  per shop what WOULD change, with how many products would be shown again. A product that left the shop's feed is
+  hidden at once by its date (lessons L168, owner 16 Nov 2026): it gets the date 2000-01-01, so the sites stop listing
+  it (it is not deleted and stays active), and when the shop lists it again the next run dates it and it comes back by
+  itself. Only when the fresh feed has at least 80% of the shop's active products: with less (half a download, new feed
+  ids) nothing is hidden and those products leave the sites at 30 days on their own. With -Apply ONE phrase for the whole run,
   ΕΓΚΡΙΝΩ REFRESH ΠΑΛΙΑ ΠΡΟΪΟΝΤΑ: first fresh feeds for just those shops with tools/awin-feed-download.ps1 (it keeps
   the Awin feed key encrypted for your Windows user and asks for it only if it is missing; the key is never shown or
   written anywhere), then the refresh of every shop. A shop whose feed is not found, not downloaded or too old is
@@ -43,8 +46,8 @@
     3. Counts the shop's active products again.
   The date written is the time the feed file was downloaded (its time on this PC), never the time of the run. A feed
   file downloaded more than 2 days ago writes no date (with -Stale the shop then changes nothing). A feed not updated
-  for more than 30 days changes nothing (lessons L39). A feed missing more than half of the active products hides
-  nothing. Hidden products, products not in the feed and prices held back get no date. Rows written in D1 stay under
+  for more than 30 days changes nothing (lessons L39). A feed with less than 80% of the shop's active products hides
+  nothing (L168). Hidden products, products not in the feed and prices held back get no date. Rows written in D1 stay under
   -MaxWrites (default 90,000 for the whole run: Workers Free allows 100,000 a day, lessons L49); what is left waits
   for the next run. -PaidPlan: Workers Paid, up to 1,000,000 per run.
   It changes ONLY the products of these shops in these sites' databases. No code, no other shop, no deploy.
@@ -290,13 +293,14 @@ function Get-SiteRows([string]$site) {
 }
 
 # The plan (read-only, tools/legacy-refresh-plan.mjs). Prints its report. Returns @{ code; summary }.
-function Invoke-Plan([string]$site, [string]$name, [string]$dir, [string]$schemaFile, $rowFiles, [long]$maxW, [string]$adv, $feedFiles, [bool]$requireDates, [bool]$noHide, [bool]$takeJumps = $false) {
+function Invoke-Plan([string]$site, [string]$name, [string]$dir, [string]$schemaFile, $rowFiles, [long]$maxW, [string]$adv, $feedFiles, [bool]$requireDates, [bool]$noHide, [bool]$takeJumps = $false, [bool]$byDate = $false) {
     if (-not (Test-Path -LiteralPath $dir)) { New-Item -ItemType Directory -Path $dir -Force | Out-Null }
     $a = @((Join-Path (Join-Path $repo 'tools') 'legacy-refresh-plan.mjs'), '--archive', $Archive, '--retailer', $name, '--site', $site, '--indexes', $schemaFile, '--out', $dir, '--max-writes', [string]$maxW)
     if ($adv) { $a += @('--advertiser', $adv) }
     foreach ($ff in @($feedFiles)) { if ($ff) { $a += @('--feed-file', [string]$ff) } }
     if ($requireDates) { $a += '--require-dates' }
     if ($noHide) { $a += '--no-hide' }
+    if ($byDate) { $a += '--hide-by-date' }
     if ($takeJumps) { $a += '--accept-jumps' }
     foreach ($f in @($rowFiles)) { $a += @('--rows', $f) }
     & node @a | Out-Null
@@ -334,7 +338,7 @@ function Invoke-Load([string]$site, [string]$key, [string]$name, [string]$dir, $
     $note = @(
         ('{0} database restore point before the refresh of {1}, {2}' -f $site.ToUpper(), $name, (Get-Date -Format 'yyyy-MM-dd HH:mm')),
         ('bookmark: {0}' -f $bookmark),
-        ('{0} values changed, {1} products hidden and {2} products dated by this refresh (date {3} UTC).' -f $summary.changes, $summary.hides, $summary.seen, $summary.stamp),
+        ('{0} values changed, {1} products hidden, {4} hidden because they left the feed (date 2000-01-01) and {2} products dated by this refresh (date {3} UTC).' -f $summary.changes, $summary.hides, $summary.seen, $summary.stamp, (0 + $summary.goneDated)),
         'To go back, ONLY with approval, run in PowerShell one of:',
         ('  cd "{0}"' -f $script:Work),
         ('  A) only this refresh, in small parts (old values and dates back, hidden products shown again):  {0}' -f $undoParts),
@@ -374,7 +378,7 @@ function Invoke-Load([string]$site, [string]$key, [string]$name, [string]$dir, $
     if ($null -ne $after) {
         $now = [long]$after.rows[0].n
         $want = [long]$summary.active - [long]$summary.hides
-        if ($now -eq $want) { Say ('ΕΤΟΙΜΟ: {0} αλλαγές, {1} κρυμμένα, {2} με νέα ημερομηνία. Ενεργά τώρα: {3}.' -f $summary.changes, $summary.hides, $summary.seen, $now) 'Green' }
+        if ($now -eq $want) { Say ('ΕΤΟΙΜΟ: {0} αλλαγές, {1} κρυμμένα, {4} κρυμμένα επειδή έφυγαν από το feed, {2} με νέα ημερομηνία. Ενεργά τώρα: {3}.' -f $summary.changes, $summary.hides, $summary.seen, $now, (0 + $summary.goneDated)) 'Green' }
         else { Say ('ΠΡΟΣΟΧΗ: ενεργά τώρα {0}, περίμενα {1}. Στείλε την αναφορά στο Claude.' -f $now, $want) 'Yellow'; $code = 13 }
     }
     Say ('Επαναφορά μόνο αυτής της ανανέωσης (μόνο με έγκριση): cd "{0}"; {1}' -f $script:Work, $undoParts)
@@ -523,7 +527,7 @@ function Plan-All($tag, $feedBy, $readRows) {
             }
             $pdir = Join-Path $shop.dir $tag
             $names = @(@($f.files) | ForEach-Object { [string]$_.file })
-            $p = Invoke-Plan $site $shop.name $pdir $schemaFile $shop.rows $left '' $names $true $true ($jumpWant -contains $shop.key)
+            $p = Invoke-Plan $site $shop.name $pdir $schemaFile $shop.rows $left '' $names $true $false ($jumpWant -contains $shop.key) $true
             if ($p.code -ne 0 -or $null -eq $p.summary) { Say 'Το σχέδιο δεν έγινε (δες πιο πάνω): παραλείπεται.' 'Red'; $shop.reason = 'το σχέδιο δεν έγινε'; continue }
             $shop.plan = $p.summary
             $shop.pdir = $pdir
@@ -543,12 +547,14 @@ function Say-Summary($applied) {
     foreach ($site in $siteList) {
         $mine = @($shopsAll | Where-Object { $_.site -eq $site }) + @($skipped | Where-Object { $_.site -eq $site })
         $revive = 0
+        $goneNow = 0
         $estimate = 0
         $sitePlanned = 0
         $still = @{}
         foreach ($s in $mine) {
             if ($null -ne $s.plan -and -not $s.reason) {
                 $revive = $revive + $s.plan.visible.revive
+                $goneNow = $goneNow + (0 + $s.plan.goneDated)
                 $sitePlanned = $sitePlanned + $s.plan.writes
                 foreach ($st in @($s.plan.still)) { if ($null -ne $st -and [long]$st.n -gt 0) { Add-Count $still ([string]$st.text) ([long]$st.n) } }
             } else {
@@ -565,6 +571,11 @@ function Say-Summary($applied) {
         $line = '{0}: {1} {2} προϊόντα' -f $site.ToUpper(), $verb, (Fmt $revive)
         if ($estimate -gt 0) { $line += (' (και περίπου {0} ακόμα με φρέσκο feed)' -f (Fmt $estimate)) }
         $line += ('. Μένουν κρυμμένα: {0}.' -f $stillTxt)
+        if ($goneNow -gt 0) {
+            $verbGone = 'Θα κρυφτούν τώρα'
+            if ($applied) { $verbGone = 'Κρύφτηκαν τώρα' }
+            $line += (' {0} επειδή έφυγαν από το feed του καταστήματος (L168): {1}.' -f $verbGone, (Fmt $goneNow))
+        }
         $line += (' Γραμμές D1: διαβάστηκαν {0}' -f (Fmt (Count-Of $script:RowsRead $site)))
         if ($applied) { $line += (', γράφτηκαν {0}.' -f (Fmt (Count-Of $script:RowsWritten $site))) }
         else { $line += (', θα γραφτούν περίπου {0}.' -f (Fmt $sitePlanned)) }
@@ -718,7 +729,7 @@ try {
     foreach ($s in @($planned | Where-Object { $_.oldFile })) { Say ('  με -Apply κατεβαίνει πρώτα φρέσκο feed: {0} στο {1} (περίπου {2} θα φαίνονταν ξανά)' -f $s.name, $s.site.ToUpper(), (Fmt $s.plan.visible.reviveIfFresh)) }
     foreach ($s in @($shopsAll | Where-Object { $_.dlOnly })) { Say ('  με -Apply κατεβαίνει πρώτη φορά το feed (Awin {0}): {1} στο {2}' -f (@($s.feed.advertisers) -join ', '), $s.name, $s.site.ToUpper()) }
     foreach ($s in @($shopsAll | Where-Object { $_.reason -and -not $_.oldFile -and -not $_.dlOnly }) + $skipped) { Say ('  παραλείπεται: {0} στο {1}: {2}' -f $s.name, $s.site.ToUpper(), $s.reason) 'Yellow' }
-    Say 'Σε αυτή τη λειτουργία κανένα προϊόν δεν κρύβεται: όσα δεν επιβεβαιώνει το feed δεν παίρνουν ημερομηνία και φεύγουν μόνα τους από τα sites στις 30 μέρες.'
+    Say 'Προϊόντα που έφυγαν από το feed του καταστήματος κρύβονται αμέσως από τα sites (L168, δεν σβήνονται), μόνο όταν το φρέσκο feed έχει τουλάχιστον το 80% των ενεργών του· αν το κατάστημα τα ξαναβάλει στο feed, ξαναφαίνονται μόνα τους. Με λιγότερο από 80% δεν κρύβεται κανένα και όσα λείπουν φεύγουν μόνα τους στις 30 μέρες.'
     if ($advs.Count -gt 0) { Say ('Με -Apply κατεβαίνουν πρώτα φρέσκα feeds για {0} καταστήματα του Awin: {1} (μόνο αρχεία στον υπολογιστή, με το tools/awin-feed-download.ps1).' -f $advs.Count, ($advs -join ', ')) }
     Say ('Η φράση έγκρισης (ΜΙΑ για όλη την εκτέλεση: λήψη των feeds και ανανέωση όλων των καταστημάτων): {0}' -f $StalePhrase)
     Say $quietTip
@@ -759,7 +770,7 @@ try {
         foreach ($i in $ids) { if (-not $script:NotListed.ContainsKey([string]$i)) { $all = $false } }
         if ($all -and $sh.reason) { $sh.noAwin = $true; $sh.reason = ('το Awin δεν έχει feed για εμάς (το πρόγραμμα {0} δεν είναι στη λίστα σου)' -f ($ids -join ', ')) }
     }
-    $go = @($final | Where-Object { -not $_.reason -and ([long]$_.plan.changes + [long]$_.plan.hides + [long]$_.plan.seen) -gt 0 })
+    $go = @($final | Where-Object { -not $_.reason -and ([long]$_.plan.changes + [long]$_.plan.hides + [long]$_.plan.goneDated + [long]$_.plan.seen) -gt 0 })
     $nFiles = 0
     foreach ($s in $go) { $nFiles = $nFiles + @($s.plan.files).Count }
     Say ''
