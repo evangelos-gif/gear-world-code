@@ -148,7 +148,7 @@ test('L166: the home page has the Stores card after the 13 worlds, in 11 languag
   assert.match(index, /<a class="gwh-quick-world gwh2-stores-card" href="\/stores\/" data-world="STORES">/);
   assert.match(index, /src="\/hub-stores\.jpg"/);
   assert.ok(!/gwh-image-world-(title|cta|description)[^>]*data-gwh2="stores/.test(index), 'own classes: the world cards are counted by class');
-  assert.match(index, /\/hub-v2\.css\?v=20261116-stores1/);
+  assert.match(index, /\/hub-v2\.css\?v=20261116-stores\d+/);
   assert.match(index, /\/hub-v2\.js\?v=20261116-stores1/);
   const hjs = readFileSync(`${PUB}/hub-v2.js`, 'utf8');
   for (const key of ['storesTitle', 'storesDesc', 'storesCta']) {
@@ -158,8 +158,8 @@ test('L166: the home page has the Stores card after the 13 worlds, in 11 languag
     if (key === 'storesDesc') assert.ok(arr.every(s => s.startsWith('Joybuy, Tooled Up, PCHUB.UK') && !/AliExpress/.test(s)), 'the card names UK retailers only');
   }
   const css = readFileSync(`${PUB}/hub-v2.css`, 'utf8');
-  assert.ok(css.includes('.gwh-quick-worlds > [data-world="ZGW"],.gwh-quick-worlds > [data-world="STORES"]{grid-column:1 / -1;}'), 'on the phone Pets and Stores take a whole row each (the Greek title fits)');
-  assert.ok(css.includes('.gwh-quick-worlds > [data-world="ZGW"],.gwh-quick-worlds > [data-world="STORES"]{grid-column:auto;}'), 'from 760 px they are cards like the others');
+  assert.ok(!/\[data-world="(ZGW|STORES)"\]\{grid-column:1 \/ -1;\}/.test(css), 'owner 16/11/2026: Pets and Stores small, side by side on the phone');
+  assert.ok(css.includes('@media (max-width:379px){.gwh2-world-img{width:40px;height:40px;}.gwh-image-world-title,.gwh2-rc-title{font-size:13px;}}'), 'narrow phones: smaller picture and title, so "Καταστήματα" stays on one line');
   assert.match(css, /\.gwh-image-world,\.gwh2-stores-card\{display:flex;/);
   assert.ok(existsSync(`${PUB}/hub-stores.jpg`) && readFileSync(`${PUB}/hub-stores.jpg`).length < 90000);
 });

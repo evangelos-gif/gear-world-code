@@ -128,9 +128,9 @@ svg.gwh2-art{stroke:none;} /* the drawn pictures: no outline from the icon style
 /* the 13 worlds (texts come from translations.js, by the order of the cards). Phones: 2 per row, the 13th (Pets) on a row of its own;
    wide screens: as many as fit. */
 .gwh-quick-worlds{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;}
-/* On the phone the last world (Pets) and the Stores card (L166) take a whole row each, and the pictures (48 px) and titles
-   (14 px) are a little smaller, so long titles such as "Καταστήματα", "Τεχνολογία" and "Αθλητισμός" stay on one line. */
-.gwh-quick-worlds > [data-world="ZGW"],.gwh-quick-worlds > [data-world="STORES"]{grid-column:1 / -1;}
+/* 13 worlds and the Stores card (L166): 14 small cards, 2 per row on the phone (owner, 16/11/2026: Pets and Stores side by
+   side). Pictures 48 px and titles 14 px, and 40 px / 13 px under 380 px, so long titles such as "Καταστήματα",
+   "Τεχνολογία" and "Αθλητισμός" stay on one line from 360 px. */
 .gwh-image-world,.gwh2-stores-card{display:flex;align-items:center;gap:8px;min-height:72px;padding:8px;border:1px solid transparent;border-radius:14px;background:var(--card);text-decoration:none;}
 .gwh-image-world:hover,.gwh2-stores-card:hover{background:var(--card-hover);border-color:rgba(255,180,0,.45);}
 .gwh2-world-img{flex:0 0 auto;width:48px;height:48px;border-radius:10px;object-fit:cover;background:#0f1b2c;}
@@ -138,6 +138,7 @@ svg.gwh2-art{stroke:none;} /* the drawn pictures: no outline from the icon style
 .gwh-image-world-code,.gwh2-rc-code{color:var(--accent);font-size:11px;font-weight:800;letter-spacing:.08em;}
 .gwh-image-world-title,.gwh2-rc-title{font-size:14px;line-height:1.2;font-weight:800;overflow-wrap:anywhere;}
 .gwh-image-world-description,.gwh-image-world-cta,.gwh2-rc-desc,.gwh2-rc-cta{display:none;}
+@media (max-width:379px){.gwh2-world-img{width:40px;height:40px;}.gwh-image-world-title,.gwh2-rc-title{font-size:13px;}}
 .gwh2-stores-card{border-color:rgba(255,180,0,.45);}
 
 /* gift finder */
@@ -247,7 +248,6 @@ body.gwh2-dock-on{padding-bottom:84px;}
   .gwh2-photo{grid-column:1 / -1;justify-self:start;padding:0 20px;}
   .gwh2-art{height:180px;}
   .gwh-quick-worlds{grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:14px;}
-  .gwh-quick-worlds > [data-world="ZGW"],.gwh-quick-worlds > [data-world="STORES"]{grid-column:auto;}
   .gwh-image-world,.gwh2-stores-card{flex-direction:column;align-items:stretch;gap:0;padding:0;overflow:hidden;border-radius:16px;}
   .gwh2-world-img{width:100%;height:120px;border-radius:0;}
   .gwh2-world-text{padding:12px 14px 14px;gap:2px;}
