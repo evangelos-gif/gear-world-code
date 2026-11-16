@@ -516,6 +516,15 @@ test('L168: the weekly refresh hides a product that left the shop\'s feed by its
   const fewShown = planRefresh({ rows: [...shownOk.slice(0, 3), shown, ...earlier], feed, costs: HGW_COSTS, now: RUN, requireDates: true, hideByDate: true });
   assert.deepEqual([fewShown.cover.shownOnly, fewShown.safe], [false, false], 'fewer than 5 shown: counted on all active (3 of 11): nothing hidden');
 
+  // A nearly empty feed never hides a shop (independent check): 100 active, 5 shown and only those 5 in the feed.
+  const hundred = Array.from({ length: 100 }, (_, i) => (i < 5
+    ? { ...TU[3], id: 100 + i, awin_product_id: '200', merchant_product_id: `h${i}`, updated_at: '2026-10-20 10:00:00' }
+    : { ...TU[4], id: 100 + i, awin_product_id: `x${i}`, merchant_product_id: `x${i}`, updated_at: '2026-09-01 10:00:00' }));
+  const perPair = planRefresh({ rows: hundred, feed, costs: HGW_COSTS, now: RUN, feedTime: DOWNLOADED });
+  assert.deepEqual([perPair.safe, perPair.hides.length, perPair.cover.shownOnly, perPair.deadFeed], [false, 0, false, true], 'per pair: 5 of 100 is not 80%, and a dead feed');
+  const byDate = planRefresh({ rows: hundred, feed, costs: HGW_COSTS, now: RUN, requireDates: true, hideByDate: true });
+  assert.deepEqual([byDate.safe, byDate.goneDated.length, byDate.hides.length], [false, 0, 0], 'one-paste mode: a dead feed hides nothing either');
+
   // On a copy of the table: the row stays active and the sites stop listing it at once; the rollback gives it back.
   const db = new DatabaseSync(':memory:');
   db.exec(readFileSync('tests/fixtures/ggw-legacy-schema.sql', 'utf8'));

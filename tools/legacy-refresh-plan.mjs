@@ -74,8 +74,10 @@ export const MIN_MATCH_NUM = 4;
 export const MIN_MATCH_DEN = 5;
 export const GONE_DATE = '2000-01-01 00:00:00';
 export const feedCoversShop = (active, gone, feedRows) => feedRows > 0 && (active - gone) * MIN_MATCH_DEN >= active * MIN_MATCH_NUM;
-// The 80% is counted on the products the sites still show (a GONE_DATE row or one older than 30 days never matches the
-// feed again and would pile up until no shop hides anything); with fewer than this many shown, on all active products.
+// In the one-paste mode (hide by date, only rows the sites still show) the 80% is counted on the products the sites
+// still show (a GONE_DATE row or one older than 30 days never matches the feed again and would pile up until no shop
+// hides anything); with fewer than this many shown, and always per pair (is_active = 0 on every gone row, also old
+// ones, for good), on all active products. A dead feed (empty, stale, or nearly none of the shop) never hides.
 export const MIN_SHOWN_FOR_COVER = 5;
 export const IDS_PER_STATEMENT = 500;
 export const MAX_STATEMENTS_PER_FILE = 50;
@@ -480,9 +482,11 @@ export function planRefresh({ rows, feed, costs, maxWrites = 90000, now = new Da
   // hide all of it; L168: at least 80%). The one-paste mode hides by date (hideByDate), only rows the sites still show.
   const goneIds = new Set(gone);
   const shownNow = active.filter(r => !isHidden(dateText(r.updated_at)));
-  const base = shownNow.length >= MIN_SHOWN_FOR_COVER ? shownNow : active;
+  const base = hideByDate && shownNow.length >= MIN_SHOWN_FOR_COVER ? shownNow : active;
   const cover = { of: base.length, inFeed: base.filter(r => !goneIds.has(Number(r.id))).length, shownOnly: base === shownNow };
-  const safe = feedCoversShop(cover.of, cover.of - cover.inFeed, feed.rows);
+  // The feed gives nothing to work with: not updated for 30 days, empty, or nearly none of the shop's products.
+  const deadFeed = stale || feed.rows === 0 || (active.length >= 20 && active.length - gone.length <= active.length * 0.05);
+  const safe = !deadFeed && feedCoversShop(cover.of, cover.of - cover.inFeed, feed.rows);
   const hideAll = safe && !noHide && !hideByDate ? gone : [];
   const goneAll = safe && hideByDate && !noHide ? gone.filter(id => !isHidden(goneDates[id])) : [];
   // The budget: changes first (cheap, and they fix prices and pictures), then hides, then the dates of the rows the feed
@@ -538,8 +542,7 @@ export function planRefresh({ rows, feed, costs, maxWrites = 90000, now = new Da
     gone: gone.length, safe, cover, noHide, hideByDate, stale, staleDays, skip, datesOk, dateBlock, stamp, stampFromFeed: cappedRows > 0, cappedRows,
     stampCapped: Boolean(freshest && freshest.capped), fileAgeDays, cutoff, checkFrom,
     oldOnly, oldFiles, feedRows: feed.rows, feedNewest: feed.newest || '',
-    // The feed gives nothing to work with: not updated for 30 days, empty, or nearly none of the shop's products.
-    deadFeed: stale || feed.rows === 0 || (active.length >= 20 && active.length - gone.length <= active.length * 0.05),
+    deadFeed,
     bigPrice, acceptedJumps, currencySkip, writes, left, costs, visible,
     counts: { price: count('price'), image_url: count('image_url'), stock_status: count('stock_status'),
       dated: doChanges.filter(c => c.stamp).length, undated: doChanges.filter(c => !c.stamp).length,

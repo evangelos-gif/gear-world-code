@@ -47,7 +47,7 @@
   The date written is the time the feed file was downloaded (its time on this PC), never the time of the run. A feed
   file downloaded more than 2 days ago writes no date (with -Stale the shop then changes nothing). A feed not updated
   for more than 30 days changes nothing (lessons L39). A feed with less than 80% of the shop's active products hides
-  nothing (L168). Hidden products, products not in the feed and prices held back get no date. Rows written in D1 stay under
+  nothing (L168; -Stale counts the products the sites still show, see above). Hidden products, products not in the feed and prices held back get no date. Rows written in D1 stay under
   -MaxWrites (default 90,000 for the whole run: Workers Free allows 100,000 a day, lessons L49); what is left waits
   for the next run. -PaidPlan: Workers Paid, up to 1,000,000 per run.
   It changes ONLY the products of these shops in these sites' databases. No code, no other shop, no deploy.
@@ -729,7 +729,7 @@ try {
     foreach ($s in @($planned | Where-Object { $_.oldFile })) { Say ('  με -Apply κατεβαίνει πρώτα φρέσκο feed: {0} στο {1} (περίπου {2} θα φαίνονταν ξανά)' -f $s.name, $s.site.ToUpper(), (Fmt $s.plan.visible.reviveIfFresh)) }
     foreach ($s in @($shopsAll | Where-Object { $_.dlOnly })) { Say ('  με -Apply κατεβαίνει πρώτη φορά το feed (Awin {0}): {1} στο {2}' -f (@($s.feed.advertisers) -join ', '), $s.name, $s.site.ToUpper()) }
     foreach ($s in @($shopsAll | Where-Object { $_.reason -and -not $_.oldFile -and -not $_.dlOnly }) + $skipped) { Say ('  παραλείπεται: {0} στο {1}: {2}' -f $s.name, $s.site.ToUpper(), $s.reason) 'Yellow' }
-    Say 'Προϊόντα που έφυγαν από το feed του καταστήματος κρύβονται αμέσως από τα sites (L168, δεν σβήνονται), μόνο όταν το φρέσκο feed έχει τουλάχιστον το 80% των ενεργών του· αν το κατάστημα τα ξαναβάλει στο feed, ξαναφαίνονται μόνα τους μόλις επιβεβαιωθεί η τιμή τους. Το 80% μετριέται στα προϊόντα που φαίνονται σήμερα. Με λιγότερο από 80% δεν κρύβεται κανένα και όσα λείπουν φεύγουν μόνα τους στις 30 μέρες.'
+    Say 'Προϊόντα που έφυγαν από το feed του καταστήματος κρύβονται αμέσως από τα sites (L168, δεν σβήνονται), μόνο όταν το φρέσκο feed έχει τουλάχιστον το 80% των προϊόντων του που φαίνονται σήμερα· αν το κατάστημα τα ξαναβάλει στο feed, ξαναφαίνονται μόνα τους μόλις επιβεβαιωθεί η τιμή τους. Με λιγότερο από 80% δεν κρύβεται κανένα και όσα λείπουν φεύγουν μόνα τους στις 30 μέρες.'
     if ($advs.Count -gt 0) { Say ('Με -Apply κατεβαίνουν πρώτα φρέσκα feeds για {0} καταστήματα του Awin: {1} (μόνο αρχεία στον υπολογιστή, με το tools/awin-feed-download.ps1).' -f $advs.Count, ($advs -join ', ')) }
     Say ('Η φράση έγκρισης (ΜΙΑ για όλη την εκτέλεση: λήψη των feeds και ανανέωση όλων των καταστημάτων): {0}' -f $StalePhrase)
     Say $quietTip
