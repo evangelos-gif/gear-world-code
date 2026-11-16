@@ -11,7 +11,20 @@
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { tidyName, sqlFiles, rowsFromWrangler } from './tidy.mjs';
+import { tidyName, rowsFromWrangler } from './tidy.mjs';
+
+// The SQL of the renames. Only product_name changes: updated_at (the date of the last price check) stays as it is, so a
+// product that left its feed (date over 30 days, or 2000-01-01 from the refresh, lessons L168) never shows again just
+// because its name was repaired (Manager's finding, 16 Nov 2026, chat 9). The tidy step of 20 Oct wrote datetime('now').
+const sq = v => `'${String(v).replace(/'/g, "''")}'`;
+export function sqlFiles(p) {
+  const lines = [], undo = [];
+  for (const r of p.rename) {
+    lines.push(`UPDATE products SET product_name = ${sq(r.to)} WHERE id = ${Number(r.id)};`);
+    undo.push(`UPDATE products SET product_name = ${sq(r.from)} WHERE id = ${Number(r.id)};`);
+  }
+  return { change: lines.join('\n') + '\n', rollback: undo.join('\n') + '\n' };
+}
 
 // Characters that UTF-8 text gets when it is read as code page 850 (and that never belong in a product name).
 // Written with char() so the SQL stays ASCII for the cmd line: ├ ┬ and Ô followed by Ç, é or ä.
