@@ -46,13 +46,13 @@ function hostOf(link) {
 // RAKUTEN_<MID> (the last three have the Awin column names). -Advertiser '<ids>' picks shops; with alsoDays the feeds
 // downloaded in the last days come too, so one report has the shops asked for and everything just downloaded.
 // The CJ, Daisycon and Rakuten files may have a tail: one file per country (DAISYCON_14965_DE, lessons L163) or per
-// search (CJ_3992613_kids-winter-boots, L161). Before 16 Nov 2026 these were skipped without a word (chat 9: Superdry
+// search (CJ_3992613_kids-winter-boots, L161); bol.com: BOL_<category>_<country>(-<search>) (tools/bol-feed.mjs). Before 16 Nov 2026 these were skipped without a word (chat 9: Superdry
 // DE/NL and Chromeburner GB/DE of wave 3 would have been missing from the profile).
 // -Network Daisycon (or 'CJ,Daisycon'): only the files of those networks. The shop ids of two networks can be the same
 // number (an Awin advertiser and a Daisycon programme), so -Advertiser alone cannot pick one network.
-const FEED_FILE = /^(?:AWIN_(\d+)_(\d+)|(CJ|DAISYCON|RAKUTEN)_(\d+)(?:_([A-Za-z0-9][A-Za-z0-9-]{0,39}))?)\.csv(?:\.gz)?$/i;
-const NETWORK = { CJ: 'CJ', DAISYCON: 'Daisycon', RAKUTEN: 'Rakuten' };
-export const NETWORKS = ['Awin', 'CJ', 'Daisycon', 'Rakuten'];
+const FEED_FILE = /^(?:AWIN_(\d+)_(\d+)|(CJ|DAISYCON|RAKUTEN|BOL)_(\d+)(?:_([A-Za-z0-9][A-Za-z0-9-]{0,39}))?)\.csv(?:\.gz)?$/i;
+const NETWORK = { CJ: 'CJ', DAISYCON: 'Daisycon', RAKUTEN: 'Rakuten', BOL: 'bol' };
+export const NETWORKS = ['Awin', 'CJ', 'Daisycon', 'Rakuten', 'bol'];
 export function feedOf(name) {
   const m = String(name).match(FEED_FILE);
   if (!m) return null;

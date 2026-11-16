@@ -2997,6 +2997,16 @@ http.createServer((q, s) => {
     if (q.headers['accept-language'] !== 'nl' || u.searchParams.get('country-code') !== 'NL' || u.searchParams.get('search-term') !== 'Strauss werkschoenen' || u.searchParams.get('include-offer') !== 'true') return send(400, { title: 'Bad request' });
     return send(200, { page: 1, totalResults: 42, results: [{ ean: '8712345678901', title: 'STRAUSS werkschoenen S3 Okomu', offer: { price: 129.99 } }] });
   }
+  if (u.pathname === '/marketing/catalog/v1/products/lists/popular') {
+    if (!/^Bearer bolTokenValue\d+x$/.test(q.headers.authorization || '')) return send(401, { title: 'Unauthorized' });
+    if (q.headers['accept-language'] !== 'nl' || u.searchParams.get('country-code') !== 'NL') return send(400, { title: 'Bad request' });
+    const cat = u.searchParams.get('category-id');
+    if (!cat) return send(200, { totalResults: 0, results: [], allRelevantCategories: [{ categoryId: '12382', categoryName: 'Auto en Motor', productCount: 150000, subcategories: [{ categoryId: '20639', categoryName: 'Autoaccessoires', productCount: 4000 }] }] });
+    const page = Number(u.searchParams.get('page'));
+    const mk = n => ({ ean: String(8710000000000 + n), bolProductId: String(9200000000000 + n), title: 'Auto product ' + n, url: 'https://www.bol.com/nl/nl/p/auto-' + n + '/' + (9200000000000 + n) + '/', image: { url: 'https://media.s-bol.com/' + n + '.jpg' }, offer: { price: 10 + n, strikethroughPrice: 99 }, gpc: [{ level: 1, name: 'Auto' }] });
+    if (page === 1) return send(200, { page: 1, totalPages: 2, totalResults: 51, results: Array.from({ length: 50 }, (_, i) => mk(i)) });
+    return send(200, { page: 2, totalPages: 2, totalResults: 51, results: [mk(50)] });
+  }
   send(404, { title: 'Not found' });
 }).listen(8797, '127.0.0.1');
 '@
@@ -3023,6 +3033,24 @@ http.createServer((q, s) => {
         Check ($LASTEXITCODE -eq 0 -and $bolCheckRep.Contains('βρέθηκαν 42 προϊόντα') -and $bolCheckRep.Contains('Πρώτο: STRAUSS werkschoenen S3 Okomu - ') -and $bolCheckRep.Contains('129.99')) 'bol-feed-download check: how many and the first name and price'
         Check ((& $bolAsked) -eq 1) 'bol-feed-download check: ONE token for the run'
         Check (-not $bolCheckRep.Contains('bolTokenValue') -and -not $bolCheckRep.Contains($bolSecret) -and -not $bolCheckRep.Contains($bolId) -and -not $bolCheckRep.Contains($bolBasic)) 'bol-feed-download check: no key, Basic header or token in the report'
+        # Chat 9 (16 Nov 2026): the categories (read-only) and the download (files on this PC only, its own phrase).
+        & $exe @($bolBase + @('-Step', 'categories')) | Out-Null
+        $bolCatRep = & $bolLast
+        Check ($LASTEXITCODE -eq 0 -and $bolCatRep.Contains('12382 | Auto en Motor | 150,000') -and $bolCatRep.Contains('20639 | Autoaccessoires | 4,000')) 'bol-feed-download categories: ids, names and counts'
+        Check ((& $bolAsked) -eq 2) 'bol-feed-download categories: ONE token'
+        $bolArch = Join-Path $bolDir 'feeds'
+        New-Item -ItemType Directory -Path $bolArch -Force | Out-Null
+        & $exe @($bolBase + @('-Step', 'download', '-Categories', '12382=Auto en Motor', '-Archive', $bolArch)) | Out-Null
+        Check ($LASTEXITCODE -eq 0 -and @(Get-ChildItem -LiteralPath $bolArch -File).Count -eq 0 -and (& $bolAsked) -eq 2) 'bol-feed-download download: without -Apply only the plan, no token, no file'
+        & $exe @($bolBase + @('-Step', 'download', '-Categories', '12382=Auto en Motor', '-Archive', $bolArch, '-Apply', '-Approve', 'wrong phrase')) | Out-Null
+        Check ($LASTEXITCODE -eq 1 -and @(Get-ChildItem -LiteralPath $bolArch -File).Count -eq 0 -and (& $bolAsked) -eq 2) 'bol-feed-download download: a wrong phrase downloads nothing'
+        & $exe @($bolBase + @('-Step', 'download', '-Categories', '12382=Auto en Motor', '-Archive', $bolArch, '-PauseMs', '0', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ BOL FEED DOWNLOAD')) | Out-Null
+        $bolDlRep = & $bolLast
+        Check ($LASTEXITCODE -eq 0 -and (Test-Path -LiteralPath (Join-Path $bolArch 'BOL_12382_NL.csv.gz')) -and $bolDlRep.Contains('γράφτηκαν: 51') -and $bolDlRep.Contains('Auto en Motor')) 'bol-feed-download download: 2 pages, 51 products, BOL_12382_NL.csv.gz'
+        Check ((& $bolAsked) -eq 3) 'bol-feed-download download: ONE token for the whole run'
+        Check (-not $bolDlRep.Contains('bolTokenValue') -and -not $bolDlRep.Contains($bolSecret) -and -not $bolDlRep.Contains($bolId) -and -not $bolDlRep.Contains($bolBasic)) 'bol-feed-download download: no key, Basic header or token in the report'
+        & $exe @($bolBase + @('-Step', 'download', '-Categories', '12382', '-Archive', $bolArch, '-PauseMs', '0', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ BOL FEED DOWNLOAD')) | Out-Null
+        Check ($LASTEXITCODE -eq 0 -and @(Get-ChildItem -LiteralPath (Join-Path $bolArch '_old') -Recurse -File -Filter 'BOL_12382_NL.csv.gz').Count -eq 1) 'bol-feed-download download: the old copy goes to _old first'
         & $exe @($bolBase + @('-Step', 'keys', '-Apply', '-Approve', 'egkrino bol keys')) | Out-Null
         Check ($LASTEXITCODE -eq 0 -and @(Get-ChildItem -LiteralPath $bolDir -Filter 'bol-api.dat.old-*').Count -eq 1) 'bol-feed-download keys: new keys keep the old file as .old-<time> first'
         $env:GW_BOL_TEST_KEYS = 'wrongClient1|wrongSecret1234'
@@ -3030,12 +3058,12 @@ http.createServer((q, s) => {
         $bolBadArgs = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $bolTool, '-SecretFile', $bolBad, '-LoginBase', 'http://127.0.0.1:8797', '-ApiBase', 'http://127.0.0.1:8797', '-OutDir', $bolOut, '-NoClipboard')
         & $exe @($bolBadArgs + @('-Step', 'keys', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ BOL KEYS')) | Out-Null
         & $exe @($bolBadArgs + @('-Step', 'check')) | Out-Null
-        Check ($LASTEXITCODE -eq 3 -and (& $bolAsked) -eq 2) 'bol-feed-download check: keys that bol.com refuses stop at once (exit 3), one token asked'
+        Check ($LASTEXITCODE -eq 3 -and (& $bolAsked) -eq 5) 'bol-feed-download check: keys that bol.com refuses stop at once (exit 3), one token asked'
         $env:GW_BOL_TEST_KEYS = $null
         & $exe -NoProfile -ExecutionPolicy Bypass -File $bolTool -Step check -SecretFile $bolSecretFile -LoginBase 'https://evil.example' -OutDir $bolOut -NoClipboard | Out-Null
-        Check ($LASTEXITCODE -eq 2 -and (& $bolAsked) -eq 2) 'bol-feed-download: the keys go only to login.bol.com and api.bol.com'
+        Check ($LASTEXITCODE -eq 2 -and (& $bolAsked) -eq 5) 'bol-feed-download: the keys go only to login.bol.com and api.bol.com'
         & $exe -NoProfile -ExecutionPolicy Bypass -File $bolTool -Step check -SecretFile (Join-Path $bolDir 'none.dat') -LoginBase 'http://127.0.0.1:8797' -ApiBase 'http://127.0.0.1:8797' -OutDir $bolOut -NoClipboard | Out-Null
-        Check ($LASTEXITCODE -eq 3 -and (& $bolAsked) -eq 2) 'bol-feed-download check: without saved keys it asks for none (run keys first)'
+        Check ($LASTEXITCODE -eq 3 -and (& $bolAsked) -eq 5) 'bol-feed-download check: without saved keys it asks for none (run keys first)'
     } finally {
         $env:GW_BOL_TEST_KEYS = $null
         if ($bolProc -and -not $bolProc.HasExited) { Stop-Process -Id $bolProc.Id -Force -ErrorAction SilentlyContinue }
