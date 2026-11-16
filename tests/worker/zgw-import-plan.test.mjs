@@ -54,14 +54,14 @@ test('11 categories (birds with subcategories and horse and riding, owner 1 Nov 
   // ALZOO sells in US dollars and ships within the US only: only the US view shows it (site.config.js deliversTo).
   // AliExpress PL (L157 round 2): zloty, Poland only.
   assert.deepEqual(QUALITY.currencies, ['GBP', 'USD', 'PLN']);
-  assert.deepEqual(site.deliversTo.retailers, { 'AliExpress PL': ['PL'], ALZOO: ['US'] });
+  assert.deepEqual(site.deliversTo.retailers, { 'AliExpress PL': ['PL'], ALZOO: ['US'], 'Bonne et Filou': ['US'], EcoKind: ['US'], 'RadioFence.com': ['US'], 'Crown and Paw': ['US'], MeoWant: ['US'] }, 'wave 3 (L169): five US pet shops, US view only');
   assert.deepEqual(CATEGORY_SLUGS, site.categories.map(c => c.slug), 'the same order as the site menu');
 });
 
 test('sources: Joybuy, Plusshop, Bazta, Coes and Aquatics Shop UK; Red Gorilla and VEVOR off; no text of another site', () => {
   const text = readFileSync('sites/zgw/sources.json', 'utf8');
   const src = JSON.parse(text).sources;
-  assert.deepEqual(src.filter(s => s.approved).map(s => s.retailer), ['Joybuy', 'Plusshop UK', 'Bazta UK', 'Coes', 'Aquatics Shop UK', 'Pets Calm Down', 'Omlet', 'ALZOO', 'AliExpress PL']);
+  assert.deepEqual(src.filter(s => s.approved).map(s => s.retailer), ['Joybuy', 'Plusshop UK', 'Bazta UK', 'Coes', 'Aquatics Shop UK', 'Pets Calm Down', 'Omlet', 'ALZOO', 'AliExpress PL', 'Bonne et Filou', 'EcoKind', 'RadioFence.com', 'Crown and Paw', 'MeoWant']);
   assert.deepEqual(src.find(s => s.retailer === 'ALZOO'), { advertiserId: 124906, feedIds: [113935], retailer: 'ALZOO', currency: 'USD', condition: 'new', approved: true, petShop: true });
   assert.equal(src.find(s => s.retailer === 'Omlet').petShop, true);
   assert.equal(src.find(s => s.retailer === 'Aquatics Shop UK').aquatics, true, 'its live fish stay out (L90)');
