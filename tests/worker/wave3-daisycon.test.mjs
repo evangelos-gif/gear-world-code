@@ -109,3 +109,44 @@ test('TechInn on TGW: printer toner, ink and drums stay out, read from Daisycon\
   const pc = sourceFilter({ retailer: 'X', denyPaths: ['cases/covers'] });
   assert.match(pc('Phone case', '', 'Phones>Cases/Covers'), /feed folder not for TGW/);
 });
+
+test('After the ALL IMPORTS of 17 Nov (L177, L183): TechInn chairs stay off TGW, a Tradeinn "Handbags" folder is "Bags" on SGW', async () => {
+  const { sourceFilter, subcategoryFor } = await import('../../tools/tgw-import-plan.mjs');
+  const { readFileSync } = await import('node:fs');
+  const read = site => JSON.parse(readFileSync(new URL(`../../sites/${site}/sources.json`, import.meta.url), 'utf8')).sources;
+  const f = sourceFilter(read('tgw').find(s => s.advertiserId === 20616));
+  assert.match(f('Aerocool Admiralbr Gaming Chair Orange', 'Aerocool', 'Furniture|Chairs|Gaming Chairs > Gaming Chairs'), /feed folder not for TGW/);
+  assert.match(f('Mars Gaming Mgdx160rgbw Gaming Desk Silver', 'Mars Gaming', 'Furniture|Tables|Poker & Game Tables'), /feed folder not for TGW/);
+  assert.notEqual(f('Razer Gaming Chairs Sleeves For Iskur V2 Black', 'Razer', 'Electronics|Electronics Accessories|Game Controllers'), '', 'a chair accessory by its name');
+  assert.equal(f('Razer Kraken V4 Gaming Headset', 'Razer', 'Electronics|Audio|Headphones'), '', 'gaming tech stays');
+  const tradeinn = read('sgw').filter(s => [20601, 20607, 20608, 20614, 20615, 20617, 20620, 20606].includes(s.advertiserId));
+  assert.equal(tradeinn.length, 8);
+  for (const s of tradeinn) assert.equal(subcategoryFor(s, 'Apparel & Accessories|Handbags, Wallets & Cases|Handbags > Handbags'), 'Bags', s.retailer);
+  const swim = tradeinn.find(s => s.retailer === 'SwimInn');
+  assert.equal(subcategoryFor(swim, 'Sporting Goods|Water Sports|Swimming > Swim Goggles'), 'Swim Goggles', 'other folders unchanged');
+  assert.equal(subcategoryFor({ retailer: 'X' }, 'A > Handbags'), 'Handbags', 'a shop without a map keeps its folder');
+});
+
+test('Westwing on HGW: smaller limits per subcategory in "Home Decor" (60) and "Furniture" (150), 400 elsewhere (L183)', async () => {
+  const { planLegacyImport } = await import('../../tools/legacy-import-plan.mjs');
+  assert.deepEqual(wwNl.RULES.maxPerSubcategoryIn, { 'Home Decor': 60, Furniture: 150 });
+  assert.equal(wwNl.RULES.maxPerSubcategory, 400);
+  const dir = mkdtempSync(join(tmpdir(), 'hgw-ww-'));
+  const a = join(dir, 'GW_AWIN_BULK_ARCHIVE');
+  mkdirSync(a);
+  const head = 'aw_deep_link,product_name,aw_product_id,merchant_product_id,merchant_image_url,merchant_category,search_price,currency,brand_name,in_stock,ean,merchant_deep_link\n';
+  const row = (i, name, path) => `https://fr135.net/c/?si=17294&li=1&wi=447289&pid=${i},${name} ${i},${i},WW-${i},https://img.example/${i}.jpg,${path},49.99,EUR,Westwing Collection,1,,https://www.westwing.nl/p/item-${i}/\n`;
+  let body = '';
+  for (let i = 1; i <= 100; i++) body += row(i, 'Vloerkleed Lina', 'Decor|Rugs');
+  for (let i = 101; i <= 300; i++) body += row(i, 'Bank Stella', 'Sofas');
+  for (let i = 301; i <= 750; i++) body += row(i, 'Handdoek Soft', 'Linens & Bedding|Towels');
+  writeFileSync(join(a, 'DAISYCON_17294.csv.gz'), gzipSync(head + body));
+  const r = await planLegacyImport({ archive: a, retailer: 'westwing-nl', outDir: join(dir, 'out'), now: new Date('2026-11-17T23:00:00Z') });
+  const count = {};
+  for (const p of r.accepted.hgw) count[`${p.site_category} > ${p.subcategory}`] = (count[`${p.site_category} > ${p.subcategory}`] || 0) + 1;
+  assert.deepEqual(count, { 'Home Decor > Rug': 60, 'Furniture > Sofa': 150, 'Bedding & Bath > Towel': 400 });
+  const reasons = Object.keys(r.rejected).join(' | ');
+  assert.match(reasons, /over the 60 cards per subcategory/);
+  assert.match(reasons, /over the 150 cards per subcategory/);
+  assert.match(reasons, /over the 400 cards per subcategory/);
+});
