@@ -111,6 +111,8 @@ test('the window: only from the script, with every condition of the owner\'s lis
   assert.match(CSS, /\.pop \{ position: fixed; left: 0; right: 0; bottom: 0; z-index: 45; max-height: 30vh;/);
   assert.match(CSS, /@media \(min-width: 700px\) and \(min-height: 600px\) \{ \.pop,/, 'the card only on tall screens: a phone on its side keeps the band');
   assert.match(CSS, /body\.has-compare-bar \.pop \{ bottom: 76px; \}/, 'above the compare bar');
+  assert.match(part, /box\.style\.bottom = open \? \(bar\.offsetHeight \+/, 'above the compare bar at its real height (two rows on a phone)');
+  assert.match(CSS, /@media \(min-width: 560px\) and \(max-height: 599px\) \{ \.pop \{ display: grid;/, 'two columns on a phone on its side, from 560 px');
   assert.match(CSS, /\.pop-close \{[^}]*width: 44px; height: 44px;/);
   assert.match(CSS, /\.consent \{ position: fixed;[^}]*z-index: 50;/);
   assert.doesNotMatch(CSS, /\.pop[^{]*\{[^}]*(backdrop|inset: 0)/, 'no dark backdrop');

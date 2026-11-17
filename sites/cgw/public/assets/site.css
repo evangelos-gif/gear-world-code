@@ -627,7 +627,7 @@ body.has-compare-bar { padding-bottom: 76px; }
 body.has-compare-bar .pop { bottom: 76px; }
 /* a card at the right only on screens that are tall enough; a phone on its side keeps the 30% band, in two columns */
 @media (min-width: 700px) and (min-height: 600px) { .pop, body.has-compare-bar .pop { left: auto; right: 16px; bottom: 16px; width: 380px; max-height: none; border: 2px solid var(--gold); border-radius: var(--radius); padding: 14px 52px 14px 16px; } }
-@media (min-width: 600px) and (max-height: 599px) { .pop { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); column-gap: 14px; align-items: start; max-height: 34vh; } .pop-text { margin: 0; } .pop-status { grid-column: 1 / -1; } }
+@media (min-width: 560px) and (max-height: 599px) { .pop { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); column-gap: 14px; align-items: start; max-height: 34vh; } .pop-text { margin: 0; } .pop-status { grid-column: 1 / -1; } }
 .pop-close { position: absolute; top: 2px; right: 2px; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; padding: 0; border: 0; border-radius: var(--radius); background: none; color: #fff; font: 700 1.6rem/1 var(--font-body); cursor: pointer; }
 .pop-close:focus-visible { outline: 3px solid #fff; outline-offset: -3px; }
 .pop-text { margin: 0 0 6px; font-size: .9rem; line-height: 1.3; font-weight: 600; color: #fff; }

@@ -704,6 +704,20 @@
       box.appendChild(form);
       box.appendChild(status);
       document.body.appendChild(box);
+      // Above the compare bar while it is open (its height changes with the screen and the number of products).
+      var card = window.matchMedia ? window.matchMedia('(min-width: 700px) and (min-height: 600px)') : null;
+      var sized = null;
+      var resize = 'ResizeObserver' in window ? new ResizeObserver(function () { place(); }) : null;
+      function place() {
+        var bar = document.querySelector('.compare-bar');
+        if (bar && resize && sized !== bar) { sized = bar; resize.observe(bar); }
+        var open = !!bar && !bar.hidden;
+        box.style.bottom = open ? (bar.offsetHeight + (card && card.matches ? 16 : 0)) + 'px' : '';
+      }
+      place();
+      var watch = 'MutationObserver' in window ? new MutationObserver(place) : null;
+      if (watch) watch.observe(document.body, { attributes: true, attributeFilter: ['class'], childList: true, subtree: false });
+      window.addEventListener('resize', place);
       function say(s) {
         status.textContent = s;
         status.hidden = false;
@@ -712,6 +726,9 @@
       var check2 = lazyTurnstile(form, check, { sitekey: sitekey, appearance: 'interaction-only', ready: function () { status.hidden = true; } });
       function hide() {
         document.removeEventListener('keydown', onKey);
+        window.removeEventListener('resize', place);
+        if (watch) watch.disconnect();
+        if (resize) resize.disconnect();
         if (box.parentNode) box.parentNode.removeChild(box);
       }
       function onKey(ev) { if (ev.key === 'Escape' || ev.key === 'Esc') hide(); }
