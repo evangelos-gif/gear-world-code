@@ -427,15 +427,24 @@ export async function planLegacyImport({ archive, retailer, outDir, now = new Da
   // rules.RULES.maxPerSubcategory (lessons L164): a marketplace with a huge catalogue (TEMU US, 169,875 products) gives
   // each subcategory of a site at most this many cards, so it adds variety without burying the other shops. Which ones
   // stay is fixed by the product id (the same ones at every refresh), not by price or by the feed's order.
-  if (R.maxPerSubcategory > 0) for (const s of R.sites) {
+  // rules.RULES.maxPerSubcategoryIn (17 Nov 2026, lessons L183): a smaller limit for the subcategories of some categories
+  // of the site ({ 'Home Decor': 60 }), so a big shop never takes a category of an older site over its 20,000 (Westwing on
+  // HGW: its 5 countries would have taken "Home Decor" from 14,780 to ~29,400). The other categories keep maxPerSubcategory.
+  const capIn = R.maxPerSubcategoryIn || {};
+  const capOf = cat => (Number(capIn[cat]) > 0 ? Number(capIn[cat]) : R.maxPerSubcategory);
+  if (R.maxPerSubcategory > 0 || Object.keys(capIn).length) for (const s of R.sites) {
     const groups = new Map();
     for (const p of accepted[s]) { const k = `${p.site_category}|${p.subcategory}`; if (!groups.has(k)) groups.set(k, []); groups.get(k).push(p); }
     const keep = new Set();
+    const capFor = new Map();
     for (const list of groups.values()) {
+      const cap = capOf(list[0].site_category);
+      if (!(cap > 0)) { for (const p of list) keep.add(p); continue; }
       list.sort((a, b) => stableRank(a.awin_product_id) - stableRank(b.awin_product_id) || String(a.awin_product_id).localeCompare(String(b.awin_product_id)));
-      for (const p of list.slice(0, R.maxPerSubcategory)) keep.add(p);
+      for (const p of list.slice(0, cap)) keep.add(p);
+      for (const p of list) capFor.set(p, cap);
     }
-    for (const p of accepted[s]) if (!keep.has(p)) reject({ name: p.feed_product_name, feedCategory: p.merchant_category, price: p.price }, `over the ${R.maxPerSubcategory} cards per subcategory kept from this shop`);
+    for (const p of accepted[s]) if (!keep.has(p)) reject({ name: p.feed_product_name, feedCategory: p.merchant_category, price: p.price }, `over the ${capFor.get(p)} cards per subcategory kept from this shop`);
     accepted[s] = accepted[s].filter(p => keep.has(p));
   }
   mkdirSync(outDir, { recursive: true });

@@ -114,7 +114,11 @@ export function westwingRules(code) {
     minPrice: 5,
     maxPrice: 5000,
     // One shop must not fill a whole subcategory of the site (lessons L161: a limit per subcategory).
-    maxPerSubcategory: 400
+    maxPerSubcategory: 400,
+    // HGW's "Home Decor" had 14,780 and "Furniture" 11,012 after the ALL IMPORTS of 17 Nov 2026; the 5 Westwing shops
+    // together would have added ~14,600 and ~8,600 (rule of the older sites: at most 20,000 per category). With these limits
+    // per subcategory, in each of the 5 countries: ~3,100 and ~5,000, so ~17,900 and ~16,000 (lessons L183).
+    maxPerSubcategoryIn: { 'Home Decor': 60, Furniture: 150 }
   };
   const field = daisyconField(`https://www.${S.domain}/`);
   const displayName = name => String(name || '').replace(/\s{2,}/g, ' ').trim();
