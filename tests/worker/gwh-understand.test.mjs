@@ -120,7 +120,11 @@ test('L180 rules: the product, the price limit and who it is for, in 11 language
     ['telefon de la 500 pana la 1000 lei', 'telefon', 1000, 500, 'RON', null],
     ['gifts for under £20', 'gifts', 20, null, 'GBP', null],
     ['running shoes for my son for under £50', 'running shoes', 50, null, 'GBP', 'kgw'],
-    ['gift for mum', 'gift', null, null, null, 'wgw']
+    ['gift for mum', 'gift', null, null, null, 'wgw'],
+    // Round 3:
+    ['pantofi de la 100 la 200 lei', 'pantofi', 200, 100, 'RON', null],
+    ['find my phone case', 'phone case', null, null, null, null],
+    ['i want my little pony', 'my little pony', null, null, null, null]
   ];
   for (const [q, item, max, min, currency, site] of cases) {
     const u = understandQuery(q);
@@ -141,7 +145,8 @@ test('L180 rules: what is not a sentence stays exactly as typed (brands, sizes, 
     'toys for under 5', 'gift for over 60', 'uno cards', 'o ring', "O'Neill wetsuit", 'cos dress', 'Cheap Monday', 'dua lipa',
     'apple iphone 15 pro max 256gb natural titanium', 'Für Sie magazine',
     'zabawki od 3 do 5', 'ink for brother printer', 'toner for brother', "gift for mother's day", 'for sister act dvd', 'a to z map',
-    'a frame sign', 'schuhe größe 38 bis 42', 'need for speed', 'father christmas costume', 'size 8 to 10 trainers']) {
+    'a frame sign', 'schuhe größe 38 bis 42', 'need for speed', 'father christmas costume', 'size 8 to 10 trainers',
+    'monitor 24 do 27', 'rower 20 do 26', 'buty 38 do 42', 'under 18 hoodie']) {
     const u = understandQuery(q);
     assert.equal(u.changed, false, q);
     assert.equal(u.item, q.replace(/\s+/g, ' ').trim(), q);
@@ -309,7 +314,7 @@ test('L180 search: at most 8 per site from a wide limit; a product without a cur
     const env = { gear_world_registry: makeDb() };
     const r = await hub.fetch(new Request(`https://gearworldhub.com/api/search?q=${encodeURIComponent('tablet do 600 zł')}&country=PL`, { headers: { 'User-Agent': BROWSER } }), env, {});
     const d = await r.json();
-    assert.ok(fake.asked.filter(a => a.path === '/api/products').every(a => a.max === '600'), 'the złoty has the biggest numbers');
+    assert.ok(fake.asked.filter(a => a.path === '/api/products').every(a => a.max === '600' && a.limit === '24'), 'the złoty has the biggest numbers; 24 asked');
     assert.deepEqual(d.results.map(x => x.id).sort(), [3, 4], '300 zł and £100 (525 zł) are under 600 zł');
   } finally {
     globalThis.fetch = saved;

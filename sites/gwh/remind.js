@@ -9,16 +9,27 @@
 //   A failure leaves the row 'pending' for the cron (every 10 minutes), like mailerlite.js.
 // - Up to three products per address: the three most recent (a product chosen again moves to the top).
 // - No confirmation email (owner, 17 Nov 2026): the unticked box and Turnstile, like "Get deal updates".
-// - Open until the end of 27 Nov 2026 in London (GMT). GET https://hub.internal/internal/remind tells the sites whether
-//   the list is open (so their box shows only when this code and its table are live). From 28 Nov 2026 12:00 UTC the
-//   cron deletes every row (the privacy policies say the list is deleted on 28 Nov); the MailerLite group is cleared by
-//   the email chat with the owner's approval.
-import { checkToken, SITE_DOMAINS, SITE_ACTION } from "./security.js";
-import { dailySignupGate, validEmail, mailerLiteRequest, MAX_ATTEMPTS, RETRY_BATCH } from "./mailerlite.js";
+// - Open until 27 Nov 2026 06:00 in London (GMT): the email chat makes the drafts of the 27 Nov email at 06:41, so
+//   nobody is told "we will email you on 27 Nov" after the list for that email was made (independent review, 17 Nov).
+//   GET https://hub.internal/internal/remind tells the sites whether the list is open (so their box shows only when
+//   this code and its table are live). From 28 Nov 2026 12:00 UTC the cron deletes every row (the privacy policies say
+//   the list is deleted on 28 Nov); in MailerLite the email chat clears the group and the remind_* fields on 28 Nov
+//   with the owner's approval.
+// - The MailerLite free plan (250 subscribers in all): at most REMIND_DAILY_LIMIT new reminders a day (its own counter,
+//   so reminders never take the weekly sign-ups' places) and at most REMIND_MAX_ROWS addresses on the list.
+import { checkToken, SITE_DOMAINS, SITE_ACTION, takeNetworkSlot, readLimit } from "./security.js";
+import { validEmail, mailerLiteRequest, MAX_ATTEMPTS, RETRY_BATCH } from "./mailerlite.js";
 import { memberSlot } from "./members.js";
 
 export const REMIND_GROUP = "Gear World Remind me 27 Nov";
-export const REMIND_UNTIL = Date.parse("2026-11-27T23:59:59Z");
+export const REMIND_UNTIL_ISO = "2026-11-27T06:00:00Z";
+export const REMIND_UNTIL = Date.parse(REMIND_UNTIL_ISO);
+export const DEFAULT_REMIND_DAILY_LIMIT = 40;
+export const REMIND_MAX_ROWS = 150;
+// The fields the email chat made in MailerLite (17 Nov 2026). MailerLite ignores a field it does not know, so they are
+// checked before a row counts as sent.
+export const REMIND_FIELDS = ["remind_name_1", "remind_name_2", "remind_name_3", "remind_url_1", "remind_url_2", "remind_url_3",
+  "remind_site_1", "remind_site_2", "remind_site_3", "remind_signup_date"];
 export const REMIND_DELETE_FROM = Date.parse("2026-11-28T12:00:00Z");
 export const REMIND_CONSENT_VERSION = "2026-11-19-remind";
 export const REMIND_ITEMS = 3;
@@ -65,7 +76,7 @@ async function tableReady(db, now) {
   tableSeen = { at: now, ok };
   return ok;
 }
-export function resetRemindCache() { tableSeen = { at: -Infinity, ok: false }; groupCache.id = ""; }
+export function resetRemindCache() { tableSeen = { at: -Infinity, ok: false }; groupCache.id = ""; groupCache.fields = false; }
 
 export async function remindOpen(env, now = Date.now()) {
   const db = env && env.gear_world_registry;
@@ -74,7 +85,7 @@ export async function remindOpen(env, now = Date.now()) {
 
 // GET and POST https://hub.internal/internal/remind (members.js sends them here).
 export async function handleRemind(request, env, ctx, { now = Date.now(), sync = syncRemind, verify } = {}) {
-  if (request.method === "GET") return json({ ok: true, open: await remindOpen(env, now), until: "2026-11-27T23:59:59Z" });
+  if (request.method === "GET") return json({ ok: true, open: await remindOpen(env, now), until: REMIND_UNTIL_ISO });
   if (request.method !== "POST") return json({ ok: false, error: "not_found" }, 404);
   const db = env && env.gear_world_registry;
   if (!db) return json({ ok: false, error: "no_database" }, 503);
@@ -100,9 +111,14 @@ export async function handleRemind(request, env, ctx, { now = Date.now(), sync =
   if (!(await tableReady(db, now))) return json({ ok: false, error: "closed" }, 410);
   try {
     if (!(await memberSlot(db, `remind:${site}:${key}`, now))) return json({ ok: false, error: "too_many" }, 429);
-    const full = await dailySignupGate(db, new Date(now), env);
-    if (full) return full;
     const row = await db.prepare("SELECT items FROM remind_signups WHERE email = ?").bind(email).first();
+    if (!row) {
+      // A new address: the list's own size and daily limits (the MailerLite free plan, 250 subscribers in all).
+      const count = await db.prepare("SELECT COUNT(*) AS n FROM remind_signups").first();
+      if (Number((count && count.n) || 0) >= REMIND_MAX_ROWS) return json({ ok: false, error: "closed" }, 410);
+      const limit = readLimit(env.REMIND_DAILY_LIMIT, DEFAULT_REMIND_DAILY_LIMIT, 100000);
+      if (!(await takeNetworkSlot(db, new Date(now), "remind", limit))) return json({ ok: false, error: "limit_day" }, 429);
+    }
     const items = mergeItems(row && row.items, item, new Date(now).toISOString().slice(0, 10));
     await db.prepare(`INSERT INTO remind_signups (email, items, consent_version, ml_status, ml_attempts, ml_error)
       VALUES (?, ?, ?, 'pending', 0, NULL)
@@ -132,7 +148,16 @@ export function remindFields(items, updatedAt) {
 }
 
 // The group is looked up by its name, once per Worker; never made here (the email chat made it, 17 Nov 2026).
-const groupCache = { id: "" };
+const groupCache = { id: "", fields: false };
+async function remindFieldsReady(env, fetchImpl) {
+  if (groupCache.fields) return;
+  const r = await mailerLiteRequest(env, "GET", "/fields?limit=100&filter[keyword]=remind", null, fetchImpl);
+  if (r.status !== 200) throw new Error(`fields ${r.status}`);
+  const have = new Set(((r.data && r.data.data) || []).map(f => f && f.key));
+  const missing = REMIND_FIELDS.filter(k => !have.has(k));
+  if (missing.length) throw new Error(`MailerLite fields missing: ${missing.join(", ")}`);
+  groupCache.fields = true;
+}
 async function remindGroup(env, fetchImpl) {
   if (groupCache.id) return groupCache.id;
   const r = await mailerLiteRequest(env, "GET", `/groups?limit=100&filter[name]=${encodeURIComponent(REMIND_GROUP)}`, null, fetchImpl);
@@ -155,23 +180,25 @@ export async function syncRemind(env, email, fetchImpl) {
   let note = "";
   try {
     const groupId = await remindGroup(env, fetchImpl);
+    await remindFieldsReady(env, fetchImpl);
     // No status: a new address is added, an unsubscribed one is refused (422) and stays unsubscribed.
     const r = await mailerLiteRequest(env, "POST", "/subscribers", { email: row.email, fields: remindFields(items, row.updated_at), groups: [groupId] }, fetchImpl);
     if (r.status === 200 || r.status === 201) outcome = "synced";
     else if (r.status === 422) { outcome = "failed"; note = "mailerlite 422 (address refused or unsubscribed)"; }
     else note = `mailerlite ${r.status}`;
-    if (r.status === 401 || r.status === 403 || r.status === 404) groupCache.id = "";
+    if (r.status === 401 || r.status === 403 || r.status === 404) { groupCache.id = ""; groupCache.fields = false; }
   } catch (error) {
     note = String((error && error.message) || error || "network").slice(0, 120);
   }
+  // Only the row that was sent: a newer request in the meantime (updated_at changed) stays 'pending' for the cron.
   if (outcome === "synced") {
-    await db.prepare("UPDATE remind_signups SET ml_status = 'synced', ml_synced_at = CURRENT_TIMESTAMP, ml_error = NULL WHERE email = ? AND ml_status = 'pending'").bind(email).run();
+    await db.prepare("UPDATE remind_signups SET ml_status = 'synced', ml_synced_at = CURRENT_TIMESTAMP, ml_error = NULL WHERE email = ? AND ml_status = 'pending' AND updated_at = ?").bind(email, row.updated_at).run();
     return "synced";
   }
   const attempts = Number(row.ml_attempts || 0) + 1;
   if (outcome !== "failed" && attempts >= MAX_ATTEMPTS) outcome = "failed";
-  await db.prepare("UPDATE remind_signups SET ml_status = ?, ml_attempts = ?, ml_error = ? WHERE email = ? AND ml_status = 'pending'")
-    .bind(outcome === "failed" ? "failed" : "pending", attempts, note.replace(/[^\s@]+@[^\s@]+/g, "[email]"), email).run();
+  await db.prepare("UPDATE remind_signups SET ml_status = ?, ml_attempts = ?, ml_error = ? WHERE email = ? AND ml_status = 'pending' AND updated_at = ?")
+    .bind(outcome === "failed" ? "failed" : "pending", attempts, note.replace(/[^\s@]+@[^\s@]+/g, "[email]"), email, row.updated_at).run();
   return outcome;
 }
 

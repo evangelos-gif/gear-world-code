@@ -8,7 +8,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { DatabaseSync } from 'node:sqlite';
 import hub from '../../sites/gwh/worker.js';
-import { handleRemind, syncRemind, remindCron, remindItem, mergeItems, remindFields, resetRemindCache, REMIND_GROUP, REMIND_UNTIL, REMIND_DELETE_FROM, SITE_NAMES } from '../../sites/gwh/remind.js';
+import { handleRemind, syncRemind, remindCron, remindItem, mergeItems, remindFields, resetRemindCache, REMIND_GROUP, REMIND_UNTIL, REMIND_DELETE_FROM, REMIND_FIELDS, REMIND_MAX_ROWS, SITE_NAMES } from '../../sites/gwh/remind.js';
 import { handleInternal } from '../../sites/gwh/members.js';
 import { handleSubscribe, GROUP_NAME } from '../../sites/gwh/mailerlite.js';
 import { SITE_DOMAINS, TURNSTILE_VERIFY_URL } from '../../sites/gwh/security.js';
@@ -40,7 +40,7 @@ function registry({ remind = true } = {}) {
   return { sql, prepare: text => stmt(text) };
 }
 
-function fakeMailerLite({ subscribeStatus = 201, groups = [{ id: '1700', name: GROUP_NAME }, { id: '2800', name: REMIND_GROUP }] } = {}) {
+function fakeMailerLite({ subscribeStatus = 201, groups = [{ id: '1700', name: GROUP_NAME }, { id: '2800', name: REMIND_GROUP }], fields = REMIND_FIELDS } = {}) {
   const calls = [];
   const impl = async (url, init = {}) => {
     const u = new URL(url);
@@ -48,6 +48,7 @@ function fakeMailerLite({ subscribeStatus = 201, groups = [{ id: '1700', name: G
     calls.push({ method: init.method, path: u.pathname, query: u.search, body });
     const json = (status, data) => new Response(JSON.stringify(data), { status, headers: { 'Content-Type': 'application/json' } });
     if (u.pathname === '/api/groups' && init.method === 'GET') return json(200, { data: groups });
+    if (u.pathname === '/api/fields' && init.method === 'GET') return json(200, { data: fields.map((key, i) => ({ id: i + 1, key, name: key })) });
     if (u.pathname === '/api/subscribers' && init.method === 'POST') return json(subscribeStatus, subscribeStatus < 300 ? { data: { id: '55' } } : { message: 'refused' });
     if (u.pathname === '/api/groups' && init.method === 'POST') return json(201, { data: { id: '9999' } });
     return json(404, {});
@@ -60,11 +61,11 @@ const body = (o = {}) => ({ email: 'Rem@Example.com', consent: true, site: 'cgw'
 const post = b => new Request('https://hub.internal/internal/remind', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(b) });
 const row = (db, email) => db.sql.prepare('SELECT * FROM remind_signups WHERE email = ?').get(email);
 
-test('GET: open while the table exists and until the end of 27 Nov (London); the sites get it through hub.internal only', async () => {
+test('GET: open while the table exists and until 27 Nov 06:00 (London, before the drafts of 06:41); the sites get it through hub.internal only', async () => {
   resetRemindCache();
   const env = { gear_world_registry: registry(), ...TS };
   const open = await (await handleRemind(new Request('https://hub.internal/internal/remind'), env, null, { now: NOW })).json();
-  assert.deepEqual(open, { ok: true, open: true, until: '2026-11-27T23:59:59Z' });
+  assert.deepEqual(open, { ok: true, open: true, until: '2026-11-27T06:00:00Z' });
   assert.equal((await (await handleRemind(new Request('https://hub.internal/internal/remind'), env, null, { now: REMIND_UNTIL + 1 })).json()).open, false);
   resetRemindCache();
   const before = { gear_world_registry: registry({ remind: false }), ...TS };
@@ -204,7 +205,8 @@ test('the site names match the 13 site configs; the sites\' and the Hub\'s dates
     assert.ok(cfg.includes(`name: '${name.replace(/'/g, "\\'")}'`) || cfg.includes(`name: "${name}"`), `${code}: ${name}`);
   }
   assert.deepEqual(Object.keys(SITE_NAMES).sort(), Object.keys(SITE_DOMAINS).sort());
-  assert.equal(REMIND_UNTIL, Date.parse('2026-11-27T23:59:59Z'));
+  // The same moment as the sites' src/lib/remind.js (REMIND_UNTIL_ISO), before the 27 Nov drafts of 06:41.
+  assert.equal(REMIND_UNTIL, Date.parse('2026-11-27T06:00:00Z'));
   assert.equal(REMIND_DELETE_FROM, Date.parse('2026-11-28T12:00:00Z'));
 });
 
@@ -249,4 +251,33 @@ test('the Hub release tool takes remind.js with the other server files (worker.j
   const ps = readFileSync('tools/gwh-hub-v2.ps1', 'utf8');
   assert.match(ps, /\$newFiles = @\([^)]*'remind\.js'\)/);
   assert.match(readFileSync('sites/gwh/worker.js', 'utf8'), /from "\.\/remind\.js"/);
+});
+
+test('MailerLite: a missing remind_* field keeps the row pending (MailerLite would drop the value silently)', async () => {
+  resetRemindCache();
+  const db = registry();
+  const env = { gear_world_registry: db, MAILERLITE_API_KEY: KEY, ...TS };
+  const ml = fakeMailerLite({ fields: REMIND_FIELDS.filter(f => f !== 'remind_url_2') });
+  await handleRemind(post(body({ email: 'f@example.com' })), env, null, { now: NOW, sync: (e, m) => syncRemind(e, m, ml.impl) });
+  assert.equal(row(db, 'f@example.com').ml_status, 'pending');
+  assert.match(row(db, 'f@example.com').ml_error, /remind_url_2/);
+  assert.ok(!ml.calls.some(c => c.path === '/api/subscribers'), 'nothing sent without every field');
+});
+
+test('limits for the MailerLite free plan: a daily count of its own for new addresses and at most REMIND_MAX_ROWS on the list', async () => {
+  resetRemindCache();
+  const db = registry();
+  const env = { gear_world_registry: db, ...TS, REMIND_DAILY_LIMIT: '2' };
+  const send = async (email, client) => (await handleRemind(post(body({ email, client: client.repeat(32) })), env, null, { now: NOW, sync: async () => 'pending' })).status;
+  assert.equal(await send('a1@example.com', 'a'), 200);
+  assert.equal(await send('a2@example.com', 'b'), 200);
+  assert.equal(await send('a3@example.com', 'c'), 429, 'the third new address of the day');
+  assert.equal(await send('a1@example.com', 'd'), 200, 'an address already on the list may change its products');
+  // The weekly sign-ups keep their own places: nothing of the "subscribe" count was used.
+  assert.equal(db.sql.prepare("SELECT COUNT(*) AS n FROM subscribe_usage WHERE visitor = 'network:subscribe'").get().n, 0);
+  assert.equal(db.sql.prepare("SELECT count FROM subscribe_usage WHERE visitor = 'network:remind'").get().count, 2);
+  for (let i = 0; i < REMIND_MAX_ROWS; i++) db.sql.prepare("INSERT OR IGNORE INTO remind_signups (email, items, consent_version) VALUES (?, '[]', 'x')").run(`fill${i}@example.com`);
+  const big = { ...env, REMIND_DAILY_LIMIT: '1000' };
+  const r = await handleRemind(post(body({ email: 'late@example.com', client: 'e'.repeat(32) })), big, null, { now: NOW, sync: async () => 'pending' });
+  assert.equal(r.status, 410);
 });

@@ -19,7 +19,6 @@
       waitCheck: "Please wait for the security check to finish, then try again.",
       checkFailed: "The security check did not work. Please reload the page and try again.",
       full: "Sign-ups are full for today. Please try again tomorrow.",
-      popupText: "Get our weekly email: prices we've checked and the stores' codes.",
       close: "Close"
     },
 
@@ -40,7 +39,6 @@
       waitCheck: "Περιμένετε να ολοκληρωθεί ο έλεγχος ασφαλείας και δοκιμάστε ξανά.",
       checkFailed: "Ο έλεγχος ασφαλείας απέτυχε. Ανανεώστε τη σελίδα και δοκιμάστε ξανά.",
       full: "Οι εγγραφές για σήμερα συμπληρώθηκαν. Δοκιμάστε ξανά αύριο.",
-      popupText: "Λάβετε το εβδομαδιαίο email μας: τιμές που έχουμε ελέγξει και τους κωδικούς των καταστημάτων.",
       close: "Κλείσιμο"
     },
 
@@ -61,7 +59,6 @@
       waitCheck: "Bitte warten Sie, bis die Sicherheitsprüfung abgeschlossen ist, und versuchen Sie es dann erneut.",
       checkFailed: "Die Sicherheitsprüfung ist fehlgeschlagen. Bitte laden Sie die Seite neu und versuchen Sie es erneut.",
       full: "Für heute sind keine Anmeldungen mehr möglich. Bitte versuchen Sie es morgen erneut.",
-      popupText: "Unsere wöchentliche E-Mail: von uns geprüfte Preise und die Codes der Händler.",
       close: "Schließen"
     },
 
@@ -82,7 +79,6 @@
       waitCheck: "Veuillez attendre la fin de la vérification de sécurité, puis réessayer.",
       checkFailed: "La vérification de sécurité a échoué. Veuillez recharger la page et réessayer.",
       full: "Les inscriptions sont complètes pour aujourd'hui. Veuillez réessayer demain.",
-      popupText: "Recevez notre e-mail hebdomadaire : des prix que nous avons vérifiés et les codes des marchands.",
       close: "Fermer"
     },
 
@@ -103,7 +99,6 @@
       waitCheck: "Attendi la fine del controllo di sicurezza, poi riprova.",
       checkFailed: "Il controllo di sicurezza non è riuscito. Ricarica la pagina e riprova.",
       full: "Le iscrizioni di oggi sono esaurite. Riprova domani.",
-      popupText: "Ricevi la nostra email settimanale: prezzi che abbiamo controllato e i codici dei negozi.",
       close: "Chiudi"
     },
 
@@ -124,7 +119,6 @@
       waitCheck: "Espera a que termine la comprobación de seguridad y vuelve a intentarlo.",
       checkFailed: "La comprobación de seguridad ha fallado. Recarga la página e inténtalo de nuevo.",
       full: "Las inscripciones de hoy están completas. Inténtalo de nuevo mañana.",
-      popupText: "Recibe nuestro correo semanal: precios que hemos comprobado y los códigos de las tiendas.",
       close: "Cerrar"
     },
 
@@ -145,7 +139,6 @@
       waitCheck: "Aguarde até a verificação de segurança terminar e tente novamente.",
       checkFailed: "A verificação de segurança falhou. Recarregue a página e tente novamente.",
       full: "As inscrições de hoje estão completas. Tente novamente amanhã.",
-      popupText: "Receba o nosso email semanal: preços que verificámos e os códigos das lojas.",
       close: "Fechar"
     },
 
@@ -166,7 +159,6 @@
       waitCheck: "Wacht tot de beveiligingscontrole klaar is en probeer het opnieuw.",
       checkFailed: "De beveiligingscontrole is mislukt. Laad de pagina opnieuw en probeer het nog eens.",
       full: "De aanmeldingen voor vandaag zijn vol. Probeer het morgen opnieuw.",
-      popupText: "Ontvang onze wekelijkse e-mail: prijzen die we hebben gecontroleerd en de codes van de winkels.",
       close: "Sluiten"
     },
 
@@ -187,7 +179,6 @@
       waitCheck: "Prisni që të përfundojë kontrolli i sigurisë dhe provoni përsëri.",
       checkFailed: "Kontrolli i sigurisë dështoi. Ringarkoni faqen dhe provoni përsëri.",
       full: "Regjistrimet për sot janë plotësuar. Provoni përsëri nesër.",
-      popupText: "Merrni email-in tonë javor: çmime që kemi kontrolluar dhe kodet e dyqaneve.",
       close: "Mbyll"
     },
 
@@ -208,7 +199,6 @@
       waitCheck: "Așteptați să se termine verificarea de securitate, apoi încercați din nou.",
       checkFailed: "Verificarea de securitate a eșuat. Reîncărcați pagina și încercați din nou.",
       full: "Înscrierile pentru astăzi s-au încheiat. Încercați din nou mâine.",
-      popupText: "Primește emailul nostru săptămânal: prețuri pe care le-am verificat și codurile magazinelor.",
       close: "Închide"
     },
 
@@ -229,7 +219,6 @@
       waitCheck: "Дождитесь окончания проверки безопасности и попробуйте ещё раз.",
       checkFailed: "Проверка безопасности не пройдена. Обновите страницу и попробуйте ещё раз.",
       full: "На сегодня запись закрыта. Попробуйте ещё раз завтра.",
-      popupText: "Получайте наше еженедельное письмо: проверенные нами цены и коды магазинов.",
       close: "Закрыть"
     }
   };
@@ -472,7 +461,8 @@
   }
 
   // ---------------- GWH-POPUP: the small sign-up window (lessons L182) ----------------
-  // The weekly email of the box above (same /api/subscribe, same consent text and version, same Turnstile check), offered
+  // The weekly email of the box above (same /api/subscribe, the box's own title and consent text and version, same
+  // Turnstile check; not "prices we've checked", which L107 took out of the Hub's box), offered
   // once in a small box at the bottom of the screen of the home page. Made only by this script after the page has
   // loaded (search engines never see it), and only: after the visitor has answered the cookie banner; after 30 seconds or
   // half-way down the page, whichever comes first; at most once a month (only the date is kept, gwh_popup_date); never
@@ -538,8 +528,8 @@
       try { localStorage.setItem(POPUP_DATE, new Date().toISOString().slice(0, 10)); } catch (_) { /* private mode */ }
       const t = copy();
       const box = el("section", "gwh-pop");
-      box.setAttribute("role", "dialog");
-      box.setAttribute("aria-modal", "false");
+      // A labelled region (a landmark), not a dialog: it never takes the focus.
+      box.setAttribute("role", "region");
       box.setAttribute("aria-labelledby", "gwhPopText");
       const close = el("button", "gwh-pop-close");
       close.type = "button";
@@ -547,7 +537,7 @@
       const x = el("span", "", "×");
       x.setAttribute("aria-hidden", "true");
       close.appendChild(x);
-      const text = el("p", "gwh-pop-text", t.popupText);
+      const text = el("p", "gwh-pop-text", t.title);
       text.id = "gwhPopText";
       const popForm = el("form", "gwh-pop-form");
       const label = el("label", "gwh-pop-hidden", t.emailLabel);
@@ -584,7 +574,11 @@
       box.appendChild(popForm);
       box.appendChild(note);
       document.body.appendChild(box);
-      const say = (s) => { note.textContent = s; note.hidden = false; };
+      const say = (s) => {
+        note.textContent = s;
+        note.hidden = false;
+        try { note.scrollIntoView({ block: "nearest" }); } catch (_) { /* old browser */ }
+      };
       let state = "idle";
       let widget = null;
       function load() {

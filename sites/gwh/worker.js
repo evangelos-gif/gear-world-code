@@ -285,13 +285,15 @@ const hubCore = {
         const written = fx && fx[understood.currency];
         if (written) {
           // The currencies the products of this visitor's view can have: pounds, euros and dollars, and the visitor's
-          // own (złoty in Poland, lei in Romania). The sites compare numbers, so they are asked up to the limit in the
-          // currency with the biggest numbers, for 24 products, and the Hub keeps the first 8 that really fit.
+          // own (złoty in Poland, lei in Romania: the Polish view of the sites is priced in złoty). The sites compare
+          // numbers, so they are asked up to the limit in the currency with the biggest numbers, always for 24 products,
+          // and the Hub keeps the first 8 per site that really fit (live HGW /api/fx has PLN and USD: sites-lang
+          // sites/hgw/site.config.js foreignCurrencies; keep them there).
           const own = { PL: "PLN", RO: "RON" }[String(deliverTo || "").toUpperCase()];
           const pool = ["GBP", "EUR", "USD", own, understood.currency].filter(Boolean).map(code => fx[code]).filter(Boolean);
           if (maxPrice !== null) siteMax = Math.min(10000000, Math.ceil(maxPrice / written * Math.max(...pool)));
           if (minPrice !== null) siteMin = Math.max(0, Math.floor(minPrice / written * Math.min(...pool)));
-          if (siteMax !== maxPrice || siteMin !== minPrice) perSite = 24;
+          perSite = 24;
           understood.converted = true;
         } else {
           fx = null;
@@ -1064,7 +1066,7 @@ const UQ_MIN_CUR = ["over", "above", "more than", "at least", "min", "minimum", 
 const UQ_RANGE_FREE = ["between", "μεταξύ", "μεταξυ", "zwischen", "entre", "tra", "fra", "tussen", "între", "intre"];
 const UQ_RANGE_START = [...UQ_RANGE_FREE, "from", "από", "απο", "od", "von", "nga", "от", "de la", "de"];
 const UQ_RANGE_JOIN = ["-", "–", "—", "to", "and", "και", "έως", "εως", "μέχρι", "μεχρι", "do", "und", "bis", "et", "à", "a", "y", "e",
-  "até", "ate", "tot", "en", "și", "si", "până la", "pana la", "deri në", "deri", "до", "и"];
+  "até", "ate", "tot", "en", "și", "si", "până la", "pana la", "la", "deri në", "deri", "до", "и"];
 const uqWords = list => list.slice().sort((a, b) => b.length - a.length).map(w => uqEscape(w).replace(/ /g, "\\s+")).join("|");
 const UQ_B = "(?<![\\p{L}\\p{N}])";
 const UQ_E = "(?![\\p{L}\\p{N}])";
@@ -1117,8 +1119,9 @@ export function readPriceLimit(text) {
     const [, start, c1, n1, k1, c2, join, c3, n2, k2, c4] = m;
     const currency = uqCurrency(c1, c2, c3, c4);
     const a = uqNumber(n1, k1), b = uqNumber(n2, k2);
+    // Without a start word ("monitor 24 do 27", "buty 38 do 42") two numbers are sizes, not prices.
     const free = (start && UQ_RANGE_FREE_SET.has(start.toLowerCase().replace(/\s+/g, " "))) ||
-      (UQ_RANGE_JOIN_PRICE.has(String(join).toLowerCase().replace(/\s+/g, " ")) && b >= 20);
+      (start && UQ_RANGE_JOIN_PRICE.has(String(join).toLowerCase().replace(/\s+/g, " ")) && b >= 20);
     const refuse = () => refused.push([m.index, m.index + m[0].length]);
     if (a === null || b === null || a >= b || !(currency || free)) { refuse(); continue; }
     if (!currency && (uqUnitAfter(s, m.index + m[0].length) || UQ_FOR_BEFORE.test(s.slice(0, m.index)) || UQ_SIZE_BEFORE.test(s.slice(0, m.index)))) { refuse(); continue; }
@@ -1133,6 +1136,8 @@ export function readPriceLimit(text) {
     const needsCurrency = !(UQ_MAX_FREE_SET.has(w) || w.startsWith("<") || w.startsWith(">"));
     if (value === null || (needsCurrency && !currency)) continue;
     if (!currency && refused.some(([from, to]) => m.index >= from && m.index < to)) continue;
+    // "under 18 hoodie", "over 21": an age, not a price (without a currency).
+    if (!currency && [16, 18, 21].includes(value)) continue;
     if (!currency && (uqUnitAfter(s, m.index + m[0].length) || UQ_FOR_BEFORE.test(s.slice(0, m.index)) || UQ_SIZE_BEFORE.test(s.slice(0, m.index)))) continue;
     return { min: isMax ? null : value, max: isMax ? value : null, currency, rest: uqCut(s, m) };
   }
@@ -1240,7 +1245,7 @@ const UQ_PET_RE = new RegExp(`${UQ_B}(?:${uqWords(UQ_PET_LEAD)})\\s+(${uqWords(U
 const UQ_LEAD_RE = new RegExp(`^(?:${uqWords(UQ_LEAD)})${UQ_END}(?!\\s+for${UQ_E})\\s*`, "iu");
 const UQ_NEW_BRANDS = ["balance", "look", "era", "rock", "yorker", "line", "england", "forest"];
 const UQ_NEW_RE = new RegExp(`^(?:(?:${uqWords(UQ_ARTICLES)})\\s+)?(?:${uqWords(UQ_NEW)})${UQ_END}(?!\\s+(?:${uqWords(UQ_NEW_BRANDS)})${UQ_E})\\s*`, "iu");
-const UQ_ARTICLE_RE = new RegExp(`^(?:${uqWords(UQ_ARTICLES)})${UQ_END}\\s*`, "iu");
+const UQ_ARTICLE_RE = new RegExp(`^(?:${uqWords([...UQ_ARTICLES, "my", "μου"])})${UQ_END}(?!\\s+little${UQ_E})\\s*`, "iu");
 // Only "a", "an" and "some" go at the start of a search without a lead ("a drill please").
 const UQ_START_RE = new RegExp(`^(?:a|an|some|something|anything)${UQ_END}(?!\\s+(?:to|frame|line|z|level|list)${UQ_E})\\s*`, "iu");
 // "for" left at the end once a price or a person went ("toys for", "gift for").
