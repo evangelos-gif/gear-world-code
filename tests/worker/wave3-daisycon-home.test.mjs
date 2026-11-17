@@ -154,3 +154,24 @@ test('a whole dry run of La Redoute NL from a Daisycon file: placed, sizes joine
   assert.match(reasons, /a cover, sample, bathrobe or body care/);
   assert.match(reasons, /link is not the shop's own page/, 'a row of another programme never passes');
 });
+
+test('KidInn (Tradeinn, GBP): only what is for children, placed from Google\'s folders with the subcategories KGW has', async () => {
+  const k = await import('../../tools/import-rules/kidinn.mjs');
+  const kgw = (await import('../../sites/kgw/site.config.js')).default;
+  assert.equal(k.RULES.advertiserId, 20605);
+  assert.equal(k.RULES.currency, 'GBP');
+  assert.deepEqual(k.RULES.sites, ['kgw']);
+  assert.ok(!kgw.deliversTo.retailers.KidInn, 'pounds, ships to the UK: the default GB view');
+  assert.deepEqual(k.splitWho('Nici Fox Plush 25 cm Orange  Kids'), { name: 'Nici Fox Plush 25 cm Orange', who: 'Kids' });
+  const p = (name, c) => { const r = k.classify({ name, feedCategory: c }); return r.reject ? 'out' : `${r.siteCategory} > ${r.subcategory}${r.doubt ? ' (check)' : ''}`; };
+  assert.equal(p('Iello Lpfi749 Board Game Multicolor  Kids', 'Toys & Games|Games|Board Games'), 'Toys & Games > Board Games');
+  assert.equal(p('Nici Fox Plush 25 cm Orange  Kids', 'Toys & Games|Toys|Dolls, Playsets & Toy Figures|Stuffed Animals'), 'Toys & Games > Stuffed Animals & Cuddly Toys');
+  assert.equal(p('Funko Marvel Shang-chi Razor Fist Figure Multicolor  Kids', 'Toys & Games|Toys|Dolls, Playsets & Toy Figures'), 'Toys & Games > Action & Toy Figures',
+    'the general folder name holds dolls too, but is not a doll');
+  assert.equal(p('Fresk Swallow Mini Backpack Pink  Kids', 'Luggage & Bags|Backpacks'), 'School & Backpacks > Backpacks');
+  assert.equal(p('Atosa Pirate Costume Black 3-4 Years  Kids', 'Apparel & Accessories|Costumes & Accessories|Costumes'), 'Clothing > Fancy Dress');
+  assert.equal(p('Atosa Nurse Costume White M-L  Woman', 'Apparel & Accessories|Costumes & Accessories|Costumes'), 'out', 'an adult costume');
+  assert.equal(p('Ravensburger Puzzle 1000 Pieces Multicolor  Unisex', 'Toys & Games|Puzzles'), 'Toys & Games > Jigsaw Puzzles', 'Unisex only in a toy folder');
+  assert.equal(p('Oxford Binder 10 Units Multicolor  Unisex', 'Office Supplies|Filing'), 'out');
+  assert.equal(p('Depesche Color Cloud Lunch Box Pink  Kids', 'Home & Garden|Kitchen & Dining|Food Storage'), 'out', 'not sure: out');
+});
