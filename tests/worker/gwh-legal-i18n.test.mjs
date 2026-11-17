@@ -48,9 +48,9 @@ test('L176: every text of the dictionaries is on a legal page (or said by legal.
   for (const p of PAGES) {
     const h = read(`${p}/index.html`);
     assert.match(h, /<html lang="en" data-lg-i18n>/, p);
-    assert.match(h, /<script src="\/legal\/legal\.js\?v=20261117-lang1" defer><\/script>/, p);
+    assert.match(h, /<script src="\/legal\/legal\.js\?v=20261120-search1" defer><\/script>/, p);
   }
-  assert.match(legalJs, /var VERSION = "20261117-lang1";/, 'the dictionaries are asked with the same ?v= as the script');
+  assert.match(legalJs, /var VERSION = "20261120-search1";/, 'the dictionaries are asked with the same ?v= as the script (L180: the privacy sentence of 20/11/2026)');
   // The order of the language: the visitor's choice (English only with the mark of the menu), then the country.
   assert.match(legalJs, /LOCALES\.indexOf\(lang\) < 0 \|\| \(lang === "en-GB" && !chosen\)/);
   assert.match(legalJs, /document\.documentElement\.getAttribute\("data-country-lang"\)/);

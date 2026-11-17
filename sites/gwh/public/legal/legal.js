@@ -8,7 +8,7 @@
 (function () {
   "use strict";
   var LOCALES = ["en-GB", "el-GR", "de-DE", "fr-FR", "it-IT", "es-ES", "pt-PT", "nl-NL", "sq-AL", "ro-RO", "ru-RU"];
-  var VERSION = "20261117-lang1";
+  var VERSION = "20261120-search1";
   var NOTE = "This is a translation. If it differs from the English text, the English text applies.";
   var BLOCKS = ".lg-crumbs a, .lg-crumbs > span:last-child, .lg-prose h1, .lg-prose h2, .lg-prose p, .lg-prose li, " +
     ".lg-prose th, .lg-prose td > span, .lg-legal a, .lg-footer p";
