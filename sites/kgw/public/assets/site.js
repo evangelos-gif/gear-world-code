@@ -20,7 +20,7 @@
 
   // ---------- Language (lessons L24) ----------
   // The server writes English. A dictionary file per language maps the English text to the translation.
-  // Text inside translate="no" (product names, brands, retailers, legal pages) is left as it is.
+  // Text inside translate="no" (product names, brands, retailers) is left as it is; the legal pages are translated since L176.
   // Text with a changing part has data-i18n="View at {0}" and data-i18n-0="Joybuy".
   var lang = BASE_LANG;
   var dict = null;
@@ -144,7 +144,7 @@
   }
   // Lessons L162: a language in the address (?lang=pl-PL, the links of ads and posts) is kept like a choice in the menu.
   // Without a choice of their own, a visitor from a country with its own language on the site gets that language: the
-  // Worker names it on the page (data-country-lang, Poland only), never in a cached copy. Google reads English, as before.
+  // Worker names it on the page (data-country-lang, every country with a language of the site, L175), never in a cached copy. Google reads English, as before.
   function wantedLanguage() {
     var asked = '';
     try { asked = new URLSearchParams(window.location.search).get('lang') || ''; } catch (e) { asked = ''; }

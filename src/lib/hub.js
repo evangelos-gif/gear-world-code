@@ -5,7 +5,7 @@
 //
 // Tries, each only when the one before found no products:
 //   1. Gemma 4 (strong in many languages, Greek included; its "thinking" is switched off, or it uses up the answer),
-//   2. Llama 3.1 8B (the model the Hub's own search uses),
+//   2. Qwen 3.8 27B (a second opinion; until 17/11/2026 Llama 3.1 8B, which Cloudflare retires on 20/11/2026, L173),
 //   and for an answer of several words ("electric drill") also its last word ("drill").
 // Seen on 21 Oct 2026: the translation model M2M100 gave nonsense for single words ("Drilled", "Fellowship"),
 // so it is not used. A short search costs about 2 "neurons"; 10,000 neurons a day are free.
@@ -24,7 +24,8 @@
 const CANDIDATE = /^[A-Za-z0-9][A-Za-z0-9 \-+./&()']*$/;
 
 export const AI_MODEL = '@cf/google/gemma-4-26b-a4b-it';
-export const AI_MODEL_2 = '@cf/meta/llama-3.1-8b-instruct-fp8';
+// L173: @cf/meta/llama-3.1-8b-instruct-fp8 answers 404 model_not_found from 20/11/2026 (Cloudflare's retirement).
+export const AI_MODEL_2 = '@cf/qwen/qwen3.8-27b';
 export const AI_SLOT_URL = 'https://hub.internal/internal/ai-slot';
 export const TRANSLATE_CACHE_SECONDS = 86400;
 export const MIN_TERM = 4;
@@ -60,7 +61,8 @@ async function chat(env, model, term) {
     max_tokens: 32,
     temperature: 0
   };
-  if (model === AI_MODEL) input.chat_template_kwargs = { enable_thinking: false };
+  // Both models think first unless told not to, and would use up the 32 tokens on it.
+  input.chat_template_kwargs = { enable_thinking: false };
   return answerText(await env.AI.run(model, input));
 }
 

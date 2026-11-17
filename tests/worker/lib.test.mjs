@@ -132,8 +132,9 @@ test('search in other languages: Workers AI words are used, odd answers are not'
   const all = [];
   for await (const c of translationsFor(env3, 'τρυπάνι')) all.push(c);
   assert.deepEqual(all, ['electric drill', 'drill'], 'the last word is tried too; the same word is not tried twice');
-  assert.deepEqual(calls, [[AI_MODEL, false], [AI_MODEL_2, 'n/a']], 'Gemma without thinking, Llama as it is');
-  // Gemma used up its answer on thinking (no content): Llama is asked.
+  assert.deepEqual(calls, [[AI_MODEL, false], [AI_MODEL_2, false]], 'Gemma, then Qwen, both without thinking (L173)');
+  assert.equal(AI_MODEL_2, '@cf/qwen/qwen3.8-27b', 'not the Llama model Cloudflare retires on 20/11/2026');
+  // Gemma used up its answer on thinking (no content): the second model is asked.
   const empty = { AI: { run: async (model) => (model === AI_MODEL ? { choices: [{ message: { content: null } }] } : { response: 'saw' }) } };
   assert.equal(await hubTranslation(empty, 'πριόνι'), 'saw');
   assert.equal(await hubTranslation({ AI: { run: async () => ({ response: 'saw, hand saw, saw blade' }) } }, 'πριόνι'), 'saw', 'a list: the first words');
