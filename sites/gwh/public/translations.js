@@ -266,8 +266,13 @@
 
   let currentLocale = localStorage.getItem("gwh-language");
 
-  if (!LOCALES.includes(currentLocale)) {
-    currentLocale = "en-GB";
+  // Lessons L175: without a language of their own, the visitor gets the language of their country, which the Worker
+  // names on <html data-country-lang>; it is saved only when the visitor picks a language in the menu.
+  const chosenLocale = LOCALES.includes(currentLocale);
+  if (!chosenLocale) {
+    const root = document.documentElement;
+    const byCountry = root && root.getAttribute ? root.getAttribute("data-country-lang") : "";
+    currentLocale = LOCALES.includes(byCountry) ? byCountry : "en-GB";
   }
 
   const localeIndex = () => {
@@ -293,11 +298,11 @@
     if (el) el.textContent = tr(key);
   }
 
-  function applyLanguage(locale) {
+  function applyLanguage(locale, save = true) {
     if (!LOCALES.includes(locale)) locale = "en-GB";
 
     currentLocale = locale;
-    localStorage.setItem("gwh-language", locale);
+    if (save) localStorage.setItem("gwh-language", locale);
 
     document.documentElement.lang = locale;
 
@@ -524,7 +529,7 @@
     });
   }
 
-  applyLanguage(currentLocale);
+  applyLanguage(currentLocale, chosenLocale);
 })();
 
 /* GWH-COMPACT-V2-TRANSLATIONS-START */

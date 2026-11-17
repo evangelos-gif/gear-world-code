@@ -981,6 +981,66 @@ export async function withCountryBar(request, response) {
   return new Response(i < 0 ? text : text.slice(0, i) + COUNTRY_BAR + text.slice(i), { status: response.status, headers });
 }
 
+// GWH-COUNTRY-LANGUAGE (lessons L175, owner 17 Nov 2026: "every country opens in its own language", after Linkwise saw
+// the Hub and the sites in English from Greece): a visitor who has not chosen a language gets the home page in the
+// language of their country. The Worker names it on <html data-country-lang="el-GR">, on each answer and never on a
+// stored copy; translations.js uses it only when the visitor has no language of their own, and does not save it. The
+// same countries as the sites (src/engine.js COUNTRY_LANGUAGES), in the 11 languages of the Hub (no Polish on the Hub).
+// Belgium, Switzerland and Luxembourg take the first language of the browser that is one of theirs (English first keeps
+// English). Google's crawlers read English, as before.
+export const HUB_LOCALES = ["en-GB", "el-GR", "de-DE", "fr-FR", "it-IT", "es-ES", "pt-PT", "nl-NL", "sq-AL", "ro-RO", "ru-RU"];
+export const COUNTRY_LANGUAGES = {
+  PL: "pl-PL",
+  GR: "el-GR", CY: "el-GR",
+  DE: "de-DE", AT: "de-DE", LI: "de-DE",
+  FR: "fr-FR", MC: "fr-FR",
+  IT: "it-IT", SM: "it-IT", VA: "it-IT",
+  ES: "es-ES", MX: "es-ES", AR: "es-ES", CO: "es-ES", CL: "es-ES", PE: "es-ES", VE: "es-ES", EC: "es-ES", GT: "es-ES",
+  CU: "es-ES", BO: "es-ES", DO: "es-ES", HN: "es-ES", PY: "es-ES", SV: "es-ES", NI: "es-ES", CR: "es-ES", PA: "es-ES",
+  UY: "es-ES",
+  PT: "pt-PT", BR: "pt-PT", AO: "pt-PT", MZ: "pt-PT",
+  NL: "nl-NL", SR: "nl-NL",
+  AL: "sq-AL", XK: "sq-AL",
+  RO: "ro-RO", MD: "ro-RO",
+  RU: "ru-RU", BY: "ru-RU"
+};
+export const MULTI_LANGUAGE_COUNTRIES = { BE: ["nl-NL", "fr-FR", "de-DE"], CH: ["de-DE", "fr-FR", "it-IT"], LU: ["fr-FR", "de-DE"] };
+export function countryLanguage(country, acceptLanguage = "") {
+  const cc = String(country || "").toUpperCase();
+  const several = MULTI_LANGUAGE_COUNTRIES[cc];
+  if (several) {
+    for (const part of String(acceptLanguage || "").split(",")) {
+      const base = part.split(";")[0].trim().toLowerCase().split("-")[0];
+      if (!base || base === "*") continue;
+      if (base === "en") return "";
+      const code = several.find(c => c.split("-")[0] === base);
+      if (code) return HUB_LOCALES.includes(code) ? code : "";
+    }
+    return "";
+  }
+  const code = COUNTRY_LANGUAGES[cc] || "";
+  return code && HUB_LOCALES.includes(code) ? code : "";
+}
+export async function withCountryLanguage(request, response) {
+  if (request.method !== "GET") return response;
+  const path = new URL(request.url).pathname;
+  if (path !== "/" && path !== "/index.html") return response;
+  if (GOOGLE_CRAWLER.test(String(request.headers.get("User-Agent") || ""))) return response;
+  const code = countryLanguage(request.cf && request.cf.country, request.headers.get("Accept-Language"));
+  if (!code || code === "en-GB") return response;
+  if (!response || response.status !== 200 || !response.body || !/^text\/html/i.test(String(response.headers.get("Content-Type") || ""))) return response;
+  const headers = new Headers(response.headers);
+  headers.set("Cache-Control", "private, max-age=60");
+  headers.delete("Content-Length");
+  headers.delete("ETag");
+  if (typeof HTMLRewriter === "function") {
+    const out = new HTMLRewriter().on("html", { element(e) { e.setAttribute("data-country-lang", code); } }).transform(response);
+    return new Response(out.body, { status: response.status, headers });
+  }
+  const text = await response.text();
+  return new Response(text.replace(/<html\b/i, `<html data-country-lang="${code}"`), { status: response.status, headers });
+}
+
 // GWH-SITE-VERIFICATION (owner, 13 Nov 2026, lessons L119): Mitgo checks that gearworldhub.com is ours by the tag
 // <meta name="mitgo-verification" content="<code>"> between <head> and </head> of the home page. The code has the form of
 // a UUID, and UUIDs never go into the repo (CLAUDE.md), so it is the Worker secret MITGO_VERIFICATION (set by
@@ -1021,7 +1081,8 @@ export default {
     // GWH-SECURITY (F11, lessons L05, L06, L106): every answer of the Hub gets charset=utf-8 on text and, on HTML pages,
     // the full Content-Security-Policy in Report-Only mode. HSTS stays with the zone's own rule (F08).
     // GWH-SITE-VERIFICATION (L119): the Mitgo tag in the <head> of the home page when its secret is set.
-    return withHubHeaders(await withSiteVerification(request, env, await withCountryBar(request, await hubFetch(request, env, ctx))));
+    // GWH-COUNTRY-LANGUAGE (L175): the language of the visitor's country on <html> of the home page.
+    return withHubHeaders(await withSiteVerification(request, env, await withCountryLanguage(request, await withCountryBar(request, await hubFetch(request, env, ctx)))));
   },
   // GWH-MAILERLITE: the cron (wrangler.toml [triggers], every 10 minutes) sends sign-ups that are still 'pending'.
   async scheduled(controller, env, ctx) {

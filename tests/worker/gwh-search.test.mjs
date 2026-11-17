@@ -4,7 +4,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { DatabaseSync } from 'node:sqlite';
-import hub from '../../sites/gwh/worker.js';
+import hub, { countryLanguage, COUNTRY_LANGUAGES, MULTI_LANGUAGE_COUNTRIES, HUB_LOCALES } from '../../sites/gwh/worker.js';
 
 const SITES = [
   ['CGW', 'Construction Gear World', 'constructiongearworld.com'], ['MGW', "Men's Gear World", 'mensgearworld.com'],
@@ -331,7 +331,7 @@ test('home page: the Mitgo tag in the <head> only with its secret, only on the h
   for (const tool of ['gwh-hub-v2.ps1', 'gwh-mailerlite.ps1', 'gwh-photo.ps1', 'gwh-search-labels.ps1', 'poster-setup.ps1']) {
     const ps1 = fs.readFileSync(`tools/${tool}`, 'utf8');
     const rules = [...ps1.matchAll(/\$clean = \[regex\]::Replace\(\$clean, (?:'([^']+)'|"([^"]+)"), ''\)/g)].map(m => new RegExp(m[1] || m[2], 'g'));
-    assert.equal(rules.length, 3, `${tool}: the country bar, the Mitgo tag and the Impact tag (L150) are taken out`);
+    assert.equal(rules.length, 4, `${tool}: the country bar, the Mitgo tag, the Impact tag (L150) and the country language (L175) are taken out`);
     assert.equal(rules.reduce((s, rx) => s.replace(rx, ''), us), plainHtml, `${tool}: the US page without them is the file`);
   }
 });
@@ -383,4 +383,54 @@ test('L153: the Hub asks with badges=1 and passes on where each retailer deliver
   assert.match(win.GWH_deliveryHtml({ retailer: 'GRABO', delivers_to: ['WORLD'] }), /delivers to: Worldwide<\/div>$/);
   assert.equal(win.GWH_deliveryHtml({ retailer: 'Old', delivers_to: [] }), '');
   assert.equal(win.GWH_deliveryHtml({ retailer: '', delivers_to: ['GB'] }), '');
+});
+
+// Lessons L175 (owner, 17 Nov 2026: "every country opens in its own language"): the home page names the language of the
+// visitor's country on <html>; translations.js uses it only without a choice of the visitor's own, and never saves it.
+test('home page: the language of the visitor\'s country on <html>, added per answer; English and crawlers unchanged (L175)', async () => {
+  for (const [cc, code] of Object.entries(COUNTRY_LANGUAGES)) assert.equal(countryLanguage(cc), HUB_LOCALES.includes(code) ? code : '', cc);
+  assert.equal(countryLanguage('PL'), '', 'no Polish on the Hub (the sites have it)');
+  assert.equal(countryLanguage('GR'), 'el-GR');
+  assert.equal(countryLanguage('cy'), 'el-GR');
+  assert.equal(countryLanguage('BR'), 'pt-PT');
+  for (const cc of ['GB', 'IE', 'US', 'UA', 'TR', 'SE', '', null, undefined]) assert.equal(countryLanguage(cc), '', String(cc));
+  assert.deepEqual(Object.keys(MULTI_LANGUAGE_COUNTRIES).sort(), ['BE', 'CH', 'LU']);
+  assert.equal(countryLanguage('BE', 'fr-BE,fr;q=0.9'), 'fr-FR');
+  assert.equal(countryLanguage('BE', 'en-GB,nl;q=0.5'), '');
+  assert.equal(countryLanguage('CH', 'it-CH'), 'it-IT');
+  assert.equal(countryLanguage('LU', 'lb,de;q=0.7'), 'de-DE');
+  assert.equal(countryLanguage('BE', ''), '');
+
+  const page = '<!doctype html><html lang="en-GB"><body class="gwh2"><header class="site-header"><nav>menu</nav></header><main>search</main></body></html>';
+  const env = { ...makeEnv(), ASSETS: { fetch: async () => new Response(page, { headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'public, max-age=0, must-revalidate', ETag: '"x"' } }) } };
+  const home = async (country, headers = {}, path = '/') => {
+    const req = new Request(`https://gearworldhub.com${path}`, { headers: { 'User-Agent': 'Mozilla/5.0 test', ...headers } });
+    if (country !== undefined) Object.defineProperty(req, 'cf', { value: { country } });
+    return hub.fetch(req, env, { waitUntil: p => p });
+  };
+  const gr = await home('GR');
+  const grHtml = await gr.text();
+  assert.match(grHtml, /<html data-country-lang="el-GR" lang="en-GB">/);
+  assert.equal(gr.headers.get('Cache-Control'), 'private, max-age=60');
+  // The live check of tools/gwh-hub-v2.ps1 takes the mark out (with the bar) before it compares the page.
+  const ps1 = (await import('node:fs')).readFileSync('tools/gwh-hub-v2.ps1', 'utf8');
+  const strip = ps1.match(/\$clean = \[regex\]::Replace\(\$clean, ' data-country-lang="([^']+)"', ''\)/);
+  assert.ok(strip, 'the live check knows the mark');
+  const gbHtml = await (await home('GB')).text();
+  const cleaned = grHtml.replace(new RegExp(' data-country-lang="' + strip[1] + '"'), '').replace(/<div class="gwh2-country-bar"[\s\S]*?<\/div>/, '');
+  assert.equal(cleaned, gbHtml);
+  assert.ok(!gbHtml.includes('data-country-lang'), 'never for the UK');
+  assert.match(await (await home('BE', { 'Accept-Language': 'nl-BE' })).text(), /data-country-lang="nl-NL"/);
+  assert.ok(!(await (await home('PL')).text()).includes('data-country-lang'), 'Poland: no Polish on the Hub');
+  assert.ok(!(await (await home('GR', { 'User-Agent': 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)' })).text()).includes('data-country-lang'), 'Google reads English');
+  assert.ok(!(await (await home('GR', {}, '/about/')).text()).includes('data-country-lang'), 'the home page only');
+
+  // translations.js: the visitor's own choice first, then the country, then English; the country is never saved.
+  const js = (await import('node:fs')).readFileSync('sites/gwh/public/translations.js', 'utf8');
+  assert.match(js, /const chosenLocale = LOCALES\.includes\(currentLocale\);/);
+  assert.match(js, /const byCountry = root && root\.getAttribute \? root\.getAttribute\("data-country-lang"\) : "";/);
+  assert.match(js, /if \(save\) localStorage\.setItem\("gwh-language", locale\);/);
+  assert.match(js, /applyLanguage\(currentLocale, chosenLocale\);\n\}\)\(\);/);
+  assert.match(js, /applyLanguage\(event\.target\.value\);/, 'a choice in the menu is saved');
+  assert.deepEqual(HUB_LOCALES, JSON.parse(js.match(/const LOCALES = (\[[^\]]+\])/)[1].replace(/\s+/g, '')), 'the same 11 languages as translations.js');
 });
