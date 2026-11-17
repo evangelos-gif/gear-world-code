@@ -408,7 +408,9 @@ function findFeed(archives, fname) {
 // "looseFolders" (owner, 24 Oct 2026: as many as possible, if safe): catch-all folders such as PCHUB's "PC Components>
 // Other". A product there (and in no allowed folder) is taken only when its NAME alone says what tech product it is.
 const normBrand = b => String(b || '').toLowerCase().replace(/[^a-z0-9]+/g, '');
-const pathFolders = p => String(p || '').split('>').map(s => s.trim().toLowerCase()).filter(Boolean);
+// Awin paths use ">" and Daisycon's (Google's taxonomy) use "|": "Electronics|Print, Copy, Scan & Fax|...|Printer Consumables"
+// (TechInn, 17 Nov 2026, lessons L178). A "/" stays inside a folder name ("Cases/Covers").
+const pathFolders = p => String(p || '').split(/\s*[>|]\s*/).map(s => s.trim().toLowerCase()).filter(Boolean);
 const folderSet = list => (Array.isArray(list) && list.length ? new Set(list.map(s => s.toLowerCase())) : null);
 export function looseOnly(source, path) {
   const allow = folderSet(source.allowPaths);

@@ -94,3 +94,18 @@ test('L170: a Daisycon feed on SGW - its own link test, its own key, and the cle
   assert.match(fin, /WHERE awin_advertiser_id IN \((?:20607, -200000020607|-200000020607, 20607)\)/, 'each shop by its own number');
   assert.ok(readdirSync(join(out, 'sql')).includes('0001.sql'));
 });
+
+test('TechInn on TGW: printer toner, ink and drums stay out, read from Daisycon\'s "|" folders (dry run of 17 Nov, lessons L178)', async () => {
+  const { sourceFilter } = await import('../../tools/tgw-import-plan.mjs');
+  const { readFileSync } = await import('node:fs');
+  const src = JSON.parse(readFileSync(new URL('../../sites/tgw/sources.json', import.meta.url), 'utf8')).sources.find(s => s.advertiserId === 20616);
+  const f = sourceFilter(src);
+  const ink = 'Electronics|Print, Copy, Scan & Fax|Printer, Copier & Fax Machine Accessories|Printer Consumables|Toner & Inkjet Cartridges';
+  assert.match(f('HP 305 Black Ink Cartridge', 'HP', ink), /feed folder not for TGW/);
+  assert.match(f('Brother TN-2420 Toner Black', 'Brother', 'Electronics|Print, Copy, Scan & Fax'), /business IT, parts or services/, 'the name, when the folder says less');
+  assert.equal(f('HP DeskJet 2720e Printer', 'HP', 'Electronics|Print, Copy, Scan & Fax|Printers, Copiers & Fax Machines'), '', 'a printer itself stays');
+  assert.equal(f('Lenovo IdeaPad 3 15 Laptop', 'Lenovo', 'Electronics|Computers|Laptops'), '');
+  // Awin paths with ">" are read as before, and a "/" stays inside a folder name.
+  const pc = sourceFilter({ retailer: 'X', denyPaths: ['cases/covers'] });
+  assert.match(pc('Phone case', '', 'Phones>Cases/Covers'), /feed folder not for TGW/);
+});

@@ -169,7 +169,7 @@ test('KidInn (Tradeinn, GBP): only what is for children, placed from Google\'s f
   assert.equal(p('Funko Marvel Shang-chi Razor Fist Figure Multicolor  Kids', 'Toys & Games|Toys|Dolls, Playsets & Toy Figures'), 'Toys & Games > Action & Toy Figures',
     'the general folder name holds dolls too, but is not a doll');
   assert.equal(p('Fresk Swallow Mini Backpack Pink  Kids', 'Luggage & Bags|Backpacks'), 'School & Backpacks > Backpacks');
-  assert.equal(p('Atosa Pirate Costume Black 3-4 Years  Kids', 'Apparel & Accessories|Costumes & Accessories|Costumes'), 'Clothing > Fancy Dress');
+  assert.equal(p('Atosa Pirate Costume Black 3-4 Years  Kids', 'Apparel & Accessories|Costumes & Accessories|Costumes'), 'Clothing > Costumes');
   assert.equal(p('Atosa Nurse Costume White M-L  Woman', 'Apparel & Accessories|Costumes & Accessories|Costumes'), 'out', 'an adult costume');
   assert.equal(p('Ravensburger Puzzle 1000 Pieces Multicolor  Unisex', 'Toys & Games|Puzzles'), 'Toys & Games > Jigsaw Puzzles', 'Unisex only in a toy folder');
   assert.equal(p('Oxford Binder 10 Units Multicolor  Unisex', 'Office Supplies|Filing'), 'out');

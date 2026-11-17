@@ -69,7 +69,9 @@ const PLACES = [
   [words(['backpacks?', 'school bags?', 'rucksacks?', 'trolley bags?']), S, 'Backpacks'],
   [words(['pencil cases?', 'school supplies', 'stationery', 'art supplies', 'colouring', 'coloring', 'markers?', 'crayons?', 'pencils?', 'notebooks?']), S,
     'Stationery & Art Supplies'],
-  [words(['costumes?', 'costumes? & accessories', 'fancy dress', 'dress-up', 'dress up']), C, 'Fancy Dress'],
+  // "Costumes", not "Fancy Dress": a subcategory with the word "dress" would put costumes next to the dresses of a "dress"
+  // search on the Hub, which ranks first by what a product IS (lessons L177, L178).
+  [words(['costumes?', 'costumes? & accessories', 'fancy dress', 'dress-up', 'dress up']), C, 'Costumes'],
   [words(['toys']), T, 'Activity Toys']
 ];
 

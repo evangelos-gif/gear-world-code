@@ -108,6 +108,10 @@ export function rowOf(p, { country = 'NL', categoryId = '', categoryName = '', s
   if (!link) return { why: 'no bol.com product page' };
   const img = p.image && p.image.url && /^https:\/\//i.test(p.image.url) ? String(p.image.url) : '';
   const gpc = (Array.isArray(p.gpc) ? p.gpc : []).slice().sort((a, b) => (a.level || 0) - (b.level || 0)).map(g => clean(g.name)).filter(Boolean);
+  // No "before" price on purpose: bol's offer.strikethroughPrice is bol's own "van" (was) price, not the maker's RRP, and
+  // the sites print the before price as "RRP £X" (src/pages/layout.js rrpTag): a was price shown as an RRP is a claim we
+  // cannot back (lessons L107). No brand either: the list and search endpoints give none; only /products/{ean} with
+  // include-specifications has one, one call per product (lessons L178).
   return { row: {
     data_feed_id: `bol-${country}`, merchant_id: 'bol.com', merchant_name: 'bol.com', aw_product_id: ean, aw_deep_link: link,
     brand_name: '', merchant_product_id: String(p.bolProductId || ''), merchant_category: categoryName, category_name: gpc.join(' > '),
