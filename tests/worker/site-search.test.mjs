@@ -1,4 +1,4 @@
-// Lessons L179 (17 Nov 2026): the order and the words of a search on the 13 sites themselves. They ordered a search
+// Lessons L181 (17 Nov 2026): the order and the words of a search on the 13 sites themselves. They ordered a search
 // "featured" (in stock, then a fixed shuffle), so the most plentiful match came first: drill bits for "drill" on
 // Construction Gear World, a kettle descaler for "kettle" and duvet covers for "duvet" on Home Gear World, boot tassels for
 // "womens boots", a cat toy for "cat litter". Now a search in the default order is ordered by what the product is
@@ -54,7 +54,7 @@ function oldShop(rows) {
 }
 const names = r => r.products.map(p => p.product_name);
 
-test('L179: the words a search finds: as typed (as before), a few true synonyms, no possessive, the site\'s own word', () => {
+test('L181: the words a search finds: as typed (as before), a few true synonyms, no possessive, the site\'s own word', () => {
   assert.equal(searchMatch('drill'), '"drill"*');
   // No singular (the independent review of 17/11/2026): "braces" would find bracelets, "pens" pendants, and a word of
   // another language that finds nothing (Polish "pies") must stay at 0 so the engine translates it.
@@ -103,7 +103,7 @@ test('L179: the words a search finds: as typed (as before), a few true synonyms,
   assert.equal(rankStem('hoodies'), 'hoody');
 });
 
-test('L179: the words match exactly what the old expression matched, on both index layouts, for every typed word', () => {
+test('L181: the words match exactly what the old expression matched, on both index layouts, for every typed word', () => {
   const names = ['Braces with Clips', 'Gold Bracelet', 'Pens Set', 'Silver Pendant', 'Shepherd\'s Pie', 'Παπούτσια για τρέξιμο', 'İstanbul Rug', 'Phở Bowl',
     'Чайник электрический', 'Café Table', 'USB-C Charger 65W', 'PlayStation 5 Console', 'PS4 500GB', 'Smart Watch Black', 'Smartwatch Pro'];
   for (const schema of [agwSchema, read('tests/fixtures/ggw-legacy-schema.sql')]) {
@@ -123,7 +123,7 @@ test('L179: the words match exactly what the old expression matched, on both ind
   }
 });
 
-test('L179: "drill" (newer layout): the drills first, then the bits; the brush, the toy and the trousers lower', async () => {
+test('L181: "drill" (newer layout): the drills first, then the bits; the brush, the toy and the trousers lower', async () => {
   const rows = [
     ...Array.from({ length: 40 }, (_, i) => [`Bosch Drill Bit Set ${i + 2}pc HSS`, 'Drill Bits']),
     ['Drill Brush Attachment Set for Cordless Drill', 'Cleaning'],
@@ -150,7 +150,7 @@ test('L179: "drill" (newer layout): the drills first, then the bits; the brush, 
   assert.deepEqual(cheap.products.map(p => p.price), [149, 89, 20]);
 });
 
-test('L179: pages beyond the window continue in the rough order, never a product twice', async () => {
+test('L181: pages beyond the window continue in the rough order, never a product twice', async () => {
   const rows = [
     ...Array.from({ length: SEARCH_WINDOW + 30 }, (_, i) => [`Socket Wrench Set ${i}`, i % 3 ? 'Socket Sets' : 'Wrenches']),
     ...Array.from({ length: 20 }, (_, i) => [`Wrench Holder Rail ${i}`, 'Storage'])
@@ -180,7 +180,7 @@ test('L179: pages beyond the window continue in the rough order, never a product
   assert.ok(Math.min(...holders) >= SEARCH_WINDOW + 30, `first holder at ${Math.min(...holders)}`);
 });
 
-test('L179: the rough order of the database and its copy in JavaScript agree on every row', () => {
+test('L181: the rough order of the database and its copy in JavaScript agree on every row', () => {
   const rows = [
     ['Russell Hobbs Electric Kettle 1.7L', 'Kettles'], ['Kettle Descaler Tablets', 'Cleaning'], ['Kettler Sports Bag', 'Bags'],
     ['Duvet Cover Double', 'Bedding'], ['Hungarian Goose Down Duvet 13.5 Tog', 'Duvets'], ['Chelsea Boot Tassels', 'Accessories'],
@@ -216,7 +216,7 @@ test('L179: the rough order of the database and its copy in JavaScript agree on 
   assert.equal(score('kettle', 'Kettle\u2122 Chips Sea Salt'), 3, 'the index reads Kettle\u2122 as kettle');
 });
 
-test('L179: Home Gear World (older layout, offers grouped): "kettle" and "duvet" give the item, not its accessory', async () => {
+test('L181: Home Gear World (older layout, offers grouped): "kettle" and "duvet" give the item, not its accessory', async () => {
   const rows = [
     ['Food Grade Citric Acid Hot Water Kettle Descaler', 'Kettle', 'Home Appliances', 5],
     ['Hotpot Sauce Spicy 400g', 'Kettle', 'Home Appliances', 3],
@@ -245,7 +245,7 @@ test('L179: Home Gear World (older layout, offers grouped): "kettle" and "duvet"
   assert.equal(facets.retailers[0].n, 5);
 });
 
-test('L179: "womens boots" on Women\'s Gear World finds its boots, not only the names that say "womens"', async () => {
+test('L181: "womens boots" on Women\'s Gear World finds its boots, not only the names that say "womens"', async () => {
   const d = oldShop([
     ['Fairfax & Favor Suede Boot Tassels for Women', 'Shoe Accessories', 'Shoes', 30],
     ['EMU Australia Platinum Slim Darling Boots', 'Boots', 'Shoes', 120],
@@ -263,7 +263,7 @@ test('L179: "womens boots" on Women\'s Gear World finds its boots, not only the 
   assert.equal(apostrophe.total, 3, 'the same with a phone\'s apostrophe');
 });
 
-test('L179: a fault in the order leaves the old order, never an empty page', async () => {
+test('L181: a fault in the order leaves the old order, never an empty page', async () => {
   const d = newShop([['Cordless Drill', 'Drills'], ['Drill Bit Set', 'Drill Bits']]);
   const prepare = d.prepare;
   d.prepare = text => (/THEN 4 ELSE 0 END/.test(text) ? { bind: () => ({ all: async () => { throw new Error('no such column'); }, first: async () => null }) } : prepare(text));
@@ -273,7 +273,7 @@ test('L179: a fault in the order leaves the old order, never an empty page', asy
   assert.equal(r.products.length, 2);
 });
 
-test('L179: the order reads the same matches as before, plus six look-ups in the search index narrowed to them', async () => {
+test('L181: the order reads the same matches as before, plus six look-ups in the search index narrowed to them', async () => {
   const d = newShop(Array.from({ length: 60 }, (_, i) => [`Drill Bit ${i}`, 'Drill Bits']));
   useLayout(agw);
   d.seen.length = 0;
@@ -288,7 +288,7 @@ test('L179: the order reads the same matches as before, plus six look-ups in the
   assert.match(window, /LIMIT \?$/);
 });
 
-test('L179: Technology Gear World (newer layout, no grouping of offers): "tablet" gives tablets before cases and stands', async () => {
+test('L181: Technology Gear World (newer layout, no grouping of offers): "tablet" gives tablets before cases and stands', async () => {
   const tgw = (await import('../../sites/tgw/site.config.js')).default;
   const d = newShop([
     ...Array.from({ length: 12 }, (_, i) => [`Targus Tablet Case ${i} for iPad`, 'Tablet Cases', 'tablets-ereaders']),
@@ -302,7 +302,7 @@ test('L179: Technology Gear World (newer layout, no grouping of offers): "tablet
   assert.deepEqual(names(r).slice(0, 2).sort(), ['Lenovo Tab M10 Tablet', 'Samsung Galaxy Tab S9 Tablet 128GB']);
 });
 
-test('L179: a busy database is not hidden behind a second, heavier query', async () => {
+test('L181: a busy database is not hidden behind a second, heavier query', async () => {
   const d = newShop([['Cordless Drill', 'Drills']]);
   const prepare = d.prepare;
   let after = 0;

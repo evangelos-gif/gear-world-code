@@ -16,7 +16,7 @@ const COLS = {
   inStock: ['in_stock', 'is_for_sale', 'stock_status', 'stock_quantity'],
   category: ['merchant_category', 'merchant_product_category_path', 'category_name'],
   link: ['merchant_deep_link', 'aw_deep_link'], image: ['merchant_image_url', 'aw_image_url', 'large_image'],
-  language: ['language']
+  language: ['language'], updated: ['last_updated']
 };
 function mapHeader(header) {
   const h = header.map(x => String(x).trim().toLowerCase().replace(/^﻿/, ''));
@@ -32,6 +32,7 @@ function inStock(raw) {
 }
 const bump = (o, k) => { if (k) o[k] = (o[k] || 0) + 1; };
 const top = (o, n) => Object.entries(o).sort((a, b) => b[1] - a[1]).slice(0, n);
+const ageDays = (ymd, now) => Math.floor((new Date(now).getTime() - Date.parse(`${ymd}T00:00:00Z`)) / 86400000);
 function hostOf(link) {
   try {
     const u = new URL(link);
@@ -44,18 +45,38 @@ function hostOf(link) {
 // Feed files of every network the download tools write (lessons L133): AWIN_<shop>_<feed>, CJ_<shop>, DAISYCON_<programme>,
 // RAKUTEN_<MID> (the last three have the Awin column names). -Advertiser '<ids>' picks shops; with alsoDays the feeds
 // downloaded in the last days come too, so one report has the shops asked for and everything just downloaded.
-const FEED_FILE = /^(?:AWIN_(\d+)_(\d+)|(CJ|DAISYCON|RAKUTEN)_(\d+))\.csv(?:\.gz)?$/i;
-const NETWORK = { CJ: 'CJ', DAISYCON: 'Daisycon', RAKUTEN: 'Rakuten' };
+// The CJ, Daisycon and Rakuten files may have a tail: one file per country (DAISYCON_14965_DE, lessons L163) or per
+// search (CJ_3992613_kids-winter-boots, L161); bol.com: BOL_<category>_<country>(-<search>) (tools/bol-feed.mjs). Before 16 Nov 2026 these were skipped without a word (chat 9: Superdry
+// DE/NL and Chromeburner GB/DE of wave 3 would have been missing from the profile).
+// -Network Daisycon (or 'CJ,Daisycon'): only the files of those networks. The shop ids of two networks can be the same
+// number (an Awin advertiser and a Daisycon programme), so -Advertiser alone cannot pick one network.
+const FEED_FILE = /^(?:AWIN_(\d+)_(\d+)|(CJ|DAISYCON|RAKUTEN|BOL)_(\d+)(?:_([A-Za-z0-9][A-Za-z0-9-]{0,39}))?)\.csv(?:\.gz)?$/i;
+const NETWORK = { CJ: 'CJ', DAISYCON: 'Daisycon', RAKUTEN: 'Rakuten', BOL: 'bol' };
+export const NETWORKS = ['Awin', 'CJ', 'Daisycon', 'Rakuten', 'bol'];
 export function feedOf(name) {
   const m = String(name).match(FEED_FILE);
   if (!m) return null;
-  return m[1] ? { network: 'Awin', advertiserId: Number(m[1]), feedId: Number(m[2]) }
-    : { network: NETWORK[m[3].toUpperCase()], advertiserId: Number(m[4]), feedId: null };
+  if (m[1]) return { network: 'Awin', advertiserId: Number(m[1]), feedId: Number(m[2]), part: '' };
+  // A two-letter tail is a country (upper case, as the download writes it); a longer one is a search name.
+  const part = m[5] ? (/^[a-z]{2}$/i.test(m[5]) ? m[5].toUpperCase() : m[5]) : '';
+  return { network: NETWORK[m[3].toUpperCase()], advertiserId: Number(m[4]), feedId: null, part };
 }
-export function chooseFiles(archive, { advertisers = [], days = 2, alsoDays = 0, now = Date.now() } = {}) {
+// 'daisycon', 'CJ, Daisycon' -> ['CJ', 'Daisycon']; an unknown name -> null (the tool stops: never a silent empty report).
+export function parseNetworks(text) {
+  const words = String(text || '').split(/[\s,;]+/).filter(Boolean);
+  const out = [];
+  for (const w of words) {
+    const n = NETWORKS.find(x => x.toLowerCase() === w.toLowerCase());
+    if (!n) return null;
+    if (!out.includes(n)) out.push(n);
+  }
+  return out;
+}
+export function chooseFiles(archive, { advertisers = [], days = 2, alsoDays = 0, networks = [], now = Date.now() } = {}) {
   const ads = new Set(advertisers.map(String));
+  const nets = new Set(networks);
   const recent = (f, d) => now - statSync(join(archive, f)).mtimeMs <= d * 86400000;
-  return readdirSync(archive).filter(f => feedOf(f)).filter(f => {
+  return readdirSync(archive).filter(f => feedOf(f)).filter(f => !nets.size || nets.has(feedOf(f).network)).filter(f => {
     const adv = String(feedOf(f).advertiserId);
     if (ads.size) return ads.has(adv) || (alsoDays > 0 && recent(f, alsoDays));
     return recent(f, days);
@@ -64,8 +85,8 @@ export function chooseFiles(archive, { advertisers = [], days = 2, alsoDays = 0,
 
 export async function profileFile(file, { maxRows = Infinity } = {}) {
   const name = file.split(/[\\/]/).pop();
-  const f = feedOf(name) || { network: 'Awin', advertiserId: 0, feedId: 0 };
-  const p = { network: f.network, advertiserId: f.advertiserId, feedId: f.feedId, merchant: '', rows: 0, inStock: 0, priced: 0, withWas: 0, withImage: 0,
+  const f = feedOf(name) || { network: 'Awin', advertiserId: 0, feedId: 0, part: '' };
+  const p = { network: f.network, advertiserId: f.advertiserId, feedId: f.feedId, part: f.part || '', newest: '', merchant: '', rows: 0, inStock: 0, priced: 0, withWas: 0, withImage: 0,
     prices: [], currencies: {}, hosts: {}, categories: {}, brands: {}, languages: {}, samples: [], error: '',
     ageHours: Math.round((Date.now() - statSync(file).mtimeMs) / 3600000) };
   try {
@@ -88,6 +109,9 @@ export async function profileFile(file, { maxRows = Infinity } = {}) {
       bump(p.categories, pick(rec, map.category) || '(no category)');
       bump(p.brands, pick(rec, map.brand) || '(no brand)');
       bump(p.languages, pick(rec, map.language).toLowerCase());
+      // The newest product change in the feed (Daisycon, CJ): a feed that stopped changing has old prices (L147: ≤ 14 days).
+      const upd = pick(rec, map.updated);
+      if (/^\d{4}-\d{2}-\d{2}/.test(upd) && upd.slice(0, 10) > p.newest) p.newest = upd.slice(0, 10);
       // Samples spread over the file: the first 4, then every 500th product, up to 10.
       if (p.samples.length < 10 && (p.rows <= 4 || p.rows % 500 === 0)) p.samples.push({ name: pick(rec, map.name).slice(0, 100), price });
       if (p.rows >= maxRows) break;
@@ -97,11 +121,12 @@ export async function profileFile(file, { maxRows = Infinity } = {}) {
   return p;
 }
 
-export function render({ profiles, archive, generated = new Date(), days, advertisers, alsoDays = 0 }) {
+export function render({ profiles, archive, generated = new Date(), days, advertisers, alsoDays = 0, networks = [] }) {
   const lines = [
     'Gear World - FEED PROFILE (μόνο ανάγνωση)',
     `Ώρα: ${generated.toISOString().slice(0, 16).replace('T', ' ')} UTC`,
     `Φάκελος: ${archive}`,
+    ...(networks.length ? [`Δίκτυα: μόνο ${networks.join(', ')}`] : []),
     advertisers && advertisers.length ? `Καταστήματα: ${advertisers.join(', ')}${alsoDays > 0 ? ` και ό,τι κατέβηκε τις τελευταίες ${Math.round(alsoDays * 24)} ώρες` : ''} (${profiles.length} feeds)` : `Feeds που άλλαξαν τις τελευταίες ${days} μέρες: ${profiles.length}`,
     ''
   ];
@@ -109,12 +134,13 @@ export function render({ profiles, archive, generated = new Date(), days, advert
   for (const p of profiles) {
     const pr = p.prices;
     const med = pr.length ? pr[Math.floor(pr.length / 2)] : 0;
-    const where = (p.network || 'Awin') === 'Awin' ? `Awin ${p.advertiserId}, feed ${p.feedId}` : `${p.network} ${p.advertiserId}`;
+    const where = (p.network || 'Awin') === 'Awin' ? `Awin ${p.advertiserId}, feed ${p.feedId}` : `${p.network} ${p.advertiserId}${p.part ? ` ${p.part}` : ''}`;
     lines.push(`=== ${p.merchant || '?'} (${where}) | αρχείο ${p.ageHours} ωρών`);
     if (p.error) { lines.push(`  Δεν διαβάστηκε: ${p.error}`, ''); continue; }
     lines.push(`  Προϊόντα: ${p.rows} | σε απόθεμα: ${p.inStock} | με τιμή: ${p.priced} | με «πριν» τιμή: ${p.withWas} | με εικόνα: ${p.withImage}`);
     if (pr.length) lines.push(`  Τιμές: από ${pr[0].toFixed(2)} | μέση ${med.toFixed(2)} | έως ${pr[pr.length - 1].toFixed(2)}`);
     lines.push(`  Νόμισμα: ${top(p.currencies, 3).map(([k, v]) => `${k} ${v}`).join(', ')} | γλώσσα: ${top(p.languages, 3).map(([k, v]) => `${k || '?'} ${v}`).join(', ')}`);
+    if (p.newest) lines.push(`  Νεότερη αλλαγή προϊόντος: ${p.newest}${ageDays(p.newest, generated) > 14 ? ' (πάνω από 14 μέρες, L147: πρώτα έλεγχος τιμών στο κατάστημα)' : ''}`);
     lines.push(`  Site καταστήματος: ${top(p.hosts, 3).map(([k, v]) => `${k || '?'} ${v}`).join(', ')}`);
     lines.push(`  Κατηγορίες (${Object.keys(p.categories).length}): ${top(p.categories, 12).map(([k, v]) => `${k.slice(0, 50)} (${v})`).join('; ')}`);
     lines.push(`  Brands (${Object.keys(p.brands).length}): ${top(p.brands, 8).map(([k, v]) => `${k.slice(0, 30)} (${v})`).join('; ')}`);
@@ -135,11 +161,13 @@ async function main() {
   const advertisers = (val('advertiser') || '').split(/[\s,;]+/).filter(x => /^\d+$/.test(x));
   const days = Number(val('days')) || 2;
   const alsoDays = Number(val('also-days')) || 0;
-  const files = chooseFiles(archive, { advertisers, days, alsoDays });
+  const networks = parseNetworks(val('network'));
+  if (!networks) { console.error(`Unknown network: ${val('network')} (one of ${NETWORKS.join(', ')})`); process.exit(2); }
+  const files = chooseFiles(archive, { advertisers, days, alsoDays, networks });
   const profiles = [];
   for (const f of files) { process.stdout.write(`\r${f}`.padEnd(70)); profiles.push(await profileFile(join(archive, f), { maxRows: Number(val('max-rows')) || Infinity })); }
   process.stdout.write('\n');
-  writeFileSync(join(out, 'report.txt'), render({ profiles, archive, days, advertisers, alsoDays }));
+  writeFileSync(join(out, 'report.txt'), render({ profiles, archive, days, advertisers, alsoDays, networks }));
   console.log(`Report: ${join(out, 'report.txt')}`);
 }
 

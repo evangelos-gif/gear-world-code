@@ -112,7 +112,8 @@ export const SHOP_FIT = { 125822: ['TGW'], 124146: ['TGW'], 126641: ['TGW'] };
 
 // The sources one site gets: its own list unchanged, plus every offered shop it does not list, with no section filter.
 export function siteSources(own, offered, code = '') {
-  const listed = new Set(own.map(s => Number(s.advertiserId)));
+  // A shop of another network ("network", lessons L170) has its own programme number, never an Awin advertiser's.
+  const listed = new Set(own.filter(s => !s.network).map(s => Number(s.advertiserId)));
   const added = [];
   for (const [adv, o] of offered) {
     if (listed.has(adv)) continue;
@@ -132,7 +133,7 @@ export async function shadowCatalog({ archive, outDir, list = null, now = new Da
   // Shop names: the name a site already uses, else the Awin list's.
   const owns = sites.map(site => JSON.parse(readFileSync(join(repoRoot, 'sites', site.dir, 'sources.json'), 'utf8')).sources);
   const names = new Map();
-  for (const own of owns) for (const s of own) if (!names.has(Number(s.advertiserId))) names.set(Number(s.advertiserId), s.retailer);
+  for (const own of owns) for (const s of own) if (!s.network && !names.has(Number(s.advertiserId))) names.set(Number(s.advertiserId), s.retailer);
   for (const [adv, o] of offered) { if (names.has(adv)) o.name = names.get(adv); else if (o.name) names.set(adv, o.name); }
   const results = [];
   for (const [i, site] of sites.entries()) {

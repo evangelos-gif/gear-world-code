@@ -54,7 +54,7 @@ export function useLayout(site) {
 function buildLayout(site) {
   buildSource(site);
   LAYOUT.group = Boolean(site && site.groupOffers);
-  // The site's code and category names, for the words and the order of a search (src/lib/search-rank.js, lessons L179).
+  // The site's code and category names, for the words and the order of a search (src/lib/search-rank.js, lessons L181).
   LAYOUT.site = { code: String((site && site.code) || '').toLowerCase(), categories: ((site && site.categories) || []).map(c => ({ slug: c.slug, name: c.name })) };
   // Collections: pages made from other categories (e.g. "Gifts for Him": watches, jewellery... in a price
   // range, plus anything named "gift"). A product keeps its own category; it is also listed here.
@@ -437,7 +437,7 @@ function buildFilter({ category, subcategory, subMatch, brand, retailer, maxPric
   if (onSale) where.push('p.was_price > p.price AND (p.was_price - p.price) / p.was_price BETWEEN 0.05 AND 0.9');
   if (search) {
     // The words as typed (as before), a few true synonyms, no possessive 's; a word the site says by itself is left out
-    // when others remain ("womens boots" on Women's Gear World), lessons L179.
+    // when others remain ("womens boots" on Women's Gear World), lessons L181.
     const q = searchMatch(search, LAYOUT.site && LAYOUT.site.code);
     if (!q) return null;
     where.push('p.id IN (SELECT rowid FROM products_fts WHERE products_fts MATCH ?)');
@@ -468,7 +468,7 @@ export async function listProducts(db, filters, { sort = 'featured', page = 1, p
   if (!f || (filters && filters.onSale && !hasRrp())) return { products: [], total: 0, page: 1, pages: 0 };
   const order = SORTS[normalizeSort(sort)];
   const offset = (page - 1) * perPage;
-  // A search in the default order: by what the product is (lessons L179). A fault there leaves the old order, never an
+  // A search in the default order: by what the product is (lessons L181). A fault there leaves the old order, never an
   // empty or broken page.
   const plan = filters && filters.search && normalizeSort(sort) === 'featured' ? searchPlan(filters.search, LAYOUT.site) : null;
   if (plan) {
@@ -508,7 +508,7 @@ function countFast(db, filters, f) {
   });
 }
 
-// A search in the default order (lessons L179, src/lib/search-rank.js): the matches in the rough order of the search
+// A search in the default order (lessons L181, src/lib/search-rank.js): the matches in the rough order of the search
 // index (what the product is, whole words, accessories and toys lower), then in stock and the fixed shuffle. The first
 // SEARCH_WINDOW of them are put in the Hub's order (L177); a page after the window continues in the rough order, so no
 // product is on two pages. Every match is read, as before (to count and to sort them), plus six lookups in the search

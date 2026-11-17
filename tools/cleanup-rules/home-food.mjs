@@ -1,4 +1,4 @@
-// Clean-up rule for Home Gear World (17 Nov 2026, lessons L179): food filed under appliances. Joybuy UK's crisps of the
+// Clean-up rule for Home Gear World (17 Nov 2026, lessons L181): food filed under appliances. Joybuy UK's crisps of the
 // "Kettle" brand, a hotpot "Kettle Base Oil", Pop-Tarts "toaster pastries", air fryer seasoning, frozen chips and coffee
 // pods sat in Home Appliances (Kettle, Toaster, Air Fryer, Coffee Machine, Microwave) because their names name the
 // appliance, and came first for "kettle" (the search of 17/11 found Kettle Crisps before the kettles). An older import

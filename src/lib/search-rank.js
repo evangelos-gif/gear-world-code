@@ -1,4 +1,4 @@
-// The order of a search on the 13 sites (lessons L179, 17 Nov 2026). The sites ordered a search "featured" (in stock,
+// The order of a search on the 13 sites (lessons L181, 17 Nov 2026). The sites ordered a search "featured" (in stock,
 // then a fixed shuffle), so the most plentiful match won: drill bits for "drill", a kettle descaler for "kettle", duvet
 // covers for "duvet", boot tassels for "womens boots", a cat toy for "cat litter". Gear World Hub orders its merged
 // results by what the product IS (lessons L177, sites/gwh/worker.js rankHubResults); a site now does the same with its

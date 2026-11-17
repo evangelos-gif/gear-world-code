@@ -3,7 +3,7 @@
 // READ-ONLY: GET requests only, with the QA identity, never /go/ or /out/. For every search and every Gear World that
 // sells it, the site's own first 8 for a UK visitor (deliver_to=GB) are judged by the Hub's rules: the first result is
 // the item itself and not an accessory of it, no look-alike in the first 3, every result delivers to the UK, the site
-// answered. Lessons L179: "drill" on Construction Gear World showed drill bits first because the sites ordered a search
+// answered. Lessons L181: "drill" on Construction Gear World showed drill bits first because the sites ordered a search
 // "featured" (in stock, then a fixed shuffle), not by what the product is.
 //
 // Usage: node tools/sites-search-check.mjs              the live sites, in their own order
@@ -81,13 +81,13 @@ async function siteResults(k, q, replay) {
 }
 
 // Food on a site that does not sell it, in the first 3 (Kettle Crisps for "kettle" on Home Gear World, 17/11/2026):
-// a look-alike here too, unless the search asks for it (lessons L179, the home-food clean-up).
+// a look-alike here too, unless the search asks for it (lessons L181, the home-food clean-up).
 const FOOD_LOOK_ALIKES = /\b(crisps|seasonings?|pastr(y|ies)|snacks?)\b/i;
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
   const replay = process.argv.includes('--replay');
   const only = (arg('--only') || '').split(',').filter(Boolean);
-  const lines = [`Gear World sites' own search check (L179), ${new Date().toISOString()}, ${replay ? 'replay: the live matches in this copy\'s order (src/lib/search-rank.js)' : 'the live order'}, UK view`];
+  const lines = [`Gear World sites' own search check (L181), ${new Date().toISOString()}, ${replay ? 'replay: the live matches in this copy\'s order (src/lib/search-rank.js)' : 'the live order'}, UK view`];
   let failures = 0;
   let known = 0;
   let checked = 0;
