@@ -12,6 +12,7 @@ const NATIVE_CARD_COLUMNS = `id, product_name, product_slug, brand, retailer, ca
   currency, in_stock, item_condition, image_url, subcategory, merchant_category, last_seen_at`;
 import { visibleSql, hiddenReason } from './lib/visibility.js';
 import { shownCountries } from './lib/delivery.js';
+import { searchMatch, searchPlan, SEARCH_WINDOW } from './lib/search-rank.js';
 
 // The legacy layout also returns the old category name: Gear World Hub search shows it (lessons L22).
 let CARD_COLUMNS = NATIVE_CARD_COLUMNS;
@@ -52,6 +53,8 @@ export function useLayout(site) {
 function buildLayout(site) {
   buildSource(site);
   LAYOUT.group = Boolean(site && site.groupOffers);
+  // The site's code and category names, for the words and the order of a search (src/lib/search-rank.js, lessons L179).
+  LAYOUT.site = { code: String((site && site.code) || '').toLowerCase(), categories: ((site && site.categories) || []).map(c => ({ slug: c.slug, name: c.name })) };
   // Collections: pages made from other categories (e.g. "Gifts for Him": watches, jewellery... in a price
   // range, plus anything named "gift"). A product keeps its own category; it is also listed here.
   LAYOUT.collections = Object.fromEntries(((site && site.categories) || []).filter(c => c.collection).map(c => [c.slug, c.collection]));
@@ -432,7 +435,9 @@ function buildFilter({ category, subcategory, subMatch, brand, retailer, maxPric
   if (condition) { where.push('p.item_condition = ?'); binds.push(condition); }
   if (onSale) where.push('p.was_price > p.price AND (p.was_price - p.price) / p.was_price BETWEEN 0.05 AND 0.9');
   if (search) {
-    const q = ftsQuery(search);
+    // The words as typed, their singular and a few true synonyms; a word the site says by itself is left out when others
+    // remain ("womens boots" on Women's Gear World), lessons L179.
+    const q = searchMatch(search, LAYOUT.site && LAYOUT.site.code);
     if (!q) return null;
     where.push('p.id IN (SELECT rowid FROM products_fts WHERE products_fts MATCH ?)');
     binds.push(q);
@@ -462,6 +467,13 @@ export async function listProducts(db, filters, { sort = 'featured', page = 1, p
   if (!f || (filters && filters.onSale && !hasRrp())) return { products: [], total: 0, page: 1, pages: 0 };
   const order = SORTS[normalizeSort(sort)];
   const offset = (page - 1) * perPage;
+  // A search in the default order: by what the product is (lessons L179). A fault there leaves the old order, never an
+  // empty or broken page.
+  const plan = filters && filters.search && normalizeSort(sort) === 'featured' ? searchPlan(filters.search, LAYOUT.site) : null;
+  if (plan) {
+    try { return await listRanked(db, filters, f, plan, order, page, perPage, offset); }
+    catch (err) { console.error('search order failed, featured order instead', err); }
+  }
   if (await fastMode(db)) {
     try { return await listFast(db, filters, f, normalizeSort(sort), order, page, perPage, offset); }
     catch (err) { return noIndexRetry(db, err, () => listProducts(db, filters, { sort, page, perPage })); }
@@ -483,12 +495,43 @@ export async function listProducts(db, filters, { sort = 'featured', page = 1, p
 // (offset + perPage) x (rows of the category / rows that match) rows, or numbering the matching rows (cardSql), which
 // reads every matching row. A page of a big category takes the walk; a filter that leaves few rows (a rare brand, a narrow
 // price range, a deep page of them) or a search or a collection takes the numbering, now on a small set.
-async function listFast(db, filters, f, sortName, order, page, perPage, offset) {
-  const counted = await memo('count', { sql: f.sql, binds: f.binds, group: LAYOUT.group }, COUNT_SECONDS, async () => {
+function countFast(db, filters, f) {
+  return memo('count', { sql: f.sql, binds: f.binds, group: LAYOUT.group }, COUNT_SECONDS, async () => {
     const r = await db.prepare(`SELECT ${LAYOUT.group ? `COUNT(DISTINCT ${gk()})` : 'COUNT(*)'} AS n, COUNT(*) AS rows
       FROM ${LAYOUT.from} p${countIndex(filters)} WHERE ${f.sql}`).bind(...f.binds).first();
     return { n: Number((r && r.n) || 0), rows: Number((r && r.rows) || 0) };
   });
+}
+
+// A search in the default order (lessons L179, src/lib/search-rank.js): the matches in the rough order of the search
+// index (what the product is, whole words, accessories and toys lower), then in stock and the fixed shuffle. The first
+// SEARCH_WINDOW of them are put in the Hub's order (L177); a page after the window continues in the rough order, so no
+// product is on two pages. The same rows are read as before (every match, to count and to sort them); the extra work is
+// three or four lookups in the search index.
+async function listRanked(db, filters, f, plan, order, page, perPage, offset) {
+  const rough = `${plan.coarse.sql}, ${order}`;
+  const count = (await fastMode(db))
+    ? countFast(db, filters, f).then(c => c.n)
+    : db.prepare(`SELECT ${LAYOUT.group ? `COUNT(DISTINCT ${gk()})` : 'COUNT(*)'} AS n FROM ${LAYOUT.from} p${countIndex(filters)} WHERE ${f.sql}`)
+      .bind(...f.binds).first().then(r => Number((r && r.n) || 0));
+  const end = offset + perPage;
+  const windowRows = offset < SEARCH_WINDOW
+    ? db.prepare(cardSql(f.sql, rough, 'LIMIT ?')).bind(...f.binds, ...plan.coarse.binds, SEARCH_WINDOW).all()
+    : null;
+  const from = Math.max(offset, SEARCH_WINDOW);
+  const restRows = end > SEARCH_WINDOW
+    ? db.prepare(cardSql(f.sql, rough, 'LIMIT ? OFFSET ?')).bind(...f.binds, ...plan.coarse.binds, end - from, from).all()
+    : null;
+  const [total, win, rest] = await Promise.all([count, windowRows, restRows]);
+  const rows = [
+    ...(win ? plan.rankWindow(win.results || []).slice(offset, end) : []),
+    ...(rest ? rest.results || [] : [])
+  ];
+  return { products: fixAll(rows), total, page, pages: Math.ceil(total / perPage) };
+}
+
+async function listFast(db, filters, f, sortName, order, page, perPage, offset) {
+  const counted = await countFast(db, filters, f);
   const total = counted.n;
   const out = rows => ({ products: fixAll(rows), total, page, pages: Math.ceil(total / perPage) });
   if (!total || offset >= total) return out([]);
