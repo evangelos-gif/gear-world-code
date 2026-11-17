@@ -9,7 +9,7 @@ import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import { DatabaseSync } from 'node:sqlite';
-import { createWorker, countryLanguage, COUNTRY_LANGUAGES } from '../../src/engine.js';
+import { createWorker, countryLanguage, COUNTRY_LANGUAGES, MULTI_LANGUAGE_COUNTRIES } from '../../src/engine.js';
 
 const read = f => readFileSync(f, 'utf8');
 const SITES = readdirSync('sites').filter(n => existsSync(`sites/${n}/site.config.js`) && existsSync(`sites/${n}/public/assets/site.js`));
@@ -140,10 +140,10 @@ function memD1(schema) {
 }
 
 test('L162: the Worker names Polish on the page for a visitor from Poland only, never in the cached copy, never for Google', async () => {
-  assert.deepEqual(COUNTRY_LANGUAGES, { PL: 'pl-PL' });
+  assert.equal(COUNTRY_LANGUAGES.PL, 'pl-PL');
   assert.equal(countryLanguage(config.agw, 'PL'), 'pl-PL');
   assert.equal(countryLanguage(config.agw, 'pl'), 'pl-PL');
-  for (const cc of ['GB', 'DE', 'GR', 'US', '', null]) assert.equal(countryLanguage(config.agw, cc), '', String(cc));
+  for (const cc of ['GB', 'IE', 'US', 'AU', 'UA', 'TR', '', null]) assert.equal(countryLanguage(config.agw, cc), '', String(cc));
   assert.equal(countryLanguage({ ...config.agw, languages: config.agw.languages.filter(l => l.code !== 'pl-PL') }, 'PL'), '', 'a site without Polish');
   const schema = readdirSync('sites/agw/migrations').sort().map(f => read(`sites/agw/migrations/${f}`)).join('\n');
   const DB = memD1(schema + '\n' + read('tests/fixtures/agw-seed.sql'));
@@ -166,7 +166,7 @@ test('L162: the Worker names Polish on the page for a visitor from Poland only, 
     assert.equal(pl.res.status, 200);
     assert.match(pl.text, /^<!doctype html>\s*<html data-country-lang="pl-PL" lang="en-GB"/i);
     assert.equal(pl.res.headers.get('Cache-Control').split(',')[0], 'private', 'that answer is the visitor\'s only');
-    for (const cc of ['GB', 'DE', 'BE']) {
+    for (const cc of ['GB', 'US', 'BE']) {
       const other = await get('/', cc);
       assert.ok(!other.text.includes('data-country-lang'), cc);
     }
@@ -191,4 +191,73 @@ test('L162: the Group page says 12 languages for the sites (the Hub keeps its 11
   assert.ok(g.includes("'12 languages'") && g.includes('Pages in 12 languages,'));
   assert.ok(!/\b11 languages\b/.test(g));
   assert.match(read('sites/group/site.config.js'), /search across every Gear World site, in 11 languages/, 'the Hub: 11');
+});
+
+// Lessons L175 (owner, 17 Nov 2026, after Linkwise saw the Greek pages in English): every country whose language the
+// sites have opens in it, unless the visitor chose a language; countries with several take the browser's first one.
+test('L175: every country with a language of the sites gets it; several languages follow the browser; English otherwise', async () => {
+  const codes = config.agw.languages.map(l => l.code);
+  for (const [cc, code] of Object.entries(COUNTRY_LANGUAGES)) {
+    assert.ok(codes.includes(code), `${cc}: ${code} is a language of the sites`);
+    for (const key of Object.keys(config)) {
+      const site = config[key];
+      if (!site || !Array.isArray(site.languages)) continue;
+      assert.equal(countryLanguage(site, cc), site.languages.some(l => l.code === code) ? code : '', `${key} ${cc}`);
+    }
+  }
+  const want = { GR: 'el-GR', CY: 'el-GR', DE: 'de-DE', AT: 'de-DE', FR: 'fr-FR', IT: 'it-IT', ES: 'es-ES', MX: 'es-ES', PT: 'pt-PT', BR: 'pt-PT', NL: 'nl-NL', PL: 'pl-PL', AL: 'sq-AL', XK: 'sq-AL', RO: 'ro-RO', MD: 'ro-RO', RU: 'ru-RU' };
+  for (const [cc, code] of Object.entries(want)) assert.equal(countryLanguage(config.agw, cc), code, cc);
+  assert.equal(countryLanguage(config.agw, 'gr'), 'el-GR', 'lower case country');
+  // Never English speakers, and no guess where the country speaks a language the sites do not have.
+  for (const cc of ['GB', 'IE', 'US', 'CA', 'AU', 'NZ', 'MT', 'UA', 'TR', 'SE', 'CZ', 'HU', 'BG', 'HR', 'DK', 'FI', 'NO']) assert.equal(countryLanguage(config.agw, cc), '', cc);
+  // Belgium, Switzerland, Luxembourg: the browser decides, among the country's own languages only.
+  assert.deepEqual(MULTI_LANGUAGE_COUNTRIES, { BE: ['nl-NL', 'fr-FR', 'de-DE'], CH: ['de-DE', 'fr-FR', 'it-IT'], LU: ['fr-FR', 'de-DE'] });
+  for (const cc of Object.keys(MULTI_LANGUAGE_COUNTRIES)) assert.ok(!(cc in COUNTRY_LANGUAGES), cc);
+  const cases = [
+    ['BE', 'fr-BE,fr;q=0.9,en;q=0.8', 'fr-FR'], ['BE', 'nl-BE,nl;q=0.9', 'nl-NL'], ['BE', 'en-GB,nl;q=0.8', ''],
+    ['BE', 'it-IT,it;q=0.9', ''], ['BE', '', ''], ['BE', null, ''], ['CH', 'de-CH', 'de-DE'], ['CH', 'it-CH,de;q=0.5', 'it-IT'],
+    ['CH', '*, fr;q=0.5', 'fr-FR'], ['LU', 'lb-LU,fr;q=0.8', 'fr-FR'], ['LU', 'pt-PT,de;q=0.7', 'de-DE'], ['GR', 'en-GB', 'el-GR']
+  ];
+  for (const [cc, header, code] of cases) assert.equal(countryLanguage(config.agw, cc, header), code, `${cc} ${header}`);
+
+  // In the Worker: the page names it for a visitor from Greece, and for Belgium by the browser; never in the cached copy.
+  const schema = readdirSync('sites/agw/migrations').sort().map(f => read(`sites/agw/migrations/${f}`)).join('\n');
+  const DB = memD1(schema + '\n' + read('tests/fixtures/agw-seed.sql'));
+  const env = { DB, CLICK_LOG: 'off', FX_FETCH: async () => { throw new Error('offline'); } };
+  const store = new Map();
+  const before = globalThis.caches;
+  globalThis.caches = { default: {
+    match: async key => (store.has(key.url) ? store.get(key.url).clone() : undefined),
+    put: async (key, res) => { store.set(key.url, res); }
+  } };
+  const worker = createWorker(config.agw);
+  const get = async (path, country, headers = {}) => {
+    const req = new Request(`https://cargearworld.com${path}`, { headers: { 'User-Agent': 'Mozilla/5.0 test', ...headers } });
+    if (country) Object.defineProperty(req, 'cf', { value: { country } });
+    const res = await worker.fetch(req, env, { waitUntil: p => p });
+    return { res, text: await res.text() };
+  };
+  try {
+    const gr = await get('/', 'GR');
+    assert.match(gr.text, /<html data-country-lang="el-GR"/i);
+    assert.equal(gr.res.headers.get('Cache-Control').split(',')[0], 'private');
+    assert.match((await get('/', 'BE', { 'Accept-Language': 'fr-BE,fr;q=0.9' })).text, /<html data-country-lang="fr-FR"/i);
+    assert.ok(!(await get('/', 'BE', { 'Accept-Language': 'en-GB' })).text.includes('data-country-lang'));
+    assert.ok(!(await get('/', 'GB')).text.includes('data-country-lang'));
+    for (const res of store.values()) assert.ok(!(await res.clone().text()).includes('data-country-lang'), 'the cached copies: never');
+    const bot = await get('/', 'GR', { 'User-Agent': 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)' });
+    assert.ok(!bot.text.includes('data-country-lang'), 'Googlebot from Greece reads English');
+  } finally {
+    if (before === undefined) delete globalThis.caches; else globalThis.caches = before;
+  }
+});
+
+test('L175: the site script keeps the visitor\'s own choice first, then the country language, then English', () => {
+  for (const site of ['agw', 'tgw', 'hgw', 'cgw', 'zgw']) {
+    const js = read(`sites/${site}/public/assets/site.js`);
+    const i = js.indexOf('function wantedLanguage()');
+    const body = js.slice(i, js.indexOf('\n  }', i));
+    assert.ok(i > 0, site);
+    assert.ok(body.indexOf("get('lang')") < body.indexOf("read('lang'") && body.indexOf("read('lang'") < body.indexOf('data-country-lang'), `${site}: ?lang=, then the menu choice, then the country`);
+  }
 });

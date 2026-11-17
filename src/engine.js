@@ -651,9 +651,10 @@ export function createWorker(site) {
         response = htmlResponse(errorPage(pageSite), { status: busy ? 503 : 500, cache: 'none' });
         if (busy) response.headers.set('Retry-After', '60');
       }
-      // A visitor from Poland gets the site in Polish unless they chose a language (lessons L162): the page names it,
-      // after the page cache. Google's crawlers count as the UK (English, as before).
-      if (request.method === 'GET') response = await withCountryLanguage(response, countryLanguage(site, requestCountry(request, new URL(request.url))));
+      // A visitor gets the site in the language of their country unless they chose one (lessons L162 Poland, L175 every
+      // country with a language of the sites): the page names it, after the page cache. Google's crawlers count as the UK
+      // (English, as before).
+      if (request.method === 'GET') response = await withCountryLanguage(response, countryLanguage(site, requestCountry(request, new URL(request.url)), request.headers.get('accept-language')));
       // The bar for a visitor outside the UK who gets the UK view or the all view (lessons L107, owner's option A; L151):
       // added to the answer after the page cache, never into a cached copy, so it costs no D1 read and no extra cache copy.
       const browsing = browseCountry(request);
@@ -694,15 +695,45 @@ export async function withUkBar(response, barHtml = null) {
   return new Response(i < 0 ? text : text.slice(0, i) + bar + text.slice(i), { status: response.status, statusText: response.statusText, headers });
 }
 
-// Lessons L162 (Manager, 15 Nov 2026: Poland is open and the first country outside the UK to be promoted): a country
-// whose language the site has, and that the visitor gets without a choice of their own. Only Poland: every other
-// country reads English until they pick a language (or open a link with ?lang=).
-export const COUNTRY_LANGUAGES = { PL: 'pl-PL' };
-export function countryLanguage(site, country) {
-  const code = COUNTRY_LANGUAGES[String(country || '').toUpperCase()] || '';
-  return code && (site.languages || []).some(l => l.code === code) ? code : '';
+// Lessons L162 (Manager, 15 Nov 2026: Poland is open and the first country outside the UK to be promoted) and L175
+// (owner, 17 Nov 2026, after Linkwise saw the Greek pages open in English: "every country opens in its own language"):
+// a country whose language the site has gets it without a choice of their own. The visitor's own choice (menu or
+// ?lang=) always comes first, and Google reads English as before. A country with several languages of the sites takes
+// the first of the browser's languages that is one of them; English first, or none of them, keeps English.
+export const COUNTRY_LANGUAGES = {
+  PL: 'pl-PL',
+  GR: 'el-GR', CY: 'el-GR',
+  DE: 'de-DE', AT: 'de-DE', LI: 'de-DE',
+  FR: 'fr-FR', MC: 'fr-FR',
+  IT: 'it-IT', SM: 'it-IT', VA: 'it-IT',
+  ES: 'es-ES', MX: 'es-ES', AR: 'es-ES', CO: 'es-ES', CL: 'es-ES', PE: 'es-ES', VE: 'es-ES', EC: 'es-ES', GT: 'es-ES',
+  CU: 'es-ES', BO: 'es-ES', DO: 'es-ES', HN: 'es-ES', PY: 'es-ES', SV: 'es-ES', NI: 'es-ES', CR: 'es-ES', PA: 'es-ES',
+  UY: 'es-ES',
+  PT: 'pt-PT', BR: 'pt-PT', AO: 'pt-PT', MZ: 'pt-PT',
+  NL: 'nl-NL', SR: 'nl-NL',
+  AL: 'sq-AL', XK: 'sq-AL',
+  RO: 'ro-RO', MD: 'ro-RO',
+  RU: 'ru-RU', BY: 'ru-RU'
+};
+export const MULTI_LANGUAGE_COUNTRIES = { BE: ['nl-NL', 'fr-FR', 'de-DE'], CH: ['de-DE', 'fr-FR', 'it-IT'], LU: ['fr-FR', 'de-DE'] };
+export function countryLanguage(site, country, acceptLanguage = '') {
+  const cc = String(country || '').toUpperCase();
+  const has = code => (site.languages || []).some(l => l.code === code);
+  const several = MULTI_LANGUAGE_COUNTRIES[cc];
+  if (several) {
+    for (const part of String(acceptLanguage || '').split(',')) {
+      const base = part.split(';')[0].trim().toLowerCase().split('-')[0];
+      if (!base || base === '*') continue;
+      if (base === 'en') return '';
+      const code = several.find(c => c.split('-')[0] === base);
+      if (code) return has(code) ? code : '';
+    }
+    return '';
+  }
+  const code = COUNTRY_LANGUAGES[cc] || '';
+  return code && has(code) ? code : '';
 }
-// <html data-country-lang="pl-PL">: the site script reads it only when the visitor has no language of their own (menu or
+// <html data-country-lang="el-GR">: the site script reads it only when the visitor has no language of their own (menu or
 // ?lang=). Added to the answer, never to the cached copy (one copy per view group for every visitor), so that answer is
 // private, like the one with the UK bar. In the Worker: HTMLRewriter; in the Node tests: the same on the text.
 export async function withCountryLanguage(response, code) {
