@@ -3843,7 +3843,8 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
     # index.html (one more line, so they differ) and the 3 new files (not there yet). The baseline lists it exactly.
     $vCfg = "name = `"gear-world-hub`"`nmain = `"worker.js`"`n[[d1_databases]]`ndatabase_name = `"gear-world-registry`"`ndatabase_id = `"$vDb`"`n`n[[services]]`nbinding = `"POSTERS`"`nservice = `"gear-world-posters`"`n"
     Write-Utf8 (Join-Path $vHub 'wrangler.toml') $vCfg
-    foreach ($n in @('worker.js', 'photo-search.js', 'poster-scan.js', 'mailerlite.js', 'members.js')) { Copy-Item -LiteralPath (Join-Path $vRepo $n) -Destination (Join-Path $vHub $n) -Force }
+    # remind.js (L182) is on the "PC" already here, so the plan of this check stays the same 6 files.
+    foreach ($n in @('worker.js', 'photo-search.js', 'poster-scan.js', 'mailerlite.js', 'members.js', 'remind.js')) { Copy-Item -LiteralPath (Join-Path $vRepo $n) -Destination (Join-Path $vHub $n) -Force }
     Copy-Item -LiteralPath $vRepoPub -Destination $vHub -Recurse -Force
     $vPub = Join-Path $vHub 'public'
     foreach ($n in @('hub-v2.css', 'hub-v2.js', 'hub-deals.json')) { Remove-Item -LiteralPath (Join-Path $vPub $n) -Force }
@@ -3852,7 +3853,7 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
     Write-Utf8 (Join-Path $vHub '.dev.vars') 'SECRET=never-in-the-zip'
     $vBase = Join-Path $work 'gwhv-baseline.txt'
     $bl = @('# test baseline', '# version: test hub v2-before', '# path | bytes | sha256 | kind')
-    $vRels = @('worker.js', 'photo-search.js', 'poster-scan.js', 'mailerlite.js', 'members.js') + @(Get-ChildItem -LiteralPath $vPub -Recurse -File | Sort-Object FullName | ForEach-Object { 'public/' + $_.FullName.Substring($vPub.Length).TrimStart('\', '/').Replace('\', '/') })
+    $vRels = @('worker.js', 'photo-search.js', 'poster-scan.js', 'mailerlite.js', 'members.js', 'remind.js') + @(Get-ChildItem -LiteralPath $vPub -Recurse -File | Sort-Object FullName | ForEach-Object { 'public/' + $_.FullName.Substring($vPub.Length).TrimStart('\', '/').Replace('\', '/') })
     foreach ($rel in $vRels) {
         $f = Join-Path $vHub ($rel.Replace('/', '\'))
         $bl += ('{0} | {1} | {2} | file' -f $rel, (Get-Item -LiteralPath $f).Length, (Get-FileHash -LiteralPath $f -Algorithm SHA256).Hash.ToLowerInvariant())
