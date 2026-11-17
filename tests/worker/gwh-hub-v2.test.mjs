@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import vm from 'node:vm';
 import { PROMOS } from '../../promos/promos.js';
-import { buildDeals, dealsJson, siteDomains, hubScriptWithSeasons } from '../../tools/gwh-deals.mjs';
+import { buildDeals, dealsJson, siteDomains, hubScriptWithSeasons, siteCampaignNames, HUB_LANGUAGES } from '../../tools/gwh-deals.mjs';
 
 const ROOT = new URL('../../sites/gwh/', import.meta.url);
 const read = (path) => readFileSync(new URL(path, ROOT), 'utf8');
@@ -124,7 +124,7 @@ test('hub v2: the gift finder asks only Gear Worlds that exist, with a price, an
 test('hub v2: deals come from promos.js (hub-deals.json is up to date), keep the end date, link to a site page only', async () => {
   const domains = await siteDomains();
   assert.equal(Object.keys(domains).length, 13, 'the 13 Gear Worlds (ZGW the newest; its Hub card comes with the Hub step)');
-  const want = dealsJson(buildDeals(PROMOS, domains));
+  const want = dealsJson(buildDeals(PROMOS, domains, siteCampaignNames));
   assert.equal(read('public/hub-deals.json'), want, 'run: node tools/gwh-deals.mjs');
   const { deals } = JSON.parse(want);
   assert.ok(deals.length > 0);
@@ -414,4 +414,28 @@ test('hub v2: a link to a Gear World site carries the language chosen on the Hub
   assert.match(code, /const chosen = typeof window\.GWH_languageChosen === "function" \? window\.GWH_languageChosen\(\) : false;/);
   assert.match(read('public/translations.js'), /window\.GWH_languageChosen = \(\) => chosenLocale;/);
   assert.ok(!/gearworld\.com\/\?lang=/.test(html), 'the page keeps the plain addresses');
+});
+
+// The check of 17/11/2026 (L176): the campaign name of a deal ("Household & Cleaning") was English on a Greek Hub. It now
+// comes in the visitor's language from the dictionary of the deal's site (campaignNames in hub-deals.json, made by
+// tools/gwh-deals.mjs), and stays as it is in English or when the site's dictionary has no such text.
+test('hub v2: the campaign name of a deal in the visitor\'s language, from the dictionary of its site (L176)', () => {
+  const { deals } = JSON.parse(read('public/hub-deals.json'));
+  const household = deals.find(d => d.campaign === 'Household & Cleaning');
+  assert.ok(household, 'the Joybuy Household & Cleaning sale');
+  assert.equal(household.campaignNames['el-GR'], JSON.parse(readFileSync('sites/hgw/public/assets/i18n/el-GR.json', 'utf8'))['Household & Cleaning']);
+  for (const d of deals) for (const [l, v] of Object.entries(d.campaignNames || {})) {
+    assert.ok(HUB_LANGUAGES.includes(l) && typeof v === 'string' && v.trim() && v !== d.campaign, `${d.id} ${l}`);
+  }
+  const label = (lang, d) => {
+    const window = { addEventListener() {}, dispatchEvent() {}, GWH_getLocale: () => lang };
+    vm.runInNewContext(read('public/hub-v2.js'), { window, document: { readyState: 'loading', addEventListener() {} }, URL, URLSearchParams, Intl, console });
+    return window.GearWorldHubV2.campaignLabel(d, at('2026-11-20'));
+  };
+  assert.equal(label('el-GR', household), household.campaignNames['el-GR']);
+  assert.equal(label('ru-RU', household), household.campaignNames['ru-RU']);
+  assert.equal(label('en-GB', household), 'Household & Cleaning');
+  assert.equal(label('el-GR', { campaign: 'Baby' }), 'Baby', 'no campaignNames: the name as it is');
+  assert.equal(label('el-GR', { campaign: 'Halloween', campaignNames: { 'el-GR': 'Χάλοουιν' } }), '', 'a season that is over is still not shown');
+  assert.deepEqual(siteCampaignNames('HGW', 'no such text of the dictionary'), {});
 });

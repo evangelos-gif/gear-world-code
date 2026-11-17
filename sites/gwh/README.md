@@ -137,7 +137,7 @@ Live από 7/11/2026 (commit f4c8c35· το `live-baseline.txt` ενημερώ�
 
 | Αρχείο | Τι άλλαξε |
 |---|---|
-| `public/affiliate-disclosure/index.html` | «On the Hub»: τα links του Hub πάνε μόνο σε σελίδες των Gear World sites· το Hub δεν έχει affiliate links ούτε πληρωμένες θέσεις (πριν: «Some links, such as partner banners, are affiliate links»). «Last updated: 7 November 2026» |
+| `public/affiliate-disclosure/index.html` | «On the Hub»: τα links του Hub πάνε μόνο σε σελίδες των Gear World sites· το Hub δεν έχει affiliate links ούτε πληρωμένες θέσεις (από το L176, 17/11/2026: με μία εξαίρεση, την κάρτα «Featured pick» μέσω Sovrn Commerce, L121) (πριν: «Some links, such as partner banners, are affiliate links»). «Last updated: 7 November 2026» |
 | `public/privacy/index.html` | «The Hub itself has no affiliate links; the links to retailers on those sites go through the Awin affiliate network» (πριν: «and partner links on the Hub»). «Last updated: 7 November 2026» (η αλλαγή του L102 δεν είχε αλλάξει την ημερομηνία). Από το L176 (17/11/2026): αντί για «no affiliate links», το μόνο affiliate link του Hub, η κάρτα «Featured pick» μέσω Sovrn Commerce (L121) |
 | `public/terms/index.html` | «operated by Gear World (run by Evangelos Kalogerakis, United Kingdom)», όπως στα sites. «Last updated: 7 November 2026» |
 | `public/contact/index.html` | «business enquiries from retailers and affiliate networks» (πριν: «partnership enquiries») |

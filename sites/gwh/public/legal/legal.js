@@ -41,6 +41,9 @@
     }
     var cells = document.querySelectorAll(".lg-prose td[data-label]");
     for (var c = 0; c < cells.length; c++) cells[c].setAttribute("data-label", t(cells[c].getAttribute("data-label")));
+    // The names of the two menus for screen readers ("Breadcrumb", "Legal").
+    var navs = document.querySelectorAll("nav.lg-crumbs[aria-label], nav.lg-legal[aria-label]");
+    for (var n = 0; n < navs.length; n++) navs[n].setAttribute("aria-label", t(navs[n].getAttribute("aria-label")));
     var parts = document.title.split(" | ");
     if (parts.length === 2) document.title = t(parts[0]) + " | " + parts[1];
     var h1 = document.querySelector(".lg-prose h1");

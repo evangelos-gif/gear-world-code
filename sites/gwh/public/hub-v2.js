@@ -224,7 +224,10 @@
     const today = ukToday(now);
     const year = Number(today.slice(0, 4));
     for (const s of seasonsOf(year)) if (SEASON_WORDS[s.id] && SEASON_WORDS[s.id].test(name) && today > s.end) return "";
-    return name;
+    // In the visitor's language when the site's dictionary has it (campaignNames, made by tools/gwh-deals.mjs).
+    const names = d && d.campaignNames && typeof d.campaignNames === "object" ? d.campaignNames : null;
+    const own = names && typeof names[locale()] === "string" ? names[locale()].trim() : "";
+    return own || name;
   }
 
   function activeDeals(deals, now) {

@@ -186,10 +186,13 @@ try {
       // deals: from hub-deals.json, to site pages only (the list the script fills; the «Featured pick» card of L121 is
       // a card of the same look outside it)
       await page.locator('#gwh2Deals .gwh2-deal').first().waitFor({ state: 'attached', timeout: 5000 }).catch(() => {});
-      const deals = await page.$$eval('#gwh2Deals .gwh2-deal', els => els.map(e => ({ href: e.getAttribute('href'), end: e.querySelector('.gwh2-deal-end').textContent })));
+      const deals = await page.$$eval('#gwh2Deals .gwh2-deal', els => els.map(e => ({ href: e.getAttribute('href'), end: e.querySelector('.gwh2-deal-end').textContent, meta: e.querySelector('.gwh2-deal-meta').textContent.trim() })));
       check(deals.length >= 1 && deals.length <= 4, `${tag}: deals shown (at most 4)`, String(deals.length));
       check(deals.every(d => /^https:\/\/[a-z]+gearworld\.com\/discount-codes\/[a-z0-9-]+\/$/.test(d.href)), `${tag}: every deal links to a site page, never /go/ or /out/`, deals.map(d => d.href).join(' '));
       check(deals.every(d => d.end && d.end.length > 3), `${tag}: every deal shows its end date`, deals.map(d => d.end).join(' | '));
+      // L176 (the check of 17/11/2026): the campaign names in the chosen language, from the sites' dictionaries.
+      const wantMeta = JSON.parse(readFileSync(join(publicDir, 'hub-deals.json'), 'utf8')).deals.map(d => (d.campaignNames && d.campaignNames[locale]) || d.campaign);
+      check(deals.every(d => wantMeta.includes(d.meta) || d.kind === 'code' || /·/.test(d.meta)), `${tag}: the campaign names of the deals in the chosen language (L176)`, deals.map(d => d.meta).join(' | '));
       const allLinks = await page.$$eval('a[href]', els => els.map(e => e.getAttribute('href')));
       check(!allLinks.some(h => /\/(go|out)\//.test(h)), `${tag}: no /go/ or /out/ link on the page`);
       // Lessons L121: ONE Sovrn Commerce link, visible, sponsored and nofollow, never the Sovrn script. Read from the

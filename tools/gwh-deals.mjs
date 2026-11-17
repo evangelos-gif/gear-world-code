@@ -35,7 +35,24 @@ export async function siteDomains() {
   return out;
 }
 
-export function buildDeals(promos, domains) {
+// The campaign name of a sale in the Hub's other languages (the check of 17/11/2026: "Household & Cleaning" stayed in
+// English on a Greek Hub): the words of the dictionary of the deal's first site, as that site shows them. A language whose
+// dictionary has no such text is left out, and the Hub shows the name as it is.
+export const HUB_LANGUAGES = ['el-GR', 'de-DE', 'fr-FR', 'it-IT', 'es-ES', 'pt-PT', 'nl-NL', 'sq-AL', 'ro-RO', 'ru-RU'];
+export function siteCampaignNames(code, text) {
+  const out = {};
+  if (!/^[A-Z]{3}$/.test(code || '') || !text) return out;
+  for (const lang of HUB_LANGUAGES) {
+    const file = join(repo, 'sites', code.toLowerCase(), 'public', 'assets', 'i18n', `${lang}.json`);
+    if (!existsSync(file)) continue;
+    const dict = JSON.parse(readFileSync(file, 'utf8'));
+    const word = Object.prototype.hasOwnProperty.call(dict, text) ? dict[text] : '';
+    if (typeof word === 'string' && word.trim() && word !== text) out[lang] = word;
+  }
+  return out;
+}
+
+export function buildDeals(promos, domains, names = null) {
   const deals = [];
   for (const p of promos) {
     if (!p || !p.id || !p.retailer || !/^[a-z0-9-]{1,40}$/.test(p.slug || '')) continue;
@@ -51,6 +68,8 @@ export function buildDeals(promos, domains) {
       link: `https://${domains[sites[0]]}/discount-codes/${p.slug}/`
     };
     if (deal.kind === 'code') { deal.off = Number(p.off); deal.minSpend = Number(p.minSpend) || 0; }
+    const named = typeof names === 'function' && deal.campaign ? names(sites[0], deal.campaign) : null;
+    if (named && Object.keys(named).length) deal.campaignNames = named;
     deals.push(deal);
   }
   return deals;
@@ -64,7 +83,7 @@ export function dealsJson(deals) {
 }
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
-  const text = dealsJson(buildDeals(PROMOS, await siteDomains()));
+  const text = dealsJson(buildDeals(PROMOS, await siteDomains(), siteCampaignNames));
   const hubNow = readFileSync(HUB_JS, 'utf8');
   const hub = hubScriptWithSeasons(hubNow);
   if (process.argv.includes('--check')) {

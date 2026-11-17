@@ -176,7 +176,8 @@
   Worker names the country language on those pages too. The affiliate disclosure, privacy, cookies and /about/ name the
   one affiliate link of the Hub itself, the "Featured pick" card (Sovrn Commerce, L121), in the 11 languages, with the
   Sovrn privacy policy (until then they said "The Hub itself has no affiliate links"); the footer of the home page is
-  in the 11 languages too.
+  in the 11 languages too, and so are the campaign names of the deals (from the dictionary of the deal's site, made
+  by tools/gwh-deals.mjs as campaignNames).
   Release order (L175): the 13 sites go live FIRST (sites-update-all, phrase ΕΓΚΡΙΝΩ ALL UPDATES), and only after their
   report this Hub release. Check that https://<site>/api/version of the sites is on the release with L175 first;
   otherwise a visitor in Greece who made no choice gets a Greek Hub and English sites.
@@ -248,14 +249,14 @@ $About = @{
     'public/legal/i18n/sq-AL.json' = 'νέο αρχείο: τα κείμενα των νομικών σελίδων στα sq-AL για το legal.js (L176)'
     'public/legal/i18n/ro-RO.json' = 'νέο αρχείο: τα κείμενα των νομικών σελίδων στα ro-RO για το legal.js (L176)'
     'public/legal/i18n/ru-RU.json' = 'νέο αρχείο: τα κείμενα των νομικών σελίδων στα ru-RU για το legal.js (L176)'
-    'public/legal/legal.js' = 'οι νομικές σελίδες στη γλώσσα του επισκέπτη (επιλογή του, μετά της χώρας του, μετά Αγγλικά) από τα αρχεία legal/i18n (L176)· το έτος του footer και η επιλογή cookies όπως πριν'
+    'public/legal/legal.js' = 'και τα ονόματα των δύο μενού για αναγνώστες οθόνης (aria-label, L176)· οι νομικές σελίδες στη γλώσσα του επισκέπτη (επιλογή του, μετά της χώρας του, μετά Αγγλικά) από τα αρχεία legal/i18n (L176)· το έτος του footer και η επιλογή cookies όπως πριν'
     'public/about/index.html' = 'το «Every product links…» λέει και το Sovrn Commerce της κάρτας «Featured pick» (L176, L121)· νέο ?v= για το legal.js και data-lg-i18n (L176)· νέο ?v= για το about.js (L175, L31)· νέα σελίδα /about/: «Run by Evangelos Kalogerakis, United Kingdom», ότι δεν πουλάμε, δεν παίρνουμε πληρωμές, δεν κάνουμε παραδόσεις, contact@gearworldhub.com (νέο αρχείο, L101)'
     'public/about/about.js' = 'το ίδιο κείμενο για το Sovrn Commerce σε 11 γλώσσες (L176)· χωρίς δική του επιλογή γλώσσας ο επισκέπτης βλέπει τη σελίδα στη γλώσσα της χώρας του, όπως την αρχική (L175)· η σελίδα /about/ στη γλώσσα που διάλεξε ο επισκέπτης, 11 γλώσσες (νέο αρχείο, L101)'
     'public/privacy/index.html' = 'το μόνο affiliate link του ίδιου του Hub, η κάρτα «Featured pick», πάει μέσω Sovrn Commerce, με link στην πολιτική απορρήτου του Sovrn (L176, L121)· στη γλώσσα του επισκέπτη μέσω legal.js (data-lg-i18n, L176), «outside the UK and the European Economic Area», νέα γραμμή «Language», «Last updated: 17 November 2026»· τα links των sites περνούν από το Awin ή το CJ, με την πολιτική απορρήτου και των δύο· «Last updated: 9 November 2026» (L107)'
     'public/cookies/index.html' = 'το affiliate network: «Awin, CJ for a few retailers, or Sovrn Commerce for the "Featured pick" card» (L176)· στη γλώσσα του επισκέπτη μέσω legal.js (L176), νέες γραμμές gwh-language-chosen και gwh2-season-paused, «Last updated: 17 November 2026»· τα cookies του affiliate network: «Awin, or for a few retailers CJ»· «Last updated: 9 November 2026» (L107)· νέα γραμμή στο footer και link «About» (L101)'
     'public/affiliate-disclosure/index.html' = 'η μόνη εξαίρεση, η κάρτα «Featured pick» (Affiliate link, Sovrn Commerce), αντί για «The Hub itself has no affiliate links», «Last updated: 17 November 2026» (L176, L121)· στη γλώσσα του επισκέπτη μέσω legal.js (data-lg-i18n, L176)· τα κουμπιά των sites περνούν από ένα affiliate network: Awin, ή για λίγα καταστήματα CJ· «Last updated: 9 November 2026» (L107)'
     'public/hub-v2.css'     = 'στο κινητό το Pets και το Stores μικρά, το ένα δίπλα στο άλλο (όπως οι άλλες κάρτες)· κάτω από 380 px εικόνα 40 px και τίτλος 13 px, ώστε το «Καταστήματα» να χωράει σε μία γραμμή (L166)'
-    'public/hub-v2.js' = 'η κάρτα «Featured pick» σε 11 γλώσσες (το κατάστημα και το site του αμετάφραστα), και ένα link προς ένα από τα 13 sites παίρνει τη γλώσσα που διάλεξε ο επισκέπτης στο Hub (?lang=) τη στιγμή που πατιέται (L174)· όλα τα άλλα όπως είναι live'
+    'public/hub-v2.js' = 'το όνομα της καμπάνιας μιας προσφοράς στη γλώσσα του επισκέπτη, όπως στο λεξικό του site της (campaignNames, L176)· η κάρτα «Featured pick» σε 11 γλώσσες (το κατάστημα και το site του αμετάφραστα), και ένα link προς ένα από τα 13 sites παίρνει τη γλώσσα που διάλεξε ο επισκέπτης στο Hub (?lang=) τη στιγμή που πατιέται (L174)· όλα τα άλλα όπως είναι live'
     'public/hub-stores.jpg' = 'η φωτογραφία της κάρτας «Stores»: οι φωτογραφίες 4 κόσμων μαζί (Pexels, ήδη στο Hub)'
     'public/stores/index.html' = 'νέα σελίδα /stores/: τα μεγάλα καταστήματα ανά χώρα παράδοσης (L166)'
     'public/stores/stores.css' = 'η εμφάνιση των σελίδων /stores/ (νέο αρχείο, L166)'
@@ -286,7 +287,7 @@ $About = @{
     'public/hub-bgw.jpg'    = 'η φωτογραφία της κάρτας Biker (Pexels, χωρίς μάρκες)'
     'public/hub-pgw.jpg'    = 'η φωτογραφία της κάρτας Gaming (Pexels, χωρίς μάρκες)'
     'public/hub-zgw.jpg'    = 'η φωτογραφία της κάρτας Pets (Pexels, χωρίς μάρκες)'
-    'public/hub-deals.json' = 'οι προσφορές με ημερομηνία λήξης, από το promos.js, χωρίς τους κωδικούς Halloween του Joybuy και χωρίς ποσοστά στις εκπτώσεις (L107)'
+    'public/hub-deals.json' = 'το όνομα της καμπάνιας και στις 10 άλλες γλώσσες από το λεξικό του site (campaignNames, L176)· οι προσφορές με ημερομηνία λήξης, από το promos.js, χωρίς τους κωδικούς Halloween του Joybuy και χωρίς ποσοστά στις εκπτώσεις (L107)'
     'public/seasonal/halloween.mp4' = 'Halloween (βίντεο) για το μπάνερ των προσφορών'
     'public/seasonal/halloween.jpg' = 'Halloween (σταθερή εικόνα) για το μπάνερ των προσφορών'
     'public/seasonal/black-friday.mp4' = 'Black Friday (βίντεο) για το μπάνερ των προσφορών'

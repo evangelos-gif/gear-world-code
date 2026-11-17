@@ -24,6 +24,7 @@
     footCookies: ["Cookies","Cookies","Cookies","Cookies","Cookie","Cookies","Cookies","Cookies","Cookies","Cookie-uri","Cookie"],
     footTerms: ["Terms","Όροι","Bedingungen","Conditions","Termini","Condiciones","Termos","Voorwaarden","Kushtet","Termeni","Условия"],
     footDisclosure: ["Affiliate disclosure","Γνωστοποίηση affiliate","Affiliate-Hinweis","Information sur l'affiliation","Informativa sull'affiliazione","Aviso de afiliación","Divulgação de afiliados","Affiliateverklaring","Deklarata e afiliimit","Declarație de afiliere","Партнёрские ссылки"],
+    footLegal: ["Legal","Νομικά","Rechtliches","Informations légales","Note legali","Información legal","Informação legal","Juridisch","Informacion ligjor","Informații legale","Правовая информация"],
     footContact: ["Contact","Επικοινωνία","Kontakt","Contact","Contatti","Contacto","Contacto","Contact","Kontakt","Contact","Контакты"],
     navAbout: ["About","Σχετικά","Über uns","À propos","Chi siamo","Acerca de","Sobre","Over ons","Rreth nesh","Despre","О нас"],
 
@@ -339,6 +340,8 @@
     setText('.footer-legal a[href="/terms/"]', "footTerms");
     setText('.footer-legal a[href="/affiliate-disclosure/"]', "footDisclosure");
     setText('.footer-legal a[href="/contact/"]', "footContact");
+    const footLegal = document.querySelector(".footer-legal");
+    if (footLegal) footLegal.setAttribute("aria-label", tr("footLegal"));
 
     setText(".hero-copy > .eyebrow", "heroEyebrow");
 
