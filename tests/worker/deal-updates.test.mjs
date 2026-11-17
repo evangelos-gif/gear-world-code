@@ -72,7 +72,8 @@ for (const code of codes) {
     assert.match(await r.text(), /You are signed up/);
     assert.equal(calls.length, 1);
     assert.equal(calls[0].url, HUB_SUBSCRIBE_URL);
-    assert.deepEqual(calls[0].body, { email: 'jo@example.com', consent: true, site: code, page: '/deals/', client: await clientKey('203.0.113.7'), turnstile_token: TOKEN });
+    // form 'box': the box at the bottom of the page; the small sign-up window sends 'popup' (lessons L182).
+    assert.deepEqual(calls[0].body, { email: 'jo@example.com', consent: true, site: code, page: '/deals/', client: await clientKey('203.0.113.7'), turnstile_token: TOKEN, form: 'box' });
     assert.ok(!JSON.stringify(calls[0].body).includes('203.0.113.7'), 'the IP address never leaves the site');
     assert.deepEqual(DB.writes.filter(w => /newsletter|customers|rate_limits/i.test(w)), [], 'the site database is not written');
     // The privacy policy names the shared list and MailerLite.

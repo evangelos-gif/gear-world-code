@@ -3,6 +3,7 @@ import { html, raw } from '../lib/html.js';
 import { categoryPath, productPath, formatPrice, truncate, formatDate } from '../lib/text.js';
 import { normalizeGtin, gtinSchemaKey } from '../lib/gtin.js';
 import { page, productGrid, breadcrumbs, breadcrumbSchema, absolute, tr, keepName, viewAt, priceTag, retailerFlag, deliveryText, deliveryLine, shownLine, deliversLabel, rrpTag, stockText } from './layout.js';
+import { REMIND_UNTIL_ISO, REMIND_PATH } from '../lib/remind.js';
 
 function specsList(product) {
   let specs = {};
@@ -70,6 +71,27 @@ export function hiddenProductPage(site, product, category, notice) {
     body,
     schema: [breadcrumbSchema(site, crumbs)]
   });
+}
+
+// "Remind me on 27 Nov" (lessons L182, src/lib/remind.js): closed until the visitor opens it, under the buttons. A
+// normal form post that the site script sends as JSON; the Turnstile widget is the one of "Get deal updates". It goes
+// away by itself after 27 Nov (the engine stops showing it, and the script removes it from an older copy of the page).
+// No "deals", percentage or "Was" in its texts (lessons L103, L107).
+function remindBox(site, product) {
+  return html`<details class="remind" data-remind="${REMIND_UNTIL_ISO}">
+          <summary>Remind me on 27 Nov</summary>
+          <form class="remind-form" action="${REMIND_PATH}" method="post">
+            <p class="remind-what">We will send you one email on 27 Nov with a link to this product, so you can check its price that day.</p>
+            <label class="visually-hidden" for="rm-email">Email address</label>
+            <input id="rm-email" name="email" type="email" required maxlength="254" autocomplete="email" placeholder="Your email address">
+            <button type="submit">Remind me</button>
+            <input type="hidden" name="product" value="${product.id}">
+            <span class="du-hp" aria-hidden="true"><label for="rm-website">Leave this empty</label><input id="rm-website" name="website" type="text" tabindex="-1" autocomplete="off"></span>
+            <label class="remind-consent"><input type="checkbox" name="consent" value="yes" required> <span>Email me once, on 27 Nov, about this product. MailerLite sends the email for us. <a href="/privacy/">Privacy policy</a></span></label>
+            <div class="remind-turnstile" data-remind-turnstile data-sitekey="${site.dealTurnstileKey}"></div>
+          </form>
+          <p class="remind-status" data-remind-status role="status" aria-live="polite" hidden></p>
+        </details>`;
 }
 
 export function productPage(site, product, category, similar, offers = []) {
@@ -148,6 +170,7 @@ export function productPage(site, product, category, similar, offers = []) {
           <button type="button" class="btn-compare btn-compare-big" data-compare="${product.id}" aria-pressed="false" hidden>+ Compare</button>
           ${site.cart ? html`<button type="button" class="btn-cart btn-cart-big" data-cart="${product.id}" aria-pressed="false" hidden>+ Save</button>` : ''}
         </div>
+        ${site.remindOpen && site.dealTurnstileKey ? remindBox(site, product) : ''}
         ${offers.length > 1 ? html`<p class="shelf-offers"><a href="#prices">${tr('Compare {0} retailers', offers.length)}</a></p>` : ''}
         <p class="shelf-note">${tr('You buy on the {0} website, at their price.', keepName(product.retailer))} We may earn a commission. <a href="/how-we-make-money/">How this works</a></p>
       </div>

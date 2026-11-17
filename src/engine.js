@@ -22,6 +22,7 @@ import { posterScan } from './lib/poster-scan.js';
 import { guidePage, guidesIndexPage, findGuide, guideProductIds, listedGuides, allGuideProductIds, GUIDES_PATH } from './pages/guides.js';
 import { viewFor, hubViewFor, browseView, homeView, hiddenReason, needsCheck, cacheKeyUrl, needsUkBar, retailerInView, cleanCountry, now as clockNow } from './lib/visibility.js';
 import { deliveryCountries } from './lib/delivery.js';
+import { remindProbe, REMIND_UNTIL, REMIND_URL, REMIND_PATH } from './lib/remind.js';
 
 // Gear World Hub keeps the one list of members; sites reach it only through a service binding (lessons L92).
 // The address is not public: requests from the internet never carry this host name.
@@ -127,6 +128,8 @@ export function createWorker(site) {
   const categories = new Map(site.categories.map(c => [c.slug, c]));
   // Older Gear World sites keep their database exactly as it is (lessons L28).
   db.useLayout(site);
+  // "Remind me on 27 Nov" (lessons L182): is the Hub's list open? Asked at most every few minutes.
+  const remindOpen = remindProbe();
 
   async function handle(request, env, ctx) {
     const url = new URL(request.url);
@@ -171,6 +174,7 @@ export function createWorker(site) {
     // POST endpoints
     if (method === 'POST') {
       if (path === '/api/newsletter' && (hubReady(env) || !db.isLegacy())) return newsletter(request, env, url, shown);
+      if (path === REMIND_PATH && hubReady(env)) return remind(request, env, url, shown, view, at);
       if (path === '/api/csp-report') return cspReport(request);
       return textResponse('Not found', { status: 404, cache: 'none' });
     }
@@ -244,6 +248,9 @@ export function createWorker(site) {
         // with a notice, no price or button, noindex, and nothing else read (lessons L107).
         const reason = hiddenReason(view, product);
         if (reason) return htmlResponse(hiddenProductPage(shown, product, categories.get(product.category_slug), reason), { method });
+        // "Remind me on 27 Nov" (lessons L182): only with the "Get deal updates" box (Hub link and Turnstile sitekey),
+        // until the end of 27 Nov, and while the Hub's list is open.
+        shown.remindOpen = Boolean(shown.dealTurnstileKey) && at <= REMIND_UNTIL && await remindOpen(hubBinding(env), at);
         const [similar, offers] = await Promise.all([db.similarProducts(env.DB, product, 8, { view }), db.offersFor(env.DB, product, 12, { view })]);
         marked(view, [product]);
         marked(view, similar);
@@ -564,7 +571,8 @@ export function createWorker(site) {
         const res = await hubBinding(env).fetch(HUB_SUBSCRIBE_URL, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email, consent: true, site: site.code.toLowerCase(), page, client: await clientKey(ip), turnstile_token: token })
+          // form 'popup': the small sign-up window (lessons L182), counted apart by the Hub; anything else is the box.
+          body: JSON.stringify({ email, consent: true, site: site.code.toLowerCase(), page, client: await clientKey(ip), turnstile_token: token, form: data.form === 'popup' ? 'popup' : 'box' })
         });
         r = await res.json().catch(() => ({ ok: false }));
         // The network's sign-ups of the day are full (F02): a friendly answer, try tomorrow.
@@ -590,6 +598,66 @@ export function createWorker(site) {
       sourcePath: page
     });
     return answer(true, 'Thanks. You are signed up.', 200);
+  }
+
+  // "Remind me on 27 Nov" (lessons L182): one product, sent to the Hub's list through the service binding, like "Get deal
+  // updates" (the same Turnstile widget, the IP only as a one-way key). The product must be one this visitor may see,
+  // and the name and our own /product/ address go with it (never /out/ or /go/). Works as a form post or as JSON.
+  async function remind(request, env, url, pageSite, view, at) {
+    const ctype = (request.headers.get('content-type') || '').toLowerCase();
+    const isForm = ctype.includes('application/x-www-form-urlencoded') || ctype.includes('multipart/form-data');
+    const answer = (ok, message, status) => (isForm
+      ? htmlResponse(dealUpdatesPage(pageSite, ok, message, { path: REMIND_PATH, title: 'Remind me on 27 Nov', done: ok ? 'You will get a reminder' : 'No reminder yet' }), { status, cache: 'none' })
+      : jsonResponse(ok ? { ok: true, message } : { ok: false, error: message }, { status }));
+    const origin = request.headers.get('origin');
+    if (origin && origin !== url.origin) return answer(false, 'This form only works on this website.', 403);
+    if (!isForm && !ctype.includes('application/json')) return answer(false, 'Send the form as JSON.', 415);
+    if (Number(request.headers.get('content-length') || 0) > 4096) return answer(false, 'The form is too large.', 413);
+    let data;
+    try {
+      if (isForm) {
+        const f = await request.formData();
+        data = { email: f.get('email'), consent: f.get('consent') === 'yes' || f.get('consent') === 'on', product: f.get('product'), page: f.get('page'), website: f.get('website'), turnstile_token: f.get('cf-turnstile-response') };
+      } else {
+        data = await request.json();
+      }
+    } catch { return answer(false, 'The form data could not be read.', 400); }
+    if (!data || typeof data !== 'object') return answer(false, 'The form data could not be read.', 400);
+    if (!(at <= REMIND_UNTIL)) return answer(false, 'Reminders for 27 Nov are closed.', 410);
+    const thanks = 'Thanks. We will email you once, on 27 Nov, with a link to this product.';
+    if (String(data.website || '').trim()) return answer(true, thanks, 200);
+    const email = String(data.email || '').trim().toLowerCase();
+    if (!/^[^\s@]{1,64}@[^\s@]{1,190}\.[^\s@]{2,24}$/.test(email)) return answer(false, 'Enter a valid email address.', 400);
+    if (data.consent !== true) return answer(false, 'Tick the box to get the reminder email.', 400);
+    const id = /^\d{1,12}$/.test(String(data.product || '').trim()) ? Number(String(data.product).trim()) : 0;
+    const product = id > 0 ? await db.getProduct(env.DB, id) : null;
+    if (!product) return answer(false, 'This product is no longer listed.', 404);
+    // Only a product this visitor may see (its retailer delivers to their country, a recent price; lessons L107).
+    if (hiddenReason(view, product)) return answer(false, 'We cannot set a reminder for this product in your country.', 400);
+    const token = String(data.turnstile_token || '').trim();
+    if (!token) return answer(false, 'This sign-up box needs JavaScript for its security check. Turn on JavaScript and try again.', 403);
+    if (token.length > 2048) return answer(false, 'The security check failed. Reload the page and try again.', 403);
+    const ip = request.headers.get('cf-connecting-ip') || 'unknown';
+    let r;
+    try {
+      const res = await hubBinding(env).fetch(REMIND_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email, consent: true, site: site.code.toLowerCase(), client: await clientKey(ip), turnstile_token: token,
+          product: { id: Number(product.id), name: String(product.product_name || '').slice(0, 200), url: `https://${site.domain}${productPath(product)}` }
+        })
+      });
+      r = await res.json().catch(() => ({ ok: false }));
+      if (r && r.error === 'closed') return answer(false, 'Reminders for 27 Nov are closed.', 410);
+      if (r && r.error === 'limit_day') return answer(false, 'Sign-ups are full for today. Please try again tomorrow.', 429);
+      if (res.status === 429 || (r && r.error === 'too_many')) return answer(false, 'Too many attempts. Try again in an hour.', 429);
+      if (r && (r.error === 'turnstile_failed' || r.error === 'turnstile_required')) return answer(false, 'The security check failed. Reload the page and try again.', 403);
+    } catch {
+      r = { ok: false };
+    }
+    if (!r || !r.ok) return answer(false, 'Sign-up is not working right now. Please try again later.', 503);
+    return answer(true, thanks, 200);
   }
 
   async function cspReport(request) {

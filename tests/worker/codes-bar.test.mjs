@@ -400,7 +400,7 @@ test('L115: colours from each site\'s palette (text 7:1, icon 3:1, nothing fixed
     assert.match(readFileSync(`sites/${dir}/public/assets/icons.svg`, 'utf8'), /<symbol id="tag" viewBox="0 0 24 24" fill="none" stroke="currentColor"/, `${dir}: the tag icon`);
     // New stylesheet (12 Nov 2026: the compact phone hero and aria-current): a new asset version (lessons L31), the same
     // on every site; KGW one later for its new words (Winter Boots, 14 Nov 2026, L143).
-    assert.match(site.assetVersion, new RegExp(`^(2026-11-12-${dir}-codes-2|2026-11-14-${dir}-boots-1|2026-11-15-${dir}-pl-1|2026-11-16-${dir}-lang-1|2026-11-17-${dir}-legal-1)$`), `${dir}: asset version`);
+    assert.match(site.assetVersion, new RegExp(`^(2026-11-12-${dir}-codes-2|2026-11-14-${dir}-boots-1|2026-11-15-${dir}-pl-1|2026-11-16-${dir}-lang-1|2026-11-17-${dir}-legal-1|2026-11-19-${dir}-popup-1)$`), `${dir}: asset version`);
   }
   const layout = readFileSync('tools/layout-check.mjs', 'utf8');
   assert.match(layout, /\{ name: 'phone-360', width: 360,/);

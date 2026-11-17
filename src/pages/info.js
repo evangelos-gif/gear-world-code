@@ -1,6 +1,6 @@
 // About, disclosure, contact and legal pages (lessons L17). Text comes from the site config, never another site.
 // NOTE: legal texts are a starting point and need review by a qualified adviser before launch (task T31).
-import { html } from '../lib/html.js';
+import { html, raw } from '../lib/html.js';
 import { categoryPath } from '../lib/text.js';
 import { page, breadcrumbs, breadcrumbSchema, tr, keepName } from './layout.js';
 
@@ -14,12 +14,19 @@ function contactLink(site) {
   return site.contactEmail ? html`<a href="mailto:${site.contactEmail}">${site.contactEmail}</a>` : PLACEHOLDER;
 }
 
-// The legal texts last changed on 17 Nov 2026 (translated, EU GDPR and EU consumer law, lessons L176); before: 9 Nov
+// The legal texts last changed on 19 Nov 2026 (the small sign-up window and "Remind me on 27 Nov", lessons L182); before:
+// 17 Nov 2026 (translated, EU GDPR and EU consumer law, lessons L176); 9 Nov
 // 2026 (the retailer links go through Awin or CJ, Google Ads compliance, lessons
 // L107; before: 8 Nov 2026, Cloudflare Turnstile on the "Get deal updates" form, L106; 7 Nov 2026, who runs Gear World,
 // L101); keep this date honest (L103).
-const UPDATED = '17 November 2026';
-const UPDATED_ISO = '2026-11-17';
+const UPDATED = '19 November 2026';
+const UPDATED_ISO = '2026-11-19';
+// "Remind me on 27 Nov" (lessons L182): its lines stay in the policy until the end of 2026, after the list is deleted
+// (28 Nov 2026).
+const REMIND_POLICY_UNTIL = Date.parse('2026-12-31T23:59:59Z');
+function remindInPolicy(now = Date.now()) {
+  return now <= REMIND_POLICY_UNTIL;
+}
 
 // Who runs the network and how to reach them, the same on every site and on the Hub (Google Ads review, 7 Nov 2026,
 // lessons L101). Owner's decision, 7 Nov 2026: "Run by Evangelos Kalogerakis, United Kingdom" and the email, no address.
@@ -92,7 +99,9 @@ const PAGES = {
 <ul>
 <li><strong>Clicks to retailers.</strong> When you select a "View at" button we record the product, the retailer, the page you were on, the date and your country as reported by our hosting provider. We do not record your IP address or anything that identifies you. We use this to understand which products are useful (legitimate interests). If you came to this site from one of our ads or campaign links, the campaign name and source of that link (utm_campaign, utm_source) go with the click to the affiliate network (Awin, or for a few retailers CJ), so we can see which campaigns are useful. They do not identify you.</li>
 ${site.dealUpdates ? html`<li><strong>Deal updates.</strong> If you sign up with the "Get deal updates" form, we keep your email address, the site you signed up on, the date and the consent you gave. The list is shared by the Gear World sites and kept by Gear World Hub (gearworldhub.com), and the emails are sent for us by MailerLite (our email service provider). We use it only to send deal and new-site emails (consent). Every email has an unsubscribe link, and you can also ask us by email to delete your address.</li>
-<li><strong>Abuse protection.</strong> To stop automated abuse of the form we keep a one-way scrambled (hashed) form of your IP address for up to one hour, and the form uses Cloudflare Turnstile, which checks that you are a person when you start to fill it in (legitimate interests).</li>` : html`<li><strong>Newsletter.</strong> If you sign up, we keep your email address, the date and the consent text you agreed to. We use it only to send the newsletter (consent). You can withdraw consent at any time by emailing us, and we will delete your address.</li>
+<li><strong>Abuse protection.</strong> To stop automated abuse of the form we keep a one-way scrambled (hashed) form of your IP address for up to one hour, and the form uses Cloudflare Turnstile, which checks that you are a person when you start to fill it in (legitimate interests).</li>
+<li><strong>Small sign-up window.</strong> On some pages a small window at the bottom of the screen offers the same weekly email. It works like the "Get deal updates" form, and we also note that you signed up there.</li>
+${remindInPolicy() ? html`<li><strong>Remind me on 27 Nov.</strong> If you ask for a reminder on a product page, we keep your email address, the site, up to three products you chose, the date and the consent you gave. Gear World Hub keeps this list, and MailerLite (our email service provider) sends you one email on 27 November 2026 with links to those products on our site (consent). This does not sign you up for the weekly email. We delete the list on 28 November 2026, and you can ask us by email to delete your address sooner.</li>` : ''}` : html`<li><strong>Newsletter.</strong> If you sign up, we keep your email address, the date and the consent text you agreed to. We use it only to send the newsletter (consent). You can withdraw consent at any time by emailing us, and we will delete your address.</li>
 <li><strong>Abuse protection.</strong> To stop automated abuse of forms we keep a one-way scrambled (hashed) form of your IP address for up to one hour, and the form uses Cloudflare Turnstile (legitimate interests).</li>`}
 <li><strong>Hosting.</strong> The site is hosted by Cloudflare, which processes technical data such as IP addresses to deliver and protect the site.</li>
 ${site.voiceSearch ? html`<li><strong>Voice search.</strong> If you press the microphone button, your browser asks for permission and its own speech service turns what you say into text (for example Google in Chrome, Apple in Safari). Their privacy policies apply to that step. We receive only the text, as a normal search, and we do not record audio.</li>` : ''}
@@ -112,6 +121,7 @@ ${site.googleAds === false ? html`<p>We do not use advertising or tracking cooki
   : (site.dealUpdates ? 'Our service providers (Cloudflare, MailerLite and, only after you allow it, Google) may process data outside the UK and the European Economic Area with appropriate safeguards.' : 'Our service providers (Cloudflare and, only after you allow it, Google) may process data outside the UK and the European Economic Area with appropriate safeguards.')}</p>
 <h2>How long we keep data</h2>
 <p>Click records: up to 26 months. ${site.dealUpdates ? 'Deal updates: until you unsubscribe.' : 'Newsletter: until you unsubscribe.'} Abuse protection: up to one hour.${site.googleAds === false ? '' : ' Google Ads cookies: up to 90 days, or until you select "Reject".'}</p>
+${site.dealUpdates && remindInPolicy() ? html`<p>Reminders for 27 Nov: deleted on 28 November 2026.</p>` : ''}
 <h2>Your rights</h2>
 <p>You can ask for access to, correction or deletion of your data, ask us to restrict or stop using it, and ask for a copy. Write to us at this address:</p>
 <p class="contact-email" translate="no">${contactLink(site)}</p>
@@ -134,11 +144,13 @@ ${site.googleAds === false ? html`<p>${tr('{0} does not set advertising, analyti
 <p><a href="https://policies.google.com/privacy">Google privacy policy</a></p>`}
 <h2>Strictly necessary</h2>
 <p>Our hosting provider Cloudflare may set short-lived security cookies to protect the site from bots. ${site.dealUpdates ? 'If you use the "Get deal updates" form, Cloudflare Turnstile checks that you are a person.' : 'If you use the newsletter form, Cloudflare Turnstile checks that you are a person.'} These are needed for the site to work safely and do not track you across sites.</p>
+${site.dealUpdates ? html`<p>The small sign-up window and "Remind me on 27 Nov" use the same check.</p>` : ''}
 <p>${tr('If you open this site from a country page of Gear World Group, the cookie {0} keeps that country (two letters, nothing else) for one day, so every page shows only the products that deliver there.', { text: 'gw_for', keep: true })} "Show what delivers to my country" at the top of the page removes it.</p>
 <h2>Saved on your device</h2>
 <p>${site.googleAds === false
   ? (site.cart ? 'Your browser\'s local storage keeps your language, currency, compare list and saved list, so they are still there on your next visit.' : 'Your browser\'s local storage keeps your language, currency and compare list, so they are still there on your next visit.')
   : (site.cart ? 'Your browser\'s local storage keeps your language, currency, compare list, saved list and your cookie choice, so they are still there on your next visit.' : 'Your browser\'s local storage keeps your language, currency, compare list and your cookie choice, so they are still there on your next visit.')} This information is not a cookie, is not sent to us and is not used for tracking. Clearing your browser data removes it.${site.googleAds === false ? '' : ' Only after "Allow", the campaign name of the link you arrived from (utm_campaign, utm_source) is kept in this browser tab until you close it, so a later click to a retailer still counts for that campaign.'}</p>
+${site.dealUpdates ? html`<p>If the small sign-up window appears, your browser's local storage keeps the date it last appeared, and that you signed up if you did, so it appears at most once a month and never after you sign up. This is not a cookie and is not sent to us.</p>` : ''}
 <h2>After you leave this site</h2>
 <p>When you select a "View at" button, the affiliate network (Awin or CJ) and the retailer may set cookies on their own websites to record the referral. You can manage those in your browser settings.</p>`
   }),
@@ -226,15 +238,18 @@ export function errorPage(site) {
   return page(site, { title: `Error | ${site.name}`, description: 'Error', path: '/', canonical: null, robots: 'noindex,nofollow', body });
 }
 
-// The answer to the "Get deal updates" form when it is sent without JavaScript (a normal form post).
-export function dealUpdatesPage(site, ok, message) {
+// The answer to the "Get deal updates" form when it is sent without JavaScript (a normal form post), and to "Remind me
+// on 27 Nov" (opts). After a sign-up to the weekly email the page carries data-signed-up: the site script then never
+// shows the small sign-up window again on this device (lessons L182).
+export function dealUpdatesPage(site, ok, message, opts = {}) {
+  const remind = Boolean(opts.path);
   const body = html`
 <div class="wrap narrow">
-  <article class="prose">
-    <h1>${ok ? 'You are signed up' : 'Not signed up yet'}</h1>
+  <article class="prose"${ok && !remind ? raw(' data-signed-up') : ''}>
+    <h1>${remind ? opts.done : ok ? 'You are signed up' : 'Not signed up yet'}</h1>
     <p>${message}</p>
     <p><a href="/">${tr('Go to the home page')}</a></p>
   </article>
 </div>`;
-  return page(site, { title: `Deal updates | ${site.name}`, description: 'Deal updates sign-up.', path: '/api/newsletter', canonical: null, robots: 'noindex,nofollow', body });
+  return page(site, { title: `${remind ? opts.title : 'Deal updates'} | ${site.name}`, description: remind ? 'Reminder sign-up.' : 'Deal updates sign-up.', path: opts.path || '/api/newsletter', canonical: null, robots: 'noindex,nofollow', body });
 }

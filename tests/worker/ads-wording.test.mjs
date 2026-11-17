@@ -41,7 +41,7 @@ test('the 13 sites: every card says "<retailer> delivers to", never a bare "Deli
       assert.ok(!/delivers to|label-ship/.test(html), `${c}: no delivery data, no delivery line`);
       assert.equal(toString(deliveryLine(site, retailer)), '', c);
     }
-    assert.match(site.assetVersion, /^(2026-11-08-[a-z]{3}-(cleanup|security)|2026-11-09-[a-z]{3}-compliance|2026-11-1[02]-[a-z]{3}-codes|2026-11-14-[a-z]{3}-boots|2026-11-15-[a-z]{3}-pl|2026-11-16-[a-z]{3}-lang|2026-11-17-[a-z]{3}-legal)-\d+$/, `${c}: a new asset version for the new dictionaries (L31; -wording- for L102, -cleanup- for L103, -security- for L106, -codes- for L115)`);
+    assert.match(site.assetVersion, /^(2026-11-08-[a-z]{3}-(cleanup|security)|2026-11-09-[a-z]{3}-compliance|2026-11-1[02]-[a-z]{3}-codes|2026-11-14-[a-z]{3}-boots|2026-11-15-[a-z]{3}-pl|2026-11-16-[a-z]{3}-lang|2026-11-17-[a-z]{3}-legal|2026-11-19-[a-z]{3}-popup)-\d+$/, `${c}: a new asset version for the new dictionaries (L31; -wording- for L102, -cleanup- for L103, -security- for L106, -codes- for L115)`);
   }
 });
 

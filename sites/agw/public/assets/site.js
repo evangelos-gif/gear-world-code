@@ -1,7 +1,7 @@
 // Gear World sites (shared by every site on the engine; TGW keeps the master copy). One small script; every page also works without it.
 // Parts: language (L24, with country names for "Delivers to", L62), currency (L25), saved list (L26, L101), compare (L23),
-// voice search, newsletter, the Turnstile check of "Get deal updates" (L106), discount codes (L32), the seasonal banner of
-// the deals pages.
+// voice search, newsletter, the Turnstile check of "Get deal updates" (L106), the small sign-up window and "Remind me on
+// 27 Nov" (L182), discount codes (L32), the seasonal banner of the deals pages.
 (function () {
   'use strict';
 
@@ -488,7 +488,8 @@
     function load() {
       if (state !== 'idle') return;
       state = 'loading';
-      window.gwDealTurnstileReady = function () {
+      withTurnstile(function (ok) {
+        if (!ok) { state = 'failed'; return; }
         try {
           widget = window.turnstile.render(box, {
             sitekey: box.getAttribute('data-sitekey'),
@@ -500,13 +501,7 @@
         } catch (e) {
           state = 'failed';
         }
-      };
-      var s = document.createElement('script');
-      s.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit&onload=gwDealTurnstileReady';
-      s.async = true;
-      s.defer = true;
-      s.onerror = function () { state = 'failed'; };
-      document.head.appendChild(s);
+      });
     }
     form.addEventListener('focusin', load);
     form.addEventListener('pointerdown', load);
@@ -516,6 +511,257 @@
       ev.preventDefault();
       load();
       show(t(state === 'failed' ? 'The security check failed. Reload the page and try again.' : 'Wait for the security check to finish, then try again.'));
+    });
+  }
+
+  // Cloudflare's Turnstile script, added once for every box that needs it ("Get deal updates", the small sign-up window,
+  // "Remind me on 27 Nov"), and only when the visitor starts using one of them. cb(true) once window.turnstile is there.
+  var turnstileState = 'idle';
+  var turnstileWaiting = [];
+  function withTurnstile(cb) {
+    if (turnstileState === 'ready' || turnstileState === 'failed') { cb(turnstileState === 'ready'); return; }
+    turnstileWaiting.push(cb);
+    if (turnstileState === 'loading') return;
+    turnstileState = 'loading';
+    function done(ok) {
+      turnstileState = ok ? 'ready' : 'failed';
+      var waiting = turnstileWaiting;
+      turnstileWaiting = [];
+      for (var i = 0; i < waiting.length; i++) waiting[i](ok);
+    }
+    window.gwDealTurnstileReady = function () { done(!!window.turnstile); };
+    var s = document.createElement('script');
+    s.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit&onload=gwDealTurnstileReady';
+    s.async = true;
+    s.defer = true;
+    s.onerror = function () { done(false); };
+    document.head.appendChild(s);
+  }
+
+  // A small form sent with JavaScript (the sign-up window, "Remind me on 27 Nov"): its own Turnstile widget, made when
+  // the visitor first touches the form. token() is '' until the check has finished; failed() after a load error.
+  function lazyTurnstile(form, box, opts) {
+    var state = 'idle';
+    var widget = null;
+    function load() {
+      if (state !== 'idle') return;
+      state = 'loading';
+      withTurnstile(function (ok) {
+        if (!ok) { state = 'failed'; return; }
+        try {
+          widget = window.turnstile.render(box, {
+            sitekey: opts.sitekey,
+            action: 'deal-updates',
+            size: 'flexible',
+            appearance: opts.appearance || 'always',
+            callback: opts.ready || function () {}
+          });
+          state = 'ready';
+        } catch (e) {
+          state = 'failed';
+        }
+      });
+    }
+    form.addEventListener('focusin', load);
+    form.addEventListener('pointerdown', load);
+    return {
+      load: load,
+      failed: function () { return state === 'failed'; },
+      token: function () { try { return window.turnstile && widget !== null ? window.turnstile.getResponse(widget) || '' : ''; } catch (e) { return ''; } },
+      reset: function () { try { if (window.turnstile && widget !== null) window.turnstile.reset(widget); } catch (e) { /* a new token comes with the next check */ } }
+    };
+  }
+
+  // Sends a small form as JSON and shows the answer (in the visitor's language when the dictionary has it).
+  function sendJson(url, body, done) {
+    fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+      .then(function (r) { return r.json().then(function (d) { return { ok: r.ok && !!d && d.ok === true, d: d || {} }; }); })
+      .then(function (res) { done(res.ok, t(res.d.message || res.d.error || 'Sign-up is not working right now. Please try again later.')); })
+      .catch(function () { done(false, t('No connection. Check your internet and try again.')); });
+  }
+
+  // ---------- The small sign-up window (lessons L182) ----------
+  // The weekly email of "Get deal updates" (same /api/newsletter, same consent text, same Turnstile widget), offered once
+  // in a small box at the bottom of the screen. Made only by this script after the page has loaded, so search engines
+  // never see it. It appears only: after the visitor has answered the cookie banner; after 30 seconds on the page or
+  // half-way down it, whichever comes first; at most once a month (only the date is kept, <store>-popup-date); never
+  // after a sign-up (<store>-popup-done); never while the "Get deal updates" box or the compare bar is on the screen;
+  // never on the legal pages. No dark backdrop and no focus trap: the × button (44 px) and Esc close it.
+  var POPUP_DAYS = 30;
+  var POPUP_SECONDS = 30;
+  function today() { return new Date().toISOString().slice(0, 10); }
+  function storageWorks() {
+    try { window.localStorage.setItem(STORE + '-probe', '1'); window.localStorage.removeItem(STORE + '-probe'); return true; } catch (e) { return false; }
+  }
+  function setupPopup() {
+    // The "Get deal updates" answer page after a sign-up: no window again on this device.
+    if (document.querySelector('[data-signed-up]')) write('popup-done', '1');
+    var footer = document.getElementById('deal-updates');
+    var keyBox = footer ? footer.querySelector('[data-du-turnstile]') : null;
+    var sitekey = keyBox ? keyBox.getAttribute('data-sitekey') : '';
+    if (!footer || !sitekey || !window.fetch || !storageWorks()) return;
+    if (document.querySelector('[data-lang-note]') || /^\/api\//.test(window.location.pathname)) return;
+    if (read('popup-done', '') === '1') return;
+    var last = read('popup-date', '');
+    if (/^\d{4}-\d{2}-\d{2}$/.test(last) && Date.now() - Date.parse(last + 'T00:00:00Z') < POPUP_DAYS * 86400000) return;
+    var footerSeen = false;
+    var due = false;
+    var shown = false;
+    var retry = null;
+    if ('IntersectionObserver' in window) {
+      new IntersectionObserver(function (entries) {
+        for (var i = 0; i < entries.length; i++) footerSeen = entries[i].isIntersecting;
+        if (due && !footerSeen) tryShow();
+      }).observe(footer);
+    }
+    function cookiesAnswered() {
+      if (!document.querySelector('meta[name="gw-ads"]')) return true; // a site without the banner
+      var banner = document.querySelector('[data-consent]');
+      if (banner && !banner.hidden) return false;
+      var choice = '';
+      try { choice = window.localStorage.getItem(STORE + '-cookie-consent') || ''; } catch (e) { choice = ''; }
+      return choice === 'granted' || choice === 'denied';
+    }
+    function compareOpen() {
+      var bar = document.querySelector('.compare-bar');
+      return !!bar && !bar.hidden;
+    }
+    function tryShow() {
+      if (shown || !due) return;
+      if (!cookiesAnswered() || footerSeen || compareOpen()) {
+        if (!retry) retry = setTimeout(function () { retry = null; tryShow(); }, 2000);
+        return;
+      }
+      show();
+    }
+    function start() { if (!due) { due = true; tryShow(); } }
+    setTimeout(start, POPUP_SECONDS * 1000);
+    function onScroll() {
+      var doc = document.documentElement;
+      var y = window.pageYOffset || doc.scrollTop || 0;
+      if (y > 0 && (y + window.innerHeight) >= doc.scrollHeight / 2) { window.removeEventListener('scroll', onScroll); start(); }
+    }
+    window.addEventListener('scroll', onScroll, { passive: true });
+
+    function el(tag, cls, text) {
+      var n = document.createElement(tag);
+      if (cls) n.className = cls;
+      if (text) n.textContent = text;
+      return n;
+    }
+    function show() {
+      shown = true;
+      write('popup-date', today());
+      var box = el('section', 'pop');
+      box.setAttribute('role', 'dialog');
+      box.setAttribute('aria-modal', 'false');
+      box.setAttribute('aria-labelledby', 'pop-text');
+      var close = el('button', 'pop-close');
+      close.type = 'button';
+      close.setAttribute('aria-label', t('Close'));
+      var x = el('span', '', '×');
+      x.setAttribute('aria-hidden', 'true');
+      close.appendChild(x);
+      var text = el('p', 'pop-text', t('Get our weekly email: prices we\'ve checked and the stores\' codes.'));
+      text.id = 'pop-text';
+      var form = el('form', 'pop-form');
+      var label = el('label', 'visually-hidden', t('Email address'));
+      label.setAttribute('for', 'pop-email');
+      var email = el('input');
+      email.id = 'pop-email';
+      email.type = 'email';
+      email.name = 'email';
+      email.required = true;
+      email.maxLength = 254;
+      email.autocomplete = 'email';
+      email.placeholder = t('Your email address');
+      var button = el('button', 'pop-send', t('Sign up'));
+      button.type = 'submit';
+      var consent = el('label', 'pop-consent');
+      var tick = el('input');
+      tick.type = 'checkbox';
+      tick.name = 'consent';
+      tick.required = true;
+      var privacy = el('a', '', t('Privacy policy'));
+      privacy.href = '/privacy/';
+      var words = el('span', '', t('Email me deals from Gear World.') + ' ');
+      words.appendChild(privacy);
+      consent.appendChild(tick);
+      consent.appendChild(words);
+      var check = el('div', 'pop-turnstile');
+      var status = el('p', 'pop-status');
+      status.setAttribute('role', 'status');
+      status.setAttribute('aria-live', 'polite');
+      status.hidden = true;
+      form.appendChild(label);
+      form.appendChild(email);
+      form.appendChild(button);
+      form.appendChild(consent);
+      form.appendChild(check);
+      box.appendChild(close);
+      box.appendChild(text);
+      box.appendChild(form);
+      box.appendChild(status);
+      document.body.appendChild(box);
+      function say(s) { status.textContent = s; status.hidden = false; }
+      var check2 = lazyTurnstile(form, check, { sitekey: sitekey, appearance: 'interaction-only', ready: function () { status.hidden = true; } });
+      function hide() {
+        document.removeEventListener('keydown', onKey);
+        if (box.parentNode) box.parentNode.removeChild(box);
+      }
+      function onKey(ev) { if (ev.key === 'Escape' || ev.key === 'Esc') hide(); }
+      close.addEventListener('click', hide);
+      document.addEventListener('keydown', onKey);
+      form.addEventListener('submit', function (ev) {
+        ev.preventDefault();
+        var token = check2.token();
+        if (!token) {
+          check2.load();
+          say(t(check2.failed() ? 'The security check failed. Reload the page and try again.' : 'Wait for the security check to finish, then try again.'));
+          return;
+        }
+        button.disabled = true;
+        sendJson('/api/newsletter', { email: email.value, consent: tick.checked, page: window.location.pathname, website: '', turnstile_token: token, form: 'popup' }, function (ok, message) {
+          say(message);
+          button.disabled = false;
+          if (ok) { write('popup-done', '1'); form.hidden = true; } else check2.reset();
+        });
+      });
+    }
+  }
+
+  // ---------- "Remind me on 27 Nov" on a product page (lessons L182) ----------
+  // One email on 27 Nov with a link to the products the visitor chose (Gear World Hub keeps the list, MailerLite sends
+  // it). The box stays a normal form post; with JavaScript it is sent as JSON and the answer shows in place. It goes
+  // away by itself at the end of 27 Nov (London), even in a copy of the page kept from before.
+  function setupRemind() {
+    var box = document.querySelector('[data-remind]');
+    if (!box) return;
+    var until = Date.parse(box.getAttribute('data-remind') || '');
+    if (!isFinite(until) || Date.now() > until) { box.parentNode.removeChild(box); return; }
+    var form = box.querySelector('form');
+    var check = box.querySelector('[data-remind-turnstile]');
+    var status = box.querySelector('[data-remind-status]');
+    if (!form || !check || !status) return;
+    function say(s) { status.textContent = s; status.hidden = false; }
+    var ts = lazyTurnstile(form, check, { sitekey: check.getAttribute('data-sitekey'), ready: function () { status.hidden = true; } });
+    if (box.open) ts.load();
+    box.addEventListener('toggle', function () { if (box.open) ts.load(); });
+    form.addEventListener('submit', function (ev) {
+      ev.preventDefault();
+      var token = ts.token();
+      if (!token) {
+        ts.load();
+        say(t(ts.failed() ? 'The security check failed. Reload the page and try again.' : 'Wait for the security check to finish, then try again.'));
+        return;
+      }
+      var button = form.querySelector('button[type="submit"]');
+      if (button) button.disabled = true;
+      sendJson('/api/remind', { email: form.email.value, consent: form.consent.checked, product: form.product.value, page: window.location.pathname, website: '', turnstile_token: token }, function (ok, message) {
+        say(message);
+        if (button) button.disabled = false;
+        if (ok) form.hidden = true; else ts.reset();
+      });
     });
   }
 
@@ -624,6 +870,8 @@
     setupVoice();
     setupNewsletter();
     setupDealUpdates();
+    setupRemind();
+    setupPopup();
     setupCopy();
     setupSeason();
     root.setAttribute('data-ready', lang);
