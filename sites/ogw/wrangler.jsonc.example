@@ -1,0 +1,15 @@
+// Mega Stores Gear World - Wrangler config TEMPLATE (no database, no secrets).
+// tools/ogw-site.ps1 makes the real wrangler.jsonc on the PC: the test Worker "mega-stores-gear-world-preview" on its
+// *.workers.dev address, or the live Worker "mega-stores-gear-world" on megastoresgearworld.com and www (only with the
+// owner's phrase). AMAZON_LINKS is set at deploy time (--var): "preview" on the test Worker, "on" on the live Worker
+// only after the owner's phrase that the site is in his Amazon Associates account, otherwise "off".
+{
+  "name": "mega-stores-gear-world",
+  "main": "worker.js",
+  "compatibility_date": "2026-10-01",
+  // No public test address on the live Worker (F04, lessons L106): workers.dev and the version preview URLs are off.
+  "workers_dev": false,
+  "preview_urls": false,
+  "assets": { "directory": "./public", "binding": "ASSETS" },
+  "observability": { "enabled": true }
+}

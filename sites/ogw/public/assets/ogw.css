@@ -1,0 +1,64 @@
+/* Mega Stores Gear World: gift guides, the same family look as the Gear World sites (navy and gold).
+   Blue and gold only carry meaning (the owner's colour vision, lessons L35). No scripts. */
+:root { --page: #0a1222; --deep: #060b16; --panel: #0f1b30; --line: #22344f; --text: #e8edf5; --text-2: #a9b6c8; --gold: #f2b84b; --link: #6cc8ff; --gutter: 16px; }
+*, *::before, *::after { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body { margin: 0; background: var(--page); color: var(--text); font: 400 1rem/1.6 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; overflow-wrap: anywhere; }
+a { color: var(--link); }
+a:hover { color: #fff; }
+:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
+.skip { position: absolute; left: -9999px; top: 0; }
+.skip:focus { left: 8px; top: 8px; z-index: 10; padding: 8px 12px; background: var(--gold); color: var(--deep); }
+h1, h2, h3 { line-height: 1.15; margin: 0 0 .5em; }
+h1 { font-size: clamp(1.8rem, 1.3rem + 2.2vw, 2.8rem); color: #fff; max-width: 24ch; }
+h2 { font-size: clamp(1.3rem, 1.15rem + .7vw, 1.8rem); color: var(--gold); }
+h3 { font-size: 1.1rem; }
+p { margin: 0 0 1em; }
+.wrap { width: 100%; max-width: 1080px; margin: 0 auto; padding: 0 var(--gutter); }
+.top { background: var(--deep); border-bottom: 1px solid var(--line); }
+.top-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-top: 12px; padding-bottom: 12px; }
+.brand { display: flex; align-items: center; gap: 10px; min-width: 0; color: #fff; text-decoration: none; font-weight: 700; font-size: 1.05rem; letter-spacing: .02em; }
+.brand img { flex: none; }
+.top-link { flex: none; display: inline-flex; align-items: center; min-height: 40px; padding: 0 14px; border: 1px solid var(--gold); border-radius: 999px; color: var(--gold); font-weight: 600; text-decoration: none; }
+.top-link:hover { background: var(--gold); color: var(--deep); }
+.hero { background: linear-gradient(135deg, #0d1e3b, #0a1222 60%); border-bottom: 1px solid var(--line); padding: 40px 0 32px; }
+.hero-small { padding: 28px 0 24px; }
+.eyebrow { color: var(--gold); font-weight: 600; font-size: .8rem; letter-spacing: .18em; text-transform: uppercase; }
+.eyebrow a { color: var(--gold); }
+.lede { color: #dbe3ee; max-width: 70ch; font-size: 1.05rem; }
+.count { display: inline-block; margin: 6px 0 0; padding: 8px 14px; border: 1px solid var(--gold); border-radius: 999px; color: var(--gold); font-weight: 700; }
+.section { padding-top: 28px; padding-bottom: 4px; }
+.note { padding: 14px 16px; max-width: 80ch; background: #0f2747; border: 1px solid var(--link); border-radius: 10px; }
+.note p { margin: 0 0 .5em; }
+.note p:last-child { margin: 0; }
+.cards { display: grid; gap: 14px; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); list-style: none; margin: 0; padding: 0; }
+.card { padding: 18px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; }
+.card h3 a { color: #fff; text-decoration: none; }
+.card h3 a:hover { color: var(--gold); }
+.card p { color: var(--text-2); margin: 0; }
+.ideas, .steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 14px; }
+.idea, .steps li { padding: 18px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; }
+.idea h2, .steps h2 { font-size: 1.15rem; }
+.idea p { color: var(--text-2); }
+.buttons { display: flex; flex-wrap: wrap; gap: 10px; margin: 0; }
+.btn { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; padding: 0 16px; border-radius: 8px; font-weight: 700; text-decoration: none; }
+.btn-market { background: var(--gold); color: var(--deep); }
+.btn-market:hover { background: #ffd27a; color: var(--deep); }
+.btn-gw { border: 1px solid var(--link); color: var(--link); }
+.btn-gw:hover { background: var(--link); color: var(--deep); }
+.ticks { list-style: none; margin: 0; padding: 0; max-width: 80ch; }
+.ticks li { position: relative; padding: 0 0 12px 28px; }
+.ticks li::before { content: "\2713"; position: absolute; left: 0; color: var(--gold); font-weight: 700; }
+.gw-list { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 4px 18px; }
+.gw-list a { display: inline-flex; align-items: center; min-height: 40px; font-weight: 600; }
+.foot { margin-top: 40px; padding: 24px 0; background: var(--deep); border-top: 1px solid var(--line); color: var(--text-2); font-size: .9rem; }
+.foot-links { list-style: none; margin: 0 0 8px; padding: 0; display: flex; flex-wrap: wrap; gap: 0 20px; }
+.foot-links a { display: inline-flex; align-items: center; min-height: 40px; color: var(--text); text-decoration: underline; text-underline-offset: 3px; }
+.foot-links a:hover { color: var(--gold); }
+.prose { max-width: 760px; }
+.prose h1 { max-width: none; }
+.prose h2 { font-size: 1.25rem; margin-top: 1.2em; }
+.prose ul { padding-left: 1.2em; }
+.prose li { margin-bottom: .5em; }
+.updated { color: var(--text-2); }
+@media (min-width: 900px) { .hero { padding: 64px 0 48px; } .ideas { grid-template-columns: 1fr 1fr; } }

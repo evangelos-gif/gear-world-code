@@ -9,7 +9,7 @@ import { GOOGLE_ADS_ID, OUTBOUND_LABEL, GEAR_WORLD_DOMAINS, cleanUtm, campaignRe
 
 const PHONE = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1';
 const FX_FETCH = async () => new Response('[]', { headers: { 'Content-Type': 'application/json' } });
-const NOT_SHOPS = new Set(['group', 'gwh', 'posters', 'awin']);
+const NOT_SHOPS = new Set(['group', 'gwh', 'ogw', 'posters', 'awin']);
 const codes = readdirSync('sites').filter(c => !NOT_SHOPS.has(c) && existsSync(`sites/${c}/site.config.js`));
 const NEW_TEXTS = [
   'We would like to use Google cookies to see which of our ads bring visitors to this site. They are set only if you allow them, and you can change your choice at any time.',

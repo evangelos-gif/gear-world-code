@@ -12,7 +12,7 @@ const FX_FETCH = async () => new Response('[]', { headers: { 'Content-Type': 'ap
 // A public Turnstile sitekey in the real format (the tool sets the real one as the Worker secret TURNSTILE_SITE_KEY).
 const SITEKEY = '0x4AAAAAAAtest_sitekey-01';
 const TOKEN = 'turnstile-token-from-the-widget';
-const NOT_SHOPS = new Set(['group', 'gwh', 'posters', 'awin']);
+const NOT_SHOPS = new Set(['group', 'gwh', 'ogw', 'posters', 'awin']);
 const codes = readdirSync('sites').filter(c => !NOT_SHOPS.has(c) && existsSync(`sites/${c}/site.config.js`));
 
 function fakeD1(code, site) {

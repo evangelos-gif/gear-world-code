@@ -3397,6 +3397,99 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
     }
 }
 
+# 9b. ogw-site.ps1 (Mega Stores Gear World: test address, live, remove the test address) with a fake wrangler (Windows only)
+if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
+    Write-Host 'ogw-site.ps1 (fake wrangler)'
+    $ogTool = Join-Path (Join-Path $repo 'tools') 'ogw-site.ps1'
+    $ogState = Join-Path $work 'ogw-state'
+    $ogWork = Join-Path $work 'ogw-work'
+    $ogOut = Join-Path $work 'ogw-out'
+    $ogBin = Join-Path $work 'ogw-bin'
+    New-Item -ItemType Directory -Path $ogState, $ogBin -Force | Out-Null
+    $ogVer = [guid]::NewGuid().ToString()
+    $ogNpx = @(
+        '@echo off',
+        'echo %* >> "%GW_FAKE_STATE%\calls.log"',
+        'echo %* | findstr /C:"whoami" >nul && goto whoami',
+        'echo %* | findstr /C:"deployments list" >nul && goto deployments',
+        'echo %* | findstr /C:" delete " >nul && goto delete',
+        'echo %* | findstr /C:" deploy" >nul && goto deploy',
+        'echo unknown command 1>&2',
+        'exit /b 1',
+        ':whoami',
+        'echo You are logged in with an OAuth Token, associated with the email test@example.com.',
+        'exit /b 0',
+        ':deployments',
+        'echo %* | findstr /C:"-preview" >nul && goto nodeps',
+        'if exist "%GW_FAKE_STATE%\live.txt" goto livever',
+        ':nodeps',
+        'echo No deployments found',
+        'exit /b 0',
+        ':livever',
+        ('echo Version(s):  (100%%) ' + $ogVer),
+        'exit /b 0',
+        ':delete',
+        'echo Successfully deleted mega-stores-gear-world-preview',
+        'exit /b 0',
+        ':deploy',
+        'echo Uploaded mega-stores-gear-world',
+        'echo %* | findstr /C:"wrangler.preview.jsonc" >nul && echo   https://mega-stores-gear-world-preview.test-account.workers.dev',
+        'exit /b 0'
+    ) -join "`r`n"
+    [System.IO.File]::WriteAllText((Join-Path $ogBin 'npx.cmd'), $ogNpx + "`r`n", [System.Text.Encoding]::ASCII)
+    $oldPath = $env:PATH
+    $env:PATH = $ogBin + ';' + $oldPath
+    $env:GW_FAKE_STATE = $ogState
+    $ogCalls = Join-Path $ogState 'calls.log'
+    function Run-Og([string[]]$a) {
+        $all = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $ogTool, '-WorkDir', $ogWork, '-OutDir', $ogOut, '-SkipInstall', '-NoClipboard', '-NoHttpCheck') + $a
+        & $exe @all | Out-Null
+        return $LASTEXITCODE
+    }
+    function OgCalls { if (Test-Path -LiteralPath $ogCalls) { return [System.IO.File]::ReadAllText($ogCalls) } else { return '' } }
+    function OgDeploys { return ([regex]::Matches((OgCalls), 'wrangler deploy --config')).Count }
+    function OgLastReport([string]$step) {
+        $f = @(Get-ChildItem -LiteralPath $ogOut -Filter ('OGW_SITE_' + $step + '_*.txt') -File -ErrorAction SilentlyContinue | Sort-Object LastWriteTime, Name | Select-Object -Last 1)
+        if ($f.Count -eq 0) { return '' }
+        return [System.IO.File]::ReadAllText($f[0].FullName, [System.Text.Encoding]::UTF8)
+    }
+    try {
+        Check ((Run-Og @('-Step', 'check')) -eq 0 -and (OgDeploys) -eq 0) 'ogw check: exit 0, no deploy'
+        Check ((Run-Og @('-Step', 'preview')) -eq 0 -and (OgDeploys) -eq 0) 'ogw preview without -Apply: no deploy'
+        Check ((Run-Og @('-Step', 'preview', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ OGW LIVE')) -eq 1 -and (OgDeploys) -eq 0) 'ogw preview with the wrong phrase: no deploy'
+        Check ((Run-Og @('-Step', 'live', '-Apply', '-AfterPreview', '-Approve', 'ΕΓΚΡΙΝΩ OGW LIVE')) -eq 23 -and (OgDeploys) -eq 0) 'ogw live -AfterPreview without a preview report: exit 23, no deploy'
+        Check ((Run-Og @('-Step', 'preview', '-Apply', '-Approve', 'egkrino ogw preview')) -eq 0 -and (OgDeploys) -eq 1) 'ogw preview with approval: deploys once'
+        $pc = [System.IO.File]::ReadAllText((Join-Path $ogWork 'wrangler.preview.jsonc'))
+        Check ($pc.Contains('"name": "mega-stores-gear-world-preview",') -and $pc.Contains('"workers_dev": true,') -and -not $pc.Contains('custom_domain')) 'ogw preview: the test Worker on workers.dev, no domain'
+        Check ((OgCalls) -match 'AMAZON_LINKS:preview' -and (OgCalls) -match 'GW_COMMIT:') 'ogw preview: Amazon links without the Associates ID, and the version'
+        Check ((OgLastReport 'PREVIEW').Contains('ΕΤΟΙΜΟ: άνοιξε τη δοκιμαστική διεύθυνση') -and (OgLastReport 'PREVIEW').Contains('https://mega-stores-gear-world-preview.test-account.workers.dev')) 'ogw preview: the report ends ΕΤΟΙΜΟ with the test address'
+        Check ((Run-Og @('-Step', 'live', '-Apply', '-AfterPreview', '-Approve', 'ΕΓΚΡΙΝΩ OGW PREVIEW')) -eq 1 -and (OgDeploys) -eq 1) 'ogw live with the wrong phrase: no deploy'
+        Check ((Run-Og @('-Step', 'live', '-Apply', '-AfterPreview', '-Approve', 'ΕΓΚΡΙΝΩ OGW LIVE')) -eq 0 -and (OgDeploys) -eq 2) 'ogw live after a clean preview: deploys once'
+        $lc = [System.IO.File]::ReadAllText((Join-Path $ogWork 'wrangler.jsonc'))
+        Check ($lc.Contains('"pattern": "megastoresgearworld.com", "custom_domain": true') -and $lc.Contains('"pattern": "www.megastoresgearworld.com", "custom_domain": true') -and $lc.Contains('"name": "mega-stores-gear-world",') -and $lc.Contains('"workers_dev": false,') -and -not $lc.Contains('d1_databases')) 'ogw live: both domains, no test address, no database'
+        $lastDeploy = @((OgCalls) -split "`n" | Where-Object { $_ -match 'wrangler deploy --config' } | Select-Object -Last 1)[0]
+        Check ($lastDeploy -match 'AMAZON_LINKS:off') 'ogw live without the Amazon phrase: no Amazon links'
+        Check ((Run-Og @('-Step', 'live', '-Apply', '-AfterPreview', '-Approve', 'ΕΓΚΡΙΝΩ OGW LIVE;ΕΓΚΡΙΝΩ OGW AMAZON LINKS')) -eq 0 -and (OgDeploys) -eq 3) 'ogw live with both phrases: deploys once more'
+        $lastDeploy = @((OgCalls) -split "`n" | Where-Object { $_ -match 'wrangler deploy --config' } | Select-Object -Last 1)[0]
+        Check ($lastDeploy -match 'AMAZON_LINKS:on') 'ogw live with the Amazon phrase: Amazon links with the Associates ID'
+        # L156: an update of the live site from a version that lacks the live one stops before anything changes.
+        [System.IO.File]::WriteAllText((Join-Path $ogState 'live.txt'), 'yes')
+        $env:GW_GUARD_TEST_LIVE = 'megastoresgearworld.com=' + ('cd' * 20)
+        $env:GW_GUARD_TEST_COMPARE = 'diverged'
+        Check ((Run-Og @('-Step', 'live', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ OGW LIVE')) -eq 13 -and (OgDeploys) -eq 3) 'ogw live update from a version without the live one: exit 13, no deploy (L156)'
+        $env:GW_GUARD_TEST_COMPARE = 'ahead'
+        Check ((Run-Og @('-Step', 'live', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ OGW LIVE')) -eq 0 -and (OgDeploys) -eq 4 -and (OgLastReport 'LIVE').Contains('rollback ' + $ogVer)) 'ogw live update: deploys, with the rollback line of the live version'
+        $env:GW_GUARD_TEST_LIVE = '*=none'
+        Check ((Run-Og @('-Step', 'remove-preview', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ OGW LIVE')) -eq 1 -and -not ((OgCalls) -match 'delete mega-stores-gear-world-preview')) 'ogw remove-preview with the wrong phrase: nothing deleted'
+        Check ((Run-Og @('-Step', 'remove-preview', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ OGW REMOVE PREVIEW')) -eq 0 -and ((OgCalls) -match 'wrangler delete mega-stores-gear-world-preview') -and -not ((OgCalls) -match 'delete mega-stores-gear-world\s')) 'ogw remove-preview: only the test Worker is deleted'
+    } finally {
+        $env:PATH = $oldPath
+        $env:GW_GUARD_TEST_LIVE = '*=none'
+        $env:GW_GUARD_TEST_COMPARE = 'ahead'
+        Remove-Item Env:\GW_FAKE_STATE -ErrorAction SilentlyContinue
+    }
+}
+
 # gw-backup.ps1 with a fake home, a fake drive folder and a fake wrangler (Windows only: runs .cmd files and robocopy)
 if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
     Write-Host 'gw-backup.ps1 (fake home and wrangler)'

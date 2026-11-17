@@ -7,7 +7,7 @@ import { DatabaseSync } from 'node:sqlite';
 import { createWorker } from '../../src/engine.js';
 import { GEAR_WORLDS, networkFor } from '../../promos/network.js';
 
-const NOT_SHOPS = new Set(['group', 'gwh']);
+const NOT_SHOPS = new Set(['group', 'gwh', 'ogw']);
 const codes = readdirSync('sites').filter(c => !NOT_SHOPS.has(c) && existsSync(`sites/${c}/site.config.js`));
 
 test('the shared list has every Gear World site of sites/, with its own name and domain, and nothing else', async () => {

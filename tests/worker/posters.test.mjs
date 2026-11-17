@@ -153,7 +153,7 @@ test('counter Worker: only POST /scan with a small JSON body; errors answer with
 });
 
 // ---------- every site of the engine ----------
-const NOT_SHOPS = new Set(['group', 'gwh', 'posters']);
+const NOT_SHOPS = new Set(['group', 'gwh', 'ogw', 'posters']);
 const codes = readdirSync('sites').filter(c => !NOT_SHOPS.has(c) && existsSync(`sites/${c}/site.config.js`));
 
 function fakeD1(code, site) {

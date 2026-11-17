@@ -6,7 +6,7 @@ import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import { createWorker } from '../../src/engine.js';
 import { robotsTxt, BLOCKED_CRAWLERS } from '../../src/seo.js';
 
-const NOT_SHOPS = new Set(['group', 'gwh']);
+const NOT_SHOPS = new Set(['group', 'gwh', 'ogw']);
 const codes = readdirSync('sites').filter(c => !NOT_SHOPS.has(c) && existsSync(`sites/${c}/site.config.js`));
 const BLOCK = 'User-agent: SERankingBacklinksBot\nDisallow: /\n\n';
 

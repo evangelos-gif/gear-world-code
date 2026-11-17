@@ -10,7 +10,7 @@ import { createWorker } from '../../src/engine.js';
 import { categoryPath } from '../../src/lib/text.js';
 
 // Every shop on the engine (the Hub and the Group page have their own code).
-const NOT_SHOPS = new Set(['group', 'gwh']);
+const NOT_SHOPS = new Set(['group', 'gwh', 'ogw']);
 const codes = readdirSync('sites').filter(c => !NOT_SHOPS.has(c) && existsSync(`sites/${c}/site.config.js`));
 
 function fakeD1(code, site) {

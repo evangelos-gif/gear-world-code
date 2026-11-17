@@ -76,7 +76,7 @@ test('no list when a search finds one shop only; a filter with no products offer
 });
 
 // Every shop of the engine, with its own test products (the GGW kind of database too): the search page still opens.
-const NOT_SHOPS = new Set(['group', 'gwh']);
+const NOT_SHOPS = new Set(['group', 'gwh', 'ogw']);
 for (const code of readdirSync('sites').filter(c => !NOT_SHOPS.has(c) && existsSync(`sites/${c}/site.config.js`))) {
   test(`${code.toUpperCase()}: the search page with its shop and brand lists opens`, async () => {
     const s = (await import(`../../sites/${code}/site.config.js`)).default;
