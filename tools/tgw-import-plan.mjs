@@ -785,7 +785,9 @@ export async function planImport({ archive, sourcesFile, outDir, now = new Date(
         // (the cards and the compare table know only new and refurbished), so they are left out until it has one.
         if (NOT_NEW.test(name)) { reject(NOT_NEW_REASON, short); continue; }
         const currency = detectCurrency(rec, map, source);
-        if (!currencies.includes(currency)) { reject(`currency ${currency || 'unknown'}`, short); continue; }
+        // US dollars only from a shop whose currency is USD (the US-only shops of wave 3, L169): a stray dollar row in a UK
+        // shop's feed stays out, as before.
+        if (!currencies.includes(currency) || (currency === 'USD' && source.currency !== 'USD')) { reject(`currency ${currency || 'unknown'}`, short); continue; }
         const quantity = pick(rec, map.stockQuantity);
         const stock = rowStock(source, pick(rec, map.inStock), quantity);
         if (QUALITY.requireInStock && stock === false) {

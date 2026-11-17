@@ -176,7 +176,7 @@ test('import plan: accepts clean tech rows, rejects with reasons, writes SQL tha
   assert.equal(stats.rejected['out of stock'], 1);
   assert.equal(stats.rejected['link is not an Awin link'], 1);
   assert.equal(stats.rejected['duplicate product id'], 1);
-  // TGW takes euros since round 2c (Back to the Office IE, MonsGeek; lessons L144), not dollars.
+  // TGW takes euros since round 2c (Back to the Office IE, MonsGeek; lessons L144); dollars only from a USD shop (wave 3, L169).
   assert.equal(stats.rejected['currency USD'], 1);
 
   const laptop = products.find(p => p.merchant_product_id === 'JB-1');
