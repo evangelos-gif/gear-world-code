@@ -6,7 +6,7 @@
 // RULES.maxPerSubcategory cards per subcategory (lessons L164). US shop: shown only to the US.
 import { homePlace, homeName, notHome } from './lib/hgw-home.mjs';
 import { gardenPlace } from './lib/garden.mjs';
-import { clean } from './lib/wave3-legacy.mjs';
+import { clean, ggwSub } from './lib/wave3-legacy.mjs';
 
 export const RULES = {
   key: 'aosom-us',
@@ -43,7 +43,7 @@ export function classify({ name, feedCategory = '' }) {
     if (/\brugs?\b/i.test(head)) return o('Cushions & rugs');
     if (/chaise|lounger|tanning chair/i.test(head)) return o('Loungers');
     if (/adirondack|\bchairs?\b|\bbench(es)?\b/i.test(head) && !/cushion|cover|storage/i.test(head)) return o('Chairs & benches');
-    const g = gardenPlace(head, '') || gardenPlace(full, '');
+    const g = ggwSub(gardenPlace(head, ''), full) || ggwSub(gardenPlace(full, ''), full);
     return g ? { site: 'ggw', ...g, name: n } : { reject: 'no garden place for this name' };
   }
   if (!/^(Home Goods > (Living Room|Home Décor|Kitchen and Dining|Accents & Storage|Bedroom|Bathroom|Laundry|Dining Room|Entryway)|Office > (Office Chairs|Office Desks|Office Storage))/i.test(cat)) {

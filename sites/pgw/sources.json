@@ -949,6 +949,6 @@
     { "advertiserId": 113754, "feedIds": [100736], "retailer": "MonsGeek", "currency": "EUR", "condition": "new", "approved": true, "denyNames": ["\\bgift ?cards?\\b"], "gamingShop": true, "defaultSlug": "mice-keyboards", "_comment": "Round 2c (L144): MonsGeek keyboards, like AKKO on PGW." },
     { "advertiserId": 12044, "feedIds": [101519], "retailer": "AliExpress PL", "currency": "PLN", "condition": "new", "approved": true, "sections": "aliexpress-pl", "joinVariants": true, "minPrice": 10 },
     {"advertiserId": 92427, "feedIds": [108785], "retailer": "EKSA", "currency": "USD", "condition": "new", "approved": true, "gamingShop": true, "_comment": "Wave 3 (16 Nov 2026, approvals file of chat 7, lessons L169): gaming headsets, US dollars. Shown only to the US (deliversTo)."},
-    {"advertiserId": 93047, "feedIds": [105121], "retailer": "Gogamegeek", "currency": "USD", "condition": "new", "approved": true, "gamingShop": true, "_comment": "Wave 3 (16 Nov 2026, approvals file of chat 7, lessons L169): console accessories, US dollars. Shown only to the US (deliversTo)."}
+    {"advertiserId": 93047, "feedIds": [105121], "retailer": "Gogamegeek", "currency": "USD", "condition": "new", "approved": true, "gamingShop": true, "denyNames": ["gift bag", "decanter", "whiskey", "\\bdust cover\\b", "keychain", "\\bspeaker\\b", "control panel", "\\bUFCP\\b", "screen protector", "carrying case"], "_comment": "Wave 3 (16 Nov 2026, approvals file of chat 7, lessons L169): console accessories, US dollars. Shown only to the US (deliversTo)."}
   ]
 }
