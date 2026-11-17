@@ -306,6 +306,33 @@ export function tyreProduct(model, brand, description, merchantCategory) {
   return { ok: true, name: [b, m, m.includes(size) ? '' : size].filter(Boolean).join(' '), brand: b };
 }
 
+// "tyreBracket" (wave 3, 16 Nov 2026, lessons L169): the Delticom tyre shops (ReifenDirekt.at, neumaticos-online.es,
+// Autobandenmarkt.nl) put brand, model and size in the name, the size in brackets ("Cooper Cobra Radial G/T ( 295/50 R15
+// 105S RWL )", "Continental IceContact 8 ( 205/60 R17 97T XL EVc, bespiked )") and the season, in the shop's language, as
+// the category ("Sommerreifen", "Neumáticos de invierno", "All-season banden"). The site name is brand + model + size +
+// load/speed (+ XL): "Cooper Cobra Radial G/T 295/50 R15 105S". Only car and van tyres, as tyreNames: the motorbike and
+// truck categories and the sizes that are not metric/flotation radial stay out (first dry run, 17 Nov 2026: 0 of 104,613).
+export const CAR_TYRE_CATEGORY = /^(?:sommerreifen|winterreifen|ganzjahresreifen|neum[aá]ticos de verano|neum[aá]ticos de invierno|neum[aá]ticos para todas las estaciones|zomerbanden|winterbanden|all-season banden)$/i;
+const BRACKET_SIZE = /^((?:\d{2}5(?:\/\d{2,3})?|\d{2}x\d{1,2}(?:[.,]\d{1,2})?)\s+Z?R\s?\d{2}(?:[.,]5)?C?)\s+(\d{2,3}(?:\/\d{2,3})?[A-Z])(?=\s|$)(.*)$/i;
+export function tyreBracketProduct(name, brand, merchantCategory) {
+  if (!CAR_TYRE_CATEGORY.test(String(merchantCategory || '').trim())) return { ok: false, reason: 'tyre shop: not a car or van tyre (motorbike, truck or other category)' };
+  const m = String(name || '').replace(/\s+/g, ' ').trim().match(/^(.+?)\s*\(\s*(.+?)\s*\)$/);
+  if (!m) return { ok: false, reason: 'tyre shop: no size in brackets' };
+  const inside = m[2].split(',')[0].trim();
+  const s = inside.match(BRACKET_SIZE);
+  if (!s || !TYRE_SIZE.test(`${s[1]} `)) return { ok: false, reason: 'tyre shop: not a car or van tyre size (motorbike, scooter, quad or old marking)' };
+  const xl = /(?:^|\s)XL(?:\s|$)/.test(s[3]) ? ' XL' : '';
+  const b = tyreBrand(brand);
+  return { ok: true, name: `${m[1]} ${s[1]} ${s[2].toUpperCase()}${xl}`.replace(/\s+/g, ' '), brand: b || m[1].split(' ')[0] };
+}
+
+// FNV-1a of a stable key: the order "maxProducts" keeps (the same products on every run).
+export function keyRank(key) {
+  let h = 0x811c9dc5;
+  for (const ch of String(key || '')) { h ^= ch.codePointAt(0); h = Math.imul(h, 0x01000193) >>> 0; }
+  return h;
+}
+
 // A feed that cuts every name at a fixed length (PCHUB.UK: 70 characters, "... Gigabit Ethernet Wir"): the cut last word,
 // then any dangling separator, small word or unclosed bracket, are taken off.
 export function cutToWord(name) {
@@ -695,7 +722,7 @@ export async function planImport({ archive, sourcesFile, outDir, now = new Date(
           const flat = v => v.toLowerCase().replace(/[^a-z0-9]+/g, '');
           if (mpnCut && mpnCut.length <= 25 && !flat(name).includes(flat(mpnCut))) name = `${name} (${mpnCut})`;
         }
-        const merchantCategory = cleanText(pick(rec, map.merchantCategory));
+        let merchantCategory = cleanText(pick(rec, map.merchantCategory));
         const awinCategory = cleanText(pick(rec, map.awinCategory));
         let brand = cleanText(pick(rec, map.brand));
         const price = parsePrice(pick(rec, map.price));
@@ -704,6 +731,13 @@ export async function planImport({ archive, sourcesFile, outDir, now = new Date(
           if (!tyre.ok) { reject(tyre.reason, `${truncate(name, 60)} ${truncate(cleanText(pick(rec, map.description)), 30)} | ${merchantCategory}`); continue; }
           name = tyre.name;
           brand = tyre.brand;
+        }
+        if (source.tyreBracket) {
+          const tyre = tyreBracketProduct(name, brand, merchantCategory);
+          if (!tyre.ok) { reject(tyre.reason, `${truncate(name, 70)} | ${merchantCategory}`); continue; }
+          name = tyre.name;
+          brand = tyre.brand;
+          merchantCategory = 'tyres';
         }
         const short = `${truncate(name, 90)} | ${Number.isFinite(price) ? price.toFixed(2) : '?'} | ${truncate(merchantCategory || awinCategory, 50)}`;
 
@@ -837,6 +871,25 @@ export async function planImport({ archive, sourcesFile, outDir, now = new Date(
   for (const i of dup.sameShop) shopReasons = shopOf(i), reject('duplicate: same shop, same name or EAN (the cheapest is kept)', `${candidates[i].short}  (kept: ${kept(i).price.toFixed(2)})`);
   for (const i of dup.otherShop) shopReasons = shopOf(i), reject('duplicate: same product and price at another shop', `${candidates[i].short}  (shown from ${kept(i).retailer})`);
   shopReasons = null;
+  // "maxProducts" (wave 3, 17 Nov 2026, lessons L169): a shop that would bring more than that keeps that many, the same
+  // ones every run (by the hash of the stable key, so a refresh does not swap them). The Delticom tyre shops on AGW:
+  // ~83,000 car tyres would land in one category, over the ~10,000 of L146 and the 20,000 per category of the mass import.
+  const capOf = new Map(sources.filter(s => Number(s.maxProducts) > 0).map(s => [s.retailer, Number(s.maxProducts)]));
+  if (capOf.size) {
+    const byShop = {};
+    candidates.forEach((c, i) => { if (dup.keep[i] && capOf.has(c.p.retailer)) (byShop[c.p.retailer] ||= []).push(i); });
+    for (const [r, idx] of Object.entries(byShop)) {
+      const cap = capOf.get(r);
+      if (idx.length <= cap) continue;
+      idx.sort((a, b) => keyRank(candidates[a].p.stable_key) - keyRank(candidates[b].p.stable_key) || a - b);
+      for (const i of idx.slice(cap)) {
+        dup.keep[i] = false;
+        shopReasons = shopOf(i);
+        reject(`over the ${cap} products kept from this shop (maxProducts)`, candidates[i].short);
+      }
+      shopReasons = null;
+    }
+  }
   candidates.forEach((c, i) => {
     if (!dup.keep[i]) return;
     const { p, short } = c;

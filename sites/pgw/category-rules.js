@@ -253,7 +253,7 @@ export function classifyGaming(name, shopCat = '', opts = {}) {
 export const CATEGORY_SLUGS = CATEGORIES.map(k => k.key);
 
 export const QUALITY = {
-  currencies: ['GBP', 'EUR', 'PLN'],
+  currencies: ['GBP', 'EUR', 'PLN', 'USD'], // USD: the US-only shops of wave 3, US view only (L169)
   minPrice: 1,
   maxPrice: 8000,
   requireImage: true,
