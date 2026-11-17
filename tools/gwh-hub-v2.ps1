@@ -178,6 +178,11 @@
   Sovrn privacy policy (until then they said "The Hub itself has no affiliate links"); the footer of the home page is
   in the 11 languages too, and so are the campaign names of the deals (from the dictionary of the deal's site, made
   by tools/gwh-deals.mjs as campaignNames).
+  Search order (lessons L177, 17/11/2026): the Hub orders the answers of the 13 sites with rankHubResults (worker.js):
+  what the product IS (subcategory, category, the retailer's path) first, then whole words of its name; accessories and
+  look-alikes go down unless asked for. Test-Site makes 13 searches for a UK visitor (?country=GB): one of the first 3
+  results must come from the Gear World that sells it; 2 or more wrong orders are a ΠΡΟΒΛΗΜΑ, so -AfterPreview stops
+  the live. The full list of 65 searches: node tools/gwh-search-check.mjs (--replay before a deploy).
   Release order (L175): the 13 sites go live FIRST (sites-update-all, phrase ΕΓΚΡΙΝΩ ALL UPDATES), and only after their
   report this Hub release. Check that https://<site>/api/version of the sites is on the release with L175 first;
   otherwise a visitor in Greece who made no choice gets a Greek Hub and English sites.
@@ -231,7 +236,7 @@ $Bad = 'Magenta'
 
 # What each file of the change does, in the words of the report.
 $About = @{
-    'worker.js' = 'η αναζήτηση μεταφράζει τις ξένες λέξεις με το μοντέλο της αναζήτησης με φωτογραφία (Gemma 4), γιατί το Cloudflare σταματά το @cf/meta/llama-3.1-8b-instruct-fp8 στις 20/11 (L173)· η αρχική σελίδα παίρνει τη γλώσσα της χώρας του επισκέπτη (<html data-country-lang>, μόνο σε κάθε απάντηση, ποτέ για το Google, L175)· όλα τα άλλα όπως είναι live'
+    'worker.js' = 'η σειρά των αποτελεσμάτων της αναζήτησης με το rankHubResults: πρώτα τι είναι το προϊόν (κατηγορίες), μετά ολόκληρες λέξεις του ονόματος, αξεσουάρ πιο κάτω (GWH-RANKING-V3, L177)· η αναζήτηση μεταφράζει τις ξένες λέξεις με το μοντέλο της αναζήτησης με φωτογραφία (Gemma 4), γιατί το Cloudflare σταματά το @cf/meta/llama-3.1-8b-instruct-fp8 στις 20/11 (L173)· η αρχική σελίδα παίρνει τη γλώσσα της χώρας του επισκέπτη (<html data-country-lang>, μόνο σε κάθε απάντηση, ποτέ για το Google, L175)· όλα τα άλλα όπως είναι live'
     'photo-search.js' = 'κρατά το μοντέλο της μετάφρασης της αναζήτησης (ίδιο με της φωτογραφίας) και διαβάζει την απάντησή του σε κάθε μορφή (L173)· η αναζήτηση με φωτογραφία δεν αλλάζει'
     'security.js'           = 'νέο αρχείο: έλεγχος Turnstile, ημερήσια όρια του δικτύου (εγγραφές, μεταφράσεις), headers (L106)'
     'mailerlite.js'         = 'η φόρμα του Hub θέλει το token του Turnstile· ημερήσιο όριο εγγραφών για όλο το δίκτυο, μικρό δικό της για την εφαρμογή (L106)'
@@ -715,6 +720,31 @@ function Test-Site([string]$base, [bool]$isLive) {
     $l107 = ($deals.status -eq 200 -and $dealsText -notmatch '(?i)halloween') -and ($v2.status -eq 200 -and $v2Text.Contains('"black-friday":false')) -and -not $html.Contains('prices we' + [char]0x27 + 've checked')
     if ($l107) { Say '  L107: καμία προσφορά Halloween, Black Friday κλειστή, το κουτί email χωρίς «prices we''ve checked»: ΕΝΤΑΞΕΙ' $Ok }
     else { Say '  L107: ΠΡΟΣΟΧΗ - δεν βλέπω ακόμα όλες τις αλλαγές (προσφορές χωρίς Halloween, Black Friday κλειστή, κουτί email). Η cache κρατάει λίγα λεπτά: στείλε στο Claude αυτή την αναφορά.' $Warn }
+    # L177 (17/11/2026): the search finds what it names, for a UK visitor (?country=GB). One search per Gear World: one of
+    # the first 3 results comes from the Gear World that sells it, every result delivers to the UK, no site missing.
+    # A site that did not answer is a warning (the site, not the Hub); 2 or more wrong orders are a problem (no live).
+    $searchSet = @(
+        @('safety boots', 'cgw'), @('tablet', 'tgw'), @('dog bed', 'zgw'), @('gaming chair', 'pgw'), @('motorcycle helmet', 'bgw'),
+        @('tyre inflator', 'agw'), @('suitcase', 'vgw'), @('yoga mat', 'sgw'), @('dress', 'wgw'), @('mens watch', 'mgw'),
+        @('pram', 'kgw'), @('kettle', 'hgw'), @('bbq', 'ggw'))
+    $wrongOrder = @(); $notUk = 0; $missing = @(); $asked = 0
+    foreach ($pair in $searchSet) {
+        $sq = Get-Web ($base + '/api/search?q=' + [uri]::EscapeDataString($pair[0]) + '&country=GB&gwcheck=' + $stamp)
+        try {
+            $sj = (New-Object System.Text.UTF8Encoding($false)).GetString($sq.bytes) | ConvertFrom-Json
+            $asked++
+            $first3 = @(@($sj.results) | Select-Object -First 3 | ForEach-Object { [string]$_.site })
+            if (-not ($first3 -contains $pair[1])) { $wrongOrder += ('{0} (1o: {1})' -f $pair[0], ((@($sj.results) | Select-Object -First 1 | ForEach-Object { '{0} {1}' -f $_.site, ([string]$_.product_name).Substring(0, [Math]::Min(40, ([string]$_.product_name).Length)) }) -join '')) }
+            $notUk += @(@($sj.results) | Where-Object { $d = @($_.delivers_to | Where-Object { $_ }); $d.Count -gt 0 -and -not ($d -contains 'GB' -or $d -contains 'WORLD') }).Count
+            if (@($sj.failed_sites).Count -gt 0) { $missing += @($sj.failed_sites) }
+        } catch { $wrongOrder += ('{0} (χωρίς απάντηση)' -f $pair[0]) }
+        Start-Sleep -Milliseconds 300
+    }
+    $missing = @($missing | Sort-Object -Unique)
+    if ($wrongOrder.Count -eq 0 -and $notUk -eq 0) { Say ('  Αναζήτηση (L177): {0} αναζητήσεις, η καθεμία βγάζει στα 3 πρώτα το site που το πουλά, όλα στέλνουν UK: ΕΝΤΑΞΕΙ' -f $asked) $Ok }
+    elseif ($wrongOrder.Count -le 1 -and $notUk -eq 0) { Say ('  Αναζήτηση (L177): ΠΡΟΣΟΧΗ - 1 από {0} με άλλη σειρά: {1}' -f $searchSet.Count, ($wrongOrder -join '; ')) $Warn }
+    else { Say ('  Αναζήτηση (L177): ΠΡΟΒΛΗΜΑ - με λάθος σειρά: {0}; προϊόντα που δεν στέλνουν UK: {1}' -f ($wrongOrder -join '; '), $notUk) $Bad }
+    if ($missing.Count -gt 0) { Say ('  Αναζήτηση (L177): ΠΡΟΣΟΧΗ - δεν απάντησαν: {0} (το site, όχι το Hub)' -f ($missing -join ', ')) $Warn }
     $s = Get-Web ($base + '/api/search?q=suitcase&worlds=vgw&max_price=100')
     try {
         $j = (New-Object System.Text.UTF8Encoding($false)).GetString($s.bytes) | ConvertFrom-Json

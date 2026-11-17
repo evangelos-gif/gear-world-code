@@ -391,40 +391,8 @@ const hubCore = {
             console.error('Gear World Hub delivery registry lookup failed:', error);
           }
         }
-        // GWH-RANKING-V2: whole words count, not only the exact phrase. A product with every word of the search, from a
-        // Gear World with many matches, now comes before an accessory that only repeats the phrase ("cordless drill"
-        // showed a drill brush set from the car site first). Equal scores keep the order of the sites, as before.
-        const q = searchQuery.toLowerCase();
-        const words = q.split(/[^a-z0-9]+/).filter(w => w.length >= 2);
-        const ACCESSORY = /\b(brush(es)?|bits?|attachments?|adapters?|adaptors?|cases?|covers?|holders?|mounts?|straps?|replacements?|spares?|accessor(y|ies)|refills?|stickers?|decals?|cleaning|memory cards?)\b/;
-        const askedForAccessory = ACCESSORY.test(q);
-        const hasWord = (text, w) => text.split(/[^a-z0-9]+/).some(t => t === w || t === `${w}s` || t === `${w}es` || (w.length >= 5 && t.startsWith(w)));
-        const score = product => {
-          const name = String(product.product_name || "").toLowerCase();
-          const brand = String(product.brand || "").toLowerCase();
-          const category = String(product.category || "").toLowerCase();
-          const subcategory = String(product.subcategory || "").toLowerCase();
-          let value = 0;
-          if (name === q) value += 100;
-          if (name.startsWith(q)) value += 60;
-          if (name.includes(q)) value += 40;
-          if (brand === q) value += 35;
-          if (brand.includes(q)) value += 20;
-          if (subcategory.includes(q)) value += 15;
-          if (category.includes(q)) value += 10;
-          if (words.length) {
-            const hits = words.filter(w => hasWord(name, w)).length;
-            value += Math.round(30 * hits / words.length);
-            if (words.length > 1 && hits === words.length) value += 20;
-            if (words.some(w => hasWord(subcategory, w) || hasWord(category, w))) value += 10;
-          }
-          if (!askedForAccessory && ACCESSORY.test(name)) value -= 35;
-          value += 2 * Math.min(8, siteCounts[product.site] || 0);
-          if (product.stock_status === "in_stock") value += 3;
-          return value;
-        };
-        const scores = new Map(results.map(product => [product, score(product)]));
-        results.sort((a, b) => scores.get(b) - scores.get(a));
+        // GWH-RANKING-V3 (lessons L177): the order of the results, see rankHubResults below.
+        rankHubResults(results, searchQuery);
         return Response.json({
           ok: true, query: safeQuery, count: results.length,
           sites: siteCounts, results,
@@ -936,6 +904,104 @@ async function seasonalMedia(request, env) {
 // retailers for your country. Most retailers below deliver to the UK only. Check delivery before you buy." (the search
 // results below come from the sites with the same country, ?deliver_to=). It is added to each answer here, never to a
 // stored copy; hub-v2.js shows it in the visitor's language (data-gwh2="countryBar").
+// GWH-RANKING-V3 (lessons L177, 17/11/2026: "tablet" showed tablet stands and hi-vis vests with a tablet pocket first,
+// "laptop" and "headphones" showed cufflinks, "kettle" a Kettler bag, "drill" trousers in drill cotton). The Hub asks each
+// site for its 8 best and orders the merged list here. What the product IS counts first: the search words in its
+// subcategory, category or the retailer's category path (Tablets, Laptops & Notebooks, Kettle, BBQs, Lawn Mowers). Then
+// the words in its name as whole words (kettle is not Kettler, tablet is not Tabletop; plurals count), less inside
+// brackets ("Natural Drill" is a colour). Accessories and look-alikes (stand, pocket, case, cufflinks, costume,
+// cable ...) go down unless the search asks for them. The Gear World whose categories match gets a small push, the 3rd
+// and later copies of the same name go down, and equal scores keep the order of the sites, as before.
+const RANK_STOP = new Set(["a", "an", "the", "and", "or", "for", "with", "in", "on", "of", "to", "my", "me", "new", "buy", "best", "cheap", "i", "want", "need", "should", "what", "which", "some"]);
+const RANK_ACCESSORY = new Set(["brush", "bit", "attachment", "adapter", "adaptor", "case", "cover", "holder", "mount", "strap", "replacement", "spare", "accessory", "refill", "sticker", "decal", "cleaning", "cleaner", "stand", "pocket", "cufflink", "costume", "sleeve", "skin", "protector", "charger", "cable", "pouch", "organiser", "organizer", "hook", "pattern", "poster", "bracket", "descaler", "blade"]);
+const RANK_SYNONYMS = {
+  bbq: ["barbecue"], barbecue: ["bbq"], tv: ["television"], television: ["tv"], mower: ["lawnmower"], lawnmower: ["mower"],
+  hoover: ["vacuum"], sneaker: ["trainer"], trainer: ["sneaker"], pram: ["pushchair", "stroller"], pushchair: ["pram", "stroller"],
+  stroller: ["pram", "pushchair"], nappy: ["diaper"], diaper: ["nappy"], sofa: ["couch"], couch: ["sofa"], earphone: ["earbud"],
+  earbud: ["earphone"], aquarium: ["fish tank"], ps5: ["playstation 5", "playstation5"], ps4: ["playstation 4", "playstation4"],
+  mobile: ["phone"], cellphone: ["phone"], notebook: ["laptop"], hivis: ["hi vis"]
+};
+// Words a Gear World says by itself: a "womens boots" search is answered by Women's Gear World's boots, "mens watch" by
+// Men's Gear World's watches, "kids bike" by Kids' Gear World's bikes, even when the product name does not repeat it.
+const RANK_SITE_WORDS = {
+  wgw: ["women", "woman", "womens", "ladies", "lady", "her"], mgw: ["men", "man", "mens", "gent", "him"],
+  kgw: ["kid", "child", "children", "baby", "boy", "girl", "junior", "toddler"], zgw: ["pet"]
+};
+export function rankStem(word) {
+  const t = String(word || "");
+  if (t.length > 4 && t.endsWith("ies")) return `${t.slice(0, -3)}y`;
+  if (t.length > 4 && /(ches|shes|xes|sses|zzes)$/.test(t)) return t.slice(0, -2);
+  if (t.length > 3 && t.endsWith("s") && !/(ss|us|is)$/.test(t)) return t.slice(0, -1);
+  return t;
+}
+export function rankTokens(text) {
+  const raw = String(text || "").toLowerCase().replace(/[’']/g, "").split(/[^\p{L}\p{N}]+/u).filter(Boolean);
+  const out = new Set(raw.map(rankStem));
+  for (let i = 0; i + 1 < raw.length; i++) out.add(rankStem(raw[i] + raw[i + 1])); // "lawn mower" = "lawnmower"
+  return out;
+}
+export function rankHubResults(results, query) {
+  const q = String(query || "").toLowerCase().trim();
+  const rawWords = q.replace(/[’']/g, "").split(/[^\p{L}\p{N}]+/u).filter(Boolean);
+  const allWords = rawWords.filter(w => !RANK_STOP.has(w)).map(rankStem).filter(w => w.length >= 2 || /\d/.test(w));
+  const joined = rawWords.length > 1 ? rankStem(rawWords.join("")) : "";
+  const askedForAccessory = allWords.some(w => RANK_ACCESSORY.has(w));
+  const has = (set, w) => set.has(w) || (RANK_SYNONYMS[w] || []).some(alt => alt.split(" ").map(rankStem).every(t => set.has(t)) || set.has(rankStem(alt.replace(/ /g, ""))));
+  let words = allWords;
+  const all = set => words.length > 0 && (words.every(w => has(set, w)) || (joined !== "" && set.has(joined)));
+  const some = set => words.some(w => has(set, w));
+  const exact = set => [...set].filter(t => !RANK_STOP.has(t) && t.length > 1).every(t => words.includes(t) || t === joined || words.join("") === t || words.some(w => (RANK_SYNONYMS[w] || []).includes(t)));
+  const kind = new Map();
+  const score = new Map();
+  for (const product of results) {
+    const said = (RANK_SITE_WORDS[product.site] || []).map(rankStem);
+    const rest = allWords.filter(w => !said.includes(w));
+    words = rest.length ? rest : allWords;
+    const name = String(product.product_name || "");
+    const main = name.replace(/\([^)]*\)|\[[^\]]*\]/g, " ").split(" | ")[0];
+    // What the product is comes before "with", "no", "for" ...: "Angle Drill No Batteries No Charger No Case" is a
+    // drill, "Arm Rest for Office Desk ... No Drill Installation" is not one, "Case for Tablet" is a case.
+    const head = main.split(/\s(?:with|without|no|inc|incl|including|for|compatible|fits|suitable)\s|\s\+\s/i)[0];
+    const N = rankTokens(head);
+    const full = rankTokens(name);
+    const S = rankTokens(product.subcategory);
+    const C = rankTokens(product.category);
+    const M = rankTokens(product.merchant_category);
+    let type = 0;
+    if (all(S)) type = exact(S) ? 90 : 70;
+    else if (all(C)) type = exact(C) ? 75 : 60;
+    else if (all(M)) type = 30; // the retailer's own path is often a group ("Handbags, Wallets & Cases"): less weight
+    else if (some(S) || some(C)) type = 20;
+    let value = type;
+    if (all(N)) value += 45;
+    else if (all(full)) value += 20; // only in brackets, after " | " or after "with", "no", "for" ...: a detail
+    else if (words.length) value += Math.round(30 * words.filter(w => has(N, w)).length / words.length);
+    if (q.length >= 2 && main.toLowerCase().includes(q)) value += 10;
+    const brand = String(product.brand || "").toLowerCase().trim();
+    if (brand && brand === q) value += 60;
+    else if (brand && words.length && words.every(w => rankTokens(brand).has(w))) value += 20;
+    if (!askedForAccessory && [...N].some(t => RANK_ACCESSORY.has(t))) value -= 45;
+    if (product.stock_status === "in_stock") value += 3;
+    kind.set(product, type >= 60);
+    score.set(product, value);
+  }
+  // The Gear World whose own categories hold the search ("Tablets" on Technology Gear World) gets a small push.
+  const homeHits = {};
+  for (const product of results) if (kind.get(product)) homeHits[product.site] = (homeHits[product.site] || 0) + 1;
+  for (const product of results) score.set(product, score.get(product) + 3 * Math.min(8, homeHits[product.site] || 0));
+  // The same name many times (sizes and colours of one product): the 3rd and later copies go down.
+  const copies = new Map();
+  const ordered = results.slice().sort((a, b) => score.get(b) - score.get(a));
+  for (const product of ordered) {
+    const key = `${product.site}\u0000${String(product.product_name || "").toLowerCase().replace(/\s+/g, " ").trim()}`;
+    const n = (copies.get(key) || 0) + 1;
+    copies.set(key, n);
+    if (n > 2) score.set(product, score.get(product) - 25);
+  }
+  results.sort((a, b) => score.get(b) - score.get(a));
+  return results;
+}
+
 export const GOOGLE_CRAWLER = /\b(Googlebot|AdsBot-Google(-Mobile)?|Google-InspectionTool|Storebot-Google|Mediapartners-Google|GoogleOther)\b/i;
 export const COUNTRY_BAR_TEXT = "We're adding retailers for your country. Most retailers below deliver to the UK only. Check delivery before you buy.";
 // GWH-DELIVERY-BADGES: where a product's retailer delivers, as its site says it (/api/products delivers_to, lessons L151):

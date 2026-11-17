@@ -4,7 +4,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { DatabaseSync } from 'node:sqlite';
-import hub, { countryLanguage, COUNTRY_LANGUAGES, MULTI_LANGUAGE_COUNTRIES, HUB_LOCALES } from '../../sites/gwh/worker.js';
+import hub, { countryLanguage, COUNTRY_LANGUAGES, MULTI_LANGUAGE_COUNTRIES, HUB_LOCALES, rankHubResults, rankStem, rankTokens } from '../../sites/gwh/worker.js';
 
 const SITES = [
   ['CGW', 'Construction Gear World', 'constructiongearworld.com'], ['MGW', "Men's Gear World", 'mensgearworld.com'],
@@ -444,4 +444,105 @@ test('home page and /about/: the language of the visitor\'s country on <html>, a
   assert.match(about, /document\.documentElement\.getAttribute\("data-country-lang"\)/, '/about/ follows the same order');
   assert.match(about, /lang === "en-GB" && !chosen/);
   assert.deepEqual(HUB_LOCALES, JSON.parse(js.match(/const LOCALES = (\[[^\]]+\])/)[1].replace(/\s+/g, '')), 'the same 11 languages as translations.js');
+});
+
+// GWH-RANKING-V3 (lessons L177, 17/11/2026): what the product IS (its subcategory, category or the retailer's path)
+// counts first, then the name as whole words. The cases are the ones Evangelos and the check of 17/11 found on the live
+// Hub (UK view): tablet stands and hi-vis vests before tablets, cufflinks before laptops and headphones, a Kettler bag
+// before kettles, trousers in drill cotton before drills, a BBQ sweatshirt before BBQs.
+test('search: ranking v3, the product the search names comes before look-alikes and accessories (L177)', async () => {
+  const fake = productsFetch({
+    'constructiongearworld.com': [
+      { id: 1, product_name: 'Sealey Laptop and Tablet Stand Black', site_category: 'Site Equipment', subcategory: 'Site Equipment' },
+      { id: 2, product_name: 'Portwest Hi-Vis Tablet Pocket Executive Vest', site_category: 'Workwear', subcategory: 'Hi-Vis' }
+    ],
+    'homegearworld.com': [{ id: 3, product_name: 'Small Tabletop Water Fountain', site_category: 'Home Decor', subcategory: 'Fountains' }],
+    'technologygearworld.com': [
+      { id: 4, product_name: 'Lenovo Tab K12 Mediatek 256 GB', site_category: 'Laptops & Computing', subcategory: 'Tablets' },
+      { id: 5, product_name: 'Targus tablet case 29.2 cm', site_category: 'Accessories & Storage', subcategory: 'Computers' },
+      { id: 6, product_name: 'Apple iPad Air M4 128 GB', site_category: 'Laptops & Computing', subcategory: 'Tablets' }
+    ]
+  });
+  const { data } = await searchWith(fake, 'q=tablet&country=GB');
+  const order = data.results.map(r => `${r.site}:${r.id}`);
+  assert.deepEqual(order.slice(0, 2).sort(), ['tgw:4', 'tgw:6'], order.join(' '));
+  for (const other of ['cgw:1', 'cgw:2', 'hgw:3', 'tgw:5']) assert.ok(order.indexOf(other) > 1, `${other} after the tablets`);
+  assert.ok(!order.slice(0, 2).includes('hgw:3'), 'Tabletop is not tablet');
+});
+
+test('search: ranking v3, cufflinks, a Kettler bag, drill cotton and a BBQ sweatshirt go below the real thing (L177)', () => {
+  const rank = (q, list) => rankHubResults(list.map((p, i) => ({ id: i, ...p })), q).map(p => p.product_name);
+  let o = rank('laptop', [
+    { site: 'mgw', product_name: 'Laptop Computer Cufflinks', category: "Men's Jewellery", subcategory: 'Cufflinks' },
+    { site: 'tgw', product_name: 'HP OmniBook X Flip 2-in-1 Laptop', category: 'Laptops & Computing', subcategory: 'Laptops & Notebooks' }]);
+  assert.equal(o[0], 'HP OmniBook X Flip 2-in-1 Laptop');
+  o = rank('kettle', [
+    { site: 'kgw', product_name: 'Kettler Changing Bag Melange Grey', category: 'Baby & Toddler', subcategory: 'Nappy Bags' },
+    { site: 'hgw', product_name: 'DAEWOO Kettle: Sienna Retro 1.7L Jug Kettle', category: 'Home Appliances', subcategory: 'Kettle' }]);
+  assert.equal(o[0], 'DAEWOO Kettle: Sienna Retro 1.7L Jug Kettle');
+  o = rank('drill', [
+    { site: 'mgw', product_name: 'Slim Fatigue (Natural Drill) | 32 | Stan Ray', category: 'Clothing', subcategory: 'Trousers' },
+    { site: 'hgw', product_name: 'Adjustable Arm Rest for Office Desk, Clamp-On/No Drill Installation', category: 'Home Office', subcategory: 'Office Desk' },
+    { site: 'cgw', product_name: 'Bosch GRD 18V-127 18v Cordless Right Angle Drill No Batteries No Charger No Case', category: 'Power Tools', subcategory: 'Power Tools', merchant_category: 'Power Tools > Drills > Angle Drills' }]);
+  assert.equal(o[0], 'Bosch GRD 18V-127 18v Cordless Right Angle Drill No Batteries No Charger No Case', '"No Case" is not a case');
+  o = rank('bbq', [
+    { site: 'mgw', product_name: 'BBQ Crew (Grey Heather) | S | Stan Ray', category: 'Clothing', subcategory: 'Sweatshirts' },
+    { site: 'ggw', product_name: 'Outsunny 2 Burner Gas Barbecue', category: 'BBQ & Outdoor Cooking', subcategory: 'BBQs' }]);
+  assert.equal(o[0], 'Outsunny 2 Burner Gas Barbecue', 'BBQs, and barbecue is bbq');
+  o = rank('lawn mower', [
+    { site: 'cgw', product_name: 'ACEZUK M01 Jump Starter 12V Car Battery', category: 'Site Equipment', subcategory: '' },
+    { site: 'ggw', product_name: 'Kärcher LMO 3-18 Battery lawn mower', category: 'Power Garden Tools', subcategory: 'Lawnmowers & Accessories' }]);
+  assert.equal(o[0], 'Kärcher LMO 3-18 Battery lawn mower', 'lawn mower = Lawnmowers');
+  o = rank('dress', [
+    { site: 'kgw', product_name: 'Spider-Man Dress-up Costume for Kids', category: 'Clothing', subcategory: 'Baby & Toddler Dresses' },
+    { site: 'wgw', product_name: 'Italy Moda Evening Dress - Brown', category: 'Clothing', subcategory: 'Dresses' }]);
+  assert.equal(o[0], 'Italy Moda Evening Dress - Brown');
+  // Asking for the accessory still finds it first, and the 3rd copy of one name goes down.
+  o = rank('tablet case', [
+    { site: 'tgw', product_name: 'Apple iPad Air M4', category: 'Laptops & Computing', subcategory: 'Tablets' },
+    { site: 'tgw', product_name: 'Targus tablet case 29.2 cm', category: 'Accessories & Storage', subcategory: 'Computers' }]);
+  assert.equal(o[0], 'Targus tablet case 29.2 cm');
+  const vests = Array.from({ length: 4 }, () => ({ site: 'cgw', product_name: 'Portwest Hi Vis Vest', category: 'PPE', subcategory: 'Hi-Vis' }));
+  o = rank('hi vis', [...vests, { site: 'cgw', product_name: 'Sealey Hi Vis Jacket', category: 'PPE', subcategory: 'Hi-Vis' }]);
+  assert.ok(o.indexOf('Sealey Hi Vis Jacket') <= 2, o.join(' / '));
+});
+
+test('search: ranking v3 words: plurals, joined words, no prefix match (L177)', () => {
+  assert.deepEqual(['dresses', 'watches', 'tablets', 'bbqs', 'batteries', 'boots', 'glass', 'plus'].map(rankStem), ['dress', 'watch', 'tablet', 'bbq', 'battery', 'boot', 'glass', 'plus']);
+  const t = rankTokens('Lawnmowers & Accessories');
+  assert.ok(t.has('lawnmower') && t.has('accessory'));
+  assert.ok(rankTokens('lawn mower').has('lawnmower'));
+  assert.ok(!rankTokens('Kettler Changing Bag').has('kettle'));
+  assert.ok(!rankTokens('Small Tabletop Fountain').has('tablet'));
+});
+
+test('search: ranking v3, a Gear World says some words by itself ("womens boots" = the boots of Women\'s Gear World) (L177)', () => {
+  const o = rankHubResults([
+    { id: 1, site: 'bgw', product_name: 'Alpinestars Stella Womens Boots', category: 'Motorcycle Clothing', subcategory: 'Riding Boots' },
+    { id: 2, site: 'wgw', product_name: 'Solea Heel Boots - Brown', category: 'Shoes', subcategory: 'Boots' },
+    { id: 3, site: 'mgw', product_name: 'Diesel Chief Watch', category: 'Watches', subcategory: 'Watches' },
+    { id: 4, site: 'wgw', product_name: 'Rose Gold Watch', category: 'Watches', subcategory: 'Watches' }
+  ], 'womens boots').map(p => p.id);
+  assert.equal(o[0], 2, 'the boots of the women\'s site');
+  const m = rankHubResults([
+    { id: 4, site: 'wgw', product_name: 'Rose Gold Watch', category: 'Watches', subcategory: 'Watches' },
+    { id: 3, site: 'mgw', product_name: 'Diesel Chief Watch', category: 'Watches', subcategory: 'Watches' }
+  ], 'mens watch').map(p => p.id);
+  assert.equal(m[0], 3, 'mens watch: the men\'s site');
+});
+
+test('search check list (L177): 65 searches, 5 for each of the 13 Gear Worlds, read-only, and its rules', async () => {
+  const { SEARCHES, judge } = await import('../../tools/gwh-search-check.mjs');
+  assert.equal(SEARCHES.length, 65);
+  const bySite = {};
+  for (const [q, want] of SEARCHES) { assert.ok(q && want.length, q); bySite[want[0]] = (bySite[want[0]] || 0) + 1; }
+  assert.deepEqual(Object.values(bySite), Array(13).fill(5), JSON.stringify(bySite));
+  const tool = (await import('node:fs')).readFileSync('tools/gwh-search-check.mjs', 'utf8');
+  assert.ok(!/method:\s*['"](POST|PUT|DELETE)|\/(go|out)\//.test(tool.replace(/never \/go\/ or \/out\//, '')), 'GET only, never /go/ or /out/');
+  const r = s => ({ site: s, delivers_to: ['GB'] });
+  assert.equal(judge([r('tgw'), r('tgw'), r('cgw'), r('tgw')], [], ['tgw']).pass, true);
+  assert.equal(judge([r('mgw'), r('tgw'), r('tgw'), r('tgw')], [], ['tgw']).pass, false, 'the first result is from another world (cufflinks before laptops)');
+  assert.equal(judge([r('tgw'), r('cgw'), r('cgw'), r('cgw'), r('tgw')], [], ['tgw']).pass, false, 'fewer than 3 of the first 5');
+  assert.equal(judge([r('tgw'), { site: 'tgw', delivers_to: ['US'] }, r('tgw')], [], ['tgw']).pass, false, 'a product that does not deliver to the UK');
+  assert.equal(judge([r('tgw'), r('tgw'), r('tgw')], ['cgw'], ['tgw']).pass, false, 'a site that did not answer');
 });
