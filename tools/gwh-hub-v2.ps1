@@ -181,8 +181,9 @@
   Search order (lessons L177, 17/11/2026): the Hub orders the answers of the 13 sites with rankHubResults (worker.js):
   what the product IS (subcategory, category, the retailer's path) first, then whole words of its name; accessories and
   look-alikes go down unless asked for. Test-Site makes 13 searches for a UK visitor (?country=GB): one of the first 3
-  results must come from the Gear World that sells it; 2 or more wrong orders are a ΠΡΟΒΛΗΜΑ, so -AfterPreview stops
-  the live. The full list of 65 searches: node tools/gwh-search-check.mjs (--replay before a deploy).
+  results must come from the Gear World that sells it; 2 or more wrong orders, or the Hub's search failing twice, are a
+  ΠΡΟΒΛΗΜΑ, so -AfterPreview stops the live; a Gear World that does not answer twice is a ΠΡΟΣΟΧΗ (L74). The full list
+  of 65 searches: node tools/gwh-search-check.mjs (--replay before a deploy).
   Release order (L175): the 13 sites go live FIRST (sites-update-all, phrase ΕΓΚΡΙΝΩ ALL UPDATES), and only after their
   report this Hub release. Check that https://<site>/api/version of the sites is on the release with L175 first;
   otherwise a visitor in Greece who made no choice gets a Greek Hub and English sites.
@@ -721,30 +722,52 @@ function Test-Site([string]$base, [bool]$isLive) {
     if ($l107) { Say '  L107: καμία προσφορά Halloween, Black Friday κλειστή, το κουτί email χωρίς «prices we''ve checked»: ΕΝΤΑΞΕΙ' $Ok }
     else { Say '  L107: ΠΡΟΣΟΧΗ - δεν βλέπω ακόμα όλες τις αλλαγές (προσφορές χωρίς Halloween, Black Friday κλειστή, κουτί email). Η cache κρατάει λίγα λεπτά: στείλε στο Claude αυτή την αναφορά.' $Warn }
     # L177 (17/11/2026): the search finds what it names, for a UK visitor (?country=GB). One search per Gear World: one of
-    # the first 3 results comes from the Gear World that sells it, every result delivers to the UK, no site missing.
-    # A site that did not answer is a warning (the site, not the Hub); 2 or more wrong orders are a problem (no live).
+    # the first 3 results comes from the Gear World that sells it, every result delivers to the UK. A search whose Gear
+    # World did not answer is asked once more; still no answer = not checked (a warning about the site, L74), never a wrong
+    # order. The Hub's own search failing twice, 2 or more wrong orders, or a product that does not deliver to the UK, are a
+    # problem (no live).
     $searchSet = @(
         @('safety boots', 'cgw'), @('tablet', 'tgw'), @('dog bed', 'zgw'), @('gaming chair', 'pgw'), @('motorcycle helmet', 'bgw'),
         @('tyre inflator', 'agw'), @('suitcase', 'vgw'), @('yoga mat', 'sgw'), @('dress', 'wgw'), @('mens watch', 'mgw'),
         @('pram', 'kgw'), @('kettle', 'hgw'), @('bbq', 'ggw'))
-    $wrongOrder = @(); $notUk = 0; $missing = @(); $asked = 0
+    $wrongOrder = @(); $notChecked = @(); $hubErrors = @(); $notUk = 0; $missing = @(); $asked = 0
     foreach ($pair in $searchSet) {
-        $sq = Get-Web ($base + '/api/search?q=' + [uri]::EscapeDataString($pair[0]) + '&country=GB&gwcheck=' + $stamp)
-        try {
-            $sj = (New-Object System.Text.UTF8Encoding($false)).GetString($sq.bytes) | ConvertFrom-Json
-            $asked++
-            $first3 = @(@($sj.results) | Select-Object -First 3 | ForEach-Object { [string]$_.site })
-            if (-not ($first3 -contains $pair[1])) { $wrongOrder += ('{0} (1o: {1})' -f $pair[0], ((@($sj.results) | Select-Object -First 1 | ForEach-Object { '{0} {1}' -f $_.site, ([string]$_.product_name).Substring(0, [Math]::Min(40, ([string]$_.product_name).Length)) }) -join '')) }
-            $notUk += @(@($sj.results) | Where-Object { $d = @($_.delivers_to | Where-Object { $_ }); $d.Count -gt 0 -and -not ($d -contains 'GB' -or $d -contains 'WORLD') }).Count
-            if (@($sj.failed_sites).Count -gt 0) { $missing += @($sj.failed_sites) }
-        } catch { $wrongOrder += ('{0} (χωρίς απάντηση)' -f $pair[0]) }
+        $sj = $null; $failedHere = @()
+        for ($try = 1; $try -le 2; $try++) {
+            $sq = Get-Web ($base + '/api/search?q=' + [uri]::EscapeDataString($pair[0]) + '&country=GB&gwcheck=' + $stamp + '-' + $try)
+            $sj = $null; $failedHere = @()
+            try { $sj = (New-Object System.Text.UTF8Encoding($false)).GetString($sq.bytes) | ConvertFrom-Json } catch { $sj = $null }
+            if ($sj -and $sj.PSObject.Properties['failed_sites'] -and $sj.failed_sites) { $failedHere = @($sj.failed_sites | ForEach-Object { [string]$_ }) }
+            if ($sj -and $sj.ok -and -not ($failedHere -contains $pair[1])) { break }
+            Start-Sleep -Seconds 2
+        }
+        if (-not ($sj -and $sj.ok)) { $hubErrors += $pair[0]; continue }
+        if ($failedHere -contains $pair[1]) { $notChecked += $pair[0]; continue }
+        $asked++
+        $missing += $failedHere
+        $res = @($sj.results)
+        $first3 = @($res | Select-Object -First 3 | ForEach-Object { [string]$_.site })
+        if (-not ($first3 -contains $pair[1])) {
+            $one = $res | Select-Object -First 1
+            $shown = ''
+            if ($one) { $nm = [string]$one.product_name; $shown = '{0} {1}' -f $one.site, $nm.Substring(0, [Math]::Min(40, $nm.Length)) }
+            $wrongOrder += ('{0} (1o: {1})' -f $pair[0], $shown)
+        }
+        $notUk += @($res | Where-Object { $d = @($_.delivers_to | Where-Object { $_ }); $d.Count -gt 0 -and -not ($d -contains 'GB' -or $d -contains 'WORLD') }).Count
         Start-Sleep -Milliseconds 300
     }
     $missing = @($missing | Sort-Object -Unique)
-    if ($wrongOrder.Count -eq 0 -and $notUk -eq 0) { Say ('  Αναζήτηση (L177): {0} αναζητήσεις, η καθεμία βγάζει στα 3 πρώτα το site που το πουλά, όλα στέλνουν UK: ΕΝΤΑΞΕΙ' -f $asked) $Ok }
-    elseif ($wrongOrder.Count -le 1 -and $notUk -eq 0) { Say ('  Αναζήτηση (L177): ΠΡΟΣΟΧΗ - 1 από {0} με άλλη σειρά: {1}' -f $searchSet.Count, ($wrongOrder -join '; ')) $Warn }
-    else { Say ('  Αναζήτηση (L177): ΠΡΟΒΛΗΜΑ - με λάθος σειρά: {0}; προϊόντα που δεν στέλνουν UK: {1}' -f ($wrongOrder -join '; '), $notUk) $Bad }
-    if ($missing.Count -gt 0) { Say ('  Αναζήτηση (L177): ΠΡΟΣΟΧΗ - δεν απάντησαν: {0} (το site, όχι το Hub)' -f ($missing -join ', ')) $Warn }
+    if ($wrongOrder.Count -eq 0 -and $notUk -eq 0 -and $hubErrors.Count -eq 0) { Say ('  Αναζήτηση (L177): {0} αναζητήσεις, η καθεμία βγάζει στα 3 πρώτα το site που το πουλά, όλα στέλνουν UK: ΕΝΤΑΞΕΙ' -f $asked) $Ok }
+    elseif ($wrongOrder.Count -le 1 -and $notUk -eq 0 -and $hubErrors.Count -eq 0) { Say ('  Αναζήτηση (L177): ΠΡΟΣΟΧΗ - 1 από {0} με άλλη σειρά: {1}' -f $asked, ($wrongOrder -join '; ')) $Warn }
+    else {
+        $why = @()
+        if ($wrongOrder.Count -gt 0) { $why += ('με λάθος σειρά: {0}' -f ($wrongOrder -join '; ')) }
+        if ($notUk -gt 0) { $why += ('{0} προϊόντα που δεν στέλνουν UK' -f $notUk) }
+        if ($hubErrors.Count -gt 0) { $why += ('η αναζήτηση του Hub δεν απάντησε δύο φορές: {0}' -f ($hubErrors -join ', ')) }
+        Say ('  Αναζήτηση (L177): ΠΡΟΒΛΗΜΑ - {0}' -f ($why -join '; ')) $Bad
+    }
+    if ($notChecked.Count -gt 0) { Say ('  Αναζήτηση (L177): ΠΡΟΣΟΧΗ - δεν ελέγχθηκαν (το site τους δεν απάντησε δύο φορές, L74): {0}' -f ($notChecked -join ', ')) $Warn }
+    if ($missing.Count -gt 0) { Say ('  Αναζήτηση (L177): ΠΡΟΣΟΧΗ - δεν απάντησαν κάποια φορά: {0} (το site, όχι το Hub)' -f ($missing -join ', ')) $Warn }
     $s = Get-Web ($base + '/api/search?q=suitcase&worlds=vgw&max_price=100')
     try {
         $j = (New-Object System.Text.UTF8Encoding($false)).GetString($s.bytes) | ConvertFrom-Json

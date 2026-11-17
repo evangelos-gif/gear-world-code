@@ -546,3 +546,48 @@ test('search check list (L177): 65 searches, 5 for each of the 13 Gear Worlds, r
   assert.equal(judge([r('tgw'), { site: 'tgw', delivers_to: ['US'] }, r('tgw')], [], ['tgw']).pass, false, 'a product that does not deliver to the UK');
   assert.equal(judge([r('tgw'), r('tgw'), r('tgw')], ['cgw'], ['tgw']).pass, false, 'a site that did not answer');
 });
+
+// The independent check of c4776954 (17/11/2026): "constructor" crashed the ordering (Object.prototype), plurals such as
+// Hoodies / Scarves / Bikinis did not match, accessory words inside a product's own name ("Vacuum Cleaner", "Short Sleeve
+// T-Shirt") pushed real products down, and toy drills came before drills.
+test('search: ranking v3 after the check: no crash on "constructor", plurals, own names kept, toys down (L177)', async () => {
+  const fake = productsFetch({ 'constructiongearworld.com': [{ id: 1, product_name: 'Beeswift Constructor Jacket', site_category: 'Workwear', subcategory: 'Jackets' }] });
+  for (const q of ['constructor', 'constructors', 'toString', 'hasOwnProperty', '__proto__']) {
+    const { status, data } = await searchWith(fake, `q=${encodeURIComponent(q)}&country=GB`);
+    assert.equal(status, 200, q);
+    assert.equal(data.ok, true, q);
+  }
+  assert.deepEqual(['hoodies', 'hoodie', 'scarves', 'scarf', 'bikinis', 'lenses', 'lens', 'knives'].map(rankStem), ['hoody', 'hoody', 'scarf', 'scarf', 'bikini', 'lens', 'lens', 'knife']);
+  assert.ok(rankTokens('Kärcher Hose Trolley').has('karcher'), 'accents');
+  const rank = (q, list) => rankHubResults(list.map((p, i) => ({ id: i, ...p })), q).map(p => p.product_name);
+  let o = rank('hoodie', [
+    { site: 'cgw', product_name: 'Portwest Zip Hoody', category: 'Workwear', subcategory: 'Workwear' },
+    { site: 'mgw', product_name: 'adidas Trefoil Hoodie', category: 'Clothing', subcategory: 'Hoodies' }]);
+  assert.equal(o[0], 'adidas Trefoil Hoodie', 'Hoodies = hoodie');
+  o = rank('vacuum', [
+    { site: 'hgw', product_name: 'Sealey Cloth Dust Bag for Vacuum Cleaner', category: 'Home Appliances', subcategory: 'Vacuum Accessories' },
+    { site: 'hgw', product_name: 'Draper Wet and Dry Vacuum Cleaner 15L', category: 'Home Appliances', subcategory: 'Vacuum Cleaners' }]);
+  assert.equal(o[0], 'Draper Wet and Dry Vacuum Cleaner 15L', 'a vacuum cleaner is not an accessory');
+  o = rank('t shirt', [
+    { site: 'mgw', product_name: 'Laptop T Shirt Cufflinks', category: "Men's Jewellery", subcategory: 'Cufflinks' },
+    { site: 'mgw', product_name: 'Dickies Short Sleeve T-Shirt', category: 'Clothing', subcategory: 'T-Shirts' }]);
+  assert.equal(o[0], 'Dickies Short Sleeve T-Shirt', '"Short Sleeve" before the searched word is not an accessory');
+  o = rank('drill', [
+    { site: 'kgw', product_name: 'Theo Klein Bosch Pretend Play Toy Drill', category: 'Toys & Games', subcategory: 'Toy Tools' },
+    { site: 'cgw', product_name: 'Makita Cordless Drill Driver', category: 'Power Tools', subcategory: 'Power Tools' }]);
+  assert.equal(o[0], 'Makita Cordless Drill Driver', 'a toy drill after a drill');
+  o = rank('toy drill', [
+    { site: 'cgw', product_name: 'Makita Cordless Drill Driver', category: 'Power Tools', subcategory: 'Power Tools' },
+    { site: 'kgw', product_name: 'Theo Klein Bosch Pretend Play Toy Drill', category: 'Toys & Games', subcategory: 'Toy Tools' }]);
+  assert.equal(o[0], 'Theo Klein Bosch Pretend Play Toy Drill', 'asking for a toy finds the toy');
+});
+
+test('search check list (L177): the first result must be the item itself, and no look-alike in the first 3', async () => {
+  const { judge, itemOf } = await import('../../tools/gwh-search-check.mjs');
+  const r = (site, product_name, subcategory = '') => ({ site, product_name, subcategory, delivers_to: ['GB'] });
+  assert.equal(itemOf('womens boots'), 'boot');
+  assert.equal(judge([r('wgw', 'Fairfax Suede Boot Tassels'), r('wgw', 'Solea Heel Boots'), r('wgw', 'EMU Boots')], [], ['wgw'], 'womens boots').pass, false, 'tassels are a look-alike');
+  assert.equal(judge([r('wgw', 'Solea Heel Boots'), r('wgw', 'EMU Boots'), r('wgw', 'Snow Boots')], [], ['wgw'], 'womens boots').pass, true);
+  assert.equal(judge([r('hgw', 'Kettler Bag'), r('hgw', 'Jug Kettle'), r('hgw', 'Kettle')], [], ['hgw'], 'kettle').pass, false, 'the first result must be a kettle');
+  assert.equal(judge([r('kgw', 'LEGO City Toy Set'), r('kgw', 'LEGO Toy'), r('kgw', 'LEGO Batman Toy')], [], ['kgw'], 'lego').pass, true, 'on the kids site a toy is the product');
+});
