@@ -757,6 +757,9 @@ function Test-Site([string]$base, [bool]$isLive) {
         Start-Sleep -Milliseconds 300
     }
     $missing = @($missing | Sort-Object -Unique)
+    # A search that could not be checked is a warning only while it is one or two: with 3 or more (or fewer than 10
+    # searches checked) the search itself may be broken, so it is a problem (the check of 7406b610).
+    if ($notChecked.Count -ge 3 -or $asked -lt 10) { $hubErrors += ('{0} αναζητήσεις χωρίς έλεγχο' -f ($notChecked.Count + $hubErrors.Count)) }
     if ($wrongOrder.Count -eq 0 -and $notUk -eq 0 -and $hubErrors.Count -eq 0) { Say ('  Αναζήτηση (L177): {0} αναζητήσεις, η καθεμία βγάζει στα 3 πρώτα το site που το πουλά, όλα στέλνουν UK: ΕΝΤΑΞΕΙ' -f $asked) $Ok }
     elseif ($wrongOrder.Count -le 1 -and $notUk -eq 0 -and $hubErrors.Count -eq 0) { Say ('  Αναζήτηση (L177): ΠΡΟΣΟΧΗ - 1 από {0} με άλλη σειρά: {1}' -f $asked, ($wrongOrder -join '; ')) $Warn }
     else {

@@ -591,3 +591,29 @@ test('search check list (L177): the first result must be the item itself, and no
   assert.equal(judge([r('hgw', 'Kettler Bag'), r('hgw', 'Jug Kettle'), r('hgw', 'Kettle')], [], ['hgw'], 'kettle').pass, false, 'the first result must be a kettle');
   assert.equal(judge([r('kgw', 'LEGO City Toy Set'), r('kgw', 'LEGO Toy'), r('kgw', 'LEGO Batman Toy')], [], ['kgw'], 'lego').pass, true, 'on the kids site a toy is the product');
 });
+
+// The re-check of 7406b610: an accessory word BEFORE the searched word is usually one too ("Silicone Case iPhone 15"),
+// but not in names such as "Side Pocket Hoody" or "Stand Mixer"; a known gap excuses only its own rule; the first result
+// must not be an accessory of the item ("Targus tablet case" is not a tablet).
+test('search: ranking v3, accessories before the word, and the check list rules after the re-check (L177)', async () => {
+  const rank = (q, list) => rankHubResults(list.map((p, i) => ({ id: i, ...p })), q).map(p => p.product_name);
+  let o = rank('iphone 15', [
+    { site: 'tgw', product_name: 'Silicone Case iPhone 15', category: 'Phones', subcategory: 'Phone Accessories' },
+    { site: 'tgw', product_name: 'Apple iPhone 15 128GB', category: 'Phones', subcategory: 'Mobile Phones' }]);
+  assert.equal(o[0], 'Apple iPhone 15 128GB');
+  o = rank('hoodie', [
+    { site: 'mgw', product_name: 'WOLF CHI Side Pocket Hoody', category: 'Clothing', subcategory: 'Hoodies' },
+    { site: 'mgw', product_name: 'Plain Hoodie', category: 'Clothing', subcategory: 'Hoodies' }]);
+  assert.equal(new Set(o).size, 2);
+  const scores = rankHubResults([{ id: 1, site: 'mgw', product_name: 'WOLF CHI Side Pocket Hoody', subcategory: 'Hoodies' }, { id: 2, site: 'mgw', product_name: 'WOLF CHI Basic Hoody', subcategory: 'Hoodies' }], 'hoodie').map(p => p.id);
+  assert.deepEqual(scores, [1, 2], '"Side Pocket" is not an accessory: equal, the order of the site stays');
+  const { judge } = await import('../../tools/gwh-search-check.mjs');
+  const r = (site, product_name) => ({ site, product_name, delivers_to: ['GB'] });
+  const caseFirst = judge([r('tgw', 'Targus tablet case 29 cm'), r('tgw', 'Lenovo Tablet'), r('tgw', 'iPad tablet')], [], ['tgw'], 'tablet');
+  assert.equal(caseFirst.pass, false);
+  assert.ok(caseFirst.broken.includes('item'));
+  const withCase = judge([r('tgw', 'Kids Tablet with protective case'), r('tgw', 'Lenovo Tablet'), r('tgw', 'iPad tablet')], [], ['tgw'], 'tablet');
+  assert.equal(withCase.pass, true, 'a tablet with a case is a tablet');
+  const kettler = judge([r('hgw', 'Kettler Changing Bag'), r('hgw', 'Table Sauces Kettle Base'), r('hgw', 'Jug Kettle')], [], ['hgw'], 'kettle');
+  assert.deepEqual(kettler.broken.sort(), ['item', 'lookalike'], 'the sauce gap (lookalike) would not excuse the Kettler bag (item)');
+});

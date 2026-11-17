@@ -914,6 +914,9 @@ async function seasonalMedia(request, env) {
 const RANK_STOP = new Set(["a", "an", "the", "and", "or", "for", "with", "in", "on", "of", "to", "my", "me", "new", "buy", "best", "cheap", "i", "want", "need", "should", "what", "which", "some"]);
 const RANK_ACCESSORY = new Set(["brush", "bit", "attachment", "adapter", "adaptor", "case", "cover", "holder", "mount", "strap", "replacement", "spare", "accessory", "refill", "sticker", "decal", "stand", "pocket", "cufflink", "costume", "protector", "charger", "cable", "pouch", "organiser", "organizer", "hook", "pattern", "poster", "bracket", "descaler", "blade", "catcher", "tassel", "band"]);
 const RANK_TOY = new Set(["toy", "pretend"]);
+// Accessory words that are part of what a product is called.
+const RANK_ACCESSORY_NAMES = new Set(["stand mixer", "pocket knife", "pocket watch", "pocket sprung", "side pocket", "zip pocket",
+  "chest pocket", "kangaroo pocket", "razer blade", "cover up", "hook and", "strap top", "case closed"]);
 // Own keys only (a Map): a search for "constructor" must not find Object.prototype.constructor.
 const RANK_SYNONYMS = new Map(Object.entries({
   bbq: ["barbecue"], barbecue: ["bbq"], tv: ["television"], television: ["tv"], mower: ["lawnmower"], lawnmower: ["mower"],
@@ -1002,6 +1005,10 @@ export function rankHubResults(results, query) {
     const order = rankWords(head).map(rankStem);
     const at = order.findIndex(t => words.some(w => t === w || alts(w).includes(t)));
     if (!askedForAccessory && at >= 0 && order.slice(at + 1).some(t => RANK_ACCESSORY.has(t))) value -= 45;
+    // Before the searched word it is usually one too ("Replacement Blade ... Lawn Mower", "Silicone Case iPhone 15"),
+    // a little less sure, and not in names such as "Stand Mixer" or "Side Pocket Hoody".
+    else if (!askedForAccessory && at > 0 && order.slice(0, at).some((t, i, list) => RANK_ACCESSORY.has(t) &&
+      !RANK_ACCESSORY_NAMES.has(`${list[i - 1] || ""} ${t}`) && !RANK_ACCESSORY_NAMES.has(`${t} ${list[i + 1] || order[at] || ""}`))) value -= 25;
     if (!askedForToy && order.some(t => RANK_TOY.has(t))) value -= 30;
     if (product.stock_status === "in_stock") value += 3;
     kind.set(product, type >= 60);

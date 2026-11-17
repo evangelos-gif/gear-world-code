@@ -24,18 +24,18 @@ const UA = 'GearWorldQA-bot/1.0 (+read-only check)';
 const ORDER = ['cgw', 'kgw', 'mgw', 'wgw', 'hgw', 'ggw', 'tgw', 'agw', 'vgw', 'sgw', 'bgw', 'pgw', 'zgw'];
 
 export const SEARCHES = [
-  ['drill', ['cgw'], 'Construction Gear World\'s own search gives mostly drill bits for "drill": the sites\' search order (next step of L177, a sites release)'], ['safety boots', ['cgw']], ['angle grinder', ['cgw']], ['hi vis jacket', ['cgw'], '', 'jacket'], ['work trousers', ['cgw', 'mgw']],
+  ['drill', ['cgw'], 'top5: Construction Gear World\'s own search gives mostly drill bits for "drill": the sites\' search order (next step of L177, a sites release)'], ['safety boots', ['cgw']], ['angle grinder', ['cgw']], ['hi vis jacket', ['cgw'], '', 'jacket'], ['work trousers', ['cgw', 'mgw']],
   ['laptop', ['tgw', 'pgw']], ['tablet', ['tgw', 'kgw']], ['headphones', ['tgw', 'kgw', 'pgw']], ['gaming keyboard', ['tgw', 'pgw']], ['smartwatch', ['tgw', 'kgw', 'sgw']],
-  ['dog bed', ['zgw']], ['cat litter', ['zgw']], ['dog food', ['zgw']], ['dog collar', ['zgw']], ['fish tank', ['zgw'], 'Pets Gear World has no fish tanks yet (its "aquarium" products are water care and plants): a retailer with tanks (Retailers & Feeds, next step of L177)'],
+  ['dog bed', ['zgw']], ['cat litter', ['zgw']], ['dog food', ['zgw']], ['dog collar', ['zgw']], ['fish tank', ['zgw'], 'site: Pets Gear World has no fish tanks yet (its "aquarium" products are water care and plants): a retailer with tanks (Retailers & Feeds, next step of L177)'],
   ['gaming chair', ['pgw']], ['controller', ['pgw', 'tgw']], ['gaming headset', ['pgw', 'tgw']], ['gaming mouse', ['pgw', 'tgw']], ['ps5', ['pgw', 'tgw'], '', 'ps5'],
   ['motorcycle helmet', ['bgw']], ['motorcycle gloves', ['bgw']], ['motorcycle jacket', ['bgw']], ['motorcycle boots', ['bgw']], ['motorcycle cover', ['bgw', 'agw', 'hgw']],
   ['dash cam', ['agw', 'hgw']], ['car seat covers', ['agw', 'hgw']], ['tyre inflator', ['agw']], ['jump starter', ['agw', 'cgw']], ['car vacuum', ['agw', 'hgw']],
-  ['suitcase', ['vgw']], ['backpack', ['vgw', 'kgw', 'sgw']], ['travel adapter', ['vgw', 'tgw']], ['neck pillow', ['vgw', 'hgw']], ['tent', ['vgw', 'agw'], 'Travel Gear World\'s tents have no subcategory, so grow tents come first: category clean-up (next step of L177)'],
+  ['suitcase', ['vgw']], ['backpack', ['vgw', 'kgw', 'sgw']], ['travel adapter', ['vgw', 'tgw']], ['neck pillow', ['vgw', 'hgw']], ['tent', ['vgw', 'agw'], 'site: Travel Gear World\'s tents have no subcategory, so grow tents come first: category clean-up (next step of L177)'],
   ['dumbbells', ['sgw']], ['yoga mat', ['sgw']], ['running shoes', ['sgw', 'mgw', 'wgw', 'kgw']], ['football', ['sgw', 'kgw']], ['resistance bands', ['sgw']],
   ['dress', ['wgw', 'kgw']], ['perfume', ['wgw', 'mgw']], ['handbag', ['wgw']], ['earrings', ['wgw']], ['womens boots', ['wgw']],
   ['mens watch', ['mgw']], ['wallet', ['mgw', 'wgw']], ['shirt', ['mgw', 'cgw']], ['cufflinks', ['mgw']], ['aftershave', ['mgw']],
   ['lego', ['kgw']], ['pram', ['kgw']], ['school shoes', ['kgw']], ['baby monitor', ['kgw']], ['kids bike', ['kgw', 'sgw']],
-  ['kettle', ['hgw'], 'a hotpot sauce sits in Home Gear World\'s "Kettle" category: category clean-up of the sites (next step of L177)'], ['duvet', ['hgw']], ['air fryer', ['hgw']], ['vacuum cleaner', ['hgw', 'agw', 'cgw']], ['bedding', ['hgw', 'kgw']],
+  ['kettle', ['hgw'], 'lookalike: a hotpot sauce sits in Home Gear World\'s "Kettle" category: category clean-up of the sites (next step of L177)'], ['duvet', ['hgw']], ['air fryer', ['hgw']], ['vacuum cleaner', ['hgw', 'agw', 'cgw']], ['bedding', ['hgw', 'kgw']],
   ['lawn mower', ['ggw', 'cgw']], ['garden hose', ['ggw', 'cgw']], ['bbq', ['ggw']], ['plant pot', ['ggw', 'hgw']], ['hedge trimmer', ['ggw', 'cgw']]
 ];
 
@@ -84,6 +84,7 @@ async function viaReplay(q) {
 // Look-alikes that must not be in the first 3 unless the search asks for them (the check of 17/11/2026 found tassels for
 // "womens boots", a sauce for "kettle", a toy perfume kit for "perfume").
 const LOOK_ALIKES = /\b(toys?|pretend|tassels?|sauces?|towels?|cufflinks?|costumes?|stickers?|posters?|decals?)\b/i;
+const ACCESSORY_WORDS = /^(stand|case|cover|pocket|strap|holder|mount|charger|cable|protector|sleeve|pouch|bracket|adapter|adaptor|brush|bit|blade|refill|replacement|spare|descaler|band)s?$|\b(stands?|cases?|covers?|pockets?|straps?|holders?|mounts?|chargers?|cables?|protectors?|sleeves?|pouch|brackets?|adapters?|brush|bits?|blades?|refills?|replacements?|spares?|descaler|bands?)\b/i;
 const words = text => String(text || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/['\u2019]/g, '').split(/[^\p{L}\p{N}]+/u).filter(Boolean);
 const stem = w => w.length > 4 && w.endsWith('ies') ? w.slice(0, -3) + 'y' : w.length > 4 && w.endsWith('ie') ? w.slice(0, -2) + 'y' : w.length > 3 && w.endsWith('s') && !/(ss|us|is)$/.test(w) ? w.slice(0, -1) : w;
 // The item of a search: its last word ("boots" in "womens boots"), unless the search gives one.
@@ -98,12 +99,26 @@ export function judge(results, failed, want, q = '', item = '') {
   // On Kids' Gear World a toy is the product itself ("lego"), not a look-alike.
   const lookAlike = results.slice(0, 3).filter(r => !asked && LOOK_ALIKES.test(String(r.product_name || '')) &&
     !(want.includes('kgw') && r.site === 'kgw' && !/\b(tassels?|sauces?|towels?|cufflinks?)\b/i.test(String(r.product_name || '')))).length;
-  const first = want.includes(sites[0]) && results.length > 0 && isItem(results[0]);
+  // The first result is the item itself, not an accessory of it ("Targus tablet case" is not a tablet).
+  // Only the part of the name before "with", "no", "for" ... says what it is ("Tablet with protective case" is a tablet).
+  const headOf = n => String(n || '').replace(/\([^)]*\)|\[[^\]]*\]/g, ' ').split(' | ')[0].split(/\s(?:with|without|no|inc|incl|including|for|compatible|fits|suitable)\s|\s\+\s/i)[0];
+  const afterItem = r => { const w = words(headOf(r.product_name)).map(stem); const i = w.findIndex(x => x === thing || (x.length > thing.length && x.endsWith(thing))); return i >= 0 ? w.slice(i + 1) : []; };
+  const accessoryFirst = results.length > 0 && !ACCESSORY_WORDS.test(q) && afterItem(results[0]).some(x => ACCESSORY_WORDS.test(x));
+  const siteOk = want.includes(sites[0]);
+  const first = siteOk && results.length > 0 && isItem(results[0]) && !accessoryFirst;
   const top5 = sites.slice(0, 5).filter(s => want.includes(s)).length;
   const top10 = sites.slice(0, 10).filter(s => want.includes(s)).length;
   const enough = top5 >= Math.min(3, sites.slice(0, 5).length);
   const notUk = results.filter(r => { const d = (r.delivers_to || []).filter(Boolean); return d.length > 0 && !d.includes('GB') && !d.includes('WORLD'); }).length;
-  return { pass: results.length > 0 && first && enough && lookAlike === 0 && notUk === 0 && failed.length === 0, first, top5, top10, lookAlike, notUk, n: results.length };
+  // Which rules failed: a known gap excuses only its own rule ("lookalike", "top5" or "site"), never the others.
+  const broken = [];
+  if (!results.length) broken.push('empty');
+  if (!siteOk || !enough) broken.push(siteOk ? 'top5' : 'site');
+  if (results.length && (!isItem(results[0]) || accessoryFirst)) broken.push('item');
+  if (lookAlike) broken.push('lookalike');
+  if (notUk) broken.push('notuk');
+  if (failed.length) broken.push('failed');
+  return { pass: broken.length === 0, broken, first, top5, top10, lookAlike, notUk, n: results.length };
 }
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
@@ -122,11 +137,15 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
     if (!j.pass && out.failed.length) { await sleep(2000); out = await ask(); j = judge(out.results, out.failed, want, q, item); }
     const slow = !j.pass && out.failed.length > 0 && judge(out.results, [], want, q, item).pass;
     const top = out.results.slice(0, 3).map(r => `${r.site} ${String(r.product_name).slice(0, 38)}`).join(' / ');
-    const mark = j.pass ? 'PASS' : gap ? 'KNOWN' : slow ? 'SLOW' : 'FAIL';
-    if (!j.pass && gap) known++;
+    // A known gap excuses only its own rule (the check of 7406b610): if "kettle" ever showed the Kettler bag first again,
+    // the "item" rule fails and the search is a FAIL, whatever its known sauce.
+    const gapRule = gap ? String(gap).split(':')[0] : '';
+    const excused = !j.pass && gap && j.broken.every(b => b === gapRule || (gapRule === 'site' && b === 'top5') || (gapRule === 'site' && b === 'item'));
+    const mark = j.pass ? 'PASS' : excused ? 'KNOWN' : slow ? 'SLOW' : 'FAIL';
+    if (excused) known++;
     else if (slow) slowCount++;
     else if (!j.pass) failures++;
-    lines.push(`${mark.padEnd(5)} ${q.padEnd(18)} want ${want.join(',').padEnd(15)} n=${String(j.n).padEnd(3)} top5=${j.top5} top10=${j.top10} lookalike=${j.lookAlike} notUK=${j.notUk}${out.failed.length ? ` failed=${out.failed.join(',')}` : ''} | ${top}${!j.pass && gap ? ` | ${gap}` : ''}`);
+    lines.push(`${mark.padEnd(5)} ${q.padEnd(18)} want ${want.join(',').padEnd(15)} n=${String(j.n).padEnd(3)}${j.broken.length ? ` rules=${j.broken.join(',')}` : ''} top5=${j.top5} top10=${j.top10} lookalike=${j.lookAlike} notUK=${j.notUk}${out.failed.length ? ` failed=${out.failed.join(',')}` : ''} | ${top}${excused ? ` | ${gap}` : ''}`);
     if (!replay) await sleep(800);
   }
   lines.push(`${SEARCHES.length - failures - known - slowCount} passed, ${failures} failed, ${known} known gaps, ${slowCount} with a slow site`);
