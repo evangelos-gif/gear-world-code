@@ -436,8 +436,8 @@ function buildFilter({ category, subcategory, subMatch, brand, retailer, maxPric
   if (condition) { where.push('p.item_condition = ?'); binds.push(condition); }
   if (onSale) where.push('p.was_price > p.price AND (p.was_price - p.price) / p.was_price BETWEEN 0.05 AND 0.9');
   if (search) {
-    // The words as typed, their singular and a few true synonyms; a word the site says by itself is left out when others
-    // remain ("womens boots" on Women's Gear World), lessons L179.
+    // The words as typed (as before), a few true synonyms, no possessive 's; a word the site says by itself is left out
+    // when others remain ("womens boots" on Women's Gear World), lessons L179.
     const q = searchMatch(search, LAYOUT.site && LAYOUT.site.code);
     if (!q) return null;
     where.push('p.id IN (SELECT rowid FROM products_fts WHERE products_fts MATCH ?)');
@@ -511,8 +511,9 @@ function countFast(db, filters, f) {
 // A search in the default order (lessons L179, src/lib/search-rank.js): the matches in the rough order of the search
 // index (what the product is, whole words, accessories and toys lower), then in stock and the fixed shuffle. The first
 // SEARCH_WINDOW of them are put in the Hub's order (L177); a page after the window continues in the rough order, so no
-// product is on two pages. The same rows are read as before (every match, to count and to sort them); the extra work is
-// three or four lookups in the search index.
+// product is on two pages. Every match is read, as before (to count and to sort them), plus six lookups in the search
+// index narrowed to the search's matches: live, 17/11/2026, +9-14% rows read and the page query about 3-5 times slower
+// (TGW "laptop" 17 -> 87 ms) before the 5-minute page cache.
 async function listRanked(db, filters, f, plan, order, page, perPage, offset) {
   const rough = `${plan.coarse.sql}, ${order}`;
   const count = (await fastMode(db))

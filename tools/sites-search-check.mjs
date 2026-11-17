@@ -39,7 +39,7 @@ async function page(k, q, n, limit) {
 }
 const asResult = (k, p) => ({ site: k, id: p.id, product_name: p.product_name || '', brand: p.brand || '', category: p.site_category || '',
   category_slug: p.category_slug || '', subcategory: p.subcategory || '', merchant_category: p.merchant_category || '',
-  in_stock: p.stock_status === 'in_stock' ? 1 : 0, stock_status: p.stock_status || '', delivers_to: Array.isArray(p.delivers_to) ? p.delivers_to : [] });
+  in_stock: p.stock_status === 'out_of_stock' ? 0 : 1, stock_status: p.stock_status || '', delivers_to: Array.isArray(p.delivers_to) ? p.delivers_to : [] });
 
 // A site that does not sell the item at all (its data, not its order): known, with the next step. The Hub's list names
 // every Gear World that sells it, and the Hub still finds it on the others.
@@ -54,19 +54,35 @@ let rank = null;
 async function siteResults(k, q, replay) {
   if (!replay) return { results: (await page(k, q, 1, 8)).products.slice(0, 8).map(p => asResult(k, p)), total: null };
   if (!rank) rank = await import(new URL('../src/lib/search-rank.js', import.meta.url));
-  const all = [];
-  let total = 0;
-  for (let n = 1; n <= 10; n++) {
-    const got = await page(k, q, n, 60);
-    total = got.total;
-    all.push(...got.products.map(p => asResult(k, p)));
-    if (!got.more) break;
-    await sleep(150);
+  // The live sites still find the words as typed: they are asked for every combination of the words this copy finds
+  // (its synonyms, without the site's own word; at most 8), and the answers are merged, so the replay sees the same
+  // matches as the new code. A search with more than 600 live matches is a sample (the new code ranks all of them).
+  let combos = [[]];
+  for (const list of rank.searchAlternatives(q, k)) {
+    const next = [];
+    for (const c of combos) for (const a of list) next.push([...c, a]);
+    combos = next.slice(0, 8);
+  }
+  const all = new Map();
+  let partial = false;
+  for (const words of combos) {
+    for (let n = 1; n <= 10; n++) {
+      const got = await page(k, words.join(' '), n, 60);
+      if (got.total > 600) partial = true;
+      for (const p of got.products) if (!all.has(String(p.id))) all.set(String(p.id), asResult(k, p));
+      if (!got.more) break;
+      await sleep(150);
+    }
   }
   const cfg = (await import(new URL(`../sites/${k}/site.config.js`, import.meta.url))).default;
   const plan = rank.searchPlan(q, { code: k, categories: cfg.categories || [] });
-  return { results: plan ? plan.order(all).slice(0, 8) : all.slice(0, 8), total };
+  const rows = [...all.values()];
+  return { results: plan ? plan.order(rows).slice(0, 8) : rows.slice(0, 8), total: rows.length, partial };
 }
+
+// Food on a site that does not sell it, in the first 3 (Kettle Crisps for "kettle" on Home Gear World, 17/11/2026):
+// a look-alike here too, unless the search asks for it (lessons L179, the home-food clean-up).
+const FOOD_LOOK_ALIKES = /\b(crisps|seasonings?|pastr(y|ies)|snacks?)\b/i;
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
   const replay = process.argv.includes('--replay');
@@ -82,6 +98,10 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
       let out;
       try { out = await siteResults(k, q, replay); } catch { await sleep(2000); try { out = await siteResults(k, q, replay); } catch { out = { results: [], failed: true }; } }
       const j = judge(out.results, out.failed ? [k] : [], [k], q, item);
+      if (!FOOD_LOOK_ALIKES.test(q) && out.results.slice(0, 3).some(r => FOOD_LOOK_ALIKES.test(String(r.product_name || '')))) {
+        j.pass = false;
+        if (!j.broken.includes('lookalike')) j.broken.push('lookalike');
+      }
       // A gap of the Hub's list that is the site's own (its data, not its order) stays known here too.
       const siteGap = SITE_GAPS[`${k} ${q}`] || '';
       const gapText = siteGap || (gap && !/own search/i.test(gap) ? gap : '');
@@ -91,7 +111,7 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
       const mark = j.pass ? 'PASS' : excused ? 'KNOWN' : 'FAIL';
       if (excused) known++; else if (!j.pass) failures++;
       const top = out.results.slice(0, 3).map(r => String(r.product_name).slice(0, 40)).join(' / ');
-      lines.push(`${mark.padEnd(5)} ${k} ${q.padEnd(18)} n=${String(j.n).padEnd(2)}${out.total !== null && out.total !== undefined ? ` of ${out.total}` : ''}${j.broken.length ? ` rules=${j.broken.join(',')}` : ''} | ${top}${excused ? ` | ${gapText}` : ''}`);
+      lines.push(`${mark.padEnd(5)} ${k} ${q.padEnd(18)} n=${String(j.n).padEnd(2)}${out.total !== null && out.total !== undefined ? ` of ${out.total}${out.partial ? '+ (sample)' : ''}` : ''}${j.broken.length ? ` rules=${j.broken.join(',')}` : ''} | ${top}${excused ? ` | ${gapText}` : ''}`);
       await sleep(replay ? 200 : 400);
     }
   }
