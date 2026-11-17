@@ -67,20 +67,27 @@ export function mergeItems(oldJson, item, at) {
   return [{ ...item, at }, ...rest].slice(0, REMIND_ITEMS);
 }
 
-// The table exists (the migration ran) - kept for a few minutes in this Worker.
-let tableSeen = { at: -Infinity, ok: false };
-async function tableReady(db, now) {
-  if (now - tableSeen.at < 300000) return tableSeen.ok;
+// The table exists (the migration ran) and how many addresses it holds - kept for a few minutes in this Worker.
+let tableSeen = { at: -Infinity, ok: false, rows: 0 };
+async function tableState(db, now) {
+  if (now - tableSeen.at < 300000) return tableSeen;
   let ok = false;
-  try { await db.prepare("SELECT 1 FROM remind_signups LIMIT 1").first(); ok = true; } catch (_) { ok = false; }
-  tableSeen = { at: now, ok };
-  return ok;
+  let rows = 0;
+  try { const r = await db.prepare("SELECT COUNT(*) AS n FROM remind_signups").first(); ok = true; rows = Number((r && r.n) || 0); } catch (_) { ok = false; }
+  tableSeen = { at: now, ok, rows };
+  return tableSeen;
 }
-export function resetRemindCache() { tableSeen = { at: -Infinity, ok: false }; groupCache.id = ""; groupCache.fields = false; }
+async function tableReady(db, now) {
+  return (await tableState(db, now)).ok;
+}
+export function resetRemindCache() { tableSeen = { at: -Infinity, ok: false, rows: 0 }; groupCache.id = ""; groupCache.fields = false; }
 
+// Open: before the closing time, with the table, and while the list has room (the sites hide the box otherwise).
 export async function remindOpen(env, now = Date.now()) {
   const db = env && env.gear_world_registry;
-  return Boolean(db) && now <= REMIND_UNTIL && (await tableReady(db, now));
+  if (!db || !(now <= REMIND_UNTIL)) return false;
+  const t = await tableState(db, now);
+  return t.ok && t.rows < REMIND_MAX_ROWS;
 }
 
 // GET and POST https://hub.internal/internal/remind (members.js sends them here).

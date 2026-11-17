@@ -280,4 +280,8 @@ test('limits for the MailerLite free plan: a daily count of its own for new addr
   const big = { ...env, REMIND_DAILY_LIMIT: '1000' };
   const r = await handleRemind(post(body({ email: 'late@example.com', client: 'e'.repeat(32) })), big, null, { now: NOW, sync: async () => 'pending' });
   assert.equal(r.status, 410);
+  // A full list is closed for the sites too, so their box goes away (after the few minutes of the cache).
+  resetRemindCache();
+  const state = await (await handleRemind(new Request('https://hub.internal/internal/remind'), big, null, { now: NOW })).json();
+  assert.equal(state.open, false);
 });
