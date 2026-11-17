@@ -240,8 +240,8 @@ test('the Hub legal pages say what is there: one affiliate link on the Hub (the 
   const priv = readFileSync(`${PUB}/privacy/index.html`, 'utf8');
   // 8/11/2026 (L106): the sign-up forms use Cloudflare Turnstile, so the date moved on with the text; 17/11/2026 (L175,
   // L176): the language line and "outside the UK and the European Economic Area"; 20/11/2026 (L180): a search written
-  // as a sentence may be read by Cloudflare Workers AI.
-  assert.match(priv, /<p class="lg-updated">Last updated: 20 November 2026<\/p>/);
+  // as a sentence may be read by Cloudflare Workers AI (live 17/11/2026 21:19, so the date stays 17 November).
+  assert.match(priv, /<p class="lg-updated">Last updated: 17 November 2026<\/p>/);
   assert.match(priv, /Searches in a language other than English, or written as a sentence, may be read by Cloudflare Workers AI, inside our hosting provider, to translate them into English and to find the product, any price limit and who it is for\./);
   assert.match(priv, /also use Cloudflare Turnstile/);
   assert.match(priv, /The links to retailers on those sites go through the Awin affiliate network, or for a few retailers through CJ \(Commission Junction\)\. The one affiliate link on the Hub itself, the "Featured pick" card on the home page, goes to the retailer through Sovrn Commerce\./);

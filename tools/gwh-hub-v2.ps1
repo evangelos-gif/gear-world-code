@@ -192,10 +192,12 @@
   sentence the rules leave. A price written in a currency is compared at the sites' daily rates (/api/fx). The answer has
   "understood"; app.js shows it above the results in the 11 languages with "Search exactly for ..." (exact=1); the
   photo search and the gift finder are as before. The privacy page says a sentence may be read by Cloudflare Workers AI
-  (11 languages, 20 November 2026). Test-Site also checks 3 sentences for a UK visitor (the tool is a bot, so rules
+  (11 languages, 17 November 2026). Test-Site also checks 3 sentences for a UK visitor (the tool is a bot, so rules
   only): the product, the price limit, the Gear World named first, and a plain search stays as typed. Phrases of this
   release, in this order: ΕΓΚΡΙΝΩ HUB SEARCH PREVIEW, ΕΓΚΡΙΝΩ HUB SEARCH LIVE, ΕΓΚΡΙΝΩ HUB REMOVE PREVIEW (one paste,
   live with -AfterPreview). Full list: node tools/gwh-search-check.mjs --sentences.
+  Live since 17/11/2026 21:19 (1d34366c). The same phrases carry its follow-up release (the privacy date: 17 November,
+  not 20: the page went live three days early at the owner's request).
   Release order (L175): the 13 sites go live FIRST (sites-update-all, phrase ΕΓΚΡΙΝΩ ALL UPDATES), and only after their
   report this Hub release. Check that https://<site>/api/version of the sites is on the release with L175 first;
   otherwise a visitor in Greece who made no choice gets a Greek Hub and English sites.
