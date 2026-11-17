@@ -303,7 +303,7 @@ test('the Hub: styles.css (not loaded by the page) keeps no rule of the sponsore
   assert.ok(!/gwh-business|sponsor|shop/i.test(css));
   const index = readFileSync(`${PUB}/index.html`, 'utf8');
   assert.ok(!/\/styles\.css/.test(index), 'the page does not load styles.css');
-  assert.ok(/\/translations\.js\?v=(20261108-cleanup1|20261114-badges\d+|20261117-lang\d+)/.test(index), 'translations.js (a later version since L153, L175)');
+  assert.ok(/\/translations\.js\?v=(20261108-cleanup1|20261114-badges\d+|20261117-lang\d+|20261120-search\d+)/.test(index), 'translations.js (a later version since L153, L175, L180)');
   assert.ok(/\/hub-v2\.css\?v=(20261108-cleanup1|20261109-compliance\d+|20261116-stores\d+)/.test(index), 'hub-v2.css (a later version since L107; L166 the Stores card)');
   assert.ok(!/partner/i.test(index));
 });
@@ -325,7 +325,7 @@ test('the Hub sitemap has /about/ (owner, 7/11/2026); the tools ask this release
   assert.ok(!/\$Phrase(Preview|Live) = 'ΕΓΚΡΙΝΩ HUB (COMPLIANCE|SECURITY|ROBOTS|CLEANUP|WORDING|ADS|GUIDES|GUIDE PRICES|MITGO|SOVRN|IMPACT|BADGES|STORES|REGISTRY|AI) /.test(hubTool), 'no phrase of an earlier release');
   assert.ok(hubTool.includes("$PhraseRemovePreview = 'ΕΓΚΡΙΝΩ HUB REMOVE PREVIEW'"));
   const tests = readFileSync('tests/run-tests.ps1', 'utf8');
-  assert.ok(tests.includes("'egkrino hub ai preview'") && tests.includes("'egkrino hub ai live'") && !/HUB WORDING|hub wording|HUB CLEANUP|hub cleanup|HUB ROBOTS|hub robots|hub security (preview|live)|hub compliance (preview|live)|hub guide prices (preview|live)|hub mitgo (preview|live)|hub sovrn (preview|live)|hub impact (preview|live)|hub badges (preview|live)|hub stores (preview|live)/.test(tests));
+  assert.ok(tests.includes("'egkrino hub search preview'") && tests.includes("'egkrino hub search live'") && !/HUB WORDING|hub wording|HUB CLEANUP|hub cleanup|HUB ROBOTS|hub robots|hub security (preview|live)|hub compliance (preview|live)|hub guide prices (preview|live)|hub mitgo (preview|live)|hub sovrn (preview|live)|hub impact (preview|live)|hub badges (preview|live)|hub stores (preview|live)|hub ai (preview|live)|HUB AI (PREVIEW|LIVE)/.test(tests));
   const sitesTool = readFileSync('tools/ads-fixes-sites.ps1', 'utf8');
   assert.ok(sitesTool.includes("$Phrase = 'ΕΓΚΡΙΝΩ ADS FIXES'"));
   assert.ok(sitesTool.includes("'Browse by category'") && sitesTool.includes('data-i18n-keep="0"'), 'the live check looks for the L103 wording');

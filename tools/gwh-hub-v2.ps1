@@ -189,7 +189,7 @@
   reads "i want to buy a tablet for my son under £200" first with rules that cost nothing (understandQuery: the words
   around the product go, a price phrase becomes max/min, "for my son / for her / for my dog" pushes kgw / wgw / mgw / zgw
   first, never a filter), and asks the search model (TEXT_MODEL, the same daily limit, never for a bot, L106) only for a
-  sentence the rules leave. A price written in a currency holds only for prices in that currency. The answer has
+  sentence the rules leave. A price written in a currency is compared at the sites' daily rates (/api/fx). The answer has
   "understood"; app.js shows it above the results in the 11 languages with "Search exactly for ..." (exact=1); the
   photo search and the gift finder are as before. The privacy page says a sentence may be read by Cloudflare Workers AI
   (11 languages, 20 November 2026). Test-Site also checks 3 sentences for a UK visitor (the tool is a bot, so rules
@@ -799,7 +799,7 @@ function Test-Site([string]$base, [bool]$isLive) {
     $sj2 = & $askSentence 'perfume for her'
     $firstSite = ''
     if ($sj2 -and @($sj2.results).Count -gt 0) { $firstSite = [string](@($sj2.results)[0].site) }
-    if (-not ($sj2 -and $sj2.ok -and $sj2.PSObject.Properties['understood'] -and [string]$sj2.understood.site -eq 'wgw' -and ($firstSite -eq '' -or $firstSite -eq 'wgw'))) { $sentenceBad += ('perfume for her (1o: {0})' -f $firstSite) }
+    if (-not ($sj2 -and $sj2.ok -and $sj2.PSObject.Properties['understood'] -and [string]$sj2.understood.site -eq 'wgw' -and ($firstSite -eq '' -or $firstSite -eq 'wgw'))) { $sentenceBad += ('perfume for her (1' + [char]0x03BF + ': {0})' -f $firstSite) }
     $sj3 = & $askSentence 'kettle'
     if (-not ($sj3 -and $sj3.ok -and -not $sj3.PSObject.Properties['understood'])) { $sentenceBad += 'kettle' }
     if ($sentenceBad.Count -eq 0) { Say '  Αναζήτηση με πρόταση (L180): «i want to buy a tablet under £200» = tablet έως £200, «perfume for her» = πρώτα Women''s Gear World, το «kettle» μένει όπως γράφτηκε: ΕΝΤΑΞΕΙ' $Ok }

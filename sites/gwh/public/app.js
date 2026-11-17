@@ -368,8 +368,10 @@ function understoodPrice(value, currency) {
   }
 }
 
-function understoodHtml(understood) {
+// typed: the words exactly as the visitor typed them (the Hub reads only the first 80 characters).
+function understoodHtml(understood, typed) {
   if (!understood || typeof understood !== "object" || !understood.item || !understood.query) return "";
+  const asTyped = String(typed || understood.query);
   const parts = [`<span translate="no">${escapeHtml(understood.item)}</span>`];
   const max = Number(understood.max_price), min = Number(understood.min_price);
   const hasMax = understood.max_price !== null && Number.isFinite(max) && max > 0;
@@ -380,11 +382,11 @@ function understoodHtml(understood) {
   const who = { kids: "forKids", women: "forWomen", men: "forMen", pets: "forPets" }[understood.for];
   if (who) parts.push(escapeHtml(t(who)));
   const label = escapeHtml(t("understoodLabel"));
-  const exact = escapeHtml(t("searchExactly", { query: understood.query }));
+  const exact = escapeHtml(t("searchExactly", { query: asTyped }));
   return `
     <div class="gwh-understood" role="note">
       <span>${label} ${parts.join(" · ")}</span>
-      <button type="button" class="gwh-understood-exact" data-gwh-exact="${escapeHtml(understood.query)}">${exact}</button>
+      <button type="button" class="gwh-understood-exact" data-gwh-exact="${escapeHtml(asTyped)}">${exact}</button>
     </div>
   `;
 }
@@ -454,7 +456,7 @@ searchForm.addEventListener("submit", async (event) => {
     const results = Array.isArray(data.results)
       ? data.results
       : [];
-    const understoodLine = understoodHtml(data.understood);
+    const understoodLine = understoodHtml(data.understood, query);
 
     if (results.length === 0) {
       searchMessage.textContent =

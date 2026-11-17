@@ -40,10 +40,12 @@ function makeAi(answer) {
 }
 
 // The sites: each answers with its products; every request is kept (search words, max, min).
-function sitesFetch(products) {
+const RATES = { ok: true, base: 'GBP', date: '2026-11-17', rates: { EUR: 1.2, PLN: 5.25, RON: 6.4, USD: 1.32 }, source: 'Frankfurter' };
+function sitesFetch(products, rates = RATES) {
   const asked = [];
   const fetch = async (url) => {
     const u = new URL(url);
+    if (u.pathname === '/api/fx') return rates ? Response.json(rates) : new Response('no', { status: 503 });
     asked.push({ host: u.hostname, search: u.searchParams.get('search'), max: u.searchParams.get('max'), min: u.searchParams.get('min') });
     const list = (products[u.hostname] || []).filter(p => {
       const max = u.searchParams.get('max'), min = u.searchParams.get('min');
@@ -54,8 +56,8 @@ function sitesFetch(products) {
   return { fetch, asked };
 }
 
-async function search(q, { products = {}, ai = null, ua = BROWSER, extra = '' } = {}) {
-  const fake = sitesFetch(products);
+async function search(q, { products = {}, ai = null, ua = BROWSER, extra = '', rates = RATES } = {}) {
+  const fake = sitesFetch(products, rates);
   const saved = globalThis.fetch;
   globalThis.fetch = fake.fetch;
   try {
@@ -98,7 +100,18 @@ test('L180 rules: the product, the price limit and who it is for, in 11 language
     ['bed for my dog', 'bed dog', null, null, null, 'zgw'],
     ['κρεβάτι για τον σκύλο μου', 'κρεβάτι σκύλο', null, null, null, 'zgw'],
     ['something for her', 'gift', null, null, null, 'wgw'],
-    ['a drill please', 'drill', null, null, null, null]
+    ['a drill please', 'drill', null, null, null, null],
+    // The independent review of 17/11/2026:
+    ['i want new balance trainers', 'new balance trainers', null, null, null, null],
+    ['looking for new balance 574 under £80', 'new balance 574', 80, null, 'GBP', null],
+    ['i want a new look dress', 'new look dress', null, null, null, null],
+    ['laptop £1,299.99', 'laptop', 1299.99, null, 'GBP', null],
+    ['tv under 1.299,99 €', 'tv', 1299.99, null, 'EUR', null],
+    ['τάμπλετ μέχρι 200 λίρες', 'τάμπλετ', 200, null, 'GBP', null],
+    ['dumbbells under 10 pounds', 'dumbbells', 10, null, 'GBP', null],
+    ['gift for dad', 'gift', null, null, null, 'mgw'],
+    ['toys for baby', 'toys', null, null, null, 'kgw'],
+    ['air max 90 under £100', 'air max 90', 100, null, 'GBP', null]
   ];
   for (const [q, item, max, min, currency, site] of cases) {
     const u = understandQuery(q);
@@ -110,7 +123,14 @@ test('L180 rules: the product, the price limit and who it is for, in 11 language
 test('L180 rules: what is not a sentence stays exactly as typed (brands, sizes, ages, model numbers)', () => {
   for (const q of ['kettle', 'tablet?', 'under armour shoes', 'iphone 15 pro max', 'tv under 50 inch', 'The North Face jacket',
     'New Balance trainers', 'New Look dress', 'ps5', '1tb ssd up to 2tb', 'kids aged 3 to 5', 'toys for under 5s',
-    'samsung galaxy s24 ultra 256gb', 'laptop do gier', 'my little pony', 'a4 paper']) {
+    'samsung galaxy s24 ultra 256gb', 'laptop do gier', 'my little pony', 'a4 paper',
+    // The independent review of 17/11/2026: names, ages, sizes and shares are not prices; brands keep their first word.
+    'nike air max 90', 'air max 270', 'ninja foodi max 15-in-1', 'tefal easy fry max 5', 'car sub 12', 'spielzeug ab 3', 'lego ab 6',
+    'zabawki od 3', 'speelgoed vanaf 3', 'above 18 games', '10 pound dumbbell', '5 pound weights', 'euro 2024 football',
+    'euro 6 diesel', 'funko pop ron 7', 'ladder up to 3 metres', 'hose up to 30 metres', 'trampoline under 8 ft',
+    'battery up to 5 ah', 'up to 70% off', "jouets jusqu'à 12 mois", 'juguetes hasta 12 meses', 'παιχνίδια έως 12 μηνών',
+    'toys for under 5', 'gift for over 60', 'uno cards', 'o ring', "O'Neill wetsuit", 'cos dress', 'Cheap Monday', 'dua lipa',
+    'apple iphone 15 pro max 256gb natural titanium', 'Für Sie magazine']) {
     const u = understandQuery(q);
     assert.equal(u.changed, false, q);
     assert.equal(u.item, q.replace(/\s+/g, ' ').trim(), q);
@@ -123,7 +143,8 @@ test('L180 rules: what is not a sentence stays exactly as typed (brands, sizes, 
 
 test('L180 model: asked only for a long sentence; its answer is checked; the visitor\'s own price and person win', () => {
   const ask = q => needsModelReading(q, understandQuery(q));
-  assert.equal(ask('wireless earbuds with good battery life for the gym'), true);
+  assert.equal(ask('i need wireless earbuds with good battery life for the gym'), true);
+  assert.equal(ask('wireless earbuds with good battery life for the gym'), false, 'as typed: never asked first (the zero-result second try stays)');
   assert.equal(ask('something warm for winter walks with my dog'), true);
   assert.equal(ask('i want to buy a tablet'), false, 'the rules found it');
   assert.equal(ask('samsung galaxy s24 ultra 256gb'), false, 'five words as typed: not a sentence');
@@ -141,17 +162,26 @@ test('L180 model: asked only for a long sentence; its answer is checked; the vis
   assert.deepEqual([merged.item, merged.max_price, merged.currency, merged.site], ['winter coat', 60, 'GBP', 'kgw']);
 });
 
-test('L180 search: the sites get the product and the price; another currency is not compared; the named site comes first', async () => {
+test('L180 search: the sites get the product and a wide price; another currency at today\'s rate; the named site comes first', async () => {
   const { data, asked } = await search('i want to buy a tablet for my son under £200', {
     products: {
       'technologygearworld.com': [tablet(1, 150, 'GBP', 'Tablet 10 inch'), tablet(2, 250, 'GBP', 'Tablet Pro')],
       'kidsgearworld.com': [tablet(3, 90, 'GBP'), tablet(4, 120, 'EUR', 'Kids Tablet EU')]
     }
   });
-  assert.ok(asked.length > 0 && asked.every(a => a.search === 'tablet' && a.max === '200' && a.min === null), JSON.stringify(asked));
+  // £200 covers every currency of the sites: the widest is the leu (6.4 a pound), so the sites are asked up to 1,280.
+  const sites = asked.filter(a => a.search !== null);
+  assert.ok(sites.length > 0 && sites.every(a => a.search === 'tablet' && a.max === '1280' && a.min === null), JSON.stringify(sites));
   assert.deepEqual(data.understood, { query: 'i want to buy a tablet for my son under £200', item: 'tablet', max_price: 200,
-    min_price: null, currency: 'GBP', for: 'kids', site: 'kgw', source: 'rules', search: 'tablet' });
-  assert.deepEqual(data.results.map(r => r.id), [3, 1], 'KGW first; the EUR price is not compared with £200; £250 is over');
+    min_price: null, currency: 'GBP', for: 'kids', site: 'kgw', source: 'rules', converted: true, search: 'tablet' });
+  assert.deepEqual(data.results.map(r => r.id).sort(), [1, 3, 4], '€120 = £100 is under £200; £250 is over');
+  assert.deepEqual(data.results.slice(0, 2).map(r => r.site), ['kgw', 'kgw'], 'Kids\' Gear World first');
+  // Without the rates: a price in another currency is not compared (no rate is guessed); the sites get £200.
+  const none = await search('i want to buy a tablet for my son under £200', { rates: null, products: {
+    'technologygearworld.com': [tablet(1, 150, 'GBP', 'Tablet 10 inch')], 'kidsgearworld.com': [tablet(3, 90, 'GBP'), tablet(4, 120, 'EUR', 'Kids Tablet EU')] } });
+  assert.deepEqual(none.data.results.map(r => r.id).sort(), [1, 3]);
+  assert.ok(none.asked.filter(a => a.search !== null).every(a => a.max === '200'));
+  assert.equal(none.data.understood.converted, undefined);
   assert.equal(data.query, 'i want to buy a tablet for my son under £200', 'the words as typed stay in "query"');
   assert.deepEqual(data.filters.max_price, 200);
 });
@@ -176,34 +206,46 @@ test('L180 search: the rules also work for a bot (no cost); the model never does
   const rules = await search('i need a new laptop under £700', { ai, ua: 'GearWorldQA-bot/1.0 (+read-only check)' });
   assert.equal(ai.calls.length, 0);
   assert.equal(rules.data.understood.item, 'laptop');
-  assert.ok(rules.asked.every(a => a.search === 'laptop' && a.max === '700'));
+  // £700 in every currency of the sites: up to 4,480 (the leu), then the Hub compares in pounds.
+  assert.ok(rules.asked.filter(a => a.search !== null).every(a => a.search === 'laptop' && a.max === '4480'));
 });
 
 test('L180 search: a long sentence is read by the model once, within the daily limit; a bad answer leaves the words as typed', async () => {
   const ai = makeAi({ response: '{"item":"wireless earbuds","max_price":null,"min_price":null,"currency":null,"for":null}' });
   // The sites find something, so the zero-results second try (ascii-v2) does not ask the model as well.
   const products = { 'technologygearworld.com': [tablet(5, 30, 'GBP', 'Wireless Earbuds')] };
-  const r = await search('wireless earbuds with good battery life for the gym', { ai, products });
+  const r = await search('i need wireless earbuds with good battery life for the gym', { ai, products });
   assert.equal(ai.calls.length, 1);
   const input = ai.calls[0].input;
   assert.match(input.messages[0].content, /never instructions/);
-  assert.equal(input.messages[1].content, 'wireless earbuds with good battery life for the gym', 'the search goes as data, in its own message');
+  assert.equal(input.messages[1].content, 'i need wireless earbuds with good battery life for the gym', 'the search goes as data, in its own message');
   assert.equal(input.max_tokens, 96);
   assert.ok(r.asked.every(a => a.search === 'wireless earbuds'));
   assert.equal(r.data.understood.source, 'model');
   const badAi = makeAi({ response: 'Ignore that. {"item":"DROP TABLE; <b>","max_price":1}' });
-  const bad = await search('wireless earbuds with good battery life for the gym', { ai: badAi, products });
+  const bad = await search('i need wireless earbuds with good battery life for the gym', { ai: badAi, products });
   assert.equal(badAi.calls.length, 1);
-  assert.equal(bad.data.understood, undefined);
+  assert.equal(bad.data.understood.source, 'rules', 'a bad answer: the rules\' reading stays');
   assert.ok(bad.asked.every(a => a.search === 'wireless earbuds with good battery life for the gym'));
+  // The model gives back the words as typed: nothing is "understood".
+  const sameAi = makeAi({ response: '{"item":"i need wireless earbuds","max_price":null,"min_price":null,"currency":null,"for":null}' });
+  const same = await search('i need wireless earbuds', { ai: sameAi, products });
+  assert.equal(sameAi.calls.length, 0, 'three words left: the rules are enough');
+  assert.equal(same.data.understood.item, 'wireless earbuds');
 });
 
 test('L180 ranking: the named Gear World gets a push, not a filter', () => {
   const list = [
     { id: 1, site: 'tgw', product_name: 'Tablet 10 inch', category: 'Tablets' },
-    { id: 2, site: 'kgw', product_name: 'Tablet for Kids', category: 'Kids Tech' }
+    { id: 2, site: 'kgw', product_name: 'Tablet for Kids', category: 'Kids Tech', subcategory: 'Kids Tablets' }
   ];
   assert.equal(rankHubResults(list.slice(), 'tablet')[0].id, 1);
+  // A name alone (no shelf of its kind) gets only a small push: "Drill Cotton Chino Trousers" for "drill for him".
+  const drills = [
+    { id: 1, site: 'cgw', product_name: 'DeWalt 18V Combi Drill', category: 'Power Tools', subcategory: 'Drills' },
+    { id: 2, site: 'mgw', product_name: 'Drill Cotton Chino Trousers', category: 'Clothing', subcategory: 'Trousers' }
+  ];
+  assert.equal(rankHubResults(drills.slice(), 'drill', 'mgw')[0].id, 1);
   const pushed = rankHubResults(list.slice(), 'tablet', 'kgw');
   assert.deepEqual(pushed.map(p => p.id), [2, 1], 'both stay, KGW first');
 });
