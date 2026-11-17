@@ -708,33 +708,42 @@ export const COUNTRY_LANGUAGES = {
   PL: 'pl-PL',
   GR: 'el-GR', CY: 'el-GR',
   DE: 'de-DE', AT: 'de-DE', LI: 'de-DE',
-  FR: 'fr-FR', MC: 'fr-FR',
+  FR: 'fr-FR', MC: 'fr-FR', RE: 'fr-FR', GP: 'fr-FR', MQ: 'fr-FR', GF: 'fr-FR', YT: 'fr-FR', MF: 'fr-FR', BL: 'fr-FR',
+  PM: 'fr-FR', NC: 'fr-FR', PF: 'fr-FR', WF: 'fr-FR',
   IT: 'it-IT', SM: 'it-IT', VA: 'it-IT',
   ES: 'es-ES', MX: 'es-ES', AR: 'es-ES', CO: 'es-ES', CL: 'es-ES', PE: 'es-ES', VE: 'es-ES', EC: 'es-ES', GT: 'es-ES',
   CU: 'es-ES', BO: 'es-ES', DO: 'es-ES', HN: 'es-ES', PY: 'es-ES', SV: 'es-ES', NI: 'es-ES', CR: 'es-ES', PA: 'es-ES',
   UY: 'es-ES',
   PT: 'pt-PT', BR: 'pt-PT', AO: 'pt-PT', MZ: 'pt-PT',
-  NL: 'nl-NL', SR: 'nl-NL',
+  NL: 'nl-NL', SR: 'nl-NL', AW: 'nl-NL', CW: 'nl-NL', SX: 'nl-NL', BQ: 'nl-NL',
   AL: 'sq-AL', XK: 'sq-AL',
   RO: 'ro-RO', MD: 'ro-RO',
   RU: 'ru-RU', BY: 'ru-RU'
 };
 // Crawlers read English, Google's (they count as the UK) and every other one; the network's own checks (QA_BOT, L158)
 // can still ask a country.
-export const OTHER_CRAWLER = /bot\b|bot\/|crawler|spider|slurp|bingpreview|facebookexternalhit|embedly/i;
+export const OTHER_CRAWLER = /(?<!cu)bot\b|bot\/|crawler|spider|slurp|bingpreview|facebookexternalhit|embedly/i; // not Cubot phones
 export function readsEnglish(request) {
   const ua = request.headers.get('user-agent') || '';
   return !QA_BOT.test(ua) && OTHER_CRAWLER.test(ua);
 }
-export const MULTI_LANGUAGE_COUNTRIES = { BE: ['nl-NL', 'fr-FR', 'de-DE'], CH: ['de-DE', 'fr-FR', 'it-IT'], LU: ['fr-FR', 'de-DE'] };
+// Canada: English unless the browser asks French first.
+export const MULTI_LANGUAGE_COUNTRIES = { BE: ['nl-NL', 'fr-FR', 'de-DE'], CH: ['de-DE', 'fr-FR', 'it-IT'], LU: ['fr-FR', 'de-DE'], CA: ['fr-FR'] };
+// The browser's languages by preference (q weights; q=0 means "not this one"), as base codes: "fr-BE,fr;q=0.9" -> fr.
+export function browserLanguages(header) {
+  return String(header || '').split(',').map((part, i) => {
+    const [tag, ...params] = part.split(';').map(x => x.trim());
+    const qp = params.find(p => /^q=/i.test(p));
+    const q = qp ? Number(qp.slice(2)) : 1;
+    return { base: tag.toLowerCase().split('-')[0], q: Number.isFinite(q) ? q : 0, i };
+  }).filter(l => l.base && l.base !== '*' && l.q > 0).sort((a, b) => b.q - a.q || a.i - b.i).map(l => l.base);
+}
 export function countryLanguage(site, country, acceptLanguage = '') {
   const cc = String(country || '').toUpperCase();
   const has = code => (site.languages || []).some(l => l.code === code);
   const several = MULTI_LANGUAGE_COUNTRIES[cc];
   if (several) {
-    for (const part of String(acceptLanguage || '').split(',')) {
-      const base = part.split(';')[0].trim().toLowerCase().split('-')[0];
-      if (!base || base === '*') continue;
+    for (const base of browserLanguages(acceptLanguage)) {
       if (base === 'en') return '';
       const code = several.find(c => c.split('-')[0] === base);
       if (code) return has(code) ? code : '';
@@ -750,7 +759,8 @@ export function countryLanguage(site, country, acceptLanguage = '') {
 export async function withCountryLanguage(response, code) {
   if (!code || !response || !response.body || !/^text\/html/i.test(response.headers.get('Content-Type') || '')) return response;
   const headers = new Headers(response.headers);
-  headers.set('Cache-Control', 'private, max-age=60');
+  // An answer that must not be kept (no-store, no-cache: error pages, form answers) stays so; any other becomes private.
+  if (!/no-store|no-cache/i.test(headers.get('Cache-Control') || '')) headers.set('Cache-Control', 'private, max-age=60');
   headers.delete('Content-Length');
   if (typeof HTMLRewriter === 'function') {
     const out = new HTMLRewriter().on('html', { element(e) { e.setAttribute('data-country-lang', code); } }).transform(response);

@@ -9,7 +9,7 @@ import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import { DatabaseSync } from 'node:sqlite';
-import { createWorker, countryLanguage, COUNTRY_LANGUAGES, MULTI_LANGUAGE_COUNTRIES } from '../../src/engine.js';
+import { createWorker, countryLanguage, COUNTRY_LANGUAGES, MULTI_LANGUAGE_COUNTRIES, withCountryLanguage } from '../../src/engine.js';
 
 const read = f => readFileSync(f, 'utf8');
 const SITES = readdirSync('sites').filter(n => existsSync(`sites/${n}/site.config.js`) && existsSync(`sites/${n}/public/assets/site.js`));
@@ -42,7 +42,7 @@ test('L162: the 13 sites have Polski in the menu (after Nederlands), PLN, and a 
     assert.equal(codes.indexOf('pl-PL'), codes.indexOf('nl-NL') + 1, `${s}: after Nederlands`);
     assert.equal(codes.length, 12, `${s}: the 11 languages of the Hub and Polish`);
     assert.deepEqual(site.displayCurrencies, ['GBP', 'EUR', 'PLN', 'ALL', 'RON', 'RUB'], s);
-    assert.match(site.assetVersion, new RegExp(`^(2026-11-15-${s}-pl|2026-11-16-${s}-lang)-\\d+$`), `${s}: browsers load the new site.js (L31)`);
+    assert.match(site.assetVersion, new RegExp(`^(2026-11-15-${s}-pl|2026-11-16-${s}-lang|2026-11-17-${s}-legal)-\\d+$`), `${s}: browsers load the new site.js (L31)`);
   }
   assert.match(read('src/pages/layout.js'), /PLN: 'zł PLN'/, 'the currency menu says zł PLN');
 });
@@ -211,7 +211,16 @@ test('L175: every country with a language of the sites gets it; several language
   // Never English speakers, and no guess where the country speaks a language the sites do not have.
   for (const cc of ['GB', 'IE', 'US', 'CA', 'AU', 'NZ', 'MT', 'UA', 'TR', 'SE', 'CZ', 'HU', 'BG', 'HR', 'DK', 'FI', 'NO']) assert.equal(countryLanguage(config.agw, cc), '', cc);
   // Belgium, Switzerland, Luxembourg: the browser decides, among the country's own languages only.
-  assert.deepEqual(MULTI_LANGUAGE_COUNTRIES, { BE: ['nl-NL', 'fr-FR', 'de-DE'], CH: ['de-DE', 'fr-FR', 'it-IT'], LU: ['fr-FR', 'de-DE'] });
+  assert.deepEqual(MULTI_LANGUAGE_COUNTRIES, { BE: ['nl-NL', 'fr-FR', 'de-DE'], CH: ['de-DE', 'fr-FR', 'it-IT'], LU: ['fr-FR', 'de-DE'], CA: ['fr-FR'] });
+  // Overseas France and the Dutch Caribbean report their own codes; Canada is French only when the browser says so.
+  for (const cc of ['RE', 'GP', 'MQ', 'GF', 'YT', 'NC', 'PF']) assert.equal(countryLanguage(config.agw, cc), 'fr-FR', cc);
+  for (const cc of ['AW', 'CW', 'SX', 'BQ']) assert.equal(countryLanguage(config.agw, cc), 'nl-NL', cc);
+  assert.equal(countryLanguage(config.agw, 'CA', 'fr-CA,fr;q=0.9,en;q=0.8'), 'fr-FR');
+  assert.equal(countryLanguage(config.agw, 'CA', 'en-CA,fr;q=0.5'), '');
+  // The browser's weights: q=0 is "not this one", and a higher q comes first whatever the order.
+  assert.equal(countryLanguage(config.agw, 'BE', 'fr;q=0, nl;q=0.9'), 'nl-NL');
+  assert.equal(countryLanguage(config.agw, 'BE', 'de;q=0.3, fr;q=0.8'), 'fr-FR');
+  assert.equal(countryLanguage(config.agw, 'CH', 'en;q=0.2, it'), 'it-IT');
   for (const cc of Object.keys(MULTI_LANGUAGE_COUNTRIES)) assert.ok(!(cc in COUNTRY_LANGUAGES), cc);
   const cases = [
     ['BE', 'fr-BE,fr;q=0.9,en;q=0.8', 'fr-FR'], ['BE', 'nl-BE,nl;q=0.9', 'nl-NL'], ['BE', 'en-GB,nl;q=0.8', ''],
@@ -249,6 +258,7 @@ test('L175: every country with a language of the sites gets it; several language
     assert.ok(!bot.text.includes('data-country-lang'), 'Googlebot from Greece reads English');
     for (const ua of ['Mozilla/5.0 (compatible; YandexBot/3.0; +http://yandex.com/bots)', 'Mozilla/5.0 (compatible; bingbot/2.0; +http://www.bing.com/bingbot.htm)', 'facebookexternalhit/1.1'])
       assert.ok(!(await get('/', 'RU', { 'User-Agent': ua })).text.includes('data-country-lang'), `no crawler: ${ua}`);
+    assert.ok((await get('/', 'GR', { 'User-Agent': 'Mozilla/5.0 (Linux; Android 9; CUBOT P30) AppleWebKit/537.36 Chrome/120 Mobile Safari/537.36' })).text.includes('data-country-lang="el-GR"'), 'a Cubot phone is a person');
     assert.ok((await get('/', 'US', { 'User-Agent': 'GearWorldQA-bot/1.0 (+read-only check)', 'X-GW-QA-Country': 'GR' })).text.includes('data-country-lang="el-GR"'), 'the network\'s own check as Greece');
     // L174: the Hub's search links (/?search=…&highlight=…) keep the language the visitor chose on the Hub.
     const row = await DB.prepare('SELECT id FROM products WHERE is_active = 1 LIMIT 1').first();
@@ -272,4 +282,12 @@ test('L175: the site script keeps the visitor\'s own choice first, then the coun
     assert.ok(i > 0, site);
     assert.ok(body.indexOf("get('lang')") < body.indexOf("read('lang'") && body.indexOf("read('lang'") < body.indexOf('data-country-lang'), `${site}: ?lang=, then the menu choice, then the country`);
   }
+});
+
+test('L175: an answer that must not be kept (no-store) stays so with the country language; any other becomes private', async () => {
+  const page = cc => new Response('<!doctype html><html lang="en-GB"><body>x</body></html>', { headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': cc } });
+  const a = await withCountryLanguage(page('no-store'), 'el-GR');
+  assert.equal(a.headers.get('Cache-Control'), 'no-store');
+  assert.match(await a.text(), /data-country-lang="el-GR"/);
+  assert.equal((await withCountryLanguage(page('public, max-age=300'), 'el-GR')).headers.get('Cache-Control'), 'private, max-age=60');
 });

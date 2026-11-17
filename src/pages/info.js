@@ -2,7 +2,7 @@
 // NOTE: legal texts are a starting point and need review by a qualified adviser before launch (task T31).
 import { html } from '../lib/html.js';
 import { categoryPath } from '../lib/text.js';
-import { page, breadcrumbs, breadcrumbSchema, tr } from './layout.js';
+import { page, breadcrumbs, breadcrumbSchema, tr, keepName } from './layout.js';
 
 export const PLACEHOLDER = 'To be completed before launch';
 
@@ -84,7 +84,7 @@ const PAGES = {
     description: `How ${site.name} handles personal data.`,
     content: html`
 <p>${tr('Last updated: {0}', { text: UPDATED, date: UPDATED_ISO })}</p>
-<p>${tr('This policy explains what personal data {0} ({1}) uses, why, and your rights under UK data protection law (UK GDPR and the Data Protection Act 2018) and, if you are in the European Union or the European Economic Area, under the EU General Data Protection Regulation (GDPR).', site.name, { text: site.domain, keep: true })}</p>
+<p>${tr('This policy explains what personal data {0} ({1}) uses, why, and your rights under UK data protection law (UK GDPR and the Data Protection Act 2018) and, if you are in the European Union or the European Economic Area, under the EU General Data Protection Regulation (GDPR).', keepName(site.name), { text: site.domain, keep: true })}</p>
 <h2>Who is responsible</h2>
 <p>${tr('The data controller is {0}, run by Evangelos Kalogerakis, United Kingdom.', { text: operator(site), keep: true })}</p>
 <p class="contact-email"><span>Contact:</span> <span translate="no">${contactLink(site)}</span></p>
@@ -118,7 +118,7 @@ ${site.googleAds === false ? html`<p>We do not use advertising or tracking cooki
 <p>You can also complain to the UK Information Commissioner's Office (ICO).</p>
 <p><a href="https://ico.org.uk/" translate="no">ico.org.uk</a></p>
 <p>If you are in the European Union or the European Economic Area, you can also complain to the data protection authority of the country where you live.</p>
-<p><a href="https://www.edpb.europa.eu/about-edpb/about-edpb/members_en">Data protection authorities in the EU and EEA</a></p>`
+<p><a href="https://www.edpb.europa.eu/about-edpb/our-members_en">Data protection authorities in the EU and EEA</a></p>`
   }),
 
   '/cookies/': site => ({
@@ -127,7 +127,7 @@ ${site.googleAds === false ? html`<p>We do not use advertising or tracking cooki
     description: `Which cookies ${site.name} uses.`,
     content: html`
 <p>${tr('Last updated: {0}', { text: UPDATED, date: UPDATED_ISO })}</p>
-${site.googleAds === false ? html`<p>${tr('{0} does not set advertising, analytics or tracking cookies, so there is no cookie banner.', site.name)}</p>` : html`<p>${tr('{0} sets advertising cookies only if you select "Allow" in the cookie banner.', site.name)} Until then, and if you select "Reject", no request goes to Google and no Google cookie is set. You can change your choice at any time with "Cookie settings" at the bottom of every page.</p>
+${site.googleAds === false ? html`<p>${tr('{0} does not set advertising, analytics or tracking cookies, so there is no cookie banner.', keepName(site.name))}</p>` : html`<p>${tr('{0} sets advertising cookies only if you select "Allow" in the cookie banner.', keepName(site.name))} Until then, and if you select "Reject", no request goes to Google and no Google cookie is set. You can change your choice at any time with "Cookie settings" at the bottom of every page.</p>
 <h2>Optional: Google Ads (only after "Allow")</h2>
 <p>The Google tag measures which of our ads bring visitors and when a visit leads to a click on a "View at" button or a discount code. It does not show you personalised ads (remarketing is off).</p>
 <p>${tr('Cookies: {0}, and {1} or similar {2} cookies when you came from a Google ad, each kept up to 90 days.', { text: '_gcl_au', keep: true }, { text: '_gcl_aw', keep: true }, { text: '_gcl_', keep: true })} Selecting "Reject" later removes them from this site.</p>
@@ -151,7 +151,7 @@ ${site.googleAds === false ? html`<p>${tr('{0} does not set advertising, analyti
 <p>${tr('Last updated: {0}', { text: UPDATED, date: UPDATED_ISO })}</p>
 <p>${tr('These terms apply when you use {0}, operated by {1} (run by Evangelos Kalogerakis, United Kingdom).', { text: site.domain, keep: true }, { text: operator(site), keep: true })} By using the site you accept them.</p>
 <h2>What the site does</h2>
-<p>${tr('{0} shows product information and prices supplied by retailers.', site.name)} We do not sell products. Any purchase is a contract between you and the retailer, on the retailer's terms.</p>
+<p>${tr('{0} shows product information and prices supplied by retailers.', keepName(site.name))} We do not sell products. Any purchase is a contract between you and the retailer, on the retailer's terms.</p>
 <h2>Accuracy</h2>
 <p>We work to keep information correct, but prices, stock and product details come from retailers and can change or contain errors. Always check the details on the retailer's website before you buy.</p>
 <h2>Links to other websites</h2>
