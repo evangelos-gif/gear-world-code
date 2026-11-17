@@ -1,6 +1,6 @@
 // Import rules for Aosom (CJ Affiliate advertiser 5360120 "Aosom.com", aosom.com, US dollars; brands HOMCOM, Outsunny,
 // Qaba, PawHut, Soozier) on Home Gear World and Garden Gear World. Wave 3 (approvals file of chat 7, 16 Nov 2026,
-// lessons L170). Feed of 17 Nov 2026: 5,963 products with category paths ("Home Goods > Living Room > Coffee Tables",
+// lessons L171). Feed of 17 Nov 2026: 5,963 products with category paths ("Home Goods > Living Room > Coffee Tables",
 // "Outdoor > Patio Furniture > ..."). Home goods, office furniture and Christmas decorations go to HGW, outdoor living
 // to GGW (shared HGW and GGW words); toys, pets, sport, fitness, tools and health left out. At most
 // RULES.maxPerSubcategory cards per subcategory (lessons L164). US shop: shown only to the US.

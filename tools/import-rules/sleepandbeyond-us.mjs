@@ -1,6 +1,6 @@
 // Import rules for Sleep & Beyond (Awin advertiser 91147, sleepandbeyond.com, US dollars; shown as "Sleep and Beyond":
 // legacy-import.ps1 hands the name to wrangler, which takes no "&") on Home Gear World. Wave 3
-// (approvals file of chat 7, 16 Nov 2026, lessons L170). Feed of 17 Nov 2026: 274 rows, 42 pages: organic cotton,
+// (approvals file of chat 7, 16 Nov 2026, lessons L171). Feed of 17 Nov 2026: 274 rows, 42 pages: organic cotton,
 // bamboo and wool sheets, blankets, duvet covers, comforters, pillows, toppers and protectors; baby bedding left out
 // (Home site). US sizes (Twin, Queen, Cal King): shown only to the US.
 import { clean } from './lib/wave3-legacy.mjs';

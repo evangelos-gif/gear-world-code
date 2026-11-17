@@ -75,7 +75,7 @@ export default {
   deliversTo: { default: ['GB'], retailers: { 'AliExpress PL': ['PL'], 'Bazta IE': ['IE'], 'Plusshop IE': ['IE'], 'Click and Grow': ['US'],
     // Mass import round 2 (15 Nov 2026, lessons L164): TEMU's US feed only to the US, in dollars.
     TEMU: ['US'],
-    // Wave 3 (approvals file of chat 7, 16 Nov 2026, lessons L170): the US shops only to the US.
+    // Wave 3 (approvals file of chat 7, 16 Nov 2026, lessons L171): the US shops only to the US.
     'Everywhere Chair': ['US'], Garvee: ['US'], MOVA: ['US'], Aosom: ['US'] } },
   foreignCurrencies: ['USD', 'PLN'],
   displayCurrencies: ['GBP', 'EUR', 'PLN', 'ALL', 'RON', 'RUB'],

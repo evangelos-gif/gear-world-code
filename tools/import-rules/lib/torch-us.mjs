@@ -1,4 +1,4 @@
-// The three US torch makers of wave 3 (Skilhunt, WUBEN, NITECORE; lessons L170) on Construction Gear World: flashlights,
+// The three US torch makers of wave 3 (Skilhunt, WUBEN, NITECORE; lessons L171) on Construction Gear World: flashlights,
 // headlamps and work lights go to Site Equipment > Lighting (CGW's place for site and work lights); batteries, chargers,
 // lenses, holsters and other spare parts are left out.
 import { clean } from './wave3-legacy.mjs';

@@ -61,7 +61,7 @@ export default {
   // shows it (owner, 15 Nov 2026, lessons L157); its prices get "≈ £…" (foreignCurrencies PLN).
   // Reidl's feed is in German: only visitors from Germany and Austria see it (lessons L165).
   deliversTo: { default: ['GB'], retailers: { 'AliExpress PL': ['PL'], Reidl: ['DE', 'AT'], VEVOR: ['EU', 'IS', 'LI', 'NO'], GRABO: ['WORLD'],
-    // Wave 3 (approvals file of chat 7, 16 Nov 2026, lessons L170): the US shops only to the US.
+    // Wave 3 (approvals file of chat 7, 16 Nov 2026, lessons L171): the US shops only to the US.
     Skilhunt: ['US'], WUBEN: ['US'], 'NITECORE Store': ['US'], Tameson: ['US'], Walabot: ['US'] }, languages: { Reidl: 'de' } },
 
   // Countries that see only the retailers that deliver there instead of the UK view with its bar (lessons L107); none yet.

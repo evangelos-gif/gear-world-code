@@ -215,7 +215,7 @@ o.append(brush(14, 288, 120, 17, 21, fill=BLACK2))
 o.append(cond(18, 297.6, 'EVERYTHING FOR', 11, 'Black', WHITE, spacing=.2))
 o.append(cond(18, 310.8, 'THE JOB IN ONE PLACE', 12, 'Black', AMBER, spacing=.2))
 # arrow to the phone
-o.append(f'<path d="M136 306 C150 308 160 306 170 300" fill="none" stroke="{AMBER}" stroke-width="1.6" stroke-linecap="round"/><path d="M164.5 298.6 L170.6 299.6 L168.2 305.2" fill="none" stroke="{AMBER}" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>')
+o.append(f'<path d="M136 306 C150 308 160 306 170 300" fill="none" stroke="{AMBER}" stroke-width="1.6" stroke-linecap="round"/><path d="M164.5 298.6 L171.6 299.6 L168.2 305.2" fill="none" stroke="{AMBER}" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>')
 
 
 def chip(x, y, name):

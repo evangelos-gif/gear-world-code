@@ -1,5 +1,5 @@
 // Import rules for Destira (CJ Affiliate advertiser 6153681, destira.com, US dollars) on Kids Gear World. Wave 3
-// (approvals file of chat 7, 16 Nov 2026, lessons L170). Feed of 17 Nov 2026: 342 products of girls' gymnastics and
+// (approvals file of chat 7, 16 Nov 2026, lessons L171). Feed of 17 Nov 2026: 342 products of girls' gymnastics and
 // dance wear: leotards, unitards, shorts, tanks, leggings; doll-size leotards and accessories left out. KGW keeps them
 // in Clothing > Dancewear. Shown only to the US.
 import { clean } from './lib/wave3-legacy.mjs';

@@ -1,5 +1,5 @@
 // Import rules for BlindsMagic (Awin advertiser 78834, blindsmagic.com, US dollars) on Home Gear World. Wave 3 (approvals
-// file of chat 7, 16 Nov 2026, lessons L170). Feed of 17 Nov 2026: 27 rows, 25 pages: roller, zebra, sheer and outdoor
+// file of chat 7, 16 Nov 2026, lessons L171). Feed of 17 Nov 2026: 27 rows, 25 pages: roller, zebra, sheer and outdoor
 // shades, plus fabric samples, motors and solar panels (left out). Made to US inch sizes: shown only to the US.
 import { clean } from './lib/wave3-legacy.mjs';
 

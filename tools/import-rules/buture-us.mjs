@@ -1,5 +1,5 @@
 // Import rules for Buture (Awin advertiser 83139, ibuture.com, US dollars) on Home Gear World. Wave 3 (approvals file of
-// chat 7, 16 Nov 2026, lessons L170). Feed of 17 Nov 2026: 41 products: cordless vacuums (30) and car jump starters
+// chat 7, 16 Nov 2026, lessons L171). Feed of 17 Nov 2026: 41 products: cordless vacuums (30) and car jump starters
 // (11, left out: no car site among the older ones). US plugs: shown only to the US.
 import { clean } from './lib/wave3-legacy.mjs';
 

@@ -1,4 +1,4 @@
-// The three US fragrance shops of wave 3 (CJ: FragranceShop.com, Perfumania, Fragrance Outlet; lessons L170): one card
+// The three US fragrance shops of wave 3 (CJ: FragranceShop.com, Perfumania, Fragrance Outlet; lessons L171): one card
 // per fragrance and size, women's and unisex scents on WGW (Beauty & Fragrances), men's on MGW (Grooming & Fragrances),
 // never a tester, an unboxed bottle, a "type" oil or another copy of a famous scent, never a children's character set.
 import { clean, CHARACTER, FRAGRANCE_COPY, TESTER, fragranceFor, fragranceSub } from './wave3-legacy.mjs';

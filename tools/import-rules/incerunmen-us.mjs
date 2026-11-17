@@ -1,5 +1,5 @@
 // Import rules for Incerunmen (Awin advertiser 70534, incerunmen.com, US dollars) on Men's Gear World. Wave 3 (approvals
-// file of chat 7, 16 Nov 2026, lessons L170). Feed of 17 Nov 2026: two feeds, 45,843 rows in dollars and 7,377 in euros
+// file of chat 7, 16 Nov 2026, lessons L171). Feed of 17 Nov 2026: two feeds, 45,843 rows in dollars and 7,377 in euros
 // (the same pages; the euro rows are left out by the currency check), 3,785 pages of men's fashion: shirts, tanks,
 // T-shirts, knitwear, two-piece outfits, trousers, shorts. Names end with the shop code and the option ("... SKUL10706 -
 // Apricot / S"): the card stops before them. Swimwear briefs, harnesses and sheer underwear left out. At most

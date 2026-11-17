@@ -67,7 +67,7 @@ test('country groups (L151): the UK sees only what delivers there, the US its ow
   assert.deepEqual(g('PL').only, ['AliExpress PL', 'Ottocast', 'Tanie-Opony.pl'], 'Poland: not the Dutch feed of VEVOR (L165)');
   // Construction: Reidl to Germany and Austria; VEVOR the EEA; GRABO worldwide.
   const c = cc => viewFor(config.cgw, cc, NOW);
-  // Wave 3 (L170): the US torch makers, Tameson and Walabot only to the US.
+  // Wave 3 (L171): the US torch makers, Tameson and Walabot only to the US.
   assert.deepEqual(c('GB').hidden, ['AliExpress PL', 'NITECORE Store', 'Reidl', 'Skilhunt', 'Tameson', 'VEVOR', 'WUBEN', 'Walabot']);
   for (const cc of ['FR', 'CH']) assert.equal(c(cc).group, 'all', `CGW ${cc}`);
   // Reidl's feed is in German (L165): Germany and Austria see the all view plus Reidl; the others never see it.
@@ -76,7 +76,7 @@ test('country groups (L151): the UK sees only what delivers there, the US its ow
   // Women's: 100% PURE to the EU, Switzerland and Norway, FOREO to the EU; Jeulia and Dream Pairs to the US only; MASON
   // New York and Needs No Label to the UK and the US (round 2b, 14 Nov 2026).
   // Round 2 of the mass import (15 Nov 2026, L164): TEMU, Dima Eyewear, Grey State and Kixies to the US, Xpluswear to the EU.
-  // Wave 3 (16 Nov 2026, L170): the US beauty, fragrance, eyewear, shoe and watch shops only to the US.
+  // Wave 3 (16 Nov 2026, L171): the US beauty, fragrance, eyewear, shoe and watch shops only to the US.
   assert.deepEqual(viewFor(config.wgw, 'GB', NOW).hidden, ['100% PURE', 'AliExpress PL', 'Amore Mall', 'Bazta IE', 'Chamaripa', 'Deluvia', 'Dima Eyewear', 'Dream Pairs', 'FOREO', 'Fragrance Outlet', 'FragranceShop.com', 'Grey State',
     'Invicta Stores', 'Jeulia', 'Kixies', 'Lensmart', 'NORTIV 8', 'PandaHall', 'Perfumania', 'Plusshop IE', 'TEMU', 'TSAR BOMBA', 'Ublins', 'Uhrcenter', 'Xpluswear', 'eCosmetics', 'eFootwear']);
   // Uhrcenter's feed is in German (L165): Switzerland, one of its German-speaking countries, sees it; France does not.
@@ -244,7 +244,7 @@ test('L151: the Hub\'s search keeps the views of before L151 (hubViewFor) until 
   assert.deepEqual(h(config.agw, 'CH').only, ['Ottocast']);
   assert.deepEqual(h(config.agw, 'ES').only, ['Neumaticos.es', 'Ottocast', 'neumaticos-online.es'], 'round 2c (L144) and wave 3 (L169): the Spanish tyre shops');
   for (const cc of ['GB', 'US', 'CA', 'JP', '']) assert.deepEqual(h(config.agw, cc).hidden, ['AliExpress PL', 'Autobandenmarkt.nl', 'Neumaticos.es', 'Ottocast', 'Pneumatici.it', 'Pneus.be', 'ReifenDirekt.at', 'Tanie-Opony.pl', 'VEVOR', 'neumaticos-online.es'], `AGW ${cc || 'unknown'}: the UK view`);
-  assert.deepEqual(h(config.cgw, 'US').only, ['GRABO', 'NITECORE Store', 'Skilhunt', 'Tameson', 'WUBEN', 'Walabot'], 'the US view of L141 (and the US shops of wave 3, L170)');
+  assert.deepEqual(h(config.cgw, 'US').only, ['GRABO', 'NITECORE Store', 'Skilhunt', 'Tameson', 'WUBEN', 'Walabot'], 'the US view of L141 (and the US shops of wave 3, L171)');
   assert.deepEqual(h(config.cgw, 'AT').only, ['GRABO', 'Reidl', 'VEVOR']);
   // TGW since round 2c (L144): MonsGeek delivers to Germany (a view of its own, as before L151); nobody to Malta (the UK view).
   assert.deepEqual(h(config.tgw, 'DE').only, ['MonsGeek']);

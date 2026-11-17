@@ -1,5 +1,5 @@
 // Import rules for Walabot (Awin advertiser 69986, shop.walabot.com, US dollars) on Construction Gear World. Wave 3
-// (approvals file of chat 7, 16 Nov 2026, lessons L170). Feed of 17 Nov 2026: 14 rows, 12 pages: the Walabot DIY wall
+// (approvals file of chat 7, 16 Nov 2026, lessons L171). Feed of 17 Nov 2026: 14 rows, 12 pages: the Walabot DIY wall
 // scanners (stud, pipe and wire finders for a phone) and their bundles, plus cables, cases and accessory packs (left
 // out). CGW Hand Tools holds more than 20,000 products: the scanners go to Site Equipment. Shown only to the US.
 import { clean } from './lib/wave3-legacy.mjs';

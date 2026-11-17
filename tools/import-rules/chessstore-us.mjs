@@ -1,5 +1,5 @@
 // Import rules for The Chess Store (Awin advertiser 88289, thechessstore.com, US dollars) on Kids Gear World. Wave 3
-// (approvals file of chat 7, 16 Nov 2026, lessons L170). Feed of 17 Nov 2026: 2,308 products: chess sets, boards,
+// (approvals file of chat 7, 16 Nov 2026, lessons L171). Feed of 17 Nov 2026: 2,308 products: chess sets, boards,
 // pieces, clocks, boxes and bags, some collector sets up to $2,900. KGW keeps chess in Toys & Games > Board Games; only
 // sets, boards, pieces and clocks up to RULES.maxPrice, at most RULES.maxPerSubcategory of them (lessons L164).
 // US shop: shown only to the US.

@@ -1,5 +1,5 @@
 // Import rules for NITECORE Store (Awin advertiser 81173, US dollars) on Construction Gear World. Wave 3 (approvals
-// file of chat 7, 16 Nov 2026, lessons L170). Feed of 17 Nov 2026: 126 rows, 86 products (all on one page address,
+// file of chat 7, 16 Nov 2026, lessons L171). Feed of 17 Nov 2026: 126 rows, 86 products (all on one page address,
 // the product code in its query): flashlights, keychain lights, headlamps, a hunting kit. Shared placing in
 // lib/torch-us.mjs. US shop: shown only to the US.
 import { placeTorch } from './lib/torch-us.mjs';

@@ -69,7 +69,7 @@ export default {
   deliversTo: { default: ['GB'], retailers: { 'AliExpress PL': ['PL'], 'Bazta IE': ['IE'], 'Plusshop IE': ['IE'], 'Dream Pairs': ['US'], 'Kaiya Baby': ['US'], 'Diecast Models Wholesale': ['US'],
     // Mass import round 2 (15 Nov 2026, lessons L164): TEMU's US feed and UPPER only to the US, in dollars.
     TEMU: ['US'], UPPER: ['US'],
-    // Wave 3 (approvals file of chat 7, 16 Nov 2026, lessons L170): the US shops only to the US.
+    // Wave 3 (approvals file of chat 7, 16 Nov 2026, lessons L171): the US shops only to the US.
     'NORTIV 8': ['US'], 'The Chess Store': ['US'], Robotime: ['US'], Moonkie: ['US'], Reima: ['US'],
     'BC Babycare': ['US'], Destira: ['US'] } },
   foreignCurrencies: ['USD', 'PLN'],

@@ -1,4 +1,4 @@
-// Shared words for the wave 3 shops on the six older sites (approvals file of chat 7, 16 Nov 2026, lessons L170):
+// Shared words for the wave 3 shops on the six older sites (approvals file of chat 7, 16 Nov 2026, lessons L171):
 // who a product is for, and the subcategory of clothes, shoes and fragrances by the words of its name. The subcategory
 // names are the ones each site already uses (live databases of 17 Nov 2026), never new ones (lessons L56).
 export const W = list => new RegExp('(?<![a-z0-9])(' + list.join('|') + ')(?![a-z0-9])', 'i');

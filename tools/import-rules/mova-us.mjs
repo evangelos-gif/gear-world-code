@@ -1,5 +1,5 @@
 // Import rules for MOVA (CJ Affiliate advertiser 7906138 "MOVA North America", us.mova.tech, US dollars) on Home Gear
-// World and Garden Gear World. Wave 3 (approvals file of chat 7, 16 Nov 2026, lessons L170). Feed of 17 Nov 2026: 285
+// World and Garden Gear World. Wave 3 (approvals file of chat 7, 16 Nov 2026, lessons L171). Feed of 17 Nov 2026: 285
 // rows, the US shop in dollars (158) and the Canadian one in Canadian dollars (127, left out by the shop address):
 // robot and wet-and-dry vacuums (HGW), string trimmers, blowers and robot mowers (GGW), and many mop pads, filters,
 // bags and batteries (left out). US plugs: shown only to the US.

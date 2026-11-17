@@ -1,5 +1,5 @@
 // Import rules for TSAR BOMBA (Awin advertiser 109230 "TSAR BOMBA Watches", tsarbomba.com, US dollars) on Men's Gear
-// World and Women's Gear World. Wave 3 (approvals file of chat 7, 16 Nov 2026, lessons L170). Feed of 17 Nov 2026: 10
+// World and Women's Gear World. Wave 3 (approvals file of chat 7, 16 Nov 2026, lessons L171). Feed of 17 Nov 2026: 10
 // feeds, one per country and language (euros, pesos, francs; German, Italian, Dutch, Portuguese names); only the dollar
 // rows (English names, 528 rows) go in, the rest is left out by the currency check. Automatic, skeleton and quartz men's
 // watches; a few women's ones go to WGW. Shown only to the US.

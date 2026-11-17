@@ -1,5 +1,5 @@
 // Import rules for Reima (Awin advertiser 92285, us.reima.com, US dollars) on Kids Gear World. Wave 3 (approvals file of
-// chat 7, 16 Nov 2026, lessons L170). Feed of 17 Nov 2026: 6,626 rows (one per size and colour), 244 pages of Finnish
+// chat 7, 16 Nov 2026, lessons L171). Feed of 17 Nov 2026: 6,626 rows (one per size and colour), 244 pages of Finnish
 // children's outdoor clothing: snowsuits, winter jackets, ski pants, rain and UV clothing, swimwear, base layers, hats,
 // mittens and winter boots. Shown only to the US (the US shop).
 import { clean } from './lib/wave3-legacy.mjs';

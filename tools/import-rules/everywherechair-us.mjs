@@ -1,5 +1,5 @@
 // Import rules for Everywhere Chair (Awin advertiser 88003, everywherechair.com, US dollars) on Garden Gear World. Wave 3
-// (approvals file of chat 7, 16 Nov 2026, lessons L170). Feed of 17 Nov 2026: 180 products: folding, director's and
+// (approvals file of chat 7, 16 Nov 2026, lessons L171). Feed of 17 Nov 2026: 180 products: folding, director's and
 // beach chairs, stools and camp tables of several makers, plus many replacement covers, cushions and cup holders (left
 // out). US shop: shown only to the US.
 import { clean } from './lib/wave3-legacy.mjs';

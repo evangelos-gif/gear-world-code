@@ -1,4 +1,4 @@
-// Wave 3 on the six older sites (approvals file of chat 7, 16 Nov 2026, lessons L170): 41 new Awin and CJ shops on HGW,
+// Wave 3 on the six older sites (approvals file of chat 7, 16 Nov 2026, lessons L171): 41 new Awin and CJ shops on HGW,
 // GGW, WGW, MGW, KGW and CGW. Each shop's rules place its products in subcategories the site already has (L56), the
 // US shops are shown only to the US and Zepter (euros) only to the EU, and the big catalogues keep at most
 // RULES.maxPerSubcategory cards per subcategory (L164).
@@ -23,7 +23,7 @@ const place = (key, name, extra = {}) => {
   return r.reject ? `out: ${r.reject}` : `${r.site} ${r.siteCategory} > ${r.subcategory}`;
 };
 
-test('L170: each shop is shown where it delivers: US shops only to the US, Zepter to the EU, the pound shops in the UK view', () => {
+test('L171: each shop is shown where it delivers: US shops only to the US, Zepter to the EU, the pound shops in the UK view', () => {
   for (const k of KEYS) {
     const R = rules[k].RULES;
     assert.equal(R.key, k);
@@ -41,13 +41,13 @@ test('L170: each shop is shown where it delivers: US shops only to the US, Zepte
   const names = new Set(KEYS.map(k => rules[k].RULES.retailer));
   for (const s of Object.keys(config)) {
     const text = readFileSync(`sites/${s}/site.config.js`, 'utf8');
-    const block = text.slice(text.indexOf('lessons L170'));
+    const block = text.slice(text.indexOf('lessons L171'));
     const listed = [...block.slice(0, block.indexOf('}')).matchAll(/'([^']+)': \[|(\w+): \[/g)].map(m => m[1] || m[2]);
     for (const n of listed) assert.ok(names.has(n), `${s}: ${n} has wave 3 rules`);
   }
 });
 
-test('L170: the shared words: who it is for, the last garment word, shoes', () => {
+test('L171: the shared words: who it is for, the last garment word, shoes', () => {
   assert.equal(audience("Asics Gel Kayano 27 Men's Running Shoe"), 'men');
   assert.equal(audience("Hoka One One Mach 2 Women's Medieval Blue"), 'women');
   assert.equal(audience('Kids Quick Dry Water Shoes'), 'kids');
@@ -61,7 +61,7 @@ test('L170: the shared words: who it is for, the last garment word, shoes', () =
   assert.equal(shoeSub('Pointed Heels', 'mgw'), 'Shoes', 'MGW has no Heels');
 });
 
-test('L170: Home and Garden shops: the site\'s own subcategories, parts and samples out', () => {
+test('L171: Home and Garden shops: the site\'s own subcategories, parts and samples out', () => {
   assert.equal(place('sleepzone-us', 'Wrap Around Ruffled Bed Skirts'), 'hgw Bedding & Bath > Bed Linen', 'a bed skirt is not a bed');
   assert.equal(place('sleepzone-us', 'Fabric Shower Curtain - Retro Striped Farmhouse Style for Bathroom'), 'hgw Bedding & Bath > Bathroom Accessories');
   assert.equal(place('blindsmagic-us', 'BlindsMagic Smart Motorized Roller Shades 100% Blackout Melody'), 'hgw Home Decor > Blinds', 'motorized shades are blinds');
@@ -96,7 +96,7 @@ test('L170: Home and Garden shops: the site\'s own subcategories, parts and samp
   assert.equal(rules['zepter-eu'].displayName('ZEPTER MULTI-TOOL WITH GIFT BOX'), 'Zepter Multi-Tool With Gift Box');
 });
 
-test('L170: Women\'s and Men\'s shops: fragrances by who they are for, never a copy, a tester or a character set', () => {
+test('L171: Women\'s and Men\'s shops: fragrances by who they are for, never a copy, a tester or a character set', () => {
   const f = (name, cat = '', brand = '', url = '') => { const r = placeFragrance(name, cat, brand, url); return r.reject ? `out: ${r.reject}` : `${r.site} ${r.subcategory} | ${r.name}`; };
   assert.equal(f('Montblanc Legend Perfume - 1.7 oz.', 'Eau De Toilette', 'Montblanc', 'https://perfumania.com/products/montblanc-legend-for-men-edt'), 'mgw Fragrance | Montblanc Legend Perfume - 1.7 oz.', 'the page says for men');
   assert.equal(f('Skin Couture Perfume - 3.4  oz.', 'Eau De Parfum', 'Armaf'), 'wgw Fragrance | Armaf Skin Couture Perfume - 3.4 oz.', 'the maker in front');
@@ -136,7 +136,7 @@ test('L170: Women\'s and Men\'s shops: fragrances by who they are for, never a c
   assert.equal(rules['nortiv8-us'].displayName('ActiveFloat  Men s Comfortable Lightweight Running Shoes'), "ActiveFloat Men's Comfortable Lightweight Running Shoes");
 });
 
-test('L170: Construction and Kids shops: lights to Site Equipment, nothing more in Hand Tools; chess, toys and baby goods', () => {
+test('L171: Construction and Kids shops: lights to Site Equipment, nothing more in Hand Tools; chess, toys and baby goods', () => {
   assert.equal(place('wuben-us', 'WUBEN L50 1200 Lumens LED Flashlight'), 'cgw Site Equipment > Lighting');
   assert.match(place('wuben-us', 'WUBEN AC1 White Silicone flashlight diffuser'), /^out:/);
   assert.match(place('skilhunt-us', 'BL-135 3500mAh 18650 Protected Battery'), /^out:/);
@@ -168,11 +168,11 @@ test('L170: Construction and Kids shops: lights to Site Equipment, nothing more 
   assert.equal(place('destira-us', 'Spellbound Leotard', { feedCategory: 'Leotard' }), 'kgw Clothing > Dancewear');
 });
 
-test('L170: every wave 3 rules file is named in this test, and none is left without a site', () => {
+test('L171: every wave 3 rules file is named in this test, and none is left without a site', () => {
   const files = readdirSync('tools/import-rules').filter(f => f.endsWith('.mjs'));
   for (const f of files) {
     const text = readFileSync(`tools/import-rules/${f}`, 'utf8');
-    if (/lessons L170/.test(text.slice(0, 600))) assert.ok(KEYS.includes(f.replace(/\.mjs$/, '')), `${f}: listed in KEYS`);
+    if (/lessons L171/.test(text.slice(0, 600))) assert.ok(KEYS.includes(f.replace(/\.mjs$/, '')), `${f}: listed in KEYS`);
   }
   for (const k of KEYS) assert.ok(rules[k].RULES.sites.length >= 1 && rules[k].RULES.sites.every(s => config[s]), k);
 });

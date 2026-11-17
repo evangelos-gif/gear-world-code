@@ -1,5 +1,5 @@
 // Import rules for Chamaripa (Awin advertiser 90789, chamaripashoes.com, US dollars) on Men's Gear World and Women's Gear
-// World. Wave 3 (approvals file of chat 7, 16 Nov 2026, lessons L170). Feed of 17 Nov 2026: 346 height-increasing
+// World. Wave 3 (approvals file of chat 7, 16 Nov 2026, lessons L171). Feed of 17 Nov 2026: 346 height-increasing
 // ("elevator") shoes, boots and sneakers in leather and suede, most for men, some for women. Shown only to the US.
 import { clean, audience, shoeSub } from './lib/wave3-legacy.mjs';
 

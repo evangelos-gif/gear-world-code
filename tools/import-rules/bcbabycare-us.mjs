@@ -1,5 +1,5 @@
 // Import rules for BC Babycare (CJ Affiliate advertiser 7582444 "Bc Babycare", bcbabycare.com, US dollars) on Kids Gear
-// World. Wave 3 (approvals file of chat 7, 16 Nov 2026, lessons L170). Feed of 17 Nov 2026: 201 rows (one per colour or
+// World. Wave 3 (approvals file of chat 7, 16 Nov 2026, lessons L171). Feed of 17 Nov 2026: 201 rows (one per colour or
 // size), 62 pages: Cloud Skin nappies and trial packs, baby wipes and lotion tissues, sippy and straw cups, feeding
 // sets, a balance scooter. Shown only to the US.
 import { clean } from './lib/wave3-legacy.mjs';

@@ -1,5 +1,5 @@
 // Import rules for Tameson (Awin advertiser 110596 "Tameson (USA)", tameson.com, US dollars) on Construction Gear World.
-// Wave 3 (approvals file of chat 7, 16 Nov 2026, lessons L170). Feed of 17 Nov 2026: 115,726 industrial products (valves
+// Wave 3 (approvals file of chat 7, 16 Nov 2026, lessons L171). Feed of 17 Nov 2026: 115,726 industrial products (valves
 // 44,177, fittings 18,666, electrical 17,517, pneumatics 12,006, sealants and tapes 11,051, measurement, hose). CGW's
 // Hand Tools already holds more than 20,000 products, so nothing goes there: valves, fittings, pneumatics, hose and
 // gauges go to Site Equipment > Industrial Equipment, sealants, adhesives and tapes to Site Equipment > DIY, and at most

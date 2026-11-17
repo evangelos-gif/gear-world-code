@@ -1,5 +1,5 @@
 // Import rules for Sleep Zone (Awin advertiser 79814 "SOUTH POINT HOME FASHIONS (Sleep Zone)", sleepzonelife.com, US
-// dollars) on Home Gear World. Wave 3 (approvals file of chat 7, 16 Nov 2026, lessons L170). Feed of 17 Nov 2026: 673
+// dollars) on Home Gear World. Wave 3 (approvals file of chat 7, 16 Nov 2026, lessons L171). Feed of 17 Nov 2026: 673
 // rows, 82 pages: sheets, duvet covers, comforters, toppers, throws, shower curtains. Shown only to the US.
 import { homePlace, homeName } from './lib/hgw-home.mjs';
 import { clean } from './lib/wave3-legacy.mjs';

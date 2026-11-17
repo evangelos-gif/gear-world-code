@@ -1,5 +1,5 @@
 // Import rules for NORTIV 8 (Awin advertiser 76026 "NORTIV 8 Shoes", nortiv8.com, US dollars) on Men's Gear World,
-// Women's Gear World and Kids Gear World. Wave 3 (approvals file of chat 7, 16 Nov 2026, lessons L170). Feed of 17 Nov
+// Women's Gear World and Kids Gear World. Wave 3 (approvals file of chat 7, 16 Nov 2026, lessons L171). Feed of 17 Nov
 // 2026: 4,382 rows, 147 pages: running and walking shoes, work and hiking boots, snow boots, sandals, water shoes; the
 // audience in the name ("Men s", "Women s", "Kids"). Shown only to the US (US sizes).
 import { clean, audience, shoeSub } from './lib/wave3-legacy.mjs';

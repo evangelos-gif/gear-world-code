@@ -1,5 +1,5 @@
 // Import rules for PandaHall (Awin advertiser 88751, pandahall.com, US dollars) on Women's Gear World. Wave 3 (approvals
-// file of chat 7, 16 Nov 2026, lessons L170). Feed of 17 Nov 2026: 47,574 jewellery-making supplies (beads, charms,
+// file of chat 7, 16 Nov 2026, lessons L171). Feed of 17 Nov 2026: 47,574 jewellery-making supplies (beads, charms,
 // pendants, chains, findings, tools) from the English shop (www, 18,978) and the French, German, Spanish and Italian
 // ones (left out by the shop address: their names are in those languages). They go to Women's Jewellery > Jewellery
 // Making & Beads, at most RULES.maxPerSubcategory of them (lessons L164), never with famous brand or character names

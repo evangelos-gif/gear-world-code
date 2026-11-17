@@ -1,5 +1,5 @@
 // Import rules for Yale Home UK (Awin advertiser 19571, yalehome.co.uk, pounds) on Home Gear World. Wave 3 (approvals
-// file of chat 7, 16 Nov 2026, lessons L170). Feed of 17 Nov 2026: 423 rows: smart locks and keypads, alarms and their
+// file of chat 7, 16 Nov 2026, lessons L171). Feed of 17 Nov 2026: 423 rows: smart locks and keypads, alarms and their
 // sensors, cameras and video doorbells, and also mechanical locks, padlocks, key blanks and safes. HGW has a Smart Home
 // category and no locks-and-safes one, so only the smart and security products go in. UK shop: the site's default (GB).
 import { clean } from './lib/wave3-legacy.mjs';

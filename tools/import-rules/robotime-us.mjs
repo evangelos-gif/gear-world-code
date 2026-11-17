@@ -1,5 +1,5 @@
 // Import rules for Robotime (Awin advertiser 93543 "Robotimeonline", robotimeonline.com, US dollars) on Kids Gear World.
-// Wave 3 (approvals file of chat 7, 16 Nov 2026, lessons L170). Feed of 17 Nov 2026: 525 rows, 376 pages: Rolife DIY
+// Wave 3 (approvals file of chat 7, 16 Nov 2026, lessons L171). Feed of 17 Nov 2026: 525 rows, 376 pages: Rolife DIY
 // miniature houses and 3D wooden puzzles (Toy Craft Kits), ROBUD wooden play kitchens, doll furniture and toddler toys,
 // and laser-cutting plywood sheets (left out). US shop: shown only to the US.
 import { clean } from './lib/wave3-legacy.mjs';

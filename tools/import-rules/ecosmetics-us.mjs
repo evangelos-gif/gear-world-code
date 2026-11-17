@@ -1,5 +1,5 @@
 // Import rules for eCosmetics (CJ Affiliate advertiser 5384937 "eCosmetics.com", ecosmetics.com, US dollars) on Women's
-// Gear World and Men's Gear World. Wave 3 (approvals file of chat 7, 16 Nov 2026, lessons L170). Feed of 17 Nov 2026:
+// Gear World and Men's Gear World. Wave 3 (approvals file of chat 7, 16 Nov 2026, lessons L171). Feed of 17 Nov 2026:
 // 41,506 rows, 29,560 pages with category paths ("Fragrance > Womens Fragrance > Perfume", "Makeup > Face >
 // Foundation", "Hair > Shampoo & Conditioner > Shampoo"). Each path has its WGW subcategory (men's fragrance and men's
 // hair care go to MGW); clothing, home, candles, wellness and hair extensions left out. At most RULES.maxPerSubcategory

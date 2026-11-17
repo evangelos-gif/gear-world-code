@@ -1,5 +1,5 @@
 // Import rules for Garvee (Awin advertiser 52725 "Garvee Innovation Inc", garvee.com, US dollars) on Home Gear World
-// and Garden Gear World. Wave 3 (approvals file of chat 7, 16 Nov 2026, lessons L170). Feed of 17 Nov 2026: 89,995
+// and Garden Gear World. Wave 3 (approvals file of chat 7, 16 Nov 2026, lessons L171). Feed of 17 Nov 2026: 89,995
 // rows, 49,336 pages, a marketplace-size catalogue: rugs and floor mats (17,971), furniture (8,398), garden (4,706),
 // car and truck parts, tools, toys, pets, fitness, farm and industrial equipment. Only the home and garden groups,
 // placed by the shared HGW and GGW words (read on the head of the name), and at most RULES.maxPerSubcategory cards in

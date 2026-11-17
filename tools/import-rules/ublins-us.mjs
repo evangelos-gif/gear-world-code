@@ -1,5 +1,5 @@
 // Import rules for Ublins (Awin advertiser 60707, ublins.com, US dollars) on Women's Gear World. Wave 3 (approvals file
-// of chat 7, 16 Nov 2026, lessons L170). Feed of 17 Nov 2026: 222 eyeglass frames ("Rhoda Oval Gray Frame"): WGW's
+// of chat 7, 16 Nov 2026, lessons L171). Feed of 17 Nov 2026: 222 eyeglass frames ("Rhoda Oval Gray Frame"): WGW's
 // Bags & Accessories > Eyeglasses. US shop: shown only to the US.
 import { clean } from './lib/wave3-legacy.mjs';
 

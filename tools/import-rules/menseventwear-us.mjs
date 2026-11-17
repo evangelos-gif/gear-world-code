@@ -1,5 +1,5 @@
 // Import rules for Menseventwear (Awin advertiser 56383 "menseventwear", menseventwear.com, US dollars) on Men's Gear
-// World. Wave 3 (approvals file of chat 7, 16 Nov 2026, lessons L170). Feed of 17 Nov 2026: 1,861 rows (one per size and
+// World. Wave 3 (approvals file of chat 7, 16 Nov 2026, lessons L171). Feed of 17 Nov 2026: 1,861 rows (one per size and
 // colour), 490 pages: two- and three-piece suits and tuxedos, blazers, waistcoats, coats, trousers. The card takes the
 // words all options share (no size or colour, lessons L117). Shown only to the US.
 import { clean, menClothSub } from './lib/wave3-legacy.mjs';

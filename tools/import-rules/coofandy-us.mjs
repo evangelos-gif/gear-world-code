@@ -1,5 +1,5 @@
 // Import rules for COOFANDY (CJ Affiliate advertiser 7636568, coofandy.com, US dollars) on Men's Gear World. Wave 3
-// (approvals file of chat 7, 16 Nov 2026, lessons L170). Feed of 17 Nov 2026: 5,564 rows (one per colour and size), 160
+// (approvals file of chat 7, 16 Nov 2026, lessons L171). Feed of 17 Nov 2026: 5,564 rows (one per colour and size), 160
 // pages of men's casual and smart clothing: shirts, sweaters, vests, T-shirts, blazers, trousers. Names end with "(US
 // Only), <colour> / <size>": the card stops before them and takes the words all options share (lessons L117).
 // Shown only to the US.

@@ -1,5 +1,5 @@
 // Import rules for Moonkie (Awin advertiser 68278, moonkieshop.com, US dollars) on Kids Gear World. Wave 3 (approvals
-// file of chat 7, 16 Nov 2026, lessons L170). Feed of 17 Nov 2026: 152 rows, 97 pages of silicone baby products:
+// file of chat 7, 16 Nov 2026, lessons L171). Feed of 17 Nov 2026: 152 rows, 97 pages of silicone baby products:
 // pacifiers, teethers, stacking cups, bath and beach toys, bibs, feeding sets, breast pumps; "Personalized Service"
 // left out. US shop: shown only to the US.
 import { clean } from './lib/wave3-legacy.mjs';

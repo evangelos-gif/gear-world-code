@@ -1,5 +1,5 @@
 // Import rules for Zepter (CJ Affiliate advertiser 7341377 "Zepter Europe", shop.zepter.com, euros) on Home Gear World.
-// Wave 3 (approvals file of chat 7, 16 Nov 2026, lessons L170). Feed of 17 Nov 2026: 4,782 products from many country
+// Wave 3 (approvals file of chat 7, 16 Nov 2026, lessons L171). Feed of 17 Nov 2026: 4,782 products from many country
 // shops (zepter.ro in lei, zepter.rs in dinars, zepter.pl in zloty, German, Czech, Polish names ...). Only the English
 // European shop (shop.zepter.com, 404 products in euros) goes in, and from it only cookware, knives, tableware, glasses
 // and cutlery (Kitchen & Dining); beauty, coffee capsules, therapy lamps and water filters left out.

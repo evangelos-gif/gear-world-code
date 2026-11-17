@@ -1,5 +1,5 @@
 // Import rules for VO (Awin advertiser 20371, vo.clothing, pounds) on Women's Gear World and Kids Gear World. Wave 3
-// (approvals file of chat 7, 16 Nov 2026, lessons L170). Feed of 17 Nov 2026: 10,000 rows (one per size and colour),
+// (approvals file of chat 7, 16 Nov 2026, lessons L171). Feed of 17 Nov 2026: 10,000 rows (one per size and colour),
 // 364 pages: vegan embroidered hoodies, sweatshirts and T-shirts (unisex), and the same for kids and babies. Adult ones
 // go to WGW Clothing (the group chat 7 chose), children's ones to KGW Clothing. UK shop: the sites' default (GB).
 import { clean } from './lib/wave3-legacy.mjs';

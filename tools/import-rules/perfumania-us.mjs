@@ -1,5 +1,5 @@
 // Import rules for Perfumania (CJ Affiliate advertiser 904674, US dollars) on Women's Gear World (women's and unisex
-// scents) and Men's Gear World (men's colognes). Wave 3 (approvals file of chat 7, 16 Nov 2026, lessons L170). Feed
+// scents) and Men's Gear World (men's colognes). Wave 3 (approvals file of chat 7, 16 Nov 2026, lessons L171). Feed
 // of 17 Nov 2026: 5,786 rows, 4,240 pages: eau de parfum and eau de toilette, gift sets, body sprays, some skin care
 // ("Beauty"); the maker is in brand_name, not always in the name. Shared placing in lib/fragrance-us.mjs. At most
 // RULES.maxPerSubcategory cards per subcategory (lessons L164: WGW Beauty & Fragrances has about 15,000 products and

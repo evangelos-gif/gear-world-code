@@ -1,5 +1,5 @@
 // Import rules for Lensmart (Awin advertiser 93517, lensmartonline.com, US dollars) on Women's Gear World. Wave 3
-// (approvals file of chat 7, 16 Nov 2026, lessons L170). Feed of 17 Nov 2026: 2,090 eyeglass frames named only by the
+// (approvals file of chat 7, 16 Nov 2026, lessons L171). Feed of 17 Nov 2026: 2,090 eyeglass frames named only by the
 // model ("Zuri", "Kahlil"): the card says "<model> Glasses" (or sunglasses when the page says so). WGW keeps frames in
 // Bags & Accessories > Eyeglasses, at most RULES.maxPerSubcategory per subcategory (lessons L164). US shop: shown only
 // to the US.

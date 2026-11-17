@@ -1,5 +1,5 @@
 // Import rules for Amore Mall (CJ Affiliate advertiser 7468134, global.amoremall.com, Amorepacific's global shop, US
-// dollars) on Women's Gear World. Wave 3 (approvals file of chat 7, 16 Nov 2026, lessons L170). Feed of 17 Nov 2026:
+// dollars) on Women's Gear World. Wave 3 (approvals file of chat 7, 16 Nov 2026, lessons L171). Feed of 17 Nov 2026:
 // 1,550 rows, 1,276 pages, no categories: Korean make-up and skin care (TONEWORK, HERA, ETUDE, innisfree, Sulwhasoo,
 // IOPE ...), hair care, and OSULLOC teas (left out). One foundation has a page for each shade (TONEWORK alone 820): one
 // card per product line (the first five words of the name), named by the words its shades share. At most

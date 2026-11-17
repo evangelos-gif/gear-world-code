@@ -1,5 +1,5 @@
 // Import rules for eFootwear (Awin advertiser 90809 "eFootwear.com", efootwear.com, US dollars) on Men's Gear World and
-// Women's Gear World. Wave 3 (approvals file of chat 7, 16 Nov 2026, lessons L170). Feed of 17 Nov 2026: 1,186 shoes of
+// Women's Gear World. Wave 3 (approvals file of chat 7, 16 Nov 2026, lessons L171). Feed of 17 Nov 2026: 1,186 shoes of
 // known makers (Adidas, Asics, Hoka, Under Armour, Hey Dude ...) from an authorised US shoe shop, the audience in the
 // name ("Men's", "Women's", "Mens"). Children's shoes and accessories left out. Shown only to the US (US sizes).
 import { clean, audience, shoeSub } from './lib/wave3-legacy.mjs';

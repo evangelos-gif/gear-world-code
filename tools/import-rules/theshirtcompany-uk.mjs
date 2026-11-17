@@ -1,5 +1,5 @@
 // Import rules for The Shirt Company (Awin advertiser 115010, theshirtcompany.com, pounds) on Women's Gear World. Wave 3
-// (approvals file of chat 7, 16 Nov 2026, lessons L170; suggested for Men's, but the feed of 17 Nov 2026 is women's
+// (approvals file of chat 7, 16 Nov 2026, lessons L171; suggested for Men's, but the feed of 17 Nov 2026 is women's
 // shirts, blouses and shirt dresses: 627 rows, 98 pages, plus bow ties, collars and sleeve bands). UK shop: the site's
 // default (GB).
 import { clean } from './lib/wave3-legacy.mjs';

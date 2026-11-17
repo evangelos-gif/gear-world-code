@@ -1,5 +1,5 @@
 // Import rules for Buycoolshirts (Awin advertiser 77304 "Buycoolshirts.com", buycoolshirts.com, US dollars) on Men's Gear
-// World. Wave 3 (approvals file of chat 7, 16 Nov 2026, lessons L170). Feed of 17 Nov 2026: 48,709 graphic tees in 210
+// World. Wave 3 (approvals file of chat 7, 16 Nov 2026, lessons L171). Feed of 17 Nov 2026: 48,709 graphic tees in 210
 // shop groups, most of them film, TV, band, comic and cartoon merchandise (Batman, Star Trek, AC/DC ...). Only the plain
 // sport, yoga, fitness and tie-dye groups go in (no characters, artists or slogans), men's and unisex adult
 // sizes only, and at most RULES.maxPerSubcategory cards per subcategory (lessons L164). Shown only to the US.

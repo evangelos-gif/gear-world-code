@@ -77,7 +77,7 @@ export default {
     'Invicta Stores': ['AT', 'BE', 'BG', 'CY', 'CZ', 'DE', 'DK', 'EE', 'FI', 'FR', 'GR', 'HR', 'HU', 'IE', 'IT', 'LT', 'LU', 'LV', 'MT', 'NL', 'PL', 'RO', 'SE', 'SI', 'SK', 'CH', 'NO', 'IS'],
     // Mass import round 2 (15 Nov 2026, lessons L164): TEMU's US feed only to the US, in dollars ("≈ £…" needs USD).
     TEMU: ['US'],
-    // Wave 3 (approvals file of chat 7, 16 Nov 2026, lessons L170): the US shops only to the US.
+    // Wave 3 (approvals file of chat 7, 16 Nov 2026, lessons L171): the US shops only to the US.
     'FragranceShop.com': ['US'], Perfumania: ['US'], 'Fragrance Outlet': ['US'], eCosmetics: ['US'],
     Buycoolshirts: ['US'], eFootwear: ['US'], Menseventwear: ['US'], 'NORTIV 8': ['US'], Incerunmen: ['US'],
     'TSAR BOMBA': ['US'], Chamaripa: ['US'], COOFANDY: ['US'] }, languages: { Uhrcenter: 'de' } },

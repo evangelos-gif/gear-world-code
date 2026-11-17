@@ -1,5 +1,5 @@
 // Import rules for INSPECIAL HOME (Awin advertiser 84569, inspecialhome.com, US dollars) on Home Gear World. Wave 3
-// (approvals file of chat 7, 16 Nov 2026, lessons L170). Feed of 17 Nov 2026: 725 rows, 274 pages, no categories;
+// (approvals file of chat 7, 16 Nov 2026, lessons L171). Feed of 17 Nov 2026: 725 rows, 274 pages, no categories;
 // whimsical vases, mugs, trays, cushions, bathrobes, a few lamps. US shop: shown only to the US (deliversTo ['US']).
 import { homePlace, homeName, notHome } from './lib/hgw-home.mjs';
 import { clean } from './lib/wave3-legacy.mjs';

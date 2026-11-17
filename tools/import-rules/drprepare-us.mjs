@@ -1,5 +1,5 @@
 // Import rules for Dr.Prepare (Awin advertiser 66310, drprepare.com, US dollars) on Home Gear World. Wave 3 (approvals
-// file of chat 7, 16 Nov 2026, lessons L170). Feed of 17 Nov 2026: 208 rows, 114 pages: fans, space heaters, and also
+// file of chat 7, 16 Nov 2026, lessons L171). Feed of 17 Nov 2026: 208 rows, 114 pages: fans, space heaters, and also
 // camping gear, inverters, lithium batteries, work lights and clothes (left out). US plugs: shown only to the US.
 import { clean } from './lib/wave3-legacy.mjs';
 
