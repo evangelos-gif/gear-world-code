@@ -8,6 +8,7 @@ import { listCovers, cleanCountry } from './lib/visibility.js';
 import { OPEN_COUNTRIES, OPEN_RULE, openCheck } from './lib/open-countries.js';
 import { MAP_SIZE, MAP_EUROPE, MAP_SHAPES, MAP_DOTS } from './group-map.js';
 import { CONTINENTS, COUNTRY_CODES } from './group-countries.js';
+import { linkLanguage } from './lib/country-language.js';
 
 export { CONTINENTS, COUNTRY_CODES };
 
@@ -484,9 +485,14 @@ ${hasNumbers(stats) ? html`<section class="wrap section" id="countries" aria-lab
 // for search engines (noindex, follow) and not in the sitemap; the home page links to it.
 // A site's address for one country (owner, 15 Nov 2026, lessons L160): the site shows only what delivers there, with
 // a bar that says so (?for=<cc>, src/engine.js). Only the Group links this way.
+// Since L184 (owner, 17 Nov 2026) also in that country's language (?lang=, src/lib/country-language.js): the United
+// States page opens the sites in English even on a phone that kept another language; Belgium, Switzerland, Luxembourg
+// and Canada name none.
 export function browseLink(url, cc) {
   const u = new URL(url);
   u.searchParams.set('for', String(cc).toLowerCase());
+  const lang = linkLanguage(cc);
+  if (lang) u.searchParams.set('lang', lang);
   return u.toString();
 }
 

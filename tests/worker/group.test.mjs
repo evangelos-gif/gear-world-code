@@ -347,7 +347,8 @@ test('L160: a country page lists the retailers that deliver there and opens each
   assert.ok(!/href="https:\/\/cargearworld\.com\/"/.test(page.split('id="by-site-h"')[1].split('</section>')[0]), 'no plain link to the UK view');
   assert.match(page, /<h2 id="retailers-h">Retailers that deliver to Belgium<\/h2>/);
   assert.match(page, /<li><span class="rn">Pneus\.be<\/span><span>1,000 products<\/span><\/li>/);
-  assert.equal(browseLink('https://cargearworld.com/', 'GR'), 'https://cargearworld.com/?for=gr');
+  // Since L184 in that country's language too (Belgium above names none: several languages).
+  assert.equal(browseLink('https://cargearworld.com/', 'GR'), 'https://cargearworld.com/?for=gr&lang=el-GR');
   // A country no retailer delivers to: no list, no links.
   const none = countryPage(site, stats, 'IS');
   assert.ok(!none.includes('retailers-h') || stats.countries.IS.list.length > 0);
@@ -423,4 +424,45 @@ test('L179: cachedStats keeps a sum with a late site 5 minutes and every site\'s
   } finally {
     globalThis.caches = realCaches;
   }
+});
+
+// ---- Owner, 17 Nov 2026 (lessons L184): the United States page opened Women's Gear World in Polish ----
+import { COUNTRY_LANGUAGES, MULTI_LANGUAGE_COUNTRIES, linkLanguage, BASE_LANGUAGE } from '../../src/lib/country-language.js';
+import * as engine from '../../src/engine.js';
+
+test('L184: every Group country page opens each site in that country\'s language, a language every site has', async () => {
+  const SITE_CODES = ['agw', 'bgw', 'cgw', 'ggw', 'hgw', 'kgw', 'mgw', 'pgw', 'sgw', 'tgw', 'vgw', 'wgw', 'zgw'];
+  const siteLanguages = [];
+  for (const code of SITE_CODES) {
+    const cfg = (await import(`../../sites/${code}/site.config.js`)).default;
+    siteLanguages.push([code, new Set((cfg.languages || []).map(l => l.code))]);
+  }
+  for (const cc of COUNTRY_CODES) {
+    const link = new URL(browseLink('https://womensgearworld.com/', cc));
+    assert.equal(link.searchParams.get('for'), cc.toLowerCase(), cc);
+    const lang = link.searchParams.get('lang');
+    if (MULTI_LANGUAGE_COUNTRIES[cc]) {
+      assert.equal(lang, null, `${cc}: several languages, the link names none`);
+      continue;
+    }
+    assert.equal(lang, COUNTRY_LANGUAGES[cc] || 'en-GB', cc);
+    for (const [code, langs] of siteLanguages) assert.ok(langs.has(lang), `${cc}: ${code} has ${lang}`);
+  }
+  assert.equal(linkLanguage('US'), 'en-GB');
+  assert.equal(linkLanguage('gb'), 'en-GB');
+  assert.equal(linkLanguage('PL'), 'pl-PL');
+  assert.equal(linkLanguage('CY'), 'el-GR');
+  assert.equal(linkLanguage('CA'), '');
+  assert.equal(linkLanguage(''), '');
+  assert.equal(linkLanguage('../'), '');
+  assert.equal(BASE_LANGUAGE, 'en-GB');
+  // The sites and the Group read the same lists.
+  assert.equal(engine.COUNTRY_LANGUAGES, COUNTRY_LANGUAGES);
+  assert.equal(engine.MULTI_LANGUAGE_COUNTRIES, MULTI_LANGUAGE_COUNTRIES);
+  assert.equal(engine.countryLanguage({ languages: [{ code: 'el-GR' }] }, 'GR'), 'el-GR');
+  // On the pages: the United States in English, Germany in German, Belgium as before.
+  const stats = await networkStats(site, fakeFetch(NEW_STATS));
+  assert.match(countryPage(site, stats, 'US'), /<a href="https:\/\/constructiongearworld\.com\/\?for=us&amp;lang=en-GB">Construction Gear World<\/a>/);
+  assert.match(countryPage(site, stats, 'DE'), /<a href="https:\/\/cargearworld\.com\/\?for=de&amp;lang=de-DE">Car Gear World<\/a>/);
+  assert.match(countryPage(site, stats, 'BE'), /<a href="https:\/\/cargearworld\.com\/\?for=be">Car Gear World<\/a>/);
 });

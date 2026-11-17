@@ -23,6 +23,7 @@ import { guidePage, guidesIndexPage, findGuide, guideProductIds, listedGuides, a
 import { viewFor, hubViewFor, browseView, homeView, hiddenReason, needsCheck, cacheKeyUrl, needsUkBar, retailerInView, cleanCountry, now as clockNow } from './lib/visibility.js';
 import { deliveryCountries } from './lib/delivery.js';
 import { remindProbe, REMIND_UNTIL, REMIND_URL, REMIND_PATH } from './lib/remind.js';
+import { COUNTRY_LANGUAGES, MULTI_LANGUAGE_COUNTRIES } from './lib/country-language.js';
 
 // Gear World Hub keeps the one list of members; sites reach it only through a service binding (lessons L92).
 // The address is not public: requests from the internet never carry this host name.
@@ -775,22 +776,8 @@ export async function withUkBar(response, barHtml = null) {
 // a country whose language the site has gets it without a choice of their own. The visitor's own choice (menu or
 // ?lang=) always comes first, and Google reads English as before. A country with several languages of the sites takes
 // the first of the browser's languages that is one of them; English first, or none of them, keeps English.
-export const COUNTRY_LANGUAGES = {
-  PL: 'pl-PL',
-  GR: 'el-GR', CY: 'el-GR',
-  DE: 'de-DE', AT: 'de-DE', LI: 'de-DE',
-  FR: 'fr-FR', MC: 'fr-FR', RE: 'fr-FR', GP: 'fr-FR', MQ: 'fr-FR', GF: 'fr-FR', YT: 'fr-FR', MF: 'fr-FR', BL: 'fr-FR',
-  PM: 'fr-FR', NC: 'fr-FR', PF: 'fr-FR', WF: 'fr-FR',
-  IT: 'it-IT', SM: 'it-IT', VA: 'it-IT',
-  ES: 'es-ES', MX: 'es-ES', AR: 'es-ES', CO: 'es-ES', CL: 'es-ES', PE: 'es-ES', VE: 'es-ES', EC: 'es-ES', GT: 'es-ES',
-  CU: 'es-ES', BO: 'es-ES', DO: 'es-ES', HN: 'es-ES', PY: 'es-ES', SV: 'es-ES', NI: 'es-ES', CR: 'es-ES', PA: 'es-ES',
-  UY: 'es-ES',
-  PT: 'pt-PT', BR: 'pt-PT', AO: 'pt-PT', MZ: 'pt-PT',
-  NL: 'nl-NL', SR: 'nl-NL', AW: 'nl-NL', CW: 'nl-NL', SX: 'nl-NL', BQ: 'nl-NL',
-  AL: 'sq-AL', XK: 'sq-AL',
-  RO: 'ro-RO', MD: 'ro-RO',
-  RU: 'ru-RU', BY: 'ru-RU'
-};
+// The lists are in src/lib/country-language.js, shared with the Group's country pages (L184).
+export { COUNTRY_LANGUAGES, MULTI_LANGUAGE_COUNTRIES };
 // Crawlers read English, Google's (they count as the UK) and every other one; the network's own checks (QA_BOT, L158)
 // can still ask a country.
 export const OTHER_CRAWLER = /(?<!cu)bot\b|bot\/|crawler|spider|slurp|bingpreview|facebookexternalhit|embedly/i; // not Cubot phones
@@ -798,8 +785,6 @@ export function readsEnglish(request) {
   const ua = request.headers.get('user-agent') || '';
   return !QA_BOT.test(ua) && OTHER_CRAWLER.test(ua);
 }
-// Canada: English unless the browser asks French first.
-export const MULTI_LANGUAGE_COUNTRIES = { BE: ['nl-NL', 'fr-FR', 'de-DE'], CH: ['de-DE', 'fr-FR', 'it-IT'], LU: ['fr-FR', 'de-DE'], CA: ['fr-FR'] };
 // The browser's languages by preference (q weights; q=0 means "not this one"), as base codes: "fr-BE,fr;q=0.9" -> fr.
 export function browserLanguages(header) {
   return String(header || '').split(',').map((part, i) => {
