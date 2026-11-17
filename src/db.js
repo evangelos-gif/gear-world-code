@@ -13,6 +13,7 @@ const NATIVE_CARD_COLUMNS = `id, product_name, product_slug, brand, retailer, ca
 import { visibleSql, hiddenReason } from './lib/visibility.js';
 import { shownCountries } from './lib/delivery.js';
 import { searchMatch, searchPlan, SEARCH_WINDOW } from './lib/search-rank.js';
+import { isDbBusy } from './lib/http.js';
 
 // The legacy layout also returns the old category name: Gear World Hub search shows it (lessons L22).
 let CARD_COLUMNS = NATIVE_CARD_COLUMNS;
@@ -472,7 +473,11 @@ export async function listProducts(db, filters, { sort = 'featured', page = 1, p
   const plan = filters && filters.search && normalizeSort(sort) === 'featured' ? searchPlan(filters.search, LAYOUT.site) : null;
   if (plan) {
     try { return await listRanked(db, filters, f, plan, order, page, perPage, offset); }
-    catch (err) { console.error('search order failed, featured order instead', err); }
+    catch (err) {
+      // A busy database is not a fault of the order: no second, heavier query now (the page's stale copy or 503, L159).
+      if (isDbBusy(err)) throw err;
+      console.error('search order failed, featured order instead', err);
+    }
   }
   if (await fastMode(db)) {
     try { return await listFast(db, filters, f, normalizeSort(sort), order, page, perPage, offset); }

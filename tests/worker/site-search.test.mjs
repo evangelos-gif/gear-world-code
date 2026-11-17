@@ -54,25 +54,37 @@ function oldShop(rows) {
 }
 const names = r => r.products.map(p => p.product_name);
 
-test('L179: the words a search finds: the singular, a few true synonyms, the word a site says by itself', () => {
+test('L179: the words a search finds: as typed (as before), a few true synonyms, no possessive, the site\'s own word', () => {
   assert.equal(searchMatch('drill'), '"drill"*');
-  assert.equal(searchMatch('boots'), '"boot"*', '"boots" also finds "Chelsea Boot"');
-  assert.equal(searchMatch('running shoes'), '"running"* AND "shoe"*');
-  assert.equal(searchMatch('watches'), '"watch"*');
-  assert.equal(searchMatch('batteries'), '("batteries"* OR "battery"*)');
-  assert.equal(searchMatch('glasses'), '"glasses"*', 'not "glass": a glass bottle is not glasses');
-  assert.equal(searchMatch('smartwatch'), '("smartwatch"* OR ("smart"* AND "watch"*))');
+  // No singular (the independent review of 17/11/2026): "braces" would find bracelets, "pens" pendants, and a word of
+  // another language that finds nothing (Polish "pies") must stay at 0 so the engine translates it.
+  assert.equal(searchMatch('braces'), '"braces"*');
+  assert.equal(searchMatch('pens'), '"pens"*');
+  assert.equal(searchMatch('pies', 'zgw'), '"pies"*');
+  assert.equal(searchMatch('running shoes'), '"running"* AND "shoes"*');
+  // Greek and Cyrillic stay as the index keeps them (it does not fold their accents).
+  assert.equal(searchMatch('παπούτσια'), '"παπούτσια"*');
+  assert.equal(searchMatch('Чайник ёмкость'), '"чайник"* AND "ёмкость"*');
+  assert.equal(searchMatch('Café'), '"cafe"*', 'Latin accents fold, as remove_diacritics does');
+  // True synonyms; two words as a phrase, a number exactly ("5" must not find "500GB").
+  assert.equal(searchMatch('smartwatch'), '("smartwatch"* OR "smart watch"*)');
   assert.equal(searchMatch('motorcycle cover'), '("motorcycle"* OR "motorbike"*) AND "cover"*');
   assert.equal(searchMatch('bbq'), '("bbq"* OR "barbecue"*)');
-  assert.equal(searchMatch('ps5'), '("ps5"* OR ("playstation"* AND "5"*))');
+  assert.equal(searchMatch('ps5'), '("ps5"* OR "playstation 5")');
   assert.equal(searchMatch('mobile', 'kgw'), '"mobile"*', 'a baby mobile, not phones');
-  assert.equal(searchMatch('perfume'), '("perfume"* OR "parfum"* OR ("eau"* AND "de"* AND "toilette"*))', 'not "fragrance": home fragrance is not perfume');
+  assert.equal(searchMatch('perfume'), '("perfume"* OR "parfum"* OR "eau de toilette"*)', 'not "fragrance": home fragrance is not perfume');
+  // The possessive 's (straight or a phone's curly one) is not a word every product must have.
+  assert.equal(searchMatch("women's boots"), '"women"* AND "boots"*');
+  assert.equal(searchMatch('kid’s bike'), '"kid"* AND ("bike"* OR "bicycle"*)');
+  assert.equal(searchMatch("O'Neill"), '"o"* AND "neill"*', 'not a possessive: as the index splits it');
   // A Gear World's own word is left out when other words remain.
-  assert.equal(searchMatch('womens boots', 'wgw'), '"boot"*');
-  assert.equal(searchMatch('womens', 'wgw'), '"women"*', 'alone it stays (its singular also finds "Women\'s")');
+  assert.equal(searchMatch('womens boots', 'wgw'), '"boots"*');
+  assert.equal(searchMatch("women's boots", 'wgw'), '"boots"*');
+  assert.equal(searchMatch('womens', 'wgw'), '"womens"*', 'alone it stays');
   assert.equal(searchMatch('mens watch', 'mgw'), '"watch"*');
-  assert.equal(searchMatch('mens watch', 'tgw'), '"men"* AND "watch"*', 'another site keeps it');
+  assert.equal(searchMatch('mens watch', 'tgw'), '"mens"* AND "watch"*', 'another site keeps it');
   assert.equal(searchMatch('kids bike', 'kgw'), '("bike"* OR "bicycle"*)');
+  assert.equal(searchMatch('childrens shoes', 'kgw'), '"shoes"*');
   // Safe for the search index whatever is typed (as ftsQuery, lessons L13), and never an inherited key.
   assert.equal(searchMatch('USB-C "charger"; DROP TABLE'), '"usb"* AND "c"* AND "charger"* AND "drop"* AND "table"*');
   assert.equal(searchMatch('***'), '');
@@ -81,6 +93,26 @@ test('L179: the words a search finds: the singular, a few true synonyms, the wor
   assert.equal(searchMatch('a b c d e f g h i j'), '"a"* AND "b"* AND "c"* AND "d"* AND "e"* AND "f"* AND "g"* AND "h"*', 'at most 8 words');
   assert.equal(ftsQuery('drill'), '"drill"*', 'the old expression is kept for anything else');
   assert.equal(rankStem('hoodies'), 'hoody');
+});
+
+test('L179: the words match exactly what the old expression matched, on both index layouts, for every typed word', () => {
+  const names = ['Braces with Clips', 'Gold Bracelet', 'Pens Set', 'Silver Pendant', 'Shepherd\'s Pie', 'Παπούτσια για τρέξιμο',
+    'Чайник электрический', 'Café Table', 'USB-C Charger 65W', 'PlayStation 5 Console', 'PS4 500GB', 'Smart Watch Black', 'Smartwatch Pro'];
+  for (const schema of [agwSchema, read('tests/fixtures/ggw-legacy-schema.sql')]) {
+    const d = memD1(schema);
+    const legacy = /site_category/.test(schema);
+    const ins = legacy
+      ? d.sql.prepare("INSERT INTO products (awin_product_id, retailer, site_category, product_name, price, affiliate_url) VALUES (?, 'S', 'X', ?, 1, 'x')")
+      : d.sql.prepare("INSERT INTO products (stable_key, awin_advertiser_id, merchant_product_id, retailer, category_slug, product_name, product_slug, price, currency, in_stock, image_url, affiliate_url, last_seen_at, first_seen_at) VALUES (?, 1, ?, 'S', 'x', ?, ?, 1, 'GBP', 1, 'i', 'a', 't', 't')");
+    names.forEach((n, i) => (legacy ? ins.run(`a${i}`, n) : ins.run(`k${i}`, `m${i}`, n, `s${i}`)));
+    const hit = q => d.sql.prepare('SELECT rowid FROM products_fts WHERE products_fts MATCH ? ORDER BY rowid').all(q).map(r => Number(r.rowid));
+    for (const q of ['braces', 'pens', 'pies', 'παπούτσια', 'чайник', 'café', 'usb-c', 'charger', 'gold']) {
+      assert.deepEqual(hit(searchMatch(q)), hit(ftsQuery(q)), `${legacy ? 'older' : 'newer'} layout: ${q}`);
+    }
+    // The synonyms add exactly what they say.
+    assert.deepEqual(hit(searchMatch('smartwatch')).length, 2);
+    assert.deepEqual(hit(searchMatch('ps5')).map(id => names[id - 1]), ['PlayStation 5 Console'], 'not "PS4 500GB"');
+  }
 });
 
 test('L179: "drill" (newer layout): the drills first, then the bits; the brush, the toy and the trousers lower', async () => {
@@ -146,16 +178,31 @@ test('L179: the rough order of the database and its copy in JavaScript agree on 
     ['Duvet Cover Double', 'Bedding'], ['Hungarian Goose Down Duvet 13.5 Tog', 'Duvets'], ['Chelsea Boot Tassels', 'Accessories'],
     ['Suede Chelsea Boot', 'Boots'], ['Pretend Play Kettle Toy', 'Toys'], ['Kettle and Toaster Set', 'Kettles'],
     ['Cat Litter Tray', 'Cat Litter'], ['Cat Toy Mouse', 'Cat Toys'], ['Clumping Cat Litter 10L', 'Cat Litter'],
-    ['Glass Kettle with Tea Infuser', ''], ['Hedge Trimmer Blade Cover', 'Hedge Trimmers'], ['Cordless Hedge Trimmer 18V', 'Hedge Trimmers']
+    ['Glass Kettle with Tea Infuser', ''], ['Hedge Trimmer Blade Cover', 'Hedge Trimmers'], ['Cordless Hedge Trimmer 18V', 'Hedge Trimmers'],
+    ["Children's Bike 16 inch", 'Kids Bikes'], ["O'Neill Boots", 'Boots'], ['Zip Hoodie Grey', 'Hoodies'], ['Beanie Hat', 'Hats'],
+    ['Smart Watch Series 9', 'Smart Watches'], ['Smartwatch GT', ''], ['PlayStation 5 Console', 'Consoles'], ['FIFA 25 (PS5)', 'Games'],
+    ['Παπούτσια τρεξίματος', ''], ['Чайник электрический', ''], ['Café Crème Mug', ''], ['Drill | Brushless 18V', 'Drills'],
+    ['Drill Brush Set', 'Cleaning'], ['Dyson V15 Detect', 'Vacuums'], ['Filter for Dyson V15', 'Vacuum Parts'], ['Kettle-Descaler', '']
   ];
   const d = newShop(rows.map(([n, s]) => [n, s, 'garage-tools-equipment']));
   useLayout(agw);
-  for (const q of ['kettle', 'duvet', 'boots', 'cat litter', 'hedge trimmer', 'kettle toy', 'trimmer cover']) {
+  for (const q of ['kettle', 'duvet', 'boots', 'cat litter', 'hedge trimmer', 'kettle toy', 'trimmer cover', "children's bike", 'bike',
+    'boots', 'hoodie', 'hoodies', 'beanie', 'smartwatch', 'smart watch', 'ps5', 'παπούτσια', 'чайник', 'café', 'drill', 'dyson', 'kettle descaler']) {
     const plan = searchPlan(q, { code: 'agw', categories: agw.categories });
     const expr = plan.coarse.sql.replace(/ DESC$/, '');
-    const sqlScores = d.sql.prepare(`SELECT p.id, p.product_name, p.subcategory, p.category_slug, ${expr} AS s FROM products p ORDER BY p.id`).all(...plan.coarse.binds);
+    // Only the rows the search matches reach the rough order (as in listRanked).
+    const sqlScores = d.sql.prepare(`SELECT p.id, p.product_name, p.subcategory, p.category_slug, p.brand, ${expr} AS s FROM products p
+      WHERE p.id IN (SELECT rowid FROM products_fts WHERE products_fts MATCH ?) ORDER BY p.id`).all(...plan.coarse.binds, plan.match);
     for (const r of sqlScores) assert.equal(plan.coarseScore(r), Number(r.s), `${q}: ${r.product_name}`);
   }
+  // The rough order knows the -ie words and the two-word synonyms (the review of 17/11/2026).
+  const score = (q, n) => { const plan = searchPlan(q, { code: 'agw', categories: [] }); return plan.coarseScore({ product_name: n, subcategory: '', brand: '' }); };
+  assert.equal(score('hoodie', 'Zip Hoodie Grey'), 3);
+  assert.equal(score('smartwatch', 'Smart Watch Series 9'), 3);
+  assert.equal(score('smart watch', 'Smartwatch GT'), 3);
+  assert.equal(score('ps5', 'PlayStation 5 Console'), 3);
+  assert.equal(score('drill', 'Drill | Brushless 18V'), 3, 'brushless is not a brush');
+  assert.equal(score('drill', 'Drill Brush Set'), -1);
 });
 
 test('L179: Home Gear World (older layout, offers grouped): "kettle" and "duvet" give the item, not its accessory', async () => {
@@ -190,15 +237,19 @@ test('L179: Home Gear World (older layout, offers grouped): "kettle" and "duvet"
 test('L179: "womens boots" on Women\'s Gear World finds its boots, not only the names that say "womens"', async () => {
   const d = oldShop([
     ['Fairfax & Favor Suede Boot Tassels for Women', 'Shoe Accessories', 'Shoes', 30],
-    ['EMU Australia Platinum Slim Darling Boot', 'Boots', 'Shoes', 120],
+    ['EMU Australia Platinum Slim Darling Boots', 'Boots', 'Shoes', 120],
+    ['Chelsea Boot Black', 'Boots', 'Shoes', 90],
     ['Dune London Pheobe Knee High Boots', 'Boots', 'Shoes', 150],
     ['Womens Ankle Socks 5 Pack', 'Socks', 'Clothing', 8]
   ]);
   useLayout(wgw);
   const r = await listProducts(d, { search: 'womens boots', view: homeView(wgw, NOW) }, { page: 1, perPage: 8 });
-  assert.equal(r.total, 3, 'the boots and the tassels, not the socks');
-  assert.ok(/Boots?$/.test(r.products[0].product_name), r.products[0].product_name);
-  assert.equal(r.products[2].product_name, 'Fairfax & Favor Suede Boot Tassels for Women');
+  // The boots by name and the boot of the Boots subcategory (the index holds the subcategory); not the socks that say
+  // "Womens", and, as before, not a name with only the singular "Boot" outside it (the tassels).
+  assert.deepEqual(names(r).sort(), ['Chelsea Boot Black', 'Dune London Pheobe Knee High Boots', 'EMU Australia Platinum Slim Darling Boots']);
+  assert.ok(/Boots$/.test(r.products[0].product_name), r.products[0].product_name);
+  const apostrophe = await listProducts(d, { search: 'women\u2019s boots', view: homeView(wgw, NOW) }, { page: 1, perPage: 8 });
+  assert.equal(apostrophe.total, 3, 'the same with a phone\'s apostrophe');
 });
 
 test('L179: a fault in the order leaves the old order, never an empty page', async () => {
@@ -218,8 +269,37 @@ test('L179: the order reads no more rows than before: the same matches, three or
   await listProducts(d, { search: 'drill', view: homeView(agw, NOW) }, { page: 1, perPage: 24 });
   const window = d.seen.find(s => /THEN 4 ELSE 0 END/.test(s));
   assert.ok(window, 'the window query');
-  assert.equal((window.match(/products_fts MATCH \?/g) || []).length, 5, 'the search, the subcategory, the name, the accessories, the toys');
+  assert.equal((window.match(/products_fts MATCH \?/g) || []).length, 6, 'the search, the subcategory, the name, the brand, the accessories, the toys');
+  // Each look-up is narrowed to the search's own matches, and the accessories are exact words (not "brush"*: brushless).
+  const binds = searchPlan('drill', { code: 'agw', categories: agw.categories }).coarse.binds;
+  for (const b of binds.filter(x => /products_fts|:/.test(x))) assert.ok(b.startsWith('("drill"*) AND '), b.slice(0, 40));
+  assert.ok(!/"\*/.test(binds.find(b => /drill bit/.test(b)).split(' AND ')[1]), 'exact phrases');
   assert.match(window, /LIMIT \?$/);
-  const plan = d.sql.prepare(`EXPLAIN QUERY PLAN ${window}`).all(...searchPlan('drill', { code: 'agw', categories: agw.categories }).coarse.binds.map(() => null).concat([]));
-  assert.ok(plan.length > 0);
+});
+
+test('L179: Technology Gear World (newer layout, no grouping of offers): "tablet" gives tablets before cases and stands', async () => {
+  const tgw = (await import('../../sites/tgw/site.config.js')).default;
+  const d = newShop([
+    ...Array.from({ length: 12 }, (_, i) => [`Targus Tablet Case ${i} for iPad`, 'Tablet Cases', 'tablets-ereaders']),
+    ['Tablet Stand Adjustable', 'Stands', 'tablets-ereaders'],
+    ['Samsung Galaxy Tab S9 Tablet 128GB', 'Tablets', 'tablets-ereaders', 599],
+    ['Lenovo Tab M10 Tablet', 'Tablets', 'tablets-ereaders', 149]
+  ]);
+  useLayout(tgw);
+  const r = await listProducts(d, { search: 'tablet', view: homeView(tgw, NOW) }, { page: 1, perPage: 4 });
+  assert.equal(r.total, 15);
+  assert.deepEqual(names(r).slice(0, 2).sort(), ['Lenovo Tab M10 Tablet', 'Samsung Galaxy Tab S9 Tablet 128GB']);
+});
+
+test('L179: a busy database is not hidden behind a second, heavier query', async () => {
+  const d = newShop([['Cordless Drill', 'Drills']]);
+  const prepare = d.prepare;
+  let after = 0;
+  d.prepare = text => {
+    if (/THEN 4 ELSE 0 END/.test(text)) return { bind: () => ({ all: async () => { throw new Error('D1_ERROR: D1 DB is overloaded. Too many requests queued.'); } }) };
+    after++;
+    return prepare(text);
+  };
+  useLayout(agw);
+  await assert.rejects(listProducts(d, { search: 'drill', view: homeView(agw, NOW) }, { page: 1, perPage: 8 }), /overloaded/);
 });
