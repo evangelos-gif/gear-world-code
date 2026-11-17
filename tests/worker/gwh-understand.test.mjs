@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import { DatabaseSync } from 'node:sqlite';
 import { readFileSync } from 'node:fs';
 import hub, {
-  understandQuery, readPriceLimit, needsModelReading, readModelUnderstanding, mergeUnderstanding, rankHubResults
+  understandQuery, readPriceLimit, needsModelReading, readModelUnderstanding, mergeUnderstanding, rankHubResults, resetHubRates
 } from '../../sites/gwh/worker.js';
 
 const ROOT = new URL('../../sites/gwh/', import.meta.url);
@@ -46,7 +46,8 @@ function sitesFetch(products, rates = RATES) {
   const fetch = async (url) => {
     const u = new URL(url);
     if (u.pathname === '/api/fx') return rates ? Response.json(rates) : new Response('no', { status: 503 });
-    asked.push({ host: u.hostname, search: u.searchParams.get('search'), max: u.searchParams.get('max'), min: u.searchParams.get('min') });
+    asked.push({ host: u.hostname, search: u.searchParams.get('search'), max: u.searchParams.get('max'), min: u.searchParams.get('min'),
+      limit: u.searchParams.get('limit'), path: u.pathname });
     const list = (products[u.hostname] || []).filter(p => {
       const max = u.searchParams.get('max'), min = u.searchParams.get('min');
       return (max === null || p.price <= Number(max)) && (min === null || p.price >= Number(min));
@@ -56,7 +57,8 @@ function sitesFetch(products, rates = RATES) {
   return { fetch, asked };
 }
 
-async function search(q, { products = {}, ai = null, ua = BROWSER, extra = '', rates = RATES } = {}) {
+async function search(q, { products = {}, ai = null, ua = BROWSER, extra = '', rates = RATES, reset = true } = {}) {
+  if (reset) resetHubRates();
   const fake = sitesFetch(products, rates);
   const saved = globalThis.fetch;
   globalThis.fetch = fake.fetch;
@@ -111,7 +113,14 @@ test('L180 rules: the product, the price limit and who it is for, in 11 language
     ['dumbbells under 10 pounds', 'dumbbells', 10, null, 'GBP', null],
     ['gift for dad', 'gift', null, null, null, 'mgw'],
     ['toys for baby', 'toys', null, null, null, 'kgw'],
-    ['air max 90 under £100', 'air max 90', 100, null, 'GBP', null]
+    ['air max 90 under £100', 'air max 90', 100, null, 'GBP', null],
+    // Round 2 of the review:
+    ['buty od 100 do 200', 'buty', 200, 100, null, null],
+    ['κινητό από 200 μέχρι 400', 'κινητό', 400, 200, null, null],
+    ['telefon de la 500 pana la 1000 lei', 'telefon', 1000, 500, 'RON', null],
+    ['gifts for under £20', 'gifts', 20, null, 'GBP', null],
+    ['running shoes for my son for under £50', 'running shoes', 50, null, 'GBP', 'kgw'],
+    ['gift for mum', 'gift', null, null, null, 'wgw']
   ];
   for (const [q, item, max, min, currency, site] of cases) {
     const u = understandQuery(q);
@@ -130,7 +139,9 @@ test('L180 rules: what is not a sentence stays exactly as typed (brands, sizes, 
     'euro 6 diesel', 'funko pop ron 7', 'ladder up to 3 metres', 'hose up to 30 metres', 'trampoline under 8 ft',
     'battery up to 5 ah', 'up to 70% off', "jouets jusqu'à 12 mois", 'juguetes hasta 12 meses', 'παιχνίδια έως 12 μηνών',
     'toys for under 5', 'gift for over 60', 'uno cards', 'o ring', "O'Neill wetsuit", 'cos dress', 'Cheap Monday', 'dua lipa',
-    'apple iphone 15 pro max 256gb natural titanium', 'Für Sie magazine']) {
+    'apple iphone 15 pro max 256gb natural titanium', 'Für Sie magazine',
+    'zabawki od 3 do 5', 'ink for brother printer', 'toner for brother', "gift for mother's day", 'for sister act dvd', 'a to z map',
+    'a frame sign', 'schuhe größe 38 bis 42', 'need for speed', 'father christmas costume', 'size 8 to 10 trainers']) {
     const u = understandQuery(q);
     assert.equal(u.changed, false, q);
     assert.equal(u.item, q.replace(/\s+/g, ' ').trim(), q);
@@ -169,9 +180,9 @@ test('L180 search: the sites get the product and a wide price; another currency 
       'kidsgearworld.com': [tablet(3, 90, 'GBP'), tablet(4, 120, 'EUR', 'Kids Tablet EU')]
     }
   });
-  // £200 covers every currency of the sites: the widest is the leu (6.4 a pound), so the sites are asked up to 1,280.
-  const sites = asked.filter(a => a.search !== null);
-  assert.ok(sites.length > 0 && sites.every(a => a.search === 'tablet' && a.max === '1280' && a.min === null), JSON.stringify(sites));
+  // £200 for a UK visitor covers pounds, euros and dollars: the sites are asked up to 264 (the dollar), for 24 products.
+  const sites = asked.filter(a => a.path === '/api/products');
+  assert.ok(sites.length > 0 && sites.every(a => a.search === 'tablet' && a.max === '264' && a.min === null && a.limit === '24'), JSON.stringify(sites));
   assert.deepEqual(data.understood, { query: 'i want to buy a tablet for my son under £200', item: 'tablet', max_price: 200,
     min_price: null, currency: 'GBP', for: 'kids', site: 'kgw', source: 'rules', converted: true, search: 'tablet' });
   assert.deepEqual(data.results.map(r => r.id).sort(), [1, 3, 4], '€120 = £100 is under £200; £250 is over');
@@ -180,8 +191,12 @@ test('L180 search: the sites get the product and a wide price; another currency 
   const none = await search('i want to buy a tablet for my son under £200', { rates: null, products: {
     'technologygearworld.com': [tablet(1, 150, 'GBP', 'Tablet 10 inch')], 'kidsgearworld.com': [tablet(3, 90, 'GBP'), tablet(4, 120, 'EUR', 'Kids Tablet EU')] } });
   assert.deepEqual(none.data.results.map(r => r.id).sort(), [1, 3]);
-  assert.ok(none.asked.filter(a => a.search !== null).every(a => a.max === '200'));
+  assert.ok(none.asked.filter(a => a.path === '/api/products').every(a => a.max === '200' && a.limit === '8'));
   assert.equal(none.data.understood.converted, undefined);
+  // A failure of the rates is remembered: the next priced search does not wait for /api/fx again.
+  const again = await search('tablet under €300', { rates: null, reset: false, products: { 'kidsgearworld.com': [tablet(3, 90, 'GBP')] } });
+  assert.equal(again.asked.filter(a => a.path === '/api/fx').length, 0);
+  assert.deepEqual(again.data.results.map(r => r.id), [], 'a price in pounds is not compared with euros without rates');
   assert.equal(data.query, 'i want to buy a tablet for my son under £200', 'the words as typed stay in "query"');
   assert.deepEqual(data.filters.max_price, 200);
 });
@@ -206,8 +221,8 @@ test('L180 search: the rules also work for a bot (no cost); the model never does
   const rules = await search('i need a new laptop under £700', { ai, ua: 'GearWorldQA-bot/1.0 (+read-only check)' });
   assert.equal(ai.calls.length, 0);
   assert.equal(rules.data.understood.item, 'laptop');
-  // £700 in every currency of the sites: up to 4,480 (the leu), then the Hub compares in pounds.
-  assert.ok(rules.asked.filter(a => a.search !== null).every(a => a.search === 'laptop' && a.max === '4480'));
+  // £700 for a UK visitor: up to 924 (the dollar), then the Hub compares in pounds.
+  assert.ok(rules.asked.filter(a => a.path === '/api/products').every(a => a.search === 'laptop' && a.max === '924'));
 });
 
 test('L180 search: a long sentence is read by the model once, within the daily limit; a bad answer leaves the words as typed', async () => {
@@ -277,4 +292,26 @@ test('L180 ranking: an accessory shelf goes down; a person named pushes the othe
     { id: 3, site: 'kgw', product_name: "adidas Junior Pureboost Running Shoes", category: 'Shoes', subcategory: 'Trainers' }
   ];
   assert.deepEqual(rankHubResults(shoes.slice(), 'running shoes', 'kgw').map(p => p.id), [3, 2, 1], 'kids first, women\'s last');
+});
+
+test('L180 search: at most 8 per site from a wide limit; a product without a currency counts in pounds; złoty in Poland', async () => {
+  const many = Array.from({ length: 24 }, (_, i) => tablet(100 + i, 20 + i * 10, i % 2 ? 'GBP' : undefined, `Tablet ${i}`));
+  const { data } = await search('tablet under £200', { products: { 'technologygearworld.com': many } });
+  const tgw = data.results.filter(r => r.site === 'tgw');
+  assert.equal(tgw.length, 8, '8 per site, as always');
+  assert.ok(tgw.every(r => Number(r.price) <= 200));
+  // In Poland the złoty is one of the currencies: the sites are asked up to the limit in złoty.
+  resetHubRates();
+  const fake = sitesFetch({ 'kidsgearworld.com': [tablet(3, 300, 'PLN'), tablet(4, 100, 'GBP')] });
+  const saved = globalThis.fetch;
+  globalThis.fetch = fake.fetch;
+  try {
+    const env = { gear_world_registry: makeDb() };
+    const r = await hub.fetch(new Request(`https://gearworldhub.com/api/search?q=${encodeURIComponent('tablet do 600 zł')}&country=PL`, { headers: { 'User-Agent': BROWSER } }), env, {});
+    const d = await r.json();
+    assert.ok(fake.asked.filter(a => a.path === '/api/products').every(a => a.max === '600'), 'the złoty has the biggest numbers');
+    assert.deepEqual(d.results.map(x => x.id).sort(), [3, 4], '300 zł and £100 (525 zł) are under 600 zł');
+  } finally {
+    globalThis.fetch = saved;
+  }
 });

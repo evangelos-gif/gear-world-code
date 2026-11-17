@@ -40,7 +40,11 @@ async function guardedTranslation(env, kind, query, run) {
 // kept an hour in this data centre. A price the visitor wrote in euros or złoty is compared with a product's price in
 // pounds through them; without them a price in another currency is not compared (no rate is ever guessed).
 const FX_SOURCE = "https://homegearworld.com/api/fx";
+// A failure is remembered 10 minutes in this Worker, so a slow or broken /api/fx never slows every priced search.
+let fxDownUntil = 0;
+export function resetHubRates() { fxDownUntil = 0; }
 async function hubRates() {
+  if (Date.now() < fxDownUntil) return null;
   const cache = defaultCache();
   const key = new Request("https://gearworldhub.com/__fx-rates-1");
   try {
@@ -48,21 +52,22 @@ async function hubRates() {
     if (hit) return await hit.json();
   } catch (_) { /* read again below */ }
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 2500);
+  const timer = setTimeout(() => controller.abort(), 1500);
+  const down = () => { fxDownUntil = Date.now() + 10 * 60 * 1000; return null; };
   try {
     const r = await fetch(FX_SOURCE, { headers: { Accept: "application/json", "User-Agent": HUB_USER_AGENT }, signal: controller.signal });
-    if (!r.ok) return null;
+    if (!r.ok) return down();
     const d = await r.json();
-    if (!d || d.base !== "GBP" || !d.rates || typeof d.rates !== "object") return null;
+    if (!d || d.base !== "GBP" || !d.rates || typeof d.rates !== "object") return down();
     const rates = { GBP: 1 };
     for (const [code, value] of Object.entries(d.rates)) {
       if (/^[A-Z]{3}$/.test(code) && Number.isFinite(Number(value)) && Number(value) > 0) rates[code] = Number(value);
     }
-    if (Object.keys(rates).length < 2) return null;
+    if (Object.keys(rates).length < 2) return down();
     if (cache) await cache.put(key, new Response(JSON.stringify(rates), { headers: { "Cache-Control": "max-age=3600" } }));
     return rates;
   } catch (_) {
-    return null;
+    return down();
   } finally {
     clearTimeout(timer);
   }
@@ -273,14 +278,19 @@ const hubCore = {
       const priced = maxPrice !== null || minPrice !== null;
       // A price written in a currency (L180): the sites are asked with a wide limit that covers every currency they use
       // (they compare numbers), and the Hub compares each price in the visitor's currency at today's rate.
-      let siteMax = maxPrice, siteMin = minPrice, fx = null;
+      let siteMax = maxPrice, siteMin = minPrice, fx = null, perSite = 8;
       if (understood && understood.currency && priced) {
         fx = await hubRates();
         const written = fx && fx[understood.currency];
         if (written) {
-          const pool = ["GBP", "EUR", "PLN", "RON", "USD"].map(code => fx[code]).filter(Boolean);
+          // The currencies the products of this visitor's view can have: pounds, euros and dollars, and the visitor's
+          // own (złoty in Poland, lei in Romania). The sites compare numbers, so they are asked up to the limit in the
+          // currency with the biggest numbers, for 24 products, and the Hub keeps the first 8 that really fit.
+          const own = { PL: "PLN", RO: "RON" }[String(deliverTo || "").toUpperCase()];
+          const pool = ["GBP", "EUR", "USD", own, understood.currency].filter(Boolean).map(code => fx[code]).filter(Boolean);
           if (maxPrice !== null) siteMax = Math.min(10000000, Math.ceil(maxPrice / written * Math.max(...pool)));
           if (minPrice !== null) siteMin = Math.max(0, Math.floor(minPrice / written * Math.min(...pool)));
+          if (siteMax !== maxPrice || siteMin !== minPrice) perSite = 24;
           understood.converted = true;
         } else {
           fx = null;
@@ -341,7 +351,7 @@ const hubCore = {
           const endpoint = new URL("/api/products", site.base);
           endpoint.searchParams.set("search", term);
           endpoint.searchParams.set("page", "1");
-          endpoint.searchParams.set("limit", "8");
+          endpoint.searchParams.set("limit", String(perSite));
           if (deliverTo) endpoint.searchParams.set("deliver_to", deliverTo);
           // GWH-DELIVERY-BADGES (lessons L151, L153): every card of the Hub says where its retailer delivers (delivers_to
           // below), so the Hub asks for the site's own view of the country: since L151 a country that is not open sees
@@ -359,7 +369,7 @@ const hubCore = {
             });
             if (!response.ok) throw new Error(`${site.key} returned ${response.status}`);
             const data = await response.json();
-            return { site, products: Array.isArray(data.products) ? data.products.slice(0, 8) : [] };
+            return { site, products: Array.isArray(data.products) ? data.products.slice(0, perSite) : [] };
           } finally {
             clearTimeout(timeout);
           }
@@ -396,13 +406,14 @@ const hubCore = {
           }
           const { site, products } = outcome.value;
           for (const product of products) {
+            if (siteCounts[site.key] >= 8) break; // a wide price limit asks 24; the Hub keeps 8 per site, as always
             if (product.id === null || product.id === undefined) continue;
             if (priced) {
               let price = Number(product.price);
               // A price the visitor wrote in a currency ("under £200", "do 3000 zł") is compared in that currency: a
               // price in another one through today's rates of the sites, or not at all without them (L180).
               const wanted = understood && understood.currency;
-              const has = String(product.currency || "").toUpperCase();
+              const has = String(product.currency || (fx ? "GBP" : "")).toUpperCase(); // the sites' own currency
               if (wanted && has && has !== wanted) {
                 if (!(fx && fx[has] && fx[wanted])) continue;
                 price = price / fx[has] * fx[wanted];
@@ -1050,7 +1061,7 @@ const UQ_MIN_CUR = ["over", "above", "more than", "at least", "min", "minimum", 
   "mbi", "от", "больше", "дороже", "не менее"];
 // "between 50 and 100" is a price range also without a currency; "from 3 to 5" only with one (it is often an age).
 const UQ_RANGE_FREE = ["between", "μεταξύ", "μεταξυ", "zwischen", "entre", "tra", "fra", "tussen", "între", "intre"];
-const UQ_RANGE_START = [...UQ_RANGE_FREE, "from", "από", "απο", "od", "von", "nga", "от"];
+const UQ_RANGE_START = [...UQ_RANGE_FREE, "from", "από", "απο", "od", "von", "nga", "от", "de la", "de"];
 const UQ_RANGE_JOIN = ["-", "–", "—", "to", "and", "και", "έως", "εως", "μέχρι", "μεχρι", "do", "und", "bis", "et", "à", "a", "y", "e",
   "até", "ate", "tot", "en", "și", "si", "până la", "pana la", "deri në", "deri", "до", "и"];
 const uqWords = list => list.slice().sort((a, b) => b.length - a.length).map(w => uqEscape(w).replace(/ /g, "\\s+")).join("|");
@@ -1058,15 +1069,20 @@ const UQ_B = "(?<![\\p{L}\\p{N}])";
 const UQ_E = "(?![\\p{L}\\p{N}])";
 // An article or a lead never before an apostrophe or a hyphen ("O'Neill", "A-Line").
 const UQ_END = "(?![\\p{L}\\p{N}'’\\-])";
-const UQ_RANGE = new RegExp(`${UQ_B}(?:(${uqWords(UQ_RANGE_START)})\\s+)?${UQ_AMOUNT_RE}\\s*(?:${uqWords(UQ_RANGE_JOIN)})\\s*${UQ_AMOUNT_RE}${UQ_E}`, "giu");
+const UQ_RANGE = new RegExp(`${UQ_B}(?:(${uqWords(UQ_RANGE_START)})\\s+)?${UQ_AMOUNT_RE}\\s*(${uqWords(UQ_RANGE_JOIN)})\\s*${UQ_AMOUNT_RE}${UQ_E}`, "giu");
 const UQ_LIMIT = new RegExp(`${UQ_B}(${uqWords([...UQ_MAX_FREE, ...UQ_MAX_CUR, ...UQ_MIN_CUR])}|<=?|>=?)\\s*${UQ_AMOUNT_RE}${UQ_E}`, "giu");
 const UQ_PLAIN = new RegExp(`${UQ_B}${UQ_AMOUNT_RE}${UQ_E}`, "giu");
 const UQ_SET = list => new Set(list.map(w => w.toLowerCase()));
 const UQ_MAX_FREE_SET = UQ_SET(UQ_MAX_FREE);
 const UQ_MAX_CUR_SET = UQ_SET(UQ_MAX_CUR);
 const UQ_RANGE_FREE_SET = UQ_SET(UQ_RANGE_FREE);
-// "toys for under 5", «για κάτω από 3»: a price word right after "for" is about an age.
+// "toys for under 5", «για κάτω από 3»: a price word right after "for" is about an age (without a currency).
 const UQ_FOR_BEFORE = /(?:^|[^\p{L}\p{N}])(?:for|για|dla|für|fur|pour|para|per|voor|pentru|për|per|для)\s*$/iu;
+// "schuhe größe 38 bis 42", "size 8 to 10": sizes, not prices (without a currency).
+const UQ_SIZE_BEFORE = /(?:^|[^\p{L}\p{N}])(?:size|sizes|größe|grösse|groesse|rozmiar|μέγεθος|μεγεθος|νούμερο|νουμερο|taille|talla|taglia|tamanho|maat|mărime|marime|madhësia|madhesia|размер)(?:\s+\d+(?:[.,]\d+)?)?\s*$/iu;
+// A range without a currency is a price when it is joined by a price word ("od 100 do 200", «από 200 μέχρι 400») and its
+// top is 20 or more (smaller ones are mostly ages: "od 3 do 5").
+const UQ_RANGE_JOIN_PRICE = new Set(["do", "до", "μέχρι", "μεχρι", "έως", "εως", "bis", "până la", "pana la", "até", "ate", "deri", "deri në", "tot"]);
 
 function uqNumber(raw, thousand) {
   const s = String(raw || "").replace(/ /g, " ");
@@ -1094,14 +1110,17 @@ const uqCut = (s, m) => `${s.slice(0, m.index)} ${s.slice(m.index + m[0].length)
 // The price limit in a search, and the search without it.
 export function readPriceLimit(text) {
   const s = String(text || "");
+  // A range turned down (an age: "zabawki od 3 do 5") also turns down the price word inside it ("do 5").
+  const refused = [];
   for (const m of s.matchAll(UQ_RANGE)) {
-    const [, start, c1, n1, k1, c2, c3, n2, k2, c4] = m;
+    const [, start, c1, n1, k1, c2, join, c3, n2, k2, c4] = m;
     const currency = uqCurrency(c1, c2, c3, c4);
     const a = uqNumber(n1, k1), b = uqNumber(n2, k2);
-    const free = start && UQ_RANGE_FREE_SET.has(start.toLowerCase().replace(/\s+/g, " "));
-    if (a === null || b === null || a >= b || !(currency || free)) continue;
-    if (!currency && uqUnitAfter(s, m.index + m[0].length)) continue;
-    if (UQ_FOR_BEFORE.test(s.slice(0, m.index))) continue;
+    const free = (start && UQ_RANGE_FREE_SET.has(start.toLowerCase().replace(/\s+/g, " "))) ||
+      (UQ_RANGE_JOIN_PRICE.has(String(join).toLowerCase().replace(/\s+/g, " ")) && b >= 20);
+    const refuse = () => refused.push([m.index, m.index + m[0].length]);
+    if (a === null || b === null || a >= b || !(currency || free)) { refuse(); continue; }
+    if (!currency && (uqUnitAfter(s, m.index + m[0].length) || UQ_FOR_BEFORE.test(s.slice(0, m.index)) || UQ_SIZE_BEFORE.test(s.slice(0, m.index)))) { refuse(); continue; }
     return { min: a, max: b, currency, rest: uqCut(s, m) };
   }
   for (const m of s.matchAll(UQ_LIMIT)) {
@@ -1112,8 +1131,8 @@ export function readPriceLimit(text) {
     const isMax = UQ_MAX_FREE_SET.has(w) || UQ_MAX_CUR_SET.has(w) || w.startsWith("<");
     const needsCurrency = !(UQ_MAX_FREE_SET.has(w) || w.startsWith("<") || w.startsWith(">"));
     if (value === null || (needsCurrency && !currency)) continue;
-    if (!currency && uqUnitAfter(s, m.index + m[0].length)) continue;
-    if (UQ_FOR_BEFORE.test(s.slice(0, m.index))) continue;
+    if (!currency && refused.some(([from, to]) => m.index >= from && m.index < to)) continue;
+    if (!currency && (uqUnitAfter(s, m.index + m[0].length) || UQ_FOR_BEFORE.test(s.slice(0, m.index)) || UQ_SIZE_BEFORE.test(s.slice(0, m.index)))) continue;
     return { min: isMax ? null : value, max: isMax ? value : null, currency, rest: uqCut(s, m) };
   }
   for (const m of s.matchAll(UQ_PLAIN)) {
@@ -1122,7 +1141,7 @@ export function readPriceLimit(text) {
     const mark = c1 || (c2 && !UQ_CURRENCY_AMBIGUOUS.has(c2.toLowerCase()) ? c2 : null);
     const currency = uqCurrency(mark);
     const value = uqNumber(n, k);
-    if (currency && value !== null && !UQ_FOR_BEFORE.test(s.slice(0, m.index))) return { min: null, max: value, currency, rest: uqCut(s, m) };
+    if (currency && value !== null) return { min: null, max: value, currency, rest: uqCut(s, m) };
   }
   return null;
 }
@@ -1166,7 +1185,7 @@ const UQ_TRAIL = ["please", "pls", "plz", "thanks", "thank you", "cheap", "pas c
 const UQ_FOR = {
   kgw: ["for kids", "for a kid", "for my kid", "for my kids", "for children", "for a child", "for my child", "for my son",
     "for my daughter", "for a boy", "for a girl", "for boys", "for girls", "for my baby", "for a baby", "for babies", "for toddlers",
-    "for a toddler", "for my toddler", "for son", "for daughter", "for baby", "for a newborn", "for newborn", "για παιδιά", "για παιδια", "για παιδί", "για παιδι", "για το παιδί μου", "για το παιδι μου",
+    "for a toddler", "for my toddler", "for daughter", "for baby", "for a newborn", "for newborn", "για παιδιά", "για παιδια", "για παιδί", "για παιδι", "για το παιδί μου", "για το παιδι μου",
     "για τον γιο μου", "για την κόρη μου", "για την κορη μου", "για αγόρι", "για αγορι", "για κορίτσι", "για κοριτσι", "για μωρό",
     "για μωρο", "dla dzieci", "dla dziecka", "dla syna", "dla córki", "dla corki", "dla chłopca", "dla chlopca", "dla dziewczynki",
     "dla niemowlaka", "für kinder", "fur kinder", "für mein kind", "für meinen sohn", "für meine tochter", "für jungen", "für mädchen",
@@ -1178,7 +1197,7 @@ const UQ_FOR = {
     "pentru fiica mea", "për fëmijë", "per femije", "për djalin tim", "për vajzën time",
     "для детей", "для ребенка", "для ребёнка", "для сына", "для дочки", "для дочери"],
   wgw: ["for her", "for women", "for a woman", "for my wife", "for my girlfriend", "for my mum", "for my mom", "for my mother",
-    "for my sister", "for ladies", "for mum", "for mom", "for mother", "for wife", "for girlfriend", "for sister", "for grandma",
+    "for my sister", "for ladies", "for mum", "for mom", "for wife", "for girlfriend", "for grandma",
     "for my grandma", "for nan", "for my nan", "για γυναίκα", "για γυναικα", "για γυναίκες", "για γυναικες", "για τη γυναίκα μου",
     "για την γυναίκα μου", "για τη γυναικα μου", "για τη μητέρα μου", "για τη μαμά μου", "για την αδερφή μου", "για αυτήν",
     "για εκείνη", "για τη σύζυγό μου", "για την κοπέλα μου", "dla niej", "dla kobiety", "dla kobiet", "dla żony", "dla zony",
@@ -1190,7 +1209,7 @@ const UQ_FOR = {
     "pentru femei", "pentru soția mea", "pentru sotia mea", "pentru mama", "për gra", "per gra", "për gruan time", "për nënën time",
     "для неё", "для нее", "для женщин", "для жены", "для мамы", "для девушки"],
   mgw: ["for him", "for men", "for a man", "for my husband", "for my boyfriend", "for my dad", "for my father", "for my brother",
-    "for guys", "for dad", "for father", "for husband", "for boyfriend", "for brother", "for grandad", "for my grandad",
+    "for guys", "for dad", "for husband", "for boyfriend", "for grandad", "for my grandad",
     "for grandpa", "for my grandpa", "για άντρα", "για αντρα", "για άνδρα", "για ανδρα", "για άντρες", "για αντρες", "για τον άντρα μου",
     "για τον αντρα μου", "για τον μπαμπά μου", "για τον μπαμπα μου", "για τον πατέρα μου", "για τον αδερφό μου", "για αυτόν",
     "για εκείνον", "για τον σύζυγό μου", "dla niego", "dla mężczyzny", "dla mezczyzny", "dla mężczyzn", "dla męża", "dla meza",
@@ -1213,15 +1232,16 @@ const UQ_PETS = ["dog", "dogs", "puppy", "puppies", "cat", "cats", "kitten", "ki
   "pisică", "pisica", "qen", "mace", "собаки", "кошки"];
 const UQ_FOR_LIST = Object.entries(UQ_FOR).flatMap(([site, list]) => list.map(p => [p, site]))
   .sort((a, b) => b[0].length - a[0].length);
-const UQ_FOR_RE = new RegExp(`${UQ_B}(${uqWords(UQ_FOR_LIST.map(x => x[0]))})${UQ_E}`, "iu");
+const UQ_FOR_RE = new RegExp(`${UQ_B}(${uqWords(UQ_FOR_LIST.map(x => x[0]))})(?![\\p{L}\\p{N}'’\\-])`, "iu");
 const UQ_FOR_SITE = new Map(UQ_FOR_LIST.map(([p, s]) => [p.replace(/\s+/g, " "), s]));
 const UQ_PET_RE = new RegExp(`${UQ_B}(?:${uqWords(UQ_PET_LEAD)})\\s+(${uqWords(UQ_PETS)})(?:\\s+(?:mou|μου|mój|moja))?${UQ_E}`, "iu");
-const UQ_LEAD_RE = new RegExp(`^(?:${uqWords(UQ_LEAD)})${UQ_END}\\s*`, "iu");
+// Never a lead before "for" ("Need for Speed").
+const UQ_LEAD_RE = new RegExp(`^(?:${uqWords(UQ_LEAD)})${UQ_END}(?!\\s+for${UQ_E})\\s*`, "iu");
 const UQ_NEW_BRANDS = ["balance", "look", "era", "rock", "yorker", "line", "england", "forest"];
 const UQ_NEW_RE = new RegExp(`^(?:(?:${uqWords(UQ_ARTICLES)})\\s+)?(?:${uqWords(UQ_NEW)})${UQ_END}(?!\\s+(?:${uqWords(UQ_NEW_BRANDS)})${UQ_E})\\s*`, "iu");
 const UQ_ARTICLE_RE = new RegExp(`^(?:${uqWords(UQ_ARTICLES)})${UQ_END}\\s*`, "iu");
 // Only "a", "an" and "some" go at the start of a search without a lead ("a drill please").
-const UQ_START_RE = new RegExp(`^(?:a|an|some|something|anything)${UQ_END}\\s*`, "iu");
+const UQ_START_RE = new RegExp(`^(?:a|an|some|something|anything)${UQ_END}(?!\\s+(?:to|frame|line|z|level|list)${UQ_E})\\s*`, "iu");
 // "for" left at the end once a price or a person went ("toys for", "gift for").
 const UQ_DANGLING_RE = /\s+(?:for|with|για|με|dla|für|fur|pour|para|per|voor|pentru|për|для|под)$/iu;
 const UQ_TRAIL_RE = new RegExp(`\\s*${UQ_B}(?:${uqWords(UQ_TRAIL)})\\s*$`, "iu");
@@ -1484,10 +1504,13 @@ export function rankHubResults(results, query, prefer = null) {
     const toy = !askedForToy && order.some(t => RANK_TOY.has(t));
     if (toy) value -= 30;
     if (product.stock_status === "in_stock") value += 3;
-    // The push of 100 only for what the product IS on its shelf (a matching category) or by its name on a shelf of its
-    // kind (at least a partial category match): never for an accessory or a toy, and never for a name alone ("Drill
-    // Cotton Chino Trousers" for "drill for him"). Its other products: 20; its accessories and toys: nothing.
-    if (prefer && product.site === prefer) value += accessory || toy ? 0 : shelfType >= 60 || (nameAll && type >= 20) ? 100 : 20;
+    // The push of 100 for what the product IS on its shelf (a matching category) or by its name on a shelf of its kind
+    // (at least a partial category match); 60 for a name alone (kids' running shoes on a "Trainers" shelf: above the
+    // men's, never above a real drill for "Drill Cotton Chino Trousers"); 20 for its other products; nothing for its
+    // accessories and toys.
+    if (prefer && product.site === prefer) {
+      value += accessory || toy ? 0 : shelfType >= 60 || (nameAll && type >= 20) ? 100 : nameAll ? 60 : 20;
+    }
     else if (prefer && (RANK_OTHER_PERSON.get(prefer) || []).includes(product.site)) value -= 40;
     kind.set(product, shelfType >= 60 && !accessory);
     named.set(product, nameAll && !accessory);
