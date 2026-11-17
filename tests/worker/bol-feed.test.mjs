@@ -155,3 +155,20 @@ test('the keys and the token go only to bol.com (or the local test server); the 
   assert.match(rep, /^12382 \| Auto &amp; Motor \| 152,000$/m);
   assert.match(rep, /^ {4}1 \| Banden \| 9$/m);
 });
+
+test('a short page is not the end when bol.com names more pages (Auto & Motor stopped after 47 of 50 on 17 Nov 2026)', async () => {
+  let calls = 0;
+  const fetchImpl = async (url) => {
+    const u = new URL(url);
+    const send = (status, body) => ({ status, headers: { get: () => null }, json: async () => body });
+    if (u.pathname === '/token') return send(200, { access_token: 'tok1', expires_in: 599 });
+    calls++;
+    const page = Number(u.searchParams.get('page'));
+    const n = page === 1 ? 47 : page === 2 ? 50 : page === 3 ? 10 : 0;
+    return send(200, { totalPages: 3, totalResults: 107, results: Array.from({ length: n }, (_, i) => prod(page * 100 + i)) });
+  };
+  const api = session({ id: ID, secret: SECRET, loginBase: 'http://127.0.0.1:1', apiBase: 'http://127.0.0.1:1', fetchImpl });
+  const [r] = await download({ api, jobs: jobsOf({ categories: ['43646'] }), out: mkdtempSync(join(tmpdir(), 'bol-')), pauseMs: 0 });
+  assert.equal(calls, 3, 'pages 1, 2 and 3');
+  assert.equal(r.pages, 3);
+});

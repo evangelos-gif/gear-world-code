@@ -18,6 +18,28 @@ import * as TGW_RULES from '../sites/tgw/category-rules.js';
 import { normalizeGtin } from '../src/lib/gtin.js';
 import { slugify, truncate } from '../src/lib/text.js';
 import { aliexpressSection } from './import-rules/lib/aliexpress-sections.mjs';
+import { NETWORKS } from './network-links.mjs';
+
+// A shop of another network on these sites (chat 9, 17 Nov 2026, Daisycon Wave 3, lessons L170): sources.json
+// "network": "daisycon" | "cj" | "rakuten" | "bol" with "file" (the download's file name, e.g. "^DAISYCON_20164_GB\\.csv\\.gz$")
+// and, for a programme with one feed per country, "country". The link is checked with that network's own test (a Daisycon
+// link earns nothing as an "Awin link"), and the shop gets a number of its own in awin_advertiser_id (NOT NULL in these
+// databases): negative, so it can never be an Awin advertiser, and different per network and per country, because
+// that number is also the key of the clean-up of products that left the feed (a Daisycon programme 20164 must never hide
+// an Awin shop 20164, and Chromeburner GB must never hide Chromeburner DE).
+const NET_CODE = { cj: 1, daisycon: 2, rakuten: 3, bol: 4 };
+export function networkShopId(network, id, country = '') {
+  const code = NET_CODE[String(network || '').toLowerCase()];
+  const n = Number(id);
+  if (!code || !(n > 0) || n >= 1e8 || !Number.isInteger(n)) return 0;
+  const c = String(country || '').toUpperCase();
+  const cn = /^[A-Z]{2}$/.test(c) ? (c.charCodeAt(0) - 64) * 27 + (c.charCodeAt(1) - 64) : 0;
+  return -(code * 1e11 + cn * 1e8 + n);
+}
+// The shop's number in the database: its Awin advertiser id, or the number above for another network.
+export function shopIdOf(source) {
+  return source && source.network ? networkShopId(source.network, source.advertiserId, source.country) : Number(source && source.advertiserId);
+}
 
 const here = dirname(fileURLToPath(import.meta.url));
 const SQL_ROWS_PER_FILE = 400;
@@ -675,6 +697,13 @@ export async function planImport({ archive, sourcesFile, outDir, now = new Date(
   };
 
   for (const source of sources) {
+    const net = source.network ? NETWORKS[String(source.network).toLowerCase()] : null;
+    const shopId = shopIdOf(source);
+    if (source.network && (!net || !source.file || !shopId)) {
+      notRead.push(source.retailer);
+      feedInfo.push(`${source.retailer}: "network" ${source.network} needs a known network, a "file" pattern and a programme number (nothing read)`);
+      continue;
+    }
     const filter = sourceFilter(source);
     let sourceRows = 0, missing = 0;
     // Per shop: rows, products and samples, so a new shop can be checked on its own (PCHUB.UK next to Back to the Office).
@@ -801,10 +830,10 @@ export async function planImport({ archive, sourcesFile, outDir, now = new Date(
         const link = pick(rec, map.link);
         let host = '';
         try { host = new URL(link).hostname.toLowerCase(); } catch { /* invalid */ }
-        if (!QUALITY.affiliateHosts.includes(host)) { reject('link is not an Awin link', short); continue; }
+        if (net ? !net.isLink(link) : !QUALITY.affiliateHosts.includes(host)) { reject(net ? `link is not a ${net.label} link` : 'link is not an Awin link', short); continue; }
         const merchantProductId = (source.joinVariants && pick(rec, map.parentProductId)) || pick(rec, map.merchantProductId);
         if (!merchantProductId) { reject('no product id', short); continue; }
-        const stableKey = `${source.advertiserId}:${merchantProductId}`;
+        const stableKey = `${shopId}:${merchantProductId}`;
         if (seenKeys.has(stableKey)) {
           // Google format: the other sizes and colours of a product already taken (the cheapest stays)
           if ((google || source.joinVariants) && googleSeen.has(stableKey)) { const had = googleSeen.get(stableKey); if (price < had.price) had.price = price; stats.sizesJoined = (stats.sizesJoined || 0) + 1; continue; }
@@ -831,7 +860,7 @@ export async function planImport({ archive, sourcesFile, outDir, now = new Date(
 
         const p = {
           stable_key: stableKey,
-          awin_advertiser_id: source.advertiserId,
+          awin_advertiser_id: shopId,
           awin_product_id: pick(rec, map.awinProductId) || null,
           merchant_product_id: merchantProductId,
           retailer: source.retailer,
@@ -862,7 +891,7 @@ export async function planImport({ archive, sourcesFile, outDir, now = new Date(
       feedInfo.push(`  rows read: ${rows}`);
       sourceRows += rows;
     }
-    if (sourceRows > 0 && missing === 0) readAdvertisers.add(source.advertiserId);
+    if (sourceRows > 0 && missing === 0) readAdvertisers.add(shopId);
     else notRead.push(source.retailer);
   }
 
@@ -931,7 +960,7 @@ export async function planImport({ archive, sourcesFile, outDir, now = new Date(
   const updateCols = cols.filter(c => c !== 'stable_key' && c !== 'awin_advertiser_id' && c !== 'merchant_product_id');
   // "keepSiteNames" (VEVOR NL, lessons L79): the shop's feed is in Dutch and the site shows the names translated into English.
   // A product already on the site keeps its shown name, address and description; only a new product comes in with the feed's text.
-  const keepNames = new Set(sources.filter(s => s.keepSiteNames).map(s => Number(s.advertiserId)));
+  const keepNames = new Set(sources.filter(s => s.keepSiteNames).map(shopIdOf));
   const keptCols = updateCols.filter(c => c !== 'product_name' && c !== 'product_slug' && c !== 'description');
   const all = [...products.values()];
   const sqlFiles = [];

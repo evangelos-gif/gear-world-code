@@ -177,8 +177,11 @@ export async function download({ api, jobs, country = 'NL', out, max = MAX_PER_C
           if (R.prices.length < 20000) R.prices.push(Number(r.row.search_price));
           if (R.samples.length < 5 && (R.written <= 3 || R.written % 200 === 0)) R.samples.push(`${r.row.search_price} | ${r.row.product_name.slice(0, 90)}`);
         }
+        // The end is the last page bol.com names (or an empty page). A short page is not the end when bol.com says there
+        // are more pages: the first download (17 Nov 2026) stopped "Auto & Motor" after page 1 (47 of 50) and
+        // "Damesmode" after page 16 that way. Without totalPages a short page still ends the list.
         const totalPages = Number(b.totalPages) || 0;
-        if ((totalPages && page >= totalPages) || list.length < pageSize) break;
+        if (totalPages ? page >= totalPages : list.length < pageSize) break;
         if (pauseMs) await sleep(pauseMs);
       }
       await w.close();
