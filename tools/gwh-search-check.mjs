@@ -16,6 +16,7 @@
 //                                                             with this copy's rankHubResults (a check before a deploy)
 //        --sentences    also the searches typed as a sentence or with a price (Idea 9, L180): the Hub must say what it
 //                       understood (`understood`) and keep to the price; with --replay this copy's rules read them
+//        --only <a|b>   only the searches named (exactly, separated by |), e.g. --only "tablet|laptop under 500"
 //        --out <file>   also write the report there.  Exit code 1 when a search fails.
 import { readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -45,7 +46,7 @@ export const SEARCHES = [
 // only the rules read them, never the model): [search, Gear Worlds that sell it, known gap, item, max £, min £].
 export const SENTENCES = [
   ['i want to buy a tablet', ['tgw', 'kgw'], '', 'tablet'], ['tablet under £200', ['tgw', 'kgw'], '', 'tablet', 200],
-  ['need new car tyre', ['agw'], '', 'tyre'], ['running shoes for my son', ['kgw'], '', 'shoe'],
+  ['need new car tyre', ['agw'], '', 'tyre'], ['running shoes for my son', ['kgw', 'sgw'], '', 'shoe'],
   ['perfume for her', ['wgw'], '', 'perfume'], ['bed for my dog', ['zgw'], '', 'bed'],
   ['laptop under 500', ['tgw', 'pgw'], '', 'laptop', 500], ['headphones between £20 and £60', ['tgw', 'kgw', 'pgw'], '', 'headphone', 60, 20]
 ];
@@ -157,7 +158,8 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
   let slowCount = 0;
   const withSentences = process.argv.includes('--sentences');
   const list = [...SEARCHES.map(([q, w, g, i]) => [q, w, g, i, null, null, false]), ...(withSentences ? SENTENCES.map(([q, w, g, i, mx, mn]) => [q, w, g, i, mx ?? null, mn ?? null, true]) : [])];
-  for (const [q, want, gap, item, max, min, sentence] of list) {
+  const only = arg('--only') ? new Set(arg('--only').split('|').map(x => x.trim())) : null;
+  for (const [q, want, gap, item, max, min, sentence] of list.filter(x => !only || only.has(x[0]))) {
     const ask = async () => { try { return replay ? await viaReplay(q, sentence) : await viaHub(base, q); } catch (e) { return { results: [], failed: ['hub'] }; } };
     // A sentence must come back with what the Hub understood (L180); without it the Hub searched the whole sentence.
     const judged = o => { const r = judge(o.results, o.failed, want, q, item, max, min); if (sentence && !o.understood) { r.broken.push('understood'); r.pass = false; } return r; };
@@ -181,7 +183,8 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
     lines.push(`${mark.padEnd(5)} ${q.padEnd(sentence ? 32 : 18)} want ${want.join(',').padEnd(15)} n=${String(j.n).padEnd(3)}${j.broken.length ? ` rules=${j.broken.join(',')}` : ''} top5=${j.top5} top10=${j.top10} lookalike=${j.lookAlike} notUK=${j.notUk}${out.failed.length ? ` failed=${out.failed.join(',')}` : ''} | ${top}${excused ? ` | ${gap}` : ''}`);
     if (!replay) await sleep(800);
   }
-  lines.push(`${list.length - failures - known - slowCount} passed, ${failures} failed, ${known} known gaps, ${slowCount} with a slow site`);
+  const ran = only ? list.filter(x => only.has(x[0])).length : list.length;
+  lines.push(`${ran - failures - known - slowCount} passed, ${failures} failed, ${known} known gaps, ${slowCount} with a slow site`);
   const text = lines.join('\n') + '\n';
   process.stdout.write(text);
   const out = arg('--out');

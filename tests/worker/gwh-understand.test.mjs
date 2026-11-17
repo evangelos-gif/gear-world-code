@@ -207,3 +207,32 @@ test('L180 ranking: the named Gear World gets a push, not a filter', () => {
   const pushed = rankHubResults(list.slice(), 'tablet', 'kgw');
   assert.deepEqual(pushed.map(p => p.id), [2, 1], 'both stay, KGW first');
 });
+
+test('L180 ranking: an accessory shelf goes down; a person named pushes the other persons\' Gear Worlds down', () => {
+  const laptops = [
+    { id: 1, site: 'hgw', product_name: 'Leitz Ergo Adjustable Multi-Angle Laptop Stand', category: 'Home Office', subcategory: 'Laptop Stand' },
+    { id: 2, site: 'pgw', product_name: 'Belkin mobile device charger Laptop', category: 'Gaming PCs & Laptops', subcategory: 'Mobile Chargers' },
+    { id: 3, site: 'pgw', product_name: 'Razer laptop dock/port replicator', category: 'Gaming PCs & Laptops', subcategory: 'Computers' },
+    { id: 4, site: 'tgw', product_name: 'HP Renew Business 17.3-inch Laptop Backpack', category: 'Accessories & Storage', subcategory: 'Cases & Covers' },
+    { id: 5, site: 'tgw', product_name: 'HP Chromebook 15a Intel N100 15.6"', category: 'Laptops & Computing', subcategory: 'Laptops & Notebooks' }
+  ];
+  assert.equal(rankHubResults(laptops.slice(), 'laptop')[0].id, 5, 'the Chromebook in "Laptops & Notebooks" first');
+  // Accessory words that are part of a name stay: "Stand Mixers" for "mixer", "Wallets & Accessories" for "wallet".
+  const mixers = [
+    { id: 1, site: 'hgw', product_name: 'Hand Mixer 5 Speed', category: 'Kitchen & Dining', subcategory: 'Small Appliances' },
+    { id: 2, site: 'hgw', product_name: 'KitchenAid Artisan Stand Mixer', category: 'Kitchen & Dining', subcategory: 'Stand Mixers' }
+  ];
+  assert.equal(rankHubResults(mixers.slice(), 'mixer')[0].id, 2);
+  const wallets = [
+    { id: 1, site: 'mgw', product_name: 'Leather Wallet Brown', category: 'Bags & Accessories', subcategory: 'Wallets & Accessories' },
+    { id: 2, site: 'hgw', product_name: 'Wallet Organiser Tray', category: 'Storage & Organisation', subcategory: 'Drawer Organisers' }
+  ];
+  assert.equal(rankHubResults(wallets.slice(), 'wallet')[0].id, 1);
+  assert.equal(rankHubResults(laptops.slice(), 'laptop stand')[0].id, 1, 'asked for the accessory: it comes first');
+  const shoes = [
+    { id: 1, site: 'wgw', product_name: "adidas Women's Terrex Running Shoes", category: 'Shoes', subcategory: 'Running Shoes' },
+    { id: 2, site: 'sgw', product_name: "Brooks Ghost Running Shoes", category: 'Running', subcategory: 'Running Shoes' },
+    { id: 3, site: 'kgw', product_name: "adidas Junior Pureboost Running Shoes", category: 'Shoes', subcategory: 'Trainers' }
+  ];
+  assert.deepEqual(rankHubResults(shoes.slice(), 'running shoes', 'kgw').map(p => p.id), [3, 2, 1], 'kids first, women\'s last');
+});

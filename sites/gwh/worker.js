@@ -1240,7 +1240,9 @@ export function mergeUnderstanding(rules, model) {
 // categories match, then the site with more matching names, gets a small push; the 3rd and later copies of one name go
 // down; equal scores keep the order of the sites.
 const RANK_STOP = new Set(["a", "an", "the", "and", "or", "for", "with", "in", "on", "of", "to", "my", "me", "new", "buy", "best", "cheap", "i", "want", "need", "should", "what", "which", "some"]);
-const RANK_ACCESSORY = new Set(["brush", "bit", "attachment", "adapter", "adaptor", "case", "cover", "holder", "mount", "strap", "replacement", "spare", "accessory", "refill", "sticker", "decal", "stand", "pocket", "cufflink", "costume", "protector", "charger", "cable", "pouch", "organiser", "organizer", "hook", "pattern", "poster", "bracket", "descaler", "blade", "catcher", "tassel", "band"]);
+const RANK_ACCESSORY = new Set(["brush", "bit", "attachment", "adapter", "adaptor", "case", "cover", "holder", "mount", "strap", "replacement", "spare", "accessory", "refill", "sticker", "decal", "stand", "pocket", "cufflink", "costume", "protector", "charger", "cable", "pouch", "organiser", "organizer", "hook", "pattern", "poster", "bracket", "descaler", "blade", "catcher", "tassel", "band",
+  // L180: with a price limit ("laptop under 500") the docks, port replicators and laptop backpacks came first.
+  "dock", "docking", "replicator", "backpack", "rucksack"]);
 const RANK_TOY = new Set(["toy", "pretend"]);
 // Accessory words that are part of what a product is called.
 const RANK_ACCESSORY_NAMES = new Set(["stand mixer", "pocket knife", "pocket watch", "pocket sprung", "side pocket", "zip pocket",
@@ -1286,8 +1288,27 @@ export function rankTokens(text) {
   for (let i = 0; i + 1 < raw.length; i++) out.add(rankStem(raw[i] + raw[i + 1])); // "lawn mower" = "lawnmower"
   return out;
 }
+// The words of a subcategory, in parts ("Wallets & Accessories" = "wallets" | "accessories"), without the accessory words
+// that are part of a name ("Stand Mixers", "Duvet Covers").
+function rankAccessoryWords(list) {
+  return list.filter((t, i) => RANK_ACCESSORY.has(t) && !RANK_ACCESSORY_NAMES.has(`${list[i - 1] || ""} ${t}`) &&
+    !RANK_ACCESSORY_NAMES.has(`${t} ${list[i + 1] || ""}`));
+}
+function rankAccessoryShelf(subcategory, words, nameOrder, alts) {
+  const parts = String(subcategory || "").split(/\s*(?:&|,|\/|\band\b)\s*/i).map(p => rankWords(p).map(rankStem)).filter(p => p.length);
+  const isWord = t => words.some(w => t === w || alts(w).includes(t));
+  for (const part of parts) {
+    const at = part.findIndex(isWord);
+    if (at >= 0 && rankAccessoryWords(part).some(t => part.indexOf(t) > at)) return true;
+  }
+  const inName = new Set(rankAccessoryWords(nameOrder));
+  return parts.some(part => rankAccessoryWords(part).some(t => inName.has(t)));
+}
+
 // prefer (Idea 9, L180): the Gear World the visitor named ("for my son" = kgw) comes first with what matches the search
-// (a push of 100; 20 for its other products), and the other Gear Worlds stay below: a push, never a filter.
+// (a push of 100; 20 for its other products), and the other Gear Worlds stay below: a push, never a filter. A Gear World
+// for another person goes down a little ("running shoes for my son": women's and men's shoes after the others).
+const RANK_OTHER_PERSON = new Map(Object.entries({ kgw: ["wgw", "mgw"], wgw: ["mgw", "kgw"], mgw: ["wgw", "kgw"] }));
 export function rankHubResults(results, query, prefer = null) {
   const q = rankWords(query).join(" ");
   const rawWords = rankWords(query);
@@ -1335,16 +1356,27 @@ export function rankHubResults(results, query, prefer = null) {
     // An accessory word after the searched word: "Tablet Stand", "Laptop Computer Cufflinks", "Kettle Descaler".
     const order = rankWords(head).map(rankStem);
     const at = order.findIndex(t => words.some(w => t === w || alts(w).includes(t)));
+    // An accessory shelf (L180, "laptop under 500" showed laptop stands and chargers first): the site's own subcategory
+    // names an accessory right after the searched word ("Laptop Stand", "Laptop Replacement Screens"), or names one that
+    // the product's name has too ("Mobile Chargers" and "... charger ..."); never in names such as "Stand Mixers".
+    const shelf = !askedForAccessory && rankAccessoryShelf(product.subcategory, words, order, alts);
+    if (shelf) value -= Math.max(0, type - 20);
+    const shelfType = shelf ? Math.min(type, 20) : type;
+    const before = value;
     if (!askedForAccessory && at >= 0 && order.slice(at + 1).some(t => RANK_ACCESSORY.has(t))) value -= 45;
     // Before the searched word it is usually one too ("Replacement Blade ... Lawn Mower", "Silicone Case iPhone 15"),
     // a little less sure, and not in names such as "Stand Mixer" or "Side Pocket Hoody".
     else if (!askedForAccessory && at > 0 && order.slice(0, at).some((t, i, list) => RANK_ACCESSORY.has(t) &&
       !RANK_ACCESSORY_NAMES.has(`${list[i - 1] || ""} ${t}`) && !RANK_ACCESSORY_NAMES.has(`${t} ${list[i + 1] || order[at] || ""}`))) value -= 25;
+    else if (shelf) value -= 45;
+    // An accessory does not count for its Gear World's push below (L180: three docks must not lift a dock over a laptop).
+    const accessory = shelf || value < before;
     if (!askedForToy && order.some(t => RANK_TOY.has(t))) value -= 30;
     if (product.stock_status === "in_stock") value += 3;
-    if (prefer && product.site === prefer) value += type >= 60 || nameAll ? 100 : 20;
-    kind.set(product, type >= 60);
-    named.set(product, nameAll);
+    if (prefer && product.site === prefer) value += (shelfType >= 60 || nameAll) && !shelf ? 100 : 20;
+    else if (prefer && (RANK_OTHER_PERSON.get(prefer) || []).includes(product.site)) value -= 40;
+    kind.set(product, shelfType >= 60 && !accessory);
+    named.set(product, nameAll && !accessory);
     score.set(product, value);
   }
   // The Gear World whose own categories hold the search ("Tablets" on Technology Gear World) gets a small push, and a
