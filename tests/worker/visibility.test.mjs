@@ -67,7 +67,8 @@ test('country groups (L151): the UK sees only what delivers there, the US its ow
   assert.deepEqual(g('PL').only, ['AliExpress PL', 'Ottocast', 'Tanie-Opony.pl'], 'Poland: not the Dutch feed of VEVOR (L165)');
   // Construction: Reidl to Germany and Austria; VEVOR the EEA; GRABO worldwide.
   const c = cc => viewFor(config.cgw, cc, NOW);
-  assert.deepEqual(c('GB').hidden, ['AliExpress PL', 'Reidl', 'VEVOR']);
+  // Wave 3 (L171): the US torch makers, Tameson and Walabot only to the US.
+  assert.deepEqual(c('GB').hidden, ['AliExpress PL', 'NITECORE Store', 'Reidl', 'Skilhunt', 'Tameson', 'VEVOR', 'WUBEN', 'Walabot']);
   for (const cc of ['FR', 'CH']) assert.equal(c(cc).group, 'all', `CGW ${cc}`);
   // Reidl's feed is in German (L165): Germany and Austria see the all view plus Reidl; the others never see it.
   for (const cc of ['DE', 'AT']) assert.equal(c(cc).group, 'lang-at-de', `CGW ${cc}`);
@@ -75,16 +76,21 @@ test('country groups (L151): the UK sees only what delivers there, the US its ow
   // Women's: 100% PURE to the EU, Switzerland and Norway, FOREO to the EU; Jeulia and Dream Pairs to the US only; MASON
   // New York and Needs No Label to the UK and the US (round 2b, 14 Nov 2026).
   // Round 2 of the mass import (15 Nov 2026, L164): TEMU, Dima Eyewear, Grey State and Kixies to the US, Xpluswear to the EU.
-  assert.deepEqual(viewFor(config.wgw, 'GB', NOW).hidden, ['100% PURE', 'AliExpress PL', 'Bazta IE', 'Dima Eyewear', 'Dream Pairs', 'FOREO', 'Grey State', 'Invicta Stores', 'Jeulia', 'Kixies', 'Plusshop IE', 'TEMU', 'Uhrcenter', 'Xpluswear']);
+  // Wave 3 (16 Nov 2026, L171): the US beauty, fragrance, eyewear, shoe and watch shops only to the US.
+  assert.deepEqual(viewFor(config.wgw, 'GB', NOW).hidden, ['100% PURE', 'AliExpress PL', 'Amore Mall', 'Bazta IE', 'Chamaripa', 'Deluvia', 'Dima Eyewear', 'Dream Pairs', 'FOREO', 'Fragrance Outlet', 'FragranceShop.com', 'Grey State',
+    'Invicta Stores', 'Jeulia', 'Kixies', 'Lensmart', 'NORTIV 8', 'PandaHall', 'Perfumania', 'Plusshop IE', 'TEMU', 'TSAR BOMBA', 'Ublins', 'Uhrcenter', 'Xpluswear', 'eCosmetics', 'eFootwear']);
   // Uhrcenter's feed is in German (L165): Switzerland, one of its German-speaking countries, sees it; France does not.
   assert.equal(viewFor(config.wgw, 'CH', NOW).group, viewFor(config.wgw, 'DE', NOW).group);
   assert.notEqual(viewFor(config.wgw, 'CH', NOW).group, 'all');
   assert.equal(viewFor(config.wgw, 'FR', NOW).group, 'all');
   assert.equal(viewFor(config.wgw, 'DE', NOW).only, null);
   // The US view (owner, 14 Nov 2026, lessons L141): what ships to the US, nothing else. Before it, Wavytalk was never shown.
-  assert.deepEqual(viewFor(config.wgw, 'US', NOW).only, ['Dima Eyewear', 'Dream Pairs', 'Grey State', 'Jeulia', 'Kixies', 'MASON New York', 'Needs No Label', 'TEMU']);
-  assert.deepEqual(viewFor(config.mgw, 'US', NOW).only, ['Dream Pairs', 'Jeulia', 'Maceoo', 'TEMU', 'Wavytalk']);
-  assert.deepEqual(viewFor(config.mgw, 'GB', NOW).hidden, ['AliExpress PL', 'Bazta IE', 'Dream Pairs', 'Invicta Stores', 'Jeulia', 'Maceoo', 'Plusshop IE', 'TEMU', 'Uhrcenter', 'Wavytalk']);
+  assert.deepEqual(viewFor(config.wgw, 'US', NOW).only, ['Amore Mall', 'Chamaripa', 'Deluvia', 'Dima Eyewear', 'Dream Pairs', 'Fragrance Outlet', 'FragranceShop.com', 'Grey State', 'Jeulia', 'Kixies',
+    'Lensmart', 'MASON New York', 'NORTIV 8', 'Needs No Label', 'PandaHall', 'Perfumania', 'TEMU', 'TSAR BOMBA', 'Ublins', 'eCosmetics', 'eFootwear']);
+  assert.deepEqual(viewFor(config.mgw, 'US', NOW).only, ['Buycoolshirts', 'COOFANDY', 'Chamaripa', 'Dream Pairs', 'Fragrance Outlet', 'FragranceShop.com', 'Incerunmen', 'Jeulia', 'Maceoo',
+    'Menseventwear', 'NORTIV 8', 'Perfumania', 'TEMU', 'TSAR BOMBA', 'Wavytalk', 'eCosmetics', 'eFootwear']);
+  assert.deepEqual(viewFor(config.mgw, 'GB', NOW).hidden, ['AliExpress PL', 'Bazta IE', 'Buycoolshirts', 'COOFANDY', 'Chamaripa', 'Dream Pairs', 'Fragrance Outlet', 'FragranceShop.com',
+    'Incerunmen', 'Invicta Stores', 'Jeulia', 'Maceoo', 'Menseventwear', 'NORTIV 8', 'Perfumania', 'Plusshop IE', 'TEMU', 'TSAR BOMBA', 'Uhrcenter', 'Wavytalk', 'eCosmetics', 'eFootwear']);
   // Round 3 (15 Nov 2026, L147): Invicta Stores ships to Europe but Spain and Portugal, and is kept out of the UK view
   // (customs on delivery); HOME-TEX ships to 19 countries, never the UK. The all view (L151) has both, with their badge.
   assert.ok(viewFor(config.hgw, 'GB', NOW).hidden.includes('HOME-TEX'));
@@ -97,16 +103,17 @@ test('country groups (L151): the UK sees only what delivers there, the US its ow
   const ht = deliveryCountries(config.hgw, 'HOME-TEX');
   assert.equal(ht.length, 19);
   for (const cc of ['GB', 'IE', 'DK', 'SE', 'NO']) assert.ok(!ht.includes(cc), `HOME-TEX: not ${cc}`);
-  assert.deepEqual(viewFor(config.kgw, 'US', NOW).only, ['Diecast Models Wholesale', 'Dream Pairs', 'Kaiya Baby', 'TEMU', 'UPPER']);
-  assert.deepEqual(viewFor(config.hgw, 'US', NOW).only, ['Airdog', 'AlorAir', 'Imarku', 'Kincmo', 'LOOMY Home', 'Mosaic Weighted Blankets', 'Rowabi', 'Super Area Rugs', 'TEMU']);
+  assert.deepEqual(viewFor(config.kgw, 'US', NOW).only, ['BC Babycare', 'Destira', 'Diecast Models Wholesale', 'Dream Pairs', 'Kaiya Baby', 'Moonkie', 'NORTIV 8', 'Reima', 'Robotime', 'TEMU', 'The Chess Store', 'UPPER']);
+  assert.deepEqual(viewFor(config.hgw, 'US', NOW).only, ['Airdog', 'AlorAir', 'Aosom', 'BlindsMagic', 'Buture', 'Dr.Prepare', 'GardePro', 'Garvee', 'INSPECIAL HOME', 'Imarku', 'Kincmo',
+    'LOOMY Home', 'MEEDEN', 'MOVA', 'Mosaic Weighted Blankets', 'Rowabi', 'Sleep Zone', 'Sleep and Beyond', 'Super Area Rugs', 'TEMU']);
   // Daisycon Wave 3 (chat 9, 17 Nov 2026): France also sees Westwing FR (French names, L165), so HGW has a French view;
   // Ireland still gets the all view.
   assert.equal(viewFor(config.hgw, 'FR', NOW).group, 'lang-fr');
   assert.equal(viewFor(config.hgw, 'IE', NOW).group, 'all');
-  assert.deepEqual(viewFor(config.ggw, 'US', NOW).only, ['Click and Grow', 'TEMU']);
+  assert.deepEqual(viewFor(config.ggw, 'US', NOW).only, ['Aosom', 'Click and Grow', 'Everywhere Chair', 'Garvee', 'MOVA', 'TEMU']);
   assert.deepEqual(viewFor(config.zgw, 'US', NOW).only, ['ALZOO', 'Bonne et Filou', 'Crown and Paw', 'EcoKind', 'MeoWant', 'RadioFence.com'], 'ALZOO and the US pet shops of wave 3 (L169)');
-  assert.deepEqual(viewFor(config.cgw, 'US', NOW).only, ['GRABO']);
-  assert.equal(viewFor(config.cgw, 'US', NOW).group, 'us', 'CGW: the US sees GRABO (until L151 it shared the copy of Switzerland)');
+  assert.deepEqual(viewFor(config.cgw, 'US', NOW).only, ['GRABO', 'NITECORE Store', 'Skilhunt', 'Tameson', 'WUBEN', 'Walabot']);
+  assert.equal(viewFor(config.cgw, 'US', NOW).group, 'us', 'CGW: the US sees GRABO and the US shops (until L151 it shared the copy of Switzerland)');
   for (const s of ['wgw', 'mgw', 'kgw', 'hgw', 'ggw', 'zgw']) {
     assert.equal(viewFor(config[s], 'US', NOW).group, 'us', s);
     for (const name of viewFor(config[s], 'US', NOW).only) {
@@ -170,8 +177,9 @@ test('freshness: hidden after 30 days, "Check price and stock at the retailer" a
   assert.equal(needsCheck(v, row('2026-10-25 23:00:00')), true);
   assert.equal(needsCheck(v, row('2026-10-26 00:00:01')), false);
   const sql = visibleSql(v);
-  assert.equal(sql.sql, 'likelihood(+p.retailer NOT IN (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) AND +p.last_seen_at >= ?, 1.0)');
-  assert.deepEqual(sql.binds, ['AliExpress PL', 'Bazta IE', 'Dream Pairs', 'Invicta Stores', 'Jeulia', 'Maceoo', 'Plusshop IE', 'TEMU', 'Uhrcenter', 'Wavytalk', '2026-10-10']);
+  assert.equal(sql.sql, `likelihood(+p.retailer NOT IN (${Array(22).fill('?').join(', ')}) AND +p.last_seen_at >= ?, 1.0)`);
+  assert.deepEqual(sql.binds, ['AliExpress PL', 'Bazta IE', 'Buycoolshirts', 'COOFANDY', 'Chamaripa', 'Dream Pairs', 'Fragrance Outlet', 'FragranceShop.com', 'Incerunmen',
+    'Invicta Stores', 'Jeulia', 'Maceoo', 'Menseventwear', 'NORTIV 8', 'Perfumania', 'Plusshop IE', 'TEMU', 'TSAR BOMBA', 'Uhrcenter', 'Wavytalk', 'eCosmetics', 'eFootwear', '2026-10-10']);
   assert.equal(visibleSql(viewFor(config.agw, 'BE', NOW)).sql, 'likelihood(+p.retailer NOT IN (?, ?) AND +p.last_seen_at >= ?, 1.0)', 'the all view: without the Poland-only shops (L157)');
   assert.equal(visibleSql(viewFor(config.tgw, 'BE', NOW)).sql, 'likelihood(+p.retailer NOT IN (?, ?, ?, ?, ?, ?, ?, ?, ?) AND +p.last_seen_at >= ?, 1.0)', 'the all view: without AliExpress PL (L157) and the 8 US-only shops of wave 3 (L165, L169)');
   assert.equal(visibleSql(viewFor({ ...config.agw, strictCountries: ['BE'] }, 'BE', NOW)).sql, 'likelihood(+p.retailer IN (?, ?, ?) AND +p.last_seen_at >= ?, 1.0)', 'a country with a view of its own: IN');
@@ -240,7 +248,7 @@ test('L151: the Hub\'s search keeps the views of before L151 (hubViewFor) until 
   assert.deepEqual(h(config.agw, 'CH').only, ['Ottocast']);
   assert.deepEqual(h(config.agw, 'ES').only, ['Neumaticos.es', 'Ottocast', 'neumaticos-online.es'], 'round 2c (L144) and wave 3 (L169): the Spanish tyre shops');
   for (const cc of ['GB', 'US', 'CA', 'JP', '']) assert.deepEqual(h(config.agw, cc).hidden, ['AliExpress PL', 'Autobandenmarkt.nl', 'Neumaticos.es', 'Ottocast', 'Pneumatici.it', 'Pneus.be', 'ReifenDirekt.at', 'Tanie-Opony.pl', 'VEVOR', 'neumaticos-online.es'], `AGW ${cc || 'unknown'}: the UK view`);
-  assert.deepEqual(h(config.cgw, 'US').only, ['GRABO'], 'the US view of L141');
+  assert.deepEqual(h(config.cgw, 'US').only, ['GRABO', 'NITECORE Store', 'Skilhunt', 'Tameson', 'WUBEN', 'Walabot'], 'the US view of L141 (and the US shops of wave 3, L171)');
   assert.deepEqual(h(config.cgw, 'AT').only, ['GRABO', 'Reidl', 'VEVOR']);
   // TGW since round 2c (L144): MonsGeek delivers to Germany (a view of its own, as before L151); nobody to Malta (the UK view).
   assert.deepEqual(h(config.tgw, 'DE').only, ['MonsGeek']);

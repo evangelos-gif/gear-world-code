@@ -86,7 +86,11 @@ export default {
     'Invicta Stores': ['AT', 'BE', 'BG', 'CY', 'CZ', 'DE', 'DK', 'EE', 'FI', 'FR', 'GR', 'HR', 'HU', 'IE', 'IT', 'LT', 'LU', 'LV', 'MT', 'NL', 'PL', 'RO', 'SE', 'SI', 'SK', 'CH', 'NO', 'IS'],
     'MASON New York': ['GB', 'US'], 'Needs No Label': ['GB', 'US'],
     // Mass import round 2 (15 Nov 2026, lessons L164): US shops and TEMU's US feed only to the US; Xpluswear (euros) only to the EU.
-    TEMU: ['US'], 'Dima Eyewear': ['US'], 'Grey State': ['US'], Kixies: ['US'], Xpluswear: ['EU'] }, languages: { Uhrcenter: 'de' } },
+    TEMU: ['US'], 'Dima Eyewear': ['US'], 'Grey State': ['US'], Kixies: ['US'], Xpluswear: ['EU'],
+    // Wave 3 (approvals file of chat 7, 16 Nov 2026, lessons L171): the US shops only to the US.
+    PandaHall: ['US'], Lensmart: ['US'], Ublins: ['US'], Deluvia: ['US'], 'FragranceShop.com': ['US'],
+    Perfumania: ['US'], 'Fragrance Outlet': ['US'], eCosmetics: ['US'], 'Amore Mall': ['US'], eFootwear: ['US'],
+    'NORTIV 8': ['US'], 'TSAR BOMBA': ['US'], Chamaripa: ['US'] }, languages: { Uhrcenter: 'de' } },
   // 100% PURE sells in euros: its prices stay in euros, with "≈ £…" next to them (lessons L25, L63). MASON New York sells
   // in US dollars and is in the UK view: foreignCurrencies fetches that rate too ("≈ £…", as GRABO on CGW).
   convertForeignPrices: true,
