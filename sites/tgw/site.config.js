@@ -49,13 +49,13 @@ export default {
   // Malta, from Germany to most of the EU; Liechtenstein is in neither list).
   // AliExpress PL (Awin 12044, Polish names, prices in zloty): Poland only, so only the Poland view shows it (owner,
   // 15 Nov 2026, lessons L157, round 2); its prices get "≈ £…" (foreignCurrencies PLN).
-  deliversTo: { default: ['GB'], retailers: { 'AliExpress PL': ['PL'], 'Back to the Office IE': ['IE'], MonsGeek: ['GB', 'US', 'CH', 'IS', 'NO', 'AT', 'BE', 'BG', 'HR', 'CY', 'CZ', 'DK', 'EE', 'FI', 'FR', 'DE', 'GR', 'HU', 'IE', 'IT', 'LV', 'LT', 'LU', 'NL', 'PL', 'PT', 'RO', 'SK', 'SI', 'ES', 'SE'] } },
+  deliversTo: { default: ['GB'], retailers: { 'AliExpress PL': ['PL'], 'Back to the Office IE': ['IE'], MonsGeek: ['GB', 'US', 'CH', 'IS', 'NO', 'AT', 'BE', 'BG', 'HR', 'CY', 'CZ', 'DK', 'EE', 'FI', 'FR', 'DE', 'GR', 'HU', 'IE', 'IT', 'LV', 'LT', 'LU', 'NL', 'PL', 'PT', 'RO', 'SK', 'SI', 'ES', 'SE'], Nothingprojector: ['US'], Mintion: ['US'], Oukitel: ['US'], Mosnovo: ['US'], 'Bond Touch': ['US'], Procolored: ['US'], '3DMakerpro': ['US'], Gshopper: ['US'] } },
   // A retailer that sells in euros (the two above) keeps its euro prices, with "≈ £…" next to them.
   convertForeignPrices: true,
 
   // 5 display currencies, the same as the other Gear World sites. Retailers charge in GBP, so the GBP
   // price always stays on the page and the converted price is shown next to it as "≈" (lessons L25).
-  foreignCurrencies: ['PLN'],
+  foreignCurrencies: ['USD', 'PLN'],
   displayCurrencies: ['GBP', 'EUR', 'PLN', 'ALL', 'RON', 'RUB'],
 
   // Saved list (the Gear Cart until 7 Nov 2026, lessons L101): a list kept in the visitor's browser. Every buy button goes through /out/<id> (lessons L26).

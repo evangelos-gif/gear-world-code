@@ -11,6 +11,11 @@
     { "advertiserId": 56439, "feedIds": [94548], "retailer": "Red Gorilla", "currency": "GBP", "condition": "new", "approved": false },
     { "advertiserId": 118435, "feedIds": [109014], "retailer": "VEVOR", "currency": "EUR", "condition": "new", "keepSiteNames": true, "approved": false },
     { "advertiserId": 124906, "feedIds": [113935], "retailer": "ALZOO", "currency": "USD", "condition": "new", "approved": true, "petShop": true },
-    { "advertiserId": 12044, "feedIds": [101519], "retailer": "AliExpress PL", "currency": "PLN", "condition": "new", "approved": true, "sections": "aliexpress-pl", "joinVariants": true, "minPrice": 10 }
+    { "advertiserId": 12044, "feedIds": [101519], "retailer": "AliExpress PL", "currency": "PLN", "condition": "new", "approved": true, "sections": "aliexpress-pl", "joinVariants": true, "minPrice": 10 },
+    {"advertiserId": 59397, "feedIds": [106268], "retailer": "Bonne et Filou", "currency": "USD", "condition": "new", "approved": true, "petShop": true, "_comment": "Wave 3 (16 Nov 2026, approvals file of chat 7, lessons L169): dog treats, US dollars. Shown only to the US (deliversTo)."},
+    {"advertiserId": 91103, "feedIds": [104852], "retailer": "EcoKind", "currency": "USD", "condition": "new", "approved": true, "petShop": true, "_comment": "Wave 3 (16 Nov 2026, approvals file of chat 7, lessons L169): dog chews, US dollars. Shown only to the US (deliversTo)."},
+    {"advertiserId": 87999, "feedIds": [105980], "retailer": "RadioFence.com", "currency": "USD", "condition": "new", "approved": true, "petShop": true, "_comment": "Wave 3 (16 Nov 2026, approvals file of chat 7, lessons L169): pet fences, cages and supplies, US dollars. Shown only to the US (deliversTo)."},
+    {"advertiserId": 57823, "feedIds": [103192], "retailer": "Crown and Paw", "currency": "USD", "condition": "new", "approved": true, "petShop": true, "_comment": "Wave 3 (16 Nov 2026, approvals file of chat 7, lessons L169): pet portraits and gifts, US dollars. Shown only to the US (deliversTo)."},
+    {"advertiserId": 55213, "feedIds": [104479], "retailer": "MeoWant", "currency": "USD", "condition": "new", "approved": true, "petShop": true, "_comment": "Wave 3 (16 Nov 2026, approvals file of chat 7, lessons L169): self-cleaning litter boxes and cat tech, US dollars. Shown only to the US (deliversTo)."}
   ]
 }
