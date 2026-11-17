@@ -183,14 +183,18 @@ export function createWorker(site) {
 
     // Gear World Hub search links use the older sites' format /?search=<q>&highlight=<id> (lessons L22).
     if (path === '/' && (url.searchParams.has('highlight') || url.searchParams.has('search'))) {
+      // The language the visitor chose on the Hub (?lang=, lessons L174, L175) goes with the redirect, when the site has it.
+      const askedLang = url.searchParams.get('lang') || '';
+      const keepLang = (site.languages || []).some(l => l.code === askedLang) ? askedLang : '';
+      const target = to => { if (keepLang) to.searchParams.set('lang', keepLang); return to.toString(); };
       const id = Number.parseInt(url.searchParams.get('highlight') || '', 10);
       if (Number.isSafeInteger(id) && id > 0) {
         // The product page itself says when the visitor's view does not list the product (lessons L107).
         const product = await db.getProduct(env.DB, id);
-        if (product) return redirect(new URL(productPath(product), url.origin).toString(), 302);
+        if (product) return redirect(target(new URL(productPath(product), url.origin)), 302);
       }
       const q = (url.searchParams.get('search') || '').normalize('NFKC').trim().slice(0, 80);
-      return redirect(new URL(q ? `/search?q=${encodeURIComponent(q)}` : '/', url.origin).toString(), 302);
+      return redirect(target(new URL(q ? `/search?q=${encodeURIComponent(q)}` : '/', url.origin)), 302);
     }
 
     if (path === '/') {
@@ -654,7 +658,7 @@ export function createWorker(site) {
       // A visitor gets the site in the language of their country unless they chose one (lessons L162 Poland, L175 every
       // country with a language of the sites): the page names it, after the page cache. Google's crawlers count as the UK
       // (English, as before).
-      if (request.method === 'GET') response = await withCountryLanguage(response, countryLanguage(site, requestCountry(request, new URL(request.url)), request.headers.get('accept-language')));
+      if (request.method === 'GET') response = await withCountryLanguage(response, readsEnglish(request) ? '' : countryLanguage(site, requestCountry(request, new URL(request.url)), request.headers.get('accept-language')));
       // The bar for a visitor outside the UK who gets the UK view or the all view (lessons L107, owner's option A; L151):
       // added to the answer after the page cache, never into a cached copy, so it costs no D1 read and no extra cache copy.
       const browsing = browseCountry(request);
@@ -715,6 +719,13 @@ export const COUNTRY_LANGUAGES = {
   RO: 'ro-RO', MD: 'ro-RO',
   RU: 'ru-RU', BY: 'ru-RU'
 };
+// Crawlers read English, Google's (they count as the UK) and every other one; the network's own checks (QA_BOT, L158)
+// can still ask a country.
+export const OTHER_CRAWLER = /bot\b|bot\/|crawler|spider|slurp|bingpreview|facebookexternalhit|embedly/i;
+export function readsEnglish(request) {
+  const ua = request.headers.get('user-agent') || '';
+  return !QA_BOT.test(ua) && OTHER_CRAWLER.test(ua);
+}
 export const MULTI_LANGUAGE_COUNTRIES = { BE: ['nl-NL', 'fr-FR', 'de-DE'], CH: ['de-DE', 'fr-FR', 'it-IT'], LU: ['fr-FR', 'de-DE'] };
 export function countryLanguage(site, country, acceptLanguage = '') {
   const cc = String(country || '').toUpperCase();

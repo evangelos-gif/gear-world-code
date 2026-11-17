@@ -14,10 +14,12 @@ function contactLink(site) {
   return site.contactEmail ? html`<a href="mailto:${site.contactEmail}">${site.contactEmail}</a>` : PLACEHOLDER;
 }
 
-// The legal texts last changed on 9 Nov 2026 (the retailer links go through Awin or CJ, Google Ads compliance, lessons
+// The legal texts last changed on 17 Nov 2026 (translated, EU GDPR and EU consumer law, lessons L176); before: 9 Nov
+// 2026 (the retailer links go through Awin or CJ, Google Ads compliance, lessons
 // L107; before: 8 Nov 2026, Cloudflare Turnstile on the "Get deal updates" form, L106; 7 Nov 2026, who runs Gear World,
 // L101); keep this date honest (L103).
-const UPDATED = '15 November 2026';
+const UPDATED = '17 November 2026';
+const UPDATED_ISO = '2026-11-17';
 
 // Who runs the network and how to reach them, the same on every site and on the Hub (Google Ads review, 7 Nov 2026,
 // lessons L101). Owner's decision, 7 Nov 2026: "Run by Evangelos Kalogerakis, United Kingdom" and the email, no address.
@@ -25,7 +27,8 @@ export const NETWORK_EMAIL = 'contact@gearworldhub.com';
 
 const PAGES = {
   // About, money and contact pages are translated (lessons L24): whole sentences only, no link in the middle of
-  // a sentence, so each language can order the words its own way. Legal pages (legal: true) stay in English.
+  // a sentence, so each language can order the words its own way. Legal pages (legal: true) too since L176, with a note
+  // in every other language that the English text applies.
   '/about/': site => ({
     title: 'About us',
     description: `What ${site.name} is, where the prices come from and how the site is run.`,
@@ -70,15 +73,21 @@ const PAGES = {
 <p>We cannot help with orders, deliveries, returns or refunds, because we do not sell products. For those, please contact the retailer you bought from.</p>`
   }),
 
+  // Lessons L176 (owner, 17 Nov 2026: the policies in the language of every country, after Linkwise saw English on the
+  // Greek pages): the legal pages are translated like the others, whole sentences only (a link or a code in a sentence
+  // would cut it into pieces): a link stands in its own line, a value goes in with tr(). Each translation says that the
+  // English text applies where they differ (data-lang-note). EU GDPR, the EEA and the EU consumer law: the text the
+  // owner approves with «ΕΓΚΡΙΝΩ ΚΕΙΜΕΝΟ GDPR» (17 Nov 2026); not live before that phrase.
   '/privacy/': site => ({
     legal: true,
     title: 'Privacy policy',
     description: `How ${site.name} handles personal data.`,
     content: html`
-<p>Last updated: ${UPDATED}</p>
-<p>This policy explains what personal data ${site.name} (${site.domain}) uses, why, and your rights under UK data protection law (UK GDPR and the Data Protection Act 2018).</p>
+<p>${tr('Last updated: {0}', { text: UPDATED, date: UPDATED_ISO })}</p>
+<p>${tr('This policy explains what personal data {0} ({1}) uses, why, and your rights under UK data protection law (UK GDPR and the Data Protection Act 2018) and, if you are in the European Union or the European Economic Area, under the EU General Data Protection Regulation (GDPR).', site.name, { text: site.domain, keep: true })}</p>
 <h2>Who is responsible</h2>
-<p>The data controller is ${operator(site)}, run by Evangelos Kalogerakis, United Kingdom. Contact: ${contactLink(site)}.</p>
+<p>${tr('The data controller is {0}, run by Evangelos Kalogerakis, United Kingdom.', { text: operator(site), keep: true })}</p>
+<p class="contact-email"><span>Contact:</span> <span translate="no">${contactLink(site)}</span></p>
 <h2>What we collect</h2>
 <ul>
 <li><strong>Clicks to retailers.</strong> When you select a "View at" button we record the product, the retailer, the page you were on, the date and your country as reported by our hosting provider. We do not record your IP address or anything that identifies you. We use this to understand which products are useful (legitimate interests). If you came to this site from one of our ads or campaign links, the campaign name and source of that link (utm_campaign, utm_source) go with the click to the affiliate network (Awin, or for a few retailers CJ), so we can see which campaigns are useful. They do not identify you.</li>
@@ -87,18 +96,29 @@ ${site.dealUpdates ? html`<li><strong>Deal updates.</strong> If you sign up with
 <li><strong>Abuse protection.</strong> To stop automated abuse of forms we keep a one-way scrambled (hashed) form of your IP address for up to one hour, and the form uses Cloudflare Turnstile (legitimate interests).</li>`}
 <li><strong>Hosting.</strong> The site is hosted by Cloudflare, which processes technical data such as IP addresses to deliver and protect the site.</li>
 ${site.voiceSearch ? html`<li><strong>Voice search.</strong> If you press the microphone button, your browser asks for permission and its own speech service turns what you say into text (for example Google in Chrome, Apple in Safari). Their privacy policies apply to that step. We receive only the text, as a normal search, and we do not record audio.</li>` : ''}
-${site.cart || (site.languages || []).length > 1 ? html`<li><strong>Choices kept on your device.</strong> Your browser remembers your language, currency, compare list${site.cart ? ' and saved list' : ''} in its local storage. This stays on your device and is not sent to us. You can clear it in your browser settings.</li>` : ''}
+${site.cart || (site.languages || []).length > 1 ? html`<li><strong>Choices kept on your device.</strong> ${site.cart ? 'Your browser remembers your language, currency, compare list and saved list in its local storage.' : 'Your browser remembers your language, currency and compare list in its local storage.'} This stays on your device and is not sent to us. You can clear it in your browser settings.</li>` : ''}
 </ul>
 <h2>Cookies and tracking</h2>
-${site.googleAds === false ? html`<p>We do not use advertising or tracking cookies. See the <a href="/cookies/">cookies page</a> for details.</p>` : html`<p>Only if you select "Allow" in the cookie banner, we use Google Ads (Google Ireland Limited) to measure which of our ads bring visitors and which visits lead to a click to a retailer. Google then sets its cookies on this site and receives details of your visit, such as the page, a click on a "View at" button, the ad click identifier and your IP address. We do not use Google for personalised advertising (remarketing). Legal basis: your consent. You can change your choice at any time with "Cookie settings" at the bottom of every page. The <a href="https://policies.google.com/privacy">Google privacy policy</a> applies to the data Google receives. If you select "Reject", or make no choice, nothing is sent to Google. See the <a href="/cookies/">cookies page</a> for details.</p>`}
+${site.googleAds === false ? html`<p>We do not use advertising or tracking cookies.</p>` : html`<p>Only if you select "Allow" in the cookie banner, we use Google Ads (Google Ireland Limited) to measure which of our ads bring visitors and which visits lead to a click to a retailer. Google then sets its cookies on this site and receives details of your visit, such as the page, a click on a "View at" button, the ad click identifier and your IP address. We do not use Google for personalised advertising (remarketing). Legal basis: your consent. You can change your choice at any time with "Cookie settings" at the bottom of every page. The Google privacy policy applies to the data Google receives. If you select "Reject", or make no choice, nothing is sent to Google.</p>
+<p><a href="https://policies.google.com/privacy">Google privacy policy</a></p>`}
+<p><a href="/cookies/">More about cookies</a></p>
 <h2>When you go to a retailer</h2>
-<p>Retailer links go through an affiliate network: Awin, or for a few retailers CJ (Commission Junction). The network and the retailer may set their own cookies to record that you came from this site. Their privacy policies apply on their websites: the <a href="https://www.awin.com/gb/privacy">Awin privacy policy</a> and the <a href="https://www.cj.com/legal/privacy">CJ privacy policy</a>.</p>
+<p>Retailer links go through an affiliate network: Awin, or for a few retailers CJ (Commission Junction). The network and the retailer may set their own cookies to record that you came from this site. Their privacy policies apply on their websites.</p>
+<p><a href="https://www.awin.com/gb/privacy">Awin privacy policy</a></p>
+<p><a href="https://www.cj.com/legal/privacy">CJ privacy policy</a></p>
 <h2>Sharing and transfers</h2>
-<p>We do not sell personal data. Our service providers (Cloudflare${site.dealUpdates ? ', MailerLite' : ''}${site.googleAds === false ? '' : ' and, only after you allow it, Google'}) may process data outside the UK with appropriate safeguards.</p>
+<p>We do not sell personal data. ${site.googleAds === false
+  ? (site.dealUpdates ? 'Our service providers (Cloudflare, MailerLite) may process data outside the UK and the European Economic Area with appropriate safeguards.' : 'Our service provider (Cloudflare) may process data outside the UK and the European Economic Area with appropriate safeguards.')
+  : (site.dealUpdates ? 'Our service providers (Cloudflare, MailerLite and, only after you allow it, Google) may process data outside the UK and the European Economic Area with appropriate safeguards.' : 'Our service providers (Cloudflare and, only after you allow it, Google) may process data outside the UK and the European Economic Area with appropriate safeguards.')}</p>
 <h2>How long we keep data</h2>
-<p>Click records: up to 26 months. ${site.dealUpdates ? 'Deal updates' : 'Newsletter'}: until you unsubscribe. Abuse protection: up to one hour.${site.googleAds === false ? '' : ' Google Ads cookies: up to 90 days, or until you select "Reject".'}</p>
+<p>Click records: up to 26 months. ${site.dealUpdates ? 'Deal updates: until you unsubscribe.' : 'Newsletter: until you unsubscribe.'} Abuse protection: up to one hour.${site.googleAds === false ? '' : ' Google Ads cookies: up to 90 days, or until you select "Reject".'}</p>
 <h2>Your rights</h2>
-<p>You can ask for access to, correction or deletion of your data, ask us to restrict or stop using it, and ask for a copy. Email ${contactLink(site)}. You can also complain to the Information Commissioner's Office at <a href="https://ico.org.uk/">ico.org.uk</a>.</p>`
+<p>You can ask for access to, correction or deletion of your data, ask us to restrict or stop using it, and ask for a copy. Write to us at this address:</p>
+<p class="contact-email" translate="no">${contactLink(site)}</p>
+<p>You can also complain to the UK Information Commissioner's Office (ICO).</p>
+<p><a href="https://ico.org.uk/" translate="no">ico.org.uk</a></p>
+<p>If you are in the European Union or the European Economic Area, you can also complain to the data protection authority of the country where you live.</p>
+<p><a href="https://www.edpb.europa.eu/about-edpb/about-edpb/members_en">Data protection authorities in the EU and EEA</a></p>`
   }),
 
   '/cookies/': site => ({
@@ -106,15 +126,19 @@ ${site.googleAds === false ? html`<p>We do not use advertising or tracking cooki
     title: 'Cookies',
     description: `Which cookies ${site.name} uses.`,
     content: html`
-<p>Last updated: ${UPDATED}</p>
-${site.googleAds === false ? html`<p>${site.name} does not set advertising, analytics or tracking cookies, so there is no cookie banner.</p>` : html`<p>${site.name} sets advertising cookies only if you select "Allow" in the cookie banner. Until then, and if you select "Reject", no request goes to Google and no Google cookie is set. You can change your choice at any time with "Cookie settings" at the bottom of every page.</p>
+<p>${tr('Last updated: {0}', { text: UPDATED, date: UPDATED_ISO })}</p>
+${site.googleAds === false ? html`<p>${tr('{0} does not set advertising, analytics or tracking cookies, so there is no cookie banner.', site.name)}</p>` : html`<p>${tr('{0} sets advertising cookies only if you select "Allow" in the cookie banner.', site.name)} Until then, and if you select "Reject", no request goes to Google and no Google cookie is set. You can change your choice at any time with "Cookie settings" at the bottom of every page.</p>
 <h2>Optional: Google Ads (only after "Allow")</h2>
-<p>The Google tag measures which of our ads bring visitors and when a visit leads to a click on a "View at" button or a discount code. It does not show you personalised ads (remarketing is off). Cookies: <code>_gcl_au</code>, and <code>_gcl_aw</code> or similar <code>_gcl_</code> cookies when you came from a Google ad, each kept up to 90 days. Selecting "Reject" later removes them from this site. The <a href="https://policies.google.com/privacy">Google privacy policy</a> applies.</p>`}
+<p>The Google tag measures which of our ads bring visitors and when a visit leads to a click on a "View at" button or a discount code. It does not show you personalised ads (remarketing is off).</p>
+<p>${tr('Cookies: {0}, and {1} or similar {2} cookies when you came from a Google ad, each kept up to 90 days.', { text: '_gcl_au', keep: true }, { text: '_gcl_aw', keep: true }, { text: '_gcl_', keep: true })} Selecting "Reject" later removes them from this site.</p>
+<p><a href="https://policies.google.com/privacy">Google privacy policy</a></p>`}
 <h2>Strictly necessary</h2>
-<p>Our hosting provider Cloudflare may set short-lived security cookies to protect the site from bots. ${site.dealUpdates ? 'If you use the "Get deal updates" form, Cloudflare Turnstile checks that you are a person. ' : 'If you use the newsletter form, Cloudflare Turnstile checks that you are a person. '}These are needed for the site to work safely and do not track you across sites.</p>
-<p>If you open this site from a country page of Gear World Group, the cookie <code>gw_for</code> keeps that country (two letters, nothing else) for one day, so every page shows only the products that deliver there. "Show what delivers to my country" at the top of the page removes it.</p>
+<p>Our hosting provider Cloudflare may set short-lived security cookies to protect the site from bots. ${site.dealUpdates ? 'If you use the "Get deal updates" form, Cloudflare Turnstile checks that you are a person.' : 'If you use the newsletter form, Cloudflare Turnstile checks that you are a person.'} These are needed for the site to work safely and do not track you across sites.</p>
+<p>${tr('If you open this site from a country page of Gear World Group, the cookie {0} keeps that country (two letters, nothing else) for one day, so every page shows only the products that deliver there.', { text: 'gw_for', keep: true })} "Show what delivers to my country" at the top of the page removes it.</p>
 <h2>Saved on your device</h2>
-<p>Your browser's local storage keeps your language, currency, compare list${site.cart ? ` and ${site.cart.name}` : ''}${site.googleAds === false ? '' : ' and your cookie choice'}, so they are still there on your next visit. This information is not a cookie, is not sent to us and is not used for tracking. Clearing your browser data removes it.${site.googleAds === false ? '' : ' Only after "Allow", the campaign name of the link you arrived from (utm_campaign, utm_source) is kept in this browser tab until you close it, so a later click to a retailer still counts for that campaign.'}</p>
+<p>${site.googleAds === false
+  ? (site.cart ? 'Your browser\'s local storage keeps your language, currency, compare list and saved list, so they are still there on your next visit.' : 'Your browser\'s local storage keeps your language, currency and compare list, so they are still there on your next visit.')
+  : (site.cart ? 'Your browser\'s local storage keeps your language, currency, compare list, saved list and your cookie choice, so they are still there on your next visit.' : 'Your browser\'s local storage keeps your language, currency, compare list and your cookie choice, so they are still there on your next visit.')} This information is not a cookie, is not sent to us and is not used for tracking. Clearing your browser data removes it.${site.googleAds === false ? '' : ' Only after "Allow", the campaign name of the link you arrived from (utm_campaign, utm_source) is kept in this browser tab until you close it, so a later click to a retailer still counts for that campaign.'}</p>
 <h2>After you leave this site</h2>
 <p>When you select a "View at" button, the affiliate network (Awin or CJ) and the retailer may set cookies on their own websites to record the referral. You can manage those in your browser settings.</p>`
   }),
@@ -124,10 +148,10 @@ ${site.googleAds === false ? html`<p>${site.name} does not set advertising, anal
     title: 'Terms of use',
     description: `The terms for using ${site.name}.`,
     content: html`
-<p>Last updated: ${UPDATED}</p>
-<p>These terms apply when you use ${site.domain}, operated by ${operator(site)} (run by Evangelos Kalogerakis, United Kingdom). By using the site you accept them.</p>
+<p>${tr('Last updated: {0}', { text: UPDATED, date: UPDATED_ISO })}</p>
+<p>${tr('These terms apply when you use {0}, operated by {1} (run by Evangelos Kalogerakis, United Kingdom).', { text: site.domain, keep: true }, { text: operator(site), keep: true })} By using the site you accept them.</p>
 <h2>What the site does</h2>
-<p>${site.name} shows product information and prices supplied by retailers. We do not sell products. Any purchase is a contract between you and the retailer, on the retailer's terms.</p>
+<p>${tr('{0} shows product information and prices supplied by retailers.', site.name)} We do not sell products. Any purchase is a contract between you and the retailer, on the retailer's terms.</p>
 <h2>Accuracy</h2>
 <p>We work to keep information correct, but prices, stock and product details come from retailers and can change or contain errors. Always check the details on the retailer's website before you buy.</p>
 <h2>Links to other websites</h2>
@@ -137,9 +161,9 @@ ${site.googleAds === false ? html`<p>${site.name} does not set advertising, anal
 <h2>Liability</h2>
 <p>Nothing in these terms limits liability that cannot be limited by law. Otherwise we are not liable for losses arising from your use of the site or from purchases made with retailers.</p>
 <h2>Law</h2>
-<p>These terms are governed by the law of England and Wales.</p>
+<p>These terms are governed by the law of England and Wales. If you are a consumer living in the European Union, you also keep the protection of the mandatory consumer laws of the country where you live.</p>
 <h2>Contact</h2>
-<p>${contactLink(site)}</p>`
+<p class="contact-email" translate="no">${contactLink(site)}</p>`
   })
 };
 
@@ -157,8 +181,8 @@ export function infoPage(site, path) {
   ${breadcrumbs(crumbs)}
   <article class="prose">
     <h1>${p.title}</h1>
-    ${p.legal ? html`<p class="lang-note" data-lang-note hidden>This page is available in English only.</p>
-    <div translate="no">${p.content}</div>` : p.content}
+    ${p.legal ? html`<p class="lang-note" data-lang-note hidden>This is a translation. If it differs from the English text, the English text applies.</p>
+    ${p.content}` : p.content}
   </article>
 </div>`;
   return page(site, {

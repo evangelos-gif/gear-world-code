@@ -19,7 +19,7 @@ for (const s of SITES) config[s] = (await import(`../../sites/${s}/site.config.j
 // Texts that are the same in Polish and English: names, units, sizes and words Polish uses as they are.
 const SAME_IN_POLISH = new Set(['(4 Ah)', '(5 Ah)', '18 V LXT; 5 Ah; Li-ion', '18 V XR; 4 Ah; Li-ion', '2 × 100 ml (200 ml)', '4 × 5 ml (20 ml)',
   '5 × 15 ml (75 ml)', '5 × 20 ml (100 ml)', 'Audio', 'Black Friday', 'EAN / GTIN', 'EDC', 'Gaming', 'Gear World Hub', 'Halloween', 'Joy Day',
-  'LXT', 'Streaming', 'XR']);
+  'LXT', 'Streaming', 'XR', 'Hosting.', 'Newsletter.']);
 // Words of the English texts that are names or model codes and stay as they are in Polish (brands, retailers, the
 // owner, systems): every one that is in an English text is in its Polish text too.
 const NAMES = ['Gear World', 'Awin', 'CJ', 'Makita', 'DeWalt', 'Sealey', 'Draper', 'AstroAI', 'My Tool Shed', 'Tooled Up', 'Bazta', 'Plusshop', 'Joybuy',
@@ -247,6 +247,18 @@ test('L175: every country with a language of the sites gets it; several language
     for (const res of store.values()) assert.ok(!(await res.clone().text()).includes('data-country-lang'), 'the cached copies: never');
     const bot = await get('/', 'GR', { 'User-Agent': 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)' });
     assert.ok(!bot.text.includes('data-country-lang'), 'Googlebot from Greece reads English');
+    for (const ua of ['Mozilla/5.0 (compatible; YandexBot/3.0; +http://yandex.com/bots)', 'Mozilla/5.0 (compatible; bingbot/2.0; +http://www.bing.com/bingbot.htm)', 'facebookexternalhit/1.1'])
+      assert.ok(!(await get('/', 'RU', { 'User-Agent': ua })).text.includes('data-country-lang'), `no crawler: ${ua}`);
+    assert.ok((await get('/', 'US', { 'User-Agent': 'GearWorldQA-bot/1.0 (+read-only check)', 'X-GW-QA-Country': 'GR' })).text.includes('data-country-lang="el-GR"'), 'the network\'s own check as Greece');
+    // L174: the Hub's search links (/?search=…&highlight=…) keep the language the visitor chose on the Hub.
+    const row = await DB.prepare('SELECT id FROM products WHERE is_active = 1 LIMIT 1').first();
+    const hop = async (path) => { const r = await worker.fetch(new Request(`https://cargearworld.com${path}`, { headers: { 'User-Agent': 'Mozilla/5.0 test' }, redirect: 'manual' }), env, { waitUntil: p => p }); return { status: r.status, to: r.headers.get('Location') || '' }; };
+    const toProduct = await hop(`/?search=tyre&highlight=${row.id}&lang=el-GR`);
+    assert.equal(toProduct.status, 302);
+    assert.match(toProduct.to, /^https:\/\/cargearworld\.com\/[^?]+\?lang=el-GR$/, toProduct.to);
+    assert.equal((await hop('/?search=tyre&lang=de-DE')).to, 'https://cargearworld.com/search?q=tyre&lang=de-DE');
+    assert.equal((await hop('/?search=tyre&lang=xx-XX')).to, 'https://cargearworld.com/search?q=tyre', 'a language the site does not have is dropped');
+    assert.equal((await hop('/?search=tyre')).to, 'https://cargearworld.com/search?q=tyre', 'nothing asked, nothing added');
   } finally {
     if (before === undefined) delete globalThis.caches; else globalThis.caches = before;
   }

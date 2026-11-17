@@ -1019,5 +1019,6 @@ test('L160: browseView: only the retailers that deliver to that country, open or
 });
 
 test('L160: the cookies page names gw_for', () => {
-  assert.match(readFileSync('src/pages/info.js', 'utf8'), /the cookie <code>gw_for<\/code> keeps that country \(two letters, nothing else\) for one day/);
+  // Since L176 a translated sentence with the cookie's name as a value kept as it is (translate="no").
+  assert.match(readFileSync('src/pages/info.js', 'utf8'), /the cookie \{0\} keeps that country \(two letters, nothing else\) for one day, so every page shows only the products that deliver there\.', \{ text: 'gw_for', keep: true \}\)/);
 });
