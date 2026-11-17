@@ -72,7 +72,11 @@ export default {
     'HOME-TEX': ['AT', 'BE', 'BG', 'CH', 'CZ', 'DE', 'EE', 'ES', 'FI', 'FR', 'HU', 'IT', 'LT', 'LU', 'LV', 'NL', 'PL', 'RO', 'SK'],
     // Mass import round 2 (15 Nov 2026, lessons L164): US shops and TEMU's US feed only to the US (dollars, US plugs);
     // Narwal EU (euros, EU plugs) only to the EU.
-    TEMU: ['US'], Imarku: ['US'], 'Super Area Rugs': ['US'], 'LOOMY Home': ['US'], Rowabi: ['US'], Airdog: ['US'], 'Narwal EU': ['EU'] } },
+    TEMU: ['US'], Imarku: ['US'], 'Super Area Rugs': ['US'], 'LOOMY Home': ['US'], Rowabi: ['US'], Airdog: ['US'], 'Narwal EU': ['EU'],
+    // Wave 3 (approvals file of chat 7, 16 Nov 2026, lessons L170): the US shops only to the US; Zepter (euros) only to the EU.
+    'INSPECIAL HOME': ['US'], 'Sleep Zone': ['US'], 'Sleep and Beyond': ['US'], BlindsMagic: ['US'],
+    'Dr.Prepare': ['US'], MEEDEN: ['US'], Buture: ['US'], Garvee: ['US'], GardePro: ['US'], MOVA: ['US'],
+    Aosom: ['US'], Zepter: ['EU'] } },
   foreignCurrencies: ['USD', 'PLN'],
   displayCurrencies: ['GBP', 'EUR', 'PLN', 'ALL', 'RON', 'RUB'],
   cart: { name: 'Saved list', maxItems: 30 },
