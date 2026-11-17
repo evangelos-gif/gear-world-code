@@ -16,34 +16,56 @@ const STATS_TTL = 3600;
 const retailerKey = n => String(n).replace(/\s+UK$/i, '').trim().toLowerCase();
 const RETAILER_LIST_MAX = 200;
 
-// Adds up the sites' /api/stats. A site that does not answer within 4 seconds is left out of the sum.
+// How long the page waits for one site's /api/stats. A site's own copy of its numbers lasts an hour; the first visit
+// after that runs its database count, which took 3.5 seconds on CGW (134,698 products) on 17/11/2026 (lessons L179).
+const SITE_STATS_TIMEOUT_MS = 6000;
+
+// One site's /api/stats answer, read the same way whether it is fresh or the site's last answer (lessons L179).
+function siteNumbers(s, d) {
+  const products = Number(d && d.products);
+  if (!Number.isFinite(products) || products <= 0) return null;
+  const names = Array.isArray(d.retailer_names) ? d.retailer_names.map(String) : [];
+  const delivery = Array.isArray(d.delivery)
+    ? d.delivery.map(x => ({ retailer: String(x && x.retailer || ''), products: Math.max(0, Number(x && x.products) || 0),
+      countries: Array.isArray(x && x.countries) ? x.countries.map(String) : [] })).filter(x => x.retailer && x.products > 0)
+    : names.length ? [{ retailer: names[0], products, countries: ['GB'], names }] : [];
+  const all = Number(d.all_products);
+  return { site: s, products, all: Number.isFinite(all) && all >= products ? all : products, names, delivery };
+}
+
+// The part of an answer kept as the site's last answer: only the numbers the sum reads.
+const keepAnswer = d => ({ products: d.products, all_products: d.all_products, retailer_names: d.retailer_names, delivery: d.delivery });
+
+// Adds up the sites' /api/stats. A site that does not answer within 6 seconds (or answers with an error) counts with
+// its last answer (`last`, by site address) when there is one, and is left out of the sum only when there is none:
+// on 17/11/2026 CGW answered late and the page showed 296,527 products instead of 431,225 for an hour (lessons L179).
 // products: every listed product (all countries); ukProducts: the UK view; countries: per country the products, the
 // retailers, the products of the retailer with the most (top, for the open-country rule, lessons L151) and each site's
 // share, from the retailers' delivery countries. A site that still answers the older /api/stats (no "delivery") counts
-// its UK numbers for the UK only.
-export async function networkStats(site, fetcher = fetch) {
+// its UK numbers for the UK only. answers: the fresh answers by site address, for the next call's `last`;
+// sitesLate: how many sites did not answer this time (counted from their last answer or left out).
+export async function networkStats(site, fetcher = fetch, last = {}) {
+  const answers = {};
   const results = await Promise.all(site.sites.filter(s => s.stats).map(async s => {
     try {
       const ctrl = new AbortController();
-      const timer = setTimeout(() => ctrl.abort(), 4000);
+      const timer = setTimeout(() => ctrl.abort(), SITE_STATS_TIMEOUT_MS);
       const r = await fetcher(new URL('/api/stats', s.url).toString(), { signal: ctrl.signal, headers: { Accept: 'application/json' } });
       clearTimeout(timer);
-      if (!r.ok) return null;
-      const d = await r.json();
-      const products = Number(d && d.products);
-      if (!Number.isFinite(products) || products <= 0) return null;
-      const names = Array.isArray(d.retailer_names) ? d.retailer_names.map(String) : [];
-      const delivery = Array.isArray(d.delivery)
-        ? d.delivery.map(x => ({ retailer: String(x && x.retailer || ''), products: Math.max(0, Number(x && x.products) || 0),
-          countries: Array.isArray(x && x.countries) ? x.countries.map(String) : [] })).filter(x => x.retailer && x.products > 0)
-        : names.length ? [{ retailer: names[0], products, countries: ['GB'], names }] : [];
-      const all = Number(d.all_products);
-      return { site: s, products, all: Number.isFinite(all) && all >= products ? all : products, names, delivery };
+      if (r.ok) {
+        const d = await r.json();
+        const fresh = siteNumbers(s, d);
+        if (fresh) { answers[s.url] = keepAnswer(d); return fresh; }
+      }
     } catch {
-      return null;
+      // late or down: the last answer below
     }
+    const old = last && typeof last === 'object' && Object.prototype.hasOwnProperty.call(last, s.url) ? last[s.url] : null;
+    const kept = old ? siteNumbers(s, old) : null;
+    return kept ? { ...kept, late: true } : { late: true, missing: true };
   }));
-  const ok = results.filter(Boolean);
+  const sitesLate = results.filter(x => x.late).length;
+  const ok = results.filter(x => !x.missing);
   const allNames = new Set();
   const ukNames = new Set();
   const countries = Object.fromEntries(COUNTRY_CODES.map(cc => [cc, { products: 0, retailers: new Set(), byRetailer: new Map(), names: new Map(), sites: [] }]));
@@ -80,22 +102,45 @@ export async function networkStats(site, fetcher = fetch) {
     ukProducts: ok.reduce((t, x) => t + x.products, 0),
     retailers: allNames.size || ukNames.size,
     sitesCounted: ok.length,
+    sitesLate,
     countries: plain,
-    worldwide: { products: worldwide.products, retailers: worldwide.retailers.size }
+    worldwide: { products: worldwide.products, retailers: worldwide.retailers.size },
+    answers
   };
 }
 
-async function cachedStats(site, ctx) {
+// When a site did not answer, the sum is kept for 5 minutes only, so the page asks again soon (lessons L179).
+const STATS_RETRY_TTL = 300;
+// Each site's last answer, kept a week in this data centre's cache (lessons L179).
+const LAST_ANSWERS_TTL = 7 * 24 * 3600;
+
+export async function cachedStats(site, ctx, fetcher = fetch) {
   const cache = typeof caches !== 'undefined' ? caches.default : null;
   // -2: the numbers per country (L130); -3: top (L151); -4: the retailers of each country (L160)
   const key = new Request(`https://${site.domain}/__stats-cache-4`);
+  const lastKey = new Request(`https://${site.domain}/__stats-last-answers-1`);
   if (cache) {
     const hit = await cache.match(key);
     if (hit) return hit.json();
   }
-  const stats = await networkStats(site);
+  let last = {};
+  if (cache) {
+    try {
+      const saved = await cache.match(lastKey);
+      const read = saved ? await saved.json() : null;
+      if (read && typeof read === 'object' && !Array.isArray(read)) last = read;
+    } catch {
+      last = {};
+    }
+  }
+  const { answers, ...stats } = await networkStats(site, fetcher, last);
   if (cache && stats.sitesCounted) {
-    const put = cache.put(key, new Response(JSON.stringify(stats), { headers: { 'Cache-Control': `max-age=${STATS_TTL}` } }));
+    const ttl = stats.sitesLate ? STATS_RETRY_TTL : STATS_TTL;
+    const puts = [cache.put(key, new Response(JSON.stringify(stats), { headers: { 'Cache-Control': `max-age=${ttl}` } }))];
+    if (Object.keys(answers).length) {
+      puts.push(cache.put(lastKey, new Response(JSON.stringify({ ...last, ...answers }), { headers: { 'Cache-Control': `max-age=${LAST_ANSWERS_TTL}` } })));
+    }
+    const put = Promise.all(puts);
     if (ctx && ctx.waitUntil) ctx.waitUntil(put); else await put;
   }
   return stats;
