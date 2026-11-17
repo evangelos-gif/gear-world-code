@@ -239,8 +239,10 @@ test('the Hub legal pages say what is there: one affiliate link on the Hub (the 
   assert.match(readFileSync(`${PUB}/about/index.html`, 'utf8'), /through the Awin and CJ affiliate networks, and through Sovrn Commerce for the "Featured pick" card on the Hub\.<\/p>/);
   const priv = readFileSync(`${PUB}/privacy/index.html`, 'utf8');
   // 8/11/2026 (L106): the sign-up forms use Cloudflare Turnstile, so the date moved on with the text; 17/11/2026 (L175,
-  // L176): the language line and "outside the UK and the European Economic Area".
-  assert.match(priv, /<p class="lg-updated">Last updated: 17 November 2026<\/p>/);
+  // L176): the language line and "outside the UK and the European Economic Area"; 20/11/2026 (L180): a search written
+  // as a sentence may be read by Cloudflare Workers AI.
+  assert.match(priv, /<p class="lg-updated">Last updated: 20 November 2026<\/p>/);
+  assert.match(priv, /Searches in a language other than English, or written as a sentence, may be read by Cloudflare Workers AI, inside our hosting provider, to translate them into English and to find the product, any price limit and who it is for\./);
   assert.match(priv, /also use Cloudflare Turnstile/);
   assert.match(priv, /The links to retailers on those sites go through the Awin affiliate network, or for a few retailers through CJ \(Commission Junction\)\. The one affiliate link on the Hub itself, the "Featured pick" card on the home page, goes to the retailer through Sovrn Commerce\./);
   assert.match(priv, /the <a href="https:\/\/www\.cj\.com\/legal\/privacy">CJ privacy policy<\/a> and the <a href="https:\/\/www\.sovrn\.com\/legal\/privacy-policy\/">Sovrn privacy policy<\/a>\./);
@@ -318,8 +320,9 @@ test('the Hub sitemap has /about/ (owner, 7/11/2026); the tools ask this release
   // L153 delivery badges of 14/11/2026: HUB BADGES (L150 HUB IMPACT live 14/11/2026 18:48).
   // L166 Stores of 16/11/2026: HUB STORES (L153 HUB BADGES live 14/11/2026 19:53).
   // L173 search model of 17/11/2026: HUB AI (L166 HUB STORES live 16/11/2026 20:12).
-  assert.ok(hubTool.includes("$PhrasePreview = 'ΕΓΚΡΙΝΩ HUB AI PREVIEW'") && hubTool.includes("$PhraseLive = 'ΕΓΚΡΙΝΩ HUB AI LIVE'"));
-  assert.ok(!/\$Phrase(Preview|Live) = 'ΕΓΚΡΙΝΩ HUB (COMPLIANCE|SECURITY|ROBOTS|CLEANUP|WORDING|ADS|GUIDES|GUIDE PRICES|MITGO|SOVRN|IMPACT|BADGES|STORES|REGISTRY) /.test(hubTool), 'no phrase of an earlier release');
+  // L180 search typed as a sentence (Idea 9) of 20/11/2026: HUB SEARCH (L173-L177 HUB AI live 17/11/2026 18:39).
+  assert.ok(hubTool.includes("$PhrasePreview = 'ΕΓΚΡΙΝΩ HUB SEARCH PREVIEW'") && hubTool.includes("$PhraseLive = 'ΕΓΚΡΙΝΩ HUB SEARCH LIVE'"));
+  assert.ok(!/\$Phrase(Preview|Live) = 'ΕΓΚΡΙΝΩ HUB (COMPLIANCE|SECURITY|ROBOTS|CLEANUP|WORDING|ADS|GUIDES|GUIDE PRICES|MITGO|SOVRN|IMPACT|BADGES|STORES|REGISTRY|AI) /.test(hubTool), 'no phrase of an earlier release');
   assert.ok(hubTool.includes("$PhraseRemovePreview = 'ΕΓΚΡΙΝΩ HUB REMOVE PREVIEW'"));
   const tests = readFileSync('tests/run-tests.ps1', 'utf8');
   assert.ok(tests.includes("'egkrino hub ai preview'") && tests.includes("'egkrino hub ai live'") && !/HUB WORDING|hub wording|HUB CLEANUP|hub cleanup|HUB ROBOTS|hub robots|hub security (preview|live)|hub compliance (preview|live)|hub guide prices (preview|live)|hub mitgo (preview|live)|hub sovrn (preview|live)|hub impact (preview|live)|hub badges (preview|live)|hub stores (preview|live)/.test(tests));

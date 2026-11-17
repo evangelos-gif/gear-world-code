@@ -85,6 +85,29 @@ searchStyle.textContent = `
     background:#f8fafc;
   }
 
+  /* Idea 9 (L180): what the Hub understood, and "search exactly for ..." */
+  .gwh-understood{
+    display:flex;
+    flex-wrap:wrap;
+    gap:4px 10px;
+    align-items:baseline;
+    padding:11px 16px;
+    border-bottom:1px solid #e7edf3;
+    color:#334155;
+    font-size:13px;
+    background:#ffffff;
+  }
+
+  .gwh-understood-exact{
+    padding:0;
+    border:0;
+    color:#1d4ed8;
+    font:inherit;
+    text-decoration:underline;
+    background:none;
+    cursor:pointer;
+  }
+
   .gwh-search-item{
     display:grid;
     grid-template-columns:72px minmax(0,1fr) auto;
@@ -331,10 +354,58 @@ function openSearchResults() {
 // REAL CROSS-SITE SEARCH
 // ============================================================
 
+// GWH-UNDERSTAND-V1 (Idea 9, L180): a search typed as a sentence comes back with "understood" (the product, a price
+// limit, who it is for). The line above the results says it in the visitor's language and offers the words as typed
+// (exact=1). The product words stay as the visitor wrote them (translate="no"); nothing here says SALE or % OFF (L107).
+let exactNext = false;
+
+function understoodPrice(value, currency) {
+  if (currency) return formatPrice(value, currency);
+  try {
+    return new Intl.NumberFormat(window.GWH_getLocale ? window.GWH_getLocale() : "en-GB").format(Number(value));
+  } catch {
+    return String(value);
+  }
+}
+
+function understoodHtml(understood) {
+  if (!understood || typeof understood !== "object" || !understood.item || !understood.query) return "";
+  const parts = [`<span translate="no">${escapeHtml(understood.item)}</span>`];
+  const max = Number(understood.max_price), min = Number(understood.min_price);
+  const hasMax = understood.max_price !== null && Number.isFinite(max) && max > 0;
+  const hasMin = understood.min_price !== null && Number.isFinite(min) && min > 0;
+  if (hasMax && hasMin) parts.push(escapeHtml(t("priceBetween", { min: understoodPrice(min, understood.currency), max: understoodPrice(max, understood.currency) })));
+  else if (hasMax) parts.push(escapeHtml(t("priceUnder", { price: understoodPrice(max, understood.currency) })));
+  else if (hasMin) parts.push(escapeHtml(t("priceOver", { price: understoodPrice(min, understood.currency) })));
+  const who = { kids: "forKids", women: "forWomen", men: "forMen", pets: "forPets" }[understood.for];
+  if (who) parts.push(escapeHtml(t(who)));
+  const label = escapeHtml(t("understoodLabel"));
+  const exact = escapeHtml(t("searchExactly", { query: understood.query }));
+  return `
+    <div class="gwh-understood" role="note">
+      <span>${label} ${parts.join(" · ")}</span>
+      <button type="button" class="gwh-understood-exact" data-gwh-exact="${escapeHtml(understood.query)}">${exact}</button>
+    </div>
+  `;
+}
+
+resultsPanel.addEventListener("click", event => {
+  const button = event.target && event.target.closest ? event.target.closest("[data-gwh-exact]") : null;
+  if (!button) return;
+  event.preventDefault();
+  event.stopPropagation();
+  exactNext = true;
+  searchInput.value = button.getAttribute("data-gwh-exact") || searchInput.value;
+  if (typeof searchForm.requestSubmit === "function") searchForm.requestSubmit();
+  else searchForm.dispatchEvent(new Event("submit", { cancelable: true }));
+});
+
 searchForm.addEventListener("submit", async (event) => {
   event.preventDefault();
 
   const query = searchInput.value.trim();
+  const exactSearch = exactNext;
+  exactNext = false;
 
   if (!query) {
     searchMessage.textContent = "";
@@ -362,7 +433,7 @@ searchForm.addEventListener("submit", async (event) => {
 
   try {
     const response = await fetch(
-      `/api/search?q=${encodeURIComponent(query)}`,
+      `/api/search?q=${encodeURIComponent(query)}${exactSearch ? "&exact=1" : ""}`,
       {
         headers: {
           "Accept": "application/json"
@@ -383,12 +454,14 @@ searchForm.addEventListener("submit", async (event) => {
     const results = Array.isArray(data.results)
       ? data.results
       : [];
+    const understoodLine = understoodHtml(data.understood);
 
     if (results.length === 0) {
       searchMessage.textContent =
         t("noProductsFor", { query });
 
       resultsPanel.innerHTML = `
+        ${understoodLine}
         <div class="gwh-search-empty">
           ${t("noProductsAcross")}
         </div>
@@ -470,6 +543,7 @@ searchForm.addEventListener("submit", async (event) => {
     }).join("");
 
     resultsPanel.innerHTML = `
+      ${understoodLine}
       <div class="gwh-search-summary">
         ${t("showingResults", {
           count: results.length,

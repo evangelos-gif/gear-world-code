@@ -184,6 +184,18 @@
   results must come from the Gear World that sells it; 2 or more wrong orders, or the Hub's search failing twice, are a
   ΠΡΟΒΛΗΜΑ, so -AfterPreview stops the live; a Gear World that does not answer twice is a ΠΡΟΣΟΧΗ (L74). The full list
   of 65 searches: node tools/gwh-search-check.mjs (--replay before a deploy).
+  Live since 17/11/2026 18:39 (ec76e012, L174-L177, phrases ΕΓΚΡΙΝΩ HUB AI PREVIEW / LIVE / REMOVE PREVIEW).
+  A search typed as a sentence (Idea 9 phase 1, lessons L180, owner's ΕΓΚΡΙΝΩ ΙΔΕΑ 9 ΦΑΣΗ 1 of 17/11/2026): worker.js
+  reads "i want to buy a tablet for my son under £200" first with rules that cost nothing (understandQuery: the words
+  around the product go, a price phrase becomes max/min, "for my son / for her / for my dog" pushes kgw / wgw / mgw / zgw
+  first, never a filter), and asks the search model (TEXT_MODEL, the same daily limit, never for a bot, L106) only for a
+  sentence the rules leave. A price written in a currency holds only for prices in that currency. The answer has
+  "understood"; app.js shows it above the results in the 11 languages with "Search exactly for ..." (exact=1); the
+  photo search and the gift finder are as before. The privacy page says a sentence may be read by Cloudflare Workers AI
+  (11 languages, 20 November 2026). Test-Site also checks 3 sentences for a UK visitor (the tool is a bot, so rules
+  only): the product, the price limit, the Gear World named first, and a plain search stays as typed. Phrases of this
+  release, in this order: ΕΓΚΡΙΝΩ HUB SEARCH PREVIEW, ΕΓΚΡΙΝΩ HUB SEARCH LIVE, ΕΓΚΡΙΝΩ HUB REMOVE PREVIEW (one paste,
+  live with -AfterPreview). Full list: node tools/gwh-search-check.mjs --sentences.
   Release order (L175): the 13 sites go live FIRST (sites-update-all, phrase ΕΓΚΡΙΝΩ ALL UPDATES), and only after their
   report this Hub release. Check that https://<site>/api/version of the sites is on the release with L175 first;
   otherwise a visitor in Greece who made no choice gets a Greek Hub and English sites.
@@ -213,8 +225,8 @@ $repo = Split-Path -Parent $PSScriptRoot
 $HubWorker = 'gear-world-hub'
 $PreviewName = 'gear-world-hub-preview'
 $DbName = 'gear-world-registry'
-$PhrasePreview = 'ΕΓΚΡΙΝΩ HUB AI PREVIEW'
-$PhraseLive = 'ΕΓΚΡΙΝΩ HUB AI LIVE'
+$PhrasePreview = 'ΕΓΚΡΙΝΩ HUB SEARCH PREVIEW'
+$PhraseLive = 'ΕΓΚΡΙΝΩ HUB SEARCH LIVE'
 $PhraseRegister = 'ΕΓΚΡΙΝΩ HUB ZGW SEARCH'
 $PhraseRemovePreview = 'ΕΓΚΡΙΝΩ HUB REMOVE PREVIEW'
 $LiveUrl = 'https://gearworldhub.com'
@@ -771,6 +783,27 @@ function Test-Site([string]$base, [bool]$isLive) {
     }
     if ($notChecked.Count -gt 0) { Say ('  Αναζήτηση (L177): ΠΡΟΣΟΧΗ - δεν ελέγχθηκαν (το site τους δεν απάντησε δύο φορές, L74): {0}' -f ($notChecked -join ', ')) $Warn }
     if ($missing.Count -gt 0) { Say ('  Αναζήτηση (L177): ΠΡΟΣΟΧΗ - δεν απάντησαν κάποια φορά: {0} (το site, όχι το Hub)' -f ($missing -join ', ')) $Warn }
+    # L180 (Idea 9): a search typed as a sentence, for a UK visitor. This tool is a bot for the Hub, so only the rules read
+    # it (never the model, L106): the product and the price limit in pounds, the Gear World that was named comes first,
+    # and a plain search stays as typed (no "understood"). Any of the three wrong is a problem (no live).
+    $sentenceBad = @()
+    $askSentence = {
+        param([string]$q)
+        $r = Get-Web ($base + '/api/search?q=' + [uri]::EscapeDataString($q) + '&country=GB&gwcheck=' + $stamp + '-s')
+        try { return ((New-Object System.Text.UTF8Encoding($false)).GetString($r.bytes) | ConvertFrom-Json) } catch { return $null }
+    }
+    $pound = [string][char]0x00A3
+    $sj1 = & $askSentence ('i want to buy a tablet under ' + $pound + '200')
+    if (-not ($sj1 -and $sj1.ok -and $sj1.PSObject.Properties['understood'] -and [string]$sj1.understood.item -eq 'tablet' -and [double]$sj1.understood.max_price -eq 200)) { $sentenceBad += 'tablet under 200' }
+    elseif (@($sj1.results | Where-Object { ([string]$_.currency -eq '' -or [string]$_.currency -eq 'GBP') -and [double]$_.price -gt 200 }).Count -gt 0) { $sentenceBad += 'tablet: price over 200' }
+    $sj2 = & $askSentence 'perfume for her'
+    $firstSite = ''
+    if ($sj2 -and @($sj2.results).Count -gt 0) { $firstSite = [string](@($sj2.results)[0].site) }
+    if (-not ($sj2 -and $sj2.ok -and $sj2.PSObject.Properties['understood'] -and [string]$sj2.understood.site -eq 'wgw' -and ($firstSite -eq '' -or $firstSite -eq 'wgw'))) { $sentenceBad += ('perfume for her (1o: {0})' -f $firstSite) }
+    $sj3 = & $askSentence 'kettle'
+    if (-not ($sj3 -and $sj3.ok -and -not $sj3.PSObject.Properties['understood'])) { $sentenceBad += 'kettle' }
+    if ($sentenceBad.Count -eq 0) { Say '  Αναζήτηση με πρόταση (L180): «i want to buy a tablet under £200» = tablet έως £200, «perfume for her» = πρώτα Women''s Gear World, το «kettle» μένει όπως γράφτηκε: ΕΝΤΑΞΕΙ' $Ok }
+    else { Say ('  Αναζήτηση με πρόταση (L180): ΠΡΟΒΛΗΜΑ - {0}' -f ($sentenceBad -join '; ')) $Bad }
     $s = Get-Web ($base + '/api/search?q=suitcase&worlds=vgw&max_price=100')
     try {
         $j = (New-Object System.Text.UTF8Encoding($false)).GetString($s.bytes) | ConvertFrom-Json

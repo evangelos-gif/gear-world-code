@@ -401,7 +401,8 @@
 
     async function searchAll(query) {
       try {
-        const response = await fetchWithTimeout(`/api/search?q=${encodeURIComponent(query)}`, { headers: { Accept: "application/json" } }, 20000);
+        // exact=1 (Idea 9, L180): the photo already gave the product words; the Hub does not read them again as a sentence.
+        const response = await fetchWithTimeout(`/api/search?q=${encodeURIComponent(query)}&exact=1`, { headers: { Accept: "application/json" } }, 20000);
         if (!response.ok) return null;
         const data = await response.json();
         if (!data || !data.ok) return null;

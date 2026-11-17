@@ -52,7 +52,8 @@ test('L173: the Hub search translates with the photo search model, without think
   });
   const worker = readFileSync('sites/gwh/worker.js', 'utf8');
   const runs = worker.match(/env\.AI\.run\(([^,]+),/g) || [];
-  assert.equal(runs.length, 2, 'the two translations of the search');
+  // The two translations of the search, and the reading of a search typed as a sentence (Idea 9, L180): the same model.
+  assert.equal(runs.length, 3, 'the two translations of the search and the reading of a sentence');
   assert.ok(runs.every(r => r === 'env.AI.run(TEXT_MODEL,'), runs.join(' | '));
 });
 

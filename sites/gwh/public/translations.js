@@ -228,6 +228,17 @@
       "Показано {count} результатов по запросу «{query}»"
     ],
 
+    // GWH-UNDERSTAND-V1 (Idea 9, lessons L180): the line above the results when a search typed as a sentence was read.
+    understoodLabel: ["Searching for:","Ψάχνουμε:","Suche nach:","Recherche :","Ricerca:","Buscando:","A pesquisar:","Zoeken naar:","Po kërkojmë:","Căutăm:","Ищем:"],
+    priceUnder: ["under {price}","έως {price}","bis {price}","jusqu'à {price}","fino a {price}","hasta {price}","até {price}","tot {price}","deri në {price}","până la {price}","до {price}"],
+    priceOver: ["over {price}","από {price}","ab {price}","à partir de {price}","da {price}","desde {price}","a partir de {price}","vanaf {price}","nga {price}","de la {price}","от {price}"],
+    priceBetween: ["{min} – {max}","{min} – {max}","{min} – {max}","{min} – {max}","{min} – {max}","{min} – {max}","{min} – {max}","{min} – {max}","{min} – {max}","{min} – {max}","{min} – {max}"],
+    forKids: ["for kids","για παιδιά","für Kinder","pour enfants","per bambini","para niños","para crianças","voor kinderen","për fëmijë","pentru copii","для детей"],
+    forWomen: ["for women","για γυναίκες","für Frauen","pour femmes","per donne","para mujeres","para mulheres","voor vrouwen","për gra","pentru femei","для женщин"],
+    forMen: ["for men","για άνδρες","für Männer","pour hommes","per uomini","para hombres","para homens","voor mannen","për burra","pentru bărbați","для мужчин"],
+    forPets: ["for pets","για κατοικίδια","für Haustiere","pour animaux","per animali","para mascotas","para animais de estimação","voor huisdieren","për kafshët shtëpiake","pentru animale de companie","для питомцев"],
+    searchExactly: ["Search exactly for “{query}”","Αναζήτηση ακριβώς για «{query}»","Genau nach „{query}“ suchen","Rechercher exactement « {query} »","Cerca esattamente “{query}”","Buscar exactamente «{query}»","Pesquisar exatamente “{query}”","Precies zoeken op “{query}”","Kërko saktësisht “{query}”","Caută exact „{query}”","Искать точно «{query}»"],
+
     searchUnavailable: [
       "Product search is temporarily unavailable.",
       "Η αναζήτηση προϊόντων δεν είναι προσωρινά διαθέσιμη.",
