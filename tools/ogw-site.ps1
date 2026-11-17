@@ -158,7 +158,7 @@ function Get-WorkerState([string]$folder, [string]$name) {
     $r = Invoke-Wrangler $folder ('deployments list --name {0}' -f $name) -NonInteractive -Retry
     $ms = [regex]::Matches($r.text, '\(100%\)\s+([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})')
     if ($ms.Count -gt 0) { return @{ known = $true; ver = $ms[$ms.Count - 1].Groups[1].Value; text = '' } }
-    if ($r.text -match '(?i)no deployments|does not exist|not found|10007') { return @{ known = $true; ver = ''; text = '' } }
+    if ($r.text -match '(?i)no deployments|does not exist|10007') { return @{ known = $true; ver = ''; text = '' } }
     return @{ known = $false; ver = ''; text = $r.text }
 }
 
