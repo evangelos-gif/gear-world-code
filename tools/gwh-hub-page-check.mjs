@@ -164,6 +164,19 @@ try {
       const worlds = await page.$$eval('.gwh-image-world', els => els.map(e => ({ world: e.dataset.world, href: e.getAttribute('href'), title: e.querySelector('.gwh-image-world-title').textContent.trim() })));
       check(worlds.length === 13 && worlds.every(w => /^https:\/\/[a-z]+gearworld\.com\/$/.test(w.href)), `${tag}: 13 Gear World cards with their sites (BGW and PGW since 31/10/2026, ZGW since 1/11/2026)`, worlds.map(w => w.world).join(','));
       if (locale === 'el-GR') check(worlds[0].title === 'Εργαλεία & ρούχα εργασίας' || /[Α-Ωα-ω]/.test(worlds[0].title), `${tag}: world titles in Greek`, worlds[0].title);
+      // Lessons L174 (Linkwise, 17/11/2026): the Hub's language goes with a link to a site when it is used, and the
+      // «Featured pick» card is in the chosen language. The link is not followed: the event only, then the address back.
+      const carried = await page.$eval('.gwh-image-world', a => {
+        const before = a.getAttribute('href');
+        a.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true }));
+        const after = a.getAttribute('href');
+        a.setAttribute('href', before);
+        return after;
+      });
+      const wantLink = locale === 'en-GB' ? worlds[0].href : `${worlds[0].href}?lang=${locale}`;
+      check(carried === wantLink, `${tag}: a world card opens its site in the Hub's language (L174)`, carried);
+      const featured = await page.$eval('#gwh2FeaturedTitle', e => e.textContent.trim());
+      check(featured === text('featuredTitle', locale), `${tag}: the Featured pick card is in the chosen language (L174)`, featured);
 
       // deals: from hub-deals.json, to site pages only (the list the script fills; the «Featured pick» card of L121 is
       // a card of the same look outside it)

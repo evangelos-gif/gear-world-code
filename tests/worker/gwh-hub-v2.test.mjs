@@ -17,7 +17,7 @@ const LOCALES = ['en-GB', 'el-GR', 'de-DE', 'fr-FR', 'it-IT', 'es-ES', 'pt-PT', 
 function hub(locationLike, seasons = null) {
   const window = { addEventListener() {}, dispatchEvent() {} };
   const document = { readyState: 'loading', addEventListener() {} };
-  const context = { window, document, URLSearchParams, Intl, console };
+  const context = { window, document, URL, URLSearchParams, Intl, console };
   if (locationLike) context.location = locationLike;
   const code = read('public/hub-v2.js');
   vm.runInNewContext(seasons ? hubScriptWithSeasons(code, seasons) : code, context);
@@ -160,8 +160,9 @@ test('hub v2: the page keeps every id and class the other scripts need, and load
   assert.match(html, /<div class="hero-copy">\s*<span class="eyebrow">/);
   assert.match(html, /<link rel="stylesheet" href="\/hub-v2\.css\?v=(20261109-compliance|20261116-stores)\d+">/);
   // A new ?v= with every change of the script (L31): 9/11/2026 the season switches (L107), 14/11/2026 the delivery line
-  // on the gift cards (L153), 16/11/2026 the texts of the Stores card (L166).
-  assert.match(html, /<script src="\/hub-v2\.js\?v=(20261114-badges|20261116-stores)\d+" defer><\/script>/);
+  // on the gift cards (L153), 16/11/2026 the texts of the Stores card (L166), 17/11/2026 the Featured pick and the
+  // language of the links to the sites (L174).
+  assert.match(html, /<script src="\/hub-v2\.js\?v=(20261114-badges|20261116-stores|20261117-lang)\d+" defer><\/script>/);
   assert.ok(html.indexOf('/gear-world-camera.js?v=') < html.indexOf('/hub-v2.js?v='), 'hub-v2.js after the camera script');
   assert.ok(!html.includes('/styles.css'), 'the old styles.css is not loaded');
   assert.ok(!html.includes('gwh-hero.png'), 'the 2.8 MB picture is gone from the page');
@@ -342,10 +343,53 @@ test('home page: one Sovrn Commerce link, marked like the product links of the s
   const end = html.indexOf('</section>', start);
   assert.ok(start > html.indexOf('id="gifts"') && start < html.indexOf('id="deals"'), 'between the gift finder and the deals, not in a part the scripts fill');
   const card = html.slice(start, end);
-  assert.ok(card.includes('Affiliate link') && card.includes('We may earn a commission') && card.includes('<a href="/affiliate-disclosure/">How this works</a>'));
+  assert.ok(card.includes('Affiliate link') && card.includes('We may earn a commission') && card.includes('<a href="/affiliate-disclosure/" data-gwh2="featuredHow">How this works</a>'));
   assert.ok(card.includes('sold by engelbert-strauss.co.uk, not by Gear World') && card.includes('STRAUSS e.s. S3 safety boots Okomu mid'));
   assert.ok(!/shop|cart\b|buy now|UK retailers|£/i.test(card), 'no shop words and no price (a price would need its daily check)');
   for (const f of ['worker.js', 'photo-search.js', 'security.js', 'public/hub-v2.js', 'public/app.js']) {
     assert.ok(!/sovrn|viglink/i.test(read(f)), `${f}: no Sovrn code`);
   }
+});
+
+// Lessons L174 (Linkwise, 17/11/2026): a Greek Hub showed the «Featured pick» in English, and its world cards opened
+// the sites in English. The card is now in the 11 languages, and every link to a site carries the Hub's language.
+test('hub v2: the Featured pick card is in the 11 languages; only the retailer and the product name stay as written (L174)', () => {
+  const h = hub();
+  const html = read('public/index.html');
+  const start = html.indexOf('<section class="gwh2-section" id="featured"');
+  const card = html.slice(start, html.indexOf('</section>', start));
+  for (const key of ['featuredTitle', 'featuredSub', 'featuredBadge', 'featuredMeta', 'featuredCta', 'featuredNote', 'featuredHow']) {
+    assert.ok(card.includes(`data-gwh2="${key}"`), `${key} is on the card`);
+    assert.equal(h.strings[key].length, 11, key);
+  }
+  // Every text of the card is either translated or a name.
+  const texts = [...card.matchAll(/>([^<>]*[A-Za-z][^<>]*)</g)].map(m => m[1].trim()).filter(Boolean);
+  const tagged = [...card.matchAll(/<[^>]+data-gwh2="([A-Za-z]+)"[^>]*>([^<]*)</g)].map(m => m[2].trim());
+  const names = ['Engelbert Strauss', 'STRAUSS e.s. S3 safety boots Okomu mid'];
+  for (const t of texts) assert.ok(tagged.includes(t) || names.includes(t), `"${t}" is translated or a name`);
+  for (const t of tagged) assert.ok(h.strings[Object.keys(h.strings).find(k => h.strings[k][0] === t.replace(/&amp;/g, '&'))], `"${t}" is the English text of its key`);
+  assert.ok(card.includes('translate="no">Engelbert Strauss<') && card.includes('translate="no">STRAUSS e.s. S3 safety boots Okomu mid<'));
+  for (const list of [h.strings.featuredMeta]) list.forEach(text => assert.ok(text.includes('engelbert-strauss.co.uk') && text.includes('Gear World'), text));
+  for (const list of [h.strings.featuredCta]) list.forEach(text => assert.ok(text.includes('Engelbert Strauss'), text));
+});
+
+test('hub v2: a link to a Gear World site carries the language of the Hub; English, other sites and /go/ /out/ stay as they are (L174)', () => {
+  const h = hub();
+  assert.equal(h.siteHosts.length, 13);
+  const html = read('public/index.html');
+  const worlds = [...html.matchAll(/class="gwh-quick-world gwh-image-world" href="https:\/\/([a-z]+\.com)\/"/g)].map(m => m[1]);
+  assert.deepEqual([...worlds].sort(), [...h.siteHosts].sort(), 'the 13 world cards are the 13 sites');
+  assert.equal(h.withLanguage('https://constructiongearworld.com/', 'el-GR'), 'https://constructiongearworld.com/?lang=el-GR');
+  assert.equal(h.withLanguage('https://homegearworld.com/search/?q=kettle', 'de-DE'), 'https://homegearworld.com/search/?q=kettle&lang=de-DE');
+  assert.equal(h.withLanguage('https://www.petsgearworld.com/category/dog/?lang=el-GR', 'ru-RU'), 'https://www.petsgearworld.com/category/dog/?lang=ru-RU');
+  assert.equal(h.withLanguage('https://kidsgearworld.com/discount-codes/x/?lang=el-GR', 'en-GB'), 'https://kidsgearworld.com/discount-codes/x/', 'back to English: the old choice goes');
+  assert.equal(h.withLanguage('https://kidsgearworld.com/', 'en-GB'), 'https://kidsgearworld.com/', 'English adds nothing');
+  assert.equal(h.withLanguage('https://kidsgearworld.com/', 'pl-PL'), 'https://kidsgearworld.com/', 'a language the Hub does not have adds nothing');
+  for (const href of ['https://cargearworld.com/out/123', 'https://cargearworld.com/go/abc', 'https://sovrn.co/o4ablp8', '/stores/', '/affiliate-disclosure/', 'https://gearworldhub.com/', 'https://evilgearworld.com/', 'http://homegearworld.com/', 'mailto:evangelos@gearworldgroup.com', '#deals']) {
+    assert.equal(h.withLanguage(href, 'el-GR'), href, href);
+  }
+  // Added only when a link is used, never to the addresses written on the page.
+  const code = read('public/hub-v2.js');
+  assert.match(code, /for \(const type of \["pointerdown", "click", "auxclick", "contextmenu"\]\) document\.addEventListener\(type, languageOnLink, true\)/);
+  assert.ok(!/gearworld\.com\/\?lang=/.test(html), 'the page keeps the plain addresses');
 });

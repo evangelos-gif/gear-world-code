@@ -158,6 +158,10 @@
   photo-search.js (TEXT_MODEL, translationInput, answerText: the answer in any shape, one line only). The pages, the
   D1, translations.js and gwh-sitemap do not change. Phrases of this release, in this order: ΕΓΚΡΙΝΩ HUB AI PREVIEW,
   ΕΓΚΡΙΝΩ HUB AI LIVE, ΕΓΚΡΙΝΩ HUB REMOVE PREVIEW (one paste, live with -AfterPreview), before 20/11/2026.
+  Language (lessons L174, 17/11/2026, from Linkwise's review): the «Featured pick» card was English on every language of
+  the Hub, and the world cards opened the sites in English (each site keeps its own language). hub-v2.js now has the
+  card's texts in the 11 languages and adds ?lang=<the Hub's language> to a link to one of the 13 sites when it is used
+  (never on /go/ or /out/, nothing for English); the page keeps the plain addresses. Same release and phrases as L173.
   Exit codes added by L119: 21 the -MitgoCode has another form, 22 the code did not go into the live Worker (nothing went
   live), 23 -AfterPreview without a clean preview report of this version (nothing changed).
   Report: <home>\gear-world-reports\GWH_HUB_V2_<STEP>_<time>.txt (also copied to the clipboard)
@@ -215,14 +219,14 @@ $About = @{
     'members.js'            = 'η φόρμα «Get deal updates» των sites: το Hub ελέγχει το token του Turnstile κάθε site, ίδιο ημερήσιο όριο, ημερήσιο όριο μεταφράσεων για τα sites (/internal/ai-slot) (L106)'
     'public/email-signup.js' = 'το κουτί email λέει τι στέλνει: κωδικούς που δημοσιεύουν τα καταστήματα και νέα των sites, όχι «prices we''ve checked», 11 γλώσσες (L107)· Turnstile όταν αρχίζει η φόρμα (L106)'
     'poster-scan.js'        = 'η μέτρηση των αφισών (ίδια με αυτή που μπήκε με το POSTER STATS)'
-    'public/index.html' = 'μόνο νέο ?v= για το hub-v2.css (L31)· όλα τα άλλα όπως είναι live'
+    'public/index.html' = 'η κάρτα «Featured pick» παίρνει τα κείμενά της από το hub-v2.js (11 γλώσσες) και νέο ?v= για το hub-v2.js (L174, L31)· όλα τα άλλα όπως είναι live'
     'public/about/index.html' = 'νέα σελίδα /about/: «Run by Evangelos Kalogerakis, United Kingdom», ότι δεν πουλάμε, δεν παίρνουμε πληρωμές, δεν κάνουμε παραδόσεις, contact@gearworldhub.com (νέο αρχείο, L101)'
     'public/about/about.js' = 'η σελίδα /about/ στη γλώσσα που διάλεξε ο επισκέπτης, 11 γλώσσες (νέο αρχείο, L101)'
     'public/privacy/index.html' = 'τα links των sites περνούν από το Awin ή το CJ, με την πολιτική απορρήτου και των δύο· «Last updated: 9 November 2026» (L107)'
     'public/cookies/index.html' = 'τα cookies του affiliate network: «Awin, or for a few retailers CJ»· «Last updated: 9 November 2026» (L107)· νέα γραμμή στο footer και link «About» (L101)'
     'public/affiliate-disclosure/index.html' = 'τα κουμπιά των sites περνούν από ένα affiliate network: Awin, ή για λίγα καταστήματα CJ· «Last updated: 9 November 2026» (L107)'
     'public/hub-v2.css'     = 'στο κινητό το Pets και το Stores μικρά, το ένα δίπλα στο άλλο (όπως οι άλλες κάρτες)· κάτω από 380 px εικόνα 40 px και τίτλος 13 px, ώστε το «Καταστήματα» να χωράει σε μία γραμμή (L166)'
-    'public/hub-v2.js' = 'τα κείμενα της κάρτας «Stores» σε 11 γλώσσες (L166)· όλα τα άλλα όπως είναι live'
+    'public/hub-v2.js' = 'η κάρτα «Featured pick» σε 11 γλώσσες, και κάθε link προς ένα από τα 13 sites παίρνει τη γλώσσα του Hub (?lang=) τη στιγμή που πατιέται, ώστε το site να ανοίγει στη γλώσσα που διάλεξε ο επισκέπτης (L174)· όλα τα άλλα όπως είναι live'
     'public/hub-stores.jpg' = 'η φωτογραφία της κάρτας «Stores»: οι φωτογραφίες 4 κόσμων μαζί (Pexels, ήδη στο Hub)'
     'public/stores/index.html' = 'νέα σελίδα /stores/: τα μεγάλα καταστήματα ανά χώρα παράδοσης (L166)'
     'public/stores/stores.css' = 'η εμφάνιση των σελίδων /stores/ (νέο αρχείο, L166)'
