@@ -183,14 +183,18 @@ export function createWorker(site) {
 
     // Gear World Hub search links use the older sites' format /?search=<q>&highlight=<id> (lessons L22).
     if (path === '/' && (url.searchParams.has('highlight') || url.searchParams.has('search'))) {
+      // The language the visitor chose on the Hub (?lang=, lessons L174, L175) goes with the redirect, when the site has it.
+      const askedLang = url.searchParams.get('lang') || '';
+      const keepLang = (site.languages || []).some(l => l.code === askedLang) ? askedLang : '';
+      const target = to => { if (keepLang) to.searchParams.set('lang', keepLang); return to.toString(); };
       const id = Number.parseInt(url.searchParams.get('highlight') || '', 10);
       if (Number.isSafeInteger(id) && id > 0) {
         // The product page itself says when the visitor's view does not list the product (lessons L107).
         const product = await db.getProduct(env.DB, id);
-        if (product) return redirect(new URL(productPath(product), url.origin).toString(), 302);
+        if (product) return redirect(target(new URL(productPath(product), url.origin)), 302);
       }
       const q = (url.searchParams.get('search') || '').normalize('NFKC').trim().slice(0, 80);
-      return redirect(new URL(q ? `/search?q=${encodeURIComponent(q)}` : '/', url.origin).toString(), 302);
+      return redirect(target(new URL(q ? `/search?q=${encodeURIComponent(q)}` : '/', url.origin)), 302);
     }
 
     if (path === '/') {
@@ -651,9 +655,10 @@ export function createWorker(site) {
         response = htmlResponse(errorPage(pageSite), { status: busy ? 503 : 500, cache: 'none' });
         if (busy) response.headers.set('Retry-After', '60');
       }
-      // A visitor from Poland gets the site in Polish unless they chose a language (lessons L162): the page names it,
-      // after the page cache. Google's crawlers count as the UK (English, as before).
-      if (request.method === 'GET') response = await withCountryLanguage(response, countryLanguage(site, requestCountry(request, new URL(request.url))));
+      // A visitor gets the site in the language of their country unless they chose one (lessons L162 Poland, L175 every
+      // country with a language of the sites): the page names it, after the page cache. Google's crawlers count as the UK
+      // (English, as before).
+      if (request.method === 'GET') response = await withCountryLanguage(response, readsEnglish(request) ? '' : countryLanguage(site, requestCountry(request, new URL(request.url)), request.headers.get('accept-language')));
       // The bar for a visitor outside the UK who gets the UK view or the all view (lessons L107, owner's option A; L151):
       // added to the answer after the page cache, never into a cached copy, so it costs no D1 read and no extra cache copy.
       const browsing = browseCountry(request);
@@ -682,7 +687,8 @@ const MASTHEAD = '<header class="masthead">';
 export async function withUkBar(response, barHtml = null) {
   if (!response || !response.body || !/^text\/html/i.test(response.headers.get('Content-Type') || '')) return response;
   const headers = new Headers(response.headers);
-  headers.set('Cache-Control', 'private, max-age=60');
+  // As with the country language (L175): an answer that must not be kept (no-store, no-cache) stays so.
+  if (!/no-store|no-cache/i.test(headers.get('Cache-Control') || '')) headers.set('Cache-Control', 'private, max-age=60');
   headers.delete('Content-Length');
   const bar = barHtml || ukBarHtml();
   if (typeof HTMLRewriter === 'function') {
@@ -694,21 +700,68 @@ export async function withUkBar(response, barHtml = null) {
   return new Response(i < 0 ? text : text.slice(0, i) + bar + text.slice(i), { status: response.status, statusText: response.statusText, headers });
 }
 
-// Lessons L162 (Manager, 15 Nov 2026: Poland is open and the first country outside the UK to be promoted): a country
-// whose language the site has, and that the visitor gets without a choice of their own. Only Poland: every other
-// country reads English until they pick a language (or open a link with ?lang=).
-export const COUNTRY_LANGUAGES = { PL: 'pl-PL' };
-export function countryLanguage(site, country) {
-  const code = COUNTRY_LANGUAGES[String(country || '').toUpperCase()] || '';
-  return code && (site.languages || []).some(l => l.code === code) ? code : '';
+// Lessons L162 (Manager, 15 Nov 2026: Poland is open and the first country outside the UK to be promoted) and L175
+// (owner, 17 Nov 2026, after Linkwise saw the Greek pages open in English: "every country opens in its own language"):
+// a country whose language the site has gets it without a choice of their own. The visitor's own choice (menu or
+// ?lang=) always comes first, and Google reads English as before. A country with several languages of the sites takes
+// the first of the browser's languages that is one of them; English first, or none of them, keeps English.
+export const COUNTRY_LANGUAGES = {
+  PL: 'pl-PL',
+  GR: 'el-GR', CY: 'el-GR',
+  DE: 'de-DE', AT: 'de-DE', LI: 'de-DE',
+  FR: 'fr-FR', MC: 'fr-FR', RE: 'fr-FR', GP: 'fr-FR', MQ: 'fr-FR', GF: 'fr-FR', YT: 'fr-FR', MF: 'fr-FR', BL: 'fr-FR',
+  PM: 'fr-FR', NC: 'fr-FR', PF: 'fr-FR', WF: 'fr-FR',
+  IT: 'it-IT', SM: 'it-IT', VA: 'it-IT',
+  ES: 'es-ES', MX: 'es-ES', AR: 'es-ES', CO: 'es-ES', CL: 'es-ES', PE: 'es-ES', VE: 'es-ES', EC: 'es-ES', GT: 'es-ES',
+  CU: 'es-ES', BO: 'es-ES', DO: 'es-ES', HN: 'es-ES', PY: 'es-ES', SV: 'es-ES', NI: 'es-ES', CR: 'es-ES', PA: 'es-ES',
+  UY: 'es-ES',
+  PT: 'pt-PT', BR: 'pt-PT', AO: 'pt-PT', MZ: 'pt-PT',
+  NL: 'nl-NL', SR: 'nl-NL', AW: 'nl-NL', CW: 'nl-NL', SX: 'nl-NL', BQ: 'nl-NL',
+  AL: 'sq-AL', XK: 'sq-AL',
+  RO: 'ro-RO', MD: 'ro-RO',
+  RU: 'ru-RU', BY: 'ru-RU'
+};
+// Crawlers read English, Google's (they count as the UK) and every other one; the network's own checks (QA_BOT, L158)
+// can still ask a country.
+export const OTHER_CRAWLER = /(?<!cu)bot\b|bot\/|crawler|spider|slurp|bingpreview|facebookexternalhit|embedly/i; // not Cubot phones
+export function readsEnglish(request) {
+  const ua = request.headers.get('user-agent') || '';
+  return !QA_BOT.test(ua) && OTHER_CRAWLER.test(ua);
 }
-// <html data-country-lang="pl-PL">: the site script reads it only when the visitor has no language of their own (menu or
+// Canada: English unless the browser asks French first.
+export const MULTI_LANGUAGE_COUNTRIES = { BE: ['nl-NL', 'fr-FR', 'de-DE'], CH: ['de-DE', 'fr-FR', 'it-IT'], LU: ['fr-FR', 'de-DE'], CA: ['fr-FR'] };
+// The browser's languages by preference (q weights; q=0 means "not this one"), as base codes: "fr-BE,fr;q=0.9" -> fr.
+export function browserLanguages(header) {
+  return String(header || '').split(',').map((part, i) => {
+    const [tag, ...params] = part.split(';').map(x => x.trim());
+    const qp = params.find(p => /^q=/i.test(p));
+    const q = qp ? Number(qp.slice(2)) : 1;
+    return { base: tag.toLowerCase().split('-')[0], q: Number.isFinite(q) ? q : 0, i };
+  }).filter(l => l.base && l.base !== '*' && l.q > 0).sort((a, b) => b.q - a.q || a.i - b.i).map(l => l.base);
+}
+export function countryLanguage(site, country, acceptLanguage = '') {
+  const cc = String(country || '').toUpperCase();
+  const has = code => (site.languages || []).some(l => l.code === code);
+  const several = MULTI_LANGUAGE_COUNTRIES[cc];
+  if (several) {
+    for (const base of browserLanguages(acceptLanguage)) {
+      if (base === 'en') return '';
+      const code = several.find(c => c.split('-')[0] === base);
+      if (code) return has(code) ? code : '';
+    }
+    return '';
+  }
+  const code = COUNTRY_LANGUAGES[cc] || '';
+  return code && has(code) ? code : '';
+}
+// <html data-country-lang="el-GR">: the site script reads it only when the visitor has no language of their own (menu or
 // ?lang=). Added to the answer, never to the cached copy (one copy per view group for every visitor), so that answer is
 // private, like the one with the UK bar. In the Worker: HTMLRewriter; in the Node tests: the same on the text.
 export async function withCountryLanguage(response, code) {
   if (!code || !response || !response.body || !/^text\/html/i.test(response.headers.get('Content-Type') || '')) return response;
   const headers = new Headers(response.headers);
-  headers.set('Cache-Control', 'private, max-age=60');
+  // An answer that must not be kept (no-store, no-cache: error pages, form answers) stays so; any other becomes private.
+  if (!/no-store|no-cache/i.test(headers.get('Cache-Control') || '')) headers.set('Cache-Control', 'private, max-age=60');
   headers.delete('Content-Length');
   if (typeof HTMLRewriter === 'function') {
     const out = new HTMLRewriter().on('html', { element(e) { e.setAttribute('data-country-lang', code); } }).transform(response);
