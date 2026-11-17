@@ -34,13 +34,13 @@ export default {
       slug: 'christmas-gift-ideas-for-him',
       title: 'Christmas gift ideas for him',
       teaser: 'Grooming, watches, warm layers and things he will use every day.',
-      intro: 'Useful gifts are the ones that get used. These are ideas, not picks: each button opens a search on the marketplace, so you can compare models, sellers and prices yourself.',
+      intro: 'Useful gifts are the ones that get used. These are ideas, not picks: each button opens a page with current models, so you can compare models, sellers and prices yourself.',
       ideas: [
         { name: 'Beard trimmer', why: 'Cordless with a few comb lengths covers most beards. Check the battery time and whether it can be rinsed.', q: 'cordless beard trimmer', gw: 'MGW', cat: 'grooming-fragrances' },
         { name: 'Automatic watch', why: 'No battery to change. Check the case size against a watch he already wears.', q: 'automatic watch men', gw: 'MGW', cat: 'watches' },
         { name: 'Leather wallet', why: 'Slim card holders suit a front pocket. Check how many cards it takes.', q: 'slim leather wallet men', gw: 'MGW', cat: 'bags-accessories' },
         { name: 'Wool beanie and scarf', why: 'Merino or lambswool is warm without being bulky.', q: 'wool beanie scarf set men', gw: 'MGW', cat: 'clothing' },
-        { name: 'Multi-tool', why: 'Pliers, screwdrivers and a blade in one. In the UK a locking blade must not be carried in public without a good reason.', q: 'multi tool pliers', gw: 'MGW', cat: 'everyday-carry' },
+        { name: 'Multi-tool', why: 'Pliers, screwdrivers and a blade in one. UK law: in public, only a folding blade up to 3 inches that does not lock, unless there is a good reason. Not sold to under-18s.', q: 'multi tool pliers', gw: 'MGW', cat: 'everyday-carry' },
         { name: 'Wireless earbuds', why: 'For the gym or the commute. Check the fit options and how long the case charge lasts.', q: 'wireless earbuds', gw: 'TGW', cat: 'audio' },
         { name: 'Aftershave or eau de parfum', why: 'A smaller bottle of a scent he likes is better than a big bottle of a guess.', q: 'eau de parfum men', gw: 'MGW', cat: 'grooming-fragrances' },
         { name: 'Backpack for work', why: 'A padded laptop sleeve and a water-resistant fabric matter more than the brand.', q: 'laptop backpack water resistant', gw: 'VGW', cat: 'travel-bags-backpacks' }
@@ -50,7 +50,7 @@ export default {
       slug: 'christmas-gift-ideas-for-her',
       title: 'Christmas gift ideas for her',
       teaser: 'Beauty tools, jewellery, cosy home gifts and everyday bags.',
-      intro: 'A short list of gift ideas that are easy to choose and easy to wrap. Each button opens a search, so you see the current models, sellers and prices.',
+      intro: 'A short list of gift ideas that are easy to choose and easy to wrap. Each button opens a page with the current models, so you see the sellers and prices yourself.',
       ideas: [
         { name: 'Hair styler', why: 'Stylers with several heat settings let you use less heat. Check the plug is a UK plug.', q: 'hair styler uk plug', gw: 'WGW', cat: 'beauty-fragrances' },
         { name: 'Silver jewellery', why: 'Sterling silver (925) studs or a pendant are a safe size choice.', q: 'sterling silver necklace women', gw: 'WGW', cat: 'jewellery' },
@@ -84,9 +84,9 @@ export default {
       teaser: 'Chargers, speakers, smart home and small gadgets that get used.',
       intro: 'Tech gifts work best when they fit what someone already has. Check which phone or system the gift works with before you choose.',
       ideas: [
-        { name: 'Portable charger', why: 'About 10,000 mAh charges most phones about twice. Check it has the same port as their phone.', q: 'power bank 10000mah usb c', gw: 'TGW', cat: 'accessories-storage' },
+        { name: 'Portable charger', why: 'About 10,000 mAh charges most phones one and a half to two times. Check it has the same port as their phone.', q: 'power bank 10000mah usb c', gw: 'TGW', cat: 'accessories-storage' },
         { name: 'Bluetooth speaker', why: 'Water-resistant speakers (IPX5 or more) can go to the garden or the beach.', q: 'bluetooth speaker waterproof', gw: 'TGW', cat: 'audio' },
-        { name: 'Smart plug', why: 'Turns a lamp or heater on from the phone. Check it works with their voice assistant.', q: 'smart plug uk', gw: 'TGW', cat: 'smart-home-wifi' },
+        { name: 'Smart plug', why: 'Turns a lamp or fairy lights on from the phone or on a timer. Check the maximum load, and never use one with a heater.', q: 'smart plug uk', gw: 'TGW', cat: 'smart-home-wifi' },
         { name: 'E-reader', why: 'A light, glare-free screen for books. Check the storage and which e-book store it uses.', q: 'e-reader', gw: 'TGW', cat: 'laptops-computing' },
         { name: 'Wireless charging pad', why: 'Only for phones with wireless charging. Check the phone model.', q: 'wireless charger pad', gw: 'TGW', cat: 'accessories-storage' },
         { name: 'Webcam', why: '1080p with a built-in microphone is enough for most calls.', q: 'webcam 1080p microphone', gw: 'TGW', cat: 'laptops-computing' },
@@ -162,7 +162,7 @@ export default {
       slug: 'stocking-filler-ideas',
       title: 'Stocking filler ideas',
       teaser: 'Small gifts for everyone: socks, gadgets, games and treats.',
-      intro: 'Small gifts that fit in a stocking. Each button opens a search, so you choose the model and see the price yourself.',
+      intro: 'Small gifts that fit in a stocking. Each button opens a page with current models, so you choose the model and see the price yourself.',
       ideas: [
         { name: 'Novelty socks', why: 'A safe size choice for most people.', q: 'christmas socks', gw: 'MGW', cat: 'clothing' },
         { name: 'Card game', why: 'Quick games for after Christmas dinner. Check the number of players.', q: 'card game family', gw: 'KGW', cat: 'toys-games' },
@@ -196,8 +196,8 @@ export default {
   checks: {
     slug: 'black-friday-checks-before-you-choose',
     title: 'Black Friday: 7 checks before you choose',
-    teaser: 'How to tell whether a price is good, on any marketplace.',
-    intro: 'Black Friday is on Friday 27 November 2026. These checks take a few minutes and work on any marketplace, any day of the year.',
+    teaser: 'How to tell whether a price is good, wherever you compare.',
+    intro: 'These checks take a few minutes and work on any marketplace, on Black Friday or any other day of the year.',
     steps: [
       { name: 'Compare the same model', text: 'Search for the exact model number, not just the name. Two products with the same name can be different models.' },
       { name: 'Look at who sells it', text: 'On a marketplace, the seller can be the marketplace itself or another business. The product page says who sells it and who sends it.' },

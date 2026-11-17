@@ -23,6 +23,11 @@ export function amazonMode(env) {
   return v === 'on' || v === 'preview' ? v : 'off';
 }
 
+// Are there marketplace buttons on the pages? On the live site with AMAZON_LINKS=on, and on the test Worker (links
+// without the Associates ID). With "off" every text speaks only of the Gear World sites: a page must never say it
+// links to marketplaces when it does not (claims that are not true, lessons L107).
+const withMarkets = mode => mode === 'on' || mode === 'preview';
+
 // A search on amazon.co.uk for one idea. Only the host and the Associates ID of the site config, and the idea's search
 // words, so the link always goes to the marketplace named on the button.
 export function amazonUrl(site, q, mode) {
@@ -70,7 +75,7 @@ export function countdown(site, now = new Date()) {
     const day = shortDate(bf);
     if (d > 1) return `Black Friday: ${day} · ${d} days to go`;
     if (d === 1) return `Black Friday: ${day} · 1 day to go`;
-    if (d <= 0 && d >= -3) return `Black Friday weekend: ${day} to ${shortDate(addDays(bf, 3))}`;
+    if (d <= 0 && d >= -3) return `Black Friday and Cyber Monday: ${day} to ${shortDate(addDays(bf, 3))}`;
   }
   if (xmas) {
     const d = daysBetween(today, xmas);
@@ -93,6 +98,12 @@ const mail = site => html`<a href="mailto:${site.contactEmail}">${site.contactEm
 
 // The note at the top of every guide (and the home page): what the links are, before the reader meets one.
 function disclosure(site, mode) {
+  if (!withMarkets(mode)) {
+    return html`<div class="note" role="note">
+  <p>The buttons on this page open categories of the Gear World sites. Those sites link to retailers and may earn a commission, at no extra cost to you.</p>
+  <p>Prices, stock and delivery are on the page you open. We do not sell anything and we do not track prices.</p>
+</div>`;
+  }
   return html`<div class="note" role="note">
   <p><strong>#ad</strong> · The buttons on this page are links to marketplaces and to the Gear World sites. If you choose something after following one, we may earn a commission, at no extra cost to you. ${mode === 'on' ? AMAZON_STATEMENT : ''}</p>
   <p>Prices, stock and delivery are on the marketplace's own page. We do not sell anything and we do not track prices.</p>
@@ -130,8 +141,8 @@ ${robots ? html`<meta name="robots" content="${robots}">` : ''}
 <footer class="foot"><div class="wrap">
   <nav aria-label="Legal"><ul class="foot-links">${FOOTER_LINKS.map(([href, label]) => html`<li><a href="${href}">${label}</a></li>`)}</ul></nav>
   ${mode === 'on' ? html`<p>${AMAZON_STATEMENT} ${AMAZON_TRADEMARK}</p>` : ''}
-  <p>This site sets no cookies of its own and does no tracking. Prices and stock are on each marketplace's own page.</p>
-  <p>&copy; ${year} ${site.name} · Run by ${site.operatorName} · We don't sell products: we link to marketplaces and to the Gear World sites, and may earn a commission.</p>
+  <p>This site sets no cookies of its own and does no tracking. Prices and stock are on the page each button opens.</p>
+  <p>&copy; ${year} ${site.name} · Run by ${site.operatorName} · We don't sell products: ${withMarkets(mode) ? 'we link to marketplaces and to the Gear World sites, and may earn a commission' : 'we link to the Gear World sites, which link to retailers and may earn a commission'}.</p>
 </div></footer>
 </body>
 </html>`);
@@ -152,14 +163,18 @@ export function homePage(site, env, now = new Date()) {
   const count = countdown(site, now);
   const all = [...site.guides, site.checks].filter(Boolean);
   return shell(site, env, {
-    title: `Gift guides and marketplace searches | ${site.name}`,
-    description: 'Christmas gift ideas for everyone, with searches on the big marketplaces and on the Gear World sites. Compare models, sellers and prices before you choose.',
+    title: withMarkets(mode) ? `Gift guides and marketplace searches | ${site.name}` : `Gift guides | ${site.name}`,
+    description: withMarkets(mode)
+      ? 'Christmas gift ideas for everyone, with searches on the big marketplaces and on the Gear World sites. Compare models, sellers and prices before you choose.'
+      : 'Christmas gift ideas for everyone, with the matching categories of the Gear World sites. Compare models, retailers and prices before you choose.',
     path: '/',
     body: html`
 <section class="hero"><div class="wrap">
   <p class="eyebrow">Gift guides</p>
-  <h1>Gift ideas first. Then compare on the big marketplaces.</h1>
-  <p class="lede">Short gift guides for Christmas and the winter. Every idea opens a search on a big marketplace and the matching category of a Gear World site, so you can compare models, sellers and prices before you choose.</p>
+  <h1>${withMarkets(mode) ? 'Gift ideas first. Then compare on the big marketplaces.' : 'Gift ideas first. Then compare.'}</h1>
+  <p class="lede">${withMarkets(mode)
+    ? 'Short gift guides for Christmas and the winter. Every idea opens a search on a big marketplace and the matching category of a Gear World site, so you can compare models, sellers and prices before you choose.'
+    : 'Short gift guides for Christmas and the winter. Every idea opens the matching category of a Gear World site, where each product shows the retailer that sells it, its price and where it delivers.'}</p>
   ${count ? html`<p class="count">${count}</p>` : ''}
 </div></section>
 <section class="wrap section">${disclosure(site, mode)}</section>
@@ -171,7 +186,7 @@ export function homePage(site, env, now = new Date()) {
   <h2>How this site works</h2>
   <ul class="ticks">
     <li>We write short lists of gift ideas. An idea is a kind of product, not a product we claim to have tested.</li>
-    <li>Each idea opens a search on a marketplace and the matching category of a Gear World site. Those pages show the products, the seller, the price and delivery.</li>
+    <li>${withMarkets(mode) ? 'Each idea opens a search on a marketplace and the matching category of a Gear World site.' : 'Each idea opens the matching category of a Gear World site.'} Those pages show the products, the seller, the price and delivery.</li>
     <li>We do not sell anything, we do not track prices and we do not set cookies.</li>
   </ul>
 </section>
@@ -187,7 +202,7 @@ export function guidePage(site, env, guide) {
   const mode = amazonMode(env);
   return shell(site, env, {
     title: `${guide.title} | ${site.name}`,
-    description: `${guide.teaser} Ideas with searches on the big marketplaces and the Gear World sites.`,
+    description: `${guide.teaser} ${withMarkets(mode) ? 'Ideas with searches on the big marketplaces and the Gear World sites.' : 'Ideas with the matching categories of the Gear World sites.'}`,
     path: `/guides/${guide.slug}/`,
     body: html`
 <section class="hero hero-small"><div class="wrap">
@@ -236,14 +251,14 @@ const LEGAL = {
     title: 'About',
     description: `Who runs ${site.name} and how to contact us.`,
     content: html`
-<p>${site.name} (${site.domain}) is a small site of gift guides. Each idea links to a search on a big marketplace and to the matching category of one of the Gear World sites, so you can compare models, sellers and prices yourself.</p>
+<p>${site.name} (${site.domain}) is a small site of gift guides. ${withMarkets(mode) ? 'Each idea links to a search on a big marketplace and to the matching category of one of the Gear World sites' : 'Each idea links to the matching category of one of the Gear World sites'}, so you can compare models, sellers and prices yourself.</p>
 <p>It is part of the Gear World sites, a group of independent product search and price-comparison sites.</p>
 <p>Run by ${site.operatorName}. Contact: ${mail(site)}.</p>
 <h2>What we do not do</h2>
 <ul>
 <li>We do not sell anything and we do not take payments.</li>
 <li>We do not track prices or send price alerts.</li>
-<li>We do not show marketplace prices or photos: they are on the marketplace's own page, where they are up to date.</li>
+<li>We do not show prices or product photos: they are on the page each button opens, where they are up to date.</li>
 </ul>
 ${mode === 'on' ? html`<p>${AMAZON_STATEMENT}</p>` : ''}`
   }),
@@ -254,12 +269,14 @@ ${mode === 'on' ? html`<p>${AMAZON_STATEMENT}</p>` : ''}`
     content: html`
 <p>${site.name} is free to use. We earn money through affiliate links.</p>
 <h2>What an affiliate link is</h2>
-<p>Some buttons on this site are affiliate links to marketplaces. If you follow one and then buy something, the marketplace may pay us a commission. You pay the same price as you would if you went to the marketplace directly.</p>
+${withMarkets(mode)
+  ? html`<p>Some buttons on this site are affiliate links to marketplaces. If you follow one and then buy something, the marketplace may pay us a commission. You pay the same price as you would if you went to the marketplace directly.</p>`
+  : html`<p>At the moment this site has no affiliate links of its own: its buttons open categories of the Gear World sites. Those sites link to retailers through affiliate networks and may earn a commission; you pay the same price.</p>`}
 ${mode === 'on' ? html`<h2>Amazon</h2><p>${AMAZON_STATEMENT}</p><p>${AMAZON_TRADEMARK}</p>` : ''}
 <h2>The Gear World sites</h2>
 <p>The "Browse on" buttons open a category of a Gear World site. Those sites have their own affiliate links and explain them on their own "How we make money" page.</p>
 <h2>How this affects what you see</h2>
-<p>The ideas are not ranked by commission, and no marketplace or retailer pays to be in a guide. We do not show prices: the marketplace's page has the current price.</p>`
+<p>The ideas are not ranked by commission, and nobody pays to be in a guide. We do not show prices: the page each button opens has the current price.</p>`
   }),
 
   '/privacy/': site => ({
@@ -277,7 +294,7 @@ ${mode === 'on' ? html`<h2>Amazon</h2><p>${AMAZON_STATEMENT}</p><p>${AMAZON_TRAD
 <li><strong>Hosting.</strong> The site is hosted by Cloudflare, which processes technical data such as IP addresses to deliver and protect the site.</li>
 </ul>
 <h2>When you follow a link</h2>
-<p>When you follow a link to a marketplace or to a Gear World site, that site's own privacy policy applies. A marketplace may set its own cookies on its own site to know that you came from us, so it can pay a commission.</p>
+<p>When you follow a link to another site, that site's own privacy policy applies. The site you open may set its own cookies to know where you came from, so it can pay a commission.</p>
 <h2>Sharing and transfers</h2>
 <p>We do not sell personal data. Our service provider (Cloudflare) may process data outside the UK and the European Economic Area with appropriate safeguards.</p>
 <h2>Your rights</h2>
@@ -293,7 +310,7 @@ ${mode === 'on' ? html`<h2>Amazon</h2><p>${AMAZON_STATEMENT}</p><p>${AMAZON_TRAD
 <h2>Strictly necessary</h2>
 <p>Our hosting provider Cloudflare may set short-lived security cookies to protect the site from bots. They are needed for the site to work safely and do not track you across sites.</p>
 <h2>Other sites</h2>
-<p>When you follow a link to a marketplace or to a Gear World site, that site may set its own cookies, which its own cookies page explains.</p>`
+<p>When you follow a link to another site, that site may set its own cookies, which its own cookies page explains.</p>`
   }),
 
   '/terms/': site => ({
@@ -303,7 +320,7 @@ ${mode === 'on' ? html`<h2>Amazon</h2><p>${AMAZON_STATEMENT}</p><p>${AMAZON_TRAD
 <p class="updated">Last updated: ${LEGAL_UPDATED}</p>
 <p>These terms apply when you use ${site.domain}, operated by ${site.operatorName}. By using the site you accept them.</p>
 <h2>What the site does</h2>
-<p>The site publishes gift ideas with links to searches on marketplaces and to categories of the Gear World sites. It does not sell anything. Any purchase is between you and the seller on the marketplace, under the seller's and the marketplace's terms.</p>
+<p>The site publishes gift ideas with links to other sites. It does not sell anything. Any purchase is between you and the seller, under the terms of the seller and of the site where you buy.</p>
 <h2>The ideas</h2>
 <p>The ideas are general suggestions, not advice about a particular product. Check the product page, the age and safety marks, the seller and the returns policy before you choose.</p>
 <h2>Links to other websites</h2>

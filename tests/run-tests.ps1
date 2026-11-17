@@ -3421,6 +3421,7 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         'exit /b 0',
         ':deployments',
         'echo %* | findstr /C:"-preview" >nul && goto nodeps',
+        'if exist "%GW_FAKE_STATE%\weird.txt" goto weird',
         'if exist "%GW_FAKE_STATE%\live.txt" goto livever',
         ':nodeps',
         'echo No deployments found',
@@ -3428,6 +3429,9 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         ':livever',
         ('echo Version(s):  (100%%) ' + $ogVer),
         'exit /b 0',
+        ':weird',
+        'echo Something unexpected happened on the Cloudflare API',
+        'exit /b 1',
         ':delete',
         'echo Successfully deleted mega-stores-gear-world-preview',
         'exit /b 0',
@@ -3457,7 +3461,7 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         Check ((Run-Og @('-Step', 'check')) -eq 0 -and (OgDeploys) -eq 0) 'ogw check: exit 0, no deploy'
         Check ((Run-Og @('-Step', 'preview')) -eq 0 -and (OgDeploys) -eq 0) 'ogw preview without -Apply: no deploy'
         Check ((Run-Og @('-Step', 'preview', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ OGW LIVE')) -eq 1 -and (OgDeploys) -eq 0) 'ogw preview with the wrong phrase: no deploy'
-        Check ((Run-Og @('-Step', 'live', '-Apply', '-AfterPreview', '-Approve', 'ΕΓΚΡΙΝΩ OGW LIVE')) -eq 23 -and (OgDeploys) -eq 0) 'ogw live -AfterPreview without a preview report: exit 23, no deploy'
+        Check ((Run-Og @('-Step', 'live', '-Apply', '-AfterPreview', '-Approve', 'ΕΓΚΡΙΝΩ OGW LIVE')) -eq 23 -and (OgDeploys) -eq 0) 'ogw live -AfterPreview without a clean preview report of this version: exit 23, no deploy'
         Check ((Run-Og @('-Step', 'preview', '-Apply', '-Approve', 'egkrino ogw preview')) -eq 0 -and (OgDeploys) -eq 1) 'ogw preview with approval: deploys once'
         $pc = [System.IO.File]::ReadAllText((Join-Path $ogWork 'wrangler.preview.jsonc'))
         Check ($pc.Contains('"name": "mega-stores-gear-world-preview",') -and $pc.Contains('"workers_dev": true,') -and -not $pc.Contains('custom_domain')) 'ogw preview: the test Worker on workers.dev, no domain'
@@ -3479,6 +3483,12 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         Check ((Run-Og @('-Step', 'live', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ OGW LIVE')) -eq 13 -and (OgDeploys) -eq 3) 'ogw live update from a version without the live one: exit 13, no deploy (L156)'
         $env:GW_GUARD_TEST_COMPARE = 'ahead'
         Check ((Run-Og @('-Step', 'live', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ OGW LIVE')) -eq 0 -and (OgDeploys) -eq 4 -and (OgLastReport 'LIVE').Contains('rollback ' + $ogVer)) 'ogw live update: deploys, with the rollback line of the live version'
+        Check ((Run-Og @('-Step', 'live', '-Apply', '-AmazonOff', '-Approve', 'ΕΓΚΡΙΝΩ OGW LIVE;ΕΓΚΡΙΝΩ OGW AMAZON LINKS')) -eq 0 -and (OgDeploys) -eq 5) 'ogw live -AmazonOff: deploys once'
+        $lastDeploy = @((OgCalls) -split "`n" | Where-Object { $_ -match 'wrangler deploy --config' } | Select-Object -Last 1)[0]
+        Check ($lastDeploy -match 'AMAZON_LINKS:off') 'ogw live -AmazonOff: no Amazon links even with the Amazon phrase'
+        [System.IO.File]::WriteAllText((Join-Path $ogState 'weird.txt'), 'yes')
+        Check ((Run-Og @('-Step', 'live', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ OGW LIVE')) -eq 11 -and (OgDeploys) -eq 5) 'ogw live when Cloudflare does not say whether the Worker exists: exit 11, no deploy'
+        Remove-Item -LiteralPath (Join-Path $ogState 'weird.txt') -Force
         $env:GW_GUARD_TEST_LIVE = '*=none'
         Check ((Run-Og @('-Step', 'remove-preview', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ OGW LIVE')) -eq 1 -and -not ((OgCalls) -match 'delete mega-stores-gear-world-preview')) 'ogw remove-preview with the wrong phrase: nothing deleted'
         Check ((Run-Og @('-Step', 'remove-preview', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ OGW REMOVE PREVIEW')) -eq 0 -and ((OgCalls) -match 'wrangler delete mega-stores-gear-world-preview') -and -not ((OgCalls) -match 'delete mega-stores-gear-world\s')) 'ogw remove-preview: only the test Worker is deleted'

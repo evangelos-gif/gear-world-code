@@ -84,6 +84,19 @@ test('Amazon links only with AMAZON_LINKS=on: amazon.co.uk search with the Assoc
   }
 });
 
+test('without Amazon links no page says it links to marketplaces (claims that are not true, L107)', async () => {
+  for (const p of ALL_PAGES.filter(p => p !== `/guides/${site.checks.slug}/`)) {
+    const off = (await get(p, OFF)).text;
+    assert.ok(!/marketplace/i.test(off.replace(/<[^>]+>/g, ' ')), `${p}: no "marketplace" when there are no marketplace links`);
+    assert.ok(!/#ad/.test(off), `${p}: no #ad when the site has no affiliate links of its own`);
+  }
+  const home = (await get('/', OFF)).text;
+  assert.match(home, /<title>Gift guides \| Mega Stores Gear World<\/title>/);
+  assert.match(home, /Every idea opens the matching category of a Gear World site/);
+  assert.match((await get('/how-we-make-money/', OFF)).text, /this site has no affiliate links of its own/);
+  for (const env of [ON, PRE]) assert.match((await get('/', env)).text, /Every idea opens a search on a big marketplace/);
+});
+
 test('every idea links to a category page of a Gear World site that exists in that site\'s config', async () => {
   const configs = {};
   for (const w of GEAR_WORLDS) configs[w.code] = (await import(`../../sites/${w.code.toLowerCase()}/site.config.js`)).default;
@@ -127,8 +140,8 @@ test('countdown: Black Friday, the weekend, then Christmas, by the day in London
   assert.equal(ukDay(at('2026-06-30T23:30:00Z')), '2026-07-01', 'British Summer Time');
   assert.equal(countdown(site, at('2026-11-17T12:00:00Z')), 'Black Friday: 27 Nov · 10 days to go');
   assert.equal(countdown(site, at('2026-11-26T12:00:00Z')), 'Black Friday: 27 Nov · 1 day to go');
-  assert.equal(countdown(site, at('2026-11-27T00:30:00Z')), 'Black Friday weekend: 27 Nov to 30 Nov');
-  assert.equal(countdown(site, at('2026-11-30T22:00:00Z')), 'Black Friday weekend: 27 Nov to 30 Nov');
+  assert.equal(countdown(site, at('2026-11-27T00:30:00Z')), 'Black Friday and Cyber Monday: 27 Nov to 30 Nov');
+  assert.equal(countdown(site, at('2026-11-30T22:00:00Z')), 'Black Friday and Cyber Monday: 27 Nov to 30 Nov');
   assert.equal(countdown(site, at('2026-12-01T09:00:00Z')), 'Christmas: 24 days to go');
   assert.equal(countdown(site, at('2026-12-24T09:00:00Z')), 'Christmas: 1 day to go');
   assert.equal(countdown(site, at('2026-12-25T09:00:00Z')), 'Happy Christmas');
@@ -183,7 +196,7 @@ test('legal pages: UK and EU GDPR, no cookies of our own, the affiliate links ex
   assert.match((await get('/cookies/')).text, /sets no advertising, analytics or tracking cookies/);
   const money = (await get('/how-we-make-money/')).text;
   assert.ok(money.includes(AMAZON_STATEMENT) && money.includes('Amazon and the Amazon logo are trademarks'));
-  assert.match(money, /no marketplace or retailer pays to be in a guide/);
+  assert.match(money, /nobody pays to be in a guide/);
   assert.match((await get('/terms/')).text, /mandatory consumer laws of the country where you live/);
   const about = (await get('/about/')).text;
   assert.match(about, /We do not track prices or send price alerts/, 'Amazon Associates 6(y)');

@@ -19,7 +19,9 @@
                         added megastoresgearworld.com to his Amazon Associates account (gearworld04-21); with it the
                         Amazon buttons carry the Associates ID (AMAZON_LINKS=on), with Enter the site goes live
                         without Amazon buttons (only the Gear World buttons) and the phrase can be given at the next
-                        live step. Once live, Amazon links stay on at later updates.
+                        live step. Once live, Amazon links stay on at later updates (the tool reads the live home
+                        page; if it does not answer, nothing is deployed, exit 6). -AmazonOff: deploy without Amazon
+                        links (for example if the Associates account is closed).
                         -AfterPreview: goes on only when the newest preview report is of this code version, from the
                         last 2 hours, ended ΕΤΟΙΜΟ and has no ΠΡΟΒΛΗΜΑ (one paste: preview, live, remove-preview).
                         An update of a live site first checks that this version contains the live one (L156).
@@ -31,8 +33,9 @@
   Rollback: a later update goes back with "npx wrangler rollback <version> --name mega-stores-gear-world" (the report
   names the version); the first launch is undone with "npx wrangler delete --name mega-stores-gear-world".
   Without -Apply, every step only shows what it WOULD do.
-  Exit codes: 0 done, 1 no approval, 3 Node.js or npm, 4 Cloudflare login, 9 the deploy failed, 12 wrong test Worker
-  name, 13 this version lacks the live one (L156), 23 -AfterPreview without a clean preview report of this version.
+  Exit codes: 0 done, 1 no approval, 3 Node.js or npm, 4 Cloudflare login, 6 the live site did not answer before an
+  update, 9 the deploy failed, 11 Cloudflare did not say whether the live Worker exists, 12 wrong test Worker name,
+  13 this version lacks the live one (L156), 23 -AfterPreview without a clean preview report of this version.
   Report: <home>\gear-world-reports\OGW_SITE_<STEP>_<time>.txt (also copied to the clipboard)
 #>
 param(
@@ -45,7 +48,8 @@ param(
     [switch]$SkipInstall,
     [switch]$NoClipboard,
     [switch]$NoHttpCheck,
-    [switch]$AfterPreview
+    [switch]$AfterPreview,
+    [switch]$AmazonOff
 )
 
 $ErrorActionPreference = 'Stop'
@@ -67,7 +71,7 @@ if (-not $OutDir) { $OutDir = Join-Path $HOME 'gear-world-reports' }
 $stamp = Get-Date -Format 'yyyyMMdd_HHmmss'
 $DashLink = 'https://dash.cloudflare.com/?to=/:account/workers/services/view/mega-stores-gear-world/production/deployments'
 $DnsLink = 'https://dash.cloudflare.com/?to=/:account/:zone/dns/records'
-$AssociatesLink = 'https://affiliate-program.amazon.co.uk/home/account'
+$AssociatesLink = 'https://affiliate-program.amazon.co.uk/'
 $UserAgent = 'GearWorldQA-bot/1.0 (+read-only check)'
 
 $L = New-Object System.Collections.Generic.List[string]
@@ -100,13 +104,13 @@ function Normalize-Phrase([string]$s) {
 }
 
 # -Approve may hold several phrases separated by ";" (tests); otherwise the owner types the phrase.
-function Confirm-Approval([string]$phrase) {
+function Confirm-Approval([string]$phrase, [string]$enterNote = '(ή πάτα Enter για να σταματήσω χωρίς αλλαγές)') {
     $given = @()
     if ($Approve) { $given = @($Approve -split ';') }
     else {
         Write-Host ''
         Write-Host ('Για να συνεχίσω, γράψε ακριβώς: {0}' -f $phrase) -ForegroundColor $Warn
-        Write-Host '(ή πάτα Enter για να σταματήσω χωρίς αλλαγές)'
+        Write-Host $enterNote
         # Lines left over from the paste (an empty last line) would answer the prompt by themselves (8 Nov 2026).
         try { $Host.UI.RawUI.FlushInputBuffer() } catch { }
         $given = @(Read-Host 'Έγκριση')
@@ -148,12 +152,14 @@ function Invoke-Wrangler([string]$Folder, [string]$Arguments, [switch]$NonIntera
     return $result
 }
 
-# The version that is live now (for the rollback line), or '' when the Worker does not exist yet.
-function Get-WorkerVersion([string]$folder, [string]$name) {
+# The version that is live now (for the rollback line): @{ known; ver }. ver '' with known = the Worker does not exist
+# yet (first launch); known = $false = Cloudflare gave another answer, so nobody can tell (the live step stops, exit 11).
+function Get-WorkerState([string]$folder, [string]$name) {
     $r = Invoke-Wrangler $folder ('deployments list --name {0}' -f $name) -NonInteractive -Retry
     $ms = [regex]::Matches($r.text, '\(100%\)\s+([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})')
-    if ($ms.Count -eq 0) { return '' }
-    return $ms[$ms.Count - 1].Groups[1].Value
+    if ($ms.Count -gt 0) { return @{ known = $true; ver = $ms[$ms.Count - 1].Groups[1].Value; text = '' } }
+    if ($r.text -match '(?i)no deployments|does not exist|not found|10007') { return @{ known = $true; ver = ''; text = '' } }
+    return @{ known = $false; ver = ''; text = $r.text }
 }
 
 function Prepare-Deploy {
@@ -331,11 +337,13 @@ if ($who.text -notmatch '(?i)associated with the email|you are logged in') {
     Finish 4
 }
 Say 'Cloudflare login: OK'
-$live = Get-WorkerVersion $ogw $WorkerName
-Say ('Worker "{0}" (live): {1}' -f $WorkerName, $(if ($live) { 'υπάρχει, έκδοση ' + $live } else { 'δεν υπάρχει ακόμα (πρώτο ανέβασμα)' }))
+$liveState = Get-WorkerState $ogw $WorkerName
+$live = $liveState.ver
+if (-not $liveState.known) { Say ('Worker "{0}" (live): η Cloudflare δεν είπε αν υπάρχει.' -f $WorkerName) $Warn }
+else { Say ('Worker "{0}" (live): {1}' -f $WorkerName, $(if ($live) { 'υπάρχει, έκδοση ' + $live } else { 'δεν υπάρχει ακόμα (πρώτο ανέβασμα)' })) }
 
 if ($Step -eq 'check') {
-    $pv = Get-WorkerVersion $ogw $PreviewName
+    $pv = (Get-WorkerState $ogw $PreviewName).ver
     Say ('Δοκιμαστικός Worker "{0}": {1}' -f $PreviewName, $(if ($pv) { 'υπάρχει (θέλει remove-preview)' } else { 'δεν υπάρχει' }))
     if (-not $NoHttpCheck) {
         $p = Get-Page ('https://{0}/' -f $Domain)
@@ -363,8 +371,13 @@ if ($Step -eq 'preview') {
     Say ('Ανέβηκε. Δοκιμαστική διεύθυνση: {0}' -f $(if ($url) { $url } else { '(δεν τη βρήκα στην έξοδο)' })) $Ok
     if (-not $url) { Say 'Δεν βρήκα τη δοκιμαστική διεύθυνση: ΠΡΟΒΛΗΜΑ. Στείλε στο Claude αυτή την αναφορά.' $Bad; Finish 9 }
     if (-not $NoHttpCheck) {
-        Start-Sleep -Seconds 8
-        $p = Get-Page ($url + '/')
+        # A new *.workers.dev address can answer nothing or 404 for a short while: up to 6 tries, 10 seconds apart.
+        $p = $null
+        for ($i = 1; $i -le 6; $i++) {
+            Start-Sleep -Seconds 10
+            $p = Get-Page ($url + '/')
+            if ($p.status -eq 200) { break }
+        }
         if ($p.status -eq 200 -and $p.robots -match 'noindex') { Say '  Η δοκιμαστική διεύθυνση έχει noindex: ΕΝΤΑΞΕΙ' $Ok }
         elseif ($p.status -eq 200) { Say '  Η δοκιμαστική διεύθυνση ΧΩΡΙΣ noindex: ΠΡΟΒΛΗΜΑ' $Bad }
         $okSite = Test-Site $url 'preview'
@@ -376,18 +389,38 @@ if ($Step -eq 'preview') {
 }
 
 # ---------------- live ----------------
+if (-not $liveState.known) {
+    Say ''
+    Say 'Δεν μπόρεσα να δω αν το site είναι ήδη live (η Cloudflare έδωσε άλλη απάντηση): για ασφάλεια ΔΕΝ ανεβάζω τίποτα. Ξανατρέξε σε λίγα λεπτά· αν ξανασυμβεί, στείλε στο Claude αυτή την αναφορά.' $Bad
+    foreach ($line in @($liveState.text -split "`n" | Select-Object -Last 10)) { Say ('  ' + $line) }
+    Finish 11
+}
+# L156: never a version that lacks the live one. Also when Cloudflare lists no version but the site already says
+# which one it runs (/api/version).
+$runGuard = [bool]$live
+if (-not $runGuard -and -not $NoHttpCheck) {
+    $v = Get-Page ('https://{0}/api/version' -f $Domain)
+    if ($v.status -eq 200 -and $v.text -match '"commit"\s*:\s*"[0-9a-f]{40}"') { $runGuard = $true }
+}
+if ($runGuard) { Assert-GwLiveGuard @($Domain) $repo }
+# Are the Amazon links live? Read from the live home page; an update never guesses (a wrong guess would remove every
+# affiliate link without anyone noticing).
 $liveAmazon = $false
-if ($live) {
-    # L156: never a version that lacks the live one.
-    Assert-GwLiveGuard @($Domain) $repo
-    if (-not $NoHttpCheck) { $liveAmazon = Test-LiveAmazon }
+if ($live -and -not $NoHttpCheck) {
+    $hp = Get-Page ('https://{0}/' -f $Domain)
+    if ($hp.status -ne 200) {
+        Say ('Το https://{0}/ δεν απάντησε ({1}): δεν ξέρω αν τα κουμπιά Amazon είναι live, οπότε ΔΕΝ ανεβάζω τίποτα. Ξανατρέξε σε λίγα λεπτά.' -f $Domain, $hp.status) $Bad
+        Finish 6
+    }
+    $liveAmazon = $hp.text.Contains('As an Amazon Associate I earn from qualifying purchases.')
 }
 Say ''
 Say 'Τι θα γίνει:'
 Say ('  - Ανεβαίνει το Mega Stores Gear World στον Worker "{0}", στο {1} και στο www.{1}.' -f $WorkerName, $Domain)
 if (-not $live) { Say '  - Πρώτη φορά: η Cloudflare φτιάχνει μόνη της τις εγγραφές DNS και το πιστοποιητικό (έως 10 λεπτά).' }
 Say '  - Τα Gear World sites, το Hub, η Group και οι βάσεις ΔΕΝ αλλάζουν. Καμία βάση, κανένα μυστικό, κανένα cookie.'
-if ($liveAmazon) { Say ('  - Κουμπιά Amazon: είναι ήδη live με το {0}, μένουν.' -f $AmazonTag) }
+if ($AmazonOff) { Say '  - Κουμπιά Amazon: ΒΓΑΙΝΟΥΝ (-AmazonOff). Μένουν μόνο τα κουμπιά προς τα Gear World sites.' }
+elseif ($liveAmazon) { Say ('  - Κουμπιά Amazon: είναι ήδη live με το {0}, μένουν.' -f $AmazonTag) }
 else { Say ('  - Κουμπιά Amazon: μόνο με τη φράση {0} (ότι πρόσθεσες το {1} στο Amazon Associates).' -f $PhraseAmazon, $Domain) }
 if ($live) { Say ('  - Επαναφορά: Rollback στο {0} ή: npx wrangler rollback {1} --name {2}' -f $DashLink, $live, $WorkerName) }
 else { Say ('  - Επαναφορά: npx wrangler delete --name {0} (σβήνει το site· τίποτα άλλο δεν επηρεάζεται)' -f $WorkerName) }
@@ -396,13 +429,14 @@ if (-not $Apply) { Say ''; Say 'Δοκιμή μόνο (χωρίς -Apply): δε�
 if (-not (Confirm-Approval $PhraseLive)) { Say 'Δεν δόθηκε έγκριση: σταμάτησα χωρίς αλλαγές.' $Warn; Finish 1 }
 
 $mode = 'off'
-if ($liveAmazon) { $mode = 'on' }
+if ($AmazonOff) { Say 'Amazon: -AmazonOff: το site ανεβαίνει χωρίς κουμπιά Amazon.' $Warn }
+elseif ($liveAmazon) { $mode = 'on' }
 else {
     Write-Host ''
-    Write-Host ('Amazon: έχεις προσθέσει το {0} στο Amazon Associates ({1});' -f $Domain, $AssociatesLink) -ForegroundColor Cyan
+    Write-Host ('Amazon: έχεις προσθέσει το {0} στο Amazon Associates ({1} → το email σου → Account Settings → Edit your website list);' -f $Domain, $AssociatesLink) -ForegroundColor Cyan
     Write-Host '  Αν ναι, γράψε τη φράση: τα κουμπιά Amazon θα έχουν το Associates ID gearworld04-21.'
     Write-Host '  Αν όχι, πάτα Enter: το site ανεβαίνει χωρίς κουμπιά Amazon (μόνο τα Gear World) και τη φράση τη δίνεις την επόμενη φορά.'
-    if (Confirm-Approval $PhraseAmazon) { $mode = 'on'; Say ('Amazon: δόθηκε η φράση {0}: τα κουμπιά Amazon με το {1}.' -f $PhraseAmazon, $AmazonTag) $Ok }
+    if (Confirm-Approval $PhraseAmazon '(ή πάτα Enter: το site ανεβαίνει χωρίς κουμπιά Amazon)') { $mode = 'on'; Say ('Amazon: δόθηκε η φράση {0}: τα κουμπιά Amazon με το {1}.' -f $PhraseAmazon, $AmazonTag) $Ok }
     else { Say 'Amazon: χωρίς φράση: το site ανεβαίνει χωρίς κουμπιά Amazon.' $Warn }
 }
 
