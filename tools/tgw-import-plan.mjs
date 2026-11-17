@@ -376,6 +376,14 @@ export function subcategoryOf(merchantCategory) {
   return last.length <= 60 && !/^\d+$/.test(last) ? last : '';
 }
 
+// "subcategoryMap" (17 Nov 2026, lessons L183): the shop's last folder renamed for the site. A sling bag of SwimInn sat
+// under the folder "Handbags" on SGW and came first on the Hub for "handbag", before Women's Gear World (L177).
+export function subcategoryFor(source, merchantCategory) {
+  const sub = subcategoryOf(merchantCategory);
+  const map = source && source.subcategoryMap;
+  return map && Object.prototype.hasOwnProperty.call(map, sub) ? map[sub] : sub;
+}
+
 const sq = v => (v === null || v === undefined || v === '' ? 'NULL' : typeof v === 'number' ? String(v) : `'${String(v).replace(/'/g, "''")}'`);
 
 // ---------- Main ----------
@@ -868,7 +876,7 @@ export async function planImport({ archive, sourcesFile, outDir, now = new Date(
           retailer: source.retailer,
           category_slug: cls.slug,
           // A site's rules may name the subcategory themselves (ZGW birds: "Chickens & Poultry", ...); else the shop's last folder.
-          subcategory: cls.sub || subcategoryOf(merchantCategory) || null,
+          subcategory: cls.sub || subcategoryFor(source, merchantCategory) || null,
           brand: brand || null,
           product_name: name,
           product_slug: slugify(name),

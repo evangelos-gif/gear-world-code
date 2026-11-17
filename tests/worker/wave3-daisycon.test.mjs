@@ -109,3 +109,20 @@ test('TechInn on TGW: printer toner, ink and drums stay out, read from Daisycon\
   const pc = sourceFilter({ retailer: 'X', denyPaths: ['cases/covers'] });
   assert.match(pc('Phone case', '', 'Phones>Cases/Covers'), /feed folder not for TGW/);
 });
+
+test('After the ALL IMPORTS of 17 Nov (L177, L183): TechInn chairs stay off TGW, a Tradeinn "Handbags" folder is "Bags" on SGW', async () => {
+  const { sourceFilter, subcategoryFor } = await import('../../tools/tgw-import-plan.mjs');
+  const { readFileSync } = await import('node:fs');
+  const read = site => JSON.parse(readFileSync(new URL(`../../sites/${site}/sources.json`, import.meta.url), 'utf8')).sources;
+  const f = sourceFilter(read('tgw').find(s => s.advertiserId === 20616));
+  assert.match(f('Aerocool Admiralbr Gaming Chair Orange', 'Aerocool', 'Furniture|Chairs|Gaming Chairs > Gaming Chairs'), /feed folder not for TGW/);
+  assert.match(f('Mars Gaming Mgdx160rgbw Gaming Desk Silver', 'Mars Gaming', 'Furniture|Tables|Poker & Game Tables'), /feed folder not for TGW/);
+  assert.notEqual(f('Razer Gaming Chairs Sleeves For Iskur V2 Black', 'Razer', 'Electronics|Electronics Accessories|Game Controllers'), '', 'a chair accessory by its name');
+  assert.equal(f('Razer Kraken V4 Gaming Headset', 'Razer', 'Electronics|Audio|Headphones'), '', 'gaming tech stays');
+  const tradeinn = read('sgw').filter(s => [20601, 20607, 20608, 20614, 20615, 20617, 20620, 20606].includes(s.advertiserId));
+  assert.equal(tradeinn.length, 8);
+  for (const s of tradeinn) assert.equal(subcategoryFor(s, 'Apparel & Accessories|Handbags, Wallets & Cases|Handbags > Handbags'), 'Bags', s.retailer);
+  const swim = tradeinn.find(s => s.retailer === 'SwimInn');
+  assert.equal(subcategoryFor(swim, 'Sporting Goods|Water Sports|Swimming > Swim Goggles'), 'Swim Goggles', 'other folders unchanged');
+  assert.equal(subcategoryFor({ retailer: 'X' }, 'A > Handbags'), 'Handbags', 'a shop without a map keeps its folder');
+});
