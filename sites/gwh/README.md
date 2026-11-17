@@ -176,3 +176,7 @@ Live από 7/11/2026 (commit f4c8c35· το `live-baseline.txt` ενημερώ�
 
 Μπάνερ: μόνο εικόνα στο `public/stores/banners/`, ελεγμένη από τον Manager (χωρίς ποσοστά, παλιές τιμές ή κωδικούς που έληξαν), με «Ad», ημερομηνία λήξης και link σε σελίδα Gear World· μπαίνει και στο `public-allowlist.txt`. Ο Worker `gwh-sitemap` δεν άλλαξε: οι σελίδες βρίσκονται από την κάρτα της αρχικής.
 Πάει live με το `tools/gwh-hub-v2.ps1`: `ΕΓΚΡΙΝΩ HUB STORES PREVIEW`, `ΕΓΚΡΙΝΩ HUB STORES LIVE` (`-AfterPreview`), `ΕΓΚΡΙΝΩ HUB REMOVE PREVIEW`, σε μία επικόλληση.
+
+## Μοντέλο AI της αναζήτησης (L173, 17/11/2026)
+
+Το Cloudflare σταματά το `@cf/meta/llama-3.1-8b-instruct-fp8` στις 20/11/2026. Η αναζήτηση του Hub (μετάφραση ξένων λέξεων και η δεύτερη προσπάθεια μιας αγγλικής αναζήτησης χωρίς αποτέλεσμα) χρησιμοποιεί πλέον το ίδιο μοντέλο με την αναζήτηση με φωτογραφία (`TEXT_MODEL` = `PHOTO_MODEL` = `@cf/google/gemma-4-26b-a4b-it`, στο `photo-search.js`), χωρίς thinking. Πάει live με το `tools/gwh-hub-v2.ps1`: `ΕΓΚΡΙΝΩ HUB AI PREVIEW`, `ΕΓΚΡΙΝΩ HUB AI LIVE` (`-AfterPreview`), `ΕΓΚΡΙΝΩ HUB REMOVE PREVIEW`, σε μία επικόλληση, πριν τις 20/11.

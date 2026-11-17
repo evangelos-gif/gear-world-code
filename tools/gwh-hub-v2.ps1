@@ -151,6 +151,13 @@
   PREVIEW (one paste, live with -AfterPreview). The live check opens /stores/ and the 8 store pages. The preview
   reports and the live step refuses (exit 24) while a code or sale of stores.json has ended on the UK day
   (node tools/gwh-stores.mjs validate): the titles and counts of the pages would still name it.
+  Live since 16/11/2026 20:12 (88e65d5).
+  Search model (lessons L173, 17/11/2026): Cloudflare retires @cf/meta/llama-3.1-8b-instruct-fp8 on 20/11/2026 (404
+  model_not_found after that). worker.js translated a foreign search with it (and retried an English one with no
+  result); both now use the model of the photo search, @cf/google/gemma-4-26b-a4b-it, without thinking, from
+  photo-search.js (TEXT_MODEL, translationInput, answerText: the answer in any shape, first line only). The pages, the
+  D1, translations.js and gwh-sitemap do not change. Phrases of this release, in this order: ΕΓΚΡΙΝΩ HUB AI PREVIEW,
+  ΕΓΚΡΙΝΩ HUB AI LIVE, ΕΓΚΡΙΝΩ HUB REMOVE PREVIEW (one paste, live with -AfterPreview), before 20/11/2026.
   Exit codes added by L119: 21 the -MitgoCode has another form, 22 the code did not go into the live Worker (nothing went
   live), 23 -AfterPreview without a clean preview report of this version (nothing changed).
   Report: <home>\gear-world-reports\GWH_HUB_V2_<STEP>_<time>.txt (also copied to the clipboard)
@@ -177,8 +184,8 @@ $repo = Split-Path -Parent $PSScriptRoot
 $HubWorker = 'gear-world-hub'
 $PreviewName = 'gear-world-hub-preview'
 $DbName = 'gear-world-registry'
-$PhrasePreview = 'ΕΓΚΡΙΝΩ HUB STORES PREVIEW'
-$PhraseLive = 'ΕΓΚΡΙΝΩ HUB STORES LIVE'
+$PhrasePreview = 'ΕΓΚΡΙΝΩ HUB AI PREVIEW'
+$PhraseLive = 'ΕΓΚΡΙΝΩ HUB AI LIVE'
 $PhraseRegister = 'ΕΓΚΡΙΝΩ HUB ZGW SEARCH'
 $PhraseRemovePreview = 'ΕΓΚΡΙΝΩ HUB REMOVE PREVIEW'
 $LiveUrl = 'https://gearworldhub.com'
@@ -201,7 +208,8 @@ $Bad = 'Magenta'
 
 # What each file of the change does, in the words of the report.
 $About = @{
-    'worker.js' = 'η αναζήτηση ζητά από κάθε site badges=1 και κρατά τις χώρες παράδοσης κάθε προϊόντος (delivers_to): ο επισκέπτης από χώρα που δεν είναι ανοιχτή βλέπει όλα τα προϊόντα, όπως στα sites (L151, L153)· οι ετικέτες Mitgo και Impact μένουν ίδιες· όλα τα άλλα όπως είναι live'
+    'worker.js' = 'η αναζήτηση μεταφράζει τις ξένες λέξεις με το μοντέλο της αναζήτησης με φωτογραφία (Gemma 4), γιατί το Cloudflare σταματά το @cf/meta/llama-3.1-8b-instruct-fp8 στις 20/11 (L173)· όλα τα άλλα όπως είναι live'
+    'photo-search.js' = 'κρατά το μοντέλο της μετάφρασης της αναζήτησης (ίδιο με της φωτογραφίας) και διαβάζει την απάντησή του σε κάθε μορφή (L173)· η αναζήτηση με φωτογραφία δεν αλλάζει'
     'security.js'           = 'νέο αρχείο: έλεγχος Turnstile, ημερήσια όρια του δικτύου (εγγραφές, μεταφράσεις), headers (L106)'
     'mailerlite.js'         = 'η φόρμα του Hub θέλει το token του Turnstile· ημερήσιο όριο εγγραφών για όλο το δίκτυο, μικρό δικό της για την εφαρμογή (L106)'
     'members.js'            = 'η φόρμα «Get deal updates» των sites: το Hub ελέγχει το token του Turnstile κάθε site, ίδιο ημερήσιο όριο, ημερήσιο όριο μεταφράσεων για τα sites (/internal/ai-slot) (L106)'

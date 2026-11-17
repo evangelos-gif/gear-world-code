@@ -10,6 +10,31 @@
 
 export const PHOTO_MODEL = "@cf/google/gemma-4-26b-a4b-it";
 export const MAX_PHOTO_BYTES = 1024 * 1024;
+
+// The model that translates a search (lessons L173): Cloudflare retires @cf/meta/llama-3.1-8b-instruct-fp8 on
+// 20 Nov 2026 (404 model_not_found after that), so the Hub search (worker.js) uses the model of the photo search, without thinking.
+export const TEXT_MODEL = PHOTO_MODEL;
+export function translationInput(system, query) {
+  return {
+    messages: [{ role: 'system', content: system }, { role: 'user', content: query }],
+    max_tokens: 48,
+    temperature: 0,
+    chat_template_kwargs: { enable_thinking: false }
+  };
+}
+// The text of a model answer, whatever shape it has, without any thinking part and only its first line.
+export function answerText(out) {
+  let text = '';
+  if (typeof out === 'string') text = out;
+  else if (out && typeof out.response === 'string') text = out.response;
+  else {
+    const content = out && out.choices && out.choices[0] && out.choices[0].message && out.choices[0].message.content;
+    if (typeof content === 'string') text = content;
+    else if (Array.isArray(content)) text = content.map(part => (part && part.text) || '').join('');
+  }
+  return text.replace(/<think>[\s\S]*?<\/think>/gi, '').trim().split(/\r?\n/)[0].trim();
+}
+
 export const MIN_PHOTO_BYTES = 100;
 export const DEFAULT_HOURLY_LIMIT = 10;
 export const DEFAULT_DAILY_LIMIT = 150;
