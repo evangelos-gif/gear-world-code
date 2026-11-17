@@ -168,7 +168,9 @@ test('KidInn (Tradeinn, GBP): only what is for children, placed from Google\'s f
   assert.equal(p('Nici Fox Plush 25 cm Orange  Kids', 'Toys & Games|Toys|Dolls, Playsets & Toy Figures|Stuffed Animals'), 'Toys & Games > Stuffed Animals & Cuddly Toys');
   assert.equal(p('Funko Marvel Shang-chi Razor Fist Figure Multicolor  Kids', 'Toys & Games|Toys|Dolls, Playsets & Toy Figures'), 'Toys & Games > Action & Toy Figures',
     'the general folder name holds dolls too, but is not a doll');
-  assert.equal(p('Fresk Swallow Mini Backpack Pink  Kids', 'Luggage & Bags|Backpacks'), 'School & Backpacks > Backpacks');
+  // KGW has "School Bags", not "Backpacks" (L56 warning of the ALL IMPORTS dry run, 17 Nov 2026); a changing backpack is a nappy bag.
+  assert.equal(p('Fresk Swallow Mini Backpack Pink  Kids', 'Luggage & Bags|Backpacks'), 'School & Backpacks > School Bags');
+  assert.equal(p('Skip Hop Forma Changer And Backpack Black  Kids', 'Luggage & Bags|Backpacks'), 'Baby & Toddler > Nappy Bags');
   assert.equal(p('Atosa Pirate Costume Black 3-4 Years  Kids', 'Apparel & Accessories|Costumes & Accessories|Costumes'), 'Clothing > Costumes');
   assert.equal(p('Atosa Nurse Costume White M-L  Woman', 'Apparel & Accessories|Costumes & Accessories|Costumes'), 'out', 'an adult costume');
   assert.equal(p('Ravensburger Puzzle 1000 Pieces Multicolor  Unisex', 'Toys & Games|Puzzles'), 'Toys & Games > Jigsaw Puzzles', 'Unisex only in a toy folder');

@@ -69,3 +69,10 @@ export function fragranceFor(name, category = '') {
 }
 // A set is a gift set only in those words ("Set Sail Martinique Body Spray" is a body spray).
 export const fragranceSub = n => (/\bgift set|\b\d+\s*(?:pc|pcs|piece)\b|\bcoffret|\b(?:miniature|mini|discovery|travel|trio|duo) set|\bset of\b/i.test(n) ? 'Gift sets' : (/body (spray|mist|lotion|wash|cream|oil)|shower gel|deodorant|dusting powder/i.test(n) ? 'Bath & body' : 'Fragrance'));
+
+// The shared garden words give "Compost & feed", a subcategory Garden Gear World does not have (ALL IMPORTS dry run of
+// 17 Nov 2026, L56): compost spreaders go to its "Lawn Spreaders", compost bins and tumblers to "Growing".
+export function ggwSub(place, name) {
+  if (!place || place.subcategory !== 'Compost & feed') return place;
+  return { ...place, subcategory: /spreader/i.test(String(name || '')) ? 'Lawn Spreaders' : 'Growing' };
+}

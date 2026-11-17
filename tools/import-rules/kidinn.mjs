@@ -66,7 +66,10 @@ const PLACES = [
   [words(['baby walkers?', 'baby activity', 'baby toys?', 'rattles?', 'teethers?', 'activity gyms?', 'baby & toddler toys']), B, 'Baby Activity Toys'],
   [words(['nursing & feeding', 'feeding', 'baby bottles?', 'bottles?', 'bibs?', 'dummies', 'dummy', 'pacifiers?', 'sippy cups?', 'baby tableware']), B, 'Nursing & Feeding'],
   [words(['baby safety', 'baby gates?', 'safety gates?', 'baby monitors?']), B, 'Baby Safety'],
-  [words(['backpacks?', 'school bags?', 'rucksacks?', 'trolley bags?']), S, 'Backpacks'],
+  // Changing backpacks are nappy bags; the rest go to KGW's "School Bags" (it has no "Backpacks": ALL IMPORTS dry run of 17 Nov
+  // 2026, L56 warning, chat 3 as integrator).
+  [words(['changing backpacks?', 'changer and backpack', 'changing bags?', 'nappy bags?', 'diaper bags?']), B, 'Nappy Bags'],
+  [words(['backpacks?', 'school bags?', 'rucksacks?', 'trolley bags?']), S, 'School Bags'],
   [words(['pencil cases?', 'school supplies', 'stationery', 'art supplies', 'colouring', 'coloring', 'markers?', 'crayons?', 'pencils?', 'notebooks?']), S,
     'Stationery & Art Supplies'],
   // "Costumes", not "Fancy Dress": a subcategory with the word "dress" would put costumes next to the dresses of a "dress"
@@ -88,6 +91,8 @@ export function classify({ name, feedCategory = '' }) {
   const top = parts[parts.length - 1] || '';
   // "For whom" missing or "Unisex": only toys, games and baby things (Tradeinn writes "Unisex" for adult goods too).
   if (!KIDS.test(who) && !/^(toys & games|baby & toddler)$/i.test(top)) return { reject: `for "${who || 'anyone'}", not clearly for children` };
+  // A changing backpack sits in the "Backpacks" folder, but it is a nappy bag (ALL IMPORTS dry run of 17 Nov 2026).
+  if (/\bchang(?:ing|er)\b.*\b(?:backpacks?|bags?)\b|\b(?:nappy|diaper) bags?\b/i.test(n)) return { site: 'kgw', siteCategory: B, subcategory: 'Nappy Bags', name: n };
   for (const part of parts) for (const [re, cat, sub] of PLACES) if (re.test(part)) return { site: 'kgw', siteCategory: cat, subcategory: sub, name: n };
   // No folder says it: the name, listed under CHECK in the dry run.
   for (const [re, cat, sub] of PLACES) if (re.test(n)) return { site: 'kgw', siteCategory: cat, subcategory: sub, name: n, doubt: true };
