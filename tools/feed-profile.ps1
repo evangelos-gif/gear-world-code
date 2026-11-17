@@ -7,6 +7,8 @@
   What is needed to write a new shop's import rules and choose its site. It changes nothing (no import, no Cloudflare,
   no D1, no file in the archive).
   -AlsoHours <n> with -Advertiser: the shops asked for AND every feed downloaded in the last n hours, in one report.
+  -Network Daisycon (or 'CJ,Daisycon'; Awin, CJ, Daisycon, Rakuten): only that network's feeds, with the files per country
+  (DAISYCON_<programme>_<country>) and per search (CJ_<shop>_<search>) too (chat 9, 16 Nov 2026).
   Output: <home>\gear-world-reports\FEED_PROFILE_<time>\report.txt (also copied to the clipboard)
 #>
 param(
@@ -14,6 +16,7 @@ param(
     [int]$Days = 2,
     [int]$Hours = 0,
     [int]$AlsoHours = 0,
+    [string]$Network = '',
     [string]$Archive = '',
     [string]$OutDir = '',
     [int]$MaxRows = 0,
@@ -62,6 +65,7 @@ if ($Advertiser) { $nodeArgs += @('--advertiser', $Advertiser) }
 # -AlsoHours with -Advertiser: also every feed downloaded in the last hours (massive import of 14 Nov 2026, L133).
 if ($AlsoHours -gt 0) { $nodeArgs += @('--also-days', ([double]$AlsoHours / 24).ToString([System.Globalization.CultureInfo]::InvariantCulture)) }
 if ($MaxRows -gt 0) { $nodeArgs += @('--max-rows', [string]$MaxRows) }
+if ($Network) { $nodeArgs += @('--network', $Network) }
 & node @nodeArgs
 $code = $LASTEXITCODE
 if ($code -ne 0) { Write-Host 'Το εργαλείο σταμάτησε με σφάλμα. Στείλε στο Claude ό,τι γράφει η οθόνη.' -ForegroundColor Red; exit $code }

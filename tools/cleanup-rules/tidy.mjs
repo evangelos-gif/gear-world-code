@@ -79,9 +79,11 @@ export function sqlFiles(p) {
     lines.push(`UPDATE products SET is_active = 0, updated_at = datetime('now') WHERE id IN (${part.join(', ')});`);
     undo.push(`UPDATE products SET is_active = 1, updated_at = datetime('now') WHERE id IN (${part.join(', ')});`);
   }
+  // A rename keeps updated_at (the date of the last price check): a product that left its feed must not show again
+  // because of a new name (Manager, 16 Nov 2026, lessons L167/L168).
   for (const r of p.rename) {
-    lines.push(`UPDATE products SET product_name = ${q(r.to)}, updated_at = datetime('now') WHERE id = ${Number(r.id)};`);
-    undo.push(`UPDATE products SET product_name = ${q(r.from)}, updated_at = datetime('now') WHERE id = ${Number(r.id)};`);
+    lines.push(`UPDATE products SET product_name = ${q(r.to)} WHERE id = ${Number(r.id)};`);
+    undo.push(`UPDATE products SET product_name = ${q(r.from)} WHERE id = ${Number(r.id)};`);
   }
   return { change: lines.join('\n') + '\n', rollback: undo.join('\n') + '\n' };
 }

@@ -19,20 +19,35 @@
                 asked for again only when it has run out), then ONE search (-SearchTerm, default
                 "Strauss werkschoenen", -Country NL or BE, Accept-Language nl). Shows only how many products bol.com
                 found and the first one's name and price. Nothing is saved.
-  The download of products (its own phrase, the Awin column names, the tracking link of site ID 1559450, bol.com
-  delivering to NL and BE) comes in a later version, after the terms of the programme are checked; an import is
-  always a separate step with ΕΓΚΡΙΝΩ ALL IMPORTS.
+  -Step categories  READ-ONLY (chat 9, 16 Nov 2026). ONE token, ONE call: bol.com's categories with their ids and
+                product counts (top level and one level down), to choose the ids of the download. Nothing is saved.
+  -Step download  CHANGES ONLY FILES ON THIS PC (the feeds folder). Without -Apply it only shows the plan (no token).
+                With -Apply and the phrase ΕΓΚΡΙΝΩ BOL FEED DOWNLOAD: the most popular products of each category
+                (-Categories '<id>=<name>,<id>' in the order of the commission, highest first) and of each search
+                (-Search 'werkschoenen', optional -SearchCategory <id>), at most -MaxPerCategory (default 1000) each,
+                pages of 50, ONE token for the run (again only when it has run out, at most 3), to
+                <feeds folder>\BOL_<category>_<country>.csv.gz with the Awin column names and the partner link of site ID
+                1559450 (tools/bol-feed.mjs). A product without an offer or without a bol.com page is left out; one EAN
+                once in the whole run; no "was" price. The old copy of a file goes to _old\<time> first (rollback: move
+                it back). The sites, the databases and the Workers do NOT change; an import is always a separate step
+                with ΕΓΚΡΙΝΩ ALL IMPORTS, and for bol.com only after the removal tool and the daily refresh (Manager 15/11).
   The keys go only to login.bol.com (the token) and the token only to api.bol.com (or the tests' local server).
   Report: <home>\gear-world-reports\BOL_FEED_<STEP>_<time>.txt (copied to the clipboard)
 #>
 param(
-    [ValidateSet('keys', 'check')]
+    [ValidateSet('keys', 'check', 'categories', 'download')]
     [string]$Step = 'check',
     [switch]$Apply,
     [string]$Approve = '',
     [string]$SearchTerm = 'Strauss werkschoenen',
     [ValidateSet('NL', 'BE')]
     [string]$Country = 'NL',
+    [string]$Categories = '',
+    [string]$Search = '',
+    [string]$SearchCategory = '',
+    [int]$MaxPerCategory = 1000,
+    [int]$PauseMs = 300,
+    [string]$Archive = '',
     [string]$SecretFile = '',
     [string]$LoginBase = '',
     [string]$ApiBase = '',
@@ -52,7 +67,9 @@ $LoginBase = $LoginBase.TrimEnd('/')
 $ApiBase = $ApiBase.TrimEnd('/')
 $stamp = Get-Date -Format 'yyyyMMdd_HHmmss'
 $PhraseKeys = 'ΕΓΚΡΙΝΩ BOL KEYS'
-$ChatName = '3 · Retailers & Feeds'
+$PhraseDownload = 'ΕΓΚΡΙΝΩ BOL FEED DOWNLOAD'
+# The bol.com feed is the work of chat 9 (Retailers & Feeds B) from 16 Nov 2026 (chat 3's hand-over in the plan).
+$ChatName = '9 · Retailers & Feeds Β'
 
 $L = New-Object System.Collections.Generic.List[string]
 $script:secrets = New-Object System.Collections.Generic.List[string]
@@ -180,7 +197,7 @@ function Get-Token([hashtable]$keys) {
 }
 
 Write-Host ''
-Say ('bol.com Partnerprogramma - step: {0} - {1} - {2}' -f $Step, $(if ($Step -eq 'check') { 'ΜΟΝΟ ΑΝΑΓΝΩΣΗ' } elseif ($Apply) { 'APPLY (με έγκριση)' } else { 'ΜΟΝΟ ΤΟ ΠΛΑΝΟ (δεν αλλάζει τίποτα)' }), (Get-Date -Format 'yyyy-MM-dd HH:mm')) 'Cyan'
+Say ('bol.com Partnerprogramma - step: {0} - {1} - {2}' -f $Step, $(if ($Step -eq 'check' -or $Step -eq 'categories') { 'ΜΟΝΟ ΑΝΑΓΝΩΣΗ' } elseif ($Apply) { 'APPLY (με έγκριση)' } else { 'ΜΟΝΟ ΤΟ ΠΛΑΝΟ (δεν αλλάζει τίποτα)' }), (Get-Date -Format 'yyyy-MM-dd HH:mm')) 'Cyan'
 if (-not (Test-BolBase $LoginBase 'login.bol.com') -or -not (Test-BolBase $ApiBase 'api.bol.com')) {
     Say 'Τα κλειδιά και το token πηγαίνουν μόνο στο login.bol.com και στο api.bol.com. Σταμάτησα.' 'Magenta'
     Finish 2
@@ -241,6 +258,81 @@ if ($Step -eq 'keys') {
     Say ''
     Say 'Αποτέλεσμα: ΕΤΟΙΜΟ. Επόμενο: το βήμα check (μόνο ανάγνωση) τα δοκιμάζει με ένα token και μία αναζήτηση.' 'Cyan'
     Finish 0
+}
+
+# ---------------- categories and download (tools/bol-feed.mjs) ----------------
+# The keys reach Node only through two environment variables of this process, cleared right after; Node never
+# writes them. Its report comes back through a file and every line still goes through Mask.
+function Invoke-BolNode([string[]]$a) {
+    $node = Get-Command node -ErrorAction SilentlyContinue
+    if (-not $node) { Say 'Δεν βρέθηκε το Node.js. Στείλε στο Claude αυτό το μήνυμα.' 'Magenta'; Finish 3 }
+    $k = Read-Keys
+    if (-not $k) {
+        Say ('Δεν βρήκα φυλαγμένα κλειδιά του bol.com στο {0} (ή δεν διαβάζονται από αυτόν τον χρήστη).' -f $SecretFile) 'Magenta'
+        Say ('Τρέξε πρώτα το βήμα keys με τη φράση {0}.' -f $PhraseKeys)
+        Finish 3
+    }
+    Say 'Κλειδιά: βρέθηκαν (κρυπτογραφημένα, δεν φαίνονται): ΕΝΤΑΞΕΙ' 'Cyan'
+    $rep = Join-Path ([System.IO.Path]::GetTempPath()) ('gw-bol-' + $stamp + '-' + [guid]::NewGuid().ToString('N').Substring(0, 8) + '.txt')
+    $all = @((Join-Path $PSScriptRoot 'bol-feed.mjs'), '--login-base', $LoginBase, '--api-base', $ApiBase, '--report', $rep) + $a
+    $lines = @()
+    try {
+        $env:GW_BOL_ID = $k.id
+        $env:GW_BOL_SECRET = $k.secret
+        $lines = @(& $node.Source @all)
+        $code = $LASTEXITCODE
+    } finally {
+        $env:GW_BOL_ID = $null
+        $env:GW_BOL_SECRET = $null
+    }
+    if (Test-Path -LiteralPath $rep) {
+        Say ''
+        foreach ($line in ([System.IO.File]::ReadAllText($rep, [System.Text.Encoding]::UTF8) -split "`r?`n")) { Say $line }
+        Remove-Item -LiteralPath $rep -Force -ErrorAction SilentlyContinue
+    }
+    $j = $null
+    if ($lines.Count) { try { $j = ([string]$lines[-1]) | ConvertFrom-Json } catch { $j = $null } }
+    return @{ code = $code; json = $j }
+}
+
+if ($Step -eq 'categories') {
+    $r = Invoke-BolNode @('--mode', 'categories', '--country', $Country)
+    if ($r.code -ne 0) {
+        $why = ''; if ($r.json -and $r.json.error) { $why = [string]$r.json.error }
+        Say ('Οι κατηγορίες δεν βγήκαν: {0}' -f $why) 'Magenta'
+        Finish $r.code
+    }
+    Say 'Αποτέλεσμα: ΕΤΟΙΜΟ (μόνο ανάγνωση). Στείλε την αναφορά στο Claude για να διαλέξει τις κατηγορίες της λήψης.' 'Cyan'
+    Finish 0
+}
+
+if ($Step -eq 'download') {
+    if (-not $Archive) { $Archive = Join-Path (Join-Path $HOME 'Downloads') 'GW_AWIN_BULK_ARCHIVE' }
+    $cats = @(([string]$Categories).Split(',') | ForEach-Object { $_.Trim() } | Where-Object { $_ -match '^\d{1,12}(\s*=\s*[^,;]{1,60})?$' })
+    $terms = @(([string]$Search).Split(',') | ForEach-Object { $_.Trim() } | Where-Object { $_ -and $_.Length -le 60 })
+    $max = [Math]::Min(10000, [Math]::Max(1, $MaxPerCategory))
+    Say ''
+    Say 'Τι θα γίνει:'
+    Say ('  - Λήψη από το επίσημο API του bol.com ({0}), ένα token για όλη την εκτέλεση, σελίδες των 50, έως {1} προϊόντα ανά κατηγορία ή αναζήτηση.' -f $Country, $max)
+    foreach ($c in $cats) { Say ('    κατηγορία {0}' -f $c) }
+    foreach ($t in $terms) { Say ('    αναζήτηση «{0}»{1}' -f $t, $(if ($SearchCategory) { ' στην κατηγορία ' + $SearchCategory } else { '' })) }
+    Say ('  - Αρχεία: {0}\BOL_<κατηγορία>_{1}.csv.gz· το παλιό αντίγραφο πάει πρώτα στο _old\{2} (επαναφορά: μετακίνηση πίσω).' -f $Archive, $Country, ($stamp -replace '_', ''))
+    Say '  - Έξω: προϊόντα χωρίς προσφορά ή χωρίς σελίδα bol.com· το ίδιο EAN μία φορά· καμία «πριν» τιμή.'
+    Say '  - Τα sites, οι βάσεις και οι Workers ΔΕΝ αλλάζουν. Εισαγωγή μόνο αργότερα, με ΕΓΚΡΙΝΩ ALL IMPORTS.'
+    if (-not $cats.Count -and -not $terms.Count) { Say 'Δεν δόθηκε καμία κατηγορία (-Categories) ή αναζήτηση (-Search). Δεν άλλαξε τίποτα.' 'Magenta'; Finish 2 }
+    if (-not (Test-Path -LiteralPath $Archive)) { Say ('Δεν βρήκα τον φάκελο των feeds: {0}' -f $Archive) 'Magenta'; Finish 2 }
+    if (-not $Apply) { Say ''; Say ('Χωρίς -Apply δεν άλλαξε τίποτα. Για τη λήψη: -Apply και η φράση {0}' -f $PhraseDownload) 'Yellow'; Finish 0 }
+    if (-not (Confirm-Approval $PhraseDownload)) { Say 'Δεν δόθηκε η σωστή φράση. Δεν άλλαξε τίποτα.' 'Yellow'; Finish 1 }
+    $a = @('--mode', 'download', '--country', $Country, '--out', $Archive, '--max', [string]$max, '--pause', [string]([Math]::Max(0, $PauseMs)), '--stamp', ($stamp -replace '_', ''))
+    if ($cats.Count) { $a += @('--categories', ($cats -join ',')) }
+    if ($terms.Count) { $a += @('--search', ($terms -join ',')) }
+    if ($SearchCategory -match '^\d{1,12}$') { $a += @('--search-category', $SearchCategory) }
+    $r = Invoke-BolNode $a
+    if ($r.code -eq 0) { Say 'Αποτέλεσμα: ΕΤΟΙΜΟ (μόνο αρχεία στον υπολογιστή). Στείλε την αναφορά στο Claude.' 'Cyan'; Finish 0 }
+    $why = ''; if ($r.json -and $r.json.error) { $why = [string]$r.json.error }
+    if ($r.code -eq 5) { Say 'Αποτέλεσμα: ΠΡΟΣΟΧΗ: κάποια αρχεία δεν κατέβηκαν (δες πιο πάνω). Τα άλλα είναι στη θέση τους.' 'Yellow'; Finish 5 }
+    Say ('Η λήψη σταμάτησε: {0}. Ό,τι γράφει πιο πάνω ΕΝΤΑΞΕΙ έγινε· τίποτα μισό δεν έμεινε.' -f $why) 'Magenta'
+    Finish $r.code
 }
 
 # ---------------- check ----------------

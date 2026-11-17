@@ -6,6 +6,9 @@
   The tidy tool read the database through the Windows console code page instead of UTF-8, so "KIDS<right single quote> Helmet" was
   written back as "KIDSÔÇÖ Helmet". Rules: tools/cleanup-rules/fixnames.mjs. The right name is the feed name
   (never touched) without its size/colour; a name is changed only when every readable character stays the same.
+  Also (16 Nov 2026, chat 9, lessons L167) UTF-8 read once as Latin-1/Windows-1252 that came so from the feed (Reidl on
+  CGW: "SchlÃ¼ssel" -> "Schlüssel", "â€“" -> "–"): each broken letter is read again only when its bytes are exactly one
+  UTF-8 letter; a real Â, â or Ã in a name is never touched.
   Without -Apply: READ-ONLY. Shows every name before -> after. Changes nothing.
   With -Apply and the approval phrase ΕΓΚΡΙΝΩ FIX NAMES <SITE> (e.g. ΕΓΚΡΙΝΩ FIX NAMES KGW): saves the change and
   rollback files on this PC, takes a Cloudflare Time Travel restore point, applies the change (by id), checks again.

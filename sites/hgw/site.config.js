@@ -73,10 +73,19 @@ export default {
     // Mass import round 2 (15 Nov 2026, lessons L164): US shops and TEMU's US feed only to the US (dollars, US plugs);
     // Narwal EU (euros, EU plugs) only to the EU.
     TEMU: ['US'], Imarku: ['US'], 'Super Area Rugs': ['US'], 'LOOMY Home': ['US'], Rowabi: ['US'], Airdog: ['US'], 'Narwal EU': ['EU'],
+    // Daisycon Wave 3 (chat 9, 17 Nov 2026): Westwing, one shop per country, names in that country's language (L165).
+    'Westwing NL': ['NL'], 'Westwing DE': ['DE'], 'Westwing FR': ['FR'], 'Westwing IT': ['IT'], 'Westwing ES': ['ES'],
+    // More Daisycon home shops (chat 9, 17 Nov 2026), each in its own country and language. Baobab Collection (EU) is shown
+    // only in France for now: its names are French, and Belgium and Luxembourg would each need a view of their own.
+    'La Redoute NL': ['NL'], 'La Redoute DE': ['DE'], 'Dille Kamille NL': ['NL'], 'Dille Kamille FR': ['FR'], 'Miss Towels': ['NL'],
+    'WoodWick NL': ['NL'], Kerstland: ['NL'], 'Baobab Collection': ['FR'],
     // Wave 3 (approvals file of chat 7, 16 Nov 2026, lessons L171): the US shops only to the US; Zepter (euros) only to the EU.
     'INSPECIAL HOME': ['US'], 'Sleep Zone': ['US'], 'Sleep and Beyond': ['US'], BlindsMagic: ['US'],
     'Dr.Prepare': ['US'], MEEDEN: ['US'], Buture: ['US'], Garvee: ['US'], GardePro: ['US'], MOVA: ['US'],
-    Aosom: ['US'], Zepter: ['EU'] } },
+    Aosom: ['US'], Zepter: ['EU'] },
+    languages: { 'Westwing NL': 'nl', 'Westwing DE': 'de', 'Westwing FR': 'fr', 'Westwing IT': 'it', 'Westwing ES': 'es',
+      'La Redoute NL': 'nl', 'La Redoute DE': 'de', 'Dille Kamille NL': 'nl', 'Dille Kamille FR': 'fr', 'Miss Towels': 'nl', 'WoodWick NL': 'nl',
+      Kerstland: 'nl', 'Baobab Collection': 'fr' } },
   foreignCurrencies: ['USD', 'PLN'],
   displayCurrencies: ['GBP', 'EUR', 'PLN', 'ALL', 'RON', 'RUB'],
   cart: { name: 'Saved list', maxItems: 30 },
