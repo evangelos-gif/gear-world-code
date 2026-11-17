@@ -65,8 +65,8 @@ test('L176: every text of the dictionaries is on a legal page (or said by legal.
 test('L176: the cookies page lists the new browser storage of L175 and the seasonal pause', () => {
   const c = read('cookies/index.html');
   for (const name of ['gwh-language', 'gwh-language-chosen', 'gwh2-season-paused', 'gwh_cookie_consent']) assert.ok(c.includes(`<code>${name}</code>`), name);
-  // 19/11/2026: the browser storage of the small sign-up window (L182).
-  assert.match(c, /<p class="lg-updated">Last updated: 19 November 2026<\/p>/);
+  // 18/11/2026: the browser storage of the small sign-up window (L182).
+  assert.match(c, /<p class="lg-updated">Last updated: 18 November 2026<\/p>/);
   for (const name of ['gwh_popup_date', 'gwh_popup_done']) assert.ok(c.includes(`<code>${name}</code>`), name);
   const p = read('privacy/index.html');
   assert.match(p, /<li><strong>Language\.<\/strong> If you have not chosen a language, the Hub shows its pages in the language of your country, as reported by our hosting provider\. Your country is not stored\.<\/li>/);
