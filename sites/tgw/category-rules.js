@@ -315,7 +315,7 @@ export const CATEGORY_SLUGS = ['laptops-computing', 'phones-smartwatches', 'audi
 // Minimum quality for any product to be imported (L14). The import tool reports each failure reason.
 export const QUALITY = {
   // EUR: Back to the Office IE and MonsGeek (massive import round 2c, 14 Nov 2026, lessons L144), seen only where they deliver.
-  currencies: ['GBP', 'EUR', 'PLN'],
+  currencies: ['GBP', 'EUR', 'PLN', 'USD'], // USD: the US-only shops of wave 3, US view only (L169)
   minPrice: 1,
   maxPrice: 10000,
   requireImage: true,
