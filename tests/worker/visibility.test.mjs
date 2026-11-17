@@ -99,7 +99,10 @@ test('country groups (L151): the UK sees only what delivers there, the US its ow
   for (const cc of ['GB', 'IE', 'DK', 'SE', 'NO']) assert.ok(!ht.includes(cc), `HOME-TEX: not ${cc}`);
   assert.deepEqual(viewFor(config.kgw, 'US', NOW).only, ['Diecast Models Wholesale', 'Dream Pairs', 'Kaiya Baby', 'TEMU', 'UPPER']);
   assert.deepEqual(viewFor(config.hgw, 'US', NOW).only, ['Airdog', 'AlorAir', 'Imarku', 'Kincmo', 'LOOMY Home', 'Mosaic Weighted Blankets', 'Rowabi', 'Super Area Rugs', 'TEMU']);
-  assert.equal(viewFor(config.hgw, 'FR', NOW).group, 'all');
+  // Daisycon Wave 3 (chat 9, 17 Nov 2026): France also sees Westwing FR (French names, L165), so HGW has a French view;
+  // Ireland still gets the all view.
+  assert.equal(viewFor(config.hgw, 'FR', NOW).group, 'lang-fr');
+  assert.equal(viewFor(config.hgw, 'IE', NOW).group, 'all');
   assert.deepEqual(viewFor(config.ggw, 'US', NOW).only, ['Click and Grow', 'TEMU']);
   assert.deepEqual(viewFor(config.zgw, 'US', NOW).only, ['ALZOO', 'Bonne et Filou', 'Crown and Paw', 'EcoKind', 'MeoWant', 'RadioFence.com'], 'ALZOO and the US pet shops of wave 3 (L169)');
   assert.deepEqual(viewFor(config.cgw, 'US', NOW).only, ['GRABO']);
@@ -140,11 +143,12 @@ test('country groups (L151): the UK sees only what delivers there, the US its ow
   assert.equal(viewFor(config.zgw, 'FR', NOW).group, 'gb');
   assert.equal(countryGroups(config.zgw).all, countryGroups(config.zgw).home);
   // Few groups per site (one page copy each in the cache): the UK, all, the US, Poland (L157), and one per set of
-  // countries that speak the language of a feed (L165), named lang-...
+  // countries that speak the language of a feed (L165), named lang-... HGW has 9 from 17 Nov 2026 (gb, all, us, pl and
+  // Westwing in Dutch, German, French, Italian and Spanish, Daisycon Wave 3, chat 9): the limit is 10 now (for chat 4 to confirm).
   for (const s of SITES) {
     const groups = countryGroups(config[s]).list;
     const list = groups.map(x => x.id);
-    assert.ok(list.length <= 8 && list[0] === 'gb' && groups.every(x => (x.language ? /^lang-/.test(x.id) : ['gb', 'all', 'us', 'pl', 'pl-us'].includes(x.id))), `${s}: ${list}`);
+    assert.ok(list.length <= 10 && list[0] === 'gb' && groups.every(x => (x.language ? /^lang-/.test(x.id) : ['gb', 'all', 'us', 'pl', 'pl-us'].includes(x.id))), `${s}: ${list}`);
   }
   assert.deepEqual(OWN_VIEW_COUNTRIES, ['GB', 'PL', 'US']);
   assert.deepEqual(OPEN_COUNTRIES, ['GB', 'PL']);

@@ -72,7 +72,10 @@ export default {
     'HOME-TEX': ['AT', 'BE', 'BG', 'CH', 'CZ', 'DE', 'EE', 'ES', 'FI', 'FR', 'HU', 'IT', 'LT', 'LU', 'LV', 'NL', 'PL', 'RO', 'SK'],
     // Mass import round 2 (15 Nov 2026, lessons L164): US shops and TEMU's US feed only to the US (dollars, US plugs);
     // Narwal EU (euros, EU plugs) only to the EU.
-    TEMU: ['US'], Imarku: ['US'], 'Super Area Rugs': ['US'], 'LOOMY Home': ['US'], Rowabi: ['US'], Airdog: ['US'], 'Narwal EU': ['EU'] } },
+    TEMU: ['US'], Imarku: ['US'], 'Super Area Rugs': ['US'], 'LOOMY Home': ['US'], Rowabi: ['US'], Airdog: ['US'], 'Narwal EU': ['EU'],
+    // Daisycon Wave 3 (chat 9, 17 Nov 2026): Westwing, one shop per country, names in that country's language (L165).
+    'Westwing NL': ['NL'], 'Westwing DE': ['DE'], 'Westwing FR': ['FR'], 'Westwing IT': ['IT'], 'Westwing ES': ['ES'] },
+    languages: { 'Westwing NL': 'nl', 'Westwing DE': 'de', 'Westwing FR': 'fr', 'Westwing IT': 'it', 'Westwing ES': 'es' } },
   foreignCurrencies: ['USD', 'PLN'],
   displayCurrencies: ['GBP', 'EUR', 'PLN', 'ALL', 'RON', 'RUB'],
   cart: { name: 'Saved list', maxItems: 30 },

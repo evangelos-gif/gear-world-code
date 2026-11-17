@@ -81,7 +81,8 @@ test('L165: the config check names a wrong feed language, one without its own co
   // Exactly the feeds of 15 Nov 2026 in another language (D1, the product names): Reidl and Uhrcenter in German,
   // VEVOR on AGW in Dutch.
   const all = SITES.flatMap(s => languageRetailers(config[s]).map(n => `${s} ${n} ${feedLanguage(config[s], n)}`));
-  assert.deepEqual(all.sort(), ['agw VEVOR nl', 'cgw Reidl de', 'mgw Uhrcenter de', 'wgw Uhrcenter de']);
+  // + Westwing on HGW, one shop per country in its language (Daisycon Wave 3, chat 9, 17 Nov 2026).
+  assert.deepEqual(all.sort(), ['agw VEVOR nl', 'cgw Reidl de', 'hgw Westwing DE de', 'hgw Westwing ES es', 'hgw Westwing FR fr', 'hgw Westwing IT it', 'hgw Westwing NL nl', 'mgw Uhrcenter de', 'wgw Uhrcenter de']);
 });
 
 test('L165: a feed in another language: only the countries that speak it, never the UK, the all view or Google', () => {
