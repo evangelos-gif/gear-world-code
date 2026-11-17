@@ -169,6 +169,10 @@
   copy, never for a crawler); translations.js and about.js use it only without a choice of the visitor's own and do
   not save it (an en-GB saved before L175 is a choice only with the menu's mark gwh-language-chosen). The live checks of
   this tool and of gwh-mailerlite, gwh-photo, gwh-search-labels and poster-setup take the mark out before comparing.
+  Legal pages (lessons L176, owner 17/11/2026): privacy, cookies, terms, affiliate disclosure and contact (and the
+  footer of /about/) in the 11 languages: legal.js loads public/legal/i18n/<language>.json (each block by its English
+  HTML, the same links and tags) for pages with <html data-lg-i18n>, with a note that the English text applies; the
+  Worker names the country language on those pages too.
   Exit codes added by L119: 21 the -MitgoCode has another form, 22 the code did not go into the live Worker (nothing went
   live), 23 -AfterPreview without a clean preview report of this version (nothing changed).
   Report: <home>\gear-world-reports\GWH_HUB_V2_<STEP>_<time>.txt (also copied to the clipboard)
@@ -227,11 +231,22 @@ $About = @{
     'public/email-signup.js' = 'το κουτί email λέει τι στέλνει: κωδικούς που δημοσιεύουν τα καταστήματα και νέα των sites, όχι «prices we''ve checked», 11 γλώσσες (L107)· Turnstile όταν αρχίζει η φόρμα (L106)'
     'poster-scan.js'        = 'η μέτρηση των αφισών (ίδια με αυτή που μπήκε με το POSTER STATS)'
     'public/index.html' = 'η κάρτα «Featured pick» παίρνει τα κείμενά της από το hub-v2.js (11 γλώσσες) και νέο ?v= για το hub-v2.js (L174, L31)· όλα τα άλλα όπως είναι live'
-    'public/about/index.html' = 'νέο ?v= για το about.js (L175, L31)· νέα σελίδα /about/: «Run by Evangelos Kalogerakis, United Kingdom», ότι δεν πουλάμε, δεν παίρνουμε πληρωμές, δεν κάνουμε παραδόσεις, contact@gearworldhub.com (νέο αρχείο, L101)'
+    'public/legal/i18n/el-GR.json' = 'νέο αρχείο: τα κείμενα των νομικών σελίδων στα el-GR για το legal.js (L176)'
+    'public/legal/i18n/de-DE.json' = 'νέο αρχείο: τα κείμενα των νομικών σελίδων στα de-DE για το legal.js (L176)'
+    'public/legal/i18n/fr-FR.json' = 'νέο αρχείο: τα κείμενα των νομικών σελίδων στα fr-FR για το legal.js (L176)'
+    'public/legal/i18n/it-IT.json' = 'νέο αρχείο: τα κείμενα των νομικών σελίδων στα it-IT για το legal.js (L176)'
+    'public/legal/i18n/es-ES.json' = 'νέο αρχείο: τα κείμενα των νομικών σελίδων στα es-ES για το legal.js (L176)'
+    'public/legal/i18n/pt-PT.json' = 'νέο αρχείο: τα κείμενα των νομικών σελίδων στα pt-PT για το legal.js (L176)'
+    'public/legal/i18n/nl-NL.json' = 'νέο αρχείο: τα κείμενα των νομικών σελίδων στα nl-NL για το legal.js (L176)'
+    'public/legal/i18n/sq-AL.json' = 'νέο αρχείο: τα κείμενα των νομικών σελίδων στα sq-AL για το legal.js (L176)'
+    'public/legal/i18n/ro-RO.json' = 'νέο αρχείο: τα κείμενα των νομικών σελίδων στα ro-RO για το legal.js (L176)'
+    'public/legal/i18n/ru-RU.json' = 'νέο αρχείο: τα κείμενα των νομικών σελίδων στα ru-RU για το legal.js (L176)'
+    'public/legal/legal.js' = 'οι νομικές σελίδες στη γλώσσα του επισκέπτη (επιλογή του, μετά της χώρας του, μετά Αγγλικά) από τα αρχεία legal/i18n (L176)· το έτος του footer και η επιλογή cookies όπως πριν'
+    'public/about/index.html' = 'νέο ?v= για το legal.js και data-lg-i18n (L176)· νέο ?v= για το about.js (L175, L31)· νέα σελίδα /about/: «Run by Evangelos Kalogerakis, United Kingdom», ότι δεν πουλάμε, δεν παίρνουμε πληρωμές, δεν κάνουμε παραδόσεις, contact@gearworldhub.com (νέο αρχείο, L101)'
     'public/about/about.js' = 'χωρίς δική του επιλογή γλώσσας ο επισκέπτης βλέπει τη σελίδα στη γλώσσα της χώρας του, όπως την αρχική (L175)· η σελίδα /about/ στη γλώσσα που διάλεξε ο επισκέπτης, 11 γλώσσες (νέο αρχείο, L101)'
-    'public/privacy/index.html' = 'τα links των sites περνούν από το Awin ή το CJ, με την πολιτική απορρήτου και των δύο· «Last updated: 9 November 2026» (L107)'
-    'public/cookies/index.html' = 'τα cookies του affiliate network: «Awin, or for a few retailers CJ»· «Last updated: 9 November 2026» (L107)· νέα γραμμή στο footer και link «About» (L101)'
-    'public/affiliate-disclosure/index.html' = 'τα κουμπιά των sites περνούν από ένα affiliate network: Awin, ή για λίγα καταστήματα CJ· «Last updated: 9 November 2026» (L107)'
+    'public/privacy/index.html' = 'στη γλώσσα του επισκέπτη μέσω legal.js (data-lg-i18n, L176), «outside the UK and the European Economic Area», νέα γραμμή «Language», «Last updated: 17 November 2026»· τα links των sites περνούν από το Awin ή το CJ, με την πολιτική απορρήτου και των δύο· «Last updated: 9 November 2026» (L107)'
+    'public/cookies/index.html' = 'στη γλώσσα του επισκέπτη μέσω legal.js (L176), νέες γραμμές gwh-language-chosen και gwh2-season-paused, «Last updated: 17 November 2026»· τα cookies του affiliate network: «Awin, or for a few retailers CJ»· «Last updated: 9 November 2026» (L107)· νέα γραμμή στο footer και link «About» (L101)'
+    'public/affiliate-disclosure/index.html' = 'στη γλώσσα του επισκέπτη μέσω legal.js (data-lg-i18n, L176)· τα κουμπιά των sites περνούν από ένα affiliate network: Awin, ή για λίγα καταστήματα CJ· «Last updated: 9 November 2026» (L107)'
     'public/hub-v2.css'     = 'στο κινητό το Pets και το Stores μικρά, το ένα δίπλα στο άλλο (όπως οι άλλες κάρτες)· κάτω από 380 px εικόνα 40 px και τίτλος 13 px, ώστε το «Καταστήματα» να χωράει σε μία γραμμή (L166)'
     'public/hub-v2.js' = 'η κάρτα «Featured pick» σε 11 γλώσσες (το κατάστημα και το site του αμετάφραστα), και ένα link προς ένα από τα 13 sites παίρνει τη γλώσσα που διάλεξε ο επισκέπτης στο Hub (?lang=) τη στιγμή που πατιέται (L174)· όλα τα άλλα όπως είναι live'
     'public/hub-stores.jpg' = 'η φωτογραφία της κάρτας «Stores»: οι φωτογραφίες 4 κόσμων μαζί (Pexels, ήδη στο Hub)'
@@ -249,7 +264,7 @@ $About = @{
     'public/gear-world-camera.js' = 'κάθε κάρτα της αναζήτησης με φωτογραφία λέει «<κατάστημα> delivers to: …» (L153)'
     'public/app.js' = 'κάθε κάρτα της αναζήτησης λέει «<κατάστημα> delivers to: …» κάτω από το κατάστημα (L153)'
     'public/styles.css'     = 'φεύγουν οι κανόνες της κάρτας «Sell Your Business» (.gwh-business-*) και τα σχόλια «shop» (το αρχείο δεν το φορτώνει η σελίδα· μένει για τα παλιά εργαλεία) (L103)'
-    'public/contact/index.html' = '«business enquiries from retailers and affiliate networks» αντί για «partnership enquiries» (L103)'
+    'public/contact/index.html' = 'στη γλώσσα του επισκέπτη μέσω legal.js (data-lg-i18n, L176)· «business enquiries from retailers and affiliate networks» αντί για «partnership enquiries» (L103)'
     'public/guides/guides.css' = 'η εμφάνιση των οδηγών δώρων: «RRP» αντί για διαγραμμένη τιμή και «n% below» (L107)'
     'public/guides/index.html' = 'οι οδηγοί δώρων: «Prices checked between 8 Nov 2026 and 11 Nov 2026», «for him, from £21», «for her, from £12» (L119)'
     'public/guides/christmas-gifts-for-him/index.html' = 'οδηγός δώρων για εκείνον: Wahl £21.88 (ήταν £23.03), σακίδιο Calvin Klein £64.78 (ήταν £71.00), όπως τα δείχνει το Men''s Gear World στις 13/11· νέες ημερομηνίες ελέγχου (L119)'
@@ -260,7 +275,7 @@ $About = @{
     'public/translations.js' = 'χωρίς δική του επιλογή γλώσσας ο επισκέπτης βλέπει τη γλώσσα της χώρας του, χωρίς να αποθηκεύεται (L175)· οι λέξεις «<κατάστημα> delivers to» και «Worldwide» σε 11 γλώσσες και η γραμμή παράδοσης κάθε κάρτας (το όνομα του καταστήματος αμετάφραστο, οι χώρες στη γλώσσα του επισκέπτη, έως 3 και «+n») (L153)'
     'public/robots.txt'     = 'robots.txt του Hub: πρώτα «User-agent: SERankingBacklinksBot» με «Disallow: /» (L105), από κάτω ίδιο όπως ήταν, με τη γραμμή Sitemap: https://gearworldhub.com/sitemap.xml (το Cloudflare βάζει από πάνω τα Content Signals του)'
     'public/gearworldhub-indexnow-k7q4m9x2w5.txt' = 'το κλειδί του IndexNow (δημόσιο, έτσι δουλεύει το IndexNow)'
-    'public/terms/index.html' = '«operated by Gear World (run by Evangelos Kalogerakis, United Kingdom)», «Last updated: 7 November 2026» (L103)'
+    'public/terms/index.html' = 'στη γλώσσα του επισκέπτη μέσω legal.js (data-lg-i18n, L176)· «operated by Gear World (run by Evangelos Kalogerakis, United Kingdom)», «Last updated: 7 November 2026» (L103)'
     'public/hub-bgw.jpg'    = 'η φωτογραφία της κάρτας Biker (Pexels, χωρίς μάρκες)'
     'public/hub-pgw.jpg'    = 'η φωτογραφία της κάρτας Gaming (Pexels, χωρίς μάρκες)'
     'public/hub-zgw.jpg'    = 'η φωτογραφία της κάρτας Pets (Pexels, χωρίς μάρκες)'

@@ -425,6 +425,10 @@ test('home page and /about/: the language of the visitor\'s country on <html>, a
   assert.ok(!(await (await home('GR', { 'User-Agent': 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)' })).text()).includes('data-country-lang'), 'Google reads English');
   assert.match(await (await home('GR', {}, '/about/')).text(), /data-country-lang="el-GR"/, '/about/ too, which reviewers read');
   assert.ok(!(await (await home('GR', {}, '/stores/')).text()).includes('data-country-lang'), 'not the English-only pages');
+  for (const path of ['/privacy/', '/cookies/', '/terms/', '/affiliate-disclosure/', '/contact/'])
+    assert.match(await (await home('GR', {}, path)).text(), /data-country-lang="el-GR"/, `${path}: translated by legal.js (L176)`);
+  assert.ok(!(await (await home('GR', {}, '/guides/')).text()).includes('data-country-lang'), 'the guides stay English');
+  assert.ok(!(await (await home('GR', { 'User-Agent': 'Mozilla/5.0 (Linux; Android 13; CUBOT X20 PRO) AppleWebKit/537.36 Chrome/120 Mobile Safari/537.36' })).text()).includes('data-country-lang') === false, 'a Cubot phone is a person');
   for (const ua of ['Mozilla/5.0 (compatible; YandexBot/3.0; +http://yandex.com/bots)', 'Mozilla/5.0 (compatible; bingbot/2.0; +http://www.bing.com/bingbot.htm)', 'facebookexternalhit/1.1'])
     assert.ok(!(await (await home('RU', { 'User-Agent': ua })).text()).includes('data-country-lang'), `no crawler: ${ua}`);
 
@@ -433,7 +437,7 @@ test('home page and /about/: the language of the visitor\'s country on <html>, a
   assert.match(js, /let chosenLocale = LOCALES\.includes\(currentLocale\) && \(currentLocale !== "en-GB" \|\| chosenMark\);/, 'English saved before L175 is not a choice');
   assert.match(js, /localStorage\.setItem\("gwh-language-chosen", "1"\)/, 'the menu marks a choice');
   assert.match(js, /const byCountry = root && root\.getAttribute \? root\.getAttribute\("data-country-lang"\) : "";/);
-  assert.match(js, /if \(save\) localStorage\.setItem\("gwh-language", locale\);/);
+  assert.match(js, /if \(save\) \{ try \{ localStorage\.setItem\("gwh-language", locale\); \}/);
   assert.match(js, /applyLanguage\(currentLocale, chosenLocale\);\n\}\)\(\);/);
   assert.match(js, /applyLanguage\(event\.target\.value\);/, 'a choice in the menu is saved');
   const about = (await import('node:fs')).readFileSync('sites/gwh/public/about/about.js', 'utf8');

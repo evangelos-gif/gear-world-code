@@ -413,6 +413,52 @@ try {
     check(errors.length === 0, `${tag}: no JavaScript errors`, errors.join(' | ').slice(0, 300));
     await context.close();
   }
+  // Lessons L176: the legal pages in the visitor's language (legal.js and public/legal/i18n). A language chosen in the
+  // menu (Greek, Russian), and one from the country only (German, as the Worker names it on <html>): every block of
+  // the page is the translation, or has nothing to translate (an e-mail address, a storage name, the brand).
+  const LEGAL_BLOCKS = '.lg-crumbs a, .lg-crumbs > span:last-child, .lg-prose h1, .lg-prose h2, .lg-prose p, .lg-prose li, .lg-prose th, .lg-prose td > span, .lg-legal a, .lg-footer p';
+  for (const [locale, how] of [['el-GR', 'chosen'], ['ru-RU', 'chosen'], ['de-DE', 'country']]) {
+    const dict = JSON.parse(readFileSync(new URL(`../sites/gwh/public/legal/i18n/${locale}.json`, import.meta.url), 'utf8'));
+    const values = new Set(Object.values(dict));
+    const context = await browser.newContext();
+    await context.addInitScript(([l, chosen]) => {
+      try { if (chosen) localStorage.setItem('gwh-language', l); else localStorage.removeItem('gwh-language'); } catch (_) { /* ignore */ }
+    }, [locale, how === 'chosen']);
+    const page = await context.newPage();
+    const errors = [];
+    page.on('pageerror', e => errors.push(String(e)));
+    if (how === 'country') {
+      await page.route(/\/(privacy|cookies|terms|affiliate-disclosure|contact)\/$/, async route => {
+        const res = await route.fetch();
+        const body = (await res.text()).replace(/<html\b/, `<html data-country-lang="${locale}"`);
+        await route.fulfill({ response: res, body });
+      });
+    }
+    for (const p of ['privacy', 'cookies', 'terms', 'affiliate-disclosure', 'contact']) {
+      const tag = `legal ${p} ${locale} (${how})`;
+      await page.goto(`${base}/${p}/`, { waitUntil: 'load' });
+      await page.waitForSelector('.lg-lang-note', { timeout: 5000 }).catch(() => {});
+      const r = await page.evaluate(B => {
+        const norm = h => String(h).replace(/\s+/g, ' ').trim();
+        const blocks = [];
+        document.querySelectorAll(B).forEach(el => { if (!el.querySelector('button')) blocks.push(norm(el.innerHTML)); });
+        return { lang: document.documentElement.lang, note: (document.querySelector('.lg-lang-note') || {}).textContent || '', title: document.title,
+          blocks, labels: [...document.querySelectorAll('.lg-prose td[data-label]')].map(td => td.getAttribute('data-label')),
+          button: (document.getElementById('gwhAnalyticsReset') || {}).textContent || '' };
+      }, LEGAL_BLOCKS);
+      check(r.lang === locale && r.note === dict['This is a translation. If it differs from the English text, the English text applies.'], `${tag}: in ${locale}, with the note that the English text applies`, `${r.lang} | ${r.note.slice(0, 50)}`);
+      const left = r.blocks.filter(b => !values.has(b) && /[A-Za-z]/.test(b.replace(/<[^>]+>/g, '')) &&
+        !/^(<a href="mailto:[^"]+">[^<]+<\/a>|<code>[^<]+<\/code>.*|Gear <span>World<\/span> Hub)$/.test(b));
+      check(left.length === 0, `${tag}: every block translated`, left.slice(0, 3).join(' | ').slice(0, 300));
+      check(!/^(Privacy policy|Cookies|Terms of use|Affiliate disclosure|Contact) \|/.test(r.title) || dict[r.title.split(' | ')[0]] === r.title.split(' | ')[0], `${tag}: the title`, r.title);
+      if (p === 'cookies') {
+        check(r.labels.length > 0 && r.labels.every(l => values.has(l)), `${tag}: the table labels of the phone`, r.labels.slice(0, 4).join(','));
+        check(r.button === dict['Reset my choice'], `${tag}: the reset button`, r.button);
+      }
+    }
+    check(errors.length === 0, `legal ${locale}: no JavaScript errors`, errors.join(' | ').slice(0, 300));
+    await context.close();
+  }
   check(!asked.some(p => p.includes('gwh-hero.png')), 'the old 2.8 MB picture (gwh-hero.png) is never loaded');
   check(!asked.some(p => p === '/styles.css'), 'the old styles.css is not loaded by the new page');
 } finally {

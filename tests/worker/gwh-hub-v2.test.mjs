@@ -411,7 +411,7 @@ test('hub v2: a link to a Gear World site carries the language chosen on the Hub
   // Added only when a link is used, never to the addresses written on the page; only a language the visitor chose.
   const code = read('public/hub-v2.js');
   assert.match(code, /for \(const type of \["pointerdown", "click", "auxclick", "contextmenu"\]\) document\.addEventListener\(type, languageOnLink, true\)/);
-  assert.match(code, /const chosen = typeof window\.GWH_languageChosen === "function" \? window\.GWH_languageChosen\(\) : true;/);
+  assert.match(code, /const chosen = typeof window\.GWH_languageChosen === "function" \? window\.GWH_languageChosen\(\) : false;/);
   assert.match(read('public/translations.js'), /window\.GWH_languageChosen = \(\) => chosenLocale;/);
   assert.ok(!/gearworld\.com\/\?lang=/.test(html), 'the page keeps the plain addresses');
 });

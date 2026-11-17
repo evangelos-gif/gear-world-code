@@ -1022,8 +1022,10 @@ export function countryLanguage(country, acceptLanguage = "") {
   return code && HUB_LOCALES.includes(code) ? code : "";
 }
 // Crawlers read English, Google's and every other one (a crawler in Russia would otherwise get Russian).
-export const ANY_CRAWLER = /bot\b|bot\/|crawler|spider|slurp|bingpreview|facebookexternalhit|embedly|preview/i;
-export const COUNTRY_LANGUAGE_PAGES = ["/", "/index.html", "/about/", "/about/index.html"];
+export const ANY_CRAWLER = /(?<!cu)bot\b|bot\/|crawler|spider|slurp|bingpreview|facebookexternalhit|embedly|preview/i; // not Cubot phones
+// The home page, /about/ and the legal pages (L176: translated by legal.js); never the English-only pages (stores, guides).
+export const COUNTRY_LANGUAGE_PAGES = ["/", "/index.html", "/about/", "/about/index.html"].concat(
+  ["privacy", "cookies", "terms", "affiliate-disclosure", "contact"].flatMap(p => [`/${p}/`, `/${p}/index.html`]));
 export async function withCountryLanguage(request, response) {
   if (request.method !== "GET") return response;
   const path = new URL(request.url).pathname;

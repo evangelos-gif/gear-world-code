@@ -264,7 +264,8 @@
     ]
   });
 
-  let currentLocale = localStorage.getItem("gwh-language");
+  let currentLocale = null;
+  try { currentLocale = localStorage.getItem("gwh-language"); } catch (_) { currentLocale = null; }
 
   // Lessons L175: without a language of their own, the visitor gets the language of their country, which the Worker
   // names on <html data-country-lang>; it is saved only when the visitor picks a language in the menu. Before L175 this
@@ -305,7 +306,7 @@
     if (!LOCALES.includes(locale)) locale = "en-GB";
 
     currentLocale = locale;
-    if (save) localStorage.setItem("gwh-language", locale);
+    if (save) { try { localStorage.setItem("gwh-language", locale); } catch (_) { /* private mode */ } }
 
     document.documentElement.lang = locale;
 

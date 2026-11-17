@@ -226,8 +226,9 @@ test('the Hub legal pages say what is there: no affiliate links on the Hub, who 
   assert.match(disc, /The Hub itself has no affiliate links and no paid placements\./);
   assert.match(disc, /take you to pages of the Gear World sites, never straight to a retailer/);
   const priv = readFileSync(`${PUB}/privacy/index.html`, 'utf8');
-  // 8/11/2026 (L106): the sign-up forms use Cloudflare Turnstile, so the date moved on with the text.
-  assert.match(priv, /<p class="lg-updated">Last updated: 9 November 2026<\/p>/);
+  // 8/11/2026 (L106): the sign-up forms use Cloudflare Turnstile, so the date moved on with the text; 17/11/2026 (L175,
+  // L176): the language line and "outside the UK and the European Economic Area".
+  assert.match(priv, /<p class="lg-updated">Last updated: 17 November 2026<\/p>/);
   assert.match(priv, /also use Cloudflare Turnstile/);
   assert.match(priv, /The Hub itself has no affiliate links; the links to retailers on those sites go through the Awin affiliate network, or for a few retailers through CJ \(Commission Junction\)\./);
   const terms = readFileSync(`${PUB}/terms/index.html`, 'utf8');

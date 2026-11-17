@@ -32,6 +32,16 @@ hub-zgw.jpg
 index.html
 legal/legal.css
 legal/legal.js
+legal/i18n/el-GR.json
+legal/i18n/de-DE.json
+legal/i18n/fr-FR.json
+legal/i18n/it-IT.json
+legal/i18n/es-ES.json
+legal/i18n/pt-PT.json
+legal/i18n/nl-NL.json
+legal/i18n/sq-AL.json
+legal/i18n/ro-RO.json
+legal/i18n/ru-RU.json
 privacy/index.html
 robots.txt
 seasonal/black-friday.jpg

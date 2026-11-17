@@ -403,7 +403,7 @@
     const link = event.target && event.target.closest ? event.target.closest("a[href]") : null;
     if (!link) return;
     const href = link.getAttribute("href");
-    const chosen = typeof window.GWH_languageChosen === "function" ? window.GWH_languageChosen() : true;
+    const chosen = typeof window.GWH_languageChosen === "function" ? window.GWH_languageChosen() : false;
     const next = withLanguage(href, locale(), chosen);
     if (next !== href) link.setAttribute("href", next);
   }
