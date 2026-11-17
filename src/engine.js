@@ -687,7 +687,8 @@ const MASTHEAD = '<header class="masthead">';
 export async function withUkBar(response, barHtml = null) {
   if (!response || !response.body || !/^text\/html/i.test(response.headers.get('Content-Type') || '')) return response;
   const headers = new Headers(response.headers);
-  headers.set('Cache-Control', 'private, max-age=60');
+  // As with the country language (L175): an answer that must not be kept (no-store, no-cache) stays so.
+  if (!/no-store|no-cache/i.test(headers.get('Cache-Control') || '')) headers.set('Cache-Control', 'private, max-age=60');
   headers.delete('Content-Length');
   const bar = barHtml || ukBarHtml();
   if (typeof HTMLRewriter === 'function') {

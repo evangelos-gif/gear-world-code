@@ -9,7 +9,7 @@ import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import { DatabaseSync } from 'node:sqlite';
-import { createWorker, countryLanguage, COUNTRY_LANGUAGES, MULTI_LANGUAGE_COUNTRIES, withCountryLanguage } from '../../src/engine.js';
+import { createWorker, countryLanguage, COUNTRY_LANGUAGES, MULTI_LANGUAGE_COUNTRIES, withCountryLanguage, withUkBar } from '../../src/engine.js';
 
 const read = f => readFileSync(f, 'utf8');
 const SITES = readdirSync('sites').filter(n => existsSync(`sites/${n}/site.config.js`) && existsSync(`sites/${n}/public/assets/site.js`));
@@ -290,4 +290,8 @@ test('L175: an answer that must not be kept (no-store) stays so with the country
   assert.equal(a.headers.get('Cache-Control'), 'no-store');
   assert.match(await a.text(), /data-country-lang="el-GR"/);
   assert.equal((await withCountryLanguage(page('public, max-age=300'), 'el-GR')).headers.get('Cache-Control'), 'private, max-age=60');
+  // The UK bar comes after it on the same answer, with the same rule.
+  const withBar = await withUkBar(await withCountryLanguage(page('no-store'), 'el-GR'));
+  assert.equal(withBar.headers.get('Cache-Control'), 'no-store');
+  assert.equal((await withUkBar(page('public, max-age=300'))).headers.get('Cache-Control'), 'private, max-age=60');
 });

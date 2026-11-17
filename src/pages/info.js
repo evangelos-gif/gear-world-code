@@ -77,7 +77,7 @@ const PAGES = {
   // Greek pages): the legal pages are translated like the others, whole sentences only (a link or a code in a sentence
   // would cut it into pieces): a link stands in its own line, a value goes in with tr(). Each translation says that the
   // English text applies where they differ (data-lang-note). EU GDPR, the EEA and the EU consumer law: the text the
-  // owner approves with «ΕΓΚΡΙΝΩ ΚΕΙΜΕΝΟ GDPR» (17 Nov 2026); not live before that phrase.
+  // owner approved with «ΕΓΚΡΙΝΩ ΚΕΙΜΕΝΟ GDPR» on 17 Nov 2026.
   '/privacy/': site => ({
     legal: true,
     title: 'Privacy policy',
