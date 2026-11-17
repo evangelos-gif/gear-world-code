@@ -916,7 +916,8 @@ const RANK_ACCESSORY = new Set(["brush", "bit", "attachment", "adapter", "adapto
 const RANK_TOY = new Set(["toy", "pretend"]);
 // Accessory words that are part of what a product is called.
 const RANK_ACCESSORY_NAMES = new Set(["stand mixer", "pocket knife", "pocket watch", "pocket sprung", "side pocket", "zip pocket",
-  "chest pocket", "kangaroo pocket", "razer blade", "cover up", "hook and", "strap top", "case closed"]);
+  "chest pocket", "kangaroo pocket", "razer blade", "cover up", "hook and", "strap top", "case closed", "cable knit",
+  "ankle strap", "hard case", "stand up", "duvet cover", "pillow case", "suit case", "phone case"]);
 // Own keys only (a Map): a search for "constructor" must not find Object.prototype.constructor.
 const RANK_SYNONYMS = new Map(Object.entries({
   bbq: ["barbecue"], barbecue: ["bbq"], tv: ["television"], television: ["tv"], mower: ["lawnmower"], lawnmower: ["mower"],

@@ -617,3 +617,11 @@ test('search: ranking v3, accessories before the word, and the check list rules 
   const kettler = judge([r('hgw', 'Kettler Changing Bag'), r('hgw', 'Table Sauces Kettle Base'), r('hgw', 'Jug Kettle')], [], ['hgw'], 'kettle');
   assert.deepEqual(kettler.broken.sort(), ['item', 'lookalike'], 'the sauce gap (lookalike) would not excuse the Kettler bag (item)');
 });
+
+test('search: ranking v3, product names with an accessory word in them keep their place (final check of ec76e012)', () => {
+  for (const [q, name] of [['jumper', 'Aran Cable Knit Jumper'], ['heels', 'Ankle Strap Heels'], ['suitcase', 'Samsonite Hard Case Suitcase'],
+    ['paddle board', 'Stand Up Paddle Board'], ['bedding', 'Duvet Cover Bedding Set']]) {
+    const o = rankHubResults([{ id: 1, site: 'wgw', product_name: name, subcategory: q }, { id: 2, site: 'wgw', product_name: `Plain ${q}`, subcategory: q }], q).map(p => p.id);
+    assert.equal(o[0], 1, `${name}: not an accessory, the order of the site stays`);
+  }
+});

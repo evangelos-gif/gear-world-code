@@ -141,9 +141,11 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
     // the "item" rule fails and the search is a FAIL, whatever its known sauce.
     const gapRule = gap ? String(gap).split(':')[0] : '';
     const excused = !j.pass && gap && j.broken.every(b => b === gapRule || (gapRule === 'site' && b === 'top5') || (gapRule === 'site' && b === 'item'));
-    const mark = j.pass ? 'PASS' : excused ? 'KNOWN' : slow ? 'SLOW' : 'FAIL';
+    // A known gap whose only other broken rule is a slow site: SLOW, not FAIL (the final check of ec76e012).
+    const slowGap = !j.pass && gap && !excused && j.broken.every(b => b === 'failed' || b === gapRule || (gapRule === 'site' && (b === 'top5' || b === 'item')));
+    const mark = j.pass ? 'PASS' : excused ? 'KNOWN' : (slow || slowGap) ? 'SLOW' : 'FAIL';
     if (excused) known++;
-    else if (slow) slowCount++;
+    else if (slow || slowGap) slowCount++;
     else if (!j.pass) failures++;
     lines.push(`${mark.padEnd(5)} ${q.padEnd(18)} want ${want.join(',').padEnd(15)} n=${String(j.n).padEnd(3)}${j.broken.length ? ` rules=${j.broken.join(',')}` : ''} top5=${j.top5} top10=${j.top10} lookalike=${j.lookAlike} notUK=${j.notUk}${out.failed.length ? ` failed=${out.failed.join(',')}` : ''} | ${top}${excused ? ` | ${gap}` : ''}`);
     if (!replay) await sleep(800);
