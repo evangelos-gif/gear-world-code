@@ -254,6 +254,7 @@ $About = @{
     'security.js'           = 'νέο αρχείο: έλεγχος Turnstile, ημερήσια όρια του δικτύου (εγγραφές, μεταφράσεις), headers (L106)'
     'mailerlite.js'         = 'η φόρμα του Hub θέλει το token του Turnstile· ημερήσιο όριο εγγραφών για όλο το δίκτυο, μικρό δικό της για την εφαρμογή (L106)'
     'members.js'            = 'η φόρμα «Get deal updates» των sites: το Hub ελέγχει το token του Turnstile κάθε site, ίδιο ημερήσιο όριο, ημερήσιο όριο μεταφράσεων για τα sites (/internal/ai-slot) (L106)'
+    'remind.js'             = 'νέο αρχείο: «Remind me on 27 Nov» των sites (L182): πρώτα στη D1 (πίνακας remind_signups, χωριστό εργαλείο gwh-remind-d1.ps1), μετά στο MailerLite μόνο στην ομάδα «Gear World Remind me 27 Nov»· κλειστό χωρίς τον πίνακα και μετά τις 27/11· το cron σβήνει τις γραμμές από 28/11'
     'public/email-signup.js' = 'το κουτί email λέει τι στέλνει: κωδικούς που δημοσιεύουν τα καταστήματα και νέα των sites, όχι «prices we''ve checked», 11 γλώσσες (L107)· Turnstile όταν αρχίζει η φόρμα (L106)'
     'poster-scan.js'        = 'η μέτρηση των αφισών (ίδια με αυτή που μπήκε με το POSTER STATS)'
     'public/index.html' = 'η κάρτα «Featured pick» παίρνει τα κείμενά της από το hub-v2.js (11 γλώσσες) και νέο ?v= για το hub-v2.js (L174, L31)· όλα τα άλλα όπως είναι live'
@@ -940,7 +941,7 @@ $baseSha = @{}
 foreach ($b in $baseline) { $baseSha[$b.path] = $b.sha }
 
 $gwhRepo = Join-Path (Join-Path $repo 'sites') 'gwh'
-$newFiles = @('worker.js', 'photo-search.js', 'poster-scan.js', 'mailerlite.js', 'members.js', 'security.js')
+$newFiles = @('worker.js', 'photo-search.js', 'poster-scan.js', 'mailerlite.js', 'members.js', 'security.js', 'remind.js')
 $pubRepo = Join-Path $gwhRepo 'public'
 foreach ($f in @(Get-ChildItem -LiteralPath $pubRepo -Recurse -File | Sort-Object FullName)) {
     $newFiles += ('public/' + $f.FullName.Substring($pubRepo.Length).TrimStart('\', '/').Replace('\', '/'))

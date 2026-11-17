@@ -244,3 +244,9 @@ test('the D1 tool: read-only without -Apply, its own phrase, a restore point bef
   assert.match(sql, /CREATE TABLE IF NOT EXISTS remind_signups/);
   assert.match(readFileSync('README.md', 'utf8'), /\| `tools\/gwh-remind-d1\.ps1` \|[^\n]*«ΕΓΚΡΙΝΩ REMIND ME D1»/);
 });
+
+test('the Hub release tool takes remind.js with the other server files (worker.js imports it)', () => {
+  const ps = readFileSync('tools/gwh-hub-v2.ps1', 'utf8');
+  assert.match(ps, /\$newFiles = @\([^)]*'remind\.js'\)/);
+  assert.match(readFileSync('sites/gwh/worker.js', 'utf8'), /from "\.\/remind\.js"/);
+});
