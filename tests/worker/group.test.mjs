@@ -352,3 +352,75 @@ test('L160: a country page lists the retailers that deliver there and opens each
   const none = countryPage(site, stats, 'IS');
   assert.ok(!none.includes('retailers-h') || stats.countries.IS.list.length > 0);
 });
+
+// ---- Lesson L179: a site that answers late keeps its last numbers; the sum is kept 5 minutes, not an hour ----
+import { cachedStats } from '../../src/group.js';
+
+// A small stand-in for the Workers cache (caches.default): match/put by URL, with the max-age it was given.
+function fakeCache() {
+  const store = new Map();
+  return {
+    store,
+    async match(req) { const hit = store.get(req.url); return hit ? new Response(hit.body) : undefined; },
+    async put(req, res) { store.set(req.url, { body: await res.text(), cc: res.headers.get('Cache-Control') }); }
+  };
+}
+
+test('L179: a late site counts with its last answer, not left out; without a last answer it is left out as before', async () => {
+  const cgw = { products: 7495, all_products: 134698, retailer_names: ['Tyres UK'],
+    delivery: [{ retailer: 'Tyres UK', products: 7495, countries: ['GB'] }, { retailer: 'Opony', products: 127203, countries: ['PL'] }] };
+  const tgw = { products: 30098, all_products: 38374, retailer_names: ['Joybuy'], delivery: [{ retailer: 'Joybuy', products: 38374, countries: ['GB'] }] };
+  const first = await networkStats(site, fakeFetch({ 'cargearworld.com': cgw, 'technologygearworld.com': tgw }));
+  assert.equal(first.products, 134698 + 38374);
+  assert.equal(first.sitesLate, site.sites.filter(s => s.stats).length - 2, 'the sites with no answer at all are late');
+  assert.deepEqual(Object.keys(first.answers).sort(), site.sites.filter(s => /cargearworld|technologygearworld/.test(s.url)).map(s => s.url).sort());
+  // CGW is late now: its last answer counts, so nothing "falls" off the page.
+  const late = await networkStats(site, fakeFetch({ 'cargearworld.com': 'down', 'technologygearworld.com': tgw }), first.answers);
+  assert.equal(late.products, 134698 + 38374, 'the 17/11 drop of 134,698 does not happen');
+  assert.equal(late.ukProducts, 7495 + 30098);
+  assert.equal(late.countries.PL.products, 127203);
+  assert.equal(late.retailers, 3);
+  assert.equal(late.sitesCounted, 2);
+  assert.ok(!Object.keys(late.answers).some(u => /cargearworld/.test(u)), 'a late site gives no new answer');
+  // No last answer (a new data centre): left out, as before.
+  const none = await networkStats(site, fakeFetch({ 'cargearworld.com': 'down', 'technologygearworld.com': tgw }));
+  assert.equal(none.products, 38374);
+  // A last answer that is broken or comes from the object prototype is not used.
+  const odd = await networkStats(site, fakeFetch({ 'technologygearworld.com': tgw }), JSON.parse('{"__proto__": {"products": 9}}'));
+  assert.equal(odd.products, 38374);
+  const bad = await networkStats(site, fakeFetch({ 'technologygearworld.com': tgw }), { [site.sites.find(s => /cargearworld/.test(s.url)).url]: { products: 'x' } });
+  assert.equal(bad.products, 38374);
+});
+
+test('L179: cachedStats keeps a sum with a late site 5 minutes and every site\'s last answer a week; a full sum an hour', async () => {
+  const realCaches = globalThis.caches;
+  const cache = fakeCache();
+  globalThis.caches = { default: cache };
+  try {
+    const all = Object.fromEntries(site.sites.filter(s => s.stats).map((s, i) => [new URL(s.url).hostname,
+      { products: 10 + i, all_products: 100 + i, retailer_names: [`R${i}`], delivery: [{ retailer: `R${i}`, products: 100 + i, countries: ['GB'] }] }]));
+    const n = Object.keys(all).length;
+    const full = await cachedStats(site, null, fakeFetch(all));
+    assert.equal(full.sitesLate, 0);
+    assert.ok(!('answers' in full), 'the answers are not part of the page numbers');
+    const sumKey = `https://${site.domain}/__stats-cache-4`;
+    const lastKey = `https://${site.domain}/__stats-last-answers-1`;
+    assert.equal(cache.store.get(sumKey).cc, 'max-age=3600');
+    assert.equal(cache.store.get(lastKey).cc, `max-age=${7 * 24 * 3600}`);
+    assert.equal(Object.keys(JSON.parse(cache.store.get(lastKey).body)).length, n);
+    // The hour is over (the sum is gone); CGW is late: the sum keeps CGW's last answer and is kept 5 minutes.
+    cache.store.delete(sumKey);
+    const late = await cachedStats(site, null, fakeFetch({ ...all, 'cargearworld.com': 'down' }));
+    assert.equal(late.products, full.products, 'the same total as before');
+    assert.equal(late.sitesLate, 1);
+    assert.equal(cache.store.get(sumKey).cc, 'max-age=300');
+    assert.equal(Object.keys(JSON.parse(cache.store.get(lastKey).body)).length, n, 'CGW\'s last answer is still kept');
+    // A broken copy of the last answers is not used and does not stop the page.
+    cache.store.delete(sumKey);
+    cache.store.set(lastKey, { body: '[1,2]', cc: 'max-age=1' });
+    const after = await cachedStats(site, null, fakeFetch({ ...all, 'cargearworld.com': 'down' }));
+    assert.equal(after.products, full.products - all['cargearworld.com'].all_products);
+  } finally {
+    globalThis.caches = realCaches;
+  }
+});
