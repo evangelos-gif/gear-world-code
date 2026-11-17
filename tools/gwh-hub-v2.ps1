@@ -155,7 +155,7 @@
   Search model (lessons L173, 17/11/2026): Cloudflare retires @cf/meta/llama-3.1-8b-instruct-fp8 on 20/11/2026 (404
   model_not_found after that). worker.js translated a foreign search with it (and retried an English one with no
   result); both now use the model of the photo search, @cf/google/gemma-4-26b-a4b-it, without thinking, from
-  photo-search.js (TEXT_MODEL, translationInput, answerText: the answer in any shape, first line only). The pages, the
+  photo-search.js (TEXT_MODEL, translationInput, answerText: the answer in any shape, one line only). The pages, the
   D1, translations.js and gwh-sitemap do not change. Phrases of this release, in this order: ΕΓΚΡΙΝΩ HUB AI PREVIEW,
   ΕΓΚΡΙΝΩ HUB AI LIVE, ΕΓΚΡΙΝΩ HUB REMOVE PREVIEW (one paste, live with -AfterPreview), before 20/11/2026.
   Exit codes added by L119: 21 the -MitgoCode has another form, 22 the code did not go into the live Worker (nothing went

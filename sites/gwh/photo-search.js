@@ -22,7 +22,8 @@ export function translationInput(system, query) {
     chat_template_kwargs: { enable_thinking: false }
   };
 }
-// The text of a model answer, whatever shape it has, without any thinking part and only its first line.
+// The text of a model answer, whatever shape it has, without any thinking part; an answer of more than one line is not
+// used (as before L173: the search words are one line, anything more is an explanation).
 export function answerText(out) {
   let text = '';
   if (typeof out === 'string') text = out;
@@ -32,7 +33,8 @@ export function answerText(out) {
     if (typeof content === 'string') text = content;
     else if (Array.isArray(content)) text = content.map(part => (part && part.text) || '').join('');
   }
-  return text.replace(/<think>[\s\S]*?<\/think>/gi, '').trim().split(/\r?\n/)[0].trim();
+  const lines = text.replace(/<think>[\s\S]*?<\/think>/gi, '').split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+  return lines.length === 1 ? lines[0] : '';
 }
 
 export const MIN_PHOTO_BYTES = 100;

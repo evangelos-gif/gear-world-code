@@ -56,9 +56,10 @@ test('L173: the Hub search translates with the photo search model, without think
   assert.ok(runs.every(r => r === 'env.AI.run(TEXT_MODEL,'), runs.join(' | '));
 });
 
-test('L173: the answer is read in every shape the model gives, without a thinking part, first line only', () => {
+test('L173: the answer is read in every shape the model gives, without a thinking part; more than one line is not used', () => {
   assert.equal(answerText({ response: ' drill\n' }), 'drill');
-  assert.equal(answerText({ choices: [{ message: { content: '<think>the user wants…</think>\ncordless drill\nor a hammer drill' } }] }), 'cordless drill');
+  assert.equal(answerText({ choices: [{ message: { content: '<think>the user wants…</think>\ncordless drill\n' } }] }), 'cordless drill');
+  assert.equal(answerText({ choices: [{ message: { content: 'Here is the English query\ncordless drill' } }] }), '', 'an explanation and the words: not used, as before');
   assert.equal(answerText({ choices: [{ message: { content: [{ type: 'text', text: 'hand ' }, { type: 'text', text: 'saw' }] } }] }), 'hand saw');
   assert.equal(answerText('kettle'), 'kettle');
   assert.equal(answerText(null), '');
