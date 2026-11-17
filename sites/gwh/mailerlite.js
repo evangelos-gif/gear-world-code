@@ -153,6 +153,10 @@ export async function handleSubscribe(request, env, ctx, { verify } = {}) {
       `).bind(email, locale, consentVersion, source).run();
       return reply(200, { ok: true });
     }
+    // The small sign-up window of the home page (lessons L182) is counted apart: member_source 'hub-popup' (a new address
+    // only; an address already on the list keeps where it first came from).
+    const fromPopup = body.form === "popup";
+    const known = fromPopup ? await db.prepare("SELECT 1 AS one FROM hub_subscribers WHERE email = ?").bind(email).first() : null;
     await db.prepare(`
       INSERT INTO hub_subscribers (email, locale, marketing_consent, consent_version, source, status, ml_status, ml_attempts, ml_error)
       VALUES (?, ?, 1, ?, ?, 'active', 'pending', 0, NULL)
@@ -167,6 +171,11 @@ export async function handleSubscribe(request, env, ctx, { verify } = {}) {
         ml_error = NULL,
         updated_at = CURRENT_TIMESTAMP
     `).bind(email, locale, consentVersion, source).run();
+    if (fromPopup && !known) {
+      try {
+        await db.prepare("UPDATE hub_subscribers SET member_source = 'hub-popup' WHERE email = ? AND member_source IS NULL").bind(email).run();
+      } catch (_) { /* a database without the column of migration 0003: the sign-up itself is kept */ }
+    }
   } catch (error) {
     console.error("Hub email signup failed:", String((error && error.message) || error).replace(/[^\s@]+@[^\s@]+/g, "[email]"));
     return reply(500, { ok: false, error: "subscribe_failed" });
@@ -184,6 +193,11 @@ export async function handleSubscribe(request, env, ctx, { verify } = {}) {
 // ------------------------------------------------------------------------------------------------
 // MailerLite API (only GET and POST, only what step 5 needs)
 // ------------------------------------------------------------------------------------------------
+
+// Also used by remind.js (lessons L182): the one way to MailerLite, with the one key.
+export async function mailerLiteRequest(env, method, path, body, fetchImpl) {
+  return ml(env, method, path, body, fetchImpl);
+}
 
 async function ml(env, method, path, body, fetchImpl) {
   const res = await (fetchImpl || fetch)(ML_API + path, {

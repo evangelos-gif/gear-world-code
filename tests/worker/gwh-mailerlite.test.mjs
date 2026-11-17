@@ -327,7 +327,7 @@ test('mailerlite: the key is never in the code or the config files', () => {
 test('mailerlite: the Hub form, its 11 languages and the privacy page match the new email', () => {
   const page = readFileSync(new URL('public/index.html', ROOT), 'utf8');
   // A new ?v= with every change of the script (L31): 9/11/2026 the text of the box (L107).
-  assert.match(page, /\/email-signup\.js\?v=20261109-compliance1/);
+  assert.match(page, /\/email-signup\.js\?v=(20261109-compliance1|20261120-popup1)/);
   assert.ok(!page.includes('new Gear Worlds'), 'the form no longer promises news about new Gear Worlds');
   const code = readFileSync(new URL('public/email-signup.js', ROOT), 'utf8');
   const copy = new Function(`${code.slice(code.indexOf('const COPY'), code.indexOf('function locale'))}; return COPY;`)();

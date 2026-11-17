@@ -18,7 +18,9 @@
       tooMany: "Too many attempts. Please try again in an hour.",
       waitCheck: "Please wait for the security check to finish, then try again.",
       checkFailed: "The security check did not work. Please reload the page and try again.",
-      full: "Sign-ups are full for today. Please try again tomorrow."
+      full: "Sign-ups are full for today. Please try again tomorrow.",
+      popupText: "Get our weekly email: prices we've checked and the stores' codes.",
+      close: "Close"
     },
 
     "el-GR": {
@@ -37,7 +39,9 @@
       tooMany: "Πολλές προσπάθειες. Δοκιμάστε ξανά σε μία ώρα.",
       waitCheck: "Περιμένετε να ολοκληρωθεί ο έλεγχος ασφαλείας και δοκιμάστε ξανά.",
       checkFailed: "Ο έλεγχος ασφαλείας απέτυχε. Ανανεώστε τη σελίδα και δοκιμάστε ξανά.",
-      full: "Οι εγγραφές για σήμερα συμπληρώθηκαν. Δοκιμάστε ξανά αύριο."
+      full: "Οι εγγραφές για σήμερα συμπληρώθηκαν. Δοκιμάστε ξανά αύριο.",
+      popupText: "Λάβετε το εβδομαδιαίο email μας: τιμές που έχουμε ελέγξει και τους κωδικούς των καταστημάτων.",
+      close: "Κλείσιμο"
     },
 
     "de-DE": {
@@ -56,7 +60,9 @@
       tooMany: "Zu viele Versuche. Bitte versuchen Sie es in einer Stunde erneut.",
       waitCheck: "Bitte warten Sie, bis die Sicherheitsprüfung abgeschlossen ist, und versuchen Sie es dann erneut.",
       checkFailed: "Die Sicherheitsprüfung ist fehlgeschlagen. Bitte laden Sie die Seite neu und versuchen Sie es erneut.",
-      full: "Für heute sind keine Anmeldungen mehr möglich. Bitte versuchen Sie es morgen erneut."
+      full: "Für heute sind keine Anmeldungen mehr möglich. Bitte versuchen Sie es morgen erneut.",
+      popupText: "Unsere wöchentliche E-Mail: von uns geprüfte Preise und die Codes der Händler.",
+      close: "Schließen"
     },
 
     "fr-FR": {
@@ -75,7 +81,9 @@
       tooMany: "Trop de tentatives. Veuillez réessayer dans une heure.",
       waitCheck: "Veuillez attendre la fin de la vérification de sécurité, puis réessayer.",
       checkFailed: "La vérification de sécurité a échoué. Veuillez recharger la page et réessayer.",
-      full: "Les inscriptions sont complètes pour aujourd'hui. Veuillez réessayer demain."
+      full: "Les inscriptions sont complètes pour aujourd'hui. Veuillez réessayer demain.",
+      popupText: "Recevez notre e-mail hebdomadaire : des prix que nous avons vérifiés et les codes des marchands.",
+      close: "Fermer"
     },
 
     "it-IT": {
@@ -94,7 +102,9 @@
       tooMany: "Troppi tentativi. Riprova tra un'ora.",
       waitCheck: "Attendi la fine del controllo di sicurezza, poi riprova.",
       checkFailed: "Il controllo di sicurezza non è riuscito. Ricarica la pagina e riprova.",
-      full: "Le iscrizioni di oggi sono esaurite. Riprova domani."
+      full: "Le iscrizioni di oggi sono esaurite. Riprova domani.",
+      popupText: "Ricevi la nostra email settimanale: prezzi che abbiamo controllato e i codici dei negozi.",
+      close: "Chiudi"
     },
 
     "es-ES": {
@@ -113,7 +123,9 @@
       tooMany: "Demasiados intentos. Inténtalo de nuevo dentro de una hora.",
       waitCheck: "Espera a que termine la comprobación de seguridad y vuelve a intentarlo.",
       checkFailed: "La comprobación de seguridad ha fallado. Recarga la página e inténtalo de nuevo.",
-      full: "Las inscripciones de hoy están completas. Inténtalo de nuevo mañana."
+      full: "Las inscripciones de hoy están completas. Inténtalo de nuevo mañana.",
+      popupText: "Recibe nuestro correo semanal: precios que hemos comprobado y los códigos de las tiendas.",
+      close: "Cerrar"
     },
 
     "pt-PT": {
@@ -132,7 +144,9 @@
       tooMany: "Demasiadas tentativas. Tente novamente dentro de uma hora.",
       waitCheck: "Aguarde até a verificação de segurança terminar e tente novamente.",
       checkFailed: "A verificação de segurança falhou. Recarregue a página e tente novamente.",
-      full: "As inscrições de hoje estão completas. Tente novamente amanhã."
+      full: "As inscrições de hoje estão completas. Tente novamente amanhã.",
+      popupText: "Receba o nosso email semanal: preços que verificámos e os códigos das lojas.",
+      close: "Fechar"
     },
 
     "nl-NL": {
@@ -151,7 +165,9 @@
       tooMany: "Te veel pogingen. Probeer het over een uur opnieuw.",
       waitCheck: "Wacht tot de beveiligingscontrole klaar is en probeer het opnieuw.",
       checkFailed: "De beveiligingscontrole is mislukt. Laad de pagina opnieuw en probeer het nog eens.",
-      full: "De aanmeldingen voor vandaag zijn vol. Probeer het morgen opnieuw."
+      full: "De aanmeldingen voor vandaag zijn vol. Probeer het morgen opnieuw.",
+      popupText: "Ontvang onze wekelijkse e-mail: prijzen die we hebben gecontroleerd en de codes van de winkels.",
+      close: "Sluiten"
     },
 
     "sq-AL": {
@@ -170,7 +186,9 @@
       tooMany: "Shumë përpjekje. Provoni përsëri pas një ore.",
       waitCheck: "Prisni që të përfundojë kontrolli i sigurisë dhe provoni përsëri.",
       checkFailed: "Kontrolli i sigurisë dështoi. Ringarkoni faqen dhe provoni përsëri.",
-      full: "Regjistrimet për sot janë plotësuar. Provoni përsëri nesër."
+      full: "Regjistrimet për sot janë plotësuar. Provoni përsëri nesër.",
+      popupText: "Merrni email-in tonë javor: çmime që kemi kontrolluar dhe kodet e dyqaneve.",
+      close: "Mbyll"
     },
 
     "ro-RO": {
@@ -189,7 +207,9 @@
       tooMany: "Prea multe încercări. Încercați din nou peste o oră.",
       waitCheck: "Așteptați să se termine verificarea de securitate, apoi încercați din nou.",
       checkFailed: "Verificarea de securitate a eșuat. Reîncărcați pagina și încercați din nou.",
-      full: "Înscrierile pentru astăzi s-au încheiat. Încercați din nou mâine."
+      full: "Înscrierile pentru astăzi s-au încheiat. Încercați din nou mâine.",
+      popupText: "Primește emailul nostru săptămânal: prețuri pe care le-am verificat și codurile magazinelor.",
+      close: "Închide"
     },
 
     "ru-RU": {
@@ -208,7 +228,9 @@
       tooMany: "Слишком много попыток. Попробуйте ещё раз через час.",
       waitCheck: "Дождитесь окончания проверки безопасности и попробуйте ещё раз.",
       checkFailed: "Проверка безопасности не пройдена. Обновите страницу и попробуйте ещё раз.",
-      full: "На сегодня запись закрыта. Попробуйте ещё раз завтра."
+      full: "На сегодня запись закрыта. Попробуйте ещё раз завтра.",
+      popupText: "Получайте наше еженедельное письмо: проверенные нами цены и коды магазинов.",
+      close: "Закрыть"
     }
   };
 
@@ -262,23 +284,32 @@
   let turnstileState = "idle"; // idle, loading, ready, failed
   let turnstileWidget = null;
 
+  // The sitekey and Cloudflare's script, asked once for both forms (the box and the small sign-up window, L182).
+  let turnstileApi = null;
+  function turnstileReady() {
+    if (!turnstileApi) {
+      turnstileApi = fetch("/api/turnstile", { headers: { Accept: "application/json" } })
+        .then((response) => response.json())
+        .then((data) => {
+          if (!data || !data.ok || !data.sitekey) throw new Error("not_ready");
+          return new Promise((resolve, reject) => {
+            window.gwhTurnstileReady = () => resolve(data.sitekey);
+            const script = document.createElement("script");
+            script.src = "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit&onload=gwhTurnstileReady";
+            script.async = true;
+            script.defer = true;
+            script.onerror = () => reject(new Error("blocked"));
+            document.head.appendChild(script);
+          });
+        });
+    }
+    return turnstileApi;
+  }
+
   function loadTurnstile() {
     if (turnstileState !== "idle" || !turnstileBox) return;
     turnstileState = "loading";
-    fetch("/api/turnstile", { headers: { Accept: "application/json" } })
-      .then((response) => response.json())
-      .then((data) => {
-        if (!data || !data.ok || !data.sitekey) throw new Error("not_ready");
-        return new Promise((resolve, reject) => {
-          window.gwhTurnstileReady = () => resolve(data.sitekey);
-          const script = document.createElement("script");
-          script.src = "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit&onload=gwhTurnstileReady";
-          script.async = true;
-          script.defer = true;
-          script.onerror = () => reject(new Error("blocked"));
-          document.head.appendChild(script);
-        });
-      })
+    turnstileReady()
       .then((sitekey) => {
         if (!window.turnstile) throw new Error("blocked");
         turnstileBox.style.marginTop = "12px";
@@ -380,6 +411,8 @@
 
         form.reset();
         setMessage(t.success, "success");
+        // Signed up: the small sign-up window never shows again on this device (L182).
+        try { localStorage.setItem(POPUP_DONE, "1"); } catch (_) { /* private mode */ }
 
         window.dispatchEvent(
           new CustomEvent(
@@ -437,6 +470,176 @@
       () => setTimeout(applyTranslations, 0)
     );
   }
+
+  // ---------------- GWH-POPUP: the small sign-up window (lessons L182) ----------------
+  // The weekly email of the box above (same /api/subscribe, same consent text and version, same Turnstile check), offered
+  // once in a small box at the bottom of the screen of the home page. Made only by this script after the page has
+  // loaded (search engines never see it), and only: after the visitor has answered the cookie banner; after 30 seconds or
+  // half-way down the page, whichever comes first; at most once a month (only the date is kept, gwh_popup_date); never
+  // after a sign-up (gwh_popup_done); never while the box above is on the screen. No backdrop, no focus trap: × and Esc.
+  const POPUP_DATE = "gwh_popup_date";
+  const POPUP_DONE = "gwh_popup_done";
+  const POPUP_DAYS = 30;
+  const POPUP_SECONDS = 30;
+
+  function setupPopup() {
+    const section = document.getElementById("newsletter");
+    if (!section || !form || !window.fetch) return;
+    let stored = "";
+    try {
+      localStorage.setItem("gwh_probe", "1");
+      localStorage.removeItem("gwh_probe");
+      if (localStorage.getItem(POPUP_DONE) === "1") return;
+      stored = localStorage.getItem(POPUP_DATE) || "";
+    } catch (_) { return; }
+    if (/^\d{4}-\d{2}-\d{2}$/.test(stored) && Date.now() - Date.parse(stored + "T00:00:00Z") < POPUP_DAYS * 86400000) return;
+    let sectionSeen = false;
+    let due = false;
+    let shown = false;
+    let retry = null;
+    if ("IntersectionObserver" in window) {
+      new IntersectionObserver((entries) => {
+        entries.forEach((e) => { sectionSeen = e.isIntersecting; });
+        if (due && !sectionSeen) tryShow();
+      }).observe(section);
+    }
+    function cookiesAnswered() {
+      const banner = document.getElementById("gwhAnalyticsConsent");
+      if (banner && !banner.hidden) return false;
+      let choice = "";
+      try { choice = localStorage.getItem("gwh_cookie_consent") || ""; } catch (_) { choice = ""; }
+      return !banner || choice === "granted" || choice === "denied";
+    }
+    function tryShow() {
+      if (shown || !due) return;
+      if (!cookiesAnswered() || sectionSeen) {
+        if (!retry) retry = setTimeout(() => { retry = null; tryShow(); }, 2000);
+        return;
+      }
+      show();
+    }
+    function start() { if (!due) { due = true; tryShow(); } }
+    setTimeout(start, POPUP_SECONDS * 1000);
+    function onScroll() {
+      const doc = document.documentElement;
+      const y = window.pageYOffset || doc.scrollTop || 0;
+      if (y > 0 && y + window.innerHeight >= doc.scrollHeight / 2) { window.removeEventListener("scroll", onScroll); start(); }
+    }
+    window.addEventListener("scroll", onScroll, { passive: true });
+
+    function el(tag, cls, text) {
+      const n = document.createElement(tag);
+      if (cls) n.className = cls;
+      if (text) n.textContent = text;
+      return n;
+    }
+    function show() {
+      shown = true;
+      try { localStorage.setItem(POPUP_DATE, new Date().toISOString().slice(0, 10)); } catch (_) { /* private mode */ }
+      const t = copy();
+      const box = el("section", "gwh-pop");
+      box.setAttribute("role", "dialog");
+      box.setAttribute("aria-modal", "false");
+      box.setAttribute("aria-labelledby", "gwhPopText");
+      const close = el("button", "gwh-pop-close");
+      close.type = "button";
+      close.setAttribute("aria-label", t.close);
+      const x = el("span", "", "×");
+      x.setAttribute("aria-hidden", "true");
+      close.appendChild(x);
+      const text = el("p", "gwh-pop-text", t.popupText);
+      text.id = "gwhPopText";
+      const popForm = el("form", "gwh-pop-form");
+      const label = el("label", "gwh-pop-hidden", t.emailLabel);
+      label.setAttribute("for", "gwhPopEmail");
+      const input = el("input");
+      input.id = "gwhPopEmail";
+      input.type = "email";
+      input.name = "email";
+      input.required = true;
+      input.maxLength = 254;
+      input.autocomplete = "email";
+      input.placeholder = t.emailPlaceholder;
+      const send = el("button", "gwh-pop-send", t.button);
+      send.type = "submit";
+      const agree = el("label", "gwh-pop-consent");
+      const tick = el("input");
+      tick.type = "checkbox";
+      tick.name = "consent";
+      tick.required = true;
+      agree.appendChild(tick);
+      agree.appendChild(el("span", "", t.consent));
+      const check = el("div", "gwh-pop-turnstile");
+      const note = el("p", "gwh-pop-status");
+      note.setAttribute("role", "status");
+      note.setAttribute("aria-live", "polite");
+      note.hidden = true;
+      popForm.appendChild(label);
+      popForm.appendChild(input);
+      popForm.appendChild(send);
+      popForm.appendChild(agree);
+      popForm.appendChild(check);
+      box.appendChild(close);
+      box.appendChild(text);
+      box.appendChild(popForm);
+      box.appendChild(note);
+      document.body.appendChild(box);
+      const say = (s) => { note.textContent = s; note.hidden = false; };
+      let state = "idle";
+      let widget = null;
+      function load() {
+        if (state !== "idle") return;
+        state = "loading";
+        turnstileReady()
+          .then((sitekey) => {
+            if (!window.turnstile) throw new Error("blocked");
+            widget = window.turnstile.render(check, { sitekey, action: "hub-signup", size: "flexible", appearance: "interaction-only", callback: () => { note.hidden = true; } });
+            state = "ready";
+          })
+          .catch(() => { state = "failed"; });
+      }
+      popForm.addEventListener("focusin", load);
+      popForm.addEventListener("pointerdown", load);
+      function hide() {
+        document.removeEventListener("keydown", onKey);
+        if (box.parentNode) box.parentNode.removeChild(box);
+      }
+      function onKey(ev) { if (ev.key === "Escape" || ev.key === "Esc") hide(); }
+      close.addEventListener("click", hide);
+      document.addEventListener("keydown", onKey);
+      popForm.addEventListener("submit", async (ev) => {
+        ev.preventDefault();
+        const c = copy();
+        const token = window.turnstile && widget !== null ? String(window.turnstile.getResponse(widget) || "") : "";
+        if (!token) { load(); say(state === "failed" ? c.checkFailed : c.waitCheck); return; }
+        send.disabled = true;
+        try {
+          const response = await fetch("/api/subscribe", {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ email: input.value.trim(), locale: locale(), consent: tick.checked, consent_version: "2026-11-02", source: "hub", form: "popup", website: "", turnstile_token: token })
+          });
+          const data = await response.json();
+          if (response.ok && data && data.ok) {
+            say(c.success);
+            popForm.hidden = true;
+            try { localStorage.setItem(POPUP_DONE, "1"); } catch (_) { /* private mode */ }
+            return;
+          }
+          const e = data && data.error;
+          say(e === "invalid_email" ? c.invalid : e === "consent_required" ? c.consentRequired : e === "too_many" ? c.tooMany : e === "limit_day" ? c.full
+            : (e === "turnstile_failed" || e === "turnstile_required") ? c.checkFailed : c.error);
+        } catch (_) {
+          say(c.error);
+        } finally {
+          send.disabled = false;
+          if (window.turnstile && widget !== null) { try { window.turnstile.reset(widget); } catch (_) { /* ignore */ } }
+        }
+      });
+    }
+  }
+
+  setupPopup();
 
   applyTranslations();
 

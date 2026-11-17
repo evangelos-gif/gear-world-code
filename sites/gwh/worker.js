@@ -6,6 +6,7 @@ import { posterScan } from "./poster-scan.js";
 import { handleSubscribe, syncPending } from "./mailerlite.js";
 // GWH-MEMBERS: "Get deal updates" of the sites, into the same list (lessons L92).
 import { isInternal, handleInternal, aiSlot } from "./members.js";
+import { handleRemind, remindCron } from "./remind.js";
 // GWH-SECURITY: the security fixes of 8/11/2026 (lessons L106): Turnstile, daily limits, headers (security.js).
 import {
   isBotRequest, HUB_USER_AGENT, translationKey, defaultCache, cachedTranslation, storeTranslation,
@@ -1702,12 +1703,18 @@ export default {
   // GWH-MAILERLITE: the cron (wrangler.toml [triggers], every 10 minutes) sends sign-ups that are still 'pending'.
   async scheduled(controller, env, ctx) {
     ctx.waitUntil(syncPending(env).catch(() => {}));
+    // GWH-REMIND (L182): the reminders still 'pending', and from 28 Nov 2026 the deletion of the list.
+    ctx.waitUntil(remindCron(env).catch(() => {}));
   }
 };
 
 async function hubFetch(request, env, ctx) {
   // GWH-MEMBERS: sign-ups from the sites, only through their service binding HUB (this host name has no route).
-  if (isInternal(new URL(request.url))) return handleInternal(request, env, ctx);
+  if (isInternal(new URL(request.url))) {
+    // GWH-REMIND (L182): "Remind me on 27 Nov" of the sites.
+    if (new URL(request.url).pathname === "/internal/remind") return handleRemind(request, env, ctx);
+    return handleInternal(request, env, ctx);
+  }
   const url = new URL(request.url);
   // GWH-SECURITY: the reports of the Report-Only policy, and the public Turnstile sitekey of the Hub sign-up form.
   if (url.pathname === "/api/csp-report") return cspReport(request);
