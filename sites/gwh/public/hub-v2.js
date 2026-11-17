@@ -124,12 +124,12 @@
     // The «Featured pick» card of L121 (lessons L174: a Greek page showed it in English). The retailer and the product
     // name stay as the retailer writes them (translate="no").
     featuredTitle: ["Featured pick", "Προτεινόμενο προϊόν", "Empfohlenes Produkt", "Produit à la une", "Prodotto in evidenza", "Producto destacado", "Produto em destaque", "Uitgelicht product", "Produkt i zgjedhur", "Produs recomandat", "Рекомендуемый товар"],
-    featuredSub: ["From Tools & Workwear. You buy on the retailer's website, at their price.", "Από τα Εργαλεία & Ρούχα Εργασίας. Αγοράζετε στο site του καταστήματος, στη δική του τιμή.", "Aus Werkzeug & Arbeitskleidung. Sie kaufen auf der Website des Händlers, zu seinem Preis.", "De Outils & vêtements de travail. Vous achetez sur le site du marchand, à son prix.", "Da Utensili & abbigliamento da lavoro. Acquisti sul sito del negozio, al suo prezzo.", "De Herramientas y ropa de trabajo. Compras en la web de la tienda, a su precio.", "De Ferramentas e roupa de trabalho. Compra no site da loja, ao preço dela.", "Uit Gereedschap & werkkleding. U koopt op de website van de winkel, tegen hun prijs.", "Nga Vegla & veshje pune. Blini në faqen e dyqanit, me çmimin e tij.", "Din Unelte & îmbrăcăminte de lucru. Cumpărați pe site-ul magazinului, la prețul lui.", "Из раздела «Инструменты и спецодежда». Покупка на сайте магазина, по его цене."],
-    featuredBadge: ["Affiliate link", "Σύνδεσμος συνεργάτη", "Affiliate-Link", "Lien affilié", "Link di affiliazione", "Enlace de afiliado", "Link de afiliado", "Affiliatelink", "Lidhje partneriteti", "Link de afiliere", "Партнёрская ссылка"],
-    featuredMeta: ["S3 safety boots, sold by engelbert-strauss.co.uk, not by Gear World.", "Μποτάκια ασφαλείας S3, τα πουλά το engelbert-strauss.co.uk, όχι το Gear World.", "S3-Sicherheitsstiefel, verkauft von engelbert-strauss.co.uk, nicht von Gear World.", "Chaussures de sécurité S3, vendues par engelbert-strauss.co.uk, pas par Gear World.", "Scarpe antinfortunistiche S3, vendute da engelbert-strauss.co.uk, non da Gear World.", "Botas de seguridad S3, vendidas por engelbert-strauss.co.uk, no por Gear World.", "Botas de segurança S3, vendidas por engelbert-strauss.co.uk, não pela Gear World.", "S3-werkschoenen, verkocht door engelbert-strauss.co.uk, niet door Gear World.", "Këpucë sigurie S3, të shitura nga engelbert-strauss.co.uk, jo nga Gear World.", "Bocanci de protecție S3, vânduți de engelbert-strauss.co.uk, nu de Gear World.", "Защитные ботинки S3, продаёт engelbert-strauss.co.uk, а не Gear World."],
-    featuredCta: ["View at Engelbert Strauss →", "Δείτε το στο Engelbert Strauss →", "Bei Engelbert Strauss ansehen →", "Voir chez Engelbert Strauss →", "Vedi su Engelbert Strauss →", "Ver en Engelbert Strauss →", "Ver na Engelbert Strauss →", "Bekijk bij Engelbert Strauss →", "Shikojeni te Engelbert Strauss →", "Vezi la Engelbert Strauss →", "Смотреть в Engelbert Strauss →"],
+    featuredSub: ["From Tools & Workwear. You buy on the retailer's website, at their price.", "Από τα Εργαλεία & Ρούχα Εργασίας. Αγοράζετε στο site του καταστήματος, στη δική του τιμή.", "Aus Werkzeug & Arbeitskleidung. Sie kaufen auf der Website des Händlers, zu seinem Preis.", "Du monde Outils & vêtements de travail. Vous achetez sur le site du marchand, à son prix.", "Da Utensili & abbigliamento da lavoro. Acquisti sul sito del negozio, al suo prezzo.", "De Herramientas y ropa de trabajo. Compras en la web de la tienda, a su precio.", "De Ferramentas e roupa de trabalho. Compra no site da loja, ao preço dela.", "Uit Gereedschap & werkkleding. U koopt op de website van de winkel, tegen hun prijs.", "Nga Vegla & veshje pune. Blini në faqen e dyqanit, me çmimin e tij.", "Din Unelte & îmbrăcăminte de lucru. Cumpărați pe site-ul magazinului, la prețul lui.", "Из раздела «Инструменты и спецодежда». Покупка на сайте магазина, по его цене."],
+    featuredBadge: ["Affiliate link", "Σύνδεσμος affiliate", "Affiliate-Link", "Lien affilié", "Link di affiliazione", "Enlace de afiliado", "Link de afiliado", "Affiliatelink", "Lidhje affiliate", "Link de afiliere", "Партнёрская ссылка"],
+    featuredMeta: ["S3 safety boots, sold by {name}, not by Gear World.", "Μποτάκια ασφαλείας S3, τα πουλά το {name}, όχι το Gear World.", "S3-Sicherheitsstiefel, verkauft von {name}, nicht von Gear World.", "Chaussures de sécurité S3, vendues par {name}, pas par Gear World.", "Scarpe antinfortunistiche S3, vendute da {name}, non da Gear World.", "Botas de seguridad S3, vendidas por {name}, no por Gear World.", "Botas de segurança S3, vendidas por {name}, não pela Gear World.", "S3-veiligheidsschoenen, verkocht door {name}, niet door Gear World.", "Këpucë sigurie S3, të shitura nga {name}, jo nga Gear World.", "Bocanci de protecție S3, vânduți de {name}, nu de Gear World.", "Защитные ботинки S3. Продавец — {name}, а не Gear World."],
+    featuredCta: ["View at {name} →", "Δείτε το στο {name} →", "Bei {name} ansehen →", "Voir chez {name} →", "Vedi su {name} →", "Ver en {name} →", "Ver na {name} →", "Bekijk bij {name} →", "Shikojeni te {name} →", "Vezi la {name} →", "Смотреть в {name} →"],
     featuredNote: ["We may earn a commission when you buy through this link, at no extra cost to you.", "Μπορεί να λάβουμε προμήθεια αν αγοράσετε μέσω αυτού του συνδέσμου, χωρίς επιπλέον κόστος για εσάς.", "Wir erhalten möglicherweise eine Provision, wenn Sie über diesen Link kaufen, ohne Mehrkosten für Sie.", "Nous pouvons toucher une commission si vous achetez via ce lien, sans frais supplémentaires pour vous.", "Potremmo ricevere una commissione se acquisti tramite questo link, senza costi aggiuntivi per te.", "Podemos recibir una comisión si compras a través de este enlace, sin coste adicional para ti.", "Podemos receber uma comissão se comprar através deste link, sem custo adicional para si.", "We kunnen een commissie ontvangen als u via deze link koopt, zonder extra kosten voor u.", "Mund të fitojmë një komision nëse blini përmes kësaj lidhjeje, pa kosto shtesë për ju.", "Putem primi un comision dacă cumpărați prin acest link, fără costuri suplimentare pentru dumneavoastră.", "Мы можем получить комиссию, если вы купите по этой ссылке, без дополнительных затрат для вас."],
-    featuredHow: ["How this works", "Πώς λειτουργεί", "So funktioniert es", "Comment ça marche", "Come funziona", "Cómo funciona", "Como funciona", "Hoe dit werkt", "Si funksionon", "Cum funcționează", "Как это работает"]
+    featuredHow: ["How this works", "Πώς λειτουργεί", "So funktioniert es", "Comment ça marche", "Come funziona", "Cómo funciona", "Como funciona", "Zo werkt het", "Si funksionon", "Cum funcționează", "Как это работает"]
   };
 
   // Texts that are the same word as in English on purpose (a name, or the same word in that language).
@@ -378,22 +378,24 @@
   }
 
   // Lessons L174 (Linkwise, 17/11/2026): a visitor who reads the Hub in Greek opened a Gear World site in English,
-  // because each site keeps its own language. Every link to one of the 13 sites now carries the language chosen on
-  // the Hub (?lang=, which the sites keep like a choice in their menu, L162). It is added only when the link is used,
-  // so the page itself, and what Google reads, keeps the plain addresses. English adds nothing (the site then follows
-  // its own choice or the visitor's country), and /go/ or /out/ links are never touched.
+  // because each site keeps its own language. A link to one of the 13 sites now carries the language the visitor
+  // CHOSE on the Hub (?lang=, which the sites keep like a choice in their menu, L162), English included. A language the
+  // visitor did not choose (the default, or their country's, L175) adds nothing: the site finds the same one itself and
+  // does not save it. Added only when the link is used, so the page itself, and what Google reads, keeps the plain
+  // addresses; /go/ or /out/ links are never touched. Search results go through the site's /?search= redirect, which
+  // keeps ?lang= from L175 of the sites.
   const SITE_HOSTS = ["constructiongearworld.com", "mensgearworld.com", "womensgearworld.com", "kidsgearworld.com",
     "homegearworld.com", "gardengearworld.com", "technologygearworld.com", "cargearworld.com", "travelgearworld.com",
     "sportygearworld.com", "bikergearworld.com", "gaminggearworld.com", "petsgearworld.com"];
 
-  function withLanguage(href, lang) {
+  function withLanguage(href, lang, chosen = true) {
+    if (!chosen || !LOCALES.includes(lang)) return href;
     let url;
     try { url = new URL(String(href || ""), "https://gearworldhub.com/"); } catch (_) { return href; }
     if (url.protocol !== "https:" || !SITE_HOSTS.includes(url.hostname.replace(/^www\./, ""))) return href;
     if (/^\/(go|out)\//.test(url.pathname)) return href;
-    if (LOCALES.includes(lang) && lang !== "en-GB") url.searchParams.set("lang", lang);
-    else if (url.searchParams.has("lang")) url.searchParams.delete("lang");
-    else return href;
+    if (url.searchParams.get("lang") === lang) return href;
+    url.searchParams.set("lang", lang);
     return url.toString();
   }
 
@@ -401,7 +403,8 @@
     const link = event.target && event.target.closest ? event.target.closest("a[href]") : null;
     if (!link) return;
     const href = link.getAttribute("href");
-    const next = withLanguage(href, locale());
+    const chosen = typeof window.GWH_languageChosen === "function" ? window.GWH_languageChosen() : true;
+    const next = withLanguage(href, locale(), chosen);
     if (next !== href) link.setAttribute("href", next);
   }
 
@@ -453,8 +456,25 @@
     else form.dispatchEvent(new Event("submit", { cancelable: true }));
   }
 
+  // A text with {name} (a retailer or its website, lessons L103): the name goes in its own <span translate="no">.
+  function fillText(el, key) {
+    const name = el.getAttribute("data-gwh2-name");
+    const text = tx(key);
+    if (!name || !text.includes("{name}")) { el.textContent = text; return; }
+    el.textContent = "";
+    text.split("{name}").forEach((part, i) => {
+      if (i) {
+        const span = document.createElement("span");
+        span.setAttribute("translate", "no");
+        span.textContent = name;
+        el.appendChild(span);
+      }
+      if (part) el.appendChild(document.createTextNode(part));
+    });
+  }
+
   function applyTexts() {
-    document.querySelectorAll("[data-gwh2]").forEach(el => { el.textContent = tx(el.getAttribute("data-gwh2")); });
+    document.querySelectorAll("[data-gwh2]").forEach(el => { fillText(el, el.getAttribute("data-gwh2")); });
     document.querySelectorAll("[data-gwh2-aria]").forEach(el => { el.setAttribute("aria-label", tx(el.getAttribute("data-gwh2-aria"))); });
   }
 

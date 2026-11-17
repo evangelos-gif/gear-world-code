@@ -24,8 +24,15 @@
     run: ["Run by Evangelos Kalogerakis, United Kingdom", "Διαχείριση: Evangelos Kalogerakis, Ηνωμένο Βασίλειο", "Betrieben von Evangelos Kalogerakis, Vereinigtes Königreich", "Géré par Evangelos Kalogerakis, Royaume-Uni", "Gestito da Evangelos Kalogerakis, Regno Unito", "Gestionado por Evangelos Kalogerakis, Reino Unido", "Gerido por Evangelos Kalogerakis, Reino Unido", "Gerund door Evangelos Kalogerakis, Verenigd Koninkrijk", "Drejtohet nga Evangelos Kalogerakis, Mbretëria e Bashkuar", "Administrat de Evangelos Kalogerakis, Regatul Unit", "Управляет Evangelos Kalogerakis, Великобритания"],
     contact: ["Contact:", "Επικοινωνία:", "Kontakt:", "Contact :", "Contatti:", "Contacto:", "Contacto:", "Contact:", "Kontakt:", "Contact:", "Контакт:"]
   };
-  var lang = "en-GB";
-  try { lang = localStorage.getItem("gwh-language") || "en-GB"; } catch (e) { lang = "en-GB"; }
+  // The visitor's own choice, then the language of their country (L175, <html data-country-lang> from the Worker),
+  // then English; a saved English counts as a choice only with the mark of the menu (see translations.js).
+  var lang = "";
+  var chosen = false;
+  try { lang = localStorage.getItem("gwh-language") || ""; chosen = localStorage.getItem("gwh-language-chosen") === "1"; } catch (e) { lang = ""; }
+  if (LOCALES.indexOf(lang) < 0 || (lang === "en-GB" && !chosen)) {
+    var byCountry = document.documentElement.getAttribute("data-country-lang") || "";
+    lang = LOCALES.indexOf(byCountry) >= 0 ? byCountry : "en-GB";
+  }
   var i = LOCALES.indexOf(lang);
   if (i <= 0) return;
   document.documentElement.lang = lang;

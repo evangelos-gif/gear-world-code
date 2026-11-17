@@ -344,7 +344,7 @@ test('home page: one Sovrn Commerce link, marked like the product links of the s
   assert.ok(start > html.indexOf('id="gifts"') && start < html.indexOf('id="deals"'), 'between the gift finder and the deals, not in a part the scripts fill');
   const card = html.slice(start, end);
   assert.ok(card.includes('Affiliate link') && card.includes('We may earn a commission') && card.includes('<a href="/affiliate-disclosure/" data-gwh2="featuredHow">How this works</a>'));
-  assert.ok(card.includes('sold by engelbert-strauss.co.uk, not by Gear World') && card.includes('STRAUSS e.s. S3 safety boots Okomu mid'));
+  assert.ok(card.includes('sold by <span translate="no">engelbert-strauss.co.uk</span>, not by Gear World') && card.includes('STRAUSS e.s. S3 safety boots Okomu mid'));
   assert.ok(!/shop|cart\b|buy now|UK retailers|£/i.test(card), 'no shop words and no price (a price would need its daily check)');
   for (const f of ['worker.js', 'photo-search.js', 'security.js', 'public/hub-v2.js', 'public/app.js']) {
     assert.ok(!/sovrn|viglink/i.test(read(f)), `${f}: no Sovrn code`);
@@ -352,8 +352,8 @@ test('home page: one Sovrn Commerce link, marked like the product links of the s
 });
 
 // Lessons L174 (Linkwise, 17/11/2026): a Greek Hub showed the «Featured pick» in English, and its world cards opened
-// the sites in English. The card is now in the 11 languages, and every link to a site carries the Hub's language.
-test('hub v2: the Featured pick card is in the 11 languages; only the retailer and the product name stay as written (L174)', () => {
+// the sites in English. The card is now in the 11 languages, and a link to a site carries the language chosen on the Hub.
+test('hub v2: the Featured pick card is in the 11 languages; the retailer, its website and the product stay as written (L174, L103)', () => {
   const h = hub();
   const html = read('public/index.html');
   const start = html.indexOf('<section class="gwh2-section" id="featured"');
@@ -362,18 +362,35 @@ test('hub v2: the Featured pick card is in the 11 languages; only the retailer a
     assert.ok(card.includes(`data-gwh2="${key}"`), `${key} is on the card`);
     assert.equal(h.strings[key].length, 11, key);
   }
-  // Every text of the card is either translated or a name.
-  const texts = [...card.matchAll(/>([^<>]*[A-Za-z][^<>]*)</g)].map(m => m[1].trim()).filter(Boolean);
-  const tagged = [...card.matchAll(/<[^>]+data-gwh2="([A-Za-z]+)"[^>]*>([^<]*)</g)].map(m => m[2].trim());
-  const names = ['Engelbert Strauss', 'STRAUSS e.s. S3 safety boots Okomu mid'];
-  for (const t of texts) assert.ok(tagged.includes(t) || names.includes(t), `"${t}" is translated or a name`);
-  for (const t of tagged) assert.ok(h.strings[Object.keys(h.strings).find(k => h.strings[k][0] === t.replace(/&amp;/g, '&'))], `"${t}" is the English text of its key`);
-  assert.ok(card.includes('translate="no">Engelbert Strauss<') && card.includes('translate="no">STRAUSS e.s. S3 safety boots Okomu mid<'));
-  for (const list of [h.strings.featuredMeta]) list.forEach(text => assert.ok(text.includes('engelbert-strauss.co.uk') && text.includes('Gear World'), text));
-  for (const list of [h.strings.featuredCta]) list.forEach(text => assert.ok(text.includes('Engelbert Strauss'), text));
+  // Every element with a text: a key whose English text is that text ({name} = its data-gwh2-name), or a name.
+  // The element with its end tag, counting the same tags inside it (a name is a <span> inside a <span>).
+  const element = (from) => {
+    const tag = /^<([a-z0-9]+)/.exec(card.slice(from))[1];
+    const rx = new RegExp(`<(/?)${tag}\\b[^>]*>`, 'g');
+    rx.lastIndex = from;
+    let depth = 0;
+    for (let m; (m = rx.exec(card));) {
+      depth += m[1] ? -1 : 1;
+      if (depth === 0) return { start: from, end: rx.lastIndex, inner: card.slice(card.indexOf('>', from) + 1, m.index) };
+    }
+    throw new Error('no end tag');
+  };
+  const tagged = [...card.matchAll(/<[a-z0-9]+ [^>]*data-gwh2="([A-Za-z]+)"(?: data-gwh2-name="([^"]+)")?[^>]*>/g)].map(m => ({ key: m[1], name: m[2], ...element(m.index) }));
+  assert.equal(tagged.length, 7);
+  for (const { key, name, inner } of tagged) {
+    const english = h.strings[key][0].replace(/&/g, '&amp;').replace('{name}', name ? `<span translate="no">${name}</span>` : '{name}');
+    assert.equal(inner, english, key);
+  }
+  let outside = card;
+  for (const t of [...tagged].reverse()) outside = outside.slice(0, t.start) + outside.slice(t.end);
+  outside = outside.replace(/<[^>]*translate="no"[^>]*>[^<]*<\/[a-z]+>/g, '');
+  assert.ok(!/>[^<>]*[A-Za-z][^<>]*</.test(outside), `no text left without a key or translate="no": ${outside.match(/>[^<>]*[A-Za-z][^<>]*</)}`);
+  for (const key of ['featuredMeta', 'featuredCta']) h.strings[key].forEach(text => assert.ok(text.includes('{name}') && !/Engelbert Strauss|engelbert-strauss/.test(text), `${key}: ${text}`));
+  assert.ok(h.strings.featuredMeta.every(t => t.includes('Gear World')));
+  assert.ok(!/partner|συνεργάτη|partneritet/i.test(h.strings.featuredBadge.join(' ')), 'no partner wording (L103)');
 });
 
-test('hub v2: a link to a Gear World site carries the language of the Hub; English, other sites and /go/ /out/ stay as they are (L174)', () => {
+test('hub v2: a link to a Gear World site carries the language chosen on the Hub; other sites and /go/ /out/ stay as they are (L174)', () => {
   const h = hub();
   assert.equal(h.siteHosts.length, 13);
   const html = read('public/index.html');
@@ -381,15 +398,20 @@ test('hub v2: a link to a Gear World site carries the language of the Hub; Engli
   assert.deepEqual([...worlds].sort(), [...h.siteHosts].sort(), 'the 13 world cards are the 13 sites');
   assert.equal(h.withLanguage('https://constructiongearworld.com/', 'el-GR'), 'https://constructiongearworld.com/?lang=el-GR');
   assert.equal(h.withLanguage('https://homegearworld.com/search/?q=kettle', 'de-DE'), 'https://homegearworld.com/search/?q=kettle&lang=de-DE');
+  assert.equal(h.withLanguage('https://mensgearworld.com/?search=watch&highlight=45551', 'el-GR'), 'https://mensgearworld.com/?search=watch&highlight=45551&lang=el-GR');
   assert.equal(h.withLanguage('https://www.petsgearworld.com/category/dog/?lang=el-GR', 'ru-RU'), 'https://www.petsgearworld.com/category/dog/?lang=ru-RU');
-  assert.equal(h.withLanguage('https://kidsgearworld.com/discount-codes/x/?lang=el-GR', 'en-GB'), 'https://kidsgearworld.com/discount-codes/x/', 'back to English: the old choice goes');
-  assert.equal(h.withLanguage('https://kidsgearworld.com/', 'en-GB'), 'https://kidsgearworld.com/', 'English adds nothing');
+  assert.equal(h.withLanguage('https://kidsgearworld.com/discount-codes/x/?lang=el-GR', 'en-GB'), 'https://kidsgearworld.com/discount-codes/x/?lang=en-GB', 'English chosen on the Hub goes too');
+  assert.equal(h.withLanguage('https://kidsgearworld.com/', 'el-GR', false), 'https://kidsgearworld.com/', 'not chosen (country or default): nothing, the site finds it itself');
+  assert.equal(h.withLanguage('https://kidsgearworld.com/', 'en-GB', false), 'https://kidsgearworld.com/');
+  assert.equal(h.withLanguage('https://kidsgearworld.com/?lang=el-GR', 'el-GR'), 'https://kidsgearworld.com/?lang=el-GR', 'already there');
   assert.equal(h.withLanguage('https://kidsgearworld.com/', 'pl-PL'), 'https://kidsgearworld.com/', 'a language the Hub does not have adds nothing');
   for (const href of ['https://cargearworld.com/out/123', 'https://cargearworld.com/go/abc', 'https://sovrn.co/o4ablp8', '/stores/', '/affiliate-disclosure/', 'https://gearworldhub.com/', 'https://evilgearworld.com/', 'http://homegearworld.com/', 'mailto:evangelos@gearworldgroup.com', '#deals']) {
     assert.equal(h.withLanguage(href, 'el-GR'), href, href);
   }
-  // Added only when a link is used, never to the addresses written on the page.
+  // Added only when a link is used, never to the addresses written on the page; only a language the visitor chose.
   const code = read('public/hub-v2.js');
   assert.match(code, /for \(const type of \["pointerdown", "click", "auxclick", "contextmenu"\]\) document\.addEventListener\(type, languageOnLink, true\)/);
+  assert.match(code, /const chosen = typeof window\.GWH_languageChosen === "function" \? window\.GWH_languageChosen\(\) : true;/);
+  assert.match(read('public/translations.js'), /window\.GWH_languageChosen = \(\) => chosenLocale;/);
   assert.ok(!/gearworld\.com\/\?lang=/.test(html), 'the page keeps the plain addresses');
 });

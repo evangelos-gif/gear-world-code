@@ -387,7 +387,7 @@ test('L153: the Hub asks with badges=1 and passes on where each retailer deliver
 
 // Lessons L175 (owner, 17 Nov 2026: "every country opens in its own language"): the home page names the language of the
 // visitor's country on <html>; translations.js uses it only without a choice of the visitor's own, and never saves it.
-test('home page: the language of the visitor\'s country on <html>, added per answer; English and crawlers unchanged (L175)', async () => {
+test('home page and /about/: the language of the visitor\'s country on <html>, added per answer; English and crawlers unchanged (L175)', async () => {
   for (const [cc, code] of Object.entries(COUNTRY_LANGUAGES)) assert.equal(countryLanguage(cc), HUB_LOCALES.includes(code) ? code : '', cc);
   assert.equal(countryLanguage('PL'), '', 'no Polish on the Hub (the sites have it)');
   assert.equal(countryLanguage('GR'), 'el-GR');
@@ -423,14 +423,21 @@ test('home page: the language of the visitor\'s country on <html>, added per ans
   assert.match(await (await home('BE', { 'Accept-Language': 'nl-BE' })).text(), /data-country-lang="nl-NL"/);
   assert.ok(!(await (await home('PL')).text()).includes('data-country-lang'), 'Poland: no Polish on the Hub');
   assert.ok(!(await (await home('GR', { 'User-Agent': 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)' })).text()).includes('data-country-lang'), 'Google reads English');
-  assert.ok(!(await (await home('GR', {}, '/about/')).text()).includes('data-country-lang'), 'the home page only');
+  assert.match(await (await home('GR', {}, '/about/')).text(), /data-country-lang="el-GR"/, '/about/ too, which reviewers read');
+  assert.ok(!(await (await home('GR', {}, '/stores/')).text()).includes('data-country-lang'), 'not the English-only pages');
+  for (const ua of ['Mozilla/5.0 (compatible; YandexBot/3.0; +http://yandex.com/bots)', 'Mozilla/5.0 (compatible; bingbot/2.0; +http://www.bing.com/bingbot.htm)', 'facebookexternalhit/1.1'])
+    assert.ok(!(await (await home('RU', { 'User-Agent': ua })).text()).includes('data-country-lang'), `no crawler: ${ua}`);
 
   // translations.js: the visitor's own choice first, then the country, then English; the country is never saved.
   const js = (await import('node:fs')).readFileSync('sites/gwh/public/translations.js', 'utf8');
-  assert.match(js, /const chosenLocale = LOCALES\.includes\(currentLocale\);/);
+  assert.match(js, /let chosenLocale = LOCALES\.includes\(currentLocale\) && \(currentLocale !== "en-GB" \|\| chosenMark\);/, 'English saved before L175 is not a choice');
+  assert.match(js, /localStorage\.setItem\("gwh-language-chosen", "1"\)/, 'the menu marks a choice');
   assert.match(js, /const byCountry = root && root\.getAttribute \? root\.getAttribute\("data-country-lang"\) : "";/);
   assert.match(js, /if \(save\) localStorage\.setItem\("gwh-language", locale\);/);
   assert.match(js, /applyLanguage\(currentLocale, chosenLocale\);\n\}\)\(\);/);
   assert.match(js, /applyLanguage\(event\.target\.value\);/, 'a choice in the menu is saved');
+  const about = (await import('node:fs')).readFileSync('sites/gwh/public/about/about.js', 'utf8');
+  assert.match(about, /document\.documentElement\.getAttribute\("data-country-lang"\)/, '/about/ follows the same order');
+  assert.match(about, /lang === "en-GB" && !chosen/);
   assert.deepEqual(HUB_LOCALES, JSON.parse(js.match(/const LOCALES = (\[[^\]]+\])/)[1].replace(/\s+/g, '')), 'the same 11 languages as translations.js');
 });

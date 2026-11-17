@@ -267,8 +267,11 @@
   let currentLocale = localStorage.getItem("gwh-language");
 
   // Lessons L175: without a language of their own, the visitor gets the language of their country, which the Worker
-  // names on <html data-country-lang>; it is saved only when the visitor picks a language in the menu.
-  const chosenLocale = LOCALES.includes(currentLocale);
+  // names on <html data-country-lang>; it is saved only when the visitor picks a language in the menu. Before L175 this
+  // page saved "en-GB" on every visit, so a saved English counts as a choice only with the mark the menu sets.
+  let chosenMark = false;
+  try { chosenMark = localStorage.getItem("gwh-language-chosen") === "1"; } catch (_) { chosenMark = false; }
+  let chosenLocale = LOCALES.includes(currentLocale) && (currentLocale !== "en-GB" || chosenMark);
   if (!chosenLocale) {
     const root = document.documentElement;
     const byCountry = root && root.getAttribute ? root.getAttribute("data-country-lang") : "";
@@ -526,9 +529,13 @@
   if (selector) {
     selector.addEventListener("change", event => {
       applyLanguage(event.target.value);
+      chosenLocale = true;
+      try { localStorage.setItem("gwh-language-chosen", "1"); } catch (_) { /* private mode */ }
     });
   }
 
+  // L174/L175: hub-v2.js passes the language to the sites only when the visitor chose it.
+  window.GWH_languageChosen = () => chosenLocale;
   applyLanguage(currentLocale, chosenLocale);
 })();
 

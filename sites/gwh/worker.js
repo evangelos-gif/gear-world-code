@@ -982,7 +982,7 @@ export async function withCountryBar(request, response) {
 }
 
 // GWH-COUNTRY-LANGUAGE (lessons L175, owner 17 Nov 2026: "every country opens in its own language", after Linkwise saw
-// the Hub and the sites in English from Greece): a visitor who has not chosen a language gets the home page in the
+// the Hub and the sites in English from Greece): a visitor who has not chosen a language gets the home page and /about/ in the
 // language of their country. The Worker names it on <html data-country-lang="el-GR">, on each answer and never on a
 // stored copy; translations.js uses it only when the visitor has no language of their own, and does not save it. The
 // same countries as the sites (src/engine.js COUNTRY_LANGUAGES), in the 11 languages of the Hub (no Polish on the Hub).
@@ -1021,11 +1021,15 @@ export function countryLanguage(country, acceptLanguage = "") {
   const code = COUNTRY_LANGUAGES[cc] || "";
   return code && HUB_LOCALES.includes(code) ? code : "";
 }
+// Crawlers read English, Google's and every other one (a crawler in Russia would otherwise get Russian).
+export const ANY_CRAWLER = /bot\b|bot\/|crawler|spider|slurp|bingpreview|facebookexternalhit|embedly|preview/i;
+export const COUNTRY_LANGUAGE_PAGES = ["/", "/index.html", "/about/", "/about/index.html"];
 export async function withCountryLanguage(request, response) {
   if (request.method !== "GET") return response;
   const path = new URL(request.url).pathname;
-  if (path !== "/" && path !== "/index.html") return response;
-  if (GOOGLE_CRAWLER.test(String(request.headers.get("User-Agent") || ""))) return response;
+  if (!COUNTRY_LANGUAGE_PAGES.includes(path)) return response;
+  const ua = String(request.headers.get("User-Agent") || "");
+  if (GOOGLE_CRAWLER.test(ua) || ANY_CRAWLER.test(ua)) return response;
   const code = countryLanguage(request.cf && request.cf.country, request.headers.get("Accept-Language"));
   if (!code || code === "en-GB") return response;
   if (!response || response.status !== 200 || !response.body || !/^text\/html/i.test(String(response.headers.get("Content-Type") || ""))) return response;
