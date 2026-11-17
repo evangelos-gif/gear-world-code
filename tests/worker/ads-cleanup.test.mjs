@@ -244,9 +244,9 @@ test('the Hub legal pages say what is there: no affiliate links on the Hub, who 
   // The sites: privacy, cookies and terms changed on 7/11/2026 (L101) and again on 8/11/2026 (Turnstile on the
   // "Get deal updates" form, L106), so their date says so.
   // And on 9/11/2026 (Awin or CJ, L107), on 15/11/2026 (the cookie gw_for of the Group's country links, L160), and on
-  // 17/11/2026 (translated, EU GDPR and EU consumer law, L176), and on 19/11/2026 (the small sign-up window and "Remind
+  // 17/11/2026 (translated, EU GDPR and EU consumer law, L176), and on 18/11/2026 (the small sign-up window and "Remind
   // me on 27 Nov", L182).
-  assert.match(readFileSync('src/pages/info.js', 'utf8'), /const UPDATED = '19 November 2026';\nconst UPDATED_ISO = '2026-11-19';/);
+  assert.match(readFileSync('src/pages/info.js', 'utf8'), /const UPDATED = '18 November 2026';\nconst UPDATED_ISO = '2026-11-18';/);
 });
 
 function hub() {

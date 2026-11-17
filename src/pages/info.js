@@ -14,19 +14,13 @@ function contactLink(site) {
   return site.contactEmail ? html`<a href="mailto:${site.contactEmail}">${site.contactEmail}</a>` : PLACEHOLDER;
 }
 
-// The legal texts last changed on 19 Nov 2026 (the small sign-up window and "Remind me on 27 Nov", lessons L182); before:
+// The legal texts last changed on 18 Nov 2026 (the small sign-up window and "Remind me on 27 Nov", lessons L182); before:
 // 17 Nov 2026 (translated, EU GDPR and EU consumer law, lessons L176); 9 Nov
 // 2026 (the retailer links go through Awin or CJ, Google Ads compliance, lessons
 // L107; before: 8 Nov 2026, Cloudflare Turnstile on the "Get deal updates" form, L106; 7 Nov 2026, who runs Gear World,
 // L101); keep this date honest (L103).
-const UPDATED = '19 November 2026';
-const UPDATED_ISO = '2026-11-19';
-// "Remind me on 27 Nov" (lessons L182): its lines stay in the policy until the end of 2026, after the list is deleted
-// (28 Nov 2026).
-const REMIND_POLICY_UNTIL = Date.parse('2026-12-31T23:59:59Z');
-function remindInPolicy(now = Date.now()) {
-  return now <= REMIND_POLICY_UNTIL;
-}
+const UPDATED = '18 November 2026';
+const UPDATED_ISO = '2026-11-18';
 
 // Who runs the network and how to reach them, the same on every site and on the Hub (Google Ads review, 7 Nov 2026,
 // lessons L101). Owner's decision, 7 Nov 2026: "Run by Evangelos Kalogerakis, United Kingdom" and the email, no address.
@@ -101,7 +95,7 @@ const PAGES = {
 ${site.dealUpdates ? html`<li><strong>Deal updates.</strong> If you sign up with the "Get deal updates" form, we keep your email address, the site you signed up on, the date and the consent you gave. The list is shared by the Gear World sites and kept by Gear World Hub (gearworldhub.com), and the emails are sent for us by MailerLite (our email service provider). We use it only to send deal and new-site emails (consent). Every email has an unsubscribe link, and you can also ask us by email to delete your address.</li>
 <li><strong>Abuse protection.</strong> To stop automated abuse of the form we keep a one-way scrambled (hashed) form of your IP address for up to one hour, and the form uses Cloudflare Turnstile, which checks that you are a person when you start to fill it in (legitimate interests).</li>
 <li><strong>Small sign-up window.</strong> On some pages a small window at the bottom of the screen offers the same weekly email. It works like the "Get deal updates" form, and we also note that you signed up there.</li>
-${remindInPolicy() ? html`<li><strong>Remind me on 27 Nov.</strong> If you ask for a reminder on a product page, we keep your email address, the site, up to three products you chose, the date and the consent you gave. Gear World Hub keeps this list, and MailerLite (our email service provider) sends you one email on 27 November 2026 with links to those products on our site (consent). This does not sign you up for the weekly email. We delete the list on 28 November 2026, and you can ask us by email to delete your address sooner.</li>` : ''}` : html`<li><strong>Newsletter.</strong> If you sign up, we keep your email address, the date and the consent text you agreed to. We use it only to send the newsletter (consent). You can withdraw consent at any time by emailing us, and we will delete your address.</li>
+<li><strong>Remind me on 27 Nov.</strong> <span>If you ask for a reminder on a product page, we keep your email address, the site, up to three products you chose, the date and the consent you gave. Gear World Hub keeps this list, and MailerLite (our email service provider) sends you one email on 27 November 2026 with links to those products on the Gear World sites (consent). This does not sign you up for the weekly email. We delete the list on 28 November 2026, and you can ask us by email to delete your address sooner.</span> <span>MailerLite records whether that email is opened and which links in it are clicked, so we can see whether reminders are useful.</span></li>` : html`<li><strong>Newsletter.</strong> If you sign up, we keep your email address, the date and the consent text you agreed to. We use it only to send the newsletter (consent). You can withdraw consent at any time by emailing us, and we will delete your address.</li>
 <li><strong>Abuse protection.</strong> To stop automated abuse of forms we keep a one-way scrambled (hashed) form of your IP address for up to one hour, and the form uses Cloudflare Turnstile (legitimate interests).</li>`}
 <li><strong>Hosting.</strong> The site is hosted by Cloudflare, which processes technical data such as IP addresses to deliver and protect the site.</li>
 ${site.voiceSearch ? html`<li><strong>Voice search.</strong> If you press the microphone button, your browser asks for permission and its own speech service turns what you say into text (for example Google in Chrome, Apple in Safari). Their privacy policies apply to that step. We receive only the text, as a normal search, and we do not record audio.</li>` : ''}
@@ -121,7 +115,7 @@ ${site.googleAds === false ? html`<p>We do not use advertising or tracking cooki
   : (site.dealUpdates ? 'Our service providers (Cloudflare, MailerLite and, only after you allow it, Google) may process data outside the UK and the European Economic Area with appropriate safeguards.' : 'Our service providers (Cloudflare and, only after you allow it, Google) may process data outside the UK and the European Economic Area with appropriate safeguards.')}</p>
 <h2>How long we keep data</h2>
 <p>Click records: up to 26 months. ${site.dealUpdates ? 'Deal updates: until you unsubscribe.' : 'Newsletter: until you unsubscribe.'} Abuse protection: up to one hour.${site.googleAds === false ? '' : ' Google Ads cookies: up to 90 days, or until you select "Reject".'}</p>
-${site.dealUpdates && remindInPolicy() ? html`<p>Reminders for 27 Nov: deleted on 28 November 2026.</p>` : ''}
+${site.dealUpdates ? html`<p>Reminders for 27 Nov: deleted on 28 November 2026.</p>` : ''}
 <h2>Your rights</h2>
 <p>You can ask for access to, correction or deletion of your data, ask us to restrict or stop using it, and ask for a copy. Write to us at this address:</p>
 <p class="contact-email" translate="no">${contactLink(site)}</p>

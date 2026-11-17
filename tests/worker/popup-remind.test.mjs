@@ -98,7 +98,7 @@ test('the window: only from the script, with every condition of the owner\'s lis
   assert.match(part, /footerSeen \|\| compareOpen\(\)/);
   assert.match(part, /ev\.key === 'Escape'/, 'Esc closes it');
   assert.match(part, /close\.setAttribute\('aria-label', t\('Close'\)\)/);
-  assert.match(part, /box\.setAttribute\('aria-modal', 'false'\)/, 'no focus trap, no modal');
+  assert.match(part, /box\.setAttribute\('role', 'region'\)/, 'a region, not a modal dialog: no focus trap');
   assert.doesNotMatch(part, /\.focus\(\)/, 'it never takes the focus');
   assert.match(part, /sendJson\('\/api\/newsletter', \{[^}]*form: 'popup' \}/, 'the same endpoint, counted as the window');
   assert.match(part, /tick\.type = 'checkbox';\n\s+tick\.name = 'consent';\n\s+tick\.required = true;/);
@@ -109,6 +109,8 @@ test('the window: only from the script, with every condition of the owner\'s lis
   assert.match(JS, /setupRemind\(\);\n\s+setupPopup\(\);/);
   // Styles: bottom, no backdrop, a phone gets at most 30% of the height, a 44 px close button, under the cookie banner.
   assert.match(CSS, /\.pop \{ position: fixed; left: 0; right: 0; bottom: 0; z-index: 45; max-height: 30vh;/);
+  assert.match(CSS, /@media \(min-width: 700px\) and \(min-height: 600px\) \{ \.pop,/, 'the card only on tall screens: a phone on its side keeps the band');
+  assert.match(CSS, /body\.has-compare-bar \.pop \{ bottom: 76px; \}/, 'above the compare bar');
   assert.match(CSS, /\.pop-close \{[^}]*width: 44px; height: 44px;/);
   assert.match(CSS, /\.consent \{ position: fixed;[^}]*z-index: 50;/);
   assert.doesNotMatch(CSS, /\.pop[^{]*\{[^}]*(backdrop|inset: 0)/, 'no dark backdrop');
@@ -371,4 +373,16 @@ test('every text the script writes for the window and the reminder, and every ne
       }
     }
   }
+});
+
+test('the Hub check: an answer slower than 1.5 s counts as closed, and requests at the same time share one question', async () => {
+  let n = 0;
+  const slow = { fetch: () => { n++; return new Promise(r => setTimeout(() => r(json({ ok: true, open: true })), 5000)); } };
+  const probe = remindProbe({ timeoutMs: 50 });
+  const t0 = Date.parse('2026-11-20T12:00:00Z');
+  const [a, b, c] = await Promise.all([probe(slow, t0), probe(slow, t0), probe(slow, t0)]);
+  assert.deepEqual([a, b, c], [false, false, false]);
+  assert.equal(n, 1, 'one question for three pages');
+  // Closed at 27 Nov 06:00 London, before the drafts of the 27 Nov email (06:41).
+  assert.equal(REMIND_UNTIL_ISO, '2026-11-27T06:00:00Z');
 });

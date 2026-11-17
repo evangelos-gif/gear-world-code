@@ -586,7 +586,8 @@
   // never see it. It appears only: after the visitor has answered the cookie banner; after 30 seconds on the page or
   // half-way down it, whichever comes first; at most once a month (only the date is kept, <store>-popup-date); never
   // after a sign-up (<store>-popup-done); never while the "Get deal updates" box or the compare bar is on the screen;
-  // never on the legal pages. No dark backdrop and no focus trap: the × button (44 px) and Esc close it.
+  // never on the legal pages. No dark backdrop and no focus trap: the × button (44 px) and Esc close it. Above the compare
+// bar when that opens later (body.has-compare-bar).
   var POPUP_DAYS = 30;
   var POPUP_SECONDS = 30;
   function today() { return new Date().toISOString().slice(0, 10); }
@@ -653,8 +654,8 @@
       shown = true;
       write('popup-date', today());
       var box = el('section', 'pop');
-      box.setAttribute('role', 'dialog');
-      box.setAttribute('aria-modal', 'false');
+      // A labelled region (a landmark), not a dialog: it never takes the focus.
+      box.setAttribute('role', 'region');
       box.setAttribute('aria-labelledby', 'pop-text');
       var close = el('button', 'pop-close');
       close.type = 'button';
@@ -703,7 +704,11 @@
       box.appendChild(form);
       box.appendChild(status);
       document.body.appendChild(box);
-      function say(s) { status.textContent = s; status.hidden = false; }
+      function say(s) {
+        status.textContent = s;
+        status.hidden = false;
+        try { status.scrollIntoView({ block: 'nearest' }); } catch (e) { /* old browser */ }
+      }
       var check2 = lazyTurnstile(form, check, { sitekey: sitekey, appearance: 'interaction-only', ready: function () { status.hidden = true; } });
       function hide() {
         document.removeEventListener('keydown', onKey);

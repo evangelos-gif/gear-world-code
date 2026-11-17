@@ -75,13 +75,13 @@ export function hiddenProductPage(site, product, category, notice) {
 
 // "Remind me on 27 Nov" (lessons L182, src/lib/remind.js): closed until the visitor opens it, under the buttons. A
 // normal form post that the site script sends as JSON; the Turnstile widget is the one of "Get deal updates". It goes
-// away by itself after 27 Nov (the engine stops showing it, and the script removes it from an older copy of the page).
+// away by itself on 27 Nov at 06:00 London (the engine stops showing it, and the script removes it from an older copy).
 // No "deals", percentage or "Was" in its texts (lessons L103, L107).
 function remindBox(site, product) {
   return html`<details class="remind" data-remind="${REMIND_UNTIL_ISO}">
           <summary>Remind me on 27 Nov</summary>
           <form class="remind-form" action="${REMIND_PATH}" method="post">
-            <p class="remind-what">We will send you one email on 27 Nov with a link to this product, so you can check its price that day.</p>
+            <p class="remind-what"><span>We will send you one email on 27 Nov with a link to this product, so you can check its price that day.</span> <span>One email holds up to three products: the last three you choose.</span></p>
             <label class="visually-hidden" for="rm-email">Email address</label>
             <input id="rm-email" name="email" type="email" required maxlength="254" autocomplete="email" placeholder="Your email address">
             <button type="submit">Remind me</button>

@@ -249,9 +249,11 @@ export function createWorker(site) {
         const reason = hiddenReason(view, product);
         if (reason) return htmlResponse(hiddenProductPage(shown, product, categories.get(product.category_slug), reason), { method });
         // "Remind me on 27 Nov" (lessons L182): only with the "Get deal updates" box (Hub link and Turnstile sitekey),
-        // until the end of 27 Nov, and while the Hub's list is open.
-        shown.remindOpen = Boolean(shown.dealTurnstileKey) && at <= REMIND_UNTIL && await remindOpen(hubBinding(env), at);
-        const [similar, offers] = await Promise.all([db.similarProducts(env.DB, product, 8, { view }), db.offersFor(env.DB, product, 12, { view })]);
+        // until 27 Nov 06:00 (London), and while the Hub's list is open; asked at the same time as the database.
+        const askHub = Boolean(shown.dealTurnstileKey) && at <= REMIND_UNTIL;
+        const [similar, offers, open] = await Promise.all([db.similarProducts(env.DB, product, 8, { view }), db.offersFor(env.DB, product, 12, { view }),
+          askHub ? remindOpen(hubBinding(env), at) : false]);
+        shown.remindOpen = open;
         marked(view, [product]);
         marked(view, similar);
         marked(view, offers);
