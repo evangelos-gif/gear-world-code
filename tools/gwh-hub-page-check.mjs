@@ -177,6 +177,11 @@ try {
       check(carried === wantLink, `${tag}: a world card opens its site in the Hub's language (L174)`, carried);
       const featured = await page.$eval('#gwh2FeaturedTitle', e => e.textContent.trim());
       check(featured === text('featuredTitle', locale), `${tag}: the Featured pick card is in the chosen language (L174)`, featured);
+      // The legal links of the footer, with the words of the legal pages (L176, the check of 17/11/2026).
+      const footLegal = await page.$$eval('.footer-legal a', els => els.map(e => e.textContent.trim()));
+      const legalWords = locale === 'en-GB' ? null : JSON.parse(readFileSync(join(publicDir, 'legal', 'i18n', `${locale}.json`), 'utf8'));
+      const wantFoot = ['Privacy', 'Cookies', 'Terms', 'Affiliate disclosure', 'Contact'].map(w => legalWords ? legalWords[w] : w);
+      check(footLegal.join('|') === wantFoot.join('|'), `${tag}: the legal links of the footer in the chosen language (L176)`, footLegal.join('|'));
 
       // deals: from hub-deals.json, to site pages only (the list the script fills; the «Featured pick» card of L121 is
       // a card of the same look outside it)
@@ -448,7 +453,7 @@ try {
       }, LEGAL_BLOCKS);
       check(r.lang === locale && r.note === dict['This is a translation. If it differs from the English text, the English text applies.'], `${tag}: in ${locale}, with the note that the English text applies`, `${r.lang} | ${r.note.slice(0, 50)}`);
       const left = r.blocks.filter(b => !values.has(b) && /[A-Za-z]/.test(b.replace(/<[^>]+>/g, '')) &&
-        !/^(<a href="mailto:[^"]+">[^<]+<\/a>|<code>[^<]+<\/code>.*|Gear <span>World<\/span> Hub)$/.test(b));
+        !/^(<a href="mailto:[^"]+">[^<]+<\/a>|<code>[^<]+<\/code>(, <code>[^<]+<\/code>)*|Gear <span>World<\/span> Hub)$/.test(b));
       check(left.length === 0, `${tag}: every block translated`, left.slice(0, 3).join(' | ').slice(0, 300));
       check(!/^(Privacy policy|Cookies|Terms of use|Affiliate disclosure|Contact) \|/.test(r.title) || dict[r.title.split(' | ')[0]] === r.title.split(' | ')[0], `${tag}: the title`, r.title);
       if (p === 'cookies') {

@@ -70,3 +70,59 @@ test('L176: the cookies page lists the new browser storage of L175 and the seaso
   assert.match(p, /<li><strong>Language\.<\/strong> If you have not chosen a language, the Hub shows its pages in the language of your country, as reported by our hosting provider\. Your country is not stored\.<\/li>/);
   assert.match(p, /may process data outside the UK and the European Economic Area\./);
 });
+
+// The other way round (the check of 17/11/2026): every block that legal.js translates on a page has its text in the
+// dictionaries, so no English is left inside a translated page. Blocks of code names only (gwh-language, _ga, _ga_*), the
+// e-mail link and the brand stay as they are. The /about/ article is translated by about.js (data-about), and the status
+// line of the cookies page and the reset button are written by legal.js itself.
+test('L176: every block of the legal pages is in the dictionaries (page to dictionary)', () => {
+  const dict = JSON.parse(read('legal/i18n/el-GR.json'));
+  const norm = h => h.replace(/&copy;/g, '©').replace(/\s+/g, ' ').trim();
+  const part = (h, re) => (h.match(re) || [, ''])[1];
+  const KEEP = /^(<a href="mailto:[^"]+">[^<]+<\/a>|<code>[^<]+<\/code>(, <code>[^<]+<\/code>)*|Gear <span>World<\/span> Hub)$/;
+  let counted = 0;
+  for (const p of PAGES) {
+    const h = read(`${p}/index.html`);
+    const prose = p === 'about' ? '' : part(h, /<article class="lg-prose">([\s\S]*?)<\/article>/);
+    const crumbs = part(h, /<nav class="lg-crumbs"[^>]*>([\s\S]*?)<\/nav>/);
+    const blocks = [];
+    for (const m of prose.matchAll(/<(h1|h2|p|li|th)( [^>]*)?>([\s\S]*?)<\/\1>/g)) if (!/id="gwhAnalyticsStatus"/.test(m[2] || '')) blocks.push(m[3]);
+    for (const m of prose.matchAll(/<td[^>]*><span>([\s\S]*?)<\/span><\/td>/g)) blocks.push(m[1]);
+    for (const m of crumbs.matchAll(/<a [^>]*>([\s\S]*?)<\/a>/g)) blocks.push(m[1]);
+    const last = crumbs.match(/<span>([^<]*)<\/span>\s*$/);
+    if (last) blocks.push(last[1]);
+    for (const m of part(h, /<nav class="lg-legal"[^>]*>([\s\S]*?)<\/nav>/).matchAll(/<a [^>]*>([\s\S]*?)<\/a>/g)) blocks.push(m[1]);
+    for (const m of part(h, /<footer class="lg-footer">([\s\S]*?)<\/footer>/).matchAll(/<p>([\s\S]*?)<\/p>/g)) blocks.push(m[1]);
+    for (const b of blocks.map(norm)) {
+      if (/<button /.test(b) || !/[A-Za-z]/.test(b.replace(/<[^>]+>/g, '')) || KEEP.test(b)) continue;
+      counted++;
+      assert.ok(Object.prototype.hasOwnProperty.call(dict, b), `${p}: not in the dictionaries: ${b.slice(0, 120)}`);
+    }
+  }
+  assert.ok(counted >= 150, `${counted} blocks`);
+  // The three cells of the cookies table with words next to the code names (the gap of the first version).
+  for (const k of ['<code>gwh_cookie_consent</code> (before 3 November 2026: <code>gwh_analytics_consent</code>)',
+    '<code>_gcl_au</code>, <code>_gcl_aw</code> and similar', '<code>__cf_bm</code> and similar']) assert.ok(k in dict, k);
+});
+
+// Since L121 (14/11/2026) the "Featured pick" card of the home page is a Sovrn Commerce link: the disclosure, privacy and
+// cookies pages say so in every language, with the words of the card itself (its title and badge in hub-v2.js).
+test('L176: the Featured pick (Sovrn Commerce) is named in every language, with the words of the card', () => {
+  const hub = read('hub-v2.js');
+  const list = key => JSON.parse(hub.match(new RegExp(`${key}: (\\[[^\\]]+\\])`))[1]);
+  const titles = list('featuredTitle');
+  const badges = list('featuredBadge');
+  const ORDER = ['en-GB', 'el-GR', 'de-DE', 'fr-FR', 'it-IT', 'es-ES', 'pt-PT', 'nl-NL', 'sq-AL', 'ro-RO', 'ru-RU'];
+  const disc = 'The one exception is the "Featured pick" card on the home page, marked "Affiliate link". It takes you straight to the retailer through another affiliate network, Sovrn Commerce. If you then buy something, the retailer may pay Gear World a commission, at no extra cost to you. The Hub has no paid placements.';
+  for (const l of LANGS) {
+    const d = JSON.parse(read(`legal/i18n/${l}.json`));
+    const i = ORDER.indexOf(l);
+    assert.ok(d[disc].includes(titles[i]) && d[disc].includes(badges[i]) && d[disc].includes('Sovrn Commerce'), `${l}: ${d[disc].slice(0, 90)}`);
+    const sovrn = Object.entries(d).filter(([k]) => k.includes('Sovrn'));
+    assert.equal(sovrn.length, 3, `${l}: disclosure, privacy and cookies`);
+    for (const [, v] of sovrn) assert.ok(v.includes('Sovrn') && v.includes(titles[i]), `${l}: ${v.slice(0, 90)}`);
+    assert.ok(!Object.values(d).some(v => /Hub[^.]{0,30}(δεν έχει affiliate|keine Affiliate-Links|n'a pas de liens d'affiliation|non ha link di affiliazione|no tiene enlaces de afiliación|não tem links de afiliados|geen affiliatelinks|nuk ka lidhje afiliimi|nu are linkuri de afiliere|нет партнёрских ссылок)/.test(v)), `${l}: no "the Hub has no affiliate links"`);
+  }
+  const about = read('about/about.js');
+  assert.equal((about.match(/Sovrn Commerce/g) || []).length, 11, 'the /about/ lead names Sovrn in the 11 languages');
+});

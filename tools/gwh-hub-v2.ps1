@@ -62,7 +62,8 @@
   hub-v2.css, hub-v2.js and translations.js. worker.js does not change. Phrases of that release: ΕΓΚΡΙΝΩ HUB WORDING
   PREVIEW / LIVE (live since 7/11/2026 21:54, 5842265).
   Clean-up after the appeal (lessons L103): the affiliate disclosure and privacy say what is there (the Hub links only to
-  the Gear World sites and has no affiliate links; the retailer links of the sites go through Awin), contact says
+  the Gear World sites and has no affiliate links, true until L121 of 14/11/2026; since L176 they name that one Sovrn
+  link; the retailer links of the sites go through Awin), contact says
   "business enquiries", terms say who runs Gear World, the 3 changed legal pages get a new "Last updated"; the deals
   slides (Halloween, Black Friday, the winter slide) speak of the retailers' codes only while one runs, otherwise they
   show the sign-up text and button; the winter slide is "After Christmas across 13 Gear Worlds"; the Greek "partner
@@ -172,7 +173,13 @@
   Legal pages (lessons L176, owner 17/11/2026): privacy, cookies, terms, affiliate disclosure and contact (and the
   footer of /about/) in the 11 languages: legal.js loads public/legal/i18n/<language>.json (each block by its English
   HTML, the same links and tags) for pages with <html data-lg-i18n>, with a note that the English text applies; the
-  Worker names the country language on those pages too.
+  Worker names the country language on those pages too. The affiliate disclosure, privacy, cookies and /about/ name the
+  one affiliate link of the Hub itself, the "Featured pick" card (Sovrn Commerce, L121), in the 11 languages, with the
+  Sovrn privacy policy (until then they said "The Hub itself has no affiliate links"); the footer of the home page is
+  in the 11 languages too.
+  Release order (L175): the 13 sites go live FIRST (sites-update-all, phrase ΕΓΚΡΙΝΩ ALL UPDATES), and only after their
+  report this Hub release. Check that https://<site>/api/version of the sites is on the release with L175 first;
+  otherwise a visitor in Greece who made no choice gets a Greek Hub and English sites.
   Exit codes added by L119: 21 the -MitgoCode has another form, 22 the code did not go into the live Worker (nothing went
   live), 23 -AfterPreview without a clean preview report of this version (nothing changed).
   Report: <home>\gear-world-reports\GWH_HUB_V2_<STEP>_<time>.txt (also copied to the clipboard)
@@ -242,11 +249,11 @@ $About = @{
     'public/legal/i18n/ro-RO.json' = 'νέο αρχείο: τα κείμενα των νομικών σελίδων στα ro-RO για το legal.js (L176)'
     'public/legal/i18n/ru-RU.json' = 'νέο αρχείο: τα κείμενα των νομικών σελίδων στα ru-RU για το legal.js (L176)'
     'public/legal/legal.js' = 'οι νομικές σελίδες στη γλώσσα του επισκέπτη (επιλογή του, μετά της χώρας του, μετά Αγγλικά) από τα αρχεία legal/i18n (L176)· το έτος του footer και η επιλογή cookies όπως πριν'
-    'public/about/index.html' = 'νέο ?v= για το legal.js και data-lg-i18n (L176)· νέο ?v= για το about.js (L175, L31)· νέα σελίδα /about/: «Run by Evangelos Kalogerakis, United Kingdom», ότι δεν πουλάμε, δεν παίρνουμε πληρωμές, δεν κάνουμε παραδόσεις, contact@gearworldhub.com (νέο αρχείο, L101)'
-    'public/about/about.js' = 'χωρίς δική του επιλογή γλώσσας ο επισκέπτης βλέπει τη σελίδα στη γλώσσα της χώρας του, όπως την αρχική (L175)· η σελίδα /about/ στη γλώσσα που διάλεξε ο επισκέπτης, 11 γλώσσες (νέο αρχείο, L101)'
-    'public/privacy/index.html' = 'στη γλώσσα του επισκέπτη μέσω legal.js (data-lg-i18n, L176), «outside the UK and the European Economic Area», νέα γραμμή «Language», «Last updated: 17 November 2026»· τα links των sites περνούν από το Awin ή το CJ, με την πολιτική απορρήτου και των δύο· «Last updated: 9 November 2026» (L107)'
-    'public/cookies/index.html' = 'στη γλώσσα του επισκέπτη μέσω legal.js (L176), νέες γραμμές gwh-language-chosen και gwh2-season-paused, «Last updated: 17 November 2026»· τα cookies του affiliate network: «Awin, or for a few retailers CJ»· «Last updated: 9 November 2026» (L107)· νέα γραμμή στο footer και link «About» (L101)'
-    'public/affiliate-disclosure/index.html' = 'στη γλώσσα του επισκέπτη μέσω legal.js (data-lg-i18n, L176)· τα κουμπιά των sites περνούν από ένα affiliate network: Awin, ή για λίγα καταστήματα CJ· «Last updated: 9 November 2026» (L107)'
+    'public/about/index.html' = 'το «Every product links…» λέει και το Sovrn Commerce της κάρτας «Featured pick» (L176, L121)· νέο ?v= για το legal.js και data-lg-i18n (L176)· νέο ?v= για το about.js (L175, L31)· νέα σελίδα /about/: «Run by Evangelos Kalogerakis, United Kingdom», ότι δεν πουλάμε, δεν παίρνουμε πληρωμές, δεν κάνουμε παραδόσεις, contact@gearworldhub.com (νέο αρχείο, L101)'
+    'public/about/about.js' = 'το ίδιο κείμενο για το Sovrn Commerce σε 11 γλώσσες (L176)· χωρίς δική του επιλογή γλώσσας ο επισκέπτης βλέπει τη σελίδα στη γλώσσα της χώρας του, όπως την αρχική (L175)· η σελίδα /about/ στη γλώσσα που διάλεξε ο επισκέπτης, 11 γλώσσες (νέο αρχείο, L101)'
+    'public/privacy/index.html' = 'το μόνο affiliate link του ίδιου του Hub, η κάρτα «Featured pick», πάει μέσω Sovrn Commerce, με link στην πολιτική απορρήτου του Sovrn (L176, L121)· στη γλώσσα του επισκέπτη μέσω legal.js (data-lg-i18n, L176), «outside the UK and the European Economic Area», νέα γραμμή «Language», «Last updated: 17 November 2026»· τα links των sites περνούν από το Awin ή το CJ, με την πολιτική απορρήτου και των δύο· «Last updated: 9 November 2026» (L107)'
+    'public/cookies/index.html' = 'το affiliate network: «Awin, CJ for a few retailers, or Sovrn Commerce for the "Featured pick" card» (L176)· στη γλώσσα του επισκέπτη μέσω legal.js (L176), νέες γραμμές gwh-language-chosen και gwh2-season-paused, «Last updated: 17 November 2026»· τα cookies του affiliate network: «Awin, or for a few retailers CJ»· «Last updated: 9 November 2026» (L107)· νέα γραμμή στο footer και link «About» (L101)'
+    'public/affiliate-disclosure/index.html' = 'η μόνη εξαίρεση, η κάρτα «Featured pick» (Affiliate link, Sovrn Commerce), αντί για «The Hub itself has no affiliate links», «Last updated: 17 November 2026» (L176, L121)· στη γλώσσα του επισκέπτη μέσω legal.js (data-lg-i18n, L176)· τα κουμπιά των sites περνούν από ένα affiliate network: Awin, ή για λίγα καταστήματα CJ· «Last updated: 9 November 2026» (L107)'
     'public/hub-v2.css'     = 'στο κινητό το Pets και το Stores μικρά, το ένα δίπλα στο άλλο (όπως οι άλλες κάρτες)· κάτω από 380 px εικόνα 40 px και τίτλος 13 px, ώστε το «Καταστήματα» να χωράει σε μία γραμμή (L166)'
     'public/hub-v2.js' = 'η κάρτα «Featured pick» σε 11 γλώσσες (το κατάστημα και το site του αμετάφραστα), και ένα link προς ένα από τα 13 sites παίρνει τη γλώσσα που διάλεξε ο επισκέπτης στο Hub (?lang=) τη στιγμή που πατιέται (L174)· όλα τα άλλα όπως είναι live'
     'public/hub-stores.jpg' = 'η φωτογραφία της κάρτας «Stores»: οι φωτογραφίες 4 κόσμων μαζί (Pexels, ήδη στο Hub)'
@@ -272,7 +279,7 @@ $About = @{
     'public/guides/christmas-gifts-for-kids/index.html' = 'οδηγός δώρων για παιδιά: LEGO DUPLO £26.24, K''NEX £24.49, COBI £26.79, LEGO Technic £32.50, όπως τα δείχνει το Kids'' Gear World στις 13/11· νέες ημερομηνίες ελέγχου (L119)'
     'public/guides/christmas-gifts-for-diy-lovers/index.html' = 'οδηγός δώρων για μάστορες: ίδιες τιμές, ελεγμένες 11/11, και οι νέοι τίτλοι των άλλων οδηγών στο «More gift guides» (L119)'
     'public/guides/christmas-gifts-for-travellers/index.html' = 'οδηγός δώρων για ταξιδιώτες: ίδιες τιμές, ελεγμένες 10/11, και οι νέοι τίτλοι των άλλων οδηγών στο «More gift guides» (L119)'
-    'public/translations.js' = 'χωρίς δική του επιλογή γλώσσας ο επισκέπτης βλέπει τη γλώσσα της χώρας του, χωρίς να αποθηκεύεται (L175)· οι λέξεις «<κατάστημα> delivers to» και «Worldwide» σε 11 γλώσσες και η γραμμή παράδοσης κάθε κάρτας (το όνομα του καταστήματος αμετάφραστο, οι χώρες στη γλώσσα του επισκέπτη, έως 3 και «+n») (L153)'
+    'public/translations.js' = 'τα νομικά links του footer της αρχικής σε 11 γλώσσες, με τις λέξεις των νομικών σελίδων (L176)· χωρίς δική του επιλογή γλώσσας ο επισκέπτης βλέπει τη γλώσσα της χώρας του, χωρίς να αποθηκεύεται (L175)· οι λέξεις «<κατάστημα> delivers to» και «Worldwide» σε 11 γλώσσες και η γραμμή παράδοσης κάθε κάρτας (το όνομα του καταστήματος αμετάφραστο, οι χώρες στη γλώσσα του επισκέπτη, έως 3 και «+n») (L153)'
     'public/robots.txt'     = 'robots.txt του Hub: πρώτα «User-agent: SERankingBacklinksBot» με «Disallow: /» (L105), από κάτω ίδιο όπως ήταν, με τη γραμμή Sitemap: https://gearworldhub.com/sitemap.xml (το Cloudflare βάζει από πάνω τα Content Signals του)'
     'public/gearworldhub-indexnow-k7q4m9x2w5.txt' = 'το κλειδί του IndexNow (δημόσιο, έτσι δουλεύει το IndexNow)'
     'public/terms/index.html' = 'στη γλώσσα του επισκέπτη μέσω legal.js (data-lg-i18n, L176)· «operated by Gear World (run by Evangelos Kalogerakis, United Kingdom)», «Last updated: 7 November 2026» (L103)'

@@ -19,6 +19,12 @@
     languageLabel: ["Language","Γλώσσα","Sprache","Langue","Lingua","Idioma","Idioma","Taal","Gjuha","Limbă","Язык"],
 
     navWorlds: ["Gear Worlds","Gear Worlds","Gear Worlds","Gear Worlds","Gear Worlds","Gear Worlds","Gear Worlds","Gear Worlds","Gear Worlds","Gear Worlds","Gear Worlds"],
+    // The legal links of the footer (the same words as the legal pages, L176).
+    footPrivacy: ["Privacy","Απόρρητο","Datenschutz","Confidentialité","Privacy","Privacidad","Privacidade","Privacy","Privatësia","Confidențialitate","Конфиденциальность"],
+    footCookies: ["Cookies","Cookies","Cookies","Cookies","Cookie","Cookies","Cookies","Cookies","Cookies","Cookie-uri","Cookie"],
+    footTerms: ["Terms","Όροι","Bedingungen","Conditions","Termini","Condiciones","Termos","Voorwaarden","Kushtet","Termeni","Условия"],
+    footDisclosure: ["Affiliate disclosure","Γνωστοποίηση affiliate","Affiliate-Hinweis","Information sur l'affiliation","Informativa sull'affiliazione","Aviso de afiliación","Divulgação de afiliados","Affiliateverklaring","Deklarata e afiliimit","Declarație de afiliere","Партнёрские ссылки"],
+    footContact: ["Contact","Επικοινωνία","Kontakt","Contact","Contatti","Contacto","Contacto","Contact","Kontakt","Contact","Контакты"],
     navAbout: ["About","Σχετικά","Über uns","À propos","Chi siamo","Acerca de","Sobre","Over ons","Rreth nesh","Despre","О нас"],
 
     heroEyebrow: [
@@ -328,6 +334,11 @@
 
     setText('.main-nav a[href="#worlds"]', "navWorlds");
     setText('.main-nav a[href="/about/"]', "navAbout");
+    setText('.footer-legal a[href="/privacy/"]', "footPrivacy");
+    setText('.footer-legal a[href="/cookies/"]', "footCookies");
+    setText('.footer-legal a[href="/terms/"]', "footTerms");
+    setText('.footer-legal a[href="/affiliate-disclosure/"]', "footDisclosure");
+    setText('.footer-legal a[href="/contact/"]', "footContact");
 
     setText(".hero-copy > .eyebrow", "heroEyebrow");
 
