@@ -122,6 +122,8 @@ test('L162: the site script: ?lang= like the menu, Polish for a visitor from Pol
   assert.deepEqual(chooser({ countryLang: 'pl-PL', stored: 'en-GB' }), { lang: 'en-GB', stored: 'en-GB' }, 'from Poland, English chosen in the menu: English');
   assert.deepEqual(chooser({ countryLang: 'pl-PL', stored: 'de-DE', options: ['en-GB', 'de-DE', 'pl-PL'] }), { lang: 'de-DE', stored: 'de-DE' }, 'their own choice first');
   assert.deepEqual(chooser({ countryLang: 'pl-PL', options: ['en-GB', 'el-GR'] }), { lang: 'en-GB', stored: undefined }, 'not on the site: English');
+  // L184: the Group's United States page on a phone that kept Polish from an earlier link: English, kept.
+  assert.deepEqual(chooser({ search: '?lang=en-GB', stored: 'pl-PL', countryLang: 'pl-PL' }), { lang: 'en-GB', stored: 'en-GB' }, 'the Group link: its language first');
   const js = read('sites/tgw/public/assets/site.js');
   assert.match(js, /function loadLanguage\(\) \{\n {4}var wanted = wantedLanguage\(\);/);
   for (const s of SITES) assert.equal(read(`sites/${s}/public/assets/site.js`), js, `${s}: the same site.js`);

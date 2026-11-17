@@ -959,6 +959,11 @@ test('L160: ?for=<cc> from the Group: a cookie, then only what delivers there on
     assert.equal(go.headers.get('Location'), 'https://cargearworld.com/category/tyres-wheels/?sort=price');
     assert.equal(go.headers.get('Set-Cookie'), 'gw_for=BE; Path=/; Max-Age=86400; Secure; HttpOnly; SameSite=Lax');
     assert.equal(go.headers.get('Cache-Control'), 'no-store');
+    // Since L184 the Group's link names the country's language too: it stays in the address, for the site script.
+    const us = await get('/?for=us&lang=en-GB', env, 'PL');
+    assert.equal(us.status, 302);
+    assert.equal(us.headers.get('Location'), 'https://cargearworld.com/?lang=en-GB');
+    assert.equal(us.headers.get('Set-Cookie'), 'gw_for=US; Path=/; Max-Age=86400; Secure; HttpOnly; SameSite=Lax');
     // A UK visitor with the cookie: Belgium's products only (the Belgian tyres, no UK-only shop), the bar, a way back.
     const be = await get('/category/tyres-wheels/', env, 'GB', { Cookie: 'other=1; gw_for=BE' });
     assert.equal(be.status, 200);
