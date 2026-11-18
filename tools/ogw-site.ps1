@@ -463,6 +463,19 @@ if (-not $NoHttpCheck) {
     if (-not $answered) {
         Say ('Το https://{0} δεν απάντησε ακόμα (το πιστοποιητικό θέλει έως 10 λεπτά την πρώτη φορά). Ξανατρέξε το βήμα check σε 15 λεπτά.' -f $Domain) $Warn
     } else {
+        # A new version reaches every Cloudflare location within a minute or two (18/11/2026, L190: the check 10 seconds
+        # after the deploy that turned the Amazon buttons on still got the page without them, a minute later it had them).
+        # So wait, up to 2 minutes, until the guide answers as this version (buttons with or without the Associates ID),
+        # asking each time with a new ?gwcheck= so nothing in between hands back an older copy. Read-only (GET).
+        $guideUrl = 'https://{0}/guides/christmas-gift-ideas-for-him/' -f $Domain
+        for ($i = 1; $i -le 12; $i++) {
+            $g = Get-Page ('{0}?gwcheck={1}-{2}' -f $guideUrl, $stamp, $i)
+            $hasTag = $g.text.Contains('tag=' + $AmazonTag)
+            $hasAmazon = $g.text.Contains('https://www.amazon.co.uk/s?k=')
+            if ($g.status -eq 200 -and (($mode -eq 'on' -and $hasTag) -or ($mode -eq 'off' -and -not $hasAmazon))) { break }
+            if ($i -eq 1) { Say 'Περιμένω να φτάσει η νέα έκδοση σε όλη την Cloudflare (έως 2 λεπτά)...' }
+            Start-Sleep -Seconds 10
+        }
         $okSite = Test-Site ('https://{0}' -f $Domain) $mode
         $w = Get-Page ('https://www.{0}/' -f $Domain)
         if ($w.status -eq 301 -and $w.location -eq ('https://{0}/' -f $Domain)) { Say '  www → κανονική διεύθυνση (301): ΕΝΤΑΞΕΙ' $Ok }
