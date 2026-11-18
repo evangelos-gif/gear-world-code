@@ -116,7 +116,7 @@ function Save-Secret($obj) {
 }
 function Count-Rows([string]$path) {
     $oc = @()
-    try { $oc = @(& node -e "const z=require('zlib'),fs=require('fs');try{const t=z.gunzipSync(fs.readFileSync(process.argv[1])).toString('utf8');const h=t.split('\n',1)[0];let n=0;for(const l of t.split('\n'))if(l.trim())n++;console.log((h.includes('product_name')&&h.includes('aw_deep_link')?'ok':'bad')+' '+Math.max(0,n-1))}catch(e){console.log('bad 0')}" $path) } catch { $oc = @('bad 0') }
+    try { $oc = @(& node (Join-Path $PSScriptRoot 'feed-rows.mjs') $path 'product_name' 'aw_deep_link') } catch { $oc = @('bad 0') }
     return (([string]($oc -join ' ')).Trim() -split '\s+')
 }
 
