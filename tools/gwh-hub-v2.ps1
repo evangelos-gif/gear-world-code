@@ -751,32 +751,33 @@ function Test-Site([string]$base, [bool]$isLive) {
     if ($l107) { Say '  L107: καμία προσφορά Halloween, Black Friday κλειστή, το κουτί email χωρίς «prices we''ve checked»: ΕΝΤΑΞΕΙ' $Ok }
     else { Say '  L107: ΠΡΟΣΟΧΗ - δεν βλέπω ακόμα όλες τις αλλαγές (προσφορές χωρίς Halloween, Black Friday κλειστή, κουτί email). Η cache κρατάει λίγα λεπτά: στείλε στο Claude αυτή την αναφορά.' $Warn }
     # L177 (17/11/2026): the search finds what it names, for a UK visitor (?country=GB). One search per Gear World: one of
-    # the first 3 results comes from the Gear World that sells it, every result delivers to the UK. A search whose Gear
+    # the first 3 results comes from a Gear World that sells it, every result delivers to the UK. A search that two Gear
+    # Worlds really sell names both ('pgw,tgw': gaming chairs are in Technology's Gaming category too, L189, 18/11/2026). A search whose Gear
     # World did not answer is asked once more; still no answer = not checked (a warning about the site, L74), never a wrong
     # order. The Hub's own search failing twice, 2 or more wrong orders, or a product that does not deliver to the UK, are a
     # problem (no live).
     $searchSet = @(
-        @('safety boots', 'cgw'), @('tablet', 'tgw'), @('dog bed', 'zgw'), @('gaming chair', 'pgw'), @('motorcycle helmet', 'bgw'),
+        @('safety boots', 'cgw'), @('tablet', 'tgw'), @('dog bed', 'zgw'), @('gaming chair', 'pgw,tgw'), @('motorcycle helmet', 'bgw'),
         @('tyre inflator', 'agw'), @('suitcase', 'vgw'), @('yoga mat', 'sgw'), @('dress', 'wgw'), @('mens watch', 'mgw'),
         @('pram', 'kgw'), @('kettle', 'hgw'), @('bbq', 'ggw'))
     $wrongOrder = @(); $notChecked = @(); $hubErrors = @(); $notUk = 0; $missing = @(); $asked = 0
     foreach ($pair in $searchSet) {
-        $sj = $null; $failedHere = @()
+        $sj = $null; $failedHere = @(); $want = @(([string]$pair[1]) -split ',')
         for ($try = 1; $try -le 2; $try++) {
             $sq = Get-Web ($base + '/api/search?q=' + [uri]::EscapeDataString($pair[0]) + '&country=GB&gwcheck=' + $stamp + '-' + $try)
             $sj = $null; $failedHere = @()
             try { $sj = (New-Object System.Text.UTF8Encoding($false)).GetString($sq.bytes) | ConvertFrom-Json } catch { $sj = $null }
             if ($sj -and $sj.PSObject.Properties['failed_sites'] -and $sj.failed_sites) { $failedHere = @($sj.failed_sites | ForEach-Object { [string]$_ }) }
-            if ($sj -and $sj.ok -and -not ($failedHere -contains $pair[1])) { break }
+            if ($sj -and $sj.ok -and @($want | Where-Object { $failedHere -notcontains $_ }).Count -gt 0) { break }
             Start-Sleep -Seconds 2
         }
         if (-not ($sj -and $sj.ok)) { $hubErrors += $pair[0]; continue }
-        if ($failedHere -contains $pair[1]) { $notChecked += $pair[0]; continue }
+        if (@($want | Where-Object { $failedHere -notcontains $_ }).Count -eq 0) { $notChecked += $pair[0]; continue }
         $asked++
         $missing += $failedHere
         $res = @($sj.results)
         $first3 = @($res | Select-Object -First 3 | ForEach-Object { [string]$_.site })
-        if (-not ($first3 -contains $pair[1])) {
+        if (@($first3 | Where-Object { $want -contains $_ }).Count -eq 0) {
             $one = $res | Select-Object -First 1
             $shown = ''
             if ($one) { $nm = [string]$one.product_name; $shown = '{0} {1}' -f $one.site, $nm.Substring(0, [Math]::Min(40, $nm.Length)) }

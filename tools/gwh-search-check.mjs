@@ -30,7 +30,7 @@ export const SEARCHES = [
   ['drill', ['cgw'], 'top5: Construction Gear World\'s own search gives mostly drill bits for "drill": the sites\' search order (next step of L177, a sites release)'], ['safety boots', ['cgw']], ['angle grinder', ['cgw']], ['hi vis jacket', ['cgw'], '', 'jacket'], ['work trousers', ['cgw', 'mgw']],
   ['laptop', ['tgw', 'pgw']], ['tablet', ['tgw', 'kgw']], ['headphones', ['tgw', 'kgw', 'pgw']], ['gaming keyboard', ['tgw', 'pgw']], ['smartwatch', ['tgw', 'kgw', 'sgw']],
   ['dog bed', ['zgw']], ['cat litter', ['zgw']], ['dog food', ['zgw']], ['dog collar', ['zgw']], ['fish tank', ['zgw'], 'site: Pets Gear World has no fish tanks yet (its "aquarium" products are water care and plants): a retailer with tanks (Retailers & Feeds, next step of L177)'],
-  ['gaming chair', ['pgw']], ['controller', ['pgw', 'tgw']], ['gaming headset', ['pgw', 'tgw']], ['gaming mouse', ['pgw', 'tgw']], ['ps5', ['pgw', 'tgw'], '', 'ps5'],
+  ['gaming chair', ['pgw', 'tgw']], ['controller', ['pgw', 'tgw']], ['gaming headset', ['pgw', 'tgw']], ['gaming mouse', ['pgw', 'tgw']], ['ps5', ['pgw', 'tgw'], '', 'ps5'],
   ['motorcycle helmet', ['bgw']], ['motorcycle gloves', ['bgw']], ['motorcycle jacket', ['bgw']], ['motorcycle boots', ['bgw']], ['motorcycle cover', ['bgw', 'agw', 'hgw']],
   ['dash cam', ['agw', 'hgw']], ['car seat covers', ['agw', 'hgw']], ['tyre inflator', ['agw']], ['jump starter', ['agw', 'cgw']], ['car vacuum', ['agw', 'hgw']],
   ['suitcase', ['vgw']], ['backpack', ['vgw', 'kgw', 'sgw']], ['travel adapter', ['vgw', 'tgw']], ['neck pillow', ['vgw', 'hgw']], ['tent', ['vgw', 'agw'], 'site: Travel Gear World\'s tents have no subcategory, so grow tents come first: category clean-up (next step of L177)'],

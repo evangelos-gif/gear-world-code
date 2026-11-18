@@ -1,21 +1,23 @@
 # Gear World Hub: the files that run live now, with their sha256.
-# version: Hub V2 + Pets card + email to MailerLite + Get deal updates of the sites + Google Ads after consent with its label + 13 in every text + gift guides + shop_categories in /api/registry + Google Ads review fixes (/about/, footer line, no sponsored card) + product-search wording + shop/partner words cleanup + robots.txt without SERankingBacklinksBot + security fixes (Turnstile, daily caps, CSP Report-Only, no workers.dev) + Google Ads compliance (country view with ?deliver_to, bar outside the UK, RRP instead of previous prices, no Halloween codes, Black Friday off, Awin or CJ) + gift-guide prices equal to the sites, the guard stops on PRICE + Mitgo verification tag from the Worker secret MITGO_VERIFICATION and the gift-guide prices of 13/11 + one Sovrn Commerce link in a «Featured pick» card + Impact verification tag from the Worker secret IMPACT_VERIFICATION + delivery line on every product card, badges=1 to the sites + Stores section /stores/ with 8 store pages and the Stores card, Pets and Stores side by side on the phone (L166) + country language (L175) + Featured pick and Hub links in 11 languages (L174) + legal pages in 11 languages with the Sovrn exception (L176) + search order by product type, 13 searches in the tool (L177) + a search typed as a sentence: product, price limit at the sites' daily rates, the named Gear World first, "Search exactly for" (L180) (commit 1d34366, live since 17/11/2026 21:19, tools/gwh-hub-v2.ps1) + Privacy and the legal texts dated 17 November 2026 (M6, commit 20df0d2a, live 17/11/2026, the 11 files of the privacy page and public/legal/i18n; D1 migrations 0002 and 0003, cron */10)
+# version: Hub V2 + Pets card + email to MailerLite + Get deal updates of the sites + Google Ads after consent with its label + 13 in every text + gift guides + shop_categories in /api/registry + Google Ads review fixes (/about/, footer line, no sponsored card) + product-search wording + shop/partner words cleanup + robots.txt without SERankingBacklinksBot + security fixes (Turnstile, daily caps, CSP Report-Only, no workers.dev) + Google Ads compliance (country view with ?deliver_to, bar outside the UK, RRP instead of previous prices, no Halloween codes, Black Friday off, Awin or CJ) + gift-guide prices equal to the sites, the guard stops on PRICE + Mitgo verification tag from the Worker secret MITGO_VERIFICATION and the gift-guide prices of 13/11 + one Sovrn Commerce link in a «Featured pick» card + Impact verification tag from the Worker secret IMPACT_VERIFICATION + delivery line on every product card, badges=1 to the sites + Stores section /stores/ with 8 store pages and the Stores card, Pets and Stores side by side on the phone (L166) + country language (L175) + Featured pick and Hub links in 11 languages (L174) + legal pages in 11 languages with the Sovrn exception (L176) + search order by product type, 13 searches in the tool (L177) + a search typed as a sentence: product, price limit at the sites' daily rates, the named Gear World first, "Search exactly for" (L180) (commit 1d34366, live since 17/11/2026 21:19, tools/gwh-hub-v2.ps1) + Privacy and the legal texts dated 17 November 2026 (M6, commit 20df0d2a, live 17/11/2026, the 11 files of the privacy page and public/legal/i18n; D1 migrations 0002 and 0003, cron */10) + Black Friday 2026 page /black-friday/ with its link on the home page (L188) and the sign-up popup and "Remind me on 27 Nov" of the sites (L182) (commit d82fa50, live 18/11/2026 18:59, sitemap 14 pages)
 # Checked against the PC (C:\Users\vagge\gear-world-hub) and gearworldhub.com by tools/gwh-hub-v2.ps1 (earlier gwh-photo.ps1, gwh-search-labels.ps1),
 # so a deploy never undoes a change made somewhere else. Update this file after every live deploy of the Hub.
 # Earlier: country language, Featured pick in 11 languages, legal pages in 11 languages, search order (ec76e01, 17/11/2026 18:39); Stores section and Pets/Stores side by side (88e65d5, 16/11/2026 20:12); Impact verification tag (23b27de, 14/11/2026 18:48); one Sovrn Commerce link (d2ddbc7, 14/11/2026 16:50); Mitgo tag and gift-guide prices of 13/11 (7f73f07, 13/11/2026 22:50); gift-guide prices equal to the sites (79a296d, 09/11/2026 21:46); Google Ads compliance (fb9953f, 09/11/2026 20:35); security fixes (0577b79, 08/11/2026 18:38); robots.txt without SERankingBacklinksBot (a0b1901, 08/11/2026 15:28); shop/partner words cleanup (faf047a, 07/11/2026 23:50); product-search wording (5842265, 07/11/2026 21:54); Google Ads review fixes (f4c8c35, 07/11/2026); shop_categories in /api/registry (8d5fa61, 04/11/2026 19:37); gift guides (74f1905, 04/11/2026 18:43); 13 in every text (ca00e17, 04/11/2026 06:15); Hub V2 + Pets card + email to MailerLite (d407dcc, 02/11/2026 21:53); Hub V2 + Pets card (64d31a8, 02/11/2026 05:59); Hub SEO texts + Christmas video from 1 November (changed on the PC 1/11/2026 by another chat, on top of a71f234); Hub V2 + Biker and Gaming cards (a71f234, 31/10/2026 22:35); Hub V2 + Biker card (070b362, 31/10/2026 11:58); Hub V2 "Combination" (ece23dc, 27/10/2026 22:14); poster scans (22a7e42, 27/10/2026 21:50); search labels (b3b86f7, 26/10/2026 19:40); photo search v2 + Sport card (SGW, gwh-sgw-link.ps1, checked 26/10/2026 16:22); photo search v2 (2c7ac37, 25/10/2026 09:54); photo search v1 (fc44f6f, 24/10/2026 17:19); before the photo search: commit d1c300d (24/10/2026).
 # path | bytes | sha256 | kind
 photo-search.js | 15252 | e7e539e4ed4d171b609d274b9f0822edf010869b33ace28698efcadf4505d9e5 | file
 poster-scan.js | 4467 | 4263d662787de1e5b98f838c6ba6b6b903517b6b94e29de370082e3e3a1ccba5 | file
-mailerlite.js | 15539 | ed1dac42d4b48f1b53e81998198d5a76d7ae1f80118d8cf0770efdd135c79b95 | file
-members.js | 6971 | 57d6ea4cc353ae3c96e09675044188ce9cc25d3c5c307668f24a42d30e3ac9c7 | file
+mailerlite.js | 16429 | 96843e3be5545bb4989f183bb771a59e47c08e39d7c1cd40c6662151a654b194 | file
+members.js | 7419 | d150c53ebb11d39578b53bde59230e9f20355075c339a5f14356644f105a3592 | file
+remind.js | 14880 | c9f30f51606cf4daa61fcc2788735309a099e25dd66f65f018178ef7673a0cdf | file
 public/about/about.js | 7717 | e5c4fe3e9f86b03f848b5001c163f9f68fb67c05ccc1078560c973934696fd18 | file
-public/about/index.html | 2658 | 1bb0a06af94d6ef143dda7500789fc88f761f2bd559e79400b830883772f0726 | file
-public/affiliate-disclosure/index.html | 2979 | 40c6d0700e0cc034c2053eb392d0bd58e524f8e41dab714b821aec4ddd7510b0 | file
+public/about/index.html | 2658 | 8d6b2f1cefc4a0d7a1ff67e28aef629a2f03e7ab1cd58fe1bda877d787663c3d | file
+public/affiliate-disclosure/index.html | 2979 | d980dc829c0f7fd04f6446021212c49860c60372f2a4aea95e713dd59e6c7980 | file
 public/analytics.js | 13641 | ba57b531b1a67b1ff880ecdbd2896edab62ba914ff6161c1570e8faf0c97dfdd | file
 public/app.js | 14110 | f454ddcf7b1e2f40bf6af9ce65359e5c6233bfab6393b7f192cdb916b8a1dd79 | file
-public/contact/index.html | 2086 | a964526171337406d72d48c2ecb7ba7ae6069c8c7b7f660fc9a3f8ad4cf9e72d | file
-public/cookies/index.html | 5346 | 4cc326e6153c8c25ed6f31eccc0fa3363ca707fdb615ba93210e087503c7b9d8 | file
-public/email-signup.js | 22154 | 1f2a88f32281fcb88abcf54dde31e6a4973495ca863dc0ee8f010c3875c52338 | file
+public/black-friday/index.html | 14253 | 699960aabd840c8e4317377b8a0058acd3fb3a4491482d01cb99555f8c71d947 | file
+public/contact/index.html | 2086 | 270707773a262c46ef62d5fd68574f1cf009883842904cae9da0f66f86c703d3 | file
+public/cookies/index.html | 5792 | 9054a4a3a16a3e5ab4a8a30c282e08c3e7358410fac712cec21fb0dd3441899d | file
+public/email-signup.js | 30636 | ed14327e04c28bd7bcb3f67fd813ff6954d14757564b8026f9364bc3a2d72cd3 | file
 public/gear-world-camera.js | 35595 | 84b12fe39cb491b37eba417a3b58bab60dc750c157fc1b58180421779523933b | file
 public/gear-world-voice-v2.js | 6498 | 2a6a40abee6b120f58bc727d024a7a88f53e07edadcf9aeeab0268695f74df95 | file
 public/gearworldhub-indexnow-k7q4m9x2w5.txt | 32 | 09d73a1fda92ae0fdb4fcc8f0555a2c91442eba5c73e7bcc6f60486e6b6323d7 | file
@@ -39,25 +41,25 @@ public/hub-pgw.jpg | 38274 | a40a3d0bd7ab821b3ca9568d6567ac7a58c87eb48ee3ef9b3d8
 public/hub-sgw.jpg | 65539 | af854b4de3cc2c246c96bd85eb0bb0a17cc591cf3b4e8fcde52f22915c80f87e | file
 public/hub-stores.jpg | 65184 | d88cc00488a23cf3f6c53f4898207f12a4be6576d7c51cd4931668dae5badb81 | file
 public/hub-tgw.jpg | 32388 | 0bdf9069f1010dedc32b1c87a7c31976ca6431b5df885cc327762a32782049b7 | file
-public/hub-v2.css | 22011 | 6eac4c77d3c687013298f0ca92720bbca560fe475168f73cabd8821a83147b01 | file
-public/hub-v2.js | 92317 | 6476f58dd051bbe3cc834e5b71bb1907cce64ba4e699970034d4e3bd87d584f1 | file
+public/hub-v2.css | 24722 | 36337c77c6494b8e48be803de92152fbd65b6e348a231487be175c83319afd01 | file
+public/hub-v2.js | 93138 | 6d7b5c33e060cfce2d023f3f09607919bda4c5cb1fc21e183cd694d6a6a23b33 | file
 public/hub-vgw.jpg | 53044 | 959862755e58d5a2094db9c921b16e5deb811cc327f55a490f6acd21be80ef1d | file
 public/hub-wgw.jpg | 47732 | 867493c5961736b0865948677d8e272052a9691193ce5c48a05a74d788666ee1 | file
 public/hub-zgw.jpg | 47026 | 0b8a6da39104a4f01c15286c298c8ed37a21c7768b7af715c03d11990d4511c0 | file
-public/index.html | 24105 | 6e06c986e605a53cd906d4efc65afa33a183919d08e2ea5401ac4b648214bc33 | file
-public/legal/i18n/de-DE.json | 29772 | 4dcdef7a3e1e46419e226cb2a2bb73fc8af57cc62a183e2a50989699523d9300 | file
-public/legal/i18n/el-GR.json | 39847 | 51d2189cccdeb2eea52c97bde28e27d85993318c432d8169a686cdebc9be3532 | file
-public/legal/i18n/es-ES.json | 28832 | 6269c8b88862ed128c64f888260d07759f3cc7bb22d7feba4b5a363d6497b4e8 | file
-public/legal/i18n/fr-FR.json | 30381 | 004e4509d5a9bec4d25ec61e1beca9d0990ab73361070195498efd582ac6a7ce | file
-public/legal/i18n/it-IT.json | 28625 | caaab8ca2216d25772a0c2d65c739837758d0bb366a235a75a384cef8a517288 | file
-public/legal/i18n/nl-NL.json | 28716 | 53b9f6eb535897a10813ec286c8aec5f7ec2c8392a9c0ee4f786dfa00850aa05 | file
-public/legal/i18n/pt-PT.json | 28675 | 96b9ef60894bba233d2e9bc47591e094e47486f0e96d9e45afd5276365538bba | file
-public/legal/i18n/ro-RO.json | 29701 | e27bf4b7b91fdd2eb8325957ba70046e6d68242a2741f5111e02dd74eae50f14 | file
-public/legal/i18n/ru-RU.json | 37981 | 46f28ecb9b076102ab1868fa0d87d9e2893ca2f53227528365ad21979b891ac7 | file
-public/legal/i18n/sq-AL.json | 29240 | 867010fe37a8efe20971b72decc90a970bbfb325590a2e44e6338c05819737d6 | file
+public/index.html | 24290 | aa87c0499ca14d3f0034ab8cd94392272b01f0cbb8bc74eaf3dfbbb889bcaed7 | file
+public/legal/i18n/de-DE.json | 32182 | 49be079650b87e3bb758537d005ad6f504e57d167b228976b0876025d920937f | file
+public/legal/i18n/el-GR.json | 43097 | 690b834d179c3fb21726f1da374dce5578b3fb9d30965548c9277d97c6af1ade | file
+public/legal/i18n/es-ES.json | 31235 | f24e0a5b1528a6684ca84cda4523d1ad96c4b733a8d40c632b38d16ea4fcfa32 | file
+public/legal/i18n/fr-FR.json | 32855 | 4cd257b767ac76ea38b3930d7891f61e37ce8abe7425acd3b738dbf3765cbcfa | file
+public/legal/i18n/it-IT.json | 30915 | 3cab5afbce80a9482620c2fe68863ff1d274d5b8ded8f8b0c971709b23e2fe4c | file
+public/legal/i18n/nl-NL.json | 31057 | 705859d89b9578354b5e214821b0ca52ba9163260529aa8e3bd7c45130c3b804 | file
+public/legal/i18n/pt-PT.json | 31016 | b17c0c43b04e1af809fec4675efbfa05c8ef59ae0b86a550c96a7978405b466f | file
+public/legal/i18n/ro-RO.json | 32053 | 473c6fd5f8df9b4fc317c78b57087688a2880f89bc8ab60d114d38525f2505f5 | file
+public/legal/i18n/ru-RU.json | 41077 | fc252eaa3e8a1accffca138db2c6bdc708cb2bbf8fb9c94b2ca883e9191fe8f7 | file
+public/legal/i18n/sq-AL.json | 31605 | 0e1fecd56c0600c37f01983d1e8d7a414941c370196f6b67bdb82730555a067e | file
 public/legal/legal.css | 2807 | b648bfa528c28771eb1b2533ec40d5a914f02faac98141dc331accaedf036e7e | file
-public/legal/legal.js | 5441 | e9c62b5fa182c7d4c1449dbb3457065a7b4ba0a379bfd53454e5ec6a5f7d89cd | file
-public/privacy/index.html | 10093 | 9410f78ccdd416e73deb3e13001858b342cd3abdba5773d5cbdbf8c429c5488c | file
+public/legal/legal.js | 5441 | feaaf2c258635be990818b33a0a3bb849a4b967d4d741b58c88bf0a288ee0f1c | file
+public/privacy/index.html | 11025 | 46facac0f90806a2b1022251b225636030e43ce441b63f3e7ccfffa6e671b1ee | file
 public/robots.txt | 133 | 82e0fc4de515c2fd3241db4f864bd3bda514c6c69b9b751343b27d60dfaea310 | file
 public/seasonal/black-friday.jpg | 30703 | 57f7637c369e5d61b0c572cf1c35e1dcb65ee47812d8bed00ca11907ad7ec01a | file
 public/seasonal/black-friday.mp4 | 102790 | 84450f8b49510573ed6983bd5ebac0f5160cb1c1c74db87c2611505da0a6501c | file
@@ -77,7 +79,7 @@ public/stores/stores.css | 1158 | 2f56e19e36f690e3debc6ac21563a35a7160d9f6c7769e
 public/stores/stores.js | 955 | 6fa3d5efea3f5676290c667b242bbd4ea76b2ba1c72e042c996f7d47e3e2b5d4 | file
 public/stores/tooled-up/index.html | 7269 | 5c1fe9b3178c7db7242f8d2a91c68e16f47f6cf3c6677d25d68cdcdebd9a3b02 | file
 public/styles.css | 30027 | 3aefe4345033f6bcd9e67075f0cf8ac300ef833436cfc68a82c5b44980814371 | file
-public/terms/index.html | 3099 | 50ff6934c5010238de860af9de890aa87412c7360802b1de488dd3624227bbba | file
+public/terms/index.html | 3099 | 4066a1e106b9859deccceaa3848ebbfb219928f954f0b46b01c7d73be6ff385b | file
 public/translations.js | 70628 | c40972404ef1934a262391651d39b0ffbdc99c21c32700e108117188346685fd | file
 security.js | 12542 | fbc26d77fafe8bcdf391210910b3d78ddcc12a4a1c09ece011164685f1ad4008 | file
-worker.js | 113314 | 04aa3301ba9b82fc5746bc5e92bf6f320e223fc8b1cce644707a674349a9bebc | file
+worker.js | 113700 | 01735bd4a676760178256dfbe1d675310526830c4aa4ed1b5c18709280c0f39b | file
