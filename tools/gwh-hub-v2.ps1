@@ -459,10 +459,16 @@ function Test-Stores {
     $out = @(& node $tool validate 2>&1 | ForEach-Object { [string]$_ })
     $res.lines = $out
     if ($LASTEXITCODE -ne 0) { $res.ok = $false }
+    # L188: the Black Friday page too (tools/gwh-black-friday.mjs validate, exit 20 when a code or a retailer ended).
+    $bfTool = Join-Path (Join-Path $repo 'tools') 'gwh-black-friday.mjs'
+    if (Test-Path -LiteralPath $bfTool) {
+        $bfOut = @(& node $bfTool validate 2>&1 | ForEach-Object { [string]$_ })
+        if ($LASTEXITCODE -ne 0) { $res.ok = $false; $res.lines += @('Black Friday:') + $bfOut }
+    }
     return $res
 }
 function Say-Stores($r) {
-    if ($r.ok) { Say 'Σελίδες Stores: κανένας κωδικός ή καμία έκπτωση δεν έληξε (σημερινή ημέρα UK): ΕΝΤΑΞΕΙ' $Ok; return }
+    if ($r.ok) { Say 'Σελίδες Stores και Black Friday: κανένας κωδικός ή καμία έκπτωση δεν έληξε (σημερινή ημέρα UK): ΕΝΤΑΞΕΙ' $Ok; return }
     Say 'Σελίδες Stores: ΠΡΟΒΛΗΜΑ - κάποιος κωδικός ή κάποια έκπτωση έληξε και οι σελίδες θα την ανέφεραν ακόμα:' $Bad
     foreach ($line in $r.lines) { Say ('  ' + $line) }
 }

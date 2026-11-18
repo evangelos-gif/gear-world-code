@@ -52,9 +52,13 @@ export function validate(data, today = data.checked) {
     if (!['code', 'coupon'].includes(c.kind)) problems.push(`${at}: a code or a coupon`);
     if (c.kind === 'code' && !/^[A-Z0-9]{3,30}$/.test(c.code || '')) problems.push(`${at}: a code of capital letters and digits`);
     if (c.kind === 'coupon' && c.code) problems.push(`${at}: a coupon has no code`);
-    if (!c.title || !SITES[c.site] || !(data.started || []).some(r => r.slug === c.slug)) problems.push(`${at}: a title, the site that shows it and a retailer of the list`);
+    const retailer = (data.started || []).find(r => r.slug === c.slug);
+    if (!c.title || !SITES[c.site] || !retailer || !retailer.sites.includes(c.site)) problems.push(`${at}: a title, and a site of its retailer in the list`);
     if (!DATE.test(c.end || '')) problems.push(`${at}: an end date like 2026-12-06`);
     else if (c.end < today) problems.push(`${at}: ended on ${c.end} (take it out of black-friday.json and build again)`);
+  }
+  for (const r of data.started || []) {
+    if (DATE.test(r.hide || '') && r.hide < today) problems.push(`${r.name}: its Black Friday ended on ${r.hide} (take it out of black-friday.json and build again)`);
   }
   const words = [...(data.started || []).map(r => r.name), ...(data.codes || []).map(c => c.title)].join(' ');
   const bad = words.match(BAD_WORDS);
@@ -65,7 +69,8 @@ export function validate(data, today = data.checked) {
 function startedItem(r) {
   const until = r.to ? ` · until ${day(r.to)}` : '';
   const sites = r.sites.map(code => `<a href="${esc(siteLink(r, code))}">${esc(SITES[code].name)}</a>`).join(', ');
-  return `      <li class="gd-item rt-item" data-end="${r.hide}">
+  // rt-offer: /stores/stores.js counts it, so "Nothing running right now" shows only when every retailer has ended.
+  return `      <li class="gd-item rt-item rt-offer" data-end="${r.hide}">
         <div class="gd-body">
           <h3>${name(r)}</h3>
           <p class="gd-why">Black Friday from ${day(r.from)}${until} (the retailer's own dates)</p>
@@ -105,7 +110,7 @@ export function page(data) {
   <nav class="lg-crumbs" aria-label="Breadcrumb"><a href="/">Home</a> <span aria-hidden="true">/</span> <span>Black Friday 2026</span></nav>
   <article class="gd-article">
     <h1>Black Friday 2026 on Gear World</h1>
-    <p class="gd-lead">Black Friday is on ${weekday(data.blackFriday)} ${day(data.blackFriday)} and Cyber Monday on ${weekday(data.cyberMonday)} ${day(data.cyberMonday)}. Here are the retailers on the 13 Gear World sites that have told us their Black Friday has started, with their own dates, and their discount codes with end dates. Prices are the ones each Gear World site last checked.</p>
+    <p class="gd-lead">Black Friday is on ${weekday(data.blackFriday)} ${day(data.blackFriday)} and Cyber Monday on ${weekday(data.cyberMonday)} ${day(data.cyberMonday)}. Here are the retailers on the 13 Gear World sites that have told us their Black Friday has started, with their own dates, and their discount codes with end dates. Each Gear World site shows the price and stock it last checked.</p>
     <p class="gd-checked">Checked ${day(data.checked)}.</p>
     <section class="gd-group" aria-labelledby="bf-dates-h">
       <h2 id="bf-dates-h">The dates</h2>
@@ -131,8 +136,8 @@ ${data.codes.map(codeItem).join('\n')}
       <p class="gd-note">Published by each retailer through its affiliate programme. The retailer sets the final terms, so check the discount before you pay.</p>
     </section>
     <section class="gd-group" aria-labelledby="bf-watch-h">
-      <h2 id="bf-watch-h">From ${day(data.blackFriday)}: which prices are really low</h2>
-      <p class="gd-note">We check the prices of the Gear World sites every day since 7 Nov 2026. On ${day(data.blackFriday)} this page adds the products whose price that day is the lowest in our checks.</p>
+      <h2 id="bf-watch-h">From ${day(data.blackFriday)}: the lowest prices in our checks</h2>
+      <p class="gd-note">We check the prices of the Gear World sites every day since 7 Nov 2026. On ${day(data.blackFriday)} this page adds the products whose price that day is the lowest in our checks since 7 Nov 2026.</p>
     </section>
     <div class="gd-tips">
       <p class="gd-tip"><strong>How it works:</strong> Gear World does not sell anything. Each Gear World site shows the price and stock it last checked, and its button takes you to the retailer, where you check the final price and delivery before you buy.</p>
@@ -144,8 +149,8 @@ ${data.codes.map(codeItem).join('\n')}
   return `${head({ title, description, path: PATH, jsonLd })}${body}${FOOT}`;
 }
 
-export function build(data = loadData()) {
-  const problems = validate(data);
+export function build(data = loadData(), today = data.checked) {
+  const problems = validate(data, today);
   if (problems.length) throw new Error('black-friday.json: ' + problems.join('; '));
   return { [PAGE]: page(data) };
 }
@@ -158,6 +163,8 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
     if (problems.length) { console.log(problems.join('\n')); process.exit(20); }
     console.log('black-friday.json: OK');
   } else if (cmd === 'build') {
+    const problems = validate(data, londonToday());
+    if (problems.length) { console.log(problems.join('\n')); process.exit(20); }
     for (const [rel, html] of Object.entries(build(data))) {
       mkdirSync(`${PUBLIC_DIR}${rel.replace(/[^/]+$/, '')}`, { recursive: true });
       writeFileSync(`${PUBLIC_DIR}${rel}`, html);

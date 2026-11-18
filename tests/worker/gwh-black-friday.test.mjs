@@ -21,7 +21,7 @@ test('L188: the page says the dates, the retailers that started with their own d
   assert.ok(html.includes('<link rel="canonical" href="https://gearworldhub.com/black-friday/">'));
   assert.ok(html.includes('<h1>Black Friday 2026 on Gear World</h1>'));
   assert.ok(html.includes('Black Friday is on Friday 27 Nov 2026 and Cyber Monday on Monday 30 Nov 2026.'));
-  for (const r of data.started) assert.ok(html.includes(`<li class="gd-item rt-item" data-end="${r.hide}">`) && html.includes(`Black Friday from ${r.from.slice(8).replace(/^0/, '')} `), r.name);
+  for (const r of data.started) assert.ok(html.includes(`<li class="gd-item rt-item rt-offer" data-end="${r.hide}">`) && html.includes(`Black Friday from ${r.from.slice(8).replace(/^0/, '')} `), r.name);
   for (const c of data.codes) assert.ok(html.includes(`<li class="gd-item rt-item rt-offer" data-end="${c.end}">`), c.code || c.title);
   for (const code of ['CLAIMFIFTY', 'CLAIMSEVFY', 'EIN15PCDD', 'EARLYBF10']) assert.ok(html.includes(`<strong class="rt-code" translate="no">${code}</strong>`), code);
   assert.ok(html.includes('/stores/stores.js?v='), 'the script that hides what ended');
@@ -61,4 +61,17 @@ test('L188: the home page links to /black-friday/ in 11 languages, and the sitem
     assert.ok(list.every(t => t && !/%|\bsale\b|\bdeals?\b/i.test(t)), key);
   }
   assert.ok((await sitemapBody('new')).includes('<loc>https://gearworldhub.com/black-friday/</loc>'));
+});
+
+test('L188: every item with an end date inside a counted section is counted (no "Nothing running" while items show)', () => {
+  const html = page(data);
+  for (const sec of html.split('<section ').slice(1).filter(x => x.startsWith('class="gd-group rt-offers"'))) {
+    const items = [...sec.matchAll(/<li class="([^"]+)" data-end=/g)].map(m => m[1]);
+    assert.ok(items.length > 0 && items.every(c => c.split(' ').includes('rt-offer')), items.join(' | '));
+  }
+});
+
+test('L188: on 22 Nov 2026 the data is refused (EARLYBF10 ended on 21 Nov), so no Hub release ships an ended code', () => {
+  assert.ok(validate(data, '2026-11-22').some(p => p.includes('EARLYBF10') && p.includes('2026-11-21')));
+  assert.throws(() => build(data, '2026-11-22'), /EARLYBF10/);
 });
