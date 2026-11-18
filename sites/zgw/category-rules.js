@@ -347,10 +347,11 @@ export function classifyAquatics(name) {
 
 export const CATEGORY_SLUGS = CATEGORIES.map(k => k.key);
 
-// A UK site: prices in pounds (the Dutch VEVOR feed in euros stays out). US dollars for ALZOO, which only US visitors
-// see (massive import round 2b, 14 Nov 2026, lessons L107, L141).
+// A UK site: prices in pounds. US dollars for ALZOO, which only US visitors see (massive import round 2b, 14 Nov 2026,
+// lessons L107, L141). Euros since 18 Nov 2026 for Miscota IE (Ireland only, L194); the Dutch VEVOR feed stays off
+// (approved: false in sources.json).
 export const QUALITY = {
-  currencies: ['GBP', 'USD', 'PLN'],
+  currencies: ['GBP', 'EUR', 'USD', 'PLN'], // EUR: Miscota IE (18 Nov 2026, L194), Ireland only (deliversTo)
   minPrice: 1,
   maxPrice: 3000,
   requireImage: true,

@@ -295,9 +295,16 @@ function inStockValue(raw) {
 // "Image coming soon" pictures are not product images (PCHUB.UK feed, 23 Oct 2026: entrepreneurship.ieee.org/...
 // Image-Coming-Soon-Placeholder.png); the next image column is tried instead (lessons L38).
 export const PLACEHOLDER_IMAGE = /placeholder|coming[-_ ]?soon|no[-_ ]?image|image[-_ ]?not[-_ ]?available|noimage|no[-_]?photo|default[-_]?image/i;
-export function firstHttpsImage(rec, map) {
+// source.httpsImageHosts (18 Nov 2026, lessons L194): a shop whose feed gives its images as http:// on a host that serves the
+// same file over https (Miscota UK on Daisycon: every image is http://static.miscota.com/..., and the same path over https
+// answered 200 with the image, checked in a browser). Only the hosts named there are rewritten; any other http:// image
+// stays out ("no https image"), as before.
+export function firstHttpsImage(rec, map, source = null) {
+  const hosts = (source && Array.isArray(source.httpsImageHosts) ? source.httpsImageHosts : []).map(h => String(h).toLowerCase());
   for (const i of map.images) {
-    const v = String(rec[i] || '').trim();
+    let v = String(rec[i] || '').trim();
+    const http = /^http:\/\/([^/\s"'<>]+)\//i.exec(v);
+    if (http && hosts.includes(http[1].toLowerCase())) v = 'https://' + v.slice(7);
     if (/^https:\/\/[^\s"'<>]+$/i.test(v) && !PLACEHOLDER_IMAGE.test(v)) return v;
   }
   return '';
@@ -334,7 +341,9 @@ export function tyreProduct(model, brand, description, merchantCategory) {
 // the category ("Sommerreifen", "Neumáticos de invierno", "All-season banden"). The site name is brand + model + size +
 // load/speed (+ XL): "Cooper Cobra Radial G/T 295/50 R15 105S". Only car and van tyres, as tyreNames: the motorbike and
 // truck categories and the sizes that are not metric/flotation radial stay out (first dry run, 17 Nov 2026: 0 of 104,613).
-export const CAR_TYRE_CATEGORY = /^(?:sommerreifen|winterreifen|ganzjahresreifen|neum[aá]ticos de verano|neum[aá]ticos de invierno|neum[aá]ticos para todas las estaciones|zomerbanden|winterbanden|all-season banden)$/i;
+// Oponytanio PL (Awin 10325, 18 Nov 2026, lessons L194): the same layout with Polish seasons ("Opony letnie", "Opony zimowe",
+// "Opony całoroczne"); its "Opony motocyklowe" and "Dętki" stay out.
+export const CAR_TYRE_CATEGORY = /^(?:sommerreifen|winterreifen|ganzjahresreifen|neum[aá]ticos de verano|neum[aá]ticos de invierno|neum[aá]ticos para todas las estaciones|zomerbanden|winterbanden|all-season banden|opony letnie|opony zimowe|opony ca[łl]oroczne)$/i;
 const BRACKET_SIZE = /^((?:\d{2}5(?:\/\d{2,3})?|\d{2}x\d{1,2}(?:[.,]\d{1,2})?)\s+Z?R\s?\d{2}(?:[.,]5)?C?)\s+(\d{2,3}(?:\/\d{2,3})?[A-Z])(?=\s|$)(.*)$/i;
 export function tyreBracketProduct(name, brand, merchantCategory) {
   if (!CAR_TYRE_CATEGORY.test(String(merchantCategory || '').trim())) return { ok: false, reason: 'tyre shop: not a car or van tyre (motorbike, truck or other category)' };
@@ -835,7 +844,7 @@ export async function planImport({ archive, sourcesFile, outDir, now = new Date(
           reject(byQuantity ? `out of stock: quantity 0, although the feed says in stock (${source.retailer})` : 'out of stock', short);
           continue;
         }
-        const image = firstHttpsImage(rec, map);
+        const image = firstHttpsImage(rec, map, source);
         if (QUALITY.requireImage && !image) { reject('no https image', short); continue; }
         const link = pick(rec, map.link);
         let host = '';
