@@ -73,3 +73,9 @@ stores/back-to-the-office/index.html
 stores/my-tool-shed/index.html
 stores/dhgate/index.html
 black-friday/index.html
+mega/joybuy.png
+mega/tooled-up.png
+mega/my-tool-shed.png
+mega/pchub-uk.png
+mega/gs-workwear.jpg
+mega/back-to-the-office.png

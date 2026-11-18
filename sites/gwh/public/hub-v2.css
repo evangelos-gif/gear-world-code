@@ -1,6 +1,7 @@
 /* Gear World Hub V2 ("Συνδυασμός", 27/10/2026). One stylesheet for the home page (styles.css stays for the old
    page and is not loaded here). Dark blue and orange like the 10 sites, blue for the photo button. No red or green
-   (lessons L35), nothing that moves by itself, buttons at least 44 px. */
+   (lessons L35), nothing that moves by itself (one exception the owner approved: the store names of the Mega Stores bar,
+   L192, paused on hover and focus, still with "reduce motion"), buttons at least 44 px. */
 
 :root{
   --bg:#08111f;
@@ -59,6 +60,27 @@ svg{fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-lin
 .main-nav a:hover{border-color:var(--accent);color:var(--text);}
 .gwh-language-select{height:44px;max-width:150px;padding:0 10px;border:1px solid var(--line-strong);border-radius:10px;background:#101c2e;color:var(--text);font-size:14px;font-weight:700;cursor:pointer;}
 .gwh-language-select option{background:#fff;color:#111;}
+
+/* ---------- Mega Stores bar (owner, 18/11/2026, L192): above everything, one link to megastoresgearworld.com. Phone: as wide
+   as the 2 columns of world cards and as tall as one world card (72 px). From 621 px: as wide as the grid of cards and
+   half as tall as a world card of the first row (252.8 px = 120 px picture + 130.8 px text + 2 px border, so 126 px).
+   The store names roll past: CSS only, a list shown twice and moved by half (seamless), paused on hover and focus, no
+   movement with "reduce motion". Logos on white tiles, never stretched or cropped (object-fit:contain). ---------- */
+.gwh2-mega-wrap{background:var(--band);padding:12px 0 0;}
+.gwh2-mega{display:flex;align-items:center;gap:10px;height:72px;padding:6px 10px;overflow:hidden;border:1px solid rgba(255,180,0,.55);border-radius:14px;background:linear-gradient(90deg,#1a2d48 0%,var(--card) 60%);color:var(--text);text-decoration:none;}
+.gwh2-mega:hover{border-color:var(--accent);background:var(--card-hover);}
+.gwh2-mega-head{flex:0 0 108px;display:flex;flex-direction:column;justify-content:center;gap:2px;min-width:0;max-height:100%;overflow:hidden;}
+.gwh2-mega-title{color:var(--text);font-size:15px;line-height:1.15;font-weight:900;white-space:nowrap;}
+.gwh2-mega-line{color:var(--accent);font-size:11.5px;line-height:1.2;font-weight:800;overflow-wrap:anywhere;}
+.gwh2-mega-strip{flex:1 1 auto;display:block;min-width:0;height:100%;overflow:hidden;container-type:inline-size;}
+.gwh2-mega-track{display:flex;width:max-content;height:100%;animation:gwh2Mega 24s linear infinite;}
+.gwh2-mega-list{flex:0 0 auto;display:flex;align-items:center;justify-content:space-around;gap:8px;min-width:100cqw;height:100%;padding-right:8px;}
+.gwh2-mega-pill{flex:0 0 auto;display:flex;align-items:center;justify-content:center;height:50px;padding:0 12px;border-radius:8px;background:#ffffff;color:#0b1626;font-size:15px;font-weight:900;white-space:nowrap;}
+.gwh2-mega-logo{padding:3px;}
+.gwh2-mega-logo img{display:block;width:auto;height:100%;max-width:none;object-fit:contain;}
+.gwh2-mega:hover .gwh2-mega-track,.gwh2-mega:focus .gwh2-mega-track,.gwh2-mega:focus-visible .gwh2-mega-track,.gwh2-mega:active .gwh2-mega-track{animation-play-state:paused;}
+@keyframes gwh2Mega{from{transform:translateX(0);}to{transform:translateX(-50%);}}
+@media (prefers-reduced-motion:reduce){.gwh2-mega-track{animation:none !important;transform:none;}.gwh2-mega-copy{display:none;}}
 
 /* ---------- top: search and campaigns ---------- */
 .gwh2-top{background:var(--band);padding:22px 0 26px;}
@@ -265,6 +287,16 @@ body.gwh2-dock-on{padding-bottom:84px;}
   .gwh-analytics-consent button{flex:0 0 auto;}
   .gwh2-dock{display:none !important;}
   body.gwh2-dock-on{padding-bottom:0;}
+  /* Mega Stores bar (L192): half a world card tall (126 px), the full width of the grid */
+  .gwh2-mega-wrap{padding-top:16px;}
+  .gwh2-mega{height:126px;gap:20px;padding:12px 18px;border-radius:16px;}
+  .gwh2-mega-head{flex-basis:230px;gap:6px;}
+  .gwh2-mega-title{font-size:26px;}
+  .gwh2-mega-line{font-size:15px;line-height:1.3;}
+  .gwh2-mega-track{animation-duration:34s;}
+  .gwh2-mega-list{gap:12px;padding-right:12px;}
+  .gwh2-mega-pill{height:76px;padding:0 20px;border-radius:10px;font-size:22px;}
+  .gwh2-mega-logo{padding:4px;}
 }
 
 @media (min-width:980px){

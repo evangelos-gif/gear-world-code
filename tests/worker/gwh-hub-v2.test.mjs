@@ -158,11 +158,11 @@ test('hub v2: the page keeps every id and class the other scripts need, and load
   }
   assert.match(html, /<body class="gwh2" data-gwh-compact-v2="true">/);
   assert.match(html, /<div class="hero-copy">\s*<span class="eyebrow">/);
-  assert.match(html, /<link rel="stylesheet" href="\/hub-v2\.css\?v=(20261109-compliance|20261116-stores|20261120-popup)\d+">/);
+  assert.match(html, /<link rel="stylesheet" href="\/hub-v2\.css\?v=(20261109-compliance|20261116-stores|20261120-popup|20261123-mega)\d+">/);
   // A new ?v= with every change of the script (L31): 9/11/2026 the season switches (L107), 14/11/2026 the delivery line
   // on the gift cards (L153), 16/11/2026 the texts of the Stores card (L166), 17/11/2026 the Featured pick and the
-  // language of the links to the sites (L174), 18/11/2026 the Black Friday link (L188).
-  assert.match(html, /<script src="\/hub-v2\.js\?v=(20261114-badges|20261116-stores|20261117-lang|20261118-bf)\d+" defer><\/script>/);
+  // language of the links to the sites (L174), 18/11/2026 the Black Friday link (L188), the Mega Stores bar (L192).
+  assert.match(html, /<script src="\/hub-v2\.js\?v=(20261114-badges|20261116-stores|20261117-lang|20261118-bf|20261123-mega)\d+" defer><\/script>/);
   assert.ok(html.indexOf('/gear-world-camera.js?v=') < html.indexOf('/hub-v2.js?v='), 'hub-v2.js after the camera script');
   assert.ok(!html.includes('/styles.css'), 'the old styles.css is not loaded');
   assert.ok(!html.includes('gwh-hero.png'), 'the 2.8 MB picture is gone from the page');
@@ -192,12 +192,14 @@ test('hub v2: no red or green (L35), nothing that moves by itself, buttons at le
       assert.ok(!(r > 150 && g < 90 && b < 90), `${file}: ${c} is not red`);
       assert.ok(!(g > 150 && r < 110 && b < 110), `${file}: ${c} is not green`);
     }
-    assert.ok(!/setInterval\(|requestAnimationFrame\(|infinite/.test(code), `${file}: no timer or endless animation that changes the page`);
+    // The one exception (owner, 18/11/2026, L192): the store names of the Mega Stores bar loop (CSS only, tested in gwh-mega-stores.test.mjs).
+    const rest = code.replace('.gwh2-mega-track{display:flex;width:max-content;height:100%;animation:gwh2Mega 24s linear infinite;}', '');
+    assert.ok(!/setInterval\(|requestAnimationFrame\(|infinite/.test(rest), `${file}: no timer or endless animation that changes the page`);
   }
   // Campaign pictures: things drop in ONCE (at most 2 s, at most 1 s late), then stay still; none with "reduce motion".
   const css = read('public/hub-v2.css');
-  assert.deepEqual([...css.matchAll(/@keyframes\s+([A-Za-z0-9]+)/g)].map(m => m[1]).sort(), ['gwh2Drop', 'gwh2Fall']);
-  for (const m of css.matchAll(/animation:([a-zA-Z0-9]+) ([0-9.]+)s/g)) assert.ok(Number(m[2]) <= 2, `${m[1]} lasts at most 2 s`);
+  assert.deepEqual([...css.matchAll(/@keyframes\s+([A-Za-z0-9]+)/g)].map(m => m[1]).sort(), ['gwh2Drop', 'gwh2Fall', 'gwh2Mega']);
+  for (const m of css.matchAll(/animation:([a-zA-Z0-9]+) ([0-9.]+)s/g)) if (m[1] !== 'gwh2Mega') assert.ok(Number(m[2]) <= 2, `${m[1]} lasts at most 2 s`);
   for (const m of css.matchAll(/animation-delay:([0-9.]+)s/g)) assert.ok(Number(m[1]) <= 1, 'starts within 1 s');
   assert.match(css, /prefers-reduced-motion:reduce\)\{\s*\*\{[^}]*animation:none !important;/);
   const js = read('public/hub-v2.js');

@@ -4,7 +4,10 @@
 // (1366 px), and checks what the owner asked for on 27/10/2026:
 //   - the search is on the first screen of the phone, with the camera inside it and the big photo button
 //   - nothing moves by itself: the season picture drops in once (ends within 3 s), and the slide stays the same
-//     until an arrow is used; with "reduce motion" nothing moves at all
+//     until an arrow is used; with "reduce motion" nothing moves at all. The one exception the owner approved (L192):
+//     the store names of the Mega Stores bar roll past, paused on hover and focus, still with "reduce motion"
+//   - the Mega Stores bar (L192): first on the page, phone 1 world card tall and the 2 columns wide, PC (1280 px) half
+//     a card tall and the 6 columns wide
 //   - the campaigns follow their dates (Black Friday only 27-30/11), the arrows go round
 //   - the gift finder asks only the Gear Worlds of the idea and the chosen price (no new database cost)
 //   - the deals come from hub-deals.json, keep their end date and link to a site page, never /go/ or /out/
@@ -143,11 +146,12 @@ try {
 
       // nothing moves by itself
       // The campaign picture drops in once; after 3 s nothing moves any more, and nothing repeats.
-      const endless = await page.evaluate(() => document.getAnimations().filter(a => { const t = a.effect && a.effect.getComputedTiming(); return !t || t.iterations !== 1 || t.endTime > 3000; }).length);
-      check(endless === 0, `${tag}: every animation plays once and ends within 3 s`, `${endless} endless or long`);
+      // (L192: except the store names of the Mega Stores bar, the one loop the owner approved.)
+      const endless = await page.evaluate(() => document.getAnimations().filter(a => a.animationName !== 'gwh2Mega').filter(a => { const t = a.effect && a.effect.getComputedTiming(); return !t || t.iterations !== 1 || t.endTime > 3000; }).length);
+      check(endless === 0, `${tag}: every animation plays once and ends within 3 s (but the Mega Stores names, L192)`, `${endless} endless or long`);
       await page.waitForTimeout(3000);
-      const anims = await page.evaluate(() => document.getAnimations().filter(a => a.playState === 'running').length);
-      check(anims === 0, `${tag}: after 3 s nothing moves or blinks by itself`, `${anims} running animations`);
+      const anims = await page.evaluate(() => document.getAnimations().filter(a => a.playState === 'running').map(a => a.animationName || 'other'));
+      check(anims.every(n => n === 'gwh2Mega') && anims.length <= 1, `${tag}: after 3 s nothing moves or blinks by itself, but the Mega Stores names (L192)`, anims.join(',') || 'none');
       if (full) {
         const before = await page.getAttribute('.gwh2-slide', 'data-campaign');
         await page.clock.runFor(8000);
@@ -285,6 +289,55 @@ try {
         await page.evaluate(() => window.scrollTo(0, 0));
         await page.screenshot({ path: join(shotsDir, `${vp.name}-${locale}-top.png`) });
         await page.screenshot({ path: join(shotsDir, `${vp.name}-${locale}-full.png`), fullPage: true });
+      }
+      check(errors.length === 0, `${tag}: no JavaScript errors`, errors.join(' | ').slice(0, 300));
+      await context.close();
+    }
+  }
+
+  // Lessons L192 (owner, 18/11/2026): the Mega Stores bar. Phone 390x844: as wide as the 2 columns of world cards and as tall
+  // as one card, above the search, which stays on the first screen. PC 1280x800: as wide as the 6 columns, half a card tall.
+  // The names move (CSS), stop on hover and keyboard focus, and do not move with "reduce motion". The link is not followed.
+  for (const [w, h, mobile, part] of [[390, 844, true, 1], [1280, 800, false, 0.5]]) {
+    for (const reduce of [false, true]) {
+      const tag = `Mega Stores bar ${w}x${h}${reduce ? ' reduce motion' : ''}`;
+      const context = await browser.newContext({ viewport: { width: w, height: h }, isMobile: mobile, hasTouch: mobile, deviceScaleFactor: 1, reducedMotion: reduce ? 'reduce' : 'no-preference' });
+      await context.addInitScript(() => { try { localStorage.setItem('gwh-language', 'en-GB'); localStorage.setItem('gwh_cookie_consent', 'denied'); } catch (_) { /* ignore */ } });
+      const page = await context.newPage();
+      const errors = [];
+      page.on('pageerror', e => errors.push(String(e.message || e)));
+      await page.route('**/*', route => (new URL(route.request().url()).origin === base ? route.continue() : route.abort()));
+      await page.goto(base + '/', { waitUntil: 'load' });
+      await page.waitForTimeout(300);
+      const m = await page.evaluate(() => {
+        const r = sel => { const e = document.querySelector(sel); if (!e) return null; const b = e.getBoundingClientRect(); return { x: b.x, y: b.y, w: b.width, h: b.height }; };
+        const imgs = [...document.querySelectorAll('.gwh2-mega-logo img')].map(i => ({ ok: i.complete && i.naturalWidth > 0, ratio: Math.abs(i.getBoundingClientRect().width / i.getBoundingClientRect().height - i.naturalWidth / i.naturalHeight) }));
+        return { bar: r('.gwh2-mega'), grid: r('.gwh-quick-worlds'), card: r('.gwh-image-world'), field: r('.gwh2-field'), strip: r('.gwh2-mega-strip'), list: r('.gwh2-mega-list'),
+          first: (document.querySelector('main > *') || {}).className || '', links: document.querySelectorAll('.gwh2-mega-wrap a').length, imgs,
+          running: document.getAnimations().filter(a => a.animationName === 'gwh2Mega' && a.playState === 'running').length };
+      });
+      const show = b => (b ? `${Math.round(b.w * 10) / 10}x${Math.round(b.h * 10) / 10}` : 'missing');
+      check(m.first === 'gwh2-mega-wrap' && m.links === 1 && m.bar && m.field && m.bar.y + m.bar.h <= m.field.y, `${tag}: the bar is first, one link, above the search`, `${m.first} ${m.links} link(s)`);
+      if (!reduce) {
+        check(m.bar && m.grid && Math.abs(m.bar.w - m.grid.w) <= 1 && Math.abs(m.bar.x - m.grid.x) <= 1, `${tag}: as wide as the grid of world cards`, `bar ${show(m.bar)}, grid ${show(m.grid)}`);
+        check(m.bar && m.card && Math.abs(m.bar.h - m.card.h * part) <= 2, `${tag}: ${part === 1 ? 'as tall as one world card' : 'half as tall as a world card'}`, `bar ${show(m.bar)}, card ${show(m.card)}`);
+        check(m.field && m.field.y + m.field.h <= h, `${tag}: the search is still on the first screen`, m.field ? `${Math.round(m.field.y)}-${Math.round(m.field.y + m.field.h)}px` : 'missing');
+        check(m.list && m.strip && m.list.w >= m.strip.w, `${tag}: one list is at least as wide as the strip (the loop never shows a gap)`, `${Math.round(m.list ? m.list.w : 0)} >= ${Math.round(m.strip ? m.strip.w : 0)}`);
+        check(m.imgs.length === 12 && m.imgs.every(i => i.ok && i.ratio < 0.05), `${tag}: the 6 logos (twice) load and keep their shape`, JSON.stringify(m.imgs.filter(i => !i.ok || i.ratio >= 0.05)));
+        check(m.running === 1, `${tag}: the store names roll past`, `${m.running} running`);
+        if (!mobile) {
+          await page.hover('.gwh2-mega');
+          const hovered = await page.evaluate(() => document.getAnimations().filter(a => a.animationName === 'gwh2Mega').map(a => a.playState).join(','));
+          check(hovered === 'paused', `${tag}: they stop while the mouse is on the bar`, hovered);
+          await page.mouse.move(0, h - 1);
+        }
+        await page.focus('.gwh2-mega');
+        const focused = await page.evaluate(() => document.getAnimations().filter(a => a.animationName === 'gwh2Mega').map(a => a.playState).join(','));
+        check(focused === 'paused', `${tag}: they stop while the bar has the keyboard focus`, focused);
+        await page.evaluate(() => { document.activeElement.blur(); window.scrollTo(0, 0); });
+        await page.screenshot({ path: join(shotsDir, `mega-stores-${w}x${h}.png`) });
+      } else {
+        check(m.running === 0, `${tag}: nothing moves`, `${m.running} running`);
       }
       check(errors.length === 0, `${tag}: no JavaScript errors`, errors.join(' | ').slice(0, 300));
       await context.close();

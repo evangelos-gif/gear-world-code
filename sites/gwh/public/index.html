@@ -7,7 +7,7 @@
   <meta name="theme-color" content="#08111f">
   <title>Gear World Hub – Gear, Gifts &amp; Deals From Every Gear World</title>
   <link rel="canonical" href="https://gearworldhub.com/">
-  <link rel="stylesheet" href="/hub-v2.css?v=20261120-popup1">
+  <link rel="stylesheet" href="/hub-v2.css?v=20261123-mega1">
 </head>
 
 <!-- GWH-HUB-V2 (27/10/2026): the "Combination" Hub. Search first, campaigns with arrows, 13 worlds (Biker Gear World and Gaming Gear World added 31/10/2026, Pets Gear World 1/11/2026), gift finder,
@@ -49,6 +49,50 @@
   </header>
 
   <main>
+
+    <!-- Mega Stores (owner, 18/11/2026, «ΕΓΚΡΙΝΩ MEGA STORES ΜΠΑΡΑ», lessons L192): one big bar above everything, ONE plain
+         link to megastoresgearworld.com (a Gear World site; not an affiliate link, so no rel="sponsored"). The store names
+         roll past (CSS only, paused on hover and focus, still with "reduce motion"); the moving strip is decorative
+         (aria-hidden) and the hidden sentence gives screen readers the names once. Own classes: the 13 world cards and the
+         Stores card stay as they are. The logos are the stores' own (Awin advertiser profiles), unchanged. -->
+    <div class="gwh2-mega-wrap">
+      <div class="container">
+        <a class="gwh2-mega" href="https://megastoresgearworld.com/">
+          <span class="gwh2-mega-head">
+            <strong class="gwh2-mega-title" translate="no">Mega Stores</strong>
+            <span class="gwh2-mega-line" data-gwh2="megaLine">Big stores in one place →</span>
+          </span>
+          <span class="sr-only" data-gwh2="megaNames" data-gwh2-name="Amazon, Joybuy, Tooled Up, My Tool Shed, PCHUB.UK, GS Workwear, Back to the Office, DHgate">Stores: <span translate="no">Amazon, Joybuy, Tooled Up, My Tool Shed, PCHUB.UK, GS Workwear, Back to the Office, DHgate</span>.</span>
+          <span class="gwh2-mega-strip" aria-hidden="true">
+            <span class="gwh2-mega-track">
+              <span class="gwh2-mega-list">
+                <!-- Amazon stays TEXT ONLY, always: the Amazon Associates Trademark Guidelines allow an Amazon logo only next to an
+                     Amazon Special Link, and this bar links to megastoresgearworld.com. Never put an image in this pill. -->
+                <span class="gwh2-mega-pill" data-store="amazon" data-logo="text-only" translate="no">Amazon</span>
+                <span class="gwh2-mega-pill gwh2-mega-logo" data-store="joybuy" translate="no"><img src="/mega/joybuy.png" alt="Joybuy" width="168" height="168" loading="eager" decoding="async"></span>
+                <span class="gwh2-mega-pill gwh2-mega-logo" data-store="tooled-up" translate="no"><img src="/mega/tooled-up.png" alt="Tooled Up" width="168" height="61" loading="eager" decoding="async"></span>
+                <span class="gwh2-mega-pill gwh2-mega-logo" data-store="my-tool-shed" translate="no"><img src="/mega/my-tool-shed.png" alt="My Tool Shed" width="168" height="61" loading="eager" decoding="async"></span>
+                <span class="gwh2-mega-pill gwh2-mega-logo" data-store="pchub-uk" translate="no"><img src="/mega/pchub-uk.png" alt="PCHUB.UK" width="168" height="57" loading="eager" decoding="async"></span>
+                <!-- GS Workwear's own logo reads "Goldstar Workwear"; its name stays GS Workwear. -->
+                <span class="gwh2-mega-pill gwh2-mega-logo" data-store="gs-workwear" translate="no"><img src="/mega/gs-workwear.jpg" alt="GS Workwear" width="168" height="168" loading="eager" decoding="async"><span class="sr-only">GS Workwear</span></span>
+                <span class="gwh2-mega-pill gwh2-mega-logo" data-store="back-to-the-office" translate="no"><img src="/mega/back-to-the-office.png" alt="Back to the Office" width="168" height="168" loading="eager" decoding="async"></span>
+                <span class="gwh2-mega-pill" data-store="dhgate" data-logo="text-only" translate="no">DHgate</span>
+              </span>
+              <span class="gwh2-mega-list gwh2-mega-copy" aria-hidden="true">
+                <span class="gwh2-mega-pill" data-store="amazon" data-logo="text-only" translate="no">Amazon</span>
+                <span class="gwh2-mega-pill gwh2-mega-logo" data-store="joybuy" translate="no"><img src="/mega/joybuy.png" alt="Joybuy" width="168" height="168" loading="eager" decoding="async"></span>
+                <span class="gwh2-mega-pill gwh2-mega-logo" data-store="tooled-up" translate="no"><img src="/mega/tooled-up.png" alt="Tooled Up" width="168" height="61" loading="eager" decoding="async"></span>
+                <span class="gwh2-mega-pill gwh2-mega-logo" data-store="my-tool-shed" translate="no"><img src="/mega/my-tool-shed.png" alt="My Tool Shed" width="168" height="61" loading="eager" decoding="async"></span>
+                <span class="gwh2-mega-pill gwh2-mega-logo" data-store="pchub-uk" translate="no"><img src="/mega/pchub-uk.png" alt="PCHUB.UK" width="168" height="57" loading="eager" decoding="async"></span>
+                <span class="gwh2-mega-pill gwh2-mega-logo" data-store="gs-workwear" translate="no"><img src="/mega/gs-workwear.jpg" alt="GS Workwear" width="168" height="168" loading="eager" decoding="async"><span class="sr-only">GS Workwear</span></span>
+                <span class="gwh2-mega-pill gwh2-mega-logo" data-store="back-to-the-office" translate="no"><img src="/mega/back-to-the-office.png" alt="Back to the Office" width="168" height="168" loading="eager" decoding="async"></span>
+                <span class="gwh2-mega-pill" data-store="dhgate" data-logo="text-only" translate="no">DHgate</span>
+              </span>
+            </span>
+          </span>
+        </a>
+      </div>
+    </div>
 
     <section class="gwh2-top">
       <div class="container gwh2-top-grid">
@@ -469,6 +513,6 @@
   <script src="/analytics.js?v=20261103-ads2"></script>
 <script src="/gear-world-voice-v2.js" defer></script>
 <script src="/gear-world-camera.js?v=20261120-search1" defer></script>
-<script src="/hub-v2.js?v=20261118-bf1" defer></script>
+<script src="/hub-v2.js?v=20261123-mega1" defer></script>
 </body>
 </html>
