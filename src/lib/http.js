@@ -87,8 +87,11 @@ function cacheControl(kind) {
 // Next to each 5-minute copy a day-long copy is kept (?gw-stale=1 in its key); while the database is busy the page answers
 // with that copy (no-store, X-GW-Stale: 1). Without one the error goes on to the engine, which answers 503 with
 // Retry-After instead of 500 (isDbBusy).
+// "too many SQL variables" (more than D1's 100 values in one statement) is a mistake of the code, never a busy database:
+// it stays an error (lessons L193), so the checks see it.
 export function isDbBusy(err) {
   const text = String((err && (err.message || err)) || '');
+  if (/too many SQL variables/i.test(text)) return false;
   return /\bD1\b|D1_ERROR/.test(text) && /overloaded|long-running import|too many|queued|timed? ?out|connection lost|reset|unavailable|try again/i.test(text);
 }
 export const STALE_SECONDS = 86400;

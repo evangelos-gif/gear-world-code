@@ -36,6 +36,9 @@ export function sharperImage(url) {
 }
 
 export const IN_STOCK_WORDS = ['in_stock', 'in stock', '1', 'true', 'yes', 'available to order'];
+// In stock on an older-layout row (stock_status is text there): the view's in_stock column, and the same text in the
+// index of its featured order (LEGACY_FAST_INDEX_SQL), so SQLite reads that order from the index.
+export const LEGACY_IN_STOCK = `CASE WHEN LOWER(TRIM(COALESCE(stock_status, ''))) IN (${IN_STOCK_WORDS.map(sqlText).join(', ')}) THEN 1 ELSE 0 END`;
 
 // GTIN of an older-layout row: the ean column, or the gtin in specs_json when ean is empty.
 const LEGACY_GTIN = "COALESCE(NULLIF(TRIM(ean), ''), json_extract(specs_json, '$.gtin'))";
@@ -73,7 +76,6 @@ function buildSource(site) {
   // Category names are fixed text from the site config (never visitor input), quoted for SQL.
   const whens = Object.entries(map).flatMap(([slug, names]) => names.map(n => `WHEN ${sqlText(n)} THEN ${sqlText(slug)}`));
   const catExpr = whens.length ? `CASE site_category ${whens.join(' ')} ELSE NULL END` : 'NULL';
-  const stock = IN_STOCK_WORDS.map(sqlText).join(', ');
   // Shown retailer names: one feed can come under two names (e.g. "X" and "X Affiliate Programme").
   const names = Object.entries(cfg.retailerNames || {});
   const retailerExpr = names.length
@@ -84,24 +86,35 @@ function buildSource(site) {
   const groupCol = cfg.groupTable === 'product_group_offers'
     ? ',\n    (SELECT g.group_id FROM product_group_offers g WHERE g.product_id = products.id) AS group_id'
     : '';
-  const view = `(SELECT id, product_name, NULL AS product_slug, brand, ${retailerExpr} AS retailer, site_category,
+  // extra: more columns at the end; hint: ' INDEXED BY <index>' on the table. Without them, the view as it always was.
+  const viewOf = (extra = '', hint = '') => `(SELECT id, product_name, NULL AS product_slug, brand, ${retailerExpr} AS retailer, site_category,
     ${catExpr} AS category_slug, subcategory, merchant_category, price, NULL AS was_price,
     COALESCE(NULLIF(TRIM(currency), ''), 'GBP') AS currency,
-    CASE WHEN LOWER(TRIM(COALESCE(stock_status, ''))) IN (${stock}) THEN 1 ELSE 0 END AS in_stock,
+    ${LEGACY_IN_STOCK} AS in_stock,
     'new' AS item_condition, image_url, affiliate_url,
     ${LEGACY_GTIN} AS gtin,
     json_extract(specs_json, '$.mpn') AS mpn,
     COALESCE(json_extract(specs_json, '$.description'), json_extract(specs_json, '$.product_short_description')) AS description,
     NULL AS specs_json, is_active, awin_product_id, NULL AS awin_advertiser_id,
-    created_at AS first_seen_at, updated_at AS last_seen_at, updated_at${groupCol}
-    FROM products)`;
+    created_at AS first_seen_at, updated_at AS last_seen_at, updated_at${groupCol}${extra}
+    FROM products${hint})`;
+  // Fast mode (lessons L193): the view read through one index, with the group key as ONE column (group_key). SQLite finds
+  // an index on an expression only when the query names it as a whole column of the view: the key built around the view's
+  // gtin column (GTIN_KEY) is never found in idx_products_group_key, and "the other offers of this card" would read that
+  // whole index for every card.
+  const keyCol = groupCol ? '' : `,\n    ${LEGACY_GROUP_KEY} AS group_key`;
   LAYOUT = {
     legacy: true,
-    from: view,
+    from: viewOf(),
+    fastFrom: hint => viewOf(keyCol, hint),
     // Category filters use the old column, so its index is used.
     catSql: slug => `p.site_category IN (${(map[slug] || ['']).map(() => '?').join(', ')})`,
     catBinds: slug => (map[slug] || ['']),
     map,
+    // The view's category_slug and retailer, in JavaScript (the census reads the table's own columns): the first name
+    // that matches, as CASE ... WHEN does.
+    slugOf: (() => { const m = new Map(); for (const [slug, list] of Object.entries(map)) for (const n of list) if (!m.has(n)) m.set(n, slug); return n => (m.has(n) ? m.get(n) : null); })(),
+    shownRetailer: (() => { const m = new Map(names); return r => (m.has(r) ? m.get(r) : r); })(),
     // The import already used the EAN when it built the groups, so the GTIN is not read again (faster on 70,000 rows).
     groupKey: groupCol ? "COALESCE('g:' || p.group_id, 'id:' || p.id)" : GTIN_KEY,
     groupById: Boolean(groupCol)
@@ -176,30 +189,77 @@ const SORT_INDEX = {
   newest: 'idx_products_cat_newest',
   saving: 'idx_products_cat_saving'
 };
+// ---- The same on the older layout (CGW, MGW, WGW, KGW, HGW, GGW; lessons L193) ----
+// Their tables stay as they are (L28): only indexes, on their own columns (site_category, the stock text, created_at,
+// updated_at, the L51 group key). sites/<site>/migrations/0001_fast_lists.sql = LEGACY_FAST_INDEX_SQL, put in the live
+// databases by tools/d1-fast-lists.ps1. The first four are the L51 indexes and the plain category index that CGW already
+// has (IF NOT EXISTS: a database that has them writes nothing for them); the last three are new:
+//   idx_products_old_featured  the featured order of each category (in stock first, then the fixed shuffle)
+//   idx_products_old_newest    the newest order of each category
+//   idx_products_old_cover     the counts, the filters, the census and the group key without reading the table
+// Price order: the L51 index (is_active, site_category, price, id). "Furthest below RRP": the older layout has no RRP
+// (was_price is NULL in its view), so that order is the id order of the plain category index.
+export const LEGACY_FAST_INDEX_SQL = [
+  'CREATE INDEX IF NOT EXISTS idx_products_active_category ON products (is_active, site_category);',
+  'CREATE INDEX IF NOT EXISTS idx_products_active_category_price_id ON products (is_active, site_category, price, id);',
+  'CREATE INDEX IF NOT EXISTS idx_products_active_created ON products (is_active, created_at);',
+  `CREATE INDEX IF NOT EXISTS idx_products_group_key ON products (${LEGACY_GROUP_KEY});`,
+  `CREATE INDEX IF NOT EXISTS idx_products_old_featured ON products (is_active, site_category, (${LEGACY_IN_STOCK}) DESC, ((id * 1103515245 + 12345) % 2147483647));`,
+  'CREATE INDEX IF NOT EXISTS idx_products_old_newest ON products (is_active, site_category, created_at);',
+  `CREATE INDEX IF NOT EXISTS idx_products_old_cover ON products (is_active, site_category, retailer, updated_at, (${LEGACY_IN_STOCK}), brand, price, (${LEGACY_GROUP_KEY}));`
+];
+export const LEGACY_FAST_INDEXES = LEGACY_FAST_INDEX_SQL.map(s => s.match(/EXISTS (\w+)/)[1]);
+const LEGACY_SORT_INDEX = {
+  featured: 'idx_products_old_featured',
+  'price-asc': 'idx_products_active_category_price_id',
+  'price-desc': 'idx_products_active_category_price_id',
+  newest: 'idx_products_old_newest',
+  saving: 'idx_products_active_category'
+};
+// The older layout's orders as the walk reads them: the same rows in the same order as SORTS. "saving" is
+// (CASE WHEN was_price > price ...) DESC, id ASC there, and was_price is always NULL in its view, so the first term is 0
+// for every row: the id order, which SQLite reads from the index instead of sorting the whole category for a constant.
+// compound: the same order on the columns of a walk of several category names (UNION ALL, below), whose ORDER BY may
+// name only its result columns (fh: the featured shuffle of the row's id, added as a column and dropped afterwards).
+const FEATURED_SHUFFLE = '((id * 1103515245 + 12345) % 2147483647)';
+function legacyWalkOrder(sortName) {
+  const order = sortName === 'saving' ? 'id ASC' : SORTS[sortName];
+  if (sortName === 'featured') return { order, compound: 'in_stock DESC, fh ASC', extra: `, ${FEATURED_SHUFFLE} AS fh` };
+  return { order, compound: order, extra: '' };
+}
+
 const FAST_RECHECK_MS = 10 * 60 * 1000;
 const fastSeen = new WeakMap();
+const layoutKind = () => (LAYOUT.legacy ? 'legacy' : 'native');
+function rememberFast(db, ok) {
+  const all = fastSeen.get(db) || {};
+  all[layoutKind()] = { ok, until: Date.now() + FAST_RECHECK_MS };
+  fastSeen.set(db, all);
+}
 // True when this database has every index of migration 0003 (and, on a site that groups offers, the group-key index of
-// L105). Asked again every 10 minutes per database binding, so the migration takes effect without a deploy.
+// L105), or on the older layout every index of LEGACY_FAST_INDEX_SQL (lessons L193). Asked again every 10 minutes per
+// database binding and layout, so the indexes take effect without a deploy.
 export async function fastMode(db) {
-  if (LAYOUT.legacy || !db || typeof db !== 'object') return false;
-  const seen = fastSeen.get(db);
+  if (!db || typeof db !== 'object') return false;
+  const seen = (fastSeen.get(db) || {})[layoutKind()];
   if (seen && seen.until > Date.now()) return seen.ok;
-  const need = LAYOUT.group ? [...FAST_INDEXES, 'idx_products_group_key'] : FAST_INDEXES;
+  const need = LAYOUT.legacy ? LEGACY_FAST_INDEXES : LAYOUT.group ? [...FAST_INDEXES, 'idx_products_group_key'] : FAST_INDEXES;
   let ok = false;
   try {
     const r = await db.prepare(`SELECT COUNT(*) AS n FROM sqlite_master WHERE type = 'index' AND name IN (${need.map(() => '?').join(', ')})`)
       .bind(...need).first();
     ok = Number(r && r.n) === need.length;
   } catch { ok = false; }
-  fastSeen.set(db, { ok, until: Date.now() + FAST_RECHECK_MS });
+  rememberFast(db, ok);
   return ok;
 }
-// A fast-mode query that fails because an index of migration 0003 has gone (dropped to go back, lessons L159): fast mode
-// off for this database until the next look, and the same question again the old way. Dropping the indexes never breaks
-// a page, even in the minutes before fastMode() looks again.
+// A fast-mode query that fails because an index of migration 0003 has gone (dropped to go back, lessons L159), or cannot
+// serve the query (an index of that name with another text: "no query solution", L193): fast mode off for this database
+// until the next look, and the same question again the old way. Dropping the indexes never breaks a page, even in the
+// minutes before fastMode() looks again.
 async function noIndexRetry(db, err, again) {
-  if (!/no such index/i.test(String((err && err.message) || err))) throw err;
-  fastSeen.set(db, { ok: false, until: Date.now() + FAST_RECHECK_MS });
+  if (!/no such index|no query solution/i.test(String((err && err.message) || err))) throw err;
+  rememberFast(db, false);
   return again();
 }
 
@@ -208,8 +268,22 @@ const gkOf = a => `COALESCE(NULLIF(TRIM(${a}.gtin), ''), 'id:' || ${a}.id)`;
 // The same WHERE on the rows named o (the other offers of a row's group): every "p." of the SQL this file builds becomes
 // "o." (column names only: the values are always binds).
 export const asOther = sql => String(sql).replace(/(^|[^A-Za-z0-9_.])p\./g, '$1o.');
-// cardSql() without numbering the whole set (new layout, fast mode). Binds: the WHERE's binds three times (offer_count,
-// the rows, the better-offer test), then the binds of the ORDER BY and the tail. hint: ' INDEXED BY <index>' or ''.
+// D1 binds at most 100 values to one statement ("too many SQL variables"). A walk writes its WHERE three times (the card,
+// its offer count, the better-offer test), and the UK view alone hides 41 retailers on HGW (lessons L193): 3 x 42 values.
+// So the walk names each value by its number (?1, ?2 ...: D1 and SQLite take the same value for every ?N) and binds it
+// once. Only a ? outside quotes is a value (the SQL this file builds has none inside them anyway).
+export function byNumber(sql, first = 1) {
+  let n = first - 1;
+  let quoted = false;
+  let out = '';
+  for (const ch of String(sql)) {
+    if (ch === "'") quoted = !quoted;
+    out += ch === '?' && !quoted ? `?${++n}` : ch;
+  }
+  return { sql: out, next: n + 1 };
+}
+// cardSql() without numbering the whole set (new layout, fast mode). where, order and tail with numbered values (byNumber):
+// the WHERE's once, then those of the ORDER BY and the tail. hint: ' INDEXED BY <index>' or ''.
 function streamCardSql(where, order, tail = '', hint = '') {
   const same = `FROM products o INDEXED BY idx_products_group_key WHERE ${gkOf('o')} = ${gkOf('p')} AND ${asOther(where)}`;
   const better = '(o.in_stock > p.in_stock OR (o.in_stock = p.in_stock AND (o.price < p.price OR (o.price = p.price AND o.id < p.id))))';
@@ -218,12 +292,43 @@ function streamCardSql(where, order, tail = '', hint = '') {
     FROM products p${hint} WHERE ${where} AND NOT EXISTS (SELECT 1 ${same} AND ${better})
     ORDER BY ${order} ${tail}`;
 }
+// streamCardSql() on the older layout (lessons L193), without its ORDER BY: the rows of its view read through `hint`, each
+// a card when no other row of its group is a better offer, with offer_count = the group's retailers. The group, exactly as
+// gk() makes it in cardSql(): on MGW, WGW, KGW, HGW and GGW the rows with the same group key (the view's group_key column,
+// so idx_products_group_key finds them); on CGW the rows of the import's match (product_group_offers, by group_id), and a
+// row without a match is a group of its own (offer_count 1, no better offer). where: with numbered values (byNumber).
+// arm: the numbered value of one category name of a walk over several (legacyWalk), '?7': `p.site_category = ?7` in
+// front of the WHERE. extra: more columns.
+function legacyStreamSql(where, hint = '', arm = '', extra = '') {
+  const own = arm ? `p.site_category = ${arm} AND ${where}` : where;
+  const rows = `${LAYOUT.fastFrom(hint)} p`;
+  if (!LAYOUT.group) return `SELECT ${CARD_COLUMNS}${extra} FROM ${rows} WHERE ${own}`;
+  const better = '(o.in_stock > p.in_stock OR (o.in_stock = p.in_stock AND (o.price < p.price OR (o.price = p.price AND o.id < p.id))))';
+  if (LAYOUT.groupById) {
+    const same = `FROM product_group_offers g CROSS JOIN ${LAYOUT.from} o WHERE g.group_id = p.group_id AND o.id = g.product_id AND ${asOther(where)}`;
+    return `SELECT ${CARD_COLUMNS}, first_seen_at, gtin, ${gk()} AS gk, 1 AS rr, 1 AS rn,
+        CASE WHEN p.group_id IS NULL THEN 1 ELSE (SELECT COUNT(DISTINCT o.retailer) ${same}) END AS offer_count${extra}
+      FROM ${rows} WHERE ${own} AND (p.group_id IS NULL OR NOT EXISTS (SELECT 1 ${same} AND ${better}))`;
+  }
+  const same = `FROM ${LAYOUT.fastFrom(' INDEXED BY idx_products_group_key')} o WHERE o.group_key = p.group_key AND ${asOther(where)}`;
+  return `SELECT ${CARD_COLUMNS}, first_seen_at, gtin, p.group_key AS gk, 1 AS rr, 1 AS rn,
+      (SELECT COUNT(DISTINCT o.retailer) ${same}) AS offer_count${extra}
+    FROM ${rows} WHERE ${own} AND NOT EXISTS (SELECT 1 ${same} AND ${better})`;
+}
 // The cards of a WHERE, as a statement: cardSql() (window functions), or streamCardSql() when `stream` (fast mode on a site
-// that groups offers). tailBinds: the binds after the WHERE's (ORDER BY and LIMIT/OFFSET).
+// that groups offers; on the older layout legacyStreamSql(), grouped or not). tailBinds: the binds after the WHERE's
+// (ORDER BY and LIMIT/OFFSET).
 function cardStatement(db, stream, where, binds, order, tail, tailBinds = [], hint = '') {
   if (!stream) return db.prepare(cardSql(where, order, tail)).bind(...binds, ...tailBinds);
-  return db.prepare(streamCardSql(where, order, tail, hint)).bind(...binds, ...binds, ...binds, ...tailBinds);
+  const w = byNumber(where);
+  const o = byNumber(order, w.next);
+  const t = byNumber(tail, o.next);
+  const sql = LAYOUT.legacy ? `${legacyStreamSql(w.sql, hint)}\n    ORDER BY ${o.sql} ${t.sql}` : streamCardSql(w.sql, o.sql, t.sql, hint);
+  return db.prepare(sql).bind(...binds, ...tailBinds);
 }
+// The rows named p, read through `hint` (' INDEXED BY <index>' or ''): the new layout's table, or the older layout's view
+// with the hint inside it (fast mode). Without a hint, exactly the FROM of the old queries.
+const rowsFrom = (hint = '') => (LAYOUT.legacy && hint ? `${LAYOUT.fastFrom(hint)} p` : `${LAYOUT.from} p${hint}`);
 
 // Numbers that change only when an import runs (counts, filters, the site's census) are kept for a while by the engine
 // (src/engine.js, in the Worker's cache): memo(name, args, seconds, compute). Without one (tests, local checks) every call
@@ -239,8 +344,17 @@ const viewKey = view => (view ? `${view.group || ''}|${view.cutoff || ''}|${view
 // them were checked on or after `cutoff`, and the newest check. The home page's counts, its retailers and its date, the
 // category counts and /api/stats come from it for any view (a view hides retailers and rows older than its cutoff, and
 // nothing else), so the home page no longer reads every active row three times per view and per data centre.
+// The older layout (L193): the same read on its own columns (site_category, the stored retailer name, updated_at), then the
+// view's category slug and shown retailer name in JavaScript (LAYOUT.slugOf, LAYOUT.shownRetailer: the CASEs of the view).
+// Two stored names of one retailer give two rows with the same r; every user of the census adds them up.
 async function census(db, cutoff) {
   return memo('census', { cutoff: cutoff || '' }, CENSUS_SECONDS, async () => {
+    if (LAYOUT.legacy) {
+      const r = await db.prepare(`SELECT site_category AS c, retailer AS r, COUNT(*) AS n,
+          SUM(CASE WHEN updated_at >= ? THEN 1 ELSE 0 END) AS fresh, MAX(updated_at) AS t
+        FROM products INDEXED BY idx_products_old_cover WHERE is_active = 1 GROUP BY site_category, retailer`).bind(cutoff || '').all();
+      return (r.results || []).map(x => ({ c: LAYOUT.slugOf(x.c), r: LAYOUT.shownRetailer(x.r), n: Number(x.n) || 0, fresh: Number(x.fresh) || 0, t: x.t ?? null }));
+    }
     const r = await db.prepare(`SELECT category_slug AS c, retailer AS r, COUNT(*) AS n,
         SUM(CASE WHEN last_seen_at >= ? THEN 1 ELSE 0 END) AS fresh, MAX(last_seen_at) AS t
       FROM products INDEXED BY idx_products_cat_cover WHERE is_active = 1 GROUP BY category_slug, retailer`).bind(cutoff || '').all();
@@ -352,6 +466,13 @@ async function collectionCounts(db, view = null) {
     out[slug] = Number((r && r.n) || 0);
   }));
   return out;
+}
+// The same in fast mode, kept for a while like the other counts (lessons L193): a collection's count reads every row of its
+// categories (the words of its names: "gift"), MGW's "Gifts for Him" 5 of its 7 categories, on every home page.
+function collectionCountsKept(db, view = null) {
+  if (!Object.keys(LAYOUT.collections || {}).length) return collectionCounts(db, view);
+  const args = { view: view ? { hidden: view.hidden || null, only: view.only || null, cutoff: view.cutoff || '' } : null };
+  return memo('collections', args, COUNT_SECONDS, () => collectionCounts(db, view));
 }
 
 // Rows from the legacy layout get their address slug and a sharper image here.
@@ -500,10 +621,23 @@ export async function listProducts(db, filters, { sort = 'featured', page = 1, p
 // (offset + perPage) x (rows of the category / rows that match) rows, or numbering the matching rows (cardSql), which
 // reads every matching row. A page of a big category takes the walk; a filter that leaves few rows (a rare brand, a narrow
 // price range, a deep page of them) or a search or a collection takes the numbering, now on a small set.
+// The older layout (L193): a category is counted from idx_products_old_cover, the group key too (the view's group_key
+// column; CGW reads its import's match, product_group_offers, by product id). A search starts from the products its
+// words found ("+p.is_active", as searchFacets): with the cover index there, SQLite would otherwise walk every active
+// row of it and look each one up in the search index (CGW, 1,000,000 products: 1.9 s -> 2.5 s for a search page).
 function countFast(db, filters, f) {
   return memo('count', { sql: f.sql, binds: f.binds, group: LAYOUT.group }, COUNT_SECONDS, async () => {
-    const r = await db.prepare(`SELECT ${LAYOUT.group ? `COUNT(DISTINCT ${gk()})` : 'COUNT(*)'} AS n, COUNT(*) AS rows
-      FROM ${LAYOUT.from} p${countIndex(filters)} WHERE ${f.sql}`).bind(...f.binds).first();
+    let from = `${LAYOUT.from} p${countIndex(filters)}`;
+    let key = gk();
+    let where = f.sql;
+    if (LAYOUT.legacy) {
+      const plain = filters && filters.category && !filters.search && !(LAYOUT.collections && LAYOUT.collections[filters.category]);
+      from = `${LAYOUT.fastFrom(plain ? ' INDEXED BY idx_products_old_cover' : '')} p`;
+      if (!LAYOUT.groupById) key = 'p.group_key';
+      if (filters && filters.search) where = where.replace(/^p\.is_active = 1/, '+p.is_active = 1');
+    }
+    const r = await db.prepare(`SELECT ${LAYOUT.group ? `COUNT(DISTINCT ${key})` : 'COUNT(*)'} AS n, COUNT(*) AS rows
+      FROM ${from} WHERE ${where}`).bind(...f.binds).first();
     return { n: Number((r && r.n) || 0), rows: Number((r && r.rows) || 0) };
   });
 }
@@ -541,11 +675,21 @@ async function listFast(db, filters, f, sortName, order, page, perPage, offset) 
   const total = counted.n;
   const out = rows => ({ products: fixAll(rows), total, page, pages: Math.ceil(total / perPage) });
   if (!total || offset >= total) return out([]);
-  const plainCat = Boolean(filters.category) && !filters.search && !(LAYOUT.collections && LAYOUT.collections[filters.category]);
+  const collection = LAYOUT.collections && LAYOUT.collections[filters.category];
+  const plainCat = Boolean(filters.category) && !filters.search && !collection;
+  // The older layout walks a collection too (L193): one walk per category name of its categories, merged.
+  const cats = plainCat ? [filters.category] : LAYOUT.legacy && filters.category && !filters.search && collection ? (collection.from || []) : [];
   let walk = Infinity;
-  if (plainCat) {
-    const catRows = (await census(db, filters.view && filters.view.cutoff)).filter(x => x.c === filters.category).reduce((t, x) => t + x.n, 0);
+  if (cats.length) {
+    const catRows = (await census(db, filters.view && filters.view.cutoff)).filter(x => cats.includes(x.c)).reduce((t, x) => t + x.n, 0);
     walk = ((offset + perPage) * Math.max(catRows, counted.rows)) / Math.max(1, counted.rows);
+  }
+  if (LAYOUT.legacy) {
+    const names = [...new Set(cats.flatMap(c => LAYOUT.catBinds(c)))];
+    const walked = walk <= 2 * counted.rows && (names.length === 1 || LAYOUT.group) ? await legacyWalk(db, f, names, sortName, perPage, offset) : null;
+    if (walked) return out(walked);
+    const rows = await db.prepare(cardSql(f.sql, order, 'LIMIT ? OFFSET ?')).bind(...f.binds, perPage, offset).all();
+    return out(rows.results);
   }
   const hint = ` INDEXED BY ${SORT_INDEX[sortName]}`;
   if (walk <= 2 * counted.rows) {
@@ -556,6 +700,44 @@ async function listFast(db, filters, f, sortName, order, page, perPage, offset) 
   }
   const rows = await db.prepare(cardSql(f.sql, order, 'LIMIT ? OFFSET ?')).bind(...f.binds, perPage, offset).all();
   return out(rows.results);
+}
+
+// listFast()'s walk on the older layout (lessons L193), in the sort's own index (LEGACY_SORT_INDEX). One category name: one
+// statement. Several (WGW "Watches" and "Jewellery & Watches", a collection of several categories): one walk per name,
+// merged by SQLite (UNION ALL with ORDER BY reads each walk in its index order and never sorts them), because one walk of
+// "site_category IN (a, b)" would sort the whole category. A product has one site_category, so no card is in two walks.
+// D1 takes at most 5 SELECTs in one UNION ALL: more names go in groups of 5, each merged and cut at offset + perPage (the
+// cards of the page are among the first offset + perPage of their group), and the groups merged again (WGW "Gifts for
+// Her": 6 names). The same cards in the same order as cardSql() with SORTS (legacyWalkOrder). null: a statement D1 would
+// refuse (more than 100 values, 25 names or 90,000 characters): the caller numbers the rows instead, as before.
+const D1_COMPOUND = 5;
+const D1_VALUES = 100;
+const D1_SQL_CHARS = 90000;
+async function legacyWalk(db, f, names, sortName, perPage, offset) {
+  const w = legacyWalkOrder(sortName);
+  const hint = ` INDEXED BY ${LEGACY_SORT_INDEX[sortName]}`;
+  const where = byNumber(f.sql);
+  const value = i => `?${where.next + i}`;
+  const tail = `LIMIT ${value(names.length)} OFFSET ${value(names.length + 1)}`;
+  const grouped = names.length > D1_COMPOUND;
+  const top = value(names.length + 2);
+  const binds = [...f.binds, ...names, perPage, offset, ...(grouped ? [offset + perPage] : [])];
+  if (binds.length > D1_VALUES || names.length > D1_COMPOUND * D1_COMPOUND) return null;
+  const arm = i => legacyStreamSql(where.sql, hint, value(i), names.length > 1 ? w.extra : '');
+  let sql;
+  if (names.length === 1) sql = `${arm(0)}\n    ORDER BY ${w.order} ${tail}`;
+  else if (!grouped) sql = `${names.map((_, i) => arm(i)).join('\n    UNION ALL ')}\n    ORDER BY ${w.compound} ${tail}`;
+  else {
+    const groups = [];
+    for (let i = 0; i < names.length; i += D1_COMPOUND) {
+      const arms = names.slice(i, i + D1_COMPOUND).map((_, k) => arm(i + k));
+      groups.push(`SELECT * FROM (${arms.join('\n    UNION ALL ')}\n    ORDER BY ${w.compound} LIMIT ${top})`);
+    }
+    sql = `${groups.join('\n    UNION ALL ')}\n    ORDER BY ${w.compound} ${tail}`;
+  }
+  if (sql.length > D1_SQL_CHARS) return null;
+  const r = await db.prepare(sql).bind(...binds).all();
+  return names.length > 1 && w.extra ? (r.results || []).map(({ fh: _shuffle, ...row }) => row) : r.results || [];
 }
 
 // Products per subcategory of a category (only for a category whose site config lists subcategories: ZGW birds).
@@ -596,7 +778,8 @@ export async function facets(db, category, subMatch = null, view = null) {
   if (!(await fastMode(db))) return facetsRead(db, category, subMatch, view, '');
   const plain = !(LAYOUT.collections && LAYOUT.collections[category]);
   const args = { category, subMatch, view: view ? { hidden: view.hidden || null, only: view.only || null, cutoff: view.cutoff || '' } : null };
-  try { return await memo('facets', args, COUNT_SECONDS, () => facetsRead(db, category, subMatch, view, plain ? ' INDEXED BY idx_products_cat_cover' : '')); }
+  const cover = LAYOUT.legacy ? ' INDEXED BY idx_products_old_cover' : ' INDEXED BY idx_products_cat_cover';
+  try { return await memo('facets', args, COUNT_SECONDS, () => facetsRead(db, category, subMatch, view, plain ? cover : '')); }
   catch (err) { return noIndexRetry(db, err, () => facets(db, category, subMatch, view)); }
 }
 async function facetsRead(db, category, subMatch, view, hint) {
@@ -606,11 +789,11 @@ async function facetsRead(db, category, subMatch, view, hint) {
   const c0 = nm ? { sql: `${base.sql} AND ${nm.sql}`, binds: [...base.binds, ...nm.binds] } : base;
   const c = v.sql ? { sql: `${c0.sql} AND ${v.sql}`, binds: [...c0.binds, ...v.binds] } : c0;
   const [brands, retailers, price] = await db.batch([
-    db.prepare(`SELECT brand AS name, COUNT(*) AS n FROM ${LAYOUT.from} p${hint} WHERE p.is_active = 1 AND ${c.sql}
+    db.prepare(`SELECT brand AS name, COUNT(*) AS n FROM ${rowsFrom(hint)} WHERE p.is_active = 1 AND ${c.sql}
       AND brand IS NOT NULL AND TRIM(brand) <> '' GROUP BY brand ORDER BY n DESC, brand LIMIT 40`).bind(...c.binds),
-    db.prepare(`SELECT retailer AS name, COUNT(*) AS n FROM ${LAYOUT.from} p${hint} WHERE p.is_active = 1 AND ${c.sql}
+    db.prepare(`SELECT retailer AS name, COUNT(*) AS n FROM ${rowsFrom(hint)} WHERE p.is_active = 1 AND ${c.sql}
       GROUP BY retailer ORDER BY n DESC, retailer`).bind(...c.binds),
-    db.prepare(`SELECT MIN(price) AS lo, MAX(price) AS hi FROM ${LAYOUT.from} p${hint} WHERE p.is_active = 1 AND ${c.sql}`).bind(...c.binds)
+    db.prepare(`SELECT MIN(price) AS lo, MAX(price) AS hi FROM ${rowsFrom(hint)} WHERE p.is_active = 1 AND ${c.sql}`).bind(...c.binds)
   ]);
   return {
     brands: brands.results || [],
@@ -936,10 +1119,13 @@ async function homeFast(db, categorySlugs, opts, v, fresh) {
     if (typeof x.t === 'string' && x.t > lastUpdated) lastUpdated = x.t;
   }
   const retailers = [...byRetailer].map(([name, n]) => ({ name, n })).sort((a, b) => b.n - a.n || binary(a.name, b.name));
-  const card = (where, binds, order, hint) => (LAYOUT.group
+  const card = (where, binds, order, hint) => (LAYOUT.group || LAYOUT.legacy
     ? cardStatement(db, true, where, binds, order, 'LIMIT 11', [], hint)
     : db.prepare(`SELECT ${CARD_COLUMNS} FROM products p${hint} WHERE ${where} ORDER BY ${order} LIMIT 11`).bind(...binds));
-  const list = [card(`p.is_active = 1 AND p.in_stock = 1${andVis(v)}`, v.binds, 'p.first_seen_at DESC, p.id DESC', ' INDEXED BY idx_products_active_seen')];
+  // The newest: the new layout's (is_active, first_seen_at) index; on the older layout the L51 index (is_active, created_at),
+  // created_at being its first_seen_at (lessons L193).
+  const newestIndex = LAYOUT.legacy ? ' INDEXED BY idx_products_active_created' : ' INDEXED BY idx_products_active_seen';
+  const list = [card(`p.is_active = 1 AND p.in_stock = 1${andVis(v)}`, v.binds, 'p.first_seen_at DESC, p.id DESC', newestIndex)];
   if (hasRrp()) {
     list.push(card(`p.is_active = 1 AND p.in_stock = 1 AND p.was_price > p.price
       AND (p.was_price - p.price) / p.was_price BETWEEN 0.05 AND 0.9${andVis(v)}${fresh.sql}`, [...v.binds, ...fresh.binds],
@@ -947,7 +1133,7 @@ async function homeFast(db, categorySlugs, opts, v, fresh) {
   }
   const [newest, deals] = await db.batch(list);
   const totalProducts = Object.values(byCat).reduce((a, b) => a + b, 0);
-  Object.assign(byCat, await collectionCounts(db, view));
+  Object.assign(byCat, await collectionCountsKept(db, view));
   return {
     categoryCounts: Object.fromEntries(categorySlugs.map(s => [s, byCat[s] || 0])),
     totalProducts,
@@ -1001,7 +1187,7 @@ export async function categoryCounts(db, view = null) {
     try { all = await census(db, view && view.cutoff); } catch (err) { return noIndexRetry(db, err, () => categoryCounts(db, view)); }
     const out = {};
     for (const x of censusFor(all, view)) if (x.c) out[x.c] = (out[x.c] || 0) + x.count;
-    return Object.assign(out, await collectionCounts(db, view));
+    return Object.assign(out, await collectionCountsKept(db, view));
   }
   const v = vis(view);
   const r = await db.prepare(`SELECT category_slug AS slug, COUNT(*) AS n FROM ${LAYOUT.from} p WHERE p.is_active = 1${andVis(v)} GROUP BY category_slug`).bind(...v.binds).all();

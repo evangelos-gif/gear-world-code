@@ -1,7 +1,8 @@
 // Women's Gear World - Wrangler config TEMPLATE.
 // The real file (wrangler.jsonc) is made on the PC by tools/wgw-engine.ps1 and is never committed,
 // because it holds the Cloudflare database ID.
-// The database is the one the site already has: there is NO migrations folder, so no tool can change its tables.
+// The database is the one the site already has, and no tool changes its tables. migrations/ holds only the indexes of
+// lessons L193, added by tools/d1-fast-lists.ps1 (never by "wrangler d1 migrations apply").
 {
   "name": "womens-gear-world",
   "main": "worker.js",

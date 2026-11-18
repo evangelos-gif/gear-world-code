@@ -5503,7 +5503,9 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
     }
 }
 
-# 23b. d1-fast-lists.ps1 (the five indexes of lessons L159 in the 7 new-layout databases) with a fake wrangler (Windows only)
+# 23b. d1-fast-lists.ps1 (the indexes of lessons L159 in the 7 new-layout databases and of L193 in the 6 older ones) with a
+#      fake wrangler (Windows only). The fake answers every database with one schema that holds the columns and indexes of
+#      both layouts, so each site finds its own.
 if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
     Write-Host 'd1-fast-lists.ps1 (fake wrangler)'
     $flTool = Join-Path (Join-Path $repo 'tools') 'd1-fast-lists.ps1'
@@ -5513,15 +5515,30 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
     $flWork = Join-Path $work 'fl-work'
     $flOut = Join-Path $work 'fl-out'
     New-Item -ItemType Directory -Path $flState, $flBin -Force | Out-Null
-    $flBase = '{"type":"index","name":"idx_products_category","tbl_name":"products","sql":"CREATE INDEX idx_products_category ON products (is_active, category_slug, price)"},{"type":"table","name":"products","tbl_name":"products","sql":"CREATE TABLE products (id INTEGER PRIMARY KEY, gtin TEXT)"}'
+    $flTable = '{"type":"table","name":"products","tbl_name":"products","sql":"CREATE TABLE products (id INTEGER PRIMARY KEY, gtin TEXT, category_slug TEXT, first_seen_at TEXT, last_seen_at TEXT, in_stock INTEGER, site_category TEXT, stock_status TEXT, created_at TEXT, updated_at TEXT, ean TEXT, specs_json TEXT)"}'
+    $flNewTable = '{"type":"table","name":"products","tbl_name":"products","sql":"CREATE TABLE products (id INTEGER PRIMARY KEY, gtin TEXT, category_slug TEXT, first_seen_at TEXT, last_seen_at TEXT, in_stock INTEGER)"}'
+    $flCategory = '{"type":"index","name":"idx_products_category","tbl_name":"products","sql":"CREATE INDEX idx_products_category ON products (is_active, category_slug, price)"}'
     $flAll = '{"type": "index", "name": "idx_products_cat_featured", "tbl_name": "products", "sql": "CREATE INDEX idx_products_cat_featured ON products (is_active, category_slug, in_stock DESC, ((id * 1103515245 + 12345) % 2147483647))"},{"type": "index", "name": "idx_products_cat_newest", "tbl_name": "products", "sql": "CREATE INDEX idx_products_cat_newest ON products (is_active, category_slug, first_seen_at)"},{"type": "index", "name": "idx_products_cat_saving", "tbl_name": "products", "sql": "CREATE INDEX idx_products_cat_saving ON products (is_active, category_slug, (CASE WHEN was_price > price THEN (was_price - price) / was_price ELSE 0 END) DESC)"},{"type": "index", "name": "idx_products_deals", "tbl_name": "products", "sql": "CREATE INDEX idx_products_deals ON products (is_active, ((was_price - price) / was_price) DESC)"},{"type": "index", "name": "idx_products_cat_cover", "tbl_name": "products", "sql": "CREATE INDEX idx_products_cat_cover ON products (is_active, category_slug, retailer, last_seen_at, in_stock, brand, price, gtin)"}'
     $flTwo = '{"type": "index", "name": "idx_products_cat_featured", "tbl_name": "products", "sql": "CREATE INDEX idx_products_cat_featured ON products (is_active, category_slug, in_stock DESC, ((id * 1103515245 + 12345) % 2147483647))"},{"type": "index", "name": "idx_products_cat_newest", "tbl_name": "products", "sql": "CREATE INDEX idx_products_cat_newest ON products (is_active, category_slug, first_seen_at)"}'
     $flWrong = '{"type": "index", "name": "idx_products_cat_cover", "tbl_name": "products", "sql": "CREATE INDEX idx_products_cat_cover ON products (is_active)"}'
+    # The older sites' 7 statements (L193): the first 4 are there already on the live databases (L51, CGW's category index).
+    $flOldStatements = @([System.IO.File]::ReadAllLines((Join-Path $repo 'sites\cgw\migrations\0001_fast_lists.sql'), [System.Text.Encoding]::UTF8) | Where-Object { $_ -like 'CREATE INDEX*' })
+    function FL-Row([string]$st) {
+        $name = [regex]::Match($st, 'EXISTS (\w+)').Groups[1].Value
+        $sql = ($st -replace ' IF NOT EXISTS', '').TrimEnd(';')
+        return (@{ type = 'index'; name = $name; tbl_name = 'products'; sql = $sql } | ConvertTo-Json -Compress)
+    }
+    $flShared = (@($flOldStatements | Select-Object -First 4 | ForEach-Object { FL-Row $_ })) -join ','
+    $flSharedNoCategory = (@($flOldStatements | Select-Object -Skip 1 -First 3 | ForEach-Object { FL-Row $_ })) -join ','
+    $flOldOwn = (@($flOldStatements | Select-Object -Skip 4 | ForEach-Object { FL-Row $_ })) -join ','
+    $flBase = $flTable + ',' + $flCategory + ',' + $flShared
     Write-Utf8 (Join-Path $flState 'schema-base.json') ('[{"results":[' + $flBase + '],"success":true}]')
     Write-Utf8 (Join-Path $flState 'schema-two.json') ('[{"results":[' + $flBase + ',' + $flTwo + '],"success":true}]')
-    Write-Utf8 (Join-Path $flState 'schema-done.json') ('[{"results":[' + $flBase + ',' + $flAll + '],"success":true}]')
+    Write-Utf8 (Join-Path $flState 'schema-done.json') ('[{"results":[' + $flBase + ',' + $flAll + ',' + $flOldOwn + '],"success":true}]')
     Write-Utf8 (Join-Path $flState 'schema-wrong.json') ('[{"results":[' + $flBase + ',' + $flWrong + '],"success":true}]')
-    Write-Utf8 (Join-Path $flState 'verify-yes.json') ('[{"results":[' + $flAll + '],"success":true}]')
+    Write-Utf8 (Join-Path $flState 'schema-noshared.json') ('[{"results":[' + $flTable + ',' + $flCategory + ',' + $flSharedNoCategory + '],"success":true}]')
+    Write-Utf8 (Join-Path $flState 'schema-newtable.json') ('[{"results":[' + $flNewTable + ',' + $flCategory + ',' + $flShared + '],"success":true}]')
+    Write-Utf8 (Join-Path $flState 'verify-yes.json') ('[{"results":[' + $flAll + ',' + $flShared + ',' + $flOldOwn + '],"success":true}]')
     Write-Utf8 (Join-Path $flState 'verify-no.json') '[{"results":[],"success":true}]'
     Write-Utf8 (Join-Path $flState 'maxid.json') '[{"results":[{"n":43399}],"success":true}]'
     $flNpx = @(
@@ -5551,6 +5568,8 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         'if exist "%GW_FAKE_STATE%\wrong.flag" goto schemawrong',
         'if exist "%GW_FAKE_STATE%\created.flag" goto schemadone',
         'if exist "%GW_FAKE_STATE%\two.flag" goto schematwo',
+        'if exist "%GW_FAKE_STATE%\noshared.flag" goto schemanoshared',
+        'if exist "%GW_FAKE_STATE%\newtable.flag" goto schemanewtable',
         'type "%GW_FAKE_STATE%\schema-base.json"',
         'exit /b 0',
         ':schemadone',
@@ -5558,6 +5577,12 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         'exit /b 0',
         ':schematwo',
         'type "%GW_FAKE_STATE%\schema-two.json"',
+        'exit /b 0',
+        ':schemanoshared',
+        'type "%GW_FAKE_STATE%\schema-noshared.json"',
+        'exit /b 0',
+        ':schemanewtable',
+        'type "%GW_FAKE_STATE%\schema-newtable.json"',
         'exit /b 0',
         ':schemawrong',
         'type "%GW_FAKE_STATE%\schema-wrong.json"',
@@ -5581,6 +5606,16 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         return [System.IO.File]::ReadAllText($f[0].FullName)
     }
     function FLBackup([string]$filter) { return @(Get-ChildItem -LiteralPath (Join-Path $flWork 'backups') -Filter $filter -ErrorAction SilentlyContinue) }
+    function FLSent([string]$code) {
+        $sq = @(FLBackup ($code + '-add-fast-lists-*.sql') | Sort-Object LastWriteTime, Name | Select-Object -Last 1)
+        if ($sq.Count -ne 1) { return @() }
+        return @([System.IO.File]::ReadAllLines($sq[0].FullName) | Where-Object { $_ })
+    }
+    function FLRollback([string]$code) {
+        $rb = @(FLBackup ($code + '-rollback-fast-lists-*.txt') | Sort-Object LastWriteTime, Name | Select-Object -Last 1)
+        if ($rb.Count -ne 1) { return '' }
+        return [System.IO.File]::ReadAllText($rb[0].FullName)
+    }
     try {
         Check ($flStatements.Count -eq 5) 'fast lists: the five statements of migration 0003'
         $same = $true
@@ -5589,21 +5624,58 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
             if (($o -join '|') -ne ($flStatements -join '|')) { $same = $false }
         }
         Check $same 'fast lists: the same migration 0003 on the 7 new-layout sites'
+        Check ($flOldStatements.Count -eq 7) 'fast lists (L193): the seven statements of the older sites'' migration 0001'
+        $same = $true
+        foreach ($s in @('mgw', 'wgw', 'kgw', 'hgw', 'ggw')) {
+            $o = @([System.IO.File]::ReadAllLines((Join-Path $repo ('sites\' + $s + '\migrations\0001_fast_lists.sql')), [System.Text.Encoding]::UTF8) | Where-Object { $_ -like 'CREATE INDEX*' })
+            if (($o -join '|') -ne ($flOldStatements -join '|')) { $same = $false }
+        }
+        Check $same 'fast lists (L193): the same migration 0001 on the 6 older sites'
         Check ((Run-FL @()) -eq 0) 'fast lists check: exit 0'
         $c = FLCalls
-        Check (-not ($c -match '--file') -and ($c -match 'car-gear-world --remote --json --command "SELECT') -and ($c -match 'technology-gear-world') -and ($c -match 'pets-gear-world') -and -not ($c -match 'mens-gear-world|construction')) 'fast lists check: only SELECTs, on the 7 new-layout databases (TGW too, never an older site)'
-        Check (@([regex]::Matches($c, 'ORDER BY type, name')).Count -eq 7) 'fast lists check: the schema of each of the 7 databases, once'
+        Check (-not ($c -match '--file') -and ($c -match 'car-gear-world --remote --json --command "SELECT') -and ($c -match 'technology-gear-world') -and ($c -match 'pets-gear-world') -and ($c -match 'construction-gear-customers --remote --json --command "SELECT') -and ($c -match 'garden-gear-world')) 'fast lists check: only SELECTs, on the 7 new-layout and the 6 older databases'
+        Check (@([regex]::Matches($c, 'ORDER BY type, name')).Count -eq 13) 'fast lists check: the schema of each of the 13 databases, once'
         $r = FLLast 'D1_FAST_LISTS_CHECK_*.txt'
         $allIn = $true
         foreach ($st in $flStatements) { if (-not $r.Contains($st)) { $allIn = $false } }
-        Check ($allIn -and $r.Contains('ΕΓΚΡΙΝΩ ΕΥΡΕΤΗΡΙΑ ΛΙΣΤΩΝ') -and $r.Contains('-PaidPlan') -and $r.Contains('npx wrangler d1 execute car-gear-world --remote --command "DROP INDEX IF EXISTS idx_products_cat_cover"') -and $r.Contains('216995') -and $r.Contains('ο κώδικας των sites δεν αλλάζει')) 'fast lists check: the five statements, the phrase, -PaidPlan (5 x 43,399 rows a database), the rollback (indexes only) in the report'
+        foreach ($st in @($flOldStatements | Select-Object -Skip 4)) { if (-not $r.Contains($st)) { $allIn = $false } }
+        Check ($allIn -and $r.Contains('ΕΓΚΡΙΝΩ ΕΥΡΕΤΗΡΙΑ ΛΙΣΤΩΝ') -and $r.Contains('-PaidPlan') -and $r.Contains('npx wrangler d1 execute car-gear-world --remote --command "DROP INDEX IF EXISTS idx_products_cat_cover"') -and $r.Contains('216995') -and $r.Contains('ο κώδικας των sites δεν αλλάζει')) 'fast lists check: the statements, the phrase, -PaidPlan (5 x 43,399 rows a new database), the rollback (indexes only) in the report'
+        Check ($r.Contains('130197') -and $r.Contains('npx wrangler d1 execute construction-gear-customers --remote --command "DROP INDEX IF EXISTS idx_products_old_cover"') -and -not $r.Contains('DROP INDEX IF EXISTS idx_products_group_key') -and -not $r.Contains('DROP INDEX IF EXISTS idx_products_active_created') -and -not ($r -match 'DROP INDEX IF EXISTS idx_products_active_category\b')) 'fast lists check (L193): the older sites add 3 (3 x 43,399 rows), and their rollback never drops the L51 indexes they had'
         Remove-Item -LiteralPath $flCalls -Force -ErrorAction SilentlyContinue
         Check ((Run-FL @('-Verify')) -eq 9 -and -not ((FLCalls) -match '--file|MAX\(id\)')) 'fast lists -Verify without the indexes: exit 9, only the schema read'
         Check ((Run-FL @('-Verify', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ ΕΥΡΕΤΗΡΙΑ ΛΙΣΤΩΝ')) -eq 2 -and -not ((FLCalls) -match '--file')) 'fast lists -Verify never goes with -Apply'
         Remove-Item -LiteralPath $flCalls -Force -ErrorAction SilentlyContinue
         Check ((Run-FL @('-Apply', '-Approve', 'ΕΓΚΡΙΝΩ ΕΥΡΕΤΗΡΙΑ ΛΙΣΤΩΝ')) -eq 7 -and -not ((FLCalls) -match '--file')) 'fast lists apply above 90,000 writes without -PaidPlan: stops, nothing changes'
         Check ((Run-FL @('-Apply', '-PaidPlan', '-Approve', 'ΕΓΚΡΙΝΩ ΕΥΡΕΤΗΡΙΑ D1')) -eq 1 -and -not ((FLCalls) -match '--file')) 'fast lists apply with another tool''s phrase: nothing changes'
-        Check ((Run-FL @('-Only', 'mgw')) -eq 2) 'fast lists: an older site in -Only is refused'
+        Check ((Run-FL @('-Only', 'xgw')) -eq 2) 'fast lists: an unknown site in -Only is refused'
+        Remove-Item -LiteralPath $flCalls -Force -ErrorAction SilentlyContinue
+        Check ((Run-FL @('-Only', 'mgw')) -eq 0 -and ((FLCalls) -match 'execute mens-gear-world --remote') -and -not ((FLCalls) -match 'womens-gear-world|car-gear-world|construction')) 'fast lists -Only mgw (L193): only the MGW database'
+        # L193: an older database (CGW) with the 4 shared indexes: only the 3 new ones are sent, and the rollback has only them.
+        Remove-Item -LiteralPath $flCalls -Force -ErrorAction SilentlyContinue
+        Check ((Run-FL @('-Only', 'cgw', '-Apply', '-PaidPlan', '-Approve', 'ΕΓΚΡΙΝΩ ΕΥΡΕΤΗΡΙΑ ΛΙΣΤΩΝ')) -eq 0) 'fast lists apply (CGW only): exit 0'
+        $c = FLCalls
+        $iBackup = $c.LastIndexOf('ORDER BY type, name')
+        $iFile = $c.IndexOf('--file')
+        Check ((@([regex]::Matches($c, '--file')).Count -eq 1) -and ($c -match 'construction-gear-customers --remote --file') -and $iBackup -ge 0 -and $iFile -gt $iBackup -and $c.IndexOf('AND name IN') -gt $iFile) 'fast lists apply (CGW): the schema backup first, then the indexes of that database only, then the check'
+        $sent = FLSent 'cgw'
+        Check ($sent.Count -eq 3 -and ($sent -join '|') -eq ((@($flOldStatements | Select-Object -Skip 4)) -join '|')) 'fast lists apply (CGW): exactly the three new CREATE INDEX statements are sent (L28)'
+        $rbText = FLRollback 'cgw'
+        Check ($rbText.Contains('npx wrangler d1 execute construction-gear-customers --remote --command "DROP INDEX IF EXISTS idx_products_old_featured"') -and $rbText.Contains('L193') -and -not $rbText.Contains('idx_products_group_key') -and -not $rbText.Contains('idx_products_active_category_price_id')) 'fast lists apply (CGW): the rollback drops only the indexes of the lists, never the L51 ones'
+        Remove-Item -LiteralPath (Join-Path $flState 'created.flag') -Force -ErrorAction SilentlyContinue
+        # An older database without CGW's plain category index (GGW): it goes in too, and its rollback has it.
+        Write-Utf8 (Join-Path $flState 'noshared.flag') 'noshared'
+        Check ((Run-FL @('-Only', 'ggw', '-Apply', '-PaidPlan', '-Approve', 'ΕΓΚΡΙΝΩ ΕΥΡΕΤΗΡΙΑ ΛΙΣΤΩΝ')) -eq 0) 'fast lists apply (GGW without the category index): exit 0'
+        $sent = FLSent 'ggw'
+        $rbText = FLRollback 'ggw'
+        Check ($sent.Count -eq 4 -and $sent[0] -eq $flOldStatements[0] -and $rbText.Contains('DROP INDEX IF EXISTS idx_products_active_category"') -and -not $rbText.Contains('idx_products_group_key')) 'fast lists apply (GGW): the missing category index is added and is in its rollback; the L51 ones are not'
+        Remove-Item -LiteralPath (Join-Path $flState 'noshared.flag') -Force
+        Remove-Item -LiteralPath (Join-Path $flState 'created.flag') -Force -ErrorAction SilentlyContinue
+        # A database whose table is of the other layout (a wrong name): never touched.
+        Write-Utf8 (Join-Path $flState 'newtable.flag') 'newtable'
+        Check ((Run-FL @('-Only', 'hgw')) -eq 2 -and (FLLast 'D1_FAST_LISTS_CHECK_*.txt').Contains('δεν έχει τις στήλες')) 'fast lists (L193): an older site whose table is not of the older layout is a problem'
+        Remove-Item -LiteralPath $flCalls -Force -ErrorAction SilentlyContinue
+        Check ((Run-FL @('-Only', 'hgw', '-Apply', '-PaidPlan', '-Approve', 'ΕΓΚΡΙΝΩ ΕΥΡΕΤΗΡΙΑ ΛΙΣΤΩΝ')) -eq 8 -and -not ((FLCalls) -match '--file')) 'fast lists apply (L193): never touches a table of the other layout'
+        Remove-Item -LiteralPath (Join-Path $flState 'newtable.flag') -Force
         # Two of the five already there: only the three missing ones are sent.
         Write-Utf8 (Join-Path $flState 'two.flag') 'two'
         Remove-Item -LiteralPath $flCalls -Force -ErrorAction SilentlyContinue
@@ -5616,17 +5688,15 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         Check ($iBackup -ge 0 -and $iFile -gt $iBackup -and $c.IndexOf('AND name IN') -gt $iFile) 'fast lists apply: the schema backup first, then the indexes, then the check'
         $bk = FLBackup 'agw-sqlite_master-before-fast-lists-*.json'
         Check ($bk.Count -eq 1 -and ([System.IO.File]::ReadAllText($bk[0].FullName)).Contains('idx_products_category')) 'fast lists apply: the schema saved to a dated file'
-        $sq = FLBackup 'agw-add-fast-lists-*.sql'
-        $sent = $(if ($sq.Count -eq 1) { @([System.IO.File]::ReadAllLines($sq[0].FullName) | Where-Object { $_ }) } else { @() })
+        $sent = FLSent 'agw'
         Check ($sent.Count -eq 3 -and ($sent -join '|') -eq (($flStatements | Select-Object -Skip 2) -join '|')) 'fast lists apply: exactly the three missing CREATE INDEX statements are sent (L28)'
-        $rb = FLBackup 'agw-rollback-fast-lists-*.txt'
-        $rbText = $(if ($rb.Count -eq 1) { [System.IO.File]::ReadAllText($rb[0].FullName) } else { '' })
+        $rbText = FLRollback 'agw'
         Check ($rbText.Contains('npx wrangler d1 execute car-gear-world --remote --command "DROP INDEX IF EXISTS idx_products_cat_featured"') -and $rbText.Contains('L159')) 'fast lists apply: the rollback written next to the backup'
         Check ((FLLast 'D1_FAST_LISTS_APPLY_*.txt').Contains('ΕΤΟΙΜΟ')) 'fast lists apply: report ready'
         Remove-Item -LiteralPath $flCalls -Force -ErrorAction SilentlyContinue
-        Check ((Run-FL @('-Apply', '-Approve', 'ΕΓΚΡΙΝΩ ΕΥΡΕΤΗΡΙΑ ΛΙΣΤΩΝ')) -eq 0 -and -not ((FLCalls) -match '--file')) 'fast lists apply again: all five there, nothing changes'
+        Check ((Run-FL @('-Apply', '-Approve', 'ΕΓΚΡΙΝΩ ΕΥΡΕΤΗΡΙΑ ΛΙΣΤΩΝ')) -eq 0 -and -not ((FLCalls) -match '--file')) 'fast lists apply again: all of them there in the 13 databases, nothing changes'
         Check ((FLLast 'D1_FAST_LISTS_APPLY_*.txt').Contains('ήδη')) 'fast lists apply again: says they are already there'
-        Check ((Run-FL @('-Verify')) -eq 0 -and (FLLast 'D1_FAST_LISTS_VERIFY_*.txt').Contains('ΕΝΤΑΞΕΙ')) 'fast lists -Verify with the five in the 7 databases: exit 0'
+        Check ((Run-FL @('-Verify')) -eq 0 -and (FLLast 'D1_FAST_LISTS_VERIFY_*.txt').Contains('ΕΝΤΑΞΕΙ')) 'fast lists -Verify with all of them in the 13 databases: exit 0'
         Write-Utf8 (Join-Path $flState 'wrong.flag') 'other text'
         Remove-Item -LiteralPath (Join-Path $flState 'created.flag') -Force -ErrorAction SilentlyContinue
         Check ((Run-FL @()) -eq 2) 'fast lists check: an index of that name with another text is a problem'

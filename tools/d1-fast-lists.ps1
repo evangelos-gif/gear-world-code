@@ -1,31 +1,38 @@
 ﻿<#
 .SYNOPSIS
-  The indexes of lessons L159 in the 7 new-layout D1 databases (TGW, AGW, VGW, SGW, BGW, PGW, ZGW): the lists of a big
-  category read only the cards they show. Read-only unless -Apply and the typed approval phrase ΕΓΚΡΙΝΩ ΕΥΡΕΤΗΡΙΑ ΛΙΣΤΩΝ.
+  The indexes of lessons L159 and L193 in the 13 D1 databases: the 7 new-layout ones (TGW, AGW, VGW, SGW, BGW, PGW, ZGW)
+  and the 6 older ones (CGW, MGW, WGW, KGW, HGW, GGW). The lists of a big category read only the cards they show.
+  Read-only unless -Apply and the typed approval phrase ΕΓΚΡΙΝΩ ΕΥΡΕΤΗΡΙΑ ΛΙΣΤΩΝ.
 
 .DESCRIPTION
   On 14 Nov 2026 Car Gear World got 92,535 tyres (one category of 123,142 rows) and its D1 answered "overloaded": every
   category page numbered all the rows of its category, and the counts, the filters and the home page read every row
   (local test with 1,000,000 products: home page 10-13 s, a tyre page 1-3 s). The sites' code of L159 (src/db.js,
-  fastMode) walks each category in the page's own order through these five indexes (home page 1 ms, a tyre page 1-2 ms,
-  page 40 18 ms on the same test), and uses them only when all five are there: before they go in, and after they are
-  dropped, the sites read exactly as before. The statements are those of sites/<site>/migrations/0003_fast_lists.sql
-  (read from this version of the code), the same as FAST_INDEX_SQL in src/db.js.
+  fastMode) walks each category in the page's own order through these indexes (home page 1 ms, a tyre page 1-2 ms,
+  page 40 18 ms on the same test), and uses them only when all of them are there: before they go in, and after they are
+  dropped, the sites read exactly as before. The older sites (L193, 18 Nov 2026) read every row of a category on every
+  list page too (CGW Hand Tools: 41,509), so their imports stayed under 20,000 per category; the same code reads them
+  through their own set of 7 indexes (their tables stay as they are, L28).
+  The statements are those of this version of the code: sites/<site>/migrations/0003_fast_lists.sql for the new layout
+  (FAST_INDEX_SQL in src/db.js, 5 indexes) and sites/<site>/migrations/0001_fast_lists.sql for the older sites
+  (LEGACY_FAST_INDEX_SQL, 7 indexes: the 3 of L51 and CGW's plain category index, which they already have, and 3 new).
 
   Without -Apply: READ-ONLY. For each database it reads the schema (sqlite_master) and the highest product id (one row),
-                  and shows which of the five indexes exist, what would be added, about how many rows D1 would write
+                  and shows which of its indexes exist, what would be added, about how many rows D1 would write
                   (highest id x indexes to add), and how to go back. Changes nothing.
   With -Apply:    CHANGES THE DATABASES (only indexes, never a table or a row, lessons L28), one approval:
                   ΕΓΚΡΙΝΩ ΕΥΡΕΤΗΡΙΑ ΛΙΣΤΩΝ. First the schema of every database is saved to a dated file (backup), then
                   the missing indexes go into each database (CREATE INDEX IF NOT EXISTS: running it again changes
-                  nothing), one database at a time, then it checks that all five are there with exactly this text.
+                  nothing), one database at a time, then it checks that all of them are there with exactly this text.
                   While D1 builds them (seconds per database) the site's pages answer with their last copy (L159).
                   Above 90,000 rows written in all it needs -PaidPlan (Cloudflare Workers Paid, lessons L49).
-  -Verify         READ-ONLY. Exit 0 only when every database has the five indexes with exactly this text, otherwise 9.
-  -Only agw,vgw   only these sites (codes, comma separated).
-  Going back: for each database DROP INDEX IF EXISTS of the five (the report prints the commands). The sites' code then
-              reads the old way by itself (fastMode looks again within 10 minutes, and a query that misses an index is
-              asked again the old way at once): no code goes back first.
+  -Verify         READ-ONLY. Exit 0 only when every database has all its indexes with exactly this text, otherwise 9.
+  -Only agw,cgw   only these sites (codes, comma separated).
+  Going back: for each database DROP INDEX IF EXISTS of the indexes of the lists (the report prints the commands). On
+              the older sites only the 3 new ones (idx_products_old_*) and those this run added: the L51 indexes they
+              had before stay (the product pages use them). The sites' code then reads the old way by itself (fastMode
+              looks again within 10 minutes, and a query that misses an index is asked again the old way at once): no
+              code goes back first.
 
   Files on this PC: <home>\gear-world-d1-index\ (deploy\<version> with wrangler, backups\)
   Report: <home>\gear-world-reports\D1_FAST_LISTS_<CHECK|APPLY|VERIFY>_<time>.txt (also copied to the clipboard)
@@ -54,25 +61,46 @@ $Ok = 'Cyan'
 $Warn = 'Yellow'
 $Bad = 'Magenta'
 
-# The 7 new-layout sites (their own schema, sites/<site>/migrations). The older sites keep their database as it is (L28).
+# The 7 new-layout sites (their own schema, sites/<site>/migrations) and the 6 older sites (the database they already had,
+# lessons L28), each found by its database name, as the other tools find them (legacy-import.ps1, hub-members.ps1).
 $Sites = @(
-    @{ code = 'agw'; db = 'car-gear-world'; domain = 'cargearworld.com' },
-    @{ code = 'tgw'; db = 'technology-gear-world'; domain = 'technologygearworld.com' },
-    @{ code = 'vgw'; db = 'travel-gear-world'; domain = 'travelgearworld.com' },
-    @{ code = 'sgw'; db = 'sporty-gear-world'; domain = 'sportygearworld.com' },
-    @{ code = 'bgw'; db = 'biker-gear-world'; domain = 'bikergearworld.com' },
-    @{ code = 'pgw'; db = 'gaming-gear-world'; domain = 'gaminggearworld.com' },
-    @{ code = 'zgw'; db = 'pets-gear-world'; domain = 'petsgearworld.com' }
+    @{ code = 'agw'; db = 'car-gear-world'; domain = 'cargearworld.com'; layout = 'new' },
+    @{ code = 'tgw'; db = 'technology-gear-world'; domain = 'technologygearworld.com'; layout = 'new' },
+    @{ code = 'vgw'; db = 'travel-gear-world'; domain = 'travelgearworld.com'; layout = 'new' },
+    @{ code = 'sgw'; db = 'sporty-gear-world'; domain = 'sportygearworld.com'; layout = 'new' },
+    @{ code = 'bgw'; db = 'biker-gear-world'; domain = 'bikergearworld.com'; layout = 'new' },
+    @{ code = 'pgw'; db = 'gaming-gear-world'; domain = 'gaminggearworld.com'; layout = 'new' },
+    @{ code = 'zgw'; db = 'pets-gear-world'; domain = 'petsgearworld.com'; layout = 'new' },
+    @{ code = 'cgw'; db = 'construction-gear-customers'; domain = 'constructiongearworld.com'; layout = 'old' },
+    @{ code = 'mgw'; db = 'mens-gear-world'; domain = 'mensgearworld.com'; layout = 'old' },
+    @{ code = 'wgw'; db = 'womens-gear-world'; domain = 'womensgearworld.com'; layout = 'old' },
+    @{ code = 'kgw'; db = 'kids-gear-world'; domain = 'kidsgearworld.com'; layout = 'old' },
+    @{ code = 'hgw'; db = 'home-gear-world'; domain = 'homegearworld.com'; layout = 'old' },
+    @{ code = 'ggw'; db = 'garden-gear-world'; domain = 'gardengearworld.com'; layout = 'old' }
 )
+# How many statements each layout's file has, and the columns its products table must have (so a database of the other
+# layout, or a wrong name, is never touched).
+$Expect = @{
+    new = @{ n = 5; file = '0003_fast_lists.sql'; columns = @('category_slug', 'first_seen_at', 'last_seen_at', 'in_stock') }
+    old = @{ n = 7; file = '0001_fast_lists.sql'; columns = @('site_category', 'stock_status', 'created_at', 'updated_at', 'ean', 'specs_json') }
+}
 
-# The five statements, from the migration of this version of the code (the same file for every new-layout site).
-$migration = Join-Path (Join-Path (Join-Path (Join-Path $repo 'sites') 'agw') 'migrations') '0003_fast_lists.sql'
-$Indexes = New-Object System.Collections.ArrayList
-if (Test-Path -LiteralPath $migration) {
-    foreach ($line in [System.IO.File]::ReadAllLines($migration, [System.Text.Encoding]::UTF8)) {
-        $m = [regex]::Match($line, '^CREATE INDEX IF NOT EXISTS (idx_products_\w+) ON products \(')
-        if ($m.Success) { [void]$Indexes.Add(@{ name = $m.Groups[1].Value; sql = $line.Trim() }) }
+# The statements of each site, from the migration of this version of the code. own: an index of the lists alone (every
+# index of the new layout; on the older sites idx_products_old_*). The others of the older sites are the L51 indexes and
+# CGW's plain category index, which the product pages use too: a rollback never drops one that was there before.
+function Read-Indexes($s) {
+    $file = Join-Path (Join-Path (Join-Path (Join-Path $repo 'sites') $s.code) 'migrations') $Expect[$s.layout].file
+    $list = New-Object System.Collections.ArrayList
+    if (Test-Path -LiteralPath $file) {
+        foreach ($line in [System.IO.File]::ReadAllLines($file, [System.Text.Encoding]::UTF8)) {
+            $m = [regex]::Match($line, '^CREATE INDEX IF NOT EXISTS (idx_products_\w+) ON products \(')
+            if ($m.Success) {
+                $own = ($s.layout -eq 'new') -or ($m.Groups[1].Value -like 'idx_products_old_*')
+                [void]$list.Add(@{ name = $m.Groups[1].Value; sql = $line.Trim(); own = $own })
+            }
+        }
     }
+    return , $list.ToArray()
 }
 
 $L = New-Object System.Collections.Generic.List[string]
@@ -186,15 +214,21 @@ function Normalize-Sql([string]$s) {
 
 $SchemaSql = 'SELECT type, name, tbl_name, sql FROM sqlite_master ORDER BY type, name'
 
-function Get-RollbackLines($dbs) {
+# The commands that go back, for each database of $items (@{ site; indexes; missing }): its own indexes, and on the older
+# sites also those of the others that this run adds (missing now). An index the database had before is never dropped.
+function Get-RollbackLines($items) {
     $lines = @(
         'Επαναφορά (αν χρειαστεί): μόνο τα ευρετήρια φεύγουν, ο κώδικας των sites δεν αλλάζει.',
-        '  Ο κώδικας του L159 τα χρησιμοποιεί μόνο όταν υπάρχουν και τα πέντε: χωρίς αυτά διαβάζει όπως πριν, μόνος του.',
+        '  Ο κώδικας τα χρησιμοποιεί μόνο όταν υπάρχουν όλα (L159, L193): χωρίς αυτά διαβάζει όπως πριν, μόνος του.',
+        '  Στα παλιά sites δεν σβήνονται τα ευρετήρια του L51 που υπήρχαν ήδη (τα χρειάζονται οι σελίδες προϊόντων).',
         '  Για κάθε βάση, από τον φάκελο:',
         ('     cd "{0}"' -f $dest)
     )
-    foreach ($s in $dbs) {
-        foreach ($ix in $Indexes) { $lines += ('     npx wrangler d1 execute {0} --remote --command "DROP INDEX IF EXISTS {1}"' -f $s.db, $ix.name) }
+    foreach ($t in $items) {
+        $missingNames = @($t.missing | ForEach-Object { $_.name })
+        foreach ($ix in $t.indexes) {
+            if ($ix.own -or ($missingNames -contains $ix.name)) { $lines += ('     npx wrangler d1 execute {0} --remote --command "DROP INDEX IF EXISTS {1}"' -f $t.site.db, $ix.name) }
+        }
     }
     return $lines
 }
@@ -203,11 +237,10 @@ function Get-RollbackLines($dbs) {
 $mode = 'ΜΟΝΟ ΕΛΕΓΧΟΣ (δεν αλλάζει τίποτα)'
 if ($Apply) { $mode = 'APPLY (με έγκριση)' }
 if ($Verify) { $mode = 'ΕΛΕΓΧΟΣ (μόνο ανάγνωση)' }
-Say ('D1 ΕΥΡΕΤΗΡΙΑ ΛΙΣΤΩΝ (L159) - {0} - {1}' -f $mode, (Get-Date -Format 'yyyy-MM-dd HH:mm')) $Ok
+Say ('D1 ΕΥΡΕΤΗΡΙΑ ΛΙΣΤΩΝ (L159, L193) - {0} - {1}' -f $mode, (Get-Date -Format 'yyyy-MM-dd HH:mm')) $Ok
 Say ('Code version: {0}' -f (Split-Path -Leaf $repo))
 if (-not (Get-Command node -ErrorAction SilentlyContinue)) { Say 'Δεν βρέθηκε το Node.js. Στείλε στο Claude αυτό το μήνυμα.' $Bad; Finish 3 }
 if ($Verify -and $Apply) { Say '-Verify μόνο διαβάζει: δεν πάει μαζί με -Apply. Δεν άλλαξε τίποτα.' $Bad; Finish 2 }
-if ($Indexes.Count -ne 5) { Say ('ΠΡΟΒΛΗΜΑ: δεν βρήκα τα 5 ευρετήρια στο {0} (βρήκα {1}). Δεν άλλαξε τίποτα.' -f $migration, $Indexes.Count) $Bad; Finish 3 }
 
 $run = @($Sites)
 if ($Only) {
@@ -216,8 +249,24 @@ if ($Only) {
     if ($unknown.Count -gt 0) { Say ('Άγνωστο site στο -Only: {0} (μόνο: {1})' -f ($unknown -join ', '), (($Sites | ForEach-Object { $_.code }) -join ', ')) $Bad; Finish 2 }
     $run = @($Sites | Where-Object { $want -contains $_.code })
 }
+# Each site's statements: the right number from its own file, or nothing is touched.
+$IndexesOf = @{}
+foreach ($s in $run) {
+    $ixs = Read-Indexes $s
+    if ($ixs.Count -ne $Expect[$s.layout].n) {
+        Say ('ΠΡΟΒΛΗΜΑ: δεν βρήκα τα {0} ευρετήρια του {1} στο sites\{2}\migrations\{3} (βρήκα {4}). Δεν άλλαξε τίποτα.' -f $Expect[$s.layout].n, $s.code.ToUpper(), $s.code, $Expect[$s.layout].file, $ixs.Count) $Bad
+        Finish 3
+    }
+    $IndexesOf[$s.code] = $ixs
+}
 Say ('Βάσεις: {0}' -f (($run | ForEach-Object { '{0} ({1})' -f $_.code.ToUpper(), $_.db }) -join ', '))
-Say ('Ευρετήρια: {0}' -f (($Indexes | ForEach-Object { $_.name }) -join ', '))
+foreach ($layout in @('new', 'old')) {
+    $first = @($run | Where-Object { $_.layout -eq $layout } | Select-Object -First 1)
+    if ($first.Count -eq 0) { continue }
+    $label = 'νέα μορφή'
+    if ($layout -eq 'old') { $label = 'παλιά sites' }
+    Say ('Ευρετήρια ({0}): {1}' -f $label, (($IndexesOf[$first[0].code] | ForEach-Object { $_.name }) -join ', '))
+}
 
 # wrangler of this repo version (npm ci once per version). No wrangler config here: each database is found by its name.
 $ver = (Split-Path -Leaf $repo) -replace '[^A-Za-z0-9\-]', ''
@@ -236,7 +285,7 @@ if (-not $SkipInstall -and -not (Test-Path -LiteralPath (Join-Path $dest 'node_m
     if ($code -ne 0) { Say 'Η εγκατάσταση (npm ci) απέτυχε. Στείλε στο Claude αυτό το μήνυμα.' $Bad; Finish 3 }
 }
 
-# 1. Each database: which of the five indexes it has, and its highest product id (only SELECT)
+# 1. Each database: which of its indexes it has, and its highest product id (only SELECT)
 $problems = 0
 $notReady = New-Object System.Collections.Generic.List[string]
 $todo = New-Object System.Collections.ArrayList
@@ -244,6 +293,8 @@ $writes = 0
 Say ''
 Say '1. Τι υπάρχει τώρα (μόνο ανάγνωση):'
 foreach ($s in $run) {
+    $ixs = $IndexesOf[$s.code]
+    $all = $ixs.Count
     $r = Select-Rows $s.db $SchemaSql
     if (-not $r.ok) {
         if ($r.text -match '(?i)not authenticated|wrangler login') { Say 'Το wrangler δεν είναι συνδεδεμένο στο Cloudflare. Στείλε στο Claude αυτό το μήνυμα.' $Bad; Finish 4 }
@@ -256,9 +307,18 @@ foreach ($s in $run) {
     $rows = @($r.rows)
     $table = @($rows | Where-Object { $_.type -eq 'table' -and $_.name -eq 'products' })
     if ($table.Count -ne 1) { Say ('  {0} ({1}): ΠΡΟΒΛΗΜΑ - δεν έχει πίνακα products. Δεν την αγγίζω.' -f $s.code.ToUpper(), $s.db) $Bad; $problems++; $notReady.Add($s.code.ToUpper()); continue }
+    # The table of the layout this site has (L28): the columns its indexes name. Another layout is never touched.
+    $tableSql = ([string]$table[0].sql).ToLowerInvariant()
+    $lack = @($Expect[$s.layout].columns | Where-Object { -not ($tableSql -match ('\b' + $_ + '\b')) })
+    if ($lack.Count -gt 0) {
+        Say ('  {0} ({1}): ΠΡΟΒΛΗΜΑ - ο πίνακας products δεν έχει τις στήλες {2} ({3}). Δεν την αγγίζω.' -f $s.code.ToUpper(), $s.db, ($lack -join ', '), $(if ($s.layout -eq 'old') { 'παλιά μορφή' } else { 'νέα μορφή' })) $Bad
+        $problems++
+        $notReady.Add($s.code.ToUpper())
+        continue
+    }
     $missing = New-Object System.Collections.ArrayList
     $wrong = 0
-    foreach ($ix in $Indexes) {
+    foreach ($ix in $ixs) {
         $have = @($rows | Where-Object { $_.type -eq 'index' -and $_.name -eq $ix.name })
         if ($have.Count -eq 1) {
             if ((Normalize-Sql ([string]$have[0].sql)) -eq (Normalize-Sql $ix.sql)) { continue }
@@ -269,7 +329,7 @@ foreach ($s in $run) {
         [void]$missing.Add($ix)
     }
     if ($wrong -gt 0) { Say '      Δεν το αλλάζω: στείλε στο Claude αυτή την αναφορά.' $Bad; $problems++; $notReady.Add($s.code.ToUpper()); continue }
-    if ($missing.Count -eq 0) { Say ('  {0} ({1}): και τα 5 υπάρχουν με το σωστό κείμενο: ΕΝΤΑΞΕΙ (δεν αλλάζει)' -f $s.code.ToUpper(), $s.db) $Ok; continue }
+    if ($missing.Count -eq 0) { Say ('  {0} ({1}): και τα {2} υπάρχουν με το σωστό κείμενο: ΕΝΤΑΞΕΙ (δεν αλλάζει)' -f $s.code.ToUpper(), $s.db, $all) $Ok; continue }
     $notReady.Add($s.code.ToUpper())
     if ($Verify) { Say ('  {0} ({1}): ΛΕΙΠΟΥΝ {2}: {3}' -f $s.code.ToUpper(), $s.db, $missing.Count, (($missing | ForEach-Object { $_.name }) -join ', ')) $Bad; continue }
     $mx = Select-Rows $s.db 'SELECT MAX(id) AS n FROM products'
@@ -277,18 +337,18 @@ foreach ($s in $run) {
     if ($mx.ok -and $mx.rows.Count -ge 1 -and $null -ne $mx.rows[0].n) { $n = [long]$mx.rows[0].n }
     if (-not $mx.ok) { Say ('  {0}: ΠΡΟΣΟΧΗ: δεν διάβασα πόσα προϊόντα έχει.' -f $s.db) $Warn; $problems++; continue }
     $writes += $n * $missing.Count
-    [void]$todo.Add(@{ site = $s; missing = @($missing) })
-    Say ('  {0} ({1}): λείπουν {2} ({3}): θα μπουν (έως περίπου {4} εγγραφές στη D1, μία φορά)' -f $s.code.ToUpper(), $s.db, $missing.Count, (($missing | ForEach-Object { $_.name }) -join ', '), ($n * $missing.Count)) $Warn
+    [void]$todo.Add(@{ site = $s; indexes = $ixs; missing = @($missing) })
+    Say ('  {0} ({1}): λείπουν {2} από {3} ({4}): θα μπουν (έως περίπου {5} εγγραφές στη D1, μία φορά)' -f $s.code.ToUpper(), $s.db, $missing.Count, $all, (($missing | ForEach-Object { $_.name }) -join ', '), ($n * $missing.Count)) $Warn
 }
 
 if ($Verify) {
     Say ''
     if ($notReady.Count -gt 0) {
-        Say ('Έλεγχος ευρετηρίων: ΠΡΟΒΛΗΜΑ - λείπουν ή δεν είναι σωστά σε: {0}. Τα sites διαβάζουν εκεί όπως πριν (L159).' -f ($notReady -join ', ')) $Bad
+        Say ('Έλεγχος ευρετηρίων: ΠΡΟΒΛΗΜΑ - λείπουν ή δεν είναι σωστά σε: {0}. Τα sites διαβάζουν εκεί όπως πριν (L159, L193).' -f ($notReady -join ', ')) $Bad
         Say ('Για να μπουν: tools/d1-fast-lists.ps1 με -Apply και «{0}».' -f $Phrase) $Bad
         Finish 9
     }
-    Say ('Έλεγχος ευρετηρίων: και τα 5 υπάρχουν με το σωστό κείμενο σε {0}: ΕΝΤΑΞΕΙ' -f (($run | ForEach-Object { $_.code.ToUpper() }) -join ', ')) $Ok
+    Say ('Έλεγχος ευρετηρίων: όλα υπάρχουν με το σωστό κείμενο σε {0}: ΕΝΤΑΞΕΙ' -f (($run | ForEach-Object { $_.code.ToUpper() }) -join ', ')) $Ok
     Finish 0
 }
 
@@ -300,13 +360,20 @@ if ($todo.Count -eq 0) { Say '  Καμία βάση δεν χρειάζεται 
 else {
     Say ('  a. Αντίγραφο ασφαλείας: το σχήμα (sqlite_master) κάθε βάσης σε αρχείο με ημερομηνία, στο {0}' -f (Join-Path $WorkDir 'backups'))
     Say ('  b. Σε {0} βάσεις, μία-μία: {1}' -f $todo.Count, (($todoSites | ForEach-Object { $_.code.ToUpper() }) -join ', '))
-    foreach ($ix in $Indexes) { Say ('     {0}' -f $ix.sql) }
+    $shown = @{}
+    foreach ($t in $todo) {
+        foreach ($ix in $t.missing) {
+            if ($shown.ContainsKey($ix.sql)) { continue }
+            $shown[$ix.sql] = $true
+            Say ('     {0}' -f $ix.sql)
+        }
+    }
     Say '     Μόνο ευρετήρια: κανένας πίνακας και καμία γραμμή δεν αλλάζει (L28). Δεύτερη φορά δεν αλλάζει τίποτα (IF NOT EXISTS).'
     Say '     Όσο η D1 τα φτιάχνει (δευτερόλεπτα σε κάθε βάση), οι σελίδες του site δείχνουν το τελευταίο τους αντίγραφο (L159).'
-    Say '  c. Έλεγχος ότι και τα 5 υπάρχουν σε κάθε βάση με ακριβώς αυτό το κείμενο.'
+    Say '  c. Έλεγχος ότι όλα υπάρχουν σε κάθε βάση με ακριβώς αυτό το κείμενο.'
     Say ('  Εγγραφές στη D1: έως περίπου {0} συνολικά, μία φορά (προϊόντα κάθε βάσης x ευρετήρια που λείπουν).' -f $writes)
     if ($writes -gt $FreeWriteLimit) { Say ('  Πάνω από {0}: χρειάζεται -PaidPlan (Cloudflare Workers Paid). Με Workers Free το όριο είναι 100.000 τη μέρα για όλο τον λογαριασμό (L49).' -f $FreeWriteLimit) $Warn }
-    foreach ($line in (Get-RollbackLines $todoSites)) { Say ('  ' + $line) }
+    foreach ($line in (Get-RollbackLines $todo)) { Say ('  ' + $line) }
 }
 
 if (-not $Apply) {
@@ -319,7 +386,7 @@ if (-not $Apply) {
 
 # ================= apply =================
 if ($problems -gt 0) { Say ''; Say 'Υπάρχουν προβλήματα (δες τα παραπάνω): ΔΕΝ αλλάζω τίποτα.' $Bad; Finish 8 }
-if ($todo.Count -eq 0) { Say ''; Say 'Τίποτα να αλλάξει: όλες οι βάσεις έχουν ήδη και τα 5. ΕΝΤΑΞΕΙ' $Ok; Finish 0 }
+if ($todo.Count -eq 0) { Say ''; Say 'Τίποτα να αλλάξει: όλες οι βάσεις έχουν ήδη όλα τα ευρετήρια. ΕΝΤΑΞΕΙ' $Ok; Finish 0 }
 if ($writes -gt $FreeWriteLimit -and -not $PaidPlan) {
     Say ''
     Say ('ΣΤΑΜΑΤΗΣΑ χωρίς αλλαγές: έως περίπου {0} εγγραφές, πάνω από {1}. Με Workers Paid η εντολή παίρνει και -PaidPlan.' -f $writes, $FreeWriteLimit) $Warn
@@ -340,7 +407,7 @@ foreach ($t in $todo) {
     $m = [regex]::Match($r.text, '(?m)^\s*\[')
     [System.IO.File]::WriteAllText($file, (Hide-Ids $r.text.Substring($m.Index)), (New-Object System.Text.UTF8Encoding($false)))
     $undo = Join-Path $bdir ('{0}-rollback-fast-lists-{1}.txt' -f $s.code, $stamp)
-    $note = @(('{0} ({1}): τα ευρετήρια λιστών (μάθημα L159) μπήκαν στις {2}. Μόνο με έγκριση:' -f $s.code.ToUpper(), $s.db, (Get-Date -Format 'yyyy-MM-dd HH:mm'))) + @(Get-RollbackLines @($s))
+    $note = @(('{0} ({1}): τα ευρετήρια λιστών (μαθήματα L159, L193) μπήκαν στις {2}. Μόνο με έγκριση:' -f $s.code.ToUpper(), $s.db, (Get-Date -Format 'yyyy-MM-dd HH:mm'))) + @(Get-RollbackLines @($t))
     [System.IO.File]::WriteAllText($undo, ($note -join "`r`n"), (New-Object System.Text.UTF8Encoding($false)))
     Say ('a. {0}: αντίγραφο του σχήματος: {1}' -f $s.code.ToUpper(), $file) $Ok
 }
@@ -362,20 +429,20 @@ foreach ($t in $todo) {
     Say ('b. {0}: μπήκαν {1} ευρετήρια.' -f $s.code.ToUpper(), @($t.missing).Count) $Ok
 }
 
-# c. Check: all five are there, with exactly this text
-$names = ($Indexes | ForEach-Object { "'" + $_.name + "'" }) -join ', '
+# c. Check: all of them are there, with exactly this text
 $bad = @()
 foreach ($t in $todo) {
     $s = $t.site
+    $names = ($t.indexes | ForEach-Object { "'" + $_.name + "'" }) -join ', '
     $r = Select-Rows $s.db ("SELECT name, sql FROM sqlite_master WHERE type = 'index' AND name IN ({0})" -f $names)
     $good = 0
-    foreach ($ix in $Indexes) { $good += @($r.rows | Where-Object { $_.name -eq $ix.name -and (Normalize-Sql ([string]$_.sql)) -eq (Normalize-Sql $ix.sql) }).Count }
-    if (-not $r.ok -or $good -ne $Indexes.Count) { $bad += $s.code.ToUpper() }
+    foreach ($ix in $t.indexes) { $good += @($r.rows | Where-Object { $_.name -eq $ix.name -and (Normalize-Sql ([string]$_.sql)) -eq (Normalize-Sql $ix.sql) }).Count }
+    if (-not $r.ok -or $good -ne $t.indexes.Count) { $bad += $s.code.ToUpper() }
 }
 Say ''
-if ($bad.Count -gt 0) { Say ('c. Έλεγχος: ΠΡΟΣΟΧΗ - δεν βλέπω και τα 5 σε: {0}. Τα sites εκεί διαβάζουν όπως πριν. Στείλε στο Claude αυτή την αναφορά.' -f ($bad -join ', ')) $Warn; Finish 13 }
-Say ('c. Έλεγχος: και τα 5 υπάρχουν σε {0} με το σωστό κείμενο: ΕΝΤΑΞΕΙ' -f ($done -join ', ')) $Ok
+if ($bad.Count -gt 0) { Say ('c. Έλεγχος: ΠΡΟΣΟΧΗ - δεν βλέπω όλα τα ευρετήρια σε: {0}. Τα sites εκεί διαβάζουν όπως πριν. Στείλε στο Claude αυτή την αναφορά.' -f ($bad -join ', ')) $Warn; Finish 13 }
+Say ('c. Έλεγχος: όλα υπάρχουν σε {0} με το σωστό κείμενο: ΕΝΤΑΞΕΙ' -f ($done -join ', ')) $Ok
 Say ''
-Say 'Τα sites τα χρησιμοποιούν μόνα τους μέσα σε 10 λεπτά (L159).'
+Say 'Τα sites τα χρησιμοποιούν μόνα τους μέσα σε 10 λεπτά (L159, L193).'
 Say 'Αποτέλεσμα: ΕΤΟΙΜΟ' $Ok
 Finish 0

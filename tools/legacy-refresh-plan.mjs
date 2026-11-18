@@ -12,8 +12,8 @@
 //     without that date (Reidl, Tooled Up) is judged by the date of its newest file on this PC;
 //   - a feed that misses more than half of the active products hides nothing (more likely a broken download);
 //   - the rows written in D1 are counted from the table's own indexes and triggers (lessons L49, L57, L59): 1 + one per
-//     index holding the column + 2 per update trigger firing on it. Above the budget, the plan keeps the first changes
-//     and leaves the rest for the next run.
+//     index holding the column or updated_at (L193) + 2 per update trigger firing on it. Above the budget, the plan
+//     keeps the first changes and leaves the rest for the next run.
 //
 //
 // --from-shop (job 3, lessons L60): for a shop whose Awin feed stopped (Red Gorilla, Wavytalk and Gardenista since 15 May
@@ -130,8 +130,11 @@ export function writeCosts(rows) {
   const indexes = sqls.filter(s => !/^\s*CREATE\s+TRIGGER\b/i.test(s));
   const onUpdate = triggers.map(s => /\bAFTER\s+UPDATE\b(?:\s+OF\s+([\s\S]*?))?\s+ON\s+["'`]?products\b/i.exec(s)).filter(Boolean)
     .map(m => (m[1] ? m[1].split(',').map(c => c.trim().replace(/["'`]/g, '').toLowerCase()) : null));
-  const per = col => 1 + indexes.filter(s => new RegExp(`\\b${col}\\b`, 'i').test(s.replace(/^[^(]*\(/, ''))).length
-    + 2 * onUpdate.filter(cols => cols === null || cols.includes(col)).length;
+  // Every refresh UPDATE also sets updated_at (updateStatement, idsSql): an index that holds updated_at is written for any
+  // change, once (lessons L193: idx_products_old_cover of the older sites' fast lists).
+  const holds = (s, col) => new RegExp(`\\b${col}\\b`, 'i').test(s.replace(/^[^(]*\(/, ''));
+  const per = col => 1 + indexes.filter(s => holds(s, col) || holds(s, 'updated_at')).length
+    + 2 * onUpdate.filter(cols => cols === null || cols.includes(col) || cols.includes('updated_at')).length;
   return { price: per('price'), image_url: per('image_url'), stock_status: per('stock_status'), is_active: per('is_active') };
 }
 

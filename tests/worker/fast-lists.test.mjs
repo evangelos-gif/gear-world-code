@@ -73,7 +73,7 @@ function shop(seed, n = 1800) {
 }
 const plain = x => JSON.parse(JSON.stringify(x));
 
-test('L159: fast mode only with every index of migration 0003 (and the group-key index where offers are grouped); the older sites never', async () => {
+test('L159: fast mode only with every index of migration 0003 (and the group-key index where offers are grouped); the older sites only with their own (L193)', async () => {
   const site = config.agw;
   db.useLayout(site);
   const { fast, slow } = shop(1, 50);
@@ -85,7 +85,7 @@ test('L159: fast mode only with every index of migration 0003 (and the group-key
   assert.equal(await db.fastMode(partial), false);
   // A database that cannot answer: the old queries, never an error.
   assert.equal(await db.fastMode({ prepare: () => { throw new Error('D1_ERROR: boom'); } }), false);
-  // The older layout (CGW, MGW ...): never.
+  // The older layout (CGW, MGW ...) has its own indexes (L193, tests/worker/fast-lists-legacy.test.mjs): never with these.
   db.useLayout(config.mgw);
   assert.equal(await db.fastMode(fast), false);
   db.useLayout(site);

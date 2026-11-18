@@ -393,6 +393,10 @@ jobs:
           git diff --exit-code tests/fixtures/${{ matrix.site }}-seed.sql
           npx wrangler d1 execute ${{ matrix.db }} --local --config sites/${{ matrix.site }}/wrangler.jsonc --file tests/fixtures/ggw-legacy-schema.sql
           npx wrangler d1 execute ${{ matrix.db }} --local --config sites/${{ matrix.site }}/wrangler.jsonc --file tests/fixtures/${{ matrix.site }}-seed.sql
+          # Lessons L193: the indexes of the fast lists, as the live database will have them, so the checks below read the
+          # pages the fast way on the D1 of wrangler (its limits: 100 values, 5 SELECTs in a UNION ALL). The node tests
+          # compare both ways.
+          npx wrangler d1 execute ${{ matrix.db }} --local --config sites/${{ matrix.site }}/wrangler.jsonc --file sites/${{ matrix.site }}/migrations/0001_fast_lists.sql
       - name: Start the Worker locally
         run: |
           npx wrangler dev --config sites/${{ matrix.site }}/wrangler.jsonc --local --port 8788 --ip 127.0.0.1 --var EDGE_CACHE:off --var GW_TODAY:2026-10-21 > dev.log 2>&1 &
