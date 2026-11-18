@@ -124,7 +124,8 @@ export function validate(data, today = data.checked) {
   return problems;
 }
 
-function head({ title, description, path, jsonLd }) {
+// head() and FOOT are shared with tools/gwh-black-friday.mjs (the /black-friday/ page, lessons L188).
+export function head({ title, description, path, jsonLd }) {
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -149,7 +150,7 @@ function head({ title, description, path, jsonLd }) {
 </header>`;
 }
 
-const FOOT = `<footer class="lg-footer">
+export const FOOT = `<footer class="lg-footer">
   <div class="lg-wrap">
     <nav class="lg-legal" aria-label="Legal">
       <a href="/about/">About</a>

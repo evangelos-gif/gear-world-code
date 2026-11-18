@@ -2,6 +2,8 @@
 .SYNOPSIS
   Gear World Hub sitemap (the small Worker "gwh-sitemap" on gearworldhub.com/sitemap.xml): /about/ and the gift guides go in.
   Read-only unless -Step preview/live/remove-preview with -Apply and the typed approval phrase.
+  18/11/2026 (owner, «ΕΓΚΡΙΝΩ SITEMAP BLACK FRIDAY», lessons L188): before-worker.js is now the version that runs
+  live since 7/11/2026 (13 pages) and the new version adds /black-friday/ (14 pages).
 
 .DESCRIPTION
   The Worker gwh-sitemap was made on 24/10/2026 in another chat and sends 6 pages. The new version
@@ -221,9 +223,9 @@ $liveState = 'unknown'
 if (-not $NoHttpCheck) {
     $liveState = Get-SitemapState $LiveUrl
     switch ($liveState) {
-        'before' { Say 'Live sitemap: η έκδοση της 24/10/2026 (6 σελίδες): ΕΝΤΑΞΕΙ' $Ok }
+        'before' { Say 'Live sitemap: η έκδοση που τρέχει live από 7/11/2026 (13 σελίδες): ΕΝΤΑΞΕΙ' $Ok }
         'new' { Say 'Live sitemap: έχει ήδη τη νέα έκδοση (13 σελίδες): ΕΝΤΑΞΕΙ' $Ok }
-        'other' { Say 'Live sitemap: ΠΡΟΒΛΗΜΑ - δεν είναι ούτε η έκδοση της 24/10/2026 ούτε η νέα (άλλαξε από αλλού).' $Bad }
+        'other' { Say 'Live sitemap: ΠΡΟΒΛΗΜΑ - δεν είναι ούτε η έκδοση που τρέχει live (13 σελίδες) ούτε η νέα (άλλαξε από αλλού).' $Bad }
         default { Say 'Live sitemap: ΠΡΟΣΟΧΗ - δεν μπόρεσα να το διαβάσω τώρα.' $Warn }
     }
 }

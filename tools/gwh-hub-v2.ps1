@@ -259,7 +259,7 @@ $About = @{
     'remind.js'             = 'νέο αρχείο: «Remind me on 27 Nov» των sites (L182): πρώτα στη D1 (πίνακας remind_signups, χωριστό εργαλείο gwh-remind-d1.ps1), μετά στο MailerLite μόνο στην ομάδα «Gear World Remind me 27 Nov»· κλειστό χωρίς τον πίνακα και μετά τις 27/11· το cron σβήνει τις γραμμές από 28/11'
     'public/email-signup.js' = 'το κουτί email λέει τι στέλνει: κωδικούς που δημοσιεύουν τα καταστήματα και νέα των sites, όχι «prices we''ve checked», 11 γλώσσες (L107)· Turnstile όταν αρχίζει η φόρμα (L106) · L182: το μικρό παράθυρο εγγραφής στην αρχική (κάτω στην οθόνη, μετά τα cookies, 30 δευτ. ή στη μέση, μία φορά τον μήνα, ποτέ μετά την εγγραφή), με τον τίτλο και τη συγκατάθεση του κουτιού'
     'poster-scan.js'        = 'η μέτρηση των αφισών (ίδια με αυτή που μπήκε με το POSTER STATS)'
-    'public/index.html' = 'η κάρτα «Featured pick» παίρνει τα κείμενά της από το hub-v2.js (11 γλώσσες) και νέο ?v= για το hub-v2.js (L174, L31)· όλα τα άλλα όπως είναι live · L182: νέο ?v= για το email-signup.js και το hub-v2.css (το μικρό παράθυρο εγγραφής)'
+    'public/index.html' = 'η κάρτα «Featured pick» παίρνει τα κείμενά της από το hub-v2.js (11 γλώσσες) και νέο ?v= για το hub-v2.js (L174, L31)· όλα τα άλλα όπως είναι live · L182: νέο ?v= για το email-signup.js και το hub-v2.css (το μικρό παράθυρο εγγραφής) · L188: link «Black Friday, 27 Nov: dates and discount codes» στη σελίδα /black-friday/'
     'public/legal/i18n/el-GR.json' = 'νέο αρχείο: τα κείμενα των νομικών σελίδων στα el-GR για το legal.js (L176) · L182: οι νέες γραμμές του απορρήτου και των cookies (μικρό παράθυρο, Remind me) και «Last updated: 18 November 2026»'
     'public/legal/i18n/de-DE.json' = 'νέο αρχείο: τα κείμενα των νομικών σελίδων στα de-DE για το legal.js (L176) · L182: οι νέες γραμμές του απορρήτου και των cookies (μικρό παράθυρο, Remind me) και «Last updated: 18 November 2026»'
     'public/legal/i18n/fr-FR.json' = 'νέο αρχείο: τα κείμενα των νομικών σελίδων στα fr-FR για το legal.js (L176) · L182: οι νέες γραμμές του απορρήτου και των cookies (μικρό παράθυρο, Remind me) και «Last updated: 18 November 2026»'
@@ -277,11 +277,12 @@ $About = @{
     'public/cookies/index.html' = 'το affiliate network: «Awin, CJ for a few retailers, or Sovrn Commerce for the "Featured pick" card» (L176)· στη γλώσσα του επισκέπτη μέσω legal.js (L176), νέες γραμμές gwh-language-chosen και gwh2-season-paused, «Last updated: 17 November 2026»· τα cookies του affiliate network: «Awin, or for a few retailers CJ»· «Last updated: 9 November 2026» (L107)· νέα γραμμή στο footer και link «About» (L101) · L182: νέα γραμμή gwh_popup_date, gwh_popup_done (μικρό παράθυρο εγγραφής), «Last updated: 18 November 2026»'
     'public/affiliate-disclosure/index.html' = 'η μόνη εξαίρεση, η κάρτα «Featured pick» (Affiliate link, Sovrn Commerce), αντί για «The Hub itself has no affiliate links», «Last updated: 17 November 2026» (L176, L121)· στη γλώσσα του επισκέπτη μέσω legal.js (data-lg-i18n, L176)· τα κουμπιά των sites περνούν από ένα affiliate network: Awin, ή για λίγα καταστήματα CJ· «Last updated: 9 November 2026» (L107)'
     'public/hub-v2.css'     = 'στο κινητό το Pets και το Stores μικρά, το ένα δίπλα στο άλλο (όπως οι άλλες κάρτες)· κάτω από 380 px εικόνα 40 px και τίτλος 13 px, ώστε το «Καταστήματα» να χωράει σε μία γραμμή (L166) · L182: η εμφάνιση του μικρού παραθύρου εγγραφής (έως 30% της οθόνης στο κινητό, πάνω από τη μπάρα αναζήτησης)'
-    'public/hub-v2.js' = 'το όνομα της καμπάνιας μιας προσφοράς στη γλώσσα του επισκέπτη, όπως στο λεξικό του site της (campaignNames, L176)· η κάρτα «Featured pick» σε 11 γλώσσες (το κατάστημα και το site του αμετάφραστα), και ένα link προς ένα από τα 13 sites παίρνει τη γλώσσα που διάλεξε ο επισκέπτης στο Hub (?lang=) τη στιγμή που πατιέται (L174)· όλα τα άλλα όπως είναι live'
+    'public/hub-v2.js' = 'το όνομα της καμπάνιας μιας προσφοράς στη γλώσσα του επισκέπτη, όπως στο λεξικό του site της (campaignNames, L176)· η κάρτα «Featured pick» σε 11 γλώσσες (το κατάστημα και το site του αμετάφραστα), και ένα link προς ένα από τα 13 sites παίρνει τη γλώσσα που διάλεξε ο επισκέπτης στο Hub (?lang=) τη στιγμή που πατιέται (L174)· όλα τα άλλα όπως είναι live · L188: τα κείμενα του link Black Friday σε 11 γλώσσες'
     'public/hub-stores.jpg' = 'η φωτογραφία της κάρτας «Stores»: οι φωτογραφίες 4 κόσμων μαζί (Pexels, ήδη στο Hub)'
     'public/stores/index.html' = 'νέα σελίδα /stores/: τα μεγάλα καταστήματα ανά χώρα παράδοσης (L166)'
     'public/stores/stores.css' = 'η εμφάνιση των σελίδων /stores/ (νέο αρχείο, L166)'
     'public/stores/stores.js' = 'κρύβει μόνο του κωδικό, έκπτωση ή μπάνερ που έληξε (νέο αρχείο, L166)'
+    'public/black-friday/index.html' = 'νέα σελίδα /black-friday/ (L188): ημερομηνίες Black Friday 27/11 και Cyber Monday 30/11, 6 καταστήματα που ξεκίνησαν (από τα emails τους) και 9 κωδικοί/κουπόνια με λήξη, μόνο links Gear World· από 27/11 το Price Watch'
     'public/stores/joybuy/index.html' = 'σελίδα Joybuy: UK, 4 εκπτώσεις έως 31/12, 12 sites (L166)'
     'public/stores/aliexpress-pl/index.html' = 'σελίδα AliExpress PL: μόνο Πολωνία, 12 sites με ?for=pl (L166)'
     'public/stores/tooled-up/index.html' = 'σελίδα Tooled Up: UK, κωδικοί CLAIMFIFTY και CLAIMSEVFY έως 6/12, 4 sites (L166)'
@@ -675,6 +676,13 @@ function Test-Site([string]$base, [bool]$isLive) {
     }
     if ($rcard -and $rlist.status -eq 200 -and $rslugs.Count -ge 1 -and $rbad.Count -eq 0) { Say ('  Κάρτα «Stores» στην αρχική και {0} σελίδες καταστημάτων στο /stores/ (L166): ΕΝΤΑΞΕΙ' -f $rslugs.Count) $Ok }
     else { Say ('  Σελίδες /stores/ (L166): ΠΡΟΒΛΗΜΑ - κάρτα: {0}, λίστα: απάντηση {1}, σελίδες: {2}, με πρόβλημα: {3}' -f $rcard, $rlist.status, $rslugs.Count, ($rbad -join ', ')) $Bad }
+    # L188: the Black Friday 2026 page (tools/gwh-black-friday.mjs) and its link on the home page; Gear World links only.
+    $bfLink = $html.Contains('<a href="/black-friday/" data-gwh2="bfLink">')
+    $bf = Get-Web ($base + '/black-friday/?gwcheck=' + $stamp)
+    $bfHtml = (New-Object System.Text.UTF8Encoding($false)).GetString($bf.bytes)
+    $bfOk = ($bf.status -eq 200 -and $bfHtml.Contains('<link rel="canonical" href="https://gearworldhub.com/black-friday/">') -and $bfHtml.Contains('<h1>Black Friday 2026 on Gear World</h1>') -and $bfHtml -notmatch '/(out|go)/' -and $bfHtml -notmatch '\d+\s?%')
+    if ($bfLink -and $bfOk) { Say '  Σελίδα /black-friday/ και το link της στην αρχική (L188): ΕΝΤΑΞΕΙ' $Ok }
+    else { Say ('  Σελίδα /black-friday/ (L188): ΠΡΟΒΛΗΜΑ - link στην αρχική: {0}, σελίδα: απάντηση {1}, περιεχόμενο σωστό: {2}' -f $bfLink, $bf.status, $bfOk) $Bad }
     # L119: the Mitgo tag right before </head> of the home page (a new secret takes a few seconds to reach every answer).
     # (L150: the Impact tag, when there is one, comes after it and right before </head>.)
     $mitgoRx = '<meta name="mitgo-verification" content="([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})">(?:<meta name=''impact-site-verification'' value=''[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}''>)?</head>'

@@ -72,3 +72,4 @@ stores/gs-workwear/index.html
 stores/back-to-the-office/index.html
 stores/my-tool-shed/index.html
 stores/dhgate/index.html
+black-friday/index.html
