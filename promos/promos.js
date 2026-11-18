@@ -8,7 +8,8 @@
 //   retailer  shown name; slug: address of the retailer page (/discount-codes/<slug>/)
 //   awinMid   Awin advertiser id; url: landing page given by the retailer (becomes an Awin deep link)
 //   sites     site codes that show it (only sites where the retailer fits)
-//   kind      'code' (code, off, minSpend), 'coupon' (off, minSpend: money off with no code to type, the retailer's
+//   kind      'code' (code, off or pct, minSpend: money off, or pct = the retailer's own percentage, e.g. 10 for 10%,
+//             lessons L186; minSpend 0 = no minimum), 'coupon' (off, minSpend: money off with no code to type, the retailer's
 //             own coupon on its page) or 'sale' (a retailer's sale: only "Joybuy sale" and the campaign name, never a
 //             percentage or a saving we cannot check, Google Ads compliance, lessons L107)
 //   campaign  campaign name as the retailer wrote it
@@ -53,6 +54,14 @@ const MY_TOOL_SHED = { retailer: 'My Tool Shed', slug: 'my-tool-shed', awinMid: 
   source: 'Awin email "My Tool Shed (49385): Black Friday 2026 Is Live: Four Weekly Drops", received 9 Nov 2026 (owner\'s decision «Γ1», 10 Nov 2026)' };
 const BLACK_FRIDAY_2026 = { kind: 'code', campaign: 'Black Friday', start: '2026-11-09', end: '2026-12-06' };
 
+// Angel Barocco (Women's Gear World): its own early Black Friday code, approved by the owner from the offers tracker
+// («ΕΓΚΡΙΝΩ ΠΡΟΣΦΟΡΕΣ 18/11: 3», 18 Nov 2026, lessons L186). The email: "EARLYBF10: 10% off your purchase · Early Access
+// Black Friday · Live now until 21 November 2026". Its BFCM20 (20% off 2 or more items, 22 Nov - 6 Dec) must not be
+// published before 22 November, so it is not here. WGW only: Angel Barocco is there in the UK view (418 products, GBP).
+const ANGEL_BAROCCO = { retailer: 'Angel Barocco', slug: 'angel-barocco', awinMid: 70252, currency: 'GBP', sites: ['WGW'],
+  url: 'https://www.angelbarocco.com/',
+  source: 'Awin email "Angel Barocco (70252): Early Access Black Friday is live: EARLYBF10", received 11 Nov 2026 (owner\'s approval «ΕΓΚΡΙΝΩ ΠΡΟΣΦΟΡΕΣ 18/11: 3», 18 Nov 2026)' };
+
 export const PROMOS = [
   // The four Joybuy Halloween codes (halloween, beauty, sports, tools; email of 20 Oct 2026) were removed on 9 Nov 2026:
   // a Halloween code and its top bar in November look like a stale offer (Google Ads compliance, lessons L107).
@@ -72,7 +81,10 @@ export const PROMOS = [
   { ...TOOLED_UP, ...BLACK_FRIDAY_2026, id: 'tooled-up-claimfifty', code: 'CLAIMFIFTY', off: 50, minSpend: 500 },
   { ...TOOLED_UP, ...BLACK_FRIDAY_2026, id: 'tooled-up-claimsevfy', code: 'CLAIMSEVFY', off: 75, minSpend: 750 },
   { ...MY_TOOL_SHED, ...BLACK_FRIDAY_2026, id: 'my-tool-shed-claimfifty', code: 'CLAIMFIFTY', off: 50, minSpend: 500 },
-  { ...MY_TOOL_SHED, ...BLACK_FRIDAY_2026, id: 'my-tool-shed-claimsevfy', code: 'CLAIMSEVFY', off: 75, minSpend: 750 }
+  { ...MY_TOOL_SHED, ...BLACK_FRIDAY_2026, id: 'my-tool-shed-claimsevfy', code: 'CLAIMSEVFY', off: 75, minSpend: 750 },
+  // A percentage with no minimum spend (lessons L186): "10% off your order", until 21 Nov 2026, no bar.
+  { ...ANGEL_BAROCCO, id: 'angel-barocco-earlybf10', kind: 'code', campaign: 'Black Friday', code: 'EARLYBF10', pct: 10, minSpend: 0,
+    start: '2026-11-11', end: '2026-11-21' }
 ];
 
 export function promosFor(siteCode) {

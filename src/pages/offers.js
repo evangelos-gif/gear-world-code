@@ -16,8 +16,18 @@ function ukDate(day) {
   return { date: day, text: new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' }).format(d) };
 }
 
+// What a code or coupon takes off: money (off, in the retailer's currency) or, for a code, a percentage (pct, lessons
+// L186: Angel Barocco EARLYBF10 10% with no minimum, Einhell 15% from £50). Only the retailer's own figure, never "up to".
+function amount(p) {
+  const pct = Number(p.pct);
+  return p.kind === 'code' && pct > 0 ? `${pct}%` : money(p.off, p.currency);
+}
+const hasMinimum = p => Number(p.minSpend) > 0;
+
 function offerText(p) {
-  if (p.kind === 'code' || p.kind === 'coupon') return tr('{0} off when you spend {1}', money(p.off, p.currency), money(p.minSpend, p.currency));
+  if (p.kind === 'code' || p.kind === 'coupon') {
+    return hasMinimum(p) ? tr('{0} off when you spend {1}', amount(p), money(p.minSpend, p.currency)) : tr('{0} off your order', amount(p));
+  }
   // A sale: only "Sale at <retailer>", never "up to n% off" or a saving we cannot check (lessons L107).
   return tr('{0} sale', keepName(p.retailer));
 }
@@ -106,7 +116,7 @@ export function retailerOffersPage(site, slug, now = Date.now()) {
   return page(site, {
     title: `${retailer} discount codes${codes.length ? ` (${codes.length} active)` : ''} | ${site.name}`,
     description: codes.length
-      ? `${codes.length} ${retailer} discount codes from ${retailer}'s affiliate programme, with end dates: ${codes.slice(0, 3).map(c => `${c.code} (${money(c.off, c.currency)} off ${money(c.minSpend, c.currency)})`).join(', ')}.`
+      ? `${codes.length} ${retailer} discount codes from ${retailer}'s affiliate programme, with end dates: ${codes.slice(0, 3).map(c => `${c.code} (${amount(c)} off${hasMinimum(c) ? ` ${money(c.minSpend, c.currency)}` : ''})`).join(', ')}.`
       : `${retailer} discount codes and sales, when ${retailer} has them.`,
     path,
     robots: promos.length ? 'index,follow' : 'noindex,follow',
@@ -121,7 +131,9 @@ export function promoBarHtml(site, now = Date.now()) {
   if (!p) return '';
   return html`<div class="promo-bar"><p class="wrap promo-row"><span aria-hidden="true">${p.bar}</span>
   ${p.kind === 'code'
-    ? tr('{0}: {1} off {2}+ with code {3}', keepName(p.retailer), money(p.off, p.currency), money(p.minSpend, p.currency), keepName(p.code))
+    ? (hasMinimum(p)
+      ? tr('{0}: {1} off {2}+ with code {3}', keepName(p.retailer), amount(p), money(p.minSpend, p.currency), keepName(p.code))
+      : tr('{0}: {1} off with code {2}', keepName(p.retailer), amount(p), keepName(p.code)))
     : p.kind === 'coupon' ? tr('{0}: {1} off when you spend {2}', keepName(p.retailer), money(p.off, p.currency), money(p.minSpend, p.currency))
     : tr('{0} sale', keepName(p.retailer))}
   <a href="${OFFERS_PATH}${p.slug}/">${tr('All codes')}<span aria-hidden="true"> &rarr;</span></a></p></div>`;
