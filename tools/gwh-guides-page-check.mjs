@@ -14,6 +14,8 @@ import { join, extname, normalize } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
 import { loadData, checkedText } from './gwh-guides.mjs';
+import { loadData as loadBlackFriday, PATH as BF_PATH } from './gwh-black-friday.mjs';
+import { day } from './gwh-stores.mjs';
 
 const args = process.argv.slice(2);
 const val = name => { const i = args.indexOf(`--${name}`); return i >= 0 ? args[i + 1] : ''; };
@@ -22,7 +24,10 @@ const outFile = val('out');
 mkdirSync(shotsDir, { recursive: true });
 const publicDir = fileURLToPath(new URL('../sites/gwh/public/', import.meta.url));
 const data = loadData();
+const blackFriday = loadBlackFriday();
 const checkedFor = path => {
+  // L188: the Black Friday page is checked here too (same layout as the guides), with its own date line.
+  if (path === BF_PATH) return `Checked ${day(blackFriday.checked)}.`;
   const g = data.guides.find(x => path === `/guides/${x.slug}/`);
   return `Prices checked ${checkedText(g ? g.items : data.guides.flatMap(x => x.items))}, may change.`;
 };
@@ -48,7 +53,7 @@ const VIEWS = [
   { name: 'phone', width: 390, height: 844, isMobile: true, hasTouch: true },
   { name: 'desktop', width: 1366, height: 900, isMobile: false, hasTouch: false }
 ];
-const PATHS = ['/guides/', ...data.guides.map(g => `/guides/${g.slug}/`)];
+const PATHS = ['/guides/', ...data.guides.map(g => `/guides/${g.slug}/`), BF_PATH];
 
 const browser = await chromium.launch();
 try {
@@ -97,7 +102,11 @@ try {
       const W = document.documentElement.clientWidth;
       return [...document.querySelectorAll('.gwh2-guides a')].map(a => { const r = a.getBoundingClientRect(); return { href: a.getAttribute('href'), h: r.height, left: r.left, right: r.right, W }; });
     });
-    check(links.length === data.guides.length, `${view.name} home: ${data.guides.length} guide links under the gift finder`, String(links.length));
+    // L188: the Black Friday link sits in the same row style under the guides; it is counted apart, and every link of
+    // both rows keeps the 44 px and 12 px checks below.
+    const guideLinks = links.filter(l => String(l.href).startsWith('/guides/'));
+    check(guideLinks.length === data.guides.length, `${view.name} home: ${data.guides.length} guide links under the gift finder`, String(guideLinks.length));
+    check(links.filter(l => l.href === '/black-friday/').length === 1, `${view.name} home: the Black Friday link under the guides (L188)`, String(links.length - guideLinks.length));
     check(links.every(l => l.h >= 44), `${view.name} home: guide links at least 44 px high`, links.map(l => Math.round(l.h)).join(','));
     check(links.every(l => l.left >= 12 && l.right <= l.W - 12), `${view.name} home: guide links at least 12 px from the edge`);
     await home.locator('.gwh2-guides').first().scrollIntoViewIfNeeded().catch(() => {});
