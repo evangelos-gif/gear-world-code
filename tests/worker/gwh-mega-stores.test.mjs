@@ -105,11 +105,15 @@ test('L192: the strip moves with CSS only, by half its length (seamless), paused
   assert.ok(!/gwh2-mega/.test(js.replace(/\/\/[^\n]*/g, '')) || !/setInterval|requestAnimationFrame/.test(js), 'no JavaScript moves it');
 });
 
-test('L192: the sizes in the CSS: phone one world card tall (72 px), from 621 px half a first-row card (126 px), grid width', () => {
+test('L192: the sizes in the CSS: phone one world card tall (72 px), from 621 px half a first-row card (126 px), PC 7 cards per row and half a card (145 px), grid width', () => {
   assert.match(css, /\.gwh-image-world,\.gwh2-stores-card\{display:flex;align-items:center;gap:8px;min-height:72px;/, 'a world card on the phone is 72 px');
   assert.match(css, /\.gwh2-mega\{display:flex;align-items:center;gap:10px;height:72px;/);
   assert.match(css, /@media \(min-width:621px\)\{[\s\S]*?\.gwh2-mega\{height:126px;[\s\S]*?\n\}/);
   assert.match(css, /\.gwh2-world-img\{width:100%;height:120px;border-radius:0;\}/, 'the PC card picture the 126 px were measured with');
+  // The PC (owner, 18/11/2026): 7 cards per row, every card 290 px, the bar 145 px (half a card), two rows of 7.
+  assert.match(css, /@media \(min-width:980px\)\{[\s\S]*?\.gwh-quick-worlds\{grid-template-columns:repeat\(7,minmax\(0,1fr\)\);grid-auto-rows:290px;gap:12px;\}[\s\S]*?\.gwh2-mega\{height:145px;\}/);
+  assert.match(css, /\.gwh-image-world-description,\.gwh2-rc-desc\{display:-webkit-box;-webkit-line-clamp:3;/, 'a long description never makes one card taller');
+  assert.equal((html.match(/class="gwh-quick-world gwh-image-world"/g) || []).length + (html.match(/class="gwh-quick-world gwh2-stores-card"/g) || []).length, 14, '13 worlds and the Stores card: two rows of 7');
   // The bar sits in a .container like the grid of the cards: the same width.
   assert.match(bar, /<div class="gwh2-mega-wrap">\s*<div class="container">\s*<a class="gwh2-mega"/);
   // Colours: the Hub's own, no red or green (L35).

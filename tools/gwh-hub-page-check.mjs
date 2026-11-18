@@ -7,7 +7,7 @@
 //     until an arrow is used; with "reduce motion" nothing moves at all. The one exception the owner approved (L192):
 //     the store names of the Mega Stores bar roll past, paused on hover and focus, still with "reduce motion"
 //   - the Mega Stores bar (L192): first on the page, phone 1 world card tall and the 2 columns wide, PC (1280 px) half
-//     a card tall and the 6 columns wide
+//     a card tall and the 7 columns wide (two rows of 7 cards on the PC)
 //   - the campaigns follow their dates (Black Friday only 27-30/11), the arrows go round
 //   - the gift finder asks only the Gear Worlds of the idea and the chosen price (no new database cost)
 //   - the deals come from hub-deals.json, keep their end date and link to a site page, never /go/ or /out/
@@ -296,9 +296,9 @@ try {
   }
 
   // Lessons L192 (owner, 18/11/2026): the Mega Stores bar. Phone 390x844: as wide as the 2 columns of world cards and as tall
-  // as one card, above the search, which stays on the first screen. PC 1280x800: as wide as the 6 columns, half a card tall.
+  // as one card, above the search, which stays on the first screen. PC 1280x800 and 1440x900: as wide as the 7 columns (two rows of 7 cards), half a card tall.
   // The names move (CSS), stop on hover and keyboard focus, and do not move with "reduce motion". The link is not followed.
-  for (const [w, h, mobile, part] of [[390, 844, true, 1], [1280, 800, false, 0.5]]) {
+  for (const [w, h, mobile, part] of [[390, 844, true, 1], [1280, 800, false, 0.5], [1440, 900, false, 0.5]]) {
     for (const reduce of [false, true]) {
       const tag = `Mega Stores bar ${w}x${h}${reduce ? ' reduce motion' : ''}`;
       const context = await browser.newContext({ viewport: { width: w, height: h }, isMobile: mobile, hasTouch: mobile, deviceScaleFactor: 1, reducedMotion: reduce ? 'reduce' : 'no-preference' });

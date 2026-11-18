@@ -64,6 +64,8 @@ svg{fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-lin
 /* ---------- Mega Stores bar (owner, 18/11/2026, L192): above everything, one link to megastoresgearworld.com. Phone: as wide
    as the 2 columns of world cards and as tall as one world card (72 px). From 621 px: as wide as the grid of cards and
    half as tall as a world card of the first row (252.8 px = 120 px picture + 130.8 px text + 2 px border, so 126 px).
+   From 980 px (the PC, owner 18/11/2026): the cards go 7 per row, every card 290 px tall (descriptions up to 3 lines), so
+   the 13 worlds and the Stores card make two rows of 7 under a bar of 145 px, as wide as the 7 cards.
    The store names roll past: CSS only, a list shown twice and moved by half (seamless), paused on hover and focus, no
    movement with "reduce motion". Logos on white tiles, never stretched or cropped (object-fit:contain). ---------- */
 .gwh2-mega-wrap{background:var(--band);padding:12px 0 0;}
@@ -300,7 +302,11 @@ body.gwh2-dock-on{padding-bottom:84px;}
 }
 
 @media (min-width:980px){
-  .gwh-quick-worlds{grid-template-columns:repeat(6,minmax(0,1fr));}
+  /* Owner, 18/11/2026 (L192): on the PC the 13 worlds and the Stores card in two rows of 7, under the Mega Stores bar */
+  .gwh-quick-worlds{grid-template-columns:repeat(7,minmax(0,1fr));grid-auto-rows:290px;gap:12px;}
+  .gwh-image-world-description,.gwh2-rc-desc{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;}
+  /* Mega Stores bar (L192): half a world card (290 px) tall, as wide as the 7 cards */
+  .gwh2-mega{height:145px;}
   .gwh2-top-grid{flex-direction:row;align-items:stretch;gap:40px;}
   .hero-copy{flex:1 1 560px;justify-content:center;}
   .gwh2-campaigns{flex:1 1 420px;}
