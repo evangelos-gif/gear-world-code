@@ -3,3 +3,20 @@ _headers
 assets/ogw.css
 assets/logo.svg
 assets/favicon.svg
+# The stores' own logos (Awin advertiser profiles, copied unchanged, lessons L191).
+assets/logos/joybuy.png
+assets/logos/tooled-up.png
+assets/logos/my-tool-shed.png
+assets/logos/pchub-uk.png
+assets/logos/gs-workwear.jpg
+assets/logos/back-to-the-office.png
+# Our own photos of the Gear Worlds (the Hub's, sites/gwh/public/hub-<code>.jpg) for the Amazon page.
+assets/worlds/cgw.jpg
+assets/worlds/hgw.jpg
+assets/worlds/kgw.jpg
+assets/worlds/mgw.jpg
+assets/worlds/pgw.jpg
+assets/worlds/sgw.jpg
+assets/worlds/tgw.jpg
+assets/worlds/wgw.jpg
+assets/worlds/zgw.jpg

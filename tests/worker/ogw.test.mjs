@@ -6,12 +6,59 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
-import worker from '../../sites/ogw/worker.js';
+import defaultWorker from '../../sites/ogw/worker.js';
 import site from '../../sites/ogw/site.config.js';
 import {
-  AMAZON_STATEMENT, amazonMode, amazonUrl, gearWorldUrl, countdown, ukDay, legalPaths, pagePaths
+  AMAZON_STATEMENT, amazonMode, amazonUrl, gearWorldUrl, countdown, ukDay, legalPaths, pagePaths,
+  createGuidesWorker, storeCacheKey, guideImage, storeUserAgent, awinStores
 } from '../../src/marketplace-guides.js';
 import { GEAR_WORLDS } from '../../promos/network.js';
+
+// The stores (lessons L191): a fake /api/products of the Gear World sites, never the network. Every answer also has the
+// fields the pages must never show (price, was_price, affiliate_url) and rows that must be left out.
+const NOW = Date.parse('2026-11-18T12:00:00Z');
+const hostOf = code => new URL(GEAR_WORLDS.find(w => w.code === code).url).hostname;
+function fakeRows(host, retailer) {
+  const tag = host.split('.')[0];
+  const base = (n, extra = {}) => ({
+    id: n, product_name: `${retailer} ${tag} item ${n}`, brand: 'Acme', retailer, price: 12.34, was_price: 99.99, currency: 'GBP',
+    stock_status: 'in_stock', image_url: `https://img.example/${tag}/${n}.jpg`, delivers_to: ['GB'],
+    product_url: `https://${host}/product/${tag}-item-${n}/`, affiliate_url: `https://${host}/out/${n}`, ...extra
+  });
+  return [
+    base(1), base(2, { stock_status: 'check_retailer' }), base(3, { delivers_to: ['WORLD'] }),
+    base(4, { product_name: 'Shared name in every site' }),
+    base(5, { product_name: 'Christmas Sale bundle' }), base(6, { product_name: 'Cotton tee 100% cotton' }),
+    base(7, { product_name: 'Gift box £20' }), base(8, { product_name: 'Works with Amazon Alexa' }),
+    base(9, { stock_status: 'out_of_stock' }), base(10, { delivers_to: ['DE'] }),
+    base(11, { image_url: `http://img.example/${tag}/11.jpg` }), base(12, { product_url: 'https://evil.example/product/x/' }),
+    base(13, { retailer: 'Someone Else' }), base(14, { product_url: `https://${host}/out/14` })
+  ];
+}
+function makeFetch({ fail = [], hang = [], empty = [] } = {}) {
+  const calls = [];
+  const f = async (input, init = {}) => {
+    const u = new URL(String(input));
+    calls.push({ url: u, init });
+    if (fail.includes(u.hostname)) throw new Error('network down');
+    if (hang.includes(u.hostname)) {
+      return new Promise((resolve, reject) => init.signal.addEventListener('abort', () => reject(new Error('aborted'))));
+    }
+    const rows = empty.includes(u.hostname) ? [] : fakeRows(u.hostname, u.searchParams.get('retailer'));
+    return new Response(JSON.stringify({ ok: true, products: rows }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+  };
+  f.calls = calls;
+  return f;
+}
+function makeCache() {
+  const m = new Map();
+  return {
+    m,
+    async match(key) { const r = m.get(String(key)); return r ? r.clone() : undefined; },
+    async put(key, res) { m.set(String(key), res.clone()); }
+  };
+}
+const worker = createGuidesWorker(site, { fetch: makeFetch(), cache: null, now: () => NOW });
 
 const LIVE = 'https://megastoresgearworld.com';
 const PREVIEW = 'https://mega-stores-gear-world-preview.example.workers.dev';
@@ -25,7 +72,8 @@ async function get(path, env = ON, base = LIVE, method = 'GET') {
 }
 
 const ALL_GUIDES = [...site.guides.map(g => g.slug), site.checks.slug];
-const ALL_PAGES = ['/', ...ALL_GUIDES.map(s => `/guides/${s}/`), ...legalPaths()];
+const STORE_PAGES = awinStores(site).map(s => `/stores/${s.slug}/`);
+const ALL_PAGES = ['/', ...ALL_GUIDES.map(s => `/guides/${s}/`), ...legalPaths(), ...STORE_PAGES];
 
 test('every page answers 200 with the security headers, no script, no cookie and no price', async () => {
   for (const env of [ON, OFF, PRE]) {
@@ -91,7 +139,7 @@ test('without Amazon links no page says it links to marketplaces (claims that ar
     assert.ok(!/#ad/.test(off), `${p}: no #ad when the site has no affiliate links of its own`);
   }
   const home = (await get('/', OFF)).text;
-  assert.match(home, /<title>Gift guides \| Mega Stores Gear World<\/title>/);
+  assert.match(home, /<title>Stores and gift guides \| Mega Stores Gear World<\/title>/);
   assert.match(home, /Every idea opens the matching category of a Gear World site/);
   assert.match((await get('/how-we-make-money/', OFF)).text, /this site has no affiliate links of its own/);
   for (const env of [ON, PRE]) assert.match((await get('/', env)).text, /Every idea opens a search on a big marketplace/);
@@ -173,9 +221,16 @@ test('addresses: www, final slash, unknown pages, methods, robots, sitemap and v
   x = await get('/robots.txt');
   assert.equal(x.text, 'User-agent: *\nAllow: /\n\nSitemap: https://megastoresgearworld.com/sitemap.xml\n');
   x = await get('/sitemap.xml');
-  for (const p of pagePaths(site)) assert.ok(x.text.includes(`<loc>https://megastoresgearworld.com${p}</loc>`), p);
-  assert.equal((x.text.match(/<loc>/g) || []).length, ALL_PAGES.length);
-  x = await worker.fetch(new Request(`${LIVE}/api/version`), { GW_COMMIT: 'ab'.repeat(20) });
+  for (const p of pagePaths(site, 'on')) assert.ok(x.text.includes(`<loc>https://megastoresgearworld.com${p}</loc>`), p);
+  assert.equal((x.text.match(/<loc>/g) || []).length, ALL_PAGES.length + 1, 'every page and the Amazon page');
+  for (const p of STORE_PAGES) assert.ok(x.text.includes(`<loc>https://megastoresgearworld.com${p}</loc>`), `sitemap: ${p}`);
+  assert.ok(x.text.includes('<loc>https://megastoresgearworld.com/stores/amazon/</loc>'), 'the Amazon page with Amazon links on');
+  for (const env of [OFF, PRE]) {
+    const t = (await get('/sitemap.xml', env)).text;
+    assert.ok(!/amazon/i.test(t), 'no Amazon page in the sitemap without the live Amazon links');
+    assert.equal((t.match(/<loc>/g) || []).length, ALL_PAGES.length);
+  }
+  x = await defaultWorker.fetch(new Request(`${LIVE}/api/version`), { GW_COMMIT: 'ab'.repeat(20) });
   assert.deepEqual(await x.json(), { commit: 'ab'.repeat(20) }, 'the version for the live guard (L156)');
 
   // The test address (*.workers.dev) is never indexed.
@@ -233,4 +288,216 @@ test('tools/ogw-site.ps1: UTF-8 BOM and CRLF, the four phrases, the live guard, 
   assert.ok(!/GW_GUARD_TEST_/.test(ps), 'never the guard test hooks');
   assert.ok(!/\?\?|&&|\|\||-AsHashtable|-Parallel/.test(ps.replace(/'[^'\r\n]*'/g, "''")), 'Windows PowerShell 5.1 syntax');
   assert.match(ps, /Πήγαινε στη συζήτηση με το Claude «1 · Gear World Manager» και πάτα Ctrl\+V\./);
+  assert.ok(ps.includes("Get-Page ($base + '/stores/joybuy/')") && ps.includes("Get-Page ($base + '/stores/amazon/')"), 'the store page and the Amazon page in every check (L191)');
+  assert.ok(ps.includes('href="[^"]*/(out|go)/') && ps.includes('[char]0x00A3'), 'no /out/, /go/ or £ on the store page');
+});
+
+// ---------------- Stores (owner, 18 Nov 2026, «ΕΓΚΡΙΝΩ MEGA STORES ΜΠΑΡΑ», lessons L191) ----------------
+const GW_HOSTS = new Set(GEAR_WORLDS.map(w => new URL(w.url).hostname));
+const STORE_BANNED = /£|\$|€|\bGBP\b|\d\s?%|12\.34|99\.99|\bdeals?\b|\bsale\b|\bsave\b|\bshop\b|buy now|\bcart\b|\bofficial\b|\bpartners?\b|lowest price|free delivery/i;
+
+test('stores: config, order, logos as the stores give them, the world photos of the Amazon page', () => {
+  assert.deepEqual(site.stores.map(s => s.slug), ['amazon', 'joybuy', 'tooled-up', 'my-tool-shed', 'pchub-uk', 'gs-workwear', 'back-to-the-office', 'dhgate']);
+  assert.deepEqual(site.stores.map(s => s.name), ['Amazon', 'Joybuy', 'Tooled Up', 'My Tool Shed', 'PCHUB.UK', 'GS Workwear', 'Back to the Office', 'DHgate']);
+  const codes = new Set(GEAR_WORLDS.map(w => w.code));
+  const allowed = readFileSync('sites/ogw/public-allowlist.txt', 'utf8');
+  for (const s of awinStores(site)) {
+    assert.ok(s.sites.length && s.sites.every(c => codes.has(c)), `${s.slug}: Gear World sites`);
+    assert.deepEqual(s.deliversTo, ['GB'], `${s.slug}: a UK store`);
+    assert.ok(s.line && s.line.length < 90, `${s.slug}: one short line`);
+    if (s.logo) {
+      assert.ok(statSync(`sites/ogw/public/assets/${s.logo}`).size > 0 && allowed.includes(`assets/${s.logo}`), `${s.slug}: logo file in public/ and the allowlist`);
+      assert.equal(s.logoSize.length, 2);
+    }
+  }
+  const amazon = site.stores.find(s => s.slug === 'amazon');
+  assert.ok(!amazon.logo, 'Amazon: text only (Trademark Guidelines)');
+  assert.equal(site.amazon.linkImage, '', 'the Amazon image slot stays empty until Amazon supplies the file');
+  assert.equal(site.stores.find(s => s.slug === 'dhgate').logo, '', 'DHgate: text badge');
+  for (const g of site.guides) assert.ok(statSync(`sites/ogw/public/assets/${guideImage(g)}`).size > 0 && allowed.includes(`assets/${guideImage(g)}`), `${g.slug}: its Gear World photo`);
+  assert.equal(guideImage(site.guides[0]), 'worlds/mgw.jpg');
+});
+
+test('store page: product photos with the Gear World product page, never a price, /out/, /go/ or a word of a shop', async () => {
+  const f = makeFetch();
+  const w = createGuidesWorker(site, { fetch: f, cache: null, now: () => NOW });
+  for (const env of [ON, OFF, PRE]) {
+    const r = await w.fetch(new Request(`${LIVE}/stores/joybuy/`), env);
+    assert.equal(r.status, 200);
+    const text = await r.text();
+    assert.match(text, /<h1><span translate="no">Joybuy<\/span> on Mega Stores Gear World<\/h1>/);
+    assert.match(text, /The buttons on this page open product pages of the Gear World sites/, 'the disclosure note');
+    const cards = text.match(/<li class="pcard">[\s\S]*?<\/li>/g) || [];
+    assert.equal(cards.length, 6 * 3 + 1, '6 sites read, 3 good rows each, the shared name once');
+    for (const c of cards) {
+      assert.match(c, /<img src="https:\/\/img\.example\/[^"]+" alt="[^"]+" width="240" height="240" loading="lazy" decoding="async" referrerpolicy="no-referrer">/);
+      const hrefs = [...c.matchAll(/href="([^"]+)"/g)].map(m => new URL(m[1].replace(/&amp;/g, '&')));
+      assert.equal(hrefs.length, 2);
+      for (const h of hrefs) {
+        assert.ok(GW_HOSTS.has(h.hostname) && h.pathname.startsWith('/product/'), `a Gear World product page: ${h}`);
+      }
+      assert.match(c, /<h2 class="pcard-name" translate="no">/);
+      assert.match(c, /<p class="pcard-site">On [^<]+ Gear World<\/p>/);
+      assert.match(c, />See it on [^<]+ Gear World<\/a>/);
+    }
+    assert.ok(!/\/out\/|\/go\//.test(text), 'never an /out/ or /go/ link');
+    const visible = text.replace(/<[^>]+>/g, ' ');
+    const m = visible.match(STORE_BANNED);
+    assert.ok(!m, `no price or shop word: "${m && m[0]}"`);
+    for (const left of ['Christmas Sale', '100% cotton', 'Gift box', 'Alexa', 'item 9<', 'item 10<', 'item 11', 'item 12', 'item 13', 'item 14', 'evil.example']) assert.ok(!text.includes(left), `left out: ${left}`);
+    if (env === OFF) assert.ok(!/amazon/i.test(text), 'with Amazon off no word of Amazon');
+    // Every link of the page: this site, a Gear World site or the ICO (legal footer); the round-robin order.
+    for (const h of [...text.matchAll(/href="(https?:[^"]+)"/g)].map(x => new URL(x[1].replace(/&amp;/g, '&')))) {
+      assert.ok(GW_HOSTS.has(h.hostname) || h.hostname === 'megastoresgearworld.com' || h.hostname === 'gearworldhub.com' || h.hostname === 'ico.org.uk', `link: ${h}`);
+    }
+    const sites = cards.slice(0, 6).map(c => c.match(/On ([^<]+)<\/p>/)[1]);
+    assert.equal(new Set(sites).size, 6, 'the sites one after another');
+    // One link per site of the store to its search, filtered by the store.
+    for (const code of site.stores.find(s => s.slug === 'joybuy').sites) {
+      assert.ok(text.includes(`href="https://${hostOf(code)}/search?q=Joybuy&amp;retailer=Joybuy"`), `search link on ${code}`);
+    }
+    assert.ok(!text.includes('/discount-codes/'), 'Joybuy has sales, not codes: no codes link');
+  }
+  // The request to the sites: the store, the UK, the badges, 8 products, our name; at most 6 sites.
+  const joy = f.calls.filter(c => c.url.searchParams.get('retailer') === 'Joybuy');
+  assert.equal(joy.length, 18, '6 sites per page, 3 pages');
+  for (const c of joy) {
+    assert.equal(c.url.pathname, '/api/products');
+    assert.equal(c.url.searchParams.get('deliver_to'), 'GB');
+    assert.equal(c.url.searchParams.get('badges'), '1');
+    assert.equal(c.url.searchParams.get('limit'), '8');
+    assert.equal(c.init.headers['User-Agent'], 'MegaStoresGearWorld/1.0 (+https://megastoresgearworld.com)');
+    assert.equal(storeUserAgent(site), c.init.headers['User-Agent']);
+    assert.ok(GW_HOSTS.has(c.url.hostname));
+  }
+  const tu = await (await w.fetch(new Request(`${LIVE}/stores/tooled-up/`), ON)).text();
+  for (const code of ['CGW', 'AGW', 'GGW', 'BGW']) assert.ok(tu.includes(`href="https://${hostOf(code)}/discount-codes/tooled-up/"`), `Tooled Up codes on ${code}`);
+  assert.match(tu, /Tooled Up<\/span> voucher codes on Construction Gear World/);
+  const pc = await (await w.fetch(new Request(`${LIVE}/stores/pchub-uk/`), ON)).text();
+  assert.ok(!pc.includes('/discount-codes/'), 'no codes link without codes');
+  const dh = await (await w.fetch(new Request(`${LIVE}/stores/dhgate/`), ON)).text();
+  assert.match(dh, /<span class="store-badge" translate="no">DHgate<\/span>|<h1><span translate="no">DHgate<\/span>/);
+  // Addresses: without the slash, unknown store, /stores/.
+  let x = await w.fetch(new Request(`${LIVE}/stores/joybuy`), ON);
+  assert.equal(x.status, 301);
+  assert.equal(x.headers.get('Location'), `${LIVE}/stores/joybuy/`);
+  x = await w.fetch(new Request(`${LIVE}/stores/nobody/`), ON);
+  assert.equal(x.status, 404);
+  x = await w.fetch(new Request(`${LIVE}/stores/`), ON);
+  assert.equal(x.status, 302);
+  assert.equal(x.headers.get('Location'), `${LIVE}/#stores`);
+});
+
+test('store page: a failing or slow site does not break the page; nothing at all gives the short line and the links', async () => {
+  const joy = site.stores.find(s => s.slug === 'joybuy');
+  const hosts = joy.sites.slice(0, 6).map(hostOf);
+  const f = makeFetch({ fail: [hosts[0]], hang: [hosts[1]], empty: [hosts[2]] });
+  const w = createGuidesWorker(site, { fetch: f, cache: null, now: () => NOW, timeoutMs: 30 });
+  const t0 = Date.now();
+  const r = await w.fetch(new Request(`${LIVE}/stores/joybuy/`), ON);
+  assert.ok(Date.now() - t0 < 2000, 'the slow site is given up');
+  assert.equal(r.status, 200);
+  const text = await r.text();
+  assert.equal((text.match(/<li class="pcard">/g) || []).length, 3 * 3 + 1);
+  assert.ok(!text.includes('could not be loaded'));
+
+  const all = joy.sites.slice(0, 6).map(hostOf);
+  const w2 = createGuidesWorker(site, { fetch: makeFetch({ fail: all }), cache: null, now: () => NOW });
+  const r2 = await w2.fetch(new Request(`${LIVE}/stores/joybuy/`), OFF);
+  assert.equal(r2.status, 200);
+  const t2 = await r2.text();
+  assert.match(t2, /Products could not be loaded just now\./);
+  assert.ok(!/class="pcard"/.test(t2));
+  for (const code of joy.sites) assert.ok(t2.includes(`https://${hostOf(code)}/search?q=Joybuy`), `still the link to ${code}`);
+  const home = await (await w2.fetch(new Request(`${LIVE}/`), OFF)).text();
+  assert.match(home, /id="stores"/, 'the home page still shows the stores');
+});
+
+test('store data: kept in the cache 1 hour under a synthetic key, read from there the next time', async () => {
+  const f = makeFetch();
+  const cache = makeCache();
+  const w = createGuidesWorker(site, { fetch: f, cache, now: () => NOW });
+  const waits = [];
+  const ctx = { waitUntil: p => waits.push(p) };
+  const first = await (await w.fetch(new Request(`${LIVE}/stores/tooled-up/`), ON, ctx)).text();
+  await Promise.all(waits);
+  const n = f.calls.length;
+  assert.equal(n, 4, 'Tooled Up: its 4 sites');
+  const key = storeCacheKey(site, site.stores.find(s => s.slug === 'tooled-up'));
+  assert.equal(key, `https://megastoresgearworld.com/__cache/stores/tooled-up?v=${site.assetVersion}`);
+  const kept = cache.m.get(key);
+  assert.ok(kept, 'kept under the synthetic key');
+  assert.equal(kept.headers.get('Cache-Control'), 'public, max-age=3600');
+  const data = await kept.clone().json();
+  assert.ok(!/price|affiliate|\/out\//.test(JSON.stringify(data)), 'the copy holds no price and no affiliate link');
+  const second = await (await w.fetch(new Request(`${LIVE}/stores/tooled-up/`), ON, ctx)).text();
+  assert.equal(f.calls.length, n, 'the second visit reads the cache');
+  assert.equal(second, first);
+  // The home page reads the same copies: every store once, then nothing more.
+  await (await w.fetch(new Request(`${LIVE}/`), ON, ctx)).text();
+  await Promise.all(waits);
+  const afterHome = f.calls.length;
+  assert.equal(afterHome - n, awinStores(site).reduce((a, s) => a + Math.min(6, s.sites.length), 0) - 4);
+  await (await w.fetch(new Request(`${LIVE}/`), ON, ctx)).text();
+  assert.equal(f.calls.length, afterHome, 'the home page from the cache');
+  // Nothing found: kept 1 minute only.
+  const c2 = makeCache();
+  const w2 = createGuidesWorker(site, { fetch: makeFetch({ fail: ['kidsgearworld.com'] }), cache: c2, now: () => NOW });
+  await (await w2.fetch(new Request(`${LIVE}/stores/dhgate/`), ON)).text();
+  assert.equal(c2.m.get(storeCacheKey(site, site.stores.find(s => s.slug === 'dhgate'))).headers.get('Cache-Control'), 'public, max-age=60');
+});
+
+test('home page: the stores above the gift guides, logos on a tile or a text badge, Amazon text only and only with Amazon links', async () => {
+  const w = createGuidesWorker(site, { fetch: makeFetch(), cache: null, now: () => NOW });
+  for (const env of [ON, PRE, OFF]) {
+    const text = await (await w.fetch(new Request(`${LIVE}/`), env)).text();
+    assert.ok(text.indexOf('id="stores"') > 0 && text.indexOf('id="stores"') < text.indexOf('id="guides"'), 'stores above the gift guides');
+    assert.match(text, /<a class="top-link" href="\/#stores">Stores<\/a>/);
+    const section = text.slice(text.indexOf('id="stores"'), text.indexOf('id="guides"'));
+    const cards = section.match(/<li class="store-card">[\s\S]*?<p class="store-meta">[^<]*<\/p>\s*<\/li>/g) || [];
+    const names = cards.map(c => c.match(/<a class="store-link" href="\/stores\/([a-z0-9-]+)\/">/)[1]);
+    const expect = site.stores.map(s => s.slug).filter(s => s !== 'amazon' || env !== OFF);
+    assert.deepEqual(names, expect, 'one card per store, in order');
+    for (const c of cards) {
+      const slug = c.match(/href="\/stores\/([a-z0-9-]+)\/"/)[1];
+      const store = site.stores.find(s => s.slug === slug);
+      if (store.amazon) {
+        assert.ok(!/<img/.test(c), 'Amazon: text only');
+        assert.match(c, /<span class="store-badge" translate="no">Amazon<\/span>/);
+        continue;
+      }
+      if (store.logo) assert.match(c, new RegExp(`<span class="store-logo"><img src="/assets/${store.logo.replace('.', '\\.')}\\?v=[^"]+" alt="${store.name}" width="\\d+" height="\\d+" decoding="async"></span>`));
+      else assert.match(c, new RegExp(`<span class="store-badge" translate="no">${store.name}</span>`));
+      const thumbs = c.match(/<img src="https:\/\/img\.example[^"]+" alt="" width="96" height="96" loading="lazy"/g) || [];
+      assert.equal(thumbs.length, 3, `${slug}: 3 photos`);
+    }
+    if (env === OFF) assert.ok(!/amazon/i.test(text), 'off: no Amazon anywhere');
+  }
+});
+
+test('Amazon page: only with Amazon links; the Associates ID only live; our own photos, never an Amazon product photo', async () => {
+  const w = createGuidesWorker(site, { fetch: makeFetch(), cache: null, now: () => NOW });
+  const on = await (await w.fetch(new Request(`${LIVE}/stores/amazon/`), ON)).text();
+  const links = on.match(/<a class="btn btn-market btn-sm" href="[^"]+"[^>]*>See prices on Amazon<\/a>/g) || [];
+  assert.equal(links.length, site.guides.reduce((a, g) => a + g.ideas.length, 0), 'every idea of every guide');
+  for (const l of links) {
+    assert.match(l, /href="https:\/\/www\.amazon\.co\.uk\/s\?k=[^"&]+&amp;tag=gearworld04-21"/);
+    assert.match(l, /rel="sponsored nofollow noopener"/);
+  }
+  assert.ok(on.indexOf(AMAZON_STATEMENT) < on.indexOf('See prices on Amazon'), 'the statement before the first link');
+  for (const src of [...on.matchAll(/<img src="([^"]+)"/g)].map(m => m[1])) assert.ok(src.startsWith('/assets/'), `only our own images: ${src}`);
+  assert.equal((on.match(/<img class="amz-photo" src="\/assets\/worlds\/[a-z]{3}\.jpg\?v=/g) || []).length, site.guides.length);
+  assert.ok(!/\/out\/|\/go\//.test(on));
+  assert.ok(!/amz-mark/.test(on), 'no Amazon image while the slot is empty');
+  const withMark = createGuidesWorker({ ...site, amazon: { ...site.amazon, linkImage: 'amazon/mark.png' } }, { fetch: makeFetch(), cache: null });
+  const marked = await (await withMark.fetch(new Request(`${LIVE}/stores/amazon/`), ON)).text();
+  assert.match(marked, /<p class="amz-mark"><img src="\/assets\/amazon\/mark\.png\?v=/, 'the slot, next to the Amazon buttons');
+  assert.ok(!/amz-mark/.test(await (await withMark.fetch(new Request(`${LIVE}/stores/amazon/`), PRE)).text()), 'never without the Associates ID');
+  assert.ok(!/amz-mark|amazon\/mark/.test(await (await withMark.fetch(new Request(`${LIVE}/`), ON)).text()), 'never on the home page');
+
+  const pre = await (await w.fetch(new Request(`${PREVIEW}/stores/amazon/`), PRE)).text();
+  assert.ok(pre.includes('https://www.amazon.co.uk/s?k=') && !pre.includes('tag='), 'the test address: no Associates ID');
+  const off = await w.fetch(new Request(`${LIVE}/stores/amazon/`), OFF);
+  assert.equal(off.status, 404);
+  assert.ok(!/amazon/i.test(await off.text()), 'off: 404 without a word of Amazon');
 });

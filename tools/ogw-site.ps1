@@ -260,6 +260,41 @@ function Test-Site([string]$base, [string]$mode) {
             else { Say '  Κουμπιά προς τις κατηγορίες των Gear World sites: ΕΝΤΑΞΕΙ' $Ok }
         }
     }
+    # L191: the Joybuy store page (product photos read live from the Gear World sites) and the Amazon page. A new
+    # version reads the sites the first time, so up to 3 tries, 20 seconds apart. Read-only (GET), never /out/ or /go/.
+    $sp = $null
+    for ($i = 1; $i -le 3; $i++) {
+        $sp = Get-Page ($base + '/stores/joybuy/')
+        if ($sp.status -eq 200 -and $sp.text.Contains('<li class="pcard">')) { break }
+        if ($i -lt 3) { Start-Sleep -Seconds 20 }
+    }
+    if ($sp.status -ne 200) { Say ('  /stores/joybuy/ απαντά {0}: ΠΡΟΒΛΗΜΑ' -f $sp.status) $Bad; $all = $false }
+    else {
+        $cards = [regex]::Matches($sp.text, '<li class="pcard">').Count
+        $photo = $sp.text -match '<a class="pcard-photo" href="https://[a-z]+gearworld\.com/product/[^"]+"[^>]*><img src="https://'
+        $outLink = $sp.text -match 'href="[^"]*/(out|go)/'
+        $pound = $sp.text.Contains([string][char]0x00A3)
+        if ($cards -ge 1 -and $photo -and -not $outLink -and -not $pound) { Say ('  /stores/joybuy/: {0} προϊόντα με φωτογραφία και link στη σελίδα τους στο Gear World, χωρίς τιμές, χωρίς /out/ και /go/: ΕΝΤΑΞΕΙ' -f $cards) $Ok }
+        else {
+            $why = @()
+            if ($cards -lt 1) { $why += 'κανένα προϊόν' }
+            elseif (-not $photo) { $why += 'προϊόν χωρίς φωτογραφία ή χωρίς σελίδα Gear World' }
+            if ($outLink) { $why += 'link /out/ ή /go/' }
+            if ($pound) { $why += 'τιμή σε £' }
+            Say ('  /stores/joybuy/: {0}: ΠΡΟΒΛΗΜΑ' -f ($why -join ', ')) $Bad; $all = $false
+        }
+    }
+    $ap = Get-Page ($base + '/stores/amazon/')
+    if ($mode -eq 'on') {
+        if ($ap.status -eq 200 -and $ap.text.Contains('tag=' + $AmazonTag)) { Say ('  /stores/amazon/ με το Associates ID {0}: ΕΝΤΑΞΕΙ' -f $AmazonTag) $Ok }
+        else { Say ('  /stores/amazon/ ({0}) χωρίς το Associates ID: ΠΡΟΒΛΗΜΑ' -f $ap.status) $Bad; $all = $false }
+    } elseif ($mode -eq 'preview') {
+        if ($ap.status -eq 200 -and $ap.text.Contains('https://www.amazon.co.uk/s?k=') -and -not $ap.text.Contains('tag=')) { Say '  /stores/amazon/ χωρίς Associates ID (δοκιμαστική διεύθυνση): ΕΝΤΑΞΕΙ' $Ok }
+        else { Say ('  /stores/amazon/ της δοκιμαστικής διεύθυνσης ({0}): ΠΡΟΒΛΗΜΑ' -f $ap.status) $Bad; $all = $false }
+    } else {
+        if ($ap.status -eq 404) { Say '  /stores/amazon/ δεν υπάρχει χωρίς τη φράση Amazon (404): ΕΝΤΑΞΕΙ' $Ok }
+        else { Say ('  /stores/amazon/ απαντά {0} χωρίς τη φράση Amazon: ΠΡΟΒΛΗΜΑ' -f $ap.status) $Bad; $all = $false }
+    }
     $r = Get-Page ($base + '/robots.txt')
     if ($mode -eq 'preview') {
         if ($r.status -eq 200 -and $r.text.Contains('Disallow: /')) { Say '  robots.txt: η δοκιμαστική διεύθυνση δεν μπαίνει στη Google: ΕΝΤΑΞΕΙ' $Ok }

@@ -8,6 +8,8 @@ import { html, toString } from './lib/html.js';
 import { htmlResponse, textResponse, redirect } from './lib/http.js';
 import { versionResponse } from './lib/version.js';
 import { GEAR_WORLDS } from '../promos/network.js';
+import { promosFor } from '../promos/promos.js';
+import { activePromos } from './lib/promos.js';
 
 export const AMAZON_STATEMENT = 'As an Amazon Associate I earn from qualifying purchases.';
 const AMAZON_TRADEMARK = 'Amazon and the Amazon logo are trademarks of Amazon.com, Inc. or its affiliates.';
@@ -135,7 +137,7 @@ ${robots ? html`<meta name="robots" content="${robots}">` : ''}
 <a class="skip" href="#main">Skip to content</a>
 <header class="top"><div class="wrap top-row">
   <a class="brand" href="/"><img src="${asset(site, 'logo.svg')}" alt="" width="40" height="40"><span>${site.name}</span></a>
-  <a class="top-link" href="/#guides">Gift guides</a>
+  <nav class="top-nav" aria-label="Main"><a class="top-link" href="/#stores">Stores</a><a class="top-link" href="/#guides">Gift guides</a></nav>
 </div></header>
 <main id="main">${body}</main>
 <footer class="foot"><div class="wrap">
@@ -158,19 +160,291 @@ function ideaButtons(site, idea, mode) {
   </p>`;
 }
 
-export function homePage(site, env, now = new Date()) {
+// ---------------- Stores (owner, 18 Nov 2026, «ΕΓΚΡΙΝΩ MEGA STORES ΜΠΑΡΑ», lessons L191) ----------------
+// One page per store at /stores/<slug>/ with real product photos read live from the Gear World sites' /api/products
+// (the store's first 6 sites, 4 seconds each, kept 1 hour in the Worker's cache). Only the photo, the name, the brand
+// and the Gear World product page are kept: never a price, a was_price or an affiliate_url (Amazon Associates 6(y),
+// lessons L103, L107), never an /out/ or /go/ link (a visit from here would count as a click on a retailer link).
+// Nothing is written to the repo (no Awin feed data). Amazon has its own page (/stores/amazon/) with the gift ideas and
+// the Amazon buttons, only with AMAZON_LINKS on or preview.
+// Who asks the Gear World sites: "MegaStoresGearWorld/1.0 (+https://megastoresgearworld.com)" from the site config.
+export const storeUserAgent = site => `${String(site.name).replace(/[^A-Za-z0-9]/g, '')}/1.0 (+https://${site.domain})`;
+const STORE_SITES_READ = 6;
+const STORE_PER_SITE = 8;
+const STORE_KEEP = 24;
+const STORE_TIMEOUT_MS = 4000;
+// A product whose name or brand holds a price, a percentage, a word of a shop or of a discount, or Amazon's name is
+// left out: those words never appear on this site (L101, L103, L107), and with AMAZON_LINKS off no page names Amazon.
+const UNSHOWN_WORDS = /[£$€%]|\b(sale|sales|deals?|save|saving|savings|shop|shopping|buy|cart|basket|official|partners?|discounts?|offers?|free delivery|lowest price|best price|cheapest|clearance|bargains?|coupons?|vouchers?|promo|black friday)\b|amazon/i;
+
+export function awinStores(site) {
+  return (site.stores || []).filter(s => !s.amazon && Array.isArray(s.sites) && s.sites.length);
+}
+
+// The stores shown with this mode, in the config's order: Amazon only with Amazon links (on or preview).
+export function shownStores(site, mode) {
+  return (site.stores || []).filter(s => (s.amazon ? withMarkets(mode) : Array.isArray(s.sites) && s.sites.length));
+}
+
+export function storeCacheKey(site, store) {
+  return `https://${site.domain}/__cache/stores/${store.slug}?v=${encodeURIComponent(site.assetVersion)}`;
+}
+
+const SITE_HOST = w => new URL(w.url).hostname;
+
+// One product of a site's /api/products answer as this site may show it, or null: an https photo, a product page on
+// that same Gear World site, the store's own products, delivered to the UK, not out of stock, a clean name.
+export function cleanStoreProduct(p, store, w) {
+  if (!p || typeof p !== 'object') return null;
+  if (String(p.retailer || '').trim().toLowerCase() !== store.name.toLowerCase()) return null;
+  const name = String(p.product_name || '').replace(/\s+/g, ' ').trim().slice(0, 200);
+  const brand = String(p.brand || '').replace(/\s+/g, ' ').trim().slice(0, 80);
+  if (!name || UNSHOWN_WORDS.test(name) || UNSHOWN_WORDS.test(brand)) return null;
+  if (p.stock_status === 'out_of_stock') return null;
+  const to = Array.isArray(p.delivers_to) ? p.delivers_to.map(c => String(c).toUpperCase()) : [];
+  if (!to.includes('GB') && !to.includes('WORLD')) return null;
+  let image;
+  let page;
+  try {
+    image = new URL(String(p.image_url || ''));
+    page = new URL(String(p.product_url || ''));
+  } catch { return null; }
+  if (image.protocol !== 'https:' || page.protocol !== 'https:') return null;
+  if (page.hostname !== SITE_HOST(w) || !page.pathname.startsWith('/product/') || /\/(out|go)\//.test(page.pathname)) return null;
+  page.hash = '';
+  return { name, brand, image: image.toString(), url: page.toString(), site: w.code };
+}
+
+// The store's products from one Gear World site: [] when it answers nothing usable, an error when it fails or is slow.
+async function readSiteProducts(store, w, deps) {
+  const u = new URL('/api/products', w.url);
+  u.searchParams.set('retailer', store.name);
+  u.searchParams.set('deliver_to', 'GB');
+  u.searchParams.set('badges', '1');
+  u.searchParams.set('limit', String(STORE_PER_SITE));
+  const ac = new AbortController();
+  const timer = setTimeout(() => ac.abort(), deps.timeoutMs || STORE_TIMEOUT_MS);
+  try {
+    const res = await deps.fetch(u.toString(), { headers: { 'User-Agent': deps.userAgent, Accept: 'application/json' }, signal: ac.signal, redirect: 'manual' });
+    if (!res || res.status !== 200) throw new Error(`HTTP ${res && res.status}`);
+    const data = await res.json();
+    const rows = data && Array.isArray(data.products) ? data.products : [];
+    return rows.map(p => cleanStoreProduct(p, store, w)).filter(Boolean);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+// The sites one after another (round-robin), one product name once, up to 24.
+export function mixStoreProducts(lists, keep = STORE_KEEP) {
+  const out = [];
+  const seen = new Set();
+  const longest = Math.max(0, ...lists.map(l => l.length));
+  for (let i = 0; i < longest && out.length < keep; i++) {
+    for (const l of lists) {
+      const p = l[i];
+      if (!p) continue;
+      const k = p.name.toLowerCase();
+      if (seen.has(k)) continue;
+      seen.add(k);
+      out.push(p);
+      if (out.length >= keep) break;
+    }
+  }
+  return out;
+}
+
+// The store's products: from the cache, or read from its first 6 Gear World sites at once (Promise.allSettled, so a
+// slow or failing site never breaks the page). Kept 1 hour when every site answered, 10 minutes when one failed, and
+// 1 minute when nothing came back (the page then says so and still links to every site).
+export async function storeProducts(site, store, deps = {}, ctx = null) {
+  const cache = deps.cache || null;
+  const key = storeCacheKey(site, store);
+  if (cache) {
+    try {
+      const hit = await cache.match(key);
+      if (hit) {
+        const data = await hit.json();
+        if (data && Array.isArray(data.products)) return { products: data.products, cached: true };
+      }
+    } catch { /* a broken copy is read again from the sites */ }
+  }
+  const sites = store.sites.map(gearWorldFor).filter(Boolean).slice(0, STORE_SITES_READ);
+  const fetcher = deps.fetch || ((...a) => fetch(...a));
+  const results = await Promise.allSettled(sites.map(w => readSiteProducts(store, w, { ...deps, fetch: fetcher, userAgent: storeUserAgent(site) })));
+  const lists = results.map(r => (r.status === 'fulfilled' ? r.value : []));
+  const failed = results.some(r => r.status !== 'fulfilled');
+  const products = mixStoreProducts(lists);
+  const ttl = !products.length ? 60 : failed ? 600 : 3600;
+  if (cache) {
+    const res = new Response(JSON.stringify({ products }), { headers: { 'Content-Type': 'application/json', 'Cache-Control': `public, max-age=${ttl}` } });
+    const put = Promise.resolve().then(() => cache.put(key, res)).catch(() => { /* the next visit reads the sites again */ });
+    if (ctx && typeof ctx.waitUntil === 'function') ctx.waitUntil(put); else await put;
+  }
+  return { products, cached: false };
+}
+
+const storeLogo = (site, store, cls) => {
+  if (!store.logo || store.amazon || !/^logos\/[a-z0-9-]+\.(png|jpg|svg|webp)$/.test(store.logo)) return '';
+  const [w, h] = Array.isArray(store.logoSize) ? store.logoSize : [168, 168];
+  return html`<span class="${cls}"><img src="${asset(site, store.logo)}" alt="${store.name}" width="${w}" height="${h}" decoding="async"></span>`;
+};
+
+// The name as a clean text badge (no logo of our own making), or the store's own logo on a white tile.
+const storeMark = (site, store) => storeLogo(site, store, 'store-logo') || html`<span class="store-badge" translate="no">${store.name}</span>`;
+
+const siteCount = n => `On ${n} Gear World site${n === 1 ? '' : 's'}`;
+
+function storeCard(site, store, products) {
+  const thumbs = (products || []).slice(0, 3);
+  if (store.amazon) {
+    return html`<li class="store-card">
+  <div class="store-mark"><span class="store-badge" translate="no">${store.name}</span></div>
+  <h3><a class="store-link" href="/stores/${store.slug}/"><span translate="no">${store.name}</span></a></h3>
+  <p>${store.line}</p>
+  <p class="store-meta">${site.guides.length} gift guides</p>
+</li>`;
+  }
+  return html`<li class="store-card">
+  <div class="store-mark">${storeMark(site, store)}</div>
+  <h3><a class="store-link" href="/stores/${store.slug}/"><span translate="no">${store.name}</span></a></h3>
+  <p>${store.line}</p>
+  ${thumbs.length ? html`<ul class="store-thumbs">${thumbs.map(p => html`<li><img src="${p.image}" alt="" width="96" height="96" loading="lazy" decoding="async" referrerpolicy="no-referrer"></li>`)}</ul>` : ''}
+  <p class="store-meta">${siteCount(store.sites.length)}</p>
+</li>`;
+}
+
+function storesSection(site, mode, data) {
+  const stores = shownStores(site, mode);
+  if (!stores.length) return '';
+  return html`<section class="wrap section" id="stores">
+  <h2>Stores</h2>
+  <p class="section-lede">${withMarkets(mode)
+    ? 'One page per store: product photos from the Gear World sites, and gift ideas to search on Amazon. Prices, stock and delivery are on the page each button opens.'
+    : 'One page per store, with product photos from the Gear World sites. Prices, stock and delivery are on the product page each button opens.'}</p>
+  <ul class="stores">${stores.map(s => storeCard(site, s, (data && data[s.slug]) || []))}</ul>
+</section>`;
+}
+
+// The note at the top of a store page: its buttons open Gear World product pages (no affiliate link of our own here).
+function storeDisclosure() {
+  return html`<div class="note" role="note">
+  <p>The buttons on this page open product pages of the Gear World sites. Those sites link to retailers and may earn a commission, at no extra cost to you.</p>
+  <p>Prices, stock and delivery are on the page you open. We do not sell anything and we do not track prices.</p>
+</div>`;
+}
+
+// Codes from promos/promos.js that run today on a Gear World site for this store (kind "code" only: a sale or a
+// coupon is not a code to type, lessons L107, L114).
+function storeHasCodes(store, code, now) {
+  return activePromos({ promos: promosFor(code) }, now).some(p => p.kind === 'code' && p.slug === store.slug);
+}
+
+export function storeSearchUrl(store, w) {
+  const u = new URL('/search', w.url);
+  u.searchParams.set('q', store.name);
+  u.searchParams.set('retailer', store.name);
+  return u.toString();
+}
+
+export function storePage(site, env, store, products, now = Date.now()) {
+  const worlds = store.sites.map(gearWorldFor).filter(Boolean);
+  return shell(site, env, {
+    title: `${store.name} on ${site.name}`,
+    description: `${store.line} Product photos from the Gear World sites, each with its Gear World product page.`,
+    path: `/stores/${store.slug}/`,
+    body: html`
+<section class="hero hero-small"><div class="wrap">
+  <p class="eyebrow"><a href="/#stores">Stores</a></p>
+  <div class="store-title">${storeLogo(site, store, 'store-logo store-logo-lg')}<h1><span translate="no">${store.name}</span> on ${site.name}</h1></div>
+  <p class="lede">${store.line} Each product opens its page on a Gear World site, which shows the price, the stock and where <span translate="no">${store.name}</span> delivers.</p>
+</div></section>
+<section class="wrap section">${storeDisclosure()}</section>
+<section class="wrap section" aria-label="Products">
+  ${products.length
+    ? html`<ul class="pcards">${products.map(p => {
+      const w = gearWorldFor(p.site);
+      return html`<li class="pcard">
+    <a class="pcard-photo" href="${p.url}" rel="noopener" target="_blank"><img src="${p.image}" alt="${p.name}" width="240" height="240" loading="lazy" decoding="async" referrerpolicy="no-referrer"></a>
+    <h2 class="pcard-name" translate="no">${p.name}</h2>
+    ${p.brand ? html`<p class="pcard-brand" translate="no">${p.brand}</p>` : ''}
+    <p class="pcard-site">On ${w.name}</p>
+    <a class="btn btn-gw pcard-btn" href="${p.url}" rel="noopener" target="_blank">See it on ${w.name}</a>
+  </li>`;
+    })}</ul>`
+    : html`<p class="empty">Products could not be loaded just now. The links below open <span translate="no">${store.name}</span> on each Gear World site.</p>`}
+</section>
+<section class="wrap section">
+  <h2><span translate="no">${store.name}</span> on the Gear World sites</h2>
+  <ul class="site-links">${worlds.map(w => html`<li>
+    <a href="${storeSearchUrl(store, w)}">All <span translate="no">${store.name}</span> products on ${w.name}</a>
+    ${storeHasCodes(store, w.code, now) ? html`<a href="${new URL(`/discount-codes/${store.slug}/`, w.url).toString()}"><span translate="no">${store.name}</span> voucher codes on ${w.name}</a>` : ''}
+  </li>`)}</ul>
+  <p><a href="/#stores">All stores</a> · <a href="/#guides">Gift guides</a></p>
+</section>`
+  });
+}
+
+// The main Gear World site of a guide: the site most of its ideas link to (the first one on a tie), for its photo.
+export function guideWorld(guide) {
+  const n = new Map();
+  for (const i of guide.ideas || []) n.set(i.gw, (n.get(i.gw) || 0) + 1);
+  let best = '';
+  for (const [code, c] of n) if (!best || c > n.get(best)) best = code;
+  return guide.world || best;
+}
+
+export const guideImage = guide => `worlds/${String(guideWorld(guide)).toLowerCase()}.jpg`;
+
+// The Amazon page: the gift ideas, guide by guide, with the Amazon buttons. Our own photos of the Gear Worlds, never an
+// Amazon product photo (no Product Advertising API). The Amazon image, when Amazon supplies one, only here, next to
+// the Amazon buttons and only with the Associates ID (Trademark Guidelines).
+export function amazonStorePage(site, env, store) {
+  const mode = amazonMode(env);
+  const mark = site.amazon && /^[a-z0-9/-]+\.(png|jpg|svg|gif)$/.test(String(site.amazon.linkImage || '')) && mode === 'on'
+    ? html`<p class="amz-mark"><img src="${asset(site, site.amazon.linkImage)}" alt="Amazon" decoding="async"></p>` : '';
+  return shell(site, env, {
+    title: `Gift ideas to search on Amazon | ${site.name}`,
+    description: 'The ideas of our gift guides, each with a search on amazon.co.uk. Compare models, sellers and prices before you choose.',
+    path: `/stores/${store.slug}/`,
+    body: html`
+<section class="hero hero-small"><div class="wrap">
+  <p class="eyebrow"><a href="/#stores">Stores</a></p>
+  <h1>Gift ideas to search on Amazon</h1>
+  <p class="lede">${store.line} Each button opens a search on amazon.co.uk, which shows the current models, sellers and prices.</p>
+</div></section>
+<section class="wrap section">${disclosure(site, mode)}</section>
+<section class="wrap section">
+  <ul class="amz-guides">${site.guides.map(g => html`<li class="amz-guide">
+    <img class="amz-photo" src="${asset(site, guideImage(g))}" alt="" width="700" height="420" loading="lazy" decoding="async">
+    <div class="amz-body">
+      <h2><a href="/guides/${g.slug}/">${g.title}</a></h2>
+      <p>${g.teaser}</p>
+      ${mark}
+      <ul class="amz-ideas">${g.ideas.map(i => {
+        const href = amazonUrl(site, i.q, mode);
+        return html`<li><span class="amz-idea">${i.name}</span>${href ? html`<a class="btn btn-market btn-sm" href="${href}" rel="sponsored nofollow noopener" target="_blank" aria-label="${i.name}: see prices on Amazon">See prices on Amazon</a>` : ''}</li>`;
+      })}</ul>
+    </div>
+  </li>`)}</ul>
+  <p><a href="/#stores">All stores</a> · <a href="/#guides">Gift guides</a></p>
+</section>`
+  });
+}
+
+export function homePage(site, env, now = new Date(), storeData = {}) {
   const mode = amazonMode(env);
   const count = countdown(site, now);
   const all = [...site.guides, site.checks].filter(Boolean);
   return shell(site, env, {
-    title: withMarkets(mode) ? `Gift guides and marketplace searches | ${site.name}` : `Gift guides | ${site.name}`,
+    title: `Stores and gift guides | ${site.name}`,
     description: withMarkets(mode)
-      ? 'Christmas gift ideas for everyone, with searches on the big marketplaces and on the Gear World sites. Compare models, sellers and prices before you choose.'
-      : 'Christmas gift ideas for everyone, with the matching categories of the Gear World sites. Compare models, retailers and prices before you choose.',
+      ? 'Store pages with product photos from the Gear World sites, and Christmas gift ideas with searches on the big marketplaces. Compare models, sellers and prices before you choose.'
+      : 'Store pages with product photos from the Gear World sites, and Christmas gift ideas with the matching categories. Compare models, retailers and prices before you choose.',
     path: '/',
     body: html`
 <section class="hero"><div class="wrap">
-  <p class="eyebrow">Gift guides</p>
+  <p class="eyebrow">Stores and gift guides</p>
   <h1>${withMarkets(mode) ? 'Gift ideas first. Then compare on the big marketplaces.' : 'Gift ideas first. Then compare.'}</h1>
   <p class="lede">${withMarkets(mode)
     ? 'Short gift guides for Christmas and the winter. Every idea opens a search on a big marketplace and the matching category of a Gear World site, so you can compare models, sellers and prices before you choose.'
@@ -178,6 +452,7 @@ export function homePage(site, env, now = new Date()) {
   ${count ? html`<p class="count">${count}</p>` : ''}
 </div></section>
 <section class="wrap section">${disclosure(site, mode)}</section>
+${storesSection(site, mode, storeData)}
 <section class="wrap section" id="guides">
   <h2>Gift guides</h2>
   <ul class="cards">${all.map(g => html`<li class="card"><h3><a href="/guides/${g.slug}/">${g.title}</a></h3><p>${g.teaser}</p></li>`)}</ul>
@@ -258,7 +533,8 @@ const LEGAL = {
 <ul>
 <li>We do not sell anything and we do not take payments.</li>
 <li>We do not track prices or send price alerts.</li>
-<li>We do not show prices or product photos: they are on the page each button opens, where they are up to date.</li>
+<li>We do not show prices: they are on the page each button opens, where they are up to date.</li>
+<li>The store pages show product photos, names and brands from the Gear World sites, each with its Gear World product page.</li>
 </ul>
 ${mode === 'on' ? html`<p>${AMAZON_STATEMENT}</p>` : ''}`
   }),
@@ -274,7 +550,7 @@ ${withMarkets(mode)
   : html`<p>At the moment this site has no affiliate links of its own: its buttons open categories of the Gear World sites. Those sites link to retailers through affiliate networks and may earn a commission; you pay the same price.</p>`}
 ${mode === 'on' ? html`<h2>Amazon</h2><p>${AMAZON_STATEMENT}</p><p>${AMAZON_TRADEMARK}</p>` : ''}
 <h2>The Gear World sites</h2>
-<p>The "Browse on" buttons open a category of a Gear World site. Those sites have their own affiliate links and explain them on their own "How we make money" page.</p>
+<p>The "Browse on" buttons open a category of a Gear World site, and the "See it on" buttons of the store pages open a product page of a Gear World site. Those sites have their own affiliate links and explain them on their own "How we make money" page.</p>
 <h2>How this affects what you see</h2>
 <p>The ideas are not ranked by commission, and nobody pays to be in a guide. We do not show prices: the page each button opens has the current price.</p>`
   }),
@@ -292,6 +568,7 @@ ${mode === 'on' ? html`<h2>Amazon</h2><p>${AMAZON_STATEMENT}</p><p>${AMAZON_TRAD
 <li><strong>Visiting the site.</strong> The site has no forms, no accounts, no analytics and no advertising tags. We do not record your visit.</li>
 <li><strong>Email.</strong> If you email us, we keep your message and email address to reply (legitimate interests) and delete them when they are no longer needed.</li>
 <li><strong>Hosting.</strong> The site is hosted by Cloudflare, which processes technical data such as IP addresses to deliver and protect the site.</li>
+<li><strong>Product photos.</strong> The photos on the store pages load from the retailers' image servers, which receive technical data such as your IP address to send the image. We tell them nothing about the page you are on.</li>
 </ul>
 <h2>When you follow a link</h2>
 <p>When you follow a link to another site, that site's own privacy policy applies. The site you open may set its own cookies to know where you came from, so it can pay a commission.</p>
@@ -368,15 +645,32 @@ function notFoundPage(site, env, path) {
   });
 }
 
-// Every page address, for the sitemap.
-export function pagePaths(site) {
-  return ['/', ...site.guides.map(g => `/guides/${g.slug}/`), `/guides/${site.checks.slug}/`, ...Object.keys(LEGAL)];
+// Every page address, for the sitemap. The Amazon page only when the Amazon links are live (mode "on").
+export function pagePaths(site, mode = 'off') {
+  const stores = (site.stores || []).filter(s => (s.amazon ? mode === 'on' : Array.isArray(s.sites) && s.sites.length)).map(s => `/stores/${s.slug}/`);
+  return ['/', ...stores, ...site.guides.map(g => `/guides/${g.slug}/`), `/guides/${site.checks.slug}/`, ...Object.keys(LEGAL)];
 }
 
-export function createGuidesWorker(site) {
+// deps (tests): fetch, cache (match/put, like caches.default), now (a function giving ms) and timeoutMs.
+export function createGuidesWorker(site, deps = {}) {
   const guides = new Map(site.guides.map(g => [g.slug, g]));
+  const stores = new Map((site.stores || []).map(s => [s.slug, s]));
+  const runtime = () => ({
+    fetch: deps.fetch,
+    cache: deps.cache !== undefined ? deps.cache : (typeof caches !== 'undefined' && caches.default ? caches.default : null),
+    timeoutMs: deps.timeoutMs
+  });
+  const nowMs = () => (typeof deps.now === 'function' ? deps.now() : Date.now());
+  // Every store's products for the home page cards (from the cache, or read now); never breaks the page.
+  async function allStoreData(ctx) {
+    const list = awinStores(site);
+    const r = await Promise.allSettled(list.map(s => storeProducts(site, s, runtime(), ctx)));
+    const out = {};
+    list.forEach((s, i) => { out[s.slug] = r[i].status === 'fulfilled' ? r[i].value.products : []; });
+    return out;
+  }
   return {
-    async fetch(request, env) {
+    async fetch(request, env, ctx) {
       const url = new URL(request.url);
       if (url.hostname === `www.${site.domain}`) {
         url.hostname = site.domain;
@@ -396,11 +690,27 @@ export function createGuidesWorker(site) {
         return textResponse(preview ? 'User-agent: *\nDisallow: /\n' : `User-agent: *\nAllow: /\n\nSitemap: https://${site.domain}/sitemap.xml\n`, { method: request.method });
       }
       if (url.pathname === '/sitemap.xml') {
-        const urls = pagePaths(site).map(p => `<url><loc>https://${site.domain}${p}</loc></url>`).join('\n');
+        const urls = pagePaths(site, amazonMode(env)).map(p => `<url><loc>https://${site.domain}${p}</loc></url>`).join('\n');
         return textResponse(`<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls}\n</urlset>\n`, { type: 'application/xml', method: request.method });
       }
-      if (url.pathname === '/' || url.pathname === '/index.html') return page(homePage(site, env));
+      if (url.pathname === '/' || url.pathname === '/index.html') return page(homePage(site, env, new Date(nowMs()), await allStoreData(ctx)));
       if (url.pathname === '/guides' || url.pathname === '/guides/') return redirect(`https://${site.domain}/#guides`, 302);
+      if (url.pathname === '/stores' || url.pathname === '/stores/') return redirect(`https://${site.domain}/#stores`, 302);
+      const sm = url.pathname.match(/^\/stores\/([a-z0-9-]+)\/?$/);
+      if (sm && stores.has(sm[1])) {
+        const store = stores.get(sm[1]);
+        // Amazon only with Amazon links (on or preview); otherwise the page does not exist.
+        const shown = store.amazon ? withMarkets(amazonMode(env)) : Array.isArray(store.sites) && store.sites.length > 0;
+        if (shown && !url.pathname.endsWith('/')) { url.pathname = `${url.pathname}/`; return redirect(url.toString(), 301); }
+        if (shown && store.amazon) return page(amazonStorePage(site, env, store));
+        if (shown) {
+          let products = [];
+          try { products = (await storeProducts(site, store, runtime(), ctx)).products; } catch { products = []; }
+          return page(storePage(site, env, store, products, nowMs()));
+        }
+        // The Amazon page with Amazon links off: 404 without the word Amazon (not even in the canonical address).
+        return page(notFoundPage(site, env, '/stores/'), 404);
+      }
       const gm = url.pathname.match(/^\/guides\/([a-z0-9-]+)\/?$/);
       if (gm) {
         const slug = gm[1];

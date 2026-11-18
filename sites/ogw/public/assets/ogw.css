@@ -19,6 +19,8 @@ p { margin: 0 0 1em; }
 .top-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-top: 12px; padding-bottom: 12px; }
 .brand { display: flex; align-items: center; gap: 10px; min-width: 0; color: #fff; text-decoration: none; font-weight: 700; font-size: 1.05rem; letter-spacing: .02em; }
 .brand img { flex: none; }
+.top-row { flex-wrap: wrap; }
+.top-nav { display: flex; flex-wrap: wrap; gap: 8px; }
 .top-link { flex: none; display: inline-flex; align-items: center; min-height: 40px; padding: 0 14px; border: 1px solid var(--gold); border-radius: 999px; color: var(--gold); font-weight: 600; text-decoration: none; }
 .top-link:hover { background: var(--gold); color: var(--deep); }
 .hero { background: linear-gradient(135deg, #0d1e3b, #0a1222 60%); border-bottom: 1px solid var(--line); padding: 40px 0 32px; }
@@ -61,4 +63,53 @@ p { margin: 0 0 1em; }
 .prose ul { padding-left: 1.2em; }
 .prose li { margin-bottom: .5em; }
 .updated { color: var(--text-2); }
+/* Stores (lessons L191): store cards on the home page, product cards on a store page, the Amazon page. Logos are the
+   stores' own files on a white tile, never stretched, cropped or recoloured; without one a text badge. */
+.section-lede { color: var(--text-2); max-width: 80ch; }
+.stores { display: grid; gap: 14px; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); list-style: none; margin: 0; padding: 0; }
+.store-card { position: relative; display: flex; flex-direction: column; gap: 8px; padding: 16px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; }
+.store-card:hover, .store-card:focus-within { border-color: var(--gold); }
+.store-card h3 { margin: 0; }
+.store-card p { margin: 0; color: var(--text-2); }
+.store-link { color: #fff; text-decoration: none; }
+.store-link::after { content: ""; position: absolute; inset: 0; border-radius: 10px; }
+.store-link:hover { color: var(--gold); }
+.store-mark { display: flex; align-items: center; min-height: 64px; }
+.store-logo { display: inline-flex; align-items: center; justify-content: center; height: 64px; padding: 4px 10px; background: #fff; border-radius: 8px; }
+.store-logo img { display: block; height: 56px; width: auto; max-width: 168px; object-fit: contain; }
+.store-logo-lg { height: 84px; flex: none; }
+.store-logo-lg img { height: 76px; }
+.store-badge { display: inline-flex; align-items: center; min-height: 48px; padding: 6px 14px; background: #fff; color: var(--deep); border-radius: 8px; font-weight: 800; font-size: 1.15rem; letter-spacing: .01em; }
+.store-thumbs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; list-style: none; margin: 4px 0 0; padding: 0; }
+.store-thumbs li { aspect-ratio: 1; background: #fff; border-radius: 8px; overflow: hidden; }
+.store-thumbs img { display: block; width: 100%; height: 100%; object-fit: contain; }
+.store-meta { margin-top: auto !important; font-size: .9rem; color: var(--gold) !important; font-weight: 600; }
+.store-title { display: flex; flex-wrap: wrap; align-items: center; gap: 14px; margin-bottom: .5em; }
+.store-title h1 { margin: 0; }
+.pcards { display: grid; gap: 12px; grid-template-columns: repeat(2, minmax(0, 1fr)); list-style: none; margin: 0; padding: 0; }
+.pcard { display: flex; flex-direction: column; gap: 6px; padding: 10px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; }
+.pcard-photo { display: block; aspect-ratio: 1; background: #fff; border-radius: 8px; overflow: hidden; }
+.pcard-photo img { display: block; width: 100%; height: 100%; object-fit: contain; }
+.pcard-name { margin: 4px 0 0; font-size: .95rem; line-height: 1.35; color: #fff; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.pcard p { margin: 0; font-size: .85rem; color: var(--text-2); }
+.pcard-brand { font-weight: 600; color: var(--text) !important; }
+.pcard-btn { margin-top: auto; min-height: 44px; padding: 8px 10px; font-size: .88rem; line-height: 1.25; text-align: center; }
+.empty { padding: 14px 16px; border: 1px dashed var(--line); border-radius: 10px; color: var(--text-2); max-width: 80ch; }
+.site-links { list-style: none; margin: 0 0 12px; padding: 0; display: grid; gap: 4px; }
+.site-links li { display: flex; flex-wrap: wrap; gap: 0 18px; }
+.site-links a { display: inline-flex; align-items: center; min-height: 40px; font-weight: 600; }
+.amz-guides { list-style: none; margin: 0 0 16px; padding: 0; display: grid; gap: 14px; }
+.amz-guide { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+.amz-photo { display: block; width: 100%; height: auto; aspect-ratio: 5 / 3; object-fit: cover; }
+.amz-body { padding: 16px; }
+.amz-body h2 { font-size: 1.2rem; }
+.amz-body h2 a { color: #fff; }
+.amz-body > p { color: var(--text-2); }
+.amz-mark img { max-height: 40px; width: auto; }
+.amz-ideas { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.amz-ideas li { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 12px; padding-top: 8px; border-top: 1px solid var(--line); }
+.amz-idea { font-weight: 600; }
+.btn-sm { min-height: 40px; padding: 0 12px; font-size: .9rem; }
+@media (min-width: 640px) { .pcards { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (min-width: 900px) { .pcards { grid-template-columns: repeat(4, minmax(0, 1fr)); } .amz-guides { grid-template-columns: 1fr 1fr; } }
 @media (min-width: 900px) { .hero { padding: 64px 0 48px; } .ideas { grid-template-columns: 1fr 1fr; } }

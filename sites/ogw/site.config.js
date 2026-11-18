@@ -19,13 +19,43 @@ export default {
   operatorName: 'Evangelos Kalogerakis, United Kingdom',
   // An address that receives mail (the Hub's; megastoresgearworld.com has no email).
   contactEmail: 'contact@gearworldhub.com',
-  assetVersion: '2026-11-18-ogw-1',
+  assetVersion: '2026-11-18-ogw-2',
   // The marketplaces a guide links to, in this order. Amazon UK: Associates ID gearworld04-21 (owner, 15 Nov 2026). The
   // live Worker shows the Amazon links only with AMAZON_LINKS=on, which tools/ogw-site.ps1 sets only after the owner's
   // phrase that the site is in his Associates account ("Websites and mobile apps"); the test Worker links to Amazon
   // without the ID (AMAZON_LINKS=preview). eBay, AliExpress, Joybuy and Temu are added here when chat 7 has their link
   // format and IDs (eBay Partner Network campaign, Admitad AliExpress, Awin Joybuy search page).
-  amazon: { host: 'www.amazon.co.uk', tag: 'gearworld04-21' },
+  // linkImage: an optional image under /assets/ that Amazon itself supplies to Associates. Amazon Trademark Guidelines:
+  // an Amazon mark only next to an Amazon Special Link, unchanged, never implying sponsorship. So it shows only on
+  // /stores/amazon/ next to the Amazon buttons, with AMAZON_LINKS=on; everywhere else Amazon is text only. Empty until
+  // the Manager adds the file Amazon gives.
+  amazon: { host: 'www.amazon.co.uk', tag: 'gearworld04-21', linkImage: '' },
+  // The stores bar (owner, 18 Nov 2026, «ΕΓΚΡΙΝΩ MEGA STORES ΜΠΑΡΑ», lessons L191): one page per store at
+  // /stores/<slug>/, in this order, above the gift guides. Amazon shows only with AMAZON_LINKS on or preview, text only
+  // (no logo). The other stores are the UK retailers listed on the Gear World sites: `name` is the `retailer` value of
+  // the sites' /api/products, `sites` the Gear World sites with its products (codes of promos/network.js; the page reads
+  // the first 6), `deliversTo` where it delivers. Their products (photo, name, brand, the Gear World product page) are
+  // read live from those sites and kept 1 hour in the Worker's cache: never in this repo (no Awin feed data), never a
+  // price, never an /out/ or /go/ link. `line`: what it sells, no claims. `logo`: the store's own logo file as it gives
+  // it to affiliates (Awin advertiser profile, copied unchanged), shown on a white tile, never redrawn; without one a
+  // text badge with the name.
+  stores: [
+    { slug: 'amazon', name: 'Amazon', amazon: true, line: 'Searches on amazon.co.uk for the ideas in our gift guides.' },
+    { slug: 'joybuy', name: 'Joybuy', sites: ['WGW', 'TGW', 'MGW', 'HGW', 'KGW', 'ZGW', 'SGW', 'AGW', 'PGW', 'VGW', 'CGW', 'BGW'], deliversTo: ['GB'],
+      line: 'Tech, home, beauty, toys, pet and sports products.', logo: 'logos/joybuy.png', logoSize: [168, 168] },
+    { slug: 'tooled-up', name: 'Tooled Up', sites: ['CGW', 'AGW', 'GGW', 'BGW'], deliversTo: ['GB'],
+      line: 'Power tools, hand tools, workshop and garden equipment.', logo: 'logos/tooled-up.png', logoSize: [168, 61] },
+    { slug: 'my-tool-shed', name: 'My Tool Shed', sites: ['CGW', 'GGW'], deliversTo: ['GB'],
+      line: 'Power tools, hand tools and garden equipment.', logo: 'logos/my-tool-shed.png', logoSize: [168, 61] },
+    { slug: 'pchub-uk', name: 'PCHUB.UK', sites: ['TGW', 'PGW'], deliversTo: ['GB'],
+      line: 'Computer parts, PCs and accessories.', logo: 'logos/pchub-uk.png', logoSize: [168, 57] },
+    { slug: 'gs-workwear', name: 'GS Workwear', sites: ['CGW', 'AGW'], deliversTo: ['GB'],
+      line: 'Workwear and safety clothing.', logo: 'logos/gs-workwear.jpg', logoSize: [168, 168] },
+    { slug: 'back-to-the-office', name: 'Back to the Office', sites: ['TGW', 'PGW', 'HGW', 'CGW', 'MGW', 'WGW'], deliversTo: ['GB'],
+      line: 'Office supplies, office furniture and desk accessories.', logo: 'logos/back-to-the-office.png', logoSize: [168, 168] },
+    { slug: 'dhgate', name: 'DHgate', sites: ['KGW'], deliversTo: ['GB'],
+      line: 'Toys, games and children\'s items from many independent sellers.', logo: '' }
+  ],
   // Black Friday 2026 (Friday 27 Nov) and Christmas: the countdown on the home page. Never a promise of discounts.
   blackFriday: '2026-11-27',
   christmas: '2026-12-25',
