@@ -1,0 +1,24 @@
+{
+  "checked": "2026-11-18",
+  "blackFriday": "2026-11-27",
+  "cyberMonday": "2026-11-30",
+  "started": [
+    { "name": "SGS Engineering", "slug": "sgs-engineering", "from": "2026-11-02", "to": "", "hide": "2026-11-30", "sites": ["cgw", "agw"], "deliversTo": ["GB"], "source": "Awin email \"SGS Engineering (28807): Black Friday Deals Now Live!\", 2 Nov 2026" },
+    { "name": "Tooled Up", "slug": "tooled-up", "from": "2026-11-09", "to": "2026-12-06", "hide": "2026-12-06", "sites": ["cgw", "ggw", "agw", "bgw"], "deliversTo": ["GB"], "source": "Awin email of Tooled Up (496), 9 Nov 2026" },
+    { "name": "My Tool Shed", "slug": "my-tool-shed", "from": "2026-11-09", "to": "2026-12-06", "hide": "2026-12-06", "sites": ["cgw", "ggw"], "deliversTo": ["GB"], "source": "Awin email of My Tool Shed (49385), 9 Nov 2026" },
+    { "name": "Angel Barocco", "slug": "angel-barocco", "from": "2026-11-11", "to": "2026-12-06", "hide": "2026-12-06", "sites": ["wgw"], "deliversTo": ["GB"], "source": "Awin email \"Angel Barocco (70252): Early Access Black Friday is live: EARLYBF10\", 11 Nov 2026" },
+    { "name": "Omlet", "slug": "omlet", "from": "2026-11-12", "to": "2026-11-30", "hide": "2026-11-30", "sites": ["zgw"], "deliversTo": ["GB"], "source": "Awin email \"Omlet UK (76702): Omlet Affiliates: Black Friday 2026\", 10 Nov 2026" },
+    { "name": "Joybuy", "slug": "joybuy", "from": "2026-11-16", "to": "2026-11-30", "hide": "2026-11-30", "sites": ["hgw", "kgw", "pgw", "tgw", "wgw"], "deliversTo": ["GB"], "source": "Awin email \"Joybuy UK (123932): Joybuy - Black Friday BIG DEALS live now\", 17 Nov 2026" }
+  ],
+  "codes": [
+    { "kind": "code", "name": "Tooled Up", "slug": "tooled-up", "site": "cgw", "code": "CLAIMFIFTY", "title": "£50 off when you spend £500", "end": "2026-12-06" },
+    { "kind": "code", "name": "Tooled Up", "slug": "tooled-up", "site": "cgw", "code": "CLAIMSEVFY", "title": "£75 off when you spend £750", "end": "2026-12-06" },
+    { "kind": "code", "name": "My Tool Shed", "slug": "my-tool-shed", "site": "cgw", "code": "CLAIMFIFTY", "title": "£50 off when you spend £500", "end": "2026-12-06" },
+    { "kind": "code", "name": "My Tool Shed", "slug": "my-tool-shed", "site": "cgw", "code": "CLAIMSEVFY", "title": "£75 off when you spend £750", "end": "2026-12-06" },
+    { "kind": "code", "name": "Tooled Up", "slug": "tooled-up", "site": "cgw", "code": "EIN15PCDD", "title": "For Einhell products, when you spend £50 or more on Einhell", "end": "2026-12-30" },
+    { "kind": "code", "name": "My Tool Shed", "slug": "my-tool-shed", "site": "cgw", "code": "EIN15PCDD", "title": "For Einhell products, when you spend £50 or more on Einhell", "end": "2026-12-30" },
+    { "kind": "code", "name": "Angel Barocco", "slug": "angel-barocco", "site": "wgw", "code": "EARLYBF10", "title": "On your order, no minimum spend", "end": "2026-11-21" },
+    { "kind": "coupon", "name": "Joybuy", "slug": "joybuy", "site": "hgw", "title": "£10 off when you spend £59, on selected products", "end": "2026-11-30" },
+    { "kind": "coupon", "name": "Joybuy", "slug": "joybuy", "site": "hgw", "title": "£40 off when you spend £199, on selected products", "end": "2026-11-30" }
+  ]
+}

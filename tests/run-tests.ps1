@@ -3555,7 +3555,9 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
     }
 }
 
-# gw-backup.ps1 with a fake home, a fake drive folder and a fake wrangler (Windows only: runs .cmd files and robocopy)
+# gw-backup.ps1 with a fake home, a fake drive folder and a fake wrangler (Windows only: runs .cmd files and robocopy).
+# Lessons L113: no keys or customer e-mails on the drive, WITHOUT ROWID tables in pages, never a question, stops at once
+# when something is missing, a failing table does not stop the rest, the last line is ΤΕΛΟΣ BACKUP.
 if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
     Write-Host 'gw-backup.ps1 (fake home and wrangler)'
     $bTool = Join-Path (Join-Path $repo 'tools') 'gw-backup.ps1'
@@ -3564,32 +3566,96 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
     $bState = Join-Path $work 'bk-state'
     $bBin = Join-Path $work 'bk-bin'
     New-Item -ItemType Directory -Path $bState, $bBin -Force | Out-Null
-    Write-Utf8 (Join-Path $bHome 'gear-world-hub\worker.js') 'export default {}'
+    Write-Utf8 (Join-Path $bHome 'gear-world-hub\worker.js') "export default {}`nconst CONTACT = 'contact@gearworldhub.com';`n"
     Write-Utf8 (Join-Path $bHome 'gear-world-hub\.dev.vars') 'X=1'
+    Write-Utf8 (Join-Path $bHome 'gear-world-hub\.env.local') 'Y=2'
     Write-Utf8 (Join-Path $bHome 'gear-world-hub\node_modules\pkg\index.js') '// package'
+    Write-Utf8 (Join-Path $bHome 'gear-world-hub\old-deploy.ps1') ("`$env:CLOUDFLARE_API_TOKEN = '" + $fakeSecret + "'`n")
+    Write-Utf8 (Join-Path $bHome 'gear-world-hub\registry-export.sql') "INSERT INTO hub_subscribers VALUES ('a1@shop-test.invalid');`nINSERT INTO hub_subscribers VALUES ('b2@shop-test.invalid');`nINSERT INTO hub_subscribers VALUES ('c3@shop-test.invalid');`n"
+    Write-Utf8 (Join-Path $bHome 'gear-world-hub\notes.sql') "SELECT 1; -- contact@gearworldhub.com, help@example.com`n"
+    Write-Utf8 (Join-Path $bHome 'gear-world-secrets\awin-feed-key.dat') 'encrypted for this Windows user'
     Write-Utf8 (Join-Path $bHome 'construction-gear-world-engine\backups\note.txt') 'bookmark'
     Write-Utf8 (Join-Path $bHome 'sporty-gear-world\wrangler.jsonc') '{}'
     Write-Utf8 (Join-Path $bHome 'Documents\private.txt') 'not gear world'
     Write-Utf8 (Join-Path $bHome 'Downloads\GW_AWIN_BULK_ARCHIVE\AWIN_1_2.csv.gz') 'feed'
     Write-Utf8 (Join-Path $bHome 'Downloads\48473-retail-en_GB.csv.gz') 'google feed'
     Write-Utf8 (Join-Path $bHome 'Downloads\holiday.jpg') 'photo'
+    # Review 10/11 (L113): a 5 MB export read in pieces, more key formats, a public sitekey, archives, many key files.
+    Write-Utf8 (Join-Path $bHome 'gear-world-import\big-export.sql') ((('x' * 1023) + "`n") * 5120 + "INSERT INTO t VALUES ('d4@shop-test.invalid');`nINSERT INTO t VALUES ('e5@shop-test.invalid');`nINSERT INTO t VALUES ('f6@shop-test.invalid');`n")
+    Write-Utf8 (Join-Path $bHome 'gear-world-import\feeds-list.txt') ('https://productdata.awin.com/datafeed/download/api' + 'key/' + ('ab12' * 8) + '/language/en/fid/1/')
+    Write-Utf8 (Join-Path $bHome 'gear-world-import\push.cmd') ('set GH=' + 'gh' + 'p_' + ('A1b2' * 9))
+    Write-Utf8 (Join-Path $bHome 'gear-world-import\remote.txt') ('https://user:' + ('pw12' * 3) + '@example.org/repo.git')
+    Write-Utf8 (Join-Path $bHome 'gear-world-hub\site.config.js') ("export default { turnstileSiteKey: '0x4AAAAAAA" + 'B1c2D3e4F5g6H7' + "' };`n")
+    # Cloudflare's published Turnstile test secret (always passes): not a key (lessons L118).
+    Write-Utf8 (Join-Path $bHome 'gear-world-hub\security.js') ('const TEST_SECRET_KEY = "1x' + ('0' * 31) + 'AA";' + "`n")
+    Write-Utf8 (Join-Path $bHome 'gear-world-hub\old.7z') 'not readable here'
+    $gzPath = Join-Path $bHome 'gear-world-hub\old-list.csv.gz'
+    $gzFile = [System.IO.File]::Create($gzPath)
+    $gz = New-Object System.IO.Compression.GZipStream($gzFile, [System.IO.Compression.CompressionMode]::Compress)
+    $gzBytes = [System.Text.Encoding]::UTF8.GetBytes("email`na7@shop-test.invalid`nb8@shop-test.invalid`nc9@shop-test.invalid`n")
+    $gz.Write($gzBytes, 0, $gzBytes.Length); $gz.Dispose(); $gzFile.Dispose()
+    Add-Type -AssemblyName System.IO.Compression.FileSystem
+    Write-Utf8 (Join-Path $work 'bk-zipsrc\members.csv') "email`ng1@shop-test.invalid`nh2@shop-test.invalid`ni3@shop-test.invalid`n"
+    [System.IO.Compression.ZipFile]::CreateFromDirectory((Join-Path $work 'bk-zipsrc'), (Join-Path $bHome 'gear-world-hub\members-export.zip'))
+    for ($k = 1; $k -le 420; $k++) { Write-Utf8 (Join-Path $bHome ('gear-world-keys\deploy-key-script-{0:D3}.ps1' -f $k)) ("`$apiKey = '" + ('Zz9' * 8) + "'`n") }
+    Write-Utf8 (Join-Path $bHome 'gear-world-keys\readme.txt') 'how the old keys were made'
+    Write-Utf8 (Join-Path $bHome 'gear-world-keys\sub\deploy-key-script-001.ps1') "Write-Host 'no key here'`n"
+    # A warning before the JSON (L113), 3 databases: test-db (rowid, search, customer tables), prices-db (WITHOUT ROWID),
+    # broken-db (one table fails). "noauth" in the state folder = wrangler not logged in.
     $bNpx = @(
         '@echo off',
         'echo %* >> "%GW_FAKE_STATE%\calls.log"',
+        'if exist "%GW_FAKE_STATE%\noauth" goto noauth',
         'echo %* | findstr /C:"d1 list" >nul && goto d1list',
+        'echo %* | findstr /C:"sqlite_master" >nul && echo %* | findstr /C:"prices-db" >nul && goto schemaprices',
+        'echo %* | findstr /C:"sqlite_master" >nul && echo %* | findstr /C:"broken-db" >nul && goto schemabroken',
         'echo %* | findstr /C:"sqlite_master" >nul && goto schema',
+        'echo %* | findstr /C:"FROM bad" >nul && goto fail',
         'echo %* | findstr /C:"MIN(rowid)" >nul && goto range',
+        'echo %* | findstr /C:"COUNT(" >nul && goto count',
+        'echo %* | findstr /C:"FROM grow" >nul && echo %* | findstr /C:"OFFSET" >nul && goto growpage',
+        'echo %* | findstr /C:"OFFSET 0" >nul && goto page1',
+        'echo %* | findstr /C:"OFFSET 3" >nul && goto page2',
+        'echo %* | findstr /C:"OFFSET" >nul && goto pageempty',
         'echo %* | findstr /C:"BETWEEN" >nul && goto rows',
         'echo unknown command 1>&2',
         'exit /b 1',
+        ':noauth',
+        'echo You are not authenticated. Please run wrangler login.',
+        'exit /b 1',
+        ':fail',
+        'echo D1_ERROR no such table 1>&2',
+        'exit /b 1',
         ':d1list',
-        'echo [{"uuid":"x","name":"test-db"}]',
+        'echo [WARNING] a warning printed before the JSON',
+        'echo [{"name":"test-db","file_size":1000},{"name":"prices-db","file_size":1000},{"name":"broken-db","file_size":1000}]',
         'exit /b 0',
         ':schema',
-        'echo [{"results":[{"type":"table","name":"products","tbl_name":"products","sql":"CREATE TABLE products (id INTEGER PRIMARY KEY, name TEXT)"},{"type":"table","name":"products_fts","tbl_name":"products_fts","sql":"CREATE VIRTUAL TABLE products_fts USING fts5(name)"},{"type":"table","name":"products_fts_data","tbl_name":"products_fts_data","sql":"CREATE TABLE products_fts_data(id INTEGER PRIMARY KEY, block BLOB)"}],"success":true}]',
+        'echo [{"results":[{"type":"table","name":"products","tbl_name":"products","sql":"CREATE TABLE products (id INTEGER PRIMARY KEY, name TEXT)"},{"type":"table","name":"products_fts","tbl_name":"products_fts","sql":"CREATE VIRTUAL TABLE products_fts USING fts5(name)"},{"type":"table","name":"products_fts_data","tbl_name":"products_fts_data","sql":"CREATE TABLE products_fts_data(id INTEGER PRIMARY KEY, block BLOB)"},{"type":"table","name":"newsletter","tbl_name":"newsletter","sql":"CREATE TABLE newsletter (id INTEGER PRIMARY KEY, email TEXT)"},{"type":"table","name":"signups","tbl_name":"signups","sql":"CREATE TABLE signups (id INTEGER PRIMARY KEY, email TEXT NOT NULL)"}],"success":true}]',
+        'exit /b 0',
+        ':schemaprices',
+        'echo [{"results":[{"type":"table","name":"price_log","tbl_name":"price_log","sql":"CREATE TABLE price_log (site TEXT NOT NULL, pkey TEXT NOT NULL, day TEXT NOT NULL, price REAL NOT NULL, PRIMARY KEY (site, pkey, day)) WITHOUT ROWID"}],"success":true}]',
+        'exit /b 0',
+        ':schemabroken',
+        'echo [{"results":[{"type":"table","name":"bad","tbl_name":"bad","sql":"CREATE TABLE bad (id INTEGER PRIMARY KEY)"},{"type":"table","name":"items","tbl_name":"items","sql":"CREATE TABLE items (id INTEGER PRIMARY KEY, name TEXT)"},{"type":"table","name":"grow","tbl_name":"grow","sql":"CREATE TABLE grow (k TEXT PRIMARY KEY, v TEXT) WITHOUT ROWID"}],"success":true}]',
         'exit /b 0',
         ':range',
         'echo [{"results":[{"a":1,"b":5,"n":5}],"success":true}]',
+        'exit /b 0',
+        ':count',
+        'echo [{"results":[{"n":5}],"success":true}]',
+        'exit /b 0',
+        ':page1',
+        'echo [{"results":[{"site":"cgw","pkey":"a","day":"2026-11-01","price":1},{"site":"cgw","pkey":"b","day":"2026-11-01","price":2},{"site":"cgw","pkey":"c","day":"2026-11-01","price":3}],"success":true}]',
+        'exit /b 0',
+        ':page2',
+        'echo [{"results":[{"site":"cgw","pkey":"d","day":"2026-11-01","price":4},{"site":"cgw","pkey":"e","day":"2026-11-01","price":5}],"success":true}]',
+        'exit /b 0',
+        ':growpage',
+        'echo [{"results":[{"k":"a","v":"1"}],"success":true}]',
+        'exit /b 0',
+        ':pageempty',
+        'echo [{"results":[],"success":true}]',
         'exit /b 0',
         ':rows',
         'echo [{"results":[{"_rowid":1,"id":1,"name":"Drill"}],"success":true}]',
@@ -3600,35 +3666,359 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
     $env:PATH = $bBin + ';' + $oldPath
     $env:GW_FAKE_STATE = $bState
     function Run-B([string[]]$a) {
-        $all = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $bTool, '-Target', $bTarget, '-HomeDir', $bHome, '-AllowSystemDrive', '-SkipGitHub', '-PageRows', '3', '-NoClipboard') + $a
+        $all = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $bTool, '-Target', $bTarget, '-HomeDir', $bHome, '-AllowSystemDrive', '-SkipGitHub', '-SkipNetworkCheck', '-PageRows', '3', '-NoClipboard') + $a
         & $exe @all | Out-Null
         return $LASTEXITCODE
     }
+    function Get-BReport {
+        $rep = @(Get-ChildItem -LiteralPath (Join-Path $bHome 'gear-world-reports') -Filter 'GW_BACKUP_*.txt' -ErrorAction SilentlyContinue | Sort-Object LastWriteTime | Select-Object -Last 1)
+        if ($rep.Count) { return [System.IO.File]::ReadAllText($rep[0].FullName) }
+        return ''
+    }
     try {
         $drive = ([string]$env:SystemDrive).TrimEnd(':').ToUpper()
-        Check ((Run-B @()) -eq 0 -and -not (Test-Path -LiteralPath $bTarget)) 'backup without -Apply: writes nothing'
-        $rep = @(Get-ChildItem -LiteralPath (Join-Path $bHome 'gear-world-reports') -Filter 'GW_BACKUP_*.txt' | Select-Object -Last 1)
-        $rt = $(if ($rep.Count) { [System.IO.File]::ReadAllText($rep[0].FullName) } else { '' })
-        Check ($rt.Contains('gear-world-hub') -and $rt.Contains('test-db') -and $rt.Contains('ΕΓΚΡΙΝΩ BACKUP ' + $drive) -and -not $rt.Contains('Documents')) 'backup plan: Gear World folders and databases, not other folders'
+        $ok = 'ΕΓΚΡΙΝΩ BACKUP ' + $drive
+        Check ((Run-B @()) -eq 0 -and -not (Test-Path -LiteralPath $bTarget)) 'backup check without -Apply: exit 0, writes nothing'
+        $rt = Get-BReport
+        Check ($rt.Contains('gear-world-hub') -and $rt.Contains('test-db') -and $rt.Contains($ok) -and -not $rt.Contains('Documents')) 'backup plan: Gear World folders and databases, not other folders'
+        Check ($rt.Contains('old-deploy.ps1') -and $rt.Contains('registry-export.sql') -and $rt.Contains('.dev.vars') -and $rt.Contains('.env.local') -and $rt.Contains('gear-world-secrets') -and -not $rt.Contains('notes.sql') -and -not $rt.Contains($fakeSecret) -and -not $rt.Contains('shop-test.invalid')) 'backup check: files with keys or customer e-mails listed as left out, by path only (L113)'
+        Check ($rt.Contains('Σύνδεση wrangler: ΕΝΤΑΞΕΙ') -and $rt.Contains('ΤΕΛΟΣ ΕΛΕΓΧΟΥ BACKUP')) 'backup check: wrangler login checked past a warning, last line written'
+        Check ($rt.Contains('big-export.sql  (έχει emails)') -and $rt.Contains('old-list.csv.gz  (έχει emails)') -and $rt.Contains('members-export.zip  (έχει emails)') -and $rt.Contains('old.7z  (αρχείο .7z')) 'backup check: e-mails found past the first 1 MB pieces, inside .gz and .zip; .7z left out (L113)'
+        Check ($rt.Contains('feeds-list.txt') -and $rt.Contains('push.cmd') -and $rt.Contains('remote.txt') -and -not $rt.Contains('site.config.js') -and -not $rt.Contains('security.js') -and -not $rt.Contains(('ab12' * 8))) 'backup check: Awin feed key, GitHub token and password in a link found; a public sitekey and the Turnstile test secret are not keys (L113, L118)'
+        Check ((Run-B @('-ScanMaxMB', '1')) -eq 0 -and (Get-BReport).Contains('big-export.sql  (πάνω από 1 MB')) 'backup check: a file over -ScanMaxMB stays out (L113)'
+        Check ($rt.Contains('ξύπνιος') -and $rt.Contains('κανονικό ύπνο')) 'backup check: the PC is kept awake in the check too, back to normal at the end (L115)'
+        Check ((Run-B @('-FileBudgetSec', '0')) -eq 0 -and (Get-BReport).Contains('big-export.sql  (δεν ελέγχθηκε εγκαίρως)')) 'backup check: a file that takes longer than -FileBudgetSec stays out as slow, the check goes on (L115)'
+        $po = (& $exe @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $bTool, '-Target', $bTarget, '-HomeDir', $bHome, '-AllowSystemDrive', '-SkipGitHub', '-SkipNetworkCheck', '-SkipDatabases', '-NoClipboard', '-ProgressSec', '0') | Out-String)
+        Check ($LASTEXITCODE -eq 0 -and $po -match '\.\.\. 0 \S+, \d+ ') 'backup check: a progress line inside a folder (here for every file) does not break the check (L115)'
+        Check ((Run-B @('-Apply')) -eq 1 -and -not (Test-Path -LiteralPath $bTarget) -and (Get-BReport).Contains('-Approve')) 'backup -Apply without -Approve: stops at once without asking, writes nothing (L113)'
         Check ((Run-B @('-Apply', '-Approve', 'ΕΓΚΡΙΝΩ BACKUP Q')) -eq 1 -and -not (Test-Path -LiteralPath $bTarget)) 'backup with the wrong phrase: writes nothing'
-        Check ((Run-B @('-Apply', '-Approve', ('egkrino backup ' + $drive))) -eq 0) 'backup with approval: exit 0'
+        $ic = Run-B @('-Apply', '-Approve', ('egkrino backup ' + $drive), '-TestInterrupt')
+        $ir = Get-BReport
+        Check ($ic -eq 15 -and $ir.Contains('ΔΙΑΚΟΠΗ') -and $ir.Contains('Χρόνοι: ') -and $ir.TrimEnd().EndsWith('ΤΕΛΟΣ BACKUP') -and -not (Test-Path -LiteralPath $bTarget)) 'backup: Ctrl+C still writes the report (.NET only), ending with ΤΕΛΟΣ BACKUP (L117)'
+        Write-Utf8 (Join-Path $bState 'noauth') 'x'
+        $code = Run-B @('-Apply', '-Approve', $ok)
+        Remove-Item -LiteralPath (Join-Path $bState 'noauth') -Force
+        $rt = Get-BReport
+        Check ($code -eq 4 -and -not (Test-Path -LiteralPath $bTarget) -and $rt.Contains('wrangler') -and $rt.TrimEnd().EndsWith('ΤΕΛΟΣ BACKUP')) 'backup with wrangler not logged in: stops at once (exit 4), writes nothing, last line ΤΕΛΟΣ BACKUP'
+        & $exe -NoProfile -ExecutionPolicy Bypass -File $bTool -Target $bTarget -HomeDir $bHome -AllowSystemDrive -SkipGitHub -NoClipboard -NetworkUrls 'https://gw-backup-test.invalid/' -Apply -Approve $ok | Out-Null
+        Check ($LASTEXITCODE -eq 5 -and -not (Test-Path -LiteralPath $bTarget)) 'backup with no network: stops at once (exit 5), writes nothing'
+        $noDrive = @('Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z') | Where-Object { -not (Test-Path -LiteralPath ($_ + ':\')) } | Select-Object -First 1
+        if ($noDrive) {
+            & $exe -NoProfile -ExecutionPolicy Bypass -File $bTool -Target ($noDrive + ':\GearWorldBackup') -HomeDir $bHome -SkipGitHub -SkipNetworkCheck -NoClipboard -Apply -Approve ('ΕΓΚΡΙΝΩ BACKUP ' + $noDrive) | Out-Null
+            Check ($LASTEXITCODE -eq 2 -and (Get-BReport).Contains('GWBackup')) 'backup with the drive not connected: stops at once (exit 2)'
+        }
+        # Old copies from an earlier backup: keys, the secrets folder, an export with e-mails, customer-table pages.
         $f = Join-Path $bTarget 'files'
-        Check ((Test-Path -LiteralPath (Join-Path $f 'gear-world-hub\worker.js')) -and (Test-Path -LiteralPath (Join-Path $f 'gear-world-hub\.dev.vars')) -and (Test-Path -LiteralPath (Join-Path $f 'construction-gear-world-engine\backups\note.txt'))) 'backup: Gear World folders copied'
-        Check (Test-Path -LiteralPath (Join-Path $f 'sporty-gear-world\wrangler.jsonc')) 'backup: a new site folder (sporty-gear-world) is copied too'
+        Write-Utf8 (Join-Path $f 'gear-world-hub\.dev.vars') 'OLD=1'
+        Write-Utf8 (Join-Path $f 'gear-world-hub\registry-export.sql') 'old export'
+        Write-Utf8 (Join-Path $f 'gear-world-secrets\awin-feed-key.dat') 'old'
+        Write-Utf8 (Join-Path $bTarget 'd1\broken-db\schema.sql') "CREATE TABLE items (id INTEGER PRIMARY KEY, name TEXT);`r`nCREATE TABLE signups (id INTEGER PRIMARY KEY, email TEXT NOT NULL);`r`n"
+        Write-Utf8 (Join-Path $bTarget 'd1\broken-db\items-0001.json') '[{"results":[{"_rowid":1,"id":1,"name":"Old"}]}]'
+        Write-Utf8 (Join-Path $bTarget 'd1\broken-db\signups-0001.json') '[{"results":[]}]'
+        Write-Utf8 (Join-Path $bTarget 'd1\test-db\newsletter-0001.json') '[{"results":[]}]'
+        Write-Utf8 (Join-Path $f 'gear-world-hub\gone-list.csv') "x1@shop-test.invalid`nx2@shop-test.invalid`nx3@shop-test.invalid`n"
+        Write-Utf8 (Join-Path $f 'gear-world-hub\gone-notes.txt') 'old notes'
+        # A file open in another program (locked) cannot be checked now: its old copy on the drive must stay (L113).
+        Write-Utf8 (Join-Path $bHome 'gear-world-hub\locked-notes.txt') 'new notes'
+        Write-Utf8 (Join-Path $f 'gear-world-hub\locked-notes.txt') 'old locked copy'
+        # A locked file whose old drive copy (from an earlier backup that did not check) has e-mails: that copy goes.
+        Write-Utf8 (Join-Path $bHome 'gear-world-hub\locked-list.csv') 'new list'
+        Write-Utf8 (Join-Path $f 'gear-world-hub\locked-list.csv') "y1@shop-test.invalid`ny2@shop-test.invalid`ny3@shop-test.invalid`n"
+        # A zip that cannot be opened (on the PC and its old drive copy): the old copy cannot be checked, so it goes.
+        Write-Utf8 (Join-Path $bHome 'gear-world-hub\broken-pack.zip') 'not a zip'
+        Write-Utf8 (Join-Path $f 'gear-world-hub\broken-pack.zip') 'not a zip either'
+        # Old drive files no longer on the PC that cannot be checked (.7z): they go too.
+        Write-Utf8 (Join-Path $f 'gear-world-hub\gone-pack.7z') 'old archive'
+        Check ((Run-B @()) -eq 0 -and (Test-Path -LiteralPath (Join-Path $f 'gear-world-hub\.dev.vars')) -and (Get-BReport).Contains('παλιά αντίγραφα')) 'backup check: old copies of keys and customers on the drive reported, not removed'
+        $lock = [System.IO.File]::Open((Join-Path $bHome 'gear-world-hub\locked-notes.txt'), 'Open', 'Read', 'None')
+        $lock2 = [System.IO.File]::Open((Join-Path $bHome 'gear-world-hub\locked-list.csv'), 'Open', 'Read', 'None')
+        try { $code = Run-B @('-Apply', '-Approve', ('egkrino backup ' + $drive)) } finally { $lock.Close(); $lock2.Close() }
+        $rt = Get-BReport
+        Check ($code -eq 12 -and $rt.Contains('broken-db.bad') -and $rt.TrimEnd().EndsWith('ΤΕΛΟΣ BACKUP')) 'backup with approval and one failing table: goes on to the end (exit 12, ΤΕΛΟΣ BACKUP)'
+        Check ($rt.Contains('broken-db.grow: δεν έφτασα στο τέλος')) 'backup: a WITHOUT ROWID table that does not end is a problem, not a silent cut (L113)'
+        Check ($rt.Contains('Χρόνοι: ') -and $rt.Contains('Από αυτόν τον υπολογιστή: ') -and $rt.Contains('Αντιγραφή αρχείων: ') -and $rt.Contains('Βάσεις D1: ') -and $rt.Contains('== Βάσεις D1 (')) 'backup: how long each part took is in the report (L117)'
+        Check ((-not (Test-Path -LiteralPath (Join-Path $f 'gear-world-hub\gone-list.csv'))) -and (Test-Path -LiteralPath (Join-Path $f 'gear-world-hub\gone-notes.txt'))) 'backup: an old drive file no longer on the PC is read: e-mails removed, notes kept (L113)'
+        Check ((@(Get-ChildItem -LiteralPath (Join-Path $f 'gear-world-keys') -Filter '*.ps1' -File -ErrorAction SilentlyContinue).Count -eq 0) -and (Test-Path -LiteralPath (Join-Path $f 'gear-world-keys\readme.txt'))) 'backup: 420 key files left out, the readme copied (L113)'
+        Check ($rt.Contains('αρχεία έξω, άρα μένουν έξω και όσα έχουν το ίδιο όνομα') -and -not (Test-Path -LiteralPath (Join-Path $f 'gear-world-keys\sub\deploy-key-script-001.ps1'))) 'backup: too many paths for robocopy: names only (a file of the same name elsewhere stays out too), and the report says so (L113)'
+        Check ($rt.Contains('locked-notes.txt  (δεν διαβάστηκε') -and $rt.Contains('είναι καθαρό και μένει') -and (Test-Path -LiteralPath (Join-Path $f 'gear-world-hub\locked-notes.txt')) -and ([System.IO.File]::ReadAllText((Join-Path $f 'gear-world-hub\locked-notes.txt'))).Contains('old locked copy') -and -not $rt.Contains('gear-world-hub (robocopy')) 'backup: a locked file is left out (not a copy error), and its old clean copy on the drive is kept (L113)'
+        Check (-not (Test-Path -LiteralPath (Join-Path $f 'gear-world-hub\locked-list.csv'))) 'backup: a locked file whose old drive copy has e-mails: that copy is removed (L113)'
+        Check (-not (Test-Path -LiteralPath (Join-Path $f 'gear-world-hub\broken-pack.zip')) -and -not (Test-Path -LiteralPath (Join-Path $f 'gear-world-hub\gone-pack.7z'))) 'backup: old drive copies that cannot be checked (broken zip, .7z no longer on the PC) are removed (L113)'
+        $lo = @(Get-ChildItem -LiteralPath (Join-Path $bHome 'gear-world-reports') -Filter 'GW_LEFT_OUT_*.txt' -ErrorAction SilentlyContinue | Sort-Object LastWriteTime | Select-Object -Last 1)
+        $lt = ''; if ($lo.Count) { $lt = [System.IO.File]::ReadAllText($lo[0].FullName) }
+        Check ($lt.Contains('deploy-key-script-420.ps1') -and $lt.Contains('locked-notes.txt') -and -not $lt.Contains($fakeSecret) -and -not $lt.Contains('shop-test.invalid')) 'backup: the whole left-out list (past the 60 shown) written to a file, paths only'
+        Check (-not (Test-Path -LiteralPath (Join-Path $f 'gear-world-import\big-export.sql')) -and -not (Test-Path -LiteralPath (Join-Path $f 'gear-world-hub\old-list.csv.gz')) -and -not (Test-Path -LiteralPath (Join-Path $f 'gear-world-hub\members-export.zip')) -and -not (Test-Path -LiteralPath (Join-Path $f 'gear-world-hub\old.7z')) -and (Test-Path -LiteralPath (Join-Path $f 'gear-world-hub\site.config.js'))) 'backup: big export, .gz, .zip and .7z not on the drive; the config with a sitekey is (L113)'
+        Check ($rt.Contains('ξύπνιος') -and $rt.Contains('κανονικό ύπνο')) 'backup: PC kept awake while it runs, back to normal at the end'
+        Check ((Test-Path -LiteralPath (Join-Path $f 'gear-world-hub\worker.js')) -and (Test-Path -LiteralPath (Join-Path $f 'gear-world-hub\notes.sql')) -and (Test-Path -LiteralPath (Join-Path $f 'construction-gear-world-engine\backups\note.txt')) -and (Test-Path -LiteralPath (Join-Path $f 'sporty-gear-world\wrangler.jsonc'))) 'backup: Gear World folders copied (a new site folder too)'
         Check (-not (Test-Path -LiteralPath (Join-Path $f 'gear-world-hub\node_modules')) -and -not (Test-Path -LiteralPath (Join-Path $f 'Documents'))) 'backup: node_modules and other folders skipped'
         Check ((Test-Path -LiteralPath (Join-Path $f 'Downloads\GW_AWIN_BULK_ARCHIVE\AWIN_1_2.csv.gz')) -and (Test-Path -LiteralPath (Join-Path $f 'Downloads\48473-retail-en_GB.csv.gz')) -and -not (Test-Path -LiteralPath (Join-Path $f 'Downloads\holiday.jpg'))) 'backup: Awin feeds copied, other downloads not'
+        Check (-not (Test-Path -LiteralPath (Join-Path $f 'gear-world-hub\.dev.vars')) -and -not (Test-Path -LiteralPath (Join-Path $f 'gear-world-hub\.env.local')) -and -not (Test-Path -LiteralPath (Join-Path $f 'gear-world-hub\old-deploy.ps1')) -and -not (Test-Path -LiteralPath (Join-Path $f 'gear-world-hub\registry-export.sql')) -and -not (Test-Path -LiteralPath (Join-Path $f 'gear-world-secrets'))) 'backup: no keys, secrets folder or customer e-mails on the drive, old copies removed (L113)'
         $d = Join-Path $bTarget 'd1\test-db'
-        Check ((Test-Path -LiteralPath (Join-Path $d 'products-0001.json')) -and (Test-Path -LiteralPath (Join-Path $d 'products-0002.json')) -and -not (Test-Path -LiteralPath (Join-Path $d 'products_fts_data-0001.json'))) 'backup: table rows in pages, search index tables skipped'
+        $tt = ''
+        if (Test-Path -LiteralPath (Join-Path $d 'tables.txt')) { $tt = [System.IO.File]::ReadAllText((Join-Path $d 'tables.txt')) }
+        Check ((Test-Path -LiteralPath (Join-Path $d 'products-0001.json')) -and (Test-Path -LiteralPath (Join-Path $d 'products-0002.json')) -and -not (Test-Path -LiteralPath (Join-Path $d 'products_fts_data-0001.json'))) 'backup: table rows in pages, search index not copied'
+        Check (-not (Test-Path -LiteralPath (Join-Path $d 'newsletter-0001.json')) -and -not (Test-Path -LiteralPath (Join-Path $d 'signups-0001.json')) -and $tt.Contains('newsletter  5  0') -and $tt.Contains('signups  5  0')) 'backup: customer tables (by name or e-mail column) only as a count (L113)'
         Check (([System.IO.File]::ReadAllText((Join-Path $d 'schema.sql'))).Contains('CREATE VIRTUAL TABLE products_fts')) 'backup: schema has every table'
+        $p = Join-Path $bTarget 'd1\prices-db'
         $calls = [System.IO.File]::ReadAllText((Join-Path $bState 'calls.log'))
+        Check ((Test-Path -LiteralPath (Join-Path $p 'price_log-0001.json')) -and (Test-Path -LiteralPath (Join-Path $p 'price_log-0002.json')) -and -not (Test-Path -LiteralPath (Join-Path $p 'price_log-0003.json')) -and $calls.Contains('ORDER BY site, pkey, day LIMIT 3 OFFSET 3')) 'backup: WITHOUT ROWID table read in key-order pages (L113)'
+        $bd = Join-Path $bTarget 'd1\broken-db'
+        Check ((Test-Path -LiteralPath (Join-Path $bd 'items-0001.json')) -and ([System.IO.File]::ReadAllText((Join-Path $bd 'items-0001.json'))).Contains('Old') -and -not (Test-Path -LiteralPath (Join-Path $bd 'signups-0001.json')) -and (Test-Path -LiteralPath (Join-Path $bTarget 'd1\broken-db.incomplete\items-0001.json'))) 'backup: a database with a failing table keeps its old copy (without customers), the new one is .incomplete'
         Check (-not ($calls -match '(?i)INSERT|UPDATE|DELETE|DROP|deploy|time-travel restore')) 'backup: databases only read'
-        Check (Test-Path -LiteralPath (Join-Path $bTarget 'README-RESTORE.txt')) 'backup: restore instructions written'
+        Check ((Test-Path -LiteralPath (Join-Path $bTarget 'README-RESTORE.txt')) -and ([System.IO.File]::ReadAllText((Join-Path $bTarget 'README-RESTORE.txt'))).Contains('wrangler secret put')) 'backup: restore instructions, with how keys come back'
         Remove-Item -LiteralPath (Join-Path $bHome 'gear-world-hub\worker.js')
-        Check ((Run-B @('-Apply', '-Approve', ('ΕΓΚΡΙΝΩ BACKUP ' + $drive), '-SkipDatabases')) -eq 0 -and (Test-Path -LiteralPath (Join-Path $f 'gear-world-hub\worker.js'))) 'backup again: a file deleted on the PC stays on the drive'
+        Check ((Run-B @('-Apply', '-Approve', $ok, '-SkipDatabases')) -eq 0 -and (Test-Path -LiteralPath (Join-Path $f 'gear-world-hub\worker.js'))) 'backup again: a file deleted on the PC stays on the drive'
+        $gc = Run-B @('-Apply', '-Approve', $ok, '-OnlyGitHub')
+        $gr = Get-BReport
+        Check ($gc -eq 0 -and $gr.Contains('Μόνο GitHub') -and -not $gr.Contains('== Αντιγραφή αρχείων') -and -not $gr.Contains('== Βάσεις D1 (') -and -not $gr.Contains('== Καθάρισμα')) 'backup -OnlyGitHub: no folders, no cleaning, no databases (L118)'
     } finally {
         $env:PATH = $oldPath
         Remove-Item Env:\GW_FAKE_STATE -ErrorAction SilentlyContinue
     }
+}
+
+# gw-wrangler-check.ps1 (lessons L114) with a fake home and a fake npx/npm (Windows only: runs .cmd files): read-only,
+# versions found, token words in the wrangler logs counted but never shown, and -BackupCheck adds the backup check.
+if ($isWin) {
+    Write-Host 'gw-wrangler-check.ps1 (fake home and npx)'
+    $wTool = Join-Path (Join-Path $repo 'tools') 'gw-wrangler-check.ps1'
+    $wHome = Join-Path $work 'wc-home'
+    $wBin = Join-Path $work 'wc-bin'
+    $wReports = Join-Path $wHome 'gear-world-reports'
+    $wRef = 'ef67a8f007241b50f2a624b13082707605dcf9e2'
+    New-Item -ItemType Directory -Path $wBin -Force | Out-Null
+    Write-Utf8 (Join-Path $wHome ('gear-world-posters\deploy\gear-world-code-' + $wRef + '\node_modules\wrangler\package.json')) '{"name":"wrangler","version":"4.158.0"}'
+    Write-Utf8 (Join-Path $wHome 'gear-world-hub\node_modules\wrangler\package.json') '{"name":"wrangler","version":"4.148.0"}'
+    Write-Utf8 (Join-Path $wHome 'gear-world-import\notes.txt') 'notes'
+    $wSecret = 'zz' + 'LOGSECRET' + 'zz'
+    Write-Utf8 (Join-Path $wHome '.wrangler\logs\wrangler-1.log') ('oauth_token = "' + $wSecret + '"')
+    Write-Utf8 (Join-Path $wHome '.wrangler\logs\wrangler-2.log') 'nothing here'
+    $wNpx = @('@echo off', 'echo %* | findstr /C:"--version" >nul && goto ver', 'echo Not logged in.', 'exit /b 1', ':ver', 'echo 4.158.0', 'exit /b 0') -join "`r`n"
+    [System.IO.File]::WriteAllText((Join-Path $wBin 'npx.cmd'), $wNpx + "`r`n", [System.Text.Encoding]::ASCII)
+    [System.IO.File]::WriteAllText((Join-Path $wBin 'npm.cmd'), "@echo off`r`necho (empty)`r`nexit /b 1`r`n", [System.Text.Encoding]::ASCII)
+    function Get-WFiles { return (@(Get-ChildItem -LiteralPath $wHome -Recurse -File -Force | Where-Object { -not $_.FullName.StartsWith($wReports, [System.StringComparison]::OrdinalIgnoreCase) } | Sort-Object FullName | ForEach-Object { $_.FullName + '|' + $_.Length + '|' + $_.LastWriteTimeUtc.Ticks }) -join "`n") }
+    function Get-WReport {
+        $r = @(Get-ChildItem -LiteralPath $wReports -Filter 'GW_WRANGLER_CHECK_*.txt' -ErrorAction SilentlyContinue | Sort-Object LastWriteTime | Select-Object -Last 1)
+        if ($r.Count) { return [System.IO.File]::ReadAllText($r[0].FullName) }
+        return ''
+    }
+    $wBefore = Get-WFiles
+    $oldPath = $env:PATH
+    $env:PATH = $wBin + ';' + $oldPath
+    try {
+        & $exe -NoProfile -ExecutionPolicy Bypass -File $wTool -HomeDir $wHome -WranglerRef 'abc' -SkipPosterStats -NoClipboard | Out-Null
+        Check ($LASTEXITCODE -eq 2 -and -not (Test-Path -LiteralPath $wReports)) 'wrangler check: a wrong -WranglerRef stops at once (exit 2)'
+        & $exe -NoProfile -ExecutionPolicy Bypass -File $wTool -HomeDir $wHome -SkipPosterStats -NoClipboard | Out-Null
+        $code = $LASTEXITCODE
+        $wr = Get-WReport
+        Check ($code -eq 0 -and $wr.Contains('package.json version: 4.158.0') -and $wr.Contains('wrangler --version: 4.158.0') -and $wr.Contains('gear-world-hub: 4.148.0') -and $wr.Contains('gear-world-import: δικό του wrangler δεν έχει') -and $wr.Contains('παραλείφθηκε') -and $wr.Contains('ξύπνιος') -and $wr.Contains('κανονικό ύπνο') -and $wr.TrimEnd().EndsWith('ΤΕΛΟΣ ΕΛΕΓΧΟΥ')) 'wrangler check: versions in the deploy folder and the Gear World folders, last line ΤΕΛΟΣ ΕΛΕΓΧΟΥ (L114)'
+        Check ($wr.Contains('2 αρχεία') -and $wr.Contains('1 με λέξη token') -and -not $wr.Contains($wSecret)) 'wrangler check: token words in the wrangler logs counted, never shown (L114)'
+        Start-Sleep -Seconds 1
+        & $exe -NoProfile -ExecutionPolicy Bypass -File $wTool -HomeDir $wHome -SkipPosterStats -BackupCheck -NoClipboard | Out-Null
+        $code2 = $LASTEXITCODE
+        $wr2 = Get-WReport
+        Check ($code2 -ne 0 -and $wr2.Contains('=== 6.') -and $wr2.Contains('gw-backup (έλεγχος) exit ' + $code2) -and $wr2.Contains('ΤΕΛΟΣ ΕΛΕΓΧΟΥ BACKUP') -and $wr2.TrimEnd().EndsWith('ΤΕΛΟΣ ΕΛΕΓΧΟΥ') -and -not $wr2.Contains($wSecret)) 'wrangler check -BackupCheck: the backup check (no -Apply) runs and its report is added (L114)'
+        Check ((Get-WFiles) -eq $wBefore) 'wrangler check: no file changed outside the reports folder'
+    } finally {
+        $env:PATH = $oldPath
+    }
+}
+
+# Lessons L116: the last line names the chat that gave the command.
+foreach ($cn in @('gw-backup.ps1', 'gw-wrangler-check.ps1')) {
+    $ct = [System.IO.File]::ReadAllText((Join-Path (Join-Path $repo 'tools') $cn))
+    Check ($ct.Contains("[string]`$Chat = '4 · Sites & Κώδικας'") -and $ct.Contains('Πήγαινε στη συζήτηση με το Claude «{0}» και πάτα Ctrl+V.') -and -not $ct.Contains('Πήγαινε στη συζήτηση με το Claude και πάτα')) ($cn + ': the clipboard line names the chat «4 · Sites & Κώδικας» (-Chat) (L116)')
+}
+
+# gw-last-report.ps1: the newest report of a tool back on the clipboard, read-only.
+Write-Host 'gw-last-report.ps1'
+$lHome = Join-Path $work 'lr-home'
+$lTool = Join-Path (Join-Path $repo 'tools') 'gw-last-report.ps1'
+$lRep = Join-Path $lHome 'gear-world-reports'
+foreach ($lf in @(@('GW_BACKUP_20261111_220000.txt', '2026-11-11 22:00'), @('GW_BACKUP_20261112_020000.txt', '2026-11-12 02:00'), @('GW_BACKUPX_20261112_030000.txt', '2026-11-12 03:00'), @('GW_LEFT_OUT_20261112_040000.txt', '2026-11-12 04:00'))) {
+    Write-Utf8 (Join-Path $lRep $lf[0]) ("report " + $lf[0] + "`nΤΕΛΟΣ BACKUP`n")
+    (Get-Item -LiteralPath (Join-Path $lRep $lf[0])).LastWriteTime = [datetime]::ParseExact($lf[1], 'yyyy-MM-dd HH:mm', $null)
+}
+$lo = (& $exe -NoProfile -ExecutionPolicy Bypass -File $lTool -HomeDir $lHome -NoClipboard | Out-String)
+Check ($LASTEXITCODE -eq 0 -and $lo.Contains('GW_BACKUP_20261112_020000.txt') -and -not $lo.Contains('GW_BACKUPX_') -and -not $lo.Contains('GW_LEFT_OUT_')) 'last report: the newest backup report is found, never another tool''s report'
+& $exe -NoProfile -ExecutionPolicy Bypass -File $lTool -HomeDir $lHome -Name 'bad name!' -NoClipboard | Out-Null
+Check ($LASTEXITCODE -eq 2) 'last report: a wrong -Name stops at once (exit 2)'
+& $exe -NoProfile -ExecutionPolicy Bypass -File $lTool -HomeDir (Join-Path $work 'lr-empty') -NoClipboard | Out-Null
+Check ($LASTEXITCODE -eq 3) 'last report: no report found says so (exit 3)'
+# L119: the preview, live and remove-preview reports of one paste, in that order, only from this run (-SinceMinutes).
+$lNow = Get-Date
+foreach ($lf in @(@('GWH_HUB_V2_PREVIEW_20261109_210000.txt', -5000), @('GWH_HUB_V2_PREVIEW_20261113_200000.txt', -30), @('GWH_HUB_V2_LIVE_20261113_200500.txt', -25), @('GWH_HUB_V2_REMOVE-PREVIEW_20261113_200600.txt', -24), @('GWH_HUB_V2_CHECK_20261113_200700.txt', -23))) {
+    Write-Utf8 (Join-Path $lRep $lf[0]) ("report " + $lf[0] + "`nΤΕΛΟΣ`n")
+    (Get-Item -LiteralPath (Join-Path $lRep $lf[0])).LastWriteTime = $lNow.AddMinutes($lf[1])
+}
+$lSave = Join-Path $work 'lr-three.txt'
+$lo = (& $exe -NoProfile -ExecutionPolicy Bypass -File $lTool -HomeDir $lHome -Name 'GWH_HUB_V2_PREVIEW,GWH_HUB_V2_LIVE,GWH_HUB_V2_REMOVE-PREVIEW' -SinceMinutes 180 -NoClipboard -SaveTo $lSave | Out-String)
+$lt = $(if (Test-Path -LiteralPath $lSave) { [System.IO.File]::ReadAllText($lSave) } else { '' })
+$lA = $lt.IndexOf('===== GWH_HUB_V2_PREVIEW_20261113_200000.txt')
+$lB = $lt.IndexOf('===== GWH_HUB_V2_LIVE_20261113_200500.txt')
+$lC = $lt.IndexOf('===== GWH_HUB_V2_REMOVE-PREVIEW_20261113_200600.txt')
+Check ($LASTEXITCODE -eq 0 -and $lA -ge 0 -and $lA -lt $lB -and $lB -lt $lC -and $lt.Contains('report GWH_HUB_V2_LIVE_20261113_200500.txt')) 'last report: three names give the three newest reports, in the order asked (L119)'
+Check (-not $lt.Contains('20261109') -and -not $lt.Contains('GWH_HUB_V2_CHECK_') -and -not $lt.Contains('ΔΕΝ βρέθηκε')) 'last report: an older report of the same tool and the reports of other steps stay out'
+Remove-Item -LiteralPath $lSave -Force -ErrorAction SilentlyContinue
+& $exe -NoProfile -ExecutionPolicy Bypass -File $lTool -HomeDir $lHome -Name 'GWH_HUB_V2_PREVIEW,GWH_HUB_V2_LIVE' -SinceMinutes 10 -NoClipboard -SaveTo $lSave | Out-Null
+Check ($LASTEXITCODE -eq 3 -and -not (Test-Path -LiteralPath $lSave)) 'last report: with -SinceMinutes only reports of this run count; none gives exit 3'
+& $exe -NoProfile -ExecutionPolicy Bypass -File $lTool -HomeDir $lHome -Name 'GWH_HUB_V2_LIVE,GWH_HUB_V2_INDEXNOW' -NoClipboard -SaveTo $lSave | Out-Null
+$lt = $(if (Test-Path -LiteralPath $lSave) { [System.IO.File]::ReadAllText($lSave) } else { '' })
+Check ($LASTEXITCODE -eq 0 -and $lt.Contains('===== GWH_HUB_V2_LIVE_') -and $lt.Contains('ΔΕΝ βρέθηκε αναφορά: GWH_HUB_V2_INDEXNOW')) 'last report: a name without a report is named on the clipboard, the others are still there'
+& $exe -NoProfile -ExecutionPolicy Bypass -File $lTool -HomeDir $lHome -Name 'GWH_HUB_V2_LIVE,bad name!' -NoClipboard | Out-Null
+Check ($LASTEXITCODE -eq 2) 'last report: one wrong name in the list stops at once (exit 2)'
+
+# Lessons L118: the GitHub branch list is unrolled (Windows PowerShell 5.1 gives a JSON array back as one object).
+$gbt = [System.IO.File]::ReadAllText((Join-Path (Join-Path $repo 'tools') 'gw-backup.ps1'))
+Check ($gbt.Contains('$items = @($resp | ForEach-Object { $_ })') -and $gbt.Contains('branches?per_page=100&page={2}') -and -not $gbt.Contains('$list = @(Invoke-RestMethod')) 'gw-backup: the GitHub branch list is unrolled and paged (L118)'
+
+# gw-backup-remove-old.ps1 (lessons L117): deletes the old backup folder only after a complete new one, with the phrase.
+if ($isWin) {
+    Write-Host 'gw-backup-remove-old.ps1'
+    $rTool = Join-Path (Join-Path $repo 'tools') 'gw-backup-remove-old.ps1'
+    $rBase = Join-Path $work 'rm-drive'
+    $rOld = Join-Path $rBase 'GearWorldBackup'
+    $rNew = Join-Path $rBase 'GearWorldBackup-2026-11-12'
+    $rHome = Join-Path $work 'rm-home'
+    function New-ROld {
+        Write-Utf8 (Join-Path $rOld 'files\gear-world-hub\old.txt') 'old copy'
+        Write-Utf8 (Join-Path $rOld 'd1\test-db\schema.sql') 'CREATE TABLE t (a);'
+    }
+    New-ROld
+    Write-Utf8 (Join-Path $rNew 'files\gear-world-hub\new.txt') 'new copy'
+    Write-Utf8 (Join-Path $rNew 'd1\test-db\schema.sql') 'CREATE TABLE t (a);'
+    # Like the real 12/11 log: problems only in the GitHub part.
+    Write-Utf8 (Join-Path $rNew 'logs\GW_BACKUP_20261112_223400.txt') ("== Καθάρισμα παλιών αντιγράφων με κλειδιά ή πελάτες ==`n  Σβήστηκαν 0 από 0.`n`n== Αντιγραφή αρχείων ==`n  OK  x`n`n== GitHub ==`n  ΠΡΟΒΛΗΜΑ: gearworld-media a b`n  OK  gearworld-media: 0 κλάδοι`n`n== Βάσεις D1 ==`n  OK  test-db`n`nΤΕΛΟΣ ΜΕ 2 ΠΡΟΒΛΗΜΑΤΑ: τα υπόλοιπα αντιγράφηκαν.`n")
+    Write-Utf8 (Join-Path $rOld 'github\gear-world-code\main.zip') 'old zip'
+    function Run-R([string[]]$extra) {
+        $all = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $rTool, '-HomeDir', $rHome, '-AllowSystemDrive', '-NoClipboard') + $extra
+        & $exe @all | Out-Null
+        return $LASTEXITCODE
+    }
+    function Get-RReport { $r = @(Get-ChildItem -LiteralPath (Join-Path $rHome 'gear-world-reports') -Filter 'GW_BACKUP_REMOVE_OLD_*.txt' -ErrorAction SilentlyContinue | Sort-Object LastWriteTime | Select-Object -Last 1); if ($r.Count) { return [System.IO.File]::ReadAllText($r[0].FullName) }; return '' }
+    Check ((Run-R @('-Old', $rOld, '-Keep', $rNew)) -eq 3 -and (Test-Path -LiteralPath $rOld) -and (Get-RReport).Contains('README-RESTORE.txt')) 'remove old backup: a new backup without README-RESTORE.txt is not complete, nothing deleted (exit 3)'
+    Write-Utf8 (Join-Path $rNew 'README-RESTORE.txt') 'how to restore'
+    Check ((Run-R @('-Old', $rOld, '-Keep', $rNew)) -eq 3 -and (Get-RReport).Contains('zip του GitHub για gear-world-code')) 'remove old backup: refused while only the old folder has the GitHub zips of a repo (exit 3)'
+    Write-Utf8 (Join-Path $rNew 'github\gear-world-code\main.zip') 'new zip'
+    New-Item -ItemType Directory -Path (Join-Path $rNew 'd1\test-db.incomplete') -Force | Out-Null
+    Check ((Run-R @('-Old', $rOld, '-Keep', $rNew)) -eq 3 -and (Test-Path -LiteralPath $rOld)) 'remove old backup: a database that failed (d1\*.incomplete) means not complete (exit 3)'
+    Remove-Item -LiteralPath (Join-Path $rNew 'd1\test-db.incomplete') -Recurse -Force
+    Write-Utf8 (Join-Path $rNew 'logs\GW_BACKUP_20261113_090000.txt') ("== Αντιγραφή αρχείων ==`n  ΠΡΟΒΛΗΜΑ στο C:\x (robocopy 8)`n`n== Βάσεις D1 ==`n  OK  test-db`n")
+    Check ((Run-R @('-Old', $rOld, '-Keep', $rNew)) -eq 3 -and (Get-RReport).Contains('γραμμές ΠΡΟΒΛΗΜΑ')) 'remove old backup: a newest full run with a copy problem means not complete (exit 3)'
+    Remove-Item -LiteralPath (Join-Path $rNew 'logs\GW_BACKUP_20261113_090000.txt') -Force
+    Check ((Run-R @('-Old', 'GearWorldBackup', '-Keep', $rNew)) -eq 2) 'remove old backup: a path that is not a full D:\... path is refused (exit 2)'
+    Check ((Run-R @('-Old', ($rOld + '%USERNAME%'), '-Keep', $rNew)) -eq 2 -and (Test-Path -LiteralPath $rOld)) 'remove old backup: a path with % is refused (exit 2)'
+    $rLink = Join-Path $rBase 'GearWorldBackup-link'
+    & cmd /c ('mklink /J "{0}" "{1}" >nul 2>nul' -f $rLink, $rNew)
+    if (Test-Path -LiteralPath $rLink) {
+        Check ((Run-R @('-Old', $rOld, '-Keep', $rLink)) -eq 2 -and (Test-Path -LiteralPath $rOld)) 'remove old backup: a junction as -Keep is refused (exit 2)'
+        & cmd /c ('rmdir "{0}"' -f $rLink)
+    }
+    Write-Utf8 (Join-Path $rOld 'logs\GW_BACKUP_20991231_235900.txt') 'a newer report in the old folder'
+    (Get-Item -LiteralPath (Join-Path $rOld 'logs\GW_BACKUP_20991231_235900.txt')).LastWriteTime = (Get-Date).AddDays(1)
+    Check ((Run-R @('-Old', $rOld, '-Keep', $rNew)) -eq 3 -and (Get-RReport).Contains('νεότερη αναφορά')) 'remove old backup: refused when the old folder has a newer report (mixed up?) (exit 3)'
+    Remove-Item -LiteralPath (Join-Path $rOld 'logs') -Recurse -Force
+    Check ((Run-R @('-Old', $rOld, '-Keep', $rNew)) -eq 0 -and (Test-Path -LiteralPath (Join-Path $rOld 'files\gear-world-hub\old.txt')) -and (Get-RReport).Contains('Μόνο έλεγχος') -and (Get-RReport).TrimEnd().EndsWith('ΤΕΛΟΣ ΣΒΗΣΙΜΑΤΟΣ')) 'remove old backup: without -Apply only shows what would go, deletes nothing'
+    Check ((Run-R @('-Old', $rOld, '-Keep', $rNew, '-Apply')) -eq 1 -and (Test-Path -LiteralPath $rOld)) 'remove old backup: -Apply without the phrase deletes nothing (exit 1)'
+    Check ((Run-R @('-Old', $rOld, '-Keep', $rNew, '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ BACKUP D')) -eq 1 -and (Test-Path -LiteralPath $rOld)) 'remove old backup: the wrong phrase deletes nothing'
+    Check ((Run-R @('-Old', $rNew, '-Keep', $rNew, '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ ΣΒΗΣΙΜΟ ΠΑΛΙΟΥ BACKUP')) -eq 2 -and (Test-Path -LiteralPath $rNew)) 'remove old backup: the same folder twice is refused (exit 2)'
+    Write-Utf8 (Join-Path $rBase 'Photos\files\x.txt') 'not a backup'
+    Check ((Run-R @('-Old', (Join-Path $rBase 'Photos'), '-Keep', $rNew, '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ ΣΒΗΣΙΜΟ ΠΑΛΙΟΥ BACKUP')) -eq 2 -and (Test-Path -LiteralPath (Join-Path $rBase 'Photos\files\x.txt'))) 'remove old backup: only folders named GearWorldBackup* are deleted (exit 2)'
+    Check ((Run-R @('-Old', $rOld, '-Keep', $rNew, '-Apply', '-Approve', 'egkrino ΣΒΗΣΙΜΟ ΠΑΛΙΟΥ BACKUP')) -eq 0 -and -not (Test-Path -LiteralPath $rOld) -and (Test-Path -LiteralPath (Join-Path $rNew 'files\gear-world-hub\new.txt')) -and (Get-RReport).Contains('σβήστηκε')) 'remove old backup: with the phrase the old folder goes, the new one stays'
+}
+
+# gw-cloudflare-export.ps1 (lessons L120): the Cloudflare settings of every domain on the backup drive. Reads Cloudflare
+# only (GET), with a read-only token kept encrypted on the PC (never in a report, never on the drive).
+$cft = [System.IO.File]::ReadAllText((Join-Path (Join-Path $repo 'tools') 'gw-cloudflare-export.ps1'))
+Check (-not ($cft -match '(?i)-Method\s+(Post|Put|Patch|Delete)') -and -not $cft.Contains('Invoke-RestMethod') -and ([regex]::Matches($cft, 'Invoke-WebRequest ')).Count -eq ([regex]::Matches($cft, 'Invoke-WebRequest -UseBasicParsing -Method Get ')).Count) 'cloudflare export: every request to Cloudflare is a GET (L120)'
+Check ($gbt.Contains("'gear-world-secrets'")) 'cloudflare export: the backup leaves gear-world-secrets (where the token is kept) out (L120)'
+if ($isWin) {
+    Write-Host 'gw-cloudflare-export.ps1'
+    $cTool = Join-Path (Join-Path $repo 'tools') 'gw-cloudflare-export.ps1'
+    $cHome = Join-Path $work 'cf-home'
+    $cApi = Join-Path $work 'cf-api'
+    $cClip = Join-Path $work 'cf-clip.txt'
+    $cTarget = Join-Path (Join-Path $work 'cf-drive') 'GearWorldBackup-2026-11-12'
+    $cToken = 'cfReadOnly' + ('A' * 20) + 'x9_-Zq01'
+    $cTokFile = Join-Path (Join-Path $cHome 'gear-world-secrets') 'cloudflare-read.token'
+    $cPhrase = 'ΕΓΚΡΙΝΩ BACKUP ' + (Split-Path -Qualifier $cTarget).TrimEnd(':').ToUpper()
+    function CfFake([string]$name, [string]$text) { Write-Utf8 (Join-Path $cApi ($name + '.txt')) $text }
+    CfFake 'user_tokens_verify' '{"success":true,"result":{"id":"t1","status":"active"}}'
+    CfFake 'accounts_per_page_50' '{"success":true,"result":[{"id":"acc1","name":"Gear World"}],"result_info":{"page":1,"total_pages":1}}'
+    CfFake 'zones_per_page_50_page_1' '{"success":true,"result":[{"id":"zone2","name":"second-gear.com"},{"id":"zone1","name":"example-gear.com"}],"result_info":{"page":1,"total_pages":1}}'
+    CfFake 'accounts_acc1_workers_domains' '{"success":true,"result":[{"hostname":"example-gear.com","service":"example-worker"}]}'
+    CfFake 'accounts_acc1_workers_scripts' '{"success":true,"result":[{"id":"example-worker"}]}'
+    CfFake 'accounts_acc1_d1_database_per_page_100_page_1' '{"success":true,"result":[{"name":"example-db"}],"result_info":{"page":1,"total_pages":1}}'
+    CfFake 'zones_zone1_dns_records_per_page_500_page_1' '{"success":true,"result":[{"name":"example-gear.com","type":"A"},{"name":"www.example-gear.com","type":"CNAME"}],"result_info":{"page":1,"total_pages":2}}'
+    CfFake 'zones_zone1_dns_records_per_page_500_page_2' '{"success":true,"result":[{"name":"example-gear.com","type":"MX"}],"result_info":{"page":2,"total_pages":2}}'
+    $cBind = ";; Ζώνη example-gear.com`nexample-gear.com.`t300`tIN`tA`t192.0.2.1`n"
+    CfFake 'zones_zone1_dns_records_export' $cBind
+    CfFake 'zones_zone1_settings' '{"success":true,"result":[{"id":"ssl","value":"strict"},{"id":"min_tls_version","value":"1.2"}]}'
+    CfFake 'zones_zone1_dnssec' '{"success":true,"result":{"status":"active"}}'
+    CfFake 'zones_zone1_rulesets' '{"success":true,"result":[{"id":"rs1","kind":"zone","phase":"http_ratelimit"},{"id":"rs2","kind":"managed","phase":"http_request_firewall_managed"},{"id":"rs3","kind":"zone","phase":"http_request_firewall_custom"}]}'
+    CfFake 'zones_zone1_rulesets_rs1' '{"success":true,"result":{"phase":"http_ratelimit","rules":[{"description":"Όριο αναζήτησης"}]}}'
+    CfFake 'zones_zone1_rulesets_rs3' '{"success":true,"result":{"phase":"http_request_firewall_custom","rules":[{"description":"Bots on /out/"},{"description":"Skip"}]}}'
+    CfFake 'zones_zone1_workers_routes' '{"success":true,"result":[]}'
+    CfFake 'zones_zone2_dns_records_per_page_500_page_1' '{"success":true,"result":[{"name":"second-gear.com","type":"A"}],"result_info":{"page":1,"total_pages":1}}'
+    CfFake 'zones_zone2_dns_records_export' "second-gear.com.`t300`tIN`tA`t192.0.2.2`n"
+    CfFake 'zones_zone2_settings' '{"success":true,"result":[{"id":"ssl","value":"strict"}]}'
+    CfFake 'zones_zone2_dnssec' '#403'
+    CfFake 'zones_zone2_rulesets' '{"success":true,"result":[]}'
+    CfFake 'zones_zone2_workers_routes' '{"success":true,"result":[{"pattern":"second-gear.com/sitemap.xml"}]}'
+    function Run-C([string[]]$extra) {
+        $all = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $cTool, '-HomeDir', $cHome, '-FakeApiDir', $cApi, '-ClipboardFile', $cClip, '-NoClipboard', '-AllowSystemDrive') + $extra
+        & $exe @all | Out-Null
+        return $LASTEXITCODE
+    }
+    function Get-CReport([string]$st) { $r = @(Get-ChildItem -LiteralPath (Join-Path $cHome 'gear-world-reports') -Filter ('GW_CLOUDFLARE_' + $st + '_*.txt') -ErrorAction SilentlyContinue | Sort-Object LastWriteTime, Name | Select-Object -Last 1); if ($r.Count) { return [System.IO.File]::ReadAllText($r[0].FullName) }; return '' }
+    # The token: only what is copied while it waits counts; it is saved encrypted and leaves the clipboard.
+    Check ((Run-C @('-Step', 'token')) -eq 3 -and (Get-CReport 'TOKEN').Contains('Δεν υπάρχει ακόμα κλειδί') -and -not (Test-Path -LiteralPath $cTokFile)) 'cloudflare export: token check without a token says so (exit 3), nothing saved'
+    Check ((Run-C @('-Step', 'token', '-Apply')) -eq 1 -and -not (Test-Path -LiteralPath $cTokFile)) 'cloudflare export: token -Apply without the phrase saves nothing (exit 1)'
+    Write-Utf8 $cClip $cToken
+    Check ((Run-C @('-Step', 'token', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ ΚΛΕΙΔΙ ΑΝΑΓΝΩΣΗΣ CLOUDFLARE', '-WaitSec', '3')) -eq 3 -and -not (Test-Path -LiteralPath $cTokFile)) 'cloudflare export: a token already on the clipboard before the wait is not taken (exit 3)'
+    Write-Utf8 $cClip 'powershell -NoProfile -ExecutionPolicy Bypass -File x.ps1'
+    $cJob = Start-Job -ScriptBlock { param($f, $t) Start-Sleep -Seconds 5; [System.IO.File]::WriteAllText($f, $t) } -ArgumentList $cClip, $cToken
+    $cCode = Run-C @('-Step', 'token', '-Apply', '-Approve', 'egkrino ΚΛΕΙΔΙ ΑΝΑΓΝΩΣΗΣ CLOUDFLARE', '-WaitSec', '40')
+    $null = Wait-Job $cJob -Timeout 60; Remove-Job $cJob -Force
+    $cRep = Get-CReport 'TOKEN'
+    Check ($cCode -eq 0 -and (Test-Path -LiteralPath $cTokFile) -and $cRep.Contains('σώθηκε κρυπτογραφημένο') -and $cRep.Contains('domains: 2')) 'cloudflare export: the token copied while it waits is checked and saved (exit 0)'
+    Check (-not ([System.IO.File]::ReadAllText($cTokFile)).Contains($cToken) -and -not $cRep.Contains($cToken) -and ([System.IO.File]::ReadAllText($cClip)).Trim() -eq '') 'cloudflare export: the token is encrypted on the PC, never in the report, and leaves the clipboard'
+    $cTokHash = (Get-FileHash -LiteralPath $cTokFile).Hash
+    Check ((Run-C @('-Step', 'token', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ ΚΛΕΙΔΙ ΑΝΑΓΝΩΣΗΣ CLOUDFLARE')) -eq 0 -and (Get-CReport 'TOKEN').Contains('υπάρχει ήδη') -and (Get-FileHash -LiteralPath $cTokFile).Hash -eq $cTokHash) 'cloudflare export: a saved token that works is kept'
+    $cUuid = (@('a1b2c3d4', 'e5f6', 'a7b8', 'c9d0', 'e1f2a3b4c5d6') -join '-')
+    Write-Utf8 $cClip 'something else'
+    $cJob = Start-Job -ScriptBlock { param($f, $t) Start-Sleep -Seconds 4; [System.IO.File]::WriteAllText($f, $t) } -ArgumentList $cClip, $cUuid
+    $cCode = Run-C @('-Step', 'token', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ ΚΛΕΙΔΙ ΑΝΑΓΝΩΣΗΣ CLOUDFLARE', '-Replace', '-WaitSec', '12')
+    $null = Wait-Job $cJob -Timeout 60; Remove-Job $cJob -Force
+    Check ($cCode -eq 3 -and (Get-FileHash -LiteralPath $cTokFile).Hash -eq $cTokHash) 'cloudflare export: a UUID on the clipboard (an Awin key has that form) is never taken; the saved token stays'
+    # check and export
+    Check ((Run-C @('-Step', 'check')) -eq 0 -and (Get-CReport 'CHECK').Contains('domains: 2 (example-gear.com, second-gear.com)') -and -not (Test-Path -LiteralPath (Join-Path $cTarget 'cloudflare'))) 'cloudflare export: check lists the domains and writes nothing'
+    Check ((Run-C @('-Step', 'export')) -eq 2) 'cloudflare export: export without -Target stops (exit 2)'
+    New-Item -ItemType Directory -Path $cTarget -Force | Out-Null
+    Check ((Run-C @('-Step', 'export', '-Target', $cTarget, '-Apply', '-Approve', $cPhrase)) -eq 2 -and -not (Test-Path -LiteralPath (Join-Path $cTarget 'cloudflare'))) 'cloudflare export: a folder that is not a backup (no README-RESTORE.txt) is refused (exit 2)'
+    Write-Utf8 (Join-Path $cTarget 'README-RESTORE.txt') 'how to restore'
+    $cPhotos = Join-Path (Join-Path $work 'cf-drive') 'Photos'
+    Write-Utf8 (Join-Path $cPhotos 'README-RESTORE.txt') 'x'
+    Check ((Run-C @('-Step', 'export', '-Target', $cPhotos, '-Apply', '-Approve', $cPhrase)) -eq 2 -and -not (Test-Path -LiteralPath (Join-Path $cPhotos 'cloudflare'))) 'cloudflare export: only a folder named GearWorldBackup* is written (exit 2)'
+    Check ((Run-C @('-Step', 'export', '-Target', $cTarget)) -eq 0 -and -not (Test-Path -LiteralPath (Join-Path $cTarget 'cloudflare'))) 'cloudflare export: without -Apply it only shows what it would write'
+    Check ((Run-C @('-Step', 'export', '-Target', $cTarget, '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ ΚΛΕΙΔΙ ΑΝΑΓΝΩΣΗΣ CLOUDFLARE')) -eq 1 -and -not (Test-Path -LiteralPath (Join-Path $cTarget 'cloudflare'))) 'cloudflare export: the wrong phrase writes nothing (exit 1)'
+    Check ((Run-C @('-Step', 'export', '-Target', $cTarget, '-Apply', '-Approve', $cPhrase)) -eq 0) 'cloudflare export: export with the backup phrase (exit 0)'
+    $cOut = @(Get-ChildItem -LiteralPath (Join-Path $cTarget 'cloudflare') -Directory | Sort-Object Name | Select-Object -Last 1)[0].FullName
+    $cZ1 = Join-Path $cOut 'example-gear.com'
+    Check (([System.IO.File]::ReadAllText((Join-Path $cZ1 'dns.bind'))) -eq $cBind -and (Test-Path -LiteralPath (Join-Path $cZ1 'dns-1.json')) -and (Test-Path -LiteralPath (Join-Path $cZ1 'dns-2.json'))) 'cloudflare export: the DNS zone file exactly as Cloudflare sent it (UTF-8), and every page of records'
+    Check ((Test-Path -LiteralPath (Join-Path $cZ1 'rulesets\http_ratelimit.json')) -and (Test-Path -LiteralPath (Join-Path $cZ1 'rulesets\http_request_firewall_custom.json')) -and -not (Test-Path -LiteralPath (Join-Path $cZ1 'rulesets\http_request_firewall_managed.json')) -and ([System.IO.File]::ReadAllText((Join-Path $cZ1 'rulesets\http_ratelimit.json'))).Contains('Όριο αναζήτησης')) 'cloudflare export: the zone''s own rules per phase (Cloudflare''s managed sets only named)'
+    Check ((Test-Path -LiteralPath (Join-Path $cOut 'second-gear.com\settings.json')) -and (Test-Path -LiteralPath (Join-Path $cOut '_account\workers-domains.json')) -and (Test-Path -LiteralPath (Join-Path $cOut 'README-CLOUDFLARE.txt')) -and (Test-Path -LiteralPath (Join-Path $cOut 'summary.txt'))) 'cloudflare export: settings, Worker domains, how to restore and a summary are written'
+    $cRep = Get-CReport 'EXPORT'
+    Check ($cRep.Contains('example-gear.com: DNS 3, ρυθμίσεις 2, DNSSEC active, κανόνες 3') -and $cRep.Contains('ΠΡΟΣΟΧΗ: DNSSEC') -and $cRep.Contains('ΤΕΛΟΣ ΑΝΤΙΓΡΑΦΟΥ CLOUDFLARE') -and -not $cRep.Contains('zone1') -and -not $cRep.Contains('acc1')) 'cloudflare export: the report has domains and counts, no IDs'
+    $cLeak = @(Get-ChildItem -LiteralPath $cTarget -Recurse -File | Where-Object { ([System.IO.File]::ReadAllText($_.FullName)).Contains($cToken) })
+    Check ($cLeak.Count -eq 0) 'cloudflare export: the token is in no file on the drive'
+    CfFake 'zones_zone2_settings' '#500'
+    Check ((Run-C @('-Step', 'export', '-Target', $cTarget, '-Apply', '-Approve', $cPhrase)) -eq 12 -and (Get-CReport 'EXPORT').Contains('ΠΡΟΒΛΗΜΑ: ρυθμίσεις')) 'cloudflare export: a needed part that cannot be read is a problem (exit 12), the rest is written'
+    CfFake 'zones_zone2_settings' '{"success":true,"result":[{"id":"ssl","value":"strict"}]}'
+    CfFake 'user_tokens_verify' '{"success":true,"result":{"id":"t1","status":"disabled"}}'
+    Check ((Run-C @('-Step', 'export', '-Target', $cTarget, '-Apply', '-Approve', $cPhrase)) -eq 3 -and (Get-CReport 'EXPORT').Contains('δεν δουλεύει')) 'cloudflare export: a token that no longer works stops before writing (exit 3)'
+    CfFake 'user_tokens_verify' '#000'
+    Check ((Run-C @('-Step', 'check')) -eq 4) 'cloudflare export: no answer from Cloudflare (exit 4)'
+    CfFake 'user_tokens_verify' '{"success":true,"result":{"id":"t1","status":"active"}}'
 }
 
 # 10. gwh-code-export.ps1 (Hub code into the repo) on a fake hub folder: read-only, secrets/IDs/emails masked, exact text blocks
@@ -4038,7 +4428,8 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
     # index.html (one more line, so they differ) and the 3 new files (not there yet). The baseline lists it exactly.
     $vCfg = "name = `"gear-world-hub`"`nmain = `"worker.js`"`n[[d1_databases]]`ndatabase_name = `"gear-world-registry`"`ndatabase_id = `"$vDb`"`n`n[[services]]`nbinding = `"POSTERS`"`nservice = `"gear-world-posters`"`n"
     Write-Utf8 (Join-Path $vHub 'wrangler.toml') $vCfg
-    foreach ($n in @('worker.js', 'photo-search.js', 'poster-scan.js', 'mailerlite.js', 'members.js')) { Copy-Item -LiteralPath (Join-Path $vRepo $n) -Destination (Join-Path $vHub $n) -Force }
+    # remind.js (L182) is on the "PC" already here, so the plan of this check stays the same 6 files.
+    foreach ($n in @('worker.js', 'photo-search.js', 'poster-scan.js', 'mailerlite.js', 'members.js', 'remind.js')) { Copy-Item -LiteralPath (Join-Path $vRepo $n) -Destination (Join-Path $vHub $n) -Force }
     Copy-Item -LiteralPath $vRepoPub -Destination $vHub -Recurse -Force
     $vPub = Join-Path $vHub 'public'
     foreach ($n in @('hub-v2.css', 'hub-v2.js', 'hub-deals.json')) { Remove-Item -LiteralPath (Join-Path $vPub $n) -Force }
@@ -4047,7 +4438,7 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
     Write-Utf8 (Join-Path $vHub '.dev.vars') 'SECRET=never-in-the-zip'
     $vBase = Join-Path $work 'gwhv-baseline.txt'
     $bl = @('# test baseline', '# version: test hub v2-before', '# path | bytes | sha256 | kind')
-    $vRels = @('worker.js', 'photo-search.js', 'poster-scan.js', 'mailerlite.js', 'members.js') + @(Get-ChildItem -LiteralPath $vPub -Recurse -File | Sort-Object FullName | ForEach-Object { 'public/' + $_.FullName.Substring($vPub.Length).TrimStart('\', '/').Replace('\', '/') })
+    $vRels = @('worker.js', 'photo-search.js', 'poster-scan.js', 'mailerlite.js', 'members.js', 'remind.js') + @(Get-ChildItem -LiteralPath $vPub -Recurse -File | Sort-Object FullName | ForEach-Object { 'public/' + $_.FullName.Substring($vPub.Length).TrimStart('\', '/').Replace('\', '/') })
     foreach ($rel in $vRels) {
         $f = Join-Path $vHub ($rel.Replace('/', '\'))
         $bl += ('{0} | {1} | {2} | file' -f $rel, (Get-Item -LiteralPath $f).Length, (Get-FileHash -LiteralPath $f -Algorithm SHA256).Hash.ToLowerInvariant())
@@ -4124,9 +4515,15 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         'if exist "%GW_FAKE_STATE%\salt.flag" echo Secret Name: PHOTO_LIMIT_SALT',
         'exit /b 0',
         ':secret',
+        'if exist "%GW_FAKE_STATE%\secretfail.flag" goto secretfail',
+        'for %%a in (%*) do @if exist %%a type %%a >> "%GW_FAKE_STATE%\secrets.log"',
+        'echo.>> "%GW_FAKE_STATE%\secrets.log"',
         'echo set> "%GW_FAKE_STATE%\salt.flag"',
         'echo Finished processing secrets file',
         'exit /b 0',
+        ':secretfail',
+        'echo X [ERROR] A request to the Cloudflare API failed. [code: 10013]',
+        'exit /b 1',
         ':deployments',
         'if exist "%GW_FAKE_STATE%\split.flag" goto split',
         ('echo Version(s):  (100%%) ' + $vVer),
@@ -4164,6 +4561,8 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
     $oldPath = $env:PATH
     $env:PATH = $vBin + ';' + $oldPath
     $env:GW_FAKE_STATE = $vState
+    # L166: the Stores pages are checked against one fixed day, so the test gives the same result after their codes end.
+    $env:GW_STORES_TODAY = '2026-11-16'
     $vCalls = Join-Path $vState 'calls.log'
     function Run-V([string[]]$a) {
         $all = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $vTool, '-HubDir', $vHub, '-WorkDir', $vWork, '-OutDir', $vOut, '-BaselineFile', $vBase, '-SkipInstall', '-NoClipboard', '-NoHttpCheck') + $a
@@ -4186,8 +4585,8 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         Check (-not $r.Contains($vDb) -and -not $r.Contains($vVer)) 'hub v2 check: no database id or version id in the report'
         # preview
         Check ((Run-V @('-Step', 'preview')) -eq 0 -and (VCount 'deploy --config') -eq 0) 'hub v2 preview without -Apply: nothing changes'
-        Check ((Run-V @('-Step', 'preview', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB GUIDE PRICES LIVE')) -eq 1 -and (VCount 'deploy --config') -eq 0) 'hub v2 preview with the live phrase: nothing changes'
-        Check ((Run-V @('-Step', 'preview', '-Apply', '-Approve', 'egkrino hub guide prices preview')) -eq 0 -and (VCount 'deploy --config') -eq 1) 'hub v2 preview with approval: deploys once'
+        Check ((Run-V @('-Step', 'preview', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB SEARCH LIVE')) -eq 1 -and (VCount 'deploy --config') -eq 0) 'hub v2 preview with the live phrase: nothing changes'
+        Check ((Run-V @('-Step', 'preview', '-Apply', '-Approve', 'egkrino hub search preview')) -eq 0 -and (VCount 'deploy --config') -eq 1) 'hub v2 preview with approval: deploys once'
         $c = VCalls
         Check ($c -match 'deploy --config "[^"]*wrangler\.preview\.toml"' -and $c -match 'secret bulk "[^"]+" --name gear-world-hub-preview') 'hub v2 preview: deploys the preview config, sets the photo secret of the test Worker'
         $cfgs = @(Get-ChildItem -LiteralPath (Join-Path $vWork 'deploy') -Recurse -Filter 'wrangler.preview.toml' -ErrorAction SilentlyContinue)
@@ -4197,45 +4596,50 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         Check ($r.Contains('https://gear-world-hub-preview.example-test.workers.dev') -and -not $r.Contains('?gwh-date=') -and $r.Contains('Η Black Friday είναι ΚΛΕΙΣΤΗ') -and -not $r.Contains($vDb)) 'hub v2 preview: report has the test address, no Black Friday link while it is off (L107), not the database id'
         Check ($r.Contains('Προϊόντα των οδηγών δώρων: όλα φαίνονται κανονικά') -and (VCount 'FROM products WHERE id IN \(') -ge 5) 'hub v2 preview: every product of the gift guides read by id from its site (SELECT only) and reported (L107)'
         Check ((Get-TreeHash $vHub) -eq $vHubBefore) 'hub v2 preview: the hub folder on the PC is not changed'
-        Check ((Run-V @('-Step', 'preview', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB GUIDE PRICES PREVIEW')) -eq 0 -and (VCount 'secret bulk') -eq 1) 'hub v2 preview again: the existing secret of the test Worker is kept'
+        Check ((Run-V @('-Step', 'preview', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB SEARCH PREVIEW')) -eq 0 -and (VCount 'secret bulk') -eq 1) 'hub v2 preview again: the existing secret of the test Worker is kept'
         # live: the posters go first
         Write-Utf8 (Join-Path $vHub 'wrangler.toml') ($vCfg.Substring(0, $vCfg.IndexOf('[[services]]')))
-        Check ((Run-V @('-Step', 'live', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB GUIDE PRICES LIVE')) -eq 8 -and (VCount 'deploy --config') -eq 2) 'hub v2 live: refused before the poster counting is on the Hub'
+        Check ((Run-V @('-Step', 'live', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB SEARCH LIVE')) -eq 8 -and (VCount 'deploy --config') -eq 2) 'hub v2 live: refused before the poster counting is on the Hub'
         Write-Utf8 (Join-Path $vHub 'wrangler.toml') $vCfg
         Check ((Run-V @('-Step', 'live')) -eq 0 -and (VCount 'deploy --config') -eq 2 -and (Get-TreeHash $vHub) -eq $vHubBefore) 'hub v2 live without -Apply: nothing changes'
-        Check ((Run-V @('-Step', 'live', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB GUIDE PRICES PREVIEW')) -eq 1 -and (VCount 'deploy --config') -eq 2 -and (Get-TreeHash $vHub) -eq $vHubBefore) 'hub v2 live with the preview phrase: nothing changes'
+        Check ((Run-V @('-Step', 'live', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB SEARCH PREVIEW')) -eq 1 -and (VCount 'deploy --config') -eq 2 -and (Get-TreeHash $vHub) -eq $vHubBefore) 'hub v2 live with the preview phrase: nothing changes'
         Write-Utf8 (Join-Path $vState 'split.flag') 'split'
-        Check ((Run-V @('-Step', 'live', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB GUIDE PRICES LIVE')) -eq 11 -and (VCount 'deploy --config') -eq 2 -and (Get-TreeHash $vHub) -eq $vHubBefore) 'hub v2 live: no single live version to go back to: stops before any change'
+        Check ((Run-V @('-Step', 'live', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB SEARCH LIVE')) -eq 11 -and (VCount 'deploy --config') -eq 2 -and (Get-TreeHash $vHub) -eq $vHubBefore) 'hub v2 live: no single live version to go back to: stops before any change'
         Remove-Item -LiteralPath (Join-Path $vState 'split.flag') -Force
         Write-Utf8 (Join-Path $vState 'failother.flag') 'always'
-        Check ((Run-V @('-Step', 'live', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB GUIDE PRICES LIVE')) -eq 9 -and (VCount 'deploy --config') -eq 3) 'hub v2 live: a failed deploy stops at once (exit 9), no repeat'
+        Check ((Run-V @('-Step', 'live', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB SEARCH LIVE')) -eq 9 -and (VCount 'deploy --config') -eq 3) 'hub v2 live: a failed deploy stops at once (exit 9), no repeat'
         Check ((Get-TreeHash $vHub) -eq $vHubBefore) 'hub v2 live: after a failed deploy the hub folder is back as it was (new files removed too)'
         Remove-Item -LiteralPath (Join-Path $vState 'failother.flag') -Force
         # Security fixes (L106): without the Hub's Turnstile keys the live step refuses, after the phrase, before any change.
         Write-Utf8 (Join-Path $vState 'nots.flag') 'no keys'
-        Check ((Run-V @('-Step', 'live', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB GUIDE PRICES LIVE')) -eq 16 -and (VCount 'deploy --config') -eq 3 -and (Get-TreeHash $vHub) -eq $vHubBefore) 'hub v2 live without the Turnstile keys of the Hub: refused (exit 16), nothing changed'
+        Check ((Run-V @('-Step', 'live', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB SEARCH LIVE')) -eq 16 -and (VCount 'deploy --config') -eq 3 -and (Get-TreeHash $vHub) -eq $vHubBefore) 'hub v2 live without the Turnstile keys of the Hub: refused (exit 16), nothing changed'
         Check ((VLast).Contains('gw-security-fixes.ps1 -Step turnstile')) 'hub v2 live: the report says which step goes first'
         Remove-Item -LiteralPath (Join-Path $vState 'nots.flag') -Force
         # A wrangler.toml whose top-level workers_dev has another form: the step stops before any change (L106).
         Write-Utf8 (Join-Path $vHub 'wrangler.toml') $vCfg.Replace('name = "gear-world-hub"', "name = `"gear-world-hub`"`nworkers_dev = `"true`"")
         $vTreeT = Get-TreeHash $vHub
-        Check ((Run-V @('-Step', 'live', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB GUIDE PRICES LIVE')) -eq 18 -and (VCount 'deploy --config') -eq 3 -and (Get-TreeHash $vHub) -eq $vTreeT) 'hub v2 live: workers_dev = false not certain at the top of wrangler.toml: stops before any change (exit 18)'
+        Check ((Run-V @('-Step', 'live', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB SEARCH LIVE')) -eq 18 -and (VCount 'deploy --config') -eq 3 -and (Get-TreeHash $vHub) -eq $vTreeT) 'hub v2 live: workers_dev = false not certain at the top of wrangler.toml: stops before any change (exit 18)'
         Write-Utf8 (Join-Path $vHub 'wrangler.toml') $vCfg
         # L107: a gift guide product whose page would show a notice (price checked 40 days ago): the live step refuses.
         Write-Utf8 (Join-Path $vState 'stale.flag') 'old'
         $vTreeS = Get-TreeHash $vHub
-        Check ((Run-V @('-Step', 'live', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB GUIDE PRICES LIVE')) -eq 20 -and (VCount 'deploy --config') -eq 3 -and (Get-TreeHash $vHub) -eq $vTreeS -and (VLast).Contains('NOTICE ')) 'hub v2 live: refused while a gift guide links to a product that would show a notice (exit 20, L107)'
+        Check ((Run-V @('-Step', 'live', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB SEARCH LIVE')) -eq 20 -and (VCount 'deploy --config') -eq 3 -and (Get-TreeHash $vHub) -eq $vTreeS -and (VLast).Contains('NOTICE ')) 'hub v2 live: refused while a gift guide links to a product that would show a notice (exit 20, L107)'
         Remove-Item -LiteralPath (Join-Path $vState 'stale.flag') -Force
         # L109: a gift guide price that is not the price its site shows (PRICE): the preview only reports it, the live step
         # refuses (exit 20) before any change, and the report says in Greek that nothing went live.
         Write-Utf8 (Join-Path $vState 'price.flag') 'price'
         Check ((Run-V @('-Step', 'preview')) -eq 0 -and (VLast).Contains('PRICE ') -and (VLast).Contains('Τιμές των οδηγών δώρων: ΠΡΟΒΛΗΜΑ') -and (VCount 'deploy --config') -eq 3) 'hub v2 preview: a gift guide price that is not the price of its site is reported (L109)'
         $vTreeP = Get-TreeHash $vHub
-        Check ((Run-V @('-Step', 'live', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB GUIDE PRICES LIVE')) -eq 20 -and (VCount 'deploy --config') -eq 3 -and (Get-TreeHash $vHub) -eq $vTreeP) 'hub v2 live: refused while a gift guide price is not the price of its site (exit 20, L109)'
+        Check ((Run-V @('-Step', 'live', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB SEARCH LIVE')) -eq 20 -and (VCount 'deploy --config') -eq 3 -and (Get-TreeHash $vHub) -eq $vTreeP) 'hub v2 live: refused while a gift guide price is not the price of its site (exit 20, L109)'
         $r = VLast
         Check ($r.Contains('PRICE ') -and -not $r.Contains('NOTICE ') -and $r.Contains('Τίποτα δεν ανέβηκε live') -and $r.Contains('θα ενημερώσει τις τιμές των οδηγών') -and -not $r.Contains('ΕΤΟΙΜΟ')) 'hub v2 live: the report says in Greek that nothing went live and Claude will update the guide prices (L109)'
         Remove-Item -LiteralPath (Join-Path $vState 'price.flag') -Force
-        Check ((Run-V @('-Step', 'live', '-Apply', '-Approve', 'egkrino hub guide prices live')) -eq 0 -and (VCount 'deploy --config') -eq 4) 'hub v2 live with approval: deploys once'
+        # L166: a code of the Stores pages that ended (UK day): the live step refuses (exit 24) before any change.
+        $env:GW_STORES_TODAY = '2026-12-07'
+        $vTreeR = Get-TreeHash $vHub
+        Check ((Run-V @('-Step', 'live', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB SEARCH LIVE')) -eq 24 -and (VCount 'deploy --config') -eq 3 -and (Get-TreeHash $vHub) -eq $vTreeR -and (VLast).Contains('ENDED ') -and (VLast).Contains('Σελίδες Stores: ΠΡΟΒΛΗΜΑ')) 'L166: hub v2 live refused while a Stores code has ended (exit 24), nothing changed'
+        $env:GW_STORES_TODAY = '2026-11-16'
+        Check ((Run-V @('-Step', 'live', '-Apply', '-Approve', 'egkrino hub search live')) -eq 0 -and (VCount 'deploy --config') -eq 4) 'hub v2 live with approval: deploys once'
         $c = VCalls
         Check ($c -match ('deploy --config "' + [regex]::Escape((Join-Path $vHub 'wrangler.toml')) + '"')) 'hub v2 live: deploys the hub folder with its own wrangler.toml (POSTERS kept)'
         Check ($c.LastIndexOf('deployments list --name gear-world-hub') -lt $c.LastIndexOf('deploy --config')) 'hub v2 live: live version read before deploying'
@@ -4265,17 +4669,78 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         Check ($r.Contains('public/hub-v2.js | ') -and $r.Contains('ΕΤΟΙΜΟ') -and -not $r.Contains($vVer)) 'hub v2 live: the report has the new baseline lines, not the version id'
         # The live Hub must answer only on its domain (L106): a deploy that lists gear-world-hub.<...>.workers.dev is a problem.
         Write-Utf8 (Join-Path $vState 'livewd.flag') 'x'
-        Check ((Run-V @('-Step', 'live', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB GUIDE PRICES LIVE')) -eq 19 -and (VCount 'deploy --config') -eq 5) 'hub v2 live: a deploy that still lists a workers.dev address of the live Hub ends as a problem (exit 19)'
+        Check ((Run-V @('-Step', 'live', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB SEARCH LIVE')) -eq 19 -and (VCount 'deploy --config') -eq 5) 'hub v2 live: a deploy that still lists a workers.dev address of the live Hub ends as a problem (exit 19)'
         $r = VLast
         Check ($r.Contains('απαντά ακόμα και σε *.workers.dev') -and $r.Contains('https://dash.cloudflare.com/?to=/:account/workers-and-pages') -and -not $r.Contains('ΕΤΟΙΜΟ: το νέο Hub')) 'hub v2 live: the report says how to close workers.dev, and not READY'
         Remove-Item -LiteralPath (Join-Path $vState 'livewd.flag') -Force
         Check ((Run-V @('-Step', 'check')) -eq 0 -and (VLast).Contains('έχει ήδη αυτή την έκδοση')) 'hub v2 check after live: the hub folder has this version'
+        # L119: the Mitgo code is a Worker secret given with -MitgoCode; here a code of the same form is built at run time
+        # (the runner refuses UUIDs written in files). -AfterPreview: live only after a clean preview of this version.
+        $vMitgo = (@('a1b2c3d4', 'e5f6', 'a7b8', 'c9d0', 'e1f2a3b4c5d6') -join '-')
+        $vSecrets = Join-Path $vState 'secrets.log'
+        $vDeploys = VCount 'deploy --config'
+        $vBulk = VCount 'secret bulk'
+        $vTreeM = Get-TreeHash $vHub
+        Check ((Run-V @('-Step', 'preview', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB SEARCH PREVIEW', '-MitgoCode', 'not-a-code')) -eq 21 -and (VCount 'deploy --config') -eq $vDeploys -and (VCount 'secret bulk') -eq $vBulk) 'L119: a -MitgoCode of another form: exit 21, nothing deployed, no secret'
+        Check ((VLast).Contains('δεν έχει τη μορφή που δίνει το Mitgo')) 'L119: the report says the code has another form'
+        Check ((Run-V @('-Step', 'check', '-MitgoCode', $vMitgo)) -eq 0 -and (VCount 'secret bulk') -eq $vBulk -and (VLast).Contains('μυστικό MITGO_VERIFICATION του Worker "gear-world-hub"') -and -not (VLast).Contains($vMitgo)) 'L119: check with the code: the plan names the secret, nothing is set, the code is never in the report'
+        Check ((Run-V @('-Step', 'preview', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB SEARCH PREVIEW', '-MitgoCode', (' ' + $vMitgo.ToUpperInvariant() + ' '))) -eq 0 -and (VCount 'deploy --config') -eq ($vDeploys + 1) -and (VCount 'secret bulk') -eq ($vBulk + 1)) 'L119: preview with the Mitgo code: one deploy of the test Worker, one secret'
+        $c = VCalls
+        Check ($c.Substring($c.LastIndexOf('secret bulk')) -match '^secret bulk "[^"]+" --name gear-world-hub-preview\s') 'L119: the preview sets the code on the test Worker only'
+        $vSec = $(if (Test-Path -LiteralPath $vSecrets) { [System.IO.File]::ReadAllText($vSecrets) } else { '' })
+        Check ($vSec.Contains('{"MITGO_VERIFICATION":"' + $vMitgo + '"}')) 'L119: the secret is MITGO_VERIFICATION with the code in small letters, without spaces'
+        $r = VLast
+        Check ($r.Contains('Ο κωδικός επαλήθευσης του Mitgo μπήκε στο preview') -and $r.Contains('ΕΤΟΙΜΟ: άνοιξε τη δοκιμαστική') -and -not $r.Contains($vMitgo) -and -not $r.Contains($vMitgo.ToUpperInvariant()) -and -not $r.Contains('ΠΡΟΒΛΗΜΑ')) 'L119: the preview report says the code went in, never shows it, ends READY'
+        Check (@(Get-ChildItem -LiteralPath ([System.IO.Path]::GetTempPath()) -Filter 'gw-hubv2-secret-*.json' -ErrorAction SilentlyContinue).Count -eq 0 -and (Get-TreeHash $vHub) -eq $vTreeM) 'L119: the temporary secret file is gone; the preview does not change the hub folder on the PC'
+        # -AfterPreview: a preview report older than 2 hours stops the live step before any change.
+        $vPrevs = @(Get-ChildItem -LiteralPath $vOut -Filter 'GWH_HUB_V2_PREVIEW_*.txt' | Sort-Object LastWriteTime, Name)
+        $vPrevTimes = @($vPrevs | ForEach-Object { $_.LastWriteTime })
+        foreach ($f in $vPrevs) { $f.LastWriteTime = (Get-Date).AddHours(-3) }
+        Check ((Run-V @('-Step', 'live', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB SEARCH LIVE', '-MitgoCode', $vMitgo, '-AfterPreview')) -eq 23 -and (VCount 'deploy --config') -eq ($vDeploys + 1) -and (VCount 'secret bulk') -eq ($vBulk + 1) -and (Get-TreeHash $vHub) -eq $vTreeM) 'L119: live -AfterPreview with an old preview report: exit 23, nothing changes'
+        Check ((VLast).Contains('πιο παλιά από 2 ώρες') -and (VLast).Contains('ΔΕΝ ανεβάζω το Hub')) 'L119: the report says why the live step did not go on'
+        for ($i = 0; $i -lt $vPrevs.Count; $i++) { $vPrevs[$i].LastWriteTime = $vPrevTimes[$i] }
+        # The code cannot go into the live Worker: the files go back, nothing is deployed (exit 22).
+        Write-Utf8 (Join-Path $vState 'secretfail.flag') 'fail'
+        Check ((Run-V @('-Step', 'live', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB SEARCH LIVE', '-MitgoCode', $vMitgo, '-AfterPreview')) -eq 22 -and (VCount 'deploy --config') -eq ($vDeploys + 1) -and (Get-TreeHash $vHub) -eq $vTreeM) 'L119: the code did not go into the live Worker: exit 22, nothing deployed, the hub folder as it was'
+        Check ((VLast).Contains('ΔΕΝ ανέβηκε τίποτα') -and -not (VLast).Contains('ΕΤΟΙΜΟ: το νέο Hub')) 'L119: the report says nothing went live'
+        Remove-Item -LiteralPath (Join-Path $vState 'secretfail.flag') -Force
+        # A clean preview of this version, then live with the code: the secret on gear-world-hub right before the deploy.
+        Check ((Run-V @('-Step', 'live', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB SEARCH LIVE', '-MitgoCode', $vMitgo, '-AfterPreview')) -eq 0 -and (VCount 'deploy --config') -eq ($vDeploys + 2)) 'L119: live -AfterPreview after a clean preview: deploys once'
+        $c = VCalls
+        $vLiveBulk = [regex]::Matches($c, '(?m)^.*secret bulk "[^"]+" --name gear-world-hub\s*$')
+        Check ($vLiveBulk.Count -eq 2 -and $vLiveBulk[1].Index -lt $c.LastIndexOf('deploy --config') -and $vLiveBulk[1].Index -gt $c.LastIndexOf('deployments list --name gear-world-hub')) 'L119: the code goes into the live Worker (2 tries: the failed one above and this one), after the live version is read and before the deploy'
+        $vSec = [System.IO.File]::ReadAllText($vSecrets)
+        Check (([regex]::Matches($vSec, [regex]::Escape('{"MITGO_VERIFICATION":"' + $vMitgo + '"}'))).Count -eq 2) 'L119: the same secret on the live Worker'
+        $r = VLast
+        Check ($r.Contains('Preview αυτής της έκδοσης') -and $r.Contains('μπήκε στον Worker "gear-world-hub"') -and $r.Contains('ΕΤΟΙΜΟ: το νέο Hub') -and -not $r.Contains($vMitgo)) 'L119: the live report: clean preview, code in, READY, the code never shown'
+        $vNotes = @(Get-ChildItem -LiteralPath (Join-Path $vWork 'backups') -Filter 'gwh-before-v2-live-*.txt' -ErrorAction SilentlyContinue | Sort-Object LastWriteTime, Name)
+        Check ($vNotes.Count -ge 1 -and ([System.IO.File]::ReadAllText($vNotes[-1].FullName)).Contains('npx wrangler secret delete MITGO_VERIFICATION --name gear-world-hub') -and -not ([System.IO.File]::ReadAllText($vNotes[-1].FullName)).Contains($vMitgo)) 'L119: the rollback note says how to take the tag away, without the code'
+        # A preview that reported a problem (and was not approved) is not a clean preview.
+        Write-Utf8 (Join-Path $vState 'price.flag') 'price'
+        Check ((Run-V @('-Step', 'preview')) -eq 0) 'L119: a preview check that reports a PRICE'
+        Remove-Item -LiteralPath (Join-Path $vState 'price.flag') -Force
+        Check ((Run-V @('-Step', 'live', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB SEARCH LIVE', '-MitgoCode', $vMitgo, '-AfterPreview')) -eq 23 -and (VCount 'deploy --config') -eq ($vDeploys + 2) -and (VLast).Contains('δεν τελείωσε με ΕΤΟΙΜΟ') -and (VLast).Contains('λέει ΠΡΟΒΛΗΜΑ')) 'L119: live -AfterPreview after a preview with a problem: exit 23, nothing deployed'
+        # L150: the Impact code, the same way as Mitgo (a secret, never in a report); built at run time (no UUID in files).
+        $vImpact = (@('0a1b2c3d', '4e5f', '6a7b', '8c9d', '0e1f2a3b4c5d') -join '-')
+        $vDeploysI = VCount 'deploy --config'
+        Check ((Run-V @('-Step', 'check', '-ImpactCode', 'bad-code')) -eq 21 -and (VLast).Contains('δεν έχει τη μορφή που δίνει το Impact')) 'L150: an -ImpactCode of another form: exit 21, nothing changes'
+        Check ((Run-V @('-Step', 'preview', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB SEARCH PREVIEW', '-ImpactCode', $vImpact)) -eq 0 -and (VCount 'deploy --config') -eq ($vDeploysI + 1)) 'L150: preview with the Impact code'
+        $c = VCalls
+        Check ($c.Substring($c.LastIndexOf('secret bulk')) -match '^secret bulk "[^"]+" --name gear-world-hub-preview\s' -and ([System.IO.File]::ReadAllText($vSecrets)).Contains('{"IMPACT_VERIFICATION":"' + $vImpact + '"}') -and (VLast).Contains('Ο κωδικός επαλήθευσης του Impact μπήκε στο preview') -and -not (VLast).Contains($vImpact)) 'L150: the Impact code goes into the test Worker as IMPACT_VERIFICATION, never into the report'
+        Check ((Run-V @('-Step', 'live', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB SEARCH LIVE', '-ImpactCode', $vImpact, '-AfterPreview')) -eq 0 -and (VCount 'deploy --config') -eq ($vDeploysI + 2)) 'L150: live with the Impact code after a clean preview'
+        $c = VCalls
+        $vLiveImp = [regex]::Matches($c, '(?m)^.*secret bulk "[^"]+" --name gear-world-hub\s*$')
+        Check ($vLiveImp.Count -ge 1 -and $vLiveImp[$vLiveImp.Count - 1].Index -lt $c.LastIndexOf('deploy --config') -and $vLiveImp[$vLiveImp.Count - 1].Index -gt $c.LastIndexOf('deployments list --name gear-world-hub') -and ([regex]::Matches(([System.IO.File]::ReadAllText($vSecrets)), [regex]::Escape('{"IMPACT_VERIFICATION":"' + $vImpact + '"}'))).Count -eq 2) 'L150: the Impact code goes into the live Worker after the live version is read and before the deploy'
+        $r = VLast
+        $vNotes = @(Get-ChildItem -LiteralPath (Join-Path $vWork 'backups') -Filter 'gwh-before-v2-live-*.txt' -ErrorAction SilentlyContinue | Sort-Object LastWriteTime, Name)
+        Check ($r.Contains('μπήκε στον Worker "gear-world-hub" (μυστικό IMPACT_VERIFICATION') -and -not $r.Contains($vImpact) -and ([System.IO.File]::ReadAllText($vNotes[-1].FullName)).Contains('npx wrangler secret delete IMPACT_VERIFICATION --name gear-world-hub')) 'L150: the live report never shows the code; the rollback note says how to take the tag away'
+        $vD = VCount 'deploy --config'
         Write-Utf8 (Join-Path $vPub 'styles.css') 'body{}'
-        Check ((Run-V @('-Step', 'live', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB GUIDE PRICES LIVE')) -eq 7 -and (VCount 'deploy --config') -eq 5) 'hub v2 live: refused when someone else changed the hub folder'
+        Check ((Run-V @('-Step', 'live', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB SEARCH LIVE')) -eq 7 -and (VCount 'deploy --config') -eq $vD) 'hub v2 live: refused when someone else changed the hub folder'
         Check ((VLast).Contains('public/styles.css')) 'hub v2: the changed file is named in the report'
         # register: Pets Gear World in the Hub's list of sites (one D1 row, restore point first)
         Check ((Run-V @('-Step', 'register')) -eq 0 -and (VCount '--file') -eq 0) 'hub register without -Apply: nothing changes'
-        Check ((Run-V @('-Step', 'register', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB GUIDE PRICES LIVE')) -eq 1 -and (VCount '--file') -eq 0) 'hub register with the live phrase: nothing changes'
+        Check ((Run-V @('-Step', 'register', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB SEARCH LIVE')) -eq 1 -and (VCount '--file') -eq 0) 'hub register with the live phrase: nothing changes'
         Check ((Run-V @('-Step', 'register', '-Apply', '-Approve', 'egkrino hub zgw search')) -eq 0 -and (VCount '--file') -eq 1) 'hub register with approval: one SQL file runs'
         $c = VCalls
         Check ($c.LastIndexOf('time-travel info gear-world-registry') -lt $c.LastIndexOf('--file') -and $c.LastIndexOf('time-travel info gear-world-registry') -ge 0) 'hub register: restore point read before the change'
@@ -4285,7 +4750,7 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         Check ((Run-V @('-Step', 'register', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB ZGW SEARCH')) -eq 0 -and (VCount '--file') -eq 1 -and (VLast).Contains('ήδη στη λίστα')) 'hub register twice: the row is there, nothing runs again'
         # remove-preview: the test Worker goes, from a new empty folder (L83)
         Check ((Run-V @('-Step', 'remove-preview')) -eq 0 -and (VCount 'delete gear-world-hub-preview') -eq 0) 'hub remove-preview without -Apply: nothing deleted'
-        Check ((Run-V @('-Step', 'remove-preview', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB GUIDE PRICES LIVE')) -eq 1 -and (VCount 'delete gear-world-hub-preview') -eq 0) 'hub remove-preview with the live phrase: nothing deleted'
+        Check ((Run-V @('-Step', 'remove-preview', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB SEARCH LIVE')) -eq 1 -and (VCount 'delete gear-world-hub-preview') -eq 0) 'hub remove-preview with the live phrase: nothing deleted'
         $deploysNow = VCount 'deploy --config'
         Check ((Run-V @('-Step', 'remove-preview', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB REMOVE PREVIEW')) -eq 0 -and (VCount 'delete gear-world-hub-preview') -eq 1 -and (VCount 'deploy --config') -eq $deploysNow) 'hub remove-preview with approval: deletes only the test Worker, no deploy'
         Check (-not ((VCalls) -match 'delete gear-world-hub(\s|$)')) 'hub remove-preview: the live Worker is never named'
@@ -4296,6 +4761,7 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
     } finally {
         $env:PATH = $oldPath
         Remove-Item Env:\GW_FAKE_STATE -ErrorAction SilentlyContinue
+        Remove-Item Env:\GW_STORES_TODAY -ErrorAction SilentlyContinue
     }
 }
 
@@ -6038,8 +6504,17 @@ if (Get-Command node -ErrorAction SilentlyContinue) {
     $curly = ([string][char]0x2018) + ([string][char]0x2019) + ([string][char]0x201C) + ([string][char]0x201D)
     Check (@($l107Tools | Where-Object { $_.IndexOfAny($curly.ToCharArray()) -ge 0 }).Count -eq 0) 'L107: the two deploy tools have no curly quotes (Windows PowerShell 5.1 reads them as quotes)'
     Check ($l107Tools[1].Contains('then ΕΓΚΡΙΝΩ HUB COMPLIANCE LIVE together with remove-preview') -and $l107Tools[0].Contains('ΕΓΚΡΙΝΩ HUB COMPLIANCE LIVE')) 'L107: the Hub tool names ΕΓΚΡΙΝΩ HUB COMPLIANCE LIVE (live since 9/11/2026) and the sites tool names it'
-    # L109 (gift guide prices): the Hub asks its own new phrases, never one of an earlier release.
-    Check ($l107Tools[1].Contains("`$PhrasePreview = 'ΕΓΚΡΙΝΩ HUB GUIDE PRICES PREVIEW'") -and $l107Tools[1].Contains("`$PhraseLive = 'ΕΓΚΡΙΝΩ HUB GUIDE PRICES LIVE'")) 'L109: the Hub asks ΕΓΚΡΙΝΩ HUB GUIDE PRICES PREVIEW and LIVE'
+    # L119 (Mitgo verification and guide prices, 13/11/2026): the Hub asks its own new phrases, never one of an earlier
+    # release (L109: HUB GUIDE PRICES, live since 9/11/2026).
+    Check ($l107Tools[1].Contains("`$PhrasePreview = 'ΕΓΚΡΙΝΩ HUB SEARCH PREVIEW'") -and $l107Tools[1].Contains("`$PhraseLive = 'ΕΓΚΡΙΝΩ HUB SEARCH LIVE'") -and -not ($l107Tools[1] -match "\`$Phrase(Preview|Live) = 'ΕΓΚΡΙΝΩ HUB (GUIDE PRICES|MITGO|SOVRN|IMPACT|BADGES|STORES|AI) ")) 'L180: the Hub asks ΕΓΚΡΙΝΩ HUB SEARCH PREVIEW and LIVE (L173 AI live 17/11/2026, L166 STORES live 16/11/2026, (L150 IMPACT, L121 SOVRN, L119 MITGO and L109 GUIDE PRICES are earlier releases)'
+    # L119: the Mitgo code is never in the repo: the Worker reads the secret MITGO_VERIFICATION, and every tool that compares
+    # the live Hub page with its file takes the tag (and the country bar) out first.
+    Check ($hubWorker.Contains('env.MITGO_VERIFICATION') -and -not ($hubWorker -match 'mitgo-verification" content="[0-9a-f]')) 'L119: the Worker takes the Mitgo code from its secret, never from its own text'
+    foreach ($lt in @('gwh-hub-v2.ps1', 'gwh-mailerlite.ps1', 'gwh-photo.ps1', 'gwh-search-labels.ps1', 'poster-setup.ps1')) {
+        $ltText = [System.IO.File]::ReadAllText((Join-Path (Join-Path $repo 'tools') $lt))
+        Check ($ltText.Contains('<meta name="mitgo-verification" content="[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}">') -and $ltText.Contains('<div class="gwh2-country-bar" role="note">')) ('L119: ' + $lt + ' takes the Mitgo tag and the country bar out before it compares the live Hub page')
+        Check ($ltText.Contains("<meta name='impact-site-verification' value='[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'>")) ('L150: ' + $lt + ' takes the Impact tag out too')
+    }
 }
 
 # L131: sites-update-all.ps1 - the 13 sites and the Group with ONE approval (owner, 14 Nov 2026). Fake site tools record

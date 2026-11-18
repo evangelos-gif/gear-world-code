@@ -7,7 +7,7 @@
   <meta name="theme-color" content="#08111f">
   <title>Gear World Hub – Gear, Gifts &amp; Deals From Every Gear World</title>
   <link rel="canonical" href="https://gearworldhub.com/">
-  <link rel="stylesheet" href="/hub-v2.css?v=20261109-compliance2">
+  <link rel="stylesheet" href="/hub-v2.css?v=20261123-mega1">
 </head>
 
 <!-- GWH-HUB-V2 (27/10/2026): the "Combination" Hub. Search first, campaigns with arrows, 13 worlds (Biker Gear World and Gaming Gear World added 31/10/2026, Pets Gear World 1/11/2026), gift finder,
@@ -49,6 +49,50 @@
   </header>
 
   <main>
+
+    <!-- Mega Stores (owner, 18/11/2026, «ΕΓΚΡΙΝΩ MEGA STORES ΜΠΑΡΑ», lessons L192): one big bar above everything, ONE plain
+         link to megastoresgearworld.com (a Gear World site; not an affiliate link, so no rel="sponsored"). The store names
+         roll past (CSS only, paused on hover and focus, still with "reduce motion"); the moving strip is decorative
+         (aria-hidden) and the hidden sentence gives screen readers the names once. Own classes: the 13 world cards and the
+         Stores card stay as they are. The logos are the stores' own (Awin advertiser profiles), unchanged. -->
+    <div class="gwh2-mega-wrap">
+      <div class="container">
+        <a class="gwh2-mega" href="https://megastoresgearworld.com/">
+          <span class="gwh2-mega-head">
+            <strong class="gwh2-mega-title" translate="no">Mega Stores</strong>
+            <span class="gwh2-mega-line" data-gwh2="megaLine">Big stores in one place →</span>
+          </span>
+          <span class="sr-only" data-gwh2="megaNames" data-gwh2-name="Amazon, Joybuy, Tooled Up, My Tool Shed, PCHUB.UK, GS Workwear, Back to the Office, DHgate">Stores: <span translate="no">Amazon, Joybuy, Tooled Up, My Tool Shed, PCHUB.UK, GS Workwear, Back to the Office, DHgate</span>.</span>
+          <span class="gwh2-mega-strip" aria-hidden="true">
+            <span class="gwh2-mega-track">
+              <span class="gwh2-mega-list">
+                <!-- Amazon stays TEXT ONLY, always: the Amazon Associates Trademark Guidelines allow an Amazon logo only next to an
+                     Amazon Special Link, and this bar links to megastoresgearworld.com. Never put an image in this pill. -->
+                <span class="gwh2-mega-pill" data-store="amazon" data-logo="text-only" translate="no">Amazon</span>
+                <span class="gwh2-mega-pill gwh2-mega-logo" data-store="joybuy" translate="no"><img src="/mega/joybuy.png" alt="Joybuy" width="168" height="168" loading="eager" decoding="async"></span>
+                <span class="gwh2-mega-pill gwh2-mega-logo" data-store="tooled-up" translate="no"><img src="/mega/tooled-up.png" alt="Tooled Up" width="168" height="61" loading="eager" decoding="async"></span>
+                <span class="gwh2-mega-pill gwh2-mega-logo" data-store="my-tool-shed" translate="no"><img src="/mega/my-tool-shed.png" alt="My Tool Shed" width="168" height="61" loading="eager" decoding="async"></span>
+                <span class="gwh2-mega-pill gwh2-mega-logo" data-store="pchub-uk" translate="no"><img src="/mega/pchub-uk.png" alt="PCHUB.UK" width="168" height="57" loading="eager" decoding="async"></span>
+                <!-- GS Workwear's own logo reads "Goldstar Workwear"; its name stays GS Workwear. -->
+                <span class="gwh2-mega-pill gwh2-mega-logo" data-store="gs-workwear" translate="no"><img src="/mega/gs-workwear.jpg" alt="GS Workwear" width="168" height="168" loading="eager" decoding="async"><span class="sr-only">GS Workwear</span></span>
+                <span class="gwh2-mega-pill gwh2-mega-logo" data-store="back-to-the-office" translate="no"><img src="/mega/back-to-the-office.png" alt="Back to the Office" width="168" height="168" loading="eager" decoding="async"></span>
+                <span class="gwh2-mega-pill" data-store="dhgate" data-logo="text-only" translate="no">DHgate</span>
+              </span>
+              <span class="gwh2-mega-list gwh2-mega-copy" aria-hidden="true">
+                <span class="gwh2-mega-pill" data-store="amazon" data-logo="text-only" translate="no">Amazon</span>
+                <span class="gwh2-mega-pill gwh2-mega-logo" data-store="joybuy" translate="no"><img src="/mega/joybuy.png" alt="Joybuy" width="168" height="168" loading="eager" decoding="async"></span>
+                <span class="gwh2-mega-pill gwh2-mega-logo" data-store="tooled-up" translate="no"><img src="/mega/tooled-up.png" alt="Tooled Up" width="168" height="61" loading="eager" decoding="async"></span>
+                <span class="gwh2-mega-pill gwh2-mega-logo" data-store="my-tool-shed" translate="no"><img src="/mega/my-tool-shed.png" alt="My Tool Shed" width="168" height="61" loading="eager" decoding="async"></span>
+                <span class="gwh2-mega-pill gwh2-mega-logo" data-store="pchub-uk" translate="no"><img src="/mega/pchub-uk.png" alt="PCHUB.UK" width="168" height="57" loading="eager" decoding="async"></span>
+                <span class="gwh2-mega-pill gwh2-mega-logo" data-store="gs-workwear" translate="no"><img src="/mega/gs-workwear.jpg" alt="GS Workwear" width="168" height="168" loading="eager" decoding="async"><span class="sr-only">GS Workwear</span></span>
+                <span class="gwh2-mega-pill gwh2-mega-logo" data-store="back-to-the-office" translate="no"><img src="/mega/back-to-the-office.png" alt="Back to the Office" width="168" height="168" loading="eager" decoding="async"></span>
+                <span class="gwh2-mega-pill" data-store="dhgate" data-logo="text-only" translate="no">DHgate</span>
+              </span>
+            </span>
+          </span>
+        </a>
+      </div>
+    </div>
 
     <section class="gwh2-top">
       <div class="container gwh2-top-grid">
@@ -214,6 +258,17 @@
               <span class="gwh-image-world-cta">Explore →</span>
             </span>
           </a>
+          <!-- Stores (owner's option B, 16/11/2026, lessons L166): a card like the worlds, to /stores/ on the Hub.
+               Its own classes, so the 13 world cards stay 13 (translations.js and the page check count them). -->
+          <a class="gwh-quick-world gwh2-stores-card" href="/stores/" data-world="STORES">
+            <img class="gwh2-world-img" src="/hub-stores.jpg" alt="" width="700" height="420" loading="lazy" decoding="async">
+            <span class="gwh2-world-text">
+              <span class="gwh2-rc-code">ALL</span>
+              <strong class="gwh2-rc-title" data-gwh2="storesTitle">Stores</strong>
+              <small class="gwh2-rc-desc" data-gwh2="storesDesc" translate="no">Joybuy, Tooled Up, PCHUB.UK and more: codes, sales and where to find them.</small>
+              <span class="gwh2-rc-cta" data-gwh2="storesCta">See all →</span>
+            </span>
+          </a>
         </div>
       </div>
     </section>
@@ -234,6 +289,9 @@
               <a href="/guides/christmas-gifts-for-diy-lovers/" data-gwh2="guideDiy">For DIY lovers</a>
               <a href="/guides/christmas-gifts-for-travellers/" data-gwh2="guideTravel">For travellers</a>
             </p>
+            <p class="gwh2-guides"><span data-gwh2="bfLead">Black Friday, 27 Nov:</span>
+              <a href="/black-friday/" data-gwh2="bfLink">dates and discount codes</a>
+            </p>
           </div>
           <div class="gwh2-gift-form">
             <div class="gwh2-gift-row" role="group" aria-labelledby="gwh2WhoLabel">
@@ -252,6 +310,26 @@
           </div>
         </div>
         <div class="gwh2-gift-results" id="gwh2GiftResults" aria-live="polite" hidden></div>
+      </div>
+    </section>
+
+    <!-- One product link of Sovrn Commerce (owner, 14/11/2026, lessons L121): a plain link, no Sovrn script, marked as an
+         affiliate link like the product links of the sites. -->
+    <section class="gwh2-section" id="featured" aria-labelledby="gwh2FeaturedTitle">
+      <div class="container">
+        <div class="gwh2-head">
+          <h2 id="gwh2FeaturedTitle" data-gwh2="featuredTitle">Featured pick</h2>
+          <span data-gwh2="featuredSub">From Tools &amp; Workwear. You buy on the retailer's website, at their price.</span>
+        </div>
+        <div class="gwh2-deals">
+          <a class="gwh2-deal" href="https://sovrn.co/o4ablp8" rel="sponsored nofollow noopener" target="_blank" data-gwh2-featured>
+            <span class="gwh2-deal-top"><span class="gwh2-deal-retailer" translate="no">Engelbert Strauss</span><span class="gwh2-deal-end" data-gwh2="featuredBadge">Affiliate link</span></span>
+            <strong class="gwh2-deal-offer" translate="no">STRAUSS e.s. S3 safety boots Okomu mid</strong>
+            <span class="gwh2-deal-meta" data-gwh2="featuredMeta" data-gwh2-name="engelbert-strauss.co.uk">S3 safety boots, sold by <span translate="no">engelbert-strauss.co.uk</span>, not by Gear World.</span>
+            <span class="gwh2-deal-cta" data-gwh2="featuredCta" data-gwh2-name="Engelbert Strauss">View at <span translate="no">Engelbert Strauss</span> →</span>
+          </a>
+        </div>
+        <p class="gwh2-featured-note"><span data-gwh2="featuredNote">We may earn a commission when you buy through this link, at no extra cost to you.</span> <a href="/affiliate-disclosure/" data-gwh2="featuredHow">How this works</a></p>
       </div>
     </section>
 
@@ -402,9 +480,9 @@
     </button>
   </div>
 
-  <script src="/translations.js?v=20261108-cleanup1"></script>
-<script src="/email-signup.js?v=20261109-compliance1"></script>
-<script src="/app.js?v=20261026-labels1"></script>
+  <script src="/translations.js?v=20261120-search1"></script>
+<script src="/email-signup.js?v=20261120-popup1"></script>
+<script src="/app.js?v=20261120-search1"></script>
 <!-- GWH-ANALYTICS-CONSENT-START -->
 <div
   class="gwh-analytics-consent"
@@ -434,7 +512,7 @@
 <!-- GWH-ANALYTICS-CONSENT-END -->
   <script src="/analytics.js?v=20261103-ads2"></script>
 <script src="/gear-world-voice-v2.js" defer></script>
-<script src="/gear-world-camera.js?v=20261025-photo4" defer></script>
-<script src="/hub-v2.js?v=20261109-compliance2" defer></script>
+<script src="/gear-world-camera.js?v=20261120-search1" defer></script>
+<script src="/hub-v2.js?v=20261123-mega1" defer></script>
 </body>
 </html>

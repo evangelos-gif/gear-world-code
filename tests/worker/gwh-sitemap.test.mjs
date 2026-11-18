@@ -13,17 +13,21 @@ import { loadData } from '../../tools/gwh-guides.mjs';
 const locs = xml => [...xml.matchAll(/<loc>([^<]+)<\/loc>/g)].map(m => m[1]);
 const OLD = ['/', '/privacy/', '/terms/', '/cookies/', '/contact/', '/affiliate-disclosure/'].map(p => 'https://gearworldhub.com' + p);
 
-test('sitemap: the old version is exactly the one that ran live on 24/10/2026', async () => {
+// 18/11/2026 (owner, «ΕΓΚΡΙΝΩ SITEMAP BLACK FRIDAY», lessons L188): before-worker.js is the version live since 7/11/2026
+// (13 pages; gearworldhub.com/sitemap.xml sent exactly it on 18/11/2026, sha256 8fde4f...7331), the new one adds
+// /black-friday/.
+test('sitemap: the old version is exactly the one that runs live since 7/11/2026 (13 pages)', async () => {
   const body = await sitemapBody('before');
-  assert.deepEqual(locs(body), OLD);
-  assert.equal(sha256(body), '121319387a663907ebb2d314e89fbadc039643fa1125352cff3bdabd9ea64abf');
-});
-
-test('sitemap: the new version keeps the 6 pages and adds /about/, /guides/ and every guide of guides.json', async () => {
-  const body = await sitemapBody('new');
   const guides = loadData().guides.map(g => `https://gearworldhub.com/guides/${g.slug}/`);
   assert.deepEqual(locs(body), [...OLD, 'https://gearworldhub.com/about/', 'https://gearworldhub.com/guides/', ...guides]);
-  assert.equal(locs(body).length, 13);
+  assert.equal(sha256(body), '8fde4f446457b2754972afbb369163d1bf8d54aeb5db98c1d6d1d7dcba297331');
+});
+
+test('sitemap: the new version keeps the 13 pages and adds /black-friday/ (L188)', async () => {
+  const body = await sitemapBody('new');
+  const guides = loadData().guides.map(g => `https://gearworldhub.com/guides/${g.slug}/`);
+  assert.deepEqual(locs(body), [...OLD, 'https://gearworldhub.com/about/', 'https://gearworldhub.com/guides/', ...guides, 'https://gearworldhub.com/black-friday/']);
+  assert.equal(locs(body).length, 14);
   // Every page of the sitemap is a page of the Hub (sites/gwh/public/<page>index.html), so none of them answers 404.
   for (const l of locs(body)) {
     const page = l.replace('https://gearworldhub.com/', '');

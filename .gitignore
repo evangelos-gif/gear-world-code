@@ -33,3 +33,7 @@ gwh-photo-report.txt
 # Posters: the build outputs (PDF, PNG, SVG) and the Earth drawing are made again by posters/*/build.py
 posters/*/out/
 posters/*/earth.json
+
+# Output of tools/gwh-hub-page-check.mjs when run without --shots/--out (CI keeps them as artifacts)
+gwh-hub-shots/
+gwh-hub-report.txt

@@ -65,6 +65,17 @@
     guideKids: ["For kids", "Για παιδιά", "Für Kinder", "Pour les enfants", "Per bambini", "Para niños", "Para crianças", "Voor kinderen", "Për fëmijë", "Pentru copii", "Для детей"],
     guideDiy: ["For DIY lovers", "Για μάστορες", "Für Heimwerker", "Pour les bricoleurs", "Per chi ama il fai da te", "Para amantes del bricolaje", "Para amantes de bricolage", "Voor klussers", "Për mjeshtrit", "Pentru pasionații de bricolaj", "Для мастеров"],
     guideTravel: ["For travellers", "Για ταξιδιώτες", "Für Reisende", "Pour les voyageurs", "Per chi viaggia", "Para viajeros", "Para viajantes", "Voor reizigers", "Për udhëtarët", "Pentru călători", "Для путешественников"],
+    // The Black Friday 2026 page of the Hub (owner, 18/11/2026, lessons L188): a quiet link, no countdown, no saving.
+    bfLead: ["Black Friday, 27 Nov:", "Black Friday, 27 Νοε:", "Black Friday, 27. Nov.:", "Black Friday, 27 nov. :", "Black Friday, 27 nov:", "Black Friday, 27 nov.:", "Black Friday, 27 nov.:", "Black Friday, 27 nov.:", "Black Friday, 27 nën:", "Black Friday, 27 nov.:", "Чёрная пятница, 27 нояб.:"],
+    bfLink: ["dates and discount codes", "ημερομηνίες και εκπτωτικοί κωδικοί", "Termine und Rabattcodes", "dates et codes de réduction", "date e codici sconto", "fechas y códigos de descuento", "datas e códigos de desconto", "data en kortingscodes", "datat dhe kodet e zbritjes", "date și coduri de reducere", "даты и промокоды"],
+    // Stores (16/11/2026, lessons L166): the card after the 13 worlds, to /stores/ (the pages are in English).
+    storesTitle: ["Stores", "Καταστήματα", "Händler", "Marchands", "Negozi", "Tiendas", "Lojas", "Winkels", "Dyqanet", "Magazine", "Магазины"],
+    storesDesc: ["Joybuy, Tooled Up, PCHUB.UK and more: codes, sales and where to find them.", "Joybuy, Tooled Up, PCHUB.UK και άλλα: κωδικοί, εκπτώσεις και πού θα τα βρείτε.", "Joybuy, Tooled Up, PCHUB.UK und mehr: Codes, Aktionen und wo Sie sie finden.", "Joybuy, Tooled Up, PCHUB.UK et d'autres : codes, soldes et où les trouver.", "Joybuy, Tooled Up, PCHUB.UK e altri: codici, saldi e dove trovarli.", "Joybuy, Tooled Up, PCHUB.UK y más: códigos, rebajas y dónde encontrarlos.", "Joybuy, Tooled Up, PCHUB.UK e mais: códigos, saldos e onde os encontrar.", "Joybuy, Tooled Up, PCHUB.UK en meer: codes, uitverkoop en waar je ze vindt.", "Joybuy, Tooled Up, PCHUB.UK dhe të tjera: kode, ulje dhe ku t'i gjeni.", "Joybuy, Tooled Up, PCHUB.UK și altele: coduri, reduceri și unde le găsiți.", "Joybuy, Tooled Up, PCHUB.UK и другие: коды, распродажи и где их найти."],
+    storesCta: ["See all →", "Δείτε όλα →", "Alle ansehen →", "Tout voir →", "Vedi tutti →", "Ver todas →", "Ver todas →", "Alles bekijken →", "Shiko të gjitha →", "Vezi toate →", "Смотреть все →"],
+    // The Mega Stores bar above everything (owner, 18/11/2026, lessons L192): its line, and the sentence that gives screen
+    // readers the store names once ({name}: the names, never translated). "Mega Stores" itself is a name (translate="no").
+    megaLine: ["Big stores in one place →", "Μεγάλα καταστήματα σε ένα μέρος →", "Große Händler an einem Ort →", "Les grandes enseignes au même endroit →", "Grandi negozi in un unico posto →", "Grandes tiendas en un solo lugar →", "Grandes lojas num só lugar →", "Grote winkels op één plek →", "Dyqane të mëdha në një vend →", "Magazine mari într-un singur loc →", "Крупные магазины в одном месте →"],
+    megaNames: ["Stores: {name}.", "Καταστήματα: {name}.", "Händler: {name}.", "Enseignes : {name}.", "Negozi: {name}.", "Tiendas: {name}.", "Lojas: {name}.", "Winkels: {name}.", "Dyqanet: {name}.", "Magazine: {name}.", "Магазины: {name}."],
     dealsTitle: ["This week's deals", "Προσφορές της εβδομάδας", "Angebote der Woche", "Les offres de la semaine", "Le offerte della settimana", "Ofertas de la semana", "Ofertas da semana", "Aanbiedingen van de week", "Ofertat e javës", "Ofertele săptămânii", "Предложения недели"],
     dealsSub: ["From retailers listed on Gear World, each with its end date.", "Από καταστήματα που εμφανίζονται στο Gear World, η καθεμία με ημερομηνία λήξης.", "Von Händlern, die auf Gear World gelistet sind, jedes mit Enddatum.", "De marchands présents sur Gear World, chacune avec sa date de fin.", "Da negozi presenti su Gear World, ognuna con la sua data di fine.", "De tiendas que aparecen en Gear World, cada una con su fecha de fin.", "De lojas presentes na Gear World, cada uma com a sua data de fim.", "Van winkels die op Gear World staan, elk met een einddatum.", "Nga dyqane që shfaqen në Gear World, secila me datën e mbarimit.", "De la magazine prezente pe Gear World, fiecare cu data de încheiere.", "От магазинов, представленных на Gear World, у каждого указан срок."],
     dealCode: ["{off} off when you spend {min} or more", "{off} έκπτωση σε αγορές από {min}", "{off} Rabatt ab {min} Einkaufswert", "{off} de réduction dès {min} d'achat", "{off} di sconto su una spesa di almeno {min}", "{off} de descuento en compras desde {min}", "{off} de desconto em compras a partir de {min}", "{off} korting vanaf {min} besteding", "{off} zbritje për blerje nga {min}", "{off} reducere la cumpărături de minimum {min}", "Скидка {off} при покупке от {min}"],
@@ -116,7 +127,16 @@
     ideaDumbbells: ["Dumbbells", "Αλτήρες", "Hanteln", "Haltères", "Manubri", "Mancuernas", "Halteres", "Halters", "Pesha dore", "Gantere", "Гантели"],
     ideaDrill: ["Drill", "Δράπανο", "Bohrmaschine", "Perceuse", "Trapano", "Taladro", "Berbequim", "Boormachine", "Trapan", "Bormașină", "Дрель"],
     ideaWorkGloves: ["Work gloves", "Γάντια εργασίας", "Arbeitshandschuhe", "Gants de travail", "Guanti da lavoro", "Guantes de trabajo", "Luvas de trabalho", "Werkhandschoenen", "Doreza pune", "Mănuși de lucru", "Рабочие перчатки"],
-    ideaDashCam: ["Dash cam", "Κάμερα αυτοκινήτου", "Dashcam", "Caméra embarquée", "Dashcam", "Cámara para coche", "Câmara para carro", "Dashcam", "Kamerë makine", "Cameră auto", "Видеорегистратор"]
+    ideaDashCam: ["Dash cam", "Κάμερα αυτοκινήτου", "Dashcam", "Caméra embarquée", "Dashcam", "Cámara para coche", "Câmara para carro", "Dashcam", "Kamerë makine", "Cameră auto", "Видеорегистратор"],
+    // The «Featured pick» card of L121 (lessons L174: a Greek page showed it in English). The retailer and the product
+    // name stay as the retailer writes them (translate="no").
+    featuredTitle: ["Featured pick", "Προτεινόμενο προϊόν", "Empfohlenes Produkt", "Produit à la une", "Prodotto in evidenza", "Producto destacado", "Produto em destaque", "Uitgelicht product", "Produkt i zgjedhur", "Produs recomandat", "Рекомендуемый товар"],
+    featuredSub: ["From Tools & Workwear. You buy on the retailer's website, at their price.", "Από τα Εργαλεία & Ρούχα Εργασίας. Αγοράζετε στο site του καταστήματος, στη δική του τιμή.", "Aus Werkzeug & Arbeitskleidung. Sie kaufen auf der Website des Händlers, zu seinem Preis.", "Du monde Outils & vêtements de travail. Vous achetez sur le site du marchand, à son prix.", "Da Utensili & abbigliamento da lavoro. Acquisti sul sito del negozio, al suo prezzo.", "De Herramientas y ropa de trabajo. Compras en la web de la tienda, a su precio.", "De Ferramentas e roupa de trabalho. Compra no site da loja, ao preço dela.", "Uit Gereedschap & werkkleding. U koopt op de website van de winkel, tegen hun prijs.", "Nga Vegla & veshje pune. Blini në faqen e dyqanit, me çmimin e tij.", "Din Unelte & îmbrăcăminte de lucru. Cumpărați pe site-ul magazinului, la prețul lui.", "Из раздела «Инструменты и спецодежда». Покупка на сайте магазина, по его цене."],
+    featuredBadge: ["Affiliate link", "Σύνδεσμος affiliate", "Affiliate-Link", "Lien affilié", "Link di affiliazione", "Enlace de afiliado", "Link de afiliado", "Affiliatelink", "Lidhje affiliate", "Link de afiliere", "Партнёрская ссылка"],
+    featuredMeta: ["S3 safety boots, sold by {name}, not by Gear World.", "Μποτάκια ασφαλείας S3, τα πουλά το {name}, όχι το Gear World.", "S3-Sicherheitsstiefel, verkauft von {name}, nicht von Gear World.", "Chaussures de sécurité S3, vendues par {name}, pas par Gear World.", "Scarpe antinfortunistiche S3, vendute da {name}, non da Gear World.", "Botas de seguridad S3, vendidas por {name}, no por Gear World.", "Botas de segurança S3, vendidas por {name}, não pela Gear World.", "S3-veiligheidsschoenen, verkocht door {name}, niet door Gear World.", "Këpucë sigurie S3, të shitura nga {name}, jo nga Gear World.", "Bocanci de protecție S3, vânduți de {name}, nu de Gear World.", "Защитные ботинки S3. Продавец — {name}, а не Gear World."],
+    featuredCta: ["View at {name} →", "Δείτε το στο {name} →", "Bei {name} ansehen →", "Voir chez {name} →", "Vedi su {name} →", "Ver en {name} →", "Ver na {name} →", "Bekijk bij {name} →", "Shikojeni te {name} →", "Vezi la {name} →", "Смотреть в {name} →"],
+    featuredNote: ["We may earn a commission when you buy through this link, at no extra cost to you.", "Μπορεί να λάβουμε προμήθεια αν αγοράσετε μέσω αυτού του συνδέσμου, χωρίς επιπλέον κόστος για εσάς.", "Wir erhalten möglicherweise eine Provision, wenn Sie über diesen Link kaufen, ohne Mehrkosten für Sie.", "Nous pouvons toucher une commission si vous achetez via ce lien, sans frais supplémentaires pour vous.", "Potremmo ricevere una commissione se acquisti tramite questo link, senza costi aggiuntivi per te.", "Podemos recibir una comisión si compras a través de este enlace, sin coste adicional para ti.", "Podemos receber uma comissão se comprar através deste link, sem custo adicional para si.", "We kunnen een commissie ontvangen als u via deze link koopt, zonder extra kosten voor u.", "Mund të fitojmë një komision nëse blini përmes kësaj lidhjeje, pa kosto shtesë për ju.", "Putem primi un comision dacă cumpărați prin acest link, fără costuri suplimentare pentru dumneavoastră.", "Мы можем получить комиссию, если вы купите по этой ссылке, без дополнительных затрат для вас."],
+    featuredHow: ["How this works", "Πώς λειτουργεί", "So funktioniert es", "Comment ça marche", "Come funziona", "Cómo funciona", "Como funciona", "Zo werkt het", "Si funksionon", "Cum funcționează", "Как это работает"]
   };
 
   // Texts that are the same word as in English on purpose (a name, or the same word in that language).
@@ -211,7 +231,10 @@
     const today = ukToday(now);
     const year = Number(today.slice(0, 4));
     for (const s of seasonsOf(year)) if (SEASON_WORDS[s.id] && SEASON_WORDS[s.id].test(name) && today > s.end) return "";
-    return name;
+    // In the visitor's language when the site's dictionary has it (campaignNames, made by tools/gwh-deals.mjs).
+    const names = d && d.campaignNames && typeof d.campaignNames === "object" ? d.campaignNames : null;
+    const own = names && typeof names[locale()] === "string" ? names[locale()].trim() : "";
+    return own || name;
   }
 
   function activeDeals(deals, now) {
@@ -364,7 +387,38 @@
     return false;
   }
 
-  window.GearWorldHubV2 = { seasonsOn: SEASONS_ON, heroSlides, campaignLabel, seasonFor, seasonsOf, blackFridayDay, countdownText, seasonMediaVersion: SEASON_MEDIA_VERSION, art: ART, artFor, locales: LOCALES, strings: T, sameAsEnglish: SAME_AS_ENGLISH, campaigns: CAMPAIGNS, fallbackCampaign: FALLBACK_CAMPAIGN, gifts: GIFTS, budgets: BUDGETS, popular: POPULAR, activeCampaigns, activeDeals, campaignView, hasRealDeals, giftSearchUrl, ukToday };
+  // Lessons L174 (Linkwise, 17/11/2026): a visitor who reads the Hub in Greek opened a Gear World site in English,
+  // because each site keeps its own language. A link to one of the 13 sites now carries the language the visitor
+  // CHOSE on the Hub (?lang=, which the sites keep like a choice in their menu, L162), English included. A language the
+  // visitor did not choose (the default, or their country's, L175) adds nothing: the site finds the same one itself and
+  // does not save it. Added only when the link is used, so the page itself, and what Google reads, keeps the plain
+  // addresses; /go/ or /out/ links are never touched. Search results go through the site's /?search= redirect, which
+  // keeps ?lang= from L175 of the sites.
+  const SITE_HOSTS = ["constructiongearworld.com", "mensgearworld.com", "womensgearworld.com", "kidsgearworld.com",
+    "homegearworld.com", "gardengearworld.com", "technologygearworld.com", "cargearworld.com", "travelgearworld.com",
+    "sportygearworld.com", "bikergearworld.com", "gaminggearworld.com", "petsgearworld.com"];
+
+  function withLanguage(href, lang, chosen = true) {
+    if (!chosen || !LOCALES.includes(lang)) return href;
+    let url;
+    try { url = new URL(String(href || ""), "https://gearworldhub.com/"); } catch (_) { return href; }
+    if (url.protocol !== "https:" || !SITE_HOSTS.includes(url.hostname.replace(/^www\./, ""))) return href;
+    if (/^\/(go|out)\//.test(url.pathname)) return href;
+    if (url.searchParams.get("lang") === lang) return href;
+    url.searchParams.set("lang", lang);
+    return url.toString();
+  }
+
+  function languageOnLink(event) {
+    const link = event.target && event.target.closest ? event.target.closest("a[href]") : null;
+    if (!link) return;
+    const href = link.getAttribute("href");
+    const chosen = typeof window.GWH_languageChosen === "function" ? window.GWH_languageChosen() : false;
+    const next = withLanguage(href, locale(), chosen);
+    if (next !== href) link.setAttribute("href", next);
+  }
+
+  window.GearWorldHubV2 = { siteHosts: SITE_HOSTS, withLanguage, seasonsOn: SEASONS_ON, heroSlides, campaignLabel, seasonFor, seasonsOf, blackFridayDay, countdownText, seasonMediaVersion: SEASON_MEDIA_VERSION, art: ART, artFor, locales: LOCALES, strings: T, sameAsEnglish: SAME_AS_ENGLISH, campaigns: CAMPAIGNS, fallbackCampaign: FALLBACK_CAMPAIGN, gifts: GIFTS, budgets: BUDGETS, popular: POPULAR, activeCampaigns, activeDeals, campaignView, hasRealDeals, giftSearchUrl, ukToday };
 
   // ------------------------------------------------------------ page
   const $ = (selector, root) => (root || document).querySelector(selector);
@@ -412,8 +466,25 @@
     else form.dispatchEvent(new Event("submit", { cancelable: true }));
   }
 
+  // A text with {name} (a retailer or its website, lessons L103): the name goes in its own <span translate="no">.
+  function fillText(el, key) {
+    const name = el.getAttribute("data-gwh2-name");
+    const text = tx(key);
+    if (!name || !text.includes("{name}")) { el.textContent = text; return; }
+    el.textContent = "";
+    text.split("{name}").forEach((part, i) => {
+      if (i) {
+        const span = document.createElement("span");
+        span.setAttribute("translate", "no");
+        span.textContent = name;
+        el.appendChild(span);
+      }
+      if (part) el.appendChild(document.createTextNode(part));
+    });
+  }
+
   function applyTexts() {
-    document.querySelectorAll("[data-gwh2]").forEach(el => { el.textContent = tx(el.getAttribute("data-gwh2")); });
+    document.querySelectorAll("[data-gwh2]").forEach(el => { fillText(el, el.getAttribute("data-gwh2")); });
     document.querySelectorAll("[data-gwh2-aria]").forEach(el => { el.setAttribute("aria-label", tx(el.getAttribute("data-gwh2-aria"))); });
   }
 
@@ -643,7 +714,7 @@
     return `
       <a class="gwh-search-item" href="${esc(url)}">
         ${img}
-        <div class="gwh-search-details"><span class="gwh-search-source">${esc(code)}</span><div class="gwh-search-name">${esc(p.product_name)}</div><div class="gwh-search-meta">${meta}</div></div>
+        <div class="gwh-search-details"><span class="gwh-search-source">${esc(code)}</span><div class="gwh-search-name">${esc(p.product_name)}</div><div class="gwh-search-meta">${meta}</div>${window.GWH_deliveryHtml ? window.GWH_deliveryHtml(p) : ""}</div>
         <div class="gwh-search-price">${esc(money(p.price, p.currency))}<span class="gwh-search-view">${esc(view)} →</span></div>
       </a>`;
   }
@@ -813,6 +884,8 @@
     setupPhoto();
     setupDock();
     document.addEventListener("click", onClick);
+    // L174: the Hub's language goes with the link at the moment it is used (tap, click, middle click, long press).
+    for (const type of ["pointerdown", "click", "auxclick", "contextmenu"]) document.addEventListener(type, languageOnLink, true);
     // The seasonal video starts only after the whole page has loaded.
     const allowVideo = () => { seasonVideoAllowedAfterLoad = true; startSeasonVideo(); };
     if (document.readyState === "complete") allowVideo(); else window.addEventListener("load", allowVideo, { once: true });

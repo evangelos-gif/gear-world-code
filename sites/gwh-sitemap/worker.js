@@ -2,6 +2,7 @@
 // The Hub's own code is not touched. To undo: delete the route (or this Worker), or deploy before-worker.js again.
 // 4/11/2026: the gift guides of the Hub (/guides/ and 5 guides, tools/gwh-guides.mjs) are in the list too.
 // 7/11/2026 (owner): /about/ too, the page that says who runs Gear World (Google Ads review, lessons L101, L103).
+// 18/11/2026 (owner, «ΕΓΚΡΙΝΩ SITEMAP BLACK FRIDAY»): /black-friday/, the Black Friday 2026 page of the Hub (lessons L188).
 const PAGES = [
   "/", "/privacy/", "/terms/", "/cookies/", "/contact/", "/affiliate-disclosure/",
   "/about/",
@@ -10,7 +11,8 @@ const PAGES = [
   "/guides/christmas-gifts-for-her/",
   "/guides/christmas-gifts-for-kids/",
   "/guides/christmas-gifts-for-diy-lovers/",
-  "/guides/christmas-gifts-for-travellers/"
+  "/guides/christmas-gifts-for-travellers/",
+  "/black-friday/"
 ];
 
 export default {

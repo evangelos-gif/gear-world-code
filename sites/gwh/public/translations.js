@@ -19,6 +19,13 @@
     languageLabel: ["Language","Γλώσσα","Sprache","Langue","Lingua","Idioma","Idioma","Taal","Gjuha","Limbă","Язык"],
 
     navWorlds: ["Gear Worlds","Gear Worlds","Gear Worlds","Gear Worlds","Gear Worlds","Gear Worlds","Gear Worlds","Gear Worlds","Gear Worlds","Gear Worlds","Gear Worlds"],
+    // The legal links of the footer (the same words as the legal pages, L176).
+    footPrivacy: ["Privacy","Απόρρητο","Datenschutz","Confidentialité","Privacy","Privacidad","Privacidade","Privacy","Privatësia","Confidențialitate","Конфиденциальность"],
+    footCookies: ["Cookies","Cookies","Cookies","Cookies","Cookie","Cookies","Cookies","Cookies","Cookies","Cookie-uri","Cookie"],
+    footTerms: ["Terms","Όροι","Bedingungen","Conditions","Termini","Condiciones","Termos","Voorwaarden","Kushtet","Termeni","Условия"],
+    footDisclosure: ["Affiliate disclosure","Γνωστοποίηση affiliate","Affiliate-Hinweis","Information sur l'affiliation","Informativa sull'affiliazione","Aviso de afiliación","Divulgação de afiliados","Affiliateverklaring","Deklarata e afiliimit","Declarație de afiliere","Партнёрские ссылки"],
+    footLegal: ["Legal","Νομικά","Rechtliches","Informations légales","Note legali","Información legal","Informação legal","Juridisch","Informacion ligjor","Informații legale","Правовая информация"],
+    footContact: ["Contact","Επικοινωνία","Kontakt","Contact","Contatti","Contacto","Contacto","Contact","Kontakt","Contact","Контакты"],
     navAbout: ["About","Σχετικά","Über uns","À propos","Chi siamo","Acerca de","Sobre","Over ons","Rreth nesh","Despre","О нас"],
 
     heroEyebrow: [
@@ -172,6 +179,9 @@
     searchFailed: ["Search failed","Η αναζήτηση απέτυχε","Suche fehlgeschlagen","Échec de la recherche","Ricerca non riuscita","La búsqueda ha fallado","A pesquisa falhou","Zoeken mislukt","Kërkimi dështoi","Căutarea a eșuat","Ошибка поиска"],
     noProductsFor: ["No products found for \"{query}\".","Δεν βρέθηκαν προϊόντα για \"{query}\".","Keine Produkte für \"{query}\" gefunden.","Aucun produit trouvé pour \"{query}\".","Nessun prodotto trovato per \"{query}\".","No se encontraron productos para \"{query}\".","Não foram encontrados produtos para \"{query}\".","Geen producten gevonden voor \"{query}\".","Nuk u gjetën produkte për \"{query}\".","Nu s-au găsit produse pentru \"{query}\".","Товары по запросу \"{query}\" не найдены."],
     noProductsAcross: ["No products found across the live Gear Worlds.","Δεν βρέθηκαν προϊόντα στα live Gear Worlds.","Keine Produkte in den aktiven Gear Worlds gefunden.","Aucun produit trouvé dans les Gear Worlds actifs.","Nessun prodotto trovato nei Gear Worlds live.","No se encontraron productos en los Gear Worlds activos.","Não foram encontrados produtos nos Gear Worlds ativos.","Geen producten gevonden in de live Gear Worlds.","Nuk u gjetën produkte në Gear Worlds live.","Nu s-au găsit produse în Gear Worlds live.","В активных Gear Worlds товары не найдены."],
+    // GWH-DELIVERY-BADGES (lessons L153): the words of the sites' own dictionaries ("{0} delivers to", "Worldwide").
+    deliversTo: ["{retailer} delivers to","Το {retailer} παραδίδει σε","{retailer} liefert nach","{retailer} livre vers","{retailer} spedisce in","{retailer} envía a","{retailer} envia para","{retailer} levert naar","{retailer} dërgon në","{retailer} livrează în","{retailer} доставляет в"],
+    worldwide: ["Worldwide","Παγκοσμίως","Weltweit","Monde entier","Tutto il mondo","Todo el mundo","Todo o mundo","Wereldwijd","Mbarë botën","Toată lumea","По всему миру"],
     productsFound: ["{count} products found across {worlds} active Gear World sites.","Βρέθηκαν {count} προϊόντα σε {worlds} ενεργά Gear World sites.","{count} Produkte auf {worlds} aktiven Gear World Sites gefunden.","{count} produits trouvés sur {worlds} sites Gear World actifs.","Trovati {count} prodotti su {worlds} siti Gear World attivi.","Se encontraron {count} productos en {worlds} sitios Gear World activos.","Foram encontrados {count} produtos em {worlds} sites Gear World ativos.","{count} producten gevonden op {worlds} actieve Gear World-sites.","U gjetën {count} produkte në {worlds} faqe aktive Gear World.","Au fost găsite {count} produse pe {worlds} site-uri Gear World active.","Найдено {count} товаров на {worlds} активных сайтах Gear World."]
   };
 
@@ -218,6 +228,17 @@
       "Показано {count} результатов по запросу «{query}»"
     ],
 
+    // GWH-UNDERSTAND-V1 (Idea 9, lessons L180): the line above the results when a search typed as a sentence was read.
+    understoodLabel: ["Searching for:","Ψάχνουμε:","Suche nach:","Recherche :","Ricerca:","Buscando:","A pesquisar:","Zoeken naar:","Po kërkojmë:","Căutăm:","Ищем:"],
+    priceUnder: ["under {price}","έως {price}","bis {price}","jusqu'à {price}","fino a {price}","hasta {price}","até {price}","tot {price}","deri në {price}","până la {price}","до {price}"],
+    priceOver: ["over {price}","από {price}","ab {price}","à partir de {price}","da {price}","desde {price}","a partir de {price}","vanaf {price}","nga {price}","de la {price}","от {price}"],
+    priceBetween: ["{min} – {max}","{min} – {max}","{min} – {max}","{min} – {max}","{min} – {max}","{min} – {max}","{min} – {max}","{min} – {max}","{min} – {max}","{min} – {max}","{min} – {max}"],
+    forKids: ["for kids","για παιδιά","für Kinder","pour enfants","per bambini","para niños","para crianças","voor kinderen","për fëmijë","pentru copii","для детей"],
+    forWomen: ["for women","για γυναίκες","für Frauen","pour femmes","per donne","para mujeres","para mulheres","voor vrouwen","për gra","pentru femei","для женщин"],
+    forMen: ["for men","για άνδρες","für Männer","pour hommes","per uomini","para hombres","para homens","voor mannen","për burra","pentru bărbați","для мужчин"],
+    forPets: ["for pets","για κατοικίδια","für Haustiere","pour animaux","per animali","para mascotas","para animais de estimação","voor huisdieren","për kafshët shtëpiake","pentru animale de companie","для питомцев"],
+    searchExactly: ["Search exactly for “{query}”","Αναζήτηση ακριβώς για «{query}»","Genau nach „{query}“ suchen","Rechercher exactement « {query} »","Cerca esattamente “{query}”","Buscar exactamente «{query}»","Pesquisar exatamente “{query}”","Precies zoeken op “{query}”","Kërko saktësisht “{query}”","Caută exact „{query}”","Искать точно «{query}»"],
+
     searchUnavailable: [
       "Product search is temporarily unavailable.",
       "Η αναζήτηση προϊόντων δεν είναι προσωρινά διαθέσιμη.",
@@ -261,10 +282,19 @@
     ]
   });
 
-  let currentLocale = localStorage.getItem("gwh-language");
+  let currentLocale = null;
+  try { currentLocale = localStorage.getItem("gwh-language"); } catch (_) { currentLocale = null; }
 
-  if (!LOCALES.includes(currentLocale)) {
-    currentLocale = "en-GB";
+  // Lessons L175: without a language of their own, the visitor gets the language of their country, which the Worker
+  // names on <html data-country-lang>; it is saved only when the visitor picks a language in the menu. Before L175 this
+  // page saved "en-GB" on every visit, so a saved English counts as a choice only with the mark the menu sets.
+  let chosenMark = false;
+  try { chosenMark = localStorage.getItem("gwh-language-chosen") === "1"; } catch (_) { chosenMark = false; }
+  let chosenLocale = LOCALES.includes(currentLocale) && (currentLocale !== "en-GB" || chosenMark);
+  if (!chosenLocale) {
+    const root = document.documentElement;
+    const byCountry = root && root.getAttribute ? root.getAttribute("data-country-lang") : "";
+    currentLocale = LOCALES.includes(byCountry) ? byCountry : "en-GB";
   }
 
   const localeIndex = () => {
@@ -290,11 +320,11 @@
     if (el) el.textContent = tr(key);
   }
 
-  function applyLanguage(locale) {
+  function applyLanguage(locale, save = true) {
     if (!LOCALES.includes(locale)) locale = "en-GB";
 
     currentLocale = locale;
-    localStorage.setItem("gwh-language", locale);
+    if (save) { try { localStorage.setItem("gwh-language", locale); } catch (_) { /* private mode */ } }
 
     document.documentElement.lang = locale;
 
@@ -316,6 +346,13 @@
 
     setText('.main-nav a[href="#worlds"]', "navWorlds");
     setText('.main-nav a[href="/about/"]', "navAbout");
+    setText('.footer-legal a[href="/privacy/"]', "footPrivacy");
+    setText('.footer-legal a[href="/cookies/"]', "footCookies");
+    setText('.footer-legal a[href="/terms/"]', "footTerms");
+    setText('.footer-legal a[href="/affiliate-disclosure/"]', "footDisclosure");
+    setText('.footer-legal a[href="/contact/"]', "footContact");
+    const footLegal = document.querySelector(".footer-legal");
+    if (footLegal) footLegal.setAttribute("aria-label", tr("footLegal"));
 
     setText(".hero-copy > .eyebrow", "heroEyebrow");
 
@@ -483,6 +520,34 @@
 
   window.GWH_t = tr;
   window.GWH_getLocale = () => currentLocale;
+
+  // GWH-DELIVERY-BADGES (lessons L151, L153): "<retailer> delivers to: <countries>" under every product card of the
+  // search, the gift finder and the photo search, from the site's own delivery countries (delivers_to of /api/search).
+  // The retailer name stays untranslated (translate="no"); the country names come from the browser in the visitor's
+  // language (Intl.DisplayNames), at most 3, then "+n". Nothing when the site did not say where the retailer delivers.
+  const escHtml = s => String(s === null || s === undefined ? "" : s)
+    .replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+  const EN_REGIONS = { GB: "United Kingdom", EU: "European Union", US: "United States" };
+  function regionName(code) {
+    try {
+      const n = new Intl.DisplayNames([currentLocale, "en-GB"], { type: "region" }).of(code);
+      if (n && n !== code) return n;
+    } catch (_) { /* a browser without Intl.DisplayNames */ }
+    return EN_REGIONS[code] || code;
+  }
+  function deliveryHtml(product) {
+    const codes = Array.isArray(product && product.delivers_to)
+      ? product.delivers_to.map(String).filter(c => /^(?:[A-Z]{2}|WORLD)$/.test(c))
+      : [];
+    const retailer = String((product && product.retailer) || "").trim();
+    if (!codes.length || !retailer) return "";
+    const world = codes.includes("WORLD");
+    const names = world ? [tr("worldwide")] : codes.slice(0, 3).map(regionName);
+    const more = world ? 0 : codes.length - 3;
+    const label = escHtml(tr("deliversTo")).replace("{retailer}", `<span translate="no">${escHtml(retailer)}</span>`);
+    return `<div class="gwh-search-ship" data-ship="${escHtml(world ? "WORLD" : codes.join(" "))}">${label}: ${names.map(escHtml).join(", ")}${more > 0 ? ` +${more}` : ""}</div>`;
+  }
+  window.GWH_deliveryHtml = deliveryHtml;
   window.GWH_applyLanguage = applyLanguage;
 
   const selector = document.getElementById("gwhLanguage");
@@ -490,10 +555,14 @@
   if (selector) {
     selector.addEventListener("change", event => {
       applyLanguage(event.target.value);
+      chosenLocale = true;
+      try { localStorage.setItem("gwh-language-chosen", "1"); } catch (_) { /* private mode */ }
     });
   }
 
-  applyLanguage(currentLocale);
+  // L174/L175: hub-v2.js passes the language to the sites only when the visitor chose it.
+  window.GWH_languageChosen = () => chosenLocale;
+  applyLanguage(currentLocale, chosenLocale);
 })();
 
 /* GWH-COMPACT-V2-TRANSLATIONS-START */

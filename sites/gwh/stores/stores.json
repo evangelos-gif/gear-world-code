@@ -1,0 +1,202 @@
+{
+  "_about": "Stores section of the Hub (owner's option B, 16 Nov 2026, lessons L166). tools/gwh-stores.mjs turns this file into public/stores/. The sites of each retailer are in order of how many of its products each site lists (GET of every site's /api/products with retailer= and deliver_to=, 16 Nov 2026); a site with fewer than 20 is left out. Codes and sales are the ones the sites show on their /discount-codes/ pages (GET, UK view, 16 Nov 2026), with their end dates. A banner goes in only after the Manager has checked its picture (no percentages, no previous prices, a code or date that is still valid) and has an end date.",
+  "checked": "2026-11-16",
+  "countries": {
+    "GB": "the United Kingdom",
+    "PL": "Poland"
+  },
+  "retailers": [
+    {
+      "slug": "joybuy",
+      "name": "Joybuy",
+      "about": "Fashion, technology, home, kids' and pet products.",
+      "deliversTo": [
+        "GB"
+      ],
+      "sites": [
+        "wgw",
+        "tgw",
+        "mgw",
+        "hgw",
+        "kgw",
+        "zgw",
+        "sgw",
+        "agw",
+        "pgw",
+        "vgw",
+        "cgw",
+        "bgw"
+      ],
+      "offers": [
+        {
+          "kind": "sale",
+          "title": "Household & Cleaning",
+          "site": "hgw",
+          "end": "2026-12-31"
+        },
+        {
+          "kind": "sale",
+          "title": "Home & Living & Pet",
+          "site": "hgw",
+          "end": "2026-12-31"
+        },
+        {
+          "kind": "sale",
+          "title": "Hotpot & Asian Food",
+          "site": "hgw",
+          "end": "2026-12-31"
+        },
+        {
+          "kind": "sale",
+          "title": "Baby",
+          "site": "kgw",
+          "end": "2026-12-31"
+        }
+      ],
+      "banner": null
+    },
+    {
+      "slug": "tooled-up",
+      "name": "Tooled Up",
+      "about": "Power tools, hand tools, garden tools and garage equipment.",
+      "deliversTo": [
+        "GB"
+      ],
+      "sites": [
+        "cgw",
+        "agw",
+        "ggw",
+        "bgw"
+      ],
+      "offers": [
+        {
+          "kind": "code",
+          "code": "CLAIMFIFTY",
+          "title": "£50 off when you spend £500",
+          "site": "cgw",
+          "end": "2026-12-06"
+        },
+        {
+          "kind": "code",
+          "code": "CLAIMSEVFY",
+          "title": "£75 off when you spend £750",
+          "site": "cgw",
+          "end": "2026-12-06"
+        }
+      ],
+      "banner": null
+    },
+    {
+      "slug": "pchub-uk",
+      "name": "PCHUB.UK",
+      "about": "Computer parts, laptops, monitors and gaming hardware.",
+      "deliversTo": [
+        "GB"
+      ],
+      "sites": [
+        "tgw",
+        "pgw"
+      ],
+      "offers": [],
+      "banner": null
+    },
+    {
+      "slug": "gs-workwear",
+      "name": "GS Workwear",
+      "about": "Workwear, safety footwear and protective clothing.",
+      "deliversTo": [
+        "GB"
+      ],
+      "sites": [
+        "cgw",
+        "agw"
+      ],
+      "offers": [],
+      "banner": null
+    },
+    {
+      "slug": "back-to-the-office",
+      "name": "Back to the Office",
+      "about": "Office technology, printers, furniture and supplies.",
+      "deliversTo": [
+        "GB"
+      ],
+      "sites": [
+        "tgw",
+        "pgw",
+        "hgw",
+        "cgw",
+        "mgw",
+        "wgw"
+      ],
+      "offers": [],
+      "banner": null
+    },
+    {
+      "slug": "my-tool-shed",
+      "name": "My Tool Shed",
+      "about": "Tools, workshop and garden equipment.",
+      "deliversTo": [
+        "GB"
+      ],
+      "sites": [
+        "cgw",
+        "ggw"
+      ],
+      "offers": [
+        {
+          "kind": "code",
+          "code": "CLAIMFIFTY",
+          "title": "£50 off when you spend £500",
+          "site": "cgw",
+          "end": "2026-12-06"
+        },
+        {
+          "kind": "code",
+          "code": "CLAIMSEVFY",
+          "title": "£75 off when you spend £750",
+          "site": "cgw",
+          "end": "2026-12-06"
+        }
+      ],
+      "banner": null
+    },
+    {
+      "slug": "dhgate",
+      "name": "DHgate",
+      "about": "Kids' winter boots.",
+      "deliversTo": [
+        "GB"
+      ],
+      "sites": [
+        "kgw"
+      ],
+      "offers": [],
+      "banner": null
+    },
+    {
+      "slug": "aliexpress-pl",
+      "name": "AliExpress PL",
+      "about": "Car parts, technology, home, tools, kids' products and more, with prices in złoty.",
+      "deliversTo": [
+        "PL"
+      ],
+      "sites": [
+        "agw",
+        "tgw",
+        "hgw",
+        "cgw",
+        "kgw",
+        "sgw",
+        "bgw",
+        "wgw",
+        "ggw",
+        "pgw",
+        "zgw",
+        "mgw"
+      ],
+      "offers": [],
+      "banner": null
+    }
+  ]
+}

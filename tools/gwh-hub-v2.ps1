@@ -62,7 +62,8 @@
   hub-v2.css, hub-v2.js and translations.js. worker.js does not change. Phrases of that release: ΕΓΚΡΙΝΩ HUB WORDING
   PREVIEW / LIVE (live since 7/11/2026 21:54, 5842265).
   Clean-up after the appeal (lessons L103): the affiliate disclosure and privacy say what is there (the Hub links only to
-  the Gear World sites and has no affiliate links; the retailer links of the sites go through Awin), contact says
+  the Gear World sites and has no affiliate links, true until L121 of 14/11/2026; since L176 they name that one Sovrn
+  link; the retailer links of the sites go through Awin), contact says
   "business enquiries", terms say who runs Gear World, the 3 changed legal pages get a new "Last updated"; the deals
   slides (Halloween, Black Friday, the winter slide) speak of the retailers' codes only while one runs, otherwise they
   show the sign-up text and button; the winter slide is "After Christmas across 13 Gear Worlds"; the Greek "partner
@@ -107,8 +108,101 @@
   24-26 Oct, so "Check price and stock at the retailer" and later a notice) are replaced by similar products of the
   same site checked on 8-9 Nov. worker.js, the other pages and the D1 do not change. The guard now stops the live step
   on a PRICE line too (another price in guides.json than on the site, exit 20), like a NOTICE; OLD stays a warning.
-  Phrases of this release: ΕΓΚΡΙΝΩ HUB GUIDE PRICES PREVIEW, then ΕΓΚΡΙΝΩ HUB GUIDE PRICES LIVE together with
-  remove-preview (ΕΓΚΡΙΝΩ HUB REMOVE PREVIEW) in the same paste.
+  Phrases of that release: ΕΓΚΡΙΝΩ HUB GUIDE PRICES PREVIEW, then ΕΓΚΡΙΝΩ HUB GUIDE PRICES LIVE together with
+  remove-preview (ΕΓΚΡΙΝΩ HUB REMOVE PREVIEW) in the same paste (live since 09/11/2026 21:46).
+  Mitgo verification and guide prices (lessons L119, 13/11/2026): worker.js adds <meta name="mitgo-verification"
+  content="<code>"> at the end of the <head> of the home page while the Worker secret MITGO_VERIFICATION has a code of
+  that form. The code has the form of a UUID, so it is never in the repo: -MitgoCode '<code>' sets it, on the test Worker
+  in the preview step and on gear-world-hub in the live step, right before the deploy (it stays for later deploys).
+  The gift guides get the prices their sites showed on 13/11 (8 Joybuy products had other prices) and the day each
+  product was last checked there. -AfterPreview (live step): goes on only when the newest preview report is of this code
+  version, from the last 2 hours, ended ΕΤΟΙΜΟ and has no ΠΡΟΒΛΗΜΑ, so preview, live and remove-preview can be in one
+  paste. Phrases of that release, in this order: ΕΓΚΡΙΝΩ HUB MITGO PREVIEW, ΕΓΚΡΙΝΩ HUB MITGO LIVE, ΕΓΚΡΙΝΩ HUB REMOVE
+  PREVIEW (live since 13/11/2026 22:50).
+  Sovrn Commerce (lessons L121, 14/11/2026): the home page gets ONE product link of Sovrn Commerce, for the approval of
+  gearworldhub.com there: a «Featured pick» card (STRAUSS e.s. S3 safety boots Okomu mid, engelbert-strauss.co.uk) with
+  rel="sponsored nofollow noopener", the words «Affiliate link» and the commission note like the product links of the
+  sites. No Sovrn script (it would rewrite links, Awin and CJ too). The checks here count the link and its rel, and never
+  open it: Sovrn counts only real clicks of visitors. Phrases of that release, in this order: ΕΓΚΡΙΝΩ HUB SOVRN PREVIEW,
+  ΕΓΚΡΙΝΩ HUB SOVRN LIVE, ΕΓΚΡΙΝΩ HUB REMOVE PREVIEW (live since 14/11/2026 16:50).
+  Impact verification (lessons L150, 14/11/2026): worker.js adds <meta name='impact-site-verification' value='<code>'>,
+  exactly as Impact gives it (single quotes, value=), after the Mitgo tag at the end of the <head> of the home page, while
+  the Worker secret IMPACT_VERIFICATION has a code of that form. A UUID, so never in the repo: -ImpactCode '<code>' sets
+  it on the test Worker (preview) and on gear-world-hub right before the deploy (live); it stays for later deploys. The
+  Mitgo tag stays as it is. Phrases of that release, in this order: ΕΓΚΡΙΝΩ HUB IMPACT PREVIEW, ΕΓΚΡΙΝΩ HUB IMPACT LIVE,
+  ΕΓΚΡΙΝΩ HUB REMOVE PREVIEW (one paste, live with -AfterPreview; live since 14/11/2026 18:48). Exit codes 21 and 22 as
+  for -MitgoCode. -ImpactCode is not needed again: the secret stays for later deploys.
+  Delivery badges (lessons L153, 14/11/2026, after the open-country rule of the sites, L151): every product card of the
+  Hub (search, gift finder, photo search) says "<retailer> delivers to: <countries>", from the delivery countries each
+  site gives (/api/products delivers_to), the retailer name untranslated, the country names in the visitor's language.
+  worker.js asks every site with badges=1, so a visitor from a country that is not open sees all the products there, as
+  on the sites; a site of before L151 ignores it and answers as before (no line on its cards). New ?v= for the 4 changed
+  scripts in index.html. Phrases of this release, in this order: ΕΓΚΡΙΝΩ HUB BADGES PREVIEW, ΕΓΚΡΙΝΩ HUB BADGES LIVE,
+  ΕΓΚΡΙΝΩ HUB REMOVE PREVIEW (one paste, live with -AfterPreview).
+  Stores (owner's option B, lessons L166, 16/11/2026): a new section of the Hub instead of a new site. /stores/ lists
+  big retailers (Joybuy, AliExpress PL, Tooled Up, PCHUB.UK, GS Workwear, Back to the Office, My Tool Shed, DHgate) by the
+  country they deliver to, and /stores/<slug>/ shows, per retailer, where it delivers, its codes and sales with their
+  end dates, and the Gear World sites that list its products (each site's search filtered by the retailer, ?for=pl for a
+  retailer that delivers only to Poland). Made by tools/gwh-stores.mjs from sites/gwh/stores/stores.json, like the
+  gift guides; links only to Gear World pages (never /out/, /go/ or a retailer), so the Hub has no new affiliate link.
+  The home page gets a 14th card «Stores» after the 13 worlds (own classes, so the 13 world cards stay as they are;
+  texts in 11 languages in hub-v2.js; the picture hub-stores.jpg is the photos of 4 world cards). The banner place on
+  a retailer page stays empty until a banner is checked. worker.js, translations.js, the D1 and gwh-sitemap do not change.
+  Phrases of this release, in this order: ΕΓΚΡΙΝΩ HUB STORES PREVIEW, ΕΓΚΡΙΝΩ HUB STORES LIVE, ΕΓΚΡΙΝΩ HUB REMOVE
+  PREVIEW (one paste, live with -AfterPreview). The live check opens /stores/ and the 8 store pages. The preview
+  reports and the live step refuses (exit 24) while a code or sale of stores.json has ended on the UK day
+  (node tools/gwh-stores.mjs validate): the titles and counts of the pages would still name it.
+  Live since 16/11/2026 20:12 (88e65d5).
+  Search model (lessons L173, 17/11/2026): Cloudflare retires @cf/meta/llama-3.1-8b-instruct-fp8 on 20/11/2026 (404
+  model_not_found after that). worker.js translated a foreign search with it (and retried an English one with no
+  result); both now use the model of the photo search, @cf/google/gemma-4-26b-a4b-it, without thinking, from
+  photo-search.js (TEXT_MODEL, translationInput, answerText: the answer in any shape, one line only). The pages, the
+  D1, translations.js and gwh-sitemap do not change. Phrases of this release, in this order: ΕΓΚΡΙΝΩ HUB AI PREVIEW,
+  ΕΓΚΡΙΝΩ HUB AI LIVE, ΕΓΚΡΙΝΩ HUB REMOVE PREVIEW (one paste, live with -AfterPreview), before 20/11/2026.
+  Language (lessons L174, 17/11/2026, from Linkwise's review): the «Featured pick» card was English on every language of
+  the Hub, and the world cards opened the sites in English (each site keeps its own language). hub-v2.js now has the
+  card's texts in the 11 languages (the retailer and its website in their own translate="no", {name}) and adds
+  ?lang=<language> to a link to one of the 13 sites when it is used, only for a language the visitor chose on the Hub,
+  English included (never on /go/ or /out/); the page keeps the plain addresses. Same release and phrases as L173.
+  Country language (lessons L175, owner 17/11/2026: "every country opens in its own language"): worker.js names the
+  language of the visitor's country on <html data-country-lang> of the home page and /about/ (the same countries as the sites, in
+  the 11 languages of the Hub; Belgium, Switzerland, Luxembourg by the browser; never for Google, never on a stored
+  copy, never for a crawler); translations.js and about.js use it only without a choice of the visitor's own and do
+  not save it (an en-GB saved before L175 is a choice only with the menu's mark gwh-language-chosen). The live checks of
+  this tool and of gwh-mailerlite, gwh-photo, gwh-search-labels and poster-setup take the mark out before comparing.
+  Legal pages (lessons L176, owner 17/11/2026): privacy, cookies, terms, affiliate disclosure and contact (and the
+  footer of /about/) in the 11 languages: legal.js loads public/legal/i18n/<language>.json (each block by its English
+  HTML, the same links and tags) for pages with <html data-lg-i18n>, with a note that the English text applies; the
+  Worker names the country language on those pages too. The affiliate disclosure, privacy, cookies and /about/ name the
+  one affiliate link of the Hub itself, the "Featured pick" card (Sovrn Commerce, L121), in the 11 languages, with the
+  Sovrn privacy policy (until then they said "The Hub itself has no affiliate links"); the footer of the home page is
+  in the 11 languages too, and so are the campaign names of the deals (from the dictionary of the deal's site, made
+  by tools/gwh-deals.mjs as campaignNames).
+  Search order (lessons L177, 17/11/2026): the Hub orders the answers of the 13 sites with rankHubResults (worker.js):
+  what the product IS (subcategory, category, the retailer's path) first, then whole words of its name; accessories and
+  look-alikes go down unless asked for. Test-Site makes 13 searches for a UK visitor (?country=GB): one of the first 3
+  results must come from the Gear World that sells it; 2 or more wrong orders, or the Hub's search failing twice, are a
+  ΠΡΟΒΛΗΜΑ, so -AfterPreview stops the live; a Gear World that does not answer twice is a ΠΡΟΣΟΧΗ (L74). The full list
+  of 65 searches: node tools/gwh-search-check.mjs (--replay before a deploy).
+  Live since 17/11/2026 18:39 (ec76e012, L174-L177, phrases ΕΓΚΡΙΝΩ HUB AI PREVIEW / LIVE / REMOVE PREVIEW).
+  A search typed as a sentence (Idea 9 phase 1, lessons L180, owner's ΕΓΚΡΙΝΩ ΙΔΕΑ 9 ΦΑΣΗ 1 of 17/11/2026): worker.js
+  reads "i want to buy a tablet for my son under £200" first with rules that cost nothing (understandQuery: the words
+  around the product go, a price phrase becomes max/min, "for my son / for her / for my dog" pushes kgw / wgw / mgw / zgw
+  first, never a filter), and asks the search model (TEXT_MODEL, the same daily limit, never for a bot, L106) only for a
+  sentence the rules leave. A price written in a currency is compared at the sites' daily rates (/api/fx). The answer has
+  "understood"; app.js shows it above the results in the 11 languages with "Search exactly for ..." (exact=1); the
+  photo search and the gift finder are as before. The privacy page says a sentence may be read by Cloudflare Workers AI
+  (11 languages, 17 November 2026). Test-Site also checks 3 sentences for a UK visitor (the tool is a bot, so rules
+  only): the product, the price limit, the Gear World named first, and a plain search stays as typed. Phrases of this
+  release, in this order: ΕΓΚΡΙΝΩ HUB SEARCH PREVIEW, ΕΓΚΡΙΝΩ HUB SEARCH LIVE, ΕΓΚΡΙΝΩ HUB REMOVE PREVIEW (one paste,
+  live with -AfterPreview). Full list: node tools/gwh-search-check.mjs --sentences.
+  Live since 17/11/2026 21:19 (1d34366c). The same phrases carry its follow-up release (the privacy date: 17 November,
+  not 20: the page went live three days early at the owner's request).
+  Release order (L175): the 13 sites go live FIRST (sites-update-all, phrase ΕΓΚΡΙΝΩ ALL UPDATES), and only after their
+  report this Hub release. Check that https://<site>/api/version of the sites is on the release with L175 first;
+  otherwise a visitor in Greece who made no choice gets a Greek Hub and English sites.
+  Exit codes added by L119: 21 the -MitgoCode has another form, 22 the code did not go into the live Worker (nothing went
+  live), 23 -AfterPreview without a clean preview report of this version (nothing changed).
   Report: <home>\gear-world-reports\GWH_HUB_V2_<STEP>_<time>.txt (also copied to the clipboard)
 #>
 param(
@@ -122,7 +216,10 @@ param(
     [string]$OutDir = '',
     [switch]$SkipInstall,
     [switch]$NoClipboard,
-    [switch]$NoHttpCheck
+    [switch]$NoHttpCheck,
+    [string]$MitgoCode = '',
+    [string]$ImpactCode = '',
+    [switch]$AfterPreview
 )
 
 $ErrorActionPreference = 'Stop'
@@ -130,8 +227,8 @@ $repo = Split-Path -Parent $PSScriptRoot
 $HubWorker = 'gear-world-hub'
 $PreviewName = 'gear-world-hub-preview'
 $DbName = 'gear-world-registry'
-$PhrasePreview = 'ΕΓΚΡΙΝΩ HUB GUIDE PRICES PREVIEW'
-$PhraseLive = 'ΕΓΚΡΙΝΩ HUB GUIDE PRICES LIVE'
+$PhrasePreview = 'ΕΓΚΡΙΝΩ HUB SEARCH PREVIEW'
+$PhraseLive = 'ΕΓΚΡΙΝΩ HUB SEARCH LIVE'
 $PhraseRegister = 'ΕΓΚΡΙΝΩ HUB ZGW SEARCH'
 $PhraseRemovePreview = 'ΕΓΚΡΙΝΩ HUB REMOVE PREVIEW'
 $LiveUrl = 'https://gearworldhub.com'
@@ -154,37 +251,71 @@ $Bad = 'Magenta'
 
 # What each file of the change does, in the words of the report.
 $About = @{
-    'worker.js'             = 'αναζήτηση: κάθε site παίρνει τη χώρα του επισκέπτη (?deliver_to=, GB όταν είναι άγνωστη ή crawler της Google) και δείχνει μόνο καταστήματα που παραδίδουν εκεί, η απάντηση private· εκτός ΗΒ η μπάρα «We''re adding retailers for your country» πάνω από την κεφαλίδα της αρχικής (L107)· η μετάφραση κρατιέται μία μέρα, ποτέ για bots, και τα sites παίρνουν translate=0 (L106)'
+    'worker.js' = 'η σειρά των αποτελεσμάτων της αναζήτησης με το rankHubResults: πρώτα τι είναι το προϊόν (κατηγορίες), μετά ολόκληρες λέξεις του ονόματος, αξεσουάρ πιο κάτω (GWH-RANKING-V3, L177)· η αναζήτηση μεταφράζει τις ξένες λέξεις με το μοντέλο της αναζήτησης με φωτογραφία (Gemma 4), γιατί το Cloudflare σταματά το @cf/meta/llama-3.1-8b-instruct-fp8 στις 20/11 (L173)· η αρχική σελίδα παίρνει τη γλώσσα της χώρας του επισκέπτη (<html data-country-lang>, μόνο σε κάθε απάντηση, ποτέ για το Google, L175)· όλα τα άλλα όπως είναι live'
+    'photo-search.js' = 'κρατά το μοντέλο της μετάφρασης της αναζήτησης (ίδιο με της φωτογραφίας) και διαβάζει την απάντησή του σε κάθε μορφή (L173)· η αναζήτηση με φωτογραφία δεν αλλάζει'
     'security.js'           = 'νέο αρχείο: έλεγχος Turnstile, ημερήσια όρια του δικτύου (εγγραφές, μεταφράσεις), headers (L106)'
     'mailerlite.js'         = 'η φόρμα του Hub θέλει το token του Turnstile· ημερήσιο όριο εγγραφών για όλο το δίκτυο, μικρό δικό της για την εφαρμογή (L106)'
     'members.js'            = 'η φόρμα «Get deal updates» των sites: το Hub ελέγχει το token του Turnstile κάθε site, ίδιο ημερήσιο όριο, ημερήσιο όριο μεταφράσεων για τα sites (/internal/ai-slot) (L106)'
-    'public/email-signup.js' = 'το κουτί email λέει τι στέλνει: κωδικούς που δημοσιεύουν τα καταστήματα και νέα των sites, όχι «prices we''ve checked», 11 γλώσσες (L107)· Turnstile όταν αρχίζει η φόρμα (L106)'
+    'remind.js'             = 'νέο αρχείο: «Remind me on 27 Nov» των sites (L182): πρώτα στη D1 (πίνακας remind_signups, χωριστό εργαλείο gwh-remind-d1.ps1), μετά στο MailerLite μόνο στην ομάδα «Gear World Remind me 27 Nov»· κλειστό χωρίς τον πίνακα και μετά τις 27/11· το cron σβήνει τις γραμμές από 28/11'
+    'public/email-signup.js' = 'το κουτί email λέει τι στέλνει: κωδικούς που δημοσιεύουν τα καταστήματα και νέα των sites, όχι «prices we''ve checked», 11 γλώσσες (L107)· Turnstile όταν αρχίζει η φόρμα (L106) · L182: το μικρό παράθυρο εγγραφής στην αρχική (κάτω στην οθόνη, μετά τα cookies, 30 δευτ. ή στη μέση, μία φορά τον μήνα, ποτέ μετά την εγγραφή), με τον τίτλο και τη συγκατάθεση του κουτιού'
     'poster-scan.js'        = 'η μέτρηση των αφισών (ίδια με αυτή που μπήκε με το POSTER STATS)'
-    'public/index.html'     = 'το κείμενο του κουτιού email χωρίς «prices we''ve checked», νέο ?v= για hub-v2.css και hub-v2.js (L107)· η θέση του Turnstile στη φόρμα (L106)'
-    'public/about/index.html' = 'νέα σελίδα /about/: «Run by Evangelos Kalogerakis, United Kingdom», ότι δεν πουλάμε, δεν παίρνουμε πληρωμές, δεν κάνουμε παραδόσεις, contact@gearworldhub.com (νέο αρχείο, L101)'
-    'public/about/about.js' = 'η σελίδα /about/ στη γλώσσα που διάλεξε ο επισκέπτης, 11 γλώσσες (νέο αρχείο, L101)'
-    'public/privacy/index.html' = 'τα links των sites περνούν από το Awin ή το CJ, με την πολιτική απορρήτου και των δύο· «Last updated: 9 November 2026» (L107)'
-    'public/cookies/index.html' = 'τα cookies του affiliate network: «Awin, or for a few retailers CJ»· «Last updated: 9 November 2026» (L107)· νέα γραμμή στο footer και link «About» (L101)'
-    'public/affiliate-disclosure/index.html' = 'τα κουμπιά των sites περνούν από ένα affiliate network: Awin, ή για λίγα καταστήματα CJ· «Last updated: 9 November 2026» (L107)'
-    'public/hub-v2.css'     = 'η εμφάνιση της μπάρας για επισκέπτες εκτός ΗΒ: μπλε με πορτοκαλί γραμμή, πάνω από την κεφαλίδα (L107)· η κλάση του καταστήματος στις προσφορές λέγεται gwh2-deal-retailer (όχι «shop») (L103)'
-    'public/hub-v2.js'      = 'το κείμενο της μπάρας εκτός ΗΒ σε 11 γλώσσες· οι εκπτώσεις λένε «Sale» και την καμπάνια, χωρίς «Up to n% off» (L107)· οι εποχές μόνο με τον διακόπτη τους από το promos.js: Black Friday (αντίστροφη μέτρηση και «Black Friday is coming») ΚΛΕΙΣΤΗ μέχρι να την ανοίξει ο ιδιοκτήτης, τίποτα δεν ανοίγει μόνο από ημερομηνία (L107)'
+    'public/index.html' = 'η κάρτα «Featured pick» παίρνει τα κείμενά της από το hub-v2.js (11 γλώσσες) και νέο ?v= για το hub-v2.js (L174, L31)· όλα τα άλλα όπως είναι live · L182: νέο ?v= για το email-signup.js και το hub-v2.css (το μικρό παράθυρο εγγραφής) · L188: link «Black Friday, 27 Nov: dates and discount codes» στη σελίδα /black-friday/ · L192: η μπάρα «Mega Stores» στην κορυφή, πάνω από την αναζήτηση: ένα απλό link στο https://megastoresgearworld.com/ (όχι affiliate), τα 8 καταστήματα περνούν κυλώντας (Amazon και DHgate μόνο κείμενο, τα άλλα 6 με το δικό τους λογότυπο), νέο ?v= για το hub-v2.css και το hub-v2.js· η κάρτα «Stores» και οι 13 κάρτες κόσμων όπως είναι'
+    'public/legal/i18n/el-GR.json' = 'νέο αρχείο: τα κείμενα των νομικών σελίδων στα el-GR για το legal.js (L176) · L182: οι νέες γραμμές του απορρήτου και των cookies (μικρό παράθυρο, Remind me) και «Last updated: 18 November 2026»'
+    'public/legal/i18n/de-DE.json' = 'νέο αρχείο: τα κείμενα των νομικών σελίδων στα de-DE για το legal.js (L176) · L182: οι νέες γραμμές του απορρήτου και των cookies (μικρό παράθυρο, Remind me) και «Last updated: 18 November 2026»'
+    'public/legal/i18n/fr-FR.json' = 'νέο αρχείο: τα κείμενα των νομικών σελίδων στα fr-FR για το legal.js (L176) · L182: οι νέες γραμμές του απορρήτου και των cookies (μικρό παράθυρο, Remind me) και «Last updated: 18 November 2026»'
+    'public/legal/i18n/it-IT.json' = 'νέο αρχείο: τα κείμενα των νομικών σελίδων στα it-IT για το legal.js (L176) · L182: οι νέες γραμμές του απορρήτου και των cookies (μικρό παράθυρο, Remind me) και «Last updated: 18 November 2026»'
+    'public/legal/i18n/es-ES.json' = 'νέο αρχείο: τα κείμενα των νομικών σελίδων στα es-ES για το legal.js (L176) · L182: οι νέες γραμμές του απορρήτου και των cookies (μικρό παράθυρο, Remind me) και «Last updated: 18 November 2026»'
+    'public/legal/i18n/pt-PT.json' = 'νέο αρχείο: τα κείμενα των νομικών σελίδων στα pt-PT για το legal.js (L176) · L182: οι νέες γραμμές του απορρήτου και των cookies (μικρό παράθυρο, Remind me) και «Last updated: 18 November 2026»'
+    'public/legal/i18n/nl-NL.json' = 'νέο αρχείο: τα κείμενα των νομικών σελίδων στα nl-NL για το legal.js (L176) · L182: οι νέες γραμμές του απορρήτου και των cookies (μικρό παράθυρο, Remind me) και «Last updated: 18 November 2026»'
+    'public/legal/i18n/sq-AL.json' = 'νέο αρχείο: τα κείμενα των νομικών σελίδων στα sq-AL για το legal.js (L176) · L182: οι νέες γραμμές του απορρήτου και των cookies (μικρό παράθυρο, Remind me) και «Last updated: 18 November 2026»'
+    'public/legal/i18n/ro-RO.json' = 'νέο αρχείο: τα κείμενα των νομικών σελίδων στα ro-RO για το legal.js (L176) · L182: οι νέες γραμμές του απορρήτου και των cookies (μικρό παράθυρο, Remind me) και «Last updated: 18 November 2026»'
+    'public/legal/i18n/ru-RU.json' = 'νέο αρχείο: τα κείμενα των νομικών σελίδων στα ru-RU για το legal.js (L176) · L182: οι νέες γραμμές του απορρήτου και των cookies (μικρό παράθυρο, Remind me) και «Last updated: 18 November 2026»'
+    'public/legal/legal.js' = 'και τα ονόματα των δύο μενού για αναγνώστες οθόνης (aria-label, L176)· οι νομικές σελίδες στη γλώσσα του επισκέπτη (επιλογή του, μετά της χώρας του, μετά Αγγλικά) από τα αρχεία legal/i18n (L176)· το έτος του footer και η επιλογή cookies όπως πριν · L182: νέο VERSION 20261119-remind1 (νέα κείμενα στα λεξικά)'
+    'public/about/index.html' = 'το «Every product links…» λέει και το Sovrn Commerce της κάρτας «Featured pick» (L176, L121)· νέο ?v= για το legal.js και data-lg-i18n (L176)· νέο ?v= για το about.js (L175, L31)· νέα σελίδα /about/: «Run by Evangelos Kalogerakis, United Kingdom», ότι δεν πουλάμε, δεν παίρνουμε πληρωμές, δεν κάνουμε παραδόσεις, contact@gearworldhub.com (νέο αρχείο, L101)'
+    'public/about/about.js' = 'το ίδιο κείμενο για το Sovrn Commerce σε 11 γλώσσες (L176)· χωρίς δική του επιλογή γλώσσας ο επισκέπτης βλέπει τη σελίδα στη γλώσσα της χώρας του, όπως την αρχική (L175)· η σελίδα /about/ στη γλώσσα που διάλεξε ο επισκέπτης, 11 γλώσσες (νέο αρχείο, L101)'
+    'public/privacy/index.html' = 'το μόνο affiliate link του ίδιου του Hub, η κάρτα «Featured pick», πάει μέσω Sovrn Commerce, με link στην πολιτική απορρήτου του Sovrn (L176, L121)· στη γλώσσα του επισκέπτη μέσω legal.js (data-lg-i18n, L176), «outside the UK and the European Economic Area», νέα γραμμή «Language», «Last updated: 17 November 2026»· τα links των sites περνούν από το Awin ή το CJ, με την πολιτική απορρήτου και των δύο· «Last updated: 9 November 2026» (L107) · L182: το μικρό παράθυρο εγγραφής και το «Remind me on 27 Nov» των sites (λίστα στο Hub, ένα email στις 27/11 μέσω MailerLite, σβήνεται 28/11), «Last updated: 18 November 2026»'
+    'public/cookies/index.html' = 'το affiliate network: «Awin, CJ for a few retailers, or Sovrn Commerce for the "Featured pick" card» (L176)· στη γλώσσα του επισκέπτη μέσω legal.js (L176), νέες γραμμές gwh-language-chosen και gwh2-season-paused, «Last updated: 17 November 2026»· τα cookies του affiliate network: «Awin, or for a few retailers CJ»· «Last updated: 9 November 2026» (L107)· νέα γραμμή στο footer και link «About» (L101) · L182: νέα γραμμή gwh_popup_date, gwh_popup_done (μικρό παράθυρο εγγραφής), «Last updated: 18 November 2026»'
+    'public/affiliate-disclosure/index.html' = 'η μόνη εξαίρεση, η κάρτα «Featured pick» (Affiliate link, Sovrn Commerce), αντί για «The Hub itself has no affiliate links», «Last updated: 17 November 2026» (L176, L121)· στη γλώσσα του επισκέπτη μέσω legal.js (data-lg-i18n, L176)· τα κουμπιά των sites περνούν από ένα affiliate network: Awin, ή για λίγα καταστήματα CJ· «Last updated: 9 November 2026» (L107)'
+    'public/hub-v2.css'     = 'στο κινητό το Pets και το Stores μικρά, το ένα δίπλα στο άλλο (όπως οι άλλες κάρτες)· κάτω από 380 px εικόνα 40 px και τίτλος 13 px, ώστε το «Καταστήματα» να χωράει σε μία γραμμή (L166) · L182: η εμφάνιση του μικρού παραθύρου εγγραφής (έως 30% της οθόνης στο κινητό, πάνω από τη μπάρα αναζήτησης) · L192: η εμφάνιση της μπάρας Mega Stores: στο κινητό όσο 2 κάρτες κόσμων δίπλα-δίπλα (72 px ύψος), στον υπολογιστή όσο 7 κάρτες (όλο το πλάτος) και μισό ύψος κάρτας (145 px), οι κάρτες 7 ανά γραμμή (13 κόσμοι + Stores = 2 γραμμές), ύψους 290 px· τα ονόματα κυλούν μόνο με CSS, σταματούν όταν περνά το ποντίκι ή η εστίαση, ακίνητα με «λιγότερη κίνηση»· λογότυπα σε λευκό πλαίσιο, ποτέ τεντωμένα ή κομμένα'
+    'public/hub-v2.js' = 'το όνομα της καμπάνιας μιας προσφοράς στη γλώσσα του επισκέπτη, όπως στο λεξικό του site της (campaignNames, L176)· η κάρτα «Featured pick» σε 11 γλώσσες (το κατάστημα και το site του αμετάφραστα), και ένα link προς ένα από τα 13 sites παίρνει τη γλώσσα που διάλεξε ο επισκέπτης στο Hub (?lang=) τη στιγμή που πατιέται (L174)· όλα τα άλλα όπως είναι live · L188: τα κείμενα του link Black Friday σε 11 γλώσσες · L192: τα κείμενα της μπάρας Mega Stores σε 11 γλώσσες (megaLine, megaNames· τα ονόματα των καταστημάτων αμετάφραστα)'
+    'public/mega/joybuy.png' = 'νέο αρχείο: το επίσημο λογότυπο του Joybuy για τη μπάρα Mega Stores, όπως το δίνει το προφίλ του στο Awin, χωρίς αλλαγή (L192)'
+    'public/mega/tooled-up.png' = 'νέο αρχείο: το επίσημο λογότυπο του Tooled Up για τη μπάρα Mega Stores, όπως το δίνει το προφίλ του στο Awin, χωρίς αλλαγή (L192)'
+    'public/mega/my-tool-shed.png' = 'νέο αρχείο: το επίσημο λογότυπο του My Tool Shed για τη μπάρα Mega Stores, όπως το δίνει το προφίλ του στο Awin, χωρίς αλλαγή (L192)'
+    'public/mega/pchub-uk.png' = 'νέο αρχείο: το επίσημο λογότυπο του PCHUB.UK για τη μπάρα Mega Stores, όπως το δίνει το προφίλ του στο Awin, χωρίς αλλαγή (L192)'
+    'public/mega/gs-workwear.jpg' = 'νέο αρχείο: το επίσημο λογότυπο του GS Workwear (το λογότυπο γράφει «Goldstar Workwear») για τη μπάρα Mega Stores, όπως το δίνει το προφίλ του στο Awin, χωρίς αλλαγή (L192)'
+    'public/mega/back-to-the-office.png' = 'νέο αρχείο: το επίσημο λογότυπο του Back to the Office για τη μπάρα Mega Stores, όπως το δίνει το προφίλ του στο Awin, χωρίς αλλαγή (L192)'
+    'public/hub-stores.jpg' = 'η φωτογραφία της κάρτας «Stores»: οι φωτογραφίες 4 κόσμων μαζί (Pexels, ήδη στο Hub)'
+    'public/stores/index.html' = 'νέα σελίδα /stores/: τα μεγάλα καταστήματα ανά χώρα παράδοσης (L166)'
+    'public/stores/stores.css' = 'η εμφάνιση των σελίδων /stores/ (νέο αρχείο, L166)'
+    'public/stores/stores.js' = 'κρύβει μόνο του κωδικό, έκπτωση ή μπάνερ που έληξε (νέο αρχείο, L166)'
+    'public/black-friday/index.html' = 'νέα σελίδα /black-friday/ (L188): ημερομηνίες Black Friday 27/11 και Cyber Monday 30/11, 6 καταστήματα που ξεκίνησαν (από τα emails τους) και 9 κωδικοί/κουπόνια με λήξη, μόνο links Gear World· από 27/11 το Price Watch'
+    'public/stores/joybuy/index.html' = 'σελίδα Joybuy: UK, 4 εκπτώσεις έως 31/12, 12 sites (L166)'
+    'public/stores/aliexpress-pl/index.html' = 'σελίδα AliExpress PL: μόνο Πολωνία, 12 sites με ?for=pl (L166)'
+    'public/stores/tooled-up/index.html' = 'σελίδα Tooled Up: UK, κωδικοί CLAIMFIFTY και CLAIMSEVFY έως 6/12, 4 sites (L166)'
+    'public/stores/pchub-uk/index.html' = 'σελίδα PCHUB.UK: UK, 2 sites (L166)'
+    'public/stores/gs-workwear/index.html' = 'σελίδα GS Workwear: UK, 2 sites (L166)'
+    'public/stores/back-to-the-office/index.html' = 'σελίδα Back to the Office: UK, 6 sites (L166)'
+    'public/stores/my-tool-shed/index.html' = 'σελίδα My Tool Shed: UK, κωδικοί CLAIMFIFTY και CLAIMSEVFY έως 6/12, 2 sites (L166)'
+    'public/stores/dhgate/index.html' = 'σελίδα DHgate: UK, παιδικές μπότες στο Kids (L166)'
+    'public/gear-world-camera.js' = 'κάθε κάρτα της αναζήτησης με φωτογραφία λέει «<κατάστημα> delivers to: …» (L153)'
+    'public/app.js' = 'κάθε κάρτα της αναζήτησης λέει «<κατάστημα> delivers to: …» κάτω από το κατάστημα (L153)'
     'public/styles.css'     = 'φεύγουν οι κανόνες της κάρτας «Sell Your Business» (.gwh-business-*) και τα σχόλια «shop» (το αρχείο δεν το φορτώνει η σελίδα· μένει για τα παλιά εργαλεία) (L103)'
-    'public/contact/index.html' = '«business enquiries from retailers and affiliate networks» αντί για «partnership enquiries» (L103)'
+    'public/contact/index.html' = 'στη γλώσσα του επισκέπτη μέσω legal.js (data-lg-i18n, L176)· «business enquiries from retailers and affiliate networks» αντί για «partnership enquiries» (L103)'
     'public/guides/guides.css' = 'η εμφάνιση των οδηγών δώρων: «RRP» αντί για διαγραμμένη τιμή και «n% below» (L107)'
-    'public/guides/index.html' = 'οι οδηγοί δώρων: «Prices checked between 31 Oct 2026 and 9 Nov 2026» και οι νέοι τίτλοι με το σωστό εύρος τιμών (L109)'
-    'public/guides/christmas-gifts-for-him/index.html' = 'οδηγός δώρων για εκείνον: 11 νέα προϊόντα ελεγμένα 8-9/11 στη θέση των Coes (χωρίς έλεγχο τιμής από 26/10), τιμές ίδιες με του Men''s Gear World (L109)'
-    'public/guides/christmas-gifts-for-her/index.html' = 'οδηγός δώρων για εκείνη: 10 νέα προϊόντα ελεγμένα 9/11 στη θέση των Coes και του Bazta UK, τιμές ίδιες με του Women''s Gear World (L109)'
-    'public/guides/christmas-gifts-for-kids/index.html' = 'οδηγός δώρων για παιδιά: 10 νέα παιχνίδια ελεγμένα 9/11 στη θέση των Bazta UK και των παλιών Joybuy, οι 2 LEGO με τη σωστή τιμή (£79.99, £44.99) (L109)'
-    'public/guides/christmas-gifts-for-diy-lovers/index.html' = 'οδηγός δώρων για μάστορες: το Makita με τη σωστή τιμή (£155.95 και στα δύο καταστήματα), νέο σετ σκαρπέλων Stanley, όλα ελεγμένα 9/11 (L109)'
-    'public/guides/christmas-gifts-for-travellers/index.html' = 'οδηγός δώρων για ταξιδιώτες: ίδια προϊόντα και τιμές, μόνο οι νέοι τίτλοι των άλλων οδηγών στο «More gift guides» (L109)'
-    'public/translations.js' = 'στα ελληνικά «από το κατάστημα» αντί για «συνεργαζόμενα καταστήματα», στα γαλλικά «couchages» αντί για «paniers», «retailer» μεταφρασμένο σε 7 γλώσσες, ονόματα κλειδιών χωρίς «shop» (L103)'
+    'public/guides/index.html' = 'οι οδηγοί δώρων: «Prices checked between 8 Nov 2026 and 11 Nov 2026», «for him, from £21», «for her, from £12» (L119)'
+    'public/guides/christmas-gifts-for-him/index.html' = 'οδηγός δώρων για εκείνον: Wahl £21.88 (ήταν £23.03), σακίδιο Calvin Klein £64.78 (ήταν £71.00), όπως τα δείχνει το Men''s Gear World στις 13/11· νέες ημερομηνίες ελέγχου (L119)'
+    'public/guides/christmas-gifts-for-her/index.html' = 'οδηγός δώρων για εκείνη: Olaplex £12.50 (ήταν £15.00), Christian Louboutin £60.50 (ήταν £54.52), όπως τα δείχνει το Women''s Gear World στις 13/11· νέες ημερομηνίες ελέγχου (L119)'
+    'public/guides/christmas-gifts-for-kids/index.html' = 'οδηγός δώρων για παιδιά: LEGO DUPLO £26.24, K''NEX £24.49, COBI £26.79, LEGO Technic £32.50, όπως τα δείχνει το Kids'' Gear World στις 13/11· νέες ημερομηνίες ελέγχου (L119)'
+    'public/guides/christmas-gifts-for-diy-lovers/index.html' = 'οδηγός δώρων για μάστορες: ίδιες τιμές, ελεγμένες 11/11, και οι νέοι τίτλοι των άλλων οδηγών στο «More gift guides» (L119)'
+    'public/guides/christmas-gifts-for-travellers/index.html' = 'οδηγός δώρων για ταξιδιώτες: ίδιες τιμές, ελεγμένες 10/11, και οι νέοι τίτλοι των άλλων οδηγών στο «More gift guides» (L119)'
+    'public/translations.js' = 'τα νομικά links του footer της αρχικής σε 11 γλώσσες, με τις λέξεις των νομικών σελίδων (L176)· χωρίς δική του επιλογή γλώσσας ο επισκέπτης βλέπει τη γλώσσα της χώρας του, χωρίς να αποθηκεύεται (L175)· οι λέξεις «<κατάστημα> delivers to» και «Worldwide» σε 11 γλώσσες και η γραμμή παράδοσης κάθε κάρτας (το όνομα του καταστήματος αμετάφραστο, οι χώρες στη γλώσσα του επισκέπτη, έως 3 και «+n») (L153)'
     'public/robots.txt'     = 'robots.txt του Hub: πρώτα «User-agent: SERankingBacklinksBot» με «Disallow: /» (L105), από κάτω ίδιο όπως ήταν, με τη γραμμή Sitemap: https://gearworldhub.com/sitemap.xml (το Cloudflare βάζει από πάνω τα Content Signals του)'
     'public/gearworldhub-indexnow-k7q4m9x2w5.txt' = 'το κλειδί του IndexNow (δημόσιο, έτσι δουλεύει το IndexNow)'
-    'public/terms/index.html' = '«operated by Gear World (run by Evangelos Kalogerakis, United Kingdom)», «Last updated: 7 November 2026» (L103)'
+    'public/terms/index.html' = 'στη γλώσσα του επισκέπτη μέσω legal.js (data-lg-i18n, L176)· «operated by Gear World (run by Evangelos Kalogerakis, United Kingdom)», «Last updated: 7 November 2026» (L103)'
     'public/hub-bgw.jpg'    = 'η φωτογραφία της κάρτας Biker (Pexels, χωρίς μάρκες)'
     'public/hub-pgw.jpg'    = 'η φωτογραφία της κάρτας Gaming (Pexels, χωρίς μάρκες)'
     'public/hub-zgw.jpg'    = 'η φωτογραφία της κάρτας Pets (Pexels, χωρίς μάρκες)'
-    'public/hub-deals.json' = 'οι προσφορές με ημερομηνία λήξης, από το promos.js, χωρίς τους κωδικούς Halloween του Joybuy και χωρίς ποσοστά στις εκπτώσεις (L107)'
+    'public/hub-deals.json' = 'το όνομα της καμπάνιας και στις 10 άλλες γλώσσες από το λεξικό του site (campaignNames, L176)· οι προσφορές με ημερομηνία λήξης, από το promos.js, χωρίς τους κωδικούς Halloween του Joybuy και χωρίς ποσοστά στις εκπτώσεις (L107)'
     'public/seasonal/halloween.mp4' = 'Halloween (βίντεο) για το μπάνερ των προσφορών'
     'public/seasonal/halloween.jpg' = 'Halloween (σταθερή εικόνα) για το μπάνερ των προσφορών'
     'public/seasonal/black-friday.mp4' = 'Black Friday (βίντεο) για το μπάνερ των προσφορών'
@@ -326,6 +457,30 @@ function Say-GuideProducts($g) {
     }
 }
 
+# Lessons L166: the Stores pages name codes and sales in their titles and counts. On the UK day after an offer ends
+# they would still name it, so the live step refuses until stores.json and the pages are built again (Claude).
+# Offline (node tools/gwh-stores.mjs validate): reads only the repo. Returns @{ ok; lines }.
+function Test-Stores {
+    $res = @{ ok = $true; lines = @() }
+    $tool = Join-Path (Join-Path $repo 'tools') 'gwh-stores.mjs'
+    if (-not (Test-Path -LiteralPath $tool)) { return $res }
+    $out = @(& node $tool validate 2>&1 | ForEach-Object { [string]$_ })
+    $res.lines = $out
+    if ($LASTEXITCODE -ne 0) { $res.ok = $false }
+    # L188: the Black Friday page too (tools/gwh-black-friday.mjs validate, exit 20 when a code or a retailer ended).
+    $bfTool = Join-Path (Join-Path $repo 'tools') 'gwh-black-friday.mjs'
+    if (Test-Path -LiteralPath $bfTool) {
+        $bfOut = @(& node $bfTool validate 2>&1 | ForEach-Object { [string]$_ })
+        if ($LASTEXITCODE -ne 0) { $res.ok = $false; $res.lines += @('Black Friday:') + $bfOut }
+    }
+    return $res
+}
+function Say-Stores($r) {
+    if ($r.ok) { Say 'Σελίδες Stores και Black Friday: κανένας κωδικός ή καμία έκπτωση δεν έληξε (σημερινή ημέρα UK): ΕΝΤΑΞΕΙ' $Ok; return }
+    Say 'Σελίδες Stores: ΠΡΟΒΛΗΜΑ - κάποιος κωδικός ή κάποια έκπτωση έληξε και οι σελίδες θα την ανέφεραν ακόμα:' $Bad
+    foreach ($line in $r.lines) { Say ('  ' + $line) }
+}
+
 function Get-Sha([byte[]]$bytes) {
     $sha = [System.Security.Cryptography.SHA256]::Create()
     try { return ([BitConverter]::ToString($sha.ComputeHash($bytes))).Replace('-', '').ToLowerInvariant() } finally { $sha.Dispose() }
@@ -393,6 +548,11 @@ function Get-LiveSha([string]$url, [bool]$isHtml) {
         $text = $enc.GetString($bytes)
         $clean = [regex]::Replace($text, '<script[^>]*static\.cloudflareinsights\.com/beacon\.min\.js[^>]*></script>\r?\n?', '')
         $clean = [regex]::Replace($clean, '<div class="gwh2-country-bar" role="note"><p class="container" data-gwh2="countryBar">[^<]*</p></div>', '')
+        # The Mitgo verification tag the Worker adds to the <head> of the home page (L119): its code is a Worker secret.
+        $clean = [regex]::Replace($clean, '<meta name="mitgo-verification" content="[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}">', '')
+        $clean = [regex]::Replace($clean, "<meta name='impact-site-verification' value='[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'>", '')
+        # L175: the language of the PC's country on <html> of the home page (a PC outside the UK).
+        $clean = [regex]::Replace($clean, ' data-country-lang="[a-z]{2}-[A-Z]{2}"', '')
         if ($clean -ne $text) { $bytes = $enc.GetBytes($clean) }
     }
     return (Get-Sha $bytes)
@@ -464,6 +624,39 @@ function Set-PreviewSecret([string]$folder) {
     }
 }
 
+# L119: one Worker secret given in this run (the Mitgo code), through a temporary file that is deleted at once. The value
+# is never shown, kept or written into a report (Hide-Ids masks codes of this form too).
+function Set-WorkerSecret([string]$folder, [string]$worker, [string]$name, [string]$value) {
+    $secretFile = Join-Path ([System.IO.Path]::GetTempPath()) ('gw-hubv2-secret-' + [guid]::NewGuid().ToString('N').Substring(0, 8) + '.json')
+    [System.IO.File]::WriteAllText($secretFile, ('{{"{0}":"{1}"}}' -f $name, $value), (New-Object System.Text.UTF8Encoding($false)))
+    try {
+        return (Invoke-Wrangler $folder ('secret bulk "{0}" --name {1}' -f $secretFile, $worker))
+    } finally {
+        Remove-Item -LiteralPath $secretFile -Force -ErrorAction SilentlyContinue
+    }
+}
+
+# L119: preview, live and remove-preview in one paste. With -AfterPreview the live step goes on only when the newest
+# preview report (GWH_HUB_V2_PREVIEW_*.txt) is of this code version, from the last 2 hours, ended ΕΤΟΙΜΟ and has no
+# ΠΡΟΒΛΗΜΑ line: a preview that failed, was refused or found a problem stops the live step before any change.
+function Test-PreviewReport {
+    $last = @(Get-ChildItem -LiteralPath $OutDir -Filter 'GWH_HUB_V2_PREVIEW_*.txt' -File -ErrorAction SilentlyContinue | Sort-Object LastWriteTime, Name | Select-Object -Last 1)
+    if ($last.Count -eq 0) { Say 'Δεν βρήκα αναφορά του preview (-AfterPreview): ΔΕΝ ανεβάζω το Hub, δεν άλλαξε τίποτα. Στείλε στο Claude αυτή την αναφορά.' $Bad; return $false }
+    $r = $last[0]
+    $text = [System.IO.File]::ReadAllText($r.FullName, [System.Text.Encoding]::UTF8)
+    $why = @()
+    if (((Get-Date) - $r.LastWriteTime).TotalMinutes -gt 120) { $why += 'είναι πιο παλιά από 2 ώρες' }
+    if (-not $text.Contains('Code version: ' + (Split-Path -Leaf $repo))) { $why += 'είναι άλλης έκδοσης του κώδικα' }
+    if (-not $text.Contains('ΕΤΟΙΜΟ: άνοιξε τη δοκιμαστική διεύθυνση')) { $why += 'δεν τελείωσε με ΕΤΟΙΜΟ' }
+    if ($text.Contains('ΠΡΟΒΛΗΜΑ')) { $why += 'λέει ΠΡΟΒΛΗΜΑ' }
+    if ($why.Count -gt 0) {
+        Say ('Η αναφορά του preview {0} {1}: ΔΕΝ ανεβάζω το Hub, δεν άλλαξε τίποτα. Στείλε στο Claude αυτή την αναφορά.' -f $r.Name, ($why -join ', ')) $Bad
+        return $false
+    }
+    Say ('Preview αυτής της έκδοσης ({0}): ΕΤΟΙΜΟ, χωρίς ΠΡΟΒΛΗΜΑ: ΕΝΤΑΞΕΙ' -f $r.Name) $Ok
+    return $true
+}
+
 # The new page and the new search, on the test address or on gearworldhub.com after the deploy.
 function Test-Site([string]$base, [bool]$isLive) {
     [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
@@ -479,6 +672,70 @@ function Test-Site([string]$base, [bool]$isLive) {
     }
     $titleOk = $html.Contains('<title>Gear World Hub ' + [char]0x2013 + ' Gear, Gifts &amp; Deals From Every Gear World</title>')
     if ($titleOk) { Say '  Νέος τίτλος της αρχικής: ΕΝΤΑΞΕΙ' $Ok } else { Say '  Νέος τίτλος της αρχικής: ΠΡΟΣΟΧΗ - δεν τον βλέπω ακόμα (cache;)' $Warn }
+    # L121: the one Sovrn Commerce link of the home page, counted and never opened (Sovrn counts only visitors' clicks).
+    $sovrn = [regex]::Matches($html, '<a [^>]*href="https://sovrn\.co/[^"]+"[^>]*>')
+    $sovrnScript = [regex]::IsMatch($html, '(?i)<script[^>]+(sovrn|viglink)')
+    if ($sovrn.Count -eq 1 -and $sovrn[0].Value.Contains('rel="sponsored nofollow noopener"') -and -not $sovrnScript) { Say '  Link του Sovrn στην αρχική: 1, με rel="sponsored nofollow noopener", χωρίς script του Sovrn (δεν ανοίχτηκε): ΕΝΤΑΞΕΙ' $Ok }
+    elseif ($sovrn.Count -gt 0 -or $sovrnScript) { Say ('  Link του Sovrn στην αρχική: ΠΡΟΒΛΗΜΑ - {0} links, script του Sovrn: {1}.' -f $sovrn.Count, $sovrnScript) $Bad }
+    # L166: the Stores card of the home page and the /stores/ pages (made by tools/gwh-stores.mjs).
+    $rcard = $html.Contains('href="/stores/" data-world="STORES"')
+    $rlist = Get-Web ($base + '/stores/?gwcheck=' + $stamp)
+    $rlistHtml = (New-Object System.Text.UTF8Encoding($false)).GetString($rlist.bytes)
+    $rslugs = @([regex]::Matches($rlistHtml, 'href="/stores/([a-z0-9-]+)/"') | ForEach-Object { $_.Groups[1].Value } | Sort-Object -Unique)
+    $rbad = @()
+    foreach ($rs in $rslugs) {
+        $rp = Get-Web ($base + '/stores/' + $rs + '/?gwcheck=' + $stamp)
+        $rpHtml = (New-Object System.Text.UTF8Encoding($false)).GetString($rp.bytes)
+        if ($rp.status -ne 200 -or -not $rpHtml.Contains('<link rel="canonical" href="https://gearworldhub.com/stores/' + $rs + '/">') -or $rpHtml -match '/(out|go)/') { $rbad += $rs }
+    }
+    if ($rcard -and $rlist.status -eq 200 -and $rslugs.Count -ge 1 -and $rbad.Count -eq 0) { Say ('  Κάρτα «Stores» στην αρχική και {0} σελίδες καταστημάτων στο /stores/ (L166): ΕΝΤΑΞΕΙ' -f $rslugs.Count) $Ok }
+    else { Say ('  Σελίδες /stores/ (L166): ΠΡΟΒΛΗΜΑ - κάρτα: {0}, λίστα: απάντηση {1}, σελίδες: {2}, με πρόβλημα: {3}' -f $rcard, $rlist.status, $rslugs.Count, ($rbad -join ', ')) $Bad }
+    # L192: the Mega Stores bar at the top (owner, 18/11/2026): ONE link to https://megastoresgearworld.com/ before the search,
+    # the 8 store names (data-store), Amazon text only, and the Stores card still there. The bar's link is never opened.
+    $megaAt = $html.IndexOf('<a class="gwh2-mega" href="https://megastoresgearworld.com/">')
+    $searchAt = $html.IndexOf('id="hubSearch"')
+    $megaStores = @('amazon', 'joybuy', 'tooled-up', 'my-tool-shed', 'pchub-uk', 'gs-workwear', 'back-to-the-office', 'dhgate')
+    $megaNames = @('Amazon', 'Joybuy', 'Tooled Up', 'My Tool Shed', 'PCHUB.UK', 'GS Workwear', 'Back to the Office', 'DHgate')
+    $megaMissing = @()
+    foreach ($ms in $megaStores) { if (-not $html.Contains('data-store="' + $ms + '"')) { $megaMissing += $ms } }
+    foreach ($mn in $megaNames) { if (-not $html.Contains($mn)) { $megaMissing += $mn } }
+    $megaAmazon = $html.Contains('data-store="amazon" data-logo="text-only" translate="no">Amazon</span>')
+    $megaOne = ([regex]::Matches($html, 'href="https://megastoresgearworld\.com/"')).Count -eq 1
+    $megaCard = $html.Contains('href="/stores/" data-world="STORES"')
+    if ($megaAt -ge 0 -and $searchAt -gt $megaAt -and $megaOne -and $megaMissing.Count -eq 0 -and $megaAmazon -and $megaCard) { Say '  Μπάρα Mega Stores στην κορυφή (L192): ΕΝΤΑΞΕΙ - link στο megastoresgearworld.com πριν την αναζήτηση, 8 καταστήματα, Amazon μόνο κείμενο, η κάρτα «Stores» στη θέση της' $Ok }
+    else { Say ('  Μπάρα Mega Stores στην κορυφή (L192): ΠΡΟΒΛΗΜΑ - μπάρα πριν την αναζήτηση: {0}, ένα link: {1}, λείπουν: {2}, Amazon μόνο κείμενο: {3}, κάρτα «Stores»: {4}' -f ($megaAt -ge 0 -and $searchAt -gt $megaAt), $megaOne, ($megaMissing -join ', '), $megaAmazon, $megaCard) $Bad }
+    # L188: the Black Friday 2026 page (tools/gwh-black-friday.mjs) and its link on the home page; Gear World links only.
+    $bfLink = $html.Contains('<a href="/black-friday/" data-gwh2="bfLink">')
+    $bf = Get-Web ($base + '/black-friday/?gwcheck=' + $stamp)
+    $bfHtml = (New-Object System.Text.UTF8Encoding($false)).GetString($bf.bytes)
+    $bfOk = ($bf.status -eq 200 -and $bfHtml.Contains('<link rel="canonical" href="https://gearworldhub.com/black-friday/">') -and $bfHtml.Contains('<h1>Black Friday 2026 on Gear World</h1>') -and $bfHtml -notmatch '/(out|go)/' -and $bfHtml -notmatch '\d+\s?%')
+    if ($bfLink -and $bfOk) { Say '  Σελίδα /black-friday/ και το link της στην αρχική (L188): ΕΝΤΑΞΕΙ' $Ok }
+    else { Say ('  Σελίδα /black-friday/ (L188): ΠΡΟΒΛΗΜΑ - link στην αρχική: {0}, σελίδα: απάντηση {1}, περιεχόμενο σωστό: {2}' -f $bfLink, $bf.status, $bfOk) $Bad }
+    # L119: the Mitgo tag right before </head> of the home page (a new secret takes a few seconds to reach every answer).
+    # (L150: the Impact tag, when there is one, comes after it and right before </head>.)
+    $mitgoRx = '<meta name="mitgo-verification" content="([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})">(?:<meta name=''impact-site-verification'' value=''[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}''>)?</head>'
+    $mt = [regex]::Match($html, $mitgoRx)
+    if ($MitgoCode) {
+        for ($i = 1; $i -le 3 -and -not ($mt.Success -and $mt.Groups[1].Value -eq $MitgoCode); $i++) {
+            Start-Sleep -Seconds 10
+            $again = Get-Web ($base + '/?gwcheck=' + $stamp + '-m' + $i)
+            $mt = [regex]::Match((New-Object System.Text.UTF8Encoding($false)).GetString($again.bytes), $mitgoRx)
+        }
+        if ($mt.Success -and $mt.Groups[1].Value -eq $MitgoCode) { Say '  Ετικέτα επαλήθευσης Mitgo στο <head> της αρχικής, με τον κωδικό σου: ΕΝΤΑΞΕΙ' $Ok }
+        else { Say '  Ετικέτα επαλήθευσης Mitgo: ΠΡΟΒΛΗΜΑ - δεν τη βλέπω με τον κωδικό σου στο <head> της αρχικής.' $Bad }
+    } elseif ($mt.Success) { Say '  Ετικέτα επαλήθευσης Mitgo στο <head> της αρχικής: υπάρχει (μυστικό MITGO_VERIFICATION του Worker): ΕΝΤΑΞΕΙ' $Ok }
+    # L150: the Impact tag, exactly as Impact gives it, right before </head>.
+    $impactRx = '<meta name=''impact-site-verification'' value=''([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})''></head>'
+    $it = [regex]::Match($html, $impactRx)
+    if ($ImpactCode) {
+        for ($i = 1; $i -le 3 -and -not ($it.Success -and $it.Groups[1].Value -eq $ImpactCode); $i++) {
+            Start-Sleep -Seconds 10
+            $again = Get-Web ($base + '/?gwcheck=' + $stamp + '-i' + $i)
+            $it = [regex]::Match((New-Object System.Text.UTF8Encoding($false)).GetString($again.bytes), $impactRx)
+        }
+        if ($it.Success -and $it.Groups[1].Value -eq $ImpactCode) { Say '  Ετικέτα επαλήθευσης Impact στο <head> της αρχικής, με τον κωδικό σου: ΕΝΤΑΞΕΙ' $Ok }
+        else { Say '  Ετικέτα επαλήθευσης Impact: ΠΡΟΒΛΗΜΑ - δεν τη βλέπω με τον κωδικό σου στο <head> της αρχικής.' $Bad }
+    } elseif ($it.Success) { Say '  Ετικέτα επαλήθευσης Impact στο <head> της αρχικής: υπάρχει (μυστικό IMPACT_VERIFICATION του Worker): ΕΝΤΑΞΕΙ' $Ok }
     $rb = Get-Web ($base + '/robots.txt?gwcheck=' + $stamp)
     $rbText = (New-Object System.Text.UTF8Encoding($false)).GetString($rb.bytes)
     if (-not $isLive) {
@@ -515,6 +772,78 @@ function Test-Site([string]$base, [bool]$isLive) {
     $l107 = ($deals.status -eq 200 -and $dealsText -notmatch '(?i)halloween') -and ($v2.status -eq 200 -and $v2Text.Contains('"black-friday":false')) -and -not $html.Contains('prices we' + [char]0x27 + 've checked')
     if ($l107) { Say '  L107: καμία προσφορά Halloween, Black Friday κλειστή, το κουτί email χωρίς «prices we''ve checked»: ΕΝΤΑΞΕΙ' $Ok }
     else { Say '  L107: ΠΡΟΣΟΧΗ - δεν βλέπω ακόμα όλες τις αλλαγές (προσφορές χωρίς Halloween, Black Friday κλειστή, κουτί email). Η cache κρατάει λίγα λεπτά: στείλε στο Claude αυτή την αναφορά.' $Warn }
+    # L177 (17/11/2026): the search finds what it names, for a UK visitor (?country=GB). One search per Gear World: one of
+    # the first 3 results comes from a Gear World that sells it, every result delivers to the UK. A search that two Gear
+    # Worlds really sell names both ('pgw,tgw': gaming chairs are in Technology's Gaming category too, L189, 18/11/2026). A search whose Gear
+    # World did not answer is asked once more; still no answer = not checked (a warning about the site, L74), never a wrong
+    # order. The Hub's own search failing twice, 2 or more wrong orders, or a product that does not deliver to the UK, are a
+    # problem (no live).
+    $searchSet = @(
+        @('safety boots', 'cgw'), @('tablet', 'tgw'), @('dog bed', 'zgw'), @('gaming chair', 'pgw,tgw'), @('motorcycle helmet', 'bgw'),
+        @('tyre inflator', 'agw'), @('suitcase', 'vgw'), @('yoga mat', 'sgw'), @('dress', 'wgw'), @('mens watch', 'mgw'),
+        @('pram', 'kgw'), @('kettle', 'hgw'), @('bbq', 'ggw'))
+    $wrongOrder = @(); $notChecked = @(); $hubErrors = @(); $notUk = 0; $missing = @(); $asked = 0
+    foreach ($pair in $searchSet) {
+        $sj = $null; $failedHere = @(); $want = @(([string]$pair[1]) -split ',')
+        for ($try = 1; $try -le 2; $try++) {
+            $sq = Get-Web ($base + '/api/search?q=' + [uri]::EscapeDataString($pair[0]) + '&country=GB&gwcheck=' + $stamp + '-' + $try)
+            $sj = $null; $failedHere = @()
+            try { $sj = (New-Object System.Text.UTF8Encoding($false)).GetString($sq.bytes) | ConvertFrom-Json } catch { $sj = $null }
+            if ($sj -and $sj.PSObject.Properties['failed_sites'] -and $sj.failed_sites) { $failedHere = @($sj.failed_sites | ForEach-Object { [string]$_ }) }
+            if ($sj -and $sj.ok -and @($want | Where-Object { $failedHere -notcontains $_ }).Count -gt 0) { break }
+            Start-Sleep -Seconds 2
+        }
+        if (-not ($sj -and $sj.ok)) { $hubErrors += $pair[0]; continue }
+        if (@($want | Where-Object { $failedHere -notcontains $_ }).Count -eq 0) { $notChecked += $pair[0]; continue }
+        $asked++
+        $missing += $failedHere
+        $res = @($sj.results)
+        $first3 = @($res | Select-Object -First 3 | ForEach-Object { [string]$_.site })
+        if (@($first3 | Where-Object { $want -contains $_ }).Count -eq 0) {
+            $one = $res | Select-Object -First 1
+            $shown = ''
+            if ($one) { $nm = [string]$one.product_name; $shown = '{0} {1}' -f $one.site, $nm.Substring(0, [Math]::Min(40, $nm.Length)) }
+            $wrongOrder += ('{0} (1o: {1})' -f $pair[0], $shown)
+        }
+        $notUk += @($res | Where-Object { $d = @($_.delivers_to | Where-Object { $_ }); $d.Count -gt 0 -and -not ($d -contains 'GB' -or $d -contains 'WORLD') }).Count
+        Start-Sleep -Milliseconds 300
+    }
+    $missing = @($missing | Sort-Object -Unique)
+    # A search that could not be checked is a warning only while it is one or two: with 3 or more (or fewer than 10
+    # searches checked) the search itself may be broken, so it is a problem (the check of 7406b610).
+    if ($notChecked.Count -ge 3 -or $asked -lt 10) { $hubErrors += ('{0} αναζητήσεις χωρίς έλεγχο' -f ($notChecked.Count + $hubErrors.Count)) }
+    if ($wrongOrder.Count -eq 0 -and $notUk -eq 0 -and $hubErrors.Count -eq 0) { Say ('  Αναζήτηση (L177): {0} αναζητήσεις, η καθεμία βγάζει στα 3 πρώτα το site που το πουλά, όλα στέλνουν UK: ΕΝΤΑΞΕΙ' -f $asked) $Ok }
+    elseif ($wrongOrder.Count -le 1 -and $notUk -eq 0 -and $hubErrors.Count -eq 0) { Say ('  Αναζήτηση (L177): ΠΡΟΣΟΧΗ - 1 από {0} με άλλη σειρά: {1}' -f $asked, ($wrongOrder -join '; ')) $Warn }
+    else {
+        $why = @()
+        if ($wrongOrder.Count -gt 0) { $why += ('με λάθος σειρά: {0}' -f ($wrongOrder -join '; ')) }
+        if ($notUk -gt 0) { $why += ('{0} προϊόντα που δεν στέλνουν UK' -f $notUk) }
+        if ($hubErrors.Count -gt 0) { $why += ('η αναζήτηση του Hub δεν απάντησε δύο φορές: {0}' -f ($hubErrors -join ', ')) }
+        Say ('  Αναζήτηση (L177): ΠΡΟΒΛΗΜΑ - {0}' -f ($why -join '; ')) $Bad
+    }
+    if ($notChecked.Count -gt 0) { Say ('  Αναζήτηση (L177): ΠΡΟΣΟΧΗ - δεν ελέγχθηκαν (το site τους δεν απάντησε δύο φορές, L74): {0}' -f ($notChecked -join ', ')) $Warn }
+    if ($missing.Count -gt 0) { Say ('  Αναζήτηση (L177): ΠΡΟΣΟΧΗ - δεν απάντησαν κάποια φορά: {0} (το site, όχι το Hub)' -f ($missing -join ', ')) $Warn }
+    # L180 (Idea 9): a search typed as a sentence, for a UK visitor. This tool is a bot for the Hub, so only the rules read
+    # it (never the model, L106): the product and the price limit in pounds, the Gear World that was named comes first,
+    # and a plain search stays as typed (no "understood"). Any of the three wrong is a problem (no live).
+    $sentenceBad = @()
+    $askSentence = {
+        param([string]$q)
+        $r = Get-Web ($base + '/api/search?q=' + [uri]::EscapeDataString($q) + '&country=GB&gwcheck=' + $stamp + '-s')
+        try { return ((New-Object System.Text.UTF8Encoding($false)).GetString($r.bytes) | ConvertFrom-Json) } catch { return $null }
+    }
+    $pound = [string][char]0x00A3
+    $sj1 = & $askSentence ('i want to buy a tablet under ' + $pound + '200')
+    if (-not ($sj1 -and $sj1.ok -and $sj1.PSObject.Properties['understood'] -and [string]$sj1.understood.item -eq 'tablet' -and [double]$sj1.understood.max_price -eq 200)) { $sentenceBad += 'tablet under 200' }
+    elseif (@($sj1.results | Where-Object { ([string]$_.currency -eq '' -or [string]$_.currency -eq 'GBP') -and [double]$_.price -gt 200 }).Count -gt 0) { $sentenceBad += 'tablet: price over 200' }
+    $sj2 = & $askSentence 'perfume for her'
+    $firstSite = ''
+    if ($sj2 -and @($sj2.results).Count -gt 0) { $firstSite = [string](@($sj2.results)[0].site) }
+    if (-not ($sj2 -and $sj2.ok -and $sj2.PSObject.Properties['understood'] -and [string]$sj2.understood.site -eq 'wgw' -and ($firstSite -eq '' -or $firstSite -eq 'wgw'))) { $sentenceBad += ('perfume for her (1' + [char]0x03BF + ': {0})' -f $firstSite) }
+    $sj3 = & $askSentence 'kettle'
+    if (-not ($sj3 -and $sj3.ok -and -not $sj3.PSObject.Properties['understood'])) { $sentenceBad += 'kettle' }
+    if ($sentenceBad.Count -eq 0) { Say '  Αναζήτηση με πρόταση (L180): «i want to buy a tablet under £200» = tablet έως £200, «perfume for her» = πρώτα Women''s Gear World, το «kettle» μένει όπως γράφτηκε: ΕΝΤΑΞΕΙ' $Ok }
+    else { Say ('  Αναζήτηση με πρόταση (L180): ΠΡΟΒΛΗΜΑ - {0}' -f ($sentenceBad -join '; ')) $Bad }
     $s = Get-Web ($base + '/api/search?q=suitcase&worlds=vgw&max_price=100')
     try {
         $j = (New-Object System.Text.UTF8Encoding($false)).GetString($s.bytes) | ConvertFrom-Json
@@ -524,6 +853,10 @@ function Test-Site([string]$base, [bool]$isLive) {
         $filtersOk = ($j.ok -and $j.filters -and (@($j.filters.worlds) -join ',') -eq 'vgw' -and [double]$j.filters.max_price -eq 100)
         if ($filtersOk -and ($sitesSeen.Count -eq 0 -or ($sitesSeen -join ',') -eq 'vgw') -and $tooDear.Count -eq 0) {
             Say ('  «Βρες δώρο» (Travel, έως £100, "suitcase"): {0} προϊόντα, μόνο από VGW και μέχρι £100: ΕΝΤΑΞΕΙ' -f $items.Count) $Ok
+            # L153: how many of them say where their retailer delivers (delivers_to from the site, since its update of L151).
+            $withShip = @($items | Where-Object { @($_.delivers_to | Where-Object { $_ }).Count -gt 0 })
+            if ($items.Count -gt 0 -and $withShip.Count -eq $items.Count) { Say ('  Γραμμή «<κατάστημα> delivers to» (L153): και τα {0} προϊόντα έχουν χώρες παράδοσης: ΕΝΤΑΞΕΙ' -f $items.Count) $Ok }
+            elseif ($items.Count -gt 0) { Say ('  Γραμμή «<κατάστημα> delivers to» (L153): {0} από {1} προϊόντα έχουν χώρες παράδοσης (το VGW δεν έχει ακόμα την έκδοση L151;)' -f $withShip.Count, $items.Count) $Warn }
         } else {
             Say ('  «Βρες δώρο»: ΠΡΟΒΛΗΜΑ - φίλτρα {0}, sites {1}, ακριβότερα από £100: {2}' -f $filtersOk, ($sitesSeen -join ','), $tooDear.Count) $Bad
         }
@@ -612,6 +945,17 @@ function Get-SecurityReadiness([string]$folder) {
 # ---------------- start ----------------
 Say ('GWH HUB V2 («Συνδυασμός») - step: {0} - {1} - {2}' -f $Step, $(if ($Apply) { 'APPLY (με έγκριση)' } else { 'ΜΟΝΟ ΕΛΕΓΧΟΣ (δεν αλλάζει τίποτα)' }), (Get-Date -Format 'yyyy-MM-dd HH:mm')) $Ok
 Say ('Code version: {0}' -f (Split-Path -Leaf $repo))
+# L119: the Mitgo code as Mitgo gives it (a paste may add spaces or capitals); nothing of another form becomes a secret.
+$MitgoCode = ([string]$MitgoCode).Trim().ToLowerInvariant()
+$ImpactCode = ([string]$ImpactCode).Trim().ToLowerInvariant()
+if ($ImpactCode -and $ImpactCode -notmatch '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$') {
+    Say 'Ο κωδικός του Impact (-ImpactCode) δεν έχει τη μορφή που δίνει το Impact (8-4-4-4-12 ψηφία και γράμματα a-f): ΔΕΝ άλλαξε τίποτα. Στείλε στο Claude αυτή την αναφορά.' $Bad
+    Finish 21
+}
+if ($MitgoCode -and $MitgoCode -notmatch '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$') {
+    Say 'Ο κωδικός του Mitgo (-MitgoCode) δεν έχει τη μορφή που δίνει το Mitgo (8-4-4-4-12 ψηφία και γράμματα a-f): ΔΕΝ άλλαξε τίποτα. Στείλε στο Claude αυτή την αναφορά.' $Bad
+    Finish 21
+}
 if (-not (Get-Command node -ErrorAction SilentlyContinue)) { Say 'Δεν βρέθηκε το Node.js. Στείλε στο Claude αυτό το μήνυμα.' $Bad; Finish 3 }
 
 if ($Step -eq 'indexnow') {
@@ -636,7 +980,7 @@ $baseSha = @{}
 foreach ($b in $baseline) { $baseSha[$b.path] = $b.sha }
 
 $gwhRepo = Join-Path (Join-Path $repo 'sites') 'gwh'
-$newFiles = @('worker.js', 'photo-search.js', 'poster-scan.js', 'mailerlite.js', 'members.js', 'security.js')
+$newFiles = @('worker.js', 'photo-search.js', 'poster-scan.js', 'mailerlite.js', 'members.js', 'security.js', 'remind.js')
 $pubRepo = Join-Path $gwhRepo 'public'
 foreach ($f in @(Get-ChildItem -LiteralPath $pubRepo -Recurse -File | Sort-Object FullName)) {
     $newFiles += ('public/' + $f.FullName.Substring($pubRepo.Length).TrimStart('\', '/').Replace('\', '/'))
@@ -815,6 +1159,8 @@ if ($Step -eq 'remove-preview') {
 Say ''
 Say ('Preview (φράση {0}): ο δοκιμαστικός Worker "{1}" σε διεύθυνση *.workers.dev παίρνει αυτή την έκδοση.' -f $PhrasePreview, $PreviewName)
 Say '  noindex, χωρίς Google Analytics, η εγγραφή email κλειστή, χωρίς μέτρηση αφισών. Το live gearworldhub.com ΔΕΝ αλλάζει.'
+if ($MitgoCode) { Say '  Ο κωδικός του Mitgo μπαίνει και στον δοκιμαστικό Worker, για να φανεί εκεί πρώτα η ετικέτα.' }
+if ($ImpactCode) { Say '  Ο κωδικός του Impact μπαίνει και στον δοκιμαστικό Worker, για να φανεί εκεί πρώτα η ετικέτα.' }
 Say ('  Επαναφορά (μόνο με έγκριση): npx wrangler delete --name {0}' -f $PreviewName)
 if ($plan.Count -eq 0) {
     Say 'Αυτή η έκδοση του κώδικα είναι ήδη η live έκδοση (live-baseline.txt): για το live δεν έχει τίποτα να αλλάξει.' $Ok
@@ -827,9 +1173,14 @@ if ($plan.Count -eq 0) {
         Say ('     - {0}: {1}' -f $rel, $what)
     }
     Say '  3. Στο wrangler.toml του Hub: workers_dev = false και preview_urls = false (κλείνει η δοκιμαστική διεύθυνση gear-world-hub.<λογαριασμός>.workers.dev του live Hub, F04). Το παλιό wrangler.toml μένει στο zip και στα αρχεία επαναφοράς.'
-    Say '  4. Deploy του gearworldhub.com από τον φάκελο του Hub (με το δικό του wrangler.toml), και έλεγχος της σελίδας και του «Βρες δώρο».'
+    if ($MitgoCode) { Say ('  4. Ο κωδικός επαλήθευσης του Mitgo γίνεται το μυστικό MITGO_VERIFICATION του Worker "{0}" (ποτέ στο GitHub ή σε αναφορά)· ο νέος κώδικας βάζει την ετικέτα <meta name="mitgo-verification"> στο <head> της αρχικής.' -f $HubWorker) }
+    if ($ImpactCode) { Say ('  4. Ο κωδικός επαλήθευσης του Impact γίνεται το μυστικό IMPACT_VERIFICATION του Worker "{0}" (ποτέ στο GitHub ή σε αναφορά)· ο νέος κώδικας βάζει την ετικέτα <meta name=''impact-site-verification''> στο <head> της αρχικής, μετά του Mitgo.' -f $HubWorker) }
+    Say ('  {0}. Deploy του gearworldhub.com από τον φάκελο του Hub (με το δικό του wrangler.toml), και έλεγχος της σελίδας και του «Βρες δώρο».' -f $(if ($MitgoCode -or $ImpactCode) { 5 } else { 4 }))
+    if ($AfterPreview) { Say '  Με -AfterPreview: το live γίνεται μόνο αν το preview αυτής της έκδοσης, τις τελευταίες 2 ώρες, τελείωσε ΕΤΟΙΜΟ χωρίς ΠΡΟΒΛΗΜΑ.' }
     Say '  Η D1, τα 11 sites και οι άλλοι Workers (και ο gwh-sitemap) ΔΕΝ αλλάζουν.'
     Say ('  Επαναφορά (μόνο με έγκριση): npx wrangler rollback <ζωντανή έκδοση> --name {0}, και τα αρχεία του zip πίσω στον φάκελο του Hub.' -f $HubWorker)
+    if ($MitgoCode) { Say ('  Αφαίρεση της ετικέτας Mitgo (μόνο με έγκριση): npx wrangler secret delete MITGO_VERIFICATION --name {0}' -f $HubWorker) }
+    if ($ImpactCode) { Say ('  Αφαίρεση της ετικέτας Impact (μόνο με έγκριση): npx wrangler secret delete IMPACT_VERIFICATION --name {0}' -f $HubWorker) }
     Say '  Επαναφορά όλης της έκδοσης L106: ΠΡΩΤΑ το Hub (αυτό), ΜΕΤΑ τα 13 sites: το νέο Hub δεν δέχεται εγγραφή χωρίς Turnstile, και ο παλιός κώδικας των sites δεν στέλνει.'
 }
 $readyLive = (($pcIsBaseline -or $pcIsNew) -and ($liveState -eq 'baseline' -or $liveState -eq 'new' -or ($NoHttpCheck -and $liveState -eq 'unknown')) -and $liveVersion -and $postersOn)
@@ -863,6 +1214,7 @@ if ($Step -eq 'preview') {
     if (-not $dbId) { Say ('Δεν βρήκα τη D1 "{0}". Δεν αλλάζω τίποτα.' -f $DbName) $Bad; Finish 5 }
     # L107: the products the gift guides link to, from the live D1 of their sites (SELECT only); the preview only reports.
     Say-GuideProducts (Test-GuideProducts $deploy)
+    Say-Stores (Test-Stores)
     if (-not $Apply) { Say ''; Say 'Δοκιμή μόνο (χωρίς -Apply): δεν άλλαξε τίποτα.' $Ok; Finish 0 }
     if (-not (Confirm-Approval $PhrasePreview)) { Say 'Δεν δόθηκε η έγκριση για το preview: σταμάτησα (δεν ανέβηκε τίποτα).' $Warn; Finish 1 }
     $cfg = Write-PreviewConfig $gwh $dbId
@@ -877,6 +1229,18 @@ if ($Step -eq 'preview') {
         $s = Set-PreviewSecret $gwh
         if ($s.code -ne 0) { Say 'Το μυστικό του preview δεν μπήκε: η αναζήτηση με φωτογραφία εκεί θα απαντά "not ready". Τα υπόλοιπα δουλεύουν.' $Warn }
         else { Say 'Μυστικό για την αναζήτηση με φωτογραφία στο preview: μπήκε (τυχαίο, δεν φαίνεται πουθενά).' $Ok }
+    }
+    # L119: the Mitgo code on the test Worker too, so the tag is seen there first.
+    if ($MitgoCode) {
+        $ms = Set-WorkerSecret $gwh $PreviewName 'MITGO_VERIFICATION' $MitgoCode
+        if ($ms.code -ne 0) { Say 'Ο κωδικός του Mitgo στο preview: ΠΡΟΒΛΗΜΑ - δεν μπήκε, άρα το live με -AfterPreview δεν θα γίνει. Στείλε στο Claude αυτή την αναφορά.' $Bad }
+        else { Say 'Ο κωδικός επαλήθευσης του Mitgo μπήκε στο preview (μυστικό MITGO_VERIFICATION του δοκιμαστικού Worker, δεν φαίνεται πουθενά).' $Ok }
+    }
+    # L150: the Impact code on the test Worker too.
+    if ($ImpactCode) {
+        $is = Set-WorkerSecret $gwh $PreviewName 'IMPACT_VERIFICATION' $ImpactCode
+        if ($is.code -ne 0) { Say 'Ο κωδικός του Impact στο preview: ΠΡΟΒΛΗΜΑ - δεν μπήκε, άρα το live με -AfterPreview δεν θα γίνει. Στείλε στο Claude αυτή την αναφορά.' $Bad }
+        else { Say 'Ο κωδικός επαλήθευσης του Impact μπήκε στο preview (μυστικό IMPACT_VERIFICATION του δοκιμαστικού Worker, δεν φαίνεται πουθενά).' $Ok }
     }
     Say ('Ανέβηκε. Δοκιμαστική διεύθυνση: {0}' -f $(if ($url) { $url } else { '(δεν τη βρήκα στην έξοδο)' })) $Ok
     # The Black Friday link only while Black Friday is switched on in hub-v2.js (promos.js SEASONS_ON, lessons L107).
@@ -919,6 +1283,12 @@ Say-GuideProducts $guideCheck
 if (-not $guideCheck.ok -or $guideCheck.notices -gt 0) { Say 'ΔΕΝ ανεβάζω το Hub: πρώτα νέα προϊόντα στο sites/gwh/guides/guides.json (Claude), μετά ξανά αυτό το βήμα. ΔΕΝ άλλαξε τίποτα.' $Bad; Finish 20 }
 # L109: a gift guide price that is not the price its site shows stops the live step too (OLD stays a warning).
 if ($guideCheck.prices -gt 0) { Say 'ΔΕΝ ανεβάζω το Hub: οι τιμές κάποιων οδηγών δώρων δεν είναι ίδιες με τις τιμές των sites (δες PRICE). Τίποτα δεν ανέβηκε live και τίποτα δεν άλλαξε. Στείλε αυτή την αναφορά στο Claude: θα ενημερώσει τις τιμές των οδηγών και θα σου δώσει νέα εντολή.' $Bad; Finish 20 }
+# L166: no Stores page may name a code or sale that has ended (UK day).
+$storesCheck = Test-Stores
+Say-Stores $storesCheck
+if (-not $storesCheck.ok) { Say 'ΔΕΝ ανεβάζω το Hub: πρώτα νέες σελίδες Stores χωρίς όσα έληξαν (Claude: stores.json και node tools/gwh-stores.mjs build). Τίποτα δεν ανέβηκε live και τίποτα δεν άλλαξε.' $Bad; Finish 24 }
+# L119: preview, live and remove-preview in one paste: the live step goes on only after a clean preview of this version.
+if ($AfterPreview -and -not (Test-PreviewReport)) { Finish 23 }
 if (-not $Apply) { Say ''; Say 'Δοκιμή μόνο (χωρίς -Apply): δεν άλλαξε τίποτα.' $Ok; Finish 0 }
 if (-not (Confirm-Approval $PhraseLive)) { Say 'Δεν δόθηκε έγκριση: σταμάτησα χωρίς αλλαγές.' $Warn; Finish 1 }
 if ($null -ne $security) {
@@ -931,7 +1301,7 @@ $bdir = Join-Path $WorkDir 'backups'
 if (-not (Test-Path -LiteralPath $bdir)) { New-Item -ItemType Directory -Path $bdir -Force | Out-Null }
 $tmpCopy = Join-Path ([System.IO.Path]::GetTempPath()) ('gwh-before-v2-' + $stamp)
 New-Item -ItemType Directory -Path $tmpCopy -Force | Out-Null
-foreach ($n in @('worker.js', 'wrangler.toml', 'photo-search.js', 'poster-scan.js', 'mailerlite.js', 'members.js', 'security.js')) {
+foreach ($n in @('worker.js', 'wrangler.toml', 'photo-search.js', 'poster-scan.js', 'mailerlite.js', 'members.js', 'security.js', 'remind.js')) {
     $src = Join-Path $HubDir $n
     if (Test-Path -LiteralPath $src) { Copy-Item -LiteralPath $src -Destination $tmpCopy -Force }
 }
@@ -964,6 +1334,8 @@ $note = @(
     'Or in the Cloudflare dashboard: Workers > gear-world-hub > Deployments > the version above > Rollback.',
     'Going back from the whole L106 release: the Hub FIRST (this), THEN the 13 sites (the new Hub refuses sign-ups without Turnstile, the older site code sends none).'
 ) -join "`r`n"
+if ($ImpactCode) { $note += "`r`n" + ('The Impact tag (L150) is the Worker secret IMPACT_VERIFICATION. To take it away (only with approval): npx wrangler secret delete IMPACT_VERIFICATION --name {0}' -f $HubWorker) }
+if ($MitgoCode) { $note += "`r`n" + ('The Mitgo tag (L119) is the Worker secret MITGO_VERIFICATION. To take it away (only with approval): npx wrangler secret delete MITGO_VERIFICATION --name {0}' -f $HubWorker) }
 $noteFile = Join-Path $bdir ('gwh-before-v2-live-' + $stamp + '.txt')
 [System.IO.File]::WriteAllText($noteFile, $note, (New-Object System.Text.UTF8Encoding($false)))
 Say ('Αντίγραφο ασφαλείας και οδηγίες επαναφοράς: {0}' -f $noteFile) $Ok
@@ -1011,6 +1383,30 @@ if ($bad.Count -gt 0) {
     Finish 10
 }
 Say ('Νέα αρχεία στον φάκελο του Hub: {0}' -f ($plan -join ', ')) $Ok
+
+# L119: the Mitgo code becomes the Worker secret MITGO_VERIFICATION right before the deploy (a new version of the code that
+# runs now, which does not read it), so the new code shows the tag from its first answer; later deploys keep it.
+if ($MitgoCode) {
+    $ms = Set-WorkerSecret $gwh $HubWorker 'MITGO_VERIFICATION' $MitgoCode
+    if ($ms.code -ne 0) {
+        Restore-Before
+        Say 'Ο κωδικός του Mitgo δεν μπήκε στον Worker του Hub: τα παλιά αρχεία γύρισαν στον φάκελο του Hub, ΔΕΝ ανέβηκε τίποτα. Έξοδος:' $Bad
+        Say $ms.text
+        Finish 22
+    }
+    Say ('Ο κωδικός επαλήθευσης του Mitgo μπήκε στον Worker "{0}" (μυστικό MITGO_VERIFICATION, δεν φαίνεται πουθενά).' -f $HubWorker) $Ok
+}
+# L150: the Impact code becomes the Worker secret IMPACT_VERIFICATION the same way, right before the deploy.
+if ($ImpactCode) {
+    $is = Set-WorkerSecret $gwh $HubWorker 'IMPACT_VERIFICATION' $ImpactCode
+    if ($is.code -ne 0) {
+        Restore-Before
+        Say 'Ο κωδικός του Impact δεν μπήκε στον Worker του Hub: τα παλιά αρχεία γύρισαν στον φάκελο του Hub, ΔΕΝ ανέβηκε τίποτα. Έξοδος:' $Bad
+        Say $is.text
+        Finish 22
+    }
+    Say ('Ο κωδικός επαλήθευσης του Impact μπήκε στον Worker "{0}" (μυστικό IMPACT_VERIFICATION, δεν φαίνεται πουθενά).' -f $HubWorker) $Ok
+}
 
 # 3. Deploy the live Hub from its folder, with the wrangler version of this repo version
 $d = Invoke-Deploy $gwh $cfgPc

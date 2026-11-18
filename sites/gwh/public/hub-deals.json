@@ -13,7 +13,19 @@
       ],
       "start": "2026-10-20",
       "end": "2026-12-31",
-      "link": "https://homegearworld.com/discount-codes/joybuy/"
+      "link": "https://homegearworld.com/discount-codes/joybuy/",
+      "campaignNames": {
+        "el-GR": "Νοικοκυριό & Καθαριότητα",
+        "de-DE": "Haushalt & Reinigung",
+        "fr-FR": "Maison & Nettoyage",
+        "it-IT": "Casa e pulizia",
+        "es-ES": "Hogar y limpieza",
+        "pt-PT": "Casa e limpeza",
+        "nl-NL": "Huishouden & schoonmaak",
+        "sq-AL": "Shtëpi & Pastrim",
+        "ro-RO": "Casă și curățenie",
+        "ru-RU": "Дом и уборка"
+      }
     },
     {
       "id": "joybuy-home-pet",
@@ -27,7 +39,19 @@
       ],
       "start": "2026-10-20",
       "end": "2026-12-31",
-      "link": "https://homegearworld.com/discount-codes/joybuy/"
+      "link": "https://homegearworld.com/discount-codes/joybuy/",
+      "campaignNames": {
+        "el-GR": "Σπίτι, Διαβίωση & Κατοικίδια",
+        "de-DE": "Wohnen & Haustier",
+        "fr-FR": "Maison, Déco & Animaux",
+        "it-IT": "Casa, vita e animali",
+        "es-ES": "Hogar, vida y mascotas",
+        "pt-PT": "Casa, lazer e animais",
+        "nl-NL": "Wonen & huisdieren",
+        "sq-AL": "Shtëpi, Jetesë & Kafshë",
+        "ro-RO": "Casă, viață și animale",
+        "ru-RU": "Дом, быт и питомцы"
+      }
     },
     {
       "id": "joybuy-baby",
@@ -41,7 +65,17 @@
       ],
       "start": "2026-10-20",
       "end": "2026-12-31",
-      "link": "https://kidsgearworld.com/discount-codes/joybuy/"
+      "link": "https://kidsgearworld.com/discount-codes/joybuy/",
+      "campaignNames": {
+        "el-GR": "Μωρό",
+        "fr-FR": "Bébé",
+        "it-IT": "Bambini",
+        "es-ES": "Bebé",
+        "pt-PT": "Bebé",
+        "sq-AL": "Bebe",
+        "ro-RO": "Bebeluși",
+        "ru-RU": "Малыши"
+      }
     },
     {
       "id": "joybuy-hotpot",
@@ -55,7 +89,19 @@
       ],
       "start": "2026-10-20",
       "end": "2026-12-31",
-      "link": "https://homegearworld.com/discount-codes/joybuy/"
+      "link": "https://homegearworld.com/discount-codes/joybuy/",
+      "campaignNames": {
+        "el-GR": "Hotpot & Ασιατικά Τρόφιμα",
+        "de-DE": "Hotpot & asiatische Lebensmittel",
+        "fr-FR": "Fondue chinoise & Épicerie asiatique",
+        "it-IT": "Hotpot e cibo asiatico",
+        "es-ES": "Hotpot y comida asiática",
+        "pt-PT": "Hotpot e comida asiática",
+        "nl-NL": "Hotpot & Aziatisch eten",
+        "sq-AL": "Hotpot & Ushqim aziatik",
+        "ro-RO": "Hotpot și mâncare asiatică",
+        "ru-RU": "Хого и азиатские продукты"
+      }
     },
     {
       "id": "tooled-up-claimfifty",
@@ -74,7 +120,10 @@
       "end": "2026-12-06",
       "link": "https://constructiongearworld.com/discount-codes/tooled-up/",
       "off": 50,
-      "minSpend": 500
+      "minSpend": 500,
+      "campaignNames": {
+        "ru-RU": "Чёрная пятница"
+      }
     },
     {
       "id": "tooled-up-claimsevfy",
@@ -93,7 +142,10 @@
       "end": "2026-12-06",
       "link": "https://constructiongearworld.com/discount-codes/tooled-up/",
       "off": 75,
-      "minSpend": 750
+      "minSpend": 750,
+      "campaignNames": {
+        "ru-RU": "Чёрная пятница"
+      }
     },
     {
       "id": "my-tool-shed-claimfifty",
@@ -110,7 +162,10 @@
       "end": "2026-12-06",
       "link": "https://constructiongearworld.com/discount-codes/my-tool-shed/",
       "off": 50,
-      "minSpend": 500
+      "minSpend": 500,
+      "campaignNames": {
+        "ru-RU": "Чёрная пятница"
+      }
     },
     {
       "id": "my-tool-shed-claimsevfy",
@@ -127,7 +182,10 @@
       "end": "2026-12-06",
       "link": "https://constructiongearworld.com/discount-codes/my-tool-shed/",
       "off": 75,
-      "minSpend": 750
+      "minSpend": 750,
+      "campaignNames": {
+        "ru-RU": "Чёрная пятница"
+      }
     }
   ]
 }

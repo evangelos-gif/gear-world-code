@@ -401,7 +401,8 @@
 
     async function searchAll(query) {
       try {
-        const response = await fetchWithTimeout(`/api/search?q=${encodeURIComponent(query)}`, { headers: { Accept: "application/json" } }, 20000);
+        // exact=1 (Idea 9, L180): the photo already gave the product words; the Hub does not read them again as a sentence.
+        const response = await fetchWithTimeout(`/api/search?q=${encodeURIComponent(query)}&exact=1`, { headers: { Accept: "application/json" } }, 20000);
         if (!response.ok) return null;
         const data = await response.json();
         if (!data || !data.ok) return null;
@@ -485,7 +486,7 @@
       const meta = [product.brand, product.retailer].filter(Boolean).map(esc).join(" · ");
       return `<a class="gwh-search-item" href="${esc(href)}">${image}` +
         `<div class="gwh-search-details"><span class="gwh-search-source">${esc(String(product.site || "").toUpperCase())}</span>` +
-        `<div class="gwh-search-name">${esc(product.product_name)}</div><div class="gwh-search-meta">${meta}</div></div>` +
+        `<div class="gwh-search-name">${esc(product.product_name)}</div><div class="gwh-search-meta">${meta}</div>${window.GWH_deliveryHtml ? window.GWH_deliveryHtml(product) : ""}</div>` +
         `<div class="gwh-search-price">${esc(formatPrice(product.price, product.currency))}` +
         `<span class="gwh-search-view">${esc(hubText("viewProduct", {}, "View Product"))} →</span></div></a>`;
     }

@@ -4,7 +4,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { DatabaseSync } from 'node:sqlite';
-import hub from '../../sites/gwh/worker.js';
+import hub, { countryLanguage, COUNTRY_LANGUAGES, MULTI_LANGUAGE_COUNTRIES, HUB_LOCALES, rankHubResults, rankStem, rankTokens } from '../../sites/gwh/worker.js';
 
 const SITES = [
   ['CGW', 'Construction Gear World', 'constructiongearworld.com'], ['MGW', "Men's Gear World", 'mensgearworld.com'],
@@ -257,4 +257,371 @@ test('home page: the bar "We\'re adding retailers for your country" outside the 
   assert.equal(list[0], "We're adding retailers for your country. Most retailers below deliver to the UK only. Check delivery before you buy.");
   const css = js && (await import('node:fs')).readFileSync('sites/gwh/public/hub-v2.css', 'utf8');
   assert.match(css, /\.gwh2-country-bar\{background:var\(--card\);color:var\(--text\);border-bottom:3px solid var\(--accent\)\}/);
+});
+
+// Lessons L150 (owner, 14 Nov 2026): the Impact tag, exactly as Impact gives it, after the Mitgo tag; both from secrets.
+test('home page: the Impact tag after the Mitgo tag, exactly as Impact gives it, only with its secret (L150)', async () => {
+  const mitgo = ['a1b2c3d4', 'e5f6', 'a7b8', 'c9d0', 'e1f2a3b4c5d6'].join('-');
+  const impact = ['0a1b2c3d', '4e5f', '6a7b', '8c9d', '0e1f2a3b4c5d'].join('-');
+  const page = '<!doctype html><html><head><meta charset="utf-8"><title>Hub</title></head><body class="gwh2"><header class="site-header"><nav>menu</nav></header><main>search</main></body></html>';
+  const assets = { fetch: async () => new Response(page, { headers: { 'Content-Type': 'text/html; charset=utf-8', ETag: '"x"' } }) };
+  const ask = async (env, path = '/', country = 'GB') => {
+    const req = new Request(`https://gearworldhub.com${path}`, { headers: { 'User-Agent': 'Mozilla/5.0 test' } });
+    Object.defineProperty(req, 'cf', { value: { country } });
+    return (await hub.fetch(req, { ...makeEnv(), ASSETS: assets, ...env }, { waitUntil: p => p })).text();
+  };
+  const both = await ask({ MITGO_VERIFICATION: mitgo, IMPACT_VERIFICATION: ' ' + impact.toUpperCase() });
+  assert.ok(both.includes(`<meta name="mitgo-verification" content="${mitgo}"><meta name='impact-site-verification' value='${impact}'></head>`), 'Mitgo, then Impact, right before </head>');
+  assert.equal(both.split('impact-site-verification').length, 2, 'once');
+  const only = await ask({ IMPACT_VERIFICATION: impact });
+  assert.ok(only.includes(`<meta name='impact-site-verification' value='${impact}'></head>`) && !only.includes('mitgo'), 'Impact alone');
+  for (const bad of ['', 'x', impact + "'><script>alert(1)</script>", impact.replace(/-/g, '')]) {
+    assert.equal((await ask({ IMPACT_VERIFICATION: bad })).includes('impact-site-verification'), false, `not a code: ${bad.slice(0, 20)}`);
+  }
+  assert.equal((await ask({ IMPACT_VERIFICATION: impact }, '/about/')).includes('impact-site-verification'), false, 'only the home page');
+  // The live checks of the 5 tools take all of it out (with the country bar outside the UK) and find the file again.
+  const fs = await import('node:fs');
+  const us = await ask({ MITGO_VERIFICATION: mitgo, IMPACT_VERIFICATION: impact }, '/', 'US');
+  const plain = await ask({});
+  for (const tool of ['gwh-hub-v2.ps1', 'gwh-mailerlite.ps1', 'gwh-photo.ps1', 'gwh-search-labels.ps1', 'poster-setup.ps1']) {
+    const ps1 = fs.readFileSync(`tools/${tool}`, 'utf8');
+    const rules = [...ps1.matchAll(/\$clean = \[regex\]::Replace\(\$clean, (?:'([^']+)'|"([^"]+)"), ''\)/g)].map(m => new RegExp(m[1] || m[2], 'g'));
+    assert.equal(rules.reduce((s, rx) => s.replace(rx, ''), us), plain, `${tool}: the US page without the bar and both tags is the file`);
+  }
+});
+
+// Lessons L119 (owner, 13 Nov 2026): the Mitgo verification tag. The code is a Worker secret, never in the repo, so the
+// test builds a code of the same form at run time (the test runner refuses UUIDs written in files).
+test('home page: the Mitgo tag in the <head> only with its secret, only on the home page, the same page plus the tag', async () => {
+  const code = ['a1b2c3d4', 'e5f6', 'a7b8', 'c9d0', 'e1f2a3b4c5d6'].join('-');
+  const tag = `<meta name="mitgo-verification" content="${code}">`;
+  const page = '<!doctype html><html><head><meta charset="utf-8"><title>Hub</title></head><body class="gwh2"><header class="site-header"><nav>menu</nav></header><main>search</main></body></html>';
+  const assets = { fetch: async () => new Response(page, { headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'public, max-age=0, must-revalidate', ETag: '"x"' } }) };
+  const ask = async (secret, path = '/', country = 'GB', method = 'GET') => {
+    const env = { ...makeEnv(), ASSETS: assets };
+    if (secret !== undefined) env.MITGO_VERIFICATION = secret;
+    const req = new Request(`https://gearworldhub.com${path}`, { method, headers: { 'User-Agent': 'Mozilla/5.0 test' } });
+    Object.defineProperty(req, 'cf', { value: { country } });
+    return hub.fetch(req, env, { waitUntil: p => p });
+  };
+  const plain = await ask(undefined);
+  const plainHtml = await plain.text();
+  assert.equal(plainHtml.includes('mitgo-verification'), false, 'no secret: no tag');
+  assert.equal(plain.headers.get('ETag'), '"x"', 'no secret: the page is the file, untouched');
+  for (const path of ['/', '/index.html']) {
+    const r = await ask(code, path);
+    const html = await r.text();
+    assert.ok(html.includes(tag + '</head>'), `${path}: the tag at the end of the <head>`);
+    assert.equal(html.split('mitgo-verification').length, 2, `${path}: once`);
+    assert.equal(html.replace(tag, ''), plainHtml, `${path}: the same page plus the tag`);
+    assert.equal(r.headers.get('ETag'), null, 'another body than the file: no ETag of the file');
+  }
+  // Upper case or spaces from a paste are fine; anything else is never written into the page.
+  assert.ok((await (await ask(' ' + code.toUpperCase() + ' ')).text()).includes(tag));
+  for (const bad of ['', 'x', code + '"><script>alert(1)</script>', code.slice(0, -1), code.replace(/-/g, '')]) {
+    assert.equal((await (await ask(bad)).text()), plainHtml, `not a code: ${JSON.stringify(bad).slice(0, 30)}`);
+  }
+  assert.equal((await (await ask(code, '/about/')).text()).includes('mitgo-verification'), false, 'only the home page');
+  assert.equal((await (await ask(code, '/', 'GB', 'HEAD')).text()).includes('mitgo-verification'), false, 'GET only');
+  // Outside the UK both are added: the country bar above the header and the tag in the <head>.
+  const us = await (await ask(code, '/', 'US')).text();
+  assert.ok(us.includes(tag + '</head>') && us.includes('<div class="gwh2-country-bar"'));
+  // The live checks of the tools take both out before they compare the page with the file (L107, L119).
+  const fs = await import('node:fs');
+  for (const tool of ['gwh-hub-v2.ps1', 'gwh-mailerlite.ps1', 'gwh-photo.ps1', 'gwh-search-labels.ps1', 'poster-setup.ps1']) {
+    const ps1 = fs.readFileSync(`tools/${tool}`, 'utf8');
+    const rules = [...ps1.matchAll(/\$clean = \[regex\]::Replace\(\$clean, (?:'([^']+)'|"([^"]+)"), ''\)/g)].map(m => new RegExp(m[1] || m[2], 'g'));
+    assert.equal(rules.length, 4, `${tool}: the country bar, the Mitgo tag, the Impact tag (L150) and the country language (L175) are taken out`);
+    assert.equal(rules.reduce((s, rx) => s.replace(rx, ''), us), plainHtml, `${tool}: the US page without them is the file`);
+  }
+});
+
+// Lessons L153 (14 Nov 2026): every card of the Hub says where its retailer delivers. The Hub asks each site with
+// badges=1 (since L151 a country that is not open sees all the products there) and passes on delivers_to, cleaned.
+test('L153: the Hub asks with badges=1 and passes on where each retailer delivers; the three card renderers show it', async () => {
+  const { deliveryCodes } = await import('../../sites/gwh/worker.js');
+  const { readFileSync } = await import('node:fs');
+  const fake = productsFetch({
+    'constructiongearworld.com': [{ id: 1, product_name: 'Cordless drill', retailer: 'Tooled Up', price: 50, delivers_to: ['GB'] },
+      { id: 2, product_name: 'Cordless drill set', retailer: 'GRABO', price: 60, delivers_to: ['WORLD', 'GB'] }],
+    'cargearworld.com': [{ id: 3, product_name: 'Cordless drill pump', retailer: 'VEVOR', price: 70, delivers_to: ['EU', 'is', 'LI', 'NO', '<b>', 7] },
+      { id: 4, product_name: 'Cordless drill old', retailer: 'Old site', price: 80 }]
+  });
+  const { data } = await searchWith(fake, 'q=cordless%20drill');
+  assert.ok(fake.asked.length > 0 && fake.asked.every(u => u.searchParams.get('badges') === '1'), 'every site is asked with badges=1');
+  const by = Object.fromEntries(data.results.map(r => [r.id, r.delivers_to]));
+  assert.deepEqual(by[1], ['GB']);
+  assert.deepEqual(by[2], ['WORLD'], 'worldwide says it all');
+  assert.deepEqual(by[3], ['EU', 'IS', 'LI', 'NO'], 'codes cleaned, anything else dropped');
+  assert.deepEqual(by[4], [], 'a site of before L151 says nothing: no line on the card');
+  assert.deepEqual(deliveryCodes(Array.from({ length: 60 }, (_, i) => String.fromCharCode(65 + (i % 26)) + String.fromCharCode(65 + Math.floor(i / 26)))).length, 40);
+  // The cards: the search (app.js), the gift finder (hub-v2.js) and the photo search (gear-world-camera.js) all add the
+  // line from translations.js, which keeps the retailer name untranslated and has the words in the 11 languages.
+  const pub = f => readFileSync(`sites/gwh/public/${f}`, 'utf8');
+  assert.match(pub('app.js'), /\$\{window\.GWH_deliveryHtml \? window\.GWH_deliveryHtml\(product\) : ""\}/);
+  assert.match(pub('hub-v2.js'), /<div class="gwh-search-meta">\$\{meta\}<\/div>\$\{window\.GWH_deliveryHtml \? window\.GWH_deliveryHtml\(p\) : ""\}/);
+  assert.match(pub('gear-world-camera.js'), /<div class="gwh-search-meta">\$\{meta\}<\/div>\$\{window\.GWH_deliveryHtml \? window\.GWH_deliveryHtml\(product\) : ""\}/);
+  const tr = pub('translations.js');
+  assert.match(tr, /window\.GWH_deliveryHtml = deliveryHtml;/);
+  for (const key of ['deliversTo', 'worldwide']) {
+    const m = tr.match(new RegExp(`\\n    ${key}: (\\[[^\\n]+\\]),\\n`));
+    assert.ok(m, key);
+    const list = JSON.parse(m[1]);
+    assert.equal(list.length, 11, `${key}: 11 languages`);
+    if (key === 'deliversTo') assert.ok(list.every(s => s.includes('{retailer}')), 'every language names the retailer');
+  }
+  // The helper itself, in a page-like sandbox: the retailer untranslated and escaped, 3 names then +n, worldwide.
+  const { runInNewContext } = await import('node:vm');
+  const store = new Map();
+  const win = { addEventListener() {}, dispatchEvent() {} };
+  const ctx = { window: win, localStorage: { getItem: k => store.get(k) || null, setItem: (k, v) => store.set(k, v) },
+    document: { documentElement: {}, querySelector: () => null, querySelectorAll: () => [], getElementById: () => null, addEventListener() {}, readyState: 'complete' },
+    CustomEvent: class { constructor(n, o) { this.type = n; this.detail = o && o.detail; } }, Intl, setTimeout };
+  runInNewContext(tr, ctx);
+  const line = win.GWH_deliveryHtml({ retailer: 'Tooled <Up>', delivers_to: ['GB', 'IE', 'FR', 'DE'] });
+  assert.match(line, /^<div class="gwh-search-ship" data-ship="GB IE FR DE"><span translate="no">Tooled &lt;Up&gt;<\/span> delivers to: United Kingdom, Ireland, France \+1<\/div>$/);
+  assert.match(win.GWH_deliveryHtml({ retailer: 'GRABO', delivers_to: ['WORLD'] }), /delivers to: Worldwide<\/div>$/);
+  assert.equal(win.GWH_deliveryHtml({ retailer: 'Old', delivers_to: [] }), '');
+  assert.equal(win.GWH_deliveryHtml({ retailer: '', delivers_to: ['GB'] }), '');
+});
+
+// Lessons L175 (owner, 17 Nov 2026: "every country opens in its own language"): the home page names the language of the
+// visitor's country on <html>; translations.js uses it only without a choice of the visitor's own, and never saves it.
+test('home page and /about/: the language of the visitor\'s country on <html>, added per answer; English and crawlers unchanged (L175)', async () => {
+  for (const [cc, code] of Object.entries(COUNTRY_LANGUAGES)) assert.equal(countryLanguage(cc), HUB_LOCALES.includes(code) ? code : '', cc);
+  assert.equal(countryLanguage('PL'), '', 'no Polish on the Hub (the sites have it)');
+  assert.equal(countryLanguage('GR'), 'el-GR');
+  assert.equal(countryLanguage('cy'), 'el-GR');
+  assert.equal(countryLanguage('BR'), 'pt-PT');
+  for (const cc of ['GB', 'IE', 'US', 'UA', 'TR', 'SE', '', null, undefined]) assert.equal(countryLanguage(cc), '', String(cc));
+  assert.deepEqual(Object.keys(MULTI_LANGUAGE_COUNTRIES).sort(), ['BE', 'CH', 'LU']);
+  assert.equal(countryLanguage('BE', 'fr-BE,fr;q=0.9'), 'fr-FR');
+  assert.equal(countryLanguage('BE', 'en-GB,nl;q=0.5'), '');
+  assert.equal(countryLanguage('CH', 'it-CH'), 'it-IT');
+  assert.equal(countryLanguage('LU', 'lb,de;q=0.7'), 'de-DE');
+  assert.equal(countryLanguage('BE', ''), '');
+
+  const page = '<!doctype html><html lang="en-GB"><body class="gwh2"><header class="site-header"><nav>menu</nav></header><main>search</main></body></html>';
+  const env = { ...makeEnv(), ASSETS: { fetch: async () => new Response(page, { headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'public, max-age=0, must-revalidate', ETag: '"x"' } }) } };
+  const home = async (country, headers = {}, path = '/') => {
+    const req = new Request(`https://gearworldhub.com${path}`, { headers: { 'User-Agent': 'Mozilla/5.0 test', ...headers } });
+    if (country !== undefined) Object.defineProperty(req, 'cf', { value: { country } });
+    return hub.fetch(req, env, { waitUntil: p => p });
+  };
+  const gr = await home('GR');
+  const grHtml = await gr.text();
+  assert.match(grHtml, /<html data-country-lang="el-GR" lang="en-GB">/);
+  assert.equal(gr.headers.get('Cache-Control'), 'private, max-age=60');
+  // The live check of tools/gwh-hub-v2.ps1 takes the mark out (with the bar) before it compares the page.
+  const ps1 = (await import('node:fs')).readFileSync('tools/gwh-hub-v2.ps1', 'utf8');
+  const strip = ps1.match(/\$clean = \[regex\]::Replace\(\$clean, ' data-country-lang="([^']+)"', ''\)/);
+  assert.ok(strip, 'the live check knows the mark');
+  const gbHtml = await (await home('GB')).text();
+  const cleaned = grHtml.replace(new RegExp(' data-country-lang="' + strip[1] + '"'), '').replace(/<div class="gwh2-country-bar"[\s\S]*?<\/div>/, '');
+  assert.equal(cleaned, gbHtml);
+  assert.ok(!gbHtml.includes('data-country-lang'), 'never for the UK');
+  assert.match(await (await home('BE', { 'Accept-Language': 'nl-BE' })).text(), /data-country-lang="nl-NL"/);
+  assert.ok(!(await (await home('PL')).text()).includes('data-country-lang'), 'Poland: no Polish on the Hub');
+  assert.ok(!(await (await home('GR', { 'User-Agent': 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)' })).text()).includes('data-country-lang'), 'Google reads English');
+  assert.match(await (await home('GR', {}, '/about/')).text(), /data-country-lang="el-GR"/, '/about/ too, which reviewers read');
+  assert.ok(!(await (await home('GR', {}, '/stores/')).text()).includes('data-country-lang'), 'not the English-only pages');
+  for (const path of ['/privacy/', '/cookies/', '/terms/', '/affiliate-disclosure/', '/contact/'])
+    assert.match(await (await home('GR', {}, path)).text(), /data-country-lang="el-GR"/, `${path}: translated by legal.js (L176)`);
+  assert.ok(!(await (await home('GR', {}, '/guides/')).text()).includes('data-country-lang'), 'the guides stay English');
+  assert.ok(!(await (await home('GR', { 'User-Agent': 'Mozilla/5.0 (Linux; Android 13; CUBOT X20 PRO) AppleWebKit/537.36 Chrome/120 Mobile Safari/537.36' })).text()).includes('data-country-lang') === false, 'a Cubot phone is a person');
+  for (const ua of ['Mozilla/5.0 (compatible; YandexBot/3.0; +http://yandex.com/bots)', 'Mozilla/5.0 (compatible; bingbot/2.0; +http://www.bing.com/bingbot.htm)', 'facebookexternalhit/1.1'])
+    assert.ok(!(await (await home('RU', { 'User-Agent': ua })).text()).includes('data-country-lang'), `no crawler: ${ua}`);
+
+  // translations.js: the visitor's own choice first, then the country, then English; the country is never saved.
+  const js = (await import('node:fs')).readFileSync('sites/gwh/public/translations.js', 'utf8');
+  assert.match(js, /let chosenLocale = LOCALES\.includes\(currentLocale\) && \(currentLocale !== "en-GB" \|\| chosenMark\);/, 'English saved before L175 is not a choice');
+  assert.match(js, /localStorage\.setItem\("gwh-language-chosen", "1"\)/, 'the menu marks a choice');
+  assert.match(js, /const byCountry = root && root\.getAttribute \? root\.getAttribute\("data-country-lang"\) : "";/);
+  assert.match(js, /if \(save\) \{ try \{ localStorage\.setItem\("gwh-language", locale\); \}/);
+  assert.match(js, /applyLanguage\(currentLocale, chosenLocale\);\n\}\)\(\);/);
+  assert.match(js, /applyLanguage\(event\.target\.value\);/, 'a choice in the menu is saved');
+  const about = (await import('node:fs')).readFileSync('sites/gwh/public/about/about.js', 'utf8');
+  assert.match(about, /document\.documentElement\.getAttribute\("data-country-lang"\)/, '/about/ follows the same order');
+  assert.match(about, /lang === "en-GB" && !chosen/);
+  assert.deepEqual(HUB_LOCALES, JSON.parse(js.match(/const LOCALES = (\[[^\]]+\])/)[1].replace(/\s+/g, '')), 'the same 11 languages as translations.js');
+});
+
+// GWH-RANKING-V3 (lessons L177, 17/11/2026): what the product IS (its subcategory, category or the retailer's path)
+// counts first, then the name as whole words. The cases are the ones Evangelos and the check of 17/11 found on the live
+// Hub (UK view): tablet stands and hi-vis vests before tablets, cufflinks before laptops and headphones, a Kettler bag
+// before kettles, trousers in drill cotton before drills, a BBQ sweatshirt before BBQs.
+test('search: ranking v3, the product the search names comes before look-alikes and accessories (L177)', async () => {
+  const fake = productsFetch({
+    'constructiongearworld.com': [
+      { id: 1, product_name: 'Sealey Laptop and Tablet Stand Black', site_category: 'Site Equipment', subcategory: 'Site Equipment' },
+      { id: 2, product_name: 'Portwest Hi-Vis Tablet Pocket Executive Vest', site_category: 'Workwear', subcategory: 'Hi-Vis' }
+    ],
+    'homegearworld.com': [{ id: 3, product_name: 'Small Tabletop Water Fountain', site_category: 'Home Decor', subcategory: 'Fountains' }],
+    'technologygearworld.com': [
+      { id: 4, product_name: 'Lenovo Tab K12 Mediatek 256 GB', site_category: 'Laptops & Computing', subcategory: 'Tablets' },
+      { id: 5, product_name: 'Targus tablet case 29.2 cm', site_category: 'Accessories & Storage', subcategory: 'Computers' },
+      { id: 6, product_name: 'Apple iPad Air M4 128 GB', site_category: 'Laptops & Computing', subcategory: 'Tablets' }
+    ]
+  });
+  const { data } = await searchWith(fake, 'q=tablet&country=GB');
+  const order = data.results.map(r => `${r.site}:${r.id}`);
+  assert.deepEqual(order.slice(0, 2).sort(), ['tgw:4', 'tgw:6'], order.join(' '));
+  for (const other of ['cgw:1', 'cgw:2', 'hgw:3', 'tgw:5']) assert.ok(order.indexOf(other) > 1, `${other} after the tablets`);
+  assert.ok(!order.slice(0, 2).includes('hgw:3'), 'Tabletop is not tablet');
+});
+
+test('search: ranking v3, cufflinks, a Kettler bag, drill cotton and a BBQ sweatshirt go below the real thing (L177)', () => {
+  const rank = (q, list) => rankHubResults(list.map((p, i) => ({ id: i, ...p })), q).map(p => p.product_name);
+  let o = rank('laptop', [
+    { site: 'mgw', product_name: 'Laptop Computer Cufflinks', category: "Men's Jewellery", subcategory: 'Cufflinks' },
+    { site: 'tgw', product_name: 'HP OmniBook X Flip 2-in-1 Laptop', category: 'Laptops & Computing', subcategory: 'Laptops & Notebooks' }]);
+  assert.equal(o[0], 'HP OmniBook X Flip 2-in-1 Laptop');
+  o = rank('kettle', [
+    { site: 'kgw', product_name: 'Kettler Changing Bag Melange Grey', category: 'Baby & Toddler', subcategory: 'Nappy Bags' },
+    { site: 'hgw', product_name: 'DAEWOO Kettle: Sienna Retro 1.7L Jug Kettle', category: 'Home Appliances', subcategory: 'Kettle' }]);
+  assert.equal(o[0], 'DAEWOO Kettle: Sienna Retro 1.7L Jug Kettle');
+  o = rank('drill', [
+    { site: 'mgw', product_name: 'Slim Fatigue (Natural Drill) | 32 | Stan Ray', category: 'Clothing', subcategory: 'Trousers' },
+    { site: 'hgw', product_name: 'Adjustable Arm Rest for Office Desk, Clamp-On/No Drill Installation', category: 'Home Office', subcategory: 'Office Desk' },
+    { site: 'cgw', product_name: 'Bosch GRD 18V-127 18v Cordless Right Angle Drill No Batteries No Charger No Case', category: 'Power Tools', subcategory: 'Power Tools', merchant_category: 'Power Tools > Drills > Angle Drills' }]);
+  assert.equal(o[0], 'Bosch GRD 18V-127 18v Cordless Right Angle Drill No Batteries No Charger No Case', '"No Case" is not a case');
+  o = rank('bbq', [
+    { site: 'mgw', product_name: 'BBQ Crew (Grey Heather) | S | Stan Ray', category: 'Clothing', subcategory: 'Sweatshirts' },
+    { site: 'ggw', product_name: 'Outsunny 2 Burner Gas Barbecue', category: 'BBQ & Outdoor Cooking', subcategory: 'BBQs' }]);
+  assert.equal(o[0], 'Outsunny 2 Burner Gas Barbecue', 'BBQs, and barbecue is bbq');
+  o = rank('lawn mower', [
+    { site: 'cgw', product_name: 'ACEZUK M01 Jump Starter 12V Car Battery', category: 'Site Equipment', subcategory: '' },
+    { site: 'ggw', product_name: 'Kärcher LMO 3-18 Battery lawn mower', category: 'Power Garden Tools', subcategory: 'Lawnmowers & Accessories' }]);
+  assert.equal(o[0], 'Kärcher LMO 3-18 Battery lawn mower', 'lawn mower = Lawnmowers');
+  o = rank('dress', [
+    { site: 'kgw', product_name: 'Spider-Man Dress-up Costume for Kids', category: 'Clothing', subcategory: 'Baby & Toddler Dresses' },
+    { site: 'wgw', product_name: 'Italy Moda Evening Dress - Brown', category: 'Clothing', subcategory: 'Dresses' }]);
+  assert.equal(o[0], 'Italy Moda Evening Dress - Brown');
+  // Asking for the accessory still finds it first, and the 3rd copy of one name goes down.
+  o = rank('tablet case', [
+    { site: 'tgw', product_name: 'Apple iPad Air M4', category: 'Laptops & Computing', subcategory: 'Tablets' },
+    { site: 'tgw', product_name: 'Targus tablet case 29.2 cm', category: 'Accessories & Storage', subcategory: 'Computers' }]);
+  assert.equal(o[0], 'Targus tablet case 29.2 cm');
+  const vests = Array.from({ length: 4 }, () => ({ site: 'cgw', product_name: 'Portwest Hi Vis Vest', category: 'PPE', subcategory: 'Hi-Vis' }));
+  o = rank('hi vis', [...vests, { site: 'cgw', product_name: 'Sealey Hi Vis Jacket', category: 'PPE', subcategory: 'Hi-Vis' }]);
+  assert.ok(o.indexOf('Sealey Hi Vis Jacket') <= 2, o.join(' / '));
+});
+
+test('search: ranking v3 words: plurals, joined words, no prefix match (L177)', () => {
+  assert.deepEqual(['dresses', 'watches', 'tablets', 'bbqs', 'batteries', 'boots', 'glass', 'plus'].map(rankStem), ['dress', 'watch', 'tablet', 'bbq', 'battery', 'boot', 'glass', 'plus']);
+  const t = rankTokens('Lawnmowers & Accessories');
+  assert.ok(t.has('lawnmower') && t.has('accessory'));
+  assert.ok(rankTokens('lawn mower').has('lawnmower'));
+  assert.ok(!rankTokens('Kettler Changing Bag').has('kettle'));
+  assert.ok(!rankTokens('Small Tabletop Fountain').has('tablet'));
+});
+
+test('search: ranking v3, a Gear World says some words by itself ("womens boots" = the boots of Women\'s Gear World) (L177)', () => {
+  const o = rankHubResults([
+    { id: 1, site: 'bgw', product_name: 'Alpinestars Stella Womens Boots', category: 'Motorcycle Clothing', subcategory: 'Riding Boots' },
+    { id: 2, site: 'wgw', product_name: 'Solea Heel Boots - Brown', category: 'Shoes', subcategory: 'Boots' },
+    { id: 3, site: 'mgw', product_name: 'Diesel Chief Watch', category: 'Watches', subcategory: 'Watches' },
+    { id: 4, site: 'wgw', product_name: 'Rose Gold Watch', category: 'Watches', subcategory: 'Watches' }
+  ], 'womens boots').map(p => p.id);
+  assert.equal(o[0], 2, 'the boots of the women\'s site');
+  const m = rankHubResults([
+    { id: 4, site: 'wgw', product_name: 'Rose Gold Watch', category: 'Watches', subcategory: 'Watches' },
+    { id: 3, site: 'mgw', product_name: 'Diesel Chief Watch', category: 'Watches', subcategory: 'Watches' }
+  ], 'mens watch').map(p => p.id);
+  assert.equal(m[0], 3, 'mens watch: the men\'s site');
+});
+
+test('search check list (L177): 65 searches, 5 for each of the 13 Gear Worlds, read-only, and its rules', async () => {
+  const { SEARCHES, judge } = await import('../../tools/gwh-search-check.mjs');
+  assert.equal(SEARCHES.length, 65);
+  const bySite = {};
+  for (const [q, want] of SEARCHES) { assert.ok(q && want.length, q); bySite[want[0]] = (bySite[want[0]] || 0) + 1; }
+  assert.deepEqual(Object.values(bySite), Array(13).fill(5), JSON.stringify(bySite));
+  const tool = (await import('node:fs')).readFileSync('tools/gwh-search-check.mjs', 'utf8');
+  assert.ok(!/method:\s*['"](POST|PUT|DELETE)|\/(go|out)\//.test(tool.replace(/never \/go\/ or \/out\//, '')), 'GET only, never /go/ or /out/');
+  const r = s => ({ site: s, delivers_to: ['GB'] });
+  assert.equal(judge([r('tgw'), r('tgw'), r('cgw'), r('tgw')], [], ['tgw']).pass, true);
+  assert.equal(judge([r('mgw'), r('tgw'), r('tgw'), r('tgw')], [], ['tgw']).pass, false, 'the first result is from another world (cufflinks before laptops)');
+  assert.equal(judge([r('tgw'), r('cgw'), r('cgw'), r('cgw'), r('tgw')], [], ['tgw']).pass, false, 'fewer than 3 of the first 5');
+  assert.equal(judge([r('tgw'), { site: 'tgw', delivers_to: ['US'] }, r('tgw')], [], ['tgw']).pass, false, 'a product that does not deliver to the UK');
+  assert.equal(judge([r('tgw'), r('tgw'), r('tgw')], ['cgw'], ['tgw']).pass, false, 'a site that did not answer');
+});
+
+// The independent check of c4776954 (17/11/2026): "constructor" crashed the ordering (Object.prototype), plurals such as
+// Hoodies / Scarves / Bikinis did not match, accessory words inside a product's own name ("Vacuum Cleaner", "Short Sleeve
+// T-Shirt") pushed real products down, and toy drills came before drills.
+test('search: ranking v3 after the check: no crash on "constructor", plurals, own names kept, toys down (L177)', async () => {
+  const fake = productsFetch({ 'constructiongearworld.com': [{ id: 1, product_name: 'Beeswift Constructor Jacket', site_category: 'Workwear', subcategory: 'Jackets' }] });
+  for (const q of ['constructor', 'constructors', 'toString', 'hasOwnProperty', '__proto__']) {
+    const { status, data } = await searchWith(fake, `q=${encodeURIComponent(q)}&country=GB`);
+    assert.equal(status, 200, q);
+    assert.equal(data.ok, true, q);
+  }
+  assert.deepEqual(['hoodies', 'hoodie', 'scarves', 'scarf', 'bikinis', 'lenses', 'lens', 'knives'].map(rankStem), ['hoody', 'hoody', 'scarf', 'scarf', 'bikini', 'lens', 'lens', 'knife']);
+  assert.ok(rankTokens('Kärcher Hose Trolley').has('karcher'), 'accents');
+  const rank = (q, list) => rankHubResults(list.map((p, i) => ({ id: i, ...p })), q).map(p => p.product_name);
+  let o = rank('hoodie', [
+    { site: 'cgw', product_name: 'Portwest Zip Hoody', category: 'Workwear', subcategory: 'Workwear' },
+    { site: 'mgw', product_name: 'adidas Trefoil Hoodie', category: 'Clothing', subcategory: 'Hoodies' }]);
+  assert.equal(o[0], 'adidas Trefoil Hoodie', 'Hoodies = hoodie');
+  o = rank('vacuum', [
+    { site: 'hgw', product_name: 'Sealey Cloth Dust Bag for Vacuum Cleaner', category: 'Home Appliances', subcategory: 'Vacuum Accessories' },
+    { site: 'hgw', product_name: 'Draper Wet and Dry Vacuum Cleaner 15L', category: 'Home Appliances', subcategory: 'Vacuum Cleaners' }]);
+  assert.equal(o[0], 'Draper Wet and Dry Vacuum Cleaner 15L', 'a vacuum cleaner is not an accessory');
+  o = rank('t shirt', [
+    { site: 'mgw', product_name: 'Laptop T Shirt Cufflinks', category: "Men's Jewellery", subcategory: 'Cufflinks' },
+    { site: 'mgw', product_name: 'Dickies Short Sleeve T-Shirt', category: 'Clothing', subcategory: 'T-Shirts' }]);
+  assert.equal(o[0], 'Dickies Short Sleeve T-Shirt', '"Short Sleeve" before the searched word is not an accessory');
+  o = rank('drill', [
+    { site: 'kgw', product_name: 'Theo Klein Bosch Pretend Play Toy Drill', category: 'Toys & Games', subcategory: 'Toy Tools' },
+    { site: 'cgw', product_name: 'Makita Cordless Drill Driver', category: 'Power Tools', subcategory: 'Power Tools' }]);
+  assert.equal(o[0], 'Makita Cordless Drill Driver', 'a toy drill after a drill');
+  o = rank('toy drill', [
+    { site: 'cgw', product_name: 'Makita Cordless Drill Driver', category: 'Power Tools', subcategory: 'Power Tools' },
+    { site: 'kgw', product_name: 'Theo Klein Bosch Pretend Play Toy Drill', category: 'Toys & Games', subcategory: 'Toy Tools' }]);
+  assert.equal(o[0], 'Theo Klein Bosch Pretend Play Toy Drill', 'asking for a toy finds the toy');
+});
+
+test('search check list (L177): the first result must be the item itself, and no look-alike in the first 3', async () => {
+  const { judge, itemOf } = await import('../../tools/gwh-search-check.mjs');
+  const r = (site, product_name, subcategory = '') => ({ site, product_name, subcategory, delivers_to: ['GB'] });
+  assert.equal(itemOf('womens boots'), 'boot');
+  assert.equal(judge([r('wgw', 'Fairfax Suede Boot Tassels'), r('wgw', 'Solea Heel Boots'), r('wgw', 'EMU Boots')], [], ['wgw'], 'womens boots').pass, false, 'tassels are a look-alike');
+  assert.equal(judge([r('wgw', 'Solea Heel Boots'), r('wgw', 'EMU Boots'), r('wgw', 'Snow Boots')], [], ['wgw'], 'womens boots').pass, true);
+  assert.equal(judge([r('hgw', 'Kettler Bag'), r('hgw', 'Jug Kettle'), r('hgw', 'Kettle')], [], ['hgw'], 'kettle').pass, false, 'the first result must be a kettle');
+  assert.equal(judge([r('kgw', 'LEGO City Toy Set'), r('kgw', 'LEGO Toy'), r('kgw', 'LEGO Batman Toy')], [], ['kgw'], 'lego').pass, true, 'on the kids site a toy is the product');
+});
+
+// The re-check of 7406b610: an accessory word BEFORE the searched word is usually one too ("Silicone Case iPhone 15"),
+// but not in names such as "Side Pocket Hoody" or "Stand Mixer"; a known gap excuses only its own rule; the first result
+// must not be an accessory of the item ("Targus tablet case" is not a tablet).
+test('search: ranking v3, accessories before the word, and the check list rules after the re-check (L177)', async () => {
+  const rank = (q, list) => rankHubResults(list.map((p, i) => ({ id: i, ...p })), q).map(p => p.product_name);
+  let o = rank('iphone 15', [
+    { site: 'tgw', product_name: 'Silicone Case iPhone 15', category: 'Phones', subcategory: 'Phone Accessories' },
+    { site: 'tgw', product_name: 'Apple iPhone 15 128GB', category: 'Phones', subcategory: 'Mobile Phones' }]);
+  assert.equal(o[0], 'Apple iPhone 15 128GB');
+  o = rank('hoodie', [
+    { site: 'mgw', product_name: 'WOLF CHI Side Pocket Hoody', category: 'Clothing', subcategory: 'Hoodies' },
+    { site: 'mgw', product_name: 'Plain Hoodie', category: 'Clothing', subcategory: 'Hoodies' }]);
+  assert.equal(new Set(o).size, 2);
+  const scores = rankHubResults([{ id: 1, site: 'mgw', product_name: 'WOLF CHI Side Pocket Hoody', subcategory: 'Hoodies' }, { id: 2, site: 'mgw', product_name: 'WOLF CHI Basic Hoody', subcategory: 'Hoodies' }], 'hoodie').map(p => p.id);
+  assert.deepEqual(scores, [1, 2], '"Side Pocket" is not an accessory: equal, the order of the site stays');
+  const { judge } = await import('../../tools/gwh-search-check.mjs');
+  const r = (site, product_name) => ({ site, product_name, delivers_to: ['GB'] });
+  const caseFirst = judge([r('tgw', 'Targus tablet case 29 cm'), r('tgw', 'Lenovo Tablet'), r('tgw', 'iPad tablet')], [], ['tgw'], 'tablet');
+  assert.equal(caseFirst.pass, false);
+  assert.ok(caseFirst.broken.includes('item'));
+  const withCase = judge([r('tgw', 'Kids Tablet with protective case'), r('tgw', 'Lenovo Tablet'), r('tgw', 'iPad tablet')], [], ['tgw'], 'tablet');
+  assert.equal(withCase.pass, true, 'a tablet with a case is a tablet');
+  const kettler = judge([r('hgw', 'Kettler Changing Bag'), r('hgw', 'Table Sauces Kettle Base'), r('hgw', 'Jug Kettle')], [], ['hgw'], 'kettle');
+  assert.deepEqual(kettler.broken.sort(), ['item', 'lookalike'], 'the sauce gap (lookalike) would not excuse the Kettler bag (item)');
+});
+
+test('search: ranking v3, product names with an accessory word in them keep their place (final check of ec76e012)', () => {
+  for (const [q, name] of [['jumper', 'Aran Cable Knit Jumper'], ['heels', 'Ankle Strap Heels'], ['suitcase', 'Samsonite Hard Case Suitcase'],
+    ['paddle board', 'Stand Up Paddle Board'], ['bedding', 'Duvet Cover Bedding Set']]) {
+    const o = rankHubResults([{ id: 1, site: 'wgw', product_name: name, subcategory: q }, { id: 2, site: 'wgw', product_name: `Plain ${q}`, subcategory: q }], q).map(p => p.id);
+    assert.equal(o[0], 1, `${name}: not an accessory, the order of the site stays`);
+  }
 });

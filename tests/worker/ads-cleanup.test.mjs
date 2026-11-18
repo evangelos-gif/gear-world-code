@@ -221,17 +221,34 @@ test('the Hub: no shop, partner, sponsor or basket wording in any page, script o
   assert.match(readFileSync(`${PUB}/hub-v2.css`, 'utf8'), /\.gwh2-deal-retailer\{/);
 });
 
-test('the Hub legal pages say what is there: no affiliate links on the Hub, who runs it, honest dates', () => {
+test('the Hub legal pages say what is there: one affiliate link on the Hub (the Featured pick), who runs it, honest dates', () => {
   const disc = readFileSync(`${PUB}/affiliate-disclosure/index.html`, 'utf8');
-  // 9/11/2026 (L107): the links of the sites go through Awin or CJ, so the date moved on with the text.
-  assert.match(disc, /<p class="lg-updated">Last updated: 9 November 2026<\/p>/);
-  assert.match(disc, /The Hub itself has no affiliate links and no paid placements\./);
-  assert.match(disc, /take you to pages of the Gear World sites, never straight to a retailer/);
+  // 9/11/2026 (L107): the links of the sites go through Awin or CJ, so the date moved on with the text. 17/11/2026
+  // (L176): since L121 (14/11/2026) the "Featured pick" card of the home page is a Sovrn Commerce link straight to the
+  // retailer, so "The Hub itself has no affiliate links" was no longer true: the pages name that one exception.
+  assert.match(disc, /<p class="lg-updated">Last updated: 17 November 2026<\/p>/);
+  assert.ok(!/no affiliate links/.test(disc), 'the disclosure no longer says the Hub has no affiliate links');
+  assert.match(disc, /<p>The one exception is the "Featured pick" card on the home page, marked "Affiliate link"\. It takes you straight to the retailer through another affiliate network, Sovrn Commerce\. If you then buy something, the retailer may pay Gear World a commission, at no extra cost to you\. The Hub has no paid placements\.<\/p>/);
+  assert.match(disc, /\(search results, gift guides, deals and the world cards\) take you to pages of the Gear World sites, never straight to a retailer/);
+  // The words of the card itself: its title and its badge.
+  const home = readFileSync(`${PUB}/index.html`, 'utf8');
+  assert.match(home, /data-gwh2="featuredTitle">Featured pick</);
+  assert.match(home, /data-gwh2="featuredBadge">Affiliate link</);
+  for (const page of ['privacy', 'cookies', 'about']) {
+    assert.ok(!/no affiliate links/.test(readFileSync(`${PUB}/${page}/index.html`, 'utf8')), `${page}: no "no affiliate links"`);
+  }
+  assert.match(readFileSync(`${PUB}/cookies/index.html`, 'utf8'), /\(Awin, CJ for a few retailers, or Sovrn Commerce for the "Featured pick" card\)/);
+  assert.match(readFileSync(`${PUB}/about/index.html`, 'utf8'), /through the Awin and CJ affiliate networks, and through Sovrn Commerce for the "Featured pick" card on the Hub\.<\/p>/);
   const priv = readFileSync(`${PUB}/privacy/index.html`, 'utf8');
-  // 8/11/2026 (L106): the sign-up forms use Cloudflare Turnstile, so the date moved on with the text.
-  assert.match(priv, /<p class="lg-updated">Last updated: 9 November 2026<\/p>/);
+  // 8/11/2026 (L106): the sign-up forms use Cloudflare Turnstile, so the date moved on with the text; 17/11/2026 (L175,
+  // L176): the language line and "outside the UK and the European Economic Area"; 20/11/2026 (L180): a search written
+  // as a sentence may be read by Cloudflare Workers AI (live 17/11/2026 21:19, so the date stays 17 November).
+  // 18/11/2026: the small sign-up window and "Remind me on 27 Nov" (L182).
+  assert.match(priv, /<p class="lg-updated">Last updated: 18 November 2026<\/p>/);
+  assert.match(priv, /Searches in a language other than English, or written as a sentence, may be read by Cloudflare Workers AI, inside our hosting provider, to translate them into English and to find the product, any price limit and who it is for\./);
   assert.match(priv, /also use Cloudflare Turnstile/);
-  assert.match(priv, /The Hub itself has no affiliate links; the links to retailers on those sites go through the Awin affiliate network, or for a few retailers through CJ \(Commission Junction\)\./);
+  assert.match(priv, /The links to retailers on those sites go through the Awin affiliate network, or for a few retailers through CJ \(Commission Junction\)\. The one affiliate link on the Hub itself, the "Featured pick" card on the home page, goes to the retailer through Sovrn Commerce\./);
+  assert.match(priv, /the <a href="https:\/\/www\.cj\.com\/legal\/privacy">CJ privacy policy<\/a> and the <a href="https:\/\/www\.sovrn\.com\/legal\/privacy-policy\/">Sovrn privacy policy<\/a>\./);
   const terms = readFileSync(`${PUB}/terms/index.html`, 'utf8');
   assert.match(terms, /<p class="lg-updated">Last updated: 7 November 2026<\/p>/);
   assert.match(terms, /operated by Gear World \(run by Evangelos Kalogerakis, United Kingdom\)/);
@@ -291,8 +308,8 @@ test('the Hub: styles.css (not loaded by the page) keeps no rule of the sponsore
   assert.ok(!/gwh-business|sponsor|shop/i.test(css));
   const index = readFileSync(`${PUB}/index.html`, 'utf8');
   assert.ok(!/\/styles\.css/.test(index), 'the page does not load styles.css');
-  assert.ok(index.includes('/translations.js?v=20261108-cleanup1'), 'translations.js');
-  assert.ok(/\/hub-v2\.css\?v=(20261108-cleanup1|20261109-compliance\d+)/.test(index), 'hub-v2.css (a later version since L107)');
+  assert.ok(/\/translations\.js\?v=(20261108-cleanup1|20261114-badges\d+|20261117-lang\d+|20261120-search\d+)/.test(index), 'translations.js (a later version since L153, L175, L180)');
+  assert.ok(/\/hub-v2\.css\?v=(20261108-cleanup1|20261109-compliance\d+|20261116-stores\d+|20261120-popup\d+|20261123-mega\d+)/.test(index), 'hub-v2.css (a later version since L107; L166 the Stores card)');
   assert.ok(!/partner/i.test(index));
 });
 
@@ -301,12 +318,19 @@ test('the Hub sitemap has /about/ (owner, 7/11/2026); the tools ask this release
   assert.ok(body.includes('<loc>https://gearworldhub.com/about/</loc>'));
   const hubTool = readFileSync('tools/gwh-hub-v2.ps1', 'utf8');
   // The releases after this one ask their own phrases (L105 robots.txt: HUB ROBOTS; L106 security fixes: HUB SECURITY).
-  // L107 Google Ads compliance: HUB COMPLIANCE (live 9/11/2026). L109 gift guide prices: HUB GUIDE PRICES.
-  assert.ok(hubTool.includes("$PhrasePreview = 'ΕΓΚΡΙΝΩ HUB GUIDE PRICES PREVIEW'") && hubTool.includes("$PhraseLive = 'ΕΓΚΡΙΝΩ HUB GUIDE PRICES LIVE'"));
-  assert.ok(!/\$Phrase(Preview|Live) = 'ΕΓΚΡΙΝΩ HUB (COMPLIANCE|SECURITY|ROBOTS|CLEANUP|WORDING|ADS|GUIDES|REGISTRY) /.test(hubTool), 'no phrase of an earlier release');
+  // L107 Google Ads compliance: HUB COMPLIANCE (live 9/11/2026). L109 gift guide prices: HUB GUIDE PRICES (live 9/11/2026).
+  // L119 Mitgo verification and guide prices of 13/11/2026: HUB MITGO.
+  // L121 Sovrn Commerce link of 14/11/2026: HUB SOVRN (L119 HUB MITGO live 13/11/2026).
+  // L150 Impact verification of 14/11/2026: HUB IMPACT (L121 HUB SOVRN live 14/11/2026 16:50).
+  // L153 delivery badges of 14/11/2026: HUB BADGES (L150 HUB IMPACT live 14/11/2026 18:48).
+  // L166 Stores of 16/11/2026: HUB STORES (L153 HUB BADGES live 14/11/2026 19:53).
+  // L173 search model of 17/11/2026: HUB AI (L166 HUB STORES live 16/11/2026 20:12).
+  // L180 search typed as a sentence (Idea 9) of 20/11/2026: HUB SEARCH (L173-L177 HUB AI live 17/11/2026 18:39).
+  assert.ok(hubTool.includes("$PhrasePreview = 'ΕΓΚΡΙΝΩ HUB SEARCH PREVIEW'") && hubTool.includes("$PhraseLive = 'ΕΓΚΡΙΝΩ HUB SEARCH LIVE'"));
+  assert.ok(!/\$Phrase(Preview|Live) = 'ΕΓΚΡΙΝΩ HUB (COMPLIANCE|SECURITY|ROBOTS|CLEANUP|WORDING|ADS|GUIDES|GUIDE PRICES|MITGO|SOVRN|IMPACT|BADGES|STORES|REGISTRY|AI) /.test(hubTool), 'no phrase of an earlier release');
   assert.ok(hubTool.includes("$PhraseRemovePreview = 'ΕΓΚΡΙΝΩ HUB REMOVE PREVIEW'"));
   const tests = readFileSync('tests/run-tests.ps1', 'utf8');
-  assert.ok(tests.includes("'egkrino hub guide prices preview'") && tests.includes("'egkrino hub guide prices live'") && !/HUB WORDING|hub wording|HUB CLEANUP|hub cleanup|HUB ROBOTS|hub robots|hub security (preview|live)|hub compliance (preview|live)/.test(tests));
+  assert.ok(tests.includes("'egkrino hub search preview'") && tests.includes("'egkrino hub search live'") && !/HUB WORDING|hub wording|HUB CLEANUP|hub cleanup|HUB ROBOTS|hub robots|hub security (preview|live)|hub compliance (preview|live)|hub guide prices (preview|live)|hub mitgo (preview|live)|hub sovrn (preview|live)|hub impact (preview|live)|hub badges (preview|live)|hub stores (preview|live)|hub ai (preview|live)|HUB AI (PREVIEW|LIVE)/.test(tests));
   const sitesTool = readFileSync('tools/ads-fixes-sites.ps1', 'utf8');
   assert.ok(sitesTool.includes("$Phrase = 'ΕΓΚΡΙΝΩ ADS FIXES'"));
   assert.ok(sitesTool.includes("'Browse by category'") && sitesTool.includes('data-i18n-keep="0"'), 'the live check looks for the L103 wording');

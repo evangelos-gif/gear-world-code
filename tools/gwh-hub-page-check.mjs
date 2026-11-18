@@ -4,7 +4,10 @@
 // (1366 px), and checks what the owner asked for on 27/10/2026:
 //   - the search is on the first screen of the phone, with the camera inside it and the big photo button
 //   - nothing moves by itself: the season picture drops in once (ends within 3 s), and the slide stays the same
-//     until an arrow is used; with "reduce motion" nothing moves at all
+//     until an arrow is used; with "reduce motion" nothing moves at all. The one exception the owner approved (L192):
+//     the store names of the Mega Stores bar roll past, paused on hover and focus, still with "reduce motion"
+//   - the Mega Stores bar (L192): first on the page, phone 1 world card tall and the 2 columns wide, PC (1280 px) half
+//     a card tall and the 7 columns wide (two rows of 7 cards on the PC)
 //   - the campaigns follow their dates (Black Friday only 27-30/11), the arrows go round
 //   - the gift finder asks only the Gear Worlds of the idea and the chosen price (no new database cost)
 //   - the deals come from hub-deals.json, keep their end date and link to a site page, never /go/ or /out/
@@ -70,7 +73,9 @@ const base = `http://127.0.0.1:${server.address().port}`;
 // ---------- fixed test answers ----------
 const product = (site, id, price, name) => ({
   id, product_id: id, site, site_name: site.toUpperCase(), site_url: `https://${site}.example.invalid`, product_name: name,
-  brand: 'Test Brand', retailer: 'Test Shop', price, currency: 'GBP', image_url: '', product_url: `https://${site}.example.invalid/?search=x&highlight=${id}`
+  brand: 'Test Brand', retailer: 'Test Shop', price, currency: 'GBP', image_url: '', product_url: `https://${site}.example.invalid/?search=x&highlight=${id}`,
+  // Lessons L153: where the retailer delivers, as /api/search passes it on from the site.
+  delivers_to: ['GB', 'IE', 'FR', 'DE']
 });
 const searchAnswer = url => {
   const q = url.searchParams.get('q') || '';
@@ -141,11 +146,12 @@ try {
 
       // nothing moves by itself
       // The campaign picture drops in once; after 3 s nothing moves any more, and nothing repeats.
-      const endless = await page.evaluate(() => document.getAnimations().filter(a => { const t = a.effect && a.effect.getComputedTiming(); return !t || t.iterations !== 1 || t.endTime > 3000; }).length);
-      check(endless === 0, `${tag}: every animation plays once and ends within 3 s`, `${endless} endless or long`);
+      // (L192: except the store names of the Mega Stores bar, the one loop the owner approved.)
+      const endless = await page.evaluate(() => document.getAnimations().filter(a => a.animationName !== 'gwh2Mega').filter(a => { const t = a.effect && a.effect.getComputedTiming(); return !t || t.iterations !== 1 || t.endTime > 3000; }).length);
+      check(endless === 0, `${tag}: every animation plays once and ends within 3 s (but the Mega Stores names, L192)`, `${endless} endless or long`);
       await page.waitForTimeout(3000);
-      const anims = await page.evaluate(() => document.getAnimations().filter(a => a.playState === 'running').length);
-      check(anims === 0, `${tag}: after 3 s nothing moves or blinks by itself`, `${anims} running animations`);
+      const anims = await page.evaluate(() => document.getAnimations().filter(a => a.playState === 'running').map(a => a.animationName || 'other'));
+      check(anims.every(n => n === 'gwh2Mega') && anims.length <= 1, `${tag}: after 3 s nothing moves or blinks by itself, but the Mega Stores names (L192)`, anims.join(',') || 'none');
       if (full) {
         const before = await page.getAttribute('.gwh2-slide', 'data-campaign');
         await page.clock.runFor(8000);
@@ -162,15 +168,42 @@ try {
       const worlds = await page.$$eval('.gwh-image-world', els => els.map(e => ({ world: e.dataset.world, href: e.getAttribute('href'), title: e.querySelector('.gwh-image-world-title').textContent.trim() })));
       check(worlds.length === 13 && worlds.every(w => /^https:\/\/[a-z]+gearworld\.com\/$/.test(w.href)), `${tag}: 13 Gear World cards with their sites (BGW and PGW since 31/10/2026, ZGW since 1/11/2026)`, worlds.map(w => w.world).join(','));
       if (locale === 'el-GR') check(worlds[0].title === 'Εργαλεία & ρούχα εργασίας' || /[Α-Ωα-ω]/.test(worlds[0].title), `${tag}: world titles in Greek`, worlds[0].title);
+      // Lessons L174 (Linkwise, 17/11/2026): the Hub's language goes with a link to a site when it is used, and the
+      // «Featured pick» card is in the chosen language. The link is not followed: the event only, then the address back.
+      const carried = await page.$eval('.gwh-image-world', a => {
+        const before = a.getAttribute('href');
+        a.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true }));
+        const after = a.getAttribute('href');
+        a.setAttribute('href', before);
+        return after;
+      });
+      const wantLink = locale === 'en-GB' ? worlds[0].href : `${worlds[0].href}?lang=${locale}`;
+      check(carried === wantLink, `${tag}: a world card opens its site in the Hub's language (L174)`, carried);
+      const featured = await page.$eval('#gwh2FeaturedTitle', e => e.textContent.trim());
+      check(featured === text('featuredTitle', locale), `${tag}: the Featured pick card is in the chosen language (L174)`, featured);
+      // The legal links of the footer, with the words of the legal pages (L176, the check of 17/11/2026).
+      const footLegal = await page.$$eval('.footer-legal a', els => els.map(e => e.textContent.trim()));
+      const legalWords = locale === 'en-GB' ? null : JSON.parse(readFileSync(join(publicDir, 'legal', 'i18n', `${locale}.json`), 'utf8'));
+      const wantFoot = ['Privacy', 'Cookies', 'Terms', 'Affiliate disclosure', 'Contact'].map(w => legalWords ? legalWords[w] : w);
+      check(footLegal.join('|') === wantFoot.join('|'), `${tag}: the legal links of the footer in the chosen language (L176)`, footLegal.join('|'));
 
-      // deals: from hub-deals.json, to site pages only
-      await page.locator('.gwh2-deal').first().waitFor({ state: 'attached', timeout: 5000 }).catch(() => {});
-      const deals = await page.$$eval('.gwh2-deal', els => els.map(e => ({ href: e.getAttribute('href'), end: e.querySelector('.gwh2-deal-end').textContent })));
+      // deals: from hub-deals.json, to site pages only (the list the script fills; the «Featured pick» card of L121 is
+      // a card of the same look outside it)
+      await page.locator('#gwh2Deals .gwh2-deal').first().waitFor({ state: 'attached', timeout: 5000 }).catch(() => {});
+      const deals = await page.$$eval('#gwh2Deals .gwh2-deal', els => els.map(e => ({ href: e.getAttribute('href'), end: e.querySelector('.gwh2-deal-end').textContent, meta: e.querySelector('.gwh2-deal-meta').textContent.trim() })));
       check(deals.length >= 1 && deals.length <= 4, `${tag}: deals shown (at most 4)`, String(deals.length));
       check(deals.every(d => /^https:\/\/[a-z]+gearworld\.com\/discount-codes\/[a-z0-9-]+\/$/.test(d.href)), `${tag}: every deal links to a site page, never /go/ or /out/`, deals.map(d => d.href).join(' '));
       check(deals.every(d => d.end && d.end.length > 3), `${tag}: every deal shows its end date`, deals.map(d => d.end).join(' | '));
+      // L176 (the check of 17/11/2026): the campaign names in the chosen language, from the sites' dictionaries.
+      const wantMeta = JSON.parse(readFileSync(join(publicDir, 'hub-deals.json'), 'utf8')).deals.map(d => (d.campaignNames && d.campaignNames[locale]) || d.campaign);
+      check(deals.every(d => wantMeta.includes(d.meta) || d.kind === 'code' || /·/.test(d.meta)), `${tag}: the campaign names of the deals in the chosen language (L176)`, deals.map(d => d.meta).join(' | '));
       const allLinks = await page.$$eval('a[href]', els => els.map(e => e.getAttribute('href')));
       check(!allLinks.some(h => /\/(go|out)\//.test(h)), `${tag}: no /go/ or /out/ link on the page`);
+      // Lessons L121: ONE Sovrn Commerce link, visible, sponsored and nofollow, never the Sovrn script. Read from the
+      // page only: never opened (Sovrn counts only the clicks of visitors).
+      const sovrn = await page.$$eval('a[href^="https://sovrn.co/"]', els => els.map(e => ({ rel: e.getAttribute('rel'), target: e.getAttribute('target'), shown: e.getClientRects().length > 0 && getComputedStyle(e).visibility !== 'hidden' })));
+      const sovrnScript = await page.$$eval('script[src]', els => els.some(e => /sovrn|viglink/i.test(e.getAttribute('src'))));
+      check(sovrn.length === 1 && sovrn[0].rel === 'sponsored nofollow noopener' && sovrn[0].target === '_blank' && sovrn[0].shown && !sovrnScript, `${tag}: one visible Sovrn link, sponsored nofollow, no Sovrn script (L121)`, JSON.stringify(sovrn));
 
       // Google Ads review (7/11/2026, lessons L101): no sponsored card, "About" opens /about/, the footer says who
       // runs Gear World and that it sells nothing (in the page's language).
@@ -195,7 +228,7 @@ try {
       // "paniers" and "Baskets" are gone), and the retailer of every deal stays untranslated.
       const l103 = words.body.match(/\bpartners?\b|sponsor|συνεργαζόμεν|\bpaniers?\b|\bBaskets\b|shopping|Boxing Day and January sales/i);
       check(!l103, `${tag}: no partner, sponsor or basket words on the page (L103)`, l103 ? l103[0] : '');
-      const dealNames = await page.$$eval('.gwh2-deal-retailer', els => els.map(e => e.getAttribute('translate')));
+      const dealNames = await page.$$eval('#gwh2Deals .gwh2-deal-retailer', els => els.map(e => e.getAttribute('translate')));
       check(dealNames.length >= 1 && dealNames.every(t => t === 'no') && !(await page.$('.gwh2-deal-shop')), `${tag}: the retailer of every deal is translate="no" (L103)`, dealNames.join(','));
 
       if (full) {
@@ -209,6 +242,14 @@ try {
         check(last && last.searchParams.get('q') === 'perfume' && last.searchParams.get('worlds') === 'wgw' && last.searchParams.get('max_price') === '25', `${tag}: gift finder asks only WGW, up to £25`, last ? last.search : 'no request');
         const gifts = await page.$$eval('#gwh2GiftResults .gwh-search-item', els => els.length);
         check(gifts === 1, `${tag}: gift ideas within the price`, `${gifts} shown`);
+        // L153: every card says where its retailer delivers, the retailer name untranslated, 3 countries then "+1".
+        const ship = await page.$$eval('#gwh2GiftResults .gwh-search-item', els => els.map(e => {
+          const s = e.querySelector('.gwh-search-ship');
+          const name = s && s.querySelector('[translate="no"]');
+          return s ? { text: s.textContent.trim(), name: name ? name.textContent : '', codes: s.getAttribute('data-ship') } : null;
+        }));
+        check(ship.length > 0 && ship.every(s => s && s.name === 'Test Shop' && s.codes === 'GB IE FR DE' && /\+1$/.test(s.text) && s.text.includes('Test Shop')),
+          `${tag}: every gift card says "<retailer> delivers to: ..." (L153)`, JSON.stringify(ship[0] || null));
         await page.click('[data-gwh2-budget="3"]');
         await page.waitForTimeout(300);
         const any = searches[searches.length - 1];
@@ -248,6 +289,55 @@ try {
         await page.evaluate(() => window.scrollTo(0, 0));
         await page.screenshot({ path: join(shotsDir, `${vp.name}-${locale}-top.png`) });
         await page.screenshot({ path: join(shotsDir, `${vp.name}-${locale}-full.png`), fullPage: true });
+      }
+      check(errors.length === 0, `${tag}: no JavaScript errors`, errors.join(' | ').slice(0, 300));
+      await context.close();
+    }
+  }
+
+  // Lessons L192 (owner, 18/11/2026): the Mega Stores bar. Phone 390x844: as wide as the 2 columns of world cards and as tall
+  // as one card, above the search, which stays on the first screen. PC 1280x800 and 1440x900: as wide as the 7 columns (two rows of 7 cards), half a card tall.
+  // The names move (CSS), stop on hover and keyboard focus, and do not move with "reduce motion". The link is not followed.
+  for (const [w, h, mobile, part] of [[390, 844, true, 1], [1280, 800, false, 0.5], [1440, 900, false, 0.5]]) {
+    for (const reduce of [false, true]) {
+      const tag = `Mega Stores bar ${w}x${h}${reduce ? ' reduce motion' : ''}`;
+      const context = await browser.newContext({ viewport: { width: w, height: h }, isMobile: mobile, hasTouch: mobile, deviceScaleFactor: 1, reducedMotion: reduce ? 'reduce' : 'no-preference' });
+      await context.addInitScript(() => { try { localStorage.setItem('gwh-language', 'en-GB'); localStorage.setItem('gwh_cookie_consent', 'denied'); } catch (_) { /* ignore */ } });
+      const page = await context.newPage();
+      const errors = [];
+      page.on('pageerror', e => errors.push(String(e.message || e)));
+      await page.route('**/*', route => (new URL(route.request().url()).origin === base ? route.continue() : route.abort()));
+      await page.goto(base + '/', { waitUntil: 'load' });
+      await page.waitForTimeout(300);
+      const m = await page.evaluate(() => {
+        const r = sel => { const e = document.querySelector(sel); if (!e) return null; const b = e.getBoundingClientRect(); return { x: b.x, y: b.y, w: b.width, h: b.height }; };
+        const imgs = [...document.querySelectorAll('.gwh2-mega-logo img')].map(i => ({ ok: i.complete && i.naturalWidth > 0, ratio: Math.abs(i.getBoundingClientRect().width / i.getBoundingClientRect().height - i.naturalWidth / i.naturalHeight) }));
+        return { bar: r('.gwh2-mega'), grid: r('.gwh-quick-worlds'), card: r('.gwh-image-world'), field: r('.gwh2-field'), strip: r('.gwh2-mega-strip'), list: r('.gwh2-mega-list'),
+          first: (document.querySelector('main > *') || {}).className || '', links: document.querySelectorAll('.gwh2-mega-wrap a').length, imgs,
+          running: document.getAnimations().filter(a => a.animationName === 'gwh2Mega' && a.playState === 'running').length };
+      });
+      const show = b => (b ? `${Math.round(b.w * 10) / 10}x${Math.round(b.h * 10) / 10}` : 'missing');
+      check(m.first === 'gwh2-mega-wrap' && m.links === 1 && m.bar && m.field && m.bar.y + m.bar.h <= m.field.y, `${tag}: the bar is first, one link, above the search`, `${m.first} ${m.links} link(s)`);
+      if (!reduce) {
+        check(m.bar && m.grid && Math.abs(m.bar.w - m.grid.w) <= 1 && Math.abs(m.bar.x - m.grid.x) <= 1, `${tag}: as wide as the grid of world cards`, `bar ${show(m.bar)}, grid ${show(m.grid)}`);
+        check(m.bar && m.card && Math.abs(m.bar.h - m.card.h * part) <= 2, `${tag}: ${part === 1 ? 'as tall as one world card' : 'half as tall as a world card'}`, `bar ${show(m.bar)}, card ${show(m.card)}`);
+        check(m.field && m.field.y + m.field.h <= h, `${tag}: the search is still on the first screen`, m.field ? `${Math.round(m.field.y)}-${Math.round(m.field.y + m.field.h)}px` : 'missing');
+        check(m.list && m.strip && m.list.w >= m.strip.w, `${tag}: one list is at least as wide as the strip (the loop never shows a gap)`, `${Math.round(m.list ? m.list.w : 0)} >= ${Math.round(m.strip ? m.strip.w : 0)}`);
+        check(m.imgs.length === 12 && m.imgs.every(i => i.ok && i.ratio < 0.05), `${tag}: the 6 logos (twice) load and keep their shape`, JSON.stringify(m.imgs.filter(i => !i.ok || i.ratio >= 0.05)));
+        check(m.running === 1, `${tag}: the store names roll past`, `${m.running} running`);
+        if (!mobile) {
+          await page.hover('.gwh2-mega');
+          const hovered = await page.evaluate(() => document.getAnimations().filter(a => a.animationName === 'gwh2Mega').map(a => a.playState).join(','));
+          check(hovered === 'paused', `${tag}: they stop while the mouse is on the bar`, hovered);
+          await page.mouse.move(0, h - 1);
+        }
+        await page.focus('.gwh2-mega');
+        const focused = await page.evaluate(() => document.getAnimations().filter(a => a.animationName === 'gwh2Mega').map(a => a.playState).join(','));
+        check(focused === 'paused', `${tag}: they stop while the bar has the keyboard focus`, focused);
+        await page.evaluate(() => { document.activeElement.blur(); window.scrollTo(0, 0); });
+        await page.screenshot({ path: join(shotsDir, `mega-stores-${w}x${h}.png`) });
+      } else {
+        check(m.running === 0, `${tag}: nothing moves`, `${m.running} running`);
       }
       check(errors.length === 0, `${tag}: no JavaScript errors`, errors.join(' | ').slice(0, 300));
       await context.close();
@@ -382,6 +472,52 @@ try {
       check(v.id === 'winter-sales' && v.text === wantText && v.cta === wantCta && v.jump === (want === 'deals' ? '#deals' : '#newsletter'), `${tag}: the winter slide says "${wantText}" with "${wantCta}"`, JSON.stringify(v));
     }
     check(errors.length === 0, `${tag}: no JavaScript errors`, errors.join(' | ').slice(0, 300));
+    await context.close();
+  }
+  // Lessons L176: the legal pages in the visitor's language (legal.js and public/legal/i18n). A language chosen in the
+  // menu (Greek, Russian), and one from the country only (German, as the Worker names it on <html>): every block of
+  // the page is the translation, or has nothing to translate (an e-mail address, a storage name, the brand).
+  const LEGAL_BLOCKS = '.lg-crumbs a, .lg-crumbs > span:last-child, .lg-prose h1, .lg-prose h2, .lg-prose p, .lg-prose li, .lg-prose th, .lg-prose td > span, .lg-legal a, .lg-footer p';
+  for (const [locale, how] of [['el-GR', 'chosen'], ['ru-RU', 'chosen'], ['de-DE', 'country']]) {
+    const dict = JSON.parse(readFileSync(new URL(`../sites/gwh/public/legal/i18n/${locale}.json`, import.meta.url), 'utf8'));
+    const values = new Set(Object.values(dict));
+    const context = await browser.newContext();
+    await context.addInitScript(([l, chosen]) => {
+      try { if (chosen) localStorage.setItem('gwh-language', l); else localStorage.removeItem('gwh-language'); } catch (_) { /* ignore */ }
+    }, [locale, how === 'chosen']);
+    const page = await context.newPage();
+    const errors = [];
+    page.on('pageerror', e => errors.push(String(e)));
+    if (how === 'country') {
+      await page.route(/\/(privacy|cookies|terms|affiliate-disclosure|contact)\/$/, async route => {
+        const res = await route.fetch();
+        const body = (await res.text()).replace(/<html\b/, `<html data-country-lang="${locale}"`);
+        await route.fulfill({ response: res, body });
+      });
+    }
+    for (const p of ['privacy', 'cookies', 'terms', 'affiliate-disclosure', 'contact']) {
+      const tag = `legal ${p} ${locale} (${how})`;
+      await page.goto(`${base}/${p}/`, { waitUntil: 'load' });
+      await page.waitForSelector('.lg-lang-note', { timeout: 5000 }).catch(() => {});
+      const r = await page.evaluate(B => {
+        const norm = h => String(h).replace(/\s+/g, ' ').trim();
+        const blocks = [];
+        document.querySelectorAll(B).forEach(el => { if (!el.querySelector('button')) blocks.push(norm(el.innerHTML)); });
+        return { lang: document.documentElement.lang, note: (document.querySelector('.lg-lang-note') || {}).textContent || '', title: document.title,
+          blocks, labels: [...document.querySelectorAll('.lg-prose td[data-label]')].map(td => td.getAttribute('data-label')),
+          button: (document.getElementById('gwhAnalyticsReset') || {}).textContent || '' };
+      }, LEGAL_BLOCKS);
+      check(r.lang === locale && r.note === dict['This is a translation. If it differs from the English text, the English text applies.'], `${tag}: in ${locale}, with the note that the English text applies`, `${r.lang} | ${r.note.slice(0, 50)}`);
+      const left = r.blocks.filter(b => !values.has(b) && /[A-Za-z]/.test(b.replace(/<[^>]+>/g, '')) &&
+        !/^(<a href="mailto:[^"]+">[^<]+<\/a>|<code>[^<]+<\/code>(, <code>[^<]+<\/code>)*|Gear <span>World<\/span> Hub)$/.test(b));
+      check(left.length === 0, `${tag}: every block translated`, left.slice(0, 3).join(' | ').slice(0, 300));
+      check(!/^(Privacy policy|Cookies|Terms of use|Affiliate disclosure|Contact) \|/.test(r.title) || dict[r.title.split(' | ')[0]] === r.title.split(' | ')[0], `${tag}: the title`, r.title);
+      if (p === 'cookies') {
+        check(r.labels.length > 0 && r.labels.every(l => values.has(l)), `${tag}: the table labels of the phone`, r.labels.slice(0, 4).join(','));
+        check(r.button === dict['Reset my choice'], `${tag}: the reset button`, r.button);
+      }
+    }
+    check(errors.length === 0, `legal ${locale}: no JavaScript errors`, errors.join(' | ').slice(0, 300));
     await context.close();
   }
   check(!asked.some(p => p.includes('gwh-hero.png')), 'the old 2.8 MB picture (gwh-hero.png) is never loaded');

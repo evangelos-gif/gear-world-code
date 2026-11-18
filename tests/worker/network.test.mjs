@@ -23,7 +23,8 @@ test('the shared list has every Gear World site of sites/, with its own name and
 
 test('the order is the order of the Hub home page', () => {
   const hub = readFileSync('sites/gwh/public/index.html', 'utf8');
-  const order = [...new Set((hub.match(/https:\/\/[a-z]+gearworld\.com\//g) || []))];
+  // L192: the Mega Stores bar above the worlds links to megastoresgearworld.com, a guides site that is not in this list.
+  const order = [...new Set((hub.match(/https:\/\/[a-z]+gearworld\.com\//g) || []))].filter(u => u !== 'https://megastoresgearworld.com/');
   assert.deepEqual(GEAR_WORLDS.map(w => w.url), order);
 });
 

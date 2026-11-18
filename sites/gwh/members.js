@@ -27,6 +27,11 @@ export function isInternal(url) {
   return url.hostname === INTERNAL_HOST;
 }
 
+// One attempt of a visitor key in this hour (also for "Remind me on 27 Nov", remind.js); false over the limit.
+export async function memberSlot(db, key, now) {
+  return allowed(db, key, now);
+}
+
 async function allowed(db, key, now) {
   const hour = Math.floor(now / 3600000);
   const k = `${key}:${hour}`;
@@ -48,7 +53,8 @@ export async function aiSlot(env, now = new Date()) {
   try { return await takeNetworkSlot(db, now, 'translate', limit); } catch { return false; }
 }
 
-// POST https://hub.internal/internal/subscribe { email, consent, site, page, client, turnstile_token } from a site's Worker.
+// POST https://hub.internal/internal/subscribe { email, consent, site, page, client, turnstile_token, form } from a site's
+// Worker (form 'popup' = the small sign-up window, anything else = the "Get deal updates" box).
 export async function handleInternal(request, env, ctx, { now = Date.now(), sync = syncOne, verify } = {}) {
   const url = new URL(request.url);
   if (url.pathname === '/internal/ai-slot' && request.method === 'POST') {
@@ -83,7 +89,8 @@ export async function handleInternal(request, env, ctx, { now = Date.now(), sync
       ON CONFLICT (email) DO UPDATE SET marketing_consent = 1, consent_version = excluded.consent_version, source = excluded.source,
         status = 'active', ml_status = 'pending', ml_attempts = 0, ml_error = NULL,
         site = COALESCE(hub_subscribers.site, excluded.site), updated_at = CURRENT_TIMESTAMP`)
-      .bind(email, CONSENT_VERSION, site, site, `site-form:${site}`).run();
+      // form 'popup': the small sign-up window of the sites (lessons L182), counted apart (a new address only).
+      .bind(email, CONSENT_VERSION, site, site, `${body.form === 'popup' ? 'site-popup' : 'site-form'}:${site}`).run();
   } catch (e) {
     console.error('member sign-up failed:', String((e && e.message) || e).replace(/[^\s@]+@[^\s@]+/g, '[email]'));
     return json({ ok: false, error: 'subscribe_failed' }, 500);

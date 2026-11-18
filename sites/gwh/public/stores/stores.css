@@ -1,0 +1,11 @@
+/* Gear World Hub - Stores (16/11/2026, lessons L166). On top of /legal/legal.css and /guides/guides.css: the same
+   navy and gold, no red or green for information (lessons L35), 44 px buttons on the phone (L21). */
+.rt-item { grid-template-columns: 1fr; }
+.rt-meta { margin: 0 0 10px; color: #fff; font-size: 14px; font-weight: 700; }
+.rt-code { display: inline-block; padding: 1px 8px; border: 1px dashed var(--gold); border-radius: 6px; color: var(--gold); letter-spacing: .04em; }
+.rt-banner { position: relative; margin: 18px 0 6px; padding: 10px; border: 1px solid var(--border); border-radius: 14px; background: var(--card); }
+.rt-banner img { display: block; width: 100%; height: auto; border-radius: 10px; }
+.rt-ad { display: inline-block; margin: 0 0 8px; padding: 2px 8px; border: 1px solid var(--muted); border-radius: 6px; color: var(--muted); font-size: 12px; font-weight: 800; letter-spacing: .06em; }
+.rt-banner-end { margin: 8px 0 0; color: var(--muted); font-size: 14px; }
+/* .gd-item is a grid: without this, the hidden attribute of an expired code would not hide it. */
+[data-end][hidden], .rt-none[hidden] { display: none !important; }

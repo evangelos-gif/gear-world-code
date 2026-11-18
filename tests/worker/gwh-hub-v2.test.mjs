@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import vm from 'node:vm';
 import { PROMOS } from '../../promos/promos.js';
-import { buildDeals, dealsJson, siteDomains, hubScriptWithSeasons } from '../../tools/gwh-deals.mjs';
+import { buildDeals, dealsJson, siteDomains, hubScriptWithSeasons, siteCampaignNames, HUB_LANGUAGES } from '../../tools/gwh-deals.mjs';
 
 const ROOT = new URL('../../sites/gwh/', import.meta.url);
 const read = (path) => readFileSync(new URL(path, ROOT), 'utf8');
@@ -17,7 +17,7 @@ const LOCALES = ['en-GB', 'el-GR', 'de-DE', 'fr-FR', 'it-IT', 'es-ES', 'pt-PT', 
 function hub(locationLike, seasons = null) {
   const window = { addEventListener() {}, dispatchEvent() {} };
   const document = { readyState: 'loading', addEventListener() {} };
-  const context = { window, document, URLSearchParams, Intl, console };
+  const context = { window, document, URL, URLSearchParams, Intl, console };
   if (locationLike) context.location = locationLike;
   const code = read('public/hub-v2.js');
   vm.runInNewContext(seasons ? hubScriptWithSeasons(code, seasons) : code, context);
@@ -124,7 +124,7 @@ test('hub v2: the gift finder asks only Gear Worlds that exist, with a price, an
 test('hub v2: deals come from promos.js (hub-deals.json is up to date), keep the end date, link to a site page only', async () => {
   const domains = await siteDomains();
   assert.equal(Object.keys(domains).length, 13, 'the 13 Gear Worlds (ZGW the newest; its Hub card comes with the Hub step)');
-  const want = dealsJson(buildDeals(PROMOS, domains));
+  const want = dealsJson(buildDeals(PROMOS, domains, siteCampaignNames));
   assert.equal(read('public/hub-deals.json'), want, 'run: node tools/gwh-deals.mjs');
   const { deals } = JSON.parse(want);
   assert.ok(deals.length > 0);
@@ -158,9 +158,11 @@ test('hub v2: the page keeps every id and class the other scripts need, and load
   }
   assert.match(html, /<body class="gwh2" data-gwh-compact-v2="true">/);
   assert.match(html, /<div class="hero-copy">\s*<span class="eyebrow">/);
-  assert.match(html, /<link rel="stylesheet" href="\/hub-v2\.css\?v=20261109-compliance\d+">/);
-  // A new ?v= with every change of the script (L31): 9/11/2026 the season switches (L107).
-  assert.match(html, /<script src="\/hub-v2\.js\?v=20261109-compliance\d+" defer><\/script>/);
+  assert.match(html, /<link rel="stylesheet" href="\/hub-v2\.css\?v=(20261109-compliance|20261116-stores|20261120-popup|20261123-mega)\d+">/);
+  // A new ?v= with every change of the script (L31): 9/11/2026 the season switches (L107), 14/11/2026 the delivery line
+  // on the gift cards (L153), 16/11/2026 the texts of the Stores card (L166), 17/11/2026 the Featured pick and the
+  // language of the links to the sites (L174), 18/11/2026 the Black Friday link (L188), the Mega Stores bar (L192).
+  assert.match(html, /<script src="\/hub-v2\.js\?v=(20261114-badges|20261116-stores|20261117-lang|20261118-bf|20261123-mega)\d+" defer><\/script>/);
   assert.ok(html.indexOf('/gear-world-camera.js?v=') < html.indexOf('/hub-v2.js?v='), 'hub-v2.js after the camera script');
   assert.ok(!html.includes('/styles.css'), 'the old styles.css is not loaded');
   assert.ok(!html.includes('gwh-hero.png'), 'the 2.8 MB picture is gone from the page');
@@ -190,12 +192,14 @@ test('hub v2: no red or green (L35), nothing that moves by itself, buttons at le
       assert.ok(!(r > 150 && g < 90 && b < 90), `${file}: ${c} is not red`);
       assert.ok(!(g > 150 && r < 110 && b < 110), `${file}: ${c} is not green`);
     }
-    assert.ok(!/setInterval\(|requestAnimationFrame\(|infinite/.test(code), `${file}: no timer or endless animation that changes the page`);
+    // The one exception (owner, 18/11/2026, L192): the store names of the Mega Stores bar loop (CSS only, tested in gwh-mega-stores.test.mjs).
+    const rest = code.replace('.gwh2-mega-track{display:flex;width:max-content;height:100%;animation:gwh2Mega 24s linear infinite;}', '');
+    assert.ok(!/setInterval\(|requestAnimationFrame\(|infinite/.test(rest), `${file}: no timer or endless animation that changes the page`);
   }
   // Campaign pictures: things drop in ONCE (at most 2 s, at most 1 s late), then stay still; none with "reduce motion".
   const css = read('public/hub-v2.css');
-  assert.deepEqual([...css.matchAll(/@keyframes\s+([A-Za-z0-9]+)/g)].map(m => m[1]).sort(), ['gwh2Drop', 'gwh2Fall']);
-  for (const m of css.matchAll(/animation:([a-zA-Z0-9]+) ([0-9.]+)s/g)) assert.ok(Number(m[2]) <= 2, `${m[1]} lasts at most 2 s`);
+  assert.deepEqual([...css.matchAll(/@keyframes\s+([A-Za-z0-9]+)/g)].map(m => m[1]).sort(), ['gwh2Drop', 'gwh2Fall', 'gwh2Mega']);
+  for (const m of css.matchAll(/animation:([a-zA-Z0-9]+) ([0-9.]+)s/g)) if (m[1] !== 'gwh2Mega') assert.ok(Number(m[2]) <= 2, `${m[1]} lasts at most 2 s`);
   for (const m of css.matchAll(/animation-delay:([0-9.]+)s/g)) assert.ok(Number(m[1]) <= 1, 'starts within 1 s');
   assert.match(css, /prefers-reduced-motion:reduce\)\{\s*\*\{[^}]*animation:none !important;/);
   const js = read('public/hub-v2.js');
@@ -325,4 +329,115 @@ test('hub v2: the Worker answers byte ranges for the seasonal files (iPhone Safa
   assert.equal((await head.arrayBuffer()).byteLength, 0);
   assert.equal((await get('/seasonal/missing.mp4')).status, 404);
   assert.equal((await get('/seasonal/halloween.mp4', {}, 'POST')).status !== 206, true, 'only GET and HEAD');
+});
+
+// Lessons L121 (owner, 14/11/2026): ONE product link of Sovrn Commerce on the home page, for the approval of
+// gearworldhub.com there. A plain link marked like the product links of the sites; never the Sovrn script, which would
+// rewrite links (Awin and CJ too). Nobody opens the link: Sovrn counts only real clicks of visitors.
+test('home page: one Sovrn Commerce link, marked like the product links of the sites, no Sovrn script (L121)', () => {
+  const html = read('public/index.html');
+  const links = html.match(/<a [^>]*href="https:\/\/sovrn\.co\/[^"]+"[^>]*>/g) || [];
+  assert.equal(links.length, 1, 'only this one link');
+  assert.ok(links[0].includes('href="https://sovrn.co/o4ablp8"'));
+  assert.ok(links[0].includes('rel="sponsored nofollow noopener"') && links[0].includes('target="_blank"'), 'sponsored, nofollow, new tab');
+  assert.ok(!/<script[^>]+(sovrn|viglink)|commerce\.sovrn|viglink/i.test(html), 'no Sovrn script');
+  const start = html.indexOf('<section class="gwh2-section" id="featured"');
+  const end = html.indexOf('</section>', start);
+  assert.ok(start > html.indexOf('id="gifts"') && start < html.indexOf('id="deals"'), 'between the gift finder and the deals, not in a part the scripts fill');
+  const card = html.slice(start, end);
+  assert.ok(card.includes('Affiliate link') && card.includes('We may earn a commission') && card.includes('<a href="/affiliate-disclosure/" data-gwh2="featuredHow">How this works</a>'));
+  assert.ok(card.includes('sold by <span translate="no">engelbert-strauss.co.uk</span>, not by Gear World') && card.includes('STRAUSS e.s. S3 safety boots Okomu mid'));
+  assert.ok(!/shop|cart\b|buy now|UK retailers|£/i.test(card), 'no shop words and no price (a price would need its daily check)');
+  for (const f of ['worker.js', 'photo-search.js', 'security.js', 'public/hub-v2.js', 'public/app.js']) {
+    assert.ok(!/sovrn|viglink/i.test(read(f)), `${f}: no Sovrn code`);
+  }
+});
+
+// Lessons L174 (Linkwise, 17/11/2026): a Greek Hub showed the «Featured pick» in English, and its world cards opened
+// the sites in English. The card is now in the 11 languages, and a link to a site carries the language chosen on the Hub.
+test('hub v2: the Featured pick card is in the 11 languages; the retailer, its website and the product stay as written (L174, L103)', () => {
+  const h = hub();
+  const html = read('public/index.html');
+  const start = html.indexOf('<section class="gwh2-section" id="featured"');
+  const card = html.slice(start, html.indexOf('</section>', start));
+  for (const key of ['featuredTitle', 'featuredSub', 'featuredBadge', 'featuredMeta', 'featuredCta', 'featuredNote', 'featuredHow']) {
+    assert.ok(card.includes(`data-gwh2="${key}"`), `${key} is on the card`);
+    assert.equal(h.strings[key].length, 11, key);
+  }
+  // Every element with a text: a key whose English text is that text ({name} = its data-gwh2-name), or a name.
+  // The element with its end tag, counting the same tags inside it (a name is a <span> inside a <span>).
+  const element = (from) => {
+    const tag = /^<([a-z0-9]+)/.exec(card.slice(from))[1];
+    const rx = new RegExp(`<(/?)${tag}\\b[^>]*>`, 'g');
+    rx.lastIndex = from;
+    let depth = 0;
+    for (let m; (m = rx.exec(card));) {
+      depth += m[1] ? -1 : 1;
+      if (depth === 0) return { start: from, end: rx.lastIndex, inner: card.slice(card.indexOf('>', from) + 1, m.index) };
+    }
+    throw new Error('no end tag');
+  };
+  const tagged = [...card.matchAll(/<[a-z0-9]+ [^>]*data-gwh2="([A-Za-z]+)"(?: data-gwh2-name="([^"]+)")?[^>]*>/g)].map(m => ({ key: m[1], name: m[2], ...element(m.index) }));
+  assert.equal(tagged.length, 7);
+  for (const { key, name, inner } of tagged) {
+    const english = h.strings[key][0].replace(/&/g, '&amp;').replace('{name}', name ? `<span translate="no">${name}</span>` : '{name}');
+    assert.equal(inner, english, key);
+  }
+  let outside = card;
+  for (const t of [...tagged].reverse()) outside = outside.slice(0, t.start) + outside.slice(t.end);
+  outside = outside.replace(/<[^>]*translate="no"[^>]*>[^<]*<\/[a-z]+>/g, '');
+  assert.ok(!/>[^<>]*[A-Za-z][^<>]*</.test(outside), `no text left without a key or translate="no": ${outside.match(/>[^<>]*[A-Za-z][^<>]*</)}`);
+  for (const key of ['featuredMeta', 'featuredCta']) h.strings[key].forEach(text => assert.ok(text.includes('{name}') && !/Engelbert Strauss|engelbert-strauss/.test(text), `${key}: ${text}`));
+  assert.ok(h.strings.featuredMeta.every(t => t.includes('Gear World')));
+  assert.ok(!/partner|συνεργάτη|partneritet/i.test(h.strings.featuredBadge.join(' ')), 'no partner wording (L103)');
+});
+
+test('hub v2: a link to a Gear World site carries the language chosen on the Hub; other sites and /go/ /out/ stay as they are (L174)', () => {
+  const h = hub();
+  assert.equal(h.siteHosts.length, 13);
+  const html = read('public/index.html');
+  const worlds = [...html.matchAll(/class="gwh-quick-world gwh-image-world" href="https:\/\/([a-z]+\.com)\/"/g)].map(m => m[1]);
+  assert.deepEqual([...worlds].sort(), [...h.siteHosts].sort(), 'the 13 world cards are the 13 sites');
+  assert.equal(h.withLanguage('https://constructiongearworld.com/', 'el-GR'), 'https://constructiongearworld.com/?lang=el-GR');
+  assert.equal(h.withLanguage('https://homegearworld.com/search/?q=kettle', 'de-DE'), 'https://homegearworld.com/search/?q=kettle&lang=de-DE');
+  assert.equal(h.withLanguage('https://mensgearworld.com/?search=watch&highlight=45551', 'el-GR'), 'https://mensgearworld.com/?search=watch&highlight=45551&lang=el-GR');
+  assert.equal(h.withLanguage('https://www.petsgearworld.com/category/dog/?lang=el-GR', 'ru-RU'), 'https://www.petsgearworld.com/category/dog/?lang=ru-RU');
+  assert.equal(h.withLanguage('https://kidsgearworld.com/discount-codes/x/?lang=el-GR', 'en-GB'), 'https://kidsgearworld.com/discount-codes/x/?lang=en-GB', 'English chosen on the Hub goes too');
+  assert.equal(h.withLanguage('https://kidsgearworld.com/', 'el-GR', false), 'https://kidsgearworld.com/', 'not chosen (country or default): nothing, the site finds it itself');
+  assert.equal(h.withLanguage('https://kidsgearworld.com/', 'en-GB', false), 'https://kidsgearworld.com/');
+  assert.equal(h.withLanguage('https://kidsgearworld.com/?lang=el-GR', 'el-GR'), 'https://kidsgearworld.com/?lang=el-GR', 'already there');
+  assert.equal(h.withLanguage('https://kidsgearworld.com/', 'pl-PL'), 'https://kidsgearworld.com/', 'a language the Hub does not have adds nothing');
+  for (const href of ['https://cargearworld.com/out/123', 'https://cargearworld.com/go/abc', 'https://sovrn.co/o4ablp8', '/stores/', '/affiliate-disclosure/', 'https://gearworldhub.com/', 'https://evilgearworld.com/', 'http://homegearworld.com/', 'mailto:evangelos@gearworldgroup.com', '#deals']) {
+    assert.equal(h.withLanguage(href, 'el-GR'), href, href);
+  }
+  // Added only when a link is used, never to the addresses written on the page; only a language the visitor chose.
+  const code = read('public/hub-v2.js');
+  assert.match(code, /for \(const type of \["pointerdown", "click", "auxclick", "contextmenu"\]\) document\.addEventListener\(type, languageOnLink, true\)/);
+  assert.match(code, /const chosen = typeof window\.GWH_languageChosen === "function" \? window\.GWH_languageChosen\(\) : false;/);
+  assert.match(read('public/translations.js'), /window\.GWH_languageChosen = \(\) => chosenLocale;/);
+  assert.ok(!/gearworld\.com\/\?lang=/.test(html), 'the page keeps the plain addresses');
+});
+
+// The check of 17/11/2026 (L176): the campaign name of a deal ("Household & Cleaning") was English on a Greek Hub. It now
+// comes in the visitor's language from the dictionary of the deal's site (campaignNames in hub-deals.json, made by
+// tools/gwh-deals.mjs), and stays as it is in English or when the site's dictionary has no such text.
+test('hub v2: the campaign name of a deal in the visitor\'s language, from the dictionary of its site (L176)', () => {
+  const { deals } = JSON.parse(read('public/hub-deals.json'));
+  const household = deals.find(d => d.campaign === 'Household & Cleaning');
+  assert.ok(household, 'the Joybuy Household & Cleaning sale');
+  assert.equal(household.campaignNames['el-GR'], JSON.parse(readFileSync('sites/hgw/public/assets/i18n/el-GR.json', 'utf8'))['Household & Cleaning']);
+  for (const d of deals) for (const [l, v] of Object.entries(d.campaignNames || {})) {
+    assert.ok(HUB_LANGUAGES.includes(l) && typeof v === 'string' && v.trim() && v !== d.campaign, `${d.id} ${l}`);
+  }
+  const label = (lang, d) => {
+    const window = { addEventListener() {}, dispatchEvent() {}, GWH_getLocale: () => lang };
+    vm.runInNewContext(read('public/hub-v2.js'), { window, document: { readyState: 'loading', addEventListener() {} }, URL, URLSearchParams, Intl, console });
+    return window.GearWorldHubV2.campaignLabel(d, at('2026-11-20'));
+  };
+  assert.equal(label('el-GR', household), household.campaignNames['el-GR']);
+  assert.equal(label('ru-RU', household), household.campaignNames['ru-RU']);
+  assert.equal(label('en-GB', household), 'Household & Cleaning');
+  assert.equal(label('el-GR', { campaign: 'Baby' }), 'Baby', 'no campaignNames: the name as it is');
+  assert.equal(label('el-GR', { campaign: 'Halloween', campaignNames: { 'el-GR': 'Χάλοουιν' } }), '', 'a season that is over is still not shown');
+  assert.deepEqual(siteCampaignNames('HGW', 'no such text of the dictionary'), {});
 });
