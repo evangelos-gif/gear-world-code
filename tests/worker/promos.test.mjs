@@ -170,3 +170,20 @@ test('L186: Angel Barocco EARLYBF10 is what the email of 11 Nov 2026 says, on WG
   assert.match(ab[0].source, /^Awin email "Angel Barocco \(70252\): Early Access Black Friday is live: EARLYBF10", received 11 Nov 2026/);
   assert.ok(!PROMOS.some(p => p.code === 'BFCM20'), 'BFCM20 not before 22 Nov 2026 (the retailer asked)');
 });
+
+test('L187: EIN15PCDD (Tooled Up, My Tool Shed) and the Joybuy Black Friday coupons are what the emails of 16 and 17 Nov 2026 say', () => {
+  const rows = PROMOS.filter(p => p.code === 'EIN15PCDD' || /^joybuy-bf-/.test(p.id))
+    .map(p => [p.id, p.kind, p.code, p.pct, p.off, p.minSpend, p.start, p.end, p.sites.join(), p.url, p.campaign, p.bar]);
+  const JOY = 'https://www.joybuy.co.uk/campaign/active/2NtPpZpkV1c8jJk4UL6tXcxWfsvM';
+  assert.deepEqual(rows, [
+    ['tooled-up-ein15pcdd', 'code', 'EIN15PCDD', 15, undefined, 50, '2026-11-16', '2026-12-30', 'CGW,AGW',
+      'https://www.tooled-up.com/save-15-percent-on-einhell-products/landing/320/', 'Einhell', undefined],
+    ['my-tool-shed-ein15pcdd', 'code', 'EIN15PCDD', 15, undefined, 50, '2026-11-16', '2026-12-30', 'CGW,GGW',
+      'https://www.mytoolshed.co.uk/save-15-percent-on-einhell-products/landing/320/', 'Einhell', undefined],
+    ['joybuy-bf-10-off-59', 'coupon', undefined, undefined, 10, 59, '2026-11-16', '2026-11-30', 'HGW,KGW,PGW,TGW,WGW', JOY, 'Black Friday', undefined],
+    ['joybuy-bf-40-off-199', 'coupon', undefined, undefined, 40, 199, '2026-11-16', '2026-11-30', 'HGW,KGW,PGW,TGW,WGW', JOY, 'Black Friday', undefined]
+  ]);
+  for (const p of PROMOS.filter(x => x.code === 'EIN15PCDD' || /^joybuy-bf-/.test(x.id))) {
+    assert.match(p.source, /received 1[67] Nov 2026 \(owner's approval «ΕΓΚΡΙΝΩ ΠΡΟΣΦΟΡΕΣ 18\/11: 11,12,13», 18 Nov 2026\)$/, p.id);
+  }
+});

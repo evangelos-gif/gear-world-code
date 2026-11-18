@@ -59,8 +59,8 @@ test('L114: the four codes are exactly what the emails of 9 Nov 2026 say (code, 
     assert.match(p.source, new RegExp(`^Awin email "${p.retailer} \\(${p.awinMid}\\): Black Friday 2026 Is Live: Four Weekly Drops", received 9 Nov 2026`), p.id);
     assert.ok(!('upTo' in p) && !('extraOff' in p), `${p.id}: no percentage`);
   }
-  // The Einhell "coming soon" offer is not live yet: nothing of it here.
-  assert.ok(!PROMOS.some(p => /einhell|15%/i.test(`${p.id} ${p.campaign} ${p.code || ''}`)));
+  // The Einhell offer came on 16 Nov 2026 with its own code (EIN15PCDD, lessons L187): never under "Black Friday".
+  assert.ok(!PROMOS.some(p => p.campaign === 'Black Friday' && /einhell|15%/i.test(`${p.id} ${p.code || ''}`)));
 });
 
 test('L114: the codes are only on the sites where the retailer has products and delivers to the UK, under the name the site shows', async () => {
@@ -109,11 +109,18 @@ test('L114: the codes show only from 9 Nov to 6 Dec 2026 (UK days), on every sit
       }
       assert.equal((page.match(/data-i18n="Valid until \{0\}" data-i18n-0="6 Dec 2026" data-i18n-0-date="2026-12-06">Valid until 6 Dec 2026<\/span>/g) || []).length, 2, `${code} ${slug}: until 6 Dec 2026`);
       assert.ok(!/awin1\.com/.test(page), `${code} ${slug}: no direct Awin link`);
-      for (const day of [at('2026-11-08'), at('2026-12-07')]) {
+      // The retailer's own Einhell code (lessons L187) runs 16 Nov - 30 Dec 2026 where it has Einhell products: after
+      // 6 Dec the page keeps that one code and nothing of Black Friday.
+      const einhell = sites[code].promos.some(p => p.slug === slug && p.code === 'EIN15PCDD');
+      for (const day of [at('2026-11-08'), at('2026-12-07'), at('2026-12-31')]) {
         const off = retailerOffersPage(sites[code], slug, day);
+        assert.ok(!/CLAIMFIFTY|CLAIMSEVFY|Black Friday/.test(off), `${code} ${slug}: nothing after the end`);
+        if (einhell && day === at('2026-12-07')) {
+          assert.ok(off.includes('<strong translate="no">EIN15PCDD</strong>') && /<meta name="robots" content="index,follow">/.test(off), `${code} ${slug}: Einhell until 30 Dec`);
+          continue;
+        }
         assert.match(off, /No codes right now/);
         assert.match(off, /<meta name="robots" content="noindex,follow">/);
-        assert.ok(!/CLAIMFIFTY|CLAIMSEVFY|Black Friday/.test(off), `${code} ${slug}: nothing after the end`);
       }
     }
   }
@@ -163,11 +170,16 @@ test('L114: the code cards say nothing of our own: no saving, percentage, "deals
       const cards = page.slice(page.indexOf('<ul class="promo-list">'), page.indexOf('<p class="promo-note">') + 400);
       assert.ok(cards.length > 400, `${code} ${slug}: the cards`);
       // What a visitor reads (the text, the data-i18n keys and the attributes a screen reader says), not class names.
-      const words = [cards.replace(/<[^>]*>/g, ' '), ...[...cards.matchAll(/(?:data-i18n|aria-label|title)="([^"]*)"/g)].map(m => m[1])].join(' ');
+      const text = [cards.replace(/<[^>]*>/g, ' '), ...[...cards.matchAll(/(?:data-i18n|aria-label|title)="([^"]*)"/g)].map(m => m[1])].join(' ');
+      // The retailer's own percentage of its own code is allowed (lessons L186, L187: EIN15PCDD "15% off when you spend
+      // £50"); nothing else with a percentage.
+      const own = new Set(site.promos.filter(p => p.slug === slug && p.kind === 'code' && Number(p.pct) > 0).map(p => String(p.pct)));
+      const words = text.replace(/\b(\d+)% off (when you spend|your order)/g, (m, n) => (own.has(n) ? 'off' : m));
       assert.ok(!BAD_EN.test(words), `${code} ${slug}: "${(words.match(BAD_EN) || [])[0]}"`);
       // The button of every code card is "View at <retailer>" (owner's rule, stricter than L103: never "shop"), with the
       // retailer name untranslated, as in the heading and the note.
-      assert.equal((cards.match(new RegExp(`<span data-i18n="View at \\{0\\}" data-i18n-0="${retailer}" data-i18n-keep="0">View at <span translate="no">${retailer}</span></span></a>`, 'g')) || []).length, 2, `${code} ${slug}: View at`);
+      assert.equal((cards.match(new RegExp(`<span data-i18n="View at \\{0\\}" data-i18n-0="${retailer}" data-i18n-keep="0">View at <span translate="no">${retailer}</span></span></a>`, 'g')) || []).length,
+        activePromos(site, at('2026-11-20')).filter(p => p.slug === slug).length, `${code} ${slug}: View at, one per card`);
       assert.ok(!/shop/i.test(words.replace(new RegExp(retailer, 'g'), '')), `${code} ${slug}: no "shop" word`);
       assert.ok(page.includes(`<h1><span data-i18n="{0} discount codes" data-i18n-0="${retailer}" data-i18n-keep="0"><span translate="no">${retailer}</span> discount codes</span></h1>`), `${code} ${slug}: h1`);
       assert.ok(cards.includes(`open <span translate="no">${retailer}</span> with the button and enter the code at checkout. <span translate="no">${retailer}</span> sets the final terms`), `${code} ${slug}: the note`);

@@ -18,7 +18,7 @@ for (const s of SITES) config[s] = (await import(`../../sites/${s}/site.config.j
 
 // Texts that are the same in Polish and English: names, units, sizes and words Polish uses as they are.
 const SAME_IN_POLISH = new Set(['(4 Ah)', '(5 Ah)', '18 V LXT; 5 Ah; Li-ion', '18 V XR; 4 Ah; Li-ion', '2 × 100 ml (200 ml)', '4 × 5 ml (20 ml)',
-  '5 × 15 ml (75 ml)', '5 × 20 ml (100 ml)', 'Audio', 'Black Friday', 'EAN / GTIN', 'EDC', 'Gaming', 'Gear World Hub', 'Halloween', 'Joy Day',
+  '5 × 15 ml (75 ml)', '5 × 20 ml (100 ml)', 'Audio', 'Black Friday', 'EAN / GTIN', 'EDC', 'Einhell', 'Gaming', 'Gear World Hub', 'Halloween', 'Joy Day',
   'LXT', 'Streaming', 'XR', 'Hosting.', 'Newsletter.']);
 // Words of the English texts that are names or model codes and stay as they are in Polish (brands, retailers, the
 // owner, systems): every one that is in an English text is in its Polish text too.

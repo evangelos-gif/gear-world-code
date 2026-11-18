@@ -44,17 +44,18 @@ const VIEWS = [...[...EUROPE, 'US'].map(c => [c, c, '']), ['CA', 'CA', ''], ['un
 //   Kaiya Baby, Diecast Models Wholesale) has none of them: no bar.
 const seeing = (except = []) => Object.fromEntries(VIEWS.map(([name]) => [name, !except.includes(name)]));
 const SHOWN = { CGW: seeing(['US', 'PL']), AGW: seeing(['PL']), BGW: seeing(['PL']), GGW: seeing(['US', 'PL']), HGW: seeing(['US', 'PL']), KGW: seeing(['US', 'PL']),
-  WGW: seeing(['US', 'PL']) };
+  WGW: seeing(['US', 'PL']), TGW: seeing(['US', 'PL']), PGW: seeing(['US', 'PL']) };
 // How many view groups each site has: gb, all, pl, and us where a retailer ships to the US; and one for the countries
 // that speak the language of a feed (L165: CGW Reidl in German for DE and AT, AGW VEVOR in Dutch for NL and BE).
 // HGW: +5 language views from 17 Nov 2026 (Westwing NL, DE, FR, IT, ES, chat 9, L165); GGW: +1 (Tuinmeubelwereld NL, chat 9).
-const GROUPS = { CGW: 5, AGW: 4, BGW: 3, GGW: 5, HGW: 9, KGW: 4, WGW: 5 };
+const GROUPS = { CGW: 5, AGW: 4, BGW: 3, GGW: 5, HGW: 9, KGW: 4, WGW: 5, TGW: 4, PGW: 4 };
 // What the bar says in the UK view while the codes of the config run (promos/promos.js, 10 Nov 2026).
 const WORDS = {
-  CGW: ['{0} active codes', '4'], GGW: ['{0} active codes', '4'], AGW: ['{0} active codes', '2'], BGW: ['{0} active codes', '2'],
-  HGW: ['{0} active offers', '3'], KGW: ['1 active offer', ''], WGW: ['1 active code', '']
+  CGW: ['{0} active codes', '6'], GGW: ['{0} active codes', '5'], AGW: ['{0} active codes', '3'], BGW: ['{0} active codes', '2'],
+  HGW: ['{0} active offers', '5'], KGW: ['{0} active offers', '3'], WGW: ['{0} active codes and offers', '3'],
+  TGW: ['{0} active offers', '3'], PGW: ['{0} active offers', '2']
 };
-const NO_CODES = ['TGW', 'MGW', 'VGW', 'SGW', 'PGW', 'ZGW'];
+const NO_CODES = ['MGW', 'VGW', 'SGW', 'ZGW'];
 
 // All 13 site configs, by code, with their folder.
 async function allSites() {
@@ -126,14 +127,14 @@ test('L115, L151: every view group of the sites with codes: the UK view and the 
     // view plus the feeds in their language (L165), with the codes.
     const allLike = [all.id, ...list.filter(g => g.language).map(g => g.id)];
     for (const c of ['DE', 'BE', 'NL', 'FR', 'IE', 'AT', 'CH']) assert.ok(allLike.includes(viewFor(site, c).group) && want[c], `${code} ${c}: the all view, the codes`);
-    // The US (lessons L141): a view of its own where a retailer ships there (CGW GRABO, the US shops of GGW, HGW, KGW, WGW).
-    const usOwn = ['CGW', 'GGW', 'HGW', 'KGW', 'WGW'].includes(code);
+    // The US (lessons L141): a view of its own where a retailer ships there (CGW GRABO, the US shops of GGW, HGW, KGW, WGW, TGW, PGW).
+    const usOwn = ['CGW', 'GGW', 'HGW', 'KGW', 'WGW', 'TGW', 'PGW'].includes(code);
     assert.equal(viewFor(site, 'US').group !== home.id, usOwn, `${code} US: ${usOwn ? 'a view of its own' : 'the UK view'}`);
     assert.equal(want.US, !usOwn, `${code} US: ${usOwn ? 'no codes' : 'the codes of the UK view'}`);
   }
 });
 
-test('L115: the bar shows exactly when the footer link shows, per view (all 32 European countries, US, Canada, unknown, Googlebot), on the 7 sites with codes', async () => {
+test('L115: the bar shows exactly when the footer link shows, per view (all 32 European countries, US, Canada, unknown, Googlebot), on the 9 sites with codes', async () => {
   const sites = await allSites();
   for (const [code, want] of Object.entries(SHOWN)) {
     const site = runningToday(sites[code].site);
@@ -163,9 +164,9 @@ test('L115: the bar shows exactly when the footer link shows, per view (all 32 E
 
 test('L115: no bar on the sites without codes, nor on a site whose codes have ended', async () => {
   const sites = await allSites();
-  assert.deepEqual(Object.keys(sites).filter(c => !(c in SHOWN)).sort(), [...NO_CODES].sort(), 'the 13 sites are 7 with codes and 6 without');
+  assert.deepEqual(Object.keys(sites).filter(c => !(c in SHOWN)).sort(), [...NO_CODES].sort(), 'the 13 sites are 9 with codes and 4 without');
   const cases = NO_CODES.map(c => [c, sites[c].site]);
-  // TGW's only code (Joybuy "Joy Day") ended on 31 Oct 2026; the others have none.
+  // MGW, VGW, SGW and ZGW have none (TGW's Joy Day ended on 31 Oct 2026; its Black Friday coupons are in SHOWN, L187).
   for (const [code, site] of cases) assert.ok(site.promos.every(p => p.end < '2026-11-10'), `${code}: nothing runs from 10 Nov 2026`);
   cases.push(['CGW ended', endedYesterday(sites.CGW.site)], ['HGW ended', endedYesterday(sites.HGW.site)]);
   for (const [code, site] of cases) {
@@ -185,7 +186,7 @@ test('L115: no bar on the sites without codes, nor on a site whose codes have en
 
 test('L115: the bar sits between the masthead row and the menu: one plain link that works without JavaScript (snapshot)', async () => {
   const sites = await allSites();
-  for (const [code, key, n] of [['CGW', '{0} active codes', '4'], ['HGW', '{0} active offers', '3'], ['KGW', '1 active offer', '']]) {
+  for (const [code, key, n] of [['CGW', '{0} active codes', '6'], ['HGW', '{0} active offers', '5'], ['WGW', '{0} active codes and offers', '3']]) {
     const site = runningToday(sites[code].site);
     const { html } = await visitor(site)('/about/', { DB: memoryDb(), CLICK_LOG: 'off', FX_FETCH }, 'GB');
     const v = encodeURIComponent(site.assetVersion);
