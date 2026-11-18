@@ -16,6 +16,7 @@
     { "advertiserId": 35810, "feedIds": [89588], "retailer": "iHoverboard", "currency": "GBP", "condition": "new", "approved": true,
       "_comment": "iHoverboard (joined 13 Nov 2026, ihoverboard.co.uk): 89 rows, all electric scooters (iScooter), shop category 'Cycling'. They go to Electric Scooters, whose page already says that in the UK a private e-scooter may only be ridden on private land." },
     { "advertiserId": 118435, "feedIds": [109014], "retailer": "VEVOR", "currency": "EUR", "condition": "new", "keepSiteNames": true, "approved": false },
-    { "advertiserId": 12044, "feedIds": [101519], "retailer": "AliExpress PL", "currency": "PLN", "condition": "new", "approved": true, "sections": "aliexpress-pl", "joinVariants": true, "minPrice": 10 }
+    { "advertiserId": 12044, "feedIds": [101519], "retailer": "AliExpress PL", "currency": "PLN", "condition": "new", "approved": true, "sections": "aliexpress-pl", "joinVariants": true, "minPrice": 10 },
+    {"advertiserId": 20164, "network": "daisycon", "country": "GB", "file": "^DAISYCON_20164_GB\\.csv\\.gz$", "retailer": "Chromeburner", "currency": "GBP", "condition": "new", "approved": true, "maxProducts": 15000, "_comment": "Daisycon Wave 3 (chat 9, 17 Nov 2026, lessons L170): Chromeburner INT, its UK feed in pounds (81,989 rows, motorcycle clothing, helmets and parts); the German and Dutch feeds need German/Dutch words in the rules first. At most 15,000 kept."}
   ]
 }

@@ -18,7 +18,7 @@ for (const s of SITES) config[s] = (await import(`../../sites/${s}/site.config.j
 
 // Texts that are the same in Polish and English: names, units, sizes and words Polish uses as they are.
 const SAME_IN_POLISH = new Set(['(4 Ah)', '(5 Ah)', '18 V LXT; 5 Ah; Li-ion', '18 V XR; 4 Ah; Li-ion', '2 × 100 ml (200 ml)', '4 × 5 ml (20 ml)',
-  '5 × 15 ml (75 ml)', '5 × 20 ml (100 ml)', 'Audio', 'Black Friday', 'EAN / GTIN', 'EDC', 'Gaming', 'Gear World Hub', 'Halloween', 'Joy Day',
+  '5 × 15 ml (75 ml)', '5 × 20 ml (100 ml)', 'Audio', 'Black Friday', 'EAN / GTIN', 'EDC', 'Einhell', 'Gaming', 'Gear World Hub', 'Halloween', 'Joy Day',
   'LXT', 'Streaming', 'XR', 'Hosting.', 'Newsletter.']);
 // Words of the English texts that are names or model codes and stay as they are in Polish (brands, retailers, the
 // owner, systems): every one that is in an English text is in its Polish text too.
@@ -42,7 +42,7 @@ test('L162: the 13 sites have Polski in the menu (after Nederlands), PLN, and a 
     assert.equal(codes.indexOf('pl-PL'), codes.indexOf('nl-NL') + 1, `${s}: after Nederlands`);
     assert.equal(codes.length, 12, `${s}: the 11 languages of the Hub and Polish`);
     assert.deepEqual(site.displayCurrencies, ['GBP', 'EUR', 'PLN', 'ALL', 'RON', 'RUB'], s);
-    assert.match(site.assetVersion, new RegExp(`^(2026-11-15-${s}-pl|2026-11-16-${s}-lang|2026-11-17-${s}-legal)-\\d+$`), `${s}: browsers load the new site.js (L31)`);
+    assert.match(site.assetVersion, new RegExp(`^(2026-11-15-${s}-pl|2026-11-16-${s}-lang|2026-11-17-${s}-legal|2026-11-19-${s}-popup)-\\d+$`), `${s}: browsers load the new site.js (L31)`);
   }
   assert.match(read('src/pages/layout.js'), /PLN: 'zł PLN'/, 'the currency menu says zł PLN');
 });
@@ -122,6 +122,8 @@ test('L162: the site script: ?lang= like the menu, Polish for a visitor from Pol
   assert.deepEqual(chooser({ countryLang: 'pl-PL', stored: 'en-GB' }), { lang: 'en-GB', stored: 'en-GB' }, 'from Poland, English chosen in the menu: English');
   assert.deepEqual(chooser({ countryLang: 'pl-PL', stored: 'de-DE', options: ['en-GB', 'de-DE', 'pl-PL'] }), { lang: 'de-DE', stored: 'de-DE' }, 'their own choice first');
   assert.deepEqual(chooser({ countryLang: 'pl-PL', options: ['en-GB', 'el-GR'] }), { lang: 'en-GB', stored: undefined }, 'not on the site: English');
+  // L184: the Group's United States page on a phone that kept Polish from an earlier link: English, kept.
+  assert.deepEqual(chooser({ search: '?lang=en-GB', stored: 'pl-PL', countryLang: 'pl-PL' }), { lang: 'en-GB', stored: 'en-GB' }, 'the Group link: its language first');
   const js = read('sites/tgw/public/assets/site.js');
   assert.match(js, /function loadLanguage\(\) \{\n {4}var wanted = wantedLanguage\(\);/);
   for (const s of SITES) assert.equal(read(`sites/${s}/public/assets/site.js`), js, `${s}: the same site.js`);

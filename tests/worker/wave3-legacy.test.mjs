@@ -176,3 +176,11 @@ test('L171: every wave 3 rules file is named in this test, and none is left with
   }
   for (const k of KEYS) assert.ok(rules[k].RULES.sites.length >= 1 && rules[k].RULES.sites.every(s => config[s]), k);
 });
+
+test('L171 after the ALL IMPORTS dry run (17 Nov 2026): compost goes to subcategories Garden Gear World has', () => {
+  const gv = (name, cat) => place('garvee-us', name, { feedCategory: cat });
+  assert.equal(gv('Compost Spreader, 24IN Peat Moss Spreader with Upgraded T-Handles', 'Garden'), 'ggw Plants, Growing & Garden Care > Lawn Spreaders');
+  assert.equal(gv('Large Metal Wire Compost Bin 15 Cu Ft XL Capacity Powder-Coated Frame', 'Garden'), 'ggw Plants, Growing & Garden Care > Growing');
+  const ao = name => place('aosom-us', name, { feedCategory: 'Outdoor > Lawn & Garden > Composters' });
+  assert.equal(ao('Outsunny Tumbling Compost Bin Outdoor 360° Dual Chamber Rotating Composter 43 Gallon, Orange'), 'ggw Plants, Growing & Garden Care > Growing');
+});

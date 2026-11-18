@@ -12,7 +12,7 @@ export default {
   lang: 'en-GB',
   locale: 'en-GB',
   currency: 'GBP',
-  assetVersion: '2026-11-17-ggw-legal-1',
+  assetVersion: '2026-11-19-ggw-popup-1',
   // Discount codes and sales from retailers (promos/promos.js, lessons L32), with the Awin publisher id
   // used for their links. The id is public: it is part of every Awin link.
   promos: promosFor('GGW'),
@@ -75,8 +75,11 @@ export default {
   deliversTo: { default: ['GB'], retailers: { 'AliExpress PL': ['PL'], 'Bazta IE': ['IE'], 'Plusshop IE': ['IE'], 'Click and Grow': ['US'],
     // Mass import round 2 (15 Nov 2026, lessons L164): TEMU's US feed only to the US, in dollars.
     TEMU: ['US'],
+    // Daisycon Wave 3 (chat 9, 17 Nov 2026): Tuinmeubelwereld, garden furniture with Dutch names, only in the Netherlands (L165).
+    Tuinmeubelwereld: ['NL'],
     // Wave 3 (approvals file of chat 7, 16 Nov 2026, lessons L171): the US shops only to the US.
-    'Everywhere Chair': ['US'], Garvee: ['US'], MOVA: ['US'], Aosom: ['US'] } },
+    'Everywhere Chair': ['US'], Garvee: ['US'], MOVA: ['US'], Aosom: ['US'] },
+    languages: { Tuinmeubelwereld: 'nl' } },
   foreignCurrencies: ['USD', 'PLN'],
   displayCurrencies: ['GBP', 'EUR', 'PLN', 'ALL', 'RON', 'RUB'],
   cart: { name: 'Saved list', maxItems: 30 },

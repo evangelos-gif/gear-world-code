@@ -1,0 +1,288 @@
+// The order of a search on the 13 sites (lessons L181, 17 Nov 2026). The sites ordered a search "featured" (in stock,
+// then a fixed shuffle), so the most plentiful match won: drill bits for "drill", a kettle descaler for "kettle", duvet
+// covers for "duvet", boot tassels for "womens boots", a cat toy for "cat litter". Gear World Hub orders its merged
+// results by what the product IS (lessons L177, sites/gwh/worker.js rankHubResults); a site now does the same with its
+// own results, in two steps:
+//   1. the database: the matches in a rough order (coarseOrder), from the search index only (no row is read twice):
+//      the words in the subcategory or the category name first, then in the product name as whole words, and a name
+//      where an accessory word comes right after the searched word ("drill bit", "kettle descaler", "duvet cover") or
+//      a toy lower; then in stock, then the fixed shuffle. The first SEARCH_WINDOW of them are read;
+//   2. this file: those are ordered by the Hub's rules (rankWindow): what the product is, the words of its name before
+//      "with", "for", "no" ..., brackets, accessories before or after the searched word, toys, copies of one name.
+// Pages inside the window come from step 2, later pages from step 1, so a product never shows on two pages.
+// The words a search matches (searchMatch) are the typed words as before, plus a few true synonyms ("smartwatch" =
+// "smart watch", "motorcycle" = "motorbike", "bbq" = "barbecue"), without a possessive 's ("women's boots"), and without
+// the word a site says by itself when others remain ("womens boots" on Women's Gear World = its boots).
+// The word lists are the Hub's of L177 plus the synonyms smartwatch, motorcycle/motorbike, bike/bicycle, tyre/tire,
+// dashcam and airfryer (for the Hub's next release: sites/gwh/worker.js); a change to one belongs in both.
+
+export const SEARCH_WINDOW = 120;
+
+const RANK_STOP = new Set(['a', 'an', 'the', 'and', 'or', 'for', 'with', 'in', 'on', 'of', 'to', 'my', 'me', 'new', 'buy', 'best', 'cheap', 'i', 'want', 'need', 'should', 'what', 'which', 'some']);
+const RANK_ACCESSORY = new Set(['brush', 'bit', 'attachment', 'adapter', 'adaptor', 'case', 'cover', 'holder', 'mount', 'strap', 'replacement', 'spare', 'accessory', 'refill', 'sticker', 'decal', 'stand', 'pocket', 'cufflink', 'costume', 'protector', 'charger', 'cable', 'pouch', 'organiser', 'organizer', 'hook', 'pattern', 'poster', 'bracket', 'descaler', 'blade', 'catcher', 'tassel', 'band']);
+const RANK_TOY = new Set(['toy', 'pretend']);
+const RANK_ACCESSORY_NAMES = new Set(['stand mixer', 'pocket knife', 'pocket watch', 'pocket sprung', 'side pocket', 'zip pocket',
+  'chest pocket', 'kangaroo pocket', 'razer blade', 'cover up', 'hook and', 'strap top', 'case closed', 'cable knit',
+  'ankle strap', 'hard case', 'stand up', 'duvet cover', 'pillow case', 'suit case', 'phone case']);
+// For the order (as the Hub). Own keys only (a Map): a search for "constructor" must not find Object.prototype.constructor.
+const RANK_SYNONYMS = new Map(Object.entries({
+  bbq: ['barbecue'], barbecue: ['bbq'], tv: ['television'], television: ['tv'], mower: ['lawnmower'], lawnmower: ['mower'],
+  hoover: ['vacuum'], sneaker: ['trainer'], trainer: ['sneaker'], pram: ['pushchair', 'stroller'], pushchair: ['pram', 'stroller'],
+  stroller: ['pram', 'pushchair'], nappy: ['diaper'], diaper: ['nappy'], sofa: ['couch'], couch: ['sofa'], earphone: ['earbud'],
+  earbud: ['earphone'], ps5: ['playstation 5', 'playstation5'], ps4: ['playstation 4', 'playstation4'],
+  mobile: ['phone'], cellphone: ['phone'], notebook: ['laptop'], hivis: ['hi vis'],
+  perfume: ['parfum', 'fragrance', 'eau de toilette'], fragrance: ['perfume', 'parfum'], parfum: ['perfume'],
+  smartwatch: ['smart watch'], motorcycle: ['motorbike'], motorbike: ['motorcycle'], bike: ['bicycle'], bicycle: ['bike'],
+  tyre: ['tire'], tire: ['tyre'], dashcam: ['dash cam'], airfryer: ['air fryer']
+}));
+// For the words a search FINDS: only true equivalents (a search for "mobile" on Kids' Gear World is a baby mobile, so it
+// does not look for phones; "fragrance" also names home fragrance, so "perfume" does not look for it).
+const MATCH_SYNONYMS = new Map(Object.entries({
+  bbq: ['barbecue'], barbecue: ['bbq'], tv: ['television'], television: ['tv'], mower: ['lawnmower'], lawnmower: ['lawn mower'],
+  hoover: ['vacuum'], sneaker: ['trainer'], trainer: ['sneaker'], pram: ['pushchair', 'stroller'], pushchair: ['pram', 'stroller'],
+  stroller: ['pram', 'pushchair'], nappy: ['diaper'], diaper: ['nappy'], sofa: ['couch'], couch: ['sofa'], earphone: ['earbud'],
+  earbud: ['earphone'], ps5: ['playstation 5'], ps4: ['playstation 4'], perfume: ['parfum', 'eau de toilette'],
+  smartwatch: ['smart watch'], motorcycle: ['motorbike'], motorbike: ['motorcycle'], bike: ['bicycle'], bicycle: ['bike'],
+  tyre: ['tire'], tire: ['tyre'], hivis: ['hi vis'], dashcam: ['dash cam'], airfryer: ['air fryer']
+}));
+// Words a Gear World says by itself.
+const RANK_SITE_WORDS = new Map(Object.entries({
+  wgw: ['women', 'woman', 'womens', 'ladies', 'lady', 'her'], mgw: ['men', 'man', 'mens', 'gent', 'him'],
+  kgw: ['kid', 'child', 'children', 'baby', 'boy', 'girl', 'junior', 'toddler'], zgw: ['pet']
+}));
+const RANK_IRREGULAR = new Map(Object.entries({
+  scarves: 'scarf', knives: 'knife', shelves: 'shelf', leaves: 'leaf', wolves: 'wolf', halves: 'half', calves: 'calf',
+  lives: 'life', wives: 'wife', bikinis: 'bikini', skis: 'ski', minis: 'mini', taxis: 'taxi', lens: 'lens', lenses: 'lens',
+  mice: 'mouse', children: 'child', men: 'men', women: 'women', feet: 'foot', teeth: 'tooth', geese: 'goose'
+}));
+
+export function rankStem(word) {
+  let t = String(word || '');
+  if (RANK_IRREGULAR.has(t)) return RANK_IRREGULAR.get(t);
+  if (t.length > 4 && t.endsWith('ies')) return `${t.slice(0, -3)}y`;
+  if (t.length > 4 && t.endsWith('ie')) return `${t.slice(0, -2)}y`;
+  if (t.length > 4 && /(ches|shes|xes|sses|zzes)$/.test(t)) return t.slice(0, -2);
+  if (t.length > 3 && t.endsWith('s') && !/(ss|us|is)$/.test(t)) t = t.slice(0, -1);
+  return t;
+}
+// Words as the search index splits them (unicode61, accents removed, lower case): letters and digits.
+export function rankWords(text) {
+  return String(text || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/['’]/g, '')
+    .split(/[^\p{L}\p{N}]+/u).filter(Boolean);
+}
+export function rankTokens(text) {
+  const raw = rankWords(text);
+  const out = new Set(raw.map(rankStem));
+  for (let i = 0; i + 1 < raw.length; i++) out.add(rankStem(raw[i] + raw[i + 1])); // "lawn mower" = "lawnmower"
+  return out;
+}
+
+// Words of a product's text as the search index splits them (unicode61): letters and digits, lower case, accents removed
+// from Latin letters only (Greek and Cyrillic keep theirs, as in the index). No NFKC: the index does not apply it either
+// ("Kettle™" is the word "kettle", a ligature stays a letter of its own; the second review of 17/11/2026).
+const latinFold = w => w.normalize('NFD').replace(/([A-Za-z])[̀-ͯ]+/g, '$1').normalize('NFC');
+export function indexWords(text) {
+  return (String(text ?? '').toLowerCase().match(/[\p{L}\p{N}]+/gu) || []).map(latinFold);
+}
+// What a visitor typed, as the old ftsQuery read it (NFKC, the words as typed, max 8), without a possessive 's in any
+// case or with any apostrophe ("women's boots", "WOMEN’S BOOTS", "kid´s bike"), so it is not a word every product needs.
+const POSSESSIVE = /(\p{L})['‘’´]s(?![\p{L}\p{N}])/giu;
+export function typedTerms(text) {
+  // Before NFKC too: NFKC turns ´ into a space and an accent.
+  return (String(text ?? '').replace(POSSESSIVE, '$1').normalize('NFKC').replace(POSSESSIVE, '$1').match(/[\p{L}\p{N}]+/gu) || []).slice(0, 8);
+}
+export const queryWords = text => indexWords(typedTerms(text).join(' '));
+
+// The written forms of a word in a product's text, for the search index's exact tokens: "drill" -> drill, drills;
+// "boot" -> boot, boots; "battery" -> battery, batteries; "hoody" -> hoody, hoodie, hoodies; "dress" -> dress, dresses.
+function forms(stem) {
+  const out = new Set([stem]);
+  if (/(ch|sh|x|ss|z)$/.test(stem)) out.add(`${stem}es`);
+  else if (/[^aeiou]y$/.test(stem)) { out.add(`${stem.slice(0, -1)}ies`); out.add(`${stem.slice(0, -1)}ie`); }
+  else out.add(`${stem}s`);
+  for (const [plural, single] of RANK_IRREGULAR) if (single === stem && plural !== stem) out.add(plural);
+  return [...out];
+}
+const quote = t => `"${String(t).replace(/"/g, '""')}"`;
+
+// The words of a search: { raw (the Hub's rules), match (as typed, for the index), lookup (their lower-case form, for the
+// synonyms), rank (stems as the Hub reads them, accents removed: step 2), coarse (stems as the index reads them: step 1) }.
+function searchWords(text, siteCode) {
+  const typed = typedTerms(text);
+  const lower = typed.map(t => latinFold(t.toLowerCase()));
+  const said = new Set((RANK_SITE_WORDS.get(String(siteCode || '').toLowerCase()) || []).map(rankStem));
+  const isSaid = w => said.has(w) || said.has(rankStem(w)) || said.has(rankStem(rankStem(w)));
+  // The word a site says by itself, when other words remain: "womens boots" on Women's Gear World finds its boots,
+  // "kids bike" or "childrens shoes" on Kids' Gear World its bikes and shoes.
+  const kept = lower.map((w, i) => (isSaid(rankWords(w).join('')) ? -1 : i)).filter(i => i >= 0);
+  const use = kept.length && kept.length < typed.length ? kept : typed.map((_, i) => i);
+  const stems = list => { const r = list.filter(w => !RANK_STOP.has(w)).map(rankStem).filter(w => w.length >= 2 || /\d/.test(w)); return r.length ? r : list.map(rankStem); };
+  const keptText = use.map(i => typed[i]).join(' ');
+  return {
+    raw: rankWords(typed.join(' ')),
+    match: use.map(i => typed[i]),
+    lookup: use.map(i => lower[i]),
+    rank: stems(rankWords(keptText)),
+    coarse: stems(indexWords(keptText))
+  };
+}
+
+// A synonym as the search index reads it: one word as the start of a word, two or more as a phrase ("smart watch"
+// also finds "smart watches"; "playstation 5" exactly, so "5" does not find "500GB").
+const synonymMatch = s => { const p = indexWords(s); return p.length === 1 ? `${quote(p[0])}*` : /^\d+$/.test(p[p.length - 1]) ? quote(p.join(' ')) : `${quote(p.join(' '))}*`; };
+
+// Every way each word of a search can be found (for tools/sites-search-check.mjs --replay): [[typed, synonym ...], ...].
+export function searchAlternatives(text, siteCode = '') {
+  const { match, lookup } = searchWords(text, siteCode);
+  return match.map((w, i) => [w, ...(MATCH_SYNONYMS.get(lookup[i]) || MATCH_SYNONYMS.get(rankStem(lookup[i])) || [])]);
+}
+
+// The search index expression: every word as typed, as the start of a word (as before), or one of its true synonyms.
+// "drill" -> "drill"*; "smartwatch" -> ("smartwatch"* OR "smart watch"*); "women's boots" -> "women"* AND "boots"*.
+// No singular: "braces" would also find bracelets, "pens" pendants, and a Polish "pies" (dog) would find pies and never
+// be translated (the independent review of 17/11/2026).
+export function searchMatch(text, siteCode = '') {
+  const { match, lookup } = searchWords(text, siteCode);
+  if (!match.length) return '';
+  // The typed word itself, exactly as the old ftsQuery quoted it (the index folds case and accents its own way: Turkish
+  // İ, letters with two accents on the older sites); the synonyms by its lower-case form.
+  return match.map((w, i) => {
+    const syn = MATCH_SYNONYMS.get(lookup[i]) || MATCH_SYNONYMS.get(rankStem(lookup[i])) || [];
+    const alts = [`${quote(w)}*`, ...syn.map(synonymMatch)];
+    return alts.length === 1 ? alts[0] : `(${alts.join(' OR ')})`;
+  }).join(' AND ');
+}
+
+// The plan of one search on one site: null when the search has no words. site = { code, categories: [{ slug, name }] }.
+export function searchPlan(text, site = {}) {
+  const words = searchWords(text, site.code);
+  if (!words.match.length) return null;
+  const w = words.coarse;
+  const M = searchMatch(text, site.code);
+  const askedForAccessory = words.rank.some(x => RANK_ACCESSORY.has(x));
+  const askedForToy = words.rank.some(x => RANK_TOY.has(x));
+  // Every way a word can be written in a product's text, as token sequences: its forms, and its synonyms ("smartwatch"
+  // = smart watch / smart watches, "ps5" = playstation 5).
+  const alternatives = x => {
+    const out = forms(x).map(f => [f]);
+    for (const s of RANK_SYNONYMS.get(x) || []) {
+      const p = indexWords(s);
+      if (p.length === 1) out.push(...forms(rankStem(p[0])).map(f => [f]));
+      else out.push(...(/^\d+$/.test(p[p.length - 1]) ? [p] : forms(rankStem(p[p.length - 1])).map(f => [...p.slice(0, -1), f])));
+    }
+    const seen = new Set();
+    return out.filter(a => { const k = a.join(' '); return seen.has(k) ? false : (seen.add(k), true); });
+  };
+  const anyOf = x => `(${alternatives(x).map(a => quote(a.join(' '))).join(' OR ')})`;
+  // Two or more words also as one ("smart watch" = Smartwatch, "lawn mower" = Lawnmower), as the Hub's rules read them.
+  const joined = w.length > 1 ? rankStem(w.join('')) : '';
+  const allOf = list => (joined ? `((${list.map(anyOf).join(' AND ')}) OR ${anyOf(joined)})` : list.map(anyOf).join(' AND '));
+  // The categories whose names hold every word (Tablets, Kettle, Hedge Trimmers ...).
+  const catNames = new Map(((site.categories) || []).map(c => [c.slug, c.name]));
+  const catSlugs = [...catNames].filter(([, name]) => { const t = rankTokens(name); return words.rank.every(x => t.has(x)); }).map(([slug]) => slug);
+  // An accessory word right after the searched item, the last word ("drill bit", "kettle descaler", "duvet cover",
+  // "boot tassels"): exact words, so "Drill | Brushless" is not a "drill brush".
+  // The item and its two-word synonyms ("smartwatch" also as "smart watch": "Smart Watch Strap" is a strap).
+  const item = w[w.length - 1];
+  const accessories = [...RANK_ACCESSORY].flatMap(a => forms(a));
+  const accessorySeqs = askedForAccessory ? [] : alternatives(item).flatMap(a => accessories.map(x => [...a, x]));
+  const accessoryPhrases = [...new Set(accessorySeqs.map(a => a.join(' ')))];
+  // Every look-up is narrowed to the search's own matches (the index reads only those).
+  const fts = () => 'p.id IN (SELECT rowid FROM products_fts WHERE products_fts MATCH ?)';
+  const parts = [];
+  const binds = [];
+  // What the product is: its subcategory or category.
+  parts.push(`(CASE WHEN ${fts()}${catSlugs.length ? ` OR p.category_slug IN (${catSlugs.map(() => '?').join(', ')})` : ''} THEN 4 ELSE 0 END)`);
+  binds.push(`(${M}) AND subcategory : (${allOf(w)})`, ...catSlugs);
+  // Every word in the name, as a whole word; in the brand ("dyson": Dyson's own before "for Dyson").
+  parts.push(`(CASE WHEN ${fts()} THEN 3 ELSE 0 END)`);
+  binds.push(`(${M}) AND product_name : (${allOf(w)})`);
+  parts.push(`(CASE WHEN ${fts()} THEN 2 ELSE 0 END)`);
+  binds.push(`(${M}) AND brand : (${allOf(w)})`);
+  if (accessoryPhrases.length) { parts.push(`(CASE WHEN ${fts()} THEN -4 ELSE 0 END)`); binds.push(`(${M}) AND product_name : (${accessoryPhrases.map(quote).join(' OR ')})`); }
+  if (!askedForToy) { parts.push(`(CASE WHEN ${fts()} THEN -3 ELSE 0 END)`); binds.push(`(${M}) AND product_name : ("toy" OR "toys" OR "pretend")`); }
+  const coarse = { sql: `(${parts.join(' + ')}) DESC`, binds };
+
+  // The same rough order in JavaScript, on the words as the index splits them (tools/sites-search-check.mjs --replay,
+  // and the test that both agree). A row reaches the rough order only when it matches the search, as in the database.
+  const seq = (tokens, a) => tokens.some((_, i) => a.every((x, j) => tokens[i + j] === x));
+  const hasAll = tokens => w.every(x => alternatives(x).some(a => seq(tokens, a))) || (joined !== '' && alternatives(joined).some(a => seq(tokens, a)));
+  const coarseScore = row => {
+    const name = indexWords(row.product_name);
+    return (hasAll(indexWords(row.subcategory)) || catSlugs.includes(row.category_slug) ? 4 : 0) + (hasAll(name) ? 3 : 0) +
+      (hasAll(indexWords(row.brand)) ? 2 : 0) + (accessorySeqs.some(a => seq(name, a)) ? -4 : 0) +
+      (!askedForToy && name.some(t => t === 'toy' || t === 'toys' || t === 'pretend') ? -3 : 0);
+  };
+
+  const rankWindow = rows => rankRows(rows, words, catNames);
+  return {
+    words: words.rank,
+    match: M,
+    coarse,
+    coarseScore,
+    rankWindow,
+    // The whole order in JavaScript, for rows already read in the site's "featured" order (the replay of the check).
+    order: rows => rankWindow(rows.map((r, i) => [r, coarseScore(r), i]).sort((a, b) => b[1] - a[1] || (Number(b[0].in_stock) || 0) - (Number(a[0].in_stock) || 0) || a[2] - b[2])
+      .map(x => x[0]).slice(0, SEARCH_WINDOW))
+  };
+}
+
+// Step 2: the Hub's order (rankHubResults, L177) on one site's rows. A row: product_name, brand, subcategory,
+// category_slug (or site_category / category), merchant_category, in_stock. Equal scores keep the database's order.
+function rankRows(rows, words, catNames) {
+  const q = words.raw.join(' ');
+  const joined = words.raw.length > 1 ? rankStem(words.raw.join('')) : '';
+  const w = words.rank;
+  const askedForAccessory = w.some(x => RANK_ACCESSORY.has(x));
+  const askedForToy = w.some(x => RANK_TOY.has(x));
+  const alts = x => RANK_SYNONYMS.get(x) || [];
+  const has = (set, x) => set.has(x) || alts(x).some(alt => alt.split(' ').map(rankStem).every(t => set.has(t)) || set.has(rankStem(alt.replace(/ /g, ''))));
+  const all = set => w.length > 0 && (w.every(x => has(set, x)) || (joined !== '' && set.has(joined)));
+  const some = set => w.some(x => has(set, x));
+  const exact = set => [...set].filter(t => !RANK_STOP.has(t) && t.length > 1).every(t => w.includes(t) || t === joined || w.join('') === t || w.some(x => alts(x).includes(t)));
+  const score = new Map();
+  for (const row of rows) {
+    const name = String(row.product_name || '');
+    const main = name.replace(/\([^)]*\)|\[[^\]]*\]/g, ' ').split(' | ')[0];
+    const head = main.split(/\s(?:with|without|no|inc|incl|including|for|compatible|fits|suitable)\s|\s\+\s/i)[0];
+    const N = rankTokens(head);
+    const full = rankTokens(name);
+    const S = rankTokens(row.subcategory);
+    const C = rankTokens(row.site_category || row.category || catNames.get(row.category_slug) || '');
+    const M = rankTokens(row.merchant_category);
+    let type = 0;
+    if (all(S)) type = exact(S) ? 90 : 70;
+    else if (all(C)) type = exact(C) ? 75 : 60;
+    else if (all(M)) type = 30;
+    else if (some(S) || some(C)) type = 20;
+    let value = type;
+    if (all(N)) value += 45;
+    else if (all(full)) value += 20;
+    else if (w.length) value += Math.round(30 * w.filter(x => has(N, x)).length / w.length);
+    if (q.length >= 2 && rankWords(main).join(' ').includes(q)) value += 10;
+    const brand = rankWords(row.brand).join(' ');
+    if (brand && brand === q) value += 60;
+    else if (brand && w.length && w.every(x => rankTokens(brand).has(x))) value += 20;
+    const order = rankWords(head).map(rankStem);
+    // Where the searched word ends in the name, also as a two-word synonym ("Smart Watch Strap" for "smartwatch").
+    const seqs = w.flatMap(x => [[x], ...alts(x).map(a => a.split(' ').map(rankStem))]);
+    let at = -1;
+    for (let i = 0; i < order.length && at < 0; i++) for (const s of seqs) if (s.every((x, j) => order[i + j] === x)) { at = i + s.length - 1; break; }
+    if (!askedForAccessory && at >= 0 && order.slice(at + 1).some(t => RANK_ACCESSORY.has(t))) value -= 45;
+    else if (!askedForAccessory && at > 0 && order.slice(0, at).some((t, i, list) => RANK_ACCESSORY.has(t) &&
+      !RANK_ACCESSORY_NAMES.has(`${list[i - 1] || ''} ${t}`) && !RANK_ACCESSORY_NAMES.has(`${t} ${list[i + 1] || order[at] || ''}`))) value -= 25;
+    if (!askedForToy && order.some(t => RANK_TOY.has(t))) value -= 30;
+    if (Number(row.in_stock) === 1) value += 3;
+    score.set(row, value);
+  }
+  // The same name many times (sizes and colours of one product): the 3rd and later copies go down.
+  const copies = new Map();
+  const sorted = rows.map((r, i) => [r, i]).sort((a, b) => score.get(b[0]) - score.get(a[0]) || a[1] - b[1]);
+  for (const [row] of sorted) {
+    const key = String(row.product_name || '').toLowerCase().replace(/\s+/g, ' ').trim();
+    const n = (copies.get(key) || 0) + 1;
+    copies.set(key, n);
+    if (n > 2) score.set(row, score.get(row) - 25);
+  }
+  return rows.map((r, i) => [r, i]).sort((a, b) => score.get(b[0]) - score.get(a[0]) || a[1] - b[1]).map(x => x[0]);
+}

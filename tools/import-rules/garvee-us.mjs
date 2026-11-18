@@ -7,7 +7,7 @@
 // (US plugs and sizes): shown only to the US.
 import { homePlace, homeName, notHome, OUTDOOR } from './lib/hgw-home.mjs';
 import { gardenPlace } from './lib/garden.mjs';
-import { clean } from './lib/wave3-legacy.mjs';
+import { clean, ggwSub } from './lib/wave3-legacy.mjs';
 
 export const RULES = {
   key: 'garvee-us',
@@ -52,12 +52,12 @@ export function classify({ name, feedCategory = '' }) {
   }
   if (GARDEN_GROUPS.test(cat)) {
     if (/\brugs?\b|\bmats?\b/i.test(head)) return { site: 'ggw', siteCategory: 'Garden Furniture & Outdoor Living', subcategory: 'Cushions & rugs', name: n };
-    const g = gardenPlace(head, cat);
+    const g = ggwSub(gardenPlace(head, cat), full);
     return g ? { site: 'ggw', ...g, name: n } : { reject: 'no garden place for this name' };
   }
   if (!HOME_GROUPS.test(cat)) return { reject: `Garvee group "${cat || 'none'}" is not one our sites show` };
   if (/floor mat|garage mat|anti-?fatigue|door ?mat|carpet tiles?|flooring|vinyl plank/i.test(full)) return { reject: 'floor mat or flooring' };
-  if (OUTDOOR.test(head)) { const g = gardenPlace(head, cat); return g ? { site: 'ggw', ...g, name: n } : { reject: 'outdoor product with no garden place' }; }
+  if (OUTDOOR.test(head)) { const g = ggwSub(gardenPlace(head, cat), full); return g ? { site: 'ggw', ...g, name: n } : { reject: 'outdoor product with no garden place' }; }
   if (notHome(head)) return { reject: 'not a home product' };
   const p = homePlace(head);
   return p ? { site: 'hgw', ...p, name: n } : { reject: 'no home place for this name' };

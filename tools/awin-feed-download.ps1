@@ -148,9 +148,10 @@ if ($AllJoined) {
 # with ErrorActionPreference Stop, any stderr line of a program stops the script.
 function Local-Rows([string]$path) {
     $oc = @()
-    try { $oc = @(& node -e "const z=require('zlib'),fs=require('fs');try{let n=0;for(const l of z.gunzipSync(fs.readFileSync(process.argv[1])).toString('utf8').split('\n'))if(l.trim())n++;console.log(Math.max(0,n-1))}catch(e){console.log(0)}" $path) } catch { $oc = @('0') }
+    # Read as a stream (L185: a feed over 512 MB stopped the old check with ERR_STRING_TOO_LONG).
+    try { $oc = @(& node (Join-Path $PSScriptRoot 'feed-rows.mjs') $path) } catch { $oc = @('bad 0') }
     $n = -1
-    [void][int]::TryParse(([string]($oc -join '')).Trim(), [ref]$n)
+    [void][int]::TryParse(((([string]($oc -join ' ')).Trim() -split '\s+') | Select-Object -Last 1), [ref]$n)
     return $n
 }
 $missingList = New-Object System.Collections.Generic.List[string]
@@ -209,14 +210,14 @@ foreach ($t in $todo) {
     $bytes = New-Object byte[] 2
     $fs = [System.IO.File]::OpenRead($part); [void]$fs.Read($bytes, 0, 2); $fs.Close()
     if ($bytes[0] -ne 0x1f -or $bytes[1] -ne 0x8b) { Say ('{0}: δεν ήρθε συμπιεσμένο feed (ίσως μήνυμα λάθους από το Awin). Κράτησα το παλιό.' -f $t.name) 'Red'; Remove-Item -LiteralPath $part; continue }
-    $chk = @(& node -e "const z=require('zlib'),fs=require('fs');let t=z.gunzipSync(fs.readFileSync(process.argv[1])).toString('utf8');const h=t.split('\n',1)[0].toLowerCase();let n=0;for(const l of t.split('\n'))if(l.trim())n++;console.log((h.includes('product_name')?'ok':'bad')+' '+Math.max(0,n-1))" $part)
+    $chk = @(& node (Join-Path $PSScriptRoot 'feed-rows.mjs') $part)
     $cp = ([string]($chk -join ' ')).Trim() -split '\s+'
     if ($cp[0] -ne 'ok') { Say ('{0}: το αρχείο δεν έχει στήλη product_name. Κράτησα το παλιό.' -f $t.name) 'Red'; Remove-Item -LiteralPath $part; continue }
     $newRows = [int]$cp[1]
     $oldRows = -1
     if (Test-Path -LiteralPath $t.local) {
-        $oc = @(& node -e "const z=require('zlib'),fs=require('fs');let n=0;for(const l of z.gunzipSync(fs.readFileSync(process.argv[1])).toString('utf8').split('\n'))if(l.trim())n++;console.log(Math.max(0,n-1))" $t.local)
-        $oldRows = [int](([string]($oc -join '')).Trim())
+        $oc = @(& node (Join-Path $PSScriptRoot 'feed-rows.mjs') $t.local)
+        $oldRows = [int](((([string]($oc -join ' ')).Trim() -split '\s+') | Select-Object -Last 1))
     }
     if ($oldRows -ge 100 -and $newRows -lt ($oldRows / 2)) {
         Say ('{0}: ήρθαν {1} γραμμές, ενώ το παλιό είχε {2}. Μάλλον κάτι πήγε στραβά, κράτησα το παλιό (το νέο έμεινε ως .part για έλεγχο).' -f $t.name, $newRows, $oldRows) 'Yellow'

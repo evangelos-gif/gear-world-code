@@ -5,6 +5,7 @@
 //   CJ        tools/cj-feed-download.ps1       CJ_<advertiser>.csv.gz        (lessons L86)
 //   Rakuten   tools/rakuten-feed-download.ps1  RAKUTEN_<advertiser MID>.csv.gz
 //   Daisycon  tools/daisycon-feed-download.ps1 DAISYCON_<program>.csv.gz
+//   bol.com   tools/bol-feed-download.ps1      BOL_<bol category>_<country>.csv.gz (chat 9, 16 Nov 2026, lessons L154)
 import { isCjLink } from './cj-feed.mjs';
 
 const parse = u => { try { const x = new URL(String(u || '')); return /^https?:$/.test(x.protocol) ? x : null; } catch { return null; } };
@@ -24,10 +25,29 @@ export function isDaisyconLink(u, mediaId = '') {
   return !mediaId || x.searchParams.get('wi') === String(mediaId);
 }
 
+// bol.com Partnerprogramma (site ID 1559450, gearworldhub.com, lessons L154): the product link of the partner programme,
+// https://partner.bol.com/click/click?p=2&t=url&s=<site ID>&f=TXL&url=<bol.com page>&name=<product name>. Only a bol.com
+// product page (https://www.bol.com/...) goes in it; anything else gives no link (the click would not pay).
+export const BOL_SITE_ID = '1559450';
+const BOL_PAGE = /^https:\/\/www\.bol\.com\//i;
+export function bolLink(page, name = '', siteId = BOL_SITE_ID) {
+  const x = parse(page);
+  if (!x || !BOL_PAGE.test(x.href)) return '';
+  const label = String(name || '').replace(/\s+/g, ' ').trim().slice(0, 80);
+  return `https://partner.bol.com/click/click?p=2&t=url&s=${encodeURIComponent(siteId)}&f=TXL&url=${encodeURIComponent(x.href)}` +
+    (label ? `&name=${encodeURIComponent(label)}` : '');
+}
+export function isBolLink(u, siteId = BOL_SITE_ID) {
+  const x = parse(u);
+  return Boolean(x && x.protocol === 'https:' && x.hostname === 'partner.bol.com' && x.pathname === '/click/click' &&
+    x.searchParams.get('s') === String(siteId) && BOL_PAGE.test(x.searchParams.get('url') || ''));
+}
+
 export const NETWORKS = {
   cj: { label: 'CJ', file: 'CJ', idPrefix: 'cj', isLink: isCjLink },
   rakuten: { label: 'Rakuten', file: 'RAKUTEN', idPrefix: 'rk', isLink: isRakutenLink },
-  daisycon: { label: 'Daisycon', file: 'DAISYCON', idPrefix: 'dc', isLink: isDaisyconLink }
+  daisycon: { label: 'Daisycon', file: 'DAISYCON', idPrefix: 'dc', isLink: isDaisyconLink },
+  bol: { label: 'bol.com', file: 'BOL', idPrefix: 'bol', isLink: isBolLink }
 };
 
 export function networkOf(rules) {
