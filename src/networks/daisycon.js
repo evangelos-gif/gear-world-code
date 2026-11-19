@@ -118,8 +118,13 @@ async function getJson(ctx, access, path) {
   const { json, text: raw } = await readJson(res);
   if (res.status === 401 || res.status === 403) throw new Error(`Daisycon refused the access (${res.status}) on ${path.replace(/\/publishers\/\d+/, '/publishers/<id>').split('?')[0]}`);
   if (res.status === 429) throw new Error('Daisycon rate limit (50 calls a minute)');
+  // 204 No Content (first live run, 19 Nov 2026: the transactions list with nothing in it), or an empty 200: an empty
+  // list, so paging stops there. Every other answer that is not 200 with JSON stays an error.
+  if (res.status === 204 || (res.status === 200 && !String(raw || '').trim())) return { json: [], total: 0 };
   if (res.status !== 200 || json === null) throw new Error(`Daisycon answered ${res.status} on ${path.replace(/\/publishers\/\d+/, '/publishers/<id>').split('?')[0]}: ${raw.slice(0, 100)}`);
-  const total = res.headers && typeof res.headers.get === 'function' ? Number(res.headers.get('x-total-count')) : NaN;
+  // No X-Total-Count header = total unknown (Number(null) would be 0 and stop paging after a full first page).
+  const h = res.headers && typeof res.headers.get === 'function' ? res.headers.get('x-total-count') : null;
+  const total = h === null || h === undefined || String(h).trim() === '' ? NaN : Number(h);
   return { json, total: Number.isFinite(total) ? total : null };
 }
 

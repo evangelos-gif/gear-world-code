@@ -5239,7 +5239,7 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         $bk = @(Get-ChildItem -LiteralPath (Join-Path $nWork 'backups') -Directory | Sort-Object Name | Select-Object -Last 1)
         Check ($bk.Count -eq 1 -and (NText (Join-Path $bk[0].FullName 'rollback.txt')).Contains($nBm) -and (NText (Join-Path $bk[0].FullName 'rollback.txt')).Contains('secret delete CJ_TOKEN') -and (Test-Path -LiteralPath (Join-Path $bk[0].FullName 'gear-world-awin.sql'))) 'network sales apply: dated backup folder with the database copy, the restore point and the undo'
         $cfg = NText (Join-Path $nWork 'wrangler.jsonc')
-        Check ($cfg.Contains($nDb) -and $cfg.Contains('"CJ_PUBLISHER_IDS": "8114224,7806395"') -and $cfg.Contains('"workers_dev": false') -and -not $cfg.Contains('"routes"') -and -not $cfg.Contains($nCjToken)) 'network sales apply: the config on the PC has the database id and the CJ accounts, no public address, no key'
+        Check ($cfg.Contains($nDb) -and $cfg.Contains('"CJ_PUBLISHER_IDS": "8114224"') -and $cfg.Contains('"workers_dev": false') -and -not $cfg.Contains('"routes"') -and -not $cfg.Contains($nCjToken)) 'network sales apply: the config on the PC has the database id and the CJ accounts, no public address, no key'
         $tracked = @(Get-ChildItem -LiteralPath (Join-Path (Join-Path $repo 'sites') 'network-sales') -Recurse -File | Where-Object { $_.Name -eq 'wrangler.jsonc' })
         Check ($tracked.Count -eq 0) 'network sales apply: no real wrangler.jsonc in the repo folder'
         # Enter at a key prompt: the network is skipped, not a problem
@@ -5287,6 +5287,19 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         # -KeepSecrets: nothing asked or stored again
         $puts = NCount 'secret put'
         Check ((Run-N @('-Step', 'apply', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ ΠΩΛΗΣΕΙΣ ΔΙΚΤΥΩΝ', '-KeepSecrets')) -eq 0 -and (NCount 'secret put') -eq $puts) 'network sales apply with -KeepSecrets: no key stored again'
+        # A re-run from a newer version over a Worker recorded at an older one (c8637dc, live since 19 Nov 2026), Enter at
+        # every key prompt: the guard passes, every key is kept (no new Daisycon sign-in, no new CJ key), the Worker is
+        # deployed again with the new code and CJ account 8114224, and the undo names only what changed.
+        Write-Utf8 $metaFile 'c8637dc37b7672a914917286b3eae4e5aa2f476d'
+        $puts = NCount 'secret put'
+        $deploys = NCount ' deploy --config'
+        Check ((Run-NP 'GW_TEST_NONE_' ($nApply + @('-Only', 'cj,daisycon'))) -eq 0) 'network sales re-run over c8637dc: exit 0'
+        Check ((NCount 'secret put') -eq $puts -and (NCount ' deploy --config') -eq ($deploys + 1) -and (NCount (' deploy --config [^\r\n]* --var GW_COMMIT:' + $nCommit)) -ge 1 -and (NText $metaFile).Trim() -eq $nCommit) 'network sales re-run: no key stored, the Worker deployed again with the new version'
+        $cfg = NText (Join-Path $nWork 'wrangler.jsonc')
+        Check ($cfg.Contains('"CJ_PUBLISHER_IDS": "8114224"') -and -not $cfg.Contains('7806395')) 'network sales re-run: the Worker gets CJ account 8114224 only'
+        $r = NLast 'NETWORK_SALES_APPLY_*.txt'
+        Check ($r.Contains('ΕΝΤΑΞΕΙ: η έκδοση ' + $nCommit.Substring(0, 7) + ' έχει μέσα την έκδοση του Worker c8637dc') -and $r.Contains('CJ: ΠΑΡΑΛΕΙΦΘΗΚΕ (κρατήθηκαν') -and $r.Contains('Daisycon: ΠΑΡΑΛΕΙΦΘΗΚΕ (κρατήθηκαν') -and $r.Contains('Αποτέλεσμα: 🟢 ΕΤΟΙΜΟ')) 'network sales re-run: the guard passes and Enter keeps the CJ key and the Daisycon sign-in'
+        Check ($r.Contains('Ο Worker υπήρχε ήδη (έκδοση c8637dc)') -and $r.Contains('time-travel restore gear-world-awin') -and -not $r.Contains('wrangler delete --name') -and -not $r.Contains('DROP TABLE') -and -not $r.Contains('secret delete')) 'network sales re-run: the undo names only the new code (back to c8637dc) and the restore point'
         # check afterwards: every network set up, the last syncs shown, a held network in its own words
         Check ((Run-N @('-Step', 'check')) -eq 0) 'network sales check after apply: exit 0'
         $r = NLast 'NETWORK_SALES_CHECK_*.txt'

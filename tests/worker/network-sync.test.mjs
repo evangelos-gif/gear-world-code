@@ -484,3 +484,56 @@ test('re-review: every CID "Not authorized" = CJ refused this key for these acco
   const o = await cjTest({ token: CJ_TOKEN, cids: ['8114224', '7806395'], fetchImpl: one.fetchFn, now: NOW });
   assert.deepEqual([o.ok, o.accountsRefused], [true, false], 'one account that works is enough');
 });
+
+// First live run (19 Nov 2026): Daisycon answered 204 No Content for a transactions list with nothing in it.
+// One fake Daisycon per test (its sign-in keys work once); the transactions answer can be swapped between runs.
+function dcWith(transactionsRoute, publishersRoute = () => json([{ id: 123456 }]), dc = fakeDaisycon()) {
+  return { ...dc.routes, 'services.daisycon.com/publishers/': (...a) => transactionsRoute(...a), 'services.daisycon.com/publishers': publishersRoute };
+}
+
+test('live fix: Daisycon 204 on the first page = no sales, the run is ok', async () => {
+  const db = fakeD1();
+  const dc = fakeDaisycon();
+  let answer = () => new Response(null, { status: 204 });
+  const net = fakeNet(dcWith((...a) => answer(...a), undefined, dc));
+  const run = await syncOne(daisycon, DC, { fetchFn: net.fetchFn, now: NOW, db });
+  assert.equal(run.ok, true, run.message);
+  assert.equal(run.saved, 0);
+  assert.equal(run.state, 'ok');
+  const asked = net.calls.filter(c => c.url.pathname.endsWith('/transactions'));
+  assert.ok(asked.length > 0 && asked.every(c => c.url.searchParams.get('page') === '1'), 'one page per window, then it stops');
+  answer = () => new Response('', { status: 200 });
+  const empty200 = await syncOne(daisycon, DC, { fetchFn: net.fetchFn, now: new Date(NOW.getTime() + 7200e3), db });
+  assert.equal(empty200.ok, true, `an empty 200 too: ${empty200.message}`);
+});
+
+test('live fix: Daisycon 200 then 204 stops paging and keeps the first page', async () => {
+  const db = fakeD1();
+  const full = Array.from({ length: PER_PAGE }, (_, i) => dcTx(`F${i}`, [{}]));
+  const net = fakeNet(dcWith(u => (u.searchParams.get('page') === '1' ? json(full) : new Response(null, { status: 204 }))));
+  const run = await syncOne(daisycon, DC, { fetchFn: net.fetchFn, now: NOW, db });
+  assert.equal(run.ok, true, run.message);
+  assert.equal(run.saved, PER_PAGE);
+  const pages = net.calls.filter(c => c.url.pathname.endsWith('/transactions')).map(c => c.url.searchParams.get('page'));
+  assert.ok(pages.every(p => p === '1' || p === '2') && pages.includes('2'), 'page 2 answered 204, no page 3');
+});
+
+test('live fix: other Daisycon answers stay errors; a 204 publisher list says there is no account', async () => {
+  const db = fakeD1();
+  const broken = await syncOne(daisycon, DC, { fetchFn: fakeNet(dcWith(() => json({ error: 'x' }, 500))).fetchFn, now: NOW, db });
+  assert.equal(broken.ok, false);
+  assert.match(broken.message, /Daisycon answered 500 on \/publishers\/<id>\/transactions/);
+  const noPub = await syncOne(daisycon, DC, { fetchFn: fakeNet(dcWith(() => json([]), () => new Response(null, { status: 204 }))).fetchFn, now: NOW, db: fakeD1() });
+  assert.equal(noPub.ok, false);
+  assert.match(noPub.message, /Daisycon gave no publisher account/);
+});
+
+test('live fix: CJ 204 = no commissions in that range; CJ\'s "No authorized publisher ids" = this key is refused for that account', async () => {
+  const db = fakeD1();
+  const run = await syncOne(cj, { CJ_TOKEN, CJ_PUBLISHER_IDS: '8114224' }, { fetchFn: fakeNet({ 'commissions.api.cj.com/query': () => new Response(null, { status: 204 }) }).fetchFn, now: NOW, db });
+  assert.equal(run.ok, true, run.message);
+  assert.equal(run.saved, 0);
+  const words = 'No authorized publisher ids were specified in the query';
+  const t = await cjTest({ token: CJ_TOKEN, cids: ['7806395'], fetchImpl: fakeNet({ 'commissions.api.cj.com': () => json({ errors: [{ message: words }] }) }).fetchFn, now: NOW });
+  assert.deepEqual([t.ok, t.accountsRefused, t.queryError], [false, true, '']);
+});

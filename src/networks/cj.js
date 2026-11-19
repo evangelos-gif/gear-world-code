@@ -74,6 +74,8 @@ async function ask(ctx, token, query) {
   const { json, text } = await readJson(res);
   if (res.status === 401 || res.status === 403 || /invalid auth token/i.test(text)) throw new Error('the CJ key was refused (expired or revoked?)');
   if (res.status === 429 || /too many requests|rate limit/i.test(text)) throw new Error('CJ rate limit (200 calls in 5 minutes)');
+  // 204 No Content or an empty 200: no commissions in this range (as Daisycon answers an empty list).
+  if (res.status === 204 || (res.status === 200 && !String(text || '').trim())) return { count: 0, payloadComplete: true, maxCommissionId: null, records: [] };
   if (!json) throw new Error(`CJ answered ${res.status}: ${text.slice(0, 120)}`);
   if (Array.isArray(json.errors) && json.errors.length) throw new Error(`CJ: ${errText(json.errors)}`);
   const block = json.data && json.data.publisherCommissions;

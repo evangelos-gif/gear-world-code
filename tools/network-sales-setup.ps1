@@ -38,7 +38,9 @@ param(
     [string]$Only = 'cj,daisycon',
     [switch]$Apply,
     [string]$Approve = '',
-    [string]$CjCid = '8114224,7806395',
+    # The Gear World publisher account on CJ. 7806395 is not it: CJ answered "No authorized publisher ids were specified
+    # in the query" for it on the first live run (19 Nov 2026).
+    [string]$CjCid = '8114224',
     [string]$PcHome = '',
     [string]$WorkDir = '',
     [string]$OutDir = '',
@@ -655,7 +657,8 @@ foreach ($c in $chosen) {
     if ($c -eq 'cj') {
         $tok = ''
         $pcTok = ''
-        if (-not $SecretEnvPrefix) { $pcTok = ([string](Read-DpapiText (Join-Path $SecretsDir 'cj-token.dat'))).Trim() }
+        # The PC's CJ key is offered only when the Worker has none yet: with a key already there, ONE Enter keeps it.
+        if (-not $SecretEnvPrefix -and -not $allSet) { $pcTok = ([string](Read-DpapiText (Join-Path $SecretsDir 'cj-token.dat'))).Trim() }
         if ($pcTok) {
             $script:Secrets.Add($pcTok)
             Write-Host 'Υπάρχει ήδη κλειδί του CJ σε αυτόν τον υπολογιστή (από το cj-feed-download).' -ForegroundColor Yellow

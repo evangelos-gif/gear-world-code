@@ -23,7 +23,9 @@ const noRedirect = res => res.status >= 300 && res.status < 400;
 // refused: CJ said no to the key (401/403, "Invalid auth token"). accountsRefused: every CID answered "Not authorized"
 // (or the like): the key works, but not for these CJ accounts. queryError: CJ took the key but the question has another
 // error (GraphQL errors) - our fault, not the key's. The setup tool says the three in different words.
-export const NOT_AUTHORIZED = /not\s*authori[sz]ed|unauthori[sz]ed|forbidden|access denied|permission/i;
+// CJ's own words for a CID that is not this key's publisher (first live run, 19 Nov 2026): "No authorized publisher ids
+// were specified in the query".
+export const NOT_AUTHORIZED = /not\s*authori[sz]ed|no authori[sz]ed publisher|unauthori[sz]ed|forbidden|access denied|permission/i;
 export async function cjTest({ token, cids, fetchImpl = fetch, now = new Date() }) {
   const out = { ok: false, refused: false, accountsRefused: false, queryError: '', cids: [] };
   if (!token || token.length < 10) return { ...out, error: 'no CJ key' };
