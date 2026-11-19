@@ -113,3 +113,64 @@ p { margin: 0 0 1em; }
 @media (min-width: 640px) { .pcards { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 @media (min-width: 900px) { .pcards { grid-template-columns: repeat(4, minmax(0, 1fr)); } .amz-guides { grid-template-columns: 1fr 1fr; } }
 @media (min-width: 900px) { .hero { padding: 64px 0 48px; } .ideas { grid-template-columns: 1fr 1fr; } }
+/* Languages (lessons L24, L194): the sites' menu look (globe, the language's own name, a gold caret) as a list of
+   links that opens without a script (<details>). */
+.visually-hidden { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+.prefs { background: #050912; border-bottom: 1px solid var(--line); }
+.prefs-row { display: flex; justify-content: flex-end; align-items: center; padding-top: 6px; padding-bottom: 6px; }
+.lang-menu { position: relative; }
+.lang-current { display: inline-flex; align-items: center; gap: 8px; min-height: 40px; padding: 0 30px 0 10px; font-weight: 600; font-size: .92rem; color: var(--text); background: var(--panel) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23f2b84b'/%3E%3C/svg%3E") no-repeat right 10px center; border: 1px solid var(--line); border-radius: 8px; cursor: pointer; list-style: none; }
+.lang-current::-webkit-details-marker { display: none; }
+.lang-current:hover, .lang-menu[open] .lang-current { border-color: var(--gold); }
+.pref-icon { flex: none; color: var(--gold); }
+.lang-list { position: absolute; right: 0; top: calc(100% + 4px); z-index: 20; min-width: 180px; margin: 0; padding: 6px; list-style: none; background: var(--panel); border: 1px solid var(--gold); border-radius: 8px; box-shadow: 0 8px 24px rgba(0, 0, 0, .45); }
+.lang-list a { display: flex; align-items: center; min-height: 40px; padding: 0 10px; border-radius: 6px; color: var(--text); text-decoration: none; font-weight: 600; }
+.lang-list a:hover { background: #17294a; color: #fff; }
+.lang-list a[aria-current] { color: var(--gold); }
+.lang-list a[aria-current]::after { content: "\2713"; margin-left: auto; padding-left: 12px; }
+/* The Hub strip and the footer link (like the sites' hub strip, L174, L194). */
+.hub-strip { background: linear-gradient(90deg, #0d1e3b, #10284d 50%, #0d1e3b); border-top: 1px solid var(--line); }
+.hub-row { display: flex; align-items: center; justify-content: center; gap: 8px 18px; flex-wrap: wrap; padding-top: 9px; padding-bottom: 9px; text-align: center; }
+.hub-name { color: var(--gold); font-weight: 600; font-size: .78rem; letter-spacing: .18em; text-transform: uppercase; }
+.hub-tagline { color: #fff; font-weight: 600; }
+.hub-link { display: inline-flex; align-items: center; gap: 6px; min-height: 40px; padding: 0 16px; border: 1px solid var(--gold); border-radius: 999px; color: var(--gold); font-weight: 600; font-size: .92rem; text-decoration: none; }
+.hub-link:hover { background: var(--gold); color: var(--deep); }
+.foot-hub a { display: inline-flex; align-items: center; min-height: 40px; color: var(--gold); font-weight: 600; }
+.amz-tr { color: var(--text-2); }
+.lang-note { padding: 10px 14px; border: 1px solid var(--line); border-radius: 8px; color: var(--text-2); }
+@media (max-width: 620px) {
+  .hub-row { flex-wrap: nowrap; justify-content: space-between; gap: 10px; padding-top: 5px; padding-bottom: 5px; text-align: left; }
+  .hub-tagline { display: none; }
+  .hub-name { font-size: .72rem; letter-spacing: .12em; }
+  .hub-link { font-size: .88rem; padding: 0 12px; white-space: nowrap; }
+}
+/* Black Friday (owner, 18 Nov 2026, lessons L188, L194): a countdown worked out on the server (nothing moves), the
+   dates, the stores that have started and their codes. Blue and gold only (L35). */
+.bf { scroll-margin-top: 12px; }
+.bf h2 { margin-bottom: .3em; }
+.bf-count { display: inline-flex; align-items: baseline; gap: .35em; flex-wrap: wrap; margin: 0 0 .4em; padding: 10px 18px; background: #0f2747; border: 2px solid var(--gold); border-radius: 12px; color: #fff; font-size: clamp(1.25rem, 1rem + 1.4vw, 1.9rem); font-weight: 800; line-height: 1.2; }
+.bf-num { color: var(--gold); font-size: 1.5em; line-height: 1; }
+.bf-dates { color: var(--gold); font-weight: 700; }
+.bf-sub { margin-top: 1.2em; font-size: 1.2rem; color: #fff; }
+.bf-started { display: grid; gap: 14px; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); list-style: none; margin: 0 0 16px; padding: 0; }
+.bf-store { display: flex; flex-direction: column; gap: 6px; padding: 16px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; }
+.bf-store-name { margin: 0; font-size: 1.15rem; color: #fff; }
+.bf-store p { margin: 0; }
+.bf-when { color: var(--gold); font-weight: 600; }
+.bf-sites { color: var(--text-2); font-size: .92rem; }
+.bf-sites a { color: var(--link); }
+.bf-own a { display: inline-flex; align-items: center; min-height: 40px; font-weight: 600; }
+.bf-links { display: flex; flex-wrap: wrap; gap: 10px; margin: 8px 0 0; }
+.promo-list { display: grid; gap: 10px; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); list-style: none; margin: 8px 0 12px; padding: 0; }
+.bf-store .promo-list { grid-template-columns: 1fr; margin-bottom: 0; }
+.promo-card { display: flex; flex-direction: column; gap: 4px; padding: 12px 14px; background: #0c1628; border: 1px dashed var(--gold); border-radius: 10px; }
+.promo-card p { margin: 0; }
+.promo-store { font-weight: 800; color: #fff; }
+.promo-campaign { color: var(--text-2); font-size: .85rem; text-transform: uppercase; letter-spacing: .08em; }
+.promo-code-label { color: var(--text-2); font-size: .9rem; }
+.promo-code strong { color: var(--gold); font-size: 1.1rem; letter-spacing: .06em; }
+.promo-offer { color: #fff; font-weight: 600; }
+.promo-valid { color: var(--text-2); font-size: .9rem; }
+.promo-link { display: inline-flex; align-items: center; min-height: 40px; font-weight: 600; }
+.promo-note { color: var(--text-2); max-width: 80ch; font-size: .92rem; }
+.store-codes h2 { font-size: 1.25rem; }

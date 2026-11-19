@@ -33,6 +33,9 @@
   Rollback: a later update goes back with "npx wrangler rollback <version> --name mega-stores-gear-world" (the report
   names the version); the first launch is undone with "npx wrangler delete --name mega-stores-gear-world".
   Without -Apply, every step only shows what it WOULD do.
+  Every preview and live check also reads (L194): the Greek home page (/?lang=el), the Hub link, and until Cyber
+  Monday the Black Friday block (countdown, a store that started, a code linking to a Gear World /discount-codes/ page,
+  Amazon's own Black Friday page with the Associates ID only with Amazon links on).
   Exit codes: 0 done, 1 no approval, 3 Node.js or npm, 4 Cloudflare login, 6 the live site did not answer before an
   update, 9 the deploy failed, 11 Cloudflare did not say whether the live Worker exists, 12 wrong test Worker name,
   13 this version lacks the live one (L156), 23 -AfterPreview without a clean preview report of this version.
@@ -73,6 +76,8 @@ $DashLink = 'https://dash.cloudflare.com/?to=/:account/workers/services/view/meg
 $DnsLink = 'https://dash.cloudflare.com/?to=/:account/:zone/dns/records'
 $AssociatesLink = 'https://affiliate-program.amazon.co.uk/'
 $UserAgent = 'GearWorldQA-bot/1.0 (+read-only check)'
+# L194: the Black Friday block of the home page shows until the end of Cyber Monday (UK day); the check reads it until then.
+$BlackFridayEnd = '2026-11-30'
 
 $L = New-Object System.Collections.Generic.List[string]
 function Say([string]$text, [string]$color = '') {
@@ -214,6 +219,8 @@ function Get-Page([string]$url) {
         $req = [System.Net.HttpWebRequest]::Create($url)
         $req.Method = 'GET'
         $req.UserAgent = $UserAgent
+        # The view of a UK visitor (the Worker honours it only for the network's QA check), so every run reads the same.
+        $req.Headers.Add('X-GW-QA-Country', 'GB')
         $req.AllowAutoRedirect = $false
         $req.Timeout = 20000
         $resp = $req.GetResponse()
@@ -273,7 +280,8 @@ function Test-Site([string]$base, [string]$mode) {
         $cards = [regex]::Matches($sp.text, '<li class="pcard">').Count
         $photo = $sp.text -match '<a class="pcard-photo" href="https://[a-z]+gearworld\.com/product/[^"]+"[^>]*><img src="https://'
         $outLink = $sp.text -match 'href="[^"]*/(out|go)/'
-        $pound = $sp.text.Contains([string][char]0x00A3)
+        # The retailers' own code lines ("£10 off when you spend £59", L186, L194) are the only text with £.
+        $pound = ([regex]::Replace($sp.text, '<p class="promo-offer">[\s\S]*?</p>', '')).Contains([string][char]0x00A3)
         if ($cards -ge 1 -and $photo -and -not $outLink -and -not $pound) { Say ('  /stores/joybuy/: {0} προϊόντα με φωτογραφία και link στη σελίδα τους στο Gear World, χωρίς τιμές, χωρίς /out/ και /go/: ΕΝΤΑΞΕΙ' -f $cards) $Ok }
         else {
             $why = @()
@@ -284,6 +292,49 @@ function Test-Site([string]$base, [string]$mode) {
             Say ('  /stores/joybuy/: {0}: ΠΡΟΒΛΗΜΑ' -f ($why -join ', ')) $Bad; $all = $false
         }
     }
+    # L194 (owner, 18 Nov 2026): every language, the Hub link and Black Friday. Read-only GETs, never /out/ or /go/.
+    $hp = Get-Page ($base + '/')
+    if ($hp.status -ne 200) { Say ('  Αρχική σελίδα απαντά {0}: ΠΡΟΒΛΗΜΑ' -f $hp.status) $Bad; $all = $false }
+    else {
+        if ($hp.text.Contains('class="hub-link" href="https://gearworldhub.com/')) { Say '  Link προς το Gear World Hub στην αρχική: ΕΝΤΑΞΕΙ' $Ok }
+        else { Say '  Link προς το Gear World Hub στην αρχική: λείπει: ΠΡΟΒΛΗΜΑ' $Bad; $all = $false }
+        $ukToday = (Get-Date).ToUniversalTime().ToString('yyyy-MM-dd')
+        try { $ukToday = [System.TimeZoneInfo]::ConvertTimeFromUtc((Get-Date).ToUniversalTime(), [System.TimeZoneInfo]::FindSystemTimeZoneById('GMT Standard Time')).ToString('yyyy-MM-dd') } catch { }
+        if ($ukToday -le $BlackFridayEnd) {
+            $i = $hp.text.IndexOf('id="black-friday"')
+            $block = ''
+            if ($i -ge 0) { $block = $hp.text.Substring($i) }
+            $count = $block.Contains('class="bf-count"')
+            $store = $block.Contains('<li class="bf-store"')
+            $code = $block -match 'href="https://[a-z]+gearworld\.com/discount-codes/[a-z0-9-]+/"'
+            $out = $block -match 'href="[^"]*/(out|go)/'
+            if ($count -and $store -and $code -and -not $out) { Say '  Black Friday στην αρχική: αντίστροφη μέτρηση, καταστήματα που ξεκίνησαν και κωδικοί με link σε σελίδα Gear World: ΕΝΤΑΞΕΙ' $Ok }
+            else {
+                $why = @()
+                if ($i -lt 0) { $why += 'δεν υπάρχει το μπλοκ' }
+                elseif (-not $count) { $why += 'λείπει η αντίστροφη μέτρηση' }
+                if ($i -ge 0 -and -not $store) { $why += 'κανένα κατάστημα που ξεκίνησε' }
+                if ($i -ge 0 -and -not $code) { $why += 'κανένας κωδικός με link σε /discount-codes/' }
+                if ($out) { $why += 'link /out/ ή /go/' }
+                Say ('  Black Friday στην αρχική: {0}: ΠΡΟΒΛΗΜΑ' -f ($why -join ', ')) $Bad; $all = $false
+            }
+            $bfTagged = $hp.text.Contains('https://www.amazon.co.uk/blackfriday?tag=' + $AmazonTag)
+            $bfPlain = $hp.text.Contains('href="https://www.amazon.co.uk/blackfriday"')
+            if ($mode -eq 'on') {
+                if ($bfTagged) { Say ('  Κουμπί «Black Friday on Amazon» με το Associates ID {0}: ΕΝΤΑΞΕΙ' -f $AmazonTag) $Ok }
+                else { Say '  Κουμπί «Black Friday on Amazon» με το Associates ID: λείπει: ΠΡΟΒΛΗΜΑ' $Bad; $all = $false }
+            } elseif ($mode -eq 'preview') {
+                if ($bfPlain -and -not $bfTagged) { Say '  Κουμπί «Black Friday on Amazon» χωρίς Associates ID (δοκιμαστική διεύθυνση): ΕΝΤΑΞΕΙ' $Ok }
+                else { Say '  Κουμπί «Black Friday on Amazon» της δοκιμαστικής διεύθυνσης: ΠΡΟΒΛΗΜΑ' $Bad; $all = $false }
+            } else {
+                if (-not ($bfTagged -or $bfPlain)) { Say '  Χωρίς κουμπί Amazon στη Black Friday (δεν δόθηκε η φράση Amazon): ΕΝΤΑΞΕΙ' $Ok }
+                else { Say '  Κουμπί Amazon στη Black Friday χωρίς την έγκρισή σου: ΠΡΟΒΛΗΜΑ' $Bad; $all = $false }
+            }
+        } else { Say ('  Black Friday: τελείωσε στις {0}, το μπλοκ δεν φαίνεται πια: ΕΝΤΑΞΕΙ' -f $BlackFridayEnd) $Ok }
+    }
+    $el = Get-Page ($base + '/?lang=el')
+    if ($el.status -eq 200 -and $el.text.Contains('<html lang="el-GR"') -and $el.text.Contains('Οδηγοί δώρων')) { Say '  /?lang=el απαντά στα Ελληνικά (Οδηγοί δώρων): ΕΝΤΑΞΕΙ' $Ok }
+    else { Say ('  /?lang=el δεν απαντά στα Ελληνικά ({0}): ΠΡΟΒΛΗΜΑ' -f $el.status) $Bad; $all = $false }
     $ap = Get-Page ($base + '/stores/amazon/')
     if ($mode -eq 'on') {
         if ($ap.status -eq 200 -and $ap.text.Contains('tag=' + $AmazonTag)) { Say ('  /stores/amazon/ με το Associates ID {0}: ΕΝΤΑΞΕΙ' -f $AmazonTag) $Ok }

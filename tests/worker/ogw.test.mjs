@@ -71,6 +71,12 @@ async function get(path, env = ON, base = LIVE, method = 'GET') {
   return { r, text: method === 'HEAD' ? '' : await r.text() };
 }
 
+// The retailers' own code lines ("£50 off when you spend £500", lessons L186, L194) are the only text with £ or %: the
+// wording checks read the page without them, and check them on their own (retailerLines).
+export const withoutOffers = text => text.replace(/<p class="promo-offer">[\s\S]*?<\/p>/g, '');
+export const retailerLines = text => [...text.matchAll(/<p class="promo-offer">([\s\S]*?)<\/p>/g)].map(m => m[1].replace(/<[^>]+>/g, ''));
+const RETAILER_LINE = /^(£\d+|\d+%) off (when you spend £\d+(, on selected products)?|your order)$|^For [A-Za-z]+ products, when you spend £\d+ or more on [A-Za-z]+$|^On your order, no minimum spend$/;
+
 const ALL_GUIDES = [...site.guides.map(g => g.slug), site.checks.slug];
 const STORE_PAGES = awinStores(site).map(s => `/stores/${s.slug}/`);
 const ALL_PAGES = ['/', ...ALL_GUIDES.map(s => `/guides/${s}/`), ...legalPaths(), ...STORE_PAGES];
@@ -85,7 +91,9 @@ test('every page answers 200 with the security headers, no script, no cookie and
       assert.equal(r.headers.get('X-Content-Type-Options'), 'nosniff', p);
       assert.ok(!r.headers.get('Set-Cookie'), `${p}: no cookie`);
       assert.ok(!/<script/i.test(text), `${p}: no script`);
-      assert.ok(!/£|\bGBP\b/.test(text), `${p}: no price (the marketplace page has the price)`);
+      assert.ok(!/£|\bGBP\b/.test(withoutOffers(text)), `${p}: no price (the marketplace page has the price)`);
+      for (const l of retailerLines(text)) assert.match(l, RETAILER_LINE, `${p}: only the retailer's own code wording`);
+      assert.equal(r.headers.get('Content-Language'), 'en-GB', `${p}: English without ?lang=`);
       assert.ok(text.includes('Run by Evangelos Kalogerakis, United Kingdom'), `${p}: who runs the site (L101)`);
       for (const href of ['/about/', '/how-we-make-money/', '/privacy/', '/cookies/', '/terms/']) assert.ok(text.includes(`href="${href}"`), `${p}: footer ${href} (L17)`);
       assert.ok(text.includes(`&copy; ${new Date().getUTCFullYear()}`), `${p}: year in the footer (L17)`);
@@ -172,7 +180,7 @@ test('wording: we compare, we do not sell (L101, L103, L107); Black Friday only 
   const BANNED = /\bshop\b|\bshopping\b|\bcart\b|\bbasket\b|buy now|shop now|\bofficial\b|\bpartners?\b|\btrusted\b|free delivery|we deliver|uk retailers|uk sites|compare uk prices|\bdeals?\b|\bsale\b|\bsave\b|\d\s?%|lowest price|best price|price drop|\bwas £|we tested|\bdiscounts?\b|\boffers?\b|\bcheapest\b|\bguaranteed?\b/i;
   for (const env of [ON, OFF]) {
     for (const p of ALL_PAGES) {
-      const text = (await get(p, env)).text.replace(/<[^>]+>/g, ' ');
+      const text = withoutOffers((await get(p, env)).text).replace(/<[^>]+>/g, ' ');
       const m = text.match(BANNED);
       assert.ok(!m, `${p}: "${m && m[0]}"`);
     }
@@ -325,7 +333,7 @@ test('store page: product photos with the Gear World product page, never a price
     const r = await w.fetch(new Request(`${LIVE}/stores/joybuy/`), env);
     assert.equal(r.status, 200);
     const text = await r.text();
-    assert.match(text, /<h1><span translate="no">Joybuy<\/span> on Mega Stores Gear World<\/h1>/);
+    assert.match(text, /<h1><span translate="no">Joybuy<\/span> on <span translate="no">Mega Stores Gear World<\/span><\/h1>/);
     assert.match(text, /The buttons on this page open product pages of the Gear World sites/, 'the disclosure note');
     const cards = text.match(/<li class="pcard">[\s\S]*?<\/li>/g) || [];
     assert.equal(cards.length, 6 * 3 + 1, '6 sites read, 3 good rows each, the shared name once');
@@ -337,11 +345,11 @@ test('store page: product photos with the Gear World product page, never a price
         assert.ok(GW_HOSTS.has(h.hostname) && h.pathname.startsWith('/product/'), `a Gear World product page: ${h}`);
       }
       assert.match(c, /<h2 class="pcard-name" translate="no">/);
-      assert.match(c, /<p class="pcard-site">On [^<]+ Gear World<\/p>/);
-      assert.match(c, />See it on [^<]+ Gear World<\/a>/);
+      assert.match(c, /<p class="pcard-site">On <span translate="no">[^<]+ Gear World<\/span><\/p>/);
+      assert.match(c, /><span>See it on <span translate="no">[^<]+ Gear World<\/span><\/span><\/a>/);
     }
     assert.ok(!/\/out\/|\/go\//.test(text), 'never an /out/ or /go/ link');
-    const visible = text.replace(/<[^>]+>/g, ' ');
+    const visible = withoutOffers(text).replace(/<[^>]+>/g, ' ');
     const m = visible.match(STORE_BANNED);
     assert.ok(!m, `no price or shop word: "${m && m[0]}"`);
     for (const left of ['Christmas Sale', '100% cotton', 'Gift box', 'Alexa', 'item 9<', 'item 10<', 'item 11', 'item 12', 'item 13', 'item 14', 'evil.example']) assert.ok(!text.includes(left), `left out: ${left}`);
@@ -350,13 +358,17 @@ test('store page: product photos with the Gear World product page, never a price
     for (const h of [...text.matchAll(/href="(https?:[^"]+)"/g)].map(x => new URL(x[1].replace(/&amp;/g, '&')))) {
       assert.ok(GW_HOSTS.has(h.hostname) || h.hostname === 'megastoresgearworld.com' || h.hostname === 'gearworldhub.com' || h.hostname === 'ico.org.uk', `link: ${h}`);
     }
-    const sites = cards.slice(0, 6).map(c => c.match(/On ([^<]+)<\/p>/)[1]);
+    const sites = cards.slice(0, 6).map(c => c.match(/pcard-site">On <span translate="no">([^<]+)<\/span>/)[1]);
     assert.equal(new Set(sites).size, 6, 'the sites one after another');
     // One link per site of the store to its search, filtered by the store.
     for (const code of site.stores.find(s => s.slug === 'joybuy').sites) {
       assert.ok(text.includes(`href="https://${hostOf(code)}/search?q=Joybuy&amp;retailer=Joybuy"`), `search link on ${code}`);
     }
-    assert.ok(!text.includes('/discount-codes/'), 'Joybuy has sales, not codes: no codes link');
+    // Joybuy's Black Friday coupons (16-30 Nov, L187): their cards link to its /discount-codes/ page on Women's Gear
+    // World; the site links below list codes to type only, so no "voucher codes" link for Joybuy (L114).
+    assert.equal((text.match(/<li class="promo-card" data-end="2026-11-30">/g) || []).length, 2, 'the two Joybuy coupons, until 30 Nov');
+    assert.ok(!/voucher codes on/.test(text), 'Joybuy has coupons, not codes to type: no voucher codes link');
+    for (const h of [...text.matchAll(/href="([^"]*\/discount-codes\/[^"]*)"/g)].map(m => m[1])) assert.equal(h, 'https://womensgearworld.com/discount-codes/joybuy/');
   }
   // The request to the sites: the store, the UK, the badges, 8 products, our name; at most 6 sites.
   const joy = f.calls.filter(c => c.url.searchParams.get('retailer') === 'Joybuy');
@@ -372,7 +384,7 @@ test('store page: product photos with the Gear World product page, never a price
   }
   const tu = await (await w.fetch(new Request(`${LIVE}/stores/tooled-up/`), ON)).text();
   for (const code of ['CGW', 'AGW', 'GGW', 'BGW']) assert.ok(tu.includes(`href="https://${hostOf(code)}/discount-codes/tooled-up/"`), `Tooled Up codes on ${code}`);
-  assert.match(tu, /Tooled Up<\/span> voucher codes on Construction Gear World/);
+  assert.match(tu, /Tooled Up<\/span> voucher codes on <span translate="no">Construction Gear World<\/span>/);
   const pc = await (await w.fetch(new Request(`${LIVE}/stores/pchub-uk/`), ON)).text();
   assert.ok(!pc.includes('/discount-codes/'), 'no codes link without codes');
   const dh = await (await w.fetch(new Request(`${LIVE}/stores/dhgate/`), ON)).text();

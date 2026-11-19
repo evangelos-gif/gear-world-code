@@ -10,6 +10,12 @@
 // Wording (lessons L101, L103, L107): we compare, we do not sell. No "shop", "cart", "buy now", "deals", "sale",
 // "save", "lowest price", "free delivery" or "partner"; Black Friday only as a countdown, never a promise of discounts.
 
+// Languages (owner, 18 Nov 2026: "all the languages", lessons L24, L175, L194): the dictionaries are
+// sites/ogw/i18n/<code>.json (keyed by the English text, like the sites' public/assets/i18n files), written into the
+// Worker when it is built. The Black Friday block reads the Hub's own file (lessons L188, L194).
+import DICTIONARIES from './i18n.js';
+import EARLY_BLACK_FRIDAY from '../gwh/black-friday/black-friday.json' with { type: 'json' };
+
 // No `code` field on purpose: tools that list the shop sites by code (tools/gwh-deals.mjs) must not count this site;
 // its code OGW is used only by tools/ogw-site.ps1 and the reports.
 export default {
@@ -19,7 +25,25 @@ export default {
   operatorName: 'Evangelos Kalogerakis, United Kingdom',
   // An address that receives mail (the Hub's; megastoresgearworld.com has no email).
   contactEmail: 'contact@gearworldhub.com',
-  assetVersion: '2026-11-18-ogw-2',
+  assetVersion: '2026-11-19-ogw-3',
+  // The 12 languages of the 13 Gear World sites, the same codes and the same order as their menu (lessons L162, L194).
+  languages: [
+    { code: 'en-GB', label: 'English' },
+    { code: 'el-GR', label: 'Ελληνικά' },
+    { code: 'de-DE', label: 'Deutsch' },
+    { code: 'fr-FR', label: 'Français' },
+    { code: 'it-IT', label: 'Italiano' },
+    { code: 'es-ES', label: 'Español' },
+    { code: 'pt-PT', label: 'Português' },
+    { code: 'nl-NL', label: 'Nederlands' },
+    { code: 'pl-PL', label: 'Polski' },
+    { code: 'sq-AL', label: 'Shqip' },
+    { code: 'ro-RO', label: 'Română' },
+    { code: 'ru-RU', label: 'Русский' }
+  ],
+  dictionaries: DICTIONARIES,
+  // The Hub link in the header and the footer of every page, like the sites (owner, 18 Nov 2026, L174, L194).
+  hub: { name: 'Gear World Hub', url: 'https://gearworldhub.com/' },
   // The marketplaces a guide links to, in this order. Amazon UK: Associates ID gearworld04-21 (owner, 15 Nov 2026). The
   // live Worker shows the Amazon links only with AMAZON_LINKS=on, which tools/ogw-site.ps1 sets only after the owner's
   // phrase that the site is in his Associates account ("Websites and mobile apps"); the test Worker links to Amazon
@@ -29,7 +53,8 @@ export default {
   // an Amazon mark only next to an Amazon Special Link, unchanged, never implying sponsorship. So it shows only on
   // /stores/amazon/ next to the Amazon buttons, with AMAZON_LINKS=on; everywhere else Amazon is text only. Empty until
   // the Manager adds the file Amazon gives.
-  amazon: { host: 'www.amazon.co.uk', tag: 'gearworld04-21', linkImage: '' },
+  // blackFriday: Amazon's own Black Friday page, a button of the Black Friday block (only with Amazon links, L194).
+  amazon: { host: 'www.amazon.co.uk', tag: 'gearworld04-21', linkImage: '', blackFriday: '/blackfriday' },
   // The stores bar (owner, 18 Nov 2026, «ΕΓΚΡΙΝΩ MEGA STORES ΜΠΑΡΑ», lessons L191): one page per store at
   // /stores/<slug>/, in this order, above the gift guides. Amazon shows only with AMAZON_LINKS on or preview, text only
   // (no logo). The other stores are the UK retailers listed on the Gear World sites: `name` is the `retailer` value of
@@ -56,9 +81,13 @@ export default {
     { slug: 'dhgate', name: 'DHgate', sites: ['KGW'], deliversTo: ['GB'],
       line: 'Toys, games and children\'s items from many independent sellers.', logo: '' }
   ],
-  // Black Friday 2026 (Friday 27 Nov) and Christmas: the countdown on the home page. Never a promise of discounts.
+  // Black Friday 2026 (Friday 27 Nov), Cyber Monday (Monday 30 Nov) and Christmas: the countdown line and the Black Friday
+  // block of the home page (until the end of Cyber Monday). Never a promise of discounts.
   blackFriday: '2026-11-27',
+  cyberMonday: '2026-11-30',
   christmas: '2026-12-25',
+  // The retailers that have started their Black Friday and their codes: the Hub's black-friday.json (L188, L194).
+  earlyBlackFriday: EARLY_BLACK_FRIDAY,
   guides: [
     {
       slug: 'christmas-gift-ideas-for-him',
