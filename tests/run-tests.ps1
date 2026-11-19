@@ -3239,7 +3239,7 @@ if ($isWin) {
 }
 
 # Lessons L116: the last line names the chat that gave the command.
-foreach ($cn in @('gw-backup.ps1', 'gw-wrangler-check.ps1')) {
+foreach ($cn in @('gw-backup.ps1', 'gw-wrangler-check.ps1', 'gw-night-backup.ps1')) {
     $ct = [System.IO.File]::ReadAllText((Join-Path (Join-Path $repo 'tools') $cn))
     Check ($ct.Contains("[string]`$Chat = '4 · Sites & Κώδικας'") -and $ct.Contains('Πήγαινε στη συζήτηση με το Claude «{0}» και πάτα Ctrl+V.') -and -not $ct.Contains('Πήγαινε στη συζήτηση με το Claude και πάτα')) ($cn + ': the clipboard line names the chat «4 · Sites & Κώδικας» (-Chat) (L116)')
 }
@@ -3281,6 +3281,65 @@ $lt = $(if (Test-Path -LiteralPath $lSave) { [System.IO.File]::ReadAllText($lSav
 Check ($LASTEXITCODE -eq 0 -and $lt.Contains('===== GWH_HUB_V2_LIVE_') -and $lt.Contains('ΔΕΝ βρέθηκε αναφορά: GWH_HUB_V2_INDEXNOW')) 'last report: a name without a report is named on the clipboard, the others are still there'
 & $exe -NoProfile -ExecutionPolicy Bypass -File $lTool -HomeDir $lHome -Name 'GWH_HUB_V2_LIVE,bad name!' -NoClipboard | Out-Null
 Check ($LASTEXITCODE -eq 2) 'last report: one wrong name in the list stops at once (exit 2)'
+
+# gw-night-backup.ps1 (lessons L200): one paste for the night; waits until no other Gear World command runs, then the
+# backup of the same version with -Apply. A fake backup script and a fake process list stand in for the real ones.
+Write-Host 'gw-night-backup.ps1'
+$nTool = Join-Path (Join-Path $repo 'tools') 'gw-night-backup.ps1'
+$nSrc = [System.IO.File]::ReadAllText($nTool)
+Check (-not $nSrc.Contains('Get-Clipboard') -and -not $nSrc.Contains('Read-Host') -and $nSrc.Contains("'-Apply', '-Approve', `$Approve") -and $nSrc.Contains("'-NoClipboard'") -and $nSrc.Contains("Join-Path `$PSScriptRoot 'gw-backup.ps1'")) 'night backup: never reads the clipboard or asks; runs gw-backup of the same version with -Apply and the same phrase (L200)'
+if ($isWin) {
+    $nHome = Join-Path $work 'nb-home'
+    $nOut = Join-Path $nHome 'gear-world-reports'
+    $nTarget = Join-Path $work 'nb-target'
+    $nPhrase = 'ΕΓΚΡΙΝΩ BACKUP ' + (Split-Path -Qualifier $nTarget).TrimEnd(':').ToUpper()
+    $nFake = Join-Path $work 'nb-procs.txt'
+    $nLog = Join-Path $work 'nb-backup-args.txt'
+    $nSave = Join-Path $work 'nb-clip.txt'
+    $nBackup = Join-Path $work 'nb-fake-backup.ps1'
+    Write-Utf8 $nBackup (@(
+        'param([string]$Target, [switch]$Apply, [string]$Approve, [string]$Chat, [switch]$NoClipboard, [string]$HomeDir, [string]$OutDir, [switch]$AllowSystemDrive)',
+        '[System.IO.File]::WriteAllText($env:GW_NB_LOG, (''apply='' + $Apply + '' noclip='' + $NoClipboard + '' target='' + $Target + '' approve='' + $Approve), (New-Object System.Text.UTF8Encoding($false)))',
+        'if (-not (Test-Path -LiteralPath $OutDir)) { New-Item -ItemType Directory -Path $OutDir -Force | Out-Null }',
+        '[System.IO.File]::WriteAllText((Join-Path $OutDir (''GW_BACKUP_{0}.txt'' -f (Get-Date -Format ''yyyyMMdd_HHmmss''))), "fake backup report`r`nEND")',
+        'exit 0') -join "`r`n")
+    $env:GW_NB_LOG = $nLog
+    $nMine = @('{PID}|{PPID}|powershell.exe|powershell.exe -NoProfile -File C:\nb\gear-world-code-abcdef123456\tools\gw-night-backup.ps1',
+        '{PPID}|1|powershell.exe|powershell.exe -NoProfile -ExecutionPolicy Bypass -File C:\Users\x\AppData\Local\Temp\gw-night.ps1 -Ref abc -Tool gw-night-backup',
+        '700|1|node.exe|C:\Program Files\Claude\node.exe C:\Users\x\mcp\files.js C:\Users\x\gear-world-reports',
+        '701|1|explorer.exe|C:\Windows\explorer.exe',
+        '702|1|powershell.exe|C:\WINDOWS\System32\WindowsPowerShell\v1.0\powershell.exe')
+    $nBusy = @('800|1|powershell.exe|powershell.exe -NoProfile -ExecutionPolicy Bypass -File C:\Users\x\AppData\Local\Temp\gw-tool.ps1 -Ref abc -Tool legacy-import-batch -Apply -Approve SECRETWORD',
+        '801|800|node.exe|node C:\Users\x\home-gear-world-engine\deploy\node_modules\wrangler\bin\wrangler.js d1 execute')
+    $nRun = {
+        param([string]$approve, [string]$target, [string]$quiet, [string]$maxHours)
+        Remove-Item -LiteralPath $nLog, $nSave -Force -ErrorAction SilentlyContinue
+        $o = (& $exe -NoProfile -ExecutionPolicy Bypass -File $nTool -Target $target -Approve $approve -QuietMinutes $quiet -MaxWaitHours $maxHours -PollSec 1 -HomeDir $nHome -NoClipboard -SaveTo $nSave -BackupScript $nBackup -FakeProcessFile $nFake | Out-String)
+        return @{ Code = $LASTEXITCODE; Out = $o; Clip = $(if (Test-Path -LiteralPath $nSave) { [System.IO.File]::ReadAllText($nSave) } else { '' }); Log = $(if (Test-Path -LiteralPath $nLog) { [System.IO.File]::ReadAllText($nLog) } else { '' }) }
+    }
+    # A wrong phrase and a missing drive stop at once, before any wait, and the backup never starts.
+    [System.IO.File]::WriteAllLines($nFake, $nMine)
+    $r = & $nRun 'ΕΓΚΡΙΝΩ BACKUP' $nTarget '0' '1'
+    Check ($r.Code -eq 1 -and -not $r.Log -and $r.Clip.Contains('Λάθος φράση') -and $r.Clip.TrimEnd().EndsWith('ΤΕΛΟΣ BACKUP')) 'night backup: a wrong phrase stops at once (exit 1), no backup, report on the clipboard'
+    $r = & $nRun 'ΕΓΚΡΙΝΩ BACKUP Q' 'Q:\GearWorldBackup' '0' '1'
+    Check ($r.Code -eq 2 -and -not $r.Log -and $r.Clip.Contains('δεν βρίσκω τον δίσκο Q:')) 'night backup: no external drive stops at once (exit 2), before the night'
+    # Nothing else runs (its own window, gw-run that started it, an app with gear-world in a folder name): the backup starts.
+    $r = & $nRun $nPhrase $nTarget '0' '1'
+    Check ($r.Code -eq 0 -and $r.Log.Contains('apply=True noclip=True') -and $r.Log.Contains('approve=' + $nPhrase) -and $r.Log.Contains('target=' + $nTarget)) 'night backup: nothing else running, the backup starts with -Apply, the phrase and the folder'
+    Check ($r.Clip.Contains('Δεν έτρεχε άλλη εντολή Gear World') -and $r.Clip.Contains('===== GW_BACKUP_') -and $r.Clip.Contains('fake backup report') -and $r.Clip.TrimEnd().EndsWith('END') -and @(Get-ChildItem -LiteralPath $nOut -Filter 'GW_NIGHT_BACKUP_*.txt').Count -ge 1) 'night backup: its report and the backup report together on the clipboard'
+    # Another command runs all the time: no backup after -MaxWaitHours, and the report names the tool, never its command line.
+    [System.IO.File]::WriteAllLines($nFake, ($nMine + $nBusy))
+    $r = & $nRun $nPhrase $nTarget '0' '0.0008'
+    Check ($r.Code -eq 3 -and -not $r.Log -and $r.Clip.Contains('ΔΕΝ ΞΕΚΙΝΗΣΕ') -and $r.Clip.Contains('legacy-import-batch') -and $r.Clip.Contains('wrangler')) 'night backup: an import still running at the deadline, the backup does not start (exit 3)'
+    Check ($r.Clip.Contains('(legacy-import-batch, wrangler)') -and -not $r.Clip.Contains('SECRETWORD') -and -not $r.Clip.Contains('gw-tool.ps1') -and -not $r.Clip.Contains('wrangler.js') -and -not $r.Clip.Contains('gw-night-backup')) 'night backup: only tool names in the report, never command lines; its own window and gw-run never count'
+    # The import ends while it waits: the backup starts after it.
+    [System.IO.File]::WriteAllLines($nFake, ($nMine + $nBusy))
+    $nJob = Start-Job -ScriptBlock { param($f, $lines) Start-Sleep -Seconds 4; [System.IO.File]::WriteAllLines($f, [string[]]$lines) } -ArgumentList $nFake, $nMine
+    $r = & $nRun $nPhrase $nTarget '0' '1'
+    Remove-Job -Job $nJob -Force -ErrorAction SilentlyContinue
+    Check ($r.Code -eq 0 -and $r.Log.Contains('apply=True') -and $r.Clip.Contains('τρέχει ακόμα άλλη εντολή Gear World (legacy-import-batch, wrangler)') -and $r.Clip.Contains('Περίμενα') -and $r.Clip.Contains('η άλλη εντολή τελείωσε')) 'night backup: waits for the import to end, then the backup starts'
+    Remove-Item Env:\GW_NB_LOG -ErrorAction SilentlyContinue
+}
 
 # Lessons L118: the GitHub branch list is unrolled (Windows PowerShell 5.1 gives a JSON array back as one object).
 $gbt = [System.IO.File]::ReadAllText((Join-Path (Join-Path $repo 'tools') 'gw-backup.ps1'))
