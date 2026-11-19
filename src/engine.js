@@ -15,6 +15,7 @@ import { translationsFor } from './lib/hub.js';
 import { offersIndexPage, retailerOffersPage, OFFERS_PATH } from './pages/offers.js';
 import { findPromo, promoViewSite } from './lib/promos.js';
 import { campaignRefs } from './lib/ads.js';
+import { withNetworkSubId } from './lib/network-subids.js';
 import { infoPage, infoPaths, notFoundPage, errorPage, dealUpdatesPage } from './pages/info.js';
 import { useSiteAssets, useRates, ukBarHtml, browseBarHtml } from './pages/layout.js';
 import { sitemapIndex, sitemapStatic, sitemapProducts, robotsTxt, SITEMAP_CHUNK } from './seo.js';
@@ -848,6 +849,8 @@ function withVaryCookie(response) {
 // awin = { publisherId, advertisers: { 'Retailer name': advertiserId } } from the site config.
 // extra = { clickref2, clickref3 }: the campaign of the visit (lessons L93), only on an Awin link, never over a value
 // the link already has. A plain retailer address gets nothing added.
+// A CJ, Daisycon or Linkwise tracking link gets the same clickref as that network's sub id (CJ sid=, Daisycon ws=,
+// Linkwise subid1=), only when it has none (src/lib/network-subids.js, lessons L197). It is never wrapped in an Awin link.
 export function affiliateTarget(address, retailer, awin, clickRef, extra = {}) {
   const addExtra = t => {
     for (const k of ['clickref2', 'clickref3']) if (extra && extra[k] && !t.searchParams.has(k)) t.searchParams.set(k, extra[k]);
@@ -860,6 +863,8 @@ export function affiliateTarget(address, retailer, awin, clickRef, extra = {}) {
     if (!target.searchParams.has('clickref')) target.searchParams.set('clickref', clickRef);
     return addExtra(target);
   }
+  const network = withNetworkSubId(target, clickRef);
+  if (network) return network;
   const mid = awin && awin.advertisers ? Number(awin.advertisers[String(retailer || '')]) : 0;
   const aff = awin ? Number(awin.publisherId) : 0;
   if (!(mid > 0) || !(aff > 0)) return target;
