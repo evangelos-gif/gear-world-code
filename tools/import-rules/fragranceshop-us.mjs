@@ -6,6 +6,7 @@
 // and stays under 20,000). US shop: shown only to the US.
 import { placeFragrance, withBrand } from './lib/fragrance-us.mjs';
 
+// 19 Nov 2026 (lessons L193): no RULES.maxPerSubcategory any more, the older sites read only the cards they show.
 export const RULES = {
   key: 'fragranceshop-us',
   network: 'cj',
@@ -15,8 +16,7 @@ export const RULES = {
   shop: /^https:\/\/www\.fragranceshop\.com\//i,
   sites: ['wgw', 'mgw'],
   maxPrice: 500,
-  minPrice: 8,
-  maxPerSubcategory: 250
+  minPrice: 8
 };
 
 export function classify({ name, feedCategory = '', brand = '', url = '' }) {

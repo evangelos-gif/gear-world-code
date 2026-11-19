@@ -7,6 +7,7 @@
 // products and must stay under 20,000. US shop: shown only to the US.
 import { clean, CHARACTER, TESTER, FRAGRANCE_COPY, fragranceSub } from './lib/wave3-legacy.mjs';
 
+// 19 Nov 2026 (lessons L193): no RULES.maxPerSubcategory any more, the older sites read only the cards they show.
 export const RULES = {
   key: 'ecosmetics-us',
   network: 'cj',
@@ -16,8 +17,7 @@ export const RULES = {
   shop: /^https:\/\/(www\.)?ecosmetics\.com\//i,
   sites: ['wgw', 'mgw'],
   maxPrice: 500,
-  minPrice: 5,
-  maxPerSubcategory: 200
+  minPrice: 5
 };
 
 // [path start, site, category, subcategory]; the longest matching start wins.

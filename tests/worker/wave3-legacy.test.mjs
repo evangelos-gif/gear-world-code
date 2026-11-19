@@ -111,7 +111,9 @@ test('L171: Women\'s and Men\'s shops: fragrances by who they are for, never a c
   assert.equal(ec('Kenneth Cole Black All Over Body Spray 6Oz', "Fragrance > Men's > Body Spray"), 'mgw Grooming & Fragrances > Deodorant', 'MGW has no Bath & body');
   assert.match(ec('Some Candle 8Oz', 'Fragrance > Candles & Home Fragrance > Candles'), /not one our sites show/);
   // WGW Beauty & Fragrances has about 15,000 products: the caps keep it under the 20,000 of the Manager's rule.
-  for (const k of ['fragranceshop-us', 'perfumania-us', 'fragranceoutlet-us', 'ecosmetics-us', 'amoremall-us']) assert.ok(rules[k].RULES.maxPerSubcategory <= 250, k);
+  // 19 Nov 2026 (lessons L193, L198): no cap per subcategory for the four that had one only for the 20,000 of the older sites.
+  for (const k of ['fragranceshop-us', 'perfumania-us', 'fragranceoutlet-us', 'ecosmetics-us']) assert.equal(rules[k].RULES.maxPerSubcategory, undefined, k);
+  assert.ok(rules['amoremall-us'].RULES.maxPerSubcategory <= 250, 'amoremall-us');
   assert.equal(place('amoremall-us', 'OSULLOC Rooibos Caramel Berry (20 count)').startsWith('out:'), true, 'tea is not beauty');
   assert.equal(rules['amoremall-us'].productKey(c => (c === 'product_name' ? 'TONEWORK VEGAN 200+ FOUNDATION TO-GO(CUSHION) AIRY MATTE 38N1 15G' : '')),
     rules['amoremall-us'].productKey(c => (c === 'product_name' ? 'TONEWORK VEGAN 200+ FOUNDATION TO-GO(CUSHION) SHEER GLOW 23C1 15G' : '')), 'one card per foundation, not one per shade');

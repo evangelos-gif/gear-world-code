@@ -6,6 +6,7 @@
 // RULES.maxPerSubcategory cards each, the same ones at every refresh (lessons L146, L164). US shop: shown only to the US.
 import { clean } from './lib/wave3-legacy.mjs';
 
+// 19 Nov 2026 (lessons L193): no RULES.maxPerSubcategory any more, the older sites read only the cards they show.
 export const RULES = {
   key: 'tameson-us',
   advertiserId: 110596,
@@ -14,8 +15,7 @@ export const RULES = {
   shop: /^https:\/\/(www\.)?tameson\.com\//i,
   sites: ['cgw'],
   maxPrice: 3000,
-  minPrice: 5,
-  maxPerSubcategory: 400
+  minPrice: 5
 };
 
 export function classify({ name, feedCategory = '' }) {

@@ -127,9 +127,9 @@ test('After the ALL IMPORTS of 17 Nov (L177, L183): TechInn chairs stay off TGW,
   assert.equal(subcategoryFor({ retailer: 'X' }, 'A > Handbags'), 'Handbags', 'a shop without a map keeps its folder');
 });
 
-test('Westwing on HGW: smaller limits per subcategory in "Home Decor" (60) and "Furniture" (150), 400 elsewhere (L183)', async () => {
+test('Westwing on HGW: 400 per subcategory everywhere since 19 Nov 2026 (L198; L183 had 60 in "Home Decor" and 150 in "Furniture")', async () => {
   const { planLegacyImport } = await import('../../tools/legacy-import-plan.mjs');
-  assert.deepEqual(wwNl.RULES.maxPerSubcategoryIn, { 'Home Decor': 60, Furniture: 150 });
+  assert.equal(wwNl.RULES.maxPerSubcategoryIn, undefined, 'the older sites read only the cards they show (L193)');
   assert.equal(wwNl.RULES.maxPerSubcategory, 400);
   const dir = mkdtempSync(join(tmpdir(), 'hgw-ww-'));
   const a = join(dir, 'GW_AWIN_BULK_ARCHIVE');
@@ -144,9 +144,8 @@ test('Westwing on HGW: smaller limits per subcategory in "Home Decor" (60) and "
   const r = await planLegacyImport({ archive: a, retailer: 'westwing-nl', outDir: join(dir, 'out'), now: new Date('2026-11-17T23:00:00Z') });
   const count = {};
   for (const p of r.accepted.hgw) count[`${p.site_category} > ${p.subcategory}`] = (count[`${p.site_category} > ${p.subcategory}`] || 0) + 1;
-  assert.deepEqual(count, { 'Home Decor > Rug': 60, 'Furniture > Sofa': 150, 'Bedding & Bath > Towel': 400 });
+  assert.deepEqual(count, { 'Home Decor > Rug': 100, 'Furniture > Sofa': 200, 'Bedding & Bath > Towel': 400 });
   const reasons = Object.keys(r.rejected).join(' | ');
-  assert.match(reasons, /over the 60 cards per subcategory/);
-  assert.match(reasons, /over the 150 cards per subcategory/);
+  assert.doesNotMatch(reasons, /over the (60|150) cards per subcategory/);
   assert.match(reasons, /over the 400 cards per subcategory/);
 });

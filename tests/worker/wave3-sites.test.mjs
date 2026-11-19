@@ -22,7 +22,7 @@ test('L169: Delticom tyres - brand, model, size and load/speed from the name, ca
   for (const c of ['Neumáticos para camiones, especiales e industriales', 'Vrachtwagen-, speciale- en industriebanden', 'Motorbanden', '']) assert.equal(CAR_TYRE_CATEGORY.test(c), false, c);
 });
 
-test('L169: the three Delticom shops on AGW use tyreBracket, each for its own country, under ~10,000 tyres together (L146)', async () => {
+test('L169: the three Delticom shops on AGW use tyreBracket, each for its own country, all their tyres since 19 Nov 2026 (L198)', async () => {
   const site = (await import('../../sites/agw/site.config.js')).default;
   const want = { 'ReifenDirekt.at': 'AT', 'neumaticos-online.es': 'ES', 'Autobandenmarkt.nl': 'NL' };
   const s = sources('agw').filter(x => x.retailer in want);
@@ -32,7 +32,8 @@ test('L169: the three Delticom shops on AGW use tyreBracket, each for its own co
     assert.ok(!x.tyreNames, `${x.retailer}: not the Pneus.be network format`);
     assert.deepEqual(site.deliversTo.retailers[x.retailer], [want[x.retailer]], x.retailer);
   }
-  assert.ok(s.reduce((n, x) => n + x.maxProducts, 0) < 10000);
+  // 19 Nov 2026 (lessons L198): no maxProducts any more, Tyres & Wheels reads only the cards it shows (L159).
+  for (const x of s) assert.equal(x.maxProducts, undefined, x.retailer);
 });
 
 test('L169: the cap keeps the same products every run (stable hash of the key)', () => {

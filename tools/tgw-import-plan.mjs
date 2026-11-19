@@ -343,7 +343,12 @@ export function tyreProduct(model, brand, description, merchantCategory) {
 // truck categories and the sizes that are not metric/flotation radial stay out (first dry run, 17 Nov 2026: 0 of 104,613).
 // Oponytanio PL (Awin 10325, 18 Nov 2026, lessons L194): the same layout with Polish seasons ("Opony letnie", "Opony zimowe",
 // "Opony całoroczne"); its "Opony motocyklowe" and "Dętki" stay out.
-export const CAR_TYRE_CATEGORY = /^(?:sommerreifen|winterreifen|ganzjahresreifen|neum[aá]ticos de verano|neum[aá]ticos de invierno|neum[aá]ticos para todas las estaciones|zomerbanden|winterbanden|all-season banden|opony letnie|opony zimowe|opony ca[łl]oroczne)$/i;
+// 19 Nov 2026 (lessons L198): the other Delticom shops in the shop's language, 123pneus.be ("Pneus été", "Pneus d'hiver",
+// "Pneus toutes saisons"), gommadiretto.it ("Pneumatici estivi/invernali/per tutte le stagioni"), rengas-online.com
+// ("Kesärenkaat", "Talvirenkaat", "Ympärivuotiset renkaat") and Elastika-Online GR ("Θερινά ελαστικά", "Χειμερινά
+// ελαστικά", "Eλαστικά όλων των εποχών", whose first letter is a Latin E); their motorbike, truck and industrial tyres
+// ("Pneus moto", "Pneumatici per moto", "Ελαστικά μοτοσικλέτας", "Kuorma-autonrenkaat...") and inner tubes stay out.
+export const CAR_TYRE_CATEGORY = /^(?:sommerreifen|winterreifen|ganzjahresreifen|neum[aá]ticos de verano|neum[aá]ticos de invierno|neum[aá]ticos para todas las estaciones|zomerbanden|winterbanden|all-season banden|opony letnie|opony zimowe|opony ca[łl]oroczne|pneus [ée]t[ée]|pneus d['’]hiver|pneus toutes saisons|pneumatici estivi|pneumatici invernali|pneumatici per tutte le stagioni|kes[äa]renkaat|talvirenkaat|ymp[äa]rivuotiset renkaat|θερινά ελαστικά|χειμερινά ελαστικά|[εe]λαστικά όλων των εποχών)$/i;
 const BRACKET_SIZE = /^((?:\d{2}5(?:\/\d{2,3})?|\d{2}x\d{1,2}(?:[.,]\d{1,2})?)\s+Z?R\s?\d{2}(?:[.,]5)?C?)\s+(\d{2,3}(?:\/\d{2,3})?[A-Z])(?=\s|$)(.*)$/i;
 export function tyreBracketProduct(name, brand, merchantCategory) {
   if (!CAR_TYRE_CATEGORY.test(String(merchantCategory || '').trim())) return { ok: false, reason: 'tyre shop: not a car or van tyre (motorbike, truck or other category)' };
