@@ -40,9 +40,9 @@ test('only offers that run today are shown; codes first; the last day still coun
 
 test('the promos data: every entry has an end date, an Awin advertiser id and a known landing page', () => {
   // Each retailer's own site, the landing page its email gave (lessons L32; Tooled Up and My Tool Shed since L114; Angel
-  // Barocco since L186).
+  // Barocco since L186; iHoverboard's UK shop since L196).
   const HOMES = { Joybuy: /^https:\/\/www\.joybuy\.co\.uk\//, 'Tooled Up': /^https:\/\/www\.tooled-up\.com\//, 'My Tool Shed': /^https:\/\/www\.mytoolshed\.co\.uk\//,
-    'Angel Barocco': /^https:\/\/www\.angelbarocco\.com\// };
+    'Angel Barocco': /^https:\/\/www\.angelbarocco\.com\//, iHoverboard: /^https:\/\/www\.ihoverboard\.co\.uk\// };
   for (const p of PROMOS) {
     assert.match(p.end, /^\d{4}-\d{2}-\d{2}$/, p.id);
     assert.ok(HOMES[p.retailer], `${p.id}: a retailer with a known landing page`);
@@ -186,4 +186,22 @@ test('L187: EIN15PCDD (Tooled Up, My Tool Shed) and the Joybuy Black Friday coup
   for (const p of PROMOS.filter(x => x.code === 'EIN15PCDD' || /^joybuy-bf-/.test(x.id))) {
     assert.match(p.source, /received 1[67] Nov 2026 \(owner's approval «ΕΓΚΡΙΝΩ ΠΡΟΣΦΟΡΕΣ 18\/11: 11,12,13», 18 Nov 2026\)$/, p.id);
   }
+});
+
+test('L196: a code for one product line says the line, never "your order" (iHoverboard on BGW)', async () => {
+  const ih = PROMOS.filter(p => p.retailer === 'iHoverboard');
+  assert.deepEqual(ih.map(p => [p.code, p.pct, p.on || '', p.start, p.end, p.sites.join()]), [
+    ['BF8%', 8, '', '2026-11-18', '2026-11-30', 'BGW'],
+    ['12%H1Q4', 12, 'H1, H2', '2024-10-17', '2029-12-31', 'BGW'],
+    ['15%iK1S', 15, 'iK1S', '2026-11-17', '2027-01-31', 'BGW'],
+    ['F7Ultra100', 15, 'F7Ultra', '2026-10-16', '2027-03-31', 'BGW']], 'the Awin email of 18 Nov 2026; not 10%iK3Pro (German shop)');
+  assert.ok(ih.every(p => p.awinMid === 35810 && p.url.startsWith('https://www.ihoverboard.co.uk/')));
+  const { offersIndexPage } = await import('../../src/pages/offers.js');
+  const site = { ...(await import('../../sites/bgw/site.config.js')).default };
+  site.promos = ih;
+  const html = String(offersIndexPage(site, Date.parse('2026-11-19T12:00:00Z')).body || offersIndexPage(site, Date.parse('2026-11-19T12:00:00Z')));
+  assert.match(html, /8% off your order/);
+  assert.match(html, /15% off <span translate="no">iK1S<\/span>/);
+  assert.match(html, /12% off <span translate="no">H1, H2<\/span>/);
+  assert.ok(!/15% off your order|12% off your order/.test(html), 'a code for one line never says "your order"');
 });

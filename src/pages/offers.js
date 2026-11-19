@@ -26,6 +26,8 @@ const hasMinimum = p => Number(p.minSpend) > 0;
 
 function offerText(p) {
   if (p.kind === 'code' || p.kind === 'coupon') {
+    // A code for one product line (lessons L196): "15% off iK1S", with the line's name kept as the retailer wrote it.
+    if (p.on) return tr('{0} off {1}', amount(p), keepName(p.on));
     return hasMinimum(p) ? tr('{0} off when you spend {1}', amount(p), money(p.minSpend, p.currency)) : tr('{0} off your order', amount(p));
   }
   // A sale: only "Sale at <retailer>", never "up to n% off" or a saving we cannot check (lessons L107).
@@ -116,7 +118,7 @@ export function retailerOffersPage(site, slug, now = Date.now()) {
   return page(site, {
     title: `${retailer} discount codes${codes.length ? ` (${codes.length} active)` : ''} | ${site.name}`,
     description: codes.length
-      ? `${codes.length} ${retailer} discount codes from ${retailer}'s affiliate programme, with end dates: ${codes.slice(0, 3).map(c => `${c.code} (${amount(c)} off${hasMinimum(c) ? ` ${money(c.minSpend, c.currency)}` : ''})`).join(', ')}.`
+      ? `${codes.length} ${retailer} discount codes from ${retailer}'s affiliate programme, with end dates: ${codes.slice(0, 3).map(c => `${c.code} (${amount(c)} off${c.on ? ` ${c.on}` : ''}${hasMinimum(c) ? ` ${money(c.minSpend, c.currency)}` : ''})`).join(', ')}.`
       : `${retailer} discount codes and sales, when ${retailer} has them.`,
     path,
     robots: promos.length ? 'index,follow' : 'noindex,follow',

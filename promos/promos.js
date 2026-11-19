@@ -9,7 +9,7 @@
 //   awinMid   Awin advertiser id; url: landing page given by the retailer (becomes an Awin deep link)
 //   sites     site codes that show it (only sites where the retailer fits)
 //   kind      'code' (code, off or pct, minSpend: money off, or pct = the retailer's own percentage, e.g. 10 for 10%,
-//             lessons L186; minSpend 0 = no minimum), 'coupon' (off, minSpend: money off with no code to type, the retailer's
+//             lessons L186; minSpend 0 = no minimum; on: the one product line a code is for, e.g. 'iK1S', lessons L196), 'coupon' (off, minSpend: money off with no code to type, the retailer's
 //             own coupon on its page) or 'sale' (a retailer's sale: only "Joybuy sale" and the campaign name, never a
 //             percentage or a saving we cannot check, Google Ads compliance, lessons L107)
 //   campaign  campaign name as the retailer wrote it
@@ -78,6 +78,16 @@ const JOYBUY_BF = { ...JOYBUY, kind: 'coupon', campaign: 'Black Friday', sites: 
   url: 'https://www.joybuy.co.uk/campaign/active/2NtPpZpkV1c8jJk4UL6tXcxWfsvM', start: '2026-11-16', end: '2026-11-30',
   source: `Awin email "Joybuy UK (123932): Joybuy - Black Friday BIG DEALS live now", received 17 Nov 2026 (${EINHELL_APPROVAL})` };
 
+// iHoverboard (Biker Gear World): its own codes, approved by the owner from the offers tracker #14-#17
+// («ΕΓΚΡΙΝΩ ΠΡΟΣΦΟΡΕΣ 19/11: 14,15,16,17,19», 19 Nov 2026, lessons L196). The Awin email of 18 Nov 2026 (ihoverboard.co.uk
+// links, Europe/London dates): "BF8%: 8% off everything, Black Friday, 18-30 Nov 2026"; "12%H1Q4: extra 12% off H1 and H2
+// hoverboards, 17 Oct 2024 - 31 Dec 2029"; "15%iK1S: 15% off the iK1S kids electric scooter, 17 Nov 2026 - 31 Jan 2027";
+// "F7Ultra100: 15% off the F7Ultra electric scooter, 16 Oct 2026 - 31 Mar 2027". Its 10%iK3Pro (#18) links to the German
+// shop, so it is not here. BGW only: iHoverboard is there in the UK view (13 products, 19 Nov 2026). A code for one product
+// line says so: the campaign line names the line and the offer line "15% off iK1S" (`on`, lessons L196), never "your order".
+const IHOVERBOARD = { retailer: 'iHoverboard', slug: 'ihoverboard', awinMid: 35810, currency: 'GBP', sites: ['BGW'],
+  source: 'Awin email "iHoverboard (35810): Extra 15% OFF + 6% CPA on Selected Products!", received 18 Nov 2026 (owner\'s approval «ΕΓΚΡΙΝΩ ΠΡΟΣΦΟΡΕΣ 19/11: 14,15,16,17,19», 19 Nov 2026)' };
+
 export const PROMOS = [
   // The four Joybuy Halloween codes (halloween, beauty, sports, tools; email of 20 Oct 2026) were removed on 9 Nov 2026:
   // a Halloween code and its top bar in November look like a stale offer (Google Ads compliance, lessons L107).
@@ -110,7 +120,16 @@ export const PROMOS = [
     source: `Awin email "My Tool Shed (49385): 15% Off All Einhell with Our Voucher Code", received 16 Nov 2026 (${EINHELL_APPROVAL})` },
   // Joybuy's Black Friday vouchers (L187): £10 off £59 and £40 off £199 on selected products, 16-30 Nov 2026, no bar.
   { ...JOYBUY_BF, id: 'joybuy-bf-10-off-59', off: 10, minSpend: 59 },
-  { ...JOYBUY_BF, id: 'joybuy-bf-40-off-199', off: 40, minSpend: 199 }
+  { ...JOYBUY_BF, id: 'joybuy-bf-40-off-199', off: 40, minSpend: 199 },
+  // iHoverboard (L196): 8% off everything for Black Friday, and three codes for one product line each, no bar.
+  { ...IHOVERBOARD, id: 'ihoverboard-bf8', kind: 'code', campaign: 'Black Friday', code: 'BF8%', pct: 8, minSpend: 0,
+    url: 'https://www.ihoverboard.co.uk/', start: '2026-11-18', end: '2026-11-30' },
+  { ...IHOVERBOARD, id: 'ihoverboard-12h1q4', kind: 'code', campaign: 'Self-balancing scooters', code: '12%H1Q4', pct: 12, minSpend: 0, on: 'H1, H2',
+    url: 'https://www.ihoverboard.co.uk/collections/hoverboards', start: '2024-10-17', end: '2029-12-31' },
+  { ...IHOVERBOARD, id: 'ihoverboard-15ik1s', kind: 'code', campaign: 'Kids electric scooters', code: '15%iK1S', pct: 15, minSpend: 0, on: 'iK1S',
+    url: 'https://www.ihoverboard.co.uk/products/kids-electric-scooters', start: '2026-11-17', end: '2027-01-31' },
+  { ...IHOVERBOARD, id: 'ihoverboard-f7ultra100', kind: 'code', campaign: 'Electric scooters', code: 'F7Ultra100', pct: 15, minSpend: 0, on: 'F7Ultra',
+    url: 'https://www.ihoverboard.co.uk/products/iscooter-f7ultra-electric-scooter', start: '2026-10-16', end: '2027-03-31' }
 ];
 
 export function promosFor(siteCode) {
