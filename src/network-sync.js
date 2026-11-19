@@ -55,7 +55,8 @@ export function missingSecrets(net, env) {
 }
 
 // One network, one run. Never throws: the result (also written to network_sync_runs) says what happened.
-export async function syncOne(net, env, { fetchFn = fetch, now = new Date(), db } = {}) {
+// sleepFn: how a wait is done (a retry's backoff); the tests pass one that does not really wait.
+export async function syncOne(net, env, { fetchFn = fetch, now = new Date(), db, sleepFn } = {}) {
   const nowIso = now.toISOString();
   const run = { network: net.id, ran_at: nowIso, ok: false, state: 'failed', calls: 0, fetched: 0, saved: 0, message: '' };
   const secretValues = [...net.secrets, ...(net.optionalSecrets || [])].map(n => value(env, n)).filter(Boolean);
@@ -77,6 +78,7 @@ export async function syncOne(net, env, { fetchFn = fetch, now = new Date(), db 
     const seen = Boolean(lastOk && Number.isFinite(lastOk.getTime()));
     const ctx = {
       env, db, now, nowIso,
+      sleep: sleepFn || (ms => new Promise(resolve => setTimeout(resolve, ms))),
       firstRun: !seen,
       lastOk: seen ? lastOk : null,
       from: seen ? new Date(now.getTime() - LOOKBACK_DAYS * DAY) : new Date(`${FIRST_DAY}T00:00:00Z`),
@@ -119,7 +121,7 @@ export async function syncOne(net, env, { fetchFn = fetch, now = new Date(), db 
 
 // One sync of every network that is set up. A network with none of its secrets is not set up: it is skipped without a
 // run row (the setup tool shows it as "not set up"). One network failing does not stop the next one.
-export async function syncNetworks(env, { fetchFn = fetch, now = new Date(), networks = NETWORKS } = {}) {
+export async function syncNetworks(env, { fetchFn = fetch, now = new Date(), networks = NETWORKS, sleepFn } = {}) {
   const db = env && env.SALES_DB;
   const results = [];
   if (!db) return { ok: false, message: 'no database binding SALES_DB', results };
@@ -128,7 +130,7 @@ export async function syncNetworks(env, { fetchFn = fetch, now = new Date(), net
   if (/^[0-9a-f]{40}$/.test(commit)) { try { await setMeta(db, 'commit', commit, now.toISOString()); } catch { /* the sync goes on */ } }
   for (const net of networks) {
     if (net.secrets.every(n => !value(env, n))) { results.push({ network: net.id, skipped: true }); continue; }
-    results.push(await syncOne(net, env, { fetchFn, now, db }));
+    results.push(await syncOne(net, env, { fetchFn, now, db, sleepFn }));
   }
   return { ok: results.every(r => r.skipped || r.ok || r.state === 'held'), results };
 }

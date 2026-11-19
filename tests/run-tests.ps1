@@ -5066,6 +5066,7 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         'echo %* | findstr /L /C:"d1 export" >nul && goto export',
         'echo %* | findstr /L /C:"d1 list" >nul && goto list',
         'echo %* | findstr /L /C:"deployments list" >nul && goto deployments',
+        'echo %* | findstr /L /C:"deployments status" >nul && goto depstatus',
         'echo %* | findstr /L /C:" deploy" >nul && goto deploy',
         'echo unknown command 1>&2',
         'exit /b 1',
@@ -5113,7 +5114,14 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         'echo -- dump > %8',
         'echo Exported',
         'exit /b 0',
+        ':depstatus',
+        ('if exist "%GW_FAKE_STATE%\worker.flag" echo Version(s):  (100%%) ' + $nVer),
+        'if exist "%GW_FAKE_STATE%\worker.flag" exit /b 0',
+        'echo X [ERROR] This Worker does not exist on your account. [code: 10007]',
+        'exit /b 1',
         ':deployments',
+        'if exist "%GW_FAKE_STATE%\deplistalways.flag" echo X [ERROR] A request to the Cloudflare API failed. [code: 10013]',
+        'if exist "%GW_FAKE_STATE%\deplistalways.flag" exit /b 1',
         ('if exist "%GW_FAKE_STATE%\worker.flag" echo Version(s):  (100%%) ' + $nVer),
         'if exist "%GW_FAKE_STATE%\worker.flag" exit /b 0',
         'if exist "%GW_FAKE_STATE%\deplistunknown.flag" echo X [ERROR] A request to the Cloudflare API failed. [code: 10013]',
@@ -5299,7 +5307,15 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         Check ($cfg.Contains('"CJ_PUBLISHER_IDS": "8114224"') -and -not $cfg.Contains('7806395')) 'network sales re-run: the Worker gets CJ account 8114224 only'
         $r = NLast 'NETWORK_SALES_APPLY_*.txt'
         Check ($r.Contains('ΕΝΤΑΞΕΙ: η έκδοση ' + $nCommit.Substring(0, 7) + ' έχει μέσα την έκδοση του Worker c8637dc') -and $r.Contains('CJ: ΠΑΡΑΛΕΙΦΘΗΚΕ (κρατήθηκαν') -and $r.Contains('Daisycon: ΠΑΡΑΛΕΙΦΘΗΚΕ (κρατήθηκαν') -and $r.Contains('Αποτέλεσμα: 🟢 ΕΤΟΙΜΟ')) 'network sales re-run: the guard passes and Enter keeps the CJ key and the Daisycon sign-in'
-        Check ($r.Contains('Ο Worker υπήρχε ήδη (έκδοση c8637dc)') -and $r.Contains('time-travel restore gear-world-awin') -and -not $r.Contains('wrangler delete --name') -and -not $r.Contains('DROP TABLE') -and -not $r.Contains('secret delete')) 'network sales re-run: the undo names only the new code (back to c8637dc) and the restore point'
+        Check ($r.Contains('έκδοση c8637dc):  npx wrangler rollback ') -and $r.Contains(' --name gear-world-network-sync') -and $r.Contains('time-travel restore gear-world-awin') -and -not $r.Contains('wrangler delete --name') -and -not $r.Contains('DROP TABLE') -and -not $r.Contains('secret delete') -and -not $r.Contains('το ίδιο apply')) 'network sales re-run: the undo names only the new code (Cloudflare rollback to c8637dc) and the restore point'
+        $bk = @(Get-ChildItem -LiteralPath (Join-Path $nWork 'backups') -Directory | Sort-Object Name | Select-Object -Last 1)
+        Check ((NText (Join-Path $bk[0].FullName 'rollback.txt')).Contains('npx wrangler rollback ' + $nVer + ' --name gear-world-network-sync') -and -not $r.Contains($nVer)) 'network sales re-run: the rollback goes to the version that ran before this run (its id in rollback.txt, masked in the report)'
+        # The deployment list keeps giving no clear answer, but the key list is readable: the Worker is there (no delete)
+        Write-Utf8 (Join-Path $nState 'deplistalways.flag') 'x'
+        Check ((Run-NP 'GW_TEST_NONE_' ($nApply + @('-Only', 'cj,daisycon'))) -eq 0) 'network sales re-run with an unclear deployment list: exit 0'
+        $r = NLast 'NETWORK_SALES_APPLY_*.txt'
+        Check (-not $r.Contains('wrangler delete --name') -and -not $r.Contains('ΜΟΝΟ αν δεν υπήρχε') -and $r.Contains('npx wrangler rollback ') -and $r.Contains('Worker gear-world-network-sync: υπάρχει')) 'network sales: a readable key list means the Worker exists, so no delete line'
+        Remove-Item -LiteralPath (Join-Path $nState 'deplistalways.flag') -Force
         # check afterwards: every network set up, the last syncs shown, a held network in its own words
         Check ((Run-N @('-Step', 'check')) -eq 0) 'network sales check after apply: exit 0'
         $r = NLast 'NETWORK_SALES_CHECK_*.txt'

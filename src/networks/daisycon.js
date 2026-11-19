@@ -30,6 +30,10 @@ export const MAX_PAGES = 15;
 // goes; where it stopped is kept (network_sync_meta 'daisycon:resume_from') and the next run goes on from there.
 export const MODIFIED_DAYS = 35;
 export const RESUME_KEY = 'daisycon:resume_from';
+// Keeping the new single-use refresh token: 3 attempts, waiting 2 s and then 4 s between them.
+export const SAVE_TRIES = 3;
+export const SAVE_BACKOFF_MS = 2000;
+const defaultSleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 
 export function daisyconStatus(s) {
   const v = String(s || '').toLowerCase();
@@ -100,13 +104,16 @@ export async function daisyconAccess(ctx) {
     const save = () => db.prepare(`INSERT INTO network_oauth (network, iv, ciphertext, seed_hash, updated_at) VALUES (?, ?, ?, ?, ?)
       ON CONFLICT (network) DO UPDATE SET iv = excluded.iv, ciphertext = excluded.ciphertext, seed_hash = excluded.seed_hash, updated_at = excluded.updated_at`)
       .bind(label, sealed.iv, sealed.ciphertext, seedHash || (row && row.seed_hash) || null, ctx.nowIso).run();
-    try { await save(); } catch {
-      try { await save(); } catch {
-        // The old refresh token is used up now: without the new one the next run cannot sign in. The sales of this run
-        // are still saved, but the run counts as failed so the dashboard shows it.
-        ctx.fail = 'the new Daisycon sign-in could not be kept: sign in again with tools/network-sales-setup.ps1 -Only daisycon';
+    // The old refresh token is used up now, so the new one must be kept: up to SAVE_TRIES attempts, a few seconds apart
+    // (D1 can be busy for a moment: an export, "overloaded"). If all fail, the next run cannot sign in: the sales of this
+    // run are still saved, but the run counts as failed so the dashboard shows it.
+    let kept = false;
+    for (let attempt = 1; attempt <= SAVE_TRIES && !kept; attempt++) {
+      try { await save(); kept = true; } catch {
+        if (attempt < SAVE_TRIES) await (ctx.sleep || defaultSleep)(SAVE_BACKOFF_MS * attempt);
       }
     }
+    if (!kept) ctx.fail = 'the new Daisycon sign-in could not be kept: sign in again with tools/network-sales-setup.ps1 -Only daisycon';
   } else {
     ctx.notes.push('Daisycon gave no new sign-in key: the next run may need a new sign-in');
   }

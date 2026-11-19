@@ -265,10 +265,12 @@ test('Daisycon: a used or expired sign-in fails with what to do, and the keys ne
   const db2 = fakeD1();
   const realPrepare = db2.prepare;
   db2.prepare = text => (/INSERT INTO network_oauth/.test(text) ? { bind: () => ({ run: async () => { throw new Error('D1 busy'); } }) } : realPrepare(text));
-  const lost = await syncOne(daisycon, DC, { fetchFn: fakeNet(fakeDaisycon({ transactions: [dcTx('T1', [{}])] }).routes).fetchFn, now: NOW, db: db2 });
+  const waits = [];
+  const lost = await syncOne(daisycon, DC, { fetchFn: fakeNet(fakeDaisycon({ transactions: [dcTx('T1', [{}])] }).routes).fetchFn, now: NOW, db: db2, sleepFn: async ms => { waits.push(ms); } });
   assert.equal(lost.ok, false);
   assert.equal(lost.saved, 1);
-  assert.match(lost.message, /could not be kept: sign in again/);
+  assert.match(lost.message, /could not be kept: sign in again with tools\/network-sales-setup\.ps1 -Only daisycon/);
+  assert.deepEqual(waits, [2000, 4000], '3 attempts, a few seconds apart');
 });
 
 test('Linkwise: held, in its own state (never a failure), until its report parameters are known; the mapping is ready', async () => {
@@ -536,4 +538,18 @@ test('live fix: CJ 204 = no commissions in that range; CJ\'s "No authorized publ
   const words = 'No authorized publisher ids were specified in the query';
   const t = await cjTest({ token: CJ_TOKEN, cids: ['7806395'], fetchImpl: fakeNet({ 'commissions.api.cj.com': () => json({ errors: [{ message: words }] }) }).fetchFn, now: NOW });
   assert.deepEqual([t.ok, t.accountsRefused, t.queryError], [false, true, '']);
+});
+
+test('re-review: the new single-use Daisycon key survives a D1 that is busy twice (3 attempts with backoff)', async () => {
+  const db = fakeD1();
+  const realPrepare = db.prepare;
+  let failures = 2;
+  db.prepare = text => (/INSERT INTO network_oauth/.test(text) && failures > 0
+    ? { bind: () => ({ run: async () => { failures--; throw new Error('D1_ERROR: overloaded'); } }) }
+    : realPrepare(text));
+  const waits = [];
+  const run = await syncOne(daisycon, DC, { fetchFn: fakeNet(fakeDaisycon().routes).fetchFn, now: NOW, db, sleepFn: async ms => { waits.push(ms); } });
+  assert.equal(run.ok, true, run.message);
+  assert.deepEqual(waits, [2000, 4000]);
+  assert.equal(await openText(KEY, db.sql.prepare("SELECT iv, ciphertext FROM network_oauth WHERE network = 'daisycon'").get(), 'daisycon'), 'dcRefresh-next-1-abcdef', 'kept on the third attempt');
 });

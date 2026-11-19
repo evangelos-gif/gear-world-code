@@ -291,6 +291,27 @@ function Get-SecretNames([string]$folder) {
     return , $names.ToArray()
 }
 
+# The Worker's state with a second opinion: when the deployment list gives no clear answer, the key list decides
+# ("does not exist" = no Worker; a readable list = the Worker is there). 'unknown' only when both are unclear.
+function Resolve-WorkerState([string]$folder) {
+    $w = Get-WorkerState $folder
+    if ($w -ne 'unknown') { return $w }
+    $n = Get-SecretNames $folder
+    if ($null -eq $n) { return 'unknown' }
+    if (@($n) -contains 'missing') { return 'no' }
+    return 'yes'
+}
+
+# The version the Worker runs now (deployments status), '' when it cannot be read. Read before a deploy, so the undo
+# can go back to exactly that version: the key changes of the same run make newer versions too.
+function Get-ActiveVersion([string]$folder) {
+    $r = Invoke-Wrangler $folder ('deployments status --name {0}' -f $WorkerName) -Retry
+    if ($r.code -ne 0) { return '' }
+    $m = [regex]::Match($r.text, 'Version\(s\):[^\r\n]*?([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})')
+    if ($m.Success) { return $m.Groups[1].Value }
+    return ''
+}
+
 function Get-WorkerState([string]$folder) {
     $r = Invoke-Wrangler $folder ('deployments list --name {0}' -f $WorkerName) -Retry
     if ($r.code -eq 0 -and $r.text -match 'Version\(s\):') { return 'yes' }
@@ -364,8 +385,17 @@ function Write-Undo {
             $lines.Add(('  Ο Worker, ΜΟΝΟ αν δεν υπήρχε πριν (ο έλεγχος δεν μπόρεσε να το διαβάσει):  npx wrangler delete --name {0}' -f $WorkerName))
         }
         foreach ($k in $script:SetKeys) { $lines.Add(('  Το κλειδί {0}:  npx wrangler secret delete {0} --name {1}' -f $k, $WorkerName)) }
-        if ($script:Deployed -and $script:PrevCommit) {
-            $lines.Add(('  Ο Worker υπήρχε ήδη (έκδοση {0}): για τον προηγούμενο κώδικα, το ίδιο apply από την έκδοση {0} (μόνο με έγκριση).' -f (Get-GwShort $script:PrevCommit)))
+        # The previous code: Cloudflare's rollback (the version guard would refuse an apply from an older version, exit 13).
+        if ($script:Deployed -and -not $script:MaybeCreatedWorker) {
+            $was = 'κώδικα που είχε πριν'
+            if ($script:PrevCommit) { $was = ('κώδικα που είχε πριν, έκδοση {0}' -f (Get-GwShort $script:PrevCommit)) }
+            if ($script:PrevVersion) {
+                $lines.Add(('  Ο νέος κώδικας του Worker (επιστροφή στον {0}):  npx wrangler rollback {1} --name {2}' -f $was, $script:PrevVersion, $WorkerName))
+            } else {
+                $lines.Add(('  Ο νέος κώδικας του Worker (επιστροφή στον {0}):  npx wrangler rollback --name {1}' -f $was, $WorkerName))
+                $lines.Add(('    Χωρίς αριθμό έκδοσης γυρίζει μόνο ένα βήμα: αν αυτή η εκτέλεση έβαλε και κλειδιά, διάλεξε την έκδοση από το npx wrangler deployments list --name {0}.' -f $WorkerName))
+            }
+            $lines.Add('    Η παλιά έκδοση έχει το δικό της GW_COMMIT· ο Worker το ξαναγράφει στο network_sync_meta στον επόμενο συγχρονισμό.')
         }
     }
     $made = @($script:CreatedTables)
@@ -410,6 +440,7 @@ $script:CreatedTables = @()
 $script:SetKeys = New-Object System.Collections.Generic.List[string]
 $script:Deployed = $false
 $script:PrevCommit = ''
+$script:PrevVersion = ''
 $script:Bookmark = ''
 $script:BackupDir = ''
 $script:Dump = ''
@@ -482,7 +513,9 @@ if ($worker -ne 'no') {
     $names = Get-SecretNames $deploy
     # The deployment list gave no clear answer: the key list says "does not exist" (code 10007) for a missing Worker,
     # so the guard and the undo know this run is the one that makes it.
-    if ($worker -eq 'unknown' -and $null -ne $names -and @($names) -contains 'missing') { $worker = 'no' }
+    if ($worker -eq 'unknown' -and $null -ne $names) {
+        if (@($names) -contains 'missing') { $worker = 'no' } else { $worker = 'yes' }
+    }
 }
 
 Say ''
@@ -604,6 +637,7 @@ if ($Step -eq 'apply') {
 
     # 3. the Worker, with the code version it runs
     Say ('3. Ανεβάζω τον ιδιωτικό Worker {0} (έκδοση {1})...' -f $WorkerName, (Get-GwShort $thisCommit))
+    if ($worker -ne 'no') { $script:PrevVersion = Get-ActiveVersion $nsDir }
     $deployArgs = ('deploy --config "{0}"{1}' -f $config, (Get-GwVersionVar $repo))
     $d = Invoke-Wrangler $nsDir $deployArgs
     if ($d.code -ne 0 -and $d.text -match 'code: 10007') {
@@ -792,7 +826,7 @@ foreach ($c in $chosen) {
 # 5. checks
 $after = Get-SecretNames $deploy
 if ($null -eq $after) { $after = @() }
-$workerOk = ((Get-WorkerState $deploy) -eq 'yes')
+$workerOk = ((Resolve-WorkerState $deploy) -eq 'yes')
 Say ''
 Say 'Κλειδιά του Worker τώρα (μόνο ονόματα):'
 foreach ($k in $Networks.Keys) {
