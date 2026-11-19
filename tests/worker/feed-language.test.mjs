@@ -83,7 +83,9 @@ test('L165: the config check names a wrong feed language, one without its own co
   const all = SITES.flatMap(s => languageRetailers(config[s]).map(n => `${s} ${n} ${feedLanguage(config[s], n)}`));
   // + Westwing on HGW, one shop per country in its language (Daisycon Wave 3, chat 9, 17 Nov 2026), and the other Daisycon home
   // shops of that day: La Redoute NL/DE, Dille & Kamille NL/FR, Miss Towels, WoodWick, Kerstland, Baobab (HGW), Tuinmeubelwereld (GGW).
-  assert.deepEqual(all.sort(), ['agw VEVOR nl', 'cgw Reidl de', 'ggw Tuinmeubelwereld nl', 'hgw Baobab Collection fr', 'hgw Dille Kamille FR fr',
+  // + the Linkwise shops in Greek (Greece and Cyprus, L199: sites/<site>/linkwise-gr.js, tests/worker/linkwise-l199.test.mjs).
+  assert.equal(all.filter(x => x.endsWith(' el')).length, 116);
+  assert.deepEqual(all.filter(x => !x.endsWith(' el')).sort(), ['agw VEVOR nl', 'cgw Reidl de', 'ggw Tuinmeubelwereld nl', 'hgw Baobab Collection fr', 'hgw Dille Kamille FR fr',
     'hgw Dille Kamille NL nl', 'hgw Kerstland nl', 'hgw La Redoute DE de', 'hgw La Redoute NL nl', 'hgw Miss Towels nl', 'hgw Westwing DE de', 'hgw Westwing ES es',
     'hgw Westwing FR fr', 'hgw Westwing IT it', 'hgw Westwing NL nl', 'hgw WoodWick NL nl', 'mgw Uhrcenter de', 'tgw refurbed NL nl', 'wgw Uhrcenter de']);
 });

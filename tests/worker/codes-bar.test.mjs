@@ -48,7 +48,9 @@ const SHOWN = { CGW: seeing(['US', 'PL']), AGW: seeing(['PL']), BGW: seeing(['PL
 // How many view groups each site has: gb, all, pl, and us where a retailer ships to the US; and one for the countries
 // that speak the language of a feed (L165: CGW Reidl in German for DE and AT, AGW VEVOR in Dutch for NL and BE).
 // HGW: +5 language views from 17 Nov 2026 (Westwing NL, DE, FR, IT, ES, chat 9, L165); GGW: +1 (Tuinmeubelwereld NL, chat 9).
-const GROUPS = { CGW: 5, AGW: 4, BGW: 3, GGW: 5, HGW: 9, KGW: 4, WGW: 5, TGW: 5, PGW: 4 }; // TGW 5 since 18 Nov 2026: refurbed NL in Dutch (L194)
+// TGW 5 since 18 Nov 2026: refurbed NL in Dutch (L194). Since 19 Nov 2026 the Linkwise shops in Greek (L199): Greece and
+// Cyprus on WGW and KGW (two groups, some shops deliver only to Greece), both in one group on GGW, Greece only on HGW.
+const GROUPS = { CGW: 5, AGW: 4, BGW: 3, GGW: 6, HGW: 10, KGW: 6, WGW: 7, TGW: 5, PGW: 4 };
 // What the bar says in the UK view while the codes of the config run (promos/promos.js, 10 Nov 2026).
 // BGW 6 since 19 Nov 2026: Tooled Up's 2 and iHoverboard's 4 (BF8%, 12%H1Q4, 15%iK1S, F7Ultra100, lessons L196).
 const WORDS = {

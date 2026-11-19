@@ -78,7 +78,9 @@ test('country groups (L151): the UK sees only what delivers there, the US its ow
   // New York and Needs No Label to the UK and the US (round 2b, 14 Nov 2026).
   // Round 2 of the mass import (15 Nov 2026, L164): TEMU, Dima Eyewear, Grey State and Kixies to the US, Xpluswear to the EU.
   // Wave 3 (16 Nov 2026, L171): the US beauty, fragrance, eyewear, shoe and watch shops only to the US.
-  assert.deepEqual(viewFor(config.wgw, 'GB', NOW).hidden, ['100% PURE', 'AliExpress PL', 'Amore Mall', 'Bazta IE', 'Chamaripa', 'Deluvia', 'Dima Eyewear', 'Dream Pairs', 'FOREO', 'Fragrance Outlet', 'FragranceShop.com', 'Grey State',
+  // The Linkwise shops (Greece and Cyprus, L199) are hidden too: tests/worker/linkwise-l199.test.mjs.
+  const noGr = (site, list) => list.filter(n => !Object.prototype.hasOwnProperty.call(site.deliversTo.languages || {}, n) || site.deliversTo.languages[n] !== 'el');
+  assert.deepEqual(noGr(config.wgw, viewFor(config.wgw, 'GB', NOW).hidden), ['100% PURE', 'AliExpress PL', 'Amore Mall', 'Bazta IE', 'Chamaripa', 'Deluvia', 'Dima Eyewear', 'Dream Pairs', 'FOREO', 'Fragrance Outlet', 'FragranceShop.com', 'Grey State',
     'Invicta Stores', 'Jeulia', 'Kixies', 'Lensmart', 'NORTIV 8', 'PandaHall', 'Perfumania', 'Plusshop IE', 'TEMU', 'TSAR BOMBA', 'Ublins', 'Uhrcenter', 'Xpluswear', 'eCosmetics', 'eFootwear']);
   // Uhrcenter's feed is in German (L165): Switzerland, one of its German-speaking countries, sees it; France does not.
   assert.equal(viewFor(config.wgw, 'CH', NOW).group, viewFor(config.wgw, 'DE', NOW).group);
@@ -90,7 +92,7 @@ test('country groups (L151): the UK sees only what delivers there, the US its ow
     'Lensmart', 'MASON New York', 'NORTIV 8', 'Needs No Label', 'PandaHall', 'Perfumania', 'TEMU', 'TSAR BOMBA', 'Ublins', 'eCosmetics', 'eFootwear']);
   assert.deepEqual(viewFor(config.mgw, 'US', NOW).only, ['Buycoolshirts', 'COOFANDY', 'Chamaripa', 'Dream Pairs', 'Fragrance Outlet', 'FragranceShop.com', 'Incerunmen', 'Jeulia', 'Maceoo',
     'Menseventwear', 'NORTIV 8', 'Perfumania', 'TEMU', 'TSAR BOMBA', 'Wavytalk', 'eCosmetics', 'eFootwear']);
-  assert.deepEqual(viewFor(config.mgw, 'GB', NOW).hidden, ['AliExpress PL', 'Bazta IE', 'Buycoolshirts', 'COOFANDY', 'Chamaripa', 'Dream Pairs', 'Fragrance Outlet', 'FragranceShop.com',
+  assert.deepEqual(noGr(config.mgw, viewFor(config.mgw, 'GB', NOW).hidden), ['AliExpress PL', 'Bazta IE', 'Buycoolshirts', 'COOFANDY', 'Chamaripa', 'Dream Pairs', 'Fragrance Outlet', 'FragranceShop.com',
     'Incerunmen', 'Invicta Stores', 'Jeulia', 'Maceoo', 'Menseventwear', 'NORTIV 8', 'Perfumania', 'Plusshop IE', 'TEMU', 'TSAR BOMBA', 'Uhrcenter', 'Wavytalk', 'eCosmetics', 'eFootwear']);
   // Round 3 (15 Nov 2026, L147): Invicta Stores ships to Europe but Spain and Portugal, and is kept out of the UK view
   // (customs on delivery); HOME-TEX ships to 19 countries, never the UK. The all view (L151) has both, with their badge.
@@ -181,8 +183,11 @@ test('freshness: hidden after 30 days, "Check price and stock at the retailer" a
   assert.equal(needsCheck(v, row('2026-10-25 23:00:00')), true);
   assert.equal(needsCheck(v, row('2026-10-26 00:00:01')), false);
   const sql = visibleSql(v);
-  assert.equal(sql.sql, `likelihood(+p.retailer NOT IN (${Array(22).fill('?').join(', ')}) AND +p.last_seen_at >= ?, 1.0)`);
-  assert.deepEqual(sql.binds, ['AliExpress PL', 'Bazta IE', 'Buycoolshirts', 'COOFANDY', 'Chamaripa', 'Dream Pairs', 'Fragrance Outlet', 'FragranceShop.com', 'Incerunmen',
+  // 22 shops of the UK view and the 35 Linkwise shops of MGW (Greece and Cyprus, L199), one value each.
+  const greek = Object.keys(config.mgw.deliversTo.languages).filter(n => config.mgw.deliversTo.languages[n] === 'el');
+  assert.equal(greek.length, 35);
+  assert.equal(sql.sql, `likelihood(+p.retailer NOT IN (${Array(22 + greek.length).fill('?').join(', ')}) AND +p.last_seen_at >= ?, 1.0)`);
+  assert.deepEqual(sql.binds.filter(n => !greek.includes(n)), ['AliExpress PL', 'Bazta IE', 'Buycoolshirts', 'COOFANDY', 'Chamaripa', 'Dream Pairs', 'Fragrance Outlet', 'FragranceShop.com', 'Incerunmen',
     'Invicta Stores', 'Jeulia', 'Maceoo', 'Menseventwear', 'NORTIV 8', 'Perfumania', 'Plusshop IE', 'TEMU', 'TSAR BOMBA', 'Uhrcenter', 'Wavytalk', 'eCosmetics', 'eFootwear', '2026-10-10']);
   assert.equal(visibleSql(viewFor(config.agw, 'BE', NOW)).sql, 'likelihood(+p.retailer NOT IN (?, ?, ?) AND +p.last_seen_at >= ?, 1.0)', 'the all view: without the Poland-only shops (L157, L194)');
   assert.equal(visibleSql(viewFor(config.tgw, 'BE', NOW)).sql, 'likelihood(+p.retailer NOT IN (?, ?, ?, ?, ?, ?, ?, ?, ?) AND +p.last_seen_at >= ?, 1.0)', 'the all view: without AliExpress PL (L157) and the 8 US-only shops of wave 3 (L165, L169)');

@@ -3,6 +3,7 @@
 
 import { promosFor, AWIN_PUBLISHER_ID } from '../../promos/promos.js';
 import { networkFor } from '../../promos/network.js';
+import { LINKWISE_GR } from './linkwise-gr.js';
 import guides from './guides.js';
 
 export default {
@@ -90,7 +91,9 @@ export default {
     // Wave 3 (approvals file of chat 7, 16 Nov 2026, lessons L171): the US shops only to the US.
     PandaHall: ['US'], Lensmart: ['US'], Ublins: ['US'], Deluvia: ['US'], 'FragranceShop.com': ['US'],
     Perfumania: ['US'], 'Fragrance Outlet': ['US'], eCosmetics: ['US'], 'Amore Mall': ['US'], eFootwear: ['US'],
-    'NORTIV 8': ['US'], 'TSAR BOMBA': ['US'], Chamaripa: ['US'] }, languages: { Uhrcenter: 'de' } },
+    'NORTIV 8': ['US'], 'TSAR BOMBA': ['US'], Chamaripa: ['US'],
+    // Linkwise (Greece and Cyprus, lessons L199): ./linkwise-gr.js.
+    ...LINKWISE_GR.retailers }, languages: { Uhrcenter: 'de', ...LINKWISE_GR.languages } },
   // 100% PURE sells in euros: its prices stay in euros, with "≈ £…" next to them (lessons L25, L63). MASON New York sells
   // in US dollars and is in the UK view: foreignCurrencies fetches that rate too ("≈ £…", as GRABO on CGW).
   convertForeignPrices: true,

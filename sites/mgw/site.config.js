@@ -3,6 +3,7 @@
 
 import { promosFor, AWIN_PUBLISHER_ID } from '../../promos/promos.js';
 import { networkFor } from '../../promos/network.js';
+import { LINKWISE_GR } from './linkwise-gr.js';
 
 export default {
   code: 'MGW',
@@ -80,7 +81,9 @@ export default {
     // Wave 3 (approvals file of chat 7, 16 Nov 2026, lessons L171): the US shops only to the US.
     'FragranceShop.com': ['US'], Perfumania: ['US'], 'Fragrance Outlet': ['US'], eCosmetics: ['US'],
     Buycoolshirts: ['US'], eFootwear: ['US'], Menseventwear: ['US'], 'NORTIV 8': ['US'], Incerunmen: ['US'],
-    'TSAR BOMBA': ['US'], Chamaripa: ['US'], COOFANDY: ['US'] }, languages: { Uhrcenter: 'de' } },
+    'TSAR BOMBA': ['US'], Chamaripa: ['US'], COOFANDY: ['US'],
+    // Linkwise (Greece and Cyprus, lessons L199): ./linkwise-gr.js.
+    ...LINKWISE_GR.retailers }, languages: { Uhrcenter: 'de', ...LINKWISE_GR.languages } },
   foreignCurrencies: ['USD', 'PLN'],
   displayCurrencies: ['GBP', 'EUR', 'PLN', 'ALL', 'RON', 'RUB'],
   cart: { name: 'Saved list', maxItems: 30 },

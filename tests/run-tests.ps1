@@ -2967,6 +2967,58 @@ http.createServer((q, s) => {
     }
 }
 
+# 8c6b. linkwise-feed-download.ps1 (Linkwise product feeds, Greece and Cyprus, lessons L199) with a fake Linkwise (Windows only: DPAPI)
+if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
+    Write-Host 'linkwise-feed-download.ps1 (code in DPAPI, fake feed, old copy kept)'
+    $lwDir = Join-Path $work 'lw'
+    $lwArch = Join-Path $lwDir 'archive'
+    $lwOut = Join-Path $lwDir 'out'
+    New-Item -ItemType Directory -Path $lwArch, $lwOut -Force | Out-Null
+    # A made-up code, written in two parts so no affiliate code appears in the repository (L199).
+    $lwCode = 'CD' + '0004321'
+    $lwSecretFile = Join-Path $lwDir 'linkwise-code.dat'
+    [System.IO.File]::WriteAllText($lwSecretFile, (ConvertFrom-SecureString (ConvertTo-SecureString $lwCode -AsPlainText -Force)), [System.Text.Encoding]::ASCII)
+    $lwSrv = Join-Path $lwDir 'server.js'
+    Write-Utf8 $lwSrv @'
+const http = require('http');
+const code = process.argv[2];
+const cols = ['product_id', 'product_name', 'category', 'tracking_url', 'image_url', 'in_stock', 'price', 'program_name'];
+http.createServer((q, s) => {
+  const m = /^\/feeds\/1\.2\/([^/]+)\/programs-joined\/columns-[^/]+\/catinc-0\/catex-0\/proginc-(\d+)\/progex-0\/feed\.csv$/.exec(q.url);
+  if (!m || m[1] !== code) { s.writeHead(403); return s.end('no'); }
+  if (m[2] !== '11532') { s.writeHead(200); return s.end(cols.join(',') + '\n'); }
+  const rows = [1, 2, 3].map(i => [String(i), 'Βάζο κεραμικό ' + i, 'Διακόσμηση&gt;Βάζα', 'https://go.linkwi.se/z/11532-0/' + code + '/?lnkurl=https%3A%2F%2Fwww.24home.gr%2Fp' + i,
+    'https://img.24home.gr/' + i + '.jpg', 'Y', '24,90', '24home.gr'].map(v => '"' + v + '"').join(','));
+  s.writeHead(200, { 'Content-Type': 'text/csv; charset=utf-8' });
+  s.end(cols.join(',') + '\n' + rows.join('\n') + '\n');
+}).listen(8799, '127.0.0.1');
+'@
+    $lwProc = Start-Process -FilePath (Get-Command node).Source -ArgumentList @($lwSrv, $lwCode) -PassThru -WindowStyle Hidden
+    Start-Sleep -Seconds 2
+    try {
+        $lwTool = Join-Path (Join-Path $repo 'tools') 'linkwise-feed-download.ps1'
+        $lwArgs = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $lwTool, '-Program', '11532,11533', '-Base', 'http://127.0.0.1:8799', '-SecretFile', $lwSecretFile,
+            '-Archive', $lwArch, '-OutDir', $lwOut, '-NoClipboard')
+        & $exe @lwArgs | Out-Null
+        Check ($LASTEXITCODE -eq 0 -and @(Get-ChildItem -LiteralPath $lwArch -File).Count -eq 0) 'linkwise-feed-download: read-only run, exit 0, nothing downloaded'
+        & $exe @($lwArgs + @('-Apply', '-Approve', 'wrong phrase')) | Out-Null
+        Check ($LASTEXITCODE -eq 1 -and @(Get-ChildItem -LiteralPath $lwArch -File).Count -eq 0) 'linkwise-feed-download: a wrong phrase changes nothing'
+        & $exe @($lwArgs + @('-Apply', '-Approve', 'ΕΓΚΡΙΝΩ LINKWISE FEED DOWNLOAD')) | Out-Null
+        Check ($LASTEXITCODE -eq 0 -and (Test-Path -LiteralPath (Join-Path $lwArch 'LINKWISE_11532.csv.gz')) -and -not (Test-Path -LiteralPath (Join-Path $lwArch 'LINKWISE_11533.csv.gz'))) 'linkwise-feed-download: with the phrase the feed is saved as LINKWISE_11532.csv.gz, an empty one is not'
+        $lwAll = (@(Get-ChildItem -LiteralPath $lwOut -Filter 'LINKWISE_FEED_DOWNLOAD_*.txt') | ForEach-Object { [System.IO.File]::ReadAllText($_.FullName) }) -join "`n"
+        Check ($lwAll.Contains('11532: OK, 3 προϊόντα') -and $lwAll.Contains('11533: δεν κατέβηκε')) 'linkwise-feed-download: report counts the products and names the empty feed'
+        Check (-not $lwAll.Contains($lwCode) -and -not $lwAll.Contains('0004321')) 'linkwise-feed-download: the code is in no report'
+        & $exe @($lwArgs + @('-Apply', '-Approve', 'ΕΓΚΡΙΝΩ LINKWISE FEED DOWNLOAD')) | Out-Null
+        Check ($LASTEXITCODE -eq 0 -and @(Get-ChildItem -LiteralPath (Join-Path $lwArch '_old') -Recurse -File -Filter 'LINKWISE_11532.csv.gz').Count -eq 1) 'linkwise-feed-download: a second download keeps the old copy in _old'
+        & $exe -NoProfile -ExecutionPolicy Bypass -File $lwTool -Program '11532' -Base 'https://evil.example' -SecretFile $lwSecretFile -Archive $lwArch -OutDir $lwOut -NoClipboard | Out-Null
+        Check ($LASTEXITCODE -eq 2) 'linkwise-feed-download: refuses an address that is not Linkwise or the local test server'
+        & $exe -NoProfile -ExecutionPolicy Bypass -File $lwTool -Program 'x1' -SecretFile $lwSecretFile -Archive $lwArch -OutDir $lwOut -NoClipboard | Out-Null
+        Check ($LASTEXITCODE -eq 2) 'linkwise-feed-download: a wrong programme number is refused'
+    } finally {
+        if ($lwProc -and -not $lwProc.HasExited) { Stop-Process -Id $lwProc.Id -Force -ErrorAction SilentlyContinue }
+    }
+}
+
 # 8c7. bol-feed-download.ps1 (bol.com Marketing Catalog API, lessons L154) with a fake bol.com (Windows only: DPAPI)
 if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
     Write-Host 'bol-feed-download.ps1 (keys in DPAPI, one token per run, one search)'

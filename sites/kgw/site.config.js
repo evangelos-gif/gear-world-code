@@ -4,6 +4,7 @@
 
 import { promosFor, AWIN_PUBLISHER_ID } from '../../promos/promos.js';
 import { networkFor } from '../../promos/network.js';
+import { LINKWISE_GR } from './linkwise-gr.js';
 
 export default {
   code: 'KGW',
@@ -71,7 +72,9 @@ export default {
     TEMU: ['US'], UPPER: ['US'],
     // Wave 3 (approvals file of chat 7, 16 Nov 2026, lessons L171): the US shops only to the US.
     'NORTIV 8': ['US'], 'The Chess Store': ['US'], Robotime: ['US'], Moonkie: ['US'], Reima: ['US'],
-    'BC Babycare': ['US'], Destira: ['US'] } },
+    'BC Babycare': ['US'], Destira: ['US'],
+    // Linkwise (Greece and Cyprus, lessons L199): ./linkwise-gr.js.
+    ...LINKWISE_GR.retailers }, languages: { ...LINKWISE_GR.languages } },
   foreignCurrencies: ['USD', 'PLN'],
   displayCurrencies: ['GBP', 'EUR', 'PLN', 'ALL', 'RON', 'RUB'],
   cart: { name: 'Saved list', maxItems: 30 },

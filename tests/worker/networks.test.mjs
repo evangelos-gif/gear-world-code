@@ -25,7 +25,7 @@ test('tracking links of Rakuten and Daisycon, and the shop page inside them', ()
   assert.equal(pageInLink(DC_LINK), 'https://www.laredoute.nl/ppdp/prod-1.aspx');
   assert.equal(networkOf({ RULES: { network: 'daisycon' } }).file, 'DAISYCON');
   assert.equal(networkOf({ RULES: {} }), null);
-  assert.deepEqual(Object.values(NETWORKS).map(n => n.idPrefix), ['cj', 'rk', 'dc', 'bol'], 'bol.com from 16 Nov 2026 (chat 9)');
+  assert.deepEqual(Object.values(NETWORKS).map(n => n.idPrefix), ['cj', 'rk', 'dc', 'bol', 'lw'], 'bol.com from 16 Nov 2026 (chat 9), Linkwise from 19 Nov 2026 (L199)');
 });
 
 const dcAnswer = (products, name = 'La Redoute NL') => ({ datafeed: { info: { count: products.length }, programs: [{ program_info: { id: 16029, name, currency: 'EUR' }, products }] } });

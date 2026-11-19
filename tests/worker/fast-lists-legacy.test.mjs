@@ -285,7 +285,8 @@ test('L193: D1\'s 100 values: HGW\'s UK view (41 hidden retailers) with every fi
     assert.deepEqual(b, plain(await db.listProducts(slow, { ...f, ...extra }, { sort: 'featured' })));
   }
   const walk = fast.log.find(q => /NOT EXISTS/.test(q.text));
-  assert.ok(walk && walk.args.length < 60 && (walk.text.match(/\?/g) || []).length > 100, `${walk && walk.args.length} values for ${(walk.text.match(/\?/g) || []).length} places`);
+  // Since L199 the UK view also hides the 20 Linkwise shops (Greece only): 60 names, 67 values with every filter.
+  assert.ok(walk && walk.args.length <= 100 && (walk.text.match(/\?/g) || []).length > 100, `${walk && walk.args.length} values for ${(walk.text.match(/\?/g) || []).length} places`);
 });
 
 test('L193: indexes dropped, or one of another text, while fast mode thinks they are there: the same pages the old way, never an error', async () => {
@@ -338,7 +339,8 @@ test('L193: the pages of the 6 older sites (their test data) are the same with a
       const paths = ['/', '/api/stats', '/sitemap-static.xml', '/search?q=black', '/api/products?limit=24'];
       for (const c of site.categories) paths.push(`/category/${c.slug}/`, `/category/${c.slug}/?page=2`, `/category/${c.slug}/?sort=price-desc&stock=1`, `/category/${c.slug}/?sort=newest&max=30`,
         `/api/products?category=${encodeURIComponent(c.name)}&limit=60`, `/api/products?category=${c.slug}&limit=7&page=2&sort=saving`);
-      for (const cc of ['GB', 'DE', 'US']) {
+      // Greece: the view of the Linkwise shops (L199).
+      for (const cc of ['GB', 'DE', 'US', 'GR']) {
         for (const path of paths) assert.equal(await get(path, fast, cc), await get(path, slow, cc), `${code} ${cc} ${path}`);
       }
       assert.ok(fast.log.some(q => /NOT EXISTS/.test(q.text)), `${code}: fast mode was used`);

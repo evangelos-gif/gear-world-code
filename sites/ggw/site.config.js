@@ -3,6 +3,7 @@
 
 import { promosFor, AWIN_PUBLISHER_ID } from '../../promos/promos.js';
 import { networkFor } from '../../promos/network.js';
+import { LINKWISE_GR } from './linkwise-gr.js';
 
 export default {
   code: 'GGW',
@@ -78,8 +79,10 @@ export default {
     // Daisycon Wave 3 (chat 9, 17 Nov 2026): Tuinmeubelwereld, garden furniture with Dutch names, only in the Netherlands (L165).
     Tuinmeubelwereld: ['NL'],
     // Wave 3 (approvals file of chat 7, 16 Nov 2026, lessons L171): the US shops only to the US.
-    'Everywhere Chair': ['US'], Garvee: ['US'], MOVA: ['US'], Aosom: ['US'] },
-    languages: { Tuinmeubelwereld: 'nl' } },
+    'Everywhere Chair': ['US'], Garvee: ['US'], MOVA: ['US'], Aosom: ['US'],
+    // Linkwise (Greece and Cyprus, lessons L199): ./linkwise-gr.js.
+    ...LINKWISE_GR.retailers },
+    languages: { Tuinmeubelwereld: 'nl', ...LINKWISE_GR.languages } },
   foreignCurrencies: ['USD', 'PLN'],
   displayCurrencies: ['GBP', 'EUR', 'PLN', 'ALL', 'RON', 'RUB'],
   cart: { name: 'Saved list', maxItems: 30 },

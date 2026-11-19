@@ -6,6 +6,7 @@
 //   Rakuten   tools/rakuten-feed-download.ps1  RAKUTEN_<advertiser MID>.csv.gz
 //   Daisycon  tools/daisycon-feed-download.ps1 DAISYCON_<program>.csv.gz
 //   bol.com   tools/bol-feed-download.ps1      BOL_<bol category>_<country>.csv.gz (chat 9, 16 Nov 2026, lessons L154)
+//   Linkwise  tools/linkwise-feed-download.ps1 LINKWISE_<programme>.csv.gz (Greece and Cyprus, 19 Nov 2026, lessons L199)
 import { isCjLink } from './cj-feed.mjs';
 
 const parse = u => { try { const x = new URL(String(u || '')); return /^https?:$/.test(x.protocol) ? x : null; } catch { return null; } };
@@ -43,11 +44,21 @@ export function isBolLink(u, siteId = BOL_SITE_ID) {
     x.searchParams.get('s') === String(siteId) && BOL_PAGE.test(x.searchParams.get('url') || ''));
 }
 
+// Linkwise (Greece and Cyprus, lessons L199): https://go.linkwi.se/z/<programme>-<n>/<affiliate code>/?lnkurl=<shop page>.
+// With a code, also that the click is ours (the code itself never goes into the repository).
+export function isLinkwiseLink(u, code = '') {
+  const x = parse(u);
+  if (!x || x.protocol !== 'https:' || x.hostname !== 'go.linkwi.se') return false;
+  const m = /^\/z\/(\d{2,9})-\d+\/(CD\d{3,9})\/?$/.exec(x.pathname);
+  return Boolean(m && /^https?:\/\//i.test(x.searchParams.get('lnkurl') || '') && (!code || m[2] === code));
+}
+
 export const NETWORKS = {
   cj: { label: 'CJ', file: 'CJ', idPrefix: 'cj', isLink: isCjLink },
   rakuten: { label: 'Rakuten', file: 'RAKUTEN', idPrefix: 'rk', isLink: isRakutenLink },
   daisycon: { label: 'Daisycon', file: 'DAISYCON', idPrefix: 'dc', isLink: isDaisyconLink },
-  bol: { label: 'bol.com', file: 'BOL', idPrefix: 'bol', isLink: isBolLink }
+  bol: { label: 'bol.com', file: 'BOL', idPrefix: 'bol', isLink: isBolLink },
+  linkwise: { label: 'Linkwise', file: 'LINKWISE', idPrefix: 'lw', isLink: isLinkwiseLink }
 };
 
 export function networkOf(rules) {
@@ -62,7 +73,7 @@ export { COLUMNS as FEED_COLUMNS, csvLine } from './cj-feed.mjs';
 export function pageInLink(u) {
   const x = parse(u);
   if (!x) return '';
-  for (const k of ['murl', 'dl', 'url', 'ued']) {
+  for (const k of ['murl', 'dl', 'url', 'ued', 'lnkurl']) {
     const v = x.searchParams.get(k);
     if (v && /^https?:\/\//i.test(v)) return v;
   }

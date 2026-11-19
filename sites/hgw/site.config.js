@@ -3,6 +3,7 @@
 
 import { promosFor, AWIN_PUBLISHER_ID } from '../../promos/promos.js';
 import { networkFor } from '../../promos/network.js';
+import { LINKWISE_GR } from './linkwise-gr.js';
 
 export default {
   code: 'HGW',
@@ -82,10 +83,12 @@ export default {
     // Wave 3 (approvals file of chat 7, 16 Nov 2026, lessons L171): the US shops only to the US; Zepter (euros) only to the EU.
     'INSPECIAL HOME': ['US'], 'Sleep Zone': ['US'], 'Sleep and Beyond': ['US'], BlindsMagic: ['US'],
     'Dr.Prepare': ['US'], MEEDEN: ['US'], Buture: ['US'], Garvee: ['US'], GardePro: ['US'], MOVA: ['US'],
-    Aosom: ['US'], Zepter: ['EU'] },
+    Aosom: ['US'], Zepter: ['EU'],
+    // Linkwise (Greece, lessons L199): ./linkwise-gr.js.
+    ...LINKWISE_GR.retailers },
     languages: { 'Westwing NL': 'nl', 'Westwing DE': 'de', 'Westwing FR': 'fr', 'Westwing IT': 'it', 'Westwing ES': 'es',
       'La Redoute NL': 'nl', 'La Redoute DE': 'de', 'Dille Kamille NL': 'nl', 'Dille Kamille FR': 'fr', 'Miss Towels': 'nl', 'WoodWick NL': 'nl',
-      Kerstland: 'nl', 'Baobab Collection': 'fr' } },
+      Kerstland: 'nl', 'Baobab Collection': 'fr', ...LINKWISE_GR.languages } },
   foreignCurrencies: ['USD', 'PLN'],
   displayCurrencies: ['GBP', 'EUR', 'PLN', 'ALL', 'RON', 'RUB'],
   cart: { name: 'Saved list', maxItems: 30 },
