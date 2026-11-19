@@ -19,14 +19,17 @@
 //   whitelabeled/daisycon-api-client (DaisyconClient::getTransactions, Transaction::createFromJson), read defensively.
 //   The publisher id comes from GET /publishers (as tools/daisycon-feed.mjs). Not kept: anonymous_ip, referencenumber,
 //   referer_click, extra_1..5, publisher_description, device, gender, age, country.
-import { makeRow, openText, readJson, sealText, sha256Hex, text, windows, ymd } from './common.js';
+import { FIRST_DAY, delMeta, getMeta, makeRow, openText, readJson, sealText, setMeta, sha256Hex, text, windows, ymd } from './common.js';
 
 export const DC_LOGIN = 'https://login.daisycon.com';
 export const DC_SERVICES = 'https://services.daisycon.com';
 export const PER_PAGE = 200;
 export const MAX_PAGES = 15;
-// Later runs read the transactions CHANGED in the last 35 days (new sales and new statuses alike).
+// Later runs read the transactions CHANGED in the last 35 days (new sales and new statuses alike). When the last good
+// run is older than that (the Worker was stopped), they read from that run instead, as far as one run's call budget
+// goes; where it stopped is kept (network_sync_meta 'daisycon:resume_from') and the next run goes on from there.
 export const MODIFIED_DAYS = 35;
+export const RESUME_KEY = 'daisycon:resume_from';
 
 export function daisyconStatus(s) {
   const v = String(s || '').toLowerCase();
@@ -136,11 +139,19 @@ export const daisycon = {
     const publisher = pubs.length && pubs[0] && pubs[0].id !== undefined ? String(pubs[0].id) : '';
     if (!/^\d{1,12}$/.test(publisher)) throw new Error('Daisycon gave no publisher account');
     const currency = /^[A-Z]{3}$/.test(String(ctx.env.DAISYCON_CURRENCY || '')) ? ctx.env.DAISYCON_CURRENCY : 'EUR';
-    const from = ctx.firstRun ? ctx.from : new Date(ctx.now.getTime() - MODIFIED_DAYS * 864e5);
+    let from = ctx.firstRun ? ctx.from : new Date(ctx.now.getTime() - MODIFIED_DAYS * 864e5);
+    if (!ctx.firstRun && ctx.lastOk && ctx.lastOk < from) from = new Date(ctx.lastOk.getTime() - 864e5);
+    const resume = await getMeta(ctx.db, RESUME_KEY);
+    const resumeAt = resume ? new Date(resume) : null;
+    if (resumeAt && Number.isFinite(resumeAt.getTime()) && resumeAt < from) from = resumeAt;
+    const first = new Date(`${FIRST_DAY}T00:00:00Z`);
+    if (from < first) from = first;
     const rows = [];
-    for (const w of windows(from, ctx.now, 30)) {
+    let stoppedAt = null;
+    read: for (const w of windows(from, ctx.now, 30)) {
       // date_modified_end is a whole day: the window's last day is asked again by the next window (no gap).
       for (let page = 1; page <= MAX_PAGES; page++) {
+        if (ctx.callsLeft() < 1) { stoppedAt = w.start; break read; }
         const q = new URLSearchParams({ date_modified_start: ymd(w.start), date_modified_end: ymd(w.end), page: String(page), per_page: String(PER_PAGE) });
         const { json, total } = await getJson(ctx, access, `/publishers/${publisher}/transactions?${q}`);
         const list = listOf(json);
@@ -148,6 +159,12 @@ export const daisycon = {
         if (list.length < PER_PAGE || (total !== null && page * PER_PAGE >= total)) break;
         if (page === MAX_PAGES) ctx.notes.push(`Daisycon: more than ${MAX_PAGES} pages, the rest next time`);
       }
+    }
+    if (stoppedAt) {
+      await setMeta(ctx.db, RESUME_KEY, stoppedAt.toISOString(), ctx.nowIso);
+      ctx.notes.push(`Daisycon: the call budget of one run is used up; the next run goes on from ${ymd(stoppedAt)}`);
+    } else if (resume) {
+      await delMeta(ctx.db, RESUME_KEY);
     }
     return rows;
   }

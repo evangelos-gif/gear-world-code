@@ -5035,7 +5035,8 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
 }
 
 # 17b. network-sales-setup.ps1 (CJ, Daisycon and Linkwise sales next to the Awin sales, lessons L197) with a fake wrangler
-# (Windows only: runs .cmd files). No call reaches a real network: the key tests answer through GW_TEST_NS_API.
+# (Windows only: runs .cmd files). No call reaches a real network: the key tests answer through GW_TEST_NS_API, and the
+# live-version guard through the GW_GUARD_TEST_* hooks set at the top of this file.
 if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
     Write-Host 'network-sales-setup.ps1 (fake wrangler)'
     $nTool = Join-Path (Join-Path $repo 'tools') 'network-sales-setup.ps1'
@@ -5048,6 +5049,7 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
     $nDb = [guid]::NewGuid().ToString()
     $nVer = [guid]::NewGuid().ToString()
     $nBm = '00000085-0000024c-00004c6d-' + ('8e' * 16)
+    $nCommit = $env:GW_GUARD_TEST_COMMIT
     $nNpx = @(
         '@echo off',
         'echo %* >> "%GW_FAKE_STATE%\calls.log"',
@@ -5055,6 +5057,8 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         'echo %* | findstr /L /C:"secret put" >nul && goto secretput',
         'echo %* | findstr /L /C:"secret list" >nul && goto secretlist',
         'echo %* | findstr /L /C:"sqlite_master" >nul && goto tables',
+        'echo %* | findstr /L /C:"INSERT INTO network_sync_meta" >nul && goto metaput',
+        'echo %* | findstr /L /C:"FROM network_sync_meta" >nul && goto metaget',
         'echo %* | findstr /L /C:"network_sync_runs" >nul && goto runs',
         'echo %* | findstr /L /C:"FROM network_transactions" >nul && goto totals',
         'echo %* | findstr /L /C:"migrations apply" >nul && goto migrate',
@@ -5073,11 +5077,23 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         'if exist "%GW_FAKE_STATE%\nodb.flag" echo []',
         'exit /b 0',
         ':tables',
-        'if exist "%GW_FAKE_STATE%\migrated.flag" echo [{"results":[{"name":"network_transactions"},{"name":"network_sync_runs"},{"name":"network_oauth"},{"name":"all_network_sales"}],"success":true}]',
+        'if exist "%GW_FAKE_STATE%\migrated.flag" echo [{"results":[{"name":"network_transactions"},{"name":"network_sync_runs"},{"name":"network_oauth"},{"name":"all_network_sales"},{"name":"network_sync_meta"}],"success":true}]',
         'if not exist "%GW_FAKE_STATE%\migrated.flag" echo [{"results":[],"success":true}]',
         'exit /b 0',
+        ':metaput',
+        '>"%GW_FAKE_STATE%\meta.txt" echo %GW_GUARD_TEST_COMMIT%',
+        'echo done',
+        'exit /b 0',
+        ':metaget',
+        'if not exist "%GW_FAKE_STATE%\migrated.flag" echo X [ERROR] no such table: network_sync_meta',
+        'if not exist "%GW_FAKE_STATE%\migrated.flag" exit /b 1',
+        'if not exist "%GW_FAKE_STATE%\meta.txt" echo [{"results":[],"success":true}]',
+        'if not exist "%GW_FAKE_STATE%\meta.txt" exit /b 0',
+        'set /p GWMETA=<"%GW_FAKE_STATE%\meta.txt"',
+        'echo [{"results":[{"value":"%GWMETA%"}],"success":true}]',
+        'exit /b 0',
         ':runs',
-        'if exist "%GW_FAKE_STATE%\migrated.flag" echo [{"results":[{"network":"cj","ran_at":"2026-11-19T12:47:00Z","ok":1,"calls":4,"fetched":2,"saved":2,"message":""}],"success":true}]',
+        'if exist "%GW_FAKE_STATE%\migrated.flag" echo [{"results":[{"network":"cj","ran_at":"2026-11-19T12:47:00Z","ok":1,"calls":4,"fetched":2,"saved":2,"message":""},{"network":"linkwise","ran_at":"2026-11-19T12:47:01Z","ok":2,"calls":0,"fetched":0,"saved":0,"message":"Linkwise: waiting"}],"success":true}]',
         'if exist "%GW_FAKE_STATE%\migrated.flag" exit /b 0',
         'echo X [ERROR] no such table: network_sync_runs',
         'exit /b 1',
@@ -5113,6 +5129,8 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         ':secretlist',
         'if not exist "%GW_FAKE_STATE%\worker.flag" echo X [ERROR] This Worker does not exist on your account. [code: 10007]',
         'if not exist "%GW_FAKE_STATE%\worker.flag" exit /b 1',
+        'if exist "%GW_FAKE_STATE%\listfail.flag" echo X [ERROR] A request to the Cloudflare API failed. [code: 10013]',
+        'if exist "%GW_FAKE_STATE%\listfail.flag" exit /b 1',
         'echo [',
         'for %%F in ("%GW_FAKE_STATE%\secrets\*.txt") do echo {"name":"%%~nF","type":"secret_text"},',
         'echo {"name":"_end","type":"secret_text"}]',
@@ -5136,11 +5154,12 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
     $env:GW_TEST_NSK_LINKWISE_API_USER = 'gearworld-api-user'
     $env:GW_TEST_NSK_LINKWISE_API_PASSWORD = 'lwPassword0123456789'
     $nCalls = Join-Path $nState 'calls.log'
-    function Run-N([string[]]$a) {
-        $all = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $nTool, '-PcHome', $nHome, '-SkipInstall', '-NoClipboard', '-SecretEnvPrefix', 'GW_TEST_NSK_') + $a
+    function Run-NP([string]$prefix, [string[]]$a) {
+        $all = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $nTool, '-PcHome', $nHome, '-SkipInstall', '-NoClipboard', '-SecretEnvPrefix', $prefix) + $a
         & $exe @all | Out-Null
         return $LASTEXITCODE
     }
+    function Run-N([string[]]$a) { return (Run-NP 'GW_TEST_NSK_' $a) }
     function NText([string]$p) { if (Test-Path -LiteralPath $p) { return [System.IO.File]::ReadAllText($p) } else { return '' } }
     function NCount([string]$pattern) { return ([regex]::Matches((NText $nCalls), $pattern)).Count }
     function NSecret([string]$name) { return (NText (Join-Path (Join-Path $nState 'secrets') ($name + '.txt'))).Trim() }
@@ -5149,78 +5168,123 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         if ($f.Count -eq 0) { return '' }
         return [System.IO.File]::ReadAllText($f[0].FullName)
     }
-    $nChanges = 'migrations apply| deploy --config|secret put|time-travel|d1 export'
+    $nChanges = 'migrations apply| deploy --config|secret put|time-travel|d1 export|INSERT INTO network_sync_meta'
+    $nApply = @('-Step', 'apply', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ ΠΩΛΗΣΕΙΣ ΔΙΚΤΥΩΝ')
+    $nKeys = @('-Step', 'keys', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ ΚΛΕΙΔΙΑ ΔΙΚΤΥΩΝ')
     try {
         # check: reads only
         Check ((Run-N @('-Step', 'check')) -eq 0) 'network sales check: exit 0'
         $r = NLast 'NETWORK_SALES_CHECK_*.txt'
-        Check ($r.Contains('Αποτέλεσμα: 🟢 ΕΝΤΑΞΕΙ') -and $r.Contains('Νέοι πίνακες που λείπουν') -and $r.Contains('δεν υπάρχει ακόμα (θα ανέβει)') -and $r.Contains('ΕΓΚΡΙΝΩ ΠΩΛΗΣΕΙΣ ΔΙΚΤΥΩΝ')) 'network sales check: new tables and Worker, the plan names the phrase'
-        Check ($r.Contains('https://developers.cj.com/account/personal-access-tokens') -and $r.Contains('DAISYCON_REFRESH_SEED') -and $r.Contains('LINKWISE_API_USER') -and $r.Contains('CJ: δεν έχει στηθεί')) 'network sales check: each network, its key names and where they are made'
+        Check ($r.Contains('Αποτέλεσμα: 🟢 ΕΝΤΑΞΕΙ') -and $r.Contains('Νέοι πίνακες που λείπουν') -and $r.Contains('δεν υπάρχει ακόμα (θα ανέβει)') -and $r.Contains('ΕΓΚΡΙΝΩ ΠΩΛΗΣΕΙΣ ΔΙΚΤΥΩΝ') -and $r.Contains('ΕΓΚΡΙΝΩ ΚΛΕΙΔΙΑ ΔΙΚΤΥΩΝ')) 'network sales check: new tables and Worker, the plan names both phrases'
+        Check ($r.Contains('https://developers.cj.com/account/personal-access-tokens') -and $r.Contains('DAISYCON_REFRESH_SEED') -and $r.Contains('https://login.daisycon.com/oauth/cli') -and $r.Contains('CJ: δεν έχει στηθεί') -and $r.Contains('Linkwise: μόνο αν το ζητήσεις (-Only linkwise)')) 'network sales check: CJ and Daisycon by default (own Daisycon app), Linkwise only when asked'
+        Check ($r.Contains('Αυτή η έκδοση κώδικα: ' + $nCommit.Substring(0, 7))) 'network sales check: shows the code version'
         Check ((NCount $nChanges) -eq 0) 'network sales check: nothing made, deployed or stored'
         Check (-not $r.Contains($nDb)) 'network sales check: no database id in the report'
         # wrong choices stop before anything
         Check ((Run-N @('-Step', 'check', '-Only', 'rakuten')) -eq 12) 'network sales: an unknown network stops (exit 12)'
         Check ((Run-N @('-Step', 'probe', '-Only', 'cj')) -eq 12) 'network sales probe: only for Linkwise (exit 12)'
-        $all = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $nTool, '-PcHome', $nHome, '-SkipInstall', '-NoClipboard', '-SecretEnvPrefix', 'GW_TEST_NONE_', '-Step', 'probe', '-Only', 'linkwise')
-        & $exe @all | Out-Null
-        Check ($LASTEXITCODE -eq 8 -and (NLast 'NETWORK_SALES_PROBE_*.txt').Contains('Δεν έγινε καμία κλήση')) 'network sales probe: no login typed, no call (exit 8)'
-        # apply without -Apply, with the wrong phrase, without the Awin database: nothing changes
+        Check ((Run-NP 'GW_TEST_NONE_' @('-Step', 'probe', '-Only', 'linkwise')) -eq 8 -and (NLast 'NETWORK_SALES_PROBE_*.txt').Contains('Δεν έγινε καμία κλήση')) 'network sales probe: no login typed, no call (exit 8)'
+        # apply without -Apply, with the wrong phrase, without the Awin database, keys before apply: nothing changes
         Check ((Run-N @('-Step', 'apply')) -eq 0 -and (NCount $nChanges) -eq 0) 'network sales apply without -Apply: nothing changes'
         Check ((Run-N @('-Step', 'apply', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ AWIN SYNC')) -eq 1 -and (NCount $nChanges) -eq 0) 'network sales apply with the wrong phrase: nothing changes'
         Write-Utf8 (Join-Path $nState 'nodb.flag') 'x'
-        Check ((Run-N @('-Step', 'apply', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ ΠΩΛΗΣΕΙΣ ΔΙΚΤΥΩΝ')) -eq 5 -and (NCount $nChanges) -eq 0) 'network sales apply without the Awin database: stops (exit 5)'
+        Check ((Run-N $nApply) -eq 5 -and (NCount $nChanges) -eq 0) 'network sales apply without the Awin database: stops (exit 5)'
         Remove-Item -LiteralPath (Join-Path $nState 'nodb.flag') -Force
+        Check ((Run-N ($nKeys + @('-Only', 'cj'))) -eq 7 -and (NCount $nChanges) -eq 0) 'network sales keys before any apply: stops (exit 7), nothing changes'
+        # the live-version guard: a version without a commit never deploys
+        $env:GW_GUARD_TEST_COMMIT = ''
+        Check ((Run-N ($nApply + @('-Only', 'cj'))) -eq 13 -and (NCount $nChanges) -eq 0) 'network sales apply: no known code version, no change (exit 13)'
+        $env:GW_GUARD_TEST_COMMIT = $nCommit
         # no restore point: nothing changes
         Write-Utf8 (Join-Path $nState 'ttfail.flag') 'x'
-        Check ((Run-N @('-Step', 'apply', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ ΠΩΛΗΣΕΙΣ ΔΙΚΤΥΩΝ', '-Only', 'cj')) -eq 11 -and (NCount 'migrations apply| deploy --config|secret put|d1 export') -eq 0) 'network sales apply: no restore point, no change (exit 11)'
+        Check ((Run-N ($nApply + @('-Only', 'cj'))) -eq 11 -and (NCount 'migrations apply| deploy --config|secret put|d1 export') -eq 0) 'network sales apply: no restore point, no change (exit 11)'
         Remove-Item -LiteralPath (Join-Path $nState 'ttfail.flag') -Force
-        # a failing deploy stops before any key
+        # a failing deploy stops before any key; the undo names the tables this run made, not a Worker
         Write-Utf8 (Join-Path $nState 'deployfail.flag') 'x'
         $env:GW_TEST_NS_API = 'ok'
-        Check ((Run-N @('-Step', 'apply', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ ΠΩΛΗΣΕΙΣ ΔΙΚΤΥΩΝ', '-Only', 'cj')) -eq 7 -and (NCount 'secret put') -eq 0) 'network sales apply: a failing deploy stops before the keys (exit 7)'
-        Remove-Item -LiteralPath (Join-Path $nState 'deployfail.flag') -Force
-        # a key the network refuses is not stored
-        $env:GW_TEST_NS_API = 'refused'
-        Check ((Run-N @('-Step', 'apply', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ ΠΩΛΗΣΕΙΣ ΔΙΚΤΥΩΝ', '-Only', 'cj')) -eq 8 -and (NCount 'secret put') -eq 0) 'network sales apply: a refused CJ key is not stored (exit 8)'
+        Check ((Run-N ($nApply + @('-Only', 'cj'))) -eq 7 -and (NCount 'secret put') -eq 0) 'network sales apply: a failing deploy stops before the keys (exit 7)'
         $r = NLast 'NETWORK_SALES_APPLY_*.txt'
-        Check ($r.Contains('ΠΡΟΒΛΗΜΑ με: CJ') -and -not $r.Contains($nCjToken)) 'network sales apply: the report names CJ, without the key'
+        Check ($r.Contains('DROP TABLE IF EXISTS network_transactions') -and $r.Contains('0003_network_sync_meta.sql') -and -not $r.Contains('wrangler delete --name')) 'network sales apply: after a failed deploy the undo drops only the new tables'
+        Remove-Item -LiteralPath (Join-Path $nState 'deployfail.flag') -Force
+        # a key the network refuses is not stored; the Worker made in this run is the undo
+        $env:GW_TEST_NS_API = 'refused'
+        Check ((Run-N ($nApply + @('-Only', 'cj'))) -eq 8 -and (NCount 'secret put') -eq 0) 'network sales apply: a refused CJ key is not stored (exit 8)'
+        $r = NLast 'NETWORK_SALES_APPLY_*.txt'
+        Check ($r.Contains('ΠΡΟΒΛΗΜΑ με: CJ') -and $r.Contains('401/403') -and -not $r.Contains($nCjToken)) 'network sales apply: the report says CJ refused the key, without the key'
+        Check ($r.Contains('wrangler delete --name gear-world-network-sync') -and -not $r.Contains('DROP TABLE') -and -not $r.Contains('secret delete')) 'network sales apply: the undo names only the Worker this run made'
+        Check ((NCount (' deploy --config [^\r\n]* --var GW_COMMIT:' + $nCommit)) -ge 1 -and (NText (Join-Path $nState 'meta.txt')).Trim() -eq $nCommit) 'network sales apply: deployed with its version, which is written to network_sync_meta'
+        # CJ took the key but the question has an error: other words, not stored
+        $env:GW_TEST_NS_API = 'query'
+        Check ((Run-N ($nApply + @('-Only', 'cj'))) -eq 8 -and (NCount 'secret put') -eq 0 -and (NLast 'NETWORK_SALES_APPLY_*.txt').Contains('η ερώτηση για τις πωλήσεις έχει λάθος')) 'network sales apply: a CJ query error is told apart from a refused key'
         # CJ with approval
         $env:GW_TEST_NS_API = 'ok'
         Check ((Run-N @('-Step', 'apply', '-Apply', '-Approve', 'Εγκρίνω πωλήσεις δικτύων', '-Only', 'cj')) -eq 0) 'network sales apply CJ with approval: exit 0'
         $c = NText $nCalls
-        Check ($c.LastIndexOf('time-travel info gear-world-awin') -lt $c.LastIndexOf('d1 export gear-world-awin') -and $c.LastIndexOf('d1 export gear-world-awin') -lt $c.LastIndexOf('migrations apply gear-world-awin --remote') -and $c.LastIndexOf('migrations apply gear-world-awin --remote') -lt $c.LastIndexOf(' deploy --config') -and $c.LastIndexOf(' deploy --config') -lt $c.LastIndexOf('secret put CJ_TOKEN --name gear-world-network-sync')) 'network sales apply: backup, tables, Worker, then the key'
+        Check ($c.LastIndexOf('time-travel info gear-world-awin') -lt $c.LastIndexOf('d1 export gear-world-awin') -and $c.LastIndexOf('d1 export gear-world-awin') -lt $c.LastIndexOf('migrations apply gear-world-awin --remote') -and $c.LastIndexOf('migrations apply gear-world-awin --remote') -lt $c.LastIndexOf(' deploy --config') -and $c.LastIndexOf(' deploy --config') -lt $c.LastIndexOf('INSERT INTO network_sync_meta') -and $c.LastIndexOf('INSERT INTO network_sync_meta') -lt $c.LastIndexOf('secret put CJ_TOKEN --name gear-world-network-sync')) 'network sales apply: backup, tables, Worker, its version, then the key'
         Check ((NSecret 'CJ_TOKEN') -eq $nCjToken -and -not $c.Contains($nCjToken)) 'network sales apply: the CJ key reached wrangler through its input, never on a command line'
         $r = NLast 'NETWORK_SALES_APPLY_*.txt'
         Check ($r.Contains('ΕΤΟΙΜΟ') -and -not $r.Contains($nCjToken) -and -not $r.Contains($nDb) -and -not $r.Contains($nVer) -and -not $r.Contains($nBm)) 'network sales apply: report ready, without the key, the database id, the version or the restore point'
-        Check ($r.Contains('wrangler delete --name gear-world-network-sync') -and $r.Contains('DROP TABLE IF EXISTS network_transactions') -and $r.Contains('time-travel restore gear-world-awin')) 'network sales apply: the report says how to undo it'
+        Check ($r.Contains('secret delete CJ_TOKEN --name gear-world-network-sync') -and -not $r.Contains('wrangler delete --name') -and -not $r.Contains('DROP TABLE') -and $r.Contains('time-travel restore gear-world-awin') -and $r.Contains('θέλει νέα σύνδεση: -Only daisycon') -and $r.Contains('awin_sync_runs')) 'network sales apply: the undo names only the key this run set, and what a restore also does'
         $bk = @(Get-ChildItem -LiteralPath (Join-Path $nWork 'backups') -Directory | Sort-Object Name | Select-Object -Last 1)
-        Check ($bk.Count -eq 1 -and (NText (Join-Path $bk[0].FullName 'rollback.txt')).Contains($nBm) -and (Test-Path -LiteralPath (Join-Path $bk[0].FullName 'gear-world-awin.sql'))) 'network sales apply: dated backup folder with the database copy and the restore point'
+        Check ($bk.Count -eq 1 -and (NText (Join-Path $bk[0].FullName 'rollback.txt')).Contains($nBm) -and (NText (Join-Path $bk[0].FullName 'rollback.txt')).Contains('secret delete CJ_TOKEN') -and (Test-Path -LiteralPath (Join-Path $bk[0].FullName 'gear-world-awin.sql'))) 'network sales apply: dated backup folder with the database copy, the restore point and the undo'
         $cfg = NText (Join-Path $nWork 'wrangler.jsonc')
         Check ($cfg.Contains($nDb) -and $cfg.Contains('"CJ_PUBLISHER_IDS": "8114224,7806395"') -and $cfg.Contains('"workers_dev": false') -and -not $cfg.Contains('"routes"') -and -not $cfg.Contains($nCjToken)) 'network sales apply: the config on the PC has the database id and the CJ accounts, no public address, no key'
         $tracked = @(Get-ChildItem -LiteralPath (Join-Path (Join-Path $repo 'sites') 'network-sales') -Recurse -File | Where-Object { $_.Name -eq 'wrangler.jsonc' })
         Check ($tracked.Count -eq 0) 'network sales apply: no real wrangler.jsonc in the repo folder'
+        # Enter at a key prompt: the network is skipped, not a problem
+        $puts = NCount 'secret put'
+        Check ((Run-NP 'GW_TEST_NONE_' ($nKeys + @('-Only', 'daisycon'))) -eq 0 -and (NCount 'secret put') -eq $puts) 'network sales keys: Enter at the Daisycon prompt changes nothing (exit 0)'
+        Check ((NLast 'NETWORK_SALES_KEYS_*.txt').Contains('Daisycon: ΠΑΡΑΛΕΙΦΘΗΚΕ (δεν δόθηκε κλειδί') -and -not (NLast 'NETWORK_SALES_KEYS_*.txt').Contains('ΠΡΟΒΛΗΜΑ με')) 'network sales keys: the skipped network is ΠΑΡΑΛΕΙΦΘΗΚΕ, not ΠΡΟΒΛΗΜΑ'
         # Daisycon: the app keys, a new encryption key, and the sign-in last
-        Check ((Run-N @('-Step', 'apply', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ ΠΩΛΗΣΕΙΣ ΔΙΚΤΥΩΝ', '-Only', 'daisycon')) -eq 0) 'network sales apply Daisycon: exit 0'
+        Check ((Run-N ($nApply + @('-Only', 'daisycon'))) -eq 0) 'network sales apply Daisycon: exit 0'
         $c = NText $nCalls
         Check ($c.LastIndexOf('secret put DAISYCON_CLIENT_ID') -lt $c.LastIndexOf('secret put NETWORK_SYNC_KEY') -and $c.LastIndexOf('secret put NETWORK_SYNC_KEY') -lt $c.LastIndexOf('secret put DAISYCON_REFRESH_SEED')) 'network sales apply Daisycon: the encryption key before the sign-in'
         $nKey = NSecret 'NETWORK_SYNC_KEY'
         Check ($nKey.Length -eq 44 -and (NSecret 'DAISYCON_REFRESH_SEED') -eq 'dcRefreshSeed0123456789' -and (NSecret 'DAISYCON_CLIENT_SECRET') -eq 'dcClientSecret0123456789') 'network sales apply Daisycon: a 32-byte key and the sign-in stored'
         $r = NLast 'NETWORK_SALES_APPLY_*.txt'
         Check (-not $c.Contains('dcRefreshSeed0123456789') -and -not $c.Contains($nKey) -and -not $r.Contains('dcRefreshSeed0123456789') -and -not $r.Contains($nKey) -and -not $r.Contains('dcClientSecret0123456789')) 'network sales apply Daisycon: no key on a command line or in the report'
+        Check ($r.Contains('secret delete DAISYCON_REFRESH_SEED --name gear-world-network-sync') -and $r.Contains('secret delete NETWORK_SYNC_KEY --name gear-world-network-sync') -and -not $r.Contains('wrangler delete --name')) 'network sales apply Daisycon: the undo names the keys it set'
         $puts = NCount 'secret put NETWORK_SYNC_KEY'
-        Check ((Run-N @('-Step', 'apply', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ ΠΩΛΗΣΕΙΣ ΔΙΚΤΥΩΝ', '-Only', 'daisycon')) -eq 0 -and (NCount 'secret put NETWORK_SYNC_KEY') -eq $puts -and (NSecret 'NETWORK_SYNC_KEY') -eq $nKey) 'network sales apply Daisycon again: the encryption key is never replaced'
-        # Linkwise: stored, and the report says it waits for the probe
-        Check ((Run-N @('-Step', 'apply', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ ΠΩΛΗΣΕΙΣ ΔΙΚΤΥΩΝ', '-Only', 'linkwise')) -eq 0 -and (NSecret 'LINKWISE_API_PASSWORD') -eq 'lwPassword0123456789') 'network sales apply Linkwise: exit 0, the login stored'
-        Check ((NLast 'NETWORK_SALES_APPLY_*.txt').Contains('περιμένει ακόμα το βήμα probe')) 'network sales apply Linkwise: the report says its sync waits for the probe'
+        Check ((Run-N ($nApply + @('-Only', 'daisycon'))) -eq 0 -and (NCount 'secret put NETWORK_SYNC_KEY') -eq $puts -and (NSecret 'NETWORK_SYNC_KEY') -eq $nKey) 'network sales apply Daisycon again: the encryption key is never replaced'
+        # unreadable key names: no key is touched (never a new NETWORK_SYNC_KEY over an existing one)
+        Write-Utf8 (Join-Path $nState 'listfail.flag') 'x'
+        $puts = NCount 'secret put'
+        Check ((Run-N ($nKeys + @('-Only', 'daisycon'))) -eq 14 -and (NCount 'secret put') -eq $puts) 'network sales keys: key names unreadable, no key changed (exit 14)'
+        Remove-Item -LiteralPath (Join-Path $nState 'listfail.flag') -Force
+        # the guard: a Worker that runs a version this one does not contain is never replaced
+        $metaFile = Join-Path $nState 'meta.txt'
+        Write-Utf8 $metaFile ('cd' * 20)
+        $env:GW_GUARD_TEST_COMPARE = 'behind'
+        $before = NCount $nChanges
+        Check ((Run-N ($nApply + @('-Only', 'cj'))) -eq 13 -and (NCount $nChanges) -eq $before) 'network sales apply: the Worker runs a newer version, no change (exit 13)'
+        Check ((NLast 'NETWORK_SALES_APPLY_*.txt').Contains('ΔΕΝ έχει μέσα την έκδοση του Worker cdcdcdc')) 'network sales apply: the report says which version would be lost'
+        $env:GW_GUARD_TEST_COMPARE = 'ahead'
+        Write-Utf8 $metaFile $nCommit
+        # keys only: no migration, no deploy, no backup
+        $deploys = NCount ' deploy --config|migrations apply|time-travel|d1 export'
+        $puts = NCount 'secret put CJ_TOKEN'
+        Check ((Run-N ($nKeys + @('-Only', 'cj'))) -eq 0 -and (NCount 'secret put CJ_TOKEN') -eq ($puts + 1) -and (NCount ' deploy --config|migrations apply|time-travel|d1 export') -eq $deploys) 'network sales keys: only the key, no migration, deploy or backup'
+        Check ((NLast 'NETWORK_SALES_KEYS_*.txt').Contains('secret delete CJ_TOKEN --name gear-world-network-sync') -and -not (NLast 'NETWORK_SALES_KEYS_*.txt').Contains('time-travel restore')) 'network sales keys: the undo names the key only'
+        Check ((Run-N @('-Step', 'keys', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ ΠΩΛΗΣΕΙΣ ΔΙΚΤΥΩΝ', '-Only', 'cj')) -eq 1) 'network sales keys: the apply phrase is not the keys phrase (exit 1)'
+        # Enter where the keys exist: kept, no new Daisycon sign-in
+        $puts = NCount 'secret put'
+        Check ((Run-NP 'GW_TEST_NONE_' ($nKeys + @('-Only', 'cj,daisycon'))) -eq 0 -and (NCount 'secret put') -eq $puts) 'network sales keys: Enter keeps the existing keys and sign-in'
+        Check ((NLast 'NETWORK_SALES_KEYS_*.txt').Contains('Daisycon: ΠΑΡΑΛΕΙΦΘΗΚΕ (κρατήθηκαν') -and (NLast 'NETWORK_SALES_KEYS_*.txt').Contains('CJ: ΠΑΡΑΛΕΙΦΘΗΚΕ (κρατήθηκαν')) 'network sales keys: kept networks are reported as kept'
+        # Linkwise: stored, and its sync waits (held) for the probe
+        Check ((Run-N ($nApply + @('-Only', 'linkwise'))) -eq 0 -and (NSecret 'LINKWISE_API_PASSWORD') -eq 'lwPassword0123456789') 'network sales apply Linkwise: exit 0, the login stored'
+        Check ((NLast 'NETWORK_SALES_APPLY_*.txt').Contains('⏸ ΣΕ ΑΝΑΜΟΝΗ ώσπου το βήμα probe')) 'network sales apply Linkwise: the report says its sync is held for the probe'
         # -KeepSecrets: nothing asked or stored again
         $puts = NCount 'secret put'
         Check ((Run-N @('-Step', 'apply', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ ΠΩΛΗΣΕΙΣ ΔΙΚΤΥΩΝ', '-KeepSecrets')) -eq 0 -and (NCount 'secret put') -eq $puts) 'network sales apply with -KeepSecrets: no key stored again'
-        # check afterwards: every network set up, the last syncs shown
+        # check afterwards: every network set up, the last syncs shown, a held network in its own words
         Check ((Run-N @('-Step', 'check')) -eq 0) 'network sales check after apply: exit 0'
         $r = NLast 'NETWORK_SALES_CHECK_*.txt'
-        Check ($r.Contains('CJ: όλα τα κλειδιά υπάρχουν') -and $r.Contains('Daisycon: όλα τα κλειδιά υπάρχουν') -and $r.Contains('Νέοι πίνακες: υπάρχουν όλοι') -and $r.Contains('🟢 ΕΝΤΑΞΕΙ  κλήσεις 4, πωλήσεις που ήρθαν 2')) 'network sales check after apply: keys set (names only), tables there, the last sync shown'
+        Check ($r.Contains('CJ: όλα τα κλειδιά υπάρχουν') -and $r.Contains('Daisycon: όλα τα κλειδιά υπάρχουν') -and $r.Contains('Νέοι πίνακες: υπάρχουν όλοι') -and $r.Contains('🟢 ΕΝΤΑΞΕΙ  κλήσεις 4, πωλήσεις που ήρθαν 2') -and $r.Contains('Έκδοση κώδικα του Worker: ' + $nCommit.Substring(0, 7))) 'network sales check after apply: keys set (names only), tables there, the last sync and the version shown'
+        Check ($r.Contains('⏸ ΣΕ ΑΝΑΜΟΝΗ  κλήσεις 0') -and -not $r.Contains('🔴 ΠΡΟΒΛΗΜΑ')) 'network sales check: a held network is ⏸ ΣΕ ΑΝΑΜΟΝΗ, never 🔴 ΠΡΟΒΛΗΜΑ'
     } finally {
         $env:PATH = $oldPath
+        $env:GW_GUARD_TEST_COMMIT = $nCommit
+        $env:GW_GUARD_TEST_COMPARE = 'ahead'
         foreach ($v in @('GW_FAKE_STATE', 'GW_TEST_NS_API', 'GW_TEST_NSK_CJ_TOKEN', 'GW_TEST_NSK_DAISYCON_CLIENT_ID', 'GW_TEST_NSK_DAISYCON_CLIENT_SECRET', 'GW_TEST_NSK_DAISYCON_REFRESH_SEED', 'GW_TEST_NSK_LINKWISE_API_USER', 'GW_TEST_NSK_LINKWISE_API_PASSWORD')) {
             Remove-Item ('Env:\' + $v) -ErrorAction SilentlyContinue
         }

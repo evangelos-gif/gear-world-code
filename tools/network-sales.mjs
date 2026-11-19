@@ -17,21 +17,28 @@ import { iso, makeMask } from '../src/networks/common.js';
 
 const read = async res => { let t = ''; try { t = await res.text(); } catch { /* no body */ } let j = null; try { j = JSON.parse(t); } catch { /* not JSON */ } return { t, j }; };
 
+// The key goes only where it is sent: a redirect is never followed (it could carry the key to another host).
+const noRedirect = res => res.status >= 300 && res.status < 400;
+
+// refused: CJ said no to the key (401/403, "Invalid auth token"). queryError: CJ took the key but the question has an
+// error (GraphQL errors) - our fault, not the key's. The setup tool says the two in different words.
 export async function cjTest({ token, cids, fetchImpl = fetch, now = new Date() }) {
-  const out = { ok: false, refused: false, cids: [] };
+  const out = { ok: false, refused: false, queryError: '', cids: [] };
   if (!token || token.length < 10) return { ...out, error: 'no CJ key' };
   const since = iso(new Date(now.getTime() - 30 * 864e5));
   for (const cid of cids) {
     let res;
     try {
-      res = await fetchImpl(CJ_COMMISSIONS_API, { method: 'POST', headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` },
+      res = await fetchImpl(CJ_COMMISSIONS_API, { method: 'POST', redirect: 'manual', headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` },
         body: JSON.stringify({ query: commissionsQuery(cid, { sincePostingDate: since, beforePostingDate: iso(now) }) }) });
     } catch (e) { out.cids.push({ cid, ok: false, error: `network: ${String(e && e.message || e).slice(0, 120)}` }); continue; }
+    if (noRedirect(res)) { out.cids.push({ cid, ok: false, error: `redirect ${res.status}, not followed` }); continue; }
     const { t, j } = await read(res);
     if (res.status === 401 || res.status === 403 || /invalid auth token/i.test(t)) { out.refused = true; out.cids.push({ cid, ok: false, error: `refused (${res.status})` }); break; }
     const errs = j && Array.isArray(j.errors) && j.errors.length ? j.errors.map(e => (e && e.message) || '').join('; ').slice(0, 200) : '';
     const block = j && j.data && j.data.publisherCommissions;
-    if (errs || !block) { out.cids.push({ cid, ok: false, error: errs || `HTTP ${res.status}` }); continue; }
+    if (errs) { out.queryError = errs; out.cids.push({ cid, ok: false, query: true, error: errs }); continue; }
+    if (!block) { out.cids.push({ cid, ok: false, error: `HTTP ${res.status}` }); continue; }
     out.cids.push({ cid, ok: true, count: Number(block.count) || 0 });
   }
   out.ok = !out.refused && out.cids.some(c => c.ok);
@@ -51,9 +58,10 @@ export async function linkwiseProbe({ user, pass, fetchImpl = fetch, api = LW_AP
   for (const path of ['/reports_transaction.json', '/programs.json']) {
     const c = { path, status: 0, kind: '', keys: [], itemKeys: [], items: null, tell: {} };
     let res;
-    try { res = await fetchImpl(api + path, { method: 'GET', headers: { authorization: basicAuth(user, pass), accept: 'application/json' } }); }
+    try { res = await fetchImpl(api + path, { method: 'GET', redirect: 'manual', headers: { authorization: basicAuth(user, pass), accept: 'application/json' } }); }
     catch (e) { c.error = `network: ${String(e && e.message || e).slice(0, 120)}`; out.calls.push(c); continue; }
     c.status = res.status;
+    if (noRedirect(res)) { c.error = `redirect ${res.status}, not followed`; out.calls.push(c); continue; }
     c.type = String((res.headers && typeof res.headers.get === 'function' && res.headers.get('content-type')) || '').slice(0, 60);
     const { t, j } = await read(res);
     if (j !== null) {

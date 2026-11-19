@@ -11,7 +11,7 @@
 //   - our SID comes back in the record field shopperId ("Shopper ID for the transaction (Publisher-only attribute)";
 //     the older field sid is deprecated);
 //   - actionStatus: new / extended (still open) -> pending, locked / closed (in the payout cycle) -> approved;
-//     validationStatus DECLINED -> declined. A correction is a second record (original: false) with the same
+//     any DECLIN... in validationStatus or actionStatus -> declined. A correction is a second record (original: false) with the same
 //     originalActionId and amounts that are a difference ("delta records"); a sale whose records add up to 0 is declined.
 //   - amounts: saleAmountPubCurrency / pubCommissionAmountPubCurrency are in our publisher currency (GBP for the Gear
 //     World account: CJ_PUB_CURRENCY in the Worker config). The order id, country, coupon, device and click URL are
@@ -29,10 +29,11 @@ export const RECORD_FIELDS = ['commissionId', 'actionStatus', 'actionType', 'adv
   'postingDate', 'lockingDate', 'validationStatus', 'original', 'originalActionId', 'saleAmountPubCurrency',
   'pubCommissionAmountPubCurrency', 'shopperId'];
 
+// Any form of "declined" (DECLINED, Declined, declined_by_advertiser ...) in either status field counts as declined.
 export function cjStatus(r) {
-  const v = String((r && r.validationStatus) || '').toUpperCase();
+  const v = String((r && r.validationStatus) || '');
   const a = String((r && r.actionStatus) || '').toLowerCase();
-  if (v === 'DECLINED') return 'declined';
+  if (/DECLIN/i.test(v) || /DECLIN/i.test(a)) return 'declined';
   if (a === 'locked' || a === 'closed') return 'approved';
   return 'pending';
 }

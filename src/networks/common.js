@@ -118,6 +118,19 @@ export async function sha256Hex(s) {
   return [...new Uint8Array(d)].map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
+// ---- small facts in network_sync_meta (migration 0003): the running commit, a resume point ----
+export async function getMeta(db, key) {
+  const r = await db.prepare('SELECT value FROM network_sync_meta WHERE key = ?').bind(key).first();
+  return r && r.value !== undefined && r.value !== null ? String(r.value) : '';
+}
+export async function setMeta(db, key, value, nowIso) {
+  await db.prepare(`INSERT INTO network_sync_meta (key, value, updated_at) VALUES (?, ?, ?)
+    ON CONFLICT (key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`).bind(key, String(value), nowIso).run();
+}
+export async function delMeta(db, key) {
+  await db.prepare('DELETE FROM network_sync_meta WHERE key = ?').bind(key).run();
+}
+
 // The JSON of an answer, or null; never throws.
 export async function readJson(res) {
   let t = '';

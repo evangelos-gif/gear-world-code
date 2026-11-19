@@ -6,9 +6,9 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { DatabaseSync } from 'node:sqlite';
 import { syncNetworks, syncOne, createNetworkSync, NETWORKS, MAX_CALLS, FIRST_DAY } from '../../src/network-sync.js';
-import { subIdParts, makeMask, windows, sealText, openText, sha256Hex, num } from '../../src/networks/common.js';
+import { subIdParts, makeMask, windows, sealText, openText, sha256Hex, num, getMeta } from '../../src/networks/common.js';
 import { cj, cjStatus, cjRow, commissionsQuery, RECORD_FIELDS } from '../../src/networks/cj.js';
-import { daisycon, daisyconStatus, daisyconRows, PER_PAGE } from '../../src/networks/daisycon.js';
+import { daisycon, daisyconStatus, daisyconRows, PER_PAGE, RESUME_KEY } from '../../src/networks/daisycon.js';
 import { linkwise, linkwiseRow, linkwiseStatus } from '../../src/networks/linkwise.js';
 import { cjTest, linkwiseProbe } from '../../tools/network-sales.mjs';
 
@@ -20,7 +20,7 @@ const LW = { LINKWISE_API_USER: 'gearworld-api', LINKWISE_API_PASSWORD: 'lwPassw
 
 function fakeD1() {
   const sql = new DatabaseSync(':memory:');
-  for (const f of ['0001_awin.sql', '0002_network_sales.sql']) sql.exec(readFileSync(`sites/awin/migrations/${f}`, 'utf8'));
+  for (const f of ['0001_awin.sql', '0002_network_sales.sql', '0003_network_sync_meta.sql']) sql.exec(readFileSync(`sites/awin/migrations/${f}`, 'utf8'));
   const stmt = (text, args = []) => ({
     bind: (...a) => stmt(text, a),
     all: async () => ({ results: sql.prepare(text).all(...args).map(r => ({ ...r })) }),
@@ -79,6 +79,7 @@ function fakeDaisycon({ transactions = [], valid = ['seedRefresh-0000000001'] } 
   let n = 0;
   return {
     live,
+    transactions,
     routes: {
       'login.daisycon.com/oauth/access-token': (u, body) => {
         const p = new URLSearchParams(body);
@@ -122,6 +123,8 @@ test('CJ: the status in three words, GBP amounts, and none of the order, country
   assert.equal(cjStatus({ actionStatus: 'locked' }), 'approved');
   assert.equal(cjStatus({ actionStatus: 'closed' }), 'approved');
   assert.equal(cjStatus({ actionStatus: 'locked', validationStatus: 'DECLINED' }), 'declined');
+  assert.equal(cjStatus({ actionStatus: 'new', validationStatus: 'Declined' }), 'declined');
+  assert.equal(cjStatus({ actionStatus: 'declined_by_advertiser' }), 'declined');
   const r = cjRow(cjRec('1'), NOW.toISOString(), 'GBP');
   assert.equal(r.site, 'tgw');
   assert.equal(r.product_ref, '123');
@@ -268,13 +271,17 @@ test('Daisycon: a used or expired sign-in fails with what to do, and the keys ne
   assert.match(lost.message, /could not be kept: sign in again/);
 });
 
-test('Linkwise: with its secrets it only writes "waiting" (held until its report parameters are known); the mapping is ready', async () => {
+test('Linkwise: held, in its own state (never a failure), until its report parameters are known; the mapping is ready', async () => {
   const db = fakeD1();
   const net = fakeNet({});
   const run = await syncOne(linkwise, LW, { fetchFn: net.fetchFn, now: NOW, db });
-  assert.equal(run.ok, false);
+  assert.equal(run.state, 'held');
   assert.match(run.message, /waiting for the parameters/);
   assert.equal(net.calls.length, 0, 'no call while it is held');
+  const row = db.sql.prepare("SELECT ok, state FROM network_sync_runs WHERE network = 'linkwise'").get();
+  assert.deepEqual([row.ok, row.state], [2, 'held'], 'ok = 2 and state held: a reader of ok = 0 never sees it as a problem');
+  const all = await syncNetworks({ SALES_DB: db, ...LW }, { fetchFn: net.fetchFn, now: NOW });
+  assert.equal(all.ok, true, 'a held network does not make the whole sync fail');
   assert.equal(linkwise.ready, false);
   assert.equal(linkwiseStatus('Approved'), 'approved');
   assert.equal(linkwiseStatus('rejected'), 'declined');
@@ -362,6 +369,11 @@ test('the migration only adds: the Awin tables are the same, and one view lists 
   }
   const m = readFileSync('sites/awin/migrations/0002_network_sales.sql', 'utf8').replace(/--[^\n]*/g, '');
   assert.doesNotMatch(m, /\b(DROP|ALTER|DELETE|UPDATE|INSERT)\b/i, 'nothing but CREATE');
+  const m3 = readFileSync('sites/awin/migrations/0003_network_sync_meta.sql', 'utf8').replace(/--[^\n]*/g, '');
+  assert.doesNotMatch(m3.replace(/ALTER TABLE network_sync_runs ADD COLUMN state TEXT;/, ''), /\b(DROP|ALTER|DELETE|UPDATE|INSERT)\b/i, '0003: one new column of our own table and one new table');
+  assert.doesNotMatch(m3, /awin_/, '0003 does not touch the Awin tables');
+  // The view names awin_transactions columns: SQLite refuses to drop one of them while the view exists (L197 note).
+  assert.throws(() => db.sql.exec('ALTER TABLE awin_transactions DROP COLUMN click_ref'));
   db.sql.exec("INSERT INTO awin_transactions (id, publisher_id, site, status, commission_amount, commission_currency, first_seen_at, updated_at) VALUES ('a1', '1', 'cgw', 'deleted', 1.5, 'GBP', 'x', 'x')");
   db.sql.exec("INSERT INTO network_transactions (network, id, site, status, commission_amount, currency, commission_amount_gbp, first_seen_at, updated_at) VALUES ('cj', 'c1', 'tgw', 'approved', 2, 'GBP', 2, 'x', 'x')");
   const v = db.sql.prepare('SELECT network, id, status, commission_amount_gbp FROM all_network_sales ORDER BY network').all();
@@ -388,4 +400,74 @@ test('setup helper: the CJ key test and the Linkwise probe report names only, ne
   const all = JSON.stringify(p);
   for (const banned of ['SECRET-TX-1', '12.00', 'Shop<', LW.LINKWISE_API_PASSWORD]) assert.ok(!all.includes(banned), banned);
   assert.equal((await linkwiseProbe({ user: 'u', pass: 'p', fetchImpl: lw.fetchFn, api: 'https://evil.example.com/api' })).error, 'unexpected API address');
+});
+
+test('review P1-5: a redirect is never followed, so a key never goes on to another host', async () => {
+  const db = fakeD1();
+  const net = fakeNet({ 'commissions.api.cj.com/query': () => new Response('', { status: 302, headers: { Location: 'https://evil.example.com/collect' } }) });
+  const run = await syncOne(cj, { CJ_TOKEN, CJ_PUBLISHER_IDS: '7806395' }, { fetchFn: net.fetchFn, now: NOW, db });
+  assert.equal(run.ok, false);
+  assert.match(run.message, /redirect \(302\); it is not followed/);
+  assert.equal(net.calls.length, 1, 'no second call');
+  assert.equal(net.calls[0].init.redirect, 'manual');
+  const t = await cjTest({ token: CJ_TOKEN, cids: ['7806395'], fetchImpl: net.fetchFn, now: NOW });
+  assert.equal(t.ok, false);
+  assert.match(t.cids[0].error, /redirect 302, not followed/);
+});
+
+test('review P1-8: the first run is the first that ends well, not "no sales yet"', async () => {
+  const db = fakeD1();
+  const empty = fakeNet({ 'commissions.api.cj.com/query': fakeCj({ byCid: {} }) });
+  const r1 = await syncOne(cj, { CJ_TOKEN, CJ_PUBLISHER_IDS: '7806395' }, { fetchFn: empty.fetchFn, now: NOW, db });
+  assert.equal(r1.ok, true);
+  assert.equal(r1.saved, 0);
+  const again = fakeNet({ 'commissions.api.cj.com/query': fakeCj({ byCid: {} }) });
+  await syncOne(cj, { CJ_TOKEN, CJ_PUBLISHER_IDS: '7806395' }, { fetchFn: again.fetchFn, now: NOW, db });
+  const starts = again.calls.map(c => /sincePostingDate: "([^"]+)"/.exec(JSON.parse(c.body).query)).filter(Boolean).map(m => m[1]);
+  assert.equal(starts[0], '2026-08-21T12:00:00Z', 'the second run reads 90 days back, not from FIRST_DAY again');
+  // a failed run is not a good run: the next one is still a first run
+  const db2 = fakeD1();
+  await syncOne(cj, { CJ_TOKEN, CJ_PUBLISHER_IDS: '7806395' }, { fetchFn: fakeNet({ 'commissions.api.cj.com/query': () => json({}, 500) }).fetchFn, now: NOW, db: db2 });
+  const third = fakeNet({ 'commissions.api.cj.com/query': fakeCj({ byCid: {} }) });
+  await syncOne(cj, { CJ_TOKEN, CJ_PUBLISHER_IDS: '7806395' }, { fetchFn: third.fetchFn, now: NOW, db: db2 });
+  assert.ok(third.calls.some(c => JSON.parse(c.body).query.includes(`sincePostingDate: "${FIRST_DAY}T00:00:00Z"`)));
+});
+
+test('review P1-9: after a long stop Daisycon reads from the last good run, within one run\'s call budget, and goes on next run', async () => {
+  const db = fakeD1();
+  db.sql.exec("INSERT INTO network_sync_runs (ran_at, network, ok, state, calls, fetched, saved) VALUES ('2026-10-02T12:00:00Z', 'daisycon', 1, 'ok', 3, 0, 0)");
+  const late = new Date('2027-03-01T12:00:00Z');
+  const dc = fakeDaisycon({ transactions: Array.from({ length: PER_PAGE * 15 }, (_, i) => dcTx(`B${i}`, [{}])) });
+  const net = fakeNet(dc.routes);
+  const run1 = await syncOne(daisycon, DC, { fetchFn: net.fetchFn, now: late, db });
+  assert.equal(run1.ok, true, run1.message);
+  assert.equal(run1.calls, MAX_CALLS, 'the whole budget, never more');
+  const firstAsk = net.calls.find(c => c.url.pathname.endsWith('/transactions'));
+  assert.equal(firstAsk.url.searchParams.get('date_modified_start'), '2026-10-01', 'from the last good run (a day before), not only 35 days');
+  assert.match(run1.message, /goes on from 2026-11-30/);
+  assert.equal(await getMeta(db, RESUME_KEY), '2026-11-30T12:00:00.000Z');
+  // next run: few sales; it starts at the resume point (older than its 35 days) and clears it when done
+  dc.transactions.length = 0;
+  dc.transactions.push(dcTx('C1', [{}]));
+  const net2 = fakeNet(dc.routes);
+  const run2 = await syncOne(daisycon, DC, { fetchFn: net2.fetchFn, now: new Date(late.getTime() + 2 * 3600e3), db });
+  assert.equal(run2.ok, true, run2.message);
+  assert.equal(net2.calls.find(c => c.url.pathname.endsWith('/transactions')).url.searchParams.get('date_modified_start'), '2026-11-30');
+  assert.equal(await getMeta(db, RESUME_KEY), '', 'the resume point is cleared');
+});
+
+test('review P1-1: the Worker writes the code version it runs, for the setup tool\'s live-version guard', async () => {
+  const db = fakeD1();
+  await syncNetworks({ SALES_DB: db, GW_COMMIT: 'ab'.repeat(20) }, { fetchFn: fakeNet({}).fetchFn, now: NOW });
+  assert.equal(await getMeta(db, 'commit'), 'ab'.repeat(20));
+  await syncNetworks({ SALES_DB: db, GW_COMMIT: 'not-a-commit' }, { fetchFn: fakeNet({}).fetchFn, now: NOW });
+  assert.equal(await getMeta(db, 'commit'), 'ab'.repeat(20), 'only a full commit is written');
+});
+
+test('review P1-7: the CJ key test tells a refused key from a question with an error', async () => {
+  const refused = await cjTest({ token: CJ_TOKEN, cids: ['7806395'], fetchImpl: fakeNet({ 'commissions.api.cj.com': () => json({ message: 'Unauthorized' }, 403) }).fetchFn, now: NOW });
+  assert.deepEqual([refused.ok, refused.refused, refused.queryError], [false, true, '']);
+  const query = await cjTest({ token: CJ_TOKEN, cids: ['7806395'], fetchImpl: fakeNet({ 'commissions.api.cj.com': () => json({ errors: [{ message: "Cannot query field 'x' on type 'PublisherCommission'" }] }) }).fetchFn, now: NOW });
+  assert.deepEqual([query.ok, query.refused], [false, false]);
+  assert.match(query.queryError, /Cannot query field/);
 });

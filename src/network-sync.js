@@ -13,7 +13,7 @@
 // Adding a network (Rakuten, Admitad, bol.com, eBay ...): one file in src/networks/ that exports
 //   { id, label, hosts, secrets, optionalSecrets, ready, waiting, async run(ctx) -> rows, afterSave(db)? }
 // one line in NETWORKS below, and its secrets in tools/network-sales-setup.ps1 ($Networks).
-import { COLS, DAY, FIRST_DAY, LOOKBACK_DAYS, makeMask } from './networks/common.js';
+import { COLS, DAY, FIRST_DAY, LOOKBACK_DAYS, makeMask, setMeta } from './networks/common.js';
 import { cj } from './networks/cj.js';
 import { daisycon } from './networks/daisycon.js';
 import { linkwise } from './networks/linkwise.js';
@@ -38,9 +38,12 @@ export async function saveRows(db, rows) {
   return saved;
 }
 
+// state: ok, failed or held (built but waiting, e.g. Linkwise). ok: 1, 0, and 2 for held, so a reader of ok alone never
+// sees a held network as a problem (migration 0003).
 async function logRun(db, run) {
-  await db.prepare('INSERT INTO network_sync_runs (ran_at, network, ok, calls, fetched, saved, message) VALUES (?, ?, ?, ?, ?, ?, ?)')
-    .bind(run.ran_at, run.network, run.ok ? 1 : 0, run.calls, run.fetched, run.saved, run.message ? String(run.message).slice(0, 300) : null).run();
+  const okValue = run.state === 'held' ? 2 : (run.ok ? 1 : 0);
+  await db.prepare('INSERT INTO network_sync_runs (ran_at, network, ok, state, calls, fetched, saved, message) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
+    .bind(run.ran_at, run.network, okValue, run.state, run.calls, run.fetched, run.saved, run.message ? String(run.message).slice(0, 300) : null).run();
   await db.prepare('DELETE FROM network_sync_runs WHERE id NOT IN (SELECT id FROM network_sync_runs ORDER BY id DESC LIMIT ?)').bind(KEEP_RUNS).run();
 }
 
@@ -54,19 +57,30 @@ export function missingSecrets(net, env) {
 // One network, one run. Never throws: the result (also written to network_sync_runs) says what happened.
 export async function syncOne(net, env, { fetchFn = fetch, now = new Date(), db } = {}) {
   const nowIso = now.toISOString();
-  const run = { network: net.id, ran_at: nowIso, ok: false, calls: 0, fetched: 0, saved: 0, message: '' };
+  const run = { network: net.id, ran_at: nowIso, ok: false, state: 'failed', calls: 0, fetched: 0, saved: 0, message: '' };
   const secretValues = [...net.secrets, ...(net.optionalSecrets || [])].map(n => value(env, n)).filter(Boolean);
   const mask = makeMask(secretValues);
+  // A network that is built but held (ready: false) is not a failure: its own state, and no call at all.
+  if (net.ready === false) {
+    run.state = 'held';
+    run.message = mask(`${net.label}: ${net.waiting || 'not ready yet'}`).slice(0, 300);
+    try { await logRun(db, run); } catch { /* the result is still returned */ }
+    return run;
+  }
   try {
     const missing = missingSecrets(net, env);
     if (missing.length) throw new Error(`missing secret(s): ${missing.join(', ')}`);
-    if (net.ready === false) throw new Error(`${net.label}: ${net.waiting || 'not ready yet'}`);
-    const have = await db.prepare('SELECT COUNT(*) AS n FROM network_transactions WHERE network = ?').bind(net.id).first();
-    const seen = Boolean(have && Number(have.n) > 0);
+    // The first run is the first one that ends well (not "no sales yet"): a network with no sales still reads only the
+    // look-back window from its second run on.
+    const last = await db.prepare('SELECT MAX(ran_at) AS t FROM network_sync_runs WHERE network = ? AND ok = 1').bind(net.id).first();
+    const lastOk = last && last.t ? new Date(last.t) : null;
+    const seen = Boolean(lastOk && Number.isFinite(lastOk.getTime()));
     const ctx = {
       env, db, now, nowIso,
       firstRun: !seen,
+      lastOk: seen ? lastOk : null,
       from: seen ? new Date(now.getTime() - LOOKBACK_DAYS * DAY) : new Date(`${FIRST_DAY}T00:00:00Z`),
+      callsLeft: () => MAX_CALLS - run.calls,
       secret: name => value(env, name),
       // A key that appears only during the run (an access token, a new refresh token) is hidden from every message too.
       addSecret: v => { if (v) secretValues.push(String(v)); },
@@ -79,7 +93,10 @@ export async function syncOne(net, env, { fetchFn = fetch, now = new Date(), db 
         if (!net.hosts.includes(host)) throw new Error(`refused: ${host || 'a bad address'} is not a ${net.label} address`);
         if (run.calls >= MAX_CALLS) throw new Error(`more than ${MAX_CALLS} ${net.label} calls in one run`);
         run.calls++;
-        return fetchFn(url, init);
+        // Never followed: a redirect could send the key on to another host.
+        const res = await fetchFn(url, { ...init, redirect: 'manual' });
+        if (res.status >= 300 && res.status < 400) throw new Error(`${net.label} answered with a redirect (${res.status}); it is not followed`);
+        return res;
       }
     };
     const rows = await net.run(ctx);
@@ -90,6 +107,7 @@ export async function syncOne(net, env, { fetchFn = fetch, now = new Date(), db 
     if (typeof net.afterSave === 'function') await net.afterSave(db);
     // ctx.fail: the sales were saved, but something must be fixed before the next run (e.g. a sign-in not kept).
     run.ok = !ctx.fail;
+    run.state = run.ok ? 'ok' : 'failed';
     run.message = [ctx.fail, ...ctx.notes].filter(Boolean).join('; ');
   } catch (e) {
     run.message = String(e && e.message || e);
@@ -105,11 +123,14 @@ export async function syncNetworks(env, { fetchFn = fetch, now = new Date(), net
   const db = env && env.SALES_DB;
   const results = [];
   if (!db) return { ok: false, message: 'no database binding SALES_DB', results };
+  // The code version this Worker runs (deploy --var GW_COMMIT:<commit>), for the setup tool's live-version guard (L156).
+  const commit = String((env && env.GW_COMMIT) || '');
+  if (/^[0-9a-f]{40}$/.test(commit)) { try { await setMeta(db, 'commit', commit, now.toISOString()); } catch { /* the sync goes on */ } }
   for (const net of networks) {
     if (net.secrets.every(n => !value(env, n))) { results.push({ network: net.id, skipped: true }); continue; }
     results.push(await syncOne(net, env, { fetchFn, now, db }));
   }
-  return { ok: results.every(r => r.skipped || r.ok), results };
+  return { ok: results.every(r => r.skipped || r.ok || r.state === 'held'), results };
 }
 
 export function createNetworkSync({ fetchFn } = {}) {
