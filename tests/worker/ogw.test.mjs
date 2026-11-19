@@ -94,7 +94,7 @@ test('every page answers 200 with the security headers, no script, no cookie and
       assert.ok(!/£|\bGBP\b/.test(withoutOffers(text)), `${p}: no price (the marketplace page has the price)`);
       for (const l of retailerLines(text)) assert.match(l, RETAILER_LINE, `${p}: only the retailer's own code wording`);
       assert.equal(r.headers.get('Content-Language'), 'en-GB', `${p}: English without ?lang=`);
-      assert.ok(text.includes('Run by Evangelos Kalogerakis, United Kingdom'), `${p}: who runs the site (L101)`);
+      assert.ok(text.replace(/<[^>]+>/g, '').includes('Run by Evangelos Kalogerakis, United Kingdom'), `${p}: who runs the site (L101)`);
       for (const href of ['/about/', '/how-we-make-money/', '/privacy/', '/cookies/', '/terms/']) assert.ok(text.includes(`href="${href}"`), `${p}: footer ${href} (L17)`);
       assert.ok(text.includes(`&copy; ${new Date().getUTCFullYear()}`), `${p}: year in the footer (L17)`);
       assert.ok(text.includes(`<link rel="canonical" href="https://megastoresgearworld.com${p}">`), `${p}: canonical`);

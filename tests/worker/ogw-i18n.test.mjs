@@ -7,10 +7,10 @@ import { readFileSync, readdirSync } from 'node:fs';
 import site from '../../sites/ogw/site.config.js';
 import {
   AMAZON_STATEMENT, BASE_LANG, HUB_LANGS, I18N_MISSING, createGuidesWorker, legalPaths, awinStores, languageCode,
-  countryLanguage as ogwCountryLanguage, readsEnglish as ogwReadsEnglish, QA_BOT as OGW_QA_BOT, OTHER_CRAWLER as OGW_CRAWLER,
+  countryLanguage as ogwCountryLanguage, readsEnglish as ogwReadsEnglish, QA_BOT as OGW_QA_BOT, OTHER_CRAWLER as OGW_CRAWLER, GOOGLE_CRAWLER as OGW_GOOGLE,
   earlyBlackFriday, blackFridayParts, storeCodes
 } from '../../src/marketplace-guides.js';
-import { countryLanguage, readsEnglish, QA_BOT, OTHER_CRAWLER } from '../../src/engine.js';
+import { countryLanguage, readsEnglish, QA_BOT, OTHER_CRAWLER, GOOGLE_CRAWLER } from '../../src/engine.js';
 import { translatableTexts } from './i18n-keys.mjs';
 import { GEAR_WORLDS } from '../../promos/network.js';
 
@@ -481,4 +481,21 @@ test('tools/ogw-site.ps1: the preview and live check read Greek, the Hub link, t
   assert.ok(ps.includes("$BlackFridayEnd = '2026-11-30'"), 'the block is checked until the end of Cyber Monday');
   assert.ok(ps.includes('<p class="promo-offer">'), 'the £ check leaves out the retailers\' own code lines');
   assert.ok(!/[^\r]\n/.test(ps), 'CRLF only');
+});
+
+test('L195 review 19/11: Google crawlers without "bot" in the name get English; the country is translated, the name is not', async () => {
+  assert.equal(OGW_GOOGLE.source, GOOGLE_CRAWLER.source, "Google's crawlers: the engine's rule");
+  for (const ua of ['Mozilla/5.0 (compatible; Google-InspectionTool/1.0;)', 'GoogleOther', 'Mediapartners-Google']) {
+    for (const cc of ['DE', 'FR', 'GR']) {
+      const r = new Request(LIVE, { headers: { 'user-agent': ua } });
+      Object.defineProperty(r, 'cf', { value: { country: cc } });
+      const res = await workerAt('2026-11-19').fetch(r, { AMAZON_LINKS: 'on' }, { waitUntil() {} });
+      const page = await res.text();
+      assert.match(page, /<html lang="en-GB"/, `${ua} from ${cc}: English`);
+    }
+  }
+  const el = await (await workerAt('2026-11-19').fetch(new Request(LIVE + '/?lang=el', { headers: { 'user-agent': BROWSER } }), { AMAZON_LINKS: 'on' }, { waitUntil() {} })).text();
+  assert.ok(el.includes('Evangelos Kalogerakis</span>, Ηνωμένο Βασίλειο'), 'the footer says the country in Greek');
+  assert.ok(!/United Kingdom/.test(el.replace(/<link[^>]*>/g, '')), 'no English country name on the Greek page');
+  assert.ok(!/συνεργατών/.test(JSON.stringify(DICTS['el-GR'])), 'Greek says affiliate, not partners (L103)');
 });

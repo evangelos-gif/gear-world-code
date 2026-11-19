@@ -39,6 +39,9 @@ export const HUB_LANGS = ['en-GB', 'el-GR', 'de-DE', 'fr-FR', 'it-IT', 'es-ES', 
 export const QA_BOT = /^GearWorldQA-bot\//;
 export const QA_COUNTRY_HEADER = 'X-GW-QA-Country';
 export const OTHER_CRAWLER = /(?<!cu)bot\b|bot\/|crawler|spider|slurp|bingpreview|facebookexternalhit|embedly/i; // not Cubot phones
+// Google's crawlers count as UK visitors (src/engine.js GOOGLE_CRAWLER, the same text): the English page, as on the 13 sites.
+// Some of them (Google-InspectionTool, GoogleOther, Mediapartners-Google) have no "bot" in their name (review 19/11/2026).
+export const GOOGLE_CRAWLER = /\b(Googlebot|AdsBot-Google(-Mobile)?|Google-InspectionTool|Storebot-Google|Mediapartners-Google|GoogleOther)\b/i;
 export function readsEnglish(request) {
   const ua = request.headers.get('user-agent') || '';
   return !QA_BOT.test(ua) && OTHER_CRAWLER.test(ua);
@@ -90,6 +93,7 @@ export function countryLanguage(site, country, acceptLanguage = '') {
 
 function requestCountry(request) {
   const ua = request.headers.get('user-agent') || '';
+  if (GOOGLE_CRAWLER.test(ua)) return 'GB';
   const qa = QA_BOT.test(ua) ? String(request.headers.get(QA_COUNTRY_HEADER) || '').trim().toUpperCase() : '';
   if (/^[A-Z]{2}$/.test(qa)) return qa;
   const cf = request.cf && typeof request.cf.country === 'string' ? request.cf.country.toUpperCase() : '';
@@ -260,6 +264,14 @@ const FOOTER_LINKS = [
   ['/terms/', 'Terms of use']
 ];
 
+// Who runs the site (L101): the name never translated, the country in the page's language ("Evangelos Kalogerakis,
+// Ηνωμένο Βασίλειο"), as on the 13 sites (review 19/11/2026).
+function operator(site, tr) {
+  const s = String(site.operatorName || '');
+  const i = s.lastIndexOf(', ');
+  return i > 0 ? html`${keep(s.slice(0, i))}, ${tr(s.slice(i + 2))}` : keep(s);
+}
+
 const mail = site => html`<a href="mailto:${site.contactEmail}" translate="no">${site.contactEmail}</a>`;
 
 // The note at the top of every guide (and the home page): what the links are, before the reader meets one.
@@ -338,7 +350,7 @@ ${languageMenu(c)}
   <p class="foot-hub" data-gw-network><span>${t('Gear World network')}:</span> <a href="${c.hub('/')}"><span><span translate="no">${hubName}</span> · ${t('Explore the Hub')}</span></a></p>
   ${mode === 'on' ? html`<p>${amazonStatement(c)} ${t(AMAZON_TRADEMARK)}</p>` : ''}
   <p>${t('This site sets no cookies of its own and does no tracking. Prices and stock are on the page each button opens.')}</p>
-  <p>&copy; ${year} ${keep(site.name)} · ${t('Run by {0}', site.operatorName)} · ${withMarkets(mode)
+  <p>&copy; ${year} ${keep(site.name)} · ${t('Run by {0}', operator(site, t))} · ${withMarkets(mode)
     ? t('We don\'t sell products: we link to marketplaces and to the Gear World sites, and may earn a commission.')
     : t('We don\'t sell products: we link to the Gear World sites, which link to retailers and may earn a commission.')}</p>
 </div></footer>
@@ -919,7 +931,7 @@ const LEGAL = {
     ? c.t('Each idea links to a search on a big marketplace and to the matching category of one of the Gear World sites, so you can compare models, sellers and prices yourself.')
     : c.t('Each idea links to the matching category of one of the Gear World sites, so you can compare models, sellers and prices yourself.')}</p>
 <p>${c.t('It is part of the Gear World sites, a group of independent product search and price-comparison sites.')}</p>
-<p>${c.t('Run by {0}. Contact: {1}.', c.site.operatorName, mail(c.site))}</p>
+<p>${c.t('Run by {0}. Contact: {1}.', operator(c.site, c.t), mail(c.site))}</p>
 <h2>${c.t('What we do not do')}</h2>
 <ul>
 <li>${c.t('We do not sell anything and we do not take payments.')}</li>
@@ -953,10 +965,10 @@ ${c.mode === 'on' ? html`<h2 translate="no">Amazon</h2><p>${amazonStatement(c)}<
 <p class="updated">${c.t('Last updated: {0}', c.longDate(LEGAL_UPDATED))}</p>
 <p>${c.t('This policy explains what personal data {0} ({1}) uses, why, and your rights under UK data protection law (UK GDPR and the Data Protection Act 2018) and, if you are in the European Union or the European Economic Area, under the EU General Data Protection Regulation (GDPR).', keep(c.site.name), keep(c.site.domain))}</p>
 <h2>${c.t('Who is responsible')}</h2>
-<p>${c.t('The data controller is {0}. Contact: {1}.', c.site.operatorName, mail(c.site))}</p>
+<p>${c.t('The data controller is {0}. Contact: {1}.', operator(c.site, c.t), mail(c.site))}</p>
 <h2>${c.t('What we collect')}</h2>
 <ul>
-${item(c, 'Visiting the site.', 'The site has no forms, no accounts, no analytics and no advertising tags. We do not record your visit.')}
+${item(c, 'Visiting the site.', 'The site has no forms, no accounts, no analytics and no advertising tags. We do not record your visit ourselves. Our hosting provider, Cloudflare, keeps technical records of each request (such as the time, the page and the IP address) for up to 7 days, for security and to fix errors.')}
 ${item(c, 'Language.', 'The page opens in the language of the country your visit comes from, as our hosting provider reports it, or of your browser, unless you choose another one. A language you choose stays in the address of the page, not on your device. We do not keep either.')}
 ${item(c, 'Email.', 'If you email us, we keep your message and email address to reply (legitimate interests) and delete them when they are no longer needed.')}
 ${item(c, 'Hosting.', 'The site is hosted by Cloudflare, which processes technical data such as IP addresses to deliver and protect the site.')}
@@ -987,7 +999,7 @@ ${item(c, 'Product photos.', 'The photos on the store pages load from the retail
     description: c.tx('The terms for using {0}.', c.site.domain),
     content: html`
 <p class="updated">${c.t('Last updated: {0}', c.longDate(LEGAL_UPDATED))}</p>
-<p>${c.t('These terms apply when you use {0}, operated by {1}. By using the site you accept them.', keep(c.site.domain), c.site.operatorName)}</p>
+<p>${c.t('These terms apply when you use {0}, operated by {1}. By using the site you accept them.', keep(c.site.domain), operator(c.site, c.t))}</p>
 <h2>${c.t('What the site does')}</h2>
 <p>${c.t('The site publishes gift ideas with links to other sites. It does not sell anything. Any purchase is between you and the seller, under the terms of the seller and of the site where you buy.')}</p>
 <h2>${c.t('The ideas')}</h2>
