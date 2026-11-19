@@ -48,7 +48,7 @@ const SHOWN = { CGW: seeing(['US', 'PL']), AGW: seeing(['PL']), BGW: seeing(['PL
 // How many view groups each site has: gb, all, pl, and us where a retailer ships to the US; and one for the countries
 // that speak the language of a feed (L165: CGW Reidl in German for DE and AT, AGW VEVOR in Dutch for NL and BE).
 // HGW: +5 language views from 17 Nov 2026 (Westwing NL, DE, FR, IT, ES, chat 9, L165); GGW: +1 (Tuinmeubelwereld NL, chat 9).
-const GROUPS = { CGW: 5, AGW: 4, BGW: 3, GGW: 5, HGW: 9, KGW: 4, WGW: 5, TGW: 4, PGW: 4 };
+const GROUPS = { CGW: 5, AGW: 4, BGW: 3, GGW: 5, HGW: 9, KGW: 4, WGW: 5, TGW: 5, PGW: 4 }; // TGW 5 since 18 Nov 2026: refurbed NL in Dutch (L194)
 // What the bar says in the UK view while the codes of the config run (promos/promos.js, 10 Nov 2026).
 const WORDS = {
   CGW: ['{0} active codes', '6'], GGW: ['{0} active codes', '5'], AGW: ['{0} active codes', '3'], BGW: ['{0} active codes', '2'],

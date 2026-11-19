@@ -43,7 +43,8 @@ export default {
   // AliExpress PL (Awin 12044, Polish names, prices in zloty): Poland only, so only the Poland view shows it (owner,
   // 15 Nov 2026, lessons L157, round 2); its prices get "≈ £…" (foreignCurrencies PLN).
   // VEVOR's feed on this site is in Dutch: only visitors from the Netherlands and Belgium see it (lessons L165).
-  deliversTo: { default: ['GB'], retailers: { 'AliExpress PL': ['PL'], 'Pneus.be': ['BE'], 'Neumaticos.es': ['ES'], 'Pneumatici.it': ['IT'], 'Tanie-Opony.pl': ['PL'], VEVOR: ['EU', 'IS', 'LI', 'NO'], Ottocast: ['DE', 'FR', 'NL', 'BE', 'AT', 'CH', 'ES', 'IT', 'PT', 'GR', 'PL', 'CZ', 'SK', 'HU', 'SE', 'FI', 'DK', 'NO', 'EE', 'LV', 'LT', 'HR', 'SI', 'BG', 'RO'], 'ReifenDirekt.at': ['AT'], 'neumaticos-online.es': ['ES'], 'Autobandenmarkt.nl': ['NL'] }, languages: { VEVOR: 'nl' } },
+  // Oponytanio PL (Awin 10325, 18 Nov 2026, lessons L194): tyres in zloty for Poland only.
+  deliversTo: { default: ['GB'], retailers: { 'AliExpress PL': ['PL'], 'Pneus.be': ['BE'], 'Neumaticos.es': ['ES'], 'Pneumatici.it': ['IT'], 'Tanie-Opony.pl': ['PL'], VEVOR: ['EU', 'IS', 'LI', 'NO'], Ottocast: ['DE', 'FR', 'NL', 'BE', 'AT', 'CH', 'ES', 'IT', 'PT', 'GR', 'PL', 'CZ', 'SK', 'HU', 'SE', 'FI', 'DK', 'NO', 'EE', 'LV', 'LT', 'HR', 'SI', 'BG', 'RO'], 'ReifenDirekt.at': ['AT'], 'neumaticos-online.es': ['ES'], 'Autobandenmarkt.nl': ['NL'], 'Oponytanio PL': ['PL'] }, languages: { VEVOR: 'nl' } },
   // Lessons L107: a UK visitor sees UK retailers only, so the texts no longer say "retailers in the UK and Europe".
   retailersFromEurope: false,
 
