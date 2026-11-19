@@ -273,7 +273,9 @@ async function main() {
       home: () => db.homeData(C, slugs, { view: gb }),
       [`${big} page 1`]: () => Promise.all([db.listProducts(C, { category: big, view: gb }, { sort: 'featured', page: 1 }), db.facets(C, big, null, gb)]),
       ...Object.fromEntries(DEEP.map(p => [`${big} page ${p}`, () => Promise.all([db.listProducts(C, { category: big, view: gb }, { sort: 'featured', page: p }), db.facets(C, big, null, gb)])])),
-      [`${big} newest`]: () => Promise.all([db.listProducts(C, { category: big, view: gb }, { sort: 'newest', page: 1 }), db.facets(C, big, null, gb)])
+      [`${big} newest`]: () => Promise.all([db.listProducts(C, { category: big, view: gb }, { sort: 'newest', page: 1 }), db.facets(C, big, null, gb)]),
+      ...(SITE === 'wgw' ? { 'watches (2 names) page 1': () => Promise.all([db.listProducts(C, { category: 'watches', view: gb }, { sort: 'featured', page: 1 }), db.facets(C, 'watches', null, gb)]) } : {}),
+      ...Object.fromEntries(site.categories.filter(c => c.collection).map(c => [`${c.slug} (collection)`, () => Promise.all([db.listProducts(C, { category: c.slug, view: gb }, { sort: 'featured', page: 1 }), db.facets(C, c.slug, null, gb)])]))
     };
     for (const [name, call] of Object.entries(keptCalls)) {
       db.useLayout(site);
