@@ -1,0 +1,29 @@
+// gear-world-network-sync - Wrangler config TEMPLATE. The private Worker that copies the sales of the other affiliate
+// networks (CJ, Daisycon, Linkwise) into the Awin sales database, next to the Awin sales (lessons L197).
+// No public address: no routes, workers.dev and preview addresses off. It runs on its cron only (at :47, so it never
+// meets the Awin sync at :23).
+// The real file (wrangler.jsonc) is made on the PC by tools/network-sales-setup.ps1 and is never committed, because it
+// holds the Cloudflare database ID. The keys are secrets (CJ_TOKEN, DAISYCON_*, LINKWISE_*, NETWORK_SYNC_KEY), never in
+// a file. The migrations are the ones of the Awin database (../awin/migrations): 0002 adds the new tables only.
+{
+  "name": "gear-world-network-sync",
+  "main": "worker.js",
+  "compatibility_date": "2026-10-01",
+  "workers_dev": false,
+  "preview_urls": false,
+  "triggers": { "crons": ["47 */2 * * *"] },
+  "vars": {
+    "CJ_PUBLISHER_IDS": "REPLACE_WITH_CJ_CIDS",
+    "CJ_PUB_CURRENCY": "GBP",
+    "DAISYCON_CURRENCY": "EUR"
+  },
+  "d1_databases": [
+    {
+      "binding": "SALES_DB",
+      "database_name": "gear-world-awin",
+      "database_id": "REPLACE_WITH_DATABASE_ID",
+      "migrations_dir": "../awin/migrations"
+    }
+  ],
+  "observability": { "enabled": true }
+}
