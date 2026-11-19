@@ -388,7 +388,8 @@ function Write-Undo {
     Say ''
     if ($lines.Count -eq 0) { Say 'Αναίρεση: αυτή η εκτέλεση δεν άλλαξε τίποτα.'; return }
     Say 'Αν θελήσεις να το αναιρέσεις (μόνο με έγκριση· τα sites και ο συγχρονισμός του Awin δεν επηρεάζονται):'
-    foreach ($l in $lines) { Say $l }
+    # Never a loop variable named l: PowerShell names are case-blind and dynamically scoped, so Say would take it for its report list.
+    foreach ($undoLine in $lines) { Say $undoLine }
     Say ('  Τα κλειδιά ακυρώνονται και στα ίδια τα δίκτυα: CJ https://developers.cj.com/account/personal-access-tokens · Daisycon {0}' -f $DaisyconAppPage)
     if ($script:BackupDir) {
         $text = @(('Gear World - network sales (CJ, Daisycon, Linkwise), {0}' -f (Get-Date -Format 'yyyy-MM-dd HH:mm')), 'To undo (only with approval):') + @($lines) + @(('copy of the database before the change: {0}' -f $script:Dump))

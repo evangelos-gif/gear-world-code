@@ -5168,6 +5168,8 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         if ($f.Count -eq 0) { return '' }
         return [System.IO.File]::ReadAllText($f[0].FullName)
     }
+    # A lower-case $l in the tool would be taken by Say for its report list $L (case-blind, dynamic scope): 17 checks failed once.
+    Check (-not ([System.IO.File]::ReadAllText($nTool) -cmatch '\$l\b')) 'network sales tool: no variable l that Say would take for its report'
     $nChanges = 'migrations apply| deploy --config|secret put|time-travel|d1 export|INSERT INTO network_sync_meta'
     $nApply = @('-Step', 'apply', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ ΠΩΛΗΣΕΙΣ ΔΙΚΤΥΩΝ')
     $nKeys = @('-Step', 'keys', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ ΚΛΕΙΔΙΑ ΔΙΚΤΥΩΝ')
