@@ -10,7 +10,8 @@ import { subIdParts, makeMask, windows, sealText, openText, sha256Hex, num, getM
 import { cj, cjStatus, cjRow, commissionsQuery, RECORD_FIELDS } from '../../src/networks/cj.js';
 import { daisycon, daisyconStatus, daisyconRows, PER_PAGE, RESUME_KEY } from '../../src/networks/daisycon.js';
 import { linkwise, linkwiseRow, linkwiseStatus } from '../../src/networks/linkwise.js';
-import { cjTest, linkwiseProbe } from '../../tools/network-sales.mjs';
+import { cjTest, linkwiseProbe, bolTest } from '../../tools/network-sales.mjs';
+import { bol, bolStatus, bolRow, BOL_WINDOW_DAYS } from '../../src/networks/bol.js';
 
 const NOW = new Date('2026-11-19T12:00:00Z');
 const KEY = Buffer.alloc(32, 7).toString('base64');
@@ -300,7 +301,7 @@ test('one network failing does not stop the others; a network with no secrets is
   const env = { SALES_DB: db, CJ_TOKEN, CJ_PUBLISHER_IDS: '7806395', ...DC };
   const out = await syncNetworks(env, { fetchFn: net.fetchFn, now: NOW });
   assert.equal(out.ok, false);
-  assert.deepEqual(out.results.map(r => [r.network, r.skipped ? 'skipped' : r.ok]), [['cj', false], ['daisycon', true], ['linkwise', 'skipped']]);
+  assert.deepEqual(out.results.map(r => [r.network, r.skipped ? 'skipped' : r.ok]), [['cj', false], ['daisycon', true], ['linkwise', 'skipped'], ['bol', 'skipped']]);
   const runs = db.sql.prepare('SELECT network, ok, message FROM network_sync_runs ORDER BY id').all();
   assert.deepEqual(runs.map(r => [r.network, r.ok]), [['cj', 0], ['daisycon', 1]]);
   const all = JSON.stringify(runs) + JSON.stringify(out);
@@ -323,7 +324,7 @@ test('a key goes only to its own network, and a run makes at most MAX_CALLS call
   assert.equal(g.calls, MAX_CALLS);
   assert.match(g.message, /more than 40 CJ calls/);
   assert.equal(makeMask(['abcdef123'])('x abcdef123 y Bearer zz.9 Basic qq='), 'x [secret] y Bearer [secret] Basic [secret]');
-  for (const n of NETWORKS) for (const h of n.hosts) assert.match(h, /(^|\.)(cj\.com|daisycon\.com|linkwi\.se)$/, `${n.id} host ${h}`);
+  for (const n of NETWORKS) for (const h of n.hosts) assert.match(h, /(^|\.)(cj\.com|daisycon\.com|linkwi\.se|bol\.com)$/, `${n.id} host ${h}`);
 });
 
 test('the kept key is encrypted and bound to its network; the date windows are back to back', async () => {
@@ -552,4 +553,97 @@ test('re-review: the new single-use Daisycon key survives a D1 that is busy twic
   assert.equal(run.ok, true, run.message);
   assert.deepEqual(waits, [2000, 4000]);
   assert.equal(await openText(KEY, db.sql.prepare("SELECT iv, ciphertext FROM network_oauth WHERE network = 'daisycon'").get(), 'daisycon'), 'dcRefresh-next-1-abcdef', 'kept on the third attempt');
+});
+
+// bol.com partner programme: Affiliate Reporting API V2, Orders report (one row per order item).
+const BOL = { BOL_REPORTING_CLIENT_ID: 'bolReportingId-0001', BOL_REPORTING_CLIENT_SECRET: 'bolReportingSecret-abcdef' };
+const bolItem = (n, over = {}) => ({ orderDate: '2026-11-15', orderDateTime: '2026-11-15 10:07:22', orderId: `ORDER-SECRET-${n}`, orderItemId: `I${n}`,
+  productTitle: 'Secret product title', productId: '9200000012345678', quantity: 1, chunkName: 'Speelgoed', siteName: 'gearworldhub.com', siteCode: 'ABC123',
+  frameType: 'Productlink', name: 'Lego set', subId: 'kgw-77', priceExclVat: 41.32, priceInclVat: 50, commissionPercentage: 5, commission: 2.07,
+  status: 'Open', statusFinal: false, approvedForPayment: false, ...over });
+function fakeBol({ items = [], tokenStatus = 200, reportStatus = 200 } = {}) {
+  const seen = { tokens: 0, reports: [] };
+  const routes = {
+    'login.bol.com/token': (u, body, init) => {
+      seen.tokens++;
+      seen.auth = init.headers.authorization;
+      return tokenStatus === 200 ? json({ access_token: 'bolAccess-123456', expires_in: 299 }) : json({ error: 'x' }, tokenStatus);
+    },
+    'api.bol.com/marketing/affiliate/reports/v2/order-report': (u, body, init) => {
+      seen.reports.push({ start: u.searchParams.get('startDate'), end: u.searchParams.get('endDate'), auth: init.headers.authorization });
+      if (reportStatus === 204) return new Response(null, { status: 204 });
+      if (reportStatus !== 200) return json({ title: 'Forbidden', status: reportStatus }, reportStatus);
+      return json({ items: items.filter(i => i.orderDate >= u.searchParams.get('startDate') && i.orderDate <= u.searchParams.get('endDate')) });
+    }
+  };
+  return { seen, routes };
+}
+
+test('bol.com: status in three words, EUR, a hashed id (no order number, title or product id kept), our sub id', async () => {
+  assert.equal(bolStatus({ status: 'Open' }), 'pending');
+  assert.equal(bolStatus({ status: 'Geaccepteerd' }), 'approved');
+  assert.equal(bolStatus({ status: 'Geweigerd' }), 'declined');
+  assert.equal(bolStatus({ status: 'Open', approvedForPayment: true }), 'approved');
+  const r = await bolRow(bolItem(1, { status: 'Geaccepteerd', statusFinal: true, approvedForPayment: true }), NOW.toISOString());
+  assert.deepEqual([r.network, r.site, r.product_ref, r.status, r.raw_status, r.currency, r.commission_amount, r.sale_amount, r.commission_amount_gbp], ['bol', 'kgw', '77', 'approved', 'Geaccepteerd/final/paid', 'EUR', 2.07, 50, null]);
+  assert.match(r.id, /^[0-9a-f]{32}$/);
+  assert.equal(r.id, (await bolRow(bolItem(1), NOW.toISOString())).id, 'the same order item keeps its id');
+  assert.notEqual(r.id, (await bolRow(bolItem(2), NOW.toISOString())).id);
+  assert.equal(r.sale_date, '2026-11-15T10:07:22');
+  const all = JSON.stringify(r);
+  for (const banned of ['ORDER-SECRET', 'Secret product title', '9200000012345678', 'Speelgoed', 'Lego set', 'ABC123']) assert.ok(!all.includes(banned), banned);
+});
+
+test('bol.com: one token per run (Basic, keys only to login.bol.com), Orders report in windows of at most 30 days from the first day', async () => {
+  const db = fakeD1();
+  const fb = fakeBol({ items: [bolItem(1), bolItem(2, { orderDate: '2026-10-05', status: 'Geweigerd' })] });
+  const net = fakeNet(fb.routes);
+  const run = await syncOne(bol, BOL, { fetchFn: net.fetchFn, now: NOW, db });
+  assert.equal(run.ok, true, run.message);
+  assert.equal(run.saved, 2);
+  assert.equal(fb.seen.tokens, 1, 'one token for the whole run');
+  assert.equal(fb.seen.auth, `Basic ${btoa(`${BOL.BOL_REPORTING_CLIENT_ID}:${BOL.BOL_REPORTING_CLIENT_SECRET}`)}`);
+  assert.equal(fb.seen.reports[0].start, FIRST_DAY);
+  for (const w of fb.seen.reports) {
+    assert.ok((Date.parse(w.end) - Date.parse(w.start)) / 864e5 <= BOL_WINDOW_DAYS);
+    assert.equal(w.auth, 'Bearer bolAccess-123456');
+  }
+  assert.equal(fb.seen.reports[fb.seen.reports.length - 1].end, '2026-11-19');
+  for (const c of net.calls) {
+    assert.ok(['login.bol.com', 'api.bol.com'].includes(c.url.hostname));
+    assert.equal(c.init.redirect, 'manual');
+    if (c.url.hostname === 'api.bol.com') assert.ok(!JSON.stringify(c.init.headers).includes(BOL.BOL_REPORTING_CLIENT_SECRET), 'the keys never go to api.bol.com');
+  }
+  const rows = db.sql.prepare("SELECT site, status FROM network_transactions WHERE network = 'bol' ORDER BY sale_date").all();
+  assert.deepEqual(rows.map(r => [r.site, r.status]), [['kgw', 'declined'], ['kgw', 'pending']]);
+  const view = db.sql.prepare("SELECT COUNT(*) AS n FROM all_network_sales WHERE network = 'bol'").get();
+  assert.equal(view.n, 2, 'the view lists bol.com with the others');
+});
+
+test('bol.com: 204 = no orders (ok); a refused key, no Reporting API access, or 429 fail with what to do, no second token, no key shown', async () => {
+  const empty = await syncOne(bol, BOL, { fetchFn: fakeNet(fakeBol({ reportStatus: 204 }).routes).fetchFn, now: NOW, db: fakeD1() });
+  assert.equal(empty.ok, true, empty.message);
+  assert.equal(empty.saved, 0);
+  const refused = fakeBol({ tokenStatus: 401 });
+  const r1 = await syncOne(bol, BOL, { fetchFn: fakeNet(refused.routes).fetchFn, now: NOW, db: fakeD1() });
+  assert.match(r1.message, /refused the Reporting API keys \(401\).*-Only bol/);
+  assert.equal(refused.seen.tokens, 1);
+  const noAccess = await syncOne(bol, BOL, { fetchFn: fakeNet(fakeBol({ reportStatus: 403 }).routes).fetchFn, now: NOW, db: fakeD1() });
+  assert.match(noAccess.message, /no access to the Reporting API \(403\)/);
+  const busy = fakeBol({ tokenStatus: 429 });
+  const r3 = await syncOne(bol, BOL, { fetchFn: fakeNet(busy.routes).fetchFn, now: NOW, db: fakeD1() });
+  assert.match(r3.message, /no new try/);
+  assert.equal(busy.seen.tokens, 1);
+  for (const r of [empty, r1, noAccess, r3]) for (const s of [...Object.values(BOL), 'bolAccess-123456']) assert.ok(!String(r.message).includes(s));
+});
+
+test('bol.com setup key test: accepted, refused (401), no Reporting API access (403), never a redirect', async () => {
+  const ok = await bolTest({ id: BOL.BOL_REPORTING_CLIENT_ID, secret: BOL.BOL_REPORTING_CLIENT_SECRET, fetchImpl: fakeNet(fakeBol({ items: [bolItem(1, { orderDate: '2026-11-19' })] }).routes).fetchFn, now: NOW });
+  assert.deepEqual([ok.ok, ok.items], [true, 1]);
+  const refused = await bolTest({ id: 'a-123456', secret: 'b-123456', fetchImpl: fakeNet(fakeBol({ tokenStatus: 401 }).routes).fetchFn, now: NOW });
+  assert.deepEqual([refused.ok, refused.refused], [false, true]);
+  const catalogOnly = await bolTest({ id: 'a-123456', secret: 'b-123456', fetchImpl: fakeNet(fakeBol({ reportStatus: 403 }).routes).fetchFn, now: NOW });
+  assert.deepEqual([catalogOnly.ok, catalogOnly.noAccess], [false, true]);
+  const moved = await bolTest({ id: 'a-123456', secret: 'b-123456', fetchImpl: fakeNet({ 'login.bol.com': () => new Response('', { status: 302, headers: { Location: 'https://evil.example.com/' } }) }).fetchFn, now: NOW });
+  assert.match(moved.error, /redirect 302, not followed/);
 });

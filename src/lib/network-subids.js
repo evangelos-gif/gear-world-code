@@ -13,6 +13,12 @@
 //             Daisycon publisher FAQ "How to set up a Sub ID" ("&ws=", first Sub ID up to 100 characters).
 //   Linkwise  go.linkwi.se/z/<programme>-<id>/CD<publisher>/ links get subid1=<ref>. Official: Linkwise's own click
 //             script https://go.linkwi.se/delivery/js/crl.js sends subid1 ... subid5.
+//   bol.com   partner links https://partner.bol.com/click/click?p=2&t=url&s=<site ID>&f=TXL&url=<page>&name=<label>
+//             (tools/network-links.mjs bolLink) get subid=<ref> at the end (url= is encoded, so its place does not
+//             matter). Sources: bol's Affiliate Reporting API V2 gives "subId: the identifier given to the affiliate
+//             link" next to "name" (https://api.bol.com/marketing/docs/affiliate-reports-api/v2-api-documentation.html),
+//             and the bol.com Partner Program WordPress plugin builds ".../click/click?p=1&t=url&s=...&url=...&f=WP_BSL
+//             &subid=&name=..." (its readme). An EMPTY subid= counts as none and is filled in place.
 
 // The CJ click domains: the same list as tools/cj-feed.mjs CJ_LINK_HOSTS (a test keeps them equal). The engine cannot
 // import that file (it uses Node's file system).
@@ -36,6 +42,7 @@ const decodeName = p => { const n = p.split('=')[0]; try { return decodeURICompo
 export function networkOfLink(u) {
   if (!u || (u.protocol !== 'https:' && u.protocol !== 'http:')) return null;
   if (CJ_CLICK_HOSTS.test(u.hostname)) return 'cj';
+  if (/^(partner|partnerprogramma)\.bol\.com$/i.test(u.hostname) && /^\/click\/click\/?$/i.test(u.pathname)) return 'bol';
   if (/^go\.linkwi\.se$/i.test(u.hostname)) return 'linkwise';
   if (/^\/c\/?$/i.test(u.pathname) && u.searchParams.get('si') && u.searchParams.get('wi')) return 'daisycon';
   return null;
@@ -52,6 +59,13 @@ export function withNetworkSubId(target, clickRef) {
   if (net === 'cj') {
     if (!/^\/click-\d+-\d+/i.test(u.pathname) || has(u, 'sid')) return u;
     return insertParam(u, 'sid', ref, 'url');
+  }
+  if (net === 'bol') {
+    const parts = u.search.replace(/^\?/, '').split('&').filter(Boolean);
+    const i = parts.findIndex(p => decodeName(p) === 'subid');
+    if (i >= 0 && parts[i].split('=').slice(1).join('=') !== '') return u;
+    if (i >= 0) { parts[i] = `${parts[i].split('=')[0]}=${encodeURIComponent(ref)}`; u.search = `?${parts.join('&')}`; return u; }
+    return insertParam(u, 'subid', ref, null);
   }
   if (net === 'daisycon') {
     if (has(u, 'ws')) return u;

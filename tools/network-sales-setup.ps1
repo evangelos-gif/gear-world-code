@@ -28,8 +28,9 @@
   -Step probe   READ-ONLY, Linkwise only. With the Linkwise API login typed at the prompt (not stored by this step), one
                 call to reports_transaction.json and one to programs.json, without parameters; the report gets ONLY the
                 parameter names, field names and messages, never a value (TODO(linkwise) in src/networks/linkwise.js).
-  -Only cj | daisycon | linkwise (or a list 'cj,daisycon'): which networks' keys to set or check. Default: cj,daisycon
-                (Linkwise only when asked: its sync waits for the probe).
+  -Only cj | daisycon | linkwise | bol (or a list 'cj,daisycon,bol'): which networks' keys to set or check. Default:
+                cj,daisycon (Linkwise and bol.com only when asked; Linkwise's sync waits for the probe). bol.com: a NEW
+                credential with Reporting API access, never the catalog credential of tools/bol-feed-download.ps1.
   Report: <home>\gear-world-reports\NETWORK_SALES_<STEP>_<time>.txt (also copied to the clipboard)
 #>
 param(
@@ -62,6 +63,7 @@ $WorkerName = 'gear-world-network-sync'
 $NsGuardFloor = 'b2b10661d3270ac41f12c37cc4fb6c385b322c80'
 $DaisyconAppPage = 'https://login.daisycon.com/'
 $DaisyconRedirect = 'https://login.daisycon.com/oauth/cli'
+$BolPage = 'https://partner.bol.com/'
 if (-not $PcHome) { $PcHome = $HOME }
 if (-not $WorkDir) { $WorkDir = Join-Path $PcHome 'gear-world-network-sales' }
 if (-not $OutDir) { $OutDir = Join-Path $PcHome 'gear-world-reports' }
@@ -74,6 +76,7 @@ $Networks = [ordered]@{
     cj       = @{ Label = 'CJ'; Secrets = @('CJ_TOKEN'); Optional = @(); Page = 'https://developers.cj.com/account/personal-access-tokens' }
     daisycon = @{ Label = 'Daisycon'; Secrets = @('DAISYCON_CLIENT_ID', 'DAISYCON_REFRESH_SEED', 'NETWORK_SYNC_KEY'); Optional = @('DAISYCON_CLIENT_SECRET'); Page = 'https://login.daisycon.com/ (Tools -> Daisycon API, own app for the Worker)' }
     linkwise = @{ Label = 'Linkwise'; Secrets = @('LINKWISE_API_USER', 'LINKWISE_API_PASSWORD'); Optional = @(); Page = 'https://affiliate.linkwi.se/ (API)' }
+    bol      = @{ Label = 'bol.com'; Secrets = @('BOL_REPORTING_CLIENT_ID', 'BOL_REPORTING_CLIENT_SECRET'); Optional = @(); Page = 'https://partner.bol.com/ (Mijn account -> API toegang / Open API -> Client credentials -> Toevoegen: a NEW credential with Reporting API access)' }
 }
 $NewTables = @('network_transactions', 'network_sync_runs', 'network_oauth', 'all_network_sales', 'network_sync_meta')
 
@@ -95,7 +98,7 @@ function Hide-Ids([string]$Text) {
 }
 
 function Clear-NsEnv {
-    foreach ($n in @('GW_NS_CJ_TOKEN', 'GW_NS_LW_USER', 'GW_NS_LW_PASS', 'GW_DC_CLIENT', 'GW_DC_SECRET', 'GW_DC_CODE', 'GW_DC_VERIFIER')) {
+    foreach ($n in @('GW_NS_CJ_TOKEN', 'GW_NS_LW_USER', 'GW_NS_LW_PASS', 'GW_NS_BOL_ID', 'GW_NS_BOL_SECRET', 'GW_DC_CLIENT', 'GW_DC_SECRET', 'GW_DC_CODE', 'GW_DC_VERIFIER')) {
         [System.Environment]::SetEnvironmentVariable($n, $null)
     }
 }
@@ -451,7 +454,7 @@ if ($Apply -and ($Step -eq 'apply' -or $Step -eq 'keys')) { $mode = 'APPLY (με
 Say ('NETWORK SALES SETUP (CJ, Daisycon, Linkwise) - step: {0} - {1} - {2}' -f $Step, $mode, (Get-Date -Format 'yyyy-MM-dd HH:mm')) 'Cyan'
 Say ('Code version: {0}' -f (Split-Path -Leaf $repo))
 $chosen = @(([string]$Only).ToLowerInvariant() -split '[,\s]+' | Where-Object { $_ } | Select-Object -Unique)
-foreach ($c in $chosen) { if (-not $Networks.Contains($c)) { Say ('Άγνωστο δίκτυο: {0}. Γράψε cj, daisycon ή linkwise.' -f $c) 'Red'; Finish 12 } }
+foreach ($c in $chosen) { if (-not $Networks.Contains($c)) { Say ('Άγνωστο δίκτυο: {0}. Γράψε cj, daisycon, linkwise ή bol.' -f $c) 'Red'; Finish 12 } }
 if ($chosen.Count -lt 1) { Say 'Δεν δόθηκε δίκτυο (-Only cj, daisycon ή linkwise).' 'Red'; Finish 12 }
 $cidList = @(([string]$CjCid) -split '[,\s]+' | Where-Object { $_ })
 foreach ($c in $cidList) { if ($c -notmatch '^\d{3,12}$') { Say 'Λάθος αριθμός λογαριασμού CJ (-CjCid).' 'Red'; Finish 12 } }
@@ -561,6 +564,8 @@ if ($Step -eq 'check') {
     if ($chosen -contains 'daisycon') { Say ('     Daisycon: ο Worker θέλει ΔΙΚΗ ΤΟΥ εφαρμογή (app) στο {0}, Tools -> Daisycon API, με Redirect URI {1}' -f $DaisyconAppPage, $DaisyconRedirect) }
     if ($chosen -contains 'linkwise') { Say '     Linkwise: τα κλειδιά φυλάγονται, αλλά ο συγχρονισμός του μένει ⏸ ΣΕ ΑΝΑΜΟΝΗ ώσπου το βήμα probe (μόνο ανάγνωση) δείξει τις παραμέτρους.' }
     else { Say '     Linkwise: μόνο αν το ζητήσεις (-Only linkwise).' }
+    if ($chosen -contains 'bol') { Say ('     bol.com: ΝΕΟ κλειδί με πρόσβαση στο Reporting API, στο {0} -> Mijn account -> API toegang (Open API) -> Client credentials -> Toevoegen. Ποτέ το κλειδί «GearWorld» του καταλόγου.' -f $BolPage) }
+    else { Say '     bol.com: μόνο αν το ζητήσεις (-Only bol).' }
     Say ('  Μόνο κλειδιά, χωρίς πίνακες και ανέβασμα: -Step keys (φράση: {0}).' -f $PhraseKeys)
     Say '  Τα sites και οι βάσεις τους δεν αλλάζουν.'
     Say ''
@@ -796,6 +801,45 @@ foreach ($c in $chosen) {
         if ($okAll) { $okAll = Put-Key 'DAISYCON_REFRESH_SEED' $seed }
         $seed = ''; $secret = ''
         if (-not $okAll) { $failed.Add('Daisycon') }
+        continue
+    }
+
+    if ($c -eq 'bol') {
+        Write-Host 'Ο Worker χρειάζεται ΝΕΟ κλειδί του bol.com με πρόσβαση στο Reporting API (όχι το κλειδί «GearWorld» του καταλόγου, που έχει μόνο το Marketing Catalog API).' -ForegroundColor Yellow
+        Write-Host ('Μία φορά: {0} -> Mijn account -> API toegang (Open API) -> Client credentials -> Toevoegen, με όνομα π.χ. GearWorld Reporting και πρόσβαση στο Reporting API. Μετά επικόλλησε εδώ το Client ID και το Client secret του.' -f $BolPage) -ForegroundColor Yellow
+        $hint = 'σκέτο Enter = παράλειψη του bol.com'
+        if ($allSet) { $hint = 'σκέτο Enter = κρατάω τα υπάρχοντα' }
+        $bid = Read-Key 'BOL_REPORTING_CLIENT_ID' ('bol.com Reporting API: Client ID (δεν φαίνεται όσο το επικολλάς· {0})' -f $hint)
+        if (-not $bid) { Skip-Network 'bol.com' $allSet; continue }
+        $bsec = Read-Key 'BOL_REPORTING_CLIENT_SECRET' 'bol.com Reporting API: Client secret (δεν φαίνεται όσο το επικολλάς)'
+        if (-not $bsec) { Skip-Network 'bol.com' $allSet; continue }
+        # Never the PC's catalog credential (tools/bol-feed-download.ps1): only its id is compared, nothing is shown.
+        $pcBolId = ''
+        if ($SecretEnvPrefix) {
+            $pcBolId = [string][System.Environment]::GetEnvironmentVariable($SecretEnvPrefix + 'PC_BOL_CATALOG_ID')
+        } else {
+            $savedBol = Read-DpapiText (Join-Path $SecretsDir 'bol-api.dat')
+            if ($savedBol) { try { $ob = $savedBol | ConvertFrom-Json; $pcBolId = [string]$ob.id; if ([string]$ob.secret) { $script:Secrets.Add([string]$ob.secret) } } catch { } }
+            $savedBol = ''
+        }
+        if ($pcBolId) { $script:Secrets.Add($pcBolId.Trim()) }
+        if ($pcBolId -and ($pcBolId.Trim() -eq $bid)) { Say '   🔴 Αυτό είναι το κλειδί του καταλόγου («GearWorld», bol-feed-download), όχι νέο κλειδί για το Reporting API. Δεν το αποθήκευσα· φτιάξε νέο.' 'Red'; $failed.Add('bol.com'); continue }
+        $verdict = 'none'
+        if ($env:GW_TEST_NS_API) { $verdict = $env:GW_TEST_NS_API } else {
+            $env:GW_NS_BOL_ID = $bid; $env:GW_NS_BOL_SECRET = $bsec
+            try { $R = Invoke-NodeJson 'network-sales.mjs' @('--mode', 'bol-test') } finally { Clear-NsEnv }
+            if ($R) {
+                if ($R.ok) { $verdict = 'ok'; Say ('   bol.com: το Reporting API απάντησε ({0} παραγγελίες χθες και σήμερα)' -f $R.items) } elseif ($R.refused) { $verdict = 'refused' } elseif ($R.noAccess) { $verdict = 'noaccess' }
+                if ($R.error) { Say ('   bol.com: {0}' -f $R.error) }
+            }
+        }
+        if ($verdict -eq 'refused') { Say '   🔴 Το bol.com ΔΕΝ δέχτηκε το κλειδί (401). Δεν το αποθήκευσα· αντέγραψέ το ξανά ή φτιάξε νέο.' 'Red'; $failed.Add('bol.com'); continue }
+        if ($verdict -eq 'noaccess') { Say '   🔴 Αυτό το κλειδί δεν έχει πρόσβαση στο Reporting API (403). Δεν το αποθήκευσα· φτιάξε νέο κλειδί με πρόσβαση στο Reporting API.' 'Red'; $failed.Add('bol.com'); continue }
+        if ($verdict -ne 'ok') { Say '   🔴 Το bol.com δεν απάντησε σωστά στη δοκιμή του κλειδιού (μία δοκιμή μόνο ανάγνωσης). Δεν το αποθήκευσα· ξαναδοκίμασε σε λίγο.' 'Red'; $failed.Add('bol.com'); continue }
+        $okAll = Put-Key 'BOL_REPORTING_CLIENT_ID' $bid
+        if ($okAll) { $okAll = Put-Key 'BOL_REPORTING_CLIENT_SECRET' $bsec }
+        $bid = ''; $bsec = ''
+        if (-not $okAll) { $failed.Add('bol.com') }
         continue
     }
 

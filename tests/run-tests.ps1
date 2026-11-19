@@ -5316,16 +5316,35 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         $r = NLast 'NETWORK_SALES_APPLY_*.txt'
         Check (-not $r.Contains('wrangler delete --name') -and -not $r.Contains('ΜΟΝΟ αν δεν υπήρχε') -and $r.Contains('npx wrangler rollback ') -and $r.Contains('Worker gear-world-network-sync: υπάρχει')) 'network sales: a readable key list means the Worker exists, so no delete line'
         Remove-Item -LiteralPath (Join-Path $nState 'deplistalways.flag') -Force
+        # bol.com (19 Nov 2026): a NEW credential with Reporting API access; the PC's catalog credential is refused; a re-run
+        # with the bol keys pasted and Enter for CJ and Daisycon stores only the two bol keys and deploys the new code.
+        $env:GW_TEST_NSB_BOL_REPORTING_CLIENT_ID = 'bolReportingId0001'
+        $env:GW_TEST_NSB_BOL_REPORTING_CLIENT_SECRET = 'bolReportingSecret0123456789'
+        $env:GW_TEST_NSB_PC_BOL_CATALOG_ID = 'bolReportingId0001'
+        $puts = NCount 'secret put'
+        Check ((Run-NP 'GW_TEST_NSB_' ($nKeys + @('-Only', 'bol'))) -eq 8 -and (NCount 'secret put') -eq $puts -and (NLast 'NETWORK_SALES_KEYS_*.txt').Contains('κλειδί του καταλόγου')) 'network sales bol: the PC catalog credential is refused for the Worker'
+        $env:GW_TEST_NSB_PC_BOL_CATALOG_ID = 'gearworld-catalog-0001'
+        $env:GW_TEST_NS_API = 'noaccess'
+        Check ((Run-NP 'GW_TEST_NSB_' ($nKeys + @('-Only', 'bol'))) -eq 8 -and (NCount 'secret put') -eq $puts -and (NLast 'NETWORK_SALES_KEYS_*.txt').Contains('πρόσβαση στο Reporting API (403)')) 'network sales bol: a credential without Reporting API access is not stored'
+        $env:GW_TEST_NS_API = 'ok'
+        $deploys = NCount ' deploy --config'
+        Check ((Run-NP 'GW_TEST_NSB_' ($nApply + @('-Only', 'cj,daisycon,bol'))) -eq 0) 'network sales re-run with bol.com: exit 0'
+        $c = NText $nCalls
+        Check ((NCount 'secret put') -eq ($puts + 2) -and (NCount 'secret put BOL_REPORTING_CLIENT_ID') -eq 1 -and (NCount 'secret put BOL_REPORTING_CLIENT_SECRET') -eq 1 -and (NCount ' deploy --config') -eq ($deploys + 1)) 'network sales re-run with bol.com: only the two bol keys stored, the Worker deployed again'
+        Check ((NSecret 'BOL_REPORTING_CLIENT_SECRET') -eq 'bolReportingSecret0123456789' -and -not $c.Contains('bolReportingSecret0123456789') -and -not $c.Contains('bolReportingId0001')) 'network sales bol: the keys reached wrangler through its input, never on a command line'
+        $r = NLast 'NETWORK_SALES_APPLY_*.txt'
+        Check ($r.Contains('CJ: ΠΑΡΑΛΕΙΦΘΗΚΕ (κρατήθηκαν') -and $r.Contains('Daisycon: ΠΑΡΑΛΕΙΦΘΗΚΕ (κρατήθηκαν') -and $r.Contains('secret delete BOL_REPORTING_CLIENT_SECRET --name gear-world-network-sync') -and $r.Contains('Αποτέλεσμα: 🟢 ΕΤΟΙΜΟ')) 'network sales re-run with bol.com: CJ and Daisycon kept, the undo names the bol keys'
+        Check (-not $r.Contains('bolReportingSecret0123456789') -and -not $r.Contains('bolReportingId0001') -and -not $r.Contains('gearworld-catalog-0001')) 'network sales bol: no key in the report'
         # check afterwards: every network set up, the last syncs shown, a held network in its own words
         Check ((Run-N @('-Step', 'check')) -eq 0) 'network sales check after apply: exit 0'
         $r = NLast 'NETWORK_SALES_CHECK_*.txt'
-        Check ($r.Contains('CJ: όλα τα κλειδιά υπάρχουν') -and $r.Contains('Daisycon: όλα τα κλειδιά υπάρχουν') -and $r.Contains('Νέοι πίνακες: υπάρχουν όλοι') -and $r.Contains('🟢 ΕΝΤΑΞΕΙ  κλήσεις 4, πωλήσεις που ήρθαν 2') -and $r.Contains('Έκδοση κώδικα του Worker: ' + $nCommit.Substring(0, 7))) 'network sales check after apply: keys set (names only), tables there, the last sync and the version shown'
+        Check ($r.Contains('CJ: όλα τα κλειδιά υπάρχουν') -and $r.Contains('Daisycon: όλα τα κλειδιά υπάρχουν') -and $r.Contains('bol.com: όλα τα κλειδιά υπάρχουν') -and $r.Contains('Νέοι πίνακες: υπάρχουν όλοι') -and $r.Contains('🟢 ΕΝΤΑΞΕΙ  κλήσεις 4, πωλήσεις που ήρθαν 2') -and $r.Contains('Έκδοση κώδικα του Worker: ' + $nCommit.Substring(0, 7))) 'network sales check after apply: keys set (names only), tables there, the last sync and the version shown'
         Check ($r.Contains('⏸ ΣΕ ΑΝΑΜΟΝΗ  κλήσεις 0') -and -not $r.Contains('🔴 ΠΡΟΒΛΗΜΑ')) 'network sales check: a held network is ⏸ ΣΕ ΑΝΑΜΟΝΗ, never 🔴 ΠΡΟΒΛΗΜΑ'
     } finally {
         $env:PATH = $oldPath
         $env:GW_GUARD_TEST_COMMIT = $nCommit
         $env:GW_GUARD_TEST_COMPARE = 'ahead'
-        foreach ($v in @('GW_FAKE_STATE', 'GW_TEST_NS_API', 'GW_TEST_NSK_CJ_TOKEN', 'GW_TEST_NSK_DAISYCON_CLIENT_ID', 'GW_TEST_NSK_DAISYCON_CLIENT_SECRET', 'GW_TEST_NSK_DAISYCON_REFRESH_SEED', 'GW_TEST_NSK_LINKWISE_API_USER', 'GW_TEST_NSK_LINKWISE_API_PASSWORD')) {
+        foreach ($v in @('GW_FAKE_STATE', 'GW_TEST_NS_API', 'GW_TEST_NSK_CJ_TOKEN', 'GW_TEST_NSK_DAISYCON_CLIENT_ID', 'GW_TEST_NSK_DAISYCON_CLIENT_SECRET', 'GW_TEST_NSK_DAISYCON_REFRESH_SEED', 'GW_TEST_NSK_LINKWISE_API_USER', 'GW_TEST_NSK_LINKWISE_API_PASSWORD', 'GW_TEST_NSB_BOL_REPORTING_CLIENT_ID', 'GW_TEST_NSB_BOL_REPORTING_CLIENT_SECRET', 'GW_TEST_NSB_PC_BOL_CATALOG_ID')) {
             Remove-Item ('Env:\' + $v) -ErrorAction SilentlyContinue
         }
     }

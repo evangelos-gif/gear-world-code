@@ -5,6 +5,10 @@
 //   node tools/network-sales.mjs --mode cj-test --cid 8114224,7806395     (GW_NS_CJ_TOKEN)
 //     One Commission Detail question per CID for the last 30 days (src/networks/cj.js): is the key accepted, and how
 //     many commissions each CID has. Docs: https://developers.cj.com/graphql/reference/Commission%20Detail
+//   node tools/network-sales.mjs --mode bol-test                           (GW_NS_BOL_ID, GW_NS_BOL_SECRET)
+//     One token and one Orders report of bol.com's Affiliate Reporting API for yesterday and today (src/networks/bol.js):
+//     is the credential accepted (401 = refused), and does it have access to the Reporting API (403 = no access, e.g.
+//     the catalog credential). Docs: https://api.bol.com/marketing/docs/affiliate-reports-api/index.html
 //   node tools/network-sales.mjs --mode linkwise-probe                     (GW_NS_LW_USER, GW_NS_LW_PASS)
 //     reports_transaction.json and programs.json of the Linkwise API (https://affiliate.linkwi.se/api/1.1/), once each,
 //     with no parameters: only the parameter names, field names and messages are reported, never the values of a
@@ -13,6 +17,7 @@
 import { pathToFileURL } from 'node:url';
 import { CJ_COMMISSIONS_API, commissionsQuery } from '../src/networks/cj.js';
 import { LW_API, basicAuth } from '../src/networks/linkwise.js';
+import { BOL_LOGIN, BOL_REPORTS } from '../src/networks/bol.js';
 import { iso, makeMask } from '../src/networks/common.js';
 
 const read = async res => { let t = ''; try { t = await res.text(); } catch { /* no body */ } let j = null; try { j = JSON.parse(t); } catch { /* not JSON */ } return { t, j }; };
@@ -48,6 +53,35 @@ export async function cjTest({ token, cids, fetchImpl = fetch, now = new Date() 
   out.ok = !out.refused && out.cids.some(c => c.ok);
   out.accountsRefused = !out.ok && !out.refused && out.cids.length > 0 && out.cids.every(c => c.notAuthorized);
   return out;
+}
+
+// refused: the token was refused (401). noAccess: a token, but the Orders report answered 403 (no Reporting API access).
+export async function bolTest({ id, secret, fetchImpl = fetch, now = new Date() }) {
+  const out = { ok: false, refused: false, noAccess: false, status: 0, items: null };
+  if (!id || !secret) return { ...out, error: 'no bol.com Reporting API keys' };
+  let res;
+  try {
+    res = await fetchImpl(`${BOL_LOGIN}/token?grant_type=client_credentials`, { method: 'POST', redirect: 'manual', body: '',
+      headers: { authorization: `Basic ${btoa(`${id}:${secret}`)}`, accept: 'application/json', 'content-type': 'application/x-www-form-urlencoded' } });
+  } catch (e) { return { ...out, error: `network: ${String(e && e.message || e).slice(0, 120)}` }; }
+  if (noRedirect(res)) return { ...out, error: `redirect ${res.status}, not followed` };
+  if (res.status === 401) return { ...out, refused: true, status: 401 };
+  const { j } = await read(res);
+  if (res.status !== 200 || !j || !j.access_token) return { ...out, status: res.status, error: `no token (HTTP ${res.status})` };
+  const day = d => d.toISOString().slice(0, 10);
+  const q = new URLSearchParams({ startDate: day(new Date(now.getTime() - 864e5)), endDate: day(now) });
+  try {
+    res = await fetchImpl(`${BOL_REPORTS}/order-report?${q}`, { method: 'GET', redirect: 'manual', headers: { authorization: `Bearer ${j.access_token}`, accept: 'application/json' } });
+  } catch (e) { return { ...out, error: `network: ${String(e && e.message || e).slice(0, 120)}` }; }
+  out.status = res.status;
+  if (noRedirect(res)) return { ...out, error: `redirect ${res.status}, not followed` };
+  if (res.status === 403) return { ...out, noAccess: true };
+  if (res.status === 401) return { ...out, refused: true };
+  const r2 = await read(res);
+  if (res.status === 204 || (res.status === 200 && !r2.t.trim())) return { ...out, ok: true, items: 0 };
+  if (res.status !== 200 || !r2.j) return { ...out, error: `HTTP ${res.status}` };
+  const items = Array.isArray(r2.j) ? r2.j : (Array.isArray(r2.j.items) ? r2.j.items : []);
+  return { ...out, ok: true, items: items.length };
 }
 
 const keysOf = o => (o && typeof o === 'object' && !Array.isArray(o) ? Object.keys(o).slice(0, 60) : []);
@@ -94,7 +128,8 @@ function arg(name) { const i = process.argv.indexOf(name); return i > 0 ? proces
 
 if (import.meta.url === pathToFileURL(process.argv[1] || '').href) {
   const mode = arg('--mode');
-  const secrets = [process.env.GW_NS_CJ_TOKEN, process.env.GW_NS_LW_USER, process.env.GW_NS_LW_PASS].filter(Boolean).map(String);
+  const secrets = [process.env.GW_NS_CJ_TOKEN, process.env.GW_NS_LW_USER, process.env.GW_NS_LW_PASS, process.env.GW_NS_BOL_ID, process.env.GW_NS_BOL_SECRET].filter(Boolean).map(String);
+  if (process.env.GW_NS_BOL_ID && process.env.GW_NS_BOL_SECRET) secrets.push(btoa(`${process.env.GW_NS_BOL_ID}:${process.env.GW_NS_BOL_SECRET}`));
   if (process.env.GW_NS_LW_USER && process.env.GW_NS_LW_PASS) secrets.push(basicAuth(process.env.GW_NS_LW_USER, process.env.GW_NS_LW_PASS).slice(6));
   const mask = makeMask(secrets);
   let result;
@@ -102,11 +137,13 @@ if (import.meta.url === pathToFileURL(process.argv[1] || '').href) {
     if (mode === 'cj-test') {
       const cids = arg('--cid').split(/[,\s]+/).filter(x => /^\d{3,12}$/.test(x));
       result = cids.length ? await cjTest({ token: String(process.env.GW_NS_CJ_TOKEN || '').trim(), cids }) : { ok: false, error: 'no CJ account number (CID)' };
+    } else if (mode === 'bol-test') {
+      result = await bolTest({ id: String(process.env.GW_NS_BOL_ID || '').trim(), secret: String(process.env.GW_NS_BOL_SECRET || '').trim() });
     } else if (mode === 'linkwise-probe') {
       const api = arg('--api') || LW_API;
       result = await linkwiseProbe({ user: String(process.env.GW_NS_LW_USER || '').trim(), pass: String(process.env.GW_NS_LW_PASS || ''), api });
     } else {
-      result = { ok: false, error: 'mode must be cj-test or linkwise-probe' };
+      result = { ok: false, error: 'mode must be cj-test, bol-test or linkwise-probe' };
     }
   } catch (e) {
     result = { ok: false, error: `crash: ${String(e && e.message || e).slice(0, 200)}` };

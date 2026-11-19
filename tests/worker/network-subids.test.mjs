@@ -8,7 +8,7 @@ import { DatabaseSync } from 'node:sqlite';
 import { affiliateTarget, createWorker } from '../../src/engine.js';
 import { withNetworkSubId, networkOfLink, CJ_CLICK_HOSTS } from '../../src/lib/network-subids.js';
 import { CJ_LINK_HOSTS, isCjLink } from '../../tools/cj-feed.mjs';
-import { isDaisyconLink } from '../../tools/network-links.mjs';
+import { isDaisyconLink, bolLink, isBolLink, BOL_SITE_ID } from '../../tools/network-links.mjs';
 import { subIdParts } from '../../src/networks/common.js';
 
 // affiliateTarget as it was before lessons L197 (commit a6449786), to prove Awin links and plain addresses did not change.
@@ -52,6 +52,8 @@ test('Awin links and plain retailer addresses are byte for byte as before', () =
     ['http://shop.example/p/1', 'Other'],
     ['https://shop.example/c/?si=1', 'Other'],
     ['https://go.linkwi.se.evil.com/z/1-0/CD1/', 'Other'],
+    ['https://www.bol.com/nl/nl/p/lego-set/9200000012345678/', 'bol.com'],
+    ['https://partner.bol.com/account/start', 'bol.com'],
     ['javascript:alert(1)', 'Tooled Up'],
     ['not a url', 'Tooled Up'],
     ['', 'Tooled Up']
@@ -157,4 +159,18 @@ test('TGW /out/: a CJ product goes to CJ with sid=tgw-<id>; an Awin product exac
   assert.equal(await go(1), str(before(awinUrl, 'x', site.awin, 'tgw-1')), 'the Awin product: the same address as before');
   DB.sql.prepare('UPDATE products SET affiliate_url = ? WHERE id = 1').run('https://www.anrdoezrs.net/click-101917444-15734567?url=https%3A%2F%2Fxplora.co.uk%2Fproducts%2Fx6play');
   assert.equal(await go(1), 'https://www.anrdoezrs.net/click-101917444-15734567?sid=tgw-1&url=https%3A%2F%2Fxplora.co.uk%2Fproducts%2Fx6play');
+});
+
+test('bol.com: subid= on partner links when missing (an empty one is filled in place), everything else byte for byte', () => {
+  const link = bolLink('https://www.bol.com/nl/nl/p/lego-set/9200000012345678/', 'Lego set');
+  const out = str(affiliateTarget(link, 'bol.com', AWIN, 'kgw-77'));
+  assert.equal(out, `${link}&subid=kgw-77`);
+  assert.ok(isBolLink(out, BOL_SITE_ID), 'still our partner link');
+  assert.equal(new URL(out).searchParams.get('url'), 'https://www.bol.com/nl/nl/p/lego-set/9200000012345678/');
+  const kept = `${link}&subid=theirs`;
+  assert.equal(str(affiliateTarget(kept, 'bol.com', AWIN, 'kgw-77')), kept);
+  const emptyOne = 'http://partnerprogramma.bol.com/click/click?p=1&t=url&s=1559450&url=https%3A%2F%2Fwww.bol.com%2Fnl%2Fp%2Fx%2F1%2F&f=WP_BSL&subid=&name=Test';
+  assert.equal(str(affiliateTarget(emptyOne, 'bol.com', AWIN, 'hgw-5')), emptyOne.replace('subid=&', 'subid=hgw-5&'));
+  assert.equal(subIdParts(new URL(out).searchParams.get('subid')).site, 'kgw', 'the Reporting API gives it back as subId');
+  assert.equal(networkOfLink(new URL('https://partner.bol.com.evil.com/click/click?s=1')), null);
 });

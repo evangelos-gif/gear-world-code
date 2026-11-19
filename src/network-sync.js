@@ -1,7 +1,7 @@
 // gear-world-network-sync: the private Worker that copies the sales of the affiliate networks OTHER than Awin (CJ,
-// Daisycon, Linkwise now; Rakuten, Admitad, bol.com, eBay later) into the D1 database gear-world-awin, next to the Awin
-// sales, so the private dashboard can show every network on one page (lessons L197). It copies the safety pattern of the
-// Awin sync (src/awin-sync.js, lessons L91) and does not change it:
+// Daisycon, Linkwise, bol.com now; Rakuten, Admitad, eBay later) into the D1 database gear-world-awin, next to the Awin
+// sales, so the private dashboard can show every network on one page (lessons L197). It copies the safety pattern of
+// the Awin sync (src/awin-sync.js, lessons L91) and does not change it:
 // - Read-only towards the networks: only report calls (CJ's GraphQL report is a POST that only reads; Daisycon's token
 //   call is a POST to its login service). Each network's keys go only to that network's own hosts.
 // - No public address (no routes, workers.dev off): it runs on its cron only and answers 404 to any request.
@@ -10,16 +10,17 @@
 // - A network runs only when its secrets exist. One network failing never stops the others; each network writes its
 //   own row in network_sync_runs (ok or not, and why, never a secret).
 //
-// Adding a network (Rakuten, Admitad, bol.com, eBay ...): one file in src/networks/ that exports
+// Adding a network (Rakuten, Admitad, eBay ...): one file in src/networks/ that exports
 //   { id, label, hosts, secrets, optionalSecrets, ready, waiting, async run(ctx) -> rows, afterSave(db)? }
 // one line in NETWORKS below, and its secrets in tools/network-sales-setup.ps1 ($Networks).
 import { COLS, DAY, FIRST_DAY, LOOKBACK_DAYS, makeMask, setMeta } from './networks/common.js';
 import { cj } from './networks/cj.js';
 import { daisycon } from './networks/daisycon.js';
 import { linkwise } from './networks/linkwise.js';
+import { bol } from './networks/bol.js';
 
 export { FIRST_DAY, LOOKBACK_DAYS };
-export const NETWORKS = [cj, daisycon, linkwise];
+export const NETWORKS = [cj, daisycon, linkwise, bol];
 export const KEEP_RUNS = 600;
 // At most this many calls to one network in one run (CJ allows 200 per 5 minutes, Daisycon 50 a minute).
 export const MAX_CALLS = 40;
