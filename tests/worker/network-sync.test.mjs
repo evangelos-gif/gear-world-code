@@ -471,3 +471,16 @@ test('review P1-7: the CJ key test tells a refused key from a question with an e
   assert.deepEqual([query.ok, query.refused], [false, false]);
   assert.match(query.queryError, /Cannot query field/);
 });
+
+test('re-review: every CID "Not authorized" = CJ refused this key for these accounts, not a code error', async () => {
+  const notAuth = fakeNet({ 'commissions.api.cj.com': () => json({ errors: [{ message: 'Not authorized for publisher 7806395' }] }) });
+  const a = await cjTest({ token: CJ_TOKEN, cids: ['8114224', '7806395'], fetchImpl: notAuth.fetchFn, now: NOW });
+  assert.deepEqual([a.ok, a.refused, a.accountsRefused, a.queryError], [false, false, true, '']);
+  const mixed = fakeNet({ 'commissions.api.cj.com': (u, body) => json({ errors: [{ message: body.includes('8114224') ? 'Not authorized' : "Cannot query field 'x'" }] }) });
+  const m = await cjTest({ token: CJ_TOKEN, cids: ['8114224', '7806395'], fetchImpl: mixed.fetchFn, now: NOW });
+  assert.equal(m.accountsRefused, false, 'one real query error is still a code error');
+  assert.match(m.queryError, /Cannot query field/);
+  const one = fakeNet({ 'commissions.api.cj.com': (u, body) => (body.includes('8114224') ? json({ errors: [{ message: 'Not authorized' }] }) : fakeCj({ byCid: { 7806395: [] } })(u, body)) });
+  const o = await cjTest({ token: CJ_TOKEN, cids: ['8114224', '7806395'], fetchImpl: one.fetchFn, now: NOW });
+  assert.deepEqual([o.ok, o.accountsRefused], [true, false], 'one account that works is enough');
+});

@@ -413,3 +413,21 @@ test('Daisycon: --country GB,US,PL gives one file per country in its own currenc
   assert.deepEqual(P.programs.map(x => `${x.country} ${x.ok} ${x.noFeed || false}`), ['GB true false', 'PL false true']);
   assert.equal((await dc.main(['--mode', 'probe', '--media', '447289', '--programs', '18371', '--country', 'GB,USA'], fake, env)).error, 'wrong country (two letters, e.g. GB, or a list GB,US,PL)');
 });
+
+test('Daisycon: the sign-in never follows a redirect (the client secret and the key stay with login.daisycon.com)', async () => {
+  const calls = [];
+  const answer = status => async (url, init) => {
+    calls.push(init);
+    return status === 200
+      ? new Response(JSON.stringify({ access_token: 'acc-123456', refresh_token: 'ref-123456', expires_in: 1800 }), { status: 200 })
+      : new Response('', { status, headers: { Location: 'https://evil.example.com/steal' } });
+  };
+  for (const status of [301, 302, 307, 308]) {
+    const r = await dc.tokenRequest({ fetchImpl: answer(status), grant_type: 'refresh_token', refresh_token: 'old-123456', client_id: 'c', client_secret: 's-123456' });
+    assert.match(r.error, new RegExp(`HTTP ${status}: the Daisycon login answered with a redirect, not followed`));
+  }
+  assert.ok(calls.every(i => i.redirect === 'manual'), 'fetch is told not to follow');
+  assert.equal(calls.length, 4, 'one call each, never a second one to the new address');
+  const ok = await dc.tokenRequest({ fetchImpl: answer(200), grant_type: 'refresh_token', refresh_token: 'old-123456', client_id: 'c' });
+  assert.deepEqual(ok, { access: 'acc-123456', refresh: 'ref-123456', expiresIn: 1800 }, 'a normal answer as before');
+});

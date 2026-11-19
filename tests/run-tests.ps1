@@ -5116,6 +5116,8 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         ':deployments',
         ('if exist "%GW_FAKE_STATE%\worker.flag" echo Version(s):  (100%%) ' + $nVer),
         'if exist "%GW_FAKE_STATE%\worker.flag" exit /b 0',
+        'if exist "%GW_FAKE_STATE%\deplistunknown.flag" echo X [ERROR] A request to the Cloudflare API failed. [code: 10013]',
+        'if exist "%GW_FAKE_STATE%\deplistunknown.flag" exit /b 1',
         'echo X [ERROR] This Worker does not exist on your account. [code: 10007]',
         'exit /b 1',
         ':deploy',
@@ -5208,16 +5210,23 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         $r = NLast 'NETWORK_SALES_APPLY_*.txt'
         Check ($r.Contains('DROP TABLE IF EXISTS network_transactions') -and $r.Contains('0003_network_sync_meta.sql') -and -not $r.Contains('wrangler delete --name')) 'network sales apply: after a failed deploy the undo drops only the new tables'
         Remove-Item -LiteralPath (Join-Path $nState 'deployfail.flag') -Force
-        # a key the network refuses is not stored; the Worker made in this run is the undo
+        # a key the network refuses is not stored; the Worker made in this run is the undo, even when the deployment
+        # list gives no clear answer (the key list's "does not exist" says the Worker is new)
         $env:GW_TEST_NS_API = 'refused'
+        Write-Utf8 (Join-Path $nState 'deplistunknown.flag') 'x'
         Check ((Run-N ($nApply + @('-Only', 'cj'))) -eq 8 -and (NCount 'secret put') -eq 0) 'network sales apply: a refused CJ key is not stored (exit 8)'
+        Remove-Item -LiteralPath (Join-Path $nState 'deplistunknown.flag') -Force
         $r = NLast 'NETWORK_SALES_APPLY_*.txt'
+        Check ($r.Contains('δεν υπάρχει ακόμα (θα ανέβει)') -and $r.Contains('ΕΝΤΑΞΕΙ: δεν υπάρχει ακόμα Worker')) 'network sales apply: an unclear deployment list is resolved by the key list (the Worker is new)'
         Check ($r.Contains('ΠΡΟΒΛΗΜΑ με: CJ') -and $r.Contains('401/403') -and -not $r.Contains($nCjToken)) 'network sales apply: the report says CJ refused the key, without the key'
         Check ($r.Contains('wrangler delete --name gear-world-network-sync') -and -not $r.Contains('DROP TABLE') -and -not $r.Contains('secret delete')) 'network sales apply: the undo names only the Worker this run made'
         Check ((NCount (' deploy --config [^\r\n]* --var GW_COMMIT:' + $nCommit)) -ge 1 -and (NText (Join-Path $nState 'meta.txt')).Trim() -eq $nCommit) 'network sales apply: deployed with its version, which is written to network_sync_meta'
         # CJ took the key but the question has an error: other words, not stored
         $env:GW_TEST_NS_API = 'query'
         Check ((Run-N ($nApply + @('-Only', 'cj'))) -eq 8 -and (NCount 'secret put') -eq 0 -and (NLast 'NETWORK_SALES_APPLY_*.txt').Contains('η ερώτηση για τις πωλήσεις έχει λάθος')) 'network sales apply: a CJ query error is told apart from a refused key'
+        # every CJ account says "Not authorized": the key is refused for these accounts, not a code error
+        $env:GW_TEST_NS_API = 'accounts'
+        Check ((Run-N ($nApply + @('-Only', 'cj'))) -eq 8 -and (NCount 'secret put') -eq 0 -and (NLast 'NETWORK_SALES_APPLY_*.txt').Contains('αρνήθηκε αυτό το κλειδί για αυτούς τους λογαριασμούς') -and -not (NLast 'NETWORK_SALES_APPLY_*.txt').Contains('έχει λάθος')) 'network sales apply: CJ refusing the key for these accounts has its own words'
         # CJ with approval
         $env:GW_TEST_NS_API = 'ok'
         Check ((Run-N @('-Step', 'apply', '-Apply', '-Approve', 'Εγκρίνω πωλήσεις δικτύων', '-Only', 'cj')) -eq 0) 'network sales apply CJ with approval: exit 0'

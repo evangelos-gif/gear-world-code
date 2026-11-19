@@ -20,10 +20,12 @@ const read = async res => { let t = ''; try { t = await res.text(); } catch { /*
 // The key goes only where it is sent: a redirect is never followed (it could carry the key to another host).
 const noRedirect = res => res.status >= 300 && res.status < 400;
 
-// refused: CJ said no to the key (401/403, "Invalid auth token"). queryError: CJ took the key but the question has an
-// error (GraphQL errors) - our fault, not the key's. The setup tool says the two in different words.
+// refused: CJ said no to the key (401/403, "Invalid auth token"). accountsRefused: every CID answered "Not authorized"
+// (or the like): the key works, but not for these CJ accounts. queryError: CJ took the key but the question has another
+// error (GraphQL errors) - our fault, not the key's. The setup tool says the three in different words.
+export const NOT_AUTHORIZED = /not\s*authori[sz]ed|unauthori[sz]ed|forbidden|access denied|permission/i;
 export async function cjTest({ token, cids, fetchImpl = fetch, now = new Date() }) {
-  const out = { ok: false, refused: false, queryError: '', cids: [] };
+  const out = { ok: false, refused: false, accountsRefused: false, queryError: '', cids: [] };
   if (!token || token.length < 10) return { ...out, error: 'no CJ key' };
   const since = iso(new Date(now.getTime() - 30 * 864e5));
   for (const cid of cids) {
@@ -37,11 +39,12 @@ export async function cjTest({ token, cids, fetchImpl = fetch, now = new Date() 
     if (res.status === 401 || res.status === 403 || /invalid auth token/i.test(t)) { out.refused = true; out.cids.push({ cid, ok: false, error: `refused (${res.status})` }); break; }
     const errs = j && Array.isArray(j.errors) && j.errors.length ? j.errors.map(e => (e && e.message) || '').join('; ').slice(0, 200) : '';
     const block = j && j.data && j.data.publisherCommissions;
-    if (errs) { out.queryError = errs; out.cids.push({ cid, ok: false, query: true, error: errs }); continue; }
+    if (errs) { out.cids.push({ cid, ok: false, query: true, notAuthorized: NOT_AUTHORIZED.test(errs), error: errs }); if (!NOT_AUTHORIZED.test(errs)) out.queryError = errs; continue; }
     if (!block) { out.cids.push({ cid, ok: false, error: `HTTP ${res.status}` }); continue; }
     out.cids.push({ cid, ok: true, count: Number(block.count) || 0 });
   }
   out.ok = !out.refused && out.cids.some(c => c.ok);
+  out.accountsRefused = !out.ok && !out.refused && out.cids.length > 0 && out.cids.every(c => c.notAuthorized);
   return out;
 }
 

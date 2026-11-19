@@ -358,6 +358,9 @@ function Write-Undo {
     if ($script:CreatedWorker) {
         $lines.Add(('  Ο Worker (φτιάχτηκε τώρα, μαζί και τα κλειδιά του):  npx wrangler delete --name {0}' -f $WorkerName))
     } else {
+        if ($script:MaybeCreatedWorker) {
+            $lines.Add(('  Ο Worker, ΜΟΝΟ αν δεν υπήρχε πριν (ο έλεγχος δεν μπόρεσε να το διαβάσει):  npx wrangler delete --name {0}' -f $WorkerName))
+        }
         foreach ($k in $script:SetKeys) { $lines.Add(('  Το κλειδί {0}:  npx wrangler secret delete {0} --name {1}' -f $k, $WorkerName)) }
         if ($script:Deployed -and $script:PrevCommit) {
             $lines.Add(('  Ο Worker υπήρχε ήδη (έκδοση {0}): για τον προηγούμενο κώδικα, το ίδιο apply από την έκδοση {0} (μόνο με έγκριση).' -f (Get-GwShort $script:PrevCommit)))
@@ -400,6 +403,7 @@ function Write-Undo {
 
 # What this run made, for Write-Undo.
 $script:CreatedWorker = $false
+$script:MaybeCreatedWorker = $false
 $script:CreatedTables = @()
 $script:SetKeys = New-Object System.Collections.Generic.List[string]
 $script:Deployed = $false
@@ -472,7 +476,12 @@ if (-not $dbId) { Say ('Η βάση {0} δεν υπάρχει: πρώτα το a
 Write-Config $config $dbId $CjCid
 $worker = Get-WorkerState $deploy
 $names = @('missing')
-if ($worker -eq 'yes') { $names = Get-SecretNames $deploy }
+if ($worker -ne 'no') {
+    $names = Get-SecretNames $deploy
+    # The deployment list gave no clear answer: the key list says "does not exist" (code 10007) for a missing Worker,
+    # so the guard and the undo know this run is the one that makes it.
+    if ($worker -eq 'unknown' -and $null -ne $names -and @($names) -contains 'missing') { $worker = 'no' }
+}
 
 Say ''
 Say 'Τι υπάρχει τώρα:'
@@ -602,7 +611,7 @@ if ($Step -eq 'apply') {
     }
     if ($d.code -ne 0) { Say '   Ο Worker δεν ανέβηκε. Στείλε στο Claude αυτό το μήνυμα.' 'Red'; foreach ($line in @($d.text -split "`n" | Select-Object -Last 12)) { Say ('  ' + $line) }; Write-Undo; Finish 7 }
     $script:Deployed = $true
-    if ($worker -eq 'no') { $script:CreatedWorker = $true }
+    if ($worker -eq 'no') { $script:CreatedWorker = $true } elseif ($worker -ne 'yes') { $script:MaybeCreatedWorker = $true }
     Say '   Worker: 🟢 ΕΝΤΑΞΕΙ (χωρίς δημόσια διεύθυνση, κάθε 2 ώρες στο :47)' 'Green'
     # The version, readable at once (the Worker also writes it at every run).
     $metaSql = "INSERT INTO network_sync_meta (key, value, updated_at) VALUES ('commit', '{0}', '{1}') ON CONFLICT (key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at" -f $thisCommit, ((Get-Date).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ'))
@@ -666,11 +675,12 @@ foreach ($c in $chosen) {
             try { $R = Invoke-NodeJson 'network-sales.mjs' @('--mode', 'cj-test', '--cid', $CjCid) } finally { Clear-NsEnv }
             if ($R) {
                 foreach ($x in @($R.cids)) { if ($x.ok) { Say ('   CJ λογαριασμός {0}: {1} πωλήσεις τις τελευταίες 30 μέρες' -f $x.cid, $x.count) } else { Say ('   CJ λογαριασμός {0}: {1}' -f $x.cid, $x.error) } }
-                if ($R.ok) { $verdict = 'ok' } elseif ($R.refused) { $verdict = 'refused' } elseif ($R.queryError) { $verdict = 'query' }
+                if ($R.ok) { $verdict = 'ok' } elseif ($R.refused) { $verdict = 'refused' } elseif ($R.accountsRefused) { $verdict = 'accounts' } elseif ($R.queryError) { $verdict = 'query' }
                 if ($R.error) { Say ('   CJ: {0}' -f $R.error) }
             }
         }
         if ($verdict -eq 'refused') { Say '   🔴 Το CJ ΔΕΝ δέχτηκε το κλειδί (401/403: λάθος, ληγμένο ή ακυρωμένο). Δεν το αποθήκευσα. Φτιάξε νέο στο https://developers.cj.com/account/personal-access-tokens' 'Red'; $failed.Add('CJ'); continue }
+        if ($verdict -eq 'accounts') { Say ('   🔴 Το CJ αρνήθηκε αυτό το κλειδί για αυτούς τους λογαριασμούς (CID {0}: «Not authorized»): είναι κλειδί άλλου λογαριασμού ή λάθος αριθμός λογαριασμού. Δεν το αποθήκευσα.' -f $CjCid) 'Red'; $failed.Add('CJ'); continue }
         if ($verdict -eq 'query') { Say '   🔴 Το CJ δέχτηκε το κλειδί, αλλά η ερώτηση για τις πωλήσεις έχει λάθος (λάθος του κώδικα, όχι του κλειδιού). Δεν το αποθήκευσα· στείλε την αναφορά στο Claude.' 'Red'; $failed.Add('CJ'); continue }
         if ($verdict -ne 'ok') { Say '   🔴 Το CJ δεν απάντησε σωστά στη δοκιμή του κλειδιού (μία δοκιμή μόνο ανάγνωσης). Δεν το αποθήκευσα· ξαναδοκίμασε σε λίγο.' 'Red'; $failed.Add('CJ'); continue }
         if (-not (Put-Key 'CJ_TOKEN' $tok)) { $failed.Add('CJ') }

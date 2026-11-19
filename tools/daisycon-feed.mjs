@@ -49,8 +49,11 @@ export async function tokenRequest({ login = LOGIN, fetchImpl = fetch, ...fields
   if (!okHost(login, ['login.daisycon.com'])) return { error: 'unexpected login address' };
   const body = new URLSearchParams(Object.fromEntries(Object.entries(fields).filter(([, v]) => v)));
   let res;
-  try { res = await fetchImpl(`${login}/oauth/access-token`, { method: 'POST', headers: { 'content-type': 'application/x-www-form-urlencoded' }, body: body.toString() }); }
+  // redirect 'manual': a redirect is never followed, so the client secret and the sign-in key are never sent on to
+  // another address (review of lessons L197); anything else answers as before.
+  try { res = await fetchImpl(`${login}/oauth/access-token`, { method: 'POST', redirect: 'manual', headers: { 'content-type': 'application/x-www-form-urlencoded' }, body: body.toString() }); }
   catch (e) { return { error: String(e && e.message || e) }; }
+  if (res.status >= 300 && res.status < 400) return { error: `HTTP ${res.status}: the Daisycon login answered with a redirect, not followed` };
   const text = await res.text();
   let j = null;
   try { j = JSON.parse(text); } catch { /* not JSON */ }
