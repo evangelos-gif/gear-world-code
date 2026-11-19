@@ -71,7 +71,7 @@ async function get(path, env = ON, base = LIVE, method = 'GET') {
   return { r, text: method === 'HEAD' ? '' : await r.text() };
 }
 
-// The retailers' own code lines ("£50 off when you spend £500", lessons L186, L194) are the only text with £ or %: the
+// The retailers' own code lines ("£50 off when you spend £500", lessons L186, L195) are the only text with £ or %: the
 // wording checks read the page without them, and check them on their own (retailerLines).
 export const withoutOffers = text => text.replace(/<p class="promo-offer">[\s\S]*?<\/p>/g, '');
 export const retailerLines = text => [...text.matchAll(/<p class="promo-offer">([\s\S]*?)<\/p>/g)].map(m => m[1].replace(/<[^>]+>/g, ''));

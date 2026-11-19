@@ -5,7 +5,7 @@
 // Amazon links appear only when the Worker has AMAZON_LINKS=on (set by tools/ogw-site.ps1 after the owner's phrase
 // that the site is in his Associates account); AMAZON_LINKS=preview (the test Worker) links without the ID.
 //
-// Languages (owner, 18 Nov 2026: "all the languages", lessons L24, L175, L194): the 12 languages of the 13 Gear World
+// Languages (owner, 18 Nov 2026: "all the languages", lessons L24, L175, L195): the 12 languages of the 13 Gear World
 // sites (English and the 11 dictionaries, the same codes and the same menu order). The sites translate in the browser
 // with their script; this site has no script, so the Worker writes each page in the visitor's language from the same
 // kind of dictionary (sites/ogw/i18n/<code>.json, keyed by the English text, read through site.dictionaries). The
@@ -25,12 +25,12 @@ import { COUNTRY_LANGUAGES, MULTI_LANGUAGE_COUNTRIES } from './lib/country-langu
 export const AMAZON_STATEMENT = 'As an Amazon Associate I earn from qualifying purchases.';
 const AMAZON_TRADEMARK = 'Amazon and the Amazon logo are trademarks of Amazon.com, Inc. or its affiliates.';
 // The legal texts last changed on this day (UK and EU GDPR wording as approved for the Gear World sites on 17 Nov 2026;
-// 19 Nov 2026: how the page language is chosen, L194).
+// 19 Nov 2026: how the page language is chosen, L195).
 const LEGAL_UPDATED = '2026-11-19';
 
 const asset = (site, p) => `/assets/${p}?v=${encodeURIComponent(site.assetVersion)}`;
 
-// ---------------- Languages (lessons L24, L175, L194) ----------------
+// ---------------- Languages (lessons L24, L175, L195) ----------------
 export const BASE_LANG = 'en-GB';
 // The languages of Gear World Hub (no Polish): the Hub links carry ?lang= only for these.
 export const HUB_LANGS = ['en-GB', 'el-GR', 'de-DE', 'fr-FR', 'it-IT', 'es-ES', 'pt-PT', 'nl-NL', 'sq-AL', 'ro-RO', 'ru-RU'];
@@ -193,7 +193,7 @@ export function amazonUrl(site, q, mode) {
   return u.toString();
 }
 
-// One of Amazon's own pages (its Black Friday page, L194) as an Amazon Special Link: the Associates ID only with
+// One of Amazon's own pages (its Black Friday page, L195) as an Amazon Special Link: the Associates ID only with
 // AMAZON_LINKS=on, no ID on the test Worker, nothing with "off".
 export function amazonPageUrl(site, page, mode) {
   if (mode !== 'on' && mode !== 'preview') return '';
@@ -297,7 +297,7 @@ function languageMenu(c) {
 
 // The same header and footer on every page; the footer links to the legal pages (lessons L17) and says who runs the
 // site (L101). The Amazon statement and trademark notice only where Amazon links are shown. The Hub link in the header
-// strip and in the footer, like the 13 sites (owner, 18 Nov 2026, L194).
+// strip and in the footer, like the 13 sites (owner, 18 Nov 2026, L195).
 function shell(c, { title, description, path, body, robots = '' }) {
   const { site, t, tx, mode } = c;
   const year = new Date().getUTCFullYear();
@@ -357,7 +357,7 @@ function ideaButtons(c, idea) {
   </p>`;
 }
 
-// ---------------- Codes of the stores (owner, 18 Nov 2026, "Black Friday", lessons L103, L107, L188, L194) ----------------
+// ---------------- Codes of the stores (owner, 18 Nov 2026, "Black Friday", lessons L103, L107, L188, L195) ----------------
 // The codes and coupons (money off with no code to type) that the stores of this site publish through their affiliate
 // programmes and that run today on their Gear World sites (promos/promos.js, activePromos: each disappears after its
 // last UK day by itself). One card per store and code (a code on several sites once), in the store order, each linking
@@ -411,7 +411,7 @@ function codeCard(c, item, withStore = true) {
 }
 
 // ---------------- Early Black Friday (owner, 18 Nov 2026 23:30: "a countdown until Black Friday, and early Black
-// Friday", lessons L188, L194) ----------------
+// Friday", lessons L188, L195) ----------------
 // The retailers that have started their Black Friday and their codes and coupons come from the SAME file as the Hub's
 // /black-friday/ page, sites/gwh/black-friday/black-friday.json (kept by the Gear World Manager from the offers tracker,
 // only what the owner approved), read when the Worker is built (site.earlyBlackFriday). Each retailer shows from its

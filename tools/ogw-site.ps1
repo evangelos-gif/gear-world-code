@@ -33,7 +33,7 @@
   Rollback: a later update goes back with "npx wrangler rollback <version> --name mega-stores-gear-world" (the report
   names the version); the first launch is undone with "npx wrangler delete --name mega-stores-gear-world".
   Without -Apply, every step only shows what it WOULD do.
-  Every preview and live check also reads (L194): the Greek home page (/?lang=el), the Hub link, and until Cyber
+  Every preview and live check also reads (L195): the Greek home page (/?lang=el), the Hub link, and until Cyber
   Monday the Black Friday block (countdown, a store that started, a code linking to a Gear World /discount-codes/ page,
   Amazon's own Black Friday page with the Associates ID only with Amazon links on).
   Exit codes: 0 done, 1 no approval, 3 Node.js or npm, 4 Cloudflare login, 6 the live site did not answer before an
@@ -76,7 +76,7 @@ $DashLink = 'https://dash.cloudflare.com/?to=/:account/workers/services/view/meg
 $DnsLink = 'https://dash.cloudflare.com/?to=/:account/:zone/dns/records'
 $AssociatesLink = 'https://affiliate-program.amazon.co.uk/'
 $UserAgent = 'GearWorldQA-bot/1.0 (+read-only check)'
-# L194: the Black Friday block of the home page shows until the end of Cyber Monday (UK day); the check reads it until then.
+# L195: the Black Friday block of the home page shows until the end of Cyber Monday (UK day); the check reads it until then.
 $BlackFridayEnd = '2026-11-30'
 
 $L = New-Object System.Collections.Generic.List[string]
@@ -280,7 +280,7 @@ function Test-Site([string]$base, [string]$mode) {
         $cards = [regex]::Matches($sp.text, '<li class="pcard">').Count
         $photo = $sp.text -match '<a class="pcard-photo" href="https://[a-z]+gearworld\.com/product/[^"]+"[^>]*><img src="https://'
         $outLink = $sp.text -match 'href="[^"]*/(out|go)/'
-        # The retailers' own code lines ("£10 off when you spend £59", L186, L194) are the only text with £.
+        # The retailers' own code lines ("£10 off when you spend £59", L186, L195) are the only text with £.
         $pound = ([regex]::Replace($sp.text, '<p class="promo-offer">[\s\S]*?</p>', '')).Contains([string][char]0x00A3)
         if ($cards -ge 1 -and $photo -and -not $outLink -and -not $pound) { Say ('  /stores/joybuy/: {0} προϊόντα με φωτογραφία και link στη σελίδα τους στο Gear World, χωρίς τιμές, χωρίς /out/ και /go/: ΕΝΤΑΞΕΙ' -f $cards) $Ok }
         else {
@@ -292,7 +292,7 @@ function Test-Site([string]$base, [string]$mode) {
             Say ('  /stores/joybuy/: {0}: ΠΡΟΒΛΗΜΑ' -f ($why -join ', ')) $Bad; $all = $false
         }
     }
-    # L194 (owner, 18 Nov 2026): every language, the Hub link and Black Friday. Read-only GETs, never /out/ or /go/.
+    # L195 (owner, 18 Nov 2026): every language, the Hub link and Black Friday. Read-only GETs, never /out/ or /go/.
     $hp = Get-Page ($base + '/')
     if ($hp.status -ne 200) { Say ('  Αρχική σελίδα απαντά {0}: ΠΡΟΒΛΗΜΑ' -f $hp.status) $Bad; $all = $false }
     else {

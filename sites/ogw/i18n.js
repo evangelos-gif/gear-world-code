@@ -1,4 +1,4 @@
-// The dictionaries of Mega Stores Gear World (lessons L24, L194): one file per language, keyed by the English text of
+// The dictionaries of Mega Stores Gear World (lessons L24, L195): one file per language, keyed by the English text of
 // the page, in the same layout as the sites' public/assets/i18n files (keys in code-point order, one space, a new line
 // at the end). The Worker writes each page in the visitor's language from them (src/marketplace-guides.js); they are
 // not served as files (this site has no script to read them).

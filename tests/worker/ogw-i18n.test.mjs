@@ -1,6 +1,6 @@
 // Mega Stores Gear World in every language, the Hub link and Black Friday (owner, 18 Nov 2026 23:00 and 23:30: "all the
 // languages, and a link to the Hub like every page, and Black Friday", "a countdown until Black Friday, and early Black
-// Friday"; lessons L24, L103, L107, L174, L175, L176, L186, L188, L191, L194). Fake fetch, fixed days, never the network.
+// Friday"; lessons L24, L103, L107, L174, L175, L176, L186, L188, L191, L195). Fake fetch, fixed days, never the network.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
@@ -82,7 +82,7 @@ const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(
 
 // ---------------------------------------------------------------- the dictionaries
 
-test('L194: 11 dictionaries, the same texts in each, the sites\' layout (code-point order, one space, a new line)', () => {
+test('L195: 11 dictionaries, the same texts in each, the sites\' layout (code-point order, one space, a new line)', () => {
   assert.deepEqual(readdirSync('sites/ogw/i18n').sort(), LANGS.map(l => `${l}.json`).sort());
   assert.deepEqual(site.languages.map(l => l.code), ['en-GB', 'el-GR', 'de-DE', 'fr-FR', 'it-IT', 'es-ES', 'pt-PT', 'nl-NL', 'pl-PL', 'sq-AL', 'ro-RO', 'ru-RU'],
     'the codes and the menu order of the 13 sites');
@@ -114,7 +114,7 @@ test('L194: 11 dictionaries, the same texts in each, the sites\' layout (code-po
   });
 });
 
-test('L194: every text the pages use is in every dictionary, and every dictionary text is used (all pages, modes and days)', async () => {
+test('L195: every text the pages use is in every dictionary, and every dictionary text is used (all pages, modes and days)', async () => {
   const empty = { ...site, dictionaries: { 'el-GR': {} } };
   const days = ['2026-11-19', '2026-11-22', '2026-11-26', '2026-11-27', '2026-11-30', '2026-12-01', '2026-12-24', '2026-12-25'];
   const paths = ['/', '/stores/amazon/', '/nope/', ...PAGES];
@@ -142,7 +142,7 @@ test('L194: every text the pages use is in every dictionary, and every dictionar
 
 // ---------------------------------------------------------------- choosing the language
 
-test('L175, L194: the same rules as the 13 sites: crawlers read English, the QA check may ask, each country its language', () => {
+test('L175, L195: the same rules as the 13 sites: crawlers read English, the QA check may ask, each country its language', () => {
   assert.equal(OGW_QA_BOT.source, QA_BOT.source, 'QA bot: the engine\'s rule');
   assert.equal(OGW_CRAWLER.source, OTHER_CRAWLER.source, 'crawlers: the engine\'s rule');
   for (const ua of ['Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)', 'facebookexternalhit/1.1', 'Mozilla/5.0 (compatible; bingbot/2.0)', BROWSER, QA, 'Cubot X30']) {
@@ -161,7 +161,7 @@ test('L175, L194: the same rules as the 13 sites: crawlers read English, the QA 
   assert.equal(languageCode(site, 'el-GR"><script>'), '');
 });
 
-test('L194: ?lang= in every language: the page in that language, the English canonical, every link of the site keeps it', async () => {
+test('L195: ?lang= in every language: the page in that language, the English canonical, every link of the site keeps it', async () => {
   const GIFT = { 'el-GR': 'Οδηγοί δώρων', 'de-DE': 'Geschenkratgeber', 'fr-FR': 'Guides cadeaux', 'it-IT': 'Guide regalo', 'es-ES': 'Guías de regalos',
     'pt-PT': 'Guias de presentes', 'nl-NL': 'Cadeaugidsen', 'pl-PL': 'Poradniki prezentowe', 'sq-AL': 'Udhëzues dhuratash', 'ro-RO': 'Ghiduri de cadouri', 'ru-RU': 'Гиды по подаркам' };
   for (const l of LANGS) {
@@ -194,7 +194,7 @@ test('L194: ?lang= in every language: the page in that language, the English can
   assert.equal(x.r.headers.get('Location'), 'https://megastoresgearworld.com/?lang=de-DE#guides', 'a redirect keeps the language');
 });
 
-test('L175, L194: the country picks the language when the visitor chose none (private answer); crawlers always read English', async () => {
+test('L175, L195: the country picks the language when the visitor chose none (private answer); crawlers always read English', async () => {
   let x = await get('/', ON, { cf: { country: 'GR' } });
   assert.ok(x.text.startsWith('<!doctype html>\n<html lang="el-GR">'), 'Greece: Greek');
   assert.equal(x.r.headers.get('Cache-Control'), 'private, max-age=60', 'never kept by a shared cache');
@@ -233,7 +233,7 @@ test('L175, L194: the country picks the language when the visitor chose none (pr
 // ---------------------------------------------------------------- what each page says
 
 const SCRIPT = { 'el-GR': /[Ͱ-Ͽἀ-῿]/, 'ru-RU': /[Ѐ-ӿ]/ };
-test('L24, L194: Greek and Russian pages: every text outside translate="no" is in that language or one of its own kept words', async () => {
+test('L24, L195: Greek and Russian pages: every text outside translate="no" is in that language or one of its own kept words', async () => {
   for (const l of ['el-GR', 'ru-RU']) {
     const kept = Object.values(DICTS[l]).filter(v => !SCRIPT[l].test(v)).map(v => new RegExp(`^${v.replace(/[.*+?^$()[\]\\|]/g, '\\$&').replace(/\\?\{\d+\\?\}/g, '.+')}$`));
     const allowed = t => /^[\s\d.,:;·()\-–—/&#|%£€$!?'"«»„“”→]*$/.test(t) || t === '#ad' || kept.some(r => r.test(t));
@@ -251,7 +251,7 @@ test('L24, L194: Greek and Russian pages: every text outside translate="no" is i
   }
 });
 
-test('L103, L194: names are never translated: stores, products, brands, Gear World sites, Mega Stores Gear World, codes', async () => {
+test('L103, L195: names are never translated: stores, products, brands, Gear World sites, Mega Stores Gear World, codes', async () => {
   for (const l of LANGS) {
     const home = (await get(withLang('/', l))).text;
     assert.ok(home.includes('<span translate="no">Mega Stores Gear World</span>'), `${l}: the site name`);
@@ -278,7 +278,7 @@ test('Amazon Associates: the statement stays in English word for word on every p
   }
 });
 
-test('L174, L194: the Hub link in the header and the footer of every page, in every language, with the chosen language', async () => {
+test('L174, L195: the Hub link in the header and the footer of every page, in every language, with the chosen language', async () => {
   for (const l of [BASE_LANG, ...LANGS]) {
     for (const env of [ON, OFF, PRE]) {
       for (const p of [...PAGES, '/nope/']) {
@@ -313,7 +313,7 @@ test('L101, L103, L107, L191: no bad words in any language, no /out/ or /go/, pr
   }
 });
 
-// ---------------------------------------------------------------- Black Friday (L188, L194)
+// ---------------------------------------------------------------- Black Friday (L188, L195)
 
 test('Black Friday: the countdown by UK day (19/11 = 8 days, 26/11 = 1 day, 27-29/11 on, 30/11 Cyber Monday, 1/12 gone)', async () => {
   const count = async (day, lang = '') => {
