@@ -162,7 +162,9 @@ test('sources: the first-wave shops are approved, VEVOR waits for the second wav
   const approved = src.filter(s => s.approved).map(s => s.retailer);
   assert.deepEqual(approved, ['Coes', 'Joybuy', 'Plusshop UK', 'Bazta UK', 'Beyond Shakers', 'Bern Helmets', 'Fitness Options', 'Sport and Leisure UK', 'aZengear', 'Olight UK', 'AliExpress PL', 'TENWAYS',
     // Daisycon Wave 3 (chat 9, 17 Nov 2026, L170): the Tradeinn sport shops, English feeds in pounds.
-    'GoalInn', 'RunnerInn', 'SmashInn', 'SnowInn', 'SwimInn', 'TrainInn', 'XtremeInn', 'DiveInn']);
+    'GoalInn', 'RunnerInn', 'SmashInn', 'SnowInn', 'SwimInn', 'TrainInn', 'XtremeInn', 'DiveInn',
+    // bol.com Sport (L204): approved but paused until the removal tool and the daily refresh (tests/worker/bol-import.test.mjs).
+    'bol.com']);
   assert.equal(src.find(s => s.retailer === 'VEVOR').approved, false);
   for (const r of ['Coes', 'Joybuy']) assert.equal(src.find(s => s.retailer === r).sectionHints, false, r);
   // Sport-only shops (Beyond Shakers, Bern Helmets, Fitness Options: 8 Nov 2026) need no sport sections.

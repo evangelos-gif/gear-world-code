@@ -1,0 +1,74 @@
+// Import rules for bol.com NL on the six older sites (lessons L204): Koken & Tafelen, Huishouden and Wonen -> HGW,
+// Klussen and the search "werkschoenen" -> CGW, Tuin -> GGW, Damesmode and the search "parfum" -> WGW (clearly men's
+// perfume -> MGW), Herenmode -> MGW, Kindermode -> KGW. The newer sites (AGW, VGW, SGW, ZGW) read their own bol.com
+// files through sites/<site>/sources.json ("sections": "bol-nl"). Where each product goes: lib/bol-nl.mjs.
+// The feed files: BOL_<category>_NL.csv.gz and BOL_0_NL-<search>.csv.gz of tools/bol-feed-download.ps1 in the archive.
+// Shown only to visitors from the Netherlands and Belgium, in Dutch (site.config deliversTo, sites/_shared/bol.js).
+//
+// PAUSED: the plan (dry run) works, but tools/legacy-import.ps1 stops before any change while RULES.paused is set: the
+// import comes only after the removal tool (tools/bol-remove.ps1) and the daily price refresh (bol.com's terms 3.6), and
+// with the owner's ΕΓΚΡΙΝΩ ALL IMPORTS. Taking the line out is the change that allows it.
+import { readdirSync } from 'node:fs';
+import { join } from 'node:path';
+import { BOL_FILE, BOL_SOURCES, BOL_SEARCHES, LEGACY_SITES, BOL_RETAILER, routeOf, placeBol, bolBaseName, bolEan } from './lib/bol-nl.mjs';
+
+export const RULES = {
+  key: 'bol-nl',
+  network: 'bol',
+  // bol.com's Partnerprogramma site ID: the number in our product ids ("bol1559450:<EAN>"), never an Awin advertiser.
+  advertiserId: 1559450,
+  retailer: BOL_RETAILER,
+  currency: 'EUR',
+  shop: /^https:\/\/www\.bol\.com\//i,
+  sites: LEGACY_SITES,
+  minPrice: 3,
+  maxPrice: 5000,
+  // One shop must not fill a whole subcategory of an older site (lessons L161, L164).
+  maxPerSubcategory: 400,
+  // Sizes of one product are separate rows with the same name once the size is taken off (bolBaseName): one card.
+  joinSameNameAcrossFeeds: true,
+  paused: 'bol.com (L204): the import waits for tools/bol-remove.ps1 and the daily price refresh (gear-world-bol-refresh) to be live, then ΕΓΚΡΙΝΩ ALL IMPORTS'
+};
+
+// The files of the categories and searches that go to the older sites.
+export function feedFiles(archive) {
+  const ids = new Set(BOL_SOURCES.filter(s => LEGACY_SITES.includes(s.site)).map(s => s.id));
+  let names = [];
+  try { names = readdirSync(archive); } catch { return []; }
+  return names.filter(n => {
+    const m = BOL_FILE.exec(n);
+    if (!m) return false;
+    return m[2] ? BOL_SEARCHES.some(q => q.term === m[2].toLowerCase()) : ids.has(m[1]);
+  }).map(n => join(archive, n));
+}
+
+// No brand and no "was" price on a bol.com card (lessons L178); the name without its size, so the sizes are one card;
+// the EAN in 13 digits, as the daily refresh finds the row (src/bol-refresh.js reads the ean column).
+export function field(c, column) {
+  if (c === 'product_name') return bolBaseName(column('product_name'));
+  if (c === 'ean') return bolEan(column('ean'));
+  if (c === 'brand_name' || c === 'rrp_price') return '';
+  return column(c);
+}
+
+// One product = one EAN (the download keeps each EAN once).
+export function productKey(get) {
+  return get('ean') || bolEan(get('aw_product_id'));
+}
+
+// The bol.com category, the GS1 path and the search of the row's file (BOL_0_NL-<search>.csv.gz).
+export function rowInfo(get, file = '') {
+  const m = BOL_FILE.exec(String(file || ''));
+  return { categoryId: get('bol_category_id') || (m ? m[1] : ''), gpc: get('bol_gpc') || get('category_name'), search: m && m[2] ? m[2].toLowerCase() : '' };
+}
+
+export function classify({ name, info }) {
+  const i = info || {};
+  if (!name) return { reject: 'no name' };
+  const r = routeOf({ categoryId: i.categoryId, search: i.search, name });
+  if (r.reject) return { reject: r.reject };
+  if (!LEGACY_SITES.includes(r.site)) return { reject: `bol.com ${r.source.name}: a product of ${r.site.toUpperCase()} (planned by that site's own import)` };
+  const p = placeBol(r.site, { name, gpc: i.gpc, search: r.source.search || '' });
+  if (p.reject) return { reject: p.reject };
+  return { site: r.site, siteCategory: p.cat, subcategory: p.sub, name, ...(p.doubt ? { doubt: true } : {}) };
+}

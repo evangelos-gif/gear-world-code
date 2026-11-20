@@ -197,6 +197,11 @@ $sp = $plan.sites.$Site
 if ($null -eq $sp -or [int]$sp.products -lt 1) { Say ('Το σχέδιο δεν έχει προϊόντα για το {0}.' -f $Site.ToUpper()) 'Red'; Finish 10 }
 $RetailerName = [string]$plan.retailer
 if ($RetailerName -notmatch "^[A-Za-z0-9 .\-]{2,40}$") { Say 'Μη αναμενόμενο όνομα καταστήματος στο σχέδιο.' 'Red'; Finish 10 }
+# A paused shop (bol.com, lessons L204: not before the removal tool and the daily refresh): the plan only, never an import.
+if (($plan.PSObject.Properties.Name -contains 'paused') -and $plan.paused) {
+    Say ('ΣΕ ΑΝΑΜΟΝΗ: {0}' -f [string]$plan.paused) 'Yellow'
+    if ($Apply) { Say ('Δεν φορτώθηκε τίποτα: το {0} δεν φορτώνεται ακόμα (μόνο το σχέδιο).' -f $RetailerName) 'Yellow'; Finish 15 }
+}
 # An add-only plan covers only part of a shop that is already on the site (e.g. Joybuy beauty): it never hides the rest.
 $AddOnly = $false
 if (($plan.PSObject.Properties.Name -contains 'addOnly') -and $plan.addOnly) { $AddOnly = $true }

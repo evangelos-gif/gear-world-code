@@ -139,8 +139,9 @@ export async function readProducts({ archive, rules }) {
           awinCategory: cleanText(get('category_name')),
           link, page, image: pickImage(get), firstVariant: get('merchant_product_id'), tracked: get('aw_deep_link'),
           variants: 0, inStockVariants: 0, unknownStock: 0, prices: [], currency: get('currency').toUpperCase(), ean: get('ean') || get('product_gtin'),
-          // rules.rowInfo (lessons L161): more columns for the rules, e.g. where a CJ search product is sold and sent.
-          info: typeof rules.rowInfo === 'function' ? rules.rowInfo(get) : null };
+          // rules.rowInfo (lessons L161): more columns for the rules, e.g. where a CJ search product is sold and sent. The file
+          // name too (bol.com, L204: BOL_0_NL-<search>.csv.gz says which search the row came from).
+          info: typeof rules.rowInfo === 'function' ? rules.rowInfo(get, basename(f)) : null };
         groups.set(key, g);
       }
       // Two feeds of one shop can list the same product, only one with categories (100% PURE, 25 Oct 2026, lessons L63).
@@ -181,7 +182,7 @@ export function commonVariantName(names) {
 
 // A CJ link as https (CJ answers on both).
 const httpsLink = u => String(u || '').replace(/^http:\/\//i, 'https://');
-const NETWORK_LABEL = { cj: 'CJ', rakuten: 'Rakuten', daisycon: 'Daisycon' };
+const NETWORK_LABEL = { cj: 'CJ', rakuten: 'Rakuten', daisycon: 'Daisycon', bol: 'bol.com' };
 
 const hostOf = url => { try { return new URL(url).hostname.toLowerCase(); } catch { return ''; } };
 
@@ -454,7 +455,8 @@ export async function planLegacyImport({ archive, retailer, outDir, now = new Da
   writeFileSync(join(outDir, 'report.txt'), text);
   // For the import tool: how many products each site should have from this retailer after the import.
   // addOnly: the plan covers only part of a shop that is already on the site, so the import must not hide the rest.
-  const summary = { retailer: R.retailer, advertiserId: R.advertiserId, addOnly: Boolean(R.addOnly), sites: {} };
+  // paused (bol.com, lessons L204): the plan is made, but tools/legacy-import.ps1 changes nothing while it is set.
+  const summary = { retailer: R.retailer, advertiserId: R.advertiserId, addOnly: Boolean(R.addOnly), ...(R.paused ? { paused: String(R.paused) } : {}), sites: {} };
   for (const s of R.sites) {
     const byCat = {};
     for (const p of accepted[s]) byCat[p.site_category] = (byCat[p.site_category] || 0) + 1;

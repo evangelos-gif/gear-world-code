@@ -18,6 +18,7 @@ import * as TGW_RULES from '../sites/tgw/category-rules.js';
 import { normalizeGtin } from '../src/lib/gtin.js';
 import { slugify, truncate } from '../src/lib/text.js';
 import { aliexpressSection } from './import-rules/lib/aliexpress-sections.mjs';
+import { bolSection, bolEan } from './import-rules/lib/bol-nl.mjs';
 import { NETWORKS } from './network-links.mjs';
 
 // A shop of another network on these sites (chat 9, 17 Nov 2026, Daisycon Wave 3, lessons L170): sources.json
@@ -228,7 +229,10 @@ const COLUMNS = {
   description: ['description', 'product_short_description', 'specifications'],
   condition: ['condition'],
   colour: ['colour', 'color'],
-  size: ['size', 'fashion_size']
+  size: ['size', 'fashion_size'],
+  // bol.com (tools/bol-feed-download.ps1, lessons L204): its category and the GS1 path, for "sections": "bol-nl".
+  bolCategory: ['bol_category_id'],
+  bolGpc: ['bol_gpc']
 };
 
 function mapHeader(header) {
@@ -778,6 +782,8 @@ export async function planImport({ archive, sourcesFile, outDir, now = new Date(
         let merchantCategory = cleanText(pick(rec, map.merchantCategory));
         const awinCategory = cleanText(pick(rec, map.awinCategory));
         let brand = cleanText(pick(rec, map.brand));
+        // bol.com: no brand on its cards (lessons L178, L204; its list endpoints give none).
+        if (source.network === 'bol') brand = '';
         const price = parsePrice(pick(rec, map.price));
         if (source.tyreNames) {
           const tyre = tyreProduct(name, brand, cleanText(pick(rec, map.description)), merchantCategory);
@@ -817,7 +823,10 @@ export async function planImport({ archive, sourcesFile, outDir, now = new Date(
         const categoryPaths = map.merchantCategory.map(i => cleanText(rec[i])).filter(Boolean).join(' | ');
         // "sections": "aliexpress-pl" (owner, 15 Nov 2026, L157): the Polish shop's own sections place the product, with an
         // English subcategory and a shortened name (tools/import-rules/lib/aliexpress-sections.mjs); the site rules read English.
+        // "sections": "bol-nl" (lessons L204): bol.com's Dutch names, placed by tools/import-rules/lib/bol-nl.mjs (the
+        // category of the row, or of the file, routes it; the GS1 path and the name place it); its name without the size.
         const cls = source.sections === 'aliexpress-pl' ? aliexpressSection(label, name, merchantCategory)
+          : source.sections === 'bol-nl' ? bolSection(label, name, { categoryId: pick(rec, map.bolCategory) || String(source.advertiserId), gpc: pick(rec, map.bolGpc) || awinCategory, search: source.bolSearch || '' })
           : loose ? classify(name, '', '', source)
             : classify(name, `${merchantCategory || awinCategory} ${merchantCategory ? awinCategory : ''}`.trim(), categoryPaths, source);
         if (!cls.ok) { reject(cls.reason, cls.reason.startsWith('not for UK') ? `${short}  [${notUkHint(name)}]` : short); continue; }
@@ -867,9 +876,10 @@ export async function planImport({ archive, sourcesFile, outDir, now = new Date(
 
         // "ignoreWasPrice": a feed whose rrp_price is the same mark-up on every product (PCHUB.UK: price x 1.44) is not
         // a real earlier price, so no "was" price and no discount badge.
-        const wasRaw = source.ignoreWasPrice ? NaN : parsePrice(pick(rec, map.was));
+        const wasRaw = source.ignoreWasPrice || source.network === 'bol' ? NaN : parsePrice(pick(rec, map.was));
         const wasPrice = Number.isFinite(wasRaw) && wasRaw > price * 1.04 && wasRaw < price * 5 ? wasRaw : null;
-        const gtin = normalizeGtin(pick(rec, map.gtin));
+        // bol.com: 13 digits where possible, as the daily refresh finds the row (src/lib/bol-catalog.js ean13, L205).
+        const gtin = source.network === 'bol' ? normalizeGtin(bolEan(pick(rec, map.gtin))) : normalizeGtin(pick(rec, map.gtin));
         const condRaw = pick(rec, map.condition).toLowerCase();
         // The site shows a "Refurbished" badge: the name decides too ("Corsair HS65 W/L HEADSET CARBON REFURB", "Lenovo PREMIUM
         // REFURBISHED ...", fourth dry run 24 Oct 2026). Back to the Office's graded laptops ("Dell Latitude ... (Grade B -
