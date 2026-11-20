@@ -152,12 +152,14 @@ function product(title, price, gpc = []) {
   return { ean: e, bolProductId: `92${e.slice(-10)}`, title, url: `https://www.bol.com/nl/nl/p/x/${e}/`, image: { url: `https://media.s-bol.com/${e}.jpg` },
     offer: { price, strikethroughPrice: price * 2, deliveryDescription: 'Morgen in huis' }, rating: 4.2, gpc: gpc.map((name, i) => ({ level: i + 1, name })) };
 }
+let STAMP = '2026-11-22T06:00:00.000Z';
 function writeFeed(dir, file, categoryId, categoryName, items) {
-  const rows = items.map(p => rowOf(p, { country: 'NL', categoryId, categoryName, stamp: '2026-11-22T06:00:00Z' }).row).filter(Boolean);
+  const rows = items.map(p => rowOf(p, { country: 'NL', categoryId, categoryName, stamp: STAMP }).row).filter(Boolean);
   writeFileSync(join(dir, file), gzipSync(csvLine(BOL_COLUMNS) + rows.map(r => csvLine(BOL_COLUMNS.map(c => r[c]))).join('')));
   return rows;
 }
-function archive() {
+function archive(stamp = '2026-11-22T06:00:00.000Z') {
+  STAMP = stamp;
   const dir = mkdtempSync(join(tmpdir(), 'bol-archive-'));
   writeFeed(dir, 'BOL_43646_NL.csv.gz', '43646', 'Auto & Motor', [product('Nextbase 322GW Dashcam - Full HD', 129.99, ['Auto & Motor', 'Auto-elektronica', 'Dashcams']),
     product('Rubber automatten set universeel - 4 delig', 24.95), product('Motorhelm integraal - Maat L', 89), product('Luchtbuks kogels 4.5 mm', 9.99)]);
@@ -201,7 +203,7 @@ test('L204: the dry run of the 10 sites: counts per site and category, sizes joi
   assert.equal((w.match(/Zomerjurk dames bloemen/g) || []).length, 2, 'three sizes, one card (product_name and feed_product_name)');
   assert.match(w, /'bol\.com', 'Clothing', 'Dresses', NULL, 'Zomerjurk dames bloemen', 'Zomerjurk dames bloemen', 34\.99, 'EUR', 'in stock'/, 'no brand, the lowest price, EUR, in stock');
   assert.match(w, /'https:\/\/partner\.bol\.com\/click\/click\?p=2&t=url&s=1559450&f=TXL&url=/);
-  assert.match(w, /'871\d{10}', 1, '2026-11-22 07:00:00', '2026-11-22 07:00:00'\)/, 'the EAN (13 digits) and the date as the refresh reads it');
+  assert.match(w, /'871\d{10}', 1, '2026-11-22 07:00:00', '2026-11-22 06:00:00'\)/, 'the EAN (13 digits); updated_at = the DOWNLOAD time (06:00), not the plan (07:00)');
   assert.match(sql('mgw'), /'Grooming & Fragrances', 'Fragrance', NULL, 'Dior Sauvage eau de toilette heren 100 ml'/);
   assert.match(sql('cgw'), /'Safety Boots', 'Safety Shoes', NULL, 'Safety Jogger werkschoenen S3'/);
   assert.equal((sql('cgw').match(/'Safety Jogger werkschoenen S3'/g) || []).length, 2, 'two sizes, one card');
@@ -211,7 +213,8 @@ test('L204: the dry run of the 10 sites: counts per site and category, sizes joi
   const agw = readdirSync(join(out, 'agw', 'sql')).filter(f => /^\d{4}\.sql$/.test(f)).map(f => read(join(out, 'agw', 'sql', f))).join('\n');
   assert.match(agw, /'bol\.com', 'car-electronics', 'Dash Cams', NULL, 'Nextbase 322GW Dashcam - Full HD'/);
   assert.match(agw, /129\.99, NULL, 'EUR', 1, 'new', 'https:\/\/media\.s-bol\.com\/\d+\.jpg', 'https:\/\/partner\.bol\.com\/click\/click\?/, 'no was price (bol.com gives a strikethrough price: never used)');
-  assert.match(agw, /'871\d{10}', NULL, NULL, 1, '2026-11-22 07:00:00'\)/);
+  assert.match(agw, /'871\d{10}', NULL, NULL, 1, '2026-11-22 06:00:00'\)/, 'last_seen_at = the download time');
+  assert.ok(!/'2026-11-22 07:00:00'\)/.test(agw), 'never the time of the plan on a bol.com row');
   const zgw = readdirSync(join(out, 'zgw', 'sql')).filter(f => /^\d{4}\.sql$/.test(f)).map(f => read(join(out, 'zgw', 'sql', f))).join('\n');
   assert.equal((zgw.match(/INSERT INTO products/g) || []).length, 1, 'two sizes of the dog bed, one card');
   assert.match(zgw, /'Hondenmand orthopedisch', 'hondenmand-orthopedisch'.*39\.95/);
@@ -224,4 +227,56 @@ test('L204: the normal import of a newer site never reads the bol.com file while
   const r = await planImport({ archive: dir, sourcesFile: 'sites/agw/sources.json', outDir: out, rules: AGW_RULES, label: 'AGW', only: ['43646'] });
   assert.equal(r.products.filter(p => p.retailer === 'bol.com').length, 0);
   assert.ok(!existsSync(join(out, 'sql', '0001.sql')) || !read(join(out, 'sql', '0001.sql')).includes('bol.com'));
+});
+
+test('L204 (review of L205): the retailer is exactly "bol.com" in every SQL row, and no site has another spelling of it', async () => {
+  const dir = archive();
+  const out = join(mkdtempSync(join(tmpdir(), 'bol-plan-')), 'plan');
+  await planBol({ archive: dir, outDir: out, now: new Date('2026-11-22T07:00:00Z') });
+  const all = [];
+  for (const s of B.LEGACY_SITES) for (const f of readdirSync(join(out, 'older-sites', 'sql', s)).filter(x => x.endsWith('.sql'))) all.push(read(join(out, 'older-sites', 'sql', s, f)));
+  for (const s of B.NEW_SITES) for (const f of readdirSync(join(out, s, 'sql')).filter(x => /^\d{4}\.sql$/.test(x))) all.push(read(join(out, s, 'sql', f)));
+  const sql = all.join('\n');
+  const legacyRows = sql.match(/\('bol1559450:[^']+', '[^']*', '([^']+)'/g) || [];
+  assert.ok(legacyRows.length >= 12);
+  for (const r of legacyRows) assert.match(r, /, 'bol\.com'$/, r);
+  const newRows = sql.match(/VALUES \('-4\d{11}:[^']+', -4\d{11}, '[^']*', '[^']+', '([^']+)'/g) || [];
+  assert.ok(newRows.length >= 5);
+  for (const r of newRows) assert.match(r, /, 'bol\.com'$/, r);
+  assert.ok(!/'bol\.com NL'|'Bol\.com'|'BOL\.COM'|'bol'[,)]/.test(sql));
+  // The shown name of the older sites (database.retailerNames) never turns a bol.com row into another name, or another
+  // shop's row into bol.com.
+  for (const s of readdirSync('sites').filter(x => existsSync(`sites/${x}/site.config.js`))) {
+    const cfg = (await import(`../../sites/${s}/site.config.js`)).default;
+    for (const [from, to] of Object.entries((cfg.database && cfg.database.retailerNames) || {})) assert.ok(!/bol/i.test(from) && !/bol/i.test(to), `${s}: ${from} -> ${to}`);
+  }
+  assert.equal(RULES.RULES.retailer, 'bol.com');
+  for (const s of B.NEW_SITES) assert.equal(bolSourcesOf(s)[0].retailer, 'bol.com');
+});
+
+test('L204 (review of L205): the import refuses bol.com files older than 12 hours; the dry run plans them and says so', async () => {
+  const { planLegacyImport } = await import('../../tools/legacy-import-plan.mjs');
+  assert.equal(B.BOL_MAX_AGE_HOURS, 12);
+  assert.equal(B.bolStamp('2026-11-22T06:00:00.000Z'), '2026-11-22 06:00:00');
+  assert.equal(B.bolStamp('', Date.parse('2026-11-22T05:00:00Z')), '2026-11-22 05:00:00', 'no stamp in the row: the file time');
+  assert.equal(B.bolTooOld('2026-11-22 06:00:00', new Date('2026-11-22T17:59:00Z')), false);
+  assert.equal(B.bolTooOld('2026-11-22 06:00:00', new Date('2026-11-22T18:01:00Z')), true);
+  assert.equal(B.bolTooOld('', new Date()), true, 'no date at all: refused');
+  const dir = archive('2026-11-20T06:00:00.000Z');
+  const now = new Date('2026-11-22T07:00:00Z');
+  const msg = /Το αρχείο του bol\.com BOL_\S+\.csv\.gz είναι από 2026-11-20 06:00:00 UTC, παλιότερο από 12 ώρες: τρέξε πρώτα ξανά τη λήψη \(tools\/bol-feed-download\.ps1 -Step download\) και μετά την εισαγωγή\. Δεν φορτώθηκε τίποτα\./;
+  await assert.rejects(planLegacyImport({ archive: dir, retailer: 'bol-nl', outDir: mkdtempSync(join(tmpdir(), 'old-l-')), now }), msg);
+  const sf = join(mkdtempSync(join(tmpdir(), 'old-s-')), 'sources.json');
+  writeFileSync(sf, JSON.stringify({ sources: bolSourcesOf('agw') }));
+  await assert.rejects(planImport({ archive: dir, sourcesFile: sf, outDir: mkdtempSync(join(tmpdir(), 'old-n-')), now, rules: AGW_RULES, label: 'AGW' }), msg);
+  // The same files, fresh: no refusal.
+  await planImport({ archive: archive(), sourcesFile: sf, outDir: mkdtempSync(join(tmpdir(), 'new-n-')), now: new Date('2026-11-22T07:00:00Z'), rules: AGW_RULES, label: 'AGW' });
+  // The dry run: planned, and every old file named with its download time.
+  const r = await planBol({ archive: dir, outDir: join(mkdtempSync(join(tmpdir(), 'old-p-')), 'plan'), now });
+  assert.equal(r.oldFiles.length, 14);
+  assert.match(r.text, /ΠΡΟΒΛΗΜΑ: 14 αρχεία είναι παλιότερα από 12 ώρες\. Η εισαγωγή θα τα αρνιόταν: τρέξε πρώτα ξανά τη λήψη/);
+  assert.match(r.text, /BOL_43646_NL\.csv\.gz: λήψη 2026-11-20 06:00:00 UTC/);
+  assert.equal(r.sites.agw.products, 2);
+  // tools/legacy-import.ps1 shows the planner's message (the plan fails before any change).
+  assert.match(read('tools/legacy-import.ps1'), /Το σχέδιο απέτυχε: .*δες το μήνυμα πιο πάνω\)\. Δεν άλλαξε τίποτα\./);
 });

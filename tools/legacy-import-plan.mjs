@@ -4,7 +4,7 @@
 // plus the SQL that an import WOULD run. Nothing is sent to any database (lessons L14, L19).
 //
 // Usage: node tools/legacy-import-plan.mjs --archive <dir> --retailer coes --out <dir>
-import { createReadStream, existsSync, mkdirSync, readdirSync, writeFileSync } from 'node:fs';
+import { createReadStream, existsSync, mkdirSync, readdirSync, statSync, writeFileSync } from 'node:fs';
 import { createGunzip } from 'node:zlib';
 import { basename, join, resolve, dirname } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -113,7 +113,11 @@ export async function readProducts({ archive, rules }) {
   const files = paths.map(f => basename(f));
   const groups = new Map();
   let rows = 0;
+  // rules.rowStamp (bol.com, lessons L204): the freshness date of each row (its download time), and the oldest per file.
+  const fileStamps = {};
   for (const f of paths) {
+    let mtime = NaN;
+    try { mtime = statSync(f).mtimeMs; } catch { mtime = NaN; }
     const raw = createReadStream(f);
     const stream = /\.gz$/i.test(f) ? raw.pipe(createGunzip()) : raw;
     let h = null;
@@ -133,6 +137,8 @@ export async function readProducts({ archive, rules }) {
       // Many Awin feeds give the stock only as in_stock (1/0) and leave stock_quantity empty (lessons L37).
       if (qty === null || !Number.isFinite(qty)) { const flag = stockFlag(get('in_stock')); if (flag !== null) qty = flag ? 1 : 0; }
       const price = parsePrice(get('search_price') || get('store_price'));
+      const fresh = typeof rules.rowStamp === 'function' ? String(rules.rowStamp(get, mtime) || '') : '';
+      if (fresh) { const k = basename(f); if (!fileStamps[k] || fresh < fileStamps[k]) fileStamps[k] = fresh; }
       let g = groups.get(key);
       if (!g) {
         g = { key, name: cleanText(get('product_name')), brand: cleanText(get('brand_name')), feedCategory: cleanText(get('merchant_category')),
@@ -141,9 +147,10 @@ export async function readProducts({ archive, rules }) {
           variants: 0, inStockVariants: 0, unknownStock: 0, prices: [], currency: get('currency').toUpperCase(), ean: get('ean') || get('product_gtin'),
           // rules.rowInfo (lessons L161): more columns for the rules, e.g. where a CJ search product is sold and sent. The file
           // name too (bol.com, L204: BOL_0_NL-<search>.csv.gz says which search the row came from).
-          info: typeof rules.rowInfo === 'function' ? rules.rowInfo(get, basename(f)) : null };
+          info: typeof rules.rowInfo === 'function' ? rules.rowInfo(get, basename(f)) : null, fresh };
         groups.set(key, g);
       }
+      if (fresh && (!g.fresh || fresh < g.fresh)) g.fresh = fresh;
       // Two feeds of one shop can list the same product, only one with categories (100% PURE, 25 Oct 2026, lessons L63).
       if (!g.feedCategory) g.feedCategory = cleanText(get('merchant_category'));
       if (!g.awinCategory) g.awinCategory = cleanText(get('category_name'));
@@ -163,7 +170,7 @@ export async function readProducts({ archive, rules }) {
     if (g.names && g.names.size > 1) g.name = (typeof rules.commonName === 'function' ? rules.commonName([...g.names]) : '') || commonVariantName([...g.names]) || g.name;
     delete g.names;
   }
-  return { files, rows, products };
+  return { files, rows, products, fileStamps };
 }
 
 // The words at the start that every option name shares, without a dangling " -", "/", "," or "(" at the end.
@@ -206,6 +213,7 @@ export function joinSameName(products, { acrossFeeds = false } = {}) {
     first.unknownStock += p.unknownStock;
     first.prices.push(...p.prices);
     if (!first.ean && p.ean) first.ean = p.ean;
+    if (p.fresh && (!first.fresh || p.fresh < first.fresh)) first.fresh = p.fresh;
   }
   return out;
 }
@@ -348,12 +356,19 @@ export function stableRank(id) {
   return h;
 }
 
-export async function planLegacyImport({ archive, retailer, outDir, now = new Date(), fetchImpl }) {
+export async function planLegacyImport({ archive, retailer, outDir, now = new Date(), fetchImpl, allowOld = false }) {
   const rules = await loadRules(retailer);
   const R = rules.RULES;
   const NET = networkOf(rules);
   const read = await readProducts({ archive, rules });
   const { files, rows } = read;
+  // rules.feedTooOld (bol.com, L204): the import refuses a feed file older than the rules allow (run the download again);
+  // the dry run of tools/bol-import-plan.mjs (allowOld) makes the plan and lists them.
+  const oldFiles = typeof rules.feedTooOld === 'function' ? Object.entries(read.fileStamps).filter(([, s]) => rules.feedTooOld(s, now)) : [];
+  if (oldFiles.length && !allowOld) {
+    const say = typeof rules.oldFileMessage === 'function' ? rules.oldFileMessage : (f, s) => `${f}: feed from ${s}, too old`;
+    throw new Error(oldFiles.map(([f, s]) => say(f, s)).join('\n'));
+  }
   // rules.RULES.joinSameName: options of one product page with the SAME name (e.g. two sizes of "Director Chair Covers")
   // become one card with the lowest in-stock price. Options with different names (colours, sets) stay separate cards.
   const products = R.joinSameNameAcrossFeeds ? joinSameName(read.products, { acrossFeeds: true })
@@ -411,6 +426,8 @@ export async function planLegacyImport({ archive, retailer, outDir, now = new Da
       affiliate_url: NET ? httpsLink(p.tracked)
         : `https://www.awin1.com/cread.php?awinmid=${R.advertiserId}&awinaffid=${AWIN_PUBLISHER_ID}&ued=${encodeURIComponent(R.keepQuery ? (p.link || p.page) : (p.page || p.link))}`,
       ean: /^\d{8,14}$/.test(p.ean || '') ? p.ean : null, variants: p.variants,
+      // The row's own freshness date (bol.com: its download time, L204); else the time of the plan, as before.
+      updated_at: p.fresh || null,
       // Placed only because of the feed category (no clear word in the name): listed in the report for checking.
       doubt: Boolean(c.doubt)
     });
@@ -463,7 +480,7 @@ export async function planLegacyImport({ archive, retailer, outDir, now = new Da
     summary.sites[s] = { products: accepted[s].length, files: sqlFiles[s].length, byCategory: byCat };
   }
   writeFileSync(join(outDir, 'plan.json'), JSON.stringify(summary, null, 2));
-  return { files, rows, products: products.length, accepted, rejected, text };
+  return { files, rows, products: products.length, accepted, rejected, text, oldFiles };
 }
 
 const q = v => (v === null || v === undefined) ? 'NULL' : (typeof v === 'number' ? String(v) : `'${String(v).replace(/'/g, "''")}'`);
@@ -476,7 +493,7 @@ const COLS = ['awin_product_id', 'merchant_product_id', 'retailer', 'site_catego
 // plan's category and subcategory; every other product keeps its own.
 export function insertSql(items, stamp, opts = {}) {
   const values = items.map(p => '(' + [p.awin_product_id, p.merchant_product_id, p.retailer, p.site_category, p.subcategory, p.brand, p.product_name,
-    p.feed_product_name, p.price, p.currency, p.stock_status, p.merchant_category, p.image_url, p.affiliate_url, p.ean, 1, stamp, stamp].map(q).join(', ') + ')');
+    p.feed_product_name, p.price, p.currency, p.stock_status, p.merchant_category, p.image_url, p.affiliate_url, p.ean, 1, stamp, p.updated_at || stamp].map(q).join(', ') + ')');
   const stable = STABLE_KEY_SITES.has(String(opts.site || ''));
   // opts.keepNames (rules keepSiteNames, lessons L79): a product already on the site keeps its shown name (translated);
   // feed_product_name still follows the feed, so the shop's own name is always there to compare with.

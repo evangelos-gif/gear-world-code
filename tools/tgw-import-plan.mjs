@@ -18,7 +18,7 @@ import * as TGW_RULES from '../sites/tgw/category-rules.js';
 import { normalizeGtin } from '../src/lib/gtin.js';
 import { slugify, truncate } from '../src/lib/text.js';
 import { aliexpressSection } from './import-rules/lib/aliexpress-sections.mjs';
-import { bolSection, bolEan } from './import-rules/lib/bol-nl.mjs';
+import { bolSection, bolEan, bolStamp, bolTooOld, oldFileMessage } from './import-rules/lib/bol-nl.mjs';
 import { NETWORKS } from './network-links.mjs';
 
 // A shop of another network on these sites (chat 9, 17 Nov 2026, Daisycon Wave 3, lessons L170): sources.json
@@ -232,7 +232,9 @@ const COLUMNS = {
   size: ['size', 'fashion_size'],
   // bol.com (tools/bol-feed-download.ps1, lessons L204): its category and the GS1 path, for "sections": "bol-nl".
   bolCategory: ['bol_category_id'],
-  bolGpc: ['bol_gpc']
+  bolGpc: ['bol_gpc'],
+  // The time of the download (bol.com's files: the download's stamp on every row).
+  lastUpdated: ['last_updated']
 };
 
 function mapHeader(header) {
@@ -689,7 +691,7 @@ function addSample(store, key, item, size, rng) {
 // rules: a site's category-rules.js (default TGW). Other sites with their own database reuse this tool with their own
 // rules and label (tools/agw-import-plan.mjs, tools/vgw-import-plan.mjs). QUALITY.currencies (list) or QUALITY.currency.
 // only: a list of Awin advertiser ids, to plan just those retailers (their SQL then touches only them).
-export async function planImport({ archive, sourcesFile, outDir, now = new Date(), rules = TGW_RULES, label = 'TGW', only = null, writeSql = true }) {
+export async function planImport({ archive, sourcesFile, outDir, now = new Date(), rules = TGW_RULES, label = 'TGW', only = null, writeSql = true, allowOldBol = false }) {
   const { classify, cleanProductName, QUALITY, CATEGORY_SLUGS } = rules;
   const notUkHint = rules.notUkHint || (() => '');
   const currencies = QUALITY.currencies || [QUALITY.currency];
@@ -705,7 +707,7 @@ export async function planImport({ archive, sourcesFile, outDir, now = new Date(
   // Only a retailer whose feed was found and read gets its missing products hidden by 9999-finish.sql.
   const readAdvertisers = new Set();
   const notRead = [];
-  const stats = { rows: 0, accepted: 0, rejected: {}, perCategory: {}, gtinValid: 0, withWas: 0, feedCats: {}, perRetailer: {}, denyWords: {} };
+  const stats = { rows: 0, accepted: 0, rejected: {}, perCategory: {}, gtinValid: 0, withWas: 0, feedCats: {}, perRetailer: {}, denyWords: {}, oldBolFiles: [] };
   const samples = { accepted: {}, rejected: {}, byRetailer: {} };
   const feedInfo = [];
   const products = new Map();
@@ -755,6 +757,8 @@ export async function planImport({ archive, sourcesFile, outDir, now = new Date(
     for (const found of files) {
       const real = found.name;
       let header = null, map = null, rows = 0, adapter = null;
+      // bol.com (lessons L204): the oldest download time of the file's rows; a file older than 12 hours is refused.
+      let bolOldest = '';
       const stream = createReadStream(found.full).pipe(/\.gz$/i.test(real) ? createGunzip() : new PassThrough());
       for await (const raw of readCsvRecords(stream)) {
         let rec = raw;
@@ -917,12 +921,19 @@ export async function planImport({ archive, sourcesFile, outDir, now = new Date(
           mpn: cleanText(pick(rec, map.mpn)).slice(0, 60) || null,
           specs_json: Object.keys(specs).length ? JSON.stringify(specs) : null,
           is_active: 1,
-          last_seen_at: runStamp
+          // bol.com: the time of ITS download (the daily refresh hides a row 24 hours after it), never the plan's time.
+          last_seen_at: source.network === 'bol' ? (bolStamp(pick(rec, map.lastUpdated), found.mtime) || runStamp) : runStamp
         };
+        if (source.network === 'bol' && (!bolOldest || p.last_seen_at < bolOldest)) bolOldest = p.last_seen_at;
         candidates.push({ p, short, loose, feedCategory: merchantCategory || awinCategory || '-', qtyZero: quantity === '0' });
         if (google || source.joinVariants) googleSeen.set(stableKey, p);
       }
       feedInfo.push(`  rows read: ${rows}`);
+      if (source.network === 'bol' && rows > 0 && bolTooOld(bolOldest || bolStamp('', found.mtime), now)) {
+        // The import refuses it (run the download again first); the dry run (tools/bol-import-plan.mjs) lists it.
+        if (!allowOldBol) throw new Error(oldFileMessage(real, bolOldest || bolStamp('', found.mtime)));
+        stats.oldBolFiles.push([real, bolOldest || bolStamp('', found.mtime)]);
+      }
       sourceRows += rows;
     }
     if (sourceRows > 0 && missing === 0) readAdvertisers.add(shopId);

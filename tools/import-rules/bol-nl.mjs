@@ -10,7 +10,7 @@
 // with the owner's ΕΓΚΡΙΝΩ ALL IMPORTS. Taking the line out is the change that allows it.
 import { readdirSync } from 'node:fs';
 import { join } from 'node:path';
-import { BOL_FILE, BOL_SOURCES, BOL_SEARCHES, LEGACY_SITES, BOL_RETAILER, routeOf, placeBol, bolBaseName, bolEan } from './lib/bol-nl.mjs';
+import { BOL_FILE, BOL_SOURCES, BOL_SEARCHES, LEGACY_SITES, BOL_RETAILER, routeOf, placeBol, bolBaseName, bolEan, bolStamp, bolTooOld, oldFileMessage } from './lib/bol-nl.mjs';
 
 export const RULES = {
   key: 'bol-nl',
@@ -61,6 +61,14 @@ export function rowInfo(get, file = '') {
   const m = BOL_FILE.exec(String(file || ''));
   return { categoryId: get('bol_category_id') || (m ? m[1] : ''), gpc: get('bol_gpc') || get('category_name'), search: m && m[2] ? m[2].toLowerCase() : '' };
 }
+
+// The freshness date of a row: the time of its download (tools/legacy-import-plan.mjs writes it to updated_at), and the
+// import's refusal of a file older than 12 hours (the plan of the dry run, tools/bol-import-plan.mjs, only warns).
+export function rowStamp(get, fileMs) {
+  return bolStamp(get('last_updated'), fileMs);
+}
+export const feedTooOld = (stamp, now) => bolTooOld(stamp, now);
+export { oldFileMessage };
 
 export function classify({ name, info }) {
   const i = info || {};

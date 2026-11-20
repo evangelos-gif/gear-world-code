@@ -103,6 +103,26 @@ export function bolBaseName(name) {
   return n.replace(/\s*[-–,|(]\s*$/, '').trim() || String(name || '').trim();
 }
 
+// ---- 5. Fresh files only (Manager, independent review of L205, 20 Nov 2026) ----
+// A bol.com row carries the time of ITS download (the feed's last_updated, written by the download), never the time of
+// the plan or the import, so the daily refresh (src/bol-refresh.js) hides it 24 hours after bol.com last confirmed it.
+// A file older than BOL_MAX_AGE_HOURS is refused by the import: run the download again first.
+export const BOL_MAX_AGE_HOURS = 12;
+// 'YYYY-MM-DD HH:MM:SS' UTC (how the sites and the refresh store it), from the row's last_updated, else the file's time.
+export function bolStamp(lastUpdated, fileMs = NaN) {
+  const t = Date.parse(String(lastUpdated || ''));
+  const ms = Number.isFinite(t) ? t : Number(fileMs);
+  return Number.isFinite(ms) && ms > 0 ? new Date(ms).toISOString().slice(0, 19).replace('T', ' ') : '';
+}
+export function bolTooOld(stamp, now = new Date(), hours = BOL_MAX_AGE_HOURS) {
+  const t = Date.parse(`${String(stamp || '').replace(' ', 'T')}Z`);
+  return !Number.isFinite(t) || now.getTime() - t > hours * 3600000;
+}
+export function oldFileMessage(file, stamp, hours = BOL_MAX_AGE_HOURS) {
+  return `Το αρχείο του bol.com ${file} είναι ${stamp ? `από ${stamp} UTC` : 'χωρίς ώρα λήψης'}, παλιότερο από ${hours} ώρες: ` +
+    'τρέξε πρώτα ξανά τη λήψη (tools/bol-feed-download.ps1 -Step download) και μετά την εισαγωγή. Δεν φορτώθηκε τίποτα.';
+}
+
 // ---- 1. Route ----
 export function sourceOf(categoryId) {
   return BOL_SOURCES.find(s => s.id === String(categoryId || '').trim()) || null;
