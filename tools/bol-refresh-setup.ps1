@@ -8,8 +8,11 @@
   -Step check    READ-ONLY (default). Cloudflare login; the database gear-world-awin and the 10 site databases (found by
                  NAME; the IDs never reach a report); the Worker, the code version it runs, its keys (NAMES only, never a
                  value), the kill switch (and why it is off), the last runs; whether this PC has the catalog keys of
-                 bol-feed-download; per site, how many rows are 'bol.com', and a ΠΡΟΣΟΧΗ when rows with partner.bol.com
-                 links have another retailer name (the Worker refreshes only exactly 'bol.com').
+                 bol-feed-download; per site, how many rows are 'bol.com' (and a ΠΡΟΣΟΧΗ for rows under a bol.com alias
+                 of the site's retailerNames), counted only through the retailer index (lessons L105/L193).
+  -Step scan-links  READ-ONLY, but it READS EVERY ROW of the 10 product tables (no index can find a link): which rows
+                 have partner.bol.com links under a retailer name other than exactly 'bol.com' (the Worker refreshes only
+                 'bol.com'). Meant to run ONCE, before the bol.com import.
   -Step apply    CHANGES CLOUDFLARE ONLY, one approval: ΕΓΚΡΙΝΩ BOL ΑΝΑΝΕΩΣΗ. First the live-version guard (L156): a
                  Worker that runs a code version this one does not contain is never replaced (exit 13). Then:
                    1. backup: a Time Travel restore point of gear-world-awin and a dated copy (export) on this PC, and the
@@ -39,7 +42,7 @@
   Report: <home>\gear-world-reports\BOL_REFRESH_<STEP>_<time>.txt (also copied to the clipboard)
 #>
 param(
-    [ValidateSet('check', 'apply', 'keys', 'disable', 'enable')]
+    [ValidateSet('check', 'apply', 'keys', 'disable', 'enable', 'scan-links')]
     [string]$Step = 'check',
     [switch]$Apply,
     [string]$Approve = '',
@@ -66,16 +69,16 @@ $SalesDb = 'gear-world-awin'
 $BolPage = 'https://partner.bol.com/'
 # The 10 sites with bol.com products and their databases (src/bol-refresh.js BOL_SITES; the tests check they agree).
 $Sites = @(
-    @{ Code = 'cgw'; Db = 'construction-gear-customers' },
-    @{ Code = 'hgw'; Db = 'home-gear-world' },
-    @{ Code = 'ggw'; Db = 'garden-gear-world' },
-    @{ Code = 'wgw'; Db = 'womens-gear-world' },
-    @{ Code = 'mgw'; Db = 'mens-gear-world' },
-    @{ Code = 'kgw'; Db = 'kids-gear-world' },
-    @{ Code = 'agw'; Db = 'car-gear-world' },
-    @{ Code = 'sgw'; Db = 'sporty-gear-world' },
-    @{ Code = 'vgw'; Db = 'travel-gear-world' },
-    @{ Code = 'zgw'; Db = 'pets-gear-world' }
+    @{ Code = 'cgw'; Db = 'construction-gear-customers'; Layout = 'legacy' },
+    @{ Code = 'hgw'; Db = 'home-gear-world'; Layout = 'legacy' },
+    @{ Code = 'ggw'; Db = 'garden-gear-world'; Layout = 'legacy' },
+    @{ Code = 'wgw'; Db = 'womens-gear-world'; Layout = 'legacy' },
+    @{ Code = 'mgw'; Db = 'mens-gear-world'; Layout = 'legacy' },
+    @{ Code = 'kgw'; Db = 'kids-gear-world'; Layout = 'legacy' },
+    @{ Code = 'agw'; Db = 'car-gear-world'; Layout = 'native' },
+    @{ Code = 'sgw'; Db = 'sporty-gear-world'; Layout = 'native' },
+    @{ Code = 'vgw'; Db = 'travel-gear-world'; Layout = 'native' },
+    @{ Code = 'zgw'; Db = 'pets-gear-world'; Layout = 'native' }
 )
 $NewTables = @('bol_refresh_runs', 'bol_refresh_meta', 'bol_refresh_checked', 'bol_refresh_hidden')
 $SecretNames = @('BOL_CATALOG_CLIENT_ID', 'BOL_CATALOG_CLIENT_SECRET')
@@ -347,8 +350,38 @@ function Select-SiteDb([string]$folder, [string]$dbName, [string]$sql) {
     return , @($j[0].results)
 }
 
-# Per site: the rows with the name 'bol.com' (the ones the Worker looks after) and, as ΠΡΟΣΟΧΗ, rows with partner.bol.com
-# links under any other retailer name: the Worker never refreshes those (it matches the name exactly, L205).
+# check: per site, the rows named 'bol.com' (the ones the Worker looks after) and the rows under a bol.com alias of the
+# site's retailerNames (tools/bol-refresh.mjs --mode aliases), counted ONLY through the retailer index: older sites
+# idx_products_retailer (CGW idx_products_retailer_active_ean), new sites (is_active, retailer). No full scan (L105, L193).
+function Show-BolCounts([string]$folder) {
+    $aliases = $null
+    if (Get-Command node -ErrorAction SilentlyContinue) { $A = Invoke-NodeJson 'bol-refresh.mjs' @('--mode', 'aliases'); if ($A -and $A.ok) { $aliases = $A.sites } }
+    if ($null -eq $aliases) { Say '  (τα ψευδώνυμα των ονομάτων καταστημάτων δεν διαβάστηκαν: μετράω μόνο το «bol.com»)' 'Yellow' }
+    $counts = New-Object System.Collections.Generic.List[string]
+    $warn = 0
+    foreach ($s in $Sites) {
+        $names = @('bol.com')
+        if ($aliases -and $aliases.($s.Code)) { $names = @($aliases.($s.Code) | ForEach-Object { [string]$_ } | Where-Object { $_ -and $_ -notmatch '["&|<>^%]' }) }
+        $list = ($names | ForEach-Object { "'" + $_.Replace("'", "''") + "'" }) -join ', '
+        $where = "retailer IN ({0})" -f $list
+        if ($s.Layout -eq 'native') { $where = "is_active IN (0, 1) AND retailer IN ({0})" -f $list }
+        $rows = Select-SiteDb $folder $s.Db ("SELECT retailer, COUNT(*) AS n FROM products WHERE {0} GROUP BY retailer" -f $where)
+        if ($null -eq $rows) { $counts.Add(('{0} δεν διαβάστηκε' -f $s.Code.ToUpper())); continue }
+        $n = 0
+        foreach ($x in $rows) {
+            if ([string]$x.retailer -ceq 'bol.com') { $n = [int]$x.n; continue }
+            $warn++
+            Say ('  🟡 ΠΡΟΣΟΧΗ: {0} ({1}): {2} γραμμές με το όνομα «{3}» (ψευδώνυμο του bol.com), όχι ακριβώς «bol.com»: ο Worker ΔΕΝ τις ανανεώνει.' -f $s.Code.ToUpper(), $s.Db, $x.n, [string]$x.retailer) 'Yellow'
+        }
+        $counts.Add(('{0} {1}' -f $s.Code.ToUpper(), $n))
+    }
+    Say ('  Γραμμές «bol.com» στα sites (μόνο από το ευρετήριο του καταστήματος): {0}' -f ($counts -join ', '))
+    if ($warn -eq 0) { Say '  Ψευδώνυμα του bol.com με γραμμές: κανένα: 🟢 ΕΝΤΑΞΕΙ' }
+    Say '  Για τα links του partner.bol.com με άλλο όνομα: -Step scan-links (διαβάζει ΟΛΕΣ τις γραμμές, μία φορά πριν από την εισαγωγή).'
+}
+
+# scan-links: rows with partner.bol.com links under any other retailer name. instr() cannot use an index, so this READS
+# EVERY ROW of every products table: its own step, run once before the bol.com import (lessons L105, L193).
 function Show-BolNames([string]$folder) {
     $sql = "SELECT retailer, COUNT(*) AS n FROM products WHERE retailer = 'bol.com' OR instr(COALESCE(affiliate_url, ''), 'partner.bol.com') != 0 GROUP BY retailer"
     $counts = New-Object System.Collections.Generic.List[string]
@@ -546,7 +579,7 @@ function Put-CatalogKeys([string]$folder) {
 
 # ---------------- start ----------------
 $mode = 'ΜΟΝΟ ΕΛΕΓΧΟΣ (δεν αλλάζει τίποτα)'
-if ($Apply -and $Step -ne 'check') { $mode = 'APPLY (με έγκριση)' }
+if ($Apply -and $Step -ne 'check' -and $Step -ne 'scan-links') { $mode = 'APPLY (με έγκριση)' }
 Say ('BOL.COM DAILY PRICE REFRESH ({0}) - step: {1} - {2} - {3}' -f $WorkerName, $Step, $mode, (Get-Date -Format 'yyyy-MM-dd HH:mm')) 'Cyan'
 Say ('Code version: {0}' -f (Split-Path -Leaf $repo))
 if (($Step -eq 'apply' -or $Step -eq 'keys') -and -not $env:GW_TEST_BOL_API -and -not (Get-Command node -ErrorAction SilentlyContinue)) { Say 'Δεν βρέθηκε το Node.js. Στείλε στο Claude αυτό το μήνυμα.' 'Red'; Finish 3 }
@@ -570,6 +603,19 @@ if ($null -eq $ids) { Say 'Δεν διάβασα τη λίστα των βάσε
 if (-not $ids.ContainsKey($SalesDb)) { Say ('Η βάση {0} δεν υπάρχει: πρώτα το awin-setup (apply). Δεν άλλαξε τίποτα.' -f $SalesDb) 'Red'; Finish 5 }
 $missingDbs = @($Sites | Where-Object { -not $ids.ContainsKey($_.Db) } | ForEach-Object { $_.Db })
 Write-Config $config $ids
+
+# ================= scan-links (read-only, reads every row) =================
+if ($Step -eq 'scan-links') {
+    if ($missingDbs.Count -gt 0) { Say ('Λείπουν βάσεις sites ({0}). Δεν διάβασα τίποτα.' -f ($missingDbs -join ', ')) 'Red'; Finish 5 }
+    Say ''
+    Say 'ΠΡΟΣΟΧΗ (κόστος): αυτό το βήμα διαβάζει ΚΑΘΕ γραμμή των πινάκων products των 10 sites (π.χ. HGW περίπου 1,28 GB), γιατί κανένα ευρετήριο δεν βρίσκει ένα link. Μόνο ανάγνωση· τρέχει ΜΙΑ φορά, πριν από την εισαγωγή του bol.com.' 'Yellow'
+    Say ''
+    Say 'Γραμμές με links του partner.bol.com και το όνομα καταστήματός τους:'
+    Show-BolNames $cfgDir
+    Say ''
+    Say 'Αποτέλεσμα: 🟢 ΕΝΤΑΞΕΙ (μόνο ανάγνωση, δεν άλλαξε τίποτα). Αν γράφει ΠΡΟΣΟΧΗ, το όνομα πρέπει να διορθωθεί στην εισαγωγή πριν τρέξει ο Worker.' 'Green'
+    Finish 0
+}
 
 Say ''
 Say 'Τι υπάρχει τώρα:'
@@ -607,7 +653,7 @@ else {
 }
 if ($have -contains 'bol_refresh_meta') { Show-Switch $meta }
 if ($have -contains 'bol_refresh_runs') { Show-Runs $cfgDir }
-if ($Step -eq 'check' -and $missingDbs.Count -eq 0) { Show-BolNames $cfgDir }
+if ($Step -eq 'check' -and $missingDbs.Count -eq 0) { Show-BolCounts $cfgDir }
 if (Test-Path -LiteralPath $SecretFile) { Say '  Κλειδιά του καταλόγου σε αυτόν τον υπολογιστή (bol-feed-download -Step keys): υπάρχουν (κρυπτογραφημένα, δεν ανοίχτηκαν)' }
 else { Say ('  Κλειδιά του καταλόγου σε αυτόν τον υπολογιστή: δεν υπάρχουν ({0})· στο apply θα σου ζητηθούν κρυφά' -f $SecretFile) }
 

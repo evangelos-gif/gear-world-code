@@ -25,7 +25,8 @@
 //  - Kill switch: bol_refresh_meta 'enabled' = '0' (the removal tool sets it as its first step; -Step disable too). Then
 //    no bol.com call, no price change, no row shown again: only the 24-hour hiding above. The Worker turns it off ITSELF
 //    when bol.com answers 401 or 403 (keys refused, or blocked), so it does not ask again every hour; only
-//    tools/bol-refresh-setup.ps1 -Step enable turns it on again.
+//    tools/bol-refresh-setup.ps1 -Step enable turns it on again. While its reason (disabled_reason 'worker ...') is set,
+//    every run is recorded as an error (ok 0), not as a pause.
 //  - bol.com's rules (L154): ONE token per invocation (a new one only when it has run out, at most 3); 401, 403 and 429
 //    from either host stop the run at once, with no new try. The keys go only to login.bol.com and the token only to
 //    api.bol.com, no redirect is followed. The keys are the Worker secrets BOL_CATALOG_CLIENT_ID /
@@ -202,12 +203,14 @@ export async function refreshRun(env, { fetchFn = fetch, now = () => new Date(),
   // ---- the kill switch, the cycle and the code version (gear-world-awin) ----
   let metaOk = Boolean(db);
   let enabled = true;
+  let offReason = '';
   let cycle = null;
   if (!db) errors.push('no database binding SALES_DB');
   else {
     try {
       const e = await getMeta(db, 'enabled');
       enabled = e === null ? true : e.trim() !== '0';
+      offReason = String((await getMeta(db, 'disabled_reason')) || '').trim();
       const c = await getMeta(db, 'cycle');
       if (c) { try { cycle = JSON.parse(c); } catch { cycle = null; } }
     } catch (e) { metaOk = false; errors.push(`bol_refresh_meta not readable (${short(e)}): no bol.com call, only the 24-hour hiding`); }
@@ -352,7 +355,10 @@ export async function refreshRun(env, { fetchFn = fetch, now = () => new Date(),
   let refreshing = enabled && metaOk && ownOk;
   const missing = SECRETS.filter(n => !value(env, n));
   if (refreshing && missing.length) { errors.push(`missing secret(s): ${missing.join(', ')}`); refreshing = false; }
-  if (!enabled) notes.push('kill switch off (bol_refresh_meta enabled = 0): no bol.com call, only the 24-hour hiding');
+  // Off because the WORKER turned it off (bol.com answered 401/403): every run is an error with that reason, so the 07:40
+  // report shows a problem, not a pause. Off by the owner (-Step disable) or the removal tool: held (a pause).
+  if (!enabled && /^worker\b/i.test(offReason)) errors.push(`kill switch off since ${offReason}`);
+  else if (!enabled) notes.push('kill switch off (bol_refresh_meta enabled = 0): no bol.com call, only the 24-hour hiding');
   let api = null;
   let disabledNow = false;
   if (refreshing) {

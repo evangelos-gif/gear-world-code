@@ -465,7 +465,8 @@ test('P1-2: 401 or 403 from either host stops the run and turns the switch off (
       const F2 = fakeBol();
       const r2 = await refreshRun(env, { fetchFn: F2.fetch, now: clock('2026-11-20T05:13:00Z').now, sleepFn: noSleep });
       assert.equal(F2.tokens + F2.calls.length, 0, `${name}: the next hour asks nothing`);
-      assert.equal(r2.state, 'held');
+      assert.deepEqual([r2.state, r2.ok], ['error', 0], `${name}: while the Worker's reason is set, every run is an error, not a pause`);
+      assert.match(r2.message, /^kill switch off since worker .*answered 40[13]/);
     }
   }
   // the PC download stops on a 403 too (the same session)
@@ -535,6 +536,32 @@ test('missing keys, a missing site binding or unreadable own records: no bol.com
   assert.equal(F3.tokens + F3.calls.length, 0, 'own records unreadable: no call');
   assert.match(r3.message, /own records not readable/);
   assert.equal(row(e3.DB_HGW, old).is_active, 0, 'and the hiding falls back to the site date');
+});
+
+test('P2-2: a pause by the owner or the removal tool is held; a switch the Worker turned off is an error every run', async () => {
+  const env = world();
+  addNative(env.DB_AGW, { ean: EAN(1) });
+  env.SALES_DB.sql.prepare("UPDATE bol_refresh_meta SET value = '0' WHERE key = 'enabled'").run();
+  env.SALES_DB.sql.prepare("INSERT INTO bol_refresh_meta (key, value, updated_at) VALUES ('disabled_reason', '', 'x')").run();
+  const r1 = await refreshRun(env, { fetchFn: fakeBol().fetch, now: clock('2026-11-20T04:13:00Z').now, sleepFn: noSleep });
+  assert.deepEqual([r1.state, r1.ok], ['held', 2]);
+  env.SALES_DB.sql.prepare("UPDATE bol_refresh_meta SET value = 'removal tool 2026-11-20T04:00:00Z' WHERE key = 'disabled_reason'").run();
+  const r2 = await refreshRun(env, { fetchFn: fakeBol().fetch, now: clock('2026-11-20T05:13:00Z').now, sleepFn: noSleep });
+  assert.deepEqual([r2.state, r2.ok], ['held', 2], 'any reason that is not the Worker\'s own is a pause');
+  env.SALES_DB.sql.prepare("UPDATE bol_refresh_meta SET value = 'worker 2026-11-20T05:00:00.000Z: bol.com answered 401 (token); turn on with -Step enable' WHERE key = 'disabled_reason'").run();
+  const r3 = await refreshRun(env, { fetchFn: fakeBol().fetch, now: clock('2026-11-20T06:13:00Z').now, sleepFn: noSleep });
+  assert.deepEqual([r3.state, r3.ok], ['error', 0]);
+  assert.match(r3.message, /^kill switch off since worker 2026-11-20T05:00:00\.000Z: bol\.com answered 401/);
+  assert.equal(runs(env).at(-1).ok, 0);
+});
+
+test('the setup helper: the names the check counts per site: bol.com and its aliases from retailerNames', async () => {
+  const { bolAliases, siteAliases } = await import('../../tools/bol-refresh.mjs');
+  assert.deepEqual(bolAliases({}), ['bol.com']);
+  assert.deepEqual(bolAliases({ database: { retailerNames: { 'Joybuy UK': 'Joybuy', 'bol.com NL': 'bol.com', 'Bol Partner': 'Something', 'bol.com': 'bol.com' } } }), ['bol.com', 'bol.com NL', 'Bol Partner']);
+  const all = await siteAliases();
+  assert.deepEqual(Object.keys(all), BOL_SITES.map(s => s.code));
+  assert.ok(Object.values(all).every(list => list[0] === 'bol.com'));
 });
 
 test('the Worker: no public address (404), the cron hands the run to waitUntil; runs kept to the newest 1,000', async () => {
