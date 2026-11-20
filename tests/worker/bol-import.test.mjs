@@ -280,3 +280,47 @@ test('L204 (review of L205): the import refuses bol.com files older than 12 hour
   // tools/legacy-import.ps1 shows the planner's message (the plan fails before any change).
   assert.match(read('tools/legacy-import.ps1'), /Το σχέδιο απέτυχε: .*δες το μήνυμα πιο πάνω\)\. Δεν άλλαξε τίποτα\./);
 });
+
+test('L204 + L205 (re-review): no bol.com row is loaded while the refresh kill switch is off or not set up', async () => {
+  // The shared gate: one read-only SELECT on gear-world-awin, and a Greek message for each refusal.
+  const g = read('tools/lib/bol-guard.ps1');
+  assert.ok(g.startsWith('﻿') && g.includes('\r\n'), 'UTF-8 with BOM, CRLF');
+  assert.ok(g.includes("$script:BolGateDb = 'gear-world-awin'"));
+  assert.ok(g.includes(`$script:BolGateSql = "SELECT value FROM bol_refresh_meta WHERE key = 'enabled'"`));
+  assert.ok(!/--file|\bINSERT\b|\bUPDATE\b|\bDELETE\b|\bDROP\b/.test(g), 'the gate only reads');
+  assert.match(g, /if \(\$v -eq '1'\) \{ return 'on' \}/, 'only "1" opens the gate');
+  assert.match(g, /no such table/, 'no table: the refresh was never set up');
+  assert.match(g, /tools\/bol-refresh-setup\.ps1 -Step apply/, 'not set up: the refresh setup step first');
+  assert.match(g, /-Step enable/);
+  assert.match(g, /ΜΗΝ τον ανοίξεις/, 'switched off by the removal tool: never on again for an import');
+  // The older sites: tools/legacy-import.ps1 reads it with -Apply, before the paused stop, the restore point and any write.
+  const li = read('tools/legacy-import.ps1');
+  assert.ok(li.includes(". (Join-Path (Join-Path (Join-Path $repo 'tools') 'lib') 'bol-guard.ps1')"));
+  const iGate = li.indexOf("if ($Apply -and ($RetailerName -eq 'bol.com' -or $Retailer -like 'bol-*')) {");
+  assert.ok(iGate > 0 && li.indexOf('if (-not (Test-BolImportGate $WorkDir)) { Finish 16 }', iGate) > iGate);
+  assert.ok(iGate < li.indexOf("-contains 'paused') -and $plan.paused") && iGate < li.indexOf('time-travel info') && iGate < li.indexOf('--remote --file'));
+  // The newer sites: the planner marks a plan that reads bol.com (bol.txt) ...
+  const dir = archive();
+  const now = new Date('2026-11-22T07:00:00Z');
+  const sf = join(mkdtempSync(join(tmpdir(), 'gate-s-')), 'sources.json');
+  writeFileSync(sf, JSON.stringify({ sources: bolSourcesOf('agw') }));
+  const on = mkdtempSync(join(tmpdir(), 'gate-on-'));
+  await planImport({ archive: dir, sourcesFile: sf, outDir: on, now, rules: AGW_RULES, label: 'AGW' });
+  assert.match(read(join(on, 'bol.txt')), /bol\.com sources in this plan: 43646\nbol\.com products: 2\n/);
+  const paused = mkdtempSync(join(tmpdir(), 'gate-off-'));
+  await planImport({ archive: dir, sourcesFile: 'sites/agw/sources.json', outDir: paused, now, rules: AGW_RULES, label: 'AGW', only: ['43646'] });
+  assert.ok(!existsSync(join(paused, 'bol.txt')), 'paused in sources.json: not read, no gate needed');
+  // ... and the import step of each site tool reads the switch then, before the approval, the restore point and the SQL.
+  for (const s of ['tgw', 'agw', 'vgw', 'sgw', 'zgw', 'bgw', 'pgw']) {
+    const t = read(`tools/${s}-cloudflare.ps1`);
+    assert.ok(t.includes(". (Join-Path (Join-Path (Join-Path $repo 'tools') 'lib') 'bol-guard.ps1')"), s);
+    const iA = t.indexOf('Confirm-Approval $Phrases.import');
+    const iT = t.indexOf(`Invoke-Wrangler $${s} ('d1 time-travel info {0}' -f $DbName) -NonInteractive -Retry`, iA);
+    const iG = t.indexOf(`if (-not (Test-BolImportGate $${s} -NonInteractive)) { Finish 16 }`);
+    const iF = t.indexOf('if (Test-Path -LiteralPath (Join-Path $planDir $script:BolGatePlanFile)) {');
+    assert.ok(iF > 0 && iF < iG && iG < iA && iA < iT, `${s}: the gate before the approval and the restore point`);
+    assert.ok(t.lastIndexOf("if (-not $Apply) { Say ''; Say 'Δοκιμή μόνο (χωρίς -Apply): δεν άλλαξε τίποτα.' 'Green'; Finish 0 }", iG) > t.lastIndexOf("'import' {", iG), `${s}: the dry run never needs it`);
+  }
+  assert.match(read('tools/tgw-import-plan.mjs'), /writeFileSync\(join\(outDir, 'bol\.txt'\)/);
+  assert.match(read('tools/lib/bol-guard.ps1'), /\$script:BolGatePlanFile = 'bol\.txt'/);
+});

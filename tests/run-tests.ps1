@@ -6915,6 +6915,115 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
     }
 }
 
+# 26b. The bol.com import gate (lessons L204, L205; Manager, 20 Nov 2026): legacy-import.ps1 with -Apply reads the daily
+# refresh's kill switch FIRST (tools/lib/bol-guard.ps1) and loads nothing while it is off or not set up (exit 16). A fresh
+# synthetic bol.com file (the download's own row code) and a fake wrangler (Windows only: runs .cmd files).
+if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
+    Write-Host 'bol.com import gate (legacy-import.ps1, fake wrangler)'
+    $bgateTool = Join-Path (Join-Path $repo 'tools') 'legacy-import.ps1'
+    $bgateState = Join-Path $work 'bolgate-state'
+    $bgateBin = Join-Path $work 'bolgate-bin'
+    $bgateArch = Join-Path $work 'bolgate-arch'
+    $bgateWork = Join-Path $work 'bolgate-work'
+    New-Item -ItemType Directory -Path $bgateState, $bgateBin, $bgateArch, $bgateWork -Force | Out-Null
+    $bgateGen = @'
+import { writeFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { gzipSync } from 'node:zlib';
+import { pathToFileURL } from 'node:url';
+const [repo, dir] = process.argv.slice(2);
+const { rowOf, BOL_COLUMNS } = await import(pathToFileURL(join(repo, 'tools', 'bol-feed.mjs')).href);
+const { csvLine } = await import(pathToFileURL(join(repo, 'tools', 'network-links.mjs')).href);
+const body = '871000000123';
+let s = 0;
+for (let i = 0; i < 12; i++) s += Number(body[11 - i]) * (i % 2 === 0 ? 3 : 1);
+const ean = body + ((10 - (s % 10)) % 10);
+const p = { ean, bolProductId: '9200000123', title: 'Tefal koekenpan 28 cm', url: 'https://www.bol.com/nl/nl/p/x/' + ean + '/',
+  image: { url: 'https://media.s-bol.com/' + ean + '.jpg' }, offer: { price: 34.99, strikethroughPrice: 69.98, deliveryDescription: 'Morgen in huis' },
+  rating: 4.2, gpc: [{ level: 1, name: 'Koken & Tafelen' }, { level: 2, name: 'Pannen' }, { level: 3, name: 'Koekenpannen' }] };
+const row = rowOf(p, { country: 'NL', categoryId: '11764', categoryName: 'Koken & Tafelen', stamp: new Date().toISOString() }).row;
+writeFileSync(join(dir, 'BOL_11764_NL.csv.gz'), gzipSync(csvLine(BOL_COLUMNS) + csvLine(BOL_COLUMNS.map(c => row[c]))));
+'@
+    $bgateGenFile = Join-Path $work 'bolgate-gen.mjs'
+    [System.IO.File]::WriteAllText($bgateGenFile, $bgateGen, (New-Object System.Text.UTF8Encoding($false)))
+    & node $bgateGenFile $repo $bgateArch
+    $bgateNpx = @(
+        '@echo off',
+        'echo %* >> "%GW_FAKE_STATE%\calls.log"',
+        'echo %* | findstr /L /C:"bol_refresh_meta" >nul && goto switch',
+        'echo unknown command 1>&2',
+        'exit /b 1',
+        ':switch',
+        'if not exist "%GW_FAKE_STATE%\switch.txt" goto none',
+        'set "GWS="',
+        'set /p GWS=<"%GW_FAKE_STATE%\switch.txt"',
+        'if "%GWS%"=="empty" goto empty',
+        'if "%GWS%"=="fail" goto fail',
+        'echo [{"results":[{"value":"%GWS%"}],"success":true}]',
+        'exit /b 0',
+        ':none',
+        'echo X [ERROR] no such table: bol_refresh_meta: SQLITE_ERROR [code: 7500]',
+        'exit /b 1',
+        ':empty',
+        'echo [{"results":[],"success":true}]',
+        'exit /b 0',
+        ':fail',
+        'echo X [ERROR] A request to the Cloudflare API failed. [code: 7500]',
+        'exit /b 1'
+    ) -join "`r`n"
+    [System.IO.File]::WriteAllText((Join-Path $bgateBin 'npx.cmd'), $bgateNpx + "`r`n", [System.Text.Encoding]::ASCII)
+    $oldPath = $env:PATH
+    $env:PATH = $bgateBin + ';' + $oldPath
+    $env:GW_FAKE_STATE = $bgateState
+    $bgateCalls = Join-Path $bgateState 'calls.log'
+    $bgateSwitch = Join-Path $bgateState 'switch.txt'
+    $script:bgateRun = 0
+    $script:bgateOut = ''
+    function Run-BGate([string]$switchValue, [string[]]$a) {
+        if (Test-Path -LiteralPath $bgateCalls) { Remove-Item -LiteralPath $bgateCalls -Force }
+        if ($switchValue) { [System.IO.File]::WriteAllText($bgateSwitch, $switchValue) } elseif (Test-Path -LiteralPath $bgateSwitch) { Remove-Item -LiteralPath $bgateSwitch -Force }
+        $script:bgateRun++
+        $script:bgateOut = Join-Path $work ('bolgate-out-' + $script:bgateRun)
+        $all = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $bgateTool, '-Retailer', 'bol-nl', '-Site', 'hgw', '-Archive', $bgateArch, '-WorkDir', $bgateWork, '-OutDir', $script:bgateOut, '-NoClipboard') + $a
+        & $exe @all | Out-Null
+        return $LASTEXITCODE
+    }
+    function BGateCalls { if (Test-Path -LiteralPath $bgateCalls) { return [System.IO.File]::ReadAllText($bgateCalls) } else { return '' } }
+    function BGateReport {
+        $f = @(Get-ChildItem -LiteralPath $script:bgateOut -Filter 'IMPORT_BOL-NL_HGW_*.txt' -ErrorAction SilentlyContinue)
+        if ($f.Count -eq 0) { return '' }
+        return [System.IO.File]::ReadAllText($f[0].FullName)
+    }
+    $bgateSql = 'd1 execute gear-world-awin --remote --json --command "SELECT value FROM bol_refresh_meta WHERE key = ''enabled''"'
+    $bgateApply = @('-Apply', '-Approve', 'ΕΓΚΡΙΝΩ BOL-NL HGW')
+    try {
+        Check (Test-Path -LiteralPath (Join-Path $bgateArch 'BOL_11764_NL.csv.gz')) 'bol.com gate: the synthetic bol.com file is written'
+        [void](Run-BGate '0' @())
+        $c = BGateCalls
+        $plans = @(Get-ChildItem -LiteralPath $script:bgateOut -Recurse -Filter 'plan.json' -ErrorAction SilentlyContinue)
+        Check ($plans.Count -eq 1 -and ([System.IO.File]::ReadAllText($plans[0].FullName)) -match '"hgw"\s*:\s*\{\s*"products"\s*:\s*[1-9]') 'bol.com gate: the plan has the HGW product (the fixture works)'
+        Check (-not $c.Contains('bol_refresh_meta') -and -not ($c -match '--file|time-travel')) 'bol.com gate: without -Apply the switch is not needed and nothing changes'
+        $code = Run-BGate '' $bgateApply
+        $c = BGateCalls
+        $r = BGateReport
+        Check ($code -eq 16) 'bol.com gate: the refresh not set up (no table): refused, exit 16'
+        Check ($c.Contains($bgateSql) -and -not ($c -match '--file|time-travel')) 'bol.com gate, no table: one read-only SELECT on gear-world-awin, nothing else'
+        Check ($r.Contains('δεν έχει στηθεί ακόμα') -and $r.Contains('tools/bol-refresh-setup.ps1 -Step apply') -and $r.Contains('ΔΕΝ φορτώθηκε τίποτα')) 'bol.com gate, no table: the Greek message says the refresh setup step first'
+        Check (((Run-BGate 'empty' $bgateApply) -eq 16) -and (BGateReport).Contains('δεν έχει στηθεί ακόμα') -and -not ((BGateCalls) -match '--file|time-travel')) 'bol.com gate, no switch row: refused, exit 16'
+        $code = Run-BGate '0' $bgateApply
+        $r = BGateReport
+        Check ($code -eq 16 -and $r.Contains('ΚΛΕΙΣΤΟΣ') -and $r.Contains('-Step enable') -and $r.Contains('ΜΗΝ τον ανοίξεις') -and -not ((BGateCalls) -match '--file|time-travel')) 'bol.com gate, switch off (0): refused, exit 16, nothing loaded'
+        Check (((Run-BGate 'fail' $bgateApply) -eq 16) -and (BGateReport).Contains('δεν μπόρεσα να διαβάσω') -and -not ((BGateCalls) -match '--file|time-travel')) 'bol.com gate, switch not readable: refused, exit 16'
+        $code = Run-BGate '1' $bgateApply
+        $r = BGateReport
+        Check ($code -eq 15 -and $r.Contains('ΑΝΟΙΧΤΟΣ') -and $r.Contains('ΣΕ ΑΝΑΜΟΝΗ') -and -not ((BGateCalls) -match '--file|time-travel')) 'bol.com gate, switch on: passes the gate, then the import is still paused (exit 15), nothing loaded'
+        Check ($r.IndexOf('ΑΝΟΙΧΤΟΣ') -lt $r.IndexOf('ΣΕ ΑΝΑΜΟΝΗ')) 'bol.com gate: the switch is read before anything else of the import'
+    } finally {
+        $env:PATH = $oldPath
+        Remove-Item Env:\GW_FAKE_STATE -ErrorAction SilentlyContinue
+    }
+}
+
 Remove-Item -LiteralPath $work -Recurse -Force -ErrorAction SilentlyContinue
 
 Write-Host ''

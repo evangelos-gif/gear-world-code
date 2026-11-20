@@ -1024,6 +1024,14 @@ export async function planImport({ archive, sourcesFile, outDir, now = new Date(
     `INSERT INTO import_runs (source, inserted, updated, deactivated, notes) VALUES (${sq('awin:' + (advIds.join(',') || 'none'))}, ${all.length}, 0, 0, ${sq('planned ' + runStamp)});`
   ];
   if (writeSql) writeFileSync(join(outDir, 'sql', '9999-finish.sql'), finish.join('\n') + '\n');
+  // bol.com (lessons L204, L205): a plan that reads bol.com says so in bol.txt; the import step of the site tool then reads
+  // the daily refresh's kill switch first (tools/lib/bol-guard.ps1) and loads nothing while it is off or not set up.
+  const bolRead = sources.filter(s => s.network === 'bol');
+  if (writeSql && bolRead.length) {
+    writeFileSync(join(outDir, 'bol.txt'), [`bol.com sources in this plan: ${bolRead.map(s => s.advertiserId).join(', ')}`,
+      `bol.com products: ${all.filter(p => p.retailer === 'bol.com').length}`,
+      'The import loads them only while the bol.com refresh kill switch (gear-world-awin bol_refresh_meta enabled) is 1.', ''].join('\n'));
+  }
 
   // ---------- Report ----------
   const L = [];
