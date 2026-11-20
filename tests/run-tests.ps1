@@ -6975,7 +6975,18 @@ writeFileSync(join(dir, 'BOL_11764_NL.csv.gz'), gzipSync(csvLine(BOL_COLUMNS) + 
         '@echo off',
         'echo %* >> "%GW_FAKE_STATE%\calls.log"',
         'echo %* | findstr /L /C:"bol_refresh_meta" >nul && goto switch',
+        'echo %* | findstr /L /C:"FROM bol_refresh_runs" >nul && goto runs',
         'echo unknown command 1>&2',
+        'exit /b 1',
+        ':runs',
+        'set "GWR="',
+        'if exist "%GW_FAKE_STATE%\runs.txt" set /p GWR=<"%GW_FAKE_STATE%\runs.txt"',
+        'if "%GWR%"=="none" goto runsnone',
+        'if "%GWR%"=="ok" echo [{"results":[{"n":2}],"success":true}]',
+        'if not "%GWR%"=="ok" echo [{"results":[{"n":0}],"success":true}]',
+        'exit /b 0',
+        ':runsnone',
+        'echo X [ERROR] no such table: bol_refresh_runs: SQLITE_ERROR [code: 7500]',
         'exit /b 1',
         ':switch',
         'if not exist "%GW_FAKE_STATE%\switch.txt" goto none',
@@ -7003,9 +7014,10 @@ writeFileSync(join(dir, 'BOL_11764_NL.csv.gz'), gzipSync(csvLine(BOL_COLUMNS) + 
     $bgateSwitch = Join-Path $bgateState 'switch.txt'
     $script:bgateRun = 0
     $script:bgateOut = ''
-    function Run-BGate([string]$switchValue, [string[]]$a) {
+    function Run-BGate([string]$switchValue, [string[]]$a, [string]$runsValue = 'ok') {
         if (Test-Path -LiteralPath $bgateCalls) { Remove-Item -LiteralPath $bgateCalls -Force }
         if ($switchValue) { [System.IO.File]::WriteAllText($bgateSwitch, $switchValue) } elseif (Test-Path -LiteralPath $bgateSwitch) { Remove-Item -LiteralPath $bgateSwitch -Force }
+        [System.IO.File]::WriteAllText((Join-Path $bgateState 'runs.txt'), $runsValue)
         $script:bgateRun++
         $script:bgateOut = Join-Path $work ('bolgate-out-' + $script:bgateRun)
         $all = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $bgateTool, '-Retailer', 'bol-nl', '-Site', 'hgw', '-Archive', $bgateArch, '-WorkDir', $bgateWork, '-OutDir', $script:bgateOut, '-NoClipboard') + $a
@@ -7038,9 +7050,19 @@ writeFileSync(join(dir, 'BOL_11764_NL.csv.gz'), gzipSync(csvLine(BOL_COLUMNS) + 
         $r = BGateReport
         Check ($code -eq 16 -and $r.Contains('ΚΛΕΙΣΤΟΣ') -and $r.Contains('-Step enable') -and $r.Contains('ΜΗΝ τον ανοίξεις') -and -not ((BGateCalls) -match '--file|time-travel')) 'bol.com gate, switch off (0): refused, exit 16, nothing loaded'
         Check (((Run-BGate 'fail' $bgateApply) -eq 16) -and (BGateReport).Contains('δεν μπόρεσα να διαβάσω') -and -not ((BGateCalls) -match '--file|time-travel')) 'bol.com gate, switch not readable: refused, exit 16'
-        $code = Run-BGate '1' $bgateApply
+        # Review of 6954a135: the switch on is not enough: a successful refresh run in the last 2 hours, and fresh files now.
+        $code = Run-BGate '1' $bgateApply 'zero'
+        $c = BGateCalls
         $r = BGateReport
-        Check ($code -eq 15 -and $r.Contains('ΑΝΟΙΧΤΟΣ') -and $r.Contains('ΣΕ ΑΝΑΜΟΝΗ') -and -not ((BGateCalls) -match '--file|time-travel')) 'bol.com gate, switch on: passes the gate, then the import is still paused (exit 15), nothing loaded'
+        Check ($code -eq 16 -and $r.Contains('δεν έχει τρέξει ακόμα με επιτυχία τις τελευταίες 2 ώρες') -and $r.Contains('tools/bol-refresh-setup.ps1 -Step check') -and $c.Contains('FROM bol_refresh_runs WHERE ok = 1 AND ran_at BETWEEN ''') -and -not ($c -match '--file|time-travel')) 'bol.com gate, switch on but no successful refresh run in 2 hours: refused, exit 16'
+        Check (((Run-BGate '1' $bgateApply 'none') -eq 16) -and (BGateReport).Contains('δεν έχει τρέξει ακόμα με επιτυχία')) 'bol.com gate, no runs table: refused, exit 16'
+        $env:GW_BOL_GATE_TEST_NOW = [DateTime]::UtcNow.AddHours(13).ToString('o')
+        $code = Run-BGate '1' $bgateApply 'ok'
+        Remove-Item Env:\GW_BOL_GATE_TEST_NOW -ErrorAction SilentlyContinue
+        Check ($code -eq 16 -and (BGateReport).Contains('παλιότερα από 12 ώρες τώρα που φορτώνονται') -and -not ((BGateCalls) -match '--file|time-travel')) 'bol.com gate: files older than 12 hours when it loads (the plan made earlier): refused, exit 16'
+        $code = Run-BGate '1' $bgateApply 'ok'
+        $r = BGateReport
+        Check ($code -eq 15 -and $r.Contains('ΑΝΟΙΧΤΟΣ') -and $r.Contains('έτρεξε με επιτυχία') -and $r.Contains('νεότερα από 12 ώρες: ΕΝΤΑΞΕΙ') -and $r.Contains('ΥΠΕΝΘΥΜΙΣΗ: το Price Watch') -and $r.Contains('ΣΕ ΑΝΑΜΟΝΗ') -and -not ((BGateCalls) -match '--file|time-travel')) 'bol.com gate, switch on, a good run, fresh files: passes, reminds of Price Watch, then the import is still paused (exit 15), nothing loaded'
         Check ($r.IndexOf('ΑΝΟΙΧΤΟΣ') -lt $r.IndexOf('ΣΕ ΑΝΑΜΟΝΗ')) 'bol.com gate: the switch is read before anything else of the import'
     } finally {
         $env:PATH = $oldPath

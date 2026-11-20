@@ -99,20 +99,40 @@ export function bannedReason(text) {
 }
 
 // ---- 4. One card for every size ----
-const SIZE = '(?:x{0,3}s|s|m|l|x{1,4}l|\\d?xl|\\d{1,3}(?:[.,]5)?(?:\\s?(?:eu|cm|jr|jaar|mnd|maanden))?|\\d{2,3}\\s?[-/]\\s?\\d{2,3}(?:\\s?(?:eu|cm|jr|jaar))?|one size|onesize)';
+// A size is "maat ..." (any size), a size with its unit (cm, EU, jaar, maanden) or a letter size (S to XXXL). A bare
+// number ("- 42", ", 38/39") is a size only for clothing and shoes (the fashion categories, or a clothing or shoe word in
+// the name): elsewhere it is a model, a capacity or a pack ("Nextbase Dashcam - 322", "Galaxy Tab A9 - 64/128",
+// "Duracell AA, 12/24"), a different product (review of 6954a135).
 const LETTER = '(?:x{0,3}s|m|l|x{1,4}l|\\dxl)';
-const SIZE_TAILS = [
-  new RegExp(`\\s*[-–,|(]?\\s*\\(?\\s*(?:maat|mt\\.?|size|taille|schoenmaat|confectiemaat)\\s*:?\\s*${SIZE}(?:\\s*/\\s*${SIZE})?\\s*\\)?\\s*$`, 'iu'),
-  new RegExp(`\\s+[-–|]\\s+${SIZE}\\s*$`, 'iu'),
-  new RegExp(`\\s*,\\s*${SIZE}\\s*$`, 'iu'),
-  // "Thermo Panty L/XL": two letter sizes at the end, with no "maat" (never numbers: "Kraan 1/2" is a product).
-  new RegExp(`\\s+${LETTER}\\s*/\\s*${LETTER}\\s*$`, 'iu')
-];
-export function bolBaseName(name) {
+const UNIT_SIZE = '(?:\\d{2,3}\\s?[-/]\\s?\\d{2,3}\\s?(?:eu|cm|jr|jaar)|\\d{1,3}(?:[.,]5)?\\s?(?:eu|cm|jr|jaar|mnd|maanden))';
+const MARKED = `(?:${UNIT_SIZE}|${LETTER}|one size|onesize)`;
+const BARE = '(?:\\d{2,3}\\s?[-/]\\s?\\d{2,3}|\\d{1,3}(?:[.,]5)?)';
+const SIZE = `(?:${MARKED}|${BARE})`;
+const MAAT = new RegExp(`\\s*[-–,|(]?\\s*\\(?\\s*(?:maat|mt\\.?|size|taille|schoenmaat|confectiemaat)\\s*:?\\s*${SIZE}(?:\\s*/\\s*${SIZE})?\\s*\\)?\\s*$`, 'iu');
+// "Thermo Panty L/XL": two letter sizes at the end, with no "maat" (never numbers: "Kraan 1/2" is a product).
+const LETTER_PAIR = new RegExp(`\\s+${LETTER}\\s*/\\s*${LETTER}\\s*$`, 'iu');
+const tailsFor = clothing => {
+  const z = clothing ? SIZE : MARKED;
+  return [MAAT, new RegExp(`\\s+[-–|]\\s+${z}\\s*$`, 'iu'), new RegExp(`\\s*,\\s*${z}\\s*$`, 'iu'), LETTER_PAIR];
+};
+const TAILS = { true: tailsFor(true), false: tailsFor(false) };
+// Clothing and shoe words of the rules (fashion, work shoes and workwear, running and sportswear).
+export function clothingName(name) {
+  const t = String(name || '');
+  const rules = [...PLACES.fashion.filter(r => r[0] === 'Clothing' || r[0] === 'Shoes' || r[1] === 'Gloves'),
+    ...PLACES.cgw.filter(r => r[0] === 'Safety Boots' || r[0] === 'Workwear' || r[1] === 'Work Gloves'),
+    ...PLACES.sgw.filter(r => r[0] === 'running' || r[1] === 'Sportswear')];
+  return rules.some(r => r[2].test(t));
+}
+// The fashion categories of bol.com (Damesmode, Herenmode, Kindermode): every product is clothing, shoes or an accessory.
+export const FASHION_CATEGORY_IDS = new Set(['46673', '47024', '16947']);
+// clothing: true (a fashion category or the work-shoe search), false, or undefined (the name's words decide).
+export function bolBaseName(name, clothing) {
   let n = String(name || '').replace(/\s+/g, ' ').trim();
+  const tails = TAILS[String(clothing === undefined ? clothingName(n) : Boolean(clothing))];
   for (let i = 0; i < 3; i++) {
     const before = n;
-    for (const re of SIZE_TAILS) n = n.replace(re, '').trim();
+    for (const re of tails) n = n.replace(re, '').trim();
     if (n === before) break;
   }
   return n.replace(/\s*[-–,|(]\s*$/, '').trim() || String(name || '').trim();
@@ -441,7 +461,7 @@ const BRAND_NOISE = /(?:jack\s*(?:&|and|en)\s*jones|jack\s+wolfskin|tommy\s+jean
 // { cat, sub } (cat: the site_category of an older site, the category slug of a newer one) or { reject }.
 // texts: the GS1 levels (deepest first), then the head of the name (a place found only there is "doubt").
 export function placeBol(site, { name, gpc = '', search = '' }) {
-  const n = bolBaseName(name);
+  const n = bolBaseName(name, FASHION_SITES.includes(site) || search === 'werkschoenen' || undefined);
   const parts = gpcParts(gpc);
   const banned = bannedReason(`${n} | ${gpc}`);
   if (banned) return { reject: banned };
@@ -495,7 +515,7 @@ export function bolSection(label, name, { categoryId = '', gpc = '', search = ''
   const p = bolPlace({ categoryId, search, name, rawName: name, gpc });
   if (p.reject) return { ok: false, reason: p.reject };
   if (p.site !== site) return { ok: false, reason: `bol.com ${p.source.name}: a product of ${p.site.toUpperCase()}, not this site` };
-  return { ok: true, slug: p.cat, sub: p.sub, name: bolBaseName(name), ...(p.doubt ? { doubt: true } : {}) };
+  return { ok: true, slug: p.cat, sub: p.sub, name: bolBaseName(name, FASHION_CATEGORY_IDS.has(String(categoryId)) || undefined), ...(p.doubt ? { doubt: true } : {}) };
 }
 
 // ---- 6. Gender, Klussen, Tuin (Manager, first real profile of 20 Nov 2026) ----
@@ -542,7 +562,7 @@ export function bolPlace({ categoryId = '', search = '', name = '', rawName = ''
     return p.reject ? p : { site, source: r.source, ...p, ...extra };
   };
   if (r.source.search) return at(r.site);
-  const n = bolBaseName(name);
+  const n = bolBaseName(name, FASHION_CATEGORY_IDS.has(String(categoryId)) || undefined);
   const banned = bannedReason(`${n} | ${gpc}`);
   if (banned) return { reject: banned };
   const g = genderSite(n, rawName || name);

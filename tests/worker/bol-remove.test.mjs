@@ -5,7 +5,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
 import { DatabaseSync } from 'node:sqlite';
-import { targets, targetOf, countSql, deleteSql, tablesSql, parts, bolWhere, UNSAFE, SIDE_TABLES, PRODUCTS_PER_DELETE, REFRESH_WORKER, PRICES_DB, AWIN_DB, switchSql, switchReadSql, SWITCH_REASON } from '../../tools/bol-remove.mjs';
+import { targets, targetOf, countSql, deleteSql, tablesSql, parts, bolWhere, UNSAFE, SIDE_TABLES, PRODUCTS_PER_DELETE, REFRESH_WORKER, PRICES_DB, AWIN_DB, switchSql, switchReadSql, SWITCH_REASON, retailerWhere } from '../../tools/bol-remove.mjs';
 import { networkShopId } from '../../tools/tgw-import-plan.mjs';
 import { PRICE_SITES } from '../../sites/prices/sites.js';
 import { BOL_SITES } from '../../sites/_shared/bol.js';
@@ -78,9 +78,14 @@ test('L204: an older database (CGW side tables): counts, then the delete leaves 
   const t = targetOf(list, 'cgw');
   const c = counts(db, t);
   assert.deepEqual(c, { product_groups: 1, product_group_offers: 3, product_finalize_update_queue: 1, product_finalize_insert_queue: 1, product_refresh_baseline: 1,
-    product_refresh_stage: 1, products: 1204, active: 1204 - Math.floor(1203 / 7) });
+    product_refresh_stage: 1, products: 1203, products_link: 1, active: 1204 - Math.floor(1203 / 7) });
   const sql = deleteSql(t, tableNames(db), { rows: c.products });
-  assert.equal((sql.match(/^DELETE FROM products /gm) || []).length, Math.ceil(1204 / PRODUCTS_PER_DELETE) + 1, 'in parts of 500, one more to be sure');
+  assert.equal((sql.match(/^DELETE FROM products WHERE id IN \(SELECT id FROM products WHERE retailer IN \('bol\.com'\) LIMIT 500\);$/gm) || []).length, Math.ceil(1203 / PRODUCTS_PER_DELETE) + 1,
+    'in parts of 500 found by the names (an index), one more to be sure');
+  // Review of 6954a135: the partner link under another name is ONE statement of its own, never an OR in every part.
+  assert.equal((sql.match(/^DELETE FROM products WHERE substr\(COALESCE\(affiliate_url, ''\), 1, 24\) = 'https:\/\/partner\.bol\.com\/' AND COALESCE\(retailer, ''\) NOT IN \('bol\.com'\);$/gm) || []).length, 1);
+  assert.ok(!/\bOR substr\(/.test(sql.split('\n').filter(l => l.startsWith('DELETE FROM products ')).join('\n')), 'no OR with substr() in a products delete');
+  assert.ok(!/OR substr\(/.test(countSql(t, tableNames(db)).split('AS products,')[0].split('AS product_refresh_stage,').pop()), 'the products count reads the index of the names');
   // The side tables before the products (they find the products by id).
   assert.ok(sql.indexOf('DELETE FROM product_group_offers') < sql.indexOf('DELETE FROM products '));
   assert.ok(sql.indexOf('DELETE FROM product_groups') < sql.indexOf('DELETE FROM product_group_offers'));
@@ -107,9 +112,12 @@ test('L204: a newer database with its search index: the delete keeps the index r
   ins.run('496:A', 496, 'A', 'Tooled Up', 'Car mat set', 'car-mat-set', 'https://www.awin1.com/x');
   for (let i = 1; i <= 30; i++) ins.run(`${shop}:${i}`, shop, String(i), 'bol.com', `Automatten set ${i}`, `automatten-set-${i}`, LINK);
   const t = targetOf(list, 'agw');
-  assert.deepEqual(counts(db, t), { products: 30, active: 30 });
+  assert.deepEqual(counts(db, t), { products: 30, products_link: 0, active: 30 });
+  // The newer layout's index is (is_active, retailer): the names part says is_active IN (0, 1), so SQLite uses it.
+  const plan = db.prepare(`EXPLAIN QUERY PLAN SELECT id FROM products WHERE ${retailerWhere(t)}`).all().map(r => r.detail).join(' ');
+  assert.match(plan, /USING (COVERING )?INDEX idx_products_retailer/, plan);
   db.exec(deleteSql(t, tableNames(db), { rows: 30 }));
-  assert.deepEqual(counts(db, t), { products: 0, active: 0 });
+  assert.deepEqual(counts(db, t), { products: 0, products_link: 0, active: 0 });
   assert.equal(db.prepare("SELECT COUNT(*) AS n FROM products_fts WHERE products_fts MATCH 'automatten'").get().n, 0);
   assert.equal(db.prepare("SELECT COUNT(*) AS n FROM products_fts WHERE products_fts MATCH 'car'").get().n, 1);
 });

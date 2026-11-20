@@ -439,7 +439,7 @@ export async function planLegacyImport({ archive, retailer, outDir, now = new Da
     const best = new Map();
     for (const p of accepted[s]) { const k = sameNameKey(p.product_name); const b = best.get(k); if (!b || p.price < b.price) best.set(k, p); }
     const keep = new Set(best.values());
-    for (const p of accepted[s]) if (!keep.has(p)) reject({ name: p.feed_product_name, feedCategory: p.merchant_category, price: p.price }, 'same name from another seller at a higher price (the cheapest is kept)');
+    for (const p of accepted[s]) if (!keep.has(p)) reject({ name: p.feed_product_name, feedCategory: p.merchant_category, price: p.price }, R.sameNameCheapestReason || 'same name from another seller at a higher price (the cheapest is kept)');
     accepted[s] = accepted[s].filter(p => keep.has(p));
   }
   // rules.RULES.maxPerSubcategory (lessons L164): a marketplace with a huge catalogue (TEMU US, 169,875 products) gives
@@ -473,7 +473,11 @@ export async function planLegacyImport({ archive, retailer, outDir, now = new Da
   // For the import tool: how many products each site should have from this retailer after the import.
   // addOnly: the plan covers only part of a shop that is already on the site, so the import must not hide the rest.
   // paused (bol.com, lessons L204): the plan is made, but tools/legacy-import.ps1 changes nothing while it is set.
-  const summary = { retailer: R.retailer, advertiserId: R.advertiserId, addOnly: Boolean(R.addOnly), ...(R.paused ? { paused: String(R.paused) } : {}), sites: {} };
+  // oldestFeedStamp (bol.com, L204): the oldest download time of the files read; tools/legacy-import.ps1 checks it again
+  // when it loads (tools/lib/bol-guard.ps1: older than 12 hours, nothing is loaded).
+  const stamps = Object.values(read.fileStamps).filter(Boolean).sort();
+  const summary = { retailer: R.retailer, advertiserId: R.advertiserId, addOnly: Boolean(R.addOnly), ...(R.paused ? { paused: String(R.paused) } : {}),
+    ...(stamps.length ? { oldestFeedStamp: stamps[0] } : {}), sites: {} };
   for (const s of R.sites) {
     const byCat = {};
     for (const p of accepted[s]) byCat[p.site_category] = (byCat[p.site_category] || 0) + 1;

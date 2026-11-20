@@ -202,7 +202,9 @@ if ($RetailerName -notmatch "^[A-Za-z0-9 .\-]{2,40}$") { Say 'Μη αναμεν�
 # bol.com (lessons L204, L205): with -Apply, FIRST the daily refresh's kill switch (one read-only SELECT on gear-world-awin):
 # off, or the refresh not set up yet, and nothing is loaded (new rows would stay up to 24 hours unchecked). Exit 16.
 if ($Apply -and ($RetailerName -eq 'bol.com' -or $Retailer -like 'bol-*')) {
-    if (-not (Test-BolImportGate $WorkDir)) { Finish 16 }
+    $bolOldest = ''
+    if ($plan.PSObject.Properties.Name -contains 'oldestFeedStamp') { $bolOldest = [string]$plan.oldestFeedStamp }
+    if (-not (Test-BolImportGate $WorkDir -OldestDownload $bolOldest)) { Finish 16 }
 }
 # A paused shop (bol.com, lessons L204: not before the removal tool and the daily refresh): the plan only, never an import.
 if (($plan.PSObject.Properties.Name -contains 'paused') -and $plan.paused) {

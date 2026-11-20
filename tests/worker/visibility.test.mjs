@@ -143,7 +143,7 @@ test('country groups (L151): the UK sees only what delivers there, the US its ow
   // TGW since round 2c (L144): Back to the Office IE (Ireland only) is out of the UK view; MonsGeek ships to the US (its
   // own view there); every other country sees all of them.
   const t = cc => viewFor(config.tgw, cc, NOW);
-  assert.deepEqual(t('GB').hidden, ['3DMakerpro', 'AliExpress PL', 'Back to the Office IE', 'Bond Touch', 'Gshopper', 'Mintion', 'Mosnovo', 'Nothingprojector', 'Oukitel', 'Procolored', 'refurbed NL'], 'and the US-only shops of wave 3 (L169)');
+  assert.deepEqual(t('GB').hidden, ['3DMakerpro', 'AliExpress PL', 'Back to the Office IE', 'Bond Touch', 'Gshopper', 'Mintion', 'Mosnovo', 'Nothingprojector', 'Oukitel', 'Procolored', 'bol.com', 'refurbed NL'], 'and the US-only shops of wave 3 (L169)');
   // Poland (open since 15 Nov 2026, L157): AliExpress PL (round 2) and MonsGeek, a copy of its own.
   assert.equal(t('US').group, 'us');
   assert.equal(t('PL').group, 'pl');
@@ -264,7 +264,7 @@ test('L151: the Hub\'s search keeps the views of before L151 (hubViewFor) until 
   assert.deepEqual(h(config.cgw, 'AT').only, ['GRABO', 'Reidl', 'VEVOR']);
   // TGW since round 2c (L144): MonsGeek delivers to Germany (a view of its own, as before L151); nobody to Malta (the UK view).
   assert.deepEqual(h(config.tgw, 'DE').only, ['MonsGeek']);
-  assert.deepEqual(h(config.tgw, 'MT').hidden, ['3DMakerpro', 'AliExpress PL', 'Back to the Office IE', 'Bond Touch', 'Gshopper', 'Mintion', 'Mosnovo', 'Nothingprojector', 'Oukitel', 'Procolored', 'refurbed NL'], 'TGW Malta: the UK view (without the US-only shops of wave 3, L169)');
+  assert.deepEqual(h(config.tgw, 'MT').hidden, ['3DMakerpro', 'AliExpress PL', 'Back to the Office IE', 'Bond Touch', 'Gshopper', 'Mintion', 'Mosnovo', 'Nothingprojector', 'Oukitel', 'Procolored', 'bol.com', 'refurbed NL'], 'TGW Malta: the UK view (without the US-only shops of wave 3, L169)');
   for (const cc of ['DE', 'CA', 'GB']) assert.equal(h(config.agw, cc).everyRetailer, false, cc);
   // A strict (later: open) country: as on the site.
   assert.deepEqual(h({ ...config.agw, strictCountries: ['BE'] }, 'BE').only, ['123pneus.be', 'Ottocast', 'Pneus.be', 'VEVOR', 'bol.com']);

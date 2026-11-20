@@ -9,7 +9,7 @@ import { DatabaseSync } from 'node:sqlite';
 import { createWorker } from '../../src/engine.js';
 import { deliveryConfigProblems, shownCountries, feedLanguage, deliveryCountries } from '../../src/lib/delivery.js';
 import { viewFor, countryGroups, isShown, hiddenReason, homeView } from '../../src/lib/visibility.js';
-import { BOL_RETAILER, BOL_SITES, BOL_COUNTRIES, bolDelivery } from '../../sites/_shared/bol.js';
+import { BOL_RETAILER, BOL_SITES, BOL_COUNTRIES, BOL_GUARD_SITES, bolDelivery } from '../../sites/_shared/bol.js';
 import { TEST_DAY } from './test-clock.mjs';
 
 const NOW = Date.parse(`${TEST_DAY}T12:00:00Z`);
@@ -32,9 +32,19 @@ test('L204: the 10 sites of the bol.com rules list bol.com, with its own countri
     assert.deepEqual(shownCountries(site, BOL_RETAILER), s === 'hgw' ? ['NL'] : ['NL', 'BE'], `${s}: seen in`);
     assert.deepEqual(deliveryCountries(site, BOL_RETAILER), s === 'hgw' ? ['NL'] : ['NL', 'BE'], `${s}: the card says`);
   }
-  // The other 3 sites do not list bol.com (tools/import-rules/bol-nl.mjs never sends a product there; the removal tool
-  // still checks their databases).
-  for (const s of SHOPS.filter(x => !TARGETS.includes(x))) assert.ok(!Object.prototype.hasOwnProperty.call(config[s].deliversTo.retailers || {}, BOL_RETAILER), s);
+  // The other 3 sites (TGW, BGW, PGW) list no bol.com (tools/import-rules/bol-nl.mjs never sends a product there; the
+  // removal tool still checks their databases), but carry the same NL/BE-only line (review of 6954a135), so a stray
+  // bol.com row there could never reach the UK view, Google or the sitemaps.
+  const others = SHOPS.filter(x => !TARGETS.includes(x)).sort();
+  assert.deepEqual(others, [...BOL_GUARD_SITES].sort());
+  for (const s of others) {
+    assert.deepEqual(config[s].deliversTo.retailers[BOL_RETAILER], ['NL', 'BE'], s);
+    assert.equal(feedLanguage(config[s], BOL_RETAILER), 'nl', s);
+    assert.deepEqual(deliveryConfigProblems(config[s]), [], s);
+    assert.ok(!shownCountries(config[s], BOL_RETAILER).includes('GB'), `${s}: never the UK view`);
+    assert.equal(isShown(viewFor(config[s], 'GB', NOW), row), false, `${s}: a bol.com row is not in the UK view`);
+    assert.equal(isShown(homeView(config[s], NOW), row), false, `${s}: nor in the sitemaps and /api/stats`);
+  }
 });
 
 test('L204: the UK view and Google never list bol.com; the Netherlands and Belgium do; Germany, France, Greece and the rest never', () => {

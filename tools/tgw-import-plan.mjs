@@ -1016,12 +1016,21 @@ export async function planImport({ archive, sourcesFile, outDir, now = new Date(
     writeFileSync(join(outDir, 'sql', name), `-- ${label} import plan ${runStamp}. NOT executed. Loading needs the owner's approval.\n${lines.join('\n')}\n`);
     sqlFiles.push(name);
   }
-  const advIds = [...readAdvertisers];
+  // bol.com (lessons L204, review of 6954a135): its rows carry the time of THEIR download, which is before the plan's
+  // time, so "last_seen_at < plan time" would hide every bol.com row just loaded. For bol.com sources the line is the
+  // OLDEST download time of this plan's bol.com rows: a row in this plan is never older than that, a row no longer in
+  // the files (and not confirmed by the daily refresh since) is.
+  const bolShops = new Set(sources.filter(s => s.network === 'bol').map(shopIdOf));
+  const bolRows = all.filter(p => bolShops.has(Number(p.awin_advertiser_id)));
+  const bolLine = bolRows.reduce((m, p) => (!m || (p.last_seen_at && p.last_seen_at < m) ? p.last_seen_at : m), '') || runStamp;
+  const advIds = [...readAdvertisers].filter(id => !bolShops.has(Number(id)));
+  const bolIds = [...readAdvertisers].filter(id => bolShops.has(Number(id)));
   const finish = [
     `-- ${label} import plan ${runStamp}. NOT executed. Run only after all numbered files succeeded.`,
     // A retailer whose feed was not found keeps its products as they are (never hidden because a file is missing).
     ...(advIds.length ? [`UPDATE products SET is_active = 0, updated_at = datetime('now') WHERE awin_advertiser_id IN (${advIds.join(', ')}) AND is_active = 1 AND last_seen_at < ${sq(runStamp)};`] : []),
-    `INSERT INTO import_runs (source, inserted, updated, deactivated, notes) VALUES (${sq('awin:' + (advIds.join(',') || 'none'))}, ${all.length}, 0, 0, ${sq('planned ' + runStamp)});`
+    ...(bolIds.length ? [`UPDATE products SET is_active = 0, updated_at = datetime('now') WHERE awin_advertiser_id IN (${bolIds.join(', ')}) AND is_active = 1 AND last_seen_at < ${sq(bolLine)};`] : []),
+    `INSERT INTO import_runs (source, inserted, updated, deactivated, notes) VALUES (${sq('awin:' + ([...advIds, ...bolIds].join(',') || 'none'))}, ${all.length}, 0, 0, ${sq('planned ' + runStamp)});`
   ];
   if (writeSql) writeFileSync(join(outDir, 'sql', '9999-finish.sql'), finish.join('\n') + '\n');
   // bol.com (lessons L204, L205): a plan that reads bol.com says so in bol.txt; the import step of the site tool then reads
@@ -1030,6 +1039,8 @@ export async function planImport({ archive, sourcesFile, outDir, now = new Date(
   if (writeSql && bolRead.length) {
     writeFileSync(join(outDir, 'bol.txt'), [`bol.com sources in this plan: ${bolRead.map(s => s.advertiserId).join(', ')}`,
       `bol.com products: ${all.filter(p => p.retailer === 'bol.com').length}`,
+      // The import step checks this again when it loads (tools/lib/bol-guard.ps1): older than 12 hours, nothing is loaded.
+      `bol.com oldest download (UTC): ${bolRows.length ? bolLine : ''}`,
       'The import loads them only while the bol.com refresh kill switch (gear-world-awin bol_refresh_meta enabled) is 1.', ''].join('\n'));
   }
 

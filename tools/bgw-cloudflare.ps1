@@ -549,7 +549,7 @@ switch ($Step) {
         # bol.com (lessons L204, L205): when the plan reads bol.com (bol.txt in the plan folder), FIRST the daily refresh's kill
         # switch (one read-only SELECT on gear-world-awin): off, or the refresh not set up yet, and nothing is loaded. Exit 16.
         if (Test-Path -LiteralPath (Join-Path $planDir $script:BolGatePlanFile)) {
-            if (-not (Test-BolImportGate $bgw -NonInteractive)) { Finish 16 }
+            if (-not (Test-BolImportGate $bgw -NonInteractive -OldestDownload (Get-BolPlanStamp $planDir))) { Finish 16 }
         }
         if (-not (Confirm-Approval $Phrases.import)) { Say 'Δεν δόθηκε έγκριση: σταμάτησα χωρίς αλλαγές.' 'Yellow'; Finish 1 }
         $bdir = Join-Path $WorkDir 'backups'

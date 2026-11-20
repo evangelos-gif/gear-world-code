@@ -297,7 +297,14 @@ test('L204 + L205 (re-review): no bol.com row is loaded while the refresh kill s
   const li = read('tools/legacy-import.ps1');
   assert.ok(li.includes(". (Join-Path (Join-Path (Join-Path $repo 'tools') 'lib') 'bol-guard.ps1')"));
   const iGate = li.indexOf("if ($Apply -and ($RetailerName -eq 'bol.com' -or $Retailer -like 'bol-*')) {");
-  assert.ok(iGate > 0 && li.indexOf('if (-not (Test-BolImportGate $WorkDir)) { Finish 16 }', iGate) > iGate);
+  assert.ok(iGate > 0 && li.indexOf('if (-not (Test-BolImportGate $WorkDir -OldestDownload $bolOldest)) { Finish 16 }', iGate) > iGate);
+  assert.ok(li.indexOf("$bolOldest = [string]$plan.oldestFeedStamp") > iGate, 'the plan\'s oldest download time, checked again when it loads');
+  // Review of 6954a135: a successful refresh run in the last 2 hours, the 12 hours again at load time, Price Watch reminded.
+  assert.ok(g.includes(`$q = "SELECT COUNT(*) AS n FROM bol_refresh_runs WHERE ok = 1 AND ran_at BETWEEN '{0}' AND '9999'" -f $cut`));
+  assert.ok(g.includes('$script:BolGateRunHours = 2') && g.includes('$script:BolGateMaxAgeHours = 12'));
+  assert.match(g, /δεν έχει τρέξει ακόμα με επιτυχία/);
+  assert.match(g, /παλιότερα από \{1\} ώρες τώρα που φορτώνονται/);
+  assert.match(g, /ΥΠΕΝΘΥΜΙΣΗ: το Price Watch \(gear-world-prices\)/);
   assert.ok(iGate < li.indexOf("-contains 'paused') -and $plan.paused") && iGate < li.indexOf('time-travel info') && iGate < li.indexOf('--remote --file'));
   // The newer sites: the planner marks a plan that reads bol.com (bol.txt) ...
   const dir = archive();
@@ -316,7 +323,7 @@ test('L204 + L205 (re-review): no bol.com row is loaded while the refresh kill s
     assert.ok(t.includes(". (Join-Path (Join-Path (Join-Path $repo 'tools') 'lib') 'bol-guard.ps1')"), s);
     const iA = t.indexOf('Confirm-Approval $Phrases.import');
     const iT = t.indexOf(`Invoke-Wrangler $${s} ('d1 time-travel info {0}' -f $DbName) -NonInteractive -Retry`, iA);
-    const iG = t.indexOf(`if (-not (Test-BolImportGate $${s} -NonInteractive)) { Finish 16 }`);
+    const iG = t.indexOf(`if (-not (Test-BolImportGate $${s} -NonInteractive -OldestDownload (Get-BolPlanStamp $planDir))) { Finish 16 }`);
     const iF = t.indexOf('if (Test-Path -LiteralPath (Join-Path $planDir $script:BolGatePlanFile)) {');
     assert.ok(iF > 0 && iF < iG && iG < iA && iA < iT, `${s}: the gate before the approval and the restore point`);
     assert.ok(t.lastIndexOf("if (-not $Apply) { Say ''; Say 'Δοκιμή μόνο (χωρίς -Apply): δεν άλλαξε τίποτα.' 'Green'; Finish 0 }", iG) > t.lastIndexOf("'import' {", iG), `${s}: the dry run never needs it`);
@@ -377,4 +384,55 @@ test('L204 (first real download, 20 Nov 2026): the name places it, gendered clot
   assert.deepEqual(names('mgw').sort(), ['JACK&JONES ESSENTIALS - JJEBRADLEY SWEAT CREW NOOS Heren Trui 44.99', 'Jack Wolfskin Heren Softshell Jas - Zwart 99']);
   assert.deepEqual(names('ggw'), ['Gardena tuinslang 20 m 39.99']);
   assert.ok(Object.keys(r.rejected).some(k => /a product of VGW \(planned by that site's own import\)/.test(k)), 'the tent is left to VGW');
+});
+
+test('L204 (review of 6954a135): end to end on the AGW schema: the plan loads its bol.com rows and its finish step keeps them', async () => {
+  const { DatabaseSync } = await import('node:sqlite');
+  const { networkShopId } = await import('../../tools/tgw-import-plan.mjs');
+  const db = new DatabaseSync(':memory:');
+  for (const f of readdirSync('sites/agw/migrations').sort()) db.exec(read(`sites/agw/migrations/${f}`));
+  const shop = networkShopId('bol', 43646, 'NL');
+  const ins = db.prepare(`INSERT INTO products (stable_key, awin_advertiser_id, merchant_product_id, retailer, category_slug, product_name, product_slug, price, image_url, affiliate_url, last_seen_at)
+    VALUES (?, ?, ?, ?, 'interior-comfort', ?, ?, 9, 'https://i/x.jpg', ?, ?)`);
+  // A bol.com row of an earlier import that is no longer in the files (last seen two days ago), and another shop's row.
+  ins.run(`${shop}:8710000000001`, shop, '8710000000001', 'bol.com', 'Oude automat', 'oude-automat', 'https://partner.bol.com/click/click?x=1', '2026-11-20 06:00:00');
+  ins.run('496:A', 496, 'A', 'Tooled Up', 'Car mat set', 'car-mat-set', 'https://www.awin1.com/x', '2026-11-20 06:00:00');
+  const sf = join(mkdtempSync(join(tmpdir(), 'e2e-s-')), 'sources.json');
+  writeFileSync(sf, JSON.stringify({ sources: bolSourcesOf('agw') }));
+  const out = mkdtempSync(join(tmpdir(), 'e2e-p-'));
+  const r = await planImport({ archive: archive(), sourcesFile: sf, outDir: out, now: new Date('2026-11-22T07:00:00Z'), rules: AGW_RULES, label: 'AGW' });
+  assert.equal(r.products.length, 2);
+  const finish = read(join(out, 'sql', '9999-finish.sql'));
+  assert.match(finish, new RegExp(`WHERE awin_advertiser_id IN \\(${shop}\\) AND is_active = 1 AND last_seen_at < '2026-11-22 06:00:00';`), 'bol.com: the oldest download of the plan, not the plan time');
+  for (const f of readdirSync(join(out, 'sql')).sort()) db.exec(read(join(out, 'sql', f)));
+  const active = db.prepare("SELECT product_name, last_seen_at FROM products WHERE retailer = 'bol.com' AND is_active = 1 ORDER BY product_name").all().map(x => `${x.product_name} ${x.last_seen_at}`);
+  assert.deepEqual(active, ['Nextbase 322GW Dashcam - Full HD 2026-11-22 06:00:00', 'Rubber automatten set universeel - 4 delig 2026-11-22 06:00:00'], 'the rows just loaded stay active');
+  assert.equal(db.prepare("SELECT is_active FROM products WHERE stable_key = ?").get(`${shop}:8710000000001`).is_active, 0, 'the row no longer in the files is hidden');
+  assert.equal(db.prepare("SELECT is_active FROM products WHERE stable_key = '496:A'").get().is_active, 1, 'another shop is not touched');
+  assert.match(read(join(out, 'bol.txt')), /bol\.com oldest download \(UTC\): 2026-11-22 06:00:00\n/);
+});
+
+test('L204 (review of 6954a135): a bare number is a size only for clothing and shoes; one card keeps the cheapest size\'s own link and EAN', async () => {
+  for (const [a, b] of Object.entries({ 'Nextbase Dashcam - 322': 'Nextbase Dashcam - 322', 'Samsung Galaxy Tab A9 - 64/128': 'Samsung Galaxy Tab A9 - 64/128',
+    'Duracell AA, 12/24': 'Duracell AA, 12/24', 'Kraan 1/2': 'Kraan 1/2', 'Dames pumps - 39': 'Dames pumps', 'Heren jeans slim, 32/34': 'Heren jeans slim',
+    'Hardloopschoenen Pegasus - 44': 'Hardloopschoenen Pegasus', 'Hondenjas - 40 cm': 'Hondenjas', 'Rubber automat - Maat L': 'Rubber automat' })) assert.equal(B.bolBaseName(a), b, a);
+  assert.equal(B.bolBaseName('COZY MINI - 38', true), 'COZY MINI', 'a fashion category: the bare number is a size');
+  assert.equal(B.bolBaseName('COZY MINI - 38', false), 'COZY MINI - 38');
+  assert.equal(RULES.field('product_name', c => ({ product_name: 'Skechers COZY MINI - 38', bol_category_id: '46673' })[c] || ''), 'Skechers COZY MINI');
+  assert.equal(RULES.field('product_name', c => ({ product_name: 'Nextbase Dashcam - 322', bol_category_id: '43646' })[c] || ''), 'Nextbase Dashcam - 322');
+  // Three sizes, three EANs: the card is the cheapest size with ITS link and EAN (the daily refresh finds a row by its EAN).
+  const dir = mkdtempSync(join(tmpdir(), 'bol-cheap-'));
+  STAMP = '2026-11-22T06:00:00.000Z';
+  const rows = writeFeed(dir, 'BOL_46673_NL.csv.gz', '46673', 'Damesmode', [product('Zomerjurk dames bloemen - Maat 38', 39.99), product('Zomerjurk dames bloemen - Maat 40', 34.99),
+    product('Zomerjurk dames bloemen - Maat 42', 41.5)]);
+  const { planLegacyImport } = await import('../../tools/legacy-import-plan.mjs');
+  const r = await planLegacyImport({ archive: dir, retailer: 'bol-nl', outDir: mkdtempSync(join(tmpdir(), 'bol-cheap-p-')), now: new Date('2026-11-22T07:00:00Z') });
+  assert.equal(r.accepted.wgw.length, 1);
+  const card = r.accepted.wgw[0];
+  const cheap = rows[1];
+  assert.equal(card.price, 34.99);
+  assert.equal(card.ean, B.bolEan(cheap.ean), 'the EAN of the 34.99 size');
+  assert.equal(card.affiliate_url, cheap.aw_deep_link, 'the link of the 34.99 size');
+  assert.equal(card.awin_product_id, `bol1559450:${B.bolEan(cheap.ean)}`, 'the key of the 34.99 size');
+  assert.ok(Object.keys(r.rejected).some(k => /another size at a higher price/.test(k)));
 });

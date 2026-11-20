@@ -27,6 +27,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { PRICE_SITES } from '../sites/prices/sites.js';
 import { NO_ALERT_RETAILERS, BOL_PARTNER_PREFIX } from '../src/lib/retailer-terms.js';
+import { BOL_SITES } from '../sites/_shared/bol.js';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 export const BOL = NO_ALERT_RETAILERS[0];
@@ -62,7 +63,8 @@ export async function targets(root = join(HERE, '..')) {
     const cfg = existsSync(file) ? (await import(pathToFileURL(file).href)).default || {} : {};
     const map = (cfg.database && cfg.database.retailerNames) || {};
     const names = [BOL, ...Object.keys(map).filter(k => String(map[k]).toLowerCase() === BOL && k !== BOL)];
-    const listed = Boolean(cfg.deliversTo && cfg.deliversTo.retailers && Object.prototype.hasOwnProperty.call(cfg.deliversTo.retailers, BOL));
+    // The 10 sites that list bol.com (sites/_shared/bol.js); TGW, BGW and PGW carry its NL/BE-only line but list none.
+    const listed = Object.prototype.hasOwnProperty.call(BOL_SITES, s.code);
     out.push({ code: s.code, kind: 'site', name: String(cfg.name || s.code.toUpperCase()), domain: String(cfg.domain || ''), db: s.database,
       legacy: Boolean(s.legacy), names, listed });
   }
@@ -82,6 +84,20 @@ export function targetOf(list, code) {
 export function bolWhere(names, alias = '') {
   const a = alias ? `${alias}.` : '';
   return `(${a}retailer IN (${names.map(q).join(', ')}) OR substr(COALESCE(${a}affiliate_url, ''), 1, ${BOL_PARTNER_PREFIX.length}) = ${q(BOL_PARTNER_PREFIX)})`;
+}
+
+// The products in two parts (review of 6954a135: an OR with substr() reads every row, and did so for every part of 500):
+// 1. by the bol.com names, which an index finds (older sites: the (retailer, ...) index; newer: idx_products_retailer,
+//    (is_active, retailer), hence is_active IN (0, 1)); 2. a partner.bol.com link under ANOTHER name, one full read, in
+//    ONE query of its own (expected: none).
+export function retailerWhere(t, alias = '') {
+  const a = alias ? `${alias}.` : '';
+  const r = `${a}retailer IN (${t.names.map(q).join(', ')})`;
+  return t.legacy ? r : `${a}is_active IN (0, 1) AND ${r}`;
+}
+export function linkWhere(t, alias = '') {
+  const a = alias ? `${alias}.` : '';
+  return `substr(COALESCE(${a}affiliate_url, ''), 1, ${BOL_PARTNER_PREFIX.length}) = ${q(BOL_PARTNER_PREFIX)} AND COALESCE(${a}retailer, '') NOT IN (${t.names.map(q).join(', ')})`;
 }
 
 // A bol.com key of Price Watch (price_last, price_log).
@@ -110,7 +126,9 @@ export function parts(t, tables) {
   if (!has(tables, 'products')) return [];
   const w = bolWhere(t.names);
   const wp = bolWhere(t.names, 'p');
-  const ids = `SELECT id FROM products WHERE ${w}`;
+  const rw = retailerWhere(t);
+  const lw = linkWhere(t);
+  const ids = `SELECT id FROM products WHERE ${rw} UNION ALL SELECT id FROM products WHERE ${lw}`;
   const out = [];
   if (has(tables, 'product_groups') && has(tables, 'product_group_offers')) {
     out.push(['product_groups', `SELECT COUNT(*) FROM product_groups WHERE id IN (${bolGroups(wp)})`, `DELETE FROM product_groups WHERE id IN (${bolGroups(wp)});`]);
@@ -120,14 +138,15 @@ export function parts(t, tables) {
     const where = s.by === 'id' ? `${s.column} IN (${ids})` : s.by === 'row' ? w : `retailer IN (${t.names.map(q).join(', ')})`;
     out.push([s.table, `SELECT COUNT(*) FROM ${s.table} WHERE ${where}`, `DELETE FROM ${s.table} WHERE ${where};`]);
   }
-  out.push(['products', `SELECT COUNT(*) FROM products WHERE ${w}`, null]);
+  out.push(['products', `SELECT COUNT(*) FROM products WHERE ${rw}`, null]);
+  out.push(['products_link', `SELECT COUNT(*) FROM products WHERE ${lw}`, null]);
   return out;
 }
 
 // One SELECT with one column per table (and "active": the products a visitor could see).
 export function countSql(t, tables) {
   const cols = parts(t, tables).map(([n, sql]) => `(${sql}) AS ${n}`);
-  if (t.kind === 'site' && has(tables, 'products')) cols.push(`(SELECT COUNT(*) FROM products WHERE is_active = 1 AND ${bolWhere(t.names)}) AS active`);
+  if (t.kind === 'site' && has(tables, 'products')) cols.push(`((SELECT COUNT(*) FROM products WHERE is_active = 1 AND retailer IN (${t.names.map(q).join(', ')})) + (SELECT COUNT(*) FROM products WHERE is_active = 1 AND ${linkWhere(t)})) AS active`);
   const sql = `SELECT ${cols.length ? cols.join(', ') : '0 AS none'}`;
   if (UNSAFE.test(sql)) throw new Error('count SQL with a character cmd.exe would change');
   return sql;
@@ -149,11 +168,14 @@ export function deleteSql(t, tables, { rows = 0, rowsLog = 0, stamp = new Date()
   }
   for (const [, , del] of parts(t, tables)) if (del) L.push(del);
   if (has(tables, 'products')) {
-    const w = bolWhere(t.names);
-    // In parts, so no statement runs long (the search index of each product is updated by its trigger).
+    const rw = retailerWhere(t);
+    // In parts, so no statement runs long (the search index of each product is updated by its trigger); each part finds
+    // its rows through the index of the names.
     for (let i = 0; i <= Math.ceil(Math.max(0, rows) / PRODUCTS_PER_DELETE); i++) {
-      L.push(`DELETE FROM products WHERE id IN (SELECT id FROM products WHERE ${w} LIMIT ${PRODUCTS_PER_DELETE});`);
+      L.push(`DELETE FROM products WHERE id IN (SELECT id FROM products WHERE ${rw} LIMIT ${PRODUCTS_PER_DELETE});`);
     }
+    // Then the partner.bol.com links under another name, in ONE statement (one read of the table).
+    L.push(`DELETE FROM products WHERE ${linkWhere(t)};`);
   }
   return L.join('\n') + '\n';
 }

@@ -11,7 +11,7 @@
 // with the owner's ΕΓΚΡΙΝΩ ALL IMPORTS. Taking the line out is the change that allows it.
 import { readdirSync } from 'node:fs';
 import { join } from 'node:path';
-import { BOL_FILE, BOL_SOURCES, BOL_SEARCHES, LEGACY_SITES, BOL_RETAILER, bolPlace, bolBaseName, bolEan, bolStamp, bolTooOld, oldFileMessage } from './lib/bol-nl.mjs';
+import { BOL_FILE, BOL_SOURCES, BOL_SEARCHES, LEGACY_SITES, BOL_RETAILER, bolPlace, bolBaseName, FASHION_CATEGORY_IDS, bolEan, bolStamp, bolTooOld, oldFileMessage } from './lib/bol-nl.mjs';
 
 export const RULES = {
   key: 'bol-nl',
@@ -26,8 +26,11 @@ export const RULES = {
   maxPrice: 5000,
   // One shop must not fill a whole subcategory of an older site (lessons L161, L164).
   maxPerSubcategory: 400,
-  // Sizes of one product are separate rows with the same name once the size is taken off (bolBaseName): one card.
-  joinSameNameAcrossFeeds: true,
+  // Sizes of one product are separate rows with the same name once the size is taken off (bolBaseName): one card, the
+  // cheapest size WITH its own link, EAN and key (review of 6954a135: a joined card kept the first row's link and EAN,
+  // and the daily refresh, which finds a row by its EAN, then wrote the dearer size's price on it).
+  sameNameCheapest: true,
+  sameNameCheapestReason: 'the same name in another size at a higher price (the cheapest size is kept, with its own link and EAN)',
   paused: 'bol.com (L204): the import waits for tools/bol-remove.ps1 and the daily price refresh (gear-world-bol-refresh) to be live, then ΕΓΚΡΙΝΩ ALL IMPORTS'
 };
 
@@ -48,7 +51,8 @@ export function feedFiles(archive) {
 // No brand and no "was" price on a bol.com card (lessons L178); the name without its size, so the sizes are one card;
 // the EAN in 13 digits, as the daily refresh finds the row (src/bol-refresh.js reads the ean column).
 export function field(c, column) {
-  if (c === 'product_name') return bolBaseName(column('product_name'));
+  // A bare number is a size only in the fashion categories and the work-shoe search (or with a clothing word in the name).
+  if (c === 'product_name') return bolBaseName(column('product_name'), FASHION_CATEGORY_IDS.has(column('bol_category_id')) || /search "werkschoenen"/i.test(column('merchant_category')) || undefined);
   // The name with its size, for the children's sizes (maat 62 to 176) of the routing.
   if (c === 'bol_raw_name') return column('product_name');
   if (c === 'ean') return bolEan(column('ean'));
