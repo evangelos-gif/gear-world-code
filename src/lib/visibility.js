@@ -268,17 +268,22 @@ export function homeView(site, at = now()) {
 // The extra WHERE term of a view on the rows named `alias` (the products table, or the older layout's view), or null.
 // The + keeps SQLite from using an index for it and likelihood(..., 1.0) tells it the term removes no row, so its
 // estimates and its plan stay as they were (the filter still removes the rows, it is only a hint).
+// The retailer names are written into the SQL as quoted text, not bound as values (lessons L202): D1 binds at most 100
+// values to one statement, and the UK view of a site hides every retailer that does not deliver to the UK, so with ~62
+// such names a page query ran out of values (L193, L199: 140 Greek shops of Linkwise left out on 19 Nov 2026). The names
+// come only from the site's config (deliversTo), never from a visitor; a quote in a name is doubled, as SQL wants.
+// A statement stays far under D1's 100,000 characters: 600 names of ~25 characters, written three times by a walk
+// (src/db.js), is ~50,000 (tests/worker/view-filter-l202.test.mjs).
+export const sqlText = s => `'${String(s).replace(/'/g, "''")}'`;
 export function visibleSql(view, alias = 'p') {
   if (!view) return null;
   const parts = [];
   const binds = [];
   if (view.hidden && view.hidden.length) {
-    parts.push(`+${alias}.retailer NOT IN (${view.hidden.map(() => '?').join(', ')})`);
-    binds.push(...view.hidden);
+    parts.push(`+${alias}.retailer NOT IN (${view.hidden.map(sqlText).join(', ')})`);
   }
   if (view.only && view.only.length) {
-    parts.push(`+${alias}.retailer IN (${view.only.map(() => '?').join(', ')})`);
-    binds.push(...view.only);
+    parts.push(`+${alias}.retailer IN (${view.only.map(sqlText).join(', ')})`);
   } else if (view.only) {
     parts.push('0'); // a strict country that no retailer delivers to: nothing
   }

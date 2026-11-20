@@ -266,12 +266,15 @@ async function noIndexRetry(db, err, again) {
 // The group key of the rows named a (the new layout's own columns: NATIVE_GROUP_KEY, so idx_products_group_key finds it).
 const gkOf = a => `COALESCE(NULLIF(TRIM(${a}.gtin), ''), 'id:' || ${a}.id)`;
 // The same WHERE on the rows named o (the other offers of a row's group): every "p." of the SQL this file builds becomes
-// "o." (column names only: the values are always binds).
-export const asOther = sql => String(sql).replace(/(^|[^A-Za-z0-9_.])p\./g, '$1o.');
+// "o." (column names only), never inside quoted text: the view's retailer names are written in the SQL as text since
+// lessons L202, and a name such as 'Shop p.co' stays as it is. A doubled quote ('') inside a name is an empty piece
+// between two quotes, so the pieces outside quotes are still every second one.
+export const asOther = sql => String(sql).split("'").map((piece, i) => (i % 2 ? piece : piece.replace(/(^|[^A-Za-z0-9_.])p\./g, '$1o.'))).join("'");
 // D1 binds at most 100 values to one statement ("too many SQL variables"). A walk writes its WHERE three times (the card,
-// its offer count, the better-offer test), and the UK view alone hides 41 retailers on HGW (lessons L193): 3 x 42 values.
+// its offer count, the better-offer test), and the UK view alone hid 41 retailers on HGW (lessons L193): 3 x 42 values.
 // So the walk names each value by its number (?1, ?2 ...: D1 and SQLite take the same value for every ?N) and binds it
-// once. Only a ? outside quotes is a value (the SQL this file builds has none inside them anyway).
+// once. Only a ? outside quotes is a value: since lessons L202 the view's retailer names are quoted text in the SQL (no
+// value at all), and a name may hold a ?.
 export function byNumber(sql, first = 1) {
   let n = first - 1;
   let quoted = false;
