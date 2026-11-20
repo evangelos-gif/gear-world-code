@@ -6733,10 +6733,18 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         'echo %* | findstr /L /C:"deployments list" >nul && goto deployments',
         'echo %* | findstr /L /C:"delete gear-world-bol-refresh" >nul && goto wdelete',
         'echo %* | findstr /L /C:"--file" >nul && goto file',
+        'echo %* | findstr /L /C:"bol_refresh_meta WHERE key" >nul && goto switch',
         'echo %* | findstr /L /C:"sqlite_master" >nul && goto tables',
         'echo %* | findstr /L /C:"--command" >nul && goto count',
         'echo unknown command 1>&2',
         'exit /b 1',
+        ':switch',
+        'if exist "%GW_FAKE_STATE%\switchoff.txt" goto switchoff',
+        'echo [{"results":[{"value":"1","updated_at":"2026-11-20 06:00:00"}],"success":true}]',
+        'exit /b 0',
+        ':switchoff',
+        'echo [{"results":[{"value":"0","updated_at":"2026-11-21 06:00:00"}],"success":true}]',
+        'exit /b 0',
         ':ttinfo',
         ('echo The current bookmark is ' + $brBookmark),
         'exit /b 0',
@@ -6756,13 +6764,22 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         'echo Authentication error [code: 10001]',
         'exit /b 1',
         ':file',
+        'echo %* | findstr /L /C:"gear-world-awin" >nul && goto fileawin',
         'echo deleted > "%GW_FAKE_STATE%\deleted.txt"',
         'echo OK',
         'exit /b 0',
+        ':fileawin',
+        'echo switch > "%GW_FAKE_STATE%\switchoff.txt"',
+        'echo OK',
+        'exit /b 0',
         ':tables',
+        'echo %* | findstr /L /C:"gear-world-awin" >nul && goto tawin',
         'echo %* | findstr /L /C:"construction-gear-customers" >nul && goto tcgw',
         'echo %* | findstr /L /C:"gear-world-prices" >nul && goto tprices',
         'echo [{"results":[{"name":"affiliate_clicks"},{"name":"products"},{"name":"products_fts"}],"success":true}]',
+        'exit /b 0',
+        ':tawin',
+        'echo [{"results":[{"name":"awin_transactions"},{"name":"bol_refresh_meta"},{"name":"bol_refresh_hidden"}],"success":true}]',
         'exit /b 0',
         ':tcgw',
         'echo [{"results":[{"name":"affiliate_clicks"},{"name":"product_group_offers"},{"name":"product_groups"},{"name":"products"}],"success":true}]',
@@ -6819,10 +6836,11 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         Check ((Run-Br @()) -eq 0) 'bol-remove check: exit 0'
         $c = BrCalls
         Check (-not ($c -match '--file|time-travel|delete gear-world')) 'bol-remove check: only reads'
-        Check (([regex]::Matches($c, 'd1 execute [a-z-]+ --remote --json --command "SELECT ')).Count -eq 28) 'bol-remove check: the 13 site databases and Price Watch, tables and counts (28 SELECTs)'
+        Check (([regex]::Matches($c, 'd1 execute (?!gear-world-awin)[a-z-]+ --remote --json --command "SELECT ')).Count -eq 28) 'bol-remove check: the 13 site databases and Price Watch, tables and counts (28 SELECTs)'
+        Check ($c.Contains('d1 execute gear-world-awin --remote --json --command "SELECT value, updated_at FROM bol_refresh_meta WHERE key = ''enabled''"')) 'bol-remove check: reads the kill switch of the daily refresh (L205)'
         $r = BrLast 'BOL_REMOVE_CHECK_*.txt'
         Check ($r.Contains('ΕΓΚΡΙΝΩ ΑΦΑΙΡΕΣΗ BOL') -and $r.Contains('product_group_offers 2, products 5 (ενεργά: 4)') -and $r.Contains('price_log 30, price_last 6')) 'bol-remove check: the counts per table and the phrase'
-        Check ($r.Contains('gear-world-bol-refresh') -and $r.Contains('ΥΠΑΡΧΕΙ') -and $r.Contains('το Hub δεν κρατά προϊόντα')) 'bol-remove check: the refresh Worker and the Hub'
+        Check ($r.Contains('gear-world-bol-refresh') -and $r.Contains('ΥΠΑΡΧΕΙ') -and $r.Contains('το Hub δεν κρατά προϊόντα') -and $r.Contains('bol_refresh_meta enabled): ΑΝΟΙΧΤΟΣ')) 'bol-remove check: the refresh Worker, its switch and the Hub'
         Check (-not ($r -match '[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}')) 'bol-remove check: no Cloudflare id in the report'
         Check ((Run-Br @('-Step', 'apply')) -eq 0 -and -not ((BrCalls) -match '--file|time-travel|delete gear-world')) 'bol-remove apply without -Apply: only reads'
         Check ((Run-Br @('-Step', 'apply', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ ALL IMPORTS')) -eq 1 -and -not ((BrCalls) -match '--file|time-travel|delete gear-world')) 'bol-remove with another phrase: stops, changes nothing'
@@ -6831,13 +6849,17 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         Check ((Run-Br @('-Step', 'apply', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ ΑΦΑΙΡΕΣΗ BOL')) -eq 14) 'bol-remove apply, the Worker cannot be deleted: the products go all the same (exit 14)'
         $c = BrCalls
         $iT = $c.LastIndexOf('time-travel info')
+        $iS = $c.IndexOf('d1 execute gear-world-awin --remote --file')
         $iW = $c.IndexOf('delete gear-world-bol-refresh')
-        $iF = $c.IndexOf('--file')
-        Check (([regex]::Matches($c, 'time-travel info (construction-gear-customers|home-gear-world|gear-world-prices)')).Count -eq 3 -and $iT -lt $iW -and $iW -lt $iF) 'bol-remove apply: a restore point of the 3 databases with rows, then the Worker, then the deletes'
+        $iF = $c.IndexOf('d1 execute construction-gear-customers --remote --file')
+        Check (([regex]::Matches($c, 'time-travel info (construction-gear-customers|home-gear-world|gear-world-prices|gear-world-awin)')).Count -eq 4 -and $iT -lt $iS -and $iS -lt $iW -and $iW -lt $iF) 'bol-remove apply: restore points (3 databases with rows and gear-world-awin), then the kill switch, then the Worker, then the deletes'
+        $swf = @(Get-ChildItem -LiteralPath (Join-Path (Join-Path $brHome 'gear-world-bol-remove') 'backups') -Recurse -Filter 'awin-refresh-off.sql' -ErrorAction SilentlyContinue)
+        Check ($swf.Count -eq 1 -and ([System.IO.File]::ReadAllText($swf[0].FullName)).Contains("INSERT INTO bol_refresh_meta (key, value, updated_at) VALUES ('enabled', '0',") -and -not ([System.IO.File]::ReadAllText($swf[0].FullName)).Contains('bol_refresh_hidden')) 'bol-remove apply: the switch off in bol_refresh_meta (the contract of L205), bol_refresh_hidden left'
         Check (([regex]::Matches($c, 'd1 execute (construction-gear-customers|home-gear-world|gear-world-prices) --remote --file')).Count -eq 3 -and -not ($c -match 'd1 execute mens-gear-world --remote --file')) 'bol-remove apply: only the databases with bol.com rows change'
         $r = BrLast 'BOL_REMOVE_APPLY_*.txt'
         Check ($r.Contains('npx wrangler d1 time-travel restore construction-gear-customers --bookmark=' + $brBookmark) -and $r.Contains('npx wrangler d1 time-travel restore gear-world-prices --bookmark=' + $brBookmark)) 'bol-remove apply: the rollback of each database with its restore point'
-        Check ($r.Contains('products 5 -> 0') -and $r.Contains('price_log 30 -> 0') -and $r.Contains('npx wrangler delete gear-world-bol-refresh')) 'bol-remove apply: what was removed, and the command for the Worker'
+        Check ($r.Contains('products 5 -> 0') -and $r.Contains('price_log 30 -> 0') -and $r.Contains('npx wrangler delete gear-world-bol-refresh') -and $r.Contains('ΕΝΤΑΞΕΙ: διακόπτης ανανέωσης 0')) 'bol-remove apply: what was removed, the switch, and the command for the Worker'
+        Check ($r.Contains('npx wrangler d1 time-travel restore gear-world-awin --bookmark=' + $brBookmark)) 'bol-remove apply: the rollback of gear-world-awin too'
         $bk = @(Get-ChildItem -LiteralPath (Join-Path (Join-Path $brHome 'gear-world-bol-remove') 'backups') -Recurse -Filter 'cgw-delete.sql' -ErrorAction SilentlyContinue)
         Check ($bk.Count -eq 1 -and ([System.IO.File]::ReadAllText($bk[0].FullName)).Contains('DELETE FROM product_group_offers WHERE product_id IN (SELECT id FROM products WHERE')) 'bol-remove apply: the CGW file deletes the group offers too'
         $rp = @(Get-ChildItem -LiteralPath (Join-Path (Join-Path $brHome 'gear-world-bol-remove') 'backups') -Recurse -Filter 'restore-points.txt' -ErrorAction SilentlyContinue)

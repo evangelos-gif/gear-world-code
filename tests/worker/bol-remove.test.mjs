@@ -5,7 +5,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
 import { DatabaseSync } from 'node:sqlite';
-import { targets, targetOf, countSql, deleteSql, tablesSql, parts, bolWhere, UNSAFE, SIDE_TABLES, PRODUCTS_PER_DELETE, REFRESH_WORKER, PRICES_DB } from '../../tools/bol-remove.mjs';
+import { targets, targetOf, countSql, deleteSql, tablesSql, parts, bolWhere, UNSAFE, SIDE_TABLES, PRODUCTS_PER_DELETE, REFRESH_WORKER, PRICES_DB, AWIN_DB, switchSql, switchReadSql } from '../../tools/bol-remove.mjs';
 import { networkShopId } from '../../tools/tgw-import-plan.mjs';
 import { PRICE_SITES } from '../../sites/prices/sites.js';
 import { BOL_SITES } from '../../sites/_shared/bol.js';
@@ -149,9 +149,37 @@ test('L204: the tool: read-only by default, one phrase, restore points before an
   assert.match(src, /Set-Clipboard/);
   const iConfirm = src.indexOf('if (-not (Confirm-Approval $Phrase))');
   const iTT = src.indexOf("d1 time-travel info {0}");
+  const iSwitch = src.indexOf("'--mode', 'switch-sql'");
   const iWorker = src.indexOf("('delete {0}' -f $WorkerName)");
-  const iFile = src.indexOf("--remote --file");
-  assert.ok(iConfirm > 0 && iConfirm < iTT && iTT < iWorker && iWorker < iFile, 'approval, then every restore point, then the Worker, then the deletes');
+  const iDelete = src.indexOf("'--mode', 'delete-sql'");
+  assert.ok(iConfirm > 0 && iConfirm < iTT && iTT < iSwitch && iSwitch < iWorker && iWorker < iDelete,
+    'approval, then every restore point (gear-world-awin too), then the kill switch, then the Worker, then the deletes');
+  assert.match(src, /\$AwinDb = 'gear-world-awin'/);
   assert.match(src, /Finish 11/, 'no restore point: nothing changes');
   assert.ok(!/\?\?|\s\?\s.*\s:\s|&&|\|\||-AsHashtable|-Parallel/.test(src.replace(/'[^'\r\n]*'/g, "''")), 'Windows PowerShell 5.1 syntax only');
+});
+
+test('L204 + L205: the kill switch of the daily refresh: made if missing, set to 0, and the own migration of the refresh keeps the 0', () => {
+  assert.equal(AWIN_DB, 'gear-world-awin');
+  const at = new Date('2026-11-25T08:30:00Z');
+  const sql = switchSql(at);
+  assert.ok(!sql.includes('bol_refresh_hidden'), 'bol_refresh_hidden is left as it is');
+  // A database where the refresh was never set up.
+  const empty = new DatabaseSync(':memory:');
+  empty.exec(sql);
+  assert.deepEqual({ ...empty.prepare(switchReadSql()).get() }, { value: '0', updated_at: '2026-11-25 08:30:00' });
+  // The refresh set up and on ('1'): the switch goes to 0; its migration run again later keeps the 0.
+  const migration = read('sites/bol-refresh/migrations/0001_bol_refresh.sql');
+  const db = new DatabaseSync(':memory:');
+  db.exec(migration);
+  assert.equal(db.prepare(switchReadSql()).get().value, '1');
+  db.prepare("INSERT INTO bol_refresh_hidden (site, product_id, ean, reason, hidden_at) VALUES ('hgw', 7, '8710103000001', 'no offer', '2026-11-24 04:13:00')").run();
+  db.exec(sql);
+  db.exec(sql);
+  assert.equal(db.prepare(switchReadSql()).get().value, '0');
+  db.exec(migration);
+  assert.equal(db.prepare(switchReadSql()).get().value, '0', 'IF NOT EXISTS / DO NOTHING keeps the 0');
+  assert.equal(db.prepare('SELECT COUNT(*) AS n FROM bol_refresh_hidden').get().n, 1);
+  // The refresh Worker reads the same row (src/bol-refresh.js).
+  assert.match(read('src/bol-refresh.js'), /SELECT value FROM bol_refresh_meta WHERE key = \?/);
 });

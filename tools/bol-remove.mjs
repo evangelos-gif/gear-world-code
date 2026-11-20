@@ -11,6 +11,9 @@
 //                                          bol.com rows of every table that has them
 //   --mode delete-sql --target <code> --tables <a,b,...> --rows <n> [--rows-log <n>] --out <file>
 //                                          the DELETE statements, side tables first, products in parts of 500
+//   --mode switch-sql --out <file>         the kill switch of the daily refresh (gear-world-awin, bol_refresh_meta
+//                                          'enabled' = '0', the contract of src/bol-refresh.js, lessons L205)
+//   --mode switch-read-sql                 the SELECT of that switch
 //
 // A bol.com row: retailer 'bol.com' (or a name that the site shows as 'bol.com'), OR the bol.com partner link
 // (https://partner.bol.com/...), so a row with another spelling is removed too (src/lib/retailer-terms.js).
@@ -28,6 +31,8 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 export const BOL = NO_ALERT_RETAILERS[0];
 export const PRICES_DB = 'gear-world-prices';
 export const REFRESH_WORKER = 'gear-world-bol-refresh';
+// The database of the daily refresh's own tables (sites/bol-refresh/migrations, lessons L205).
+export const AWIN_DB = 'gear-world-awin';
 export const PRODUCTS_PER_DELETE = 500;
 export const PRICE_ROWS_PER_DELETE = 20000;
 // Characters that tools/bol-remove.ps1 never sends in a --command (cmd.exe would change them): & | < > ^ %
@@ -152,12 +157,31 @@ export function deleteSql(t, tables, { rows = 0, rowsLog = 0, stamp = new Date()
   return L.join('\n') + '\n';
 }
 
+// The kill switch of gear-world-bol-refresh (src/bol-refresh.js reads it at the start of every run): '0' = no bol.com
+// call and no price change. The table may not be there yet (the refresh not set up): it is made, as its own migration
+// would (IF NOT EXISTS), and that migration keeps the 0 (ON CONFLICT DO NOTHING). bol_refresh_hidden is left as it is.
+export function switchSql(now = new Date()) {
+  const at = now.toISOString().slice(0, 19).replace('T', ' ');
+  return ['-- bol.com removal (lessons L204): the daily refresh off first (bol_refresh_meta enabled = 0, lessons L205).',
+    'CREATE TABLE IF NOT EXISTS bol_refresh_meta (key TEXT PRIMARY KEY, value TEXT, updated_at TEXT NOT NULL);',
+    `INSERT INTO bol_refresh_meta (key, value, updated_at) VALUES ('enabled', '0', ${q(at)}) ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at;`
+  ].join('\n') + '\n';
+}
+export const switchReadSql = () => "SELECT value, updated_at FROM bol_refresh_meta WHERE key = 'enabled'";
+
 async function main() {
   const args = process.argv.slice(2);
   const val = n => { const i = args.indexOf(`--${n}`); return i >= 0 ? String(args[i + 1] ?? '') : ''; };
   const tables = () => val('tables').split(',').map(x => x.trim()).filter(x => /^[A-Za-z0-9_]{1,64}$/.test(x));
   const mode = val('mode');
   if (mode === 'tables-sql') { process.stdout.write(tablesSql() + '\n'); return; }
+  if (mode === 'switch-read-sql') { process.stdout.write(switchReadSql() + '\n'); return; }
+  if (mode === 'switch-sql') {
+    if (!val('out')) throw new Error('--out is needed');
+    writeFileSync(val('out'), switchSql());
+    process.stdout.write(JSON.stringify({ ok: true }) + '\n');
+    return;
+  }
   const list = await targets();
   // One object, not a bare array: Windows PowerShell 5.1 reads a bare array as a single item.
   if (mode === 'targets') { process.stdout.write(JSON.stringify({ targets: list }) + '\n'); return; }
@@ -171,7 +195,7 @@ async function main() {
     process.stdout.write(JSON.stringify({ ok: true, statements: sql.split('\n').filter(l => /^DELETE /.test(l)).length }) + '\n');
     return;
   }
-  throw new Error('unknown --mode (targets, tables-sql, count-sql, delete-sql)');
+  throw new Error('unknown --mode (targets, tables-sql, count-sql, delete-sql, switch-sql, switch-read-sql)');
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1] || '').href) main().catch(e => { process.stderr.write(`${e && e.message ? e.message : e}\n`); process.exit(2); });

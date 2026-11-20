@@ -9,15 +9,18 @@
                 Watch (gear-world-prices): how many bol.com rows there are, table by table (products, and on the
                 older sites the tables that point to them, such as product_group_offers on CGW); a bol.com row is the
                 name 'bol.com' (also a name the site shows as 'bol.com', database.retailerNames) or the bol.com partner
-                link. Gear World Hub keeps no products (its search reads the sites). And whether the daily refresh
-                Worker gear-world-bol-refresh exists. Shows the plan and the approval phrase.
+                link. Gear World Hub keeps no products (its search reads the sites). And the daily refresh (lessons
+                L205): whether the Worker gear-world-bol-refresh exists and its kill switch (gear-world-awin,
+                bol_refresh_meta 'enabled'). Shows the plan and the approval phrase.
   -Step apply   CHANGES CLOUDFLARE, one approval: ΕΓΚΡΙΝΩ ΑΦΑΙΡΕΣΗ BOL (-Apply, and -Approve or typed). In this order:
-                  1. a Time Travel restore point of EVERY database that has bol.com rows (if one cannot be taken,
-                     nothing changes);
-                  2. the refresh Worker gear-world-bol-refresh is deleted (its schedule stops with it); if that does
-                     not work, the report gives the exact command and the Cloudflare page, and the removal goes on;
+                  1. a Time Travel restore point of EVERY database that has bol.com rows, and of gear-world-awin (if
+                     one cannot be taken, nothing changes);
+                  2. the refresh off FIRST: bol_refresh_meta 'enabled' = '0' in gear-world-awin (the table is made if
+                     it is not there; bol_refresh_hidden is left as it is); then the Worker gear-world-bol-refresh is
+                     deleted (its schedule stops with it). If either does not work, the report gives the exact command
+                     and the Cloudflare page, and the removal goes on;
                   3. every bol.com row is deleted, database by database (side tables first, products in parts);
-                  4. the counts again: every one must be 0.
+                  4. the counts again: every one must be 0, and the switch '0'.
                 The report says what was removed in each database and how to bring each one back (its restore point).
                 Click and sales logs stay (they show nothing; the commission of earlier clicks is still matched).
   Report: <home>\gear-world-reports\BOL_REMOVE_<STEP>_<time>.txt (also copied to the clipboard)
@@ -40,6 +43,8 @@ $repo = Split-Path -Parent $PSScriptRoot
 $Phrase = 'ΕΓΚΡΙΝΩ ΑΦΑΙΡΕΣΗ BOL'
 $WorkerName = 'gear-world-bol-refresh'
 $WorkerPage = 'https://dash.cloudflare.com/?to=/:account/workers/services/view/gear-world-bol-refresh/production/triggers'
+# The refresh's own tables (sites/bol-refresh/migrations, lessons L205): the kill switch is bol_refresh_meta 'enabled'.
+$AwinDb = 'gear-world-awin'
 $Core = Join-Path (Join-Path $repo 'tools') 'bol-remove.mjs'
 if (-not $PcHome) { $PcHome = $HOME }
 if (-not $WorkDir) { $WorkDir = Join-Path $PcHome 'gear-world-bol-remove' }
@@ -230,14 +235,30 @@ if ($workerState -eq 'exists') { Say ('  ΥΠΑΡΧΕΙ: τρέχει κάθε �
 elseif ($workerState -eq 'none') { Say '  ΔΕΝ ΥΠΑΡΧΕΙ: τίποτα να σταματήσει.' 'Green' }
 else { Say ('  ΠΡΟΒΛΗΜΑ: δεν μπόρεσα να το δω ({0}).' -f (Short-Error $w.text)) 'Yellow' }
 
+# The kill switch: on (the Worker refreshes), off ('0'), none (no table: the refresh was never set up) or unknown.
+function Read-Switch {
+    $tables = Select-Rows $AwinDb (Invoke-Core @('--mode', 'tables-sql'))
+    if ($null -eq $tables) { return @{ state = 'unknown'; text = (Short-Error $script:LastError) } }
+    if (-not (@($tables | ForEach-Object { [string]$_.name }) -contains 'bol_refresh_meta')) { return @{ state = 'none'; text = '' } }
+    $r = Select-Rows $AwinDb (Invoke-Core @('--mode', 'switch-read-sql'))
+    if ($null -eq $r) { return @{ state = 'unknown'; text = (Short-Error $script:LastError) } }
+    if ($r.Count -gt 0 -and ([string]$r[0].value).Trim() -eq '0') { return @{ state = 'off'; text = [string]$r[0].updated_at } }
+    return @{ state = 'on'; text = '' }
+}
+$sw = Read-Switch
+if ($sw.state -eq 'on') { Say ('  Διακόπτης ({0}, bol_refresh_meta enabled): ΑΝΟΙΧΤΟΣ. Με την αφαίρεση γίνεται 0 ΠΡΩΤΑ.' -f $AwinDb) 'Yellow' }
+elseif ($sw.state -eq 'off') { Say ('  Διακόπτης ({0}, bol_refresh_meta enabled): ΚΛΕΙΣΤΟΣ (0, από {1}).' -f $AwinDb, $sw.text) 'Green' }
+elseif ($sw.state -eq 'none') { Say ('  Διακόπτης ({0}): ΔΕΝ ΥΠΑΡΧΕΙ ακόμα (η ανανέωση δεν έχει στηθεί). Με την αφαίρεση γράφεται 0, για να μείνει κλειστός.' -f $AwinDb) 'Green' }
+else { Say ('  Διακόπτης ({0}): ΠΡΟΒΛΗΜΑ, δεν διαβάστηκε ({1}). Με την αφαίρεση γράφεται 0.' -f $AwinDb, $sw.text) 'Yellow' }
+
 $totalRows = 0
 foreach ($t in $withRows) { $totalRows += $counts[$t.code].total }
 Say ''
 Say 'Τι θα γίνει με -Step apply -Apply και τη φράση:'
-Say ('  1. Σημείο επαναφοράς (Cloudflare Time Travel) σε κάθε βάση με γραμμές bol.com: {0}' -f ((@($withRows | ForEach-Object { $_.db })) -join ', '))
-Say ('  2. Σβήνεται ο Worker {0} (αν υπάρχει), για να σταματήσει η καθημερινή ανανέωση.' -f $WorkerName)
+Say ('  1. Σημείο επαναφοράς (Cloudflare Time Travel) σε κάθε βάση με γραμμές bol.com και στη {0}: {1}' -f $AwinDb, ((@($withRows | ForEach-Object { $_.db }) + @($AwinDb)) -join ', '))
+Say ('  2. ΠΡΩΤΑ σταματά η ανανέωση: διακόπτης 0 στη {0}, και σβήνεται ο Worker {1} (αν υπάρχει).' -f $AwinDb, $WorkerName)
 Say ('  3. Σβήνονται {0} γραμμές bol.com (προϊόντα και ό,τι δείχνει σε αυτά, και το ιστορικό τιμών τους).' -f $totalRows)
-Say '  4. Μετράω ξανά: όλα πρέπει να είναι 0. Τα κλικ και οι πωλήσεις μένουν (δεν φαίνονται πουθενά).'
+Say '  4. Μετράω ξανά: όλα πρέπει να είναι 0 και ο διακόπτης 0. Τα κλικ και οι πωλήσεις μένουν (δεν φαίνονται πουθενά).'
 Say '  Δεν αλλάζει κώδικας, deploy ή άλλο κατάστημα.'
 Say ('Η φράση έγκρισης: {0}' -f $Phrase)
 
@@ -252,7 +273,7 @@ if ($Step -eq 'check' -or -not $Apply) {
     else { Say ('Μόνο ανάγνωση: δεν άλλαξε τίποτα. Υπάρχουν {0} γραμμές bol.com.' -f $totalRows) 'Green' }
     Finish 0
 }
-if ($totalRows -eq 0 -and $workerState -ne 'exists') { Say ''; Say 'ΕΝΤΑΞΕΙ: δεν υπάρχει τίποτα να σβηστεί.' 'Green'; Finish 0 }
+if ($totalRows -eq 0 -and $workerState -ne 'exists' -and $sw.state -ne 'on') { Say ''; Say 'ΕΝΤΑΞΕΙ: δεν υπάρχει τίποτα να σβηστεί ή να σταματήσει.' 'Green'; Finish 0 }
 if (-not (Confirm-Approval $Phrase)) { Say 'Δεν δόθηκε έγκριση: σταμάτησα χωρίς αλλαγές.' 'Yellow'; Finish 1 }
 
 # ---- 1. Restore points first: none taken = nothing changes ----
@@ -261,7 +282,8 @@ New-Item -ItemType Directory -Path $bdir -Force | Out-Null
 $restore = [ordered]@{}
 Say ''
 Say '1. Σημεία επαναφοράς:'
-foreach ($t in $withRows) {
+$ttTargets = @($withRows) + @([pscustomobject]@{ code = 'awin'; db = $AwinDb })
+foreach ($t in $ttTargets) {
     $tt = Invoke-Wrangler $WorkDir ('d1 time-travel info {0}' -f $t.db) -Retry
     $bm = [regex]::Match($tt.text, '[0-9a-f]{8}-[0-9a-f]{8}-[0-9a-f]{8}-[0-9a-f]{32}')
     if ($tt.code -ne 0 -or -not $bm.Success) {
@@ -279,9 +301,19 @@ foreach ($k in $restore.Keys) { $note.Add(('  {0}: {1}' -f $k.ToUpper(), $restor
 $note.Add('A restore also undoes any other change made to that database after this moment.')
 [System.IO.File]::WriteAllText((Join-Path $bdir 'restore-points.txt'), ($note -join "`r`n"), (New-Object System.Text.UTF8Encoding($false)))
 
-# ---- 2. The refresh Worker: deleted, so its schedule stops (it would bring prices back every day) ----
+# ---- 2. The refresh off FIRST: the kill switch (lessons L205), then the Worker is deleted, so its schedule stops ----
 Say ''
-Say ('2. Ο Worker {0}:' -f $WorkerName)
+Say ('2. Η καθημερινή ανανέωση σταματά (διακόπτης στη {0}, μετά ο Worker {1}):' -f $AwinDb, $WorkerName)
+$switchOk = $false
+$swFile = Join-Path $bdir 'awin-refresh-off.sql'
+[void](Invoke-Core @('--mode', 'switch-sql', '--out', $swFile))
+$s = Invoke-Wrangler $WorkDir ('d1 execute {0} --remote --file "{1}"' -f $AwinDb, $swFile) -Retry
+if ($s.code -eq 0) { $back = Read-Switch; if ($back.state -eq 'off') { $switchOk = $true } }
+if ($switchOk) { Say '  Διακόπτης: 0 (ΚΛΕΙΣΤΟΣ): ο Worker δεν καλεί το bol.com και δεν αλλάζει τιμές.' 'Green' }
+else {
+    Say ('  ΠΡΟΒΛΗΜΑ: ο διακόπτης δεν έγινε 0 ({0}). Η αφαίρεση συνεχίζει.' -f (Short-Error $s.text)) 'Red'
+    Say ('  Κλείσ'' τον εσύ, στο PowerShell: cd "{0}"; npx wrangler d1 execute {1} --remote --file "{2}"' -f $WorkDir, $AwinDb, $swFile)
+}
 $workerOk = $true
 if ($workerState -eq 'none') { Say '  ΔΕΝ ΥΠΑΡΧΕΙ: τίποτα να σταματήσει.' 'Green' }
 else {
@@ -319,7 +351,9 @@ foreach ($t in $withRows) {
 
 # ---- 4. Count again ----
 Say ''
-Say '4. Έλεγχος μετά (όλα πρέπει να είναι 0):'
+Say '4. Έλεγχος μετά (όλα πρέπει να είναι 0, ο διακόπτης 0):'
+$swAfter = Read-Switch
+if ($swAfter.state -eq 'off') { Say ('  {0,-6} {1,-30} ΕΝΤΑΞΕΙ: διακόπτης ανανέωσης 0' -f 'AWIN', $AwinDb) } else { $switchOk = $false; Say ('  {0,-6} {1,-30} ΠΡΟΒΛΗΜΑ: ο διακόπτης δεν είναι 0' -f 'AWIN', $AwinDb) 'Red' }
 $left = 0
 $unread = 0
 foreach ($t in $withRows) {
@@ -343,6 +377,6 @@ Say '  Η επαναφορά σβήνει και κάθε άλλη αλλαγή 
 Say ''
 if ($deleteFailed -gt 0) { Say ('ΠΡΟΒΛΗΜΑ: {0} βάσεις δεν άλλαξαν. Τρέξε ξανά την ίδια εντολή (σβήνει μόνο ό,τι έμεινε) και στείλε την αναφορά στο Claude.' -f $deleteFailed) 'Red'; Finish 12 }
 if ($unread -gt 0 -or $left -gt 0) { Say ('ΠΡΟΒΛΗΜΑ: μένουν {0} γραμμές bol.com ή βάσεις που δεν διαβάστηκαν ({1}). Τρέξε ξανά την ίδια εντολή.' -f $left, $unread) 'Red'; Finish 13 }
-if (-not $workerOk) { Say ('ΣΧΕΔΟΝ ΕΤΟΙΜΟ: όλα τα προϊόντα bol.com σβήστηκαν (0 παντού), αλλά ο Worker {0} δεν σβήστηκε: σταμάτησέ τον όπως γράφει πιο πάνω.' -f $WorkerName) 'Yellow'; Finish 14 }
+if (-not $workerOk -or -not $switchOk) { Say ('ΣΧΕΔΟΝ ΕΤΟΙΜΟ: όλα τα προϊόντα bol.com σβήστηκαν (0 παντού), αλλά η ανανέωση δεν σταμάτησε πλήρως (διακόπτης ή Worker {0}): κάνε ό,τι γράφει πιο πάνω.' -f $WorkerName) 'Yellow'; Finish 14 }
 Say ('ΕΤΟΙΜΟ: σβήστηκαν {0} γραμμές bol.com, 0 έμειναν. Οι σελίδες ανανεώνονται μέσα σε λίγα λεπτά.' -f $totalRows) 'Green'
 Finish 0
