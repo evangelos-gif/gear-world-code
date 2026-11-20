@@ -16,6 +16,11 @@
 //    in different sizes ("... - Maat 42", "..., maat XL") are ONE card (bolBaseName), at the lowest price.
 // The table is written from bol.com's category names before the first real profile of the files (Sunday 22 Nov 2026):
 // add words to PLACES (and a test row to tests/worker/bol-import.test.mjs) as the profile shows them.
+// The first real download (20 Nov 2026, 12,816 products in 14 files; Manager): merchant_category is only bol.com's top
+// category, so the NAME places a product (every part of it: "Skechers KEEPSAKES COZY - COZY MINI Dames Instappers -
+// Taupe" is shoes); clearly gendered clothing goes to the fashion site its words say (bolPlace); sizes of one name are
+// one card; veterinary diets, knives, party items in Tuin and what is not DIY in Klussen stay out (Klussen's home
+// products, such as bath mats, go to Home Gear World when they fit a Home category).
 import { homePlaceEu, headOf } from './home-eu.mjs';
 import { BOL_CATEGORIES, BOL_SEARCHES as BOL_SEARCH_TERMS, BOL_RETAILER } from '../../../src/lib/bol-lists.js';
 import { ean13 } from '../../../src/lib/bol-catalog.js';
@@ -70,6 +75,12 @@ export const BANNED = [
   ['CD key, gift card or code', m({ end: ['cadeaukaart', 'cadeaubon', 'giftcard', 'tegoedbon', 'waardebon', 'downloadcode', 'activatiecode', 'licentiecode'],
     word: ['cd[- ]?keys?', 'game ?keys?', 'digitale code', 'prepaid', 'steam wallet', 'psn', 'xbox live', 'nintendo eshop', 'gift ?cards?', 'vouchers?', 'tegoed'] })],
   ['pet prescription medicine', m({ end: ['diergeneesmiddel', 'diergeneesmiddelen', 'receptplichtig'], word: ['op recept', 'prescription', 'pom-?v', 'antibiotica'] })],
+  // Veterinary diets count as pet prescription products (Manager, first real profile: "Royal Canin S/O Moderate Calorie").
+  ['pet prescription medicine', { test: t => VET_DIET.test(t) || (/hypoallergen/iu.test(t) && /(?:voer|brok|food|diet|dieet|kibble)/iu.test(t)) }],
+  // Knives as weapons: pocket, folding, survival and hunting knives (kitchen knives and a DIY utility knife are not these).
+  ['knife', m({ end: ['zakmes', 'zakmessen', 'vouwmes', 'vouwmessen', 'survivalmes', 'survivalmessen', 'jachtmes', 'jachtmessen', 'gevechtsmes', 'springmes', 'outdoormes',
+    'overlevingsmes', 'machete', 'machetes', 'dolk', 'dolken'], word: ['survival mes', 'survival messen', 'outdoor mes', 'tactisch mes', 'tactical knife', 'pocket knife',
+    'folding knife', 'hunting knife', 'survival knife', 'balisong', 'karambit', 'bowie(?: mes| knife)?'] })],
   // "Kostuum" is also a man's suit in Dutch: only carnival and dressing-up words count.
   ['adult costume', { test: t => /(?:verkleed|carnaval|halloween|costume|cosplay|feestkostuum|themakostuum)/iu.test(t) && /(?<![\p{L}])(?:volwassen\p{L}*|dames|heren|adult|sexy)(?![\p{L}])/iu.test(t) }],
   ['erotic or adult product', m({ end: ['erotiek', 'erotisch', 'erotische', 'seksspeeltje', 'seksspeeltjes', 'vibrator', 'vibrators', 'dildo', 'dildo\'s', 'glijmiddel', 'condooms'],
@@ -80,6 +91,7 @@ export const BANNED = [
     word: ['paracetamol', 'ibuprofen', 'cbd', 'melatonine'] })],
   ['service, warranty or insurance', m({ end: ['garantieverlenging', 'verzekering', 'installatieservice'], word: ['warranty', 'insurance'] })]
 ];
+const VET_DIET = /(?<![\p{L}\d])(?:veterinary(?: diet)?|vet[- ]?diet|renal|urinary|s\/o|gastro[- ]?intestinal|hepatic|dieetvoer\p{L}*|dieetvoeding)(?![\p{L}\d])/iu;
 export function bannedReason(text) {
   const t = String(text || '');
   for (const [why, re] of BANNED) if (re.test(t)) return `banned on every Gear World site (${why})`;
@@ -88,10 +100,13 @@ export function bannedReason(text) {
 
 // ---- 4. One card for every size ----
 const SIZE = '(?:x{0,3}s|s|m|l|x{1,4}l|\\d?xl|\\d{1,3}(?:[.,]5)?(?:\\s?(?:eu|cm|jr|jaar|mnd|maanden))?|\\d{2,3}\\s?[-/]\\s?\\d{2,3}(?:\\s?(?:eu|cm|jr|jaar))?|one size|onesize)';
+const LETTER = '(?:x{0,3}s|m|l|x{1,4}l|\\dxl)';
 const SIZE_TAILS = [
   new RegExp(`\\s*[-–,|(]?\\s*\\(?\\s*(?:maat|mt\\.?|size|taille|schoenmaat|confectiemaat)\\s*:?\\s*${SIZE}(?:\\s*/\\s*${SIZE})?\\s*\\)?\\s*$`, 'iu'),
   new RegExp(`\\s+[-–|]\\s+${SIZE}\\s*$`, 'iu'),
-  new RegExp(`\\s*,\\s*${SIZE}\\s*$`, 'iu')
+  new RegExp(`\\s*,\\s*${SIZE}\\s*$`, 'iu'),
+  // "Thermo Panty L/XL": two letter sizes at the end, with no "maat" (never numbers: "Kraan 1/2" is a product).
+  new RegExp(`\\s+${LETTER}\\s*/\\s*${LETTER}\\s*$`, 'iu')
 ];
 export function bolBaseName(name) {
   let n = String(name || '').replace(/\s+/g, ' ').trim();
@@ -127,14 +142,16 @@ export function oldFileMessage(file, stamp, hours = BOL_MAX_AGE_HOURS) {
 export function sourceOf(categoryId) {
   return BOL_SOURCES.find(s => s.id === String(categoryId || '').trim()) || null;
 }
-export const MEN_PERFUME = /(?<![\p{L}])(?:heren|herenparfum|men|man|homme|pour homme|for him|uomo|hombre|mannen)(?![\p{L}])/iu;
+// The perfume search: "Herenparfum", "for Men" -> Men's; "Damesparfum", "for Women" -> Women's (Manager, first real profile).
+export const MEN_PERFUME = /(?<![\p{L}])(?:heren\p{L}*|men|man|homme|pour homme|for him|uomo|hombre|mannen)(?![\p{L}])/iu;
+export const WOMEN_PERFUME = /(?<![\p{L}])(?:dames\p{L}*|women|woman|femme|pour femme|for her|donna|mujer|vrouwen)(?![\p{L}])/iu;
 // The site of one product: { site, source } or { reject }.
 export function routeOf({ categoryId = '', search = '', name = '' }) {
   const s = String(search || '').toLowerCase();
   if (s) {
     const q = BOL_SEARCHES.find(x => x.term === s);
     if (!q) return { reject: `bol.com search "${s}" has no Gear World` };
-    return { site: q.men && MEN_PERFUME.test(name) ? q.men : q.site, source: { id: '0', name: `search "${q.term}"`, search: q.term } };
+    return { site: q.men && MEN_PERFUME.test(name) && !WOMEN_PERFUME.test(name) ? q.men : q.site, source: { id: '0', name: `search "${q.term}"`, search: q.term } };
   }
   const src = sourceOf(categoryId);
   if (!src) return { reject: `bol.com category ${categoryId || '(none)'} has no Gear World` };
@@ -199,7 +216,7 @@ export const PLACES = {
     ['camping-outdoor', 'Camping Kitchen', m({ end: ['koelbox', 'koelboxen', 'koeltas', 'campingkooker', 'kooktoestel', 'gasbrander', 'pannenset', 'campingservies', 'waterzak', 'jerrycan'] })],
     ['camping-outdoor', 'Torches & Lanterns', m({ end: ['hoofdlamp', 'hoofdlampen', 'zaklamp', 'zaklampen', 'kampeerlamp', 'lantaarn', 'campinglamp'] })],
     ['camping-outdoor', 'Hammocks', m({ end: ['hangmat', 'hangmatten'] })],
-    ['camping-outdoor', 'Outdoor Gear', m({ end: ['kompas', 'multitool', 'survivalkit', 'zakmes', 'waterfilter', 'drinkfles', 'thermosfles', 'veldfles'] })]
+    ['camping-outdoor', 'Outdoor Gear', m({ end: ['kompas', 'multitool', 'survivalkit', 'waterfilter', 'drinkfles', 'thermosfles', 'veldfles'] })]
   ],
   sgw: [
     ['racket-sports', 'Rackets', m({ end: ['tennisracket', 'padelracket', 'badmintonracket', 'squashracket', 'tafeltennisbat', 'shuttles', 'tennisballen', 'padelballen'] })],
@@ -405,34 +422,50 @@ const ADULT = /(?<![\p{L}])(?:dames|heren|volwassenen|vrouwen|mannen)(?![\p{L}])
 
 // The first text (GS1 levels deepest first, then the head of the name) that a rule matches; a rule with a fourth part
 // matches only when the whole name has that word too (an electric hedge trimmer is a power tool, the shears are not).
-function placeIn(rules, texts, whole) {
+function placeIn(rules, texts, whole, fromName = texts.length - 1) {
   for (const [i, text] of texts.entries()) {
     for (const [cat, sub, re, when] of rules) {
-      if (re.test(text) && (!when || when.test(whole))) return { cat, sub, doubt: i === texts.length - 1 ? true : undefined };
+      if (re.test(text) && (!when || when.test(whole))) return { cat, sub, doubt: i >= fromName ? true : undefined };
     }
   }
   return null;
 }
+// The parts of a name: its head first, then the other parts ("Skechers KEEPSAKES COZY - COZY MINI Dames Instappers -
+// Taupe": the shoe word is in the second part), then the whole name.
+export function nameParts(n) {
+  const parts = String(n || '').split(/\s*[|,]\s*|\s+[-–]\s+/).map(s => s.trim()).filter(Boolean);
+  return [...new Set([headOf(n), ...parts, String(n || '').trim()])].filter(Boolean);
+}
 
+const BRAND_NOISE = /(?:jack\s*(?:&|and|en)\s*jones|jack\s+wolfskin|tommy\s+jeans|calvin\s+klein\s+jeans|pepe\s+jeans|lee\s+cooper|u\.?\s?s\.?\s+polo(?:\s+assn\.?)?|polo\s+ralph\s+lauren)/giu;
 // { cat, sub } (cat: the site_category of an older site, the category slug of a newer one) or { reject }.
 // texts: the GS1 levels (deepest first), then the head of the name (a place found only there is "doubt").
 export function placeBol(site, { name, gpc = '', search = '' }) {
   const n = bolBaseName(name);
-  const head = headOf(n);
   const parts = gpcParts(gpc);
   const banned = bannedReason(`${n} | ${gpc}`);
   if (banned) return { reject: banned };
-  const texts = [...parts, head];
+  // Brand names that look like a product word ("JACK&JONES ... Heren Trui" is a jumper, not a jacket) do not place it.
+  const names = nameParts(n.replace(BRAND_NOISE, ' ').replace(/\s+/g, ' ').trim() || n);
+  const texts = [...parts, ...names];
+  const fromName = parts.length;
   if (search === 'parfum') {
-    const p = placeIn(PLACES.perfume, [head, n], n);
+    const p = placeIn(PLACES.perfume, names, n);
     if (!p) return { reject: 'bol.com perfume search: not a perfume' };
     return { cat: FASHION_CATEGORY[site].Fragrance, sub: p.sub };
   }
   if (site === 'hgw') {
-    const first = placeIn(HGW_FIRST, texts, n);
+    if (HOME_ENERGY.test(n)) return { reject: 'a home battery or energy storage (not a Gear World product)' };
+    const first = placeIn(HGW_FIRST, texts, n, fromName);
     if (first) return { cat: first.cat, sub: first.sub, ...(first.doubt ? { doubt: true } : {}) };
-    // lib/home-eu.mjs reads "a|b|c" deepest LAST; the name head is its fallback (and its "doubt").
-    const p = homePlaceEu({ name: n, feedCategory: parts.slice().reverse().join('|'), lang: 'nl' });
+    // lib/home-eu.mjs reads "a|b|c" deepest LAST; the name head is its fallback (and its "doubt"). A name whose head is
+    // only the brand ("Tefal - ...") is tried again with its other parts.
+    let p = homePlaceEu({ name: n, feedCategory: parts.slice().reverse().join('|'), lang: 'nl' });
+    for (const part of names.slice(1)) {
+      if (!p.reject || !/not sure|not a home product/.test(p.reject)) break;
+      const q = homePlaceEu({ name: part, feedCategory: parts.slice().reverse().join('|'), lang: 'nl' });
+      if (!q.reject) p = { ...q, doubt: true };
+    }
     if (p.reject) return { reject: p.reject.replace('of HGW', 'of Home Gear World') };
     return { cat: p.siteCategory, sub: p.subcategory, ...(p.doubt ? { doubt: true } : {}) };
   }
@@ -440,7 +473,7 @@ export function placeBol(site, { name, gpc = '', search = '' }) {
     if (site === 'wgw' && MEN.test(n) && !WOMEN.test(n)) return { reject: "a men's or boys' product in Damesmode" };
     if (site === 'mgw' && WOMEN.test(n) && !MEN.test(n)) return { reject: "a women's or girls' product in Herenmode" };
     if (site === 'kgw' && ADULT.test(n)) return { reject: 'an adult product in Kindermode (not for a children\'s site)' };
-    const p = placeIn(PLACES.fashion, texts, n);
+    const p = placeIn(PLACES.fashion, texts, n, fromName);
     if (!p) return { reject: 'not a fashion product of the site, or not sure where it goes' };
     const cat = FASHION_CATEGORY[site][p.cat];
     if (!cat) return { reject: 'not a fashion product of the site, or not sure where it goes' };
@@ -448,7 +481,10 @@ export function placeBol(site, { name, gpc = '', search = '' }) {
   }
   const rules = PLACES[site];
   if (!rules) return { reject: `site ${site} has no bol.com rules` };
-  const p = placeIn(rules, texts, n);
+  if (site === 'ggw' && PARTY.test(n)) return { reject: 'a party item (not a garden product)' };
+  if (site === 'cgw' && HOME_ENERGY.test(n)) return { reject: 'a home battery or energy storage (not a DIY tool)' };
+  if (site === 'cgw' && NOT_DIY.test(n)) return { reject: 'not a DIY tool or hardware (Klussen)' };
+  const p = placeIn(rules, texts, n, fromName);
   if (!p) return { reject: 'not sure where it goes on the site (left out)' };
   return { cat: p.cat, sub: p.sub, ...(p.doubt ? { doubt: true } : {}) };
 }
@@ -456,10 +492,75 @@ export function placeBol(site, { name, gpc = '', search = '' }) {
 // The newer sites (tools/tgw-import-plan.mjs, sources.json "sections": "bol-nl"): { ok, slug, sub, name } or { ok: false, reason }.
 export function bolSection(label, name, { categoryId = '', gpc = '', search = '' } = {}) {
   const site = String(label || '').toLowerCase();
-  const r = routeOf({ categoryId, search, name });
-  if (r.reject) return { ok: false, reason: r.reject };
-  if (r.site !== site) return { ok: false, reason: `bol.com ${r.source.name}: a product of ${r.site.toUpperCase()}, not this site` };
-  const p = placeBol(site, { name, gpc, search: r.source.search || '' });
+  const p = bolPlace({ categoryId, search, name, rawName: name, gpc });
   if (p.reject) return { ok: false, reason: p.reject };
+  if (p.site !== site) return { ok: false, reason: `bol.com ${p.source.name}: a product of ${p.site.toUpperCase()}, not this site` };
   return { ok: true, slug: p.cat, sub: p.sub, name: bolBaseName(name), ...(p.doubt ? { doubt: true } : {}) };
+}
+
+// ---- 6. Gender, Klussen, Tuin (Manager, first real profile of 20 Nov 2026) ----
+// Clearly gendered clothing goes by its words: Heren/Mannen -> Men's, Dames/Vrouwen -> Women's, Kinder/Kids/Baby/Jongens/
+// Meisjes or a children's size (maat 62 to 176) -> Kids'; both kinds of words, or none: the bol.com category decides.
+const KIDS_WORDS = /(?<![\p{L}])(?:kinder\p{L}*|kind|kids|baby(?!blauw|roze|pink|blue)\p{L}*|babies|peuter\p{L}*|kleuter\p{L}*|jongens\p{L}*|meisjes\p{L}*|junior|girls|boys)(?![\p{L}])/iu;
+const MEN_WORDS = /(?<![\p{L}])(?:heren\p{L}*|mannen|men|homme)(?![\p{L}])/iu;
+const WOMEN_WORDS = /(?<![\p{L}])(?:dames\p{L}*|vrouwen|women|femme)(?![\p{L}])/iu;
+export function kidsSize(rawName) {
+  const m = /(?<![\p{L}\d])(?:maat|mt\.?|size)\s*:?\s*(\d{2,3})(?:\s*[-/]\s*(\d{2,3}))?(?![\d])/iu.exec(String(rawName || ''));
+  if (!m) return false;
+  const ok = v => v === undefined || (Number(v) >= 62 && Number(v) <= 176);
+  return Number(m[1]) >= 62 && Number(m[1]) <= 176 && ok(m[2]);
+}
+export function genderSite(name, rawName = name) {
+  const t = `${name} ${rawName}`;
+  const kids = KIDS_WORDS.test(t) || kidsSize(rawName);
+  const men = MEN_WORDS.test(t);
+  const women = WOMEN_WORDS.test(t);
+  if (kids) return men || women ? '' : 'kgw';
+  if (men !== women) return men ? 'mgw' : 'wgw';
+  return '';
+}
+export const FASHION_SITES = ['wgw', 'mgw', 'kgw'];
+// Tuin: party items ("feest lampion", "Feestartikelen") are not garden products.
+const PARTY = /(?:feest|lampion|ballon|slinger|confetti|verjaardag|carnaval|party(?!tent))/iu;
+// Klussen: what is not a DIY tool or hardware; bath and shower mats or packing tape may be home products (HGW).
+const NOT_DIY = /(?:badmat|douchemat|badkamermat|toiletmat|verpakkingstape|inpaktape|plakband|tape\b|deurmat)/iu;
+// Home batteries and energy storage ("Anker Solarbank 7 kWh", over 1,000 euro): no Gear World site.
+const HOME_ENERGY = /(?:thuisbatterij|thuisaccu|solarbank|energieopslag|home ?battery|thuisopslag|\d+(?:[.,]\d+)?\s?kwh)/iu;
+
+// The site and place of one bol.com product: { site, source, cat, sub, doubt? } or { reject }.
+// 1. The perfume search: its words (MEN_PERFUME / WOMEN_PERFUME) choose Women's or Men's.
+// 2. Fashion categories (Damesmode, Herenmode, Kindermode): the name's gender words choose the fashion site, else the
+//    category's.
+// 3. Other categories: the category's site first; clearly gendered clothing it does not place goes to the fashion site its
+//    words say (e.g. a men's softshell jacket in Kamperen & Outdoor -> Men's); Klussen's home products (bath mats) to
+//    Home Gear World when they fit a Home category. Anything not placed with certainty stays out.
+export function bolPlace({ categoryId = '', search = '', name = '', rawName = '', gpc = '' }) {
+  const r = routeOf({ categoryId, search, name });
+  if (r.reject) return { reject: r.reject };
+  const at = (site, extra = {}) => {
+    const p = placeBol(site, { name, gpc, search: r.source.search || '' });
+    return p.reject ? p : { site, source: r.source, ...p, ...extra };
+  };
+  if (r.source.search) return at(r.site);
+  const n = bolBaseName(name);
+  const banned = bannedReason(`${n} | ${gpc}`);
+  if (banned) return { reject: banned };
+  const g = genderSite(n, rawName || name);
+  if (FASHION_SITES.includes(r.site)) {
+    if (!g || g === r.site) return at(r.site);
+    const p = at(g);
+    return p.reject ? at(r.site) : p;
+  }
+  const own = at(r.site);
+  if (!own.reject) return own;
+  const notPlaced = /not sure|not a DIY tool/.test(own.reject);
+  if (g && notPlaced) {
+    const f = at(g);
+    if (!f.reject) return f;
+  }
+  if (r.site === 'cgw' && notPlaced) {
+    const h = at('hgw');
+    if (!h.reject) return h;
+  }
+  return own;
 }

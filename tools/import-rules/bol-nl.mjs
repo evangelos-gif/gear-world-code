@@ -1,6 +1,7 @@
 // Import rules for bol.com NL on the six older sites (lessons L204): Koken & Tafelen, Huishouden and Wonen -> HGW,
 // Klussen and the search "werkschoenen" -> CGW, Tuin -> GGW, Damesmode and the search "parfum" -> WGW (clearly men's
-// perfume -> MGW), Herenmode -> MGW, Kindermode -> KGW. The newer sites (AGW, VGW, SGW, ZGW) read their own bol.com
+// perfume -> MGW), Herenmode -> MGW, Kindermode -> KGW; clearly gendered clothing of any category by its words (Heren ->
+// MGW, Dames -> WGW, Kinder/Baby/maat 62-176 -> KGW), Klussen's home products (bath mats) -> HGW. The newer sites (AGW, VGW, SGW, ZGW) read their own bol.com
 // files through sites/<site>/sources.json ("sections": "bol-nl"). Where each product goes: lib/bol-nl.mjs.
 // The feed files: BOL_<category>_NL.csv.gz and BOL_0_NL-<search>.csv.gz of tools/bol-feed-download.ps1 in the archive.
 // Shown only to visitors from the Netherlands and Belgium, in Dutch (site.config deliversTo, sites/_shared/bol.js).
@@ -10,7 +11,7 @@
 // with the owner's ΕΓΚΡΙΝΩ ALL IMPORTS. Taking the line out is the change that allows it.
 import { readdirSync } from 'node:fs';
 import { join } from 'node:path';
-import { BOL_FILE, BOL_SOURCES, BOL_SEARCHES, LEGACY_SITES, BOL_RETAILER, routeOf, placeBol, bolBaseName, bolEan, bolStamp, bolTooOld, oldFileMessage } from './lib/bol-nl.mjs';
+import { BOL_FILE, BOL_SOURCES, BOL_SEARCHES, LEGACY_SITES, BOL_RETAILER, bolPlace, bolBaseName, bolEan, bolStamp, bolTooOld, oldFileMessage } from './lib/bol-nl.mjs';
 
 export const RULES = {
   key: 'bol-nl',
@@ -30,9 +31,11 @@ export const RULES = {
   paused: 'bol.com (L204): the import waits for tools/bol-remove.ps1 and the daily price refresh (gear-world-bol-refresh) to be live, then ΕΓΚΡΙΝΩ ALL IMPORTS'
 };
 
-// The files of the categories and searches that go to the older sites.
+// The files of every bol.com category and search: clearly gendered clothing of the other categories (a men's jacket in
+// Kamperen & Outdoor or Sport) goes to Men's, Women's or Kids' (lib/bol-nl.mjs bolPlace); the products of AGW, VGW, SGW
+// and ZGW are left to those sites' own import.
 export function feedFiles(archive) {
-  const ids = new Set(BOL_SOURCES.filter(s => LEGACY_SITES.includes(s.site)).map(s => s.id));
+  const ids = new Set(BOL_SOURCES.filter(s => s.site).map(s => s.id));
   let names = [];
   try { names = readdirSync(archive); } catch { return []; }
   return names.filter(n => {
@@ -46,6 +49,8 @@ export function feedFiles(archive) {
 // the EAN in 13 digits, as the daily refresh finds the row (src/bol-refresh.js reads the ean column).
 export function field(c, column) {
   if (c === 'product_name') return bolBaseName(column('product_name'));
+  // The name with its size, for the children's sizes (maat 62 to 176) of the routing.
+  if (c === 'bol_raw_name') return column('product_name');
   if (c === 'ean') return bolEan(column('ean'));
   if (c === 'brand_name' || c === 'rrp_price') return '';
   return column(c);
@@ -59,7 +64,8 @@ export function productKey(get) {
 // The bol.com category, the GS1 path and the search of the row's file (BOL_0_NL-<search>.csv.gz).
 export function rowInfo(get, file = '') {
   const m = BOL_FILE.exec(String(file || ''));
-  return { categoryId: get('bol_category_id') || (m ? m[1] : ''), gpc: get('bol_gpc') || get('category_name'), search: m && m[2] ? m[2].toLowerCase() : '' };
+  return { categoryId: get('bol_category_id') || (m ? m[1] : ''), gpc: get('bol_gpc') || get('category_name'), search: m && m[2] ? m[2].toLowerCase() : '',
+    rawName: get('bol_raw_name') };
 }
 
 // The freshness date of a row: the time of its download (tools/legacy-import-plan.mjs writes it to updated_at), and the
@@ -73,10 +79,8 @@ export { oldFileMessage };
 export function classify({ name, info }) {
   const i = info || {};
   if (!name) return { reject: 'no name' };
-  const r = routeOf({ categoryId: i.categoryId, search: i.search, name });
-  if (r.reject) return { reject: r.reject };
-  if (!LEGACY_SITES.includes(r.site)) return { reject: `bol.com ${r.source.name}: a product of ${r.site.toUpperCase()} (planned by that site's own import)` };
-  const p = placeBol(r.site, { name, gpc: i.gpc, search: r.source.search || '' });
+  const p = bolPlace({ categoryId: i.categoryId, search: i.search, name, rawName: i.rawName || name, gpc: i.gpc });
   if (p.reject) return { reject: p.reject };
-  return { site: r.site, siteCategory: p.cat, subcategory: p.sub, name, ...(p.doubt ? { doubt: true } : {}) };
+  if (!LEGACY_SITES.includes(p.site)) return { reject: `bol.com ${p.source.name}: a product of ${p.site.toUpperCase()} (planned by that site's own import)` };
+  return { site: p.site, siteCategory: p.cat, subcategory: p.sub, name, ...(p.doubt ? { doubt: true } : {}) };
 }

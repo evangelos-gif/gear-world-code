@@ -12,7 +12,7 @@
 //
 // Usage: node tools/bol-import-plan.mjs --archive <dir>[;<dir>] --out <new dir>
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { dirname, join, resolve } from 'node:path';
+import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { planLegacyImport } from './legacy-import-plan.mjs';
 import { planImport, archiveList } from './tgw-import-plan.mjs';
@@ -57,7 +57,8 @@ export async function planBol({ archive, outDir, now = new Date(), root = ROOT }
     for (const p of list) ((byCat[p.site_category] ||= {})[p.subcategory] ||= []).push(p.product_name);
     sites[s] = { products: list.length, byCat, check: list.filter(p => p.doubt).length, report: join(outDir, 'older-sites', 'report.txt') };
   }
-  const legacyLeft = Object.fromEntries(Object.entries(legacy.rejected).map(([why, l]) => [why, l.length]));
+  // The products of AGW, VGW, SGW and ZGW in the files the older sites' plan reads too are counted by those sites' plans.
+  const legacyLeft = Object.fromEntries(Object.entries(legacy.rejected).filter(([why]) => !/planned by that site's own import/.test(why)).map(([why, l]) => [why, l.length]));
   // The newer sites: their own planner, with their bol.com entries.
   const newLeft = {};
   for (const s of NEW_SITES) {
@@ -74,9 +75,13 @@ export async function planBol({ archive, outDir, now = new Date(), root = ROOT }
     sites[s] = { products: r.products.length, byCat, check: 0, report: join(dir, 'report.txt') };
     for (const [why, n] of Object.entries(r.stats.rejected)) newLeft[why] = (newLeft[why] || 0) + n;
   }
-  const text = renderSummary({ files, sites, legacyRows: legacy.rows, legacyLeft, newLeft, now, oldFiles });
+  // The older sites' plan reads every bol.com file (gendered clothing of any category, lib/bol-nl.mjs bolPlace): a file
+  // that is also a newer site's is named once.
+  const seenOld = new Set();
+  const oldOnce = oldFiles.filter(([f]) => { const k = basename(String(f)); if (seenOld.has(k)) return false; seenOld.add(k); return true; });
+  const text = renderSummary({ files, sites, legacyRows: legacy.rows, legacyLeft, newLeft, now, oldFiles: oldOnce });
   writeFileSync(join(outDir, 'summary.txt'), text);
-  return { files, sites, text, oldFiles };
+  return { files, sites, text, oldFiles: oldOnce };
 }
 
 function renderSummary({ files, sites, legacyRows, legacyLeft, newLeft, now, oldFiles = [] }) {

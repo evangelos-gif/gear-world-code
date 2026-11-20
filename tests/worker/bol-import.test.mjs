@@ -324,3 +324,57 @@ test('L204 + L205 (re-review): no bol.com row is loaded while the refresh kill s
   assert.match(read('tools/tgw-import-plan.mjs'), /writeFileSync\(join\(outDir, 'bol\.txt'\)/);
   assert.match(read('tools/lib/bol-guard.ps1'), /\$script:BolGatePlanFile = 'bol\.txt'/);
 });
+
+test('L204 (first real download, 20 Nov 2026): the name places it, gendered clothing by its words, sizes joined, more left out', async () => {
+  // Sizes without "maat" in letters; numbers never ("Kraan 1/2" is a product).
+  for (const [a, b] of Object.entries({ 'Thermo Panty L/XL': 'Thermo Panty', 'FALKE Huissokken baby roze - maat 80-92': 'FALKE Huissokken baby roze',
+    'Meisjes legging - Maat 140/146': 'Meisjes legging', 'Dames jurk - 48': 'Dames jurk', 'Kraan 1/2': 'Kraan 1/2' })) assert.equal(B.bolBaseName(a), b, a);
+  // Veterinary diets, knives: out on every site; kitchen knives and a DIY utility knife are fine.
+  for (const n of ['Royal Canin S/O Moderate Calorie kattenvoer 1,5 kg', 'Royal Canin Veterinary Diet Renal hond', 'Hill\'s Urinary Care kattenbrokken',
+    'Hypoallergenic hondenvoer zalm 12 kg', 'Victorinox zakmes Spartan', 'Opinel vouwmes no. 8', 'Survival mes met schede', 'Machete 45 cm'])
+    assert.match(B.bannedReason(n), /^banned on every Gear World site \((pet prescription medicine|knife)\)/, n);
+  for (const n of ['Koksmes 20 cm', 'Messenblok met 6 messen', 'Stanley afbreekmes 18 mm', 'Hypoallergene hondenshampoo']) assert.equal(B.bannedReason(n), '', n);
+  const at = (categoryId, name, search = '') => { const p = B.bolPlace({ categoryId, search, name, rawName: name }); return p.reject ? `out: ${p.reject}` : `${p.site} ${p.cat} / ${p.sub}`; };
+  const want = [
+    // merchant_category is only the top category: every part of the name, and brands that look like a product word do not count.
+    ['46673', 'Skechers KEEPSAKES COZY - COZY MINI Dames Instappers - Taupe', 'wgw Shoes / Shoes'],
+    ['47024', 'JACK&JONES ESSENTIALS - JJEBRADLEY SWEAT CREW NOOS Heren Trui', 'mgw Clothing / Knitwear'],
+    // Gendered clothing of other categories goes to the fashion site its words say (the category's own site first).
+    ['15270', 'Jack Wolfskin Heren Softshell Jas - Zwart', 'mgw Clothing / Jackets & Coats'],
+    ['14648', 'Dames winterjas gewatteerd - Maat M', 'wgw Clothing / Jackets & Coats'],
+    ['14648', 'Legging - Maat 140/146', 'kgw Clothing / Trousers'],
+    ['14648', 'Heren hardloopschoenen Pegasus - Maat 44', 'sgw running / Running'],
+    ['46673', 'FALKE Huissokken baby roze - maat 74-80', 'kgw Clothing / Socks'],
+    ['46673', 'Heren overhemd slim fit - Maat L', 'mgw Clothing / Shirts'],
+    ['47024', 'Dames trui babyblauw', 'wgw Clothing / Knitwear'],
+    ['47024', 'Thermo Panty L/XL', 'mgw Clothing / Socks'],
+    ['15270', 'Softshell jas unisex', 'out: not sure where it goes on the site (left out)'],
+    // Tuin: no party items. Klussen: what is not DIY stays out, home products go to Home Gear World.
+    ['12974', 'Feest lampion rood 10 stuks', 'out: a party item (not a garden product)'],
+    ['12974', 'Feestartikelen verjaardag set', 'out: a party item (not a garden product)'],
+    ['13155', 'Badmat antislip 60x90 cm', 'hgw Bedding & Bath / Bath Mat'],
+    ['13155', 'Verpakkingstape transparant 6 rollen', 'out: not a DIY tool or hardware (Klussen)'],
+    ['13155', 'Anker SOLIX Solarbank 2 E1600 Pro thuisbatterij 7 kWh', 'out: a home battery or energy storage (not a DIY tool)'],
+    ['13155', 'Bosch Professional GSR 12V-15 accuschroefboormachine - incl. 2 accu', 'cgw Power Tools / Drills & Drivers'],
+    ['12748', 'Royal Canin S/O Moderate Calorie kattenvoer', 'out: banned on every Gear World site (pet prescription medicine)']
+  ];
+  for (const [c, n, w] of want) assert.equal(at(c, n), w, n);
+  // The perfume search: Herenparfum / for Men -> Men's, Damesparfum / for Women -> Women's.
+  for (const [n, s] of [['Hugo Boss Bottled Herenparfum 100 ml', 'mgw'], ['Azzaro Wanted for Men eau de toilette', 'mgw'], ['Paco Rabanne Olympea Damesparfum', 'wgw'],
+    ['Lancôme Idôle for Women eau de parfum', 'wgw'], ['Calvin Klein CK One unisex eau de toilette', 'wgw']]) assert.equal(B.bolPlace({ search: 'parfum', name: n }).site, s, n);
+  // The older sites' plan reads every category's file, so a men's jacket of Kamperen & Outdoor reaches Men's; the same name
+  // in four sizes (four EANs) is one card at the lowest price.
+  const dir = mkdtempSync(join(tmpdir(), 'bol-real-'));
+  STAMP = '2026-11-22T06:00:00.000Z';
+  writeFeed(dir, 'BOL_46673_NL.csv.gz', '46673', 'Damesmode', [39.99, 34.99, 36.5, 41].map(pr => product('Skechers KEEPSAKES COZY - COZY MINI Dames Instappers - Taupe', pr)));
+  writeFeed(dir, 'BOL_47024_NL.csv.gz', '47024', 'Herenmode', [49.99, 44.99, 47, 49.99].map(pr => product('JACK&JONES ESSENTIALS - JJEBRADLEY SWEAT CREW NOOS Heren Trui', pr)));
+  writeFeed(dir, 'BOL_15270_NL.csv.gz', '15270', 'Kamperen & Outdoor', [product('Jack Wolfskin Heren Softshell Jas - Zwart', 99), product('Coleman koepeltent 4 persoons', 119)]);
+  writeFeed(dir, 'BOL_12974_NL.csv.gz', '12974', 'Tuin', [product('Feest lampion rood 10 stuks', 9.99), product('Gardena tuinslang 20 m', 39.99)]);
+  const { planLegacyImport } = await import('../../tools/legacy-import-plan.mjs');
+  const r = await planLegacyImport({ archive: dir, retailer: 'bol-nl', outDir: mkdtempSync(join(tmpdir(), 'bol-real-p-')), now: new Date('2026-11-22T07:00:00Z') });
+  const names = s => r.accepted[s].map(p => `${p.product_name} ${p.price}`);
+  assert.deepEqual(names('wgw'), ['Skechers KEEPSAKES COZY - COZY MINI Dames Instappers - Taupe 34.99']);
+  assert.deepEqual(names('mgw').sort(), ['JACK&JONES ESSENTIALS - JJEBRADLEY SWEAT CREW NOOS Heren Trui 44.99', 'Jack Wolfskin Heren Softshell Jas - Zwart 99']);
+  assert.deepEqual(names('ggw'), ['Gardena tuinslang 20 m 39.99']);
+  assert.ok(Object.keys(r.rejected).some(k => /a product of VGW \(planned by that site's own import\)/.test(k)), 'the tent is left to VGW');
+});
