@@ -1,7 +1,7 @@
 // Gear World sites (shared by every site on the engine; TGW keeps the master copy). One small script; every page also works without it.
 // Parts: language (L24, with country names for "Delivers to", L62), currency (L25), saved list (L26, L101), compare (L23),
 // voice search, newsletter, the Turnstile check of "Get deal updates" (L106), the small sign-up window and "Remind me on
-// 27 Nov" (L182), discount codes (L32), the seasonal banner of the deals pages.
+// 27 Nov" (L182), discount codes (L32), the seasonal banner of the deals pages, the photo gallery of a product page (L206).
 (function () {
   'use strict';
 
@@ -882,6 +882,115 @@
     });
     if (document.readyState === 'complete') start(); else window.addEventListener('load', start);
   }
+
+  // ---------- Photo gallery of a product page (lessons L206, src/pages/product.js) ----------
+  // The server writes the main photo; the others carry only data-src (and a 1x1 image), so nothing of them is fetched until
+  // the visitor swipes, clicks or moves the focus into the gallery. Swiping is the browser's own (CSS scroll-snap); the
+  // arrows and the dots move the track. A photo that does not load is taken out and the others are numbered again; with one
+  // photo left, the arrows and dots go. Only the retailer's own photos: no 360-degree spin, no AI pictures.
+  function setupGallery() {
+    var reduced = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+    Array.prototype.forEach.call(document.querySelectorAll('[data-gallery]'), function (box) {
+      var track = box.querySelector('[data-gallery-track]');
+      if (!track) return;
+      var prev = box.querySelector('[data-gallery-prev]');
+      var next = box.querySelector('[data-gallery-next]');
+      var dotsBox = box.querySelector('[data-gallery-dots]');
+      var firstImg = track.querySelector('img');
+      var name = firstImg ? (firstImg.getAttribute('alt') || '') : '';
+      var woken = false;
+      var ticking = false;
+      function slides() { return Array.prototype.slice.call(track.querySelectorAll('.gallery-slide')); }
+      function dots() { return dotsBox ? Array.prototype.slice.call(dotsBox.querySelectorAll('a')) : []; }
+      function current() { return Math.round(track.scrollLeft / (track.clientWidth || 1)); }
+      function wake() {
+        if (woken) return;
+        woken = true;
+        Array.prototype.forEach.call(track.querySelectorAll('img[data-src]'), function (img) {
+          img.removeAttribute('loading');
+          img.src = img.getAttribute('data-src');
+          img.removeAttribute('data-src');
+        });
+      }
+      function mark() {
+        var c = current();
+        dots().forEach(function (a, i) { if (i === c) a.setAttribute('aria-current', 'true'); else a.removeAttribute('aria-current'); });
+      }
+      function renumber() {
+        var list = slides();
+        var n = list.length;
+        list.forEach(function (slide, i) {
+          slide.id = 'photo-' + (i + 1);
+          var img = slide.querySelector('img');
+          if (img && i > 0) img.setAttribute('alt', name + ' \u2013 photo ' + (i + 1) + ' of ' + n);
+        });
+        dots().forEach(function (a, i) {
+          a.setAttribute('href', '#photo-' + (i + 1));
+          a.setAttribute('data-gallery-dot', String(i));
+          var label = a.querySelector('[data-i18n]');
+          if (label) {
+            label.setAttribute('data-i18n-0', String(i + 1));
+            label.setAttribute('data-i18n-1', String(n));
+            label.textContent = tf('Photo {0} of {1}', [formatNumberText(String(i + 1)), formatNumberText(String(n))]);
+          }
+        });
+        var many = n > 1;
+        if (prev) prev.hidden = !many;
+        if (next) next.hidden = !many;
+        if (dotsBox) dotsBox.hidden = !many;
+        mark();
+      }
+      function go(i) {
+        var n = slides().length;
+        if (!n) return;
+        var left = (((i % n) + n) % n) * track.clientWidth;
+        wake();
+        if (track.scrollTo) track.scrollTo({ left: left, behavior: reduced ? 'auto' : 'smooth' }); else track.scrollLeft = left;
+      }
+      function drop(slide) {
+        var list = slides();
+        var i = list.indexOf(slide);
+        // The last photo stays: an empty box would say less than a broken one.
+        if (i < 0 || list.length < 2) return;
+        var dot = dots()[i];
+        if (dot && dot.parentNode) dot.parentNode.removeChild(dot);
+        slide.parentNode.removeChild(slide);
+        // The main photo failed: the next one is shown now, so it is fetched now.
+        if (i === 0) wake();
+        renumber();
+      }
+      Array.prototype.forEach.call(track.querySelectorAll('img'), function (img) {
+        var slide = img.closest ? img.closest('.gallery-slide') : img.parentNode;
+        img.addEventListener('error', function () { drop(slide); });
+        // The main photo may have failed before this script ran.
+        if (!img.hasAttribute('data-src') && img.complete && img.naturalWidth === 0) drop(slide);
+      });
+      if (prev) prev.addEventListener('click', function () { go(current() - 1); });
+      if (next) next.addEventListener('click', function () { go(current() + 1); });
+      if (dotsBox) dotsBox.addEventListener('click', function (ev) {
+        var a = ev.target && ev.target.closest ? ev.target.closest('a[data-gallery-dot]') : null;
+        if (!a) return;
+        ev.preventDefault();
+        go(dots().indexOf(a));
+      });
+      box.addEventListener('keydown', function (ev) {
+        if (ev.key === 'ArrowLeft') { go(current() - 1); ev.preventDefault(); }
+        else if (ev.key === 'ArrowRight') { go(current() + 1); ev.preventDefault(); }
+      });
+      // The visitor's first touch, click or focus in the gallery fetches the other photos (they load while the track moves).
+      ['pointerdown', 'touchstart', 'focusin'].forEach(function (type) { box.addEventListener(type, wake, { passive: true }); });
+      track.addEventListener('scroll', function () {
+        wake();
+        if (ticking) return;
+        ticking = true;
+        var later = function () { ticking = false; mark(); };
+        if (window.requestAnimationFrame) window.requestAnimationFrame(later); else setTimeout(later, 16);
+      }, { passive: true });
+      renumber();
+      box.setAttribute('data-ready', '');
+    });
+  }
+  setupGallery();
 
   // Language first, so every text the other parts write is already in the visitor's language.
   loadLanguage().then(function () {

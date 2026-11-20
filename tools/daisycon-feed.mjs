@@ -100,6 +100,12 @@ const imageOf = (f, raw) => {
   if (Array.isArray(imgs) && imgs.length) { const i = imgs[0]; return String(isObj(i) ? (i.location || i.url || i.src || i.link || '') : i); }
   return String(first(f, ['image_location', 'image_large', 'image_url', 'image', 'image_default', 'images', 'image_link']));
 };
+// The product's other photos (lessons L206): the 2nd to 5th of its images list, for Awin's alternate_image ... _four.
+const moreImagesOf = raw => {
+  const imgs = raw && (raw.images || (raw.product_info && raw.product_info.images));
+  const list = Array.isArray(imgs) ? imgs.slice(1, 5).map(i => String(isObj(i) ? (i.location || i.url || i.src || i.link || '') : (i ?? '')).trim()) : [];
+  return Object.fromEntries(['alternate_image', 'alternate_image_two', 'alternate_image_three', 'alternate_image_four'].map((c, k) => [c, list[k] || '']));
+};
 
 // One Daisycon product as one feed row (Awin column names): price is the price today, the old price is the shop's "was".
 export function toFeedRow(raw, { programId, program, mediaId, shopUrl = '' } = {}) {
@@ -132,7 +138,8 @@ export function toFeedRow(raw, { programId, program, mediaId, shopUrl = '' } = {
     dc_gender: String(first(f, ['gender_target', 'gender']) || ''), dc_colour: String(first(f, ['color_primary', 'colour', 'color']) || ''),
     dc_size: String(first(f, ['size', 'size_description']) || ''), dc_delivery: String(first(f, ['delivery_time', 'delivery_description']) || ''),
     dc_shipping: String(first(f, ['price_shipping']) ?? ''), dc_google_category: String(first(f, ['google_category_path']) || ''),
-    dc_condition: String(first(f, ['condition']) || '')
+    dc_condition: String(first(f, ['condition']) || ''),
+    ...moreImagesOf(raw)
   };
 }
 

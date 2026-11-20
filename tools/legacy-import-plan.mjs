@@ -10,6 +10,7 @@ import { basename, join, resolve, dirname } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { readCsvRecords, cleanText, parsePrice } from './tgw-import-plan.mjs';
 import { networkOf } from './network-links.mjs';
+import { realImage, extraImages, encodeImages, EXTRA_IMAGE_COLUMNS } from '../src/lib/photos.js';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const AWIN_PUBLISHER_ID = 3057233;
@@ -64,35 +65,23 @@ export function stockFlag(raw) {
   return null;
 }
 
-// The product picture (lessons L38). Awin fills aw_image_url with a placeholder ("images2.productserve.com/noimage.gif")
-// when the shop sends none, and with a 200x200 resize proxy ("images2.productserve.com/?w=200&...&url=ssl:cdn.shopify.com/...")
-// otherwise. The plan takes the first real picture of the shop's own columns, unwraps the proxy to the full-size image and
-// never takes the placeholder: a product without a picture is left out ("no image").
+// The product picture (lessons L38): realImage() takes the first real picture of a value, unwraps the Awin resize proxy to
+// the full-size image and never takes the placeholder; a product without a picture is left out ("no image"). It lives in
+// src/lib/photos.js since lessons L206 (the sites judge the extra photos with the same rules) and is exported here too.
 const IMAGE_COLUMNS = ['merchant_image_url', 'large_image', 'alternate_image', 'alternate_image_two', 'alternate_image_three', 'alternate_image_four',
   'merchant_thumb_url', 'aw_image_url', 'aw_thumb_url', 'image_link'];
-export function realImage(raw) {
-  let u = String(raw || '').trim();
-  // House of Sneakers puts ALL its pictures in one column, joined by commas ("...00_png.png?v=1,https://...01_jpg.jpg?v=2"):
-  // the card takes the first one (import of 12 Nov 2026: 9 links in one image_url, lessons L117).
-  const list = u.split(/,(?=\s*https?:\/\/)/);
-  if (list.length > 1) u = list[0].trim();
-  if (!u) return '';
-  let parsed;
-  try { parsed = new URL(u); } catch { return ''; }
-  if (/(^|\.)productserve\.com$/i.test(parsed.hostname)) {
-    if (/noimage/i.test(parsed.pathname)) return '';
-    const inner = parsed.searchParams.get('url') || '';
-    if (!inner) return '';
-    u = inner.replace(/^ssl:/i, 'https://').replace(/^http:/i, 'https:');
-    if (!/^https:\/\//i.test(u)) u = 'https://' + u.replace(/^\/+/, '');
-    try { parsed = new URL(u); } catch { return ''; }
-  }
-  if (parsed.protocol !== 'https:' || /noimage|no-image|placeholder/i.test(parsed.pathname)) return '';
-  return parsed.toString();
-}
+export { realImage };
 export function pickImage(get) {
   for (const c of IMAGE_COLUMNS) { const u = realImage(get(c)); if (u) return u; }
   return '';
+}
+// The extra photos of a product (lessons L206): the rest of a comma list in the column the main picture came from (House of
+// Sneakers, L117), then Awin's alternate_image ... alternate_image_four; real full-size pictures only (realImage), never the
+// main one again, at most 4 (src/lib/photos.js). Thumbnails and large_image are never extra photos: they are usually the
+// main photo at another size.
+export function pickExtraImages(get, main = pickImage(get)) {
+  const from = IMAGE_COLUMNS.find(c => realImage(get(c)));
+  return extraImages(main, [from ? get(from) : '', ...EXTRA_IMAGE_COLUMNS.map(c => get(c))]);
 }
 
 // Read the feed and join the rows of one product (one row per size) into one product.
@@ -135,9 +124,10 @@ export async function readProducts({ archive, rules }) {
       const price = parsePrice(get('search_price') || get('store_price'));
       let g = groups.get(key);
       if (!g) {
+        const image = pickImage(get);
         g = { key, name: cleanText(get('product_name')), brand: cleanText(get('brand_name')), feedCategory: cleanText(get('merchant_category')),
           awinCategory: cleanText(get('category_name')),
-          link, page, image: pickImage(get), firstVariant: get('merchant_product_id'), tracked: get('aw_deep_link'),
+          link, page, image, extras: pickExtraImages(get, image), firstVariant: get('merchant_product_id'), tracked: get('aw_deep_link'),
           variants: 0, inStockVariants: 0, unknownStock: 0, prices: [], currency: get('currency').toUpperCase(), ean: get('ean') || get('product_gtin'),
           // rules.rowInfo (lessons L161): more columns for the rules, e.g. where a CJ search product is sold and sent.
           info: typeof rules.rowInfo === 'function' ? rules.rowInfo(get) : null };
@@ -314,6 +304,10 @@ export function checkShopify(products, R, catalog) {
     const pic = realImage(abs(src(shown && shown.featured_image))) || realImage(abs(src(ofVariant))) || realImage(abs(src(imgs[0])));
     const newPicture = Boolean(pic) && pic !== p.image;
     p.image = pic; // '' when the shop shows no picture either: the product is left out ("no image")
+    // The extra photos (lessons L206) from the same live catalogue, not from the feed (a feed picture can be a deleted file):
+    // the shop's photos of the whole product or of this option, never those of another option.
+    const mine = i => !Array.isArray(i.variant_ids) || !i.variant_ids.length || (shown && i.variant_ids.some(id => same(id, shown.id)));
+    p.extras = extraImages(pic, imgs.filter(mine).map(i => abs(src(i))));
     const page = `${origin}/products/${encodeURIComponent(String(lp.handle))}`;
     // R.pageLink: one card covers every size (clothing), so the link opens the page, not one size.
     const link = !R.pageLink && variant && variant === shown ? `${page}?variant=${variant.id}` : page;
@@ -347,7 +341,10 @@ export function stableRank(id) {
   return h;
 }
 
-export async function planLegacyImport({ archive, retailer, outDir, now = new Date(), fetchImpl }) {
+// images (lessons L206): the SQL also writes the extra photos (column images). Only when the site database has that column:
+// the import tools ask the database first (read-only) and then set GW_IMAGES_COLUMN=1 for this plan; without it the SQL is
+// exactly as before, so an import into a database without the column never fails.
+export async function planLegacyImport({ archive, retailer, outDir, now = new Date(), fetchImpl, images = process.env.GW_IMAGES_COLUMN === '1' }) {
   const rules = await loadRules(retailer);
   const R = rules.RULES;
   const NET = networkOf(rules);
@@ -407,6 +404,8 @@ export async function planLegacyImport({ archive, retailer, outDir, now = new Da
       brand: (rules.displayBrand ? rules.displayBrand(p.brand) : p.brand) || null,
       product_name: name, feed_product_name: p.name, price, currency: R.currency, stock_status: 'in stock',
       merchant_category: p.feedCategory || null, image_url: p.image,
+      // Up to 4 extra photos (lessons L206): written only when the site database has the images column (opts.images).
+      images: encodeImages(extraImages(p.image, p.extras || [])),
       affiliate_url: NET ? httpsLink(p.tracked)
         : `https://www.awin1.com/cread.php?awinmid=${R.advertiserId}&awinaffid=${AWIN_PUBLISHER_ID}&ued=${encodeURIComponent(R.keepQuery ? (p.link || p.page) : (p.page || p.link))}`,
       ean: /^\d{8,14}$/.test(p.ean || '') ? p.ean : null, variants: p.variants,
@@ -449,8 +448,8 @@ export async function planLegacyImport({ archive, retailer, outDir, now = new Da
   }
   mkdirSync(outDir, { recursive: true });
   const sqlFiles = {};
-  for (const s of R.sites) sqlFiles[s] = writeSql(join(outDir, 'sql', s), accepted[s], R, s, now);
-  const text = renderPlan({ R, files, rows, products, accepted, rejected, sqlFiles, now, shopImages, shopCheck });
+  for (const s of R.sites) sqlFiles[s] = writeSql(join(outDir, 'sql', s), accepted[s], R, s, now, images);
+  const text = renderPlan({ R, files, rows, products, accepted, rejected, sqlFiles, now, shopImages, shopCheck, images });
   writeFileSync(join(outDir, 'report.txt'), text);
   // For the import tool: how many products each site should have from this retailer after the import.
   // addOnly: the plan covers only part of a shop that is already on the site, so the import must not hide the rest.
@@ -467,14 +466,19 @@ export async function planLegacyImport({ archive, retailer, outDir, now = new Da
 const q = v => (v === null || v === undefined) ? 'NULL' : (typeof v === 'number' ? String(v) : `'${String(v).replace(/'/g, "''")}'`);
 const COLS = ['awin_product_id', 'merchant_product_id', 'retailer', 'site_category', 'subcategory', 'brand', 'product_name', 'feed_product_name',
   'price', 'currency', 'stock_status', 'merchant_category', 'image_url', 'affiliate_url', 'ean', 'is_active', 'created_at', 'updated_at'];
+// opts.images (lessons L206): one more column, the extra photos. A product the import already writes gets them in the same
+// statement (no extra row is written: D1 counts the row once, and no index has the column).
+const colsOf = opts => (opts.images ? [...COLS, 'images'] : COLS);
 
 // opts.site: which unique key the table has (STABLE_KEY_SITES). opts.keepCategory: a product already on the site keeps
 // its category and subcategory (only new products get the category of these rules). opts.replace: subcategory names an
 // earlier plan wrote that the site does not use (lessons L56): a product already on the site with one of them gets the
 // plan's category and subcategory; every other product keeps its own.
 export function insertSql(items, stamp, opts = {}) {
+  const COLS = colsOf(opts);
   const values = items.map(p => '(' + [p.awin_product_id, p.merchant_product_id, p.retailer, p.site_category, p.subcategory, p.brand, p.product_name,
-    p.feed_product_name, p.price, p.currency, p.stock_status, p.merchant_category, p.image_url, p.affiliate_url, p.ean, 1, stamp, stamp].map(q).join(', ') + ')');
+    p.feed_product_name, p.price, p.currency, p.stock_status, p.merchant_category, p.image_url, p.affiliate_url, p.ean, 1, stamp, stamp,
+    ...(opts.images ? [p.images ?? null] : [])].map(q).join(', ') + ')');
   const stable = STABLE_KEY_SITES.has(String(opts.site || ''));
   // opts.keepNames (rules keepSiteNames, lessons L79): a product already on the site keeps its shown name (translated);
   // feed_product_name still follows the feed, so the shop's own name is always there to compare with.
@@ -502,7 +506,7 @@ export function insertSqlLimited(items, stamp, opts = {}, maxBytes = MAX_STATEME
   return insertSqlLimited(items.slice(0, half), stamp, opts, maxBytes) + insertSqlLimited(items.slice(half), stamp, opts, maxBytes);
 }
 
-function writeSql(dir, items, R, site, now) {
+function writeSql(dir, items, R, site, now, images = false) {
   mkdirSync(dir, { recursive: true });
   const replace = (R.keepCategory && R.replaceSubcategories && R.replaceSubcategories[site]) || [];
   const stamp = now.toISOString().slice(0, 19).replace('T', ' ');
@@ -511,7 +515,7 @@ function writeSql(dir, items, R, site, now) {
     const part = items.slice(i, i + ROWS_PER_FILE);
     let sql = `-- PLAN ONLY. NOT EXECUTED. ${R.retailer} (Awin ${R.advertiserId}) -> ${site.toUpperCase()}, part ${n}, ${part.length} products, ${stamp} UTC.\n` +
       '-- Adds new products and updates the same products on a later run (same awin_product_id). Deletes nothing.\n';
-    for (let j = 0; j < part.length; j += ROWS_PER_INSERT) sql += insertSqlLimited(part.slice(j, j + ROWS_PER_INSERT), stamp, { site, keepCategory: R.keepCategory, replace, keepNames: Boolean(R.keepSiteNames) });
+    for (let j = 0; j < part.length; j += ROWS_PER_INSERT) sql += insertSqlLimited(part.slice(j, j + ROWS_PER_INSERT), stamp, { site, keepCategory: R.keepCategory, replace, keepNames: Boolean(R.keepSiteNames), images });
     const file = join(dir, String(n).padStart(4, '0') + '.sql');
     writeFileSync(file, sql);
     out.push(file);
@@ -526,7 +530,7 @@ function writeSql(dir, items, R, site, now) {
   return out;
 }
 
-function renderPlan({ R, files, rows, products, accepted, rejected, sqlFiles, now, shopImages, shopCheck }) {
+function renderPlan({ R, files, rows, products, accepted, rejected, sqlFiles, now, shopImages, shopCheck, images = false }) {
   const fmt = n => new Intl.NumberFormat('en-GB').format(n);
   const total = Object.values(accepted).reduce((a, l) => a + l.length, 0);
   const L = [`IMPORT PLAN (read-only, nothing executed) ${R.retailer} - ${R.network && NETWORK_LABEL[R.network] ? NETWORK_LABEL[R.network] : 'Awin'} ${R.advertiserId} - ${now.toISOString().slice(0, 16).replace('T', ' ')} UTC`,
@@ -567,7 +571,9 @@ function renderPlan({ R, files, rows, products, accepted, rejected, sqlFiles, no
   }
   const all = Object.values(accepted).flat();
   const withEan = all.filter(p => p.ean).length;
+  const withPhotos = all.filter(p => p.images).length;
   L.push('', 'Notes:',
+    `- Extra photos (L206): ${fmt(withPhotos)} of ${fmt(all.length)} products have 1-4 more photos in the feed; ${images ? 'the SQL writes them (column images).' : 'the SQL does not write them (the site database has no images column yet).'}`,
     `- Prices are ${R.currency}. Each product shows its lowest in-stock size price.`,
     withEan ? `- ${fmt(withEan)} of ${fmt(all.length)} products have an EAN, so the same product from other retailers can be shown together.`
       : '- The feed has no EAN, so these products are not joined with the same product from other retailers.',

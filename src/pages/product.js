@@ -2,8 +2,9 @@
 import { html, raw } from '../lib/html.js';
 import { categoryPath, productPath, formatPrice, truncate, formatDate } from '../lib/text.js';
 import { normalizeGtin, gtinSchemaKey } from '../lib/gtin.js';
-import { page, productGrid, breadcrumbs, breadcrumbSchema, absolute, tr, keepName, viewAt, priceTag, retailerFlag, deliveryText, deliveryLine, shownLine, deliversLabel, rrpTag, stockText } from './layout.js';
+import { page, productGrid, breadcrumbs, breadcrumbSchema, absolute, tr, keepName, viewAt, priceTag, retailerFlag, deliveryText, deliveryLine, shownLine, deliversLabel, rrpTag, stockText, icon } from './layout.js';
 import { REMIND_UNTIL_ISO, REMIND_PATH } from '../lib/remind.js';
+import { parseImages } from '../lib/photos.js';
 
 function specsList(product) {
   let specs = {};
@@ -94,7 +95,37 @@ function remindBox(site, product) {
         </details>`;
 }
 
+// ---- The photo gallery (lessons L206) ----
+// Only when the product has extra photos (product.images, src/db.js getProduct with photos): the main photo first, then
+// the others, in one box of the same fixed size as the single photo (no layout shift), swiped on a phone (CSS scroll-snap)
+// or moved with the arrows and the dots (the site script, assets/site.js setupGallery; no library). The main photo loads
+// as before; the others carry only data-src and a 1x1 transparent image (loading="lazy"), so nothing of them is fetched
+// until the visitor swipes, clicks or moves the focus into the gallery. A photo that does not load is taken out. Without
+// the script only the main photo shows. Cards, lists, the Hub and the emails keep their one photo.
+// Only the retailer's own photos from its feed, never AI-made ones, and no 360-degree spin: a real 360-degree or 3D viewer
+// may be added only if a retailer's feed supplies one.
+const BLANK = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
+export function productPhotos(product) {
+  return parseImages(product && product.images, product && product.image_url);
+}
+function photoGallery(product, extras) {
+  const all = [product.image_url, ...extras];
+  const n = all.length;
+  const name = product.product_name;
+  return html`<div class="product-photo product-gallery" data-gallery>
+      <div class="gallery-track" data-gallery-track>
+        ${all.map((src, i) => html`<div class="gallery-slide" id="photo-${i + 1}">${i === 0
+    ? html`<img src="${src}" alt="${name}" width="560" height="560" decoding="async" referrerpolicy="no-referrer">`
+    : html`<img src="${BLANK}" data-src="${src}" alt="${name} – photo ${i + 1} of ${n}" width="560" height="560" loading="lazy" decoding="async" referrerpolicy="no-referrer">`}</div>`)}
+      </div>
+      <button type="button" class="gallery-arrow gallery-prev" data-gallery-prev aria-label="Previous photo" hidden>${icon('chevron', 'icon gallery-chevron')}</button>
+      <button type="button" class="gallery-arrow gallery-next" data-gallery-next aria-label="Next photo" hidden>${icon('chevron', 'icon gallery-chevron')}</button>
+      <p class="gallery-dots" data-gallery-dots hidden>${all.map((_, i) => html`<a href="#photo-${i + 1}" data-gallery-dot="${i}"${i === 0 ? raw(' aria-current="true"') : ''}><span class="visually-hidden">${tr('Photo {0} of {1}', i + 1, n)}</span></a>`)}</p>
+    </div>`;
+}
+
 export function productPage(site, product, category, similar, offers = []) {
+  const photos = productPhotos(product);
   const path = productPath(product);
   const price = formatPrice(product.price, product.currency || site.currency, site.locale);
   const rrp = rrpTag(site, product);
@@ -137,7 +168,8 @@ export function productPage(site, product, category, similar, offers = []) {
     '@type': 'Product',
     name: product.product_name,
     url: absolute(site, path),
-    image: [product.image_url],
+    // Every photo of the gallery (lessons L206): the main one first.
+    image: [product.image_url, ...photos],
     description: truncate(description || metaDescription, 500),
     sku: String(product.id),
     ...(product.brand ? { brand: { '@type': 'Brand', name: product.brand } } : {}),
@@ -150,9 +182,9 @@ export function productPage(site, product, category, similar, offers = []) {
 <div class="wrap">
   ${breadcrumbs(crumbs)}
   <article class="product">
-    <div class="product-photo">
+    ${photos.length ? photoGallery(product, photos) : html`<div class="product-photo">
       <img src="${product.image_url}" alt="${product.product_name}" width="560" height="560" decoding="async" referrerpolicy="no-referrer">
-    </div>
+    </div>`}
     <div class="product-label">
       ${product.brand ? html`<p class="label-brand" translate="no">${product.brand}</p>` : ''}
       <h1 translate="no">${product.product_name}</h1>

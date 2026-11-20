@@ -201,6 +201,16 @@ for (const p of productPaths) {
     // Google Ads review (lessons L101): the markup of a comparison page, never the one of a shop that sells.
     check('L101', prod.offers && prod.offers['@type'] === 'AggregateOffer' && !prod.offers.seller && Number(prod.offers.offerCount) >= 1, `${p}: AggregateOffer (product snippet), no Offer and no seller`);
   }
+  // Lessons L206: a product with extra photos gets a gallery whose extra photos are not fetched with the page (data-src,
+  // a 1x1 image, loading="lazy"), with every photo in the structured data, and no inline handler (CSP).
+  const gallery = r.body.match(/<div class="product-photo product-gallery" data-gallery>([\s\S]*?)<\/div>\s*<div class="product-label">/);
+  if (gallery) {
+    const imgs = all(gallery[1], /<img ([^>]+)>/g).map(m => m[1]);
+    check('L206', imgs.length >= 2 && !/loading=|data-src=/.test(imgs[0]) && imgs.slice(1).every(a => /\bsrc="data:image\/gif;base64,[^"]+"/.test(a) && /\bdata-src="https:\/\/[^"]+"/.test(a) && /\bloading="lazy"/.test(a)),
+      `${p}: photo gallery: the main photo as before, the others only on a swipe or a click (data-src, lazy)`);
+    check('L206', Boolean(prod) && Array.isArray(prod.image) && prod.image.length === imgs.length, `${p}: Product structured data lists every photo of the gallery`, `${prod && prod.image ? prod.image.length : 0} vs ${imgs.length}`);
+    check('L206', !/\son[a-z]+="/.test(gallery[1]), `${p}: photo gallery without inline handlers (CSP)`);
+  }
   // Only on sites built from this repo: older sites might record a click even for a check, so they are skipped.
   if (out && site) {
     const o = await get(out[1], { method: 'HEAD' });

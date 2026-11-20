@@ -14,7 +14,7 @@ export default {
   lang: 'en-GB',
   locale: 'en-GB',
   currency: 'GBP',
-  assetVersion: '2026-11-19-agw-popup-1',
+  assetVersion: '2026-11-20-agw-photos-1',
   promos: promosFor('AGW'),
   // Buying guides (/guides/, lessons L82): words in guides.js, prices and stock live from the database.
   guides,

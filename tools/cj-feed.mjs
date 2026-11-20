@@ -75,7 +75,9 @@ const textArg = v => JSON.stringify(String(v ?? '').replace(/[\u0000-\u001f]/g, 
 // The columns the import tools read (same names as tools/awin-feed-download.ps1 asks Awin for).
 export const COLUMNS = ['data_feed_id', 'merchant_id', 'merchant_name', 'aw_product_id', 'aw_deep_link', 'brand_name', 'merchant_product_id',
   'merchant_category', 'category_name', 'ean', 'mpn', 'product_name', 'description', 'merchant_deep_link', 'merchant_image_url', 'large_image',
-  'search_price', 'store_price', 'rrp_price', 'currency', 'in_stock', 'stock_status', 'parent_product_id', 'last_updated'];
+  'search_price', 'store_price', 'rrp_price', 'currency', 'in_stock', 'stock_status', 'parent_product_id', 'last_updated',
+  // Up to 4 more photos (lessons L206), under Awin's names: the other networks' tools write them here too (FEED_COLUMNS).
+  'alternate_image', 'alternate_image_two', 'alternate_image_three', 'alternate_image_four'];
 
 // Hosts of CJ tracking links (click and deep links). A product link elsewhere earns no commission.
 export const CJ_LINK_HOSTS = /(^|\.)(anrdoezrs\.net|dpbolvw\.net|jdoqocy\.com|kqzyfj\.com|tkqlhce\.com|emjcd\.com|qksrv\.net|ftjcfx\.com|lduhtrp\.net|awltovhc\.com|tqlkg\.com|apmebf\.com|afcyhf\.com|lqdhgjs\.com|yceml\.net|mjbpab\.com)$/i;
@@ -208,6 +210,8 @@ export function productQuery({ shape, cid, pid, advertiser, limit = PAGE, offset
 const money = m => { if (m === null || m === undefined) return NaN; if (typeof m === 'object') return Number(m.amount); return Number(m); };
 const cur = (...ms) => { for (const m of ms) if (m && typeof m === 'object' && m.currency) return String(m.currency).toUpperCase(); return ''; };
 const img = v => { if (!v) return ''; if (Array.isArray(v)) return img(v[0]); if (typeof v === 'object') return String(v.url || v.link || ''); return String(v); };
+// Every address of a CJ image field (additionalImageLink is a list), for the extra photo columns (lessons L206).
+const imgs = v => (Array.isArray(v) ? v.map(img) : [img(v)]).map(x => x.trim()).filter(Boolean);
 const flat = v => Array.isArray(v) ? v.filter(Boolean).join(' > ') : String(v ?? '');
 const words = v => Array.isArray(v) ? v.map(x => (x && typeof x === 'object' ? Object.values(x).join(':') : String(x ?? ''))).filter(Boolean).join(' ') : (v && typeof v === 'object' ? Object.values(v).join(':') : String(v ?? ''));
 
@@ -229,7 +233,9 @@ export function toFeedRow(p) {
     search_price: Number.isFinite(search) ? String(search) : '', store_price: Number.isFinite(price) ? String(price) : '', rrp_price: Number.isFinite(price) ? String(price) : '',
     currency: cur(p.salePrice, p.price), in_stock: inStock, stock_status: av, parent_product_id: String(p.itemGroupId ?? ''), last_updated: String(p.lastUpdated ?? ''),
     target_country: words(p.targetCountry), serviceable_areas: words(p.serviceableAreas), ships_from: words(p.shipsFromCountry), age_group: words(p.ageGroup),
-    gender: words(p.gender), search_keyword: String(p._keyword ?? '')
+    gender: words(p.gender), search_keyword: String(p._keyword ?? ''),
+    // additionalImageLink, the first 4 (large_image keeps the first one, as before); the import plans check every one.
+    ...Object.fromEntries(['alternate_image', 'alternate_image_two', 'alternate_image_three', 'alternate_image_four'].map((c, i) => [c, imgs(p.additionalImageLink)[i] || '']))
   };
 }
 
