@@ -5100,10 +5100,10 @@ $brTool = Join-Path (Join-Path $repo 'tools') 'bol-refresh-setup.ps1'
 $brText = [System.IO.File]::ReadAllText($brTool)
 $brJs = [System.IO.File]::ReadAllText((Join-Path (Join-Path $repo 'src') 'bol-refresh.js'))
 $brTpl = [System.IO.File]::ReadAllText((Join-Path (Join-Path (Join-Path $repo 'sites') 'bol-refresh') 'wrangler.jsonc.example'))
-$brPs = @([regex]::Matches($brText, "@\{ Code = '([a-z]{3})'; Db = '([a-z\-]+)' \}") | ForEach-Object { $_.Groups[1].Value + '=' + $_.Groups[2].Value })
-$brJsSites = @([regex]::Matches($brJs, "\{ code: '([a-z]{3})', binding: 'DB_[A-Z]{3}', database: '([a-z\-]+)'") | ForEach-Object { $_.Groups[1].Value + '=' + $_.Groups[2].Value })
-Check ($brPs.Count -eq 10 -and (($brPs -join ',') -eq ($brJsSites -join ','))) 'bol refresh: the setup tool and the Worker name the same 10 sites and databases'
-Check (@($brPs | Where-Object { $brTpl.Contains('"REPLACE_WITH_DATABASE_ID_' + $_.Substring(0, 3).ToUpper() + '"') -and $brTpl.Contains('"database_name": "' + $_.Substring(4) + '"') }).Count -eq 10 -and $brTpl.Contains('REPLACE_WITH_DATABASE_ID_SALES')) 'bol refresh: the template has a placeholder for each of the 10 site databases and the sales database'
+$brPs = @([regex]::Matches($brText, "@\{ Code = '([a-z]{3})'; Db = '([a-z\-]+)'; Layout = '(legacy|native)' \}") | ForEach-Object { $_.Groups[1].Value + '=' + $_.Groups[2].Value + '=' + $_.Groups[3].Value })
+$brJsSites = @([regex]::Matches($brJs, "\{ code: '([a-z]{3})', binding: 'DB_[A-Z]{3}', database: '([a-z\-]+)', layout: '(legacy|native)'") | ForEach-Object { $_.Groups[1].Value + '=' + $_.Groups[2].Value + '=' + $_.Groups[3].Value })
+Check ($brPs.Count -eq 10 -and (($brPs -join ',') -eq ($brJsSites -join ','))) 'bol refresh: the setup tool and the Worker name the same 10 sites, databases and layouts'
+Check (@($brPs | Where-Object { $brTpl.Contains('"REPLACE_WITH_DATABASE_ID_' + $_.Substring(0, 3).ToUpper() + '"') -and $brTpl.Contains('"database_name": "' + $_.Split('=')[1] + '"') }).Count -eq 10 -and $brTpl.Contains('REPLACE_WITH_DATABASE_ID_SALES')) 'bol refresh: the template has a placeholder for each of the 10 site databases and the sales database'
 Check (-not ($brText -cmatch '\$l\b')) 'bol refresh tool: no variable l that Say would take for its report'
 Check ($brText.Contains("'ΕΓΚΡΙΝΩ BOL ΑΝΑΝΕΩΣΗ'") -and $brText.Contains("'ΕΓΚΡΙΝΩ BOL ΑΝΑΝΕΩΣΗ ΚΛΕΙΔΙΑ'") -and $brText.Contains("'ΕΓΚΡΙΝΩ BOL ΑΝΑΝΕΩΣΗ ΠΑΥΣΗ'") -and $brText.Contains("'ΕΓΚΡΙΝΩ BOL ΑΝΑΝΕΩΣΗ ΕΝΑΡΞΗ'")) 'bol refresh tool: its four approval phrases'
 if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
@@ -5127,6 +5127,7 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         'echo %* | findstr /L /C:"whoami" >nul && goto whoami',
         'echo %* | findstr /L /C:"secret bulk" >nul && goto secretbulk',
         'echo %* | findstr /L /C:"partner.bol.com" >nul && goto bolnames',
+        'echo %* | findstr /L /C:"retailer IN (" >nul && goto bolcounts',
         'echo %* | findstr /L /C:"secret list" >nul && goto secretlist',
         'echo %* | findstr /L /C:"sqlite_master" >nul && goto tables',
         'echo %* | findstr /L /C:"INSERT INTO bol_refresh_meta" >nul && goto metaput',
@@ -5245,6 +5246,15 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         ':bolnamesok',
         'echo [{"results":[{"retailer":"bol.com","n":4}],"success":true}]',
         'exit /b 0',
+        ':bolcounts',
+        'if not exist "%GW_FAKE_STATE%\alias.flag" goto bolcountsok',
+        'echo %* | findstr /L /C:"home-gear-world" >nul && goto bolcountsalias',
+        ':bolcountsok',
+        'echo [{"results":[{"retailer":"bol.com","n":4}],"success":true}]',
+        'exit /b 0',
+        ':bolcountsalias',
+        'echo [{"results":[{"retailer":"bol.com","n":4},{"retailer":"bol.com NL","n":2}],"success":true}]',
+        'exit /b 0',
         ':bolnamesbad',
         'echo [{"results":[{"retailer":"bol.com","n":4},{"retailer":"bol.com NL","n":3}],"success":true}]',
         'exit /b 0',
@@ -5305,9 +5315,17 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         Check ($r.Contains('Κλειδιά του καταλόγου σε αυτόν τον υπολογιστή (bol-feed-download -Step keys): υπάρχουν') -and $r.Contains('Αυτή η έκδοση κώδικα: ' + $brCommit.Substring(0, 7))) 'bol refresh check: the PC key file is seen (not opened) and the code version shown'
         Check ((BRCount $brChanges) -eq 0) 'bol refresh check: nothing made, deployed or stored'
         Check (-not $r.Contains($brIds['gear-world-awin']) -and -not $r.Contains($brIds['car-gear-world']) -and -not $r.Contains($brId) -and -not $r.Contains($brSecret)) 'bol refresh check: no database id and no key in the report'
-        Check ($r.Contains('Γραμμές «bol.com» στα sites: CGW 4, HGW 4') -and $r.Contains('λέγονται ακριβώς «bol.com»: 🟢 ΕΝΤΑΞΕΙ') -and (BRCount 'd1 execute home-gear-world --remote --json --command "SELECT retailer, COUNT') -eq 1) 'bol refresh check: the bol.com rows per site, every name exactly bol.com'
+        Check ($r.Contains('Γραμμές «bol.com» στα sites (μόνο από το ευρετήριο του καταστήματος): CGW 4, HGW 4') -and $r.Contains('Ψευδώνυμα του bol.com με γραμμές: κανένα: 🟢 ΕΝΤΑΞΕΙ') -and $r.Contains('-Step scan-links')) 'bol refresh check: the bol.com rows per site, and where the link scan is'
+        Check ((BRCount 'partner\.bol\.com') -eq 0 -and (BRCount "d1 execute home-gear-world --remote --json --command `"SELECT retailer, COUNT\(\*\) AS n FROM products WHERE retailer IN \('bol\.com'\) GROUP BY retailer") -eq 1 -and (BRCount "d1 execute car-gear-world --remote --json --command `"SELECT retailer, COUNT\(\*\) AS n FROM products WHERE is_active IN \(0, 1\) AND retailer IN \('bol\.com'\)") -eq 1) 'bol refresh check (P2-1): counts only through the retailer index (no link scan, is_active IN (0, 1) on the new layout)'
+        BRFlag 'alias.flag' $true
+        Check ((Run-BR @('-Step', 'check')) -eq 0 -and (BRLast 'BOL_REFRESH_CHECK_*.txt').Contains('🟡 ΠΡΟΣΟΧΗ: HGW (home-gear-world): 2 γραμμές με το όνομα «bol.com NL» (ψευδώνυμο του bol.com)')) 'bol refresh check: rows under a bol.com alias are a ΠΡΟΣΟΧΗ'
+        BRFlag 'alias.flag' $false
+        # the link scan: its own read-only step, which says that it reads every row
         BRFlag 'misname.flag' $true
-        Check ((Run-BR @('-Step', 'check')) -eq 0 -and (BRLast 'BOL_REFRESH_CHECK_*.txt').Contains('🟡 ΠΡΟΣΟΧΗ: HGW (home-gear-world): 3 γραμμές με links του partner.bol.com έχουν το όνομα «bol.com NL»')) 'bol refresh check (P2-5): rows with bol.com links under another retailer name are a ΠΡΟΣΟΧΗ'
+        $before = BRCount 'partner\.bol\.com'
+        Check ((Run-BR @('-Step', 'scan-links')) -eq 0 -and (BRCount 'partner\.bol\.com') -eq ($before + 10) -and (BRCount $brChanges) -eq 0) 'bol refresh scan-links: one read-only scan per site database, nothing changed'
+        $r = BRLast 'BOL_REFRESH_SCAN-LINKS_*.txt'
+        Check ($r.Contains('διαβάζει ΚΑΘΕ γραμμή') -and $r.Contains('ΜΙΑ φορά, πριν από την εισαγωγή') -and $r.Contains('🟡 ΠΡΟΣΟΧΗ: HGW (home-gear-world): 3 γραμμές με links του partner.bol.com έχουν το όνομα «bol.com NL»')) 'bol refresh scan-links (P2-5): says it reads every row; links under another retailer name are a ΠΡΟΣΟΧΗ'
         BRFlag 'misname.flag' $false
         # gw-run wiring: the tool runs through the runner, which names the chat at the end
         $gwOut = @(& $exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path (Join-Path $repo 'tools') 'gw-run.ps1') -LocalRepo $repo -Tool bol-refresh-setup -Step check -PcHome $brHome -SkipInstall -NoClipboard -Chat 'Manager test chat')

@@ -5,9 +5,34 @@
 //   node tools/bol-refresh.mjs --mode key-test
 //     ONE token and ONE call (the popular list, page-size 1, NL) of the Marketing Catalog API (src/lib/bol-catalog.js):
 //     refused = 401 (wrong keys), blocked = 403/429 (too many requests: no new try), ok = the API answered 200.
+//   node tools/bol-refresh.mjs --mode aliases
+//     READ-ONLY, no network: per site, the retailer names the setup's check counts through the retailer index: 'bol.com'
+//     and every stored name of the site's retailerNames (src/db.js: { stored: shown }) that is shown as bol.com or looks
+//     like bol.com. The Worker refreshes only rows stored exactly as 'bol.com', so any other name there is a ΠΡΟΣΟΧΗ.
 // Nothing here writes to stderr: in Windows PowerShell 5.1 with ErrorActionPreference Stop, a stderr line stops the tool.
 import { pathToFileURL } from 'node:url';
 import { session, base64Utf8, okBase, LOGIN_BASE, API_BASE } from '../src/lib/bol-catalog.js';
+import { BOL_RETAILER } from '../src/lib/bol-lists.js';
+import { BOL_SITES } from '../src/bol-refresh.js';
+
+// The names to count for one site: 'bol.com' first, then its aliases (stored names shown as bol.com, or like bol.com).
+export function bolAliases(config) {
+  const names = (config && config.database && config.database.retailerNames) || {};
+  const out = [BOL_RETAILER];
+  for (const [stored, shown] of Object.entries(names)) {
+    if (stored === BOL_RETAILER) continue;
+    if (String(shown).trim().toLowerCase() === BOL_RETAILER || /\bbol(\.com)?\b/i.test(stored)) out.push(stored);
+  }
+  return out;
+}
+export async function siteAliases(sites = BOL_SITES) {
+  const out = {};
+  for (const s of sites) {
+    const m = await import(new URL(`../sites/${s.code}/site.config.js`, import.meta.url).href);
+    out[s.code] = bolAliases(m.default || m);
+  }
+  return out;
+}
 
 export async function keyTest({ id, secret, fetchImpl = fetch, loginBase = LOGIN_BASE, apiBase = API_BASE }) {
   const out = { ok: false, refused: false, blocked: false, status: 0, tokens: 0, calls: 0 };
@@ -43,7 +68,9 @@ if (import.meta.url === pathToFileURL(process.argv[1] || '').href) {
   const values = [id, secret, id && secret ? base64Utf8(`${id}:${secret}`) : ''];
   let result;
   try {
-    result = mode === 'key-test' ? await keyTest({ id, secret }) : { ok: false, error: 'mode must be key-test' };
+    if (mode === 'key-test') result = await keyTest({ id, secret });
+    else if (mode === 'aliases') result = { ok: true, sites: await siteAliases() };
+    else result = { ok: false, error: 'mode must be key-test or aliases' };
   } catch (e) {
     result = { ok: false, error: `crash: ${String(e && e.message || e).slice(0, 200)}` };
   }
