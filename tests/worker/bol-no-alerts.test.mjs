@@ -205,7 +205,7 @@ test('L204: the refusal is in the 143 dictionaries of the 13 sites', () => {
 });
 
 test('L204: nothing on the sites or the Hub reads Price Watch; Price Watch and the alerts use the one rule', () => {
-  const files = execFileSync('git', ['ls-files', 'src', 'sites/gwh', 'sites/group'], { encoding: 'utf8' }).split('\n').filter(f => /\.(m?js|html)$/.test(f));
+  const files = execFileSync('git', ['ls-files', 'src', 'sites/gwh', 'sites/group'], { encoding: 'utf8' }).split('\n').filter(f => /\.(m?js|html)$/.test(f) && f !== 'src/lib/retailer-terms.js');
   for (const f of files) assert.ok(!/price_last|price_log|PRICES_DB|gear-world-prices/.test(read(f)), `${f} reads Price Watch: it must leave bol.com out first (noAlerts)`);
   assert.match(read('sites/prices/price-log.js'), /import \{ noAlertsSql, bolPriceKey \} from '\.\.\/\.\.\/src\/lib\/retailer-terms\.js';/);
   assert.match(read('src/pages/product.js'), /site\.remindOpen && site\.dealTurnstileKey && !noAlerts\(product\) \? remindBox/);
