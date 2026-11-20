@@ -89,7 +89,8 @@ export function productOf(body) {
 
 // One API session: the token (once, renewed only when it has run out) and GET calls. Never follows a redirect.
 // An error has .code: 3 keys refused, 4 token or call refused / no token, 6 too many requests or blocked (no new try);
-// .tokenCap = true when the run already asked MAX_TOKENS tokens (a budget, not bol.com saying no).
+// .status: the HTTP status bol.com gave (401, 403, 429 ...); .tokenCap = true when the run already asked MAX_TOKENS
+// tokens (a budget, not bol.com saying no). 401, 403 and 429 from either host always stop the run (L154, L205).
 export function session({ id, secret, loginBase = LOGIN_BASE, apiBase = API_BASE, fetchImpl = fetch, now = () => Date.now(), language = 'nl', userAgent = UA }) {
   const S = { tokens: 0, calls: 0, token: '', until: 0 };
   async function token() {
@@ -99,9 +100,9 @@ export function session({ id, secret, loginBase = LOGIN_BASE, apiBase = API_BASE
     const basic = base64Utf8(`${id}:${secret}`);
     const r = await fetchImpl(`${loginBase.replace(/\/$/, '')}/token?grant_type=client_credentials`, {
       method: 'POST', redirect: 'manual', body: '', headers: { Authorization: `Basic ${basic}`, Accept: 'application/json', 'Content-Type': 'application/x-www-form-urlencoded', 'User-Agent': userAgent } });
-    if (r.status === 401) throw Object.assign(new Error('bol.com refused the keys (401): run the keys step again with new keys'), { code: 3 });
-    if (r.status === 403 || r.status === 429) throw Object.assign(new Error(`bol.com answered ${r.status} to the token (too many requests or blocked${r.headers.get('retry-after') ? `, again after ${r.headers.get('retry-after')} s` : ''}); no new try`), { code: 6 });
-    if (r.status !== 200) throw Object.assign(new Error(`no token: HTTP ${r.status}`), { code: 4 });
+    if (r.status === 401) throw Object.assign(new Error('bol.com refused the keys (401): run the keys step again with new keys'), { code: 3, status: 401, host: 'login' });
+    if (r.status === 403 || r.status === 429) throw Object.assign(new Error(`bol.com answered ${r.status} to the token (too many requests or blocked${r.headers.get('retry-after') ? `, again after ${r.headers.get('retry-after')} s` : ''}); no new try`), { code: 6, status: r.status, host: 'login' });
+    if (r.status !== 200) throw Object.assign(new Error(`no token: HTTP ${r.status}`), { code: 4, status: r.status, host: 'login' });
     const j = await r.json().catch(() => ({}));
     if (!j.access_token) throw Object.assign(new Error('bol.com gave no token in the answer'), { code: 4 });
     const life = Number(j.expires_in) > 0 ? Number(j.expires_in) : 299;
@@ -116,8 +117,9 @@ export function session({ id, secret, loginBase = LOGIN_BASE, apiBase = API_BASE
     S.calls++;
     const r = await fetchImpl(`${apiBase.replace(/\/$/, '')}${CATALOG}${path}?${q}`, {
       redirect: 'manual', headers: { Authorization: `Bearer ${t}`, Accept: 'application/json', 'Accept-Language': language, 'User-Agent': userAgent } });
-    if (r.status === 401) throw Object.assign(new Error('api.bol.com refused the token (401); no new token asked'), { code: 4 });
-    if (r.status === 429) throw Object.assign(new Error(`api.bol.com answered 429 (too many requests${r.headers.get('retry-after') ? `, again after ${r.headers.get('retry-after')} s` : ''}); stopping, no new try`), { code: 6 });
+    if (r.status === 401) throw Object.assign(new Error('api.bol.com refused the token (401); no new token asked'), { code: 4, status: 401, host: 'api' });
+    if (r.status === 403) throw Object.assign(new Error('api.bol.com answered 403 (forbidden or blocked); stopping, no new try'), { code: 6, status: 403, host: 'api' });
+    if (r.status === 429) throw Object.assign(new Error(`api.bol.com answered 429 (too many requests${r.headers.get('retry-after') ? `, again after ${r.headers.get('retry-after')} s` : ''}); stopping, no new try`), { code: 6, status: 429, host: 'api' });
     if (r.status === 404) return { status: 404, body: null };
     if (r.status !== 200) {
       const e = await r.json().catch(() => ({}));

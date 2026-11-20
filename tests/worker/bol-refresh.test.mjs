@@ -156,6 +156,11 @@ test('helpers: EAN as 13 digits, the offer price, the product of an answer, date
   assert.deepEqual(p, { path: '/products/search', params: { 'search-term': 'parfum', 'country-code': 'NL', page: 2, 'page-size': 50, 'include-offer': 'true' } });
 });
 
+// The Worker's own check record (P2-3): when the Worker last checked a row, and when it first saw it.
+const own = (env, code, id) => env.SALES_DB.sql.prepare('SELECT * FROM bol_refresh_checked WHERE site = ? AND product_id = ?').get(code, id);
+const seedOwn = (env, code, id, ean, checkedAt, firstSeen = '2026-11-01 00:00:00') => env.SALES_DB.sql.prepare('INSERT INTO bol_refresh_checked (site, product_id, ean, checked_at, first_seen_at) VALUES (?, ?, ?, ?, ?)').run(code, id, ean, checkedAt, firstSeen);
+const siteUpdates = db => db.log.filter(x => /^\s*UPDATE products/i.test(x.text));
+
 test('no bol.com rows on the sites: no token, no call, a good run row, the cycle done (after the removal tool: nothing harmful)', async () => {
   const env = world();
   addLegacy(env.DB_HGW, { ean: EAN(1), retailer: 'Some Shop' });
@@ -172,7 +177,7 @@ test('no bol.com rows on the sites: no token, no call, a good run row, the cycle
   assert.equal(row(env.DB_HGW, 1).is_active, 1, 'another retailer is never touched');
 });
 
-test('a full cycle: the lists first (one token, pages of 50), then one by one by EAN; price, stock and date; hiding; never an insert', async () => {
+test('a full cycle: the lists first (one token, pages of 50), then one by one by EAN; only changed rows are written; hiding; never an insert', async () => {
   const env = world();
   const c = clock('2026-11-20T04:13:00Z');
   // 320 bol.com EANs on HGW (older layout) and AGW (new layout): more than the 280 list pages, so the lists are read.
@@ -182,13 +187,14 @@ test('a full cycle: the lists first (one token, pages of 50), then one by one by
   const legacyGtin = addLegacy(env.DB_HGW, { gtin: '8799999999999', price: 7 });   // EAN only in specs_json
   const otherShop = addLegacy(env.DB_HGW, { ean: EAN(3), price: 1, retailer: 'Other Shop' });
   const sameEanCgw = addLegacy(env.DB_CGW, { ean: EAN(3), price: 13 });            // the same EAN on two sites
+  const oldDate = addLegacy(env.DB_CGW, { ean: '8788888888888', price: 9, fresh: '2026-11-10 00:00:00' });
   const lists = { 'c:43646': [], 'c:11764': [] };
   for (let n = 0; n < 300; n++) {
-    const price = n === 7 ? 0 : (n === 3 ? 99.5 : (n % 2 ? 10 + n : 10 + n + 1));   // 7: no offer; others: half change
+    const price = n === 7 ? 0 : (n === 3 ? 99.5 : (n % 2 ? 10 + n : 10 + n + 1));   // 7: no offer; odd: same; even: +1
     (n < 150 ? lists['c:43646'] : lists['c:11764']).push(prod(EAN(n), price));
   }
-  lists['c:43646'].push(prod('8799999999999', 7));
-  for (let n = 1000; n < 1060; n++) lists['c:11764'].push(prod(EAN(n), 5));            // not on any site
+  lists['c:43646'].push(prod('8799999999999', 7), prod('8788888888888', 9));
+  for (let n = 1000; n < 1059; n++) lists['c:11764'].push(prod(EAN(n), 5));            // not on any site
   const products = { [EAN(300)]: prod(EAN(300), 55.5), [EAN(301)]: prod(EAN(301), 0) }; // 302..319: 404
   const F = fakeBol({ lists, products });
   const before = { hgw: env.DB_HGW.sql.prepare('SELECT COUNT(*) AS n FROM products').get().n, agw: env.DB_AGW.sql.prepare('SELECT COUNT(*) AS n FROM products').get().n };
@@ -200,39 +206,38 @@ test('a full cycle: the lists first (one token, pages of 50), then one by one by
   assert.deepEqual(listCalls.slice(0, 4).map(x => [x.path, x.q['category-id'], x.q.page]), ['1', '2', '3', '4'].map(p => ['/products/lists/popular', '43646', p]));
   assert.equal(listCalls.length, 4 + 5 + 10 + 2, 'Auto & Motor 4 pages, Koken & Tafelen 5 pages, the other 10 lists and the 2 searches one empty page each');
   assert.deepEqual(listCalls.slice(-2).map(x => [x.path, x.q['search-term']]), [['/products/search', 'parfum'], ['/products/search', 'werkschoenen']]);
-  const lookups = F.calls.filter(x => /^\/products\/\d{13}$/.test(x.path));
-  assert.equal(lookups.length, 20, 'the 20 rows not in the lists, one by one');
-  assert.equal(r.lookups, 20);
+  assert.equal(r.lookups, 20, 'the 20 rows not in the lists, one by one');
   assert.equal(r.calls, listCalls.length + 20);
-  // prices, stock, dates
   const L = id => row(env.DB_HGW, id);
   const N = id => row(env.DB_AGW, id);
-  assert.equal(L(legacyIds[2]).price, 13, 'price changed (2 -> 13)');
-  assert.equal(L(legacyIds[2]).updated_at, '2026-11-20 04:13:00');
-  assert.equal(L(legacyIds[1]).price, 11, 'same price: only the date');
-  assert.equal(L(legacyIds[1]).updated_at, '2026-11-20 04:13:00');
+  assert.equal(L(legacyIds[2]).price, 13, 'price changed (12 -> 13)');
+  assert.equal(L(legacyIds[2]).updated_at, '2026-11-20 04:13:00', 'a changed row gets the site date too');
+  assert.equal(L(legacyIds[1]).price, 11);
+  assert.equal(L(legacyIds[1]).updated_at, '2026-11-19 04:20:00', 'same price, stock and visibility: the site row is NOT written');
+  assert.equal(own(env, 'hgw', legacyIds[1]).checked_at, '2026-11-20 04:13:00', 'the check is in the Worker\'s own record');
+  assert.equal(row(env.DB_CGW, oldDate).updated_at, '2026-11-20 04:13:00', 'same price but the site date older than 7 days: only the date');
   assert.equal(L(legacyIds[5]).stock_status, 'in stock', 'an offer means in stock again');
   assert.equal(L(legacyIds[7]).is_active, 0, 'no offer in the list: hidden');
-  assert.equal(L(legacyGtin).updated_at, '2026-11-20 04:13:00', 'the EAN in specs_json gtin is found too');
+  assert.equal(own(env, 'hgw', legacyGtin).checked_at, '2026-11-20 04:13:00', 'the EAN in specs_json gtin is found too');
   assert.equal(L(otherShop).price, 1, 'never another retailer');
-  assert.equal(L(otherShop).updated_at, '2026-11-19 04:20:00');
   assert.equal(row(env.DB_CGW, sameEanCgw).price, 99.5, 'the same EAN on another site: both refreshed');
   assert.equal(L(legacyIds[3]).price, 99.5);
   assert.equal(N(nativeIds[0]).price, 171, 'new layout: price changed (170 -> 171)');
   assert.equal(N(nativeIds[0]).last_seen_at, '2026-11-20 04:13:00');
   assert.equal(N(nativeIds[0]).updated_at, '2026-11-20 04:13:00');
-  assert.equal(N(nativeIds[1]).price, 171, 'new layout, same price');
-  assert.equal(N(nativeIds[1]).updated_at, '2026-11-01 00:00:00', 'new layout, same price: updated_at stays, only last_seen_at');
-  assert.equal(N(nativeIds[1]).last_seen_at, '2026-11-20 04:13:00');
+  assert.deepEqual([N(nativeIds[1]).price, N(nativeIds[1]).last_seen_at, N(nativeIds[1]).updated_at], [171, '2026-11-19 04:20:00', '2026-11-01 00:00:00'], 'new layout, nothing changed: not written');
   assert.equal(N(nativeIds[5]).in_stock, 1);
   assert.equal(N(nativeIds[140]).price, 55.5, 'looked up by EAN: 300 has an offer');
   assert.equal(N(nativeIds[141]).is_active, 0, 'looked up: no offer, hidden');
   assert.equal(N(nativeIds[142]).is_active, 0, 'looked up: 404, hidden');
   assert.equal(r.hidden, 1 + 1 + 18);
-  assert.deepEqual(hiddenRows(env).filter(h => h.site === 'agw').length, 19);
+  assert.equal(hiddenRows(env).filter(h => h.site === 'agw').length, 19);
   assert.ok(hiddenRows(env).some(h => h.site === 'agw' && h.reason === 'not on bol.com (404)'));
   assert.equal(r.pending, 0);
   assert.equal(JSON.parse(meta(env, 'cycle')).done, true);
+  // a site row is written only when something visible changes (on HGW every UPDATE rewrites the search index, L59)
+  const hgwWrites = siteUpdates(env.DB_HGW);
+  assert.ok(hgwWrites.length <= 80 + 1 + 1 + 1, `${hgwWrites.length} UPDATEs on HGW for 80 price changes, 1 stock, 1 hide`);
   // never an insert, never a DELETE on a site, at most 100 bound values per statement, every UPDATE only for bol.com
   for (const s of BOL_SITES) {
     for (const x of env[s.binding].log) {
@@ -241,9 +246,9 @@ test('a full cycle: the lists first (one token, pages of 50), then one by one by
       if (/^\s*UPDATE/i.test(x.text)) { assert.match(x.text, /retailer = \?/); assert.ok(x.args.includes(BOL_RETAILER)); }
     }
   }
+  for (const x of env.SALES_DB.log) assert.ok(x.args.length <= 100, `sales: ${x.args.length} bound values`);
   assert.equal(env.DB_HGW.sql.prepare('SELECT COUNT(*) AS n FROM products').get().n, before.hgw);
   assert.equal(env.DB_AGW.sql.prepare('SELECT COUNT(*) AS n FROM products').get().n, before.agw);
-  // no key or token anywhere
   const dump = JSON.stringify(env.SALES_DB.sql.prepare('SELECT * FROM bol_refresh_runs').all()) + JSON.stringify(env.SALES_DB.sql.prepare('SELECT * FROM bol_refresh_meta').all());
   for (const v of [ID, SECRET, TOKEN]) assert.ok(!dump.includes(v) && !r.message.includes(v));
   // the next hours of the same cycle: nothing to do, no token
@@ -257,7 +262,32 @@ test('a full cycle: the lists first (one token, pages of 50), then one by one by
   const r3 = await refreshRun(env, { fetchFn: F.fetch, now: c.now, sleepFn: noSleep });
   assert.equal(F.tokens, 2);
   assert.ok(r3.calls > 20);
-  assert.equal(L(legacyIds[2]).updated_at, '2026-11-20 16:13:00');
+  assert.equal(own(env, 'hgw', legacyIds[2]).checked_at, '2026-11-20 16:13:00');
+  assert.equal(L(legacyIds[2]).updated_at, '2026-11-20 04:13:00', 'unchanged at 16:13: not written again');
+});
+
+test('P1-1: a run that starts at .500 of a second: rows checked in it are not looked up again in the same cycle; "done" only with nothing waiting', async () => {
+  const env = world();
+  for (let n = 0; n < 5; n++) addLegacy(env.DB_KGW, { ean: EAN(n), price: 5 });
+  const products = Object.fromEntries(Array.from({ length: 5 }, (_, n) => [EAN(n), prod(EAN(n), 5)]));
+  const F = fakeBol({ products });
+  const r1 = await refreshRun(env, { fetchFn: F.fetch, now: clock('2026-11-20T04:13:00.500Z').now, sleepFn: noSleep });
+  assert.equal(r1.lookups, 5);
+  assert.equal(own(env, 'kgw', 1).checked_at, '2026-11-20 04:13:00');
+  for (const t of ['2026-11-20T05:13:00.500Z', '2026-11-20T06:13:00.999Z']) {
+    const r = await refreshRun(env, { fetchFn: F.fetch, now: clock(t).now, sleepFn: noSleep });
+    assert.equal(r.calls, 0, `${t}: nothing looked up again`);
+    assert.match(r.message, /done/);
+  }
+  assert.equal(F.calls.length, 5);
+  // with rows still waiting, the run row never says "done"
+  const e2 = { ...world(), BOL_MAX_CALLS: '2' };
+  for (let n = 0; n < 5; n++) addLegacy(e2.DB_KGW, { ean: EAN(n), price: 5 });
+  const r2 = await refreshRun(e2, { fetchFn: fakeBol({ products }).fetch, now: clock('2026-11-20T04:13:00.500Z').now, sleepFn: noSleep });
+  assert.equal(r2.pending, 3);
+  assert.doesNotMatch(r2.message, /done/);
+  assert.match(r2.message, /3 waiting/);
+  assert.equal(JSON.parse(meta(e2, 'cycle')).done, false);
 });
 
 test('budgets: the calls of one run are limited, the next hourly run goes on from the same list and page, one token each', async () => {
@@ -281,7 +311,7 @@ test('budgets: the calls of one run are limited, the next hourly run goes on fro
   assert.equal(r2.found, 150);
   assert.equal(r2.pending, 0);
   assert.equal(JSON.parse(meta(env, 'cycle')).done, true, 'all found: the lists stop early and the cycle is done');
-  assert.equal(env.DB_SGW.sql.prepare("SELECT COUNT(*) AS n FROM products WHERE price = 6 AND last_seen_at >= '2026-11-20 04:13:00'").get().n, 300);
+  assert.equal(env.DB_SGW.sql.prepare('SELECT COUNT(*) AS n FROM products WHERE price = 6').get().n, 300);
 });
 
 test('time budget: the run stops starting calls after BOL_MAX_SECONDS', async () => {
@@ -298,22 +328,64 @@ test('time budget: the run stops starting calls after BOL_MAX_SECONDS', async ()
   assert.equal(r2.state, 'ok');
 });
 
-test('few EANs (not more than the list pages): no list is read, only lookups', async () => {
+test('few EANs (not more than the list pages): no list is read, only lookups; an empty currency (GBP on the older sites) is never refreshed', async () => {
   const env = world();
   const id = addLegacy(env.DB_WGW, { ean: '012345678905', price: 20 });   // 12 digits: looked up as 13
-  const F = fakeBol({ products: { '0012345678905': prod('0012345678905', 19.99) } });
+  const gbp = addLegacy(env.DB_WGW, { ean: EAN(9), price: 20, currency: '' });
+  const F = fakeBol({ products: { '0012345678905': prod('0012345678905', 19.99), [EAN(9)]: prod(EAN(9), 1) } });
   const r = await refreshRun(env, { fetchFn: F.fetch, now: clock('2026-11-20T04:13:00Z').now, sleepFn: noSleep });
   assert.deepEqual(F.calls.map(x => x.path), ['/products/0012345678905']);
   assert.equal(row(env.DB_WGW, id).price, 19.99);
   assert.equal(r.updated, 1);
   assert.match(r.message, /looked up one by one/);
+  assert.match(r.message, /1 not in EUR/);
+  assert.deepEqual([row(env.DB_WGW, gbp).price, row(env.DB_WGW, gbp).currency], [20, ''], 'price and currency left as they are');
+});
+
+test('P2-3: freshness is the Worker\'s own check time, never the site\'s date; a row it never checked is due at once', async () => {
+  const env = world();
+  // site date written today by another tool, but the Worker last checked it 25 hours ago: hidden
+  const touched = addNative(env.DB_VGW, { ean: EAN(1), fresh: '2026-11-20 04:00:00' });
+  seedOwn(env, 'vgw', touched, EAN(1), '2026-11-19 03:13:00');
+  // the Worker checked it 23 hours ago (the site date is old): stays
+  const fine = addNative(env.DB_VGW, { ean: EAN(2), fresh: '2026-11-01 00:00:00' });
+  seedOwn(env, 'vgw', fine, EAN(2), '2026-11-19 05:13:00');
+  env.SALES_DB.sql.prepare("UPDATE bol_refresh_meta SET value = '0' WHERE key = 'enabled'").run();
+  await refreshRun(env, { fetchFn: fakeBol().fetch, now: clock('2026-11-20T04:13:00Z').now, sleepFn: noSleep });
+  assert.equal(row(env.DB_VGW, touched).is_active, 0, 'checked by the Worker 25 h ago: hidden, whatever the site date says');
+  assert.equal(row(env.DB_VGW, fine).is_active, 1);
+  // a new row (a new import) after the cycle is done: looked up in the next run, not the next cycle
+  const e2 = world();
+  const a = addLegacy(e2.DB_GGW, { ean: EAN(1), price: 5 });
+  const F = fakeBol({ products: { [EAN(1)]: prod(EAN(1), 5), [EAN(2)]: prod(EAN(2), 8) } });
+  await refreshRun(e2, { fetchFn: F.fetch, now: clock('2026-11-20T04:13:00Z').now, sleepFn: noSleep });
+  assert.equal(JSON.parse(meta(e2, 'cycle')).done, true);
+  const b = addLegacy(e2.DB_GGW, { ean: EAN(2), price: 7, fresh: '2026-11-20 04:30:00' });
+  const r = await refreshRun(e2, { fetchFn: F.fetch, now: clock('2026-11-20T05:13:00Z').now, sleepFn: noSleep });
+  assert.deepEqual(F.calls.map(x => x.path), [`/products/${EAN(1)}`, `/products/${EAN(2)}`]);
+  assert.equal(row(e2.DB_GGW, b).price, 8);
+  assert.equal(r.lookups, 1);
+  assert.equal(own(e2, 'ggw', a).checked_at, '2026-11-20 04:13:00');
+  // a row never checked (switch off): the Worker notes when it first saw it, and hides it 24 hours later
+  const e3 = world();
+  e3.SALES_DB.sql.prepare("UPDATE bol_refresh_meta SET value = '0' WHERE key = 'enabled'").run();
+  const n1 = addNative(e3.DB_ZGW, { ean: EAN(1), fresh: '2026-11-20 04:00:00' });
+  await refreshRun(e3, { fetchFn: fakeBol().fetch, now: clock('2026-11-20T04:13:00Z').now, sleepFn: noSleep });
+  assert.deepEqual([own(e3, 'zgw', n1).checked_at, own(e3, 'zgw', n1).first_seen_at], [null, '2026-11-20 04:13:00']);
+  await refreshRun(e3, { fetchFn: fakeBol().fetch, now: clock('2026-11-21T04:00:00Z').now, sleepFn: noSleep });
+  assert.equal(row(e3.DB_ZGW, n1).is_active, 1, 'seen 23 h 47 min ago: stays');
+  e3.DB_ZGW.sql.prepare("UPDATE products SET last_seen_at = '2026-11-21 03:00:00' WHERE id = ?").run(n1);   // another tool touched it
+  await refreshRun(e3, { fetchFn: fakeBol().fetch, now: clock('2026-11-21T04:14:00Z').now, sleepFn: noSleep });
+  assert.equal(row(e3.DB_ZGW, n1).is_active, 0, 'never checked by the Worker, seen 24 h 1 min ago: hidden, though the site date is 1 hour old');
 });
 
 test('kill switch off: no bol.com call, no price change, but rows not checked for 24 hours are still hidden (state held)', async () => {
   const env = world();
   env.SALES_DB.sql.prepare("UPDATE bol_refresh_meta SET value = '0' WHERE key = 'enabled'").run();
-  const stale = addLegacy(env.DB_MGW, { ean: EAN(1), price: 20, fresh: '2026-11-19 04:12:00' });
-  const fresh = addLegacy(env.DB_MGW, { ean: EAN(2), price: 20, fresh: '2026-11-19 05:00:00' });
+  const stale = addLegacy(env.DB_MGW, { ean: EAN(1), price: 20 });
+  const fresh = addLegacy(env.DB_MGW, { ean: EAN(2), price: 20 });
+  seedOwn(env, 'mgw', stale, EAN(1), '2026-11-19 04:12:00');
+  seedOwn(env, 'mgw', fresh, EAN(2), '2026-11-19 05:00:00');
   const F = fakeBol({ products: { [EAN(1)]: prod(EAN(1), 25), [EAN(2)]: prod(EAN(2), 25) } });
   const r = await refreshRun(env, { fetchFn: F.fetch, now: clock('2026-11-20T04:13:00Z').now, sleepFn: noSleep });
   assert.equal(F.tokens + F.calls.length, 0, 'no call at all');
@@ -324,7 +396,7 @@ test('kill switch off: no bol.com call, no price change, but rows not checked fo
   assert.equal(row(env.DB_MGW, fresh).is_active, 1, 'checked 23 h ago: stays');
   assert.equal(row(env.DB_MGW, fresh).price, 20, 'no price change');
   assert.equal(runs(env)[0].state, 'held');
-  // switched on again: the hidden row is looked up and shown again (THIS Worker hid it)
+  // switched on again: the hidden row is looked up and shown again (THIS Worker hid it, and it is unchanged)
   env.SALES_DB.sql.prepare("UPDATE bol_refresh_meta SET value = '1' WHERE key = 'enabled'").run();
   const r2 = await refreshRun(env, { fetchFn: F.fetch, now: clock('2026-11-20T05:13:00Z').now, sleepFn: noSleep });
   assert.equal(r2.reshown, 1);
@@ -333,53 +405,81 @@ test('kill switch off: no bol.com call, no price change, but rows not checked fo
   assert.deepEqual(hiddenRows(env), []);
 });
 
-test('a row hidden by anything else (a clean-up, the removal tool) is never shown again; our own only for 14 days', async () => {
+test('P2-4: shown again only if THIS Worker hid it, within 3 days, and the row is unchanged since', async () => {
   const env = world();
+  const c = clock('2026-11-20T04:13:00Z');
+  const ours = addNative(env.DB_ZGW, { ean: EAN(2), price: 9 });
+  const renamed = addNative(env.DB_ZGW, { ean: EAN(5), price: 9 });
   const theirs = addNative(env.DB_ZGW, { ean: EAN(1), price: 9, active: 0 });
-  const ours = addNative(env.DB_ZGW, { ean: EAN(2), price: 9, active: 0 });
-  const old = addNative(env.DB_ZGW, { ean: EAN(3), price: 9, active: 0 });
-  const ins = env.SALES_DB.sql.prepare('INSERT INTO bol_refresh_hidden (site, product_id, ean, reason, hidden_at) VALUES (?, ?, ?, ?, ?)');
-  ins.run('zgw', ours, EAN(2), 'x', '2026-11-19T10:00:00.000Z');
-  ins.run('zgw', old, EAN(3), 'x', new Date(Date.parse('2026-11-20T04:13:00Z') - (RESHOW_DAYS + 1) * 864e5).toISOString());
-  ins.run('zgw', 99999, EAN(4), 'x', '2026-11-19T10:00:00.000Z');   // a row deleted since (removal tool)
-  const F = fakeBol({ products: { [EAN(1)]: prod(EAN(1), 9), [EAN(2)]: prod(EAN(2), 9), [EAN(3)]: prod(EAN(3), 9) } });
-  const r = await refreshRun(env, { fetchFn: F.fetch, now: clock('2026-11-20T04:13:00Z').now, sleepFn: noSleep });
-  assert.deepEqual(F.calls.map(x => x.path), [`/products/${EAN(2)}`]);
-  assert.equal(row(env.DB_ZGW, theirs).is_active, 0);
+  const F = fakeBol({ products: { [EAN(1)]: prod(EAN(1), 9) } });   // 2 and 5: 404 now, hidden by the Worker
+  await refreshRun(env, { fetchFn: F.fetch, now: c.now, sleepFn: noSleep });
+  assert.deepEqual([row(env.DB_ZGW, ours).is_active, row(env.DB_ZGW, renamed).is_active], [0, 0]);
+  assert.equal(hiddenRows(env).length, 2);
+  env.DB_ZGW.sql.prepare("UPDATE products SET product_name = 'Renamed by a clean-up' WHERE id = ?").run(renamed);
+  // 16:13: bol.com sells both again
+  c.add(12 * 3600e3);
+  const F2 = fakeBol({ products: { [EAN(1)]: prod(EAN(1), 9), [EAN(2)]: prod(EAN(2), 9), [EAN(5)]: prod(EAN(5), 9) } });
+  const r = await refreshRun(env, { fetchFn: F2.fetch, now: c.now, sleepFn: noSleep });
+  assert.deepEqual(F2.calls.map(x => x.path), [`/products/${EAN(2)}`], 'the changed row and the one hidden by someone else are not even looked up');
   assert.equal(row(env.DB_ZGW, ours).is_active, 1);
-  assert.equal(row(env.DB_ZGW, old).is_active, 0, 'hidden more than 14 days ago: left hidden');
+  assert.equal(row(env.DB_ZGW, renamed).is_active, 0, 'changed since it was hidden: never shown again');
+  assert.equal(row(env.DB_ZGW, theirs).is_active, 0);
   assert.equal(r.reshown, 1);
-  assert.deepEqual(hiddenRows(env), [], 'the entries of the shown, the too old and the deleted rows are dropped');
+  assert.match(r.message, /1 hidden rows changed since: not shown again/);
+  assert.deepEqual(hiddenRows(env), []);
+  // hidden 4 days ago: left hidden
+  const e2 = world();
+  const old = addNative(e2.DB_ZGW, { ean: EAN(3), price: 9, active: 0 });
+  e2.SALES_DB.sql.prepare('INSERT INTO bol_refresh_hidden (site, product_id, ean, reason, hidden_at, snap) VALUES (?, ?, ?, ?, ?, ?)').run('zgw', old, EAN(3), 'x', '2026-11-16T04:00:00.000Z', 'whatever');
+  const F3 = fakeBol({ products: { [EAN(3)]: prod(EAN(3), 9) } });
+  await refreshRun(e2, { fetchFn: F3.fetch, now: clock('2026-11-20T04:13:00Z').now, sleepFn: noSleep });
+  assert.equal(F3.calls.length, 0);
+  assert.equal(row(e2.DB_ZGW, old).is_active, 0);
+  assert.equal(RESHOW_DAYS, 3);
 });
 
-test('401 on the token: stop at once, no new try, no catalog call; stale rows still hidden; state error without a key', async () => {
-  const env = world();
-  const stale = addNative(env.DB_VGW, { ean: EAN(1), fresh: '2026-11-19 03:00:00' });
-  const ok = addNative(env.DB_VGW, { ean: EAN(2), fresh: '2026-11-19 12:00:00' });
-  const F = fakeBol({ tokenStatus: 401 });
-  const r = await refreshRun(env, { fetchFn: F.fetch, now: clock('2026-11-20T04:13:00Z').now, sleepFn: noSleep });
-  assert.equal(F.tokens, 1);
-  assert.equal(F.calls.length, 0);
-  assert.equal(r.state, 'error');
-  assert.equal(r.ok, 0);
-  assert.match(r.message, /refused the keys \(401\)/);
-  assert.ok(!r.message.includes(SECRET) && !r.message.includes(ID));
-  assert.equal(row(env.DB_VGW, stale).is_active, 0);
-  assert.equal(row(env.DB_VGW, ok).is_active, 1);
-  assert.equal(r.hidden, 1);
-  // 403 and 429 on the token: the same, no new try
-  for (const s of [403, 429]) {
-    const e2 = world();
-    addNative(e2.DB_VGW, { ean: EAN(1) });
-    const F2 = fakeBol({ tokenStatus: s });
-    const r2 = await refreshRun(e2, { fetchFn: F2.fetch, now: clock('2026-11-20T04:13:00Z').now, sleepFn: noSleep });
-    assert.equal(F2.tokens, 1);
-    assert.equal(F2.calls.length, 0);
-    assert.match(r2.message, new RegExp(`answered ${s} to the token`));
+test('P1-2: 401 or 403 from either host stops the run and turns the switch off (no new try every hour); 429 only stops', async () => {
+  const cases = [
+    ['token 401', { tokenStatus: 401 }, /refused the keys \(401\)/, true],
+    ['token 403', { tokenStatus: 403 }, /answered 403 to the token/, true],
+    ['catalog 403', { productStatus: { [EAN(1)]: 403, [EAN(2)]: 403 } }, /api\.bol\.com answered 403/, true],
+    ['token 429', { tokenStatus: 429 }, /answered 429 to the token/, false]
+  ];
+  for (const [name, opt, msg, off] of cases) {
+    const env = world();
+    const stale = addNative(env.DB_VGW, { ean: EAN(1) });
+    seedOwn(env, 'vgw', stale, EAN(1), '2026-11-19 03:00:00');
+    addNative(env.DB_VGW, { ean: EAN(2) });
+    const F = fakeBol(opt);
+    const r = await refreshRun(env, { fetchFn: F.fetch, now: clock('2026-11-20T04:13:00Z').now, sleepFn: noSleep });
+    assert.equal(F.tokens, 1, `${name}: one token, no new try`);
+    assert.ok(F.calls.length <= 1, `${name}: at most the one call that failed`);
+    assert.equal(r.state, 'error', name);
+    assert.match(r.message, msg, name);
+    assert.ok(!r.message.includes(SECRET) && !r.message.includes(ID));
+    assert.equal(row(env.DB_VGW, stale).is_active, 0, `${name}: the stale row is still hidden`);
+    assert.equal(meta(env, 'enabled'), off ? '0' : '1', `${name}: the switch ${off ? 'goes off' : 'stays on'}`);
+    if (off) {
+      assert.match(meta(env, 'disabled_reason'), /answered 40[13]/);
+      assert.match(r.message, /kill switch turned off by the Worker/);
+      const F2 = fakeBol();
+      const r2 = await refreshRun(env, { fetchFn: F2.fetch, now: clock('2026-11-20T05:13:00Z').now, sleepFn: noSleep });
+      assert.equal(F2.tokens + F2.calls.length, 0, `${name}: the next hour asks nothing`);
+      assert.equal(r2.state, 'held');
+    }
   }
+  // the PC download stops on a 403 too (the same session)
+  const { download } = await import('../../tools/bol-feed.mjs');
+  const { mkdtempSync } = await import('node:fs');
+  const { tmpdir } = await import('node:os');
+  const { join } = await import('node:path');
+  const F = fakeBol({ listStatus: { 'c:43646': 403 } });
+  const api = session({ id: ID, secret: SECRET, fetchImpl: F.fetch });
+  await assert.rejects(download({ api, jobs: standardJobs(), out: mkdtempSync(join(tmpdir(), 'bol403-')), pauseMs: 0 }), e => e.code === 6 && e.status === 403);
+  assert.equal(F.calls.length, 1, 'no next list after the 403');
 });
 
-test('429 on a list: stop at once (no new try, no next list), what was found is kept; 500 on a lookup is tried next cycle only', async () => {
+test('429 on a list: stop (no next list), what was found is kept; failed lookups make the run an error and wait for the next cycle', async () => {
   const env = world();
   for (let n = 0; n < 300; n++) addNative(env.DB_AGW, { ean: EAN(n), price: 5 });
   const F = fakeBol({ lists: { 'c:43646': Array.from({ length: 120 }, (_, n) => prod(EAN(n), 6)) }, listStatus: { 'c:11764': 429 } });
@@ -389,28 +489,30 @@ test('429 on a list: stop at once (no new try, no next list), what was found is 
   assert.match(r.message, /429/);
   assert.equal(r.found, 120, 'the first list was written before the stop');
   assert.equal(JSON.parse(meta(env, 'cycle')).job, 1, 'the next run goes on with the second list');
-  // 500 on lookups: not hidden (checked less than 24 h ago), not asked again in the same cycle
+  assert.equal(meta(env, 'enabled'), '1');
   const e2 = world();
-  const id = addLegacy(e2.DB_GGW, { ean: EAN(1), fresh: '2026-11-20 00:00:00' });
+  const id = addLegacy(e2.DB_GGW, { ean: EAN(1) });
+  seedOwn(e2, 'ggw', id, EAN(1), '2026-11-20 00:00:00');
   const F2 = fakeBol({ productStatus: { [EAN(1)]: 500 } });
   const r2 = await refreshRun(e2, { fetchFn: F2.fetch, now: clock('2026-11-20T04:13:00Z').now, sleepFn: noSleep });
-  assert.equal(r2.state, 'ok');
-  assert.match(r2.message, /1 lookups failed/);
-  assert.equal(row(e2.DB_GGW, id).is_active, 1);
-  await refreshRun(e2, { fetchFn: F2.fetch, now: clock('2026-11-20T05:13:00Z').now, sleepFn: noSleep });
+  assert.equal(r2.state, 'error', 'a failed lookup is an error');
+  assert.match(r2.message, /1 lookups failed \(HTTP 500 x1\)/);
+  assert.equal(row(e2.DB_GGW, id).is_active, 1, 'checked 4 hours ago: not hidden');
+  const r3 = await refreshRun(e2, { fetchFn: F2.fetch, now: clock('2026-11-20T05:13:00Z').now, sleepFn: noSleep });
   assert.equal(F2.calls.length, 1, 'not asked again in the same cycle');
   assert.equal(F2.tokens, 1, 'and no token for nothing');
-  // 406: hidden
+  assert.equal(r3.state, 'ok');
   const e3 = world();
   const id3 = addLegacy(e3.DB_GGW, { ean: EAN(1) });
   await refreshRun(e3, { fetchFn: fakeBol({ productStatus: { [EAN(1)]: 406 } }).fetch, now: clock('2026-11-20T04:13:00Z').now, sleepFn: noSleep });
-  assert.equal(row(e3.DB_GGW, id3).is_active, 0);
+  assert.equal(row(e3.DB_GGW, id3).is_active, 0, '406: hidden');
 });
 
-test('missing keys or meta: no bol.com call, the 24-hour hiding still runs; a bad host is refused', async () => {
+test('missing keys, a missing site binding or unreadable own records: no bol.com call; the 24-hour hiding still runs', async () => {
   const env = world();
   delete env.BOL_CATALOG_CLIENT_SECRET;
-  const stale = addLegacy(env.DB_HGW, { ean: EAN(1), fresh: '2026-11-18 10:00:00' });
+  const stale = addLegacy(env.DB_HGW, { ean: EAN(1) });
+  seedOwn(env, 'hgw', stale, EAN(1), '2026-11-18 10:00:00');
   const F = fakeBol();
   const r = await refreshRun(env, { fetchFn: F.fetch, now: clock('2026-11-20T04:13:00Z').now, sleepFn: noSleep });
   assert.equal(F.tokens + F.calls.length, 0);
@@ -418,7 +520,6 @@ test('missing keys or meta: no bol.com call, the 24-hour hiding still runs; a ba
   assert.match(r.message, /missing secret\(s\): BOL_CATALOG_CLIENT_SECRET/);
   assert.equal(row(env.DB_HGW, stale).is_active, 0);
   assert.deepEqual(SECRETS, ['BOL_CATALOG_CLIENT_ID', 'BOL_CATALOG_CLIENT_SECRET']);
-  // a site database that is not bound: the others go on
   const e2 = world();
   delete e2.DB_KGW;
   const id = addNative(e2.DB_AGW, { ean: EAN(1), price: 3 });
@@ -426,6 +527,14 @@ test('missing keys or meta: no bol.com call, the 24-hour hiding still runs; a ba
   assert.equal(row(e2.DB_AGW, id).price, 4);
   assert.equal(r2.state, 'error');
   assert.match(r2.message, /kgw: no database binding DB_KGW/);
+  const e3 = world();
+  e3.SALES_DB.sql.exec('DROP TABLE bol_refresh_checked');
+  const old = addLegacy(e3.DB_HGW, { ean: EAN(1), fresh: '2026-11-18 10:00:00' });
+  const F3 = fakeBol();
+  const r3 = await refreshRun(e3, { fetchFn: F3.fetch, now: clock('2026-11-20T04:13:00Z').now, sleepFn: noSleep });
+  assert.equal(F3.tokens + F3.calls.length, 0, 'own records unreadable: no call');
+  assert.match(r3.message, /own records not readable/);
+  assert.equal(row(e3.DB_HGW, old).is_active, 0, 'and the hiding falls back to the site date');
 });
 
 test('the Worker: no public address (404), the cron hands the run to waitUntil; runs kept to the newest 1,000', async () => {
