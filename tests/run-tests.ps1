@@ -5420,6 +5420,12 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         Check ((Run-BR @('-Step', 'disable', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ BOL ΑΝΑΝΕΩΣΗ ΠΑΥΣΗ')) -eq 0 -and (BRText (Join-Path $brState 'enabled.txt')).Trim() -eq '0') 'bol refresh disable: the switch is off'
         $r = BRLast 'BOL_REFRESH_DISABLE_*.txt'
         Check ($r.Contains('ΚΛΕΙΣΤΟΣ') -and $r.Contains('-Step enable') -and $r.Contains('δεν ελέγχθηκε 24 ώρες κρύβεται')) 'bol refresh disable: the report says what still happens and how to turn it on'
+        Check ($r.Contains('⏸ Σε παύση: τον έκλεισες με -Step disable') -and -not $r.Contains('ΠΡΟΒΛΗΜΑ: τον έκλεισε')) 'bol refresh disable: the owner''s pause is a pause, not a ΠΡΟΒΛΗΜΑ'
+        # the removal tool closed it (disabled_reason 'removal tool ...'): a pause, never the Worker's ΠΡΟΒΛΗΜΑ
+        Write-Utf8 (Join-Path $brState 'disabled.txt') 'removal tool 2026-11-21 06:00'
+        $r = ''
+        if ((Run-BR @('-Step', 'check')) -eq 0) { $r = BRLast 'BOL_REFRESH_CHECK_*.txt' }
+        Check ($r.Contains('ΚΛΕΙΣΤΟ από το εργαλείο αφαίρεσης') -and $r.Contains('2026-11-21 06:00') -and -not $r.Contains('ΠΡΟΒΛΗΜΑ: τον έκλεισε')) 'bol refresh check: closed by the removal tool is shown as a pause (ΚΛΕΙΣΤΟ από το εργαλείο αφαίρεσης), not a ΠΡΟΒΛΗΜΑ'
         Check ((Run-BR $brApply) -eq 0 -and (BRLast 'BOL_REFRESH_APPLY_*.txt').Contains('Ο διακόπτης έμεινε ΚΛΕΙΣΤΟΣ: το apply δεν τον ανοίγει ποτέ') -and (BRText (Join-Path $brState 'enabled.txt')).Trim() -eq '0') 'bol refresh apply (P2-6) never turns a switch on that is off (the removal tool''s first step), and says so'
         # the Worker turned it off itself after a 401/403: check says so in words and what to do; enable clears the reason
         Write-Utf8 (Join-Path $brState 'disabled.txt') 'worker 2026-11-21T04:13:05.000Z: bol.com answered 401 (token); turn on with -Step enable'

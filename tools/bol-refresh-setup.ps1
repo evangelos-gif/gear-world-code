@@ -442,8 +442,12 @@ function Show-Runs([string]$folder) {
 function Show-Switch([hashtable]$meta) {
     if ($meta.enabled -eq '0') {
         Say '  Διακόπτης (kill switch): ⏸ ΚΛΕΙΣΤΟΣ: καμία κλήση στο bol.com, καμία αλλαγή τιμής· κρύβονται μόνο όσα δεν ελέγχθηκαν 24 ώρες'
-        if ($meta.disabled_reason) { Say ('    🔴 ΠΡΟΒΛΗΜΑ: τον έκλεισε ο ίδιος ο Worker, γιατί το bol.com αρνήθηκε ή μπλόκαρε (401/403): {0}' -f $meta.disabled_reason) 'Red'; Say ('    Επόμενο: έλεγξε τα κλειδιά (bol-feed-download -Step check), μετά -Step keys αν χρειάζεται, και -Step enable (φράση {0}).' -f $PhraseOn) }
-        else { Say '    Τον έκλεισε η αφαίρεση των προϊόντων ή το -Step disable. Ανοίγει ΜΟΝΟ με -Step enable.' }
+        # Who closed it (disabled_reason): only the Worker's own stop after a 401/403 ('worker ...') is a problem, as for
+        # src/bol-refresh.js; the removal tool ('removal tool ...') and the owner's -Step disable (empty) are a pause.
+        $why = ([string]$meta.disabled_reason).Trim()
+        if ($why -match '^worker\b') { Say ('    🔴 ΠΡΟΒΛΗΜΑ: τον έκλεισε ο ίδιος ο Worker, γιατί το bol.com αρνήθηκε ή μπλόκαρε (401/403): {0}' -f $why) 'Red'; Say ('    Επόμενο: έλεγξε τα κλειδιά (bol-feed-download -Step check), μετά -Step keys αν χρειάζεται, και -Step enable (φράση {0}).' -f $PhraseOn) }
+        elseif ($why -match '^removal tool\b') { Say ('    ⏸ ΚΛΕΙΣΤΟ από το εργαλείο αφαίρεσης (tools/bol-remove.ps1, {0}): σε παύση, όχι πρόβλημα. Μην τον ανοίξεις: τα προϊόντα του bol.com αφαιρέθηκαν.' -f $why.Substring(12).Trim()) }
+        else { Say '    ⏸ Σε παύση: τον έκλεισες με -Step disable. Ανοίγει ΜΟΝΟ με -Step enable.' }
     }
     elseif ($meta.enabled) { Say '  Διακόπτης (kill switch): ΑΝΟΙΧΤΟΣ' }
     else { Say '  Διακόπτης (kill switch): δεν υπάρχει ακόμα (θα μπει ανοιχτός με τους πίνακες)' }

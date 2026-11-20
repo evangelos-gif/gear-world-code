@@ -196,4 +196,12 @@ test('L204 + L205: the kill switch of the daily refresh: made if missing, set to
   const workerRule = read('src/bol-refresh.js').match(/if \(!enabled && (\/\^worker\\b\/i)\.test\(offReason\)\) errors\.push/);
   assert.ok(workerRule, 'the Worker counts a run as an error only for a reason that starts with "worker"');
   assert.ok(!/^worker\b/i.test(reason(stopped)) && !/^worker\b/i.test(reason(db)), 'so its later runs are pauses');
+  // The setup tool's check says the same: ΠΡΟΒΛΗΜΑ only for 'worker ...', the removal tool and the owner's pause are a pause.
+  const setup = read('tools/bol-refresh-setup.ps1');
+  const iW = setup.indexOf("if ($why -match '^worker\\b') { Say ('    🔴 ΠΡΟΒΛΗΜΑ: τον έκλεισε ο ίδιος ο Worker");
+  const iR = setup.indexOf("elseif ($why -match '^removal tool\\b') { Say ('    ⏸ ΚΛΕΙΣΤΟ από το εργαλείο αφαίρεσης");
+  const iO = setup.indexOf("else { Say '    ⏸ Σε παύση: τον έκλεισες με -Step disable.");
+  assert.ok(iW > 0 && iW < iR && iR < iO, 'Show-Switch: worker -> ΠΡΟΒΛΗΜΑ, removal tool -> closed by the removal tool, else a pause');
+  assert.ok(!/if \(\$meta\.disabled_reason\) \{/.test(setup), 'no other place shows any reason as the Worker\'s ΠΡΟΒΛΗΜΑ');
+  assert.ok(SWITCH_REASON.length === 12, "the setup tool cuts 'removal tool' (12 letters) off the time it shows");
 });
