@@ -452,7 +452,7 @@ function Write-Undo {
     $made = @($script:CreatedTables)
     if ($made.Count -gt 0) {
         $sql = New-Object System.Collections.Generic.List[string]
-        foreach ($t in @('bol_refresh_hidden', 'bol_refresh_runs', 'bol_refresh_meta')) { if ($made -contains $t) { $sql.Add(('DROP TABLE IF EXISTS {0}' -f $t)) } }
+        foreach ($t in @('bol_refresh_hidden', 'bol_refresh_checked', 'bol_refresh_runs', 'bol_refresh_meta')) { if ($made -contains $t) { $sql.Add(('DROP TABLE IF EXISTS {0}' -f $t)) } }
         if ($made.Count -eq $NewTables.Count) { $sql.Add('DROP TABLE IF EXISTS d1_migrations_bol_refresh') }
         $lines.Add(('  Οι πίνακες που φτιάχτηκαν τώρα:  npx wrangler d1 execute {0} --remote --command "{1}"' -f $SalesDb, ($sql -join '; ')))
     }
