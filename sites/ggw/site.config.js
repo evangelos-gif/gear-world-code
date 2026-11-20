@@ -3,7 +3,11 @@
 
 import { promosFor, AWIN_PUBLISHER_ID } from '../../promos/promos.js';
 import { networkFor } from '../../promos/network.js';
+// bol.com (NL and BE only, Dutch names, lessons L204): sites/_shared/bol.js.
+import { bolDelivery, BOL_SITES } from '../_shared/bol.js';
 import { LINKWISE_GR } from './linkwise-gr.js';
+
+const BOL = bolDelivery(BOL_SITES.ggw);
 
 export default {
   code: 'GGW',
@@ -81,8 +85,8 @@ export default {
     // Wave 3 (approvals file of chat 7, 16 Nov 2026, lessons L171): the US shops only to the US.
     'Everywhere Chair': ['US'], Garvee: ['US'], MOVA: ['US'], Aosom: ['US'],
     // Linkwise (Greece and Cyprus, lessons L199): ./linkwise-gr.js.
-    ...LINKWISE_GR.retailers },
-    languages: { Tuinmeubelwereld: 'nl', ...LINKWISE_GR.languages } },
+    ...LINKWISE_GR.retailers, ...BOL.retailers },
+    languages: { Tuinmeubelwereld: 'nl', ...LINKWISE_GR.languages, ...BOL.languages } },
   foreignCurrencies: ['USD', 'PLN'],
   displayCurrencies: ['GBP', 'EUR', 'PLN', 'ALL', 'RON', 'RUB'],
   cart: { name: 'Saved list', maxItems: 30 },

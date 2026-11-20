@@ -4,6 +4,10 @@
 
 import { promosFor, AWIN_PUBLISHER_ID } from '../../promos/promos.js';
 import { networkFor } from '../../promos/network.js';
+// bol.com (NL and BE only, Dutch names, lessons L204): sites/_shared/bol.js.
+import { bolDelivery, BOL_SITES } from '../_shared/bol.js';
+
+const BOL = bolDelivery(BOL_SITES.vgw);
 
 export default {
   code: 'VGW',
@@ -31,7 +35,7 @@ export default {
   // delivers to the EU and the EEA, not to the UK (owner, 9 Nov 2026). Visitors see only what delivers to them.
   // AliExpress PL (Awin 12044, Polish names, prices in zloty): Poland only, so only the Poland view shows it (owner,
   // 15 Nov 2026, lessons L157, round 2); its prices get "≈ £…" (foreignCurrencies PLN).
-  deliversTo: { default: ['GB'], retailers: { 'AliExpress PL': ['PL'], VEVOR: ['EU', 'IS', 'LI', 'NO'] } },
+  deliversTo: { default: ['GB'], retailers: { 'AliExpress PL': ['PL'], VEVOR: ['EU', 'IS', 'LI', 'NO'], ...BOL.retailers }, languages: { ...BOL.languages } },
   // Lessons L107: a UK visitor sees UK retailers only, so the texts no longer say "retailers in the UK and Europe".
   retailersFromEurope: false,
 

@@ -4,7 +4,11 @@
 
 import { promosFor, AWIN_PUBLISHER_ID } from '../../promos/promos.js';
 import { networkFor } from '../../promos/network.js';
+// bol.com (NL and BE only, Dutch names, lessons L204): sites/_shared/bol.js.
+import { bolDelivery, BOL_SITES } from '../_shared/bol.js';
 import { LINKWISE_GR } from './linkwise-gr.js';
+
+const BOL = bolDelivery(BOL_SITES.kgw);
 
 export default {
   code: 'KGW',
@@ -74,7 +78,7 @@ export default {
     'NORTIV 8': ['US'], 'The Chess Store': ['US'], Robotime: ['US'], Moonkie: ['US'], Reima: ['US'],
     'BC Babycare': ['US'], Destira: ['US'],
     // Linkwise (Greece and Cyprus, lessons L199): ./linkwise-gr.js.
-    ...LINKWISE_GR.retailers }, languages: { ...LINKWISE_GR.languages } },
+    ...LINKWISE_GR.retailers, ...BOL.retailers }, languages: { ...LINKWISE_GR.languages, ...BOL.languages } },
   foreignCurrencies: ['USD', 'PLN'],
   displayCurrencies: ['GBP', 'EUR', 'PLN', 'ALL', 'RON', 'RUB'],
   cart: { name: 'Saved list', maxItems: 30 },

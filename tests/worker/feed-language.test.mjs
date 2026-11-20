@@ -85,9 +85,11 @@ test('L165: the config check names a wrong feed language, one without its own co
   // shops of that day: La Redoute NL/DE, Dille & Kamille NL/FR, Miss Towels, WoodWick, Kerstland, Baobab (HGW), Tuinmeubelwereld (GGW).
   // + the Linkwise shops in Greek (Greece and Cyprus, L199: sites/<site>/linkwise-gr.js, tests/worker/linkwise-l199.test.mjs).
   assert.equal(all.filter(x => x.endsWith(' el')).length, 116);
-  assert.deepEqual(all.filter(x => !x.endsWith(' el')).sort(), ['agw VEVOR nl', 'cgw Reidl de', 'ggw Tuinmeubelwereld nl', 'hgw Baobab Collection fr', 'hgw Dille Kamille FR fr',
+  // + bol.com in Dutch on its 10 sites (L204, sites/_shared/bol.js, tests/worker/bol-sites.test.mjs).
+  const BOL = ['agw', 'cgw', 'ggw', 'hgw', 'kgw', 'mgw', 'sgw', 'vgw', 'wgw', 'zgw'].map(s => `${s} bol.com nl`);
+  assert.deepEqual(all.filter(x => !x.endsWith(' el')).sort(), [...BOL, 'agw VEVOR nl', 'cgw Reidl de', 'ggw Tuinmeubelwereld nl', 'hgw Baobab Collection fr', 'hgw Dille Kamille FR fr',
     'hgw Dille Kamille NL nl', 'hgw Kerstland nl', 'hgw La Redoute DE de', 'hgw La Redoute NL nl', 'hgw Miss Towels nl', 'hgw Westwing DE de', 'hgw Westwing ES es',
-    'hgw Westwing FR fr', 'hgw Westwing IT it', 'hgw Westwing NL nl', 'hgw WoodWick NL nl', 'mgw Uhrcenter de', 'tgw refurbed NL nl', 'wgw Uhrcenter de']);
+    'hgw Westwing FR fr', 'hgw Westwing IT it', 'hgw Westwing NL nl', 'hgw WoodWick NL nl', 'mgw Uhrcenter de', 'tgw refurbed NL nl', 'wgw Uhrcenter de'].sort());
 });
 
 test('L165: a feed in another language: only the countries that speak it, never the UK, the all view or Google', () => {
@@ -171,7 +173,7 @@ test('L165: the hidden reason of a feed in another language is "language", not "
   assert.equal(hiddenReason(viewFor(demo, 'GR', NOW), row('Us Only')), 'country');
   assert.equal(hiddenReason(viewFor(demo, 'US', NOW), row('Someone')), 'country');
   assert.equal(hiddenReason(viewFor(demo, 'FR', NOW), { retailer: 'Fr EU', last_seen_at: '2026-01-01 00:00:00' }), 'stale');
-  assert.equal(viewFor(config.zgw, 'GB', NOW).languages, null, 'a site without feed languages (TGW has one since 18 Nov 2026, L194)');
+  assert.equal(viewFor(config.bgw, 'GB', NOW).languages, null, 'a site without feed languages (TGW has one since 18 Nov 2026, L194; ZGW bol.com since L204)');
 });
 
 test('L165: the shops that ship only to the US are seen only from the US (owner: "Only in the USA")', () => {
