@@ -5125,7 +5125,8 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         '@echo off',
         'echo %* >> "%GW_FAKE_STATE%\calls.log"',
         'echo %* | findstr /L /C:"whoami" >nul && goto whoami',
-        'echo %* | findstr /L /C:"secret put" >nul && goto secretput',
+        'echo %* | findstr /L /C:"secret bulk" >nul && goto secretbulk',
+        'echo %* | findstr /L /C:"partner.bol.com" >nul && goto bolnames',
         'echo %* | findstr /L /C:"secret list" >nul && goto secretlist',
         'echo %* | findstr /L /C:"sqlite_master" >nul && goto tables',
         'echo %* | findstr /L /C:"INSERT INTO bol_refresh_meta" >nul && goto metaput',
@@ -5155,7 +5156,7 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         ('echo ' + (& $brListJson @('pets-gear-world'))),
         'exit /b 0',
         ':tables',
-        'if exist "%GW_FAKE_STATE%\migrated.flag" echo [{"results":[{"name":"bol_refresh_runs"},{"name":"bol_refresh_meta"},{"name":"bol_refresh_hidden"}],"success":true}]',
+        'if exist "%GW_FAKE_STATE%\migrated.flag" echo [{"results":[{"name":"bol_refresh_runs"},{"name":"bol_refresh_meta"},{"name":"bol_refresh_checked"},{"name":"bol_refresh_hidden"}],"success":true}]',
         'if not exist "%GW_FAKE_STATE%\migrated.flag" echo [{"results":[],"success":true}]',
         'exit /b 0',
         ':metaput',
@@ -5165,10 +5166,12 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         'echo done',
         'exit /b 0',
         ':meta0',
+        'if exist "%GW_FAKE_STATE%\disabled.txt" del "%GW_FAKE_STATE%\disabled.txt"',
         '>"%GW_FAKE_STATE%\enabled.txt" echo 0',
         'echo done',
         'exit /b 0',
         ':meta1',
+        'if exist "%GW_FAKE_STATE%\disabled.txt" del "%GW_FAKE_STATE%\disabled.txt"',
         '>"%GW_FAKE_STATE%\enabled.txt" echo 1',
         'echo done',
         'exit /b 0',
@@ -5177,9 +5180,11 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         'if not exist "%GW_FAKE_STATE%\migrated.flag" exit /b 1',
         'set "GWE="',
         'set "GWC="',
+        'set "GWD="',
         'if exist "%GW_FAKE_STATE%\enabled.txt" set /p GWE=<"%GW_FAKE_STATE%\enabled.txt"',
         'if exist "%GW_FAKE_STATE%\commit.txt" set /p GWC=<"%GW_FAKE_STATE%\commit.txt"',
-        'echo [{"results":[{"key":"enabled","value":"%GWE%"},{"key":"commit","value":"%GWC%"}],"success":true}]',
+        'if exist "%GW_FAKE_STATE%\disabled.txt" set /p GWD=<"%GW_FAKE_STATE%\disabled.txt"',
+        'echo [{"results":[{"key":"enabled","value":"%GWE%"},{"key":"commit","value":"%GWC%"},{"key":"disabled_reason","value":"%GWD%"}],"success":true}]',
         'exit /b 0',
         ':runs',
         'if exist "%GW_FAKE_STATE%\migrated.flag" echo [{"results":[{"ran_at":"2026-11-21T04:13:00.000Z","ok":1,"state":"ok","calls":281,"tokens":1,"found":1200,"updated":90,"hidden":12,"reshown":3,"pending":0,"message":"cycle 2026-11-21T04h: lists read, done"},{"ran_at":"2026-11-21T03:13:00.000Z","ok":2,"state":"held","calls":0,"tokens":0,"found":0,"updated":0,"hidden":0,"reshown":0,"pending":0,"message":"kill switch off"},{"ran_at":"2026-11-21T02:13:00.000Z","ok":0,"state":"error","calls":0,"tokens":1,"found":0,"updated":0,"hidden":0,"reshown":0,"pending":5,"message":"bol.com refused the keys (401)"}],"success":true}]',
@@ -5234,11 +5239,24 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         'for %%F in ("%GW_FAKE_STATE%\secrets\*.txt") do echo {"name":"%%~nF","type":"secret_text"},',
         'echo {"name":"_end","type":"secret_text"}]',
         'exit /b 0',
-        ':secretput',
+        ':bolnames',
+        'if not exist "%GW_FAKE_STATE%\misname.flag" goto bolnamesok',
+        'echo %* | findstr /L /C:"home-gear-world" >nul && goto bolnamesbad',
+        ':bolnamesok',
+        'echo [{"results":[{"retailer":"bol.com","n":4}],"success":true}]',
+        'exit /b 0',
+        ':bolnamesbad',
+        'echo [{"results":[{"retailer":"bol.com","n":4},{"retailer":"bol.com NL","n":3}],"success":true}]',
+        'exit /b 0',
+        ':secretbulk',
+        'if exist "%GW_FAKE_STATE%\bulkfail.flag" echo X [ERROR] A request to the Cloudflare API failed. [code: 10021]',
+        'if exist "%GW_FAKE_STATE%\bulkfail.flag" exit /b 1',
         'set "GWSECRET="',
         'for /f "usebackq delims=" %%L in (`more`) do if not defined GWSECRET set "GWSECRET=%%L"',
-        '>"%GW_FAKE_STATE%\secrets\%5.txt" echo %GWSECRET%',
-        'echo Success! Uploaded secret %5',
+        '>"%GW_FAKE_STATE%\bulk.txt" echo %GWSECRET%',
+        '>"%GW_FAKE_STATE%\secrets\BOL_CATALOG_CLIENT_ID.txt" echo %GWSECRET%',
+        '>"%GW_FAKE_STATE%\secrets\BOL_CATALOG_CLIENT_SECRET.txt" echo %GWSECRET%',
+        'echo Finished processing secrets: 2 secrets successfully uploaded',
         'exit /b 0'
     ) -join "`r`n"
     [System.IO.File]::WriteAllText((Join-Path $brBin 'npx.cmd'), $brNpx + "`r`n", [System.Text.Encoding]::ASCII)
@@ -5263,7 +5281,8 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
     function Run-BR([string[]]$a) { return (Run-BRP 'GW_TEST_NONE_' $a) }
     function BRText([string]$p) { if (Test-Path -LiteralPath $p) { return [System.IO.File]::ReadAllText($p) } else { return '' } }
     function BRCount([string]$pattern) { return ([regex]::Matches((BRText $brCalls), $pattern)).Count }
-    function BRSecret([string]$name) { return (BRText (Join-Path (Join-Path $brState 'secrets') ($name + '.txt'))).Trim() }
+    function BRBulk { return (BRText (Join-Path $brState 'bulk.txt')).Trim() }
+    function BRPair([string]$id, [string]$secret) { $j = BRBulk; return ($j.Contains('"BOL_CATALOG_CLIENT_ID":"' + $id + '"') -and $j.Contains('"BOL_CATALOG_CLIENT_SECRET":"' + $secret + '"')) }
     function BRLast([string]$filter) {
         $f = @(Get-ChildItem -LiteralPath $brOut -Filter $filter -ErrorAction SilentlyContinue | Sort-Object LastWriteTime, Name | Select-Object -Last 1)
         if ($f.Count -eq 0) { return '' }
@@ -5273,7 +5292,7 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         $p = Join-Path $brState $name
         if ($on) { Write-Utf8 $p 'x' } elseif (Test-Path -LiteralPath $p) { Remove-Item -LiteralPath $p -Force }
     }
-    $brChanges = 'migrations apply| deploy --config|secret put|time-travel|d1 export|INSERT INTO bol_refresh_meta'
+    $brChanges = 'migrations apply| deploy --config|secret bulk|secret put|time-travel|d1 export|INSERT INTO bol_refresh_meta'
     $brApply = @('-Step', 'apply', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ BOL ΑΝΑΝΕΩΣΗ')
     $brKeys = @('-Step', 'keys', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ BOL ΑΝΑΝΕΩΣΗ ΚΛΕΙΔΙΑ')
     $brNoKeys = Join-Path $brHome 'no-such-keys.dat'
@@ -5286,6 +5305,10 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         Check ($r.Contains('Κλειδιά του καταλόγου σε αυτόν τον υπολογιστή (bol-feed-download -Step keys): υπάρχουν') -and $r.Contains('Αυτή η έκδοση κώδικα: ' + $brCommit.Substring(0, 7))) 'bol refresh check: the PC key file is seen (not opened) and the code version shown'
         Check ((BRCount $brChanges) -eq 0) 'bol refresh check: nothing made, deployed or stored'
         Check (-not $r.Contains($brIds['gear-world-awin']) -and -not $r.Contains($brIds['car-gear-world']) -and -not $r.Contains($brId) -and -not $r.Contains($brSecret)) 'bol refresh check: no database id and no key in the report'
+        Check ($r.Contains('Γραμμές «bol.com» στα sites: CGW 4, HGW 4') -and $r.Contains('λέγονται ακριβώς «bol.com»: 🟢 ΕΝΤΑΞΕΙ') -and (BRCount 'd1 execute home-gear-world --remote --json --command "SELECT retailer, COUNT') -eq 1) 'bol refresh check: the bol.com rows per site, every name exactly bol.com'
+        BRFlag 'misname.flag' $true
+        Check ((Run-BR @('-Step', 'check')) -eq 0 -and (BRLast 'BOL_REFRESH_CHECK_*.txt').Contains('🟡 ΠΡΟΣΟΧΗ: HGW (home-gear-world): 3 γραμμές με links του partner.bol.com έχουν το όνομα «bol.com NL»')) 'bol refresh check (P2-5): rows with bol.com links under another retailer name are a ΠΡΟΣΟΧΗ'
+        BRFlag 'misname.flag' $false
         # gw-run wiring: the tool runs through the runner, which names the chat at the end
         $gwOut = @(& $exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path (Join-Path $repo 'tools') 'gw-run.ps1') -LocalRepo $repo -Tool bol-refresh-setup -Step check -PcHome $brHome -SkipInstall -NoClipboard -Chat 'Manager test chat')
         Check ($LASTEXITCODE -eq 0 -and (($gwOut | ForEach-Object { "$_" }) -join "`n").Contains('Manager test chat')) 'bol refresh: runs through gw-run.ps1 -Tool bol-refresh-setup'
@@ -5306,21 +5329,21 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         $env:GW_GUARD_TEST_COMMIT = $brCommit
         # no restore point (of the sales database, or of one site database): nothing changes
         BRFlag 'ttfail.flag' $true
-        Check ((Run-BR $brApply) -eq 11 -and (BRCount 'migrations apply| deploy --config|secret put|d1 export') -eq 0) 'bol refresh apply: no restore point, no change (exit 11)'
+        Check ((Run-BR $brApply) -eq 11 -and (BRCount 'migrations apply| deploy --config|secret bulk|d1 export') -eq 0) 'bol refresh apply: no restore point, no change (exit 11)'
         BRFlag 'ttfail.flag' $false
         BRFlag 'ttsitefail.flag' $true
-        Check ((Run-BR $brApply) -eq 11 -and (BRCount 'migrations apply| deploy --config|secret put') -eq 0) 'bol refresh apply: no restore point of a site database, no change (exit 11)'
+        Check ((Run-BR $brApply) -eq 11 -and (BRCount 'migrations apply| deploy --config|secret bulk') -eq 0) 'bol refresh apply: no restore point of a site database, no change (exit 11)'
         BRFlag 'ttsitefail.flag' $false
         # a failing deploy stops before the keys; the undo drops only the tables this run made
         BRFlag 'deployfail.flag' $true
         $env:GW_TEST_BOL_API = 'ok'
-        Check ((Run-BR $brApply) -eq 7 -and (BRCount 'secret put') -eq 0) 'bol refresh apply: a failing deploy stops before the keys (exit 7)'
+        Check ((Run-BR $brApply) -eq 7 -and (BRCount 'secret bulk') -eq 0) 'bol refresh apply: a failing deploy stops before the keys (exit 7)'
         $r = BRLast 'BOL_REFRESH_APPLY_*.txt'
         Check ($r.Contains('DROP TABLE IF EXISTS bol_refresh_runs') -and $r.Contains('DROP TABLE IF EXISTS d1_migrations_bol_refresh') -and -not $r.Contains('wrangler delete --name')) 'bol refresh apply: after a failed deploy the undo drops only the new tables'
         BRFlag 'deployfail.flag' $false
         # keys that bol.com refuses are not stored; the Worker made in this run is the undo (with the warning)
         $env:GW_TEST_BOL_API = 'refused'
-        Check ((Run-BR $brApply) -eq 8 -and (BRCount 'secret put') -eq 0) 'bol refresh apply: refused keys are not stored (exit 8)'
+        Check ((Run-BR $brApply) -eq 8 -and (BRCount 'secret bulk') -eq 0) 'bol refresh apply: refused keys are not stored (exit 8)'
         $r = BRLast 'BOL_REFRESH_APPLY_*.txt'
         Check ($r.Contains('ΔΕΝ δέχτηκε τα κλειδιά (401)') -and -not $r.Contains($brId) -and -not $r.Contains($brSecret)) 'bol refresh apply: the report says bol.com refused the keys, without the keys'
         Check ($r.Contains('wrangler delete --name gear-world-bol-refresh') -and $r.Contains('tools/bol-remove.ps1') -and -not $r.Contains('DROP TABLE') -and -not $r.Contains('secret delete')) 'bol refresh apply: the undo names the Worker this run made, with the warning to remove the bol.com products first'
@@ -5330,43 +5353,48 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         Check (@(Get-ChildItem -LiteralPath (Join-Path (Join-Path $repo 'sites') 'bol-refresh') -Recurse -File | Where-Object { $_.Name -eq 'wrangler.jsonc' }).Count -eq 0) 'bol refresh apply: no real wrangler.jsonc in the repo folder'
         # blocked (403/429): not stored, no new try
         $env:GW_TEST_BOL_API = 'blocked'
-        Check ((Run-BR $brKeys) -eq 8 -and (BRCount 'secret put') -eq 0 -and (BRLast 'BOL_REFRESH_KEYS_*.txt').Contains('403/429')) 'bol refresh keys: bol.com answering 403/429 stores nothing (exit 8)'
+        Check ((Run-BR $brKeys) -eq 8 -and (BRCount 'secret bulk') -eq 0 -and (BRLast 'BOL_REFRESH_KEYS_*.txt').Contains('403/429')) 'bol refresh keys: bol.com answering 403/429 stores nothing (exit 8)'
         # with approval: the keys from the PC's DPAPI file, after the backup, the tables, the Worker and its version
         $env:GW_TEST_BOL_API = 'ok'
         Check ((Run-BR @('-Step', 'apply', '-Apply', '-Approve', 'Εγκρίνω bol ανανέωση')) -eq 0) 'bol refresh apply with approval: exit 0'
         $c = BRText $brCalls
-        Check ($c.LastIndexOf('time-travel info gear-world-awin') -lt $c.LastIndexOf('d1 export gear-world-awin') -and $c.LastIndexOf('d1 export gear-world-awin') -lt $c.LastIndexOf('time-travel info pets-gear-world') -and $c.LastIndexOf('time-travel info pets-gear-world') -lt $c.LastIndexOf('migrations apply gear-world-awin --remote') -and $c.LastIndexOf('migrations apply gear-world-awin --remote') -lt $c.LastIndexOf(' deploy --config') -and $c.LastIndexOf(' deploy --config') -lt $c.LastIndexOf('INSERT INTO bol_refresh_meta') -and $c.LastIndexOf('INSERT INTO bol_refresh_meta') -lt $c.LastIndexOf('secret put BOL_CATALOG_CLIENT_ID --name gear-world-bol-refresh') -and $c.LastIndexOf('secret put BOL_CATALOG_CLIENT_ID') -lt $c.LastIndexOf('secret put BOL_CATALOG_CLIENT_SECRET')) 'bol refresh apply: backup (11 restore points), tables, Worker, its version, then the two keys'
+        Check ($c.LastIndexOf('time-travel info gear-world-awin') -lt $c.LastIndexOf('d1 export gear-world-awin') -and $c.LastIndexOf('d1 export gear-world-awin') -lt $c.LastIndexOf('time-travel info pets-gear-world') -and $c.LastIndexOf('time-travel info pets-gear-world') -lt $c.LastIndexOf('migrations apply gear-world-awin --remote') -and $c.LastIndexOf('migrations apply gear-world-awin --remote') -lt $c.LastIndexOf(' deploy --config') -and $c.LastIndexOf(' deploy --config') -lt $c.LastIndexOf('INSERT INTO bol_refresh_meta') -and $c.LastIndexOf('INSERT INTO bol_refresh_meta') -lt $c.LastIndexOf('secret bulk --name gear-world-bol-refresh')) 'bol refresh apply: backup (11 restore points), tables, Worker, its version, then the two keys'
         Check ((BRCount 'migrations apply construction-gear-customers|migrations apply car-gear-world|migrations apply pets-gear-world') -eq 0) 'bol refresh apply: migrations only on gear-world-awin, never on a site database'
-        Check ((BRSecret 'BOL_CATALOG_CLIENT_ID') -eq $brId -and (BRSecret 'BOL_CATALOG_CLIENT_SECRET') -eq $brSecret -and -not $c.Contains($brId) -and -not $c.Contains($brSecret)) 'bol refresh apply: the PC keys reached wrangler through its input, never on a command line'
+        Check ((BRPair $brId $brSecret) -and (BRCount 'secret bulk') -eq 1 -and (BRCount 'secret put') -eq 0 -and -not $c.Contains($brId) -and -not $c.Contains($brSecret)) 'bol refresh apply: both PC keys in ONE request (secret bulk) through wrangler''s input, never on a command line'
         $r = BRLast 'BOL_REFRESH_APPLY_*.txt'
         Check ($r.Contains('Αποτέλεσμα: 🟢 ΕΤΟΙΜΟ') -and $r.Contains('κρυπτογραφημένο αρχείο του υπολογιστή') -and -not $r.Contains($brId) -and -not $r.Contains($brSecret) -and -not $r.Contains($brIds['gear-world-awin']) -and -not $r.Contains($brVer) -and -not $r.Contains($brBm)) 'bol refresh apply: ready, without keys, database ids, the version or the restore point'
         Check ($r.Contains('secret delete BOL_CATALOG_CLIENT_SECRET --name gear-world-bol-refresh') -and $r.Contains('npx wrangler rollback') -and $r.Contains('time-travel restore gear-world-awin') -and $r.Contains('-Step disable') -and $r.Contains('στο rollback.txt') -and -not $r.Contains('wrangler delete --name')) 'bol refresh apply: the undo names the keys, the previous code, the restore point and the switch'
+        Check ($r.Contains('ΣΒΗΝΕΤΑΙ από τον Worker') -and $r.Contains('bol-api.dat.old-') -and $r.Contains('Οι εντολές αναίρεσης (npx wrangler ...) τρέχουν στον φάκελο: ') -and $r.Contains('gear-world-bol-refresh\deploy\')) 'bol refresh apply (P3): the undo says the keys are deleted, how to put keys back, and the folder of the undo commands'
         $bk = @(Get-ChildItem -LiteralPath (Join-Path $brWork 'backups') -Directory | Sort-Object Name | Select-Object -Last 1)
         $rb = BRText (Join-Path $bk[0].FullName 'rollback.txt')
         Check ($bk.Count -eq 1 -and $rb.Contains($brBm) -and $rb.Contains('npx wrangler rollback ' + $brVer + ' --name gear-world-bol-refresh') -and $rb.Contains('time-travel restore pets-gear-world') -and $rb.Contains('time-travel restore construction-gear-customers') -and (Test-Path -LiteralPath (Join-Path $bk[0].FullName 'gear-world-awin.sql'))) 'bol refresh apply: dated backup folder with the database copy, the 11 restore points and the rollback'
         Check ($r.Contains('⏸ ΣΕ ΠΑΥΣΗ') -and $r.Contains('🟢 ΕΝΤΑΞΕΙ  κλήσεις 281') -and $r.Contains('🔴 ΠΡΟΒΛΗΜΑ') -and $r.Contains('Διακόπτης (kill switch): ΑΝΟΙΧΤΟΣ')) 'bol refresh apply: the last runs in words (ok, held, problem) and the switch'
         # again: the keys are there and kept; the Worker deployed again
-        $puts = BRCount 'secret put'
+        $puts = BRCount 'secret bulk'
         $deploys = BRCount ' deploy --config'
-        Check ((Run-BR $brApply) -eq 0 -and (BRCount 'secret put') -eq $puts -and (BRCount ' deploy --config') -eq ($deploys + 1)) 'bol refresh apply again: keys kept, the Worker deployed again'
+        Check ((Run-BR $brApply) -eq 0 -and (BRCount 'secret bulk') -eq $puts -and (BRCount ' deploy --config') -eq ($deploys + 1)) 'bol refresh apply again: keys kept, the Worker deployed again'
         Check ((BRLast 'BOL_REFRESH_APPLY_*.txt').Contains('ΠΑΡΑΛΕΙΦΘΗΚΕ (κρατήθηκαν τα κλειδιά')) 'bol refresh apply again: the kept keys are told'
-        Check ((Run-BR ($brApply + @('-ReplaceKeys'))) -eq 0 -and (BRCount 'secret put') -eq ($puts + 2)) 'bol refresh apply -ReplaceKeys: the two keys stored again'
+        Check ((Run-BR ($brApply + @('-ReplaceKeys'))) -eq 0 -and (BRCount 'secret bulk') -eq ($puts + 1)) 'bol refresh apply -ReplaceKeys: the two keys stored again, in one request'
+        BRFlag 'bulkfail.flag' $true
+        $before = BRBulk
+        Check ((Run-BR $brKeys) -eq 8 -and (BRBulk) -eq $before -and (BRLast 'BOL_REFRESH_KEYS_*.txt').Contains('Μπαίνουν και τα δύο μαζί σε μία αίτηση')) 'bol refresh keys (P3): a failing upload changes neither key (both or neither)'
+        BRFlag 'bulkfail.flag' $false
         # keys only: the apply phrase is not the keys phrase; the PC keys, or the hidden prompt when there is no file
         Check ((Run-BR @('-Step', 'keys', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ BOL ΑΝΑΝΕΩΣΗ')) -eq 1) 'bol refresh keys: the apply phrase is not the keys phrase (exit 1)'
         $deploys = BRCount ' deploy --config|migrations apply|time-travel|d1 export'
-        Check ((Run-BRP 'GW_TEST_BRK_' ($brKeys + @('-SecretFile', $brNoKeys))) -eq 0 -and (BRSecret 'BOL_CATALOG_CLIENT_ID') -eq 'promptCatalogId0001' -and (BRCount ' deploy --config|migrations apply|time-travel|d1 export') -eq $deploys) 'bol refresh keys: no file on the PC, the keys from the hidden prompt; no deploy, migration or backup'
+        Check ((Run-BRP 'GW_TEST_BRK_' ($brKeys + @('-SecretFile', $brNoKeys))) -eq 0 -and (BRPair 'promptCatalogId0001' 'promptCatalogSecret0123456789') -and (BRCount ' deploy --config|migrations apply|time-travel|d1 export') -eq $deploys) 'bol refresh keys: no file on the PC, the keys from the hidden prompt; no deploy, migration or backup'
         $r = BRLast 'BOL_REFRESH_KEYS_*.txt'
         Check ($r.Contains('την κρυφή ερώτηση') -and -not $r.Contains('promptCatalogSecret0123456789') -and -not (BRText $brCalls).Contains('promptCatalogSecret0123456789') -and $r.Contains('secret delete BOL_CATALOG_CLIENT_ID') -and -not $r.Contains('time-travel restore')) 'bol refresh keys: no key in the report or on a command line; the undo names the keys only'
-        $puts = BRCount 'secret put'
-        Check ((Run-BR ($brKeys + @('-SecretFile', $brNoKeys))) -eq 0 -and (BRCount 'secret put') -eq $puts -and (BRLast 'BOL_REFRESH_KEYS_*.txt').Contains('ΠΑΡΑΛΕΙΦΘΗΚΕ')) 'bol refresh keys: Enter at the hidden prompt changes nothing (ΠΑΡΑΛΕΙΦΘΗΚΕ)'
+        $puts = BRCount 'secret bulk'
+        Check ((Run-BR ($brKeys + @('-SecretFile', $brNoKeys))) -eq 0 -and (BRCount 'secret bulk') -eq $puts -and (BRLast 'BOL_REFRESH_KEYS_*.txt').Contains('ΠΑΡΑΛΕΙΦΘΗΚΕ')) 'bol refresh keys: Enter at the hidden prompt changes nothing (ΠΑΡΑΛΕΙΦΘΗΚΕ)'
         $env:GW_TEST_BRS_BOL_CATALOG_CLIENT_ID = 'short'
         $env:GW_TEST_BRS_BOL_CATALOG_CLIENT_SECRET = 'short'
-        Check ((Run-BRP 'GW_TEST_BRS_' ($brKeys + @('-SecretFile', $brNoKeys))) -eq 8 -and (BRCount 'secret put') -eq $puts) 'bol refresh keys: keys that do not look right are not stored (exit 8)'
-        Check ((Run-BR $brKeys) -eq 0 -and (BRSecret 'BOL_CATALOG_CLIENT_ID') -eq $brId) 'bol refresh keys: the PC keys again (after new keys in bol-feed-download)'
+        Check ((Run-BRP 'GW_TEST_BRS_' ($brKeys + @('-SecretFile', $brNoKeys))) -eq 8 -and (BRCount 'secret bulk') -eq $puts) 'bol refresh keys: keys that do not look right are not stored (exit 8)'
+        Check ((Run-BR $brKeys) -eq 0 -and (BRPair $brId $brSecret)) 'bol refresh keys: the PC keys again (after new keys in bol-feed-download)'
         # unreadable key names: no key is touched
         BRFlag 'listfail.flag' $true
-        $puts = BRCount 'secret put'
-        Check ((Run-BR ($brApply + @('-ReplaceKeys'))) -eq 14 -and (BRCount 'secret put') -eq $puts) 'bol refresh apply: key names unreadable, no key changed (exit 14)'
+        $puts = BRCount 'secret bulk'
+        Check ((Run-BR ($brApply + @('-ReplaceKeys'))) -eq 14 -and (BRCount 'secret bulk') -eq $puts) 'bol refresh apply: key names unreadable, no key changed (exit 14)'
         BRFlag 'listfail.flag' $false
         # the kill switch: off and on, each with its own phrase
         Check ((Run-BR @('-Step', 'disable')) -eq 0 -and (BRText (Join-Path $brState 'enabled.txt')).Trim() -eq '1') 'bol refresh disable without -Apply: nothing changes'
@@ -5374,8 +5402,11 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         Check ((Run-BR @('-Step', 'disable', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ BOL ΑΝΑΝΕΩΣΗ ΠΑΥΣΗ')) -eq 0 -and (BRText (Join-Path $brState 'enabled.txt')).Trim() -eq '0') 'bol refresh disable: the switch is off'
         $r = BRLast 'BOL_REFRESH_DISABLE_*.txt'
         Check ($r.Contains('ΚΛΕΙΣΤΟΣ') -and $r.Contains('-Step enable') -and $r.Contains('δεν ελέγχθηκε 24 ώρες κρύβεται')) 'bol refresh disable: the report says what still happens and how to turn it on'
-        Check ((Run-BR $brApply) -eq 0 -and (BRLast 'BOL_REFRESH_APPLY_*.txt').Contains('Ο διακόπτης είναι ΚΛΕΙΣΤΟΣ') -and (BRText (Join-Path $brState 'enabled.txt')).Trim() -eq '0') 'bol refresh apply keeps a switch that is off (the removal tool''s 0 stays), and says so'
-        Check ((Run-BR @('-Step', 'enable', '-Apply', '-Approve', 'εγκρινω bol ανανεωση εναρξη')) -eq 0 -and (BRText (Join-Path $brState 'enabled.txt')).Trim() -eq '1') 'bol refresh enable: the switch is on again'
+        Check ((Run-BR $brApply) -eq 0 -and (BRLast 'BOL_REFRESH_APPLY_*.txt').Contains('Ο διακόπτης έμεινε ΚΛΕΙΣΤΟΣ: το apply δεν τον ανοίγει ποτέ') -and (BRText (Join-Path $brState 'enabled.txt')).Trim() -eq '0') 'bol refresh apply (P2-6) never turns a switch on that is off (the removal tool''s first step), and says so'
+        # the Worker turned it off itself after a 401/403: check says so in words and what to do; enable clears the reason
+        Write-Utf8 (Join-Path $brState 'disabled.txt') 'worker 2026-11-21T04:13:05.000Z: bol.com answered 401 (token); turn on with -Step enable'
+        Check ((Run-BR @('-Step', 'check')) -eq 0 -and (BRLast 'BOL_REFRESH_CHECK_*.txt').Contains('🔴 ΠΡΟΒΛΗΜΑ: τον έκλεισε ο ίδιος ο Worker') -and (BRLast 'BOL_REFRESH_CHECK_*.txt').Contains('bol.com answered 401 (token)')) 'bol refresh check (P1-2): a switch the Worker turned off after a 401 is a ΠΡΟΒΛΗΜΑ, with the reason'
+        Check ((Run-BR @('-Step', 'enable', '-Apply', '-Approve', 'εγκρινω bol ανανεωση εναρξη')) -eq 0 -and (BRText (Join-Path $brState 'enabled.txt')).Trim() -eq '1' -and -not (Test-Path -LiteralPath (Join-Path $brState 'disabled.txt'))) 'bol refresh enable: the switch is on again and the Worker''s reason cleared'
         # the guard: a Worker that runs a version this one does not contain is never replaced; a Worker that does not
         # say its version yet is not replaced either
         Write-Utf8 (Join-Path $brState 'commit.txt') ('cd' * 20)
@@ -5387,6 +5418,13 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         Remove-Item -LiteralPath (Join-Path $brState 'commit.txt') -Force
         Check ((Run-BR $brApply) -eq 13 -and (BRCount $brChanges) -eq $before -and (BRLast 'BOL_REFRESH_APPLY_*.txt').Contains('δεν διάβασα ποια έκδοση τρέχει ο Worker')) 'bol refresh apply: a Worker that does not say its version is not replaced (exit 13)'
         Write-Utf8 (Join-Path $brState 'commit.txt') $brCommit
+        # P3: the Worker exists but its tables are gone (a restore of gear-world-awin): only the tables, then a clear stop
+        BRFlag 'migrated.flag' $false
+        $deploys = BRCount ' deploy --config|secret bulk'
+        Check ((Run-BR $brApply) -eq 13 -and (BRCount ' deploy --config|secret bulk') -eq $deploys -and (Test-Path -LiteralPath (Join-Path $brState 'migrated.flag'))) 'bol refresh apply: Worker without its tables, only the tables are made and it stops (exit 13), no deploy, no keys'
+        $r = BRLast 'BOL_REFRESH_APPLY_*.txt'
+        Check ($r.Contains('Ο Worker υπάρχει, αλλά οι πίνακές του') -and $r.Contains('ΣΤΑΜΑΤΗΣΑ ΣΚΟΠΙΜΑ μετά τους πίνακες') -and $r.Contains('ξανατρέξε την ίδια εντολή') -and $r.Contains('DROP TABLE IF EXISTS bol_refresh_checked')) 'bol refresh apply: the report explains the next step and the undo of the new tables'
+        Check ((Run-BR $brApply) -eq 0) 'bol refresh apply after the tables are back: exit 0'
         # check afterwards: the Worker, its keys by name, the switch, the last runs
         Check ((Run-BR @('-Step', 'check')) -eq 0) 'bol refresh check after apply: exit 0'
         $r = BRLast 'BOL_REFRESH_CHECK_*.txt'
