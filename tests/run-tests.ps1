@@ -6715,18 +6715,19 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
     }
 }
 
-# 26. bol-remove.ps1 (bol.com off every site at once, lessons L204) with a fake wrangler (Windows only: runs .cmd files)
+# 26. bol-remove.ps1 (bol.com off every site at once, lessons L204) with a fake wrangler (Windows only: runs .cmd files).
+# Its own folders and names (bolrm-*, Rm*): section 17c (the bol.com refresh) has br-* and BR*, and PowerShell names ignore case.
 if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
     Write-Host 'bol-remove.ps1 (fake wrangler)'
-    $brTool = Join-Path (Join-Path $repo 'tools') 'bol-remove.ps1'
-    $brHome = Join-Path $work 'br-home'
-    $brState = Join-Path $work 'br-state'
-    $brBin = Join-Path $work 'br-bin'
-    $brOut = Join-Path $brHome 'gear-world-reports'
-    New-Item -ItemType Directory -Path $brState, $brBin, $brHome -Force | Out-Null
-    $brBookmark = '00000085-0000024c-00004c6d-' + [guid]::NewGuid().ToString('N')
-    $brVersion = [guid]::NewGuid().ToString()
-    $brNpx = @(
+    $rmTool = Join-Path (Join-Path $repo 'tools') 'bol-remove.ps1'
+    $rmHome = Join-Path $work 'bolrm-home'
+    $rmState = Join-Path $work 'bolrm-state'
+    $rmBin = Join-Path $work 'bolrm-bin'
+    $rmOut = Join-Path $rmHome 'gear-world-reports'
+    New-Item -ItemType Directory -Path $rmState, $rmBin, $rmHome -Force | Out-Null
+    $rmBookmark = '00000085-0000024c-00004c6d-' + [guid]::NewGuid().ToString('N')
+    $rmVersion = [guid]::NewGuid().ToString()
+    $rmNpx = @(
         '@echo off',
         'echo %* >> "%GW_FAKE_STATE%\calls.log"',
         'echo %* | findstr /L /C:"time-travel info" >nul && goto ttinfo',
@@ -6746,11 +6747,11 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         'echo [{"results":[{"value":"0","updated_at":"2026-11-21 06:00:00"}],"success":true}]',
         'exit /b 0',
         ':ttinfo',
-        ('echo The current bookmark is ' + $brBookmark),
+        ('echo The current bookmark is ' + $rmBookmark),
         'exit /b 0',
         ':deployments',
         'if not exist "%GW_FAKE_STATE%\worker.flag" goto noworker',
-        ('echo Created: 2026-11-21T06:00:00Z (100%%) ' + $brVersion),
+        ('echo Created: 2026-11-21T06:00:00Z (100%%) ' + $rmVersion),
         'exit /b 0',
         ':noworker',
         'echo This Worker does not exist on your account. [code: 10007]',
@@ -6815,61 +6816,61 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         'echo [{"results":[{"price_log":0,"price_last":0}],"success":true}]',
         'exit /b 0'
     ) -join "`r`n"
-    [System.IO.File]::WriteAllText((Join-Path $brBin 'npx.cmd'), $brNpx + "`r`n", [System.Text.Encoding]::ASCII)
+    [System.IO.File]::WriteAllText((Join-Path $rmBin 'npx.cmd'), $rmNpx + "`r`n", [System.Text.Encoding]::ASCII)
     $oldPath = $env:PATH
-    $env:PATH = $brBin + ';' + $oldPath
-    $env:GW_FAKE_STATE = $brState
-    $brCalls = Join-Path $brState 'calls.log'
-    function Run-Br([string[]]$a) {
-        $all = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $brTool, '-PcHome', $brHome, '-NoClipboard') + $a
+    $env:PATH = $rmBin + ';' + $oldPath
+    $env:GW_FAKE_STATE = $rmState
+    $rmCalls = Join-Path $rmState 'calls.log'
+    function Run-Rm([string[]]$a) {
+        $all = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $rmTool, '-PcHome', $rmHome, '-NoClipboard') + $a
         & $exe @all | Out-Null
         return $LASTEXITCODE
     }
-    function BrCalls { if (Test-Path -LiteralPath $brCalls) { return [System.IO.File]::ReadAllText($brCalls) } else { return '' } }
+    function RmCalls { if (Test-Path -LiteralPath $rmCalls) { return [System.IO.File]::ReadAllText($rmCalls) } else { return '' } }
     # The calls that would be a change, shown when a read-only check fails (so CI says which one).
-    function BrWrites([string]$c) { $w = @(($c -split "`r?`n") | Where-Object { $_ -match '--file|time-travel|delete gear-world' }); foreach ($x in $w) { Write-Host ('    change call: ' + $x) }; return ($w.Count -gt 0) }
-    function BrLast([string]$pattern) {
-        $f = @(Get-ChildItem -LiteralPath $brOut -Filter $pattern -ErrorAction SilentlyContinue | Sort-Object LastWriteTime, Name)
+    function RmWrites([string]$c) { $w = @(($c -split "`r?`n") | Where-Object { $_ -match '--file|time-travel|delete gear-world' }); foreach ($x in $w) { Write-Host ('    change call: ' + $x) }; return ($w.Count -gt 0) }
+    function RmLast([string]$pattern) {
+        $f = @(Get-ChildItem -LiteralPath $rmOut -Filter $pattern -ErrorAction SilentlyContinue | Sort-Object LastWriteTime, Name)
         if ($f.Count -eq 0) { return '' }
         return [System.IO.File]::ReadAllText($f[$f.Count - 1].FullName)
     }
     try {
-        [System.IO.File]::WriteAllText((Join-Path $brState 'worker.flag'), 'x')
-        Check ((Run-Br @()) -eq 0) 'bol-remove check: exit 0'
-        $c = BrCalls
-        Check (-not (BrWrites $c)) 'bol-remove check: only reads'
+        [System.IO.File]::WriteAllText((Join-Path $rmState 'worker.flag'), 'x')
+        Check ((Run-Rm @()) -eq 0) 'bol-remove check: exit 0'
+        $c = RmCalls
+        Check (-not (RmWrites $c)) 'bol-remove check: only reads'
         Check (([regex]::Matches($c, 'd1 execute (?!gear-world-awin)[a-z-]+ --remote --json --command "SELECT ')).Count -eq 28) 'bol-remove check: the 13 site databases and Price Watch, tables and counts (28 SELECTs)'
         Check ($c.Contains('d1 execute gear-world-awin --remote --json --command "SELECT value, updated_at FROM bol_refresh_meta WHERE key = ''enabled''"')) 'bol-remove check: reads the kill switch of the daily refresh (L205)'
-        $r = BrLast 'BOL_REMOVE_CHECK_*.txt'
+        $r = RmLast 'BOL_REMOVE_CHECK_*.txt'
         Check ($r.Contains('ΕΓΚΡΙΝΩ ΑΦΑΙΡΕΣΗ BOL') -and $r.Contains('product_group_offers 2, products 5 (ενεργά: 4)') -and $r.Contains('price_log 30, price_last 6')) 'bol-remove check: the counts per table and the phrase'
         Check ($r.Contains('gear-world-bol-refresh') -and $r.Contains('ΥΠΑΡΧΕΙ') -and $r.Contains('το Hub δεν κρατά προϊόντα') -and $r.Contains('bol_refresh_meta enabled): ΑΝΟΙΧΤΟΣ')) 'bol-remove check: the refresh Worker, its switch and the Hub'
         Check (-not ($r -match '[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}')) 'bol-remove check: no Cloudflare id in the report'
-        Check ((Run-Br @('-Step', 'apply')) -eq 0 -and -not (BrWrites (BrCalls))) 'bol-remove apply without -Apply: only reads'
-        Check ((Run-Br @('-Step', 'apply', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ ALL IMPORTS')) -eq 1 -and -not (BrWrites (BrCalls))) 'bol-remove with another phrase: stops, changes nothing'
-        [System.IO.File]::WriteAllText((Join-Path $brState 'workerfail.flag'), 'x')
-        if (Test-Path -LiteralPath $brCalls) { Remove-Item -LiteralPath $brCalls -Force }
-        Check ((Run-Br @('-Step', 'apply', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ ΑΦΑΙΡΕΣΗ BOL')) -eq 14) 'bol-remove apply, the Worker cannot be deleted: the products go all the same (exit 14)'
-        $c = BrCalls
+        Check ((Run-Rm @('-Step', 'apply')) -eq 0 -and -not (RmWrites (RmCalls))) 'bol-remove apply without -Apply: only reads'
+        Check ((Run-Rm @('-Step', 'apply', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ ALL IMPORTS')) -eq 1 -and -not (RmWrites (RmCalls))) 'bol-remove with another phrase: stops, changes nothing'
+        [System.IO.File]::WriteAllText((Join-Path $rmState 'workerfail.flag'), 'x')
+        if (Test-Path -LiteralPath $rmCalls) { Remove-Item -LiteralPath $rmCalls -Force }
+        Check ((Run-Rm @('-Step', 'apply', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ ΑΦΑΙΡΕΣΗ BOL')) -eq 14) 'bol-remove apply, the Worker cannot be deleted: the products go all the same (exit 14)'
+        $c = RmCalls
         $iT = $c.LastIndexOf('time-travel info')
         $iS = $c.IndexOf('d1 execute gear-world-awin --remote --file')
         $iW = $c.IndexOf('delete gear-world-bol-refresh')
         $iF = $c.IndexOf('d1 execute construction-gear-customers --remote --file')
         Check (([regex]::Matches($c, 'time-travel info (construction-gear-customers|home-gear-world|gear-world-prices|gear-world-awin)')).Count -eq 4 -and $iT -lt $iS -and $iS -lt $iW -and $iW -lt $iF) 'bol-remove apply: restore points (3 databases with rows and gear-world-awin), then the kill switch, then the Worker, then the deletes'
-        $swf = @(Get-ChildItem -LiteralPath (Join-Path (Join-Path $brHome 'gear-world-bol-remove') 'backups') -Recurse -Filter 'awin-refresh-off.sql' -ErrorAction SilentlyContinue)
+        $swf = @(Get-ChildItem -LiteralPath (Join-Path (Join-Path $rmHome 'gear-world-bol-remove') 'backups') -Recurse -Filter 'awin-refresh-off.sql' -ErrorAction SilentlyContinue)
         Check ($swf.Count -eq 1 -and ([System.IO.File]::ReadAllText($swf[0].FullName)).Contains("INSERT INTO bol_refresh_meta (key, value, updated_at) VALUES ('enabled', '0',") -and -not ([System.IO.File]::ReadAllText($swf[0].FullName)).Contains('bol_refresh_hidden')) 'bol-remove apply: the switch off in bol_refresh_meta (the contract of L205), bol_refresh_hidden left'
         Check (([regex]::Matches($c, 'd1 execute (construction-gear-customers|home-gear-world|gear-world-prices) --remote --file')).Count -eq 3 -and -not ($c -match 'd1 execute mens-gear-world --remote --file')) 'bol-remove apply: only the databases with bol.com rows change'
-        $r = BrLast 'BOL_REMOVE_APPLY_*.txt'
-        Check ($r.Contains('npx wrangler d1 time-travel restore construction-gear-customers --bookmark=' + $brBookmark) -and $r.Contains('npx wrangler d1 time-travel restore gear-world-prices --bookmark=' + $brBookmark)) 'bol-remove apply: the rollback of each database with its restore point'
+        $r = RmLast 'BOL_REMOVE_APPLY_*.txt'
+        Check ($r.Contains('npx wrangler d1 time-travel restore construction-gear-customers --bookmark=' + $rmBookmark) -and $r.Contains('npx wrangler d1 time-travel restore gear-world-prices --bookmark=' + $rmBookmark)) 'bol-remove apply: the rollback of each database with its restore point'
         Check ($r.Contains('products 5 -> 0') -and $r.Contains('price_log 30 -> 0') -and $r.Contains('npx wrangler delete gear-world-bol-refresh') -and $r.Contains('ΕΝΤΑΞΕΙ: διακόπτης ανανέωσης 0')) 'bol-remove apply: what was removed, the switch, and the command for the Worker'
-        Check ($r.Contains('npx wrangler d1 time-travel restore gear-world-awin --bookmark=' + $brBookmark)) 'bol-remove apply: the rollback of gear-world-awin too'
-        $bk = @(Get-ChildItem -LiteralPath (Join-Path (Join-Path $brHome 'gear-world-bol-remove') 'backups') -Recurse -Filter 'cgw-delete.sql' -ErrorAction SilentlyContinue)
+        Check ($r.Contains('npx wrangler d1 time-travel restore gear-world-awin --bookmark=' + $rmBookmark)) 'bol-remove apply: the rollback of gear-world-awin too'
+        $bk = @(Get-ChildItem -LiteralPath (Join-Path (Join-Path $rmHome 'gear-world-bol-remove') 'backups') -Recurse -Filter 'cgw-delete.sql' -ErrorAction SilentlyContinue)
         Check ($bk.Count -eq 1 -and ([System.IO.File]::ReadAllText($bk[0].FullName)).Contains('DELETE FROM product_group_offers WHERE product_id IN (SELECT id FROM products WHERE')) 'bol-remove apply: the CGW file deletes the group offers too'
-        $rp = @(Get-ChildItem -LiteralPath (Join-Path (Join-Path $brHome 'gear-world-bol-remove') 'backups') -Recurse -Filter 'restore-points.txt' -ErrorAction SilentlyContinue)
-        Check ($rp.Count -eq 1 -and ([System.IO.File]::ReadAllText($rp[0].FullName)).Contains($brBookmark)) 'bol-remove apply: the restore points are saved on the PC'
+        $rp = @(Get-ChildItem -LiteralPath (Join-Path (Join-Path $rmHome 'gear-world-bol-remove') 'backups') -Recurse -Filter 'restore-points.txt' -ErrorAction SilentlyContinue)
+        Check ($rp.Count -eq 1 -and ([System.IO.File]::ReadAllText($rp[0].FullName)).Contains($rmBookmark)) 'bol-remove apply: the restore points are saved on the PC'
         # Again, the Worker can be deleted now: nothing left in the databases, the Worker goes.
-        Remove-Item -LiteralPath (Join-Path $brState 'workerfail.flag') -Force
-        Check ((Run-Br @('-Step', 'apply', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ ΑΦΑΙΡΕΣΗ BOL')) -eq 0 -and -not (Test-Path -LiteralPath (Join-Path $brState 'worker.flag'))) 'bol-remove apply again: the Worker is deleted, exit 0'
-        Check ((Run-Br @()) -eq 0 -and (BrLast 'BOL_REMOVE_CHECK_*.txt').Contains('ΔΕΝ ΥΠΑΡΧΕΙ')) 'bol-remove check afterwards: no Worker, no rows'
+        Remove-Item -LiteralPath (Join-Path $rmState 'workerfail.flag') -Force
+        Check ((Run-Rm @('-Step', 'apply', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ ΑΦΑΙΡΕΣΗ BOL')) -eq 0 -and -not (Test-Path -LiteralPath (Join-Path $rmState 'worker.flag'))) 'bol-remove apply again: the Worker is deleted, exit 0'
+        Check ((Run-Rm @()) -eq 0 -and (RmLast 'BOL_REMOVE_CHECK_*.txt').Contains('ΔΕΝ ΥΠΑΡΧΕΙ')) 'bol-remove check afterwards: no Worker, no rows'
     } finally {
         $env:PATH = $oldPath
         Remove-Item Env:\GW_FAKE_STATE -ErrorAction SilentlyContinue
