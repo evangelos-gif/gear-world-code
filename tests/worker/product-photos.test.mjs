@@ -10,7 +10,7 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, readdirSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { gzipSync } from 'node:zlib';
+import { gzipSync, gunzipSync } from 'node:zlib';
 import { DatabaseSync } from 'node:sqlite';
 import { createWorker } from '../../src/engine.js';
 import * as db from '../../src/db.js';
@@ -21,6 +21,7 @@ import * as cj from '../../tools/cj-feed.mjs';
 import * as dc from '../../tools/daisycon-feed.mjs';
 import { FEED_COLUMNS } from '../../tools/network-links.mjs';
 import { BOL_COLUMNS, rowOf as bolRow } from '../../tools/bol-feed.mjs';
+import { LINKWISE_COLUMNS } from '../../tools/linkwise-feed.mjs';
 import { translatableTexts } from './i18n-keys.mjs';
 
 const read = f => readFileSync(f, 'utf8');
@@ -97,8 +98,9 @@ test('L206: the Awin download asks for alternate_image ... alternate_image_four,
 });
 
 test('L206: CJ keeps additionalImageLink as up to 4 extra photo columns; large_image stays the first one, as before', () => {
-  assert.deepEqual(cj.COLUMNS.slice(-4), EXTRA_IMAGE_COLUMNS);
-  assert.deepEqual(cj.COLUMNS.slice(0, 24), ['data_feed_id', 'merchant_id', 'merchant_name', 'aw_product_id', 'aw_deep_link', 'brand_name', 'merchant_product_id',
+  assert.deepEqual(cj.PHOTO_COLUMNS, EXTRA_IMAGE_COLUMNS);
+  assert.deepEqual(cj.CJ_COLUMNS, [...cj.COLUMNS, ...EXTRA_IMAGE_COLUMNS], 'a CJ file: the Awin columns, then the photo columns');
+  assert.deepEqual(cj.COLUMNS, ['data_feed_id', 'merchant_id', 'merchant_name', 'aw_product_id', 'aw_deep_link', 'brand_name', 'merchant_product_id',
     'merchant_category', 'category_name', 'ean', 'mpn', 'product_name', 'description', 'merchant_deep_link', 'merchant_image_url', 'large_image',
     'search_price', 'store_price', 'rrp_price', 'currency', 'in_stock', 'stock_status', 'parent_product_id', 'last_updated']);
   const strings = cj.toFeedRow({ id: 1, imageLink: 'https://c.example/main.jpg', additionalImageLink: ['https://c.example/1.jpg', 'https://c.example/2.jpg', 'https://c.example/3.jpg', 'https://c.example/4.jpg', 'https://c.example/5.jpg'] });
@@ -112,15 +114,18 @@ test('L206: CJ keeps additionalImageLink as up to 4 extra photo columns; large_i
   assert.equal(none.large_image, '');
 });
 
-test('L206: Daisycon keeps the 2nd to 5th photo of its images list; Rakuten, Linkwise and bol.com have the columns, empty', () => {
+test('L206: Daisycon keeps the 2nd to 5th photo of its images list; Rakuten, Linkwise and bol.com files have no photo columns at all', () => {
   const row = dc.toFeedRow({ product_info: { title: 'Trui', images: [{ location: 'https://d.example/1.jpg' }, { location: 'https://d.example/2.jpg' }, 'https://d.example/3.jpg'] } }, { programId: 1 });
   assert.equal(row.merchant_image_url, 'https://d.example/1.jpg', 'the main photo as before');
   assert.deepEqual(EXTRA_IMAGE_COLUMNS.map(c => row[c]), ['https://d.example/2.jpg', 'https://d.example/3.jpg', '', '']);
   assert.ok(EXTRA_IMAGE_COLUMNS.every(c => dc.DC_COLUMNS.includes(c)));
-  for (const c of EXTRA_IMAGE_COLUMNS) assert.ok(FEED_COLUMNS.includes(c) && BOL_COLUMNS.includes(c), c);
+  // Rakuten, Linkwise and bol.com cannot say which extra photos a product has: their files keep the columns of before, so an
+  // import from them leaves the photos on the site as they are (the imports read "no photo columns" that way).
+  for (const c of EXTRA_IMAGE_COLUMNS) assert.ok(!FEED_COLUMNS.includes(c) && !BOL_COLUMNS.includes(c) && !LINKWISE_COLUMNS.includes(c), c);
+  assert.equal(FEED_COLUMNS, cj.COLUMNS);
   // bol.com's Marketing Catalog API gives one image per product (include-image: the main one); the row has no extra photo.
   const b = bolRow({ ean: '8712345678906', offer: { price: 10, deliveryDescription: 'x' }, url: 'https://www.bol.com/nl/nl/p/x/9200000000000001/', title: 'X', image: { url: 'https://media.s-bol.com/a.jpg' } });
-  assert.ok(b.row && EXTRA_IMAGE_COLUMNS.every(c => !(c in b.row)), 'written as empty columns');
+  assert.ok(b.row && EXTRA_IMAGE_COLUMNS.every(c => !(c in b.row)), 'one photo');
 });
 
 // ---------- the import plans ----------
@@ -178,6 +183,33 @@ test('L206: the older sites\' plan writes the extra photos only with the column;
   old.exec(LEGACY_TABLE);
   old.exec(sqlOf(same));
   assert.throws(() => new DatabaseSync(':memory:').exec(LEGACY_TABLE + '\n' + sql), /no column named images/);
+  // Manager, 20 Nov 2026: a feed WITHOUT the photo columns (an older download, Rakuten, Linkwise, bol.com) never names the
+  // column, so the photos already on the site stay; a feed WITH the columns sets them, and clears them when they are empty.
+  const noCols = mkdtempSync(join(tmpdir(), 'l206-plan-'));
+  const r2 = await legacyPlan.planLegacyImport({ archive: coesFeed(false), retailer: 'coes', outDir: noCols, now: NOW, images: true });
+  const keepSql = sqlOf(noCols);
+  assert.equal(keepSql, sqlOf(same), 'no photo columns in the feed: the SQL of before, even with the images column');
+  assert.match(r2.text, /3 come from a feed without the photo columns: their photos on the site stay as they are/);
+  d.exec(keepSql);
+  assert.equal(d.prepare("SELECT images FROM products WHERE product_name LIKE '%Beaufort%'").get().images, jacket.images, 'kept');
+  const emptied = coesFeed(true);
+  const csv = gunzipSync(readFileSync(join(emptied, 'AWIN_30645_116078.csv.gz'))).toString().replace(/,"https:\/\/cdn\.shopify\.com\/1c\.png","https:\/\/cdn\.shopify\.com\/1\.png\?v=2","","https:\/\/cdn\.shopify\.com\/1d\.png"/, ',"","","",""')
+    .replace('"https://cdn.shopify.com/1.png?v=1,https://cdn.shopify.com/1b.png"', '"https://cdn.shopify.com/1.png?v=1"');
+  writeFileSync(join(emptied, 'AWIN_30645_116078.csv.gz'), gzipSync(csv));
+  const clearDir = mkdtempSync(join(tmpdir(), 'l206-plan-'));
+  await legacyPlan.planLegacyImport({ archive: emptied, retailer: 'coes', outDir: clearDir, now: NOW, images: true });
+  assert.match(sqlOf(clearDir), /images=excluded\.images/);
+  d.exec(sqlOf(clearDir));
+  assert.equal(d.prepare("SELECT images FROM products WHERE product_name LIKE '%Beaufort%'").get().images, null, 'the retailer has no extra photo now: cleared');
+  // Mixed rows in one statement batch: the rows without photo columns go in their own INSERT without the column.
+  const mixed = legacyPlan.insertSql([
+    { awin_product_id: '1:a', retailer: 'R', site_category: 'C', product_name: 'A', price: 1, affiliate_url: 'x', images: 'https://a/1.jpg', photosKnown: true },
+    { awin_product_id: '1:b', retailer: 'R', site_category: 'C', product_name: 'B', price: 1, affiliate_url: 'x', images: null, photosKnown: false }
+  ], '2026-11-20 18:00:00', { images: true });
+  const parts = mixed.trim().split(/;\n/);
+  assert.equal(parts.length, 2);
+  assert.ok(/updated_at, images\) VALUES/.test(parts[0]) && /'1:a'/.test(parts[0]) && !/'1:b'/.test(parts[0]));
+  assert.ok(!/images/.test(parts[1]) && /'1:b'/.test(parts[1]));
   // The import tools set GW_IMAGES_COLUMN=1 only after the database said it has the column.
   process.env.GW_IMAGES_COLUMN = '1';
   try {
@@ -240,6 +272,17 @@ test('L206: the new-layout plan writes the extra photos only with the column; wi
   d.exec(c.sql);
   assert.deepEqual(d.prepare('SELECT merchant_product_id, images FROM products ORDER BY id').all().map(x => ({ ...x })),
     [{ merchant_product_id: 'JB-1', images: 'https://img.example/1b.jpg https://img.example/1c.jpg' }, { merchant_product_id: 'JB-2', images: null }]);
+  // A file without the photo columns, with the images column in the database: the SQL of before, the photos stay.
+  const keep = await run(plain, true);
+  assert.equal(keep.sql, a.sql, 'no photo columns in the file: never names the column');
+  assert.match(keep.report, /2 come from a feed without the photo columns: their photos on the site stay as they are/);
+  d.exec(keep.sql);
+  assert.equal(d.prepare("SELECT images FROM products WHERE merchant_product_id = 'JB-1'").get().images, 'https://img.example/1b.jpg https://img.example/1c.jpg', 'kept');
+  // A file with the columns, now empty: cleared.
+  const cleared = tgwFeed([...base, ...EXTRA_IMAGE_COLUMNS], rows.map(r => [...r, '', '', '', '']));
+  const e = await run(cleared, true);
+  d.exec(e.sql);
+  assert.equal(d.prepare("SELECT images FROM products WHERE merchant_product_id = 'JB-1'").get().images, null, 'the shop has no extra photo now: cleared');
   // An http:// photo counts only on a host the source names (L194), as for the main photo.
   const map = { alternates: [0, 1] };
   assert.deepEqual(rowExtraImages(['http://static.miscota.com/2.jpg', 'http://other.example/3.jpg'], map, 'https://static.miscota.com/1.jpg', { httpsImageHosts: ['static.miscota.com'] }),

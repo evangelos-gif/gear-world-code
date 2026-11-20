@@ -6,7 +6,7 @@ import { mkdtempSync, readFileSync, writeFileSync, readdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { gunzipSync } from 'node:zlib';
-import { run, toFeedRow, productQuery, isCjLink, makeMask, COLUMNS, FEED_MAX_PAGES, fetchAll, splitPoint, priceLiteral, OFFSET_CAP } from '../../tools/cj-feed.mjs';
+import { run, toFeedRow, productQuery, isCjLink, makeMask, CJ_COLUMNS, FEED_MAX_PAGES, fetchAll, splitPoint, priceLiteral, OFFSET_CAP } from '../../tools/cj-feed.mjs';
 import { planLegacyImport } from '../../tools/legacy-import-plan.mjs';
 import { classify, RULES } from '../../tools/import-rules/xplora.mjs';
 import { planMembership, renderMembershipReport } from '../../tools/awin-membership-plan.mjs';
@@ -108,7 +108,8 @@ test('L86: download pages through 1,000 at a time and writes the feed in Awin co
   const text = gunzipSync(readFileSync(join(out, 'CJ_5175167.csv.gz.part'))).toString('utf8');
   const lines = text.trim().split('\n');
   assert.equal(lines.length, 1004);
-  assert.equal(lines[0], COLUMNS.map(c => `"${c}"`).join(','));
+  // The Awin columns and, since lessons L206, the 4 extra photo columns.
+  assert.equal(lines[0], CJ_COLUMNS.map(c => `"${c}"`).join(','));
   assert.ok(cj.calls.some(c => /offset: 1000/.test(c.q)), 'second page asked');
 });
 

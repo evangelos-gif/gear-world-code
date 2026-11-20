@@ -602,7 +602,24 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         $tgwPlan = @(Get-ChildItem -LiteralPath $cfOut -Directory -Filter 'TGW_IMPORT_PLAN_*' | Sort-Object LastWriteTime | Select-Object -Last 1)
         $tgwSql = ''
         if ($tgwPlan.Count -eq 1 -and (Test-Path -LiteralPath (Join-Path (Join-Path $tgwPlan[0].FullName 'sql') '0001.sql'))) { $tgwSql = [System.IO.File]::ReadAllText((Join-Path (Join-Path $tgwPlan[0].FullName 'sql') '0001.sql')) }
-        Check (((Calls) -match "pragma_table_info\('products'\) WHERE name = 'images'") -and $tgwSql.Contains(', images) VALUES') -and $tgwSql.Contains('images = excluded.images')) 'cloudflare import (L206): asks for the photo column, and with it the SQL writes the photos'
+        $tgwRep = [System.IO.File]::ReadAllText((@(Get-ChildItem -LiteralPath $cfOut -Filter 'TGW_CLOUDFLARE_IMPORT_*.txt' | Sort-Object LastWriteTime) | Select-Object -Last 1).FullName)
+        # This feed has no photo columns (an older download): the SQL never names the column, so the photos on the site stay (Manager, 20 Nov 2026).
+        Check (((Calls) -match "pragma_table_info\('products'\) WHERE name = 'images'") -and $tgwRep.Contains('η D1 έχει τη στήλη images') -and $tgwSql.Contains('INSERT INTO products') -and -not $tgwSql.Contains('images')) 'cloudflare import (L206): asks for the photo column; a feed without the photo columns leaves the photos as they are'
+        # The same shop with the photo columns (a new download): the plan's SQL writes them (dry run, nothing loaded).
+        $phArch = Join-Path $work 'awin-photos'
+        New-Item -ItemType Directory -Path $phArch -Force | Out-Null
+        $phCsv = "aw_deep_link,product_name,aw_product_id,merchant_product_id,merchant_image_url,merchant_category,search_price,currency,brand_name,in_stock,ean,alternate_image,alternate_image_two,alternate_image_three,alternate_image_four`n" +
+            "https://www.awin1.com/pclick.php?p=1&a=1&m=123932,Sony WH-1000XM5 Wireless Headphones,1,JB-1,https://img.example/1.jpg,Audio,279.00,GBP,Sony,1,4006381333931,https://img.example/1b.jpg,,,`n"
+        $fs = [System.IO.File]::Create((Join-Path $phArch 'AWIN_123932_114093.csv.gz'))
+        $gz = New-Object System.IO.Compression.GZipStream($fs, [System.IO.Compression.CompressionMode]::Compress)
+        $bytes = [System.Text.Encoding]::UTF8.GetBytes($phCsv)
+        $gz.Write($bytes, 0, $bytes.Length); $gz.Close(); $fs.Close()
+        Start-Sleep -Seconds 1
+        Check ((Run-Cf @('-Step', 'import', '-Archive', $phArch)) -eq 0) 'cloudflare import (L206) with photo columns, without -Apply: exit 0'
+        $phPlan = @(Get-ChildItem -LiteralPath $cfOut -Directory -Filter 'TGW_IMPORT_PLAN_*' | Sort-Object LastWriteTime | Select-Object -Last 1)
+        $phSql = ''
+        if ($phPlan.Count -eq 1 -and (Test-Path -LiteralPath (Join-Path (Join-Path $phPlan[0].FullName 'sql') '0001.sql'))) { $phSql = [System.IO.File]::ReadAllText((Join-Path (Join-Path $phPlan[0].FullName 'sql') '0001.sql')) }
+        Check ($phSql.Contains(', images) VALUES') -and $phSql.Contains("'https://img.example/1b.jpg'") -and $phSql.Contains('images = excluded.images')) 'cloudflare import (L206): a feed with the photo columns writes them when the database has the column'
         # 25 Oct 2026 (lessons L64): D1 answered "Not currently importing anything" after loading 0005.sql. The same file is sent again.
         $env:GW_FAKE_IMPORTFLAKY = '1'
         $fileCallsBefore = ([regex]::Matches((Calls), '--file')).Count

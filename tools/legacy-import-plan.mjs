@@ -106,8 +106,12 @@ export async function readProducts({ archive, rules }) {
     const raw = createReadStream(f);
     const stream = /\.gz$/i.test(f) ? raw.pipe(createGunzip()) : raw;
     let h = null;
+    // photosKnown (lessons L206): this file has Awin's extra photo columns, so it says which extra photos each product has
+    // NOW (empty = none). A file without them (an older download, Rakuten, Linkwise, bol.com) says nothing about them: the
+    // import then leaves the product's extra photos as they are.
+    let photosKnown = false;
     for await (const rec of readCsvRecords(stream)) {
-      if (!h) { h = rec.map(x => String(x).trim().toLowerCase().replace(/^﻿/, '')); continue; }
+      if (!h) { h = rec.map(x => String(x).trim().toLowerCase().replace(/^﻿/, '')); photosKnown = EXTRA_IMAGE_COLUMNS.some(c => h.includes(c)); continue; }
       if (rec.length < 3) continue;
       rows++;
       const column = c => { const i = h.indexOf(c); return i >= 0 ? String(rec[i] ?? '').trim() : ''; };
@@ -127,7 +131,7 @@ export async function readProducts({ archive, rules }) {
         const image = pickImage(get);
         g = { key, name: cleanText(get('product_name')), brand: cleanText(get('brand_name')), feedCategory: cleanText(get('merchant_category')),
           awinCategory: cleanText(get('category_name')),
-          link, page, image, extras: pickExtraImages(get, image), firstVariant: get('merchant_product_id'), tracked: get('aw_deep_link'),
+          link, page, image, extras: pickExtraImages(get, image), photosKnown, firstVariant: get('merchant_product_id'), tracked: get('aw_deep_link'),
           variants: 0, inStockVariants: 0, unknownStock: 0, prices: [], currency: get('currency').toUpperCase(), ean: get('ean') || get('product_gtin'),
           // rules.rowInfo (lessons L161): more columns for the rules, e.g. where a CJ search product is sold and sent.
           info: typeof rules.rowInfo === 'function' ? rules.rowInfo(get) : null };
@@ -308,6 +312,8 @@ export function checkShopify(products, R, catalog) {
     // the shop's photos of the whole product or of this option, never those of another option.
     const mine = i => !Array.isArray(i.variant_ids) || !i.variant_ids.length || (shown && i.variant_ids.some(id => same(id, shown.id)));
     p.extras = extraImages(pic, imgs.filter(mine).map(i => abs(src(i))));
+    // The shop's live catalogue lists every photo it shows now: it may set or clear them, like a feed with the columns.
+    p.photosKnown = true;
     const page = `${origin}/products/${encodeURIComponent(String(lp.handle))}`;
     // R.pageLink: one card covers every size (clothing), so the link opens the page, not one size.
     const link = !R.pageLink && variant && variant === shown ? `${page}?variant=${variant.id}` : page;
@@ -404,8 +410,9 @@ export async function planLegacyImport({ archive, retailer, outDir, now = new Da
       brand: (rules.displayBrand ? rules.displayBrand(p.brand) : p.brand) || null,
       product_name: name, feed_product_name: p.name, price, currency: R.currency, stock_status: 'in stock',
       merchant_category: p.feedCategory || null, image_url: p.image,
-      // Up to 4 extra photos (lessons L206): written only when the site database has the images column (opts.images).
-      images: encodeImages(extraImages(p.image, p.extras || [])),
+      // Up to 4 extra photos (lessons L206): written only when the site database has the images column (opts.images), and
+      // only from a feed that has the photo columns (photosKnown); otherwise the row's photos stay as they are.
+      images: encodeImages(extraImages(p.image, p.extras || [])), photosKnown: Boolean(p.photosKnown),
       affiliate_url: NET ? httpsLink(p.tracked)
         : `https://www.awin1.com/cread.php?awinmid=${R.advertiserId}&awinaffid=${AWIN_PUBLISHER_ID}&ued=${encodeURIComponent(R.keepQuery ? (p.link || p.page) : (p.page || p.link))}`,
       ean: /^\d{8,14}$/.test(p.ean || '') ? p.ean : null, variants: p.variants,
@@ -475,6 +482,15 @@ const colsOf = opts => (opts.images ? [...COLS, 'images'] : COLS);
 // earlier plan wrote that the site does not use (lessons L56): a product already on the site with one of them gets the
 // plan's category and subcategory; every other product keeps its own.
 export function insertSql(items, stamp, opts = {}) {
+  // Rows from a feed without the photo columns (photosKnown false) never name the images column: a new one gets NULL, one
+  // already on the site keeps its photos. They go in their own statement (one column list per statement).
+  if (opts.images) {
+    const keep = items.filter(p => p.photosKnown === false);
+    if (keep.length) {
+      const known = items.filter(p => p.photosKnown !== false);
+      return (known.length ? insertSql(known, stamp, opts) : '') + insertSql(keep, stamp, { ...opts, images: false });
+    }
+  }
   const COLS = colsOf(opts);
   const values = items.map(p => '(' + [p.awin_product_id, p.merchant_product_id, p.retailer, p.site_category, p.subcategory, p.brand, p.product_name,
     p.feed_product_name, p.price, p.currency, p.stock_status, p.merchant_category, p.image_url, p.affiliate_url, p.ean, 1, stamp, stamp,
@@ -572,8 +588,10 @@ function renderPlan({ R, files, rows, products, accepted, rejected, sqlFiles, no
   const all = Object.values(accepted).flat();
   const withEan = all.filter(p => p.ean).length;
   const withPhotos = all.filter(p => p.images).length;
+  const unknownPhotos = all.filter(p => !p.photosKnown).length;
   L.push('', 'Notes:',
-    `- Extra photos (L206): ${fmt(withPhotos)} of ${fmt(all.length)} products have 1-4 more photos in the feed; ${images ? 'the SQL writes them (column images).' : 'the SQL does not write them (the site database has no images column yet).'}`,
+    `- Extra photos (L206): ${fmt(withPhotos)} of ${fmt(all.length)} products have 1-4 more photos in the feed; ${images ? 'the SQL writes them (column images).' : 'the SQL does not write them (the site database has no images column yet).'}`
+      + (images && unknownPhotos ? ` ${fmt(unknownPhotos)} come from a feed without the photo columns: their photos on the site stay as they are.` : ''),
     `- Prices are ${R.currency}. Each product shows its lowest in-stock size price.`,
     withEan ? `- ${fmt(withEan)} of ${fmt(all.length)} products have an EAN, so the same product from other retailers can be shown together.`
       : '- The feed has no EAN, so these products are not joined with the same product from other retailers.',

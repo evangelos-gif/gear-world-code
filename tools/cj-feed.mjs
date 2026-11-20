@@ -75,9 +75,13 @@ const textArg = v => JSON.stringify(String(v ?? '').replace(/[\u0000-\u001f]/g, 
 // The columns the import tools read (same names as tools/awin-feed-download.ps1 asks Awin for).
 export const COLUMNS = ['data_feed_id', 'merchant_id', 'merchant_name', 'aw_product_id', 'aw_deep_link', 'brand_name', 'merchant_product_id',
   'merchant_category', 'category_name', 'ean', 'mpn', 'product_name', 'description', 'merchant_deep_link', 'merchant_image_url', 'large_image',
-  'search_price', 'store_price', 'rrp_price', 'currency', 'in_stock', 'stock_status', 'parent_product_id', 'last_updated',
-  // Up to 4 more photos (lessons L206), under Awin's names: the other networks' tools write them here too (FEED_COLUMNS).
-  'alternate_image', 'alternate_image_two', 'alternate_image_three', 'alternate_image_four'];
+  'search_price', 'store_price', 'rrp_price', 'currency', 'in_stock', 'stock_status', 'parent_product_id', 'last_updated'];
+// Up to 4 more photos (lessons L206), under Awin's names. Only a file of a network that HAS extra photos gets these columns
+// (CJ here, Daisycon): the imports read "the file has the columns" as "this feed says which extra photos the product has
+// now" (empty = none). Rakuten, Linkwise and bol.com files keep COLUMNS alone, so an import from them leaves a product's
+// extra photos as they are.
+export const PHOTO_COLUMNS = ['alternate_image', 'alternate_image_two', 'alternate_image_three', 'alternate_image_four'];
+export const CJ_COLUMNS = [...COLUMNS, ...PHOTO_COLUMNS];
 
 // Hosts of CJ tracking links (click and deep links). A product link elsewhere earns no commission.
 export const CJ_LINK_HOSTS = /(^|\.)(anrdoezrs\.net|dpbolvw\.net|jdoqocy\.com|kqzyfj\.com|tkqlhce\.com|emjcd\.com|qksrv\.net|ftjcfx\.com|lduhtrp\.net|awltovhc\.com|tqlkg\.com|apmebf\.com|afcyhf\.com|lqdhgjs\.com|yceml\.net|mjbpab\.com)$/i;
@@ -235,7 +239,7 @@ export function toFeedRow(p) {
     target_country: words(p.targetCountry), serviceable_areas: words(p.serviceableAreas), ships_from: words(p.shipsFromCountry), age_group: words(p.ageGroup),
     gender: words(p.gender), search_keyword: String(p._keyword ?? ''),
     // additionalImageLink, the first 4 (large_image keeps the first one, as before); the import plans check every one.
-    ...Object.fromEntries(['alternate_image', 'alternate_image_two', 'alternate_image_three', 'alternate_image_four'].map((c, i) => [c, imgs(p.additionalImageLink)[i] || '']))
+    ...Object.fromEntries(PHOTO_COLUMNS.map((c, i) => [c, imgs(p.additionalImageLink)[i] || '']))
   };
 }
 
@@ -348,7 +352,7 @@ export async function fetchAll({ shape, cid, pid, advertiser, token, api, fetchI
   return { ok: true, products: products(), total, capped, bands, split: 'price' };
 }
 
-export async function writeFeed(file, products, columns = COLUMNS) {
+export async function writeFeed(file, products, columns = CJ_COLUMNS) {
   await new Promise((resolve, reject) => {
     const gz = createGzip();
     const ws = createWriteStream(file);
@@ -486,7 +490,7 @@ async function searchOne({ A, SR, S, shape, pid, adv, token, api, fetchImpl, pau
   if (!rows.length) { A.error = 'no products'; return; }
   mkdirSync(out, { recursive: true });
   A.file = join(out, `CJ_${adv}_${S.search}.csv.gz.part`);
-  await writeFeed(A.file, products, COLUMNS.concat(SEARCH_COLUMNS));
+  await writeFeed(A.file, products, CJ_COLUMNS.concat(SEARCH_COLUMNS));
   A.ok = true;
 }
 

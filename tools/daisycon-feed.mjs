@@ -21,6 +21,7 @@ import { createHash, randomBytes } from 'node:crypto';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { FEED_COLUMNS, csvLine, isDaisyconLink, pageInLink } from './network-links.mjs';
+import { PHOTO_COLUMNS } from './cj-feed.mjs';
 
 export const LOGIN = 'https://login.daisycon.com';
 export const SERVICES = 'https://services.daisycon.com';
@@ -104,7 +105,7 @@ const imageOf = (f, raw) => {
 const moreImagesOf = raw => {
   const imgs = raw && (raw.images || (raw.product_info && raw.product_info.images));
   const list = Array.isArray(imgs) ? imgs.slice(1, 5).map(i => String(isObj(i) ? (i.location || i.url || i.src || i.link || '') : (i ?? '')).trim()) : [];
-  return Object.fromEntries(['alternate_image', 'alternate_image_two', 'alternate_image_three', 'alternate_image_four'].map((c, k) => [c, list[k] || '']));
+  return Object.fromEntries(PHOTO_COLUMNS.map((c, k) => [c, list[k] || '']));
 };
 
 // One Daisycon product as one feed row (Awin column names): price is the price today, the old price is the shop's "was".
@@ -347,7 +348,8 @@ async function probeOne(P, p, { mediaId, fetchImpl, currency = '', country = '' 
 const hostOf = u => { try { return u ? new URL(u).host : ''; } catch { return ''; } };
 
 // The Awin columns, then Daisycon's own (the import reads columns by name, so the extra ones do no harm).
-export const DC_COLUMNS = [...FEED_COLUMNS, 'dc_gender', 'dc_colour', 'dc_size', 'dc_delivery', 'dc_shipping', 'dc_google_category', 'dc_condition'];
+// The extra photo columns after the Awin ones (lessons L206): a Daisycon file says which extra photos each product has now.
+export const DC_COLUMNS = [...FEED_COLUMNS, ...PHOTO_COLUMNS, 'dc_gender', 'dc_colour', 'dc_size', 'dc_delivery', 'dc_shipping', 'dc_google_category', 'dc_condition'];
 
 // The feed file, written as the pages come (only the ids seen stay in memory).
 function openRows(file) {

@@ -765,6 +765,10 @@ export async function planImport({ archive, sourcesFile, outDir, now = new Date(
     for (const found of files) {
       const real = found.name;
       let header = null, map = null, rows = 0, adapter = null;
+      // photosKnown (lessons L206): the file has the extra photo columns (Awin's alternate_image ..., or Google's
+      // additional_image_link), so it says which extra photos each product has now (empty = none). Without them the import
+      // leaves a product's extra photos as they are.
+      let photosKnown = false;
       const stream = createReadStream(found.full).pipe(/\.gz$/i.test(real) ? createGunzip() : new PassThrough());
       for await (const raw of readCsvRecords(stream)) {
         let rec = raw;
@@ -778,6 +782,7 @@ export async function planImport({ archive, sourcesFile, outDir, now = new Date(
           // The extra photo columns (lessons L206), after the report line, so the report reads as before.
           const h = rec.map(x => String(x).trim().toLowerCase().replace(/^\uFEFF/, ''));
           map.alternates = EXTRA_IMAGE_COLUMNS.map(n => h.indexOf(n)).filter(i => i >= 0);
+          photosKnown = google ? raw.some(x => String(x).trim().toLowerCase().replace(/^\uFEFF/, '') === 'additional_image_link') : map.alternates.length > 0;
           continue;
         }
         if (raw.length === 1 && raw[0] === '') continue;
@@ -918,8 +923,10 @@ export async function planImport({ archive, sourcesFile, outDir, now = new Date(
           in_stock: stock === false ? 0 : 1,
           item_condition: condition,
           image_url: image,
-          // Up to 4 extra photos (lessons L206), written only when the database has the column (images).
+          // Up to 4 extra photos (lessons L206), written only when the database has the column (images) and the file has the
+          // photo columns (photosKnown).
           images: encodeImages(rowExtraImages(rec, map, image, source)),
+          photosKnown,
           affiliate_url: link,
           merchant_category: truncate(merchantCategory || awinCategory, 200) || null,
           gtin,
@@ -992,6 +999,7 @@ export async function planImport({ archive, sourcesFile, outDir, now = new Date(
     if (p.gtin) stats.gtinValid++;
     if (p.was_price) stats.withWas++;
     if (p.images) stats.withPhotos = (stats.withPhotos || 0) + 1;
+    if (!p.photosKnown) stats.photosUnknown = (stats.photosUnknown || 0) + 1;
     const list = (samples.accepted[slug] ||= []);
     if (list.length < SAMPLES_PER_GROUP) list.push(short);
   });
@@ -1001,8 +1009,9 @@ export async function planImport({ archive, sourcesFile, outDir, now = new Date(
   mkdirSync(outDir, { recursive: true });
   if (writeSql) mkdirSync(join(outDir, 'sql'), { recursive: true });
   const cols = ['stable_key', 'awin_advertiser_id', 'awin_product_id', 'merchant_product_id', 'retailer', 'category_slug', 'subcategory', 'brand', 'product_name', 'product_slug', 'description', 'price', 'was_price', 'currency', 'in_stock', 'item_condition', 'image_url', 'affiliate_url', 'merchant_category', 'gtin', 'mpn', 'specs_json', 'is_active', 'last_seen_at'];
-  // The extra photos (lessons L206): in the same statement as the row the import writes anyway (no extra row is written).
-  if (images) cols.push('images');
+  // The extra photos (lessons L206): in the same statement as the row the import writes anyway (no extra row is written),
+  // only for a row from a file with the photo columns; any other row never names the column, so its photos stay as they are.
+  const colsImg = [...cols, 'images'];
   const updateCols = cols.filter(c => c !== 'stable_key' && c !== 'awin_advertiser_id' && c !== 'merchant_product_id');
   // "keepSiteNames" (VEVOR NL, lessons L79): the shop's feed is in Dutch and the site shows the names translated into English.
   // A product already on the site keeps its shown name, address and description; only a new product comes in with the feed's text.
@@ -1012,7 +1021,12 @@ export async function planImport({ archive, sourcesFile, outDir, now = new Date(
   const sqlFiles = [];
   for (let i = 0; writeSql && i < all.length; i += SQL_ROWS_PER_FILE) {
     const part = all.slice(i, i + SQL_ROWS_PER_FILE);
-    const lines = part.map(p => `INSERT INTO products (${cols.join(', ')}) VALUES (${cols.map(c => sq(p[c])).join(', ')}) ON CONFLICT(stable_key) DO UPDATE SET ${(keepNames.has(Number(p.awin_advertiser_id)) ? keptCols : updateCols).map(c => `${c} = excluded.${c}`).join(', ')}, updated_at = datetime('now');`);
+    const lines = part.map(p => {
+      const withImg = Boolean(images && p.photosKnown);
+      const c = withImg ? colsImg : cols;
+      const set = (keepNames.has(Number(p.awin_advertiser_id)) ? keptCols : updateCols).concat(withImg ? ['images'] : []);
+      return `INSERT INTO products (${c.join(', ')}) VALUES (${c.map(k => sq(p[k])).join(', ')}) ON CONFLICT(stable_key) DO UPDATE SET ${set.map(k => `${k} = excluded.${k}`).join(', ')}, updated_at = datetime('now');`;
+    });
     const name = `${String(sqlFiles.length + 1).padStart(4, '0')}.sql`;
     writeFileSync(join(outDir, 'sql', name), `-- ${label} import plan ${runStamp}. NOT executed. Loading needs the owner's approval.\n${lines.join('\n')}\n`);
     sqlFiles.push(name);
@@ -1043,7 +1057,8 @@ export async function planImport({ archive, sourcesFile, outDir, now = new Date(
   if (stats.sizesJoined) L.push(`sizes and colours joined into one product (Google format feeds): ${stats.sizesJoined} rows`);
   L.push('per retailer: ' + Object.entries(stats.perRetailer).filter(([, v]) => v.accepted).map(([r, v]) => `${r} ${v.accepted}`).join(', '));
   L.push(`valid GTIN: ${stats.gtinValid} (${pct(stats.gtinValid, stats.accepted)}) | with a was-price: ${stats.withWas}`);
-  L.push(`extra photos (L206): ${stats.withPhotos || 0} products have 1-4 more photos in the feed; ${images ? 'the SQL writes them (column images)' : 'the SQL does not write them (the database has no images column yet)'}`);
+  L.push(`extra photos (L206): ${stats.withPhotos || 0} products have 1-4 more photos in the feed; ${images ? 'the SQL writes them (column images)' : 'the SQL does not write them (the database has no images column yet)'}`
+    + (images && stats.photosUnknown ? `; ${stats.photosUnknown} come from a feed without the photo columns: their photos on the site stay as they are` : ''));
   L.push('');
   L.push('== Per shop ==');
   for (const [r, v] of Object.entries(stats.perRetailer)) {
