@@ -130,7 +130,9 @@ test('the site queries are SELECTs; the older layout reads stock as the site doe
   for (const s of PRICE_SITES) assert.match(siteSql(s), /^SELECT /);
   const legacy = siteSql({ legacy: true });
   for (const w of IN_STOCK_WORDS) assert.ok(legacy.includes(`'${w}'`), w);
-  assert.match(legacy, /\+is_active = 1 AND id > \? ORDER BY id LIMIT \?/);
+  // bol.com is never read (L204: no price history, no alerts), by its name and its partner link.
+  assert.match(legacy, /\+is_active = 1 AND id > \? AND \+retailer NOT IN \('bol\.com'\) AND substr\(COALESCE\(affiliate_url, ''\), 1, 24\) <> 'https:\/\/partner\.bol\.com\/' ORDER BY id LIMIT \?/);
+  assert.match(siteSql({ legacy: false }), /AND \+retailer NOT IN \('bol\.com'\) AND substr\(COALESCE\(affiliate_url, ''\), 1, 24\) <> 'https:\/\/partner\.bol\.com\/' ORDER BY id/);
   assert.match(siteSql({ legacy: false }), /stable_key AS k/);
 });
 

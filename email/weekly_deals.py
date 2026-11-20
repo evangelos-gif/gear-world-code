@@ -17,6 +17,8 @@ week.json:
               "retailer": "Tooled Up"} ],
   "codes": [ {"title": "£4 off orders of £20+", "code": "HALLOWEEN", "retailer": "Joybuy", "ends": "31 Dec 2026"} ]
 }
+bol.com items are always left out (lessons L204): bol.com's terms allow no price or stock alerts, and a "Price drops" or
+"Picks" email about its products is one. The script drops them and says so on stderr.
 Rules kept here: Gear World is the hero (the retailer only in the small print), real prices with "Price checked <date>,
 may change", #ad and the commission line, postal address and unsubscribe link, no /out/ or /go/ links, navy/gold
 colours (never red/green for information).
@@ -27,6 +29,20 @@ import json
 import sys
 
 NAVY, GOLD, INK, MUTED, BG, BLUE = '#0B1730', '#F5B301', '#1B2333', '#5B6577', '#F2F4F8', '#1D4ED8'
+
+# The retailers whose terms forbid alerts on their products (the same list as src/lib/retailer-terms.js, lessons L204).
+NO_ALERT_RETAILERS = ('bol.com',)
+BOL_PARTNER_PREFIX = 'https://partner.bol.com/'
+
+
+def no_alerts(item):
+    name = str(item.get('retailer') or '').strip().lower()
+    links = [str(item.get(k) or '') for k in ('url', 'link', 'affiliate_url')]
+    return name in NO_ALERT_RETAILERS or any(u.startswith(BOL_PARTNER_PREFIX) for u in links)
+
+
+def allowed(items):
+    return [i for i in (items or []) if not no_alerts(i)]
 
 
 def esc(v):
@@ -74,8 +90,9 @@ def heading(text):
 
 def build(week, address):
     slug, checked = week['slug'], week['checked']
-    drops = [i for i in week['items'] if i.get('section') == 'drop']
-    picks = [i for i in week['items'] if i.get('section') != 'drop']
+    items = allowed(week['items'])
+    drops = [i for i in items if i.get('section') == 'drop']
+    picks = [i for i in items if i.get('section') != 'drop']
     rows = []
     if drops:
         rows.append(heading('Price drops'))
@@ -84,11 +101,11 @@ def build(week, address):
         rows.append(heading('Picks for the week'))
         rows += [card(i, slug, checked) for i in picks]
     codes = ''
-    if week.get('codes'):
+    if allowed(week.get('codes')):
         lines = ''.join('<p style="margin:0 0 8px 0;font-size:14px;line-height:1.5;color:{ink};"><strong>{t}</strong> with code '
                         '<strong>{c}</strong> · retailer: {r} · ends {e}, their terms apply</p>'.format(
                             ink=INK, t=esc(c['title']), c=esc(c['code']), r=esc(c['retailer']), e=esc(c['ends']))
-                        for c in week['codes'])
+                        for c in allowed(week['codes']))
         codes = ('<tr><td style="padding:4px 24px 20px 24px;"><table width="100%" cellpadding="0" cellspacing="0" border="0" '
                  'style="background:#FFFFFF;border:1px solid #E3E7EE;border-radius:8px;"><tr><td style="padding:18px;'
                  'font-family:Arial,Helvetica,sans-serif;"><h2 style="margin:0 0 10px 0;font-size:18px;color:{};">'
@@ -127,6 +144,11 @@ def main():
     ap.add_argument('--address', required=True)
     a = ap.parse_args()
     week = json.load(open(a.src, encoding='utf-8'))
+    left = [i for i in (week.get('items') or []) if no_alerts(i)]
+    if left:
+        print('left out (bol.com, no alerts allowed, L204): %d item(s)' % len(left), file=sys.stderr)
+    week['items'] = allowed(week.get('items'))
+    week['codes'] = [c for c in (week.get('codes') or []) if not no_alerts(c)]
     if not week.get('items'):
         sys.exit('no items')
     if not a.address.strip():

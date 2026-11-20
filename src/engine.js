@@ -23,6 +23,7 @@ import { guidePage, guidesIndexPage, findGuide, guideProductIds, listedGuides, a
 import { viewFor, hubViewFor, browseView, homeView, hiddenReason, needsCheck, cacheKeyUrl, needsUkBar, retailerInView, cleanCountry, now as clockNow } from './lib/visibility.js';
 import { deliveryCountries } from './lib/delivery.js';
 import { remindProbe, REMIND_UNTIL, REMIND_URL, REMIND_PATH } from './lib/remind.js';
+import { noAlerts } from './lib/retailer-terms.js';
 import { COUNTRY_LANGUAGES, MULTI_LANGUAGE_COUNTRIES } from './lib/country-language.js';
 
 // Gear World Hub keeps the one list of members; sites reach it only through a service binding (lessons L92).
@@ -637,6 +638,8 @@ export function createWorker(site) {
     if (!product) return answer(false, 'This product is no longer listed.', 404);
     // Only a product this visitor may see (its retailer delivers to their country, a recent price; lessons L107).
     if (hiddenReason(view, product)) return answer(false, 'We cannot set a reminder for this product in your country.', 400);
+    // bol.com's terms allow no alerts or reminders of any kind (lessons L204): its page never shows the box either.
+    if (noAlerts(product)) return answer(false, 'Reminders are not available for this product.', 400);
     const token = String(data.turnstile_token || '').trim();
     if (!token) return answer(false, 'This sign-up box needs JavaScript for its security check. Turn on JavaScript and try again.', 403);
     if (token.length > 2048) return answer(false, 'The security check failed. Reload the page and try again.', 403);

@@ -3,6 +3,7 @@
 // and writes to its own database (PRICES_DB) one row per product whose price, "was" price, stock or listing changed,
 // or that it sees for the first time. The sites' databases are only read: every query to them goes through readOnly().
 import { IN_STOCK_WORDS } from '../../src/db.js';
+import { noAlertsSql, bolPriceKey } from '../../src/lib/retailer-terms.js';
 import { PRICE_SITES } from './sites.js';
 
 export const DEFAULTS = {
@@ -44,14 +45,16 @@ const sqlText = s => `'${String(s).replace(/'/g, "''")}'`;
 // Older layout (lessons L28): the shop and its own product code (the unique index of the import), stock from the
 // stock_status text as the site reads it (src/db.js IN_STOCK_WORDS), and no "was" price. "+is_active" keeps SQLite on
 // the id order (no index scan and sort on every page).
+// bol.com products are never read (lessons L204, src/lib/retailer-terms.js): bol.com's terms allow no price or stock
+// alerts, so its prices are never kept in a history either. By its name and by its partner link.
 export function siteSql(site) {
   if (site.legacy) {
     const stock = IN_STOCK_WORDS.map(sqlText).join(', ');
     return `SELECT id, retailer || ':' || COALESCE(NULLIF(TRIM(merchant_product_id), ''), 'awin-' || awin_product_id) AS k, price,
       NULL AS was_price, CASE WHEN LOWER(TRIM(COALESCE(stock_status, ''))) IN (${stock}) THEN 1 ELSE 0 END AS in_stock
-      FROM products WHERE +is_active = 1 AND id > ? ORDER BY id LIMIT ?`;
+      FROM products WHERE +is_active = 1 AND id > ? AND ${noAlertsSql()} ORDER BY id LIMIT ?`;
   }
-  return 'SELECT id, stable_key AS k, price, was_price, in_stock FROM products WHERE +is_active = 1 AND id > ? ORDER BY id LIMIT ?';
+  return `SELECT id, stable_key AS k, price, was_price, in_stock FROM products WHERE +is_active = 1 AND id > ? AND ${noAlertsSql()} ORDER BY id LIMIT ?`;
 }
 
 async function readSite(db, site, pageRows) {
@@ -67,6 +70,8 @@ async function readSite(db, site, pageRows) {
       const key = row.k === null || row.k === undefined ? '' : String(row.k);
       const price = money(row.price);
       if (!key || price === null || price <= 0) { skipped++; continue; }
+      // A bol.com key that came through all the same (L204): never logged.
+      if (bolPriceKey(key, site.legacy)) continue;
       const was = money(row.was_price);
       if (now.has(key)) dupes++;
       now.set(key, { price, was: was !== null && was > 0 ? was : null, stock: Number(row.in_stock) ? 1 : 0 });
@@ -79,7 +84,9 @@ async function readSite(db, site, pageRows) {
   return { now, dupes, skipped };
 }
 
-async function readLast(prices, code, pageRows) {
+// The last state of a site's products. A bol.com key (from before L204, until tools/bol-remove.ps1 deletes it) is left
+// out, so it never gets a new row, not even a "gone" one.
+async function readLast(prices, code, pageRows, legacy = false) {
   const last = new Map();
   let after = '';
   for (;;) {
@@ -87,6 +94,7 @@ async function readLast(prices, code, pageRows) {
       .bind(code, after, pageRows).all();
     const rows = (res && res.results) || [];
     for (const row of rows) {
+      if (bolPriceKey(row.pkey, legacy)) continue;
       last.set(String(row.pkey), { price: money(row.price), was: money(row.was_price), stock: Number(row.in_stock) ? 1 : 0, listed: Number(row.listed) ? 1 : 0 });
     }
     if (rows.length < pageRows) break;
@@ -168,7 +176,7 @@ async function logSite(env, site, day, opts, budget, progress) {
   const { now, dupes, skipped } = await readSite(db, site, opts.pageRows);
   // An empty answer is a problem of the moment (a site never shows 0 products): nothing is written, it is tried again.
   if (now.size === 0) throw new Error('the site database gave no products: nothing written');
-  const last = await readLast(prices, site.code, opts.pageRows);
+  const last = await readLast(prices, site.code, opts.pageRows, site.legacy);
   const diff = diffPrices(now, last);
   let changes = diff.changes;
   let status = 'ok';
