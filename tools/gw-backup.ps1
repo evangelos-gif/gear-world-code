@@ -35,6 +35,12 @@
   Ctrl+C («ΔΙΑΚΟΠΗ»: the report file is written, gw-last-report puts it on the clipboard). Every part prints its start time and progress; the report ends with how many minutes
   each part took («Χρόνοι:»). Order: files, databases, then GitHub (the code is on GitHub anyway). The last line
   is ΤΕΛΟΣ BACKUP. For a clean start in a new folder: -Target D:\GearWorldBackup-<date> (lessons L117).
+  A stopped run goes on from where it was (lessons L201): with -Apply every file it checks is written at once to
+  <home>\gear-world-backup-work\scan-memory.tsv (path, size, time and the result word only, never what is inside), and
+  the next run does not read a file again whose size and time are the same, nor a file whose copy on the drive has
+  the same size and time (an earlier backup read it clean before copying it). A changed file, a locked file and every
+  file after a change of the check's rules are read again; -FreshScan reads everything. With -KeepDbHours <n> a
+  database whose copy ended well in the last n hours is not read again (e.g. 24 after a run that stopped).
 
   Report: <home>\gear-world-reports\GW_BACKUP_<time>.txt (also copied to the clipboard)
 #>
@@ -58,6 +64,8 @@ param(
     [string[]]$NetworkUrls = @(),
     [switch]$SkipNetworkCheck,
     [switch]$NoClipboard,
+    [switch]$FreshScan, # read every file again, without the memory of earlier checks (L201)
+    [int]$KeepDbHours = 0, # a database whose copy ended well in the last n hours is not read again (L201); 0 = all
     [switch]$TestInterrupt # tests only: behaves as if Ctrl+C was pressed right after the checks
 )
 
@@ -72,6 +80,7 @@ if ($PageRows -lt 1) { $PageRows = 3000 }
 if ($OnlyGitHub) { $SkipDatabases = $true; $SkipFeeds = $true }
 if ($FileBudgetSec -lt 0) { $FileBudgetSec = 60 }
 if ($ProgressSec -lt 0) { $ProgressSec = 30 } # 0 = a line for every file (tests)
+if ($KeepDbHours -lt 0) { $KeepDbHours = 0 }
 $script:FileDeadline = [DateTime]::MaxValue
 $stamp = Get-Date -Format 'yyyyMMdd_HHmmss'
 $Owner = 'evangelos-gif'
@@ -178,6 +187,7 @@ function Start-Phase([string]$name) {
 # this uses .NET calls only. It writes the report file (gw-last-report puts it back on the clipboard) (lessons L117).
 function Write-Interrupted {
     $script:Finishing = $true
+    try { if ($null -ne $script:MemoWriter) { $script:MemoWriter.Dispose(); $script:MemoWriter = $null } } catch { }
     try {
         if ($null -ne $script:PhaseStart) { $script:Times.Add(('{0}: {1} λεπτά' -f $script:PhaseName, [int][Math]::Round(([DateTime]::Now - $script:PhaseStart).TotalMinutes))) }
         $L.Add('ΔΙΑΚΟΠΗ: σταμάτησε πριν τελειώσει (Ctrl+C). Ό,τι γράφτηκε μέχρι εδώ μένει στον δίσκο.')
@@ -214,6 +224,7 @@ function Beat([string]$msg) {
 function Finish([int]$code) {
     if ($script:Finishing) { exit $code }
     $script:Finishing = $true
+    try { if ($null -ne $script:MemoWriter) { $script:MemoWriter.Dispose(); $script:MemoWriter = $null } } catch { }
     End-Phase
     if ($script:Times.Count -gt 0) { Say ('Χρόνοι: {0}' -f ($script:Times -join ' · ')) }
     if ($script:Awake) { [void](Set-Awake $false); Say 'Ο υπολογιστής γύρισε στον κανονικό ύπνο.' }
@@ -335,9 +346,122 @@ function Get-SensitiveReason([string]$path) {
         if ($fs) { $fs.Dispose() }
     }
 }
+# Memory of the check (lessons L201). On 19-20/11 the night backup read files from 23:51 until the morning, the laptop
+# had to go, and nothing of that check was kept: the next run would read everything again. Now, with -Apply, every
+# file checked is written at once (one line, flushed) to $MemoFile: result word, size, time, path. Never what is inside.
+# The memory belongs to these rules: when the rules change (a pattern, -ScanMaxMB, -FileBudgetSec), it is not used.
+$MemoFile = Join-Path $WorkDir 'scan-memory.tsv'
+$script:Memo = @{}
+$script:MemoLoaded = $false
+$script:MemoWriter = $null
+$script:MemoHits = 0
+$script:DriveHits = 0
+$script:ReadNow = 0
+$script:DriveTrusted = $false
+function Get-RulesId {
+    $txt = @($SecretRx.ToString(), $EmailRx.ToString(), $NotCustomerRx, [string]$EmailLimit, ($ScanExt -join ','), ($ArchiveOut -join ','), ($ZipExt -join ','), [string]$ScanMaxMB, [string]$FileBudgetSec) -join "`n"
+    $sha = [System.Security.Cryptography.SHA256]::Create()
+    try { $h = $sha.ComputeHash([System.Text.Encoding]::UTF8.GetBytes($txt)) } finally { $sha.Dispose() }
+    return (-join @($h[0..7] | ForEach-Object { $_.ToString('x2') }))
+}
+$MemoHead = '# gw-backup scan memory 1 rules=' + (Get-RulesId)
+# The drive's copies are trusted only after a backup that checked every file ended there: its log in <drive>\logs has
+# the «Μένουν ΕΞΩ» list. The backups before 9/11 copied without checking (lessons L113) and their logs do not have it.
+function Test-DriveChecked {
+    try {
+        $logs = Join-Path $Target 'logs'
+        if (-not (Test-Path -LiteralPath $logs -PathType Container)) { return $false }
+        foreach ($lf in @(Get-ChildItem -LiteralPath $logs -Filter 'GW_BACKUP_*.txt' -File -ErrorAction SilentlyContinue)) {
+            if ([System.IO.File]::ReadAllText($lf.FullName).Contains('== Μένουν ΕΞΩ από τον δίσκο')) { return $true }
+        }
+    } catch { }
+    return $false
+}
+function Open-ScanMemo {
+    if ($FreshScan) { return }
+    $script:DriveTrusted = Test-DriveChecked
+    try {
+        if (-not [System.IO.File]::Exists($MemoFile)) { return }
+        $lines = [System.IO.File]::ReadAllLines($MemoFile, (New-Object System.Text.UTF8Encoding($false)))
+        if ($lines.Count -eq 0 -or $lines[0] -ne $MemoHead) { return } # other rules: everything is read again
+        for ($i = 1; $i -lt $lines.Count; $i++) {
+            $p = $lines[$i].Split("`t")
+            if ($p.Count -eq 4 -and $p[3]) { $script:Memo[$p[3]] = $p }
+        }
+        $script:MemoLoaded = $true
+    } catch { $script:Memo = @{}; $script:MemoLoaded = $false }
+}
+# Only with -Apply: the check without -Apply writes nothing new (lessons L113, L114).
+function Start-ScanMemo {
+    if (-not $Apply) { return }
+    try {
+        if (-not (Test-Path -LiteralPath $WorkDir)) { New-Item -ItemType Directory -Path $WorkDir -Force | Out-Null }
+        $append = $script:MemoLoaded
+        $sw = New-Object System.IO.StreamWriter($MemoFile, $append, (New-Object System.Text.UTF8Encoding($false)))
+        $sw.AutoFlush = $true # a run that stops (Ctrl+C, laptop taken) keeps every file it checked
+        if (-not $append) { $sw.WriteLine($MemoHead) }
+        $script:MemoWriter = $sw
+    } catch {
+        $script:MemoWriter = $null
+        Say ('  ΠΡΟΣΟΧΗ: η μνήμη του ελέγχου δεν γράφεται ({0}): αν σταματήσει, την επόμενη φορά ξαναδιαβάζει τα ίδια.' -f $_.Exception.Message) 'Yellow'
+    }
+}
+function Add-ScanMemo([string]$path, [System.IO.FileInfo]$fi, [string]$reason) {
+    if ($reason -eq 'unreadable') { return } # a locked file is read again next time
+    $row = @($reason, [string]$fi.Length, [string]$fi.LastWriteTimeUtc.Ticks, $path)
+    $script:Memo[$path] = $row
+    if ($null -eq $script:MemoWriter) { return }
+    try { $script:MemoWriter.WriteLine(($row -join "`t")) } catch { $script:MemoWriter = $null }
+}
+# The result for a file without reading it, or $null. From the memory (same size and time), or from the drive: a copy
+# with the same size and time (2 seconds, for exFAT/FAT drives) was read clean by an earlier backup before robocopy
+# copied it, and the rules have only become looser since the drive's first backup of 12/11 (L118).
+function Get-ScanMemo([string]$path, [System.IO.FileInfo]$fi, [string]$drivePath) {
+    if ($FreshScan) { return $null }
+    $m = $script:Memo[$path]
+    if ($null -ne $m -and $m[1] -eq [string]$fi.Length -and $m[2] -eq [string]$fi.LastWriteTimeUtc.Ticks) { $script:MemoHits++; return [string]$m[0] }
+    if ($script:DriveTrusted -and $drivePath -and $fi.Length -le ([long]$ScanMaxMB * 1MB)) {
+        try {
+            $df = New-Object System.IO.FileInfo($drivePath)
+            if ($df.Exists -and $df.Length -eq $fi.Length -and [Math]::Abs($df.LastWriteTimeUtc.Ticks - $fi.LastWriteTimeUtc.Ticks) -le 20000000) {
+                $script:DriveHits++
+                Add-ScanMemo $path $fi ''
+                return ''
+            }
+        } catch { }
+    }
+    return $null
+}
+function Get-CheckedReason([string]$path, [System.IO.FileInfo]$fi, [string]$drivePath) {
+    $ext = [System.IO.Path]::GetExtension($path).ToLowerInvariant()
+    if (($ZipExt -notcontains $ext) -and -not (Test-Scannable $fi.Name)) { return (Get-SensitiveReason $path) } # never read anyway
+    $m = Get-ScanMemo $path $fi $drivePath
+    if ($null -ne $m) { return $m }
+    $r = Get-SensitiveReason $path
+    $script:ReadNow++
+    Add-ScanMemo $path $fi $r
+    return $r
+}
+# At the end of the check: one line per file that is still on the PC, so the memory does not grow without end.
+function Close-ScanMemo {
+    if ($null -eq $script:MemoWriter) { return }
+    try { $script:MemoWriter.Dispose() } catch { }
+    $script:MemoWriter = $null
+    try {
+        $tmp = $MemoFile + '.new'
+        $sw = New-Object System.IO.StreamWriter($tmp, $false, (New-Object System.Text.UTF8Encoding($false)))
+        try {
+            $sw.WriteLine($MemoHead)
+            foreach ($k in @($script:Memo.Keys)) { if ([System.IO.File]::Exists($k)) { $sw.WriteLine(($script:Memo[$k] -join "`t")) } }
+        } finally { $sw.Dispose() }
+        if ([System.IO.File]::Exists($MemoFile)) { [System.IO.File]::Delete($MemoFile) }
+        [System.IO.File]::Move($tmp, $MemoFile)
+    } catch { }
+}
 # Size of a folder without node_modules and the other skipped folders, and the files that must stay out. Without
 # $content only the names are checked (the Awin feeds: product data). A file or folder that cannot be read stays out.
-function Get-FolderScan([string]$dir, [bool]$content = $true) {
+# $dst is the folder's copy on the drive (for the memory of the check, L201).
+function Get-FolderScan([string]$dir, [bool]$content = $true, [string]$dst = '') {
     $total = [double]0; $count = 0
     $out = New-Object System.Collections.Generic.List[object]
     # A line at least every -ProgressSec seconds, so a long folder shows that it moves (lessons L115).
@@ -363,7 +487,11 @@ function Get-FolderScan([string]$dir, [bool]$content = $true) {
                 $fi = New-Object System.IO.FileInfo($f)
                 $len = $fi.Length
                 if (Test-SecretName $fi.Name) { $reason = 'name' }
-                elseif ($content) { $reason = Get-SensitiveReason $f }
+                elseif ($content) {
+                    $dp = ''
+                    if ($dst) { $dp = $dst + $f.Substring($dir.Length) }
+                    $reason = Get-CheckedReason $f $fi $dp
+                }
             } catch { $reason = 'unreadable' }
             if ($reason) { $out.Add(@{ path = $f; rel = $f.Substring($dir.Length).TrimStart('\', '/'); reason = $reason; dir = $false }) }
             else { $total += $len; $count++ }
@@ -712,6 +840,7 @@ try {
     $need = [double]0
     $outAll = New-Object System.Collections.Generic.List[object]
     Start-Phase 'Από αυτόν τον υπολογιστή'
+    if ($copies.Count -gt 0) { Open-ScanMemo; Start-ScanMemo }
     if ($OnlyGitHub) { Say '  Μόνο GitHub: φάκελοι, feeds και βάσεις δεν αντιγράφονται αυτή τη φορά.' }
     elseif ($copies.Count -eq 0) { Say '  Δεν βρέθηκαν φάκελοι του Gear World.' 'Yellow' }
     foreach ($c in $copies) {
@@ -722,7 +851,7 @@ try {
             Say ('  {0,-40} {1,10}  ({2} feeds στα Downloads)' -f 'Downloads\<id>-*.csv.gz', (Format-Size $b), $c.files.Count)
         } else {
             Write-Host ('  ... διαβάζω {0} (μπορεί να πάρει μερικά λεπτά, μην κλείσεις το παράθυρο)' -f $c.rel)
-            $s = Get-FolderScan $c.src ($c.kind -ne 'feeds') # the Awin feeds are product data: only their names are checked
+            $s = Get-FolderScan $c.src ($c.kind -ne 'feeds') $c.dst # the Awin feeds are product data: only their names are checked
             $c['bytes'] = $s.bytes
             $c['out'] = $s.out.ToArray() # index syntax: a dot assignment of an array here fails in PowerShell 5.1
             foreach ($o in $s.out) { $outAll.Add(@{ rel = (Join-Path $c.rel $o.rel); reason = $o.reason }) }
@@ -731,6 +860,13 @@ try {
         $need += $c.bytes
     }
     Say ('  Σύνολο: {0} (χωρίς node_modules και .wrangler). Μόνο όσα άλλαξαν αντιγράφονται ξανά.' -f (Format-Size $need))
+    if ($copies.Count -gt 0) {
+        Close-ScanMemo
+        Say ('  Έλεγχος αρχείων: {0} διαβάστηκαν τώρα, {1} ίδια με τον προηγούμενο έλεγχο, {2} ίδια με το αντίγραφο στον δίσκο (αυτά δεν ξαναδιαβάστηκαν, L201).' -f $script:ReadNow, $script:MemoHits, $script:DriveHits)
+        if ($FreshScan) { Say '  -FreshScan: όλα διαβάστηκαν από την αρχή.' }
+        elseif (-not $script:DriveTrusted -and (Test-Path -LiteralPath (Join-Path $Target 'files'))) { Say '  Στον δίσκο δεν τελείωσε ακόμα backup με έλεγχο: τα αντίγραφά του δεν μετράνε ως ελεγμένα.' }
+        if ($Apply) { Say ('  Μνήμη του ελέγχου: {0} (αν σταματήσει, η επόμενη φορά συνεχίζει από εκεί).' -f $MemoFile) }
+    }
     Say ''
     Say ('== Μένουν ΕΞΩ από τον δίσκο: {0} αρχεία με κλειδιά ή emails πελατών ==' -f $outAll.Count)
     Say '  (μένουν μόνο στον υπολογιστή· τα κλειδιά είναι και στο Cloudflare, οι πελάτες στη D1 και στο MailerLite)'
@@ -812,6 +948,7 @@ try {
         Say 'Τι θα γίνει με -Apply (τρέχει μόνο του, χωρίς ερωτήσεις):'
         Say ('  - Αντιγραφή στο {0}: μόνο όσα άλλαξαν. Κλειδιά και emails πελατών μένουν έξω.' -f $Target)
         Say '  - Zip κάθε κλάδου του GitHub που άλλαξε, και αντίγραφο κάθε βάσης D1 (μόνο SELECT, σε σελίδες).'
+        if ($KeepDbHours -gt 0) { Say ('  - Βάσεις με σωστό αντίγραφο από τις τελευταίες {0} ώρες: μένουν όπως είναι (-KeepDbHours).' -f $KeepDbHours) }
         Say '  - Ο υπολογιστής μένει ξύπνιος και η οθόνη ανοιχτή μέχρι το τέλος, χωρίς αλλαγή ρυθμίσεων· ένα κλικ στο παράθυρο δεν το σταματά.'
         Say '  - Καμία αλλαγή σε site, βάση, Worker ή GitHub.'
         Say ''
@@ -888,8 +1025,20 @@ try {
         $di = 0
         foreach ($db in $dbs) {
             $di++
-            Write-Host ('  ... βάση {0} ({1} από {2}), από {3}' -f $db, $di, @($dbs).Count, (Get-Date -Format 'HH:mm'))
             $final = Join-Path $d1Root $db
+            # A database whose copy ended well in the last -KeepDbHours hours is not read again: a run that stopped goes on
+            # with the next one (L201). Only a copy that ended well has tables.txt in d1\<name> (a failed one is .incomplete).
+            if ($KeepDbHours -gt 0) {
+                $tf = Join-Path $final 'tables.txt'
+                if (Test-Path -LiteralPath $tf -PathType Leaf) {
+                    $tw = (Get-Item -LiteralPath $tf).LastWriteTime
+                    if ($tw -gt (Get-Date).AddHours(-$KeepDbHours)) {
+                        Say ('  ίδια: {0} ({1} από {2}): το αντίγραφο της {3} μένει (-KeepDbHours {4})' -f $db, $di, @($dbs).Count, $tw.ToString('dd/MM HH:mm'), $KeepDbHours)
+                        continue
+                    }
+                }
+            }
+            Write-Host ('  ... βάση {0} ({1} από {2}), από {3}' -f $db, $di, @($dbs).Count, (Get-Date -Format 'HH:mm'))
             $tmp = Join-Path $d1Root ('_new_' + $db)
             $dbProblems = 0
             $rowsTotal = 0; $tables = 0; $countOnly = 0

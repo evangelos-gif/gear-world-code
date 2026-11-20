@@ -3180,6 +3180,37 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         Check ((Test-Path -LiteralPath (Join-Path $bd 'items-0001.json')) -and ([System.IO.File]::ReadAllText((Join-Path $bd 'items-0001.json'))).Contains('Old') -and -not (Test-Path -LiteralPath (Join-Path $bd 'signups-0001.json')) -and (Test-Path -LiteralPath (Join-Path $bTarget 'd1\broken-db.incomplete\items-0001.json'))) 'backup: a database with a failing table keeps its old copy (without customers), the new one is .incomplete'
         Check (-not ($calls -match '(?i)INSERT|UPDATE|DELETE|DROP|deploy|time-travel restore')) 'backup: databases only read'
         Check ((Test-Path -LiteralPath (Join-Path $bTarget 'README-RESTORE.txt')) -and ([System.IO.File]::ReadAllText((Join-Path $bTarget 'README-RESTORE.txt'))).Contains('wrangler secret put')) 'backup: restore instructions, with how keys come back'
+        # Memory of the check (L201): a run that stopped goes on from where it was; nothing inside the files is in it.
+        $memo = Join-Path $bHome 'gear-world-backup-work\scan-memory.tsv'
+        $memoRx = 'Έλεγχος αρχείων: (\d+) διαβάστηκαν τώρα, (\d+) ίδια με τον προηγούμενο έλεγχο, (\d+) ίδια με το αντίγραφο στον δίσκο'
+        $mt = ''; if (Test-Path -LiteralPath $memo) { $mt = [System.IO.File]::ReadAllText($memo) }
+        Check ($mt.StartsWith('# gw-backup scan memory 1 rules=') -and $mt.Contains('big-export.sql') -and $mt.Contains('worker.js') -and $mt.Contains("emails`t") -and -not $mt.Contains($fakeSecret) -and -not $mt.Contains('shop-test.invalid') -and -not $mt.Contains('locked-notes.txt')) 'backup memory: every file checked with its result word, paths only; a locked file is not remembered (L201)'
+        $mr = ''; if ((Run-B @()) -eq 0) { $mr = Get-BReport }
+        $mm = [regex]::Match($mr, $memoRx)
+        Check ($mm.Success -and [int]$mm.Groups[2].Value -ge 400 -and [int]$mm.Groups[1].Value -le 10 -and $mr.Contains('big-export.sql  (έχει emails)') -and $mr.Contains('old-deploy.ps1') -and $mr.Contains('locked-notes.txt') -eq $false) 'backup check after a run: files checked before are not read again, the ones with keys or e-mails still stay out (L201)'
+        $notes = Join-Path $bHome 'gear-world-hub\notes.sql'
+        $notesOld = [System.IO.File]::ReadAllText($notes)
+        Write-Utf8 $notes "SELECT 1; -- a1@shop-test.invalid b2@shop-test.invalid c3@shop-test.invalid`n"
+        $nc = Run-B @()
+        Check ($nc -eq 0 -and (Get-BReport).Contains('notes.sql  (έχει emails)')) 'backup memory: a file that changed since is read again (L201)'
+        Write-Utf8 $notes $notesOld
+        $cl0 = [regex]::Matches([System.IO.File]::ReadAllText((Join-Path $bState 'calls.log')), 'test-db').Count
+        $kc = Run-B @('-Apply', '-Approve', $ok, '-KeepDbHours', '24')
+        $kr = Get-BReport
+        $cl1 = [regex]::Matches([System.IO.File]::ReadAllText((Join-Path $bState 'calls.log')), 'test-db').Count
+        Check ($kc -eq 12 -and $kr.Contains('ίδια: test-db') -and $kr.Contains('ίδια: prices-db') -and -not $kr.Contains('ίδια: broken-db') -and $kr.Contains('broken-db.bad') -and $cl1 -eq $cl0) 'backup -KeepDbHours: a database whose copy ended well in the last hours is not read again, the one that failed is (L201)'
+        Remove-Item -LiteralPath $memo -Force
+        $sr = ''; if ((Run-B @()) -eq 0) { $sr = Get-BReport }
+        $sm = [regex]::Match($sr, $memoRx)
+        Check ($sm.Success -and [int]$sm.Groups[2].Value -eq 0 -and [int]$sm.Groups[3].Value -ge 3 -and $sr.Contains('big-export.sql  (έχει emails)') -and $sr.Contains('old-deploy.ps1') -and -not (Test-Path -LiteralPath $memo)) 'backup without memory: a file whose drive copy has the same size and time is not read again, keys and e-mails are still found, the check writes no memory (L201)'
+        Rename-Item -LiteralPath (Join-Path $bTarget 'logs') -NewName 'logs-off'
+        $ur = ''; if ((Run-B @()) -eq 0) { $ur = Get-BReport }
+        Rename-Item -LiteralPath (Join-Path $bTarget 'logs-off') -NewName 'logs'
+        $um = [regex]::Match($ur, $memoRx)
+        Check ($um.Success -and [int]$um.Groups[3].Value -eq 0 -and $ur.Contains('δεν τελείωσε ακόμα backup με έλεγχο')) 'backup: the copies on a drive where no checked backup ended (the ones before 9/11) are not trusted (L201, L113)'
+        $fr = ''; if ((Run-B @('-FreshScan')) -eq 0) { $fr = Get-BReport }
+        $fm = [regex]::Match($fr, $memoRx)
+        Check ($fm.Success -and [int]$fm.Groups[2].Value -eq 0 -and [int]$fm.Groups[3].Value -eq 0 -and [int]$fm.Groups[1].Value -ge 400 -and $fr.Contains('-FreshScan')) 'backup -FreshScan: every file read again (L201)'
         Remove-Item -LiteralPath (Join-Path $bHome 'gear-world-hub\worker.js')
         Check ((Run-B @('-Apply', '-Approve', $ok, '-SkipDatabases')) -eq 0 -and (Test-Path -LiteralPath (Join-Path $f 'gear-world-hub\worker.js'))) 'backup again: a file deleted on the PC stays on the drive'
         $gc = Run-B @('-Apply', '-Approve', $ok, '-OnlyGitHub')
