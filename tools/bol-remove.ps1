@@ -309,7 +309,7 @@ $swFile = Join-Path $bdir 'awin-refresh-off.sql'
 [void](Invoke-Core @('--mode', 'switch-sql', '--out', $swFile))
 $s = Invoke-Wrangler $WorkDir ('d1 execute {0} --remote --file "{1}"' -f $AwinDb, $swFile) -Retry
 if ($s.code -eq 0) { $back = Read-Switch; if ($back.state -eq 'off') { $switchOk = $true } }
-if ($switchOk) { Say '  Διακόπτης: 0 (ΚΛΕΙΣΤΟΣ): ο Worker δεν καλεί το bol.com και δεν αλλάζει τιμές.' 'Green' }
+if ($switchOk) { Say '  Διακόπτης: 0 (ΚΛΕΙΣΤΟΣ), λόγος «removal tool»: ο Worker δεν καλεί το bol.com και δεν αλλάζει τιμές (οι επόμενες εκτελέσεις του γράφονται ως παύση, όχι ως λάθος).' 'Green' }
 else {
     Say ('  ΠΡΟΒΛΗΜΑ: ο διακόπτης δεν έγινε 0 ({0}). Η αφαίρεση συνεχίζει.' -f (Short-Error $s.text)) 'Red'
     Say ('  Κλείσ'' τον εσύ, στο PowerShell: cd "{0}"; npx wrangler d1 execute {1} --remote --file "{2}"' -f $WorkDir, $AwinDb, $swFile)

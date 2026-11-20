@@ -12,7 +12,8 @@
 //   --mode delete-sql --target <code> --tables <a,b,...> --rows <n> [--rows-log <n>] --out <file>
 //                                          the DELETE statements, side tables first, products in parts of 500
 //   --mode switch-sql --out <file>         the kill switch of the daily refresh (gear-world-awin, bol_refresh_meta
-//                                          'enabled' = '0', the contract of src/bol-refresh.js, lessons L205)
+//                                          'enabled' = '0', the contract of src/bol-refresh.js, lessons L205), and its
+//                                          reason 'removal tool <time>' (never 'worker ...': that one makes every run an error)
 //   --mode switch-read-sql                 the SELECT of that switch
 //
 // A bol.com row: retailer 'bol.com' (or a name that the site shows as 'bol.com'), OR the bol.com partner link
@@ -160,11 +161,16 @@ export function deleteSql(t, tables, { rows = 0, rowsLog = 0, stamp = new Date()
 // The kill switch of gear-world-bol-refresh (src/bol-refresh.js reads it at the start of every run): '0' = no bol.com
 // call and no price change. The table may not be there yet (the refresh not set up): it is made, as its own migration
 // would (IF NOT EXISTS), and that migration keeps the 0 (ON CONFLICT DO NOTHING). bol_refresh_hidden is left as it is.
+// disabled_reason: who turned it off. The Worker records every run as an error while the reason starts with 'worker'
+// (its own stop after a 401/403 from bol.com); the removal tool's own reason replaces such an old one, so the later runs
+// are pauses, not errors (Manager, 20 Nov 2026).
+export const SWITCH_REASON = 'removal tool';
 export function switchSql(now = new Date()) {
   const at = now.toISOString().slice(0, 19).replace('T', ' ');
   return ['-- bol.com removal (lessons L204): the daily refresh off first (bol_refresh_meta enabled = 0, lessons L205).',
     'CREATE TABLE IF NOT EXISTS bol_refresh_meta (key TEXT PRIMARY KEY, value TEXT, updated_at TEXT NOT NULL);',
-    `INSERT INTO bol_refresh_meta (key, value, updated_at) VALUES ('enabled', '0', ${q(at)}) ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at;`
+    `INSERT INTO bol_refresh_meta (key, value, updated_at) VALUES ('enabled', '0', ${q(at)}) ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at;`,
+    `INSERT INTO bol_refresh_meta (key, value, updated_at) VALUES ('disabled_reason', ${q(`${SWITCH_REASON} ${at.slice(0, 16)}`)}, ${q(at)}) ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at;`
   ].join('\n') + '\n';
 }
 export const switchReadSql = () => "SELECT value, updated_at FROM bol_refresh_meta WHERE key = 'enabled'";

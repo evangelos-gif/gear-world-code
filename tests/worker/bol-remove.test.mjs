@@ -5,7 +5,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
 import { DatabaseSync } from 'node:sqlite';
-import { targets, targetOf, countSql, deleteSql, tablesSql, parts, bolWhere, UNSAFE, SIDE_TABLES, PRODUCTS_PER_DELETE, REFRESH_WORKER, PRICES_DB, AWIN_DB, switchSql, switchReadSql } from '../../tools/bol-remove.mjs';
+import { targets, targetOf, countSql, deleteSql, tablesSql, parts, bolWhere, UNSAFE, SIDE_TABLES, PRODUCTS_PER_DELETE, REFRESH_WORKER, PRICES_DB, AWIN_DB, switchSql, switchReadSql, SWITCH_REASON } from '../../tools/bol-remove.mjs';
 import { networkShopId } from '../../tools/tgw-import-plan.mjs';
 import { PRICE_SITES } from '../../sites/prices/sites.js';
 import { BOL_SITES } from '../../sites/_shared/bol.js';
@@ -182,4 +182,18 @@ test('L204 + L205: the kill switch of the daily refresh: made if missing, set to
   assert.equal(db.prepare('SELECT COUNT(*) AS n FROM bol_refresh_hidden').get().n, 1);
   // The refresh Worker reads the same row (src/bol-refresh.js).
   assert.match(read('src/bol-refresh.js'), /SELECT value FROM bol_refresh_meta WHERE key = \?/);
+  // Who turned it off (Manager, 20 Nov 2026): the removal tool's own reason, never one that starts with "worker" (the
+  // Worker's own stop after a 401/403, which makes every later run an error), and it replaces such an old one.
+  const reason = d => d.prepare("SELECT value FROM bol_refresh_meta WHERE key = 'disabled_reason'").get().value;
+  assert.equal(SWITCH_REASON, 'removal tool');
+  assert.equal(reason(empty), 'removal tool 2026-11-25 08:30');
+  const stopped = new DatabaseSync(':memory:');
+  stopped.exec(migration);
+  stopped.exec("INSERT INTO bol_refresh_meta (key, value, updated_at) VALUES ('enabled', '0', '2026-11-24 04:13:00'), ('disabled_reason', 'worker 2026-11-24T04:13:00.000Z: bol.com answered 401 (token); turn on with -Step enable', '2026-11-24 04:13:00') ON CONFLICT (key) DO UPDATE SET value = excluded.value");
+  stopped.exec(sql);
+  assert.equal(stopped.prepare(switchReadSql()).get().value, '0');
+  assert.equal(reason(stopped), 'removal tool 2026-11-25 08:30');
+  const workerRule = read('src/bol-refresh.js').match(/if \(!enabled && (\/\^worker\\b\/i)\.test\(offReason\)\) errors\.push/);
+  assert.ok(workerRule, 'the Worker counts a run as an error only for a reason that starts with "worker"');
+  assert.ok(!/^worker\b/i.test(reason(stopped)) && !/^worker\b/i.test(reason(db)), 'so its later runs are pauses');
 });
