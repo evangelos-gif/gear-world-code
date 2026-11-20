@@ -285,8 +285,54 @@ test('L193: D1\'s 100 values: HGW\'s UK view (41 hidden retailers) with every fi
     assert.deepEqual(b, plain(await db.listProducts(slow, { ...f, ...extra }, { sort: 'featured' })));
   }
   const walk = fast.log.find(q => /NOT EXISTS/.test(q.text));
-  // Since L199 the UK view also hides the 20 Linkwise shops (Greece only): 60 names, 67 values with every filter.
-  assert.ok(walk && walk.args.length <= 100 && (walk.text.match(/\?/g) || []).length > 100, `${walk && walk.args.length} values for ${(walk.text.match(/\?/g) || []).length} places`);
+  // Since L199 the UK view also hides the 20 Linkwise shops (Greece only): 60 names. Since L202 they are quoted text in
+  // the SQL, not values, so the walk's values are only those of the other filters, and every name is in the text.
+  assert.ok(walk && walk.args.length <= 20, `${walk && walk.args.length} values`);
+  for (const n of view.hidden) assert.ok(walk.text.includes(`'${n.replace(/'/g, "''")}'`), `${n} is in the SQL`);
+});
+
+test('L202: "p." and "?" inside quoted names are text, never a column or a value', () => {
+  const where = "p.is_active = 1 AND likelihood(+p.retailer NOT IN ('Shop p.co', 'O''Neill p.x', 'What?') AND +p.last_seen_at >= ?, 1.0) AND p.price <= ?";
+  assert.equal(db.asOther(where), "o.is_active = 1 AND likelihood(+o.retailer NOT IN ('Shop p.co', 'O''Neill p.x', 'What?') AND +o.last_seen_at >= ?, 1.0) AND o.price <= ?");
+  assert.deepEqual(db.byNumber(where), { sql: "p.is_active = 1 AND likelihood(+p.retailer NOT IN ('Shop p.co', 'O''Neill p.x', 'What?') AND +p.last_seen_at >= ?1, 1.0) AND p.price <= ?2", next: 3 });
+});
+
+test('L202: 600 shops that do not deliver to the UK (names with a quote, a ? and "p."): every statement stays inside D1\'s limits, the same pages as the old queries, none of them in the UK view', async () => {
+  // The new country filter (lessons L202): the hidden names are quoted text in the SQL, so the UK view of a site can hide
+  // any number of shops. Before, every name was one of D1's 100 values and ~62 names was the limit (L193, L199).
+  const tricky = ["O'Neill GR", 'Shop p.co GR', 'What? GR', "Bob''s GR"];
+  const many = Array.from({ length: 600 }, (_, i) => `Shop ${String(i + 1).padStart(3, '0')} GR`);
+  const extra = {};
+  for (const n of [...tricky, ...many]) extra[n] = ['GR'];
+  const base = config.hgw;
+  config.hgw600 = { ...base, deliversTo: { ...base.deliversTo, retailers: { ...extra, ...base.deliversTo.retailers } } };
+  try {
+    const site = config.hgw600;
+    db.useLayout(site);
+    const view = viewFor(site, 'GB', NOW);
+    assert.ok(view.hidden.length >= 604, `${view.hidden.length} hidden`);
+    for (const n of tricky) assert.ok(view.hidden.includes(n), n);
+    const { fast, slow } = shop('hgw600', 7, 1500);
+    for (const f of [{ category: 'home-decor', view }, { category: 'home-decor', view, brand: 'Acme', minPrice: 5, maxPrice: 200, inStock: true }, { view, search: 'gift' }]) {
+      for (const sort of ['featured', 'price-asc', 'newest']) {
+        fast.log.length = 0;
+        const a = plain(await db.listProducts(fast, f, { sort }));
+        const b = plain(await db.listProducts(slow, f, { sort }));
+        assert.deepEqual(a, b, `${JSON.stringify({ ...f, view: 'GB' })} ${sort}`);
+        const shown = JSON.stringify(a);
+        for (const n of tricky) assert.ok(!shown.includes(JSON.stringify(n).slice(1, -1)), `${n} is not in the UK view`);
+        assert.ok(fast.log.length > 0);
+      }
+    }
+    // The other views read the same way (the all view hides the Greek feeds too: their language is Greek, L165, L199).
+    for (const v of [viewFor(site, 'BE', NOW), viewFor(site, 'US', NOW), viewFor(site, 'GR', NOW)]) {
+      assert.deepEqual(plain(await db.listProducts(fast, { category: 'home-decor', view: v }, { sort: 'featured' })),
+        plain(await db.listProducts(slow, { category: 'home-decor', view: v }, { sort: 'featured' })));
+    }
+  } finally {
+    delete config.hgw600;
+    db.useLayout(config.hgw);
+  }
 });
 
 test('L193: indexes dropped, or one of another text, while fast mode thinks they are there: the same pages the old way, never an error', async () => {

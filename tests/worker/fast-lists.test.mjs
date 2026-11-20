@@ -144,6 +144,43 @@ test('L159: every list, count and filter of fast mode is exactly the old one (ra
   assert.ok(lists > 1500, `${lists} lists compared`);
 });
 
+test('L202: 600 shops that do not deliver to the UK on the new layout (names with a quote, a ? and "p."): inside D1\'s limits, the same lists as the old queries, none in the UK view', async () => {
+  const tricky = ["O'Neill GR", 'Shop p.co GR', 'What? GR'];
+  const extra = {};
+  for (const n of [...tricky, ...Array.from({ length: 600 }, (_, i) => `Shop ${String(i + 1).padStart(3, '0')} GR`)]) extra[n] = ['GR'];
+  const site = { ...config.agw, deliversTo: { ...config.agw.deliversTo, retailers: { ...extra, ...config.agw.deliversTo.retailers } } };
+  db.useLayout(site);
+  try {
+    const { fast, slow } = shop(11, 900);
+    for (const d of [fast, slow]) {
+      const ins = d.sql.prepare(`INSERT INTO products (stable_key, awin_advertiser_id, merchant_product_id, retailer, category_slug, brand, product_name, product_slug,
+        price, was_price, currency, in_stock, image_url, affiliate_url, gtin, is_active, first_seen_at, last_seen_at)
+        VALUES (?, 9, ?, ?, 'tyres-wheels', 'Ring', ?, ?, 30, NULL, 'EUR', 1, 'https://img.example/x.jpg', 'https://example.com/x', NULL, 1, '2026-10-28 06:00:00', '2026-10-19 06:00:00')`);
+      tricky.forEach((n, i) => { for (let k = 0; k < 20; k++) ins.run(`9:t${i}-${k}`, `t${i}-${k}`, n, `Greek tyre ${i} ${k}`, `greek-tyre-${i}-${k}`); });
+    }
+    const gb = viewFor(site, 'GB', NOW);
+    assert.ok(gb.hidden.length >= 603);
+    for (const v of [gb, viewFor(site, 'BE', NOW), viewFor(site, 'GR', NOW)]) {
+      for (const sort of ['featured', 'price-asc', 'newest']) {
+        fast.log.length = 0;
+        const a = plain(await db.listProducts(fast, { category: 'tyres-wheels', view: v }, { sort }));
+        assert.deepEqual(a, plain(await db.listProducts(slow, { category: 'tyres-wheels', view: v }, { sort })), `${sort}`);
+        for (const q of fast.log) {
+          const numbered = [...q.text.matchAll(/\?(\d+)/g)].map(m => Number(m[1]));
+          assert.ok((numbered.length ? Math.max(...numbered) : q.args.length) <= 100 && q.args.length <= 100, `${q.args.length} values`);
+          assert.ok(q.text.length <= 100000, `statement of ${q.text.length} characters`);
+        }
+        const shown = JSON.stringify(a);
+        if (v === gb) for (const n of tricky) assert.ok(!shown.includes(JSON.stringify(n).slice(1, -1)), `${n} is not in the UK view`);
+      }
+    }
+    const gr = JSON.stringify(plain(await db.listProducts(fast, { category: 'tyres-wheels', view: viewFor(site, 'GR', NOW) }, { sort: 'newest' })));
+    assert.ok(tricky.some(n => gr.includes(JSON.stringify(n).slice(1, -1))), 'a visitor from Greece sees them');
+  } finally {
+    db.useLayout(config.agw);
+  }
+});
+
 test('L159: a big category is walked in its sort\'s own index (no sort of the whole category), each card\'s group through the group-key index', async () => {
   const site = config.agw;
   db.useLayout(site);
