@@ -6826,6 +6826,8 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         return $LASTEXITCODE
     }
     function BrCalls { if (Test-Path -LiteralPath $brCalls) { return [System.IO.File]::ReadAllText($brCalls) } else { return '' } }
+    # The calls that would be a change, shown when a read-only check fails (so CI says which one).
+    function BrWrites([string]$c) { $w = @(($c -split "`r?`n") | Where-Object { $_ -match '--file|time-travel|delete gear-world' }); foreach ($x in $w) { Write-Host ('    change call: ' + $x) }; return ($w.Count -gt 0) }
     function BrLast([string]$pattern) {
         $f = @(Get-ChildItem -LiteralPath $brOut -Filter $pattern -ErrorAction SilentlyContinue | Sort-Object LastWriteTime, Name)
         if ($f.Count -eq 0) { return '' }
@@ -6835,15 +6837,15 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         [System.IO.File]::WriteAllText((Join-Path $brState 'worker.flag'), 'x')
         Check ((Run-Br @()) -eq 0) 'bol-remove check: exit 0'
         $c = BrCalls
-        Check (-not ($c -match '--file|time-travel|delete gear-world')) 'bol-remove check: only reads'
+        Check (-not (BrWrites $c)) 'bol-remove check: only reads'
         Check (([regex]::Matches($c, 'd1 execute (?!gear-world-awin)[a-z-]+ --remote --json --command "SELECT ')).Count -eq 28) 'bol-remove check: the 13 site databases and Price Watch, tables and counts (28 SELECTs)'
         Check ($c.Contains('d1 execute gear-world-awin --remote --json --command "SELECT value, updated_at FROM bol_refresh_meta WHERE key = ''enabled''"')) 'bol-remove check: reads the kill switch of the daily refresh (L205)'
         $r = BrLast 'BOL_REMOVE_CHECK_*.txt'
         Check ($r.Contains('ΕΓΚΡΙΝΩ ΑΦΑΙΡΕΣΗ BOL') -and $r.Contains('product_group_offers 2, products 5 (ενεργά: 4)') -and $r.Contains('price_log 30, price_last 6')) 'bol-remove check: the counts per table and the phrase'
         Check ($r.Contains('gear-world-bol-refresh') -and $r.Contains('ΥΠΑΡΧΕΙ') -and $r.Contains('το Hub δεν κρατά προϊόντα') -and $r.Contains('bol_refresh_meta enabled): ΑΝΟΙΧΤΟΣ')) 'bol-remove check: the refresh Worker, its switch and the Hub'
         Check (-not ($r -match '[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}')) 'bol-remove check: no Cloudflare id in the report'
-        Check ((Run-Br @('-Step', 'apply')) -eq 0 -and -not ((BrCalls) -match '--file|time-travel|delete gear-world')) 'bol-remove apply without -Apply: only reads'
-        Check ((Run-Br @('-Step', 'apply', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ ALL IMPORTS')) -eq 1 -and -not ((BrCalls) -match '--file|time-travel|delete gear-world')) 'bol-remove with another phrase: stops, changes nothing'
+        Check ((Run-Br @('-Step', 'apply')) -eq 0 -and -not (BrWrites (BrCalls))) 'bol-remove apply without -Apply: only reads'
+        Check ((Run-Br @('-Step', 'apply', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ ALL IMPORTS')) -eq 1 -and -not (BrWrites (BrCalls))) 'bol-remove with another phrase: stops, changes nothing'
         [System.IO.File]::WriteAllText((Join-Path $brState 'workerfail.flag'), 'x')
         if (Test-Path -LiteralPath $brCalls) { Remove-Item -LiteralPath $brCalls -Force }
         Check ((Run-Br @('-Step', 'apply', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ ΑΦΑΙΡΕΣΗ BOL')) -eq 14) 'bol-remove apply, the Worker cannot be deleted: the products go all the same (exit 14)'
