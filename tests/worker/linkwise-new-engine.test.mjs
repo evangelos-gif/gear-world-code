@@ -114,6 +114,48 @@ test('L211: Technology Gear World keeps phones, chargers and cameras; toner, spy
   // ... and what is technology stays:
   ok(c('HP LaserJet Pro M404dn Printer', 'Αρχική > Printers'), 'laptops-computing');
   ok(c('Suntek HC-960Ultra-Li 4G Κάμερα Ασφαλείας με Εφαρμογή', 'Σπιτι - Γραφειο > Συστήματα Ασφαλείας > Κάμερες'), 'smart-home-wifi');
+  // The second dry run (18:14): real CCTV of the «Συσκευές Παρακολούθησης» folder stays, a printer that needs no ink stays,
+  // PC cases are PC parts (not screen protectors, not WiFi mesh), alarms and door phones are security.
+  const W = 'Σπιτι - Γραφειο > Συστήματα Ασφαλείας > Συσκεύες Παρακολούθησης';
+  ok(c('Suntek HC-960Ultra-Li Μπαταρία 8000mAh/120MP/4G/4K/Live Video με Εφαρμογή/120°', W), 'smart-home-wifi');
+  ok(c('Καταγραφικό NVR HD με 8 ασύρματες κάμερες IP και 1TB HDD SATA', W), 'smart-home-wifi');
+  ok(c('Suntek MiNi700 Κάμερα Κυνηγιού 24MP/1080P/Ανίχνευση Κίνησης/850nm IR/IP65', W), 'smart-home-wifi');
+  out(c('JNN Q75 Καταγραφικό Ήχου Μεγάλης Διάρκειας - 400 ώρες με ανίχνευση ήχου', W), /spy or hidden/);
+  out(c('Κάμερα DOME με εγγραφή - Τηλεχειριζόμενη καταγραφή με ανίχνευση κίνησης', W), /spy or hidden/);
+  out(c('Ψεύτικη κάμερα με φως που αναβοσβήνει RL-027', 'Gadgets > Audio & Vision'), /spy or hidden/);
+  ok(c('Clever Pocket Printer Mini ασπρόμαυρος φορητός εκτυπωτής, θερμική εκτύπωση χωρίς μελάνι', 'Τεχνολογια > Gadgets > Διάφορα Gadgets'), 'laptops-computing');
+  out(c('Mitsubishi Electric CK-D746 Γνήσια Μελανοταινία 10x15 cm 2x 400 Prints', 'Αρχική > Consumables for thermal printers'), /toner or ink/);
+  out(c('Canon PGI-2500 BK/C/M/Y Multipack', 'Αρχική > Ink cartridges'), /toner or ink/);
+  ok(c('HYTE X50 (white, Tempered Glass)', 'Αρχική > Gehäuse > PC-Gehäuse'), 'laptops-computing');
+  ok(c('Fractal Design Meshify C (Μαύρο)', 'Αρχική > Computer cases'), 'laptops-computing');
+  ok(c('ASUS B650E MAX GAMING WIFI Motherboard', 'Αρχική > Motherboards'), 'laptops-computing');
+  ok(c('Συναγερμός πόρτας - παραθύρου με πληκτρολόγιο - Μαγνητική παγίδα', 'Σπιτι - Γραφειο > Συστήματα Ασφαλείας > Συναγερμοί'), 'smart-home-wifi');
+  ok(c('Θυροτηλεόραση έγχρωμη για 2 διαμερίσματα με 2 Μόνιτορ 7', 'Σπιτι - Γραφειο > Συστήματα Ασφαλείας > Θυροτηλεοράσεις'), 'smart-home-wifi');
+  ok(c('Moes Tuya ZigBee Wired Gateway Hub Smart Home Bridge (ZHUB-MS)', 'Τεχνολογια > Φωτισμός & Αξεσουάρ > Ηλεκτρολογικά'), 'accessories-storage');
+  ok(c('TP-Link Deco X55 Mesh WiFi 6 System (3-Pack)', 'Αρχική > Networks -wireless routers / access points-'), 'smart-home-wifi');
+  // ... and what is not technology stays out:
+  out(c('Bosch GLF 18V-8 Cordless Palm Router', 'Αρχική > Routers & Trimmers'), /not a technology/);
+  out(c('Ryobi 5133005654 Κάθετη Φρέζα 18V Solo', 'Αρχική > Routers & Trimmers'), /not a technology/);
+  out(c('Fein Socket Adapter QuickIN Accessory', 'Αρχική > Universalhalter'), /not a technology/);
+  out(c('DEVI DEVIflex 18T Heating Cable – 29 m – 535W 230V', 'Αρχική > Electrical Wires & Cable'), /not a technology/);
+  out(c('Osram Powerstar E40 HQI-BT 400W/D PRO', 'Αρχική > Projector bulbs'), /not a technology/);
+  out(c('HP Care Pack 4-Year Next Business Day Onsite Service', 'Αρχική > Computer Monitors'), /not a technology/);
+  out(c('Logitech Select Extended Service Agreement – 5 Years', 'Αρχική > Laptops'), /not a technology/);
+  out(c('Πανίσχυρο Ακουστικό Βοήθημα Βαρηκοΐας mini Επαναφορτιζόμενο - Ενισχυτής Ακοής', 'Υγεια - Ομορφια > Για όλη την Οικογένεια > Διάφορα για την Υγεία'), /not a technology/);
+  out(c('Beper Συσκευή ψεκασμού αντισηπτικού διαλύματος USB P201UTP011', 'BEPER WEEK'), /not a technology/);
+  out(c('Επαγγελματικά κιάλια υψηλής ευκρίνειας 80 Χ 120', 'Σπιτι - Γραφειο > Συστήματα Ασφαλείας > ΚΥΑΛΙΑ'), /not a technology/);
+  out(c('Εισαγωγικό Τηλεσκόπιο Διοπτρικό 90X με Τρίποδο και Zoom', 'Τεχνολογια > Gadgets > Διάφορα Gadgets'), /not a technology/);
+  out(c('ΜΠΑΡΑ ΑΣΦΑΛΕΙΑΣ ΓΙΑ ΠΟΡΤΕΣ GEVY ΚΑΦΕ', 'Σπιτι - Γραφειο > Συστήματα Ασφαλείας > Μπάρες Ασφαλείας'), /not a technology/);
+  out(c('ΑΝΕΜΙΣΤHΡΑKI USB TD-603 OEM', 'Τεχνολογια > Gadgets > Διάφορα Gadgets'), /not a technology/);
+  out(c('Φορητό Μπλέντερ USB Επαναφορτιζόμενο 60W 400ml', 'Black Friday Offers'), /not a technology/);
+  out(c('VenCore Duvalis White 2792-20014 - Μοντέρνο Επιτραπέζιο Φωτιστικό LED 12W', 'Τεχνολογια > Φωτισμός & Αξεσουάρ > Φωτιστικά'), /lamp or light/);
+  out(c('ΦΩΤΙΣΤΙΚΟ - PROJECTOR ΜΕ ΕΝΑΛΛΑΓΕΣ ΕΓΧΡΩΜΩΝ ΑΣΤΕΡΙΩΝ', 'Τεχνολογια > Φωτισμός & Αξεσουάρ > Φωτιστικά'), /lamp or light/);
+  out(c('Γιρλάντα LED Central Perk - Friends', 'Gadgets > Audio & Vision'), /lamp or light/);
+  out(c('USB Λάμπα LED με Hub 4 θέσεων', 'Gadgets > USB'), /lamp or light/);
+  out(c('VenCore 6373-10006 - Αντάπτορας Μετατροπής Ντουί από GU10 σε E14', 'Τεχνολογια > Φωτισμός & Αξεσουάρ > Ηλεκτρολογικά'), /lamp or light/);
+  ok(c('Ταινία Led RGB 5050 USB με τηλεχειριστήριο - 5 μέτρα', 'Gadgets > USB'), 'accessories-storage');
+  ok(c('Motorola Edge 70 Fusion 8GB RAM 256GB 6.78" 5G', 'Αρχική > Smartphones'), 'phones-smartwatches');
+  ok(c('Canon i-SENSYS MF664Cdw (Kopie, Scan, USB, LAN, WLAN, Duplex (Druck))', 'Αρχική > Drucker/Fax > Multifunktionsgerät'), 'laptops-computing');
   ok(c('Drone LF632 5G με 4K Κάμερα και Χειριστήριο', 'Τεχνολογια > Gadgets > Διάφορα Gadgets'), 'cameras-drones');
   ok(c('Anker 511 Charger (Nano 3, 30W) White', 'Electronics'), 'accessories-storage');
   ok(c('Θήκη MagSafe Clear', 'ΘΗΚΕΣ > Θήκες iPhone 17 Pro Max > Θήκες iPhone'), 'phones-smartwatches');
