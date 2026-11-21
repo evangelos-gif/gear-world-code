@@ -668,7 +668,8 @@ function Test-PreviewReport {
 # The new page and the new search, on the test address or on gearworldhub.com after the deploy.
 function Test-Site([string]$base, [bool]$isLive) {
     [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-    $page = Get-Web ($base + '/?gwcheck=' + $stamp)
+    # L211: the UK page (the bar follows the country), from any PC.
+    $page = Get-Web ($base + '/?gwcheck=' + $stamp) 'GB'
     $html = (New-Object System.Text.UTF8Encoding($false)).GetString($page.bytes)
     $robots = $(if ($page.headers) { [string]$page.headers['X-Robots-Tag'] } else { '' })
     $pageOk = ($page.status -eq 200 -and $html.Contains('/hub-v2.js?v=') -and $html.Contains('id="hubSearch"') -and $html.Contains('id="gwh2Campaigns"'))
@@ -714,7 +715,7 @@ function Test-Site([string]$base, [bool]$isLive) {
     else { Say ('  Μπάρα Mega Stores στην κορυφή (L192): ΠΡΟΒΛΗΜΑ - μπάρα πριν την αναζήτηση: {0}, ένα link: {1}, λείπουν: {2}, Amazon μόνο κείμενο: {3}, κάρτα «Stores»: {4}' -f ($megaAt -ge 0 -and $searchAt -gt $megaAt), $megaOne, ($megaMissing -join ', '), $megaAmazon, $megaCard) $Bad }
     # L188: the Black Friday 2026 page (tools/gwh-black-friday.mjs) and its link on the home page; Gear World links only.
     $bfLink = $html.Contains('<a href="/black-friday/" data-gwh2="bfLink">')
-    $bf = Get-Web ($base + '/black-friday/?gwcheck=' + $stamp)
+    $bf = Get-Web ($base + '/black-friday/?gwcheck=' + $stamp) 'GB'
     $bfHtml = (New-Object System.Text.UTF8Encoding($false)).GetString($bf.bytes)
     $bfOk = ($bf.status -eq 200 -and $bfHtml.Contains('<link rel="canonical" href="https://gearworldhub.com/black-friday/">') -and $bfHtml.Contains('<h1>Black Friday 2026 on Gear World</h1>') -and $bfHtml -notmatch '/(out|go)/' -and $bfHtml -notmatch '\d+\s?%')
     if ($bfLink -and $bfOk) { Say '  Σελίδα /black-friday/ και το link της στην αρχική (L188): ΕΝΤΑΞΕΙ' $Ok }
@@ -728,9 +729,11 @@ function Test-Site([string]$base, [bool]$isLive) {
     $grHtml = $enc8.GetString($grHome.bytes)
     $grUk = @($megaStores | Where-Object { $grHtml.Contains('data-store="' + $_ + '"') })
     $grOne = ([regex]::Matches($grHtml, 'href="https://megastoresgearworld\.com/"')).Count -eq 1
-    $grOk = ($grHome.status -eq 200 -and $grHtml.Contains('data-store="kouzinika-gr"') -and $grHtml.Contains('data-store="tsakiris-mallas-gr"') -and $grUk.Count -eq 0 -and $grOne)
+    $grStores = @('kouzinika-gr', 'katoikein-gr', 'minipini-gr', 'xxxl-leo-gr', 'casualshoes-gr', 'parex-gr', 'tsakiris-mallas-gr')
+    $grMissing = @($grStores | Where-Object { -not $grHtml.Contains('data-store="' + $_ + '"') })
+    $grOk = ($grHome.status -eq 200 -and $grMissing.Count -eq 0 -and $grUk.Count -eq 0 -and $grOne)
     if ($grOk) { Say '  Μπάρα Mega Stores από Ελλάδα (L211): ΕΝΤΑΞΕΙ - τα 7 ελληνικά καταστήματα, κανένα του UK' $Ok }
-    else { Say ('  Μπάρα Mega Stores από Ελλάδα (L211): ΠΡΟΒΛΗΜΑ - απάντηση {0}, καταστήματα του UK: {1}, ένα link: {2}' -f $grHome.status, ($grUk -join ', '), $grOne) $Bad }
+    else { Say ('  Μπάρα Mega Stores από Ελλάδα (L211): ΠΡΟΒΛΗΜΑ - απάντηση {0}, λείπουν: {1}, καταστήματα του UK: {2}, ένα link: {3}' -f $grHome.status, ($grMissing -join ', '), ($grUk -join ', '), $grOne) $Bad }
     $usHome = Get-Web ($base + '/?gwcheck=' + $stamp) 'US'
     $usHtml = $enc8.GetString($usHome.bytes)
     if ($usHome.status -eq 200 -and -not $usHtml.Contains('gwh2-mega-wrap') -and $usHtml.Contains('id="hubSearch"')) { Say '  Μπάρα Mega Stores από ΗΠΑ (L211): ΕΝΤΑΞΕΙ - δεν φαίνεται (κανένα κατάστημα για τις ΗΠΑ), η σελίδα κανονικά' $Ok }
@@ -738,7 +741,7 @@ function Test-Site([string]$base, [bool]$isLive) {
     $grBf = Get-Web ($base + '/black-friday/?gwcheck=' + $stamp) 'GR'
     $grBfHtml = $enc8.GetString($grBf.bytes)
     $grBfOk = ($grBf.status -eq 200 -and $grBfHtml.Contains('class="gd-note rt-country"') -and -not $grBfHtml.Contains('data-delivers="GB"') -and $grBfHtml.Contains('<h1>Black Friday 2026 on Gear World</h1>'))
-    if ($ukDelivers -and $grBfOk) { Say '  /black-friday/ από Ελλάδα (L211): ΕΝΤΑΞΕΙ - κανένα κατάστημα ή κωδικός του UK, με τη γραμμή «Only the retailers that deliver to your country»' $Ok }
+    if ($ukDelivers -and $grBfOk) { Say '  /black-friday/ από Ελλάδα (L211): ΕΝΤΑΞΕΙ - κανένα κατάστημα ή κωδικός του UK, με τη γραμμή «Only the retailers we list for your country»' $Ok }
     else { Say ('  /black-friday/ ανά χώρα (L211): ΠΡΟΒΛΗΜΑ - σελίδα UK με data-delivers: {0}, από Ελλάδα: απάντηση {1}, σωστή: {2}' -f $ukDelivers, $grBf.status, $grBfOk) $Bad }
     # L119: the Mitgo tag right before </head> of the home page (a new secret takes a few seconds to reach every answer).
     # (L150: the Impact tag, when there is one, comes after it and right before </head>.)

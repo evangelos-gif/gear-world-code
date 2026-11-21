@@ -34,7 +34,7 @@ const offerItems = html => (html.match(/<li class="[^"]*\brt-offer\b/g) || []).l
 
 test('L211: the bar\'s stores are the stores of megastoresgearworld.com, Amazon UK first, each where it delivers', () => {
   const fromOgw = [{ slug: 'amazon', name: 'Amazon', deliversTo: ogw.amazon.deliversTo }]
-    .concat(ogw.stores.filter(s => !s.amazon).map(s => ({ slug: s.slug, name: s.name, deliversTo: s.deliversTo || ['GB'] })));
+    .concat(ogw.stores.filter(s => !s.amazon && Array.isArray(s.sites) && s.sites.length).map(s => ({ slug: s.slug, name: s.name, deliversTo: s.deliversTo || ['GB'] })));
   assert.deepEqual(MEGA_BAR_STORES, fromOgw, 'MEGA_BAR_STORES in sites/gwh/worker.js = sites/ogw/site.config.js (add a store to both)');
   assert.deepEqual(megaStoresFor('GB').map(s => s.slug), UK_SLUGS);
   const fileSlugs = slugsOf(bar(HOME));
@@ -96,7 +96,7 @@ test('L211: the UK, Google and the other crawlers get the file itself, byte for 
     const res = await withMegaCountry(r, page(HOME));
     assert.equal(await res.text(), HOME);
     assert.equal(res.headers.get('Cache-Control'), 'private, max-age=60');
-    assert.equal(res.headers.get('ETag'), '"abc"', 'the UK answer keeps its ETag');
+    assert.equal(res.headers.get('ETag'), '"abc"', 'the UK answer keeps its ETag (L119: the page is the file)');
   }
   assert.equal(megaBarHtml(HOME, 'GB'), HOME);
   assert.equal(blackFridayHtml(BF, 'GB'), BF);
@@ -105,8 +105,13 @@ test('L211: the UK, Google and the other crawlers get the file itself, byte for 
 test('L211: other pages, other methods and other answers are not touched', async () => {
   const p = page(HOME);
   assert.equal(await withMegaCountry(req('/about/', { cc: 'GR' }), p), p);
-  const h = page(HOME);
-  assert.equal(await withMegaCountry(req('/', { cc: 'GR', method: 'HEAD' }), h), h);
+  const head = await withMegaCountry(req('/', { cc: 'GR', method: 'HEAD' }), new Response(null, { status: 200, headers: { 'Content-Type': 'text/html', 'Content-Length': '999', ETag: '"x"', 'Cache-Control': 'public, max-age=300' } }));
+  assert.equal(head.headers.get('Cache-Control'), 'private, max-age=60', 'HEAD: the same headers as the GET');
+  assert.equal(head.headers.get('Content-Length'), null);
+  assert.equal(head.headers.get('ETag'), null);
+  assert.equal(head.body, null);
+  const post = page(HOME);
+  assert.equal(await withMegaCountry(req('/', { cc: 'GR', method: 'POST' }), post), post);
   const json = new Response('{}', { status: 200, headers: { 'Content-Type': 'application/json' } });
   assert.equal(await withMegaCountry(req('/', { cc: 'GR' }), json), json);
   const missing = new Response('no', { status: 404, headers: { 'Content-Type': 'text/html' } });
@@ -122,7 +127,8 @@ test('L211: /black-friday/ from Greece: no UK retailer or code, "Nothing listed 
   assert.equal(offerItems(html), 0, 'every retailer and code of the page delivers to the UK only');
   for (const w of ['CLAIMFIFTY', 'Tooled Up', 'Joybuy', '£50']) assert.ok(!html.includes(w), `no ${w}`);
   assert.equal((html.match(new RegExp(`<p class="gd-note rt-none">${BF_NONE_HERE}</p>`, 'g')) || []).length, 2, 'both lists say so, shown at once');
-  assert.ok(html.includes(`<p class="gd-note rt-country">${BF_COUNTRY_NOTE} The stores listed for your country are on <a href="https://megastoresgearworld.com/">Mega Stores</a>.</p>`));
+  assert.ok(html.includes(`<p class="gd-note rt-country">${BF_COUNTRY_NOTE} The stores listed for your country are on <a href="https://megastoresgearworld.com/" translate="no">Mega Stores</a>.</p>`));
+  assert.equal(BF_COUNTRY_NOTE, 'Only the retailers we list for your country are shown here.', 'what we show, never where a retailer delivers (L210)');
   assert.ok(html.includes('<h2 id="bf-dates-h">The dates</h2>') && html.includes('Friday 27 Nov 2026'), 'the dates stay');
   assert.ok(html.includes('<link rel="canonical" href="https://gearworldhub.com/black-friday/">'));
   const us = await (await withMegaCountry(req('/black-friday/', { cc: 'US' }), page(BF))).text();

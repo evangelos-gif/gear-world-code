@@ -1753,8 +1753,9 @@ export function megaBarHtml(text, country) {
     `<span class="gwh2-mega-list gwh2-mega-copy" aria-hidden="true">${pills}</span></span></span>`);
   return out;
 }
-export const BF_COUNTRY_NOTE = "Only the retailers that deliver to your country are shown here.";
-export const BF_MEGA_NOTE = 'The stores listed for your country are on <a href="https://megastoresgearworld.com/">Mega Stores</a>.';
+// Says what we show, never where a retailer delivers (L210: a retailer we list for the UK may deliver elsewhere too).
+export const BF_COUNTRY_NOTE = "Only the retailers we list for your country are shown here.";
+export const BF_MEGA_NOTE = 'The stores listed for your country are on <a href="https://megastoresgearworld.com/" translate="no">Mega Stores</a>.';
 export const BF_NONE_HERE = "Nothing listed for your country yet.";
 // The Black Friday page for a country: the file itself for the UK; elsewhere only the items whose data-delivers covers
 // the country (an item without it is a UK one), the line that says so, and "Nothing listed for your country yet." in each
@@ -1779,17 +1780,21 @@ export const MEGA_COUNTRY_PAGES = {
   "/black-friday/": blackFridayHtml, "/black-friday/index.html": blackFridayHtml
 };
 export async function withMegaCountry(request, response) {
-  if (request.method !== "GET") return response;
+  if (request.method !== "GET" && request.method !== "HEAD") return response;
   const change = MEGA_COUNTRY_PAGES[new URL(request.url).pathname];
   if (!change) return response;
-  if (!response || response.status !== 200 || !response.body || !/^text\/html/i.test(String(response.headers.get("Content-Type") || ""))) return response;
+  if (!response || response.status !== 200 || !/^text\/html/i.test(String(response.headers.get("Content-Type") || ""))) return response;
   const country = megaCountry(request);
   const headers = new Headers(response.headers);
-  // The answer depends on the country: never kept by a shared cache for another visitor, the UK one included.
+  // The answer depends on the country: never kept by a shared cache for another visitor, the UK one included. The UK
+  // answer is the file and keeps its ETag (L119: the page is the file); another country's has none.
   headers.set("Cache-Control", "private, max-age=60");
-  if (country === "GB") return new Response(response.body, { status: response.status, headers });
+  if (country !== "GB") headers.delete("ETag");
+  if (country === "GB" || request.method === "HEAD" || !response.body) {
+    if (country !== "GB") headers.delete("Content-Length");
+    return new Response(request.method === "HEAD" ? null : response.body, { status: response.status, headers });
+  }
   headers.delete("Content-Length");
-  headers.delete("ETag");
   const text = await response.text();
   return new Response(change(text, country), { status: response.status, headers });
 }

@@ -719,47 +719,72 @@ export function mixStoreProducts(lists, keep = STORE_KEEP) {
   return out;
 }
 
-// Does a product photo open? The first KB of it (Range), an answer 200 or 206 with an image type; anything else, an
-// error or more than 2.5 seconds is no (L211). The rest of the photo is never read.
-export async function photoOpens(url, fetcher, { timeoutMs = PHOTO_TIMEOUT_MS, userAgent = '' } = {}) {
-  const ac = new AbortController();
-  const timer = setTimeout(() => ac.abort(), timeoutMs);
-  try {
-    const res = await fetcher(url, { headers: { Range: 'bytes=0-1023', Accept: 'image/*', ...(userAgent ? { 'User-Agent': userAgent } : {}) }, signal: ac.signal });
-    const ok = Boolean(res) && (res.status === 200 || res.status === 206) && /^image\//i.test(String(res.headers.get('Content-Type') || ''));
-    try { if (res && res.body && typeof res.body.cancel === 'function') await res.body.cancel(); } catch { /* nothing more to read */ }
-    return ok;
-  } catch {
-    return false;
-  } finally {
-    clearTimeout(timer);
-  }
+// One Worker invocation checks at most PHOTO_PARALLEL photos at a time (a Worker keeps only 6 requests waiting for their
+// headers at once): each check's 2.5-second timer starts when its own request starts, never while it waits in line
+// (independent check of L211).
+const PHOTO_PARALLEL = 4;
+export function photoLimiter(n = PHOTO_PARALLEL) {
+  let active = 0;
+  const waiting = [];
+  const next = () => {
+    if (active >= n || !waiting.length) return;
+    active++;
+    const { fn, resolve, reject } = waiting.shift();
+    Promise.resolve().then(fn).then(resolve, reject).finally(() => { active--; next(); });
+  };
+  return fn => new Promise((resolve, reject) => { waiting.push({ fn, resolve, reject }); next(); });
 }
 
-// The products whose photo opens, in their order, up to `keep`: the first `keep` are checked at once, then as many more
-// as are missing, until there are enough or none is left. { products, checked, open }. When not one photo of 3 or more
-// opens, the check itself is taken as blocked (a store's image server refusing Cloudflare), and the products stay
-// unchecked, marked so (blocked: true), and kept only 10 minutes.
+// What a product photo is: 'ok' (the first KB answers 200 or 206 with an image type), 'broken' (403, 404 or 410, or an
+// answer that is not an image) or 'unknown' (slow, a network error, 429, 5xx or anything else). Only 'broken' is left
+// out: a slow or busy image server never hides a good photo (L211). The rest of the photo is never read.
+export async function photoState(url, fetcher, { timeoutMs = PHOTO_TIMEOUT_MS, userAgent = '', limit = null } = {}) {
+  const run = async () => {
+    const ac = new AbortController();
+    const timer = setTimeout(() => ac.abort(), timeoutMs);
+    try {
+      const res = await fetcher(url, { headers: { Range: 'bytes=0-1023', Accept: 'image/*', ...(userAgent ? { 'User-Agent': userAgent } : {}) }, signal: ac.signal });
+      try { if (res && res.body && typeof res.body.cancel === 'function') await res.body.cancel(); } catch { /* nothing more to read */ }
+      if (!res) return 'unknown';
+      if (res.status === 200 || res.status === 206) return /^image\//i.test(String(res.headers.get('Content-Type') || '')) ? 'ok' : 'broken';
+      return [403, 404, 410].includes(res.status) ? 'broken' : 'unknown';
+    } catch {
+      return 'unknown';
+    } finally {
+      clearTimeout(timer);
+    }
+  };
+  return limit ? limit(run) : run();
+}
+export async function photoOpens(url, fetcher, opts = {}) {
+  return (await photoState(url, fetcher, opts)) === 'ok';
+}
+
+// The products whose photo is not broken, in their order, up to `keep`: the first `keep` are checked, then as many more
+// as are missing, until there are enough or none is left. { products, checked, broken, blocked }. When every photo of 3
+// or more checked is broken, the check itself is taken as blocked (a store's image server refusing Cloudflare): the
+// products stay unchecked (blocked: true) and are kept only 10 minutes.
 export async function keepOpenPhotos(list, fetcher, keep = STORE_KEEP, opts = {}) {
   const out = [];
   let i = 0;
   let checked = 0;
+  let broken = 0;
   while (out.length < keep && i < list.length) {
     const batch = list.slice(i, i + (keep - out.length));
     i += batch.length;
-    const ok = await Promise.all(batch.map(p => photoOpens(p.image, fetcher, opts)));
+    const states = await Promise.all(batch.map(p => photoState(p.image, fetcher, opts)));
     checked += batch.length;
-    batch.forEach((p, j) => { if (ok[j]) out.push(p); });
+    batch.forEach((p, j) => { if (states[j] === 'broken') broken++; else out.push(p); });
   }
-  if (!out.length && checked >= 3) return { products: list.slice(0, keep), checked, open: 0, blocked: true };
-  return { products: out, checked, open: out.length, blocked: false };
+  if (!out.length && checked >= 3) return { products: list.slice(0, keep), checked, broken, blocked: true };
+  return { products: out, checked, broken, blocked: false };
 }
 
 // The store's products: from the cache, or read from its first 6 Gear World sites at once (Promise.allSettled, so a
 // slow or failing site never breaks the page). Kept 1 hour when every site answered, 10 minutes when one failed, and
 // 1 minute when nothing came back (the page then says so and still links to every site). One copy for every language.
-// Only products whose photo opens (L211, keepOpenPhotos) when the Worker checks photos (deps.photoFetch: the live
-// Worker always; tests only when they give one).
+// Only products whose photo is not broken (L211, keepOpenPhotos) when the Worker checks photos (deps.photoFetch: the
+// live Worker always; tests only when they give one), at most PHOTO_PARALLEL at a time per invocation (deps.photoLimit).
 export async function storeProducts(site, store, deps = {}, ctx = null) {
   const cache = deps.cache || null;
   const key = storeCacheKey(site, store);
@@ -777,20 +802,35 @@ export async function storeProducts(site, store, deps = {}, ctx = null) {
   const results = await Promise.allSettled(sites.map(w => readSiteProducts(store, w, { ...deps, fetch: fetcher, userAgent: storeUserAgent(site) })));
   const lists = results.map(r => (r.status === 'fulfilled' ? r.value : []));
   const failed = results.some(r => r.status !== 'fulfilled');
-  let products = mixStoreProducts(lists, deps.photoFetch ? STORE_SITES_READ * STORE_PER_SITE : STORE_KEEP);
-  let blocked = false;
-  if (deps.photoFetch) {
-    const seen = await keepOpenPhotos(products, deps.photoFetch, STORE_KEEP, { timeoutMs: deps.photoTimeoutMs, userAgent: storeUserAgent(site) });
-    products = seen.products;
-    blocked = seen.blocked;
+  const candidates = mixStoreProducts(lists, deps.photoFetch ? STORE_SITES_READ * STORE_PER_SITE : STORE_KEEP);
+  const ttlFor = (list, blocked = false) => (!list.length ? 60 : (failed || blocked) ? 600 : 3600);
+  const keepCopy = (list, ttl) => {
+    if (!cache) return Promise.resolve();
+    const res = new Response(JSON.stringify({ products: list }), { headers: { 'Content-Type': 'application/json', 'Cache-Control': `public, max-age=${ttl}` } });
+    return Promise.resolve().then(() => cache.put(key, res)).catch(() => { /* the next visit reads the sites again */ });
+  };
+  const later = ctx && typeof ctx.waitUntil === 'function';
+  if (!deps.photoFetch) {
+    const products = candidates.slice(0, STORE_KEEP);
+    const put = keepCopy(products, ttlFor(products));
+    if (later) ctx.waitUntil(put); else await put;
+    return { products, cached: false };
   }
-  const ttl = !products.length ? 60 : (failed || blocked) ? 600 : 3600;
-  if (cache) {
-    const res = new Response(JSON.stringify({ products }), { headers: { 'Content-Type': 'application/json', 'Cache-Control': `public, max-age=${ttl}` } });
-    const put = Promise.resolve().then(() => cache.put(key, res)).catch(() => { /* the next visit reads the sites again */ });
-    if (ctx && typeof ctx.waitUntil === 'function') ctx.waitUntil(put); else await put;
+  const check = () => keepOpenPhotos(candidates, deps.photoFetch, STORE_KEEP, { timeoutMs: deps.photoTimeoutMs, userAgent: storeUserAgent(site), limit: deps.photoLimit || null });
+  // The home page (deps.photoLater) does not wait for the photos: it shows the products at once, keeps them 1 minute,
+  // and checks them after the answer (waitUntil), keeping the checked copy for the hour. A store page waits for them.
+  if (deps.photoLater && later) {
+    const products = candidates.slice(0, STORE_KEEP);
+    ctx.waitUntil(keepCopy(products, 60)
+      .then(check)
+      .then(seen => keepCopy(seen.products, ttlFor(seen.products, seen.blocked)))
+      .catch(() => { /* the next visit checks again */ }));
+    return { products, cached: false, unchecked: true };
   }
-  return { products, cached: false };
+  const seen = await check();
+  const put = keepCopy(seen.products, ttlFor(seen.products, seen.blocked));
+  if (later) ctx.waitUntil(put); else await put;
+  return { products: seen.products, cached: false };
 }
 
 const storeLogo = (site, store, cls) => {
@@ -1256,14 +1296,17 @@ export function createGuidesWorker(site, deps = {}) {
     timeoutMs: deps.timeoutMs,
     // Photos are checked by the live Worker (no deps at all: the global fetch), and by a test that gives photoFetch (L211).
     photoFetch: deps.photoFetch !== undefined ? deps.photoFetch : (deps.fetch ? null : (...a) => fetch(...a)),
-    photoTimeoutMs: deps.photoTimeoutMs
+    photoTimeoutMs: deps.photoTimeoutMs,
+    photoLimit: photoLimiter()
   });
   const nowMs = () => (typeof deps.now === 'function' ? deps.now() : Date.now());
   // Every store's products for the home page cards (from the cache, or read now); never breaks the page. Only the
   // stores the visitor's country sees (L210): the others are not even read.
   async function allStoreData(ctx, country = VIEW_BASE) {
     const list = awinStores(site).filter(s => deliversHere(s, country));
-    const r = await Promise.allSettled(list.map(s => storeProducts(site, s, runtime(), ctx)));
+    // One photo limit for the whole page; the home page never waits for the photo check (L211).
+    const rt = { ...runtime(), photoLater: true };
+    const r = await Promise.allSettled(list.map(s => storeProducts(site, s, rt, ctx)));
     const out = {};
     list.forEach((s, i) => { out[s.slug] = r[i].status === 'fulfilled' ? r[i].value.products : []; });
     return out;

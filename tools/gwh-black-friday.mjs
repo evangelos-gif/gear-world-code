@@ -85,8 +85,8 @@ function startedItem(r) {
 
 function codeItem(c, data) {
   const r = { name: c.name, slug: c.slug };
-  // A code delivers where its retailer does (L211).
-  const retailer = (data.started || []).find(x => x.slug === c.slug) || {};
+  // A code delivers where it says (deliversTo), else where its retailer does (L211).
+  const retailer = Array.isArray(c.deliversTo) && c.deliversTo.length ? c : (data.started || []).find(x => x.slug === c.slug) || {};
   const what = c.kind === 'code'
     ? `${name(r)} · code <strong class="rt-code" translate="no">${esc(c.code)}</strong>: ${esc(c.title)}`
     : `${name(r)} · coupon: ${esc(c.title)}`;

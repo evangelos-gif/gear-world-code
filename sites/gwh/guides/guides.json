@@ -1,6 +1,6 @@
 {
  "checked": "2026-11-21",
- "note": "Prices and the day each product was last checked come from the databases of the Gear World sites (read-only SELECTs by product id, 21 Nov 2026, lessons L211: 17 new prices after the refresh of 21 Nov; Wahl, Tom Ford, BOSS beanie and Ghost left the feeds and the Stanley multi-tool was out of stock, replaced by Philips, Narciso Rodriguez, FILA, Jimmy Choo and a Santoro Milan tie set (not Plusshop UK or Bazta UK, whose rows did not refresh before), and the Calvin Klein Bold card holder by the slim Slate Blue one; 13 Nov 2026: Coes, Bazta UK and the older Joybuy rows replaced on 9 Nov, lessons L109). Rebuild the pages with: node tools/gwh-guides.mjs build. Re-check with: node tools/gwh-guides.mjs check.",
+ "note": "Prices and the day each product was last checked come from the databases of the Gear World sites (read-only SELECTs by product id, 21 Nov 2026, lessons L211: 17 new prices after the refresh of 21 Nov; Wahl, Tom Ford, BOSS beanie and Ghost left the feeds and the Stanley multi-tool was out of stock, replaced by Philips, Narciso Rodriguez, FILA, Jimmy Choo and a Santoro Milan tie set (not Plusshop UK or Bazta UK, whose rows did not refresh before), and the Calvin Klein Bold card holder by the slim Slate Blue one; LEGO Technic 42203 (no price check since 11 Nov) by the Technic Ferrari 488 Pista; 13 Nov 2026: Coes, Bazta UK and the older Joybuy rows replaced on 9 Nov, lessons L109). Rebuild the pages with: node tools/gwh-guides.mjs build. Re-check with: node tools/gwh-guides.mjs check.",
  "guides": [
   {
    "slug": "christmas-gifts-for-him",
@@ -403,13 +403,13 @@
     },
     {
      "group": "Older kids",
-     "name": "LEGO Technic Tipping Dump Truck 42203",
-     "url": "https://kidsgearworld.com/product/lego-technic-tipping-dump-truck-42203-building-set-for-kids-adults-remote-controlled-toy-construction-vehicle-5164/",
-     "why": "Technic parts and a working tipper",
-     "price": 32.5,
+     "name": "LEGO Technic Ferrari 488 Pista",
+     "url": "https://kidsgearworld.com/product/lego-technic-building-set-ferrari-488-pista-car-toy-for-kids-and-adult-car-enthusiasts-to-build-and-display-5606/",
+     "why": "A Technic model of a Ferrari 488 Pista to build and display",
+     "price": 40.99,
      "retailer": "Joybuy",
-     "image": "https://images1.joy-sourcing.com/da/s800x800_jfsintlpro-000-product/t1/4294967296/1835008/101615961167450/283751/69a2a956E843dc55e/42b10752b5083d5e.jpg",
-     "checked": "2026-11-11"
+     "image": "https://images1.joy-sourcing.com/da/s800x800_jfsintlpro-000-product/t1/4294967296/1638400/6109817504211/319139/6a579bbfE84a1c84d/42b10752b5083d5e.jpg",
+     "checked": "2026-11-21"
     }
    ]
   },
