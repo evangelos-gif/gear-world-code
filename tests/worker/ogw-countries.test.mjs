@@ -42,10 +42,16 @@ async function get(path, { cc = null, ua = BROWSER, headers = {}, env = ON, s = 
   return { r, text: await r.text(), calls: fetch.calls };
 }
 
-// Every store and Black Friday name of this site's data: none of them delivers outside the UK today.
-const STORE_NAMES = awinStores(site).map(s => s.name);
+// The UK stores and Black Friday names of this site's data (listed for the UK only), and the Greek stores (owner,
+// 21 Nov 2026: the Linkwise offers for Greece, listed for Greece, and two of them for Cyprus too).
+const UK_STORES = awinStores(site).filter(s => deliversHere(s, 'GB'));
+const GR_STORES = awinStores(site).filter(s => deliversHere(s, 'GR'));
+const STORE_NAMES = UK_STORES.map(s => s.name);
+const GR_NAMES = GR_STORES.map(s => s.name);
+const CY_NAMES = awinStores(site).filter(s => deliversHere(s, 'CY')).map(s => s.name);
 const BF_NAMES = (site.earlyBlackFriday.started || []).map(r => r.name);
-const ALL_NAMES = [...new Set([...STORE_NAMES, ...BF_NAMES])];
+const UK_NAMES = [...new Set([...STORE_NAMES, ...BF_NAMES])];
+const ALL_NAMES = [...UK_NAMES, ...GR_NAMES];
 const GUIDE_PAGES = site.guides.map(g => `/guides/${g.slug}/`);
 
 test('L210: where an entry delivers: its deliversTo, the UK when it has none, WORLD everywhere', () => {
@@ -56,10 +62,12 @@ test('L210: where an entry delivers: its deliversTo, the UK when it has none, WO
   assert.equal(deliversHere({ deliversTo: ['gb', 'gr'] }, 'GR'), true, 'any letter case');
   assert.equal(deliversHere({ deliversTo: ['WORLD'] }, 'JP'), true);
   assert.equal(amazonHere(site, 'GB'), true, 'Amazon UK for the UK');
+  const listed = { GR: GR_NAMES.length, CY: CY_NAMES.length };
+  assert.deepEqual([GR_NAMES.length, CY_NAMES.length], [7, 2], 'the 7 Greek stores, 2 of them for Cyprus too');
   for (const cc of ['GR', 'CY', 'US', 'DE', 'PL', 'IE', 'XX', 'T1']) {
     assert.equal(amazonHere(site, cc), false, `${cc}: no Amazon UK`);
     assert.equal(viewMode(site, 'on', cc), 'off', `${cc}: the pages of AMAZON_LINKS=off`);
-    assert.equal(shownStores(site, 'on', cc).length, 0, `${cc}: no store of this page delivers there`);
+    assert.equal(shownStores(site, 'on', cc).length, listed[cc] || 0, `${cc}: only the stores listed there`);
     assert.equal(storeCodes(site, NOW, null, cc).length, 0, `${cc}: no store code`);
     assert.equal(earlyBlackFriday(site, NOW, cc).length, 0, `${cc}: no Black Friday store`);
     const b = blackFridayParts(site, NOW, cc);
@@ -97,6 +105,7 @@ test('L210: the UK home page is as before: every store, Amazon, the Black Friday
     assert.equal(r.status, 200);
     assert.equal(r.headers.get('Cache-Control'), 'private, max-age=60', 'never kept by a shared cache');
     for (const n of STORE_NAMES) assert.ok(text.includes(`>${n}<`), `${cc}: ${n}`);
+    for (const n of GR_NAMES) assert.ok(!text.includes(n), `${cc}: no Greek store "${n}"`);
     assert.ok(text.includes('href="/stores/amazon/"'), `${cc}: Amazon`);
     assert.ok(text.includes('class="bf-started"') && text.includes('class="promo-card"'), `${cc}: Black Friday stores and codes`);
     assert.ok(text.includes('https://gearworldhub.com/black-friday/'), `${cc}: the Hub's Black Friday page`);
@@ -108,15 +117,13 @@ test('L210: the UK home page is as before: every store, Amazon, the Black Friday
 });
 
 for (const [cc, lang, none, noneBf] of [
-  ['GR', 'el-GR', `Κανένα κατάστημα του ${MS} δεν εμφανίζεται ακόμα για τη χώρα σας.`, 'Κανένα κατάστημα με κωδικούς Black Friday δεν εμφανίζεται ακόμα για τη χώρα σας.'],
-  ['CY', 'el-GR', `Κανένα κατάστημα του ${MS} δεν εμφανίζεται ακόμα για τη χώρα σας.`, null],
   ['DE', 'de-DE', `Noch kein Händler von ${MS} ist für Ihr Land aufgeführt.`, null],
   ['PL', 'pl-PL', `Żaden sklep z ${MS} nie jest jeszcze wyświetlany dla Twojego kraju.`, null],
   ['US', 'en-GB', `No store of ${MS} is listed for your country yet.`, 'No store with Black Friday codes is listed for your country yet.'],
   ['IE', 'en-GB', `No store of ${MS} is listed for your country yet.`, null],
   ['XX', 'en-GB', `No store of ${MS} is listed for your country yet.`, null]
 ]) {
-  test(`L210: ${cc}: no store, Black Friday store, code or Amazon of the UK; a line says so; the guides stay`, async () => {
+  test(`L210: ${cc}: no store, Black Friday store, code or Amazon; a line says so; the guides stay`, async () => {
     const { r, text, calls } = await get('/', { cc });
     assert.equal(r.status, 200);
     assert.ok(text.startsWith(`<!doctype html>\n<html lang="${lang}">`), `${cc}: ${lang}`);
@@ -128,6 +135,8 @@ for (const [cc, lang, none, noneBf] of [
     assert.ok(!text.includes('/black-friday/'), `${cc}: no button to the Hub's Black Friday page (the same UK stores)`);
     assert.ok(!text.includes('href="/stores/'), `${cc}: no store links`);
     assert.ok(!text.includes('class="jump" href="/#stores"'), `${cc}: no stores button in the hero`);
+    assert.ok(!text.includes('class="top-link" href="/#stores"'), `${cc}: no stores link in the menu`);
+    assert.ok(!text.includes('Stores and gift guides') && !text.includes('Καταστήματα'), `${cc}: titled as gift guides`);
     assert.ok(text.includes(none), `${cc}: the line that says so`);
     if (noneBf) assert.ok(text.includes(noneBf), `${cc}: the Black Friday line`);
     assert.ok(text.includes('id="black-friday"') && text.includes('class="bf-count"'), `${cc}: the countdown stays`);
@@ -136,8 +145,59 @@ for (const [cc, lang, none, noneBf] of [
   });
 }
 
+for (const [cc, names] of [['GR', GR_NAMES], ['CY', CY_NAMES]]) {
+  test(`L210: ${cc}: only the Greek stores listed there, with their photos; no UK store, code, Black Friday entry or Amazon`, async () => {
+    const { r, text, calls } = await get('/', { cc });
+    assert.equal(r.status, 200);
+    assert.ok(text.startsWith('<!doctype html>\n<html lang="el-GR">'), `${cc}: Greek`);
+    for (const n of names) assert.ok(text.includes(`<span translate="no">${n}</span>`), `${cc}: ${n}`);
+    for (const n of [...UK_NAMES, ...GR_NAMES.filter(n => !names.includes(n))]) assert.ok(!text.includes(n), `${cc}: no "${n}"`);
+    assert.ok(!/amazon/i.test(text) && !text.includes('£') && !text.includes('class="promo-card"') && !text.includes('class="bf-started"'), `${cc}: nothing of the UK`);
+    assert.ok(!text.includes('/black-friday/'), `${cc}: no Hub Black Friday button`);
+    assert.ok(text.includes('class="top-link" href="/#stores"') && text.includes('class="jump" href="/#stores"'), `${cc}: the stores in the menu and the hero`);
+    assert.ok(!text.includes('stores-none'), `${cc}: no "none" line`);
+    assert.ok(text.includes('Κανένα κατάστημα με κωδικούς Black Friday δεν εμφανίζεται ακόμα για τη χώρα σας.'), `${cc}: no Black Friday codes for it`);
+    const thumbs = text.match(/<ul class="store-thumbs">/g) || [];
+    assert.equal(thumbs.length, names.length, `${cc}: photos on every card`);
+    assert.ok(calls.length > 0 && calls.every(u => u.searchParams.get('deliver_to') === 'GR' && GR_NAMES.includes(u.searchParams.get('retailer'))), `${cc}: only the Greek stores read, for Greece`);
+    for (const n of names) assert.ok(calls.some(u => u.searchParams.get('retailer') === n), `${cc}: ${n} read`);
+  });
+}
+
+test('L210: a Greek store page: its products for Greece; for the UK it is "not listed for your country"', async () => {
+  for (const s of GR_STORES) {
+    const gr = await get(`/stores/${s.slug}/`, { cc: 'GR' });
+    assert.equal(gr.r.status, 200, s.slug);
+    assert.ok(gr.text.includes('class="pcards"') && !gr.text.includes('store-elsewhere'), `${s.slug}: products for Greece`);
+    assert.ok(gr.calls.every(u => u.searchParams.get('deliver_to') === 'GR' && u.searchParams.get('retailer') === s.name), `${s.slug}: read for Greece`);
+    assert.ok(!/amazon/i.test(gr.text) && !gr.text.includes('£') && !gr.text.includes('/out/') && !gr.text.includes('/go/'), s.slug);
+    const uk = await get(`/stores/${s.slug}/`, { cc: 'GB' });
+    assert.ok(uk.text.includes(`<span translate="no">${s.name}</span> is not listed for your country yet.`) && !uk.text.includes('class="pcards"'), `${s.slug}: the UK page`);
+    assert.equal(uk.calls.length, 0, `${s.slug}: nothing read for the UK`);
+  }
+  const cy = await get('/stores/kouzinika-gr/', { cc: 'CY' });
+  assert.ok(cy.text.includes('store-elsewhere'), 'Kouzinika is listed for Greece only');
+  assert.ok((await get('/stores/parex-gr/', { cc: 'CY' })).text.includes('class="pcards"'), 'Parex is listed for Cyprus too');
+});
+
+test('L210: a product name with a Greek offer word is left out', async () => {
+  const fetch = async input => {
+    const u = new URL(String(input));
+    const r = u.searchParams.get('retailer');
+    const names = ['ΠΡΟΣΦΟΡΑ Κούπα', 'Ταψί σε έκπτωση', 'Σετ δώρου', 'Κούπα πορσελάνης'];
+    const rows = names.map((n, i) => ({ product_name: n, brand: 'Acme', retailer: r, stock_status: 'in_stock', image_url: `https://img.example/${i}.jpg`, delivers_to: ['GR'], product_url: `https://${u.hostname}/product/p-${i}/` }));
+    return new Response(JSON.stringify({ ok: true, products: rows }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+  };
+  const w = createGuidesWorker(site, { fetch, cache: null, now: () => NOW });
+  const req = new Request(`${LIVE}/stores/kouzinika-gr/`, { headers: { 'user-agent': BROWSER } });
+  Object.defineProperty(req, 'cf', { value: { country: 'GR' } });
+  const text = await (await w.fetch(req, ON)).text();
+  assert.ok(text.includes('Κούπα πορσελάνης'), 'a plain name stays');
+  for (const n of ['ΠΡΟΣΦΟΡΑ Κούπα', 'Ταψί σε έκπτωση', 'Σετ δώρου']) assert.ok(!text.includes(n), `left out: ${n}`);
+});
+
 test('L210: a store page from Greece says the store is not listed there: no products, no codes, no links to them', async () => {
-  for (const s of awinStores(site)) {
+  for (const s of UK_STORES) {
     const { r, text, calls } = await get(`/stores/${s.slug}/`, { cc: 'GR' });
     assert.equal(r.status, 200, s.slug);
     assert.ok(text.includes(`Το κατάστημα <span translate="no">${s.name}</span> δεν εμφανίζεται ακόμα για τη χώρα σας.`), `${s.slug}: the line`);
@@ -176,8 +236,11 @@ test('L210: Google from Greece reads the UK page; the QA bot may ask for Greece;
   const g = await get('/', { cc: 'GR', ua: GOOGLE });
   assert.ok(g.text.startsWith('<!doctype html>\n<html lang="en-GB">'));
   for (const n of STORE_NAMES) assert.ok(g.text.includes(`>${n}<`), `Google: ${n}`);
+  for (const n of GR_NAMES) assert.ok(!g.text.includes(n), `Google: no ${n}`);
   const qa = await get('/', { ua: QA, headers: { 'X-GW-QA-Country': 'GR' } });
-  assert.ok(qa.text.includes('Κανένα κατάστημα του'), 'the QA check of Greece');
+  assert.ok(qa.text.includes('href="/stores/kouzinika-gr/"') && !qa.text.includes('>Joybuy<'), 'the QA check of Greece');
+  const qaUs = await get('/', { ua: QA, headers: { 'X-GW-QA-Country': 'US' } });
+  assert.ok(qaUs.text.includes('stores-none'), 'the QA check of the US');
   const sm = await get('/sitemap.xml', { cc: 'GR' });
   assert.ok(sm.text.includes('https://megastoresgearworld.com/stores/amazon/'), 'the sitemap is the same for every country');
 });
@@ -189,7 +252,8 @@ test('L210: a store that also delivers to Greece shows there, while its UK Black
   assert.ok(!text.includes('>Tooled Up<'), 'the UK-only stores stay hidden');
   assert.ok(!text.includes('class="bf-started"') && !text.includes('£'), 'black-friday.json and promos.js give Joybuy\'s coupons for the UK: they stay hidden');
   assert.ok(!text.includes('stores-none'));
-  assert.ok(calls.length > 0 && calls.every(u => u.searchParams.get('retailer') === 'Joybuy'), 'only Joybuy is read');
+  assert.ok(calls.some(u => u.searchParams.get('retailer') === 'Joybuy'), 'Joybuy is read');
+  assert.ok(calls.every(u => u.searchParams.get('retailer') === 'Joybuy' || GR_NAMES.includes(u.searchParams.get('retailer'))), 'no UK-only store is read');
   const page = await get('/stores/joybuy/', { cc: 'GR', s });
   assert.ok(page.text.includes('class="pcards"'), 'its page has its products');
 });

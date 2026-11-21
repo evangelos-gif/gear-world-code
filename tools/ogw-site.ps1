@@ -334,11 +334,17 @@ function Test-Site([string]$base, [string]$mode) {
             }
         } else { Say ('  Black Friday: τελείωσε στις {0}, το μπλοκ δεν φαίνεται πια: ΕΝΤΑΞΕΙ' -f $BlackFridayEnd) $Ok }
     }
-    # L210 (owner, 21 Nov 2026): a visitor from Greece sees no UK store, code or Amazon UK, and the line that says so.
+    # L210 (owner, 21 Nov 2026): a visitor from Greece sees the Greek stores and no UK store, code or Amazon UK; a visitor
+    # from a country with no store (the US) sees the line that says so.
+    $ukStore = 'href="/stores/(joybuy|tooled-up|my-tool-shed|pchub-uk|gs-workwear|back-to-the-office|dhgate|amazon)/"'
     $gr = Get-Page ($base + '/') 'GR'
-    $grUk = $gr.text.Contains('class="bf-started"') -or $gr.text.Contains('class="promo-card"') -or $gr.text.Contains('href="/stores/') -or ($gr.text -match '(?i)amazon')
-    if ($gr.status -eq 200 -and $gr.text.Contains('stores-none') -and -not $grUk) { Say '  Από Ελλάδα: κανένα κατάστημα, κωδικός ή Amazon του UK, με τη γραμμή «δεν εμφανίζεται ακόμα για τη χώρα σας»: ΕΝΤΑΞΕΙ' $Ok }
-    else { Say ('  Από Ελλάδα ({0}): φαίνονται καταστήματα, κωδικοί ή Amazon του UK: ΠΡΟΒΛΗΜΑ' -f $gr.status) $Bad; $all = $false }
+    $grUk = $gr.text.Contains('class="bf-started"') -or $gr.text.Contains('class="promo-card"') -or ($gr.text -match $ukStore) -or ($gr.text -match '(?i)amazon')
+    if ($gr.status -eq 200 -and $gr.text.Contains('href="/stores/kouzinika-gr/"') -and -not $grUk) { Say '  Από Ελλάδα: τα ελληνικά καταστήματα, κανένα κατάστημα, κωδικός ή Amazon του UK: ΕΝΤΑΞΕΙ' $Ok }
+    else { Say ('  Από Ελλάδα ({0}): λείπουν τα ελληνικά καταστήματα ή φαίνονται καταστήματα, κωδικοί ή Amazon του UK: ΠΡΟΒΛΗΜΑ' -f $gr.status) $Bad; $all = $false }
+    $us = Get-Page ($base + '/') 'US'
+    $usAny = $us.text.Contains('class="bf-started"') -or $us.text.Contains('class="promo-card"') -or $us.text.Contains('href="/stores/') -or ($us.text -match '(?i)amazon')
+    if ($us.status -eq 200 -and $us.text.Contains('stores-none') -and -not $usAny) { Say '  Από ΗΠΑ: κανένα κατάστημα, με τη γραμμή «δεν εμφανίζεται ακόμα για τη χώρα σας»: ΕΝΤΑΞΕΙ' $Ok }
+    else { Say ('  Από ΗΠΑ ({0}): φαίνονται καταστήματα, κωδικοί ή Amazon: ΠΡΟΒΛΗΜΑ' -f $us.status) $Bad; $all = $false }
     $el = Get-Page ($base + '/?lang=el')
     if ($el.status -eq 200 -and $el.text.Contains('<html lang="el-GR"') -and $el.text.Contains('Οδηγοί δώρων')) { Say '  /?lang=el απαντά στα Ελληνικά (Οδηγοί δώρων): ΕΝΤΑΞΕΙ' $Ok }
     else { Say ('  /?lang=el δεν απαντά στα Ελληνικά ({0}): ΠΡΟΒΛΗΜΑ' -f $el.status) $Bad; $all = $false }

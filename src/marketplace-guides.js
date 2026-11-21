@@ -160,6 +160,9 @@ export function pickLanguage(site, request, url) {
 const keep = s => html`<span translate="no">${s}</span>`;
 // The name of the stores part, as the site's name in every language (owner, 21 Nov 2026, L208: «Stores» → «Mega Stores»).
 const storesLabel = c => keep(c.site.storesLabel || c.site.name);
+// Does the visitor's country see any store of this site (L210)? Without one, the menu has no stores link and the home
+// page is titled as gift guides only.
+const storesHere = c => shownStores(c.site, c.mode, c.country).length > 0;
 
 // The page context: the language, its dictionary, and the helpers that write every visible text through it.
 //   t(key, ...args)  HTML: the translation with {0}, {1}... filled in (an arg can be HTML, such as keep(name) or a link)
@@ -384,7 +387,7 @@ ${robots ? html`<meta name="robots" content="${robots}">` : ''}
 ${languageMenu(c)}
 <div class="wrap top-row">
   <a class="brand" href="${c.href('/')}"><img src="${asset(site, 'logo.svg')}" alt="" width="40" height="40"><span translate="no">${site.name}</span></a>
-  <nav class="top-nav" aria-label="${tx('Main')}"><a class="top-link" href="${c.href('/#stores')}">${storesLabel(c)}</a><a class="top-link" href="${c.href('/#guides')}">${t('Gift guides')}</a></nav>
+  <nav class="top-nav" aria-label="${tx('Main')}">${storesHere(c) ? html`<a class="top-link" href="${c.href('/#stores')}">${storesLabel(c)}</a>` : ''}<a class="top-link" href="${c.href('/#guides')}">${t('Gift guides')}</a></nav>
 </div>
 <div class="hub-strip" data-gw-network><div class="wrap hub-row">
   <span class="hub-name" translate="no">${hubName}</span>
@@ -628,6 +631,9 @@ const STORE_TIMEOUT_MS = 4000;
 // A product whose name or brand holds a price, a percentage, a word of a shop or of a discount, or Amazon's name is
 // left out: those words never appear on this site (L101, L103, L107), and with AMAZON_LINKS off no page names Amazon.
 const UNSHOWN_WORDS = /[£$€%]|\b(sale|sales|deals?|save|saving|savings|shop|shopping|buy|cart|basket|official|partners?|discounts?|offers?|free delivery|lowest price|best price|cheapest|clearance|bargains?|coupons?|vouchers?|promo|black friday)\b|amazon/i;
+// The same words in Greek, for the Greek stores (L210): offer, discount, sale, gift, free; read without accents.
+const UNSHOWN_GREEK = /προσφορ|εκπτωσ|ευκαιρι|δωρο|δωρεαν|εκπτωτικ/;
+const unshown = text => UNSHOWN_WORDS.test(text) || UNSHOWN_GREEK.test(String(text).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase());
 
 export function awinStores(site) {
   return (site.stores || []).filter(s => !s.amazon && Array.isArray(s.sites) && s.sites.length);
@@ -655,7 +661,7 @@ export function cleanStoreProduct(p, store, w) {
   if (String(p.retailer || '').trim().toLowerCase() !== store.name.toLowerCase()) return null;
   const name = String(p.product_name || '').replace(/\s+/g, ' ').trim().slice(0, 200);
   const brand = String(p.brand || '').replace(/\s+/g, ' ').trim().slice(0, 80);
-  if (!name || UNSHOWN_WORDS.test(name) || UNSHOWN_WORDS.test(brand)) return null;
+  if (!name || unshown(name) || unshown(brand)) return null;
   if (p.stock_status === 'out_of_stock') return null;
   const to = Array.isArray(p.delivers_to) ? p.delivers_to.map(c => String(c).toUpperCase()) : [];
   const home = productCountry(store);
@@ -951,7 +957,7 @@ export function heroButtons(c, now = new Date()) {
   if (stores) tiles.push(html`<li><a class="jump" href="${c.href('/#stores')}"><span class="jump-label">${storesLabel(c)}</span><span class="jump-meta">${t('{0} stores', stores)}</span></a></li>`);
   tiles.push(html`<li><a class="jump" href="${c.href('/#guides')}"><span class="jump-label">${t('Gift guides')}</span><span class="jump-meta">${t('{0} gift guides', site.guides.length)}</span></a></li>`);
   for (const g of site.guides.slice(0, 4)) tiles.push(html`<li><a class="jump" href="${c.href(`/guides/${g.slug}/`)}"><span class="jump-label">${t(g.title)}</span></a></li>`);
-  return html`<nav class="hero-jump" aria-label="${c.tx('Stores and gift guides')}"><ul class="jumps">${tiles}</ul></nav>`;
+  return html`<nav class="hero-jump" aria-label="${storesHere(c) ? c.tx('Stores and gift guides') : c.tx('Gift guides')}"><ul class="jumps">${tiles}</ul></nav>`;
 }
 
 export function homePage(c, now = new Date(), storeData = {}) {
@@ -959,15 +965,17 @@ export function homePage(c, now = new Date(), storeData = {}) {
   const all = [...site.guides, site.checks].filter(Boolean);
   const hubName = (site.hub && site.hub.name) || 'Gear World Hub';
   return shell(c, {
-    title: `${tx('Stores and gift guides')} | ${site.name}`,
-    description: withMarkets(mode)
+    title: `${storesHere(c) ? tx('Stores and gift guides') : tx('Gift guides')} | ${site.name}`,
+    description: !storesHere(c)
+      ? tx('Short gift guides for Christmas and the winter. Every idea opens the matching category of a Gear World site, where each product shows the retailer that sells it, its price and where it delivers.')
+      : withMarkets(mode)
       ? tx('Store pages with product photos from the Gear World sites, and Christmas gift ideas with searches on the big marketplaces. Compare models, sellers and prices before you choose.')
       : tx('Store pages with product photos from the Gear World sites, and Christmas gift ideas with the matching categories. Compare models, retailers and prices before you choose.'),
     path: '/',
     body: html`
 <section class="hero"><div class="wrap hero-grid">
   <div class="hero-text">
-  <p class="eyebrow">${t('Stores and gift guides')}</p>
+  <p class="eyebrow">${storesHere(c) ? t('Stores and gift guides') : t('Gift guides')}</p>
   <h1>${withMarkets(mode) ? t('Gift ideas first. Then compare on the big marketplaces.') : t('Gift ideas first. Then compare.')}</h1>
   <p class="lede">${withMarkets(mode)
     ? t('Short gift guides for Christmas and the winter. Every idea opens a search on a big marketplace and the matching category of a Gear World site, so you can compare models, sellers and prices before you choose.')
@@ -1183,7 +1191,9 @@ function notFoundPage(c, path) {
 
 // Every page address, for the sitemap (English, without ?lang=). The Amazon page only when the Amazon links are live.
 export function pagePaths(site, mode = 'off') {
-  const stores = (site.stores || []).filter(s => (s.amazon ? mode === 'on' : Array.isArray(s.sites) && s.sites.length)).map(s => `/stores/${s.slug}/`);
+  // Only the stores of the UK page, the one Google reads (L195, L210): a store listed for other countries only (the Greek
+  // ones) would show Google its "not listed for your country" page.
+  const stores = (site.stores || []).filter(s => (s.amazon ? mode === 'on' : Array.isArray(s.sites) && s.sites.length && deliversHere(s, VIEW_BASE))).map(s => `/stores/${s.slug}/`);
   return ['/', ...stores, ...site.guides.map(g => `/guides/${g.slug}/`), `/guides/${site.checks.slug}/`, ...Object.keys(LEGAL)];
 }
 

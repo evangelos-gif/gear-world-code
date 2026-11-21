@@ -125,8 +125,8 @@ test('L195: every text the pages use is in every dictionary, and every dictionar
     for (const day of days) {
       for (const fetch of [fakeFetch(), failing]) {
         const w = createGuidesWorker(s, { fetch, cache: null, now: () => at(day) });
-        // The UK page and a page of a country no store delivers to (L210: their own lines).
-        for (const cc of ['GB', 'GR']) {
+        // The UK page, Greece (its own stores) and a country no store is listed for (L210: their own lines).
+        for (const cc of ['GB', 'GR', 'US']) {
           for (const env of [ON, OFF, PRE]) for (const lang of langs) for (const p of paths) {
             const req = new Request(LIVE + withLang(p, lang));
             Object.defineProperty(req, 'cf', { value: { country: cc } });
@@ -266,7 +266,7 @@ test('L103, L195: names are never translated: stores, products, brands, Gear Wor
     const home = (await get(withLang('/', l))).text;
     assert.ok(home.includes('<span translate="no">Mega Stores Gear World</span>'), `${l}: the site name`);
     for (const w of GEAR_WORLDS) assert.ok(home.includes(`translate="no">${w.name.replace(/'/g, '&#39;')}</a>`), `${l}: ${w.name}`);
-    for (const s of awinStores(site)) assert.ok(home.includes(`<a class="store-link" href="/stores/${s.slug}/?lang=${l}"><span translate="no">${s.name}</span></a>`), `${l}: ${s.name}`);
+    for (const s of awinStores(site).filter(x => !String(x.slug).endsWith('-gr'))) assert.ok(home.includes(`<a class="store-link" href="/stores/${s.slug}/?lang=${l}"><span translate="no">${s.name}</span></a>`), `${l}: ${s.name} (the UK page)`);
     for (const code of ['CLAIMFIFTY', 'CLAIMSEVFY', 'EIN15PCDD']) assert.ok(home.includes(`<strong translate="no">${code}</strong>`), `${l}: ${code}`);
     const joy = (await get(withLang('/stores/joybuy/', l))).text;
     assert.match(joy, /<h2 class="pcard-name" translate="no">Joybuy [a-z]+ item 1<\/h2>/, `${l}: product names`);

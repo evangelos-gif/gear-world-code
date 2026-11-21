@@ -10,7 +10,7 @@ import defaultWorker from '../../sites/ogw/worker.js';
 import site from '../../sites/ogw/site.config.js';
 import {
   AMAZON_STATEMENT, amazonMode, amazonUrl, gearWorldUrl, countdown, ukDay, legalPaths, pagePaths,
-  createGuidesWorker, storeCacheKey, guideImage, storeUserAgent, awinStores
+  createGuidesWorker, storeCacheKey, guideImage, storeUserAgent, awinStores, deliversHere
 } from '../../src/marketplace-guides.js';
 import { GEAR_WORLDS } from '../../promos/network.js';
 
@@ -79,6 +79,11 @@ const RETAILER_LINE = /^(£\d+|\d+%) off (when you spend £\d+(, on selected pro
 
 const ALL_GUIDES = [...site.guides.map(g => g.slug), site.checks.slug];
 const STORE_PAGES = awinStores(site).map(s => `/stores/${s.slug}/`);
+// The stores of the UK page (L210: the Greek stores show only to visitors from Greece and Cyprus).
+const UK_STORES = awinStores(site).filter(s => deliversHere(s, 'GB'));
+const UK_STORE_PAGES = UK_STORES.map(s => `/stores/${s.slug}/`);
+// The Greek stores of the Linkwise network (owner, 21 Nov 2026, L210), with the countries of the sites' linkwise-gr.js.
+const GREEK = { 'kouzinika-gr': ['GR'], 'katoikein-gr': ['GR'], 'minipini-gr': ['GR'], 'xxxl-leo-gr': ['GR'], 'casualshoes-gr': ['GR'], 'parex-gr': ['GR', 'CY'], 'tsakiris-mallas-gr': ['GR', 'CY'] };
 const ALL_PAGES = ['/', ...ALL_GUIDES.map(s => `/guides/${s}/`), ...legalPaths(), ...STORE_PAGES];
 
 test('every page answers 200 with the security headers, no script, no cookie and no price', async () => {
@@ -230,13 +235,14 @@ test('addresses: www, final slash, unknown pages, methods, robots, sitemap and v
   assert.equal(x.text, 'User-agent: *\nAllow: /\n\nSitemap: https://megastoresgearworld.com/sitemap.xml\n');
   x = await get('/sitemap.xml');
   for (const p of pagePaths(site, 'on')) assert.ok(x.text.includes(`<loc>https://megastoresgearworld.com${p}</loc>`), p);
-  assert.equal((x.text.match(/<loc>/g) || []).length, ALL_PAGES.length + 1, 'every page and the Amazon page');
-  for (const p of STORE_PAGES) assert.ok(x.text.includes(`<loc>https://megastoresgearworld.com${p}</loc>`), `sitemap: ${p}`);
+  assert.equal((x.text.match(/<loc>/g) || []).length, ALL_PAGES.length - Object.keys(GREEK).length + 1, 'every page of the UK view and the Amazon page (L210)');
+  for (const p of UK_STORE_PAGES) assert.ok(x.text.includes(`<loc>https://megastoresgearworld.com${p}</loc>`), `sitemap: ${p}`);
+  for (const slug of Object.keys(GREEK)) assert.ok(!x.text.includes(`/stores/${slug}/`), `sitemap: no ${slug} (Google reads the UK page, L210)`);
   assert.ok(x.text.includes('<loc>https://megastoresgearworld.com/stores/amazon/</loc>'), 'the Amazon page with Amazon links on');
   for (const env of [OFF, PRE]) {
     const t = (await get('/sitemap.xml', env)).text;
     assert.ok(!/amazon/i.test(t), 'no Amazon page in the sitemap without the live Amazon links');
-    assert.equal((t.match(/<loc>/g) || []).length, ALL_PAGES.length);
+    assert.equal((t.match(/<loc>/g) || []).length, ALL_PAGES.length - Object.keys(GREEK).length);
   }
   x = await defaultWorker.fetch(new Request(`${LIVE}/api/version`), { GW_COMMIT: 'ab'.repeat(20) });
   assert.deepEqual(await x.json(), { commit: 'ab'.repeat(20) }, 'the version for the live guard (L156)');
@@ -306,13 +312,14 @@ const GW_HOSTS = new Set(GEAR_WORLDS.map(w => new URL(w.url).hostname));
 const STORE_BANNED = /£|\$|€|\bGBP\b|\d\s?%|12\.34|99\.99|\bdeals?\b|\bsale\b|\bsave\b|\bshop\b|buy now|\bcart\b|\bofficial\b|\bpartners?\b|lowest price|free delivery/i;
 
 test('stores: config, order, logos as the stores give them, the world photos of the Amazon page', () => {
-  assert.deepEqual(site.stores.map(s => s.slug), ['amazon', 'joybuy', 'tooled-up', 'my-tool-shed', 'pchub-uk', 'gs-workwear', 'back-to-the-office', 'dhgate']);
-  assert.deepEqual(site.stores.map(s => s.name), ['Amazon', 'Joybuy', 'Tooled Up', 'My Tool Shed', 'PCHUB.UK', 'GS Workwear', 'Back to the Office', 'DHgate']);
+  assert.deepEqual(site.stores.map(s => s.slug), ['amazon', 'joybuy', 'tooled-up', 'my-tool-shed', 'pchub-uk', 'gs-workwear', 'back-to-the-office', 'dhgate', ...Object.keys(GREEK)]);
+  assert.deepEqual(site.stores.map(s => s.name), ['Amazon', 'Joybuy', 'Tooled Up', 'My Tool Shed', 'PCHUB.UK', 'GS Workwear', 'Back to the Office', 'DHgate',
+    'Kouzinika GR', 'Katoikein GR', 'Minipini GR', 'XXXL Leo GR', 'CasualShoes GR', 'Parex GR', 'Tsakiris Mallas GR']);
   const codes = new Set(GEAR_WORLDS.map(w => w.code));
   const allowed = readFileSync('sites/ogw/public-allowlist.txt', 'utf8');
   for (const s of awinStores(site)) {
     assert.ok(s.sites.length && s.sites.every(c => codes.has(c)), `${s.slug}: Gear World sites`);
-    assert.deepEqual(s.deliversTo, ['GB'], `${s.slug}: a UK store`);
+    assert.deepEqual(s.deliversTo, GREEK[s.slug] || ['GB'], `${s.slug}: ${GREEK[s.slug] ? 'a Greek store, its countries' : 'a UK store'}`);
     assert.ok(s.line && s.line.length < 90, `${s.slug}: one short line`);
     if (s.logo) {
       assert.ok(statSync(`sites/ogw/public/assets/${s.logo}`).size > 0 && allowed.includes(`assets/${s.logo}`), `${s.slug}: logo file in public/ and the allowlist`);
@@ -450,7 +457,7 @@ test('store data: kept in the cache 1 hour under a synthetic key, read from ther
   await (await w.fetch(new Request(`${LIVE}/`), ON, ctx)).text();
   await Promise.all(waits);
   const afterHome = f.calls.length;
-  assert.equal(afterHome - n, awinStores(site).reduce((a, s) => a + Math.min(6, s.sites.length), 0) - 4);
+  assert.equal(afterHome - n, UK_STORES.reduce((a, s) => a + Math.min(6, s.sites.length), 0) - 4, 'the UK page reads only the UK stores (L210)');
   await (await w.fetch(new Request(`${LIVE}/`), ON, ctx)).text();
   assert.equal(f.calls.length, afterHome, 'the home page from the cache');
   // Nothing found: kept 1 minute only.
@@ -469,7 +476,7 @@ test('home page: the stores above the gift guides, logos on a tile or a text bad
     const section = text.slice(text.indexOf('id="stores"'), text.indexOf('id="black-friday"') > 0 ? text.indexOf('id="black-friday"') : text.indexOf('id="guides"'));
     const cards = section.match(/<li class="store-card">[\s\S]*?<p class="store-meta">[^<]*<\/p>\s*<\/li>/g) || [];
     const names = cards.map(c => c.match(/<a class="store-link" href="\/stores\/([a-z0-9-]+)\/">/)[1]);
-    const expect = site.stores.map(s => s.slug).filter(s => s !== 'amazon' || env !== OFF);
+    const expect = site.stores.filter(s => (s.amazon ? env !== OFF : deliversHere(s, 'GB'))).map(s => s.slug);
     assert.deepEqual(names, expect, 'one card per store, in order');
     for (const c of cards) {
       const slug = c.match(/href="\/stores\/([a-z0-9-]+)\/"/)[1];

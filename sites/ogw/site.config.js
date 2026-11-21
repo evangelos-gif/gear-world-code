@@ -26,7 +26,7 @@ export default {
   operatorName: 'Evangelos Kalogerakis, United Kingdom',
   // An address that receives mail (the Hub's; megastoresgearworld.com has no email).
   contactEmail: 'contact@gearworldhub.com',
-  assetVersion: '2026-11-21-ogw-5',
+  assetVersion: '2026-11-21-ogw-6',
   // The name of the stores part on every page, never translated (owner, 21 Nov 2026, lessons L208).
   storesLabel: 'Mega Stores',
   // The 12 languages of the 13 Gear World sites, the same codes and the same order as their menu (lessons L162, L195).
@@ -85,7 +85,19 @@ export default {
     { slug: 'back-to-the-office', name: 'Back to the Office', sites: ['TGW', 'PGW', 'HGW', 'CGW', 'MGW', 'WGW'], deliversTo: ['GB'],
       line: 'Office supplies, office furniture and desk accessories.', logo: 'logos/back-to-the-office.png', logoSize: [168, 168] },
     { slug: 'dhgate', name: 'DHgate', sites: ['KGW'], deliversTo: ['GB'],
-      line: 'Toys, games and children\'s items from many independent sellers.', logo: '' }
+      line: 'Toys, games and children\'s items from many independent sellers.', logo: '' },
+    // Greek stores of the Linkwise network (owner, 21 Nov 2026: "in the email we have many offers for Greece, check and
+    // put them all in Mega Stores", lessons L210): the ones that sent offers and are already on the Gear World sites with
+    // Greek products, under their names there ("… GR") and the countries of the sites' linkwise-gr.js (checked by chat 3
+    // and 7, L199). Shown only to visitors from those countries. Their offers' own texts ("up to -50%") are not shown:
+    // no sale or "% off" wording on the sites (L107, L114), and none of them is a code with an end date.
+    { slug: 'kouzinika-gr', name: 'Kouzinika GR', sites: ['HGW'], deliversTo: ['GR'], line: 'Kitchenware, tableware and home items.', logo: '' },
+    { slug: 'katoikein-gr', name: 'Katoikein GR', sites: ['HGW'], deliversTo: ['GR'], line: 'Furniture and home textiles.', logo: '' },
+    { slug: 'minipini-gr', name: 'Minipini GR', sites: ['KGW'], deliversTo: ['GR'], line: 'Toys, puzzles and games for children.', logo: '' },
+    { slug: 'xxxl-leo-gr', name: 'XXXL Leo GR', sites: ['MGW'], deliversTo: ['GR'], line: 'Men\'s clothing, also in larger sizes.', logo: '' },
+    { slug: 'casualshoes-gr', name: 'CasualShoes GR', sites: ['MGW'], deliversTo: ['GR'], line: 'Shoes and watches.', logo: '' },
+    { slug: 'parex-gr', name: 'Parex GR', sites: ['MGW'], deliversTo: ['GR', 'CY'], line: 'Shoes, wallets and socks.', logo: '' },
+    { slug: 'tsakiris-mallas-gr', name: 'Tsakiris Mallas GR', sites: ['MGW', 'WGW'], deliversTo: ['GR', 'CY'], line: 'Shoes and bags.', logo: '' }
   ],
   // Black Friday 2026 (Friday 27 Nov), Cyber Monday (Monday 30 Nov) and Christmas: the countdown line and the Black Friday
   // block of the home page (until the end of Cyber Monday). Never a promise of discounts.
