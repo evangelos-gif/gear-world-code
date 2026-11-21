@@ -32,12 +32,13 @@ function photoServer() {
 }
 const product = (n, kind = 'ok') => ({ name: `Item ${n}`, brand: 'Acme', image: `https://img.example/${kind}/${n}.jpg`, url: `https://mensgearworld.com/product/p-${n}/`, site: 'MGW' });
 
-test('L211: a photo is ok (200/206 image), broken (403, 404, 410, not an image) or unknown (slow, error, 5xx): only the first KB', async () => {
+test('L211: a photo is ok (200/206 image), broken (404, 410, not an image), forbidden (403) or unknown (slow, error, 5xx): only the first KB', async () => {
   const f = photoServer();
   assert.equal(await photoState('https://img.example/ok/1.jpg', f), 'ok');
   assert.equal(await photoState('https://img.example/full/1.jpg', f), 'ok');
   assert.equal(await photoState('https://img.example/gone/1.jpg', f), 'broken');
-  assert.equal(await photoState('https://img.example/forbidden/1.jpg', f), 'broken');
+  assert.equal(await photoState('https://img.example/forbidden/1.jpg', f), 'forbidden');
+  assert.equal(await photoState('https://img.example/ok/9.jpg', f, { until: Date.now() - 1 }), 'unknown', 'past the deadline: not checked');
   assert.equal(await photoState('https://img.example/html/1.jpg', f), 'broken');
   assert.equal(await photoState('https://img.example/down/1.jpg', f), 'unknown');
   assert.equal(await photoState('https://img.example/busy/1.jpg', f), 'unknown');
@@ -79,13 +80,16 @@ test('L211: one invocation checks at most 4 photos at a time, and a photo\'s tim
   assert.equal(r.products.length, 20, 'every photo answered within its own 60 ms although 20 waited in line (5 rounds of 40 ms)');
 });
 
-test('L211: when every photo of 3 or more is broken, the check is taken as blocked: the products stay, kept 10 minutes', async () => {
+test('L211: when every photo of 3 or more is refused (403), the check is taken as blocked: the products stay, kept 10 minutes; all 404 are left out', async () => {
   const f = photoServer();
-  const allGone = [1, 2, 3, 4].map(n => product(n, 'gone'));
+  const gone = await keepOpenPhotos([1, 2, 3, 4].map(n => product(n, 'gone')), f, 24);
+  assert.equal(gone.blocked, false, 'all 404: really gone');
+  assert.equal(gone.products.length, 0);
+  const allGone = [1, 2, 3, 4].map(n => product(n, 'forbidden'));
   const r = await keepOpenPhotos(allGone, f, 24);
   assert.equal(r.blocked, true);
   assert.equal(r.products.length, 4);
-  const two = await keepOpenPhotos([product(1, 'gone'), product(2, 'gone')], f, 24);
+  const two = await keepOpenPhotos([product(1, 'forbidden'), product(2, 'forbidden')], f, 24);
   assert.equal(two.blocked, false, 'two broken photos are just broken');
   assert.equal(two.products.length, 0);
 });
@@ -122,7 +126,7 @@ test('L211: a store whose photo server refuses every check keeps its products, a
   const siteFetch = async input => {
     const u = new URL(String(input));
     const rows = [1, 2, 3, 4].map(n => ({ product_name: `Πορτοφόλι ${n}`, brand: 'Acme', retailer: store.name, stock_status: 'in_stock', delivers_to: ['GR'],
-      image_url: `https://img.example/gone/${n}.jpg`, product_url: `https://${u.hostname}/product/p-${n}/` }));
+      image_url: `https://img.example/forbidden/${n}.jpg`, product_url: `https://${u.hostname}/product/p-${n}/` }));
     return new Response(JSON.stringify({ ok: true, products: rows }), { status: 200, headers: { 'Content-Type': 'application/json' } });
   };
   const cache = new Map();
@@ -189,4 +193,13 @@ test('L211: the home page never waits for the photo check: products at once (kep
   cache.clear(); puts.length = 0;
   const page = await storeProducts(site, store, { fetch: siteFetch, photoFetch: photoServer(), cache: c }, ctx);
   assert.deepEqual(page.products.map(p => p.name), ['Παιχνίδι 1', 'Παιχνίδι 3', 'Παιχνίδι 4']);
+});
+
+test('L211: no photo check starts after the deadline: a hung image server never holds a store page long, its products stay', async () => {
+  const f = photoServer();
+  const list = Array.from({ length: 24 }, (_, i) => product(i + 1, 'slow'));
+  const t0 = Date.now();
+  const r = await keepOpenPhotos(list, f, 24, { limit: photoLimiter(4), timeoutMs: 60, deadlineMs: 100 });
+  assert.ok(Date.now() - t0 < 400, `done in ${Date.now() - t0} ms (deadline 100 ms + one 60 ms check)`);
+  assert.equal(r.products.length, 24, 'every unchecked one stays');
 });

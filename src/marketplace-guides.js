@@ -630,6 +630,10 @@ const STORE_KEEP = 24;
 const STORE_TIMEOUT_MS = 4000;
 // Product photos that open (owner, 21 Nov 2026, lessons L211: a CasualShoes card showed an empty photo, 404 at the store).
 const PHOTO_TIMEOUT_MS = 2500;
+// No photo check starts after this (the rest stay): a store page waits at most about 4 + 2.5 seconds for its photos,
+// the home page's check after the answer about 20 + 2.5 (waitUntil runs at most 30 seconds after the answer).
+const PHOTO_DEADLINE_MS = 4000;
+const PHOTO_LATER_DEADLINE_MS = 20000;
 // A product whose name or brand holds a price, a percentage, a word of a shop or of a discount, or Amazon's name is
 // left out: those words never appear on this site (L101, L103, L107), and with AMAZON_LINKS off no page names Amazon.
 const UNSHOWN_WORDS = /[£$€%]|\b(sale|sales|deals?|save|saving|savings|shop|shopping|buy|cart|basket|official|partners?|discounts?|offers?|free delivery|lowest price|best price|cheapest|clearance|bargains?|coupons?|vouchers?|promo|black friday)\b|amazon/i;
@@ -735,11 +739,13 @@ export function photoLimiter(n = PHOTO_PARALLEL) {
   return fn => new Promise((resolve, reject) => { waiting.push({ fn, resolve, reject }); next(); });
 }
 
-// What a product photo is: 'ok' (the first KB answers 200 or 206 with an image type), 'broken' (403, 404 or 410, or an
-// answer that is not an image) or 'unknown' (slow, a network error, 429, 5xx or anything else). Only 'broken' is left
-// out: a slow or busy image server never hides a good photo (L211). The rest of the photo is never read.
-export async function photoState(url, fetcher, { timeoutMs = PHOTO_TIMEOUT_MS, userAgent = '', limit = null } = {}) {
+// What a product photo is: 'ok' (the first KB answers 200 or 206 with an image type), 'broken' (404 or 410, or an
+// answer that is not an image), 'forbidden' (403: left out too, but it may be the image server refusing Cloudflare) or
+// 'unknown' (slow, a network error, 429, 5xx, anything else, or past the check's deadline). Only broken and forbidden
+// are left out: a slow or busy image server never hides a good photo (L211). The rest of the photo is never read.
+export async function photoState(url, fetcher, { timeoutMs = PHOTO_TIMEOUT_MS, userAgent = '', limit = null, until = 0 } = {}) {
   const run = async () => {
+    if (until && Date.now() >= until) return 'unknown';
     const ac = new AbortController();
     const timer = setTimeout(() => ac.abort(), timeoutMs);
     try {
@@ -747,7 +753,8 @@ export async function photoState(url, fetcher, { timeoutMs = PHOTO_TIMEOUT_MS, u
       try { if (res && res.body && typeof res.body.cancel === 'function') await res.body.cancel(); } catch { /* nothing more to read */ }
       if (!res) return 'unknown';
       if (res.status === 200 || res.status === 206) return /^image\//i.test(String(res.headers.get('Content-Type') || '')) ? 'ok' : 'broken';
-      return [403, 404, 410].includes(res.status) ? 'broken' : 'unknown';
+      if (res.status === 403) return 'forbidden';
+      return [404, 410].includes(res.status) ? 'broken' : 'unknown';
     } catch {
       return 'unknown';
     } finally {
@@ -761,23 +768,31 @@ export async function photoOpens(url, fetcher, opts = {}) {
 }
 
 // The products whose photo is not broken, in their order, up to `keep`: the first `keep` are checked, then as many more
-// as are missing, until there are enough or none is left. { products, checked, broken, blocked }. When every photo of 3
-// or more checked is broken, the check itself is taken as blocked (a store's image server refusing Cloudflare): the
-// products stay unchecked (blocked: true) and are kept only 10 minutes.
+// as are missing, until there are enough or none is left. { products, checked, broken, blocked }. opts.deadlineMs: no
+// check starts after it (the rest count as unknown, so they stay), so a slow image server never holds a page long.
+// When every photo of 3 or more checked is refused (403), the check itself is taken as blocked (the image server
+// refusing Cloudflare): the products stay unchecked (blocked: true) and are kept only 10 minutes. Photos that all
+// answer 404 are really gone: left out.
 export async function keepOpenPhotos(list, fetcher, keep = STORE_KEEP, opts = {}) {
   const out = [];
   let i = 0;
   let checked = 0;
   let broken = 0;
+  let forbidden = 0;
+  const run = { ...opts, until: opts.deadlineMs ? Date.now() + opts.deadlineMs : 0 };
   while (out.length < keep && i < list.length) {
     const batch = list.slice(i, i + (keep - out.length));
     i += batch.length;
-    const states = await Promise.all(batch.map(p => photoState(p.image, fetcher, opts)));
+    const states = await Promise.all(batch.map(p => photoState(p.image, fetcher, run)));
     checked += batch.length;
-    batch.forEach((p, j) => { if (states[j] === 'broken') broken++; else out.push(p); });
+    batch.forEach((p, j) => {
+      if (states[j] === 'broken') broken++;
+      else if (states[j] === 'forbidden') forbidden++;
+      else out.push(p);
+    });
   }
-  if (!out.length && checked >= 3) return { products: list.slice(0, keep), checked, broken, blocked: true };
-  return { products: out, checked, broken, blocked: false };
+  if (!out.length && checked >= 3 && forbidden === checked) return { products: list.slice(0, keep), checked, broken, blocked: true };
+  return { products: out, checked, broken: broken + forbidden, blocked: false };
 }
 
 // The store's products: from the cache, or read from its first 6 Gear World sites at once (Promise.allSettled, so a
@@ -816,10 +831,14 @@ export async function storeProducts(site, store, deps = {}, ctx = null) {
     if (later) ctx.waitUntil(put); else await put;
     return { products, cached: false };
   }
-  const check = () => keepOpenPhotos(candidates, deps.photoFetch, STORE_KEEP, { timeoutMs: deps.photoTimeoutMs, userAgent: storeUserAgent(site), limit: deps.photoLimit || null });
+  const background = Boolean(deps.photoLater && later);
+  const check = () => keepOpenPhotos(candidates, deps.photoFetch, STORE_KEEP, {
+    timeoutMs: deps.photoTimeoutMs, userAgent: storeUserAgent(site), limit: deps.photoLimit || null,
+    deadlineMs: deps.photoDeadlineMs || (background ? PHOTO_LATER_DEADLINE_MS : PHOTO_DEADLINE_MS)
+  });
   // The home page (deps.photoLater) does not wait for the photos: it shows the products at once, keeps them 1 minute,
   // and checks them after the answer (waitUntil), keeping the checked copy for the hour. A store page waits for them.
-  if (deps.photoLater && later) {
+  if (background) {
     const products = candidates.slice(0, STORE_KEEP);
     ctx.waitUntil(keepCopy(products, 60)
       .then(check)
