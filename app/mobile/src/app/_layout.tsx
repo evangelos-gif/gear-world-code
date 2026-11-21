@@ -5,6 +5,7 @@ import { useEffect, type ReactNode } from 'react';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { I18nProvider, useI18n } from '@/i18n';
+import { OnPhoneProvider } from '@/lib/on-phone';
 import { WorldsProvider } from '@/lib/worlds-context';
 import { C } from '@/theme';
 
@@ -23,10 +24,12 @@ export default function RootLayout() {
     <SafeAreaProvider>
       <I18nProvider>
         <WorldsProvider>
-          <HideSplashWhenReady>
-            <StatusBar style="light" />
-            <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: C.bg }, animation: 'slide_from_right' }} />
-          </HideSplashWhenReady>
+          <OnPhoneProvider>
+            <HideSplashWhenReady>
+              <StatusBar style="light" />
+              <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: C.bg }, animation: 'slide_from_right' }} />
+            </HideSplashWhenReady>
+          </OnPhoneProvider>
         </WorldsProvider>
       </I18nProvider>
     </SafeAreaProvider>

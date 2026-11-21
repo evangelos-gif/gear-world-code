@@ -1,5 +1,6 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import Constants from 'expo-constants';
+import { router } from 'expo-router';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -7,10 +8,11 @@ import { TopBar, Txt } from '@/components/ui';
 import { useI18n } from '@/i18n';
 import { LOCALES } from '@/i18n/core';
 import { HUB_URL, LEGAL } from '@/lib/api';
+import { useOnPhone } from '@/lib/on-phone';
 import { openEmail, openInBrowser, openSheet } from '@/lib/open';
 import { C, MAX_WIDTH, R, S } from '@/theme';
 
-function Row({ label, icon, onPress, selected }: { label: string; icon?: 'chevron-forward' | 'open-outline' | 'mail-outline'; onPress: () => void; selected?: boolean }) {
+function Row({ label, icon, onPress, selected }: { label: string; icon?: 'chevron-forward' | 'open-outline' | 'mail-outline' | 'trash-outline'; onPress: () => void; selected?: boolean }) {
   return (
     <Pressable accessibilityRole={selected === undefined ? 'link' : 'radio'} accessibilityState={selected === undefined ? undefined : { checked: selected }}
       onPress={onPress} style={({ pressed }) => [s.row, pressed && s.pressed]}>
@@ -28,6 +30,7 @@ export default function Settings() {
   // Android draws the app behind its own buttons at the bottom: the list ends above them (owner, 4/11/2026).
   const bottom = useSafeAreaInsets().bottom;
   const version = Constants.expoConfig?.version ?? '1.0.0';
+  const { saved, recent, clearRecent } = useOnPhone();
 
   return (
     <SafeAreaView style={s.safe} edges={['top', 'left', 'right']}>
@@ -37,6 +40,13 @@ export default function Settings() {
           <Txt v="h2">{t('languageLabel')}</Txt>
           <View style={s.card} accessibilityRole="radiogroup">
             {LOCALES.map(l => <Row key={l.code} label={l.name} selected={locale === l.code} onPress={() => setLocale(l.code)} />)}
+          </View>
+
+          <Txt v="h2">{t('onPhone')}</Txt>
+          <View style={s.card}>
+            <Txt v="small" style={s.cardText}>{t('onPhoneText')}</Txt>
+            <Row label={t('seeSaved', { count: saved.length })} icon="chevron-forward" onPress={() => router.push('/saved')} />
+            {recent.length ? <Row label={t('clearRecent')} icon="trash-outline" onPress={clearRecent} /> : null}
           </View>
 
           <Txt v="h2">{t('legal')}</Txt>
@@ -67,6 +77,7 @@ const s = StyleSheet.create({
   inner: { width: '100%', maxWidth: MAX_WIDTH, alignSelf: 'center', padding: S.lg, gap: S.md },
   card: { backgroundColor: C.card, borderRadius: R.lg, borderWidth: 1, borderColor: C.border, overflow: 'hidden' },
   about: { padding: S.lg, gap: S.sm },
+  cardText: { padding: S.lg, paddingBottom: S.sm },
   row: { minHeight: 52, flexDirection: 'row', alignItems: 'center', gap: S.md, paddingHorizontal: S.lg, borderBottomWidth: 1, borderBottomColor: C.border },
   pressed: { backgroundColor: C.cardHigh },
   rowText: { flex: 1 },

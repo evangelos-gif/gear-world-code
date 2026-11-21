@@ -4,11 +4,12 @@ import { useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, TextInput, View } from 'react-native';
 
 import { useI18n } from '@/i18n';
+import { useOnPhone } from '@/lib/on-phone';
 import { encodePhotoParam, type PhotoAnswer } from '@/lib/photo';
 import { usePhotoSearch } from '@/lib/use-photo-search';
 import { useVoiceSearch } from '@/lib/use-voice-search';
 import { C, R, S } from '@/theme';
-import { Txt } from './ui';
+import { Chip, Txt } from './ui';
 
 /** Opens the search screen with what the photo showed (the screen then searches all Gear Worlds). */
 const openPhotoResults = (answer: PhotoAnswer) =>
@@ -22,11 +23,14 @@ export function SearchBox({ initial = '', placeholder, onSearch, onPhoto = openP
   const { t, locale } = useI18n();
   const [q, setQ] = useState(initial);
   const [warn, setWarn] = useState(false);
+  // The last searches, kept only on this phone, shown while the field is empty.
+  const { recent, addRecent, clearRecent } = useOnPhone();
 
   const run = (value: string) => {
     const v = value.trim();
     if (v.length < 2) { setWarn(true); return; }
     setWarn(false);
+    addRecent(v);
     onSearch(v);
   };
 
@@ -127,6 +131,21 @@ export function SearchBox({ initial = '', placeholder, onSearch, onPhoto = openP
 
       {warn ? <Txt v="small" style={s.info} accessibilityLiveRegion="polite">{t('min2')}</Txt> : null}
 
+      {!q.trim() && recent.length > 0 && !voice.listening && !photo.busy ? (
+        <View style={s.recent}>
+          <View style={s.recentHead}>
+            <Ionicons name="time-outline" size={16} color={C.muted} />
+            <Txt v="small" style={s.recentTitle}>{t('recent')}</Txt>
+            <Pressable accessibilityRole="button" accessibilityLabel={t('clearRecent')} onPress={clearRecent} hitSlop={8}>
+              <Txt v="small" style={s.link}>{t('clear')}</Txt>
+            </Pressable>
+          </View>
+          <View style={s.recentChips}>
+            {recent.map(r => <Chip key={r} label={r} onPress={() => { setQ(r); run(r); }} />)}
+          </View>
+        </View>
+      ) : null}
+
     </View>
   );
 }
@@ -149,5 +168,9 @@ const s = StyleSheet.create({
   listening: { color: C.gold, fontWeight: '700', flex: 1 },
   info: { color: C.blue },
   link: { color: C.gold, fontWeight: '800', textDecorationLine: 'underline' },
-  tipText: { color: C.faint, flex: 1 }
+  tipText: { color: C.faint, flex: 1 },
+  recent: { gap: S.sm },
+  recentHead: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  recentTitle: { flex: 1, fontWeight: '700' },
+  recentChips: { flexDirection: 'row', flexWrap: 'wrap', gap: S.sm }
 });
