@@ -80,10 +80,30 @@ export function targetOf(list, code) {
   return t;
 }
 
-// A bol.com row of a table with retailer and affiliate_url (alias: the table's name in the query, or none).
+// The spellings of a name that an index finds (re-review of 51a8b88: "Bol.com", "BOL.COM"): as written, lower case, upper
+// case, capitalised and every word capitalised. Any other mix of capitals is found by the separate statement (linkWhere).
+export function caseForms(names) {
+  const out = new Set();
+  for (const n of names) {
+    const s = String(n);
+    out.add(s); out.add(s.toLowerCase()); out.add(s.toUpperCase());
+    out.add(s.charAt(0).toUpperCase() + s.slice(1).toLowerCase());
+    out.add(s.toLowerCase().replace(/(^|[^a-z])([a-z])/g, (x, a, b) => a + b.toUpperCase()));
+  }
+  return [...out];
+}
+const lowerNames = names => [...new Set(names.map(n => String(n).toLowerCase()))];
+// A bol.com link: the partner link, or a bol.com product page (https://www.bol.com/..., any capitals).
+export const BOL_LINK_PREFIXES = [BOL_PARTNER_PREFIX, 'https://www.bol.com/'];
+function linkTest(a) {
+  return BOL_LINK_PREFIXES.map(p => `lower(substr(COALESCE(${a}affiliate_url, ''), 1, ${p.length})) = ${q(p)}`).join(' OR ');
+}
+
+// A bol.com row of a side table with retailer and affiliate_url, or of an offer of a group (alias: the table's name in the
+// query, or none): the name in any capitals, or a bol.com link. (These tables are small, or read through a join.)
 export function bolWhere(names, alias = '') {
   const a = alias ? `${alias}.` : '';
-  return `(${a}retailer IN (${names.map(q).join(', ')}) OR substr(COALESCE(${a}affiliate_url, ''), 1, ${BOL_PARTNER_PREFIX.length}) = ${q(BOL_PARTNER_PREFIX)})`;
+  return `(lower(COALESCE(${a}retailer, '')) IN (${lowerNames(names).map(q).join(', ')}) OR ${linkTest(a)})`;
 }
 
 // The products in two parts (review of 6954a135: an OR with substr() reads every row, and did so for every part of 500):
@@ -92,12 +112,14 @@ export function bolWhere(names, alias = '') {
 //    ONE query of its own (expected: none).
 export function retailerWhere(t, alias = '') {
   const a = alias ? `${alias}.` : '';
-  const r = `${a}retailer IN (${t.names.map(q).join(', ')})`;
+  const r = `${a}retailer IN (${caseForms(t.names).map(q).join(', ')})`;
   return t.legacy ? r : `${a}is_active IN (0, 1) AND ${r}`;
 }
+// The rest, in one read: a bol.com link (partner or product page) under another name, or the name in another mix of
+// capitals; never a row the first part already has.
 export function linkWhere(t, alias = '') {
   const a = alias ? `${alias}.` : '';
-  return `substr(COALESCE(${a}affiliate_url, ''), 1, ${BOL_PARTNER_PREFIX.length}) = ${q(BOL_PARTNER_PREFIX)} AND COALESCE(${a}retailer, '') NOT IN (${t.names.map(q).join(', ')})`;
+  return `(${linkTest(a)} OR lower(COALESCE(${a}retailer, '')) IN (${lowerNames(t.names).map(q).join(', ')})) AND COALESCE(${a}retailer, '') NOT IN (${caseForms(t.names).map(q).join(', ')})`;
 }
 
 // A bol.com key of Price Watch (price_last, price_log).
@@ -135,7 +157,7 @@ export function parts(t, tables) {
   }
   for (const s of SIDE_TABLES) {
     if (!has(tables, s.table)) continue;
-    const where = s.by === 'id' ? `${s.column} IN (${ids})` : s.by === 'row' ? w : `retailer IN (${t.names.map(q).join(', ')})`;
+    const where = s.by === 'id' ? `${s.column} IN (${ids})` : s.by === 'row' ? w : `lower(COALESCE(retailer, '')) IN (${lowerNames(t.names).map(q).join(', ')})`;
     out.push([s.table, `SELECT COUNT(*) FROM ${s.table} WHERE ${where}`, `DELETE FROM ${s.table} WHERE ${where};`]);
   }
   out.push(['products', `SELECT COUNT(*) FROM products WHERE ${rw}`, null]);
@@ -146,7 +168,7 @@ export function parts(t, tables) {
 // One SELECT with one column per table (and "active": the products a visitor could see).
 export function countSql(t, tables) {
   const cols = parts(t, tables).map(([n, sql]) => `(${sql}) AS ${n}`);
-  if (t.kind === 'site' && has(tables, 'products')) cols.push(`((SELECT COUNT(*) FROM products WHERE is_active = 1 AND retailer IN (${t.names.map(q).join(', ')})) + (SELECT COUNT(*) FROM products WHERE is_active = 1 AND ${linkWhere(t)})) AS active`);
+  if (t.kind === 'site' && has(tables, 'products')) cols.push(`((SELECT COUNT(*) FROM products WHERE is_active = 1 AND retailer IN (${caseForms(t.names).map(q).join(', ')})) + (SELECT COUNT(*) FROM products WHERE is_active = 1 AND ${linkWhere(t)})) AS active`);
   const sql = `SELECT ${cols.length ? cols.join(', ') : '0 AS none'}`;
   if (UNSAFE.test(sql)) throw new Error('count SQL with a character cmd.exe would change');
   return sql;

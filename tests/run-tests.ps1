@@ -7070,6 +7070,37 @@ writeFileSync(join(dir, 'BOL_11764_NL.csv.gz'), gzipSync(csvLine(BOL_COLUMNS) + 
     }
 }
 
+# 26c. The bol.com gate on its own (re-review of 51a8b88): a plan WITH bol.com products but no download time (an older
+# plan.json or bol.txt) is refused; a plan with none to load needs no time. A child PowerShell with a fake Say and
+# Invoke-Wrangler (switch on, a good run), so it runs anywhere.
+Write-Host 'bol.com gate (tools/lib/bol-guard.ps1 on its own)'
+$bgUnit = Join-Path $work 'bolgate-unit'
+New-Item -ItemType Directory -Path $bgUnit -Force | Out-Null
+[System.IO.File]::WriteAllText((Join-Path $bgUnit 'bol.txt'), "bol.com sources in this plan: 43646`nbol.com products: 2`n")
+$bgScript = @(
+    ('$lib = ''{0}''' -f (Join-Path (Join-Path (Join-Path $repo 'tools') 'lib') 'bol-guard.ps1')),
+    ('$plan = ''{0}''' -f $bgUnit),
+    '$global:Said = New-Object System.Collections.Generic.List[string]',
+    'function Say([string]$text, [string]$color = '''') { $global:Said.Add($text) }',
+    'function Invoke-Wrangler([string]$Folder, [string]$Arguments, [switch]$NonInteractive, [switch]$Retry) {',
+    '    if ($Arguments -match ''bol_refresh_runs'') { return @{ code = 0; text = ''[{"results":[{"n":1}],"success":true}]'' } }',
+    '    return @{ code = 0; text = ''[{"results":[{"value":"1"}],"success":true}]'' }',
+    '}',
+    '. $lib',
+    '$fresh = [DateTime]::UtcNow.AddHours(-1).ToString(''yyyy-MM-dd HH:mm:ss'', [Globalization.CultureInfo]::InvariantCulture)',
+    '$r1 = Test-BolImportGate ''x'' -OldestDownload '''' -BolRows 3',
+    '$t1 = [int](($global:Said -join " ").Contains(''bol-feed-download.ps1 -Step download), '' + [char]0x03BC + [char]0x03B5 + [char]0x03C4 + [char]0x03AC))',
+    '$r2 = Test-BolImportGate ''x'' -OldestDownload '''' -BolRows 0',
+    '$r3 = Test-BolImportGate ''x'' -NonInteractive -OldestDownload $fresh -BolRows 3',
+    '$r4 = Test-BolImportGate ''x'' -OldestDownload ''''',
+    '$r5 = Test-BolImportGate ''x'' -NonInteractive -OldestDownload (Get-BolPlanStamp $plan) -BolRows (Get-BolPlanCount $plan)',
+    'Write-Output (''GATE R1={0};R2={1};R3={2};R4={3};R5={4};S=[{5}];C={6};T1={7}'' -f $r1, $r2, $r3, $r4, $r5, (Get-BolPlanStamp $plan), (Get-BolPlanCount $plan), $t1)'
+) -join "`r`n"
+$bgFile = Join-Path $bgUnit 'gate-unit.ps1'
+[System.IO.File]::WriteAllText($bgFile, $bgScript + "`r`n", (New-Object System.Text.UTF8Encoding($true)))
+$bgOut = (@(& $exe -NoProfile -ExecutionPolicy Bypass -File $bgFile) | ForEach-Object { "$_" }) -join "`n"
+Check ($bgOut.Contains('GATE R1=False;R2=True;R3=True;R4=False;R5=False;S=[];C=2;T1=1')) ('bol.com gate: bol.com products without a download time are refused (an old bol.txt too), none to load needs none (' + $bgOut.Trim() + ')')
+
 Remove-Item -LiteralPath $work -Recurse -Force -ErrorAction SilentlyContinue
 
 Write-Host ''

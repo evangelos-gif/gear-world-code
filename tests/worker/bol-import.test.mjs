@@ -297,7 +297,10 @@ test('L204 + L205 (re-review): no bol.com row is loaded while the refresh kill s
   const li = read('tools/legacy-import.ps1');
   assert.ok(li.includes(". (Join-Path (Join-Path (Join-Path $repo 'tools') 'lib') 'bol-guard.ps1')"));
   const iGate = li.indexOf("if ($Apply -and ($RetailerName -eq 'bol.com' -or $Retailer -like 'bol-*')) {");
-  assert.ok(iGate > 0 && li.indexOf('if (-not (Test-BolImportGate $WorkDir -OldestDownload $bolOldest)) { Finish 16 }', iGate) > iGate);
+  assert.ok(iGate > 0 && li.indexOf('if (-not (Test-BolImportGate $WorkDir -OldestDownload $bolOldest -BolRows ([int]$sp.products))) { Finish 16 }', iGate) > iGate);
+  // Re-review of 51a8b88: bol.com products and no download time (an older plan): refused, never loaded unchecked.
+  assert.ok(g.includes("if (-not $OldestDownload -and $BolRows -ne 0) {") && g.includes('[int]$BolRows = -1'));
+  assert.match(g, /δεν λέει πότε κατέβηκαν τα αρχεία τους/);
   assert.ok(li.indexOf("$bolOldest = [string]$plan.oldestFeedStamp") > iGate, 'the plan\'s oldest download time, checked again when it loads');
   // Review of 6954a135: a successful refresh run in the last 2 hours, the 12 hours again at load time, Price Watch reminded.
   assert.ok(g.includes(`$q = "SELECT COUNT(*) AS n FROM bol_refresh_runs WHERE ok = 1 AND ran_at BETWEEN '{0}' AND '9999'" -f $cut`));
@@ -323,7 +326,7 @@ test('L204 + L205 (re-review): no bol.com row is loaded while the refresh kill s
     assert.ok(t.includes(". (Join-Path (Join-Path (Join-Path $repo 'tools') 'lib') 'bol-guard.ps1')"), s);
     const iA = t.indexOf('Confirm-Approval $Phrases.import');
     const iT = t.indexOf(`Invoke-Wrangler $${s} ('d1 time-travel info {0}' -f $DbName) -NonInteractive -Retry`, iA);
-    const iG = t.indexOf(`if (-not (Test-BolImportGate $${s} -NonInteractive -OldestDownload (Get-BolPlanStamp $planDir))) { Finish 16 }`);
+    const iG = t.indexOf(`if (-not (Test-BolImportGate $${s} -NonInteractive -OldestDownload (Get-BolPlanStamp $planDir) -BolRows (Get-BolPlanCount $planDir))) { Finish 16 }`);
     const iF = t.indexOf('if (Test-Path -LiteralPath (Join-Path $planDir $script:BolGatePlanFile)) {');
     assert.ok(iF > 0 && iF < iG && iG < iA && iA < iT, `${s}: the gate before the approval and the restore point`);
     assert.ok(t.lastIndexOf("if (-not $Apply) { Say ''; Say 'Δοκιμή μόνο (χωρίς -Apply): δεν άλλαξε τίποτα.' 'Green'; Finish 0 }", iG) > t.lastIndexOf("'import' {", iG), `${s}: the dry run never needs it`);
@@ -415,7 +418,14 @@ test('L204 (review of 6954a135): end to end on the AGW schema: the plan loads it
 test('L204 (review of 6954a135): a bare number is a size only for clothing and shoes; one card keeps the cheapest size\'s own link and EAN', async () => {
   for (const [a, b] of Object.entries({ 'Nextbase Dashcam - 322': 'Nextbase Dashcam - 322', 'Samsung Galaxy Tab A9 - 64/128': 'Samsung Galaxy Tab A9 - 64/128',
     'Duracell AA, 12/24': 'Duracell AA, 12/24', 'Kraan 1/2': 'Kraan 1/2', 'Dames pumps - 39': 'Dames pumps', 'Heren jeans slim, 32/34': 'Heren jeans slim',
-    'Hardloopschoenen Pegasus - 44': 'Hardloopschoenen Pegasus', 'Hondenjas - 40 cm': 'Hondenjas', 'Rubber automat - Maat L': 'Rubber automat' })) assert.equal(B.bolBaseName(a), b, a);
+    'Hardloopschoenen Pegasus - 44': 'Hardloopschoenen Pegasus', 'Hondenjas - 40 cm': 'Hondenjas', 'Rubber automat - Maat L': 'Rubber automat',
+    // Re-review of 51a8b88: a number with its unit or "maat" is a size only for clothing and shoes; pans and umbrellas differ.
+    'Tefal koekenpan - 24 cm': 'Tefal koekenpan - 24 cm', 'Samsonite koffer - 55 cm': 'Samsonite koffer - 55 cm', 'Knielkussen - maat 42': 'Knielkussen - maat 42',
+    'Hondenmand orthopedisch - Maat L': 'Hondenmand orthopedisch', 'Zwarte paraplu - 120 cm': 'Zwarte paraplu - 120 cm' })) assert.equal(B.bolBaseName(a), b, a);
+  assert.equal(B.bolBaseName('Paraplu stormvast - 100 cm', true), 'Paraplu stormvast - 100 cm', 'an umbrella of a fashion category: its length stays');
+  assert.equal(B.bolBaseName('Dames handtas - 30 cm', true), 'Dames handtas - 30 cm');
+  assert.equal(B.bolBaseName('Zomerjurk - 40', true), 'Zomerjurk');
+  assert.notEqual(B.bolBaseName('Tefal koekenpan - 24 cm'), B.bolBaseName('Tefal koekenpan - 28 cm'), 'two pans, two cards');
   assert.equal(B.bolBaseName('COZY MINI - 38', true), 'COZY MINI', 'a fashion category: the bare number is a size');
   assert.equal(B.bolBaseName('COZY MINI - 38', false), 'COZY MINI - 38');
   assert.equal(RULES.field('product_name', c => ({ product_name: 'Skechers COZY MINI - 38', bol_category_id: '46673' })[c] || ''), 'Skechers COZY MINI');

@@ -35,6 +35,15 @@ function Get-BolPlanStamp([string]$PlanDir) {
     return ''
 }
 
+# How many bol.com products a newer site's plan has (bol.txt), or -1 when it does not say.
+function Get-BolPlanCount([string]$PlanDir) {
+    $f = Join-Path $PlanDir $script:BolGatePlanFile
+    if (-not (Test-Path -LiteralPath $f)) { return 0 }
+    $m = [regex]::Match([System.IO.File]::ReadAllText($f), 'bol\.com products: (\d+)')
+    if ($m.Success) { return [int]$m.Groups[1].Value }
+    return -1
+}
+
 # How many hours ago a 'yyyy-MM-dd HH:mm:ss' UTC time was (-1 when it cannot be read).
 function Get-BolStampAge([string]$Stamp) {
     try {
@@ -99,9 +108,10 @@ function Get-BolGateLines([string]$State) {
 
 # Reads the switch and the last runs with the caller's Invoke-Wrangler (in $Folder), says what it found, and returns
 # $true only when the switch is on, the Worker ran well in the last 2 hours and the bol.com files are still fresh.
-# -OldestDownload: the oldest download time of the plan's bol.com rows ('' = none to load). -NonInteractive: the newer
-# sites' Invoke-Wrangler has that switch too.
-function Test-BolImportGate([string]$Folder, [switch]$NonInteractive, [string]$OldestDownload = '') {
+# -OldestDownload: the oldest download time of the plan's bol.com rows. -BolRows: how many bol.com products the plan has
+# (-1 = not known: counted as some). A plan WITH bol.com products and no download time (an older plan or bol.txt) is
+# refused, never loaded unchecked (re-review of 51a8b88). -NonInteractive: the newer sites' Invoke-Wrangler has it too.
+function Test-BolImportGate([string]$Folder, [switch]$NonInteractive, [string]$OldestDownload = '', [int]$BolRows = -1) {
     $a = 'd1 execute {0} --remote --json --command "{1}"' -f $script:BolGateDb, $script:BolGateSql
     if ($NonInteractive) { $r = Invoke-Wrangler $Folder $a -NonInteractive -Retry } else { $r = Invoke-Wrangler $Folder $a -Retry }
     $state = Get-BolSwitchState ([int]$r.code) ([string]$r.text)
@@ -126,6 +136,11 @@ function Test-BolImportGate([string]$Folder, [switch]$NonInteractive, [string]$O
     }
     Say ('bol.com: ο Worker της ανανέωσης έτρεξε με επιτυχία τις τελευταίες {0} ώρες: ΕΝΤΑΞΕΙ.' -f $script:BolGateRunHours) 'Green'
     # The files again, now: the plan may have been made earlier (bol.com's terms: never a price older than a day).
+    if (-not $OldestDownload -and $BolRows -ne 0) {
+        Say 'ΠΡΟΒΛΗΜΑ: το σχέδιο έχει προϊόντα bol.com αλλά δεν λέει πότε κατέβηκαν τα αρχεία τους, γι'' αυτό ΔΕΝ φορτώθηκε τίποτα.' 'Red'
+        Say 'Τρέξε ξανά τη λήψη (tools/bol-feed-download.ps1 -Step download), μετά ξανά το σχέδιο και την εισαγωγή.' 'Red'
+        return $false
+    }
     if ($OldestDownload) {
         $age = Get-BolStampAge $OldestDownload
         if ($age -lt 0 -or $age -gt $script:BolGateMaxAgeHours) {

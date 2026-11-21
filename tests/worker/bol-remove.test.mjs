@@ -30,7 +30,7 @@ test('L204: the targets are the 13 site databases (not only the 10 that list bol
 
 test('L204: a name the older site shows as bol.com (database.retailerNames) is removed too', async () => {
   const fake = { code: 'cgw', kind: 'site', names: ['bol.com', 'bol.com NL'] };
-  assert.equal(bolWhere(fake.names), "(retailer IN ('bol.com', 'bol.com NL') OR substr(COALESCE(affiliate_url, ''), 1, 24) = 'https://partner.bol.com/')");
+  assert.equal(bolWhere(fake.names), "(lower(COALESCE(retailer, '')) IN ('bol.com', 'bol.com nl') OR lower(substr(COALESCE(affiliate_url, ''), 1, 24)) = 'https://partner.bol.com/' OR lower(substr(COALESCE(affiliate_url, ''), 1, 20)) = 'https://www.bol.com/')");
 });
 
 test('L204: every count is ONE SELECT on one line that cmd.exe passes as it is (no & | < > ^ %)', () => {
@@ -61,6 +61,13 @@ function olderDb() {
   ins.run('a1', 'T1', 'Tooled Up', 'Drill', 'https://www.awin1.com/cread.php?awinmid=496', 1);
   for (let i = 1; i <= 1203; i++) ins.run(`bol${i}`, `87${i}`, 'bol.com', `Boor ${i}`, LINK, i % 7 ? 1 : 0);
   ins.run('x1', 'X1', 'bol.com NL', 'Zaag', LINK, 1); // another spelling, the partner link
+  // Re-review of 51a8b88: the name in capitals (found by the index), in an odd mix (found by the separate statement), and a
+  // bol.com product page link under another name.
+  ins.run('c1', 'C1', 'Bol.com', 'Hamer', 'https://www.awin1.com/cread.php?awinmid=1', 1);
+  ins.run('c2', 'C2', 'BOL.COM', 'Tang', 'https://www.awin1.com/cread.php?awinmid=1', 0);
+  ins.run('c3', 'C3', 'BoL.cOm', 'Beitel', 'https://www.awin1.com/cread.php?awinmid=1', 1);
+  ins.run('w1', 'W1', 'Some Shop', 'Waterpas', 'https://www.bol.com/nl/nl/p/waterpas/9200000000002/', 1);
+  ins.run('w2', 'W2', 'Another Shop', 'Rolmaat', 'https://www.bol.com.evil.example/p/1', 1);
   ins.run('e1', 'E1', 'Evil', 'Look-alike', 'https://partner.bol.com.evil.example/x', 1);
   const id = n => db.prepare('SELECT id FROM products WHERE merchant_product_id = ?').get(n).id;
   db.exec("INSERT INTO product_groups (identity_type, identity_key, canonical_name, canonical_slug) VALUES ('ean', '1', 'Drill', 'drill'), ('ean', '2', 'Boor', 'boor')");
@@ -78,13 +85,15 @@ test('L204: an older database (CGW side tables): counts, then the delete leaves 
   const t = targetOf(list, 'cgw');
   const c = counts(db, t);
   assert.deepEqual(c, { product_groups: 1, product_group_offers: 3, product_finalize_update_queue: 1, product_finalize_insert_queue: 1, product_refresh_baseline: 1,
-    product_refresh_stage: 1, products: 1203, products_link: 1, active: 1204 - Math.floor(1203 / 7) });
+    product_refresh_stage: 1, products: 1205, products_link: 3, active: 1204 - Math.floor(1203 / 7) + 3 });
   const sql = deleteSql(t, tableNames(db), { rows: c.products });
-  assert.equal((sql.match(/^DELETE FROM products WHERE id IN \(SELECT id FROM products WHERE retailer IN \('bol\.com'\) LIMIT 500\);$/gm) || []).length, Math.ceil(1203 / PRODUCTS_PER_DELETE) + 1,
+  assert.equal((sql.match(/^DELETE FROM products WHERE id IN \(SELECT id FROM products WHERE retailer IN \('bol\.com', 'BOL\.COM', 'Bol\.com', 'Bol\.Com'\) LIMIT 500\);$/gm) || []).length, Math.ceil(1205 / PRODUCTS_PER_DELETE) + 1,
     'in parts of 500 found by the names (an index), one more to be sure');
   // Review of 6954a135: the partner link under another name is ONE statement of its own, never an OR in every part.
-  assert.equal((sql.match(/^DELETE FROM products WHERE substr\(COALESCE\(affiliate_url, ''\), 1, 24\) = 'https:\/\/partner\.bol\.com\/' AND COALESCE\(retailer, ''\) NOT IN \('bol\.com'\);$/gm) || []).length, 1);
-  assert.ok(!/\bOR substr\(/.test(sql.split('\n').filter(l => l.startsWith('DELETE FROM products ')).join('\n')), 'no OR with substr() in a products delete');
+  const linkLines = sql.split('\n').filter(l => l.startsWith('DELETE FROM products WHERE (lower(substr('));
+  assert.equal(linkLines.length, 1, 'one statement for the links and the other capitals');
+  assert.match(linkLines[0], /= 'https:\/\/partner\.bol\.com\/' OR .*= 'https:\/\/www\.bol\.com\/' OR lower\(COALESCE\(retailer, ''\)\) IN \('bol\.com'\)\) AND COALESCE\(retailer, ''\) NOT IN \('bol\.com', 'BOL\.COM', 'Bol\.com', 'Bol\.Com'\);$/);
+  assert.ok(!/OR (lower\()?substr\(/.test(sql.split('\n').filter(l => l.startsWith('DELETE FROM products WHERE id IN')).join('\n')), 'no OR with substr() in the parts of 500');
   assert.ok(!/OR substr\(/.test(countSql(t, tableNames(db)).split('AS products,')[0].split('AS product_refresh_stage,').pop()), 'the products count reads the index of the names');
   // The side tables before the products (they find the products by id).
   assert.ok(sql.indexOf('DELETE FROM product_group_offers') < sql.indexOf('DELETE FROM products '));
@@ -92,7 +101,7 @@ test('L204: an older database (CGW side tables): counts, then the delete leaves 
   db.exec(sql);
   const after = counts(db, t);
   for (const [k, v] of Object.entries(after)) assert.equal(v, 0, k);
-  assert.deepEqual(db.prepare('SELECT retailer FROM products ORDER BY id').all().map(r => r.retailer), ['Tooled Up', 'Evil']);
+  assert.deepEqual(db.prepare('SELECT retailer FROM products ORDER BY id').all().map(r => r.retailer), ['Tooled Up', 'Another Shop', 'Evil'], 'a look-alike host stays');
   assert.deepEqual(db.prepare('SELECT id FROM product_groups').all().map(r => r.id), [1], 'the group with a Tooled Up offer stays');
   assert.equal(db.prepare('SELECT COUNT(*) AS n FROM product_group_offers').get().n, 1);
   assert.equal(db.prepare('SELECT COUNT(*) AS n FROM product_finalize_update_queue').get().n, 1);
@@ -100,7 +109,7 @@ test('L204: an older database (CGW side tables): counts, then the delete leaves 
   assert.equal(db.prepare('SELECT COUNT(*) AS n FROM affiliate_clicks').get().n, 1, 'the click log stays');
   // Again: nothing more to delete, no error.
   db.exec(deleteSql(t, tableNames(db), { rows: 0 }));
-  assert.equal(db.prepare('SELECT COUNT(*) AS n FROM products').get().n, 2);
+  assert.equal(db.prepare('SELECT COUNT(*) AS n FROM products').get().n, 3);
 });
 
 test('L204: a newer database with its search index: the delete keeps the index right', () => {
