@@ -52,7 +52,8 @@ param(
     [switch]$NoClipboard,
     [switch]$NoHttpCheck,
     [switch]$AfterPreview,
-    [switch]$AmazonOff
+    [switch]$AmazonOff,
+    [string]$Chat = '1 · Gear World Manager' # the chat that gave the command, named in the clipboard line (L116, L208)
 )
 
 $ErrorActionPreference = 'Stop'
@@ -93,7 +94,7 @@ function Finish([int]$code) {
     if (-not $NoClipboard) { try { Set-Clipboard -Value $text } catch { } }
     Write-Host ''
     Write-Host ('Η αναφορά γράφτηκε: {0}' -f $file)
-    if (-not $NoClipboard) { Write-Host 'Αντιγράφηκε στο πρόχειρο. Πήγαινε στη συζήτηση με το Claude «1 · Gear World Manager» και πάτα Ctrl+V.' -ForegroundColor $Ok }
+    if (-not $NoClipboard) { Write-Host ('Αντιγράφηκε στο πρόχειρο. Πήγαινε στη συζήτηση με το Claude «{0}» και πάτα Ctrl+V.' -f $Chat) -ForegroundColor $Ok }
     exit $code
 }
 

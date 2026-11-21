@@ -3829,6 +3829,9 @@ foreach ($cn in @('gw-backup.ps1', 'gw-wrangler-check.ps1')) {
     Check ($ct.Contains("[string]`$Chat = '4 · Sites & Κώδικας'") -and $ct.Contains('Πήγαινε στη συζήτηση με το Claude «{0}» και πάτα Ctrl+V.') -and -not $ct.Contains('Πήγαινε στη συζήτηση με το Claude και πάτα')) ($cn + ': the clipboard line names the chat «4 · Sites & Κώδικας» (-Chat) (L116)')
 }
 
+$ogSrc = [System.IO.File]::ReadAllText((Join-Path (Join-Path $repo 'tools') 'ogw-site.ps1'))
+Check ($ogSrc.Contains("[string]`$Chat = '1 · Gear World Manager'") -and $ogSrc.Contains('Πήγαινε στη συζήτηση με το Claude «{0}» και πάτα Ctrl+V.') -and -not $ogSrc.Contains('Claude «1 · Gear World Manager» και πάτα')) 'ogw-site.ps1: the clipboard line names the chat that gave the command (-Chat, the Manager by default) (L116, L208)'
+
 # gw-last-report.ps1: the newest report of a tool back on the clipboard, read-only.
 Write-Host 'gw-last-report.ps1'
 $lHome = Join-Path $work 'lr-home'
