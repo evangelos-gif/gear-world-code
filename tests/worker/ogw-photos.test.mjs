@@ -38,7 +38,7 @@ test('L211: a photo is ok (200/206 image), broken (404, 410, not an image), forb
   assert.equal(await photoState('https://img.example/full/1.jpg', f), 'ok');
   assert.equal(await photoState('https://img.example/gone/1.jpg', f), 'broken');
   assert.equal(await photoState('https://img.example/forbidden/1.jpg', f), 'forbidden');
-  assert.equal(await photoState('https://img.example/ok/9.jpg', f, { until: Date.now() - 1 }), 'unknown', 'past the deadline: not checked');
+  assert.equal(await photoState('https://img.example/ok/9.jpg', f, { until: Date.now() - 1 }), 'late', 'past the deadline: not checked');
   assert.equal(await photoState('https://img.example/html/1.jpg', f), 'broken');
   assert.equal(await photoState('https://img.example/down/1.jpg', f), 'unknown');
   assert.equal(await photoState('https://img.example/busy/1.jpg', f), 'unknown');
@@ -202,4 +202,18 @@ test('L211: no photo check starts after the deadline: a hung image server never 
   const r = await keepOpenPhotos(list, f, 24, { limit: photoLimiter(4), timeoutMs: 60, deadlineMs: 100 });
   assert.ok(Date.now() - t0 < 400, `done in ${Date.now() - t0} ms (deadline 100 ms + one 60 ms check)`);
   assert.equal(r.products.length, 24, 'every unchecked one stays');
+  assert.ok(r.late > 0, 'and they are counted as not checked');
+  // A store page whose photos were not all checked keeps its copy 10 minutes, not the hour.
+  const store = site.stores.find(s => s.slug === 'parex-gr');
+  const siteFetch = async input => {
+    const u = new URL(String(input));
+    const rows = [1, 2, 3, 4, 5].map(n => ({ product_name: `Τσάντα ${n}`, brand: 'Acme', retailer: store.name, stock_status: 'in_stock', delivers_to: ['GR'],
+      image_url: `https://img.example/slow/${n}.jpg`, product_url: `https://${u.hostname}/product/p-${n}/` }));
+    return new Response(JSON.stringify({ ok: true, products: rows }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+  };
+  const ttls = [];
+  const c = { async match() { return undefined; }, async put(k, res) { ttls.push(res.headers.get('Cache-Control')); } };
+  const got = await storeProducts(site, store, { fetch: siteFetch, photoFetch: f, photoTimeoutMs: 30, photoDeadlineMs: 1, photoLimit: photoLimiter(1), cache: c });
+  assert.equal(got.products.length, 5);
+  assert.deepEqual(ttls, ['public, max-age=600']);
 });

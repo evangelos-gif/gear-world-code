@@ -741,11 +741,12 @@ export function photoLimiter(n = PHOTO_PARALLEL) {
 
 // What a product photo is: 'ok' (the first KB answers 200 or 206 with an image type), 'broken' (404 or 410, or an
 // answer that is not an image), 'forbidden' (403: left out too, but it may be the image server refusing Cloudflare) or
-// 'unknown' (slow, a network error, 429, 5xx, anything else, or past the check's deadline). Only broken and forbidden
-// are left out: a slow or busy image server never hides a good photo (L211). The rest of the photo is never read.
+// 'unknown' (slow, a network error, 429, 5xx or anything else) or 'late' (not checked: past the check's deadline). Only
+// broken and forbidden are left out: a slow or busy image server never hides a good photo (L211). The rest of the
+// photo is never read.
 export async function photoState(url, fetcher, { timeoutMs = PHOTO_TIMEOUT_MS, userAgent = '', limit = null, until = 0 } = {}) {
   const run = async () => {
-    if (until && Date.now() >= until) return 'unknown';
+    if (until && Date.now() >= until) return 'late';
     const ac = new AbortController();
     const timer = setTimeout(() => ac.abort(), timeoutMs);
     try {
@@ -769,7 +770,8 @@ export async function photoOpens(url, fetcher, opts = {}) {
 
 // The products whose photo is not broken, in their order, up to `keep`: the first `keep` are checked, then as many more
 // as are missing, until there are enough or none is left. { products, checked, broken, blocked }. opts.deadlineMs: no
-// check starts after it (the rest count as unknown, so they stay), so a slow image server never holds a page long.
+// check starts after it (the rest are 'late' and stay; the copy is then kept 10 minutes, not the hour), so a slow
+// image server never holds a page long and never leaves unchecked photos for an hour.
 // When every photo of 3 or more checked is refused (403), the check itself is taken as blocked (the image server
 // refusing Cloudflare): the products stay unchecked (blocked: true) and are kept only 10 minutes. Photos that all
 // answer 404 are really gone: left out.
@@ -779,6 +781,7 @@ export async function keepOpenPhotos(list, fetcher, keep = STORE_KEEP, opts = {}
   let checked = 0;
   let broken = 0;
   let forbidden = 0;
+  let late = 0;
   const run = { ...opts, until: opts.deadlineMs ? Date.now() + opts.deadlineMs : 0 };
   while (out.length < keep && i < list.length) {
     const batch = list.slice(i, i + (keep - out.length));
@@ -788,11 +791,11 @@ export async function keepOpenPhotos(list, fetcher, keep = STORE_KEEP, opts = {}
     batch.forEach((p, j) => {
       if (states[j] === 'broken') broken++;
       else if (states[j] === 'forbidden') forbidden++;
-      else out.push(p);
+      else { if (states[j] === 'late') late++; out.push(p); }
     });
   }
-  if (!out.length && checked >= 3 && forbidden === checked) return { products: list.slice(0, keep), checked, broken, blocked: true };
-  return { products: out, checked, broken: broken + forbidden, blocked: false };
+  if (!out.length && checked >= 3 && forbidden === checked) return { products: list.slice(0, keep), checked, broken, late, blocked: true };
+  return { products: out, checked, broken: broken + forbidden, late, blocked: false };
 }
 
 // The store's products: from the cache, or read from its first 6 Gear World sites at once (Promise.allSettled, so a
@@ -818,7 +821,7 @@ export async function storeProducts(site, store, deps = {}, ctx = null) {
   const lists = results.map(r => (r.status === 'fulfilled' ? r.value : []));
   const failed = results.some(r => r.status !== 'fulfilled');
   const candidates = mixStoreProducts(lists, deps.photoFetch ? STORE_SITES_READ * STORE_PER_SITE : STORE_KEEP);
-  const ttlFor = (list, blocked = false) => (!list.length ? 60 : (failed || blocked) ? 600 : 3600);
+  const ttlFor = (list, blocked = false, late = 0) => (!list.length ? 60 : (failed || blocked || late) ? 600 : 3600);
   const keepCopy = (list, ttl) => {
     if (!cache) return Promise.resolve();
     const res = new Response(JSON.stringify({ products: list }), { headers: { 'Content-Type': 'application/json', 'Cache-Control': `public, max-age=${ttl}` } });
@@ -842,12 +845,12 @@ export async function storeProducts(site, store, deps = {}, ctx = null) {
     const products = candidates.slice(0, STORE_KEEP);
     ctx.waitUntil(keepCopy(products, 60)
       .then(check)
-      .then(seen => keepCopy(seen.products, ttlFor(seen.products, seen.blocked)))
+      .then(seen => keepCopy(seen.products, ttlFor(seen.products, seen.blocked, seen.late)))
       .catch(() => { /* the next visit checks again */ }));
     return { products, cached: false, unchecked: true };
   }
   const seen = await check();
-  const put = keepCopy(seen.products, ttlFor(seen.products, seen.blocked));
+  const put = keepCopy(seen.products, ttlFor(seen.products, seen.blocked, seen.late));
   if (later) ctx.waitUntil(put); else await put;
   return { products: seen.products, cached: false };
 }
