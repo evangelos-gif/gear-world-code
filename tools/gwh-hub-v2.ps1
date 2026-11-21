@@ -208,6 +208,12 @@
   where none is listed; only the retailers and codes that deliver there); the UK page is the file itself. The checks ask
   for Greece and the US with X-GW-QA-Country. Phrases unchanged: ΕΓΚΡΙΝΩ HUB SEARCH PREVIEW, ΕΓΚΡΙΝΩ HUB SEARCH LIVE,
   ΕΓΚΡΙΝΩ HUB REMOVE PREVIEW (one paste, live with -AfterPreview).
+  Convertiser verification (Poland, owner, 21/11/2026, lessons L213): worker.js adds
+  <meta name="convertiser-verification" content="<code>"> right before the Mitgo tag in the <head> of the home page,
+  while the Worker secret CONVERTISER_VERIFICATION has a code of 40 hex characters. -ConvertiserCode '<code>' sets it on
+  the test Worker (preview) and on gear-world-hub right before the deploy (live), the same way as -ImpactCode; it stays for
+  later deploys. Phrases unchanged: ΕΓΚΡΙΝΩ HUB SEARCH PREVIEW, ΕΓΚΡΙΝΩ HUB SEARCH LIVE, ΕΓΚΡΙΝΩ HUB REMOVE PREVIEW (one
+  paste, live with -AfterPreview). Exit codes 21 and 22 as for -MitgoCode.
   Report: <home>\gear-world-reports\GWH_HUB_V2_<STEP>_<time>.txt (also copied to the clipboard)
 #>
 param(
@@ -224,6 +230,7 @@ param(
     [switch]$NoHttpCheck,
     [string]$MitgoCode = '',
     [string]$ImpactCode = '',
+    [string]$ConvertiserCode = '',
     [switch]$AfterPreview
 )
 
@@ -559,6 +566,8 @@ function Get-LiveSha([string]$url, [bool]$isHtml) {
         # The Mitgo verification tag the Worker adds to the <head> of the home page (L119): its code is a Worker secret.
         $clean = [regex]::Replace($clean, '<meta name="mitgo-verification" content="[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}">', '')
         $clean = [regex]::Replace($clean, "<meta name='impact-site-verification' value='[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'>", '')
+        # L213: the Convertiser tag too (the Worker secret CONVERTISER_VERIFICATION, 40 hex characters).
+        $clean = [regex]::Replace($clean, '<meta name="convertiser-verification" content="[0-9a-f]{40}">', '')
         # L175: the language of the PC's country on <html> of the home page (a PC outside the UK).
         $clean = [regex]::Replace($clean, ' data-country-lang="[a-z]{2}-[A-Z]{2}"', '')
         if ($clean -ne $text) { $bytes = $enc.GetBytes($clean) }
@@ -765,6 +774,20 @@ function Test-Site([string]$base, [bool]$isLive) {
         if ($it.Success -and $it.Groups[1].Value -eq $ImpactCode) { Say '  Ετικέτα επαλήθευσης Impact στο <head> της αρχικής, με τον κωδικό σου: ΕΝΤΑΞΕΙ' $Ok }
         else { Say '  Ετικέτα επαλήθευσης Impact: ΠΡΟΒΛΗΜΑ - δεν τη βλέπω με τον κωδικό σου στο <head> της αρχικής.' $Bad }
     } elseif ($it.Success) { Say '  Ετικέτα επαλήθευσης Impact στο <head> της αρχικής: υπάρχει (μυστικό IMPACT_VERIFICATION του Worker): ΕΝΤΑΞΕΙ' $Ok }
+    # L213: the Convertiser tag in the <head> of the home page, right before the Mitgo tag.
+    $convRx = '<meta name="convertiser-verification" content="([0-9a-f]{40})">'
+    $cvHtml = $html
+    $cv = [regex]::Match($cvHtml, $convRx)
+    if ($ConvertiserCode) {
+        for ($i = 1; $i -le 3 -and -not ($cv.Success -and $cv.Groups[1].Value -eq $ConvertiserCode -and $cv.Index -lt $cvHtml.IndexOf('</head>')); $i++) {
+            Start-Sleep -Seconds 10
+            $again = Get-Web ($base + '/?gwcheck=' + $stamp + '-c' + $i)
+            $cvHtml = (New-Object System.Text.UTF8Encoding($false)).GetString($again.bytes)
+            $cv = [regex]::Match($cvHtml, $convRx)
+        }
+        if ($cv.Success -and $cv.Groups[1].Value -eq $ConvertiserCode -and $cv.Index -lt $cvHtml.IndexOf('</head>')) { Say '  Ετικέτα επαλήθευσης Convertiser στο <head> της αρχικής, με τον κωδικό σου: ΕΝΤΑΞΕΙ' $Ok }
+        else { Say '  Ετικέτα επαλήθευσης Convertiser: ΠΡΟΒΛΗΜΑ - δεν τη βλέπω με τον κωδικό σου στο <head> της αρχικής.' $Bad }
+    } elseif ($cv.Success) { Say '  Ετικέτα επαλήθευσης Convertiser στο <head> της αρχικής: υπάρχει (μυστικό CONVERTISER_VERIFICATION του Worker): ΕΝΤΑΞΕΙ' $Ok }
     $rb = Get-Web ($base + '/robots.txt?gwcheck=' + $stamp)
     $rbText = (New-Object System.Text.UTF8Encoding($false)).GetString($rb.bytes)
     if (-not $isLive) {
@@ -977,6 +1000,11 @@ Say ('Code version: {0}' -f (Split-Path -Leaf $repo))
 # L119: the Mitgo code as Mitgo gives it (a paste may add spaces or capitals); nothing of another form becomes a secret.
 $MitgoCode = ([string]$MitgoCode).Trim().ToLowerInvariant()
 $ImpactCode = ([string]$ImpactCode).Trim().ToLowerInvariant()
+$ConvertiserCode = ([string]$ConvertiserCode).Trim().ToLowerInvariant()
+if ($ConvertiserCode -and $ConvertiserCode -notmatch '^[0-9a-f]{40}$') {
+    Say 'Ο κωδικός του Convertiser (-ConvertiserCode) δεν έχει τη μορφή που δίνει το Convertiser (40 ψηφία και γράμματα a-f): ΔΕΝ άλλαξε τίποτα. Στείλε στο Claude αυτή την αναφορά.' $Bad
+    Finish 21
+}
 if ($ImpactCode -and $ImpactCode -notmatch '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$') {
     Say 'Ο κωδικός του Impact (-ImpactCode) δεν έχει τη μορφή που δίνει το Impact (8-4-4-4-12 ψηφία και γράμματα a-f): ΔΕΝ άλλαξε τίποτα. Στείλε στο Claude αυτή την αναφορά.' $Bad
     Finish 21
@@ -1190,6 +1218,7 @@ Say ('Preview (φράση {0}): ο δοκιμαστικός Worker "{1}" σε δ
 Say '  noindex, χωρίς Google Analytics, η εγγραφή email κλειστή, χωρίς μέτρηση αφισών. Το live gearworldhub.com ΔΕΝ αλλάζει.'
 if ($MitgoCode) { Say '  Ο κωδικός του Mitgo μπαίνει και στον δοκιμαστικό Worker, για να φανεί εκεί πρώτα η ετικέτα.' }
 if ($ImpactCode) { Say '  Ο κωδικός του Impact μπαίνει και στον δοκιμαστικό Worker, για να φανεί εκεί πρώτα η ετικέτα.' }
+if ($ConvertiserCode) { Say '  Ο κωδικός του Convertiser μπαίνει και στον δοκιμαστικό Worker, για να φανεί εκεί πρώτα η ετικέτα.' }
 Say ('  Επαναφορά (μόνο με έγκριση): npx wrangler delete --name {0}' -f $PreviewName)
 if ($plan.Count -eq 0) {
     Say 'Αυτή η έκδοση του κώδικα είναι ήδη η live έκδοση (live-baseline.txt): για το live δεν έχει τίποτα να αλλάξει.' $Ok
@@ -1204,12 +1233,14 @@ if ($plan.Count -eq 0) {
     Say '  3. Στο wrangler.toml του Hub: workers_dev = false και preview_urls = false (κλείνει η δοκιμαστική διεύθυνση gear-world-hub.<λογαριασμός>.workers.dev του live Hub, F04). Το παλιό wrangler.toml μένει στο zip και στα αρχεία επαναφοράς.'
     if ($MitgoCode) { Say ('  4. Ο κωδικός επαλήθευσης του Mitgo γίνεται το μυστικό MITGO_VERIFICATION του Worker "{0}" (ποτέ στο GitHub ή σε αναφορά)· ο νέος κώδικας βάζει την ετικέτα <meta name="mitgo-verification"> στο <head> της αρχικής.' -f $HubWorker) }
     if ($ImpactCode) { Say ('  4. Ο κωδικός επαλήθευσης του Impact γίνεται το μυστικό IMPACT_VERIFICATION του Worker "{0}" (ποτέ στο GitHub ή σε αναφορά)· ο νέος κώδικας βάζει την ετικέτα <meta name=''impact-site-verification''> στο <head> της αρχικής, μετά του Mitgo.' -f $HubWorker) }
-    Say ('  {0}. Deploy του gearworldhub.com από τον φάκελο του Hub (με το δικό του wrangler.toml), και έλεγχος της σελίδας και του «Βρες δώρο».' -f $(if ($MitgoCode -or $ImpactCode) { 5 } else { 4 }))
+    if ($ConvertiserCode) { Say ('  4. Ο κωδικός επαλήθευσης του Convertiser γίνεται το μυστικό CONVERTISER_VERIFICATION του Worker "{0}"· ο νέος κώδικας βάζει την ετικέτα <meta name="convertiser-verification"> στο <head> της αρχικής, δίπλα στο Mitgo (L213).' -f $HubWorker) }
+    Say ('  {0}. Deploy του gearworldhub.com από τον φάκελο του Hub (με το δικό του wrangler.toml), και έλεγχος της σελίδας και του «Βρες δώρο».' -f $(if ($MitgoCode -or $ImpactCode -or $ConvertiserCode) { 5 } else { 4 }))
     if ($AfterPreview) { Say '  Με -AfterPreview: το live γίνεται μόνο αν το preview αυτής της έκδοσης, τις τελευταίες 2 ώρες, τελείωσε ΕΤΟΙΜΟ χωρίς ΠΡΟΒΛΗΜΑ.' }
     Say '  Η D1, τα 11 sites και οι άλλοι Workers (και ο gwh-sitemap) ΔΕΝ αλλάζουν.'
     Say ('  Επαναφορά (μόνο με έγκριση): npx wrangler rollback <ζωντανή έκδοση> --name {0}, και τα αρχεία του zip πίσω στον φάκελο του Hub.' -f $HubWorker)
     if ($MitgoCode) { Say ('  Αφαίρεση της ετικέτας Mitgo (μόνο με έγκριση): npx wrangler secret delete MITGO_VERIFICATION --name {0}' -f $HubWorker) }
     if ($ImpactCode) { Say ('  Αφαίρεση της ετικέτας Impact (μόνο με έγκριση): npx wrangler secret delete IMPACT_VERIFICATION --name {0}' -f $HubWorker) }
+    if ($ConvertiserCode) { Say ('  Αφαίρεση της ετικέτας Convertiser (μόνο με έγκριση): npx wrangler secret delete CONVERTISER_VERIFICATION --name {0}' -f $HubWorker) }
     Say '  Επαναφορά όλης της έκδοσης L106: ΠΡΩΤΑ το Hub (αυτό), ΜΕΤΑ τα 13 sites: το νέο Hub δεν δέχεται εγγραφή χωρίς Turnstile, και ο παλιός κώδικας των sites δεν στέλνει.'
 }
 $readyLive = (($pcIsBaseline -or $pcIsNew) -and ($liveState -eq 'baseline' -or $liveState -eq 'new' -or ($NoHttpCheck -and $liveState -eq 'unknown')) -and $liveVersion -and $postersOn)
@@ -1270,6 +1301,12 @@ if ($Step -eq 'preview') {
         $is = Set-WorkerSecret $gwh $PreviewName 'IMPACT_VERIFICATION' $ImpactCode
         if ($is.code -ne 0) { Say 'Ο κωδικός του Impact στο preview: ΠΡΟΒΛΗΜΑ - δεν μπήκε, άρα το live με -AfterPreview δεν θα γίνει. Στείλε στο Claude αυτή την αναφορά.' $Bad }
         else { Say 'Ο κωδικός επαλήθευσης του Impact μπήκε στο preview (μυστικό IMPACT_VERIFICATION του δοκιμαστικού Worker, δεν φαίνεται πουθενά).' $Ok }
+    }
+    # L213: the Convertiser code on the test Worker too.
+    if ($ConvertiserCode) {
+        $cs = Set-WorkerSecret $gwh $PreviewName 'CONVERTISER_VERIFICATION' $ConvertiserCode
+        if ($cs.code -ne 0) { Say 'Ο κωδικός του Convertiser στο preview: ΠΡΟΒΛΗΜΑ - δεν μπήκε, άρα το live με -AfterPreview δεν θα γίνει. Στείλε στο Claude αυτή την αναφορά.' $Bad }
+        else { Say 'Ο κωδικός επαλήθευσης του Convertiser μπήκε στο preview (μυστικό CONVERTISER_VERIFICATION του δοκιμαστικού Worker).' $Ok }
     }
     Say ('Ανέβηκε. Δοκιμαστική διεύθυνση: {0}' -f $(if ($url) { $url } else { '(δεν τη βρήκα στην έξοδο)' })) $Ok
     # The Black Friday link only while Black Friday is switched on in hub-v2.js (promos.js SEASONS_ON, lessons L107).
@@ -1363,6 +1400,7 @@ $note = @(
     'Or in the Cloudflare dashboard: Workers > gear-world-hub > Deployments > the version above > Rollback.',
     'Going back from the whole L106 release: the Hub FIRST (this), THEN the 13 sites (the new Hub refuses sign-ups without Turnstile, the older site code sends none).'
 ) -join "`r`n"
+if ($ConvertiserCode) { $note += "`r`n" + ('The Convertiser tag (L213) is the Worker secret CONVERTISER_VERIFICATION. To take it away (only with approval): npx wrangler secret delete CONVERTISER_VERIFICATION --name {0}' -f $HubWorker) }
 if ($ImpactCode) { $note += "`r`n" + ('The Impact tag (L150) is the Worker secret IMPACT_VERIFICATION. To take it away (only with approval): npx wrangler secret delete IMPACT_VERIFICATION --name {0}' -f $HubWorker) }
 if ($MitgoCode) { $note += "`r`n" + ('The Mitgo tag (L119) is the Worker secret MITGO_VERIFICATION. To take it away (only with approval): npx wrangler secret delete MITGO_VERIFICATION --name {0}' -f $HubWorker) }
 $noteFile = Join-Path $bdir ('gwh-before-v2-live-' + $stamp + '.txt')
@@ -1435,6 +1473,17 @@ if ($ImpactCode) {
         Finish 22
     }
     Say ('Ο κωδικός επαλήθευσης του Impact μπήκε στον Worker "{0}" (μυστικό IMPACT_VERIFICATION, δεν φαίνεται πουθενά).' -f $HubWorker) $Ok
+}
+# L213: the Convertiser code becomes the Worker secret CONVERTISER_VERIFICATION the same way, right before the deploy.
+if ($ConvertiserCode) {
+    $cs = Set-WorkerSecret $gwh $HubWorker 'CONVERTISER_VERIFICATION' $ConvertiserCode
+    if ($cs.code -ne 0) {
+        Restore-Before
+        Say 'Ο κωδικός του Convertiser δεν μπήκε στον Worker του Hub: τα παλιά αρχεία γύρισαν στον φάκελο του Hub, ΔΕΝ ανέβηκε τίποτα. Έξοδος:' $Bad
+        Say $cs.text
+        Finish 22
+    }
+    Say ('Ο κωδικός επαλήθευσης του Convertiser μπήκε στον Worker "{0}" (μυστικό CONVERTISER_VERIFICATION).' -f $HubWorker) $Ok
 }
 
 # 3. Deploy the live Hub from its folder, with the wrangler version of this repo version
