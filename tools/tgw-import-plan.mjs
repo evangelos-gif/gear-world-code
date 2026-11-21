@@ -18,6 +18,7 @@ import * as TGW_RULES from '../sites/tgw/category-rules.js';
 import { normalizeGtin } from '../src/lib/gtin.js';
 import { slugify, truncate } from '../src/lib/text.js';
 import { aliexpressSection } from './import-rules/lib/aliexpress-sections.mjs';
+import { bolSection, bolEan, bolStamp, bolTooOld, oldFileMessage } from './import-rules/lib/bol-nl.mjs';
 import { NETWORKS } from './network-links.mjs';
 
 // A shop of another network on these sites (chat 9, 17 Nov 2026, Daisycon Wave 3, lessons L170): sources.json
@@ -228,7 +229,12 @@ const COLUMNS = {
   description: ['description', 'product_short_description', 'specifications'],
   condition: ['condition'],
   colour: ['colour', 'color'],
-  size: ['size', 'fashion_size']
+  size: ['size', 'fashion_size'],
+  // bol.com (tools/bol-feed-download.ps1, lessons L204): its category and the GS1 path, for "sections": "bol-nl".
+  bolCategory: ['bol_category_id'],
+  bolGpc: ['bol_gpc'],
+  // The time of the download (bol.com's files: the download's stamp on every row).
+  lastUpdated: ['last_updated']
 };
 
 function mapHeader(header) {
@@ -685,7 +691,7 @@ function addSample(store, key, item, size, rng) {
 // rules: a site's category-rules.js (default TGW). Other sites with their own database reuse this tool with their own
 // rules and label (tools/agw-import-plan.mjs, tools/vgw-import-plan.mjs). QUALITY.currencies (list) or QUALITY.currency.
 // only: a list of Awin advertiser ids, to plan just those retailers (their SQL then touches only them).
-export async function planImport({ archive, sourcesFile, outDir, now = new Date(), rules = TGW_RULES, label = 'TGW', only = null, writeSql = true }) {
+export async function planImport({ archive, sourcesFile, outDir, now = new Date(), rules = TGW_RULES, label = 'TGW', only = null, writeSql = true, allowOldBol = false }) {
   const { classify, cleanProductName, QUALITY, CATEGORY_SLUGS } = rules;
   const notUkHint = rules.notUkHint || (() => '');
   const currencies = QUALITY.currencies || [QUALITY.currency];
@@ -701,7 +707,7 @@ export async function planImport({ archive, sourcesFile, outDir, now = new Date(
   // Only a retailer whose feed was found and read gets its missing products hidden by 9999-finish.sql.
   const readAdvertisers = new Set();
   const notRead = [];
-  const stats = { rows: 0, accepted: 0, rejected: {}, perCategory: {}, gtinValid: 0, withWas: 0, feedCats: {}, perRetailer: {}, denyWords: {} };
+  const stats = { rows: 0, accepted: 0, rejected: {}, perCategory: {}, gtinValid: 0, withWas: 0, feedCats: {}, perRetailer: {}, denyWords: {}, oldBolFiles: [] };
   const samples = { accepted: {}, rejected: {}, byRetailer: {} };
   const feedInfo = [];
   const products = new Map();
@@ -751,6 +757,8 @@ export async function planImport({ archive, sourcesFile, outDir, now = new Date(
     for (const found of files) {
       const real = found.name;
       let header = null, map = null, rows = 0, adapter = null;
+      // bol.com (lessons L204): the oldest download time of the file's rows; a file older than 12 hours is refused.
+      let bolOldest = '';
       const stream = createReadStream(found.full).pipe(/\.gz$/i.test(real) ? createGunzip() : new PassThrough());
       for await (const raw of readCsvRecords(stream)) {
         let rec = raw;
@@ -778,6 +786,8 @@ export async function planImport({ archive, sourcesFile, outDir, now = new Date(
         let merchantCategory = cleanText(pick(rec, map.merchantCategory));
         const awinCategory = cleanText(pick(rec, map.awinCategory));
         let brand = cleanText(pick(rec, map.brand));
+        // bol.com: no brand on its cards (lessons L178, L204; its list endpoints give none).
+        if (source.network === 'bol') brand = '';
         const price = parsePrice(pick(rec, map.price));
         if (source.tyreNames) {
           const tyre = tyreProduct(name, brand, cleanText(pick(rec, map.description)), merchantCategory);
@@ -817,7 +827,10 @@ export async function planImport({ archive, sourcesFile, outDir, now = new Date(
         const categoryPaths = map.merchantCategory.map(i => cleanText(rec[i])).filter(Boolean).join(' | ');
         // "sections": "aliexpress-pl" (owner, 15 Nov 2026, L157): the Polish shop's own sections place the product, with an
         // English subcategory and a shortened name (tools/import-rules/lib/aliexpress-sections.mjs); the site rules read English.
+        // "sections": "bol-nl" (lessons L204): bol.com's Dutch names, placed by tools/import-rules/lib/bol-nl.mjs (the
+        // category of the row, or of the file, routes it; the GS1 path and the name place it); its name without the size.
         const cls = source.sections === 'aliexpress-pl' ? aliexpressSection(label, name, merchantCategory)
+          : source.sections === 'bol-nl' ? bolSection(label, name, { categoryId: pick(rec, map.bolCategory) || String(source.advertiserId), gpc: pick(rec, map.bolGpc) || awinCategory, search: source.bolSearch || '' })
           : loose ? classify(name, '', '', source)
             : classify(name, `${merchantCategory || awinCategory} ${merchantCategory ? awinCategory : ''}`.trim(), categoryPaths, source);
         if (!cls.ok) { reject(cls.reason, cls.reason.startsWith('not for UK') ? `${short}  [${notUkHint(name)}]` : short); continue; }
@@ -867,9 +880,10 @@ export async function planImport({ archive, sourcesFile, outDir, now = new Date(
 
         // "ignoreWasPrice": a feed whose rrp_price is the same mark-up on every product (PCHUB.UK: price x 1.44) is not
         // a real earlier price, so no "was" price and no discount badge.
-        const wasRaw = source.ignoreWasPrice ? NaN : parsePrice(pick(rec, map.was));
+        const wasRaw = source.ignoreWasPrice || source.network === 'bol' ? NaN : parsePrice(pick(rec, map.was));
         const wasPrice = Number.isFinite(wasRaw) && wasRaw > price * 1.04 && wasRaw < price * 5 ? wasRaw : null;
-        const gtin = normalizeGtin(pick(rec, map.gtin));
+        // bol.com: 13 digits where possible, as the daily refresh finds the row (src/lib/bol-catalog.js ean13, L205).
+        const gtin = source.network === 'bol' ? normalizeGtin(bolEan(pick(rec, map.gtin))) : normalizeGtin(pick(rec, map.gtin));
         const condRaw = pick(rec, map.condition).toLowerCase();
         // The site shows a "Refurbished" badge: the name decides too ("Corsair HS65 W/L HEADSET CARBON REFURB", "Lenovo PREMIUM
         // REFURBISHED ...", fourth dry run 24 Oct 2026). Back to the Office's graded laptops ("Dell Latitude ... (Grade B -
@@ -907,12 +921,19 @@ export async function planImport({ archive, sourcesFile, outDir, now = new Date(
           mpn: cleanText(pick(rec, map.mpn)).slice(0, 60) || null,
           specs_json: Object.keys(specs).length ? JSON.stringify(specs) : null,
           is_active: 1,
-          last_seen_at: runStamp
+          // bol.com: the time of ITS download (the daily refresh hides a row 24 hours after it), never the plan's time.
+          last_seen_at: source.network === 'bol' ? (bolStamp(pick(rec, map.lastUpdated), found.mtime) || runStamp) : runStamp
         };
+        if (source.network === 'bol' && (!bolOldest || p.last_seen_at < bolOldest)) bolOldest = p.last_seen_at;
         candidates.push({ p, short, loose, feedCategory: merchantCategory || awinCategory || '-', qtyZero: quantity === '0' });
         if (google || source.joinVariants) googleSeen.set(stableKey, p);
       }
       feedInfo.push(`  rows read: ${rows}`);
+      if (source.network === 'bol' && rows > 0 && bolTooOld(bolOldest || bolStamp('', found.mtime), now)) {
+        // The import refuses it (run the download again first); the dry run (tools/bol-import-plan.mjs) lists it.
+        if (!allowOldBol) throw new Error(oldFileMessage(real, bolOldest || bolStamp('', found.mtime)));
+        stats.oldBolFiles.push([real, bolOldest || bolStamp('', found.mtime)]);
+      }
       sourceRows += rows;
     }
     if (sourceRows > 0 && missing === 0) readAdvertisers.add(shopId);
@@ -995,14 +1016,33 @@ export async function planImport({ archive, sourcesFile, outDir, now = new Date(
     writeFileSync(join(outDir, 'sql', name), `-- ${label} import plan ${runStamp}. NOT executed. Loading needs the owner's approval.\n${lines.join('\n')}\n`);
     sqlFiles.push(name);
   }
-  const advIds = [...readAdvertisers];
+  // bol.com (lessons L204, review of 6954a135): its rows carry the time of THEIR download, which is before the plan's
+  // time, so "last_seen_at < plan time" would hide every bol.com row just loaded. For bol.com sources the line is the
+  // OLDEST download time of this plan's bol.com rows: a row in this plan is never older than that, a row no longer in
+  // the files (and not confirmed by the daily refresh since) is.
+  const bolShops = new Set(sources.filter(s => s.network === 'bol').map(shopIdOf));
+  const bolRows = all.filter(p => bolShops.has(Number(p.awin_advertiser_id)));
+  const bolLine = bolRows.reduce((m, p) => (!m || (p.last_seen_at && p.last_seen_at < m) ? p.last_seen_at : m), '') || runStamp;
+  const advIds = [...readAdvertisers].filter(id => !bolShops.has(Number(id)));
+  const bolIds = [...readAdvertisers].filter(id => bolShops.has(Number(id)));
   const finish = [
     `-- ${label} import plan ${runStamp}. NOT executed. Run only after all numbered files succeeded.`,
     // A retailer whose feed was not found keeps its products as they are (never hidden because a file is missing).
     ...(advIds.length ? [`UPDATE products SET is_active = 0, updated_at = datetime('now') WHERE awin_advertiser_id IN (${advIds.join(', ')}) AND is_active = 1 AND last_seen_at < ${sq(runStamp)};`] : []),
-    `INSERT INTO import_runs (source, inserted, updated, deactivated, notes) VALUES (${sq('awin:' + (advIds.join(',') || 'none'))}, ${all.length}, 0, 0, ${sq('planned ' + runStamp)});`
+    ...(bolIds.length ? [`UPDATE products SET is_active = 0, updated_at = datetime('now') WHERE awin_advertiser_id IN (${bolIds.join(', ')}) AND is_active = 1 AND last_seen_at < ${sq(bolLine)};`] : []),
+    `INSERT INTO import_runs (source, inserted, updated, deactivated, notes) VALUES (${sq('awin:' + ([...advIds, ...bolIds].join(',') || 'none'))}, ${all.length}, 0, 0, ${sq('planned ' + runStamp)});`
   ];
   if (writeSql) writeFileSync(join(outDir, 'sql', '9999-finish.sql'), finish.join('\n') + '\n');
+  // bol.com (lessons L204, L205): a plan that reads bol.com says so in bol.txt; the import step of the site tool then reads
+  // the daily refresh's kill switch first (tools/lib/bol-guard.ps1) and loads nothing while it is off or not set up.
+  const bolRead = sources.filter(s => s.network === 'bol');
+  if (writeSql && bolRead.length) {
+    writeFileSync(join(outDir, 'bol.txt'), [`bol.com sources in this plan: ${bolRead.map(s => s.advertiserId).join(', ')}`,
+      `bol.com products: ${all.filter(p => p.retailer === 'bol.com').length}`,
+      // The import step checks this again when it loads (tools/lib/bol-guard.ps1): older than 12 hours, nothing is loaded.
+      `bol.com oldest download (UTC): ${bolRows.length ? bolLine : ''}`,
+      'The import loads them only while the bol.com refresh kill switch (gear-world-awin bol_refresh_meta enabled) is 1.', ''].join('\n'));
+  }
 
   // ---------- Report ----------
   const L = [];

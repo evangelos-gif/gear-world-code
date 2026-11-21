@@ -32,6 +32,8 @@ param(
 
 $ErrorActionPreference = 'Stop'
 $repo = Split-Path -Parent $PSScriptRoot
+# bol.com (lessons L204, L205): never loaded while the daily refresh's kill switch is off or not set up.
+. (Join-Path (Join-Path (Join-Path $repo 'tools') 'lib') 'bol-guard.ps1')
 $Retailer = $Retailer.ToLower()
 $SiteInfo = @{
     # CGW has BOTH unique keys (awin_product_id and (retailer, merchant id)): the plan names both (lessons L119).
@@ -197,6 +199,18 @@ $sp = $plan.sites.$Site
 if ($null -eq $sp -or [int]$sp.products -lt 1) { Say ('Το σχέδιο δεν έχει προϊόντα για το {0}.' -f $Site.ToUpper()) 'Red'; Finish 10 }
 $RetailerName = [string]$plan.retailer
 if ($RetailerName -notmatch "^[A-Za-z0-9 .\-]{2,40}$") { Say 'Μη αναμενόμενο όνομα καταστήματος στο σχέδιο.' 'Red'; Finish 10 }
+# bol.com (lessons L204, L205): with -Apply, FIRST the daily refresh's kill switch (one read-only SELECT on gear-world-awin):
+# off, or the refresh not set up yet, and nothing is loaded (new rows would stay up to 24 hours unchecked). Exit 16.
+if ($Apply -and ($RetailerName -eq 'bol.com' -or $Retailer -like 'bol-*')) {
+    $bolOldest = ''
+    if ($plan.PSObject.Properties.Name -contains 'oldestFeedStamp') { $bolOldest = [string]$plan.oldestFeedStamp }
+    if (-not (Test-BolImportGate $WorkDir -OldestDownload $bolOldest -BolRows ([int]$sp.products))) { Finish 16 }
+}
+# A paused shop (bol.com, lessons L204: not before the removal tool and the daily refresh): the plan only, never an import.
+if (($plan.PSObject.Properties.Name -contains 'paused') -and $plan.paused) {
+    Say ('ΣΕ ΑΝΑΜΟΝΗ: {0}' -f [string]$plan.paused) 'Yellow'
+    if ($Apply) { Say ('Δεν φορτώθηκε τίποτα: το {0} δεν φορτώνεται ακόμα (μόνο το σχέδιο).' -f $RetailerName) 'Yellow'; Finish 15 }
+}
 # An add-only plan covers only part of a shop that is already on the site (e.g. Joybuy beauty): it never hides the rest.
 $AddOnly = $false
 if (($plan.PSObject.Properties.Name -contains 'addOnly') -and $plan.addOnly) { $AddOnly = $true }

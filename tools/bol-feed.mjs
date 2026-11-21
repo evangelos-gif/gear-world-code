@@ -10,6 +10,8 @@
 //                      searches (--search 'werkschoenen'), page by page (page-size 50, the API's most), to
 //                      <out>/BOL_<category>_<country>.csv.gz (a search: BOL_<category or 0>_<country>-<search>.csv.gz).
 //                      The old copy of a file goes to <out>/_old/<stamp>/ first. Writes only files on this PC.
+//                      --standard instead of --categories/--search: the standard lists of src/lib/bol-lists.js, the
+//                      same ones the private Worker gear-world-bol-refresh re-reads every day (lessons L205).
 //
 // The rules of bol.com's terms and API (Manager 15 Nov 2026, chat 7's reading of the terms):
 //  - ONE token per run, asked again only when it has run out, at most 3; no new try after 401/403/429 (L154: many
@@ -24,103 +26,19 @@ import { createWriteStream, existsSync, mkdirSync, renameSync, rmSync, writeFile
 import { createGzip } from 'node:zlib';
 import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { FEED_COLUMNS, bolLink, csvLine } from './network-links.mjs';
+import { FEED_COLUMNS, csvLine } from './network-links.mjs';
+// The API session, the row of a product, the jobs and the paging are shared with the private Worker
+// gear-world-bol-refresh (src/lib/bol-catalog.js, lessons L205): plain JavaScript without Node-only imports.
+import { LOGIN_BASE, API_BASE, CATALOG, PAGE_SIZE, MAX_PER_CATEGORY, MAX_TOKENS, UA, okBase, slug, session, categoryTree, rowOf,
+  jobsOf, pageRequest, lastPage } from '../src/lib/bol-catalog.js';
+// The standard lists (the 12 categories and 2 searches the Worker refreshes every day): one shared file (L205).
+import { standardJobs, BOL_MAX_PER_LIST } from '../src/lib/bol-lists.js';
 
-export const LOGIN_BASE = 'https://login.bol.com';
-export const API_BASE = 'https://api.bol.com';
-export const CATALOG = '/marketing/catalog/v1';
-export const PAGE_SIZE = 50;          // the API's most for search and popular lists
-export const MAX_PER_CATEGORY = 1000; // default: the 1,000 most popular products of a category (20 pages)
-export const MAX_TOKENS = 3;
+export { LOGIN_BASE, API_BASE, CATALOG, PAGE_SIZE, MAX_PER_CATEGORY, MAX_TOKENS, UA, okBase, slug, session, categoryTree, rowOf, jobsOf };
 export const PAUSE_MS = 300;
-export const UA = 'GearWorld-bol-feed/1.0 (+https://gearworldgroup.com)';
 export const BOL_COLUMNS = [...FEED_COLUMNS, 'language', 'bol_category_id', 'bol_rating', 'bol_gpc'];
 
-// Only bol.com's own servers (or the tests' local server) get the keys and the token.
-export function okBase(base, host) {
-  try {
-    const u = new URL(base);
-    if (u.protocol === 'http:' && u.hostname === '127.0.0.1') return true;
-    return u.protocol === 'https:' && u.hostname === host && (u.pathname === '/' || u.pathname === '');
-  } catch { return false; }
-}
-
 const sleep = ms => new Promise(r => setTimeout(r, ms));
-const clean = v => String(v ?? '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
-export const slug = s => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 30);
-
-// One API session: the token (once, renewed only when it has run out) and GET calls. Never follows a redirect.
-export function session({ id, secret, loginBase = LOGIN_BASE, apiBase = API_BASE, fetchImpl = fetch, now = () => Date.now(), language = 'nl' }) {
-  const S = { tokens: 0, calls: 0, token: '', until: 0 };
-  async function token() {
-    if (S.token && now() < S.until) return S.token;
-    if (S.tokens >= MAX_TOKENS) throw Object.assign(new Error(`${MAX_TOKENS} tokens asked in this run already: stopping, so bol.com does not block the address`), { code: 6 });
-    S.tokens++;
-    const basic = Buffer.from(`${id}:${secret}`).toString('base64');
-    const r = await fetchImpl(`${loginBase.replace(/\/$/, '')}/token?grant_type=client_credentials`, {
-      method: 'POST', redirect: 'manual', body: '', headers: { Authorization: `Basic ${basic}`, Accept: 'application/json', 'Content-Type': 'application/x-www-form-urlencoded', 'User-Agent': UA } });
-    if (r.status === 401) throw Object.assign(new Error('bol.com refused the keys (401): run the keys step again with new keys'), { code: 3 });
-    if (r.status === 403 || r.status === 429) throw Object.assign(new Error(`bol.com answered ${r.status} to the token (too many requests or blocked${r.headers.get('retry-after') ? `, again after ${r.headers.get('retry-after')} s` : ''}); no new try`), { code: 6 });
-    if (r.status !== 200) throw Object.assign(new Error(`no token: HTTP ${r.status}`), { code: 4 });
-    const j = await r.json().catch(() => ({}));
-    if (!j.access_token) throw Object.assign(new Error('bol.com gave no token in the answer'), { code: 4 });
-    const life = Number(j.expires_in) > 0 ? Number(j.expires_in) : 299;
-    S.token = String(j.access_token);
-    S.until = now() + Math.max(30, life - 30) * 1000;
-    return S.token;
-  }
-  async function get(path, params) {
-    const t = await token();
-    const q = new URLSearchParams();
-    for (const [k, v] of Object.entries(params)) if (v !== undefined && v !== null && v !== '') q.append(k, String(v));
-    S.calls++;
-    const r = await fetchImpl(`${apiBase.replace(/\/$/, '')}${CATALOG}${path}?${q}`, {
-      redirect: 'manual', headers: { Authorization: `Bearer ${t}`, Accept: 'application/json', 'Accept-Language': language, 'User-Agent': UA } });
-    if (r.status === 401) throw Object.assign(new Error('api.bol.com refused the token (401); no new token asked'), { code: 4 });
-    if (r.status === 429) throw Object.assign(new Error(`api.bol.com answered 429 (too many requests${r.headers.get('retry-after') ? `, again after ${r.headers.get('retry-after')} s` : ''}); stopping, no new try`), { code: 6 });
-    if (r.status === 404) return { status: 404, body: null };
-    if (r.status !== 200) {
-      const e = await r.json().catch(() => ({}));
-      return { status: r.status, body: null, why: clean(e.detail || e.title || '') };
-    }
-    return { status: 200, body: await r.json() };
-  }
-  return { token, get, stats: S };
-}
-
-// The categories bol.com shows for a popular list without a category: top level and their subcategories.
-export function categoryTree(body) {
-  const walk = (list, depth) => (Array.isArray(list) ? list : []).map(c => ({
-    id: String(c.categoryId ?? ''), name: clean(c.categoryName), count: Number(c.productCount) || 0,
-    sub: depth < 2 ? walk(c.subcategories, depth + 1) : []
-  })).filter(c => c.id);
-  return walk(body && body.allRelevantCategories, 1);
-}
-
-// One API product -> one feed row (Awin column names). null = left out, with the reason in .why of the returned object.
-export function rowOf(p, { country = 'NL', categoryId = '', categoryName = '', stamp = new Date().toISOString() } = {}) {
-  const ean = String(p && p.ean || '').trim();
-  const price = p && p.offer && Number(p.offer.price);
-  if (!ean) return { why: 'no EAN' };
-  if (!(price > 0)) return { why: 'no offer (not for sale now)' };
-  const page = String(p.url || '').trim();
-  const link = bolLink(page, p.title);
-  if (!link) return { why: 'no bol.com product page' };
-  const img = p.image && p.image.url && /^https:\/\//i.test(p.image.url) ? String(p.image.url) : '';
-  const gpc = (Array.isArray(p.gpc) ? p.gpc : []).slice().sort((a, b) => (a.level || 0) - (b.level || 0)).map(g => clean(g.name)).filter(Boolean);
-  // No "before" price on purpose: bol's offer.strikethroughPrice is bol's own "van" (was) price, not the maker's RRP, and
-  // the sites print the before price as "RRP £X" (src/pages/layout.js rrpTag): a was price shown as an RRP is a claim we
-  // cannot back (lessons L107). No brand either: the list and search endpoints give none; only /products/{ean} with
-  // include-specifications has one, one call per product (lessons L178).
-  return { row: {
-    data_feed_id: `bol-${country}`, merchant_id: 'bol.com', merchant_name: 'bol.com', aw_product_id: ean, aw_deep_link: link,
-    brand_name: '', merchant_product_id: String(p.bolProductId || ''), merchant_category: categoryName, category_name: gpc.join(' > '),
-    ean, mpn: '', product_name: clean(p.title), description: clean(p.description).slice(0, 2000), merchant_deep_link: page,
-    merchant_image_url: img, large_image: img, search_price: price.toFixed(2), store_price: price.toFixed(2), rrp_price: '',
-    currency: 'EUR', in_stock: '1', stock_status: clean(p.offer.deliveryDescription), parent_product_id: '', last_updated: stamp,
-    language: 'nl', bol_category_id: String(categoryId), bol_rating: p.rating ?? '', bol_gpc: gpc.join(' > ')
-  } };
-}
 
 function openRows(file) {
   const gz = createGzip();
@@ -132,18 +50,7 @@ function openRows(file) {
   return { write: row => gz.write(csvLine(BOL_COLUMNS.map(c => row[c]))), close: () => { gz.end(); return done; } };
 }
 
-// The jobs of a download, in the order given (highest commission first): category ids, then searches.
-// A category is '<id>' or '<id>=<name>' (the name from the categories step, used when the API gives none).
-export function jobsOf({ categories = [], searches = [], searchCategory = '', country = 'NL' }) {
-  const jobs = [];
-  for (const c of categories) {
-    const m = String(c).match(/^\s*(\d{1,12})\s*(?:=\s*(.{1,60}?))?\s*$/);
-    if (m && !jobs.some(j => j.categoryId === m[1])) jobs.push({ kind: 'category', categoryId: m[1], label: clean(m[2] || ''), file: `BOL_${m[1]}_${country}` });
-  }
-  for (const term of searches) jobs.push({ kind: 'search', term, categoryId: String(searchCategory || ''), file: `BOL_${searchCategory || 0}_${country}-${slug(term)}` });
-  return jobs;
-}
-
+// The jobs of a download: jobsOf (src/lib/bol-catalog.js), or standardJobs (src/lib/bol-lists.js) for --standard.
 export async function download({ api, jobs, country = 'NL', out, max = MAX_PER_CATEGORY, pageSize = PAGE_SIZE, pauseMs = PAUSE_MS, stamp = new Date().toISOString(), oldStamp = '' }) {
   const seen = new Set();
   const results = [];
@@ -153,12 +60,8 @@ export async function download({ api, jobs, country = 'NL', out, max = MAX_PER_C
     const w = openRows(part);
     try {
       for (let page = 1; R.written + Object.values(R.left).reduce((a, b) => a + b, 0) < max; page++) {
-        const params = { 'country-code': country, page, 'page-size': pageSize, 'include-image': 'true', 'include-offer': 'true', 'include-rating': 'true' };
-        if (job.categoryId && job.categoryId !== '0') params['category-id'] = job.categoryId;
-        if (page === 1 && job.kind === 'category') params['include-relevant-categories'] = 'true';
-        let res;
-        if (job.kind === 'search') res = await api.get('/products/search', { 'search-term': job.term, ...params });
-        else res = await api.get('/products/lists/popular', params);
+        const req = pageRequest(job, page, { country, pageSize });
+        const res = await api.get(req.path, req.params);
         if (res.status === 404) break;
         if (res.status !== 200) { if (page === 1) throw Object.assign(new Error(`HTTP ${res.status}${res.why ? ` ${res.why}` : ''}`), { soft: true }); break; }
         const b = res.body || {};
@@ -181,11 +84,8 @@ export async function download({ api, jobs, country = 'NL', out, max = MAX_PER_C
           if (R.prices.length < 20000) R.prices.push(Number(r.row.search_price));
           if (R.samples.length < 5 && (R.written <= 3 || R.written % 200 === 0)) R.samples.push(`${r.row.search_price} | ${r.row.product_name.slice(0, 90)}`);
         }
-        // The end is the last page bol.com names (or an empty page). A short page is not the end when bol.com says there
-        // are more pages: the first download (17 Nov 2026) stopped "Auto & Motor" after page 1 (47 of 50) and
-        // "Damesmode" after page 16 that way. Without totalPages a short page still ends the list.
-        const totalPages = Number(b.totalPages) || 0;
-        if (totalPages ? page >= totalPages : list.length < pageSize) break;
+        // The end is the last page bol.com names (or an empty page): lastPage (src/lib/bol-catalog.js).
+        if (lastPage(b, page, list.length, pageSize)) break;
         if (pauseMs) await sleep(pauseMs);
       }
       await w.close();
@@ -267,11 +167,13 @@ async function main() {
     if (val('mode') === 'download') {
       const out = resolve(val('out') || '.');
       if (!existsSync(out)) answer(2, { error: `feeds folder not found: ${out}` });
+      // --standard: the 12 categories and 2 searches of src/lib/bol-lists.js, the same lists the Worker refreshes (L205).
+      const standard = args.includes('--standard');
       const categories = list('categories');
       const searches = list('search').filter(x => x.length <= 60);
       const searchCategory = /^\d{1,12}$/.test(val('search-category')) ? val('search-category') : '';
-      const max = Math.min(10000, Math.max(1, Number(val('max')) || MAX_PER_CATEGORY));
-      const jobs = jobsOf({ categories, searches, searchCategory, country });
+      const max = Math.min(10000, Math.max(1, Number(val('max')) || (standard ? BOL_MAX_PER_LIST : MAX_PER_CATEGORY)));
+      const jobs = standard ? standardJobs(country) : jobsOf({ categories, searches, searchCategory, country });
       if (!jobs.length) answer(2, { error: 'no category id or search given' });
       let results;
       try {

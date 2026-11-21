@@ -3,8 +3,12 @@
 
 import { promosFor, AWIN_PUBLISHER_ID } from '../../promos/promos.js';
 import { networkFor } from '../../promos/network.js';
+// bol.com (NL and BE only, Dutch names, lessons L204): sites/_shared/bol.js.
+import { bolDelivery, BOL_SITES } from '../_shared/bol.js';
 import { LINKWISE_GR } from './linkwise-gr.js';
 import guides from './guides.js';
+
+const BOL = bolDelivery(BOL_SITES.wgw);
 
 export default {
   code: 'WGW',
@@ -93,7 +97,7 @@ export default {
     Perfumania: ['US'], 'Fragrance Outlet': ['US'], eCosmetics: ['US'], 'Amore Mall': ['US'], eFootwear: ['US'],
     'NORTIV 8': ['US'], 'TSAR BOMBA': ['US'], Chamaripa: ['US'],
     // Linkwise (Greece and Cyprus, lessons L199): ./linkwise-gr.js.
-    ...LINKWISE_GR.retailers }, languages: { Uhrcenter: 'de', ...LINKWISE_GR.languages } },
+    ...LINKWISE_GR.retailers, ...BOL.retailers }, languages: { Uhrcenter: 'de', ...LINKWISE_GR.languages, ...BOL.languages } },
   // 100% PURE sells in euros: its prices stay in euros, with "≈ £…" next to them (lessons L25, L63). MASON New York sells
   // in US dollars and is in the UK view: foreignCurrencies fetches that rate too ("≈ £…", as GRABO on CGW).
   convertForeignPrices: true,

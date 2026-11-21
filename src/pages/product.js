@@ -4,6 +4,7 @@ import { categoryPath, productPath, formatPrice, truncate, formatDate } from '..
 import { normalizeGtin, gtinSchemaKey } from '../lib/gtin.js';
 import { page, productGrid, breadcrumbs, breadcrumbSchema, absolute, tr, keepName, viewAt, priceTag, retailerFlag, deliveryText, deliveryLine, shownLine, deliversLabel, rrpTag, stockText } from './layout.js';
 import { REMIND_UNTIL_ISO, REMIND_PATH } from '../lib/remind.js';
+import { noAlerts } from '../lib/retailer-terms.js';
 
 function specsList(product) {
   let specs = {};
@@ -76,7 +77,8 @@ export function hiddenProductPage(site, product, category, notice) {
 // "Remind me on 27 Nov" (lessons L182, src/lib/remind.js): closed until the visitor opens it, under the buttons. A
 // normal form post that the site script sends as JSON; the Turnstile widget is the one of "Get deal updates". It goes
 // away by itself on 27 Nov at 06:00 London (the engine stops showing it, and the script removes it from an older copy).
-// No "deals", percentage or "Was" in its texts (lessons L103, L107).
+// No "deals", percentage or "Was" in its texts (lessons L103, L107). Never on a bol.com product (lessons L204: its terms
+// allow no alerts of any kind, src/lib/retailer-terms.js).
 function remindBox(site, product) {
   return html`<details class="remind" data-remind="${REMIND_UNTIL_ISO}">
           <summary>Remind me on 27 Nov</summary>
@@ -170,7 +172,7 @@ export function productPage(site, product, category, similar, offers = []) {
           <button type="button" class="btn-compare btn-compare-big" data-compare="${product.id}" aria-pressed="false" hidden>+ Compare</button>
           ${site.cart ? html`<button type="button" class="btn-cart btn-cart-big" data-cart="${product.id}" aria-pressed="false" hidden>+ Save</button>` : ''}
         </div>
-        ${site.remindOpen && site.dealTurnstileKey ? remindBox(site, product) : ''}
+        ${site.remindOpen && site.dealTurnstileKey && !noAlerts(product) ? remindBox(site, product) : ''}
         ${offers.length > 1 ? html`<p class="shelf-offers"><a href="#prices">${tr('Compare {0} retailers', offers.length)}</a></p>` : ''}
         <p class="shelf-note">${tr('You buy on the {0} website, at their price.', keepName(product.retailer))} We may earn a commission. <a href="/how-we-make-money/">How this works</a></p>
       </div>

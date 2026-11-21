@@ -31,6 +31,8 @@
                 once in the whole run; no "was" price. The old copy of a file goes to _old\<time> first (rollback: move
                 it back). The sites, the databases and the Workers do NOT change; an import is always a separate step
                 with ΕΓΚΡΙΝΩ ALL IMPORTS, and for bol.com only after the removal tool and the daily refresh (Manager 15/11).
+                -Standard instead of -Categories/-Search (lessons L205): the standard lists of src/lib/bol-lists.js (12
+                categories and 2 searches), the same ones the private Worker gear-world-bol-refresh re-reads every day.
   The keys go only to login.bol.com (the token) and the token only to api.bol.com (or the tests' local server).
   Report: <home>\gear-world-reports\BOL_FEED_<STEP>_<time>.txt (copied to the clipboard)
 #>
@@ -45,6 +47,7 @@ param(
     [string]$Categories = '',
     [string]$Search = '',
     [string]$SearchCategory = '',
+    [switch]$Standard,
     [int]$MaxPerCategory = 1000,
     [int]$PauseMs = 300,
     [string]$Archive = '',
@@ -311,8 +314,23 @@ if ($Step -eq 'download') {
     $cats = @(([string]$Categories).Split(',') | ForEach-Object { $_.Trim() } | Where-Object { $_ -match '^\d{1,12}(\s*=\s*[^,;]{1,60})?$' })
     $terms = @(([string]$Search).Split(',') | ForEach-Object { $_.Trim() } | Where-Object { $_ -and $_.Length -le 60 })
     $max = [Math]::Min(10000, [Math]::Max(1, $MaxPerCategory))
+    # -Standard (L205): the one list of src/lib/bol-lists.js, shared with the daily refresh Worker; the names are read
+    # from that file with its own pattern ({ id: '<digits>', name: '<text>' }), the searches from BOL_SEARCHES.
+    if ($Standard) {
+        if ($cats.Count -or $terms.Count) { Say '-Standard παίρνει τις λίστες του src/lib/bol-lists.js: μη δώσεις και -Categories ή -Search. Δεν άλλαξε τίποτα.' 'Magenta'; Finish 2 }
+        $listsFile = Join-Path (Join-Path (Join-Path (Split-Path -Parent $PSScriptRoot) 'src') 'lib') 'bol-lists.js'
+        if (-not (Test-Path -LiteralPath $listsFile)) { Say ('Δεν βρήκα τις λίστες: {0}' -f $listsFile) 'Magenta'; Finish 2 }
+        $listsText = [System.IO.File]::ReadAllText($listsFile, [System.Text.Encoding]::UTF8)
+        $cats = @([regex]::Matches($listsText, "\{ id: '(\d+)', name: '([^']+)' \}") | ForEach-Object { '{0}={1}' -f $_.Groups[1].Value, $_.Groups[2].Value })
+        $sm = [regex]::Match($listsText, 'export const BOL_SEARCHES = \[([^\]]*)\]')
+        $terms = @()
+        if ($sm.Success) { $terms = @([regex]::Matches($sm.Groups[1].Value, "'([^']+)'") | ForEach-Object { $_.Groups[1].Value }) }
+        if (-not $PSBoundParameters.ContainsKey('MaxPerCategory')) { $max = 1000 }
+        $SearchCategory = ''
+    }
     Say ''
     Say 'Τι θα γίνει:'
+    if ($Standard) { Say ('  - Οι τυπικές λίστες του src/lib/bol-lists.js ({0} κατηγορίες, {1} αναζητήσεις), οι ίδιες που ξαναδιαβάζει κάθε μέρα ο Worker gear-world-bol-refresh (L205).' -f $cats.Count, $terms.Count) }
     Say ('  - Λήψη από το επίσημο API του bol.com ({0}), ένα token για όλη την εκτέλεση, σελίδες των 50, έως {1} προϊόντα ανά κατηγορία ή αναζήτηση.' -f $Country, $max)
     foreach ($c in $cats) { Say ('    κατηγορία {0}' -f $c) }
     foreach ($t in $terms) { Say ('    αναζήτηση «{0}»{1}' -f $t, $(if ($SearchCategory) { ' στην κατηγορία ' + $SearchCategory } else { '' })) }
@@ -324,8 +342,10 @@ if ($Step -eq 'download') {
     if (-not $Apply) { Say ''; Say ('Χωρίς -Apply δεν άλλαξε τίποτα. Για τη λήψη: -Apply και η φράση {0}' -f $PhraseDownload) 'Yellow'; Finish 0 }
     if (-not (Confirm-Approval $PhraseDownload)) { Say 'Δεν δόθηκε η σωστή φράση. Δεν άλλαξε τίποτα.' 'Yellow'; Finish 1 }
     $a = @('--mode', 'download', '--country', $Country, '--out', $Archive, '--max', [string]$max, '--pause', [string]([Math]::Max(0, $PauseMs)), '--stamp', ($stamp -replace '_', ''))
-    if ($cats.Count) { $a += @('--categories', ($cats -join ',')) }
-    if ($terms.Count) { $a += @('--search', ($terms -join ',')) }
+    if ($Standard) { $a += @('--standard') } else {
+        if ($cats.Count) { $a += @('--categories', ($cats -join ',')) }
+        if ($terms.Count) { $a += @('--search', ($terms -join ',')) }
+    }
     if ($SearchCategory -match '^\d{1,12}$') { $a += @('--search-category', $SearchCategory) }
     $r = Invoke-BolNode $a
     if ($r.code -eq 0) { Say 'Αποτέλεσμα: ΕΤΟΙΜΟ (μόνο αρχεία στον υπολογιστή). Στείλε την αναφορά στο Claude.' 'Cyan'; Finish 0 }

@@ -1,0 +1,39 @@
+// gear-world-bol-refresh - Wrangler config TEMPLATE. The private Worker that refreshes price and stock of the bol.com
+// products on the 10 Gear World sites from bol.com's Marketing Catalog API (bol.com's terms 3.6: at least daily;
+// lessons L205). No public address: no routes, workers.dev and preview addresses off. It runs on its cron only: every
+// hour at :13 (a full cycle starts at 04:13 and 16:13 UTC, the other hours go on where it stopped and hide what was not
+// checked for 24 hours). Minute 13 never meets the Awin sync (:23), the network sync (:47) or the 07:40 report.
+// The real file (wrangler.jsonc) is made on the PC by tools/bol-refresh-setup.ps1 and is never committed, because it
+// holds the Cloudflare database IDs (found by name at deploy time). The bol.com keys are the secrets
+// BOL_CATALOG_CLIENT_ID and BOL_CATALOG_CLIENT_SECRET, never in a file.
+// The migrations are this Worker's own (migrations/, own list d1_migrations_bol_refresh) and go ONLY to gear-world-awin.
+// The site databases get none: their migrations_dir is a folder that does not exist, so a mistaken
+// "d1 migrations apply <site database>" with this file finds nothing to apply.
+{
+  "name": "gear-world-bol-refresh",
+  "main": "worker.js",
+  "compatibility_date": "2026-10-01",
+  "workers_dev": false,
+  "preview_urls": false,
+  "triggers": { "crons": ["13 * * * *"] },
+  "vars": {
+    "BOL_CYCLE_HOURS": "4,16",
+    "BOL_MAX_CALLS": "800",
+    "BOL_MAX_SECONDS": "480",
+    "BOL_PAUSE_MS": "250"
+  },
+  "d1_databases": [
+    { "binding": "SALES_DB", "database_name": "gear-world-awin", "database_id": "REPLACE_WITH_DATABASE_ID_SALES", "migrations_dir": "migrations", "migrations_table": "d1_migrations_bol_refresh" },
+    { "binding": "DB_CGW", "database_name": "construction-gear-customers", "database_id": "REPLACE_WITH_DATABASE_ID_CGW", "migrations_dir": "no-migrations-here" },
+    { "binding": "DB_HGW", "database_name": "home-gear-world", "database_id": "REPLACE_WITH_DATABASE_ID_HGW", "migrations_dir": "no-migrations-here" },
+    { "binding": "DB_GGW", "database_name": "garden-gear-world", "database_id": "REPLACE_WITH_DATABASE_ID_GGW", "migrations_dir": "no-migrations-here" },
+    { "binding": "DB_WGW", "database_name": "womens-gear-world", "database_id": "REPLACE_WITH_DATABASE_ID_WGW", "migrations_dir": "no-migrations-here" },
+    { "binding": "DB_MGW", "database_name": "mens-gear-world", "database_id": "REPLACE_WITH_DATABASE_ID_MGW", "migrations_dir": "no-migrations-here" },
+    { "binding": "DB_KGW", "database_name": "kids-gear-world", "database_id": "REPLACE_WITH_DATABASE_ID_KGW", "migrations_dir": "no-migrations-here" },
+    { "binding": "DB_AGW", "database_name": "car-gear-world", "database_id": "REPLACE_WITH_DATABASE_ID_AGW", "migrations_dir": "no-migrations-here" },
+    { "binding": "DB_SGW", "database_name": "sporty-gear-world", "database_id": "REPLACE_WITH_DATABASE_ID_SGW", "migrations_dir": "no-migrations-here" },
+    { "binding": "DB_VGW", "database_name": "travel-gear-world", "database_id": "REPLACE_WITH_DATABASE_ID_VGW", "migrations_dir": "no-migrations-here" },
+    { "binding": "DB_ZGW", "database_name": "pets-gear-world", "database_id": "REPLACE_WITH_DATABASE_ID_ZGW", "migrations_dir": "no-migrations-here" }
+  ],
+  "observability": { "enabled": true }
+}

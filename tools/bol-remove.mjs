@@ -1,0 +1,251 @@
+#!/usr/bin/env node
+// bol.com removal (lessons L204): the SQL of tools/bol-remove.ps1, which runs it through wrangler. bol.com's terms
+// (9.1 f): when the partnership ends every bol.com product must come off the sites at once (a fine of EUR 1,000 a day).
+// This file only WRITES text (SQL and JSON); it never connects to Cloudflare or to a database.
+//
+//   --mode targets                         JSON: the 13 site databases and gear-world-prices, with the names of bol.com
+//                                          on each (database.retailerNames of the older sites included)
+//   --mode tables-sql                      the SELECT of the table names of a database
+//   --mode count-sql --target <code> --tables <a,b,...>
+//                                          one SELECT (one line, no character that cmd.exe would change) that counts the
+//                                          bol.com rows of every table that has them
+//   --mode delete-sql --target <code> --tables <a,b,...> --rows <n> [--rows-log <n>] --out <file>
+//                                          the DELETE statements, side tables first, products in parts of 500
+//   --mode switch-sql --out <file>         the kill switch of the daily refresh (gear-world-awin, bol_refresh_meta
+//                                          'enabled' = '0', the contract of src/bol-refresh.js, lessons L205), and its
+//                                          reason 'removal tool <time>' (never 'worker ...': that one makes every run an error)
+//   --mode switch-read-sql                 the SELECT of that switch
+//
+// A bol.com row: retailer 'bol.com' (or a name that the site shows as 'bol.com'), OR the bol.com partner link
+// (https://partner.bol.com/...), so a row with another spelling is removed too (src/lib/retailer-terms.js).
+// Price Watch (D1 gear-world-prices): its product key, "<retailer>:<id>" on the older sites and the stable key
+// "-4<11 digits>:<id>" of the bol.com shop on the newer ones (src/lib/retailer-terms.js bolPriceKey).
+// Click and sales logs (affiliate_clicks, reward_clicks, awin_*) stay: they show nothing on the sites and are needed to
+// match the commission bol.com pays for clicks before the end.
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath, pathToFileURL } from 'node:url';
+import { PRICE_SITES } from '../sites/prices/sites.js';
+import { NO_ALERT_RETAILERS, BOL_PARTNER_PREFIX } from '../src/lib/retailer-terms.js';
+import { BOL_SITES } from '../sites/_shared/bol.js';
+
+const HERE = dirname(fileURLToPath(import.meta.url));
+export const BOL = NO_ALERT_RETAILERS[0];
+export const PRICES_DB = 'gear-world-prices';
+export const REFRESH_WORKER = 'gear-world-bol-refresh';
+// The database of the daily refresh's own tables (sites/bol-refresh/migrations, lessons L205).
+export const AWIN_DB = 'gear-world-awin';
+export const PRODUCTS_PER_DELETE = 500;
+export const PRICE_ROWS_PER_DELETE = 20000;
+// Characters that tools/bol-remove.ps1 never sends in a --command (cmd.exe would change them): & | < > ^ %
+export const UNSAFE = /[&|<>^%\r\n]/;
+
+const q = v => `'${String(v).replace(/'/g, "''")}'`;
+
+// The side tables of the older databases that hold bol.com rows or point to bol.com products (the live CGW database,
+// 20 Nov 2026): by: 'id' = a column with the product id, 'row' = the table has retailer and affiliate_url,
+// 'retailer' = only the retailer name.
+export const SIDE_TABLES = [
+  { table: 'product_group_offers', by: 'id', column: 'product_id' },
+  { table: 'product_finalize_update_queue', by: 'id', column: 'live_id' },
+  { table: 'product_finalize_deactivate_queue', by: 'id', column: 'live_id' },
+  { table: 'product_finalize_insert_queue', by: 'retailer' },
+  { table: 'product_refresh_baseline', by: 'retailer' },
+  { table: 'product_refresh_stage', by: 'row' },
+  { table: 'products_backup_before_safe_refresh', by: 'row' }
+];
+
+// The 13 site databases (sites/prices/sites.js: code, database, layout) with each site's bol.com names, then Price Watch.
+export async function targets(root = join(HERE, '..')) {
+  const out = [];
+  for (const s of PRICE_SITES) {
+    const file = join(root, 'sites', s.code, 'site.config.js');
+    const cfg = existsSync(file) ? (await import(pathToFileURL(file).href)).default || {} : {};
+    const map = (cfg.database && cfg.database.retailerNames) || {};
+    const names = [BOL, ...Object.keys(map).filter(k => String(map[k]).toLowerCase() === BOL && k !== BOL)];
+    // The 10 sites that list bol.com (sites/_shared/bol.js); TGW, BGW and PGW carry its NL/BE-only line but list none.
+    const listed = Object.prototype.hasOwnProperty.call(BOL_SITES, s.code);
+    out.push({ code: s.code, kind: 'site', name: String(cfg.name || s.code.toUpperCase()), domain: String(cfg.domain || ''), db: s.database,
+      legacy: Boolean(s.legacy), names, listed });
+  }
+  out.push({ code: 'prices', kind: 'prices', name: 'Price Watch', domain: '', db: PRICES_DB, legacy: false,
+    names: [...new Set(out.flatMap(t => t.names))], listed: false,
+    legacySites: out.filter(t => t.legacy).map(t => t.code), newSites: out.filter(t => !t.legacy).map(t => t.code) });
+  return out;
+}
+
+export function targetOf(list, code) {
+  const t = list.find(x => x.code === code);
+  if (!t) throw new Error(`unknown target ${code}`);
+  return t;
+}
+
+// The spellings of a name that an index finds (re-review of 51a8b88: "Bol.com", "BOL.COM"): as written, lower case, upper
+// case, capitalised and every word capitalised. Any other mix of capitals is found by the separate statement (linkWhere).
+export function caseForms(names) {
+  const out = new Set();
+  for (const n of names) {
+    const s = String(n);
+    out.add(s); out.add(s.toLowerCase()); out.add(s.toUpperCase());
+    out.add(s.charAt(0).toUpperCase() + s.slice(1).toLowerCase());
+    out.add(s.toLowerCase().replace(/(^|[^a-z])([a-z])/g, (x, a, b) => a + b.toUpperCase()));
+  }
+  return [...out];
+}
+const lowerNames = names => [...new Set(names.map(n => String(n).toLowerCase()))];
+// A bol.com link: the partner link, or a bol.com product page (https://www.bol.com/..., any capitals).
+export const BOL_LINK_PREFIXES = [BOL_PARTNER_PREFIX, 'https://www.bol.com/'];
+function linkTest(a) {
+  return BOL_LINK_PREFIXES.map(p => `lower(substr(COALESCE(${a}affiliate_url, ''), 1, ${p.length})) = ${q(p)}`).join(' OR ');
+}
+
+// A bol.com row of a side table with retailer and affiliate_url, or of an offer of a group (alias: the table's name in the
+// query, or none): the name in any capitals, or a bol.com link. (These tables are small, or read through a join.)
+export function bolWhere(names, alias = '') {
+  const a = alias ? `${alias}.` : '';
+  return `(lower(COALESCE(${a}retailer, '')) IN (${lowerNames(names).map(q).join(', ')}) OR ${linkTest(a)})`;
+}
+
+// The products in two parts (review of 6954a135: an OR with substr() reads every row, and did so for every part of 500):
+// 1. by the bol.com names, which an index finds (older sites: the (retailer, ...) index; newer: idx_products_retailer,
+//    (is_active, retailer), hence is_active IN (0, 1)); 2. a partner.bol.com link under ANOTHER name, one full read, in
+//    ONE query of its own (expected: none).
+export function retailerWhere(t, alias = '') {
+  const a = alias ? `${alias}.` : '';
+  const r = `${a}retailer IN (${caseForms(t.names).map(q).join(', ')})`;
+  return t.legacy ? r : `${a}is_active IN (0, 1) AND ${r}`;
+}
+// The rest, in one read: a bol.com link (partner or product page) under another name, or the name in another mix of
+// capitals; never a row the first part already has.
+export function linkWhere(t, alias = '') {
+  const a = alias ? `${alias}.` : '';
+  return `(${linkTest(a)} OR lower(COALESCE(${a}retailer, '')) IN (${lowerNames(t.names).map(q).join(', ')})) AND COALESCE(${a}retailer, '') NOT IN (${caseForms(t.names).map(q).join(', ')})`;
+}
+
+// A bol.com key of Price Watch (price_last, price_log).
+export function priceKeyWhere(t) {
+  const lowerNames = [...new Set(t.names.map(n => String(n).toLowerCase()))];
+  const old = lowerNames.map(n => `lower(substr(pkey, 1, ${n.length + 1})) = ${q(`${n}:`)}`).join(' OR ');
+  const neu = "substr(pkey, 1, 2) = '-4' AND substr(pkey, 14, 1) = ':' AND CAST(substr(pkey, 2, 12) AS INTEGER) BETWEEN 400000000000 AND 499999999999";
+  return `((site IN (${t.legacySites.map(q).join(', ')}) AND (${old})) OR (site IN (${t.newSites.map(q).join(', ')}) AND ${neu}))`;
+}
+
+export const tablesSql = () => "SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name";
+
+const has = (tables, name) => tables.includes(name);
+// The groups of CGW whose every offer is a bol.com product (a group with another shop's offer stays).
+const bolGroups = w => `SELECT o.group_id FROM product_group_offers o JOIN products p ON p.id = o.product_id GROUP BY o.group_id HAVING SUM(CASE WHEN ${w} THEN 0 ELSE 1 END) = 0`;
+
+// The tables of a target that can hold bol.com rows, in the order of the deletes, as [label, count SQL, delete SQL].
+export function parts(t, tables) {
+  if (t.kind === 'prices') {
+    const k = priceKeyWhere(t);
+    return [
+      ['price_log', `SELECT COUNT(*) FROM price_log WHERE ${k}`, null],
+      ['price_last', `SELECT COUNT(*) FROM price_last WHERE ${k}`, null]
+    ].filter(([n]) => has(tables, n));
+  }
+  if (!has(tables, 'products')) return [];
+  const w = bolWhere(t.names);
+  const wp = bolWhere(t.names, 'p');
+  const rw = retailerWhere(t);
+  const lw = linkWhere(t);
+  const ids = `SELECT id FROM products WHERE ${rw} UNION ALL SELECT id FROM products WHERE ${lw}`;
+  const out = [];
+  if (has(tables, 'product_groups') && has(tables, 'product_group_offers')) {
+    out.push(['product_groups', `SELECT COUNT(*) FROM product_groups WHERE id IN (${bolGroups(wp)})`, `DELETE FROM product_groups WHERE id IN (${bolGroups(wp)});`]);
+  }
+  for (const s of SIDE_TABLES) {
+    if (!has(tables, s.table)) continue;
+    const where = s.by === 'id' ? `${s.column} IN (${ids})` : s.by === 'row' ? w : `lower(COALESCE(retailer, '')) IN (${lowerNames(t.names).map(q).join(', ')})`;
+    out.push([s.table, `SELECT COUNT(*) FROM ${s.table} WHERE ${where}`, `DELETE FROM ${s.table} WHERE ${where};`]);
+  }
+  out.push(['products', `SELECT COUNT(*) FROM products WHERE ${rw}`, null]);
+  out.push(['products_link', `SELECT COUNT(*) FROM products WHERE ${lw}`, null]);
+  return out;
+}
+
+// One SELECT with one column per table (and "active": the products a visitor could see).
+export function countSql(t, tables) {
+  const cols = parts(t, tables).map(([n, sql]) => `(${sql}) AS ${n}`);
+  if (t.kind === 'site' && has(tables, 'products')) cols.push(`((SELECT COUNT(*) FROM products WHERE is_active = 1 AND retailer IN (${caseForms(t.names).map(q).join(', ')})) + (SELECT COUNT(*) FROM products WHERE is_active = 1 AND ${linkWhere(t)})) AS active`);
+  const sql = `SELECT ${cols.length ? cols.join(', ') : '0 AS none'}`;
+  if (UNSAFE.test(sql)) throw new Error('count SQL with a character cmd.exe would change');
+  return sql;
+}
+
+// The DELETE file. rows: the products (or price_last) rows counted just before; rowsLog: price_log rows.
+export function deleteSql(t, tables, { rows = 0, rowsLog = 0, stamp = new Date().toISOString() } = {}) {
+  const L = [`-- bol.com removal (lessons L204): ${t.code.toUpperCase()} database ${t.db}, ${stamp}. Deletes every bol.com row.`,
+    '-- A Time Travel restore point of this database is taken before this file runs (tools/bol-remove.ps1).'];
+  if (t.kind === 'prices') {
+    const k = priceKeyWhere(t);
+    if (has(tables, 'price_log')) for (let i = 0; i <= Math.ceil(Math.max(0, rowsLog) / PRICE_ROWS_PER_DELETE); i++) {
+      L.push(`DELETE FROM price_log WHERE (site, pkey, day) IN (SELECT site, pkey, day FROM price_log WHERE ${k} LIMIT ${PRICE_ROWS_PER_DELETE});`);
+    }
+    if (has(tables, 'price_last')) for (let i = 0; i <= Math.ceil(Math.max(0, rows) / PRICE_ROWS_PER_DELETE); i++) {
+      L.push(`DELETE FROM price_last WHERE (site, pkey) IN (SELECT site, pkey FROM price_last WHERE ${k} LIMIT ${PRICE_ROWS_PER_DELETE});`);
+    }
+    return L.join('\n') + '\n';
+  }
+  for (const [, , del] of parts(t, tables)) if (del) L.push(del);
+  if (has(tables, 'products')) {
+    const rw = retailerWhere(t);
+    // In parts, so no statement runs long (the search index of each product is updated by its trigger); each part finds
+    // its rows through the index of the names.
+    for (let i = 0; i <= Math.ceil(Math.max(0, rows) / PRODUCTS_PER_DELETE); i++) {
+      L.push(`DELETE FROM products WHERE id IN (SELECT id FROM products WHERE ${rw} LIMIT ${PRODUCTS_PER_DELETE});`);
+    }
+    // Then the partner.bol.com links under another name, in ONE statement (one read of the table).
+    L.push(`DELETE FROM products WHERE ${linkWhere(t)};`);
+  }
+  return L.join('\n') + '\n';
+}
+
+// The kill switch of gear-world-bol-refresh (src/bol-refresh.js reads it at the start of every run): '0' = no bol.com
+// call and no price change. The table may not be there yet (the refresh not set up): it is made, as its own migration
+// would (IF NOT EXISTS), and that migration keeps the 0 (ON CONFLICT DO NOTHING). bol_refresh_hidden is left as it is.
+// disabled_reason: who turned it off. The Worker records every run as an error while the reason starts with 'worker'
+// (its own stop after a 401/403 from bol.com); the removal tool's own reason replaces such an old one, so the later runs
+// are pauses, not errors (Manager, 20 Nov 2026).
+export const SWITCH_REASON = 'removal tool';
+export function switchSql(now = new Date()) {
+  const at = now.toISOString().slice(0, 19).replace('T', ' ');
+  return ['-- bol.com removal (lessons L204): the daily refresh off first (bol_refresh_meta enabled = 0, lessons L205).',
+    'CREATE TABLE IF NOT EXISTS bol_refresh_meta (key TEXT PRIMARY KEY, value TEXT, updated_at TEXT NOT NULL);',
+    `INSERT INTO bol_refresh_meta (key, value, updated_at) VALUES ('enabled', '0', ${q(at)}) ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at;`,
+    `INSERT INTO bol_refresh_meta (key, value, updated_at) VALUES ('disabled_reason', ${q(`${SWITCH_REASON} ${at.slice(0, 16)}`)}, ${q(at)}) ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at;`
+  ].join('\n') + '\n';
+}
+export const switchReadSql = () => "SELECT value, updated_at FROM bol_refresh_meta WHERE key = 'enabled'";
+
+async function main() {
+  const args = process.argv.slice(2);
+  const val = n => { const i = args.indexOf(`--${n}`); return i >= 0 ? String(args[i + 1] ?? '') : ''; };
+  const tables = () => val('tables').split(',').map(x => x.trim()).filter(x => /^[A-Za-z0-9_]{1,64}$/.test(x));
+  const mode = val('mode');
+  if (mode === 'tables-sql') { process.stdout.write(tablesSql() + '\n'); return; }
+  if (mode === 'switch-read-sql') { process.stdout.write(switchReadSql() + '\n'); return; }
+  if (mode === 'switch-sql') {
+    if (!val('out')) throw new Error('--out is needed');
+    writeFileSync(val('out'), switchSql());
+    process.stdout.write(JSON.stringify({ ok: true }) + '\n');
+    return;
+  }
+  const list = await targets();
+  // One object, not a bare array: Windows PowerShell 5.1 reads a bare array as a single item.
+  if (mode === 'targets') { process.stdout.write(JSON.stringify({ targets: list }) + '\n'); return; }
+  const t = targetOf(list, val('target'));
+  if (mode === 'count-sql') { process.stdout.write(countSql(t, tables()) + '\n'); return; }
+  if (mode === 'delete-sql') {
+    const out = val('out');
+    if (!out) throw new Error('--out is needed');
+    const sql = deleteSql(t, tables(), { rows: Number(val('rows')) || 0, rowsLog: Number(val('rows-log')) || 0 });
+    writeFileSync(out, sql);
+    process.stdout.write(JSON.stringify({ ok: true, statements: sql.split('\n').filter(l => /^DELETE /.test(l)).length }) + '\n');
+    return;
+  }
+  throw new Error('unknown --mode (targets, tables-sql, count-sql, delete-sql, switch-sql, switch-read-sql)');
+}
+
+if (import.meta.url === pathToFileURL(process.argv[1] || '').href) main().catch(e => { process.stderr.write(`${e && e.message ? e.message : e}\n`); process.exit(2); });

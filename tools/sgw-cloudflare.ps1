@@ -46,6 +46,8 @@ $ErrorActionPreference = 'Stop'
 $repo = Split-Path -Parent $PSScriptRoot
 # Lessons L156: the live-version guard (refuses a version that lacks the live one) and the version every deploy writes.
 . (Join-Path (Join-Path (Join-Path $repo 'tools') 'lib') 'live-guard.ps1')
+# bol.com (lessons L204, L205): a plan that reads bol.com loads nothing while the daily refresh's kill switch is off.
+. (Join-Path (Join-Path (Join-Path $repo 'tools') 'lib') 'bol-guard.ps1')
 $GwVersionVar = Get-GwVersionVar $repo
 $DbName = 'sporty-gear-world'
 $WorkerName = 'sporty-gear-world'
@@ -543,6 +545,11 @@ switch ($Step) {
             Say ('ΣΤΑΜΑΤΗΣΑ χωρίς αλλαγές: περίπου {0} εγγραφές, πάνω από το ημερήσιο όριο του δωρεάν πλάνου του Cloudflare (100.000).' -f $writes) 'Red'
             Say 'Με Workers Paid το όριο είναι 50 εκατομμύρια τον μήνα: τότε η εντολή παίρνει και -PaidPlan.' 'Yellow'
             Finish 13
+        }
+        # bol.com (lessons L204, L205): when the plan reads bol.com (bol.txt in the plan folder), FIRST the daily refresh's kill
+        # switch (one read-only SELECT on gear-world-awin): off, or the refresh not set up yet, and nothing is loaded. Exit 16.
+        if (Test-Path -LiteralPath (Join-Path $planDir $script:BolGatePlanFile)) {
+            if (-not (Test-BolImportGate $sgw -NonInteractive -OldestDownload (Get-BolPlanStamp $planDir) -BolRows (Get-BolPlanCount $planDir))) { Finish 16 }
         }
         if (-not (Confirm-Approval $Phrases.import)) { Say 'Δεν δόθηκε έγκριση: σταμάτησα χωρίς αλλαγές.' 'Yellow'; Finish 1 }
         $bdir = Join-Path $WorkDir 'backups'

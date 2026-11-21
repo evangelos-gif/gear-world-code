@@ -3,7 +3,11 @@
 
 import { promosFor, AWIN_PUBLISHER_ID } from '../../promos/promos.js';
 import { networkFor } from '../../promos/network.js';
+// bol.com (NL and BE only, Dutch names, lessons L204): sites/_shared/bol.js.
+import { bolDelivery, BOL_SITES } from '../_shared/bol.js';
 import guides from './guides.js';
+
+const BOL = bolDelivery(BOL_SITES.cgw);
 
 export default {
   code: 'CGW',
@@ -62,7 +66,8 @@ export default {
   // Reidl's feed is in German: only visitors from Germany and Austria see it (lessons L165).
   deliversTo: { default: ['GB'], retailers: { 'AliExpress PL': ['PL'], Reidl: ['DE', 'AT'], VEVOR: ['EU', 'IS', 'LI', 'NO'], GRABO: ['WORLD'],
     // Wave 3 (approvals file of chat 7, 16 Nov 2026, lessons L171): the US shops only to the US.
-    Skilhunt: ['US'], WUBEN: ['US'], 'NITECORE Store': ['US'], Tameson: ['US'], Walabot: ['US'] }, languages: { Reidl: 'de' } },
+    Skilhunt: ['US'], WUBEN: ['US'], 'NITECORE Store': ['US'], Tameson: ['US'], Walabot: ['US'],
+    ...BOL.retailers }, languages: { Reidl: 'de', ...BOL.languages } },
 
   // Countries that see only the retailers that deliver there instead of the UK view with its bar (lessons L107); none yet.
   strictCountries: [],

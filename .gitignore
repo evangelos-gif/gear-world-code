@@ -29,6 +29,7 @@ gwh-dist-pc/
 gwh-pc-like/
 gwh-photo-shots/
 gwh-photo-report.txt
+prices-local-report.txt
 
 # Posters: the build outputs (PDF, PNG, SVG) and the Earth drawing are made again by posters/*/build.py
 posters/*/out/

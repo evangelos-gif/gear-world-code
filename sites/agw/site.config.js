@@ -4,7 +4,11 @@
 
 import { promosFor, AWIN_PUBLISHER_ID } from '../../promos/promos.js';
 import { networkFor } from '../../promos/network.js';
+// bol.com (NL and BE only, Dutch names, lessons L204): sites/_shared/bol.js.
+import { bolDelivery, BOL_SITES } from '../_shared/bol.js';
 import guides from './guides.js';
+
+const BOL = bolDelivery(BOL_SITES.agw);
 
 export default {
   code: 'AGW',
@@ -46,7 +50,8 @@ export default {
   // Oponytanio PL (Awin 10325, 18 Nov 2026, lessons L194): tyres in zloty for Poland only. 19 Nov 2026 (L198): the tyre
   // shops 123pneus.be, gommadiretto.it, rengas-online.com, Elastika-Online GR and Elastiko GR, each only in its country.
   deliversTo: { default: ['GB'], retailers: { 'AliExpress PL': ['PL'], 'Pneus.be': ['BE'], 'Neumaticos.es': ['ES'], 'Pneumatici.it': ['IT'], 'Tanie-Opony.pl': ['PL'], VEVOR: ['EU', 'IS', 'LI', 'NO'], Ottocast: ['DE', 'FR', 'NL', 'BE', 'AT', 'CH', 'ES', 'IT', 'PT', 'GR', 'PL', 'CZ', 'SK', 'HU', 'SE', 'FI', 'DK', 'NO', 'EE', 'LV', 'LT', 'HR', 'SI', 'BG', 'RO'], 'ReifenDirekt.at': ['AT'], 'neumaticos-online.es': ['ES'], 'Autobandenmarkt.nl': ['NL'], 'Oponytanio PL': ['PL'],
-    '123pneus.be': ['BE'], 'gommadiretto.it': ['IT'], 'rengas-online.com': ['FI'], 'Elastika-Online GR': ['GR'], 'Elastiko GR': ['GR'] }, languages: { VEVOR: 'nl' } },
+    '123pneus.be': ['BE'], 'gommadiretto.it': ['IT'], 'rengas-online.com': ['FI'], 'Elastika-Online GR': ['GR'], 'Elastiko GR': ['GR'],
+    ...BOL.retailers }, languages: { VEVOR: 'nl', ...BOL.languages } },
   // Lessons L107: a UK visitor sees UK retailers only, so the texts no longer say "retailers in the UK and Europe".
   retailersFromEurope: false,
 
