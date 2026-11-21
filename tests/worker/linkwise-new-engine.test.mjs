@@ -89,3 +89,35 @@ test('L209: the Greek shops are seen only in Greece and Cyprus; at most 10 page 
     assert.ok(countryGroups(site).list.length <= 10, `${s}: ${countryGroups(site).list.length} groups`);
   }
 });
+
+test('L211: Technology Gear World keeps phones, chargers and cameras; toner, spy gear, cheating earpieces and home items stay out', () => {
+  const c = (name, cat) => linkwiseSection('TGW', name, cat);
+  const ok = (r, slug) => { assert.equal(r.ok, true, r.reason); assert.equal(r.slug, slug); };
+  const out = (r, re) => { assert.equal(r.ok, false, `${r.slug} accepted`); assert.match(r.reason, re); };
+  // The dry run of 21 Nov 2026 17:39 (VNP GR, DealsShop GR, Vour.gr GR, Stark Stores GR):
+  out(c('Toshiba Toner T-409E-R T409ER Μαύρο black (6B000001169)', 'Αρχική > Toner Cartridges'), /toner or ink/);
+  out(c('Brother Cartridge TN-243 TN243 Yellow Gelb (TN243Y)', 'Αρχική > Toner Cartridges'), /toner or ink/);
+  out(c('Activejet ATH-543N Toner (replacement for HP 125A CB543A)', 'Αρχική > Toners > For HP printers (with head)'), /toner or ink/);
+  out(c('Smartcheater Στυλό V2 Bluetooth με Spy Ακουστικό', 'Σπιτι - Γραφειο > Συστήματα Ασφαλείας > Συσκεύες Παρακολούθησης'), /spy or hidden/);
+  out(c('SmartCheater Bluetooth SE με Μικροσκοπικό Ακουστικό Ψείρα', 'Σπιτι - Γραφειο > Συστήματα Ασφαλείας > Συσκεύες Παρακολούθησης'), /spy or hidden/);
+  out(c('JNN Q82 Καταγραφικό Ήχου USB με Ανίχνευση Ήχου', 'Σπιτι - Γραφειο > Συστήματα Ασφαλείας > Συσκεύες Παρακολούθησης'), /spy or hidden/);
+  out(c('S-Talk S6 Κρυφή Κάμερα σε Φορτιστή Πρίζας WiFi 1080P', 'Σπιτι - Γραφειο > Συστήματα Ασφαλείας > Κάμερες'), /spy or hidden/);
+  out(c('ΚΑΜΕΡΑ ΑΣΦΑΛΕΙΑΣ ΟΜΟΙΩΜΑ ΜΕ LED ΦΩΤΙΣΜΟ', 'Σπιτι - Γραφειο > Συστήματα Ασφαλείας'), /spy or hidden/);
+  out(c('Gaming κρεμαστή πινακίδα - 14 εκ.', 'Διακοσμητικά > Πίνακες'), /not a technology/);
+  out(c('Κορνίζα τηλεόραση - 25 εκ.', 'Διακοσμητικά > Κορνίζες'), /not a technology/);
+  out(c('Ποιος Που Πότε Γιατί Party Edition - Τηλεόραση', 'Παιχνίδια > Επιτραπέζια παιχνίδια > Party'), /not a technology/);
+  out(c('Selfie κλιπ με λιχουδιά για κατοικίδια', 'Είδη σπιτιού > Είδη κατοικιδίων'), /not a technology/);
+  out(c('Κεφαλή Ντους TurboCharger Μπλε Herzberg HG-8087-BLU', 'Οικιακός Εξοπλισμός > Μπάνιο'), /not a technology/);
+  out(c('Beper Επαναφορτιζόμενο Ασύρματο Μίξερ Χειρός USB P102SBA007', 'Ασύρματες - Επαναφορτιζόμενες'), /not a technology/);
+  out(c('Zilan Μικρός Επαναφορτιζόμενος Επιτραπέζιος Ανεμιστήρας USB ZLN4000', 'Summer Offers'), /not a technology/);
+  out(c('Τσάντα Guess Crossbody Triangle Logo 10″ Brown', 'GADGETS > ΤΣΑΝΤΕΣ LAPTOP'), /not a technology/);
+  // ... and what is technology stays:
+  ok(c('HP LaserJet Pro M404dn Printer', 'Αρχική > Printers'), 'laptops-computing');
+  ok(c('Suntek HC-960Ultra-Li 4G Κάμερα Ασφαλείας με Εφαρμογή', 'Σπιτι - Γραφειο > Συστήματα Ασφαλείας > Κάμερες'), 'smart-home-wifi');
+  ok(c('Drone LF632 5G με 4K Κάμερα και Χειριστήριο', 'Τεχνολογια > Gadgets > Διάφορα Gadgets'), 'cameras-drones');
+  ok(c('Anker 511 Charger (Nano 3, 30W) White', 'Electronics'), 'accessories-storage');
+  ok(c('Θήκη MagSafe Clear', 'ΘΗΚΕΣ > Θήκες iPhone 17 Pro Max > Θήκες iPhone'), 'phones-smartwatches');
+  ok(c('Λουράκι Apple Watch Sport Band 45mm', 'APPLE WATCH > ΛΟΥΡΑΚΙΑ APPLE WATCH > ΛΟΥΡΑΚΙΑ APPLE WATCH 44/45/46/49mm'), 'phones-smartwatches');
+  ok(c('Βάση laptop με ανεμιστήρα ψύξης', 'Αρχική > Laptop accessories'), 'laptops-computing');
+  ok(c('Συσκευή Αναπαραγωγής Bluetooth Ηχείο', 'Τεχνολογια > Ήχος > Ηχεία'), 'audio');
+});

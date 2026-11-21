@@ -73,18 +73,28 @@ const TGW = [
   [R('apple watch|smartwatch|λουρακι|λουρακια|watch bands?|watch straps?|galaxy watch|amazfit|\\bfitbit'), 'phones-smartwatches', 'Smartwatch straps & accessories'],
   [R('κινητ(ο|α) τηλεφων|smartphones?|\\biphone \\d+\\b(?!.*(θηκ|case|glass|μεμβραν))'), 'phones-smartwatches', 'Phones'],
   [R('power ?banks?|φορητ(η|εσ) (τραπεζ|μπαταρ)|τραπεζα ενεργει|φορτιστ|chargers?|καλωδι(ο|α)|cables?|αντάπτορ|αντ(α|ά)πτορ|adapters?|\\bhubs?\\b|docking|magsafe|wireless charg|ασυρματ(η|οσ) φορτισ'), 'accessories-storage', 'Chargers, cables & power banks'],
-  [R('toner|μελαν(ι|ια)|cartridges?|μελανοδοχ'), 'laptops-computing', 'Printer ink & toner'],
+  [R('\\bprinters?\\b|εκτυπωτ(ησ|εσ|η|ων)\\b|πολυμηχανημ|\\bscanners?\\b'), 'laptops-computing', 'Printers & scanners'],
   [R('laptop|ποντικ|\\bmouse\\b|πληκτρολογ|keyboards?|\\bssd\\b|σκληρ(οσ|οι) δισκ|usb stick|στικακι|memory card|καρτ(α|εσ) μνημησ|webcam|οθον(η|εσ) υπολογιστ|monitors?\\b'), 'laptops-computing', 'Computer accessories'],
   [R('gaming|gamepad|joystick|χειριστηρι(ο|α) (παιχνιδ|ps|xbox)|playstation|\\bps5\\b|nintendo|xbox'), 'gaming', 'Gaming accessories'],
-  [R('καμερ(α|εσ) (ασφαλει|παρακολουθ|wifi|ip)|ip camera|security camera|συστημ(α|ατα) ασφαλει|συσκευ(η|εσ) παρακολουθ|smart plug|εξυπν(ο|η|α) (πριζ|λαμπ|σπιτ)|wifi (λαμπ|πριζ)|router|mesh|range extender|ενισχυτ(ησ|η) wifi'), 'smart-home-wifi', 'Smart home & security'],
+  [R('καμερ(α|εσ) (ασφαλει|παρακολουθ|wifi|ip)|ip camera|security camera|συστημ(α|ατα) ασφαλει|smart plug|εξυπν(ο|η|α) (πριζ|λαμπ|σπιτ)|wifi (λαμπ|πριζ)|router|mesh|range extender|ενισχυτ(ησ|η) wifi'), 'smart-home-wifi', 'Smart home & security'],
   [R('dash ?cam|action cam|καμερ(α|εσ) δρασ|drones?|gimbal|τριποδ|tripod|selfie'), 'cameras-drones', 'Cameras & accessories'],
   [R('τηλεορασ|projector|προβολε(α|ασ) (εικονασ|video)|tv box|android box|chromecast|fire tv'), 'tv-home-cinema', 'TV & streaming'],
   [R('mobile phone accessor|αξεσουαρ κινητ'), 'phones-smartwatches', 'Phone accessories'],
   [R('bluetooth|usb|led strip|gadgets?\\b.*(usb|bluetooth|wifi|led)'), 'accessories-storage', 'Gadgets & accessories']
 ];
-const TGW_NOT = R('διακοσμητ|μαξιλαρ|κουπ(α|εσ)|ποτηρ|σερβιρισμ|μπρελοκ|καλτσ|t-?shirts?|μπλουζ|στάμπα|σταμπα|ρουχ|υποδησ|παπουτσ|ενδυση|αρωμα|perfume|eau de|γυαλια ηλιου|sunglasses|glasses|ρολο(ι|για)|watch (quartz|automatic)|quartz|κοσμημ|ειδη κουζιν|κατσαρολ|σκευ(η|οσ)|περιποιηση|ξυριστ|κουρευτ|μαλλιων|σεσουαρ|ισιωτικ|δωρ(α|ο) για|χριστουγενν|παιχνιδ(ι|ια)(?! (ps|xbox|playstation))|ρακετ|θαλασσ|auto - moto|αυτοκινητ|μοτοσυκλετ|φακ(οσ|οι)\\b|φακοσ εκτακτ');
-function tgw(t) {
-  if (TGW_NOT.test(t) && !R('apple watch|smartwatch|λουρακι').test(t)) return no('not a technology product (gift, home, fashion, beauty or car item)');
+const TGW_NOT = R('διακοσμητ|μαξιλαρ|κουπ(α|εσ)|ποτηρ|σερβιρισμ|μπρελοκ|καλτσ|t-?shirts?|μπλουζ|στάμπα|σταμπα|ρουχ|υποδησ|παπουτσ|ενδυση|αρωμα|perfume|eau de|γυαλια ηλιου|sunglasses|glasses|ρολο(ι|για)|watch (quartz|automatic)|quartz|κοσμημ|ειδη κουζιν|ειδη σπιτιου|οικιακ(οσ|ου|α|ων) εξοπλισμ|\\bμπανιο|κατοικιδ|επιτραπεζι(ο|α) παιχνιδ|κορνιζ|crossbody|ανεμιστηρ(ασ|εσ)? (usb|χειροσ|επιτραπεζ|οροφησ|δαπεδου|κολωνα|περιστρεφ)|επιτραπεζι(οσ|ο) ανεμιστηρ|ανεμιστηρακι|air cooler|μιξερ|πολυκοφτ|κεφαλ(η|εσ) ντουσ|κατσαρολ|\\bσκευ(η|οσ)\\b|περιποιηση|ξυριστ|κουρευτ|μαλλιων|σεσουαρ|ισιωτικ|δωρ(α|ο) για|χριστουγενν|παιχνιδ(ι|ια)(?! (ps|xbox|playstation))|ρακετ|θαλασσ|auto - moto|αυτοκινητ|μοτοσυκλετ|φακ(οσ|οι)\\b|φακοσ εκτακτ');
+// Printer toner and ink are consumables, not Technology Gear World (L178, as the TechInn and PCHUB toner); the printer stays.
+const TGW_INK = R('toner|μελαν(ι|ια|ιων)\\b|μελανοδοχ|(ink|toner|printer|εκτυπωτ\\S*) cartridges?|cartridges? (εκτυπωτ|μελαν|toner|ink)|drum unit|printheads?');
+// Covert recording and cheating: spy and hidden cameras, hidden audio recorders, "surveillance devices", exam-cheating
+// earpieces ("Smartcheater", "ψείρα") and fake cameras are never on the sites (chat 3, 21 Nov 2026, L211).
+const TGW_COVERT = R('\\bspy\\b|κρυφ(η|ο|α|εσ|οι|ων)\\b|κρυμμεν|hidden (camera|recorder)|smart ?cheater|cheat|ψειρ(α|εσ)\\b|\\bκοριο|συσκευ(η|εσ) παρακολουθ|ομοιωμα|ψευτικ(η|εσ|ο|α) καμερ|dummy|fake camera');
+// t: the most specific folder and the name; all: the whole shop path and the name. What a product IS can sit higher in
+// the path ("Διακοσμητικά > Πίνακες", "Οικιακός Εξοπλισμός > Μπάνιο"), so the never-lists read the whole path too (L211).
+function tgw(t, all = t) {
+  if (TGW_COVERT.test(all)) return no('spy or hidden camera, hidden recorder or cheating earpiece (never on the sites)');
+  if (TGW_INK.test(all)) return no('printer toner or ink (consumables, not on Technology Gear World, L178)');
+  const keep = R('apple watch|smartwatch|λουρακι');
+  if ((TGW_NOT.test(t) && !keep.test(t)) || (TGW_NOT.test(all) && !keep.test(all))) return no('not a technology product (gift, home, fashion, beauty or car item)');
   for (const [re, slug, sub] of TGW) if (re.test(t)) return yes(slug, sub);
   return miss('not a technology product, or the shop category says nothing');
 }
