@@ -7,7 +7,6 @@ import type { Product } from '@/lib/api';
 import { formatPrice } from '@/lib/format';
 import { useI18n } from '@/i18n';
 import { C, R, S } from '@/theme';
-import { SaveHeart } from './save-heart';
 import { Txt } from './ui';
 
 export function StockLine({ inStock, size = 'small' }: { inStock: boolean | null; size?: 'small' | 'body' }) {
@@ -35,7 +34,6 @@ export function ProductCard({ product, showWorld }: { product: Product; showWorl
         {product.image ? (
           <Image source={{ uri: product.image }} style={s.image} contentFit="contain" transition={150} recyclingKey={product.key} />
         ) : <Ionicons name="storefront-outline" size={36} color={C.faint} />}
-        <SaveHeart product={product} />
       </View>
       <View style={s.body}>
         {showWorld ? <Txt style={s.world} numberOfLines={1}>{product.worldKey}</Txt> : null}

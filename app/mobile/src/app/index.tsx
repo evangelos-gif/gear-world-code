@@ -2,7 +2,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
 import { useRef } from 'react';
-import { Pressable, RefreshControl, ScrollView, StyleSheet, View, type ScrollViewInstance } from 'react-native';
+import { RefreshControl, ScrollView, StyleSheet, View, type ScrollViewInstance } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Deals } from '@/components/deals';
@@ -15,7 +15,6 @@ import { Chip, Txt } from '@/components/ui';
 import { WorldCard } from '@/components/world-card';
 import { useI18n } from '@/i18n';
 import { activeDeals, DEALS_SHOWN, ukDay, type Target } from '@/lib/seasons';
-import { useOnPhone } from '@/lib/on-phone';
 import { useDeals } from '@/lib/use-deals';
 import { INTERESTS } from '@/lib/worlds-meta';
 import { useWorlds } from '@/lib/worlds-context';
@@ -24,7 +23,6 @@ import { C, MAX_WIDTH, R, S } from '@/theme';
 export default function Home() {
   const { t, list } = useI18n();
   const { worlds, loading, refresh, find } = useWorlds();
-  const { saved } = useOnPhone();
   // Android draws the app behind its own buttons at the bottom: the list ends above them (owner, 4/11/2026).
   const bottom = useSafeAreaInsets().bottom;
   const steps = list('steps');
@@ -49,15 +47,7 @@ export default function Home() {
       <View style={s.topbar}>
         <Image source={require('@/assets/brand/logo-horizontal.png')} style={s.logo} contentFit="contain"
           accessibilityLabel="Gear World" />
-        <View style={s.topRight}>
-          {/* The saved list (kept on this phone), with how many products it holds. */}
-          <Pressable accessibilityRole="button" accessibilityLabel={t('seeSaved', { count: saved.length })}
-            onPress={() => router.push('/saved')} hitSlop={6} style={({ pressed }) => [s.savedButton, pressed && s.pressed]}>
-            <Ionicons name={saved.length ? 'heart' : 'heart-outline'} size={20} color={C.gold} />
-            {saved.length ? <Txt style={s.savedCount}>{saved.length}</Txt> : null}
-          </Pressable>
-          <LanguageButton />
-        </View>
+        <LanguageButton />
       </View>
       <ScrollView
         ref={scroll}
@@ -133,11 +123,7 @@ export default function Home() {
 const s = StyleSheet.create({
   safe: { flex: 1, backgroundColor: C.bg },
   topbar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: S.lg, paddingVertical: S.sm, backgroundColor: C.bgDeep, borderBottomWidth: 1, borderBottomColor: C.border },
-  logo: { width: 150, height: 46, flexShrink: 1 },
-  topRight: { flexDirection: 'row', alignItems: 'center', gap: S.sm, flexShrink: 0 },
-  savedButton: { minWidth: 44, height: 40, paddingHorizontal: 10, borderRadius: R.pill, borderWidth: 1, borderColor: C.border, backgroundColor: C.card, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4 },
-  savedCount: { fontSize: 14, fontWeight: '800' },
-  pressed: { opacity: 0.8 },
+  logo: { width: 150, height: 46 },
   scroll: { paddingBottom: S.xxl },
   inner: { width: '100%', maxWidth: MAX_WIDTH, alignSelf: 'center', paddingHorizontal: S.lg, gap: S.xl, paddingTop: S.lg },
   hero: { gap: S.md },

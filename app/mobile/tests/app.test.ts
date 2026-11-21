@@ -15,12 +15,6 @@ import {
   ukDay, blackFridayDay, heroSlides, countdownParts, seasonFor, parseDeals, activeDeals, campaignLabel, CAMPAIGNS, FALLBACK_CAMPAIGN, seasonsOf
 } from '../src/lib/seasons.ts';
 import { apiSlug, categoriesFor } from '../src/lib/site-categories.ts';
-import {
-  addSaved, removeSaved, isSaved, parseSaved, serializeSaved, priceChange, checkPrices, pickFromAnswer, lookupQuery, withLatest,
-  sortSaved, needsCheck, SAVED_MAX, CHECK_EVERY_MS, type SavedItem
-} from '../src/lib/saved.ts';
-import { addRecent, removeRecent, parseRecent, RECENT_MAX } from '../src/lib/recent.ts';
-import type { Product } from '../src/lib/api.ts';
 
 const HUB = JSON.parse(readFileSync(new URL('../src/i18n/hub-strings.json', import.meta.url), 'utf8'));
 // The world order the Hub uses for its titles and descriptions (src/lib/worlds-meta.ts, read as text).
@@ -42,8 +36,7 @@ test('texts: every app text exists and is filled in all 11 languages', () => {
     const dict = APP_STRINGS[l.code];
     assert.ok(dict, l.code);
     for (const k of APP_KEYS) assert.ok(typeof dict[k] === 'string' && dict[k].trim().length > 0, `${l.code}.${k}`);
-    for (const k of ['viewAt', 'moreOnSite', 'searchIn', 'visitSite', 'version', 'worldProducts', 'aboutText', 'runBy',
-      'savedChecked', 'priceDown', 'priceUp', 'savedWhen', 'seeSaved', 'savedFull'] as const) {
+    for (const k of ['viewAt', 'moreOnSite', 'searchIn', 'visitSite', 'version', 'worldProducts', 'aboutText', 'runBy']) {
       const en = APP_STRINGS['en-GB'][k].match(/\{\w+\}/g);
       assert.deepEqual(dict[k].match(/\{\w+\}/g), en, `${l.code}.${k} keeps its placeholders`);
     }
@@ -379,105 +372,4 @@ test('texts: the app never sounds like a shop (no shop, cart or basket) and says
   assert.match(settings, /t\('runBy', \{ name: LEGAL\.operator \}\)/);
   const api = readFileSync(new URL('../src/lib/api.ts', import.meta.url), 'utf8');
   assert.match(api, /operator: 'Evangelos Kalogerakis, United Kingdom'/);
-});
-
-test('saved: products stay on the phone, links are checked again, the list has a limit', () => {
-  const p = parseSiteProduct({ id: 7, product_name: 'Cordless Drill 18V', price: 49.99, currency: 'GBP', stock_status: 'in_stock',
-    image_url: 'https://img.example.com/d.jpg', product_url: 'https://constructiongearworld.com/p/drill' }, { key: 'CGW', name: 'Construction Gear World', base: 'https://constructiongearworld.com' })!;
-  let list = addSaved([], p, 1000)!;
-  assert.equal(list.length, 1);
-  assert.equal(list[0].savedPrice, 49.99);
-  assert.ok(isSaved(list, 'CGW:7'));
-  assert.deepEqual(addSaved(list, p, 2000)!.map(i => i.product.key), ['CGW:7'], 'saving twice keeps one');
-  const back = parseSaved(serializeSaved(list));
-  assert.deepEqual(back, list, 'stored and read back the same');
-  assert.equal(back[0].product.outUrl, 'https://constructiongearworld.com/out/7');
-  // Damaged or foreign entries are skipped; a link to another site is not kept.
-  const odd = JSON.stringify({ items: [
-    { product: { ...p, base: 'javascript:alert(1)' }, savedAt: 1 },
-    { product: { ...p, id: '8', productUrl: 'https://elsewhere.example/p' }, savedAt: 2 },
-    'nonsense', null
-  ] });
-  const read = parseSaved(odd);
-  assert.equal(read.length, 1);
-  assert.equal(read[0].product.productUrl, 'https://constructiongearworld.com');
-  assert.deepEqual(parseSaved('not json'), []);
-  assert.deepEqual(parseSaved(null), []);
-  list = removeSaved(list, 'CGW:7');
-  assert.equal(list.length, 0);
-  let full: SavedItem[] = [];
-  for (let i = 0; i < SAVED_MAX; i++) full = addSaved(full, { ...p, id: String(i), key: `CGW:${i}` }, i)!;
-  assert.equal(full.length, SAVED_MAX);
-  assert.equal(addSaved(full, { ...p, id: 'x', key: 'CGW:x' }, 1), null, 'a full list says so instead of dropping one');
-});
-
-test('saved: the price now against the price when saved, and the check of every product', async () => {
-  const p = parseSiteProduct({ id: 7, product_name: 'Cordless Drill 18V', price: 49.99, currency: 'GBP' }, { key: 'CGW', name: 'CGW', base: 'https://constructiongearworld.com' })!;
-  const q = parseSiteProduct({ id: 9, product_name: 'Work Boots', price: 80 }, { key: 'CGW', name: 'CGW', base: 'https://constructiongearworld.com' })!;
-  const r = parseSiteProduct({ id: 11, product_name: 'Ear Defenders', price: 15 }, { key: 'CGW', name: 'CGW', base: 'https://constructiongearworld.com' })!;
-  const list = [r, q, p].reduce<SavedItem[]>((acc, x) => addSaved(acc, x, 1000)!, []);
-  assert.deepEqual(priceChange(list[0]), { kind: 'unknown' }, 'not checked yet');
-  const answers: Record<string, Product[] | 'fail' | 'more'> = {
-    '7': [{ ...p, price: 39.99 }, q],
-    '9': [{ ...q, price: 85.5 }],
-    '11': 'more'
-  };
-  const asked: string[] = [];
-  const checked = await checkPrices(list, async product => {
-    asked.push(lookupQuery(product));
-    const a = answers[product.id];
-    if (a === 'fail') throw new Error('network');
-    if (a === 'more') return pickFromAnswer(product, [], true);
-    return pickFromAnswer(product, a, false);
-  }, { now: 5000 });
-  assert.deepEqual(asked.sort(), ['Cordless Drill 18V', 'Ear Defenders', 'Work Boots']);
-  const byId = Object.fromEntries(checked.map(i => [i.product.id, i]));
-  assert.deepEqual(priceChange(byId['7']), { kind: 'down', amount: 10 });
-  assert.deepEqual(priceChange(byId['9']), { kind: 'up', amount: 5.5 });
-  assert.deepEqual(priceChange(byId['11']), { kind: 'unknown' }, 'an incomplete answer never says "not listed"');
-  assert.equal(withLatest(byId['7']).price, 39.99);
-  assert.equal(sortSaved(checked)[0].product.id, '7', 'price drops come first');
-  // Gone only when the site answered in full without it; a failed site keeps the last price.
-  const again = await checkPrices(checked, async product => {
-    if (product.id === '7') return pickFromAnswer(product, [], false);
-    throw new Error('network');
-  }, { now: 5000 + CHECK_EVERY_MS, force: true });
-  const byId2 = Object.fromEntries(again.map(i => [i.product.id, i]));
-  assert.deepEqual(priceChange(byId2['7']), { kind: 'gone' });
-  assert.deepEqual(priceChange(byId2['9']), { kind: 'up', amount: 5.5 });
-  assert.equal(withLatest(byId2['7']).price, 49.99, 'a product not listed shows the saved price, not an empty one');
-  // Within 15 minutes a product is not looked up again, unless the list is pulled down.
-  let calls = 0;
-  await checkPrices(checked, async product => { calls++; return pickFromAnswer(product, [], false); }, { now: 6000 });
-  assert.equal(calls, 1, 'only the product that was never checked');
-  assert.ok(needsCheck(checked[0], 6000, true));
-});
-
-test('recent searches: newest first, no repeats, at most 8, and nothing odd from storage', () => {
-  let r: string[] = [];
-  for (const q of ['drill', 'boots', 'Drill', '  work   gloves ', 'x']) r = addRecent(r, q);
-  assert.deepEqual(r, ['work gloves', 'Drill', 'boots']);
-  for (let i = 0; i < 12; i++) r = addRecent(r, `item ${i}`);
-  assert.equal(r.length, RECENT_MAX);
-  assert.equal(r[0], 'item 11');
-  assert.deepEqual(removeRecent(['a b', 'c d'], 'A B'), ['c d']);
-  assert.deepEqual(parseRecent(JSON.stringify(['tent', 'Tent', 3, null, 'stove'])), ['tent', 'stove']);
-  assert.deepEqual(parseRecent('{"a":1}'), []);
-  assert.deepEqual(parseRecent('broken'), []);
-});
-
-test('screens: saved list, heart, share and recent searches are on the screens, and share never sends the /out/ link', () => {
-  const read = (f: string) => readFileSync(new URL(`../src/${f}`, import.meta.url), 'utf8');
-  const product = read('app/product.tsx');
-  assert.match(product, /Share\.share\(/);
-  assert.doesNotMatch(product, /Share\.share\([^)]*outUrl/);
-  assert.match(product, /productUrl\.startsWith\(`\$\{product\.base\}\/`\)/);
-  assert.match(read('components/product-card.tsx'), /<SaveHeart product=\{product\} \/>/);
-  assert.match(read('app/index.tsx'), /router\.push\('\/saved'\)/);
-  assert.match(read('components/search-box.tsx'), /addRecent\(v\)/);
-  assert.match(read('app/settings.tsx'), /t\('onPhoneText'\)/);
-  // The price check only reads the product's own site (GET), like the world screens.
-  const onPhone = read('lib/on-phone.tsx');
-  assert.match(onPhone, /worldProducts\(siteOf\(product\)/);
-  assert.doesNotMatch(onPhone, /method: 'POST'|fetch\(/);
 });

@@ -1,18 +1,15 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Image } from 'expo-image';
 import { router, useLocalSearchParams } from 'expo-router';
-import { Platform, Pressable, ScrollView, Share, StyleSheet, View } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { StockLine } from '@/components/product-card';
-import { useToggleSaved } from '@/components/save-heart';
 import { Button, ErrorBox, TopBar, Txt } from '@/components/ui';
 import { useI18n } from '@/i18n';
 import { formatPrice } from '@/lib/format';
 import { openInBrowser } from '@/lib/open';
-import { useOnPhone } from '@/lib/on-phone';
 import { findProduct } from '@/lib/product-cache';
-import { withLatest } from '@/lib/saved';
 import { worldTitle } from '@/lib/worlds-meta';
 import { useWorlds } from '@/lib/worlds-context';
 import { C, MAX_WIDTH, R, S } from '@/theme';
@@ -21,12 +18,7 @@ export default function ProductScreen() {
   const { t, list, locale } = useI18n();
   const { find } = useWorlds();
   const params = useLocalSearchParams<{ key?: string }>();
-  const { saved, isSaved } = useOnPhone();
-  const toggleSaved = useToggleSaved();
-  const key = String(params.key ?? '');
-  // A saved product opens even after the app was closed: the phone keeps it (with its latest price).
-  const savedItem = saved.find(i => i.product.key === key);
-  const product = findProduct(key) ?? (savedItem ? withLatest(savedItem) : undefined);
+  const product = findProduct(String(params.key ?? ''));
 
   if (!product) {
     return (
@@ -43,14 +35,6 @@ export default function ProductScreen() {
   const price = formatPrice(product.price, product.currency, locale);
   const was = product.wasPrice && product.price && product.wasPrice > product.price ? formatPrice(product.wasPrice, product.currency, locale) : '';
   const retailer = product.retailer || siteName;
-  const isOn = isSaved(product.key);
-
-  // The phone's own share sheet, with the product's page on its Gear World site (never the /out/ link).
-  const share = () => {
-    const url = product.productUrl.startsWith(`${product.base}/`) ? product.productUrl : product.base;
-    Share.share(Platform.OS === 'ios' ? { message: product.name, url } : { message: `${product.name}\n${url}`, title: product.name })
-      .catch(() => undefined);
-  };
 
   const rows: [string, string][] = [
     [t('retailer'), product.retailer],
@@ -74,18 +58,6 @@ export default function ProductScreen() {
             {was ? <Txt v="muted" style={s.was}>{was}</Txt> : null}
           </View>
           <StockLine inStock={product.inStock} size="body" />
-
-          <View style={s.actions}>
-            <Button kind="secondary" style={s.action} icon={isOn ? 'heart' : 'heart-outline'} label={isOn ? t('savedLabel') : t('save')}
-              hint={isOn ? t('unsave') : undefined} onPress={() => toggleSaved(product)} />
-            <Button kind="secondary" style={s.action} icon="share-outline" label={t('share')} onPress={share} />
-          </View>
-          {isOn ? (
-            <Pressable accessibilityRole="link" onPress={() => router.push('/saved')} hitSlop={8} style={s.seeSaved}>
-              <Ionicons name="heart" size={16} color={C.gold} />
-              <Txt v="small" style={s.link}>{t('seeSaved', { count: saved.length })}</Txt>
-            </Pressable>
-          ) : null}
 
           <Button icon="open-outline" label={t('viewAt', { retailer })} hint={t('opensBrowser')} onPress={() => openInBrowser(product.outUrl)} />
           <Button kind="secondary" label={t('moreOnSite', { site: siteName })} hint={t('opensBrowser')} onPress={() => openInBrowser(product.productUrl)} />
@@ -121,10 +93,6 @@ const s = StyleSheet.create({
   priceRow: { flexDirection: 'row', alignItems: 'baseline', gap: S.md },
   price: { fontSize: 30, lineHeight: 36, fontWeight: '800' },
   was: { textDecorationLine: 'line-through' },
-  actions: { flexDirection: 'row', gap: S.sm },
-  action: { flex: 1, paddingHorizontal: S.sm },
-  seeSaved: { flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start', minHeight: 32 },
-  link: { color: C.gold, fontWeight: '800', textDecorationLine: 'underline' },
   table: { borderRadius: R.lg, borderWidth: 1, borderColor: C.border, overflow: 'hidden' },
   tr: { flexDirection: 'row', gap: S.md, padding: S.md, borderBottomWidth: 1, borderBottomColor: C.border },
   th: { width: 96, fontWeight: '700' },

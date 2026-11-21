@@ -6,17 +6,11 @@ Gear World
 ## Short description (69/80)
 Find products and compare prices from many retailers with one search.
 
-## Full description (2642/4000)
+## Full description (2181/4000)
 Gear World helps you find products and compare prices from many retailers across the 13 Gear World websites, with one search. Gear World sells nothing itself: when you find what you want, you buy it on the retailer's own website.
 
 ONE SEARCH, EVERY WORLD
 Type what you need, tap the microphone and say it, or take a photo with the camera, and Gear World searches every Gear World website at once. Filter the results by world and open the product you want.
-
-SAVE PRODUCTS AND WATCH THEIR PRICE
-Tap the heart on any product to keep it in your Saved list. When you open the list, Gear World checks the latest price of every saved product and tells you whether it went down or up since you saved it. Your saved products and recent searches stay only on your phone, with no account.
-
-SHARE WITH ONE TAP
-Send a product to a friend with your phone's share button. Your last searches are one tap away under the search field.
 
 CHOOSE A WORLD
 Browse each Gear World on its own: Tools & Workwear, Men, Women, Kids & Teens, Home, Garden, Technology, Car, Travel, Sport, Motorbike & Scooter, Gaming and Pets. New worlds appear in the app automatically as they launch.
