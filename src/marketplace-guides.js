@@ -115,6 +115,8 @@ export function pickLanguage(site, request, url) {
 // A name that is never translated (a store, a product, a Gear World site, a code): its own translate="no" span, so a
 // browser translation leaves it alone too (lessons L24, L102, L103).
 const keep = s => html`<span translate="no">${s}</span>`;
+// The name of the stores part, as the site's name in every language (owner, 21 Nov 2026, L208: «Stores» → «Mega Stores»).
+const storesLabel = c => keep(c.site.storesLabel || c.site.name);
 
 // The page context: the language, its dictionary, and the helpers that write every visible text through it.
 //   t(key, ...args)  HTML: the translation with {0}, {1}... filled in (an arg can be HTML, such as keep(name) or a link)
@@ -336,7 +338,7 @@ ${robots ? html`<meta name="robots" content="${robots}">` : ''}
 ${languageMenu(c)}
 <div class="wrap top-row">
   <a class="brand" href="${c.href('/')}"><img src="${asset(site, 'logo.svg')}" alt="" width="40" height="40"><span translate="no">${site.name}</span></a>
-  <nav class="top-nav" aria-label="${tx('Main')}"><a class="top-link" href="${c.href('/#stores')}">${t('Stores')}</a><a class="top-link" href="${c.href('/#guides')}">${t('Gift guides')}</a></nav>
+  <nav class="top-nav" aria-label="${tx('Main')}"><a class="top-link" href="${c.href('/#stores')}">${storesLabel(c)}</a><a class="top-link" href="${c.href('/#guides')}">${t('Gift guides')}</a></nav>
 </div>
 <div class="hub-strip" data-gw-network><div class="wrap hub-row">
   <span class="hub-name" translate="no">${hubName}</span>
@@ -706,7 +708,7 @@ function storesSection(c, data) {
   const stores = shownStores(site, mode);
   if (!stores.length) return '';
   return html`<section class="wrap section" id="stores">
-  <h2>${t('Stores')}</h2>
+  <h2>${storesLabel(c)}</h2>
   <p class="section-lede">${withMarkets(mode)
     ? t('One page per store: product photos from the Gear World sites, and gift ideas to search on Amazon. Prices, stock and delivery are on the page each button opens.')
     : t('One page per store, with product photos from the Gear World sites. Prices, stock and delivery are on the product page each button opens.')}</p>
@@ -746,7 +748,7 @@ export function storePage(c, store, products, now = Date.now()) {
     path: `/stores/${store.slug}/`,
     body: html`
 <section class="hero hero-small"><div class="wrap">
-  <p class="eyebrow"><a href="${c.href('/#stores')}">${t('Stores')}</a></p>
+  <p class="eyebrow"><a href="${c.href('/#stores')}">${storesLabel(c)}</a></p>
   <div class="store-title">${storeLogo(site, store, 'store-logo store-logo-lg')}<h1>${t('{0} on {1}', keep(store.name), keep(site.name))}</h1></div>
   <p class="lede">${t(store.line)} ${t('Each product opens its page on a Gear World site, which shows the price, the stock and where {0} delivers.', keep(store.name))}</p>
   ${started ? html`<p class="count bf-when" data-end="${started.hide}">${bfWhen(c, started)}</p>` : ''}
@@ -806,7 +808,7 @@ export function amazonStorePage(c, store) {
     path: `/stores/${store.slug}/`,
     body: html`
 <section class="hero hero-small"><div class="wrap">
-  <p class="eyebrow"><a href="${c.href('/#stores')}">${t('Stores')}</a></p>
+  <p class="eyebrow"><a href="${c.href('/#stores')}">${storesLabel(c)}</a></p>
   <h1>${t('Gift ideas to search on Amazon')}</h1>
   <p class="lede">${t(store.line)} ${t('Each button opens a search on amazon.co.uk, which shows the current models, sellers and prices.')}</p>
 </div></section>
@@ -846,7 +848,7 @@ export function heroButtons(c, now = new Date()) {
     if (count) tiles.push(html`<li class="jump-wide"><a class="jump jump-bf" href="${c.href('/#guides')}"><span class="jump-label">${count}</span></a></li>`);
   }
   const stores = shownStores(site, mode).length;
-  if (stores) tiles.push(html`<li><a class="jump" href="${c.href('/#stores')}"><span class="jump-label">${t('Stores')}</span><span class="jump-meta">${t('{0} stores', stores)}</span></a></li>`);
+  if (stores) tiles.push(html`<li><a class="jump" href="${c.href('/#stores')}"><span class="jump-label">${storesLabel(c)}</span><span class="jump-meta">${t('{0} stores', stores)}</span></a></li>`);
   tiles.push(html`<li><a class="jump" href="${c.href('/#guides')}"><span class="jump-label">${t('Gift guides')}</span><span class="jump-meta">${t('{0} gift guides', site.guides.length)}</span></a></li>`);
   for (const g of site.guides.slice(0, 4)) tiles.push(html`<li><a class="jump" href="${c.href(`/guides/${g.slug}/`)}"><span class="jump-label">${t(g.title)}</span></a></li>`);
   return html`<nav class="hero-jump" aria-label="${c.tx('Stores and gift guides')}"><ul class="jumps">${tiles}</ul></nav>`;

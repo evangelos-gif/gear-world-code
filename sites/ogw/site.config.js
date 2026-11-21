@@ -26,6 +26,8 @@ export default {
   // An address that receives mail (the Hub's; megastoresgearworld.com has no email).
   contactEmail: 'contact@gearworldhub.com',
   assetVersion: '2026-11-21-ogw-4',
+  // The name of the stores part on every page, never translated (owner, 21 Nov 2026, lessons L208).
+  storesLabel: 'Mega Stores',
   // The 12 languages of the 13 Gear World sites, the same codes and the same order as their menu (lessons L162, L195).
   languages: [
     { code: 'en-GB', label: 'English' },

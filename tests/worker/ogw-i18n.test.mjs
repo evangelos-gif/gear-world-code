@@ -515,6 +515,8 @@ test('L208: the hero has buttons on the right (countdown, stores, gift guides, 4
   const b = buttons(text);
   assert.deepEqual(b.map(x => x.href), ['/#black-friday', '/#stores', '/#guides', ...site.guides.slice(0, 4).map(g => `/guides/${g.slug}/`)]);
   assert.equal(b[0].label, '<strong class="jump-num">6</strong> days to Black Friday');
+  assert.equal(b[1].label, '<span translate="no">Mega Stores</span>', 'L208: «Mega Stores», not «Stores»');
+  assert.ok(text.includes('<h2><span translate="no">Mega Stores</span></h2>'), 'the heading of the stores part');
   assert.equal(b[1].meta, `${shownStores(site, 'on').length} stores`);
   assert.equal(b[2].meta, `${site.guides.length} gift guides`);
   assert.ok(text.indexOf('<nav class="hero-jump"') > text.indexOf('<section class="hero">') && text.indexOf('<nav class="hero-jump"') < text.indexOf('class="note"'), 'inside the hero');
@@ -527,7 +529,7 @@ test('L208: the hero has buttons on the right (countdown, stores, gift guides, 4
     const y = buttons((await get(withLang('/', l), ON, { worker: workerAt('2026-11-21') })).text);
     assert.deepEqual(y.map(x => x.href.replace(/[?&]lang=[^#&]+/, '')), b.map(x => x.href), l);
     assert.equal(y[0].label, esc(DICTS[l]['{0} days to Black Friday']).replace('{0}', '<strong class="jump-num">6</strong>'), l);
-    assert.equal(y[1].label, esc(DICTS[l].Stores), l);
+    assert.equal(y[1].label, '<span translate="no">Mega Stores</span>', `${l}: «Mega Stores» as it is`);
     assert.equal(y[1].meta, esc(DICTS[l]['{0} stores']).replace('{0}', String(shownStores(site, 'on').length)), l);
     assert.equal(y[3].label, esc(DICTS[l][site.guides[0].title]), l);
   }
