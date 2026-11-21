@@ -295,7 +295,8 @@ test('tools/ogw-site.ps1: UTF-8 BOM and CRLF, the four phrases, the live guard, 
   assert.match(ps, /--var AMAZON_LINKS:\{1\}/);
   assert.ok(!/GW_GUARD_TEST_/.test(ps), 'never the guard test hooks');
   assert.ok(!/\?\?|&&|\|\||-AsHashtable|-Parallel/.test(ps.replace(/'[^'\r\n]*'/g, "''")), 'Windows PowerShell 5.1 syntax');
-  assert.match(ps, /Πήγαινε στη συζήτηση με το Claude «1 · Gear World Manager» και πάτα Ctrl\+V\./);
+  // L208: the chat that gave the command (-Chat), the Manager by default.
+  assert.ok(ps.includes("[string]$Chat = '1 · Gear World Manager'") && ps.includes('Πήγαινε στη συζήτηση με το Claude «{0}» και πάτα Ctrl+V.'), 'the clipboard line names the chat');
   assert.ok(ps.includes("Get-Page ($base + '/stores/joybuy/')") && ps.includes("Get-Page ($base + '/stores/amazon/')"), 'the store page and the Amazon page in every check (L191)');
   assert.ok(ps.includes('href="[^"]*/(out|go)/') && ps.includes('[char]0x00A3'), 'no /out/, /go/ or £ on the store page');
 });
