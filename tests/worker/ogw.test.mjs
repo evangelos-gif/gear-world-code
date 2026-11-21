@@ -465,7 +465,7 @@ test('home page: the stores above the gift guides, logos on a tile or a text bad
     const text = await (await w.fetch(new Request(`${LIVE}/`), env)).text();
     assert.ok(text.indexOf('id="stores"') > 0 && text.indexOf('id="stores"') < text.indexOf('id="guides"'), 'stores above the gift guides');
     assert.match(text, /<a class="top-link" href="\/#stores">Stores<\/a>/);
-    const section = text.slice(text.indexOf('id="stores"'), text.indexOf('id="guides"'));
+    const section = text.slice(text.indexOf('id="stores"'), text.indexOf('id="black-friday"') > 0 ? text.indexOf('id="black-friday"') : text.indexOf('id="guides"'));
     const cards = section.match(/<li class="store-card">[\s\S]*?<p class="store-meta">[^<]*<\/p>\s*<\/li>/g) || [];
     const names = cards.map(c => c.match(/<a class="store-link" href="\/stores\/([a-z0-9-]+)\/">/)[1]);
     const expect = site.stores.map(s => s.slug).filter(s => s !== 'amazon' || env !== OFF);

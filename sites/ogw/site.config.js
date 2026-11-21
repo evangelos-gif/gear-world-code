@@ -25,7 +25,7 @@ export default {
   operatorName: 'Evangelos Kalogerakis, United Kingdom',
   // An address that receives mail (the Hub's; megastoresgearworld.com has no email).
   contactEmail: 'contact@gearworldhub.com',
-  assetVersion: '2026-11-19-ogw-3',
+  assetVersion: '2026-11-21-ogw-4',
   // The 12 languages of the 13 Gear World sites, the same codes and the same order as their menu (lessons L162, L195).
   languages: [
     { code: 'en-GB', label: 'English' },

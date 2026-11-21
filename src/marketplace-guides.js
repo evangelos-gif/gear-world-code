@@ -504,7 +504,8 @@ function bfKey(k) {
   return m ? codeKey(k.slug, 'coupon', '', m[1], m[2]) : `${k.slug}:coupon:${k.title}`;
 }
 
-// The Black Friday block, above the stores on the home page, until the end of Cyber Monday (UK day); gone after it.
+// The Black Friday block, below the stores on the home page (owner, 21 Nov 2026, L208: the stores first, then the
+// offers), until the end of Cyber Monday (UK day); gone after it.
 // A countdown worked out on the server by UK day ("8 days to Black Friday"; nothing moves, no script), the two dates,
 // the stores that have started (early Black Friday) with their codes, the codes of this site's stores that the Hub's
 // file does not list (promos/promos.js), the Hub's Black Friday page, and only with Amazon links Amazon's own page.
@@ -828,9 +829,31 @@ export function amazonStorePage(c, store) {
   });
 }
 
+// The buttons on the right of the home page's hero (owner, 21 Nov 2026, lessons L208): the countdown to Black Friday
+// (until Cyber Monday; then to Christmas), the stores, the gift guides and the first four guides, each a link to its
+// part of the page or its guide. Worked out on the server like the countdown (nothing moves, no script, L188).
+export function heroButtons(c, now = new Date()) {
+  const { site, t, mode } = c;
+  const b = blackFridayParts(site, now.getTime());
+  const tiles = [];
+  if (b) {
+    const label = b.days > 1 ? t('{0} days to Black Friday', html`<strong class="jump-num">${b.days}</strong>`)
+      : b.days === 1 ? t('{0} day to Black Friday', html`<strong class="jump-num">1</strong>`)
+        : b.today < b.cyber ? t('Black Friday is on') : t('Cyber Monday is on');
+    tiles.push(html`<li class="jump-wide"><a class="jump jump-bf" href="${c.href('/#black-friday')}"><span class="jump-label">${label}</span><span class="jump-meta">${c.dayDate(b.today < b.bf ? b.bf : b.cyber)}</span></a></li>`);
+  } else {
+    const count = countdownText(site, c, now);
+    if (count) tiles.push(html`<li class="jump-wide"><a class="jump jump-bf" href="${c.href('/#guides')}"><span class="jump-label">${count}</span></a></li>`);
+  }
+  const stores = shownStores(site, mode).length;
+  if (stores) tiles.push(html`<li><a class="jump" href="${c.href('/#stores')}"><span class="jump-label">${t('Stores')}</span><span class="jump-meta">${t('{0} stores', stores)}</span></a></li>`);
+  tiles.push(html`<li><a class="jump" href="${c.href('/#guides')}"><span class="jump-label">${t('Gift guides')}</span><span class="jump-meta">${t('{0} gift guides', site.guides.length)}</span></a></li>`);
+  for (const g of site.guides.slice(0, 4)) tiles.push(html`<li><a class="jump" href="${c.href(`/guides/${g.slug}/`)}"><span class="jump-label">${t(g.title)}</span></a></li>`);
+  return html`<nav class="hero-jump" aria-label="${c.tx('Stores and gift guides')}"><ul class="jumps">${tiles}</ul></nav>`;
+}
+
 export function homePage(c, now = new Date(), storeData = {}) {
   const { site, t, tx, mode } = c;
-  const count = countdownText(site, c, now);
   const all = [...site.guides, site.checks].filter(Boolean);
   const hubName = (site.hub && site.hub.name) || 'Gear World Hub';
   return shell(c, {
@@ -840,17 +863,19 @@ export function homePage(c, now = new Date(), storeData = {}) {
       : tx('Store pages with product photos from the Gear World sites, and Christmas gift ideas with the matching categories. Compare models, retailers and prices before you choose.'),
     path: '/',
     body: html`
-<section class="hero"><div class="wrap">
+<section class="hero"><div class="wrap hero-grid">
+  <div class="hero-text">
   <p class="eyebrow">${t('Stores and gift guides')}</p>
   <h1>${withMarkets(mode) ? t('Gift ideas first. Then compare on the big marketplaces.') : t('Gift ideas first. Then compare.')}</h1>
   <p class="lede">${withMarkets(mode)
     ? t('Short gift guides for Christmas and the winter. Every idea opens a search on a big marketplace and the matching category of a Gear World site, so you can compare models, sellers and prices before you choose.')
     : t('Short gift guides for Christmas and the winter. Every idea opens the matching category of a Gear World site, where each product shows the retailer that sells it, its price and where it delivers.')}</p>
-  ${count ? html`<p class="count">${count}</p>` : ''}
+  </div>
+  ${heroButtons(c, now)}
 </div></section>
 <section class="wrap section">${disclosure(c)}</section>
-${blackFridayBlock(c, now.getTime())}
 ${storesSection(c, storeData)}
+${blackFridayBlock(c, now.getTime())}
 <section class="wrap section" id="guides">
   <h2>${t('Gift guides')}</h2>
   <ul class="cards">${all.map(g => html`<li class="card"><h3><a href="${c.href(`/guides/${g.slug}/`)}">${t(g.title)}</a></h3><p>${t(g.teaser)}</p></li>`)}</ul>

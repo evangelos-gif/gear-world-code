@@ -8,7 +8,7 @@ import site from '../../sites/ogw/site.config.js';
 import {
   AMAZON_STATEMENT, BASE_LANG, HUB_LANGS, I18N_MISSING, createGuidesWorker, legalPaths, awinStores, languageCode,
   countryLanguage as ogwCountryLanguage, readsEnglish as ogwReadsEnglish, QA_BOT as OGW_QA_BOT, OTHER_CRAWLER as OGW_CRAWLER, GOOGLE_CRAWLER as OGW_GOOGLE,
-  earlyBlackFriday, blackFridayParts, storeCodes
+  earlyBlackFriday, blackFridayParts, storeCodes, shownStores
 } from '../../src/marketplace-guides.js';
 import { countryLanguage, readsEnglish, QA_BOT, OTHER_CRAWLER, GOOGLE_CRAWLER } from '../../src/engine.js';
 import { translatableTexts } from './i18n-keys.mjs';
@@ -56,7 +56,9 @@ const OFFER_KEYS = new Set(['{0} off when you spend {1}', '{0} off your order', 
 const SAME = new Set(['Black Friday', 'Black Friday {0}', 'Black Friday: {0} · Cyber Monday: {1}', 'Einhell', 'Code', 'Cookies', 'Contact',
   'Hosting.', 'Email.', 'Smartwatch', 'Webcam', 'Fitness tracker', 'Slow cooker', 'Dash cam', 'E-reader', 'Extra controller']);
 // A key the current data does not use but a code without a minimum spend would (src/pages/offers.js has it too).
-const RESERVED = new Set(['{0} off your order']);
+// Since L208 (owner, 21 Nov 2026) the hero shows the Black Friday countdown as its first button; the Black Friday lines of
+// countdown() stay for the tools (English) and for the day the line comes back.
+const RESERVED = new Set(['{0} off your order', 'Black Friday: {0} · {1} days to go', 'Black Friday: {0} · 1 day to go', 'Black Friday and Cyber Monday: {0} to {1}']);
 // Names that stay as they are in every language (a "-" of German or Dutch compounds counts as a space).
 const NAMES = ['Gear World', 'Amazon', 'amazon.co.uk', 'Black Friday', 'Cyber Monday', 'PlayStation', 'Xbox', 'Switch', 'iPhone', 'Android',
   'UKCA', 'CE', 'IPX5', 'Cloudflare', "Information Commissioner's Office", 'Bluetooth', 'LED', 'mAh', 'dB'];
@@ -326,8 +328,10 @@ test('Black Friday: the countdown by UK day (19/11 = 8 days, 26/11 = 1 day, 27-2
   assert.equal(x.day, '2026-11-19');
   assert.ok(x.text.includes('<h2 id="bf-h">Black Friday 2026</h2>'));
   assert.ok(x.text.includes('<p class="bf-dates">Black Friday: Fri 27 Nov · Cyber Monday: Mon 30 Nov</p>'));
-  assert.ok(x.text.indexOf('id="black-friday"') > 0 && x.text.indexOf('id="black-friday"') < x.text.indexOf('id="stores"'), 'above the Stores section');
-  assert.ok(x.text.includes('<p class="count">Black Friday: 27 Nov · 8 days to go</p>'), 'the countdown line of the hero stays');
+  // L208 (owner, 21 Nov 2026): the stores first, then the offers; the countdown is the first button of the hero.
+  assert.ok(x.text.indexOf('id="stores"') > 0 && x.text.indexOf('id="stores"') < x.text.indexOf('id="black-friday"') && x.text.indexOf('id="black-friday"') < x.text.indexOf('id="guides"'), 'below the Stores section, above the gift guides');
+  assert.ok(x.text.includes('<li class="jump-wide"><a class="jump jump-bf" href="/#black-friday"><span class="jump-label"><strong class="jump-num">8</strong> days to Black Friday</span><span class="jump-meta">Fri 27 Nov</span></a></li>'), 'the countdown button of the hero');
+  assert.ok(!x.text.includes('<p class="count">'), 'no second countdown line');
   assert.equal((await count('2026-11-26')).count, '<strong class="bf-num">1</strong> day to Black Friday');
   // London's day: 23:30 on 26 Nov in London is still 26 Nov.
   const late = createGuidesWorker(site, { fetch: fakeFetch(), cache: null, now: () => Date.parse('2026-11-26T23:30:00Z') });
@@ -336,7 +340,7 @@ test('Black Friday: the countdown by UK day (19/11 = 8 days, 26/11 = 1 day, 27-2
   assert.equal((await count('2026-11-30')).count, 'Cyber Monday is on');
   x = await count('2026-12-01');
   assert.ok(!x.text.includes('id="black-friday"') && !x.text.includes('bf-count'), '1 Dec: the block is gone');
-  assert.ok(x.text.includes('<p class="count">Christmas: 24 days to go</p>'), 'the Christmas line stays');
+  assert.ok(x.text.includes('<a class="jump jump-bf" href="/#guides"><span class="jump-label">Christmas: 24 days to go</span></a>'), 'then the Christmas button');
   assert.ok(!/blackfriday|black-friday\//.test(x.text), 'no Amazon or Hub Black Friday link after Cyber Monday');
   // In every language, worked out on the server: no script, nothing that moves.
   for (const l of LANGS) {
@@ -353,7 +357,7 @@ test('Early Black Friday: the stores that started, from the Hub\'s black-friday.
   const data = JSON.parse(readFileSync('sites/gwh/black-friday/black-friday.json', 'utf8'));
   assert.deepEqual(site.earlyBlackFriday, data, 'the same file as the Hub\'s /black-friday/ page');
   const { text } = await get('/');
-  const block = text.slice(text.indexOf('id="black-friday"'), text.indexOf('id="stores"'));
+  const block = text.slice(text.indexOf('id="black-friday"'), text.indexOf('id="guides"'));
   assert.ok(block.includes('<h3 class="bf-sub">Early Black Friday: stores that have already started</h3>'));
   const items = block.match(/<li class="bf-store" data-end="[^"]+">[\s\S]*?<\/li>\s*(?=<li class="bf-store"|<\/ul>)/g) || [];
   const started = data.started.filter(r => r.from <= '2026-11-19' && '2026-11-19' <= r.hide);
@@ -498,4 +502,37 @@ test('L195 review 19/11: Google crawlers without "bot" in the name get English; 
   assert.ok(el.includes('Evangelos Kalogerakis</span>, Ηνωμένο Βασίλειο'), 'the footer says the country in Greek');
   assert.ok(!/United Kingdom/.test(el.replace(/<link[^>]*>/g, '')), 'no English country name on the Greek page');
   assert.ok(!/συνεργατών/.test(JSON.stringify(DICTS['el-GR'])), 'Greek says affiliate, not partners (L103)');
+});
+
+// ---------------------------------------------------------------- Hero buttons (owner, 21 Nov 2026, L208)
+
+test('L208: the hero has buttons on the right (countdown, stores, gift guides, 4 guides), translated, and the stores come before the offers', async () => {
+  const buttons = text => {
+    const nav = text.slice(text.indexOf('<nav class="hero-jump"'), text.indexOf('</nav>', text.indexOf('<nav class="hero-jump"')));
+    return [...nav.matchAll(/<a class="jump[^"]*" href="([^"]+)"><span class="jump-label">([\s\S]*?)<\/span>(?:<span class="jump-meta">([\s\S]*?)<\/span>)?<\/a>/g)].map(m => ({ href: m[1], label: m[2], meta: m[3] || '' }));
+  };
+  const { text } = await get('/', ON, { worker: workerAt('2026-11-21') });
+  const b = buttons(text);
+  assert.deepEqual(b.map(x => x.href), ['/#black-friday', '/#stores', '/#guides', ...site.guides.slice(0, 4).map(g => `/guides/${g.slug}/`)]);
+  assert.equal(b[0].label, '<strong class="jump-num">6</strong> days to Black Friday');
+  assert.equal(b[1].meta, `${shownStores(site, 'on').length} stores`);
+  assert.equal(b[2].meta, `${site.guides.length} gift guides`);
+  assert.ok(text.indexOf('<nav class="hero-jump"') > text.indexOf('<section class="hero">') && text.indexOf('<nav class="hero-jump"') < text.indexOf('class="note"'), 'inside the hero');
+  assert.ok(text.indexOf('id="stores"') < text.indexOf('id="black-friday"'), 'the stores first, then the offers');
+  assert.ok(!/<script|animation/.test(text.slice(text.indexOf('<section class="hero">'), text.indexOf('class="note"'))), 'nothing moves');
+  // Without Amazon links the Amazon card is not counted.
+  assert.equal(buttons((await get('/', OFF, { worker: workerAt('2026-11-21') })).text)[1].meta, `${shownStores(site, 'off').length} stores`);
+  // In every language: the same links, translated labels.
+  for (const l of LANGS) {
+    const y = buttons((await get(withLang('/', l), ON, { worker: workerAt('2026-11-21') })).text);
+    assert.deepEqual(y.map(x => x.href.replace(/[?&]lang=[^#&]+/, '')), b.map(x => x.href), l);
+    assert.equal(y[0].label, esc(DICTS[l]['{0} days to Black Friday']).replace('{0}', '<strong class="jump-num">6</strong>'), l);
+    assert.equal(y[1].label, esc(DICTS[l].Stores), l);
+    assert.equal(y[1].meta, esc(DICTS[l]['{0} stores']).replace('{0}', String(shownStores(site, 'on').length)), l);
+    assert.equal(y[3].label, esc(DICTS[l][site.guides[0].title]), l);
+  }
+  const css = readFileSync('sites/ogw/public/assets/ogw.css', 'utf8');
+  assert.match(css, /\.hero-grid \{ grid-template-columns: minmax\(0, 1\.1fr\) minmax\(0, 1fr\);/, 'two columns on a computer');
+  assert.match(css, /\.jumps \{ display: grid; grid-template-columns: repeat\(2, minmax\(0, 1fr\)\);/, 'two buttons per row');
+  assert.match(css, /\.jump \{[^}]*min-height: 64px;/, 'big enough to tap');
 });

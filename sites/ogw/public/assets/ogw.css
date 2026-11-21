@@ -174,3 +174,20 @@ p { margin: 0 0 1em; }
 .promo-link { display: inline-flex; align-items: center; min-height: 40px; font-weight: 600; }
 .promo-note { color: var(--text-2); max-width: 80ch; font-size: .92rem; }
 .store-codes h2 { font-size: 1.25rem; }
+/* The buttons on the right of the home page's hero (owner, 21 Nov 2026, lessons L208): the countdown, the stores, the
+   gift guides and the first guides, each a link. Under the text on a phone, two per row. Blue and gold only (L35). */
+.hero-grid { display: grid; gap: 22px; }
+.jumps { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; list-style: none; margin: 0; padding: 0; }
+.jumps li { display: flex; }
+.jump-wide { grid-column: 1 / -1; }
+.jump { position: relative; display: flex; flex-direction: column; justify-content: center; gap: 2px; width: 100%; min-height: 64px; padding: 10px 34px 10px 14px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; color: #fff; font-weight: 700; line-height: 1.25; text-decoration: none; }
+.jump::after { content: "\2192"; position: absolute; right: 12px; top: 50%; transform: translateY(-50%); color: var(--gold); font-weight: 700; }
+.jump:hover, .jump:focus-visible { background: #13284a; border-color: var(--gold); color: #fff; }
+.jump-label { font-size: .98rem; }
+.jump-meta { color: var(--text-2); font-size: .85rem; font-weight: 600; }
+.jump-bf { min-height: 76px; background: #0f2747; border: 2px solid var(--gold); }
+.jump-bf .jump-label { font-size: clamp(1.2rem, 1rem + .9vw, 1.6rem); font-weight: 800; }
+.jump-bf .jump-meta { color: var(--gold); }
+.jump-num { color: var(--gold); font-size: 1.35em; line-height: 1; }
+#stores, #guides { scroll-margin-top: 12px; }
+@media (min-width: 900px) { .hero-grid { grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 40px; align-items: center; } }
