@@ -154,6 +154,12 @@ test('L211: Technology Gear World keeps phones, chargers and cameras; toner, spy
   out(c('USB Λάμπα LED με Hub 4 θέσεων', 'Gadgets > USB'), /lamp or light/);
   out(c('VenCore 6373-10006 - Αντάπτορας Μετατροπής Ντουί από GU10 σε E14', 'Τεχνολογια > Φωτισμός & Αξεσουάρ > Ηλεκτρολογικά'), /lamp or light/);
   ok(c('Ταινία Led RGB 5050 USB με τηλεχειριστήριο - 5 μέτρα', 'Gadgets > USB'), 'accessories-storage');
+  // The third dry run (18:40): the last three.
+  out(c('Επαναφορτιζόμενη LED Λάμπα USB Φορητή με Μαγνητική Βάση Herzberg HG-5049-WH Λευκή', 'Έξυπνα Προϊόντα'), /lamp or light/);
+  out(c('Γράμματα και σύμβολα για led πίνακα μηνυμάτων', 'Gadgets > Αξεσουάρ'), /not a technology/);
+  out(c('ΑΣΥΡΜΑΤΗ ΣΥΣΚΕΥΗ ΕΠΙΒΛΕΨΗΣ ΠΑΙΔΙΩΝ-ΗΛΙΚΙΩΜΕΝΩΝ GSM', 'Σπιτι - Γραφειο > Συστήματα Ασφαλείας > Συναγερμοί'), /spy or hidden/);
+  ok(c('Moes Έξυπνη WiFi Πρίζα Τοίχου με Γυάλινο Πάνελ', 'Τεχνολογια > Φωτισμός & Αξεσουάρ > Ηλεκτρολογικά'), 'smart-home-wifi');
+  ok(c('Ασύρματο baby monitor με lcd οθόνη 3,5 ιντσών και νυχτερινή όραση', 'Τεχνολογια > Επικοινωνία > Ενδοεπικοινωνία για Μωρά'), 'smart-home-wifi');
   ok(c('Motorola Edge 70 Fusion 8GB RAM 256GB 6.78" 5G', 'Αρχική > Smartphones'), 'phones-smartwatches');
   ok(c('Canon i-SENSYS MF664Cdw (Kopie, Scan, USB, LAN, WLAN, Duplex (Druck))', 'Αρχική > Drucker/Fax > Multifunktionsgerät'), 'laptops-computing');
   ok(c('Drone LF632 5G με 4K Κάμερα και Χειριστήριο', 'Τεχνολογια > Gadgets > Διάφορα Gadgets'), 'cameras-drones');

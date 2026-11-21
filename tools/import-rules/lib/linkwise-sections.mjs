@@ -75,8 +75,8 @@ const TGW = [
   [R('apple watch|smartwatch|λουρακι|λουρακια|watch bands?|watch straps?|galaxy watch|amazfit|\\bfitbit'), 'phones-smartwatches', 'Smartwatch straps & accessories'],
   [R('κινητ(ο|α) τηλεφων|smartphones?|\\biphone \\d+\\b(?!.*(θηκ|case|glass|μεμβραν))'), 'phones-smartwatches', 'Phones'],
   [R('power ?banks?|φορητ(η|εσ) (τραπεζ|μπαταρ)|τραπεζα ενεργει|φορτιστ|chargers?|καλωδι(ο|α)|cables?|αντάπτορ|αντ(α|ά)πτορ|adapters?|\\bhubs?\\b|docking|magsafe|wireless charg|ασυρματ(η|οσ) φορτισ'), 'accessories-storage', 'Chargers, cables & power banks'],
-  // Alarms and video door phones are home security, not a keyboard ("με πληκτρολόγιο") or a TV ("θυροτηλεόραση").
-  [R('συναγερμ|σειρην(α|εσ)|alarm (system|kit)s?|θυροτηλε|βιντεοκουδουν|video doorbell'), 'smart-home-wifi', 'Smart home & security'],
+  // Alarms, video door phones and baby monitors are home security, not a keyboard or a computer monitor ("με πληκτρολόγιο") or a TV ("θυροτηλεόραση").
+  [R('συναγερμ|σειρην(α|εσ)|alarm (system|kit)s?|θυροτηλε|βιντεοκουδουν|video doorbell|baby monitors?|ενδοεπικοινωνια μωρ'), 'smart-home-wifi', 'Smart home & security'],
   [R('\\bprinters?\\b|εκτυπωτ(ησ|εσ|η|ων)\\b|πολυμηχανημ|\\bscanners?\\b|drucker|multifunktionsgerat'), 'laptops-computing', 'Printers & scanners'],
   [R('laptop|ποντικ|\\bmouse\\b|πληκτρολογ|keyboards?|\\bssd\\b|σκληρ(οσ|οι) δισκ|usb stick|στικακι|memory card|καρτ(α|εσ) μνημησ|webcam|οθον(η|εσ) υπολογιστ|monitors?\\b'), 'laptops-computing', 'Computer accessories'],
   [R('gaming|gamepad|joystick|χειριστηρι(ο|α) (παιχνιδ|ps|xbox)|playstation|\\bps5\\b|nintendo|xbox'), 'gaming', 'Gaming accessories'],
@@ -90,7 +90,7 @@ const TGW = [
 // tools and woodworking "routers" (L14: «Routers & Trimmers», a palm router, a «φρέζα»), electrical installation and
 // heating cable, lamp bases and halogen bulbs, service and warranty packs, binoculars and telescopes, hearing aids,
 // antiseptic sprayers, door bars (L211, the VNP, DealsShop, Vour.gr and Stark Stores dry runs).
-const TGW_NOT = R('διακοσμητ|μαξιλαρ|κουπ(α|εσ)|ποτηρ|σερβιρισμ|μπρελοκ|καλτσ|t-?shirts?|μπλουζ|στάμπα|σταμπα|ρουχ|υποδησ|παπουτσ|ενδυση|αρωμα|perfume|eau de|γυαλια ηλιου|sunglasses|glasses|ρολο(ι|για)|watch (quartz|automatic)|quartz|κοσμημ|ειδη κουζιν|ειδη σπιτιου|οικιακ(οσ|ου|α|ων) εξοπλισμ|\\bμπανιο|κατοικιδ|επιτραπεζι(ο|α) παιχνιδ|κορνιζ|crossbody|γαντια|ανεμιστ\\S*( \\S+)? (usb|χειροσ|επιτραπεζ|οροφησ|δαπεδου|κολωνα|περιστρεφ)|επιτραπεζι(οσ|ο) ανεμιστ|ανεμιστηρακι|air cooler|μιξερ|πολυκοφτ|μπλεντερ|blender|κεφαλ(η|εσ) ντουσ|κατσαρολ|\\bσκευ(η|οσ)\\b|περιποιηση|ξυριστ|κουρευτ|μαλλιων|σεσουαρ|ισιωτικ|αντισηπτ|καθαρισμου προσωπου|βαρηκοι|ακοησ|hearing aid|δωρ(α|ο) για|χριστουγενν|παιχνιδ(ι|ια)(?! (ps|xbox|playstation))|ρακετ|θαλασσ|auto - moto|αυτοκινητ|μοτοσυκλετ|φακ(οσ|οι)\\b|φακοσ εκτακτ|routers & trimmers|palm router|φρεζ(α|εσ)\\b|πολυεργαλει|\\b(fein|einhell|ryobi|makita|dewalt|metabo|festool|hikoki|milwaukee)\\b|electrical wires|heating cables?|halogen|powerstar|\\bhqi\\b|care pack|service agreement|premium care|onsite (service|support)|next business day|extended warranty|επεκτασ(η|ησ) εγγυησ|κ(υ|ι)αλια|μονοκυαλ|τηλεσκοπ|μπαρ(α|εσ) ασφαλει');
+const TGW_NOT = R('διακοσμητ|μαξιλαρ|κουπ(α|εσ)|ποτηρ|σερβιρισμ|μπρελοκ|καλτσ|t-?shirts?|μπλουζ|στάμπα|σταμπα|ρουχ|υποδησ|παπουτσ|ενδυση|αρωμα|perfume|eau de|γυαλια ηλιου|sunglasses|glasses|ρολο(ι|για)|watch (quartz|automatic)|quartz|κοσμημ|ειδη κουζιν|ειδη σπιτιου|οικιακ(οσ|ου|α|ων) εξοπλισμ|\\bμπανιο|κατοικιδ|επιτραπεζι(ο|α) παιχνιδ|κορνιζ|crossbody|γαντια|ανεμιστ\\S*( \\S+)? (usb|χειροσ|επιτραπεζ|οροφησ|δαπεδου|κολωνα|περιστρεφ)|επιτραπεζι(οσ|ο) ανεμιστ|ανεμιστηρακι|air cooler|μιξερ|πολυκοφτ|μπλεντερ|blender|κεφαλ(η|εσ) ντουσ|κατσαρολ|\\bσκευ(η|οσ)\\b|περιποιηση|ξυριστ|κουρευτ|μαλλιων|σεσουαρ|ισιωτικ|αντισηπτ|καθαρισμου προσωπου|βαρηκοι|ακοησ|hearing aid|δωρ(α|ο) για|χριστουγενν|παιχνιδ(ι|ια)(?! (ps|xbox|playstation))|ρακετ|θαλασσ|auto - moto|αυτοκινητ|μοτοσυκλετ|φακ(οσ|οι)\\b|φακοσ εκτακτ|routers & trimmers|palm router|φρεζ(α|εσ)\\b|πολυεργαλει|\\b(fein|einhell|ryobi|makita|dewalt|metabo|festool|hikoki|milwaukee)\\b|electrical wires|heating cables?|halogen|powerstar|\\bhqi\\b|care pack|service agreement|premium care|onsite (service|support)|next business day|extended warranty|επεκτασ(η|ησ) εγγυησ|κ(υ|ι)αλια|μονοκυαλ|τηλεσκοπ|μπαρ(α|εσ) ασφαλει|πινακα μηνυματων');
 // Lamps and lights are not Technology Gear World, unless smart (WiFi, Zigbee): desk lamps, lanterns, party and star
 // lights, garlands, lamp-base adapters.
 const TGW_LIGHT = R('φωτιστικ|γιρλαντ|φαναρ(ι|ια)\\b|πορτατιφ|λαμπ(α|εσ)\\b|ντουι|bulb adaptor|φωσ διακοπτ|αστεριων');
@@ -102,7 +102,7 @@ const TGW_INKLESS = R('χωρισ (μελαν|toner)|without ink|no ink|inkless|
 // Covert recording and cheating are never on the sites (chat 3, 21 Nov 2026, L211): spy and hidden cameras, hidden or
 // voice-activated audio recorders, exam-cheating earpieces ("Smartcheater", "ψείρα"), fake cameras. The shop folder
 // «Συσκευές Παρακολούθησης» mixes them with real CCTV: there only an NVR/DVR kit, an IP, security or trail camera stays.
-const TGW_COVERT = R('\\bspy\\b|κρυφ(η|ο|α|εσ|οι|ων)\\b|κρυμμεν|hidden (camera|recorder)|smart ?cheater|cheat|ψειρ(α|εσ)\\b|\\bκοριο|μικροσκοπικ(ο|α) ακουστικ|καταγραφικ(ο|α) ηχου|voice recorder|ομοιωμα|ψευτικ(η|εσ|ο|α) καμερ|dummy|fake camera');
+const TGW_COVERT = R('\\bspy\\b|κρυφ(η|ο|α|εσ|οι|ων)\\b|κρυμμεν|hidden (camera|recorder)|smart ?cheater|cheat|ψειρ(α|εσ)\\b|\\bκοριο|μικροσκοπικ(ο|α) ακουστικ|καταγραφικ(ο|α) ηχου|voice recorder|ομοιωμα|ψευτικ(η|εσ|ο|α) καμερ|dummy|fake camera|συσκευ(η|εσ) επιβλεψ\\S* .*gsm|gsm (bug|listening)');
 const TGW_WATCH_PATH = R('συσκευ(η|εσ) παρακολουθ');
 const TGW_CCTV = R('\\bnvr\\b|\\bdvr\\b|cctv|καμερ(α|εσ) (ip|κυνηγιου|ασφαλει)|ip camera|security camera|\\bhc-\\d');
 // t: the most specific folder and the name; all: the whole shop path and the name. What a product IS can sit higher in
@@ -112,7 +112,9 @@ function tgw(t, all = t) {
   if (TGW_INK.test(all) && !TGW_INKLESS.test(all)) return no('printer toner or ink (consumables, not on Technology Gear World, L178)');
   const keep = R('apple watch|smartwatch|λουρακι');
   if ((TGW_NOT.test(t) && !keep.test(t)) || (TGW_NOT.test(all) && !keep.test(all))) return no('not a technology product (gift, home, fashion, beauty, tools or car item)');
-  if (TGW_LIGHT.test(all) && !TGW_SMART.test(all)) return no('a lamp or light, not a smart one (not on Technology Gear World)');
+  // Smart only by its own name: a shop folder called «Έξυπνα Προϊόντα» does not make a USB lamp smart (L211).
+  const name = t.split(' | ').pop();
+  if (TGW_LIGHT.test(all) && !TGW_SMART.test(name)) return no('a lamp or light, not a smart one (not on Technology Gear World)');
   for (const [re, slug, sub] of TGW) if (re.test(t)) return yes(slug, sub);
   return miss('not a technology product, or the shop category says nothing');
 }
