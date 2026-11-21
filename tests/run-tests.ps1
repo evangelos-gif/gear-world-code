@@ -481,6 +481,56 @@ if (Get-Command node -ErrorAction SilentlyContinue) {
     Write-Host '  (Node.js not installed: import plan tests skipped)' -ForegroundColor Yellow
 }
 
+# 4b. gw-run.ps1 without codeload.github.com (lessons L212): the version is built from an older copy in the temporary
+# folder plus the files the compare API lists, each checked by its git blob SHA-1; a wrong SHA-1 builds nothing.
+Write-Host 'gw-run.ps1 without codeload'
+function Get-TestBlobSha([byte[]]$Bytes) {
+    $head = [System.Text.Encoding]::ASCII.GetBytes('blob ' + $Bytes.Length + [char]0)
+    $all = New-Object byte[] ($head.Length + $Bytes.Length)
+    [Array]::Copy($head, $all, $head.Length)
+    [Array]::Copy($Bytes, 0, $all, $head.Length, $Bytes.Length)
+    $sha = [System.Security.Cryptography.SHA1]::Create()
+    return (-join ($sha.ComputeHash($all) | ForEach-Object { $_.ToString('x2') }))
+}
+$gwRun = Join-Path (Join-Path $repo 'tools') 'gw-run.ps1'
+$grTemp = Join-Path $work 'gwrun-temp'
+$grApi = Join-Path $work 'gwrun-api'
+$grRaw = Join-Path $work 'gwrun-raw'
+$grOld = ('1' * 40)
+$grNew = ('2' * 40)
+$grBad = ('3' * 40)
+$grOldCache = Join-Path $grTemp ('gear-world-code-' + $grOld.Substring(0, 12))
+$grOldRoot = Join-Path $grOldCache ('gear-world-code-' + $grOld)
+Write-Utf8 (Join-Path (Join-Path $grOldRoot 'tools') 'gw-hello.ps1') "Write-Output 'old version'"
+Write-Utf8 (Join-Path (Join-Path $grOldRoot 'tools') 'gone.txt') 'removed in the new version'
+Write-Utf8 (Join-Path (Join-Path $grOldRoot 'docs') 'same.txt') 'unchanged'
+Set-Content -LiteralPath (Join-Path $grOldCache 'download-complete.txt') -Value $grOld -Encoding ASCII
+$grText = "Write-Output ('new version ' + (`$args -join ','))"
+Write-Utf8 (Join-Path (Join-Path $grRaw 'tools') 'gw-hello.ps1') $grText
+$grSha = Get-TestBlobSha ([System.IO.File]::ReadAllBytes((Join-Path (Join-Path $grRaw 'tools') 'gw-hello.ps1')))
+$grFiles = '[{"filename":"tools/gw-hello.ps1","status":"modified","sha":"' + $grSha + '"},{"filename":"tools/gone.txt","status":"removed","sha":"' + ('0' * 40) + '"}]'
+Write-Utf8 (Join-Path $grApi ($grOld + '...' + $grNew + '.json')) ('{"status":"ahead","files":' + $grFiles + '}')
+Write-Utf8 (Join-Path $grApi ($grOld + '...' + $grBad + '.json')) ('{"status":"ahead","files":' + ($grFiles -replace $grSha, ('4' * 40)) + '}')
+$env:GW_RUN_TEST_TEMP = $grTemp
+$env:GW_RUN_TEST_CODELOAD = 'fail'
+$env:GW_RUN_TEST_API = $grApi
+$env:GW_RUN_TEST_RAW = $grRaw
+$grOut = (@(& $exe -NoProfile -ExecutionPolicy Bypass -File $gwRun -Ref $grNew -Tool gw-hello 'x' 'y' -Chat 'Test Chat') | ForEach-Object { "$_" }) -join "`n"
+$grCode = $LASTEXITCODE
+$grNewRoot = Join-Path (Join-Path $grTemp ('gear-world-code-' + $grNew.Substring(0, 12))) ('gear-world-code-' + $grNew)
+Check ($grCode -eq 0) 'gw-run without codeload: exit code 0'
+Check ($grOut.Contains('new version x,y')) 'gw-run without codeload: runs the new version with its arguments'
+Check ($grOut.Contains('Test Chat')) 'gw-run without codeload: still names the chat'
+Check (-not (Test-Path -LiteralPath (Join-Path (Join-Path $grNewRoot 'tools') 'gone.txt'))) 'gw-run without codeload: a removed file is gone'
+Check (Test-Path -LiteralPath (Join-Path (Join-Path $grNewRoot 'docs') 'same.txt')) 'gw-run without codeload: unchanged files come from the older copy'
+Check (Test-Path -LiteralPath (Join-Path (Join-Path $grTemp ('gear-world-code-' + $grNew.Substring(0, 12))) 'download-complete.txt')) 'gw-run without codeload: the new version is marked complete'
+Check ((Get-Content -LiteralPath (Join-Path (Join-Path $grOldRoot 'tools') 'gw-hello.ps1') -Raw).Contains('old version')) 'gw-run without codeload: the older copy is unchanged'
+$grOut2 = (@(& $exe -NoProfile -ExecutionPolicy Bypass -File $gwRun -Ref $grBad -Tool gw-hello) | ForEach-Object { "$_" }) -join "`n"
+Check ($LASTEXITCODE -eq 3) 'gw-run without codeload: a file with a wrong SHA-1 stops it (exit 3)'
+Check (-not (Test-Path -LiteralPath (Join-Path (Join-Path $grTemp ('gear-world-code-' + $grBad.Substring(0, 12))) 'download-complete.txt'))) 'gw-run without codeload: nothing marked complete after a wrong SHA-1'
+Check (-not $grOut2.Contains('new version')) 'gw-run without codeload: the tool does not run after a wrong SHA-1'
+Remove-Item Env:\GW_RUN_TEST_TEMP, Env:\GW_RUN_TEST_CODELOAD, Env:\GW_RUN_TEST_API, Env:\GW_RUN_TEST_RAW -ErrorAction SilentlyContinue
+
 # 5. tgw-cloudflare.ps1 with a fake wrangler (Windows only: runs .cmd files)
 if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
     Write-Host 'tgw-cloudflare.ps1 (fake wrangler)'

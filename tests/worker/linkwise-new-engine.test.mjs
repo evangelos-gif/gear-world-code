@@ -156,6 +156,10 @@ test('L211: Technology Gear World keeps phones, chargers and cameras; toner, spy
   ok(c('Ταινία Led RGB 5050 USB με τηλεχειριστήριο - 5 μέτρα', 'Gadgets > USB'), 'accessories-storage');
   // The third dry run (18:40): the last three.
   out(c('Κάμερα IP με ενσωματωμένη πρίζα 4K', W), /spy or hidden/);
+  // A glue trap for mice is not a computer mouse (the 19:26 dry run); a magnetic door trap of an alarm kit stays security.
+  out(c('ΠΑΓΙΔΑ ΚΟΛΛΑΣ ΓΙΑ ΠΟΝΤΙΚΙΑ ΟΙΚΟΛΟΓΙΚΗ - ΣΕΤ 2 ΤΕΜΑΧΙΩΝ', 'Σπιτι - Γραφειο > Διάφορα Είδη > Απωθητικά Εντόμων-Τρωκτικών'), /not a technology/);
+  ok(c('Ασύρματο Wi Fi κιτ συναγερμού κάμερα IP με σειρήνα - Ραντάρ - μαγνητική παγίδα', W), 'smart-home-wifi');
+  ok(c('Gaming Mouse - Ποντίκι Gaming τύπου Razer', 'Τεχνολογια > Ηλ.Υπολογιστές > Διάφορα αξεσουάρ laptop'), 'laptops-computing');
   out(c('Mini καταγραφικό dvr επαναφορτιζόμενο με δυνατότητα συνεχούς καταγραφής - Web Camera για Η/Υ', W), /spy or hidden/);
   out(c('S-Talk S6 Κρυφή Κάμερα σε Φορτιστή Πρίζας WiFi 1080P', 'Σπιτι - Γραφειο > Συστήματα Ασφαλείας > Κάμερες'), /spy or hidden/);
   out(c('JNN Q71 Κρυφό Καταγραφικό Ήχου Μεγάλης Διάρκειας', 'Τεχνολογια > Gadgets'), /spy or hidden/);
