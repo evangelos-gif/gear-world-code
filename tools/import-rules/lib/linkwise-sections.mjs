@@ -100,15 +100,17 @@ const TGW_SMART = R('εξυπν|smart|wi-?fi|zigbee|tuya|alexa|homekit');
 const TGW_INK = R('toner|μελαν(ι|ια|ιων|οταινι)|μελανοδοχ|(ink|toner|printer|εκτυπωτ\\S*) cartridges?|cartridges? (εκτυπωτ|μελαν|toner|ink)|drum unit|printheads?|consumables for|printing accessories');
 const TGW_INKLESS = R('χωρισ (μελαν|toner)|without ink|no ink|inkless|zero ink');
 // Covert recording and cheating are never on the sites (chat 3, 21 Nov 2026, L211): spy and hidden cameras, hidden or
-// voice-activated audio recorders, exam-cheating earpieces ("Smartcheater", "ψείρα"), fake cameras. The shop folder
+// voice-activated audio recorders, cameras inside a plug or charger, exam-cheating earpieces ("Smartcheater", "ψείρα"), fake cameras. The shop folder
 // «Συσκευές Παρακολούθησης» mixes them with real CCTV: there only an NVR/DVR kit, an IP, security or trail camera stays.
-const TGW_COVERT = R('\\bspy\\b|κρυφ(η|ο|α|εσ|οι|ων)\\b|κρυμμεν|hidden (camera|recorder)|smart ?cheater|cheat|ψειρ(α|εσ)\\b|\\bκοριο|μικροσκοπικ(ο|α) ακουστικ|καταγραφικ(ο|α) ηχου|voice recorder|ομοιωμα|ψευτικ(η|εσ|ο|α) καμερ|dummy|fake camera|συσκευ(η|εσ) επιβλεψ\\S* .*gsm|gsm (bug|listening)');
+const TGW_COVERT = R('\\bspy\\b|κρυφ(η|ο|α|εσ|οι|ων) (spy )?(καμερ|καταγραφ|μικροφων|ακουστικ|συσκευ)|καμερ.{0,20}(ενσωματωμεν\\S* πριζ|σε (πριζ|φορτιστ|στυλο|ρολο))|κρυμμεν|hidden (camera|recorder)|smart ?cheater|cheat|ψειρ(α|εσ)\\b|\\bκοριο|μικροσκοπικ(ο|α) ακουστικ|καταγραφικ(ο|α) ηχου|voice recorder|(mini|μινι) καταγραφικ|ομοιωμα|ψευτικ(η|εσ|ο|α) καμερ|dummy|fake camera|συσκευ(η|εσ) επιβλεψ\\S* .*gsm|gsm (bug|listening)');
 const TGW_WATCH_PATH = R('συσκευ(η|εσ) παρακολουθ');
 const TGW_CCTV = R('\\bnvr\\b|\\bdvr\\b|cctv|καμερ(α|εσ) (ip|κυνηγιου|ασφαλει)|ip camera|security camera|\\bhc-\\d');
 // t: the most specific folder and the name; all: the whole shop path and the name. What a product IS can sit higher in
 // the path ("Διακοσμητικά > Πίνακες", "Οικιακός Εξοπλισμός > Μπάνιο"), so the never-lists read the whole path too (L211).
 function tgw(t, all = t) {
-  if (TGW_COVERT.test(all) || (TGW_WATCH_PATH.test(all) && !TGW_CCTV.test(t))) return no('spy or hidden camera, hidden recorder or cheating earpiece (never on the sites)');
+  // "Anti Spy" privacy screen glass protects from prying eyes: it is not spy gear (Unique Shop, D1 check 21/11 19:05).
+  const covert = all.replace(/anti[- ]?spy/g, 'anti');
+  if (TGW_COVERT.test(covert) || (TGW_WATCH_PATH.test(all) && !TGW_CCTV.test(t))) return no('spy or hidden camera, hidden recorder or cheating earpiece (never on the sites)');
   if (TGW_INK.test(all) && !TGW_INKLESS.test(all)) return no('printer toner or ink (consumables, not on Technology Gear World, L178)');
   const keep = R('apple watch|smartwatch|λουρακι');
   if ((TGW_NOT.test(t) && !keep.test(t)) || (TGW_NOT.test(all) && !keep.test(all))) return no('not a technology product (gift, home, fashion, beauty, tools or car item)');

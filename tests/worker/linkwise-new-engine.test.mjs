@@ -155,6 +155,13 @@ test('L211: Technology Gear World keeps phones, chargers and cameras; toner, spy
   out(c('VenCore 6373-10006 - Αντάπτορας Μετατροπής Ντουί από GU10 σε E14', 'Τεχνολογια > Φωτισμός & Αξεσουάρ > Ηλεκτρολογικά'), /lamp or light/);
   ok(c('Ταινία Led RGB 5050 USB με τηλεχειριστήριο - 5 μέτρα', 'Gadgets > USB'), 'accessories-storage');
   // The third dry run (18:40): the last three.
+  out(c('Κάμερα IP με ενσωματωμένη πρίζα 4K', W), /spy or hidden/);
+  out(c('Mini καταγραφικό dvr επαναφορτιζόμενο με δυνατότητα συνεχούς καταγραφής - Web Camera για Η/Υ', W), /spy or hidden/);
+  out(c('S-Talk S6 Κρυφή Κάμερα σε Φορτιστή Πρίζας WiFi 1080P', 'Σπιτι - Γραφειο > Συστήματα Ασφαλείας > Κάμερες'), /spy or hidden/);
+  out(c('JNN Q71 Κρυφό Καταγραφικό Ήχου Μεγάλης Διάρκειας', 'Τεχνολογια > Gadgets'), /spy or hidden/);
+  // ... but a privacy screen glass ("Anti Spy") and a walkie-talkie earpiece with a hidden jack are fine (D1, 19:05).
+  ok(c('Hofi Anti Spy Pro+ Tempered Glass Privacy - Full Face Αντιχαρακτικό Γυαλί Προστασίας - Apple iPhone 15', 'Tempered Glass & Μεμβράνες > Tempered Glass Κινητών > Tempered Glass Apple > Tempered Glass iPhone 15'), 'phones-smartwatches');
+  ok(c('Μικρόφωνο Ακουστικό Retevis EAY001 G-Hook Earpiece Μονό με Κρυφό Βύσμα 3.5mm Jack', 'Αξεσουάρ Κινητών & Smartwatches > Handsfree Ακουστικά'), 'audio');
   out(c('Επαναφορτιζόμενη LED Λάμπα USB Φορητή με Μαγνητική Βάση Herzberg HG-5049-WH Λευκή', 'Έξυπνα Προϊόντα'), /lamp or light/);
   out(c('Γράμματα και σύμβολα για led πίνακα μηνυμάτων', 'Gadgets > Αξεσουάρ'), /not a technology/);
   out(c('ΑΣΥΡΜΑΤΗ ΣΥΣΚΕΥΗ ΕΠΙΒΛΕΨΗΣ ΠΑΙΔΙΩΝ-ΗΛΙΚΙΩΜΕΝΩΝ GSM', 'Σπιτι - Γραφειο > Συστήματα Ασφαλείας > Συναγερμοί'), /spy or hidden/);
