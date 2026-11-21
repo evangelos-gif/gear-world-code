@@ -352,7 +352,15 @@ export async function fetchAll({ shape, cid, pid, advertiser, token, api, fetchI
   return { ok: true, products: products(), total, capped, bands, split: 'price' };
 }
 
-export async function writeFeed(file, products, columns = CJ_COLUMNS) {
+// The columns of a CJ file: the 4 photo columns only when the query asked CJ for additionalImageLink (lessons L206: every
+// product then has the key, even when it is empty). The fallback query (FALLBACK_PRODUCT) and an API without that field do
+// not ask for it: such a file has no photo columns, so an import from it leaves the products' extra photos as they are
+// (empty columns would say "no extra photos now" and clear them).
+export function feedColumns(products) {
+  return (products || []).some(p => p && Object.prototype.hasOwnProperty.call(p, 'additionalImageLink')) ? CJ_COLUMNS : COLUMNS;
+}
+
+export async function writeFeed(file, products, columns = feedColumns(products)) {
   await new Promise((resolve, reject) => {
     const gz = createGzip();
     const ws = createWriteStream(file);
@@ -490,7 +498,7 @@ async function searchOne({ A, SR, S, shape, pid, adv, token, api, fetchImpl, pau
   if (!rows.length) { A.error = 'no products'; return; }
   mkdirSync(out, { recursive: true });
   A.file = join(out, `CJ_${adv}_${S.search}.csv.gz.part`);
-  await writeFeed(A.file, products, CJ_COLUMNS.concat(SEARCH_COLUMNS));
+  await writeFeed(A.file, products, feedColumns(products).concat(SEARCH_COLUMNS));
   A.ok = true;
 }
 

@@ -217,7 +217,8 @@ const COLUMNS = {
   displayPrice: ['display_price'],
   inStock: ['in_stock', 'is_for_sale', 'stock_status', 'stock_quantity'],
   stockQuantity: ['stock_quantity'],
-  images: ['large_image', 'merchant_image_url', 'alternate_image', 'aw_image_url', 'merchant_thumb_url'],
+  // The main photo's columns. Awin's alternate_image ... _four are extra photos only, never the main one (lessons L206).
+  images: ['large_image', 'merchant_image_url', 'aw_image_url', 'merchant_thumb_url'],
   link: ['aw_deep_link'],
   merchantProductId: ['merchant_product_id', 'aw_product_id'],
   // "joinVariants" (AliExpress PL, L157): every colour and size is a row with its own merchant_product_id; the card is the
@@ -302,23 +303,33 @@ export const PLACEHOLDER_IMAGE = /placeholder|coming[-_ ]?soon|no[-_ ]?image|ima
 // same file over https (Miscota UK on Daisycon: every image is http://static.miscota.com/..., and the same path over https
 // answered 200 with the image, checked in a browser). Only the hosts named there are rewritten; any other http:// image
 // stays out ("no https image"), as before.
-// The extra photos of a row (lessons L206): the rest of a comma list in the main picture's value, then Awin's
-// alternate_image ... alternate_image_four (map.alternates), real full-size pictures only (src/lib/photos.js), never the
-// main one again, at most 4. An http:// photo counts only on a host of source.httpsImageHosts, as for the main one.
-export function rowExtraImages(rec, map, image, source = null) {
+// An http:// address on a host of source.httpsImageHosts, as https (each address of a comma list).
+const httpsFor = source => {
   const hosts = (source && Array.isArray(source.httpsImageHosts) ? source.httpsImageHosts : []).map(h => String(h).toLowerCase());
-  const https = v => { const s = String(v || '').trim(); const m = /^http:\/\/([^/\s"'<>]+)\//i.exec(s); return m && hosts.includes(m[1].toLowerCase()) ? 'https://' + s.slice(7) : s; };
-  return extraImages(image, [image, ...(map.alternates || []).map(i => https(rec[i]))]);
+  const one = v => { const m = /^http:\/\/([^/\s"'<>]+)\//i.exec(v); return m && hosts.includes(m[1].toLowerCase()) ? 'https://' + v.slice(7) : v; };
+  return v => String(v || '').trim().split(/,(?=\s*https?:\/\/)/).map(x => one(x.trim())).join(',');
+};
+// The main photo and the whole value it came from. A value that holds several photos joined by commas (House of Sneakers,
+// lessons L117) gives its first one as the main photo (before L206 the whole list became one broken address, or, with a
+// space after the commas, the column was passed over); the rest stays for the gallery (rowExtraImages).
+export function mainImageOf(rec, map, source = null) {
+  const https = httpsFor(source);
+  for (const i of map.images) {
+    const raw = https(rec[i]);
+    const v = raw.split(/,(?=\s*https?:\/\/)/)[0].trim();
+    if (/^https:\/\/[^\s"'<>]+$/i.test(v) && !PLACEHOLDER_IMAGE.test(v)) return { image: v, raw };
+  }
+  return { image: '', raw: '' };
 }
 export function firstHttpsImage(rec, map, source = null) {
-  const hosts = (source && Array.isArray(source.httpsImageHosts) ? source.httpsImageHosts : []).map(h => String(h).toLowerCase());
-  for (const i of map.images) {
-    let v = String(rec[i] || '').trim();
-    const http = /^http:\/\/([^/\s"'<>]+)\//i.exec(v);
-    if (http && hosts.includes(http[1].toLowerCase())) v = 'https://' + v.slice(7);
-    if (/^https:\/\/[^\s"'<>]+$/i.test(v) && !PLACEHOLDER_IMAGE.test(v)) return v;
-  }
-  return '';
+  return mainImageOf(rec, map, source).image;
+}
+// The extra photos of a row (lessons L206): the rest of the main photo's comma list (raw, from mainImageOf), then Awin's
+// alternate_image ... alternate_image_four (map.alternates), real full-size pictures only (src/lib/photos.js), never the
+// main one again, at most 4. An http:// photo counts only on a host of source.httpsImageHosts, as for the main one.
+export function rowExtraImages(rec, map, image, source = null, raw = image) {
+  const https = httpsFor(source);
+  return extraImages(image, [https(raw), ...(map.alternates || []).map(i => https(rec[i]))]);
 }
 
 // "tyreNames" (massive import round 2c, 14 Nov 2026, lessons L144): the tyre shops of the Pneus.be network (Neumaticos ES,
@@ -871,7 +882,9 @@ export async function planImport({ archive, sourcesFile, outDir, now = new Date(
           reject(byQuantity ? `out of stock: quantity 0, although the feed says in stock (${source.retailer})` : 'out of stock', short);
           continue;
         }
-        const image = firstHttpsImage(rec, map, source);
+        const { image, raw: imageRaw } = mainImageOf(rec, map, source);
+        // A photo only in the extra photo columns is never the main one (lessons L206): counted for the report.
+        if (!image && rowExtraImages(rec, map, '', source, '').length) stats.altOnlyImage = (stats.altOnlyImage || 0) + 1;
         if (QUALITY.requireImage && !image) { reject('no https image', short); continue; }
         const link = pick(rec, map.link);
         let host = '';
@@ -925,7 +938,7 @@ export async function planImport({ archive, sourcesFile, outDir, now = new Date(
           image_url: image,
           // Up to 4 extra photos (lessons L206), written only when the database has the column (images) and the file has the
           // photo columns (photosKnown).
-          images: encodeImages(rowExtraImages(rec, map, image, source)),
+          images: encodeImages(rowExtraImages(rec, map, image, source, imageRaw)),
           photosKnown,
           affiliate_url: link,
           merchant_category: truncate(merchantCategory || awinCategory, 200) || null,
@@ -1059,6 +1072,7 @@ export async function planImport({ archive, sourcesFile, outDir, now = new Date(
   L.push(`valid GTIN: ${stats.gtinValid} (${pct(stats.gtinValid, stats.accepted)}) | with a was-price: ${stats.withWas}`);
   L.push(`extra photos (L206): ${stats.withPhotos || 0} products have 1-4 more photos in the feed; ${images ? 'the SQL writes them (column images)' : 'the SQL does not write them (the database has no images column yet)'}`
     + (images && stats.photosUnknown ? `; ${stats.photosUnknown} come from a feed without the photo columns: their photos on the site stay as they are` : ''));
+  if (stats.altOnlyImage) L.push(`extra photos (L206): ${stats.altOnlyImage} rows have a photo only in the extra photo columns (alternate_image ...); it is never taken as the main photo (rejected as "no https image" where a photo is required)`);
   L.push('');
   L.push('== Per shop ==');
   for (const [r, v] of Object.entries(stats.perRetailer)) {

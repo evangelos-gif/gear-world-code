@@ -101,7 +101,9 @@ function remindBox(site, product) {
 // or moved with the arrows and the dots (the site script, assets/site.js setupGallery; no library). The main photo loads
 // as before; the others carry only data-src and a 1x1 transparent image (loading="lazy"), so nothing of them is fetched
 // until the visitor swipes, clicks or moves the focus into the gallery. A photo that does not load is taken out. Without
-// the script only the main photo shows. Cards, lists, the Hub and the emails keep their one photo.
+// the script only the main photo shows. Cards, lists, the Hub and the emails keep their one photo. The alt text of an extra
+// photo ("<name> – Photo 2 of 4") uses the dictionary text "Photo {0} of {1}": the site script writes it in the visitor's
+// language (L24; the product name stays as it is).
 // Only the retailer's own photos from its feed, never AI-made ones, and no 360-degree spin: a real 360-degree or 3D viewer
 // may be added only if a retailer's feed supplies one.
 const BLANK = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
@@ -116,7 +118,7 @@ function photoGallery(product, extras) {
       <div class="gallery-track" data-gallery-track>
         ${all.map((src, i) => html`<div class="gallery-slide" id="photo-${i + 1}">${i === 0
     ? html`<img src="${src}" alt="${name}" width="560" height="560" decoding="async" referrerpolicy="no-referrer">`
-    : html`<img src="${BLANK}" data-src="${src}" alt="${name} – photo ${i + 1} of ${n}" width="560" height="560" loading="lazy" decoding="async" referrerpolicy="no-referrer">`}</div>`)}
+    : html`<img src="${BLANK}" data-src="${src}" alt="${name} – Photo ${i + 1} of ${n}" width="560" height="560" loading="lazy" decoding="async" referrerpolicy="no-referrer">`}</div>`)}
       </div>
       <button type="button" class="gallery-arrow gallery-prev" data-gallery-prev aria-label="Previous photo" hidden>${icon('chevron', 'icon gallery-chevron')}</button>
       <button type="button" class="gallery-arrow gallery-next" data-gallery-next aria-label="Next photo" hidden>${icon('chevron', 'icon gallery-chevron')}</button>

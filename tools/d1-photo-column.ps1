@@ -22,10 +22,10 @@
   -Verify         READ-ONLY. Exit 0 only when every database has the column, otherwise 9.
   -Only mgw,wgw   only these sites (codes, comma separated).
   Going back (printed in the report and next to the backup): nothing has to go back, the column is harmless and the pages
-              work without its data (the imports simply fill it). If it must go: the whole database back to the restore
-              point (d1 time-travel restore, which also undoes every later import), or ALTER TABLE products DROP COLUMN
-              images, which rewrites every row of the table (D1 writes about as many rows as the table has: Workers Paid
-              only). The sites' code then reads the old way by itself.
+              work without its data (the imports simply fill it). If it must go, the way back is the restore point:
+              d1 time-travel restore (the whole database as it was, which also undoes every later import). Never DROP
+              COLUMN: it rewrites every row of the table, and on the big databases (HGW, WGW) it can run past D1's time
+              limits. The sites' code then reads the old way by itself.
 
   Files on this PC: <home>\gear-world-d1-photos\ (deploy\<version> with wrangler, backups\)
   Report: <home>\gear-world-reports\D1_PHOTO_COLUMN_<CHECK|APPLY|VERIFY>_<time>.txt (also copied to the clipboard)
@@ -185,6 +185,7 @@ $ColumnsSql = "SELECT name FROM pragma_table_info('products')"
 function Get-RollbackLines($items) {
     $lines = @(
         'Επαναφορά (αν χρειαστεί): συνήθως τίποτα. Η στήλη δεν πειράζει τίποτα και τα sites δουλεύουν και χωρίς τα δεδομένα της.',
+        '  Αν πρέπει να φύγει, η επαναφορά είναι το σημείο επαναφοράς (Time Travel) παρακάτω.',
         '  Τα sites τη βρίσκουν μόνα τους (κάθε 10 λεπτά): χωρίς αυτή διαβάζουν ακριβώς όπως πριν, χωρίς ανέβασμα κώδικα.',
         '  Αν πρέπει να φύγει, ΜΟΝΟ με έγκριση, από τον φάκελο:',
         ('     cd "{0}"' -f $dest),
@@ -195,8 +196,8 @@ function Get-RollbackLines($items) {
         if ($t.bookmark) { $bm = $t.bookmark }
         $lines += ('     npx wrangler d1 time-travel restore {0} --bookmark={1}' -f $t.site.db, $bm)
     }
-    $lines += '  B) μόνο η στήλη (ξαναγράφει κάθε γραμμή του πίνακα: τόσες εγγραφές D1 όσα τα προϊόντα, μόνο με Workers Paid):'
-    foreach ($t in $items) { $lines += ('     npx wrangler d1 execute {0} --remote --command "ALTER TABLE products DROP COLUMN images"' -f $t.site.db) }
+    $lines += '  Η επαναφορά της στήλης είναι το A (Time Travel). ΟΧΙ DROP COLUMN: ξαναγράφει κάθε γραμμή του πίνακα και στις'
+    $lines += '  μεγάλες βάσεις (HGW, WGW) μπορεί να ξεπεράσει τα χρονικά όρια της D1.'
     return $lines
 }
 

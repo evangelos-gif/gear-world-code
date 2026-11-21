@@ -7,7 +7,7 @@ import { mkdtempSync, readFileSync, readdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { gunzipSync } from 'node:zlib';
-import { run, productQuery, SEARCHES, SEARCH_COLUMNS, SEARCH_MAX, WHOLE_MAX, CJ_COLUMNS } from '../../tools/cj-feed.mjs';
+import { run, productQuery, SEARCHES, SEARCH_COLUMNS, SEARCH_MAX, WHOLE_MAX, COLUMNS } from '../../tools/cj-feed.mjs';
 
 const TOKEN = 'cjTestToken_' + 'search987654';
 const API = 'http://127.0.0.1:9/query';
@@ -132,8 +132,7 @@ test('L161: the download keeps only pound products of the keywords, each once, i
   assert.equal(A.ok, true, A.error);
   assert.equal(readdirSync(out).join(), 'CJ_3992613_kids-winter-boots.csv.gz.part');
   const text = gunzipSync(readFileSync(join(out, 'CJ_3992613_kids-winter-boots.csv.gz.part'))).toString('utf8').trim().split('\n');
-  // The Awin columns, the extra photo columns (lessons L206), then the search columns.
-  assert.equal(text[0], CJ_COLUMNS.concat(SEARCH_COLUMNS).map(c => `"${c}"`).join(','));
+  assert.equal(text[0], COLUMNS.concat(SEARCH_COLUMNS).map(c => `"${c}"`).join(','));
   const ids = text.slice(1).map(l => l.split('","')[3]);
   assert.deepEqual(ids.sort(), ['400000001', '400000002', '400000004', '400000005', '400000007'], 'no dollars, no bongs, no product twice');
   assert.equal(A.got, 5);

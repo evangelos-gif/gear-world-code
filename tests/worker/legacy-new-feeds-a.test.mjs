@@ -270,8 +270,10 @@ test('realImage: never the Awin placeholder; the Awin resize proxy becomes the f
   assert.equal(realImage('https://cdn.shopify.com/s/files/1/a.jpg'), 'https://cdn.shopify.com/s/files/1/a.jpg');
   assert.equal(realImage('http://cdn.shopify.com/a.jpg'), '');
   assert.equal(realImage(''), '');
-  const row = { merchant_image_url: '', large_image: '', alternate_image: 'https://cdn.shopify.com/b.jpg', aw_image_url: 'https://images2.productserve.com/noimage.gif' };
+  const row = { merchant_image_url: '', large_image: '', merchant_thumb_url: 'https://cdn.shopify.com/b.jpg', aw_image_url: 'https://images2.productserve.com/noimage.gif' };
   assert.equal(pickImage(c => row[c] || ''), 'https://cdn.shopify.com/b.jpg');
+  // Lessons L206: an extra photo column (alternate_image ...) is never the main photo.
+  assert.equal(pickImage(c => ({ alternate_image: 'https://cdn.shopify.com/c.jpg' })[c] || ''), '');
   assert.equal(pickImage(c => (c === 'aw_image_url' ? 'https://images2.productserve.com/noimage.gif' : '')), '');
 });
 

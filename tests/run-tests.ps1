@@ -5877,7 +5877,7 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         $c = PCCalls
         Check (-not ($c -match '--file|time-travel') -and (@([regex]::Matches($c, 'pragma_table_info')).Count -eq 13) -and ($c -match 'car-gear-world --remote --json --command "SELECT name FROM pragma_table_info') -and ($c -match 'construction-gear-customers') -and ($c -match 'garden-gear-world')) 'photo column check: only the column list of each of the 13 databases is read'
         $r = PCLast 'D1_PHOTO_COLUMN_CHECK_*.txt'
-        Check ($r.Contains('ΕΓΚΡΙΝΩ ΣΤΗΛΗ ΦΩΤΟΓΡΑΦΙΩΝ') -and $r.Contains($pcStatement) -and $r.Contains('npx wrangler d1 execute home-gear-world --remote --command "ALTER TABLE products DROP COLUMN images"') -and $r.Contains('d1 time-travel restore car-gear-world') -and $r.Contains('η σειρά με το ALL UPDATES δεν έχει σημασία')) 'photo column check: the statement, the phrase and the ways back in the report'
+        Check ($r.Contains('ΕΓΚΡΙΝΩ ΣΤΗΛΗ ΦΩΤΟΓΡΑΦΙΩΝ') -and $r.Contains($pcStatement) -and $r.Contains('d1 time-travel restore home-gear-world --bookmark=') -and -not $r.Contains('--command "ALTER TABLE products DROP COLUMN') -and $r.Contains('ΟΧΙ DROP COLUMN') -and $r.Contains('d1 time-travel restore car-gear-world') -and $r.Contains('η σειρά με το ALL UPDATES δεν έχει σημασία')) 'photo column check: the statement, the phrase and the ways back in the report'
         Remove-Item -LiteralPath $pcCalls -Force -ErrorAction SilentlyContinue
         Check ((Run-PC @('-Verify')) -eq 9 -and -not ((PCCalls) -match '--file|time-travel')) 'photo column -Verify without the column: exit 9, only reads'
         Check ((Run-PC @('-Verify', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ ΣΤΗΛΗ ΦΩΤΟΓΡΑΦΙΩΝ')) -eq 2 -and -not ((PCCalls) -match '--file')) 'photo column -Verify never goes with -Apply'
@@ -5905,7 +5905,7 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         $sent = @(PCBackup 'mgw-add-photo-column-*.sql')
         Check ($sent.Count -eq 1 -and ([System.IO.File]::ReadAllText($sent[0].FullName)).Trim() -eq $pcStatement) 'photo column apply: exactly the one ALTER statement is sent'
         $rb = @(PCBackup 'mgw-rollback-photo-column-*.txt')
-        Check ($rb.Count -eq 1 -and ([System.IO.File]::ReadAllText($rb[0].FullName)).Contains('--bookmark=' + $pcBookmark) -and ([System.IO.File]::ReadAllText($rb[0].FullName)).Contains('DROP COLUMN images')) 'photo column apply: the restore point and the ways back written next to the backup'
+        Check ($rb.Count -eq 1 -and ([System.IO.File]::ReadAllText($rb[0].FullName)).Contains('--bookmark=' + $pcBookmark) -and ([System.IO.File]::ReadAllText($rb[0].FullName)).Contains('ΟΧΙ DROP COLUMN') -and -not ([System.IO.File]::ReadAllText($rb[0].FullName)).Contains('--command')) 'photo column apply: the restore point (Time Travel, the only way back) written next to the backup'
         Check ((PCBackup 'mgw-sqlite_master-before-photo-column-*.json').Count -eq 1) 'photo column apply: the schema saved to a dated file'
         Check ((PCLast 'D1_PHOTO_COLUMN_APPLY_*.txt').Contains('ΕΤΟΙΜΟ')) 'photo column apply: report ready'
         Remove-Item -LiteralPath $pcCalls -Force -ErrorAction SilentlyContinue

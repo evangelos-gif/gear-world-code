@@ -888,6 +888,10 @@
   // the visitor swipes, clicks or moves the focus into the gallery. Swiping is the browser's own (CSS scroll-snap); the
   // arrows and the dots move the track. A photo that does not load is taken out and the others are numbered again; with one
   // photo left, the arrows and dots go. Only the retailer's own photos: no 360-degree spin, no AI pictures.
+  // The texts of the galleries written again in the visitor's language once the dictionary is there (the alt texts are
+  // not translated by translateTree, which leaves every other alt, the product names, as it is).
+  var galleryLabels = [];
+  function relabelGalleries() { galleryLabels.forEach(function (f) { f(); }); }
   function setupGallery() {
     var reduced = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
     Array.prototype.forEach.call(document.querySelectorAll('[data-gallery]'), function (box) {
@@ -922,7 +926,7 @@
         list.forEach(function (slide, i) {
           slide.id = 'photo-' + (i + 1);
           var img = slide.querySelector('img');
-          if (img && i > 0) img.setAttribute('alt', name + ' \u2013 photo ' + (i + 1) + ' of ' + n);
+          if (img && i > 0) img.setAttribute('alt', name + ' \u2013 ' + tf('Photo {0} of {1}', [formatNumberText(String(i + 1)), formatNumberText(String(n))]));
         });
         dots().forEach(function (a, i) {
           a.setAttribute('href', '#photo-' + (i + 1));
@@ -987,6 +991,7 @@
         if (window.requestAnimationFrame) window.requestAnimationFrame(later); else setTimeout(later, 16);
       }, { passive: true });
       renumber();
+      galleryLabels.push(renumber);
       box.setAttribute('data-ready', '');
     });
   }
@@ -994,6 +999,7 @@
 
   // Language first, so every text the other parts write is already in the visitor's language.
   loadLanguage().then(function () {
+    relabelGalleries();
     loadCurrency();
     setupPrefs();
     setupCart();

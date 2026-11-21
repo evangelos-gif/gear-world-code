@@ -100,7 +100,7 @@ try {
     const failed = photoRequests.filter(u => /-fail-/.test(u)).length;
     check(photoRequests.length >= 2 && s1.waiting === 0, `${label}: after a click the extra photos are fetched`, `${photoRequests.length} requests`);
     check(failed === 0 || (s1.slides === s0.slides - failed && s1.dots === s1.slides), `${label}: a photo that does not load is taken out`, `${s0.slides} -> ${s1.slides} slides, ${failed} failed`);
-    check(s1.alts.slice(1).every((a, i) => a.endsWith(` – photo ${i + 2} of ${s1.slides}`)), `${label}: the photos are numbered again`, s1.alts.join(' | '));
+    check(s1.alts.slice(1).every((a, i) => a.endsWith(` – Photo ${i + 2} of ${s1.slides}`)), `${label}: the photos are numbered again`, s1.alts.join(' | '));
     check(s1.current === 1 && s1.currentDot === 1 && s1.currentLoaded, `${label}: the second photo shows (and its dot)`, JSON.stringify({ current: s1.current, dot: s1.currentDot, loaded: s1.currentLoaded }));
     check(s1.height === s0.height && s1.width === s0.width, `${label}: no layout shift`, `${s0.width}x${s0.height} -> ${s1.width}x${s1.height}`);
     await page.screenshot({ path: join(shotsDir, `${vp.name}-gallery-2.png`) });

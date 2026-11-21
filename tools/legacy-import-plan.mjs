@@ -68,8 +68,9 @@ export function stockFlag(raw) {
 // The product picture (lessons L38): realImage() takes the first real picture of a value, unwraps the Awin resize proxy to
 // the full-size image and never takes the placeholder; a product without a picture is left out ("no image"). It lives in
 // src/lib/photos.js since lessons L206 (the sites judge the extra photos with the same rules) and is exported here too.
-const IMAGE_COLUMNS = ['merchant_image_url', 'large_image', 'alternate_image', 'alternate_image_two', 'alternate_image_three', 'alternate_image_four',
-  'merchant_thumb_url', 'aw_image_url', 'aw_thumb_url', 'image_link'];
+// The main photo's columns. Awin's alternate_image ... alternate_image_four are never the main photo (lessons L206: since the
+// downloads ask for them they are full, and an extra shot must not become a card's photo); they are extra photos only.
+const IMAGE_COLUMNS = ['merchant_image_url', 'large_image', 'merchant_thumb_url', 'aw_image_url', 'aw_thumb_url', 'image_link'];
 export { realImage };
 export function pickImage(get) {
   for (const c of IMAGE_COLUMNS) { const u = realImage(get(c)); if (u) return u; }
@@ -129,9 +130,11 @@ export async function readProducts({ archive, rules }) {
       let g = groups.get(key);
       if (!g) {
         const image = pickImage(get);
+        // altOnly: a photo only in the extra photo columns, never taken as the main one (the product is left out, "no image").
+        const altOnly = !image && EXTRA_IMAGE_COLUMNS.some(c => realImage(get(c)));
         g = { key, name: cleanText(get('product_name')), brand: cleanText(get('brand_name')), feedCategory: cleanText(get('merchant_category')),
           awinCategory: cleanText(get('category_name')),
-          link, page, image, extras: pickExtraImages(get, image), photosKnown, firstVariant: get('merchant_product_id'), tracked: get('aw_deep_link'),
+          link, page, image, altOnly, extras: pickExtraImages(get, image), photosKnown, firstVariant: get('merchant_product_id'), tracked: get('aw_deep_link'),
           variants: 0, inStockVariants: 0, unknownStock: 0, prices: [], currency: get('currency').toUpperCase(), ean: get('ean') || get('product_gtin'),
           // rules.rowInfo (lessons L161): more columns for the rules, e.g. where a CJ search product is sold and sent.
           info: typeof rules.rowInfo === 'function' ? rules.rowInfo(get) : null };
@@ -456,7 +459,8 @@ export async function planLegacyImport({ archive, retailer, outDir, now = new Da
   mkdirSync(outDir, { recursive: true });
   const sqlFiles = {};
   for (const s of R.sites) sqlFiles[s] = writeSql(join(outDir, 'sql', s), accepted[s], R, s, now, images);
-  const text = renderPlan({ R, files, rows, products, accepted, rejected, sqlFiles, now, shopImages, shopCheck, images });
+  const altOnly = products.filter(p => p.altOnly && !/^https:\/\//i.test(p.image || '')).length;
+  const text = renderPlan({ R, files, rows, products, accepted, rejected, sqlFiles, now, shopImages, shopCheck, images, altOnly });
   writeFileSync(join(outDir, 'report.txt'), text);
   // For the import tool: how many products each site should have from this retailer after the import.
   // addOnly: the plan covers only part of a shop that is already on the site, so the import must not hide the rest.
@@ -546,7 +550,7 @@ function writeSql(dir, items, R, site, now, images = false) {
   return out;
 }
 
-function renderPlan({ R, files, rows, products, accepted, rejected, sqlFiles, now, shopImages, shopCheck, images = false }) {
+function renderPlan({ R, files, rows, products, accepted, rejected, sqlFiles, now, shopImages, shopCheck, images = false, altOnly = 0 }) {
   const fmt = n => new Intl.NumberFormat('en-GB').format(n);
   const total = Object.values(accepted).reduce((a, l) => a + l.length, 0);
   const L = [`IMPORT PLAN (read-only, nothing executed) ${R.retailer} - ${R.network && NETWORK_LABEL[R.network] ? NETWORK_LABEL[R.network] : 'Awin'} ${R.advertiserId} - ${now.toISOString().slice(0, 16).replace('T', ' ')} UTC`,
@@ -592,6 +596,7 @@ function renderPlan({ R, files, rows, products, accepted, rejected, sqlFiles, no
   L.push('', 'Notes:',
     `- Extra photos (L206): ${fmt(withPhotos)} of ${fmt(all.length)} products have 1-4 more photos in the feed; ${images ? 'the SQL writes them (column images).' : 'the SQL does not write them (the site database has no images column yet).'}`
       + (images && unknownPhotos ? ` ${fmt(unknownPhotos)} come from a feed without the photo columns: their photos on the site stay as they are.` : ''),
+    ...(altOnly ? [`- Extra photos (L206): ${fmt(altOnly)} products have a photo only in the extra photo columns (alternate_image ...); it is never taken as the main photo, so they are left out ("no image").`] : []),
     `- Prices are ${R.currency}. Each product shows its lowest in-stock size price.`,
     withEan ? `- ${fmt(withEan)} of ${fmt(all.length)} products have an EAN, so the same product from other retailers can be shown together.`
       : '- The feed has no EAN, so these products are not joined with the same product from other retailers.',

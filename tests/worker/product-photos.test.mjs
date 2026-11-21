@@ -14,10 +14,11 @@ import { gzipSync, gunzipSync } from 'node:zlib';
 import { DatabaseSync } from 'node:sqlite';
 import { createWorker } from '../../src/engine.js';
 import * as db from '../../src/db.js';
-import { realImage, imageList, extraImages, encodeImages, parseImages, photoKey, PHOTO_LIMIT, EXTRA_IMAGE_COLUMNS } from '../../src/lib/photos.js';
+import { realImage, imageList, extraImages, encodeImages, parseImages, photoKey, notProductPhoto, PHOTO_LIMIT, EXTRA_IMAGE_COLUMNS } from '../../src/lib/photos.js';
 import * as legacyPlan from '../../tools/legacy-import-plan.mjs';
 import { planImport, rowExtraImages } from '../../tools/tgw-import-plan.mjs';
 import * as cj from '../../tools/cj-feed.mjs';
+import { mainImageOf } from '../../tools/tgw-import-plan.mjs';
 import * as dc from '../../tools/daisycon-feed.mjs';
 import { FEED_COLUMNS } from '../../tools/network-links.mjs';
 import { BOL_COLUMNS, rowOf as bolRow } from '../../tools/bol-feed.mjs';
@@ -95,6 +96,24 @@ test('L206: the Awin download asks for alternate_image ... alternate_image_four,
   assert.deepEqual(cols.filter(c => !EXTRA_IMAGE_COLUMNS.includes(c)), before, 'the old columns, in the old order');
   assert.deepEqual(cols.slice(cols.indexOf('large_image') + 1, cols.indexOf('large_image') + 5), EXTRA_IMAGE_COLUMNS);
   assert.equal(new Set(cols).size, cols.length);
+});
+
+test('L206 (review): size charts, banners, logos, promotion and sale pictures are never extra photos', () => {
+  for (const u of ['https://cdn.example.com/p/size-chart.jpg', 'https://cdn.example.com/p/SizeChart_men.png', 'https://cdn.example.com/p/size_guide.jpg',
+    'https://cdn.example.com/p/maattabel.jpg', 'https://cdn.example.com/banner_2.jpg', 'https://cdn.example.com/logo.png', 'https://cdn.example.com/promo/x.jpg',
+    'https://cdn.example.com/black-friday-sale.jpg', 'https://cdn.example.com/p/size%20chart.jpg']) assert.equal(notProductPhoto(u), true, u);
+  for (const u of ['https://cdn.example.com/p/shoe-2.jpg', 'https://cdn.example.com/wholesale/x.jpg', 'https://cdn.example.com/salem-boot.jpg']) assert.equal(notProductPhoto(u), false, u);
+  assert.deepEqual(extraImages('https://cdn.example.com/p/1.jpg', ['https://cdn.example.com/p/size-chart.jpg', 'https://cdn.example.com/p/2.jpg', 'https://cdn.example.com/sale-banner.jpg']),
+    ['https://cdn.example.com/p/2.jpg']);
+  assert.deepEqual(parseImages('https://cdn.example.com/p/logo.png https://cdn.example.com/p/3.jpg', ''), ['https://cdn.example.com/p/3.jpg']);
+});
+
+test('L206 (review): a CJ file has the photo columns only when the query asked for additionalImageLink (never on the fallback query)', () => {
+  assert.equal(cj.feedColumns([{ id: 1, imageLink: 'https://c/1.jpg', additionalImageLink: null }]), cj.CJ_COLUMNS, 'asked: the columns, even when empty');
+  assert.equal(cj.feedColumns([{ id: 1, imageLink: 'https://c/1.jpg', additionalImageLink: ['https://c/2.jpg'] }]), cj.CJ_COLUMNS);
+  assert.equal(cj.feedColumns([{ id: 1, imageLink: 'https://c/1.jpg' }]), cj.COLUMNS, 'not asked (FALLBACK_PRODUCT): no photo columns, so the photos stay');
+  assert.equal(cj.feedColumns([]), cj.COLUMNS);
+  assert.ok(!cj.productQuery({ shape: null, cid: '1', pid: '2', advertiser: '3' }).includes('additionalImageLink'), 'the fallback query does not ask for it');
 });
 
 test('L206: CJ keeps additionalImageLink as up to 4 extra photo columns; large_image stays the first one, as before', () => {
@@ -210,6 +229,15 @@ test('L206: the older sites\' plan writes the extra photos only with the column;
   assert.equal(parts.length, 2);
   assert.ok(/updated_at, images\) VALUES/.test(parts[0]) && /'1:a'/.test(parts[0]) && !/'1:b'/.test(parts[0]));
   assert.ok(!/images/.test(parts[1]) && /'1:b'/.test(parts[1]));
+  // Review (P2): a product whose only photo is in alternate_image is left out ("no image"), and the report says why.
+  const altOnlyDir = mkdtempSync(join(tmpdir(), 'l206-coes-'));
+  writeFileSync(join(altOnlyDir, 'AWIN_30645_116078.csv.gz'), gzipSync(HEAD + ALT + '\n'
+    + coesRow(7, 'Barbour Beaufort Wax Jacket', 'Menswear', 'beaufort', 299, '', ['https://cdn.shopify.com/7b.png', '', '', '']) + '\n'));
+  const altOut = mkdtempSync(join(tmpdir(), 'l206-plan-'));
+  const r3 = await legacyPlan.planLegacyImport({ archive: altOnlyDir, retailer: 'coes', outDir: altOut, now: NOW, images: true });
+  assert.equal(r3.accepted.mgw.length, 0);
+  assert.equal((r3.rejected['no image'] || []).length, 1);
+  assert.match(r3.text, /1 products have a photo only in the extra photo columns \(alternate_image \.\.\.\); it is never taken as the main photo, so they are left out/);
   // The import tools set GW_IMAGES_COLUMN=1 only after the database said it has the column.
   process.env.GW_IMAGES_COLUMN = '1';
   try {
@@ -272,6 +300,19 @@ test('L206: the new-layout plan writes the extra photos only with the column; wi
   d.exec(c.sql);
   assert.deepEqual(d.prepare('SELECT merchant_product_id, images FROM products ORDER BY id').all().map(x => ({ ...x })),
     [{ merchant_product_id: 'JB-1', images: 'https://img.example/1b.jpg https://img.example/1c.jpg' }, { merchant_product_id: 'JB-2', images: null }]);
+  // Review (P3d): a comma list gives its first photo as the main one and the rest to the gallery (before: one broken
+  // address); a photo only in alternate_image is never the main one, and the report counts it.
+  assert.deepEqual(mainImageOf(['https://img.example/5.jpg, https://img.example/5b.jpg'], { images: [0] }), { image: 'https://img.example/5.jpg', raw: 'https://img.example/5.jpg,https://img.example/5b.jpg' });
+  const lists = tgwFeed([...base, ...EXTRA_IMAGE_COLUMNS], [
+    [link(5), 'Sony WH-CH720N Wireless Headphones', '5', 'JB-5', 'https://img.example/5.jpg,https://img.example/5b.jpg', '99', 'GBP', 'Sony', '1', 'https://img.example/5c.jpg', '', '', ''],
+    [link(6), 'Anker Soundcore Speaker Bluetooth', '6', 'JB-6', '', '49', 'GBP', 'Anker', '1', 'https://img.example/6b.jpg', '', '', '']
+  ]);
+  const l = await run(lists, true);
+  const p5 = l.r.products.find(p => p.merchant_product_id === 'JB-5');
+  assert.equal(p5.image_url, 'https://img.example/5.jpg');
+  assert.equal(p5.images, 'https://img.example/5b.jpg https://img.example/5c.jpg');
+  assert.ok(!l.r.products.some(p => p.merchant_product_id === 'JB-6'), 'only an extra photo: never the main one');
+  assert.match(l.report, /extra photos \(L206\): 1 rows have a photo only in the extra photo columns/);
   // A file without the photo columns, with the images column in the database: the SQL of before, the photos stay.
   const keep = await run(plain, true);
   assert.equal(keep.sql, a.sql, 'no photo columns in the file: never names the column');
@@ -365,7 +406,7 @@ for (const code of ['mgw', 'cgw', 'tgw', 'agw']) {
     assert.ok(!/loading=|data-src/.test(main) && /decoding="async"/.test(main), 'the main photo loads as before (eager)');
     for (const [i, m] of slides.slice(1).entries()) {
       assert.ok(m[2].includes(`src="${BLANK}"`) && m[2].includes(`data-src="${photosOf(id)[i]}"`) && m[2].includes('loading="lazy"'), m[2]);
-      assert.ok(m[2].includes(` – photo ${i + 2} of 3"`) && m[2].includes('width="560" height="560"'), m[2]);
+      assert.ok(m[2].includes(` – Photo ${i + 2} of 3"`) && m[2].includes('width="560" height="560"'), m[2]);
     }
     // Nothing of an extra photo in an eager place of the page: only its data-src and the schema.
     for (const u of photosOf(id)) assert.equal(page.split(u).length - 1, 2, `${u}: data-src and the structured data only`);
@@ -484,6 +525,8 @@ test('L206: the site script handles the gallery (no library, no inline handler) 
   const js = read('sites/tgw/public/assets/site.js');
   assert.ok(js.includes('function setupGallery()') && js.includes("img.getAttribute('data-src')") && js.includes("addEventListener('error'"));
   assert.ok(/setupGallery\(\);\s*\n\s*\/\/ Language first/.test(js), 'runs at once, before the language is loaded');
+  // Review (P3b): the alt texts in the visitor's language, with the dictionary text "Photo {0} of {1}" (L24).
+  assert.ok(js.includes("img.setAttribute('alt', name + ' \\u2013 ' + tf('Photo {0} of {1}'") && /loadLanguage\(\)\.then\(function \(\) \{\s*\n\s*relabelGalleries\(\);/.test(js));
   const css = read('sites/tgw/public/assets/site.css');
   assert.ok(css.includes('scroll-snap-type: x mandatory') && css.includes('.product-gallery:not([data-ready]) .gallery-slide + .gallery-slide { display: none; }'));
   for (const code of [...OLD, ...NEW]) assert.equal(read(`sites/${code}/public/assets/site.js`), js, code);

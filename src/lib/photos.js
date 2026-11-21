@@ -64,6 +64,14 @@ export function photoKey(url) {
   return `${u.hostname.toLowerCase()}${u.pathname}${kept.length ? '?' + new URLSearchParams(kept).toString() : ''}`;
 }
 const pathOf = u => { try { return new URL(u).pathname; } catch { return ''; } };
+// Not a photo of the product (lessons L206, after L107): a size chart, a banner, a logo, a promotion or sale picture that
+// some shops put among their extra images. Whole words of the address's path only ("wholesale" and "salem" stay).
+const NOT_PRODUCT = /(^|[^a-z0-9])(size[-_ ]?charts?|sizecharts?|size[-_ ]?guides?|sizeguides?|maattabel(len)?|banners?|logos?|promos?|promotions?|sale)([^a-z0-9]|$)/i;
+export function notProductPhoto(url) {
+  let path = pathOf(url);
+  try { path = decodeURIComponent(path); } catch { /* keep it encoded */ }
+  return NOT_PRODUCT.test(path.toLowerCase());
+}
 
 // The extra photos of a product from its feed values (each value may be a comma list): real full-size https pictures
 // (realImage), never a placeholder, never the main picture again, each photo once, at most `limit`, in the feed's order.
@@ -73,7 +81,7 @@ export function extraImages(main, values, limit = PHOTO_LIMIT) {
   for (const v of values || []) {
     for (const u of imageList(v)) {
       if (out.length >= limit) return out;
-      if (u.length > PHOTO_MAX_LENGTH || PLACEHOLDER.test(pathOf(u))) continue;
+      if (u.length > PHOTO_MAX_LENGTH || PLACEHOLDER.test(pathOf(u)) || notProductPhoto(u)) continue;
       const k = photoKey(u);
       if (!k || seen.has(k)) continue;
       seen.add(k);
@@ -98,7 +106,7 @@ export function parseImages(text, main = '') {
   const out = [];
   for (const u of s.trim().split(/\s+/)) {
     if (out.length >= PHOTO_LIMIT) break;
-    if (u.length > PHOTO_MAX_LENGTH || !/^https:\/\/[^\s"<>]+$/i.test(u)) continue;
+    if (u.length > PHOTO_MAX_LENGTH || !/^https:\/\/[^\s"<>]+$/i.test(u) || notProductPhoto(u)) continue;
     const k = photoKey(u);
     if (!k || seen.has(k)) continue;
     seen.add(k);
