@@ -143,6 +143,24 @@ export function viewMode(site, mode, country = VIEW_BASE) {
   return amazonHere(site, country) ? mode : 'off';
 }
 
+// ---------------- Country editions (owner, 21 Nov 2026, lessons L214) ----------------
+// Google reads the UK page (L195), so it never saw the stores we list for Greece. megastoresgearworld.com/gr/ is the
+// page for Greece: its own address, in Greek, the Greek stores, for every visitor and for Google too, with hreflang
+// el-GR next to the UK page's en-GB (Google's way for one site in several countries: a folder per country). Only the
+// home page and the store pages have an edition address; the guides and the legal pages stay where they are.
+export const EDITIONS = [{ prefix: '/gr', country: 'GR', lang: 'el-GR' }];
+export function editionFor(pathname) {
+  return EDITIONS.find(e => pathname === e.prefix || String(pathname || '').startsWith(`${e.prefix}/`)) || null;
+}
+// The stores an edition has a page for: every store listed for its country (never Amazon UK).
+export function editionStores(site, edition) {
+  return (site.stores || []).filter(s => !s.amazon && Array.isArray(s.sites) && s.sites.length && deliversHere(s, edition.country));
+}
+// The country's own name in the page's language ("Ελλάδα"), from the browser's and the Worker's Intl.
+export function regionName(lang, cc) {
+  try { return new Intl.DisplayNames([lang], { type: 'region' }).of(cc) || cc; } catch { return cc; }
+}
+
 // Which language this answer is in: { lang, chosen, byCountry }. chosen = the visitor asked for it (?lang=), so every
 // link of the page keeps it; byCountry = from the country or the browser, so the answer is this visitor's only.
 export function pickLanguage(site, request, url) {
@@ -171,7 +189,7 @@ const storesHere = c => shownStores(c.site, c.mode, c.country).length > 0;
 //   gw(url)          an address of a Gear World site, with ?lang= when the visitor chose a language (L174)
 //   hub(path)        an address of Gear World Hub, with ?lang= only for a chosen language the Hub has
 //   country          the visitor's country (viewCountry): which stores, codes and Black Friday entries the page shows
-export function makeContext(site, lang = BASE_LANG, chosen = false, mode = 'off', path = '/', country = VIEW_BASE) {
+export function makeContext(site, lang = BASE_LANG, chosen = false, mode = 'off', path = '/', country = VIEW_BASE, edition = null) {
   const code = languageList(site).some(l => l.code === lang) ? lang : BASE_LANG;
   const cc = /^[A-Z]{2}$/.test(String(country || '').toUpperCase()) ? String(country).toUpperCase() : VIEW_BASE;
   const isChosen = Boolean(chosen);
@@ -188,7 +206,11 @@ export function makeContext(site, lang = BASE_LANG, chosen = false, mode = 'off'
     return toString(args[Number(m[1])]);
   }).join(''));
   const tx = (key, ...args) => String(look(key)).replace(/\{(\d+)\}/g, (all, i) => (Number(i) < args.length ? String(args[Number(i)]) : all));
-  const href = p => {
+  // at(path): the address of a page in this page's edition (L214): /gr/ and /gr/stores/... for the home page, its parts
+  // and the store pages; every other page (guides, legal) has one address for every country.
+  const at = p => (edition && (p === '/' || p.startsWith('/#') || p.startsWith('/stores/')) ? `${edition.prefix}${p}` : p);
+  const href = q => {
+    const p = at(q);
     if (!isChosen) return p;
     const i = p.indexOf('#');
     const base = i < 0 ? p : p.slice(0, i);
@@ -210,7 +232,8 @@ export function makeContext(site, lang = BASE_LANG, chosen = false, mode = 'off'
   const fmt = (day, opts) => new Intl.DateTimeFormat(code, { ...opts, timeZone: 'UTC' }).format(new Date(`${day}T12:00:00Z`));
   return {
     // Amazon UK only where it delivers (L210): any other country gets the pages of AMAZON_LINKS=off.
-    site, lang: code, chosen: isChosen, mode: viewMode(site, mode, cc), country: cc, path, t, tx, href, gw, hub,
+    site, lang: code, chosen: isChosen, mode: viewMode(site, mode, cc), country: cc, path: at(path), t, tx, href, gw, hub, at,
+    edition: edition || null, region: edition ? regionName(code, edition.country) : '',
     shortDate: day => fmt(day, { day: 'numeric', month: 'short' }),
     dayDate: day => fmt(day, { weekday: 'short', day: 'numeric', month: 'short' }),
     validDate: day => fmt(day, { day: 'numeric', month: 'short', year: 'numeric' }),
@@ -363,6 +386,13 @@ function languageMenu(c) {
 // strip and in the footer, like the 13 sites (owner, 18 Nov 2026, L195).
 function shell(c, { title, description, path, body, robots = '' }) {
   const { site, t, tx, mode } = c;
+  const own = c.at(path);
+  // The home page in each edition, so Google shows the Greek one in Greece (L214); x-default is the UK page.
+  const alternates = path === '/' && !robots
+    ? html`<link rel="alternate" hreflang="${BASE_LANG}" href="https://${site.domain}/">
+${EDITIONS.map(e => html`<link rel="alternate" hreflang="${e.lang}" href="https://${site.domain}${e.prefix}/">
+`)}<link rel="alternate" hreflang="x-default" href="https://${site.domain}/">
+` : '';
   const year = new Date().getUTCFullYear();
   const hubName = (site.hub && site.hub.name) || 'Gear World Hub';
   return toString(html`<!doctype html>
@@ -372,11 +402,11 @@ function shell(c, { title, description, path, body, robots = '' }) {
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>${title}</title>
 <meta name="description" content="${description}">
-<link rel="canonical" href="https://${site.domain}${path}">
-${robots ? html`<meta name="robots" content="${robots}">` : ''}
+<link rel="canonical" href="https://${site.domain}${own}">
+${alternates}${robots ? html`<meta name="robots" content="${robots}">` : ''}
 <meta property="og:title" content="${title}">
 <meta property="og:description" content="${description}">
-<meta property="og:url" content="https://${site.domain}${path}">
+<meta property="og:url" content="https://${site.domain}${own}">
 <meta property="og:type" content="website">
 <link rel="icon" href="${asset(site, 'favicon.svg')}" type="image/svg+xml">
 <link rel="stylesheet" href="${asset(site, 'ogw.css')}">
@@ -1074,8 +1104,10 @@ export function homePage(c, now = new Date(), storeData = {}) {
   const { site, t, tx, mode } = c;
   const all = [...site.guides, site.checks].filter(Boolean);
   const hubName = (site.hub && site.hub.name) || 'Gear World Hub';
+  // The edition's country after the title (L214): «… · Ελλάδα».
+  const where = c.edition ? ` · ${c.region}` : '';
   return shell(c, {
-    title: `${storesHere(c) ? tx('Stores and gift guides') : tx('Gift guides')} | ${site.name}`,
+    title: `${storesHere(c) ? tx('Stores and gift guides') : tx('Gift guides')}${where} | ${site.name}`,
     description: !storesHere(c)
       ? tx('Short gift guides for Christmas and the winter. Every idea opens the matching category of a Gear World site, where each product shows the retailer that sells it, its price and where it delivers.')
       : withMarkets(mode)
@@ -1085,7 +1117,7 @@ export function homePage(c, now = new Date(), storeData = {}) {
     body: html`
 <section class="hero"><div class="wrap hero-grid">
   <div class="hero-text">
-  <p class="eyebrow">${storesHere(c) ? t('Stores and gift guides') : t('Gift guides')}</p>
+  <p class="eyebrow">${storesHere(c) ? t('Stores and gift guides') : t('Gift guides')}${where}</p>
   <h1>${withMarkets(mode) ? t('Gift ideas first. Then compare on the big marketplaces.') : t('Gift ideas first. Then compare.')}</h1>
   <p class="lede">${withMarkets(mode)
     ? t('Short gift guides for Christmas and the winter. Every idea opens a search on a big marketplace and the matching category of a Gear World site, so you can compare models, sellers and prices before you choose.')
@@ -1304,7 +1336,9 @@ export function pagePaths(site, mode = 'off') {
   // Only the stores of the UK page, the one Google reads (L195, L210): a store listed for other countries only (the Greek
   // ones) would show Google its "not listed for your country" page.
   const stores = (site.stores || []).filter(s => (s.amazon ? mode === 'on' : Array.isArray(s.sites) && s.sites.length && deliversHere(s, VIEW_BASE))).map(s => `/stores/${s.slug}/`);
-  return ['/', ...stores, ...site.guides.map(g => `/guides/${g.slug}/`), `/guides/${site.checks.slug}/`, ...Object.keys(LEGAL)];
+  // Each edition's home page and store pages (L214).
+  const editions = EDITIONS.flatMap(e => [`${e.prefix}/`, ...editionStores(site, e).map(s => `${e.prefix}/stores/${s.slug}/`)]);
+  return ['/', ...stores, ...editions, ...site.guides.map(g => `/guides/${g.slug}/`), `/guides/${site.checks.slug}/`, ...Object.keys(LEGAL)];
 }
 
 // deps (tests): fetch, cache (match/put, like caches.default), now (a function giving ms), timeoutMs, and photoFetch /
@@ -1350,12 +1384,12 @@ export function createGuidesWorker(site, deps = {}) {
       const mode = viewMode(site, baseMode, country);
       const choice = pickLanguage(site, request, url);
       const ctxFor = path => makeContext(site, choice.lang, choice.chosen, mode, path, country);
-      const page = (body, status = 200) => {
+      const page = (body, status = 200, lang = choice.lang) => {
         // Every page now depends on the visitor's country (its stores, codes and Amazon buttons, L210), and before
         // that a language picked from the country or the browser did too (L175): a page is never kept by a shared
         // cache for other visitors (private), whatever its language.
         const res = htmlResponse(body, { status, method: request.method, cache: 'private' });
-        res.headers.set('Content-Language', choice.lang);
+        res.headers.set('Content-Language', lang);
         if (preview) res.headers.set('X-Robots-Tag', 'noindex, nofollow');
         return res;
       };
@@ -1367,6 +1401,26 @@ export function createGuidesWorker(site, deps = {}) {
       if (url.pathname === '/sitemap.xml') {
         const urls = pagePaths(site, baseMode).map(p => `<url><loc>https://${site.domain}${p}</loc></url>`).join('\n');
         return textResponse(`<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls}\n</urlset>\n`, { type: 'application/xml', method: request.method });
+      }
+      // A country edition (L214): /gr/ and /gr/stores/<store>/, in the edition's language for everyone (Google too) unless
+      // the visitor picked another (?lang=), and always for the edition's country.
+      const ed = editionFor(url.pathname);
+      if (ed) {
+        if (url.pathname === ed.prefix) { url.pathname = `${ed.prefix}/`; return redirect(url.toString(), 301); }
+        const asked = readsEnglish(request) ? '' : languageCode(site, url.searchParams.get('lang'));
+        const edLang = asked || ed.lang;
+        const edCtx = p => makeContext(site, edLang, Boolean(asked), viewMode(site, baseMode, ed.country), p, ed.country, ed);
+        const rest = url.pathname.slice(ed.prefix.length);
+        if (rest === '/' || rest === '/index.html') return page(homePage(edCtx('/'), new Date(nowMs()), await allStoreData(ctx, ed.country)), 200, edLang);
+        const em = rest.match(/^\/stores\/([a-z0-9-]+)\/?$/);
+        const edStore = em && editionStores(site, ed).find(s => s.slug === em[1]);
+        if (edStore) {
+          if (!rest.endsWith('/')) { url.pathname = `${url.pathname}/`; return redirect(url.toString(), 301); }
+          let products = [];
+          try { products = (await storeProducts(site, edStore, runtime(), ctx)).products; } catch { products = []; }
+          return page(storePage(edCtx(`/stores/${edStore.slug}/`), edStore, products, nowMs()), 200, edLang);
+        }
+        return page(notFoundPage(edCtx(url.pathname), url.pathname), 404, edLang);
       }
       // A redirect keeps the chosen language (?lang= stays in the address).
       const keepLang = to => (choice.chosen ? makeContext(site, choice.lang, true).href(to) : to);

@@ -1714,6 +1714,20 @@ export function coversCountry(list, country) {
 export function megaStoresFor(country) {
   return MEGA_BAR_STORES.filter(s => coversCountry(s.deliversTo, country));
 }
+// L214 (owner, 21 Nov 2026): Mega Stores has a page of its own for Greece, megastoresgearworld.com/gr/ (Greek, the Greek
+// stores, the one Google shows in Greece). From Greece the bar, the Stores card and the Black Friday line open it; every
+// other country opens the home page, which follows the visitor's country.
+export const MEGA_HOME = "https://megastoresgearworld.com/";
+export const MEGA_EDITION_HOME = { GR: "https://megastoresgearworld.com/gr/" };
+export function megaHomeFor(country) {
+  return MEGA_EDITION_HOME[String(country || "").toUpperCase()] || MEGA_HOME;
+}
+// The Stores card's line for a country with Mega Stores but not the UK: the store names (never translated), the first
+// three and how many more, instead of the UK names.
+export function megaCardNames(country) {
+  const names = megaStoresFor(country).filter(s => s.slug !== "amazon").map(s => s.name);
+  return names.length > 3 ? `${names.slice(0, 3).join(", ")} +${names.length - 3}` : names.join(", ");
+}
 const escHtml = s => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 // The end of the element that starts at `start` (an opening <tag ...>), counting the same tag nested inside it.
 export function elementEnd(text, start, tag) {
@@ -1746,7 +1760,14 @@ export function megaBarHtml(text, country) {
   }
   const names = stores.map(s => s.name).join(", ");
   const pills = stores.map(s => `<span class="gwh2-mega-pill" data-store="${escHtml(s.slug)}" data-logo="text-only" translate="no">${escHtml(s.name)}</span>`).join("");
-  let out = replaceElement(text, '<span class="sr-only" data-gwh2="megaNames"', "span",
+  const home = megaHomeFor(country);
+  let out = text.replace('<a class="gwh2-mega" href="https://megastoresgearworld.com/">', `<a class="gwh2-mega" href="${home}">`);
+  // The Stores card (L214): Mega Stores for this country, with its stores' names (no data-gwh2: the page script would
+  // write the UK names back in the visitor's language).
+  out = out.replace('<a class="gwh-quick-world gwh2-stores-card" href="/stores/"', `<a class="gwh-quick-world gwh2-stores-card" href="${home}"`);
+  out = replaceElement(out, '<small class="gwh2-rc-desc" data-gwh2="storesDesc"', "small",
+    `<small class="gwh2-rc-desc" translate="no">${escHtml(megaCardNames(country))}</small>`);
+  out = replaceElement(out, '<span class="sr-only" data-gwh2="megaNames"', "span",
     `<span class="sr-only" data-gwh2="megaNames" data-gwh2-name="${escHtml(names)}">Stores: <span translate="no">${escHtml(names)}</span>.</span>`);
   out = replaceElement(out, '<span class="gwh2-mega-strip" aria-hidden="true">', "span",
     `<span class="gwh2-mega-strip" aria-hidden="true"><span class="gwh2-mega-track"><span class="gwh2-mega-list">${pills}</span>` +
@@ -1756,6 +1777,8 @@ export function megaBarHtml(text, country) {
 // Says what we show, never where a retailer delivers (L210: a retailer we list for the UK may deliver elsewhere too).
 export const BF_COUNTRY_NOTE = "Only the retailers we list for your country are shown here.";
 export const BF_MEGA_NOTE = 'The stores listed for your country are on <a href="https://megastoresgearworld.com/" translate="no">Mega Stores</a>.';
+// The same line with the address for the visitor's country (L214: /gr/ for Greece).
+export const bfMegaNote = country => BF_MEGA_NOTE.replace('href="https://megastoresgearworld.com/"', `href="${megaHomeFor(country)}"`);
 export const BF_NONE_HERE = "Nothing listed for your country yet.";
 // The Black Friday page for a country: the file itself for the UK; elsewhere only the items whose data-delivers covers
 // the country (an item without it is a UK one), the line that says so, and "Nothing listed for your country yet." in each
@@ -1771,7 +1794,7 @@ export function blackFridayHtml(text, country) {
     });
     return s.replace(/<p class="gd-note rt-none"( hidden)?>[\s\S]*?<\/p>/, kept ? `<p class="gd-note rt-none" hidden>${BF_NONE_HERE}</p>` : `<p class="gd-note rt-none">${BF_NONE_HERE}</p>`);
   });
-  const note = `<p class="gd-note rt-country">${BF_COUNTRY_NOTE}${megaStoresFor(country).length ? ` ${BF_MEGA_NOTE}` : ""}</p>`;
+  const note = `<p class="gd-note rt-country">${BF_COUNTRY_NOTE}${megaStoresFor(country).length ? ` ${bfMegaNote(country)}` : ""}</p>`;
   out = out.replace(/(<p class="gd-checked">[\s\S]*?<\/p>)/, `$1\n    ${note}`);
   return out;
 }

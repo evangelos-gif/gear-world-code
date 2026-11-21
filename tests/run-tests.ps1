@@ -3831,6 +3831,11 @@ foreach ($cn in @('gw-backup.ps1', 'gw-wrangler-check.ps1')) {
 
 $ogSrc = [System.IO.File]::ReadAllText((Join-Path (Join-Path $repo 'tools') 'ogw-site.ps1'))
 Check ($ogSrc.Contains("[string]`$Chat = '1 · Gear World Manager'") -and $ogSrc.Contains('Πήγαινε στη συζήτηση με το Claude «{0}» και πάτα Ctrl+V.') -and -not $ogSrc.Contains('Claude «1 · Gear World Manager» και πάτα')) 'ogw-site.ps1: the clipboard line names the chat that gave the command (-Chat, the Manager by default) (L116, L208)'
+# L214: Mega Stores for Greece at /gr/: the Mega Stores tool checks /gr/, a Greek store page and the sitemap; the Hub tool
+# goes live only when /gr/ is live (exit 25), never with -NoHttpCheck (the tests), and checks the Greek bar and card.
+Check ($ogSrc.Contains("Get-Page (`$base + '/gr/')") -and $ogSrc.Contains("Get-Page (`$base + '/gr/stores/kouzinika-gr/')") -and $ogSrc.Contains("'/gr/</loc>'")) 'ogw-site.ps1: checks /gr/, a Greek store page and the sitemap (L214)'
+$l214Hub = [System.IO.File]::ReadAllText((Join-Path (Join-Path $repo 'tools') 'gwh-hub-v2.ps1'))
+Check ($l214Hub.Contains("if (`$Step -eq 'live' -and -not `$NoHttpCheck -and `$workerText.Contains('https://megastoresgearworld.com/gr/')) {") -and $l214Hub.Contains('Finish 25') -and $l214Hub.Contains('megastoresgearworld\.com/gr/')) 'gwh-hub-v2.ps1: the Hub goes live only when Mega Stores /gr/ is live (exit 25), and checks the Greek bar and card (L214)'
 
 # gw-last-report.ps1: the newest report of a tool back on the clipboard, read-only.
 Write-Host 'gw-last-report.ps1'

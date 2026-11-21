@@ -8,7 +8,7 @@ import { readFileSync } from 'node:fs';
 import ogw from '../../sites/ogw/site.config.js';
 import {
   MEGA_BAR_STORES, megaCountry, megaStoresFor, coversCountry, megaBarHtml, blackFridayHtml, withMegaCountry, elementEnd,
-  BF_COUNTRY_NOTE, BF_NONE_HERE, QA_COUNTRY_HEADER
+  BF_COUNTRY_NOTE, BF_NONE_HERE, QA_COUNTRY_HEADER, megaHomeFor, megaCardNames, MEGA_EDITION_HOME
 } from '../../sites/gwh/worker.js';
 
 const HOME = readFileSync('sites/gwh/public/index.html', 'utf8');
@@ -71,13 +71,43 @@ test('L211: from Greece the bar names the 7 Greek stores as text, one link to Me
   for (const s of UK_SLUGS) assert.ok(!html.includes(`data-store="${s}"`), `no ${s}`);
   for (const n of ['Amazon', 'Joybuy', 'Tooled Up', 'PCHUB.UK', 'DHgate']) assert.ok(!b.includes(n), `no ${n} in the bar`);
   assert.ok(!b.includes('<img'), 'no logo: the Greek stores have none yet');
-  assert.equal((html.match(/href="https:\/\/megastoresgearworld\.com\/"/g) || []).length, 1, 'one link');
+  // L214: the bar and the Stores card open Mega Stores for Greece, /gr/ (no link to its UK page, none to the Hub's UK stores).
+  assert.equal((html.match(/href="https:\/\/megastoresgearworld\.com\/"/g) || []).length, 0, 'no link to the UK page');
+  assert.ok(b.includes('<a class="gwh2-mega" href="https://megastoresgearworld.com/gr/">'), 'the bar opens /gr/');
+  assert.ok(html.includes('<a class="gwh-quick-world gwh2-stores-card" href="https://megastoresgearworld.com/gr/" data-world="STORES">'), 'the Stores card opens /gr/');
+  assert.equal((html.match(/href="https:\/\/megastoresgearworld\.com\/gr\/"/g) || []).length, 2, 'the bar and the card');
+  assert.ok(!html.includes('Joybuy, Tooled Up, PCHUB.UK') && !html.includes('data-gwh2="storesDesc"'), 'no UK names on the card, and the page script cannot write them back');
+  assert.ok(html.includes('<small class="gwh2-rc-desc" translate="no">Kouzinika GR, Katoikein GR, Minipini GR +4</small>'), 'the Greek names on the card');
   assert.ok(b.includes('<span class="gwh2-mega-list gwh2-mega-copy" aria-hidden="true">'), 'the copy stays aria-hidden');
   assert.ok(b.includes(`data-gwh2-name="${GR_NAMES.join(', ')}"`) && b.includes(`Stores: <span translate="no">${GR_NAMES.join(', ')}</span>.`), 'the sentence for screen readers');
   for (const n of GR_NAMES) assert.ok(b.includes(`data-logo="text-only" translate="no">${n}</span>`), n);
   // Everything else on the page is the file itself.
   assert.equal(html.slice(0, html.indexOf('<div class="gwh2-mega-wrap">')), HOME.slice(0, HOME.indexOf('<div class="gwh2-mega-wrap">')));
-  assert.equal(html.slice(html.indexOf('<section class="gwh2-top">')), HOME.slice(HOME.indexOf('<section class="gwh2-top">')));
+  const card = s => s.replace(/<a class="gwh-quick-world gwh2-stores-card" href="[^"]*"/, '<a CARD').replace(/<small class="gwh2-rc-desc"[^>]*>[^<]*<\/small>/, '<small CARD>');
+  assert.equal(card(html.slice(html.indexOf('<section class="gwh2-top">'))), card(HOME.slice(HOME.indexOf('<section class="gwh2-top">'))), 'and the card');
+});
+
+test('L214: Greece opens Mega Stores /gr/, every other country with stores its home page; the card names its stores', async () => {
+  assert.deepEqual(MEGA_EDITION_HOME, { GR: 'https://megastoresgearworld.com/gr/' });
+  assert.equal(megaHomeFor('GR'), 'https://megastoresgearworld.com/gr/');
+  assert.equal(megaHomeFor('gr'), 'https://megastoresgearworld.com/gr/');
+  for (const cc of ['CY', 'GB', 'US', '', null]) assert.equal(megaHomeFor(cc), 'https://megastoresgearworld.com/', String(cc));
+  assert.equal(megaCardNames('GR'), 'Kouzinika GR, Katoikein GR, Minipini GR +4');
+  assert.equal(megaCardNames('CY'), 'Parex GR, Tsakiris Mallas GR');
+  assert.ok(!megaCardNames('GB').includes('Amazon'), 'never Amazon on the card');
+  const cy = await (await withMegaCountry(req('/', { cc: 'CY' }), page(HOME))).text();
+  assert.ok(cy.includes('<a class="gwh2-mega" href="https://megastoresgearworld.com/">'), 'Cyprus: the bar opens the home page (it shows Cyprus its stores)');
+  assert.ok(cy.includes('<a class="gwh-quick-world gwh2-stores-card" href="https://megastoresgearworld.com/" data-world="STORES">'));
+  assert.ok(cy.includes('<small class="gwh2-rc-desc" translate="no">Parex GR, Tsakiris Mallas GR</small>'));
+  for (const cc of ['US', 'DE']) {
+    const html = await (await withMegaCountry(req('/', { cc }), page(HOME))).text();
+    assert.ok(html.includes('<a class="gwh-quick-world gwh2-stores-card" href="/stores/" data-world="STORES">') && html.includes('data-gwh2="storesDesc"'), `${cc}: no Mega Stores there, the card as in the file`);
+  }
+  const gb = await (await withMegaCountry(req('/', { cc: 'GB' }), page(HOME))).text();
+  assert.equal(gb, HOME, 'the UK: the file itself');
+  // The file still has the card exactly as the worker looks for it.
+  assert.ok(HOME.includes('<a class="gwh-quick-world gwh2-stores-card" href="/stores/"') && HOME.includes('<small class="gwh2-rc-desc" data-gwh2="storesDesc"'));
+  assert.ok(HOME.includes('<a class="gwh2-mega" href="https://megastoresgearworld.com/">'));
 });
 
 test('L211: from Cyprus only Parex and Tsakiris Mallas; from the US, Germany or an unknown country no bar at all', async () => {
@@ -127,7 +157,9 @@ test('L211: /black-friday/ from Greece: no UK retailer or code, "Nothing listed 
   assert.equal(offerItems(html), 0, 'every retailer and code of the page delivers to the UK only');
   for (const w of ['CLAIMFIFTY', 'Tooled Up', 'Joybuy', '£50']) assert.ok(!html.includes(w), `no ${w}`);
   assert.equal((html.match(new RegExp(`<p class="gd-note rt-none">${BF_NONE_HERE}</p>`, 'g')) || []).length, 2, 'both lists say so, shown at once');
-  assert.ok(html.includes(`<p class="gd-note rt-country">${BF_COUNTRY_NOTE} The stores listed for your country are on <a href="https://megastoresgearworld.com/" translate="no">Mega Stores</a>.</p>`));
+  assert.ok(html.includes(`<p class="gd-note rt-country">${BF_COUNTRY_NOTE} The stores listed for your country are on <a href="https://megastoresgearworld.com/gr/" translate="no">Mega Stores</a>.</p>`), 'Greece: Mega Stores /gr/ (L214)');
+  const cyBf = await (await withMegaCountry(req('/black-friday/', { cc: 'CY' }), page(BF))).text();
+  assert.ok(cyBf.includes('are on <a href="https://megastoresgearworld.com/" translate="no">Mega Stores</a>.</p>'), 'Cyprus: the home page');
   assert.equal(BF_COUNTRY_NOTE, 'Only the retailers we list for your country are shown here.', 'what we show, never where a retailer delivers (L210)');
   assert.ok(html.includes('<h2 id="bf-dates-h">The dates</h2>') && html.includes('Friday 27 Nov 2026'), 'the dates stay');
   assert.ok(html.includes('<link rel="canonical" href="https://gearworldhub.com/black-friday/">'));

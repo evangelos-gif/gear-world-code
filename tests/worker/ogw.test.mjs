@@ -235,14 +235,18 @@ test('addresses: www, final slash, unknown pages, methods, robots, sitemap and v
   assert.equal(x.text, 'User-agent: *\nAllow: /\n\nSitemap: https://megastoresgearworld.com/sitemap.xml\n');
   x = await get('/sitemap.xml');
   for (const p of pagePaths(site, 'on')) assert.ok(x.text.includes(`<loc>https://megastoresgearworld.com${p}</loc>`), p);
-  assert.equal((x.text.match(/<loc>/g) || []).length, ALL_PAGES.length - Object.keys(GREEK).length + 1, 'every page of the UK view and the Amazon page (L210)');
+  // Every page of the UK view and the Amazon page (L210), and the Greek edition: /gr/ and its 7 store pages (L214).
+  assert.equal((x.text.match(/<loc>/g) || []).length, ALL_PAGES.length - Object.keys(GREEK).length + 1 + 1 + Object.keys(GREEK).length, 'the UK view, Amazon and /gr/');
   for (const p of UK_STORE_PAGES) assert.ok(x.text.includes(`<loc>https://megastoresgearworld.com${p}</loc>`), `sitemap: ${p}`);
-  for (const slug of Object.keys(GREEK)) assert.ok(!x.text.includes(`/stores/${slug}/`), `sitemap: no ${slug} (Google reads the UK page, L210)`);
+  for (const slug of Object.keys(GREEK)) {
+    assert.ok(!x.text.includes(`<loc>https://megastoresgearworld.com/stores/${slug}/</loc>`), `sitemap: not the UK address of ${slug} (Google reads the UK page, L210)`);
+    assert.ok(x.text.includes(`<loc>https://megastoresgearworld.com/gr/stores/${slug}/</loc>`), `sitemap: ${slug} at /gr/ (L214)`);
+  }
   assert.ok(x.text.includes('<loc>https://megastoresgearworld.com/stores/amazon/</loc>'), 'the Amazon page with Amazon links on');
   for (const env of [OFF, PRE]) {
     const t = (await get('/sitemap.xml', env)).text;
     assert.ok(!/amazon/i.test(t), 'no Amazon page in the sitemap without the live Amazon links');
-    assert.equal((t.match(/<loc>/g) || []).length, ALL_PAGES.length - Object.keys(GREEK).length);
+    assert.equal((t.match(/<loc>/g) || []).length, ALL_PAGES.length - Object.keys(GREEK).length + 1 + Object.keys(GREEK).length, 'with /gr/ and its store pages (L214)');
   }
   x = await defaultWorker.fetch(new Request(`${LIVE}/api/version`), { GW_COMMIT: 'ab'.repeat(20) });
   assert.deepEqual(await x.json(), { commit: 'ab'.repeat(20) }, 'the version for the live guard (L156)');
