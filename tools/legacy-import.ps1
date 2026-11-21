@@ -187,12 +187,24 @@ if (-not $Archive) {
 if (-not $Archive -or -not (Test-Path -LiteralPath $Archive)) { Say 'Δεν βρήκα τον φάκελο με τα feeds του Awin.' 'Red'; Finish 2 }
 Say ('Feeds: {0}' -f $Archive)
 
+# 1b. Lessons L206: the plan writes the extra photos (column images) only when the site database has that column: one
+# read-only look at the table's columns. No answer, an error or no column: the SQL exactly as before.
+$imgCol = Invoke-Wrangler $WorkDir ("d1 execute {0} --remote --json --command `"SELECT COUNT(*) AS n FROM pragma_table_info('products') WHERE name = 'images'`"" -f $DbName) -Retry
+$imgRows = $null
+if ($imgCol.code -eq 0) { $imgRows = Get-JsonArray $imgCol.text }
+$imgN = @()
+if ($imgRows) { $imgN = @($imgRows[0].results) }
+$withImages = ($imgN.Count -eq 1 -and [string]$imgN[0].n -eq '1')
+if ($withImages) { Say 'Φωτογραφίες (L206): η βάση έχει τη στήλη images, το σχέδιο γράφει και τις επιπλέον φωτογραφίες.' }
+else { Say 'Φωτογραφίες (L206): η βάση δεν έχει ακόμα τη στήλη images, το σχέδιο γράφεται όπως πριν (μία φωτογραφία).' }
+
 # 2. The plan (read-only).
 $planDir = Join-Path $OutDir ('IMPORT_PLAN_{0}_{1}' -f $Retailer, $stamp)
 $k = 2
 while (Test-Path -LiteralPath $planDir) { $planDir = Join-Path $OutDir ('IMPORT_PLAN_{0}_{1}_{2}' -f $Retailer, $stamp, $k); $k++ }
 Write-Host 'Φτιάχνω το σχέδιο από το feed (1-3 λεπτά)...'
-& node (Join-Path (Join-Path $repo 'tools') 'legacy-import-plan.mjs') --archive $Archive --retailer $Retailer --out $planDir | Out-Null
+if ($withImages) { $env:GW_IMAGES_COLUMN = '1' }
+try { & node (Join-Path (Join-Path $repo 'tools') 'legacy-import-plan.mjs') --archive $Archive --retailer $Retailer --out $planDir | Out-Null } finally { Remove-Item Env:\GW_IMAGES_COLUMN -ErrorAction SilentlyContinue }
 if ($LASTEXITCODE -ne 0) { Say 'Το σχέδιο απέτυχε: δεν βρέθηκε feed, λάθος στο αρχείο, ή δεν διαβάστηκε το site του καταστήματος (δες το μήνυμα πιο πάνω). Δεν άλλαξε τίποτα.' 'Red'; Finish 10 }
 $plan = [System.IO.File]::ReadAllText((Join-Path $planDir 'plan.json'), [System.Text.Encoding]::UTF8) | ConvertFrom-Json
 $sp = $plan.sites.$Site

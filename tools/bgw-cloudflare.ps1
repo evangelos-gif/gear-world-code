@@ -522,7 +522,20 @@ switch ($Step) {
         if ($Only -and $Only -notmatch '^[0-9]+(,[0-9]+)*$') { Say 'Λάθος -Only (μόνο αριθμοί Awin, χωρισμένοι με κόμμα).' 'Red'; Finish 2 }
         $planArgs = @((Join-Path (Join-Path $repo 'tools') 'bgw-import-plan.mjs'), '--archive', $Archive, '--out', $planDir)
         if ($Only) { $planArgs += @('--only', $Only); Say ('Μόνο τα καταστήματα Awin: {0}' -f $Only) }
-        & node @planArgs | Out-Null
+        # Lessons L206: the plan writes the extra photos (column images) only when this database has that column: one
+        # read-only look at the table's columns. No answer, an error or no column: the SQL exactly as before.
+        $imgCol = Invoke-Wrangler $bgw ("d1 execute {0} --remote --json --command `"SELECT COUNT(*) AS n FROM pragma_table_info('products') WHERE name = 'images'`"" -f $DbName) -NonInteractive -Retry
+        $imgRows = $null
+        if ($imgCol.code -eq 0) { $imgRows = Get-JsonArray $imgCol.text }
+        $imgN = @()
+        if ($imgRows) { $imgN = @($imgRows[0].results) }
+        if ($imgN.Count -eq 1 -and [string]$imgN[0].n -eq '1') {
+            $env:GW_IMAGES_COLUMN = '1'
+            Say '  Φωτογραφίες (L206): η D1 έχει τη στήλη images, το σχέδιο γράφει και τις επιπλέον φωτογραφίες.'
+        } else {
+            Say '  Φωτογραφίες (L206): η D1 δεν έχει ακόμα τη στήλη images, το σχέδιο γράφεται όπως πριν (μία φωτογραφία).'
+        }
+        try { & node @planArgs | Out-Null } finally { Remove-Item Env:\GW_IMAGES_COLUMN -ErrorAction SilentlyContinue }
         if ($LASTEXITCODE -ne 0) { Say 'Το σχέδιο import απέτυχε.' 'Red'; Finish 10 }
         $sqlDir = Join-Path $planDir 'sql'
         $files = @(Get-ChildItem -LiteralPath $sqlDir -Filter '*.sql' | Sort-Object Name)

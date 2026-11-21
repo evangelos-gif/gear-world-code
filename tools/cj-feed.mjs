@@ -76,6 +76,12 @@ const textArg = v => JSON.stringify(String(v ?? '').replace(/[\u0000-\u001f]/g, 
 export const COLUMNS = ['data_feed_id', 'merchant_id', 'merchant_name', 'aw_product_id', 'aw_deep_link', 'brand_name', 'merchant_product_id',
   'merchant_category', 'category_name', 'ean', 'mpn', 'product_name', 'description', 'merchant_deep_link', 'merchant_image_url', 'large_image',
   'search_price', 'store_price', 'rrp_price', 'currency', 'in_stock', 'stock_status', 'parent_product_id', 'last_updated'];
+// Up to 4 more photos (lessons L206), under Awin's names. Only a file of a network that HAS extra photos gets these columns
+// (CJ here, Daisycon): the imports read "the file has the columns" as "this feed says which extra photos the product has
+// now" (empty = none). Rakuten, Linkwise and bol.com files keep COLUMNS alone, so an import from them leaves a product's
+// extra photos as they are.
+export const PHOTO_COLUMNS = ['alternate_image', 'alternate_image_two', 'alternate_image_three', 'alternate_image_four'];
+export const CJ_COLUMNS = [...COLUMNS, ...PHOTO_COLUMNS];
 
 // Hosts of CJ tracking links (click and deep links). A product link elsewhere earns no commission.
 export const CJ_LINK_HOSTS = /(^|\.)(anrdoezrs\.net|dpbolvw\.net|jdoqocy\.com|kqzyfj\.com|tkqlhce\.com|emjcd\.com|qksrv\.net|ftjcfx\.com|lduhtrp\.net|awltovhc\.com|tqlkg\.com|apmebf\.com|afcyhf\.com|lqdhgjs\.com|yceml\.net|mjbpab\.com)$/i;
@@ -208,6 +214,8 @@ export function productQuery({ shape, cid, pid, advertiser, limit = PAGE, offset
 const money = m => { if (m === null || m === undefined) return NaN; if (typeof m === 'object') return Number(m.amount); return Number(m); };
 const cur = (...ms) => { for (const m of ms) if (m && typeof m === 'object' && m.currency) return String(m.currency).toUpperCase(); return ''; };
 const img = v => { if (!v) return ''; if (Array.isArray(v)) return img(v[0]); if (typeof v === 'object') return String(v.url || v.link || ''); return String(v); };
+// Every address of a CJ image field (additionalImageLink is a list), for the extra photo columns (lessons L206).
+const imgs = v => (Array.isArray(v) ? v.map(img) : [img(v)]).map(x => x.trim()).filter(Boolean);
 const flat = v => Array.isArray(v) ? v.filter(Boolean).join(' > ') : String(v ?? '');
 const words = v => Array.isArray(v) ? v.map(x => (x && typeof x === 'object' ? Object.values(x).join(':') : String(x ?? ''))).filter(Boolean).join(' ') : (v && typeof v === 'object' ? Object.values(v).join(':') : String(v ?? ''));
 
@@ -229,7 +237,9 @@ export function toFeedRow(p) {
     search_price: Number.isFinite(search) ? String(search) : '', store_price: Number.isFinite(price) ? String(price) : '', rrp_price: Number.isFinite(price) ? String(price) : '',
     currency: cur(p.salePrice, p.price), in_stock: inStock, stock_status: av, parent_product_id: String(p.itemGroupId ?? ''), last_updated: String(p.lastUpdated ?? ''),
     target_country: words(p.targetCountry), serviceable_areas: words(p.serviceableAreas), ships_from: words(p.shipsFromCountry), age_group: words(p.ageGroup),
-    gender: words(p.gender), search_keyword: String(p._keyword ?? '')
+    gender: words(p.gender), search_keyword: String(p._keyword ?? ''),
+    // additionalImageLink, the first 4 (large_image keeps the first one, as before); the import plans check every one.
+    ...Object.fromEntries(PHOTO_COLUMNS.map((c, i) => [c, imgs(p.additionalImageLink)[i] || '']))
   };
 }
 
@@ -342,7 +352,15 @@ export async function fetchAll({ shape, cid, pid, advertiser, token, api, fetchI
   return { ok: true, products: products(), total, capped, bands, split: 'price' };
 }
 
-export async function writeFeed(file, products, columns = COLUMNS) {
+// The columns of a CJ file: the 4 photo columns only when the query asked CJ for additionalImageLink (lessons L206: every
+// product then has the key, even when it is empty). The fallback query (FALLBACK_PRODUCT) and an API without that field do
+// not ask for it: such a file has no photo columns, so an import from it leaves the products' extra photos as they are
+// (empty columns would say "no extra photos now" and clear them).
+export function feedColumns(products) {
+  return (products || []).some(p => p && Object.prototype.hasOwnProperty.call(p, 'additionalImageLink')) ? CJ_COLUMNS : COLUMNS;
+}
+
+export async function writeFeed(file, products, columns = feedColumns(products)) {
   await new Promise((resolve, reject) => {
     const gz = createGzip();
     const ws = createWriteStream(file);
@@ -480,7 +498,7 @@ async function searchOne({ A, SR, S, shape, pid, adv, token, api, fetchImpl, pau
   if (!rows.length) { A.error = 'no products'; return; }
   mkdirSync(out, { recursive: true });
   A.file = join(out, `CJ_${adv}_${S.search}.csv.gz.part`);
-  await writeFeed(A.file, products, COLUMNS.concat(SEARCH_COLUMNS));
+  await writeFeed(A.file, products, feedColumns(products).concat(SEARCH_COLUMNS));
   A.ok = true;
 }
 

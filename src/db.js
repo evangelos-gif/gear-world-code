@@ -14,6 +14,7 @@ import { visibleSql, hiddenReason } from './lib/visibility.js';
 import { shownCountries } from './lib/delivery.js';
 import { searchMatch, searchPlan, SEARCH_WINDOW } from './lib/search-rank.js';
 import { isDbBusy } from './lib/http.js';
+import { parseImages } from './lib/photos.js';
 
 // The legacy layout also returns the old category name: Gear World Hub search shows it (lessons L22).
 let CARD_COLUMNS = NATIVE_CARD_COLUMNS;
@@ -107,6 +108,9 @@ function buildSource(site) {
     legacy: true,
     from: viewOf(),
     fastFrom: hint => viewOf(keyCol, hint),
+    // The product page's view when the table has the extra photos column (lessons L206): the same view with `images` at
+    // the end. Used only after hasImagesColumn() said the column is there, so it never names a column that is not.
+    photoFrom: viewOf(',\n    images'),
     // Category filters use the old column, so its index is used.
     catSql: slug => `p.site_category IN (${(map[slug] || ['']).map(() => '?').join(', ')})`,
     catBinds: slug => (map[slug] || ['']),
@@ -845,8 +849,67 @@ export async function getGuideProducts(db, ids) {
   return fixAll(r.results);
 }
 
-export async function getProduct(db, id) {
-  return fix(await db.prepare(`SELECT * FROM ${LAYOUT.from} p WHERE p.id = ? AND p.is_active = 1 LIMIT 1`).bind(id).first());
+// opts.photos (the product page only, lessons L206): the product's extra photos as product.images, an array of 0-4 https
+// addresses (src/lib/photos.js). The new layout's SELECT * has the column once it exists; the older layout's view names
+// its columns, so it adds `images` only when hasImagesColumn() found it. The query reads the same one row by its key.
+export async function getProduct(db, id, opts = {}) {
+  const read = from => db.prepare(`SELECT * FROM ${from} p WHERE p.id = ? AND p.is_active = 1 LIMIT 1`).bind(id).first();
+  let raw;
+  if (opts.photos && LAYOUT.legacy && (await hasImagesColumn(db))) {
+    // The column went away again (a rollback with DROP COLUMN) within the 10 minutes: the page reads as before at once.
+    try { raw = await read(LAYOUT.photoFrom); } catch (err) {
+      if (!/no such column: images/i.test(String((err && err.message) || err))) throw err;
+      photosSeen.set(db, { ok: false, until: Date.now() + FAST_RECHECK_MS });
+      raw = await read(LAYOUT.from);
+    }
+  } else raw = await read(LAYOUT.from);
+  const row = fix(raw);
+  if (row && opts.photos) row.images = parseImages(row.images, row.image_url);
+  return row;
+}
+
+// ---- More photos (lessons L206) ----
+// The one schema change of L206, the same text as sites/<site>/migrations/0004_product_images.sql (new layout) and
+// 0002_product_images.sql (older sites), put in the live databases by tools/d1-photo-column.ps1. A nullable column at the
+// end of the table: SQLite writes no row for it, every INSERT names its columns, and no index or view uses it.
+export const IMAGES_COLUMN_SQL = 'ALTER TABLE products ADD COLUMN images TEXT;';
+const photosSeen = new WeakMap();
+// True when the products table of this database has the column `images`. One small read of the table's column list
+// (never a SELECT that could fail), kept for 10 minutes per database binding like fastMode(), so the column takes effect
+// without a deploy and the code works the same before and after it is added.
+export async function hasImagesColumn(db) {
+  if (!db || typeof db !== 'object') return false;
+  const seen = photosSeen.get(db);
+  if (seen && seen.until > Date.now()) return seen.ok;
+  let ok = false;
+  try {
+    const r = await db.prepare("SELECT COUNT(*) AS n FROM pragma_table_info('products') WHERE name = 'images'").first();
+    ok = Number(r && r.n) === 1;
+  } catch { ok = false; }
+  photosSeen.set(db, { ok, until: Date.now() + FAST_RECHECK_MS });
+  return ok;
+}
+// The extra photos of listed products (GET /api/products?images=1, lessons L206): id -> array, only for products that have
+// some. One read by primary key of at most the listed rows; nothing at all before the column exists.
+export async function imagesFor(db, products) {
+  const out = new Map();
+  const list = (products || []).filter(p => p && Number.isSafeInteger(Number(p.id)));
+  if (!list.length || !(await hasImagesColumn(db))) return out;
+  let r;
+  try {
+    r = await db.prepare('SELECT id, images FROM products WHERE id IN (SELECT value FROM json_each(?)) AND images IS NOT NULL')
+      .bind(JSON.stringify(list.map(p => Number(p.id)))).all();
+  } catch (err) {
+    if (!/no such column: images/i.test(String((err && err.message) || err))) throw err;
+    photosSeen.set(db, { ok: false, until: Date.now() + FAST_RECHECK_MS });
+    return out;
+  }
+  const main = new Map(list.map(p => [Number(p.id), p.image_url]));
+  for (const x of r.results || []) {
+    const imgs = parseImages(x.images, main.get(Number(x.id)) || '');
+    if (imgs.length) out.set(Number(x.id), imgs);
+  }
+  return out;
 }
 
 // A hidden card of a product that still has another card on the site (InStock sent one card per size/colour; the

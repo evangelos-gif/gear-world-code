@@ -239,7 +239,8 @@ export function createWorker(site) {
     m = path.match(/^\/product\/([a-z0-9-]*)-(\d+)\/$/);
     if (m) {
       return cached(request, env, ctx, async () => {
-        const product = await db.getProduct(env.DB, Number(m[2]));
+        // photos: the product's extra photos for the gallery (lessons L206), only on this page.
+        const product = await db.getProduct(env.DB, Number(m[2]), { photos: true });
         if (!product) {
           const alt = await db.activeVariantOf(env.DB, Number(m[2]));
           return alt ? redirect(new URL(productPath(alt), url.origin).toString(), 301) : notFound(path, method, shown);
@@ -503,6 +504,10 @@ export function createWorker(site) {
     const { result, used, tried } = await searchWithTranslation(env, { ...p, category: cat ? cat.slug : '', search, view }, { sort: p.sort, page: p.page, perPage: limit }, translateOptions(request, url));
     marked(view, result.products);
     const origin = `https://${site.domain}`;
+    // ?images=1 (the mobile app, lessons L206): each product that has extra photos also gets "images", an array of 0-4
+    // https addresses (never the main image_url). One more read, by primary key, of only the listed rows; without the
+    // parameter (the Hub search, whose cards keep one photo) the answer and the reads are exactly as before.
+    const photos = url.searchParams.get('images') === '1' ? await db.imagesFor(env.DB, result.products) : null;
     return jsonResponse({
       ok: true,
       // Search in other languages: the English words used, and every translation tried (helps to see why a word finds nothing).
@@ -525,7 +530,8 @@ export function createWorker(site) {
         // Where the retailer delivers (lessons L151): country codes, 'EU' or 'WORLD', as the site's own cards say it.
         delivers_to: deliveryCountries(site, x.retailer),
         product_url: origin + productPath(x),
-        affiliate_url: `${origin}/out/${x.id}`
+        affiliate_url: `${origin}/out/${x.id}`,
+        ...(photos && photos.has(Number(x.id)) ? { images: photos.get(Number(x.id)) } : {})
       })),
       pagination: { page: result.page, limit, total: result.total, has_more: result.page < result.pages }
     }, { cache: 'short' });

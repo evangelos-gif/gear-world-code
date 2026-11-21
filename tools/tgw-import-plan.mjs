@@ -20,6 +20,7 @@ import { slugify, truncate } from '../src/lib/text.js';
 import { aliexpressSection } from './import-rules/lib/aliexpress-sections.mjs';
 import { bolSection, bolEan, bolStamp, bolTooOld, oldFileMessage } from './import-rules/lib/bol-nl.mjs';
 import { NETWORKS } from './network-links.mjs';
+import { extraImages, encodeImages, EXTRA_IMAGE_COLUMNS } from '../src/lib/photos.js';
 
 // A shop of another network on these sites (chat 9, 17 Nov 2026, Daisycon Wave 3, lessons L170): sources.json
 // "network": "daisycon" | "cj" | "rakuten" | "bol" with "file" (the download's file name, e.g. "^DAISYCON_20164_GB\\.csv\\.gz$")
@@ -56,7 +57,7 @@ const AWIN_PUBLISHER_ID = 3057233;
 // one size or colour ("Name - Colour / Size"), the link is the shop's own page and the Awin link is built here.
 // These rows are turned into Awin-named columns, so the rest of the plan reads them like any other feed.
 const GOOGLE_COLUMNS = ['product_name', 'aw_deep_link', 'merchant_image_url', 'search_price', 'rrp_price', 'currency', 'in_stock',
-  'ean', 'merchant_product_id', 'merchant_category', 'brand_name', 'description', 'mpn', 'colour', 'size'];
+  'ean', 'merchant_product_id', 'merchant_category', 'brand_name', 'description', 'mpn', 'colour', 'size', 'alternate_image'];
 
 // "Draper Torque Wrench - Black / UK 9" -> "Draper Torque Wrench": the size ending always has " / " in it.
 export function googleBaseName(title) {
@@ -106,7 +107,9 @@ export function googleAdapter(header, advertiserId) {
         col(rec, 'description'),
         col(rec, 'mpn'),
         '',
-        ''
+        '',
+        // The extra photos (lessons L206): Google's additional_image_link, a list joined by commas.
+        col(rec, 'additional_image_link')
       ];
     }
   };
@@ -215,7 +218,8 @@ const COLUMNS = {
   displayPrice: ['display_price'],
   inStock: ['in_stock', 'is_for_sale', 'stock_status', 'stock_quantity'],
   stockQuantity: ['stock_quantity'],
-  images: ['large_image', 'merchant_image_url', 'alternate_image', 'aw_image_url', 'merchant_thumb_url'],
+  // The main photo's columns. Awin's alternate_image ... _four are extra photos only, never the main one (lessons L206).
+  images: ['large_image', 'merchant_image_url', 'aw_image_url', 'merchant_thumb_url'],
   link: ['aw_deep_link'],
   merchantProductId: ['merchant_product_id', 'aw_product_id'],
   // "joinVariants" (AliExpress PL, L157): every colour and size is a row with its own merchant_product_id; the card is the
@@ -305,15 +309,33 @@ export const PLACEHOLDER_IMAGE = /placeholder|coming[-_ ]?soon|no[-_ ]?image|ima
 // same file over https (Miscota UK on Daisycon: every image is http://static.miscota.com/..., and the same path over https
 // answered 200 with the image, checked in a browser). Only the hosts named there are rewritten; any other http:// image
 // stays out ("no https image"), as before.
-export function firstHttpsImage(rec, map, source = null) {
+// An http:// address on a host of source.httpsImageHosts, as https (each address of a comma list).
+const httpsFor = source => {
   const hosts = (source && Array.isArray(source.httpsImageHosts) ? source.httpsImageHosts : []).map(h => String(h).toLowerCase());
+  const one = v => { const m = /^http:\/\/([^/\s"'<>]+)\//i.exec(v); return m && hosts.includes(m[1].toLowerCase()) ? 'https://' + v.slice(7) : v; };
+  return v => String(v || '').trim().split(/,(?=\s*https?:\/\/)/).map(x => one(x.trim())).join(',');
+};
+// The main photo and the whole value it came from. A value that holds several photos joined by commas (House of Sneakers,
+// lessons L117) gives its first one as the main photo (before L206 the whole list became one broken address, or, with a
+// space after the commas, the column was passed over); the rest stays for the gallery (rowExtraImages).
+export function mainImageOf(rec, map, source = null) {
+  const https = httpsFor(source);
   for (const i of map.images) {
-    let v = String(rec[i] || '').trim();
-    const http = /^http:\/\/([^/\s"'<>]+)\//i.exec(v);
-    if (http && hosts.includes(http[1].toLowerCase())) v = 'https://' + v.slice(7);
-    if (/^https:\/\/[^\s"'<>]+$/i.test(v) && !PLACEHOLDER_IMAGE.test(v)) return v;
+    const raw = https(rec[i]);
+    const v = raw.split(/,(?=\s*https?:\/\/)/)[0].trim();
+    if (/^https:\/\/[^\s"'<>]+$/i.test(v) && !PLACEHOLDER_IMAGE.test(v)) return { image: v, raw };
   }
-  return '';
+  return { image: '', raw: '' };
+}
+export function firstHttpsImage(rec, map, source = null) {
+  return mainImageOf(rec, map, source).image;
+}
+// The extra photos of a row (lessons L206): the rest of the main photo's comma list (raw, from mainImageOf), then Awin's
+// alternate_image ... alternate_image_four (map.alternates), real full-size pictures only (src/lib/photos.js), never the
+// main one again, at most 4. An http:// photo counts only on a host of source.httpsImageHosts, as for the main one.
+export function rowExtraImages(rec, map, image, source = null, raw = image) {
+  const https = httpsFor(source);
+  return extraImages(image, [https(raw), ...(map.alternates || []).map(i => https(rec[i]))]);
 }
 
 // "tyreNames" (massive import round 2c, 14 Nov 2026, lessons L144): the tyre shops of the Pneus.be network (Neumaticos ES,
@@ -691,7 +713,10 @@ function addSample(store, key, item, size, rng) {
 // rules: a site's category-rules.js (default TGW). Other sites with their own database reuse this tool with their own
 // rules and label (tools/agw-import-plan.mjs, tools/vgw-import-plan.mjs). QUALITY.currencies (list) or QUALITY.currency.
 // only: a list of Awin advertiser ids, to plan just those retailers (their SQL then touches only them).
-export async function planImport({ archive, sourcesFile, outDir, now = new Date(), rules = TGW_RULES, label = 'TGW', only = null, writeSql = true, allowOldBol = false }) {
+// images (lessons L206): the SQL also writes the extra photos (column images), only when the site database has that column:
+// the site tool asks the database first (read-only) and sets GW_IMAGES_COLUMN=1 for the plan. Without it the SQL is exactly
+// as before, so a database without the column never gets a statement it cannot run.
+export async function planImport({ archive, sourcesFile, outDir, now = new Date(), rules = TGW_RULES, label = 'TGW', only = null, writeSql = true, allowOldBol = false, images = process.env.GW_IMAGES_COLUMN === '1' }) {
   const { classify, cleanProductName, QUALITY, CATEGORY_SLUGS } = rules;
   const notUkHint = rules.notUkHint || (() => '');
   const currencies = QUALITY.currencies || [QUALITY.currency];
@@ -759,6 +784,10 @@ export async function planImport({ archive, sourcesFile, outDir, now = new Date(
       let header = null, map = null, rows = 0, adapter = null;
       // bol.com (lessons L204): the oldest download time of the file's rows; a file older than 12 hours is refused.
       let bolOldest = '';
+      // photosKnown (lessons L206): the file has the extra photo columns (Awin's alternate_image ..., or Google's
+      // additional_image_link), so it says which extra photos each product has now (empty = none). Without them the import
+      // leaves a product's extra photos as they are.
+      let photosKnown = false;
       const stream = createReadStream(found.full).pipe(/\.gz$/i.test(real) ? createGunzip() : new PassThrough());
       for await (const raw of readCsvRecords(stream)) {
         let rec = raw;
@@ -769,6 +798,10 @@ export async function planImport({ archive, sourcesFile, outDir, now = new Date(
           const missingCols = ['name', 'price', 'link', 'merchantProductId', 'images'].filter(k => !map[k].length);
           feedInfo.push(`${real}: ${google ? raw.length + ' columns (Google Shopping format)' : rec.length + ' columns'} | file date ${new Date(found.mtime).toISOString().slice(0, 10)}${missingCols.length ? ' | MISSING: ' + missingCols.join(', ') : ''}`);
           feedInfo.push('  columns used: ' + Object.entries(map).map(([k, v]) => `${k}=${v.map(i => header[i]).join('/') || '-'}`).join(' '));
+          // The extra photo columns (lessons L206), after the report line, so the report reads as before.
+          const h = rec.map(x => String(x).trim().toLowerCase().replace(/^\uFEFF/, ''));
+          map.alternates = EXTRA_IMAGE_COLUMNS.map(n => h.indexOf(n)).filter(i => i >= 0);
+          photosKnown = google ? raw.some(x => String(x).trim().toLowerCase().replace(/^\uFEFF/, '') === 'additional_image_link') : map.alternates.length > 0;
           continue;
         }
         if (raw.length === 1 && raw[0] === '') continue;
@@ -862,7 +895,9 @@ export async function planImport({ archive, sourcesFile, outDir, now = new Date(
           reject(byQuantity ? `out of stock: quantity 0, although the feed says in stock (${source.retailer})` : 'out of stock', short);
           continue;
         }
-        const image = firstHttpsImage(rec, map, source);
+        const { image, raw: imageRaw } = mainImageOf(rec, map, source);
+        // A photo only in the extra photo columns is never the main one (lessons L206): counted for the report.
+        if (!image && rowExtraImages(rec, map, '', source, '').length) stats.altOnlyImage = (stats.altOnlyImage || 0) + 1;
         if (QUALITY.requireImage && !image) { reject('no https image', short); continue; }
         const link = pick(rec, map.link);
         let host = '';
@@ -915,6 +950,10 @@ export async function planImport({ archive, sourcesFile, outDir, now = new Date(
           in_stock: stock === false ? 0 : 1,
           item_condition: condition,
           image_url: image,
+          // Up to 4 extra photos (lessons L206), written only when the database has the column (images) and the file has the
+          // photo columns (photosKnown).
+          images: encodeImages(rowExtraImages(rec, map, image, source, imageRaw)),
+          photosKnown,
           affiliate_url: link,
           merchant_category: truncate(merchantCategory || awinCategory, 200) || null,
           gtin,
@@ -993,6 +1032,8 @@ export async function planImport({ archive, sourcesFile, outDir, now = new Date(
     }
     if (p.gtin) stats.gtinValid++;
     if (p.was_price) stats.withWas++;
+    if (p.images) stats.withPhotos = (stats.withPhotos || 0) + 1;
+    if (!p.photosKnown) stats.photosUnknown = (stats.photosUnknown || 0) + 1;
     const list = (samples.accepted[slug] ||= []);
     if (list.length < SAMPLES_PER_GROUP) list.push(short);
   });
@@ -1002,6 +1043,9 @@ export async function planImport({ archive, sourcesFile, outDir, now = new Date(
   mkdirSync(outDir, { recursive: true });
   if (writeSql) mkdirSync(join(outDir, 'sql'), { recursive: true });
   const cols = ['stable_key', 'awin_advertiser_id', 'awin_product_id', 'merchant_product_id', 'retailer', 'category_slug', 'subcategory', 'brand', 'product_name', 'product_slug', 'description', 'price', 'was_price', 'currency', 'in_stock', 'item_condition', 'image_url', 'affiliate_url', 'merchant_category', 'gtin', 'mpn', 'specs_json', 'is_active', 'last_seen_at'];
+  // The extra photos (lessons L206): in the same statement as the row the import writes anyway (no extra row is written),
+  // only for a row from a file with the photo columns; any other row never names the column, so its photos stay as they are.
+  const colsImg = [...cols, 'images'];
   const updateCols = cols.filter(c => c !== 'stable_key' && c !== 'awin_advertiser_id' && c !== 'merchant_product_id');
   // "keepSiteNames" (VEVOR NL, lessons L79): the shop's feed is in Dutch and the site shows the names translated into English.
   // A product already on the site keeps its shown name, address and description; only a new product comes in with the feed's text.
@@ -1011,7 +1055,12 @@ export async function planImport({ archive, sourcesFile, outDir, now = new Date(
   const sqlFiles = [];
   for (let i = 0; writeSql && i < all.length; i += SQL_ROWS_PER_FILE) {
     const part = all.slice(i, i + SQL_ROWS_PER_FILE);
-    const lines = part.map(p => `INSERT INTO products (${cols.join(', ')}) VALUES (${cols.map(c => sq(p[c])).join(', ')}) ON CONFLICT(stable_key) DO UPDATE SET ${(keepNames.has(Number(p.awin_advertiser_id)) ? keptCols : updateCols).map(c => `${c} = excluded.${c}`).join(', ')}, updated_at = datetime('now');`);
+    const lines = part.map(p => {
+      const withImg = Boolean(images && p.photosKnown);
+      const c = withImg ? colsImg : cols;
+      const set = (keepNames.has(Number(p.awin_advertiser_id)) ? keptCols : updateCols).concat(withImg ? ['images'] : []);
+      return `INSERT INTO products (${c.join(', ')}) VALUES (${c.map(k => sq(p[k])).join(', ')}) ON CONFLICT(stable_key) DO UPDATE SET ${set.map(k => `${k} = excluded.${k}`).join(', ')}, updated_at = datetime('now');`;
+    });
     const name = `${String(sqlFiles.length + 1).padStart(4, '0')}.sql`;
     writeFileSync(join(outDir, 'sql', name), `-- ${label} import plan ${runStamp}. NOT executed. Loading needs the owner's approval.\n${lines.join('\n')}\n`);
     sqlFiles.push(name);
@@ -1061,6 +1110,9 @@ export async function planImport({ archive, sourcesFile, outDir, now = new Date(
   if (stats.sizesJoined) L.push(`sizes and colours joined into one product (Google format feeds): ${stats.sizesJoined} rows`);
   L.push('per retailer: ' + Object.entries(stats.perRetailer).filter(([, v]) => v.accepted).map(([r, v]) => `${r} ${v.accepted}`).join(', '));
   L.push(`valid GTIN: ${stats.gtinValid} (${pct(stats.gtinValid, stats.accepted)}) | with a was-price: ${stats.withWas}`);
+  L.push(`extra photos (L206): ${stats.withPhotos || 0} products have 1-4 more photos in the feed; ${images ? 'the SQL writes them (column images)' : 'the SQL does not write them (the database has no images column yet)'}`
+    + (images && stats.photosUnknown ? `; ${stats.photosUnknown} come from a feed without the photo columns: their photos on the site stay as they are` : ''));
+  if (stats.altOnlyImage) L.push(`extra photos (L206): ${stats.altOnlyImage} rows have a photo only in the extra photo columns (alternate_image ...); it is never taken as the main photo (rejected as "no https image" where a photo is required)`);
   L.push('');
   L.push('== Per shop ==');
   for (const [r, v] of Object.entries(stats.perRetailer)) {

@@ -36,6 +36,9 @@ jobs:
           sed -e 's/REPLACE_WITH_DATABASE_ID/local-dev-only/' -e '/"ai": {/d' sites/tgw/wrangler.jsonc.example > sites/tgw/wrangler.jsonc
           npx wrangler d1 migrations apply technology-gear-world --local --config sites/tgw/wrangler.jsonc
           npx wrangler d1 execute technology-gear-world --local --config sites/tgw/wrangler.jsonc --file tests/fixtures/tgw-seed.sql
+          # Lessons L206: extra photos on every product (the migrations above added the column), so the checks below see
+          # the photo gallery of the product pages.
+          npx wrangler d1 execute technology-gear-world --local --config sites/tgw/wrangler.jsonc --file tests/fixtures/product-images-ci.sql
       - name: Start the Worker locally
         run: |
           npx wrangler dev --config sites/tgw/wrangler.jsonc --local --port 8787 --ip 127.0.0.1 --var EDGE_CACHE:off --var GW_TODAY:2026-10-21 > dev.log 2>&1 &
@@ -51,6 +54,8 @@ jobs:
         run: node tools/layout-check.mjs http://127.0.0.1:8787 --lang de-DE --currency RUB --shots layout-shots-de --out layout-report-de.txt
       - name: Every page translated in all 10 languages (lessons L24)
         run: node tools/i18n-check.mjs http://127.0.0.1:8787 --site sites/tgw --out i18n-report.txt
+      - name: Product photo gallery on phone and desktop (lessons L206, real browser)
+        run: node tools/gallery-check.mjs http://127.0.0.1:8787 --shots gallery-shots --out gallery-report.txt
       - name: Cookie banner and Google Ads only after Allow (lessons L93, real browser)
         run: node tools/ads-consent-check.mjs http://127.0.0.1:8787 --site sites/tgw --out ads-report.txt
       - name: Keep the reports and screenshots
@@ -65,6 +70,8 @@ jobs:
             layout-report-de.txt
             layout-shots-de/
             i18n-report.txt
+            gallery-report.txt
+            gallery-shots/
             ads-report.txt
             dev.log
           if-no-files-found: ignore
@@ -397,6 +404,9 @@ jobs:
           # pages the fast way on the D1 of wrangler (its limits: 100 values, 5 SELECTs in a UNION ALL). The node tests
           # compare both ways.
           npx wrangler d1 execute ${{ matrix.db }} --local --config sites/${{ matrix.site }}/wrangler.jsonc --file sites/${{ matrix.site }}/migrations/0001_fast_lists.sql
+          # Lessons L206: the column of the extra photos, as the live database will have it, and photos on every product.
+          npx wrangler d1 execute ${{ matrix.db }} --local --config sites/${{ matrix.site }}/wrangler.jsonc --file sites/${{ matrix.site }}/migrations/0002_product_images.sql
+          npx wrangler d1 execute ${{ matrix.db }} --local --config sites/${{ matrix.site }}/wrangler.jsonc --file tests/fixtures/product-images-ci.sql
       - name: Start the Worker locally
         run: |
           npx wrangler dev --config sites/${{ matrix.site }}/wrangler.jsonc --local --port 8788 --ip 127.0.0.1 --var EDGE_CACHE:off --var GW_TODAY:2026-10-21 > dev.log 2>&1 &
@@ -411,6 +421,8 @@ jobs:
           node tools/layout-check.mjs http://127.0.0.1:8788 --lang de-DE --currency RUB --shots layout-shots-de --out layout-report-de.txt
       - name: Every page translated in all 10 languages (lessons L24)
         run: node tools/i18n-check.mjs http://127.0.0.1:8788 --site sites/${{ matrix.site }} --out i18n-report.txt
+      - name: Product photo gallery on phone and desktop (lessons L206, real browser)
+        run: node tools/gallery-check.mjs http://127.0.0.1:8788 --shots gallery-shots --out gallery-report.txt
       - name: Keep the reports and screenshots
         if: always()
         uses: actions/upload-artifact@v4
@@ -423,6 +435,8 @@ jobs:
             layout-report-de.txt
             layout-shots-de/
             i18n-report.txt
+            gallery-report.txt
+            gallery-shots/
             dev.log
           if-no-files-found: ignore
 

@@ -139,7 +139,8 @@ test('L193: every older site\'s migration is exactly LEGACY_FAST_INDEX_SQL (only
     const statements = text.split('\n').filter(l => l.trim() && !l.startsWith('--'));
     assert.deepEqual(statements, db.LEGACY_FAST_INDEX_SQL, code);
     assert.ok(statements.every(l => /^CREATE INDEX IF NOT EXISTS idx_products_\w+ ON products \(/.test(l)), code);
-    assert.deepEqual(readdirSync(`sites/${code}/migrations`), ['0001_fast_lists.sql'], `${code}: only the indexes`);
+    // Lessons L206: and the one nullable column of the extra photos (tests/worker/product-photos.test.mjs).
+    assert.deepEqual(readdirSync(`sites/${code}/migrations`), ['0001_fast_lists.sql', '0002_product_images.sql'], `${code}: only the indexes and the photo column (L206)`);
     assert.ok(!existsSync(`sites/${code}/migrations/0001_init.sql`), `${code}: no table of its own (L28)`);
   }
   assert.deepEqual(db.LEGACY_FAST_INDEXES, ['idx_products_active_category', 'idx_products_active_category_price_id', 'idx_products_active_created',

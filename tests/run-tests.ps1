@@ -598,6 +598,28 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         Check ($iBackup -ge 0 -and $iExec -gt $iBackup) 'cloudflare import: restore point before loading'
         $notes = @(Get-ChildItem -LiteralPath (Join-Path $cfWork 'backups') -Filter '*.txt' -ErrorAction SilentlyContinue)
         Check ($notes.Count -eq 1 -and ([System.IO.File]::ReadAllText($notes[0].FullName)).Contains($fakeBookmark)) 'cloudflare import: restore point written with the bookmark'
+        # Lessons L206: the tool asks the database for the photo column first (the fake answers n = 1), and with it the plan's SQL writes the photos.
+        $tgwPlan = @(Get-ChildItem -LiteralPath $cfOut -Directory -Filter 'TGW_IMPORT_PLAN_*' | Sort-Object LastWriteTime | Select-Object -Last 1)
+        $tgwSql = ''
+        if ($tgwPlan.Count -eq 1 -and (Test-Path -LiteralPath (Join-Path (Join-Path $tgwPlan[0].FullName 'sql') '0001.sql'))) { $tgwSql = [System.IO.File]::ReadAllText((Join-Path (Join-Path $tgwPlan[0].FullName 'sql') '0001.sql')) }
+        $tgwRep = [System.IO.File]::ReadAllText((@(Get-ChildItem -LiteralPath $cfOut -Filter 'TGW_CLOUDFLARE_IMPORT_*.txt' | Sort-Object LastWriteTime) | Select-Object -Last 1).FullName)
+        # This feed has no photo columns (an older download): the SQL never names the column, so the photos on the site stay (Manager, 20 Nov 2026).
+        Check (((Calls) -match "pragma_table_info\('products'\) WHERE name = 'images'") -and $tgwRep.Contains('η D1 έχει τη στήλη images') -and $tgwSql.Contains('INSERT INTO products') -and -not $tgwSql.Contains('images')) 'cloudflare import (L206): asks for the photo column; a feed without the photo columns leaves the photos as they are'
+        # The same shop with the photo columns (a new download): the plan's SQL writes them (dry run, nothing loaded).
+        $phArch = Join-Path $work 'awin-photos'
+        New-Item -ItemType Directory -Path $phArch -Force | Out-Null
+        $phCsv = "aw_deep_link,product_name,aw_product_id,merchant_product_id,merchant_image_url,merchant_category,search_price,currency,brand_name,in_stock,ean,alternate_image,alternate_image_two,alternate_image_three,alternate_image_four`n" +
+            "https://www.awin1.com/pclick.php?p=1&a=1&m=123932,Sony WH-1000XM5 Wireless Headphones,1,JB-1,https://img.example/1.jpg,Audio,279.00,GBP,Sony,1,4006381333931,https://img.example/1b.jpg,,,`n"
+        $fs = [System.IO.File]::Create((Join-Path $phArch 'AWIN_123932_114093.csv.gz'))
+        $gz = New-Object System.IO.Compression.GZipStream($fs, [System.IO.Compression.CompressionMode]::Compress)
+        $bytes = [System.Text.Encoding]::UTF8.GetBytes($phCsv)
+        $gz.Write($bytes, 0, $bytes.Length); $gz.Close(); $fs.Close()
+        Start-Sleep -Seconds 1
+        Check ((Run-Cf @('-Step', 'import', '-Archive', $phArch)) -eq 0) 'cloudflare import (L206) with photo columns, without -Apply: exit 0'
+        $phPlan = @(Get-ChildItem -LiteralPath $cfOut -Directory -Filter 'TGW_IMPORT_PLAN_*' | Sort-Object LastWriteTime | Select-Object -Last 1)
+        $phSql = ''
+        if ($phPlan.Count -eq 1 -and (Test-Path -LiteralPath (Join-Path (Join-Path $phPlan[0].FullName 'sql') '0001.sql'))) { $phSql = [System.IO.File]::ReadAllText((Join-Path (Join-Path $phPlan[0].FullName 'sql') '0001.sql')) }
+        Check ($phSql.Contains(', images) VALUES') -and $phSql.Contains("'https://img.example/1b.jpg'") -and $phSql.Contains('images = excluded.images')) 'cloudflare import (L206): a feed with the photo columns writes them when the database has the column'
         # 25 Oct 2026 (lessons L64): D1 answered "Not currently importing anything" after loading 0005.sql. The same file is sent again.
         $env:GW_FAKE_IMPORTFLAKY = '1'
         $fileCallsBefore = ([regex]::Matches((Calls), '--file')).Count
@@ -2431,7 +2453,7 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
       "const feed=zlib.gzipSync('aw_product_id,product_name,merchant_deep_link,search_price\n1,A Jacket,https://www.coes.co.uk/products/a,10\n2,B Shirt,https://www.coes.co.uk/products/b,20\n');" +
       "http.createServer((q,s)=>{if(!q.url.includes('/apikey/'+key+'/')&&!q.url.endsWith('/apikey/'+key)){s.writeHead(403);return s.end('bad key')}" +
       "if(q.url.startsWith('/datafeed/list/')){s.writeHead(200,{'Content-Type':'text/csv'});return s.end(list)}" +
-      "if(q.url.includes('/fid/116078/')&&q.url.includes('columns/')&&q.url.includes('merchant_product_category_path')){s.writeHead(200,{'Content-Type':'application/x-gzip'});return s.end(feed)}" +
+      "if(q.url.includes('/fid/116078/')&&q.url.includes('columns/')&&q.url.includes('merchant_product_category_path')&&q.url.includes('large_image,alternate_image,alternate_image_two,alternate_image_three,alternate_image_four,')){s.writeHead(200,{'Content-Type':'application/x-gzip'});return s.end(feed)}" +
       "s.writeHead(404);s.end('no')}).listen(8799,'127.0.0.1');")
     $node = (Get-Command node).Source
     $proc = Start-Process -FilePath $node -ArgumentList @($srv, $fdKey) -PassThru -WindowStyle Hidden
@@ -2553,6 +2575,10 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         Check ((Run-Li @('-Site', 'mgw')) -eq 0) 'legacy import without -Apply: exit 0'
         Check (-not ((LiCalls) -match '--file|time-travel')) 'legacy import without -Apply: only reads'
         Check (-not ((LiCalls) -match 'INSERT|UPDATE|DELETE')) 'legacy import without -Apply: only SELECT sent'
+        $liPlan = @(Get-ChildItem -LiteralPath $liOut -Directory -Filter 'IMPORT_PLAN_coes_*' -ErrorAction SilentlyContinue | Sort-Object LastWriteTime | Select-Object -Last 1)
+        $liSql = ''
+        if ($liPlan.Count -eq 1) { $liSql = (@(Get-ChildItem -LiteralPath $liPlan[0].FullName -Recurse -Filter '*.sql') | ForEach-Object { [System.IO.File]::ReadAllText($_.FullName) }) -join '' }
+        Check (((LiCalls) -match "pragma_table_info\('products'\) WHERE name = 'images'") -and $liSql.Contains('INSERT INTO products') -and -not $liSql.Contains(', images)')) 'legacy import (L206): asks for the photo column; without it the SQL is as before'
         Check ((Run-Li @('-Site', 'mgw', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ COES WGW')) -eq 1) 'legacy import with the other site''s phrase: stops'
         Check (-not ((LiCalls) -match '--file')) 'legacy import with wrong phrase: loads nothing'
         $env:GW_FAKE_BADLAYOUT = '1'
@@ -6132,6 +6158,137 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         Remove-Item -LiteralPath (Join-Path $flState 'wrong.flag') -Force
         & $exe -NoProfile -ExecutionPolicy Bypass -File $flRunner -LocalRepo $repo -Tool d1-fast-lists -WorkDir $flWork -OutDir $flOut -SkipInstall -NoClipboard | Out-Null
         Check ($LASTEXITCODE -eq 0) 'fast lists: runs through gw-run'
+    } finally {
+        $env:PATH = $oldPath
+        Remove-Item Env:\GW_FAKE_STATE -ErrorAction SilentlyContinue
+    }
+}
+
+# 23c. d1-photo-column.ps1 (the column of the extra product photos, lessons L206, in the 13 databases) with a fake wrangler
+#      (Windows only). The fake answers every database with one column list that holds the columns of both layouts, so
+#      each site finds its own; after the ALTER it answers with the images column too.
+if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
+    Write-Host 'd1-photo-column.ps1 (fake wrangler)'
+    $pcTool = Join-Path (Join-Path $repo 'tools') 'd1-photo-column.ps1'
+    $pcRunner = Join-Path (Join-Path $repo 'tools') 'gw-run.ps1'
+    $pcState = Join-Path $work 'pc-state'
+    $pcBin = Join-Path $work 'pc-bin'
+    $pcWork = Join-Path $work 'pc-work'
+    $pcOut = Join-Path $work 'pc-out'
+    New-Item -ItemType Directory -Path $pcState, $pcBin -Force | Out-Null
+    $pcBookmark = '00000085-0000024c-00004c6d-' + [guid]::NewGuid().ToString('N')
+    $pcBoth = @('id', 'category_slug', 'first_seen_at', 'last_seen_at', 'in_stock', 'site_category', 'stock_status', 'created_at', 'updated_at', 'image_url')
+    $pcNewOnly = @('id', 'category_slug', 'first_seen_at', 'last_seen_at', 'in_stock', 'image_url')
+    function PC-Cols([string[]]$names) { return '[{"results":[' + ((@($names | ForEach-Object { '{"name":"' + $_ + '"}' })) -join ',') + '],"success":true}]' }
+    Write-Utf8 (Join-Path $pcState 'cols-without.json') (PC-Cols $pcBoth)
+    Write-Utf8 (Join-Path $pcState 'cols-with.json') (PC-Cols ($pcBoth + @('images')))
+    Write-Utf8 (Join-Path $pcState 'cols-new.json') (PC-Cols $pcNewOnly)
+    Write-Utf8 (Join-Path $pcState 'schema.json') '[{"results":[{"type":"table","name":"products","tbl_name":"products","sql":"CREATE TABLE products (id INTEGER PRIMARY KEY)"}],"success":true}]'
+    $pcNpx = @(
+        '@echo off',
+        'echo %* >> "%GW_FAKE_STATE%\calls.log"',
+        'echo %* | findstr /L /C:"--file" >nul && goto addcol',
+        'echo %* | findstr /L /C:"time-travel info" >nul && goto ttinfo',
+        'echo %* | findstr /L /C:"pragma_table_info" >nul && goto cols',
+        'echo %* | findstr /L /C:"sqlite_master" >nul && goto schema',
+        'echo unknown command 1>&2',
+        'exit /b 1',
+        ':addcol',
+        'echo done> "%GW_FAKE_STATE%\created.flag"',
+        'echo Executed 1 command.',
+        'exit /b 0',
+        ':ttinfo',
+        'if exist "%GW_FAKE_STATE%\nott.flag" goto ttnone',
+        ('echo The current bookmark is ' + $pcBookmark),
+        'exit /b 0',
+        ':ttnone',
+        'echo X [ERROR] Time Travel is not available.',
+        'exit /b 1',
+        ':cols',
+        'if exist "%GW_FAKE_STATE%\newtable.flag" goto colsnew',
+        'if exist "%GW_FAKE_STATE%\created.flag" goto colswith',
+        'type "%GW_FAKE_STATE%\cols-without.json"',
+        'exit /b 0',
+        ':colswith',
+        'type "%GW_FAKE_STATE%\cols-with.json"',
+        'exit /b 0',
+        ':colsnew',
+        'type "%GW_FAKE_STATE%\cols-new.json"',
+        'exit /b 0',
+        ':schema',
+        'type "%GW_FAKE_STATE%\schema.json"',
+        'exit /b 0'
+    ) -join "`r`n"
+    [System.IO.File]::WriteAllText((Join-Path $pcBin 'npx.cmd'), $pcNpx + "`r`n", [System.Text.Encoding]::ASCII)
+    $oldPath = $env:PATH
+    $env:PATH = $pcBin + ';' + $oldPath
+    $env:GW_FAKE_STATE = $pcState
+    $pcCalls = Join-Path $pcState 'calls.log'
+    function Run-PC([string[]]$a) {
+        $all = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $pcTool, '-WorkDir', $pcWork, '-OutDir', $pcOut, '-SkipInstall', '-NoClipboard') + $a
+        & $exe @all | Out-Null
+        return $LASTEXITCODE
+    }
+    function PCCalls { if (Test-Path -LiteralPath $pcCalls) { return [System.IO.File]::ReadAllText($pcCalls) } else { return '' } }
+    function PCLast([string]$filter) {
+        $f = @(Get-ChildItem -LiteralPath $pcOut -Filter $filter -ErrorAction SilentlyContinue | Sort-Object LastWriteTime, Name | Select-Object -Last 1)
+        if ($f.Count -eq 0) { return '' }
+        return [System.IO.File]::ReadAllText($f[0].FullName)
+    }
+    function PCBackup([string]$filter) { return @(Get-ChildItem -LiteralPath (Join-Path $pcWork 'backups') -Filter $filter -ErrorAction SilentlyContinue) }
+    try {
+        $pcStatement = 'ALTER TABLE products ADD COLUMN images TEXT;'
+        $same = $true
+        foreach ($s in @('agw', 'tgw', 'vgw', 'sgw', 'bgw', 'pgw', 'zgw')) {
+            $o = @([System.IO.File]::ReadAllLines((Join-Path $repo ('sites\' + $s + '\migrations\0004_product_images.sql')), [System.Text.Encoding]::UTF8) | Where-Object { $_.Trim() -and -not $_.StartsWith('--') })
+            if (($o -join '|') -ne $pcStatement) { $same = $false }
+        }
+        foreach ($s in @('cgw', 'mgw', 'wgw', 'kgw', 'hgw', 'ggw')) {
+            $o = @([System.IO.File]::ReadAllLines((Join-Path $repo ('sites\' + $s + '\migrations\0002_product_images.sql')), [System.Text.Encoding]::UTF8) | Where-Object { $_.Trim() -and -not $_.StartsWith('--') })
+            if (($o -join '|') -ne $pcStatement) { $same = $false }
+        }
+        Check $same 'photo column (L206): the same one statement in the migrations of the 13 sites'
+        Check ((Run-PC @()) -eq 0) 'photo column check: exit 0'
+        $c = PCCalls
+        Check (-not ($c -match '--file|time-travel') -and (@([regex]::Matches($c, 'pragma_table_info')).Count -eq 13) -and ($c -match 'car-gear-world --remote --json --command "SELECT name FROM pragma_table_info') -and ($c -match 'construction-gear-customers') -and ($c -match 'garden-gear-world')) 'photo column check: only the column list of each of the 13 databases is read'
+        $r = PCLast 'D1_PHOTO_COLUMN_CHECK_*.txt'
+        Check ($r.Contains('ΕΓΚΡΙΝΩ ΣΤΗΛΗ ΦΩΤΟΓΡΑΦΙΩΝ') -and $r.Contains($pcStatement) -and $r.Contains('d1 time-travel restore home-gear-world --bookmark=') -and -not $r.Contains('--command "ALTER TABLE products DROP COLUMN') -and $r.Contains('ΟΧΙ DROP COLUMN') -and $r.Contains('d1 time-travel restore car-gear-world') -and $r.Contains('η σειρά με το ALL UPDATES δεν έχει σημασία')) 'photo column check: the statement, the phrase and the ways back in the report'
+        Remove-Item -LiteralPath $pcCalls -Force -ErrorAction SilentlyContinue
+        Check ((Run-PC @('-Verify')) -eq 9 -and -not ((PCCalls) -match '--file|time-travel')) 'photo column -Verify without the column: exit 9, only reads'
+        Check ((Run-PC @('-Verify', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ ΣΤΗΛΗ ΦΩΤΟΓΡΑΦΙΩΝ')) -eq 2 -and -not ((PCCalls) -match '--file')) 'photo column -Verify never goes with -Apply'
+        Check ((Run-PC @('-Apply', '-Approve', 'ΕΓΚΡΙΝΩ ΕΥΡΕΤΗΡΙΑ ΛΙΣΤΩΝ')) -eq 1 -and -not ((PCCalls) -match '--file|time-travel')) 'photo column apply with another tool''s phrase: nothing changes'
+        Check ((Run-PC @('-Only', 'xgw')) -eq 2) 'photo column: an unknown site in -Only is refused'
+        # No restore point: nothing changes.
+        Write-Utf8 (Join-Path $pcState 'nott.flag') 'no'
+        Remove-Item -LiteralPath $pcCalls -Force -ErrorAction SilentlyContinue
+        Check ((Run-PC @('-Only', 'mgw', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ ΣΤΗΛΗ ΦΩΤΟΓΡΑΦΙΩΝ')) -eq 11 -and -not ((PCCalls) -match '--file')) 'photo column apply without a restore point: stops, nothing changes'
+        Remove-Item -LiteralPath (Join-Path $pcState 'nott.flag') -Force
+        # A database whose table is of the other layout (a wrong name): never touched.
+        Write-Utf8 (Join-Path $pcState 'newtable.flag') 'new'
+        Check ((Run-PC @('-Only', 'hgw')) -eq 2 -and (PCLast 'D1_PHOTO_COLUMN_CHECK_*.txt').Contains('δεν έχει τις στήλες')) 'photo column: an older site whose table is not of the older layout is a problem'
+        Remove-Item -LiteralPath $pcCalls -Force -ErrorAction SilentlyContinue
+        Check ((Run-PC @('-Only', 'hgw', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ ΣΤΗΛΗ ΦΩΤΟΓΡΑΦΙΩΝ')) -eq 8 -and -not ((PCCalls) -match '--file|time-travel')) 'photo column apply: never touches a table of the other layout'
+        Remove-Item -LiteralPath (Join-Path $pcState 'newtable.flag') -Force
+        # One database, with the phrase in small letters with accents.
+        Remove-Item -LiteralPath $pcCalls -Force -ErrorAction SilentlyContinue
+        Check ((Run-PC @('-Only', 'mgw', '-Apply', '-Approve', 'Εγκρίνω στήλη φωτογραφιών')) -eq 0) 'photo column apply (MGW only): exit 0'
+        $c = PCCalls
+        $iTT = $c.IndexOf('time-travel info mens-gear-world')
+        $iFile = $c.IndexOf('--file')
+        Check ((@([regex]::Matches($c, '--file')).Count -eq 1) -and ($c -match 'mens-gear-world --remote --file') -and -not ($c -match 'womens-gear-world')) 'photo column apply -Only mgw: only the MGW database'
+        Check ($iTT -ge 0 -and $iFile -gt $iTT -and $c.LastIndexOf('pragma_table_info') -gt $iFile) 'photo column apply: the restore point first, then the column, then the check'
+        $sent = @(PCBackup 'mgw-add-photo-column-*.sql')
+        Check ($sent.Count -eq 1 -and ([System.IO.File]::ReadAllText($sent[0].FullName)).Trim() -eq $pcStatement) 'photo column apply: exactly the one ALTER statement is sent'
+        $rb = @(PCBackup 'mgw-rollback-photo-column-*.txt')
+        Check ($rb.Count -eq 1 -and ([System.IO.File]::ReadAllText($rb[0].FullName)).Contains('--bookmark=' + $pcBookmark) -and ([System.IO.File]::ReadAllText($rb[0].FullName)).Contains('ΟΧΙ DROP COLUMN') -and -not ([System.IO.File]::ReadAllText($rb[0].FullName)).Contains('--command')) 'photo column apply: the restore point (Time Travel, the only way back) written next to the backup'
+        Check ((PCBackup 'mgw-sqlite_master-before-photo-column-*.json').Count -eq 1) 'photo column apply: the schema saved to a dated file'
+        Check ((PCLast 'D1_PHOTO_COLUMN_APPLY_*.txt').Contains('ΕΤΟΙΜΟ')) 'photo column apply: report ready'
+        Remove-Item -LiteralPath $pcCalls -Force -ErrorAction SilentlyContinue
+        Check ((Run-PC @('-Apply', '-Approve', 'ΕΓΚΡΙΝΩ ΣΤΗΛΗ ΦΩΤΟΓΡΑΦΙΩΝ')) -eq 0 -and -not ((PCCalls) -match '--file|time-travel')) 'photo column apply again: every database has it, nothing changes'
+        Check ((PCLast 'D1_PHOTO_COLUMN_APPLY_*.txt').Contains('έχουν ήδη τη στήλη')) 'photo column apply again: says it is already there'
+        Check ((Run-PC @('-Verify')) -eq 0 -and (PCLast 'D1_PHOTO_COLUMN_VERIFY_*.txt').Contains('ΕΝΤΑΞΕΙ')) 'photo column -Verify with the column in the 13 databases: exit 0'
+        & $exe -NoProfile -ExecutionPolicy Bypass -File $pcRunner -LocalRepo $repo -Tool d1-photo-column -WorkDir $pcWork -OutDir $pcOut -SkipInstall -NoClipboard | Out-Null
+        Check ($LASTEXITCODE -eq 0) 'photo column: runs through gw-run'
     } finally {
         $env:PATH = $oldPath
         Remove-Item Env:\GW_FAKE_STATE -ErrorAction SilentlyContinue

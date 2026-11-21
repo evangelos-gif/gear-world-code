@@ -21,6 +21,7 @@ import { createHash, randomBytes } from 'node:crypto';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { FEED_COLUMNS, csvLine, isDaisyconLink, pageInLink } from './network-links.mjs';
+import { PHOTO_COLUMNS } from './cj-feed.mjs';
 
 export const LOGIN = 'https://login.daisycon.com';
 export const SERVICES = 'https://services.daisycon.com';
@@ -100,6 +101,12 @@ const imageOf = (f, raw) => {
   if (Array.isArray(imgs) && imgs.length) { const i = imgs[0]; return String(isObj(i) ? (i.location || i.url || i.src || i.link || '') : i); }
   return String(first(f, ['image_location', 'image_large', 'image_url', 'image', 'image_default', 'images', 'image_link']));
 };
+// The product's other photos (lessons L206): the 2nd to 5th of its images list, for Awin's alternate_image ... _four.
+const moreImagesOf = raw => {
+  const imgs = raw && (raw.images || (raw.product_info && raw.product_info.images));
+  const list = Array.isArray(imgs) ? imgs.slice(1, 5).map(i => String(isObj(i) ? (i.location || i.url || i.src || i.link || '') : (i ?? '')).trim()) : [];
+  return Object.fromEntries(PHOTO_COLUMNS.map((c, k) => [c, list[k] || '']));
+};
 
 // One Daisycon product as one feed row (Awin column names): price is the price today, the old price is the shop's "was".
 export function toFeedRow(raw, { programId, program, mediaId, shopUrl = '' } = {}) {
@@ -132,7 +139,8 @@ export function toFeedRow(raw, { programId, program, mediaId, shopUrl = '' } = {
     dc_gender: String(first(f, ['gender_target', 'gender']) || ''), dc_colour: String(first(f, ['color_primary', 'colour', 'color']) || ''),
     dc_size: String(first(f, ['size', 'size_description']) || ''), dc_delivery: String(first(f, ['delivery_time', 'delivery_description']) || ''),
     dc_shipping: String(first(f, ['price_shipping']) ?? ''), dc_google_category: String(first(f, ['google_category_path']) || ''),
-    dc_condition: String(first(f, ['condition']) || '')
+    dc_condition: String(first(f, ['condition']) || ''),
+    ...moreImagesOf(raw)
   };
 }
 
@@ -340,7 +348,8 @@ async function probeOne(P, p, { mediaId, fetchImpl, currency = '', country = '' 
 const hostOf = u => { try { return u ? new URL(u).host : ''; } catch { return ''; } };
 
 // The Awin columns, then Daisycon's own (the import reads columns by name, so the extra ones do no harm).
-export const DC_COLUMNS = [...FEED_COLUMNS, 'dc_gender', 'dc_colour', 'dc_size', 'dc_delivery', 'dc_shipping', 'dc_google_category', 'dc_condition'];
+// The extra photo columns after the Awin ones (lessons L206): a Daisycon file says which extra photos each product has now.
+export const DC_COLUMNS = [...FEED_COLUMNS, ...PHOTO_COLUMNS, 'dc_gender', 'dc_colour', 'dc_size', 'dc_delivery', 'dc_shipping', 'dc_google_category', 'dc_condition'];
 
 // The feed file, written as the pages come (only the ids seen stay in memory).
 function openRows(file) {
