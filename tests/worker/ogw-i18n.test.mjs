@@ -125,7 +125,14 @@ test('L195: every text the pages use is in every dictionary, and every dictionar
     for (const day of days) {
       for (const fetch of [fakeFetch(), failing]) {
         const w = createGuidesWorker(s, { fetch, cache: null, now: () => at(day) });
-        for (const env of [ON, OFF, PRE]) for (const lang of langs) for (const p of paths) await (await w.fetch(new Request(LIVE + withLang(p, lang)), env)).text();
+        // The UK page and a page of a country no store delivers to (L210: their own lines).
+        for (const cc of ['GB', 'GR']) {
+          for (const env of [ON, OFF, PRE]) for (const lang of langs) for (const p of paths) {
+            const req = new Request(LIVE + withLang(p, lang));
+            Object.defineProperty(req, 'cf', { value: { country: cc } });
+            await (await w.fetch(req, env)).text();
+          }
+        }
       }
     }
   };
@@ -204,7 +211,8 @@ test('L175, L195: the country picks the language when the visitor chose none (pr
   assert.ok(x.text.includes('<a class="hub-link" href="https://gearworldhub.com/">'), 'the Hub without ?lang=: the visitor did not choose');
   x = await get('/?lang=en-GB', ON, { cf: { country: 'GR' } });
   assert.ok(x.text.startsWith('<!doctype html>\n<html lang="en-GB">'), 'the visitor\'s choice first');
-  assert.equal(x.r.headers.get('Cache-Control'), 'public, max-age=60, s-maxage=300');
+  // L210: every page depends on the visitor's country now (its stores, codes and Amazon), so none is kept by a shared cache.
+  assert.equal(x.r.headers.get('Cache-Control'), 'private, max-age=60');
   assert.ok(x.text.includes('<a class="hub-link" href="https://gearworldhub.com/?lang=en-GB">'), 'a chosen English goes to the Hub too (L174)');
   x = await get('/', ON, { cf: { country: 'BE' }, headers: { 'accept-language': 'fr-BE,fr;q=0.9,en;q=0.5' } });
   assert.ok(x.text.startsWith('<!doctype html>\n<html lang="fr-FR">'), 'Belgium, French browser');
@@ -212,7 +220,7 @@ test('L175, L195: the country picks the language when the visitor chose none (pr
   assert.ok(x.text.startsWith('<!doctype html>\n<html lang="en-GB">'), 'Belgium, English first');
   x = await get('/', ON, { cf: { country: 'GB' } });
   assert.ok(x.text.startsWith('<!doctype html>\n<html lang="en-GB">'));
-  assert.equal(x.r.headers.get('Cache-Control'), 'public, max-age=60, s-maxage=300', 'the English page is kept as before');
+  assert.equal(x.r.headers.get('Cache-Control'), 'private, max-age=60', 'L210: the UK page is not kept by a shared cache either');
   // The network's QA check asks for a country with its header, and for a language with ?lang= (tools/ogw-site.ps1).
   x = await get('/', ON, { ua: QA, headers: { 'X-GW-QA-Country': 'GB' } });
   assert.ok(x.text.startsWith('<!doctype html>\n<html lang="en-GB">'));

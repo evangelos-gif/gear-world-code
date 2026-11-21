@@ -100,6 +100,45 @@ function requestCountry(request) {
   return /^[A-Z]{2}$/.test(cf) ? cf : '';
 }
 
+// ---------------- Where the visitor is (owner, 21 Nov 2026, lessons L210) ----------------
+// "They opened Mega Stores from Greece and it shows them all the stores it has for England, and the offers: this is
+// wrong" / "can't they be hidden for Greece and the other countries they don't deliver to?". Each store, its Black
+// Friday entry, its codes and Amazon UK show only to visitors from a country in their deliversTo (none given: the UK
+// only). The country is the one Cloudflare reports (the QA bot may name one; Google and every other crawler read the UK
+// page, as they read English, L195). No country at all (a local test) is the UK page, as before. Every other country,
+// including Cloudflare's XX (unknown) and T1 (Tor), is "not the UK".
+export const VIEW_BASE = 'GB';
+// Every country at once (only to count what other countries see; never a visitor's view).
+const ANY_COUNTRY = '*';
+export function viewCountry(request) {
+  if (readsEnglish(request)) return VIEW_BASE;
+  const cc = requestCountry(request);
+  if (cc) return cc;
+  // Cloudflare gave a code that is not two letters (T1: Tor): unknown, not the UK.
+  const cf = request.cf && typeof request.cf.country === 'string' ? request.cf.country.trim() : '';
+  return cf ? 'XX' : VIEW_BASE;
+}
+
+// Where an entry of the config or of black-friday.json delivers: its deliversTo, or the UK when it has none.
+const deliveryOf = entry => {
+  const to = entry && Array.isArray(entry.deliversTo) ? entry.deliversTo.map(c => String(c).toUpperCase()).filter(Boolean) : [];
+  return to.length ? to : [VIEW_BASE];
+};
+export function deliversHere(entry, country = VIEW_BASE) {
+  if (country === ANY_COUNTRY) return true;
+  const to = deliveryOf(entry);
+  return to.includes('WORLD') || to.includes(String(country || VIEW_BASE).toUpperCase());
+}
+
+// Amazon UK (amazon.co.uk with the UK Associates ID) only for the countries of site.amazon.deliversTo (the UK): for
+// every other country the pages are written as with AMAZON_LINKS=off (no Amazon button, page or statement).
+export function amazonHere(site, country = VIEW_BASE) {
+  return deliversHere(site.amazon || {}, country);
+}
+export function viewMode(site, mode, country = VIEW_BASE) {
+  return amazonHere(site, country) ? mode : 'off';
+}
+
 // Which language this answer is in: { lang, chosen, byCountry }. chosen = the visitor asked for it (?lang=), so every
 // link of the page keeps it; byCountry = from the country or the browser, so the answer is this visitor's only.
 export function pickLanguage(site, request, url) {
@@ -124,8 +163,10 @@ const storesLabel = c => keep(c.site.storesLabel || c.site.name);
 //   href(path)       an address of this site that keeps the chosen language (?lang=)
 //   gw(url)          an address of a Gear World site, with ?lang= when the visitor chose a language (L174)
 //   hub(path)        an address of Gear World Hub, with ?lang= only for a chosen language the Hub has
-export function makeContext(site, lang = BASE_LANG, chosen = false, mode = 'off', path = '/') {
+//   country          the visitor's country (viewCountry): which stores, codes and Black Friday entries the page shows
+export function makeContext(site, lang = BASE_LANG, chosen = false, mode = 'off', path = '/', country = VIEW_BASE) {
   const code = languageList(site).some(l => l.code === lang) ? lang : BASE_LANG;
+  const cc = /^[A-Z]{2}$/.test(String(country || '').toUpperCase()) ? String(country).toUpperCase() : VIEW_BASE;
   const isChosen = Boolean(chosen);
   const dict = code === BASE_LANG ? null : ((site.dictionaries || {})[code] || {});
   const look = key => {
@@ -161,7 +202,8 @@ export function makeContext(site, lang = BASE_LANG, chosen = false, mode = 'off'
   };
   const fmt = (day, opts) => new Intl.DateTimeFormat(code, { ...opts, timeZone: 'UTC' }).format(new Date(`${day}T12:00:00Z`));
   return {
-    site, lang: code, chosen: isChosen, mode, path, t, tx, href, gw, hub,
+    // Amazon UK only where it delivers (L210): any other country gets the pages of AMAZON_LINKS=off.
+    site, lang: code, chosen: isChosen, mode: viewMode(site, mode, cc), country: cc, path, t, tx, href, gw, hub,
     shortDate: day => fmt(day, { day: 'numeric', month: 'short' }),
     dayDate: day => fmt(day, { weekday: 'short', day: 'numeric', month: 'short' }),
     validDate: day => fmt(day, { day: 'numeric', month: 'short', year: 'numeric' }),
@@ -378,17 +420,20 @@ function ideaButtons(c, idea) {
 // to the store's /discount-codes/<slug>/ page on the first of the store's Gear World sites that lists it: never /out/
 // or /go/, never a link to the retailer. A sale (no code, no money off) is not shown (L107, L114). The card says what
 // the retailer says ("£50 off when you spend £500", "15% off when you spend £50"): never "deals", "sale", "save",
-// "lowest price", "up to" or a discount of our own.
-export function storeCodes(site, now = Date.now(), only = null) {
+// "lowest price", "up to" or a discount of our own. Only the stores that deliver to the visitor's country (L210).
+export function storeCodes(site, now = Date.now(), only = null, country = VIEW_BASE) {
   const out = [];
   for (const store of awinStores(site)) {
     if (only && store.slug !== only) continue;
+    if (!deliversHere(store, country)) continue;
     const seen = new Set();
     for (const code of store.sites) {
       const w = gearWorldFor(code);
       if (!w) continue;
       for (const p of activePromos({ promos: promosFor(code) }, now)) {
         if (p.slug !== store.slug || (p.kind !== 'code' && p.kind !== 'coupon')) continue;
+        // A code is for the country it is published for (its deliversTo; none: the UK, like every code today, L210).
+        if (!deliversHere(p, country)) continue;
         const key = p.kind === 'code' ? `code:${String(p.code).toUpperCase()}` : `coupon:${Number(p.off)}:${Number(p.minSpend)}`;
         if (seen.has(key)) continue;
         seen.add(key);
@@ -442,14 +487,15 @@ export function retailerSearchUrl(r, w) {
   return u.toString();
 }
 
-export function earlyBlackFriday(site, now = Date.now()) {
+// Only the retailers that deliver to the visitor's country (their deliversTo in black-friday.json, L210).
+export function earlyBlackFriday(site, now = Date.now(), country = VIEW_BASE) {
   const data = site.earlyBlackFriday || {};
   const today = ukDay(new Date(now));
-  const ours = new Map(awinStores(site).map(s => [s.slug, s]));
+  const ours = new Map(awinStores(site).filter(s => deliversHere(s, country)).map(s => [s.slug, s]));
   const codes = Array.isArray(data.codes) ? data.codes : [];
   return (Array.isArray(data.started) ? data.started : [])
     .filter(r => r && r.name && /^[a-z0-9]+(-[a-z0-9]+)*$/.test(r.slug || '') && DAY_RE.test(r.from || '') && DAY_RE.test(r.hide || '')
-      && (!r.to || DAY_RE.test(r.to)) && r.from <= today && today <= r.hide && Array.isArray(r.sites))
+      && (!r.to || DAY_RE.test(r.to)) && r.from <= today && today <= r.hide && Array.isArray(r.sites) && deliversHere(r, country))
     .map(r => {
       const worlds = r.sites.map(gearWorldFor).filter(Boolean);
       const own = codes.filter(k => k && k.slug === r.slug && (k.kind === 'code' || k.kind === 'coupon') && DAY_RE.test(k.end || '') && today <= k.end
@@ -511,21 +557,31 @@ function bfKey(k) {
 // A countdown worked out on the server by UK day ("8 days to Black Friday"; nothing moves, no script), the two dates,
 // the stores that have started (early Black Friday) with their codes, the codes of this site's stores that the Hub's
 // file does not list (promos/promos.js), the Hub's Black Friday page, and only with Amazon links Amazon's own page.
-export function blackFridayParts(site, now = Date.now()) {
+// Stores and codes only for the visitor's country (L210); elsewhere = how many entries run today for other countries.
+export function blackFridayParts(site, now = Date.now(), country = VIEW_BASE) {
   const today = ukDay(new Date(now));
   const bf = site.blackFriday;
   const cyber = site.cyberMonday || (bf ? addDays(bf, 3) : '');
   if (!bf || !cyber || today > cyber) return null;
-  const started = earlyBlackFriday(site, now);
-  const shown = new Set(started.flatMap(r => r.codes.map(bfKey)));
-  const extra = storeCodes(site, now).filter(i => !shown.has(codeKey(i.store.slug, i.promo.kind, i.promo.code, i.promo.off, i.promo.minSpend)));
-  return { today, bf, cyber, days: daysBetween(today, bf), started, extra };
+  const pick = cc => {
+    const started = earlyBlackFriday(site, now, cc);
+    const shown = new Set(started.flatMap(r => r.codes.map(bfKey)));
+    const extra = storeCodes(site, now, null, cc).filter(i => !shown.has(codeKey(i.store.slug, i.promo.kind, i.promo.code, i.promo.off, i.promo.minSpend)));
+    return { started, extra };
+  };
+  const here = pick(country);
+  const all = pick(ANY_COUNTRY);
+  const elsewhere = all.started.length + all.extra.length - here.started.length - here.extra.length;
+  return { today, bf, cyber, days: daysBetween(today, bf), started: here.started, extra: here.extra, elsewhere };
 }
 
 function blackFridayBlock(c, now) {
   const { site, t } = c;
-  const b = blackFridayParts(site, now);
+  const b = blackFridayParts(site, now, c.country);
   if (!b) return '';
+  // Nothing of it delivers here (L210): the countdown and the dates, a line saying so, and no Hub button (the Hub's
+  // Black Friday page lists the same UK stores and codes).
+  const noneHere = !b.started.length && !b.extra.length && b.elsewhere > 0;
   const count = b.days > 1 ? t('{0} days to Black Friday', html`<strong class="bf-num">${b.days}</strong>`)
     : b.days === 1 ? t('{0} day to Black Friday', html`<strong class="bf-num">1</strong>`)
       : b.today < b.cyber ? t('Black Friday is on') : t('Cyber Monday is on');
@@ -541,10 +597,11 @@ function blackFridayBlock(c, now) {
   ${b.extra.length ? html`<h3 class="bf-sub">${t('Codes from the stores')}</h3>
   <ul class="promo-list">${b.extra.map(i => codeCard(c, i))}</ul>` : ''}
   ${anyCodes ? html`<p class="promo-note">${t('The stores\' own codes, as they publish them through their affiliate programmes. Each one has an end date and disappears after it.')} ${t('Each store sets its own terms: check them on its page before you pay.')}</p>` : ''}
-  <p class="bf-links">
-    <a class="btn btn-gw" href="${c.hub('/black-friday/')}"><span>${t('All Black Friday dates and codes on {0}', keep((site.hub && site.hub.name) || 'Gear World Hub'))}</span></a>
+  ${noneHere ? html`<p class="bf-none">${t('None of the stores with Black Friday codes on this page delivers to your country yet.')}</p>` : ''}
+  ${noneHere && !amazon ? '' : html`<p class="bf-links">
+    ${noneHere ? '' : html`<a class="btn btn-gw" href="${c.hub('/black-friday/')}"><span>${t('All Black Friday dates and codes on {0}', keep((site.hub && site.hub.name) || 'Gear World Hub'))}</span></a>`}
     ${amazon ? html`<a class="btn btn-market" href="${amazon}" rel="sponsored nofollow noopener" target="_blank">${t('Black Friday on Amazon')}</a>` : ''}
-  </p>
+  </p>`}
 </section>`;
 }
 
@@ -569,9 +626,12 @@ export function awinStores(site) {
   return (site.stores || []).filter(s => !s.amazon && Array.isArray(s.sites) && s.sites.length);
 }
 
-// The stores shown with this mode, in the config's order: Amazon only with Amazon links (on or preview).
-export function shownStores(site, mode) {
-  return (site.stores || []).filter(s => (s.amazon ? withMarkets(mode) : Array.isArray(s.sites) && s.sites.length));
+// The stores shown with this mode, in the config's order: Amazon only with Amazon links (on or preview) and only where
+// Amazon UK delivers; every other store only to the countries in its deliversTo (L210).
+export function shownStores(site, mode, country = VIEW_BASE) {
+  return (site.stores || []).filter(s => (s.amazon
+    ? withMarkets(viewMode(site, mode, country))
+    : Array.isArray(s.sites) && s.sites.length && deliversHere(s, country)));
 }
 
 export function storeCacheKey(site, store) {
@@ -581,7 +641,8 @@ export function storeCacheKey(site, store) {
 const SITE_HOST = w => new URL(w.url).hostname;
 
 // One product of a site's /api/products answer as this site may show it, or null: an https photo, a product page on
-// that same Gear World site, the store's own products, delivered to the UK, not out of stock, a clean name.
+// that same Gear World site, the store's own products, delivered to the store's first country (the UK for every store
+// today, L210), not out of stock, a clean name.
 export function cleanStoreProduct(p, store, w) {
   if (!p || typeof p !== 'object') return null;
   if (String(p.retailer || '').trim().toLowerCase() !== store.name.toLowerCase()) return null;
@@ -590,7 +651,8 @@ export function cleanStoreProduct(p, store, w) {
   if (!name || UNSHOWN_WORDS.test(name) || UNSHOWN_WORDS.test(brand)) return null;
   if (p.stock_status === 'out_of_stock') return null;
   const to = Array.isArray(p.delivers_to) ? p.delivers_to.map(c => String(c).toUpperCase()) : [];
-  if (!to.includes('GB') && !to.includes('WORLD')) return null;
+  const home = deliveryOf(store)[0];
+  if (!to.includes(home) && !to.includes('WORLD')) return null;
   let image;
   let page;
   try {
@@ -607,7 +669,7 @@ export function cleanStoreProduct(p, store, w) {
 async function readSiteProducts(store, w, deps) {
   const u = new URL('/api/products', w.url);
   u.searchParams.set('retailer', store.name);
-  u.searchParams.set('deliver_to', 'GB');
+  u.searchParams.set('deliver_to', deliveryOf(store)[0]);
   u.searchParams.set('badges', '1');
   u.searchParams.set('limit', String(STORE_PER_SITE));
   const ac = new AbortController();
@@ -705,7 +767,15 @@ function storeCard(c, store, products) {
 
 function storesSection(c, data) {
   const { site, t, mode } = c;
-  const stores = shownStores(site, mode);
+  const stores = shownStores(site, mode, c.country);
+  // No store of this page delivers to the visitor's country (L210): the part stays, with a line saying so.
+  if (!stores.length && shownStores(site, mode, ANY_COUNTRY).length) {
+    return html`<section class="wrap section" id="stores">
+  <h2>${storesLabel(c)}</h2>
+  <p class="section-lede stores-none">${t('None of the stores on this page delivers to your country yet.')} ${t('The gift guides open the Gear World sites, where each product shows where it delivers.')}</p>
+  <p><a href="${c.href('/#guides')}">${t('Gift guides')}</a></p>
+</section>`;
+  }
   if (!stores.length) return '';
   return html`<section class="wrap section" id="stores">
   <h2>${storesLabel(c)}</h2>
@@ -726,8 +796,8 @@ function storeDisclosure(c) {
 
 // Codes from promos/promos.js that run today on a Gear World site for this store (kind "code" only: a sale or a
 // coupon is not a code to type, lessons L107, L114).
-function storeHasCodes(store, code, now) {
-  return activePromos({ promos: promosFor(code) }, now).some(p => p.kind === 'code' && p.slug === store.slug);
+function storeHasCodes(store, code, now, country = VIEW_BASE) {
+  return activePromos({ promos: promosFor(code) }, now).some(p => p.kind === 'code' && p.slug === store.slug && deliversHere(p, country));
 }
 
 export function storeSearchUrl(store, w) {
@@ -737,11 +807,31 @@ export function storeSearchUrl(store, w) {
   return u.toString();
 }
 
+// A store page for a visitor from a country the store does not deliver to (L210): its name, one line saying so, and
+// the links to the stores and the gift guides. No products, no codes, no links to its products on the sites.
+export function storeElsewherePage(c, store) {
+  const { site, t, tx } = c;
+  return shell(c, {
+    title: tx('{0} on {1}', store.name, site.name),
+    description: tx('{0} does not deliver to your country yet.', store.name),
+    path: `/stores/${store.slug}/`,
+    body: html`
+<section class="hero hero-small"><div class="wrap">
+  <p class="eyebrow"><a href="${c.href('/#stores')}">${storesLabel(c)}</a></p>
+  <div class="store-title">${storeLogo(site, store, 'store-logo store-logo-lg')}<h1>${t('{0} on {1}', keep(store.name), keep(site.name))}</h1></div>
+  <p class="lede store-elsewhere">${t('{0} does not deliver to your country yet.', keep(store.name))} ${t('The gift guides open the Gear World sites, where each product shows where it delivers.')}</p>
+</div></section>
+<section class="wrap section">
+  <p><a href="${c.href('/#stores')}">${t('All stores')}</a> · <a href="${c.href('/#guides')}">${t('Gift guides')}</a></p>
+</section>`
+  });
+}
+
 export function storePage(c, store, products, now = Date.now()) {
   const { site, t, tx } = c;
   const worlds = store.sites.map(gearWorldFor).filter(Boolean);
-  const codes = storeCodes(site, now, store.slug);
-  const started = earlyBlackFriday(site, now).find(r => r.slug === store.slug);
+  const codes = storeCodes(site, now, store.slug, c.country);
+  const started = earlyBlackFriday(site, now, c.country).find(r => r.slug === store.slug);
   return shell(c, {
     title: tx('{0} on {1}', store.name, site.name),
     description: `${tx(store.line)} ${tx('Product photos from the Gear World sites, each with its Gear World product page.')}`,
@@ -777,7 +867,7 @@ ${codes.length ? html`<section class="wrap section store-codes" aria-labelledby=
   <h2>${t('{0} on the Gear World sites', keep(store.name))}</h2>
   <ul class="site-links">${worlds.map(w => html`<li>
     <a href="${c.gw(storeSearchUrl(store, w))}"><span>${t('All {0} products on {1}', keep(store.name), keep(w.name))}</span></a>
-    ${storeHasCodes(store, w.code, now) ? html`<a href="${c.gw(new URL(`/discount-codes/${store.slug}/`, w.url).toString())}"><span>${t('{0} voucher codes on {1}', keep(store.name), keep(w.name))}</span></a>` : ''}
+    ${storeHasCodes(store, w.code, now, c.country) ? html`<a href="${c.gw(new URL(`/discount-codes/${store.slug}/`, w.url).toString())}"><span>${t('{0} voucher codes on {1}', keep(store.name), keep(w.name))}</span></a>` : ''}
   </li>`)}</ul>
   <p><a href="${c.href('/#stores')}">${t('All stores')}</a> · <a href="${c.href('/#guides')}">${t('Gift guides')}</a></p>
 </section>`
@@ -836,7 +926,7 @@ export function amazonStorePage(c, store) {
 // part of the page or its guide. Worked out on the server like the countdown (nothing moves, no script, L188).
 export function heroButtons(c, now = new Date()) {
   const { site, t, mode } = c;
-  const b = blackFridayParts(site, now.getTime());
+  const b = blackFridayParts(site, now.getTime(), c.country);
   const tiles = [];
   if (b) {
     const label = b.days > 1 ? t('{0} days to Black Friday', html`<strong class="jump-num">${b.days}</strong>`)
@@ -847,7 +937,8 @@ export function heroButtons(c, now = new Date()) {
     const count = countdownText(site, c, now);
     if (count) tiles.push(html`<li class="jump-wide"><a class="jump jump-bf" href="${c.href('/#guides')}"><span class="jump-label">${count}</span></a></li>`);
   }
-  const stores = shownStores(site, mode).length;
+  // Only the stores that deliver to the visitor's country (L210); none: no stores button.
+  const stores = shownStores(site, mode, c.country).length;
   if (stores) tiles.push(html`<li><a class="jump" href="${c.href('/#stores')}"><span class="jump-label">${storesLabel(c)}</span><span class="jump-meta">${t('{0} stores', stores)}</span></a></li>`);
   tiles.push(html`<li><a class="jump" href="${c.href('/#guides')}"><span class="jump-label">${t('Gift guides')}</span><span class="jump-meta">${t('{0} gift guides', site.guides.length)}</span></a></li>`);
   for (const g of site.guides.slice(0, 4)) tiles.push(html`<li><a class="jump" href="${c.href(`/guides/${g.slug}/`)}"><span class="jump-label">${t(g.title)}</span></a></li>`);
@@ -898,6 +989,10 @@ ${blackFridayBlock(c, now.getTime())}
   });
 }
 
+// A text written for the UK (a UK plug, UK law, the UKCA mark) has its own line for every other country (introAbroad,
+// whyAbroad in the config, L210).
+const forCountry = (c, uk, abroad) => (c.country !== VIEW_BASE && abroad ? abroad : uk);
+
 export function guidePage(c, guide) {
   const { site, t, tx, mode } = c;
   return shell(c, {
@@ -908,13 +1003,13 @@ export function guidePage(c, guide) {
 <section class="hero hero-small"><div class="wrap">
   <p class="eyebrow"><a href="${c.href('/#guides')}">${t('Gift guides')}</a></p>
   <h1>${t(guide.title)}</h1>
-  <p class="lede">${t(guide.intro)}</p>
+  <p class="lede">${t(forCountry(c, guide.intro, guide.introAbroad))}</p>
 </div></section>
 <section class="wrap section">${disclosure(c)}</section>
 <section class="wrap section">
   <ol class="ideas">${guide.ideas.map(i => html`<li class="idea">
     <h2>${t(i.name)}</h2>
-    <p>${t(i.why)}</p>
+    <p>${t(forCountry(c, i.why, i.whyAbroad))}</p>
     ${ideaButtons(c, i)}
   </li>`)}</ol>
 </section>
@@ -1093,9 +1188,10 @@ export function createGuidesWorker(site, deps = {}) {
     timeoutMs: deps.timeoutMs
   });
   const nowMs = () => (typeof deps.now === 'function' ? deps.now() : Date.now());
-  // Every store's products for the home page cards (from the cache, or read now); never breaks the page.
-  async function allStoreData(ctx) {
-    const list = awinStores(site);
+  // Every store's products for the home page cards (from the cache, or read now); never breaks the page. Only the
+  // stores the visitor's country sees (L210): the others are not even read.
+  async function allStoreData(ctx, country = VIEW_BASE) {
+    const list = awinStores(site).filter(s => deliversHere(s, country));
     const r = await Promise.allSettled(list.map(s => storeProducts(site, s, runtime(), ctx)));
     const out = {};
     list.forEach((s, i) => { out[s.slug] = r[i].status === 'fulfilled' ? r[i].value.products : []; });
@@ -1111,13 +1207,18 @@ export function createGuidesWorker(site, deps = {}) {
       if (request.method !== 'GET' && request.method !== 'HEAD') return textResponse('Method not allowed', { status: 405, cache: 'none' });
       // The test Worker (*.workers.dev) is never indexed.
       const preview = url.hostname !== site.domain && !['localhost', '127.0.0.1'].includes(url.hostname);
-      const mode = amazonMode(env);
+      // The Worker's Amazon setting (the sitemap lists the Amazon page by it) and what this visitor's country sees:
+      // Amazon UK only where it delivers (L210).
+      const baseMode = amazonMode(env);
+      const country = viewCountry(request);
+      const mode = viewMode(site, baseMode, country);
       const choice = pickLanguage(site, request, url);
-      const ctxFor = path => makeContext(site, choice.lang, choice.chosen, mode, path);
+      const ctxFor = path => makeContext(site, choice.lang, choice.chosen, mode, path, country);
       const page = (body, status = 200) => {
-        // A language picked from the country or the browser makes the answer this visitor's only (as on the sites,
-        // L175); a chosen language is in the address, so its answer can be kept like the English one.
-        const res = htmlResponse(body, { status, method: request.method, cache: choice.byCountry ? 'private' : 'page' });
+        // Every page now depends on the visitor's country (its stores, codes and Amazon buttons, L210), and before
+        // that a language picked from the country or the browser did too (L175): a page is never kept by a shared
+        // cache for other visitors (private), whatever its language.
+        const res = htmlResponse(body, { status, method: request.method, cache: 'private' });
         res.headers.set('Content-Language', choice.lang);
         if (preview) res.headers.set('X-Robots-Tag', 'noindex, nofollow');
         return res;
@@ -1128,12 +1229,12 @@ export function createGuidesWorker(site, deps = {}) {
         return textResponse(preview ? 'User-agent: *\nDisallow: /\n' : `User-agent: *\nAllow: /\n\nSitemap: https://${site.domain}/sitemap.xml\n`, { method: request.method });
       }
       if (url.pathname === '/sitemap.xml') {
-        const urls = pagePaths(site, mode).map(p => `<url><loc>https://${site.domain}${p}</loc></url>`).join('\n');
+        const urls = pagePaths(site, baseMode).map(p => `<url><loc>https://${site.domain}${p}</loc></url>`).join('\n');
         return textResponse(`<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls}\n</urlset>\n`, { type: 'application/xml', method: request.method });
       }
       // A redirect keeps the chosen language (?lang= stays in the address).
       const keepLang = to => (choice.chosen ? makeContext(site, choice.lang, true).href(to) : to);
-      if (url.pathname === '/' || url.pathname === '/index.html') return page(homePage(ctxFor('/'), new Date(nowMs()), await allStoreData(ctx)));
+      if (url.pathname === '/' || url.pathname === '/index.html') return page(homePage(ctxFor('/'), new Date(nowMs()), await allStoreData(ctx, country)));
       if (url.pathname === '/guides' || url.pathname === '/guides/') return redirect(`https://${site.domain}${keepLang('/#guides')}`, 302);
       if (url.pathname === '/stores' || url.pathname === '/stores/') return redirect(`https://${site.domain}${keepLang('/#stores')}`, 302);
       const sm = url.pathname.match(/^\/stores\/([a-z0-9-]+)\/?$/);
@@ -1143,6 +1244,8 @@ export function createGuidesWorker(site, deps = {}) {
         const shown = store.amazon ? withMarkets(mode) : Array.isArray(store.sites) && store.sites.length > 0;
         if (shown && !url.pathname.endsWith('/')) { url.pathname = `${url.pathname}/`; return redirect(url.toString(), 301); }
         if (shown && store.amazon) return page(amazonStorePage(ctxFor(`/stores/${store.slug}/`), store));
+        // A store that does not deliver to the visitor's country (L210): the page says so, with no products or codes.
+        if (shown && !deliversHere(store, country)) return page(storeElsewherePage(ctxFor(`/stores/${store.slug}/`), store));
         if (shown) {
           let products = [];
           try { products = (await storeProducts(site, store, runtime(), ctx)).products; } catch { products = []; }

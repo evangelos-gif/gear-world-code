@@ -213,15 +213,16 @@ function Write-Config([string]$folder, [bool]$preview) {
     return $file
 }
 
-# One GET (no redirects followed): @{ status; text; location; robots } (status 0 = no answer).
-function Get-Page([string]$url) {
+# One GET (no redirects followed): @{ status; text; location; robots } (status 0 = no answer). $country: the visitor's
+# country the QA check asks for (the UK unless a check names another, L210).
+function Get-Page([string]$url, [string]$country = 'GB') {
     [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
     try {
         $req = [System.Net.HttpWebRequest]::Create($url)
         $req.Method = 'GET'
         $req.UserAgent = $UserAgent
         # The view of a UK visitor (the Worker honours it only for the network's QA check), so every run reads the same.
-        $req.Headers.Add('X-GW-QA-Country', 'GB')
+        $req.Headers.Add('X-GW-QA-Country', $country)
         $req.AllowAutoRedirect = $false
         $req.Timeout = 20000
         $resp = $req.GetResponse()
@@ -333,6 +334,11 @@ function Test-Site([string]$base, [string]$mode) {
             }
         } else { Say ('  Black Friday: τελείωσε στις {0}, το μπλοκ δεν φαίνεται πια: ΕΝΤΑΞΕΙ' -f $BlackFridayEnd) $Ok }
     }
+    # L210 (owner, 21 Nov 2026): a visitor from Greece sees no UK store, code or Amazon UK, and the line that says so.
+    $gr = Get-Page ($base + '/') 'GR'
+    $grUk = $gr.text.Contains('class="bf-started"') -or $gr.text.Contains('class="promo-card"') -or $gr.text.Contains('href="/stores/') -or ($gr.text -match '(?i)amazon')
+    if ($gr.status -eq 200 -and $gr.text.Contains('stores-none') -and -not $grUk) { Say '  Από Ελλάδα: κανένα κατάστημα, κωδικός ή Amazon του UK, με τη γραμμή «δεν παραδίδει ακόμα στη χώρα σας»: ΕΝΤΑΞΕΙ' $Ok }
+    else { Say ('  Από Ελλάδα ({0}): φαίνονται καταστήματα, κωδικοί ή Amazon του UK: ΠΡΟΒΛΗΜΑ' -f $gr.status) $Bad; $all = $false }
     $el = Get-Page ($base + '/?lang=el')
     if ($el.status -eq 200 -and $el.text.Contains('<html lang="el-GR"') -and $el.text.Contains('Οδηγοί δώρων')) { Say '  /?lang=el απαντά στα Ελληνικά (Οδηγοί δώρων): ΕΝΤΑΞΕΙ' $Ok }
     else { Say ('  /?lang=el δεν απαντά στα Ελληνικά ({0}): ΠΡΟΒΛΗΜΑ' -f $el.status) $Bad; $all = $false }

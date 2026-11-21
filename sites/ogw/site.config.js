@@ -6,7 +6,8 @@
 // An idea's `q` is the search on the marketplace; `gw` and `cat` are the Gear World site (promos/network.js) and its
 // category page for the same kind of product (a category page always has products; a site search for several words
 // often has none). Ideas name a kind of product, never a product we have not seen: the marketplace shows the
-// products, prices and sellers.
+// products, prices and sellers. A text written for the UK (a UK plug, UK law, the UKCA mark) has `whyAbroad` (or the
+// guide's `introAbroad`) for visitors from every other country (owner, 21 Nov 2026, lessons L210).
 // Wording (lessons L101, L103, L107): we compare, we do not sell. No "shop", "cart", "buy now", "deals", "sale",
 // "save", "lowest price", "free delivery" or "partner"; Black Friday only as a countdown, never a promise of discounts.
 
@@ -25,7 +26,7 @@ export default {
   operatorName: 'Evangelos Kalogerakis, United Kingdom',
   // An address that receives mail (the Hub's; megastoresgearworld.com has no email).
   contactEmail: 'contact@gearworldhub.com',
-  assetVersion: '2026-11-21-ogw-4',
+  assetVersion: '2026-11-21-ogw-5',
   // The name of the stores part on every page, never translated (owner, 21 Nov 2026, lessons L208).
   storesLabel: 'Mega Stores',
   // The 12 languages of the 13 Gear World sites, the same codes and the same order as their menu (lessons L162, L195).
@@ -56,12 +57,15 @@ export default {
   // /stores/amazon/ next to the Amazon buttons, with AMAZON_LINKS=on; everywhere else Amazon is text only. Empty until
   // the Manager adds the file Amazon gives.
   // blackFriday: Amazon's own Black Friday page, a button of the Black Friday block (only with Amazon links, L195).
-  amazon: { host: 'www.amazon.co.uk', tag: 'gearworld04-21', linkImage: '', blackFriday: '/blackfriday' },
+  // deliversTo (owner, 21 Nov 2026, lessons L210): Amazon UK is for UK visitors; every other country gets the pages
+  // without Amazon (as with AMAZON_LINKS=off), like each store below, which shows only to the countries it delivers to.
+  amazon: { host: 'www.amazon.co.uk', tag: 'gearworld04-21', linkImage: '', blackFriday: '/blackfriday', deliversTo: ['GB'] },
   // The stores bar (owner, 18 Nov 2026, «ΕΓΚΡΙΝΩ MEGA STORES ΜΠΑΡΑ», lessons L191): one page per store at
   // /stores/<slug>/, in this order, above the gift guides. Amazon shows only with AMAZON_LINKS on or preview, text only
   // (no logo). The other stores are the UK retailers listed on the Gear World sites: `name` is the `retailer` value of
   // the sites' /api/products, `sites` the Gear World sites with its products (codes of promos/network.js; the page reads
-  // the first 6), `deliversTo` where it delivers. Their products (photo, name, brand, the Gear World product page) are
+  // the first 6), `deliversTo` where it delivers: the store, its products, its codes and its Black Friday entry show
+  // only to visitors from those countries (L210). Their products (photo, name, brand, the Gear World product page) are
   // read live from those sites and kept 1 hour in the Worker's cache: never in this repo (no Awin feed data), never a
   // price, never an /out/ or /go/ link. `line`: what it sells, no claims. `logo`: the store's own logo file as it gives
   // it to affiliates (Awin advertiser profile, copied unchanged), shown on a white tile, never redrawn; without one a
@@ -101,7 +105,8 @@ export default {
         { name: 'Automatic watch', why: 'No battery to change. Check the case size against a watch he already wears.', q: 'automatic watch men', gw: 'MGW', cat: 'watches' },
         { name: 'Leather wallet', why: 'Slim card holders suit a front pocket. Check how many cards it takes.', q: 'slim leather wallet men', gw: 'MGW', cat: 'bags-accessories' },
         { name: 'Wool beanie and scarf', why: 'Merino or lambswool is warm without being bulky.', q: 'wool beanie scarf set men', gw: 'MGW', cat: 'clothing' },
-        { name: 'Multi-tool', why: 'Pliers, screwdrivers and a blade in one. UK law: in public, only a folding blade up to 3 inches that does not lock, unless there is a good reason. Not sold to under-18s.', q: 'multi tool pliers', gw: 'MGW', cat: 'everyday-carry' },
+        { name: 'Multi-tool', why: 'Pliers, screwdrivers and a blade in one. UK law: in public, only a folding blade up to 3 inches that does not lock, unless there is a good reason. Not sold to under-18s.',
+          whyAbroad: 'Pliers, screwdrivers and a blade in one. Check the local rules on carrying a blade in public and the minimum age to buy one.', q: 'multi tool pliers', gw: 'MGW', cat: 'everyday-carry' },
         { name: 'Wireless earbuds', why: 'For the gym or the commute. Check the fit options and how long the case charge lasts.', q: 'wireless earbuds', gw: 'TGW', cat: 'audio' },
         { name: 'Aftershave or eau de parfum', why: 'A smaller bottle of a scent he likes is better than a big bottle of a guess.', q: 'eau de parfum men', gw: 'MGW', cat: 'grooming-fragrances' },
         { name: 'Backpack for work', why: 'A padded laptop sleeve and a water-resistant fabric matter more than the brand.', q: 'laptop backpack water resistant', gw: 'VGW', cat: 'travel-bags-backpacks' }
@@ -113,7 +118,8 @@ export default {
       teaser: 'Beauty tools, jewellery, cosy home gifts and everyday bags.',
       intro: 'A short list of gift ideas that are easy to choose and easy to wrap. Each button opens a page with the current models, so you see the sellers and prices yourself.',
       ideas: [
-        { name: 'Hair styler', why: 'Stylers with several heat settings let you use less heat. Check the plug is a UK plug.', q: 'hair styler uk plug', gw: 'WGW', cat: 'beauty-fragrances' },
+        { name: 'Hair styler', why: 'Stylers with several heat settings let you use less heat. Check the plug is a UK plug.',
+          whyAbroad: 'Stylers with several heat settings let you use less heat. Check the plug fits the sockets where you live.', q: 'hair styler uk plug', gw: 'WGW', cat: 'beauty-fragrances' },
         { name: 'Silver jewellery', why: 'Sterling silver (925) studs or a pendant are a safe size choice.', q: 'sterling silver necklace women', gw: 'WGW', cat: 'jewellery' },
         { name: 'Skincare gift set', why: 'Check the skin type on the box and any ingredients she avoids.', q: 'skincare gift set', gw: 'WGW', cat: 'beauty-fragrances' },
         { name: 'Cashmere or wool scarf', why: 'Natural fibres are warmer and softer. Check the fibre mix on the label.', q: 'cashmere scarf women', gw: 'WGW', cat: 'clothing' },
@@ -128,6 +134,7 @@ export default {
       title: 'Christmas gift ideas for kids',
       teaser: 'For parents: building sets, creative kits, outdoor play and books.',
       intro: 'Written for parents and relatives. Always check the age on the box and the safety marks (UKCA or CE) before you choose.',
+      introAbroad: 'Written for parents and relatives. Always check the age on the box and the safety marks before you choose.',
       ideas: [
         { name: 'Building bricks set', why: 'Pick the age range on the box; sets for younger children have bigger pieces.', q: 'building bricks set kids', gw: 'KGW', cat: 'toys-games' },
         { name: 'Arts and crafts kit', why: 'Washable paints and pens are easier to clean up. Check the age range.', q: 'arts and crafts kit kids', gw: 'KGW', cat: 'toys-games' },
