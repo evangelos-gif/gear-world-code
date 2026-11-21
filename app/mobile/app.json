@@ -68,7 +68,8 @@
         {
           "enforceContrast": false
         }
-      ]
+      ],
+      "expo-status-bar"
     ],
     "experiments": {
       "typedRoutes": true,

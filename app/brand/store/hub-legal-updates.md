@@ -34,8 +34,9 @@ Heading with the anchor `id="delete-your-data"`:
 >   deleted, email contact@gearworldhub.com from that address and ask us to delete it. We delete it, with the language,
 >   date and place of sign-up kept with it, within one month.
 > - **Searches, voice searches and photo searches:** we do not store them, so there is nothing to delete.
-> - **On your phone:** the app's language setting and its copy of the list of Gear World sites are deleted when you
->   uninstall the app.
+> - **On your phone:** the app's language setting, its copy of the list of Gear World sites, your saved products and
+>   your recent searches are deleted when you uninstall the app. You can also remove saved products in "Saved" and clear
+>   recent searches in the app's Settings, under "On this phone".
 >
 > The anonymous daily codes used for fair-use limits are not linked to you and are deleted after 2 days.
 
@@ -49,3 +50,17 @@ removing an address from the Hub member list and MailerLite.
 - Heading "Using the site" → "Using the site and the app", and the first sentence: "You may use the site **and the app**
   for personal, non-commercial purposes."
 - Change the "Last updated" date to the deploy date.
+
+## 4. Privacy policy (`/privacy/`), section "The Gear World app" (added 21 Nov 2026, app 1.0.1)
+
+New with the app's Saved list (Apple asked for more native features, guideline 4.2.2). Needs the owner's OK together
+with the Hub deploy. Add after the "Photo search." paragraph:
+
+> **Saved products and recent searches.** If you tap the heart on a product, the app keeps that product, with the price
+> it had then, in a "Saved" list on your phone. The app also keeps your last 8 searches on your phone. Both stay only on
+> your phone: there is no account and we do not receive the list. When you open "Saved", the app looks each saved
+> product up again on its Gear World website, the same way as a search, to show its latest price; we do not store these
+> look-ups. You can remove saved products in "Saved", clear recent searches in Settings under "On this phone", and
+> uninstalling the app deletes both.
+
+Section 2 above already includes saved products and recent searches in the "On your phone" line.
