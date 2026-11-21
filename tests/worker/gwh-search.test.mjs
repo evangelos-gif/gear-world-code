@@ -281,13 +281,38 @@ test('home page: the Impact tag after the Mitgo tag, exactly as Impact gives it,
   assert.equal((await ask({ IMPACT_VERIFICATION: impact }, '/about/')).includes('impact-site-verification'), false, 'only the home page');
   // The live checks of the 5 tools take all of it out (with the country bar outside the UK) and find the file again.
   const fs = await import('node:fs');
-  const us = await ask({ MITGO_VERIFICATION: mitgo, IMPACT_VERIFICATION: impact }, '/', 'US');
+  const us = await ask({ MITGO_VERIFICATION: mitgo, IMPACT_VERIFICATION: impact, CONVERTISER_VERIFICATION: 'ab12'.repeat(10) }, '/', 'US');
   const plain = await ask({});
   for (const tool of ['gwh-hub-v2.ps1', 'gwh-mailerlite.ps1', 'gwh-photo.ps1', 'gwh-search-labels.ps1', 'poster-setup.ps1']) {
     const ps1 = fs.readFileSync(`tools/${tool}`, 'utf8');
     const rules = [...ps1.matchAll(/\$clean = \[regex\]::Replace\(\$clean, (?:'([^']+)'|"([^"]+)"), ''\)/g)].map(m => new RegExp(m[1] || m[2], 'g'));
-    assert.equal(rules.reduce((s, rx) => s.replace(rx, ''), us), plain, `${tool}: the US page without the bar and both tags is the file`);
+    assert.equal(rules.reduce((s, rx) => s.replace(rx, ''), us), plain, `${tool}: the US page without the bar and the three tags is the file`);
   }
+});
+
+// Lessons L213 (owner, 21 Nov 2026): the Convertiser tag (Poland), next to the Mitgo tag: right before it, so the Mitgo
+// and Impact tags still end the <head>; from the Worker secret CONVERTISER_VERIFICATION (40 hex characters).
+test('home page: the Convertiser tag right before the Mitgo tag, only with its secret, only on the home page (L213)', async () => {
+  const mitgo = ['a1b2c3d4', 'e5f6', 'a7b8', 'c9d0', 'e1f2a3b4c5d6'].join('-');
+  const impact = ['0a1b2c3d', '4e5f', '6a7b', '8c9d', '0e1f2a3b4c5d'].join('-');
+  const conv = '0123456789abcdef'.repeat(2) + '01234567';
+  const page = '<!doctype html><html><head><meta charset="utf-8"><title>Hub</title></head><body class="gwh2"><header class="site-header"><nav>menu</nav></header><main>search</main></body></html>';
+  const assets = { fetch: async () => new Response(page, { headers: { 'Content-Type': 'text/html; charset=utf-8', ETag: '"x"' } }) };
+  const ask = async (env, path = '/', country = 'GB') => {
+    const req = new Request(`https://gearworldhub.com${path}`, { headers: { 'User-Agent': 'Mozilla/5.0 test' } });
+    Object.defineProperty(req, 'cf', { value: { country } });
+    return (await hub.fetch(req, { ...makeEnv(), ASSETS: assets, ...env }, { waitUntil: p => p })).text();
+  };
+  const all = await ask({ MITGO_VERIFICATION: mitgo, IMPACT_VERIFICATION: impact, CONVERTISER_VERIFICATION: ' ' + conv.toUpperCase() + ' ' });
+  assert.ok(all.includes(`<meta name="convertiser-verification" content="${conv}"><meta name="mitgo-verification" content="${mitgo}"><meta name='impact-site-verification' value='${impact}'></head>`), 'Convertiser, then Mitgo, then Impact, right before </head>');
+  assert.equal(all.split('convertiser-verification').length, 2, 'once');
+  assert.ok((await ask({ CONVERTISER_VERIFICATION: conv })).includes(`<meta name="convertiser-verification" content="${conv}"></head>`), 'Convertiser alone');
+  assert.equal((await ask({})).includes('convertiser-verification'), false, 'no secret: no tag');
+  for (const bad of ['', 'x', conv.slice(0, -1), conv + '0', conv.slice(0, -2) + '">', mitgo]) {
+    assert.equal((await ask({ CONVERTISER_VERIFICATION: bad })).includes('convertiser-verification'), false, `not a code: ${bad.slice(0, 20)}`);
+  }
+  assert.equal((await ask({ CONVERTISER_VERIFICATION: conv }, '/about/')).includes('convertiser-verification'), false, 'only the home page');
+  assert.equal((await ask({ CONVERTISER_VERIFICATION: conv }, '/black-friday/')).includes('convertiser-verification'), false, 'not on /black-friday/');
 });
 
 // Lessons L119 (owner, 13 Nov 2026): the Mitgo verification tag. The code is a Worker secret, never in the repo, so the
@@ -331,7 +356,7 @@ test('home page: the Mitgo tag in the <head> only with its secret, only on the h
   for (const tool of ['gwh-hub-v2.ps1', 'gwh-mailerlite.ps1', 'gwh-photo.ps1', 'gwh-search-labels.ps1', 'poster-setup.ps1']) {
     const ps1 = fs.readFileSync(`tools/${tool}`, 'utf8');
     const rules = [...ps1.matchAll(/\$clean = \[regex\]::Replace\(\$clean, (?:'([^']+)'|"([^"]+)"), ''\)/g)].map(m => new RegExp(m[1] || m[2], 'g'));
-    assert.equal(rules.length, 4, `${tool}: the country bar, the Mitgo tag, the Impact tag (L150) and the country language (L175) are taken out`);
+    assert.equal(rules.length, 5, `${tool}: the country bar, the Mitgo tag, the Impact tag (L150), the Convertiser tag (L213) and the country language (L175) are taken out`);
     assert.equal(rules.reduce((s, rx) => s.replace(rx, ''), us), plainHtml, `${tool}: the US page without them is the file`);
   }
 });

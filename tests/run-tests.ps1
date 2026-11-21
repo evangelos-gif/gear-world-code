@@ -4737,6 +4737,18 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         $r = VLast
         $vNotes = @(Get-ChildItem -LiteralPath (Join-Path $vWork 'backups') -Filter 'gwh-before-v2-live-*.txt' -ErrorAction SilentlyContinue | Sort-Object LastWriteTime, Name)
         Check ($r.Contains('μπήκε στον Worker "gear-world-hub" (μυστικό IMPACT_VERIFICATION') -and -not $r.Contains($vImpact) -and ([System.IO.File]::ReadAllText($vNotes[-1].FullName)).Contains('npx wrangler secret delete IMPACT_VERIFICATION --name gear-world-hub')) 'L150: the live report never shows the code; the rollback note says how to take the tag away'
+        # L213: the Convertiser code (Poland, 40 hex characters), the same way as Impact: a secret on the test Worker, then on
+        # the live Worker right before the deploy.
+        $vConv = ('0123456789abcdef' * 2) + '01234567'
+        $vDeploysC = VCount 'deploy --config'
+        Check ((Run-V @('-Step', 'check', '-ConvertiserCode', 'bad-code')) -eq 21 -and (VLast).Contains('δεν έχει τη μορφή που δίνει το Convertiser')) 'L213: a -ConvertiserCode of another form: exit 21, nothing changes'
+        Check ((Run-V @('-Step', 'preview', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB SEARCH PREVIEW', '-ConvertiserCode', $vConv)) -eq 0 -and (VCount 'deploy --config') -eq ($vDeploysC + 1)) 'L213: preview with the Convertiser code'
+        $c = VCalls
+        Check ($c.Substring($c.LastIndexOf('secret bulk')) -match '^secret bulk "[^"]+" --name gear-world-hub-preview\s' -and ([System.IO.File]::ReadAllText($vSecrets)).Contains('{"CONVERTISER_VERIFICATION":"' + $vConv + '"}') -and (VLast).Contains('Ο κωδικός επαλήθευσης του Convertiser μπήκε στο preview')) 'L213: the Convertiser code goes into the test Worker as a secret'
+        Check ((Run-V @('-Step', 'live', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB SEARCH LIVE', '-ConvertiserCode', $vConv, '-AfterPreview')) -eq 0 -and (VCount 'deploy --config') -eq ($vDeploysC + 2)) 'L213: live with the Convertiser code after a clean preview'
+        $c = VCalls
+        $vLiveConv = [regex]::Matches($c, '(?m)^.*secret bulk "[^"]+" --name gear-world-hub\s*$')
+        Check ($vLiveConv.Count -ge 1 -and $vLiveConv[$vLiveConv.Count - 1].Index -lt $c.LastIndexOf('deploy --config') -and ([regex]::Matches(([System.IO.File]::ReadAllText($vSecrets)), [regex]::Escape('{"CONVERTISER_VERIFICATION":"' + $vConv + '"}'))).Count -eq 2 -and (VLast).Contains('μπήκε στον Worker "gear-world-hub" (μυστικό CONVERTISER_VERIFICATION')) 'L213: the Convertiser code goes into the live Worker right before the deploy'
         $vD = VCount 'deploy --config'
         Write-Utf8 (Join-Path $vPub 'styles.css') 'body{}'
         Check ((Run-V @('-Step', 'live', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ HUB SEARCH LIVE')) -eq 7 -and (VCount 'deploy --config') -eq $vD) 'hub v2 live: refused when someone else changed the hub folder'
@@ -6517,6 +6529,7 @@ if (Get-Command node -ErrorAction SilentlyContinue) {
         $ltText = [System.IO.File]::ReadAllText((Join-Path (Join-Path $repo 'tools') $lt))
         Check ($ltText.Contains('<meta name="mitgo-verification" content="[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}">') -and $ltText.Contains('<div class="gwh2-country-bar" role="note">')) ('L119: ' + $lt + ' takes the Mitgo tag and the country bar out before it compares the live Hub page')
         Check ($ltText.Contains("<meta name='impact-site-verification' value='[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'>")) ('L150: ' + $lt + ' takes the Impact tag out too')
+        Check ($ltText.Contains('<meta name="convertiser-verification" content="[0-9a-f]{40}">')) ('L213: ' + $lt + ' takes the Convertiser tag out too')
     }
 }
 
