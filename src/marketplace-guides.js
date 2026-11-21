@@ -114,9 +114,9 @@ export function viewCountry(request) {
   if (readsEnglish(request)) return VIEW_BASE;
   const cc = requestCountry(request);
   if (cc) return cc;
-  // Cloudflare gave a code that is not two letters (T1: Tor): unknown, not the UK.
-  const cf = request.cf && typeof request.cf.country === 'string' ? request.cf.country.trim() : '';
-  return cf ? 'XX' : VIEW_BASE;
+  // Cloudflare gave no country, or a code that is not two letters (T1: Tor): unknown, not the UK. Only a request
+  // with no Cloudflare data at all (a local test) is the UK page.
+  return request.cf && typeof request.cf === 'object' ? 'XX' : VIEW_BASE;
 }
 
 // Where an entry of the config or of black-friday.json delivers: its deliversTo, or the UK when it has none.
@@ -124,6 +124,10 @@ const deliveryOf = entry => {
   const to = entry && Array.isArray(entry.deliversTo) ? entry.deliversTo.map(c => String(c).toUpperCase()).filter(Boolean) : [];
   return to.length ? to : [VIEW_BASE];
 };
+// The country a store's products are read for: its first real country (never WORLD), else the UK.
+export function productCountry(store) {
+  return deliveryOf(store).filter(c => c !== 'WORLD')[0] || VIEW_BASE;
+}
 export function deliversHere(entry, country = VIEW_BASE) {
   if (country === ANY_COUNTRY) return true;
   const to = deliveryOf(entry);
@@ -498,7 +502,8 @@ export function earlyBlackFriday(site, now = Date.now(), country = VIEW_BASE) {
       && (!r.to || DAY_RE.test(r.to)) && r.from <= today && today <= r.hide && Array.isArray(r.sites) && deliversHere(r, country))
     .map(r => {
       const worlds = r.sites.map(gearWorldFor).filter(Boolean);
-      const own = codes.filter(k => k && k.slug === r.slug && (k.kind === 'code' || k.kind === 'coupon') && DAY_RE.test(k.end || '') && today <= k.end
+      // A code of the file is for its own deliversTo (none: the UK, like every code in pounds today, L210).
+      const own = codes.filter(k => k && k.slug === r.slug && (k.kind === 'code' || k.kind === 'coupon') && DAY_RE.test(k.end || '') && today <= k.end && deliversHere(k, country)
         && gearWorldFor(k.site) && r.sites.includes(k.site) && k.title && (k.kind === 'coupon' ? !k.code : /^[A-Z0-9]{3,30}$/.test(k.code || '')))
         .map(k => ({ ...k, world: gearWorldFor(k.site), url: new URL(`/discount-codes/${r.slug}/`, gearWorldFor(k.site).url).toString() }));
       return { ...r, store: ours.get(r.slug) || null, codes: own, links: worlds.map(w => ({ world: w, url: retailerSearchUrl(r, w) })) };
@@ -579,9 +584,11 @@ function blackFridayBlock(c, now) {
   const { site, t } = c;
   const b = blackFridayParts(site, now, c.country);
   if (!b) return '';
-  // Nothing of it delivers here (L210): the countdown and the dates, a line saying so, and no Hub button (the Hub's
-  // Black Friday page lists the same UK stores and codes).
+  // Nothing of it is listed for this country (L210): the countdown and the dates, a line saying so, and no Hub button
+  // (the Hub's Black Friday page lists the same UK stores and codes).
   const noneHere = !b.started.length && !b.extra.length && b.elsewhere > 0;
+  // The Hub's page lists the UK stores: its button only with entries for this country, or for the UK as before.
+  const hubButton = b.started.length > 0 || b.extra.length > 0 || c.country === VIEW_BASE;
   const count = b.days > 1 ? t('{0} days to Black Friday', html`<strong class="bf-num">${b.days}</strong>`)
     : b.days === 1 ? t('{0} day to Black Friday', html`<strong class="bf-num">1</strong>`)
       : b.today < b.cyber ? t('Black Friday is on') : t('Cyber Monday is on');
@@ -597,9 +604,9 @@ function blackFridayBlock(c, now) {
   ${b.extra.length ? html`<h3 class="bf-sub">${t('Codes from the stores')}</h3>
   <ul class="promo-list">${b.extra.map(i => codeCard(c, i))}</ul>` : ''}
   ${anyCodes ? html`<p class="promo-note">${t('The stores\' own codes, as they publish them through their affiliate programmes. Each one has an end date and disappears after it.')} ${t('Each store sets its own terms: check them on its page before you pay.')}</p>` : ''}
-  ${noneHere ? html`<p class="bf-none">${t('None of the stores with Black Friday codes on this page delivers to your country yet.')}</p>` : ''}
-  ${noneHere && !amazon ? '' : html`<p class="bf-links">
-    ${noneHere ? '' : html`<a class="btn btn-gw" href="${c.hub('/black-friday/')}"><span>${t('All Black Friday dates and codes on {0}', keep((site.hub && site.hub.name) || 'Gear World Hub'))}</span></a>`}
+  ${noneHere ? html`<p class="bf-none">${t('No store with Black Friday codes is listed for your country yet.')}</p>` : ''}
+  ${!hubButton && !amazon ? '' : html`<p class="bf-links">
+    ${!hubButton ? '' : html`<a class="btn btn-gw" href="${c.hub('/black-friday/')}"><span>${t('All Black Friday dates and codes on {0}', keep((site.hub && site.hub.name) || 'Gear World Hub'))}</span></a>`}
     ${amazon ? html`<a class="btn btn-market" href="${amazon}" rel="sponsored nofollow noopener" target="_blank">${t('Black Friday on Amazon')}</a>` : ''}
   </p>`}
 </section>`;
@@ -651,7 +658,7 @@ export function cleanStoreProduct(p, store, w) {
   if (!name || UNSHOWN_WORDS.test(name) || UNSHOWN_WORDS.test(brand)) return null;
   if (p.stock_status === 'out_of_stock') return null;
   const to = Array.isArray(p.delivers_to) ? p.delivers_to.map(c => String(c).toUpperCase()) : [];
-  const home = deliveryOf(store)[0];
+  const home = productCountry(store);
   if (!to.includes(home) && !to.includes('WORLD')) return null;
   let image;
   let page;
@@ -669,7 +676,7 @@ export function cleanStoreProduct(p, store, w) {
 async function readSiteProducts(store, w, deps) {
   const u = new URL('/api/products', w.url);
   u.searchParams.set('retailer', store.name);
-  u.searchParams.set('deliver_to', deliveryOf(store)[0]);
+  u.searchParams.set('deliver_to', productCountry(store));
   u.searchParams.set('badges', '1');
   u.searchParams.set('limit', String(STORE_PER_SITE));
   const ac = new AbortController();
@@ -768,11 +775,12 @@ function storeCard(c, store, products) {
 function storesSection(c, data) {
   const { site, t, mode } = c;
   const stores = shownStores(site, mode, c.country);
-  // No store of this page delivers to the visitor's country (L210): the part stays, with a line saying so.
+  // No store of this page is listed for the visitor's country (L210): the part stays, with a line saying so (what we
+  // list, never a claim about where a retailer delivers, L107).
   if (!stores.length && shownStores(site, mode, ANY_COUNTRY).length) {
     return html`<section class="wrap section" id="stores">
   <h2>${storesLabel(c)}</h2>
-  <p class="section-lede stores-none">${t('None of the stores on this page delivers to your country yet.')} ${t('The gift guides open the Gear World sites, where each product shows where it delivers.')}</p>
+  <p class="section-lede stores-none">${t('No store of {0} is listed for your country yet.', storesLabel(c))} ${t('The gift guides open the Gear World sites, where each product shows where it delivers.')}</p>
   <p><a href="${c.href('/#guides')}">${t('Gift guides')}</a></p>
 </section>`;
   }
@@ -807,19 +815,20 @@ export function storeSearchUrl(store, w) {
   return u.toString();
 }
 
-// A store page for a visitor from a country the store does not deliver to (L210): its name, one line saying so, and
+// A store page for a visitor from a country the store is not listed for (L210: deliversTo is where we list it, not a
+// claim about where the retailer delivers): its name, one line saying so, and
 // the links to the stores and the gift guides. No products, no codes, no links to its products on the sites.
 export function storeElsewherePage(c, store) {
   const { site, t, tx } = c;
   return shell(c, {
     title: tx('{0} on {1}', store.name, site.name),
-    description: tx('{0} does not deliver to your country yet.', store.name),
+    description: tx('{0} is not listed for your country yet.', store.name),
     path: `/stores/${store.slug}/`,
     body: html`
 <section class="hero hero-small"><div class="wrap">
   <p class="eyebrow"><a href="${c.href('/#stores')}">${storesLabel(c)}</a></p>
   <div class="store-title">${storeLogo(site, store, 'store-logo store-logo-lg')}<h1>${t('{0} on {1}', keep(store.name), keep(site.name))}</h1></div>
-  <p class="lede store-elsewhere">${t('{0} does not deliver to your country yet.', keep(store.name))} ${t('The gift guides open the Gear World sites, where each product shows where it delivers.')}</p>
+  <p class="lede store-elsewhere">${t('{0} is not listed for your country yet.', keep(store.name))} ${t('The gift guides open the Gear World sites, where each product shows where it delivers.')}</p>
 </div></section>
 <section class="wrap section">
   <p><a href="${c.href('/#stores')}">${t('All stores')}</a> · <a href="${c.href('/#guides')}">${t('Gift guides')}</a></p>
@@ -1244,7 +1253,7 @@ export function createGuidesWorker(site, deps = {}) {
         const shown = store.amazon ? withMarkets(mode) : Array.isArray(store.sites) && store.sites.length > 0;
         if (shown && !url.pathname.endsWith('/')) { url.pathname = `${url.pathname}/`; return redirect(url.toString(), 301); }
         if (shown && store.amazon) return page(amazonStorePage(ctxFor(`/stores/${store.slug}/`), store));
-        // A store that does not deliver to the visitor's country (L210): the page says so, with no products or codes.
+        // A store not listed for the visitor's country (L210): the page says so, with no products or codes.
         if (shown && !deliversHere(store, country)) return page(storeElsewherePage(ctxFor(`/stores/${store.slug}/`), store));
         if (shown) {
           let products = [];
