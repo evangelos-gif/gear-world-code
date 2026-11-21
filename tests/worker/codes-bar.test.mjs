@@ -54,7 +54,8 @@ const SHOWN = { CGW: seeing(['US', 'PL']), AGW: seeing(['PL']), BGW: seeing(['PL
 // and Belgium (GGW); AGW already had them for VEVOR, HGW shows bol.com in the Netherlands only (its limit of 10 groups).
 // The NL/BE-only line of bol.com on TGW, BGW and PGW too (review of 6954a135, none listed there): TGW had that group for
 // refurbed NL; BGW and PGW one more (the Netherlands and Belgium in Dutch).
-const GROUPS = { CGW: 6, AGW: 4, BGW: 4, GGW: 7, HGW: 10, KGW: 7, WGW: 8, TGW: 5, PGW: 5 };
+// AGW, BGW and TGW +2 since 21 Nov 2026 (L209): the Greek Linkwise shops, one view for Greece and one for Cyprus.
+const GROUPS = { CGW: 6, AGW: 6, BGW: 6, GGW: 7, HGW: 10, KGW: 7, WGW: 8, TGW: 7, PGW: 5 };
 // What the bar says in the UK view while the codes of the config run (promos/promos.js, 10 Nov 2026).
 // BGW 6 since 19 Nov 2026: Tooled Up's 2 and iHoverboard's 4 (BF8%, 12%H1Q4, 15%iK1S, F7Ultra100, lessons L196).
 const WORDS = {

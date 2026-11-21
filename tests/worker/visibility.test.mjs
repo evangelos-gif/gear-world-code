@@ -19,6 +19,11 @@ import { deliveryText, UK_BAR_TEXT } from '../../src/pages/layout.js';
 import { toString } from '../../src/lib/html.js';
 import { MIN_INDEXED_PRODUCTS } from '../../src/pages/listing.js';
 import { TEST_DAY } from './test-clock.mjs';
+// The Greek Linkwise shops of the new-engine sites (L209): seen only in Greece (and Cyprus), hidden everywhere else.
+import { LINKWISE_GR as LW_AGW } from '../../sites/agw/linkwise-gr.js';
+import { LINKWISE_GR as LW_VGW } from '../../sites/vgw/linkwise-gr.js';
+import { LINKWISE_GR as LW_TGW } from '../../sites/tgw/linkwise-gr.js';
+const withLw = (list, lw) => [...list, ...Object.keys(lw.retailers)].sort();
 
 const SITES = readdirSync('sites').filter(n => existsSync(`sites/${n}/site.config.js`) && existsSync(`sites/${n}/public/assets/site.js`));
 const config = {};
@@ -34,25 +39,25 @@ test('country groups (L151): the UK sees only what delivers there, the US its ow
   // VEVOR's feed on AGW is in Dutch (L165): seen only in the Netherlands and Belgium.
   assert.deepEqual(agw.deliversTo, { default: ['GB'], retailers: { 'AliExpress PL': ['PL'], 'Pneus.be': ['BE'], 'Neumaticos.es': ['ES'], 'Pneumatici.it': ['IT'], 'Tanie-Opony.pl': ['PL'], VEVOR: ['EU', 'IS', 'LI', 'NO'], Ottocast: OTTOCAST, 'ReifenDirekt.at': ['AT'], 'neumaticos-online.es': ['ES'], 'Autobandenmarkt.nl': ['NL'], 'Oponytanio PL': ['PL'],
     '123pneus.be': ['BE'], 'gommadiretto.it': ['IT'], 'rengas-online.com': ['FI'], 'Elastika-Online GR': ['GR'], 'Elastiko GR': ['GR'],
-    'bol.com': ['NL', 'BE'] }, languages: { VEVOR: 'nl', 'bol.com': 'nl' } });
+    'bol.com': ['NL', 'BE'], ...LW_AGW.retailers }, languages: { VEVOR: 'nl', 'bol.com': 'nl', ...LW_AGW.languages } });
   // bol.com (L204): Dutch names, the Netherlands and Belgium only (sites/_shared/bol.js, tests/worker/bol-sites.test.mjs).
-  assert.deepEqual(config.vgw.deliversTo.retailers, { 'AliExpress PL': ['PL'], VEVOR: ['EU', 'IS', 'LI', 'NO'], 'bol.com': ['NL', 'BE'] });
+  assert.deepEqual(config.vgw.deliversTo.retailers, { 'AliExpress PL': ['PL'], VEVOR: ['EU', 'IS', 'LI', 'NO'], 'bol.com': ['NL', 'BE'], ...LW_VGW.retailers });
   for (const s of ['cgw', 'bgw', 'pgw']) assert.deepEqual(config[s].deliversTo.retailers.VEVOR, ['EU', 'IS', 'LI', 'NO'], s);
   assert.deepEqual(config.cgw.deliversTo.retailers.Reidl, ['DE', 'AT']);
   assert.deepEqual(config.wgw.deliversTo.retailers['100% PURE'], ['EU', 'CH', 'NO']);
   for (const s of SITES) assert.ok(config[s].deliversTo, `${s}: deliversTo`);
   const g = cc => viewFor(agw, cc, NOW);
   assert.equal(g('GB').group, 'gb');
-  assert.deepEqual(g('GB').hidden, ['123pneus.be', 'AliExpress PL', 'Autobandenmarkt.nl', 'Elastika-Online GR', 'Elastiko GR', 'Neumaticos.es', 'Oponytanio PL', 'Ottocast', 'Pneumatici.it', 'Pneus.be', 'ReifenDirekt.at', 'Tanie-Opony.pl', 'VEVOR', 'bol.com', 'gommadiretto.it', 'neumaticos-online.es', 'rengas-online.com']);
+  assert.deepEqual(g('GB').hidden, withLw(['123pneus.be', 'AliExpress PL', 'Autobandenmarkt.nl', 'Elastika-Online GR', 'Elastiko GR', 'Neumaticos.es', 'Oponytanio PL', 'Ottocast', 'Pneumatici.it', 'Pneus.be', 'ReifenDirekt.at', 'Tanie-Opony.pl', 'VEVOR', 'bol.com', 'gommadiretto.it', 'neumaticos-online.es', 'rengas-online.com'], LW_AGW));
   assert.equal(g('GB').only, null);
   assert.equal(g('GB').everyRetailer, false);
   // No retailer of AGW ships to the US, so the US gets the UK view there (L141).
   assert.equal(g('US').group, 'gb');
   // Every other country, and an unknown one (lessons L151): ALL the products, one copy ("all") for all of them, but the
   // Dutch feed of VEVOR (L165). The EU, Switzerland, Canada ...
-  for (const cc of ['DE', 'IE', 'CH', 'NO', 'IS', ...EU_COUNTRIES.filter(c => !['PL', 'NL', 'BE'].includes(c)), 'CA', 'AU', 'JP', '', 'XX', 'T1', 'gbr', null, undefined]) {
+  for (const cc of ['DE', 'IE', 'CH', 'NO', 'IS', ...EU_COUNTRIES.filter(c => !['PL', 'NL', 'BE', 'GR', 'CY'].includes(c)), 'CA', 'AU', 'JP', '', 'XX', 'T1', 'gbr', null, undefined]) {
     assert.equal(g(cc).group, 'all', `${cc}: the all view`);
-    assert.deepEqual(g(cc).hidden, ['AliExpress PL', 'Oponytanio PL', 'Tanie-Opony.pl', 'VEVOR', 'bol.com'], `${cc}: the Poland-only shops (L157) and the Dutch feeds (L165, L204) hidden`);
+    assert.deepEqual(g(cc).hidden, withLw(['AliExpress PL', 'Oponytanio PL', 'Tanie-Opony.pl', 'VEVOR', 'bol.com'], LW_AGW), `${cc}: the Poland-only shops (L157), the Dutch feeds (L165, L204) and the Greek Linkwise shops (L209) hidden`);
     assert.equal(g(cc).only, null, `${cc}: every retailer`);
     assert.equal(g(cc).everyRetailer, true, cc);
   }
@@ -60,9 +65,14 @@ test('country groups (L151): the UK sees only what delivers there, the US its ow
   // (Pneus.be has 92% of what delivers there, 14 Nov 2026).
   for (const cc of ['NL', 'BE']) {
     assert.equal(g(cc).group, 'lang-be-nl', `${cc}: the all view with the Dutch feed`);
-    assert.deepEqual(g(cc).hidden, ['AliExpress PL', 'Oponytanio PL', 'Tanie-Opony.pl'], cc);
+    assert.deepEqual(g(cc).hidden, withLw(['AliExpress PL', 'Oponytanio PL', 'Tanie-Opony.pl'], LW_AGW), cc);
     assert.equal(g(cc).everyRetailer, true, cc);
   }
+  // Greece and Cyprus (L209): the all view plus the Greek Linkwise shops that deliver there (SavelTrade and ZAPS also to Cyprus).
+  assert.equal(g('GR').group, 'lang-gr');
+  for (const r of Object.keys(LW_AGW.retailers)) assert.equal(g('GR').hidden.includes(r), false, `GR: ${r}`);
+  assert.equal(g('CY').group, 'lang-cy');
+  assert.deepEqual(Object.keys(LW_AGW.retailers).filter(r => !g('CY').hidden.includes(r)).sort(), ['SavelTrade GR', 'ZAPS Batteries GR']);
   // Round 2c (L144): Spain and Italy see their tyre shop in the all view, with every other retailer. Poland is open
   // (L157): only what delivers there.
   for (const cc of ['ES', 'IT']) assert.equal(g(cc).group, 'all', `${cc}: the all view`);
@@ -132,7 +142,9 @@ test('country groups (L151): the UK sees only what delivers there, the US its ow
   // and the all view both leave out.
   for (const s of ['sgw']) {
     const v = viewFor(config[s], 'GB', NOW);
-    assert.deepEqual(v.hidden, ['AliExpress PL', 'bol.com'], s);
+    // And the Greek Linkwise shops (L209), seen only in Greece and Cyprus.
+    assert.deepEqual(v.hidden.filter(n => config[s].deliversTo.languages[n] !== 'el'), ['AliExpress PL', 'bol.com'], s);
+    assert.ok(Object.keys(config[s].deliversTo.retailers).filter(n => / GR$/.test(n)).every(n => v.hidden.includes(n)), `${s}: the Greek shops hidden in the UK`);
     assert.equal(v.only, null, s);
     assert.equal(countryGroups(config[s]).all, countryGroups(config[s]).home, s);
     for (const cc of ['FR', 'US', '']) {
@@ -143,7 +155,7 @@ test('country groups (L151): the UK sees only what delivers there, the US its ow
   // TGW since round 2c (L144): Back to the Office IE (Ireland only) is out of the UK view; MonsGeek ships to the US (its
   // own view there); every other country sees all of them.
   const t = cc => viewFor(config.tgw, cc, NOW);
-  assert.deepEqual(t('GB').hidden, ['3DMakerpro', 'AliExpress PL', 'Back to the Office IE', 'Bond Touch', 'Gshopper', 'Mintion', 'Mosnovo', 'Nothingprojector', 'Oukitel', 'Procolored', 'bol.com', 'refurbed NL'], 'and the US-only shops of wave 3 (L169)');
+  assert.deepEqual(t('GB').hidden, withLw(['3DMakerpro', 'AliExpress PL', 'Back to the Office IE', 'Bond Touch', 'Gshopper', 'Mintion', 'Mosnovo', 'Nothingprojector', 'Oukitel', 'Procolored', 'bol.com', 'refurbed NL'], LW_TGW), 'and the US-only shops of wave 3 (L169)');
   // Poland (open since 15 Nov 2026, L157): AliExpress PL (round 2) and MonsGeek, a copy of its own.
   assert.equal(t('US').group, 'us');
   assert.equal(t('PL').group, 'pl');
@@ -197,8 +209,9 @@ test('freshness: hidden after 30 days, "Check price and stock at the retailer" a
   assert.deepEqual(names.filter(n => !greek.includes(n)), ['AliExpress PL', 'Bazta IE', 'Buycoolshirts', 'COOFANDY', 'Chamaripa', 'Dream Pairs', 'Fragrance Outlet', 'FragranceShop.com', 'Incerunmen',
     'Invicta Stores', 'Jeulia', 'Maceoo', 'Menseventwear', 'NORTIV 8', 'Perfumania', 'Plusshop IE', 'TEMU', 'TSAR BOMBA', 'Uhrcenter', 'Wavytalk', 'bol.com', 'eCosmetics', 'eFootwear']);
   const shape = s => s.replace(/'(?:[^']|'')*'/g, "'x'");
-  assert.equal(shape(visibleSql(viewFor(config.agw, 'BE', NOW)).sql), "likelihood(+p.retailer NOT IN ('x', 'x', 'x') AND +p.last_seen_at >= ?, 1.0)", 'the all view: without the Poland-only shops (L157, L194)');
-  assert.equal(shape(visibleSql(viewFor(config.tgw, 'BE', NOW)).sql), "likelihood(+p.retailer NOT IN ('x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x') AND +p.last_seen_at >= ?, 1.0)", 'the all view: without AliExpress PL (L157) and the 8 US-only shops of wave 3 (L165, L169)');
+  assert.equal(shape(visibleSql(viewFor(config.agw, 'BE', NOW)).sql), "likelihood(+p.retailer NOT IN ('x', 'x', 'x', 'x', 'x', 'x', 'x') AND +p.last_seen_at >= ?, 1.0)", 'the all view: without the Poland-only shops (L157, L194) and the 4 Greek Linkwise shops (L209)');
+  assert.equal(shape(visibleSql(viewFor(config.tgw, 'BE', NOW)).sql), `likelihood(+p.retailer NOT IN (${Array(9 + Object.keys(LW_TGW.retailers).length).fill("'x'").join(', ')}) AND +p.last_seen_at >= ?, 1.0)`,
+    'the all view: without AliExpress PL (L157), the 8 US-only shops of wave 3 (L165, L169) and the Greek Linkwise shops (L209)');
   assert.equal(shape(visibleSql(viewFor({ ...config.agw, strictCountries: ['BE'] }, 'BE', NOW)).sql), "likelihood(+p.retailer IN ('x', 'x', 'x', 'x', 'x') AND +p.last_seen_at >= ?, 1.0)", 'a country with a view of its own: IN (with 123pneus.be, L198, and bol.com, L204)');
   assert.equal(visibleSql(null), null);
 });
@@ -264,12 +277,12 @@ test('L151: the Hub\'s search keeps the views of before L151 (hubViewFor) until 
   assert.equal(h(config.agw, 'IE').group, 'gb', 'Ireland: no retailer of AGW for it now, the UK view as before L151');
   assert.deepEqual(h(config.agw, 'CH').only, ['Ottocast']);
   assert.deepEqual(h(config.agw, 'ES').only, ['Neumaticos.es', 'Ottocast', 'neumaticos-online.es'], 'round 2c (L144) and wave 3 (L169): the Spanish tyre shops');
-  for (const cc of ['GB', 'US', 'CA', 'JP', '']) assert.deepEqual(h(config.agw, cc).hidden, ['123pneus.be', 'AliExpress PL', 'Autobandenmarkt.nl', 'Elastika-Online GR', 'Elastiko GR', 'Neumaticos.es', 'Oponytanio PL', 'Ottocast', 'Pneumatici.it', 'Pneus.be', 'ReifenDirekt.at', 'Tanie-Opony.pl', 'VEVOR', 'bol.com', 'gommadiretto.it', 'neumaticos-online.es', 'rengas-online.com'], `AGW ${cc || 'unknown'}: the UK view`);
+  for (const cc of ['GB', 'US', 'CA', 'JP', '']) assert.deepEqual(h(config.agw, cc).hidden, withLw(['123pneus.be', 'AliExpress PL', 'Autobandenmarkt.nl', 'Elastika-Online GR', 'Elastiko GR', 'Neumaticos.es', 'Oponytanio PL', 'Ottocast', 'Pneumatici.it', 'Pneus.be', 'ReifenDirekt.at', 'Tanie-Opony.pl', 'VEVOR', 'bol.com', 'gommadiretto.it', 'neumaticos-online.es', 'rengas-online.com'], LW_AGW), `AGW ${cc || 'unknown'}: the UK view`);
   assert.deepEqual(h(config.cgw, 'US').only, ['GRABO', 'NITECORE Store', 'Skilhunt', 'Tameson', 'WUBEN', 'Walabot'], 'the US view of L141 (and the US shops of wave 3, L171)');
   assert.deepEqual(h(config.cgw, 'AT').only, ['GRABO', 'Reidl', 'VEVOR']);
   // TGW since round 2c (L144): MonsGeek delivers to Germany (a view of its own, as before L151); nobody to Malta (the UK view).
   assert.deepEqual(h(config.tgw, 'DE').only, ['MonsGeek']);
-  assert.deepEqual(h(config.tgw, 'MT').hidden, ['3DMakerpro', 'AliExpress PL', 'Back to the Office IE', 'Bond Touch', 'Gshopper', 'Mintion', 'Mosnovo', 'Nothingprojector', 'Oukitel', 'Procolored', 'bol.com', 'refurbed NL'], 'TGW Malta: the UK view (without the US-only shops of wave 3, L169)');
+  assert.deepEqual(h(config.tgw, 'MT').hidden, withLw(['3DMakerpro', 'AliExpress PL', 'Back to the Office IE', 'Bond Touch', 'Gshopper', 'Mintion', 'Mosnovo', 'Nothingprojector', 'Oukitel', 'Procolored', 'bol.com', 'refurbed NL'], LW_TGW), 'TGW Malta: the UK view (without the US-only shops of wave 3, L169)');
   for (const cc of ['DE', 'CA', 'GB']) assert.equal(h(config.agw, cc).everyRetailer, false, cc);
   // A strict (later: open) country: as on the site.
   assert.deepEqual(h({ ...config.agw, strictCountries: ['BE'] }, 'BE').only, ['123pneus.be', 'Ottocast', 'Pneus.be', 'VEVOR', 'bol.com']);

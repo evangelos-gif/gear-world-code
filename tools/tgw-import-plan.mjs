@@ -19,6 +19,7 @@ import { normalizeGtin } from '../src/lib/gtin.js';
 import { slugify, truncate } from '../src/lib/text.js';
 import { aliexpressSection } from './import-rules/lib/aliexpress-sections.mjs';
 import { bolSection, bolEan, bolStamp, bolTooOld, oldFileMessage } from './import-rules/lib/bol-nl.mjs';
+import { linkwiseSection } from './import-rules/lib/linkwise-sections.mjs';
 import { NETWORKS } from './network-links.mjs';
 import { extraImages, encodeImages, EXTRA_IMAGE_COLUMNS } from '../src/lib/photos.js';
 
@@ -29,7 +30,8 @@ import { extraImages, encodeImages, EXTRA_IMAGE_COLUMNS } from '../src/lib/photo
 // databases): negative, so it can never be an Awin advertiser, and different per network and per country, because
 // that number is also the key of the clean-up of products that left the feed (a Daisycon programme 20164 must never hide
 // an Awin shop 20164, and Chromeburner GB must never hide Chromeburner DE).
-const NET_CODE = { cj: 1, daisycon: 2, rakuten: 3, bol: 4 };
+// Linkwise (Greece and Cyprus) since 21 Nov 2026 (lessons L209): its Greek shops on the new-engine sites.
+const NET_CODE = { cj: 1, daisycon: 2, rakuten: 3, bol: 4, linkwise: 5 };
 export function networkShopId(network, id, country = '') {
   const code = NET_CODE[String(network || '').toLowerCase()];
   const n = Number(id);
@@ -862,7 +864,10 @@ export async function planImport({ archive, sourcesFile, outDir, now = new Date(
         // English subcategory and a shortened name (tools/import-rules/lib/aliexpress-sections.mjs); the site rules read English.
         // "sections": "bol-nl" (lessons L204): bol.com's Dutch names, placed by tools/import-rules/lib/bol-nl.mjs (the
         // category of the row, or of the file, routes it; the GS1 path and the name place it); its name without the size.
-        const cls = source.sections === 'aliexpress-pl' ? aliexpressSection(label, name, merchantCategory)
+        // "sections": "linkwise-gr" (lessons L209): a Greek Linkwise shop, placed by its category path and Greek name
+        // (tools/import-rules/lib/linkwise-sections.mjs), with an English subcategory.
+        const cls = source.sections === 'linkwise-gr' ? linkwiseSection(label, name, merchantCategory || awinCategory, source)
+          : source.sections === 'aliexpress-pl' ? aliexpressSection(label, name, merchantCategory)
           : source.sections === 'bol-nl' ? bolSection(label, name, { categoryId: pick(rec, map.bolCategory) || String(source.advertiserId), gpc: pick(rec, map.bolGpc) || awinCategory, search: source.bolSearch || '' })
           : loose ? classify(name, '', '', source)
             : classify(name, `${merchantCategory || awinCategory} ${merchantCategory ? awinCategory : ''}`.trim(), categoryPaths, source);

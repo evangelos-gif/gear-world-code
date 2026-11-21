@@ -6,6 +6,7 @@
 import { promosFor, AWIN_PUBLISHER_ID } from '../../promos/promos.js';
 import { networkFor } from '../../promos/network.js';
 import { bolDelivery } from '../_shared/bol.js';
+import { LINKWISE_GR } from './linkwise-gr.js';
 
 // bol.com is not listed here; its NL/BE-only line keeps a stray bol.com row out of the UK view (sites/_shared/bol.js).
 const BOL = bolDelivery();
@@ -55,7 +56,8 @@ export default {
   // VEVOR (vevor.nl) delivers to the EU and the EEA, not to the UK (owner, 9 Nov 2026, lessons L107).
   // AliExpress PL (Awin 12044, Polish names, prices in zloty): Poland only, so only the Poland view shows it (owner,
   // 15 Nov 2026, lessons L157, round 2); its prices get "≈ £…" (foreignCurrencies PLN).
-  deliversTo: { default: ['GB'], retailers: { 'AliExpress PL': ['PL'], VEVOR: ['EU', 'IS', 'LI', 'NO'], ...BOL.retailers }, languages: { ...BOL.languages } },
+  // Linkwise (Greece and Cyprus, lessons L209): ./linkwise-gr.js.
+  deliversTo: { default: ['GB'], retailers: { ...LINKWISE_GR.retailers, 'AliExpress PL': ['PL'], VEVOR: ['EU', 'IS', 'LI', 'NO'], ...BOL.retailers }, languages: { ...LINKWISE_GR.languages, ...BOL.languages } },
 
   foreignCurrencies: ['PLN'],
   displayCurrencies: ['GBP', 'EUR', 'PLN', 'ALL', 'RON', 'RUB'],

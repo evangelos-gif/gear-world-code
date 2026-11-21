@@ -84,7 +84,8 @@ test('L165: the config check names a wrong feed language, one without its own co
   // + Westwing on HGW, one shop per country in its language (Daisycon Wave 3, chat 9, 17 Nov 2026), and the other Daisycon home
   // shops of that day: La Redoute NL/DE, Dille & Kamille NL/FR, Miss Towels, WoodWick, Kerstland, Baobab (HGW), Tuinmeubelwereld (GGW).
   // + the Linkwise shops in Greek (Greece and Cyprus, L199: sites/<site>/linkwise-gr.js, tests/worker/linkwise-l199.test.mjs).
-  assert.equal(all.filter(x => x.endsWith(' el')).length, 116);
+  // 150 since 21 Nov 2026 (L209): 34 more Greek Linkwise shops on the new-engine sites.
+  assert.equal(all.filter(x => x.endsWith(' el')).length, 150);
   // + bol.com in Dutch on its 10 sites (L204, sites/_shared/bol.js, tests/worker/bol-sites.test.mjs), and its NL/BE-only line
   // on TGW, BGW and PGW, which list none (review of 6954a135).
   const BOL = ['agw', 'bgw', 'cgw', 'ggw', 'hgw', 'kgw', 'mgw', 'pgw', 'sgw', 'tgw', 'vgw', 'wgw', 'zgw'].map(s => `${s} bol.com nl`);
@@ -175,7 +176,8 @@ test('L165: the hidden reason of a feed in another language is "language", not "
   assert.equal(hiddenReason(viewFor(demo, 'US', NOW), row('Someone')), 'country');
   assert.equal(hiddenReason(viewFor(demo, 'FR', NOW), { retailer: 'Fr EU', last_seen_at: '2026-01-01 00:00:00' }), 'stale');
   assert.equal(viewFor({ ...config.bgw, deliversTo: { default: ['GB'], retailers: {} } }, 'GB', NOW).languages, null, 'a site without feed languages');
-  assert.deepEqual(viewFor(config.bgw, 'GB', NOW).languages, ['bol.com'], 'BGW: only the NL/BE-only line of bol.com (review of 6954a135; TGW has refurbed NL too, L194)');
+  assert.deepEqual(viewFor(config.bgw, 'GB', NOW).languages, ['Battery Park GR', 'EMW GR', 'Motovyzas GR', 'ZAPS Batteries GR', 'bol.com'],
+    'BGW: the NL/BE-only line of bol.com (review of 6954a135; TGW has refurbed NL too, L194) and the Greek Linkwise shops (L209)');
 });
 
 test('L165: the shops that ship only to the US are seen only from the US (owner: "Only in the USA")', () => {

@@ -6,6 +6,7 @@ import { promosFor, AWIN_PUBLISHER_ID } from '../../promos/promos.js';
 import { networkFor } from '../../promos/network.js';
 // bol.com (NL and BE only, Dutch names, lessons L204): sites/_shared/bol.js.
 import { bolDelivery, BOL_SITES } from '../_shared/bol.js';
+import { LINKWISE_GR } from './linkwise-gr.js';
 
 const BOL = bolDelivery(BOL_SITES.sgw);
 
@@ -55,7 +56,8 @@ export default {
   // from its own delivery page, before its first import.
   // AliExpress PL (Awin 12044, Polish names, prices in zloty): Poland only, so only the Poland view shows it (owner,
   // 15 Nov 2026, lessons L157, round 2); its prices get "≈ £…" (foreignCurrencies PLN).
-  deliversTo: { default: ['GB'], retailers: { 'AliExpress PL': ['PL'], ...BOL.retailers }, languages: { ...BOL.languages } },
+  // Linkwise (Greece and Cyprus, lessons L209): ./linkwise-gr.js.
+  deliversTo: { default: ['GB'], retailers: { ...LINKWISE_GR.retailers, 'AliExpress PL': ['PL'], ...BOL.retailers }, languages: { ...LINKWISE_GR.languages, ...BOL.languages } },
 
   foreignCurrencies: ['PLN'],
   displayCurrencies: ['GBP', 'EUR', 'PLN', 'ALL', 'RON', 'RUB'],

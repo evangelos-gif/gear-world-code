@@ -166,7 +166,9 @@ test('sources: the first-wave shops are approved, VEVOR waits for the second wav
     // Phase 1 of the mass import (21 Nov 2026, L207): Liforme (yoga mats) and three more Tradeinn sport shops.
     'Liforme', 'BikeInn', 'TrekkInn', 'WaveInn',
     // bol.com Sport (L204): approved but paused until the removal tool and the daily refresh (tests/worker/bol-import.test.mjs).
-    'bol.com']);
+    'bol.com',
+    // Linkwise, Greece and Cyprus (21 Nov 2026, L209): Greek shops, placed by tools/import-rules/lib/linkwise-sections.mjs.
+    'Athlos Sport GR', 'e-tennis GR', 'Mandellos Sports GR', 'SportsPoint GR', 'Slamdunk GR', 'Rundome GR', 'Siontis Athletics GR', 'Kalousos GR', 'Vactive GR', 'Carpe Diem GR', 'Mybrand.shoes GR', 'Vasiliki World GR', 'The Lady GR', 'Proteinstar GR', 'EMW GR']);
   assert.equal(src.find(s => s.retailer === 'VEVOR').approved, false);
   for (const r of ['Coes', 'Joybuy']) assert.equal(src.find(s => s.retailer === r).sectionHints, false, r);
   // Sport-only shops (Beyond Shakers, Bern Helmets, Fitness Options: 8 Nov 2026) need no sport sections.

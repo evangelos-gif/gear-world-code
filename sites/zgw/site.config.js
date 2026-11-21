@@ -9,6 +9,7 @@ import { promosFor, AWIN_PUBLISHER_ID } from '../../promos/promos.js';
 import { networkFor } from '../../promos/network.js';
 // bol.com (NL and BE only, Dutch names, lessons L204): sites/_shared/bol.js.
 import { bolDelivery, BOL_SITES } from '../_shared/bol.js';
+import { LINKWISE_GR } from './linkwise-gr.js';
 
 const BOL = bolDelivery(BOL_SITES.zgw);
 
@@ -59,7 +60,8 @@ export default {
   // AliExpress PL (Awin 12044, Polish names, prices in zloty): Poland only, so only the Poland view shows it (owner,
   // 15 Nov 2026, lessons L157, round 2); its prices get "≈ £…" (foreignCurrencies PLN).
   // Miscota (Daisycon, 18 Nov 2026, lessons L194): the UK shop in pounds (the default) and the Irish one in euros (IE).
-  deliversTo: { default: ['GB'], retailers: { 'AliExpress PL': ['PL'], ALZOO: ['US'], 'Bonne et Filou': ['US'], EcoKind: ['US'], 'RadioFence.com': ['US'], 'Crown and Paw': ['US'], MeoWant: ['US'], 'Miscota IE': ['IE'], ...BOL.retailers }, languages: { ...BOL.languages } },
+  // Linkwise (Greece and Cyprus, lessons L209): ./linkwise-gr.js.
+  deliversTo: { default: ['GB'], retailers: { ...LINKWISE_GR.retailers, 'AliExpress PL': ['PL'], ALZOO: ['US'], 'Bonne et Filou': ['US'], EcoKind: ['US'], 'RadioFence.com': ['US'], 'Crown and Paw': ['US'], MeoWant: ['US'], 'Miscota IE': ['IE'], ...BOL.retailers }, languages: { ...LINKWISE_GR.languages, ...BOL.languages } },
 
   foreignCurrencies: ['USD', 'PLN'],
   displayCurrencies: ['GBP', 'EUR', 'PLN', 'ALL', 'RON', 'RUB'],

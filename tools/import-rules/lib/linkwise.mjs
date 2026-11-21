@@ -33,7 +33,7 @@ export const R = s => {
 // Never on the sites: medicines and supplements (pharmacies: only cosmetics), adult products, smoking, food and drink,
 // services and vouchers, weapons. Read in the name (and the shop's category for food), so toy food, capsule toys,
 // "unisex", the colour "chocolate" or a vitamin C cream are not caught.
-const NEVER_NAME = R([
+export const NEVER_NAME = R([
   'συμπληρωμα', 'συμπληρωματ', '\\b\\d+ ?(caps|tabs|softgels|vcaps|καψουλες|ταμπλετες|δισκια|φακελισκοι|αναβραζοντα)\\b', 'αναβραζοντ',
   'σιροπι', 'αναλγητ', 'αντιβιοτ', 'ομοιοπαθ', 'προβιοτικ', 'πρωτεϊν', 'πρωτεινη σε σκονη', '\\bwhey\\b', '\\bφαρμακ(ο|α|ων)\\b',
   'τεστ (εγκυμοσυν|ωορρηξ|covid|αντιγον)', 'προφυλακτικ', 'ερωτικ', 'δονητ', '\\bsex(y|ual)?\\b', 'φετιχ', 'bdsm', 'vibrator', 'dildo',
@@ -42,7 +42,7 @@ const NEVER_NAME = R([
   'σουγια', 'μαχαιρι επιθεσ', '\\bοπλ(ο|α)\\b(?! νερου)', 'αεροβολ', 'ξιφος', 'σπαθι',
   'βρεφικ(ο|ου) γαλα', 'γαλα (σε σκονη|1ης|2ης|3ης)', 'θερμομετρ', 'πιεσομετρ', 'σακχαρομετρ', 'ταινιες μετρησ', 'ακουστικ(α|ο) βαρηκοι'
 ].join('|'));
-const NEVER_CAT = R(['συμπληρωματα', 'βιταμινες', '\\bφαρμακα\\b', 'ερωτικ', 'sex shop', 'τσιγαρ', '\\bποτα\\b', 'τροφιμα(?!.*(δοχει|παιχνιδ|αποθηκ))',
+export const NEVER_CAT = R(['συμπληρωματα', 'βιταμινες', '\\bφαρμακα\\b', 'ερωτικ', 'sex shop', 'τσιγαρ', '\\bποτα\\b', 'τροφιμα(?!.*(δοχει|παιχνιδ|αποθηκ))',
   'super ?market', '\\bκαφεσ\\b', '\\bσνακ\\b'].join('|'));
 const pick = (t, list) => { for (const [re, a, b] of list) if (re.test(t)) return [a, b]; return null; };
 // In a name the product comes first ("Παγκάκι χαλωρίου με μαξιλάρι" is a bench, "Μπλουζάκι Calvin Klein Jeans" a top):
