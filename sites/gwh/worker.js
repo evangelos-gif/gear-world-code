@@ -1662,6 +1662,138 @@ export async function withCountryLanguage(request, response) {
   return new Response(text.replace(/<html\b/i, `<html data-country-lang="${code}"`), { status: response.status, headers });
 }
 
+// GWH-MEGA-COUNTRY (owner, 21 Nov 2026, lessons L211: "on Mega Stores in Greece, why does the bar we have on the Hub still
+// show the UK retailers?" / "and not the Greek stores?"). The Mega Stores bar of the home page and the Black Friday page
+// /black-friday/ follow the visitor's country, as megastoresgearworld.com does since L210:
+//   - the bar names the stores that megastoresgearworld.com lists for that country (MEGA_BAR_STORES below, the same as
+//     sites/ogw/site.config.js: Amazon UK, then its stores, each with deliversTo); the file public/index.html is the UK
+//     bar with the stores' own logos, every other country gets the names as text, and a country with none gets no bar;
+//   - /black-friday/ lists only the retailers and codes that deliver there (data-delivers on each item, written by
+//     tools/gwh-black-friday.mjs), with one line saying so, and "Nothing listed for your country yet." when none does.
+// The country: Cloudflare's, the UK for Google's and every other crawler (the UK pages, as the sites do, L195), the one
+// the network's own checks name (GearWorldQA-bot with X-GW-QA-Country, L158), the UK page when there is no country at all
+// (a local test), and "XX" (no stores) for an unknown one. Each answer is changed here, never a stored copy, and an answer
+// that depends on the country is private (one person's browser only).
+export const QA_BOT = /^GearWorldQA-bot\//;
+export const QA_COUNTRY_HEADER = "X-GW-QA-Country";
+export const MEGA_BAR_STORES = [
+  { slug: "amazon", name: "Amazon", deliversTo: ["GB"] },
+  { slug: "joybuy", name: "Joybuy", deliversTo: ["GB"] },
+  { slug: "tooled-up", name: "Tooled Up", deliversTo: ["GB"] },
+  { slug: "my-tool-shed", name: "My Tool Shed", deliversTo: ["GB"] },
+  { slug: "pchub-uk", name: "PCHUB.UK", deliversTo: ["GB"] },
+  { slug: "gs-workwear", name: "GS Workwear", deliversTo: ["GB"] },
+  { slug: "back-to-the-office", name: "Back to the Office", deliversTo: ["GB"] },
+  { slug: "dhgate", name: "DHgate", deliversTo: ["GB"] },
+  { slug: "kouzinika-gr", name: "Kouzinika GR", deliversTo: ["GR"] },
+  { slug: "katoikein-gr", name: "Katoikein GR", deliversTo: ["GR"] },
+  { slug: "minipini-gr", name: "Minipini GR", deliversTo: ["GR"] },
+  { slug: "xxxl-leo-gr", name: "XXXL Leo GR", deliversTo: ["GR"] },
+  { slug: "casualshoes-gr", name: "CasualShoes GR", deliversTo: ["GR"] },
+  { slug: "parex-gr", name: "Parex GR", deliversTo: ["GR", "CY"] },
+  { slug: "tsakiris-mallas-gr", name: "Tsakiris Mallas GR", deliversTo: ["GR", "CY"] }
+];
+export function megaCountry(request) {
+  const ua = String(request.headers.get("User-Agent") || "");
+  if (QA_BOT.test(ua)) {
+    const qa = String(request.headers.get(QA_COUNTRY_HEADER) || "").trim().toUpperCase();
+    if (/^[A-Z]{2}$/.test(qa)) return qa;
+  } else if (GOOGLE_CRAWLER.test(ua) || ANY_CRAWLER.test(ua)) {
+    return "GB";
+  }
+  if (!request.cf || typeof request.cf !== "object") return "GB";
+  const cc = String(request.cf.country || "").trim().toUpperCase();
+  return /^[A-Z]{2}$/.test(cc) ? cc : "XX";
+}
+// Does a list of countries (deliversTo) cover a country? "WORLD" covers every country; no list at all means the UK.
+export function coversCountry(list, country) {
+  const to = (Array.isArray(list) ? list : String(list || "").split(/[\s,]+/)).map(c => String(c).trim().toUpperCase()).filter(Boolean);
+  const codes = to.length ? to : ["GB"];
+  return codes.includes("WORLD") || codes.includes(String(country || "").toUpperCase());
+}
+export function megaStoresFor(country) {
+  return MEGA_BAR_STORES.filter(s => coversCountry(s.deliversTo, country));
+}
+const escHtml = s => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+// The end of the element that starts at `start` (an opening <tag ...>), counting the same tag nested inside it.
+export function elementEnd(text, start, tag) {
+  const re = new RegExp(`<${tag}\\b|</${tag}>`, "gi");
+  re.lastIndex = start;
+  let depth = 0;
+  let m;
+  while ((m = re.exec(text))) {
+    depth += m[0].startsWith("</") ? -1 : 1;
+    if (depth === 0) return m.index + m[0].length;
+  }
+  return -1;
+}
+function replaceElement(text, opening, tag, replacement) {
+  const at = text.indexOf(opening);
+  if (at < 0) return text;
+  const end = elementEnd(text, at, tag);
+  return end < 0 ? text : text.slice(0, at) + replacement + text.slice(end);
+}
+// The home page's bar for a country: the file itself for the UK, the stores listed there as text, or no bar.
+export function megaBarHtml(text, country) {
+  if (country === "GB") return text;
+  const wrap = '<div class="gwh2-mega-wrap">';
+  const at = text.indexOf(wrap);
+  if (at < 0) return text;
+  const stores = megaStoresFor(country);
+  if (!stores.length) {
+    const end = elementEnd(text, at, "div");
+    return end < 0 ? text : text.slice(0, at) + text.slice(end).replace(/^[ \t]*\r?\n/, "");
+  }
+  const names = stores.map(s => s.name).join(", ");
+  const pills = stores.map(s => `<span class="gwh2-mega-pill" data-store="${escHtml(s.slug)}" data-logo="text-only" translate="no">${escHtml(s.name)}</span>`).join("");
+  let out = replaceElement(text, '<span class="sr-only" data-gwh2="megaNames"', "span",
+    `<span class="sr-only" data-gwh2="megaNames" data-gwh2-name="${escHtml(names)}">Stores: <span translate="no">${escHtml(names)}</span>.</span>`);
+  out = replaceElement(out, '<span class="gwh2-mega-strip" aria-hidden="true">', "span",
+    `<span class="gwh2-mega-strip" aria-hidden="true"><span class="gwh2-mega-track"><span class="gwh2-mega-list">${pills}</span>` +
+    `<span class="gwh2-mega-list gwh2-mega-copy" aria-hidden="true">${pills}</span></span></span>`);
+  return out;
+}
+export const BF_COUNTRY_NOTE = "Only the retailers that deliver to your country are shown here.";
+export const BF_MEGA_NOTE = 'The stores listed for your country are on <a href="https://megastoresgearworld.com/">Mega Stores</a>.';
+export const BF_NONE_HERE = "Nothing listed for your country yet.";
+// The Black Friday page for a country: the file itself for the UK; elsewhere only the items whose data-delivers covers
+// the country (an item without it is a UK one), the line that says so, and "Nothing listed for your country yet." in each
+// list that has none left (shown at once, without waiting for /stores/stores.js).
+export function blackFridayHtml(text, country) {
+  if (country === "GB") return text;
+  let out = text.replace(/<section class="gd-group rt-offers"[\s\S]*?<\/section>/g, section => {
+    let kept = 0;
+    const s = section.replace(/[ \t]*<li class="[^"]*\brt-offer\b[^"]*"[^>]*>[\s\S]*?<\/li>[ \t]*\r?\n?/g, item => {
+      const m = item.match(/\bdata-delivers="([^"]*)"/);
+      if (coversCountry(m ? m[1] : "", country)) { kept++; return item; }
+      return "";
+    });
+    return s.replace(/<p class="gd-note rt-none"( hidden)?>[\s\S]*?<\/p>/, kept ? `<p class="gd-note rt-none" hidden>${BF_NONE_HERE}</p>` : `<p class="gd-note rt-none">${BF_NONE_HERE}</p>`);
+  });
+  const note = `<p class="gd-note rt-country">${BF_COUNTRY_NOTE}${megaStoresFor(country).length ? ` ${BF_MEGA_NOTE}` : ""}</p>`;
+  out = out.replace(/(<p class="gd-checked">[\s\S]*?<\/p>)/, `$1\n    ${note}`);
+  return out;
+}
+export const MEGA_COUNTRY_PAGES = {
+  "/": megaBarHtml, "/index.html": megaBarHtml,
+  "/black-friday/": blackFridayHtml, "/black-friday/index.html": blackFridayHtml
+};
+export async function withMegaCountry(request, response) {
+  if (request.method !== "GET") return response;
+  const change = MEGA_COUNTRY_PAGES[new URL(request.url).pathname];
+  if (!change) return response;
+  if (!response || response.status !== 200 || !response.body || !/^text\/html/i.test(String(response.headers.get("Content-Type") || ""))) return response;
+  const country = megaCountry(request);
+  const headers = new Headers(response.headers);
+  // The answer depends on the country: never kept by a shared cache for another visitor, the UK one included.
+  headers.set("Cache-Control", "private, max-age=60");
+  if (country === "GB") return new Response(response.body, { status: response.status, headers });
+  headers.delete("Content-Length");
+  headers.delete("ETag");
+  const text = await response.text();
+  return new Response(change(text, country), { status: response.status, headers });
+}
+
 // GWH-SITE-VERIFICATION (owner, 13 Nov 2026, lessons L119): Mitgo checks that gearworldhub.com is ours by the tag
 // <meta name="mitgo-verification" content="<code>"> between <head> and </head> of the home page. The code has the form of
 // a UUID, and UUIDs never go into the repo (CLAUDE.md), so it is the Worker secret MITGO_VERIFICATION (set by
@@ -1703,7 +1835,8 @@ export default {
     // the full Content-Security-Policy in Report-Only mode. HSTS stays with the zone's own rule (F08).
     // GWH-SITE-VERIFICATION (L119): the Mitgo tag in the <head> of the home page when its secret is set.
     // GWH-COUNTRY-LANGUAGE (L175): the language of the visitor's country on <html> of the home page.
-    return withHubHeaders(await withSiteVerification(request, env, await withCountryLanguage(request, await withCountryBar(request, await hubFetch(request, env, ctx)))));
+    // GWH-MEGA-COUNTRY (L211): the Mega Stores bar and /black-friday/ for the visitor's country.
+    return withHubHeaders(await withSiteVerification(request, env, await withCountryLanguage(request, await withCountryBar(request, await withMegaCountry(request, await hubFetch(request, env, ctx))))));
   },
   // GWH-MAILERLITE: the cron (wrangler.toml [triggers], every 10 minutes) sends sign-ups that are still 'pending'.
   async scheduled(controller, env, ctx) {

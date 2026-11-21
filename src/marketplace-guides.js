@@ -628,6 +628,8 @@ const STORE_SITES_READ = 6;
 const STORE_PER_SITE = 8;
 const STORE_KEEP = 24;
 const STORE_TIMEOUT_MS = 4000;
+// Product photos that open (owner, 21 Nov 2026, lessons L211: a CasualShoes card showed an empty photo, 404 at the store).
+const PHOTO_TIMEOUT_MS = 2500;
 // A product whose name or brand holds a price, a percentage, a word of a shop or of a discount, or Amazon's name is
 // left out: those words never appear on this site (L101, L103, L107), and with AMAZON_LINKS off no page names Amazon.
 const UNSHOWN_WORDS = /[£$€%]|\b(sale|sales|deals?|save|saving|savings|shop|shopping|buy|cart|basket|official|partners?|discounts?|offers?|free delivery|lowest price|best price|cheapest|clearance|bargains?|coupons?|vouchers?|promo|black friday)\b|amazon/i;
@@ -717,9 +719,47 @@ export function mixStoreProducts(lists, keep = STORE_KEEP) {
   return out;
 }
 
+// Does a product photo open? The first KB of it (Range), an answer 200 or 206 with an image type; anything else, an
+// error or more than 2.5 seconds is no (L211). The rest of the photo is never read.
+export async function photoOpens(url, fetcher, { timeoutMs = PHOTO_TIMEOUT_MS, userAgent = '' } = {}) {
+  const ac = new AbortController();
+  const timer = setTimeout(() => ac.abort(), timeoutMs);
+  try {
+    const res = await fetcher(url, { headers: { Range: 'bytes=0-1023', Accept: 'image/*', ...(userAgent ? { 'User-Agent': userAgent } : {}) }, signal: ac.signal });
+    const ok = Boolean(res) && (res.status === 200 || res.status === 206) && /^image\//i.test(String(res.headers.get('Content-Type') || ''));
+    try { if (res && res.body && typeof res.body.cancel === 'function') await res.body.cancel(); } catch { /* nothing more to read */ }
+    return ok;
+  } catch {
+    return false;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+// The products whose photo opens, in their order, up to `keep`: the first `keep` are checked at once, then as many more
+// as are missing, until there are enough or none is left. { products, checked, open }. When not one photo of 3 or more
+// opens, the check itself is taken as blocked (a store's image server refusing Cloudflare), and the products stay
+// unchecked, marked so (blocked: true), and kept only 10 minutes.
+export async function keepOpenPhotos(list, fetcher, keep = STORE_KEEP, opts = {}) {
+  const out = [];
+  let i = 0;
+  let checked = 0;
+  while (out.length < keep && i < list.length) {
+    const batch = list.slice(i, i + (keep - out.length));
+    i += batch.length;
+    const ok = await Promise.all(batch.map(p => photoOpens(p.image, fetcher, opts)));
+    checked += batch.length;
+    batch.forEach((p, j) => { if (ok[j]) out.push(p); });
+  }
+  if (!out.length && checked >= 3) return { products: list.slice(0, keep), checked, open: 0, blocked: true };
+  return { products: out, checked, open: out.length, blocked: false };
+}
+
 // The store's products: from the cache, or read from its first 6 Gear World sites at once (Promise.allSettled, so a
 // slow or failing site never breaks the page). Kept 1 hour when every site answered, 10 minutes when one failed, and
 // 1 minute when nothing came back (the page then says so and still links to every site). One copy for every language.
+// Only products whose photo opens (L211, keepOpenPhotos) when the Worker checks photos (deps.photoFetch: the live
+// Worker always; tests only when they give one).
 export async function storeProducts(site, store, deps = {}, ctx = null) {
   const cache = deps.cache || null;
   const key = storeCacheKey(site, store);
@@ -737,8 +777,14 @@ export async function storeProducts(site, store, deps = {}, ctx = null) {
   const results = await Promise.allSettled(sites.map(w => readSiteProducts(store, w, { ...deps, fetch: fetcher, userAgent: storeUserAgent(site) })));
   const lists = results.map(r => (r.status === 'fulfilled' ? r.value : []));
   const failed = results.some(r => r.status !== 'fulfilled');
-  const products = mixStoreProducts(lists);
-  const ttl = !products.length ? 60 : failed ? 600 : 3600;
+  let products = mixStoreProducts(lists, deps.photoFetch ? STORE_SITES_READ * STORE_PER_SITE : STORE_KEEP);
+  let blocked = false;
+  if (deps.photoFetch) {
+    const seen = await keepOpenPhotos(products, deps.photoFetch, STORE_KEEP, { timeoutMs: deps.photoTimeoutMs, userAgent: storeUserAgent(site) });
+    products = seen.products;
+    blocked = seen.blocked;
+  }
+  const ttl = !products.length ? 60 : (failed || blocked) ? 600 : 3600;
   if (cache) {
     const res = new Response(JSON.stringify({ products }), { headers: { 'Content-Type': 'application/json', 'Cache-Control': `public, max-age=${ttl}` } });
     const put = Promise.resolve().then(() => cache.put(key, res)).catch(() => { /* the next visit reads the sites again */ });
@@ -830,6 +876,8 @@ export function storeElsewherePage(c, store) {
     title: tx('{0} on {1}', store.name, site.name),
     description: tx('{0} is not listed for your country yet.', store.name),
     path: `/stores/${store.slug}/`,
+    // Never in a search engine (L211): Google reads the UK page, so this one only reaches a visitor elsewhere.
+    robots: 'noindex',
     body: html`
 <section class="hero hero-small"><div class="wrap">
   <p class="eyebrow"><a href="${c.href('/#stores')}">${storesLabel(c)}</a></p>
@@ -1197,14 +1245,18 @@ export function pagePaths(site, mode = 'off') {
   return ['/', ...stores, ...site.guides.map(g => `/guides/${g.slug}/`), `/guides/${site.checks.slug}/`, ...Object.keys(LEGAL)];
 }
 
-// deps (tests): fetch, cache (match/put, like caches.default), now (a function giving ms) and timeoutMs.
+// deps (tests): fetch, cache (match/put, like caches.default), now (a function giving ms), timeoutMs, and photoFetch /
+// photoTimeoutMs for the photo check (L211).
 export function createGuidesWorker(site, deps = {}) {
   const guides = new Map(site.guides.map(g => [g.slug, g]));
   const stores = new Map((site.stores || []).map(s => [s.slug, s]));
   const runtime = () => ({
     fetch: deps.fetch,
     cache: deps.cache !== undefined ? deps.cache : (typeof caches !== 'undefined' && caches.default ? caches.default : null),
-    timeoutMs: deps.timeoutMs
+    timeoutMs: deps.timeoutMs,
+    // Photos are checked by the live Worker (no deps at all: the global fetch), and by a test that gives photoFetch (L211).
+    photoFetch: deps.photoFetch !== undefined ? deps.photoFetch : (deps.fetch ? null : (...a) => fetch(...a)),
+    photoTimeoutMs: deps.photoTimeoutMs
   });
   const nowMs = () => (typeof deps.now === 'function' ? deps.now() : Date.now());
   // Every store's products for the home page cards (from the cache, or read now); never breaks the page. Only the

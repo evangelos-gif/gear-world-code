@@ -21,9 +21,11 @@ test('L188: the page says the dates, the retailers that started with their own d
   assert.ok(html.includes('<link rel="canonical" href="https://gearworldhub.com/black-friday/">'));
   assert.ok(html.includes('<h1>Black Friday 2026 on Gear World</h1>'));
   assert.ok(html.includes('Black Friday is on Friday 27 Nov 2026 and Cyber Monday on Monday 30 Nov 2026.'));
-  for (const r of data.started) assert.ok(html.includes(`<li class="gd-item rt-item rt-offer" data-end="${r.hide}">`) && html.includes(`Black Friday from ${r.from.slice(8).replace(/^0/, '')} `), r.name);
-  for (const c of data.codes) assert.ok(html.includes(`<li class="gd-item rt-item rt-offer" data-end="${c.end}">`), c.code || c.title);
-  for (const code of ['CLAIMFIFTY', 'CLAIMSEVFY', 'EIN15PCDD', 'EARLYBF10']) assert.ok(html.includes(`<strong class="rt-code" translate="no">${code}</strong>`), code);
+  // data-delivers (L211): where each retailer delivers, and each code where its retailer does.
+  for (const r of data.started) assert.ok(html.includes(`<li class="gd-item rt-item rt-offer" data-end="${r.hide}" data-delivers="${r.deliversTo.join(' ')}">`) && html.includes(`Black Friday from ${r.from.slice(8).replace(/^0/, '')} `), r.name);
+  for (const c of data.codes) assert.ok(html.includes(`<li class="gd-item rt-item rt-offer" data-end="${c.end}" data-delivers="${data.started.find(r => r.slug === c.slug).deliversTo.join(' ')}">`), c.code || c.title);
+  for (const code of ['CLAIMFIFTY', 'CLAIMSEVFY', 'EIN15PCDD']) assert.ok(html.includes(`<strong class="rt-code" translate="no">${code}</strong>`), code);
+  assert.ok(!html.includes('EARLYBF10</strong>'), 'Angel Barocco\'s code ended on 21 Nov 2026 and is out of the data (L211)');
   assert.ok(html.includes('/stores/stores.js?v='), 'the script that hides what ended');
 });
 
@@ -71,7 +73,8 @@ test('L188: every item with an end date inside a counted section is counted (no 
   }
 });
 
-test('L188: on 22 Nov 2026 the data is refused (EARLYBF10 ended on 21 Nov), so no Hub release ships an ended code', () => {
-  assert.ok(validate(data, '2026-11-22').some(p => p.includes('EARLYBF10') && p.includes('2026-11-21')));
-  assert.throws(() => build(data, '2026-11-22'), /EARLYBF10/);
+test('L188: on 1 Dec 2026 the data is refused (the Joybuy coupons end on 30 Nov), so no Hub release ships an ended code', () => {
+  assert.ok(validate(data, '2026-11-22').length === 0, 'fine on 22 Nov 2026, the day of the L211 release');
+  assert.ok(validate(data, '2026-12-01').some(p => p.includes('Joybuy') && p.includes('2026-11-30')));
+  assert.throws(() => build(data, '2026-12-01'), /2026-11-30/);
 });

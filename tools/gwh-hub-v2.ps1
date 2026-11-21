@@ -203,6 +203,11 @@
   otherwise a visitor in Greece who made no choice gets a Greek Hub and English sites.
   Exit codes added by L119: 21 the -MitgoCode has another form, 22 the code did not go into the live Worker (nothing went
   live), 23 -AfterPreview without a clean preview report of this version (nothing changed).
+  Mega Stores bar and /black-friday/ by country (owner, 21/11/2026, lessons L211): worker.js changes the home page's bar
+  and /black-friday/ for a visitor outside the UK (the stores of megastoresgearworld.com for that country as text, no bar
+  where none is listed; only the retailers and codes that deliver there); the UK page is the file itself. The checks ask
+  for Greece and the US with X-GW-QA-Country. Phrases unchanged: ΕΓΚΡΙΝΩ HUB SEARCH PREVIEW, ΕΓΚΡΙΝΩ HUB SEARCH LIVE,
+  ΕΓΚΡΙΝΩ HUB REMOVE PREVIEW (one paste, live with -AfterPreview).
   Report: <home>\gear-world-reports\GWH_HUB_V2_<STEP>_<time>.txt (also copied to the clipboard)
 #>
 param(
@@ -251,7 +256,7 @@ $Bad = 'Magenta'
 
 # What each file of the change does, in the words of the report.
 $About = @{
-    'worker.js' = 'η σειρά των αποτελεσμάτων της αναζήτησης με το rankHubResults: πρώτα τι είναι το προϊόν (κατηγορίες), μετά ολόκληρες λέξεις του ονόματος, αξεσουάρ πιο κάτω (GWH-RANKING-V3, L177)· η αναζήτηση μεταφράζει τις ξένες λέξεις με το μοντέλο της αναζήτησης με φωτογραφία (Gemma 4), γιατί το Cloudflare σταματά το @cf/meta/llama-3.1-8b-instruct-fp8 στις 20/11 (L173)· η αρχική σελίδα παίρνει τη γλώσσα της χώρας του επισκέπτη (<html data-country-lang>, μόνο σε κάθε απάντηση, ποτέ για το Google, L175)· όλα τα άλλα όπως είναι live'
+    'worker.js' = 'η σειρά των αποτελεσμάτων της αναζήτησης με το rankHubResults: πρώτα τι είναι το προϊόν (κατηγορίες), μετά ολόκληρες λέξεις του ονόματος, αξεσουάρ πιο κάτω (GWH-RANKING-V3, L177)· η αναζήτηση μεταφράζει τις ξένες λέξεις με το μοντέλο της αναζήτησης με φωτογραφία (Gemma 4), γιατί το Cloudflare σταματά το @cf/meta/llama-3.1-8b-instruct-fp8 στις 20/11 (L173)· η αρχική σελίδα παίρνει τη γλώσσα της χώρας του επισκέπτη (<html data-country-lang>, μόνο σε κάθε απάντηση, ποτέ για το Google, L175)· όλα τα άλλα όπως είναι live · L211: η μπάρα Mega Stores και η σελίδα /black-friday/ ανά χώρα (από Ελλάδα τα 7 ελληνικά καταστήματα, όπου δεν υπάρχει κατάστημα καμία μπάρα, στο /black-friday/ μόνο ό,τι παραδίδει στη χώρα)'
     'photo-search.js' = 'κρατά το μοντέλο της μετάφρασης της αναζήτησης (ίδιο με της φωτογραφίας) και διαβάζει την απάντησή του σε κάθε μορφή (L173)· η αναζήτηση με φωτογραφία δεν αλλάζει'
     'security.js'           = 'νέο αρχείο: έλεγχος Turnstile, ημερήσια όρια του δικτύου (εγγραφές, μεταφράσεις), headers (L106)'
     'mailerlite.js'         = 'η φόρμα του Hub θέλει το token του Turnstile· ημερήσιο όριο εγγραφών για όλο το δίκτυο, μικρό δικό της για την εφαρμογή (L106)'
@@ -288,7 +293,7 @@ $About = @{
     'public/stores/index.html' = 'νέα σελίδα /stores/: τα μεγάλα καταστήματα ανά χώρα παράδοσης (L166)'
     'public/stores/stores.css' = 'η εμφάνιση των σελίδων /stores/ (νέο αρχείο, L166)'
     'public/stores/stores.js' = 'κρύβει μόνο του κωδικό, έκπτωση ή μπάνερ που έληξε (νέο αρχείο, L166)'
-    'public/black-friday/index.html' = 'νέα σελίδα /black-friday/ (L188): ημερομηνίες Black Friday 27/11 και Cyber Monday 30/11, 6 καταστήματα που ξεκίνησαν (από τα emails τους) και 9 κωδικοί/κουπόνια με λήξη, μόνο links Gear World· από 27/11 το Price Watch'
+    'public/black-friday/index.html' = 'νέα σελίδα /black-friday/ (L188): ημερομηνίες Black Friday 27/11 και Cyber Monday 30/11, 6 καταστήματα που ξεκίνησαν (από τα emails τους) και 9 κωδικοί/κουπόνια με λήξη, μόνο links Gear World· από 27/11 το Price Watch · L211: κάθε κατάστημα και κωδικός με data-delivers (πού παραδίδει), έφυγε ο κωδικός EARLYBF10 του Angel Barocco (έληξε 21/11)'
     'public/stores/joybuy/index.html' = 'σελίδα Joybuy: UK, 4 εκπτώσεις έως 31/12, 12 sites (L166)'
     'public/stores/aliexpress-pl/index.html' = 'σελίδα AliExpress PL: μόνο Πολωνία, 12 sites με ?for=pl (L166)'
     'public/stores/tooled-up/index.html' = 'σελίδα Tooled Up: UK, κωδικοί CLAIMFIFTY και CLAIMSEVFY έως 6/12, 4 sites (L166)'
@@ -515,10 +520,12 @@ function Prepare-Deploy {
 }
 
 # Downloads a page or file like a browser: @{ status; bytes; headers }. status 0 = could not be read.
-function Get-Web([string]$url) {
+# L211: -country names the visitor's country for the Hub's own check (header X-GW-QA-Country, GearWorldQA-bot only).
+function Get-Web([string]$url, [string]$country = '') {
     try {
         $req = [System.Net.HttpWebRequest]::Create($url)
         $req.UserAgent = 'GearWorldQA-bot/1.0 (+read-only check)'
+        if ($country) { $req.Headers.Add('X-GW-QA-Country', $country) }
         $req.Accept = '*/*'
         $req.Timeout = 30000
         $resp = $req.GetResponse()
@@ -539,7 +546,8 @@ function Get-Web([string]$url) {
 # Cloudflare Web Analytics adds its own beacon script to HTML for some visitors (lessons L71): it is taken out first.
 # So is the bar the Worker adds for a visitor outside the UK (lessons L107), when this PC is not in the UK.
 function Get-LiveSha([string]$url, [bool]$isHtml) {
-    $w = Get-Web $url
+    # L211: HTML as a UK visitor sees it (the Mega Stores bar and /black-friday/ follow the country), from any PC.
+    $w = Get-Web $url $(if ($isHtml) { 'GB' } else { '' })
     if ($w.status -eq 404) { return 'missing' }
     if ($w.status -ne 200) { return 'error' }
     $bytes = $w.bytes
@@ -711,6 +719,27 @@ function Test-Site([string]$base, [bool]$isLive) {
     $bfOk = ($bf.status -eq 200 -and $bfHtml.Contains('<link rel="canonical" href="https://gearworldhub.com/black-friday/">') -and $bfHtml.Contains('<h1>Black Friday 2026 on Gear World</h1>') -and $bfHtml -notmatch '/(out|go)/' -and $bfHtml -notmatch '\d+\s?%')
     if ($bfLink -and $bfOk) { Say '  Σελίδα /black-friday/ και το link της στην αρχική (L188): ΕΝΤΑΞΕΙ' $Ok }
     else { Say ('  Σελίδα /black-friday/ (L188): ΠΡΟΒΛΗΜΑ - link στην αρχική: {0}, σελίδα: απάντηση {1}, περιεχόμενο σωστό: {2}' -f $bfLink, $bf.status, $bfOk) $Bad }
+    # L211 (owner, 21/11/2026): the Mega Stores bar and /black-friday/ follow the visitor's country. The UK page above is the
+    # file itself; from Greece the bar names the 7 Greek stores (no UK store), from the US there is no bar, and
+    # /black-friday/ from Greece lists no UK retailer or code and says so. The bar's link is never opened.
+    $enc8 = New-Object System.Text.UTF8Encoding($false)
+    $ukDelivers = $bfHtml.Contains('data-delivers="GB"')
+    $grHome = Get-Web ($base + '/?gwcheck=' + $stamp) 'GR'
+    $grHtml = $enc8.GetString($grHome.bytes)
+    $grUk = @($megaStores | Where-Object { $grHtml.Contains('data-store="' + $_ + '"') })
+    $grOne = ([regex]::Matches($grHtml, 'href="https://megastoresgearworld\.com/"')).Count -eq 1
+    $grOk = ($grHome.status -eq 200 -and $grHtml.Contains('data-store="kouzinika-gr"') -and $grHtml.Contains('data-store="tsakiris-mallas-gr"') -and $grUk.Count -eq 0 -and $grOne)
+    if ($grOk) { Say '  Μπάρα Mega Stores από Ελλάδα (L211): ΕΝΤΑΞΕΙ - τα 7 ελληνικά καταστήματα, κανένα του UK' $Ok }
+    else { Say ('  Μπάρα Mega Stores από Ελλάδα (L211): ΠΡΟΒΛΗΜΑ - απάντηση {0}, καταστήματα του UK: {1}, ένα link: {2}' -f $grHome.status, ($grUk -join ', '), $grOne) $Bad }
+    $usHome = Get-Web ($base + '/?gwcheck=' + $stamp) 'US'
+    $usHtml = $enc8.GetString($usHome.bytes)
+    if ($usHome.status -eq 200 -and -not $usHtml.Contains('gwh2-mega-wrap') -and $usHtml.Contains('id="hubSearch"')) { Say '  Μπάρα Mega Stores από ΗΠΑ (L211): ΕΝΤΑΞΕΙ - δεν φαίνεται (κανένα κατάστημα για τις ΗΠΑ), η σελίδα κανονικά' $Ok }
+    else { Say ('  Μπάρα Mega Stores από ΗΠΑ (L211): ΠΡΟΒΛΗΜΑ - απάντηση {0}, μπάρα: {1}' -f $usHome.status, $usHtml.Contains('gwh2-mega-wrap')) $Bad }
+    $grBf = Get-Web ($base + '/black-friday/?gwcheck=' + $stamp) 'GR'
+    $grBfHtml = $enc8.GetString($grBf.bytes)
+    $grBfOk = ($grBf.status -eq 200 -and $grBfHtml.Contains('class="gd-note rt-country"') -and -not $grBfHtml.Contains('data-delivers="GB"') -and $grBfHtml.Contains('<h1>Black Friday 2026 on Gear World</h1>'))
+    if ($ukDelivers -and $grBfOk) { Say '  /black-friday/ από Ελλάδα (L211): ΕΝΤΑΞΕΙ - κανένα κατάστημα ή κωδικός του UK, με τη γραμμή «Only the retailers that deliver to your country»' $Ok }
+    else { Say ('  /black-friday/ ανά χώρα (L211): ΠΡΟΒΛΗΜΑ - σελίδα UK με data-delivers: {0}, από Ελλάδα: απάντηση {1}, σωστή: {2}' -f $ukDelivers, $grBf.status, $grBfOk) $Bad }
     # L119: the Mitgo tag right before </head> of the home page (a new secret takes a few seconds to reach every answer).
     # (L150: the Impact tag, when there is one, comes after it and right before </head>.)
     $mitgoRx = '<meta name="mitgo-verification" content="([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})">(?:<meta name=''impact-site-verification'' value=''[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}''>)?</head>'

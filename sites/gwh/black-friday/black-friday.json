@@ -17,7 +17,6 @@
     { "kind": "code", "name": "My Tool Shed", "slug": "my-tool-shed", "site": "cgw", "code": "CLAIMSEVFY", "title": "£75 off when you spend £750", "end": "2026-12-06" },
     { "kind": "code", "name": "Tooled Up", "slug": "tooled-up", "site": "cgw", "code": "EIN15PCDD", "title": "For Einhell products, when you spend £50 or more on Einhell", "end": "2026-12-30" },
     { "kind": "code", "name": "My Tool Shed", "slug": "my-tool-shed", "site": "cgw", "code": "EIN15PCDD", "title": "For Einhell products, when you spend £50 or more on Einhell", "end": "2026-12-30" },
-    { "kind": "code", "name": "Angel Barocco", "slug": "angel-barocco", "site": "wgw", "code": "EARLYBF10", "title": "On your order, no minimum spend", "end": "2026-11-21" },
     { "kind": "coupon", "name": "Joybuy", "slug": "joybuy", "site": "hgw", "title": "£10 off when you spend £59, on selected products", "end": "2026-11-30" },
     { "kind": "coupon", "name": "Joybuy", "slug": "joybuy", "site": "hgw", "title": "£40 off when you spend £199, on selected products", "end": "2026-11-30" }
   ]

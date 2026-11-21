@@ -29,6 +29,8 @@ const DATE = /^\d{4}-\d{2}-\d{2}$/;
 const WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 const weekday = iso => WEEKDAYS[new Date(`${iso}T12:00:00Z`).getUTCDay()];
 const name = r => `<span translate="no">${esc(r.name)}</span>`;
+// The countries an entry delivers to, as data-delivers (L211): its deliversTo, the UK when it has none.
+const delivers = r => (Array.isArray(r.deliversTo) && r.deliversTo.length ? r.deliversTo : ['GB']).map(c => String(c).toUpperCase()).join(' ');
 
 export function loadData(file = DATA_FILE) { return JSON.parse(readFileSync(file, 'utf8')); }
 
@@ -70,7 +72,8 @@ function startedItem(r) {
   const until = r.to ? ` · until ${day(r.to)}` : '';
   const sites = r.sites.map(code => `<a href="${esc(siteLink(r, code))}">${esc(SITES[code].name)}</a>`).join(', ');
   // rt-offer: /stores/stores.js counts it, so "Nothing running right now" shows only when every retailer has ended.
-  return `      <li class="gd-item rt-item rt-offer" data-end="${r.hide}">
+  // data-delivers (L211): the Hub Worker shows the item only to visitors from these countries.
+  return `      <li class="gd-item rt-item rt-offer" data-end="${r.hide}" data-delivers="${esc(delivers(r))}">
         <div class="gd-body">
           <h3>${name(r)}</h3>
           <p class="gd-why">Black Friday from ${day(r.from)}${until} (the retailer's own dates)</p>
@@ -80,13 +83,15 @@ function startedItem(r) {
       </li>`;
 }
 
-function codeItem(c) {
+function codeItem(c, data) {
   const r = { name: c.name, slug: c.slug };
+  // A code delivers where its retailer does (L211).
+  const retailer = (data.started || []).find(x => x.slug === c.slug) || {};
   const what = c.kind === 'code'
     ? `${name(r)} · code <strong class="rt-code" translate="no">${esc(c.code)}</strong>: ${esc(c.title)}`
     : `${name(r)} · coupon: ${esc(c.title)}`;
   const how = c.kind === 'code' ? 'Copy the code on the site page' : 'No code: the coupon is on the retailer\'s page';
-  return `      <li class="gd-item rt-item rt-offer" data-end="${c.end}">
+  return `      <li class="gd-item rt-item rt-offer" data-end="${c.end}" data-delivers="${esc(delivers(retailer))}">
         <div class="gd-body">
           <h3>${what}</h3>
           <p class="gd-why">Valid until ${day(c.end)} · ${how}</p>
@@ -130,7 +135,7 @@ ${data.started.map(startedItem).join('\n')}
     <section class="gd-group rt-offers" aria-labelledby="bf-codes-h">
       <h2 id="bf-codes-h">Discount codes and coupons</h2>
       <ul class="gd-list">
-${data.codes.map(codeItem).join('\n')}
+${data.codes.map(c => codeItem(c, data)).join('\n')}
       </ul>
       <p class="gd-note rt-none" hidden>No codes right now. Check back soon.</p>
       <p class="gd-note">Published by each retailer through its affiliate programme. The retailer sets the final terms, so check the discount before you pay.</p>

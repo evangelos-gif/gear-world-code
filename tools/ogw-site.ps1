@@ -345,6 +345,10 @@ function Test-Site([string]$base, [string]$mode) {
     $usAny = $us.text.Contains('class="bf-started"') -or $us.text.Contains('class="promo-card"') -or $us.text.Contains('href="/stores/') -or ($us.text -match '(?i)amazon')
     if ($us.status -eq 200 -and $us.text.Contains('stores-none') -and -not $usAny) { Say '  Από ΗΠΑ: κανένα κατάστημα, με τη γραμμή «δεν εμφανίζεται ακόμα για τη χώρα σας»: ΕΝΤΑΞΕΙ' $Ok }
     else { Say ('  Από ΗΠΑ ({0}): φαίνονται καταστήματα, κωδικοί ή Amazon: ΠΡΟΒΛΗΜΑ' -f $us.status) $Bad; $all = $false }
+    # L211: a store page where the store is not listed (Joybuy from Greece) is never in a search engine (noindex).
+    $ge = Get-Page ($base + '/stores/joybuy/') 'GR'
+    if ($ge.status -eq 200 -and $ge.text.Contains('store-elsewhere') -and $ge.text.Contains('<meta name="robots" content="noindex">')) { Say '  Joybuy από Ελλάδα: «δεν εμφανίζεται για τη χώρα σας», με noindex (L211): ΕΝΤΑΞΕΙ' $Ok }
+    else { Say ('  Joybuy από Ελλάδα ({0}): λείπει η γραμμή ή το noindex (L211): ΠΡΟΒΛΗΜΑ' -f $ge.status) $Bad; $all = $false }
     $el = Get-Page ($base + '/?lang=el')
     if ($el.status -eq 200 -and $el.text.Contains('<html lang="el-GR"') -and $el.text.Contains('Οδηγοί δώρων')) { Say '  /?lang=el απαντά στα Ελληνικά (Οδηγοί δώρων): ΕΝΤΑΞΕΙ' $Ok }
     else { Say ('  /?lang=el δεν απαντά στα Ελληνικά ({0}): ΠΡΟΒΛΗΜΑ' -f $el.status) $Bad; $all = $false }
