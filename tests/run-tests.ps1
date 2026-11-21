@@ -515,11 +515,11 @@ $env:GW_RUN_TEST_TEMP = $grTemp
 $env:GW_RUN_TEST_CODELOAD = 'fail'
 $env:GW_RUN_TEST_API = $grApi
 $env:GW_RUN_TEST_RAW = $grRaw
-$grOut = (@(& $exe -NoProfile -ExecutionPolicy Bypass -File $gwRun -Ref $grNew -Tool gw-hello 'x' 'y' -Chat 'Test Chat') | ForEach-Object { "$_" }) -join "`n"
+$grOut = (@(& $exe -NoProfile -ExecutionPolicy Bypass -File $gwRun -Ref $grNew -Tool gw-hello -Name 'x' -Chat 'Test Chat') | ForEach-Object { "$_" }) -join "`n"
 $grCode = $LASTEXITCODE
 $grNewRoot = Join-Path (Join-Path $grTemp ('gear-world-code-' + $grNew.Substring(0, 12))) ('gear-world-code-' + $grNew)
 Check ($grCode -eq 0) 'gw-run without codeload: exit code 0'
-Check ($grOut.Contains('new version x,y')) 'gw-run without codeload: runs the new version with its arguments'
+Check ($grOut.Contains('new version -Name,x')) 'gw-run without codeload: runs the new version with its arguments'
 Check ($grOut.Contains('Test Chat')) 'gw-run without codeload: still names the chat'
 Check (-not (Test-Path -LiteralPath (Join-Path (Join-Path $grNewRoot 'tools') 'gone.txt'))) 'gw-run without codeload: a removed file is gone'
 Check (Test-Path -LiteralPath (Join-Path (Join-Path $grNewRoot 'docs') 'same.txt')) 'gw-run without codeload: unchanged files come from the older copy'
