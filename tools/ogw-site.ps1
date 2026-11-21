@@ -337,7 +337,7 @@ function Test-Site([string]$base, [string]$mode) {
     # L210 (owner, 21 Nov 2026): a visitor from Greece sees no UK store, code or Amazon UK, and the line that says so.
     $gr = Get-Page ($base + '/') 'GR'
     $grUk = $gr.text.Contains('class="bf-started"') -or $gr.text.Contains('class="promo-card"') -or $gr.text.Contains('href="/stores/') -or ($gr.text -match '(?i)amazon')
-    if ($gr.status -eq 200 -and $gr.text.Contains('stores-none') -and -not $grUk) { Say '  Από Ελλάδα: κανένα κατάστημα, κωδικός ή Amazon του UK, με τη γραμμή «δεν παραδίδει ακόμα στη χώρα σας»: ΕΝΤΑΞΕΙ' $Ok }
+    if ($gr.status -eq 200 -and $gr.text.Contains('stores-none') -and -not $grUk) { Say '  Από Ελλάδα: κανένα κατάστημα, κωδικός ή Amazon του UK, με τη γραμμή «δεν εμφανίζεται ακόμα για τη χώρα σας»: ΕΝΤΑΞΕΙ' $Ok }
     else { Say ('  Από Ελλάδα ({0}): φαίνονται καταστήματα, κωδικοί ή Amazon του UK: ΠΡΟΒΛΗΜΑ' -f $gr.status) $Bad; $all = $false }
     $el = Get-Page ($base + '/?lang=el')
     if ($el.status -eq 200 -and $el.text.Contains('<html lang="el-GR"') -and $el.text.Contains('Οδηγοί δώρων')) { Say '  /?lang=el απαντά στα Ελληνικά (Οδηγοί δώρων): ΕΝΤΑΞΕΙ' $Ok }

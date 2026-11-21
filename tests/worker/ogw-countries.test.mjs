@@ -205,4 +205,5 @@ test('L210: no entry anywhere: the Hub button only for the UK; a code of black-f
   const x = await get('/', { cc: 'IE', s: ie });
   assert.ok(x.text.includes('>Joybuy<') && x.text.includes('class="bf-started"'), 'an entry listed for Ireland shows there');
   assert.ok(!x.text.includes('class="promo-card"') && !x.text.includes('£'), 'its codes have no deliversTo: the UK only');
+  assert.ok(!x.text.includes('/black-friday/'), 'the Hub\'s Black Friday page (UK stores and codes in pounds): its button only for the UK');
 });

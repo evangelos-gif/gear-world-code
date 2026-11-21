@@ -587,8 +587,8 @@ function blackFridayBlock(c, now) {
   // Nothing of it is listed for this country (L210): the countdown and the dates, a line saying so, and no Hub button
   // (the Hub's Black Friday page lists the same UK stores and codes).
   const noneHere = !b.started.length && !b.extra.length && b.elsewhere > 0;
-  // The Hub's page lists the UK stores: its button only with entries for this country, or for the UK as before.
-  const hubButton = b.started.length > 0 || b.extra.length > 0 || c.country === VIEW_BASE;
+  // The Hub's Black Friday page lists only the UK stores and their codes in pounds: its button only for the UK.
+  const hubButton = c.country === VIEW_BASE;
   const count = b.days > 1 ? t('{0} days to Black Friday', html`<strong class="bf-num">${b.days}</strong>`)
     : b.days === 1 ? t('{0} day to Black Friday', html`<strong class="bf-num">1</strong>`)
       : b.today < b.cyber ? t('Black Friday is on') : t('Cyber Monday is on');
