@@ -118,6 +118,21 @@ test('L214: a Greek store at /gr/stores/: its products, Greek, own canonical, in
   assert.ok(old.text.includes('store-elsewhere') && old.text.includes('<meta name="robots" content="noindex">'), 'Google at the old address: as before (L211)');
 });
 
+test('L214: /gr/stores/ and /gr/guides go to their part of /gr/; Google-InspectionTool reads Greek; no "your country" line', async () => {
+  const s = await get('/gr/stores/');
+  assert.equal(s.r.status, 302);
+  assert.equal(s.r.headers.get('Location'), `${LIVE}/gr/#stores`);
+  const g = await get('/gr/guides?lang=de');
+  assert.equal(g.r.headers.get('Location'), `${LIVE}/gr/?lang=de-DE#guides`, 'the chosen language is kept');
+  const insp = await get('/gr/?lang=en-GB', { ua: 'Mozilla/5.0 (compatible; Google-InspectionTool/1.0;)' });
+  assert.ok(insp.text.startsWith('<!doctype html>\n<html lang="el-GR">'), 'every Google crawler reads the edition in Greek');
+  const home = await get('/gr/', { cc: 'GB' });
+  assert.ok(home.text.includes('id="black-friday"') && home.text.includes('class="bf-count"'), 'the countdown stays');
+  assert.ok(!home.text.includes('class="bf-none"'), 'no line about "your country" on the page for Greece');
+  const store = await get('/gr/stores/kouzinika-gr/', { cc: 'GB' });
+  assert.ok(/href="https:\/\/homegearworld\.com\/search\?q=Kouzinika\+GR&amp;retailer=Kouzinika\+GR&amp;for=gr"/.test(store.text), 'the Greek view of the site, whoever opens it');
+});
+
 test('L214: /gr is sent to /gr/; a UK store, Amazon and any other address under /gr/ do not exist', async () => {
   const r = await get('/gr?lang=el');
   assert.equal(r.r.status, 301);

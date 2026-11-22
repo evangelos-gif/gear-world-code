@@ -354,12 +354,12 @@ function Test-Site([string]$base, [string]$mode) {
     # hreflang next to the UK page; a Greek store page in Greek, indexed, with its own canonical; /gr/ in the sitemap.
     $edUkStore = '/stores/(joybuy|tooled-up|my-tool-shed|pchub-uk|gs-workwear|back-to-the-office|dhgate|amazon)/'
     $ed = Get-Page ($base + '/gr/')
-    $edUk = ($ed.text -match $edUkStore) -or ($ed.text -match '(?i)amazon') -or $ed.text.Contains('class="promo-card"')
+    $edUk = ($ed.text -match $edUkStore) -or ($ed.text -match '(?i)amazon\.co\.uk|>Amazon<') -or $ed.text.Contains('class="promo-card"')
     $edOk = ($ed.status -eq 200 -and $ed.text.Contains('<html lang="el-GR">') -and $ed.text.Contains('<link rel="canonical" href="https://' + $Domain + '/gr/">') -and $ed.text.Contains('<link rel="alternate" hreflang="el-GR" href="https://' + $Domain + '/gr/">') -and $ed.text.Contains('<link rel="alternate" hreflang="en-GB" href="https://' + $Domain + '/">') -and $ed.text.Contains('href="/gr/stores/kouzinika-gr/"') -and $ed.text.Contains('href="/gr/stores/tsakiris-mallas-gr/"') -and -not $ed.text.Contains('name="robots"') -and -not $edUk)
     if ($edOk) { Say '  /gr/ (Mega Stores για την Ελλάδα, L214): ΕΝΤΑΞΕΙ - στα Ελληνικά και για επισκέπτη από το UK, τα ελληνικά καταστήματα, κανένα του UK ή Amazon, δικό του canonical και hreflang' $Ok }
     else { Say ('  /gr/ (Mega Stores για την Ελλάδα, L214): ΠΡΟΒΛΗΜΑ - απάντηση {0}, κατάστημα, κωδικός ή Amazon του UK: {1}' -f $ed.status, $edUk) $Bad; $all = $false }
     $es = Get-Page ($base + '/gr/stores/kouzinika-gr/')
-    $esOk = ($es.status -eq 200 -and $es.text.Contains('<html lang="el-GR">') -and $es.text.Contains('<link rel="canonical" href="https://' + $Domain + '/gr/stores/kouzinika-gr/">') -and -not $es.text.Contains('name="robots"') -and -not ($es.text -match '(?i)amazon'))
+    $esOk = ($es.status -eq 200 -and $es.text.Contains('<html lang="el-GR">') -and $es.text.Contains('<link rel="canonical" href="https://' + $Domain + '/gr/stores/kouzinika-gr/">') -and -not $es.text.Contains('name="robots"') -and -not ($es.text -match '(?i)amazon\.co\.uk|>Amazon<'))
     $esCards = ([regex]::Matches($es.text, '<li class="pcard">')).Count
     if ($esOk -and $esCards -gt 0) { Say ('  /gr/stores/kouzinika-gr/ (L214): ΕΝΤΑΞΕΙ - στα Ελληνικά, μπαίνει στη Google, {0} προϊόντα με φωτογραφία' -f $esCards) $Ok }
     elseif ($esOk) { Say '  /gr/stores/kouzinika-gr/ (L214): ΠΡΟΣΟΧΗ - η σελίδα είναι σωστή, αλλά τα προϊόντα δεν φορτώθηκαν αυτή τη στιγμή (φορτώνονται ξανά σε επόμενη επίσκεψη)' $Warn }

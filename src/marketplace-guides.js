@@ -11,7 +11,8 @@
 // kind of dictionary (sites/ogw/i18n/<code>.json, keyed by the English text, read through site.dictionaries). The
 // language: the visitor's choice (?lang=, kept in every link of the page, never on the device), else the language of
 // the visitor's country (src/lib/country-language.js, as on the sites), else English. Google and every other crawler
-// always get the English page, and every page's canonical address is the English one without ?lang=. Never
+// always get the English page, and every page's canonical address is the English one without ?lang= (the one exception:
+// a country edition such as /gr/, in its own language for everyone, crawlers included, lessons L214). Never
 // translated: store, product, brand and Gear World names, "Mega Stores Gear World" and codes (translate="no"). The
 // Amazon statement stays in English word for word on every page where it is, with the translation after it.
 import { html, raw, esc, toString } from './lib/html.js';
@@ -637,7 +638,7 @@ function blackFridayBlock(c, now) {
   ${b.extra.length ? html`<h3 class="bf-sub">${t('Codes from the stores')}</h3>
   <ul class="promo-list">${b.extra.map(i => codeCard(c, i))}</ul>` : ''}
   ${anyCodes ? html`<p class="promo-note">${t('The stores\' own codes, as they publish them through their affiliate programmes. Each one has an end date and disappears after it.')} ${t('Each store sets its own terms: check them on its page before you pay.')}</p>` : ''}
-  ${noneHere ? html`<p class="bf-none">${t('No store with Black Friday codes is listed for your country yet.')}</p>` : ''}
+  ${noneHere && !c.edition ? html`<p class="bf-none">${t('No store with Black Friday codes is listed for your country yet.')}</p>` : ''}
   ${!hubButton && !amazon ? '' : html`<p class="bf-links">
     ${!hubButton ? '' : html`<a class="btn btn-gw" href="${c.hub('/black-friday/')}"><span>${t('All Black Friday dates and codes on {0}', keep((site.hub && site.hub.name) || 'Gear World Hub'))}</span></a>`}
     ${amazon ? html`<a class="btn btn-market" href="${amazon}" rel="sponsored nofollow noopener" target="_blank">${t('Black Friday on Amazon')}</a>` : ''}
@@ -1021,7 +1022,7 @@ ${codes.length ? html`<section class="wrap section store-codes" aria-labelledby=
 <section class="wrap section">
   <h2>${t('{0} on the Gear World sites', keep(store.name))}</h2>
   <ul class="site-links">${worlds.map(w => html`<li>
-    <a href="${c.gw(storeSearchUrl(store, w))}"><span>${t('All {0} products on {1}', keep(store.name), keep(w.name))}</span></a>
+    <a href="${c.gw(retailerSearchUrl(store, w))}"><span>${t('All {0} products on {1}', keep(store.name), keep(w.name))}</span></a>
     ${storeHasCodes(store, w.code, now, c.country) ? html`<a href="${c.gw(new URL(`/discount-codes/${store.slug}/`, w.url).toString())}"><span>${t('{0} voucher codes on {1}', keep(store.name), keep(w.name))}</span></a>` : ''}
   </li>`)}</ul>
   <p><a href="${c.href('/#stores')}">${t('All stores')}</a> · <a href="${c.href('/#guides')}">${t('Gift guides')}</a></p>
@@ -1331,7 +1332,8 @@ function notFoundPage(c, path) {
   });
 }
 
-// Every page address, for the sitemap (English, without ?lang=). The Amazon page only when the Amazon links are live.
+// Every page address, for the sitemap (without ?lang=: English, and the country editions in their own language, L214).
+// The Amazon page only when the Amazon links are live.
 export function pagePaths(site, mode = 'off') {
   // Only the stores of the UK page, the one Google reads (L195, L210): a store listed for other countries only (the Greek
   // ones) would show Google its "not listed for your country" page.
@@ -1407,10 +1409,15 @@ export function createGuidesWorker(site, deps = {}) {
       const ed = editionFor(url.pathname);
       if (ed) {
         if (url.pathname === ed.prefix) { url.pathname = `${ed.prefix}/`; return redirect(url.toString(), 301); }
-        const asked = readsEnglish(request) ? '' : languageCode(site, url.searchParams.get('lang'));
+        // Google's crawlers without "bot" in their name (Google-InspectionTool, GoogleOther) read the edition's language too.
+        const crawler = readsEnglish(request) || GOOGLE_CRAWLER.test(request.headers.get('user-agent') || '');
+        const asked = crawler ? '' : languageCode(site, url.searchParams.get('lang'));
         const edLang = asked || ed.lang;
         const edCtx = p => makeContext(site, edLang, Boolean(asked), viewMode(site, baseMode, ed.country), p, ed.country, ed);
         const rest = url.pathname.slice(ed.prefix.length);
+        const edKeep = to => (asked ? edCtx('/').href(to) : edCtx('/').at(to));
+        if (rest === '/stores' || rest === '/stores/') return redirect(`https://${site.domain}${edKeep('/#stores')}`, 302);
+        if (rest === '/guides' || rest === '/guides/') return redirect(`https://${site.domain}${edKeep('/#guides')}`, 302);
         if (rest === '/' || rest === '/index.html') return page(homePage(edCtx('/'), new Date(nowMs()), await allStoreData(ctx, ed.country)), 200, edLang);
         const em = rest.match(/^\/stores\/([a-z0-9-]+)\/?$/);
         const edStore = em && editionStores(site, ed).find(s => s.slug === em[1]);

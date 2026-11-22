@@ -3835,7 +3835,7 @@ Check ($ogSrc.Contains("[string]`$Chat = '1 · Gear World Manager'") -and $ogSrc
 # goes live only when /gr/ is live (exit 25), never with -NoHttpCheck (the tests), and checks the Greek bar and card.
 Check ($ogSrc.Contains("Get-Page (`$base + '/gr/')") -and $ogSrc.Contains("Get-Page (`$base + '/gr/stores/kouzinika-gr/')") -and $ogSrc.Contains("'/gr/</loc>'")) 'ogw-site.ps1: checks /gr/, a Greek store page and the sitemap (L214)'
 $l214Hub = [System.IO.File]::ReadAllText((Join-Path (Join-Path $repo 'tools') 'gwh-hub-v2.ps1'))
-Check ($l214Hub.Contains("if (`$Step -eq 'live' -and -not `$NoHttpCheck -and `$workerText.Contains('https://megastoresgearworld.com/gr/')) {") -and $l214Hub.Contains('Finish 25') -and $l214Hub.Contains('megastoresgearworld\.com/gr/')) 'gwh-hub-v2.ps1: the Hub goes live only when Mega Stores /gr/ is live (exit 25), and checks the Greek bar and card (L214)'
+Check ($l214Hub.Contains('function Assert-MegaStoresGr {') -and $l214Hub.Contains("if (`$Step -eq 'live') { Assert-MegaStoresGr }") -and $l214Hub.Contains("Say-Stores (Test-Stores)`r`n    Assert-MegaStoresGr") -and $l214Hub.Contains("if (`$NoHttpCheck -or -not `$workerText.Contains('https://megastoresgearworld.com/gr/')) { return }") -and $l214Hub.Contains('Finish 25') -and $l214Hub.Contains('megastoresgearworld\.com/gr/')) 'gwh-hub-v2.ps1: the Hub preview and live go on only when Mega Stores /gr/ is live (exit 25), never asked with -NoHttpCheck, and the Greek bar and card are checked (L214)'
 
 # gw-last-report.ps1: the newest report of a tool back on the clipboard, read-only.
 Write-Host 'gw-last-report.ps1'
