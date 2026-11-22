@@ -431,7 +431,7 @@ test('L30, L115: a phone keeps the hero search and "Browse by category" on the f
   assert.match(layout, /for \(const vp of viewports\.filter\(v => v\.isMobile\)\)/, 'both phone sizes');
   assert.match(layout, /search box and "Browse by category" on the first screen \(L30, L115\)/);
   // The bars it adds are the engine's own HTML, with the longest words of the codes bar.
-  assert.match(layout, /import \{ ukBarHtml, codesBarFor \} from '\.\.\/src\/pages\/layout\.js';/);
+  assert.match(layout, /import \{ ukBarHtml, codesBarFor(, appBarHtml)? \} from '\.\.\/src\/pages\/layout\.js';/); // L218: and the app row
   assert.equal(toString(codesBarFor([{ kind: 'code' }, { kind: 'code' }, { kind: 'sale' }, { kind: 'coupon' }])).match(/data-i18n="([^"]*)"/)[1], '{0} active codes and offers');
   // The stylesheet: on a phone the title uses the full width and the country bar fewer lines; every language but English
   // gets a slightly smaller title (smaller again at 360 px), and the longest site name keeps the Saved list on its row.

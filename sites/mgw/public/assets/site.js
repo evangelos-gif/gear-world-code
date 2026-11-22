@@ -886,8 +886,10 @@
 
   // ---------- Gear World app (lessons L218) ----------
   // The engine adds the Google Play badge under the hero buttons of the home page for a visitor from a country of the
-  // app. Here: Google's own badge file in the visitor's language (data-langs), the close button (remembered in this
-  // browser), and no badge on an iPad that asks for desktop pages (it says "Macintosh", and a Mac has no touch screen).
+  // app. Here, at once (before the dictionary loads, so a closed row never shows and moves the page): no badge on an iPad
+  // that asks for desktop pages (it says "Macintosh", and a Mac has no touch screen) or after a close (remembered in this
+  // browser); Google's own badge file in the visitor's language (data-langs; the language they will get, wantedLanguage);
+  // and the close button.
   function setupAppBar() {
     var bar = document.querySelector('[data-app-bar]');
     if (!bar) return;
@@ -897,7 +899,7 @@
       return;
     }
     var img = bar.querySelector('[data-app-badge]');
-    var base = String(lang).split('-')[0];
+    var base = String(wantedLanguage()).split('-')[0];
     if (img && (img.getAttribute('data-langs') || '').split(' ').indexOf(base) >= 0) {
       img.src = img.getAttribute('src').replace(/google-play-[a-z]+\.png/, 'google-play-' + base + '.png');
     }
@@ -1022,12 +1024,12 @@
       box.setAttribute('data-ready', '');
     });
   }
+  setupAppBar();
   setupGallery();
 
   // Language first, so every text the other parts write is already in the visitor's language.
   loadLanguage().then(function () {
     relabelGalleries();
-    setupAppBar();
     loadCurrency();
     setupPrefs();
     setupCart();

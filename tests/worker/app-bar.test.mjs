@@ -61,6 +61,8 @@ test('L218: the row: Google\'s badge in English (the site script swaps the langu
     for (const f of readdirSync(`sites/${s}/public/assets/i18n`)) {
       const dict = JSON.parse(read(`sites/${s}/public/assets/i18n/${f}`));
       for (const k of keys) {
+        // Albanian shows Google's English badge, so its label is the badge's own English words (label in name, WCAG 2.5.3).
+        if (f === 'sq-AL.json' && k === 'Get it on Google Play') { assert.equal(dict[k], k, `${s}/${f}: the English badge's words`); continue; }
         assert.ok(dict[k] && dict[k] !== k, `${s}/${f}: ${k}`);
         if (k !== 'Close') assert.match(dict[k], /Google Play|Gear World/, `${s}/${f}: ${k} keeps the name`);
       }
@@ -176,7 +178,7 @@ function appScript({ lang = 'en-GB', stored = {}, ua = ANDROID, touch = 5, withB
   const bar = { parentNode: { removeChild: b => removed.push(b) }, querySelector: q => (q === '[data-app-badge]' ? img : q === '[data-app-close]' ? close : null) };
   const store = new Map(Object.entries(stored));
   const ctx = {
-    lang,
+    wantedLanguage: () => lang,
     navigator: { userAgent: ua, maxTouchPoints: touch },
     document: { querySelector: q => (q === '[data-app-bar]' && withBar ? bar : null) },
     read: (k, fallback) => (store.has(k) ? store.get(k) : fallback),
@@ -204,7 +206,8 @@ test('L218: the site script: the badge in the visitor\'s language, the close but
   assert.equal(appScript({ ua: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)', touch: 0 }).removed.length, 0, 'a Mac: shown');
   assert.doesNotThrow(() => appScript({ withBar: false }), 'a page without the row');
   const js = read('sites/tgw/public/assets/site.js');
-  assert.match(js, /loadLanguage\(\)\.then\(function \(\) \{\n {4}relabelGalleries\(\);\n {4}setupAppBar\(\);/, 'after the language, so the badge follows it');
+  assert.match(js, /\n {2}setupAppBar\(\);\n {2}setupGallery\(\);\n\n {2}\/\/ Language first/, 'at once, before the dictionary loads: a closed row never shows (review P3)');
+  assert.ok(!/loadLanguage\(\)\.then\(function \(\) \{[^}]*setupAppBar/.test(js), 'not again after the language');
   for (const s of SITES) assert.equal(read(`sites/${s}/public/assets/site.js`), js, `${s}: the same site.js`);
 });
 
@@ -215,6 +218,22 @@ test('L218: the stylesheet of every site has the row, after the hero buttons on 
     assert.match(css, /\.app-close \{[^}]*width: 44px; height: 44px;/, `${s}: a 44 px close button`);
     assert.match(css, /\.app-close\[hidden\] \{ display: none; \}/, s);
     const phone = css.slice(css.indexOf('@media (max-width: 699px)'));
-    assert.match(phone, /\.hero-actions \{ order: 2;[\s\S]*?\.app-bar \{ order: 2;/, `${s}: on a phone, right after the buttons`);
+    assert.match(phone, /\.hero-actions \{ order: 2;[\s\S]*?\.app-bar \{ order: 2; gap: 10px 12px;/, `${s}: on a phone, right after the buttons, with Google's clear space (a quarter of the badge)`);
   }
+});
+
+test('L218: the cookies page of every site names the browser storage of a closed app row, in every dictionary', async () => {
+  const { infoPage } = await import('../../src/pages/info.js');
+  const K = "If you close the Gear World app row on the home page, your browser's local storage remembers it, so the row does not come back. This is not a cookie and is not sent to us.";
+  assert.match(read('src/pages/info.js'), /const UPDATED = '25 November 2026';\nconst UPDATED_ISO = '2026-11-25';/, 'a new date on the legal pages');
+  for (const s of SITES) {
+    const html = infoPage(config[s], '/cookies/');
+    assert.ok(String(html).includes(`<p>${K.replace(/'/g, '&#39;')}</p>`) || String(html).includes(`<p>${K}</p>`), `${s}: the line`);
+    for (const f of readdirSync(`sites/${s}/public/assets/i18n`)) {
+      const dict = JSON.parse(read(`sites/${s}/public/assets/i18n/${f}`));
+      assert.ok(dict[K] && dict[K] !== K && dict[K].includes('Gear World'), `${s}/${f}`);
+    }
+  }
+  const tool = read('tools/layout-check.mjs');
+  assert.match(tool, /appBarHtml\(\{ code, assetVersion: v \}\)/, 'tools/layout-check.mjs measures the first screen with the app row too');
 });

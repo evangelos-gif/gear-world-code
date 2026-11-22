@@ -11,7 +11,8 @@
 //     within 620 px at 390 px and at 360 px, in English and the 10 other languages, in the worst case: the country bar
 //     (lessons L107) and the discount codes bar both showing. A page without one of them gets it added for this
 //     measurement (the same HTML as the engine's, src/pages/layout.js), so every site is measured the same way, with or
-//     without running codes and whatever country the local Worker thinks the visitor is in.
+//     without running codes and whatever country the local Worker thinks the visitor is in. The Gear World app row
+//     (lessons L218) is added under the hero buttons the same way, as for a visitor from the UK, Greece or Cyprus.
 // Saves a screenshot of every page so a person can look at them.
 //
 // Usage: node tools/layout-check.mjs <baseUrl> [--shots <dir>] [--out report.txt] [--lang de-DE] [--currency RUB]
@@ -20,7 +21,7 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { chromium } from 'playwright';
-import { ukBarHtml, codesBarFor } from '../src/pages/layout.js';
+import { ukBarHtml, codesBarFor, appBarHtml } from '../src/pages/layout.js';
 import { toString } from '../src/lib/html.js';
 
 const args = process.argv.slice(2);
@@ -53,7 +54,7 @@ const LANGUAGES = ['en-GB', 'de-DE', 'el-GR', 'es-ES', 'fr-FR', 'it-IT', 'nl-NL'
 const WORST_COUNTRY_BAR = ukBarHtml();
 const WORST_CODES_BAR = toString(codesBarFor([{ kind: 'code' }, { kind: 'code' }, { kind: 'sale' }, { kind: 'coupon' }]));
 function worstCase(page) {
-  const added = { country: false, codes: false };
+  const added = { country: false, codes: false, app: false };
   let h = page;
   if (!h.includes('class="country-bar"')) {
     h = h.replace('<header class="masthead">', `${WORST_COUNTRY_BAR}<header class="masthead">`);
@@ -64,6 +65,14 @@ function worstCase(page) {
     const bar = WORST_CODES_BAR.replace(/\/assets\/icons\.svg(\?v=[^#"]*)?#/g, `/assets/icons.svg?v=${v}#`);
     h = h.replace(/(<\/div>\s*)(<nav class="catbar")/, `$1${bar}\n  $2`).replace(/<body class="([^"]*)">/, '<body class="$1" data-codes>');
     added.codes = true;
+  }
+  // The row of the Gear World app (lessons L218): the engine adds it after the hero buttons only for visitors from the UK,
+  // Greece and Cyprus, never on localhost, so it is added here as the engine writes it, with this page's asset version.
+  if (h.includes('<p class="hero-actions">') && !h.includes('data-app-bar')) {
+    const v = (h.match(/<html[^>]* data-v="([^"]*)"/) || [])[1] || '';
+    const code = (h.match(/<html[^>]* data-store="([^"]*)"/) || [])[1] || 'tgw';
+    h = h.replace(/(<p class="hero-actions">[\s\S]*?<\/p>)/, `$1${appBarHtml({ code, assetVersion: v })}`);
+    added.app = true;
   }
   return { html: h, added };
 }

@@ -19,8 +19,8 @@ function contactLink(site) {
 // 2026 (the retailer links go through Awin or CJ, Google Ads compliance, lessons
 // L107; before: 8 Nov 2026, Cloudflare Turnstile on the "Get deal updates" form, L106; 7 Nov 2026, who runs Gear World,
 // L101); keep this date honest (L103).
-const UPDATED = '18 November 2026';
-const UPDATED_ISO = '2026-11-18';
+const UPDATED = '25 November 2026';
+const UPDATED_ISO = '2026-11-25';
 
 // Who runs the network and how to reach them, the same on every site and on the Hub (Google Ads review, 7 Nov 2026,
 // lessons L101). Owner's decision, 7 Nov 2026: "Run by Evangelos Kalogerakis, United Kingdom" and the email, no address.
@@ -145,6 +145,7 @@ ${site.dealUpdates ? html`<p>The small sign-up window and "Remind me on 27 Nov" 
   ? (site.cart ? 'Your browser\'s local storage keeps your language, currency, compare list and saved list, so they are still there on your next visit.' : 'Your browser\'s local storage keeps your language, currency and compare list, so they are still there on your next visit.')
   : (site.cart ? 'Your browser\'s local storage keeps your language, currency, compare list, saved list and your cookie choice, so they are still there on your next visit.' : 'Your browser\'s local storage keeps your language, currency, compare list and your cookie choice, so they are still there on your next visit.')} This information is not a cookie, is not sent to us and is not used for tracking. Clearing your browser data removes it.${site.googleAds === false ? '' : ' Only after "Allow", the campaign name of the link you arrived from (utm_campaign, utm_source) is kept in this browser tab until you close it, so a later click to a retailer still counts for that campaign.'}</p>
 ${site.dealUpdates ? html`<p>If the small sign-up window appears, your browser's local storage keeps the date it last appeared, and that you signed up if you did, so it appears at most once a month and never after you sign up. This is not a cookie and is not sent to us.</p>` : ''}
+<p>If you close the Gear World app row on the home page, your browser's local storage remembers it, so the row does not come back. This is not a cookie and is not sent to us.</p>
 <h2>After you leave this site</h2>
 <p>When you select a "View at" button, the affiliate network (Awin or CJ) and the retailer may set cookies on their own websites to record the referral. You can manage those in your browser settings.</p>`
   }),
