@@ -1,0 +1,9 @@
+{
+  "name": "gw-rakuten-sftp",
+  "private": true,
+  "description": "The SFTP client of tools/rakuten-feed-download.ps1 (lessons L217): Rakuten gives its catalogues only by SFTP (plain FTP is being retired).",
+  "type": "module",
+  "dependencies": {
+    "ssh2": "1.17.0"
+  }
+}

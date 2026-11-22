@@ -323,6 +323,48 @@ test('Rakuten: a sample from the first part of a file, and a whole file converte
   assert.equal((await rk.convert([HDR, rkLine(1)].join('\n'), join(dir, 'bad2.part'))).error, 'no trailer (file cut short?)');
 });
 
+test('L217 Rakuten: a whole catalogue converted as a stream, pipe and XML, with the same trailer checks', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'gw-rk-stream-'));
+  // Long descriptions, so the gzip stream comes in many chunks and records are cut between them.
+  const big = i => rkLine(i, { long_description: `Soft cotton ${'x'.repeat(900)} ${i}` });
+  const pipe = join(dir, 'pipe.gz');
+  writeFileSync(pipe, gzipSync(Buffer.from([HDR, ...Array.from({ length: 4000 }, (_, i) => big(i + 1)), 'TRL|4000'].join('\r\n'))));
+  const out = join(dir, 'RAKUTEN_1606623.csv.gz.part');
+  const C = await rk.convertFile(pipe, out);
+  assert.equal(C.ok, true, C.error);
+  assert.equal(C.format, 'txt');
+  assert.equal(C.rows, 4000);
+  assert.equal(C.withTracking, 4000);
+  assert.equal(C.name, 'Cotton On UK');
+  assert.deepEqual(C.currencies, ['GBP']);
+  const csv = gunzipSync(readFileSync(out)).toString('utf8').trim().split('\n');
+  assert.equal(csv.length, 4001, 'header and 4000 rows');
+  assert.match(csv[4000], /Classic Crew Tee 4000/);
+  const rec = i => `<product product_id="${i}" name="Hoodie ${i} &amp; Co" sku_number="CO-${i}" manufacturer_name="Cotton On" part_number=""><category><primary>Womens</primary><secondary>Hoodies</secondary></category>
+<URL><product>${RK_LINK.replace(/&/g, '&amp;')}</product><productImage>https://cottonon.com/img/${i}.jpg</productImage></URL><description><short>${'y'.repeat(700)}</short><long></long></description>
+<price currency="GBP"><sale begin_date="" end_date="">20.00</sale><retail>25.00</retail></price><brand>Cotton On</brand><shipping><availability>in-stock</availability></shipping><upc>9351234567807</upc></product>`;
+  const xml = join(dir, 'x.xml.gz');
+  const body = `<?xml version="1.0" encoding="UTF-8"?><merchandiser><header><merchantId>1606623</merchantId><merchantName>Cotton On UK</merchantName><createdOn>2026-11-13</createdOn></header>\n${Array.from({ length: 3000 }, (_, i) => rec(i + 1)).join('\n')}\n<trailer><numberOfProducts>3000</numberOfProducts></trailer></merchandiser>`;
+  writeFileSync(xml, gzipSync(Buffer.from(body)));
+  const X = await rk.convertFile(xml, join(dir, 'x.part'));
+  assert.equal(X.ok, true, X.error);
+  assert.equal(X.format, 'xml');
+  assert.equal(X.rows, 3000);
+  assert.equal(X.withTracking, 3000);
+  const xcsv = gunzipSync(readFileSync(join(dir, 'x.part'))).toString('utf8');
+  assert.match(xcsv, /Hoodie 3000 & Co/);
+  assert.match(xcsv, /Hoodie 1 & Co/);
+  const short = join(dir, 'short.gz');
+  writeFileSync(short, gzipSync(Buffer.from([HDR, rkLine(1), rkLine(2), 'TRL|5'].join('\n'))));
+  const B = await rk.convertFile(short, join(dir, 'bad.part'));
+  assert.equal(B.ok, false);
+  assert.match(B.error, /trailer says 5/);
+  assert.ok(!existsSync(join(dir, 'bad.part')), 'a file that fails its check is not left behind');
+  const none = join(dir, 'none.gz');
+  writeFileSync(none, gzipSync(Buffer.from([HDR, rkLine(1)].join('\n'))));
+  assert.equal((await rk.convertFile(none, join(dir, 'bad2.part'))).error, 'no trailer (file cut short?)');
+});
+
 test('the import planner finds RAKUTEN_ and DAISYCON_ files and keeps their tracking links', async () => {
   const archive = mkdtempSync(join(tmpdir(), 'gw-net-'));
   for (const f of ['DAISYCON_16029.csv.gz', 'DAISYCON_160290.csv.gz', 'RAKUTEN_1606623.csv.gz', 'CJ_16029.csv.gz', 'AWIN_16029_1.csv.gz']) writeFileSync(join(archive, f), '');

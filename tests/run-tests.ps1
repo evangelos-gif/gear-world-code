@@ -3095,6 +3095,71 @@ http.createServer((q, s) => {
     }
 }
 
+# 8c6c. rakuten-feed-download.ps1 by SFTP only (lessons L217) with a fake SFTP server (Windows only: DPAPI, .cmd for npm ci)
+if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
+    Write-Host 'rakuten-feed-download.ps1 (SFTP only, host key pinned, one download per file, stream converter)'
+    $rkSftp = Join-Path (Join-Path $repo 'tools') 'rakuten-sftp'
+    $rkCmd = Join-Path ([System.IO.Path]::GetTempPath()) 'gw-test-rk-npm.cmd'
+    [System.IO.File]::WriteAllText($rkCmd, "@echo off`r`ncd /d `"$rkSftp`"`r`ncall npm ci --omit=optional --no-audit --no-fund >nul 2>&1`r`n", [System.Text.Encoding]::ASCII)
+    & $rkCmd
+    Check ($LASTEXITCODE -eq 0 -and (Test-Path -LiteralPath (Join-Path (Join-Path $rkSftp 'node_modules') 'ssh2'))) 'rakuten sftp: npm ci of the pinned ssh2'
+    Remove-Item -LiteralPath $rkCmd -ErrorAction SilentlyContinue
+    $rkNodeTest = @(& node --test (Join-Path $rkSftp 'sftp.test.mjs') | ForEach-Object { "$_" })
+    Check ($LASTEXITCODE -eq 0) ('rakuten sftp: client tests against the fake server (' + (($rkNodeTest | Where-Object { $_ -match '^# (pass|fail)' }) -join ' ') + ')')
+    $rkDir = Join-Path $work 'rk'
+    $rkSrvDir = Join-Path $rkDir 'server'
+    $rkArch = Join-Path $rkDir 'archive'
+    $rkOut = Join-Path $rkDir 'out'
+    New-Item -ItemType Directory -Path $rkSrvDir, $rkArch, $rkOut -Force | Out-Null
+    $rkMake = Join-Path $rkDir 'make.js'
+    Write-Utf8 $rkMake @'
+const zlib = require('zlib'), fs = require('fs');
+const L = ['HDR|1606623|Cotton On UK|11/13/2026 06:00:00'];
+for (let i = 1; i <= 3; i++) {
+  const f = new Array(28).fill('');
+  f[0] = String(i); f[1] = 'Classic Tee ' + i; f[2] = 'CO-' + i; f[3] = 'Mens'; f[4] = 'Tops';
+  f[5] = 'https://click.linksynergy.com/link?id=abc123&offerid=1606623.100' + i + '&type=15&murl=' + encodeURIComponent('https://cottonon.com/GB/p/100' + i + '.html');
+  f[6] = 'https://cottonon.com/img/' + i + '.jpg'; f[12] = '8.00'; f[13] = '12.00'; f[16] = 'Cotton On'; f[22] = 'in-stock'; f[25] = 'GBP';
+  L.push(f.join('|'));
+}
+L.push('TRL|3');
+fs.writeFileSync(process.argv[2], zlib.gzipSync(L.join('\n')));
+'@
+    & node $rkMake (Join-Path $rkSrvDir '1606623_4561_mp.txt.gz')
+    $rkUser = 'gw' + 'tester'
+    $rkPass = 'pw-' + 'not-real-7731'
+    $rkPortFile = Join-Path $rkDir 'port.txt'
+    $rkProc = Start-Process -FilePath (Get-Command node).Source -ArgumentList @((Join-Path $rkSftp 'fake-server.mjs'), '--dir', $rkSrvDir, '--user', $rkUser, '--pass', $rkPass, '--port-file', $rkPortFile) -PassThru -WindowStyle Hidden
+    for ($w = 0; $w -lt 40 -and -not (Test-Path -LiteralPath $rkPortFile); $w++) { Start-Sleep -Milliseconds 250 }
+    try {
+        $rkPort = ([System.IO.File]::ReadAllText($rkPortFile)).Trim()
+        $rkSecret = Join-Path $rkDir 'rakuten-ftp.dat'
+        $rkJson = (New-Object PSObject -Property @{ server = '127.0.0.1'; user = $rkUser; pass = $rkPass }) | ConvertTo-Json -Compress
+        [System.IO.File]::WriteAllText($rkSecret, (ConvertFrom-SecureString (ConvertTo-SecureString $rkJson -AsPlainText -Force)), [System.Text.Encoding]::ASCII)
+        $rkKey = Join-Path $rkDir 'hostkey.txt'
+        $rkTool = Join-Path (Join-Path $repo 'tools') 'rakuten-feed-download.ps1'
+        $rkArgs = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $rkTool, '-Port', $rkPort, '-SecretFile', $rkSecret, '-HostKeyFile', $rkKey, '-Archive', $rkArch, '-OutDir', $rkOut, '-NoClipboard')
+        & $exe @rkArgs | Out-Null
+        $rkRep = (@(Get-ChildItem -LiteralPath $rkOut -Filter 'RAKUTEN_FEED_DOWNLOAD_*.txt') | ForEach-Object { [System.IO.File]::ReadAllText($_.FullName) }) -join "`n"
+        Check ($LASTEXITCODE -eq 0 -and @(Get-ChildItem -LiteralPath $rkArch -File).Count -eq 0 -and (Test-Path -LiteralPath $rkKey)) 'rakuten: read-only run by SFTP, exit 0, nothing in the feed folder, host key kept'
+        Check ($rkRep.Contains('κρυπτογραφημένη (SFTP)') -and $rkRep.Contains('MID 1606623 Cotton On UK') -and $rkRep.Contains('Classic Tee 1')) 'rakuten: the catalogue list and a sample from the first part of the file'
+        & $exe @($rkArgs + @('-Apply', '-Approve', 'wrong phrase')) | Out-Null
+        Check ($LASTEXITCODE -eq 1 -and @(Get-ChildItem -LiteralPath $rkArch -File).Count -eq 0) 'rakuten: a wrong phrase changes nothing'
+        & $exe @($rkArgs + @('-Apply', '-Approve', 'ΕΓΚΡΙΝΩ RAKUTEN FEED DOWNLOAD')) | Out-Null
+        $rkRep = (@(Get-ChildItem -LiteralPath $rkOut -Filter 'RAKUTEN_FEED_DOWNLOAD_*.txt') | ForEach-Object { [System.IO.File]::ReadAllText($_.FullName) }) -join "`n"
+        Check ($LASTEXITCODE -eq 0 -and (Test-Path -LiteralPath (Join-Path $rkArch 'RAKUTEN_1606623.csv.gz')) -and $rkRep.Contains('MID 1606623 Cotton On UK: OK, 3 προϊόντα')) 'rakuten: with the phrase the catalogue is downloaded once, converted and saved as RAKUTEN_1606623.csv.gz'
+        Check (-not $rkRep.Contains($rkPass) -and -not $rkRep.Contains($rkUser)) 'rakuten: the user name and password are in no report'
+        [System.IO.File]::WriteAllText($rkKey, 'SHA256:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA', [System.Text.Encoding]::ASCII)
+        & $exe @rkArgs | Out-Null
+        $rkRep = (@(Get-ChildItem -LiteralPath $rkOut -Filter 'RAKUTEN_FEED_DOWNLOAD_*.txt' | Sort-Object LastWriteTime | Select-Object -Last 1) | ForEach-Object { [System.IO.File]::ReadAllText($_.FullName) }) -join "`n"
+        Check ($LASTEXITCODE -eq 4 -and $rkRep.Contains('άλλο κλειδί')) 'rakuten: a server with another host key stops the tool before the password is sent'
+        $rkCode = [System.IO.File]::ReadAllText($rkTool)
+        Check (-not $rkCode.Contains('FtpWebRequest') -and -not $rkCode.Contains('UsePassive')) 'rakuten: no plain FTP or FTPS code left (L217)'
+    } finally {
+        if ($rkProc -and -not $rkProc.HasExited) { Stop-Process -Id $rkProc.Id -Force -ErrorAction SilentlyContinue }
+    }
+}
+
 # 8c7. bol-feed-download.ps1 (bol.com Marketing Catalog API, lessons L154) with a fake bol.com (Windows only: DPAPI)
 if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
     Write-Host 'bol-feed-download.ps1 (keys in DPAPI, one token per run, one search)'
