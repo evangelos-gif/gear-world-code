@@ -267,8 +267,16 @@ test('L216: quick answers: one question per group, answered only with the guide\
       const under = label.match(/^Under £(\d+)$/);
       if (under) assert.ok(answers[n].q.endsWith(`under £${under[1]}?`) && items.every(i => i.price < Number(under[1])), `${g.slug} ${label}: every product is under £${under[1]}`);
       for (const it of items) {
-        const shop = it.offers && it.offers.length ? it.offers[0].retailer : it.retailer;
-        assert.ok(a.includes(`${it.name} (${money(it.price)} at ${shop})`), `${g.slug}: ${it.name} with its price and retailer`);
+        // The price and retailer the card itself shows (the first shop of a card with two or more, else the item's own).
+        const card = renderGuide(data, g);
+        const at = card.indexOf(`>${it.name.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')}</a></h3>`);
+        assert.ok(at > 0, `${g.slug}: ${it.name} has a card`);
+        const block = card.slice(at, card.indexOf('</li>', at));
+        const price = block.match(/<p class="gd-price"><strong>(£[0-9.]+)<\/strong>/)[1];
+        const shopAt = block.match(/<p class="gd-price"><strong>£[0-9.]+<\/strong> at ([^<]+)<\/p>/);
+        const shopOwn = block.match(/<p class="gd-other">Retailer: ([^<]+)<\/p>/);
+        const shop = (shopAt ? shopAt[1] : shopOwn[1]).replace(/&quot;/g, '"').replace(/&amp;/g, '&');
+        assert.ok(a.includes(`${it.name} (${price} at ${shop})`), `${g.slug}: ${it.name} with the price and retailer of its card`);
       }
       assert.ok(a.endsWith(`Prices checked ${checkedText(items)}, may change.`), `${g.slug} ${label}: the check days of these products`);
     });
@@ -277,7 +285,8 @@ test('L216: quick answers: one question per group, answered only with the guide\
     }
     const html = renderGuide(data, g);
     assert.ok(html.includes('<h2 id="gd-faq-h">Quick answers</h2>'), `${g.slug}: the section on the page`);
-    for (const x of answers) assert.ok(html.includes(`<h3>${x.q.replace(/&/g, '&amp;')}</h3>`), `${g.slug}: "${x.q}" on the page`);
+    const escHtml = s => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    for (const x of answers) assert.ok(html.includes(`<h3>${escHtml(x.q)}</h3>\n      <p>${escHtml(x.a)}</p>`), `${g.slug}: "${x.q}" and its answer on the page`);
     const ld = JSON.parse(html.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/)[1]);
     const faq = ld['@graph'].find(x => x['@type'] === 'FAQPage');
     assert.deepEqual(faq.mainEntity.map(q => [q.name, q.acceptedAnswer.text]), answers.map(x => [x.q, x.a]), `${g.slug}: the same answers in the structured data`);

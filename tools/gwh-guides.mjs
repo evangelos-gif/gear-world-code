@@ -103,7 +103,11 @@ export function quickAnswers(guide, site) {
   const out = groupsOf(guide.items).map(g => {
     const q = qs[g.label];
     if (!q) throw new Error(`${guide.slug}: no question for the group "${g.label}"`);
-    const list = g.items.map(it => `${it.name} (${money(it.price)} at ${(it.offers && it.offers.length ? it.offers[0].retailer : it.retailer)})`).join('; ');
+    // The price and retailer its card shows (priceLine): offers[0] only when the card lists two or more shops.
+    const list = g.items.map(it => {
+      const o = it.offers && it.offers.length > 1 ? it.offers[0] : it;
+      return `${it.name} (${money(o.price)} at ${o.retailer})`;
+    }).join('; ');
     return { q, a: `From this guide: ${list}. Prices checked ${checkedText(g.items)}, may change.` };
   });
   out.push({

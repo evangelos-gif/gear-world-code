@@ -765,7 +765,7 @@ function Test-Site([string]$base, [bool]$isLive) {
     $qa = Get-Web ($base + '/guides/christmas-gifts-for-him/?gwcheck=' + $stamp) 'GB'
     $qaHtml = $enc8.GetString($qa.bytes)
     if ($qa.status -eq 200 -and $qaHtml.Contains('<h2 id="gd-faq-h">Quick answers</h2>') -and $qaHtml.Contains('"@type":"FAQPage"') -and $qaHtml.Contains('What are some Christmas gifts for him under £25?')) { Say '  Οδηγοί δώρων με «Quick answers» και FAQPage (L216): ΕΝΤΑΞΕΙ' $Ok }
-    else { Say ('  Οδηγοί δώρων με «Quick answers» (L216): ΠΡΟΒΛΗΜΑ - απάντηση {0}' -f $qa.status) $Bad }
+    else { Say ('  Οδηγοί δώρων με «Quick answers» (L216): ΠΡΟΒΛΗΜΑ - απάντηση {0}, «Quick answers»: {1}, FAQPage: {2}, ερώτηση «under £25»: {3}' -f $qa.status, $qaHtml.Contains('<h2 id="gd-faq-h">Quick answers</h2>'), $qaHtml.Contains('"@type":"FAQPage"'), $qaHtml.Contains('What are some Christmas gifts for him under £25?')) $Bad }
     # L119: the Mitgo tag right before </head> of the home page (a new secret takes a few seconds to reach every answer).
     # (L150: the Impact tag, when there is one, comes after it and right before </head>.)
     $mitgoRx = '<meta name="mitgo-verification" content="([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})">(?:<meta name=''impact-site-verification'' value=''[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}''>)?</head>'
