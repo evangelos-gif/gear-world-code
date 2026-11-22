@@ -12,7 +12,7 @@
 //     (lessons L107) and the discount codes bar both showing. A page without one of them gets it added for this
 //     measurement (the same HTML as the engine's, src/pages/layout.js), so every site is measured the same way, with or
 //     without running codes and whatever country the local Worker thinks the visitor is in. The Gear World app row
-//     (lessons L218) is added under the hero buttons the same way, as for a visitor from the UK, Greece or Cyprus.
+//     (lessons L218) is added under the hero buttons the same way, as for a visitor from a country of the app.
 // Saves a screenshot of every page so a person can look at them.
 //
 // Usage: node tools/layout-check.mjs <baseUrl> [--shots <dir>] [--out report.txt] [--lang de-DE] [--currency RUB]

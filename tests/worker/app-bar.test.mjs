@@ -1,6 +1,6 @@
 // Lessons L218 (owner, 22 Nov 2026: "we got the app, put it on the page so people can download it" — "on the home page,
 // at the top, on every site"): the official "Get it on Google Play" badge of the Gear World app, under the hero buttons of
-// the home page of the 13 sites. Only for visitors from a country where the app is published (GB, GR, CY), never on an
+// the home page of the 13 sites. Only for visitors from a country where the app is published (GB, GR, CY, PL, US), never on an
 // iPhone or iPad, never in a cached copy, in the visitor's language (Google's own badge files), with a close button.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -25,13 +25,13 @@ const IPAD = 'Mozilla/5.0 (iPad; CPU OS 17_6 like Mac OS X) AppleWebKit/605.1.15
 const DESKTOP = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0 Safari/537.36';
 const GOOGLEBOT = 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)';
 
-test('L218: the app is offered only where Google Play has it (GB, GR, CY), never on an iPhone or iPad', () => {
-  assert.deepEqual(APP_COUNTRIES, ['GB', 'GR', 'CY']);
-  for (const cc of ['GB', 'GR', 'CY', 'gb', 'gr', 'cy']) {
+test('L218: the app is offered only where Google Play has it (GB, GR, CY, PL, US), never on an iPhone or iPad', () => {
+  assert.deepEqual(APP_COUNTRIES, ['GB', 'GR', 'CY', 'PL', 'US']);
+  for (const cc of ['GB', 'GR', 'CY', 'PL', 'US', 'gb', 'gr', 'cy', 'pl', 'us']) {
     assert.equal(appBarWanted(cc, ANDROID), true, cc);
     assert.equal(appBarWanted(cc, DESKTOP), true, `${cc} desktop`);
   }
-  for (const cc of ['US', 'DE', 'PL', 'IE', 'NL', 'BE', 'XX', 'T1', '', null, undefined]) assert.equal(appBarWanted(cc, ANDROID), false, String(cc));
+  for (const cc of ['DE', 'FR', 'IE', 'NL', 'BE', 'CA', 'XX', 'T1', '', null, undefined]) assert.equal(appBarWanted(cc, ANDROID), false, String(cc));
   for (const ua of [IPHONE, IPAD, 'Mozilla/5.0 (iPod touch; CPU iPhone OS 15_0 like Mac OS X)']) assert.equal(appBarWanted('GB', ua), false, ua);
   assert.equal(appBarWanted('GB', ''), true, 'no user agent: the badge (the site script still hides it on an iPad)');
 });
@@ -121,7 +121,7 @@ function memD1(schema) {
   return { prepare: t => stmt(t), batch: async list => Promise.all(list.map(s => s.all())) };
 }
 
-test('L218: the Worker adds the row to the home page for GB, GR, CY (and Google), not elsewhere, not on an iPhone, never in the cached copy', async () => {
+test('L218: the Worker adds the row to the home page for GB, GR, CY, PL, US (and Google), not elsewhere, not on an iPhone, never in the cached copy', async () => {
   const schema = readdirSync('sites/agw/migrations').sort().map(f => read(`sites/agw/migrations/${f}`)).join('\n');
   const DB = memD1(schema + '\n' + read('tests/fixtures/agw-seed.sql'));
   const env = { DB, CLICK_LOG: 'off', FX_FETCH: async () => { throw new Error('offline'); } };
@@ -140,7 +140,7 @@ test('L218: the Worker adds the row to the home page for GB, GR, CY (and Google)
   };
   const has = t => t.includes('data-app-bar');
   try {
-    for (const cc of ['GB', 'GR', 'CY']) {
+    for (const cc of ['GB', 'GR', 'CY', 'PL', 'US']) {
       const r = await get('/', cc);
       assert.equal(r.res.status, 200, cc);
       assert.ok(has(r.text), `${cc}: the row`);
@@ -150,11 +150,11 @@ test('L218: the Worker adds the row to the home page for GB, GR, CY (and Google)
       assert.equal(r.res.headers.get('Cache-Control').split(',')[0], 'private', `${cc}: the visitor's only`);
       assert.ok(has((await get('/?lang=el-GR', cc)).text), `${cc}: with ?lang= too`);
     }
-    for (const cc of ['US', 'DE', 'PL', 'IE', '']) assert.ok(!has((await get('/', cc)).text), `${cc || 'unknown'}: no row`);
+    for (const cc of ['DE', 'FR', 'IE', 'NL', '']) assert.ok(!has((await get('/', cc)).text), `${cc || 'unknown'}: no row`);
     for (const ua of [IPHONE, IPAD]) assert.ok(!has((await get('/', 'GB', ua)).text), 'no row on an iPhone or iPad');
     assert.ok(has((await get('/', 'GB', DESKTOP)).text), 'a computer in the UK: the row');
-    assert.ok(has((await get('/', 'US', GOOGLEBOT)).text), 'Google\'s crawler counts as the UK (L107)');
-    assert.ok(has((await get('/', 'US', 'GearWorldQA-bot/1.0 (+read-only check)', { 'X-GW-QA-Country': 'GR' })).text), 'the network\'s checks as Greece (L158)');
+    assert.ok(has((await get('/', 'DE', GOOGLEBOT)).text), 'Google\'s crawler counts as the UK (L107)');
+    assert.ok(has((await get('/', 'DE', 'GearWorldQA-bot/1.0 (+read-only check)', { 'X-GW-QA-Country': 'GR' })).text), 'the network\'s checks as Greece (L158)');
     for (const path of ['/search?q=car', '/about/', '/category/no-such-category/']) assert.ok(!has((await get(path, 'GB')).text), `${path}: only the home page`);
     assert.ok(store.size > 0, 'pages were cached');
     for (const res of store.values()) assert.ok(!has(await res.clone().text()), 'the cached copies: never');

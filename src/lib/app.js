@@ -7,9 +7,10 @@
 // The app's page on Google Play. The utm_ tags show in Play Console which site brought the download.
 export const APP_PLAY_URL = 'https://play.google.com/store/apps/details?id=com.gearworldhub.app';
 
-// Where the app is published on Google Play (production 1.0.1, 22 Nov 2026: United Kingdom, Greece, Cyprus). A visitor
+// Where the app is published on Google Play (production 1.0.1, 22 Nov 2026: United Kingdom, Greece, Cyprus; the same
+// evening the owner added Poland and the United States). A visitor
 // from anywhere else would land on "not available in your country". A new country of the app: add it here.
-export const APP_COUNTRIES = ['GB', 'GR', 'CY'];
+export const APP_COUNTRIES = ['GB', 'GR', 'CY', 'PL', 'US'];
 
 // The languages of Google's own badge files kept in assets/app/google-play-<code>.png (the official PNGs, unchanged).
 // English is the default in the HTML. Albanian keeps English: Google's Albanian file still has the old Play logo, and

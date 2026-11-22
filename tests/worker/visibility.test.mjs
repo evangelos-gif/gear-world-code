@@ -875,7 +875,8 @@ test('the UK bar is added after the page cache: one cached copy for GB and US, n
     assert.ok(!cachedHtml.includes('data-app-bar'), 'the cached copy has no app row');
     assert.equal(gbHtml.replace(APP_ROW, ''), cachedHtml, 'GB gets the cached copy plus the app row');
     assert.ok(usHtml.includes(`<div class="country-bar" role="note"><p class="wrap country-row"><span data-i18n="We&#39;re adding retailers for your country.`) || usHtml.includes('<div class="country-bar" role="note">'));
-    assert.equal(usHtml.replace(/<div class="country-bar"[\s\S]*?<\/div>/, ''), cachedHtml, 'the US answer is the same copy plus the bar');
+    // The US is a country of the app too (L218, 22 Nov 2026): its answer also has the app row.
+    assert.equal(usHtml.replace(/<div class="country-bar"[\s\S]*?<\/div>/, '').replace(APP_ROW, ''), cachedHtml, 'the US answer is the same copy plus the bar and the app row');
     assert.ok(usHtml.indexOf('class="country-bar"') < usHtml.indexOf('<header class="masthead">'), 'above the header, never over the offer bar or the menu');
     assert.match(us.headers.get('Cache-Control'), /^private/, 'a shared cache never keeps the copy with the bar');
     assert.match(gb.headers.get('Cache-Control'), /^private/, 'GB: the copy with the app row is the visitor\'s only (L218)');
