@@ -271,7 +271,7 @@ $Bad = 'Magenta'
 
 # What each file of the change does, in the words of the report.
 $About = @{
-    'worker.js' = 'η σειρά των αποτελεσμάτων της αναζήτησης με το rankHubResults: πρώτα τι είναι το προϊόν (κατηγορίες), μετά ολόκληρες λέξεις του ονόματος, αξεσουάρ πιο κάτω (GWH-RANKING-V3, L177)· η αναζήτηση μεταφράζει τις ξένες λέξεις με το μοντέλο της αναζήτησης με φωτογραφία (Gemma 4), γιατί το Cloudflare σταματά το @cf/meta/llama-3.1-8b-instruct-fp8 στις 20/11 (L173)· η αρχική σελίδα παίρνει τη γλώσσα της χώρας του επισκέπτη (<html data-country-lang>, μόνο σε κάθε απάντηση, ποτέ για το Google, L175)· όλα τα άλλα όπως είναι live · L211: η μπάρα Mega Stores και η σελίδα /black-friday/ ανά χώρα (από Ελλάδα τα 7 ελληνικά καταστήματα, όπου δεν υπάρχει κατάστημα καμία μπάρα, στο /black-friday/ μόνο ό,τι παραδίδει στη χώρα) · L215: τα 7 ελληνικά καταστήματα (Linkwise) κρυμμένα από τη μπάρα μέχρι η Linkwise να εγκρίνει το megastoresgearworld.com: από Ελλάδα και Κύπρο καμία μπάρα · L218: GWH-APP-COUNTRY: η γραμμή «Gear World app» της αρχικής (κουμπί Google Play) μένει μόνο για επισκέπτες από UK, Ελλάδα, Κύπρο· από άλλες χώρες βγαίνει από τη σελίδα· η σελίδα του UK μένει το ίδιο το αρχείο'
+    'worker.js' = 'η σειρά των αποτελεσμάτων της αναζήτησης με το rankHubResults: πρώτα τι είναι το προϊόν (κατηγορίες), μετά ολόκληρες λέξεις του ονόματος, αξεσουάρ πιο κάτω (GWH-RANKING-V3, L177)· η αναζήτηση μεταφράζει τις ξένες λέξεις με το μοντέλο της αναζήτησης με φωτογραφία (Gemma 4), γιατί το Cloudflare σταματά το @cf/meta/llama-3.1-8b-instruct-fp8 στις 20/11 (L173)· η αρχική σελίδα παίρνει τη γλώσσα της χώρας του επισκέπτη (<html data-country-lang>, μόνο σε κάθε απάντηση, ποτέ για το Google, L175)· όλα τα άλλα όπως είναι live · L211: η μπάρα Mega Stores και η σελίδα /black-friday/ ανά χώρα (από Ελλάδα τα 7 ελληνικά καταστήματα, όπου δεν υπάρχει κατάστημα καμία μπάρα, στο /black-friday/ μόνο ό,τι παραδίδει στη χώρα) · L215: τα 7 ελληνικά καταστήματα (Linkwise) κρυμμένα από τη μπάρα μέχρι η Linkwise να εγκρίνει το megastoresgearworld.com: από Ελλάδα και Κύπρο καμία μπάρα · L218: GWH-APP-COUNTRY: η γραμμή «Gear World app» της αρχικής (κουμπί Google Play) μένει μόνο για επισκέπτες από UK, Ελλάδα, Κύπρο, Πολωνία, ΗΠΑ· από άλλες χώρες βγαίνει από τη σελίδα· η σελίδα του UK μένει το ίδιο το αρχείο'
     'photo-search.js' = 'κρατά το μοντέλο της μετάφρασης της αναζήτησης (ίδιο με της φωτογραφίας) και διαβάζει την απάντησή του σε κάθε μορφή (L173)· η αναζήτηση με φωτογραφία δεν αλλάζει'
     'security.js'           = 'νέο αρχείο: έλεγχος Turnstile, ημερήσια όρια του δικτύου (εγγραφές, μεταφράσεις), headers (L106)'
     'mailerlite.js'         = 'η φόρμα του Hub θέλει το token του Turnstile· ημερήσιο όριο εγγραφών για όλο το δίκτυο, μικρό δικό της για την εφαρμογή (L106)'
@@ -766,13 +766,16 @@ function Test-Site([string]$base, [bool]$isLive) {
     $usHtml = $enc8.GetString($usHome.bytes)
     if ($usHome.status -eq 200 -and -not $usHtml.Contains('gwh2-mega-wrap') -and $usHtml.Contains('id="hubSearch"')) { Say '  Μπάρα Mega Stores από ΗΠΑ (L211): ΕΝΤΑΞΕΙ - δεν φαίνεται (κανένα κατάστημα για τις ΗΠΑ), η σελίδα κανονικά' $Ok }
     else { Say ('  Μπάρα Mega Stores από ΗΠΑ (L211): ΠΡΟΒΛΗΜΑ - απάντηση {0}, μπάρα: {1}' -f $usHome.status, $usHtml.Contains('gwh2-mega-wrap')) $Bad }
-    # L218: the row of the Gear World app (Google Play badge) stays for the UK and Greece (it is in the file, hidden until
-    # hub-v2.js shows it) and is taken out for the US, where the app is not on Google Play. Its link is never opened.
+    # L218: the row of the Gear World app (Google Play badge) stays for the UK, Greece and the US (it is in the file, hidden
+    # until hub-v2.js shows it) and is taken out for Germany, where the app is not on Google Play. Its link is never opened.
+    $deHome = Get-Web ($base + '/?gwcheck=' + $stamp) 'DE'
+    $deHtml = $enc8.GetString($deHome.bytes)
     $appUk = $html.Contains('id="gwh2App"')
     $appGr = $grHtml.Contains('id="gwh2App"')
     $appUs = $usHtml.Contains('id="gwh2App"')
-    if ($appUk -and $appGr -and -not $appUs) { Say '  Γραμμή «Gear World app» με το κουμπί Google Play (L218): ΕΝΤΑΞΕΙ - UK και Ελλάδα ναι, ΗΠΑ όχι' $Ok }
-    else { Say ('  Γραμμή «Gear World app» (L218): ΠΡΟΒΛΗΜΑ - UK: {0}, Ελλάδα: {1}, ΗΠΑ: {2}' -f $appUk, $appGr, $appUs) $Bad }
+    $appDe = $deHtml.Contains('id="gwh2App"')
+    if ($appUk -and $appGr -and $appUs -and $deHome.status -eq 200 -and -not $appDe) { Say '  Γραμμή «Gear World app» με το κουμπί Google Play (L218): ΕΝΤΑΞΕΙ - UK, Ελλάδα, ΗΠΑ ναι, Γερμανία όχι' $Ok }
+    else { Say ('  Γραμμή «Gear World app» (L218): ΠΡΟΒΛΗΜΑ - UK: {0}, Ελλάδα: {1}, ΗΠΑ: {2}, Γερμανία: {3} (απάντηση {4})' -f $appUk, $appGr, $appUs, $appDe, $deHome.status) $Bad }
     $grBf = Get-Web ($base + '/black-friday/?gwcheck=' + $stamp) 'GR'
     $grBfHtml = $enc8.GetString($grBf.bytes)
     $grBfOk = ($grBf.status -eq 200 -and $grBfHtml.Contains('class="gd-note rt-country"') -and -not $grBfHtml.Contains('megastoresgearworld.com') -and -not $grBfHtml.Contains('data-delivers="GB"') -and $grBfHtml.Contains('<h1>Black Friday 2026 on Gear World</h1>'))

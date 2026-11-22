@@ -1806,9 +1806,9 @@ export async function withMegaCountry(request, response, hidden = MEGA_HIDDEN_NE
 // GWH-APP-COUNTRY (owner, 22 Nov 2026, lessons L218: "we got the app, put it on the page so people can download it"): the
 // home page has the row of the Gear World app (Google's own "Get it on Google Play" badge) between <!-- GWH-APP-START -->
 // and <!-- GWH-APP-END -->, hidden until hub-v2.js shows it. The app is on Google Play only in APP_COUNTRIES (production
-// 1.0.1, 22 Nov 2026), so for a visitor from any other country the row is taken out here: a link that ends at "not
+// 1.0.1, 22 Nov 2026: UK, Greece, Cyprus, then Poland and the US), so for a visitor from any other country the row is taken out here: a link that ends at "not
 // available in your country" helps no one. The UK answer stays the file itself (L119, the Hub tool compares it).
-export const APP_COUNTRIES = ["GB", "GR", "CY"];
+export const APP_COUNTRIES = ["GB", "GR", "CY", "PL", "US"];
 export const APP_START = "<!-- GWH-APP-START";
 export const APP_END = "<!-- GWH-APP-END -->";
 export function withoutAppRow(text) {

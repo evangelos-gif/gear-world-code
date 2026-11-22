@@ -2,7 +2,7 @@
 // can download it" — "on the home page, at the top, on every site", lessons L218). Under the search of gearworldhub.com:
 // "Gear World app", one line, and Google's own "Get it on Google Play" badge to the app's page, with a close button. The
 // row is in the file, hidden until hub-v2.js shows it (not on an iPhone or iPad, not after a close). The app is on Google
-// Play only in the UK, Greece and Cyprus, so the Worker takes the row out for every other country; the UK page stays the
+// Play only in the UK, Greece, Cyprus, Poland and the US, so the Worker takes the row out for every other country; the UK page stays the
 // file itself (L119), so the Hub tool's comparisons keep working.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -68,7 +68,7 @@ test('L218: Google\'s own badge files (unchanged PNGs), allowed in public/, desc
     assert.ok(allow.includes(`play/google-play-${l}.png`), `allowlist: ${l} (L04)`);
     assert.ok(tool.includes(`'public/play/google-play-${l}.png' = `), `the tool's plan describes ${l}`);
   }
-  assert.ok(tool.includes("$appUs = $usHtml.Contains('id=\"gwh2App\"')"), 'the tool checks the row from the UK, Greece and the US');
+  assert.ok(tool.includes("$appDe = $deHtml.Contains('id=\"gwh2App\"')") && tool.includes("$appUs = $usHtml.Contains('id=\"gwh2App\"')"), 'the tool checks the row from the UK, Greece, the US and Germany');
 });
 
 function hub() {
@@ -144,19 +144,19 @@ test('L218: hub-v2.js shows the row (not on an iPhone or iPad, not after a close
   assert.match(js, /setupApp\(\);\n {4}renderAll\(\);/);
 });
 
-test('L218: the Worker keeps the row for the UK, Greece and Cyprus (the UK page is the file) and takes it out elsewhere', async () => {
-  assert.deepEqual(APP_COUNTRIES, ['GB', 'GR', 'CY']);
-  for (const cc of ['GB', 'GR', 'CY']) {
+test('L218: the Worker keeps the row for the UK, Greece, Cyprus, Poland and the US (the UK page is the file) and takes it out elsewhere', async () => {
+  assert.deepEqual(APP_COUNTRIES, ['GB', 'GR', 'CY', 'PL', 'US']);
+  for (const cc of ['GB', 'GR', 'CY', 'PL', 'US']) {
     const p = page();
     assert.equal(await withAppCountry(req('/', { cc }), p), p, `${cc}: untouched`);
   }
   const g = page();
-  assert.equal(await withAppCountry(req('/', { cc: 'US', ua: 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)' }), g), g, 'Google counts as the UK');
+  assert.equal(await withAppCountry(req('/', { cc: 'DE', ua: 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)' }), g), g, 'Google counts as the UK');
   const local = page();
   assert.equal(await withAppCountry(req('/'), local), local, 'no country at all: the UK page');
   const qaGr = page();
-  assert.equal(await withAppCountry(req('/', { cc: 'US', ua: QA, headers: { [QA_COUNTRY_HEADER]: 'GR' } }), qaGr), qaGr, 'the QA check as Greece');
-  for (const [cc, opts] of [['US', {}], ['DE', {}], ['PL', {}], ['IE', {}], ['XX', { cc: 'T1' }], ['QA US', { cc: 'GB', ua: QA, headers: { [QA_COUNTRY_HEADER]: 'US' } }]]) {
+  assert.equal(await withAppCountry(req('/', { cc: 'DE', ua: QA, headers: { [QA_COUNTRY_HEADER]: 'GR' } }), qaGr), qaGr, 'the QA check as Greece');
+  for (const [cc, opts] of [['DE', {}], ['FR', {}], ['IE', {}], ['CA', {}], ['XX', { cc: 'T1' }], ['QA DE', { cc: 'GB', ua: QA, headers: { [QA_COUNTRY_HEADER]: 'DE' } }]]) {
     const res = await withAppCountry(req('/', { cc, ...opts }), page());
     const text = await res.text();
     assert.ok(!text.includes('gwh2App') && !text.includes('GWH-APP'), `${cc}: no row`);
@@ -164,7 +164,7 @@ test('L218: the Worker keeps the row for the UK, Greece and Cyprus (the UK page 
     assert.equal(res.headers.get('Cache-Control'), 'private, max-age=60', cc);
     assert.equal(res.headers.get('ETag'), null, `${cc}: not the file any more`);
   }
-  const index = await (await withAppCountry(req('/index.html', { cc: 'US' }), page())).text();
+  const index = await (await withAppCountry(req('/index.html', { cc: 'DE' }), page())).text();
   assert.ok(!index.includes('gwh2App'), '/index.html too');
   // Only the row goes: the rest of the page is the file.
   const cut = withoutAppRow(HOME);
@@ -173,13 +173,13 @@ test('L218: the Worker keeps the row for the UK, Greece and Cyprus (the UK page 
   assert.equal(withoutAppRow('<p>no row</p>'), '<p>no row</p>');
   // Other pages, methods and answers: untouched.
   const about = page('<html>about</html>');
-  assert.equal(await withAppCountry(req('/about/', { cc: 'US' }), about), about);
+  assert.equal(await withAppCountry(req('/about/', { cc: 'DE' }), about), about);
   const head = page();
-  assert.equal(await withAppCountry(req('/', { cc: 'US', method: 'HEAD' }), head), head);
+  assert.equal(await withAppCountry(req('/', { cc: 'DE', method: 'HEAD' }), head), head);
   const json = new Response('{}', { status: 200, headers: { 'Content-Type': 'application/json' } });
-  assert.equal(await withAppCountry(req('/', { cc: 'US' }), json), json);
+  assert.equal(await withAppCountry(req('/', { cc: 'DE' }), json), json);
   const missing = new Response('no', { status: 404, headers: { 'Content-Type': 'text/html' } });
-  assert.equal(await withAppCountry(req('/', { cc: 'US' }), missing), missing);
+  assert.equal(await withAppCountry(req('/', { cc: 'DE' }), missing), missing);
   assert.ok(WORKER.includes('await withCountryBar(request, await withAppCountry(request, await withMegaCountry(request, await hubFetch(request, env, ctx))))'), 'on every answer, after the Mega Stores bar');
 });
 
