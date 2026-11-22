@@ -2708,6 +2708,24 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
             Check ($tt.Contains('TGW: exit 0') -and $tt.Contains('##### PLAN TGW') -and $tt.Contains('TGW IMPORT PLAN (dry run, nothing imported)')) 'import batch with -Tgw: the TGW plan is in the report'
         } else { Check $false 'import batch with -Tgw: one combined report' }
         Check (-not ((LiCalls) -match '--file|time-travel')) 'import batch with -Tgw without -Apply: only reads'
+        # -Pairs 'file:<file>' (22 Nov 2026, the Greek wave of 108 shops): the list from a file, comments and blank lines skipped.
+        $pfOut = Join-Path $work 'batch-file-out'
+        $pfFile = Join-Path $work 'pairs-test.txt'
+        [System.IO.File]::WriteAllText($pfFile, "# test list`r`njoybuy:wgw`r`n`r`njoybuy:mgw  # second`r`n", (New-Object System.Text.UTF8Encoding($false)))
+        & $exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $repo 'tools\legacy-import-batch.ps1') -Pairs ('file:' + $pfFile) -Archive $jArch -WorkDir $liWork -OutDir $pfOut -NoClipboard | Out-Null
+        Check ($LASTEXITCODE -eq 0) 'import batch -Pairs file: (read-only): exit 0'
+        $pfRep = @(Get-ChildItem -LiteralPath $pfOut -File -Filter 'IMPORT_BATCH_*.txt' -ErrorAction SilentlyContinue)
+        Check ($pfRep.Count -eq 1 -and ([System.IO.File]::ReadAllText($pfRep[0].FullName)).Contains('joybuy -> WGW: exit 0') -and ([System.IO.File]::ReadAllText($pfRep[0].FullName)).Contains('joybuy -> MGW: exit 0')) 'import batch -Pairs file: both pairs of the file in the report'
+        & $exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $repo 'tools\legacy-import-batch.ps1') -Pairs ('file:' + (Join-Path $work 'no-such-pairs.txt')) -OutDir $pfOut -NoClipboard | Out-Null
+        Check ($LASTEXITCODE -eq 2) 'import batch -Pairs file: a missing file is refused (exit 2)'
+        $gwFile = Join-Path $repo 'tools\massive\gr-wave-1122.txt'
+        $gwPairs = @()
+        foreach ($l in [System.IO.File]::ReadAllLines($gwFile, [System.Text.Encoding]::UTF8)) { $x = ($l -split '#', 2)[0].Trim(); if ($x) { $gwPairs += $x } }
+        Check ($gwPairs.Count -eq 108 -and @($gwPairs | Where-Object { $_ -notmatch '^lw-\d+:(wgw|mgw|hgw|kgw)$' }).Count -eq 0) 'the Greek wave list of 22 Nov 2026: 108 Linkwise pairs, all valid'
+        foreach ($gp in $gwPairs) {
+            $gr = ($gp -split ':')[0]
+            if (-not (Test-Path -LiteralPath (Join-Path $repo ('tools\import-rules\' + $gr + '.mjs')))) { Check $false ('the Greek wave list: rules for ' + $gr) }
+        }
         $bBad = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', (Join-Path $repo 'tools\legacy-import-batch.ps1'), '-Pairs', 'joybuy:xyz', '-OutDir', $bOut, '-NoClipboard')
         & $exe @bBad | Out-Null
         Check ($LASTEXITCODE -eq 2) 'import batch: a wrong site is refused'

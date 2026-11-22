@@ -1,0 +1,120 @@
+# Massive import, 22 Nov 2026, wave 2: Greece and Cyprus (Linkwise). One pair per line: rules:site.
+# legacy-import-batch.ps1 -Pairs 'file:tools/massive/gr-wave-1122.txt' (dry run first, then -Apply with ΕΓΚΡΙΝΩ ALL IMPORTS).
+# Products in the dry run of 22 Nov 23:22 (before the L218 fixes of the categories) after each name.
+# Left out of this wave, each with its next step:
+#   lw-438 Paraxenies, lw-12386 The Brands Store: no photo in the Linkwise feed (ask Linkwise or the shop for image_url).
+#   lw-12323 BeFashion: links are http:// and the feed is gadgets, not fashion (needs its own site rule).
+#   lw-12987 LYmola: every product out of stock (download again later).
+#   lw-13703 Amorvisual: glasses named only by brand and code (needs an eyewear rule for WGW and MGW).
+#   lw-10599 Donedeals: names carry prices and '-50%', which the sites never show (L107); needs a name cleaner.
+#   lw-12504 Elektrostore24: building tools (trowels, demolition hammers): for Construction Gear World, which has no Greek rules yet.
+#   lw-12134 Monsterville, lw-13862 Autodoc: Linkwise gives no feed yet.
+
+lw-164:wgw  # Parabita GR, 1131
+lw-381:wgw  # Lingerie Center GR, 511
+lw-435:wgw  # Mustshoes GR, 274
+lw-10483:wgw  # Theodoras Jewellery GR, 384
+lw-10818:wgw  # Letif GR, 1076
+lw-11355:wgw  # E-string GR, 702
+lw-11432:wgw  # ToRouxo.gr GR, 99
+lw-11442:wgw  # IzyShoes GR, 825
+lw-11537:wgw  # YOUTH LAB. GR, 64
+lw-11562:kgw  # Agnotis GR, 32
+lw-11676:wgw  # Cherrybox GR, 3140
+lw-11708:wgw  # Pink Woman GR, 1440
+lw-11714:wgw  # Happy Sizes GR, 722
+lw-11742:wgw  # The Body Shop GR, 292
+lw-11782:wgw  # Hotstyle GR, 313
+lw-11839:hgw  # Cozy cotton GR, 584
+lw-11983:wgw  # Envie Shoes GR, 2067
+lw-11998:hgw  # UrbanHouse GR, 1007
+lw-11999:wgw  # mat fashion GR, 2361
+lw-12011:wgw  # FunkyBuddha GR, 2537
+lw-12071:mgw  # Tsoukalas GR, 50
+lw-12115:wgw  # Handmade my day GR, 501
+lw-12137:wgw  # Perfect Dress GR, 842
+lw-12237:hgw  # Primato GR, 13
+lw-12306:wgw  # Asimenio GR, 264
+lw-12315:hgw  # MagicStore GR, 1086
+lw-12321:wgw  # attrattivo GR, 1599
+lw-12420:hgw  # Laura Ashley GR, 752
+lw-12549:wgw  # Bettinastores GR, 1
+lw-12573:wgw  # Potrefashion GR, 2085
+lw-12606:wgw  # Anatomic Footwear GR, 400
+lw-12615:mgw  # Vavoulas GR, 453
+lw-12653:wgw  # Kostis Jewellery GR, 1239
+lw-12695:wgw  # Issue Fashion GR, 1512
+lw-12723:wgw  # ALE GR, 1162
+lw-12746:wgw  # Gerovital GR, 81
+lw-12761:wgw  # Babylon Fashion GR, 1641
+lw-12779:mgw  # Yfantidis GR, 205
+lw-12799:mgw  # Me and Joe GR, 180
+lw-12802:wgw  # Migato GR, 2919
+lw-12873:mgw  # X-Ray Shoes GR, 441
+lw-12972:wgw  # Sante Shoes GR, 928
+lw-13002:wgw  # Onlineshoes.gr GR, 592
+lw-13083:wgw  # PieDini GR, 2028
+lw-13088:hgw  # Filinda GR: home on HGW, women on WGW, children on KGW (L218)
+lw-13088:wgw  # Filinda GR: home on HGW, women on WGW, children on KGW (L218)
+lw-13088:kgw  # Filinda GR: home on HGW, women on WGW, children on KGW (L218)
+lw-13100:wgw  # Myaroma.gr GR, 1115
+lw-13136:wgw  # Tzimas Cosmetics GR, 112
+lw-13166:wgw  # e-kellys GR, 681
+lw-13189:wgw  # Inizio GR, 554
+lw-13198:wgw  # Joanna Misseli GR, 121
+lw-13208:wgw  # Accessoire GR, 352
+lw-13210:wgw  # Quickgel GR, 362
+lw-13240:wgw  # Natural Click GR, 272
+lw-13258:mgw  # Step Store GR, 5
+lw-13274:wgw  # Sou GR, 835
+lw-13283:wgw  # AMMA GR, 363
+lw-13292:wgw  # Be Queen Pro GR, 1049
+lw-13331:wgw  # KYANA GR, 204
+lw-13333:wgw  # Dust and Cream GR, 864
+lw-13361:wgw  # Living Cruelty Free GR, 899
+lw-13365:wgw  # Pinguino GR, 238
+lw-13432:wgw  # Eccentrico GR, 342
+lw-13513:wgw  # Theros Jewels GR, 347
+lw-13527:wgw  # Aroma City GR, 332
+lw-13535:wgw  # Marie Raxevsky GR, 347
+lw-13541:mgw  # Explicit Poets GR, 63
+lw-13562:wgw  # Zeta Curves GR, 604
+lw-13578:mgw  # Red Raven Eyewear GR, 240
+lw-13584:hgw  # WAT Object GR, 947
+lw-13613:wgw  # Morena Spain GR, 1
+lw-13640:wgw  # Hawkins GR, 392
+lw-13659:wgw  # Tataropoulos GR, 449
+lw-13664:wgw  # Closet22 GR, 2658
+lw-13670:wgw  # AVGERINOS GR, 38
+lw-13686:wgw  # AXNARI FASHION GR, 1335
+lw-13695:wgw  # Pure Natural GR, 314
+lw-13728:wgw  # Vamp Lingerie GR, 904
+lw-13754:wgw  # Stradivarius GR, 1875
+lw-13781:wgw  # Carelife GR, 2327
+lw-13794:wgw  # ZABOO.GR GR, 2599
+lw-13803:mgw  # SeeWhatEyeSee GR, 2
+lw-13809:hgw  # MARIL HOME GR, 899
+lw-13878:wgw  # Fitrakis Shoes GR, 1377
+lw-13886:wgw  # COSSELIE GR, 292
+lw-13910:wgw  # L ADIOPIS GR, 8
+lw-13914:wgw  # Finetsato GR, 1208
+lw-13948:mgw  # BIG SHOES GR, 496
+lw-13953:wgw  # Cuoro GR, 1318
+lw-13962:wgw  # Enzzo GR, 910
+lw-13990:wgw  # EMC Skin Care GR, 17
+lw-13999:wgw  # Go Glam GR, 2034
+lw-14021:wgw  # TWIG GR, 119
+lw-14024:mgw  # B-Soft Shoes GR, 325
+lw-14027:hgw  # DesignPlus GR, 1677
+lw-14035:wgw  # PELION Natural Luxury GR, 61
+lw-14041:wgw  # Zebras and Libras GR, 70
+lw-14067:wgw  # Bionike GR, 91
+lw-14076:wgw  # W7 Makeup GR, 223
+lw-14085:wgw  # Gatsas Jewellery GR, 1468
+lw-14091:hgw  # alleop GR, 1551
+lw-14120:mgw  # Mengroomer GR, 17
+lw-14135:wgw  # Rodanos GR, 1500
+lw-14138:hgw  # Fillit GR, 437
+lw-14151:wgw  # All About Beauty GR, 978
+lw-14161:wgw  # Off The Peg by Global Influence GR, 368
+lw-14174:wgw  # Dazzle GR, 263

@@ -47,11 +47,18 @@ export const NEVER_CAT = R(['συμπληρωματα', 'βιταμινες', '\
 const pick = (t, list) => { for (const [re, a, b] of list) if (re.test(t)) return [a, b]; return null; };
 // In a name the product comes first ("Παγκάκι χαλωρίου με μαξιλάρι" is a bench, "Μπλουζάκι Calvin Klein Jeans" a top):
 // the rule whose match starts earliest wins, the list order breaks a tie.
-const pickFirst = (n, list) => {
-  let best = null, at = Infinity;
-  for (const [re, a, b] of list) { const m = re.exec(n); if (m && m.index < at) { best = [a, b]; at = m.index; } }
-  return best;
+// With `weak`, a weak word (a colour such as "blush", a gift set) counts only when no other word of the list is there.
+const pickFirstAt = (n, list, weak = null) => {
+  let best = null, at = Infinity, word = '', soft = null;
+  for (const [re, a, b] of list) {
+    const m = re.exec(n);
+    if (!m) continue;
+    if (weak && weak.test(m[0])) { if (!soft || m.index < soft.at) soft = { hit: [a, b], at: m.index, word: m[0], weak: true }; continue; }
+    if (m.index < at) { best = [a, b]; at = m.index; word = m[0]; }
+  }
+  return best ? { hit: best, at, word, weak: false } : soft;
 };
+const pickFirst = (n, list) => { const r = pickFirstAt(n, list); return r ? r.hit : null; };
 // In a category path the last, most specific part counts first ("Γυναίκα > Παπούτσια > Μπότες").
 const pickPath = (t, list) => {
   const parts = String(t || '').split('>').map(x => x.trim()).filter(Boolean);
@@ -84,12 +91,12 @@ export function audience(n, t = '') {
 const W_CLOTHES = [
   [R('φορεμα|φουστανι|\\bdress\\b'), 'Clothing', 'Dresses'],
   [R('ολοσωμ|\\bjumpsuit|σαλοπετ'), 'Clothing', 'Clothing'],
-  [R('πιτζαμ|νυχτικ|\\bρομπ(α|εσ|ακι)\\b|loungewear|homewear'), 'Clothing', 'Nightwear'],
+  [R('π(ι|υ)τζαμ|νυχτικ|\\bρομπ(α|εσ|ακι)\\b|μπουρνουζ|bathrobe|loungewear|homewear'), 'Clothing', 'Nightwear'],
   [R('κολαν|leggings'), 'Clothing', 'Leggings'],
   [R('καλσον|καλτσον'), 'Clothing', 'Tights & Stockings'],
-  [R('καλτσ'), 'Clothing', 'Socks'],
+  [R('καλτσ|σοσον|\\bsocks?\\b'), 'Clothing', 'Socks'],
   [R('αθλητικ(ο|α) μπουστακ|sports bra'), 'Clothing', 'Sports Bras & Tops'],
-  [R('σουτιεν|κιλοτ|στρινγκ|εσωρουχ|lingerie|\\bσλιπ|μπουστακ|\\bbra\\b'), 'Clothing', 'Underwear'],
+  [R('σουτιεν|κιλοτ|στρινγκ|εσωρουχ|lingerie|\\bσλιπ|μπουστακ|φανελακ|\\bbra\\b'), 'Clothing', 'Underwear'],
   [R('μαγιο|bikini|μπικινι|\\bπαρεο|swimsuit'), 'Clothing', 'Clothing'],
   [R('\\bτζιν\\b|\\bjeans?\\b|denim'), 'Clothing', 'Jeans'],
   [R('φουστα'), 'Clothing', 'Skirts'],
@@ -97,27 +104,28 @@ const W_CLOTHES = [
   [R('παντελον|\\bchino|\\bcargo|jogger|\\bpants\\b|trousers'), 'Clothing', 'Trousers'],
   [R('κουκουλ|hoodie'), 'Clothing', 'Hoodies'],
   [R('φουτερ|sweatshirt'), 'Clothing', 'Sweatshirts'],
-  [R('πλεκτ|πουλοβερ|ζακετα|cardigan|ζιβαγκο|\\bknit'), 'Clothing', 'Knitwear'],
+  [R('πλεκτ(?!\\S* (ζων|τσαντ|καλαθ|βραχιολ))|πουλοβερ|ζακετα|cardigan|ζιβαγκο|\\bknit'), 'Clothing', 'Knitwear'],
   [R('μπουφαν|παλτο|καμπαρντιν|τζακετ|σακακ|blazer|γιλεκο|γουνα|πανωφορι|αδιαβροχο (μπουφαν|παλτο)|αντιανεμικ|\\bparka|\\btrench|\\bjacket|\\bcoat\\b'), 'Clothing', 'Jackets & Coats'],
   [R('t-shirt|t shirt|tshirt|κοντομανικ'), 'Clothing', 'T-Shirts'],
   [R('μπλουζ|πουκαμισ|\\bτοπ\\b|\\btop\\b|\\bcrop\\b|κορμακ|τουνικ|καφταν|\\bblouse|\\bshirt\\b'), 'Clothing', 'Tops & Blouses'],
   [R('κοστουμ|ταγιερ'), 'Clothing', 'Suits'],
-  [R('φορμα\\b|φορμεσ\\b|αθλητικ(ο|α) σετ'), 'Clothing', 'Activewear']
+  [R('(?<!πλατ)φορμ(α|εσ)\\b|αθλητικ(ο|α) σετ'), 'Clothing', 'Activewear']
 ];
 const W_SHOES = [
   [R('παντοφλ|slipper'), 'Shoes', 'Slippers'],
   [R('\\bμποτ|μποτακ|γαλοτσ|\\bboots?\\b|αρβυλ'), 'Shoes', 'Boots'],
   [R('sneaker|αθλητικ(α|ο) παπουτσ|παπουτσια (τρεξιματοσ|running)|\\brunning\\b'), 'Shoes', 'Trainers'],
   [R('(πεδιλ|σανδαλ)\\S* με (ψηλο |λεπτο |χοντρο )?τακουν|\\bγοβ(α|εσ)\\b|τακουν(ι|ια)\\b(?! χωρισ)|\\bmules?\\b|\\bheels?\\b'), 'Shoes', 'Heels'],
-  [R('πεδιλ|σανδαλ|σαγιοναρ|εσπαντριγ|flip ?flop|\\bslides?\\b|τσοκαρ'), 'Shoes', 'Sandals'],
-  [R('παπουτσ|μπαλαριν|loafer|μοκασιν|\\boxford|\\bδετα\\b|\\bshoes?\\b'), 'Shoes', 'Shoes']
+  [R('πεδιλ|σανδαλ|\\bsandals?\\b|σαγιοναρ|εσπαντριγ|flip ?flop|\\bslides?\\b|τσοκαρ|\\bclogs?\\b|\\bsabots?\\b'), 'Shoes', 'Sandals'],
+  [R('παπουτσ|μπαλαριν|loafer|μοκασιν|\\boxford|\\bδετα\\b|(πλατφορμ\\S*|\\b(flat|plat)forms?\\b)(?!.*(σανδαλ|πεδιλ|sandal|slide|μποτ|boot|sneaker))|\\bshoes?\\b'), 'Shoes', 'Shoes']
 ];
 const JEWELLERY = cat => [
   [R('μανικετοκουμπ'), cat, cat === "Men's Jewellery" ? 'Cufflinks' : 'Jewellery'],
   [R('δαχτυλιδ|δακτυλιδ|\\bβερ(α|εσ)\\b(?! αλοη)|μονοπετρ|\\brings?\\b'), cat, 'Rings'],
   [R('σκουλαρικ|earring'), cat, 'Earrings'],
-  [R('βραχιολ|ποδαρακ|bracelet'), cat, 'Bracelets'],
-  [R('κολιε|αλυσιδ(α|ιτσα|εσ) (λαιμου|ασημ|χρυσ)|μενταγιον|\\bσταυρ(οσ|οι|ουδακι|ακι|ουσ)\\b|φυλαχτ|necklace|pendant|\\bγουρι'), cat, 'Necklaces'],
+  [R('βραχιολ|ποδαρακ|αλυσιδ(α|ιτσα|εσ) (ποδιου|αστραγαλ)|anklet|bracelet'), cat, 'Bracelets'],
+  [R('αλυσιδ(α|ιτσα|εσ) (σωματοσ|κοιλιασ|μεσησ)|body ?chain'), cat, 'Jewellery'],
+  [R('κολιε|(?<!δωρο )κρεμαστ(ο|α|η|ακι)\\b(?!.*(σκουλαρ|αυτοκιν|φωτιστ))|αλυσιδ(α|ιτσα|εσ) (λαιμου|ασημ|χρυσ)|μενταγιον|\\bσταυρ(οσ|οι|ουδακι|ακι|ουσ)\\b|φυλαχτ|necklace|pendant|\\bγουρι'), cat, 'Necklaces'],
   [R('κοσμημα|κοσμηματ|jewel'), cat, 'Jewellery']
 ];
 const W_ACCESSORIES = [
@@ -125,36 +133,63 @@ const W_ACCESSORIES = [
   [R('σκελετ(οσ|οι) γυαλι|γυαλια ορασ|οπτικ(α|ο) γυαλ|eyeglass'), 'Bags & Accessories', 'Eyeglasses'],
   [R('πορτοφολ|καρτοθηκ|wallet|purse'), 'Bags & Accessories', 'Wallets & Purses'],
   [R('τσαντ|σακιδι|backpack|clutch|\\bbags?\\b|\\btote\\b|νεσεσερ'), 'Bags & Accessories', 'Bags'],
-  [R('κασκολ|φουλαρ|μαντηλ|εσαρπ|\\bσαλι\\b|πασμιν|\\bscarf'), 'Bags & Accessories', 'Scarves'],
+  [R('κασκολ|φουλαρ|(?<!τραπεζο|χαρτο|μωρο)μαντηλ|εσαρπ|\\bσαλι\\b|πασμιν|\\bscarf'), 'Bags & Accessories', 'Scarves'],
   [R('καπελ|σκουφ|\\bμπερε\\b|τραγιασκ|\\bhat\\b|beanie|\\bcap\\b'), 'Bags & Accessories', 'Hats'],
   [R('\\bγαντ(ια|ι)\\b|glove'), 'Bags & Accessories', 'Gloves'],
   [R('\\bζων(η|εσ)\\b|\\bbelt\\b'), 'Bags & Accessories', 'Belts'],
-  [R('τσιμπιδακι μαλλ|κοκαλακ|\\bστεκα|λαστιχακι μαλλ|scrunch|hair clip|φουρκετ'), 'Bags & Accessories', 'Hair Accessories'],
+  [R('τσιμπιδακ|κοκαλακ|\\bστεκ(α|εσ|ακι|ακια)\\b|λαστιχακ(ι|ια) (για τα )?μαλλ|κλαμερ|κλιπ (για τα )?μαλλ|φιογκ\\S* (για τα )?μαλλ|αξεσουαρ (για τα |για )?μαλλ|scrunch|hair ?clips?|hair (band|tie|accessor)|βουρτσ(α|εσ) (για τα )?μαλλ|φουρκετ'), 'Bags & Accessories', 'Hair Accessories'],
   [R('ομπρελ|μπρελοκ|keyring'), 'Bags & Accessories', 'Accessories']
 ];
+// "Δέρμα" is skin and leather: only skin when the name says whose skin or which kind ("για ξηρό δέρμα", "δέρμα
+// προσώπου", "επιδερμίδα"); "δερμάτινο", "δερματίνη" and the colour "δέρμα" are fashion (lessons L14, 22 Nov 2026).
+const SKIN = '(ξηρ|λιπαρ|ευαισθητ|μικτ|κανονικ|ωριμ|ατοπικ|αφυδατωμεν|ταλαιπωρημεν|ερεθισμεν|θαμπ)\\S* δερμ(α|ατα|ατοσ)\\b|δερμα(τοσ)? (του )?(προσωπου|σωματοσ|ματιων)|για (το |ολουσ τουσ τυπουσ )?δερμα|επιδερμιδ|δερματολογ';
+// The face: "κρέμα προσώπου", "για το πρόσωπο"; not "προσωποποιημένο" (personalised) or "Μακριά Πρόσωπα" (a design).
+const FACE = 'προσωπου|(για|στο|του) προσωπο\\b';
+// "Skin", but not "Second Skin" (a fit), "Snake Skin" (a chain) or "Skinny".
+const SKIN_EN = '(?<![\\p{L}\\p{N}])(?<!second |snake |faux |leather )skin\\b';
 const BEAUTY = cat => [
   [R('σετ δωρου|gift set|κασετινα|σετ περιποιησ'), cat, 'Gift sets'],
-  [R('\\bαρωμα|eau de|parfum|κολονια|\\bedp\\b|\\bedt\\b|body mist|perfume|αρωματικο νερο'), cat, 'Fragrance'],
+  [R('\\bαρωμα|eau de|parfum|κολονια|\\bedp\\b|\\bedt\\b|body mist|hair (& |and )?(body )?(mist|parfum|perfume)|perfume|αρωματικο νερο'), cat, 'Fragrance'],
   [R('αποτριχ|αποτριχωτικ|epilat|κερι αποτρ|ξυριστικη μηχανη|ξυραφ|\\brazor'), cat, 'Hair removal'],
-  [R('πιστολακ|ισιωτικ|σεσουαρ|ψαλιδ(α|ι) μαλλ|μπουκλ(ιερ|ωτ)|hair dryer|straightener'), cat, 'Hair tools'],
-  [R('\\bνυχι|βερνικι νυχ|gel polish|\\bnail|ημιμονιμο βερνικ|\\bτιπσ\\b'), cat, 'Nails'],
-  [R('μακιγιαζ|μεικ απ|κραγιον|μασκαρα|foundation|πουδρα|σκιεσ ματιων|σκια ματιων|\\bρουζ\\b|\\blip(stick|s)?\\b|\\blip (balm|gloss|liner|oil|crayon|care|tint)|eyeliner|κονσιλερ|make ?-?up|blush|bronzer|highlighter|primer|μολυβι (για τα )?(ματια|ματιων|χειλη|χειλιων)|lipstick|gloss|φρυδι|mascara|\\blash|eyeshadow|concealer|\\bbrow'), cat, 'Make-up'],
-  [R('σαμπουαν|μαλλι|conditioner|μαλακτικο μαλλ|βαφη μαλλ|\\bhair|λακ μαλλ'), cat, 'Hair care'],
+  [R('πιστολακ|ισιωτικ|σεσουαρ|ψαλιδ(α|ι) μαλλ|ψαλιδι μπουκλ|μπουκλιερ|μπουκλωτικ|hair dryer|straightener'), cat, 'Hair tools'],
+  [R('\\bνυχι(α|ων)?\\b|βερνικι νυχ|gel polish|\\bnail|ημιμονιμο βερνικ|\\bτιπσ\\b'), cat, 'Nails'],
+  [R('μακιγιαζ|μεικ απ|κραγιον|μασκαρα|foundation|πουδρα|σκιεσ ματιων|σκια ματιων|\\bρουζ\\b|\\blip(stick|s)?\\b|\\blip (balm|gloss|liner|oil|crayon|care|tint)|eyeliner|κονσιλερ|make ?-?up|blush|bronzer|highlighter|primer|μολυβι (για τα )?(ματια|ματιων|χειλη|χειλιων)|lipstick|\\bgloss\\b|φρυδι|mascara|\\blash|eyeshadow|concealer|\\bbrows?\\b'), cat, 'Make-up'],
+  [R('σαμπουαν|μαλλι(?!ν)|conditioner|μαλακτικο μαλλ|βαφη μαλλ|\\bhair(?!y)|λακ μαλλ'), cat, 'Hair care'],
   [R('πινελ|σφουγγαρακι μακιγ|καθρεφτακ|\\bbrush|beauty blender|ψηκτρ'), cat, 'Beauty tools'],
   [R('αφρολουτρ|τζελ (για )?ντουσ|σαπουν|σωματοσ|κρεμα σωματ|body lotion|body butter|αποσμητικ|scrub σωμ|λαδι σωμ|deodorant|shower|κρεμα χεριων'), cat, 'Bath & body'],
-  [R('κρεμα|\\bορο(σ|υ)?\\b|serum|καθαρισμ|μασκα προσωπ|αντηλιακ|ματιων|προσωπ|tonic|τονωτικ|micellar|ενυδατ|αντιγηραντ|\\bspf|\\bskin|δερμα|αντιρυτιδ'), cat, 'Skincare']
+  [R(`κρεμα(?!στ)|\\bορο(σ|υ)?\\b|serum|καθαρισμ|μασκα προσωπ|αντηλιακ|ματιων|${FACE}|tonic|τονωτικ|micellar|ενυδατ|αντιγηραντ|\\bspf|${SKIN_EN}|skin ?care|${SKIN}|αντιρυτιδ`), cat, 'Skincare']
 ];
+const WEAK_BEAUTY = R('^(σετ δωρου|gift set|κασετινα|σετ περιποιησ|blush|πουδρα|gloss|primer)$');
 const BEAUTY_CAT = R('καλλυντικ|ομορφι|περιποιησ|μακιγιαζ|αρωματα|beauty|personal care|cosmetic|make ?up|φαρμακει|parapharm|skin ?care|hair ?care');
 const WATCH = R('ρολο(ι|για)\\b|\\bwatch(es)?\\b|smartwatch');
+// A strap for a watch ("Λουράκι για ρολόι", "Apple Watch strap") is not a watch; "Ρολόι ... Leather Strap" is.
+const STRAP = R('λουρακι|μπρασελε|\\bstraps?\\b|\\bwatch ?bands?\\b');
+const SHOE_CARE = R('περιποιηση (υποδηματ|παπουτσ)|καθαριστικ\\S* (υποδηματ|παπουτσ)|(βερνικι|κρεμα|σπρει) (υποδηματ|παπουτσ)|dubbin|shoe ?care|suede brush|βουρτσ(α|ακι) (παπουτσ|υποδηματ|σουετ)|αδιαβροχοποιητ');
 function fashion(t, n, { clothes, shoes, jewel, acc, beauty, watch, beautyFirst }) {
   const name = cleanName(n);
-  if (WATCH.test(name) && !/λουρακι|μπρασελε|strap/.test(name)) return watch;
-  const all = beautyFirst ? [...beauty, ...shoes, ...clothes, ...jewel, ...acc] : [...shoes, ...clothes, ...jewel, ...acc, ...beauty];
-  // A beauty shop's product is beauty when its name says so anywhere ("... αδιάβροχη μάσκαρα" is not a raincoat).
-  const hit = (beautyFirst && pickFirst(name, beauty)) || pickFirst(name, all) || pickPath(t, all);
+  const w = WATCH.exec(name), s = STRAP.exec(name);
+  if (w && !(s && (s.index < w.index || /watch ?(strap|band)/.test(name)))) return watch;
+  if (SHOE_CARE.test(name)) return [acc[0][1], 'Accessories'];
+  const other = [...shoes, ...clothes, ...jewel, ...acc];
+  let hit;
+  if (beautyFirst) {
+    // A beauty shop's product is beauty when its name says so anywhere ("... αδιάβροχη μάσκαρα" is not a raincoat).
+    const all = [...beauty, ...other];
+    hit = (pickFirstAt(name, beauty, WEAK_BEAUTY) || {}).hit || pickFirst(name, all) || pickPath(t, all);
+  } else {
+    // The word that comes first names the product ("Αποτριχωτικές ταινίες ... μπικίνι" is hair removal), but a gift set,
+    // a colour ("blush", "πούδρα") or a finish ("gloss") never outranks what follows it: "Σετ δώρου πορτοφόλι" is a
+    // wallet, "Soma Blush Dots κάλτσες" socks (lessons L14, 22 Nov 2026).
+    const o = pickFirstAt(name, other), b = pickFirstAt(name, beauty, WEAK_BEAUTY);
+    if (o && b) hit = b.at < o.at && !b.weak ? b.hit : o.hit;
+    else hit = (o || b || {}).hit || pickPath(t, [...other, ...beauty]);
+  }
   return hit || (WATCH.test(t) ? watch : null);
 }
+// Home textiles and home fragrance belong to Home Gear World, even in a fashion shop's feed (Filinda, mat fashion).
+const HOME_THING = R('αρωματικ(ο|α) (κερι|κερια|χωρου)|\\bdiffuser|πετσετ(α|εσ)\\b(?! θαλασσ)|\\btowels?\\b|σεντον|παπλωμ|μαξιλαροθηκ|τραπεζομαντηλ|κουβερτ|κουβερλι|ριχταρ|ποτηροπαν|κουρτιν');
 function wgw(t, n) {
+  if (HOME_THING.test(n)) return { reject: 'a home product (Home Gear World)' };
   const a = audience(n, t);
   if (a === 'men') return { reject: "a men's product (Men's Gear World)" };
   if (a === 'kids') return { reject: "a children's product (Kids' Gear World)" };
@@ -166,8 +201,8 @@ function wgw(t, n) {
 // ---------- Men's Gear World (MGW) ----------
 const M_CLOTHES = [
   [R('κοστουμ|\\bsuit\\b'), 'Clothing', 'Suits'],
-  [R('πιτζαμ|\\bρομπ(α|εσ)\\b|loungewear'), 'Clothing', 'Nightwear'],
-  [R('καλτσ'), 'Clothing', 'Socks'],
+  [R('π(ι|υ)τζαμ|\\bρομπ(α|εσ)\\b|μπουρνουζ|bathrobe|loungewear'), 'Clothing', 'Nightwear'],
+  [R('καλτσ|σοσον|\\bsocks?\\b'), 'Clothing', 'Socks'],
   [R('μποξερ|\\bσλιπ|εσωρουχ|φανελακι|\\bboxer|\\bbriefs?\\b|\\btrunks?\\b'), 'Clothing', 'Underwear'],
   [R('μαγιο|swim'), 'Clothing', 'Shorts'],
   [R('\\bτζιν\\b|\\bjeans?\\b|denim'), 'Clothing', 'Jeans'],
@@ -184,7 +219,7 @@ const M_CLOTHES = [
 const M_SHOES = [
   [R('παντοφλ|slipper'), 'Shoes', 'Slippers'],
   [R('\\bμποτ|μποτακ|\\bboots?\\b|αρβυλ'), 'Shoes', 'Boots'],
-  [R('πεδιλ|σανδαλ|σαγιοναρ|εσπαντριγ|\\bslides?\\b|τσοκαρ'), 'Shoes', 'Sandals'],
+  [R('πεδιλ|σανδαλ|σαγιοναρ|εσπαντριγ|\\bslides?\\b|τσοκαρ|\\bclogs?\\b'), 'Shoes', 'Sandals'],
   [R('sneaker|αθλητικ(α|ο) παπουτσ|\\brunning\\b|trainer'), 'Shoes', 'Trainers'],
   [R('παπουτσ|loafer|μοκασιν|\\boxford|\\bδετα\\b|\\bderby\\b|\\bshoes?\\b'), 'Shoes', 'Shoes']
 ];
@@ -207,11 +242,12 @@ const M_GROOMING = [
   [R('γενει|μουσι|beard'), 'Grooming & Fragrances', 'Beard care'],
   [R('ξυρισ|aftershave|after shave|shaving|ξυραφ'), 'Grooming & Fragrances', 'Shaving'],
   [R('κουρευτικ|trimmer|clipper'), 'Grooming & Fragrances', 'Trimmers & clippers'],
-  [R('σαμπουαν|μαλλι|\\bhair|πομαδ|\\bwax\\b|gel μαλλ'), 'Grooming & Fragrances', 'Hair care'],
-  [R('κρεμα|προσωπ|ματιων|serum|\\bορο(σ|υ)?\\b|καθαρισμ|\\bskin|αντηλιακ'), 'Grooming & Fragrances', 'Skincare'],
+  [R('σαμπουαν|μαλλι(?!ν)|\\bhair(?!y)|πομαδ|\\bwax\\b|gel μαλλ'), 'Grooming & Fragrances', 'Hair care'],
+  [R(`κρεμα(?!στ)|${FACE}|ματιων|serum|\\bορο(σ|υ)?\\b|καθαρισμ|${SKIN_EN}|skin ?care|${SKIN}|αντηλιακ`), 'Grooming & Fragrances', 'Skincare'],
   [R('αφρολουτρ|τζελ (για )?ντουσ|σαπουν|σωματοσ|shower'), 'Grooming & Fragrances', 'Grooming']
 ];
 function mgw(t, n) {
+  if (HOME_THING.test(n)) return { reject: 'a home product (Home Gear World)' };
   const a = audience(n, t);
   if (a === 'women') return { reject: "a women's product (Women's Gear World)" };
   if (a === 'kids') return { reject: "a children's product (Kids' Gear World)" };
@@ -267,7 +303,7 @@ const K_LIST = [
   [R('sneaker|αθλητικ(α|ο) παπουτσ|trainer'), 'Shoes', 'Trainers'],
   [R('παπουτσ|πεδιλ|σανδαλ|σαγιοναρ|παντοφλ|\\bshoes?\\b'), 'Shoes', 'Shoes'],
   [R('καλτσ'), 'Clothing', 'Socks'],
-  [R('πιτζαμ|νυχτικ|\\bρομπ(α|ακι)\\b'), 'Clothing', 'Nightwear & Loungewear'],
+  [R('π(ι|υ)τζαμ|νυχτικ|\\bρομπ(α|ακι)\\b'), 'Clothing', 'Nightwear & Loungewear'],
   [R('φορεμα|φουστ|παντελον|μπλουζ|πουκαμισ|μπουφαν|ζακετ|φουτερ|κολαν|σορτσ|βερμουδ|ολοσωμ|\\bφορμ|μαγιο|t-shirt|κορμακ|φορμακ|εσωρουχ|σετ ρουχ|\\bρουχ'), 'Clothing', 'Clothing'],
   [R('ρολο(ι|για)\\b|\\bwatch'), 'Accessories', 'Kids Watches'],
   [R('καπελ|σκουφ|\\bγαντ|κασκολ|τσαντ|κοσμημ|σκουλαρ|βραχιολ|αξεσουαρ'), 'Accessories', 'Accessories'],
@@ -300,20 +336,20 @@ const H_LIST = [
   [R('αξεσουαρ μπανιου|σαπουνοθηκ|dispenser|ποτηρι μπανιου|κουρτινα μπανιου|πιγκαλ|θηκη οδοντοβ'), 'Bedding & Bath', 'Bathroom Accessories'],
   [R('ηλεκτρικ(ο|η|εσ) (κουβερτ|υποστρωμ)'), 'Bedding & Bath', 'Electric Blankets & Warmers'],
   [R('ριχταρ|κουβερτ|ζαπλουτ|\\bthrow\\b'), 'Home Decor', 'Throw'],
-  [R('\\bχαλ(ι|ια)\\b|διαδρομοσ|\\brugs?\\b|carpet'), 'Home Decor', 'Rug'],
+  [R('\\bχαλ(ι|ια)\\b|διαδρομοσ|\\bταπετ(ο|α)\\b|\\brugs?\\b|carpet'), 'Home Decor', 'Rug'],
   [R('κουρτιν'), 'Home Decor', 'Curtain'],
   [R('\\bστορ(ι|ακι|ια)?\\b|περσιδ|\\bblinds?\\b'), 'Home Decor', 'Blinds'],
   [R('καθρεπτ|καθρεφτ|mirror'), 'Home Decor', 'Mirror'],
   [R('\\bβαζ(ο|α)\\b(?! κουζ)|\\bvase'), 'Home Decor', 'Vase'],
   [R('\\bκερι\\b|\\bκερια\\b|αρωματικ(ο|α) (χωρου|κερι)|αρωματιστη|diffuser|\\breed|θυμιατ|wax melt'), 'Home Decor', 'Home Fragrance'],
-  [R('ρολο(ι|για) τοιχου|ξυπνητηρ|\\bclock'), 'Home Decor', 'Clock'],
-  [R('\\bπινακ(ασ|εσ)\\b|καδρ|αφισ|κορνιζ|wall art|καμβα|αυτοκ[oο]λλητ|sticker'), 'Home Decor', 'Wall Art'],
+  [R('ρολο(ι|για) (τοιχου|επιτραπεζ)|επιτραπεζι\\S* (ψηφιακ\\S* )?(led )?(ξυλιν\\S* )?ρολο|ξυπνητηρ|\\bclock'), 'Home Decor', 'Clock'],
+  [R('\\bπινακ(ασ|εσ)\\b|καδρ|\\bαφισ|κορνιζ|wall art|καμβα|αυτοκ[oο]λλητ|sticker'), 'Home Decor', 'Wall Art'],
   [R('χριστουγενν|στολιδ|φατνη|christmas|xmas'), 'Home Decor', 'Christmas'],
   [R('τεχνητ(ο|α) φυτ|τεχνητ(ο|α) λουλουδ|artificial'), 'Home Decor', 'Artificial Plants'],
   [R('ταινια led|led strip'), 'Lighting', 'Lighting Accessories'],
   [R('φωτιστικ\\S* οροφ|πλαφονιερ|\\bσποτ\\b|χωνευτ|ceiling'), 'Lighting', 'Ceiling Light'],
   [R('κρεμαστ\\S* φωτιστ|φωτιστικ\\S* κρεμαστ|pendant'), 'Lighting', 'Pendant Light'],
-  [R('απλικ|φωτιστικ\\S* τοιχ|wall light'), 'Lighting', 'Wall Light'],
+  [R('απλικ|φωτιστικ\\S* τοιχ|επιτοιχι\\S* (ηλιακ\\S* )?(led )?φωτιστ|wall light'), 'Lighting', 'Wall Light'],
   [R('πολυελαι|chandelier'), 'Lighting', 'Chandelier'],
   [R('φωτιστικ\\S* δαπεδου|λαμπαδερ|floor lamp'), 'Lighting', 'Floor Lamp'],
   [R('αμπαζουρ|καπελο φωτιστ|lampshade'), 'Lighting', 'Lampshade'],
@@ -352,11 +388,11 @@ const H_LIST = [
   [R('σετ σαλονι|\\bκαναπ(εσ|εδεσ|ε)\\b|καναπεσ|\\bsofa'), 'Furniture', 'Sofa'],
   [R('πολυθρον|armchair|μπερζερ'), 'Furniture', 'Armchair'],
   [R('σετ τραπεζαρι|σετ μπαρ|τραπεζαρια με (καρεκλ|\\d)|dining set'), 'Furniture', 'Dining Set'],
-  [R('τραπεζακι σαλονιου|τραπεζι σαλονιου|coffee table'), 'Furniture', 'Coffee Table'],
-  [R('βοηθητικ\\S* τραπεζ|side table'), 'Furniture', 'Side Table'],
+  [R('τραπεζ(ακι|ι) (σαλονιου|καθιστικου)|coffee table'), 'Furniture', 'Coffee Table'],
+  [R('βοηθητικ\\S* τραπεζ|τραπεζ(ακι|ι) πλαιν|πλαιν(ο|α) τραπεζ|side table'), 'Furniture', 'Side Table'],
   [R('κονσολ(α|εσ)\\b|console'), 'Furniture', 'Console Table'],
   [R('τουαλετα (κρεβατοκ|μακιγ)|dressing table'), 'Furniture', 'Dressing Table'],
-  [R('τραπεζαρι|τραπεζι|dining table'), 'Furniture', 'Dining Table'],
+  [R('τραπεζαρι|(?<!επι)τραπεζ(ι|ια)\\b|dining table'), 'Furniture', 'Dining Table'],
   [R('σκαμπ|bar stool'), 'Furniture', 'Bar Stool'],
   [R('καρεκλ\\S* γραφει|office chair|gaming chair'), 'Home Office', 'Office Chair'],
   [R('γραφει(ο|α)\\b|\\bdesk\\b'), 'Home Office', 'Office Desk'],
@@ -397,6 +433,7 @@ function hgw(t, n) {
   if (R('παιδικ\\S* (δωματ|επιπλ|κρεβατ)|βρεφικ\\S* (κουνι|προικα)|προικα μωρου').test(`${t} ${n}`)) return { reject: "a baby or children's room product (Kids' Gear World)" };
   if (HOME_NOT.test(t) && !/λευκα ειδη|σπιτι|κουζιν|μπανι|home/.test(t)) return { reject: 'not a home product' };
   if (WEAR.test(n)) return { reject: 'clothing, not a home product' };
+  if (R('αυτοκινητ|προφυλακτηρ|\\bobd').test(n)) return { reject: 'a car product (Car Gear World)' };
   const hit = pickFirst(n, H_LIST) || pickPath(t, H_LIST);
   return hit ? { site: 'hgw', siteCategory: hit[0], subcategory: hit[1] } : { reject: 'not clearly a home product of HGW' };
 }

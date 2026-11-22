@@ -121,7 +121,7 @@ export const PROGRAMMES = [
   { id: 13002, name: 'Onlineshoes.gr', site: 'wgw', cc: ['GR', 'CY'] },
   { id: 13012, name: 'The Fashion Project', site: 'wgw', cc: ['GR', 'CY'] },
   { id: 13083, name: 'PieDini', site: 'wgw', cc: ['GR'] },
-  { id: 13088, name: 'Filinda', site: 'wgw', cc: ['GR', 'CY'] },
+  { id: 13088, name: 'Filinda', site: 'hgw', cc: ['GR', 'CY'], also: ['wgw', 'kgw'] },
   { id: 13100, name: 'Myaroma.gr', site: 'wgw', cc: ['GR'] },
   { id: 13136, name: 'Tzimas Cosmetics', site: 'wgw', cc: ['GR', 'CY'] },
   { id: 13166, name: 'e-kellys', site: 'wgw', cc: ['GR', 'CY'] },

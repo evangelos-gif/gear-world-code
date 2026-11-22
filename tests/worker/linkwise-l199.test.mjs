@@ -141,6 +141,61 @@ test('L199: Greek names and categories go to the subcategories the older sites a
   assert.equal(k({ name: 'Stitch Μίνι Κάψουλες-1Τμχ', feedCategory: 'Παιδικά Παιχνίδια > Φιγούρες' }).site, 'kgw');
 });
 
+test('L14 (22 Nov 2026): fashion words that look like beauty words, and "table-top" is not a table', () => {
+  // The Greek wave of 22 Nov 2026 (dry run of 113 shops): "δερμάτινο" (leather), "κρεμαστό" (pendant), "skinny",
+  // "μάλλινο" (woollen), "brown", "πλατφόρμα" and "επιτραπέζιο" had put ~1,000 products in the wrong subcategory.
+  const w = LW.classifierFor('wgw'), m = LW.classifierFor('mgw'), h = LW.classifierFor('hgw');
+  const is = (r, cat, sub) => assert.deepEqual([r.siteCategory, r.subcategory], [cat, sub], JSON.stringify(r));
+  is(w({ name: 'Καφέ δερμάτινη γόβα' }), 'Shoes', 'Heels');
+  is(w({ name: 'Γκρι δερμάτινο Australian Boot Classic L7830' }), 'Shoes', 'Boots');
+  is(w({ name: 'Γυναικεία λεπτή δερμάτινη ζώνη - BLACK' }), 'Bags & Accessories', 'Belts');
+  is(w({ name: 'Midi δερματίνη φούστα σε καφέ χρώμα' }), 'Clothing', 'Skirts');
+  is(w({ name: 'Skinny fit τζιν παντελόνι - BLACK' }), 'Clothing', 'Jeans');
+  is(w({ name: 'Κρεμαστό με όνομα Λουκία ασημένιο' }), "Women's Jewellery", 'Necklaces');
+  is(w({ name: 'Κρεμαστά μακριά σκουλαρίκια με στρας (SILVER)' }), "Women's Jewellery", 'Earrings');
+  is(w({ name: 'Jt Λαμπρερή ατσάλινη αλυσίδα σώματος bodychain Ασημί' }), "Women's Jewellery", 'Jewellery');
+  is(w({ name: 'Pro Socks Wool Cozy Berry – Γυναικεία Μάλλινη Κάλτσα' }), 'Clothing', 'Socks');
+  is(w({ name: 'Soma Blush Dots Soft Touch Γυναικείες Χνουδωτές Κάλτσες' }), 'Clothing', 'Socks');
+  is(w({ name: 'Σετ 2 μικρά κλάμερ μαλλιών (OFF WHITE)' }), 'Bags & Accessories', 'Hair Accessories');
+  is(w({ name: 'Ταμπά δερμάτινη πλατφόρμα' }), 'Shoes', 'Shoes');
+  is(w({ name: 'Platform Slides με Φιόγκο' }), 'Shoes', 'Sandals');
+  is(w({ name: 'Jt Προσωποποιημένο Μπρελόκ Πλακέτα για Χάραξη' }), 'Bags & Accessories', 'Accessories');
+  is(w({ name: 'Ρολόι Unisex Brown Leather Strap, OOZOO' }), 'Watches', 'Watches');
+  is(w({ name: 'TIMBERLAND SUEDE BRUSH TB0A2K6Z0001' }), 'Bags & Accessories', 'Accessories');
+  is(w({ name: 'Μπουρνούζι βαμβακερό με γιακά και ζώνη' }), 'Clothing', 'Nightwear');
+  is(m({ name: 'Ανδρικό Σετ Δώρου Πορτοφόλι+Μπρελόκ Tommy Hilfiger' }), 'Bags & Accessories', 'Wallets & Purses');
+  is(m({ name: 'Ανδρικό Μάλλινο Κασκόλ Calvin Klein' }), 'Bags & Accessories', 'Scarves');
+  is(m({ name: 'Cherry Blossom Dubbin Wax Λίπος Φυσικό' }), 'Bags & Accessories', 'Accessories');
+  // ... and the beauty products stay beauty.
+  is(w({ name: 'Ενυδατική Κρέμα Ημέρας για Ξηρό Δέρμα 50ml' }), 'Beauty & Fragrances', 'Skincare');
+  is(w({ name: 'Ορός Προσώπου για Λάμψη Glow' }), 'Beauty & Fragrances', 'Skincare');
+  is(w({ name: 'Αποτριχωτικές ταινίες κεριού (μπικίνι & μασχάλες) 24τεμ' }), 'Beauty & Fragrances', 'Hair removal');
+  is(w({ name: 'Stradivarius N.170 Sweet Blush Elixir Parfum 100 Ml' }), 'Beauty & Fragrances', 'Fragrance');
+  is(w({ name: 'Stradivarius N.179 Coco Kiss Hair & Body Parfum' }), 'Beauty & Fragrances', 'Fragrance');
+  is(w({ name: 'Σαμπουάν για λιπαρά μαλλιά 500ml' }), 'Beauty & Fragrances', 'Hair care');
+  is(w({ name: 'Long Lasting Matte Lip Gloss' }), 'Beauty & Fragrances', 'Make-up');
+  // Home things in a fashion feed go to Home Gear World.
+  assert.match(w({ name: 'Πετσέτα Προσώπου 50×90 Selena Grey' }).reject, /home product/);
+  assert.match(w({ name: 'Αρωματικό Κερί FOREST ESCAPE' }).reject, /home product/);
+  // "Επιτραπέζιο" is table-top: not a dining table.
+  is(h({ name: 'Ψηφιακό Ρολόι Επιτραπέζιο με Ξυπνητήρι VST-716' }), 'Home Decor', 'Clock');
+  is(h({ name: 'Τραπέζι Καθιστικού Henshaw Black' }), 'Furniture', 'Coffee Table');
+  is(h({ name: 'Τραπέζι Πλαϊνό Rosalind Cotton White' }), 'Furniture', 'Side Table');
+  is(h({ name: 'Τραπεζαρία Οξιάς 160x90' }), 'Furniture', 'Dining Table');
+  is(h({ name: 'Ταπέτο Rattan Flower 70cm Rythmos' }), 'Home Decor', 'Rug');
+  assert.notEqual(h({ name: 'Επιτραπέζια Ηλεκτρική Εστία Εμαγιέ 1000W' }).subcategory, 'Dining Table');
+  assert.match(h({ name: 'Κλιπ Συγκράτησης Προφυλακτήρα 10τμχ' }).reject, /car product/);
+});
+
+test('L14 (22 Nov 2026): Filinda is a home shop: home on HGW, women on WGW, children on KGW', () => {
+  const p = PROGRAMMES.find(x => x.id === 13088);
+  assert.equal(p.site, 'hgw');
+  const c = LW.classifierFor(LW.programmeSites(p));
+  assert.equal(c({ name: 'ΣΕΝΤΟΝΙΑ ΕΜΠΡΙΜΕ ΣΕΤ 3 τεμ Ήρα 425 160X240 White-Denim Blue' }).site, 'hgw');
+  assert.equal(c({ name: 'Γυναικεία Νυχτικιά Minerva Glam Αμάνικη Χακί' }).site, 'wgw');
+  assert.equal(c({ name: 'Παιδική Πυτζάμα Energiers για αγόρια' }).site, 'kgw');
+});
+
 test('L199: a shop that sells for everyone goes to the site of each audience', () => {
   const all = LW.classifierFor(['wgw', 'mgw', 'kgw']);
   assert.equal(all({ name: 'Sneakers adidas Runfalcon 3.0', feedCategory: 'Γυναίκα > Παπούτσια' }).site, 'wgw');
