@@ -20,3 +20,15 @@ assets/worlds/sgw.jpg
 assets/worlds/tgw.jpg
 assets/worlds/wgw.jpg
 assets/worlds/zgw.jpg
+# Google's own "Get it on Google Play" badges, unchanged, one per language (lessons L218).
+assets/app/google-play-en.png
+assets/app/google-play-el.png
+assets/app/google-play-de.png
+assets/app/google-play-it.png
+assets/app/google-play-es.png
+assets/app/google-play-fr.png
+assets/app/google-play-nl.png
+assets/app/google-play-pl.png
+assets/app/google-play-pt.png
+assets/app/google-play-ro.png
+assets/app/google-play-ru.png

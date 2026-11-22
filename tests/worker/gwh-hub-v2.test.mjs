@@ -158,11 +158,11 @@ test('hub v2: the page keeps every id and class the other scripts need, and load
   }
   assert.match(html, /<body class="gwh2" data-gwh-compact-v2="true">/);
   assert.match(html, /<div class="hero-copy">\s*<span class="eyebrow">/);
-  assert.match(html, /<link rel="stylesheet" href="\/hub-v2\.css\?v=(20261109-compliance|20261116-stores|20261120-popup|20261123-mega|20261125-app)\d+">/);
+  assert.match(html, /<link rel="stylesheet" href="\/hub-v2\.css\?v=(20261109-compliance|20261116-stores|20261120-popup|20261123-mega|20261123-app)\d+">/);
   // A new ?v= with every change of the script (L31): 9/11/2026 the season switches (L107), 14/11/2026 the delivery line
   // on the gift cards (L153), 16/11/2026 the texts of the Stores card (L166), 17/11/2026 the Featured pick and the
   // language of the links to the sites (L174), 18/11/2026 the Black Friday link (L188), the Mega Stores bar (L192), the Google Play row (L218).
-  assert.match(html, /<script src="\/hub-v2\.js\?v=(20261114-badges|20261116-stores|20261117-lang|20261118-bf|20261123-mega|20261125-app)\d+" defer><\/script>/);
+  assert.match(html, /<script src="\/hub-v2\.js\?v=(20261114-badges|20261116-stores|20261117-lang|20261118-bf|20261123-mega|20261123-app)\d+" defer><\/script>/);
   assert.ok(html.indexOf('/gear-world-camera.js?v=') < html.indexOf('/hub-v2.js?v='), 'hub-v2.js after the camera script');
   assert.ok(!html.includes('/styles.css'), 'the old styles.css is not loaded');
   assert.ok(!html.includes('gwh-hero.png'), 'the 2.8 MB picture is gone from the page');

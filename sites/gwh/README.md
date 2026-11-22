@@ -221,7 +221,7 @@ Live από 7/11/2026 (commit f4c8c35· το `live-baseline.txt` ενημερώ�
 
 | Αρχείο | Τι άλλαξε |
 |---|---|
-| `public/index.html` | Κάτω από την αναζήτηση (μετά τα «Popular») η γραμμή «Gear World app» με το επίσημο κουμπί «Get it on Google Play» προς τη σελίδα της εφαρμογής (`utm_source=gearworld-hub`), ανάμεσα στα `<!-- GWH-APP-START` και `<!-- GWH-APP-END -->`, κρυφή (`hidden`). Νέο `?v=20261125-app1` για `hub-v2.css` και `hub-v2.js` (L31) |
+| `public/index.html` | Κάτω από την αναζήτηση (μετά τα «Popular») η γραμμή «Gear World app» με το επίσημο κουμπί «Get it on Google Play» προς τη σελίδα της εφαρμογής (`utm_source=gearworld-hub`), ανάμεσα στα `<!-- GWH-APP-START` και `<!-- GWH-APP-END -->`, κρυφή (`hidden`). Νέο `?v=20261123-app1` για `hub-v2.css` και `hub-v2.js` (L31) |
 | `public/hub-v2.js` | Δείχνει τη γραμμή, εκτός από iPhone/iPad (η εφαρμογή δεν είναι ακόμα στο App Store) και αν ο επισκέπτης την έκλεισε (`gwh2-app-closed`). Το κουμπί είναι το αρχείο της Google στη γλώσσα της σελίδας· τα αλβανικά μένουν αγγλικά. Κείμενα `appLine`, `appBadge`, `appClose` σε 11 γλώσσες |
 | `public/hub-v2.css` | Η εμφάνιση: κουμπί 60 px (κινητό 54 px), ✕ 44 px |
 | `public/play/google-play-*.png` | Τα επίσημα PNG της Google (en, el, de, fr, it, es, pt, nl, ro, ru), χωρίς καμία αλλαγή |

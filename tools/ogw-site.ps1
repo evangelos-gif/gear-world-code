@@ -355,6 +355,12 @@ function Test-Site([string]$base, [string]$mode) {
     $ge = Get-Page ($base + '/stores/joybuy/') 'GR'
     if ($ge.status -eq 200 -and $ge.text.Contains('store-elsewhere') -and $ge.text.Contains('<meta name="robots" content="noindex">')) { Say '  Joybuy από Ελλάδα: «δεν εμφανίζεται για τη χώρα σας», με noindex (L211): ΕΝΤΑΞΕΙ' $Ok }
     else { Say ('  Joybuy από Ελλάδα ({0}): λείπει η γραμμή ή το noindex (L211): ΠΡΟΒΛΗΜΑ' -f $ge.status) $Bad; $all = $false }
+    # L218: the row of the Gear World app (Google Play badge) on the home page for a visitor from the UK (a country of the
+    # app), not from Germany. Its link is never opened.
+    $appGb = (Get-Page ($base + '/') 'GB').text.Contains('class="app-bar"')
+    $appDe = (Get-Page ($base + '/') 'DE').text.Contains('class="app-bar"')
+    if ($appGb -and -not $appDe) { Say '  Γραμμή «Gear World app» με το κουμπί Google Play (L218): ΕΝΤΑΞΕΙ - UK ναι, Γερμανία όχι' $Ok }
+    else { Say ('  Γραμμή «Gear World app» (L218): ΠΡΟΒΛΗΜΑ - UK: {0}, Γερμανία: {1}' -f $appGb, $appDe) $Bad; $all = $false }
     $el = Get-Page ($base + '/?lang=el')
     if ($el.status -eq 200 -and $el.text.Contains('<html lang="el-GR"') -and $el.text.Contains('Οδηγοί δώρων')) { Say '  /?lang=el απαντά στα Ελληνικά (Οδηγοί δώρων): ΕΝΤΑΞΕΙ' $Ok }
     else { Say ('  /?lang=el δεν απαντά στα Ελληνικά ({0}): ΠΡΟΒΛΗΜΑ' -f $el.status) $Bad; $all = $false }

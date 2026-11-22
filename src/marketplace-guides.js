@@ -21,6 +21,7 @@ import { GEAR_WORLDS } from '../promos/network.js';
 import { promosFor } from '../promos/promos.js';
 import { activePromos } from './lib/promos.js';
 import { COUNTRY_LANGUAGES, MULTI_LANGUAGE_COUNTRIES } from './lib/country-language.js';
+import { APP_BAR_TEXT, APP_BADGE_LABEL, appBarWanted, appPlayUrl, appBadgeFile } from './lib/app.js';
 
 export const AMAZON_STATEMENT = 'As an Amazon Associate I earn from qualifying purchases.';
 const AMAZON_TRADEMARK = 'Amazon and the Amazon logo are trademarks of Amazon.com, Inc. or its affiliates.';
@@ -1081,6 +1082,17 @@ export function heroButtons(c, now = new Date()) {
   return html`<nav class="hero-jump" aria-label="${storesHere(c) ? c.tx('Stores and gift guides') : c.tx('Gift guides')}"><ul class="jumps">${tiles}</ul></nav>`;
 }
 
+// The Gear World app on Google Play (owner, 22 Nov 2026, lessons L218: "yes" to Mega Stores too): Google's own badge in
+// the page's language (Albanian: English) under the hero text, only when the Worker set c.app (a visitor from a country
+// of the app, not on an iPhone or iPad; the CSS also hides it on an iPad that asks for desktop pages). No close button:
+// this site has no script and stores nothing on the device.
+export function appRow(c) {
+  return html`<div class="app-bar">
+  <p class="app-text"><span class="app-name" translate="no">Gear World app</span> <span class="app-words">${c.t(APP_BAR_TEXT)}</span></p>
+  <a class="app-badge" href="${appPlayUrl('megastores')}" target="_blank" rel="noopener" aria-label="${c.tx(APP_BADGE_LABEL)}"><img src="${asset(c.site, `app/google-play-${appBadgeFile(c.lang)}.png`)}" alt="" width="646" height="250" decoding="async"></a>
+</div>`;
+}
+
 export function homePage(c, now = new Date(), storeData = {}) {
   const { site, t, tx, mode } = c;
   const all = [...site.guides, site.checks].filter(Boolean);
@@ -1101,6 +1113,7 @@ export function homePage(c, now = new Date(), storeData = {}) {
   <p class="lede">${withMarkets(mode)
     ? t('Short gift guides for Christmas and the winter. Every idea opens a search on a big marketplace and the matching category of a Gear World site, so you can compare models, sellers and prices before you choose.')
     : t('Short gift guides for Christmas and the winter. Every idea opens the matching category of a Gear World site, where each product shows the retailer that sells it, its price and where it delivers.')}</p>
+  ${c.app ? appRow(c) : ''}
   </div>
   ${heroButtons(c, now)}
 </div></section>
@@ -1382,7 +1395,12 @@ export function createGuidesWorker(site, deps = {}) {
       }
       // A redirect keeps the chosen language (?lang= stays in the address).
       const keepLang = to => (choice.chosen ? makeContext(site, choice.lang, true).href(to) : to);
-      if (url.pathname === '/' || url.pathname === '/index.html') return page(homePage(ctxFor('/'), new Date(nowMs()), await allStoreData(ctx, country)));
+      if (url.pathname === '/' || url.pathname === '/index.html') {
+        // The app row (L218): this visitor's country and browser; the page is private already.
+        const home = ctxFor('/');
+        home.app = appBarWanted(country, request.headers.get('user-agent'));
+        return page(homePage(home, new Date(nowMs()), await allStoreData(ctx, country)));
+      }
       if (url.pathname === '/guides' || url.pathname === '/guides/') return redirect(`https://${site.domain}${keepLang('/#guides')}`, 302);
       if (url.pathname === '/stores' || url.pathname === '/stores/') return redirect(`https://${site.domain}${keepLang('/#stores')}`, 302);
       const sm = url.pathname.match(/^\/stores\/([a-z0-9-]+)\/?$/);

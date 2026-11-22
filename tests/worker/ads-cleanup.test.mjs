@@ -309,7 +309,7 @@ test('the Hub: styles.css (not loaded by the page) keeps no rule of the sponsore
   const index = readFileSync(`${PUB}/index.html`, 'utf8');
   assert.ok(!/\/styles\.css/.test(index), 'the page does not load styles.css');
   assert.ok(/\/translations\.js\?v=(20261108-cleanup1|20261114-badges\d+|20261117-lang\d+|20261120-search\d+)/.test(index), 'translations.js (a later version since L153, L175, L180)');
-  assert.ok(/\/hub-v2\.css\?v=(20261108-cleanup1|20261109-compliance\d+|20261116-stores\d+|20261120-popup\d+|20261123-mega\d+|20261125-app\d+)/.test(index), 'hub-v2.css (a later version since L107; L166 the Stores card; L218 the Google Play row)');
+  assert.ok(/\/hub-v2\.css\?v=(20261108-cleanup1|20261109-compliance\d+|20261116-stores\d+|20261120-popup\d+|20261123-mega\d+|20261123-app\d+)/.test(index), 'hub-v2.css (a later version since L107; L166 the Stores card; L218 the Google Play row)');
   assert.ok(!/partner/i.test(index));
 });
 

@@ -105,7 +105,8 @@ test('L195: 11 dictionaries, the same texts in each, the sites\' layout (code-po
       for (const [k, v] of Object.entries(d)) {
         assert.ok(typeof v === 'string' && v.trim() && v === v.trim(), `${l}: "${k}" has a text`);
         assert.equal(placeholders(v), placeholders(k), `${l}: the same {0} in "${k}"`);
-        if (!SAME.has(k)) assert.notEqual(v, k, `${l}: "${k}" is translated`);
+        // L218: the Albanian badge is Google's English one (its sq file has the old logo), so its label is the English words.
+        if (!SAME.has(k) && !(l === 'sq-AL' && k === 'Get it on Google Play')) assert.notEqual(v, k, `${l}: "${k}" is translated`);
         for (const n of NAMES) if (new RegExp(`(^|[^A-Za-z])${n.replace(/[.']/g, '\\$&')}([^A-Za-z]|$)`).test(k)) {
           assert.ok(v.replace(/-/g, ' ').includes(n), `${l}: "${n}" stays in "${k}" => "${v}"`);
         }

@@ -42,15 +42,15 @@ test('L218: the row is under the search, in the file, hidden, with Google\'s bad
   assert.ok(row.includes('<div class="gwh2-app" id="gwh2App" hidden>'), 'hidden until hub-v2.js shows it');
   assert.ok(row.includes('<span class="gwh2-app-name" translate="no">Gear World app</span> <span data-gwh2="appLine">Search every Gear World from your phone.</span>'));
   assert.ok(row.includes(`<a class="gwh2-app-badge" href="${LINK}" target="_blank" rel="noopener" data-gwh2-aria="appBadge" aria-label="Get it on Google Play">`), 'the app\'s page, with the Hub in utm_source');
-  assert.ok(row.includes('<img src="/play/google-play-en.png?v=20261125-app1" data-gwh2-badge alt="" width="646" height="250" decoding="async">'), 'Google\'s English badge, versioned (L31)');
+  assert.ok(row.includes('<img src="/play/google-play-en.png?v=20261123-app1" data-gwh2-badge alt="" width="646" height="250" decoding="async">'), 'Google\'s English badge, versioned (L31)');
   assert.ok(row.includes('<button type="button" class="gwh2-app-close" id="gwh2AppClose" data-gwh2-aria="appClose" aria-label="Close">'));
   const body = row.replace(/<!--[\s\S]*?-->/g, '');
   assert.ok(!/style=|<script|\son[a-z]+="/i.test(body), 'CSP: no inline style, script or handler');
   assert.ok(!L107.test(body.replace(/<[^>]+>/g, ' ')), 'no L107 word');
   assert.equal((body.match(/<a /g) || []).length, 1, 'one link');
   assert.ok(!/\/(out|go)\//.test(body), 'not a product link');
-  assert.match(HOME, /<link rel="stylesheet" href="\/hub-v2\.css\?v=20261125-app1">/);
-  assert.match(HOME, /<script src="\/hub-v2\.js\?v=20261125-app1" defer><\/script>/);
+  assert.match(HOME, /<link rel="stylesheet" href="\/hub-v2\.css\?v=20261123-app1">/);
+  assert.match(HOME, /<script src="\/hub-v2\.js\?v=20261123-app1" defer><\/script>/);
 });
 
 test('L218: Google\'s own badge files (unchanged PNGs), allowed in public/, described by the Hub tool', () => {
@@ -105,7 +105,7 @@ function appPart({ lang = 'en-GB', ua = ANDROID, touch = 5, closed = false, with
   assert.ok(start > 0 && end > start, 'found in hub-v2.js');
   const removed = [];
   let onClose = null;
-  const img = { src: '/play/google-play-en.png?v=20261125-app1', getAttribute: n => (n === 'src' ? img.src : null) };
+  const img = { src: '/play/google-play-en.png?v=20261123-app1', getAttribute: n => (n === 'src' ? img.src : null) };
   const row = { hidden: true, remove: () => removed.push('row') };
   const close = { addEventListener: (type, fn) => { if (type === 'click') onClose = fn; } };
   const store = new Map(closed ? [['gwh2-app-closed', '1']] : []);
@@ -127,7 +127,7 @@ function appPart({ lang = 'en-GB', ua = ANDROID, touch = 5, closed = false, with
 test('L218: hub-v2.js shows the row (not on an iPhone or iPad, not after a close) and the badge in the page\'s language', () => {
   const shown = appPart();
   assert.equal(shown.row.hidden, false, 'shown');
-  assert.equal(shown.img.src, '/play/google-play-en.png?v=20261125-app1');
+  assert.equal(shown.img.src, '/play/google-play-en.png?v=20261123-app1');
   shown.close();
   assert.deepEqual(shown.removed, ['row'], 'closed');
   assert.equal(shown.store.get('gwh2-app-closed'), '1', 'remembered');
@@ -135,9 +135,9 @@ test('L218: hub-v2.js shows the row (not on an iPhone or iPad, not after a close
   for (const ua of ['Mozilla/5.0 (iPhone; CPU iPhone OS 18_1 like Mac OS X)', 'Mozilla/5.0 (iPad; CPU OS 17_6 like Mac OS X)']) assert.deepEqual(appPart({ ua }).removed, ['row'], ua);
   assert.deepEqual(appPart({ ua: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)', touch: 5 }).removed, ['row'], 'an iPad asking for desktop pages');
   assert.equal(appPart({ ua: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)', touch: 0 }).row.hidden, false, 'a Mac');
-  assert.equal(appPart({ lang: 'el-GR' }).img.src, '/play/google-play-el.png?v=20261125-app1');
-  assert.equal(appPart({ lang: 'pt-PT' }).img.src, '/play/google-play-pt.png?v=20261125-app1');
-  assert.equal(appPart({ lang: 'sq-AL' }).img.src, '/play/google-play-en.png?v=20261125-app1', 'Albanian: English (Google\'s Albanian file has the old logo)');
+  assert.equal(appPart({ lang: 'el-GR' }).img.src, '/play/google-play-el.png?v=20261123-app1');
+  assert.equal(appPart({ lang: 'pt-PT' }).img.src, '/play/google-play-pt.png?v=20261123-app1');
+  assert.equal(appPart({ lang: 'sq-AL' }).img.src, '/play/google-play-en.png?v=20261123-app1', 'Albanian: English (Google\'s Albanian file has the old logo)');
   assert.doesNotThrow(() => appPart({ withRow: false }), 'a page without the row (another country)');
   const js = read('hub-v2.js');
   assert.match(js, /function renderAll\(\) \{\n {4}applyTexts\(\);\n {4}appBadge\(\);/, 'the badge follows a language change (renderAll)');
@@ -186,12 +186,12 @@ test('L218: the Worker keeps the row for the UK, Greece, Cyprus, Poland and the 
 test('L218: the cookies page names gwh2-app-closed (11 languages) and a new date; the legal script asks for the new dictionaries', () => {
   const c = read('cookies/index.html');
   assert.ok(c.includes('<tr><td data-label="Name"><span><code>gwh2-app-closed</code></span></td><td data-label="Type"><span>Browser storage, necessary</span></td><td data-label="What it does"><span>Remembers that you closed the Gear World app row on the home page</span></td><td data-label="How long"><span>Until you clear your browser data</span></td></tr>'));
-  assert.match(c, /<p class="lg-updated">Last updated: 25 November 2026<\/p>/);
+  assert.match(c, /<p class="lg-updated">Last updated: 23 November 2026<\/p>/);
   for (const f of readdirSync(`${PUB}/legal/i18n`)) {
     const d = JSON.parse(read(`legal/i18n/${f}`));
     assert.ok(d['Remembers that you closed the Gear World app row on the home page'].includes('Gear World'), f);
-    assert.match(d['Last updated: 25 November 2026'], /25/, f);
+    assert.match(d['Last updated: 23 November 2026'], /23/, f);
   }
-  assert.match(read('legal/legal.js'), /var VERSION = "20261125-app1";/);
+  assert.match(read('legal/legal.js'), /var VERSION = "20261123-app1";/);
   assert.ok(read('hub-v2.js').includes('localStorage.getItem("gwh2-app-closed")'), 'the name the script uses');
 });
