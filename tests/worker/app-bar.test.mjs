@@ -1,6 +1,6 @@
 // Lessons L218 (owner, 22 Nov 2026: "we got the app, put it on the page so people can download it" — "on the home page,
 // at the top, on every site"): the official "Get it on Google Play" badge of the Gear World app, under the hero buttons of
-// the home page of the 13 sites. Only for visitors from a country where the app is published (GB, GR, CY, PL, US), never on an
+// the home page of the 13 sites (and in the hero of gearworldgroup.com, at the end of this file). Only for visitors from a country where the app is published (GB, GR, CY, PL, US), never on an
 // iPhone or iPad, never in a cached copy, in the visitor's language (Google's own badge files), with a close button.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -225,7 +225,7 @@ test('L218: the stylesheet of every site has the row, after the hero buttons on 
 test('L218: the cookies page of every site names the browser storage of a closed app row, in every dictionary', async () => {
   const { infoPage } = await import('../../src/pages/info.js');
   const K = "If you close the Gear World app row on the home page, your browser's local storage remembers it, so the row does not come back. This is not a cookie and is not sent to us.";
-  assert.match(read('src/pages/info.js'), /const UPDATED = '25 November 2026';\nconst UPDATED_ISO = '2026-11-25';/, 'a new date on the legal pages');
+  assert.match(read('src/pages/info.js'), /const UPDATED = '23 November 2026';\nconst UPDATED_ISO = '2026-11-23';/, 'a new date on the legal pages');
   for (const s of SITES) {
     const html = infoPage(config[s], '/cookies/');
     assert.ok(String(html).includes(`<p>${K.replace(/'/g, '&#39;')}</p>`) || String(html).includes(`<p>${K}</p>`), `${s}: the line`);
@@ -237,4 +237,59 @@ test('L218: the cookies page of every site names the browser storage of a closed
   const tool = read('tools/layout-check.mjs');
   assert.match(tool, /appBarHtml\(\{ code, assetVersion: v \}\)/, 'tools/layout-check.mjs measures the first screen with the app row too');
   assert.ok(tool.includes("check(fold.app, `${label}: the app row is on the page, right after the hero buttons (L218)`);"), 'and checks that the row is really there');
+});
+
+// ---------------- gearworldgroup.com (owner, 22 Nov 2026: "yes", on the Group and Mega Stores too) ----------------
+import { groupPage, createGroupWorker } from '../../src/group.js';
+import { appBadgeFile } from '../../src/lib/app.js';
+import groupSite from '../../sites/group/site.config.js';
+
+const GROUP_STATS = { products: 100, retailers: 2, sitesCounted: 1, ukProducts: 100, countries: { GB: { products: 100, retailers: 2, sites: [] } } };
+const groupRow = page => (page.match(/<div class="app-bar">[\s\S]*?<\/div>/) || [''])[0];
+
+test('L218 Group: the English badge in the hero, after the facts, for the app\'s countries only and never on an iPhone or iPad', () => {
+  for (const cc of APP_COUNTRIES) {
+    const page = groupPage(groupSite, GROUP_STATS, cc, DESKTOP);
+    const row = groupRow(page);
+    assert.ok(row, cc);
+    assert.ok(page.indexOf('<ul class="facts">') < page.indexOf('<div class="app-bar">'), `${cc}: after the facts`);
+    assert.ok(page.indexOf('<div class="app-bar">') < page.indexOf('</div></section>'), `${cc}: in the hero`);
+    assert.ok(row.includes(`href="${APP_PLAY_URL}&amp;utm_source=gearworld-group&amp;utm_medium=site&amp;utm_campaign=app_bar"`), `${cc}: the link with utm`);
+    assert.ok(row.includes(`src="/assets/app/google-play-en.png?v=${groupSite.assetVersion}"`), `${cc}: Google's English badge`);
+    assert.ok(row.includes('aria-label="Get it on Google Play"') && row.includes('width="646" height="250"'), cc);
+    assert.ok(row.includes(APP_BAR_TEXT) && row.includes('<span class="app-name" translate="no">Gear World app</span>'), cc);
+    assert.ok(!row.includes('<button') && !/<script/.test(page), `${cc}: no close button, the page has no script`);
+  }
+  for (const cc of ['DE', 'FR', 'IE', 'NL', 'XX', '']) assert.ok(!groupRow(groupPage(groupSite, GROUP_STATS, cc, DESKTOP)), `no row from ${cc || 'no country'}`);
+  for (const ua of [IPHONE, IPAD]) assert.ok(!groupRow(groupPage(groupSite, GROUP_STATS, 'GB', ua)), 'no row on an iPhone or iPad');
+  assert.ok(groupRow(groupPage(groupSite, GROUP_STATS, 'GB', ANDROID)), 'Android in the UK');
+});
+
+test('L218 Group Worker: the row from the visitor\'s country and browser, the home page stays private; the files and CSS', async () => {
+  const w = createGroupWorker({ ...groupSite, sites: [] });
+  const home = async (cc, ua) => {
+    const req = new Request('https://gearworldgroup.com/', { headers: { 'user-agent': ua } });
+    Object.defineProperty(req, 'cf', { value: { country: cc } });
+    const res = await w.fetch(req, {}, {});
+    return { cache: res.headers.get('cache-control'), text: await res.text() };
+  };
+  for (const [cc, ua, want] of [['GB', DESKTOP, true], ['US', ANDROID, true], ['PL', DESKTOP, true], ['DE', DESKTOP, false], ['GB', IPHONE, false]]) {
+    const r = await home(cc, ua);
+    assert.equal(r.cache, 'private, max-age=60', cc);
+    assert.equal(r.text.includes('class="app-bar"'), want, `${cc} ${want}`);
+  }
+  assert.equal(sha('sites/group/public/assets/app/google-play-en.png'), sha('sites/tgw/public/assets/app/google-play-en.png'), 'the same Google file as the sites');
+  assert.ok(read('sites/group/public-allowlist.txt').split('\n').includes('assets/app/google-play-en.png'));
+  assert.equal(groupSite.assetVersion, '2026-11-23-group-12', 'a new asset version for the new CSS (L31)');
+  const css = read('sites/group/public/assets/group.css');
+  assert.match(css, /\.app-bar \{ display: flex; flex-wrap: wrap; align-items: center; gap: 16px; margin: 22px 0 0; \}/, 'clear space of a quarter of the badge height (60px / 4 = 15px)');
+  assert.match(css, /\.app-badge img \{ display: block; height: 60px; width: auto; \}/);
+  assert.match(css, /@supports \(-webkit-touch-callout: none\) \{ \.app-bar \{ display: none; \} \}/, 'hidden on an iPad that asks for desktop pages');
+  assert.match(read('src/group.js'), /sets no advertising, analytics or tracking cookies and stores nothing on your device/, 'still true: no close button, nothing stored');
+});
+
+test('L218: the badge file for a page language (Albanian and the rest: English)', () => {
+  for (const l of APP_BADGE_LANGS) assert.equal(appBadgeFile(`${l}-XX`), l);
+  for (const l of ['en-GB', 'sq-AL', 'sq', '', null, 'tr-TR']) assert.equal(appBadgeFile(l), 'en', String(l));
+  assert.equal(appBadgeFile('EL-gr'), 'el');
 });

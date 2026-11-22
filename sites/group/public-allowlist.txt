@@ -3,3 +3,5 @@ _headers
 assets/group.css
 assets/logo.svg
 assets/favicon.svg
+# Google's own "Get it on Google Play" badge, unchanged (lessons L218).
+assets/app/google-play-en.png

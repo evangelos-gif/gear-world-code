@@ -9,6 +9,7 @@ import { OPEN_COUNTRIES, OPEN_RULE, openCheck } from './lib/open-countries.js';
 import { MAP_SIZE, MAP_EUROPE, MAP_SHAPES, MAP_DOTS } from './group-map.js';
 import { CONTINENTS, COUNTRY_CODES } from './group-countries.js';
 import { linkLanguage } from './lib/country-language.js';
+import { APP_BAR_TEXT, APP_BADGE_LABEL, appBarWanted, appPlayUrl } from './lib/app.js';
 
 export { CONTINENTS, COUNTRY_CODES };
 
@@ -407,7 +408,17 @@ ${coming(site, cc) ? COMING_TEXT + '.' : ''}</p>
 <p class="yours-links"><a href="${countryPath(cc)}">See ${inName(cc)}</a> <a href="#countries">See other countries</a></p></aside>`;
 }
 
-export function groupPage(site, stats, country = '') {
+// The Gear World app on Google Play (owner, 22 Nov 2026, lessons L218: "on the Group and Mega Stores too"): the official
+// English badge in the hero, only for a visitor from a country of the app and never on an iPhone or iPad (the user agent
+// here, the CSS for an iPad that asks for desktop pages). No close button: this page has no script and stores nothing.
+function appRow(site) {
+  return html`<div class="app-bar">
+  <p class="app-text"><span class="app-name" translate="no">Gear World app</span> <span class="app-words">${APP_BAR_TEXT}</span></p>
+  <a class="app-badge" href="${appPlayUrl('group')}" target="_blank" rel="noopener" aria-label="${APP_BADGE_LABEL}"><img src="${asset(site, 'app/google-play-en.png')}" alt="" width="646" height="250" decoding="async"></a>
+</div>`;
+}
+
+export function groupPage(site, stats, country = '', userAgent = '') {
   const uk = stats.countries && stats.countries.GB ? stats.ukProducts : 0;
   const facts = [
     stats.products ? `${fmt(stats.products)} products listed` : '',
@@ -423,6 +434,7 @@ export function groupPage(site, stats, country = '') {
   <p class="lede">Each product shows the retailer that sells it and where that retailer delivers.</p>
   <p class="lede">${site.name} runs ${site.sites.length} themed price comparison sites and a shared search hub. We list retailers' products from their affiliate product feeds, so shoppers can compare prices in one place and then buy direct from the retailer.</p>
   <ul class="facts">${facts.map(f => html`<li>${f}</li>`)}</ul>
+  ${appBarWanted(country, userAgent) ? appRow(site) : ''}
   ${hasNumbers(stats) ? yourCountry(site, stats, country) : ''}
 </div></section>
 
@@ -556,9 +568,9 @@ export function createGroupWorker(site) {
       }
       if (url.pathname === '/' || url.pathname === '/index.html') {
         const stats = await cachedStats(site, ctx);
-        // The "your country" box depends on who asks: never kept by a shared cache (L130).
+        // The "your country" box and the app row (L218) depend on who asks: never kept by a shared cache (L130).
         const country = request.cf && request.cf.country;
-        const res = htmlResponse(groupPage(site, stats, country), { method: request.method, cache: 'private' });
+        const res = htmlResponse(groupPage(site, stats, country, request.headers.get('user-agent') || ''), { method: request.method, cache: 'private' });
         if (preview) res.headers.set('X-Robots-Tag', 'noindex, nofollow');
         return res;
       }

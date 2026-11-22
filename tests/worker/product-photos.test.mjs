@@ -530,5 +530,5 @@ test('L206: the site script handles the gallery (no library, no inline handler) 
   const css = read('sites/tgw/public/assets/site.css');
   assert.ok(css.includes('scroll-snap-type: x mandatory') && css.includes('.product-gallery:not([data-ready]) .gallery-slide + .gallery-slide { display: none; }'));
   for (const code of [...OLD, ...NEW]) assert.equal(read(`sites/${code}/public/assets/site.js`), js, code);
-  for (const code of [...OLD, ...NEW]) assert.match(config[code].assetVersion, /^(2026-11-20-[a-z]{3}-photos|2026-11-21-[a-z]{3}-au|2026-11-25-[a-z]{3}-app)-1$/, `${code}: new asset version (L31)`);
+  for (const code of [...OLD, ...NEW]) assert.match(config[code].assetVersion, /^(2026-11-20-[a-z]{3}-photos|2026-11-21-[a-z]{3}-au|2026-11-23-[a-z]{3}-app)-1$/, `${code}: new asset version (L31)`);
 });

@@ -1,6 +1,6 @@
 // The Gear World app on Google Play (owner, 22 Nov 2026: "we got the app, put it on the page so people can download
 // it", lessons L218). The official "Get it on Google Play" badge sits at the top of the home page, under the hero
-// buttons, on every site on this engine. It shows only to visitors from a country where the app is published, never on
+// buttons, on every site on this engine, and in the hero of gearworldgroup.com and megastoresgearworld.com. It shows only to visitors from a country where the app is published, never on
 // an iPhone or an iPad (the App Store has not released it yet), and never in a cached copy of a page: the engine adds it
 // to each answer (src/engine.js withAppBar), like the country bar.
 
@@ -18,12 +18,20 @@ export const APP_COUNTRIES = ['GB', 'GR', 'CY', 'PL', 'US'];
 export const APP_BADGE_LANGS = ['el', 'de', 'it', 'es', 'fr', 'nl', 'pl', 'pt', 'ro', 'ru'];
 export const APP_BADGE_FILES = ['en', ...APP_BADGE_LANGS];
 
+// The badge file for a page language (el-GR -> el; Albanian and any other language -> en). For the pages written
+// by the Worker in the visitor's language (Mega Stores); the 13 sites swap the badge in the site script.
+export function appBadgeFile(lang) {
+  const base = String(lang || '').toLowerCase().split('-')[0];
+  return APP_BADGE_LANGS.includes(base) ? base : 'en';
+}
+
 // The texts (every dictionary has them; the badge itself carries Google's own words in each language).
 export const APP_BAR_TEXT = 'Search every Gear World from your phone.';
 export const APP_BADGE_LABEL = 'Get it on Google Play';
 
 // iPhone, iPad and iPod in the user agent. An iPad that asks for desktop pages says "Macintosh": the site script hides
-// the badge there (a Mac has no touch screen, an iPad has).
+// the badge there (a Mac has no touch screen, an iPad has); on the pages with no script (Group, Mega Stores) the CSS
+// does, with @supports (-webkit-touch-callout: none), which only Safari on iPhone and iPad knows.
 const APPLE_MOBILE = /\b(iPhone|iPad|iPod)\b/;
 
 export function appBarWanted(country, userAgent) {
