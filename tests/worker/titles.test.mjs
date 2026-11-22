@@ -108,6 +108,14 @@ test('small fixes: the brand from the end, a doubled brand word, a short brand\'
   // No separator left over when the name has two in a row.
   assert.deepEqual(t('Shirt | | Nike', 'Nike', 'Sports Direct'), { name: 'Nike Shirt', steps: ['tail'] });
   assert.deepEqual(t('Shirt - - Nike', 'Nike', 'Sports Direct'), { name: 'Nike Shirt', steps: ['tail'] });
+  // Third review: a long run of separators in a junk name takes linear time (it runs on every page request).
+  const started = Date.now();
+  const junkName = 'x' + ' |'.repeat(50000) + ' | Nike';
+  const junk = titleNameParts({ product_name: junkName, brand: 'Nike', retailer: 'Sports Direct' });
+  assert.ok(Date.now() - started < 500, `took ${Date.now() - started} ms`);
+  assert.deepEqual(junk, { name: 'Nike x', steps: ['tail'] });
+  const long = titleNameParts({ product_name: ' |'.repeat(50000) + ' x | Nike', brand: 'Nike', retailer: 'Sports Direct' });
+  assert.deepEqual(long.steps, []);
   assert.deepEqual(t('DEWALT DEWALT DT20711 Multi-Tool Titanium Flush Cut Blade 100mm', 'DEWALT', 'GS Workwear'),
     { name: 'DEWALT DT20711 Multi-Tool Titanium Flush Cut Blade 100mm', steps: ['double'] });
   assert.equal(t('Draper Draper TX-STAR Security Screwdriver (T27T x 100mm)', 'Draper Tools', 'GS Workwear').name,

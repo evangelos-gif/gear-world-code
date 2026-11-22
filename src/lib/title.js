@@ -57,6 +57,14 @@ function brandIsRetailer(brand, retailer) {
   return Boolean(b && r && (b === r || b.startsWith(r) || r.startsWith(b)));
 }
 
+// Spaces, "|", ",", "-" and "–" at the end of a text, removed in one pass from the end (linear time, also for a long run
+// of separators in a junk name).
+function dropTrailingSeparators(text) {
+  let end = text.length;
+  while (end > 0 && ' |,-–'.includes(text[end - 1])) end--;
+  return text.slice(0, end).trim();
+}
+
 // A first word that is itself a brand or a short form of one: "PAPO", "HP", "VW", "CarPlan".
 const looksLikeBrand = w => /^[A-Z][A-Z0-9&]{1,}$/.test(w) || /^[A-Z][a-z]+[A-Z][A-Za-z]*$/.test(w);
 
@@ -135,7 +143,7 @@ export function titleNameParts(product, site) {
     // Also a glued form ("Makita-style" for "Makita Tools"): then nothing is added.
     const nameHasBrand = squash(name).includes(sqBrand) || (firstBrandWord.length >= 3 && squash(name).includes(firstBrandWord));
     // The name without the brand at its end, and without a separator left over ("Shirt | | Nike" -> "Shirt").
-    const rest = tail.test(name) ? name.replace(tail, '').replace(/(?:\s*[|,]|\s+[-–])+\s*$/, '').trim() : '';
+    const rest = tail.test(name) ? dropTrailingSeparators(name.replace(tail, '')) : '';
     if (rest && brand.length + 1 + rest.length <= TITLE_NAME_MAX) {
       // "Tour Shirt (Choc Chip Camo) | XXL | Stan Ray®" -> "Stan Ray Tour Shirt (Choc Chip Camo) | XXL". Only when the whole
       // name fits: a size or colour at the end of a long name is never cut off by it.
