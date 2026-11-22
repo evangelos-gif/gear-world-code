@@ -1,7 +1,8 @@
 // Gear World sites (shared by every site on the engine; TGW keeps the master copy). One small script; every page also works without it.
 // Parts: language (L24, with country names for "Delivers to", L62), currency (L25), saved list (L26, L101), compare (L23),
 // voice search, newsletter, the Turnstile check of "Get deal updates" (L106), the small sign-up window and "Remind me on
-// 27 Nov" (L182), discount codes (L32), the seasonal banner of the deals pages, the photo gallery of a product page (L206).
+// 27 Nov" (L182), discount codes (L32), the seasonal banner of the deals pages, the photo gallery of a product page (L206),
+// the Google Play badge of the home page (L218).
 (function () {
   'use strict';
 
@@ -883,6 +884,32 @@
     if (document.readyState === 'complete') start(); else window.addEventListener('load', start);
   }
 
+  // ---------- Gear World app (lessons L218) ----------
+  // The engine adds the Google Play badge under the hero buttons of the home page for a visitor from a country of the
+  // app. Here: Google's own badge file in the visitor's language (data-langs), the close button (remembered in this
+  // browser), and no badge on an iPad that asks for desktop pages (it says "Macintosh", and a Mac has no touch screen).
+  function setupAppBar() {
+    var bar = document.querySelector('[data-app-bar]');
+    if (!bar) return;
+    var ipad = /Macintosh/.test(navigator.userAgent || '') && navigator.maxTouchPoints > 1;
+    if (ipad || read('app-bar', '') === 'closed') {
+      if (bar.parentNode) bar.parentNode.removeChild(bar);
+      return;
+    }
+    var img = bar.querySelector('[data-app-badge]');
+    var base = String(lang).split('-')[0];
+    if (img && (img.getAttribute('data-langs') || '').split(' ').indexOf(base) >= 0) {
+      img.src = img.getAttribute('src').replace(/google-play-[a-z]+\.png/, 'google-play-' + base + '.png');
+    }
+    var close = bar.querySelector('[data-app-close]');
+    if (!close) return;
+    close.hidden = false;
+    close.addEventListener('click', function () {
+      write('app-bar', 'closed');
+      if (bar.parentNode) bar.parentNode.removeChild(bar);
+    });
+  }
+
   // ---------- Photo gallery of a product page (lessons L206, src/pages/product.js) ----------
   // The server writes the main photo; the others carry only data-src (and a 1x1 image), so nothing of them is fetched until
   // the visitor swipes, clicks or moves the focus into the gallery. Swiping is the browser's own (CSS scroll-snap); the
@@ -1000,6 +1027,7 @@
   // Language first, so every text the other parts write is already in the visitor's language.
   loadLanguage().then(function () {
     relabelGalleries();
+    setupAppBar();
     loadCurrency();
     setupPrefs();
     setupCart();

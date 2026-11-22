@@ -42,7 +42,7 @@ test('L162: the 13 sites have Polski in the menu (after Nederlands), PLN, and a 
     assert.equal(codes.indexOf('pl-PL'), codes.indexOf('nl-NL') + 1, `${s}: after Nederlands`);
     assert.equal(codes.length, 12, `${s}: the 11 languages of the Hub and Polish`);
     assert.deepEqual(site.displayCurrencies, ['GBP', 'EUR', 'PLN', 'ALL', 'RON', 'RUB'], s);
-    assert.match(site.assetVersion, new RegExp(`^(2026-11-15-${s}-pl|2026-11-16-${s}-lang|2026-11-17-${s}-legal|2026-11-19-${s}-popup|2026-11-20-${s}-photos|2026-11-21-${s}-au)-\\d+$`), `${s}: browsers load the new site.js (L31)`);
+    assert.match(site.assetVersion, new RegExp(`^(2026-11-15-${s}-pl|2026-11-16-${s}-lang|2026-11-17-${s}-legal|2026-11-19-${s}-popup|2026-11-20-${s}-photos|2026-11-21-${s}-au|2026-11-25-${s}-app)-\\d+$`), `${s}: browsers load the new site.js (L31)`);
   }
   assert.match(read('src/pages/layout.js'), /PLN: 'zł PLN'/, 'the currency menu says zł PLN');
 });

@@ -13,3 +13,4 @@ assets/fonts/OFL.txt
 assets/img/*.webp
 assets/flags/*.svg
 assets/i18n/*.json
+assets/app/google-play-*.png

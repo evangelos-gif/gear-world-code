@@ -16,7 +16,8 @@ import { offersIndexPage, retailerOffersPage, OFFERS_PATH } from './pages/offers
 import { findPromo, promoViewSite } from './lib/promos.js';
 import { campaignRefs } from './lib/ads.js';
 import { infoPage, infoPaths, notFoundPage, errorPage, dealUpdatesPage } from './pages/info.js';
-import { useSiteAssets, useRates, ukBarHtml, browseBarHtml } from './pages/layout.js';
+import { useSiteAssets, useRates, ukBarHtml, browseBarHtml, appBarHtml } from './pages/layout.js';
+import { appBarWanted } from './lib/app.js';
 import { sitemapIndex, sitemapStatic, sitemapProducts, robotsTxt, SITEMAP_CHUNK } from './seo.js';
 import { posterScan } from './lib/poster-scan.js';
 import { guidePage, guidesIndexPage, findGuide, guideProductIds, listedGuides, allGuideProductIds, GUIDES_PATH } from './pages/guides.js';
@@ -739,6 +740,11 @@ export function createWorker(site) {
       // country with a language of the sites): the page names it, after the page cache. Google's crawlers count as the UK
       // (English, as before).
       if (request.method === 'GET') response = await withCountryLanguage(response, readsEnglish(request) ? '' : countryLanguage(site, requestCountry(request, new URL(request.url)), request.headers.get('accept-language')));
+      // The Gear World app on Google Play (owner, 22 Nov 2026, lessons L218): the badge under the hero buttons of the home
+      // page, for a visitor from a country of the app and not on an iPhone or iPad. Added after the page cache, like the
+      // country bar, so no cached copy carries it. Google's crawlers count as the UK, so they see it too.
+      if (request.method === 'GET' && response.status === 200 && new URL(request.url).pathname === '/' &&
+        appBarWanted(requestCountry(request, new URL(request.url)), request.headers.get('user-agent'))) response = await withAppBar(response, appBarHtml(site));
       // The bar for a visitor outside the UK who gets the UK view or the all view (lessons L107, owner's option A; L151):
       // added to the answer after the page cache, never into a cached copy, so it costs no D1 read and no extra cache copy.
       const browsing = browseCountry(request);
@@ -778,6 +784,25 @@ export async function withUkBar(response, barHtml = null) {
   const text = await response.text();
   const i = text.indexOf(MASTHEAD);
   return new Response(i < 0 ? text : text.slice(0, i) + bar + text.slice(i), { status: response.status, statusText: response.statusText, headers });
+}
+
+// The app row of the home page (lessons L218): right after the hero buttons (<p class="hero-actions">), so on a phone the
+// search box and "Browse by category" stay where they were (L30). In the Worker: HTMLRewriter, streaming. Elsewhere (the
+// Node tests): the same insertion on the text. Like the country bar, the copy with the row is private.
+const HERO_ACTIONS = '<p class="hero-actions">';
+export async function withAppBar(response, barHtml) {
+  if (!response || !response.body || !barHtml || !/^text\/html/i.test(response.headers.get('Content-Type') || '')) return response;
+  const headers = new Headers(response.headers);
+  if (!/no-store|no-cache/i.test(headers.get('Cache-Control') || '')) headers.set('Cache-Control', 'private, max-age=60');
+  headers.delete('Content-Length');
+  if (typeof HTMLRewriter === 'function') {
+    const out = new HTMLRewriter().on('p.hero-actions', { element(e) { e.after(barHtml, { html: true }); } }).transform(response);
+    return new Response(out.body, { status: response.status, statusText: response.statusText, headers });
+  }
+  const text = await response.text();
+  const i = text.indexOf(HERO_ACTIONS);
+  const end = i < 0 ? -1 : text.indexOf('</p>', i);
+  return new Response(end < 0 ? text : text.slice(0, end + 4) + barHtml + text.slice(end + 4), { status: response.status, statusText: response.statusText, headers });
 }
 
 // Lessons L162 (Manager, 15 Nov 2026: Poland is open and the first country outside the UK to be promoted) and L175
