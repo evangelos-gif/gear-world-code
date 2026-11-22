@@ -247,12 +247,12 @@ import groupSite from '../../sites/group/site.config.js';
 const GROUP_STATS = { products: 100, retailers: 2, sitesCounted: 1, ukProducts: 100, countries: { GB: { products: 100, retailers: 2, sites: [] } } };
 const groupRow = page => (page.match(/<div class="app-bar">[\s\S]*?<\/div>/) || [''])[0];
 
-test('L218 Group: the English badge in the hero, after the facts, for the app\'s countries only and never on an iPhone or iPad', () => {
+test('L218 Group: the English badge in the hero, before the facts, for the app\'s countries only and never on an iPhone or iPad', () => {
   for (const cc of APP_COUNTRIES) {
     const page = groupPage(groupSite, GROUP_STATS, cc, DESKTOP);
     const row = groupRow(page);
     assert.ok(row, cc);
-    assert.ok(page.indexOf('<ul class="facts">') < page.indexOf('<div class="app-bar">'), `${cc}: after the facts`);
+    assert.ok(page.lastIndexOf('<p class="lede">') < page.indexOf('<div class="app-bar">') && page.indexOf('<div class="app-bar">') < page.indexOf('<ul class="facts">'), `${cc}: after the text, before the facts (near the top on a phone)`);
     assert.ok(page.indexOf('<div class="app-bar">') < page.indexOf('</div></section>'), `${cc}: in the hero`);
     assert.ok(row.includes(`href="${APP_PLAY_URL}&amp;utm_source=gearworld-group&amp;utm_medium=site&amp;utm_campaign=app_bar"`), `${cc}: the link with utm`);
     assert.ok(row.includes(`src="/assets/app/google-play-en.png?v=${groupSite.assetVersion}"`), `${cc}: Google's English badge`);
@@ -286,6 +286,7 @@ test('L218 Group Worker: the row from the visitor\'s country and browser, the ho
   assert.match(css, /\.app-badge img \{ display: block; height: 60px; width: auto; \}/);
   assert.match(css, /@supports \(-webkit-touch-callout: none\) \{ \.app-bar \{ display: none; \} \}/, 'hidden on an iPad that asks for desktop pages');
   assert.match(read('src/group.js'), /sets no advertising, analytics or tracking cookies and stores nothing on your device/, 'still true: no close button, nothing stored');
+  assert.ok(read('tools/group-site.ps1').includes(`if ($r.Content.Contains('class="app-bar"'))`), 'the Group tool looks for the row after the deploy');
 });
 
 test('L218: the badge file for a page language (Albanian and the rest: English)', () => {

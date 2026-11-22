@@ -83,7 +83,7 @@ test('the site code and settings: no shop or partner wording in what pages show 
     assert.ok(!/icon: 'cart'/.test(readFileSync(`sites/${c}/site.config.js`, 'utf8')), `${c}: no category with the cart icon`);
   }
   // The gearworldgroup.com page speaks to retailers of "your own promotions", never "official".
-  for (const page of [groupPage(group, { products: 1000, retailers: 10 }), ...legalPaths().map(p => legalPage(group, p))]) {
+  for (const page of [groupPage(group, { products: 1000, retailers: 10 }), groupPage(group, { products: 1000, retailers: 10 }, 'GB', ''), ...legalPaths().map(p => legalPage(group, p))]) {
     assert.ok(!/\bofficial\b|\bpartners?\b|sponsored/i.test(page.replace(/rel="[^"]*"/g, '')), 'group page: no official, partner or sponsored');
   }
 });

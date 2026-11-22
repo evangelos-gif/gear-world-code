@@ -215,6 +215,10 @@ switch ($Step) {
                 try {
                     $r = Invoke-WebRequest -UseBasicParsing -Uri ('https://{0}/' -f $Domain) -TimeoutSec 20
                     Say ('  https://{0}/ απαντά {1}' -f $Domain, $r.StatusCode)
+                    # L218: the row of the Gear World app, as the owner sees it from the UK (a country of the app). Its
+                    # link is never opened. From a country without the app the row is rightly missing.
+                    if ($r.Content.Contains('class="app-bar"')) { Say '  Γραμμή «Gear World app» με το κουμπί Google Play (L218), από τη χώρα σου: ΕΝΤΑΞΕΙ' 'Green' }
+                    else { Say '  Γραμμή «Gear World app» (L218): δεν φαίνεται από τη χώρα σου: ΠΡΟΒΛΗΜΑ αν είσαι σε UK, Ελλάδα, Κύπρο, Πολωνία ή ΗΠΑ' 'Yellow' }
                     $ok = $true
                     break
                 } catch { Start-Sleep -Seconds 15 }

@@ -146,7 +146,10 @@ test('gearworldgroup.com: the owner\'s headline, structured data as it really is
   assert.ok(home.includes('<p class="lede">Each product shows the retailer that sells it and where that retailer delivers.</p>'));
   assert.ok(home.includes('<li>Product pages with structured data for search engines: the lowest and highest price across retailers, the number of retailers, and the GTIN when the feed has one.</li>'));
   assert.ok(!/structured data \(price, stock|price, stock, GTIN/.test(home), 'stock is not in the structured data (AggregateOffer, L101)');
-  for (const page of [home, ...legalPaths().map(p => legalPage(group, p))]) {
+  // L218: also the UK view, with the row of the Gear World app.
+  const ukHome = groupPage(group, { products: 1000, retailers: 10, sitesCounted: 1, countries: { GB: { products: 1000, retailers: 10, sites: [] } } }, 'GB', '');
+  assert.ok(ukHome.includes('class="app-bar"'), 'the UK view has the app row');
+  for (const page of [home, ukHome, ...legalPaths().map(p => legalPage(group, p))]) {
     assert.ok(!/UK shoppers|UK retailers|for UK/.test(page), 'no "UK shoppers" or "UK retailers"');
   }
 });

@@ -409,7 +409,7 @@ ${coming(site, cc) ? COMING_TEXT + '.' : ''}</p>
 }
 
 // The Gear World app on Google Play (owner, 22 Nov 2026, lessons L218: "on the Group and Mega Stores too"): the official
-// English badge in the hero, only for a visitor from a country of the app and never on an iPhone or iPad (the user agent
+// English badge in the hero (before the facts, so it is near the top on a phone), only for a visitor from a country of the app and never on an iPhone or iPad (the user agent
 // here, the CSS for an iPad that asks for desktop pages). No close button: this page has no script and stores nothing.
 function appRow(site) {
   return html`<div class="app-bar">
@@ -433,8 +433,8 @@ export function groupPage(site, stats, country = '', userAgent = '') {
   <h1>Independent product search and price-comparison sites</h1>
   <p class="lede">Each product shows the retailer that sells it and where that retailer delivers.</p>
   <p class="lede">${site.name} runs ${site.sites.length} themed price comparison sites and a shared search hub. We list retailers' products from their affiliate product feeds, so shoppers can compare prices in one place and then buy direct from the retailer.</p>
-  <ul class="facts">${facts.map(f => html`<li>${f}</li>`)}</ul>
   ${appBarWanted(country, userAgent) ? appRow(site) : ''}
+  <ul class="facts">${facts.map(f => html`<li>${f}</li>`)}</ul>
   ${hasNumbers(stats) ? yourCountry(site, stats, country) : ''}
 </div></section>
 
