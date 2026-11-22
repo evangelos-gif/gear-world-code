@@ -118,7 +118,7 @@ test('L211: other pages, other methods and other answers are not touched', async
   assert.equal(await withMegaCountry(req('/', { cc: 'GR' }), json), json);
   const missing = new Response('no', { status: 404, headers: { 'Content-Type': 'text/html' } });
   assert.equal(await withMegaCountry(req('/black-friday/', { cc: 'GR' }), missing), missing);
-  assert.ok(WORKER.includes('await withCountryBar(request, await withMegaCountry(request, await hubFetch(request, env, ctx)))'), 'the Worker uses it on every answer');
+  assert.ok(WORKER.includes('await withCountryBar(request, await withAppCountry(request, await withMegaCountry(request, await hubFetch(request, env, ctx))))'), 'the Worker uses it on every answer (L218: then the Google Play row)');
 });
 
 test('L211: /black-friday/ from Greece: no UK retailer or code, "Nothing listed for your country yet." and Mega Stores named', async () => {

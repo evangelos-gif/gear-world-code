@@ -53,7 +53,7 @@ test('L188: the home page links to /black-friday/ in 11 languages, and the sitem
   const home = read('public/index.html');
   assert.ok(home.includes('<span data-gwh2="bfLead">Black Friday, 27 Nov:</span>'));
   assert.ok(home.includes('<a href="/black-friday/" data-gwh2="bfLink">dates and discount codes</a>'));
-  assert.ok(/\/hub-v2\.js\?v=(20261118-bf1|20261123-mega1)/.test(home)); // L192: a later version (the Mega Stores bar)
+  assert.ok(/\/hub-v2\.js\?v=(20261118-bf1|20261123-mega1|20261125-app1)/.test(home)); // L192: a later version (the Mega Stores bar)
   const js = read('public/hub-v2.js');
   for (const key of ['bfLead', 'bfLink']) {
     const m = js.match(new RegExp(`\\n\\s+${key}: (\\[[^\\n]+\\]),`));

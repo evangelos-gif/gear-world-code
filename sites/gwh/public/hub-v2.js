@@ -75,6 +75,10 @@
     // The Mega Stores bar above everything (owner, 18/11/2026, lessons L192): its line, and the sentence that gives screen
     // readers the store names once ({name}: the names, never translated). "Mega Stores" itself is a name (translate="no").
     megaLine: ["Big stores in one place →", "Μεγάλα καταστήματα σε ένα μέρος →", "Große Händler an einem Ort →", "Les grandes enseignes au même endroit →", "Grandi negozi in un unico posto →", "Grandes tiendas en un solo lugar →", "Grandes lojas num só lugar →", "Grote winkels op één plek →", "Dyqane të mëdha në një vend →", "Magazine mari într-un singur loc →", "Крупные магазины в одном месте →"],
+    // The Gear World app on Google Play (lessons L218): its line, the badge link (Google's own words in each language) and the close button.
+    appLine: ["Search every Gear World from your phone.", "Αναζητήστε σε κάθε Gear World από το κινητό σας.", "Durchsuchen Sie jede Gear World mit Ihrem Handy.", "Cherchez dans chaque Gear World depuis votre téléphone.", "Cerca in ogni Gear World dal tuo telefono.", "Busca en todos los Gear World desde tu móvil.", "Pesquise em todos os Gear World a partir do seu telemóvel.", "Zoek in elke Gear World vanaf je telefoon.", "Kërko në çdo Gear World nga telefoni yt.", "Căutați în fiecare Gear World de pe telefon.", "Ищите во всех Gear World прямо с телефона."],
+    appBadge: ["Get it on Google Play", "Αποκτήστε το στο Google Play", "Jetzt bei Google Play", "Disponible sur Google Play", "Disponibile su Google Play", "Disponible en Google Play", "Obter no Google Play", "Ontdek het op Google Play", "Merre në Google Play", "Descarcă de pe Google Play", "Скачать из Google Play"],
+    appClose: ["Close", "Κλείσιμο", "Schließen", "Fermer", "Chiudi", "Cerrar", "Fechar", "Sluiten", "Mbyll", "Închide", "Закрыть"],
     megaNames: ["Stores: {name}.", "Καταστήματα: {name}.", "Händler: {name}.", "Enseignes : {name}.", "Negozi: {name}.", "Tiendas: {name}.", "Lojas: {name}.", "Winkels: {name}.", "Dyqanet: {name}.", "Magazine: {name}.", "Магазины: {name}."],
     dealsTitle: ["This week's deals", "Προσφορές της εβδομάδας", "Angebote der Woche", "Les offres de la semaine", "Le offerte della settimana", "Ofertas de la semana", "Ofertas da semana", "Aanbiedingen van de week", "Ofertat e javës", "Ofertele săptămânii", "Предложения недели"],
     dealsSub: ["From retailers listed on Gear World, each with its end date.", "Από καταστήματα που εμφανίζονται στο Gear World, η καθεμία με ημερομηνία λήξης.", "Von Händlern, die auf Gear World gelistet sind, jedes mit Enddatum.", "De marchands présents sur Gear World, chacune avec sa date de fin.", "Da negozi presenti su Gear World, ognuna con la sua data di fine.", "De tiendas que aparecen en Gear World, cada una con su fecha de fin.", "De lojas presentes na Gear World, cada uma com a sua data de fim.", "Van winkels die op Gear World staan, elk met een einddatum.", "Nga dyqane që shfaqen në Gear World, secila me datën e mbarimit.", "De la magazine prezente pe Gear World, fiecare cu data de încheiere.", "От магазинов, представленных на Gear World, у каждого указан срок."],
@@ -869,8 +873,38 @@
     if (box) { box.hidden = true; box.innerHTML = ""; }
   }
 
+  // ---------- the Gear World app on Google Play (owner, 22 Nov 2026, lessons L218)
+  // The row is in the page, hidden. The Worker takes it out for a visitor from a country where the app is not on Google
+  // Play (worker.js GWH-APP-COUNTRY); here it shows, unless this is an iPhone or iPad (no App Store version yet; an iPad
+  // that asks for desktop pages says "Macintosh" and has a touch screen) or the visitor closed it before. The badge is
+  // Google's own file in the page's language; Albanian keeps English (Google's Albanian file still has the old logo).
+  const APP_BADGES = ["el", "de", "fr", "it", "es", "pt", "nl", "ro", "ru"];
+  const appleMobile = () => {
+    const ua = String(navigator.userAgent || "");
+    return /\b(iPhone|iPad|iPod)\b/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
+  };
+  const appClosed = () => { try { return localStorage.getItem("gwh2-app-closed") === "1"; } catch (_) { return false; } };
+  function appBadge() {
+    const img = document.querySelector("[data-gwh2-badge]");
+    if (!img) return;
+    const base = locale().split("-")[0];
+    img.src = img.getAttribute("src").replace(/google-play-[a-z]+\.png/, `google-play-${APP_BADGES.includes(base) ? base : "en"}.png`);
+  }
+  function setupApp() {
+    const row = document.getElementById("gwh2App");
+    if (!row) return;
+    if (appleMobile() || appClosed()) { row.remove(); return; }
+    row.hidden = false;
+    const close = document.getElementById("gwh2AppClose");
+    if (close) close.addEventListener("click", () => {
+      try { localStorage.setItem("gwh2-app-closed", "1"); } catch (_) { /* private mode: closed for this page */ }
+      row.remove();
+    });
+  }
+
   function renderAll() {
     applyTexts();
+    appBadge();
     renderPopular();
     renderCampaigns();
     renderDeals();
@@ -879,6 +913,7 @@
 
   function init() {
     if (!document.body || !document.getElementById("gwh2Campaigns")) return;
+    setupApp();
     renderAll();
     loadDeals();
     setupPhoto();

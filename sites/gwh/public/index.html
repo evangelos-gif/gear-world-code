@@ -7,7 +7,7 @@
   <meta name="theme-color" content="#08111f">
   <title>Gear World Hub – Gear, Gifts &amp; Deals From Every Gear World</title>
   <link rel="canonical" href="https://gearworldhub.com/">
-  <link rel="stylesheet" href="/hub-v2.css?v=20261123-mega1">
+  <link rel="stylesheet" href="/hub-v2.css?v=20261125-app1">
 </head>
 
 <!-- GWH-HUB-V2 (27/10/2026): the "Combination" Hub. Search first, campaigns with arrows, 13 worlds (Biker Gear World and Gaming Gear World added 31/10/2026, Pets Gear World 1/11/2026), gift finder,
@@ -127,6 +127,17 @@
             <span data-gwh2="popular">Popular:</span>
             <div class="gwh2-chips" id="gwh2Popular"></div>
           </div>
+
+          <!-- GWH-APP-START The Gear World app on Google Play (owner, 22 Nov 2026, lessons L218): Google's own badge (never
+               redrawn) under the search. Hidden in the file: hub-v2.js shows it unless this is an iPhone or iPad (no App
+               Store version yet) or the visitor closed it. The Worker takes it out for a visitor from a country where the
+               app is not on Google Play (worker.js GWH-APP-COUNTRY), so the UK page stays the file itself. -->
+          <div class="gwh2-app" id="gwh2App" hidden>
+            <p class="gwh2-app-text"><span class="gwh2-app-name" translate="no">Gear World app</span> <span data-gwh2="appLine">Search every Gear World from your phone.</span></p>
+            <a class="gwh2-app-badge" href="https://play.google.com/store/apps/details?id=com.gearworldhub.app&amp;utm_source=gearworld-hub&amp;utm_medium=site&amp;utm_campaign=app_bar" target="_blank" rel="noopener" data-gwh2-aria="appBadge" aria-label="Get it on Google Play"><img src="/play/google-play-en.png?v=20261125-app1" data-gwh2-badge alt="" width="646" height="250" decoding="async"></a>
+            <button type="button" class="gwh2-app-close" id="gwh2AppClose" data-gwh2-aria="appClose" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+          </div>
+          <!-- GWH-APP-END -->
         </div>
 
         <aside class="gwh2-campaigns" id="gwh2Campaigns" data-gwh2-aria="campaigns" aria-label="Campaigns"></aside>
@@ -513,6 +524,6 @@
   <script src="/analytics.js?v=20261103-ads2"></script>
 <script src="/gear-world-voice-v2.js" defer></script>
 <script src="/gear-world-camera.js?v=20261120-search1" defer></script>
-<script src="/hub-v2.js?v=20261123-mega1" defer></script>
+<script src="/hub-v2.js?v=20261125-app1" defer></script>
 </body>
 </html>

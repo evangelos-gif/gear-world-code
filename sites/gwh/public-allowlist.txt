@@ -79,3 +79,13 @@ mega/my-tool-shed.png
 mega/pchub-uk.png
 mega/gs-workwear.jpg
 mega/back-to-the-office.png
+play/google-play-en.png
+play/google-play-el.png
+play/google-play-de.png
+play/google-play-fr.png
+play/google-play-it.png
+play/google-play-es.png
+play/google-play-pt.png
+play/google-play-nl.png
+play/google-play-ro.png
+play/google-play-ru.png

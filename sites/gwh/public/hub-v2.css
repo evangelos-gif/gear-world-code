@@ -122,6 +122,17 @@ svg{fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-lin
 .gwh2-popular{display:flex;flex-wrap:wrap;align-items:center;gap:8px;}
 .gwh2-popular > span{color:var(--muted);font-size:14px;}
 
+/* The Gear World app on Google Play (lessons L218): Google's own badge under the search, with a close button. The words
+   say what it is; nothing in it moves. */
+.gwh2-app{display:flex;flex-wrap:wrap;align-items:center;gap:6px 14px;margin-top:14px;}
+.gwh2-app-text{flex-basis:100%;margin:0;color:var(--soft);font-size:15px;line-height:1.4;}
+.gwh2-app-name{margin-right:4px;color:var(--accent);font-weight:800;}
+.gwh2-app-badge{display:inline-flex;flex:none;border-radius:10px;}
+.gwh2-app-badge img{display:block;width:auto;height:60px;}
+.gwh2-app-close{flex:none;width:44px;height:44px;padding:0;border:1px solid var(--line-strong);border-radius:50%;background:transparent;color:var(--text);font:inherit;font-size:22px;line-height:1;cursor:pointer;}
+.gwh2-app-close:hover,.gwh2-app-close:focus-visible{border-color:var(--accent);}
+@media (max-width:599px){.gwh2-app-badge img{height:54px;}.gwh2-app-text{font-size:14px;}}
+
 /* campaigns: one slide, arrows only */
 .gwh2-campaigns{border:1px solid rgba(255,180,0,.35);border-radius:20px;background:var(--card);overflow:hidden;min-width:0;}
 .gwh2-slide{display:flex;flex-direction:column;height:100%;}

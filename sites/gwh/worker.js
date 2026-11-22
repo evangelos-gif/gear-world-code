@@ -1803,6 +1803,36 @@ export async function withMegaCountry(request, response, hidden = MEGA_HIDDEN_NE
   return new Response(change(text, country, hidden), { status: response.status, headers });
 }
 
+// GWH-APP-COUNTRY (owner, 22 Nov 2026, lessons L218: "we got the app, put it on the page so people can download it"): the
+// home page has the row of the Gear World app (Google's own "Get it on Google Play" badge) between <!-- GWH-APP-START -->
+// and <!-- GWH-APP-END -->, hidden until hub-v2.js shows it. The app is on Google Play only in APP_COUNTRIES (production
+// 1.0.1, 22 Nov 2026), so for a visitor from any other country the row is taken out here: a link that ends at "not
+// available in your country" helps no one. The UK answer stays the file itself (L119, the Hub tool compares it).
+export const APP_COUNTRIES = ["GB", "GR", "CY"];
+export const APP_START = "<!-- GWH-APP-START";
+export const APP_END = "<!-- GWH-APP-END -->";
+export function withoutAppRow(text) {
+  const i = text.indexOf(APP_START);
+  const j = i < 0 ? -1 : text.indexOf(APP_END, i);
+  if (j < 0) return text;
+  // The row's own line goes too (its indent before, the line break after), so the page reads as if it was never there.
+  const start = text.lastIndexOf("\n", i) + 1;
+  const end = j + APP_END.length + (text[j + APP_END.length] === "\n" ? 1 : 0);
+  return text.slice(0, /^\s*$/.test(text.slice(start, i)) ? start : i) + text.slice(end);
+}
+export async function withAppCountry(request, response) {
+  if (request.method !== "GET") return response;
+  const path = new URL(request.url).pathname;
+  if (path !== "/" && path !== "/index.html") return response;
+  if (!response || response.status !== 200 || !response.body || !/^text\/html/i.test(String(response.headers.get("Content-Type") || ""))) return response;
+  if (APP_COUNTRIES.includes(megaCountry(request))) return response;
+  const headers = new Headers(response.headers);
+  headers.set("Cache-Control", "private, max-age=60");
+  headers.delete("ETag");
+  headers.delete("Content-Length");
+  return new Response(withoutAppRow(await response.text()), { status: response.status, headers });
+}
+
 // GWH-SITE-VERIFICATION (owner, 13 Nov 2026, lessons L119): Mitgo checks that gearworldhub.com is ours by the tag
 // <meta name="mitgo-verification" content="<code>"> between <head> and </head> of the home page. The code has the form of
 // a UUID, and UUIDs never go into the repo (CLAUDE.md), so it is the Worker secret MITGO_VERIFICATION (set by
@@ -1852,7 +1882,8 @@ export default {
     // GWH-SITE-VERIFICATION (L119): the Mitgo tag in the <head> of the home page when its secret is set.
     // GWH-COUNTRY-LANGUAGE (L175): the language of the visitor's country on <html> of the home page.
     // GWH-MEGA-COUNTRY (L211): the Mega Stores bar and /black-friday/ for the visitor's country.
-    return withHubHeaders(await withSiteVerification(request, env, await withCountryLanguage(request, await withCountryBar(request, await withMegaCountry(request, await hubFetch(request, env, ctx))))));
+    // GWH-APP-COUNTRY (L218): the Google Play row of the home page only for a visitor from a country of the app.
+    return withHubHeaders(await withSiteVerification(request, env, await withCountryLanguage(request, await withCountryBar(request, await withAppCountry(request, await withMegaCountry(request, await hubFetch(request, env, ctx)))))));
   },
   // GWH-MAILERLITE: the cron (wrangler.toml [triggers], every 10 minutes) sends sign-ups that are still 'pending'.
   async scheduled(controller, env, ctx) {

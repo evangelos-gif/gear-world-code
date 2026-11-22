@@ -148,8 +148,8 @@ test('L166: the home page has the Stores card after the 13 worlds, in 11 languag
   assert.match(index, /<a class="gwh-quick-world gwh2-stores-card" href="\/stores\/" data-world="STORES">/);
   assert.match(index, /src="\/hub-stores\.jpg"/);
   assert.ok(!/gwh-image-world-(title|cta|description)[^>]*data-gwh2="stores/.test(index), 'own classes: the world cards are counted by class');
-  assert.match(index, /\/hub-v2\.css\?v=(20261116-stores|20261120-popup|20261123-mega)\d+/);
-  assert.match(index, /\/hub-v2\.js\?v=(20261118-bf1|20261123-mega1)/); // L174, L188, L192: the Featured pick, the language of the links, the Black Friday link, the Mega Stores bar
+  assert.match(index, /\/hub-v2\.css\?v=(20261116-stores|20261120-popup|20261123-mega|20261125-app)\d+/);
+  assert.match(index, /\/hub-v2\.js\?v=(20261118-bf1|20261123-mega1|20261125-app1)/); // L174, L188, L192: the Featured pick, the language of the links, the Black Friday link, the Mega Stores bar
   const hjs = readFileSync(`${PUB}/hub-v2.js`, 'utf8');
   for (const key of ['storesTitle', 'storesDesc', 'storesCta']) {
     const arr = JSON.parse(hjs.match(new RegExp(`${key}: (\\[[^\\]]+\\])`))[1]);

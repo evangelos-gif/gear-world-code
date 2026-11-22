@@ -215,3 +215,16 @@ Live από 7/11/2026 (commit f4c8c35· το `live-baseline.txt` ενημερώ�
 - **Σελίδα:** πάνω από τα αποτελέσματα «Ψάχνουμε: tablet · έως £200 · για παιδιά — Αναζήτηση ακριβώς για «…»» σε 11 γλώσσες (app.js, translations.js)· όχι SALE, % OFF, αστεράκια ή Sponsored (L107).
 - **Απόρρητο:** η σελίδα απορρήτου λέει ότι αναζήτηση γραμμένη ως πρόταση μπορεί να διαβαστεί από το Cloudflare Workers AI (11 γλώσσες, 17 November 2026· live 17/11 21:19, νωρίτερα από την Παρασκευή κατά αίτηση του Evangelos).
 - **Έλεγχοι:** `tests/worker/gwh-understand.test.mjs`· `node tools/gwh-search-check.mjs --replay --sentences`· στο preview το `gwh-hub-v2.ps1` ελέγχει 3 αναζητήσεις (tablet έως £200, perfume for her, kettle όπως γράφτηκε). Φράσεις: `ΕΓΚΡΙΝΩ HUB SEARCH PREVIEW`, `ΕΓΚΡΙΝΩ HUB SEARCH LIVE`, `ΕΓΚΡΙΝΩ HUB REMOVE PREVIEW`.
+
+## Η εφαρμογή Gear World στο Google Play (L218, 22/11/2026)
+Ο owner: «πήραμε το app, να το βάλουμε στη σελίδα να το κατεβάζει ο κόσμος» — «στην αρχική και στο πάνω μέρος της σελίδας σε όλα τα sites».
+
+| Αρχείο | Τι άλλαξε |
+|---|---|
+| `public/index.html` | Κάτω από την αναζήτηση (μετά τα «Popular») η γραμμή «Gear World app» με το επίσημο κουμπί «Get it on Google Play» προς τη σελίδα της εφαρμογής (`utm_source=gearworld-hub`), ανάμεσα στα `<!-- GWH-APP-START` και `<!-- GWH-APP-END -->`, κρυφή (`hidden`). Νέο `?v=20261125-app1` για `hub-v2.css` και `hub-v2.js` (L31) |
+| `public/hub-v2.js` | Δείχνει τη γραμμή, εκτός από iPhone/iPad (η εφαρμογή δεν είναι ακόμα στο App Store) και αν ο επισκέπτης την έκλεισε (`gwh2-app-closed`). Το κουμπί είναι το αρχείο της Google στη γλώσσα της σελίδας· τα αλβανικά μένουν αγγλικά. Κείμενα `appLine`, `appBadge`, `appClose` σε 11 γλώσσες |
+| `public/hub-v2.css` | Η εμφάνιση: κουμπί 60 px (κινητό 54 px), ✕ 44 px |
+| `public/play/google-play-*.png` | Τα επίσημα PNG της Google (en, el, de, fr, it, es, pt, nl, ro, ru), χωρίς καμία αλλαγή |
+| `worker.js` | `GWH-APP-COUNTRY` (`withAppCountry`): η εφαρμογή είναι στο Google Play μόνο σε UK, Ελλάδα, Κύπρο (`APP_COUNTRIES`), οπότε για κάθε άλλη χώρα η γραμμή βγαίνει από τη σελίδα. Η σελίδα του UK μένει το ίδιο το αρχείο (L119), άρα οι συγκρίσεις του `tools/gwh-hub-v2.ps1` δουλεύουν όπως πριν. Νέα χώρα της εφαρμογής = νέα γραμμή στο `APP_COUNTRIES` (και στο `src/lib/app.js` των sites) |
+
+Το `tools/gwh-hub-v2.ps1` ελέγχει μετά το preview και το live ότι η γραμμή υπάρχει από UK και Ελλάδα και όχι από ΗΠΑ. Έλεγχοι: `tests/worker/gwh-app.test.mjs`.
