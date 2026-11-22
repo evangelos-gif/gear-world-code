@@ -243,7 +243,7 @@ export function productPage(site, product, category, similar, offers = []) {
 
   return page(site, {
     // Brand first and the model number in it, where the feed's data can be trusted (lessons L217).
-    title: `${titleName(product)} | ${price} | ${site.name}`,
+    title: `${titleName(product, site)} | ${price} | ${site.name}`,
     description: metaDescription,
     path,
     ogType: 'product',
