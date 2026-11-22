@@ -79,6 +79,15 @@ export function parseDaisyconReport(text) {
   }
   return progs;
 }
+// Rakuten (lessons L217): the advertiser number (MID) and name of each catalogue, from the sample or download lines.
+export function parseRakutenReport(text) {
+  const mids = new Map();
+  for (const l of lines(text)) {
+    const m = l.match(/^MID (\d{2,10}) (.+?): (?:μορφή (?:txt|xml)|OK, (\d+) προϊόντα)/);
+    if (m) mids.set(m[1], { id: m[1], name: m[2], products: m[3] ? Number(m[3]) : (mids.get(m[1]) || {}).products });
+  }
+  return mids;
+}
 // Lines a person has to see: a problem (🔴) or a warning (🟡) of any download.
 export function problemLines(text, max = 25) {
   const out = lines(text).filter(l => /🔴|🟡|ΠΡΟΒΛΗΜΑ|ΠΡΟΣΟΧΗ/.test(l)).map(l => l.trim().slice(0, 200));
@@ -113,6 +122,7 @@ export async function inventory({ candidates, archive, reports = [], maxRows = 1
   const aw = { listing: new Map(), regions: new Map(), notInList: new Set() };
   const cj = { joined: [], counts: new Map() };
   const dc = new Map();
+  const rk = new Map();
   const probs = [];
   for (const r of reports) {
     const kind = r.name.replace(/_\d{8}_\d{6}.*$/, '');
@@ -125,6 +135,8 @@ export async function inventory({ candidates, archive, reports = [], maxRows = 1
       const c = parseCjReport(r.text);
       for (const j of c.joined) if (!cj.joined.some(x => x.id === j.id)) cj.joined.push(j);
       for (const [k, v] of c.counts) cj.counts.set(k, v);
+    } else if (kind === 'RAKUTEN_FEED_DOWNLOAD') {
+      for (const [k, v] of parseRakutenReport(r.text)) rk.set(k, { ...(rk.get(k) || {}), ...v });
     } else if (kind === 'DAISYCON_FEED_DOWNLOAD') {
       for (const [k, v] of parseDaisyconReport(r.text)) dc.set(k, { ...(dc.get(k) || {}), ...v });
     }
@@ -144,6 +156,10 @@ export async function inventory({ candidates, archive, reports = [], maxRows = 1
       const hits = cj.joined.filter(j => nameMatches(c.name, j.name)).slice(0, 3);
       found.push({ c, hits: hits.map(j => `${j.id} ${j.name} | ${j.status}${cj.counts.has(j.id) ? ` | ${cj.counts.get(j.id)} προϊόντα` : ''}`) });
       ids = hits.map(j => j.id);
+    } else if (!ids.length && c.net === 'rakuten') {
+      const hits = [...rk.values()].filter(e => nameMatches(c.name, e.name)).slice(0, 3);
+      found.push({ c, hits: hits.map(e => `MID ${e.id} ${e.name}${e.products ? ` | ${e.products} προϊόντα` : ''}`) });
+      ids = hits.map(e => e.id);
     }
     for (const id of ids) work.push({ ...c, id });
     if (!ids.length) work.push({ ...c, id: '' });
@@ -156,7 +172,7 @@ export async function inventory({ candidates, archive, reports = [], maxRows = 1
     const files = filesOf(names, c.net, c.id);
     if (!files.length) {
       let why = '';
-      if (c.net === 'rakuten') why = 'Rakuten: μετά τη διόρθωση του εργαλείου λήψης';
+      if (c.net === 'rakuten' && !c.id) why = 'Rakuten: δεν βρέθηκε κατάλογος με αυτό το όνομα στον server';
       else if (c.net === 'admitad') why = 'Admitad: δεν υπάρχει ακόμα εργαλείο λήψης';
       else if (!c.id) why = 'δεν βρέθηκε αριθμός (ούτε στο φύλλο ούτε στη λίστα του δικτύου)';
       else if (c.net === 'awin' && aw.notInList.has(c.id)) why = 'Awin: δεν είναι στη λίστα σου (όχι μέλος ή χωρίς feed)';
@@ -190,7 +206,7 @@ export async function inventory({ candidates, archive, reports = [], maxRows = 1
   if (!probs.length) L.push('Δεν βρέθηκε αναφορά λήψης.');
   for (const p of probs) { L.push(`${p.name}: ${p.count} γραμμές με 🔴/🟡`); for (const s of p.shown) L.push(`  ${s}`); }
   L.push('');
-  L.push('== Χωρίς αριθμό στο φύλλο: ταιριάσματα με τις λίστες του Awin και του CJ');
+  L.push('== Χωρίς αριθμό στο φύλλο: ταιριάσματα με τις λίστες του Awin, του CJ και του Rakuten');
   for (const f of found) L.push(`#${f.c.row} ${f.c.net} ${cut(f.c.name, 44)} -> ${f.hits.length ? f.hits.join(' || ') : '(κανένα)'}`);
   for (const w of ['uk', 'gr', 'world']) {
     L.push('');

@@ -7,7 +7,7 @@ import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { gzipSync } from 'node:zlib';
-import { filesOf, inventory, nameMatches, normName, parseAwinReport, parseCjReport, parseDaisyconReport, problemLines } from '../../tools/massive-inventory.mjs';
+import { filesOf, inventory, nameMatches, normName, parseAwinReport, parseCjReport, parseDaisyconReport, parseRakutenReport, problemLines } from '../../tools/massive-inventory.mjs';
 
 const HEAD = 'merchant_name,product_name,search_price,currency,in_stock,merchant_category,merchant_deep_link,aw_image_url,language,brand_name';
 const csv = rows => gzipSync(Buffer.from([HEAD, ...rows].join('\n') + '\n', 'utf8'));
@@ -37,6 +37,8 @@ test('massive inventory: the Awin, CJ and Daisycon reports are read line by line
   assert.equal(dc.get('21657').currency, 'GBP');
   assert.equal(dc.get('21657').ships, 'GB');
   assert.match(dc.get('19181').noFeed, /no feed/);
+  const rk = parseRakutenReport('MID 1606623 Cotton On UK: μορφή txt\r\nMID 1606623 Cotton On UK: OK, 3500 προϊόντα (καινούργιο), με link του Rakuten: 3500\r\n');
+  assert.deepEqual(rk.get('1606623'), { id: '1606623', name: 'Cotton On UK', products: 3500 });
   const pr = problemLines('ok\n12: 🔴 ΠΡΟΒΛΗΜΑ: timeout\n  🟡 ΠΡΟΣΟΧΗ: big\n', 1);
   assert.equal(pr.count, 2);
   assert.equal(pr.shown.length, 1);
@@ -58,6 +60,7 @@ test('massive inventory: one line per feed, names looked up in the lists, and ev
     'Rit Concept,Milano Dining Table,450.00,GBP,1,Dining Tables,https://www.ritconcept.co.uk/milano,https://img/2.jpg,en,Rit'
   ]));
   writeFileSync(join(dir, 'AWIN_58779_9001.csv.gz'), csv(['Arenti,Arenti Indoor Camera,39.99,USD,1,Cameras,https://arenti.com/a,https://img/3.jpg,en,Arenti']));
+  writeFileSync(join(dir, 'RAKUTEN_1606623.csv.gz'), csv(['Cotton On UK,Classic Tee,8.00,GBP,1,Mens > Tops,https://cottonon.com/GB/p/1,https://img/5.jpg,,Cotton On']));
   writeFileSync(join(dir, 'LINKWISE_13862.csv.gz'), csv(['Autodoc,Λάδι κινητήρα 5W30,24.90,EUR,1,Λάδια,https://www.autodoc.gr/x,https://img/4.jpg,el,Castrol']));
   const candidates = [
     { row: 1159, name: 'Rit Concept', net: 'awin', ids: ['131305'], site: 'hgw', country: 'GB', wave: 'uk' },
@@ -70,6 +73,7 @@ test('massive inventory: one line per feed, names looked up in the lists, and ev
   ];
   const reports = [
     { name: 'AWIN_FEED_DOWNLOAD_20261122_120000.txt', text: '58779 Arenti, feed 9001: μέλος: active | προϊόντα στο Awin: 1 | ανανέωση Awin: 2026-11-22 | αντίγραφο εδώ: 2026-11-22 12:00\r\n110166: δεν υπάρχει στη λίστα σου (δεν είσαι μέλος ή δεν έχει feed).\r\n12: 🔴 ΠΡΟΒΛΗΜΑ: test\r\n' },
+    { name: 'RAKUTEN_FEED_DOWNLOAD_20261122_131000.txt', text: 'MID 1606623 Cotton On UK: OK, 3 προϊόντα (καινούργιο)\r\n' },
     { name: 'CJ_FEED_DOWNLOAD_20261122_130000.txt', text: 'Καταστήματα του CJ που σε έχουν δεχτεί: 1\r\n  1826017 Tenergy | Active | Electronics\r\n' }
   ];
   const text = await inventory({ candidates, archive: dir, reports, maxRows: 1000, now: new Date('2026-11-22T13:00:00Z') });
@@ -78,7 +82,8 @@ test('massive inventory: one line per feed, names looked up in the lists, and ev
   assert.match(text, /^#1094 WORLD awin 58779 Arenti Official .*USD 100%/m, 'and its feed is read');
   assert.match(text, /^#1164 GR linkwise 13862 Autodoc .*EUR 100% \| el 100%/m);
   assert.match(text, /^#1160 GR admitad 20543 Redmagic WW \[pgw\] : Admitad: δεν υπάρχει ακόμα εργαλείο λήψης$/m);
-  assert.match(text, /^#105 UK rakuten - Cotton On \(UK\) \[wgw\] : Rakuten: μετά τη διόρθωση του εργαλείου λήψης$/m);
+  assert.match(text, /^#105 rakuten Cotton On \(UK\) -> MID 1606623 Cotton On UK \| 3 προϊόντα$/m, 'a Rakuten shop is found by name in the download report');
+  assert.match(text, /^#105 UK rakuten 1606623 Cotton On \(UK\) \[wgw\|UK\] \| 1 /m);
   assert.match(text, /^#91 WORLD awin 110166 Double Oak Essentials \[hgw\] : Awin: δεν είναι στη λίστα σου/m);
   assert.match(text, /^#658 cj Tenergy -> 1826017 Tenergy \| Active$/m);
   assert.match(text, /AWIN_FEED_DOWNLOAD_20261122_120000\.txt: 1 γραμμές με 🔴\/🟡\n {2}12: 🔴 ΠΡΟΒΛΗΜΑ: test/);
