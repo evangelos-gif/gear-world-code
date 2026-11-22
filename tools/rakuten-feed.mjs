@@ -224,6 +224,9 @@ export async function convertFile(input, outFile) {
     if (rec) emit(rec); else S.bad++;
   };
   const drain = () => new Promise(r => gz.once('drain', r));
+  // A file cut short or damaged on the way (gzip stops with an error): nothing is kept (L217: the server's sizes are no check).
+  let broken = '';
+  try {
   for await (const chunk of stream) {
     buf += chunk;
     if (!S.format) {
@@ -239,6 +242,7 @@ export async function convertFile(input, outFile) {
     } else xmlRecords(false);
     if (gz.writableNeedDrain) await drain();
   }
+  } catch (e) { broken = String(e && e.message || e).slice(0, 120); }
   if (!S.format) S.format = /^\s*(\uFEFF)?\s*(<\?xml|<merchandiser|<header)/i.test(buf.slice(0, 500)) ? 'xml' : 'txt';
   if (S.format === 'txt') { if (buf) pipeLine(buf.replace(/\r$/, '')); buf = ''; } else xmlRecords(true);
   gz.end();
@@ -247,6 +251,7 @@ export async function convertFile(input, outFile) {
   S.name = header ? header.name : '';
   S.currencies = [...cur];
   const fail = e => { S.error = e; try { rmSync(outFile, { force: true }); } catch { } return S; };
+  if (broken) return fail(`file cut short or damaged (${broken})`);
   if (S.trailer === null || !Number.isFinite(S.trailer)) return fail('no trailer (file cut short?)');
   if (S.trailer !== S.rows + S.bad) return fail(`trailer says ${S.trailer} products, read ${S.rows + S.bad}`);
   if (!S.rows) return fail('no products');

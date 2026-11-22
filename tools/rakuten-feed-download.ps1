@@ -219,6 +219,17 @@ foreach ($e in @($Lst.files)) {
     try { $when = ([DateTimeOffset]::FromUnixTimeSeconds([long]$e.mtime)).UtcDateTime.ToString('yyyy-MM-dd HH:mm') } catch { }
     $files.Add((New-Object PSObject -Property @{ size = [long]$e.size; date = $when; mid = $m.Groups[1].Value; sid = $m.Groups[2].Value; ext = $m.Groups[3].Value; name = [string]$e.name }))
 }
+# One catalogue per advertiser (L217): the server keeps the same catalogue twice, as .txt.gz (pipes) and .xml.gz; the
+# .txt.gz is the smaller one. Both used to be downloaded, one over the other.
+$byMid = @{}
+foreach ($f in $files) {
+    $k = $f.mid
+    if (-not $byMid.ContainsKey($k) -or ($f.ext -eq 'txt' -and $byMid[$k].ext -ne 'txt')) { $byMid[$k] = $f }
+}
+$twice = $files.Count - $byMid.Count
+$files = New-Object System.Collections.Generic.List[object]
+foreach ($k in $byMid.Keys) { $files.Add($byMid[$k]) }
+if ($twice -gt 0) { Say ('Ίδιος κατάλογος σε δύο μορφές (txt και xml) για {0} καταστήματα: κρατάω το .txt.gz.' -f $twice) }
 Say ('Κατάλογοι στον server: {0} (ένας για κάθε κατάστημα που σε έχει δεχτεί και έχει κατάλογο). Άλλα αρχεία: {1}.' -f $files.Count, ($names.Count - $files.Count))
 foreach ($f in @($files | Sort-Object { [long]$_.size } -Descending)) { Say ('  MID {0} | {1} MB | {2} | {3}' -f $f.mid, [Math]::Round($f.size / 1MB, 1), $f.date, $f.name) }
 $pick = @($files | Where-Object { $ids.Count -eq 0 -or $ids -contains $_.mid })
@@ -270,11 +281,14 @@ foreach ($f in $good) {
     $final = Join-Path $Archive ('RAKUTEN_{0}.csv.gz' -f $f.mid)
     Write-Host ('Κατεβάζω MID {0} ({1} MB)...' -f $f.mid, [Math]::Round($f.size / 1MB, 1))
     $G = Invoke-Sftp @('--mode', 'get', '--remote', $f.name, '--out', $src)
-    if ($null -eq $G -or -not $G.ok -or [long]$G.got -ne [long]$f.size) {
+    # The size in the server's list is not the size it sends (22 Nov 2026: 1-2% off, both ways, for every catalogue), so a
+    # file is judged by its own last line instead (the product count, checked by the conversion below), not by that size.
+    if ($null -eq $G -or -not $G.ok -or [long]$G.got -le 0) {
         $why = 'καμία απάντηση'
-        if ($G -and -not $G.ok) { $why = [string]$G.error } elseif ($G) { $why = ('ήρθαν {0} από {1} bytes' -f $G.got, $f.size) }
+        if ($G -and -not $G.ok) { $why = [string]$G.error } elseif ($G) { $why = 'άδειο αρχείο' }
         Say ('MID {0}: 🔴 ΠΡΟΒΛΗΜΑ στη λήψη: {1}. Κράτησα το παλιό.' -f $f.mid, $why) 'Red'; Remove-Item -LiteralPath $src -ErrorAction SilentlyContinue; continue
     }
+    if ([long]$G.got -lt [long]($f.size * 0.5)) { Say ('MID {0}: 🔴 ΠΡΟΒΛΗΜΑ στη λήψη: ήρθαν {1} από περίπου {2} bytes. Κράτησα το παλιό.' -f $f.mid, $G.got, $f.size) 'Red'; Remove-Item -LiteralPath $src -ErrorAction SilentlyContinue; continue }
     $C = Invoke-RakutenNode @('--mode', 'convert', '--in', $src, '--out', $part)
     Remove-Item -LiteralPath $src -ErrorAction SilentlyContinue
     if ($null -eq $C -or -not $C.ok) { Say ('MID {0}: 🔴 ΠΡΟΒΛΗΜΑ: {1}. Κράτησα το παλιό.' -f $f.mid, $(if ($C) { $C.error } else { 'καμία απάντηση' })) 'Red'; Remove-Item -LiteralPath $part -ErrorAction SilentlyContinue; continue }

@@ -16,7 +16,7 @@ param(
     [int]$Hours = 12,
     [string]$Archive = '',
     [string]$Reports = '',
-    [int]$MaxRows = 100000,
+    [int]$MaxRows = 20000,
     [string]$OutDir = '',
     [switch]$NoClipboard
 )
@@ -38,7 +38,7 @@ if ($MaxRows -lt 100) { Write-Host 'Λάθος -MaxRows (τουλάχιστον 
 $run = Join-Path $OutDir ('MASSIVE_INVENTORY_' + (Get-Date -Format 'yyyyMMdd_HHmmss'))
 New-Item -ItemType Directory -Path $run -Force | Out-Null
 Write-Host ('Φάκελος feeds: {0}' -f $Archive)
-Write-Host 'Διαβάζω τα feeds της λίστας... (μπορεί να πάρει 10-20 λεπτά, άφησέ το να τελειώσει)'
+Write-Host ('Διαβάζω τα feeds της λίστας, έως {0} προϊόντα από το καθένα... (μπορεί να πάρει 10-30 λεπτά, άφησέ το να τελειώσει)' -f $MaxRows)
 $nodeArgs = @((Join-Path (Join-Path $repo 'tools') 'massive-inventory.mjs'), '--archive', $Archive, '--list', $List, '--reports', $Reports, '--hours', [string]$Hours, '--max-rows', [string]$MaxRows, '--out', $run)
 & node @nodeArgs
 $code = $LASTEXITCODE

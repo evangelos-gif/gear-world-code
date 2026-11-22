@@ -363,6 +363,14 @@ test('L217 Rakuten: a whole catalogue converted as a stream, pipe and XML, with 
   const none = join(dir, 'none.gz');
   writeFileSync(none, gzipSync(Buffer.from([HDR, rkLine(1)].join('\n'))));
   assert.equal((await rk.convertFile(none, join(dir, 'bad2.part'))).error, 'no trailer (file cut short?)');
+  // 22 Nov 2026: the sizes in the server's list are not the sizes it sends, so a file cut short is found by gzip itself.
+  const whole = readFileSync(pipe);
+  const cutFile = join(dir, 'cut.gz');
+  writeFileSync(cutFile, whole.subarray(0, Math.floor(whole.length * 0.6)));
+  const K = await rk.convertFile(cutFile, join(dir, 'cut.part'));
+  assert.equal(K.ok, false);
+  assert.match(K.error, /^file cut short or damaged/);
+  assert.ok(!existsSync(join(dir, 'cut.part')));
 });
 
 test('the import planner finds RAKUTEN_ and DAISYCON_ files and keeps their tracking links', async () => {

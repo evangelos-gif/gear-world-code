@@ -231,7 +231,8 @@ async function main() {
   if (!val('archive') || !existsSync(archive)) { console.error(`Archive folder not found: ${archive}`); process.exit(2); }
   if (!val('list') || !existsSync(list)) { console.error(`Candidates list not found: ${list}`); process.exit(2); }
   const hours = Number(val('hours')) || 12;
-  const maxRows = Number(val('max-rows')) || 100000;
+  // 22 Nov 2026: 100,000 rows of each of ~600 feeds took three hours on the PC; the first 20,000 show the same categories.
+  const maxRows = Number(val('max-rows')) || 20000;
   const candidates = JSON.parse(readFileSync(list, 'utf8').replace(/^﻿/, '')).candidates || [];
   const reports = [];
   if (reportsDir && existsSync(reportsDir)) {

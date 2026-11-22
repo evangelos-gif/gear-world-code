@@ -3126,6 +3126,7 @@ L.push('TRL|3');
 fs.writeFileSync(process.argv[2], zlib.gzipSync(L.join('\n')));
 '@
     & node $rkMake (Join-Path $rkSrvDir '1606623_4561_mp.txt.gz')
+    Copy-Item -LiteralPath (Join-Path $rkSrvDir '1606623_4561_mp.txt.gz') -Destination (Join-Path $rkSrvDir '1606623_4561_mp.xml.gz')
     $rkUser = 'gw' + 'tester'
     $rkPass = 'pw-' + 'not-real-7731'
     $rkPortFile = Join-Path $rkDir 'port.txt'
@@ -3143,6 +3144,7 @@ fs.writeFileSync(process.argv[2], zlib.gzipSync(L.join('\n')));
         $rkRep = (@(Get-ChildItem -LiteralPath $rkOut -Filter 'RAKUTEN_FEED_DOWNLOAD_*.txt') | ForEach-Object { [System.IO.File]::ReadAllText($_.FullName) }) -join "`n"
         Check ($LASTEXITCODE -eq 0 -and @(Get-ChildItem -LiteralPath $rkArch -File).Count -eq 0 -and (Test-Path -LiteralPath $rkKey)) 'rakuten: read-only run by SFTP, exit 0, nothing in the feed folder, host key kept'
         Check ($rkRep.Contains('κρυπτογραφημένη (SFTP)') -and $rkRep.Contains('MID 1606623 Cotton On UK') -and $rkRep.Contains('Classic Tee 1')) 'rakuten: the catalogue list and a sample from the first part of the file'
+        Check ($rkRep.Contains('κρατάω το .txt.gz') -and $rkRep.Contains('Κατάλογοι στον server: 1 ')) 'rakuten: the same catalogue as .txt.gz and .xml.gz is one catalogue (the .txt.gz)'
         & $exe @($rkArgs + @('-Apply', '-Approve', 'wrong phrase')) | Out-Null
         Check ($LASTEXITCODE -eq 1 -and @(Get-ChildItem -LiteralPath $rkArch -File).Count -eq 0) 'rakuten: a wrong phrase changes nothing'
         & $exe @($rkArgs + @('-Apply', '-Approve', 'ΕΓΚΡΙΝΩ RAKUTEN FEED DOWNLOAD')) | Out-Null
