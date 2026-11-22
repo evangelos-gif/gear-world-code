@@ -236,4 +236,5 @@ test('L218: the cookies page of every site names the browser storage of a closed
   }
   const tool = read('tools/layout-check.mjs');
   assert.match(tool, /appBarHtml\(\{ code, assetVersion: v \}\)/, 'tools/layout-check.mjs measures the first screen with the app row too');
+  assert.ok(tool.includes("check(fold.app, `${label}: the app row is on the page, right after the hero buttons (L218)`);"), 'and checks that the row is really there');
 });

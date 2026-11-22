@@ -14,7 +14,9 @@ function contactLink(site) {
   return site.contactEmail ? html`<a href="mailto:${site.contactEmail}">${site.contactEmail}</a>` : PLACEHOLDER;
 }
 
-// The legal texts last changed on 18 Nov 2026 (the small sign-up window and "Remind me on 27 Nov", lessons L182); before:
+// The legal texts last changed on 25 Nov 2026 (the cookies page: the browser storage of a closed Gear World app row, lessons
+// L218; the date of the ALL UPDATES that brings it live: if that day moves, move this date with it); before: 18 Nov 2026
+// (the small sign-up window and "Remind me on 27 Nov", lessons L182); before:
 // 17 Nov 2026 (translated, EU GDPR and EU consumer law, lessons L176); 9 Nov
 // 2026 (the retailer links go through Awin or CJ, Google Ads compliance, lessons
 // L107; before: 8 Nov 2026, Cloudflare Turnstile on the "Get deal updates" form, L106; 7 Nov 2026, who runs Gear World,

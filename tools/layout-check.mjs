@@ -295,12 +295,15 @@ try {
           return {
             lang: document.documentElement.lang,
             bars: !!document.querySelector('.country-bar') && document.querySelectorAll('.codes-bar').length === 1 && document.body.hasAttribute('data-codes'),
+            // The Gear World app row (L218): right after the hero buttons, so it can never push them down.
+            app: (() => { const row = document.querySelector('[data-app-bar]'); return !!row && !!row.previousElementSibling && row.previousElementSibling.matches('.hero-actions'); })(),
             search: b('.hero-search'), browse: b('.hero-actions .btn'), sideways: document.documentElement.scrollWidth > document.documentElement.clientWidth + 1
           };
         });
-        const label = `${vp.name} / in ${lang}, with the country bar${added.country ? ' (added)' : ''} and the codes bar${added.codes ? ' (added)' : ''}`;
+        const label = `${vp.name} / in ${lang}, with the country bar${added.country ? ' (added)' : ''}, the codes bar${added.codes ? ' (added)' : ''} and the app row${added.app ? ' (added)' : ''}`;
         check(fold.lang === lang, `${label}: page is in ${lang}`, fold.lang);
         check(fold.bars, `${label}: both bars on the page`);
+        check(fold.app, `${label}: the app row is on the page, right after the hero buttons (L218)`);
         check(fold.search <= FIRST_SCREEN && fold.browse <= FIRST_SCREEN, `${label}: search box and "Browse by category" on the first screen (L30, L115)`, `search ends at ${fold.search}px, button at ${fold.browse}px (max ${FIRST_SCREEN})`);
         check(!fold.sideways, `${label}: no sideways scrolling`);
         numbers.push(`${lang} ${fold.browse}`);
