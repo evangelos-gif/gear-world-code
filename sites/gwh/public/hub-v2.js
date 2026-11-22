@@ -75,9 +75,9 @@
     // The Mega Stores bar above everything (owner, 18/11/2026, lessons L192): its line, and the sentence that gives screen
     // readers the store names once ({name}: the names, never translated). "Mega Stores" itself is a name (translate="no").
     megaLine: ["Big stores in one place →", "Μεγάλα καταστήματα σε ένα μέρος →", "Große Händler an einem Ort →", "Les grandes enseignes au même endroit →", "Grandi negozi in un unico posto →", "Grandes tiendas en un solo lugar →", "Grandes lojas num só lugar →", "Grote winkels op één plek →", "Dyqane të mëdha në një vend →", "Magazine mari într-un singur loc →", "Крупные магазины в одном месте →"],
-    // The Gear World app on Google Play (lessons L218): its line, the badge link (Google's own words in each language) and the close button.
+    // The Gear World app on Google Play (lessons L218): its line, the badge link (Google's own words in each language; Albanian shows the English badge, so its words) and the close button.
     appLine: ["Search every Gear World from your phone.", "Αναζητήστε σε κάθε Gear World από το κινητό σας.", "Durchsuchen Sie jede Gear World mit Ihrem Handy.", "Cherchez dans chaque Gear World depuis votre téléphone.", "Cerca in ogni Gear World dal tuo telefono.", "Busca en todos los Gear World desde tu móvil.", "Pesquise em todos os Gear World a partir do seu telemóvel.", "Zoek in elke Gear World vanaf je telefoon.", "Kërko në çdo Gear World nga telefoni yt.", "Căutați în fiecare Gear World de pe telefon.", "Ищите во всех Gear World прямо с телефона."],
-    appBadge: ["Get it on Google Play", "Αποκτήστε το στο Google Play", "Jetzt bei Google Play", "Disponible sur Google Play", "Disponibile su Google Play", "Disponible en Google Play", "Obter no Google Play", "Ontdek het op Google Play", "Merre në Google Play", "Descarcă de pe Google Play", "Скачать из Google Play"],
+    appBadge: ["Get it on Google Play", "Αποκτήστε το στο Google Play", "Jetzt bei Google Play", "Disponible sur Google Play", "Disponibile su Google Play", "Disponible en Google Play", "Obter no Google Play", "Ontdek het op Google Play", "Get it on Google Play", "Descarcă de pe Google Play", "Скачать из Google Play"],
     appClose: ["Close", "Κλείσιμο", "Schließen", "Fermer", "Chiudi", "Cerrar", "Fechar", "Sluiten", "Mbyll", "Închide", "Закрыть"],
     megaNames: ["Stores: {name}.", "Καταστήματα: {name}.", "Händler: {name}.", "Enseignes : {name}.", "Negozi: {name}.", "Tiendas: {name}.", "Lojas: {name}.", "Winkels: {name}.", "Dyqanet: {name}.", "Magazine: {name}.", "Магазины: {name}."],
     dealsTitle: ["This week's deals", "Προσφορές της εβδομάδας", "Angebote der Woche", "Les offres de la semaine", "Le offerte della settimana", "Ofertas de la semana", "Ofertas da semana", "Aanbiedingen van de week", "Ofertat e javës", "Ofertele săptămânii", "Предложения недели"],
@@ -145,7 +145,7 @@
 
   // Texts that are the same word as in English on purpose (a name, or the same word in that language).
   const SAME_AS_ENGLISH = {
-    dockPhoto: ["fr-FR"], ideaPerfume: ["es-ES", "pt-PT"], ideaLamp: ["nl-NL"], pause: ["de-DE", "fr-FR"],
+    dockPhoto: ["fr-FR"], ideaPerfume: ["es-ES", "pt-PT"], ideaLamp: ["nl-NL"], pause: ["de-DE", "fr-FR"], appBadge: ["sq-AL"],
     seasonHalloween: ["el-GR", "de-DE", "fr-FR", "it-IT", "es-ES", "pt-PT", "nl-NL", "sq-AL", "ro-RO"],
     seasonBlackFriday: ["el-GR", "de-DE", "fr-FR", "it-IT", "es-ES", "pt-PT", "nl-NL", "sq-AL", "ro-RO"]
   };

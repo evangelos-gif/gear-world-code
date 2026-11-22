@@ -83,7 +83,10 @@ test('L218: the texts of the row in the 11 languages of the Hub (the badge text 
     const list = h.strings[key];
     assert.equal(list.length, h.locales.length, key);
     assert.ok(list.every(s => s.trim()), key);
-    assert.equal(new Set(list.slice(1)).has(list[0]), false, `${key}: translated`);
+    // Albanian shows Google's English badge, so its label is the badge's own English words (label in name, WCAG 2.5.3).
+    const sq = h.locales.indexOf('sq-AL');
+    if (key === 'appBadge') assert.equal(list[sq], list[0], 'sq: the English badge\'s words');
+    assert.equal(new Set(list.slice(1).filter((s, i) => !(key === 'appBadge' && i + 1 === sq))).has(list[0]), false, `${key}: translated`);
     assert.ok(list.every(s => !L107.test(s)), `${key}: no L107 word`);
   }
   assert.equal(h.strings.appLine[0], 'Search every Gear World from your phone.');
@@ -178,4 +181,17 @@ test('L218: the Worker keeps the row for the UK, Greece and Cyprus (the UK page 
   const missing = new Response('no', { status: 404, headers: { 'Content-Type': 'text/html' } });
   assert.equal(await withAppCountry(req('/', { cc: 'US' }), missing), missing);
   assert.ok(WORKER.includes('await withCountryBar(request, await withAppCountry(request, await withMegaCountry(request, await hubFetch(request, env, ctx))))'), 'on every answer, after the Mega Stores bar');
+});
+
+test('L218: the cookies page names gwh2-app-closed (11 languages) and a new date; the legal script asks for the new dictionaries', () => {
+  const c = read('cookies/index.html');
+  assert.ok(c.includes('<tr><td data-label="Name"><span><code>gwh2-app-closed</code></span></td><td data-label="Type"><span>Browser storage, necessary</span></td><td data-label="What it does"><span>Remembers that you closed the Gear World app row on the home page</span></td><td data-label="How long"><span>Until you clear your browser data</span></td></tr>'));
+  assert.match(c, /<p class="lg-updated">Last updated: 25 November 2026<\/p>/);
+  for (const f of readdirSync(`${PUB}/legal/i18n`)) {
+    const d = JSON.parse(read(`legal/i18n/${f}`));
+    assert.ok(d['Remembers that you closed the Gear World app row on the home page'].includes('Gear World'), f);
+    assert.match(d['Last updated: 25 November 2026'], /25/, f);
+  }
+  assert.match(read('legal/legal.js'), /var VERSION = "20261125-app1";/);
+  assert.ok(read('hub-v2.js').includes('localStorage.getItem("gwh2-app-closed")'), 'the name the script uses');
 });
