@@ -132,10 +132,16 @@ export function titleNameParts(product, site) {
     const brandParts = new Set(brandWords.map(squash).filter(Boolean));
     const overlap = words.slice(0, 3).some(w => brandParts.has(squash(w)) || (squash(w).length >= 4 && sqBrand.startsWith(squash(w))));
     const firstBrandWord = squash(brandWords[0]);
-    const nameHasBrand = squash(name).includes(sqBrand) || (firstBrandWord.length >= 3 && words.some(w => squash(w) === firstBrandWord));
-    if (tail.test(name)) {
-      // "Tour Shirt (Choc Chip Camo) | XXL | Stan Ray®" -> "Stan Ray Tour Shirt (Choc Chip Camo) | XXL"
-      name = brand + ' ' + name.replace(tail, ''); steps.push('tail');
+    // Also a glued form ("Makita-style" for "Makita Tools"): then nothing is added.
+    const nameHasBrand = squash(name).includes(sqBrand) || (firstBrandWord.length >= 3 && squash(name).includes(firstBrandWord));
+    // The name without the brand at its end, and without a separator left over ("Shirt | | Nike" -> "Shirt").
+    const rest = tail.test(name) ? name.replace(tail, '').replace(/(?:\s*[|,]|\s+[-–])+\s*$/, '').trim() : '';
+    if (rest && brand.length + 1 + rest.length <= TITLE_NAME_MAX) {
+      // "Tour Shirt (Choc Chip Camo) | XXL | Stan Ray®" -> "Stan Ray Tour Shirt (Choc Chip Camo) | XXL". Only when the whole
+      // name fits: a size or colour at the end of a long name is never cut off by it.
+      name = brand + ' ' + rest; steps.push('tail');
+    } else if (rest) {
+      // Too long with the brand in front: the name stays as it is.
     } else if (at > 0 && words.slice(0, at).every(w => LEADING_WORDS.has(w.toLowerCase()))) {
       name = [...words.slice(at, at + brandWords.length), ...words.slice(0, at), ...words.slice(at + brandWords.length)].join(' ');
       steps.push('moved');

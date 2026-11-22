@@ -51,6 +51,11 @@ test('the brand goes in front where the name has none, only when the whole name 
   for (const n of socks) same(n, 'Bridgedale', 'Cotswold Outdoor');
   assert.equal(new Set(socks.map(n => titleName({ product_name: n, brand: 'Bridgedale', retailer: 'Cotswold Outdoor' }))).size, 4);
   same('Welded End DN 50 NC Pneumatic 2-Way Angle Seat Valve Stainless Steel - 2000', 'Burkert', 'Tameson');
+  // Second review: the same for the brand from the end. Long names keep their size or colour, so they stay different.
+  for (const size of ['10', '12', '14']) same(`Recycled Quilted Puffer Gilet With Detachable Hood Black | Size ${size} | Ted Baker`, 'Ted Baker', 'Ted Baker UK');
+  for (const colour of ['Black', 'Navy', 'Olive']) same(`Mens Waterproof Breathable Hiking Jacket With Packable Hood - ${colour} - Berghaus`, 'Berghaus', 'Cotswold Outdoor');
+  // A glued form of the brand is already the brand.
+  same('Compatible battery for Makita-style tools 18V', 'Makita Tools', 'Tooled Up');
 });
 
 test('the brand is not added where the feed\'s brand is a seller, a label of the retailer, a parent of a short form, or not a brand', () => {
@@ -100,6 +105,9 @@ test('other-language feeds, marketplaces and Greek names stay exactly as they ar
 test('small fixes: the brand from the end, a doubled brand word, a short brand\'s capitals, "Mens Nike"', () => {
   assert.deepEqual(t('Tour Shirt (Choc Chip Camo) | XXL | Stan Ray®', 'Stan Ray®', 'Stan Ray UK'),
     { name: 'Stan Ray Tour Shirt (Choc Chip Camo) | XXL', steps: ['tail'] });
+  // No separator left over when the name has two in a row.
+  assert.deepEqual(t('Shirt | | Nike', 'Nike', 'Sports Direct'), { name: 'Nike Shirt', steps: ['tail'] });
+  assert.deepEqual(t('Shirt - - Nike', 'Nike', 'Sports Direct'), { name: 'Nike Shirt', steps: ['tail'] });
   assert.deepEqual(t('DEWALT DEWALT DT20711 Multi-Tool Titanium Flush Cut Blade 100mm', 'DEWALT', 'GS Workwear'),
     { name: 'DEWALT DT20711 Multi-Tool Titanium Flush Cut Blade 100mm', steps: ['double'] });
   assert.equal(t('Draper Draper TX-STAR Security Screwdriver (T27T x 100mm)', 'Draper Tools', 'GS Workwear').name,
@@ -138,20 +146,37 @@ test('the review\'s wrong outputs stay as they were', () => {
 
 // Review finding 12: the rule "no step = exactly the old name" for any input.
 test('fuzz: whenever no step runs, the name is exactly the old one; never empty, never over 70 characters', () => {
+  // A small seeded generator (mulberry32), so the run is the same every time.
   let seed = 217;
-  const rnd = n => { seed = (seed * 1103515245 + 12345) % 2147483648; return seed % n; };
+  const rnd = n => {
+    seed = (seed + 0x6D2B79F5) | 0;
+    let x = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+    x = (x + Math.imul(x ^ (x >>> 7), 61 | x)) ^ x;
+    return Math.floor(((x ^ (x >>> 14)) >>> 0) / 4294967296 * n);
+  };
   const parts = ['Nike', 'nike', 'NIKE', 'The', 'Mens', 'Air', 'Max', '|', '-', '–', ',', 'XL', 'Stan', 'Ray®', 'Bosch', 'DEWALT',
-    'Ω', 'ł', '$&', '(', ')', '[', '\\', '?', '+', '*', 'Chi', '10ml', 'A1B2', ' ', '', 'Tom', 'Tom', 'Gear', 'World', 'Sale'];
+    'Ω', 'ł', '$&', '(', ')', '[', '\\', '?', '+', '*', 'Chi', '10ml', 'A1B2', ' ', '', 'Tom', 'Tom', 'Gear', 'World', 'Sale',
+    'HJC', 'Hjc', 'Jacket', 'Size', '10', 'Black'];
   const pick = k => Array.from({ length: k }, () => parts[rnd(parts.length)]).join(' ');
+  const seen = {};
   for (let i = 0; i < 20000; i++) {
-    const p = { product_name: pick(1 + rnd(14)), brand: rnd(5) ? pick(1 + rnd(3)) : null, retailer: ['Tooled Up', 'Coes', 'AliExpress PL', 'e-tennis GR', 'InStock UK', 'Plusshop UK', ''][rnd(7)],
+    const brand = rnd(5) ? pick(1 + rnd(3)) : null;
+    // Some names end with a separator and the brand, start with the brand in other capitals, or with "Mens" and the brand.
+    const body = pick(1 + rnd(14));
+    const shape = rnd(5);
+    const product_name = shape === 0 && brand ? `${body} ${['|', ',', '-', '–'][rnd(4)]} ${brand}`
+      : shape === 1 && brand ? `${brand.toLowerCase()} ${body}` : shape === 2 && brand ? `Mens ${brand} ${body}` : body;
+    const p = { product_name, brand, retailer: ['Tooled Up', 'Coes', 'AliExpress PL', 'e-tennis GR', 'InStock UK', 'Plusshop UK', 'bol.com', ''][rnd(8)],
       mpn: rnd(3) ? pick(1) : null, gtin: rnd(4) ? null : '5012345678900' };
     const out = titleNameParts(p, tgw);
+    for (const step of out.steps) seen[step] = (seen[step] || 0) + 1;
     const old = truncate(p.product_name, TITLE_NAME_MAX);
     assert.ok(out.name.length <= TITLE_NAME_MAX, JSON.stringify(p));
     if (old) assert.ok(out.name.length > 0, JSON.stringify(p));
     if (!out.steps.length) assert.equal(out.name, old, JSON.stringify(p));
   }
+  // The fuzz reaches every step.
+  for (const step of ['double', 'case', 'tail', 'moved', 'added', 'model']) assert.ok(seen[step] > 0, `fuzz reached ${step}: ${JSON.stringify(seen)}`);
   for (const bad of [null, undefined, {}, { product_name: 42, brand: 7, mpn: 3, retailer: 1 }, { product_name: '   ', brand: 'Nike' }]) {
     assert.doesNotThrow(() => titleName(bad, tgw));
   }
