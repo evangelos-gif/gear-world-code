@@ -4,7 +4,10 @@
 // that hide it (D1 allows 100 per query, lessons L193): tests/worker/linkwise-l199.test.mjs keeps every view under 62.
 const retailers = {
   'Abadianakis GR': ['GR', 'CY'], // 12858
+  'Amorvisual GR': ['GR', 'CY'], // 13703
   'Answear GR': ['GR'], // 13797
+  'B-Soft Shoes GR': ['GR', 'CY'], // 14024
+  'BIG SHOES GR': ['GR', 'CY'], // 13948
   'BIGBLU GR': ['GR', 'CY'], // 13637
   'Blooza GR': ['GR'], // 11427
   'Camper GR': ['GR'], // 14114
@@ -13,6 +16,7 @@ const retailers = {
   'Classico GR': ['GR'], // 11757
   'Clodist GR': ['GR'], // 12338
   'epapoutsia.gr GR': ['GR'], // 13604
+  'Explicit Poets GR': ['GR'], // 13541
   'Gounas GR': ['GR', 'CY'], // 14088
   'Gruppo Mossialos GR': ['GR', 'CY'], // 13808
   'Hionidis GR': ['GR', 'CY'], // 12903
@@ -21,7 +25,10 @@ const retailers = {
   'Kosmima24 GR': ['GR'], // 10600
   'Koutsoubidis GR': ['GR', 'CY'], // 13812
   'Markakis GR': ['GR'], // 12261
+  'Me and Joe GR': ['GR', 'CY'], // 12799
+  'Mengroomer GR': ['GR'], // 14120
   'Modivo GR': ['GR'], // 13607
+  'Monsterville GR': ['GR'], // 12134
   'New Cult GR': ['GR'], // 11667
   'Notino GR': ['GR'], // 14094
   'Notos GR': ['GR'], // 12471
@@ -29,14 +36,22 @@ const retailers = {
   'Politikos GR': ['GR', 'CY'], // 13649
   'Prince Oliver GR': ['GR', 'CY'], // 10553
   'Projectshops GR': ['GR', 'CY'], // 12954
+  'Red Raven Eyewear GR': ['GR'], // 13578
+  'SeeWhatEyeSee GR': ['GR'], // 13803
   'Silenzio GR': ['GR', 'CY'], // 13625
   'SimpleWear GR': ['GR'], // 11890
   'Spartoo GR': ['GR', 'CY'], // 399
+  'Step Store GR': ['GR', 'CY'], // 13258
+  'The Brands Store GR': ['GR'], // 12386
   'TOBROS GR': ['GR'], // 13700
   'Tsakiris Mallas GR': ['GR', 'CY'], // 11641
+  'Tsoukalas GR': ['GR'], // 12071
   'VARDA GR': ['GR', 'CY'], // 13974
+  'Vavoulas GR': ['GR', 'CY'], // 12615
   'Wizzy GR': ['GR', 'CY'], // 13631
+  'X-Ray Shoes GR': ['GR', 'CY'], // 12873
   'XXXL Leo GR': ['GR'], // 14043
+  'Yfantidis GR': ['GR'], // 12779
   'Z-mall GR': ['GR'], // 100
 };
 export const LINKWISE_GR = {

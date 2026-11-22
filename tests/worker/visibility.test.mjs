@@ -198,10 +198,11 @@ test('freshness: hidden after 30 days, "Check price and stock at the retailer" a
   assert.equal(needsCheck(v, row('2026-10-25 23:00:00')), true);
   assert.equal(needsCheck(v, row('2026-10-26 00:00:01')), false);
   const sql = visibleSql(v);
-  // 23 shops of the UK view (bol.com since L204) and the 35 Linkwise shops of MGW (Greece and Cyprus, L199). Since L202 the names are quoted
+  // 23 shops of the UK view (bol.com since L204) and the 50 Linkwise shops of MGW (Greece and Cyprus, L199; 35 until the massive
+  // import of 22 Nov 2026). Since L202 the names are quoted
   // text in the SQL (D1 takes at most 100 values per statement), so only the date is a value.
   const greek = Object.keys(config.mgw.deliversTo.languages).filter(n => config.mgw.deliversTo.languages[n] === 'el');
-  assert.equal(greek.length, 35);
+  assert.equal(greek.length, 50);
   const names = [...v.hidden];
   assert.equal(names.length, 23 + greek.length);
   assert.equal(sql.sql, `likelihood(+p.retailer NOT IN (${names.map(n => `'${n.replace(/'/g, "''")}'`).join(', ')}) AND +p.last_seen_at >= ?, 1.0)`);
@@ -209,7 +210,7 @@ test('freshness: hidden after 30 days, "Check price and stock at the retailer" a
   assert.deepEqual(names.filter(n => !greek.includes(n)), ['AliExpress PL', 'Bazta IE', 'Buycoolshirts', 'COOFANDY', 'Chamaripa', 'Dream Pairs', 'Fragrance Outlet', 'FragranceShop.com', 'Incerunmen',
     'Invicta Stores', 'Jeulia', 'Maceoo', 'Menseventwear', 'NORTIV 8', 'Perfumania', 'Plusshop IE', 'TEMU', 'TSAR BOMBA', 'Uhrcenter', 'Wavytalk', 'bol.com', 'eCosmetics', 'eFootwear']);
   const shape = s => s.replace(/'(?:[^']|'')*'/g, "'x'");
-  assert.equal(shape(visibleSql(viewFor(config.agw, 'BE', NOW)).sql), "likelihood(+p.retailer NOT IN ('x', 'x', 'x', 'x', 'x', 'x', 'x') AND +p.last_seen_at >= ?, 1.0)", 'the all view: without the Poland-only shops (L157, L194) and the 4 Greek Linkwise shops (L209)');
+  assert.equal(shape(visibleSql(viewFor(config.agw, 'BE', NOW)).sql), "likelihood(+p.retailer NOT IN ('x', 'x', 'x', 'x', 'x', 'x', 'x', 'x') AND +p.last_seen_at >= ?, 1.0)", 'the all view: without the Poland-only shops (L157, L194) and the 5 Greek Linkwise shops (L209; Autodoc since 22 Nov 2026)');
   assert.equal(shape(visibleSql(viewFor(config.tgw, 'BE', NOW)).sql), `likelihood(+p.retailer NOT IN (${Array(9 + Object.keys(LW_TGW.retailers).length).fill("'x'").join(', ')}) AND +p.last_seen_at >= ?, 1.0)`,
     'the all view: without AliExpress PL (L157), the 8 US-only shops of wave 3 (L165, L169) and the Greek Linkwise shops (L209)');
   assert.equal(shape(visibleSql(viewFor({ ...config.agw, strictCountries: ['BE'] }, 'BE', NOW)).sql), "likelihood(+p.retailer IN ('x', 'x', 'x', 'x', 'x') AND +p.last_seen_at >= ?, 1.0)", 'a country with a view of its own: IN (with 123pneus.be, L198, and bol.com, L204)');

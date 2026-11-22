@@ -188,10 +188,12 @@ test('L199: every Linkwise shop with import rules is seen only in Greece and/or 
   if (missing) await assert.rejects(LW.linkwiseRules(missing.id), /is not limited to/);
 });
 
-test('L199 + L193: the views of the older sites stay within the D1 limit of 100 values per query, and Greece is one group', () => {
+test('L199 + L193 + L202: the views of the older sites stay within the D1 limits, and Greece is one group', () => {
   for (const s of LW.LEGACY_SITES) {
     const groups = countryGroups(config[s]);
-    for (const g of groups.list) assert.ok((g.hidden || g.only || []).length <= 62, `${s} ${g.id}: ${(g.hidden || g.only || []).length} names`);
+    // Since L202 the hidden names are quoted text in the SQL, not values: the limit is the D1 statement (100,000 characters),
+    // tested with 600 names in tests/worker/fast-lists-legacy.test.mjs (massive import of 22 Nov 2026: 119 Greek shops on WGW).
+    for (const g of groups.list) assert.ok((g.hidden || g.only || []).length <= 600, `${s} ${g.id}: ${(g.hidden || g.only || []).length} names`);
     assert.ok(groups.list.length <= 10, `${s}: ${groups.list.length} groups`);
     assert.equal(viewFor(config[s], 'GR', NOW).group.startsWith('lang-'), true, `${s}: Greece sees the Greek shops`);
   }

@@ -7,23 +7,35 @@ const retailers = {
   '24home.gr GR': ['GR'], // 11532
   'Agiovlasitishome GR': ['GR'], // 12557
   'Aithrio GR': ['GR'], // 12125
+  'alleop GR': ['GR'], // 14091
   'Anesis Home GR': ['GR'], // 12218
   'Carpetlinen GR': ['GR'], // 12621
+  'Cozy cotton GR': ['GR'], // 11839
   'Dendron GR': ['GR'], // 14011
   'designdrops GR': ['GR'], // 12180
+  'DesignPlus GR': ['GR'], // 14027
+  'Donedeals GR': ['GR'], // 10599
   'EasyU GR': ['GR'], // 12311
   'EFDECO GR': ['GR'], // 13815
+  'Elektrostore24 GR': ['GR'], // 12504
   'esmarket GR': ['GR'], // 12569
   'EtherealHome GR': ['GR'], // 13195
+  'Fillit GR': ['GR'], // 14138
   'HouseArt GR': ['GR'], // 12650
   'Inoxdesign GR': ['GR'], // 13908
   'Katoikein GR': ['GR'], // 11892
   'Kouzinika GR': ['GR'], // 12149
+  'Laura Ashley GR': ['GR'], // 12420
+  'MagicStore GR': ['GR'], // 12315
+  'MARIL HOME GR': ['GR'], // 13809
   'Memorybox.gr GR': ['GR'], // 13486
+  'Primato GR': ['GR'], // 12237
   'Spitishop GR': ['GR'], // 10814
   'Sticky GR': ['GR'], // 12563
+  'UrbanHouse GR': ['GR'], // 11998
   'VidaXL.gr GR': ['GR'], // 14113
   'Vivento GR': ['GR'], // 13193
+  'WAT Object GR': ['GR'], // 13584
 };
 export const LINKWISE_GR = {
   retailers,
