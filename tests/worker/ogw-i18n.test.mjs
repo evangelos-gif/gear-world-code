@@ -4,7 +4,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
-import site from '../../sites/ogw/site.config.js';
+import liveSite from '../../sites/ogw/site.config.js';
 import {
   AMAZON_STATEMENT, BASE_LANG, HUB_LANGS, I18N_MISSING, createGuidesWorker, legalPaths, awinStores, languageCode,
   countryLanguage as ogwCountryLanguage, readsEnglish as ogwReadsEnglish, QA_BOT as OGW_QA_BOT, OTHER_CRAWLER as OGW_CRAWLER, GOOGLE_CRAWLER as OGW_GOOGLE,
@@ -13,6 +13,9 @@ import {
 import { countryLanguage, readsEnglish, QA_BOT, OTHER_CRAWLER, GOOGLE_CRAWLER } from '../../src/engine.js';
 import { translatableTexts } from './i18n-keys.mjs';
 import { GEAR_WORLDS } from '../../promos/network.js';
+// The Linkwise stores are hidden until Linkwise approves this site (L215, tests/worker/ogw-hidden.test.mjs): these tests
+// check the per-country rules as they will be after the approval (hiddenNetworks empty).
+const site = { ...liveSite, hiddenNetworks: [] };
 
 const LANGS = ['el-GR', 'de-DE', 'fr-FR', 'it-IT', 'es-ES', 'pt-PT', 'nl-NL', 'pl-PL', 'sq-AL', 'ro-RO', 'ru-RU'];
 const DICTS = Object.fromEntries(LANGS.map(l => [l, JSON.parse(readFileSync(`sites/ogw/i18n/${l}.json`, 'utf8'))]));

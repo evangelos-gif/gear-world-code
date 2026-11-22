@@ -7,12 +7,15 @@ import assert from 'node:assert/strict';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import defaultWorker from '../../sites/ogw/worker.js';
-import site from '../../sites/ogw/site.config.js';
+import liveSite from '../../sites/ogw/site.config.js';
 import {
   AMAZON_STATEMENT, amazonMode, amazonUrl, gearWorldUrl, countdown, ukDay, legalPaths, pagePaths,
   createGuidesWorker, storeCacheKey, guideImage, storeUserAgent, awinStores, deliversHere
 } from '../../src/marketplace-guides.js';
 import { GEAR_WORLDS } from '../../promos/network.js';
+// The Linkwise stores are hidden until Linkwise approves this site (L215, tests/worker/ogw-hidden.test.mjs): these tests
+// check the per-country rules as they will be after the approval (hiddenNetworks empty).
+const site = { ...liveSite, hiddenNetworks: [] };
 
 // The stores (lessons L191): a fake /api/products of the Gear World sites, never the network. Every answer also has the
 // fields the pages must never show (price, was_price, affiliate_url) and rows that must be left out.

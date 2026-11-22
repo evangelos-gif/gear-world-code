@@ -339,8 +339,14 @@ function Test-Site([string]$base, [string]$mode) {
     $ukStore = 'href="/stores/(joybuy|tooled-up|my-tool-shed|pchub-uk|gs-workwear|back-to-the-office|dhgate|amazon)/"'
     $gr = Get-Page ($base + '/') 'GR'
     $grUk = $gr.text.Contains('class="bf-started"') -or $gr.text.Contains('class="promo-card"') -or ($gr.text -match $ukStore) -or ($gr.text -match '(?i)amazon')
-    if ($gr.status -eq 200 -and $gr.text.Contains('href="/stores/kouzinika-gr/"') -and -not $grUk) { Say '  Από Ελλάδα: τα ελληνικά καταστήματα, κανένα κατάστημα, κωδικός ή Amazon του UK: ΕΝΤΑΞΕΙ' $Ok }
-    else { Say ('  Από Ελλάδα ({0}): λείπουν τα ελληνικά καταστήματα ή φαίνονται καταστήματα, κωδικοί ή Amazon του UK: ΠΡΟΒΛΗΜΑ' -f $gr.status) $Bad; $all = $false }
+    # L215 (owner, 22 Nov 2026: "we will declare it but we will hide it"): until Linkwise approves megastoresgearworld.com
+    # its 7 Greek stores are hidden, so Greece gets the page of a country with no store, as the US does.
+    $grLinkwise = $gr.text -match '(?i)kouzinika|katoikein|minipini|xxxl leo|casualshoes|parex|tsakiris'
+    if ($gr.status -eq 200 -and $gr.text.Contains('stores-none') -and -not $gr.text.Contains('href="/stores/') -and -not $grLinkwise -and -not $grUk) { Say '  Από Ελλάδα: κανένα κατάστημα μέχρι την έγκριση της Linkwise (L215), κανένα κατάστημα, κωδικός ή Amazon του UK, με τη γραμμή «δεν εμφανίζεται ακόμα για τη χώρα σας»: ΕΝΤΑΞΕΙ' $Ok }
+    else { Say ('  Από Ελλάδα ({0}): φαίνονται καταστήματα της Linkwise ή του UK, κωδικοί ή Amazon (L215): ΠΡΟΒΛΗΜΑ' -f $gr.status) $Bad; $all = $false }
+    $lw = Get-Page ($base + '/stores/kouzinika-gr/') 'GR'
+    if ($lw.status -eq 404 -and -not $lw.text.Contains('Kouzinika GR')) { Say '  /stores/kouzinika-gr/ δεν υπάρχει μέχρι την έγκριση της Linkwise (404, L215): ΕΝΤΑΞΕΙ' $Ok }
+    else { Say ('  /stores/kouzinika-gr/ απαντά {0} πριν την έγκριση της Linkwise (L215): ΠΡΟΒΛΗΜΑ' -f $lw.status) $Bad; $all = $false }
     $us = Get-Page ($base + '/') 'US'
     $usAny = $us.text.Contains('class="bf-started"') -or $us.text.Contains('class="promo-card"') -or $us.text.Contains('href="/stores/') -or ($us.text -match '(?i)amazon')
     if ($us.status -eq 200 -and $us.text.Contains('stores-none') -and -not $usAny) { Say '  Από ΗΠΑ: κανένα κατάστημα, με τη γραμμή «δεν εμφανίζεται ακόμα για τη χώρα σας»: ΕΝΤΑΞΕΙ' $Ok }

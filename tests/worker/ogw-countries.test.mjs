@@ -4,10 +4,13 @@
 // countries they deliver to; Google and the other crawlers read the UK page. Fake fetch, a fixed day, never the network.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import site from '../../sites/ogw/site.config.js';
+import liveSite from '../../sites/ogw/site.config.js';
 import {
   createGuidesWorker, deliversHere, amazonHere, viewMode, viewCountry, shownStores, storeCodes, earlyBlackFriday, blackFridayParts, awinStores
 } from '../../src/marketplace-guides.js';
+// The Linkwise stores are hidden until Linkwise approves this site (L215, tests/worker/ogw-hidden.test.mjs): these tests
+// check the per-country rules as they will be after the approval (hiddenNetworks empty).
+const site = { ...liveSite, hiddenNetworks: [] };
 
 const LIVE = 'https://megastoresgearworld.com';
 const NOW = Date.parse('2026-11-21T12:00:00Z');

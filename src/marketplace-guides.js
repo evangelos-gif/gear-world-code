@@ -499,10 +499,12 @@ export function earlyBlackFriday(site, now = Date.now(), country = VIEW_BASE) {
   const data = site.earlyBlackFriday || {};
   const today = ukDay(new Date(now));
   const ours = new Map(awinStores(site).filter(s => deliversHere(s, country)).map(s => [s.slug, s]));
+  // Never an entry of a store that is hidden (L215).
+  const hidden = new Set((site.stores || []).filter(s => !storeListed(site, s)).map(s => s.slug));
   const codes = Array.isArray(data.codes) ? data.codes : [];
   return (Array.isArray(data.started) ? data.started : [])
     .filter(r => r && r.name && /^[a-z0-9]+(-[a-z0-9]+)*$/.test(r.slug || '') && DAY_RE.test(r.from || '') && DAY_RE.test(r.hide || '')
-      && (!r.to || DAY_RE.test(r.to)) && r.from <= today && today <= r.hide && Array.isArray(r.sites) && deliversHere(r, country))
+      && (!r.to || DAY_RE.test(r.to)) && r.from <= today && today <= r.hide && Array.isArray(r.sites) && deliversHere(r, country) && !hidden.has(r.slug))
     .map(r => {
       const worlds = r.sites.map(gearWorldFor).filter(Boolean);
       // A code of the file is for its own deliversTo (none: the UK, like every code in pounds today, L210).
@@ -641,8 +643,17 @@ const UNSHOWN_WORDS = /[£$€%]|\b(sale|sales|deals?|save|saving|savings|shop|s
 const UNSHOWN_GREEK = /προσφορ|εκπτωσ|ευκαιρι|δωρο|δωρεαν|εκπτωτικ/;
 const unshown = text => UNSHOWN_WORDS.test(text) || UNSHOWN_GREEK.test(String(text).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase());
 
+// A store of an affiliate network that has not approved this site yet (owner, 22 Nov 2026: "we will declare it but we
+// will hide it", lessons L215). Linkwise approves every page that shows its stores before any promotion: until its email
+// approves megastoresgearworld.com, the stores of site.hiddenNetworks are on no page, card, code or Black Friday entry of
+// this site, for any country. Their visitors' countries then get the "no store listed for your country" page.
+export function storeListed(site, store) {
+  const hidden = Array.isArray(site && site.hiddenNetworks) ? site.hiddenNetworks : [];
+  return !(store && store.network && hidden.includes(store.network));
+}
+
 export function awinStores(site) {
-  return (site.stores || []).filter(s => !s.amazon && Array.isArray(s.sites) && s.sites.length);
+  return (site.stores || []).filter(s => !s.amazon && Array.isArray(s.sites) && s.sites.length && storeListed(site, s));
 }
 
 // The stores shown with this mode, in the config's order: Amazon only with Amazon links (on or preview) and only where
@@ -650,7 +661,7 @@ export function awinStores(site) {
 export function shownStores(site, mode, country = VIEW_BASE) {
   return (site.stores || []).filter(s => (s.amazon
     ? withMarkets(viewMode(site, mode, country))
-    : Array.isArray(s.sites) && s.sites.length && deliversHere(s, country)));
+    : Array.isArray(s.sites) && s.sites.length && deliversHere(s, country) && storeListed(site, s)));
 }
 
 export function storeCacheKey(site, store) {
@@ -1303,7 +1314,7 @@ function notFoundPage(c, path) {
 export function pagePaths(site, mode = 'off') {
   // Only the stores of the UK page, the one Google reads (L195, L210): a store listed for other countries only (the Greek
   // ones) would show Google its "not listed for your country" page.
-  const stores = (site.stores || []).filter(s => (s.amazon ? mode === 'on' : Array.isArray(s.sites) && s.sites.length && deliversHere(s, VIEW_BASE))).map(s => `/stores/${s.slug}/`);
+  const stores = (site.stores || []).filter(s => (s.amazon ? mode === 'on' : Array.isArray(s.sites) && s.sites.length && deliversHere(s, VIEW_BASE) && storeListed(site, s))).map(s => `/stores/${s.slug}/`);
   return ['/', ...stores, ...site.guides.map(g => `/guides/${g.slug}/`), `/guides/${site.checks.slug}/`, ...Object.keys(LEGAL)];
 }
 
@@ -1311,7 +1322,8 @@ export function pagePaths(site, mode = 'off') {
 // photoTimeoutMs for the photo check (L211).
 export function createGuidesWorker(site, deps = {}) {
   const guides = new Map(site.guides.map(g => [g.slug, g]));
-  const stores = new Map((site.stores || []).map(s => [s.slug, s]));
+  // A hidden store (L215) has no page at all: its address is a 404, as if it were not on the site.
+  const stores = new Map((site.stores || []).filter(s => storeListed(site, s)).map(s => [s.slug, s]));
   const runtime = () => ({
     fetch: deps.fetch,
     cache: deps.cache !== undefined ? deps.cache : (typeof caches !== 'undefined' && caches.default ? caches.default : null),

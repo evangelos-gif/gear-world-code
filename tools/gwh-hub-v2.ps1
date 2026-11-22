@@ -214,6 +214,10 @@
   the test Worker (preview) and on gear-world-hub right before the deploy (live), the same way as -ImpactCode; it stays for
   later deploys. Phrases unchanged: ΕΓΚΡΙΝΩ HUB SEARCH PREVIEW, ΕΓΚΡΙΝΩ HUB SEARCH LIVE, ΕΓΚΡΙΝΩ HUB REMOVE PREVIEW (one
   paste, live with -AfterPreview). Exit codes 21 and 22 as for -MitgoCode.
+  Linkwise stores hidden (owner, 22/11/2026, lessons L215: "we will declare it but we will hide it"): until Linkwise
+  approves megastoresgearworld.com, its 7 Greek stores are hidden there (site.config.js hiddenNetworks) and from the Hub's
+  bar (MEGA_HIDDEN_NETWORKS in worker.js): from Greece and Cyprus there is no bar. The check from Greece asks for that.
+  Phrases unchanged: ΕΓΚΡΙΝΩ HUB SEARCH PREVIEW, ΕΓΚΡΙΝΩ HUB SEARCH LIVE, ΕΓΚΡΙΝΩ HUB REMOVE PREVIEW.
   Report: <home>\gear-world-reports\GWH_HUB_V2_<STEP>_<time>.txt (also copied to the clipboard)
 #>
 param(
@@ -263,7 +267,7 @@ $Bad = 'Magenta'
 
 # What each file of the change does, in the words of the report.
 $About = @{
-    'worker.js' = 'η σειρά των αποτελεσμάτων της αναζήτησης με το rankHubResults: πρώτα τι είναι το προϊόν (κατηγορίες), μετά ολόκληρες λέξεις του ονόματος, αξεσουάρ πιο κάτω (GWH-RANKING-V3, L177)· η αναζήτηση μεταφράζει τις ξένες λέξεις με το μοντέλο της αναζήτησης με φωτογραφία (Gemma 4), γιατί το Cloudflare σταματά το @cf/meta/llama-3.1-8b-instruct-fp8 στις 20/11 (L173)· η αρχική σελίδα παίρνει τη γλώσσα της χώρας του επισκέπτη (<html data-country-lang>, μόνο σε κάθε απάντηση, ποτέ για το Google, L175)· όλα τα άλλα όπως είναι live · L211: η μπάρα Mega Stores και η σελίδα /black-friday/ ανά χώρα (από Ελλάδα τα 7 ελληνικά καταστήματα, όπου δεν υπάρχει κατάστημα καμία μπάρα, στο /black-friday/ μόνο ό,τι παραδίδει στη χώρα)'
+    'worker.js' = 'η σειρά των αποτελεσμάτων της αναζήτησης με το rankHubResults: πρώτα τι είναι το προϊόν (κατηγορίες), μετά ολόκληρες λέξεις του ονόματος, αξεσουάρ πιο κάτω (GWH-RANKING-V3, L177)· η αναζήτηση μεταφράζει τις ξένες λέξεις με το μοντέλο της αναζήτησης με φωτογραφία (Gemma 4), γιατί το Cloudflare σταματά το @cf/meta/llama-3.1-8b-instruct-fp8 στις 20/11 (L173)· η αρχική σελίδα παίρνει τη γλώσσα της χώρας του επισκέπτη (<html data-country-lang>, μόνο σε κάθε απάντηση, ποτέ για το Google, L175)· όλα τα άλλα όπως είναι live · L211: η μπάρα Mega Stores και η σελίδα /black-friday/ ανά χώρα (από Ελλάδα τα 7 ελληνικά καταστήματα, όπου δεν υπάρχει κατάστημα καμία μπάρα, στο /black-friday/ μόνο ό,τι παραδίδει στη χώρα) · L215: τα 7 ελληνικά καταστήματα (Linkwise) κρυμμένα από τη μπάρα μέχρι η Linkwise να εγκρίνει το megastoresgearworld.com: από Ελλάδα και Κύπρο καμία μπάρα'
     'photo-search.js' = 'κρατά το μοντέλο της μετάφρασης της αναζήτησης (ίδιο με της φωτογραφίας) και διαβάζει την απάντησή του σε κάθε μορφή (L173)· η αναζήτηση με φωτογραφία δεν αλλάζει'
     'security.js'           = 'νέο αρχείο: έλεγχος Turnstile, ημερήσια όρια του δικτύου (εγγραφές, μεταφράσεις), headers (L106)'
     'mailerlite.js'         = 'η φόρμα του Hub θέλει το token του Turnstile· ημερήσιο όριο εγγραφών για όλο το δίκτυο, μικρό δικό της για την εφαρμογή (L106)'
@@ -737,19 +741,20 @@ function Test-Site([string]$base, [bool]$isLive) {
     $grHome = Get-Web ($base + '/?gwcheck=' + $stamp) 'GR'
     $grHtml = $enc8.GetString($grHome.bytes)
     $grUk = @($megaStores | Where-Object { $grHtml.Contains('data-store="' + $_ + '"') })
-    $grOne = ([regex]::Matches($grHtml, 'href="https://megastoresgearworld\.com/"')).Count -eq 1
+    # L215 (owner, 22 Nov 2026): until Linkwise approves megastoresgearworld.com its 7 Greek stores are hidden there, so
+    # from Greece the bar names no store and is not shown at all, as from the US.
     $grStores = @('kouzinika-gr', 'katoikein-gr', 'minipini-gr', 'xxxl-leo-gr', 'casualshoes-gr', 'parex-gr', 'tsakiris-mallas-gr')
-    $grMissing = @($grStores | Where-Object { -not $grHtml.Contains('data-store="' + $_ + '"') })
-    $grOk = ($grHome.status -eq 200 -and $grMissing.Count -eq 0 -and $grUk.Count -eq 0 -and $grOne)
-    if ($grOk) { Say '  Μπάρα Mega Stores από Ελλάδα (L211): ΕΝΤΑΞΕΙ - τα 7 ελληνικά καταστήματα, κανένα του UK' $Ok }
-    else { Say ('  Μπάρα Mega Stores από Ελλάδα (L211): ΠΡΟΒΛΗΜΑ - απάντηση {0}, λείπουν: {1}, καταστήματα του UK: {2}, ένα link: {3}' -f $grHome.status, ($grMissing -join ', '), ($grUk -join ', '), $grOne) $Bad }
+    $grLinkwise = @($grStores | Where-Object { $grHtml.Contains('data-store="' + $_ + '"') })
+    $grOk = ($grHome.status -eq 200 -and -not $grHtml.Contains('gwh2-mega-wrap') -and $grLinkwise.Count -eq 0 -and $grUk.Count -eq 0 -and $grHtml.Contains('id="hubSearch"'))
+    if ($grOk) { Say '  Μπάρα Mega Stores από Ελλάδα (L211, L215): ΕΝΤΑΞΕΙ - δεν φαίνεται μέχρι την έγκριση της Linkwise, κανένα κατάστημα του UK, η σελίδα κανονικά' $Ok }
+    else { Say ('  Μπάρα Mega Stores από Ελλάδα (L211, L215): ΠΡΟΒΛΗΜΑ - απάντηση {0}, μπάρα: {1}, καταστήματα Linkwise: {2}, καταστήματα του UK: {3}' -f $grHome.status, $grHtml.Contains('gwh2-mega-wrap'), ($grLinkwise -join ', '), ($grUk -join ', ')) $Bad }
     $usHome = Get-Web ($base + '/?gwcheck=' + $stamp) 'US'
     $usHtml = $enc8.GetString($usHome.bytes)
     if ($usHome.status -eq 200 -and -not $usHtml.Contains('gwh2-mega-wrap') -and $usHtml.Contains('id="hubSearch"')) { Say '  Μπάρα Mega Stores από ΗΠΑ (L211): ΕΝΤΑΞΕΙ - δεν φαίνεται (κανένα κατάστημα για τις ΗΠΑ), η σελίδα κανονικά' $Ok }
     else { Say ('  Μπάρα Mega Stores από ΗΠΑ (L211): ΠΡΟΒΛΗΜΑ - απάντηση {0}, μπάρα: {1}' -f $usHome.status, $usHtml.Contains('gwh2-mega-wrap')) $Bad }
     $grBf = Get-Web ($base + '/black-friday/?gwcheck=' + $stamp) 'GR'
     $grBfHtml = $enc8.GetString($grBf.bytes)
-    $grBfOk = ($grBf.status -eq 200 -and $grBfHtml.Contains('class="gd-note rt-country"') -and -not $grBfHtml.Contains('data-delivers="GB"') -and $grBfHtml.Contains('<h1>Black Friday 2026 on Gear World</h1>'))
+    $grBfOk = ($grBf.status -eq 200 -and $grBfHtml.Contains('class="gd-note rt-country"') -and -not $grBfHtml.Contains('megastoresgearworld.com') -and -not $grBfHtml.Contains('data-delivers="GB"') -and $grBfHtml.Contains('<h1>Black Friday 2026 on Gear World</h1>'))
     if ($ukDelivers -and $grBfOk) { Say '  /black-friday/ από Ελλάδα (L211): ΕΝΤΑΞΕΙ - κανένα κατάστημα ή κωδικός του UK, με τη γραμμή «Only the retailers we list for your country»' $Ok }
     else { Say ('  /black-friday/ ανά χώρα (L211): ΠΡΟΒΛΗΜΑ - σελίδα UK με data-delivers: {0}, από Ελλάδα: απάντηση {1}, σωστή: {2}' -f $ukDelivers, $grBf.status, $grBfOk) $Bad }
     # L119: the Mitgo tag right before </head> of the home page (a new secret takes a few seconds to reach every answer).

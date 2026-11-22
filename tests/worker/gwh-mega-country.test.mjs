@@ -8,7 +8,7 @@ import { readFileSync } from 'node:fs';
 import ogw from '../../sites/ogw/site.config.js';
 import {
   MEGA_BAR_STORES, megaCountry, megaStoresFor, coversCountry, megaBarHtml, blackFridayHtml, withMegaCountry, elementEnd,
-  BF_COUNTRY_NOTE, BF_NONE_HERE, QA_COUNTRY_HEADER
+  BF_COUNTRY_NOTE, BF_NONE_HERE, QA_COUNTRY_HEADER, MEGA_HIDDEN_NETWORKS
 } from '../../sites/gwh/worker.js';
 
 const HOME = readFileSync('sites/gwh/public/index.html', 'utf8');
@@ -34,13 +34,15 @@ const offerItems = html => (html.match(/<li class="[^"]*\brt-offer\b/g) || []).l
 
 test('L211: the bar\'s stores are the stores of megastoresgearworld.com, Amazon UK first, each where it delivers', () => {
   const fromOgw = [{ slug: 'amazon', name: 'Amazon', deliversTo: ogw.amazon.deliversTo }]
-    .concat(ogw.stores.filter(s => !s.amazon && Array.isArray(s.sites) && s.sites.length).map(s => ({ slug: s.slug, name: s.name, deliversTo: s.deliversTo || ['GB'] })));
+    .concat(ogw.stores.filter(s => !s.amazon && Array.isArray(s.sites) && s.sites.length).map(s => ({ slug: s.slug, ...(s.network ? { network: s.network } : {}), name: s.name, deliversTo: s.deliversTo || ['GB'] })));
   assert.deepEqual(MEGA_BAR_STORES, fromOgw, 'MEGA_BAR_STORES in sites/gwh/worker.js = sites/ogw/site.config.js (add a store to both)');
+  assert.deepEqual(MEGA_HIDDEN_NETWORKS, ogw.hiddenNetworks || [], 'the same networks hidden on the Hub bar as on megastoresgearworld.com (L215)');
   assert.deepEqual(megaStoresFor('GB').map(s => s.slug), UK_SLUGS);
   const fileSlugs = slugsOf(bar(HOME));
   assert.deepEqual(fileSlugs, [...UK_SLUGS, ...UK_SLUGS], 'the UK bar of public/index.html = the stores listed for the UK (the list and its copy)');
-  assert.deepEqual(megaStoresFor('GR').map(s => s.name), GR_NAMES);
-  assert.deepEqual(megaStoresFor('CY').map(s => s.name), ['Parex GR', 'Tsakiris Mallas GR']);
+  // After Linkwise approves megastoresgearworld.com (no network hidden); until then Greece and Cyprus get none (L215).
+  assert.deepEqual(megaStoresFor('GR', []).map(s => s.name), GR_NAMES);
+  assert.deepEqual(megaStoresFor('CY', []).map(s => s.name), ['Parex GR', 'Tsakiris Mallas GR']);
   for (const cc of ['US', 'DE', 'PL', 'IE', 'XX']) assert.deepEqual(megaStoresFor(cc), [], `${cc}: none`);
   assert.ok(coversCountry(['WORLD'], 'JP') && coversCountry('GB GR', 'GR') && coversCountry('', 'GB') && !coversCountry('', 'GR'));
 });
@@ -59,7 +61,7 @@ test('L211: the country: Cloudflare\'s, the UK for every crawler, the QA check\'
 });
 
 test('L211: from Greece the bar names the 7 Greek stores as text, one link to Mega Stores, no UK store and no logo', async () => {
-  const r = await withMegaCountry(req('/', { cc: 'GR' }), page(HOME));
+  const r = await withMegaCountry(req('/', { cc: 'GR' }), page(HOME), []);
   assert.equal(r.status, 200);
   assert.equal(r.headers.get('Cache-Control'), 'private, max-age=60');
   assert.equal(r.headers.get('ETag'), null);
@@ -67,7 +69,7 @@ test('L211: from Greece the bar names the 7 Greek stores as text, one link to Me
   const b = bar(html);
   assert.ok(b, 'the bar is there');
   const slugs = slugsOf(b);
-  assert.deepEqual(slugs, [...megaStoresFor('GR').map(s => s.slug), ...megaStoresFor('GR').map(s => s.slug)], 'the 7 Greek stores, the list and its copy');
+  assert.deepEqual(slugs, [...megaStoresFor('GR', []).map(s => s.slug), ...megaStoresFor('GR', []).map(s => s.slug)], 'the 7 Greek stores, the list and its copy');
   for (const s of UK_SLUGS) assert.ok(!html.includes(`data-store="${s}"`), `no ${s}`);
   for (const n of ['Amazon', 'Joybuy', 'Tooled Up', 'PCHUB.UK', 'DHgate']) assert.ok(!b.includes(n), `no ${n} in the bar`);
   assert.ok(!b.includes('<img'), 'no logo: the Greek stores have none yet');
@@ -81,7 +83,7 @@ test('L211: from Greece the bar names the 7 Greek stores as text, one link to Me
 });
 
 test('L211: from Cyprus only Parex and Tsakiris Mallas; from the US, Germany or an unknown country no bar at all', async () => {
-  const cy = await (await withMegaCountry(req('/', { cc: 'CY' }), page(HOME))).text();
+  const cy = await (await withMegaCountry(req('/', { cc: 'CY' }), page(HOME), [])).text();
   assert.deepEqual(slugsOf(bar(cy)), ['parex-gr', 'tsakiris-mallas-gr', 'parex-gr', 'tsakiris-mallas-gr']);
   for (const cc of ['US', 'DE', null]) {
     const html = await (await withMegaCountry(req('/', { cc }), page(HOME))).text();
@@ -121,7 +123,7 @@ test('L211: other pages, other methods and other answers are not touched', async
 
 test('L211: /black-friday/ from Greece: no UK retailer or code, "Nothing listed for your country yet." and Mega Stores named', async () => {
   assert.equal(offerItems(BF), (BF.match(/data-delivers="GB"/g) || []).length, 'every item of the file says where it delivers');
-  const r = await withMegaCountry(req('/black-friday/', { cc: 'GR' }), page(BF));
+  const r = await withMegaCountry(req('/black-friday/', { cc: 'GR' }), page(BF), []);
   assert.equal(r.headers.get('Cache-Control'), 'private, max-age=60');
   const html = await r.text();
   assert.equal(offerItems(html), 0, 'every retailer and code of the page delivers to the UK only');
@@ -144,4 +146,21 @@ test('L211: /black-friday/ keeps an item that delivers to the country, and its l
   assert.equal((html.match(new RegExp(`<p class="gd-note rt-none">${BF_NONE_HERE}</p>`, 'g')) || []).length, 1, 'the other list: shown');
   const world = blackFridayHtml(BF.replace(/data-delivers="GB"/g, 'data-delivers="WORLD"'), 'JP');
   assert.equal(offerItems(world), offerItems(BF), 'WORLD: everywhere');
+});
+
+test('L215: until Linkwise approves megastoresgearworld.com, Greece and Cyprus get no bar and no Mega Stores line', async () => {
+  assert.deepEqual(MEGA_HIDDEN_NETWORKS, ['linkwise']);
+  assert.equal(MEGA_BAR_STORES.filter(s => s.network === 'linkwise').length, 7, 'the 7 Greek stores are Linkwise stores');
+  for (const cc of ['GR', 'CY']) {
+    assert.deepEqual(megaStoresFor(cc), [], `${cc}: none for now`);
+    const html = await (await withMegaCountry(req('/', { cc }), page(HOME))).text();
+    assert.ok(!html.includes('gwh2-mega-wrap') && !html.includes('data-store=') && !html.includes('megastoresgearworld.com/"'), `${cc}: no bar`);
+    for (const n of GR_NAMES) assert.ok(!html.includes(n), `${cc}: no ${n}`);
+    assert.ok(html.includes('id="hubSearch"') && html.includes('<section class="gwh2-top">') && html.includes('</html>'), `${cc}: the rest of the page`);
+    const bf = await (await withMegaCountry(req('/black-friday/', { cc }), page(BF))).text();
+    assert.ok(bf.includes(`<p class="gd-note rt-country">${BF_COUNTRY_NOTE}</p>`), `${cc}: the line without Mega Stores`);
+    assert.ok(!bf.includes('megastoresgearworld.com'), `${cc}: no link to Mega Stores`);
+  }
+  const gb = await (await withMegaCountry(req('/', { cc: 'GB' }), page(HOME))).text();
+  assert.equal(gb, HOME, 'the UK: the file itself');
 });

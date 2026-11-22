@@ -91,13 +91,13 @@ export default {
     // Greek products, under their names there ("… GR") and the countries of the sites' linkwise-gr.js (checked by chat 3
     // and 7, L199). Shown only to visitors from those countries. Their offers' own texts ("up to -50%") are not shown:
     // no sale or "% off" wording on the sites (L107, L114), and none of them is a code with an end date.
-    { slug: 'kouzinika-gr', name: 'Kouzinika GR', sites: ['HGW'], deliversTo: ['GR'], line: 'Kitchenware, tableware and home items.', logo: '' },
-    { slug: 'katoikein-gr', name: 'Katoikein GR', sites: ['HGW'], deliversTo: ['GR'], line: 'Furniture and home textiles.', logo: '' },
-    { slug: 'minipini-gr', name: 'Minipini GR', sites: ['KGW'], deliversTo: ['GR'], line: 'Toys, puzzles and games for children.', logo: '' },
-    { slug: 'xxxl-leo-gr', name: 'XXXL Leo GR', sites: ['MGW'], deliversTo: ['GR'], line: 'Men\'s clothing, also in larger sizes.', logo: '' },
-    { slug: 'casualshoes-gr', name: 'CasualShoes GR', sites: ['MGW'], deliversTo: ['GR'], line: 'Shoes and watches.', logo: '' },
-    { slug: 'parex-gr', name: 'Parex GR', sites: ['MGW'], deliversTo: ['GR', 'CY'], line: 'Shoes, wallets and socks.', logo: '' },
-    { slug: 'tsakiris-mallas-gr', name: 'Tsakiris Mallas GR', sites: ['MGW', 'WGW'], deliversTo: ['GR', 'CY'], line: 'Shoes and bags.', logo: '' }
+    { slug: 'kouzinika-gr', network: 'linkwise', name: 'Kouzinika GR', sites: ['HGW'], deliversTo: ['GR'], line: 'Kitchenware, tableware and home items.', logo: '' },
+    { slug: 'katoikein-gr', network: 'linkwise', name: 'Katoikein GR', sites: ['HGW'], deliversTo: ['GR'], line: 'Furniture and home textiles.', logo: '' },
+    { slug: 'minipini-gr', network: 'linkwise', name: 'Minipini GR', sites: ['KGW'], deliversTo: ['GR'], line: 'Toys, puzzles and games for children.', logo: '' },
+    { slug: 'xxxl-leo-gr', network: 'linkwise', name: 'XXXL Leo GR', sites: ['MGW'], deliversTo: ['GR'], line: 'Men\'s clothing, also in larger sizes.', logo: '' },
+    { slug: 'casualshoes-gr', network: 'linkwise', name: 'CasualShoes GR', sites: ['MGW'], deliversTo: ['GR'], line: 'Shoes and watches.', logo: '' },
+    { slug: 'parex-gr', network: 'linkwise', name: 'Parex GR', sites: ['MGW'], deliversTo: ['GR', 'CY'], line: 'Shoes, wallets and socks.', logo: '' },
+    { slug: 'tsakiris-mallas-gr', network: 'linkwise', name: 'Tsakiris Mallas GR', sites: ['MGW', 'WGW'], deliversTo: ['GR', 'CY'], line: 'Shoes and bags.', logo: '' }
   ],
   // Black Friday 2026 (Friday 27 Nov), Cyber Monday (Monday 30 Nov) and Christmas: the countdown line and the Black Friday
   // block of the home page (until the end of Cyber Monday). Never a promise of discounts.
@@ -105,6 +105,11 @@ export default {
   cyberMonday: '2026-11-30',
   christmas: '2026-12-25',
   // The retailers that have started their Black Friday and their codes: the Hub's black-friday.json (L188, L195).
+  // Owner, 22 Nov 2026 ("we will declare it but we will hide it", lessons L215): megastoresgearworld.com is declared to
+  // Linkwise as a page that shows its stores, and until Linkwise's email approves it the Linkwise stores above are hidden
+  // everywhere on this site (Greece and Cyprus then get "no store listed for your country"). After the approval: take
+  // 'linkwise' out of this list, in a release with its own phrase.
+  hiddenNetworks: ['linkwise'],
   earlyBlackFriday: EARLY_BLACK_FRIDAY,
   guides: [
     {

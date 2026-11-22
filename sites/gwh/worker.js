@@ -1685,13 +1685,13 @@ export const MEGA_BAR_STORES = [
   { slug: "gs-workwear", name: "GS Workwear", deliversTo: ["GB"] },
   { slug: "back-to-the-office", name: "Back to the Office", deliversTo: ["GB"] },
   { slug: "dhgate", name: "DHgate", deliversTo: ["GB"] },
-  { slug: "kouzinika-gr", name: "Kouzinika GR", deliversTo: ["GR"] },
-  { slug: "katoikein-gr", name: "Katoikein GR", deliversTo: ["GR"] },
-  { slug: "minipini-gr", name: "Minipini GR", deliversTo: ["GR"] },
-  { slug: "xxxl-leo-gr", name: "XXXL Leo GR", deliversTo: ["GR"] },
-  { slug: "casualshoes-gr", name: "CasualShoes GR", deliversTo: ["GR"] },
-  { slug: "parex-gr", name: "Parex GR", deliversTo: ["GR", "CY"] },
-  { slug: "tsakiris-mallas-gr", name: "Tsakiris Mallas GR", deliversTo: ["GR", "CY"] }
+  { slug: "kouzinika-gr", network: "linkwise", name: "Kouzinika GR", deliversTo: ["GR"] },
+  { slug: "katoikein-gr", network: "linkwise", name: "Katoikein GR", deliversTo: ["GR"] },
+  { slug: "minipini-gr", network: "linkwise", name: "Minipini GR", deliversTo: ["GR"] },
+  { slug: "xxxl-leo-gr", network: "linkwise", name: "XXXL Leo GR", deliversTo: ["GR"] },
+  { slug: "casualshoes-gr", network: "linkwise", name: "CasualShoes GR", deliversTo: ["GR"] },
+  { slug: "parex-gr", network: "linkwise", name: "Parex GR", deliversTo: ["GR", "CY"] },
+  { slug: "tsakiris-mallas-gr", network: "linkwise", name: "Tsakiris Mallas GR", deliversTo: ["GR", "CY"] }
 ];
 export function megaCountry(request) {
   const ua = String(request.headers.get("User-Agent") || "");
@@ -1711,8 +1711,12 @@ export function coversCountry(list, country) {
   const codes = to.length ? to : ["GB"];
   return codes.includes("WORLD") || codes.includes(String(country || "").toUpperCase());
 }
-export function megaStoresFor(country) {
-  return MEGA_BAR_STORES.filter(s => coversCountry(s.deliversTo, country));
+// The networks whose stores megastoresgearworld.com hides for now (its site.config.js hiddenNetworks; owner, 22 Nov 2026,
+// lessons L215: Linkwise approves every page that shows its stores first): the bar names none of them, so from Greece and
+// Cyprus there is no bar until the approval, as for a country with no store.
+export const MEGA_HIDDEN_NETWORKS = ["linkwise"];
+export function megaStoresFor(country, hidden = MEGA_HIDDEN_NETWORKS) {
+  return MEGA_BAR_STORES.filter(s => coversCountry(s.deliversTo, country) && !(s.network && hidden.includes(s.network)));
 }
 const escHtml = s => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 // The end of the element that starts at `start` (an opening <tag ...>), counting the same tag nested inside it.
@@ -1734,12 +1738,12 @@ function replaceElement(text, opening, tag, replacement) {
   return end < 0 ? text : text.slice(0, at) + replacement + text.slice(end);
 }
 // The home page's bar for a country: the file itself for the UK, the stores listed there as text, or no bar.
-export function megaBarHtml(text, country) {
+export function megaBarHtml(text, country, hidden = MEGA_HIDDEN_NETWORKS) {
   if (country === "GB") return text;
   const wrap = '<div class="gwh2-mega-wrap">';
   const at = text.indexOf(wrap);
   if (at < 0) return text;
-  const stores = megaStoresFor(country);
+  const stores = megaStoresFor(country, hidden);
   if (!stores.length) {
     const end = elementEnd(text, at, "div");
     return end < 0 ? text : text.slice(0, at) + text.slice(end).replace(/^[ \t]*\r?\n/, "");
@@ -1760,7 +1764,7 @@ export const BF_NONE_HERE = "Nothing listed for your country yet.";
 // The Black Friday page for a country: the file itself for the UK; elsewhere only the items whose data-delivers covers
 // the country (an item without it is a UK one), the line that says so, and "Nothing listed for your country yet." in each
 // list that has none left (shown at once, without waiting for /stores/stores.js).
-export function blackFridayHtml(text, country) {
+export function blackFridayHtml(text, country, hidden = MEGA_HIDDEN_NETWORKS) {
   if (country === "GB") return text;
   let out = text.replace(/<section class="gd-group rt-offers"[\s\S]*?<\/section>/g, section => {
     let kept = 0;
@@ -1771,7 +1775,7 @@ export function blackFridayHtml(text, country) {
     });
     return s.replace(/<p class="gd-note rt-none"( hidden)?>[\s\S]*?<\/p>/, kept ? `<p class="gd-note rt-none" hidden>${BF_NONE_HERE}</p>` : `<p class="gd-note rt-none">${BF_NONE_HERE}</p>`);
   });
-  const note = `<p class="gd-note rt-country">${BF_COUNTRY_NOTE}${megaStoresFor(country).length ? ` ${BF_MEGA_NOTE}` : ""}</p>`;
+  const note = `<p class="gd-note rt-country">${BF_COUNTRY_NOTE}${megaStoresFor(country, hidden).length ? ` ${BF_MEGA_NOTE}` : ""}</p>`;
   out = out.replace(/(<p class="gd-checked">[\s\S]*?<\/p>)/, `$1\n    ${note}`);
   return out;
 }
@@ -1779,7 +1783,7 @@ export const MEGA_COUNTRY_PAGES = {
   "/": megaBarHtml, "/index.html": megaBarHtml,
   "/black-friday/": blackFridayHtml, "/black-friday/index.html": blackFridayHtml
 };
-export async function withMegaCountry(request, response) {
+export async function withMegaCountry(request, response, hidden = MEGA_HIDDEN_NETWORKS) {
   if (request.method !== "GET" && request.method !== "HEAD") return response;
   const change = MEGA_COUNTRY_PAGES[new URL(request.url).pathname];
   if (!change) return response;
@@ -1796,7 +1800,7 @@ export async function withMegaCountry(request, response) {
   }
   headers.delete("Content-Length");
   const text = await response.text();
-  return new Response(change(text, country), { status: response.status, headers });
+  return new Response(change(text, country, hidden), { status: response.status, headers });
 }
 
 // GWH-SITE-VERIFICATION (owner, 13 Nov 2026, lessons L119): Mitgo checks that gearworldhub.com is ours by the tag
