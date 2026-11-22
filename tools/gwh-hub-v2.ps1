@@ -218,6 +218,10 @@
   approves megastoresgearworld.com, its 7 Greek stores are hidden there (site.config.js hiddenNetworks) and from the Hub's
   bar (MEGA_HIDDEN_NETWORKS in worker.js): from Greece and Cyprus there is no bar. The check from Greece asks for that.
   Phrases unchanged: ΕΓΚΡΙΝΩ HUB SEARCH PREVIEW, ΕΓΚΡΙΝΩ HUB SEARCH LIVE, ΕΓΚΡΙΝΩ HUB REMOVE PREVIEW.
+  Quick answers in the gift guides (owner, 22/11/2026, idea 7, lessons L216): each guide page gets one question per group
+  ("What are some Christmas gifts for him under £25?"), answered only with its own products, prices, retailers and check
+  days, and the same as FAQPage in its structured data (for Google and AI assistants). The check opens one guide.
+  Phrases unchanged: ΕΓΚΡΙΝΩ HUB SEARCH PREVIEW, ΕΓΚΡΙΝΩ HUB SEARCH LIVE, ΕΓΚΡΙΝΩ HUB REMOVE PREVIEW.
   Report: <home>\gear-world-reports\GWH_HUB_V2_<STEP>_<time>.txt (also copied to the clipboard)
 #>
 param(
@@ -319,11 +323,11 @@ $About = @{
     'public/contact/index.html' = 'στη γλώσσα του επισκέπτη μέσω legal.js (data-lg-i18n, L176)· «business enquiries from retailers and affiliate networks» αντί για «partnership enquiries» (L103)'
     'public/guides/guides.css' = 'η εμφάνιση των οδηγών δώρων: «RRP» αντί για διαγραμμένη τιμή και «n% below» (L107)'
     'public/guides/index.html' = 'οι οδηγοί δώρων: «Prices checked between 15 Nov 2026 and 21 Nov 2026», «for him, from £19», «for her, from £19», «for kids, by age, from £16» (L119, L211)'
-    'public/guides/christmas-gifts-for-him/index.html' = 'οδηγός δώρων για εκείνον, τιμές του Men''s Gear World στις 21/11: Philips MG1100, θήκη καρτών Calvin Klein Slate Blue, σετ γραβάτας Santoro Milan, σκούφος FILA, Narciso Rodriguez Bleu Noir (στη θέση προϊόντων που έλειπαν ή είχαν άλλη τιμή), £19–£126 (L119, L211)'
-    'public/guides/christmas-gifts-for-her/index.html' = 'οδηγός δώρων για εκείνη, τιμές του Women''s Gear World στις 21/11: Jimmy Choo Blossom 40ml στη θέση του Ghost, το Olaplex στο «Under £50», £19–£175 (L119, L211)'
-    'public/guides/christmas-gifts-for-kids/index.html' = 'οδηγός δώρων για παιδιά, τιμές του Kids'' Gear World στις 21/11: LEGO Technic Ferrari 488 Pista στη θέση του 42203, £16–£62 (L119, L211)'
-    'public/guides/christmas-gifts-for-diy-lovers/index.html' = 'οδηγός δώρων για μάστορες: τιμές ελεγμένες 21/11 και οι νέοι τίτλοι των άλλων οδηγών στο «More gift guides» (L119, L211)'
-    'public/guides/christmas-gifts-for-travellers/index.html' = 'οδηγός δώρων για ταξιδιώτες: τιμές ελεγμένες 15/11 και οι νέοι τίτλοι των άλλων οδηγών στο «More gift guides» (L119, L211)'
+    'public/guides/christmas-gifts-for-him/index.html' = 'οδηγός δώρων για εκείνον, τιμές του Men''s Gear World στις 21/11 (L211) · L216: νέο κομμάτι «Quick answers» (μία ερώτηση για κάθε ομάδα τιμών, π.χ. «What are some Christmas gifts for him under £25?», με απάντηση μόνο από τα προϊόντα του οδηγού, τις τιμές και τα καταστήματά τους) και τα ίδια ως FAQPage στα structured data, για τη Google και τους βοηθούς AI'
+    'public/guides/christmas-gifts-for-her/index.html' = 'οδηγός δώρων για εκείνη, τιμές του Women''s Gear World στις 21/11 (L211) · L216: νέο κομμάτι «Quick answers» (μία ερώτηση για κάθε ομάδα τιμών, με απάντηση μόνο από τα προϊόντα του οδηγού) και τα ίδια ως FAQPage στα structured data, για τη Google και τους βοηθούς AI'
+    'public/guides/christmas-gifts-for-kids/index.html' = 'οδηγός δώρων για παιδιά, τιμές του Kids'' Gear World στις 21/11 (L211) · L216: νέο κομμάτι «Quick answers» (μία ερώτηση για κάθε ηλικία, με απάντηση μόνο από τα προϊόντα του οδηγού) και τα ίδια ως FAQPage στα structured data, για τη Google και τους βοηθούς AI'
+    'public/guides/christmas-gifts-for-diy-lovers/index.html' = 'οδηγός δώρων για μάστορες, τιμές ελεγμένες 21/11 (L211) · L216: νέο κομμάτι «Quick answers» (μία ερώτηση για κάθε ομάδα τιμών, με απάντηση μόνο από τα προϊόντα του οδηγού) και τα ίδια ως FAQPage στα structured data, για τη Google και τους βοηθούς AI'
+    'public/guides/christmas-gifts-for-travellers/index.html' = 'οδηγός δώρων για ταξιδιώτες, τιμές ελεγμένες 15/11 (L211) · L216: νέο κομμάτι «Quick answers» (μία ερώτηση για κάθε ομάδα τιμών, με απάντηση μόνο από τα προϊόντα του οδηγού) και τα ίδια ως FAQPage στα structured data, για τη Google και τους βοηθούς AI'
     'public/translations.js' = 'τα νομικά links του footer της αρχικής σε 11 γλώσσες, με τις λέξεις των νομικών σελίδων (L176)· χωρίς δική του επιλογή γλώσσας ο επισκέπτης βλέπει τη γλώσσα της χώρας του, χωρίς να αποθηκεύεται (L175)· οι λέξεις «<κατάστημα> delivers to» και «Worldwide» σε 11 γλώσσες και η γραμμή παράδοσης κάθε κάρτας (το όνομα του καταστήματος αμετάφραστο, οι χώρες στη γλώσσα του επισκέπτη, έως 3 και «+n») (L153)'
     'public/robots.txt'     = 'robots.txt του Hub: πρώτα «User-agent: SERankingBacklinksBot» με «Disallow: /» (L105), από κάτω ίδιο όπως ήταν, με τη γραμμή Sitemap: https://gearworldhub.com/sitemap.xml (το Cloudflare βάζει από πάνω τα Content Signals του)'
     'public/gearworldhub-indexnow-k7q4m9x2w5.txt' = 'το κλειδί του IndexNow (δημόσιο, έτσι δουλεύει το IndexNow)'
@@ -757,6 +761,11 @@ function Test-Site([string]$base, [bool]$isLive) {
     $grBfOk = ($grBf.status -eq 200 -and $grBfHtml.Contains('class="gd-note rt-country"') -and -not $grBfHtml.Contains('megastoresgearworld.com') -and -not $grBfHtml.Contains('data-delivers="GB"') -and $grBfHtml.Contains('<h1>Black Friday 2026 on Gear World</h1>'))
     if ($ukDelivers -and $grBfOk) { Say '  /black-friday/ από Ελλάδα (L211): ΕΝΤΑΞΕΙ - κανένα κατάστημα ή κωδικός του UK, με τη γραμμή «Only the retailers we list for your country»' $Ok }
     else { Say ('  /black-friday/ ανά χώρα (L211): ΠΡΟΒΛΗΜΑ - σελίδα UK με data-delivers: {0}, από Ελλάδα: απάντηση {1}, σωστή: {2}' -f $ukDelivers, $grBf.status, $grBfOk) $Bad }
+    # L216: the gift guides answer the questions people ask (Quick answers) and say the same in their structured data.
+    $qa = Get-Web ($base + '/guides/christmas-gifts-for-him/?gwcheck=' + $stamp) 'GB'
+    $qaHtml = $enc8.GetString($qa.bytes)
+    if ($qa.status -eq 200 -and $qaHtml.Contains('<h2 id="gd-faq-h">Quick answers</h2>') -and $qaHtml.Contains('"@type":"FAQPage"') -and $qaHtml.Contains('What are some Christmas gifts for him under £25?')) { Say '  Οδηγοί δώρων με «Quick answers» και FAQPage (L216): ΕΝΤΑΞΕΙ' $Ok }
+    else { Say ('  Οδηγοί δώρων με «Quick answers» (L216): ΠΡΟΒΛΗΜΑ - απάντηση {0}' -f $qa.status) $Bad }
     # L119: the Mitgo tag right before </head> of the home page (a new secret takes a few seconds to reach every answer).
     # (L150: the Impact tag, when there is one, comes after it and right before </head>.)
     $mitgoRx = '<meta name="mitgo-verification" content="([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})">(?:<meta name=''impact-site-verification'' value=''[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}''>)?</head>'

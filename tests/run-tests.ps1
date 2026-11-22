@@ -3831,6 +3831,9 @@ foreach ($cn in @('gw-backup.ps1', 'gw-wrangler-check.ps1')) {
 
 $ogSrc = [System.IO.File]::ReadAllText((Join-Path (Join-Path $repo 'tools') 'ogw-site.ps1'))
 Check ($ogSrc.Contains("[string]`$Chat = '1 · Gear World Manager'") -and $ogSrc.Contains('Πήγαινε στη συζήτηση με το Claude «{0}» και πάτα Ctrl+V.') -and -not $ogSrc.Contains('Claude «1 · Gear World Manager» και πάτα')) 'ogw-site.ps1: the clipboard line names the chat that gave the command (-Chat, the Manager by default) (L116, L208)'
+# L216: the Hub tool checks that a gift guide has its quick answers and FAQPage live.
+$l216Hub = [System.IO.File]::ReadAllText((Join-Path (Join-Path $repo 'tools') 'gwh-hub-v2.ps1'))
+Check ($l216Hub.Contains("Get-Web (`$base + '/guides/christmas-gifts-for-him/?gwcheck=' + `$stamp) 'GB'") -and $l216Hub.Contains('"@type":"FAQPage"')) 'gwh-hub-v2.ps1: a gift guide with its Quick answers and FAQPage is checked (L216)'
 # L215: until Linkwise approves megastoresgearworld.com its stores are hidden: both tools check that Greece sees none.
 Check ($ogSrc.Contains("`$gr.text.Contains('stores-none')") -and $ogSrc.Contains("Get-Page (`$base + '/stores/kouzinika-gr/') 'GR'")) 'ogw-site.ps1: from Greece no store until Linkwise approves the site, /stores/kouzinika-gr/ is a 404 (L215)'
 $l215Hub = [System.IO.File]::ReadAllText((Join-Path (Join-Path $repo 'tools') 'gwh-hub-v2.ps1'))

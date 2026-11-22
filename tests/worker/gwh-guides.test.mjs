@@ -5,7 +5,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, existsSync } from 'node:fs';
-import { loadData, buildPages, renderGuide, dateLabel, money, readProductPage, SITES, checkedText, savingClaims } from '../../tools/gwh-guides.mjs';
+import { loadData, buildPages, renderGuide, dateLabel, money, readProductPage, SITES, checkedText, savingClaims, quickAnswers } from '../../tools/gwh-guides.mjs';
 
 const ROOT = new URL('../../sites/gwh/', import.meta.url);
 const read = (path) => readFileSync(new URL(path, ROOT), 'utf8');
@@ -77,8 +77,10 @@ test('guides: Gear World is the hero, honest texts, "Prices checked <dates>, may
     assert.match(html, /<link rel="canonical" href="https:\/\/gearworldhub\.com\/guides\//);
     assert.ok(html.includes('href="/affiliate-disclosure/"'), `${rel}: link to the affiliate disclosure`);
     const ld = JSON.parse(html.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/)[1]);
-    assert.equal(ld['@type'], 'ItemList');
-    for (const el of ld.itemListElement) assert.ok(el.name.length <= 150, 'name at most 150 characters (L24)');
+    // A guide page: the list and its quick answers (L216); the guides index: the list only.
+    const list = ld['@graph'] ? ld['@graph'].find(x => x['@type'] === 'ItemList') : ld;
+    assert.equal(list['@type'], 'ItemList');
+    for (const el of list.itemListElement) assert.ok(el.name.length <= 150, 'name at most 150 characters (L24)');
   }
   // Retailers only in the small print: never in a heading.
   for (const g of data.guides) {
@@ -249,3 +251,36 @@ test('guides: no saving, urgency or "shop" words in titles, descriptions, intros
     assert.equal(m, null, `${rel}: "${m && words.slice(Math.max(0, m.index - 60), m.index + 60)}"`);
   }
 });
+
+test('L216: quick answers: one question per group, answered only with the guide\'s products, prices, retailers and check days', () => {
+  for (const g of data.guides) {
+    const site = SITES[g.site];
+    const groups = [...new Set(g.items.map(i => i.group))];
+    assert.deepEqual(Object.keys(g.questions), groups, `${g.slug}: one question per group, in order`);
+    const answers = quickAnswers(g, site);
+    assert.equal(answers.length, groups.length + 1, `${g.slug}: and "Where do these prices come from?"`);
+    groups.forEach((label, n) => {
+      const items = g.items.filter(i => i.group === label);
+      const a = answers[n].a;
+      assert.equal(answers[n].q, g.questions[label]);
+      assert.match(answers[n].q, /^What are some (bigger )?Christmas gifts for .+\?$/, `${g.slug}: a question as people ask it`);
+      const under = label.match(/^Under £(\d+)$/);
+      if (under) assert.ok(answers[n].q.endsWith(`under £${under[1]}?`) && items.every(i => i.price < Number(under[1])), `${g.slug} ${label}: every product is under £${under[1]}`);
+      for (const it of items) {
+        const shop = it.offers && it.offers.length ? it.offers[0].retailer : it.retailer;
+        assert.ok(a.includes(`${it.name} (${money(it.price)} at ${shop})`), `${g.slug}: ${it.name} with its price and retailer`);
+      }
+      assert.ok(a.endsWith(`Prices checked ${checkedText(items)}, may change.`), `${g.slug} ${label}: the check days of these products`);
+    });
+    for (const x of answers) {
+      assert.ok(!/\b(best|cheapest|lowest|deal|deals|sale|save|saving|off|official|partner|tested|review)\b/i.test(`${x.q} ${x.a}`), `${g.slug}: no claim word in "${x.q}" (L107)`);
+    }
+    const html = renderGuide(data, g);
+    assert.ok(html.includes('<h2 id="gd-faq-h">Quick answers</h2>'), `${g.slug}: the section on the page`);
+    for (const x of answers) assert.ok(html.includes(`<h3>${x.q.replace(/&/g, '&amp;')}</h3>`), `${g.slug}: "${x.q}" on the page`);
+    const ld = JSON.parse(html.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/)[1]);
+    const faq = ld['@graph'].find(x => x['@type'] === 'FAQPage');
+    assert.deepEqual(faq.mainEntity.map(q => [q.name, q.acceptedAnswer.text]), answers.map(x => [x.q, x.a]), `${g.slug}: the same answers in the structured data`);
+  }
+});
+

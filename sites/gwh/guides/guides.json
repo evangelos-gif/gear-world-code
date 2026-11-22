@@ -16,6 +16,12 @@
      "text": "not sure of his size? The card holder, tie set, scarf, backpack and fragrances need no size at all."
     }
    ],
+   "questions": {
+    "Under £25": "What are some Christmas gifts for him under £25?",
+    "Under £50": "What are some Christmas gifts for him under £50?",
+    "Under £100": "What are some Christmas gifts for him under £100?",
+    "Splurge": "What are some bigger Christmas gifts for him?"
+   },
    "items": [
     {
      "group": "Under £25",
@@ -153,6 +159,12 @@
      "text": "the same perfume can cost different amounts at different retailers. When Women's Gear World lists a bottle at more than one retailer, its page shows the prices side by side. Delivery costs can change the total, so check the final price at the retailer's checkout."
     }
    ],
+   "questions": {
+    "Under £25": "What are some Christmas gifts for her under £25?",
+    "Under £50": "What are some Christmas gifts for her under £50?",
+    "Under £100": "What are some Christmas gifts for her under £100?",
+    "Splurge": "What are some bigger Christmas gifts for her?"
+   },
    "items": [
     {
      "group": "Under £25",
@@ -290,6 +302,13 @@
      "text": "the same toy can cost different amounts at different retailers. When Kids' Gear World lists a toy at more than one retailer, its page shows the prices side by side. Check delivery costs too, because they can change the total."
     }
    ],
+   "questions": {
+    "Babies": "What are some Christmas gifts for babies?",
+    "Toddlers": "What are some Christmas gifts for toddlers?",
+    "Pre-school": "What are some Christmas gifts for pre-school children?",
+    "Ages 6+": "What are some Christmas gifts for children aged 6 and over?",
+    "Older kids": "What are some Christmas gifts for older kids?"
+   },
    "items": [
     {
      "group": "Babies",
@@ -431,6 +450,12 @@
      "text": "every Construction Gear World product page shows the price at each retailer that sells the tool. Check the delivery time on the retailer's website before you buy: some tools are sent to order, which can take a few extra days."
     }
    ],
+   "questions": {
+    "Under £25": "What are some Christmas gifts for a DIY lover or tradesperson under £25?",
+    "Under £50": "What are some Christmas gifts for a DIY lover or tradesperson under £50?",
+    "Under £100": "What are some Christmas gifts for a DIY lover or tradesperson under £100?",
+    "Splurge": "What are some bigger Christmas gifts for a DIY lover or tradesperson?"
+   },
    "items": [
     {
      "group": "Under £25",
@@ -560,6 +585,12 @@
      "text": "where the retailer gives a recommended retail price (RRP), we show it next to the price. An RRP is the price the brand or the retailer recommends, not an earlier selling price. Most of these come in other colours too, so check the retailer's page before you buy."
     }
    ],
+   "questions": {
+    "Under £25": "What are some Christmas gifts for a traveller under £25?",
+    "Under £50": "What are some Christmas gifts for a traveller under £50?",
+    "Under £100": "What are some Christmas gifts for a traveller under £100?",
+    "Splurge": "What are some bigger Christmas gifts for a traveller?"
+   },
    "items": [
     {
      "group": "Under £25",

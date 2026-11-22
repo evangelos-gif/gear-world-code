@@ -93,6 +93,26 @@ function priceLine(it) {
   return `<p class="gd-price"><strong>${money(it.price)}</strong>${rrp}</p>\n          <p class="gd-other">Retailer: ${esc(it.retailer)}</p>`;
 }
 
+// Quick answers (owner, 22 Nov 2026: idea 7, lessons L216): one short question per group of a guide, in the words people
+// type into a search box or ask an AI assistant ("What are some Christmas gifts for him under £25?"), answered only with
+// the guide's own products, their prices, their retailers and the day the prices were checked. The same questions and
+// answers go into the page's structured data (FAQPage), so assistants can quote them. Facts only: no "best", no claim
+// we tested anything, no saving or sale wording (L107).
+export function quickAnswers(guide, site) {
+  const qs = guide.questions || {};
+  const out = groupsOf(guide.items).map(g => {
+    const q = qs[g.label];
+    if (!q) throw new Error(`${guide.slug}: no question for the group "${g.label}"`);
+    const list = g.items.map(it => `${it.name} (${money(it.price)} at ${(it.offers && it.offers.length ? it.offers[0].retailer : it.retailer)})`).join('; ');
+    return { q, a: `From this guide: ${list}. Prices checked ${checkedText(g.items)}, may change.` };
+  });
+  out.push({
+    q: 'Where do these prices come from?',
+    a: `From ${site.name}, part of Gear World. Each product opens its page there, which shows the retailer that sells it, the price and where it delivers. Prices checked ${checkedText(guide.items)}, may change. Gear World may earn a commission if you buy through its sites, at no extra cost to you.`
+  });
+  return out;
+}
+
 function card(it, site) {
   return `      <li class="gd-item">
         <a class="gd-img" href="${esc(it.url)}" tabindex="-1" aria-hidden="true"><img src="${esc(it.image)}" alt="" width="160" height="160" loading="lazy" decoding="async" referrerpolicy="no-referrer"></a>
@@ -166,11 +186,17 @@ ${g.items.map(it => card(it, site)).join('\n')}
       </ul>
     </section>`).join('\n');
   const tips = (guide.tips || []).map(t => `    <p class="gd-tip"><strong>${esc(t.label)}</strong> ${t.html ? t.html : esc(t.text)}</p>`).join('\n');
+  const answers = quickAnswers(guide, site);
+  const faq = `    <section class="gd-faq" aria-labelledby="gd-faq-h">
+      <h2 id="gd-faq-h">Quick answers</h2>
+${answers.map(x => `      <h3>${esc(x.q)}</h3>\n      <p>${esc(x.a)}</p>`).join('\n')}
+    </section>`;
   const body = `  <article class="gd-article">
     <h1>${esc(guide.title)}</h1>
     <p class="gd-lead">${esc(guide.intro)}</p>
     <p class="gd-checked">Prices checked ${checked}, may change. Each product opens its page on ${esc(site.name)}, part of Gear World, which shows the retailer that sells it.</p>
 ${groups}
+${faq}
     <aside class="gd-tips" aria-label="Tips">
 ${tips}
     </aside>
@@ -184,8 +210,13 @@ ${tips}
     </nav>
   </article>`;
   const jsonLd = {
-    '@context': 'https://schema.org', '@type': 'ItemList', name: guide.title, url: canonical, numberOfItems: guide.items.length,
-    itemListElement: guide.items.map((it, i) => ({ '@type': 'ListItem', position: i + 1, url: it.url, name: it.name.slice(0, 150) }))
+    '@context': 'https://schema.org',
+    '@graph': [
+      { '@type': 'ItemList', name: guide.title, url: canonical, numberOfItems: guide.items.length,
+        itemListElement: guide.items.map((it, i) => ({ '@type': 'ListItem', position: i + 1, url: it.url, name: it.name.slice(0, 150) })) },
+      { '@type': 'FAQPage', url: canonical,
+        mainEntity: answers.map(x => ({ '@type': 'Question', name: x.q, acceptedAnswer: { '@type': 'Answer', text: x.a } })) }
+    ]
   };
   const crumbs = `<a href="/">Home</a> <span aria-hidden="true">/</span> <a href="/guides/">Gift guides</a> <span aria-hidden="true">/</span> <span>${esc(guide.short)}</span>`;
   return shell({ title: guide.metaTitle, description: guide.description, canonical, crumbs, body, jsonLd });
