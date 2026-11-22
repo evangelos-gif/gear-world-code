@@ -2883,6 +2883,16 @@ Check ($rcText.IndexOf('first report') -lt $rcText.IndexOf('second report')) 're
 Check (-not $rcText.Contains('old report') -and -not $rcText.Contains('inner plan file')) 'reports-to-clipboard: leaves out older reports and refresh plan folders'
 Check ($rcText.Contains('import plan samples') -and $rcText.Contains('IMPORT_PLAN_sgs-construction_x\report.txt')) 'reports-to-clipboard: adds the full import plan of the same paste (L14 samples)'
 Check ($rcText.Contains('agw plan text') -and $rcText.Contains('feed sample text')) 'reports-to-clipboard: adds the AGW plan and the Awin feed sample of the same paste'
+# A batch report already holds every plan of its batch: the plans are not added twice; a massive inventory is added.
+New-Item -ItemType Directory -Path (Join-Path $rcOut 'MASSIVE_INVENTORY_x') -Force | Out-Null
+[System.IO.File]::WriteAllText((Join-Path (Join-Path $rcOut 'MASSIVE_INVENTORY_x') 'report.txt'), 'inventory lines', (New-Object System.Text.UTF8Encoding($true)))
+[System.IO.File]::WriteAllText((Join-Path $rcOut 'IMPORT_BATCH_x.txt'), 'batch with its plans', (New-Object System.Text.UTF8Encoding($true)))
+Get-ChildItem -LiteralPath $rcOut -File -Filter 'REPORTS_*.txt' | Remove-Item
+& $exe -NoProfile -ExecutionPolicy Bypass -File $rcTool -Since $rcSince -OutDir $rcOut -NoClipboard | Out-Null
+$rcAll = @(Get-ChildItem -LiteralPath $rcOut -File -Filter 'REPORTS_*.txt')
+$rcText = ''
+if ($rcAll.Count -eq 1) { $rcText = [System.IO.File]::ReadAllText($rcAll[0].FullName, [System.Text.Encoding]::UTF8) }
+Check ($rcText.Contains('batch with its plans') -and $rcText.Contains('inventory lines') -and -not $rcText.Contains('import plan samples') -and -not $rcText.Contains('agw plan text') -and $rcText.Contains('feed sample text')) 'reports-to-clipboard: with a batch report the plans are not added twice; the massive inventory is added'
 & $exe -NoProfile -ExecutionPolicy Bypass -File $rcTool -Since 'yesterday' -OutDir $rcOut -NoClipboard | Out-Null
 Check ($LASTEXITCODE -eq 2) 'reports-to-clipboard: a wrong -Since stops'
 
