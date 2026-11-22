@@ -1083,7 +1083,8 @@ export function heroButtons(c, now = new Date()) {
 }
 
 // The Gear World app on Google Play (owner, 22 Nov 2026, lessons L218: "yes" to Mega Stores too): Google's own badge in
-// the page's language (Albanian: English) under the hero text, only when the Worker set c.app (a visitor from a country
+// the page's language (Albanian: English) after the hero buttons (the countdown and the stores stay on the first screen
+// of a phone, L208; on a computer the row runs under both columns), only when the Worker set c.app (a visitor from a country
 // of the app, not on an iPhone or iPad; the CSS also hides it on an iPad that asks for desktop pages). No close button:
 // this site has no script and stores nothing on the device.
 export function appRow(c) {
@@ -1113,9 +1114,9 @@ export function homePage(c, now = new Date(), storeData = {}) {
   <p class="lede">${withMarkets(mode)
     ? t('Short gift guides for Christmas and the winter. Every idea opens a search on a big marketplace and the matching category of a Gear World site, so you can compare models, sellers and prices before you choose.')
     : t('Short gift guides for Christmas and the winter. Every idea opens the matching category of a Gear World site, where each product shows the retailer that sells it, its price and where it delivers.')}</p>
-  ${c.app ? appRow(c) : ''}
   </div>
   ${heroButtons(c, now)}
+  ${c.app ? appRow(c) : ''}
 </div></section>
 <section class="wrap section">${disclosure(c)}</section>
 ${storesSection(c, storeData)}

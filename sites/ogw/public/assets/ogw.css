@@ -195,6 +195,7 @@ p { margin: 0 0 1em; }
    height around it. Hidden on iPhone and iPad (also an iPad that asks for desktop pages): only their Safari knows
    -webkit-touch-callout. */
 .app-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 16px; margin: 18px 0 0; }
+.hero-grid > .app-bar { grid-column: 1 / -1; margin: 0; }
 .app-text { margin: 0; max-width: 44ch; color: #dbe3ee; }
 .app-name { color: var(--gold); font-weight: 700; }
 .app-badge { display: inline-flex; padding: 0; line-height: 0; }

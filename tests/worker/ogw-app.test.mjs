@@ -1,5 +1,5 @@
 // Lessons L218 on Mega Stores Gear World (owner, 22 Nov 2026: the app's badge "on the Group and Mega Stores too"): the
-// official "Get it on Google Play" badge under the hero text of the home page, in the page's language, only for a visitor
+// official "Get it on Google Play" badge after the hero buttons of the home page, in the page's language, only for a visitor
 // from a country where the app is published (GB, GR, CY, PL, US), never on an iPhone or iPad, no script and nothing
 // stored. Fake fetch, a fixed day, never the network.
 import { test } from 'node:test';
@@ -39,7 +39,8 @@ test('L218 Mega Stores: the badge under the hero text for the app\'s countries, 
     assert.match(r.headers.get('cache-control'), /^private/, `${cc}: never in a shared cache`);
     const a = row(text);
     assert.ok(a, `${cc}: the row`);
-    assert.ok(text.indexOf('<p class="lede">') < text.indexOf('<div class="app-bar">') && text.indexOf('<div class="app-bar">') < text.indexOf('<nav class="hero-jump"'), `${cc}: under the hero text, before the hero buttons`);
+    const at = text.indexOf('<div class="app-bar">');
+    assert.ok(text.indexOf('<nav class="hero-jump"') < at && at < text.indexOf('</div></section>'), `${cc}: after the hero buttons, still in the hero (L208: the stores first on a phone)`);
     assert.ok(a.includes(`href="${APP_PLAY_URL}&amp;utm_source=gearworld-megastores&amp;utm_medium=site&amp;utm_campaign=app_bar"`), `${cc}: the link with utm`);
     assert.ok(a.includes('target="_blank" rel="noopener"') && a.includes('width="646" height="250"') && a.includes('alt=""'), cc);
     assert.ok(!a.includes('<button') && !/<script/.test(text), `${cc}: no close button, no script`);
@@ -86,7 +87,9 @@ test('L218 Mega Stores: Google\'s own files, the allowlist, the CSS and a new as
   const css = read('sites/ogw/public/assets/ogw.css');
   assert.match(css, /\.app-bar \{ display: flex; flex-wrap: wrap; align-items: center; gap: 16px; margin: 18px 0 0; \}/, 'clear space of a quarter of the badge height');
   assert.match(css, /\.app-badge img \{ display: block; height: 60px; width: auto; \}/);
+  assert.match(css, /\.hero-grid > \.app-bar \{ grid-column: 1 \/ -1; margin: 0; \}/, 'under both columns on a computer (the grid gap is its clear space)');
   assert.match(css, /@supports \(-webkit-touch-callout: none\) \{ \.app-bar \{ display: none; \} \}/, 'hidden on an iPad that asks for desktop pages');
   const tool = read('tools/ogw-site.ps1');
-  assert.ok(tool.includes("$appGb = (Get-Page ($base + '/') 'GB').text.Contains('class=\"app-bar\"')") && tool.includes("$appDe = (Get-Page ($base + '/') 'DE').text.Contains('class=\"app-bar\"')"), 'the tool checks the row from the UK and Germany');
+  assert.ok(tool.includes("$appGbPage = Get-Page ($base + '/') 'GB'") && tool.includes("$appDePage = Get-Page ($base + '/') 'DE'"), 'the tool checks the row from the UK and Germany');
+  assert.ok(tool.includes("$appGbPage.status -eq 200 -and $appDePage.status -eq 200 -and $appGb -and -not $appDe"), 'a failed request is never ΕΝΤΑΞΕΙ');
 });
