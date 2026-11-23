@@ -88,6 +88,15 @@ export function parseRakutenReport(text) {
   }
   return mids;
 }
+// The Adtraction check (tools/adtraction-feed-download.ps1, L219): "  <programme>  <name>  [GB, GBP]  feed: <n> προϊόντα".
+export function parseAdtractionReport(text) {
+  const out = new Map();
+  for (const l of lines(text)) {
+    const m = l.match(/^\s+(\d{2,12})\s{2}(.+?)\s{2}\[([A-Z]{2,3}), ?([A-Z]{0,3})\]\s{2}feed: (\d+)/);
+    if (m) out.set(m[1], { id: m[1], name: m[2], market: m[3], currency: m[4], products: Number(m[5]) });
+  }
+  return out;
+}
 // Lines a person has to see: a problem (🔴) or a warning (🟡) of any download.
 export function problemLines(text, max = 25) {
   const out = lines(text).filter(l => /🔴|🟡|ΠΡΟΒΛΗΜΑ|ΠΡΟΣΟΧΗ/.test(l)).map(l => l.trim().slice(0, 200));
@@ -95,10 +104,10 @@ export function problemLines(text, max = 25) {
 }
 
 // The feed files of one shop in the feed folder (file names of tools/network-links.mjs and the download tools).
-const PREFIX = { awin: 'AWIN', daisycon: 'DAISYCON', cj: 'CJ', linkwise: 'LINKWISE', rakuten: 'RAKUTEN', admitad: 'ADMITAD' };
+const PREFIX = { awin: 'AWIN', daisycon: 'DAISYCON', cj: 'CJ', linkwise: 'LINKWISE', rakuten: 'RAKUTEN', admitad: 'ADMITAD', adtraction: 'ADTRACTION' };
 export function filesOf(names, net, id) {
   const p = PREFIX[net];
-  if (!p || !/^\d{2,9}$/.test(String(id))) return [];
+  if (!p || !/^\d{2,12}$/.test(String(id))) return [];
   const re = net === 'awin' ? new RegExp(`^AWIN_${id}_\\d+\\.csv(\\.gz)?$`, 'i') : new RegExp(`^${p}_${id}(_[A-Za-z0-9-]{1,40})?\\.csv(\\.gz)?$`, 'i');
   return names.filter(n => re.test(n)).sort();
 }
@@ -123,6 +132,7 @@ export async function inventory({ candidates, archive, reports = [], maxRows = 1
   const cj = { joined: [], counts: new Map() };
   const dc = new Map();
   const rk = new Map();
+  const at = new Map();
   const probs = [];
   for (const r of reports) {
     const kind = r.name.replace(/_\d{8}_\d{6}.*$/, '');
@@ -137,6 +147,8 @@ export async function inventory({ candidates, archive, reports = [], maxRows = 1
       for (const [k, v] of c.counts) cj.counts.set(k, v);
     } else if (kind === 'RAKUTEN_FEED_DOWNLOAD') {
       for (const [k, v] of parseRakutenReport(r.text)) rk.set(k, { ...(rk.get(k) || {}), ...v });
+    } else if (kind === 'ADTRACTION_FEED_CHECK' || kind === 'ADTRACTION_FEED_DOWNLOAD') {
+      for (const [k, v] of parseAdtractionReport(r.text)) at.set(k, v);
     } else if (kind === 'DAISYCON_FEED_DOWNLOAD') {
       for (const [k, v] of parseDaisyconReport(r.text)) dc.set(k, { ...(dc.get(k) || {}), ...v });
     }
@@ -156,6 +168,10 @@ export async function inventory({ candidates, archive, reports = [], maxRows = 1
       const hits = cj.joined.filter(j => nameMatches(c.name, j.name)).slice(0, 3);
       found.push({ c, hits: hits.map(j => `${j.id} ${j.name} | ${j.status}${cj.counts.has(j.id) ? ` | ${cj.counts.get(j.id)} προϊόντα` : ''}`) });
       ids = hits.map(j => j.id);
+    } else if (!ids.length && c.net === 'adtraction') {
+      const hits = [...at.values()].filter(e => nameMatches(c.name, e.name)).slice(0, 3);
+      found.push({ c, hits: hits.map(e => `${e.id} ${e.name} | ${e.market}, ${e.currency} | ${e.products} προϊόντα`) });
+      ids = hits.map(e => e.id);
     } else if (!ids.length && c.net === 'rakuten') {
       const hits = [...rk.values()].filter(e => nameMatches(c.name, e.name)).slice(0, 3);
       found.push({ c, hits: hits.map(e => `MID ${e.id} ${e.name}${e.products ? ` | ${e.products} προϊόντα` : ''}`) });
@@ -174,6 +190,8 @@ export async function inventory({ candidates, archive, reports = [], maxRows = 1
       let why = '';
       if (c.net === 'rakuten' && !c.id) why = 'Rakuten: δεν βρέθηκε κατάλογος με αυτό το όνομα στον server';
       else if (c.net === 'admitad') why = 'Admitad: δεν υπάρχει ακόμα εργαλείο λήψης';
+      else if (c.net === 'adtraction' && !c.id) why = 'Adtraction: δεν είναι στα εγκεκριμένα του ελέγχου (adtraction-feed-download -Step check)';
+      else if (c.net === 'adtraction') why = 'Adtraction: δεν κατέβηκε ακόμα (adtraction-feed-download -Step download)';
       else if (!c.id) why = 'δεν βρέθηκε αριθμός (ούτε στο φύλλο ούτε στη λίστα του δικτύου)';
       else if (c.net === 'awin' && aw.notInList.has(c.id)) why = 'Awin: δεν είναι στη λίστα σου (όχι μέλος ή χωρίς feed)';
       else if (c.net === 'awin' && aw.listing.has(c.id)) why = `Awin: ${aw.listing.get(c.id).feeds.map(f => `${f.member}, ${f.products} προϊόντα`).join('; ')}, δεν κατέβηκε`;
@@ -237,7 +255,7 @@ async function main() {
   const reports = [];
   if (reportsDir && existsSync(reportsDir)) {
     const since = Date.now() - hours * 3600000;
-    for (const n of readdirSync(reportsDir).filter(n => /^(AWIN|CJ|DAISYCON|LINKWISE|RAKUTEN)_FEED_DOWNLOAD_.*\.txt$/.test(n)).sort()) {
+    for (const n of readdirSync(reportsDir).filter(n => /^((AWIN|CJ|DAISYCON|LINKWISE|RAKUTEN|ADTRACTION)_FEED_DOWNLOAD|ADTRACTION_FEED_(CHECK|DOWNLOAD))_.*\.txt$/.test(n)).sort()) {
       const p = join(reportsDir, n);
       if (statSync(p).mtimeMs >= since) reports.push({ name: n, text: readFileSync(p, 'utf8') });
     }

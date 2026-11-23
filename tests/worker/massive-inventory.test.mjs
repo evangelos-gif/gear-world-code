@@ -93,7 +93,7 @@ test('massive inventory: one line per feed, names looked up in the lists, and ev
 test('massive inventory: the candidates list of 22 Nov 2026 is well formed and leaves out what the owner and chat 7 left out', () => {
   const list = JSON.parse(readFileSync(new URL('../../tools/massive/candidates-1122.json', import.meta.url), 'utf8')).candidates;
   assert.ok(list.length > 500);
-  const nets = new Set(['awin', 'daisycon', 'cj', 'linkwise', 'rakuten', 'admitad']);
+  const nets = new Set(['awin', 'daisycon', 'cj', 'linkwise', 'rakuten', 'admitad', 'adtraction']);
   for (const c of list) {
     assert.ok(nets.has(c.net), `${c.name}: network`);
     assert.ok(['uk', 'gr', 'world'].includes(c.wave), `${c.name}: wave`);
@@ -106,4 +106,15 @@ test('massive inventory: the candidates list of 22 Nov 2026 is well formed and l
   assert.ok(list.some(c => c.net === 'linkwise' && c.ids[0] === '13862'), 'Autodoc (Linkwise 13862)');
   assert.ok(list.some(c => c.net === 'linkwise' && c.ids[0] === '12134'), 'Monsterville (Linkwise 12134)');
   assert.equal(new Set(list.filter(c => c.ids.length).map(c => `${c.net}:${c.ids.join('+')}:${c.row}`)).size, list.filter(c => c.ids.length).length, 'no candidate twice');
+  // Rev 39 (chat 7, 23 Nov 2026): the 8 🟢 Adtraction UK shops in wave 1; Phones Direct (🟡) is not a candidate.
+  assert.equal(list.filter(c => c.net === 'adtraction' && c.wave === 'uk').length, 8);
+  assert.ok(!names.includes('phones direct'));
+});
+
+test('L219: the Adtraction check report gives the programme numbers of the Adtraction shops by name', async () => {
+  const { parseAdtractionReport, filesOf } = await import('../../tools/massive-inventory.mjs');
+  const m = parseAdtractionReport('Εγκεκριμένα προγράμματα (GB): 2\r\n  1500  Living Chic  [GB, GBP]  feed: 420 προϊόντα  (κανάλι 12345, όχι ακόμα στον φάκελο)\r\n  1501  Showery  [GB, GBP]  feed: 0 προϊόντα  (κανάλι 12345, όχι ακόμα στον φάκελο)');
+  assert.deepEqual([...m.keys()], ['1500', '1501']);
+  assert.deepEqual([m.get('1500').name, m.get('1500').currency, m.get('1500').products], ['Living Chic', 'GBP', 420]);
+  assert.deepEqual(filesOf(['ADTRACTION_1500.csv.gz', 'AWIN_1500_1.csv.gz'], 'adtraction', '1500'), ['ADTRACTION_1500.csv.gz']);
 });
