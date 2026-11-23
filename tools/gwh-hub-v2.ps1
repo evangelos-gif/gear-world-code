@@ -214,13 +214,18 @@
   the test Worker (preview) and on gear-world-hub right before the deploy (live), the same way as -ImpactCode; it stays for
   later deploys. Phrases unchanged: ΕΓΚΡΙΝΩ HUB SEARCH PREVIEW, ΕΓΚΡΙΝΩ HUB SEARCH LIVE, ΕΓΚΡΙΝΩ HUB REMOVE PREVIEW (one
   paste, live with -AfterPreview). Exit codes 21 and 22 as for -MitgoCode.
-  Linkwise stores hidden (owner, 22/11/2026, lessons L215: "we will declare it but we will hide it"): until Linkwise
-  approves megastoresgearworld.com, its 7 Greek stores are hidden there (site.config.js hiddenNetworks) and from the Hub's
-  bar (MEGA_HIDDEN_NETWORKS in worker.js): from Greece and Cyprus there is no bar. The check from Greece asks for that.
+  Linkwise stores (owner, 22/11/2026, lessons L215: "we will declare it but we will hide it"): Linkwise approved
+  megastoresgearworld.com on 23/11/2026 (email "Your account changes were approved"), so MEGA_HIDDEN_NETWORKS in worker.js
+  is empty again, like hiddenNetworks in sites/ogw/site.config.js: from Greece the bar names the 7 Greek stores, from Cyprus
+  Parex and Tsakiris Mallas. The check from Greece asks for the 7.
   Phrases unchanged: ΕΓΚΡΙΝΩ HUB SEARCH PREVIEW, ΕΓΚΡΙΝΩ HUB SEARCH LIVE, ΕΓΚΡΙΝΩ HUB REMOVE PREVIEW.
   Quick answers in the gift guides (owner, 22/11/2026, idea 7, lessons L216): each guide page gets one question per group
   ("What are some Christmas gifts for him under £25?"), answered only with its own products, prices, retailers and check
   days, and the same as FAQPage in its structured data (for Google and AI assistants). The check opens one guide.
+  Mega Stores for Greece (owner, 21/11/2026, lessons L214): from Greece the Mega Stores bar, the Stores card and the line
+  of /black-friday/ open https://megastoresgearworld.com/gr/ (the card names the Greek stores); from Cyprus they open the
+  Mega Stores home page. The preview and live steps go on only when https://megastoresgearworld.com/gr/ is live (200): the
+  Mega Stores release with /gr/ (tools/ogw-site.ps1) goes FIRST. Exit code 25: /gr/ is not live yet (nothing changed).
   Phrases unchanged: ΕΓΚΡΙΝΩ HUB SEARCH PREVIEW, ΕΓΚΡΙΝΩ HUB SEARCH LIVE, ΕΓΚΡΙΝΩ HUB REMOVE PREVIEW.
   Report: <home>\gear-world-reports\GWH_HUB_V2_<STEP>_<time>.txt (also copied to the clipboard)
 #>
@@ -271,7 +276,7 @@ $Bad = 'Magenta'
 
 # What each file of the change does, in the words of the report.
 $About = @{
-    'worker.js' = 'η σειρά των αποτελεσμάτων της αναζήτησης με το rankHubResults: πρώτα τι είναι το προϊόν (κατηγορίες), μετά ολόκληρες λέξεις του ονόματος, αξεσουάρ πιο κάτω (GWH-RANKING-V3, L177)· η αναζήτηση μεταφράζει τις ξένες λέξεις με το μοντέλο της αναζήτησης με φωτογραφία (Gemma 4), γιατί το Cloudflare σταματά το @cf/meta/llama-3.1-8b-instruct-fp8 στις 20/11 (L173)· η αρχική σελίδα παίρνει τη γλώσσα της χώρας του επισκέπτη (<html data-country-lang>, μόνο σε κάθε απάντηση, ποτέ για το Google, L175)· όλα τα άλλα όπως είναι live · L211: η μπάρα Mega Stores και η σελίδα /black-friday/ ανά χώρα (από Ελλάδα τα 7 ελληνικά καταστήματα, όπου δεν υπάρχει κατάστημα καμία μπάρα, στο /black-friday/ μόνο ό,τι παραδίδει στη χώρα) · L215: τα 7 ελληνικά καταστήματα (Linkwise) κρυμμένα από τη μπάρα μέχρι η Linkwise να εγκρίνει το megastoresgearworld.com: από Ελλάδα και Κύπρο καμία μπάρα · L218: GWH-APP-COUNTRY: η γραμμή «Gear World app» της αρχικής (κουμπί Google Play) μένει μόνο για επισκέπτες από UK, Ελλάδα, Κύπρο, Πολωνία, ΗΠΑ· από άλλες χώρες βγαίνει από τη σελίδα· η σελίδα του UK μένει το ίδιο το αρχείο'
+    'worker.js' = 'η σειρά των αποτελεσμάτων της αναζήτησης με το rankHubResults: πρώτα τι είναι το προϊόν (κατηγορίες), μετά ολόκληρες λέξεις του ονόματος, αξεσουάρ πιο κάτω (GWH-RANKING-V3, L177)· η αναζήτηση μεταφράζει τις ξένες λέξεις με το μοντέλο της αναζήτησης με φωτογραφία (Gemma 4), γιατί το Cloudflare σταματά το @cf/meta/llama-3.1-8b-instruct-fp8 στις 20/11 (L173)· η αρχική σελίδα παίρνει τη γλώσσα της χώρας του επισκέπτη (<html data-country-lang>, μόνο σε κάθε απάντηση, ποτέ για το Google, L175)· όλα τα άλλα όπως είναι live · L211: η μπάρα Mega Stores και η σελίδα /black-friday/ ανά χώρα (από Ελλάδα τα 7 ελληνικά καταστήματα, όπου δεν υπάρχει κατάστημα καμία μπάρα, στο /black-friday/ μόνο ό,τι παραδίδει στη χώρα) · L214: από Ελλάδα η μπάρα, η κάρτα «Stores» (με τα ονόματα των ελληνικών καταστημάτων) και η γραμμή του /black-friday/ ανοίγουν το megastoresgearworld.com/gr/· από Κύπρο την αρχική του Mega Stores · L215: η Linkwise ενέκρινε το megastoresgearworld.com (23/11): τα 7 ελληνικά καταστήματα ξανά στη μπάρα (από Ελλάδα 7, από Κύπρο 2) · L218: GWH-APP-COUNTRY: η γραμμή «Gear World app» της αρχικής (κουμπί Google Play) μένει μόνο για επισκέπτες από UK, Ελλάδα, Κύπρο, Πολωνία, ΗΠΑ· από άλλες χώρες βγαίνει από τη σελίδα· η σελίδα του UK μένει το ίδιο το αρχείο'
     'photo-search.js' = 'κρατά το μοντέλο της μετάφρασης της αναζήτησης (ίδιο με της φωτογραφίας) και διαβάζει την απάντησή του σε κάθε μορφή (L173)· η αναζήτηση με φωτογραφία δεν αλλάζει'
     'security.js'           = 'νέο αρχείο: έλεγχος Turnstile, ημερήσια όρια του δικτύου (εγγραφές, μεταφράσεις), headers (L106)'
     'mailerlite.js'         = 'η φόρμα του Hub θέλει το token του Turnstile· ημερήσιο όριο εγγραφών για όλο το δίκτυο, μικρό δικό της για την εφαρμογή (L106)'
@@ -755,13 +760,14 @@ function Test-Site([string]$base, [bool]$isLive) {
     $grHome = Get-Web ($base + '/?gwcheck=' + $stamp) 'GR'
     $grHtml = $enc8.GetString($grHome.bytes)
     $grUk = @($megaStores | Where-Object { $grHtml.Contains('data-store="' + $_ + '"') })
-    # L215 (owner, 22 Nov 2026): until Linkwise approves megastoresgearworld.com its 7 Greek stores are hidden there, so
-    # from Greece the bar names no store and is not shown at all, as from the US.
+    # L214: from Greece the bar and the Stores card open Mega Stores /gr/ (two links, none to its UK page), with the Greek
+    # names on the card instead of the UK ones.
+    $grOne = (([regex]::Matches($grHtml, 'href="https://megastoresgearworld\.com/gr/"')).Count -eq 2) -and (([regex]::Matches($grHtml, 'href="https://megastoresgearworld\.com/"')).Count -eq 0) -and -not $grHtml.Contains('Joybuy, Tooled Up, PCHUB.UK') -and $grHtml.Contains('<small class="gwh2-rc-desc" translate="no">Kouzinika GR, Katoikein GR, Minipini GR +4</small>')
     $grStores = @('kouzinika-gr', 'katoikein-gr', 'minipini-gr', 'xxxl-leo-gr', 'casualshoes-gr', 'parex-gr', 'tsakiris-mallas-gr')
-    $grLinkwise = @($grStores | Where-Object { $grHtml.Contains('data-store="' + $_ + '"') })
-    $grOk = ($grHome.status -eq 200 -and -not $grHtml.Contains('gwh2-mega-wrap') -and $grLinkwise.Count -eq 0 -and $grUk.Count -eq 0 -and $grHtml.Contains('id="hubSearch"'))
-    if ($grOk) { Say '  Μπάρα Mega Stores από Ελλάδα (L211, L215): ΕΝΤΑΞΕΙ - δεν φαίνεται μέχρι την έγκριση της Linkwise, κανένα κατάστημα του UK, η σελίδα κανονικά' $Ok }
-    else { Say ('  Μπάρα Mega Stores από Ελλάδα (L211, L215): ΠΡΟΒΛΗΜΑ - απάντηση {0}, μπάρα: {1}, καταστήματα Linkwise: {2}, καταστήματα του UK: {3}' -f $grHome.status, $grHtml.Contains('gwh2-mega-wrap'), ($grLinkwise -join ', '), ($grUk -join ', ')) $Bad }
+    $grMissing = @($grStores | Where-Object { -not $grHtml.Contains('data-store="' + $_ + '"') })
+    $grOk = ($grHome.status -eq 200 -and $grMissing.Count -eq 0 -and $grUk.Count -eq 0 -and $grOne -and $grHtml.Contains('id="hubSearch"'))
+    if ($grOk) { Say '  Μπάρα Mega Stores και κάρτα «Stores» από Ελλάδα (L211, L214, L215): ΕΝΤΑΞΕΙ - τα 7 ελληνικά καταστήματα, κανένα του UK, και τα δύο ανοίγουν το megastoresgearworld.com/gr/' $Ok }
+    else { Say ('  Μπάρα Mega Stores και κάρτα «Stores» από Ελλάδα (L211, L214, L215): ΠΡΟΒΛΗΜΑ - απάντηση {0}, λείπουν: {1}, καταστήματα του UK: {2}, links στο /gr/ και ελληνικά ονόματα στην κάρτα: {3}' -f $grHome.status, ($grMissing -join ', '), ($grUk -join ', '), $grOne) $Bad }
     $usHome = Get-Web ($base + '/?gwcheck=' + $stamp) 'US'
     $usHtml = $enc8.GetString($usHome.bytes)
     if ($usHome.status -eq 200 -and -not $usHtml.Contains('gwh2-mega-wrap') -and $usHtml.Contains('id="hubSearch"')) { Say '  Μπάρα Mega Stores από ΗΠΑ (L211): ΕΝΤΑΞΕΙ - δεν φαίνεται (κανένα κατάστημα για τις ΗΠΑ), η σελίδα κανονικά' $Ok }
@@ -778,7 +784,7 @@ function Test-Site([string]$base, [bool]$isLive) {
     else { Say ('  Γραμμή «Gear World app» (L218): ΠΡΟΒΛΗΜΑ - UK: {0}, Ελλάδα: {1}, ΗΠΑ: {2}, Γερμανία: {3} (απάντηση {4})' -f $appUk, $appGr, $appUs, $appDe, $deHome.status) $Bad }
     $grBf = Get-Web ($base + '/black-friday/?gwcheck=' + $stamp) 'GR'
     $grBfHtml = $enc8.GetString($grBf.bytes)
-    $grBfOk = ($grBf.status -eq 200 -and $grBfHtml.Contains('class="gd-note rt-country"') -and -not $grBfHtml.Contains('megastoresgearworld.com') -and -not $grBfHtml.Contains('data-delivers="GB"') -and $grBfHtml.Contains('<h1>Black Friday 2026 on Gear World</h1>'))
+    $grBfOk = ($grBf.status -eq 200 -and $grBfHtml.Contains('class="gd-note rt-country"') -and $grBfHtml.Contains('<a href="https://megastoresgearworld.com/gr/" translate="no">Mega Stores</a>') -and -not $grBfHtml.Contains('data-delivers="GB"') -and $grBfHtml.Contains('<h1>Black Friday 2026 on Gear World</h1>'))
     if ($ukDelivers -and $grBfOk) { Say '  /black-friday/ από Ελλάδα (L211): ΕΝΤΑΞΕΙ - κανένα κατάστημα ή κωδικός του UK, με τη γραμμή «Only the retailers we list for your country»' $Ok }
     else { Say ('  /black-friday/ ανά χώρα (L211): ΠΡΟΒΛΗΜΑ - σελίδα UK με data-delivers: {0}, από Ελλάδα: απάντηση {1}, σωστή: {2}' -f $ukDelivers, $grBf.status, $grBfOk) $Bad }
     # L216: the gift guides answer the questions people ask (Quick answers) and say the same in their structured data.
@@ -1302,6 +1308,22 @@ if ($Step -eq 'check') {
     Finish 0
 }
 
+# L214: the new worker.js sends a visitor from Greece to Mega Stores /gr/. The preview and the live step go on only when
+# https://megastoresgearworld.com/gr/ is live (Greek, its own canonical): the Mega Stores release goes first. Without
+# network (-NoHttpCheck, the tests) or with a worker.js that does not link there, nothing is asked.
+function Assert-MegaStoresGr {
+    $workerText = [System.IO.File]::ReadAllText((Join-Path (Join-Path (Join-Path $repo 'sites') 'gwh') 'worker.js'))
+    if ($NoHttpCheck -or -not $workerText.Contains('https://megastoresgearworld.com/gr/')) { return }
+    $ogwGr = Get-Web ('https://megastoresgearworld.com/gr/?gwcheck=' + $stamp)
+    $ogwGrHtml = (New-Object System.Text.UTF8Encoding($false)).GetString($ogwGr.bytes)
+    if ($ogwGr.status -eq 200 -and $ogwGrHtml.Contains('<html lang="el-GR">') -and $ogwGrHtml.Contains('<link rel="canonical" href="https://megastoresgearworld.com/gr/">')) {
+        Say 'Το Mega Stores για την Ελλάδα (megastoresgearworld.com/gr/) είναι live, άρα τα links του Hub ανοίγουν (L214): ΕΝΤΑΞΕΙ' $Ok
+        return
+    }
+    Say ('Το megastoresgearworld.com/gr/ δεν είναι ακόμα live (απάντηση {0}): ΔΕΝ ανεβάζω το Hub, γιατί από Ελλάδα θα άνοιγε σελίδα που δεν υπάρχει. Πρώτα το Mega Stores (tools/ogw-site.ps1). ΔΕΝ άλλαξε τίποτα. Στείλε αυτή την αναφορά στο Claude.' -f $ogwGr.status) $Bad
+    Finish 25
+}
+
 # ---------------- preview ----------------
 if ($Step -eq 'preview') {
     $dl = Invoke-Wrangler $gwh 'd1 list --json' -Retry
@@ -1312,6 +1334,7 @@ if ($Step -eq 'preview') {
     # L107: the products the gift guides link to, from the live D1 of their sites (SELECT only); the preview only reports.
     Say-GuideProducts (Test-GuideProducts $deploy)
     Say-Stores (Test-Stores)
+    Assert-MegaStoresGr
     if (-not $Apply) { Say ''; Say 'Δοκιμή μόνο (χωρίς -Apply): δεν άλλαξε τίποτα.' $Ok; Finish 0 }
     if (-not (Confirm-Approval $PhrasePreview)) { Say 'Δεν δόθηκε η έγκριση για το preview: σταμάτησα (δεν ανέβηκε τίποτα).' $Warn; Finish 1 }
     $cfg = Write-PreviewConfig $gwh $dbId
@@ -1390,6 +1413,8 @@ if ($guideCheck.prices -gt 0) { Say 'ΔΕΝ ανεβάζω το Hub: οι τιμ
 $storesCheck = Test-Stores
 Say-Stores $storesCheck
 if (-not $storesCheck.ok) { Say 'ΔΕΝ ανεβάζω το Hub: πρώτα νέες σελίδες Stores χωρίς όσα έληξαν (Claude: stores.json και node tools/gwh-stores.mjs build). Τίποτα δεν ανέβηκε live και τίποτα δεν άλλαξε.' $Bad; Finish 24 }
+# L214: this worker.js sends Greece to Mega Stores /gr/: the Hub goes live only when that page is live (Mega Stores first).
+if ($Step -eq 'live') { Assert-MegaStoresGr }
 # L119: preview, live and remove-preview in one paste: the live step goes on only after a clean preview of this version.
 if ($AfterPreview -and -not (Test-PreviewReport)) { Finish 23 }
 if (-not $Apply) { Say ''; Say 'Δοκιμή μόνο (χωρίς -Apply): δεν άλλαξε τίποτα.' $Ok; Finish 0 }

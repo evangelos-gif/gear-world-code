@@ -339,14 +339,15 @@ function Test-Site([string]$base, [string]$mode) {
     $ukStore = 'href="/stores/(joybuy|tooled-up|my-tool-shed|pchub-uk|gs-workwear|back-to-the-office|dhgate|amazon)/"'
     $gr = Get-Page ($base + '/') 'GR'
     $grUk = $gr.text.Contains('class="bf-started"') -or $gr.text.Contains('class="promo-card"') -or ($gr.text -match $ukStore) -or ($gr.text -match '(?i)amazon')
-    # L215 (owner, 22 Nov 2026: "we will declare it but we will hide it"): until Linkwise approves megastoresgearworld.com
-    # its 7 Greek stores are hidden, so Greece gets the page of a country with no store, as the US does.
-    $grLinkwise = $gr.text -match '(?i)kouzinika|katoikein|minipini|xxxl leo|casualshoes|parex|tsakiris'
-    if ($gr.status -eq 200 -and $gr.text.Contains('stores-none') -and -not $gr.text.Contains('href="/stores/') -and -not $grLinkwise -and -not $grUk) { Say '  Από Ελλάδα: κανένα κατάστημα μέχρι την έγκριση της Linkwise (L215), κανένα κατάστημα, κωδικός ή Amazon του UK, με τη γραμμή «δεν εμφανίζεται ακόμα για τη χώρα σας»: ΕΝΤΑΞΕΙ' $Ok }
-    else { Say ('  Από Ελλάδα ({0}): φαίνονται καταστήματα της Linkwise ή του UK, κωδικοί ή Amazon (L215): ΠΡΟΒΛΗΜΑ' -f $gr.status) $Bad; $all = $false }
+    # L215 (owner, 22 Nov 2026: "we will declare it but we will hide it"): Linkwise approved megastoresgearworld.com on
+    # 23 Nov 2026, so hiddenNetworks is empty again: from Greece the 7 Greek stores of Linkwise (L210), and their store page.
+    $grStores = @('kouzinika-gr', 'katoikein-gr', 'minipini-gr', 'xxxl-leo-gr', 'casualshoes-gr', 'parex-gr', 'tsakiris-mallas-gr')
+    $grMissing = @($grStores | Where-Object { -not $gr.text.Contains('href="/stores/' + $_ + '/"') })
+    if ($gr.status -eq 200 -and $grMissing.Count -eq 0 -and -not $gr.text.Contains('stores-none') -and -not $grUk) { Say '  Από Ελλάδα: τα 7 ελληνικά καταστήματα της Linkwise (L210, L215), κανένα κατάστημα, κωδικός ή Amazon του UK: ΕΝΤΑΞΕΙ' $Ok }
+    else { Say ('  Από Ελλάδα ({0}): λείπουν ελληνικά καταστήματα ({1}) ή φαίνονται καταστήματα, κωδικοί ή Amazon του UK ({2}) (L215): ΠΡΟΒΛΗΜΑ' -f $gr.status, ($grMissing -join ', '), $grUk) $Bad; $all = $false }
     $lw = Get-Page ($base + '/stores/kouzinika-gr/') 'GR'
-    if ($lw.status -eq 404 -and -not $lw.text.Contains('Kouzinika GR')) { Say '  /stores/kouzinika-gr/ δεν υπάρχει μέχρι την έγκριση της Linkwise (404, L215): ΕΝΤΑΞΕΙ' $Ok }
-    else { Say ('  /stores/kouzinika-gr/ απαντά {0} πριν την έγκριση της Linkwise (L215): ΠΡΟΒΛΗΜΑ' -f $lw.status) $Bad; $all = $false }
+    if ($lw.status -eq 200 -and $lw.text.Contains('Kouzinika GR') -and -not $lw.text.Contains('store-elsewhere')) { Say '  /stores/kouzinika-gr/ από Ελλάδα (L215): ΕΝΤΑΞΕΙ - η σελίδα του καταστήματος υπάρχει ξανά' $Ok }
+    else { Say ('  /stores/kouzinika-gr/ από Ελλάδα απαντά {0} (L215): ΠΡΟΒΛΗΜΑ' -f $lw.status) $Bad; $all = $false }
     $us = Get-Page ($base + '/') 'US'
     $usAny = $us.text.Contains('class="bf-started"') -or $us.text.Contains('class="promo-card"') -or $us.text.Contains('href="/stores/') -or ($us.text -match '(?i)amazon')
     if ($us.status -eq 200 -and $us.text.Contains('stores-none') -and -not $usAny) { Say '  Από ΗΠΑ: κανένα κατάστημα, με τη γραμμή «δεν εμφανίζεται ακόμα για τη χώρα σας»: ΕΝΤΑΞΕΙ' $Ok }
@@ -363,6 +364,24 @@ function Test-Site([string]$base, [string]$mode) {
     $appDe = $appDePage.text.Contains('class="app-bar"')
     if ($appGbPage.status -eq 200 -and $appDePage.status -eq 200 -and $appGb -and -not $appDe) { Say '  Γραμμή «Gear World app» με το κουμπί Google Play (L218): ΕΝΤΑΞΕΙ - UK ναι, Γερμανία όχι' $Ok }
     else { Say ('  Γραμμή «Gear World app» (L218): ΠΡΟΒΛΗΜΑ - UK: {0} (απάντηση {1}), Γερμανία: {2} (απάντηση {3})' -f $appGb, $appGbPage.status, $appDe, $appDePage.status) $Bad; $all = $false }
+    # L214 (owner, 21 Nov 2026): Mega Stores for Greece at its own address, the page Google shows in Greece. Greek for every
+    # visitor (this check asks as a UK one), the 7 Greek stores, no UK store, code or Amazon, its own canonical and the
+    # hreflang next to the UK page; a Greek store page in Greek, indexed, with its own canonical; /gr/ in the sitemap.
+    $edUkStore = '/stores/(joybuy|tooled-up|my-tool-shed|pchub-uk|gs-workwear|back-to-the-office|dhgate|amazon)/'
+    $ed = Get-Page ($base + '/gr/')
+    $edUk = ($ed.text -match $edUkStore) -or ($ed.text -match '(?i)amazon\.co\.uk|>Amazon<') -or $ed.text.Contains('class="promo-card"')
+    $edOk = ($ed.status -eq 200 -and $ed.text.Contains('<html lang="el-GR">') -and $ed.text.Contains('<link rel="canonical" href="https://' + $Domain + '/gr/">') -and $ed.text.Contains('<link rel="alternate" hreflang="el-GR" href="https://' + $Domain + '/gr/">') -and $ed.text.Contains('<link rel="alternate" hreflang="en-GB" href="https://' + $Domain + '/">') -and $ed.text.Contains('href="/gr/stores/kouzinika-gr/"') -and $ed.text.Contains('href="/gr/stores/tsakiris-mallas-gr/"') -and -not $ed.text.Contains('name="robots"') -and -not $edUk)
+    if ($edOk) { Say '  /gr/ (Mega Stores για την Ελλάδα, L214): ΕΝΤΑΞΕΙ - στα Ελληνικά και για επισκέπτη από το UK, τα ελληνικά καταστήματα, κανένα του UK ή Amazon, δικό του canonical και hreflang' $Ok }
+    else { Say ('  /gr/ (Mega Stores για την Ελλάδα, L214): ΠΡΟΒΛΗΜΑ - απάντηση {0}, κατάστημα, κωδικός ή Amazon του UK: {1}' -f $ed.status, $edUk) $Bad; $all = $false }
+    $es = Get-Page ($base + '/gr/stores/kouzinika-gr/')
+    $esOk = ($es.status -eq 200 -and $es.text.Contains('<html lang="el-GR">') -and $es.text.Contains('<link rel="canonical" href="https://' + $Domain + '/gr/stores/kouzinika-gr/">') -and -not $es.text.Contains('name="robots"') -and -not ($es.text -match '(?i)amazon\.co\.uk|>Amazon<'))
+    $esCards = ([regex]::Matches($es.text, '<li class="pcard">')).Count
+    if ($esOk -and $esCards -gt 0) { Say ('  /gr/stores/kouzinika-gr/ (L214): ΕΝΤΑΞΕΙ - στα Ελληνικά, μπαίνει στη Google, {0} προϊόντα με φωτογραφία' -f $esCards) $Ok }
+    elseif ($esOk) { Say '  /gr/stores/kouzinika-gr/ (L214): ΠΡΟΣΟΧΗ - η σελίδα είναι σωστή, αλλά τα προϊόντα δεν φορτώθηκαν αυτή τη στιγμή (φορτώνονται ξανά σε επόμενη επίσκεψη)' $Warn }
+    else { Say ('  /gr/stores/kouzinika-gr/ (L214): ΠΡΟΒΛΗΜΑ - απάντηση {0}' -f $es.status) $Bad; $all = $false }
+    $edSm = Get-Page ($base + '/sitemap.xml')
+    if ($edSm.status -eq 200 -and $edSm.text.Contains('<loc>https://' + $Domain + '/gr/</loc>') -and $edSm.text.Contains('<loc>https://' + $Domain + '/gr/stores/kouzinika-gr/</loc>')) { Say '  sitemap.xml με το /gr/ και τις σελίδες των ελληνικών καταστημάτων (L214): ΕΝΤΑΞΕΙ' $Ok }
+    else { Say ('  sitemap.xml χωρίς το /gr/ (L214, απάντηση {0}): ΠΡΟΒΛΗΜΑ' -f $edSm.status) $Bad; $all = $false }
     $el = Get-Page ($base + '/?lang=el')
     if ($el.status -eq 200 -and $el.text.Contains('<html lang="el-GR"') -and $el.text.Contains('Οδηγοί δώρων')) { Say '  /?lang=el απαντά στα Ελληνικά (Οδηγοί δώρων): ΕΝΤΑΞΕΙ' $Ok }
     else { Say ('  /?lang=el δεν απαντά στα Ελληνικά ({0}): ΠΡΟΒΛΗΜΑ' -f $el.status) $Bad; $all = $false }

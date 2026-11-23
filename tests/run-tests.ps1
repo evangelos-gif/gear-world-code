@@ -3834,10 +3834,15 @@ Check ($ogSrc.Contains("[string]`$Chat = '1 · Gear World Manager'") -and $ogSrc
 # L216: the Hub tool checks that a gift guide has its quick answers and FAQPage live.
 $l216Hub = [System.IO.File]::ReadAllText((Join-Path (Join-Path $repo 'tools') 'gwh-hub-v2.ps1'))
 Check ($l216Hub.Contains("Get-Web (`$base + '/guides/christmas-gifts-for-him/?gwcheck=' + `$stamp) 'GB'") -and $l216Hub.Contains('"@type":"FAQPage"')) 'gwh-hub-v2.ps1: a gift guide with its Quick answers and FAQPage is checked (L216)'
-# L215: until Linkwise approves megastoresgearworld.com its stores are hidden: both tools check that Greece sees none.
-Check ($ogSrc.Contains("`$gr.text.Contains('stores-none')") -and $ogSrc.Contains("Get-Page (`$base + '/stores/kouzinika-gr/') 'GR'")) 'ogw-site.ps1: from Greece no store until Linkwise approves the site, /stores/kouzinika-gr/ is a 404 (L215)'
+# L215: Linkwise approved megastoresgearworld.com (23/11/2026): both tools check that Greece sees the 7 Greek stores again.
+Check ($ogSrc.Contains("`$grMissing.Count -eq 0 -and -not `$gr.text.Contains('stores-none')") -and $ogSrc.Contains("Get-Page (`$base + '/stores/kouzinika-gr/') 'GR'") -and $ogSrc.Contains("`$lw.status -eq 200")) 'ogw-site.ps1: from Greece the 7 Linkwise stores and /stores/kouzinika-gr/ after the approval (L215)'
 $l215Hub = [System.IO.File]::ReadAllText((Join-Path (Join-Path $repo 'tools') 'gwh-hub-v2.ps1'))
-Check ($l215Hub.Contains("-not `$grHtml.Contains('gwh2-mega-wrap') -and `$grLinkwise.Count -eq 0") -and $l215Hub.Contains("-not `$grBfHtml.Contains('megastoresgearworld.com')")) 'gwh-hub-v2.ps1: from Greece no Mega Stores bar and no Mega Stores line until Linkwise approves the site (L215)'
+Check ($l215Hub.Contains("`$grOk = (`$grHome.status -eq 200 -and `$grMissing.Count -eq 0") -and -not $l215Hub.Contains('$grLinkwise')) 'gwh-hub-v2.ps1: from Greece the bar names the 7 Greek stores after the approval (L215)'
+# L214: Mega Stores for Greece at /gr/: the Mega Stores tool checks /gr/, a Greek store page and the sitemap; the Hub tool
+# goes live only when /gr/ is live (exit 25), never with -NoHttpCheck (the tests), and checks the Greek bar and card.
+Check ($ogSrc.Contains("Get-Page (`$base + '/gr/')") -and $ogSrc.Contains("Get-Page (`$base + '/gr/stores/kouzinika-gr/')") -and $ogSrc.Contains("'/gr/</loc>'")) 'ogw-site.ps1: checks /gr/, a Greek store page and the sitemap (L214)'
+$l214Hub = [System.IO.File]::ReadAllText((Join-Path (Join-Path $repo 'tools') 'gwh-hub-v2.ps1'))
+Check ($l214Hub.Contains('function Assert-MegaStoresGr {') -and $l214Hub.Contains("if (`$Step -eq 'live') { Assert-MegaStoresGr }") -and $l214Hub.Contains("Say-Stores (Test-Stores)`r`n    Assert-MegaStoresGr") -and $l214Hub.Contains("if (`$NoHttpCheck -or -not `$workerText.Contains('https://megastoresgearworld.com/gr/')) { return }") -and $l214Hub.Contains('Finish 25') -and $l214Hub.Contains('megastoresgearworld\.com/gr/')) 'gwh-hub-v2.ps1: the Hub preview and live go on only when Mega Stores /gr/ is live (exit 25), never asked with -NoHttpCheck, and the Greek bar and card are checked (L214)'
 
 # gw-last-report.ps1: the newest report of a tool back on the clipboard, read-only.
 Write-Host 'gw-last-report.ps1'

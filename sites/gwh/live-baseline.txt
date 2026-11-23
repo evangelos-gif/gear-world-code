@@ -59,6 +59,12 @@ public/legal/i18n/ru-RU.json | 41385 | a55e5045dca1d8c8eeb32a0031df9c77f57287cee
 public/legal/i18n/sq-AL.json | 31836 | 54f72ee147fc50aede5098012de2718e65a43cc990b5c2f23cdb05e4424d8ce4 | file
 public/legal/legal.css | 2807 | b648bfa528c28771eb1b2533ec40d5a914f02faac98141dc331accaedf036e7e | file
 public/legal/legal.js | 5438 | f653f2654693ea158339ee640d8fa5ddb6bf0f07da2d49681805d808bf8d9be1 | file
+public/mega/back-to-the-office.png | 4102 | 0e17fbc17d190f4a7b52fe413de45cd537771cac355e9d881cb9fa328e324585 | file
+public/mega/gs-workwear.jpg | 5430 | 671a1acdfaa5013e0da9faad3b4bbd77c2c219f0b33317259f150ab1088263e0 | file
+public/mega/joybuy.png | 3663 | bb11e2a84e65fdb3076c0d181d1ac126d08d7205d030cd0e3622640b434ad2b8 | file
+public/mega/my-tool-shed.png | 5576 | f3bd1a364f83fa8187cff8d09cf8373cbc7dcab818cbfdf6758f93b853fcca1c | file
+public/mega/pchub-uk.png | 7857 | 3991669de5e562119f107c698e62efc4223063defdbf5116d91db9be73eec5d1 | file
+public/mega/tooled-up.png | 3094 | bc2859a20e8e32d8baae9b5d72a190444b7f1fcb76177991a38253810cafda27 | file
 public/play/google-play-de.png | 15496 | 6760aac0db8d24da21f4fd803a06c6ef26c8849e0bd623420973a5666fd3a4c4 | file
 public/play/google-play-el.png | 17113 | 5f1e70cd6f265ab911e6aa8162ed2d66c9800bb9f4225f5d52b70dd33406d837 | file
 public/play/google-play-en.png | 4904 | f72611e2df8e88204009fd896d05d5e8e83c77009c63943bbffa169559934849 | file
@@ -69,12 +75,6 @@ public/play/google-play-nl.png | 27942 | eee155542a2ce35619a7941837d72844beaa8ec
 public/play/google-play-pt.png | 16563 | cb4f574c86b3a113b94049cddbc30023250663b4944f2e25be58eabd005e0467 | file
 public/play/google-play-ro.png | 18009 | 4cace444bbd4a52261c0dcee72117dc42d3a9a83cb4b5db693bb051ec8fe653d | file
 public/play/google-play-ru.png | 17479 | 91e3433cd8330298afdab5a153616aa993de2425c2037c223f53fa4314a3f1b4 | file
-public/mega/back-to-the-office.png | 4102 | 0e17fbc17d190f4a7b52fe413de45cd537771cac355e9d881cb9fa328e324585 | file
-public/mega/gs-workwear.jpg | 5430 | 671a1acdfaa5013e0da9faad3b4bbd77c2c219f0b33317259f150ab1088263e0 | file
-public/mega/joybuy.png | 3663 | bb11e2a84e65fdb3076c0d181d1ac126d08d7205d030cd0e3622640b434ad2b8 | file
-public/mega/my-tool-shed.png | 5576 | f3bd1a364f83fa8187cff8d09cf8373cbc7dcab818cbfdf6758f93b853fcca1c | file
-public/mega/pchub-uk.png | 7857 | 3991669de5e562119f107c698e62efc4223063defdbf5116d91db9be73eec5d1 | file
-public/mega/tooled-up.png | 3094 | bc2859a20e8e32d8baae9b5d72a190444b7f1fcb76177991a38253810cafda27 | file
 public/privacy/index.html | 11022 | 29d69f7692dcb07c91f8af35834423c186b676c069d06a669411d2b9d25f59c6 | file
 public/robots.txt | 133 | 82e0fc4de515c2fd3241db4f864bd3bda514c6c69b9b751343b27d60dfaea310 | file
 public/seasonal/black-friday.jpg | 30703 | 57f7637c369e5d61b0c572cf1c35e1dcb65ee47812d8bed00ca11907ad7ec01a | file

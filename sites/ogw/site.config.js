@@ -26,7 +26,7 @@ export default {
   operatorName: 'Evangelos Kalogerakis, United Kingdom',
   // An address that receives mail (the Hub's; megastoresgearworld.com has no email).
   contactEmail: 'contact@gearworldhub.com',
-  assetVersion: '2026-11-23-ogw-8',
+  assetVersion: '2026-11-23-ogw-9',
   // The name of the stores part on every page, never translated (owner, 21 Nov 2026, lessons L208).
   storesLabel: 'Mega Stores',
   // The 12 languages of the 13 Gear World sites, the same codes and the same order as their menu (lessons L162, L195).
@@ -105,11 +105,11 @@ export default {
   cyberMonday: '2026-11-30',
   christmas: '2026-12-25',
   // The retailers that have started their Black Friday and their codes: the Hub's black-friday.json (L188, L195).
-  // Owner, 22 Nov 2026 ("we will declare it but we will hide it", lessons L215): megastoresgearworld.com is declared to
-  // Linkwise as a page that shows its stores, and until Linkwise's email approves it the Linkwise stores above are hidden
-  // everywhere on this site (Greece and Cyprus then get "no store listed for your country"). After the approval: take
-  // 'linkwise' out of this list, in a release with its own phrase.
-  hiddenNetworks: ['linkwise'],
+  // The networks whose stores are hidden everywhere on this site until the network approves megastoresgearworld.com as a
+  // page that shows its stores (owner, 22 Nov 2026, "we will declare it but we will hide it", lessons L215; their visitors'
+  // countries then get "no store listed for your country"). Linkwise approved it on 23 Nov 2026 (email "Your account
+  // changes were approved"), so the list is empty: the 7 Greek stores above are back for Greece and Cyprus, and at /gr/.
+  hiddenNetworks: [],
   earlyBlackFriday: EARLY_BLACK_FRIDAY,
   guides: [
     {
