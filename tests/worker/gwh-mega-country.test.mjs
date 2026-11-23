@@ -193,7 +193,7 @@ test('L215: a hidden network (as Linkwise was until its approval): Greece and Cy
     assert.deepEqual(megaStoresFor(cc, hidden), [], `${cc}: none while hidden`);
     assert.equal(megaCardNames(cc, hidden), '', `${cc}: no store names for the card`);
     const html = await (await withMegaCountry(req('/', { cc }), page(HOME), hidden)).text();
-    assert.ok(!html.includes('gwh2-mega-wrap') && !html.includes('data-store=') && !html.includes('megastoresgearworld.com/"'), `${cc}: no bar`);
+    assert.ok(!html.includes('gwh2-mega-wrap') && !html.includes('data-store=') && !/href="https:\/\/megastoresgearworld\.com\//.test(html), `${cc}: no bar, no link to Mega Stores (/gr/ either)`);
     for (const n of GR_NAMES) assert.ok(!html.includes(n), `${cc}: no ${n}`);
     assert.ok(html.includes('id="hubSearch"') && html.includes('<section class="gwh2-top">') && html.includes('</html>'), `${cc}: the rest of the page`);
     const bf = await (await withMegaCountry(req('/black-friday/', { cc }), page(BF), hidden)).text();

@@ -13,6 +13,7 @@ const NOW = Date.parse('2026-11-21T12:00:00Z');
 const ON = { AMAZON_LINKS: 'on' };
 const BROWSER = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1';
 const GOOGLE = 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)';
+const ANDROID = 'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0 Mobile Safari/537.36';
 
 function makeFetch() {
   const calls = [];
@@ -165,4 +166,18 @@ test('L214: every text of /gr/ is in the Greek dictionary', async () => {
   for (const s of GR_STORES) await get(`/gr/stores/${s.slug}/`, { cc: 'GR' });
   await get('/gr/nothing');
   assert.deepEqual([...I18N_MISSING].filter(k => k.startsWith('el-GR\t')), []);
+});
+
+test('L214 + L218: /gr/ has the Gear World app row for a visitor from a country of the app, in Greek, never on iPhone', async () => {
+  const gr = await get('/gr/', { cc: 'GR', ua: ANDROID });
+  assert.ok(gr.text.includes('class="app-bar"'), 'Greece, Android: the row');
+  assert.ok(gr.text.includes('Αναζητήστε σε κάθε Gear World από το κινητό σας.'), 'its line in Greek');
+  assert.ok(gr.text.includes('aria-label="Αποκτήστε το στο Google Play"') && gr.text.includes('app/google-play-el.png'), 'the Greek badge');
+  assert.ok(gr.text.includes('utm_campaign=') || gr.text.includes('play.google.com/store/apps/details?id=com.gearworldhub.app'), 'the Google Play link');
+  const de = await get('/gr/', { cc: 'DE', ua: ANDROID });
+  assert.ok(!de.text.includes('class="app-bar"'), 'Germany: no row (the app is not on Google Play there)');
+  const iphone = await get('/gr/', { cc: 'GR' });
+  assert.ok(!iphone.text.includes('class="app-bar"'), 'iPhone: no row');
+  const store = await get('/gr/stores/kouzinika-gr/', { cc: 'GR', ua: ANDROID });
+  assert.ok(!store.text.includes('class="app-bar"'), 'a store page: no row, as on the old addresses');
 });
