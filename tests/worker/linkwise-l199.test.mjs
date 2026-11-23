@@ -215,6 +215,14 @@ test('L14 (23 Nov 2026, Julia of Linkwise): no rug, lamp, towel, leather or wool
   is(w({ name: 'Μάσκα μαλλιών με κερατίνη' }), 'Beauty & Fragrances', 'Hair care');
   is(w({ name: 'Σαμπουάν για λιπαρά μαλλιά 500ml' }), 'Beauty & Fragrances', 'Hair care');
   is(w({ name: 'Rochas Madame Eau de Toilette 100 ml' }), 'Beauty & Fragrances', 'Fragrance');
+  // The dry run of 23 Nov 16:25 (224 pairs): a beauty shop's own categories «Μαλλιά > Μάσκες», «Σώμα», «Πρόσωπο > Μάτια > Σκιές».
+  is(w({ name: 'Aveda - Nutriplenish™ Daily Moisturizing Treatment (150ml)', feedCategory: 'Μαλλιά > Μάσκες > Ξηρά Μαλλιά' }), 'Beauty & Fragrances', 'Hair care');
+  is(w({ name: 'WOODMAN Foaming Scrub', feedCategory: 'σώμα και μαλλιά > μπάνιο και ντουζ > foaming scrubs' }), 'Beauty & Fragrances', 'Bath & body');
+  is(w({ name: 'Beauty Sou Body Veil - No Filter (200ml)', feedCategory: 'Πρόσωπο Σώμα > Σώμα > Mist' }), 'Beauty & Fragrances', 'Bath & body');
+  is(w({ name: 'ΣΚΙΑ MATTE SO WARM 2GR', feedCategory: 'Πρόσωπο > Μάτια > Σκιές' }), 'Beauty & Fragrances', 'Make-up');
+  is(w({ name: 'Dermalogica Active Moist 2.0 100 ml', feedCategory: 'ΠΡΟΣΩΠΟ' }), 'Beauty & Fragrances', 'Skincare');
+  // "Σώμα" is also a bodysuit: in a fashion shop the garment word wins.
+  is(w({ name: "Σώμα Nike Sportswear Women's Dri-FIT ADV Bodysuit", feedCategory: 'Apparel & Accessories' }), 'Clothing', 'Tops & Blouses');
 });
 
 test('L14 (22 Nov 2026): Filinda is a home shop: home on HGW, women on WGW, children on KGW', () => {

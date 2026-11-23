@@ -71,7 +71,7 @@ const BRAND_WORDS = R('(calvin klein|tommy|versace|liu jo|pepe|guess|armani exch
 const cleanName = n => n.replace(new RegExp(BRAND_WORDS.source, 'gu'), ' ');
 
 // Who a product is for, from its name first, then from the shop's category path: 'kids', 'men', 'women', 'unisex' or ''.
-const KIDS = R('\\bπαιδ(ι|ια|ικ\\S*)\\b|\\bκοριτσ|\\bαγορ(ι|ια|ακι|ακια|ιστικ\\S*)\\b|βρεφ|\\bμωρ(ο|ου|α)\\b|μπεμπε|\\bbaby|\\bkids?\\b|junior|\\bjr\\b|newborn|νηπι|\\bteen');
+const KIDS = R('\\bπαιδ(ι|ια|ικ\\S*)\\b|\\bκοριτσ|\\bαγορ(ι|ια|ακι|ακια|ιστικ\\S*)\\b|βρεφ|\\bμωρ(ο|ου|α)\\b|μπεμπε|\\bbaby|\\bkids?\\b|junior|\\bjr\\b|newborn|νηπι|\\bteen|\\bboys?\\b|\\bboy\'s');
 const MEN = R('\\bανδρ(ασ|εσ|ικ\\S*)\\b|\\bαντρ(ασ|εσ|ικ\\S*)\\b|\\bmen\\b|\\bmens\\b|\\bman\\b|\\bhomme\\b|\\bmale\\b');
 const WOMEN = R('\\bγυναικ\\S*|\\bwom[ae]n\\b|\\blady\\b|\\bladies\\b|\\bfemme\\b');
 const UNISEX = R('unisex');
@@ -107,7 +107,7 @@ const W_CLOTHES = [
   [R('πλεκτ(?!\\S* (ζων|τσαντ|καλαθ|βραχιολ))|πουλοβερ|ζακετα|cardigan|ζιβαγκο|\\bknit'), 'Clothing', 'Knitwear'],
   [R('μπουφαν|παλτο|καμπαρντιν|τζακετ|σακακ|blazer|γιλεκο|γουνα|πανωφορι|αδιαβροχο (μπουφαν|παλτο)|αντιανεμικ|\\bparka|\\btrench|\\bjacket|\\bcoat\\b'), 'Clothing', 'Jackets & Coats'],
   [R('t-shirt|t shirt|tshirt|κοντομανικ'), 'Clothing', 'T-Shirts'],
-  [R('μπλουζ|πουκαμισ|\\bτοπ\\b|\\btop\\b|\\bcrop\\b|κορμακ|τουνικ|καφταν|\\bblouse|\\bshirt\\b'), 'Clothing', 'Tops & Blouses'],
+  [R('μπλουζ|πουκαμισ|\\bτοπ\\b|\\btop\\b|\\bcrop\\b|κορμακ|bodysuit|τουνικ|καφταν|\\bblouse|\\bshirt\\b'), 'Clothing', 'Tops & Blouses'],
   [R('κοστουμ|ταγιερ'), 'Clothing', 'Suits'],
   [R('(?<!πλατ)φορμ(α|εσ)\\b|αθλητικ(ο|α) σετ'), 'Clothing', 'Activewear']
 ];
@@ -144,25 +144,26 @@ const W_ACCESSORIES = [
 // προσώπου", "επιδερμίδα"); "δερμάτινο", "δερματίνη" and the colour "δέρμα" are fashion (lessons L14, 22 Nov 2026).
 const SKIN = '(ξηρ|λιπαρ|ευαισθητ|μικτ|κανονικ|ωριμ|ατοπικ|αφυδατωμεν|ταλαιπωρημεν|ερεθισμεν|θαμπ)\\S* δερμ(α|ατα|ατοσ)\\b|δερμα(τοσ)? (του )?(προσωπου|σωματοσ|ματιων)|για (το |ολουσ τουσ τυπουσ )?δερμα|επιδερμιδ|δερματολογ';
 // The face: "κρέμα προσώπου", "για το πρόσωπο"; not "προσωποποιημένο" (personalised) or "Μακριά Πρόσωπα" (a design).
-const FACE = 'προσωπου|(για|στο|του) προσωπο\\b';
+const FACE = 'προσωπου|(για|στο|του) προσωπο\\b|^προσωπο\\b';
 // "Skin", but not "Second Skin" (a fit), "Snake Skin" (a chain) or "Skinny".
 const SKIN_EN = '(?<![\\p{L}\\p{N}])(?<!second |snake |faux |leather )skin\\b';
-// Hair care words: "για τα μαλλιά", "μαλλιών", "μάσκα μαλλιών"; never "μάλλινο", "από μαλλί" or "πρόσμιξη μαλλιού" (wool).
-const HAIR = 'για (τα )?μαλλια|μαλλιων|(μασκα|λαδι|ορο(σ|υ)?|σπρει|αφρο(σ|υ)?|κρεμα|ελαιο) (για )?(τα )?μαλλ(ια|ιων)';
+// Hair care words: "μαλλιά" and "μαλλιών" (the hair, also a shop's category «Μαλλιά > Μάσκες»); never the wool words
+// "μάλλινο", "μαλλί" ("από μαλλί", "μαλλί μερινό") or "μαλλιού" ("πρόσμιξη μαλλιού").
+const HAIR = '\\bμαλλι(α|ων)\\b|για (τα )?μαλλια';
 const BEAUTY = cat => [
   [R('σετ δωρου|gift set|κασετινα (δωρου|αρωματ|καλλυντικ|περιποιησ)|σετ περιποιησ'), cat, 'Gift sets'],
   [R('\\bαρωμα|eau de|parfum|κολονια|\\bedp\\b|\\bedt\\b|body mist|hair (& |and )?(body )?(mist|parfum|perfume)|perfume|αρωματικο νερο'), cat, 'Fragrance'],
   [R('αποτριχ|αποτριχωτικ|epilat|κερι αποτρ|ξυριστικη μηχανη|ξυραφ|\\brazor'), cat, 'Hair removal'],
   [R('πιστολακ|ισιωτικ|σεσουαρ|ψαλιδ(α|ι) μαλλ|ψαλιδι μπουκλ|μπουκλιερ|μπουκλωτικ|hair dryer|straightener'), cat, 'Hair tools'],
   [R('\\bνυχι(α|ων)?\\b|βερνικι νυχ|gel polish|\\bnail|ημιμονιμο βερνικ|\\bτιπσ\\b'), cat, 'Nails'],
-  [R('μακιγιαζ|μεικ απ|κραγιον|μασκαρα|foundation|πουδρα|σκιεσ ματιων|σκια ματιων|\\bρουζ\\b|\\blip(stick|s)?\\b|\\blip (balm|gloss|liner|oil|crayon|care|tint)|eyeliner|κονσιλερ|make ?-?up|blush|bronzer|highlighter|primer|μολυβι (για τα )?(ματια|ματιων|χειλη|χειλιων)|lipstick|\\bgloss\\b|φρυδι|mascara|\\blash|eyeshadow|concealer|\\bbrows?\\b'), cat, 'Make-up'],
+  [R('μακιγιαζ|μεικ απ|κραγιον|μασκαρα|foundation|πουδρα|πουδρεσ|\\bσκι(α|εσ)\\b|σκιεσ ματιων|σκια ματιων|\\bρουζ\\b|\\blip(stick|s)?\\b|\\blip (balm|gloss|liner|oil|crayon|care|tint)|eyeliner|κονσιλερ|make ?-?up|blush|bronzer|highlighter|primer|μολυβι (για τα )?(ματια|ματιων|χειλη|χειλιων)|lipstick|\\bgloss\\b|φρυδι|mascara|\\blash|eyeshadow|concealer|\\bbrows?\\b'), cat, 'Make-up'],
   [R(`σαμπουαν|${HAIR}|conditioner|μαλακτικο μαλλ|βαφη μαλλ|\\bhair(?!y)|λακ μαλλ`), cat, 'Hair care'],
   [R('πινελ|σφουγγαρακι μακιγ|καθρεφτακ|\\bbrush|beauty blender|ψηκτρ'), cat, 'Beauty tools'],
-  [R('αφρολουτρ|τζελ (για )?ντουσ|σαπουν|σωματοσ|κρεμα σωματ|body lotion|body butter|αποσμητικ|scrub σωμ|λαδι σωμ|deodorant|shower|κρεμα χεριων'), cat, 'Bath & body'],
+  [R('αφρολουτρ|τζελ (για )?ντουσ|σαπουν|\\bσωμα(τοσ)?\\b|κρεμα σωματ|body (lotion|butter|wash|mist|oil|scrub|cream|milk|veil|spray)|αποσμητικ|\\bscrubs?\\b|λαδι σωμ|deodorant|shower|\\bντουσ|κρεμα χεριων'), cat, 'Bath & body'],
   [R('κρεμα(?!στ)|\\bcreme\\b|\\bcream\\b'), cat, 'Skincare'],
   [R(`\\bορο(σ|υ)?\\b|serum|καθαρισμ|μασκα προσωπ|αντηλιακ|ματιων|${FACE}|tonic|τονωτικ|micellar|ενυδατ|αντιγηραντ|\\bspf|${SKIN_EN}|skin ?care|${SKIN}|αντιρυτιδ`), cat, 'Skincare']
 ];
-const WEAK_BEAUTY = R('^(σετ δωρου|gift set|κασετινα|σετ περιποιησ|blush|πουδρα|gloss|primer|κρεμα|creme|cream)$');
+const WEAK_BEAUTY = R('^(σετ δωρου|gift set|κασετινα|σετ περιποιησ|blush|πουδρα|gloss|primer|κρεμα|creme|cream|σωμα)$');
 const BEAUTY_CAT = R('καλλυντικ|ομορφι|περιποιησ|μακιγιαζ|αρωματα|beauty|personal care|cosmetic|make ?up|φαρμακει|parapharm|skin ?care|hair ?care');
 const WATCH = R('ρολο(ι|για)\\b|\\bwatch(es)?\\b|smartwatch');
 // A strap for a watch ("Λουράκι για ρολόι", "Apple Watch strap") is not a watch; "Ρολόι ... Leather Strap" is.
@@ -184,8 +185,11 @@ function fashion(t, n, { clothes, shoes, jewel, acc, beauty, watch, beautyFirst 
     // a colour ("blush", "πούδρα") or a finish ("gloss") never outranks what follows it: "Σετ δώρου πορτοφόλι" is a
     // wallet, "Soma Blush Dots κάλτσες" socks (lessons L14, 22 Nov 2026).
     const o = pickFirstAt(name, other), b = pickFirstAt(name, beauty, WEAK_BEAUTY);
+    // A weak word alone ("Σώμα" is also a bodysuit, "κρέμα" a colour): the shop's category first, the word last.
     if (o && b) hit = b.at < o.at && !b.weak ? b.hit : o.hit;
-    else hit = (o || b || {}).hit || pickPath(t, [...other, ...beauty]);
+    else if (o) hit = o.hit;
+    else if (b && !b.weak) hit = b.hit;
+    else hit = pickPath(t, [...other, ...beauty]) || (b ? b.hit : null);
   }
   return hit || (WATCH.test(t) ? watch : null);
 }
