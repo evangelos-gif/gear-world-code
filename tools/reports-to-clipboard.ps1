@@ -25,7 +25,10 @@ if (Test-Path -LiteralPath $OutDir) {
     # Plan and sample folders of the same paste: IMPORT_PLAN_*, AGW/VGW/SGW/TGW_IMPORT_PLAN_*, AWIN_FEED_SAMPLE_* (3 Nov 2026: the
     # feed sample and the AGW plan were missing from one paste). FEED_PROFILE_* and MINI_PC_SCAN_* too (8 Nov 2026: the
     # profile of 28 new feeds did not reach the clipboard, this tool was missing on this line of the code). REFRESH_PLAN_* folders stay out (their report is the top file).
-    $plans = @(Get-ChildItem -LiteralPath $OutDir -Directory | Where-Object { $_.Name -like '*IMPORT_PLAN_*' -or $_.Name -like 'AWIN_FEED_SAMPLE_*' -or $_.Name -like 'FEED_PROFILE_*' -or $_.Name -like 'MINI_PC_SCAN_*' } | ForEach-Object { Get-Item -LiteralPath (Join-Path $_.FullName 'report.txt') -ErrorAction SilentlyContinue } | Where-Object { $_ -and $_.LastWriteTime -ge $from })
+    $plans = @(Get-ChildItem -LiteralPath $OutDir -Directory | Where-Object { $_.Name -like '*IMPORT_PLAN_*' -or $_.Name -like 'AWIN_FEED_SAMPLE_*' -or $_.Name -like 'FEED_PROFILE_*' -or $_.Name -like 'MINI_PC_SCAN_*' -or $_.Name -like 'MASSIVE_INVENTORY_*' } | ForEach-Object { Get-Item -LiteralPath (Join-Path $_.FullName 'report.txt') -ErrorAction SilentlyContinue } | Where-Object { $_ -and $_.LastWriteTime -ge $from })
+    # An IMPORT_BATCH report already holds the full plan of every shop of its batch: the IMPORT_PLAN folders are not added
+    # a second time (massive import of 22 Nov 2026: 114 shops in one batch).
+    if (@($top | Where-Object { $_.Name -like 'IMPORT_BATCH_*' }).Count -gt 0) { $plans = @($plans | Where-Object { (Split-Path -Leaf $_.DirectoryName) -notlike '*IMPORT_PLAN_*' }) }
     $all = @($top) + @($plans)
     $files = @($all | Sort-Object LastWriteTime, FullName)
 }

@@ -3,6 +3,7 @@
 // programme number is in the comment; the shop is in sources.json ("network": "linkwise", "sections": "linkwise-gr") and
 // placed by tools/import-rules/lib/linkwise-sections.mjs. The countries are those of tools/import-rules/lib/linkwise-programmes.mjs.
 const retailers = {
+  'Autodoc GR': ['GR'], // 13862
   'Battery Park GR': ['GR'], // 11476
   'DealsShop GR': ['GR'], // 11791
   'SavelTrade GR': ['GR', 'CY'], // 302

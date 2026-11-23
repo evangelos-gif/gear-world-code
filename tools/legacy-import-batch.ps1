@@ -17,6 +17,7 @@
   advertisers to import there (several joined with +). Each runs <site>-cloudflare.ps1 -Step import -Only <advertisers>:
   without -Apply its plan only, with -Apply its import (Time Travel restore point first), covered by the one phrase.
   -Pairs none: no legacy imports, only the clean-ups, -Sites and/or TGW.
+  -Pairs 'file:tools/massive/gr-wave-1122.txt': the pairs from a file of this code version (one per line, '#' comments).
 
   -Tgw: also Technology Gear World, after the pairs and clean-ups. Without -Apply its read-only plan (tgw-import-plan.ps1);
   with -Apply its import (tgw-cloudflare.ps1 -Step import), covered by the one phrase.
@@ -52,10 +53,33 @@ $exe = (Get-Process -Id $PID).Path
 $start = (Get-Date).AddSeconds(-2)
 $stamp = Get-Date -Format 'yyyyMMdd_HHmmss'
 
+# -Pairs 'file:<file>': the pairs are in a file (one per line or comma separated, '#' starts a comment), so a long list
+# stays out of the 3-line command (the Greek wave of 22 Nov 2026: 108 shops, lessons L212). A relative path is inside
+# this code version (tools/massive/gr-wave-1122.txt).
+if ($Pairs.Trim() -match '^file:(.+)$') {
+    $pf = $Matches[1].Trim()
+    if (-not [System.IO.Path]::IsPathRooted($pf)) { $pf = Join-Path $repo $pf }
+    if (-not (Test-Path -LiteralPath $pf -PathType Leaf)) {
+        Write-Host ('Δεν βρέθηκε το αρχείο με τα ζευγάρια: {0}' -f $pf) -ForegroundColor Red
+        exit 2
+    }
+    $fromFile = @()
+    foreach ($line in [System.IO.File]::ReadAllLines($pf, [System.Text.Encoding]::UTF8)) {
+        $x = ($line -split '#', 2)[0].Trim()
+        if ($x) { $fromFile += $x }
+    }
+    if ($fromFile.Count -eq 0) {
+        Write-Host ('Το αρχείο δεν έχει ζευγάρια: {0}' -f $pf) -ForegroundColor Red
+        exit 2
+    }
+    $Pairs = $fromFile -join ','
+}
+
 $list = @()
 if ($Pairs.Trim().ToLower() -ne 'none') {
     foreach ($p in ($Pairs -split ',')) {
         $t = $p.Trim().ToLower()
+        if (-not $t) { continue }
         # CGW too (legacy-import.ps1 has it): GRABO on Construction Gear World (25 Oct 2026, lessons L63).
         if ($t -notmatch '^[a-z0-9\-]{2,40}:(cgw|mgw|wgw|kgw|hgw|ggw)$') {
             Write-Host ('Λάθος ζευγάρι κατάστημα:site: {0}' -f $p) -ForegroundColor Red

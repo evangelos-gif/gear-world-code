@@ -1,8 +1,9 @@
 // Linkwise shops on this site (Greece and Cyprus, owner 19 Nov 2026, lessons L199), each seen only where it delivers and
 // only by visitors there, with its Greek names (deliversTo.languages "el", lessons L165). The programme number is in the
 // comment; its import rules are tools/import-rules/lw-<programme>.mjs. Each name is one value in the queries of the views
-// that hide it (D1 allows 100 per query, lessons L193): tests/worker/linkwise-l199.test.mjs keeps every view under 62.
+// that hide it (D1 allows 100 per query, lessons L193): tests/worker/linkwise-l199.test.mjs keeps every view under 600 (L202: the names are quoted text in the SQL).
 const retailers = {
+  'Agnotis GR': ['GR', 'CY'], // 11562
   'Answear GR': ['GR'], // 13797
   'Babykid GR': ['GR'], // 11036
   'Bla Bla Toys GR': ['GR'], // 13506
@@ -12,6 +13,7 @@ const retailers = {
   'Eleftheriou Online GR': ['GR'], // 11834
   'Energiers GR': ['GR'], // 11764
   'epapoutsia.gr GR': ['GR'], // 13604
+  'Filinda GR': ['GR', 'CY'], // 13088
   'Kiriakos Gofas Jewelry GR': ['GR', 'CY'], // 12401
   'Kosmima24 GR': ['GR'], // 10600
   'lulumelon GR': ['GR', 'CY'], // 13622

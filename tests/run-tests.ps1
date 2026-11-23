@@ -2708,6 +2708,24 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
             Check ($tt.Contains('TGW: exit 0') -and $tt.Contains('##### PLAN TGW') -and $tt.Contains('TGW IMPORT PLAN (dry run, nothing imported)')) 'import batch with -Tgw: the TGW plan is in the report'
         } else { Check $false 'import batch with -Tgw: one combined report' }
         Check (-not ((LiCalls) -match '--file|time-travel')) 'import batch with -Tgw without -Apply: only reads'
+        # -Pairs 'file:<file>' (22 Nov 2026, the Greek wave of 108 shops): the list from a file, comments and blank lines skipped.
+        $pfOut = Join-Path $work 'batch-file-out'
+        $pfFile = Join-Path $work 'pairs-test.txt'
+        [System.IO.File]::WriteAllText($pfFile, "# test list`r`njoybuy:wgw`r`n`r`njoybuy:mgw  # second`r`n", (New-Object System.Text.UTF8Encoding($false)))
+        & $exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $repo 'tools\legacy-import-batch.ps1') -Pairs ('file:' + $pfFile) -Archive $jArch -WorkDir $liWork -OutDir $pfOut -NoClipboard | Out-Null
+        Check ($LASTEXITCODE -eq 0) 'import batch -Pairs file: (read-only): exit 0'
+        $pfRep = @(Get-ChildItem -LiteralPath $pfOut -File -Filter 'IMPORT_BATCH_*.txt' -ErrorAction SilentlyContinue)
+        Check ($pfRep.Count -eq 1 -and ([System.IO.File]::ReadAllText($pfRep[0].FullName)).Contains('joybuy -> WGW: exit 0') -and ([System.IO.File]::ReadAllText($pfRep[0].FullName)).Contains('joybuy -> MGW: exit 0')) 'import batch -Pairs file: both pairs of the file in the report'
+        & $exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $repo 'tools\legacy-import-batch.ps1') -Pairs ('file:' + (Join-Path $work 'no-such-pairs.txt')) -OutDir $pfOut -NoClipboard | Out-Null
+        Check ($LASTEXITCODE -eq 2) 'import batch -Pairs file: a missing file is refused (exit 2)'
+        $gwFile = Join-Path $repo 'tools\massive\gr-wave-1122.txt'
+        $gwPairs = @()
+        foreach ($l in [System.IO.File]::ReadAllLines($gwFile, [System.Text.Encoding]::UTF8)) { $x = ($l -split '#', 2)[0].Trim(); if ($x) { $gwPairs += $x } }
+        Check ($gwPairs.Count -eq 108 -and @($gwPairs | Where-Object { $_ -notmatch '^lw-\d+:(wgw|mgw|hgw|kgw)$' }).Count -eq 0) 'the Greek wave list of 22 Nov 2026: 108 Linkwise pairs, all valid'
+        foreach ($gp in $gwPairs) {
+            $gr = ($gp -split ':')[0]
+            if (-not (Test-Path -LiteralPath (Join-Path $repo ('tools\import-rules\' + $gr + '.mjs')))) { Check $false ('the Greek wave list: rules for ' + $gr) }
+        }
         $bBad = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', (Join-Path $repo 'tools\legacy-import-batch.ps1'), '-Pairs', 'joybuy:xyz', '-OutDir', $bOut, '-NoClipboard')
         & $exe @bBad | Out-Null
         Check ($LASTEXITCODE -eq 2) 'import batch: a wrong site is refused'
@@ -2883,6 +2901,16 @@ Check ($rcText.IndexOf('first report') -lt $rcText.IndexOf('second report')) 're
 Check (-not $rcText.Contains('old report') -and -not $rcText.Contains('inner plan file')) 'reports-to-clipboard: leaves out older reports and refresh plan folders'
 Check ($rcText.Contains('import plan samples') -and $rcText.Contains('IMPORT_PLAN_sgs-construction_x\report.txt')) 'reports-to-clipboard: adds the full import plan of the same paste (L14 samples)'
 Check ($rcText.Contains('agw plan text') -and $rcText.Contains('feed sample text')) 'reports-to-clipboard: adds the AGW plan and the Awin feed sample of the same paste'
+# A batch report already holds every plan of its batch: the plans are not added twice; a massive inventory is added.
+New-Item -ItemType Directory -Path (Join-Path $rcOut 'MASSIVE_INVENTORY_x') -Force | Out-Null
+[System.IO.File]::WriteAllText((Join-Path (Join-Path $rcOut 'MASSIVE_INVENTORY_x') 'report.txt'), 'inventory lines', (New-Object System.Text.UTF8Encoding($true)))
+[System.IO.File]::WriteAllText((Join-Path $rcOut 'IMPORT_BATCH_x.txt'), 'batch with its plans', (New-Object System.Text.UTF8Encoding($true)))
+Get-ChildItem -LiteralPath $rcOut -File -Filter 'REPORTS_*.txt' | Remove-Item
+& $exe -NoProfile -ExecutionPolicy Bypass -File $rcTool -Since $rcSince -OutDir $rcOut -NoClipboard | Out-Null
+$rcAll = @(Get-ChildItem -LiteralPath $rcOut -File -Filter 'REPORTS_*.txt')
+$rcText = ''
+if ($rcAll.Count -eq 1) { $rcText = [System.IO.File]::ReadAllText($rcAll[0].FullName, [System.Text.Encoding]::UTF8) }
+Check ($rcText.Contains('batch with its plans') -and $rcText.Contains('inventory lines') -and -not $rcText.Contains('import plan samples') -and -not $rcText.Contains('agw plan text') -and $rcText.Contains('feed sample text')) 'reports-to-clipboard: with a batch report the plans are not added twice; the massive inventory is added'
 & $exe -NoProfile -ExecutionPolicy Bypass -File $rcTool -Since 'yesterday' -OutDir $rcOut -NoClipboard | Out-Null
 Check ($LASTEXITCODE -eq 2) 'reports-to-clipboard: a wrong -Since stops'
 
@@ -3092,6 +3120,73 @@ http.createServer((q, s) => {
         Check ($LASTEXITCODE -eq 2) 'linkwise-feed-download: a wrong programme number is refused'
     } finally {
         if ($lwProc -and -not $lwProc.HasExited) { Stop-Process -Id $lwProc.Id -Force -ErrorAction SilentlyContinue }
+    }
+}
+
+# 8c6c. rakuten-feed-download.ps1 by SFTP only (lessons L219) with a fake SFTP server (Windows only: DPAPI, .cmd for npm ci)
+if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
+    Write-Host 'rakuten-feed-download.ps1 (SFTP only, host key pinned, one download per file, stream converter)'
+    $rkSftp = Join-Path (Join-Path $repo 'tools') 'rakuten-sftp'
+    $rkCmd = Join-Path ([System.IO.Path]::GetTempPath()) 'gw-test-rk-npm.cmd'
+    [System.IO.File]::WriteAllText($rkCmd, "@echo off`r`ncd /d `"$rkSftp`"`r`ncall npm ci --omit=optional --no-audit --no-fund >nul 2>&1`r`n", [System.Text.Encoding]::ASCII)
+    & $rkCmd
+    Check ($LASTEXITCODE -eq 0 -and (Test-Path -LiteralPath (Join-Path (Join-Path $rkSftp 'node_modules') 'ssh2'))) 'rakuten sftp: npm ci of the pinned ssh2'
+    Remove-Item -LiteralPath $rkCmd -ErrorAction SilentlyContinue
+    $rkNodeTest = @(& node --test (Join-Path $rkSftp 'sftp.test.mjs') | ForEach-Object { "$_" })
+    Check ($LASTEXITCODE -eq 0) ('rakuten sftp: client tests against the fake server (' + (($rkNodeTest | Where-Object { $_ -match '^# (pass|fail)' }) -join ' ') + ')')
+    $rkDir = Join-Path $work 'rk'
+    $rkSrvDir = Join-Path $rkDir 'server'
+    $rkArch = Join-Path $rkDir 'archive'
+    $rkOut = Join-Path $rkDir 'out'
+    New-Item -ItemType Directory -Path $rkSrvDir, $rkArch, $rkOut -Force | Out-Null
+    $rkMake = Join-Path $rkDir 'make.js'
+    Write-Utf8 $rkMake @'
+const zlib = require('zlib'), fs = require('fs');
+const L = ['HDR|1606623|Cotton On UK|11/13/2026 06:00:00'];
+for (let i = 1; i <= 3; i++) {
+  const f = new Array(28).fill('');
+  f[0] = String(i); f[1] = 'Classic Tee ' + i; f[2] = 'CO-' + i; f[3] = 'Mens'; f[4] = 'Tops';
+  f[5] = 'https://click.linksynergy.com/link?id=abc123&offerid=1606623.100' + i + '&type=15&murl=' + encodeURIComponent('https://cottonon.com/GB/p/100' + i + '.html');
+  f[6] = 'https://cottonon.com/img/' + i + '.jpg'; f[12] = '8.00'; f[13] = '12.00'; f[16] = 'Cotton On'; f[22] = 'in-stock'; f[25] = 'GBP';
+  L.push(f.join('|'));
+}
+L.push('TRL|3');
+fs.writeFileSync(process.argv[2], zlib.gzipSync(L.join('\n')));
+'@
+    & node $rkMake (Join-Path $rkSrvDir '1606623_4561_mp.txt.gz')
+    Copy-Item -LiteralPath (Join-Path $rkSrvDir '1606623_4561_mp.txt.gz') -Destination (Join-Path $rkSrvDir '1606623_4561_mp.xml.gz')
+    $rkUser = 'gw' + 'tester'
+    $rkPass = 'pw-' + 'not-real-7731'
+    $rkPortFile = Join-Path $rkDir 'port.txt'
+    $rkProc = Start-Process -FilePath (Get-Command node).Source -ArgumentList @((Join-Path $rkSftp 'fake-server.mjs'), '--dir', $rkSrvDir, '--user', $rkUser, '--pass', $rkPass, '--port-file', $rkPortFile) -PassThru -WindowStyle Hidden
+    for ($w = 0; $w -lt 40 -and -not (Test-Path -LiteralPath $rkPortFile); $w++) { Start-Sleep -Milliseconds 250 }
+    try {
+        $rkPort = ([System.IO.File]::ReadAllText($rkPortFile)).Trim()
+        $rkSecret = Join-Path $rkDir 'rakuten-ftp.dat'
+        $rkJson = (New-Object PSObject -Property @{ server = '127.0.0.1'; user = $rkUser; pass = $rkPass }) | ConvertTo-Json -Compress
+        [System.IO.File]::WriteAllText($rkSecret, (ConvertFrom-SecureString (ConvertTo-SecureString $rkJson -AsPlainText -Force)), [System.Text.Encoding]::ASCII)
+        $rkKey = Join-Path $rkDir 'hostkey.txt'
+        $rkTool = Join-Path (Join-Path $repo 'tools') 'rakuten-feed-download.ps1'
+        $rkArgs = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $rkTool, '-Port', $rkPort, '-SecretFile', $rkSecret, '-HostKeyFile', $rkKey, '-Archive', $rkArch, '-OutDir', $rkOut, '-NoClipboard')
+        & $exe @rkArgs | Out-Null
+        $rkRep = (@(Get-ChildItem -LiteralPath $rkOut -Filter 'RAKUTEN_FEED_DOWNLOAD_*.txt') | ForEach-Object { [System.IO.File]::ReadAllText($_.FullName) }) -join "`n"
+        Check ($LASTEXITCODE -eq 0 -and @(Get-ChildItem -LiteralPath $rkArch -File).Count -eq 0 -and (Test-Path -LiteralPath $rkKey)) 'rakuten: read-only run by SFTP, exit 0, nothing in the feed folder, host key kept'
+        Check ($rkRep.Contains('κρυπτογραφημένη (SFTP)') -and $rkRep.Contains('MID 1606623 Cotton On UK') -and $rkRep.Contains('Classic Tee 1')) 'rakuten: the catalogue list and a sample from the first part of the file'
+        Check ($rkRep.Contains('κρατάω το .txt.gz') -and $rkRep.Contains('Κατάλογοι στον server: 1 ')) 'rakuten: the same catalogue as .txt.gz and .xml.gz is one catalogue (the .txt.gz)'
+        & $exe @($rkArgs + @('-Apply', '-Approve', 'wrong phrase')) | Out-Null
+        Check ($LASTEXITCODE -eq 1 -and @(Get-ChildItem -LiteralPath $rkArch -File).Count -eq 0) 'rakuten: a wrong phrase changes nothing'
+        & $exe @($rkArgs + @('-Apply', '-Approve', 'ΕΓΚΡΙΝΩ RAKUTEN FEED DOWNLOAD')) | Out-Null
+        $rkRep = (@(Get-ChildItem -LiteralPath $rkOut -Filter 'RAKUTEN_FEED_DOWNLOAD_*.txt') | ForEach-Object { [System.IO.File]::ReadAllText($_.FullName) }) -join "`n"
+        Check ($LASTEXITCODE -eq 0 -and (Test-Path -LiteralPath (Join-Path $rkArch 'RAKUTEN_1606623.csv.gz')) -and $rkRep.Contains('MID 1606623 Cotton On UK: OK, 3 προϊόντα')) 'rakuten: with the phrase the catalogue is downloaded once, converted and saved as RAKUTEN_1606623.csv.gz'
+        Check (-not $rkRep.Contains($rkPass) -and -not $rkRep.Contains($rkUser)) 'rakuten: the user name and password are in no report'
+        [System.IO.File]::WriteAllText($rkKey, 'SHA256:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA', [System.Text.Encoding]::ASCII)
+        & $exe @rkArgs | Out-Null
+        $rkRep = (@(Get-ChildItem -LiteralPath $rkOut -Filter 'RAKUTEN_FEED_DOWNLOAD_*.txt' | Sort-Object LastWriteTime | Select-Object -Last 1) | ForEach-Object { [System.IO.File]::ReadAllText($_.FullName) }) -join "`n"
+        Check ($LASTEXITCODE -eq 4 -and $rkRep.Contains('άλλο κλειδί')) 'rakuten: a server with another host key stops the tool before the password is sent'
+        $rkCode = [System.IO.File]::ReadAllText($rkTool)
+        Check (-not $rkCode.Contains('FtpWebRequest') -and -not $rkCode.Contains('UsePassive')) 'rakuten: no plain FTP or FTPS code left (L219)'
+    } finally {
+        if ($rkProc -and -not $rkProc.HasExited) { Stop-Process -Id $rkProc.Id -Force -ErrorAction SilentlyContinue }
     }
 }
 

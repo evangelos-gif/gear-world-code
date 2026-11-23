@@ -3,22 +3,29 @@
   Downloads the product catalogues of Rakuten Advertising advertisers that accepted Gear World into the feed folder (L128).
 
 .DESCRIPTION
-  Rakuten gives its catalogues only as files on its server for publishers, with a user name and password that Rakuten's
-  support sends on request (one per publisher; the web login does not work there). Each advertiser that accepted you and
-  has a catalogue is one file <MID>_<SID>_mp.txt.gz (or .xml.gz). They are saved as RAKUTEN_<MID>.csv.gz in the same
-  folder and with the same column names as the Awin feeds, with the Rakuten tracking link of each product in
+  Rakuten gives its catalogues only as files on its server for publishers (aftp.linksynergy.com), with a user name and
+  password that Rakuten's support sends on request (one per publisher; the web login does not work there). Each advertiser
+  that accepted you and has a catalogue is one file <MID>_<SID>_mp.txt.gz (or .xml.gz). They are saved as RAKUTEN_<MID>.csv.gz
+  in the same folder and with the same column names as the Awin feeds, with the Rakuten tracking link of each product in
   aw_deep_link, so tools/legacy-import.ps1 imports them like CJ shops (lessons L86).
 
+  Only SFTP (lessons L219): Rakuten's publisher guide offers SFTP and a plain FTP that is being retired; plain FTP sends the
+  password unencrypted, so it is never used (before L219 the tool tried FTPS, which Rakuten does not offer, and then fell
+  back to plain FTP). The SFTP client is tools\rakuten-sftp\sftp.mjs (the npm package ssh2, pinned in its package-lock,
+  installed once with npm ci). The server's host key is pinned: the first connection keeps its fingerprint in
+  <home>\gear-world-secrets\rakuten-sftp-hostkey.txt, and the tool stops if a later connection shows another one.
   The user name and password are asked once (the password is not shown while typed) and kept encrypted for your
-  Windows user (DPAPI) in <home>\gear-world-secrets\rakuten-ftp.dat. They are never written to a report, the clipboard
-  or the repo, and are sent only to a Rakuten server (linksynergy.com or rakutenadvertising.*).
+  Windows user (DPAPI) in <home>\gear-world-secrets\rakuten-ftp.dat. They are never written to a report, the clipboard,
+  the command line or the repo, and are sent only to a Rakuten server (linksynergy.com or rakutenadvertising.*).
 
   Without -Apply: READ-ONLY. Lists the catalogue files on the server (advertiser number, size, date) and, for the chosen
   advertisers (-Advertiser, Rakuten MIDs; default all, at most -SampleMax), reads only the first part of the file to show
   the advertiser's name, the fields and 2 samples with price, currency, stock, picture and tracking link. Nothing is saved
-  in the feed folder (the first part goes to %TEMP% and is deleted).
+  in the feed folder (the first part goes to %TEMP% and is deleted). With -Apply the first parts are not read again (each
+  file is downloaded once).
   With -Apply and the approval phrase ΕΓΚΡΙΝΩ RAKUTEN FEED DOWNLOAD: downloads each file (not bigger than -MaxMb), checks
-  that it is whole (the product count of its last line), converts it, moves the old copy to <folder>\_old\<time>\ and
+  that it is whole (the product count of its last line), converts it as a stream (a catalogue over 512 MB of text too,
+  L185), moves the old copy to <folder>\_old\<time>\ and
   only then puts the new one in place. A file with less than half the products of the old copy is NOT used.
   The sites do not change: the import is a separate step with its own approval.
   Report: <home>\gear-world-reports\RAKUTEN_FEED_DOWNLOAD_<time>.txt (copied to the clipboard)
@@ -29,6 +36,8 @@ param(
     [string]$Approve = '',
     [string]$Archive = '',
     [string]$SecretFile = '',
+    [string]$HostKeyFile = '',
+    [int]$Port = 22,
     [int]$MaxMb = 150,
     [int]$SampleMax = 15,
     [string]$OutDir = '',
@@ -42,6 +51,7 @@ $repo = Split-Path -Parent $PSScriptRoot
 if (-not $OutDir) { $OutDir = Join-Path $HOME 'gear-world-reports' }
 if (-not $Archive) { $Archive = Join-Path (Join-Path $HOME 'Downloads') 'GW_AWIN_BULK_ARCHIVE' }
 if (-not $SecretFile) { $SecretFile = Join-Path (Join-Path $HOME 'gear-world-secrets') 'rakuten-ftp.dat' }
+if (-not $HostKeyFile) { $HostKeyFile = Join-Path (Join-Path $HOME 'gear-world-secrets') 'rakuten-sftp-hostkey.txt' }
 $stamp = Get-Date -Format 'yyyyMMdd_HHmmss'
 $Phrase = 'ΕΓΚΡΙΝΩ RAKUTEN FEED DOWNLOAD'
 
@@ -49,7 +59,7 @@ $L = New-Object System.Collections.Generic.List[string]
 $script:user = ''
 $script:pass = ''
 $script:server = ''
-$script:ssl = $true
+$script:hostKey = ''
 function Mask([string]$s) {
     if ($script:pass -and $script:pass.Length -ge 4) { $s = $s.Replace($script:pass, '***') }
     if ($script:user -and $script:user.Length -ge 3) { $s = $s.Replace($script:user, '<user>') }
@@ -99,51 +109,35 @@ function Confirm-Approval([string]$phrase) {
 function Test-RakutenHost([string]$h) {
     return ($h -match '^[a-z0-9.-]+\.(linksynergy\.com|rakutenadvertising\.(com|io)|rakutenmarketing\.com)$' -or $h -eq '127.0.0.1')
 }
-function New-Ftp([string]$path, [string]$method) {
-    $r = [System.Net.FtpWebRequest]::Create(('ftp://{0}/{1}' -f $script:server, $path))
-    $r.Method = $method
-    $r.Credentials = New-Object System.Net.NetworkCredential($script:user, $script:pass)
-    $r.UseBinary = $true
-    $r.UsePassive = $true
-    $r.KeepAlive = $false
-    $r.EnableSsl = $script:ssl
-    $r.Timeout = 60000
-    $r.ReadWriteTimeout = 600000
-    return $r
+# The SFTP client (tools\rakuten-sftp, npm package ssh2 pinned in its package-lock): installed once per version of the code.
+function Ensure-Sftp {
+    $dir = Join-Path (Join-Path $repo 'tools') 'rakuten-sftp'
+    if (Test-Path -LiteralPath (Join-Path (Join-Path $dir 'node_modules') 'ssh2')) { return $true }
+    Write-Host 'Εγκαθιστώ μία φορά το πρόγραμμα SFTP (npm ci, περίπου 1 λεπτό)...'
+    $cmdFile = Join-Path ([System.IO.Path]::GetTempPath()) 'gw-rakuten-npm-ci.cmd'
+    $body = "@echo off`r`ncd /d `"$dir`"`r`ncall npm ci --omit=optional --no-audit --no-fund >nul 2>&1`r`n"
+    [System.IO.File]::WriteAllText($cmdFile, $body, [System.Text.Encoding]::ASCII)
+    & $cmdFile
+    $code = $LASTEXITCODE
+    Remove-Item -LiteralPath $cmdFile -ErrorAction SilentlyContinue
+    return ($code -eq 0 -and (Test-Path -LiteralPath (Join-Path (Join-Path $dir 'node_modules') 'ssh2')))
 }
-function Get-Listing {
-    $req = New-Ftp '' ([System.Net.WebRequestMethods+Ftp]::ListDirectoryDetails)
-    $resp = $req.GetResponse()
+# One SFTP step (list, or get a file); the user name and password go only through the environment, for this call.
+function Invoke-Sftp([string[]]$a) {
+    $env:GW_RK_HOST = $script:server; $env:GW_RK_PORT = [string]$Port; $env:GW_RK_USER = $script:user; $env:GW_RK_PASS = $script:pass; $env:GW_RK_HOSTKEY = $script:hostKey
+    $env:NODE_NO_WARNINGS = '1'
+    $oldEnc = $null
+    $o = @()
     try {
-        $sr = New-Object System.IO.StreamReader($resp.GetResponseStream())
-        $text = $sr.ReadToEnd()
-        $sr.Close()
-    } finally { $resp.Close() }
-    return @($text -split "`r?`n" | Where-Object { $_.Trim() })
-}
-# Reads the first $bytes of a file (or the whole file when $bytes is 0) into $dest.
-function Get-FtpFile([string]$name, [string]$dest, [long]$bytes) {
-    $req = New-Ftp $name ([System.Net.WebRequestMethods+Ftp]::DownloadFile)
-    $resp = $req.GetResponse()
-    $in = $resp.GetResponseStream()
-    $out = [System.IO.File]::Create($dest)
-    $got = [long]0
-    try {
-        $buf = New-Object byte[] 65536
-        while ($true) {
-            $want = $buf.Length
-            if ($bytes -gt 0) { $want = [int][Math]::Min([long]$buf.Length, $bytes - $got) }
-            if ($want -le 0) { break }
-            $n = $in.Read($buf, 0, $want)
-            if ($n -le 0) { break }
-            $out.Write($buf, 0, $n)
-            $got += $n
-        }
+        try { $oldEnc = [Console]::OutputEncoding; [Console]::OutputEncoding = New-Object System.Text.UTF8Encoding($false) } catch { }
+        $o = @(& node (Join-Path (Join-Path (Join-Path $repo 'tools') 'rakuten-sftp') 'sftp.mjs') @a)
     } finally {
-        $out.Close()
-        if ($bytes -gt 0) { try { $req.Abort() } catch { } } else { try { $in.Close() } catch { }; try { $resp.Close() } catch { } }
+        $env:GW_RK_USER = $null; $env:GW_RK_PASS = $null; $env:GW_RK_HOSTKEY = $null; $env:GW_RK_HOST = $null; $env:GW_RK_PORT = $null; $env:NODE_NO_WARNINGS = $null
+        if ($oldEnc) { try { [Console]::OutputEncoding = $oldEnc } catch { } }
     }
-    return $got
+    $line = ([string](($o | Where-Object { "$_".StartsWith('{') }) | Select-Object -Last 1))
+    if (-not $line) { return $null }
+    try { return ($line | ConvertFrom-Json) } catch { return $null }
 }
 function Invoke-RakutenNode([string[]]$a) {
     $oldEnc = $null
@@ -198,24 +192,45 @@ try {
 } catch { Say 'Δεν μπόρεσα να διαβάσω τα φυλαγμένα στοιχεία. Σβήσε το αρχείο τους και ξανατρέξε για να τα δώσεις ξανά.' 'Red'; Say $SecretFile; Finish 3 }
 if (-not (Test-RakutenHost $script:server) -or -not $script:user -or -not $script:pass) { Say 'Τα φυλαγμένα στοιχεία δεν μοιάζουν σωστά. Σβήσε το αρχείο τους και ξανατρέξε.' 'Red'; Say $SecretFile; Finish 3 }
 
-# 2. The list of catalogue files (encrypted connection first; plain FTP only if the server does not offer encryption).
-$lines = $null
-try { $lines = Get-Listing; Say ('Σύνδεση με {0}: κρυπτογραφημένη (FTPS).' -f $script:server) 'Green' }
-catch {
-    $why = [string]$_.Exception.Message
-    if ($why -match '(?i)530|login|password|not logged') { Say ('Ο server δεν δέχτηκε το όνομα ή τον κωδικό: {0}' -f $why) 'Red'; Say 'Σβήσε το αρχείο των στοιχείων και ξανατρέξε για να τα δώσεις ξανά:'; Say $SecretFile; Finish 3 }
-    Say ('Η κρυπτογραφημένη σύνδεση δεν έγινε ({0}). Δοκιμάζω απλό FTP, όπως το δέχεται το Rakuten.' -f $why) 'Yellow'
-    $script:ssl = $false
-    try { $lines = Get-Listing; Say ('Σύνδεση με {0}: απλό FTP.' -f $script:server) }
-    catch { Say ('Δεν έγινε σύνδεση: {0}' -f $_.Exception.Message) 'Red'; Say 'Αν το email του Rakuten γράφει μόνο SFTP, στείλε την αναφορά στο Claude.'; Finish 4 }
+# 2. The list of catalogue files, by SFTP only (lessons L219: plain FTP sends the password unencrypted and is being retired).
+if (-not (Ensure-Sftp)) { Say 'Η εγκατάσταση του προγράμματος SFTP (npm ci) απέτυχε. Στείλε στο Claude αυτό το μήνυμα.' 'Red'; Finish 3 }
+if (Test-Path -LiteralPath $HostKeyFile) { $script:hostKey = ([System.IO.File]::ReadAllText($HostKeyFile)).Trim() }
+$Lst = Invoke-Sftp @('--mode', 'list')
+if ($null -eq $Lst) { Say 'Το πρόγραμμα SFTP δεν έδωσε απάντηση. Στείλε στο Claude αυτό το μήνυμα.' 'Red'; Finish 4 }
+if (-not $Lst.ok) {
+    if ($Lst.hostKey) { Say ('🔴 ΠΡΟΒΛΗΜΑ: ο server {0} έδειξε άλλο κλειδί ({1}) από αυτό που κρατήσαμε ({2}). Σταμάτησα χωρίς να στείλω τον κωδικό. Στείλε στο Claude αυτό το μήνυμα.' -f $script:server, $Lst.fingerprint, $script:hostKey) 'Red'; Finish 4 }
+    if ($Lst.auth) { Say ('Ο server δεν δέχτηκε το όνομα ή τον κωδικό: {0}' -f $Lst.error) 'Red'; Say 'Σβήσε το αρχείο των στοιχείων και ξανατρέξε για να τα δώσεις ξανά:'; Say $SecretFile; Finish 4 }
+    Say ('Δεν έγινε σύνδεση SFTP με {0}: {1}' -f $script:server, $Lst.error) 'Red'; Say 'Στείλε την αναφορά στο Claude.'; Finish 4
 }
+if (-not $script:hostKey) {
+    $dir = Split-Path -Parent $HostKeyFile
+    if (-not (Test-Path -LiteralPath $dir)) { New-Item -ItemType Directory -Path $dir -Force | Out-Null }
+    [System.IO.File]::WriteAllText($HostKeyFile, [string]$Lst.fingerprint, [System.Text.Encoding]::ASCII)
+    $script:hostKey = [string]$Lst.fingerprint
+    Say ('Πρώτη σύνδεση με {0}: κράτησα το κλειδί του server ({1}) στο {2}.' -f $script:server, $script:hostKey, $HostKeyFile) 'Green'
+}
+Say ('Σύνδεση με {0}: κρυπτογραφημένη (SFTP), κλειδί server {1}.' -f $script:server, $script:hostKey) 'Green'
+$names = @($Lst.files | ForEach-Object { [string]$_.name })
 $files = New-Object System.Collections.Generic.List[object]
-foreach ($ln in $lines) {
-    $m = [regex]::Match($ln, '^\S+\s+\d+\s+\S+\s+\S+\s+(\d+)\s+(\w{3}\s+\d+\s+[\d:]+)\s+(\d+)_(\d+)_mp\.(txt|xml)\.gz$')
+foreach ($e in @($Lst.files)) {
+    $m = [regex]::Match([string]$e.name, '^(\d+)_(\d+)_mp\.(txt|xml)\.gz$')
     if (-not $m.Success) { continue }
-    $files.Add((New-Object PSObject -Property @{ size = [long]$m.Groups[1].Value; date = $m.Groups[2].Value; mid = $m.Groups[3].Value; sid = $m.Groups[4].Value; ext = $m.Groups[5].Value; name = ('{0}_{1}_mp.{2}.gz' -f $m.Groups[3].Value, $m.Groups[4].Value, $m.Groups[5].Value) }))
+    $when = ''
+    try { $when = ([DateTimeOffset]::FromUnixTimeSeconds([long]$e.mtime)).UtcDateTime.ToString('yyyy-MM-dd HH:mm') } catch { }
+    $files.Add((New-Object PSObject -Property @{ size = [long]$e.size; date = $when; mid = $m.Groups[1].Value; sid = $m.Groups[2].Value; ext = $m.Groups[3].Value; name = [string]$e.name }))
 }
-Say ('Κατάλογοι στον server: {0} (ένας για κάθε κατάστημα που σε έχει δεχτεί και έχει κατάλογο). Άλλα αρχεία: {1}.' -f $files.Count, ($lines.Count - $files.Count))
+# One catalogue per advertiser (L219): the server keeps the same catalogue twice, as .txt.gz (pipes) and .xml.gz; the
+# .txt.gz is the smaller one. Both used to be downloaded, one over the other.
+$byMid = @{}
+foreach ($f in $files) {
+    $k = $f.mid
+    if (-not $byMid.ContainsKey($k) -or ($f.ext -eq 'txt' -and $byMid[$k].ext -ne 'txt')) { $byMid[$k] = $f }
+}
+$twice = $files.Count - $byMid.Count
+$files = New-Object System.Collections.Generic.List[object]
+foreach ($k in $byMid.Keys) { $files.Add($byMid[$k]) }
+if ($twice -gt 0) { Say ('Ίδιος κατάλογος σε δύο μορφές (txt και xml) για {0} καταστήματα: κρατάω το .txt.gz.' -f $twice) }
+Say ('Κατάλογοι στον server: {0} (ένας για κάθε κατάστημα που σε έχει δεχτεί και έχει κατάλογο). Άλλα αρχεία: {1}.' -f $files.Count, ($names.Count - $files.Count))
 foreach ($f in @($files | Sort-Object { [long]$_.size } -Descending)) { Say ('  MID {0} | {1} MB | {2} | {3}' -f $f.mid, [Math]::Round($f.size / 1MB, 1), $f.date, $f.name) }
 $pick = @($files | Where-Object { $ids.Count -eq 0 -or $ids -contains $_.mid })
 foreach ($i in $ids) { if (-not (@($files | Where-Object { $_.mid -eq $i }).Count)) { Say ('MID {0}: δεν υπάρχει κατάλογος στον server (δεν σε έχει δεχτεί ακόμα ή δεν έχει κατάλογο).' -f $i) 'Yellow' } }
@@ -228,11 +243,14 @@ foreach ($f in $pick) {
     $k++
     Say ''
     if ($f.size -gt ($MaxMb * 1MB)) { Say ('MID {0}: {1} MB, πάνω από το όριο των {2} MB. Δεν κατεβαίνει (μεγάλωσε το -MaxMb αν το θέλεις).' -f $f.mid, [Math]::Round($f.size / 1MB, 1), $MaxMb) 'Yellow'; continue }
+    # With -Apply each file is downloaded once (L219): the samples were in the read-only run, the checks come after the download.
+    if ($Apply) { Say ('MID {0} | {1} MB: για λήψη.' -f $f.mid, [Math]::Round($f.size / 1MB, 1)); $good.Add($f); continue }
     if ($k -gt $SampleMax) { Say ('MID {0}: χωρίς δείγμα (όριο {1} δειγμάτων).' -f $f.mid, $SampleMax); $good.Add($f); continue }
     $tmp = Join-Path ([System.IO.Path]::GetTempPath()) ('gw-rakuten-' + $f.mid + '.gz')
     try {
-        [void](Get-FtpFile $f.name $tmp 262144)
-        $S = Invoke-RakutenNode @('--mode', 'sample', '--in', $tmp, '--partial')
+        $G = Invoke-Sftp @('--mode', 'get', '--remote', $f.name, '--out', $tmp, '--bytes', '262144')
+        $S = $null
+        if ($G -and $G.ok) { $S = Invoke-RakutenNode @('--mode', 'sample', '--in', $tmp, '--partial') }
     } finally { Remove-Item -LiteralPath $tmp -ErrorAction SilentlyContinue }
     if ($null -eq $S -or -not $S.ok) { Say ('MID {0}: το δείγμα δεν διαβάστηκε ({1}).' -f $f.mid, $(if ($S) { $S.error } else { 'καμία απάντηση' })) 'Red'; continue }
     $hn = ''
@@ -262,7 +280,15 @@ foreach ($f in $good) {
     $part = Join-Path $Archive ('RAKUTEN_{0}.csv.gz.part' -f $f.mid)
     $final = Join-Path $Archive ('RAKUTEN_{0}.csv.gz' -f $f.mid)
     Write-Host ('Κατεβάζω MID {0} ({1} MB)...' -f $f.mid, [Math]::Round($f.size / 1MB, 1))
-    try { [void](Get-FtpFile $f.name $src 0) } catch { Say ('MID {0}: 🔴 ΠΡΟΒΛΗΜΑ στη λήψη: {1}. Κράτησα το παλιό.' -f $f.mid, $_.Exception.Message) 'Red'; Remove-Item -LiteralPath $src -ErrorAction SilentlyContinue; continue }
+    $G = Invoke-Sftp @('--mode', 'get', '--remote', $f.name, '--out', $src)
+    # The size in the server's list is not the size it sends (22 Nov 2026: 1-2% off, both ways, for every catalogue), so a
+    # file is judged by its own last line instead (the product count, checked by the conversion below), not by that size.
+    if ($null -eq $G -or -not $G.ok -or [long]$G.got -le 0) {
+        $why = 'καμία απάντηση'
+        if ($G -and -not $G.ok) { $why = [string]$G.error } elseif ($G) { $why = 'άδειο αρχείο' }
+        Say ('MID {0}: 🔴 ΠΡΟΒΛΗΜΑ στη λήψη: {1}. Κράτησα το παλιό.' -f $f.mid, $why) 'Red'; Remove-Item -LiteralPath $src -ErrorAction SilentlyContinue; continue
+    }
+    if ([long]$G.got -lt [long]($f.size * 0.5)) { Say ('MID {0}: 🔴 ΠΡΟΒΛΗΜΑ στη λήψη: ήρθαν {1} από περίπου {2} bytes. Κράτησα το παλιό.' -f $f.mid, $G.got, $f.size) 'Red'; Remove-Item -LiteralPath $src -ErrorAction SilentlyContinue; continue }
     $C = Invoke-RakutenNode @('--mode', 'convert', '--in', $src, '--out', $part)
     Remove-Item -LiteralPath $src -ErrorAction SilentlyContinue
     if ($null -eq $C -or -not $C.ok) { Say ('MID {0}: 🔴 ΠΡΟΒΛΗΜΑ: {1}. Κράτησα το παλιό.' -f $f.mid, $(if ($C) { $C.error } else { 'καμία απάντηση' })) 'Red'; Remove-Item -LiteralPath $part -ErrorAction SilentlyContinue; continue }

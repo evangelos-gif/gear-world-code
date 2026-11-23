@@ -11,8 +11,8 @@
 // Command line:
 //   node tools/rakuten-feed.mjs --mode sample --in <file.gz> [--partial]   (read-only: header, first records, links)
 //   node tools/rakuten-feed.mjs --mode convert --in <file.gz> --out <RAKUTEN_<mid>.csv.gz.part>
-import { readFileSync, createWriteStream } from 'node:fs';
-import { gunzipSync, createGzip, constants } from 'node:zlib';
+import { readFileSync, createReadStream, createWriteStream, openSync, readSync, closeSync, rmSync } from 'node:fs';
+import { gunzipSync, createGunzip, createGzip, constants } from 'node:zlib';
 import { pathToFileURL } from 'node:url';
 import { FEED_COLUMNS, csvLine, isRakutenLink, pageInLink } from './network-links.mjs';
 
@@ -44,13 +44,19 @@ export function parsePipe(text, { limit = Infinity } = {}) {
     if (line.startsWith('HDR|')) { const h = splitPipe(line); R.header = { mid: h[1] || '', name: h[2] || '', created: h[3] || '' }; continue; }
     if (line.startsWith('TRL|')) { R.trailer = Number(splitPipe(line)[1]); continue; }
     if (R.records.length >= limit) continue;
-    const v = splitPipe(line);
-    if (v.length < 26) { R.bad++; continue; }
-    const rec = {};
-    FIELDS.forEach((f, i) => { rec[f] = (v[i] ?? '').trim(); });
+    const rec = pipeRecord(line);
+    if (!rec) { R.bad++; continue; }
     R.records.push(rec);
   }
   return R;
+}
+// One pipe-delimited product line, or null when it has too few fields.
+function pipeRecord(line) {
+  const v = splitPipe(line);
+  if (v.length < 26) return null;
+  const rec = {};
+  FIELDS.forEach((f, i) => { rec[f] = (v[i] ?? '').trim(); });
+  return rec;
 }
 
 const ENT = { amp: '&', lt: '<', gt: '>', quot: '"', apos: "'" };
@@ -74,18 +80,20 @@ export function parseXml(text, { limit = Infinity } = {}) {
   const re = /<product(\s[^>]*product_id=[^>]*)>([\s\S]*?)<\/product>\s*(?=<product\s[^>]*product_id=|<trailer|<\/merchandiser|$)/gi;
   let m;
   while ((m = re.exec(text)) && R.records.length < limit) {
-    const a = m[1] || '';
-    const b = m[2];
-    const priceTag = /<price(\s[^>]*)?>/i.exec(b);
-    R.records.push({
-      product_id: attr(a, 'product_id'), name: attr(a, 'name'), sku: attr(a, 'sku_number'), part_number: attr(a, 'part_number'), manufacturer: attr(a, 'manufacturer_name'),
-      primary_category: tag(b, 'category/primary'), secondary_category: tag(b, 'category/secondary'), product_url: tag(b, 'URL/product'),
-      image_url: tag(b, 'URL/productImage'), buy_url: tag(b, 'URL/buy'), short_description: tag(b, 'description/short'), long_description: tag(b, 'description/long'),
-      sale_price: tag(b, 'price/sale'), retail_price: tag(b, 'price/retail'), brand: tag(b, 'brand'), availability: tag(b, 'shipping/availability'),
-      keywords: tag(b, 'keywords'), upc: tag(b, 'upc'), currency: (priceTag && attr(priceTag[1] || '', 'currency')) || ''
-    });
+    R.records.push(xmlRecord(m[1] || '', m[2]));
   }
   return R;
+}
+// One XML product: the attributes of its <product ...> tag and what is inside it.
+function xmlRecord(a, b) {
+  const priceTag = /<price(\s[^>]*)?>/i.exec(b);
+  return {
+    product_id: attr(a, 'product_id'), name: attr(a, 'name'), sku: attr(a, 'sku_number'), part_number: attr(a, 'part_number'), manufacturer: attr(a, 'manufacturer_name'),
+    primary_category: tag(b, 'category/primary'), secondary_category: tag(b, 'category/secondary'), product_url: tag(b, 'URL/product'),
+    image_url: tag(b, 'URL/productImage'), buy_url: tag(b, 'URL/buy'), short_description: tag(b, 'description/short'), long_description: tag(b, 'description/long'),
+    sale_price: tag(b, 'price/sale'), retail_price: tag(b, 'price/retail'), brand: tag(b, 'brand'), availability: tag(b, 'shipping/availability'),
+    keywords: tag(b, 'keywords'), upc: tag(b, 'upc'), currency: (priceTag && attr(priceTag[1] || '', 'currency')) || ''
+  };
 }
 
 export function parseCatalog(text, opts) {
@@ -162,6 +170,95 @@ export async function convert(text, outFile) {
   return S;
 }
 
+// The whole file as a stream (lessons L219): a catalogue whose text is over 512 MB cannot be one string in Node
+// (ERR_STRING_TOO_LONG, as the Awin feeds in L185), so the records are read and written one by one. Same checks as convert().
+export async function convertFile(input, outFile) {
+  const fd = openSync(input, 'r');
+  const magic = Buffer.alloc(2);
+  readSync(fd, magic, 0, 2, 0);
+  closeSync(fd);
+  const raw = createReadStream(input);
+  const stream = magic[0] === 0x1f && magic[1] === 0x8b ? raw.pipe(createGunzip()) : raw;
+  stream.setEncoding('utf8');
+  const gz = createGzip();
+  const ws = createWriteStream(outFile);
+  const done = new Promise((resolve, reject) => { ws.on('finish', resolve); ws.on('error', reject); gz.on('error', reject); });
+  gz.pipe(ws);
+  gz.write(csvLine(FEED_COLUMNS));
+  const S = { ok: false, format: '', mid: '', name: '', rows: 0, trailer: null, bad: 0, withTracking: 0, currencies: [] };
+  const cur = new Set();
+  let header = null;
+  const emit = rec => {
+    const row = toFeedRow(rec, { mid: header ? header.mid : '', name: header ? header.name : '' });
+    S.rows++;
+    if (row.aw_deep_link) S.withTracking++;
+    if (row.currency) cur.add(row.currency);
+    return gz.write(csvLine(FEED_COLUMNS.map(c => row[c])));
+  };
+  const START = /<product\s[^>]*product_id=/gi;
+  let buf = '';
+  const xmlRecords = (final) => {
+    if (!header) { const h = /<header>([\s\S]*?)<\/header>/i.exec(buf); if (h) header = { mid: tag(h[1], 'merchantId'), name: tag(h[1], 'merchantName'), created: tag(h[1], 'createdOn') }; }
+    const starts = [];
+    START.lastIndex = 0;
+    let m;
+    while ((m = START.exec(buf))) starts.push(m.index);
+    if (!starts.length) { if (!final && buf.length > 1048576) buf = buf.slice(-65536); return; }
+    // Every record but the last is whole (it ends where the next one starts); the last one only at the end of the file.
+    const upto = final ? starts.length : starts.length - 1;
+    for (let k = 0; k < upto; k++) {
+      let piece = buf.slice(starts[k], k + 1 < starts.length ? starts[k + 1] : buf.length);
+      if (k + 1 >= starts.length) { const e = piece.search(/<trailer|<\/merchandiser/i); if (e >= 0) piece = piece.slice(0, e); }
+      const r = /^<product(\s[^>]*)>([\s\S]*)<\/product>\s*$/i.exec(piece);
+      if (r) emit(xmlRecord(r[1], r[2])); else S.bad++;
+    }
+    if (final) { const t = /<trailer>[\s\S]*?<numberOfProducts>\s*(\d+)\s*<\/numberOfProducts>/i.exec(buf); if (t) S.trailer = Number(t[1]); buf = ''; }
+    else buf = buf.slice(starts[starts.length - 1]);
+  };
+  const pipeLine = rawLine => {
+    const line = rawLine.replace(/^\uFEFF/, '');
+    if (!line.trim()) return;
+    if (line.startsWith('HDR|')) { const h = splitPipe(line); header = { mid: h[1] || '', name: h[2] || '', created: h[3] || '' }; return; }
+    if (line.startsWith('TRL|')) { S.trailer = Number(splitPipe(line)[1]); return; }
+    const rec = pipeRecord(line);
+    if (rec) emit(rec); else S.bad++;
+  };
+  const drain = () => new Promise(r => gz.once('drain', r));
+  // A file cut short or damaged on the way (gzip stops with an error): nothing is kept (L219: the server's sizes are no check).
+  let broken = '';
+  try {
+  for await (const chunk of stream) {
+    buf += chunk;
+    if (!S.format) {
+      if (buf.length < 500) continue;
+      S.format = /^\s*(\uFEFF)?\s*(<\?xml|<merchandiser|<header)/i.test(buf.slice(0, 500)) ? 'xml' : 'txt';
+    }
+    if (S.format === 'txt') {
+      // Lines are cut off one at a time from a start index, not by slicing the buffer each time (big chunks).
+      let from = 0;
+      let i;
+      while ((i = buf.indexOf('\n', from)) >= 0) { pipeLine(buf.slice(from, i).replace(/\r$/, '')); from = i + 1; }
+      buf = buf.slice(from);
+    } else xmlRecords(false);
+    if (gz.writableNeedDrain) await drain();
+  }
+  } catch (e) { broken = String(e && e.message || e).slice(0, 120); }
+  if (!S.format) S.format = /^\s*(\uFEFF)?\s*(<\?xml|<merchandiser|<header)/i.test(buf.slice(0, 500)) ? 'xml' : 'txt';
+  if (S.format === 'txt') { if (buf) pipeLine(buf.replace(/\r$/, '')); buf = ''; } else xmlRecords(true);
+  gz.end();
+  await done;
+  S.mid = header ? header.mid : '';
+  S.name = header ? header.name : '';
+  S.currencies = [...cur];
+  const fail = e => { S.error = e; try { rmSync(outFile, { force: true }); } catch { } return S; };
+  if (broken) return fail(`file cut short or damaged (${broken})`);
+  if (S.trailer === null || !Number.isFinite(S.trailer)) return fail('no trailer (file cut short?)');
+  if (S.trailer !== S.rows + S.bad) return fail(`trailer says ${S.trailer} products, read ${S.rows + S.bad}`);
+  if (!S.rows) return fail('no products');
+  S.ok = true;
+  return S;
+}
+
 const arg = (argv, name) => { const i = argv.indexOf(`--${name}`); return i >= 0 ? argv[i + 1] : undefined; };
 
 export async function main(argv = process.argv.slice(2)) {
@@ -172,7 +269,7 @@ export async function main(argv = process.argv.slice(2)) {
   if (mode === 'convert') {
     const out = arg(argv, 'out');
     if (!out) return { ok: false, error: 'no output file' };
-    return convert(readGz(input), out);
+    return convertFile(input, out);
   }
   return { ok: false, error: 'mode must be sample or convert' };
 }

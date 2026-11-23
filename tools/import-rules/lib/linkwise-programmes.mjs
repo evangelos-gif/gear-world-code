@@ -121,7 +121,7 @@ export const PROGRAMMES = [
   { id: 13002, name: 'Onlineshoes.gr', site: 'wgw', cc: ['GR', 'CY'] },
   { id: 13012, name: 'The Fashion Project', site: 'wgw', cc: ['GR', 'CY'] },
   { id: 13083, name: 'PieDini', site: 'wgw', cc: ['GR'] },
-  { id: 13088, name: 'Filinda', site: 'wgw', cc: ['GR', 'CY'] },
+  { id: 13088, name: 'Filinda', site: 'hgw', cc: ['GR', 'CY'], also: ['wgw', 'kgw'] },
   { id: 13100, name: 'Myaroma.gr', site: 'wgw', cc: ['GR'] },
   { id: 13136, name: 'Tzimas Cosmetics', site: 'wgw', cc: ['GR', 'CY'] },
   { id: 13166, name: 'e-kellys', site: 'wgw', cc: ['GR', 'CY'] },
@@ -239,5 +239,9 @@ export const PROGRAMMES = [
   { id: 14156, name: 'VNP', site: 'tgw', cc: ['GR', 'CY'] },
   { id: 14161, name: 'Off The Peg by Global Influence', site: 'wgw', cc: ['GR'] },
   { id: 14174, name: 'Dazzle', site: 'wgw', cc: ['GR', 'CY'] },
-  { id: 14184, name: 'Anker', site: 'tgw', cc: ['GR', 'CY'] }
+  { id: 14184, name: 'Anker', site: 'tgw', cc: ['GR', 'CY'] },
+  // Accepted on 21 Nov 2026 (chat 7, «ΕΓΚΡΙΝΩ ΑΙΤΗΣΕΙΣ ΕΛΛΑΔΑ 8»), only Greece: Monsterville sells T-shirts and gifts of games,
+  // music and films (Men's), Autodoc car parts (Car Gear World, new engine: sites/agw/sources.json).
+  { id: 12134, name: 'Monsterville', site: 'mgw', cc: ['GR'] },
+  { id: 13862, name: 'Autodoc', site: 'agw', cc: ['GR'] }
 ];

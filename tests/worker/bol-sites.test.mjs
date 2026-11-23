@@ -63,9 +63,10 @@ test('L204: the UK view and Google never list bol.com; the Netherlands and Belgi
     // The all view (every country without a view of its own) leaves it out, so the copy of Germany or Canada never has it.
     const groups = countryGroups(site);
     assert.ok(groups.all.hidden.includes(BOL_RETAILER), `${s}: the all view`);
-    // Few page copies (L165, L199): the older sites keep at most 10 groups and at most 62 names per query.
+    // Few page copies (L165, L199): the older sites keep at most 10 groups; since L202 the names are quoted text in the SQL,
+    // so the limit is the D1 statement (600 names, tests/worker/fast-lists-legacy.test.mjs; massive import of 22 Nov 2026).
     assert.ok(groups.list.length <= 10, `${s}: ${groups.list.length} groups`);
-    for (const g of groups.list) assert.ok((g.hidden || g.only || []).length <= 62, `${s} ${g.id}`);
+    for (const g of groups.list) assert.ok((g.hidden || g.only || []).length <= 600, `${s} ${g.id}`);
   }
   // The other sites: a bol.com row (there should be none) would never reach a visitor outside the UK view's own retailers.
   assert.equal(viewFor(config.hgw, 'BE', NOW).group, 'all', 'HGW: Belgium keeps the all view (no 11th group)');
