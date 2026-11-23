@@ -958,15 +958,22 @@ export async function storeShowcase(site, store, deps = {}, ctx = null) {
   const queue = photoLimiter(SHOWCASE_PARALLEL);
   const reads = new Map();
   const failedReads = new Set();
-  // A site that failed or timed out once is not asked again for this showcase: a site that hangs costs one time limit,
-  // never one per search (L191: a slow site never holds the page).
+  // A site that failed or timed out twice is not asked again for this showcase: a site that hangs costs about one time
+  // limit (2 searches wait at once), never one per search (L191: a slow site never holds the page), while one blip
+  // costs only its own search.
   const down = new Set();
+  const fails = new Map();
   const read = (w, q) => {
     const k = `${w.code}\t${q}`;
     if (!reads.has(k)) {
       reads.set(k, queue(() => (down.has(w.code) ? Promise.reject(new Error('site down'))
         : readSiteProducts(store, w, { ...deps, fetch: fetcher, userAgent }, { q, limit: SHOWCASE_PER_PICK })))
-        .catch(() => { failedReads.add(k); down.add(w.code); return []; }));
+        .catch(() => {
+          failedReads.add(k);
+          fails.set(w.code, (fails.get(w.code) || 0) + 1);
+          if (fails.get(w.code) >= 2) down.add(w.code);
+          return [];
+        }));
     }
     return reads.get(k);
   };

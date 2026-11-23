@@ -143,8 +143,8 @@ test('L221: a pick tries its searches in order and never shows a product twice; 
   // The first search of the first idea finds nothing: its second search gives the product.
   let data = await storeShowcase(site, s, { fetch: makeFetch({ empty: [first] }) });
   assert.equal(data.ideas[0].product.name, `${second} 1`);
-  // A search that fails takes its site out for the rest of this showcase (a site that hangs costs one time limit):
-  // what was read before stays, the rest is left out.
+  // Two failed searches take their site out for the rest of this showcase (a site that hangs costs about one time
+  // limit): what was read before stays, the rest is left out.
   const setQs = s.showcase.sets[1].picks.flat();
   data = await storeShowcase(site, s, { fetch: makeFetch({ fail: setQs }) });
   assert.equal(data.sets.length, 1, 'only the set read before the failure');
@@ -265,7 +265,16 @@ test('L221 review: a Gear World site that hangs costs one time limit, not one pe
   const took = Date.now() - t;
   assert.deepEqual(data, { sets: [], ideas: [] });
   assert.ok(took < 700, `${took} ms (one or two time limits of 150 ms)`);
-  assert.ok(asked <= 2, `${asked} searches sent to a site that hangs`);
+  assert.ok(asked <= 3, `${asked} searches sent to a site that hangs`);
+});
+
+test('L221 review: one failed search (a blip) costs only its own pick, which tries its next search', async () => {
+  const s = GREEK.find(x => x.slug === 'kouzinika-gr');
+  const [first, second] = s.showcase.ideas[1].pick;
+  const data = await storeShowcase(site, s, { fetch: makeFetch({ fail: [first] }) });
+  assert.equal(data.sets.length, 2);
+  assert.equal(data.ideas.length, 3);
+  assert.equal(data.ideas[1].product.name, `${second} 1`);
 });
 
 test('L221 review: when the store list fails but the showcase has products, no "could not be loaded" line', async () => {
