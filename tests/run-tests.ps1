@@ -3123,6 +3123,67 @@ http.createServer((q, s) => {
     }
 }
 
+# 8c6d. adtraction-feed-download.ps1 (Adtraction API v3, UK programmes of 23 Nov 2026, lessons L219) with a fake Adtraction
+if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
+    Write-Host 'adtraction-feed-download.ps1 (token in DPAPI, approved programmes, JSON feed to ADTRACTION_<id>.csv.gz)'
+    $atDir = Join-Path $work 'at'
+    $atArch = Join-Path $atDir 'archive'
+    $atOut = Join-Path $atDir 'out'
+    New-Item -ItemType Directory -Path $atArch, $atOut -Force | Out-Null
+    # A made-up token, written in two parts so no token appears in the repository.
+    $atToken = 'TEST' + 'TOKEN0123456789ABCDEF'
+    $atSecretFile = Join-Path $atDir 'adtraction-token.dat'
+    [System.IO.File]::WriteAllText($atSecretFile, (ConvertFrom-SecureString (ConvertTo-SecureString $atToken -AsPlainText -Force)), [System.Text.Encoding]::ASCII)
+    $atSrv = Join-Path $atDir 'server.js'
+    Write-Utf8 $atSrv @'
+const http = require('http');
+const token = process.argv[2];
+http.createServer((q, s) => {
+  let b = '';
+  q.on('data', c => { b += c; });
+  q.on('end', () => {
+    if (q.headers['x-token'] !== token) { s.writeHead(401); return s.end('{}'); }
+    const body = b ? JSON.parse(b) : {};
+    s.writeHead(200, { 'Content-Type': 'application/json' });
+    if (q.url === '/v3/partner/programs/') {
+      return s.end(JSON.stringify([
+        { programId: 1500, programName: 'Living Chic', market: 'GB', currency: 'GBP', approvalStatus: 1, feeds: [{ feedId: 1, name: 'Main', numberOfProducts: 3, lastUpdated: '2026-11-23' }] },
+        { programId: 1501, programName: 'Empty Shop', market: 'GB', currency: 'GBP', approvalStatus: 1, feeds: [{ feedId: 2, name: 'Main', numberOfProducts: 0, lastUpdated: '2026-11-23' }] }]));
+    }
+    if (q.url === '/v3/partner/products/feed/' && body.programId === 1500 && body.channelId === 12345) {
+      return s.end(JSON.stringify([1, 2, 3].map(i => ({ productName: 'Sofa ' + i, productPrice: 199 + i, currency: 'GBP', productUrl: 'https://www.livingchic.co.uk/p' + i,
+        trackingUrl: i === 1 ? 'https://at.livingchic.co.uk/t/t?a=1500&as=12345&t=2&tk=1&url=x' : '', imageUrl: 'https://img.livingchic.co.uk/' + i + '.jpg', inStock: true, sku: 'S' + i }))));
+    }
+    s.end('[]');
+  });
+}).listen(8798, '127.0.0.1');
+'@
+    $atProc = Start-Process -FilePath (Get-Command node).Source -ArgumentList @($atSrv, $atToken) -PassThru -WindowStyle Hidden
+    Start-Sleep -Seconds 2
+    try {
+        $atTool = Join-Path (Join-Path $repo 'tools') 'adtraction-feed-download.ps1'
+        $atArgs = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $atTool, '-Channel', '12345', '-Base', 'http://127.0.0.1:8798', '-SecretFile', $atSecretFile,
+            '-Archive', $atArch, '-OutDir', $atOut, '-NoClipboard')
+        & $exe @atArgs | Out-Null
+        Check ($LASTEXITCODE -eq 0 -and @(Get-ChildItem -LiteralPath $atArch -File).Count -eq 0) 'adtraction-feed-download check: read-only, exit 0, nothing downloaded'
+        $atChk = (@(Get-ChildItem -LiteralPath $atOut -Filter 'ADTRACTION_FEED_CHECK_*.txt') | ForEach-Object { [System.IO.File]::ReadAllText($_.FullName) }) -join "`n"
+        Check ($atChk.Contains('1500  Living Chic  [GB, GBP]  feed: 3') -and $atChk.Contains('Εγκεκριμένα προγράμματα (GB): 2')) 'adtraction-feed-download check: lists the approved programmes with their products'
+        & $exe @($atArgs + @('-Step', 'download', '-Apply', '-Approve', 'wrong phrase')) | Out-Null
+        Check ($LASTEXITCODE -eq 1 -and @(Get-ChildItem -LiteralPath $atArch -File).Count -eq 0) 'adtraction-feed-download: a wrong phrase changes nothing'
+        & $exe @($atArgs + @('-Step', 'download', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ ADTRACTION FEED DOWNLOAD')) | Out-Null
+        Check ($LASTEXITCODE -eq 0 -and (Test-Path -LiteralPath (Join-Path $atArch 'ADTRACTION_1500.csv.gz')) -and -not (Test-Path -LiteralPath (Join-Path $atArch 'ADTRACTION_1501.csv.gz'))) 'adtraction-feed-download: with the phrase only the feed with products is saved'
+        $atAll = (@(Get-ChildItem -LiteralPath $atOut -Filter 'ADTRACTION_FEED_*.txt') | ForEach-Object { [System.IO.File]::ReadAllText($_.FullName) }) -join "`n"
+        Check ($atAll.Contains('1500 Living Chic: OK, 3 προϊόντα (2 με το βασικό deep link του Adtraction)')) 'adtraction-feed-download: the report counts the products and the built links'
+        Check (-not $atAll.Contains($atToken) -and -not $atAll.Contains('TOKEN0123456789')) 'adtraction-feed-download: the token is in no report'
+        & $exe -NoProfile -ExecutionPolicy Bypass -File $atTool -Channel '12345' -Base 'https://evil.example' -SecretFile $atSecretFile -Archive $atArch -OutDir $atOut -NoClipboard | Out-Null
+        Check ($LASTEXITCODE -eq 2) 'adtraction-feed-download: refuses an address that is not Adtraction or the local test server'
+        & $exe -NoProfile -ExecutionPolicy Bypass -File $atTool -Channel 'abc' -SecretFile $atSecretFile -Archive $atArch -OutDir $atOut -NoClipboard | Out-Null
+        Check ($LASTEXITCODE -eq 2) 'adtraction-feed-download: a wrong channel is refused'
+    } finally {
+        if ($atProc -and -not $atProc.HasExited) { Stop-Process -Id $atProc.Id -Force -ErrorAction SilentlyContinue }
+    }
+}
+
 # 8c6c. rakuten-feed-download.ps1 by SFTP only (lessons L217) with a fake SFTP server (Windows only: DPAPI, .cmd for npm ci)
 if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
     Write-Host 'rakuten-feed-download.ps1 (SFTP only, host key pinned, one download per file, stream converter)'

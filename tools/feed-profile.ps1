@@ -7,7 +7,7 @@
   What is needed to write a new shop's import rules and choose its site. It changes nothing (no import, no Cloudflare,
   no D1, no file in the archive).
   -AlsoHours <n> with -Advertiser: the shops asked for AND every feed downloaded in the last n hours, in one report.
-  -Network Daisycon (or 'CJ,Daisycon'; Awin, CJ, Daisycon, Rakuten): only that network's feeds, with the files per country
+  -Network Daisycon (or 'CJ,Daisycon'; Awin, CJ, Daisycon, Rakuten, bol, Linkwise, Adtraction): only that network's feeds, with the files per country
   (DAISYCON_<programme>_<country>) and per search (CJ_<shop>_<search>) too (chat 9, 16 Nov 2026).
   Output: <home>\gear-world-reports\FEED_PROFILE_<time>\report.txt (also copied to the clipboard)
 #>
