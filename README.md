@@ -123,7 +123,7 @@
 | `tools/zgw-import-plan.ps1` | Δοκιμή (dry run) του Pets Gear World (ZGW): ποια προϊόντα των εγκεκριμένων καταστημάτων (`sites/zgw/sources.json`) θα έμπαιναν, σε ποια από τις 11 κατηγορίες (και ιππασία), με δείγματα και τους λόγους απόρριψης. Οι κανόνες (`sites/zgw/category-rules.js`) είναι οι ίδιοι με τη σάρωση | 🟢 Όχι (γράφει SQL, δεν την τρέχει) |
 | `tools/pgw-cloudflare.ps1` | Βήματα Cloudflare του Gaming Gear World (PGW): έλεγχος, D1, δοκιμαστική διεύθυνση, φόρτωση προϊόντων, σύνδεση domain (που κλείνει και τη δοκιμαστική διεύθυνση *.workers.dev στο ίδιο βήμα), ενημέρωση | 🟢 `check` όχι · 🔴 τα άλλα μόνο με `-Apply` και `ΕΓΚΡΙΝΩ PGW D1` / `PREVIEW` / `IMPORT` / `DOMAIN` / `UPDATE` |
 | `tools/zgw-cloudflare.ps1` | Βήματα Cloudflare του Pets Gear World (ZGW, petsgearworld.com): έλεγχος, D1, δοκιμαστική διεύθυνση, φόρτωση προϊόντων, σύνδεση domain (που κλείνει και τη δοκιμαστική διεύθυνση *.workers.dev στο ίδιο βήμα), ενημέρωση | 🟢 `check` όχι · 🔴 τα άλλα μόνο με `-Apply` και `ΕΓΚΡΙΝΩ ZGW D1` / `PREVIEW` / `IMPORT` / `DOMAIN` / `UPDATE` |
-| `tools/gw-run.ps1` | Κατεβάζει μία κλειδωμένη έκδοση του repo και τρέχει ένα εργαλείο από αυτήν | 🟢 Όχι (μόνο αρχεία στο %TEMP%) |
+| `tools/gw-run.ps1` | Κατεβάζει μία κλειδωμένη έκδοση του repo στον φάκελο `~\gear-world-tools` (εξαίρεση του Norton, 23/11/2026, L220) και τρέχει ένα εργαλείο από αυτήν | 🟢 Όχι (μόνο αρχεία στο `~\gear-world-tools`) |
 | `tools/qa-gate.mjs`, `tools/layout-check.mjs` | Έλεγχοι ποιότητας ενός site (τρέχουν και αυτόματα σε κάθε αλλαγή). Το layout check ελέγχει και σε άλλη γλώσσα και νόμισμα (`--lang de-DE --currency RUB`), και την πρώτη οθόνη της αρχικής σε 11 γλώσσες, στα 390 και 360 px, με τη μπάρα της χώρας και τη μπάρα κωδικών (L30, L116) | 🟢 Όχι |
 | `tools/i18n-check.mjs` | Ανοίγει κάθε σελίδα σε κάθε μία από τις 10 γλώσσες και βρίσκει κείμενα χωρίς μετάφραση | 🟢 Όχι |
 | `tools/d1-view-bench.mjs` | Πόσες γραμμές της D1 διαβάζει κάθε σελίδα ανά χώρα (L107, ο τρόπος του L105): η μηχανή στην τοπική D1 του wrangler, σε συνθετικά προϊόντα με την κατανομή του live της 9/11/2026 (μόνο αριθμοί ανά κατάστημα, κατηγορία και ηλικία τιμής). `--site agw`, `cgw` ή `tgw`, `--engine <φάκελος άλλης έκδοσης>` για σύγκριση, `--detail <σελίδα>` για κάθε ερώτημα, `--cache-check` για την αρχική μέσα από cache (miss/hit) | 🟢 Όχι (τοπική βάση σε προσωρινό φάκελο) |
@@ -133,10 +133,12 @@
 Το Claude δίνει πάντα 3 γραμμές σαν αυτές (με κλειδωμένη έκδοση του script):
 
 ```powershell
-[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-$f = "$env:TEMP\gw-tool.ps1"; Invoke-WebRequest -UseBasicParsing -OutFile $f -Uri 'https://raw.githubusercontent.com/evangelos-gif/gear-world-code/<έκδοση>/tools/<εργαλείο>.ps1'
-powershell -NoProfile -ExecutionPolicy Bypass -File $f
+Set-Location $HOME; Set-Clipboard -Value ' '; [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; $t0 = Get-Date -Format 'yyyyMMddHHmmss'; $r = '<έκδοση>'
+$d = "$HOME\gear-world-tools"; New-Item -ItemType Directory -Force -Path $d | Out-Null; $f = "$d\gw-run.ps1"; Invoke-WebRequest -UseBasicParsing -OutFile $f -Uri "https://raw.githubusercontent.com/evangelos-gif/gear-world-code/$r/tools/gw-run.ps1"
+powershell -NoProfile -ExecutionPolicy Bypass -File $f -Ref $r -Tool <εργαλείο> -Chat '<όνομα συζήτησης>' <παράμετροι>
 ```
+
+Το `gw-run.ps1` και κάθε έκδοση μένουν στον φάκελο `~\gear-world-tools`, τον μόνο που εξαιρεί το Norton (23/11/2026, L220): από το %TEMP% το Norton τα αφαιρούσε.
 
 ## Κανόνες ασφαλείας
 1. 🟢 **Μόνο ανάγνωση από προεπιλογή.** Κανένα εργαλείο δεν αλλάζει site, D1 ή deploy χωρίς `-Apply` **και** την ακριβή φράση έγκρισης (π.χ. `ΕΓΚΡΙΝΩ TGW D1`).
