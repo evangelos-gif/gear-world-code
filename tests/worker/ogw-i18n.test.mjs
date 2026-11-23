@@ -34,8 +34,9 @@ function fakeFetch() {
     const host = u.hostname;
     const tag = host.split('.')[0];
     const r = u.searchParams.get('retailer');
-    const rows = [1, 2, 3].map(n => ({ product_name: `${r} ${tag} item ${n}`, brand: 'Acme', retailer: r, price: 12.34, stock_status: 'in_stock',
-      image_url: `https://img.example/${tag}/${n}.jpg`, delivers_to: ['GB'], product_url: `https://${host}/product/${tag}-${n}/`, affiliate_url: `https://${host}/out/${n}` }));
+    const q = u.searchParams.get('q');
+    const rows = [1, 2, 3].map(n => ({ product_name: `${r} ${tag}${q ? ` ${q}` : ''} item ${n}`, brand: 'Acme', retailer: r, price: 12.34, stock_status: 'in_stock',
+      image_url: `https://img.example/${tag}/${n}.jpg`, delivers_to: [u.searchParams.get('deliver_to') || 'GB'], product_url: `https://${host}/product/${tag}-${n}/`, affiliate_url: `https://${host}/out/${n}` }));
     return new Response(JSON.stringify({ ok: true, products: rows }), { status: 200, headers: { 'Content-Type': 'application/json' } });
   };
 }

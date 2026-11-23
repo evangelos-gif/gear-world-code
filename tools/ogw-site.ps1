@@ -348,6 +348,12 @@ function Test-Site([string]$base, [string]$mode) {
     $lw = Get-Page ($base + '/stores/kouzinika-gr/') 'GR'
     if ($lw.status -eq 200 -and $lw.text.Contains('Kouzinika GR') -and -not $lw.text.Contains('store-elsewhere')) { Say '  /stores/kouzinika-gr/ από Ελλάδα (L215): ΕΝΤΑΞΕΙ - η σελίδα του καταστήματος υπάρχει ξανά' $Ok }
     else { Say ('  /stores/kouzinika-gr/ από Ελλάδα απαντά {0} (L215): ΠΡΟΒΛΗΜΑ' -f $lw.status) $Bad; $all = $false }
+    # L221 (owner, 23 Nov 2026: "with their official logos", "no prices, only bundles and ideas"): the store's Linkwise logo,
+    # its sets and its gift ideas, and no /out/ link.
+    $lwSets = ([regex]::Matches($lw.text, '<li class="sc-set">')).Count
+    $lwIdeas = ([regex]::Matches($lw.text, '<li class="sc-idea">')).Count
+    if ($lw.status -eq 200 -and $lw.text.Contains('/assets/logos/kouzinika-gr.png?v=') -and $lwSets -ge 1 -and $lwIdeas -ge 1 -and -not $lw.text.Contains('/out/')) { Say ('  /stores/kouzinika-gr/ (L221): ΕΝΤΑΞΕΙ - το λογότυπο της Linkwise, {0} σετ και {1} ιδέες δώρου, χωρίς τιμές' -f $lwSets, $lwIdeas) $Ok }
+    else { Say ('  /stores/kouzinika-gr/ (L221): λείπει το λογότυπο, τα σετ ({0}) ή οι ιδέες ({1}): ΠΡΟΒΛΗΜΑ' -f $lwSets, $lwIdeas) $Bad; $all = $false }
     $us = Get-Page ($base + '/') 'US'
     $usAny = $us.text.Contains('class="bf-started"') -or $us.text.Contains('class="promo-card"') -or $us.text.Contains('href="/stores/') -or ($us.text -match '(?i)amazon')
     if ($us.status -eq 200 -and $us.text.Contains('stores-none') -and -not $usAny) { Say '  Από ΗΠΑ: κανένα κατάστημα, με τη γραμμή «δεν εμφανίζεται ακόμα για τη χώρα σας»: ΕΝΤΑΞΕΙ' $Ok }

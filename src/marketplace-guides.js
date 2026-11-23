@@ -729,12 +729,14 @@ export function cleanStoreProduct(p, store, w) {
 }
 
 // The store's products from one Gear World site: [] when it answers nothing usable, an error when it fails or is slow.
-async function readSiteProducts(store, w, deps) {
+async function readSiteProducts(store, w, deps, extra = null) {
   const u = new URL('/api/products', w.url);
   u.searchParams.set('retailer', store.name);
   u.searchParams.set('deliver_to', productCountry(store));
   u.searchParams.set('badges', '1');
-  u.searchParams.set('limit', String(STORE_PER_SITE));
+  u.searchParams.set('limit', String((extra && extra.limit) || STORE_PER_SITE));
+  // A search among the store's own products (the showcase, L221).
+  if (extra && extra.q) u.searchParams.set('q', String(extra.q).slice(0, 80));
   const ac = new AbortController();
   const timer = setTimeout(() => ac.abort(), deps.timeoutMs || STORE_TIMEOUT_MS);
   try {
@@ -899,6 +901,137 @@ export async function storeProducts(site, store, deps = {}, ctx = null) {
   return { products: seen.products, cached: false };
 }
 
+// The showcase of a store (owner, 23 Nov 2026: "no prices, only bundles and ideas", lessons L221): its `showcase` sets
+// and gift ideas, each pick the first product a search among the store's products on its Gear World site finds (in
+// stock, an https photo, its Gear World product page, never twice on the page), tried in the order given. Read once for
+// every language and kept like the store's products: 1 hour, 10 minutes when a search failed, 1 minute when nothing came
+// back. A set shows only with 2 products or more; an idea only with its product. Never a price.
+const SHOWCASE_PER_PICK = 6;
+const SHOWCASE_PICKS = 3;
+export const showcaseCacheKey = (site, store) => `${storeCacheKey(site, store)}&part=showcase`;
+const showcaseQueries = pick => (Array.isArray(pick) ? pick : [pick]).map(q => String(q || '').trim()).filter(Boolean).slice(0, SHOWCASE_PICKS);
+const showcaseSite = (store, part) => gearWorldFor((part && part.site) || store.sites[0]);
+
+// The Greek text for a page in Greek, the English one for every other language (only Greece and Cyprus see these stores).
+export function showcaseText(c, v) {
+  if (!v || typeof v !== 'object') return '';
+  return /^el\b/i.test(String(c.lang || '')) ? String(v.el || v.en || '') : String(v.en || v.el || '');
+}
+
+export async function storeShowcase(site, store, deps = {}, ctx = null) {
+  const sc = store && store.showcase;
+  if (!sc || store.amazon) return null;
+  const cache = deps.cache || null;
+  const key = showcaseCacheKey(site, store);
+  if (cache) {
+    try {
+      const hit = await cache.match(key);
+      if (hit) {
+        const data = await hit.json();
+        if (data && Array.isArray(data.sets) && Array.isArray(data.ideas)) return data;
+      }
+    } catch { /* a broken copy is read again from the sites */ }
+  }
+  const fetcher = deps.fetch || ((...a) => fetch(...a));
+  const userAgent = storeUserAgent(site);
+  let failed = false;
+  const reads = new Map();
+  const read = (w, q) => {
+    const k = `${w.code}\t${q}`;
+    if (!reads.has(k)) {
+      reads.set(k, readSiteProducts(store, w, { ...deps, fetch: fetcher, userAgent }, { q, limit: SHOWCASE_PER_PICK })
+        .catch(() => { failed = true; return []; }));
+    }
+    return reads.get(k);
+  };
+  const parts = [...(sc.sets || []).flatMap(set => (set.picks || []).map(pick => ({ w: showcaseSite(store, set), qs: showcaseQueries(pick) }))),
+    ...(sc.ideas || []).map(idea => ({ w: showcaseSite(store, idea), qs: showcaseQueries(idea.pick) }))];
+  await Promise.all(parts.flatMap(part => (part.w ? part.qs.map(q => read(part.w, q)) : [])));
+  const used = new Set();
+  const choose = async (part, qs) => {
+    const w = showcaseSite(store, part);
+    if (!w) return null;
+    for (const q of showcaseQueries(qs)) {
+      for (const p of await read(w, q)) {
+        const k = p.name.toLowerCase();
+        if (used.has(k)) continue;
+        used.add(k);
+        return p;
+      }
+    }
+    return null;
+  };
+  const sets = [];
+  for (const set of sc.sets || []) {
+    const items = [];
+    for (const pick of set.picks || []) {
+      const p = await choose(set, pick);
+      if (p) items.push(p);
+    }
+    sets.push({ title: set.title, line: set.line, items });
+  }
+  const ideas = [];
+  for (const idea of sc.ideas || []) ideas.push({ title: idea.title, line: idea.line, product: await choose(idea, idea.pick) });
+  // The photos of the chosen products, as on the store page (L211): a broken one leaves its product out.
+  let blocked = false;
+  let late = 0;
+  if (deps.photoFetch) {
+    const chosen = [...sets.flatMap(x => x.items), ...ideas.map(x => x.product).filter(Boolean)];
+    const seen = await keepOpenPhotos(chosen, deps.photoFetch, chosen.length, {
+      timeoutMs: deps.photoTimeoutMs, userAgent, limit: deps.photoLimit || null, deadlineMs: deps.photoDeadlineMs || PHOTO_DEADLINE_MS
+    });
+    const open = new Set(seen.products);
+    blocked = seen.blocked;
+    late = seen.late;
+    for (const x of sets) x.items = x.items.filter(p => open.has(p));
+    for (const x of ideas) if (x.product && !open.has(x.product)) x.product = null;
+  }
+  const data = {
+    sets: sets.filter(x => x.items.length >= 2),
+    ideas: ideas.filter(x => x.product)
+  };
+  const ttl = !data.sets.length && !data.ideas.length ? 60 : (failed || blocked || late) ? 600 : 3600;
+  if (cache) {
+    const res = new Response(JSON.stringify(data), { headers: { 'Content-Type': 'application/json', 'Cache-Control': `public, max-age=${ttl}` } });
+    const put = Promise.resolve().then(() => cache.put(key, res)).catch(() => { /* the next visit reads the sites again */ });
+    if (ctx && typeof ctx.waitUntil === 'function') ctx.waitUntil(put); else await put;
+  }
+  return data;
+}
+
+// One product of the showcase: its photo and name, the Gear World site it is on, its Gear World product page.
+function showcaseProduct(c, p, cls) {
+  const w = gearWorldFor(p.site);
+  if (!w) return '';
+  return html`<div class="${cls}">
+    <a class="sc-photo" href="${c.gw(p.url)}" rel="noopener" target="_blank"><img src="${p.image}" alt="${p.name}" width="200" height="200" loading="lazy" decoding="async" referrerpolicy="no-referrer"></a>
+    <p class="sc-name" translate="no">${p.name}</p>
+    <a class="sc-link" href="${c.gw(p.url)}" rel="noopener" target="_blank"><span>${c.t('See it on {0}', keep(w.name))}</span></a>
+  </div>`;
+}
+
+export function showcaseSections(c, store, data) {
+  if (!data || (!(data.sets || []).length && !(data.ideas || []).length)) return '';
+  const { t } = c;
+  return html`${(data.sets || []).length ? html`<section class="wrap section showcase" aria-labelledby="sets-h">
+  <h2 id="sets-h">${t('Sets from {0}', keep(store.name))}</h2>
+  <p class="section-lede">${t('Products of {0} that go together, chosen by us. Each one opens its page on a Gear World site, which shows the price and the stock.', keep(store.name))}</p>
+  <ul class="sc-sets">${data.sets.map(set => html`<li class="sc-set">
+    <h3>${showcaseText(c, set.title)}</h3>
+    <p class="sc-line">${showcaseText(c, set.line)}</p>
+    <ul class="sc-items">${set.items.map(p => html`<li>${showcaseProduct(c, p, 'sc-item')}</li>`)}</ul>
+  </li>`)}</ul>
+</section>` : ''}
+${(data.ideas || []).length ? html`<section class="wrap section showcase" aria-labelledby="ideas-h">
+  <h2 id="ideas-h">${t('Gift ideas from {0}', keep(store.name))}</h2>
+  <ul class="sc-ideas">${data.ideas.map(idea => html`<li class="sc-idea">
+    <h3>${showcaseText(c, idea.title)}</h3>
+    <p class="sc-line">${showcaseText(c, idea.line)}</p>
+    ${showcaseProduct(c, idea.product, 'sc-item')}
+  </li>`)}</ul>
+</section>` : ''}`;
+}
+
 const storeLogo = (site, store, cls) => {
   if (!store.logo || store.amazon || !/^logos\/[a-z0-9-]+\.(png|jpg|svg|webp)$/.test(store.logo)) return '';
   const [w, h] = Array.isArray(store.logoSize) ? store.logoSize : [168, 168];
@@ -996,7 +1129,7 @@ export function storeElsewherePage(c, store) {
   });
 }
 
-export function storePage(c, store, products, now = Date.now()) {
+export function storePage(c, store, products, now = Date.now(), showcase = null) {
   const { site, t, tx } = c;
   const worlds = store.sites.map(gearWorldFor).filter(Boolean);
   const codes = storeCodes(site, now, store.slug, c.country);
@@ -1013,6 +1146,7 @@ export function storePage(c, store, products, now = Date.now()) {
   ${started ? html`<p class="count bf-when" data-end="${started.hide}">${bfWhen(c, started)}</p>` : ''}
 </div></section>
 <section class="wrap section">${storeDisclosure(c)}</section>
+${showcaseSections(c, store, showcase)}
 ${codes.length ? html`<section class="wrap section store-codes" aria-labelledby="codes-h">
   <h2 id="codes-h">${t('Codes from {0}', keep(store.name))}</h2>
   <ul class="promo-list">${codes.map(i => codeCard(c, i, false))}</ul>
@@ -1455,9 +1589,11 @@ export function createGuidesWorker(site, deps = {}) {
         const edStore = em && editionStores(site, ed).find(s => s.slug === em[1]);
         if (edStore) {
           if (!rest.endsWith('/')) { url.pathname = `${url.pathname}/`; return redirect(url.toString(), 301); }
-          let products = [];
-          try { products = (await storeProducts(site, edStore, runtime(), ctx)).products; } catch { products = []; }
-          return page(storePage(edCtx(`/stores/${edStore.slug}/`), edStore, products, nowMs()), 200, edLang);
+          const rt = runtime();
+          const [read, shown] = await Promise.allSettled([storeProducts(site, edStore, rt, ctx), storeShowcase(site, edStore, rt, ctx)]);
+          const products = read.status === 'fulfilled' ? read.value.products : [];
+          const showcase = shown.status === 'fulfilled' ? shown.value : null;
+          return page(storePage(edCtx(`/stores/${edStore.slug}/`), edStore, products, nowMs(), showcase), 200, edLang);
         }
         return page(notFoundPage(edCtx(url.pathname), url.pathname), 404, edLang);
       }
@@ -1481,9 +1617,11 @@ export function createGuidesWorker(site, deps = {}) {
         // A store not listed for the visitor's country (L210): the page says so, with no products or codes.
         if (shown && !deliversHere(store, country)) return page(storeElsewherePage(ctxFor(`/stores/${store.slug}/`), store));
         if (shown) {
-          let products = [];
-          try { products = (await storeProducts(site, store, runtime(), ctx)).products; } catch { products = []; }
-          return page(storePage(ctxFor(`/stores/${store.slug}/`), store, products, nowMs()));
+          const rt = runtime();
+          const [read, seen] = await Promise.allSettled([storeProducts(site, store, rt, ctx), storeShowcase(site, store, rt, ctx)]);
+          const products = read.status === 'fulfilled' ? read.value.products : [];
+          const showcase = seen.status === 'fulfilled' ? seen.value : null;
+          return page(storePage(ctxFor(`/stores/${store.slug}/`), store, products, nowMs(), showcase));
         }
         // The Amazon page with Amazon links off: 404 without the word Amazon (not even in the canonical address).
         return page(notFoundPage(ctxFor('/stores/'), '/stores/'), 404);

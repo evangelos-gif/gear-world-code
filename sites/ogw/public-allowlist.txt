@@ -10,6 +10,14 @@ assets/logos/my-tool-shed.png
 assets/logos/pchub-uk.png
 assets/logos/gs-workwear.jpg
 assets/logos/back-to-the-office.png
+# The Greek stores' programme logos of the Linkwise panel, copied unchanged (lessons L221).
+assets/logos/kouzinika-gr.png
+assets/logos/katoikein-gr.png
+assets/logos/minipini-gr.png
+assets/logos/xxxl-leo-gr.png
+assets/logos/casualshoes-gr.png
+assets/logos/parex-gr.jpg
+assets/logos/tsakiris-mallas-gr.png
 # Our own photos of the Gear Worlds (the Hub's, sites/gwh/public/hub-<code>.jpg) for the Amazon page.
 assets/worlds/cgw.jpg
 assets/worlds/hgw.jpg

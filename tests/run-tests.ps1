@@ -3834,6 +3834,8 @@ Check ($ogSrc.Contains("[string]`$Chat = '1 · Gear World Manager'") -and $ogSrc
 # L216: the Hub tool checks that a gift guide has its quick answers and FAQPage live.
 $l216Hub = [System.IO.File]::ReadAllText((Join-Path (Join-Path $repo 'tools') 'gwh-hub-v2.ps1'))
 Check ($l216Hub.Contains("Get-Web (`$base + '/guides/christmas-gifts-for-him/?gwcheck=' + `$stamp) 'GB'") -and $l216Hub.Contains('"@type":"FAQPage"')) 'gwh-hub-v2.ps1: a gift guide with its Quick answers and FAQPage is checked (L216)'
+# L221: the store page of a Greek store shows its Linkwise logo, its sets and its gift ideas.
+Check ($ogSrc.Contains("`$lw.text.Contains('/assets/logos/kouzinika-gr.png?v=') -and `$lwSets -ge 1 -and `$lwIdeas -ge 1")) 'ogw-site.ps1: the Kouzinika page has its logo, sets and ideas (L221)'
 # L215: Linkwise approved megastoresgearworld.com (23/11/2026): both tools check that Greece sees the 7 Greek stores again.
 Check ($ogSrc.Contains("`$grMissing.Count -eq 0 -and -not `$gr.text.Contains('stores-none')") -and $ogSrc.Contains("Get-Page (`$base + '/stores/kouzinika-gr/') 'GR'") -and $ogSrc.Contains("`$lw.status -eq 200")) 'ogw-site.ps1: from Greece the 7 Linkwise stores and /stores/kouzinika-gr/ after the approval (L215)'
 $l215Hub = [System.IO.File]::ReadAllText((Join-Path (Join-Path $repo 'tools') 'gwh-hub-v2.ps1'))
