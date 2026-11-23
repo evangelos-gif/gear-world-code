@@ -228,10 +228,13 @@ test('L221 review: the cache time says what happened, and the key changes with t
   k = keep();
   await storeShowcase(site, s, { fetch: makeFetch({ fail: [s.showcase.ideas[0].pick[1]] }), cache: k.cache });
   assert.equal(k.box.cc, 'public, max-age=3600');
-  // Nothing found: 1 minute.
+  // Nothing found: 1 minute; nothing because the site refused (its database overloaded): 10 seconds.
   k = keep();
   await storeShowcase(site, s, { fetch: async () => new Response(JSON.stringify({ ok: true, products: [] }), { status: 200 }), cache: k.cache });
   assert.equal(k.box.cc, 'public, max-age=60');
+  k = keep();
+  await storeShowcase(site, s, { fetch: async () => new Response('{"ok":false}', { status: 503 }), cache: k.cache });
+  assert.equal(k.box.cc, 'public, max-age=10');
   const other = { ...s, showcase: { ...s.showcase, ideas: s.showcase.ideas.slice(0, 2) } };
   assert.notEqual(showcaseCacheKey(site, other), showcaseCacheKey(site, s), 'a changed showcase is read again');
   assert.equal(showcaseCacheKey(site, s), showcaseCacheKey(site, { ...s }), 'the same showcase, the same key');
@@ -288,4 +291,22 @@ test('L221 review: when the store list fails but the showcase has products, no "
   const page = await get(`/gr/stores/${s.slug}/`, { fetch });
   assert.equal(page.r.status, 200);
   assert.ok(page.text.includes('class="sc-sets"') && !page.text.includes('class="empty"') && !page.text.includes('class="pcards"'));
+});
+
+test('L221: the store page reads its list first, then its showcase, never both at once on the site', async () => {
+  const s = GREEK.find(x => x.slug === 'katoikein-gr');
+  let listDone = false;
+  let overlap = false;
+  const base = makeFetch();
+  const fetch = async input => {
+    const u = new URL(String(input));
+    if (u.searchParams.has('q') && !listDone) overlap = true;
+    const r = await base(input);
+    if (!u.searchParams.has('q')) listDone = true;
+    return r;
+  };
+  const page = await get(`/stores/${s.slug}/`, { fetch });
+  assert.equal(page.r.status, 200);
+  assert.ok(page.text.includes('class="sc-sets"'));
+  assert.equal(overlap, false, 'no search before the list was read');
 });

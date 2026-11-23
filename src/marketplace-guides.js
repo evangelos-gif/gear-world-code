@@ -912,7 +912,7 @@ export async function storeProducts(site, store, deps = {}, ctx = null) {
 // timer starts with its own request (a Worker keeps only 6 waiting for their headers: 2 searches + 4 photo checks), with translate=0 (no AI
 // translation on the site for our own searches). Read once for every language and kept like the store's products:
 // 1 hour, 10 minutes when a pick lost its product to a failed search or a photo check could not finish, 1 minute when
-// nothing came back. The cache key carries the asset version and a hash of the store's `showcase`. A set shows only
+// nothing came back (10 seconds when that was a site refusing). The cache key carries the asset version and a hash of the store's `showcase`. A set shows only
 // with 2 products or more; an idea only with its product. Never a price.
 const SHOWCASE_PER_PICK = 6;
 const SHOWCASE_PICKS = 3;
@@ -1038,7 +1038,9 @@ export async function storeShowcase(site, store, deps = {}, ctx = null) {
       .filter(x => x.product)
   };
   const lost = slots.some(x => !x.product && x.failed);
-  const ttl = !data.sets.length && !data.ideas.length ? 60 : (lost || blocked || late) ? 600 : 3600;
+  // Nothing because a site refused (its database overloaded, 23 Nov 2026): 10 seconds, so the next visit tries again
+  // once the site's 10-second window has passed.
+  const ttl = !data.sets.length && !data.ideas.length ? (failedReads.size ? 10 : 60) : (lost || blocked || late) ? 600 : 3600;
   if (cache) {
     const res = new Response(JSON.stringify(data), { headers: { 'Content-Type': 'application/json', 'Cache-Control': `public, max-age=${ttl}` } });
     const put = Promise.resolve().then(() => cache.put(key, res)).catch(() => { /* the next visit reads the sites again */ });
@@ -1641,10 +1643,12 @@ export function createGuidesWorker(site, deps = {}) {
         const edStore = em && editionStores(site, ed).find(s => s.slug === em[1]);
         if (edStore) {
           if (!rest.endsWith('/')) { url.pathname = `${url.pathname}/`; return redirect(url.toString(), 301); }
+          // The store's list first, then its showcase: never both at once on the same site's database (L221).
           const rt = runtime();
-          const [read, shown] = await Promise.allSettled([storeProducts(site, edStore, rt, ctx), storeShowcase(site, edStore, rt, ctx)]);
-          const products = read.status === 'fulfilled' ? read.value.products : [];
-          const showcase = shown.status === 'fulfilled' ? shown.value : null;
+          let products = [];
+          try { products = (await storeProducts(site, edStore, rt, ctx)).products; } catch { products = []; }
+          let showcase = null;
+          try { showcase = await storeShowcase(site, edStore, rt, ctx); } catch { showcase = null; }
           return page(storePage(edCtx(`/stores/${edStore.slug}/`), edStore, products, nowMs(), showcase), 200, edLang);
         }
         return page(notFoundPage(edCtx(url.pathname), url.pathname), 404, edLang);
@@ -1669,10 +1673,12 @@ export function createGuidesWorker(site, deps = {}) {
         // A store not listed for the visitor's country (L210): the page says so, with no products or codes.
         if (shown && !deliversHere(store, country)) return page(storeElsewherePage(ctxFor(`/stores/${store.slug}/`), store));
         if (shown) {
+          // The store's list first, then its showcase: never both at once on the same site's database (L221).
           const rt = runtime();
-          const [read, seen] = await Promise.allSettled([storeProducts(site, store, rt, ctx), storeShowcase(site, store, rt, ctx)]);
-          const products = read.status === 'fulfilled' ? read.value.products : [];
-          const showcase = seen.status === 'fulfilled' ? seen.value : null;
+          let products = [];
+          try { products = (await storeProducts(site, store, rt, ctx)).products; } catch { products = []; }
+          let showcase = null;
+          try { showcase = await storeShowcase(site, store, rt, ctx); } catch { showcase = null; }
           return page(storePage(ctxFor(`/stores/${store.slug}/`), store, products, nowMs(), showcase));
         }
         // The Amazon page with Amazon links off: 404 without the word Amazon (not even in the canonical address).
