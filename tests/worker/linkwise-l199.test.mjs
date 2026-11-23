@@ -187,6 +187,36 @@ test('L14 (22 Nov 2026): fashion words that look like beauty words, and "table-t
   assert.match(h({ name: 'Κλιπ Συγκράτησης Προφυλακτήρα 10τμχ' }).reject, /car product/);
 });
 
+test('L14 (23 Nov 2026, Julia of Linkwise): no rug, lamp, towel, leather or wool in «Ομορφιά & αρώματα» of the GR view', () => {
+  // Live WGW, 23 Nov 2026: Spartoo GR rugs ("... κρέμα 80x150", colour cream; "μάλλινο χαλί") and Answear GR "Aldo Δερμάτινα
+  // πέδιλα KAATHY" in Beauty & Fragrances; also Answear's "Home >" lamps and towels, wool clothes as Hair care.
+  const w = LW.classifierFor('wgw');
+  const is = (r, cat, sub) => assert.deepEqual([r.siteCategory, r.subcategory], [cat, sub], JSON.stringify(r));
+  for (const [name, feedCategory] of [['Χαλιά Rugsx Χαλί σιζάλ BOHO 39038069 κρέμα 80x150 cm', 'Σπίτι > Χαλιά'],
+    ['Χαλιά Rugsx FLUX 461.1.AE990 μάλλινο χαλί OSTA - Γ 200x300 cm', 'Σπίτι > Χαλιά'],
+    ['Broste Copenhagen λάμπα κρεμαστή από βαμμένο χάλυβα με σκόνη 30 x 29 cm', 'Home > Σαλόνι και υπνοδωμάτιο > Φωτισμός > Κρεμαστά φωτιστικά και φωτιστικά οροφής'],
+    ['BOSS μεγάλη πετσέτα από αιγυπτιακό βαμβάκι LOFT IceBlue 100 x 150 cm', 'Home > Μπάνιο > Πετσέτες > Πετσέτες σώματος'],
+    ['Design καλόγερος χρωμίου', 'Σπίτι > Έπιπλα > Έπιπλα αποθήκευσης > Πορτμαντό, κρεμάστρες τοίχου']]) {
+    assert.match(w({ name, feedCategory }).reject, /home product/, name);
+  }
+  is(w({ name: 'Aldo Δερμάτινα πέδιλα KAATHY', feedCategory: 'Γυναικεία > Παπούτσια > Γόβες > Πέδιλα με τακούνι' }), 'Shoes', 'Sandals');
+  is(w({ name: 'A.P.C. Δερμάτινη τσάντα Sac Grace Small', feedCategory: 'Γυναικεία > Αξεσουάρ > Τσάντες > Τσάντες χιαστί' }), 'Bags & Accessories', 'Bags');
+  is(w({ name: 'AllSaints ντραπέ με πρόσμιξη μαλλιού DARIYA', feedCategory: 'Γυναικεία > Ρούχα > Φορέματα' }), 'Clothing', 'Dresses');
+  is(w({ name: '2NDDAY Μάλλινο παλτό Livia', feedCategory: 'Γυναικεία > Ρούχα > Παλτό > Παλτά' }), 'Clothing', 'Jackets & Coats');
+  is(w({ name: 'Answear.LAB κορδέλα μαλλιών γυναικεία από μαλλί μερινό' }), 'Bags & Accessories', 'Hair Accessories');
+  is(w({ name: '7.dots Mercury Δερμάτινη Κλειδοθήκη Κονιάκ 50-006', feedCategory: 'Δερμάτινα Είδη' }), 'Bags & Accessories', 'Accessories');
+  is(w({ name: 'Βυζαντινά κρεμαστά σκουλαρίκια με χρωματιστά ζιργκόν Κ9' }), "Women's Jewellery", 'Earrings');
+  is(w({ name: 'Ασημένιο κρεμαστό', feedCategory: 'Κρεμαστά- Μενταγιόν > Μενταγιόν' }), "Women's Jewellery", 'Necklaces');
+  is(w({ name: 'Skinny jeans Armani Exchange XW000123 AF10866', feedCategory: 'Γυναίκα > Γυναικεία Ένδυση > Skinny jeans' }), 'Clothing', 'Jeans');
+  is(w({ name: 'Knit Jumper Cream', feedCategory: 'Γυναικεία > Ρούχα' }), 'Clothing', 'Knitwear');
+  // ... and real beauty stays beauty.
+  is(w({ name: 'Beauty Of Joseon Dynasty Cream - Ενυδατική Κρέμα 50 ml', feedCategory: 'Προϊόντα Ομορφιάς & Καλλυντικά > Περιποίηση Προσώπου' }), 'Beauty & Fragrances', 'Skincare');
+  is(w({ name: 'Κρέμα ημέρας 50ml' }), 'Beauty & Fragrances', 'Skincare');
+  is(w({ name: 'Μάσκα μαλλιών με κερατίνη' }), 'Beauty & Fragrances', 'Hair care');
+  is(w({ name: 'Σαμπουάν για λιπαρά μαλλιά 500ml' }), 'Beauty & Fragrances', 'Hair care');
+  is(w({ name: 'Rochas Madame Eau de Toilette 100 ml' }), 'Beauty & Fragrances', 'Fragrance');
+});
+
 test('L14 (22 Nov 2026): Filinda is a home shop: home on HGW, women on WGW, children on KGW', () => {
   const p = PROGRAMMES.find(x => x.id === 13088);
   assert.equal(p.site, 'hgw');
