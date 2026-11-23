@@ -2734,6 +2734,11 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
             $gr = ($gp -split ':')[0]
             if (-not (Test-Path -LiteralPath (Join-Path $repo ('tools\import-rules\' + $gr + '.mjs')))) { Check $false ('the Greek wave list: rules for ' + $gr) }
         }
+        # The category fix of 23-24 Nov 2026 (L223): only the pairs of gr-refresh-1124.txt whose dry run showed changes.
+        $gcPairs = @(); $grPairs = @()
+        foreach ($l in [System.IO.File]::ReadAllLines((Join-Path $repo 'tools\massive\gr-categories-1123.txt'), [System.Text.Encoding]::UTF8)) { $x = ($l -split '#', 2)[0].Trim(); if ($x) { $gcPairs += $x } }
+        foreach ($l in [System.IO.File]::ReadAllLines((Join-Path $repo 'tools\massive\gr-refresh-1124.txt'), [System.Text.Encoding]::UTF8)) { $x = ($l -split '#', 2)[0].Trim(); if ($x) { $grPairs += $x } }
+        Check ($gcPairs.Count -eq 118 -and @($gcPairs | Select-Object -Unique).Count -eq 118 -and @($gcPairs | Where-Object { $grPairs -notcontains $_ }).Count -eq 0 -and $gcPairs -notcontains 'lw-10483:wgw') 'the Greek category list of 23 Nov 2026: 118 pairs, all from gr-refresh-1124.txt, no Theodoras'
         $bBad = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', (Join-Path $repo 'tools\legacy-import-batch.ps1'), '-Pairs', 'joybuy:xyz', '-OutDir', $bOut, '-NoClipboard')
         & $exe @bBad | Out-Null
         Check ($LASTEXITCODE -eq 2) 'import batch: a wrong site is refused'
