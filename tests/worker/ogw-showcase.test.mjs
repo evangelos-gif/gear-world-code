@@ -137,17 +137,19 @@ test('L221: in English with ?lang=en-GB, and the same on the old address; a UK s
   assert.ok(!elsewhere.text.includes('sc-set') && !elsewhere.calls.some(u => u.searchParams.has('q')), 'a country it is not listed for: no showcase, no search');
 });
 
-test('L221: a pick tries its searches in order and never shows a product twice; a set needs 2 products; a failed site keeps the rest', async () => {
+test('L221: a pick tries its searches in order and never shows a product twice; a set needs 2 products; a failed site is not asked again', async () => {
   const s = GREEK.find(x => x.slug === 'kouzinika-gr');
   const [first, second] = s.showcase.ideas[0].pick;
   // The first search of the first idea finds nothing: its second search gives the product.
   let data = await storeShowcase(site, s, { fetch: makeFetch({ empty: [first] }) });
   assert.equal(data.ideas[0].product.name, `${second} 1`);
-  // A set whose 3 searches all fail is left out; the rest stays.
+  // A search that fails takes its site out for the rest of this showcase (a site that hangs costs one time limit):
+  // what was read before stays, the rest is left out.
   const setQs = s.showcase.sets[1].picks.flat();
   data = await storeShowcase(site, s, { fetch: makeFetch({ fail: setQs }) });
-  assert.equal(data.sets.length, 1, 'only the set with products');
-  assert.equal(data.ideas.length, 3);
+  assert.equal(data.sets.length, 1, 'only the set read before the failure');
+  assert.equal(data.sets[0].title.en, s.showcase.sets[0].title.en);
+  assert.equal(data.ideas.length, 0, 'the same site is not asked again');
   // The same search twice on a page gives 2 different products.
   const twice = { ...s, showcase: { sets: [{ title: { el: 'Α', en: 'A' }, line: { el: 'Β', en: 'B' }, picks: [['κούπα'], ['κούπα'], ['κούπα']] }], ideas: [] } };
   data = await storeShowcase(site, twice, { fetch: makeFetch() });
@@ -235,7 +237,7 @@ test('L221 review: the cache time says what happened, and the key changes with t
   assert.equal(showcaseCacheKey(site, s), showcaseCacheKey(site, { ...s }), 'the same showcase, the same key');
 });
 
-test('L221 review: at most 3 searches wait at a time', async () => {
+test('L221 review: at most 2 searches wait at a time (2 searches + 4 photo checks = the 6 a Worker keeps waiting)', async () => {
   const s = GREEK.find(x => x.slug === 'katoikein-gr');
   let now = 0;
   let most = 0;
@@ -248,5 +250,33 @@ test('L221 review: at most 3 searches wait at a time', async () => {
   };
   const data = await storeShowcase(site, s, { fetch });
   assert.equal(data.sets.length, 2);
-  assert.ok(most <= 3, `${most} at once`);
+  assert.ok(most <= 2, `${most} at once`);
+});
+
+test('L221 review: a Gear World site that hangs costs one time limit, not one per search', async () => {
+  const s = GREEK.find(x => x.slug === 'kouzinika-gr');
+  let asked = 0;
+  const hang = (input, init = {}) => new Promise((resolve, reject) => {
+    asked++;
+    if (init.signal) init.signal.addEventListener('abort', () => reject(new Error('aborted')));
+  });
+  const t = Date.now();
+  const data = await storeShowcase(site, s, { fetch: hang, timeoutMs: 150 });
+  const took = Date.now() - t;
+  assert.deepEqual(data, { sets: [], ideas: [] });
+  assert.ok(took < 700, `${took} ms (one or two time limits of 150 ms)`);
+  assert.ok(asked <= 2, `${asked} searches sent to a site that hangs`);
+});
+
+test('L221 review: when the store list fails but the showcase has products, no "could not be loaded" line', async () => {
+  const s = GREEK.find(x => x.slug === 'parex-gr');
+  const base = makeFetch();
+  const fetch = async input => {
+    const u = new URL(String(input));
+    if (!u.searchParams.has('q')) throw new Error('down');
+    return base(input);
+  };
+  const page = await get(`/gr/stores/${s.slug}/`, { fetch });
+  assert.equal(page.r.status, 200);
+  assert.ok(page.text.includes('class="sc-sets"') && !page.text.includes('class="empty"') && !page.text.includes('class="pcards"'));
 });

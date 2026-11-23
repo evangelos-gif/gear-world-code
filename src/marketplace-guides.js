@@ -909,14 +909,14 @@ export async function storeProducts(site, store, deps = {}, ctx = null) {
 // stock, an https photo, its Gear World product page, never twice on the page), its searches tried in the order given:
 // the first search of every pick at once, a next one only for a pick still without a product. A product whose photo is
 // broken (L211) gives its place to the next one its searches find. Searches go out at most SHOWCASE_PARALLEL at a time, so each
-// timer starts with its own request (a Worker keeps only 6 waiting for their headers), with translate=0 (no AI
+// timer starts with its own request (a Worker keeps only 6 waiting for their headers: 2 searches + 4 photo checks), with translate=0 (no AI
 // translation on the site for our own searches). Read once for every language and kept like the store's products:
 // 1 hour, 10 minutes when a pick lost its product to a failed search or a photo check could not finish, 1 minute when
 // nothing came back. The cache key carries the asset version and a hash of the store's `showcase`. A set shows only
 // with 2 products or more; an idea only with its product. Never a price.
 const SHOWCASE_PER_PICK = 6;
 const SHOWCASE_PICKS = 3;
-const SHOWCASE_PARALLEL = 3;
+const SHOWCASE_PARALLEL = 2;
 const showcaseHash = sc => {
   let h = 0x811c9dc5;
   for (const ch of JSON.stringify(sc || null)) { h ^= ch.codePointAt(0); h = Math.imul(h, 0x01000193) >>> 0; }
@@ -958,11 +958,15 @@ export async function storeShowcase(site, store, deps = {}, ctx = null) {
   const queue = photoLimiter(SHOWCASE_PARALLEL);
   const reads = new Map();
   const failedReads = new Set();
+  // A site that failed or timed out once is not asked again for this showcase: a site that hangs costs one time limit,
+  // never one per search (L191: a slow site never holds the page).
+  const down = new Set();
   const read = (w, q) => {
     const k = `${w.code}\t${q}`;
     if (!reads.has(k)) {
-      reads.set(k, queue(() => readSiteProducts(store, w, { ...deps, fetch: fetcher, userAgent }, { q, limit: SHOWCASE_PER_PICK }))
-        .catch(() => { failedReads.add(k); return []; }));
+      reads.set(k, queue(() => (down.has(w.code) ? Promise.reject(new Error('site down'))
+        : readSiteProducts(store, w, { ...deps, fetch: fetcher, userAgent }, { q, limit: SHOWCASE_PER_PICK })))
+        .catch(() => { failedReads.add(k); down.add(w.code); return []; }));
     }
     return reads.get(k);
   };
@@ -1192,7 +1196,7 @@ ${codes.length ? html`<section class="wrap section store-codes" aria-labelledby=
   <ul class="promo-list">${codes.map(i => codeCard(c, i, false))}</ul>
   <p class="promo-note">${t('Each store sets its own terms: check them on its page before you pay.')}</p>
 </section>` : ''}
-${products.length && !listed.length ? '' : html`<section class="wrap section" aria-label="${tx('Products')}">
+${(products.length && !listed.length) || (!products.length && inShowcase.size) ? '' : html`<section class="wrap section" aria-label="${tx('Products')}">
   ${inShowcase.size && listed.length ? html`<h2>${t('More from {0}', keep(store.name))}</h2>` : ''}
   ${listed.length
     ? html`<ul class="pcards">${listed.map(p => {
