@@ -9,7 +9,7 @@
 //   [<wrangler output with the site's site_category, subcategory pairs>]
 // With places.json next to ids.txt (lessons L56) it also counts the products that get the site's own subcategory names
 // (and writes their rollback), and lists the plan's subcategories that the site does not have yet.
-import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdirSync, existsSync, statSync, readdirSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { rowsFromWrangler } from './cleanup-rules/tidy.mjs';
@@ -132,7 +132,10 @@ export function hideByAwinIdSql(ids) {
 if (import.meta.url === pathToFileURL(process.argv[1] || '').href) {
   const [idsFile, dbFile, out, subsFile] = process.argv.slice(2);
   const planIds = readFileSync(idsFile, 'utf8').split('\n').map(s => s.trim()).filter(Boolean);
-  const rows = rowsFromWrangler(readFileSync(dbFile, 'utf8'));
+  // The database rows: one wrangler answer, or a folder of pages database-0001.json.txt ... (lessons L223).
+  const rows = statSync(dbFile).isDirectory()
+    ? readdirSync(dbFile).filter(f => /^database-\d+\.json\.txt$/.test(f)).sort().flatMap(f => rowsFromWrangler(readFileSync(join(dbFile, f), 'utf8')))
+    : rowsFromWrangler(readFileSync(dbFile, 'utf8'));
   const keysFile = join(dirname(idsFile), 'keys.json');
   const keys = existsSync(keysFile) ? JSON.parse(readFileSync(keysFile, 'utf8')) : [];
   const d = diff(planIds, rows, keys);
