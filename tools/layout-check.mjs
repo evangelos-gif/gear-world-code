@@ -11,7 +11,8 @@
 //     within 620 px at 390 px and at 360 px, in English and the 10 other languages, in the worst case: the country bar
 //     (lessons L107) and the discount codes bar both showing. A page without one of them gets it added for this
 //     measurement (the same HTML as the engine's, src/pages/layout.js), so every site is measured the same way, with or
-//     without running codes and whatever country the local Worker thinks the visitor is in.
+//     without running codes and whatever country the local Worker thinks the visitor is in. The Gear World app row
+//     (lessons L218) is added under the hero buttons the same way, as for a visitor from a country of the app.
 // Saves a screenshot of every page so a person can look at them.
 //
 // Usage: node tools/layout-check.mjs <baseUrl> [--shots <dir>] [--out report.txt] [--lang de-DE] [--currency RUB]
@@ -20,7 +21,7 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { chromium } from 'playwright';
-import { ukBarHtml, codesBarFor } from '../src/pages/layout.js';
+import { ukBarHtml, codesBarFor, appBarHtml } from '../src/pages/layout.js';
 import { toString } from '../src/lib/html.js';
 
 const args = process.argv.slice(2);
@@ -53,7 +54,7 @@ const LANGUAGES = ['en-GB', 'de-DE', 'el-GR', 'es-ES', 'fr-FR', 'it-IT', 'nl-NL'
 const WORST_COUNTRY_BAR = ukBarHtml();
 const WORST_CODES_BAR = toString(codesBarFor([{ kind: 'code' }, { kind: 'code' }, { kind: 'sale' }, { kind: 'coupon' }]));
 function worstCase(page) {
-  const added = { country: false, codes: false };
+  const added = { country: false, codes: false, app: false };
   let h = page;
   if (!h.includes('class="country-bar"')) {
     h = h.replace('<header class="masthead">', `${WORST_COUNTRY_BAR}<header class="masthead">`);
@@ -64,6 +65,14 @@ function worstCase(page) {
     const bar = WORST_CODES_BAR.replace(/\/assets\/icons\.svg(\?v=[^#"]*)?#/g, `/assets/icons.svg?v=${v}#`);
     h = h.replace(/(<\/div>\s*)(<nav class="catbar")/, `$1${bar}\n  $2`).replace(/<body class="([^"]*)">/, '<body class="$1" data-codes>');
     added.codes = true;
+  }
+  // The row of the Gear World app (lessons L218): the engine adds it after the hero buttons only for visitors from the UK,
+  // Greece and Cyprus, never on localhost, so it is added here as the engine writes it, with this page's asset version.
+  if (h.includes('<p class="hero-actions">') && !h.includes('data-app-bar')) {
+    const v = (h.match(/<html[^>]* data-v="([^"]*)"/) || [])[1] || '';
+    const code = (h.match(/<html[^>]* data-store="([^"]*)"/) || [])[1] || 'tgw';
+    h = h.replace(/(<p class="hero-actions">[\s\S]*?<\/p>)/, `$1${appBarHtml({ code, assetVersion: v })}`);
+    added.app = true;
   }
   return { html: h, added };
 }
@@ -286,12 +295,15 @@ try {
           return {
             lang: document.documentElement.lang,
             bars: !!document.querySelector('.country-bar') && document.querySelectorAll('.codes-bar').length === 1 && document.body.hasAttribute('data-codes'),
+            // The Gear World app row (L218): right after the hero buttons, so it can never push them down.
+            app: (() => { const row = document.querySelector('[data-app-bar]'); return !!row && !!row.previousElementSibling && row.previousElementSibling.matches('.hero-actions'); })(),
             search: b('.hero-search'), browse: b('.hero-actions .btn'), sideways: document.documentElement.scrollWidth > document.documentElement.clientWidth + 1
           };
         });
-        const label = `${vp.name} / in ${lang}, with the country bar${added.country ? ' (added)' : ''} and the codes bar${added.codes ? ' (added)' : ''}`;
+        const label = `${vp.name} / in ${lang}, with the country bar${added.country ? ' (added)' : ''}, the codes bar${added.codes ? ' (added)' : ''} and the app row${added.app ? ' (added)' : ''}`;
         check(fold.lang === lang, `${label}: page is in ${lang}`, fold.lang);
         check(fold.bars, `${label}: both bars on the page`);
+        check(fold.app, `${label}: the app row is on the page, right after the hero buttons (L218)`);
         check(fold.search <= FIRST_SCREEN && fold.browse <= FIRST_SCREEN, `${label}: search box and "Browse by category" on the first screen (L30, L115)`, `search ends at ${fold.search}px, button at ${fold.browse}px (max ${FIRST_SCREEN})`);
         check(!fold.sideways, `${label}: no sideways scrolling`);
         numbers.push(`${lang} ${fold.browse}`);

@@ -41,7 +41,7 @@ test('the 13 sites: every card says "<retailer> delivers to", never a bare "Deli
       assert.ok(!/delivers to|label-ship/.test(html), `${c}: no delivery data, no delivery line`);
       assert.equal(toString(deliveryLine(site, retailer)), '', c);
     }
-    assert.match(site.assetVersion, /^(2026-11-08-[a-z]{3}-(cleanup|security)|2026-11-09-[a-z]{3}-compliance|2026-11-1[02]-[a-z]{3}-codes|2026-11-14-[a-z]{3}-boots|2026-11-15-[a-z]{3}-pl|2026-11-16-[a-z]{3}-lang|2026-11-17-[a-z]{3}-legal|2026-11-19-[a-z]{3}-popup|2026-11-20-[a-z]{3}-photos|2026-11-21-[a-z]{3}-au)-\d+$/, `${c}: a new asset version for the new dictionaries (L31; -wording- for L102, -cleanup- for L103, -security- for L106, -codes- for L115)`);
+    assert.match(site.assetVersion, /^(2026-11-08-[a-z]{3}-(cleanup|security)|2026-11-09-[a-z]{3}-compliance|2026-11-1[02]-[a-z]{3}-codes|2026-11-14-[a-z]{3}-boots|2026-11-15-[a-z]{3}-pl|2026-11-16-[a-z]{3}-lang|2026-11-17-[a-z]{3}-legal|2026-11-19-[a-z]{3}-popup|2026-11-20-[a-z]{3}-photos|2026-11-21-[a-z]{3}-au|2026-11-23-[a-z]{3}-app)-\d+$/, `${c}: a new asset version for the new dictionaries (L31; -wording- for L102, -cleanup- for L103, -security- for L106, -codes- for L115)`);
   }
 });
 
@@ -146,7 +146,10 @@ test('gearworldgroup.com: the owner\'s headline, structured data as it really is
   assert.ok(home.includes('<p class="lede">Each product shows the retailer that sells it and where that retailer delivers.</p>'));
   assert.ok(home.includes('<li>Product pages with structured data for search engines: the lowest and highest price across retailers, the number of retailers, and the GTIN when the feed has one.</li>'));
   assert.ok(!/structured data \(price, stock|price, stock, GTIN/.test(home), 'stock is not in the structured data (AggregateOffer, L101)');
-  for (const page of [home, ...legalPaths().map(p => legalPage(group, p))]) {
+  // L218: also the UK view, with the row of the Gear World app.
+  const ukHome = groupPage(group, { products: 1000, retailers: 10, sitesCounted: 1, countries: { GB: { products: 1000, retailers: 10, sites: [] } } }, 'GB', '');
+  assert.ok(ukHome.includes('class="app-bar"'), 'the UK view has the app row');
+  for (const page of [home, ukHome, ...legalPaths().map(p => legalPage(group, p))]) {
     assert.ok(!/UK shoppers|UK retailers|for UK/.test(page), 'no "UK shoppers" or "UK retailers"');
   }
 });

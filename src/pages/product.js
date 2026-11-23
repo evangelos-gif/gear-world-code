@@ -4,6 +4,7 @@ import { categoryPath, productPath, formatPrice, truncate, formatDate } from '..
 import { normalizeGtin, gtinSchemaKey } from '../lib/gtin.js';
 import { page, productGrid, breadcrumbs, breadcrumbSchema, absolute, tr, keepName, viewAt, priceTag, retailerFlag, deliveryText, deliveryLine, shownLine, deliversLabel, rrpTag, stockText, icon } from './layout.js';
 import { REMIND_UNTIL_ISO, REMIND_PATH } from '../lib/remind.js';
+import { titleName } from '../lib/title.js';
 import { noAlerts } from '../lib/retailer-terms.js';
 import { parseImages } from '../lib/photos.js';
 
@@ -241,7 +242,8 @@ export function productPage(site, product, category, similar, offers = []) {
 </div>`;
 
   return page(site, {
-    title: `${truncate(product.product_name, 70)} | ${price} | ${site.name}`,
+    // Brand first and the model number in it, where the feed's data can be trusted (lessons L217).
+    title: `${titleName(product, site)} | ${price} | ${site.name}`,
     description: metaDescription,
     path,
     ogType: 'product',

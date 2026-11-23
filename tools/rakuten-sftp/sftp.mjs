@@ -1,4 +1,4 @@
-// The SFTP client of tools/rakuten-feed-download.ps1 (lessons L217). Rakuten's publisher guide: the catalogues are on
+// The SFTP client of tools/rakuten-feed-download.ps1 (lessons L219). Rakuten's publisher guide: the catalogues are on
 // aftp.linksynergy.com by SFTP; plain FTP "is currently supported" but is being retired and sends the password unencrypted,
 // and FTPS is not offered (the old tool tried FTPS and then fell back to plain FTP). The user name and password come only
 // from the environment (GW_RK_USER, GW_RK_PASS, set by the PowerShell tool from its DPAPI file), never from the command

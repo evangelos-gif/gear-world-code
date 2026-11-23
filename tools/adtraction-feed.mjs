@@ -1,5 +1,5 @@
 // Adtraction product feeds (UK programmes approved on 23 Nov 2026: chat 7 sheet «Εγκρίσεις» rows 1183-1191, massive
-// import wave 1 with the UK, lessons L219). Adtraction is a Swedish network; its API v3 (https://api.adtraction.net/v3/,
+// import wave 1 with the UK, lessons L221). Adtraction is a Swedish network; its API v3 (https://api.adtraction.net/v3/,
 // the token in the X-Token header, from Account > Settings in Adtraction) lists the programmes a channel is approved for,
 // with their feeds (POST /v3/partner/programs/), and gives a programme's products as JSON (POST /v3/partner/products/feed/:
 // productName, productPrice, oldPrice, currency, productUrl, trackingUrl, imageUrl, inStock, ean, sku, manufacturer,

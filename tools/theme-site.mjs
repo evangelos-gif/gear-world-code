@@ -35,6 +35,8 @@ export async function themedFiles(siteCode) {
   for (const f of readdirSync(join(REF, 'fonts'))) files[`fonts/${f}`] = readFileSync(join(REF, 'fonts', f));
   // Small flags for "Delivers to" (lessons L62), on every site that says where its retailers deliver.
   if (site.deliversTo) for (const f of readdirSync(join(REF, 'flags'))) files[`flags/${f}`] = readFileSync(join(REF, 'flags', f));
+  // The official Google Play badges of the app row on the home page (lessons L218), the same files on every site.
+  for (const f of readdirSync(join(REF, 'app'))) files[`app/${f}`] = readFileSync(join(REF, 'app', f));
   return files;
 }
 

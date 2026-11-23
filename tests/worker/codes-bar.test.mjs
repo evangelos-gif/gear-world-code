@@ -414,7 +414,7 @@ test('L115: colours from each site\'s palette (text 7:1, icon 3:1, nothing fixed
     assert.match(readFileSync(`sites/${dir}/public/assets/icons.svg`, 'utf8'), /<symbol id="tag" viewBox="0 0 24 24" fill="none" stroke="currentColor"/, `${dir}: the tag icon`);
     // New stylesheet (12 Nov 2026: the compact phone hero and aria-current): a new asset version (lessons L31), the same
     // on every site; KGW one later for its new words (Winter Boots, 14 Nov 2026, L143).
-    assert.match(site.assetVersion, new RegExp(`^(2026-11-12-${dir}-codes-2|2026-11-14-${dir}-boots-1|2026-11-15-${dir}-pl-1|2026-11-16-${dir}-lang-1|2026-11-17-${dir}-legal-1|2026-11-19-${dir}-popup-1|2026-11-20-${dir}-photos-1|2026-11-21-${dir}-au-1)$`), `${dir}: asset version`);
+    assert.match(site.assetVersion, new RegExp(`^(2026-11-12-${dir}-codes-2|2026-11-14-${dir}-boots-1|2026-11-15-${dir}-pl-1|2026-11-16-${dir}-lang-1|2026-11-17-${dir}-legal-1|2026-11-19-${dir}-popup-1|2026-11-20-${dir}-photos-1|2026-11-21-${dir}-au-1|2026-11-23-${dir}-app-1)$`), `${dir}: asset version`);
   }
   const layout = readFileSync('tools/layout-check.mjs', 'utf8');
   assert.match(layout, /\{ name: 'phone-360', width: 360,/);
@@ -431,7 +431,7 @@ test('L30, L115: a phone keeps the hero search and "Browse by category" on the f
   assert.match(layout, /for \(const vp of viewports\.filter\(v => v\.isMobile\)\)/, 'both phone sizes');
   assert.match(layout, /search box and "Browse by category" on the first screen \(L30, L115\)/);
   // The bars it adds are the engine's own HTML, with the longest words of the codes bar.
-  assert.match(layout, /import \{ ukBarHtml, codesBarFor \} from '\.\.\/src\/pages\/layout\.js';/);
+  assert.match(layout, /import \{ ukBarHtml, codesBarFor(, appBarHtml)? \} from '\.\.\/src\/pages\/layout\.js';/); // L218: and the app row
   assert.equal(toString(codesBarFor([{ kind: 'code' }, { kind: 'code' }, { kind: 'sale' }, { kind: 'coupon' }])).match(/data-i18n="([^"]*)"/)[1], '{0} active codes and offers');
   // The stylesheet: on a phone the title uses the full width and the country bar fewer lines; every language but English
   // gets a slightly smaller title (smaller again at 360 px), and the longest site name keeps the Saved list on its row.

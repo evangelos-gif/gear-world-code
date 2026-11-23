@@ -73,7 +73,7 @@ test('the site code and settings: no shop or partner wording in what pages show 
     assert.ok(!/visually-hidden">Buy</.test(code), `${f}: a hidden "Buy" header`);
   }
   for (const c of CODES) {
-    assert.match(readFileSync(`sites/${c}/site.config.js`, 'utf8'), new RegExp(`assetVersion: '(2026-11-08-${c}-(cleanup|security)|2026-11-09-${c}-compliance|2026-11-1[02]-${c}-codes|2026-11-14-${c}-boots|2026-11-15-${c}-pl|2026-11-16-${c}-lang|2026-11-17-${c}-legal|2026-11-19-${c}-popup|2026-11-20-${c}-photos|2026-11-21-${c}-au)-\\d+'`), `${c}: a new asset version for the new dictionaries (L31; -security- for L106, -codes- for L115)`);
+    assert.match(readFileSync(`sites/${c}/site.config.js`, 'utf8'), new RegExp(`assetVersion: '(2026-11-08-${c}-(cleanup|security)|2026-11-09-${c}-compliance|2026-11-1[02]-${c}-codes|2026-11-14-${c}-boots|2026-11-15-${c}-pl|2026-11-16-${c}-lang|2026-11-17-${c}-legal|2026-11-19-${c}-popup|2026-11-20-${c}-photos|2026-11-21-${c}-au|2026-11-23-${c}-app)-\\d+'`), `${c}: a new asset version for the new dictionaries (L31; -security- for L106, -codes- for L115)`);
     // The served script, stylesheet and icons have no shop words even in a comment, and no shopping-cart drawing.
     for (const f of ['site.js', 'site.css', 'icons.svg']) {
       const text = readFileSync(`sites/${c}/public/assets/${f}`, 'utf8');
@@ -83,7 +83,7 @@ test('the site code and settings: no shop or partner wording in what pages show 
     assert.ok(!/icon: 'cart'/.test(readFileSync(`sites/${c}/site.config.js`, 'utf8')), `${c}: no category with the cart icon`);
   }
   // The gearworldgroup.com page speaks to retailers of "your own promotions", never "official".
-  for (const page of [groupPage(group, { products: 1000, retailers: 10 }), ...legalPaths().map(p => legalPage(group, p))]) {
+  for (const page of [groupPage(group, { products: 1000, retailers: 10 }), groupPage(group, { products: 1000, retailers: 10 }, 'GB', ''), ...legalPaths().map(p => legalPage(group, p))]) {
     assert.ok(!/\bofficial\b|\bpartners?\b|sponsored/i.test(page.replace(/rel="[^"]*"/g, '')), 'group page: no official, partner or sponsored');
   }
 });
@@ -246,7 +246,7 @@ test('the Hub legal pages say what is there: no affiliate links on the Hub, who 
   // And on 9/11/2026 (Awin or CJ, L107), on 15/11/2026 (the cookie gw_for of the Group's country links, L160), and on
   // 17/11/2026 (translated, EU GDPR and EU consumer law, L176), and on 18/11/2026 (the small sign-up window and "Remind
   // me on 27 Nov", L182).
-  assert.match(readFileSync('src/pages/info.js', 'utf8'), /const UPDATED = '18 November 2026';\nconst UPDATED_ISO = '2026-11-18';/);
+  assert.match(readFileSync('src/pages/info.js', 'utf8'), /const UPDATED = '(18 November 2026';\nconst UPDATED_ISO = '2026-11-18|23 November 2026';\nconst UPDATED_ISO = '2026-11-23)';/); // L218: the cookies page names the app row's browser storage
 });
 
 function hub() {

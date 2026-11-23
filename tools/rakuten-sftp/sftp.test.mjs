@@ -1,4 +1,4 @@
-// The Rakuten SFTP client (lessons L217) against a local fake server: list, a whole file, the first part of a file, a wrong
+// The Rakuten SFTP client (lessons L219) against a local fake server: list, a whole file, the first part of a file, a wrong
 // password, a changed host key, and never a server that is not Rakuten's. Run by tests/run-tests.ps1 after npm ci here.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';

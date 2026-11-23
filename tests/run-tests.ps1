@@ -3123,7 +3123,7 @@ http.createServer((q, s) => {
     }
 }
 
-# 8c6d. adtraction-feed-download.ps1 (Adtraction API v3, UK programmes of 23 Nov 2026, lessons L219) with a fake Adtraction
+# 8c6d. adtraction-feed-download.ps1 (Adtraction API v3, UK programmes of 23 Nov 2026, lessons L221) with a fake Adtraction
 if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
     Write-Host 'adtraction-feed-download.ps1 (token in DPAPI, approved programmes, JSON feed to ADTRACTION_<id>.csv.gz)'
     $atDir = Join-Path $work 'at'
@@ -3184,7 +3184,7 @@ http.createServer((q, s) => {
     }
 }
 
-# 8c6c. rakuten-feed-download.ps1 by SFTP only (lessons L217) with a fake SFTP server (Windows only: DPAPI, .cmd for npm ci)
+# 8c6c. rakuten-feed-download.ps1 by SFTP only (lessons L219) with a fake SFTP server (Windows only: DPAPI, .cmd for npm ci)
 if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
     Write-Host 'rakuten-feed-download.ps1 (SFTP only, host key pinned, one download per file, stream converter)'
     $rkSftp = Join-Path (Join-Path $repo 'tools') 'rakuten-sftp'
@@ -3245,7 +3245,7 @@ fs.writeFileSync(process.argv[2], zlib.gzipSync(L.join('\n')));
         $rkRep = (@(Get-ChildItem -LiteralPath $rkOut -Filter 'RAKUTEN_FEED_DOWNLOAD_*.txt' | Sort-Object LastWriteTime | Select-Object -Last 1) | ForEach-Object { [System.IO.File]::ReadAllText($_.FullName) }) -join "`n"
         Check ($LASTEXITCODE -eq 4 -and $rkRep.Contains('άλλο κλειδί')) 'rakuten: a server with another host key stops the tool before the password is sent'
         $rkCode = [System.IO.File]::ReadAllText($rkTool)
-        Check (-not $rkCode.Contains('FtpWebRequest') -and -not $rkCode.Contains('UsePassive')) 'rakuten: no plain FTP or FTPS code left (L217)'
+        Check (-not $rkCode.Contains('FtpWebRequest') -and -not $rkCode.Contains('UsePassive')) 'rakuten: no plain FTP or FTPS code left (L219)'
     } finally {
         if ($rkProc -and -not $rkProc.HasExited) { Stop-Process -Id $rkProc.Id -Force -ErrorAction SilentlyContinue }
     }

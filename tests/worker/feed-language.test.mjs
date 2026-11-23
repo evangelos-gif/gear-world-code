@@ -85,7 +85,7 @@ test('L165: the config check names a wrong feed language, one without its own co
   // shops of that day: La Redoute NL/DE, Dille & Kamille NL/FR, Miss Towels, WoodWick, Kerstland, Baobab (HGW), Tuinmeubelwereld (GGW).
   // + the Linkwise shops in Greek (Greece and Cyprus, L199: sites/<site>/linkwise-gr.js, tests/worker/linkwise-l199.test.mjs).
   // 150 since 21 Nov 2026 (L209): 34 more Greek Linkwise shops on the new-engine sites. 265 since the massive import of
-  // 22 Nov 2026: 114 more on WGW, MGW, HGW and KGW, and Autodoc on AGW; 267 with Filinda also on HGW and KGW (L218).
+  // 22 Nov 2026: 114 more on WGW, MGW, HGW and KGW, and Autodoc on AGW; 267 with Filinda also on HGW and KGW (L220).
   assert.equal(all.filter(x => x.endsWith(' el')).length, 267);
   // + bol.com in Dutch on its 10 sites (L204, sites/_shared/bol.js, tests/worker/bol-sites.test.mjs), and its NL/BE-only line
   // on TGW, BGW and PGW, which list none (review of 6954a135).

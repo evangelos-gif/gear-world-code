@@ -25,7 +25,7 @@ test('tracking links of Rakuten and Daisycon, and the shop page inside them', ()
   assert.equal(pageInLink(DC_LINK), 'https://www.laredoute.nl/ppdp/prod-1.aspx');
   assert.equal(networkOf({ RULES: { network: 'daisycon' } }).file, 'DAISYCON');
   assert.equal(networkOf({ RULES: {} }), null);
-  assert.deepEqual(Object.values(NETWORKS).map(n => n.idPrefix), ['cj', 'rk', 'dc', 'bol', 'lw', 'at'], 'bol.com from 16 Nov 2026 (chat 9), Linkwise from 19 Nov 2026 (L199), Adtraction from 23 Nov 2026 (L219)');
+  assert.deepEqual(Object.values(NETWORKS).map(n => n.idPrefix), ['cj', 'rk', 'dc', 'bol', 'lw', 'at'], 'bol.com from 16 Nov 2026 (chat 9), Linkwise from 19 Nov 2026 (L199), Adtraction from 23 Nov 2026 (L221)');
 });
 
 const dcAnswer = (products, name = 'La Redoute NL') => ({ datafeed: { info: { count: products.length }, programs: [{ program_info: { id: 16029, name, currency: 'EUR' }, products }] } });
@@ -323,7 +323,7 @@ test('Rakuten: a sample from the first part of a file, and a whole file converte
   assert.equal((await rk.convert([HDR, rkLine(1)].join('\n'), join(dir, 'bad2.part'))).error, 'no trailer (file cut short?)');
 });
 
-test('L217 Rakuten: a whole catalogue converted as a stream, pipe and XML, with the same trailer checks', async () => {
+test('L219 Rakuten: a whole catalogue converted as a stream, pipe and XML, with the same trailer checks', async () => {
   const dir = mkdtempSync(join(tmpdir(), 'gw-rk-stream-'));
   // Long descriptions, so the gzip stream comes in many chunks and records are cut between them.
   const big = i => rkLine(i, { long_description: `Soft cotton ${'x'.repeat(900)} ${i}` });

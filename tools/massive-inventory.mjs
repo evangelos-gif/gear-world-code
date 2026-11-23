@@ -79,7 +79,7 @@ export function parseDaisyconReport(text) {
   }
   return progs;
 }
-// Rakuten (lessons L217): the advertiser number (MID) and name of each catalogue, from the sample or download lines.
+// Rakuten (lessons L219): the advertiser number (MID) and name of each catalogue, from the sample or download lines.
 export function parseRakutenReport(text) {
   const mids = new Map();
   for (const l of lines(text)) {
@@ -88,7 +88,7 @@ export function parseRakutenReport(text) {
   }
   return mids;
 }
-// The Adtraction check (tools/adtraction-feed-download.ps1, L219): "  <programme>  <name>  [GB, GBP]  feed: <n> προϊόντα".
+// The Adtraction check (tools/adtraction-feed-download.ps1, L221): "  <programme>  <name>  [GB, GBP]  feed: <n> προϊόντα".
 export function parseAdtractionReport(text) {
   const out = new Map();
   for (const l of lines(text)) {

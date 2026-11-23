@@ -524,6 +524,17 @@ body.has-compare-bar { padding-bottom: 76px; }
    plain block above the header (it never covers the offer bar or the menu, and nothing in it moves). */
 .country-bar { background: var(--panel-2); color: var(--text); border-bottom: 3px solid var(--gold); }
 .country-row { margin: 0 auto; padding-top: 8px; padding-bottom: 8px; font-size: .92rem; font-weight: 600; line-height: 1.4; text-align: center; }
+/* The Gear World app (lessons L218): a row under the hero buttons of the home page, for visitors from a country of the
+   app. Google's own badge, never redrawn, with a quarter of its height of clear space around it (the gaps; the English
+   file has its own margin), and a close button. The words say what it is; nothing in it moves. */
+.app-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; margin: 0 0 14px; }
+.app-text { margin: 0; color: #e2e4e8; font-size: .95rem; line-height: 1.35; }
+.app-name { margin-right: 4px; color: var(--gold); font-weight: 700; }
+.app-badge { display: inline-flex; flex: none; border-radius: 10px; }
+.app-badge img { display: block; width: auto; height: 60px; }
+.app-close { flex: none; width: 44px; height: 44px; padding: 0; border: 1px solid var(--line); border-radius: 999px; background: transparent; color: var(--text); font: inherit; font-size: 1.4rem; line-height: 1; cursor: pointer; }
+.app-close:hover, .app-close:focus-visible { border-color: var(--gold); }
+.app-close[hidden] { display: none; }
 /* The discount codes bar (lessons L115): between the masthead row and the menu, one link to /discount-codes/. The site's
    panel colour with its main text (7:1 or more on every site); the tag and the arrow in the link colour; the words say
    it all (no meaning in a colour), and nothing in it moves. */
@@ -581,6 +592,11 @@ body.has-compare-bar { padding-bottom: 76px; }
   .hero-actions { order: 2; margin-bottom: 14px; }
   .hero .lede { order: 3; margin-bottom: 8px; font-size: .98rem; }
   .hero-facts { order: 4; }
+  /* The app row (lessons L218) comes right after the hero buttons, so the search box and "Browse by category" keep
+     their place on the first screen (L30); its words take a line of their own above the badge. */
+  .app-bar { order: 2; gap: 10px 12px; margin-bottom: 12px; }
+  .app-text { flex-basis: 100%; font-size: .88rem; }
+  .app-badge img { height: 54px; }
   /* The country bar (lessons L107) takes fewer lines: its words are long in every language. */
   .country-row { padding-top: 5px; padding-bottom: 5px; font-size: .82rem; line-height: 1.3; }
   /* Every language but English is longer (Greek, Russian, German, Dutch...; lessons L24): a slightly smaller title, so

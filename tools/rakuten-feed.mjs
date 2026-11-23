@@ -170,7 +170,7 @@ export async function convert(text, outFile) {
   return S;
 }
 
-// The whole file as a stream (lessons L217): a catalogue whose text is over 512 MB cannot be one string in Node
+// The whole file as a stream (lessons L219): a catalogue whose text is over 512 MB cannot be one string in Node
 // (ERR_STRING_TOO_LONG, as the Awin feeds in L185), so the records are read and written one by one. Same checks as convert().
 export async function convertFile(input, outFile) {
   const fd = openSync(input, 'r');
@@ -224,7 +224,7 @@ export async function convertFile(input, outFile) {
     if (rec) emit(rec); else S.bad++;
   };
   const drain = () => new Promise(r => gz.once('drain', r));
-  // A file cut short or damaged on the way (gzip stops with an error): nothing is kept (L217: the server's sizes are no check).
+  // A file cut short or damaged on the way (gzip stops with an error): nothing is kept (L219: the server's sizes are no check).
   let broken = '';
   try {
   for await (const chunk of stream) {

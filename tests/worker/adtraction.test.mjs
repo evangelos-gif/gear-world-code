@@ -1,4 +1,4 @@
-// Adtraction (UK programmes of 23 Nov 2026, massive import wave 1, lessons L219): the click, the feed row in the Awin
+// Adtraction (UK programmes of 23 Nov 2026, massive import wave 1, lessons L221): the click, the feed row in the Awin
 // column names, the programme list and the download into ADTRACTION_<programme>.csv.gz (old copy kept, cut answer refused).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -12,7 +12,7 @@ import { feedOf, parseNetworks } from '../../tools/feed-profile.mjs';
 
 const TOKEN = 'TEST' + 'TOKEN0123456789ABCDEF';
 
-test('L219: an Adtraction click is /t/t with a= and as=; with our channel only ours', () => {
+test('L221: an Adtraction click is /t/t with a= and as=; with our channel only ours', () => {
   const l = adtractionLink(1500, 12345, 'https://www.livingchic.co.uk/sofa?x=1');
   assert.equal(l, 'https://track.adtraction.com/t/t?a=1500&as=12345&t=2&tk=1&url=https%3A%2F%2Fwww.livingchic.co.uk%2Fsofa%3Fx%3D1');
   assert.equal(isAdtractionLink(l), true);
@@ -29,7 +29,7 @@ test('L219: an Adtraction click is /t/t with a= and as=; with our channel only o
   assert.equal(isToken('short'), false);
 });
 
-test('L219: one JSON product -> one Awin row; the feed\'s click when it is ours, else the standard deep link', () => {
+test('L221: one JSON product -> one Awin row; the feed\'s click when it is ours, else the standard deep link', () => {
   const p = { productName: 'Lisbon 3 Seater Sofa', productPrice: 499, oldPrice: '649.00', currency: 'GBP', productUrl: 'https://www.livingchic.co.uk/lisbon',
     trackingUrl: '', imageUrl: 'https://img.livingchic.co.uk/1.jpg', inStock: true, ean: '5060000000001', sku: 'LS-3', manufacturer: 'Living Chic',
     productCategory: 'Furniture > Sofas', productDescription: 'A sofa' };
@@ -54,7 +54,7 @@ const fakeFetch = (handler) => async (url, init) => {
   return new Response(JSON.stringify(r.json), { status: r.status || 200 });
 };
 
-test('L219: the approved programmes of a channel, with their feeds', async () => {
+test('L221: the approved programmes of a channel, with their feeds', async () => {
   const fetchImpl = fakeFetch((path, body) => {
     assert.equal(path, '/v3/partner/programs/');
     assert.deepEqual(body, { market: 'GB', channelId: 12345, approvalStatus: 1 });
@@ -68,7 +68,7 @@ test('L219: the approved programmes of a channel, with their feeds', async () =>
   assert.equal(bad.status, 401);
 });
 
-test('L219: the download writes ADTRACTION_<programme>.csv.gz, keeps the old copy, refuses a cut answer', async () => {
+test('L221: the download writes ADTRACTION_<programme>.csv.gz, keeps the old copy, refuses a cut answer', async () => {
   const dir = mkdtempSync(join(tmpdir(), 'at-'));
   let n = 150;
   const fetchImpl = fakeFetch((path, body) => {

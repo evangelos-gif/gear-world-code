@@ -1,6 +1,6 @@
 # Massive import, 22 Nov 2026, wave 2: Greece and Cyprus (Linkwise). One pair per line: rules:site.
 # legacy-import-batch.ps1 -Pairs 'file:tools/massive/gr-wave-1122.txt' (dry run first, then -Apply with ΕΓΚΡΙΝΩ ALL IMPORTS).
-# Products in the dry run of 22 Nov 23:22 (before the L218 fixes of the categories) after each name.
+# Products in the dry run of 22 Nov 23:22 (before the L220 fixes of the categories) after each name.
 # Left out of this wave, each with its next step:
 #   lw-438 Paraxenies, lw-12386 The Brands Store: no photo in the Linkwise feed (ask Linkwise or the shop for image_url).
 #   lw-12323 BeFashion: links are http:// and the feed is gadgets, not fashion (needs its own site rule).
@@ -54,9 +54,9 @@ lw-12873:mgw  # X-Ray Shoes GR, 441
 lw-12972:wgw  # Sante Shoes GR, 928
 lw-13002:wgw  # Onlineshoes.gr GR, 592
 lw-13083:wgw  # PieDini GR, 2028
-lw-13088:hgw  # Filinda GR: home on HGW, women on WGW, children on KGW (L218)
-lw-13088:wgw  # Filinda GR: home on HGW, women on WGW, children on KGW (L218)
-lw-13088:kgw  # Filinda GR: home on HGW, women on WGW, children on KGW (L218)
+lw-13088:hgw  # Filinda GR: home on HGW, women on WGW, children on KGW (L220)
+lw-13088:wgw  # Filinda GR: home on HGW, women on WGW, children on KGW (L220)
+lw-13088:kgw  # Filinda GR: home on HGW, women on WGW, children on KGW (L220)
 lw-13100:wgw  # Myaroma.gr GR, 1115
 lw-13136:wgw  # Tzimas Cosmetics GR, 112
 lw-13166:wgw  # e-kellys GR, 681

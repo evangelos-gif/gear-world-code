@@ -111,7 +111,7 @@ test('massive inventory: the candidates list of 22 Nov 2026 is well formed and l
   assert.ok(!names.includes('phones direct'));
 });
 
-test('L219: the Adtraction check report gives the programme numbers of the Adtraction shops by name', async () => {
+test('L221: the Adtraction check report gives the programme numbers of the Adtraction shops by name', async () => {
   const { parseAdtractionReport, filesOf } = await import('../../tools/massive-inventory.mjs');
   const m = parseAdtractionReport('Εγκεκριμένα προγράμματα (GB): 2\r\n  1500  Living Chic  [GB, GBP]  feed: 420 προϊόντα  (κανάλι 12345, όχι ακόμα στον φάκελο)\r\n  1501  Showery  [GB, GBP]  feed: 0 προϊόντα  (κανάλι 12345, όχι ακόμα στον φάκελο)');
   assert.deepEqual([...m.keys()], ['1500', '1501']);

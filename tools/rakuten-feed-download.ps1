@@ -9,8 +9,8 @@
   in the same folder and with the same column names as the Awin feeds, with the Rakuten tracking link of each product in
   aw_deep_link, so tools/legacy-import.ps1 imports them like CJ shops (lessons L86).
 
-  Only SFTP (lessons L217): Rakuten's publisher guide offers SFTP and a plain FTP that is being retired; plain FTP sends the
-  password unencrypted, so it is never used (before L217 the tool tried FTPS, which Rakuten does not offer, and then fell
+  Only SFTP (lessons L219): Rakuten's publisher guide offers SFTP and a plain FTP that is being retired; plain FTP sends the
+  password unencrypted, so it is never used (before L219 the tool tried FTPS, which Rakuten does not offer, and then fell
   back to plain FTP). The SFTP client is tools\rakuten-sftp\sftp.mjs (the npm package ssh2, pinned in its package-lock,
   installed once with npm ci). The server's host key is pinned: the first connection keeps its fingerprint in
   <home>\gear-world-secrets\rakuten-sftp-hostkey.txt, and the tool stops if a later connection shows another one.
@@ -192,7 +192,7 @@ try {
 } catch { Say 'Δεν μπόρεσα να διαβάσω τα φυλαγμένα στοιχεία. Σβήσε το αρχείο τους και ξανατρέξε για να τα δώσεις ξανά.' 'Red'; Say $SecretFile; Finish 3 }
 if (-not (Test-RakutenHost $script:server) -or -not $script:user -or -not $script:pass) { Say 'Τα φυλαγμένα στοιχεία δεν μοιάζουν σωστά. Σβήσε το αρχείο τους και ξανατρέξε.' 'Red'; Say $SecretFile; Finish 3 }
 
-# 2. The list of catalogue files, by SFTP only (lessons L217: plain FTP sends the password unencrypted and is being retired).
+# 2. The list of catalogue files, by SFTP only (lessons L219: plain FTP sends the password unencrypted and is being retired).
 if (-not (Ensure-Sftp)) { Say 'Η εγκατάσταση του προγράμματος SFTP (npm ci) απέτυχε. Στείλε στο Claude αυτό το μήνυμα.' 'Red'; Finish 3 }
 if (Test-Path -LiteralPath $HostKeyFile) { $script:hostKey = ([System.IO.File]::ReadAllText($HostKeyFile)).Trim() }
 $Lst = Invoke-Sftp @('--mode', 'list')
@@ -219,7 +219,7 @@ foreach ($e in @($Lst.files)) {
     try { $when = ([DateTimeOffset]::FromUnixTimeSeconds([long]$e.mtime)).UtcDateTime.ToString('yyyy-MM-dd HH:mm') } catch { }
     $files.Add((New-Object PSObject -Property @{ size = [long]$e.size; date = $when; mid = $m.Groups[1].Value; sid = $m.Groups[2].Value; ext = $m.Groups[3].Value; name = [string]$e.name }))
 }
-# One catalogue per advertiser (L217): the server keeps the same catalogue twice, as .txt.gz (pipes) and .xml.gz; the
+# One catalogue per advertiser (L219): the server keeps the same catalogue twice, as .txt.gz (pipes) and .xml.gz; the
 # .txt.gz is the smaller one. Both used to be downloaded, one over the other.
 $byMid = @{}
 foreach ($f in $files) {
@@ -243,7 +243,7 @@ foreach ($f in $pick) {
     $k++
     Say ''
     if ($f.size -gt ($MaxMb * 1MB)) { Say ('MID {0}: {1} MB, πάνω από το όριο των {2} MB. Δεν κατεβαίνει (μεγάλωσε το -MaxMb αν το θέλεις).' -f $f.mid, [Math]::Round($f.size / 1MB, 1), $MaxMb) 'Yellow'; continue }
-    # With -Apply each file is downloaded once (L217): the samples were in the read-only run, the checks come after the download.
+    # With -Apply each file is downloaded once (L219): the samples were in the read-only run, the checks come after the download.
     if ($Apply) { Say ('MID {0} | {1} MB: για λήψη.' -f $f.mid, [Math]::Round($f.size / 1MB, 1)); $good.Add($f); continue }
     if ($k -gt $SampleMax) { Say ('MID {0}: χωρίς δείγμα (όριο {1} δειγμάτων).' -f $f.mid, $SampleMax); $good.Add($f); continue }
     $tmp = Join-Path ([System.IO.Path]::GetTempPath()) ('gw-rakuten-' + $f.mid + '.gz')

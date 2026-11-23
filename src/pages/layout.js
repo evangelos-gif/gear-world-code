@@ -5,6 +5,7 @@ import { promoBarHtml } from './offers.js';
 import { activePromos } from '../lib/promos.js';
 import { deliveryCountries, shownCountries, COUNTRY_NAMES, FLAGS, WORLDWIDE } from '../lib/delivery.js';
 import { GOOGLE_ADS_ID, OUTBOUND_LABEL, GEAR_WORLD_DOMAINS } from '../lib/ads.js';
+import { APP_BAR_TEXT, APP_BADGE_LABEL, APP_BADGE_LANGS, appPlayUrl } from '../lib/app.js';
 
 // Files under /assets/ are cached for a year, so every link to them carries ?v=<assetVersion> (lessons L31).
 // Without it, a phone kept an old icons.svg that had no cart icon, and the cart button showed empty (the saved
@@ -299,6 +300,19 @@ export function browseBarHtml(country, path = '/') {
   const name = COUNTRY_NAMES[cc] || cc;
   const back = `${/^\/[^?#]*$/.test(path) ? path : '/'}?for=off`;
   return toString(html`<div class="country-bar browse-bar" role="note"><p class="wrap country-row">${tr(BROWSE_BAR_TEXT, { text: name, country: cc })} <a href="${back}" rel="nofollow">${tr(BROWSE_BAR_LINK)}</a></p></div>`);
+}
+
+// The Gear World app on Google Play (owner, 22 Nov 2026, lessons L218): a row at the top of the home page, right under
+// the hero buttons, so the search box and "Browse by category" keep their place on a phone's first screen (L30). The
+// official badge (Google's own PNG, never redrawn) in English in the HTML; the site script swaps it for the visitor's
+// language (data-langs), shows the close button and remembers a close. Never part of a cached page: the engine adds it
+// to each answer of a visitor from a country of the app (src/lib/app.js, src/engine.js withAppBar).
+export function appBarHtml(site) {
+  return toString(html`<div class="app-bar" data-app-bar>
+    <p class="app-text"><span class="app-name" translate="no">Gear World app</span> <span class="app-words">${APP_BAR_TEXT}</span></p>
+    <a class="app-badge" href="${appPlayUrl(site.code)}" target="_blank" rel="noopener" aria-label="${APP_BADGE_LABEL}"><img src="${asset(site, 'app/google-play-en.png')}" data-app-badge data-langs="${APP_BADGE_LANGS.join(' ')}" alt="" width="646" height="250" decoding="async"></a>
+    <button type="button" class="app-close" data-app-close aria-label="Close" hidden><span aria-hidden="true">&times;</span></button>
+  </div>`);
 }
 
 // The discount codes bar (owner's decision, 10 Nov 2026, lessons L115): a thin bar between the masthead row and the menu,

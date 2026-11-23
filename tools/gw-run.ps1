@@ -29,7 +29,7 @@ $Repo = 'gear-world-code'
 
 # Folder of the downloaded versions: <home>\gear-world-tools (tests: their own folder). On 23 Nov 2026 Norton removed
 # gw-run.ps1 from %TEMP% ("IDP.WebShield.PSHelper36"); the owner excluded only C:\Users\vagge\gear-world-tools from its
-# scans, so the versions and the tools run from there (lessons L220). Older versions in %TEMP% still serve as the base
+# scans, so the versions and the tools run from there (lessons L222). Older versions in %TEMP% still serve as the base
 # when codeload.github.com cannot be reached (L212).
 $TempRoot = Join-Path $HOME 'gear-world-tools'
 $OldRoots = @([System.IO.Path]::GetTempPath())

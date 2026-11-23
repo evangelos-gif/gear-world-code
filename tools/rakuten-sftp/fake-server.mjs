@@ -1,4 +1,4 @@
-// A small SFTP server on 127.0.0.1 for the tests of the Rakuten SFTP client (lessons L217): one user, one folder, read-only.
+// A small SFTP server on 127.0.0.1 for the tests of the Rakuten SFTP client (lessons L219): one user, one folder, read-only.
 // It answers only what the client uses (stat, open, read, close, opendir, readdir). Never used against the real Rakuten.
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';

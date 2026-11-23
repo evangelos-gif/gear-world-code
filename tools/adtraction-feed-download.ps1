@@ -1,6 +1,6 @@
 ﻿<#
 .SYNOPSIS
-  Adtraction: lists the programmes we are approved for and downloads their product feeds into the feed folder (L219).
+  Adtraction: lists the programmes we are approved for and downloads their product feeds into the feed folder (L221).
 
 .DESCRIPTION
   Adtraction is a Swedish affiliate network. On 23 Nov 2026 it approved Gear World for 9 UK shops (chat 7 sheet
