@@ -141,3 +141,25 @@ test('L56: the plan writes places.json for the comparison, with the names to rep
   const hgwSql = readFileSync(join(out, 'sql', 'hgw', readdirSync(join(out, 'sql', 'hgw')).filter(f => f.endsWith('.sql'))[0]), 'utf8');
   assert.match(hgwSql, /CASE WHEN products\.subcategory IN \('Laundry & ironing'/);
 });
+
+test('L223: categories only: one UPDATE per new place for the active products that move, the rollback puts back the old place', async () => {
+  const { categoryFix } = await import('../../tools/legacy-import-diff.mjs');
+  const places = [['lw399:a', 'Shoes', 'Sandals'], ['lw399:b', 'Bags & Accessories', 'Bags'], ['lw399:c', 'Shoes', 'Sandals'], ['lw399:d', 'Clothing', 'Jeans'], ['lw399:e', 'Clothing', 'Dresses']];
+  const rows = [
+    { id: 1, awin_product_id: 'lw399:a', is_active: 1, site_category: 'Beauty & Fragrances', subcategory: 'Skincare' },
+    { id: 2, awin_product_id: 'lw399:b', is_active: 1, site_category: 'Bags & Accessories', subcategory: 'Bags' },
+    { id: 3, awin_product_id: 'lw399:c', is_active: 1, site_category: 'Beauty & Fragrances', subcategory: 'Skincare' },
+    { id: 4, awin_product_id: 'lw399:d', is_active: 0, site_category: 'Beauty & Fragrances', subcategory: 'Skincare' },
+    { id: 5, awin_product_id: 'other', is_active: 1, site_category: 'Beauty & Fragrances', subcategory: 'Skincare' }];
+  const r = categoryFix(places, rows);
+  assert.equal(r.n, 2, 'only the active products whose place changes');
+  assert.equal(r.sql, "UPDATE products SET site_category = 'Shoes', subcategory = 'Sandals', updated_at = datetime('now') WHERE id IN (1, 3);\n");
+  assert.equal(r.rollback, "UPDATE products SET site_category = 'Beauty & Fragrances', subcategory = 'Skincare', updated_at = datetime('now') WHERE id IN (1, 3);\n");
+  assert.deepEqual(r.moves, [['Beauty & Fragrances > Skincare  ->  Shoes > Sandals', 2]]);
+  // A stable-key site: the database row has another Awin id but the same shop id.
+  const k = categoryFix([['lw399:x', 'Shoes', 'Boots']], [{ id: 9, awin_product_id: 'old:x', merchant_product_id: 'X1', is_active: 1, site_category: 'Clothing', subcategory: 'Clothing' }], [['lw399:x', 'X1']]);
+  assert.equal(k.n, 1);
+  // Large groups: 400 ids per statement.
+  const many = Array.from({ length: 900 }, (_, i) => ({ id: i + 1, awin_product_id: `k${i}`, is_active: 1, site_category: 'A', subcategory: 'B' }));
+  assert.equal(categoryFix(many.map(x => [x.awin_product_id, 'C', 'D']), many).sql.trim().split('\n').length, 3);
+});

@@ -18,6 +18,8 @@
   without -Apply its plan only, with -Apply its import (Time Travel restore point first), covered by the one phrase.
   -Pairs none: no legacy imports, only the clean-ups, -Sites and/or TGW.
   -Pairs 'file:tools/massive/gr-wave-1122.txt': the pairs from a file of this code version (one per line, '#' comments).
+  -CategoriesOnly (lessons L223): each pair only moves its products already on the site to the place the rules give
+  now and hides the ones the rules leave out (no new products, no prices); covered by the one phrase.
 
   -Tgw: also Technology Gear World, after the pairs and clean-ups. Without -Apply its read-only plan (tgw-import-plan.ps1);
   with -Apply its import (tgw-cloudflare.ps1 -Step import), covered by the one phrase.
@@ -38,6 +40,7 @@ param(
     [switch]$Tgw,
     [string]$Cleanups = '',
     [switch]$PaidPlan,
+    [switch]$CategoriesOnly,
     [string]$Sites = '',
     [string]$Approve = '',
     [int]$MinFreeMb = 1024,
@@ -127,6 +130,7 @@ function Normalize-Phrase([string]$s) {
 
 $mode = 'ΔΟΚΙΜΗ - ΜΟΝΟ ΑΝΑΓΝΩΣΗ'
 if ($Apply) { $mode = 'ΕΙΣΑΓΩΓΗ - μία φράση έγκρισης για όλα' }
+if ($CategoriesOnly) { $mode = $mode + ' - ΜΟΝΟ ΚΑΤΗΓΟΡΙΕΣ (L223: αλλάζει μόνο η κατηγορία όσων είναι ήδη στα sites και κρύβονται όσα δεν ανήκουν)' }
 Write-Host ''
 Write-Host ('Εισαγωγές για {0} ζευγάρια και {1} νέα sites - {2}' -f $list.Count, $siteList.Count, $mode) -ForegroundColor Cyan
 
@@ -184,6 +188,7 @@ foreach ($pair in $list) {
     Write-Host ''
     Write-Host ('===== {0}/{1}: {2} -> {3} =====' -f $n, $list.Count, $parts[0], $parts[1].ToUpper()) -ForegroundColor Cyan
     $a = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $tool, '-Retailer', $parts[0], '-Site', $parts[1], '-OutDir', $OutDir, '-NoClipboard')
+    if ($CategoriesOnly) { $a += '-CategoriesOnly' }
     if ($Archive) { $a += @('-Archive', $Archive) }
     if ($WorkDir) { $a += @('-WorkDir', $WorkDir) }
     # The one phrase covers it: the tool gets its own exact phrase (Latin EGKRINO, the same phrase without Greek letters

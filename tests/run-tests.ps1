@@ -2708,6 +2708,14 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
             Check ($tt.Contains('TGW: exit 0') -and $tt.Contains('##### PLAN TGW') -and $tt.Contains('TGW IMPORT PLAN (dry run, nothing imported)')) 'import batch with -Tgw: the TGW plan is in the report'
         } else { Check $false 'import batch with -Tgw: one combined report' }
         Check (-not ((LiCalls) -match '--file|time-travel')) 'import batch with -Tgw without -Apply: only reads'
+        # -CategoriesOnly (L223): the batch passes it on; the import loads only the category file, never the product SQL.
+        $coOut = Join-Path $work 'batch-cat-out'
+        if (Test-Path -LiteralPath $liCalls) { Remove-Item -LiteralPath $liCalls -Force }
+        & $exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $repo 'tools\legacy-import-batch.ps1') -Pairs 'joybuy:wgw' -CategoriesOnly -Apply -Approve 'egkrino all imports' -Archive $jArch -WorkDir $liWork -OutDir $coOut -NoClipboard | Out-Null
+        $coCalls = LiCalls
+        Check (-not ($coCalls -match '[\\/]sql[\\/]wgw[\\/]')) 'import batch -CategoriesOnly: no product SQL file is loaded'
+        $coRep = (@(Get-ChildItem -LiteralPath $coOut -File -Filter 'IMPORT_*.txt' -ErrorAction SilentlyContinue) | ForEach-Object { [System.IO.File]::ReadAllText($_.FullName) }) -join "`n"
+        Check ($coRep.Contains('ΜΟΝΟ ΚΑΤΗΓΟΡΙΕΣ') -and $coRep.Contains('ΕΤΟΙΜΟ (μόνο κατηγορίες)')) 'import batch -CategoriesOnly: the report says categories only and ends ready'
         # -Pairs 'file:<file>' (22 Nov 2026, the Greek wave of 108 shops): the list from a file, comments and blank lines skipped.
         $pfOut = Join-Path $work 'batch-file-out'
         $pfFile = Join-Path $work 'pairs-test.txt'
