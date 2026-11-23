@@ -221,34 +221,35 @@ test('the Hub: no shop, partner, sponsor or basket wording in any page, script o
   assert.match(readFileSync(`${PUB}/hub-v2.css`, 'utf8'), /\.gwh2-deal-retailer\{/);
 });
 
-test('the Hub legal pages say what is there: one affiliate link on the Hub (the Featured pick), who runs it, honest dates', () => {
+test('the Hub legal pages say what is there: no affiliate links on the Hub (since L222), who runs it, honest dates', () => {
   const disc = readFileSync(`${PUB}/affiliate-disclosure/index.html`, 'utf8');
   // 9/11/2026 (L107): the links of the sites go through Awin or CJ, so the date moved on with the text. 17/11/2026
-  // (L176): since L121 (14/11/2026) the "Featured pick" card of the home page is a Sovrn Commerce link straight to the
-  // retailer, so "The Hub itself has no affiliate links" was no longer true: the pages name that one exception.
-  assert.match(disc, /<p class="lg-updated">Last updated: 17 November 2026<\/p>/);
-  assert.ok(!/no affiliate links/.test(disc), 'the disclosure no longer says the Hub has no affiliate links');
-  assert.match(disc, /<p>The one exception is the "Featured pick" card on the home page, marked "Affiliate link"\. It takes you straight to the retailer through another affiliate network, Sovrn Commerce\. If you then buy something, the retailer may pay Gear World a commission, at no extra cost to you\. The Hub has no paid placements\.<\/p>/);
+  // (L176): from L121 (14/11/2026) the "Featured pick" card of the home page was a Sovrn Commerce link straight to the
+  // retailer, so the pages named that one exception. 24/11/2026 (L222): Sovrn turned the Hub down and the card went, so
+  // "The Hub itself has no affiliate links" is true again, and the date moved on with the text.
+  assert.match(disc, /<p class="lg-updated">Last updated: 24 November 2026<\/p>/);
+  assert.match(disc, /never straight to a retailer\. The Hub itself has no affiliate links and no paid placements\. On a Gear World site/);
+  assert.ok(!/Sovrn|Featured pick|one exception/.test(disc), 'no Sovrn card any more');
   assert.match(disc, /\(search results, gift guides, deals and the world cards\) take you to pages of the Gear World sites, never straight to a retailer/);
-  // The words of the card itself: its title and its badge.
+  // The card and its words are gone from the home page (L222).
   const home = readFileSync(`${PUB}/index.html`, 'utf8');
-  assert.match(home, /data-gwh2="featuredTitle">Featured pick</);
-  assert.match(home, /data-gwh2="featuredBadge">Affiliate link</);
+  assert.ok(!/data-gwh2="featured|Featured pick|sovrn/i.test(home), 'no Featured pick card');
   for (const page of ['privacy', 'cookies', 'about']) {
-    assert.ok(!/no affiliate links/.test(readFileSync(`${PUB}/${page}/index.html`, 'utf8')), `${page}: no "no affiliate links"`);
+    assert.ok(!/Sovrn|Featured pick/.test(readFileSync(`${PUB}/${page}/index.html`, 'utf8')), `${page}: no Sovrn`);
   }
-  assert.match(readFileSync(`${PUB}/cookies/index.html`, 'utf8'), /\(Awin, CJ for a few retailers, or Sovrn Commerce for the "Featured pick" card\)/);
-  assert.match(readFileSync(`${PUB}/about/index.html`, 'utf8'), /through the Awin and CJ affiliate networks, and through Sovrn Commerce for the "Featured pick" card on the Hub\.<\/p>/);
+  assert.match(readFileSync(`${PUB}/cookies/index.html`, 'utf8'), /and the affiliate network \(Awin, or for a few retailers CJ\), may set their own cookies\./);
+  assert.match(readFileSync(`${PUB}/about/index.html`, 'utf8'), /we may earn a commission through the Awin and CJ affiliate networks\.<\/p>/);
   const priv = readFileSync(`${PUB}/privacy/index.html`, 'utf8');
   // 8/11/2026 (L106): the sign-up forms use Cloudflare Turnstile, so the date moved on with the text; 17/11/2026 (L175,
   // L176): the language line and "outside the UK and the European Economic Area"; 20/11/2026 (L180): a search written
   // as a sentence may be read by Cloudflare Workers AI (live 17/11/2026 21:19, so the date stays 17 November).
-  // 18/11/2026: the small sign-up window and "Remind me on 27 Nov" (L182).
-  assert.match(priv, /<p class="lg-updated">Last updated: 18 November 2026<\/p>/);
+  // 18/11/2026: the small sign-up window and "Remind me on 27 Nov" (L182). 24/11/2026: no Sovrn link any more (L222).
+  assert.match(priv, /<p class="lg-updated">Last updated: 24 November 2026<\/p>/);
   assert.match(priv, /Searches in a language other than English, or written as a sentence, may be read by Cloudflare Workers AI, inside our hosting provider, to translate them into English and to find the product, any price limit and who it is for\./);
   assert.match(priv, /also use Cloudflare Turnstile/);
-  assert.match(priv, /The links to retailers on those sites go through the Awin affiliate network, or for a few retailers through CJ \(Commission Junction\)\. The one affiliate link on the Hub itself, the "Featured pick" card on the home page, goes to the retailer through Sovrn Commerce\./);
-  assert.match(priv, /the <a href="https:\/\/www\.cj\.com\/legal\/privacy">CJ privacy policy<\/a> and the <a href="https:\/\/www\.sovrn\.com\/legal\/privacy-policy\/">Sovrn privacy policy<\/a>\./);
+  assert.match(priv, /The Hub itself has no affiliate links; the links to retailers on those sites go through the Awin affiliate network, or for a few retailers through CJ \(Commission Junction\)\./);
+  assert.match(priv, /the <a href="https:\/\/www\.awin\.com\/gb\/privacy">Awin privacy policy<\/a> and the <a href="https:\/\/www\.cj\.com\/legal\/privacy">CJ privacy policy<\/a>\./);
+  assert.ok(!/sovrn|Featured pick/i.test(priv), 'no Sovrn privacy policy any more');
   const terms = readFileSync(`${PUB}/terms/index.html`, 'utf8');
   assert.match(terms, /<p class="lg-updated">Last updated: 7 November 2026<\/p>/);
   assert.match(terms, /operated by Gear World \(run by Evangelos Kalogerakis, United Kingdom\)/);

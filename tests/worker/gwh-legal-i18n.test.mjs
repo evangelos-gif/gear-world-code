@@ -48,9 +48,9 @@ test('L176: every text of the dictionaries is on a legal page (or said by legal.
   for (const p of PAGES) {
     const h = read(`${p}/index.html`);
     assert.match(h, /<html lang="en" data-lg-i18n>/, p);
-    assert.match(h, /<script src="\/legal\/legal\.js\?v=(20261119-remind1|20261123-app1)" defer><\/script>/, p);
+    assert.match(h, /<script src="\/legal\/legal\.js\?v=(20261119-remind1|20261123-app1|20261124-legal1)" defer><\/script>/, p);
   }
-  assert.match(legalJs, /var VERSION = "(20261119-remind1|20261123-app1)";/, 'the dictionaries are asked with the same ?v= as the script (L180: the privacy sentence of 20/11/2026)');
+  assert.match(legalJs, /var VERSION = "(20261119-remind1|20261123-app1|20261124-legal1)";/, 'the dictionaries are asked with the same ?v= as the script (L180: the privacy sentence of 20/11/2026; L222: the texts without Sovrn)');
   // The order of the language: the visitor's choice (English only with the mark of the menu), then the country.
   assert.match(legalJs, /LOCALES\.indexOf\(lang\) < 0 \|\| \(lang === "en-GB" && !chosen\)/);
   assert.match(legalJs, /document\.documentElement\.getAttribute\("data-country-lang"\)/);
@@ -66,7 +66,7 @@ test('L176: the cookies page lists the new browser storage of L175 and the seaso
   const c = read('cookies/index.html');
   for (const name of ['gwh-language', 'gwh-language-chosen', 'gwh2-season-paused', 'gwh_cookie_consent']) assert.ok(c.includes(`<code>${name}</code>`), name);
   // 18/11/2026: the browser storage of the small sign-up window (L182).
-  assert.match(c, /<p class="lg-updated">Last updated: (18|23) November 2026<\/p>/); // L218: 23/11, the app row's storage
+  assert.match(c, /<p class="lg-updated">Last updated: (18|23|24) November 2026<\/p>/); // L218: 23/11, the app row's storage; L222: 24/11, no Sovrn
   for (const name of ['gwh_popup_date', 'gwh_popup_done']) assert.ok(c.includes(`<code>${name}</code>`), name);
   const p = read('privacy/index.html');
   assert.match(p, /<li><strong>Language\.<\/strong> If you have not chosen a language, the Hub shows its pages in the language of your country, as reported by our hosting provider\. Your country is not stored\.<\/li>/);
@@ -107,24 +107,25 @@ test('L176: every block of the legal pages is in the dictionaries (page to dicti
     '<code>_gcl_au</code>, <code>_gcl_aw</code> and similar', '<code>__cf_bm</code> and similar']) assert.ok(k in dict, k);
 });
 
-// Since L121 (14/11/2026) the "Featured pick" card of the home page is a Sovrn Commerce link: the disclosure, privacy and
-// cookies pages say so in every language, with the words of the card itself (its title and badge in hub-v2.js).
-test('L176: the Featured pick (Sovrn Commerce) is named in every language, with the words of the card', () => {
-  const hub = read('hub-v2.js');
-  const list = key => JSON.parse(hub.match(new RegExp(`${key}: (\\[[^\\]]+\\])`))[1]);
-  const titles = list('featuredTitle');
-  const badges = list('featuredBadge');
-  const ORDER = ['en-GB', 'el-GR', 'de-DE', 'fr-FR', 'it-IT', 'es-ES', 'pt-PT', 'nl-NL', 'sq-AL', 'ro-RO', 'ru-RU'];
-  const disc = 'The one exception is the "Featured pick" card on the home page, marked "Affiliate link". It takes you straight to the retailer through another affiliate network, Sovrn Commerce. If you then buy something, the retailer may pay Gear World a commission, at no extra cost to you. The Hub has no paid placements.';
+// From L121 (14/11/2026) to L222 the "Featured pick" card of the home page was a Sovrn Commerce link, and from L176
+// (17/11/2026) the disclosure, privacy, cookies and /about/ pages named it in every language. Sovrn turned the Hub down
+// on 23/11/2026 and the card went (L222): the pages say again, in every language, that the Hub itself has no affiliate
+// links (the words of before L176), and no text names Sovrn or the card.
+const NO_LINKS = /Hub[^.]{0,30}(δεν έχει affiliate|keine Affiliate-Links|n'a pas de liens d'affiliation|non ha link di affiliazione|no tiene enlaces de afiliación|não tem links de afiliados|geen affiliatelinks|nuk ka lidhje afiliimi|nu are linkuri de afiliere|нет партнёрских ссылок)/;
+test('L222: no Sovrn and no "Featured pick" in any language; the Hub has no affiliate links, said in every language', () => {
+  const CARD_WORDS = /Sovrn|Featured pick|Προτεινόμενο προϊόν|Empfohlenes Produkt|Produit à la une|Prodotto in evidenza|Producto destacado|Produto em destaque|Uitgelicht product|Produkt i zgjedhur|Produs recomandat|Рекомендуемый товар/;
+  for (const p of PAGES) assert.ok(!/sovrn|Featured pick/i.test(read(`${p}/index.html`)), `${p}: no Sovrn`);
   for (const l of LANGS) {
     const d = JSON.parse(read(`legal/i18n/${l}.json`));
-    const i = ORDER.indexOf(l);
-    assert.ok(d[disc].includes(titles[i]) && d[disc].includes(badges[i]) && d[disc].includes('Sovrn Commerce'), `${l}: ${d[disc].slice(0, 90)}`);
-    const sovrn = Object.entries(d).filter(([k]) => k.includes('Sovrn'));
-    assert.equal(sovrn.length, 3, `${l}: disclosure, privacy and cookies`);
-    for (const [, v] of sovrn) assert.ok(v.includes('Sovrn') && v.includes(titles[i]), `${l}: ${v.slice(0, 90)}`);
-    assert.ok(!Object.values(d).some(v => /Hub[^.]{0,30}(δεν έχει affiliate|keine Affiliate-Links|n'a pas de liens d'affiliation|non ha link di affiliazione|no tiene enlaces de afiliación|não tem links de afiliados|geen affiliatelinks|nuk ka lidhje afiliimi|nu are linkuri de afiliere|нет партнёрских ссылок)/.test(v)), `${l}: no "the Hub has no affiliate links"`);
+    for (const [k, v] of Object.entries(d)) assert.ok(!CARD_WORDS.test(k) && !CARD_WORDS.test(v), `${l}: ${k.slice(0, 80)}`);
+    assert.equal(Object.values(d).filter(v => NO_LINKS.test(v)).length, 2, `${l}: the disclosure and privacy say the Hub has no affiliate links`);
+    assert.equal(Object.keys(d).filter(k => /The Hub itself has no affiliate links/.test(k)).length, 2, `${l}: the two English texts`);
+    // The dates: the pages changed on 24/11/2026 and the dictionaries keep only the dates the pages show.
+    assert.deepEqual(Object.keys(d).filter(k => k.startsWith('Last updated:')).sort(), ['Last updated: 24 November 2026', 'Last updated: 7 November 2026'], l);
+    assert.ok(d['Last updated: 24 November 2026'].includes('24') && d['Last updated: 24 November 2026'].includes('2026'), l);
   }
+  for (const p of ['affiliate-disclosure', 'privacy', 'cookies']) assert.match(read(`${p}/index.html`), /<p class="lg-updated">Last updated: 24 November 2026<\/p>/, p);
   const about = read('about/about.js');
-  assert.equal((about.match(/Sovrn Commerce/g) || []).length, 11, 'the /about/ lead names Sovrn in the 11 languages');
+  assert.ok(!CARD_WORDS.test(about), 'the /about/ lead no longer names Sovrn');
+  assert.equal((about.match(/Awin/g) || []).length, 11, 'the /about/ lead still names Awin (and CJ) in the 11 languages');
 });

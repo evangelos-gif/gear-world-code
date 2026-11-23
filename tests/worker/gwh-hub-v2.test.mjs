@@ -161,8 +161,9 @@ test('hub v2: the page keeps every id and class the other scripts need, and load
   assert.match(html, /<link rel="stylesheet" href="\/hub-v2\.css\?v=(20261109-compliance|20261116-stores|20261120-popup|20261123-mega|20261123-app)\d+">/);
   // A new ?v= with every change of the script (L31): 9/11/2026 the season switches (L107), 14/11/2026 the delivery line
   // on the gift cards (L153), 16/11/2026 the texts of the Stores card (L166), 17/11/2026 the Featured pick and the
-  // language of the links to the sites (L174), 18/11/2026 the Black Friday link (L188), the Mega Stores bar (L192), the Google Play row (L218).
-  assert.match(html, /<script src="\/hub-v2\.js\?v=(20261114-badges|20261116-stores|20261117-lang|20261118-bf|20261123-mega|20261123-app)\d+" defer><\/script>/);
+  // language of the links to the sites (L174), 18/11/2026 the Black Friday link (L188), the Mega Stores bar (L192), the
+  // Google Play row (L218), 24/11/2026 the texts of the Featured pick gone (L222).
+  assert.match(html, /<script src="\/hub-v2\.js\?v=(20261114-badges|20261116-stores|20261117-lang|20261118-bf|20261123-mega|20261123-app|20261124-hub)\d+" defer><\/script>/);
   assert.ok(html.indexOf('/gear-world-camera.js?v=') < html.indexOf('/hub-v2.js?v='), 'hub-v2.js after the camera script');
   assert.ok(!html.includes('/styles.css'), 'the old styles.css is not loaded');
   assert.ok(!html.includes('gwh-hero.png'), 'the 2.8 MB picture is gone from the page');
@@ -331,65 +332,28 @@ test('hub v2: the Worker answers byte ranges for the seasonal files (iPhone Safa
   assert.equal((await get('/seasonal/halloween.mp4', {}, 'POST')).status !== 206, true, 'only GET and HEAD');
 });
 
-// Lessons L121 (owner, 14/11/2026): ONE product link of Sovrn Commerce on the home page, for the approval of
-// gearworldhub.com there. A plain link marked like the product links of the sites; never the Sovrn script, which would
-// rewrite links (Awin and CJ too). Nobody opens the link: Sovrn counts only real clicks of visitors.
-test('home page: one Sovrn Commerce link, marked like the product links of the sites, no Sovrn script (L121)', () => {
+// Lessons L121 (owner, 14/11/2026) put ONE product link of Sovrn Commerce on the home page, the «Featured pick» card
+// (STRAUSS boots), for the approval of gearworldhub.com there; L174 put the card in the 11 languages. Sovrn turned the Hub
+// down on 23/11/2026, so the card went with the next release (owner, lessons L222): no Sovrn link, no card, no texts of
+// it left in hub-v2.js, and never the Sovrn script (it would rewrite links, Awin and CJ too).
+test('home page: no Sovrn Commerce link, no «Featured pick» card and none of its texts, no Sovrn script (L222, after L121, L174)', () => {
   const html = read('public/index.html');
-  const links = html.match(/<a [^>]*href="https:\/\/sovrn\.co\/[^"]+"[^>]*>/g) || [];
-  assert.equal(links.length, 1, 'only this one link');
-  assert.ok(links[0].includes('href="https://sovrn.co/o4ablp8"'));
-  assert.ok(links[0].includes('rel="sponsored nofollow noopener"') && links[0].includes('target="_blank"'), 'sponsored, nofollow, new tab');
+  assert.ok(!/sovrn/i.test(html), 'no Sovrn link or word on the home page');
+  assert.ok(!/id="featured"|gwh2FeaturedTitle|data-gwh2="featured|data-gwh2-featured|gwh2-featured-note/.test(html), 'no Featured pick card');
+  assert.ok(!/STRAUSS|Engelbert Strauss|engelbert-strauss/.test(html), 'not the product of the card');
   assert.ok(!/<script[^>]+(sovrn|viglink)|commerce\.sovrn|viglink/i.test(html), 'no Sovrn script');
-  const start = html.indexOf('<section class="gwh2-section" id="featured"');
-  const end = html.indexOf('</section>', start);
-  assert.ok(start > html.indexOf('id="gifts"') && start < html.indexOf('id="deals"'), 'between the gift finder and the deals, not in a part the scripts fill');
-  const card = html.slice(start, end);
-  assert.ok(card.includes('Affiliate link') && card.includes('We may earn a commission') && card.includes('<a href="/affiliate-disclosure/" data-gwh2="featuredHow">How this works</a>'));
-  assert.ok(card.includes('sold by <span translate="no">engelbert-strauss.co.uk</span>, not by Gear World') && card.includes('STRAUSS e.s. S3 safety boots Okomu mid'));
-  assert.ok(!/shop|cart\b|buy now|UK retailers|£/i.test(card), 'no shop words and no price (a price would need its daily check)');
-  for (const f of ['worker.js', 'photo-search.js', 'security.js', 'public/hub-v2.js', 'public/app.js']) {
+  // The deals come right after the gift finder again, with no other section between them.
+  const gifts = html.indexOf('id="gifts"');
+  const deals = html.indexOf('id="deals"');
+  assert.ok(gifts > 0 && deals > gifts);
+  assert.equal((html.slice(gifts, deals).match(/<section\b/g) || []).length, 1, 'only the section of the deals itself starts there');
+  const h = hub();
+  assert.deepEqual(Object.keys(h.strings).filter(k => /^featured/.test(k)), [], 'the featured* texts are gone from hub-v2.js');
+  // Every text key on the page still has its 11 languages in hub-v2.js (none left in English only).
+  for (const m of html.matchAll(/data-gwh2="([A-Za-z]+)"/g)) assert.equal((h.strings[m[1]] || []).length, 11, m[1]);
+  for (const f of ['worker.js', 'photo-search.js', 'security.js', 'public/hub-v2.js', 'public/app.js', 'public/translations.js']) {
     assert.ok(!/sovrn|viglink/i.test(read(f)), `${f}: no Sovrn code`);
   }
-});
-
-// Lessons L174 (Linkwise, 17/11/2026): a Greek Hub showed the «Featured pick» in English, and its world cards opened
-// the sites in English. The card is now in the 11 languages, and a link to a site carries the language chosen on the Hub.
-test('hub v2: the Featured pick card is in the 11 languages; the retailer, its website and the product stay as written (L174, L103)', () => {
-  const h = hub();
-  const html = read('public/index.html');
-  const start = html.indexOf('<section class="gwh2-section" id="featured"');
-  const card = html.slice(start, html.indexOf('</section>', start));
-  for (const key of ['featuredTitle', 'featuredSub', 'featuredBadge', 'featuredMeta', 'featuredCta', 'featuredNote', 'featuredHow']) {
-    assert.ok(card.includes(`data-gwh2="${key}"`), `${key} is on the card`);
-    assert.equal(h.strings[key].length, 11, key);
-  }
-  // Every element with a text: a key whose English text is that text ({name} = its data-gwh2-name), or a name.
-  // The element with its end tag, counting the same tags inside it (a name is a <span> inside a <span>).
-  const element = (from) => {
-    const tag = /^<([a-z0-9]+)/.exec(card.slice(from))[1];
-    const rx = new RegExp(`<(/?)${tag}\\b[^>]*>`, 'g');
-    rx.lastIndex = from;
-    let depth = 0;
-    for (let m; (m = rx.exec(card));) {
-      depth += m[1] ? -1 : 1;
-      if (depth === 0) return { start: from, end: rx.lastIndex, inner: card.slice(card.indexOf('>', from) + 1, m.index) };
-    }
-    throw new Error('no end tag');
-  };
-  const tagged = [...card.matchAll(/<[a-z0-9]+ [^>]*data-gwh2="([A-Za-z]+)"(?: data-gwh2-name="([^"]+)")?[^>]*>/g)].map(m => ({ key: m[1], name: m[2], ...element(m.index) }));
-  assert.equal(tagged.length, 7);
-  for (const { key, name, inner } of tagged) {
-    const english = h.strings[key][0].replace(/&/g, '&amp;').replace('{name}', name ? `<span translate="no">${name}</span>` : '{name}');
-    assert.equal(inner, english, key);
-  }
-  let outside = card;
-  for (const t of [...tagged].reverse()) outside = outside.slice(0, t.start) + outside.slice(t.end);
-  outside = outside.replace(/<[^>]*translate="no"[^>]*>[^<]*<\/[a-z]+>/g, '');
-  assert.ok(!/>[^<>]*[A-Za-z][^<>]*</.test(outside), `no text left without a key or translate="no": ${outside.match(/>[^<>]*[A-Za-z][^<>]*</)}`);
-  for (const key of ['featuredMeta', 'featuredCta']) h.strings[key].forEach(text => assert.ok(text.includes('{name}') && !/Engelbert Strauss|engelbert-strauss/.test(text), `${key}: ${text}`));
-  assert.ok(h.strings.featuredMeta.every(t => t.includes('Gear World')));
-  assert.ok(!/partner|συνεργάτη|partneritet/i.test(h.strings.featuredBadge.join(' ')), 'no partner wording (L103)');
 });
 
 test('hub v2: a link to a Gear World site carries the language chosen on the Hub; other sites and /go/ /out/ stay as they are (L174)', () => {

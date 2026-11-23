@@ -168,8 +168,8 @@ try {
       const worlds = await page.$$eval('.gwh-image-world', els => els.map(e => ({ world: e.dataset.world, href: e.getAttribute('href'), title: e.querySelector('.gwh-image-world-title').textContent.trim() })));
       check(worlds.length === 13 && worlds.every(w => /^https:\/\/[a-z]+gearworld\.com\/$/.test(w.href)), `${tag}: 13 Gear World cards with their sites (BGW and PGW since 31/10/2026, ZGW since 1/11/2026)`, worlds.map(w => w.world).join(','));
       if (locale === 'el-GR') check(worlds[0].title === 'Εργαλεία & ρούχα εργασίας' || /[Α-Ωα-ω]/.test(worlds[0].title), `${tag}: world titles in Greek`, worlds[0].title);
-      // Lessons L174 (Linkwise, 17/11/2026): the Hub's language goes with a link to a site when it is used, and the
-      // «Featured pick» card is in the chosen language. The link is not followed: the event only, then the address back.
+      // Lessons L174 (Linkwise, 17/11/2026): the Hub's language goes with a link to a site when it is used. The link is
+      // not followed: the event only, then the address back. (The «Featured pick» card of L121/L174 is gone, L222.)
       const carried = await page.$eval('.gwh-image-world', a => {
         const before = a.getAttribute('href');
         a.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true }));
@@ -179,16 +179,13 @@ try {
       });
       const wantLink = locale === 'en-GB' ? worlds[0].href : `${worlds[0].href}?lang=${locale}`;
       check(carried === wantLink, `${tag}: a world card opens its site in the Hub's language (L174)`, carried);
-      const featured = await page.$eval('#gwh2FeaturedTitle', e => e.textContent.trim());
-      check(featured === text('featuredTitle', locale), `${tag}: the Featured pick card is in the chosen language (L174)`, featured);
       // The legal links of the footer, with the words of the legal pages (L176, the check of 17/11/2026).
       const footLegal = await page.$$eval('.footer-legal a', els => els.map(e => e.textContent.trim()));
       const legalWords = locale === 'en-GB' ? null : JSON.parse(readFileSync(join(publicDir, 'legal', 'i18n', `${locale}.json`), 'utf8'));
       const wantFoot = ['Privacy', 'Cookies', 'Terms', 'Affiliate disclosure', 'Contact'].map(w => legalWords ? legalWords[w] : w);
       check(footLegal.join('|') === wantFoot.join('|'), `${tag}: the legal links of the footer in the chosen language (L176)`, footLegal.join('|'));
 
-      // deals: from hub-deals.json, to site pages only (the list the script fills; the «Featured pick» card of L121 is
-      // a card of the same look outside it)
+      // deals: from hub-deals.json, to site pages only (the list the script fills)
       await page.locator('#gwh2Deals .gwh2-deal').first().waitFor({ state: 'attached', timeout: 5000 }).catch(() => {});
       const deals = await page.$$eval('#gwh2Deals .gwh2-deal', els => els.map(e => ({ href: e.getAttribute('href'), end: e.querySelector('.gwh2-deal-end').textContent, meta: e.querySelector('.gwh2-deal-meta').textContent.trim() })));
       check(deals.length >= 1 && deals.length <= 4, `${tag}: deals shown (at most 4)`, String(deals.length));
@@ -199,11 +196,12 @@ try {
       check(deals.every(d => wantMeta.includes(d.meta) || d.kind === 'code' || /·/.test(d.meta)), `${tag}: the campaign names of the deals in the chosen language (L176)`, deals.map(d => d.meta).join(' | '));
       const allLinks = await page.$$eval('a[href]', els => els.map(e => e.getAttribute('href')));
       check(!allLinks.some(h => /\/(go|out)\//.test(h)), `${tag}: no /go/ or /out/ link on the page`);
-      // Lessons L121: ONE Sovrn Commerce link, visible, sponsored and nofollow, never the Sovrn script. Read from the
-      // page only: never opened (Sovrn counts only the clicks of visitors).
-      const sovrn = await page.$$eval('a[href^="https://sovrn.co/"]', els => els.map(e => ({ rel: e.getAttribute('rel'), target: e.getAttribute('target'), shown: e.getClientRects().length > 0 && getComputedStyle(e).visibility !== 'hidden' })));
+      // Lessons L222 (after L121): Sovrn turned the Hub down, so no Sovrn link, no «Featured pick» card and never the
+      // Sovrn script. Read from the page only: nothing is opened.
+      const sovrn = await page.$$eval('a[href*="sovrn.co"]', els => els.length);
       const sovrnScript = await page.$$eval('script[src]', els => els.some(e => /sovrn|viglink/i.test(e.getAttribute('src'))));
-      check(sovrn.length === 1 && sovrn[0].rel === 'sponsored nofollow noopener' && sovrn[0].target === '_blank' && sovrn[0].shown && !sovrnScript, `${tag}: one visible Sovrn link, sponsored nofollow, no Sovrn script (L121)`, JSON.stringify(sovrn));
+      const featuredCard = await page.$('#featured, #gwh2FeaturedTitle');
+      check(sovrn === 0 && !sovrnScript && !featuredCard, `${tag}: no Sovrn link, no Featured pick card, no Sovrn script (L222)`, `${sovrn} ${sovrnScript} ${!!featuredCard}`);
 
       // Google Ads review (7/11/2026, lessons L101): no sponsored card, "About" opens /about/, the footer says who
       // runs Gear World and that it sells nothing (in the page's language).

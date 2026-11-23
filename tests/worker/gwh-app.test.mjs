@@ -50,7 +50,7 @@ test('L218: the row is under the search, in the file, hidden, with Google\'s bad
   assert.equal((body.match(/<a /g) || []).length, 1, 'one link');
   assert.ok(!/\/(out|go)\//.test(body), 'not a product link');
   assert.match(HOME, /<link rel="stylesheet" href="\/hub-v2\.css\?v=20261123-app1">/);
-  assert.match(HOME, /<script src="\/hub-v2\.js\?v=20261123-app1" defer><\/script>/);
+  assert.match(HOME, /<script src="\/hub-v2\.js\?v=(20261123-app1|20261124-hub1)" defer><\/script>/); // L222: a later version (the Featured pick gone)
 });
 
 test('L218: Google\'s own badge files (unchanged PNGs), allowed in public/, described by the Hub tool', () => {
@@ -186,12 +186,14 @@ test('L218: the Worker keeps the row for the UK, Greece, Cyprus, Poland and the 
 test('L218: the cookies page names gwh2-app-closed (11 languages) and a new date; the legal script asks for the new dictionaries', () => {
   const c = read('cookies/index.html');
   assert.ok(c.includes('<tr><td data-label="Name"><span><code>gwh2-app-closed</code></span></td><td data-label="Type"><span>Browser storage, necessary</span></td><td data-label="What it does"><span>Remembers that you closed the Gear World app row on the home page</span></td><td data-label="How long"><span>Until you clear your browser data</span></td></tr>'));
-  assert.match(c, /<p class="lg-updated">Last updated: 23 November 2026<\/p>/);
+  // 23/11/2026 (L218); 24/11/2026 the page changed again (L222: no Sovrn), so the date moved on with the text.
+  const date = c.match(/<p class="lg-updated">Last updated: (23|24) November 2026<\/p>/);
+  assert.ok(date, 'a date of 23/11 or later');
   for (const f of readdirSync(`${PUB}/legal/i18n`)) {
     const d = JSON.parse(read(`legal/i18n/${f}`));
     assert.ok(d['Remembers that you closed the Gear World app row on the home page'].includes('Gear World'), f);
-    assert.match(d['Last updated: 23 November 2026'], /23/, f);
+    assert.match(d[`Last updated: ${date[1]} November 2026`], new RegExp(date[1]), f);
   }
-  assert.match(read('legal/legal.js'), /var VERSION = "20261123-app1";/);
+  assert.match(read('legal/legal.js'), /var VERSION = "(20261123-app1|20261124-legal1)";/); // L222: a later version (no Sovrn)
   assert.ok(read('hub-v2.js').includes('localStorage.getItem("gwh2-app-closed")'), 'the name the script uses');
 });

@@ -150,7 +150,7 @@ test('L192: the Stores card and the 13 world cards are unchanged, and the new ?v
   assert.ok(html.includes('<small class="gwh2-rc-desc" data-gwh2="storesDesc" translate="no">Joybuy, Tooled Up, PCHUB.UK and more: codes, sales and where to find them.</small>'));
   assert.ok(!/gwh-quick-world|gwh-image-world|data-world=/.test(bar), 'the bar has its own classes: translations.js counts the world cards by class');
   assert.match(html, /<link rel="stylesheet" href="\/hub-v2\.css\?v=(20261123-mega1|20261123-app1)">/); // L218: a later version (the Google Play row)
-  assert.match(html, /<script src="\/hub-v2\.js\?v=(20261123-mega1|20261123-app1)" defer><\/script>/);
+  assert.match(html, /<script src="\/hub-v2\.js\?v=(20261123-mega1|20261123-app1|20261124-hub1)" defer><\/script>/);
   const tool = readFileSync('tools/gwh-hub-v2.ps1', 'utf8');
   assert.ok(tool.includes('Μπάρα Mega Stores στην κορυφή (L192)'), 'the preview and live page check');
   assert.match(readFileSync('docs/LESSONS.md', 'utf8'), /\n\| L192 \|/);
