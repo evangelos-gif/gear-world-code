@@ -22,7 +22,8 @@ function makeFetch() {
     calls.push(u);
     const r = u.searchParams.get('retailer');
     const to = u.searchParams.get('deliver_to');
-    const rows = [1, 2, 3].map(n => ({ product_name: `Item ${n}`, brand: 'Acme', retailer: r, stock_status: 'in_stock',
+    // The showcase's searches (L221, its own tests) find nothing here: this file is about the store's own list.
+    const rows = u.searchParams.get('q') ? [] : [1, 2, 3].map(n => ({ product_name: `Item ${n}`, brand: 'Acme', retailer: r, stock_status: 'in_stock',
       image_url: `https://img.example/${n}.jpg`, delivers_to: [to], product_url: `https://${u.hostname}/product/p-${n}/` }));
     return new Response(JSON.stringify({ ok: true, products: rows }), { status: 200, headers: { 'Content-Type': 'application/json' } });
   };

@@ -79,6 +79,8 @@ p { margin: 0 0 1em; }
 .store-logo img { display: block; height: 56px; width: auto; max-width: 168px; object-fit: contain; }
 .store-logo-lg { height: 84px; flex: none; }
 .store-logo-lg img { height: 76px; }
+/* A 120x60 logo (the Linkwise panel's, L221) at its own size, never enlarged. */
+.store-logo-lg img[height="60"] { height: 60px; }
 .store-badge { display: inline-flex; align-items: center; min-height: 48px; padding: 6px 14px; background: #fff; color: var(--deep); border-radius: 8px; font-weight: 800; font-size: 1.15rem; letter-spacing: .01em; }
 .store-thumbs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; list-style: none; margin: 4px 0 0; padding: 0; }
 .store-thumbs li { aspect-ratio: 1; background: #fff; border-radius: 8px; overflow: hidden; }

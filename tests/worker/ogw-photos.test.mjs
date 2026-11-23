@@ -101,7 +101,8 @@ test('L211: a store page shows no product whose photo does not open; the copy ke
   const store = site.stores.find(s => s.slug === 'casualshoes-gr');
   const siteFetch = async input => {
     const u = new URL(String(input));
-    const rows = [1, 2, 3, 4, 5].map(n => ({
+    // The showcase's searches (L221, its own tests) find nothing here.
+    const rows = u.searchParams.get('q') ? [] : [1, 2, 3, 4, 5].map(n => ({
       product_name: `Παπούτσι ${n}`, brand: 'Acme', retailer: store.name, stock_status: 'in_stock', delivers_to: ['GR'],
       image_url: `https://img.example/${n === 2 ? 'gone' : n === 4 ? 'html' : 'ok'}/${n}.jpg`, product_url: `https://${u.hostname}/product/p-${n}/`
     }));

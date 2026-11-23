@@ -108,7 +108,17 @@ test('L221: /gr/stores/<store>/ shows the logo, the sets and the ideas, in Greek
       assert.equal(u.searchParams.get('retailer'), s.name);
       assert.equal(u.searchParams.get('deliver_to'), 'GR');
       assert.equal(u.searchParams.get('limit'), '6');
+      assert.equal(u.searchParams.get('translate'), '0', 'no AI translation for our own searches');
     }
+    // A next search only for a pick still without a product: here every first search finds one.
+    const firsts = new Set([...s.showcase.sets.flatMap(x => x.picks.map(p => p[0])), ...s.showcase.ideas.map(x => x.pick[0])]);
+    assert.ok(searches.every(u => firsts.has(u.searchParams.get('q'))), `${s.slug}: no fallback search when not needed`);
+    // The list below leaves out what the showcase shows, under its own heading.
+    const shownNames = [...text.matchAll(/<p class="sc-name" translate="no">([^<]+)<\/p>/g)].map(m => m[1]);
+    const listNames = [...text.matchAll(/<h2 class="pcard-name" translate="no">([^<]+)<\/h2>/g)].map(m => m[1]);
+    assert.equal(shownNames.length, 9);
+    assert.ok(listNames.length > 0 && listNames.every(n => !shownNames.includes(n)), `${s.slug}: never twice on the page`);
+    assert.ok(words(text).includes(`Περισσότερα από το ${s.name}`), `${s.slug}: the list's heading`);
   }
 });
 
@@ -175,4 +185,68 @@ test('L221: a broken photo leaves its product out; the showcase is kept in the c
   assert.equal(showcaseText({ lang: 'el-GR' }, { el: 'Α', en: 'A' }), 'Α');
   assert.equal(showcaseText({ lang: 'en-GB' }, { el: 'Α', en: 'A' }), 'A');
   assert.equal(showcaseText({ lang: 'de-DE' }, { el: 'Α', en: 'A' }), 'A');
+});
+
+test('L221 review: a broken photo gives its place to the next product of the same search, then to the next search', async () => {
+  const s = GREEK.find(x => x.slug === 'casualshoes-gr');
+  const gone = new Set();
+  const fetch = async input => {
+    const u = new URL(String(input));
+    const q = u.searchParams.get('q');
+    const rows = [1, 2, 3].map(n => ({ product_name: `${q} ${n}`, brand: 'Acme', retailer: u.searchParams.get('retailer'), stock_status: 'in_stock',
+      image_url: `https://img.example/${encodeURIComponent(q)}-${n}.jpg`, delivers_to: ['GR'], product_url: `https://${u.hostname}/product/${encodeURIComponent(q)}-${n}/` }));
+    return new Response(JSON.stringify({ ok: true, products: rows }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+  };
+  const photoFetch = async url => new Response('', { status: [...gone].some(g => decodeURIComponent(url).includes(g)) ? 404 : 200, headers: { 'Content-Type': 'image/jpeg' } });
+  // The first bracelet and the first key ring have broken photos (as on 23 Nov 2026): the second of each is shown.
+  const [bracelet, keyring] = [s.showcase.sets[0].picks[1][0], s.showcase.sets[0].picks[2][0]];
+  gone.add(`${bracelet}-1.jpg`);
+  gone.add(`${keyring}-1.jpg`);
+  let data = await storeShowcase(site, s, { fetch, photoFetch });
+  assert.deepEqual(data.sets[0].items.map(p => p.name), [`${s.showcase.sets[0].picks[0][0]} 1`, `${bracelet} 2`, `${keyring} 2`], 'the set stays whole');
+  // Every product of the first search broken: the next search of the pick.
+  const wallet = s.showcase.ideas[2].pick;
+  for (const n of [1, 2, 3]) gone.add(`${wallet[0]}-${n}.jpg`);
+  data = await storeShowcase(site, s, { fetch, photoFetch });
+  assert.equal(data.ideas.find(i => i.title.en === s.showcase.ideas[2].title.en).product.name, `${wallet[1]} 1`);
+});
+
+test('L221 review: the cache time says what happened, and the key changes with the showcase', async () => {
+  const s = GREEK.find(x => x.slug === 'kouzinika-gr');
+  const keep = () => {
+    const box = {};
+    return { box, cache: { match: async () => undefined, put: async (k, res) => { box.cc = res.headers.get('Cache-Control'); } } };
+  };
+  // A pick whose only search failed: kept 10 minutes.
+  const one = { ...s, showcase: { sets: s.showcase.sets, ideas: [{ ...s.showcase.ideas[0], pick: ['κάτι'] }] } };
+  let k = keep();
+  await storeShowcase(site, one, { fetch: makeFetch({ fail: ['κάτι'] }), cache: k.cache });
+  assert.equal(k.box.cc, 'public, max-age=600');
+  // A fallback search that is never needed does not shorten it.
+  k = keep();
+  await storeShowcase(site, s, { fetch: makeFetch({ fail: [s.showcase.ideas[0].pick[1]] }), cache: k.cache });
+  assert.equal(k.box.cc, 'public, max-age=3600');
+  // Nothing found: 1 minute.
+  k = keep();
+  await storeShowcase(site, s, { fetch: async () => new Response(JSON.stringify({ ok: true, products: [] }), { status: 200 }), cache: k.cache });
+  assert.equal(k.box.cc, 'public, max-age=60');
+  const other = { ...s, showcase: { ...s.showcase, ideas: s.showcase.ideas.slice(0, 2) } };
+  assert.notEqual(showcaseCacheKey(site, other), showcaseCacheKey(site, s), 'a changed showcase is read again');
+  assert.equal(showcaseCacheKey(site, s), showcaseCacheKey(site, { ...s }), 'the same showcase, the same key');
+});
+
+test('L221 review: at most 3 searches wait at a time', async () => {
+  const s = GREEK.find(x => x.slug === 'katoikein-gr');
+  let now = 0;
+  let most = 0;
+  const base = makeFetch();
+  const fetch = async (...a) => {
+    now++;
+    most = Math.max(most, now);
+    await new Promise(r => setTimeout(r, 5));
+    try { return await base(...a); } finally { now--; }
+  };
+  const data = await storeShowcase(site, s, { fetch });
+  assert.equal(data.sets.length, 2);
+  assert.ok(most <= 3, `${most} at once`);
 });

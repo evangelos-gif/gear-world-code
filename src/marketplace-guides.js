@@ -735,8 +735,11 @@ async function readSiteProducts(store, w, deps, extra = null) {
   u.searchParams.set('deliver_to', productCountry(store));
   u.searchParams.set('badges', '1');
   u.searchParams.set('limit', String((extra && extra.limit) || STORE_PER_SITE));
-  // A search among the store's own products (the showcase, L221).
-  if (extra && extra.q) u.searchParams.set('q', String(extra.q).slice(0, 80));
+  // A search among the store's own products (the showcase, L221), never sent to the site's AI translation.
+  if (extra && extra.q) {
+    u.searchParams.set('q', String(extra.q).slice(0, 80));
+    u.searchParams.set('translate', '0');
+  }
   const ac = new AbortController();
   const timer = setTimeout(() => ac.abort(), deps.timeoutMs || STORE_TIMEOUT_MS);
   try {
@@ -903,12 +906,23 @@ export async function storeProducts(site, store, deps = {}, ctx = null) {
 
 // The showcase of a store (owner, 23 Nov 2026: "no prices, only bundles and ideas", lessons L221): its `showcase` sets
 // and gift ideas, each pick the first product a search among the store's products on its Gear World site finds (in
-// stock, an https photo, its Gear World product page, never twice on the page), tried in the order given. Read once for
-// every language and kept like the store's products: 1 hour, 10 minutes when a search failed, 1 minute when nothing came
-// back. A set shows only with 2 products or more; an idea only with its product. Never a price.
+// stock, an https photo, its Gear World product page, never twice on the page), its searches tried in the order given:
+// the first search of every pick at once, a next one only for a pick still without a product. A product whose photo is
+// broken (L211) gives its place to the next one its searches find. Searches go out at most SHOWCASE_PARALLEL at a time, so each
+// timer starts with its own request (a Worker keeps only 6 waiting for their headers), with translate=0 (no AI
+// translation on the site for our own searches). Read once for every language and kept like the store's products:
+// 1 hour, 10 minutes when a pick lost its product to a failed search or a photo check could not finish, 1 minute when
+// nothing came back. The cache key carries the asset version and a hash of the store's `showcase`. A set shows only
+// with 2 products or more; an idea only with its product. Never a price.
 const SHOWCASE_PER_PICK = 6;
 const SHOWCASE_PICKS = 3;
-export const showcaseCacheKey = (site, store) => `${storeCacheKey(site, store)}&part=showcase`;
+const SHOWCASE_PARALLEL = 3;
+const showcaseHash = sc => {
+  let h = 0x811c9dc5;
+  for (const ch of JSON.stringify(sc || null)) { h ^= ch.codePointAt(0); h = Math.imul(h, 0x01000193) >>> 0; }
+  return h.toString(36);
+};
+export const showcaseCacheKey = (site, store) => `${storeCacheKey(site, store)}&part=showcase&sc=${showcaseHash(store && store.showcase)}`;
 const showcaseQueries = pick => (Array.isArray(pick) ? pick : [pick]).map(q => String(q || '').trim()).filter(Boolean).slice(0, SHOWCASE_PICKS);
 const showcaseSite = (store, part) => gearWorldFor((part && part.site) || store.sites[0]);
 
@@ -916,6 +930,13 @@ const showcaseSite = (store, part) => gearWorldFor((part && part.site) || store.
 export function showcaseText(c, v) {
   if (!v || typeof v !== 'object') return '';
   return /^el\b/i.test(String(c.lang || '')) ? String(v.el || v.en || '') : String(v.en || v.el || '');
+}
+
+// The names of the products a showcase shows (the store page leaves them out of its own list, L221).
+export function showcaseNames(data) {
+  if (!data) return new Set();
+  return new Set([...(data.sets || []).flatMap(x => x.items || []), ...(data.ideas || []).map(x => x.product)]
+    .filter(Boolean).map(p => String(p.name).toLowerCase()));
 }
 
 export async function storeShowcase(site, store, deps = {}, ctx = null) {
@@ -934,63 +955,79 @@ export async function storeShowcase(site, store, deps = {}, ctx = null) {
   }
   const fetcher = deps.fetch || ((...a) => fetch(...a));
   const userAgent = storeUserAgent(site);
-  let failed = false;
+  const queue = photoLimiter(SHOWCASE_PARALLEL);
   const reads = new Map();
+  const failedReads = new Set();
   const read = (w, q) => {
     const k = `${w.code}\t${q}`;
     if (!reads.has(k)) {
-      reads.set(k, readSiteProducts(store, w, { ...deps, fetch: fetcher, userAgent }, { q, limit: SHOWCASE_PER_PICK })
-        .catch(() => { failed = true; return []; }));
+      reads.set(k, queue(() => readSiteProducts(store, w, { ...deps, fetch: fetcher, userAgent }, { q, limit: SHOWCASE_PER_PICK }))
+        .catch(() => { failedReads.add(k); return []; }));
     }
     return reads.get(k);
   };
-  const parts = [...(sc.sets || []).flatMap(set => (set.picks || []).map(pick => ({ w: showcaseSite(store, set), qs: showcaseQueries(pick) }))),
-    ...(sc.ideas || []).map(idea => ({ w: showcaseSite(store, idea), qs: showcaseQueries(idea.pick) }))];
-  await Promise.all(parts.flatMap(part => (part.w ? part.qs.map(q => read(part.w, q)) : [])));
+  // Every place on the page: the 3 picks of each set, then each idea.
+  const slots = [
+    ...(sc.sets || []).flatMap((set, si) => (set.picks || []).map(pick => ({ set: si, w: showcaseSite(store, set), qs: showcaseQueries(pick) }))),
+    ...(sc.ideas || []).map((idea, ii) => ({ idea: ii, w: showcaseSite(store, idea), qs: showcaseQueries(idea.pick) }))
+  ].filter(x => x.w && x.qs.length);
+  for (const x of slots) read(x.w, x.qs[0]);
   const used = new Set();
-  const choose = async (part, qs) => {
-    const w = showcaseSite(store, part);
-    if (!w) return null;
-    for (const q of showcaseQueries(qs)) {
-      for (const p of await read(w, q)) {
+  const bad = new Set();
+  const fill = async x => {
+    x.product = null;
+    for (const q of x.qs) {
+      const list = await read(x.w, q);
+      if (failedReads.has(`${x.w.code}\t${q}`)) x.failed = true;
+      for (const p of list) {
         const k = p.name.toLowerCase();
-        if (used.has(k)) continue;
+        if (used.has(k) || bad.has(k)) continue;
         used.add(k);
-        return p;
+        x.product = p;
+        return;
       }
     }
-    return null;
   };
-  const sets = [];
-  for (const set of sc.sets || []) {
-    const items = [];
-    for (const pick of set.picks || []) {
-      const p = await choose(set, pick);
-      if (p) items.push(p);
-    }
-    sets.push({ title: set.title, line: set.line, items });
-  }
-  const ideas = [];
-  for (const idea of sc.ideas || []) ideas.push({ title: idea.title, line: idea.line, product: await choose(idea, idea.pick) });
-  // The photos of the chosen products, as on the store page (L211): a broken one leaves its product out.
+  for (const x of slots) await fill(x);
   let blocked = false;
   let late = 0;
   if (deps.photoFetch) {
-    const chosen = [...sets.flatMap(x => x.items), ...ideas.map(x => x.product).filter(Boolean)];
-    const seen = await keepOpenPhotos(chosen, deps.photoFetch, chosen.length, {
-      timeoutMs: deps.photoTimeoutMs, userAgent, limit: deps.photoLimit || null, deadlineMs: deps.photoDeadlineMs || PHOTO_DEADLINE_MS
-    });
-    const open = new Set(seen.products);
+    // The photos of the chosen products (L211). A broken one gives its place to the next product its searches find
+    // whose photo opens, checked one by one, all within the same time limit.
+    const opts = { timeoutMs: deps.photoTimeoutMs, userAgent, limit: deps.photoLimit || null };
+    const end = Date.now() + (deps.photoDeadlineMs || PHOTO_DEADLINE_MS);
+    const chosen = slots.filter(x => x.product);
+    const seen = await keepOpenPhotos(chosen.map(x => x.product), deps.photoFetch, chosen.length, { ...opts, deadlineMs: Math.max(1, end - Date.now()) });
     blocked = seen.blocked;
     late = seen.late;
-    for (const x of sets) x.items = x.items.filter(p => open.has(p));
-    for (const x of ideas) if (x.product && !open.has(x.product)) x.product = null;
+    const open = new Set(seen.products);
+    const dropped = chosen.filter(x => !open.has(x.product));
+    for (const x of dropped) { bad.add(x.product.name.toLowerCase()); x.product = null; }
+    for (const x of dropped) {
+      if (Date.now() >= end) { late++; continue; }
+      const next = [];
+      for (const q of x.qs) {
+        for (const p of await read(x.w, q)) {
+          const k = p.name.toLowerCase();
+          if (!used.has(k) && !bad.has(k) && !next.some(n => n.name.toLowerCase() === k)) next.push(p);
+        }
+        if (failedReads.has(`${x.w.code}\t${q}`)) x.failed = true;
+      }
+      if (!next.length) continue;
+      const again = await keepOpenPhotos(next, deps.photoFetch, 1, { ...opts, deadlineMs: Math.max(1, end - Date.now()) });
+      blocked = blocked || again.blocked;
+      late += again.late;
+      if (again.products[0]) { x.product = again.products[0]; used.add(x.product.name.toLowerCase()); }
+    }
   }
   const data = {
-    sets: sets.filter(x => x.items.length >= 2),
-    ideas: ideas.filter(x => x.product)
+    sets: (sc.sets || []).map((set, si) => ({ title: set.title, line: set.line, items: slots.filter(x => x.set === si && x.product).map(x => x.product) }))
+      .filter(x => x.items.length >= 2),
+    ideas: (sc.ideas || []).map((idea, ii) => ({ title: idea.title, line: idea.line, product: (slots.find(x => x.idea === ii && x.product) || {}).product || null }))
+      .filter(x => x.product)
   };
-  const ttl = !data.sets.length && !data.ideas.length ? 60 : (failed || blocked || late) ? 600 : 3600;
+  const lost = slots.some(x => !x.product && x.failed);
+  const ttl = !data.sets.length && !data.ideas.length ? 60 : (lost || blocked || late) ? 600 : 3600;
   if (cache) {
     const res = new Response(JSON.stringify(data), { headers: { 'Content-Type': 'application/json', 'Cache-Control': `public, max-age=${ttl}` } });
     const put = Promise.resolve().then(() => cache.put(key, res)).catch(() => { /* the next visit reads the sites again */ });
@@ -1134,6 +1171,9 @@ export function storePage(c, store, products, now = Date.now(), showcase = null)
   const worlds = store.sites.map(gearWorldFor).filter(Boolean);
   const codes = storeCodes(site, now, store.slug, c.country);
   const started = earlyBlackFriday(site, now, c.country).find(r => r.slug === store.slug);
+  // The products the showcase already shows are not listed twice (L221); the list then has its own heading.
+  const inShowcase = showcaseNames(showcase);
+  const listed = inShowcase.size ? products.filter(p => !inShowcase.has(String(p.name).toLowerCase())) : products;
   return shell(c, {
     title: tx('{0} on {1}', store.name, site.name),
     description: `${tx(store.line)} ${tx('Product photos from the Gear World sites, each with its Gear World product page.')}`,
@@ -1152,9 +1192,10 @@ ${codes.length ? html`<section class="wrap section store-codes" aria-labelledby=
   <ul class="promo-list">${codes.map(i => codeCard(c, i, false))}</ul>
   <p class="promo-note">${t('Each store sets its own terms: check them on its page before you pay.')}</p>
 </section>` : ''}
-<section class="wrap section" aria-label="${tx('Products')}">
-  ${products.length
-    ? html`<ul class="pcards">${products.map(p => {
+${products.length && !listed.length ? '' : html`<section class="wrap section" aria-label="${tx('Products')}">
+  ${inShowcase.size && listed.length ? html`<h2>${t('More from {0}', keep(store.name))}</h2>` : ''}
+  ${listed.length
+    ? html`<ul class="pcards">${listed.map(p => {
       const w = gearWorldFor(p.site);
       return html`<li class="pcard">
     <a class="pcard-photo" href="${c.gw(p.url)}" rel="noopener" target="_blank"><img src="${p.image}" alt="${p.name}" width="240" height="240" loading="lazy" decoding="async" referrerpolicy="no-referrer"></a>
@@ -1165,7 +1206,7 @@ ${codes.length ? html`<section class="wrap section store-codes" aria-labelledby=
   </li>`;
     })}</ul>`
     : html`<p class="empty">${t('Products could not be loaded just now. The links below open {0} on each Gear World site.', keep(store.name))}</p>`}
-</section>
+</section>`}
 <section class="wrap section">
   <h2>${t('{0} on the Gear World sites', keep(store.name))}</h2>
   <ul class="site-links">${worlds.map(w => html`<li>
