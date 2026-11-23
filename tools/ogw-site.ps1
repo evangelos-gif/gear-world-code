@@ -215,7 +215,18 @@ function Write-Config([string]$folder, [bool]$preview) {
 
 # One GET (no redirects followed): @{ status; text; location; robots } (status 0 = no answer). $country: the visitor's
 # country the QA check asks for (the UK unless a check names another, L210).
+# A page as the check reads it. A new *.workers.dev address (the preview) can answer nothing, 404 or 5xx now and then for
+# a minute (23 Nov 2026: / answered 404 once after a 200): there, up to 2 more tries, 10 seconds apart. The live
+# domain is read once (its /stores/amazon/ is a real 404 without the Amazon phrase).
 function Get-Page([string]$url, [string]$country = 'GB') {
+    $p = Get-PageOnce $url $country
+    if ($url -match '\.workers\.dev') {
+        for ($try = 1; $try -le 2 -and ($p.status -eq 0 -or $p.status -eq 404 -or $p.status -ge 500); $try++) { Start-Sleep -Seconds 10; $p = Get-PageOnce $url $country }
+    }
+    return $p
+}
+
+function Get-PageOnce([string]$url, [string]$country = 'GB') {
     [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
     try {
         $req = [System.Net.HttpWebRequest]::Create($url)
@@ -369,7 +380,7 @@ function Test-Site([string]$base, [string]$mode) {
     $lwLogo = Get-Page ($base + '/assets/logos/kouzinika-gr.png') 'GR'
     if ($lw.status -eq 200 -and $lw.text.Contains('/assets/logos/kouzinika-gr.png?v=') -and $lwLogo.status -eq 200 -and -not $lw.text.Contains('/out/') -and -not $lw.text.Contains([string][char]0x20AC)) {
         if ($lwSets -ge 1 -and $lwIdeas -ge 1) { Say ('  /stores/kouzinika-gr/ (L221): ΕΝΤΑΞΕΙ - το λογότυπο της Linkwise, {0} σετ και {1} ιδέες δώρου, κανένα σύμβολο €' -f $lwSets, $lwIdeas) $Ok }
-        else { Say ('  /stores/kouzinika-gr/ (L221): ΠΡΟΣΟΧΗ - το λογότυπο είναι σωστό, αλλά τα σετ ({0}) ή οι ιδέες ({1}) δεν φορτώθηκαν αυτή τη στιγμή (το Home Gear World ήταν απασχολημένο· φορτώνονται ξανά σε επόμενη επίσκεψη)' -f $lwSets, $lwIdeas) $Warn }
+        else { Say ('  /stores/kouzinika-gr/ (L221): ΠΡΟΣΟΧΗ - το λογότυπο είναι σωστό, αλλά τα σετ ({0}) ή οι ιδέες ({1}) δεν φορτώθηκαν αυτή τη στιγμή (πιθανόν επειδή το Home Gear World ήταν απασχολημένο· φορτώνονται ξανά σε επόμενη επίσκεψη, και τα ελέγχει το Claude μετά το live)' -f $lwSets, $lwIdeas) $Warn }
     }
     else { Say ('  /stores/kouzinika-gr/ (L221): λείπει το λογότυπο (αρχείο {0}) ή φαίνεται /out/ ή τιμή: ΠΡΟΒΛΗΜΑ' -f $lwLogo.status) $Bad; $all = $false }
     $us = Get-Page ($base + '/') 'US'
