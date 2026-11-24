@@ -85,6 +85,7 @@ param(
     [string]$SecretFile = '',
     [string]$Archive = '',
     [string]$Program = '138,469,13026,11754',
+    [switch]$Reload,
     [string]$Chat = '1 · Gear World Manager' # the chat that gave the command, named in the clipboard line (L116, L208)
 )
 
@@ -659,7 +660,10 @@ function Invoke-Deploy([string]$folder, [string]$arguments) {
 }
 # L228: the catalogue's own D1 database: @{ ok; found; id } (ok = $false: Cloudflare did not answer the list).
 function Get-JsonArray([string]$text) {
-    $i = $text.IndexOf('[')
+    # From the first line that starts with "[" (a warning line of wrangler, "[WARNING] ...", may come before it).
+    $m = [regex]::Match($text, '(?m)^\s*\[\s*(\{|\])')
+    if (-not $m.Success) { return $null }
+    $i = $m.Index
     $j = $text.LastIndexOf(']')
     if ($i -lt 0 -or $j -le $i) { return $null }
     try { return @($text.Substring($i, $j - $i + 1) | ConvertFrom-Json) } catch { return $null }
@@ -772,7 +776,7 @@ if ($Step -eq 'catalog-db') {
     if ($f.found) { Say ('  - Η βάση "{0}" υπάρχει: φτιάχνονται οι πίνακες που λείπουν (κανένα δεδομένο δεν αλλάζει).' -f $CatalogDb) }
     else {
         Say ('  - Νέα βάση D1 "{0}" στην Cloudflare, μόνο για τον κατάλογο του Mega Stores (ποτέ για τα 13 sites, το Hub ή την εφαρμογή).' -f $CatalogDb)
-        Say '  - Κόστος: τα πρώτα 5 GB και 50 εκατ. εγγραφές τον μήνα περιλαμβάνονται στο Workers Paid· ο κατάλογος (~1 GB) κοστίζει περίπου $1-2 τον μήνα.'
+        Say '  - Κόστος: στο Workers Paid περιλαμβάνονται 5 GB και 50 εκατ. εγγραφές τον μήνα (μετά $0,75/GB και $1 ανά εκατ.). Ο κατάλογος (~1 GB) πιθανότατα δεν κοστίζει αποθήκευση· η πρώτη φόρτωση των 4 είναι ~4,3 εκατ. εγγραφές. Κάθε ΠΛΗΡΗΣ επαναφόρτωση ενός καταστήματος γράφει ~8 φορές τα προϊόντα του, γι'' αυτό γίνεται μόνο με -Reload.'
     }
     Say ('  - Το {0}, τα Gear World sites, το Hub και οι βάσεις τους ΔΕΝ αλλάζουν.' -f $Domain)
     if (-not $Apply) { Say ''; Say 'Δοκιμή μόνο (χωρίς -Apply): δεν άλλαξε τίποτα.' $Ok; Finish 0 }
@@ -807,6 +811,15 @@ if ($Step -eq 'catalog') {
         $lines = @(& node $tool --archive $Archive --out $out --program ($progs -join ',') 2>$null)
     } catch { $lines = @('CATALOG-ERROR node') }
     finally { $ErrorActionPreference = $old }
+    # The stores already in the database: a full load again writes ~8 rows a product (D1 bills them), only with -Reload.
+    # A store whose last load stopped half-way (loading = 1) is loaded again without -Reload.
+    $q0 = Invoke-Wrangler $ogw ('d1 execute {0} --remote --json --command "SELECT program, products, loading FROM stores"' -f $CatalogDb) -NonInteractive -Retry
+    $have = Get-JsonArray $q0.text
+    if ($null -eq $have) { Say 'Η βάση του καταλόγου δεν απάντησε (μπορεί να φορτώνει ήδη): δεν άλλαξε τίποτα. Ξανατρέξε σε λίγα λεπτά.' $Bad; Remove-Item -LiteralPath $out -Recurse -Force -ErrorAction SilentlyContinue; Finish 11 }
+    $loaded = @{}
+    foreach ($block in @($have)) {
+        foreach ($row in @($block.results)) { if ($row -and [int]$row.products -gt 0 -and [int]$row.loading -eq 0) { $loaded[[string]$row.program] = [int]$row.products } }
+    }
     $ready = @()
     Say ''
     Say 'Τι θα γίνει:'
@@ -815,9 +828,14 @@ if ($Step -eq 'catalog') {
         if ($p[0] -ne 'CATALOG' -or $p.Count -lt 9) { continue }
         $when = $p[7]
         if ($p[7] -ne '-') { try { $when = ([datetime]::Parse($p[7], [System.Globalization.CultureInfo]::InvariantCulture, [System.Globalization.DateTimeStyles]::RoundtripKind)).ToLocalTime().ToString('dd/MM HH:mm') } catch { $when = $p[7] } }
-        if ($p[3] -eq 'OK') {
+        if ($p[3] -eq 'OK' -and $loaded.ContainsKey($p[2]) -and -not $Reload) {
+            Say ('  - {0}: ΠΡΟΣΟΧΗ - έχει ήδη {1} προϊόντα στη βάση: δεν ξαναφορτώνεται (μια πλήρης επαναφόρτωση γράφει ~{2} εκατ. εγγραφές D1· μόνο με -Reload).' -f $p[1], $loaded[$p[2]], [math]::Round(([int]$p[4] + $loaded[$p[2]]) * 4 / 1000000, 1)) $Warn
+        }
+        elseif ($p[3] -eq 'OK') {
             $ready += $p[2]
-            Say ('  - {0}: σβήνονται τα παλιά του προϊόντα και μπαίνουν {1} προϊόντα σε {2} κατηγορίες, από το feed της Linkwise της {3} (ώρα υπολογιστή)· {4} έμειναν έξω (εξαντλημένα, χωρίς φωτογραφία ή σίγουρη τιμή) · {5} αρχεία SQL' -f $p[1], $p[4], $p[5], $when, $p[6], $p[8])
+            $was = 0
+            if ($loaded.ContainsKey($p[2])) { $was = $loaded[$p[2]] }
+            Say ('  - {0}: μπαίνουν {1} προϊόντα σε {2} κατηγορίες, από το feed της Linkwise της {3} (ώρα υπολογιστή)· {4} έμειναν έξω (εξαντλημένα, χωρίς φωτογραφία ή σίγουρη τιμή) · {5} αρχεία SQL · ~{6} εκατ. εγγραφές D1' -f $p[1], $p[4], $p[5], $when, $p[6], $p[8], [math]::Round(([int]$p[4] + $was) * 4 / 1000000, 1))
         }
         elseif ($p[3] -eq 'OLD') { Say ('  - {0}: ΠΡΟΣΟΧΗ - το feed είναι της {1}, παλιότερο από 23 ώρες: δεν φορτώνεται (κατέβασε νέα feeds).' -f $p[1], $when) $Warn }
         elseif ($p[3] -eq 'MISSING') { Say ('  - {0}: ΠΡΟΣΟΧΗ - δεν βρήκα το feed LINKWISE_{1}.csv.gz στο {2}: δεν φορτώνεται.' -f $p[1], $p[2], $Archive) $Warn }
@@ -832,7 +850,7 @@ if ($Step -eq 'catalog') {
     if (-not (Confirm-Approval $PhraseCatalog)) { Say 'Δεν δόθηκε η έγκριση για τον κατάλογο: σταμάτησα χωρίς αλλαγές.' $Warn; Remove-Item -LiteralPath $out -Recurse -Force -ErrorAction SilentlyContinue; Finish 1 }
     $tt = Invoke-Wrangler $ogw ('d1 time-travel info {0}' -f $CatalogDb) -NonInteractive -Retry
     $bm = [regex]::Match($tt.text, '[0-9a-f]{8}-[0-9a-f]{8}-[0-9a-f]{8}-[0-9a-f]{32}')
-    if ($tt.code -ne 0 -or -not $bm.Success) { Say 'Δεν πήρα σημείο επαναφοράς: ΔΕΝ φόρτωσα τίποτα.' $Bad; Say $tt.text; Finish 11 }
+    if ($tt.code -ne 0 -or -not $bm.Success) { Say 'Δεν πήρα σημείο επαναφοράς: ΔΕΝ φόρτωσα τίποτα.' $Bad; Say $tt.text; Remove-Item -LiteralPath $out -Recurse -Force -ErrorAction SilentlyContinue; Finish 11 }
     $restoreCmd = 'npx wrangler d1 time-travel restore {0} --bookmark={1}' -f $CatalogDb, $bm.Value
     $bdir = Join-Path $WorkDir 'backups'
     if (-not (Test-Path -LiteralPath $bdir)) { New-Item -ItemType Directory -Path $bdir -Force | Out-Null }
@@ -840,7 +858,8 @@ if ($Step -eq 'catalog') {
     $backup = Join-Path $bdir ('ogw-catalog-restore-point-' + $stamp + '.txt')
     [System.IO.File]::WriteAllText($backup, $note, (New-Object System.Text.UTF8Encoding($false)))
     Say ('Σημείο επαναφοράς: {0}' -f $backup) $Ok
-    $files = @(Get-ChildItem -LiteralPath $out -Filter '*.sql' -File | Sort-Object Name)
+    # Only the files of the stores above (review 24/11/2026: never a file of a store that was not OK or is skipped).
+    $files = @(Get-ChildItem -LiteralPath $out -Filter '*.sql' -File | Where-Object { $ready -contains ($_.Name -split '-')[0] } | Sort-Object Name)
     $n = 0
     foreach ($file in $files) {
         $x = Invoke-Wrangler $ogw ('d1 execute {0} --remote --file "{1}"' -f $CatalogDb, $file.FullName) -NonInteractive -Retry
@@ -848,6 +867,8 @@ if ($Step -eq 'catalog') {
             Say ('Λάθος στο {0}: ΠΡΟΒΛΗΜΑ. Σταμάτησα· τα προηγούμενα αρχεία φορτώθηκαν.' -f $file.Name) $Bad
             foreach ($l2 in @($x.text -split "`n" | Select-Object -Last 15)) { Say ('  ' + $l2) }
             Say ('Επαναφορά (μόνο με έγκριση): {0}' -f $restoreCmd)
+            Say 'Το κατάστημα που φόρτωνε δείχνει «ενημερώνεται» μέχρι να ξανατρέξει το βήμα catalog (ξαναφορτώνεται χωρίς -Reload).'
+            Remove-Item -LiteralPath $out -Recurse -Force -ErrorAction SilentlyContinue
             Finish 12
         }
         $n++
@@ -857,7 +878,7 @@ if ($Step -eq 'catalog') {
     Remove-Item -LiteralPath $out -Recurse -Force -ErrorAction SilentlyContinue
     $q = Invoke-Wrangler $ogw ('d1 execute {0} --remote --json --command "SELECT slug, products, checked_at FROM stores ORDER BY slug"' -f $CatalogDb) -NonInteractive -Retry
     $rows = Get-JsonArray $q.text
-    if ($rows -and $rows[0].results) { foreach ($r in @($rows[0].results)) { Say ('  {0}: {1} προϊόντα, feed {2}' -f $r.slug, $r.products, $r.checked_at) } }
+    foreach ($block in @($rows)) { foreach ($r in @($block.results)) { if ($r) { Say ('  {0}: {1} προϊόντα, feed {2}' -f $r.slug, $r.products, $r.checked_at) } } }
     Say ''
     Say 'ΕΤΟΙΜΟ: ο κατάλογος φορτώθηκε στη βάση του Mega Stores.' $Ok
     Say ('Αν χρειαστεί επαναφορά (μόνο με έγκριση): {0}' -f $restoreCmd)

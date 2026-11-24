@@ -72,11 +72,37 @@ test('L228: the PC tool: the store\'s own pages and photos, in stock, in euros, 
   assert.ok(!/CD\d{3,}|go\.linkwi\.se|aw_deep_link/.test(sql.join('\n')), 'no affiliate code or tracking link in the database');
   // Many products: several INSERT statements, all of them loaded.
   const big = await catalogSql({ 138: kotsovolosRows(2500) }, NOW);
-  assert.ok(big.sql.join('\n').split('\n').filter(l => l.startsWith('INSERT INTO products')).length > 3);
+  assert.ok(big.sql.join('\n').split('\n').filter(l => l.startsWith('INSERT OR REPLACE INTO products')).length > 3);
   assert.equal(fakeD1(big.sql).sqlite.prepare('SELECT COUNT(*) AS n FROM products').get().n, 2502);
   // The prices of the sets and ideas of the config, from the same feed.
   const picks = JSON.parse(fakeD1((await catalogSql({ 138: kotsovolosRows(2) }, NOW)).sql).sqlite.prepare('SELECT picks FROM stores').get().picks);
   assert.deepEqual(picks, { [priceKey('https://www.kotsovolos.gr/ProductDisplay?partNumber=273143')]: 359.99 });
+});
+
+test('L228 review: one id twice, a store with nothing to load, tracking and our code in an address', async () => {
+  const rows = [
+    ...kotsovolosRows(2),
+    // The same product id on two pages (a colour with its own address): kept once, never a failed load.
+    { product_name: 'Red', merchant_deep_link: 'https://www.kotsovolos.gr/p/red', merchant_image_url: 'https://assets.kotsovolos.gr/r.jpg', search_price: '10', currency: 'EUR', in_stock: '1', merchant_product_id: 'SKU1', merchant_category: 'X' },
+    { product_name: 'Blue', merchant_deep_link: 'https://www.kotsovolos.gr/p/blue', merchant_image_url: 'https://assets.kotsovolos.gr/b.jpg', search_price: '10', currency: 'EUR', in_stock: '1', merchant_product_id: 'SKU1', merchant_category: 'X' },
+    // Tracking parameters go; a parameter with an affiliate code goes; a photo with one: the product is left out.
+    { product_name: 'Tracked', merchant_deep_link: `https://www.kotsovolos.gr/p/t?partNumber=7&utm_source=linkwise&aff=CD12345&x=${'CD' + '44444'}`, merchant_image_url: 'https://assets.kotsovolos.gr/t.jpg', search_price: '10', currency: 'EUR', in_stock: '1', merchant_product_id: 't', merchant_category: 'X' },
+    { product_name: 'Coded photo', merchant_deep_link: 'https://www.kotsovolos.gr/p/c', merchant_image_url: 'https://assets.kotsovolos.gr/c.jpg?ref=CD12345', search_price: '10', currency: 'EUR', in_stock: '1', merchant_product_id: 'c', merchant_category: 'X' }
+  ];
+  const { lines, sql } = await catalogSql({ 138: rows, 469: [{ product_name: 'out', merchant_deep_link: 'https://www.public.gr/p', merchant_image_url: 'https://external.webstorage.gr/p.jpg', search_price: '1', currency: 'EUR', in_stock: '0', merchant_product_id: 'p' }] }, NOW);
+  assert.match(lines[0], / OK 6 /);
+  assert.match(lines[1], / NONE 0 /);
+  assert.equal(sql.length, 1, 'only the store that ended OK has a file (the empty one wipes nothing)');
+  assert.ok(!sql.join('\n').includes('program = 469'), 'nothing of Public');
+  const db = fakeD1(sql).sqlite;
+  assert.equal(db.prepare("SELECT COUNT(*) AS n FROM products WHERE pid = 'SKU1'").get().n, 1);
+  assert.equal(db.prepare("SELECT page FROM products WHERE pid = 't'").get().page, 'https://www.kotsovolos.gr/p/t?partNumber=7');
+  assert.equal(db.prepare("SELECT COUNT(*) AS n FROM products WHERE pid = 'c'").get().n, 0);
+  assert.ok(!/CD\d{3,}/.test(sql.join('\n')), 'no affiliate code anywhere in the SQL');
+  assert.equal(db.prepare('SELECT loading FROM stores').get().loading, 0, 'loaded: not "loading" any more');
+  // Sent twice (a retry after a network error): the same rows.
+  const twice = fakeD1([...sql, ...sql]).sqlite;
+  assert.equal(twice.prepare('SELECT COUNT(*) AS n FROM products').get().n, 6);
 });
 
 test('L228: the store page of /gr/ lists the store\'s own categories, the sets first; never without our code or the database', async () => {
@@ -157,6 +183,17 @@ test('L228: an old feed: no prices after 24 hours, no catalogue after 72; a busy
   assert.equal((await get('/gr/stores/kotsovolos-gr/c/123-x/', stale)).r.status, 404);
   assert.equal((await get(link.replace('/gr', ''), stale)).r.status, 404);
   assert.equal((await get(link.replace('kotsovolos-gr', 'kouzinika-gr'), stale)).r.status, 404, 'only the direct stores have a catalogue');
+  // The whole database busy (an import): 503 for the category, the store page with its sets; a store in the middle of
+  // its load ("loading"): 503 too, never half a store.
+  const down = await catalogEnv({ failOn: /FROM stores/ });
+  assert.equal((await get(link, down)).r.status, 503);
+  const d1 = await get('/gr/stores/kotsovolos-gr/', down);
+  assert.equal(d1.r.status, 200);
+  assert.ok(!d1.text.includes('cat-list'));
+  const loading = await catalogEnv();
+  loading.CATALOG.sqlite.prepare('UPDATE stores SET loading = 1').run();
+  assert.equal((await get(link, loading)).r.status, 503);
+  assert.ok(!(await get('/gr/stores/kotsovolos-gr/', loading)).text.includes('cat-list'));
 });
 
 test('L228: the prices of the sets come from the catalogue when its feed is newer than the deploy\'s', async () => {

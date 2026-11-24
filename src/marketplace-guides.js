@@ -24,7 +24,7 @@ import { activePromos } from './lib/promos.js';
 import { COUNTRY_LANGUAGES, MULTI_LANGUAGE_COUNTRIES } from './lib/country-language.js';
 import { APP_BAR_TEXT, APP_BADGE_LABEL, appBarWanted, appPlayUrl, appBadgeFile } from './lib/app.js';
 import { PRICE_MAX_AGE_MS, priceKey } from './lib/price-key.js';
-import { catalogStores, catalogFresh, catalogTop, catalogCategory, PAGE_SIZE } from './lib/ogw-catalog.js';
+import { catalogState, catalogFresh, catalogTop, catalogCategory } from './lib/ogw-catalog.js';
 
 export const AMAZON_STATEMENT = 'As an Amazon Associate I earn from qualifying purchases.';
 const AMAZON_TRADEMARK = 'Amazon and the Amazon logo are trademarks of Amazon.com, Inc. or its affiliates.';
@@ -1945,9 +1945,10 @@ export function createGuidesWorker(site, deps = {}) {
       const lw = linkwiseCode(env);
       // The prices of the direct stores (L227), checked again for their age on every page.
       // Every page has them (the legal pages say "prices" only while some are shown).
-      // The catalogue of the direct stores (L228): only with our Linkwise code and the CATALOG database.
-      const catStores = lw && env && env.CATALOG ? await catalogStores(env.CATALOG, nowMs()) : new Map();
-      const priced = cc => { cc.now = nowMs(); cc.prices = mergePrices(linkwisePrices(env), catStores, cc.now); cc.catalog = catStores; return cc; };
+      // The catalogue of the direct stores (L228): only with our Linkwise code and the CATALOG database, read after the
+      // cheap answers below (version, robots, sitemap), with a time limit (catalogState).
+      let catState = { ok: true, stores: new Map() };
+      const priced = cc => { cc.now = nowMs(); cc.prices = mergePrices(linkwisePrices(env), catState.stores, cc.now); cc.catalog = catState.stores; return cc; };
       const ctxFor = path => priced(makeContext(site, choice.lang, choice.chosen, mode, path, country, null, lw));
       const page = (body, status = 200, lang = choice.lang) => {
         // Every page now depends on the visitor's country (its stores, codes and Amazon buttons, L210), and before
@@ -1967,6 +1968,8 @@ export function createGuidesWorker(site, deps = {}) {
         const urls = pagePaths(site, baseMode, lw).map(p => `<url><loc>https://${site.domain}${p}</loc></url>`).join('\n');
         return textResponse(`<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls}\n</urlset>\n`, { type: 'application/xml', method: request.method });
       }
+      if (lw && env && env.CATALOG) catState = await catalogState(env.CATALOG, nowMs());
+      const catStores = catState.stores;
       // A country edition (L214): /gr/ and /gr/stores/<store>/, in the edition's language for everyone (Google too) unless
       // the visitor picked another (?lang=), and always for the edition's country.
       const ed = editionFor(url.pathname);
@@ -1993,22 +1996,22 @@ export function createGuidesWorker(site, deps = {}) {
         if (cStore) {
           const entry = catStores.get(String(cStore.direct.program));
           const cc = edCtx(`/stores/${cStore.slug}/`);
+          // The database busy (an import) or the store in the middle of a load: try again soon (503), never half a store.
+          const busy = () => { const b = page(catalogBusyPage(cc, cStore), 503, edLang); b.headers.set('Retry-After', '300'); return b; };
+          if (!catState.ok || (entry && entry.loading)) return busy();
           if (!catalogFresh(entry, nowMs())) return page(notFoundPage(edCtx(url.pathname), url.pathname), 404, edLang);
           const after = /^\d{1,16}$/.test(url.searchParams.get('after') || '') ? Number(url.searchParams.get('after')) : 0;
           let data;
-          try { data = await catalogCategory(env.CATALOG, cStore.direct.program, Number(cm[2]), after); } catch {
-            const busy = page(catalogBusyPage(cc, cStore), 503, edLang);
-            busy.headers.set('Retry-After', '300');
-            return busy;
-          }
+          try { data = await catalogCategory(env.CATALOG, cStore.direct.program, Number(cm[2]), after); } catch { return busy(); }
           if (!data) return page(notFoundPage(edCtx(url.pathname), url.pathname), 404, edLang);
           if (cm[3] !== data.cat.slug || !rest.endsWith('/')) {
             const to = new URL(url.toString());
             to.pathname = `${ed.prefix}/stores/${cStore.slug}/c/${data.cat.id}-${data.cat.slug}/`;
             return redirect(to.toString(), 301);
           }
+          // The photos of the page (L211), checked after it is sent, and not for crawlers (48 checks a page).
           let broken = new Set();
-          try { broken = await catalogPhotos(site, cStore, data.products.map(p => p.image), runtime(), ctx); } catch { broken = new Set(); }
+          if (!crawler) { try { broken = await catalogPhotos(site, cStore, data.products.map(p => p.image), runtime(), ctx); } catch { broken = new Set(); } }
           return page(catalogPage(edCtx(`/stores/${cStore.slug}/c/${data.cat.id}-${data.cat.slug}/`), cStore, data, entry, broken, after), 200, edLang);
         }
         const em = rest.match(/^\/stores\/([a-z0-9-]+)\/?$/);

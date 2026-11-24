@@ -6,14 +6,16 @@
 // names, read at most 23 hours ago, as for the prices of L227) and writes SQL files for the store's own D1 database
 // (sites/ogw/catalog-schema.sql): every product in stock, in euros, with an https photo and a page on the store's own
 // address, in the store's own categories (merchant_category, its first three levels). Rows that share one page (sizes,
-// shades) are one product, and only when they agree on the price (else it is left out: no price is guessed). A full
-// load per store: its old rows first (DELETE), then every product (INSERT), then its categories and its row in stores
-// (with the time of the feed and the prices of its own sets and ideas), each statement at most 90 KB, each file at most 20 MB. Nothing is sent from here:
-// tools/ogw-site.ps1 -Step catalog sends the files, in order, with the owner's phrase. No affiliate code: the products
-// keep the store's own page. ASCII lines on stdout, never stderr (Windows PowerShell 5.1):
+// shades) are one product, and only when they agree on the price (else it is left out: no price is guessed); a product
+// id seen twice is kept once. A full load per store: its row in stores marked "loading" and its old rows out (DELETE),
+// then every product (INSERT OR REPLACE: a file can be sent twice), then its categories and its row in stores (the time
+// of the feed, the prices of its own sets and ideas, no longer loading), each statement at most 90 KB, each file at most 20 MB. Nothing is sent from here:
+// tools/ogw-site.ps1 -Step catalog sends the files, in order, with the owner's phrase; only a store that ends OK has
+// files (they are written under a temporary name first). No affiliate code: the products keep the store's own page,
+// without tracking parameters, and a page or photo with a code of ours in it is left out. ASCII lines on stdout, never stderr (Windows PowerShell 5.1):
 //   CATALOG <slug> <programme> <OK|OLD|MISSING|NONE|ERROR> <products> <categories> <left out> <feed ISO or -> <files>
 //   CATALOG-DONE <stores> <products> <files>
-import { createReadStream, existsSync, mkdirSync, openSync, closeSync, writeSync, readFileSync, statSync } from 'node:fs';
+import { createReadStream, existsSync, mkdirSync, openSync, closeSync, writeSync, readFileSync, statSync, renameSync, rmSync, readdirSync } from 'node:fs';
 import { createGunzip } from 'node:zlib';
 import { pipeline } from 'node:stream';
 import { dirname, join, resolve } from 'node:path';
@@ -56,10 +58,13 @@ export function storePage(raw, hosts) {
   u.protocol = 'https:';
   u.hostname = host;
   u.hash = '';
+  for (const [k, v] of [...u.searchParams]) if (TRACKING.test(k) || AFF.test(k) || AFF.test(v)) u.searchParams.delete(k);
   const out = u.toString();
-  return out.length <= 1000 ? out : '';
+  return out.length <= 1000 && !AFF.test(out) ? out : '';
 }
-const photo = raw => { const s = String(raw || '').trim(); return /^https:\/\/[^\s"'<>]+$/.test(s) && s.length <= 1000 ? s : ''; };
+const AFF = /CD\d{3,9}/i;
+const TRACKING = /^(utm_.*|gclid|fbclid|msclkid|mc_cid|mc_eid|_ga|aff.*|ref|source|lw.*|linkwise.*|clickid|click_id|sub_?id.*)$/i;
+const photo = raw => { const s = String(raw || '').trim(); return /^https:\/\/[^\s"'<>]+$/.test(s) && s.length <= 1000 && !AFF.test(s) ? s : ''; };
 export function levels(category) {
   const parts = String(category || '').replace(/&gt;/gi, '>').split('>').map(x => clean(x, 80)).filter(Boolean).slice(0, 3);
   return parts.length ? parts : [OTHER];
@@ -122,14 +127,17 @@ export async function buildStore(store, file, outDir, feedIso) {
     else if (seen !== r.price) pagePrice.set(k, -1);
   }
   // Pass 2: one product per page, in its categories.
-  const sql = new SqlFiles(outDir, String(store.program));
+  // Written as tmp-<programme>-NNNN.sql; renamed to <programme>-NNNN.sql only when the store ends OK.
+  const sql = new SqlFiles(outDir, `tmp-${store.program}`);
+  sql.write(`INSERT INTO stores (program, slug, checked_at, products, loading) VALUES (${store.program}, ${sq(store.slug)}, ${sq(feedIso)}, 0, 1) ON CONFLICT(program) DO UPDATE SET loading = 1;`);
   sql.write(`DELETE FROM products WHERE program = ${store.program};`);
   const cats = new Map(); // id -> { id, parent, level, name, slug, path, products }
   const idOf = path => { let id = fnv(`${store.program}|${path}`) & 0x7fffffff; return id || 1; };
   const done = new Set();
+  const pids = new Set();
   let products = 0, left = 0;
   let batch = [], batchBytes = 0;
-  const head = 'INSERT INTO products (program, pid, pos, c1, c2, c3, name, brand, page, image, price) VALUES ';
+  const head = 'INSERT OR REPLACE INTO products (program, pid, pos, c1, c2, c3, name, brand, page, image, price) VALUES ';
   const flush = () => { if (batch.length) sql.write(`${head}${batch.join(',')};`); batch = []; batchBytes = 0; };
   for await (const get of rows(file)) {
     const r = rowOf(get, store.hosts);
@@ -148,6 +156,8 @@ export async function buildStore(store, file, outDir, feedIso) {
       ids.push(id);
     }
     const pid = r.pid || k;
+    if (pids.has(pid)) { left++; continue; }
+    pids.add(pid);
     const value = `(${store.program},${sq(pid)},${position(pid)},${ids[0]},${ids[1] || 0},${ids[2] || 0},${sq(r.name)},${sq(r.brand)},${sq(r.page)},${sq(r.image)},${r.price})`;
     const bytes = Buffer.byteLength(value, 'utf8') + 1;
     if (batchBytes + bytes + head.length > MAX_STATEMENT) flush();
@@ -170,7 +180,7 @@ export async function buildStore(store, file, outDir, feedIso) {
   // The prices of its sets and ideas, from the same feed (the rules of L227: one sure price, else none).
   let picks = {};
   if (store.picks.length) { try { picks = (await pricesFromFeed(feedStream(file), store.picks)).prices; } catch { picks = {}; } }
-  sql.write(`INSERT OR REPLACE INTO stores (program, slug, checked_at, products, picks) VALUES (${store.program}, ${sq(store.slug)}, ${sq(feedIso)}, ${products}, ${sq(JSON.stringify(picks))});`);
+  sql.write(`INSERT OR REPLACE INTO stores (program, slug, checked_at, products, loading, picks) VALUES (${store.program}, ${sq(store.slug)}, ${sq(feedIso)}, ${products}, 0, ${sq(JSON.stringify(picks))});`);
   sql.close();
   return { products, categories: cats.size, left, files: sql.files, picks: Object.keys(picks).length };
 }
@@ -191,8 +201,11 @@ export async function buildCatalog({ archive, out, programs, config, now = Date.
     const iso = new Date(t).toISOString();
     if (now - t > FEED_MAX_AGE_MS) { line('OLD', {}, iso); continue; }
     let r;
-    try { r = await buildStore(s, file, out, iso); } catch { line('ERROR', {}, iso); continue; }
-    if (!r.products) { line('NONE', { ...r, files: [] }, iso); continue; }
+    const dropTmp = () => { for (const f of readdirSync(out)) if (f.startsWith(`tmp-${program}-`)) rmSync(join(out, f), { force: true }); };
+    try { r = await buildStore(s, file, out, iso); } catch { dropTmp(); line('ERROR', {}, iso); continue; }
+    if (!r.products) { dropTmp(); line('NONE', { ...r, files: [] }, iso); continue; }
+    // OK: the files get their real names (a store's files are only ever all there or none).
+    r.files = r.files.map(f => { const to = join(out, f.split(/[\\/]/).pop().replace(/^tmp-/, '')); renameSync(f, to); return to; });
     shown++; total += r.products; files += r.files.length;
     line('OK', r, iso);
   }

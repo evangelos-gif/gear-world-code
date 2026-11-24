@@ -3467,6 +3467,7 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         'echo %* >> "%GW_FAKE_STATE%\calls.log"',
         'echo %* | findstr /C:"whoami" >nul && goto whoami',
         'echo %* | findstr /C:"d1 list" >nul && goto d1list',
+        'echo %* | findstr /C:"d1 execute" >nul && goto d1exec',
         'echo %* | findstr /C:"deployments list" >nul && goto deployments',
         'echo %* | findstr /C:" delete " >nul && goto delete',
         'echo %* | findstr /C:" deploy" >nul && goto deploy',
@@ -3481,6 +3482,18 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         'exit /b 0',
         ':d1have',
         'echo [{"uuid":"fakecatalogdb01","name":"mega-stores-gear-world-catalog"}]',
+        'exit /b 0',
+        ':d1exec',
+        'if exist "%GW_FAKE_STATE%\catalogbusy.txt" goto d1busy',
+        'if exist "%GW_FAKE_STATE%\catalogloaded.txt" goto d1loaded',
+        'echo [{"results":[],"success":true}]',
+        'exit /b 0',
+        ':d1loaded',
+        'echo [{"results":[{"program":"138","products":5,"loading":0},{"program":"469","products":7,"loading":1}],"success":true}]',
+        'exit /b 0',
+        ':d1busy',
+        'echo [WARNING] D1 is busy importing',
+        'exit /b 1',
         'exit /b 0',
         ':deployments',
         'echo %* | findstr /C:"-preview" >nul && goto nodeps',
@@ -3623,8 +3636,17 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         Check ((Run-Og @('-Step', 'catalog', '-Program', '138')) -eq 14) 'ogw catalog without its database: exit 14 (L228)'
         Check ((Run-Og @('-Step', 'catalog', '-Program', '999')) -eq 2) 'ogw catalog for another programme: exit 2 (L228)'
         [System.IO.File]::WriteAllText((Join-Path $ogState 'catalogdb.txt'), 'yes')
-        Check ((Run-Og @('-Step', 'catalog', '-Program', '138,469')) -eq 0 -and (OgLastReport 'CATALOG').Contains('kotsovolos-gr: σβήνονται τα παλιά του προϊόντα και μπαίνουν 2 προϊόντα') -and (OgLastReport 'CATALOG').Contains('public-gr: ΠΡΟΣΟΧΗ - δεν βρήκα το feed LINKWISE_469.csv.gz') -and -not ((OgCalls) -match 'd1 execute mega-stores-gear-world-catalog --remote --file')) 'ogw catalog without -Apply: the plan per store from its feed, nothing loaded (L228)'
+        Check ((Run-Og @('-Step', 'catalog', '-Program', '138,469')) -eq 0 -and (OgLastReport 'CATALOG').Contains('kotsovolos-gr: μπαίνουν 2 προϊόντα') -and (OgLastReport 'CATALOG').Contains('public-gr: ΠΡΟΣΟΧΗ - δεν βρήκα το feed LINKWISE_469.csv.gz') -and -not ((OgCalls) -match 'd1 execute mega-stores-gear-world-catalog --remote --file')) 'ogw catalog without -Apply: the plan per store from its feed, nothing loaded (L228)'
         Check ((Run-Og @('-Step', 'catalog', '-Program', '138', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ OGW ΒΑΣΗ')) -eq 1 -and -not ((OgCalls) -match 'time-travel')) 'ogw catalog with the wrong phrase: no restore point, nothing loaded (L228)'
+        # Review 24/11/2026: a store already in the database is not loaded again (D1 bills every row written) unless -Reload;
+        # one whose last load stopped half-way is; no answer from the database stops.
+        [System.IO.File]::WriteAllText((Join-Path $ogState 'catalogloaded.txt'), 'yes')
+        Check ((Run-Og @('-Step', 'catalog', '-Program', '138')) -eq 0 -and (OgLastReport 'CATALOG').Contains('kotsovolos-gr: ΠΡΟΣΟΧΗ - έχει ήδη 5 προϊόντα στη βάση: δεν ξαναφορτώνεται') -and (OgLastReport 'CATALOG').Contains('Τίποτα για φόρτωση')) 'ogw catalog: a store already loaded is not loaded again without -Reload (D1 cost, L228)'
+        Check ((Run-Og @('-Step', 'catalog', '-Program', '138', '-Reload')) -eq 0 -and (OgLastReport 'CATALOG').Contains('kotsovolos-gr: μπαίνουν 2 προϊόντα')) 'ogw catalog -Reload: the store is loaded again (L228)'
+        Remove-Item -LiteralPath (Join-Path $ogState 'catalogloaded.txt') -Force
+        [System.IO.File]::WriteAllText((Join-Path $ogState 'catalogbusy.txt'), 'yes')
+        Check ((Run-Og @('-Step', 'catalog', '-Program', '138')) -eq 11 -and -not ((OgCalls) -match 'time-travel')) 'ogw catalog: the catalogue database does not answer: exit 11, nothing loaded (L228)'
+        Remove-Item -LiteralPath (Join-Path $ogState 'catalogbusy.txt') -Force
         Check ((Run-Og @('-Step', 'preview', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ OGW PREVIEW')) -eq 0 -and [System.IO.File]::ReadAllText((Join-Path $ogWork 'wrangler.preview.jsonc')).Contains('"d1_databases": [ { "binding": "CATALOG", "database_name": "mega-stores-gear-world-catalog", "database_id": "fakecatalogdb01" } ],')) 'ogw preview with the catalogue database: the Worker reads it (binding CATALOG, its id from Cloudflare) (L228)'
         Remove-Item -LiteralPath (Join-Path $ogState 'catalogdb.txt') -Force
     } finally {
