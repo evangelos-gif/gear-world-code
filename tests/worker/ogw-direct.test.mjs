@@ -164,12 +164,13 @@ test('L226: the 5 stores are never read from a Gear World site, and have no code
   }
 });
 
-test('L226: /gr/ lists the 5 after the 7, each card with its logo and three of its own photos, opening our page', async () => {
+test('L226: /gr/ lists the 5 first, before the 7 (owner, 24 Nov 2026), each card with its logo and three of its own photos, opening our page', async () => {
   const { r, text } = await get('/gr/', { cc: 'GB' });
   assert.equal(r.status, 200);
   const cards = text.split('<li class="store-card">').slice(1);
   const order = [...text.matchAll(/<a class="store-link" href="\/gr\/stores\/([a-z0-9-]+)\/">/g)].map(m => m[1]);
-  assert.deepEqual(order.slice(-5), SLUGS, 'the 5 after the 7 Greek stores');
+  assert.deepEqual(order.slice(0, 5), SLUGS, 'the 5 first (owner: «τα μεγάλα καταστήματα πρώτα»)');
+  assert.deepEqual(order.slice(5), site.stores.filter(s => s.network === 'linkwise' && !s.direct).map(s => s.slug), 'then the 7 Greek stores');
   assert.equal(order.length, 12);
   for (const s of DIRECT) {
     const card = cards.find(c => c.includes(`href="/gr/stores/${s.slug}/"`));

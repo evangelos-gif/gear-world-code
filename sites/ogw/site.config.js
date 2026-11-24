@@ -86,105 +86,10 @@ export default {
       line: 'Office supplies, office furniture and desk accessories.', logo: 'logos/back-to-the-office.png', logoSize: [168, 168] },
     { slug: 'dhgate', name: 'DHgate', sites: ['KGW'], deliversTo: ['GB'],
       line: 'Toys, games and children\'s items from many independent sellers.', logo: '' },
-    // Greek stores of the Linkwise network (owner, 21 Nov 2026: "in the email we have many offers for Greece, check and
-    // put them all in Mega Stores", lessons L210): the ones that sent offers and are already on the Gear World sites with
-    // Greek products, under their names there ("… GR") and the countries of the sites' linkwise-gr.js (checked by chat 3
-    // and 7, L199). Shown only to visitors from those countries. Their offers' own texts ("up to -50%") are not shown:
-    // no sale or "% off" wording on the sites (L107, L114), and none of them is a code with an end date.
-    // Their pages are the showcase Linkwise asked to see (owner, 23 Nov 2026: "with their official logos, as Kotsovolos,
-    // Sephora and the rest would go in", "no prices, only bundles and ideas", lessons L221): `logo` is the programme logo
-    // of the Linkwise panel (affiliate.linkwi.se, 120x60, its pixels unchanged; only Minipini's XMP text block, which holds
-    // ID-like numbers, was left out), and `showcase` gives 2 sets and 3 gift ideas
-    // in Greek and English (el / en). Each pick is a search on the store's products on its Gear World site (`site`, else
-    // the first of `sites`), tried in order: the first product found, in stock, with a photo, not already on the page.
-    // Never a price, a product name we wrote, or an /out/ or /go/ link: every product opens its Gear World product page.
-    { slug: 'kouzinika-gr', network: 'linkwise', name: 'Kouzinika GR', sites: ['HGW'], deliversTo: ['GR'], line: 'Kitchenware, tableware and home items.', logo: 'logos/kouzinika-gr.png', logoSize: [120, 60],
-      showcase: {
-        sets: [
-          { title: { el: 'Το χριστουγεννιάτικο τραπέζι', en: 'The Christmas table' }, line: { el: 'Πιάτα, κούπα και πιατέλα που ταιριάζουν μεταξύ τους.', en: 'Plates, a mug and a platter that go together.' }, picks: [['Χριστουγεννιάτικα Πιάτα', 'Χριστουγεννιάτικο Πιάτο'], ['Χριστουγεννιάτικη Κούπα'], ['Χριστουγεννιάτικη Πιατέλα', 'Χριστουγεννιάτικο Πιατέλα']] },
-          { title: { el: 'Πρωινό στο σπίτι', en: 'Breakfast at home' }, line: { el: 'Μεγάλη κούπα, μπολ και γαλατιέρα για το πρώτο γεύμα της μέρας.', en: 'A big mug, a bowl and a milk pan for the first meal of the day.' }, picks: [['Κούπα πρωινού', 'Κούπα'], ['Μπολ Πρωινού', 'Μπολ'], ['Γαλατιέρα']] }
-        ],
-        ideas: [
-          { title: { el: 'Για όποιον παίρνει τον καφέ μαζί του', en: 'For someone who takes their coffee along' }, line: { el: 'Θερμός ποτήρι από ανοξείδωτο ατσάλι.', en: 'A stainless steel travel cup.' }, pick: ['Θερμός Ποτήρι', 'Θερμός'] },
-          { title: { el: 'Για όποιον αγαπά το μαγείρεμα', en: 'For someone who loves to cook' }, line: { el: 'Μαντεμένια γάστρα για φαγητά φούρνου.', en: 'A cast-iron pot for oven dishes.' }, pick: ['Lodge Γάστρα', 'Γάστρα Μαντεμένια', 'Γάστρα'] },
-          { title: { el: 'Για ένα πιο τακτοποιημένο σπίτι', en: 'For a tidier home' }, line: { el: 'Ψάθινο καλάθι αποθήκευσης.', en: 'A woven storage basket.' }, pick: ['Καλάθι Αποθήκευσης Ψάθινο', 'Καλάθι Ψάθα', 'Καλάθι'] }
-        ]
-      } },
-    { slug: 'katoikein-gr', network: 'linkwise', name: 'Katoikein GR', sites: ['HGW'], deliversTo: ['GR'], line: 'Furniture and home textiles.', logo: 'logos/katoikein-gr.png', logoSize: [120, 60],
-      showcase: {
-        sets: [
-          { title: { el: 'Ζεστό υπνοδωμάτιο', en: 'A warm bedroom' }, line: { el: 'Φανελένια σεντόνια, παπλωματοθήκη και κουβερλί για τον χειμώνα.', en: 'Flannel sheets, a duvet cover and a quilt for the winter.' }, picks: [['Σεντόνια Φανέλλα', 'Σεντόνια'], ['Παπλωματοθήκη'], ['Κουβερλί']] },
-          { title: { el: 'Μπάνιο σαν ξενοδοχείο', en: 'A hotel-style bathroom' }, line: { el: 'Πετσέτες, μπουρνούζι και πατάκι.', en: 'Towels, a bathrobe and a bath mat.' }, picks: [['Σετ πετσέτες μπάνιου', 'Πετσέτα'], ['Μπουρνούζι ενηλ', 'Μπουρνούζι Large', 'Μπουρνούζι'], ['Πατάκι μπάνιου', 'Πατάκι']] }
-        ],
-        ideas: [
-          { title: { el: 'Για τα βράδια στον καναπέ', en: 'For evenings on the sofa' }, line: { el: 'Ριχτάρι για καναπέ ή πολυθρόνα.', en: 'A throw for a sofa or an armchair.' }, pick: ['Ριχτάρι'] },
-          { title: { el: 'Για το γιορτινό τραπέζι', en: 'For the festive table' }, line: { el: 'Τραπεζομάντηλο.', en: 'A tablecloth.' }, pick: ['Τραπεζομάντηλο'] },
-          { title: { el: 'Για Χριστούγεννα στο σαλόνι', en: 'For Christmas in the living room' }, line: { el: 'Χριστουγεννιάτικο διακοσμητικό μαξιλάρι.', en: 'A Christmas cushion.' }, pick: ['christmas μαξιλαρι', 'μαξιλαρι'] }
-        ]
-      } },
-    { slug: 'minipini-gr', network: 'linkwise', name: 'Minipini GR', sites: ['KGW'], deliversTo: ['GR'], line: 'Toys, puzzles and games for children.', logo: 'logos/minipini-gr.png', logoSize: [120, 60],
-      showcase: {
-        sets: [
-          { title: { el: 'Παιχνίδι στην κουζίνα', en: 'Play kitchen' }, line: { el: 'Φρούτα, λαχανικά και κουζινικά για παιχνίδι ρόλων.', en: 'Fruit, vegetables and kitchen items for pretend play.' }, picks: [['Σετ λαχανικών'], ['Σετ Φρούτων'], ['Κουζινικ', 'Σετ παγωτά']] },
-          { title: { el: 'Ιππότες και νεράιδες', en: 'Knights and fairies' }, line: { el: 'Στολή, κορώνα και ραβδάκι για μεταμφιέσεις.', en: 'A costume, a crown and a wand for dressing up.' }, picks: [['Στολή Ιππότης', 'Στολή'], ['Κορώνα'], ['Ραβδάκι']] }
-        ],
-        ideas: [
-          { title: { el: 'Για μικρούς εξερευνητές', en: 'For little explorers' }, line: { el: 'Ζώνη εξερευνητή για βόλτες στη φύση.', en: 'An explorer belt for walks outdoors.' }, pick: ['ζώνη εξερευνητή', 'Navir'] },
-          { title: { el: 'Για ήσυχο ύπνο', en: 'For a calm bedtime' }, line: { el: 'Μουσικό φωτάκι νυκτός.', en: 'A musical night light.' }, pick: ['Night Light'] },
-          { title: { el: 'Για όσους αγαπούν τα παζλ', en: 'For puzzle lovers' }, line: { el: 'Παζλ για παιδιά.', en: 'A puzzle for children.' }, pick: ['Παζλ'] }
-        ]
-      } },
-    { slug: 'xxxl-leo-gr', network: 'linkwise', name: 'XXXL Leo GR', sites: ['MGW'], deliversTo: ['GR'], line: 'Men\'s clothing, also in larger sizes.', logo: 'logos/xxxl-leo-gr.png', logoSize: [120, 60],
-      showcase: {
-        sets: [
-          { title: { el: 'Για το γραφείο', en: 'For the office' }, line: { el: 'Πουκάμισο, παντελόνι chino και γραβάτα, και σε μεγάλα μεγέθη.', en: 'A shirt, chinos and a tie, also in large sizes.' }, picks: [['πουκάμισο μονόχρωμο μακρυμάνικο', 'πουκάμισο'], ['chino παντελόνι', 'chino'], ['γραβάτα']] },
-          { title: { el: 'Χαλαρό Σαββατοκύριακο', en: 'An easy weekend' }, line: { el: 'Φούτερ, τζιν και t-shirt.', en: 'A hoodie, jeans and a T-shirt.' }, picks: [['Hoodie', 'φούτερ'], ['Jean'], ['t-shirt']] }
-        ],
-        ideas: [
-          { title: { el: 'Για τον χειμώνα', en: 'For the winter' }, line: { el: 'Πλεκτή μπλούζα.', en: 'A knitted jumper.' }, pick: ['Πλεκτή μπλούζα', 'Πλεκτή'] },
-          { title: { el: 'Για κάθε μέρα', en: 'For every day' }, line: { el: 'Μπλούζα polo.', en: 'A polo shirt.' }, pick: ['Polo πικέ', 'Polo'] },
-          { title: { el: 'Μικρό δώρο', en: 'A small gift' }, line: { el: 'Βαμβακερές κάλτσες.', en: 'Cotton socks.' }, pick: ['κάλτσα'] }
-        ]
-      } },
-    { slug: 'casualshoes-gr', network: 'linkwise', name: 'CasualShoes GR', sites: ['MGW'], deliversTo: ['GR'], line: 'Shoes and watches.', logo: 'logos/casualshoes-gr.png', logoSize: [120, 60],
-      showcase: {
-        sets: [
-          { title: { el: 'Ρολόι και αξεσουάρ', en: 'A watch and accessories' }, line: { el: 'Ρολόι, βραχιόλι και μπρελόκ.', en: 'A watch, a bracelet and a key ring.' }, picks: [['Ρολόι'], ['Βραχιόλι'], ['Μπρελόκ', 'KEYRING']] },
-          { title: { el: 'Βόλτα στην πόλη', en: 'A walk in town' }, line: { el: 'Sneakers, loafers και σκουφάκι.', en: 'Sneakers, loafers and a beanie.' }, picks: [['SNEAKER'], ['LOAFER'], ['ΣΚΟΥΦΑΚΙ']] }
-        ],
-        ideas: [
-          { title: { el: 'Για τα ταξίδια', en: 'For travel' }, line: { el: 'Σακίδιο πλάτης.', en: 'A backpack.' }, pick: ['Rucksack', 'BACKPACK'] },
-          { title: { el: 'Για τον χειμώνα', en: 'For the winter' }, line: { el: 'Ανδρικά μποτάκια.', en: 'Men’s boots.' }, pick: ['ΜΠΟΤΑΚΙ'] },
-          { title: { el: 'Για την τσέπη', en: 'For the pocket' }, line: { el: 'Πορτοφόλι.', en: 'A wallet.' }, pick: ['WALLET', 'Πορτοφόλι'] }
-        ]
-      } },
-    { slug: 'parex-gr', network: 'linkwise', name: 'Parex GR', sites: ['MGW'], deliversTo: ['GR', 'CY'], line: 'Shoes, wallets and socks.', logo: 'logos/parex-gr.jpg', logoSize: [120, 60],
-      showcase: {
-        sets: [
-          { title: { el: 'Μικρά δώρα', en: 'Small gifts' }, line: { el: 'Πορτοφόλι, κάλτσες και παντόφλες.', en: 'A wallet, socks and slippers.' }, picks: [['Πορτοφόλι'], ['Happy Socks', 'Κάλτσες'], ['Παντόφλες Σπιτιού', 'Παντόφλες']] },
-          { title: { el: 'Δερμάτινα για κάθε μέρα', en: 'Leather for every day' }, line: { el: 'Casual παπούτσια, μποτάκια και loafers από δέρμα.', en: 'Casual shoes, boots and loafers in leather.' }, picks: [['Δερμάτινα Casual Παπούτσια'], ['Δερμάτινα Μποτάκια'], ['Δερμάτινα Loafer', 'Loafer']] }
-        ],
-        ideas: [
-          { title: { el: 'Για τον αθλητικό τύπο', en: 'For a sporty type' }, line: { el: 'Αθλητικά παπούτσια.', en: 'Trainers.' }, pick: ['Skechers', 'Αθλητικά Παπούτσια'] },
-          { title: { el: 'Για ξεχωριστές στιγμές', en: 'For special occasions' }, line: { el: 'Δερμάτινα αμπιγιέ παπούτσια.', en: 'Leather dress shoes.' }, pick: ['Αμπιγιέ'] },
-          { title: { el: 'Για άνεση', en: 'For comfort' }, line: { el: 'Μοκασίνια.', en: 'Moccasins.' }, pick: ['Μοκασίνια'] }
-        ]
-      } },
-    { slug: 'tsakiris-mallas-gr', network: 'linkwise', name: 'Tsakiris Mallas GR', sites: ['MGW', 'WGW'], deliversTo: ['GR', 'CY'], line: 'Shoes and bags.', logo: 'logos/tsakiris-mallas-gr.png', logoSize: [120, 60],
-      showcase: {
-        sets: [
-          { site: 'WGW', title: { el: 'Για μια βραδινή έξοδο', en: 'For an evening out' }, line: { el: 'Γόβες, τσάντα χειρός και mules.', en: 'Heels, a handbag and mules.' }, picks: [['ΓΟΒΕΣ'], ['ΤΣΑΝΤΕΣ ΧΕΙΡΟΣ'], ['MULES']] },
-          { site: 'MGW', title: { el: 'Για εκείνον', en: 'For him' }, line: { el: 'Loafers, τσάντα μέσης και sneakers.', en: 'Loafers, a belt bag and sneakers.' }, picks: [['LOAFERS'], ['ΤΣΑΝΤΑ ΜΕΣΗΣ'], ['SNEAKERS']] }
-        ],
-        ideas: [
-          { site: 'WGW', title: { el: 'Για τον χειμώνα', en: 'For the winter' }, line: { el: 'Γυναικεία μποτάκια.', en: 'Women’s ankle boots.' }, pick: ['ΜΠΟΤΑΚΙΑ'] },
-          { site: 'WGW', title: { el: 'Για κάθε μέρα', en: 'For every day' }, line: { el: 'Τσάντα tote.', en: 'A tote bag.' }, pick: ['TOTE'] },
-          { site: 'MGW', title: { el: 'Για τα ταξίδια', en: 'For travel' }, line: { el: 'Ανδρική τσάντα χιαστί.', en: 'A men’s cross-body bag.' }, pick: ['CROSS BODY'] }
-        ]
-      } },
+    // First on the page of Greece (owner, 24 Nov 2026: «τα μεγάλα καταστήματα πρώτα»), then the 7 Greek stores.
     // The five big Greek stores of Linkwise (owner and Linkwise, 24 Nov 2026, lessons L226): Public, Sephora,
     // e-shop.gr, AB Vasilopoulos and Kotsovolos do not accept comparison sites, so their products are never on the 13
-    // sites, the Hub or the app. Julia (Linkwise) agreed on 24 Nov 2026 to their pages here like the 7 above (the
+    // sites, the Hub or the app. Julia (Linkwise) agreed on 24 Nov 2026 to their pages here like the 7 below (the
     // programme logo, sets and gift ideas, no prices), with one difference: every idea opens the store's own page
     // through the Linkwise link (never a Gear World product page, never a comparison). `direct.program` is the
     // Linkwise programme, `direct.hosts` the store's own addresses (no other address is ever linked), and the sets and
@@ -289,6 +194,102 @@ export default {
           { title: { el: 'Για τον λάτρη του καφέ', en: 'For the coffee lover' }, line: { el: 'Ο καφές του ΑΒ.', en: 'AB’s coffee.' }, url: 'https://www.ab.gr/el/eshop/Proino-snacking-and-rofimata/Kafes/c/009011' },
           { title: { el: 'Περιποίηση', en: 'Personal care' }, line: { el: 'Είδη προσωπικής περιποίησης.', en: 'Personal care products.' }, url: 'https://www.ab.gr/el/eshop/Eidi-prosopikis-peripoiisis/c/012' },
           { title: { el: 'Για τα κατοικίδια', en: 'For pets' }, line: { el: 'Τροφές και είδη για κατοικίδια.', en: 'Food and supplies for pets.' }, url: 'https://www.ab.gr/el/eshop/Gia-katoikidia/c/014' }
+        ]
+      } },
+    // Greek stores of the Linkwise network (owner, 21 Nov 2026: "in the email we have many offers for Greece, check and
+    // put them all in Mega Stores", lessons L210): the ones that sent offers and are already on the Gear World sites with
+    // Greek products, under their names there ("… GR") and the countries of the sites' linkwise-gr.js (checked by chat 3
+    // and 7, L199). Shown only to visitors from those countries. Their offers' own texts ("up to -50%") are not shown:
+    // no sale or "% off" wording on the sites (L107, L114), and none of them is a code with an end date.
+    // Their pages are the showcase Linkwise asked to see (owner, 23 Nov 2026: "with their official logos, as Kotsovolos,
+    // Sephora and the rest would go in", "no prices, only bundles and ideas", lessons L221): `logo` is the programme logo
+    // of the Linkwise panel (affiliate.linkwi.se, 120x60, its pixels unchanged; only Minipini's XMP text block, which holds
+    // ID-like numbers, was left out), and `showcase` gives 2 sets and 3 gift ideas
+    // in Greek and English (el / en). Each pick is a search on the store's products on its Gear World site (`site`, else
+    // the first of `sites`), tried in order: the first product found, in stock, with a photo, not already on the page.
+    // Never a price, a product name we wrote, or an /out/ or /go/ link: every product opens its Gear World product page.
+    { slug: 'kouzinika-gr', network: 'linkwise', name: 'Kouzinika GR', sites: ['HGW'], deliversTo: ['GR'], line: 'Kitchenware, tableware and home items.', logo: 'logos/kouzinika-gr.png', logoSize: [120, 60],
+      showcase: {
+        sets: [
+          { title: { el: 'Το χριστουγεννιάτικο τραπέζι', en: 'The Christmas table' }, line: { el: 'Πιάτα, κούπα και πιατέλα που ταιριάζουν μεταξύ τους.', en: 'Plates, a mug and a platter that go together.' }, picks: [['Χριστουγεννιάτικα Πιάτα', 'Χριστουγεννιάτικο Πιάτο'], ['Χριστουγεννιάτικη Κούπα'], ['Χριστουγεννιάτικη Πιατέλα', 'Χριστουγεννιάτικο Πιατέλα']] },
+          { title: { el: 'Πρωινό στο σπίτι', en: 'Breakfast at home' }, line: { el: 'Μεγάλη κούπα, μπολ και γαλατιέρα για το πρώτο γεύμα της μέρας.', en: 'A big mug, a bowl and a milk pan for the first meal of the day.' }, picks: [['Κούπα πρωινού', 'Κούπα'], ['Μπολ Πρωινού', 'Μπολ'], ['Γαλατιέρα']] }
+        ],
+        ideas: [
+          { title: { el: 'Για όποιον παίρνει τον καφέ μαζί του', en: 'For someone who takes their coffee along' }, line: { el: 'Θερμός ποτήρι από ανοξείδωτο ατσάλι.', en: 'A stainless steel travel cup.' }, pick: ['Θερμός Ποτήρι', 'Θερμός'] },
+          { title: { el: 'Για όποιον αγαπά το μαγείρεμα', en: 'For someone who loves to cook' }, line: { el: 'Μαντεμένια γάστρα για φαγητά φούρνου.', en: 'A cast-iron pot for oven dishes.' }, pick: ['Lodge Γάστρα', 'Γάστρα Μαντεμένια', 'Γάστρα'] },
+          { title: { el: 'Για ένα πιο τακτοποιημένο σπίτι', en: 'For a tidier home' }, line: { el: 'Ψάθινο καλάθι αποθήκευσης.', en: 'A woven storage basket.' }, pick: ['Καλάθι Αποθήκευσης Ψάθινο', 'Καλάθι Ψάθα', 'Καλάθι'] }
+        ]
+      } },
+    { slug: 'katoikein-gr', network: 'linkwise', name: 'Katoikein GR', sites: ['HGW'], deliversTo: ['GR'], line: 'Furniture and home textiles.', logo: 'logos/katoikein-gr.png', logoSize: [120, 60],
+      showcase: {
+        sets: [
+          { title: { el: 'Ζεστό υπνοδωμάτιο', en: 'A warm bedroom' }, line: { el: 'Φανελένια σεντόνια, παπλωματοθήκη και κουβερλί για τον χειμώνα.', en: 'Flannel sheets, a duvet cover and a quilt for the winter.' }, picks: [['Σεντόνια Φανέλλα', 'Σεντόνια'], ['Παπλωματοθήκη'], ['Κουβερλί']] },
+          { title: { el: 'Μπάνιο σαν ξενοδοχείο', en: 'A hotel-style bathroom' }, line: { el: 'Πετσέτες, μπουρνούζι και πατάκι.', en: 'Towels, a bathrobe and a bath mat.' }, picks: [['Σετ πετσέτες μπάνιου', 'Πετσέτα'], ['Μπουρνούζι ενηλ', 'Μπουρνούζι Large', 'Μπουρνούζι'], ['Πατάκι μπάνιου', 'Πατάκι']] }
+        ],
+        ideas: [
+          { title: { el: 'Για τα βράδια στον καναπέ', en: 'For evenings on the sofa' }, line: { el: 'Ριχτάρι για καναπέ ή πολυθρόνα.', en: 'A throw for a sofa or an armchair.' }, pick: ['Ριχτάρι'] },
+          { title: { el: 'Για το γιορτινό τραπέζι', en: 'For the festive table' }, line: { el: 'Τραπεζομάντηλο.', en: 'A tablecloth.' }, pick: ['Τραπεζομάντηλο'] },
+          { title: { el: 'Για Χριστούγεννα στο σαλόνι', en: 'For Christmas in the living room' }, line: { el: 'Χριστουγεννιάτικο διακοσμητικό μαξιλάρι.', en: 'A Christmas cushion.' }, pick: ['christmas μαξιλαρι', 'μαξιλαρι'] }
+        ]
+      } },
+    { slug: 'minipini-gr', network: 'linkwise', name: 'Minipini GR', sites: ['KGW'], deliversTo: ['GR'], line: 'Toys, puzzles and games for children.', logo: 'logos/minipini-gr.png', logoSize: [120, 60],
+      showcase: {
+        sets: [
+          { title: { el: 'Παιχνίδι στην κουζίνα', en: 'Play kitchen' }, line: { el: 'Φρούτα, λαχανικά και κουζινικά για παιχνίδι ρόλων.', en: 'Fruit, vegetables and kitchen items for pretend play.' }, picks: [['Σετ λαχανικών'], ['Σετ Φρούτων'], ['Κουζινικ', 'Σετ παγωτά']] },
+          { title: { el: 'Ιππότες και νεράιδες', en: 'Knights and fairies' }, line: { el: 'Στολή, κορώνα και ραβδάκι για μεταμφιέσεις.', en: 'A costume, a crown and a wand for dressing up.' }, picks: [['Στολή Ιππότης', 'Στολή'], ['Κορώνα'], ['Ραβδάκι']] }
+        ],
+        ideas: [
+          { title: { el: 'Για μικρούς εξερευνητές', en: 'For little explorers' }, line: { el: 'Ζώνη εξερευνητή για βόλτες στη φύση.', en: 'An explorer belt for walks outdoors.' }, pick: ['ζώνη εξερευνητή', 'Navir'] },
+          { title: { el: 'Για ήσυχο ύπνο', en: 'For a calm bedtime' }, line: { el: 'Μουσικό φωτάκι νυκτός.', en: 'A musical night light.' }, pick: ['Night Light'] },
+          { title: { el: 'Για όσους αγαπούν τα παζλ', en: 'For puzzle lovers' }, line: { el: 'Παζλ για παιδιά.', en: 'A puzzle for children.' }, pick: ['Παζλ'] }
+        ]
+      } },
+    { slug: 'xxxl-leo-gr', network: 'linkwise', name: 'XXXL Leo GR', sites: ['MGW'], deliversTo: ['GR'], line: 'Men\'s clothing, also in larger sizes.', logo: 'logos/xxxl-leo-gr.png', logoSize: [120, 60],
+      showcase: {
+        sets: [
+          { title: { el: 'Για το γραφείο', en: 'For the office' }, line: { el: 'Πουκάμισο, παντελόνι chino και γραβάτα, και σε μεγάλα μεγέθη.', en: 'A shirt, chinos and a tie, also in large sizes.' }, picks: [['πουκάμισο μονόχρωμο μακρυμάνικο', 'πουκάμισο'], ['chino παντελόνι', 'chino'], ['γραβάτα']] },
+          { title: { el: 'Χαλαρό Σαββατοκύριακο', en: 'An easy weekend' }, line: { el: 'Φούτερ, τζιν και t-shirt.', en: 'A hoodie, jeans and a T-shirt.' }, picks: [['Hoodie', 'φούτερ'], ['Jean'], ['t-shirt']] }
+        ],
+        ideas: [
+          { title: { el: 'Για τον χειμώνα', en: 'For the winter' }, line: { el: 'Πλεκτή μπλούζα.', en: 'A knitted jumper.' }, pick: ['Πλεκτή μπλούζα', 'Πλεκτή'] },
+          { title: { el: 'Για κάθε μέρα', en: 'For every day' }, line: { el: 'Μπλούζα polo.', en: 'A polo shirt.' }, pick: ['Polo πικέ', 'Polo'] },
+          { title: { el: 'Μικρό δώρο', en: 'A small gift' }, line: { el: 'Βαμβακερές κάλτσες.', en: 'Cotton socks.' }, pick: ['κάλτσα'] }
+        ]
+      } },
+    { slug: 'casualshoes-gr', network: 'linkwise', name: 'CasualShoes GR', sites: ['MGW'], deliversTo: ['GR'], line: 'Shoes and watches.', logo: 'logos/casualshoes-gr.png', logoSize: [120, 60],
+      showcase: {
+        sets: [
+          { title: { el: 'Ρολόι και αξεσουάρ', en: 'A watch and accessories' }, line: { el: 'Ρολόι, βραχιόλι και μπρελόκ.', en: 'A watch, a bracelet and a key ring.' }, picks: [['Ρολόι'], ['Βραχιόλι'], ['Μπρελόκ', 'KEYRING']] },
+          { title: { el: 'Βόλτα στην πόλη', en: 'A walk in town' }, line: { el: 'Sneakers, loafers και σκουφάκι.', en: 'Sneakers, loafers and a beanie.' }, picks: [['SNEAKER'], ['LOAFER'], ['ΣΚΟΥΦΑΚΙ']] }
+        ],
+        ideas: [
+          { title: { el: 'Για τα ταξίδια', en: 'For travel' }, line: { el: 'Σακίδιο πλάτης.', en: 'A backpack.' }, pick: ['Rucksack', 'BACKPACK'] },
+          { title: { el: 'Για τον χειμώνα', en: 'For the winter' }, line: { el: 'Ανδρικά μποτάκια.', en: 'Men’s boots.' }, pick: ['ΜΠΟΤΑΚΙ'] },
+          { title: { el: 'Για την τσέπη', en: 'For the pocket' }, line: { el: 'Πορτοφόλι.', en: 'A wallet.' }, pick: ['WALLET', 'Πορτοφόλι'] }
+        ]
+      } },
+    { slug: 'parex-gr', network: 'linkwise', name: 'Parex GR', sites: ['MGW'], deliversTo: ['GR', 'CY'], line: 'Shoes, wallets and socks.', logo: 'logos/parex-gr.jpg', logoSize: [120, 60],
+      showcase: {
+        sets: [
+          { title: { el: 'Μικρά δώρα', en: 'Small gifts' }, line: { el: 'Πορτοφόλι, κάλτσες και παντόφλες.', en: 'A wallet, socks and slippers.' }, picks: [['Πορτοφόλι'], ['Happy Socks', 'Κάλτσες'], ['Παντόφλες Σπιτιού', 'Παντόφλες']] },
+          { title: { el: 'Δερμάτινα για κάθε μέρα', en: 'Leather for every day' }, line: { el: 'Casual παπούτσια, μποτάκια και loafers από δέρμα.', en: 'Casual shoes, boots and loafers in leather.' }, picks: [['Δερμάτινα Casual Παπούτσια'], ['Δερμάτινα Μποτάκια'], ['Δερμάτινα Loafer', 'Loafer']] }
+        ],
+        ideas: [
+          { title: { el: 'Για τον αθλητικό τύπο', en: 'For a sporty type' }, line: { el: 'Αθλητικά παπούτσια.', en: 'Trainers.' }, pick: ['Skechers', 'Αθλητικά Παπούτσια'] },
+          { title: { el: 'Για ξεχωριστές στιγμές', en: 'For special occasions' }, line: { el: 'Δερμάτινα αμπιγιέ παπούτσια.', en: 'Leather dress shoes.' }, pick: ['Αμπιγιέ'] },
+          { title: { el: 'Για άνεση', en: 'For comfort' }, line: { el: 'Μοκασίνια.', en: 'Moccasins.' }, pick: ['Μοκασίνια'] }
+        ]
+      } },
+    { slug: 'tsakiris-mallas-gr', network: 'linkwise', name: 'Tsakiris Mallas GR', sites: ['MGW', 'WGW'], deliversTo: ['GR', 'CY'], line: 'Shoes and bags.', logo: 'logos/tsakiris-mallas-gr.png', logoSize: [120, 60],
+      showcase: {
+        sets: [
+          { site: 'WGW', title: { el: 'Για μια βραδινή έξοδο', en: 'For an evening out' }, line: { el: 'Γόβες, τσάντα χειρός και mules.', en: 'Heels, a handbag and mules.' }, picks: [['ΓΟΒΕΣ'], ['ΤΣΑΝΤΕΣ ΧΕΙΡΟΣ'], ['MULES']] },
+          { site: 'MGW', title: { el: 'Για εκείνον', en: 'For him' }, line: { el: 'Loafers, τσάντα μέσης και sneakers.', en: 'Loafers, a belt bag and sneakers.' }, picks: [['LOAFERS'], ['ΤΣΑΝΤΑ ΜΕΣΗΣ'], ['SNEAKERS']] }
+        ],
+        ideas: [
+          { site: 'WGW', title: { el: 'Για τον χειμώνα', en: 'For the winter' }, line: { el: 'Γυναικεία μποτάκια.', en: 'Women’s ankle boots.' }, pick: ['ΜΠΟΤΑΚΙΑ'] },
+          { site: 'WGW', title: { el: 'Για κάθε μέρα', en: 'For every day' }, line: { el: 'Τσάντα tote.', en: 'A tote bag.' }, pick: ['TOTE'] },
+          { site: 'MGW', title: { el: 'Για τα ταξίδια', en: 'For travel' }, line: { el: 'Ανδρική τσάντα χιαστί.', en: 'A men’s cross-body bag.' }, pick: ['CROSS BODY'] }
         ]
       } }
   ],
