@@ -5,7 +5,7 @@
 export const CATALOG_MAX_AGE_MS = 72 * 3600 * 1000; // older than this: no catalogue at all (only the sets and ideas)
 export const PAGE_SIZE = 48;
 export const QUERY_TIMEOUT_MS = 1500;
-const CACHE_MS = 60000;
+const CACHE_MS = 10000;
 const FAIL_CACHE_MS = 30000;
 let cached = { db: null, at: 0, state: null };
 
@@ -16,7 +16,8 @@ export function withTimeout(promise, ms = QUERY_TIMEOUT_MS) {
 }
 
 // Every store of the catalogue: { ok, stores: Map(programme -> { t, products, loading, picks: Map(priceKey -> euros) }) },
-// a minute in memory (a failure: 30 seconds, so a busy database is not asked again at every page).
+// 10 seconds in memory, so a load that starts shows «being updated» within seconds (a failure: 30 seconds, so a busy
+// database is not asked again at every page).
 export async function catalogState(db, now = Date.now()) {
   if (!db || typeof db.prepare !== 'function') return { ok: true, stores: new Map() };
   if (cached.db === db && cached.state && now - cached.at < (cached.state.ok ? CACHE_MS : FAIL_CACHE_MS) && now >= cached.at) return cached.state;

@@ -62,7 +62,9 @@ export function storePage(raw, hosts) {
   const out = u.toString();
   return out.length <= 1000 && !AFF.test(out) ? out : '';
 }
-const AFF = /CD\d{3,9}/i;
+// Our Linkwise code is upper-case CD + digits; case-sensitive and whole, so a model name (philips-cd1201b) or a photo
+// hash (…3acd1234…) is never taken for it (second review 24/11/2026).
+const AFF = /(?<![A-Za-z0-9])CD\d{3,9}(?![0-9])/;
 const TRACKING = /^(utm_.*|gclid|fbclid|msclkid|mc_cid|mc_eid|_ga|aff.*|ref|source|lw.*|linkwise.*|clickid|click_id|sub_?id.*)$/i;
 const photo = raw => { const s = String(raw || '').trim(); return /^https:\/\/[^\s"'<>]+$/.test(s) && s.length <= 1000 && !AFF.test(s) ? s : ''; };
 export function levels(category) {
@@ -146,6 +148,10 @@ export async function buildStore(store, file, outDir, feedIso) {
     if (done.has(k)) continue;
     done.add(k);
     if (pagePrice.get(k) !== r.price) { left++; continue; }
+    // The same product id twice (a colour with its own page): kept once, and counted in its categories once.
+    const pid = r.pid || k;
+    if (pids.has(pid)) { left++; continue; }
+    pids.add(pid);
     const ids = [];
     for (let i = 0; i < r.cats.length; i++) {
       const path = r.cats.slice(0, i + 1).join(' > ');
@@ -155,9 +161,6 @@ export async function buildStore(store, file, outDir, feedIso) {
       cats.get(id).products++;
       ids.push(id);
     }
-    const pid = r.pid || k;
-    if (pids.has(pid)) { left++; continue; }
-    pids.add(pid);
     const value = `(${store.program},${sq(pid)},${position(pid)},${ids[0]},${ids[1] || 0},${ids[2] || 0},${sq(r.name)},${sq(r.brand)},${sq(r.page)},${sq(r.image)},${r.price})`;
     const bytes = Buffer.byteLength(value, 'utf8') + 1;
     if (batchBytes + bytes + head.length > MAX_STATEMENT) flush();

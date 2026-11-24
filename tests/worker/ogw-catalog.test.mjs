@@ -84,25 +84,29 @@ test('L228 review: one id twice, a store with nothing to load, tracking and our 
     ...kotsovolosRows(2),
     // The same product id on two pages (a colour with its own address): kept once, never a failed load.
     { product_name: 'Red', merchant_deep_link: 'https://www.kotsovolos.gr/p/red', merchant_image_url: 'https://assets.kotsovolos.gr/r.jpg', search_price: '10', currency: 'EUR', in_stock: '1', merchant_product_id: 'SKU1', merchant_category: 'X' },
-    { product_name: 'Blue', merchant_deep_link: 'https://www.kotsovolos.gr/p/blue', merchant_image_url: 'https://assets.kotsovolos.gr/b.jpg', search_price: '10', currency: 'EUR', in_stock: '1', merchant_product_id: 'SKU1', merchant_category: 'X' },
+    { product_name: 'Blue', merchant_deep_link: 'https://www.kotsovolos.gr/p/blue', merchant_image_url: 'https://assets.kotsovolos.gr/b.jpg', search_price: '10', currency: 'EUR', in_stock: '1', merchant_product_id: 'SKU1', merchant_category: 'Y > Sub' },
+    // A model name or a photo hash that only looks like a code: kept (second review: the check is upper-case CD, whole).
+    { product_name: 'Philips phone', merchant_deep_link: 'https://www.kotsovolos.gr/p/philips-cd1201b-phone', merchant_image_url: 'https://assets.kotsovolos.gr/9f3acd1234e.jpg', search_price: '10', currency: 'EUR', in_stock: '1', merchant_product_id: 'm', merchant_category: 'X' },
     // Tracking parameters go; a parameter with an affiliate code goes; a photo with one: the product is left out.
     { product_name: 'Tracked', merchant_deep_link: `https://www.kotsovolos.gr/p/t?partNumber=7&utm_source=linkwise&aff=CD12345&x=${'CD' + '44444'}`, merchant_image_url: 'https://assets.kotsovolos.gr/t.jpg', search_price: '10', currency: 'EUR', in_stock: '1', merchant_product_id: 't', merchant_category: 'X' },
     { product_name: 'Coded photo', merchant_deep_link: 'https://www.kotsovolos.gr/p/c', merchant_image_url: 'https://assets.kotsovolos.gr/c.jpg?ref=CD12345', search_price: '10', currency: 'EUR', in_stock: '1', merchant_product_id: 'c', merchant_category: 'X' }
   ];
   const { lines, sql } = await catalogSql({ 138: rows, 469: [{ product_name: 'out', merchant_deep_link: 'https://www.public.gr/p', merchant_image_url: 'https://external.webstorage.gr/p.jpg', search_price: '1', currency: 'EUR', in_stock: '0', merchant_product_id: 'p' }] }, NOW);
-  assert.match(lines[0], / OK 6 /);
+  assert.match(lines[0], / OK 7 /);
   assert.match(lines[1], / NONE 0 /);
   assert.equal(sql.length, 1, 'only the store that ended OK has a file (the empty one wipes nothing)');
   assert.ok(!sql.join('\n').includes('program = 469'), 'nothing of Public');
   const db = fakeD1(sql).sqlite;
   assert.equal(db.prepare("SELECT COUNT(*) AS n FROM products WHERE pid = 'SKU1'").get().n, 1);
+  assert.equal(db.prepare("SELECT COUNT(*) AS n FROM categories WHERE name IN ('Y', 'Sub')").get().n, 0, 'the second copy makes no empty categories');
+  assert.equal(db.prepare("SELECT page FROM products WHERE pid = 'm'").get().page, 'https://www.kotsovolos.gr/p/philips-cd1201b-phone', 'a model name is not a code');
   assert.equal(db.prepare("SELECT page FROM products WHERE pid = 't'").get().page, 'https://www.kotsovolos.gr/p/t?partNumber=7');
   assert.equal(db.prepare("SELECT COUNT(*) AS n FROM products WHERE pid = 'c'").get().n, 0);
   assert.ok(!/CD\d{3,}/.test(sql.join('\n')), 'no affiliate code anywhere in the SQL');
   assert.equal(db.prepare('SELECT loading FROM stores').get().loading, 0, 'loaded: not "loading" any more');
   // Sent twice (a retry after a network error): the same rows.
   const twice = fakeD1([...sql, ...sql]).sqlite;
-  assert.equal(twice.prepare('SELECT COUNT(*) AS n FROM products').get().n, 6);
+  assert.equal(twice.prepare('SELECT COUNT(*) AS n FROM products').get().n, 7);
 });
 
 test('L228: the store page of /gr/ lists the store\'s own categories, the sets first; never without our code or the database', async () => {
