@@ -11,6 +11,7 @@ import * as ekster from '../../tools/import-rules/ekster-uk.mjs';
 import * as hamond from '../../tools/import-rules/whamond-uk.mjs';
 import * as cotton from '../../tools/import-rules/cottonon-uk.mjs';
 import * as gkc from '../../tools/import-rules/greenkidcrafts.mjs';
+import * as bloom from '../../tools/import-rules/bloomingdales-uk.mjs';
 import { withoutOption, tidy } from '../../tools/import-rules/lib/uk-wave1.mjs';
 
 const at = c => (c.reject ? `out: ${c.reject}` : `${c.site} ${c.siteCategory} > ${c.subcategory}`);
@@ -138,6 +139,28 @@ test('L224 Green Kid Crafts: science boxes to Educational Toys, craft kits to To
   assert.equal(gkc.RULES.currency, 'USD');
 });
 
+test('L224 Bloomingdales UK: who it is for from the name, the kind of product or a one-audience label, never a guess', () => {
+  const c = (n, cat, brand = '') => at(bloom.classify({ name: n, feedCategory: cat, brand }));
+  assert.equal(c('Maje Short Denim Dress with Ruffles', 'Apparel & Accessories > Clothing > Dresses', 'Maje'), 'wgw Clothing > Dresses');
+  assert.equal(c('Steve Madden Women\'s Avid Pointed Pumps', 'Apparel & Accessories > Shoes > Pumps', 'Steve Madden'), 'wgw Shoes > Heels');
+  assert.equal(c('Free People West Coast Metallic Jeans in Country Blue', 'Apparel & Accessories > Clothing > Pants > Jeans', 'Free People'), 'wgw Clothing > Jeans');
+  assert.equal(c('Free People Wait A Minute Baby Tee', 'Apparel & Accessories > Clothing > Tops', 'Free People'), 'wgw Clothing > T-Shirts');
+  assert.equal(c('Tommy Bahama Palm Modern Stripe Tankini Top', 'Apparel & Accessories > Clothing > Swimwear', 'Tommy Bahama'), 'wgw Clothing > Clothing');
+  assert.equal(c("The Men's Store at Bloomingdale's Merino Wool Crewneck Sweater", 'Apparel & Accessories > Clothing > Tops > Sweaters'), 'mgw Clothing > Knitwear');
+  assert.equal(c('Canali Siena Screenweave Solid Regular Fit Suit', 'Apparel & Accessories > Clothing > Suits > Tuxedos', 'Canali'), 'mgw Clothing > Suits');
+  assert.equal(c('Orlebar Brown Standard Quick Dry Tailored Fit Swim Trunks', 'Apparel & Accessories > Clothing > Swimwear', 'Orlebar Brown'), 'mgw Clothing > Shorts');
+  assert.equal(c("Chaser Girls' Neon Bolts Short Sleeved Tee - Little Kid, Big Kid", 'Apparel & Accessories > Clothing > Tops', 'Chaser'), 'kgw Clothing > Clothing');
+  assert.match(c('Theory Cropped Shirt in Good Cotton', 'Apparel & Accessories > Clothing > Tops', 'Theory'), /^out: men's or women's/);
+  assert.equal(c('Citizen Promaster Skyhawk Chronograph, 46mm', 'Apparel & Accessories > Watches', 'Citizen').startsWith('out:'), true);
+  assert.equal(c('Matouk Foundation Mattress Pad, California King', 'Home & Garden > Linens & Bedding > Bedding', 'Matouk'), 'hgw Bedding & Bath > Mattress Topper');
+  assert.equal(c('Olivia Riegel Florence Frame, 5 x 7', 'Furniture > Desks & Tables', 'Olivia Riegel'), 'hgw Home Decor > Ornament');
+  assert.equal(c('Michael Aram Pomegranate Dinner Plate', 'Home & Garden > Kitchen & Dining > Tableware > Dinnerware', 'Michael Aram'), 'hgw Kitchen & Dining > Tableware');
+  assert.equal(c('Tom Ford Oud Wood Eau de Parfum 1.7 oz.', 'Health & Beauty > Personal Care > Cosmetics > Perfume & Cologne', 'Tom Ford'), 'wgw Beauty & Fragrances > Fragrance');
+  assert.equal(c('Creed Aventus Pour Homme Eau de Parfum', 'Health & Beauty > Personal Care > Cosmetics > Perfume & Cologne', 'Creed'), 'mgw Grooming & Fragrances > Fragrance');
+  assert.match(c('Tumi Alpha Bravo Backpack', 'Luggage & Bags > Business Bags', 'Tumi'), /^out:/);
+  assert.equal(bloom.displayName('Aqua Short Sleeve Tweed Pocket Shift Dress - 100% Exclusive'), 'Aqua Short Sleeve Tweed Pocket Shift Dress');
+});
+
 test('L224 the wave 1 UK list file names only rules that exist, each once', () => {
   const pairs = readFileSync('tools/massive/uk-wave1-1124.txt', 'utf8').split(/\r?\n/).map(l => l.split('#')[0].trim()).filter(Boolean);
   assert.equal(new Set(pairs).size, pairs.length);
@@ -146,5 +169,5 @@ test('L224 the wave 1 UK list file names only rules that exist, each once', () =
     const rules = readFileSync(`tools/import-rules/${key}.mjs`, 'utf8');
     assert.ok(new RegExp(`sites: \\[[^\\]]*'${site}'`).test(rules), `${p}: the site is in the rules`);
   }
-  assert.ok(pairs.includes('whamond-uk:wgw') && pairs.includes('cottonon-uk:kgw'));
+  assert.ok(pairs.includes('whamond-uk:wgw') && pairs.includes('cottonon-uk:kgw') && pairs.includes('bloomingdales-uk:hgw'));
 });
