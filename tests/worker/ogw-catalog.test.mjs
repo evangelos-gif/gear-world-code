@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 import site from '../../sites/ogw/site.config.js';
 import { createGuidesWorker, mergePrices, priceKey, PRICE_MAX_AGE_MS } from '../../src/marketplace-guides.js';
 import { catalogStores, catalogFresh, CATALOG_MAX_AGE_MS, PAGE_SIZE } from '../../src/lib/ogw-catalog.js';
-import { MAX_STATEMENT, catSlug, storePage, levels, OTHER } from '../../tools/ogw-catalog.mjs';
+import { MAX_STATEMENT, catSlug, storePage, levels, soldOut, OTHER } from '../../tools/ogw-catalog.mjs';
 import { fakeD1, catalogSql, kotsovolosRows } from './fake-d1.mjs';
 
 const LIVE = 'https://megastoresgearworld.com';
@@ -42,6 +42,13 @@ test('L228: the PC tool: the store\'s own pages and photos, in stock, in euros, 
   }
   assert.deepEqual(levels('A > B > C > D'), ['A', 'B', 'C']);
   assert.deepEqual(levels(''), [OTHER]);
+  // The stores' own stock words (24/11/2026).
+  for (const s of ['Αγορά μόνο από κατάστημα', 'Μη Διαθέσιμο', 'MH DIATHESIMO', 'Προσωρινά Εξαντλημένο', 'Εξαντλήθηκε', 'Ουπς, μόλις εξαντλήθηκε!', 'Μη διαθέσιμο για αποστολή', 'Μη διαθέσιμο για αποστολή, Μη διαθέσιμο για παραλαβή', 'Μη διαθέσιμο για αποστολή, Διαθέσιμο μόνο από κατάστημα', 'ERROR: Failed to get Availability']) assert.equal(soldOut(s), true, s);
+  for (const s of ['', 'Άμεσα Διαθέσιμο', 'Διαθέσιμο με παραγγελία', 'Κατόπιν Παραγγελίας', 'Προπαραγγελία', 'Διαθέσιμο για αποστολή', 'Μη διαθέσιμο για αποστολή, Διαθέσιμο για παραλαβή', 'Διαθέσιμο για αποστολή, Μη διαθέσιμο για παραλαβή']) assert.equal(soldOut(s), false, s);
+  // Public's tree, with " - " (24/11/2026): two levels, the rest whole as the third.
+  assert.deepEqual(levels('Βιβλία & Κόμικς - Ξενόγλωσσα - Θετικές - Τεχνολογικές Επιστήμες - Φυσικές Επιστήμες'), ['Βιβλία & Κόμικς', 'Ξενόγλωσσα', 'Θετικές - Τεχνολογικές Επιστήμες - Φυσικές Επιστήμες']);
+  assert.deepEqual(levels('Gaming - Nintendo'), ['Gaming', 'Nintendo']);
+  assert.deepEqual(levels('Υπολογιστές > Laptops-Tablets- iPad > Laptop - MacBook'), ['Υπολογιστές', 'Laptops-Tablets- iPad', 'Laptop - MacBook'], 'a tree with > keeps its names');
   assert.equal(catSlug('Καφετιέρες & Μηχανές Espresso'), 'kafetieres-michanes-espresso');
   const rows = [
     ...kotsovolosRows(3),
@@ -52,21 +59,27 @@ test('L228: the PC tool: the store\'s own pages and photos, in stock, in euros, 
     { product_name: 'Same M', merchant_deep_link: 'https://www.kotsovolos.gr/p/s', merchant_image_url: 'https://assets.kotsovolos.gr/s.jpg', search_price: '20', currency: 'EUR', in_stock: '1', merchant_product_id: 's2', merchant_category: 'X' },
     { product_name: 'Gone', merchant_deep_link: 'https://www.kotsovolos.gr/p/g', merchant_image_url: 'https://assets.kotsovolos.gr/g.jpg', search_price: '5', currency: 'EUR', in_stock: '0', merchant_product_id: 'g' },
     { product_name: 'Pounds', merchant_deep_link: 'https://www.kotsovolos.gr/p/l', merchant_image_url: 'https://assets.kotsovolos.gr/l.jpg', search_price: '5', currency: 'GBP', in_stock: '1', merchant_product_id: 'l' },
-    { product_name: 'No photo', merchant_deep_link: 'https://www.kotsovolos.gr/p/n', merchant_image_url: 'http://assets.kotsovolos.gr/n.jpg', search_price: '5', currency: 'EUR', in_stock: '1', merchant_product_id: 'n' },
+    { product_name: 'No photo', merchant_deep_link: 'https://www.kotsovolos.gr/p/n', merchant_image_url: 'http://cdn.example.com/n.jpg', search_price: '5', currency: 'EUR', in_stock: '1', merchant_product_id: 'n' },
+    // An http photo on the store's own domain (e-shop.gr): moved to https, kept.
+    { product_name: 'Http own photo', merchant_deep_link: 'http://www.kotsovolos.gr/p/h', merchant_image_url: 'http://assets.kotsovolos.gr/h.jpg', search_price: '5', currency: 'EUR', in_stock: '', merchant_product_id: 'h', merchant_category: 'Α - Β - Γ - Δ' },
     { product_name: 'Elsewhere', merchant_deep_link: 'https://evil.example/p', merchant_image_url: 'https://assets.kotsovolos.gr/e.jpg', search_price: '5', currency: 'EUR', in_stock: '1', merchant_product_id: 'e' }
   ];
   const { lines, sql } = await catalogSql({ 138: rows, 469: [] }, NOW);
-  assert.match(lines[0], /^CATALOG kotsovolos-gr 138 OK 7 \d+ 5 2026-11-24T18:00:00.000Z 1$/);
+  assert.match(lines[0], /^CATALOG kotsovolos-gr 138 OK 8 \d+ 5 2026-11-24T18:00:00.000Z 1$/);
   assert.equal(lines[1], 'CATALOG public-gr 469 NONE 0 0 0 2026-11-24T18:00:00.000Z 0');
   const db = fakeD1(sql).sqlite;
   const pids = db.prepare('SELECT pid FROM products ORDER BY pid').all().map(r => r.pid);
-  assert.deepEqual(pids, ['100001', '100002', '100003', '273143', '900001', 'q', 's1'], 'one product per page, only when its rows agree on the price');
+  assert.deepEqual(pids, ['100001', '100002', '100003', '273143', '900001', 'h', 'q', 's1'], 'one product per page, only when its rows agree on the price');
+  const h = db.prepare("SELECT image, page, c1, c2, c3 FROM products WHERE pid = 'h'").get();
+  assert.equal(h.image, 'https://assets.kotsovolos.gr/h.jpg');
+  assert.equal(h.page, 'https://www.kotsovolos.gr/p/h');
+  assert.deepEqual([h.c1, h.c2, h.c3].map(id => db.prepare('SELECT name FROM categories WHERE id = ?').get(id).name), ['Α', 'Β', 'Γ - Δ']);
   const q = db.prepare("SELECT name, page, c1, c2 FROM products WHERE pid = 'q'").get();
   assert.equal(q.name, 'O\'Neil "x"');
   assert.equal(q.page, 'https://www.kotsovolos.gr/p/q', 'the store\'s www address');
   assert.equal(db.prepare('SELECT name FROM categories WHERE id = ?').get(q.c1).name, OTHER);
   const store = db.prepare('SELECT * FROM stores').get();
-  assert.equal(store.products, 7);
+  assert.equal(store.products, 8);
   assert.equal(store.checked_at, '2026-11-24T18:00:00.000Z');
   assert.ok(sql.join('\n').split('\n').every(l => Buffer.byteLength(l) <= MAX_STATEMENT), 'every statement under the D1 limit');
   assert.ok(!/CD\d{3,}|go\.linkwi\.se|aw_deep_link/.test(sql.join('\n')), 'no affiliate code or tracking link in the database');

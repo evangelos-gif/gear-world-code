@@ -66,9 +66,27 @@ export function storePage(raw, hosts) {
 // hash (…3acd1234…) is never taken for it (second review 24/11/2026).
 const AFF = /(?<![A-Za-z0-9])CD\d{3,9}(?![0-9])/;
 const TRACKING = /^(utm_.*|gclid|fbclid|msclkid|mc_cid|mc_eid|_ga|aff.*|ref|source|lw.*|linkwise.*|clickid|click_id|sub_?id.*)$/i;
-const photo = raw => { const s = String(raw || '').trim(); return /^https:\/\/[^\s"'<>]+$/.test(s) && s.length <= 1000 && !AFF.test(s) ? s : ''; };
+// The store's photo, https. An http photo on the store's own domain (e-shop.gr: http://images.e-shop.gr/…, which also
+// answers on https, 24/11/2026) is moved to https; one elsewhere on http stays out (a browser blocks it on our pages).
+const baseOf = host => String(host).toLowerCase().replace(/^www\./, '');
+const photo = (raw, hosts = []) => {
+  let s = String(raw || '').trim();
+  const m = /^http:\/\/([^/\s"'<>:@]+)(\/[^\s"'<>]*)?$/i.exec(s);
+  if (m) {
+    const host = m[1].toLowerCase();
+    if (hosts.some(h => host === baseOf(h) || host.endsWith(`.${baseOf(h)}`))) s = `https://${host}${m[2] || '/'}`;
+  }
+  return /^https:\/\/[^\s"'<>]+$/.test(s) && s.length <= 1000 && !AFF.test(s) ? s : '';
+};
 export function levels(category) {
-  const parts = String(category || '').replace(/&gt;/gi, '>').split('>').map(x => clean(x, 80)).filter(Boolean).slice(0, 3);
+  const raw = String(category || '').replace(/&gt;/gi, '>');
+  let parts = raw.split('>').map(x => clean(x, 80)).filter(Boolean).slice(0, 3);
+  // Public writes its tree with " - " (Βιβλία & Κόμικς - Ξενόγλωσσα - Θετικές - Τεχνολογικές Επιστήμες, 24/11/2026): the
+  // first two are levels, the rest is the third, whole (a name can hold " - " itself).
+  if (!raw.includes('>') && raw.includes(' - ')) {
+    const d = raw.split(' - ').map(x => clean(x, 200)).filter(Boolean);
+    parts = [d[0], d[1], d.slice(2).join(' - ')].filter(Boolean).map(x => clean(x, 80));
+  }
   return parts.length ? parts : [OTHER];
 }
 
@@ -87,16 +105,24 @@ async function* rows(file) {
 }
 const rowOf = (get, hosts) => ({
   page: storePage(get('merchant_deep_link'), hosts),
-  image: photo(get('merchant_image_url') || get('large_image')),
+  image: photo(get('merchant_image_url') || get('large_image'), hosts),
   name: clean(get('product_name'), 300),
   brand: clean(get('brand_name'), 80),
   price: euro(get('search_price')),
   currency: get('currency').trim().toUpperCase() || 'EUR',
   stock: get('in_stock').trim(),
+  status: get('stock_status'),
   pid: clean(get('merchant_product_id'), 120),
   cats: levels(get('merchant_category'))
 });
-const usable = r => r.page && r.image && r.name && r.price && r.currency === 'EUR' && r.stock !== '0';
+// The store's own words also count (24/11/2026): Public «Αγορά μόνο από κατάστημα» or «Μη Διαθέσιμο» with in_stock 1,
+// Kotsovolos «Μη διαθέσιμο για αποστολή» with no in_stock. «Μη διαθέσιμο για αποστολή, Διαθέσιμο για παραλαβή» stays.
+export function soldOut(status) {
+  const s = String(status || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ').trim();
+  if (/εξαντλ|mh diathesimo|μονο απο (το )?καταστημα|^error/.test(s)) return true;
+  return s.startsWith('μη διαθεσιμο') && !/, ?διαθεσιμο για/.test(s);
+}
+const usable = r => r.page && r.image && r.name && r.price && r.currency === 'EUR' && r.stock !== '0' && !soldOut(r.status);
 
 // One file writer: whole statements, a new file before MAX_FILE.
 class SqlFiles {
