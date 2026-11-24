@@ -1,0 +1,15 @@
+# Wave 1 UK of the massive import (chat 7, 22-24 Nov 2026, lessons L224): the approved shops in pounds on the older
+# sites whose feeds are on the PC. legacy-import-batch.ps1 -Pairs 'file:tools/massive/uk-wave1-1124.txt'.
+# Not here yet: the 7 Adtraction shops (their feeds come with adtraction-feed-download.ps1), Bloomingdales UK (312,287
+# rows, its own rules), C.W. Sellors (the same catalogue as W. Hamond), My Little Darling (decision open), and the
+# new-engine shops (-Sites: MotardInn, AUTO-VOX after their fixes).
+truthbrush-uk:hgw        # Truthbrush (Awin 19976), bamboo toothbrushes
+elegantshowers-uk:hgw    # Elegant Showers (Daisycon 21657), showers, radiators, mirrors, furniture
+opi-uk:wgw               # OPI UK (Rakuten 47972), nail polish
+ekster-uk:mgw            # Ekster UK (Rakuten 53020), wallets, bags, everyday carry
+whamond-uk:wgw           # W. Hamond (Rakuten 54390), jewellery and women's watches
+whamond-uk:mgw           # W. Hamond: watches, cufflinks, men's jewellery
+cottonon-uk:wgw          # Cotton On (Rakuten 41440): Women, Body, Rubi
+cottonon-uk:mgw          # Cotton On Men
+cottonon-uk:kgw          # Cotton On Kids
+greenkidcrafts:kgw       # Green Kid Crafts (Awin 83693, dollars), science and craft kits
