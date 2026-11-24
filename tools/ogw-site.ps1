@@ -3,7 +3,8 @@
   Mega Stores Gear World (megastoresgearworld.com, code OGW) - test address, live site, remove the test address.
 
 .DESCRIPTION
-  Gift guides that link to amazon.co.uk and to the Gear World sites. No database, no cookies. It does not touch the
+  Gift guides that link to amazon.co.uk and to the Gear World sites. No cookies; one database of its own, the catalogue
+  of the big Linkwise stores (L228, below). It does not touch the
   other sites, the Hub, the Group page or any database.
   One secret (lessons L226): our Linkwise affiliate code (CD and digits) for the 5 direct stores (Public, Sephora,
   e-shop.gr, AB Vasilopoulos, Kotsovolos), whose gift ideas are our Linkwise links to the store's own pages. The tool
@@ -51,12 +52,26 @@
   Amazon's own Black Friday page with the Associates ID only with Amazon links on).
   Exit codes: 0 done, 1 no approval, 3 Node.js or npm, or the Linkwise code file cannot be read (L226), 4 Cloudflare login, 6 the live site did not answer before an
   update, 9 the deploy failed, 11 Cloudflare did not say whether the live Worker exists, 12 wrong test Worker name,
-  13 this version lacks the live one (L156), 23 -AfterPreview without a clean preview report of this version.
+  13 this version lacks the live one (L156), 14 no catalogue database yet (L228), 23 -AfterPreview without a clean preview report of this version.
   -Archive <folder>     where chat 3's Linkwise feeds are (default <home>\Downloads\GW_AWIN_BULK_ARCHIVE), L227.
+  The catalogue of the big Linkwise stores (owner, 24 Nov 2026, lessons L228): all the products of Kotsovolos (138),
+  Public (469), Sephora (13026) and e-shop.gr (11754) in their own categories, in Mega Stores' OWN D1 database
+  "mega-stores-gear-world-catalog" (never a database of the 13 sites, the Hub or the app).
+  -Step catalog-db      CHANGES CLOUDFLARE (a new database, about $1-2 a month), one approval: ΕΓΚΡΙΝΩ OGW ΒΑΣΗ.
+                        Makes the database if it is missing and its tables (sites/ogw/catalog-schema.sql, IF NOT
+                        EXISTS: nothing already there changes). Nothing to do when everything is there.
+  -Step catalog         CHANGES THE CATALOGUE DATABASE ONLY, one approval: ΕΓΚΡΙΝΩ OGW ΚΑΤΑΛΟΓΟΣ. -Program <ids>
+                        (default 138,469,13026,11754): reads (only reads) each store's Linkwise feed (of the last 23
+                        hours) with tools/ogw-catalog.mjs, takes a Time Travel restore point, then loads the store
+                        again in full (its old rows go, every product in stock comes in, its categories, the time of
+                        the feed). The database is busy for a few minutes: the category pages say "is being updated".
+                        The site is not deployed again: it reads the database at once. Exit 14: no database yet.
+  Preview and live give the Worker the database (binding CATALOG) when it exists; without it the store pages keep
+  only their sets and ideas.
   Report: <home>\gear-world-reports\OGW_SITE_<STEP>_<time>.txt (also copied to the clipboard)
 #>
 param(
-    [ValidateSet('check', 'preview', 'live', 'remove-preview')]
+    [ValidateSet('check', 'preview', 'live', 'remove-preview', 'catalog-db', 'catalog')]
     [string]$Step = 'check',
     [switch]$Apply,
     [string]$Approve = '',
@@ -69,6 +84,7 @@ param(
     [switch]$AmazonOff,
     [string]$SecretFile = '',
     [string]$Archive = '',
+    [string]$Program = '138,469,13026,11754',
     [string]$Chat = '1 · Gear World Manager' # the chat that gave the command, named in the clipboard line (L116, L208)
 )
 
@@ -85,6 +101,10 @@ $PhrasePreview = 'ΕΓΚΡΙΝΩ OGW PREVIEW'
 $PhraseLive = 'ΕΓΚΡΙΝΩ OGW LIVE'
 $PhraseAmazon = 'ΕΓΚΡΙΝΩ OGW AMAZON LINKS'
 $PhraseRemovePreview = 'ΕΓΚΡΙΝΩ OGW REMOVE PREVIEW'
+$PhraseDb = 'ΕΓΚΡΙΝΩ OGW ΒΑΣΗ'
+$PhraseCatalog = 'ΕΓΚΡΙΝΩ OGW ΚΑΤΑΛΟΓΟΣ'
+$CatalogDb = 'mega-stores-gear-world-catalog'   # L228: the catalogue's own D1 database
+$CatalogPrograms = @('138', '469', '13026', '11754')   # Kotsovolos, Public, Sephora, e-shop.gr (AB has no feed)
 $Ok = 'Green'; $Warn = 'Yellow'; $Bad = 'Magenta'
 if (-not $WorkDir) { $WorkDir = Join-Path $HOME 'mega-stores-gear-world' }
 if (-not $OutDir) { $OutDir = Join-Path $HOME 'gear-world-reports' }
@@ -104,6 +124,7 @@ $script:LwCode = ''
 $script:LwPrices = ''   # L227: the prices of this run (base64), '' without new prices
 $script:KotsPrices = 0   # L227: how many prices this run sends for Kotsovolos (the page checked after the deploy)
 $script:KotsUntil = Get-Date   # L227: when those prices hide (their feed time + 24 hours)
+$script:CatalogBound = $false   # L228: the deploy gives the Worker the catalogue's database
 function Mask([string]$s) {
     if ($script:LwCode) { $s = $s.Replace($script:LwCode, '***') }
     return [regex]::Replace($s, '\bCD\d{3,9}\b', 'CD***')
@@ -219,13 +240,19 @@ function Prepare-Deploy {
 }
 
 # The real wrangler.jsonc from the template: the test Worker (its own name, workers.dev on) or the live Worker (the
-# two custom domains). The template has no database and no secrets.
-function Write-Config([string]$folder, [bool]$preview) {
+# two custom domains). The template has no database id and no secrets: the catalogue's database (L228) is added here,
+# with the id Cloudflare gives at each deploy.
+function Write-Config([string]$folder, [bool]$preview, [string]$catalogId = '') {
     $text = [System.IO.File]::ReadAllText((Join-Path $folder 'wrangler.jsonc.example'))
     $nameLine = ('"name": "{0}",' -f $WorkerName)
     $devLine = '"workers_dev": false,'
     $obs = '"observability": { "enabled": true }'
     if ($text.IndexOf($nameLine) -lt 0 -or $text.IndexOf($devLine) -lt 0 -or $text.IndexOf($obs) -lt 0) { Say 'Το πρότυπο wrangler.jsonc.example δεν έχει τη μορφή που περίμενα. Δεν άλλαξε τίποτα.' $Bad; Finish 9 }
+    # L228: the catalogue's database (its id is read from Cloudflare at each deploy, never written in the repository).
+    if ($catalogId) {
+        if ($catalogId -notmatch '^[A-Za-z0-9\-]{6,64}$') { Say 'Λάθος id της βάσης του καταλόγου. Δεν άλλαξε τίποτα.' $Bad; Finish 9 }
+        $text = $text.Replace($obs, ('"d1_databases": [ {{ "binding": "CATALOG", "database_name": "{0}", "database_id": "{1}" }} ],' -f $CatalogDb, $catalogId) + "`r`n  " + $obs)
+    }
     if ($preview) {
         $text = $text.Replace($nameLine, ('"name": "{0}",' -f $PreviewName)).Replace($devLine, '"workers_dev": true,')
         $file = Join-Path $folder 'wrangler.preview.jsonc'
@@ -472,6 +499,20 @@ function Test-Site([string]$base, [string]$mode) {
         Say ('  Τα 5 μεγάλα καταστήματα της Linkwise (L226): ΠΡΟΒΛΗΜΑ - φαίνονται, αλλά λείπουν από το /gr/: {0}; σελίδα Κωτσόβολου: απάντηση {1}, {2} σωστά links της Linkwise από {3}, σύμβολο € έξω από τις τιμές: {4}' -f ($dMissing -join ', '), $dp.status, $dLinks.Count, $dAll, $dEuro) $Bad; $all = $false
     }
     else { Say '  Τα 5 μεγάλα καταστήματα της Linkwise (L226): ΠΡΟΣΟΧΗ - δεν φαίνονται (ο Worker δεν έχει τον κωδικό της Linkwise)' $Warn }
+    # L228: the catalogue (when the Worker has its database): a category of Kotsovolos shows products of the store, each
+    # with two links of ours to its page (photo and button). Read-only GETs of our pages; no Linkwise link is opened.
+    if ($script:CatalogBound) {
+        $kc = [regex]::Match($dp.text, 'href="(/gr/stores/kotsovolos-gr/c/\d+-[a-z0-9-]+/)"')
+        if ($kc.Success) {
+            $cp = Get-Page ($base + $kc.Groups[1].Value)
+            $cItems = ([regex]::Matches($cp.text, '<li class="cat-item">')).Count
+            $cLinks = ([regex]::Matches($cp.text, 'href="https://go\.linkwi\.se/z/138-0/CD\d{3,9}/\?lnkurl=https%3A%2F%2Fwww\.kotsovolos\.gr%2F[^"]*" rel="sponsored nofollow noopener" target="_blank"')).Count
+            $cPrices = ([regex]::Matches($cp.text, '<p class="sc-price">')).Count
+            if ($cp.status -eq 200 -and $cItems -gt 0 -and $cLinks -eq 2 * $cItems -and -not ($cp.text -match '(?i)amazon\.co\.uk')) { Say ('  Κατάλογος του Κωτσόβολου (L228): ΕΝΤΑΞΕΙ - μια κατηγορία με {0} προϊόντα, {1} τιμές, όλα με link της Linkwise στη σελίδα του προϊόντος' -f $cItems, $cPrices) $Ok }
+            else { Say ('  Κατάλογος του Κωτσόβολου (L228): ΠΡΟΒΛΗΜΑ - απάντηση {0}, {1} προϊόντα, {2} links της Linkwise' -f $cp.status, $cItems, $cLinks) $Bad; $all = $false }
+        }
+        else { Say '  Κατάλογος του Κωτσόβολου (L228): ΠΡΟΣΟΧΗ - δεν βλέπω κατηγορίες στη σελίδα του (δεν έχει φορτωθεί ακόμα ή η βάση φορτώνει)' $Warn }
+    }
     $edSm = Get-Page ($base + '/sitemap.xml')
     if ($edSm.status -eq 200 -and $edSm.text.Contains('<loc>https://' + $Domain + '/gr/</loc>') -and $edSm.text.Contains('<loc>https://' + $Domain + '/gr/stores/kouzinika-gr/</loc>')) { Say '  sitemap.xml με το /gr/ και τις σελίδες των ελληνικών καταστημάτων (L214): ΕΝΤΑΞΕΙ' $Ok }
     else { Say ('  sitemap.xml χωρίς το /gr/ (L214, απάντηση {0}): ΠΡΟΒΛΗΜΑ' -f $edSm.status) $Bad; $all = $false }
@@ -616,6 +657,32 @@ function Invoke-Deploy([string]$folder, [string]$arguments) {
         }
     }
 }
+# L228: the catalogue's own D1 database: @{ ok; found; id } (ok = $false: Cloudflare did not answer the list).
+function Get-JsonArray([string]$text) {
+    $i = $text.IndexOf('[')
+    $j = $text.LastIndexOf(']')
+    if ($i -lt 0 -or $j -le $i) { return $null }
+    try { return @($text.Substring($i, $j - $i + 1) | ConvertFrom-Json) } catch { return $null }
+}
+function Find-CatalogDb([string]$folder) {
+    $r = Invoke-Wrangler $folder 'd1 list --json' -NonInteractive -Retry
+    $list = Get-JsonArray $r.text
+    if ($null -eq $list) { return @{ ok = $false; found = $false; id = ''; text = $r.text } }
+    foreach ($db in $list) {
+        if ($db.name -eq $CatalogDb) { return @{ ok = $true; found = $true; id = [string]$db.uuid; text = '' } }
+    }
+    return @{ ok = $true; found = $false; id = ''; text = '' }
+}
+# Before a deploy: the catalogue's database for the Worker ('' = none yet); no answer from Cloudflare stops (exit 11),
+# so a deploy never drops a catalogue that is live.
+function Get-CatalogId([string]$folder) {
+    $f = Find-CatalogDb $folder
+    if (-not $f.ok) { Say 'Η Cloudflare δεν απάντησε για τη βάση του καταλόγου (L228): για ασφάλεια ΔΕΝ ανεβάζω τίποτα. Ξανατρέξε σε λίγα λεπτά.' $Bad; Finish 11 }
+    $script:CatalogBound = [bool]$f.found
+    if ($f.found) { Say ('  - Ο κατάλογος των μεγάλων καταστημάτων (L228): ο Worker διαβάζει τη βάση "{0}".' -f $CatalogDb) }
+    else { Say ('  - Ο κατάλογος (L228): η βάση "{0}" δεν υπάρχει ακόμα· οι σελίδες των 5 μένουν με τα σετ και τις ιδέες.' -f $CatalogDb) }
+    return $f.id
+}
 # Before a deploy: says what happens to the 5 direct stores; a file that cannot be read stops everything (exit 3).
 function Use-LinkwiseCode {
     $state = Read-LinkwiseCode
@@ -687,6 +754,116 @@ if ($Step -eq 'check') {
     Say ''; Say 'Μόνο έλεγχος: δεν άλλαξε τίποτα.' $Ok; Finish 0
 }
 
+# ---------------- catalog-db: the catalogue's own database (L228) ----------------
+if ($Step -eq 'catalog-db') {
+    $f = Find-CatalogDb $ogw
+    if (-not $f.ok) { Say 'Η Cloudflare δεν απάντησε για τις βάσεις D1. Δεν άλλαξε τίποτα. Ξανατρέξε σε λίγα λεπτά.' $Bad; Finish 11 }
+    $schema = Join-Path $ogw 'catalog-schema.sql'
+    if (-not (Test-Path -LiteralPath $schema)) { Say 'Λείπει το sites\ogw\catalog-schema.sql. Δεν άλλαξε τίποτα.' $Bad; Finish 9 }
+    $have = 0
+    if ($f.found) {
+        $q = Invoke-Wrangler $ogw ('d1 execute {0} --remote --json --command "SELECT COUNT(*) AS n FROM sqlite_master WHERE type = ''table'' AND name IN (''stores'', ''categories'', ''products'')"' -f $CatalogDb) -NonInteractive -Retry
+        $rows = Get-JsonArray $q.text
+        if ($rows -and $rows[0].results) { $have = [int]@($rows[0].results)[0].n }
+    }
+    Say ''
+    Say 'Τι θα γίνει:'
+    if ($f.found -and $have -eq 3) { Say ('  - Η βάση "{0}" υπάρχει ήδη με τους πίνακές της: δεν χρειάζεται τίποτα.' -f $CatalogDb) $Ok; Finish 0 }
+    if ($f.found) { Say ('  - Η βάση "{0}" υπάρχει: φτιάχνονται οι πίνακες που λείπουν (κανένα δεδομένο δεν αλλάζει).' -f $CatalogDb) }
+    else {
+        Say ('  - Νέα βάση D1 "{0}" στην Cloudflare, μόνο για τον κατάλογο του Mega Stores (ποτέ για τα 13 sites, το Hub ή την εφαρμογή).' -f $CatalogDb)
+        Say '  - Κόστος: τα πρώτα 5 GB και 50 εκατ. εγγραφές τον μήνα περιλαμβάνονται στο Workers Paid· ο κατάλογος (~1 GB) κοστίζει περίπου $1-2 τον μήνα.'
+    }
+    Say ('  - Το {0}, τα Gear World sites, το Hub και οι βάσεις τους ΔΕΝ αλλάζουν.' -f $Domain)
+    if (-not $Apply) { Say ''; Say 'Δοκιμή μόνο (χωρίς -Apply): δεν άλλαξε τίποτα.' $Ok; Finish 0 }
+    if (-not (Confirm-Approval $PhraseDb)) { Say 'Δεν δόθηκε η έγκριση για τη βάση: σταμάτησα χωρίς αλλαγές.' $Warn; Finish 1 }
+    if (-not $f.found) {
+        $c = Invoke-Wrangler $ogw ('d1 create {0}' -f $CatalogDb) -NonInteractive -Retry
+        if ($c.code -ne 0) { Say 'Η δημιουργία της βάσης απέτυχε: ΠΡΟΒΛΗΜΑ. Έξοδος:' $Bad; Say $c.text; Finish 9 }
+        Say ('Φτιάχτηκε η βάση "{0}".' -f $CatalogDb) $Ok
+    }
+    $x = Invoke-Wrangler $ogw ('d1 execute {0} --remote --file "{1}"' -f $CatalogDb, $schema) -NonInteractive -Retry
+    if ($x.code -ne 0) { Say 'Οι πίνακες της βάσης δεν φτιάχτηκαν: ΠΡΟΒΛΗΜΑ. Έξοδος:' $Bad; Say $x.text; Finish 9 }
+    Say ('ΕΤΟΙΜΟ: η βάση "{0}" έχει τους πίνακές της (stores, categories, products).' -f $CatalogDb) $Ok
+    Say ('Αν δεν τη θέλουμε: npx wrangler d1 delete {0} (σβήνει μόνο αυτή τη βάση).' -f $CatalogDb)
+    Finish 0
+}
+
+# ---------------- catalog: the stores' products into it (L228) ----------------
+if ($Step -eq 'catalog') {
+    $progs = @($Program -split '[,\s]+' | Where-Object { $_ })
+    foreach ($pg in $progs) { if ($CatalogPrograms -notcontains $pg) { Say ('Λάθος πρόγραμμα για τον κατάλογο: {0} (μόνο {1}).' -f $pg, ($CatalogPrograms -join ', ')) $Bad; Finish 2 } }
+    $f = Find-CatalogDb $ogw
+    if (-not $f.ok) { Say 'Η Cloudflare δεν απάντησε για τις βάσεις D1. Δεν άλλαξε τίποτα. Ξανατρέξε σε λίγα λεπτά.' $Bad; Finish 11 }
+    if (-not $f.found) { Say ('Η βάση "{0}" δεν υπάρχει ακόμα: πρώτα το βήμα catalog-db. Δεν άλλαξε τίποτα.' -f $CatalogDb) $Bad; Finish 14 }
+    $out = Join-Path $WorkDir ('catalog-' + $stamp)
+    Say ''
+    Say ('Διαβάζω τα feeds της Linkwise ({0}) και γράφω τα αρχεία SQL (μόνο ανάγνωση των feeds, λίγα λεπτά για τα μεγάλα)...' -f ($progs -join ', '))
+    $tool = Join-Path (Join-Path $repo 'tools') 'ogw-catalog.mjs'
+    $lines = @()
+    $old = $ErrorActionPreference
+    try {
+        $ErrorActionPreference = 'Continue'
+        $lines = @(& node $tool --archive $Archive --out $out --program ($progs -join ',') 2>$null)
+    } catch { $lines = @('CATALOG-ERROR node') }
+    finally { $ErrorActionPreference = $old }
+    $ready = @()
+    Say ''
+    Say 'Τι θα γίνει:'
+    foreach ($line in $lines) {
+        $p = ([string]$line).Trim().Split(' ')
+        if ($p[0] -ne 'CATALOG' -or $p.Count -lt 9) { continue }
+        $when = $p[7]
+        if ($p[7] -ne '-') { try { $when = ([datetime]::Parse($p[7], [System.Globalization.CultureInfo]::InvariantCulture, [System.Globalization.DateTimeStyles]::RoundtripKind)).ToLocalTime().ToString('dd/MM HH:mm') } catch { $when = $p[7] } }
+        if ($p[3] -eq 'OK') {
+            $ready += $p[2]
+            Say ('  - {0}: σβήνονται τα παλιά του προϊόντα και μπαίνουν {1} προϊόντα σε {2} κατηγορίες, από το feed της Linkwise της {3} (ώρα υπολογιστή)· {4} έμειναν έξω (εξαντλημένα, χωρίς φωτογραφία ή σίγουρη τιμή) · {5} αρχεία SQL' -f $p[1], $p[4], $p[5], $when, $p[6], $p[8])
+        }
+        elseif ($p[3] -eq 'OLD') { Say ('  - {0}: ΠΡΟΣΟΧΗ - το feed είναι της {1}, παλιότερο από 23 ώρες: δεν φορτώνεται (κατέβασε νέα feeds).' -f $p[1], $when) $Warn }
+        elseif ($p[3] -eq 'MISSING') { Say ('  - {0}: ΠΡΟΣΟΧΗ - δεν βρήκα το feed LINKWISE_{1}.csv.gz στο {2}: δεν φορτώνεται.' -f $p[1], $p[2], $Archive) $Warn }
+        elseif ($p[3] -eq 'NONE') { Say ('  - {0}: ΠΡΟΣΟΧΗ - κανένα προϊόν σε απόθεμα με φωτογραφία και τιμή στο feed: δεν φορτώνεται (μένει ό,τι υπάρχει).' -f $p[1]) $Warn }
+        else { Say ('  - {0}: ΠΡΟΣΟΧΗ - το feed δεν διαβάστηκε: δεν φορτώνεται.' -f $p[1]) $Warn }
+    }
+    if ($ready.Count -eq 0) { Say ''; Say 'Τίποτα για φόρτωση: δεν άλλαξε τίποτα.' $Warn; if (Test-Path -LiteralPath $out) { Remove-Item -LiteralPath $out -Recurse -Force -ErrorAction SilentlyContinue }; Finish 0 }
+    Say ('  - Αλλάζει ΜΟΝΟ η βάση "{0}" του Mega Stores· το site δεν ξανανεβαίνει (τη διαβάζει αμέσως).' -f $CatalogDb)
+    Say '  - Όσο φορτώνει (λίγα λεπτά ανά κατάστημα), οι σελίδες των κατηγοριών λένε «ενημερώνεται» και οι σελίδες των καταστημάτων μένουν με τα σετ και τις ιδέες.'
+    Say '  - Πριν από όλα: σημείο επαναφοράς της βάσης (Cloudflare Time Travel).'
+    if (-not $Apply) { Say ''; Say 'Δοκιμή μόνο (χωρίς -Apply): δεν άλλαξε τίποτα.' $Ok; Remove-Item -LiteralPath $out -Recurse -Force -ErrorAction SilentlyContinue; Finish 0 }
+    if (-not (Confirm-Approval $PhraseCatalog)) { Say 'Δεν δόθηκε η έγκριση για τον κατάλογο: σταμάτησα χωρίς αλλαγές.' $Warn; Remove-Item -LiteralPath $out -Recurse -Force -ErrorAction SilentlyContinue; Finish 1 }
+    $tt = Invoke-Wrangler $ogw ('d1 time-travel info {0}' -f $CatalogDb) -NonInteractive -Retry
+    $bm = [regex]::Match($tt.text, '[0-9a-f]{8}-[0-9a-f]{8}-[0-9a-f]{8}-[0-9a-f]{32}')
+    if ($tt.code -ne 0 -or -not $bm.Success) { Say 'Δεν πήρα σημείο επαναφοράς: ΔΕΝ φόρτωσα τίποτα.' $Bad; Say $tt.text; Finish 11 }
+    $restoreCmd = 'npx wrangler d1 time-travel restore {0} --bookmark={1}' -f $CatalogDb, $bm.Value
+    $bdir = Join-Path $WorkDir 'backups'
+    if (-not (Test-Path -LiteralPath $bdir)) { New-Item -ItemType Directory -Path $bdir -Force | Out-Null }
+    $note = @(('Mega Stores catalogue restore point before import, {0}' -f (Get-Date -Format 'yyyy-MM-dd HH:mm')), ('bookmark: {0}' -f $bm.Value), 'To go back (only with approval), in PowerShell:', ('  cd "{0}"' -f $ogw), ('  {0}' -f $restoreCmd)) -join "`r`n"
+    $backup = Join-Path $bdir ('ogw-catalog-restore-point-' + $stamp + '.txt')
+    [System.IO.File]::WriteAllText($backup, $note, (New-Object System.Text.UTF8Encoding($false)))
+    Say ('Σημείο επαναφοράς: {0}' -f $backup) $Ok
+    $files = @(Get-ChildItem -LiteralPath $out -Filter '*.sql' -File | Sort-Object Name)
+    $n = 0
+    foreach ($file in $files) {
+        $x = Invoke-Wrangler $ogw ('d1 execute {0} --remote --file "{1}"' -f $CatalogDb, $file.FullName) -NonInteractive -Retry
+        if ($x.code -ne 0) {
+            Say ('Λάθος στο {0}: ΠΡΟΒΛΗΜΑ. Σταμάτησα· τα προηγούμενα αρχεία φορτώθηκαν.' -f $file.Name) $Bad
+            foreach ($l2 in @($x.text -split "`n" | Select-Object -Last 15)) { Say ('  ' + $l2) }
+            Say ('Επαναφορά (μόνο με έγκριση): {0}' -f $restoreCmd)
+            Finish 12
+        }
+        $n++
+        Write-Host ('  {0} ({1}/{2}) OK' -f $file.Name, $n, $files.Count)
+    }
+    Say ('Φορτώθηκαν {0} αρχεία SQL.' -f $n) $Ok
+    Remove-Item -LiteralPath $out -Recurse -Force -ErrorAction SilentlyContinue
+    $q = Invoke-Wrangler $ogw ('d1 execute {0} --remote --json --command "SELECT slug, products, checked_at FROM stores ORDER BY slug"' -f $CatalogDb) -NonInteractive -Retry
+    $rows = Get-JsonArray $q.text
+    if ($rows -and $rows[0].results) { foreach ($r in @($rows[0].results)) { Say ('  {0}: {1} προϊόντα, feed {2}' -f $r.slug, $r.products, $r.checked_at) } }
+    Say ''
+    Say 'ΕΤΟΙΜΟ: ο κατάλογος φορτώθηκε στη βάση του Mega Stores.' $Ok
+    Say ('Αν χρειαστεί επαναφορά (μόνο με έγκριση): {0}' -f $restoreCmd)
+    Finish 0
+}
+
 # ---------------- preview ----------------
 if ($Step -eq 'preview') {
     Say ''
@@ -695,9 +872,10 @@ if ($Step -eq 'preview') {
     Say '  - Τα κουμπιά Amazon εκεί είναι ΧΩΡΙΣ το Associates ID (η δοκιμαστική διεύθυνση δεν είναι στο Amazon Associates).'
     Say ('  - Το {0}, τα Gear World sites, το Hub και οι βάσεις ΔΕΝ αλλάζουν.' -f $Domain)
     Use-LinkwiseCode
+    $catId = Get-CatalogId $ogw
     if (-not $Apply) { Say ''; Say 'Δοκιμή μόνο (χωρίς -Apply): δεν άλλαξε τίποτα.' $Ok; Finish 0 }
     if (-not (Confirm-Approval $PhrasePreview)) { Say 'Δεν δόθηκε η έγκριση για τη δοκιμαστική διεύθυνση: σταμάτησα (δεν ανέβηκε τίποτα).' $Warn; Finish 1 }
-    $cfg = Write-Config $ogw $true
+    $cfg = Write-Config $ogw $true $catId
     $d = Invoke-Deploy $ogw (('deploy --config "{0}" --var AMAZON_LINKS:preview' -f $cfg) + $GwVersionVar)
     if ($d.code -ne 0) { Say 'Το ανέβασμα της δοκιμαστικής διεύθυνσης απέτυχε. Τίποτα άλλο δεν άλλαξε. Έξοδος:' $Bad; Say $d.text; Finish 9 }
     $um = [regex]::Match($d.text, 'https://[A-Za-z0-9\.\-]+\.workers\.dev')
@@ -755,6 +933,7 @@ Say ('  - Ανεβαίνει το Mega Stores Gear World στον Worker "{0}", 
 if (-not $live) { Say '  - Πρώτη φορά: η Cloudflare φτιάχνει μόνη της τις εγγραφές DNS και το πιστοποιητικό (έως 10 λεπτά).' }
 Say '  - Τα Gear World sites, το Hub, η Group και οι βάσεις ΔΕΝ αλλάζουν. Καμία βάση, κανένα cookie.'
 Use-LinkwiseCode
+$catId = Get-CatalogId $ogw
 if ($AmazonOff) { Say '  - Κουμπιά Amazon: ΒΓΑΙΝΟΥΝ (-AmazonOff). Μένουν μόνο τα κουμπιά προς τα Gear World sites.' }
 elseif ($liveAmazon) { Say ('  - Κουμπιά Amazon: είναι ήδη live με το {0}, μένουν.' -f $AmazonTag) }
 else { Say ('  - Κουμπιά Amazon: μόνο με τη φράση {0} (ότι πρόσθεσες το {1} στο Amazon Associates).' -f $PhraseAmazon, $Domain) }
@@ -776,7 +955,7 @@ else {
     else { Say 'Amazon: χωρίς φράση: το site ανεβαίνει χωρίς κουμπιά Amazon.' $Warn }
 }
 
-$cfg = Write-Config $ogw $false
+$cfg = Write-Config $ogw $false $catId
 $d = Invoke-Deploy $ogw (('deploy --config "{0}" --var AMAZON_LINKS:{1}' -f $cfg, $mode) + $GwVersionVar)
 if ($d.code -ne 0) {
     Say 'Το ανέβασμα απέτυχε. Τίποτα άλλο δεν άλλαξε. Έξοδος:' $Bad

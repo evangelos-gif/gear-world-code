@@ -1,6 +1,7 @@
 // Mega Stores Gear World - Wrangler config TEMPLATE (no database, no secrets in this file: the Linkwise code is the
 // Worker secret LINKWISE_CODE, and the prices of the 5 big stores the secret LINKWISE_PRICES, both given by
-// tools/ogw-site.ps1 at deploy time, lessons L226 and L227).
+// tools/ogw-site.ps1 at deploy time, lessons L226 and L227; the catalogue's database, binding CATALOG, is added there
+// too, with the id Cloudflare gives, L228).
 // tools/ogw-site.ps1 makes the real wrangler.jsonc on the PC: the test Worker "mega-stores-gear-world-preview" on its
 // *.workers.dev address, or the live Worker "mega-stores-gear-world" on megastoresgearworld.com and www (only with the
 // owner's phrase). AMAZON_LINKS is set at deploy time (--var): "preview" on the test Worker, "on" on the live Worker

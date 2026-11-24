@@ -3466,6 +3466,7 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         '@echo off',
         'echo %* >> "%GW_FAKE_STATE%\calls.log"',
         'echo %* | findstr /C:"whoami" >nul && goto whoami',
+        'echo %* | findstr /C:"d1 list" >nul && goto d1list',
         'echo %* | findstr /C:"deployments list" >nul && goto deployments',
         'echo %* | findstr /C:" delete " >nul && goto delete',
         'echo %* | findstr /C:" deploy" >nul && goto deploy',
@@ -3473,6 +3474,13 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         'exit /b 1',
         ':whoami',
         'echo You are logged in with an OAuth Token, associated with the email test@example.com.',
+        'exit /b 0',
+        ':d1list',
+        'if exist "%GW_FAKE_STATE%\catalogdb.txt" goto d1have',
+        'echo []',
+        'exit /b 0',
+        ':d1have',
+        'echo [{"uuid":"fakecatalogdb01","name":"mega-stores-gear-world-catalog"}]',
         'exit /b 0',
         ':deployments',
         'echo %* | findstr /C:"-preview" >nul && goto nodeps',
@@ -3511,7 +3519,7 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
     $ogArch = Join-Path $work 'ogw-archive'
     New-Item -ItemType Directory -Path $ogArch -Force | Out-Null
     $ogFeed = Join-Path $ogArch 'LINKWISE_138.csv.gz'
-    $ogCsv = "product_name,merchant_deep_link,search_price,currency,in_stock`n" + 'Delonghi,https://www.kotsovolos.gr/ProductDisplay?partNumber=273143,399.00,EUR,1' + "`n" + 'Other,https://www.kotsovolos.gr/other,9.00,EUR,1' + "`n"
+    $ogCsv = "product_name,merchant_deep_link,search_price,currency,in_stock,merchant_image_url,merchant_category`n" + 'Delonghi,https://www.kotsovolos.gr/ProductDisplay?partNumber=273143,399.00,EUR,1,https://assets.kotsovolos.gr/product/273143-l.jpg,Cafe' + "`n" + 'Other,https://www.kotsovolos.gr/other,9.00,EUR,1,https://assets.kotsovolos.gr/o.jpg,Cafe' + "`n"
     $ogFs = [System.IO.File]::Create($ogFeed)
     try {
         $ogGz = New-Object System.IO.Compression.GZipStream($ogFs, [System.IO.Compression.CompressionMode]::Compress)
@@ -3609,6 +3617,16 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         $env:GW_GUARD_TEST_LIVE = '*=none'
         Check ((Run-Og @('-Step', 'remove-preview', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ OGW LIVE')) -eq 1 -and -not ((OgCalls) -match 'delete mega-stores-gear-world-preview')) 'ogw remove-preview with the wrong phrase: nothing deleted'
         Check ((Run-Og @('-Step', 'remove-preview', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ OGW REMOVE PREVIEW')) -eq 0 -and ((OgCalls) -match 'wrangler delete mega-stores-gear-world-preview') -and -not ((OgCalls) -match 'delete mega-stores-gear-world\s')) 'ogw remove-preview: only the test Worker is deleted'
+        # L228: the catalogue's own database: first made (its own phrase), then the stores loaded into it (theirs).
+        Check ((Run-Og @('-Step', 'catalog-db')) -eq 0 -and (OgLastReport 'CATALOG-DB').Contains('Νέα βάση D1 "mega-stores-gear-world-catalog"') -and -not ((OgCalls) -match 'd1 create')) 'ogw catalog-db without -Apply: says it would make the database, makes nothing (L228)'
+        Check ((Run-Og @('-Step', 'catalog-db', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ OGW LIVE')) -eq 1 -and -not ((OgCalls) -match 'd1 create')) 'ogw catalog-db with the wrong phrase: no database (L228)'
+        Check ((Run-Og @('-Step', 'catalog', '-Program', '138')) -eq 14) 'ogw catalog without its database: exit 14 (L228)'
+        Check ((Run-Og @('-Step', 'catalog', '-Program', '999')) -eq 2) 'ogw catalog for another programme: exit 2 (L228)'
+        [System.IO.File]::WriteAllText((Join-Path $ogState 'catalogdb.txt'), 'yes')
+        Check ((Run-Og @('-Step', 'catalog', '-Program', '138,469')) -eq 0 -and (OgLastReport 'CATALOG').Contains('kotsovolos-gr: σβήνονται τα παλιά του προϊόντα και μπαίνουν 2 προϊόντα') -and (OgLastReport 'CATALOG').Contains('public-gr: ΠΡΟΣΟΧΗ - δεν βρήκα το feed LINKWISE_469.csv.gz') -and -not ((OgCalls) -match 'd1 execute mega-stores-gear-world-catalog --remote --file')) 'ogw catalog without -Apply: the plan per store from its feed, nothing loaded (L228)'
+        Check ((Run-Og @('-Step', 'catalog', '-Program', '138', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ OGW ΒΑΣΗ')) -eq 1 -and -not ((OgCalls) -match 'time-travel')) 'ogw catalog with the wrong phrase: no restore point, nothing loaded (L228)'
+        Check ((Run-Og @('-Step', 'preview', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ OGW PREVIEW')) -eq 0 -and [System.IO.File]::ReadAllText((Join-Path $ogWork 'wrangler.preview.jsonc')).Contains('"d1_databases": [ { "binding": "CATALOG", "database_name": "mega-stores-gear-world-catalog", "database_id": "fakecatalogdb01" } ],')) 'ogw preview with the catalogue database: the Worker reads it (binding CATALOG, its id from Cloudflare) (L228)'
+        Remove-Item -LiteralPath (Join-Path $ogState 'catalogdb.txt') -Force
     } finally {
         $env:PATH = $oldPath
         $env:GW_GUARD_TEST_LIVE = '*=none'
@@ -3909,6 +3927,7 @@ Check ($ogSrc.Contains("Get-Page (`$base + '/gr/')") -and $ogSrc.Contains("Get-P
 Check ($ogSrc.Contains("Get-Page (`$base + '/gr/stores/kotsovolos-gr/')") -and $ogSrc.Contains('rel="sponsored nofollow noopener" target="_blank"') -and $ogSrc.Contains('$dCodes[0] -eq $script:LwCode') -and -not ($ogSrc -match 'Get-Page[^\r\n]*linkwi\.se')) 'ogw-site.ps1: checks the 5 direct stores and their Linkwise links with this code, never opens one (L226)'
 Check ($ogSrc.Contains('function Mask([string]$s)') -and $ogSrc.Contains('$text = Mask $text') -and $ogSrc.Contains("Remove-Item -LiteralPath `$sf -Force") -and $ogSrc.Contains('ZeroFreeBSTR')) 'ogw-site.ps1: the Linkwise code masked on the screen and in the report, its temporary file deleted (L226)'
 Check ($ogSrc.Contains('$lines = @(& node $tool --archive $Archive --out $out 2>$null)') -and $ogSrc.Contains("`$ErrorActionPreference = 'Continue'") -and $ogSrc.Contains("if (`$script:LwPrices) { `$body += 'LINKWISE_PRICES=' + `$script:LwPrices") -and -not ($ogSrc -match 'Say[^\r\n]*LwPrices\b[^.]')) 'ogw-site.ps1: the prices are read by tools/ogw-prices.mjs (stderr never stops PowerShell 5.1), sent in the same secrets file, never written on the screen (L227)'
+Check ($ogSrc.Contains("`$PhraseDb = 'ΕΓΚΡΙΝΩ OGW ΒΑΣΗ'") -and $ogSrc.Contains("`$PhraseCatalog = 'ΕΓΚΡΙΝΩ OGW ΚΑΤΑΛΟΓΟΣ'") -and $ogSrc.Contains('d1 time-travel info {0}') -and $ogSrc.Contains('if (-not $f.ok) { Say ''Η Cloudflare δεν απάντησε για τη βάση του καταλόγου (L228)')) 'ogw-site.ps1: the catalogue: its own phrases, a restore point before loading, no deploy without knowing its database (L228)'
 Check (-not ($ogSrc -cmatch 'foreach \(\$l in |\$l\s*=[^=]')) 'ogw-site.ps1: no variable $l (it is $L, the report list, for PowerShell: Say would break) (L227)'
 Check ($ogSrc.Contains('$dRest = [regex]::Replace($dp.text, ''<p class="sc-price">.*?</p>'', '''')') -and $ogSrc.Contains('-not $dEuro -and $dPriceOk') -and $ogSrc.Contains("(-not `$dExpect -or `$dPrices -gt 0)") -and $ogSrc.Contains("`$script:KotsUntil -gt (Get-Date).AddMinutes(10)") -and $ogSrc.Contains('if (-not $script:LwPrices) { $script:KotsPrices = 0 }')) 'ogw-site.ps1: a euro sign only inside the prices; prices sent but not shown is ΠΡΟΒΛΗΜΑ (L227)'
 Check ($ogSrc.Contains('elseif ($dMissing.Count -lt $dStores.Count -or $dp.status -eq 200) {') -and $ogSrc.Contains("-Filter 'gw-lw-*.env' -File") -and $ogSrc.Contains('if (Test-Path -LiteralPath $sf) {')) 'ogw-site.ps1: the 5 shown but wrong is ΠΡΟΒΛΗΜΑ even without the code file; an old temporary file is deleted, one that stays is said (L226 review)'

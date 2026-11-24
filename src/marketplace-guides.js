@@ -24,6 +24,7 @@ import { activePromos } from './lib/promos.js';
 import { COUNTRY_LANGUAGES, MULTI_LANGUAGE_COUNTRIES } from './lib/country-language.js';
 import { APP_BAR_TEXT, APP_BADGE_LABEL, appBarWanted, appPlayUrl, appBadgeFile } from './lib/app.js';
 import { PRICE_MAX_AGE_MS, priceKey } from './lib/price-key.js';
+import { catalogStores, catalogFresh, catalogTop, catalogCategory, PAGE_SIZE } from './lib/ogw-catalog.js';
 
 export const AMAZON_STATEMENT = 'As an Amazon Associate I earn from qualifying purchases.';
 const AMAZON_TRADEMARK = 'Amazon and the Amazon logo are trademarks of Amazon.com, Inc. or its affiliates.';
@@ -764,6 +765,16 @@ export function linkwisePrices(env) {
 }
 // The price of one product of a direct store, or null: only from its own programme, only fresh (24 hours, and never a
 // time ahead of the clock by more than 10 minutes).
+// The prices of the sets and ideas: the secret of the deploy, or the catalogue's (L228) when its feed is newer.
+export function mergePrices(secret, catalog, now) {
+  const out = new Map(secret || []);
+  for (const [prog, e] of (catalog || new Map())) {
+    if (!e.picks || !e.picks.size || !catalogFresh(e, now, PRICE_MAX_AGE_MS)) continue;
+    const old = out.get(prog);
+    if (!old || e.t > old.t) out.set(prog, { t: e.t, p: e.picks });
+  }
+  return out;
+}
 function freshPrices(prices, store, now) {
   if (!prices || !isDirectStore(store)) return null;
   const e = prices.get(String(store.direct.program));
@@ -1349,9 +1360,17 @@ export function directPicks(store) {
 const DIRECT_PHOTO_TTL = 21600;
 export const directPhotosKey = (site, store) => `${storeCacheKey(site, store)}&part=direct-photos&h=${showcaseHash(directPicks(store).map(p => p.image))}`;
 export async function directPhotos(site, store, deps = {}, ctx = null, { later = false } = {}) {
-  const images = [...new Set(directPicks(store).map(p => p.image))];
+  return checkedPhotos(site, [...new Set(directPicks(store).map(p => p.image))], directPhotosKey(site, store), deps, ctx, { later });
+}
+// The photos of one page of the catalogue (L228, L211): checked after the page is sent (never waited for); the next
+// visit leaves out the ones that do not open.
+export const catalogPhotosKey = (site, store, images) => `${storeCacheKey(site, store)}&part=catalog-photos&h=${showcaseHash(images)}`;
+export function catalogPhotos(site, store, images, deps = {}, ctx = null) {
+  const list = [...new Set(images)];
+  return checkedPhotos(site, list, catalogPhotosKey(site, store, list), deps, ctx, { later: true });
+}
+async function checkedPhotos(site, images, key, deps = {}, ctx = null, { later = false } = {}) {
   const cache = deps.cache || null;
-  const key = directPhotosKey(site, store);
   if (cache) {
     try {
       const hit = await cache.match(key);
@@ -1403,6 +1422,75 @@ function directIdea(c, store, idea, broken) {
   return href ? html`<a class="sc-link" href="${href}" rel="${DIRECT_REL}" target="_blank"><span>${c.t('See them at {0}', keep(store.name))}</span></a>` : '';
 }
 // The note at the top of the page: these buttons are our own Linkwise links to the store (not Gear World pages).
+// ---------------- The catalogue of a direct store (owner, 24 Nov 2026, lessons L228) ----------------
+// All the products of the store, in its own categories, one store per page, never compared; each one opens its own page
+// on the store's site through our Linkwise link. Only on the pages of /gr/.
+const catalogHref = (c, store, cat) => c.href(`/stores/${store.slug}/c/${cat.id}-${cat.slug}/`);
+const catalogCount = (c, n) => c.t('{0} products', new Intl.NumberFormat(c.lang).format(Number(n) || 0));
+function catalogSection(c, store, top, hasSets) {
+  if (!top || !top.length) return '';
+  return html`<section class="wrap section" aria-labelledby="cats-h">
+  <h2 id="cats-h">${c.t('Categories of {0}', keep(store.name))}</h2>
+  <p class="section-lede">${c.t('All the products of {0}, in its own categories. Each one opens its page on {0}, which shows the price, the stock and the delivery.', keep(store.name))}</p>
+  <ul class="cat-list">${hasSets ? html`<li><a href="#sets-h">${c.t('Sets')}</a></li>` : ''}${top.map(cat => html`<li><a href="${catalogHref(c, store, cat)}"><span translate="no">${cat.name}</span></a> <span class="cat-n">${catalogCount(c, cat.products)}</span></li>`)}</ul>
+</section>`;
+}
+function catalogProduct(c, store, p, shownAt, broken) {
+  const href = directUrl(store, p.page, c.lw);
+  if (!href || !/^https:\/\/[^/]+\//.test(String(p.image || '')) || broken.has(p.image)) return '';
+  const price = shownAt && Number(p.price) > 0 ? Number(p.price) : 0;
+  return html`<li class="cat-item">
+    <a class="sc-photo" href="${href}" rel="${DIRECT_REL}" target="_blank"><img src="${p.image}" alt="${p.name}" width="200" height="200" loading="lazy" decoding="async" referrerpolicy="no-referrer"></a>
+    <p class="sc-name" translate="no">${p.name}</p>
+    ${p.brand ? html`<p class="cat-brand" translate="no">${p.brand}</p>` : ''}
+    ${price ? html`<p class="sc-price"><span translate="no">${euros(c, price)}</span> <span class="sc-when">${c.t('checked {0}', checkedAt(c, shownAt))}</span></p>` : ''}
+    <a class="sc-link" href="${href}" rel="${DIRECT_REL}" target="_blank"><span>${c.t('See it at {0}', keep(store.name))}</span></a>
+  </li>`;
+}
+// One category of a direct store: the categories above and below it, and one page of its products.
+export function catalogPage(c, store, data, entry, broken = new Set(), after = 0) {
+  const { site, t, tx } = c;
+  const { cat } = data;
+  // A price only from a feed of the last 24 hours (L227); the products stay without it after that.
+  const shownAt = catalogFresh(entry, c.now, PRICE_MAX_AGE_MS) ? entry.t : 0;
+  const items = data.products.map(p => catalogProduct(c, store, p, shownAt, broken)).filter(x => toString(x));
+  const path = `/stores/${store.slug}/c/${cat.id}-${cat.slug}/`;
+  return shell(c, {
+    title: tx('{0} on {1}', `${cat.name} · ${store.name}`, site.name),
+    description: tx('Products of {0} in the category {1}, each with its page on {0}.', store.name, cat.name),
+    path,
+    robots: after ? 'noindex, follow' : '',
+    body: html`
+<section class="hero hero-small"><div class="wrap">
+  <p class="eyebrow"><a href="${c.href(`/stores/${store.slug}/`)}"><span translate="no">${store.name}</span></a>${data.trail.map(x => html` › <a href="${catalogHref(c, store, x)}"><span translate="no">${x.name}</span></a>`)}</p>
+  <div class="store-title">${storeLogo(site, store, 'store-logo')}<h1 translate="no">${cat.name}</h1></div>
+  <p class="lede">${catalogCount(c, cat.products)} · ${t('Each idea opens its page on {0}, which shows the price, the stock and the delivery.', keep(store.name))}</p>
+</div></section>
+<section class="wrap section">${directDisclosure(c, store, items.length && shownAt ? shownAt : 0)}</section>
+${data.children.length ? html`<section class="wrap section" aria-label="${tx('Categories of {0}', store.name)}">
+  <ul class="cat-list">${data.children.map(k => html`<li><a href="${catalogHref(c, store, k)}"><span translate="no">${k.name}</span></a> <span class="cat-n">${catalogCount(c, k.products)}</span></li>`)}</ul>
+</section>` : ''}
+<section class="wrap section">
+  <ul class="cat-items">${items}</ul>
+  <p class="cat-pages">${after ? html`<a href="${c.href(path)}">${t('Back to the first page')}</a>` : ''}${after && data.next ? ' · ' : ''}${data.next ? html`<a href="${c.href(`${path}?after=${data.next}`)}" rel="next">${t('Next page')}</a>` : ''}</p>
+</section>
+<section class="wrap section">
+  <p><a href="${c.href(`/stores/${store.slug}/`)}">${t('All the categories of {0}', keep(store.name))}</a> · <a href="${c.href('/#stores')}">${t('All stores')}</a></p>
+</section>`
+  });
+}
+// The catalogue is updated (an import keeps the database busy for a few minutes): try again soon.
+function catalogBusyPage(c, store) {
+  return shell(c, {
+    title: c.tx('{0} on {1}', store.name, c.site.name),
+    description: c.tx(store.line),
+    path: `/stores/${store.slug}/`,
+    robots: 'noindex',
+    body: html`<section class="hero hero-small"><div class="wrap"><h1 translate="no">${store.name}</h1>
+  <p class="lede">${c.t('The catalogue of {0} is being updated. Please try again in a few minutes.', keep(store.name))}</p>
+  <p><a href="${c.href(`/stores/${store.slug}/`)}">${c.t('All the categories of {0}', keep(store.name))}</a></p></div></section>`
+  });
+}
 // shownAt: the time the feed of the prices on the page was read (L227), 0 without a price on the page.
 function directDisclosure(c, store, shownAt = 0) {
   return html`<div class="note" role="note">
@@ -1413,7 +1501,7 @@ function directDisclosure(c, store, shownAt = 0) {
 </div>`;
 }
 // broken: the photos that did not open (directPhotos): their products are left out, and a set needs 2 products (L221).
-export function directStorePage(c, store, broken = new Set()) {
+export function directStorePage(c, store, broken = new Set(), top = null) {
   const { site, t, tx } = c;
   const d = store.direct || {};
   // Each set and idea keeps the times of its own prices: only those that stay on the page count for the note (a set of
@@ -1436,6 +1524,7 @@ export function directStorePage(c, store, broken = new Set()) {
   <p class="lede">${t(store.line)} ${t('Each idea opens its page on {0}, which shows the price, the stock and the delivery.', keep(store.name))}</p>
 </div></section>
 <section class="wrap section">${directDisclosure(c, store, shownAt)}</section>
+${catalogSection(c, store, top, sets.length > 0)}
 ${sets.length ? html`<section class="wrap section showcase" aria-labelledby="sets-h">
   <h2 id="sets-h">${t('Sets from {0}', keep(store.name))}</h2>
   <p class="section-lede">${t('Products of {0} that go together, chosen by us. Each one opens its page on {0}, which shows the price and the stock.', keep(store.name))}</p>
@@ -1856,7 +1945,9 @@ export function createGuidesWorker(site, deps = {}) {
       const lw = linkwiseCode(env);
       // The prices of the direct stores (L227), checked again for their age on every page.
       // Every page has them (the legal pages say "prices" only while some are shown).
-      const priced = cc => { cc.prices = linkwisePrices(env); cc.now = nowMs(); return cc; };
+      // The catalogue of the direct stores (L228): only with our Linkwise code and the CATALOG database.
+      const catStores = lw && env && env.CATALOG ? await catalogStores(env.CATALOG, nowMs()) : new Map();
+      const priced = cc => { cc.now = nowMs(); cc.prices = mergePrices(linkwisePrices(env), catStores, cc.now); cc.catalog = catStores; return cc; };
       const ctxFor = path => priced(makeContext(site, choice.lang, choice.chosen, mode, path, country, null, lw));
       const page = (body, status = 200, lang = choice.lang) => {
         // Every page now depends on the visitor's country (its stores, codes and Amazon buttons, L210), and before
@@ -1896,6 +1987,30 @@ export function createGuidesWorker(site, deps = {}) {
           edHome.app = appBarWanted(country, request.headers.get('user-agent'));
           return page(homePage(edHome, new Date(nowMs()), await allStoreData(ctx, ed.country, lw)), 200, edLang);
         }
+        // A category of the catalogue of a direct store (L228): /gr/stores/<store>/c/<id>-<name>/.
+        const cm = rest.match(/^\/stores\/([a-z0-9-]+)\/c\/(\d{1,10})(?:-([a-z0-9-]*))?\/?$/);
+        const cStore = cm && editionStores(site, ed, lw).find(s => s.slug === cm[1] && isDirectStore(s));
+        if (cStore) {
+          const entry = catStores.get(String(cStore.direct.program));
+          const cc = edCtx(`/stores/${cStore.slug}/`);
+          if (!catalogFresh(entry, nowMs())) return page(notFoundPage(edCtx(url.pathname), url.pathname), 404, edLang);
+          const after = /^\d{1,16}$/.test(url.searchParams.get('after') || '') ? Number(url.searchParams.get('after')) : 0;
+          let data;
+          try { data = await catalogCategory(env.CATALOG, cStore.direct.program, Number(cm[2]), after); } catch {
+            const busy = page(catalogBusyPage(cc, cStore), 503, edLang);
+            busy.headers.set('Retry-After', '300');
+            return busy;
+          }
+          if (!data) return page(notFoundPage(edCtx(url.pathname), url.pathname), 404, edLang);
+          if (cm[3] !== data.cat.slug || !rest.endsWith('/')) {
+            const to = new URL(url.toString());
+            to.pathname = `${ed.prefix}/stores/${cStore.slug}/c/${data.cat.id}-${data.cat.slug}/`;
+            return redirect(to.toString(), 301);
+          }
+          let broken = new Set();
+          try { broken = await catalogPhotos(site, cStore, data.products.map(p => p.image), runtime(), ctx); } catch { broken = new Set(); }
+          return page(catalogPage(edCtx(`/stores/${cStore.slug}/c/${data.cat.id}-${data.cat.slug}/`), cStore, data, entry, broken, after), 200, edLang);
+        }
         const em = rest.match(/^\/stores\/([a-z0-9-]+)\/?$/);
         const edStore = em && editionStores(site, ed, lw).find(s => s.slug === em[1]);
         if (edStore) {
@@ -1904,7 +2019,10 @@ export function createGuidesWorker(site, deps = {}) {
           if (isDirectStore(edStore)) {
             let broken = new Set();
             try { broken = await directPhotos(site, edStore, runtime(), ctx); } catch { broken = new Set(); }
-            return page(directStorePage(edCtx(`/stores/${edStore.slug}/`), edStore, broken), 200, edLang);
+            // Its catalogue (L228): the top categories, when the database answers and its feed is of the last 72 hours.
+            let top = null;
+            if (catalogFresh(catStores.get(String(edStore.direct.program)), nowMs())) top = await catalogTop(env.CATALOG, edStore.direct.program);
+            return page(directStorePage(edCtx(`/stores/${edStore.slug}/`), edStore, broken, top), 200, edLang);
           }
           // The store's list first, then its showcase: never both at once on the same site's database (L221).
           const rt = runtime();

@@ -225,3 +225,14 @@ p { margin: 0 0 1em; }
 .sc-idea .sc-item { height: auto; max-width: 260px; }
 @media (min-width: 640px) { .sc-ideas { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (min-width: 900px) { .sc-sets { grid-template-columns: 1fr 1fr; } .sc-ideas { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+/* The catalogue of a big Linkwise store (lessons L228): its own categories and one page of its products, one store per
+   page. Phone first: two products side by side, four on wider screens; text, never a colour of its own. */
+.cat-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); }
+.cat-list li { padding: 10px 12px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; }
+.cat-list a { font-weight: 600; }
+.cat-n { display: block; font-size: .8rem; color: var(--text-2); }
+.cat-items { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+@media (min-width: 760px) { .cat-items { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+.cat-item { display: flex; flex-direction: column; gap: 6px; padding: 10px; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; }
+.cat-brand { margin: 0; font-size: .78rem; color: var(--text-2); }
+.cat-pages { margin-top: 16px; }

@@ -13,6 +13,7 @@ import {
 import { countryLanguage, readsEnglish, QA_BOT, OTHER_CRAWLER, GOOGLE_CRAWLER } from '../../src/engine.js';
 import { translatableTexts } from './i18n-keys.mjs';
 import { GEAR_WORLDS } from '../../promos/network.js';
+import { fakeD1, catalogSql, kotsovolosRows } from './fake-d1.mjs';
 // The Linkwise stores are hidden until Linkwise approves this site (L215, tests/worker/ogw-hidden.test.mjs): these tests
 // check the per-country rules as they will be after the approval (hiddenNetworks empty).
 const site = { ...liveSite, hiddenNetworks: [] };
@@ -52,6 +53,17 @@ async function get(path, env = ON, { ua = BROWSER, headers = {}, cf = null, work
 }
 const STORE_PAGES = awinStores(site).map(s => `/stores/${s.slug}/`);
 const DIRECT_PAGES = site.stores.filter(s => s.direct).map(s => `/stores/${s.slug}/`);
+// L228: the catalogue of Kotsovolos (its own D1 database), its feed read an hour before `now`: a store page with its
+// categories, a category, its second page and a database busy with an import.
+const CATALOG_SQL = (await catalogSql({ 138: kotsovolosRows(60) }, Date.parse('2026-11-24T12:00:00Z'))).sql;
+const catalogAt = (now, failOn = null) => {
+  const db = fakeD1(CATALOG_SQL, { failOn });
+  db.sqlite.prepare('UPDATE stores SET checked_at = ?').run(new Date(now - 3600000).toISOString());
+  return { ...LW, CATALOG: db };
+};
+const CAT = fakeD1(CATALOG_SQL).sqlite.prepare('SELECT id, slug FROM categories WHERE level = 1 ORDER BY products DESC LIMIT 1').get();
+const CAT_AFTER = fakeD1(CATALOG_SQL).sqlite.prepare('SELECT pos FROM products WHERE c1 = ? ORDER BY pos LIMIT 1 OFFSET 47').get(CAT.id).pos;
+const CATALOG_PAGES = [`/gr/stores/kotsovolos-gr/`, `/gr/stores/kotsovolos-gr/c/${CAT.id}-${CAT.slug}/`, `/gr/stores/kotsovolos-gr/c/${CAT.id}-${CAT.slug}/?after=${CAT_AFTER}`];
 // L227: the prices of the direct stores (the secret LINKWISE_PRICES), read an hour before `now`: a price for every
 // product of their sets and ideas, so the pages use the texts of prices too.
 const pricesAt = now => {
@@ -148,7 +160,7 @@ test('L195: every text the pages use is in every dictionary, and every dictionar
         const w = createGuidesWorker(s, { fetch, cache: null, now: () => at(day) });
         // The UK page, Greece (its own stores) and a country no store is listed for (L210: their own lines).
         for (const cc of ['GB', 'GR', 'US']) {
-          for (const env of [ON, OFF, PRE, LW, pricesAt(at(day))]) for (const lang of langs) for (const p of paths) {
+          for (const env of [ON, OFF, PRE, LW, pricesAt(at(day)), catalogAt(at(day)), catalogAt(at(day), /FROM (categories|products)/)]) for (const lang of langs) for (const p of (env.CATALOG ? CATALOG_PAGES : paths)) {
             const req = new Request(LIVE + withLang(p, lang));
             Object.defineProperty(req, 'cf', { value: { country: cc } });
             await (await w.fetch(req, env)).text();
