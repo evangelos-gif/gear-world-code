@@ -18,7 +18,7 @@ export const RULES = {
   key: 'bloomingdales-uk',
   network: 'rakuten',
   advertiserId: 37206,
-  retailer: "Bloomingdale's",
+  retailer: 'Bloomingdales',
   currency: 'GBP',
   shop: /^https:\/\/www\.bloomingdales\.com\//i,
   sites: ['wgw', 'mgw', 'hgw', 'kgw'],

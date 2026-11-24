@@ -263,8 +263,17 @@ const pick = (rec, idxs) => {
 // ---------- Cleaning ----------
 
 const ENTITIES = { amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", nbsp: ' ', pound: '£', euro: '€', reg: '®', trade: '™', copy: '©' };
+// Punctuation that a shop's feed wrote in a Chinese code page and that reached us as Latin-1 (AUTO-VOX, 21 Nov 2026,
+// lessons L224: "Reversing Camera ¨C Solar Powered", "7.2¡± Split Monitor"): the dash and the quotes come back.
+const GBK_PUNCTUATION = [['¨C', '–'], ['¡±', '”'], ['¡°', '“'], ['¡¯', '’'], ['¡®', '‘'], ['¡ª', '—'], ['¡¤', '·'], ['¡­', '…']];
+export function fixGbkPunctuation(v) {
+  let t = String(v || '');
+  if (!/[¨¡]/.test(t)) return t;
+  for (const [bad, good] of GBK_PUNCTUATION) t = t.split(bad).join(good);
+  return t;
+}
 export function cleanText(v) {
-  return String(v || '')
+  return fixGbkPunctuation(v)
     .replace(/<[^>]*>/g, ' ')
     .replace(/&(#\d+|#x[0-9a-f]+|[a-z]+);/gi, (m, e) => {
       if (e[0] === '#') {

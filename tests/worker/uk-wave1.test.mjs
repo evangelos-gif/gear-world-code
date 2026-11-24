@@ -171,3 +171,19 @@ test('L224 the wave 1 UK list file names only rules that exist, each once', () =
   }
   assert.ok(pairs.includes('whamond-uk:wgw') && pairs.includes('cottonon-uk:kgw') && pairs.includes('bloomingdales-uk:hgw'));
 });
+
+test('L224 the held new-engine shops: MotardInn scooter tyres and pitbike filters are parts, AUTO-VOX dashes and quotes come back', async () => {
+  const { classify, cleanProductName } = await import('../../sites/bgw/category-rules.js');
+  const { cleanText } = await import('../../tools/tgw-import-plan.mjs');
+  const MOTO = 'Vehicles & Parts|Vehicle Parts & Accessories|Motor Vehicle Parts > Motor Vehicle Parts';
+  const slug = n => classify(cleanProductName(n), MOTO, MOTO).slug;
+  assert.equal(slug('Pirelli Scoot Angel 61p Tl-yamaha N-max Scooter Rear Tire Black 140 / 70 / R13'), 'parts-maintenance');
+  assert.equal(slug('Ebc Fixed D-series Round Scooter Md971d Front Brake Disc Silver'), 'parts-maintenance');
+  assert.equal(slug('Gpr Exclusive Furore-x Scooter Honda Sh 350 I.e 21-23 Not Homologated Slip On Muffler'), 'parts-maintenance');
+  assert.equal(slug('Dt-1 Racing X Pitbike 43-47 Mm Dt-pitbike-45po Air Filter Green'), 'parts-maintenance');
+  assert.notEqual(slug('Bcr Moped M10x1 Mm Fuel Tap Silver'), 'electric-motorbikes');
+  assert.equal(slug('Micro Maxi Deluxe Kick Scooter Blue'), 'kick-scooters');
+  assert.equal(slug('Evo Move n Groove Scooter – Blue'), 'kick-scooters');
+  assert.equal(cleanText('AUTO-VOX Wireless Reversing Camera ¨C Solar Powered, 7.2¡± Split Monitor'), 'AUTO-VOX Wireless Reversing Camera – Solar Powered, 7.2” Split Monitor');
+  assert.equal(cleanText('Plain name, nothing to fix'), 'Plain name, nothing to fix');
+});
