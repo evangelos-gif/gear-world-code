@@ -161,3 +161,22 @@ test('L225 the one UK apply list: the 14 checked pairs of uk-wave1-1124.txt firs
     assert.ok(new RegExp(`sites: \\[[^\\]]*'${site}'`).test(rules), `${p}: the site is in the rules`);
   }
 });
+
+test('L229 MGW and WGW: a card of the same shop id under an old address is hidden, not counted as updated', async () => {
+  const { planKeys } = await import('../../tools/legacy-import-plan.mjs');
+  const { diff } = await import('../../tools/legacy-import-diff.mjs');
+  // Tsakiris Mallas GR on WGW, 24 Nov 2026: the shop's page address changed ("gunaikeia-mpotaki" -> "gunaikeia-mpotakia"),
+  // so the Linkwise product id changed while the shop id (X330V3005002) stayed.
+  const items = [{ awin_product_id: 'lw11641:https://www.tsakirismallas.gr/el-gr/product/1549456/gunaikeia-mpotakia/X/', merchant_product_id: 'X330V3005002' }];
+  const rows = [{ id: 293087, awin_product_id: 'lw11641:https://www.tsakirismallas.gr/el-gr/product/1549456/gunaikeia-mpotaki/X/', merchant_product_id: 'X330V3005002', is_active: 1 }];
+  const ids = items.map(p => p.awin_product_id);
+  for (const site of ['wgw', 'mgw']) {
+    assert.deepEqual(planKeys(items, site), [], `${site}: the SQL upserts by awin_product_id only`);
+    const d = diff(ids, rows, planKeys(items, site));
+    assert.deepEqual([d.added, d.updated, d.gone], [1, 0, [293087]], `${site}: the new card is added and the old one hidden`);
+  }
+  for (const site of ['kgw', 'hgw', 'ggw', 'cgw']) {
+    const d = diff(ids, rows, planKeys(items, site));
+    assert.deepEqual([d.added, d.updated, d.gone], [0, 1, []], `${site}: the SQL updates the row found by the shop id (L119)`);
+  }
+});

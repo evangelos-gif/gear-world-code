@@ -549,6 +549,12 @@ export function insertSqlLimited(items, stamp, opts = {}, maxBytes = MAX_STATEME
   return insertSqlLimited(items.slice(0, half), stamp, opts, maxBytes) + insertSqlLimited(items.slice(half), stamp, opts, maxBytes);
 }
 
+// keys.json of a plan (lessons L119, L229): [awin_product_id, merchant_product_id] of each product, only on the sites whose
+// SQL updates a product found by the shop's own id (KGW, HGW, GGW, CGW); empty on MGW and WGW.
+export function planKeys(items, site) {
+  return STABLE_KEY_SITES.has(String(site || '').toLowerCase()) ? items.map(p => [p.awin_product_id, p.merchant_product_id]) : [];
+}
+
 function writeSql(dir, items, R, site, now, images = false) {
   mkdirSync(dir, { recursive: true });
   const replace = (R.keepCategory && R.replaceSubcategories && R.replaceSubcategories[site]) || [];
@@ -566,8 +572,12 @@ function writeSql(dir, items, R, site, now, images = false) {
   // The products this run keeps on the site (a refresh hides the retailer's other products: sold out or gone).
   writeFileSync(join(dir, 'ids.txt'), items.map(p => p.awin_product_id).join('\n') + (items.length ? '\n' : ''));
   // The shop's own id of each product: on a site keyed by (retailer, merchant id) the comparison with the database matches
-  // products that are already there under another Awin id (CGW, lessons L119).
-  writeFileSync(join(dir, 'keys.json'), JSON.stringify(items.map(p => [p.awin_product_id, p.merchant_product_id])));
+  // products that are already there under another Awin id (CGW, lessons L119), because there the SQL updates that row.
+  // Only there (lessons L229): on MGW and WGW the SQL upserts by awin_product_id, so a row of the same shop id under an
+  // old Awin id is NOT updated: a new row is added and the old one must be hidden like any product gone from the plan
+  // (Tsakiris Mallas GR on WGW, 24 Nov 2026: the shop changed its page addresses, 1,808 old cards with prices of 19 Nov
+  // stayed next to the new ones because the comparison counted them as "updated").
+  writeFileSync(join(dir, 'keys.json'), JSON.stringify(planKeys(items, site)));
   // The products with their planned place, for the comparison with the database (subcategory names, L56).
   writeFileSync(join(dir, 'places.json'), JSON.stringify({ replace, places: items.map(p => [p.awin_product_id, p.site_category, p.subcategory]) }));
   return out;
