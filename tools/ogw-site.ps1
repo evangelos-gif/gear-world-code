@@ -560,8 +560,9 @@ function Read-LinkwisePrices {
         if ($v -match '^[A-Za-z0-9+/=]{8,20000}$') { $script:LwPrices = $v }
     }
     $seen = $false
-    foreach ($l in $lines) {
-        $p = ([string]$l).Trim().Split(' ')
+    # (Never $l: PowerShell names ignore case, so it would hide the report list $L from Say.)
+    foreach ($line in $lines) {
+        $p = ([string]$line).Trim().Split(' ')
         if ($p[0] -eq 'PRICES' -and $p.Count -ge 8) {
             $seen = $true
             $when = '-'
