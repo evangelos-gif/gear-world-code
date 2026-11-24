@@ -204,7 +204,8 @@ p { margin: 0 0 1em; }
 .app-badge img { display: block; height: 60px; width: auto; }
 @media (max-width: 699px) { .app-text { flex-basis: 100%; font-size: .95rem; } .app-badge img { height: 54px; } }
 @supports (-webkit-touch-callout: none) { .app-bar { display: none; } }
-/* The showcase of a store (lessons L221): sets of products that go together and gift ideas, never a price.
+/* The showcase of a store (lessons L221): sets of products that go together and gift ideas; a price only on the pages
+   of the 5 big Linkwise stores on /gr/, from the store's own feed (.sc-price, L227).
    Phone first: one set per row, its products side by side; ideas one per row, two or three on wider screens. */
 .sc-sets, .sc-ideas, .sc-items { list-style: none; margin: 0; padding: 0; }
 .sc-sets { display: grid; gap: 14px; }

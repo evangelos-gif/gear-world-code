@@ -1416,12 +1416,15 @@ function directDisclosure(c, store, shownAt = 0) {
 export function directStorePage(c, store, broken = new Set()) {
   const { site, t, tx } = c;
   const d = store.direct || {};
-  c.priced = [];
-  const sets = (d.sets || []).map(set => ({ set, items: (set.items || []).map(p => directProduct(c, store, p, broken)).filter(Boolean) })).filter(x => x.items.length >= 2);
-  const ideas = (d.ideas || []).map(idea => ({ idea, body: directIdea(c, store, idea, broken) })).filter(x => toString(x.body));
-  // The note says when the prices on the page were read (one feed per store, so one time).
-  const shownAt = c.priced.length ? Math.min(...c.priced) : 0;
+  // Each set and idea keeps the times of its own prices: only those that stay on the page count for the note (a set of
+  // fewer than 2 products is left out with its prices; review 24/11/2026).
+  const marks = () => (c.priced = []);
+  const sets = (d.sets || []).map(set => { const m = marks(); return { set, m, items: (set.items || []).map(p => directProduct(c, store, p, broken)).filter(Boolean) }; }).filter(x => x.items.length >= 2);
+  const ideas = (d.ideas || []).map(idea => { const m = marks(); return { idea, m, body: directIdea(c, store, idea, broken) }; }).filter(x => toString(x.body));
   c.priced = null;
+  // The note says when the prices on the page were read (one feed per store, so one time).
+  const times = [...sets, ...ideas].flatMap(x => x.m);
+  const shownAt = times.length ? Math.min(...times) : 0;
   return shell(c, {
     title: tx('{0} on {1}', store.name, site.name),
     description: `${tx(store.line)} ${tx('Each idea opens its page on {0}, which shows the price, the stock and the delivery.', store.name)}`,
@@ -1937,7 +1940,10 @@ export function createGuidesWorker(site, deps = {}) {
         if (shown && isDirectStore(store)) {
           let broken = new Set();
           try { broken = await directPhotos(site, store, runtime(), ctx); } catch { broken = new Set(); }
-          return page(directStorePage(ctxFor(`/stores/${store.slug}/`), store, broken));
+          // Prices only on the pages of /gr/ (L227): this address (the UK page's, seen from Greece) shows none.
+          const rc = ctxFor(`/stores/${store.slug}/`);
+          rc.prices = null;
+          return page(directStorePage(rc, store, broken));
         }
         if (shown) {
           // The store's list first, then its showcase: never both at once on the same site's database (L221).

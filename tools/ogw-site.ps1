@@ -103,6 +103,7 @@ $L = New-Object System.Collections.Generic.List[string]
 $script:LwCode = ''
 $script:LwPrices = ''   # L227: the prices of this run (base64), '' without new prices
 $script:KotsPrices = 0   # L227: how many prices this run sends for Kotsovolos (the page checked after the deploy)
+$script:KotsUntil = Get-Date   # L227: when those prices hide (their feed time + 24 hours)
 function Mask([string]$s) {
     if ($script:LwCode) { $s = $s.Replace($script:LwCode, '***') }
     return [regex]::Replace($s, '\bCD\d{3,9}\b', 'CD***')
@@ -456,7 +457,9 @@ function Test-Site([string]$base, [string]$mode) {
     $dPrices = [regex]::Matches($dp.text, '<p class="sc-price"><span translate="no">[0-9.,]+\s?(&nbsp;)?\S?\s?\u20AC</span> <span class="sc-when">[^<]+</span></p>').Count
     $dRest = [regex]::Replace($dp.text, '<p class="sc-price">.*?</p>', '')
     $dEuro = $dRest.Contains([string][char]0x20AC)
-    $dPriceOk = (($dPrices -eq 0 -or $dp.text.Contains('product feed')) -and ($script:KotsPrices -eq 0 -or $dPrices -gt 0))
+    # Prices sent for Kotsovolos must show, unless they are within 10 minutes of hiding (review 24/11/2026).
+    $dExpect = ($script:KotsPrices -gt 0 -and $script:KotsUntil -gt (Get-Date).AddMinutes(10))
+    $dPriceOk = (($dPrices -eq 0 -or $dp.text.Contains('product feed')) -and (-not $dExpect -or $dPrices -gt 0))
     $dPriceText = 'καμία τιμή'
     if ($dPrices -gt 0) { $dPriceText = ('{0} τιμές από το feed της Linkwise, με την ώρα ελέγχου' -f $dPrices) }
     $dClean = ($dp.status -eq 200 -and $dLinks.Count -ge 2 -and $dAll -eq $dLinks.Count -and $dCodes.Count -eq 1 -and -not $dEuro -and $dPriceOk -and -not ($dp.text -match 'href="[^"]*gearworld\.com/(out|go)/') -and $dp.text.Contains('/assets/logos/kotsovolos-gr.png?v='))
@@ -545,6 +548,7 @@ function New-LinkwiseSecretsFile {
 function Read-LinkwisePrices {
     $script:LwPrices = ''
     $script:KotsPrices = 0
+    $script:KotsUntil = Get-Date
     $tool = Join-Path (Join-Path $repo 'tools') 'ogw-prices.mjs'
     $out = Join-Path ([System.IO.Path]::GetTempPath()) ('gw-lwp-' + [guid]::NewGuid().ToString('N').Substring(0, 12) + '.b64')
     $lines = @()
@@ -560,6 +564,7 @@ function Read-LinkwisePrices {
         if ($v -match '^[A-Za-z0-9+/=]{8,20000}$') { $script:LwPrices = $v }
     }
     $seen = $false
+    $done = @()
     # (Never $l: PowerShell names ignore case, so it would hide the report list $L from Say.)
     foreach ($line in $lines) {
         $p = ([string]$line).Trim().Split(' ')
@@ -569,20 +574,31 @@ function Read-LinkwisePrices {
             if ($p[7] -ne '-') {
                 try { $when = ([datetime]::Parse($p[7], [System.Globalization.CultureInfo]::InvariantCulture, [System.Globalization.DateTimeStyles]::RoundtripKind)).ToLocalTime().ToString('dd/MM HH:mm') } catch { $when = $p[7] }
             }
-            if ($p[3] -eq 'OK') {
-                if ($p[1] -eq 'kotsovolos-gr') { $script:KotsPrices = [int]$p[4] }
-                $gone = ''
-                if ([int]$p[6] -gt 0) { $gone = (', {0} εξαντλημένα (χωρίς τιμή)' -f $p[6]) }
-                Say ('  - Τιμές {0}: {1} από τα {2} προϊόντα, από το feed της Linkwise της {3} (ώρα υπολογιστή){4}' -f $p[1], $p[4], $p[5], $when, $gone) $Ok
+            $hide = '-'
+            $until = Get-Date
+            if ($p[7] -ne '-') {
+                try { $until = ([datetime]::Parse($p[7], [System.Globalization.CultureInfo]::InvariantCulture, [System.Globalization.DateTimeStyles]::RoundtripKind)).ToLocalTime().AddHours(24); $hide = $until.ToString('dd/MM HH:mm') } catch { $hide = '-' }
             }
-            elseif ($p[3] -eq 'OLD') { Say ('  - Τιμές {0}: ΠΡΟΣΟΧΗ - το feed είναι της {1}, παλιότερο από 24 ώρες: χωρίς νέες τιμές.' -f $p[1], $when) $Warn }
+            $gone = ''
+            if ($p.Count -ge 9 -and [int]$p[8] -gt 0) { $gone += (', {0} με πολλές εκδοχές στο feed (χωρίς τιμή)' -f $p[8]) }
+            if ([int]$p[6] -gt 0) { $gone += (', {0} εξαντλημένα (χωρίς τιμή)' -f $p[6]) }
+            if ($p[3] -eq 'OK') {
+                if ($p[1] -eq 'kotsovolos-gr') { $script:KotsPrices = [int]$p[4]; $script:KotsUntil = $until }
+                Say ('  - Τιμές {0}: {1} από τα {2} προϊόντα, από το feed της Linkwise της {3} (ώρα υπολογιστή){4} · κρύβονται μόνες τους στις {5}' -f $p[1], $p[4], $p[5], $when, $gone, $hide) $Ok
+            }
+            elseif ($p[3] -eq 'OLD') { Say ('  - Τιμές {0}: ΠΡΟΣΟΧΗ - το feed είναι της {1}, παλιότερο από 23 ώρες (οι τιμές κρύβονται στις 24): χωρίς νέες τιμές.' -f $p[1], $when) $Warn }
+            elseif ($p[3] -eq 'ERROR') { Say ('  - Τιμές {0}: ΠΡΟΣΟΧΗ - το feed LINKWISE_{1}.csv.gz δεν διαβάστηκε (χαλασμένο ή ανοιχτό σε άλλο πρόγραμμα): χωρίς νέες τιμές.' -f $p[1], $p[2]) $Warn }
             elseif ($p[3] -eq 'MISSING') { Say ('  - Τιμές {0}: ΠΡΟΣΟΧΗ - δεν βρήκα το feed LINKWISE_{1}.csv.gz στο {2}: χωρίς νέες τιμές.' -f $p[1], $p[2], $Archive) $Warn }
-            elseif ($p[3] -eq 'NONE') { Say ('  - Τιμές {0}: ΠΡΟΣΟΧΗ - κανένα από τα {1} προϊόντα δεν βρέθηκε (σε απόθεμα, σε ευρώ) στο feed της {2}: χωρίς νέες τιμές.' -f $p[1], $p[5], $when) $Warn }
+            elseif ($p[3] -eq 'NONE') { Say ('  - Τιμές {0}: ΠΡΟΣΟΧΗ - κανένα από τα {1} προϊόντα δεν έχει μία σίγουρη τιμή σε ευρώ στο feed της {2}{3}: χωρίς τιμές.' -f $p[1], $p[5], $when, $gone) $Warn }
             elseif ($p[3] -eq 'SKIP') { Say ('  - Τιμές {0}: δεν έχει product feed (μόνο κατηγορίες): χωρίς τιμές.' -f $p[1]) }
         }
+        elseif ($p[0] -eq 'PRICES-DONE' -and $p.Count -ge 4) { $done = $p }
     }
     if (-not $seen) { Say '  - Τιμές: ΠΡΟΣΟΧΗ - το εργαλείο των τιμών δεν απάντησε: χωρίς νέες τιμές (όσες έχει ήδη ο Worker κρύβονται μόνες τους μετά από 24 ώρες).' $Warn }
-    elseif ($script:LwPrices) { Say '  - Οι τιμές πάνε στην Cloudflare μαζί με τον κωδικό, ως μυστικό LINKWISE_PRICES του Worker.' }
+    elseif ($done.Count -ge 4 -and $done[3] -eq 'TOOBIG') { Say '  - Τιμές: ΠΡΟΣΟΧΗ - πολλές τιμές για ένα μυστικό του Worker: δεν στέλνονται (όσες έχει ήδη ο Worker κρύβονται μόνες τους μετά από 24 ώρες). Στείλε στο Claude αυτή την αναφορά.' $Warn }
+    elseif ($script:LwPrices -and $done.Count -ge 4 -and $done[1] -eq '0') { Say '  - Τιμές: καμία από τα feeds αυτή τη φορά: ο Worker σβήνει όσες είχε (στέλνεται κενό LINKWISE_PRICES).' $Warn }
+    elseif ($script:LwPrices) { Say '  - Οι τιμές πάνε στην Cloudflare μαζί με τον κωδικό, ως μυστικό LINKWISE_PRICES του Worker (αντικαθιστούν όσες είχε).' }
+    else { Say '  - Τιμές: κανένα φρέσκο feed: δεν στέλνεται τίποτα, ο Worker κρατά όσες έχει (κρύβονται μόνες τους μετά από 24 ώρες).' }
 }
 function Invoke-Deploy([string]$folder, [string]$arguments) {
     # A file left by a run that was closed half way is deleted first (review 24/11/2026).

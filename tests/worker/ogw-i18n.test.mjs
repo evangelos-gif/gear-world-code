@@ -139,7 +139,8 @@ test('L195: 11 dictionaries, the same texts in each, the sites\' layout (code-po
 test('L195: every text the pages use is in every dictionary, and every dictionary text is used (all pages, modes and days)', async () => {
   const empty = { ...site, dictionaries: { 'el-GR': {} } };
   const days = ['2026-11-19', '2026-11-22', '2026-11-26', '2026-11-27', '2026-11-30', '2026-12-01', '2026-12-24', '2026-12-25'];
-  const paths = ['/', '/stores/amazon/', '/nope/', ...PAGES, ...DIRECT_PAGES];
+  // (The prices of the direct stores are only on their pages of /gr/, L227.)
+  const paths = ['/', '/stores/amazon/', '/nope/', ...PAGES, ...DIRECT_PAGES, ...DIRECT_PAGES.map(p => `/gr${p}`)];
   const failing = async () => { throw new Error('down'); };
   const renderAll = async (s, langs) => {
     for (const day of days) {

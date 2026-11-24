@@ -8,11 +8,11 @@ import { mkdtempSync, writeFileSync, utimesSync, existsSync, readFileSync, rmSyn
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { gzipSync } from 'node:zlib';
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
 import site from '../../sites/ogw/site.config.js';
-import { createGuidesWorker, priceKey, linkwisePrices, directPrice, PRICE_MAX_AGE_MS } from '../../src/marketplace-guides.js';
+import { createGuidesWorker, priceKey, linkwisePrices, directPrice, directStorePage, makeContext, EDITIONS, PRICE_MAX_AGE_MS } from '../../src/marketplace-guides.js';
 import { pageKey } from '../../src/lib/price-key.js';
-import { directStoresFromConfig, buildPrices } from '../../tools/ogw-prices.mjs';
+import { directStoresFromConfig, buildPrices, FEED_MAX_AGE_MS, MAX_SECRET } from '../../tools/ogw-prices.mjs';
 
 const LIVE = 'https://megastoresgearworld.com';
 const NOW = Date.parse('2026-11-24T18:30:00Z');
@@ -105,19 +105,20 @@ test('L227: the PC tool: by page, else photo, else a name only one product has; 
   const pub = items(DIRECT.find(s => s.slug === 'public-gr'));
   const dir = archive({
     138: { rows },
-    469: { rows: [{ product_name: 'p', merchant_deep_link: pub[0].url, search_price: '25.00', currency: 'EUR', in_stock: '1' }], age: PRICE_MAX_AGE_MS + 60000 },
+    469: { rows: [{ product_name: 'p', merchant_deep_link: pub[0].url, search_price: '25.00', currency: 'EUR', in_stock: '1' }], age: FEED_MAX_AGE_MS + 60000 },
     13026: { rows: [{ product_name: 'nothing of ours', merchant_deep_link: 'https://www.sephora.gr/p/none', search_price: '5.00', currency: 'EUR', in_stock: '1' }] }
   });
   try {
     const { lines, value } = await buildPrices({ archive: dir, config: 'sites/ogw/site.config.js', now: NOW });
     const iso = new Date(NOW - 3600000).toISOString();
+    // (k[4] is in pounds and k[6], k[7] have no readable price: "unclear", never a guess.)
     assert.deepEqual(lines, [
-      `PRICES kotsovolos-gr 138 OK 3 9 1 ${iso}`,
-      `PRICES public-gr 469 OLD 0 9 0 ${new Date(NOW - PRICE_MAX_AGE_MS - 60000).toISOString()}`,
-      `PRICES sephora-gr 13026 NONE 0 9 0 ${iso}`,
-      'PRICES e-shop-gr 11754 MISSING 0 9 0 -',
-      'PRICES ab-gr 12158 SKIP 0 0 0 -',
-      'PRICES-DONE 1 3'
+      `PRICES kotsovolos-gr 138 OK 3 9 1 ${iso} 3`,
+      `PRICES public-gr 469 OLD 0 9 0 ${new Date(NOW - FEED_MAX_AGE_MS - 60000).toISOString()} 0`,
+      `PRICES sephora-gr 13026 NONE 0 9 0 ${iso} 0`,
+      'PRICES e-shop-gr 11754 MISSING 0 9 0 - 0',
+      'PRICES ab-gr 12158 SKIP 0 0 0 - 0',
+      'PRICES-DONE 1 3 SEND'
     ]);
     const data = JSON.parse(Buffer.from(value, 'base64').toString('utf8'));
     assert.deepEqual(data, { v: 1, s: { 138: { t: iso, p: { [priceKey(k[0].url)]: 399, [priceKey(k[1].url)]: 89.9, [priceKey(k[2].url)]: 1299 } } } });
@@ -131,12 +132,64 @@ test('L227: the PC tool: by page, else photo, else a name only one product has; 
     const none = join(dir, 'none.b64');
     execFileSync(process.execPath, ['tools/ogw-prices.mjs', '--archive', join(dir, 'missing'), '--out', none], { stdio: 'ignore' });
     assert.ok(!existsSync(none));
-    // A bad call or a broken file: one line on stdout, nothing on stderr.
+    // A broken file is that store's error only (the others keep their prices), and nothing on stderr.
     writeFileSync(join(dir, 'LINKWISE_11754.csv.gz'), 'not a gzip');
     const bad = execFileSync(process.execPath, ['tools/ogw-prices.mjs', '--archive', dir, '--out', join(dir, 'bad.b64'), '--now', new Date(NOW).toISOString()], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
-    assert.match(bad, /^PRICES-ERROR /m);
-    assert.ok(!existsSync(join(dir, 'bad.b64')));
+    assert.match(bad, /^PRICES e-shop-gr 11754 ERROR 0 9 0 \S+ 0$/m);
+    assert.match(bad, /^PRICES kotsovolos-gr 138 OK 3 9 1 /m);
+    assert.equal(readFileSync(join(dir, 'bad.b64'), 'ascii'), value);
+    // A bad call: one line on stdout, nothing written.
+    const usage = spawnSync(process.execPath, ['tools/ogw-prices.mjs', '--archive', dir], { encoding: 'utf8' });
+    assert.equal(usage.status, 2);
+    assert.match(usage.stdout, /^PRICES-ERROR usage/);
+    assert.equal(usage.stderr, '');
   } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
+test('L227 review: sizes and shades on one page: the row with the product\'s own photo; still different: no price, never a guess', async () => {
+  const sep = DIRECT.find(s => s.slug === 'sephora-gr');
+  const k = items(sep);
+  const rows = [
+    // Three sizes on the page of k[0]: only one has its photo.
+    { product_name: 'a', merchant_deep_link: k[0].url, merchant_image_url: 'https://media.sephora.eu/other-50.jpg', search_price: '52.00', currency: 'EUR', in_stock: '1' },
+    { product_name: 'a', merchant_deep_link: k[0].url, merchant_image_url: k[0].image, search_price: '129.00', currency: 'EUR', in_stock: '1' },
+    { product_name: 'a', merchant_deep_link: k[0].url, merchant_image_url: 'https://media.sephora.eu/other-200.jpg', search_price: '165.00', currency: 'EUR', in_stock: '1' },
+    // Two shades of k[1], neither with its photo, different prices: unclear.
+    { product_name: 'b', merchant_deep_link: k[1].url, search_price: '20.00', currency: 'EUR', in_stock: '1' },
+    { product_name: 'b', merchant_deep_link: k[1].url, search_price: '22.00', currency: 'EUR', in_stock: '1' },
+    // Two rows of k[2], same price, one out of stock: unclear (we cannot tell which one it is).
+    { product_name: 'c', merchant_deep_link: k[2].url, search_price: '30.00', currency: 'EUR', in_stock: '0' },
+    { product_name: 'c', merchant_deep_link: k[2].url, search_price: '30.00', currency: 'EUR', in_stock: '1' },
+    // Two rows of k[3], same price, both in stock: that price. Both of k[4] out of stock: out of stock.
+    { product_name: 'd', merchant_deep_link: k[3].url, search_price: '40.00', currency: 'EUR', in_stock: '1' },
+    { product_name: 'd', merchant_deep_link: k[3].url, search_price: '40.00', currency: 'EUR', in_stock: '' },
+    { product_name: 'e', merchant_deep_link: k[4].url, search_price: '9.00', currency: 'EUR', in_stock: '0' },
+    { product_name: 'e', merchant_deep_link: k[4].url, search_price: '9.00', currency: 'EUR', in_stock: '0' }
+  ];
+  const dir = archive({ 13026: { rows } });
+  try {
+    const { lines, value } = await buildPrices({ archive: dir, config: 'sites/ogw/site.config.js', now: NOW });
+    assert.equal(lines[2], `PRICES sephora-gr 13026 OK 2 9 1 ${new Date(NOW - 3600000).toISOString()} 2`);
+    assert.deepEqual(JSON.parse(Buffer.from(value, 'base64')).s['13026'].p, { [priceKey(k[0].url)]: 129, [priceKey(k[3].url)]: 40 });
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
+test('L227 review: a fresh feed with no price drops the old prices; no fresh feed keeps them; never a secret too big', async () => {
+  const k = items(KOTS);
+  const none = archive({ 138: { rows: [{ product_name: 'x', merchant_deep_link: k[0].url, search_price: '5.00', currency: 'EUR', in_stock: '0' }] } });
+  const old = archive({ 138: { rows: [{ product_name: 'x', merchant_deep_link: k[0].url, search_price: '5.00', currency: 'EUR', in_stock: '1' }], age: FEED_MAX_AGE_MS + 1000 } });
+  try {
+    const a = await buildPrices({ archive: none, config: 'sites/ogw/site.config.js', now: NOW });
+    assert.equal(a.lines.at(-1), 'PRICES-DONE 0 0 SEND');
+    assert.deepEqual(JSON.parse(Buffer.from(a.value, 'base64')), { v: 1, s: {} }, 'an empty value: the Worker drops what it had');
+    assert.equal(linkwisePrices({ LINKWISE_PRICES: a.value }).size, 0);
+    const b = await buildPrices({ archive: old, config: 'sites/ogw/site.config.js', now: NOW });
+    assert.equal(b.lines.at(-1), 'PRICES-DONE 0 0 KEEP');
+    assert.equal(b.value, '', 'nothing sent: the Worker keeps what it has (it hides itself at 24 hours)');
+  } finally { rmSync(none, { recursive: true, force: true }); rmSync(old, { recursive: true, force: true }); }
+  // An hour of margin: a feed of 23 hours still has its price on the page for an hour.
+  assert.equal(FEED_MAX_AGE_MS, PRICE_MAX_AGE_MS - 3600000);
+  assert.ok(MAX_SECRET <= 5000, 'under the size of a Worker secret');
 });
 
 test('L227: the secret is read once and checked: programme, key, price and time; anything else is left out', () => {
@@ -218,6 +271,24 @@ test('L227: prices only on the pages of the direct stores (/gr/): never Amazon, 
     const { text } = await get(`/gr/stores/${s.slug}/`, env);
     assert.equal(priceTags(text).length, items(s).length, `${s.slug}: ${items(s).length} prices`);
   }
+});
+
+test('L227 review: the UK address of a store page, seen from Greece, shows no prices; the note counts only the prices on the page', async () => {
+  const env = { LINKWISE_CODE: CODE, LINKWISE_PRICES: secret() };
+  const root = await get('/stores/kotsovolos-gr/', env, { cc: 'GR' });
+  assert.equal(root.r.status, 200);
+  assert.equal(priceTags(root.text).length, 0, 'only the pages of /gr/');
+  assert.ok(!/€/.test(visible(root.text)));
+  assert.ok(!visible(root.text).includes('Οι τιμές προέρχονται'));
+  // A set left with one product (a broken photo) is dropped with its price: the note does not speak of prices then.
+  const set = KOTS.direct.sets[0];
+  const onlySet = { v: 1, s: { 138: { t: new Date(NOW - 3600000).toISOString(), p: { [priceKey(set.items[0].url)]: 10 } } } };
+  const c = makeContext(site, 'el-GR', false, 'off', '/stores/kotsovolos-gr/', 'GR', EDITIONS[0], CODE);
+  c.prices = linkwisePrices({ LINKWISE_PRICES: b64(onlySet) });
+  c.now = NOW;
+  const page = String(directStorePage(c, KOTS, new Set([set.items[1].image, set.items[2].image])));
+  assert.equal(priceTags(page).length, 0);
+  assert.ok(!visible(page).includes('Οι τιμές προέρχονται') && visible(page).includes('Δεν πουλάμε τίποτα'), 'the note without prices');
 });
 
 test('L227: the legal pages say "prices" only while some are shown, and name only the stores that have them', async () => {
