@@ -594,6 +594,8 @@ function Read-LinkwisePrices {
         }
         elseif ($p[0] -eq 'PRICES-DONE' -and $p.Count -ge 4) { $done = $p }
     }
+    # Nothing sent (too big, or no fresh feed): the page is not expected to show this run's prices (review 24/11/2026).
+    if (-not $script:LwPrices) { $script:KotsPrices = 0 }
     if (-not $seen) { Say '  - Τιμές: ΠΡΟΣΟΧΗ - το εργαλείο των τιμών δεν απάντησε: χωρίς νέες τιμές (όσες έχει ήδη ο Worker κρύβονται μόνες τους μετά από 24 ώρες).' $Warn }
     elseif ($done.Count -ge 4 -and $done[3] -eq 'TOOBIG') { Say '  - Τιμές: ΠΡΟΣΟΧΗ - πολλές τιμές για ένα μυστικό του Worker: δεν στέλνονται (όσες έχει ήδη ο Worker κρύβονται μόνες τους μετά από 24 ώρες). Στείλε στο Claude αυτή την αναφορά.' $Warn }
     elseif ($script:LwPrices -and $done.Count -ge 4 -and $done[1] -eq '0') { Say '  - Τιμές: καμία από τα feeds αυτή τη φορά: ο Worker σβήνει όσες είχε (στέλνεται κενό LINKWISE_PRICES).' $Warn }
