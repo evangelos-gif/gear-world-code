@@ -83,7 +83,7 @@ test('L218 Mega Stores: Google\'s own files, the allowlist, the CSS and a new as
     assert.deepEqual([png.readUInt32BE(16), png.readUInt32BE(20)], [646, 250], `${f}: 646x250`);
     assert.ok(allow.includes(`assets/app/google-play-${f}.png`), `${f} in the allowlist`);
   }
-  assert.equal(site.assetVersion, '2026-11-23-ogw-10', 'a new asset version (L31: -8 for the CSS of the row; -9 for the Linkwise stores back and /gr/, L214/L215; -10 for the showcase CSS and logos, L221)');
+  assert.equal(site.assetVersion, '2026-11-24-ogw-11', 'a new asset version (L31: -8 for the CSS of the row; -9 for the Linkwise stores back and /gr/, L214/L215; -10 for the showcase CSS and logos, L221; -11 for the logos of the direct stores, L226)');
   const css = read('sites/ogw/public/assets/ogw.css');
   assert.match(css, /\.app-bar \{ display: flex; flex-wrap: wrap; align-items: center; gap: 16px; margin: 18px 0 0; \}/, 'clear space of a quarter of the badge height');
   assert.match(css, /\.app-badge img \{ display: block; height: 60px; width: auto; \}/);

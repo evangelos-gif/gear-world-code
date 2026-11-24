@@ -3,8 +3,15 @@
   Mega Stores Gear World (megastoresgearworld.com, code OGW) - test address, live site, remove the test address.
 
 .DESCRIPTION
-  Gift guides that link to amazon.co.uk and to the Gear World sites. No database, no cookies, no secrets. It does not
-  touch the other sites, the Hub, the Group page or any database.
+  Gift guides that link to amazon.co.uk and to the Gear World sites. No database, no cookies. It does not touch the
+  other sites, the Hub, the Group page or any database.
+  One secret (lessons L226): our Linkwise affiliate code (CD and digits) for the 5 direct stores (Public, Sephora,
+  e-shop.gr, AB Vasilopoulos, Kotsovolos), whose gift ideas are our Linkwise links to the store's own pages. The tool
+  reads it from the file the Linkwise tools keep encrypted for your Windows user (DPAPI,
+  <home>\gear-world-secrets\linkwise-code.dat) and gives it to Cloudflare only as the Worker secret LINKWISE_CODE
+  (wrangler deploy --secrets-file, a temporary file deleted at once); it is never in a report, on the screen or in the
+  repository. Without the file the deploy keeps the secret the Worker already has (none on a new test Worker: the 5
+  stores are then not shown there).
 
   -Step check           READ-ONLY. Cloudflare login, the live Worker "mega-stores-gear-world" (if any), the test
                         Worker, and what megastoresgearworld.com answers.
@@ -36,7 +43,7 @@
   Every preview and live check also reads (L195): the Greek home page (/?lang=el), the Hub link, and until Cyber
   Monday the Black Friday block (countdown, a store that started, a code linking to a Gear World /discount-codes/ page,
   Amazon's own Black Friday page with the Associates ID only with Amazon links on).
-  Exit codes: 0 done, 1 no approval, 3 Node.js or npm, 4 Cloudflare login, 6 the live site did not answer before an
+  Exit codes: 0 done, 1 no approval, 3 Node.js or npm, or the Linkwise code file cannot be read (L226), 4 Cloudflare login, 6 the live site did not answer before an
   update, 9 the deploy failed, 11 Cloudflare did not say whether the live Worker exists, 12 wrong test Worker name,
   13 this version lacks the live one (L156), 23 -AfterPreview without a clean preview report of this version.
   Report: <home>\gear-world-reports\OGW_SITE_<STEP>_<time>.txt (also copied to the clipboard)
@@ -53,6 +60,7 @@ param(
     [switch]$NoHttpCheck,
     [switch]$AfterPreview,
     [switch]$AmazonOff,
+    [string]$SecretFile = '',
     [string]$Chat = '1 · Gear World Manager' # the chat that gave the command, named in the clipboard line (L116, L208)
 )
 
@@ -72,6 +80,7 @@ $PhraseRemovePreview = 'ΕΓΚΡΙΝΩ OGW REMOVE PREVIEW'
 $Ok = 'Green'; $Warn = 'Yellow'; $Bad = 'Magenta'
 if (-not $WorkDir) { $WorkDir = Join-Path $HOME 'mega-stores-gear-world' }
 if (-not $OutDir) { $OutDir = Join-Path $HOME 'gear-world-reports' }
+if (-not $SecretFile) { $SecretFile = Join-Path (Join-Path $HOME 'gear-world-secrets') 'linkwise-code.dat' }
 $stamp = Get-Date -Format 'yyyyMMdd_HHmmss'
 $DashLink = 'https://dash.cloudflare.com/?to=/:account/workers/services/view/mega-stores-gear-world/production/deployments'
 $DnsLink = 'https://dash.cloudflare.com/?to=/:account/:zone/dns/records'
@@ -81,7 +90,14 @@ $UserAgent = 'GearWorldQA-bot/1.0 (+read-only check)'
 $BlackFridayEnd = '2026-11-30'
 
 $L = New-Object System.Collections.Generic.List[string]
+# L226: our Linkwise code is never written anywhere: every line of the screen and the report goes through Mask.
+$script:LwCode = ''
+function Mask([string]$s) {
+    if ($script:LwCode) { $s = $s.Replace($script:LwCode, '***') }
+    return [regex]::Replace($s, '\bCD\d{3,9}\b', 'CD***')
+}
 function Say([string]$text, [string]$color = '') {
+    $text = Mask $text
     $L.Add($text)
     if ($color) { Write-Host $text -ForegroundColor $color } else { Write-Host $text }
 }
@@ -414,6 +430,21 @@ function Test-Site([string]$base, [string]$mode) {
     if ($esOk -and $esCards -gt 0) { Say ('  /gr/stores/kouzinika-gr/ (L214): ΕΝΤΑΞΕΙ - στα Ελληνικά, μπαίνει στη Google, {0} προϊόντα με φωτογραφία' -f $esCards) $Ok }
     elseif ($esOk) { Say '  /gr/stores/kouzinika-gr/ (L214): ΠΡΟΣΟΧΗ - η σελίδα είναι σωστή, αλλά τα προϊόντα δεν φορτώθηκαν αυτή τη στιγμή (φορτώνονται ξανά σε επόμενη επίσκεψη)' $Warn }
     else { Say ('  /gr/stores/kouzinika-gr/ (L214): ΠΡΟΒΛΗΜΑ - απάντηση {0}' -f $es.status) $Bad; $all = $false }
+    # L226 (owner and Linkwise, 24 Nov 2026): the 5 direct stores on /gr/, and the Kotsovolos page: each idea is our Linkwise
+    # link to a page of www.kotsovolos.gr (sponsored, nofollow), with this run's code, never a price. Read-only GETs of
+    # our own pages: a Linkwise link is never opened (it would count as a click).
+    $dStores = @('kotsovolos-gr', 'public-gr', 'sephora-gr', 'e-shop-gr', 'ab-gr')
+    $dMissing = @($dStores | Where-Object { -not $ed.text.Contains('href="/gr/stores/' + $_ + '/"') })
+    $dp = Get-Page ($base + '/gr/stores/kotsovolos-gr/')
+    $dLinks = @([regex]::Matches($dp.text, 'href="https://go\.linkwi\.se/z/138-0/(CD\d{3,9})/\?lnkurl=https%3A%2F%2Fwww\.kotsovolos\.gr%2F[^"]*" rel="sponsored nofollow noopener" target="_blank"'))
+    $dAll = [regex]::Matches($dp.text, 'href="https://go\.linkwi\.se/').Count
+    $dCodes = @($dLinks | ForEach-Object { $_.Groups[1].Value } | Select-Object -Unique)
+    $dClean = ($dp.status -eq 200 -and $dLinks.Count -ge 2 -and $dAll -eq $dLinks.Count -and $dCodes.Count -eq 1 -and -not $dp.text.Contains([string][char]0x20AC) -and -not ($dp.text -match 'href="[^"]*gearworld\.com/(out|go)/') -and $dp.text.Contains('/assets/logos/kotsovolos-gr.png?v='))
+    if ($script:LwCode) {
+        if ($dMissing.Count -eq 0 -and $dClean -and $dCodes[0] -eq $script:LwCode) { Say ('  Τα 5 μεγάλα καταστήματα της Linkwise στο /gr/ (L226): ΕΝΤΑΞΕΙ - η σελίδα του Κωτσόβολου έχει {0} links της Linkwise με τον κωδικό σου (sponsored, nofollow), κανένα σύμβολο €' -f $dLinks.Count) $Ok }
+        else { Say ('  Τα 5 μεγάλα καταστήματα της Linkwise (L226): ΠΡΟΒΛΗΜΑ - λείπουν από το /gr/: {0}; σελίδα Κωτσόβολου: απάντηση {1}, {2} links της Linkwise, ο κωδικός σου: {3}' -f ($dMissing -join ', '), $dp.status, $dLinks.Count, $(if ($dCodes.Count -eq 1 -and $dCodes[0] -eq $script:LwCode) { 'ναι' } else { 'όχι' })) $Bad; $all = $false }
+    } elseif ($dMissing.Count -eq 0 -and $dClean) { Say '  Τα 5 μεγάλα καταστήματα της Linkwise (L226): ΕΝΤΑΞΕΙ - με τον κωδικό που είχε ήδη ο Worker' $Ok }
+    else { Say '  Τα 5 μεγάλα καταστήματα της Linkwise (L226): ΠΡΟΣΟΧΗ - δεν φαίνονται (ο Worker δεν έχει τον κωδικό της Linkwise)' $Warn }
     $edSm = Get-Page ($base + '/sitemap.xml')
     if ($edSm.status -eq 200 -and $edSm.text.Contains('<loc>https://' + $Domain + '/gr/</loc>') -and $edSm.text.Contains('<loc>https://' + $Domain + '/gr/stores/kouzinika-gr/</loc>')) { Say '  sitemap.xml με το /gr/ και τις σελίδες των ελληνικών καταστημάτων (L214): ΕΝΤΑΞΕΙ' $Ok }
     else { Say ('  sitemap.xml χωρίς το /gr/ (L214, απάντηση {0}): ΠΡΟΒΛΗΜΑ' -f $edSm.status) $Bad; $all = $false }
@@ -460,6 +491,42 @@ function Test-PreviewReport {
     }
     Say ('Δοκιμαστική διεύθυνση αυτής της έκδοσης ({0}): ΕΤΟΙΜΟ, χωρίς ΠΡΟΒΛΗΜΑ: ΕΝΤΑΞΕΙ' -f $r.Name) $Ok
     return $true
+}
+
+# L226: our Linkwise code from the encrypted file (DPAPI, this Windows user only): ok, missing, unreadable or wrong.
+function Read-LinkwiseCode {
+    if (-not (Test-Path -LiteralPath $SecretFile)) { return 'missing' }
+    $c = ''
+    try {
+        $sec = ConvertTo-SecureString ([System.IO.File]::ReadAllText($SecretFile).Trim())
+        $b = [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($sec)
+        try { $c = ([string][System.Runtime.InteropServices.Marshal]::PtrToStringBSTR($b)).Trim() } finally { [System.Runtime.InteropServices.Marshal]::ZeroFreeBSTR($b) }
+    } catch { return 'unreadable' }
+    if ($c -notmatch '^CD\d{3,9}$') { return 'wrong' }
+    $script:LwCode = $c
+    return 'ok'
+}
+# The code as a Worker secret for one deploy: a temporary file (deleted right after the deploy), '' without a code.
+function New-LinkwiseSecretsFile {
+    if (-not $script:LwCode) { return '' }
+    $f = Join-Path ([System.IO.Path]::GetTempPath()) ('gw-lw-' + [guid]::NewGuid().ToString('N').Substring(0, 12) + '.env')
+    [System.IO.File]::WriteAllText($f, ('LINKWISE_CODE=' + $script:LwCode + "`n"), [System.Text.Encoding]::ASCII)
+    return $f
+}
+function Invoke-Deploy([string]$folder, [string]$arguments) {
+    $sf = New-LinkwiseSecretsFile
+    $extra = ''
+    if ($sf) { $extra = (' --secrets-file "{0}"' -f $sf) }
+    try { return (Invoke-Wrangler $folder ($arguments + $extra) -NonInteractive) }
+    finally { if ($sf) { Remove-Item -LiteralPath $sf -Force -ErrorAction SilentlyContinue } }
+}
+# Before a deploy: says what happens to the 5 direct stores; a file that cannot be read stops everything (exit 3).
+function Use-LinkwiseCode {
+    $state = Read-LinkwiseCode
+    if ($state -eq 'ok') { Say '  - Τα 5 μεγάλα καταστήματα της Linkwise (L226): ο κωδικός σου πάει στην Cloudflare ως μυστικό του Worker (δεν γράφεται πουθενά).'; return }
+    if ($state -eq 'missing') { Say ('  - Τα 5 μεγάλα καταστήματα της Linkwise (L226): ΠΡΟΣΟΧΗ - δεν βρήκα τον φυλαγμένο κωδικό ({0}). Ο Worker κρατά όποιον κωδικό ήδη έχει· αν δεν έχει, τα 5 δεν φαίνονται.' -f $SecretFile) $Warn; return }
+    Say ('Δεν μπόρεσα να διαβάσω τον φυλαγμένο κωδικό της Linkwise ({0}). Δεν άλλαξε τίποτα. Στείλε στο Claude αυτή την αναφορά.' -f $SecretFile) $Bad
+    Finish 3
 }
 
 # ---------------- start ----------------
@@ -531,10 +598,11 @@ if ($Step -eq 'preview') {
     Say ('  - Ο δοκιμαστικός Worker "{0}" σε διεύθυνση *.workers.dev παίρνει αυτή την έκδοση (noindex).' -f $PreviewName)
     Say '  - Τα κουμπιά Amazon εκεί είναι ΧΩΡΙΣ το Associates ID (η δοκιμαστική διεύθυνση δεν είναι στο Amazon Associates).'
     Say ('  - Το {0}, τα Gear World sites, το Hub και οι βάσεις ΔΕΝ αλλάζουν.' -f $Domain)
+    Use-LinkwiseCode
     if (-not $Apply) { Say ''; Say 'Δοκιμή μόνο (χωρίς -Apply): δεν άλλαξε τίποτα.' $Ok; Finish 0 }
     if (-not (Confirm-Approval $PhrasePreview)) { Say 'Δεν δόθηκε η έγκριση για τη δοκιμαστική διεύθυνση: σταμάτησα (δεν ανέβηκε τίποτα).' $Warn; Finish 1 }
     $cfg = Write-Config $ogw $true
-    $d = Invoke-Wrangler $ogw (('deploy --config "{0}" --var AMAZON_LINKS:preview' -f $cfg) + $GwVersionVar) -NonInteractive
+    $d = Invoke-Deploy $ogw (('deploy --config "{0}" --var AMAZON_LINKS:preview' -f $cfg) + $GwVersionVar)
     if ($d.code -ne 0) { Say 'Το ανέβασμα της δοκιμαστικής διεύθυνσης απέτυχε. Τίποτα άλλο δεν άλλαξε. Έξοδος:' $Bad; Say $d.text; Finish 9 }
     $um = [regex]::Match($d.text, 'https://[A-Za-z0-9\.\-]+\.workers\.dev')
     $url = ''
@@ -589,7 +657,8 @@ Say ''
 Say 'Τι θα γίνει:'
 Say ('  - Ανεβαίνει το Mega Stores Gear World στον Worker "{0}", στο {1} και στο www.{1}.' -f $WorkerName, $Domain)
 if (-not $live) { Say '  - Πρώτη φορά: η Cloudflare φτιάχνει μόνη της τις εγγραφές DNS και το πιστοποιητικό (έως 10 λεπτά).' }
-Say '  - Τα Gear World sites, το Hub, η Group και οι βάσεις ΔΕΝ αλλάζουν. Καμία βάση, κανένα μυστικό, κανένα cookie.'
+Say '  - Τα Gear World sites, το Hub, η Group και οι βάσεις ΔΕΝ αλλάζουν. Καμία βάση, κανένα cookie.'
+Use-LinkwiseCode
 if ($AmazonOff) { Say '  - Κουμπιά Amazon: ΒΓΑΙΝΟΥΝ (-AmazonOff). Μένουν μόνο τα κουμπιά προς τα Gear World sites.' }
 elseif ($liveAmazon) { Say ('  - Κουμπιά Amazon: είναι ήδη live με το {0}, μένουν.' -f $AmazonTag) }
 else { Say ('  - Κουμπιά Amazon: μόνο με τη φράση {0} (ότι πρόσθεσες το {1} στο Amazon Associates).' -f $PhraseAmazon, $Domain) }
@@ -612,7 +681,7 @@ else {
 }
 
 $cfg = Write-Config $ogw $false
-$d = Invoke-Wrangler $ogw (('deploy --config "{0}" --var AMAZON_LINKS:{1}' -f $cfg, $mode) + $GwVersionVar) -NonInteractive
+$d = Invoke-Deploy $ogw (('deploy --config "{0}" --var AMAZON_LINKS:{1}' -f $cfg, $mode) + $GwVersionVar)
 if ($d.code -ne 0) {
     Say 'Το ανέβασμα απέτυχε. Τίποτα άλλο δεν άλλαξε. Έξοδος:' $Bad
     Say $d.text

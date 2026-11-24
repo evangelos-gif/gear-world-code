@@ -18,6 +18,13 @@ assets/logos/xxxl-leo-gr.png
 assets/logos/casualshoes-gr.png
 assets/logos/parex-gr.jpg
 assets/logos/tsakiris-mallas-gr.png
+# The programme logos of the Linkwise panel of the 5 direct stores (lessons L226): the panel's pixels, without the
+# editor's notes inside the file (Adobe XMP and Exif, GIMP and time stamps).
+assets/logos/kotsovolos-gr.png
+assets/logos/public-gr.png
+assets/logos/sephora-gr.png
+assets/logos/e-shop-gr.jpg
+assets/logos/ab-gr.png
 # Our own photos of the Gear Worlds (the Hub's, sites/gwh/public/hub-<code>.jpg) for the Amazon page.
 assets/worlds/cgw.jpg
 assets/worlds/hgw.jpg

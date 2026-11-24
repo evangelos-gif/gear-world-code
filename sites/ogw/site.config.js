@@ -26,7 +26,7 @@ export default {
   operatorName: 'Evangelos Kalogerakis, United Kingdom',
   // An address that receives mail (the Hub's; megastoresgearworld.com has no email).
   contactEmail: 'contact@gearworldhub.com',
-  assetVersion: '2026-11-23-ogw-10',
+  assetVersion: '2026-11-24-ogw-11',
   // The name of the stores part on every page, never translated (owner, 21 Nov 2026, lessons L208).
   storesLabel: 'Mega Stores',
   // The 12 languages of the 13 Gear World sites, the same codes and the same order as their menu (lessons L162, L195).
@@ -180,6 +180,115 @@ export default {
           { site: 'WGW', title: { el: 'Για τον χειμώνα', en: 'For the winter' }, line: { el: 'Γυναικεία μποτάκια.', en: 'Women’s ankle boots.' }, pick: ['ΜΠΟΤΑΚΙΑ'] },
           { site: 'WGW', title: { el: 'Για κάθε μέρα', en: 'For every day' }, line: { el: 'Τσάντα tote.', en: 'A tote bag.' }, pick: ['TOTE'] },
           { site: 'MGW', title: { el: 'Για τα ταξίδια', en: 'For travel' }, line: { el: 'Ανδρική τσάντα χιαστί.', en: 'A men’s cross-body bag.' }, pick: ['CROSS BODY'] }
+        ]
+      } },
+    // The five big Greek stores of Linkwise (owner and Linkwise, 24 Nov 2026, lessons L226): Public, Sephora,
+    // e-shop.gr, AB Vasilopoulos and Kotsovolos do not accept comparison sites, so their products are never on the 13
+    // sites, the Hub or the app. Julia (Linkwise) agreed on 24 Nov 2026 to their pages here like the 7 above (the
+    // programme logo, sets and gift ideas, no prices), with one difference: every idea opens the store's own page
+    // through the Linkwise link (never a Gear World product page, never a comparison). `direct.program` is the
+    // Linkwise programme, `direct.hosts` the store's own addresses (no other address is ever linked), and the sets and
+    // ideas name products as the store gives them in its Linkwise product feed (name, photo, page; read on 24 Nov 2026,
+    // in stock), or for AB, which has no product feed, one of its own categories (no photo). The Linkwise link needs
+    // our affiliate code, which is never in this repository: it is the Worker secret LINKWISE_CODE (tools/ogw-site.ps1
+    // puts it from the PC); without it these five stores are not shown anywhere. Greece only.
+    { slug: 'kotsovolos-gr', network: 'linkwise', name: 'Κωτσόβολος', deliversTo: ['GR'], line: 'Electrical appliances, phones, computers and games.', logo: 'logos/kotsovolos-gr.png', logoSize: [120, 60],
+      direct: {
+        program: 138, hosts: ['www.kotsovolos.gr'],
+        sets: [
+          { title: { el: 'Η γωνιά του καφέ', en: 'The coffee corner' }, line: { el: 'Μηχανή espresso, συσκευή για αφρόγαλα και μύλος καφέ.', en: 'An espresso machine, a milk frother and a coffee grinder.' }, items: [
+            { name: 'Delonghi Magnifca Start ECAM220.30.SB Μηχανή Espresso', image: 'https://assets.kotsovolos.gr/product/273143-l.jpg', url: 'https://www.kotsovolos.gr/ProductDisplay?partNumber=273143' },
+            { name: 'Jura Automatic Milk Frother Hot & Cold Συσκευή για Αφρόγαλα', image: 'https://assets.kotsovolos.gr/product/302616-l.jpg', url: 'https://www.kotsovolos.gr/ProductDisplay?partNumber=302616' },
+            { name: 'Smeg CGF11PGEU Pistachio Green Μύλος Καφέ', image: 'https://assets.kotsovolos.gr/product/320952-l.jpg', url: 'https://www.kotsovolos.gr/ProductDisplay?partNumber=320952' }] },
+          { title: { el: 'Για όποιον έχει PS5', en: 'For someone with a PS5' }, line: { el: 'Χειριστήριο, ακουστικά gaming και κάθετη βάση.', en: 'A controller, a gaming headset and a vertical stand.' }, items: [
+            { name: 'Sony DualSense V3 Wireless Controller Grey Camouflage PS5 Gamepad', image: 'https://assets.kotsovolos.gr/product/331486-l.jpg', url: 'https://www.kotsovolos.gr/ProductDisplay?partNumber=331486' },
+            { name: 'Razer Kraken V3 X Gaming Headset', image: 'https://assets.kotsovolos.gr/product/232815-l.jpg', url: 'https://www.kotsovolos.gr/ProductDisplay?partNumber=232815' },
+            { name: 'Sony Vertical Stand for PS5 & PS5 Pro', image: 'https://assets.kotsovolos.gr/product/297019-l.jpg', url: 'https://www.kotsovolos.gr/ProductDisplay?partNumber=297019' }] }
+        ],
+        ideas: [
+          { title: { el: 'Για την κουζίνα', en: 'For the kitchen' }, line: { el: 'Φριτέζα αέρα.', en: 'An air fryer.' },
+            item: { name: 'Xiaomi Smart 6.5L Black Φριτέζα Αέρα', image: 'https://assets.kotsovolos.gr/product/332357-l.jpg', url: 'https://www.kotsovolos.gr/ProductDisplay?partNumber=332357' } },
+          { title: { el: 'Για τη γυμναστική', en: 'For workouts' }, line: { el: 'Smartwatch.', en: 'A smartwatch.' },
+            item: { name: 'Garmin Venu 3 Silver SmartWatch', image: 'https://assets.kotsovolos.gr/product/291171-l.jpg', url: 'https://www.kotsovolos.gr/ProductDisplay?partNumber=291171' } },
+          { title: { el: 'Για τη μουσική', en: 'For music' }, line: { el: 'Ασύρματα ακουστικά κεφαλής.', en: 'Wireless headphones.' },
+            item: { name: 'JBL Tune 520BT Black Ακουστικά Κεφαλής Bluetooth', image: 'https://assets.kotsovolos.gr/product/279893-l.jpg', url: 'https://www.kotsovolos.gr/ProductDisplay?partNumber=279893' } }
+        ]
+      } },
+    { slug: 'public-gr', network: 'linkwise', name: 'Public', deliversTo: ['GR'], line: 'Technology, music, books and games.', logo: 'logos/public-gr.png', logoSize: [120, 60],
+      direct: {
+        program: 469, hosts: ['www.public.gr'],
+        sets: [
+          { title: { el: 'Για τον μουσικόφιλο', en: 'For the music lover' }, line: { el: 'Πικάπ, ηχείο και ακουστικά.', en: 'A turntable, a speaker and headphones.' }, items: [
+            { name: 'Πικάπ Sony PS-LX5 BT - Μαύρο', image: 'https://external.webstorage.gr/mmimages/image/67/83/63/62/2181584-SONY-PSLX5BT-hero-800x800.jpg', url: 'https://www.public.gr/product/tileoraseis/pikap-and-axesouar/pikap/pikap-sony-ps-lx5-bt--mauro/2181584' },
+            { name: 'Marshall Middleton Φορητό Ηχείο 60W - Μαύρο', image: 'https://external.webstorage.gr/mmimages/image/86/61/51/34/1819878-PORTABLE-SPEAKER-MARSHALL-MIDDLETON-BLACK-hero-800x800.jpg', url: 'https://www.public.gr/product/ihos/hxeia/forita-hxeia/marshall-middleton-forito-ixeio-60w--mauro/1819878' },
+            { name: 'Sony WH-CH720N Ασύρματα Ακουστικά Κεφαλής - Μπλε', image: 'https://external.webstorage.gr/mmimages/image/26/6/5/73/1787347-SONY-WH-CH720-BLUE-hero-800x800.jpg', url: 'https://www.public.gr/product/ihos/akoustika/akoystika-kefalis/sony-wh-ch720n-asurmata-akoustika-kefalis--mple/1787347' }] },
+          { title: { el: 'Βραδιά παιχνιδιού', en: 'A game night' }, line: { el: 'Nintendo Switch και δύο παιχνίδια για παρέα.', en: 'A Nintendo Switch and two games to play together.' }, items: [
+            { name: 'Nintendo Switch OLED Model White', image: 'https://external.webstorage.gr/mmimages/image/12/31/40/59/1629626-NINTENDO-SWITCH-OLED-hero-800x800.jpg', url: 'https://www.public.gr/product/gaming/nintendo/consoles/nintendo-switch-oled-model-white/1629626' },
+            { name: 'Super Bomberman Collection – Nintendo Switch', image: 'https://external.webstorage.gr/mmimages/image/37/33/24/63/2180399-NSW-SUPER-BOMBERMAN-COLLECTION-hero-800x800.jpg', url: 'https://www.public.gr/product/gaming/nintendo/games/nintendo-switch/super-bomberman-collection-nintendo-switch/2180399' },
+            { name: 'Nickelodeon Extreme Tennis: Next! - Nintendo Switch', image: 'https://external.webstorage.gr/mmimages/image/86/34/46/74/2180406-NSW-NICKELODEON-EXTREME-hero-800x800.jpg', url: 'https://www.public.gr/product/gaming/nintendo/games/nintendo-switch/nickelodeon-extreme-tennis-next--nintendo-switch/2180406' }] }
+        ],
+        ideas: [
+          { title: { el: 'Για στιγμές που μένουν', en: 'For moments to keep' }, line: { el: 'Instant φωτογραφική μηχανή.', en: 'An instant camera.' },
+            item: { name: 'Instant Camera Polaroid Now Generation 3 - Coral', image: 'https://external.webstorage.gr/mmimages/image/26/96/90/97/2029041-INSTANT-CAM-POLAROID-NOW-GEN3-CORAL-hero-800x800.jpg', url: 'https://www.public.gr/product/fotografia/fotografikes-mixanes/instant-cameras/instant-camera-polaroid-now-generation-3--coral/2029041' } },
+          { title: { el: 'Για τα ταξίδια', en: 'For travel' }, line: { el: 'Ακουστικά κεφαλής με ακύρωση θορύβου.', en: 'Noise-cancelling headphones.' },
+            item: { name: 'Aσύρματα Ακουστικά Κεφαλής Bose QuietComfort (2nd Gen) - White Smoke', image: 'https://external.webstorage.gr/mmimages/image/80/38/3/70/2181582-BOSE-0017817859707-hero-800x800.jpg', url: 'https://www.public.gr/product/ihos/akoustika/akoystika-kefalis/asurmata-akoustika-kefalis-bose-quietcomfort-2nd-gen--white-smoke/2181582' } },
+          { title: { el: 'Για πάρτι', en: 'For parties' }, line: { el: 'Μεγάλο φορητό ηχείο.', en: 'A big portable speaker.' },
+            item: { name: 'JBL Boombox 3 Φορητό Ηχείο 180W - Μαύρο', image: 'https://external.webstorage.gr/mmimages/image/63/14/7/5/1710621-JBL-BOOMBOX+3-hero-800x800.jpg', url: 'https://www.public.gr/product/ihos/hxeia/forita-hxeia/jbl-boombox-3-forito-ixeio-180w--mauro/1710621' } }
+        ]
+      } },
+    { slug: 'sephora-gr', network: 'linkwise', name: 'Sephora', deliversTo: ['GR'], line: 'Make-up, skincare and fragrances.', logo: 'logos/sephora-gr.png', logoSize: [120, 60],
+      direct: {
+        program: 13026, hosts: ['www.sephora.gr'],
+        sets: [
+          { title: { el: 'Ρουτίνα για το πρόσωπο', en: 'A face care routine' }, line: { el: 'Gel καθαρισμού, ορός και κρέμα.', en: 'A cleansing gel, a serum and a cream.' }, items: [
+            { name: 'Dermalogica - Special Cleansing Gel', image: 'https://media.sephora.eu/content/dam/gdam/europe/digital/pim/published/D/DERMALOGICA/395164/161497-media_swatch.jpg?scaleWidth=500&scaleHeight=500&scaleMode=fit', url: 'https://www.sephora.gr/p/special-cleansing-gel-395164.html' },
+            { name: 'Clinique - Moisture Surge™ Active Glow Serum - Ορός', image: 'https://media.sephora.eu/content/dam/gdam/europe/digital/pim/published/C/CLINIQUE/760912/364531-media_swatch.jpg?scaleWidth=500&scaleHeight=500&scaleMode=fit', url: 'https://www.sephora.gr/p/moisture-surge-active-glow-serum---oros-760912.html' },
+            { name: 'Sisley - Black Rose Skin Infusion Cream', image: 'https://media.sephora.eu/content/dam/gdam/europe/digital/massivpimupload/S/SISLEY/398259/52065-media_swatch.jpg?scaleWidth=500&scaleHeight=500&scaleMode=fit', url: 'https://www.sephora.gr/p/black-rose-skin-infusion-cream-398259.html' }] },
+          { title: { el: 'Για μια βραδινή έξοδο', en: 'For an evening out' }, line: { el: 'Κραγιόν, μάσκαρα και παλέτα για τα μάτια.', en: 'A lipstick, a mascara and an eyeshadow palette.' }, items: [
+            { name: 'Sisley - Phyto-Lip Twist - Κραγιόν', image: 'https://media.sephora.eu/content/dam/gdam/europe/digital/pim/published/S/SISLEY/363388/9547-media_swatch.jpg?scaleWidth=500&scaleHeight=500&scaleMode=fit', url: 'https://www.sephora.gr/p/phyto-lip-twist---kragion-363388.html' },
+            { name: 'Estée Lauder - Sumptuous Rebel - Length and Lift Mascara', image: 'https://media.sephora.eu/content/dam/gdam/europe/digital/pim/published/L/LAUDE/482662/139730-media_swatch.jpg?scaleWidth=500&scaleHeight=500&scaleMode=fit', url: 'https://www.sephora.gr/p/sumptuous-rebel---length-and-lift-mascara-482662.html' },
+            { name: 'Lancôme - Hypnôse 5-Color Eyeshadow Palette', image: 'https://media.sephora.eu/content/dam/gdam/europe/digital/pim/published/L/LANCOME/476611/443626-media_swatch.jpg?scaleWidth=500&scaleHeight=500&scaleMode=fit', url: 'https://www.sephora.gr/p/hypnose-high-pigment-5-color-eyeshadow-palette-476611.html' }] }
+        ],
+        ideas: [
+          { title: { el: 'Για εκείνη', en: 'For her' }, line: { el: 'Σετ με άρωμα.', en: 'A fragrance set.' },
+            item: { name: 'Rare Beauty - Rare Beginnings - Σετ ταξιδιού', image: 'https://media.sephora.eu/content/dam/gdam/europe/digital/pim/published/R/RARE_BEAUTY/820799/407317-media_swatch-0.jpg?scaleWidth=500&scaleHeight=500&scaleMode=fit', url: 'https://www.sephora.gr/p/rare-beginnings---set-taxidiou-820799.html' } },
+          { title: { el: 'Για εκείνον', en: 'For him' }, line: { el: 'Ανδρικό άρωμα.', en: 'A men’s fragrance.' },
+            item: { name: 'Dior - Sauvage Eau de Toilette', image: 'https://media.sephora.eu/content/dam/gdam/europe/digital/pim/published/D/DIOR/362059/82265-media_swatch.jpg?scaleWidth=500&scaleHeight=500&scaleMode=fit', url: 'https://www.sephora.gr/p/sauvage-eau-de-toilette-362059.html' } },
+          { title: { el: 'Μικρό δώρο', en: 'A small gift' }, line: { el: 'Κιτ μακιγιάζ.', en: 'A make-up kit.' },
+            item: { name: 'Merci Handy - Kit Let\'s Glow Heroes - Highlighter + Ρουζ', image: 'https://media.sephora.eu/content/dam/gdam/europe/digital/pim/published/M/MERCI_HANDY/760215/367608-media_swatch.jpg?scaleWidth=500&scaleHeight=500&scaleMode=fit', url: 'https://www.sephora.gr/p/kit-let-s-glow-heroes---highlighter-rouz-760215.html' } }
+        ]
+      } },
+    { slug: 'e-shop-gr', network: 'linkwise', name: 'e-shop.gr', deliversTo: ['GR'], line: 'Computers, home appliances, tools and toys.', logo: 'logos/e-shop-gr.jpg', logoSize: [120, 60],
+      direct: {
+        program: 11754, hosts: ['www.e-shop.gr'],
+        sets: [
+          { title: { el: 'Γραφείο στο σπίτι', en: 'A home office' }, line: { el: 'Οθόνη, ασύρματο πληκτρολόγιο με ποντίκι και βάση οθόνης.', en: 'A monitor, a wireless keyboard and mouse, and a monitor arm.' }, items: [
+            { name: 'ASUS PA247CV 23.8\'\' FULL HD LED BLACK SILVER', image: 'https://images.e-shop.gr/images/PER/PER.171695.jpg', url: 'https://www.e-shop.gr/asus-pa247cv-238-full-hd-led-black-silver-p-PER.171695' },
+            { name: 'DELL KEYBOARD AND MOUSE KM7120W GREEK WIRELESS', image: 'https://images.e-shop.gr/images/PER/PER.250551.jpg', url: 'https://www.e-shop.gr/dell-keyboard-and-mouse-km7120w-greek-wireless-p-PER.250551' },
+            { name: 'BORMANN BTV1502 ΒΑΣΗ ΟΘΟΝΗΣ ΓΡΑΦΕΙΟΥ ΜΟΝΗ 13\'\'-27\'\'', image: 'https://images.e-shop.gr/images/PER/PER.235131.jpg', url: 'https://www.e-shop.gr/bormann-btv1502-basi-othonis-grafeioy-moni-13-27--p-PER.235131' }] },
+          { title: { el: 'Για το καθάρισμα του σπιτιού', en: 'For cleaning the house' }, line: { el: 'Σκούπα ρομπότ, σκούπα στικ και σφουγγαρίστρα ατμού.', en: 'A robot vacuum, a stick vacuum and a steam mop.' }, items: [
+            { name: 'IROBOT ROOMBA PLUS 515 COMBO CLEANING ROBOT, WHITE + AUTOWASH DOCKING STATION', image: 'https://images.e-shop.gr/images/HAP/HAP.183377.jpg', url: 'https://www.e-shop.gr/irobot-roomba-plus-515-combo-cleaning-robot-white-autowash-docking-station-p-HAP.183377' },
+            { name: 'DYSON V16 PISTON ANIMAL SUBMARINE 2-IN-1 STICK VACUUM HEPA BAGLESS BLACK COPPER', image: 'https://images.e-shop.gr/images/HAP/HAP.180973.jpg', url: 'https://www.e-shop.gr/dyson-v16-piston-animal-submarine-2-in-1-stick-vacuum-hepa-bagless-black-copper-p-HAP.180973' },
+            { name: 'KARCHER ΑΤΜΟΚΑΘΑΡΙΣΤΗΣ SC 1 UPRIGHT STEAM MOP 1.513-560.0', image: 'https://images.e-shop.gr/images/HAP/HAP.177589.jpg', url: 'https://www.e-shop.gr/karcher-atmokatharistis-sc-1-upright-steam-mop-1513-5600-p-HAP.177589' }] }
+        ],
+        ideas: [
+          { title: { el: 'Για μικρούς κατασκευαστές', en: 'For young builders' }, line: { el: 'LEGO.', en: 'LEGO.' },
+            item: { name: 'LEGO ANIMAL CROSSING 77048 KAPP\'N\'S ISLAND BOAT TOUR', image: 'https://images.e-shop.gr/images/EPI/EPI.20962.jpg', url: 'https://www.e-shop.gr/lego-animal-crossing-77048-kapp-n-s-island-boat-tour-p-EPI.20962' } },
+          { title: { el: 'Για το εργαστήρι', en: 'For the workshop' }, line: { el: 'Δραπανοκατσάβιδο μπαταρίας.', en: 'A cordless drill driver.' },
+            item: { name: 'ΔΡΑΠΑΝΟΚΑΤΣΑΒΙΔΟ ΜΠΑΤΑΡΙΑΣ BOSCH ADVANCED DRILL 18V BRUSHLESS 13MM + 2.5ΑΗ LI-ION + ΦΟΡΤΙΣΤΗΣ', image: 'https://images.e-shop.gr/images/TLS/TLS.032566.jpg', url: 'https://www.e-shop.gr/drapanokatsabido-mpatarias-bosch-advanced-drill-18v-brushless-13mm-25ai-li-ion-fortistis-p-TLS.032566' } },
+          { title: { el: 'Για έξω', en: 'For outdoors' }, line: { el: 'Αδιάβροχο ηχείο bluetooth.', en: 'A waterproof bluetooth speaker.' },
+            item: { name: 'JBL FLIP 7 BLUETOOTH SPEAKER 35W IP68 RED', image: 'https://images.e-shop.gr/images/TEL/TEL.234322.jpg', url: 'https://www.e-shop.gr/jbl-flip-7-bluetooth-speaker-35w-ip68-red-p-TEL.234322' } }
+        ]
+      } },
+    { slug: 'ab-gr', network: 'linkwise', name: 'ΑΒ Βασιλόπουλος', deliversTo: ['GR'], line: 'Supermarket: food, personal care and household items.', logo: 'logos/ab-gr.png', logoSize: [120, 60],
+      direct: {
+        program: 12158, hosts: ['www.ab.gr'],
+        sets: [],
+        ideas: [
+          { title: { el: 'Γλυκά για δώρο', en: 'Sweets to give' }, line: { el: 'Οι σοκολάτες του ΑΒ.', en: 'AB’s chocolates.' }, url: 'https://www.ab.gr/el/eshop/Proino-snacking-and-rofimata/Sokolates/c/009002' },
+          { title: { el: 'Για τον λάτρη του καφέ', en: 'For the coffee lover' }, line: { el: 'Ο καφές του ΑΒ.', en: 'AB’s coffee.' }, url: 'https://www.ab.gr/el/eshop/Proino-snacking-and-rofimata/Kafes/c/009011' },
+          { title: { el: 'Περιποίηση', en: 'Personal care' }, line: { el: 'Είδη προσωπικής περιποίησης.', en: 'Personal care products.' }, url: 'https://www.ab.gr/el/eshop/Eidi-prosopikis-peripoiisis/c/012' },
+          { title: { el: 'Για τα κατοικίδια', en: 'For pets' }, line: { el: 'Τροφές και είδη για κατοικίδια.', en: 'Food and supplies for pets.' }, url: 'https://www.ab.gr/el/eshop/Gia-katoikidia/c/014' }
         ]
       } }
   ],

@@ -319,9 +319,11 @@ const GW_HOSTS = new Set(GEAR_WORLDS.map(w => new URL(w.url).hostname));
 const STORE_BANNED = /£|\$|€|\bGBP\b|\d\s?%|12\.34|99\.99|\bdeals?\b|\bsale\b|\bsave\b|\bshop\b|buy now|\bcart\b|\bofficial\b|\bpartners?\b|lowest price|free delivery/i;
 
 test('stores: config, order, logos as the stores give them, the world photos of the Amazon page', () => {
-  assert.deepEqual(site.stores.map(s => s.slug), ['amazon', 'joybuy', 'tooled-up', 'my-tool-shed', 'pchub-uk', 'gs-workwear', 'back-to-the-office', 'dhgate', ...Object.keys(GREEK)]);
+  assert.deepEqual(site.stores.map(s => s.slug), ['amazon', 'joybuy', 'tooled-up', 'my-tool-shed', 'pchub-uk', 'gs-workwear', 'back-to-the-office', 'dhgate', ...Object.keys(GREEK),
+    'kotsovolos-gr', 'public-gr', 'sephora-gr', 'e-shop-gr', 'ab-gr'], 'then the 5 direct stores of L226');
   assert.deepEqual(site.stores.map(s => s.name), ['Amazon', 'Joybuy', 'Tooled Up', 'My Tool Shed', 'PCHUB.UK', 'GS Workwear', 'Back to the Office', 'DHgate',
-    'Kouzinika GR', 'Katoikein GR', 'Minipini GR', 'XXXL Leo GR', 'CasualShoes GR', 'Parex GR', 'Tsakiris Mallas GR']);
+    'Kouzinika GR', 'Katoikein GR', 'Minipini GR', 'XXXL Leo GR', 'CasualShoes GR', 'Parex GR', 'Tsakiris Mallas GR',
+    'Κωτσόβολος', 'Public', 'Sephora', 'e-shop.gr', 'ΑΒ Βασιλόπουλος']);
   const codes = new Set(GEAR_WORLDS.map(w => w.code));
   const allowed = readFileSync('sites/ogw/public-allowlist.txt', 'utf8');
   for (const s of awinStores(site)) {

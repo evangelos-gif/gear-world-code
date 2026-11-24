@@ -27,8 +27,8 @@ import { APP_BAR_TEXT, APP_BADGE_LABEL, appBarWanted, appPlayUrl, appBadgeFile }
 export const AMAZON_STATEMENT = 'As an Amazon Associate I earn from qualifying purchases.';
 const AMAZON_TRADEMARK = 'Amazon and the Amazon logo are trademarks of Amazon.com, Inc. or its affiliates.';
 // The legal texts last changed on this day (UK and EU GDPR wording as approved for the Gear World sites on 17 Nov 2026;
-// 19 Nov 2026: how the page language is chosen, L195).
-const LEGAL_UPDATED = '2026-11-19';
+// 19 Nov 2026: how the page language is chosen, L195; 24 Nov 2026: the Linkwise links of the direct stores, L226).
+const LEGAL_UPDATED = '2026-11-24';
 
 const asset = (site, p) => `/assets/${p}?v=${encodeURIComponent(site.assetVersion)}`;
 
@@ -155,9 +155,11 @@ export function editionFor(pathname) {
   return EDITIONS.find(e => pathname === e.prefix || String(pathname || '').startsWith(`${e.prefix}/`)) || null;
 }
 // The stores an edition has a page for: every store listed for its country (never Amazon UK, never a store of a network
-// in site.hiddenNetworks, L215).
-export function editionStores(site, edition) {
-  return (site.stores || []).filter(s => !s.amazon && Array.isArray(s.sites) && s.sites.length && deliversHere(s, edition.country) && storeListed(site, s));
+// in site.hiddenNetworks, L215), and the direct stores of its country when the Worker has our Linkwise code (L226).
+export function editionStores(site, edition, lw = '') {
+  return (site.stores || []).filter(s => (isDirectStore(s)
+    ? directShown(site, s, edition.country, lw)
+    : !s.amazon && Array.isArray(s.sites) && s.sites.length && deliversHere(s, edition.country) && storeListed(site, s)));
 }
 // The country's own name in the page's language ("Ελλάδα"), from the browser's and the Worker's Intl.
 export function regionName(lang, cc) {
@@ -183,7 +185,7 @@ const keep = s => html`<span translate="no">${s}</span>`;
 const storesLabel = c => keep(c.site.storesLabel || c.site.name);
 // Does the visitor's country see any store of this site (L210)? Without one, the menu has no stores link and the home
 // page is titled as gift guides only.
-const storesHere = c => shownStores(c.site, c.mode, c.country).length > 0;
+const storesHere = c => shownStores(c.site, c.mode, c.country, c.lw).length > 0;
 
 // The page context: the language, its dictionary, and the helpers that write every visible text through it.
 //   t(key, ...args)  HTML: the translation with {0}, {1}... filled in (an arg can be HTML, such as keep(name) or a link)
@@ -192,7 +194,9 @@ const storesHere = c => shownStores(c.site, c.mode, c.country).length > 0;
 //   gw(url)          an address of a Gear World site, with ?lang= when the visitor chose a language (L174)
 //   hub(path)        an address of Gear World Hub, with ?lang= only for a chosen language the Hub has
 //   country          the visitor's country (viewCountry): which stores, codes and Black Friday entries the page shows
-export function makeContext(site, lang = BASE_LANG, chosen = false, mode = 'off', path = '/', country = VIEW_BASE, edition = null) {
+//   lw               our Linkwise affiliate code (the Worker secret LINKWISE_CODE, L226), '' without it: the direct
+//                    stores and their links exist only with it
+export function makeContext(site, lang = BASE_LANG, chosen = false, mode = 'off', path = '/', country = VIEW_BASE, edition = null, lw = '') {
   const code = languageList(site).some(l => l.code === lang) ? lang : BASE_LANG;
   const cc = /^[A-Z]{2}$/.test(String(country || '').toUpperCase()) ? String(country).toUpperCase() : VIEW_BASE;
   const isChosen = Boolean(chosen);
@@ -236,7 +240,7 @@ export function makeContext(site, lang = BASE_LANG, chosen = false, mode = 'off'
   return {
     // Amazon UK only where it delivers (L210): any other country gets the pages of AMAZON_LINKS=off.
     site, lang: code, chosen: isChosen, mode: viewMode(site, mode, cc), country: cc, path: at(path), t, tx, href, gw, hub, at,
-    edition: edition || null, region: edition ? regionName(code, edition.country) : '',
+    edition: edition || null, region: edition ? regionName(code, edition.country) : '', lw: LINKWISE_CODE.test(String(lw || '')) ? String(lw) : '',
     shortDate: day => fmt(day, { day: 'numeric', month: 'short' }),
     dayDate: day => fmt(day, { weekday: 'short', day: 'numeric', month: 'short' }),
     validDate: day => fmt(day, { day: 'numeric', month: 'short', year: 'numeric' }),
@@ -436,7 +440,9 @@ ${languageMenu(c)}
   <p>${t('This site sets no cookies of its own and does no tracking. Prices and stock are on the page each button opens.')}</p>
   <p>&copy; ${year} ${keep(site.name)} · ${t('Run by {0}', operator(site, t))} · ${withMarkets(mode)
     ? t('We don\'t sell products: we link to marketplaces and to the Gear World sites, and may earn a commission.')
-    : t('We don\'t sell products: we link to the Gear World sites, which link to retailers and may earn a commission.')}</p>
+    : directStores(site, c.country, c.lw).length
+      ? t('We don\'t sell products: we link to the Gear World sites, which link to retailers, and to a few stores through Linkwise, and may earn a commission.')
+      : t('We don\'t sell products: we link to the Gear World sites, which link to retailers and may earn a commission.')}</p>
 </div></footer>
 </body>
 </html>`);
@@ -689,12 +695,44 @@ export function awinStores(site) {
   return (site.stores || []).filter(s => !s.amazon && Array.isArray(s.sites) && s.sites.length && storeListed(site, s));
 }
 
+// ---------------- Direct stores (owner and Linkwise, 24 Nov 2026, lessons L226) ----------------
+// Public, Sephora, e-shop.gr, AB Vasilopoulos and Kotsovolos accept no comparison site: their products are on none of the
+// 13 sites, the Hub or the app. Linkwise agreed to their pages here like the Greek stores of L221 (logo, sets, gift
+// ideas, no prices), with one difference: each idea opens the store's own page through our Linkwise link. A direct store
+// has `direct` (its Linkwise programme, its own addresses, its sets and ideas) and no `sites`, so it is never read from a
+// Gear World database and has no codes, Black Friday entry or product list here. Our affiliate code is never in this
+// repository: it is the Worker secret LINKWISE_CODE (tools/ogw-site.ps1), and without it these stores are on no page.
+export const LINKWISE_CODE = /^CD\d{3,9}$/;
+export function linkwiseCode(env) {
+  const v = env && typeof env.LINKWISE_CODE === 'string' ? env.LINKWISE_CODE.trim() : '';
+  return LINKWISE_CODE.test(v) ? v : '';
+}
+export const isDirectStore = s => Boolean(s && !s.amazon && s.direct && Number.isInteger(s.direct.program) && s.direct.program > 0 && !(Array.isArray(s.sites) && s.sites.length));
+// Shown to this country: our code is there, the network is not hidden (L215), and it is listed for the country (L210).
+function directShown(site, store, country, lw) {
+  return isDirectStore(store) && LINKWISE_CODE.test(String(lw || '')) && deliversHere(store, country) && storeListed(site, store);
+}
+export function directStores(site, country = VIEW_BASE, lw = '') {
+  return (site.stores || []).filter(s => directShown(site, s, country, lw));
+}
+// The Linkwise link to one page of the store: only an https page on one of the store's own addresses, never another
+// site; '' for anything else (the idea is then left out).
+export function directUrl(store, page, code) {
+  if (!isDirectStore(store) || !LINKWISE_CODE.test(String(code || ''))) return '';
+  let u;
+  try { u = new URL(String(page || '')); } catch { return ''; }
+  if (u.protocol !== 'https:' || u.username || u.password || u.port || !(store.direct.hosts || []).includes(u.hostname)) return '';
+  return `https://go.linkwi.se/z/${store.direct.program}-0/${code}/?lnkurl=${encodeURIComponent(u.toString())}`;
+}
+
 // The stores shown with this mode, in the config's order: Amazon only with Amazon links (on or preview) and only where
-// Amazon UK delivers; every other store only to the countries in its deliversTo (L210).
-export function shownStores(site, mode, country = VIEW_BASE) {
+// Amazon UK delivers; every other store only to the countries in its deliversTo (L210); a direct store only with our
+// Linkwise code (L226).
+export function shownStores(site, mode, country = VIEW_BASE, lw = '') {
   return (site.stores || []).filter(s => (s.amazon
     ? withMarkets(viewMode(site, mode, country))
-    : Array.isArray(s.sites) && s.sites.length && deliversHere(s, country) && storeListed(site, s)));
+    : isDirectStore(s) ? directShown(site, s, country, lw)
+      : Array.isArray(s.sites) && s.sites.length && deliversHere(s, country) && storeListed(site, s)));
 }
 
 export function storeCacheKey(site, store) {
@@ -1096,6 +1134,17 @@ const siteCount = (c, n) => (n === 1 ? c.t('On 1 Gear World site') : c.t('On {0}
 function storeCard(c, store, products) {
   const { site, t } = c;
   const thumbs = (products || []).slice(0, 3);
+  if (isDirectStore(store)) {
+    // Its own products, from its sets and ideas (L226): the card opens our page of the store, never the store itself.
+    const own = directPicks(store).slice(0, 3);
+    return html`<li class="store-card">
+  <div class="store-mark">${storeMark(site, store)}</div>
+  <h3><a class="store-link" href="${c.href(`/stores/${store.slug}/`)}"><span translate="no">${store.name}</span></a></h3>
+  <p>${t(store.line)}</p>
+  ${own.length ? html`<ul class="store-thumbs">${own.map(p => html`<li><img src="${p.image}" alt="" width="96" height="96" loading="lazy" decoding="async" referrerpolicy="no-referrer"></li>`)}</ul>` : ''}
+  <p class="store-meta">${(store.direct.sets || []).length ? t('Sets and gift ideas from {0}', keep(store.name)) : t('Gift ideas from {0}', keep(store.name))}</p>
+</li>`;
+  }
   if (store.amazon) {
     return html`<li class="store-card">
   <div class="store-mark"><span class="store-badge" translate="no">${store.name}</span></div>
@@ -1115,10 +1164,10 @@ function storeCard(c, store, products) {
 
 function storesSection(c, data) {
   const { site, t, mode } = c;
-  const stores = shownStores(site, mode, c.country);
+  const stores = shownStores(site, mode, c.country, c.lw);
   // No store of this page is listed for the visitor's country (L210): the part stays, with a line saying so (what we
   // list, never a claim about where a retailer delivers, L107).
-  if (!stores.length && shownStores(site, mode, ANY_COUNTRY).length) {
+  if (!stores.length && shownStores(site, mode, ANY_COUNTRY, c.lw).length) {
     return html`<section class="wrap section" id="stores">
   <h2>${storesLabel(c)}</h2>
   <p class="section-lede stores-none">${t('No store of {0} is listed for your country yet.', storesLabel(c))} ${t('The gift guides open the Gear World sites, where each product shows where it delivers.')}</p>
@@ -1130,7 +1179,9 @@ function storesSection(c, data) {
   <h2>${storesLabel(c)}</h2>
   <p class="section-lede">${withMarkets(mode)
     ? t('One page per store: product photos from the Gear World sites, and gift ideas to search on Amazon. Prices, stock and delivery are on the page each button opens.')
-    : t('One page per store, with product photos from the Gear World sites. Prices, stock and delivery are on the product page each button opens.')}</p>
+    : stores.some(isDirectStore)
+      ? t('One page per store, with product photos from the Gear World sites or, for some stores, gift ideas that open the store’s own page. Prices, stock and delivery are on the page each button opens.')
+      : t('One page per store, with product photos from the Gear World sites. Prices, stock and delivery are on the product page each button opens.')}</p>
   <ul class="stores">${stores.map(s => storeCard(c, s, (data && data[s.slug]) || []))}</ul>
 </section>`;
 }
@@ -1231,6 +1282,74 @@ ${(products.length && !listed.length) || (!products.length && inShowcase.size) ?
   });
 }
 
+// ---------------- The page of a direct store (L226) ----------------
+// Every product of its sets and ideas that has a photo, in page order (for the card on the home page).
+export function directPicks(store) {
+  const d = (store && store.direct) || {};
+  return [...(d.sets || []).flatMap(x => x.items || []), ...(d.ideas || []).map(x => x.item)].filter(p => p && p.image && p.name);
+}
+const DIRECT_REL = 'sponsored nofollow noopener';
+function directProduct(c, store, p) {
+  const href = directUrl(store, p.url, c.lw);
+  if (!href || !/^https:\/\/[^/]+\//.test(String(p.image || ''))) return '';
+  return html`<div class="sc-item">
+    <a class="sc-photo" href="${href}" rel="${DIRECT_REL}" target="_blank"><img src="${p.image}" alt="${p.name}" width="200" height="200" loading="lazy" decoding="async" referrerpolicy="no-referrer"></a>
+    <p class="sc-name" translate="no">${p.name}</p>
+    <a class="sc-link" href="${href}" rel="${DIRECT_REL}" target="_blank"><span>${c.t('See it on {0}', keep(store.name))}</span></a>
+  </div>`;
+}
+// An idea: one product of the store, or (AB, which has no product feed) one of its categories, as a text link.
+function directIdea(c, store, idea) {
+  if (idea.item) return directProduct(c, store, idea.item);
+  const href = directUrl(store, idea.url, c.lw);
+  return href ? html`<a class="sc-link" href="${href}" rel="${DIRECT_REL}" target="_blank"><span>${c.t('See them on {0}', keep(store.name))}</span></a>` : '';
+}
+// The note at the top of the page: these buttons are our own Linkwise links to the store (not Gear World pages).
+function directDisclosure(c, store) {
+  return html`<div class="note" role="note">
+  <p>${c.t('The buttons on this page open pages of {0} through Linkwise, an affiliate network. If you buy there, we may earn a commission, at no extra cost to you.', keep(store.name))}</p>
+  <p>${c.t('Prices, stock and delivery are on the page you open. We do not sell anything and we do not track prices.')}</p>
+</div>`;
+}
+export function directStorePage(c, store) {
+  const { site, t, tx } = c;
+  const d = store.direct || {};
+  const sets = (d.sets || []).map(set => ({ set, items: (set.items || []).map(p => directProduct(c, store, p)).filter(Boolean) })).filter(x => x.items.length);
+  const ideas = (d.ideas || []).map(idea => ({ idea, body: directIdea(c, store, idea) })).filter(x => toString(x.body));
+  return shell(c, {
+    title: tx('{0} on {1}', store.name, site.name),
+    description: `${tx(store.line)} ${tx('Each idea opens its page on {0}, which shows the price, the stock and the delivery.', store.name)}`,
+    path: `/stores/${store.slug}/`,
+    body: html`
+<section class="hero hero-small"><div class="wrap">
+  <p class="eyebrow"><a href="${c.href('/#stores')}">${storesLabel(c)}</a></p>
+  <div class="store-title">${storeLogo(site, store, 'store-logo store-logo-lg')}<h1>${t('{0} on {1}', keep(store.name), keep(site.name))}</h1></div>
+  <p class="lede">${t(store.line)} ${t('Each idea opens its page on {0}, which shows the price, the stock and the delivery.', keep(store.name))}</p>
+</div></section>
+<section class="wrap section">${directDisclosure(c, store)}</section>
+${sets.length ? html`<section class="wrap section showcase" aria-labelledby="sets-h">
+  <h2 id="sets-h">${t('Sets from {0}', keep(store.name))}</h2>
+  <p class="section-lede">${t('Products of {0} that go together, chosen by us. Each one opens its page on {0}, which shows the price and the stock.', keep(store.name))}</p>
+  <ul class="sc-sets">${sets.map(({ set, items }) => html`<li class="sc-set">
+    <h3>${showcaseText(c, set.title)}</h3>
+    <p class="sc-line">${showcaseText(c, set.line)}</p>
+    <ul class="sc-items">${items.map(i => html`<li>${i}</li>`)}</ul>
+  </li>`)}</ul>
+</section>` : ''}
+${ideas.length ? html`<section class="wrap section showcase" aria-labelledby="ideas-h">
+  <h2 id="ideas-h">${t('Gift ideas from {0}', keep(store.name))}</h2>
+  <ul class="sc-ideas">${ideas.map(({ idea, body }) => html`<li class="sc-idea">
+    <h3>${showcaseText(c, idea.title)}</h3>
+    <p class="sc-line">${showcaseText(c, idea.line)}</p>
+    ${body}
+  </li>`)}</ul>
+</section>` : ''}
+<section class="wrap section">
+  <p><a href="${c.href('/#stores')}">${t('All stores')}</a> · <a href="${c.href('/#guides')}">${t('Gift guides')}</a></p>
+</section>`
+  });
+}
+
 // The main Gear World site of a guide: the site most of its ideas link to (the first one on a tie), for its photo.
 export function guideWorld(guide) {
   const n = new Map();
@@ -1295,7 +1414,7 @@ export function heroButtons(c, now = new Date()) {
     if (count) tiles.push(html`<li class="jump-wide"><a class="jump jump-bf" href="${c.href('/#guides')}"><span class="jump-label">${count}</span></a></li>`);
   }
   // Only the stores that deliver to the visitor's country (L210); none: no stores button.
-  const stores = shownStores(site, mode, c.country).length;
+  const stores = shownStores(site, mode, c.country, c.lw).length;
   if (stores) tiles.push(html`<li><a class="jump" href="${c.href('/#stores')}"><span class="jump-label">${storesLabel(c)}</span><span class="jump-meta">${t('{0} stores', stores)}</span></a></li>`);
   tiles.push(html`<li><a class="jump" href="${c.href('/#guides')}"><span class="jump-label">${t('Gift guides')}</span><span class="jump-meta">${t('{0} gift guides', site.guides.length)}</span></a></li>`);
   for (const g of site.guides.slice(0, 4)) tiles.push(html`<li><a class="jump" href="${c.href(`/guides/${g.slug}/`)}"><span class="jump-label">${t(g.title)}</span></a></li>`);
@@ -1418,6 +1537,11 @@ export function checksPage(c) {
 // They describe this site only: no forms, no accounts, no cookies of its own.
 // NOTE: a starting point that needs review by a qualified adviser (T31), like the other Gear World sites.
 const item = (c, label, text) => html`<li><strong>${c.t(label)}</strong> ${c.t(text)}</li>`;
+// The direct stores the site shows (L226), as "Public, Sephora, …" (names never translated), or '' without them.
+const directNames = c => {
+  const list = directStores(c.site, ANY_COUNTRY, c.lw);
+  return list.length ? html`${list.map((s, i) => html`${i ? ', ' : ''}${keep(s.name)}`)}` : '';
+};
 const LEGAL = {
   '/about/': c => ({
     title: 'About',
@@ -1434,6 +1558,7 @@ const LEGAL = {
 <li>${c.t('We do not track prices or send price alerts.')}</li>
 <li>${c.t('We do not show prices: they are on the page each button opens, where they are up to date.')}</li>
 <li>${c.t('The store pages show product photos, names and brands from the Gear World sites, each with its Gear World product page.')}</li>
+${directNames(c) ? html`<li>${c.t('The pages of {0} show gift ideas of the store itself, each with a Linkwise link to its page on the store’s own site.', directNames(c))}</li>` : ''}
 </ul>
 ${c.mode === 'on' ? html`<p>${amazonStatement(c)}</p>` : ''}`
   }),
@@ -1446,8 +1571,11 @@ ${c.mode === 'on' ? html`<p>${amazonStatement(c)}</p>` : ''}`
 <h2>${c.t('What an affiliate link is')}</h2>
 ${withMarkets(c.mode)
   ? html`<p>${c.t('Some buttons on this site are affiliate links to marketplaces. If you follow one and then buy something, the marketplace may pay us a commission. You pay the same price as you would if you went to the marketplace directly.')}</p>`
-  : html`<p>${c.t('At the moment this site has no affiliate links of its own: its buttons open categories of the Gear World sites. Those sites link to retailers through affiliate networks and may earn a commission; you pay the same price.')}</p>`}
+  : directNames(c)
+    ? html`<p>${c.t('The buttons of the gift guides open categories of the Gear World sites. Those sites link to retailers through affiliate networks and may earn a commission; you pay the same price.')}</p>`
+    : html`<p>${c.t('At the moment this site has no affiliate links of its own: its buttons open categories of the Gear World sites. Those sites link to retailers through affiliate networks and may earn a commission; you pay the same price.')}</p>`}
 ${c.mode === 'on' ? html`<h2 translate="no">Amazon</h2><p>${amazonStatement(c)}</p><p>${c.t(AMAZON_TRADEMARK)}</p>` : ''}
+${directNames(c) ? html`<h2 translate="no">Linkwise</h2><p>${c.t('The gift ideas on the pages of {0} are our own affiliate links through Linkwise, an affiliate network. If you buy after following one, the store may pay us a commission. You pay the same price as you would if you went to the store directly.', directNames(c))}</p>` : ''}
 <h2>${c.t('The Gear World sites')}</h2>
 <p>${c.t('The "Browse on" buttons open a category of a Gear World site, and the "See it on" buttons of the store pages open a product page of a Gear World site. Those sites have their own affiliate links and explain them on their own "How we make money" page.')}</p>
 <h2>${c.t('How this affects what you see')}</h2>
@@ -1471,7 +1599,7 @@ ${item(c, 'Hosting.', 'The site is hosted by Cloudflare, which processes technic
 ${item(c, 'Product photos.', 'The photos on the store pages load from the retailers\' image servers, which receive technical data such as your IP address to send the image. We tell them nothing about the page you are on.')}
 </ul>
 <h2>${c.t('When you follow a link')}</h2>
-<p>${c.t('When you follow a link to another site, that site\'s own privacy policy applies. The site you open may set its own cookies to know where you came from, so it can pay a commission.')}</p>
+<p>${c.t('When you follow a link to another site, that site\'s own privacy policy applies. The site you open may set its own cookies to know where you came from, so it can pay a commission.')}${directNames(c) ? html` ${c.t('The gift ideas on the pages of {0} first pass through Linkwise (go.linkwi.se), which records the click and may set a cookie so the store can pay the commission.', directNames(c))}` : ''}</p>
 <h2>${c.t('Sharing and transfers')}</h2>
 <p>${c.t('We do not sell personal data. Our service provider (Cloudflare) may process data outside the UK and the European Economic Area with appropriate safeguards.')}</p>
 <h2>${c.t('Your rights')}</h2>
@@ -1548,12 +1676,12 @@ function notFoundPage(c, path) {
 
 // Every page address, for the sitemap (without ?lang=: English, and the country editions in their own language, L214).
 // The Amazon page only when the Amazon links are live.
-export function pagePaths(site, mode = 'off') {
+export function pagePaths(site, mode = 'off', lw = '') {
   // Only the stores of the UK page, the one Google reads (L195, L210): a store listed for other countries only (the Greek
   // ones) would show Google its "not listed for your country" page.
   const stores = (site.stores || []).filter(s => (s.amazon ? mode === 'on' : Array.isArray(s.sites) && s.sites.length && deliversHere(s, VIEW_BASE) && storeListed(site, s))).map(s => `/stores/${s.slug}/`);
   // Each edition's home page and store pages (L214).
-  const editions = EDITIONS.flatMap(e => [`${e.prefix}/`, ...editionStores(site, e).map(s => `${e.prefix}/stores/${s.slug}/`)]);
+  const editions = EDITIONS.flatMap(e => [`${e.prefix}/`, ...editionStores(site, e, lw).map(s => `${e.prefix}/stores/${s.slug}/`)]);
   return ['/', ...stores, ...editions, ...site.guides.map(g => `/guides/${g.slug}/`), `/guides/${site.checks.slug}/`, ...Object.keys(LEGAL)];
 }
 
@@ -1600,7 +1728,9 @@ export function createGuidesWorker(site, deps = {}) {
       const country = viewCountry(request);
       const mode = viewMode(site, baseMode, country);
       const choice = pickLanguage(site, request, url);
-      const ctxFor = path => makeContext(site, choice.lang, choice.chosen, mode, path, country);
+      // Our Linkwise code (the Worker secret, L226): without it the direct stores are on no page.
+      const lw = linkwiseCode(env);
+      const ctxFor = path => makeContext(site, choice.lang, choice.chosen, mode, path, country, null, lw);
       const page = (body, status = 200, lang = choice.lang) => {
         // Every page now depends on the visitor's country (its stores, codes and Amazon buttons, L210), and before
         // that a language picked from the country or the browser did too (L175): a page is never kept by a shared
@@ -1616,7 +1746,7 @@ export function createGuidesWorker(site, deps = {}) {
         return textResponse(preview ? 'User-agent: *\nDisallow: /\n' : `User-agent: *\nAllow: /\n\nSitemap: https://${site.domain}/sitemap.xml\n`, { method: request.method });
       }
       if (url.pathname === '/sitemap.xml') {
-        const urls = pagePaths(site, baseMode).map(p => `<url><loc>https://${site.domain}${p}</loc></url>`).join('\n');
+        const urls = pagePaths(site, baseMode, lw).map(p => `<url><loc>https://${site.domain}${p}</loc></url>`).join('\n');
         return textResponse(`<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls}\n</urlset>\n`, { type: 'application/xml', method: request.method });
       }
       // A country edition (L214): /gr/ and /gr/stores/<store>/, in the edition's language for everyone (Google too) unless
@@ -1628,7 +1758,7 @@ export function createGuidesWorker(site, deps = {}) {
         const crawler = readsEnglish(request) || GOOGLE_CRAWLER.test(request.headers.get('user-agent') || '');
         const asked = crawler ? '' : languageCode(site, url.searchParams.get('lang'));
         const edLang = asked || ed.lang;
-        const edCtx = p => makeContext(site, edLang, Boolean(asked), viewMode(site, baseMode, ed.country), p, ed.country, ed);
+        const edCtx = p => makeContext(site, edLang, Boolean(asked), viewMode(site, baseMode, ed.country), p, ed.country, ed, lw);
         const rest = url.pathname.slice(ed.prefix.length);
         const edKeep = to => (asked ? edCtx('/').href(to) : edCtx('/').at(to));
         if (rest === '/stores' || rest === '/stores/') return redirect(`https://${site.domain}${edKeep('/#stores')}`, 302);
@@ -1640,9 +1770,11 @@ export function createGuidesWorker(site, deps = {}) {
           return page(homePage(edHome, new Date(nowMs()), await allStoreData(ctx, ed.country)), 200, edLang);
         }
         const em = rest.match(/^\/stores\/([a-z0-9-]+)\/?$/);
-        const edStore = em && editionStores(site, ed).find(s => s.slug === em[1]);
+        const edStore = em && editionStores(site, ed, lw).find(s => s.slug === em[1]);
         if (edStore) {
           if (!rest.endsWith('/')) { url.pathname = `${url.pathname}/`; return redirect(url.toString(), 301); }
+          // A direct store (L226): its own sets and ideas, nothing read from a Gear World database.
+          if (isDirectStore(edStore)) return page(directStorePage(edCtx(`/stores/${edStore.slug}/`), edStore), 200, edLang);
           // The store's list first, then its showcase: never both at once on the same site's database (L221).
           const rt = runtime();
           let products = [];
@@ -1666,12 +1798,15 @@ export function createGuidesWorker(site, deps = {}) {
       const sm = url.pathname.match(/^\/stores\/([a-z0-9-]+)\/?$/);
       if (sm && stores.has(sm[1])) {
         const store = stores.get(sm[1]);
-        // Amazon only with Amazon links (on or preview); otherwise the page does not exist.
-        const shown = store.amazon ? withMarkets(mode) : Array.isArray(store.sites) && store.sites.length > 0;
+        // Amazon only with Amazon links (on or preview); a direct store only with our Linkwise code (L226); otherwise the
+        // page does not exist.
+        const shown = store.amazon ? withMarkets(mode)
+          : isDirectStore(store) ? Boolean(lw) : Array.isArray(store.sites) && store.sites.length > 0;
         if (shown && !url.pathname.endsWith('/')) { url.pathname = `${url.pathname}/`; return redirect(url.toString(), 301); }
         if (shown && store.amazon) return page(amazonStorePage(ctxFor(`/stores/${store.slug}/`), store));
         // A store not listed for the visitor's country (L210): the page says so, with no products or codes.
         if (shown && !deliversHere(store, country)) return page(storeElsewherePage(ctxFor(`/stores/${store.slug}/`), store));
+        if (shown && isDirectStore(store)) return page(directStorePage(ctxFor(`/stores/${store.slug}/`), store));
         if (shown) {
           // The store's list first, then its showcase: never both at once on the same site's database (L221).
           const rt = runtime();

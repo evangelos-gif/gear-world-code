@@ -13,7 +13,8 @@ const LIVE = 'https://megastoresgearworld.com';
 const NOW = Date.parse('2026-11-23T19:00:00Z');
 const ON = { AMAZON_LINKS: 'on' };
 const BROWSER = 'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0 Mobile Safari/537.36';
-const GREEK = site.stores.filter(s => s.network === 'linkwise');
+// The 7 of L221 (the 5 direct stores of L226 are Linkwise stores too, with their own page: ogw-direct.test.mjs).
+const GREEK = site.stores.filter(s => s.network === 'linkwise' && !s.direct);
 // Our own texts may never sell or promise (L107); the Greek words too.
 const NOT_OURS = /\b(shop|shopping|cart|buy now|official|partner|sale|lowest price|% off|save \d)/i;
 const NOT_OURS_EL = /(έκπτωσ|προσφορ|φθηνότερ|χαμηλότερη τιμή|επίσημ|καλάθι αγορών)/i;
@@ -80,7 +81,7 @@ test('L221: the 7 Greek stores have their Linkwise programme logo (120x60, in pu
       assert.ok(Array.isArray(pick) && pick.length >= 1 && pick.length <= 3 && pick.every(q => typeof q === 'string' && q.trim() && q.length <= 80), `${s.slug}: 1 to 3 searches`);
     }
   }
-  for (const s of site.stores.filter(x => x.network !== 'linkwise')) assert.equal(s.showcase, undefined, `${s.slug}: no showcase`);
+  for (const s of site.stores.filter(x => !GREEK.includes(x))) assert.equal(s.showcase, undefined, `${s.slug}: no showcase`);
 });
 
 test('L221: /gr/stores/<store>/ shows the logo, the sets and the ideas, in Greek, each product to its Gear World page, never a price', async () => {

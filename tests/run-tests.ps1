@@ -3493,15 +3493,25 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         ':deploy',
         'echo Uploaded mega-stores-gear-world',
         'echo %* | findstr /C:"wrangler.preview.jsonc" >nul && echo   https://mega-stores-gear-world-preview.test-account.workers.dev',
-        'exit /b 0'
+        ':sfargs',
+        'if "%~1"=="" exit /b 0',
+        'if "%~1"=="--secrets-file" type "%~2" >> "%GW_FAKE_STATE%\secrets.log"',
+        'shift',
+        'goto sfargs'
     ) -join "`r`n"
     [System.IO.File]::WriteAllText((Join-Path $ogBin 'npx.cmd'), $ogNpx + "`r`n", [System.Text.Encoding]::ASCII)
+    # L226: a fake Linkwise code, encrypted for this Windows user like the real one (DPAPI).
+    $ogFakeCode = 'CD' + '24680'
+    $ogSecret = Join-Path $ogState 'linkwise-code.dat'
+    [System.IO.File]::WriteAllText($ogSecret, (ConvertFrom-SecureString (ConvertTo-SecureString $ogFakeCode -AsPlainText -Force)), [System.Text.Encoding]::ASCII)
+    $script:ogSecretArg = $ogSecret
+    $ogTempBefore = @(Get-ChildItem -LiteralPath ([System.IO.Path]::GetTempPath()) -Filter 'gw-lw-*.env' -File -ErrorAction SilentlyContinue).Count
     $oldPath = $env:PATH
     $env:PATH = $ogBin + ';' + $oldPath
     $env:GW_FAKE_STATE = $ogState
     $ogCalls = Join-Path $ogState 'calls.log'
     function Run-Og([string[]]$a) {
-        $all = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $ogTool, '-WorkDir', $ogWork, '-OutDir', $ogOut, '-SkipInstall', '-NoClipboard', '-NoHttpCheck') + $a
+        $all = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $ogTool, '-WorkDir', $ogWork, '-OutDir', $ogOut, '-SkipInstall', '-NoClipboard', '-NoHttpCheck', '-SecretFile', $script:ogSecretArg) + $a
         & $exe @all | Out-Null
         return $LASTEXITCODE
     }
@@ -3522,6 +3532,13 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         Check ($pc.Contains('"name": "mega-stores-gear-world-preview",') -and $pc.Contains('"workers_dev": true,') -and -not $pc.Contains('custom_domain')) 'ogw preview: the test Worker on workers.dev, no domain'
         Check ((OgCalls) -match 'AMAZON_LINKS:preview' -and (OgCalls) -match 'GW_COMMIT:') 'ogw preview: Amazon links without the Associates ID, and the version'
         Check ((OgLastReport 'PREVIEW').Contains('ΕΤΟΙΜΟ: άνοιξε τη δοκιμαστική διεύθυνση') -and (OgLastReport 'PREVIEW').Contains('https://mega-stores-gear-world-preview.test-account.workers.dev')) 'ogw preview: the report ends ΕΤΟΙΜΟ with the test address'
+        # L226: the Linkwise code goes to Cloudflare only as a secret (a temporary file, deleted), never into a report.
+        $ogSecretsLog = Join-Path $ogState 'secrets.log'
+        $ogSl = ''
+        if (Test-Path -LiteralPath $ogSecretsLog) { $ogSl = [System.IO.File]::ReadAllText($ogSecretsLog) }
+        Check (([regex]::Matches((OgCalls), '--secrets-file "[^"]+gw-lw-[0-9a-f]{12}\.env"')).Count -eq 1 -and $ogSl.Trim() -eq ('LINKWISE_CODE=' + $ogFakeCode)) 'ogw preview: the Linkwise code goes to the deploy as a secret (--secrets-file) (L226)'
+        Check (-not (OgCalls).Contains($ogFakeCode) -and -not (OgLastReport 'PREVIEW').Contains($ogFakeCode) -and (OgLastReport 'PREVIEW').Contains('ο κωδικός σου πάει στην Cloudflare ως μυστικό')) 'ogw preview: the code is in no command line and no report (L226)'
+        Check (@(Get-ChildItem -LiteralPath ([System.IO.Path]::GetTempPath()) -Filter 'gw-lw-*.env' -File -ErrorAction SilentlyContinue).Count -eq $ogTempBefore) 'ogw preview: the temporary secrets file is deleted (L226)'
         Check ((Run-Og @('-Step', 'live', '-Apply', '-AfterPreview', '-Approve', 'ΕΓΚΡΙΝΩ OGW PREVIEW')) -eq 1 -and (OgDeploys) -eq 1) 'ogw live with the wrong phrase: no deploy'
         Check ((Run-Og @('-Step', 'live', '-Apply', '-AfterPreview', '-Approve', 'ΕΓΚΡΙΝΩ OGW LIVE')) -eq 0 -and (OgDeploys) -eq 2) 'ogw live after a clean preview: deploys once'
         $lc = [System.IO.File]::ReadAllText((Join-Path $ogWork 'wrangler.jsonc'))
@@ -3541,8 +3558,19 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         Check ((Run-Og @('-Step', 'live', '-Apply', '-AmazonOff', '-Approve', 'ΕΓΚΡΙΝΩ OGW LIVE;ΕΓΚΡΙΝΩ OGW AMAZON LINKS')) -eq 0 -and (OgDeploys) -eq 5) 'ogw live -AmazonOff: deploys once'
         $lastDeploy = @((OgCalls) -split "`n" | Where-Object { $_ -match 'wrangler deploy --config' } | Select-Object -Last 1)[0]
         Check ($lastDeploy -match 'AMAZON_LINKS:off') 'ogw live -AmazonOff: no Amazon links even with the Amazon phrase'
+        Check ($lastDeploy -match '--secrets-file "' -and ([regex]::Matches((OgCalls), '--secrets-file').Count -eq (OgDeploys))) 'ogw live: every deploy with the Linkwise code gives it as a secret (L226)'
+        # L226: no code file: the deploy goes on without --secrets-file (the Worker keeps the secret it has); a file that
+        # cannot be read stops everything before a change (exit 3).
+        $script:ogSecretArg = Join-Path $ogState 'no-such-linkwise-code.dat'
+        Check ((Run-Og @('-Step', 'live', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ OGW LIVE')) -eq 0 -and (OgDeploys) -eq 6 -and -not (@((OgCalls) -split "`n" | Where-Object { $_ -match 'wrangler deploy --config' } | Select-Object -Last 1)[0] -match 'secrets-file') -and (OgLastReport 'LIVE').Contains('δεν βρήκα τον φυλαγμένο κωδικό')) 'ogw live without the code file: deploys without a secret, says so (L226)'
+        $ogBadSecret = Join-Path $ogState 'bad-linkwise-code.dat'
+        [System.IO.File]::WriteAllText($ogBadSecret, 'not encrypted for this user', [System.Text.Encoding]::ASCII)
+        $script:ogSecretArg = $ogBadSecret
+        Check ((Run-Og @('-Step', 'live', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ OGW LIVE')) -eq 3 -and (OgDeploys) -eq 6) 'ogw live with an unreadable code file: exit 3, no deploy (L226)'
+        Check ((Run-Og @('-Step', 'preview', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ OGW PREVIEW')) -eq 3 -and (OgDeploys) -eq 6) 'ogw preview with an unreadable code file: exit 3, no deploy (L226)'
+        $script:ogSecretArg = $ogSecret
         [System.IO.File]::WriteAllText((Join-Path $ogState 'weird.txt'), 'yes')
-        Check ((Run-Og @('-Step', 'live', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ OGW LIVE')) -eq 11 -and (OgDeploys) -eq 5) 'ogw live when Cloudflare does not say whether the Worker exists: exit 11, no deploy'
+        Check ((Run-Og @('-Step', 'live', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ OGW LIVE')) -eq 11 -and (OgDeploys) -eq 6) 'ogw live when Cloudflare does not say whether the Worker exists: exit 11, no deploy'
         Remove-Item -LiteralPath (Join-Path $ogState 'weird.txt') -Force
         $env:GW_GUARD_TEST_LIVE = '*=none'
         Check ((Run-Og @('-Step', 'remove-preview', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ OGW LIVE')) -eq 1 -and -not ((OgCalls) -match 'delete mega-stores-gear-world-preview')) 'ogw remove-preview with the wrong phrase: nothing deleted'
@@ -3844,6 +3872,8 @@ Check ($l215Hub.Contains("`$grOk = (`$grHome.status -eq 200 -and `$grMissing.Cou
 # L214: Mega Stores for Greece at /gr/: the Mega Stores tool checks /gr/, a Greek store page and the sitemap; the Hub tool
 # goes live only when /gr/ is live (exit 25), never with -NoHttpCheck (the tests), and checks the Greek bar and card.
 Check ($ogSrc.Contains("Get-Page (`$base + '/gr/')") -and $ogSrc.Contains("Get-Page (`$base + '/gr/stores/kouzinika-gr/')") -and $ogSrc.Contains("'/gr/</loc>'")) 'ogw-site.ps1: checks /gr/, a Greek store page and the sitemap (L214)'
+Check ($ogSrc.Contains("Get-Page (`$base + '/gr/stores/kotsovolos-gr/')") -and $ogSrc.Contains('rel="sponsored nofollow noopener" target="_blank"') -and $ogSrc.Contains('$dCodes[0] -eq $script:LwCode') -and -not ($ogSrc -match 'Get-Page[^\r\n]*linkwi\.se')) 'ogw-site.ps1: checks the 5 direct stores and their Linkwise links with this code, never opens one (L226)'
+Check ($ogSrc.Contains('function Mask([string]$s)') -and $ogSrc.Contains('$text = Mask $text') -and $ogSrc.Contains("Remove-Item -LiteralPath `$sf -Force") -and $ogSrc.Contains('ZeroFreeBSTR')) 'ogw-site.ps1: the Linkwise code masked on the screen and in the report, its temporary file deleted (L226)'
 $l214Hub = [System.IO.File]::ReadAllText((Join-Path (Join-Path $repo 'tools') 'gwh-hub-v2.ps1'))
 Check ($l214Hub.Contains('function Assert-MegaStoresGr {') -and $l214Hub.Contains("if (`$Step -eq 'live') { Assert-MegaStoresGr }") -and $l214Hub.Contains("Say-Stores (Test-Stores)`r`n    Assert-MegaStoresGr") -and $l214Hub.Contains("if (`$NoHttpCheck -or -not `$workerText.Contains('https://megastoresgearworld.com/gr/')) { return }") -and $l214Hub.Contains('Finish 25') -and $l214Hub.Contains('megastoresgearworld\.com/gr/')) 'gwh-hub-v2.ps1: the Hub preview and live go on only when Mega Stores /gr/ is live (exit 25), never asked with -NoHttpCheck, and the Greek bar and card are checked (L214)'
 

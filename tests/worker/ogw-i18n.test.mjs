@@ -25,6 +25,8 @@ const LIVE = 'https://megastoresgearworld.com';
 const ON = { AMAZON_LINKS: 'on' };
 const OFF = {};
 const PRE = { AMAZON_LINKS: 'preview' };
+// With our Linkwise code (the Worker secret, L226): the direct stores and their Linkwise texts.
+const LW = { LINKWISE_CODE: 'CD12345' };
 const BROWSER = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1';
 const QA = 'GearWorldQA-bot/1.0 (+read-only check)';
 
@@ -49,6 +51,7 @@ async function get(path, env = ON, { ua = BROWSER, headers = {}, cf = null, work
   return { r, text: await r.text() };
 }
 const STORE_PAGES = awinStores(site).map(s => `/stores/${s.slug}/`);
+const DIRECT_PAGES = site.stores.filter(s => s.direct).map(s => `/stores/${s.slug}/`);
 const PAGES = ['/', ...site.guides.map(g => `/guides/${g.slug}/`), `/guides/${site.checks.slug}/`, ...legalPaths(), ...STORE_PAGES];
 const withLang = (p, l) => `${p}${p.includes('?') ? '&' : '?'}lang=${l}`;
 const withoutOffers = text => text.replace(/<p class="promo-offer">[\s\S]*?<\/p>/g, '');
@@ -65,7 +68,7 @@ const SAME = new Set(['Black Friday', 'Black Friday {0}', 'Black Friday: {0} · 
 const RESERVED = new Set(['{0} off your order', 'Black Friday: {0} · {1} days to go', 'Black Friday: {0} · 1 day to go', 'Black Friday and Cyber Monday: {0} to {1}']);
 // Names that stay as they are in every language (a "-" of German or Dutch compounds counts as a space).
 const NAMES = ['Gear World', 'Amazon', 'amazon.co.uk', 'Black Friday', 'Cyber Monday', 'PlayStation', 'Xbox', 'Switch', 'iPhone', 'Android',
-  'UKCA', 'CE', 'IPX5', 'Cloudflare', "Information Commissioner's Office", 'Bluetooth', 'LED', 'mAh', 'dB'];
+  'UKCA', 'CE', 'IPX5', 'Cloudflare', "Information Commissioner's Office", 'Bluetooth', 'LED', 'mAh', 'dB', 'Linkwise', 'go.linkwi.se'];
 // L103, L107: no deals, sale, save, discount, lowest price, partner, trusted, official or cart words of our own, in any
 // language (the sites' list of L103, and the words of a discount or a saving).
 const SHOP_LANGS = /Partnerhändler|Affiliate-Partnern|vertrauenswürdig|Nach Kategorie einkaufen|unsere Händler|συνεργαζόμεν|στους συνεργάτες|αξιόπιστ|Αγορές ανά κατηγορία|στα καταστήματά μας|tiendas? asociadas?|de confianza|Compra por categoría|nuestras tiendas|marchands? partenaires?|partenaires affiliés|de confiance|Acheter par catégorie|nos marchands|negozi? partner|partner affiliati|affidabil|Acquista per categoria|nei nostri negozi|partnerwinkels?|affiliatepartners|betrouwba|Winkelen per categorie|onze winkels|lojas? parceiras?|de confiança|Compre por categoria|as nossas lojas|magazine? partener|partenerilor|de încredere|Cumpără pe categorii|magazinele noastre|магазин(ов)?-партн|своим партн|надёжн|Покупки по категориям|наши магазины|dyqane? partner|partnerëve|besueshm|Bli sipas kategorisë|dyqanet tona|partnersk|partnerz|partnerów|zaufan|Kupuj według kategorii|nasz(e|ych|ymi|ym) sklep/;
@@ -124,7 +127,7 @@ test('L195: 11 dictionaries, the same texts in each, the sites\' layout (code-po
 test('L195: every text the pages use is in every dictionary, and every dictionary text is used (all pages, modes and days)', async () => {
   const empty = { ...site, dictionaries: { 'el-GR': {} } };
   const days = ['2026-11-19', '2026-11-22', '2026-11-26', '2026-11-27', '2026-11-30', '2026-12-01', '2026-12-24', '2026-12-25'];
-  const paths = ['/', '/stores/amazon/', '/nope/', ...PAGES];
+  const paths = ['/', '/stores/amazon/', '/nope/', ...PAGES, ...DIRECT_PAGES];
   const failing = async () => { throw new Error('down'); };
   const renderAll = async (s, langs) => {
     for (const day of days) {
@@ -132,7 +135,7 @@ test('L195: every text the pages use is in every dictionary, and every dictionar
         const w = createGuidesWorker(s, { fetch, cache: null, now: () => at(day) });
         // The UK page, Greece (its own stores) and a country no store is listed for (L210: their own lines).
         for (const cc of ['GB', 'GR', 'US']) {
-          for (const env of [ON, OFF, PRE]) for (const lang of langs) for (const p of paths) {
+          for (const env of [ON, OFF, PRE, LW]) for (const lang of langs) for (const p of paths) {
             const req = new Request(LIVE + withLang(p, lang));
             Object.defineProperty(req, 'cf', { value: { country: cc } });
             await (await w.fetch(req, env)).text();

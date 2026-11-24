@@ -40,7 +40,8 @@ async function get(path, { cc = null, ua = BROWSER, headers = {}, s = HIDDEN, en
   return { r, text: await r.text(), calls: fetch.calls };
 }
 
-const LINKWISE = site.stores.filter(s => s.network === 'linkwise');
+// The 7 Greek stores of L221 (the 5 direct stores of L226 have no page without the Linkwise code: ogw-direct.test.mjs).
+const LINKWISE = site.stores.filter(s => s.network === 'linkwise' && !s.direct);
 const NAMES = LINKWISE.map(s => s.name);
 
 test('L215: Linkwise approved megastoresgearworld.com (23 Nov 2026): the live config hides no network', () => {
