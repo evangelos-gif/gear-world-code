@@ -7,6 +7,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, statSync, readdirSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
 import site from '../../sites/ogw/site.config.js';
 import {
   createGuidesWorker, isDirectStore, directUrl, linkwiseCode, directStores, shownStores, awinStores, editionStores, pagePaths,
@@ -314,16 +315,37 @@ test('L226 (L211): a photo of a direct store that does not open is left out with
 });
 
 test('L226: no Linkwise affiliate code anywhere in the repository (the only one is the fake of the tests)', () => {
-  const roots = ['src', 'sites', 'tools', 'tests', 'docs', 'promos', 'README.md', 'CLAUDE.md', '.github'];
-  const text = /\.(m?js|json|jsonc|md|ps1|psm1|txt|html|css|ya?ml|example|toml|cmd|sh|svg|tpl)$/i;
+  // Every file git tracks (a folder walk where git is missing); binary files are read as text too, harmlessly.
+  let files = [];
+  try { files = execFileSync('git', ['ls-files', '-z'], { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 }).split('\0').filter(Boolean); } catch { files = []; }
+  if (!files.length) {
+    const walk = p => {
+      let st;
+      try { st = statSync(p); } catch { return; }
+      if (st.isDirectory()) { for (const n of readdirSync(p)) if (n !== 'node_modules' && n !== '.git') walk(p === '.' ? n : `${p}/${n}`); return; }
+      files.push(p);
+    };
+    walk('.');
+  }
+  assert.ok(files.length > 100 && files.includes('sites/ogw/site.config.js'), `${files.length} files`);
   const found = [];
-  const walk = p => {
-    let st;
-    try { st = statSync(p); } catch { return; }
-    if (st.isDirectory()) { for (const n of readdirSync(p)) if (n !== 'node_modules' && n !== '.git') walk(`${p}/${n}`); return; }
-    if (!text.test(p)) return;
-    for (const m of readFileSync(p, 'utf8').matchAll(/(?<![A-Za-z0-9])CD\d{3,9}(?!\d)/g)) if (m[0] !== 'CD12345') found.push(`${p}: ${m[0]}`);
-  };
-  for (const r of roots) walk(r);
+  for (const f of files) {
+    let text = '';
+    try { text = readFileSync(f, 'latin1'); } catch { continue; }
+    for (const m of text.matchAll(/(?<![A-Za-z0-9])CD\d{3,9}(?!\d)/g)) if (m[0] !== 'CD12345') found.push(`${f}: ${m[0]}`);
+  }
   assert.deepEqual(found, []);
+});
+
+test('L226: with the code the old "every store page opens a Gear World page" sentences are gone from the legal pages', async () => {
+  const about = (await get('/about/', { cc: 'GB', env: LW })).text;
+  assert.ok(!about.includes('The store pages show product photos, names and brands from the Gear World sites') && about.includes('The pages of the other stores show product photos'));
+  const money = (await get('/how-we-make-money/', { cc: 'GB', env: LW })).text;
+  assert.ok(!money.includes('the &quot;See it on&quot; buttons of the store pages open') && money.includes('the &quot;See it on&quot; buttons of the other store pages open'));
+  const plain = (await get('/how-we-make-money/', { cc: 'GB', env: {} })).text;
+  assert.ok(plain.includes('the &quot;See it on&quot; buttons of the store pages open') && !plain.includes('other store pages'), 'without the code the old sentence');
+  // The direct pages' buttons have their own words ("at" a store, Greek «στο κατάστημα»).
+  const k = (await get('/gr/stores/kotsovolos-gr/')).text;
+  assert.ok(visible(k).includes('Δείτε το στο κατάστημα Κωτσόβολος') && !visible(k).includes('Δείτε το στο Κωτσόβολος'));
+  assert.ok(visible((await get('/gr/stores/ab-gr/')).text).includes('Δείτε τα στο κατάστημα ΑΒ Βασιλόπουλος'));
 });

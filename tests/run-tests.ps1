@@ -3538,7 +3538,8 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         if (Test-Path -LiteralPath $ogSecretsLog) { $ogSl = [System.IO.File]::ReadAllText($ogSecretsLog) }
         Check (([regex]::Matches((OgCalls), '--secrets-file "[^"]+gw-lw-[0-9a-f]{12}\.env"')).Count -eq 1 -and $ogSl.Trim() -eq ('LINKWISE_CODE=' + $ogFakeCode)) 'ogw preview: the Linkwise code goes to the deploy as a secret (--secrets-file) (L226)'
         Check (-not (OgCalls).Contains($ogFakeCode) -and -not (OgLastReport 'PREVIEW').Contains($ogFakeCode) -and (OgLastReport 'PREVIEW').Contains('ο κωδικός σου πάει στην Cloudflare ως μυστικό')) 'ogw preview: the code is in no command line and no report (L226)'
-        Check (@(Get-ChildItem -LiteralPath ([System.IO.Path]::GetTempPath()) -Filter 'gw-lw-*.env' -File -ErrorAction SilentlyContinue).Count -eq $ogTempBefore) 'ogw preview: the temporary secrets file is deleted (L226)'
+        $ogSfPaths = @([regex]::Matches((OgCalls), '--secrets-file "([^"]+)"') | ForEach-Object { $_.Groups[1].Value })
+        Check ($ogSfPaths.Count -ge 1 -and @($ogSfPaths | Where-Object { Test-Path -LiteralPath $_ }).Count -eq 0 -and @(Get-ChildItem -LiteralPath ([System.IO.Path]::GetTempPath()) -Filter 'gw-lw-*.env' -File -ErrorAction SilentlyContinue).Count -le $ogTempBefore) 'ogw preview: the temporary secrets file is deleted (L226)'
         Check ((Run-Og @('-Step', 'live', '-Apply', '-AfterPreview', '-Approve', 'ΕΓΚΡΙΝΩ OGW PREVIEW')) -eq 1 -and (OgDeploys) -eq 1) 'ogw live with the wrong phrase: no deploy'
         Check ((Run-Og @('-Step', 'live', '-Apply', '-AfterPreview', '-Approve', 'ΕΓΚΡΙΝΩ OGW LIVE')) -eq 0 -and (OgDeploys) -eq 2) 'ogw live after a clean preview: deploys once'
         $lc = [System.IO.File]::ReadAllText((Join-Path $ogWork 'wrangler.jsonc'))

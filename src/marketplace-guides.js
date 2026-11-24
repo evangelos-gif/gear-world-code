@@ -1324,8 +1324,9 @@ export async function directPhotos(site, store, deps = {}, ctx = null, { later =
     }
     return new Set(broken);
   };
-  if (later && ctx && typeof ctx.waitUntil === 'function') {
-    ctx.waitUntil(check().catch(() => null));
+  if (later) {
+    // The home page never waits: without a way to finish in the background, no check at all.
+    if (ctx && typeof ctx.waitUntil === 'function') ctx.waitUntil(check().catch(() => null));
     return new Set();
   }
   return check();
@@ -1337,14 +1338,14 @@ function directProduct(c, store, p, broken = new Set()) {
   return html`<div class="sc-item">
     <a class="sc-photo" href="${href}" rel="${DIRECT_REL}" target="_blank"><img src="${p.image}" alt="${p.name}" width="200" height="200" loading="lazy" decoding="async" referrerpolicy="no-referrer"></a>
     <p class="sc-name" translate="no">${p.name}</p>
-    <a class="sc-link" href="${href}" rel="${DIRECT_REL}" target="_blank"><span>${c.t('See it on {0}', keep(store.name))}</span></a>
+    <a class="sc-link" href="${href}" rel="${DIRECT_REL}" target="_blank"><span>${c.t('See it at {0}', keep(store.name))}</span></a>
   </div>`;
 }
 // An idea: one product of the store, or (AB, which has no product feed) one of its categories, as a text link.
 function directIdea(c, store, idea, broken) {
   if (idea.item) return directProduct(c, store, idea.item, broken);
   const href = directUrl(store, idea.url, c.lw);
-  return href ? html`<a class="sc-link" href="${href}" rel="${DIRECT_REL}" target="_blank"><span>${c.t('See them on {0}', keep(store.name))}</span></a>` : '';
+  return href ? html`<a class="sc-link" href="${href}" rel="${DIRECT_REL}" target="_blank"><span>${c.t('See them at {0}', keep(store.name))}</span></a>` : '';
 }
 // The note at the top of the page: these buttons are our own Linkwise links to the store (not Gear World pages).
 function directDisclosure(c, store) {
@@ -1754,11 +1755,12 @@ export function createGuidesWorker(site, deps = {}) {
     const list = awinStores(site).filter(s => deliversHere(s, country));
     // One photo limit for the whole page; the home page never waits for the photo check (L211).
     const rt = { ...runtime(), photoLater: true };
+    const r = await Promise.allSettled(list.map(s => storeProducts(site, s, rt, ctx)));
+    // The direct stores (L226) after them and with their own photo limit, so their checks never take the places of
+    // the other stores' photos (second review 24/11/2026: those would come back late and be read again sooner).
     const direct = directStores(site, country, lw);
-    const [r, d] = await Promise.all([
-      Promise.allSettled(list.map(s => storeProducts(site, s, rt, ctx))),
-      Promise.allSettled(direct.map(s => directPhotos(site, s, rt, ctx, { later: true })))
-    ]);
+    const drt = { ...rt, photoLimit: photoLimiter(2) };
+    const d = await Promise.allSettled(direct.map(s => directPhotos(site, s, drt, ctx, { later: true })));
     const out = {};
     list.forEach((s, i) => { out[s.slug] = r[i].status === 'fulfilled' ? r[i].value.products : []; });
     // A direct store (L226): the photos of its card that did not open.
